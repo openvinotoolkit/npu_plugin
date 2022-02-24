@@ -28,40 +28,12 @@ mlir::Value createActivationWindowTensor(mlir::OpBuilder& builder, mlir::Locatio
     return dataConstOp.output();
 }
 
-int32_t getWeightPtrStep(::mlir::Value weights, ::mlir::Value activation_window) {
-    if (weights == nullptr) {
-        return 0;
-    }
-
-    const auto filterShape = getShape(weights);
-
-    const auto IC = filterShape[Dims4D::Filter::IC];
-    const auto KY = filterShape[Dims4D::Filter::KY];
-    const auto KX = filterShape[Dims4D::Filter::KX];
-
-    if (activation_window != nullptr) {
-        // Channel major and depthwise convolution case.
-        // Weights table contains both activation window and weights.
-        // Check that weights have expected alignment.
-        // Other than that, weight step is the same for both z-major (OYXI) and depthwise convolutions.
-        const auto origFilterType = weights.getType().cast<vpux::NDTypeInterface>();
-        const auto convAlignment = VPU::NCEInvariant::getAlignment(origFilterType.getElementType());
-        const auto weightsElementCount = IC * KY * KX;
-        VPUX_THROW_UNLESS(weightsElementCount % convAlignment == 0,
-                          "Channel Major and Depthwise convolution weights size must be a multiple of {0}, got {1}",
-                          convAlignment, weightsElementCount);
-    }
-
-    const Byte eltSize = getElemTypeSize(weights.getType());
-    return checked_cast<int32_t>(IC * KY * KX * eltSize.count());
-}
-
 std::vector<int32_t> createWeightsTableData(mlir::Value opInput, mlir::Value opOutput, mlir::Value weights,
                                             mlir::Value activationWindow, Const::ContentAttr bias, int64_t OC,
                                             vpux::VPU::PPETaskAttr ppeTaskAttr, VPU::ArchKind _arch) {
     const auto weightPtrOffset = 0;
     const auto sparsityPtrOffset = 0;
-    const auto weightPtrStep = getWeightPtrStep(weights, activationWindow);
+    const auto weightPtrStep = VPU::NCESparsity::getWeightPtrStep(weights, activationWindow);
 
     const auto inElemType = opInput.getType().cast<vpux::NDTypeInterface>().getElementType();
     const auto outElemType = opOutput.getType().cast<vpux::NDTypeInterface>().getElementType();

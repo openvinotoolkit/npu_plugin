@@ -46,6 +46,8 @@ int64_t getActivationWindowSize(Mode mode, ShapeRef kernelSize, int64_t SX, mlir
 std::vector<uint8_t> getFakeSparsity(Mode mode, ShapeRef kernelSize, int64_t SX, mlir::Type elemType, int64_t IC,
                                      int64_t OC);
 
+int32_t getWeightPtrStep(mlir::Value weights, mlir::Value activationWindow);
+
 std::vector<int32_t> getWeightsTable(mlir::Type inElemType, mlir::Type outElemType, Optional<int32_t> weightPtrOffset,
                                      int32_t weightPtrStep, Optional<int32_t> sparsityPtrOffset, ArchKind arch,
                                      int64_t OC, mlir::Type weightsElemType = nullptr,

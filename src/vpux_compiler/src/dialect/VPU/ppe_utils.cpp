@@ -196,5 +196,88 @@ VPU::PPETaskAttr getNCEEltwisePPETaskAttr(mlir::Value opInput1, mlir::Value opIn
     return ppeAttr;
 }
 
+VPU::PostOpParams getPwlPostOpParams(const mlir::Type inElemType, const mlir::Type outElemType, VPU::PPEMode ppeType) {
+    const int64_t clampLow = getPwlClamp(inElemType, outElemType, ppeType, true);
+    const int64_t clampHigh = getPwlClamp(inElemType, outElemType, ppeType, false);
+    const int64_t LreluMult = 1;
+    const int64_t LreluShift = 0;
+    const int64_t postShift = getPwlPostShift(ppeType);
+
+    // Dummy values for mult & shift, as the actual values will be computed in the weights table
+    SmallVector<int64_t> quantMult = {1};
+    SmallVector<int64_t> quantShift = {0};
+
+    return PostOpParams{ppeType,   clampLow,   clampHigh,
+                        LreluMult, LreluShift, QuantizationParams{quantMult, quantShift, postShift}};
+}
+
+llvm::Optional<VPU::PostOpParams> parsePostOp(IE::PostOp postOp, const mlir::Type inElemType,
+                                              const mlir::Type outElemType, VPU::ArchKind arch, mlir::Location loc) {
+    if (postOp == nullptr) {
+        return mlir::None;
+    }
+
+    auto outElemQType = outElemType.dyn_cast<mlir::quant::QuantizedType>();
+    int64_t clampLowQuantized = 0;
+    int64_t clampHighQuantized = 0;
+    if (outElemQType != nullptr) {
+        clampLowQuantized = getClampValuesForQuantizedOps(outElemQType, outElemType).first;
+        clampHighQuantized = getClampValuesForQuantizedOps(outElemQType, outElemType).second;
+    }
+
+    if (postOp.name().getValue() == IE::ReLUOp::getOperationName()) {
+        VPUX_THROW_UNLESS(postOp.attrs().empty(), "'{0}' PostOp should not have any attributes", postOp.name());
+
+        int64_t clampLow = 0;
+        int64_t clampHigh = (outElemQType != nullptr) ? clampHighQuantized : std::numeric_limits<int32_t>::max();
+        const int64_t LreluMult = 1;
+        const int64_t LreluShift = 0;
+
+        return PostOpParams{VPU::PPEMode::LRELU, clampLow, clampHigh, LreluMult, LreluShift};
+    } else if (postOp.name().getValue() == IE::ClampOp::getOperationName()) {
+        IE::ClampOp::Adaptor clamp(None, postOp.attrs());
+        VPUX_THROW_UNLESS(clamp.verify(loc).succeeded(), "Wrong attributes '{0}' for '{1}' PostOp", postOp.attrs(),
+                          postOp.name());
+
+        int64_t clampLow =
+                (outElemQType != nullptr) ? clampLowQuantized : vpux::toFixedPoint(clamp.min().getValueAsDouble());
+        int64_t clampHigh =
+                (outElemQType != nullptr) ? clampHighQuantized : vpux::toFixedPoint(clamp.max().getValueAsDouble());
+        const int64_t LreluMult = 1;
+        const int64_t LreluShift = 0;
+
+        return PostOpParams{VPU::PPEMode::NOOP, clampLow, clampHigh, LreluMult, LreluShift};
+    } else if (postOp.name().getValue() == IE::LeakyReluOp::getOperationName()) {
+        IE::LeakyReluOp::Adaptor leakyRelu(None, postOp.attrs());
+        VPUX_THROW_UNLESS(leakyRelu.verify(loc).succeeded(), "Wrong attributes '{0}' for '{1}' PostOp", postOp.attrs(),
+                          postOp.name());
+
+        const auto alpha = leakyRelu.negative_slope().getValueAsDouble();
+        int32_t clampLow = static_cast<int32_t>(std::numeric_limits<int32_t>::min() / alpha);
+        if (outElemQType != nullptr) {
+            clampLow = (arch == VPU::ArchKind::MTL) ? static_cast<int32_t>(clampLowQuantized)
+                                                    : static_cast<int32_t>(clampLowQuantized / alpha);
+        }
+
+        int64_t clampHigh = (outElemQType != nullptr) ? clampHighQuantized : std::numeric_limits<int32_t>::max();
+        uint32_t leakyAccuracyBits = arch == VPU::ArchKind::MTL ? 31 : 7;
+        uint32_t LreluMult = 1;
+        uint32_t LreluShift = 0;
+        if (isDoubleEqual(alpha, 0.0)) {
+            LreluMult = 0;
+        } else if (!isDoubleEqual(alpha, 1.0)) {
+            vpux::VPU::NCESparsity::computeQuantMultShift(alpha, LreluShift, LreluMult, leakyAccuracyBits);
+        }
+        return PostOpParams{VPU::PPEMode::LPRELU, static_cast<int64_t>(clampLow), clampHigh,
+                            static_cast<int64_t>(LreluMult), static_cast<int64_t>(LreluShift)};
+    } else if (postOp.name().getValue() == IE::SigmoidOp::getOperationName()) {
+        return VPU::getPwlPostOpParams(inElemType, outElemType, VPU::PPEMode::SIGMOID);
+    } else if (postOp.name().getValue() == IE::TanhOp::getOperationName()) {
+        return VPU::getPwlPostOpParams(inElemType, outElemType, VPU::PPEMode::TANH);
+    }
+
+    VPUX_THROW("Unsupported PostOp '{0}'", postOp.name());
+}
+
 }  // namespace VPU
 }  // namespace vpux
