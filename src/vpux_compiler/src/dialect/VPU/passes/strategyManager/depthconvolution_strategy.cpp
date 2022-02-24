@@ -36,3 +36,4 @@ bool DepthConvolutionStrategy::doesLayerFitIntoCMX(mlir::Operation* op, StringRe
     //     return origOp.fitIntoCMX(distributedActivationTensorType, distributeddWeightsTensorType,
     //                              distributedOutputTensorType);
 }
+
