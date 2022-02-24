@@ -184,7 +184,7 @@ void vpux::VPURT::BarrierSimulator::parseTasks(mlir::Operation* parentOp) {
     };
 
     parentOp->walk([&](VPURT::TaskOp taskOp) {
-        auto* wrappedTaskOp = taskOp.getInnerTaskOp().getOperation();
+        auto* wrappedTaskOp = taskOp.getInnerTaskOp();
 
         const auto virtualDep = _vdt.add(taskOp);
 

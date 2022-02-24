@@ -93,4 +93,18 @@ def CompressWeights : PassBase<"compress-weights", "vpux::FunctionPass"> {
     let constructor = "vpux::VPUIP::createCompressWeightsPass()";
 }
 
+//
+// UnrollClusterTiling
+//
+
+def UnrollClusterTiling : PassBase<"unroll-cluster-tiling", "vpux::FunctionPass"> {
+    let summary = "Extracts child operations from ClusterTiling operation";
+
+    let description = [{
+        Legalizes chain of ClusterTiling operations according to the tile schema
+    }];
+
+    let constructor = "vpux::VPUIP::createUnrollClusterTilingPass()";
+}
+
 #endif

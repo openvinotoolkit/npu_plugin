@@ -3006,6 +3006,7 @@ def VPUIP_NCEClusterTilingOp :
                 IsolatedFromAbove,
                 MultiViewOpInterface,
                 AttrSizedOperandSegments,
+                MemoryEffectsOpInterface,
                 DeclareOpInterfaceMethods<IERT_LayerOpInterface>,
                 DeclareOpInterfaceMethods<RegionBranchOpInterface,
                     ["getSuccessorEntryOperands", "getNumRegionInvocations"]>
@@ -3035,8 +3036,12 @@ def VPUIP_NCEClusterTilingOp :
     ];
 
     let extraClassDeclaration = [{
-      using BodyBuilderFn =
-          llvm::function_ref<void(mlir::OpBuilder&, mlir::Location, mlir::ValueRange)>;
+        using BodyBuilderFn =
+            llvm::function_ref<void(mlir::OpBuilder&, mlir::Location, mlir::ValueRange)>;
+
+        mlir::Operation* getInnerTaskOp();
+        mlir::MutableArrayRef<mlir::BlockArgument> getInnerInputs();
+        mlir::MutableArrayRef<mlir::BlockArgument> getInnerOutputs();
     }];
 }
 
