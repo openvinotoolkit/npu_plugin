@@ -50,7 +50,7 @@ private:
 
             mlir::Block::iterator blkIt;
             for (blkIt = blkFunc.begin(); blkIt != blkFunc.end(); ++blkIt) {
-                _log.warning("replaceVPURTTaskOpWithNNDMAOp(): op = {0}", *blkIt);
+                _log.info("replaceVPURTTaskOpWithNNDMAOp(): op = {0}", *blkIt);
 
                 VPURT::TaskOp taskOp = llvm::dyn_cast<VPURT::TaskOp>(blkIt);
                 if (taskOp) {
@@ -170,9 +170,8 @@ void ConvertVPUIP2VPUIPRegMappedPass::safeRunOnFunc() {
     //   failed.>>
     replaceVPURTTaskOpWithNNDMAOp(funcOp, _log);
 
-    _log.warning(
-            "ConvertVPUIP2VPUIPRegMappedPass::safeRunOnFunc(): After replaceVPURTTaskOpWithNNDMAOp(): funcOp = {0}",
-            funcOp);
+    _log.info("ConvertVPUIP2VPUIPRegMappedPass::safeRunOnFunc(): After replaceVPURTTaskOpWithNNDMAOp(): funcOp = {0}",
+              funcOp);
 
     // Default is operations are illegal.
 
