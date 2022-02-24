@@ -108,15 +108,15 @@ mlir::Value Convert2VPUIPRegMappedAndELFPass::createSection(mlir::FuncOp func, m
                 // isNNDMAOp is true only when DerivedOpType is vpux::VPUIPRegMapped::NNDMAOp
                 NNDMAOpInput[numNNDMAOps] = ((vpux::VPUIPRegMapped::NNDMAOp)opCasted).input();
                 NNDMAOpOutput[numNNDMAOps] = ((vpux::VPUIPRegMapped::NNDMAOp)opCasted).output_buff();
-                _log.fatal("createSection(): NNDMAOpInput[numNNDMAOps] = {0}\n", NNDMAOpInput[numNNDMAOps]);
-                _log.fatal("createSection(): NNDMAOpOutput[numNNDMAOps] = {0}\n", NNDMAOpOutput[numNNDMAOps]);
+                _log.info("createSection(): NNDMAOpInput[numNNDMAOps] = {0}\n", NNDMAOpInput[numNNDMAOps]);
+                _log.info("createSection(): NNDMAOpOutput[numNNDMAOps] = {0}\n", NNDMAOpOutput[numNNDMAOps]);
 
                 numNNDMAOps++;
             }
 
             mlir::OpBuilder builderELFSectionOpReg(blkNew, blkNew->begin());
 
-            _log.fatal("createSection(): Before builderELFSectionOpReg.create()\n");
+            _log.info("createSection(): Before builderELFSectionOpReg.create()\n");
 
             ELF::PutOpInSectionOp ELFPutOpInSectionOp = builderELFSectionOpReg.create<ELF::PutOpInSectionOp>(
                     builderELFSectionOpReg.getUnknownLoc(),  // endOp->getLoc(),
@@ -142,7 +142,7 @@ bool Convert2VPUIPRegMappedAndELFPass::checkIfValueIsNetArg(mlir::Value val, std
 
         unsigned int blockArgNum = blockArg.getArgNumber();
 
-        _log.fatal("    blockArgNum = {0}\n", blockArgNum);
+        _log.info("    blockArgNum = {0}\n", blockArgNum);
 
         // By convention the arguments of the FuncOp are described in-order in
         //   the IE.CNNNetwork block, within its parameters inputsInfo and
@@ -154,7 +154,7 @@ bool Convert2VPUIPRegMappedAndELFPass::checkIfValueIsNetArg(mlir::Value val, std
             respectiveNetArg = diOpOutVec[blockArgNum - diOpInVec.size()];
         }
 
-        _log.fatal("    respectiveNetArg = {0}\n", respectiveNetArg);
+        _log.info("    respectiveNetArg = {0}\n", respectiveNetArg);
 
         strRes = respectiveNetArg.name().str();
     } else {
@@ -171,7 +171,7 @@ bool Convert2VPUIPRegMappedAndELFPass::checkIfValueIsNetArg(mlir::Value val, std
 //   which we later populate with RelocOps.
 void Convert2VPUIPRegMappedAndELFPass::createRelocationSection(mlir::FuncOp funcOp, mlir::MLIRContext* ctx,
                                                                mlir::Value& nndmaSectionOpValue) {
-    _log.fatal("createRelocationSection(): funcOp = {0}\n", funcOp);
+    _log.info("createRelocationSection(): funcOp = {0}\n", funcOp);
 
     mlir::Block& blkFunc = (funcOp.getCallableRegion())->front();
 
@@ -199,7 +199,7 @@ void Convert2VPUIPRegMappedAndELFPass::createRelocationSection(mlir::FuncOp func
 
         std::string tmpStr;
 
-        _log.fatal("NNDMAOpInput[idx] = {0}\n", NNDMAOpInput[idx]);
+        _log.info("NNDMAOpInput[idx] = {0}\n", NNDMAOpInput[idx]);
 
         // We handle the NNDMAOpInput[idx] value
         bool res = checkIfValueIsNetArg(NNDMAOpInput[idx], tmpStr);
@@ -208,7 +208,7 @@ void Convert2VPUIPRegMappedAndELFPass::createRelocationSection(mlir::FuncOp func
         } else {
             nameSym = mlir::StringAttr::get(ctx, nameSymStr + "_input");
         }
-        _log.fatal("nameSym = {0}\n", nameSym);
+        _log.info("nameSym = {0}\n", nameSym);
 
         ELFSymbolOp[numELFSymbolOps] = builderFunc.create<ELF::SymbolOp>(endOp->getLoc(),
                                                                          symbolType,         // mlir::Type
@@ -218,10 +218,10 @@ void Convert2VPUIPRegMappedAndELFPass::createRelocationSection(mlir::FuncOp func
                                                                          sizeSym,  // size
                                                                          valueSym  // value
         );
-        _log.fatal("ELFSymbolOp[{0}] = {1}\n", numELFSymbolOps, ELFSymbolOp[numELFSymbolOps]);
+        _log.info("ELFSymbolOp[{0}] = {1}\n", numELFSymbolOps, ELFSymbolOp[numELFSymbolOps]);
         numELFSymbolOps++;
 
-        _log.fatal("NNDMAOpOutput[idx] = {0}\n", NNDMAOpOutput[idx]);
+        _log.info("NNDMAOpOutput[idx] = {0}\n", NNDMAOpOutput[idx]);
 
         // We handle the NNDMAOpInput[idx] value
         res = checkIfValueIsNetArg(NNDMAOpOutput[idx], tmpStr);
@@ -230,7 +230,7 @@ void Convert2VPUIPRegMappedAndELFPass::createRelocationSection(mlir::FuncOp func
         } else {
             nameSym = mlir::StringAttr::get(ctx, nameSymStr + "_output");
         }
-        _log.fatal("nameSym = {0}\n", nameSym);
+        _log.info("nameSym = {0}\n", nameSym);
 
         ELFSymbolOp[numELFSymbolOps] = builderFunc.create<ELF::SymbolOp>(endOp->getLoc(),
                                                                          symbolType,          // mlir::Type
@@ -240,7 +240,7 @@ void Convert2VPUIPRegMappedAndELFPass::createRelocationSection(mlir::FuncOp func
                                                                          sizeSym,  // size
                                                                          valueSym  // value
         );
-        _log.fatal("ELFSymbolOp[{0}] = {1}\n", numELFSymbolOps, ELFSymbolOp[numELFSymbolOps]);
+        _log.info("ELFSymbolOp[{0}] = {1}\n", numELFSymbolOps, ELFSymbolOp[numELFSymbolOps]);
         numELFSymbolOps++;
     }
 
@@ -301,12 +301,12 @@ void Convert2VPUIPRegMappedAndELFPass::createRelocationSection(mlir::FuncOp func
 
         mlir::Value inputArgELFSymbolOp = ELFSymbolOp[idx].inputArg();
         mlir::BlockArgument blockArg = inputArgELFSymbolOp.dyn_cast_or_null<mlir::BlockArgument>();
-        _log.fatal("inputArgELFSymbolOp = {0}\n", inputArgELFSymbolOp);
+        _log.info("inputArgELFSymbolOp = {0}\n", inputArgELFSymbolOp);
 
         if (blockArg) {
             unsigned int blockArgNum = blockArg.getArgNumber();
 
-            _log.fatal("    inputArgELFSymbolOp is a BlockArgument and blockArgNum = {0}\n", blockArgNum);
+            _log.info("    inputArgELFSymbolOp is a BlockArgument and blockArgNum = {0}\n", blockArgNum);
 
             if (blockArgNum < diOpInVec.size()) {
                 putOpInSectionOp = builderInputSymTabSec.create<ELF::PutOpInSectionOp>(
@@ -326,7 +326,7 @@ void Convert2VPUIPRegMappedAndELFPass::createRelocationSection(mlir::FuncOp func
             );
         }
 
-        _log.fatal("createRelocationSection(): putOpInSectionOp = {0}\n", putOpInSectionOp);
+        _log.info("createRelocationSection(): putOpInSectionOp = {0}\n", putOpInSectionOp);
     }
 
     // vpux::ELF::SectionType sectionType = vpux::ELF::SectionType::get(ctx);
@@ -342,7 +342,7 @@ void Convert2VPUIPRegMappedAndELFPass::createRelocationSection(mlir::FuncOp func
             // vpux::ELF::SectionFlagsAttr::SHF_NONE                      // vpux::ELF::SectionFlagsAttr secFlags,
             vpux::ELF::SectionFlagsAttr::SHF_INFO_LINK);
     //
-    _log.fatal("createRelocationSection(): createRestRelocationSectionOp = {0}\n", createRestRelocationSectionOp);
+    _log.info("createRelocationSection(): createRestRelocationSectionOp = {0}\n", createRestRelocationSectionOp);
     //
     mlir::Region& regRestRelocSec = createRestRelocationSectionOp.getOperation()->getRegion(0);
     mlir::Block* blkRestRelocSec = new mlir::Block();
@@ -363,7 +363,7 @@ void Convert2VPUIPRegMappedAndELFPass::createRelocationSection(mlir::FuncOp func
                     vpux::ELF::SectionFlagsAttr::VPU_SHF_USERINPUT  // vpux::ELF::SectionFlagsAttr secFlags,
     );
     //
-    _log.fatal("createRelocationSection(): createInputRelocationSectionOp = {0}\n", createInputRelocationSectionOp);
+    _log.info("createRelocationSection(): createInputRelocationSectionOp = {0}\n", createInputRelocationSectionOp);
     //
     mlir::Region& regInputRelocSec = createInputRelocationSectionOp.getOperation()->getRegion(0);
     mlir::Block* blkInputRelocSec = new mlir::Block();
@@ -384,7 +384,7 @@ void Convert2VPUIPRegMappedAndELFPass::createRelocationSection(mlir::FuncOp func
                     vpux::ELF::SectionFlagsAttr::VPU_SHF_USEROUTPUT  // vpux::ELF::SectionFlagsAttr secFlags,
     );
     //
-    _log.fatal("createRelocationSection(): createOutputRelocationSectionOp = {0}\n", createOutputRelocationSectionOp);
+    _log.info("createRelocationSection(): createOutputRelocationSectionOp = {0}\n", createOutputRelocationSectionOp);
     //
     mlir::Region& regOutputRelocSec = createOutputRelocationSectionOp.getOperation()->getRegion(0);
     mlir::Block* blkOutputRelocSec = new mlir::Block();
@@ -399,14 +399,14 @@ void Convert2VPUIPRegMappedAndELFPass::createRelocationSection(mlir::FuncOp func
         bool isBlkFuncArg = false;
 
         mlir::Value inputArgELFSymbolOp = ELFSymbolOp[idx].inputArg();
-        _log.fatal("inputArgELFSymbolOp = {0}\n", inputArgELFSymbolOp);
+        _log.info("inputArgELFSymbolOp = {0}\n", inputArgELFSymbolOp);
         mlir::BlockArgument blockArg = inputArgELFSymbolOp.dyn_cast_or_null<mlir::BlockArgument>();
         unsigned int blockArgNum;
 
         if (blockArg) {
             isBlkFuncArg = true;
             blockArgNum = blockArg.getArgNumber();
-            _log.fatal("    blockArgNum = {0}\n", blockArgNum);
+            _log.info("    blockArgNum = {0}\n", blockArgNum);
         }
 
         ELF::RelocOp ELFRelocOp;
@@ -442,18 +442,16 @@ void Convert2VPUIPRegMappedAndELFPass::createRelocationSection(mlir::FuncOp func
             );
         }
 
-        _log.fatal("createRelocationSection(): ELFRelocOp = {0}\n", ELFRelocOp);
+        _log.info("createRelocationSection(): ELFRelocOp = {0}\n", ELFRelocOp);
     }
 
-    _log.fatal("createRelocationSection(): funcOp = {0}\n", funcOp);
+    _log.info("createRelocationSection(): funcOp = {0}\n", funcOp);
 }
 
 void Convert2VPUIPRegMappedAndELFPass::safeRunOnModule() {
     mlir::MLIRContext* ctx = &(getContext());
     mlir::FuncOp funcOp;
     mlir::ModuleOp moduleOp = getOperation();
-
-    // llvm::dbgs() << "Entered Convert2VPUIPRegMappedAndELFPass::safeRunOnFunc().\n";
 
     vpux::VPUIPRegMapped::NNDMAOp nndmaOpTmp;
     SIZEOF_SERIALIZED_STRUCT = (int)nndmaOpTmp.getBinarySize();
@@ -462,21 +460,21 @@ void Convert2VPUIPRegMappedAndELFPass::safeRunOnModule() {
     OFFSET_SRC_SERIALIZED_STRUCT = (int)((char*)(&tmp.transaction.src) - (char*)(&tmp));
     OFFSET_DST_SERIALIZED_STRUCT = (int)((char*)(&tmp.transaction.dst) - (char*)(&tmp));
 
-    _log.fatal("SIZEOF_SERIALIZED_STRUCT = {0}\n", SIZEOF_SERIALIZED_STRUCT);
-    _log.fatal("OFFSET_SRC_SERIALIZED_STRUCT = {0}\n", OFFSET_SRC_SERIALIZED_STRUCT);
-    _log.fatal("OFFSET_DST_SERIALIZED_STRUCT = {0}\n", OFFSET_DST_SERIALIZED_STRUCT);
+    _log.info("SIZEOF_SERIALIZED_STRUCT = {0}\n", SIZEOF_SERIALIZED_STRUCT);
+    _log.info("OFFSET_SRC_SERIALIZED_STRUCT = {0}\n", OFFSET_SRC_SERIALIZED_STRUCT);
+    _log.info("OFFSET_DST_SERIALIZED_STRUCT = {0}\n", OFFSET_DST_SERIALIZED_STRUCT);
 
-    _log.fatal("Convert2VPUIPRegMappedAndELFPass::safeRunOnFunc(): moduleOp = {0}\n", moduleOp);
+    _log.info("Convert2VPUIPRegMappedAndELFPass::safeRunOnFunc(): moduleOp = {0}\n", moduleOp);
 
     for (mlir::Operation& op : moduleOp) {
         if (vpux::IE::CNNNetworkOp cnnOp = llvm::dyn_cast<vpux::IE::CNNNetworkOp>(op)) {
-            _log.fatal("Found a IE::CNNNetworkOp operation\n");
+            _log.info("Found a IE::CNNNetworkOp operation\n");
 
             diOpInVec = cnnOp.getInputsInfo();
             diOpOutVec = cnnOp.getOutputsInfo();
 
-            _log.fatal("  diOpInVec.size() = {0}\n", diOpInVec.size());
-            _log.fatal("  diOpOutVec.size() = {0}\n", diOpOutVec.size());
+            _log.info("  diOpInVec.size() = {0}\n", diOpInVec.size());
+            _log.info("  diOpOutVec.size() = {0}\n", diOpOutVec.size());
         } else if (mlir::isa<mlir::FuncOp>(op)) {
             funcOp = llvm::cast<mlir::FuncOp>(op);
 
@@ -501,7 +499,7 @@ void Convert2VPUIPRegMappedAndELFPass::safeRunOnModule() {
         }
     }
 
-    _log.fatal("Convert2VPUIPRegMappedAndELFPass::safeRunOnFunc(): moduleOp = {0}\n", moduleOp);
+    _log.info("Convert2VPUIPRegMappedAndELFPass::safeRunOnFunc(): moduleOp = {0}\n", moduleOp);
 }
 }  // namespace
 

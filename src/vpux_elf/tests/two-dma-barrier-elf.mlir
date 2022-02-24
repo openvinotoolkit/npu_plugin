@@ -55,8 +55,8 @@ func @main(%arg0: memref<1x1x2x1000xf16>, %arg1: memref<1x1x2x1000xf16>) -> memr
     %sym_for_mappedInfSec = ELF.Symbol %mappedInfSec name("symMappedInfSec") : !ELF.Section
     %sym_for_scratchSection = ELF.Symbol %scratchSection name("symScratchSection") : !ELF.Section
 
-    %symArg0 = ELF.Symbol %arg0 name("inputCNN") size(2000) : memref<1x1x2x1000xf16>
-    %symArg1 = ELF.Symbol %arg1 name("outputCNN") size(2000) : memref<1x1x2x1000xf16>
+    %symArg0 = ELF.Symbol %arg0 name("inputCNN") size(4000) : memref<1x1x2x1000xf16>
+    %symArg1 = ELF.Symbol %arg1 name("outputCNN") size(4000) : memref<1x1x2x1000xf16>
 
     %genericSymSection = ELF.CreateSymbolTableSection secName(".symtab") secFlags(SHF_NONE) -> !ELF.Section
     {
