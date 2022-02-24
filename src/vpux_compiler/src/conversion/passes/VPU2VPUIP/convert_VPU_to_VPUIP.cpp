@@ -93,8 +93,8 @@ mlir::Value allocateResult(mlir::Location loc, mlir::OpBuilder& builder, mlir::T
 
 class ConvRewriter final : public mlir::OpConversionPattern<VPU::NCEConvolutionOp> {
 public:
-    ConvRewriter(mlir::TypeConverter& typeConverter, mlir::MLIRContext* ctx, Logger log, VPU::ArchKind arch)
-            : mlir::OpConversionPattern<VPU::NCEConvolutionOp>(typeConverter, ctx), _log(log), _arch(arch) {
+    ConvRewriter(mlir::TypeConverter& typeConverter, mlir::MLIRContext* ctx, Logger log)
+            : mlir::OpConversionPattern<VPU::NCEConvolutionOp>(typeConverter, ctx), _log(log) {
         setDebugName("ConvRewriter");
     }
 
@@ -104,7 +104,6 @@ public:
 
 private:
     Logger _log;
-    VPU::ArchKind _arch;
 };
 
 mlir::LogicalResult ConvRewriter::matchAndRewrite(VPU::NCEConvolutionOp origOp, OpAdaptor newArgs,
@@ -167,8 +166,8 @@ mlir::LogicalResult ConvRewriter::matchAndRewrite(VPU::NCEConvolutionOp origOp, 
 
 class MaxPoolRewriter final : public mlir::OpConversionPattern<VPU::NCEMaxPoolOp> {
 public:
-    MaxPoolRewriter(mlir::TypeConverter& typeConverter, mlir::MLIRContext* ctx, Logger log, VPU::ArchKind arch)
-            : mlir::OpConversionPattern<VPU::NCEMaxPoolOp>(typeConverter, ctx), _log(log), _arch(arch) {
+    MaxPoolRewriter(mlir::TypeConverter& typeConverter, mlir::MLIRContext* ctx, Logger log)
+            : mlir::OpConversionPattern<VPU::NCEMaxPoolOp>(typeConverter, ctx), _log(log) {
     }
 
 public:
@@ -177,7 +176,6 @@ public:
 
 private:
     Logger _log;
-    VPU::ArchKind _arch;
 };
 
 mlir::LogicalResult MaxPoolRewriter::matchAndRewrite(VPU::NCEMaxPoolOp origOp, OpAdaptor newArgs,
@@ -223,8 +221,8 @@ mlir::LogicalResult MaxPoolRewriter::matchAndRewrite(VPU::NCEMaxPoolOp origOp, O
 
 class DepthwiseConvRewriter final : public mlir::OpConversionPattern<VPU::NCEDepthConvolutionOp> {
 public:
-    DepthwiseConvRewriter(mlir::TypeConverter& converter, mlir::MLIRContext* ctx, Logger log, VPU::ArchKind arch)
-            : mlir::OpConversionPattern<VPU::NCEDepthConvolutionOp>(converter, ctx), _log(log), _arch(arch) {
+    DepthwiseConvRewriter(mlir::TypeConverter& converter, mlir::MLIRContext* ctx, Logger log)
+            : mlir::OpConversionPattern<VPU::NCEDepthConvolutionOp>(converter, ctx), _log(log) {
     }
 
 public:
@@ -233,7 +231,6 @@ public:
 
 private:
     Logger _log;
-    VPU::ArchKind _arch;
 };
 
 mlir::LogicalResult DepthwiseConvRewriter::matchAndRewrite(VPU::NCEDepthConvolutionOp origOp, OpAdaptor newArgs,
@@ -302,7 +299,6 @@ public:
 
 private:
     Logger _log;
-    VPU::ArchKind _arch;
 };
 
 mlir::LogicalResult EltwiseRewriter::matchAndRewrite(VPU::NCEEltwiseOp origOp, OpAdaptor newArgs,
@@ -383,13 +379,10 @@ void ConvertVPUToVPUIPPass::safeRunOnFunc() {
     target.addLegalOp<mlir::memref::AllocOp>();
     vpux::populateBufferizeMaterializationLegality(target);
 
-    auto module = func->getParentOfType<mlir::ModuleOp>();
-    const auto arch = VPU::getArch(module);
-
     mlir::RewritePatternSet patterns(&ctx);
-    patterns.add<ConvRewriter>(typeConverter, &ctx, _log, arch);
-    patterns.add<DepthwiseConvRewriter>(typeConverter, &ctx, _log, arch);
-    patterns.add<MaxPoolRewriter>(typeConverter, &ctx, _log, arch);
+    patterns.add<ConvRewriter>(typeConverter, &ctx, _log);
+    patterns.add<DepthwiseConvRewriter>(typeConverter, &ctx, _log);
+    patterns.add<MaxPoolRewriter>(typeConverter, &ctx, _log);
     patterns.add<EltwiseRewriter>(typeConverter, &ctx, _log);
 
     if (mlir::failed(mlir::applyPartialConversion(func, target, std::move(patterns)))) {
