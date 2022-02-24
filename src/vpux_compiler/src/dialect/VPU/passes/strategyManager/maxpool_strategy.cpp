@@ -21,10 +21,11 @@ bool MaxPoolStrategy::doesSplitOverHeightLayerFitIntoCMX(mlir::Operation* op) co
     auto origOp = mlir::dyn_cast<NCEMaxPoolOp>(op);
     auto activationTensorDistributionMode = getActivationTensorDistributionMode(origOp);
     auto activationTensorNumTiles = getActivationTensorNumTiles(origOp);
-    auto distributedOutputTensorType =
-            createDistributedOutputTensorType(origOp, activationTensorDistributionMode, activationTensorNumTiles);
-    auto distributedActivationTensorType = createDistributedInputTensorType(
+    auto distributedOutputTensorType = createDistributedTensorType(
+            origOp, origOp.output(), activationTensorDistributionMode, activationTensorNumTiles);
+    auto distributedActivationTensorType = createDistributedTensorType(
             origOp, origOp.input(), activationTensorDistributionMode, activationTensorNumTiles);
 
     return origOp.fitIntoCMX(distributedActivationTensorType, distributedOutputTensorType);
 }
+

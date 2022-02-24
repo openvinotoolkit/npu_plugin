@@ -23,13 +23,14 @@ bool DepthConvolutionStrategy::doesSplitOverHeightLayerFitIntoCMX(mlir::Operatio
     auto activationTensorNumTiles = getActivationTensorNumTiles(origOp);
     auto weightsTensorDistributionMode = getWeightsTensorDistributionMode(origOp);
     auto weightTensorNumTiles = getWeightsTensorNumTiles(origOp);
-    auto distributedOutputTensorType =
-            createDistributedOutputTensorType(origOp, activationTensorDistributionMode, activationTensorNumTiles);
-    auto distributedActivationTensorType = createDistributedInputTensorType(
+    auto distributedOutputTensorType = createDistributedTensorType(
+            origOp, origOp.output(), activationTensorDistributionMode, activationTensorNumTiles);
+    auto distributedActivationTensorType = createDistributedTensorType(
             origOp, origOp.input(), activationTensorDistributionMode, activationTensorNumTiles);
-    auto distributeddWeightsTensorType = createDistributedInputTensorType(
-            origOp, origOp.filter(), weightsTensorDistributionMode, weightTensorNumTiles);
+    auto distributeddWeightsTensorType =
+            createDistributedTensorType(origOp, origOp.filter(), weightsTensorDistributionMode, weightTensorNumTiles);
 
     return origOp.fitIntoCMX(distributedActivationTensorType, distributeddWeightsTensorType,
                              distributedOutputTensorType);
 }
+

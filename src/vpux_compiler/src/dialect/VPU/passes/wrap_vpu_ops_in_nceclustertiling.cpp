@@ -72,8 +72,8 @@ mlir::LogicalResult GenericNCEtoNCEClusterTiling<ConcreteOp>::matchAndRewrite(Co
     auto distributedWeightsCopyOp =
             createDistributedInputTensor(origOp, origOp.filter(), weightsTensorDistributionMode, weightTensorNumTiles);
 
-    auto distributedOutputTensorType =
-            createDistributedOutputTensorType(origOp, outputTensorDistributionMode, activationTensorNumTiles);
+    auto distributedOutputTensorType = createDistributedTensorType(
+            origOp, origOp.output(), outputTensorDistributionMode, activationTensorNumTiles);
 
     auto origOutput = origOp->getResult(0);
     const auto origOutType = origOutput.getType().template cast<vpux::NDTypeInterface>();
@@ -125,8 +125,8 @@ mlir::LogicalResult GenericNCEtoNCEClusterTiling<NCEMaxPoolOp>::matchAndRewrite(
     auto distributedActivationCopyOp = createDistributedInputTensor(
             origOp, origOp.input(), activationTensorDistributionMode, activationTensorNumTiles);
 
-    auto distributedOutputTensorType =
-            createDistributedOutputTensorType(origOp, activationTensorDistributionMode, activationTensorNumTiles);
+    auto distributedOutputTensorType = createDistributedTensorType(
+            origOp, origOp.output(), activationTensorDistributionMode, activationTensorNumTiles);
 
     auto origOutput = origOp->getResult(0);
     const auto origOutType = origOutput.getType().cast<vpux::NDTypeInterface>();
@@ -142,9 +142,8 @@ mlir::LogicalResult GenericNCEtoNCEClusterTiling<NCEMaxPoolOp>::matchAndRewrite(
         builder.create<YieldOp>(loc, newOp->getResults());
     };
 
-    auto clusterTilingOp = rewriter.create<NCEClusterTilingOp>(
-            origOp->getLoc(), distributedOutputTensorType, distributedActivationCopyOp->getResult(0),
-            bodyBuilder);
+    auto clusterTilingOp = rewriter.create<NCEClusterTilingOp>(origOp->getLoc(), distributedOutputTensorType,
+                                                               distributedActivationCopyOp->getResult(0), bodyBuilder);
 
     const auto outputTensorBodyBuilder = [&](mlir::OpBuilder& builder, mlir::Location loc,
                                              mlir::ValueRange newOperands) {
@@ -179,8 +178,8 @@ mlir::LogicalResult GenericNCEtoNCEClusterTiling<NCEEltwiseOp>::matchAndRewrite(
     auto distributedActivationCopyOp2 = createDistributedInputTensor(
             origOp, origOp.input2(), activationTensorDistributionMode, activationTensorNumTiles);
 
-    auto distributedOutputTensorType =
-            createDistributedOutputTensorType(origOp, activationTensorDistributionMode, activationTensorNumTiles);
+    auto distributedOutputTensorType = createDistributedTensorType(
+            origOp, origOp.output(), activationTensorDistributionMode, activationTensorNumTiles);
 
     auto origOutput = origOp->getResult(0);
     const auto origOutType = origOutput.getType().cast<NDTypeInterface>();
