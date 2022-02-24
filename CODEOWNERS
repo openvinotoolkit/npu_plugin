@@ -5,7 +5,7 @@
 # Quantization / Mixed Datatypes - Shokin, Alexander (@shokinal) / Rotuna, Harald Razvan (@hrotuna) / Zomborat, Zoran (@ZoranZomborat)
 # Strategy Generation - DeFlumere, Ashley (@adeflume)
 # Binaries (RT, vpualHost), Backends - Skrebkov, Artemy (@ArtemySkrebkov-intel) / Znamenskiy, Mikhail (@mznamens)
-# Software Layers - Kurin, Maxim (@maxim-kurin) / Vyunov, Roman (@rvyunov) / Vadim, Curca (@vadim-intel)
+# Software Layers - Kurin, Maxim (@maxim-kurin) / Vyunov, Roman (@rvyunov) / Vadim, Curca (@vadim-intel) / Li, Zhibin (@ZhibinLiIntel)
 # Model enabling - Shumihin, Sergey (@sshumihi) / Sokolov, Andrey (@andrejsokolov)
 # mcmCompiler - Yao, Shaojun (@syao-2015) / Mineeva, Marina (@mmineeva)
 # mcmEmulator - Zomborat, Zoran (@ZoranZomborat)
@@ -48,7 +48,7 @@ CMakeLists.txt @vinograd47 @mmineeva @ArtemySkrebkov-intel
 /src/utils @briangrifiin @mznamens
 /src/vpual_backend @briangrifiin @ArtemySkrebkov-intel @alpkn
 /src/vpux_al @ArtemySkrebkov-intel @mznamens @sshumihi
-/src/vpux_compiler @vinograd47 @nikita-kud @briangrifiin @sshumihi @andrejsokolov @vadim-intel
+/src/vpux_compiler @vinograd47 @nikita-kud @briangrifiin @sshumihi @andrejsokolov @vadim-intel @ZhibinLiIntel
 /src/vpux_driver_compiler_adapter @sshumihi @ArtemySkrebkov-intel @mznamens
 /src/VPUXCompilerL0 @mznamens @sshumihi @ArtemySkrebkov-intel
 /src/vpux_elf @AndrewBakalinIntel @szilveszteri @gladilov-gleb
@@ -71,9 +71,9 @@ CMakeLists.txt @vinograd47 @mmineeva @ArtemySkrebkov-intel
 /tests/functional/shared_tests_instances @alpkn @alexeytarakanov
 /tests/functional/shared_tests_instances/behavior @ArtemySkrebkov-intel @mznamens @alpkn
 /tests/functional/shared_tests_instances/blob_tests @ArtemySkrebkov-intel @mznamens @alpkn
-/tests/functional/shared_tests_instances/single_layer_tests @maxim-kurin @vinograd47 @alpkn @sshumihi @andrejsokolov @vadim-intel
+/tests/functional/shared_tests_instances/single_layer_tests @maxim-kurin @vinograd47 @alpkn @sshumihi @andrejsokolov @vadim-intel @ZhibinLiIntel
 /tests/functional/shared_tests_instances/subgraph_tests @maxim-kurin @vinograd47 @alpkn
-/tests/functional/single_layer_tests @maxim-kurin @alpkn @vadim-intel
+/tests/functional/single_layer_tests @maxim-kurin @alpkn @vadim-intel @ZhibinLiIntel
 /tests/functional/subgraph_tests @maxim-kurin @vinograd47 @alpkn
 #
 /tests/libs @alpkn @alexeytarakanov
