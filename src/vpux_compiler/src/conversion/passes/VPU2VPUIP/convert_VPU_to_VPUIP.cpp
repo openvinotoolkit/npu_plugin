@@ -36,13 +36,12 @@
 #include <mlir/Transforms/DialectConversion.h>
 
 #include <llvm/ADT/TypeSwitch.h>
-#include "vpux/compiler/core/aliases_info.hpp"
 
 using namespace vpux;
 
 namespace {
 
-int32_t getWeightPtrStep(::mlir::Value weights, ::mlir::Value activation_window) {
+int32_t getWeightPtrStep(mlir::Value weights, mlir::Value activation_window) {
     if (weights == nullptr) {
         return 0;
     }
@@ -84,9 +83,9 @@ void addPPETask(mlir::OpBuilder& builder, VPUIP::NCEClusterTaskOp& nceOp, VPU::P
 }
 
 mlir::Value createWeightsTableTensor(mlir::PatternRewriter& rewriter, mlir::Location loc, int64_t OC,
-                                     mlir::Value op_input, mlir::Value op_output, mlir::Value weights,
+                                     mlir::Value opInput, mlir::Value opOutput, mlir::Value weights,
                                      mlir::Value activationWindow, Const::ContentAttr bias,
-                                     vpux::VPU::PPETaskAttr ppeTaskAttr, VPU::ArchKind _arch) {
+                                     vpux::VPU::PPETaskAttr ppeTaskAttr, VPU::ArchKind arch) {
     SmallVector<int64_t> weightTableShape{OC, 1, 1, VPUIP::NCEInvariant::WEIGHT_TABLE_NUM_ELEMENTS_PER_OC};
 
     const auto dataType = mlir::MemRefType::get(weightTableShape, getSInt32Type(rewriter.getContext()));
@@ -98,13 +97,12 @@ mlir::Value createWeightsTableTensor(mlir::PatternRewriter& rewriter, mlir::Loca
     const auto sparsityPtrOffset = 0;
     const auto weightPtrStep = getWeightPtrStep(weights, activationWindow);
 
-    const auto op_inElemType = op_input.getType().cast<vpux::NDTypeInterface>().getElementType();
-    const auto op_outElemType = op_output.getType().cast<vpux::NDTypeInterface>().getElementType();
-    const auto op_weightsElemType =
-            weights ? weights.getType().cast<vpux::NDTypeInterface>().getElementType() : nullptr;
+    const auto opInElemType = opInput.getType().cast<vpux::NDTypeInterface>().getElementType();
+    const auto opOutElemType = opOutput.getType().cast<vpux::NDTypeInterface>().getElementType();
+    const auto opWeightsElemType = weights ? weights.getType().cast<vpux::NDTypeInterface>().getElementType() : nullptr;
     const auto weightsTable =
-            VPU::NCESparsity::getWeightsTable(op_inElemType, op_outElemType, weightPtrOffset, weightPtrStep,
-                                              sparsityPtrOffset, _arch, OC, op_weightsElemType, bias, ppeTaskAttr);
+            VPU::NCESparsity::getWeightsTable(opInElemType, opOutElemType, weightPtrOffset, weightPtrStep,
+                                              sparsityPtrOffset, arch, OC, opWeightsElemType, bias, ppeTaskAttr);
 
     const auto dataStorageType = mlir::RankedTensorType::get(dataType.getShape(), getSInt32Type(rewriter.getContext()));
     const auto dataAttr = mlir::DenseElementsAttr::get(dataStorageType, makeArrayRef(weightsTable));
@@ -175,12 +173,8 @@ mlir::Value createActivationWindowTensor(mlir::OpBuilder& builder, mlir::Locatio
 
 class ConvRewriter final : public mlir::OpConversionPattern<VPU::NCEConvolutionOp> {
 public:
-    ConvRewriter(mlir::TypeConverter& typeConverter, mlir::MLIRContext* ctx, Logger log, VPU::ArchKind arch,
-                 const AliasesInfo* aliasInfo)
-            : mlir::OpConversionPattern<VPU::NCEConvolutionOp>(typeConverter, ctx),
-              _log(log),
-              _arch(arch),
-              _aliasInfo(aliasInfo) {
+    ConvRewriter(mlir::TypeConverter& typeConverter, mlir::MLIRContext* ctx, Logger log, VPU::ArchKind arch)
+            : mlir::OpConversionPattern<VPU::NCEConvolutionOp>(typeConverter, ctx), _log(log), _arch(arch) {
         setDebugName("ConvRewriter");
     }
 
@@ -191,7 +185,6 @@ public:
 private:
     Logger _log;
     VPU::ArchKind _arch;
-    const AliasesInfo* _aliasInfo = nullptr;
 };
 
 mlir::LogicalResult ConvRewriter::matchAndRewrite(VPU::NCEConvolutionOp origOp, OpAdaptor newArgs,
@@ -285,12 +278,8 @@ mlir::LogicalResult ConvRewriter::matchAndRewrite(VPU::NCEConvolutionOp origOp, 
 
 class MaxPoolRewriter final : public mlir::OpConversionPattern<VPU::NCEMaxPoolOp> {
 public:
-    MaxPoolRewriter(mlir::TypeConverter& typeConverter, mlir::MLIRContext* ctx, Logger log, VPU::ArchKind arch,
-                    const AliasesInfo* aliasInfo)
-            : mlir::OpConversionPattern<VPU::NCEMaxPoolOp>(typeConverter, ctx),
-              _log(log),
-              _arch(arch),
-              _aliasInfo(aliasInfo) {
+    MaxPoolRewriter(mlir::TypeConverter& typeConverter, mlir::MLIRContext* ctx, Logger log, VPU::ArchKind arch)
+            : mlir::OpConversionPattern<VPU::NCEMaxPoolOp>(typeConverter, ctx), _log(log), _arch(arch) {
     }
 
 public:
@@ -300,7 +289,6 @@ public:
 private:
     Logger _log;
     VPU::ArchKind _arch;
-    const AliasesInfo* _aliasInfo = nullptr;
 };
 
 mlir::LogicalResult MaxPoolRewriter::matchAndRewrite(VPU::NCEMaxPoolOp origOp, OpAdaptor newArgs,
@@ -376,12 +364,8 @@ mlir::LogicalResult MaxPoolRewriter::matchAndRewrite(VPU::NCEMaxPoolOp origOp, O
 
 class DepthwiseConvRewriter final : public mlir::OpConversionPattern<VPU::NCEDepthConvolutionOp> {
 public:
-    DepthwiseConvRewriter(mlir::TypeConverter& converter, mlir::MLIRContext* ctx, Logger log, VPU::ArchKind arch,
-                          const AliasesInfo* aliasInfo)
-            : mlir::OpConversionPattern<VPU::NCEDepthConvolutionOp>(converter, ctx),
-              _log(log),
-              _arch(arch),
-              _aliasInfo(aliasInfo) {
+    DepthwiseConvRewriter(mlir::TypeConverter& converter, mlir::MLIRContext* ctx, Logger log, VPU::ArchKind arch)
+            : mlir::OpConversionPattern<VPU::NCEDepthConvolutionOp>(converter, ctx), _log(log), _arch(arch) {
     }
 
 public:
@@ -391,7 +375,6 @@ public:
 private:
     Logger _log;
     VPU::ArchKind _arch;
-    const AliasesInfo* _aliasInfo = nullptr;
 };
 
 mlir::LogicalResult DepthwiseConvRewriter::matchAndRewrite(VPU::NCEDepthConvolutionOp origOp, OpAdaptor newArgs,
@@ -486,7 +469,6 @@ public:
 private:
     Logger _log;
     VPU::ArchKind _arch;
-    const AliasesInfo* _aliasInfo = nullptr;
 };
 
 mlir::LogicalResult EltwiseRewriter::matchAndRewrite(VPU::NCEEltwiseOp origOp, OpAdaptor newArgs,
@@ -569,12 +551,11 @@ void ConvertVPUToVPUIPPass::safeRunOnFunc() {
 
     auto module = func->getParentOfType<mlir::ModuleOp>();
     const auto arch = VPU::getArch(module);
-    auto& aliasInfo = getAnalysis<AliasesInfo>();
 
     mlir::RewritePatternSet patterns(&ctx);
-    patterns.add<ConvRewriter>(typeConverter, &ctx, _log, arch, &aliasInfo);
-    patterns.add<DepthwiseConvRewriter>(typeConverter, &ctx, _log, arch, &aliasInfo);
-    patterns.add<MaxPoolRewriter>(typeConverter, &ctx, _log, arch, &aliasInfo);
+    patterns.add<ConvRewriter>(typeConverter, &ctx, _log, arch);
+    patterns.add<DepthwiseConvRewriter>(typeConverter, &ctx, _log, arch);
+    patterns.add<MaxPoolRewriter>(typeConverter, &ctx, _log, arch);
     patterns.add<EltwiseRewriter>(typeConverter, &ctx, _log);
 
     if (mlir::failed(mlir::applyPartialConversion(func, target, std::move(patterns)))) {
