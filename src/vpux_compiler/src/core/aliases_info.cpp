@@ -14,6 +14,7 @@
 #include "vpux/compiler/core/aliases_info.hpp"
 
 #include "vpux/compiler/core/ops_interfaces.hpp"
+#include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPURT/types.hpp"
 
 #include "vpux/utils/core/error.hpp"
@@ -106,6 +107,14 @@ void vpux::AliasesInfo::addAlias(mlir::Value source, mlir::Value alias) {
 }
 
 void vpux::AliasesInfo::traverse(OpRange ops) {
+    std::function<bool(mlir::Type)> isBufferizedType = [&](mlir::Type type) -> bool {
+        if (const auto asyncType = type.dyn_cast<mlir::async::ValueType>()) {
+            return isBufferizedType(asyncType.getValueType());
+        }
+
+        return type.isa<mlir::MemRefType, VPUIP::DistributedBufferType, VPURT::SparseBufferType>();
+    };
+
     for (auto& op : ops) {
         llvm::TypeSwitch<mlir::Operation*, void>(&op)
                 .Case<mlir::ViewLikeOpInterface>([&](mlir::ViewLikeOpInterface viewOp) {
@@ -115,10 +124,10 @@ void vpux::AliasesInfo::traverse(OpRange ops) {
                     const auto result = viewOp->getResult(0);
                     const auto source = viewOp.getViewSource();
 
-                    VPUX_THROW_UNLESS(result.getType().isa<mlir::MemRefType>(),
-                                      "AliasesInfo analysis works only with MemRef types, got '{0}'", result.getType());
-                    VPUX_THROW_UNLESS(source.getType().isa<mlir::MemRefType>(),
-                                      "AliasesInfo analysis works only with MemRef types, got '{0}'", source.getType());
+                    VPUX_THROW_UNLESS(isBufferizedType(result.getType()),
+                                      "AliasesInfo analysis works only with buffer types, got '{0}'", result.getType());
+                    VPUX_THROW_UNLESS(isBufferizedType(source.getType()),
+                                      "AliasesInfo analysis works only with buffer types, got '{0}'", source.getType());
 
                     addAlias(source, result);
 
@@ -131,8 +140,8 @@ void vpux::AliasesInfo::traverse(OpRange ops) {
                     for (const auto result : viewOp->getResults()) {
                         _log.trace("Result #{0}", result.getResultNumber());
 
-                        VPUX_THROW_UNLESS(result.getType().isa<mlir::MemRefType>(),
-                                          "AliasesInfo analysis works only with MemRef types, got '{0}'",
+                        VPUX_THROW_UNLESS(isBufferizedType(result.getType()),
+                                          "AliasesInfo analysis works only with buffer types, got '{0}'",
                                           result.getType());
 
                         const auto source = viewOp.getViewSource(result.getResultNumber());
@@ -141,8 +150,8 @@ void vpux::AliasesInfo::traverse(OpRange ops) {
                             continue;
                         }
 
-                        VPUX_THROW_UNLESS(source.getType().isa<mlir::MemRefType>(),
-                                          "AliasesInfo analysis works only with MemRef types, got '{0}'",
+                        VPUX_THROW_UNLESS(isBufferizedType(source.getType()),
+                                          "AliasesInfo analysis works only with buffer types, got '{0}'",
                                           source.getType());
 
                         addAlias(source, result);
@@ -157,13 +166,11 @@ void vpux::AliasesInfo::traverse(OpRange ops) {
                     const auto result = viewOp->getResult(0);
                     const auto sources = viewOp.getViewSources();
 
-                    VPUX_THROW_UNLESS(
-                            (result.getType().isa<mlir::MemRefType, VPURT::SparseBufferType>()),
-                            "AliasesInfo analysis works only with MemRef and VPURT::SparseBuffer types, got '{0}'",
-                            result.getType());
+                    VPUX_THROW_UNLESS(isBufferizedType(result.getType()),
+                                      "AliasesInfo analysis works only with buffer types, got '{0}'", result.getType());
                     for (auto source : sources) {
-                        VPUX_THROW_UNLESS(source.getType().isa<mlir::MemRefType>(),
-                                          "AliasesInfo analysis works only with MemRef types, got '{0}'",
+                        VPUX_THROW_UNLESS(isBufferizedType(source.getType()),
+                                          "AliasesInfo analysis works only with buffer types, got '{0}'",
                                           source.getType());
 
                         addAlias(source, result);
@@ -195,7 +202,9 @@ void vpux::AliasesInfo::traverse(OpRange ops) {
                         for (auto i : irange(outerArgs.size())) {
                             _log.trace("Check operand #{0} and corresponding region argument", i);
 
-                            addAlias(outerArgs[i], innerArgs[i]);
+                            if (isBufferizedType(outerArgs[i].getType()) && isBufferizedType(innerArgs[i].getType())) {
+                                addAlias(outerArgs[i], innerArgs[i]);
+                            }
                         }
                     }
 
@@ -232,7 +241,10 @@ void vpux::AliasesInfo::traverse(OpRange ops) {
                                     for (auto i : irange(innerResults.size())) {
                                         _log.trace("Check result #{0} and corresponding region result", i);
 
-                                        addAlias(innerResults[i], outerResults[i]);
+                                        if (isBufferizedType(innerResults[i].getType()) &&
+                                            isBufferizedType(outerResults[i].getType())) {
+                                            addAlias(innerResults[i], outerResults[i]);
+                                        }
                                     }
 
                                     _log = _log.unnest();
@@ -251,10 +263,10 @@ void vpux::AliasesInfo::traverse(OpRange ops) {
                                           "AliasesInfo analysis works only with !async.value<MemRef> types, got '{0}'",
                                           waitOp.operand().getType());
 
-                        VPUX_THROW_UNLESS(futureType.getValueType().isa<mlir::MemRefType>(),
-                                          "AliasesInfo analysis works only with MemRef types, got '{0}'", futureType);
-                        VPUX_THROW_UNLESS(result.getType().isa<mlir::MemRefType>(),
-                                          "AliasesInfo analysis works only with MemRef types, got '{0}'",
+                        VPUX_THROW_UNLESS(isBufferizedType(futureType.getValueType()),
+                                          "AliasesInfo analysis works only with buffer types, got '{0}'", futureType);
+                        VPUX_THROW_UNLESS(isBufferizedType(result.getType()),
+                                          "AliasesInfo analysis works only with buffer types, got '{0}'",
                                           result.getType());
 
                         addAlias(waitOp.operand(), result);
@@ -267,7 +279,7 @@ void vpux::AliasesInfo::traverse(OpRange ops) {
                     _log = _log.nest();
 
                     for (const auto result : op->getResults()) {
-                        if (result.getType().isa<mlir::MemRefType>()) {
+                        if (isBufferizedType(result.getType())) {
                             addAlias(result, result);
                         }
                     }
