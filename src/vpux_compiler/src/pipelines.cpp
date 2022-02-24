@@ -202,7 +202,6 @@ void vpux::buildReferenceHWModePipeline(mlir::OpPassManager& pm, const Reference
 
     pm.addPass(createConvertIEToVPUNCEPass(log));
     pm.addPass(VPU::createSplitNCEOpsOntoWorkloadsPass(log));
-    pm.addPass(VPU::createConvertPostOpsToPPEPass(log));
 
     // Lowering
 
@@ -331,9 +330,6 @@ void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOp
 
     pm.addPass(createConvertIEToVPUNCEPass(log));
     pm.addPass(VPU::createSplitNCEOpsOntoWorkloadsPass(log));
-
-    // TODO remove pass
-    // pm.addPass(VPU::createConvertPostOpsToPPEPass(log));
 
     // Lowering
 
