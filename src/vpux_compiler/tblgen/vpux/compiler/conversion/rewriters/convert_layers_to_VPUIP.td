@@ -435,6 +435,20 @@ def RewriteAcosh :
             (createAcoshUPAOp $input, $output)
         >;
         
+//
+// IERT.Atanh -> VPUIP.AtanhUPA
+//
+
+def createAtanhUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::AtanhUPAOp>($_loc, $0, $1)
+        }]>;
+
+def RewriteAtanh :
+        Pat<
+            (IERT_AtanhOp $input, $output),
+            (createAtanhUPAOp $input, $output)
+        >;
 
 //
 // IERT.Log -> VPUIP.LogUPA

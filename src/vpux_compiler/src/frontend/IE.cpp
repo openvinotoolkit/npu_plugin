@@ -216,6 +216,7 @@ private:
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Cosh>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Asinh>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Acosh>& origNode);
+    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Atanh>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Log>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset2::Gelu>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Exp>& origNode);
@@ -358,6 +359,7 @@ NGraphImporter::Callback NGraphImporter::getParser(const std::shared_ptr<ngraph:
             MAP_ENTRY(opset_latest::Cosh),
             MAP_ENTRY(opset_latest::Asinh),
             MAP_ENTRY(opset_latest::Acosh),
+            MAP_ENTRY(opset_latest::Atanh),
             MAP_ENTRY(opset_latest::Log),
             MAP_ENTRY(ngraph::opset2::Gelu),
             MAP_ENTRY(opset_latest::Exp),
@@ -1253,6 +1255,17 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
                       origNode->get_friendly_name(), inputs.size());
 
     auto op = builder.create<IE::AcoshOp>(createLocation(origNode), inputs[0]);
+    addOutputs(origNode, op);
+}
+
+void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Atanh>& origNode) {
+    static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v3::Atanh>::value,
+                  "opset operation mismatch");
+    const auto inputs = getInputs(origNode);
+    VPUX_THROW_UNLESS(inputs.size() == 1, "nGraph Atanh node '{0}' has unsupported number of inputs '{1}'",
+                      origNode->get_friendly_name(), inputs.size());
+
+    auto op = builder.create<IE::AtanhOp>(createLocation(origNode), inputs[0]);
     addOutputs(origNode, op);
 }
 

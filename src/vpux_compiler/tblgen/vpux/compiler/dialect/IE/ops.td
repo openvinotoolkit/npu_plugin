@@ -1709,6 +1709,29 @@ def IE_AcoshOp :
 }
 
 //
+// AtanhOp
+//
+
+def IE_AtanhOp :
+        IE_LayerOp<
+            "Atanh",
+            [
+                IE_TilingBuilderOpInterface,
+                IE_EltwiseOp
+            ]
+        > {
+    let summary = "InferenceEngine Atanh layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$input
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+}
+
+//
 // LogOp
 //
 

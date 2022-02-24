@@ -219,6 +219,30 @@ operation ::= `IE.Asinh` `(` operands `)` attr-dict `:` type(operands) `->` type
 | :----: | ----------- |
 `output` | ranked tensor of 16-bit float or 32-bit float values
 
+### `IE.Atanh` (vpux::IE::AtanhOp)
+
+InferenceEngine Atanh layer
+
+
+Syntax:
+
+```
+operation ::= `IE.Atanh` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+
 ### `IE.AvgPool` (vpux::IE::AvgPoolOp)
 
 InferenceEngine AvgPool layer
