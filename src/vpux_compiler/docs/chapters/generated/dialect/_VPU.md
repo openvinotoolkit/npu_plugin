@@ -46,13 +46,13 @@ Operation that encapsulates details of tiling operation between clusters
 
 | Operand | Description |
 | :-----: | ----------- |
-`operands` | 4D tensor of 16-bit float or bfloat16 type or QuantizedType values or VPU tensor type to describe the tensor tiling
+`operands` | 4D tensor of 16-bit float or bfloat16 type or 32-bit signed integer or 8-bit unsigned integer or QuantizedType values or VPU tensor type to describe the tensor tiling
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-`results` | 4D tensor of 16-bit float or bfloat16 type or QuantizedType values or VPU tensor type to describe the tensor tiling
+`results` | 4D tensor of 16-bit float or bfloat16 type or 32-bit signed integer or 8-bit unsigned integer or QuantizedType values or VPU tensor type to describe the tensor tiling
 
 ### `VPU.NCE.Convolution` (vpux::VPU::NCEConvolutionOp)
 
