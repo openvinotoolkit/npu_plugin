@@ -92,15 +92,15 @@ IERT::KernelInfo SwKernelOp::getKernelInfo(mlir::Operation* origOp) {
                                         {"single_shave_softmax.cpp"}};
             })
             .Case<IERT::InterpolateOp>([&](IERT::InterpolateOp Interpolate) {
-                int mode = static_cast<int>(Interpolate.modeAttr().getValue());
-                int coord_mode = static_cast<int>(Interpolate.coord_modeAttr().getValue());
-                int nearest_mode = static_cast<int>(Interpolate.nearest_modeAttr().getValue());
-                bool antialias = static_cast<bool>(Interpolate.antialiasAttr() != nullptr);
+                const auto mode = static_cast<int>(Interpolate.modeAttr().getValue());
+                const auto coord_mode = static_cast<int>(Interpolate.coord_modeAttr().getValue());
+                const auto nearest_mode = static_cast<int>(Interpolate.nearest_modeAttr().getValue());
+                const auto antialias = static_cast<bool>(Interpolate.antialiasAttr() != nullptr);
 
-                IntegerAttr modeAttr = getIntAttr(ctx, mode);
-                IntegerAttr coord_modeAttr = getIntAttr(ctx, coord_mode);
-                IntegerAttr nearest_modeAttr = getIntAttr(ctx, nearest_mode);
-                IntegerAttr antialiasAttr = getIntAttr(ctx, antialias);
+                const auto modeAttr = getIntAttr(ctx, mode);
+                const auto coord_modeAttr = getIntAttr(ctx, coord_mode);
+                const auto nearest_modeAttr = getIntAttr(ctx, nearest_mode);
+                const auto antialiasAttr = getIntAttr(ctx, antialias);
 
                 return IERT::KernelInfo{SmallVector<mlir::Attribute>{
                                                                     modeAttr,
