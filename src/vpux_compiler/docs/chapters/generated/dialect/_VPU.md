@@ -239,7 +239,7 @@ operation ::= `VPU.Yield` $operands
 
 | Operand | Description |
 | :-----: | ----------- |
-`operands` | 4D tensor of 16-bit float or bfloat16 type or QuantizedType values
+`operands` | 4D tensor of 16-bit float or bfloat16 type or 32-bit signed integer or 8-bit unsigned integer or QuantizedType values
 
 ## Type definition
 
