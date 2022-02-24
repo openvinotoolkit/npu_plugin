@@ -72,12 +72,14 @@ func @ParsePrintClusterTiling(%arg0: tensor<1x32x16x16xf16, {mem_space = @CMX_NN
 
 !WeightsTableDistributed = type !VPU.DistributedTensor<
     32x1x1x4xsi32, #NCHW, @CMX_NN, {
-    mode = DUPLICATED
+    mode = DUPLICATED,
+    num_clusters = 4
 }>
 
 !ActivationWindowDistributed = type !VPU.DistributedTensor<
     32x1x1x16xui8, #NCHW, @CMX_NN, {
-    mode = DUPLICATED
+    mode = DUPLICATED,
+    num_clusters = 4
 }>
 
 !OutputDistributed = type !VPU.DistributedTensor<
@@ -158,12 +160,12 @@ func @ParsePrintDistributedTensor(%arg0: !Input_DDR) -> !Output_DDR {
     //CHECK:            VPU.Yield [[RES1]]
     //CHECK:        }
 
-    //CHECK:        [[WEIGHTS_TABLE_CMX:%.*]] = VPU.NCE.ClusterTiling ([[WEIGHTS_TABLE]] as %arg1: tensor<32x1x1x4xsi32, {mem_space = @DDR, order = #NCHW}>) -> !VPU.DistributedTensor<32x1x1x4xsi32, #NCHW, @CMX_NN, {mode = DUPLICATED}> {
+    //CHECK:        [[WEIGHTS_TABLE_CMX:%.*]] = VPU.NCE.ClusterTiling ([[WEIGHTS_TABLE]] as %arg1: tensor<32x1x1x4xsi32, {mem_space = @DDR, order = #NCHW}>) -> !VPU.DistributedTensor<32x1x1x4xsi32, #NCHW, @CMX_NN, {mode = DUPLICATED, num_clusters = 4 : i64}> {
     //CHECK:            [[RES2:%.*]] = IE.Copy(%arg1) {out_mem_space = @CMX_NN} : tensor<32x1x1x4xsi32, {mem_space = @DDR, order = #NCHW}> -> tensor<32x1x1x4xsi32, {mem_space = @CMX_NN, order = #NCHW}>
     //CHECK:            VPU.Yield [[RES2]]
     //CHECK:        }
 
-    //CHECK:        [[ACTIVATION_WINDOW_CMX:%.*]] = VPU.NCE.ClusterTiling ([[ACTIVATION_WINDOW]] as %arg1: tensor<32x1x1x16xui8, {mem_space = @DDR, order = #NCHW}>) -> !VPU.DistributedTensor<32x1x1x16xui8, #NCHW, @CMX_NN, {mode = DUPLICATED}> {
+    //CHECK:        [[ACTIVATION_WINDOW_CMX:%.*]] = VPU.NCE.ClusterTiling ([[ACTIVATION_WINDOW]] as %arg1: tensor<32x1x1x16xui8, {mem_space = @DDR, order = #NCHW}>) -> !VPU.DistributedTensor<32x1x1x16xui8, #NCHW, @CMX_NN, {mode = DUPLICATED, num_clusters = 4 : i64}> {
     //CHECK:            [[RES3:%.*]] = IE.Copy(%arg1) {out_mem_space = @CMX_NN} : tensor<32x1x1x16xui8, {mem_space = @DDR, order = #NCHW}> -> tensor<32x1x1x16xui8, {mem_space = @CMX_NN, order = #NCHW}>
     //CHECK:            VPU.Yield [[RES3]]
     //CHECK:        }
@@ -173,7 +175,7 @@ func @ParsePrintDistributedTensor(%arg0: !Input_DDR) -> !Output_DDR {
     //CHECK-SAME:             [[WEIGHTS_CMX]] as %arg2: tensor<64x32x3x3xf16, {mem_space = @CMX_NN, order = #NHWC}>,
     //CHECK-SAME:             [[WEIGHTS_TABLE_CMX]] as %arg3: tensor<32x1x1x4xsi32, {mem_space = @CMX_NN, order = #NCHW}>,
     //CHECK-SAME:             [[ACTIVATION_WINDOW_CMX]] as %arg4: tensor<32x1x1x16xui8, {mem_space = @CMX_NN, order = #NCHW}>)
-    //CHECK-SAME:             -> !VPU.DistributedTensor<1x64x16x16xf16, #NHWC, @CMX_NN, {mode = SEGMENTED, num_tiles = [1, 1, 4, 1]}> {
+    //CHECK-SAME:             -> !VPU.DistributedTensor<1x64x16x16xf16, #NHWC, @CMX_NN, {mode = SEGMENTED, num_tiles = [1, 1, 4, 1], num_clusters = 4 : i64}> {
     //CHECK:                [[RES4:%.*]] = VPU.NCE.Convolution(%arg1, %arg2, %arg3) 
     //CHECK-SAME:                            (activationWindow : %arg4 : )
     //CHECK-SAME:                            (bias : #const.Content<dense<1.000000e+00> : tensor<1x64x1x1xf16>>) {
