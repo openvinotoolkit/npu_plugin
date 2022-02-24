@@ -30,3 +30,4 @@ bool MaxPoolStrategy::doesLayerFitIntoCMX(mlir::Operation* op, StringRef strateg
             createDistributedTensorType(origOp, origOp.output(), outputTensorDistributionMode, outputTensorNumTiles);
     return origOp.fitIntoCMX(distributedActivationTensorType, distributedOutputTensorType);
 }
+
