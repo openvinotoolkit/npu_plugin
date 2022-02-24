@@ -810,9 +810,7 @@ Byte getRequiredActWindowForPrefetch(IE::GroupConvolutionOp origOp, vpux::Output
                                getTileTypes(origOp, tiling[0])[1].getShape()[Dims4D::Filter::KX]};
     const auto kernelStridesVals = Shape(parseIntArrayAttr<int64_t>(origOp.stridesAttr()));
     auto curInputShape = getTileTypes(origOp, tiling[0])[0].getShape();
-    auto nextInputShape = getTileTypes(origOp, tiling[1])[0].getShape();
     auto curIC = curInputShape[Dims4D::Act::C];
-    auto nextIC = nextInputShape[Dims4D::Act::C];
 
     int64_t curActivationWindowSize = 0;
     int64_t nextActivationWindowSize = 0;
@@ -1002,7 +1000,6 @@ Byte getRequiredCMX(IE::GroupConvolutionOp gConvOp, const vpux::TileInfo& tiling
     const auto inputTileType = tileTypes[0];
     const auto filterTileShape = tileTypes[1];
     const auto filterShape = filterTileShape.getShape();
-    const auto IC = filterShape[Dims4D::Filter::IC];
     const auto OC = filterShape[Dims4D::Filter::OC];
     const auto KY = filterShape[Dims4D::Filter::KY];
     const auto KX = filterShape[Dims4D::Filter::KX];
