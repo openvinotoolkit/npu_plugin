@@ -287,6 +287,9 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BlobWriter::createSW_KernelTask(mli
     invocationBuilder.add_dataSection(dataSection);
     invocationBuilder.add_associatedBarriers(barrierReference);
     invocationBuilder.add_invocationArgs(invocationSection);
+    if (swKernelTask.tileIndex().hasValue()) {
+        invocationBuilder.add_tile(swKernelTask.tileIndex().getValue());
+    }
 
     std::vector<flatbuffers::Offset<MVCNN::ActKernelInvocation>> invocations_v1 = {invocationBuilder.Finish()};
 
