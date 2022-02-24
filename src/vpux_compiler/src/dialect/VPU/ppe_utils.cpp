@@ -116,5 +116,85 @@ llvm::Optional<double> calculateQuantScaleVectorForAvgPool(mlir::ShapedType inpu
     return {ppeScale};
 }
 
+VPU::PPETaskAttr getPPEAttr(VPU::PostOpParams postOpParams, mlir::MLIRContext* ctx) {
+    if (postOpParams.quantParams.hasValue()) {
+        const auto quantParams = postOpParams.quantParams.getValue();
+        return getPPETaskAttr(ctx, postOpParams.layerType, postOpParams.clampLow, postOpParams.clampHigh,
+                              postOpParams.LreluMult, postOpParams.LreluShift, quantParams.quantMult,
+                              quantParams.quantShift, quantParams.postShift);
+    } else {
+        return getPPETaskAttr(ctx, postOpParams.layerType, postOpParams.clampLow, postOpParams.clampHigh,
+                              postOpParams.LreluMult, postOpParams.LreluShift);
+    }
+}
+
+VPU::PPETaskAttr getPPETaskAttrFromPostOpsParams(mlir::Value opInput, mlir::Value opOutput, vpux::IE::PostOp postOpAttr,
+                                                 mlir::Location loc, mlir::MLIRContext* ctx, VPU::ArchKind arch) {
+    const auto inElemType = opInput.getType().cast<vpux::NDTypeInterface>().getElementType();
+    const auto outElemType = opOutput.getType().cast<vpux::NDTypeInterface>().getElementType();
+
+    const auto postOpParams = VPU::parsePostOp(postOpAttr, inElemType, outElemType, arch, loc);
+
+    VPU::PPETaskAttr ppeTaskAttr;
+    if (postOpParams.hasValue()) {
+        ppeTaskAttr = VPU::getPPEAttr(postOpParams.getValue(), ctx);
+    }
+
+    return ppeTaskAttr;
+}
+
+VPU::PPETaskAttr getNCEEltwisePPETaskAttr(mlir::Value opInput1, mlir::Value opInput2, mlir::Value opOutput,
+                                          vpux::IE::PostOp postOpAttr, mlir::Location loc, VPU::EltwiseType opType,
+                                          mlir::MLIRContext* ctx, VPU::ArchKind arch) {
+    int64_t clampLow = std::numeric_limits<int32_t>::min();
+    int64_t clampHigh = std::numeric_limits<int32_t>::max();
+    int64_t LreluMult = 1;
+    int64_t LreluShift = 0;
+
+    auto origOutType = opOutput.getType().cast<vpux::NDTypeInterface>();
+    auto outElemType = origOutType.getElementType();
+    const auto inElemType = opInput1.getType().cast<vpux::NDTypeInterface>().getElementType();
+    if (auto outElemQType = outElemType.dyn_cast<mlir::quant::QuantizedType>()) {
+        const auto zps = extractScalesAndZeroPoints(outElemType).second;
+
+        clampLow = outElemQType.getStorageTypeMin() - zps.front();
+        clampHigh = outElemQType.getStorageTypeMax() - zps.front();
+    }
+
+    const auto postOpParams = parsePostOp(postOpAttr, inElemType, outElemType, arch, loc);
+    if (postOpParams.hasValue()) {
+        clampLow = postOpParams->clampLow;
+        clampHigh = postOpParams->clampHigh;
+        LreluMult = postOpParams->LreluMult;
+        LreluShift = postOpParams->LreluShift;
+    }
+
+    VPU::PPEMode ppeType = VPU::getPPEMode(opType);
+    auto ppeAttr = getPPETaskAttr(ctx, ppeType);
+
+    // Since Eltwise operation doesn't have weights table it requires final quantization scaling
+    // to be part of output tensor description. Scale vector will be placed in PPE block and
+    // later used during NCE task serialization
+    auto quantScale = VPU::calculateQuantScaleVectorForEltwise(
+            opInput1.getType().cast<mlir::ShapedType>(), opInput2.getType().cast<mlir::ShapedType>(),
+            opOutput.getType().cast<mlir::ShapedType>(), arch, opType == VPU::EltwiseType::MULTIPLY);
+    if (quantScale.hasValue()) {
+        const auto scale = quantScale.getValue();
+
+        const auto mult = getQuantMultFromScale(scale);
+        const auto shifts = getQuantShiftAndPostShiftFromScale(scale);
+
+        const auto shift = shifts.first;
+        const auto post_shift = shifts.second;
+
+        ppeAttr = getPPETaskAttr(ctx, ppeType, clampLow, clampHigh, LreluMult, LreluShift, ArrayRef<int64_t>{mult},
+                                 ArrayRef<int64_t>{shift}, post_shift);
+    } else {
+        ppeAttr = getPPETaskAttr(ctx, ppeType, clampLow, clampHigh, LreluMult, LreluShift);
+    }
+
+    return ppeAttr;
+}
+
 }  // namespace VPU
 }  // namespace vpux

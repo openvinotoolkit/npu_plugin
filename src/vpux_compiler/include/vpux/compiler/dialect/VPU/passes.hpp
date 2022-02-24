@@ -41,7 +41,7 @@ std::unique_ptr<mlir::Pass> createInitCompilerPass(ArchKind arch, CompilationMod
                                                    Optional<int> numOfDPUGroups = None, Logger log = Logger::global());
 
 std::unique_ptr<mlir::Pass> createSplitNCEOpsOntoWorkloadsPass(Logger log = Logger::global());
-std::unique_ptr<mlir::Pass> createConvertPostOpsToPPEPass(Logger log = Logger::global());
+// std::unique_ptr<mlir::Pass> createConvertPostOpsToPPEPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createAdjustMemorySpacePass(Logger log = Logger::global());
 
 //

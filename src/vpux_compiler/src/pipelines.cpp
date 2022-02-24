@@ -206,7 +206,6 @@ void vpux::buildReferenceHWModePipeline(mlir::OpPassManager& pm, const Reference
     pm.addPass(mlir::createCanonicalizerPass(grc));
 
     pm.addPass(VPU::createSplitNCEOpsOntoWorkloadsPass(log));
-    pm.addPass(VPU::createConvertPostOpsToPPEPass(log));
 
     // Lowering
 
@@ -214,7 +213,6 @@ void vpux::buildReferenceHWModePipeline(mlir::OpPassManager& pm, const Reference
 
     pm.addPass(createConvertVPUToVPUIPPass(log));
     pm.addPass(createConvertSWLayers2VPUIPPass(log));
-    pm.addPass(VPUIP::createConvertWeightsTableOp2ConstPass(log));
     pm.addPass(mlir::createCanonicalizerPass(grc));
 
     // Level 2 : Abstract RunTime
@@ -340,7 +338,6 @@ void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOp
     pm.addPass(mlir::createCanonicalizerPass(grc));
 
     pm.addPass(VPU::createSplitNCEOpsOntoWorkloadsPass(log));
-    pm.addPass(VPU::createConvertPostOpsToPPEPass(log));
 
     // Lowering
 
@@ -348,7 +345,6 @@ void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOp
 
     pm.addPass(createConvertVPUToVPUIPPass(log));
     pm.addPass(createConvertSWLayers2VPUIPPass(log));
-    pm.addPass(VPUIP::createConvertWeightsTableOp2ConstPass(log));
 
     pm.addPass(mlir::createCanonicalizerPass(grc));
 

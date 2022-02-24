@@ -14,8 +14,13 @@
 #pragma once
 
 #include "vpux/compiler/dialect/VPU/attributes.hpp"
+#include "vpux/compiler/dialect/VPU/nce_sparsity.hpp"
+#include "vpux/compiler/dialect/VPU/ops.hpp"
 
 #include "vpux/utils/core/enums.hpp"
+#include "vpux/utils/core/numeric.hpp"
+
+#include <mlir/Dialect/Quant/QuantTypes.h>
 
 namespace vpux {
 namespace VPU {
@@ -33,9 +38,51 @@ struct PwlQuantReqs {
     QuantInfo output;
 };
 
+struct QuantizationParams {
+    SmallVector<int64_t> quantMult;
+    SmallVector<int64_t> quantShift;
+    int64_t postShift;
+};
+
+struct PostOpParams {
+    VPU::PPEMode layerType;
+    int64_t clampLow;
+    int64_t clampHigh;
+    int64_t LreluMult;
+    int64_t LreluShift;
+    Optional<QuantizationParams> quantParams;
+
+    PostOpParams(VPU::PPEMode layerType, int64_t clampLow, int64_t clampHigh, int64_t LreluMult, int64_t LreluShift)
+            : layerType(layerType),
+              clampLow(clampLow),
+              clampHigh(clampHigh),
+              LreluMult(LreluMult),
+              LreluShift(LreluShift) {
+    }
+
+    PostOpParams(VPU::PPEMode layerType, int64_t clampLow, int64_t clampHigh, int64_t LreluMult, int64_t LreluShift,
+                 const QuantizationParams& quantParams)
+            : layerType(layerType),
+              clampLow(clampLow),
+              clampHigh(clampHigh),
+              LreluMult(LreluMult),
+              LreluShift(LreluShift),
+              quantParams(quantParams) {
+    }
+};
+
 extern const EnumMap<VPU::PPEMode, PwlQuantReqs> pwlQuantReqs;
 
 PwlQuantReqs getPwlQuantReqs(VPU::PPEMode ppeType);
+
+int64_t getPwlPostShift(const VPU::PPEMode ppeType);
+int64_t getPwlClamp(const mlir::Type inElemType, const mlir::Type outElemType, const VPU::PPEMode ppeType,
+                    const bool getMin);
+
+PostOpParams getPwlPostOpParams(const mlir::Type inElemType, const mlir::Type outElemType, VPU::PPEMode ppeType);
+
+llvm::Optional<PostOpParams> parsePostOp(IE::PostOp postOp, const mlir::Type inElemType, const mlir::Type outElemType,
+                                         VPU::ArchKind arch, mlir::Location loc);
 
 }  // namespace VPU
 }  // namespace vpux
