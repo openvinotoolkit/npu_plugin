@@ -97,5 +97,11 @@ PPETaskAttr getPPETaskAttr(mlir::MLIRContext* ctx, VPU::PPEMode mode, int64_t cl
 
 VPU::PPEMode getPPEMode(VPU::EltwiseType type);
 
+//
+// DistributedTensorAttr
+//
+
+mlir::LogicalResult verify(FuncRef<mlir::InFlightDiagnostic()> emitError, DistributedTensorAttr distributedAttr);
+
 }  // namespace VPU
 }  // namespace vpux

@@ -11,9 +11,9 @@
 // included with the Software Package for additional details.
 //
 
-#include "vpux/compiler/init.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/types.hpp"
+#include "vpux/compiler/init.hpp"
 
 #include "vpux/utils/core/mem_size.hpp"
 #include "vpux/utils/core/small_vector.hpp"
@@ -30,7 +30,7 @@ namespace {
 constexpr vpux::StringRef CMX_NAME = "CMX_NN";
 constexpr vpux::StringRef DDR_NAME = "DDR";
 
-}
+}  // namespace
 
 TEST(MLIR_NDTypeInterface, DistributedBufferType) {
     mlir::DialectRegistry registry;
@@ -44,10 +44,11 @@ TEST(MLIR_NDTypeInterface, DistributedBufferType) {
 
         !InputDistributed = type !VPUIP.DistributedBuffer<
             1x32x16x16xf16, #NHWC, @CMX_NN, {
-            mode = OVERLAPPED,
+            mode = "OVERLAPPED",
             num_tiles = [1, 1, 4, 1],
             kernel = [3, 3],
-            pads = {bottom = 1, left = 1, right = 1, top = 1}
+            pads = {bottom = 1, left = 1, right = 1, top = 1},
+            num_clusters = 4
         }>
 
         !Input_DDR = type memref<1x32x16x16xf16, #NHWC, @DDR>
@@ -82,13 +83,13 @@ TEST(MLIR_NDTypeInterface, DistributedBufferType) {
 
     for (auto& op : func.getOps()) {
         auto clusterTiling = mlir::dyn_cast<vpux::VPUIP::NCEClusterTilingOp>(op);
-        if(clusterTiling == nullptr) {
+        if (clusterTiling == nullptr) {
             continue;
         }
 
-        for (auto operand: clusterTiling.getOperands()) {
+        for (auto operand : clusterTiling.getOperands()) {
             auto distributedBuffer = operand.getType().dyn_cast<vpux::VPUIP::DistributedBufferType>();
-            if(distributedBuffer == nullptr) {
+            if (distributedBuffer == nullptr) {
                 continue;
             }
 
@@ -100,7 +101,7 @@ TEST(MLIR_NDTypeInterface, DistributedBufferType) {
 
             EXPECT_TRUE(ndType.hasRank());
             EXPECT_EQ(ndType.getRank(), 4);
-            EXPECT_EQ(ndType.getNumElements(), 32*16*16);
+            EXPECT_EQ(ndType.getNumElements(), 32 * 16 * 16);
 
             EXPECT_TRUE(ndType.getElementType().isa<mlir::Float16Type>());
 
