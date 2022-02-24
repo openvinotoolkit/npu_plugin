@@ -21,12 +21,13 @@ bool EltwiseStrategy::doesSplitOverHeightLayerFitIntoCMX(mlir::Operation* op) co
     auto origOp = mlir::cast<NCEEltwiseOp>(op);
     auto activationTensorDistributionMode = getActivationTensorDistributionMode(origOp);
     auto activationTensorNumTiles = getActivationTensorNumTiles(origOp);
-    auto distributedInput1TensorType = createDistributedInputTensorType(
+    auto distributedInput1TensorType = createDistributedTensorType(
             origOp, origOp.input1(), activationTensorDistributionMode, activationTensorNumTiles);
-    auto distributedInput2TensorType = createDistributedInputTensorType(
+    auto distributedInput2TensorType = createDistributedTensorType(
             origOp, origOp.input2(), activationTensorDistributionMode, activationTensorNumTiles);
-    auto distributedOutputTensorType =
-            createDistributedOutputTensorType(origOp, activationTensorDistributionMode, activationTensorNumTiles);
+    auto distributedOutputTensorType = createDistributedTensorType(
+            origOp, origOp.output(), activationTensorDistributionMode, activationTensorNumTiles);
 
     return origOp.fitIntoCMX(distributedInput1TensorType, distributedInput2TensorType, distributedOutputTensorType);
 }
+
