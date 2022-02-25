@@ -40,7 +40,7 @@ func @ParsePrintClusterTiling(%arg0: tensor<1x32x16x16xf16, {mem_space = @CMX_NN
 
 !InputDistributed = type !VPU.DistributedTensor<
     1x32x16x16xf16, #NHWC, @CMX_NN, {
-    mode = "OVERLAPPED",
+    mode = OVERLAPPED,
     num_tiles = [1, 1, 4, 1],
     kernel = [3, 3],
     pads = {bottom = 1, left = 1, right = 1, top = 1},
@@ -49,13 +49,13 @@ func @ParsePrintClusterTiling(%arg0: tensor<1x32x16x16xf16, {mem_space = @CMX_NN
 
 !WeightsDistributed = type !VPU.DistributedTensor<
     64x32x3x3xf16, #NHWC, @CMX_NN, {
-    mode = "DUPLICATED",
+    mode = DUPLICATED,
     num_clusters = 4
 }>
 
 !OutputDistributed = type !VPU.DistributedTensor<
     1x64x16x16xf16, #NHWC, @CMX_NN, {
-    mode = "SEGMENTED",
+    mode = SEGMENTED,
     num_tiles = [1, 1, 4, 1],
     num_clusters = 4
 }>
@@ -135,7 +135,8 @@ func @ParsePrintDistributedTensor(%arg0: !Input_DDR) -> !Output_DDR {
 !TensorDistributed = type !VPU.DistributedTensor<
     1x64x16x16xf16, #NHWC, @CMX_NN, {
     mode = SEGMENTED,
-    num_tiles = [1, 1, 4, 1]
+    num_tiles = [1, 1, 4, 1],
+    num_clusters = 4
 }>
 
 !Tensor_DDR = type tensor<1x64x16x16xf16, {mem_space = @DDR, order = #NHWC}>
@@ -155,7 +156,7 @@ func @EraseCopySequence(%arg0: !TensorDistributed) -> !TensorDistributed {
     return %output: !TensorDistributed
 }
 
-// CHECK: return %arg0 : !VPU.DistributedTensor<1x64x16x16xf16, #NHWC, @CMX_NN, {mode = SEGMENTED, num_tiles = [1, 1, 4, 1]}>
+// CHECK: return %arg0 : !VPU.DistributedTensor<1x64x16x16xf16, #NHWC, @CMX_NN, {mode = SEGMENTED, num_tiles = [1, 1, 4, 1], num_clusters = 4 : i64}>
 
 // -----
 
@@ -166,29 +167,34 @@ func @EraseCopySequence(%arg0: !TensorDistributed) -> !TensorDistributed {
     mode = OVERLAPPED,
     num_tiles = [1, 1, 4, 1],
     kernel = [3, 3],
-    pads = {bottom = 1, left = 1, right = 1, top = 1}
+    pads = {bottom = 1, left = 1, right = 1, top = 1},
+    num_clusters = 4
 }>
 
 !WeightsFirstDistributed = type !VPU.DistributedTensor<
     64x32x3x3xf16, #NHWC, @CMX_NN, {
-    mode = DUPLICATED
+    mode = DUPLICATED,
+    num_clusters = 4
 }>
 
 !IntermediateDistributed = type !VPU.DistributedTensor<
     1x64x16x16xf16, #NHWC, @CMX_NN, {
     mode = SEGMENTED,
-    num_tiles = [1, 1, 4, 1]
+    num_tiles = [1, 1, 4, 1],
+    num_clusters = 4
 }>
 
 !WeightsSecondDistributed = type !VPU.DistributedTensor<
     16x64x1x1xf16, #NHWC, @CMX_NN, {
-    mode = DUPLICATED
+    mode = DUPLICATED,
+    num_clusters = 4
 }>
 
 !OutputDistributed = type !VPU.DistributedTensor<
     1x16x16x16xf16, #NHWC, @CMX_NN, {
     mode = SEGMENTED,
-    num_tiles = [1, 1, 4, 1]
+    num_tiles = [1, 1, 4, 1],
+    num_clusters = 4
 }>
 
 !Input_DDR = type tensor<1x32x16x16xf16, {mem_space = @DDR, order = #NHWC}>
@@ -269,7 +275,7 @@ func @CanonicalizeTwoConvs(%arg0: !Input_DDR) -> !Output_DDR {
 }
 
 // CHECK:    [[INTERMEDIATE:%.*]] = VPU.NCE.ClusterTiling ([[INPUT:%.*]] as %arg1: tensor<1x32x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>, [[WEIGHTS_1:%.*]] as %arg2: tensor<64x32x3x3xf16, {mem_space = @CMX_NN, order = #NHWC}>)
-// CHECK-SAME:             -> !VPU.DistributedTensor<1x64x16x16xf16, #NHWC, @CMX_NN, {mode = SEGMENTED, num_tiles = [1, 1, 4, 1]}> {
+// CHECK-SAME:             -> !VPU.DistributedTensor<1x64x16x16xf16, #NHWC, @CMX_NN, {mode = SEGMENTED, num_tiles = [1, 1, 4, 1], num_clusters = 4 : i64}> {
 // CHECK:        [[TEMP_1:%.*]] = VPU.NCE.Convolution(%arg1, %arg2)
 // CHECK-SAME:       -> tensor<1x64x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>
 
@@ -280,6 +286,6 @@ func @CanonicalizeTwoConvs(%arg0: !Input_DDR) -> !Output_DDR {
 // CHECK-NOT:     [[WHATEVER_CMX:%.*]] = IE.Copy(%arg1) {out_mem_space = @CMX_NN} : tensor<1x64x16x16xf16, {mem_space = @DDR, order = #NHWC}> -> tensor<1x64x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>
 
 // CHECK:    [[OUTPUT:%.*]] = VPU.NCE.ClusterTiling ([[INTERMEDIATE]] as %arg1: tensor<1x64x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>, [[WEIGHTS_1:%.*]] as %arg2: tensor<16x64x1x1xf16, {mem_space = @CMX_NN, order = #NHWC}>
-// CHECK-SAME:            ) -> !VPU.DistributedTensor<1x16x16x16xf16, #NHWC, @CMX_NN, {mode = SEGMENTED, num_tiles = [1, 1, 4, 1]}> {
+// CHECK-SAME:            ) -> !VPU.DistributedTensor<1x16x16x16xf16, #NHWC, @CMX_NN, {mode = SEGMENTED, num_tiles = [1, 1, 4, 1], num_clusters = 4 : i64}> {
 // CHECK:        [[TEMP_2:%.*]] = VPU.NCE.Convolution(%arg1, %arg2)
 // CHECK-SAME:       -> tensor<1x16x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>
