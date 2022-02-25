@@ -249,14 +249,16 @@ void buildMultiClustering(const nb::TestCaseJsonDescriptor& testDesc, mlir::Modu
             vpux::Const::ContentAttr::get(weightsTableValues).reorder(vpux::DimsOrder::NCHW));
 
     // Define CMX buffer
+    llvm::SmallVector<int64_t> sectionIndex{0, 1};
     auto parentInputCMX = functionBuilder.create<VPURT::DeclareBufferOp>(
-            builder.getUnknownLoc(), inputDistribute, VPURT::BufferSection::CMX_NN, INPUT_CMX_OFFSET);
+            builder.getUnknownLoc(), inputDistribute, VPURT::BufferSection::CMX_NN, sectionIndex, INPUT_CMX_OFFSET);
     auto parentOutputCMX = functionBuilder.create<VPURT::DeclareBufferOp>(
-            builder.getUnknownLoc(), outputDistribute, VPURT::BufferSection::CMX_NN, OUTPUT_CMX_OFFSET);
+            builder.getUnknownLoc(), outputDistribute, VPURT::BufferSection::CMX_NN, sectionIndex, OUTPUT_CMX_OFFSET);
     auto parentWeightsCMX = functionBuilder.create<VPURT::DeclareBufferOp>(
-            builder.getUnknownLoc(), weightsDistribute, VPURT::BufferSection::CMX_NN, WEIGHTS_CMX_OFFSET);
+            builder.getUnknownLoc(), weightsDistribute, VPURT::BufferSection::CMX_NN, sectionIndex, WEIGHTS_CMX_OFFSET);
     auto parentWeightsTableCMX = functionBuilder.create<VPURT::DeclareBufferOp>(
-            builder.getUnknownLoc(), weightsTableDistribute, VPURT::BufferSection::CMX_NN, WEIGHTSTABLE_CMX_OFFSET);
+            builder.getUnknownLoc(), weightsTableDistribute, VPURT::BufferSection::CMX_NN, sectionIndex,
+            WEIGHTSTABLE_CMX_OFFSET);
 
     llvm::SmallVector<VPURT::DeclareBufferOp> subInputCMX;
     llvm::SmallVector<VPURT::DeclareBufferOp> subOutputCMX;
