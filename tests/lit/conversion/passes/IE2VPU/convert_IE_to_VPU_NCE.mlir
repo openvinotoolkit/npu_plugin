@@ -109,7 +109,7 @@ func @DepthConvToNCE(%arg0: tensor<1x16x40x80xf16, {order = #NHWC}>) -> tensor<1
 
     return %0 : tensor<1x16x37x73xf16, {order = #NHWC}>
 
-    // CHECK:       [[CST:%.+]] = const.Declare tensor<16x1x1x16xui8>
+    // CHECK:       [[CST:%.+]] = const.Declare tensor<1x1x1x16xui8>
     // CHECK:       [[CST1:%.+]] = const.Declare tensor<16x1x1x4xsi32>
     // CHECK:       [[CST2:%.+]] = const.Declare tensor<16x1x4x8xf16, {order = #NHWC}>
 
@@ -120,7 +120,7 @@ func @DepthConvToNCE(%arg0: tensor<1x16x40x80xf16, {order = #NHWC}>) -> tensor<1
     // CHECK:       [[VAL2:%.+]] = IE.Copy([[CST1]]) {out_mem_space = @CMX_NN}
     // CHECK-SAME:      -> tensor<16x1x1x4xsi32, {mem_space = @CMX_NN, order = #NCHW}>
     // CHECK:       [[VAL3:%.+]] = IE.Copy([[CST]]) {out_mem_space = @CMX_NN}
-    // CHECK-SAME:      -> tensor<16x1x1x16xui8, {mem_space = @CMX_NN, order = #NCHW}>
+    // CHECK-SAME:      -> tensor<1x1x1x16xui8, {mem_space = @CMX_NN, order = #NCHW}>
 
     // CHECK:       [[VAL4:%.+]] = VPU.NCE.DepthConvolution([[VAL0]], [[VAL1]], [[VAL2]], [[VAL3]])
     // CHECK-SAME:      pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}
@@ -153,7 +153,7 @@ func @MaxPoolToNCE(%arg0: tensor<1x16x1x4xf16, {order = #NHWC}>) -> tensor<1x16x
 
     return %0 : tensor<1x16x1x4xf16, {order = #NHWC}>
 
-    // CHECK:       [[CST:%.+]] = const.Declare tensor<16x1x1x16xui8>
+    // CHECK:       [[CST:%.+]] = const.Declare tensor<1x1x1x16xui8>
     // CHECK:       [[CST1:%.+]] = const.Declare tensor<16x1x1x4xsi32>
 
     // CHECK:       [[VAL0:%.+]] = IE.Copy(%arg0) {out_mem_space = @CMX_NN}
@@ -161,7 +161,7 @@ func @MaxPoolToNCE(%arg0: tensor<1x16x1x4xf16, {order = #NHWC}>) -> tensor<1x16x
     // CHECK:       [[VAL1:%.+]] = IE.Copy([[CST1]]) {out_mem_space = @CMX_NN}
     // CHECK-SAME:      -> tensor<16x1x1x4xsi32, {mem_space = @CMX_NN, order = #NCHW}>
     // CHECK:       [[VAL2:%.+]] = IE.Copy([[CST]]) {out_mem_space = @CMX_NN}
-    // CHECK-SAME:      -> tensor<16x1x1x16xui8, {mem_space = @CMX_NN, order = #NCHW}>
+    // CHECK-SAME:      -> tensor<1x1x1x16xui8, {mem_space = @CMX_NN, order = #NCHW}>
 
     // CHECK:       [[VAL3:%.+]] = VPU.NCE.MaxPool([[VAL0]], [[VAL1]], [[VAL2]])
     // CHECK-SAME:      pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}
