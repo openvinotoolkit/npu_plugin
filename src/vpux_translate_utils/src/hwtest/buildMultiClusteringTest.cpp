@@ -23,6 +23,7 @@
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
 #include "vpux/compiler/dialect/VPURT/task.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
+#include "vpux/compiler/utils/permute_utils.hpp"
 #include "vpux/hwtest/hwtest_utils.hpp"
 #include "vpux/hwtest/test_case_json_parser.hpp"
 #include "vpux/utils/core/error.hpp"
@@ -291,9 +292,10 @@ void buildMultiClustering(const nb::TestCaseJsonDescriptor& testDesc, mlir::Modu
     // Reorder input
     VPURT::ConfigureBarrierOp waitWeightsBarrier = updateBarrier;
     updateBarrier = functionBuilder.create<vpux::VPURT::ConfigureBarrierOp>(builder.getUnknownLoc(), barrierNumber++);
-    VPURT::wrapIntoTaskOp<VPUIP::PermuteUPAOp>(
-            functionBuilder, mlir::ValueRange(), mlir::ValueRange(updateBarrier.barrier()), builder.getUnknownLoc(),
-            functionInput, parentInputDDR.buffer(), mlir::AffineMapAttr::get(DimsOrder::NHWC.toAffineMap(ctx)));
+    const auto inputMemPerm = vpux::getPermutationFromOrders(DimsOrder::NCHW, DimsOrder::NHWC, ctx);
+    VPURT::wrapIntoTaskOp<VPUIP::PermuteUPAOp>(functionBuilder, mlir::ValueRange(),
+                                               mlir::ValueRange(updateBarrier.barrier()), builder.getUnknownLoc(),
+                                               functionInput, parentInputDDR.buffer(), inputMemPerm);
 
     // Copy input from DDR to CMX
     VPURT::ConfigureBarrierOp waitInputReorderBarrier = updateBarrier;
@@ -345,16 +347,10 @@ void buildMultiClustering(const nb::TestCaseJsonDescriptor& testDesc, mlir::Modu
 
     // reorder output
     VPURT::ConfigureBarrierOp waitCMXToDDRBarrier = updateBarrier;
-    //     const auto permutationMap =
-    //             mlir::AffineMap::getPermutationMap(makeArrayRef(SmallVector<uint32_t>{0, 3, 1, 2}), ctx);
-    //     VPURT::wrapIntoTaskOp<VPUIP::PermuteUPAOp>(functionBuilder, waitCMXToDDRBarrier.barrier(),
-    //     mlir::ValueRange(),
-    //                                                builder.getUnknownLoc(), parentOutputDDR.buffer(), functionOutput,
-    //                                                mlir::AffineMapAttr::get(permutationMap));
-
+    const auto outMemPerm = vpux::getPermutationFromOrders(DimsOrder::NHWC, DimsOrder::NCHW, ctx);
     VPURT::wrapIntoTaskOp<VPUIP::PermuteUPAOp>(functionBuilder, waitCMXToDDRBarrier.barrier(), mlir::ValueRange(),
                                                builder.getUnknownLoc(), parentOutputDDR.buffer(), functionOutput,
-                                               mlir::AffineMapAttr::get(DimsOrder::NCHW.toAffineMap(ctx)));
+                                               outMemPerm);
 
     functionBuilder.create<mlir::ReturnOp>(builder.getUnknownLoc(), functionOutput);
 
