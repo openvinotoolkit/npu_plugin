@@ -1,6 +1,6 @@
 # These owners will be the default reviewers for pull/merge requests in the repo.
 #
-# MLIR Compiler - Vinogradov, Vladislav (@vinograd47) / Kudriavtsev, Nikita (@nikita-kud) / Losev, Sergey (@briangrifiin)
+# MLIR Compiler - Vinogradov, Vladislav (@vinograd47) / Kudriavtsev, Nikita (@nikita-kud) / Losev, Sergey (@briangrifiin) / Darecki, Mateusz (@MateuszDareckiIntel) / Rotuna, Harald Razvan (@hrotuna) / Zomborat, Zoran (@ZoranZomborat)
 # Driver compiler adapter / Compiler in Driver - Znamenskiy, Mikhail (@mznamens) / Shumihin, Sergey (@sshumihi) / Skrebkov, Artemy (@ArtemySkrebkov-intel)
 # Quantization / Mixed Datatypes - Shokin, Alexander (@shokinal) / Rotuna, Harald Razvan (@hrotuna) / Zomborat, Zoran (@ZoranZomborat)
 # Strategy Generation - DeFlumere, Ashley (@adeflume)
@@ -48,7 +48,7 @@ CMakeLists.txt @vinograd47 @mmineeva @ArtemySkrebkov-intel
 /src/utils @briangrifiin @mznamens
 /src/vpual_backend @briangrifiin @ArtemySkrebkov-intel @alpkn
 /src/vpux_al @ArtemySkrebkov-intel @mznamens @sshumihi
-/src/vpux_compiler @vinograd47 @nikita-kud @briangrifiin @sshumihi @andrejsokolov @vadim-intel @ZhibinLiIntel
+/src/vpux_compiler @vinograd47 @nikita-kud @briangrifiin @MateuszDareckiIntel @hrotuna @ZoranZomborat @sshumihi @andrejsokolov @vadim-intel @ZhibinLiIntel
 /src/vpux_driver_compiler_adapter @sshumihi @ArtemySkrebkov-intel @mznamens
 /src/VPUXCompilerL0 @mznamens @sshumihi @ArtemySkrebkov-intel
 /src/vpux_elf @AndrewBakalinIntel @szilveszteri @gladilov-gleb
@@ -77,7 +77,7 @@ CMakeLists.txt @vinograd47 @mmineeva @ArtemySkrebkov-intel
 /tests/functional/subgraph_tests @maxim-kurin @vinograd47 @alpkn
 #
 /tests/libs @alpkn @alexeytarakanov
-/tests/lit @vinograd47 @nikita-kud @briangrifiin
+/tests/lit @vinograd47 @nikita-kud @briangrifiin @MateuszDareckiIntel @hrotuna @ZoranZomborat
 #
 /tests/unit/frontend_mcm @ArtemySkrebkov-intel @mmineeva
 /tests/unit/hddl2_tests @ArtemySkrebkov-intel @mznamens
