@@ -209,6 +209,7 @@ void vpux::buildReferenceHWModePipeline(mlir::OpPassManager& pm, const Reference
     buildLowerIE2IERTPipeline(pm, log);
 
     pm.addPass(createConvertVPUToVPUIPPass(log));
+    pm.addPass(createConvertNCEClusterTilingToVPUIPPass(log));
     pm.addPass(createConvertSWLayers2VPUIPPass(log));
     pm.addPass(mlir::createCanonicalizerPass(grc));
 
@@ -338,6 +339,7 @@ void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOp
     buildLowerIE2IERTPipeline(pm, log);
 
     pm.addPass(createConvertVPUToVPUIPPass(log));
+    pm.addPass(createConvertNCEClusterTilingToVPUIPPass(log));
     pm.addPass(createConvertSWLayers2VPUIPPass(log));
 
     pm.addPass(mlir::createCanonicalizerPass(grc));

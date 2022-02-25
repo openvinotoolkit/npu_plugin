@@ -24,6 +24,7 @@
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/utils.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
+#include "vpux/compiler/utils/analysis.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/error.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
@@ -32,6 +33,7 @@
 #include "vpux/utils/core/format.hpp"
 #include "vpux/utils/core/range.hpp"
 
+#include <mlir/IR/BlockAndValueMapping.h>
 #include <mlir/Transforms/Bufferize.h>
 #include <mlir/Transforms/DialectConversion.h>
 
@@ -535,7 +537,7 @@ void ConvertVPUToVPUIPPass::safeRunOnFunc() {
     auto& ctx = getContext();
     auto func = getFunction();
 
-    vpux::BufferizeTypeConverter typeConverter;
+    vpux::BufferizeWithDistributedTypeConverter typeConverter;
 
     const auto isLegalOp = [&](mlir::Operation* op) {
         return typeConverter.isLegal(op);
@@ -546,8 +548,11 @@ void ConvertVPUToVPUIPPass::safeRunOnFunc() {
     target.addLegalDialect<VPUIP::VPUIPDialect>();
     target.addLegalDialect<IERT::IERTDialect>();
     target.addIllegalDialect<VPU::VPUDialect>();
+    // NCEClusterTiling will be handled in follw up pass (convertNCEClusterTilingToVPUIP pass)
+    target.addLegalOp<VPU::NCEClusterTilingOp>();
+    target.addLegalOp<VPU::YieldOp>();
     target.addLegalOp<mlir::memref::AllocOp>();
-    vpux::populateBufferizeMaterializationLegality(target);
+    vpux::populateBufferizeWithDistributedMaterializationLegality(target);
 
     auto module = func->getParentOfType<mlir::ModuleOp>();
     const auto arch = VPU::getArch(module);

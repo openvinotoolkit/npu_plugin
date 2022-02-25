@@ -184,7 +184,8 @@ vpux::BufferizeTypeConverter::BufferizeTypeConverter() {
         return type;
     });
 
-    addConversion([](vpux::NDTypeInterface type) {
+    addConversion([](mlir::RankedTensorType tensorType) {
+        const auto type = tensorType.cast<vpux::NDTypeInterface>();
         const auto shape = type.getShape();
         const auto elemType = type.getElementType();
         const auto order = type.getDimsOrder();
@@ -202,6 +203,29 @@ vpux::BufferizeTypeConverter::BufferizeTypeConverter() {
 //
 
 void vpux::populateBufferizeMaterializationLegality(mlir::ConversionTarget& target) {
+    target.addLegalOp<mlir::UnrealizedConversionCastOp>();
+}
+
+//
+// BufferizeTypeConverter
+//
+
+vpux::BufferizeWithDistributedTypeConverter::BufferizeWithDistributedTypeConverter() {
+    addConversion([](VPU::DistributedTensorType type) {
+        return VPUIP::DistributedBufferType::get(type.getContext(), type.getShape().raw(), type.getElementType(),
+                                                 type.getOrder(), type.getMemSpace(), type.getDistribution());
+    });
+
+    addTargetMaterialization(dummyConverter<VPUIP::DistributedBufferType>);
+    addArgumentMaterialization(dummyConverter<VPUIP::DistributedBufferType>);
+    addSourceMaterialization(dummyConverter<VPU::DistributedTensorType>);
+}
+
+//
+// populateBufferizeWithDistributedMaterializationLegality
+//
+
+void vpux::populateBufferizeWithDistributedMaterializationLegality(mlir::ConversionTarget& target) {
     target.addLegalOp<mlir::UnrealizedConversionCastOp>();
 }
 
