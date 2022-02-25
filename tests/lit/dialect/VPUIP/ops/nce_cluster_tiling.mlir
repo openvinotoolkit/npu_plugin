@@ -7,7 +7,7 @@ func @ParsePrintClusterTiling(%arg0: memref<1x32x16x16xf16, #NHWC, @CMX_NN>) -> 
                 = #const.Content<dense<1.000000e+00> : tensor<64x32x3x3xf16>, [#const.Reorder<#NHWC>]>
 
     %out_buff_cmx = memref.alloc() : memref<1x64x14x14xf16, #NHWC, @CMX_NN>
-    %weight_table = VPUIP.WeightsTableOp op_input(%arg0 : memref<1x32x16x16xf16, #NHWC, @CMX_NN>) op_output(%out_buff_cmx : memref<1x64x14x14xf16, #NHWC, @CMX_NN>) weights(%weights : memref<64x32x3x3xf16, #NHWC, @CMX_NN>) -> memref<64x1x1x4xsi32>
+    %weight_table = const.Declare memref<64x1x1x4xsi32> = #const.Content<dense<10> : tensor<64x1x1x4xsi32>>
     %weight_table_buff_cmx = memref.alloc() : memref<64x1x1x4xsi32, @CMX_NN>
     %weight_table_cmx = IERT.Copy inputs(%weight_table : memref<64x1x1x4xsi32>) outputs(%weight_table_buff_cmx : memref<64x1x1x4xsi32, @CMX_NN>) -> memref<64x1x1x4xsi32, @CMX_NN>
 
@@ -52,7 +52,7 @@ func @ParsePrintClusterTiling(%arg0: memref<1x32x16x16xf16, #NHWC, @CMX_NN>) -> 
     //CHECK:        [[WEIGHTS:%.*]] = const.Declare memref<64x32x3x3xf16, #NHWC, @CMX_NN>
 
     //CHECK:        [[OUT_BUFF_CMX:%.*]] = memref.alloc() : memref<1x64x14x14xf16, #NHWC, @CMX_NN>
-    //CHECK:        [[WEIGHT_TABLE:%.*]] = VPUIP.WeightsTableOp
+    //CHECK:        [[WEIGHT_TABLE:%.*]] = const.Declare memref<64x1x1x4xsi32>
 
     //CHECK:        [[WEIGHT_TABLE_BUFF_CMX:%.*]] = memref.alloc() : memref<64x1x1x4xsi32, @CMX_NN>
     //CHECK:        [[WEIGHT_TABLE_CMX:%.*]] = IERT.Copy
@@ -155,7 +155,7 @@ func @ParsePrintDistributedBuffer(%input: !Input_DDR) -> !Output_DDR {
                         %weights_cmx as %arg2: !WeightsStub_CMX)
                 outputs(%weights_table_cmx as %arg3: !WeightsTableStub_CMX)
                     -> !WeightsTableDistributed {
-            %1 = VPUIP.WeightsTableOp op_input(%arg0 : !InputStub_CMX) op_output(%arg1 : !OutputStub_CMX) weights(%arg2 : !WeightsStub_CMX) -> !WeightsTableStub
+            %1 = const.Declare !WeightsTableStub = #const.Content<dense<10> : tensor<64x1x1x4xsi32>>
             %2 = IERT.Copy { out_mem_space = @CMX_NN } inputs(%1: !WeightsTableStub) outputs(%arg3: !WeightsTableStub_CMX) -> !WeightsTableStub_CMX
         }
 
@@ -244,8 +244,8 @@ func @ParsePrintDistributedBuffer(%input: !Input_DDR) -> !Output_DDR {
     //CHECK-SAME:               outputs([[WEIGHTS_TABLE_CMX]] as %arg4: memref<64x1x1x4xsi32, @CMX_NN>)
     //CHECK-SAME:               attributes {operand_segment_sizes = dense<[3, 1]> : vector<2xi32>}
     //CHECK-SAME:               -> !VPUIP.DistributedBuffer<64x1x1x4xsi32, affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>, @CMX_NN, {mode = DUPLICATED, num_clusters = 4 : i64}> {
-    //CHECK:                %6 = VPUIP.WeightsTableOp op_input(%arg1 : memref<1x32x16x16xf16, #NHWC, @CMX_NN>) op_output(%arg2 : memref<1x64x16x16xf16, #NHWC, @CMX_NN>) weights(%arg3 : memref<64x32x3x3xf16, #NHWC, @CMX_NN>) -> memref<64x1x1x4xsi32>
-    //CHECK:                %7 = IERT.Copy {out_mem_space = @CMX_NN} inputs(%6 : memref<64x1x1x4xsi32>) outputs(%arg4 : memref<64x1x1x4xsi32, @CMX_NN>) -> memref<64x1x1x4xsi32, @CMX_NN>
+    //CHECK:                %cst_4 = const.Declare memref<64x1x1x4xsi32>
+    //CHECK:                %6 = IERT.Copy {out_mem_space = @CMX_NN} inputs(%cst_4 : memref<64x1x1x4xsi32>) outputs(%arg4 : memref<64x1x1x4xsi32, @CMX_NN>) -> memref<64x1x1x4xsi32, @CMX_NN>
     //CHECK:              }
     //CHECK:              async.yield
     //CHECK:        }

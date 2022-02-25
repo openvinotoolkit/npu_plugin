@@ -28,7 +28,7 @@ def UPAProfiling : PassBase<"upa-profiling", "vpux::ModulePass"> {
     }];
 
     let constructor = "vpux::VPUIP::createUPAProfilingPass()";
-    
+
 }
 
 //
@@ -39,25 +39,11 @@ def GroupProfilingBuffers : PassBase<"group-profiling-buffers", "vpux::ModulePas
     let summary = "Group profiling buffers into single profiling output buffer";
 
     let description = [{
-        Group profiling buffers from different profiling engines into single profiling output buffer with name as 
+        Group profiling buffers from different profiling engines into single profiling output buffer with name as
         [offset]_[profiling name]_[offset]_[profiling name] so postprocessing tool can parse it back
     }];
 
     let constructor = "vpux::VPUIP::createGroupProfilingBuffersPass()";
-}
-
-//
-// ConvertWeightsTableOp2Const
-//
-
-def ConvertWeightsTableOp2Const : PassBase<"convert-wtable-op-to-constant", "vpux::FunctionPass"> {
-    let summary = "Convert WeightsTable Operations to IERT.ConstantOp";
-
-    let description = [{
-        This pass fills weights table considering the information about the offset in the memory of the weights or activation window.
-    }];
-
-    let constructor = "vpux::VPUIP::createConvertWeightsTableOp2ConstPass()";
 }
 
 //
