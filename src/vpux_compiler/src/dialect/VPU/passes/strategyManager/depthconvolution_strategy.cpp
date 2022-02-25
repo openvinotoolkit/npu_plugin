@@ -17,12 +17,12 @@
 using namespace vpux;
 using namespace VPU;
 
-bool DepthConvolutionStrategy::doesSplitOverHeightLayerFitIntoCMX(mlir::Operation* op) const {
+bool DepthConvolutionStrategy::doesLayerFitIntoCMX(mlir::Operation* op, StringRef strategy) const {
     auto origOp = mlir::dyn_cast<NCEDepthConvolutionOp>(op);
-    auto activationTensorDistributionMode = getActivationTensorDistributionMode(origOp);
-    auto activationTensorNumTiles = getActivationTensorNumTiles(origOp);
-    auto weightsTensorDistributionMode = getWeightsTensorDistributionMode(origOp);
-    auto weightTensorNumTiles = getWeightsTensorNumTiles(origOp);
+    auto activationTensorDistributionMode = getActivationTensorDistributionMode(origOp, strategy);
+    auto activationTensorNumTiles = getActivationTensorNumTiles(origOp, strategy);
+    auto weightsTensorDistributionMode = getWeightsTensorDistributionMode(origOp, strategy);
+    auto weightTensorNumTiles = getWeightsTensorNumTiles(origOp, strategy);
     auto distributedOutputTensorType = createDistributedTensorType(
             origOp, origOp.output(), activationTensorDistributionMode, activationTensorNumTiles);
     auto distributedActivationTensorType = createDistributedTensorType(
@@ -33,4 +33,3 @@ bool DepthConvolutionStrategy::doesSplitOverHeightLayerFitIntoCMX(mlir::Operatio
     return origOp.fitIntoCMX(distributedActivationTensorType, distributeddWeightsTensorType,
                              distributedOutputTensorType);
 }
-

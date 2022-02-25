@@ -47,13 +47,13 @@ void StrategyManager::assignMultiClusterStrategy() {
         llvm::TypeSwitch<mlir::Operation*, void>(op)
                 .Case<NCEMaxPoolOp>([this](NCEMaxPoolOp origOp) {
                     if (_maxPoolStrategy.isOperationSplitOverHeightCompatible(origOp.getOperation()) &&
-                        _maxPoolStrategy.doesSplitOverHeightLayerFitIntoCMX(origOp.getOperation())) {
+                        _maxPoolStrategy.doesLayerFitIntoCMX(origOp.getOperation(), splitOverHeight)) {
                         setLayerStrategy(splitOverHeight, origOp.getOperation());
                     }
                 })
                 .Case<NCEEltwiseOp>([this](NCEEltwiseOp origOp) {
                     if (_eltwiseStrategy.isOperationSplitOverHeightCompatible(origOp.getOperation()) &&
-                        _eltwiseStrategy.doesSplitOverHeightLayerFitIntoCMX(origOp.getOperation())) {
+                        _eltwiseStrategy.doesLayerFitIntoCMX(origOp.getOperation(), splitOverHeight)) {
                         setLayerStrategy(splitOverHeight, origOp.getOperation());
                     }
                 })
@@ -62,14 +62,14 @@ void StrategyManager::assignMultiClusterStrategy() {
                     // Only z-major convolution will be considered for multi-cluster mode
                     if (DimsOrder::fromValue(origOp.input()) == DimsOrder::NHWC) {
                         if (_convolutionStrategy.isOperationSplitOverHeightCompatible(origOp.getOperation()) &&
-                            _convolutionStrategy.doesSplitOverHeightLayerFitIntoCMX(origOp.getOperation())) {
+                            _convolutionStrategy.doesLayerFitIntoCMX(origOp.getOperation(), splitOverHeight)) {
                             setLayerStrategy(splitOverHeight, origOp.getOperation());
                         }
                     }
                 })
                 .Case<NCEDepthConvolutionOp>([this](NCEDepthConvolutionOp origOp) {
                     if (_depthConvolutionStrategy.isOperationSplitOverHeightCompatible(origOp.getOperation()) &&
-                        _depthConvolutionStrategy.doesSplitOverHeightLayerFitIntoCMX(origOp.getOperation())) {
+                        _depthConvolutionStrategy.doesLayerFitIntoCMX(origOp.getOperation(), splitOverHeight)) {
                         setLayerStrategy(splitOverHeight, origOp.getOperation());
                     }
                 })
