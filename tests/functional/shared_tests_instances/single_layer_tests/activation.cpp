@@ -262,6 +262,7 @@ const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes
         {Sigmoid,  {{1.0f}}},
         {HSwish,   {{1.0f}}},
         {Elu,      {{1.0f}}},
+        {Sqrt,     {{1.0f}}},
         {Exp,      {{1.0f}}},
         {Tanh,     {{1.0f}}},
 };

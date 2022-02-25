@@ -80,6 +80,9 @@ IERT::KernelInfo SwKernelOp::getKernelInfo(mlir::Operation* origOp) {
             .Case<IERT::EluOp>([&](IERT::EluOp elu) {
                 return IERT::KernelInfo{SmallVector<mlir::Attribute>{elu.xAttr()}, {"elu_fp16"}, {"elu_fp16.cpp"}};
             })
+            .Case<IERT::SqrtOp>([&](IERT::SqrtOp) {
+                return IERT::KernelInfo{SmallVector<mlir::Attribute>{}, {"sqrt_fp16"}, {"sqrt_fp16.cpp"}};
+            })
             .Case<IERT::MVNOp>([&](IERT::MVNOp MVN) {
                 return IERT::KernelInfo{SmallVector<mlir::Attribute>{MVN.across_channelsAttr(),
                                                                      MVN.normalize_varianceAttr(), MVN.epsAttr()},
