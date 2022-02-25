@@ -17,10 +17,10 @@
 using namespace vpux;
 using namespace VPU;
 
-bool EltwiseStrategy::doesSplitOverHeightLayerFitIntoCMX(mlir::Operation* op) const {
+bool EltwiseStrategy::doesLayerFitIntoCMX(mlir::Operation* op, StringRef strategy) const {
     auto origOp = mlir::cast<NCEEltwiseOp>(op);
-    auto activationTensorDistributionMode = getActivationTensorDistributionMode(origOp);
-    auto activationTensorNumTiles = getActivationTensorNumTiles(origOp);
+    auto activationTensorDistributionMode = getActivationTensorDistributionMode(origOp, strategy);
+    auto activationTensorNumTiles = getActivationTensorNumTiles(origOp, strategy);
     auto distributedInput1TensorType = createDistributedTensorType(
             origOp, origOp.input1(), activationTensorDistributionMode, activationTensorNumTiles);
     auto distributedInput2TensorType = createDistributedTensorType(
@@ -30,4 +30,3 @@ bool EltwiseStrategy::doesSplitOverHeightLayerFitIntoCMX(mlir::Operation* op) co
 
     return origOp.fitIntoCMX(distributedInput1TensorType, distributedInput2TensorType, distributedOutputTensorType);
 }
-
