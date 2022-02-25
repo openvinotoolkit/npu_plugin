@@ -17,12 +17,12 @@
 using namespace vpux;
 using namespace VPU;
 
-bool ConvolutionStrategy::doesSplitOverHeightLayerFitIntoCMX(mlir::Operation* op) const {
+bool ConvolutionStrategy::doesLayerFitIntoCMX(mlir::Operation* op, StringRef strategy) const {
     auto origOp = mlir::cast<NCEConvolutionOp>(op);
-    auto activationTensorDistributionMode = getActivationTensorDistributionMode(origOp);
-    auto activationTensorNumTiles = getActivationTensorNumTiles(origOp);
-    auto weightsTensorDistributionMode = getWeightsTensorDistributionMode(origOp);
-    auto weightTensorNumTiles = getWeightsTensorNumTiles(origOp);
+    auto activationTensorDistributionMode = getActivationTensorDistributionMode(origOp, strategy);
+    auto activationTensorNumTiles = getActivationTensorNumTiles(origOp, strategy);
+    auto weightsTensorDistributionMode = getWeightsTensorDistributionMode(origOp, strategy);
+    auto weightTensorNumTiles = getWeightsTensorNumTiles(origOp, strategy);
     auto distributedOutputTensorType = createDistributedTensorType(
             origOp, origOp.output(), activationTensorDistributionMode, activationTensorNumTiles);
     auto distributedActivationTensorType = createDistributedTensorType(
