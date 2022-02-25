@@ -230,6 +230,18 @@ std::string nb::to_string(CaseType case_) {
         return "AvgPool";
     case CaseType::ActShave:
         return "ActShave";
+    case CaseType::ReadAfterWriteDPUDMA:
+        return "ReadAfterWriteDPUDMA";
+    case CaseType::ReadAfterWriteDMADPU:
+        return "ReadAfterWriteDMADPU";
+    case CaseType::ReadAfterWriteACTDMA:
+        return "ReadAfterWriteACTDMA";
+    case CaseType::ReadAfterWriteDMAACT:
+        return "ReadAfterWriteDMAACT";
+    case CaseType::ReadAfterWriteDPUACT:
+        return "ReadAfterWriteDPUACT";
+    case CaseType::ReadAfterWriteACTDPU:
+        return "ReadAfterWriteACTDPU";
     case CaseType::RaceConditionDMA:
         return "RaceConditionDMA";
     case CaseType::RaceConditionDPU:
@@ -262,6 +274,18 @@ nb::CaseType nb::to_case(llvm::StringRef str) {
         return CaseType::AvgPool;
     if (isEqual(str, "ActShave"))
         return CaseType::ActShave;
+    if (isEqual(str, "ReadAfterWriteDPUDMA"))
+        return CaseType::ReadAfterWriteDPUDMA;
+    if (isEqual(str, "ReadAfterWriteDMADPU"))
+        return CaseType::ReadAfterWriteDMADPU;
+    if (isEqual(str, "ReadAfterWriteACTDMA"))
+        return CaseType::ReadAfterWriteACTDMA;
+    if (isEqual(str, "ReadAfterWriteDPUACT"))
+        return CaseType::ReadAfterWriteDPUACT;
+    if (isEqual(str, "ReadAfterWriteACTDPU"))
+        return CaseType::ReadAfterWriteACTDPU;
+    if (isEqual(str, "ReadAfterWriteDMAACT"))
+        return CaseType::ReadAfterWriteDMAACT;
     if (isEqual(str, "RaceConditionDMA"))
         return CaseType::RaceConditionDMA;
     if (isEqual(str, "RaceConditionDPU"))
@@ -542,6 +566,10 @@ std::size_t nb::TestCaseJsonDescriptor::loadIterationCount(llvm::json::Object* j
     return jsonObj->getInteger("iteration_count").getValue();
 }
 
+std::size_t nb::TestCaseJsonDescriptor::loadClusterNumber(llvm::json::Object* jsonObj) {
+    return jsonObj->getInteger("cluster_number").getValue();
+}
+
 nb::TestCaseJsonDescriptor::TestCaseJsonDescriptor(llvm::StringRef jsonString) {
     if (!jsonString.empty()) {
         parse(parse2JSON(jsonString));
@@ -573,7 +601,9 @@ void nb::TestCaseJsonDescriptor::parse(llvm::json::Object json_obj) {
 
     if (caseType_ == CaseType::ZMajorConvolution || caseType_ == CaseType::DepthWiseConv ||
         caseType_ == CaseType::RaceConditionDPU || caseType_ == CaseType::RaceConditionDPUDMA ||
-        caseType_ == CaseType::RaceConditionDPUDMAACT) {
+        caseType_ == CaseType::RaceConditionDPUDMAACT || caseType_ == CaseType::ReadAfterWriteDPUDMA ||
+        caseType_ == CaseType::ReadAfterWriteDMADPU || caseType_ == CaseType::ReadAfterWriteDPUACT ||
+        caseType_ == CaseType::ReadAfterWriteACTDPU) {
         wtLayer_ = loadWeightLayer(&json_obj);
         convLayer_ = loadConvLayer(&json_obj);
 
@@ -581,12 +611,18 @@ void nb::TestCaseJsonDescriptor::parse(llvm::json::Object json_obj) {
             odu_permutation_ = to_odu_permutation(json_obj.getString("output_order").getValue());
         }
 
-        if (caseType_ == CaseType::RaceConditionDPU || caseType_ == CaseType::RaceConditionDPUDMA) {
+        if (caseType_ == CaseType::RaceConditionDPU || caseType_ == CaseType::RaceConditionDPUDMA ||
+            caseType_ == CaseType::ReadAfterWriteDPUDMA || caseType_ == CaseType::ReadAfterWriteDMADPU) {
             iterationCount_ = loadIterationCount(&json_obj);
         }
-        if (caseType_ == CaseType::RaceConditionDPUDMAACT) {
+        if (caseType_ == CaseType::RaceConditionDPUDMAACT || caseType_ == CaseType::ReadAfterWriteDPUACT ||
+            caseType_ == CaseType::ReadAfterWriteACTDPU) {
             iterationCount_ = loadIterationCount(&json_obj);
             activationLayer_ = loadActivationLayer(&json_obj);
+        }
+        if (caseType_ == CaseType::ReadAfterWriteDPUDMA || caseType_ == CaseType::ReadAfterWriteDMADPU ||
+            caseType_ == CaseType::ReadAfterWriteDPUACT || caseType_ == CaseType::ReadAfterWriteACTDPU) {
+            clusterNumber_ = loadClusterNumber(&json_obj);
         }
         return;
     }
@@ -602,6 +638,13 @@ void nb::TestCaseJsonDescriptor::parse(llvm::json::Object json_obj) {
     }
 
     if (caseType_ == CaseType::ActShave) {
+        return;
+    }
+
+    if (caseType_ == CaseType::ReadAfterWriteACTDMA || caseType_ == CaseType::ReadAfterWriteDMAACT) {
+        activationLayer_ = loadActivationLayer(&json_obj);
+        iterationCount_ = loadIterationCount(&json_obj);
+        clusterNumber_ = loadClusterNumber(&json_obj);
         return;
     }
 
