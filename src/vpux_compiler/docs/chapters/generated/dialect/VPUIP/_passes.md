@@ -6,12 +6,10 @@ This pass applies bitcompactor to tensor binary data. The logic is the following
 3. Compress weights.
 4. Wrap compressed weights to flat tensor shapes with UInt8 data type.
 5. Replace original VPUIP::NNDMAOp with VPUIP::CompressedDMAOp
-### `-convert-wtable-op-to-constant`: Convert WeightsTable Operations to IERT.ConstantOp
-This pass fills weights table considering the information about the offset in the memory of the weights or activation window.
 ### `-dump-statistics-of-task-ops`: Dump the statistics of used Task operations
 This pass dumps the statistics of used Task operations and makes a report as warning for operations not converted to DPU.
 ### `-group-profiling-buffers`: Group profiling buffers into single profiling output buffer
-Group profiling buffers from different profiling engines into single profiling output buffer with name as 
+Group profiling buffers from different profiling engines into single profiling output buffer with name as
 [offset]_[profiling name]_[offset]_[profiling name] so postprocessing tool can parse it back
 ### `-unroll-cluster-tiling`: Extracts child operations from ClusterTiling operation
 Legalizes chain of ClusterTiling operations according to the tile schema

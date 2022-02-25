@@ -135,12 +135,12 @@ void addDPUTasks(mlir::PatternRewriter& rewriter, VPU::NCEOpInterface origOp,
     }
 
     // select workload with minimum cost
-    uint32_t minimumHardwareExecutionCost = std::numeric_limits<uint32_t>::max();
+    double minimumHardwareExecutionCost = std::numeric_limits<double>::max();
     size_t minCostIdx = 0;
 
     const auto& splitCandidates = dpuTiler.getSplitPool();
     for (size_t idx = 0; idx < splitCandidates.size(); idx++) {
-        auto hardwareExecutionCost = dpuTiler.cost(splitCandidates[idx], costParams);
+        auto hardwareExecutionCost = dpuTiler.simpleCost(splitCandidates[idx], costParams);
         if (minimumHardwareExecutionCost > hardwareExecutionCost) {
             minimumHardwareExecutionCost = hardwareExecutionCost;
             minCostIdx = idx;
