@@ -54,8 +54,7 @@
                 "input_folder" : "416x416"
             },
             "AccuracyCheck" : {
-                "config": "tiny_yolo_v2_v10.yml",
-                "subsample_size": 100
+                "config": "tiny_yolo_v2_v10.yml"
             },
             "NetTest": {
                 "inputs" : [["416x416/person.bmp"]],
@@ -272,8 +271,7 @@
                 "disabled" : true
             },
             "AccuracyCheck" : {
-                "config": "yolo_v4_tensorflow_v10.yml",
-                "subsample_size": 100
+                "config": "yolo_v4_tensorflow_v10.yml"
             },
             "CI-options" : {
                 "blob_name" : "yolo-v4_tf_int8"
@@ -369,8 +367,7 @@
                 "input_folder" : "416x416"
             },
             "AccuracyCheck" : {
-                "config": "yolo_v4_tiny_tf.yml",
-                "subsample_size": 100
+                "config": "yolo_v4_tiny_tf.yml"
             },
             "CI-options" : {
                 "blob_name" : "yolo_v4_tiny_MLIR"
