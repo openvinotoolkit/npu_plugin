@@ -477,8 +477,7 @@ VPUIP::BlobWriter::Barrier vpux::VPUIP::BlobWriter::createBarrier(mlir::Value va
 
         unsigned usesCount = 1;
         if (auto taskOp = mlir::dyn_cast<VPURT::TaskOp>(userOp)) {
-            if (auto nceClusterTaskOp =
-                        mlir::dyn_cast<VPUIP::NCEClusterTaskOp>(taskOp.getInnerTaskOp().getOperation())) {
+            if (auto nceClusterTaskOp = mlir::dyn_cast<VPUIP::NCEClusterTaskOp>(taskOp.getInnerTaskOp())) {
                 usesCount = 0;
                 for (auto dpuTaskOp : nceClusterTaskOp.variants().getOps<VPUIP::DPUTaskOp>()) {
                     VPUX_UNUSED(dpuTaskOp);

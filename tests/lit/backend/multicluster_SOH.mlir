@@ -17,12 +17,14 @@
 
 !WeightsDistributed = type !VPUIP.DistributedBuffer<
     16x16x1x1xf16, #NHWC, @CMX_NN, {
-    mode = "DUPLICATED"
+    mode = "DUPLICATED",
+    num_clusters = 4
 }>
 
 !WeightsTableDistributed = type !VPUIP.DistributedBuffer<
     16x1x1x4xsi32, #NCHW, @CMX_NN, {
-    mode = "DUPLICATED"
+    mode = "DUPLICATED",
+    num_clusters = 4
 }>
 
 module @TestMultiClusterSOH attributes {VPU.arch = "KMB"} {

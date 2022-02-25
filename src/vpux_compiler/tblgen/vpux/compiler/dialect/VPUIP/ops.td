@@ -928,6 +928,43 @@ def VPUIP_AcoshUPAOp :
 }
 
 //
+// AtanhUPAOp
+//
+
+def VPUIP_AtanhUPAOp :
+        VPUIP_UPATaskOp<1, "AtanhUPA",
+            [
+                ViewLikeOpInterface,
+                IERT_SameShape,
+                IERT_SameElementType,
+                IERT_SameInOutDimsOrder_CHW_HWC_NCHW_NHWC,
+                VPUIP_Legacy4D
+            ]
+        > {
+    let summary = "Atanh UPA SHAVE kernel";
+
+    let arguments = (ins
+        F16MemRef:$input,
+        F16MemRef:$output_buff
+    );
+
+    let results = (outs
+        F16MemRef:$output
+    );
+
+    let verifier = [{
+        return vpux::VPUIP::verifyPostOp(*this);
+    }];
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
+//
 // LogUPAOp
 //
 
@@ -2969,6 +3006,7 @@ def VPUIP_NCEClusterTilingOp :
                 IsolatedFromAbove,
                 MultiViewOpInterface,
                 AttrSizedOperandSegments,
+                MemoryEffectsOpInterface,
                 DeclareOpInterfaceMethods<IERT_LayerOpInterface>,
                 DeclareOpInterfaceMethods<RegionBranchOpInterface,
                     ["getSuccessorEntryOperands", "getNumRegionInvocations"]>
@@ -2998,8 +3036,12 @@ def VPUIP_NCEClusterTilingOp :
     ];
 
     let extraClassDeclaration = [{
-      using BodyBuilderFn =
-          llvm::function_ref<void(mlir::OpBuilder&, mlir::Location, mlir::ValueRange)>;
+        using BodyBuilderFn =
+            llvm::function_ref<void(mlir::OpBuilder&, mlir::Location, mlir::ValueRange)>;
+
+        mlir::Operation* getInnerTaskOp();
+        mlir::MutableArrayRef<mlir::BlockArgument> getInnerInputs();
+        mlir::MutableArrayRef<mlir::BlockArgument> getInnerOutputs();
     }];
 }
 

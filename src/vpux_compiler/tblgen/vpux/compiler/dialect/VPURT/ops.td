@@ -271,7 +271,7 @@ def VPURT_TaskOp :
     ];
 
     let extraClassDeclaration = [{
-        vpux::VPUIP::TaskOpInterface getInnerTaskOp();
+        mlir::Operation* getInnerTaskOp();
 
         vpux::DotNodeColor getNodeColor() {
             return vpux::DotNodeColor::AQUA;

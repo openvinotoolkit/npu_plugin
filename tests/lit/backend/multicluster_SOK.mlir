@@ -5,13 +5,15 @@
 
 !ParentInputDistributed = type !VPUIP.DistributedBuffer<
     1x16x32x32xf16, #NHWC, @CMX_NN, {
-    mode = "DUPLICATED"
+    mode = "DUPLICATED",
+    num_clusters = 4
 }>
 
 !ParentOutputDistributed = type !VPUIP.DistributedBuffer<
     1x32x32x32xf16, #NHWC, @CMX_NN, {
     mode = "DUPLICATED|SEGMENTED",
-    num_tiles = [1, 4, 1, 1]
+    num_tiles = [1, 4, 1, 1],
+    num_clusters = 4
 }>
 
 !OutputDistributed = type !VPUIP.DistributedBuffer<
@@ -20,7 +22,8 @@
         strides = [32768, 1, 1024, 32]
     },
     @CMX_NN, {
-    mode = "DUPLICATED"
+    mode = "DUPLICATED",
+    num_clusters = 4
 }>
 
 module @TestMultiClusterSOK attributes {VPU.arch = "KMB"} {

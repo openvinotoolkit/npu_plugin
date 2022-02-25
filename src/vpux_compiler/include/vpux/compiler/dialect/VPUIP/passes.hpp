@@ -38,6 +38,7 @@ std::unique_ptr<mlir::Pass> createDumpStatisticsOfTaskOpsPass(Logger log = Logge
 std::unique_ptr<mlir::Pass> createCompressWeightsPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createUPAProfilingPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createGroupProfilingBuffersPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createUnrollClusterTilingPass(Logger log = Logger::global());
 
 //
 // Generated

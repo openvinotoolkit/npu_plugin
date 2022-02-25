@@ -116,7 +116,7 @@ int main(int argc, char *argv[]) {
         std::string binFileName = FLAGS_m;
         slog::info << "Loading blob:\t" << binFileName << slog::endl;
 
-        ExecutableNetwork importedNetwork = ie.ImportNetwork(binFileName, "KMB", {});
+        ExecutableNetwork importedNetwork = ie.ImportNetwork(binFileName, "VPUX", {});
         // -----------------------------------------------------------------------------------------------------
 
         // --------------------------- 3. Configure input & output ---------------------------------------------

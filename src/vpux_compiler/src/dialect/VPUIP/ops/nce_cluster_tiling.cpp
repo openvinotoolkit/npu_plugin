@@ -44,6 +44,22 @@ void vpux::VPUIP::NCEClusterTilingOp::getSuccessorRegions(Optional<unsigned> ind
 }
 
 //
+// Inner info
+//
+
+mlir::Operation* vpux::VPUIP::NCEClusterTilingOp::getInnerTaskOp() {
+    return &body().front().front();
+}
+
+mlir::MutableArrayRef<mlir::BlockArgument> vpux::VPUIP::NCEClusterTilingOp::getInnerInputs() {
+    return body().getArguments().take_front(getInputs().size());
+}
+
+mlir::MutableArrayRef<mlir::BlockArgument> vpux::VPUIP::NCEClusterTilingOp::getInnerOutputs() {
+    return body().getArguments().slice(getInputs().size(), getOutputs().size());
+}
+
+//
 // print/parse
 //
 

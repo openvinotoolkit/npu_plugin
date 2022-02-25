@@ -294,6 +294,61 @@ VPU::PPEMode vpux::VPU::getPPEMode(VPU::EltwiseType type) {
 }
 
 //
+// DistributedTensorAttr
+//
+
+mlir::LogicalResult vpux::VPU::verify(FuncRef<mlir::InFlightDiagnostic()> emitError,
+                                      DistributedTensorAttr distributedAttr) {
+    const auto distributionMode = distributedAttr.mode().getValue();
+
+    if (VPU::bitEnumContains(distributionMode, VPU::DistributionMode::MULTICASTED) ||
+        VPU::bitEnumContains(distributionMode, VPU::DistributionMode::DUPLICATED)) {
+        if (distributedAttr.num_clusters() == nullptr) {
+            return printTo(emitError(), "Missing number of clusters.");
+        }
+    }
+
+    if (VPU::bitEnumContains(distributionMode, VPU::DistributionMode::SEGMENTED) ||
+        VPU::bitEnumContains(distributionMode, VPU::DistributionMode::OVERLAPPED)) {
+        if (distributedAttr.num_tiles() == nullptr || distributedAttr.num_clusters() == nullptr) {
+            return printTo(emitError(), "Missing number of tiles and clusters.");
+        }
+
+        // Check for validity of tiling scheme
+        const auto tilingScheme = parseIntArrayAttr<int64_t>(distributedAttr.num_tiles());
+        const auto numClusters = distributedAttr.num_clusters().getInt();
+
+        const auto isValidTile = [](auto dim) {
+            return dim > 1;
+        };
+
+        if (llvm::count_if(tilingScheme, isValidTile) != 1) {
+            return printTo(emitError(), "Currently supporting single axis cluster tiling.");
+        }
+
+        const auto axis = std::distance(tilingScheme.begin(), llvm::find_if(tilingScheme, isValidTile));
+
+        if (tilingScheme[axis] != numClusters) {
+            return printTo(emitError(), "Incompatibility between tiling scheme '{0}' and number of clusters '{1}'",
+                           tilingScheme[axis], numClusters);
+        }
+
+        // Limitations on tiling axes
+        if (VPU::bitEnumContains(distributionMode, VPU::DistributionMode::OVERLAPPED) &&
+            (axis != Dims4D::Act::H.ind())) {
+            return printTo(emitError(), "Overlapped cluster tiling is only supported for dimension H");
+        }
+
+        if (VPU::bitEnumContains(distributionMode, VPU::DistributionMode::SEGMENTED) &&
+            !(axis == Dims4D::Act::H.ind() || axis == Dims4D::Act::C.ind())) {
+            return printTo(emitError(), "Segmented cluster tiling is only supported for dimensions H and K");
+        }
+    }
+
+    return mlir::success();
+}
+
+//
 // Generated
 //
 
