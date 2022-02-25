@@ -81,8 +81,8 @@ inline PaddingAttr getPad<NCEEltwiseOp>(NCEEltwiseOp) {
 }
 
 template <class ConcreteOp>
-NCEClusterTilingOp createDistributedInputTensor(ConcreteOp origOp, mlir::Value input, DistributionMode distributionMode,
-                                                mlir::ArrayAttr numTiles) {
+NCEClusterTilingOp createDistributedTensor(ConcreteOp origOp, mlir::Value input, DistributionMode distributionMode,
+                                           mlir::ArrayAttr numTiles) {
     auto inputTensorDistributedTensorType = createDistributedTensorType(origOp, input, distributionMode, numTiles);
 
     mlir::OpBuilder builder(origOp);
@@ -127,13 +127,10 @@ DistributedTensorType createDistributedTensorType(ConcreteOp origOp, mlir::Value
 }
 
 template <class ConcreteOp>
-mlir::ArrayAttr getActivationTensorNumTiles(ConcreteOp origOp) {
-    const StringRef strategy =
-            origOp->template getAttr(multiClusterStrategy).template cast<mlir::StringAttr>().getValue();
+mlir::ArrayAttr getActivationTensorNumTiles(ConcreteOp origOp, StringRef strategy) {
     auto module = origOp->template getParentOfType<mlir::ModuleOp>();
     auto nceOp = IE::getAvailableExecutor(module, ExecutorKind::NCE);
     const auto numClusters = nceOp.count();
-
     if (strategy == splitOverHeightOverlapped) {
         return getIntArrayAttr(origOp.getContext(), makeArrayRef({1, 1, static_cast<int>(numClusters), 1}));
     } else if (strategy == splitOverHeight) {
@@ -151,9 +148,7 @@ mlir::ArrayAttr getActivationTensorNumTiles(ConcreteOp origOp) {
 }
 
 template <class ConcreteOp>
-mlir::ArrayAttr getWeightsTensorNumTiles(ConcreteOp origOp) {
-    const StringRef strategy =
-            origOp->template getAttr(multiClusterStrategy).template cast<mlir::StringAttr>().getValue();
+mlir::ArrayAttr getWeightsTensorNumTiles(ConcreteOp origOp, StringRef strategy) {
     auto module = origOp->template getParentOfType<mlir::ModuleOp>();
     auto nceOp = IE::getAvailableExecutor(module, ExecutorKind::NCE);
     const auto numClusters = nceOp.count();
@@ -174,9 +169,7 @@ mlir::ArrayAttr getWeightsTensorNumTiles(ConcreteOp origOp) {
 }
 
 template <class ConcreteOp>
-DistributionMode getActivationTensorDistributionMode(ConcreteOp origOp) {
-    const StringRef strategy =
-            origOp->template getAttr(multiClusterStrategy).template cast<mlir::StringAttr>().getValue();
+DistributionMode getActivationTensorDistributionMode(ConcreteOp origOp, StringRef strategy) {
     if (strategy == splitOverHeightOverlapped) {
         return DistributionMode::OVERLAPPED;
     } else if (strategy == splitOverHeight) {
@@ -195,9 +188,7 @@ DistributionMode getActivationTensorDistributionMode(ConcreteOp origOp) {
 }
 
 template <class ConcreteOp>
-DistributionMode getWeightsTensorDistributionMode(ConcreteOp origOp) {
-    const StringRef strategy =
-            origOp->template getAttr(multiClusterStrategy).template cast<mlir::StringAttr>().getValue();
+DistributionMode getWeightsTensorDistributionMode(ConcreteOp origOp, StringRef strategy) {
     if (strategy == splitOverHeightOverlapped) {
         return DistributionMode::DUPLICATED;
     } else if (strategy == splitOverHeight) {
@@ -216,9 +207,7 @@ DistributionMode getWeightsTensorDistributionMode(ConcreteOp origOp) {
 }
 
 template <class ConcreteOp>
-DistributionMode getOutputTensorDistributionMode(ConcreteOp origOp) {
-    const StringRef strategy =
-            origOp->template getAttr(multiClusterStrategy).template cast<mlir::StringAttr>().getValue();
+DistributionMode getOutputTensorDistributionMode(ConcreteOp origOp, StringRef strategy) {
     if (strategy == splitOverHeightOverlapped) {
         return DistributionMode::SEGMENTED;
     } else if (strategy == splitOverHeight) {

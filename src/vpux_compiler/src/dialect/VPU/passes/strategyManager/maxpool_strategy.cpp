@@ -17,10 +17,10 @@
 using namespace vpux;
 using namespace VPU;
 
-bool MaxPoolStrategy::doesSplitOverHeightLayerFitIntoCMX(mlir::Operation* op) const {
+bool MaxPoolStrategy::doesLayerFitIntoCMX(mlir::Operation* op, StringRef strategy) const {
     auto origOp = mlir::dyn_cast<NCEMaxPoolOp>(op);
-    auto activationTensorDistributionMode = getActivationTensorDistributionMode(origOp);
-    auto activationTensorNumTiles = getActivationTensorNumTiles(origOp);
+    auto activationTensorDistributionMode = getActivationTensorDistributionMode(origOp, strategy);
+    auto activationTensorNumTiles = getActivationTensorNumTiles(origOp, strategy);
     auto distributedOutputTensorType = createDistributedTensorType(
             origOp, origOp.output(), activationTensorDistributionMode, activationTensorNumTiles);
     auto distributedActivationTensorType = createDistributedTensorType(

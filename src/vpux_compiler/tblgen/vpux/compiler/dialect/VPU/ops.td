@@ -377,7 +377,7 @@ def VPU_NCEClusterTilingOp :
     let summary = "Operation that encapsulates details of tiling operation between clusters";
 
     let arguments = (ins
-        Variadic<AnyTypeOf<[4DTensorOf<[F16, BF16, quant_QuantizedType]>, VPU_DistributedTensor]>>:$operands
+        Variadic<AnyTypeOf<[4DTensorOf<[F16, BF16, SI32, quant_QuantizedType]>, VPU_DistributedTensor]>>:$operands
     );
 
     let results = (outs
@@ -418,7 +418,7 @@ def VPU_YieldOp :
         > {
     let summary = "Terminator for NCE.ClusterTiling operation";
 
-    let arguments = (ins Variadic<4DTensorOf<[F16, BF16, quant_QuantizedType]>>:$operands);
+    let arguments = (ins Variadic<4DTensorOf<[F16, BF16, SI32, quant_QuantizedType]>>:$operands);
 
     let assemblyFormat = [{
         $operands

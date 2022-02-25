@@ -48,7 +48,7 @@ public:
     explicit BaseLayerStrategy(mlir::FuncOp func, Logger log);
     virtual ~BaseLayerStrategy() = default;
 
-    virtual bool doesSplitOverHeightLayerFitIntoCMX(mlir::Operation* op) const = 0;
+    virtual bool doesLayerFitIntoCMX(mlir::Operation* op, StringRef strategy) const = 0;
     bool isOperationSplitOverHeightCompatible(mlir::Operation* op) const;
 
     int32_t _numClusters;
@@ -66,7 +66,7 @@ public:
     ConvolutionStrategy(mlir::FuncOp func, Logger log): BaseLayerStrategy(func, log) {
     }
 
-    bool doesSplitOverHeightLayerFitIntoCMX(mlir::Operation* op) const override final;
+    bool doesLayerFitIntoCMX(mlir::Operation* op, StringRef strategy) const override final;
 };
 
 //
@@ -76,7 +76,7 @@ class DepthConvolutionStrategy : public BaseLayerStrategy {
 public:
     DepthConvolutionStrategy(mlir::FuncOp func, Logger log): BaseLayerStrategy(func, log) {
     }
-    bool doesSplitOverHeightLayerFitIntoCMX(mlir::Operation* op) const override final;
+    bool doesLayerFitIntoCMX(mlir::Operation* op, StringRef strategy) const override final;
 };
 
 //
@@ -87,7 +87,7 @@ public:
     MaxPoolStrategy(mlir::FuncOp func, Logger log): BaseLayerStrategy(func, log) {
     }
 
-    bool doesSplitOverHeightLayerFitIntoCMX(mlir::Operation* op) const override final;
+    bool doesLayerFitIntoCMX(mlir::Operation* op, StringRef strategy) const override final;
 };
 
 //
@@ -98,7 +98,7 @@ public:
     EltwiseStrategy(mlir::FuncOp func, Logger log): BaseLayerStrategy(func, log) {
     }
 
-    bool doesSplitOverHeightLayerFitIntoCMX(mlir::Operation* op) const override final;
+    bool doesLayerFitIntoCMX(mlir::Operation* op, StringRef strategy) const override final;
 };
 
 //

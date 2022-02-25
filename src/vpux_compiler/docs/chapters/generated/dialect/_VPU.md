@@ -46,7 +46,7 @@ Operation that encapsulates details of tiling operation between clusters
 
 | Operand | Description |
 | :-----: | ----------- |
-`operands` | 4D tensor of 16-bit float or bfloat16 type or QuantizedType values or VPU tensor type to describe the tensor tiling
+`operands` | 4D tensor of 16-bit float or bfloat16 type or 32-bit signed integer or QuantizedType values or VPU tensor type to describe the tensor tiling
 
 #### Results:
 
@@ -239,7 +239,7 @@ operation ::= `VPU.Yield` $operands
 
 | Operand | Description |
 | :-----: | ----------- |
-`operands` | 4D tensor of 16-bit float or bfloat16 type or QuantizedType values
+`operands` | 4D tensor of 16-bit float or bfloat16 type or 32-bit signed integer or QuantizedType values
 
 ## Type definition
 

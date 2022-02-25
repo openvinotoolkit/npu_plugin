@@ -183,10 +183,6 @@ mlir::LogicalResult ConvToNCE::matchAndRewrite(IE::ConvolutionOp origOp, mlir::P
 
     const auto padAttr = VPU::getPaddingAttr(getContext(), PadInfo(origOp.pads_begin(), origOp.pads_end()));
 
-    // auto nceOp = rewriter.create<VPU::NCEConvolutionOp>(origOp->getLoc(), origOp.getType(), origOp.input(), filter,
-    //                                                     bias, origOp.stridesAttr(), padAttr, origOp.post_opAttr(),
-    //                                                     /*ppe=*/nullptr, rawFilterShape);
-
     auto nceOp = rewriter.create<VPU::NCEConvolutionOp>(origOp->getLoc(), origOp.getType(), origOp.input(), filter,
                                                         weightsTable, activationWindow, bias, origOp.stridesAttr(),
                                                         padAttr, /*post_op=*/nullptr, ppeTaskAttr, rawFilterShape,
@@ -272,10 +268,6 @@ mlir::LogicalResult DepthConvToNCE::matchAndRewrite(IE::GroupConvolutionOp origO
 
     const auto padAttr = VPU::getPaddingAttr(getContext(), PadInfo(origOp.pads_begin(), origOp.pads_end()));
 
-    // auto nceOp = rewriter.create<VPU::NCEDepthConvolutionOp>(origOp->getLoc(), origOp.getType(), origOp.input(),
-    //                                                          alignedFilter, bias, origOp.stridesAttr(), padAttr,
-    //                                                          origOp.post_opAttr(),
-    //                                                          /*ppe=*/nullptr, rawFilterShape);
     auto nceOp = rewriter.create<VPU::NCEDepthConvolutionOp>(
             origOp->getLoc(), origOp.getType(), origOp.input(), alignedFilter, weightsTable, activationWindow, bias,
             origOp.stridesAttr(), padAttr, /*post_op=*/nullptr, ppeTaskAttr, rawFilterShape,
@@ -340,11 +332,6 @@ mlir::LogicalResult MaxPoolToNCE::matchAndRewrite(IE::MaxPoolOp origOp, mlir::Pa
     auto weightsTable = createWeightsTableTensor(rewriter, origOp->getLoc(), weightsTableVec, IC);
     const auto padAttr = VPU::getPaddingAttr(getContext(), PadInfo(origOp.pads_begin(), origOp.pads_end()));
 
-    // auto nceOp = rewriter.create<VPU::NCEMaxPoolOp>(origOp->getLoc(), origOp.getType(), origOp.input(),
-    //                                                 origOp.kernel_sizeAttr(), origOp.stridesAttr(), padAttr,
-    //                                                 origOp.post_opAttr(),
-    //                                                 /*ppe=*/nullptr);
-
     auto nceOp = rewriter.create<VPU::NCEMaxPoolOp>(origOp->getLoc(), origOp.getType(), origOp.input(), weightsTable,
                                                     activationWindow, origOp.kernel_sizeAttr(), origOp.stridesAttr(),
                                                     padAttr, /*post_op=*/nullptr, ppeTaskAttr,
@@ -396,11 +383,6 @@ mlir::LogicalResult EltwiseToNCE<ConcreteOp>::matchAndRewrite(ConcreteOp origOp,
     auto ppeTaskAttr =
             VPU::getNCEEltwisePPETaskAttr(origOp.input1(), origOp.input2(), origOp.output(), origOp.post_opAttr(),
                                           origOp.getLoc(), _opType, origOp.getContext(), _arch);
-
-    // auto nceOp = rewriter.create<VPU::NCEEltwiseOp>(origOp->getLoc(), origOp.getType(), input1, input2,
-    //                                                 VPU::EltwiseTypeAttr::get(this->getContext(), _opType),
-    //                                                 origOp.post_opAttr(),
-    //                                                 /*ppe=*/nullptr);
 
     auto nceOp = rewriter.create<VPU::NCEEltwiseOp>(origOp->getLoc(), origOp.getType(), input1, input2,
                                                     VPU::EltwiseTypeAttr::get(this->getContext(), _opType),
