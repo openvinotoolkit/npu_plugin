@@ -7,12 +7,12 @@ cpu=${cpunum}xx
 
 if [ -z ${FIRMWARE_VPU_DIR} ]; then FIRMWARE_VPU_DIR=${VPUIP_2_DIR}; fi
 if [ -z "${MV_TOOLS_DIR}" ]; then echo "MV_TOOLS_DIR is not set"; env_is_set=0; fi
-if [ -z "${KERNEL_DIR}" ]; then echo "KERNEL_DIR is not set"; env_is_set=0; fi
+if [ -z "${KERNEL_DIR}" ]; then KERNEL_DIR="../"; fi
 if [ -z "${MV_TOOLS_VERSION}" ]; then 
-mv_tools_version_str=`grep "mv_tools_version" ${KERNEL_DIR}/../firmware_vpu_revision.txt`
-mv_tools_version_arr=($mv_tools_version_str)
-MV_TOOLS_VERSION=${mv_tools_version_arr[1]}
-if [ -z "${MV_TOOLS_VERSION}" ]; then echo "MV_TOOLS_VERSION is not set"; env_is_set=0; fi
+  mv_tools_version_str=`grep "mv_tools_version" ${KERNEL_DIR}/../firmware_vpu_revision.txt`
+  mv_tools_version_arr=($mv_tools_version_str)
+  MV_TOOLS_VERSION=${mv_tools_version_arr[1]}
+  if [ -z "${MV_TOOLS_VERSION}" ]; then echo "MV_TOOLS_VERSION is not set"; env_is_set=0; fi
 fi
 if [ -z "${FIRMWARE_VPU_DIR}" ]; then echo "FIRMWARE_VPU_DIR is not set"; env_is_set=0; fi
 
@@ -87,6 +87,6 @@ xxd -i sk.singleShaveSoftmax.3010xx.data ../sk.singleShaveSoftmax.3010xx.data.xd
 if [ $? -ne 0 ]; then echo $'\nGenerating includable binary of data segment failed $?\n'; cd -; exit $?; fi
 cd -
 
-rm "${KERNEL_DIR}/prebuild/single_shave_softmax_${cpu}.o" "${KERNEL_DIR}/prebuild/mvSubspaces_${cpu}.o" "${KERNEL_DIR}/prebuild/dma_shave_nn_${cpu}.o"
+rm -f "${KERNEL_DIR}/prebuild/single_shave_softmax_${cpu}.o" "${KERNEL_DIR}/prebuild/mvSubspaces_${cpu}.o" "${KERNEL_DIR}/prebuild/dma_shave_nn_${cpu}.o" "${KERNEL_DIR}/prebuild/singleShaveSoftmax_${cpu}.elf"
 printf "\n \"${KERNEL_DIR}/prebuild/act_shave_bin/sk.singleShaveSoftmax.${cpu}.text\"\n \"${KERNEL_DIR}/prebuild/act_shave_bin/sk.singleShaveSoftmax.${cpu}.data\"\nhave been created successfully\n"
 exit $?

@@ -85,6 +85,8 @@ namespace icv_tests
 
 #define ICV_TESTS_MEMORY_ALIGN(_Boundary, _Value) (((_Value) + ((_Boundary) - 1)) & ~((_Boundary) - 1))
 
+#define ICV_TESTS_REPORT_PERF_CYCLES (1) /* report performance data in clock cycles (ms otherwise) */
+
 #define ICV_TESTS_MEMORY_BUFFER_ALIGN (32)
 #define ICV_TESTS_MEMORY_BUFFER_SIZE ICV_TESTS_MEMORY_ALIGN(ICV_TESTS_MEMORY_BUFFER_ALIGN, 100*1024*1024)
 
@@ -1993,6 +1995,13 @@ private:
 
 class TestSuite: public StorageManager, public LoopManager, public SuiteRunner
 {
+
+#if defined(ICV_TESTS_REPORT_PERF_CYCLES)
+    using DurationTime = uint32_t;
+#else // ICV_TESTS_REPORT_PERF_CYCLES
+    using DurationTime = float;
+#endif // ICV_TESTS_REPORT_PERF_CYCLES
+
 public:
     TestSuite()
         : StorageManager(GlobalData::getMemoryBuffer(), ICV_TESTS_MEMORY_BUFFER_SIZE, ICV_TESTS_MEMORY_BUFFER_ALIGN)
@@ -2326,7 +2335,7 @@ protected:
             // so than it initializes corresponding parser`s structures and returns true
             destroyParserRunner();
         }
-    virtual float callParserRunner(Op* op)
+    virtual DurationTime callParserRunner(Op* op)
         {
             mvTensorAssert(op != nullptr, "Operation undefined");
             using namespace mv::tensor;
@@ -2336,7 +2345,11 @@ protected:
             op->run(proc, m_myriadResources, m_debugInfo);
             op->perfData.perfCounters = nullptr;
 
-            float callDuration = static_cast<float>(op->perfData.elapsedTimeNs) / 1.0e+6f; // Ns to Ms
+#if defined(ICV_TESTS_REPORT_PERF_CYCLES)
+            DurationTime callDuration = GlobalData::shavePerfCounters.cycles; // clock cycles
+#else // ICV_TESTS_REPORT_PERF_CYCLES
+            DurationTime callDuration = static_cast<float>(op->perfData.elapsedTimeNs) / 1.0e+6f; // Ns to Ms
+#endif // ICV_TESTS_REPORT_PERF_CYCLES
 
             return callDuration;
         }
@@ -2392,7 +2405,11 @@ protected:
             case ExecutionStage::AfterCall:
                 if (GlobalData::doPrintTime)
                 {
+#if defined(ICV_TESTS_REPORT_PERF_CYCLES)
+                    printf("%s%sMvTensor done in %lu clock cycles",
+#else // ICV_TESTS_REPORT_PERF_CYCLES
                     printf("%s%sMvTensor done in %f ms",
+#endif // ICV_TESTS_REPORT_PERF_CYCLES
                             (m_reportContext.need_nl_1 ? "\n" : ""),
                             (m_reportContext.need_nl_2 ? "; " : ""),
                             m_callDuration);
@@ -2415,7 +2432,11 @@ protected:
                 }
                 break;
             case ExecutionStage::AfterLoops:
+#if defined(ICV_TESTS_REPORT_PERF_CYCLES)
+                printf("\n%s: Total of %d mvTensor call(s) took %lu clock cycles\n",
+#else // ICV_TESTS_REPORT_PERF_CYCLES
                 printf("\n%s: Total of %d mvTensor call(s) took %f ms\n",
+#endif // ICV_TESTS_REPORT_PERF_CYCLES
                        suiteName(), m_numCalls, m_totalDuration);
                 break;
             default:
@@ -2517,8 +2538,8 @@ protected:
     t_MvTensorDebugInfo m_debugInfo;
     char m_debugMessage[MV_TENSOR_DBG_MSG_SIZE];
     bool m_testFailed;
-    float m_totalDuration;
-    float m_callDuration;
+    DurationTime m_totalDuration;
+    DurationTime m_callDuration;
     unsigned m_numCalls;
     opManager m_opFactory;
     Op* m_op;
