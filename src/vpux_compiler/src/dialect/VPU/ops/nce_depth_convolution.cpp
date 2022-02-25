@@ -186,8 +186,7 @@ mlir::LogicalResult vpux::VPU::NCEDepthConvolutionOp::inferReturnTypeComponents(
         return mlir::failure();
     }
 
-    const Shape filterShape = op.rawFilterShape() != nullptr ? Shape(parseIntArrayAttr<int64_t>(op.rawFilterShape()))
-                                                             : getShape(op.filter()).toValues();
+    const auto filterShape = Shape(parseIntArrayAttr<int64_t>(op.rawFilterShape()));
     const auto fIC = filterShape[Dims4D::Filter::IC];
 
     if (fIC != 1) {
@@ -257,11 +256,17 @@ bool vpux::VPU::NCEDepthConvolutionOp::checkChannelRestrictions(int64_t channels
 
 vpux::InputTiling vpux::VPU::NCEDepthConvolutionOp::backInferTileInfo(const vpux::TileInfo& outputTile) {
     const auto origInputShape = getShape(input());
-    const auto origFilterShape = getShape(filter());
     const auto origBiasShape = bias().hasValue() ? bias().getValue().getShape() : ShapeRef();
     const auto origPadding = toPadInfo(pad());
+    const auto origFilterShape = Shape(parseIntArrayAttr<int64_t>(rawFilterShape()));
 
-    return backInferConvTile(outputTile, origInputShape, origFilterShape, origBiasShape, strides(), origPadding);
+    auto inputTiling =
+            backInferGroupConvTile(outputTile, origInputShape, origFilterShape, origBiasShape, strides(), origPadding);
+
+    // Adjust filter tile for the aligned filter
+    inputTiling.tiles[1].shape = getShape(filter()).toValues();
+    inputTiling.tiles[1].shape[Dims4D::Filter::OC] = outputTile.shape[Dims4D::Act::C];
+    return inputTiling;
 }
 
 void vpux::VPU::NCEDepthConvolutionOp::adjustAttrs(const TilingInfo& inputTiling, const TileInfo& outputTile) {

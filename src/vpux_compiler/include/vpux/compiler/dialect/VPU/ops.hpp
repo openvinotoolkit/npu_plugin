@@ -82,7 +82,7 @@ void adjustBias(ConcreteOp* op, const TileInfo& outputTile) {
 // Adjust rawFilterShape attribute for specific output tile
 template <typename ConcreteOp>
 void adjustRawFilterShape(ConcreteOp* op, const TileInfo& outputTile) {
-    auto newRawFilterShape = Shape(parseIntArrayAttr<int64_t>(op->rawFilterShapeAttr()));
+    auto newRawFilterShape = Shape(parseIntArrayAttr<int64_t>(op->rawFilterShape()));
 
     newRawFilterShape[Dims4D::Filter::OC] = outputTile.shape[Dims4D::Act::C];
 

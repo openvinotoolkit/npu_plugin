@@ -65,8 +65,11 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyChannels(IE::ConvolutionOp 
 }
 
 mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyChannels(VPU::NCEConvolutionOp origOp, Logger log) {
-    return verifyConvChannels(origOp->getLoc(), origOp.input().getType().cast<vpux::NDTypeInterface>(),
-                              origOp.filter().getType().cast<vpux::NDTypeInterface>(), log);
+    const auto filterElementType = origOp.filter().getType().cast<NDTypeInterface>().getElementType();
+    const auto rawFilterShape = parseIntArrayAttr<int64_t>(origOp.rawFilterShape());
+    const auto rawFilterType = mlir::RankedTensorType::get(rawFilterShape, filterElementType).cast<NDTypeInterface>();
+    return verifyConvChannels(origOp->getLoc(), origOp.input().getType().cast<vpux::NDTypeInterface>(), rawFilterType,
+                              log);
 }
 
 mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyChannels(IERT::ConvolutionOp origOp, Logger log) {
@@ -249,8 +252,11 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyChannels(IE::GroupConvoluti
 }
 
 mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyChannels(VPU::NCEDepthConvolutionOp origOp, Logger log) {
+    const auto filterElementType = origOp.filter().getType().cast<NDTypeInterface>().getElementType();
+    const auto rawFilterShape = parseIntArrayAttr<int64_t>(origOp.rawFilterShape());
+    const auto rawFilterType = mlir::RankedTensorType::get(rawFilterShape, filterElementType).cast<NDTypeInterface>();
     return verifyGroupConvChannels(origOp->getLoc(), origOp.input().getType().cast<vpux::NDTypeInterface>(),
-                                   origOp.filter().getType().cast<vpux::NDTypeInterface>(), log);
+                                   rawFilterType, log);
 }
 
 mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyChannels(IERT::GroupConvolutionOp origOp, Logger log) {
@@ -635,16 +641,12 @@ SmallVector<vpux::NDTypeInterface> getTileTypes(IE::ConvolutionOp origOp, const 
 }
 
 SmallVector<vpux::NDTypeInterface> getTileTypes(VPU::NCEConvolutionOp origOp, const TileInfo& outTile) {
-    const auto origBiasShape = origOp.bias().hasValue() ? origOp.bias().getValue().getShape() : ShapeRef();
-    const auto origPadding = toPadInfo(origOp.pad());
+    const auto inputTiles = origOp.backInferTileInfo(outTile).tiles;
 
-    auto tileConf = vpux::backInferConvTile(outTile, getShape(origOp.input()), getShape(origOp.filter()), origBiasShape,
-                                            origOp.strides(), origPadding);
-
-    return {origOp.input().getType().cast<vpux::NDTypeInterface>().extractDenseTile(tileConf.tiles[0].offsets,
-                                                                                    tileConf.tiles[0].shape),
-            origOp.filter().getType().cast<vpux::NDTypeInterface>().extractDenseTile(tileConf.tiles[1].offsets,
-                                                                                     tileConf.tiles[1].shape),
+    return {origOp.input().getType().cast<vpux::NDTypeInterface>().extractDenseTile(inputTiles[0].offsets,
+                                                                                    inputTiles[0].shape),
+            origOp.filter().getType().cast<vpux::NDTypeInterface>().extractDenseTile(inputTiles[1].offsets,
+                                                                                     inputTiles[1].shape),
             origOp.getType().cast<vpux::NDTypeInterface>().extractDenseTile(outTile.offsets, outTile.shape)};
 }
 
@@ -925,16 +927,12 @@ SmallVector<vpux::NDTypeInterface> getTileTypes(IE::GroupConvolutionOp origOp, c
 }
 
 SmallVector<vpux::NDTypeInterface> getTileTypes(VPU::NCEDepthConvolutionOp origOp, const TileInfo& outTile) {
-    const auto origBiasShape = origOp.bias().hasValue() ? origOp.bias().getValue().getShape() : ShapeRef();
-    const auto origPadding = toPadInfo(origOp.pad());
+    const auto inputTiles = origOp.backInferTileInfo(outTile).tiles;
 
-    auto tileConf = vpux::backInferGroupConvTile(outTile, getShape(origOp.input()), getShape(origOp.filter()),
-                                                 origBiasShape, origOp.strides(), origPadding);
-
-    return {origOp.input().getType().cast<vpux::NDTypeInterface>().extractDenseTile(tileConf.tiles[0].offsets,
-                                                                                    tileConf.tiles[0].shape),
-            origOp.filter().getType().cast<vpux::NDTypeInterface>().extractDenseTile(tileConf.tiles[1].offsets,
-                                                                                     tileConf.tiles[1].shape),
+    return {origOp.input().getType().cast<vpux::NDTypeInterface>().extractDenseTile(inputTiles[0].offsets,
+                                                                                    inputTiles[0].shape),
+            origOp.filter().getType().cast<vpux::NDTypeInterface>().extractDenseTile(inputTiles[1].offsets,
+                                                                                     inputTiles[1].shape),
             origOp.getType().cast<vpux::NDTypeInterface>().extractDenseTile(outTile.offsets, outTile.shape)};
 }
 
@@ -1616,7 +1614,7 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(VPU::NCEConvolutionO
         return mlir::failure();
     }
 
-    const auto filterShape = getShape(origOp.filter());
+    const auto filterShape = Shape(parseIntArrayAttr<int64_t>(origOp.rawFilterShape()));
     const auto KY = filterShape[Dims4D::Filter::KY];
     const auto KX = filterShape[Dims4D::Filter::KX];
 
@@ -1930,7 +1928,7 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(VPU::NCEDepthConvolu
         return mlir::failure();
     }
 
-    const auto filterShape = getShape(origOp.filter());
+    const auto filterShape = Shape(parseIntArrayAttr<int64_t>(origOp.rawFilterShape()));
     const auto OC = filterShape[Dims4D::Filter::OC];
     const auto KY = filterShape[Dims4D::Filter::KY];
     const auto KX = filterShape[Dims4D::Filter::KX];
@@ -1938,7 +1936,7 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(VPU::NCEDepthConvolu
     const auto inputShape = getShape(origOp.input());
     const auto IC = inputShape[Dims4D::Act::C];
     if (OC != IC) {
-        log.trace("[{0}] Depthwise Convolution has {1} kernels, expected {2}", origOp->getLoc(), OC, IC);
+        log.error("[{0}] Depthwise Convolution has {1} kernels, expected {2}", origOp->getLoc(), OC, IC);
         return mlir::failure();
     }
 

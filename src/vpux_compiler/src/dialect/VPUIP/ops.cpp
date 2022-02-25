@@ -262,21 +262,12 @@ bool isSupportedTiling(VPU::NCEConvolutionOp origOp, const OutputTiling& tiles, 
     const auto outputType = origOp.output().getType().cast<vpux::NDTypeInterface>();
 
     return llvm::all_of(tiles, [&](const TileInfo& outputTile) {
-        const auto origInputShape = getShape(origOp.input());
-        const auto origFilterShape = origOp.rawFilterShapeAttr() != nullptr
-                                             ? Shape(parseIntArrayAttr<int64_t>(origOp.rawFilterShapeAttr()))
-                                             : getShape(origOp.filter()).toValues();
-        const auto origBiasShape = origOp.bias().hasValue() ? origOp.bias().getValue().getShape() : ShapeRef();
-        const auto origPadding = toPadInfo(origOp.pad());
+        const auto inputTiles = origOp.backInferTileInfo(outputTile).tiles;
 
-        const auto inputTiling = backInferConvTile(outputTile, origInputShape, origFilterShape, origBiasShape,
-                                                   origOp.strides(), origPadding);
-
-        const auto& tileConf = inputTiling.tiles;
-        VPUX_THROW_UNLESS(tileConf.size() > 1, "Missed tile information. Got {0} tiles info, must be at least 2",
-                          tileConf.size());
-        const auto& inputTile = tileConf[0];
-        const auto& filterTile = tileConf[1];
+        VPUX_THROW_UNLESS(inputTiles.size() > 1, "Missed tile information. Got {0} tiles info, must be at least 2",
+                          inputTiles.size());
+        const auto& inputTile = inputTiles[0];
+        const auto& filterTile = inputTiles[1];
 
         const auto inputTileType = inputType.extractDenseTile(inputTile.offsets, inputTile.shape);
         const auto filterTileType = filterType.extractDenseTile(filterTile.offsets, filterTile.shape);
@@ -328,21 +319,12 @@ bool isSupportedTiling(VPU::NCEDepthConvolutionOp origOp, const OutputTiling& ti
     const auto outputType = origOp.output().getType().cast<vpux::NDTypeInterface>();
 
     return llvm::all_of(tiles, [&](const TileInfo& outputTile) {
-        const auto origInputShape = getShape(origOp.input());
-        const auto origFilterShape = origOp.rawFilterShapeAttr() != nullptr
-                                             ? Shape(parseIntArrayAttr<int64_t>(origOp.rawFilterShapeAttr()))
-                                             : getShape(origOp.filter()).toValues();
-        const auto origBiasShape = origOp.bias().hasValue() ? origOp.bias().getValue().getShape() : ShapeRef();
-        const auto origPadding = toPadInfo(origOp.pad());
+        const auto inputTiles = origOp.backInferTileInfo(outputTile).tiles;
 
-        const auto inputTiling = backInferGroupConvTile(outputTile, origInputShape, origFilterShape, origBiasShape,
-                                                        origOp.strides(), origPadding);
-
-        const auto& tileConf = inputTiling.tiles;
-        VPUX_THROW_UNLESS(tileConf.size() > 1, "Missed tile information. Got {0} tiles info, must be at least 2",
-                          tileConf.size());
-        const auto& inputTile = tileConf[0];
-        const auto& filterTile = tileConf[1];
+        VPUX_THROW_UNLESS(inputTiles.size() > 1, "Missed tile information. Got {0} tiles info, must be at least 2",
+                          inputTiles.size());
+        const auto& inputTile = inputTiles[0];
+        const auto& filterTile = inputTiles[1];
 
         const auto inputTileType = inputType.extractDenseTile(inputTile.offsets, inputTile.shape);
         const auto filterTileType = filterType.extractDenseTile(filterTile.offsets, filterTile.shape);
@@ -393,15 +375,10 @@ bool isSupportedTiling(VPU::NCEMaxPoolOp origOp, const OutputTiling& tiles, Logg
             return false;
         }
 
-        const auto origInputShape = getShape(origOp.input());
-        const auto origPadding = toPadInfo(origOp.pad());
+        const auto inputTiles = origOp.backInferTileInfo(outputTile).tiles;
 
-        const auto inputTiling =
-                backInferPoolTile(outputTile, origInputShape, origOp.kernel_size(), origOp.strides(), origPadding);
-
-        const auto& tileConf = inputTiling.tiles;
-        VPUX_THROW_UNLESS(!tileConf.empty(), "Got empty tile information");
-        const auto& inputTile = tileConf[0];
+        VPUX_THROW_UNLESS(!inputTiles.empty(), "Got empty tile information");
+        const auto& inputTile = inputTiles[0];
 
         const auto inputTileType = inputType.extractDenseTile(inputTile.offsets, inputTile.shape);
         const auto outputTileType = outputType.extractDenseTile(outputTile.offsets, outputTile.shape);
@@ -597,8 +574,9 @@ private:
             return false;
         }
 
-        return VPUIP::NCEInvariant::verifyKernel(op, log).succeeded() &&
-               VPUIP::NCEInvariant::verifyChannels(op, log).succeeded();
+        const bool kernelVerified = VPUIP::NCEInvariant::verifyKernel(op, log).succeeded();
+        const bool channelsVerified = VPUIP::NCEInvariant::verifyChannels(op, log).succeeded();
+        return kernelVerified && channelsVerified;
     }
 };
 
@@ -913,18 +891,21 @@ void vpux::VPUIP::VPUIPDialect::setupExtraInterfaces(mlir::DialectRegistry& regi
     registry.addOpInterface<IE::MultiplyOp, AlignedChannelsOpModel<IE::MultiplyOp>>();
     registry.addOpInterface<IE::SubtractOp, AlignedChannelsOpModel<IE::SubtractOp>>();
     registry.addOpInterface<IE::AndOp, AlignedChannelsOpModel<IE::AndOp>>();
+    registry.addOpInterface<VPU::NCEConvolutionOp, AlignedChannelsOpModel<VPU::NCEConvolutionOp>>();
+    registry.addOpInterface<VPU::NCEDepthConvolutionOp, AlignedChannelsOpModel<VPU::NCEDepthConvolutionOp>>();
+    registry.addOpInterface<VPU::NCEMaxPoolOp, AlignedChannelsOpModel<VPU::NCEMaxPoolOp>>();
 
     registry.addOpInterface<IE::ConvolutionOp, NCETilingInfoOpModel<IE::ConvolutionOp>>();
     registry.addOpInterface<IE::GroupConvolutionOp, NCETilingInfoOpModel<IE::GroupConvolutionOp>>();
     registry.addOpInterface<IE::MaxPoolOp, NCETilingInfoOpModel<IE::MaxPoolOp>>();
+    registry.addOpInterface<VPU::NCEConvolutionOp, NCETilingInfoOpModel<VPU::NCEConvolutionOp>>();
+    registry.addOpInterface<VPU::NCEDepthConvolutionOp, NCETilingInfoOpModel<VPU::NCEDepthConvolutionOp>>();
+    registry.addOpInterface<VPU::NCEMaxPoolOp, NCETilingInfoOpModel<VPU::NCEMaxPoolOp>>();
+
     registry.addOpInterface<IE::AddOp, NCEEltwiseTilingInfoOpModel<IE::AddOp>>();
     registry.addOpInterface<IE::MultiplyOp, NCEEltwiseTilingInfoOpModel<IE::MultiplyOp>>();
     registry.addOpInterface<IE::SubtractOp, NCEEltwiseTilingInfoOpModel<IE::SubtractOp>>();
     registry.addOpInterface<IE::AndOp, NCEEltwiseTilingInfoOpModel<IE::AndOp>>();
-
-    registry.addOpInterface<VPU::NCEConvolutionOp, NCETilingInfoOpModel<VPU::NCEConvolutionOp>>();
-    registry.addOpInterface<VPU::NCEDepthConvolutionOp, NCETilingInfoOpModel<VPU::NCEDepthConvolutionOp>>();
-    registry.addOpInterface<VPU::NCEMaxPoolOp, NCETilingInfoOpModel<VPU::NCEMaxPoolOp>>();
     registry.addOpInterface<VPU::NCEEltwiseOp, NCEEltwiseTilingInfoOpModel<VPU::NCEEltwiseOp>>();
 
     registry.addOpInterface<IERT::SigmoidOp, SoftwareLayerOpModel>();

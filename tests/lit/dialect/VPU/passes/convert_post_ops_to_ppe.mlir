@@ -9,6 +9,7 @@ func @ConvEmptyPostOpRewriter(%arg0: tensor<1x16x16x16xf16, {mem_space = @CMX_NN
 
     %0 = VPU.NCE.Convolution(%arg0, %cst0) {
             pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64},
+            rawFilterShape = [16, 16, 1, 1],
             strides = [1, 1]
         } : tensor<1x16x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>, tensor<16x16x1x1xf16, {mem_space = @CMX_NN, order = #NHWC}>
         -> tensor<1x16x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>
@@ -36,6 +37,7 @@ func @ConvWithReluRewriter(%arg0: tensor<1x16x16x16xf16, {mem_space = @CMX_NN, o
 
     %0 = VPU.NCE.Convolution(%arg0, %cst0) {
             pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64},
+            rawFilterShape = [16, 16, 1, 1],
             strides = [1, 1],
             post_op = {attrs = {}, name = "IE.ReLU"}
         } : tensor<1x16x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>, tensor<16x16x1x1xf16, {mem_space = @CMX_NN, order = #NHWC}>
@@ -96,6 +98,7 @@ func @DepthConvWithLReluRewriter(%arg0: tensor<1x16x40x80xf16, {mem_space = @CMX
 
     %0 = VPU.NCE.DepthConvolution(%arg0, %cst0) {
             pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64},
+            rawFilterShape = [16, 1, 4, 8],
             strides = [1, 1],
             post_op = {attrs = {negative_slope = 0.1}, name = "IE.LeakyRelu"}
         } : tensor<1x16x40x80xf16, {mem_space = @CMX_NN, order = #NHWC}>, tensor<16x1x4x8xf16, {mem_space = @CMX_NN, order = #NHWC}>

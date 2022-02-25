@@ -11,6 +11,7 @@ func @ParsePrintClusterTiling(%arg0: tensor<1x32x16x16xf16, {mem_space = @CMX_NN
                 -> tensor<1x64x14x14xf16, {mem_space = @CMX_NN, order = #NHWC}> {
       %1 = VPU.NCE.Convolution(%arg1, %arg2) (bias : #const.Content<dense<1.000000e+00> : tensor<1x64x1x1xf16>>) {
                 pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64},
+                rawFilterShape = [64, 32, 3, 3],
                 strides = [1, 1]
             } : tensor<1x32x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>, tensor<64x32x3x3xf16, {mem_space = @CMX_NN, order = #NHWC}> -> tensor<1x64x14x14xf16, {mem_space = @CMX_NN, order = #NHWC}>
       VPU.Yield %1
@@ -26,7 +27,8 @@ func @ParsePrintClusterTiling(%arg0: tensor<1x32x16x16xf16, {mem_space = @CMX_NN
     //CHECK-SAME:                   -> tensor<1x64x14x14xf16, {mem_space = @CMX_NN, order = #NHWC}> {
     //CHECK:                [[VAL1:%.*]] = VPU.NCE.Convolution(%arg1, %arg2)
     //CHECK-SAME:                            (bias : #const.Content<dense<1.000000e+00> : tensor<1x64x1x1xf16>>) {
-    //CHECK-SAME:                            pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}, strides = [1, 1]
+    //CHECK-SAME:                            pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64},
+    //CHECK-SAME:                            strides = [1, 1]
     //CHECK-SAME:                } -> tensor<1x64x14x14xf16, {mem_space = @CMX_NN, order = #NHWC}>
     //CHECK:                VPU.Yield [[VAL1]]
     //CHECK:            }
@@ -86,6 +88,7 @@ func @ParsePrintDistributedTensor(%arg0: !Input_DDR) -> !Output_DDR {
               %weights_cmx as %arg2: !WeightsStub_CMX) -> !OutputDistributed {
         %0 = VPU.NCE.Convolution(%arg1, %arg2) (bias : #const.Content<dense<1.000000e+00> : tensor<1x64x1x1xf16>>) {
                   pad = {bottom = 1 : i64, left = 1 : i64, right = 1 : i64, top = 1 : i64},
+                  rawFilterShape = [64, 32, 3, 3],
                   strides = [1, 1]
               } -> !OutputStub_CMX
         VPU.Yield %0
@@ -232,6 +235,7 @@ func @CanonicalizeTwoConvs(%arg0: !Input_DDR) -> !Output_DDR {
               %weights_first_cmx as %arg2: !WeightsFirstStub_CMX) -> !IntermediateDistributed {
         %0 = VPU.NCE.Convolution(%arg1, %arg2) (bias : #const.Content<dense<1.000000e+00> : tensor<1x64x1x1xf16>>) {
                   pad = {bottom = 1 : i64, left = 1 : i64, right = 1 : i64, top = 1 : i64},
+                  rawFilterShape = [64, 32, 3, 3],
                   strides = [1, 1]
               } -> !IntermediateStub_CMX
         VPU.Yield %0
@@ -261,6 +265,7 @@ func @CanonicalizeTwoConvs(%arg0: !Input_DDR) -> !Output_DDR {
               %weights_second_cmx as %arg2: !WeightsSecondStub_CMX) -> !OutputDistributed {
         %0 = VPU.NCE.Convolution(%arg1, %arg2) (bias : #const.Content<dense<1.000000e+00> : tensor<1x16x1x1xf16>>) {
                   pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64},
+                  rawFilterShape = [16, 64, 1, 1],
                   strides = [1, 1]
               } -> !OutputStub_CMX
         VPU.Yield %0
@@ -279,10 +284,10 @@ func @CanonicalizeTwoConvs(%arg0: !Input_DDR) -> !Output_DDR {
 // CHECK:        [[TEMP_1:%.*]] = VPU.NCE.Convolution(%arg1, %arg2)
 // CHECK-SAME:       -> tensor<1x64x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>
 
-// CHECK-NOT: [[SPILLED:%.*]] = VPU.NCE.ClusterTiling ([[OUTPUT:%.*]] as %arg1: tensor<1x64x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>) -> tensor<1x64x16x16xf16, {mem_space = @DDR, order = #NHWC}>
+// CHECK-NOT: [[SPILLED:%.*]] = VPU.NCE.ClusterTiling ([[TEMP_OUTPUT:%.*]] as %arg1: tensor<1x64x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>) -> tensor<1x64x16x16xf16, {mem_space = @DDR, order = #NHWC}>
 // CHECK-NOT:     [[WHATEVER_DDR:%.*]] = IE.Copy(%arg1) {out_mem_space = @DDR} : tensor<1x64x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}> -> tensor<1x64x16x16xf16, {mem_space = @DDR, order = #NHWC}>
 
-// CHECK-NOT: [[FILLED:%.*]] = VPU.NCE.ClusterTiling ([[INPUT:%.*]] as %arg1: tensor<1x64x16x16xf16, {mem_space = @DDR, order = #NHWC}>) -> tensor<1x64x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}> {
+// CHECK-NOT: [[FILLED:%.*]] = VPU.NCE.ClusterTiling ([[TEMP_INPUT:%.*]] as %arg1: tensor<1x64x16x16xf16, {mem_space = @DDR, order = #NHWC}>) -> tensor<1x64x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}> {
 // CHECK-NOT:     [[WHATEVER_CMX:%.*]] = IE.Copy(%arg1) {out_mem_space = @CMX_NN} : tensor<1x64x16x16xf16, {mem_space = @DDR, order = #NHWC}> -> tensor<1x64x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>
 
 // CHECK:    [[OUTPUT:%.*]] = VPU.NCE.ClusterTiling ([[INTERMEDIATE]] as %arg1: tensor<1x64x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>, [[WEIGHTS_1:%.*]] as %arg2: tensor<16x64x1x1xf16, {mem_space = @CMX_NN, order = #NHWC}>

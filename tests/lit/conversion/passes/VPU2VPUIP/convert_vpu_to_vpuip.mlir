@@ -12,6 +12,7 @@ func @Conv(%arg0: memref<1x16x16x16xf16, #NHWC, @CMX_NN>, %arg1: memref<16x16x1x
 
     %2 = VPU.NCE.Convolution(%0, %1) {
                 pad = {bottom = 0, left = 0, right = 0, top = 0},
+                rawFilterShape = [16, 16, 1, 1],
                 ppe = {clamp_high = 2147483647, clamp_low = 0, lrelu_mult = 1, lrelu_shift = 0, mode = "LRELU"},
                 strides = [1, 1]
             } -> tensor<1x16x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}> {
@@ -143,6 +144,7 @@ func @DepthConv(%arg0: memref<1x16x40x80xf16, #NHWC, @CMX_NN>, %arg1: memref<16x
 
     %2 = VPU.NCE.DepthConvolution(%0, %1) {
                 pad = {bottom = 0, left = 0, right = 0, top = 0},
+                rawFilterShape = [16, 1, 4, 8],
                 strides = [1, 1]
             } -> tensor<1x16x37x73xf16, {mem_space = @CMX_NN, order = #NHWC}> {
         VPU.DPU.Workload [0, 0, 0, 0] [1, 16, 7, 73] {bottom = 0, left = 0, right = 0, top = 0} "VECTOR_FP16"

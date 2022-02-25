@@ -131,7 +131,7 @@ def VPU_NCEConvolutionOp :
         OptionalAttr<IE_PostOp>:$post_op,
         OptionalAttr<VPU_PPETaskAttr>:$ppe,
 
-        OptionalAttr<I64ArrayAttr>:$rawFilterShape
+        Confined<I64ArrayAttr, [ArrayCount<4>]>:$rawFilterShape
     );
 
     let results = (outs
@@ -197,7 +197,7 @@ def VPU_NCEDepthConvolutionOp :
         OptionalAttr<IE_PostOp>:$post_op,
         OptionalAttr<VPU_PPETaskAttr>:$ppe,
 
-        OptionalAttr<I64ArrayAttr>:$rawFilterShape
+        Confined<I64ArrayAttr, [ArrayCount<4>]>:$rawFilterShape
     );
 
     let results = (outs
