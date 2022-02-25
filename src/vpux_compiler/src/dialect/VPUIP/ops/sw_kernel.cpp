@@ -42,8 +42,6 @@ mlir::LogicalResult SwKernelOp::inferReturnTypes(mlir::MLIRContext* ctx, mlir::O
         return mlir::failure();
     }
 
-    VPUX_THROW_UNLESS(swKernelOp.inputs().size() == 1, "For now act-kernels with only one input are supported. Got {0}",
-                      swKernelOp.inputs().size());
     VPUX_THROW_UNLESS(swKernelOp.output_buffs().size() == 1,
                       "For now act-kernels with only one output are supported. Got {0}",
                       swKernelOp.output_buffs().size());
@@ -71,6 +69,9 @@ IERT::KernelInfo SwKernelOp::getKernelInfo(mlir::Operation* origOp) {
             })
             .Case<IERT::SigmoidOp>([&](IERT::SigmoidOp) {
                 return IERT::KernelInfo{SmallVector<mlir::Attribute>{}, {"sigmoid_fp16"}, {"sigmoid_fp16.c"}};
+            })
+            .Case<IERT::SubtractOp>([&](IERT::SubtractOp) {
+                return IERT::KernelInfo{SmallVector<mlir::Attribute>{}, {"subtract_fp16"}, {"subtract_fp16.cpp"}};
             })
             .Case<IERT::SoftMaxOp>([&](IERT::SoftMaxOp softmax) {
                 return IERT::KernelInfo{SmallVector<mlir::Attribute>{softmax.axisIndAttr()},

@@ -38,6 +38,26 @@ class VPUXEltwiseLayerTest_MCM : public VPUXEltwiseLayerTest {
 };
 class VPUXEltwiseLayerTest_MLIR : public VPUXEltwiseLayerTest {};
 
+class VPUXEltwiseLayerTest_MTL : public VPUXEltwiseLayerTest {
+    SkipMessage SkipBeforeLoad() override {
+        if (std::getenv("OV_BUILD_DIR") == nullptr) {
+            return {"OV_BUILD_DIR env directory must be specified, in order to reach act-shave kernels."};
+        }
+
+#if defined(__arm__) || defined(__aarch64__) || defined(_WIN32) || defined(_WIN64)
+        return {"Does not compile on ARM and Windows."};
+#endif
+        return vpux::None;
+    }
+
+    SkipMessage SkipBeforeInfer() override {
+#ifndef ENABLE_IMD_BACKEND
+        return {"Runtime issue."};
+#endif
+        return vpux::None;
+    }
+};
+
 //
 //[Track number: E#15146]
 //
@@ -58,6 +78,13 @@ TEST_P(VPUXEltwiseLayerTest_MLIR, DISABLED_MLIR_SW) {
 TEST_P(VPUXEltwiseLayerTest_MLIR, DISABLED_MLIR_HW) {
     abs_threshold = 0.005;
     useCompilerMLIR();
+    setDefaultHardwareModeMLIR();
+    run();
+}
+
+TEST_P(VPUXEltwiseLayerTest_MTL, MLIR_MTL) {
+    useCompilerMLIR();
+    // setPlatformMTL();
     setDefaultHardwareModeMLIR();
     run();
 }
@@ -196,5 +223,17 @@ const auto subtract_params_mlir = ::testing::Combine(
 
 INSTANTIATE_TEST_CASE_P(smoke_CompareWithRefs_Specific_subtract, VPUXEltwiseLayerTest_MLIR, subtract_params_mlir,
                         VPUXEltwiseLayerTest::getTestCaseName);
+
+// ------ MTL ------
+
+const auto subtract_params_mtl = ::testing::Combine(
+        ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(inSpecificSubtractShapes)),
+        ::testing::Values(ngraph::helpers::EltwiseTypes::SUBTRACT), ::testing::ValuesIn(secondaryInputTypes),
+        ::testing::ValuesIn(opTypes), ::testing::ValuesIn(netPrecisions), ::testing::Values(ov::element::undefined),
+        ::testing::Values(ov::element::undefined), ::testing::Values(testPlatformTargetDevice),
+        ::testing::Values(ov::test::Config{}));
+
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Specific_subtract_MTL, VPUXEltwiseLayerTest_MTL, subtract_params_mtl,
+                         VPUXEltwiseLayerTest::getTestCaseName);
 
 }  // namespace
