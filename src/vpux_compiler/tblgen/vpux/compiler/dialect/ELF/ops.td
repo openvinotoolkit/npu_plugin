@@ -128,7 +128,8 @@ def CreateSymbolTableSectionOp :
 
     let arguments = (ins
                       StrAttr:$secName,
-                      ELF_SectionFlagsAttr:$secFlags
+                      ELF_SectionFlagsAttr:$secFlags,
+                      DefaultValuedAttr<BoolAttr, "false">:$isBuiltin
                     );
 
     let results = (outs ELF_Section:$section);
@@ -199,6 +200,7 @@ def SymbolOp :
 
     let arguments = (ins
           AnyType:$inputArg,
+          DefaultValuedAttr<BoolAttr, "false">:$isBuiltin,
           OptionalAttr<StrAttr>:$name,
           OptionalAttr<ELF_SymbolTypeAttr>:$type,
           OptionalAttr<UI64Attr>:$size,

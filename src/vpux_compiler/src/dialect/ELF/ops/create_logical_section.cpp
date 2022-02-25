@@ -17,8 +17,11 @@
 void vpux::ELF::CreateLogicalSectionOp::serialize(elf::Writer& writer, vpux::ELF::SectionMapType& sectionMap,
                                                   vpux::ELF::SymbolMapType& symbolMap) {
     VPUX_UNUSED(symbolMap);
+    auto section = writer.addEmptySection();
+
     const auto name = secName().str();
-    auto section = writer.addEmptySection(name);
+    section->setName(name);
+
     section->maskFlags(static_cast<elf::Elf_Xword>(secFlags()));
     section->setAddrAlign(secAddrAlign());
 

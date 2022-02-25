@@ -30,7 +30,7 @@ public:
     void setType(Elf_Word type);
 
 private:
-    explicit EmptySection(const std::string& name);
+    EmptySection();
 
     friend Writer;
 };

@@ -16,7 +16,7 @@
 using namespace elf;
 using namespace elf::writer;
 
-EmptySection::EmptySection(const std::string& name) : Section(name) {
+EmptySection::EmptySection() {
     m_header.sh_type = elf::SHT_NOBITS;
 }
 

@@ -39,11 +39,14 @@ public:
     void setAlign(Elf_Xword align);
 
 private:
+    using Ptr = std::unique_ptr<Segment>;
+
+private:
     Segment();
 
     ProgramHeader m_header{};
 
-    std::vector<uint8_t> m_data;
+    std::vector<char> m_data;
     std::vector<Section*> m_sections;
 
     friend Writer;

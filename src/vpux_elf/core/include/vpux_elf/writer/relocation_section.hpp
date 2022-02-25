@@ -28,14 +28,17 @@ public:
     const SymbolSection* getSymbolTable() const;
     void setSymbolTable(const SymbolSection* symTab);
 
+    Elf_Word getSpecialSymbolTable() const;
+    void setSpecialSymbolTable(Elf_Word specialSymbolTable);
+
     const Section* getSectionToPatch() const;
     void setSectionToPatch(const Section* sectionToPatch);
 
     Relocation* addRelocationEntry();
-    const std::vector<std::unique_ptr<Relocation>>& getRelocations() const;
+    const std::vector<Relocation::Ptr>& getRelocations() const;
 
 private:
-    explicit RelocationSection(const std::string& name);
+    RelocationSection();
 
     void finalize() override;
 
@@ -43,7 +46,7 @@ private:
     const SymbolSection* m_symTab = nullptr;
     const Section* m_sectionToPatch = nullptr;
 
-    std::vector<std::unique_ptr<Relocation>> m_relocations;
+    std::vector<Relocation::Ptr> m_relocations;
 
     friend Writer;
 };

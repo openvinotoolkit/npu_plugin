@@ -24,17 +24,17 @@ namespace writer {
 
 class SymbolSection final : public Section {
 public:
-    Symbol* addSymbolEntry(const std::string& name = {});
-    const std::vector<std::unique_ptr<Symbol>>& getSymbols() const;
+    Symbol* addSymbolEntry();
+    const std::vector<Symbol::Ptr>& getSymbols() const;
 
 private:
-    SymbolSection(const std::string& name, StringSection* namesSection);
+    explicit SymbolSection(StringSection* namesSection);
 
     void finalize() override;
 
 private:
-    StringSection* m_namesSection = nullptr;
-    std::vector<std::unique_ptr<Symbol>> m_symbols;
+    StringSection* m_namesSection;
+    std::vector<Symbol::Ptr> m_symbols;
 
     friend Writer;
 };

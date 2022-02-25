@@ -26,7 +26,7 @@ public:
     size_t addString(const std::string& name);
 
 private:
-    explicit StringSection(const std::string& name);
+    StringSection();
 
     friend Writer;
 };

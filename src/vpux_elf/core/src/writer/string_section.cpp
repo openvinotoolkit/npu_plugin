@@ -16,7 +16,7 @@
 using namespace elf;
 using namespace elf::writer;
 
-StringSection::StringSection(const std::string& name) : Section(name) {
+StringSection::StringSection() {
     m_header.sh_type = SHT_STRTAB;
     m_data.push_back('\0');
 }

@@ -40,28 +40,28 @@ public:
 
     writer::Segment* addSegment();
 
-    writer::RelocationSection* addRelocationSection(const std::string& name = {});
-    writer::SymbolSection* addSymbolSection(const std::string& name = {});
-    writer::EmptySection* addEmptySection(const std::string& name = {});
+    writer::RelocationSection* addRelocationSection();
+    writer::SymbolSection* addSymbolSection();
+    writer::EmptySection* addEmptySection();
 
     template <typename T>
-    writer::BinaryDataSection<T>* addBinaryDataSection(const std::string& name = {}) {
-        m_sections.push_back(std::unique_ptr<writer::BinaryDataSection<T>>(new writer::BinaryDataSection<T>(name)));
+    writer::BinaryDataSection<T>* addBinaryDataSection() {
+        m_sections.push_back(std::unique_ptr<writer::BinaryDataSection<T>>(new writer::BinaryDataSection<T>));
         m_sections.back()->setIndex(m_sections.size() - 1);
         return dynamic_cast<writer::BinaryDataSection<T>*>(m_sections.back().get());
     }
 
 private:
-    writer::Section* addSection(const std::string& name = {});
-    writer::StringSection* addStringSection(const std::string& name = {});
+    writer::Section* addSection();
+    writer::StringSection* addStringSection();
 
     elf::ELFHeader generateELFHeader() const;
 
 private:
     writer::StringSection* m_sectionHeaderNames;
     writer::StringSection* m_symbolNames;
-    std::vector<std::unique_ptr<writer::Section>> m_sections;
-    std::vector<std::unique_ptr<writer::Segment>> m_segments;
+    std::vector<writer::Section::Ptr> m_sections;
+    std::vector<writer::Segment::Ptr> m_segments;
 };
 
 } // namespace elf

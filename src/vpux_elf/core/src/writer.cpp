@@ -33,11 +33,13 @@ uint64_t alignOffset(uint64_t offset, uint64_t alignReq) {
 
 Writer::Writer() {
     // Creating NULL section
-    m_sections.push_back(std::unique_ptr<Section>(new Section));
+    m_sections.push_back(Section::Ptr(new Section));
 
-    m_sectionHeaderNames = addStringSection(".strtab");
+    m_sectionHeaderNames = addStringSection();
+    m_sectionHeaderNames->setName(".strtab");
 
-    m_symbolNames = addStringSection(".symstrtab");
+    m_symbolNames = addStringSection();
+    m_symbolNames->setName(".symstrtab");
 };
 
 std::vector<uint8_t> Writer::generateELF() {
@@ -55,6 +57,16 @@ std::vector<uint8_t> Writer::generateELF() {
         }
     }
 
+    int curIndex = 0;
+    for (auto& section : m_sections) {
+        if (std::find(sectionsFromSegments.begin(), sectionsFromSegments.end(), section.get()) == sectionsFromSegments.end()) {
+            section->setIndex(curIndex++);
+        }
+    }
+    for (auto& section : sectionsFromSegments) {
+        section->setIndex(curIndex++);
+    }
+
     elfHeader.e_shstrndx = m_sectionHeaderNames->getIndex();
 
     for (auto& section : m_sections) {
@@ -62,32 +74,21 @@ std::vector<uint8_t> Writer::generateELF() {
         section->setNameOffset(m_sectionHeaderNames->addString(section->getName()));
     }
 
-    auto curOffset = elfHeader.e_ehsize;
-    if (elfHeader.e_shnum) {
-        curOffset = elfHeader.e_shoff = alignOffset(curOffset, elfHeader.e_shentsize);
-    }
-    if (elfHeader.e_phnum) {
-        curOffset = elfHeader.e_phoff = alignOffset(curOffset + elfHeader.e_shnum * elfHeader.e_shentsize, elfHeader.e_phentsize);
-    } else {
-        curOffset += elfHeader.e_shnum * elfHeader.e_shentsize;
-    }
-    const auto dataOffset = curOffset + elfHeader.e_phnum * elfHeader.e_phentsize;
+    elfHeader.e_shoff = alignOffset(elfHeader.e_ehsize, elfHeader.e_shentsize);
+    elfHeader.e_phoff = alignOffset(elfHeader.e_shoff + elfHeader.e_shnum * elfHeader.e_shentsize, elfHeader.e_phentsize);
+    const auto dataOffset = elfHeader.e_phoff + elfHeader.e_phnum * elfHeader.e_phentsize;
 
     std::vector<uint8_t> data;
 
-    const auto alignData = [&data, &dataOffset](const Section* section) {
+    const auto serializeSection = [&data, &dataOffset, &sectionHeaders](Section* section) {
+        const auto sectionData = section->m_data;
+        auto sectionHeader = section->m_header;
+
         const auto curFileOffset = dataOffset + data.size();
         const auto alignedFileOffset = alignOffset(curFileOffset, section->getFileAlignRequirement());
         if (curFileOffset != alignedFileOffset) {
             data.resize(data.size() + (alignedFileOffset - curFileOffset), 0);
         }
-    };
-
-    const auto serializeSection = [&data, &dataOffset, &sectionHeaders, &alignData](Section* section) {
-        const auto sectionData = section->m_data;
-        auto sectionHeader = section->m_header;
-
-        alignData(section);
 
         if (!sectionData.empty()) {
             sectionHeader.sh_offset = dataOffset + data.size();
@@ -132,16 +133,10 @@ std::vector<uint8_t> Writer::generateELF() {
     elfBlob.reserve(dataOffset + data.size());
 
     elfBlob.insert(elfBlob.end(), reinterpret_cast<uint8_t*>(&elfHeader), reinterpret_cast<uint8_t*>(&elfHeader) + elfHeader.e_ehsize);
-    if (elfHeader.e_shoff) {
-        elfBlob.resize(elfHeader.e_shoff, 0);
-        elfBlob.insert(elfBlob.end(), reinterpret_cast<uint8_t*>(sectionHeaders.data()),
-                       reinterpret_cast<uint8_t*>(sectionHeaders.data()) + elfHeader.e_shnum * elfHeader.e_shentsize);
-    }
-    if (elfHeader.e_phoff) {
-        elfBlob.resize(elfHeader.e_phoff, 0);
-        elfBlob.insert(elfBlob.end(), reinterpret_cast<uint8_t*>(programHeaders.data()),
-                       reinterpret_cast<uint8_t*>(programHeaders.data()) + elfHeader.e_phnum * elfHeader.e_phentsize);
-    }
+    elfBlob.resize(elfHeader.e_shoff, 0);
+    elfBlob.insert(elfBlob.end(), reinterpret_cast<uint8_t*>(sectionHeaders.data()), reinterpret_cast<uint8_t*>(sectionHeaders.data()) + elfHeader.e_shnum * elfHeader.e_shentsize);
+    elfBlob.resize(elfHeader.e_phoff, 0);
+    elfBlob.insert(elfBlob.end(), reinterpret_cast<uint8_t*>(programHeaders.data()), reinterpret_cast<uint8_t*>(programHeaders.data()) + elfHeader.e_phnum * elfHeader.e_phentsize);
     elfBlob.insert(elfBlob.end(), data.data(), data.data() + data.size());
 
     return elfBlob;
@@ -152,38 +147,33 @@ Segment* Writer::addSegment() {
     return m_segments.back().get();
 }
 
-Section* Writer::addSection(const std::string& name) {
-    m_sections.push_back(std::unique_ptr<Section>(new Section(name)));
-    m_sections.back()->setIndex(m_sections.size() - 1);
+Section* Writer::addSection() {
+    m_sections.push_back(std::unique_ptr<Section>(new Section));
     return m_sections.back().get();
 }
 
-RelocationSection* Writer::addRelocationSection(const std::string& name) {
-    m_sections.push_back(std::unique_ptr<RelocationSection>(new RelocationSection(name)));
-    m_sections.back()->setIndex(m_sections.size() - 1);
+RelocationSection* Writer::addRelocationSection() {
+    m_sections.push_back(std::unique_ptr<RelocationSection>(new RelocationSection));
     return dynamic_cast<RelocationSection*>(m_sections.back().get());
 }
 
-SymbolSection* Writer::addSymbolSection(const std::string& name) {
-    m_sections.push_back(std::unique_ptr<SymbolSection>(new SymbolSection(name, m_symbolNames)));
-    m_sections.back()->setIndex(m_sections.size() - 1);
+SymbolSection* Writer::addSymbolSection() {
+    m_sections.push_back(std::unique_ptr<SymbolSection>(new SymbolSection(m_symbolNames)));
     return dynamic_cast<SymbolSection*>(m_sections.back().get());
 }
 
-EmptySection* Writer::addEmptySection(const std::string& name) {
-    m_sections.push_back(std::unique_ptr<EmptySection>(new EmptySection(name)));
-    m_sections.back()->setIndex(m_sections.size() - 1);
+EmptySection* Writer::addEmptySection() {
+    m_sections.push_back(std::unique_ptr<EmptySection>(new EmptySection));
     return dynamic_cast<EmptySection*>(m_sections.back().get());
 }
 
-StringSection* Writer::addStringSection(const std::string& name) {
-    m_sections.push_back(std::unique_ptr<StringSection>(new StringSection(name)));
-    m_sections.back()->setIndex(m_sections.size() - 1);
+StringSection* Writer::addStringSection() {
+    m_sections.push_back(std::unique_ptr<StringSection>(new StringSection));
     return dynamic_cast<StringSection*>(m_sections.back().get());
 }
 
 elf::ELFHeader Writer::generateELFHeader() const {
-    ELFHeader fileHeader{};
+    ELFHeader fileHeader;
 
     fileHeader.e_ident[EI_MAG0] = ELFMAG0;
     fileHeader.e_ident[EI_MAG1] = ELFMAG1;
@@ -201,12 +191,9 @@ elf::ELFHeader Writer::generateELFHeader() const {
 
     fileHeader.e_entry = 0;
     fileHeader.e_flags = 0;
-    fileHeader.e_shstrndx = 0;
 
     fileHeader.e_shnum = m_sections.size();
     fileHeader.e_phnum = m_segments.size();
-
-    fileHeader.e_shoff = fileHeader.e_phoff = 0;
 
     fileHeader.e_ehsize = sizeof(ELFHeader);
     fileHeader.e_phentsize = sizeof(ProgramHeader);

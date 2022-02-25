@@ -91,6 +91,8 @@ void vpux::VPUIPRegMapped::NNDMAOp::serialize(elf::writer::BinaryDataSection<uin
     dmaTask.start_after = (uint16_t)start_after();
 
     host_parsing::DmaDescriptor& descriptor = dmaTask.transaction;
+    descriptor.link_address = 1; //TODO: index of next task
+
     descriptor.cfg_link.cfg_bits.type = 1;
     descriptor.cfg_link.cfg_bits.burst_length = 16;
     descriptor.cfg_link.cfg_bits.barrier_en = 1;

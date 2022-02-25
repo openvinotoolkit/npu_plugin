@@ -16,7 +16,7 @@
 using namespace elf;
 using namespace elf::writer;
 
-Section::Section(const std::string& name) : m_name(name) {
+Section::Section() {
     m_header.sh_name = 0;
     m_header.sh_type = SHT_NULL;
     m_header.sh_flags = 0;

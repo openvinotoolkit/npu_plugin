@@ -135,6 +135,7 @@ operation ::= `ELF.CreateSymbolTableSection` `secName` `(` $secName `)`
 | :-------: | :-------: | ----------- |
 `secName` | ::mlir::StringAttr | string attribute
 `secFlags` | vpux::ELF::SectionFlagsAttrAttr | Enum for describing ELF section header flags (we can use also the | operator)
+`isBuiltin` | ::mlir::BoolAttr | bool attribute
 
 #### Results:
 
@@ -207,6 +208,7 @@ operation ::= `ELF.Symbol` $inputArg
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
+`isBuiltin` | ::mlir::BoolAttr | bool attribute
 `name` | ::mlir::StringAttr | string attribute
 `type` | vpux::ELF::SymbolTypeAttrAttr | Enum to represent symbol types
 `size` | ::mlir::IntegerAttr | 64-bit unsigned integer attribute

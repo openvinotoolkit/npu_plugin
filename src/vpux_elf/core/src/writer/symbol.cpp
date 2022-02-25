@@ -18,7 +18,7 @@
 using namespace elf;
 using namespace elf::writer;
 
-Symbol::Symbol(const std::string& name) : m_name(name) {
+Symbol::Symbol() {
     m_symbol.st_name = 0;
     m_symbol.st_info = elf64STInfo(STB_LOCAL, STT_NOTYPE);
     m_symbol.st_other = elf64STVisibility(STV_DEFAULT);

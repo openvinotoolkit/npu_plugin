@@ -197,6 +197,7 @@ void Convert2VPUIPRegMappedAndELFPass::createRelocationSection(mlir::FuncOp func
         elfSymbolOp.push_back(builderFunc.create<ELF::SymbolOp>(mlir::UnknownLoc::get(ctx),
                                                                 symbolType,         // mlir::Type
                                                                 nndmaOpInput[idx],  // mlir::Value inputArg
+                                                                false,
                                                                 nameSym,            // mlir::StringAttr
                                                                 typeSym,            // vpux::ELF::SymbolTypeAttrAttr
                                                                 sizeSym,            // size
@@ -219,6 +220,7 @@ void Convert2VPUIPRegMappedAndELFPass::createRelocationSection(mlir::FuncOp func
         elfSymbolOp.push_back(builderFunc.create<ELF::SymbolOp>(mlir::UnknownLoc::get(ctx),
                                                                 symbolType,          // mlir::Type
                                                                 nndmaOpOutput[idx],  // mlir::Value inputArg
+                                                                false,
                                                                 nameSym,             // mlir::StringAttr
                                                                 typeSym,             // vpux::ELF::SymbolTypeAttrAttr
                                                                 sizeSym,             // size

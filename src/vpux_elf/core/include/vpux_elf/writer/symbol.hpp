@@ -47,7 +47,10 @@ public:
     size_t getIndex() const;
 
 private:
-    Symbol(const std::string& name = {});
+    using Ptr = std::unique_ptr<Symbol>;
+
+private:
+    Symbol();
 
     void setIndex(size_t index);
 

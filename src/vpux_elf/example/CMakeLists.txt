@@ -11,7 +11,7 @@
 # included with the Software Package for additional details.
 #
 
-set (EXAMPLES simplereader simplewriter)
+set (EXAMPLES)
 
 foreach(TARGET_NAME ${EXAMPLES})
     source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${TARGET_NAME}.cpp)

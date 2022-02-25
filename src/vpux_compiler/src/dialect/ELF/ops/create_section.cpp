@@ -17,8 +17,11 @@
 void vpux::ELF::CreateSectionOp::serialize(elf::Writer& writer, vpux::ELF::SectionMapType& sectionMap,
                                            vpux::ELF::SymbolMapType& symbolMap) {
     VPUX_UNUSED(symbolMap);
+    auto section = writer.addBinaryDataSection<uint8_t>();
+
     const auto name = secName().str();
-    auto section = writer.addBinaryDataSection<uint8_t>(name);
+    section->setName(name);
+
     section->maskFlags(static_cast<elf::Elf_Xword>(secFlags()));
     section->setAddrAlign(secAddrAlign());
 

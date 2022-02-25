@@ -16,7 +16,7 @@
 using namespace elf;
 using namespace elf::writer;
 
-RelocationSection::RelocationSection(const std::string& name) : Section(name) {
+RelocationSection::RelocationSection() {
     m_header.sh_type = SHT_RELA;
     m_header.sh_entsize = sizeof(RelocationAEntry);
     m_fileAlignRequirement = alignof(RelocationAEntry);
@@ -28,6 +28,14 @@ const SymbolSection* RelocationSection::getSymbolTable() const {
 
 void RelocationSection::setSymbolTable(const SymbolSection* symTab) {
     m_symTab = symTab;
+}
+
+Elf_Word RelocationSection::getSpecialSymbolTable() const {
+    return m_header.sh_link;
+}
+
+void RelocationSection::setSpecialSymbolTable(Elf_Word specialSymbolTable) {
+    m_header.sh_link = specialSymbolTable;
 }
 
 const Section* RelocationSection::getSectionToPatch() const {
@@ -43,19 +51,24 @@ Relocation* RelocationSection::addRelocationEntry() {
     return m_relocations.back().get();
 }
 
-const std::vector<std::unique_ptr<Relocation>>& RelocationSection::getRelocations() const {
+const std::vector<Relocation::Ptr>& RelocationSection::getRelocations() const {
     return m_relocations;
 }
 
 void RelocationSection::finalize() {
     m_header.sh_info = m_sectionToPatch->getIndex();
-    m_header.sh_link = m_symTab->getIndex();
+    maskFlags(SHF_INFO_LINK);
+    if (m_symTab) {
+        m_header.sh_link = m_symTab->getIndex();
+    }
 
     for (const auto& relocation : m_relocations) {
         auto relocationEntry = relocation->m_relocation;
-        relocationEntry.r_info = elf64RInfo(relocation->getSymbol()->getIndex(), relocation->getType());
+        if (relocation->getSymbol()) {
+            relocationEntry.r_info = elf64RInfo(relocation->getSymbol()->getIndex(), relocation->getType());
+        }
 
-        m_data.insert(m_data.end(), reinterpret_cast<uint8_t*>(&relocationEntry),
-                      reinterpret_cast<uint8_t*>(&relocationEntry) + sizeof(relocationEntry));
+        m_data.insert(m_data.end(), reinterpret_cast<char*>(&relocationEntry),
+                      reinterpret_cast<char*>(&relocationEntry) + sizeof(relocationEntry));
     }
 }

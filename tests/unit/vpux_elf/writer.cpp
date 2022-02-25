@@ -88,7 +88,8 @@ TEST(ELFWriter, BinaryDataSection) {
     const auto val2 = TestObject{42, 0};
 
     elf::Writer writer;
-    auto refSection = writer.addBinaryDataSection<TestObject>(testName);
+    auto refSection = writer.addBinaryDataSection<TestObject>();
+    refSection->setName(testName);
     refSection->setAddrAlign(testAlignment);
     refSection->appendData(val1);
     refSection->appendData(val2);
@@ -118,7 +119,8 @@ TEST(ELFWriter, EmptySection) {
     constexpr auto emptySectionFlags = elf::SHF_ALLOC;
 
     elf::Writer writer;
-    auto refSection = writer.addEmptySection(testName);
+    auto refSection = writer.addEmptySection();
+    refSection->setName(testName);
     refSection->setFlags(emptySectionFlags);
     refSection->setSize(emptySectionSize);
 
@@ -145,9 +147,11 @@ TEST(ELFWriter, SymbolSection) {
     elf::Writer writer;
     auto emptySection = writer.addEmptySection();
 
-    auto refSection = writer.addSymbolSection(testName);
+    auto refSection = writer.addSymbolSection();
+    refSection->setName(testName);
 
-    auto refSymbol = refSection->addSymbolEntry(testName);
+    auto refSymbol = refSection->addSymbolEntry();
+    refSymbol->setName(testName);
     refSymbol->setValue(symbolValue);
     refSymbol->setSize(symbolSize);
     refSymbol->setType(symbolType);
@@ -190,15 +194,19 @@ TEST(ELFWriter, RelocationSection) {
     };
 
     elf::Writer writer;
-    auto refBinaryDataSection = writer.addBinaryDataSection<TestObject>(testBinaryDataName);
+    auto refBinaryDataSection = writer.addBinaryDataSection<TestObject>();
+    refBinaryDataSection->setName(testBinaryDataName);
     refBinaryDataSection->appendData(TestObject{});
 
-    auto refSymbolSection = writer.addSymbolSection(testSymbolSection);
-    auto refSymbol = refSymbolSection->addSymbolEntry(testSymbolName);
+    auto refSymbolSection = writer.addSymbolSection();
+    refSymbolSection->setName(testSymbolSection);
+    auto refSymbol = refSymbolSection->addSymbolEntry();
+    refSymbol->setName(testSymbolName);
     refSymbol->setType(testSymbolType);
     refSymbol->setSize(testSymbolSize);
 
-    auto refRelocationSection = writer.addRelocationSection(testRelocationName);
+    auto refRelocationSection = writer.addRelocationSection();
+    refRelocationSection->setName(testRelocationName);
     refRelocationSection->setSectionToPatch(refBinaryDataSection);
     refRelocationSection->setSymbolTable(refSymbolSection);
     auto refRelocation = refRelocationSection->addRelocationEntry();
