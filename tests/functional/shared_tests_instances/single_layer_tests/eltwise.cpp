@@ -48,7 +48,7 @@ TEST_P(VPUXEltwiseLayerTest_MCM, DISABLED_MCM) {
 //
 //[Track number: E#30253]
 //
-TEST_P(VPUXEltwiseLayerTest_MLIR, DISABLED_MLIR_SW) {
+TEST_P(VPUXEltwiseLayerTest_MLIR, MLIR_SW) {
     abs_threshold = 0.005;
     useCompilerMLIR();
     setReferenceSoftwareModeMLIR();
@@ -169,6 +169,22 @@ const auto multiply_params_mlir = ::testing::Combine(
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Multiply, VPUXEltwiseLayerTest_MLIR, multiply_params_mlir,
                          VPUXEltwiseLayerTest::getTestCaseName);
+
+//===================================================================================================================
+const auto power_params_mlir = ::testing::Combine(
+        ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(inSpecificShapes)),
+        ::testing::Values(ngraph::helpers::EltwiseTypes::POWER),
+        ::testing::ValuesIn(secondaryInputTypes),
+        ::testing::ValuesIn(opTypes),
+        ::testing::Values(ov::element::f16),
+        ::testing::Values(ov::element::undefined),
+        ::testing::Values(ov::element::undefined),
+        ::testing::Values(testPlatformTargetDevice),
+        ::testing::Values(ov::test::Config{}));
+
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Power, VPUXEltwiseLayerTest_MLIR, power_params_mlir,
+                         VPUXEltwiseLayerTest::getTestCaseName);
+//===================================================================================================================
 
 const auto eltwise_add_params_mlir = ::testing::Combine(
         ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(inSpecificShapes)),
