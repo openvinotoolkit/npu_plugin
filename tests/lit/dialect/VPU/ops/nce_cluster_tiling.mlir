@@ -1,4 +1,4 @@
-// RUN: vpux-opt --split-input-file %s | FileCheck %s
+// RUN: vpux-opt --split-input-file --canonicalize %s | FileCheck %s
 
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
@@ -127,3 +127,159 @@ func @ParsePrintDistributedTensor(%arg0: !Input_DDR) -> !Output_DDR {
 
     //CHECK:        return [[OUT]] : tensor<1x64x16x16xf16, {mem_space = @DDR, order = #NHWC}>
 }
+
+// -----
+
+#NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
+
+!TensorDistributed = type !VPU.DistributedTensor<
+    1x64x16x16xf16, #NHWC, @CMX_NN, {
+    mode = SEGMENTED,
+    num_tiles = [1, 1, 4, 1]
+}>
+
+!Tensor_DDR = type tensor<1x64x16x16xf16, {mem_space = @DDR, order = #NHWC}>
+!TensorStub_CMX = type tensor<1x64x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>
+
+func @EraseCopySequence(%arg0: !TensorDistributed) -> !TensorDistributed {
+    %spilled_ddr = VPU.NCE.ClusterTiling(%arg0 as %arg1: !TensorStub_CMX) -> !Tensor_DDR {
+        %0 = IE.Copy(%arg1) { out_mem_space = @DDR } : !TensorStub_CMX -> !Tensor_DDR
+        VPU.Yield %0
+    }
+
+    %output = VPU.NCE.ClusterTiling(%spilled_ddr as %arg1: !Tensor_DDR) -> !TensorDistributed {
+        %0 = IE.Copy(%arg1) { out_mem_space = @CMX_NN } : !Tensor_DDR -> !TensorStub_CMX
+        VPU.Yield %0
+    }
+
+    return %output: !TensorDistributed
+}
+
+// CHECK: return %arg0 : !VPU.DistributedTensor<1x64x16x16xf16, #NHWC, @CMX_NN, {mode = SEGMENTED, num_tiles = [1, 1, 4, 1]}>
+
+// -----
+
+#NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
+
+!InputDistributed = type !VPU.DistributedTensor<
+    1x32x16x16xf16, #NHWC, @CMX_NN, {
+    mode = OVERLAPPED,
+    num_tiles = [1, 1, 4, 1],
+    kernel = [3, 3],
+    pads = {bottom = 1, left = 1, right = 1, top = 1}
+}>
+
+!WeightsFirstDistributed = type !VPU.DistributedTensor<
+    64x32x3x3xf16, #NHWC, @CMX_NN, {
+    mode = DUPLICATED
+}>
+
+!IntermediateDistributed = type !VPU.DistributedTensor<
+    1x64x16x16xf16, #NHWC, @CMX_NN, {
+    mode = SEGMENTED,
+    num_tiles = [1, 1, 4, 1]
+}>
+
+!WeightsSecondDistributed = type !VPU.DistributedTensor<
+    16x64x1x1xf16, #NHWC, @CMX_NN, {
+    mode = DUPLICATED
+}>
+
+!OutputDistributed = type !VPU.DistributedTensor<
+    1x16x16x16xf16, #NHWC, @CMX_NN, {
+    mode = SEGMENTED,
+    num_tiles = [1, 1, 4, 1]
+}>
+
+!Input_DDR = type tensor<1x32x16x16xf16, {mem_space = @DDR, order = #NHWC}>
+!WeightsFirst_DDR = type tensor<64x32x3x3xf16, {mem_space = @DDR, order = #NHWC}>
+!Intermediate_DDR = type tensor<1x64x16x16xf16, {mem_space = @DDR, order = #NHWC}>
+!WeightsSecond_DDR = type tensor<16x64x1x1xf16, {mem_space = @DDR, order = #NHWC}>
+!Output_DDR = type tensor<1x16x16x16xf16, {mem_space = @DDR, order = #NHWC}>
+
+!InputStub_CMX = type tensor<1x32x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>
+!WeightsFirstStub_CMX = type tensor<64x32x3x3xf16, {mem_space = @CMX_NN, order = #NHWC}>
+!IntermediateStub_CMX = type tensor<1x64x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>
+!WeightsSecondStub_CMX = type tensor<16x64x1x1xf16, {mem_space = @CMX_NN, order = #NHWC}>
+!OutputStub_CMX = type tensor<1x16x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>
+
+func @CanonicalizeTwoConvs(%arg0: !Input_DDR) -> !Output_DDR {
+    %weights_first = const.Declare tensor<64x32x3x3xf16, {mem_space = @DDR, order = #NHWC}> = #const.Content<dense<1.000000e+00>
+                   : tensor<64x32x3x3xf16, {mem_space = @DDR}>, [#const.Reorder<#NHWC>]>
+    %weights_second = const.Declare tensor<16x64x1x1xf16, {mem_space = @DDR, order = #NHWC}> = #const.Content<dense<1.000000e+00>
+                   : tensor<16x64x1x1xf16, {mem_space = @DDR}>, [#const.Reorder<#NHWC>]>
+
+    // First Convolution operation
+
+    %input_cmx = VPU.NCE.ClusterTiling(%arg0 as %arg1: !Input_DDR) -> !InputDistributed {
+        %0 = IE.Copy(%arg1) { out_mem_space = @CMX_NN } : !Input_DDR -> !InputStub_CMX
+        VPU.Yield %0
+    }
+
+    %weights_first_cmx = VPU.NCE.ClusterTiling(%weights_first as %arg1: !WeightsFirst_DDR) -> !WeightsFirstDistributed {
+        %0 = IE.Copy(%arg1) { out_mem_space = @CMX_NN } : !WeightsFirst_DDR -> !WeightsFirstStub_CMX
+        VPU.Yield %0
+    }
+
+    %intermediate_output_cmx = VPU.NCE.ClusterTiling (
+              %input_cmx as %arg1: !InputStub_CMX,
+              %weights_first_cmx as %arg2: !WeightsFirstStub_CMX) -> !IntermediateDistributed {
+        %0 = VPU.NCE.Convolution(%arg1, %arg2) (bias : #const.Content<dense<1.000000e+00> : tensor<1x64x1x1xf16>>) {
+                  pad = {bottom = 1 : i64, left = 1 : i64, right = 1 : i64, top = 1 : i64},
+                  strides = [1, 1]
+              } -> !IntermediateStub_CMX
+        VPU.Yield %0
+    }
+
+    // Output is stored into DDR and loaded back again. It's expected to be optimized out by the canonicalizer
+
+    %intermediate_ddr = VPU.NCE.ClusterTiling(%intermediate_output_cmx as %arg1: !IntermediateStub_CMX) -> !Intermediate_DDR {
+        %0 = IE.Copy(%arg1) { out_mem_space = @DDR } : !IntermediateStub_CMX -> !Intermediate_DDR
+        VPU.Yield %0
+    }
+
+    %intermediate_input_cmx = VPU.NCE.ClusterTiling(%intermediate_ddr as %arg1: !Intermediate_DDR) -> !IntermediateDistributed {
+        %0 = IE.Copy(%arg1) { out_mem_space = @CMX_NN } : !Intermediate_DDR -> !IntermediateStub_CMX
+        VPU.Yield %0
+    }
+
+    // Second Convolution operation
+
+    %weights_second_cmx = VPU.NCE.ClusterTiling(%weights_second as %arg1: !WeightsSecond_DDR) -> !WeightsSecondDistributed {
+        %0 = IE.Copy(%arg1) { out_mem_space = @CMX_NN } : !WeightsSecond_DDR -> !WeightsSecondStub_CMX
+        VPU.Yield %0
+    }
+
+    %output_cmx = VPU.NCE.ClusterTiling (
+              %intermediate_input_cmx as %arg1: !IntermediateStub_CMX,
+              %weights_second_cmx as %arg2: !WeightsSecondStub_CMX) -> !OutputDistributed {
+        %0 = VPU.NCE.Convolution(%arg1, %arg2) (bias : #const.Content<dense<1.000000e+00> : tensor<1x16x1x1xf16>>) {
+                  pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64},
+                  strides = [1, 1]
+              } -> !OutputStub_CMX
+        VPU.Yield %0
+    }
+
+    %output = VPU.NCE.ClusterTiling(%output_cmx as %arg1: !OutputStub_CMX) -> !Output_DDR {
+        %0 = IE.Copy(%arg1) { out_mem_space = @DDR } : !OutputStub_CMX -> !Output_DDR
+        VPU.Yield %0
+    }
+
+    return %output: !Output_DDR
+}
+
+// CHECK:    [[INTERMEDIATE:%.*]] = VPU.NCE.ClusterTiling ([[INPUT:%.*]] as %arg1: tensor<1x32x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>, [[WEIGHTS_1:%.*]] as %arg2: tensor<64x32x3x3xf16, {mem_space = @CMX_NN, order = #NHWC}>)
+// CHECK-SAME:             -> !VPU.DistributedTensor<1x64x16x16xf16, #NHWC, @CMX_NN, {mode = SEGMENTED, num_tiles = [1, 1, 4, 1]}> {
+// CHECK:        [[TEMP_1:%.*]] = VPU.NCE.Convolution(%arg1, %arg2)
+// CHECK-SAME:       -> tensor<1x64x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>
+
+// CHECK-NOT: [[SPILLED:%.*]] = VPU.NCE.ClusterTiling ([[OUTPUT:%.*]] as %arg1: tensor<1x64x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>) -> tensor<1x64x16x16xf16, {mem_space = @DDR, order = #NHWC}>
+// CHECK-NOT:     [[WHATEVER_DDR:%.*]] = IE.Copy(%arg1) {out_mem_space = @DDR} : tensor<1x64x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}> -> tensor<1x64x16x16xf16, {mem_space = @DDR, order = #NHWC}>
+
+// CHECK-NOT: [[FILLED:%.*]] = VPU.NCE.ClusterTiling ([[INPUT:%.*]] as %arg1: tensor<1x64x16x16xf16, {mem_space = @DDR, order = #NHWC}>) -> tensor<1x64x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}> {
+// CHECK-NOT:     [[WHATEVER_CMX:%.*]] = IE.Copy(%arg1) {out_mem_space = @CMX_NN} : tensor<1x64x16x16xf16, {mem_space = @DDR, order = #NHWC}> -> tensor<1x64x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>
+
+// CHECK:    [[OUTPUT:%.*]] = VPU.NCE.ClusterTiling ([[INTERMEDIATE]] as %arg1: tensor<1x64x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>, [[WEIGHTS_1:%.*]] as %arg2: tensor<16x64x1x1xf16, {mem_space = @CMX_NN, order = #NHWC}>
+// CHECK-SAME:            ) -> !VPU.DistributedTensor<1x16x16x16xf16, #NHWC, @CMX_NN, {mode = SEGMENTED, num_tiles = [1, 1, 4, 1]}> {
+// CHECK:        [[TEMP_2:%.*]] = VPU.NCE.Convolution(%arg1, %arg2)
+// CHECK-SAME:       -> tensor<1x16x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>
