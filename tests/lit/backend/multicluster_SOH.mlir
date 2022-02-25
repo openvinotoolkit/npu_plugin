@@ -6,25 +6,27 @@
 !InputDistributed = type !VPUIP.DistributedBuffer<
     1x16x32x32xf16, #NHWC, @CMX_NN, {
     mode = "SEGMENTED",
+    num_tiles = [1, 1, 2, 1],
     num_clusters = 2
 }>
 
 !OutputDistributed = type !VPUIP.DistributedBuffer<
     1x16x32x32xf16, #NHWC, @CMX_NN, {
     mode = "SEGMENTED",
+    num_tiles = [1, 1, 2, 1],
     num_clusters = 2
 }>
 
 !WeightsDistributed = type !VPUIP.DistributedBuffer<
     16x16x1x1xf16, #NHWC, @CMX_NN, {
     mode = "DUPLICATED",
-    num_clusters = 4
+    num_clusters = 2
 }>
 
 !WeightsTableDistributed = type !VPUIP.DistributedBuffer<
     16x1x1x4xsi32, #NCHW, @CMX_NN, {
     mode = "DUPLICATED",
-    num_clusters = 4
+    num_clusters = 2
 }>
 
 module @TestMultiClusterSOH attributes {VPU.arch = "KMB"} {

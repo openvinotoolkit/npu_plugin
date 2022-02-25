@@ -21,6 +21,7 @@
 
 #include "vpux/utils/core/error.hpp"
 #include "vpux/utils/core/mem_size.hpp"
+#include "vpux/utils/core/numeric.hpp"
 
 #include <mlir/IR/Builders.h>
 #include <mlir/IR/BuiltinTypes.h>
@@ -301,15 +302,22 @@ mlir::LogicalResult vpux::VPU::verify(FuncRef<mlir::InFlightDiagnostic()> emitEr
                                       DistributedTensorAttr distributedAttr) {
     const auto distributionMode = distributedAttr.mode().getValue();
 
-    if (VPU::bitEnumContains(distributionMode, VPU::DistributionMode::MULTICASTED) ||
-        VPU::bitEnumContains(distributionMode, VPU::DistributionMode::DUPLICATED)) {
+    if (distributionMode != VPU::DistributionMode::NONE) {
         if (distributedAttr.num_clusters() == nullptr) {
             return printTo(emitError(), "Missing number of clusters.");
         }
     }
 
-    if (VPU::bitEnumContains(distributionMode, VPU::DistributionMode::SEGMENTED) ||
-        VPU::bitEnumContains(distributionMode, VPU::DistributionMode::OVERLAPPED)) {
+    const auto isTiledMode = [](VPU::DistributionMode mode) {
+        return VPU::bitEnumContains(mode, VPU::DistributionMode::SEGMENTED) ||
+               VPU::bitEnumContains(mode, VPU::DistributionMode::OVERLAPPED);
+    };
+
+    if (!isTiledMode(distributionMode)) {
+        return mlir::success();
+    }
+
+    if (isTiledMode(distributionMode)) {
         if (distributedAttr.num_tiles() == nullptr || distributedAttr.num_clusters() == nullptr) {
             return printTo(emitError(), "Missing number of tiles and clusters.");
         }
@@ -346,6 +354,44 @@ mlir::LogicalResult vpux::VPU::verify(FuncRef<mlir::InFlightDiagnostic()> emitEr
     }
 
     return mlir::success();
+}
+
+SmallVector<Shape> vpux::VPU::getPerClusterComputeShapes(ShapeRef shapeRef, DistributedTensorAttr distributionAttr) {
+    auto shape = to_small_vector(shapeRef.raw());
+    const auto distributionMode = distributionAttr.mode().getValue();
+
+    const auto numClusters = distributionAttr.num_clusters().getInt();
+    auto tiledComputeShapes = SmallVector<Shape>(numClusters);
+
+    if (bitEnumContains(distributionMode, DistributionMode::SEGMENTED)) {
+        const auto isValidTile = [](auto dim) {
+            return dim > 1;
+        };
+        const auto tilingScheme = parseIntArrayAttr<int64_t>(distributionAttr.num_tiles());
+        const auto axis = std::distance(tilingScheme.begin(), llvm::find_if(tilingScheme, isValidTile));
+
+        // Segmentation logic operates on schema and runtime asumption that
+        // a segmented tensor should be split equally across the axis, with
+        // the remainder cluster possibly having a smaller tile.
+
+        auto tiledShape = shape;
+        tiledShape[axis] = divUp(tiledShape[axis], tilingScheme[axis]);
+
+        auto remainderTileShape = shape;
+        remainderTileShape[axis] = divUpRemainder(shape[axis], tilingScheme[axis]);
+        VPUX_THROW_UNLESS(remainderTileShape[axis] > 0, "Improper split, '{0}' over '{1}' tiles", shape[axis],
+                          tilingScheme[axis]);
+
+        std::fill_n(tiledComputeShapes.begin(), numClusters - 1, Shape(tiledShape));
+        tiledComputeShapes[numClusters - 1] = Shape(remainderTileShape);
+
+    } else if (bitEnumContains(distributionMode, DistributionMode::OVERLAPPED)) {
+        VPUX_THROW("OVERLAPPED distribution mode is not supported yet");
+    } else {
+        std::fill_n(tiledComputeShapes.begin(), tiledComputeShapes.size(), Shape(shape));
+    }
+
+    return tiledComputeShapes;
 }
 
 //

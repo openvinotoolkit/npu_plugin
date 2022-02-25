@@ -102,6 +102,7 @@ VPU::PPEMode getPPEMode(VPU::EltwiseType type);
 //
 
 mlir::LogicalResult verify(FuncRef<mlir::InFlightDiagnostic()> emitError, DistributedTensorAttr distributedAttr);
+SmallVector<Shape> getPerClusterComputeShapes(ShapeRef shapeRef, DistributedTensorAttr distributionAttr);
 
 }  // namespace VPU
 }  // namespace vpux

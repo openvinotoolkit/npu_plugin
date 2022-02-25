@@ -50,7 +50,7 @@ TEST(MLIR_NDTypeInterface, SegmentedDistributedTensorType) {
     const auto dimsSpace = vpux::IndexedSymbolAttr::get(&ctx, CMX_NAME);
 
     const auto ndType = VPU::DistributedTensorType::get(&ctx, shape, elemType, dimsOrder, dimsSpace, distributedAttr).dyn_cast<vpux::NDTypeInterface>();
-    EXPECT_TRUE(ndType != nullptr) << "Output is not of vpux::NDTypeInterface type";
+    ASSERT_TRUE(ndType != nullptr) << "Tensor is not of vpux::NDTypeInterface type";
 
     EXPECT_EQ(ndType.getShape(), vpux::ShapeRef({1, 64, 13, 16}));
     EXPECT_EQ(ndType.getMemShape(), vpux::MemShape({1, 13, 16, 64}));
@@ -97,9 +97,9 @@ TEST(MLIR_NDTypeInterface, SegmentedDistributedTensorType) {
 
     const SmallVector<int64_t> tileOffset({0, 0, 32, 0});
     const SmallVector<int64_t> tileShape({1, 32, 20, 8});
-    ASSERT_ANY_THROW(ndType.extractDenseTile(vpux::ShapeRef(tileOffset), vpux::ShapeRef(tileShape)));
+    EXPECT_ANY_THROW(ndType.extractDenseTile(vpux::ShapeRef(tileOffset), vpux::ShapeRef(tileShape)));
     const SmallVector<int64_t> pads({0, 0, 2, 2});
-    ASSERT_ANY_THROW(ndType.pad(vpux::ShapeRef(pads), vpux::ShapeRef(pads)));
+    EXPECT_ANY_THROW(ndType.pad(vpux::ShapeRef(pads), vpux::ShapeRef(pads)));
 }
 
 // Test out combination of SEGMENTED | DUPLICATED mode
@@ -122,7 +122,7 @@ TEST(MLIR_NDTypeInterface, SegmentedDuplicatedDistributedTensorType) {
     const auto dimsSpace = vpux::IndexedSymbolAttr::get(&ctx, CMX_NAME);
 
     const auto ndType = VPU::DistributedTensorType::get(&ctx, shape, elemType, dimsOrder, dimsSpace, distributedAttr).dyn_cast<vpux::NDTypeInterface>();
-    EXPECT_TRUE(ndType != nullptr) << "Output is not of vpux::NDTypeInterface type";
+    ASSERT_TRUE(ndType != nullptr) << "Tensor is not of vpux::NDTypeInterface type";
 
     EXPECT_EQ(ndType.getShape(), vpux::ShapeRef({1, 64, 13, 16}));
     EXPECT_EQ(ndType.getMemShape(), vpux::MemShape({1, 13, 16, 64}));
@@ -169,9 +169,9 @@ TEST(MLIR_NDTypeInterface, SegmentedDuplicatedDistributedTensorType) {
 
     const SmallVector<int64_t> tileOffset({0, 0, 32, 0});
     const SmallVector<int64_t> tileShape({1, 32, 20, 8});
-    ASSERT_ANY_THROW(ndType.extractDenseTile(vpux::ShapeRef(tileOffset), vpux::ShapeRef(tileShape)));
+    EXPECT_ANY_THROW(ndType.extractDenseTile(vpux::ShapeRef(tileOffset), vpux::ShapeRef(tileShape)));
     const SmallVector<int64_t> pads({0, 0, 2, 2});
-    ASSERT_ANY_THROW(ndType.pad(vpux::ShapeRef(pads), vpux::ShapeRef(pads)));
+    EXPECT_ANY_THROW(ndType.pad(vpux::ShapeRef(pads), vpux::ShapeRef(pads)));
 }
 
 TEST(MLIR_ClusterShapeUtils, SegmentedDistribution) {
@@ -191,19 +191,19 @@ TEST(MLIR_ClusterShapeUtils, SegmentedDistribution) {
     const auto dimsOrder = mlir::AffineMapAttr::get(DimsOrder::NHWC.toAffineMap(&ctx));
     const auto dimsSpace = vpux::IndexedSymbolAttr::get(&ctx, CMX_NAME);
 
-    const auto distributedOutputType = VPU::DistributedTensorType::get(&ctx, shape, elemType, dimsOrder, dimsSpace, distributedAttr);
+    const auto distributedType = VPU::DistributedTensorType::get(&ctx, shape, elemType, dimsOrder, dimsSpace, distributedAttr);
 
-    const auto perClusterShapes = distributedOutputType.getPerClusterComputeShapes();
+    const auto perClusterShapes = distributedType.getPerClusterComputeShapes();
     const SmallVector<Shape> expectedShapes(
             {Shape({1, 64, 4, 16}), Shape({1, 64, 4, 16}), Shape({1, 64, 4, 16}), Shape({1, 64, 1, 16})});
     for (const auto shapePair : zip(perClusterShapes, expectedShapes)) {
         EXPECT_EQ(std::get<0>(shapePair), std::get<1>(shapePair));
     }
-    const auto largestComputeShape = distributedOutputType.getLargestCompactShape();
+    const auto largestComputeShape = distributedType.getLargestCompactShape();
     EXPECT_EQ(largestComputeShape, Shape({1, 64, 4, 16}));
-    const auto numClusters = distributedOutputType.getDistribution().num_clusters().getInt();
+    const auto numClusters = distributedType.getDistribution().num_clusters().getInt();
     for (auto clusterIdx = 0; clusterIdx < numClusters; clusterIdx++) {
-        EXPECT_EQ(expectedShapes[clusterIdx], distributedOutputType.getCompactShape(clusterIdx));
+        EXPECT_EQ(expectedShapes[clusterIdx], distributedType.getCompactShape(clusterIdx));
     }
 }
 
@@ -224,18 +224,18 @@ TEST(MLIR_ClusterShapeUtils, SegmentedDuplicatedDistribution) {
     const auto dimsOrder = mlir::AffineMapAttr::get(DimsOrder::NHWC.toAffineMap(&ctx));
     const auto dimsSpace = vpux::IndexedSymbolAttr::get(&ctx, CMX_NAME);
 
-    const auto distributedOutputType = VPU::DistributedTensorType::get(&ctx, shape, elemType, dimsOrder, dimsSpace, distributedAttr);
+    const auto distributedType = VPU::DistributedTensorType::get(&ctx, shape, elemType, dimsOrder, dimsSpace, distributedAttr);
 
-    const auto perClusterShapes = distributedOutputType.getPerClusterComputeShapes();
+    const auto perClusterShapes = distributedType.getPerClusterComputeShapes();
     const SmallVector<Shape> expectedShapes(
             {Shape({1, 64, 4, 16}), Shape({1, 64, 4, 16}), Shape({1, 64, 4, 16}), Shape({1, 64, 1, 16})});
     for (const auto shapePair : zip(perClusterShapes, expectedShapes)) {
         EXPECT_EQ(std::get<0>(shapePair), std::get<1>(shapePair));
     }
-    const auto largestComputeShape = distributedOutputType.getLargestCompactShape();
+    const auto largestComputeShape = distributedType.getLargestCompactShape();
     EXPECT_EQ(largestComputeShape, Shape({1, 64, 4, 16}));
-    const auto numClusters = distributedOutputType.getDistribution().num_clusters().getInt();
+    const auto numClusters = distributedType.getDistribution().num_clusters().getInt();
     for (auto clusterIdx = 0; clusterIdx < numClusters; clusterIdx++) {
-        EXPECT_EQ(expectedShapes[clusterIdx], distributedOutputType.getCompactShape(clusterIdx));
+        EXPECT_EQ(expectedShapes[clusterIdx], distributedType.getCompactShape(clusterIdx));
     }
 }
