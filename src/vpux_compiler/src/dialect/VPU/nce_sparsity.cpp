@@ -310,11 +310,11 @@ int64_t vpux::VPU::NCESparsity::getBitPatternSize(Mode mode, ShapeRef kernelSize
 }
 
 int64_t vpux::VPU::NCESparsity::getActivationWindowSize(Mode mode, ShapeRef kernelSize, int64_t SX, mlir::Type elemType,
-                                                        int64_t IC) {
+                                                        int64_t IC, int64_t OC) {
     const auto actualType = getBaseStorageType(elemType);
     const auto bitPatternSize = getBitPatternSize(mode, kernelSize, SX, actualType, IC);
     const auto perChannelSparsitySize = static_cast<size_t>(std::ceil(bitPatternSize / 128.0) * 16);
-    const auto activationWindowSize = IC * perChannelSparsitySize;
+    const auto activationWindowSize = OC * perChannelSparsitySize;
     return activationWindowSize;
 }
 
