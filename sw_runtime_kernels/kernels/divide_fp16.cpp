@@ -16,7 +16,6 @@
 #else
 #define nnLog(level, ...)
 #endif
-#include <math.h>
 #include <param_divide.h>
 
 using namespace sw_params;
@@ -42,7 +41,7 @@ void divide_fp16(const struct DivideParams* lParams) {
     }
 
     for (i = 0; i < nElements; i++) {
-        p_act_out_s[i] = (half)(p_act_data1_s[i] / p_act_data2_s[i]);
+        p_act_out_s[i] = p_act_data1_s[i] / p_act_data2_s[i];
     }
 }
 }

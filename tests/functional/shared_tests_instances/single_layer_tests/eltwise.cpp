@@ -38,6 +38,32 @@ class VPUXEltwiseLayerTest_MCM : public VPUXEltwiseLayerTest {
 };
 class VPUXEltwiseLayerTest_MLIR : public VPUXEltwiseLayerTest {};
 
+class VPUXEltwiseLayerTest_MTL : public VPUXEltwiseLayerTest {
+    SkipMessage SkipBeforeLoad() override {
+        if (isPlatformMTL()) {
+            if (std::getenv("OV_BUILD_DIR") == nullptr) {
+                return {"OV_BUILD_DIR env directory must be specified, in order to reach act-shave kernels."};
+            }
+
+#if defined(__arm__) || defined(__aarch64__) || defined(_WIN32) || defined(_WIN64)
+            return {"Does not compile on ARM and Windows."};
+#endif
+        }
+
+        return vpux::None;
+    }
+
+    SkipMessage SkipBeforeInfer() override {
+#ifndef ENABLE_IMD_BACKEND
+        if (isPlatformMTL()) {
+            return {"Runtime issue."};
+        }
+#endif
+
+        return vpux::None;
+    }
+};
+
 //
 //[Track number: E#15146]
 //
@@ -58,6 +84,15 @@ TEST_P(VPUXEltwiseLayerTest_MLIR, DISABLED_MLIR_SW) {
 TEST_P(VPUXEltwiseLayerTest_MLIR, DISABLED_MLIR_HW) {
     abs_threshold = 0.005;
     useCompilerMLIR();
+    setDefaultHardwareModeMLIR();
+    run();
+}
+
+TEST_P(VPUXEltwiseLayerTest_MTL, MLIR_MTL) {
+    abs_threshold = 0.005;
+
+    useCompilerMLIR();
+    setPlatformMTL();
     setDefaultHardwareModeMLIR();
     run();
 }
@@ -91,7 +126,7 @@ std::vector<ov::test::ElementType> netPrecisions = {
 
 std::vector<ngraph::helpers::InputLayerType> secondaryInputTypes = {
         ngraph::helpers::InputLayerType::PARAMETER,
-        ngraph::helpers::InputLayerType::CONSTANT,
+        // ngraph::helpers::InputLayerType::CONSTANT,
 };
 
 std::vector<CommonTestUtils::OpType> opTypes = {
@@ -195,6 +230,24 @@ const auto subtract_params_mlir = ::testing::Combine(
         ::testing::Values(ov::test::Config{}));
 
 INSTANTIATE_TEST_CASE_P(smoke_CompareWithRefs_Specific_subtract, VPUXEltwiseLayerTest_MLIR, subtract_params_mlir,
+                        VPUXEltwiseLayerTest::getTestCaseName);
+
+// ------ MTL ------
+
+std::set<ngraph::helpers::EltwiseTypes> eltwiseTypesMTL = {
+        ngraph::helpers::EltwiseTypes::DIVIDE,
+};
+std::vector<std::vector<ov::Shape>> inShapesMTL = {
+        {{2}}, {{2, 200}}, {{1, 2, 4}}, {{1, 4, 1, 1}}, {{1, 17, 5, 4}, {1, 17, 5, 4}},
+};
+const auto basicCasesMTL =
+        ::testing::Combine(::testing::ValuesIn(ov::test::static_shapes_to_test_representation(inShapesMTL)),
+                           ::testing::ValuesIn(eltwiseTypesMTL), ::testing::ValuesIn(secondaryInputTypes),
+                           ::testing::ValuesIn(opTypes), ::testing::ValuesIn(netPrecisions),
+                           ::testing::Values(ov::element::undefined), ::testing::Values(ov::element::undefined),
+                           ::testing::Values(testPlatformTargetDevice), ::testing::Values(ov::test::Config{}));
+
+INSTANTIATE_TEST_CASE_P(smoke_CompareWithRefs_MTL, VPUXEltwiseLayerTest_MTL, basicCasesMTL,
                         VPUXEltwiseLayerTest::getTestCaseName);
 
 }  // namespace

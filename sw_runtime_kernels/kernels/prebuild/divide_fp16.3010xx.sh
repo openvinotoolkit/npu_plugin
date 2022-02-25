@@ -2,8 +2,7 @@
 env_is_set=1
 optimization=-O3
 alwaye_inline=-DCONFIG_ALWAYS_INLINE
-#cpunum=3720
-cpunum=3010
+cpunum=3720
 cpu=${cpunum}xx
 
 if [ ${cpunum} -eq "3720" ]; then USE_3720_INTSTRUCTIONS=-DUSE_3720_INTSTRUCTIONS; fi

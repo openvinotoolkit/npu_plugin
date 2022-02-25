@@ -764,6 +764,7 @@ void vpux::VPUIP::VPUIPDialect::setupExtraInterfaces(mlir::DialectRegistry& regi
     registry.addOpInterface<IE::AndOp, NCEEltwiseTilingInfoOpModel<IE::AndOp>>();
 
     registry.addOpInterface<IERT::SigmoidOp, SoftwareLayerOpModel>();
+    registry.addOpInterface<IERT::DivideOp, SoftwareLayerOpModel>();
     registry.addOpInterface<IERT::SoftMaxOp, SoftwareLayerOpModel>();
     registry.addOpInterface<IERT::HSwishOp, SoftwareLayerOpModel>();
     registry.addOpInterface<IERT::MVNOp, SoftwareLayerOpModel>();

@@ -31,9 +31,8 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Divide)) {
 
     static constexpr std::initializer_list<SingleTest> divide_test_list{
             {{2, 2, 2}, {2, 2, 2}, orderZYX, FPE("divide_fp16.elf"), {sw_params::Location::NN_CMX}},
-            // {{1, 1, 20}, {1, 1, 20}, orderZYX, FPE("divide_fp16.elf"), {sw_params::Location::NN_CMX}},
-            // {{1000, 1, 1}, {1000, 1, 1}, orderZYX, FPE("divide_fp16.elf"), {sw_params::Location::NN_CMX}}
-    };
+            {{1, 1, 20}, {1, 1, 20}, orderZYX, FPE("divide_fp16.elf"), {sw_params::Location::NN_CMX}},
+            {{1000, 1, 1}, {1000, 1, 1}, orderZYX, FPE("divide_fp16.elf"), {sw_params::Location::NN_CMX}}};
 
     class CustomCppDivideTest : public CustomCppTests<fp16> {
     public:
@@ -52,25 +51,18 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Divide)) {
 
         void initData() override {
             m_params = {0xFFFFFFFF, m_elfBuffer, 0, nullptr, MAX_LOCAL_PARAMS, 0, 0};
-
+            CustomCppTests<fp16>::initData();
             initElfBuffer();
             initTestCase();
-            const Dimensions& dimIn1 = m_currentTest->inDim;
-            const Dimensions& dimIn2 = m_currentTest->inDim;
-
+            const Dimensions& dimIn = m_currentTest->inDim;
             const Dimensions& dimOut = m_currentTest->outDim;
             const StorageOrder& storageOrder = m_currentTest->storageOrder;
 
-            const TensorDims dims3In1(dimIn1.width, dimIn1.height, dimIn1.channels, 1);
-            const TensorDims dims3In2(dimIn2.width, dimIn2.height, dimIn2.channels, 1);
-
+            const TensorDims dims3In(dimIn.width, dimIn.height, dimIn.channels, 1);
             const TensorDims dims3Out(dimOut.width, dimOut.height, dimOut.channels, 1);
 
-            m_inputTensor1.init(storageOrder, dims3In1);
-            m_inputTensor2.init(storageOrder, dims3In2);
-
-            m_outputTensor.init(storageOrder, dims3Out);
-            m_referenceOutputTensor.init(storageOrder, dims3Out);
+            m_inputTensor1.init(storageOrder, dims3In);
+            m_inputTensor2.init(storageOrder, dims3In);
 
             allocBuffer(m_inputTensor1);
             allocBuffer(m_inputTensor2);
@@ -78,10 +70,8 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Divide)) {
             allocBuffer(m_outputTensor);
             allocBuffer(m_referenceOutputTensor);
 
-            CustomCppTests<fp16>::initData();
             const SingleTest* test = m_currentTest;
-            int32_t ind[subspace::MAX_DIMS] = {0};
-            subspace::orderToIndices((t_D8StorageOrder)(test->storageOrder), ind);
+
             m_divideParams = reinterpret_cast<sw_params::DivideParams*>(paramContainer);
             *m_divideParams = sw_params::DivideParams();
             m_params.paramData = reinterpret_cast<uint32_t*>(paramContainer);
@@ -111,8 +101,8 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Divide)) {
             OpTensor inBuff2;
 
             OpTensor outBuff;
-            m_inputTensor.exportToBuffer(inBuff1);
-            m_inputTensor.exportToBuffer(inBuff2);
+            m_inputTensor1.exportToBuffer(inBuff1);
+            m_inputTensor2.exportToBuffer(inBuff2);
 
             m_outputTensor.exportToBuffer(outBuff);
 
@@ -124,20 +114,18 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Divide)) {
         }
 
         void generateInputData() override {
-            rand_seed();
-
             // set random seed
             u64 ticks_for_seed = rtems_clock_get_uptime_nanoseconds();
             srand(ticks_for_seed);
 
             // input
             m_inputTensor1.forEach(false, [&](const MemoryDims& indices) {
-                float tmp1 = float(rand() % 1000) - 3.0f;
+                float tmp1 = float(rand() % 600) / 10.0f - 3.0f;
                 m_inputTensor1.at(indices) = f32Tof16(tmp1);
             });
 
             m_inputTensor2.forEach(false, [&](const MemoryDims& indices) {
-                float tmp2 = float(rand() % 1000) - 3.0f;
+                float tmp2 = float(rand() % 600) - 0.5f;
                 m_inputTensor2.at(indices) = f32Tof16(tmp2);
             });
         }
@@ -182,11 +170,11 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Divide)) {
                 bool differ = !bool(abs_diff <= m_test_threshold);
                 threshold_test_failed |= differ;
 
-                // if (differ && GlobalData::doPrintDiffs) {
-                const TensorDims ti = m_outputTensor.toTensor(indices);
-                printf("DIFF HWC [%d:%d:%d] in1 = %f in2 = %f out = %f ref =  %f abs_diff = %f\n", ti.height, ti.width,
-                       ti.channels, input1, input2, value, gt_value, abs_diff);
-                // }
+                if (differ && GlobalData::doPrintDiffs) {
+                    const TensorDims ti = m_outputTensor.toTensor(indices);
+                    printf("DIFF HWC [%d:%d:%d] in1 = %f in2 = %f out = %f ref =  %f abs_diff = %f\n", ti.height,
+                           ti.width, ti.channels, input1, input2, value, gt_value, abs_diff);
+                }
             });
 
             return !threshold_test_failed;
