@@ -61,10 +61,11 @@ void StrategyManager::assignMultiClusterStrategy() {
                     // For WW10 channel major convolution will not be excecuted in multi-cluster mode
                     // Only z-major convolution will be considered for multi-cluster mode
                     if (DimsOrder::fromValue(origOp.input()) == DimsOrder::NHWC) {
-                        if (_convolutionStrategy.isOperationSplitOverHeightCompatible(origOp.getOperation()) &&
-                            _convolutionStrategy.doesLayerFitIntoCMX(origOp.getOperation(), splitOverHeight)) {
-                            setLayerStrategy(splitOverHeight, origOp.getOperation());
-                        }
+                        setLayerStrategy(clustering, origOp.getOperation());
+                        // if (_convolutionStrategy.isOperationSplitOverHeightCompatible(origOp.getOperation()) &&
+                        //     _convolutionStrategy.doesLayerFitIntoCMX(origOp.getOperation(), splitOverHeight)) {
+                        //     setLayerStrategy(splitOverKernel, origOp.getOperation());
+                        // }
                     }
                 })
                 .Case<NCEDepthConvolutionOp>([this](NCEDepthConvolutionOp origOp) {

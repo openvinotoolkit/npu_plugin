@@ -21,10 +21,12 @@ bool MaxPoolStrategy::doesLayerFitIntoCMX(mlir::Operation* op, StringRef strateg
     auto origOp = mlir::dyn_cast<NCEMaxPoolOp>(op);
     auto activationTensorDistributionMode = getActivationTensorDistributionMode(origOp, strategy);
     auto activationTensorNumTiles = getActivationTensorNumTiles(origOp, strategy);
-    auto distributedOutputTensorType = createDistributedTensorType(
-            origOp, origOp.output(), activationTensorDistributionMode, activationTensorNumTiles);
+    auto outputTensorDistributionMode = getOutputTensorDistributionMode(origOp, strategy);
+    auto outputTensorNumTiles = getOutputTensorNumTiles(origOp, strategy);
     auto distributedActivationTensorType = createDistributedTensorType(
             origOp, origOp.input(), activationTensorDistributionMode, activationTensorNumTiles);
+    auto distributedOutputTensorType =
+            createDistributedTensorType(origOp, origOp.output(), outputTensorDistributionMode, outputTensorNumTiles);
 
     return origOp.fitIntoCMX(distributedActivationTensorType, distributedOutputTensorType);
 }

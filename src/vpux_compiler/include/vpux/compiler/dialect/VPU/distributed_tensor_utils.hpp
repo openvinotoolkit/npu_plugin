@@ -128,9 +128,9 @@ DistributedTensorType createDistributedTensorType(ConcreteOp origOp, mlir::Value
 
 template <class ConcreteOp>
 mlir::ArrayAttr getActivationTensorNumTiles(ConcreteOp origOp, StringRef strategy) {
-    auto module = origOp->template getParentOfType<mlir::ModuleOp>();
-    auto nceOp = IE::getAvailableExecutor(module, ExecutorKind::NCE);
-    const auto numClusters = nceOp.count();
+    // auto module = origOp->template getParentOfType<mlir::ModuleOp>();
+    // auto nceOp = IE::getAvailableExecutor(module, ExecutorKind::NCE);
+    const auto numClusters = 4;
     if (strategy == splitOverHeightOverlapped) {
         return getIntArrayAttr(origOp.getContext(), makeArrayRef({1, 1, static_cast<int>(numClusters), 1}));
     } else if (strategy == splitOverHeight) {
@@ -148,10 +148,31 @@ mlir::ArrayAttr getActivationTensorNumTiles(ConcreteOp origOp, StringRef strateg
 }
 
 template <class ConcreteOp>
+mlir::ArrayAttr getOutputTensorNumTiles(ConcreteOp origOp, StringRef strategy) {
+    // auto module = origOp->template getParentOfType<mlir::ModuleOp>();
+    // auto nceOp = IE::getAvailableExecutor(module, ExecutorKind::NCE);
+    const auto numClusters = 4;
+    if (strategy == splitOverHeightOverlapped) {
+        return getIntArrayAttr(origOp.getContext(), makeArrayRef({1, 1, static_cast<int>(numClusters), 1}));
+    } else if (strategy == splitOverHeight) {
+        return getIntArrayAttr(origOp.getContext(), makeArrayRef({1, 1, static_cast<int>(numClusters), 1}));
+    } else if (strategy == splitOverKernel) {
+        return getIntArrayAttr(origOp.getContext(), makeArrayRef({1, static_cast<int>(numClusters), 1, 1}));
+    } else if (strategy == clustering) {
+        return getIntArrayAttr(origOp.getContext(), makeArrayRef({1, 1, 1, 1}));
+    } else {
+        VPUX_THROW("Operation {0} was not assigned a valid multi-cluster strategy, unable to determine the number of "
+                   "tiles "
+                   "for the output tensor",
+                   origOp->getName());
+    }
+}
+
+template <class ConcreteOp>
 mlir::ArrayAttr getWeightsTensorNumTiles(ConcreteOp origOp, StringRef strategy) {
-    auto module = origOp->template getParentOfType<mlir::ModuleOp>();
-    auto nceOp = IE::getAvailableExecutor(module, ExecutorKind::NCE);
-    const auto numClusters = nceOp.count();
+    // auto module = origOp->template getParentOfType<mlir::ModuleOp>();
+    // auto nceOp = IE::getAvailableExecutor(module, ExecutorKind::NCE);
+    const auto numClusters = 4;
     if (strategy == splitOverHeightOverlapped) {
         return getIntArrayAttr(origOp.getContext(), makeArrayRef({1, 1, 1, 1}));
     } else if (strategy == splitOverHeight) {

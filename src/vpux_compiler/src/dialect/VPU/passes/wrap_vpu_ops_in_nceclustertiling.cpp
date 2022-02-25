@@ -64,6 +64,7 @@ mlir::LogicalResult NCEConvolutionToNCEClusterTiling::matchAndRewrite(NCEConvolu
     auto activationTensorNumTiles = getActivationTensorNumTiles(origOp, strategy);
     auto weightTensorNumTiles = getWeightsTensorNumTiles(origOp, strategy);
     auto outputTensorDistributionMode = getOutputTensorDistributionMode(origOp, strategy);
+    auto outputTensorNumTiles = getOutputTensorNumTiles(origOp, strategy);
 
     auto distributedActivationCopyOp =
             createDistributedTensor(origOp, origOp.input(), activationTensorDistributionMode, activationTensorNumTiles);
@@ -74,8 +75,8 @@ mlir::LogicalResult NCEConvolutionToNCEClusterTiling::matchAndRewrite(NCEConvolu
     auto distributedWeightTableCopyOp =
             createDistributedTensor(origOp, origOp.weightsTable(), weightsTensorDistributionMode, weightTensorNumTiles);
 
-    auto distributedOutputTensorType = createDistributedTensorType(
-            origOp, origOp.output(), outputTensorDistributionMode, activationTensorNumTiles);
+    auto distributedOutputTensorType =
+            createDistributedTensorType(origOp, origOp.output(), outputTensorDistributionMode, outputTensorNumTiles);
 
     auto origOutput = origOp->getResult(0);
     const auto origOutType = origOutput.getType().cast<vpux::NDTypeInterface>();
@@ -144,6 +145,7 @@ mlir::LogicalResult NCEDepthConvolutionToNCEClusterTiling::matchAndRewrite(NCEDe
     auto activationTensorNumTiles = getActivationTensorNumTiles(origOp, strategy);
     auto weightTensorNumTiles = getWeightsTensorNumTiles(origOp, strategy);
     auto outputTensorDistributionMode = getOutputTensorDistributionMode(origOp, strategy);
+    auto outputTensorNumTiles = getOutputTensorNumTiles(origOp, strategy);
 
     auto distributedActivationCopyOp =
             createDistributedTensor(origOp, origOp.input(), activationTensorDistributionMode, activationTensorNumTiles);
@@ -157,8 +159,8 @@ mlir::LogicalResult NCEDepthConvolutionToNCEClusterTiling::matchAndRewrite(NCEDe
     auto distributedActivationWindowCopyOp = createDistributedTensor(
             origOp, origOp.activationWindow(), weightsTensorDistributionMode, weightTensorNumTiles);
 
-    auto distributedOutputTensorType = createDistributedTensorType(
-            origOp, origOp.output(), outputTensorDistributionMode, activationTensorNumTiles);
+    auto distributedOutputTensorType =
+            createDistributedTensorType(origOp, origOp.output(), outputTensorDistributionMode, outputTensorNumTiles);
 
     auto origOutput = origOp->getResult(0);
     const auto origOutType = origOutput.getType().cast<vpux::NDTypeInterface>();

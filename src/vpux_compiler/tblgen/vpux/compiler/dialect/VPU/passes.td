@@ -90,7 +90,7 @@ def MultiClusterStrategyAssignment : PassBase<"multi-cluster-strategy-assignment
 // Wrap multi-cluster layers in NCEClusterTiling
 //
 
-def WrapVPUOpsInNCEClusterTiling : PassBase<"wrap-vpu-ops-in-nceclusteriling", "vpux::FunctionPass"> {
+def WrapVPUOpsInNCEClusterTiling : PassBase<"wrap-vpu-ops-in-nceclustertiling", "vpux::FunctionPass"> {
     let summary = "This pass wraps vpu operations that should be executed across multiple clusters in NCEClusterTiling operations";
 
     let description = [{

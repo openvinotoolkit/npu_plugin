@@ -17,5 +17,5 @@ initializes **IERT Dialect** run-time resources information.
 ### `-multi-cluster-strategy-assignment`: Determines which multi-cluster strategy is the most optimal for a given layer
 Determines which multi-cluster strategy is the most optimal for a given layer
 ### `-split-NCE-ops-onto-workloads`: Split VPU NCE operation onto workloads
-### `-wrap-vpu-ops-in-nceclusteriling`: This pass wraps vpu operations that should be executed across multiple clusters in NCEClusterTiling operations
+### `-wrap-vpu-ops-in-nceclustertiling`: This pass wraps vpu operations that should be executed across multiple clusters in NCEClusterTiling operations
 Wraps vpu operations that should be executed across multiple clusters in NCEClusterTiling operations.
