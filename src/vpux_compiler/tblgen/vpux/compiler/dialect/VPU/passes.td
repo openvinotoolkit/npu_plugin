@@ -68,18 +68,4 @@ def SplitNCEOpsOntoWorkloads : PassBase<"split-NCE-ops-onto-workloads", "vpux::F
     ];
 }
 
-//
-// ConvertPostOpsToPPE
-//
-
-def ConvertPostOpsToPPE : PassBase<"convert-post-ops-to-ppe", "vpux::FunctionPass"> {
-    let summary = "Convert post ops to PPE";
-
-    let constructor = "vpux::VPU::createConvertPostOpsToPPEPass()";
-
-    let dependentDialects = [
-        "vpux::VPU::VPUDialect"
-    ];
-}
-
 #endif

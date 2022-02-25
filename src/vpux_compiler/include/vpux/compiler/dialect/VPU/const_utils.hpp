@@ -11,40 +11,20 @@
 // included with the Software Package for additional details.
 //
 
-#pragma once
-
-#include "vpux/compiler/dialect/VPU/attributes.hpp"
 #include "vpux/compiler/dialect/VPU/nce_sparsity.hpp"
-#include "vpux/compiler/dialect/VPU/ops.hpp"
-
-#include "vpux/utils/core/enums.hpp"
-#include "vpux/utils/core/numeric.hpp"
-
-#include <mlir/Dialect/Quant/QuantTypes.h>
+#include "vpux/compiler/dialect/VPUIP/nce_invariant.hpp"
 
 namespace vpux {
 namespace VPU {
 
-struct QuantInfo {
-    double rMin;
-    double rMax;
-    double scale;
-    int64_t zeroPoint;
-    int64_t postShift;
-};
+mlir::Value createActivationWindowTensor(mlir::OpBuilder& builder, mlir::Location loc, ArrayRef<uint8_t> fakeSparsity,
+                                         int64_t numChannels);
 
-struct PwlQuantReqs {
-    QuantInfo input;
-    QuantInfo output;
-};
-
-extern const EnumMap<VPU::PPEMode, PwlQuantReqs> pwlQuantReqs;
-
-PwlQuantReqs getPwlQuantReqs(VPU::PPEMode ppeType);
-
-int64_t getPwlPostShift(const VPU::PPEMode ppeType);
-int64_t getPwlClamp(const mlir::Type inElemType, const mlir::Type outElemType, const VPU::PPEMode ppeType,
-                    const bool getMin);
+std::vector<int32_t> createWeightsTableData(mlir::Value opInput, mlir::Value opOutput, mlir::Value weights,
+                                            mlir::Value activationWindow, Const::ContentAttr bias, int64_t OC,
+                                            vpux::VPU::PPETaskAttr ppeTaskAttr, VPU::ArchKind _arch);
+mlir::Value createWeightsTableTensor(mlir::OpBuilder& builder, mlir::Location loc, ArrayRef<int32_t> weightsTable,
+                                     int64_t OC);
 
 }  // namespace VPU
 }  // namespace vpux
