@@ -393,6 +393,8 @@ def VPU_NCEClusterTilingOp :
       using BodyBuilderFn =
           llvm::function_ref<void(mlir::OpBuilder&, mlir::Location, mlir::ValueRange)>;
     }];
+
+    let hasCanonicalizer = 1;
 }
 
 //

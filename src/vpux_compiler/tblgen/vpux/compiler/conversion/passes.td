@@ -102,15 +102,15 @@ def AddBuffersForNetResults : PassBase<"add-buffers-for-net-results", "vpux::Mod
 }
 
 //=================================================================================
-// Lowering to NCE
+// Lowering VPU to VPUIP
 //=================================================================================
 
 //
-// ConvertToNCEOps
+// ConvertVPUToVPUIP
 //
 
 def ConvertVPUToVPUIP : PassBase<"convert-vpu-to-vpuip", "vpux::FunctionPass"> {
-    let summary = "Convert VPU ops to NCE ops";
+    let summary = "Convert NCE ops from VPU to VPUIP";
 
     let description = [{
         Convert ops which can be executed on NCE to explicit NCE ops.
@@ -122,6 +122,27 @@ def ConvertVPUToVPUIP : PassBase<"convert-vpu-to-vpuip", "vpux::FunctionPass"> {
         "vpux::VPU::VPUDialect",
         "vpux::IERT::IERTDialect",
         "vpux::VPUIP::VPUIPDialect"
+    ];
+}
+
+//
+// ConvertNCEClusterTilingToVPUIP
+//
+
+def ConvertNCEClusterTilingToVPUIP : PassBase<"convert-nce-cluster-tiling-to-vpuip", "vpux::FunctionPass"> {
+    let summary = "Convert VPU NCEClusterTiling ops to VPUIP";
+
+    let description = [{
+        Convert VPU::NCEClusterTiling ops to VPUIP::NCEClusterTiling.
+    }];
+
+    let constructor = "vpux::createConvertNCEClusterTilingToVPUIPPass()";
+
+    let dependentDialects = [
+        "vpux::VPU::VPUDialect",
+        "vpux::IERT::IERTDialect",
+        "vpux::VPUIP::VPUIPDialect",
+        "vpux::VPURT::VPURTDialect"
     ];
 }
 

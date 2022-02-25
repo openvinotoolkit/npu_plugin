@@ -217,42 +217,7 @@ mlir::RankedTensorType VPU::DistributedTensorType::getCompactType() const {
 // information which is needed for scheduler and strategy manager,
 // in order to estimate memory
 SmallVector<Shape> VPU::DistributedTensorType::getPerClusterComputeShapes() const {
-    auto shape = to_small_vector(getShape().raw());
-    const auto distribution = getDistribution();
-    const auto distributionMode = distribution.mode().getValue();
-
-    const auto numClusters = distribution.num_clusters().getInt();
-    auto tiledComputeShapes = SmallVector<Shape>(numClusters);
-
-    if (VPU::bitEnumContains(distributionMode, VPU::DistributionMode::SEGMENTED)) {
-        const auto tilingScheme = parseIntArrayAttr<int64_t>(distribution.num_tiles());
-        const auto isValidTile = [](auto dim) {
-            return dim > 1;
-        };
-        const auto axis = std::distance(tilingScheme.begin(), llvm::find_if(tilingScheme, isValidTile));
-
-        // Segmentation logic operates on schema and runtime asumption that
-        // a segmented tensor should be split equally across the axis, with
-        // the remainder cluster possibly having a smaller tile.
-
-        auto tiledShape = shape;
-        tiledShape[axis] = divUp(tiledShape[axis], tilingScheme[axis]);
-
-        auto remainderTileShape = shape;
-        remainderTileShape[axis] = divUpRemainder(shape[axis], tilingScheme[axis]);
-        VPUX_THROW_UNLESS(remainderTileShape[axis] > 0, "Improper split, '{0}' over '{1}' tiles", shape[axis],
-                          tilingScheme[axis]);
-
-        std::fill_n(tiledComputeShapes.begin(), numClusters - 1, Shape(tiledShape));
-        tiledComputeShapes[numClusters - 1] = Shape(remainderTileShape);
-
-    } else if (VPU::bitEnumContains(distributionMode, VPU::DistributionMode::OVERLAPPED)) {
-        VPUX_THROW("OVERLAPPED distribution mode is not supported yet");
-    } else {
-        std::fill_n(tiledComputeShapes.begin(), tiledComputeShapes.size(), Shape(shape));
-    }
-
-    return tiledComputeShapes;
+    return VPU::getPerClusterComputeShapes(getShape(), getDistribution());
 }
 
 // @brief Get largest compact compute shape

@@ -61,6 +61,7 @@ std::unique_ptr<mlir::Pass> createAddBuffersForNetResults(Logger log = Logger::g
 //
 
 std::unique_ptr<mlir::Pass> createConvertVPUToVPUIPPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createConvertNCEClusterTilingToVPUIPPass(Logger log = Logger::global());
 
 //
 // LowerIERT2VPUIP
