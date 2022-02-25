@@ -53,6 +53,7 @@ shavelib-preserved-symbols-$(CONFIG_TARGET_SOC_MA2490) += elu_fp16
 shavelib-preserved-symbols-$(CONFIG_TARGET_SOC_MA2490) += sqrt_fp16
 shavelib-preserved-symbols-$(CONFIG_TARGET_SOC_MA2490) += exp_fp16
 shavelib-preserved-symbols-$(CONFIG_TARGET_SOC_MA2490) += tanh_fp16
+shavelib-preserved-symbols-$(CONFIG_TARGET_SOC_MA2490) += broadcast
 shavelib-preserved-symbols-$(CONFIG_TARGET_SOC_MA2490) += dummy
 shavelib-preserved-symbols-y += edsl
 shavelib-preserved-symbols-y += Dummy

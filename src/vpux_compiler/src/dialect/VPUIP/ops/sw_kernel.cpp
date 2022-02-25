@@ -104,6 +104,9 @@ IERT::KernelInfo SwKernelOp::getKernelInfo(mlir::Operation* origOp) {
                                         {"singleShaveMVN"},
                                         {"single_shave_MVN.cpp"}};
             })
+            .Case<IERT::BroadcastOp>([&](IERT::BroadcastOp broadcast) {
+                return IERT::KernelInfo{SmallVector<mlir::Attribute>{broadcast.xAttr()}, {"broadcast"}, {"broadcast.cpp"}};
+            })
             .Default([](mlir::Operation* unknownOp) -> IERT::KernelInfo {
                 VPUX_THROW("Operation '{0}' is not supported by the act-shaves", unknownOp->getName());
             });
