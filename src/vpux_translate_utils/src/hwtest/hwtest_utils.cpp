@@ -325,6 +325,13 @@ vpux::VPURT::DeclareBufferOp createDeclareTensorOp(mlir::OpBuilder& builder, VPU
     return builder.create<VPURT::DeclareBufferOp>(builder.getUnknownLoc(), type, section, locale, offset);
 }
 
+vpux::VPURT::DeclareBufferOp createDeclareTensorOp(mlir::OpBuilder& builder, VPURT::BufferSection section,
+                                                   ArrayRef<int64_t> shape, mlir::Type elemType, DimsOrder order,
+                                                   size_t offset) {
+    const auto type = getMemRefType(section, shape, elemType, order);
+    return builder.create<VPURT::DeclareBufferOp>(builder.getUnknownLoc(), type, section, offset);
+}
+
 vpux::VPURT::DeclareBufferOp createDeclareTensorOp(mlir::OpBuilder builder, VPURT::BufferSection section,
                                                    ArrayRef<int64_t> shape, mlir::Type elemType, DimsOrder order,
                                                    StridesRef strides, int64_t locale, size_t offset) {
