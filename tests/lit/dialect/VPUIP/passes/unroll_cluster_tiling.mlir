@@ -49,15 +49,15 @@ func @main(%input: memref<1x16x33x32xf16>, %output: memref<1x16x33x32xf16>) -> m
     %parent_out = VPURT.DeclareBuffer "DDR" <33792> -> !Output_DDR
 
     // CMX buffers
-    %parent_input_cmx = VPURT.DeclareBuffer "CMX_NN" [0, 1] <0> -> !InputDistributed
+    %parent_input_cmx = VPURT.DeclareBuffer "CMX_NN" <0> -> !InputDistributed
     %input1 = VPURT.DeclareBuffer "CMX_NN" [0] <0> -> !Buffer0_CMX
     %input2 = VPURT.DeclareBuffer "CMX_NN" [1] <0> -> !Buffer1_CMX
 
-    %parent_out_cmx = VPURT.DeclareBuffer "CMX_NN" [0, 1] <17408> -> !OutputDistributed
+    %parent_out_cmx = VPURT.DeclareBuffer "CMX_NN" <17408> -> !OutputDistributed
     %output1 = VPURT.DeclareBuffer "CMX_NN" [0] <17408> -> !Buffer0_CMX
     %output2 = VPURT.DeclareBuffer "CMX_NN" [1] <17408> -> !Buffer1_CMX
 
-    %weights = VPURT.DeclareBuffer "CMX_NN" [0, 1] <34816> -> !WeightsDistributed
+    %weights = VPURT.DeclareBuffer "CMX_NN" <34816> -> !WeightsDistributed
 
     // Reorder input
 
@@ -124,13 +124,13 @@ func @main(%input: memref<1x16x33x32xf16>, %output: memref<1x16x33x32xf16>) -> m
     //CHECK:    [[IN2_CMX:%.*]] = VPURT.DeclareBuffer "CMX_NN" [1] <0> -> memref<1x16x16x32xf16, #NHWC, [@CMX_NN, 1]>
     //CHECK:    [[OUT1_CMX:%.*]] = VPURT.DeclareBuffer "CMX_NN" [0] <17408> -> memref<1x16x17x32xf16, #NHWC, [@CMX_NN, 0]>
     //CHECK:    [[OUT2_CMX:%.*]] = VPURT.DeclareBuffer "CMX_NN" [1] <17408> -> memref<1x16x16x32xf16, #NHWC, [@CMX_NN, 1]>
-    //CHECK:    [[WEIGHTS_CMX:%.*]] = VPURT.DeclareBuffer "CMX_NN" [0, 1] <34816> -> !VPUIP.DistributedBuffer<16x16x1x1xf16, #NHWC, @CMX_NN, {mode = DUPLICATED, num_clusters = 2 : i64}>
 
     // Upload weights
+    //CHECK:        [[WEIGHTS_CMX_COPY:%.*]] = VPURT.DeclareBuffer "CMX_NN" [0, 1] <34816> -> !VPUIP.DistributedBuffer<16x16x1x1xf16, #NHWC, @CMX_NN, {mode = DUPLICATED, num_clusters = 2 : i64}>
     //CHECK:        VPURT.Task updates([[BAR0]] : !VPURT.Barrier) attributes {isTrailingSWLayer = false}  {
     //CHECK:          VPUIP.NNDMA {port = 0 : i64}
     //CHECK-SAME:       inputs([[WEIGHTS_CST]] : memref<16x16x1x1xf16, #NHWC>)
-    //CHECK-SAME:       outputs([[WEIGHTS_CMX]] : !VPUIP.DistributedBuffer<16x16x1x1xf16, #NHWC, @CMX_NN, {mode = DUPLICATED, num_clusters = 2 : i64}>)
+    //CHECK-SAME:       outputs([[WEIGHTS_CMX_COPY]] : !VPUIP.DistributedBuffer<16x16x1x1xf16, #NHWC, @CMX_NN, {mode = DUPLICATED, num_clusters = 2 : i64}>)
     //CHECK:        }
 
     // Upload 1st part of input

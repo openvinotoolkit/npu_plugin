@@ -28,27 +28,47 @@ using namespace vpux;
 namespace {
 
 //
-// ClusterTilingRewriter
+// ClusterNCERewriter
 //
 
-class ClusterTilingRewriter final : public mlir::OpRewritePattern<VPUIP::NCEClusterTilingOp> {
+class ClusterNCERewriter final : public mlir::OpRewritePattern<VPUIP::NCEClusterTaskOp> {
 public:
-    ClusterTilingRewriter(mlir::MLIRContext* ctx, Logger log)
-            : mlir::OpRewritePattern<VPUIP::NCEClusterTilingOp>(ctx), _log(log) {
-        setDebugName("ClusterTilingRewriter");
+    ClusterNCERewriter(mlir::MLIRContext* ctx, Logger log)
+            : mlir::OpRewritePattern<VPUIP::NCEClusterTaskOp>(ctx), _log(log) {
+        setDebugName("ClusterNCERewriter");
     }
 
-    mlir::LogicalResult matchAndRewrite(VPUIP::NCEClusterTilingOp clusterOp,
+    mlir::LogicalResult matchAndRewrite(VPUIP::NCEClusterTaskOp clusterTaskOp,
                                         mlir::PatternRewriter& rewriter) const final;
 
 private:
     Logger _log;
 };
 
-mlir::LogicalResult ClusterTilingRewriter::matchAndRewrite(VPUIP::NCEClusterTilingOp clusterOp,
-                                                           mlir::PatternRewriter& rewriter) const {
-    if (!mlir::isa<VPUIP::NNDMAOp>(clusterOp.getInnerTaskOp())) {
-        VPUX_THROW("For now only NNDMA op legalization is supported");
+mlir::LogicalResult ClusterNCERewriter::matchAndRewrite(VPUIP::NCEClusterTaskOp, mlir::PatternRewriter&) const {
+    VPUX_THROW("For now NCEClusterTask op legalization is not supported");
+}
+
+//
+// ClusterDMARewriter
+//
+
+class ClusterDMARewriter final : public mlir::OpRewritePattern<VPUIP::NNDMAOp> {
+public:
+    ClusterDMARewriter(mlir::MLIRContext* ctx, Logger log): mlir::OpRewritePattern<VPUIP::NNDMAOp>(ctx), _log(log) {
+        setDebugName("ClusterDMARewriter");
+    }
+
+    mlir::LogicalResult matchAndRewrite(VPUIP::NNDMAOp nndmaOp, mlir::PatternRewriter& rewriter) const final;
+
+private:
+    Logger _log;
+};
+
+mlir::LogicalResult ClusterDMARewriter::matchAndRewrite(VPUIP::NNDMAOp nndmaOp, mlir::PatternRewriter& rewriter) const {
+    auto clusterOp = nndmaOp->getParentOfType<VPUIP::NCEClusterTilingOp>();
+    if (clusterOp == nullptr) {
+        return mlir::failure();
     }
 
     VPUX_THROW_UNLESS(clusterOp.getInputs().size() == 1, "Wrong inputs size: {0}", clusterOp.getInputs().size());
@@ -84,8 +104,12 @@ mlir::LogicalResult ClusterTilingRewriter::matchAndRewrite(VPUIP::NCEClusterTili
                     "Only one operand can have DistributedBuffer type");
 
     auto distributionAttr = distributedType.getDistribution();
-    auto mode = distributionAttr.mode().getValue();
+    auto numClusters = distributionAttr.num_clusters().getInt();
 
+    auto outDeclBuff = output.getDefiningOp<VPURT::DeclareBufferOp>();
+    VPUX_THROW_UNLESS(outDeclBuff != nullptr, "Can't get output buffer offset");
+
+    auto mode = distributionAttr.mode().getValue();
     if (mode == VPU::DistributionMode::SEGMENTED) {
         auto originInShape = inputType.getShape().raw();
         auto originOutShape = outputType.getShape().raw();
@@ -95,9 +119,6 @@ mlir::LogicalResult ClusterTilingRewriter::matchAndRewrite(VPUIP::NCEClusterTili
         const auto strideOutReqs = StrideReqs::compact(originOutShape.size());
         VPUX_THROW_UNLESS(strideOutReqs.checkStrides(output), "Only compact strides are supported");
 
-        auto numClusters = distributionAttr.num_clusters().getInt();
-        VPUX_THROW_UNLESS(numClusters > 0, "The number of clusters must be greater than 0. Got: {0}", numClusters);
-
         auto numTiles = parseIntArrayAttr<int64_t>(distributionAttr.num_tiles());
         VPUX_THROW_UNLESS(originInShape.size() == numTiles.size(),
                           "Input shape size '{0}' and tiles array size '{1}' are mismatch", originInShape.size(),
@@ -105,33 +126,26 @@ mlir::LogicalResult ClusterTilingRewriter::matchAndRewrite(VPUIP::NCEClusterTili
 
         auto inDeclBuff = input.getDefiningOp<VPURT::DeclareBufferOp>();
         VPUX_THROW_UNLESS(inDeclBuff != nullptr, "Can't get input buffer offset");
-        auto outDeclBuff = output.getDefiningOp<VPURT::DeclareBufferOp>();
-        VPUX_THROW_UNLESS(outDeclBuff != nullptr, "Can't get output buffer offset");
 
         Byte inByteOffset{inDeclBuff.byteOffset()};
         Byte outByteOffset{outDeclBuff.byteOffset()};
 
-        SmallVector<vpux::NDTypeInterface> inTypes(numClusters);
-        SmallVector<vpux::NDTypeInterface> outTypes(numClusters);
-        const auto createNewTypes = [&](int64_t clusterId, FuncRef<int64_t(int64_t, int64_t)> div) {
-            SmallVector<int64_t> inShape(originInShape.size());
-            SmallVector<int64_t> outShape(originOutShape.size());
+        auto perClusterShapes = distributedType.getPerClusterComputeShapes();
+        VPUX_THROW_UNLESS(checked_cast<int64_t>(perClusterShapes.size()) == numClusters,
+                          "Number of shapes '{0}' and clusters '{1}' are mismatch", perClusterShapes.size(),
+                          numClusters);
 
-            for (size_t tileId = 0; tileId < numTiles.size(); ++tileId) {
-                inShape[tileId] = div(originInShape[tileId], numTiles[tileId]);
-                outShape[tileId] = div(originOutShape[tileId], numTiles[tileId]);
+        const auto createNewTypes = [&](vpux::NDTypeInterface innerType) {
+            SmallVector<vpux::NDTypeInterface> newTypes(numClusters);
+            for (size_t clusterId = 0; clusterId < perClusterShapes.size(); ++clusterId) {
+                newTypes[clusterId] = innerType.changeShape(perClusterShapes[clusterId]);
             }
 
-            inTypes[clusterId] = innerInputType.changeShape(Shape(inShape));
-            outTypes[clusterId] = innerOutputType.changeShape(Shape(outShape));
+            return newTypes;
         };
 
-        auto lastCluster = numClusters - 1;
-        for (int64_t clusterId = 0; clusterId < lastCluster; ++clusterId) {
-            createNewTypes(clusterId, divUp<int64_t>);
-        }
-
-        createNewTypes(lastCluster, divUpRemainder<int64_t>);
+        auto inTypes = createNewTypes(innerInputType);
+        auto outTypes = createNewTypes(innerOutputType);
 
         for (int64_t clusterId = 0; clusterId < numClusters; ++clusterId) {
             auto newInputType = inTypes[clusterId];
@@ -179,8 +193,16 @@ mlir::LogicalResult ClusterTilingRewriter::matchAndRewrite(VPUIP::NCEClusterTili
         VPUX_THROW_UNLESS(outputType.isa<VPUIP::DistributedBufferType>(),
                           "Only output operand can have DistributedBuffer type");
 
+        SmallVector<int64_t> clusters(numClusters);
+        for (int64_t i = 0; i < numClusters; ++i) {
+            clusters[i] = i;
+        }
+
+        auto cmxBuffer = rewriter.create<VPURT::DeclareBufferOp>(vpurtTask->getLoc(), outDeclBuff.getType(),
+                                                                 VPURT::BufferSection::CMX_NN, clusters,
+                                                                 outDeclBuff.byteOffset());
         VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(rewriter, vpurtTask.waitBarriers(), vpurtTask.updateBarriers(),
-                                              vpurtTask->getLoc(), input, output);
+                                              vpurtTask->getLoc(), input, cmxBuffer);
     } else {
         VPUX_THROW("Unsupported distribution mode: {0}", VPU::stringifyDistributionMode(mode));
     }
@@ -208,7 +230,7 @@ void UnrollClusterTilingPass::safeRunOnFunc() {
     auto& ctx = getContext();
 
     mlir::RewritePatternSet patterns(&ctx);
-    patterns.insert<ClusterTilingRewriter>(&ctx, _log);
+    patterns.insert<ClusterDMARewriter>(&ctx, _log);
 
     auto func = getFunction();
     if (mlir::failed(

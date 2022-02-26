@@ -306,6 +306,11 @@ mlir::LogicalResult vpux::VPU::verify(FuncRef<mlir::InFlightDiagnostic()> emitEr
         if (distributedAttr.num_clusters() == nullptr) {
             return printTo(emitError(), "Missing number of clusters.");
         }
+
+        auto numClusters = distributedAttr.num_clusters().getInt();
+        if (numClusters <= 0) {
+            return printTo(emitError(), "The number of clusters must be greater than 0. Got: {0}", numClusters);
+        }
     }
 
     const auto isTiledMode = [](VPU::DistributionMode mode) {
