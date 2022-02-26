@@ -57,6 +57,7 @@ func @NCEClusterTilingCopyOpTensorResult(%input0: !type_DDR_memref) -> !type_CMX
     num_tiles = [1, 1, 4, 1],
     kernel = [3, 3],
     pads = {bottom = 1, left = 1, right = 1, top = 1},
+    strides = [1, 1],
     num_clusters = 4
 }>
 
@@ -116,6 +117,7 @@ func @NCEClusterTilingCopyOpDistributedResult(%input0: !type_DDR_memref) -> !typ
     num_tiles = [1, 1, 4, 1],
     kernel = [3, 3],
     pads = {bottom = 1, left = 1, right = 1, top = 1},
+    strides = [1, 1],
     num_clusters = 4
 }>
 

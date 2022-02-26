@@ -90,6 +90,7 @@ func @ParsePrintClusterTiling(%arg0: memref<1x32x16x16xf16, #NHWC, @CMX_NN>) -> 
     num_tiles = [1, 1, 4, 1],
     kernel = [3, 3],
     pads = {bottom = 1, left = 1, right = 1, top = 1},
+    strides = [1, 1],
     num_clusters = 4
 }>
 
@@ -210,12 +211,12 @@ func @ParsePrintDistributedBuffer(%input: !Input_DDR) -> !Output_DDR {
     //CHECK:        %cst = const.Declare memref<64x32x3x3xf16, #NHWC, @DDR>
     //CHECK:        [[INPUT_CMX:%.*]] = VPURT.AllocDistributed -> !VPUIP.DistributedBuffer<1x32x16x16xf16, #NHWC, @CMX_NN,
     //CHECK-SAME:                           {mode = OVERLAPPED, num_tiles = [1, 1, 4, 1], kernel = [3, 3],
-    //CHECK-SAME:                           pads = {bottom = 1 : i64, left = 1 : i64, right = 1 : i64, top = 1 : i64}, num_clusters = 4 : i64}>
+    //CHECK-SAME:                           pads = {bottom = 1 : i64, left = 1 : i64, right = 1 : i64, top = 1 : i64}, strides = [1, 1], num_clusters = 4 : i64}>
     //CHECK:        %token = async.execute attributes {IERT.executor = @DMA_NN, IERT.num_units = 1 : i64, "async-deps-index" = 0 : i64} {
     //CHECK:              %5 = VPUIP.NCEClusterTiling inputs(%arg0 as %arg1: memref<1x32x16x16xf16, #NHWC, @DDR>)
     //CHECK-SAME:               outputs([[INPUT_CMX]] as %arg2: memref<1x32x16x16xf16, #NHWC, @CMX_NN>)
     //CHECK-SAME:               attributes {operand_segment_sizes = dense<1> : vector<2xi32>}
-    //CHECK-SAME:               -> !VPUIP.DistributedBuffer<1x32x16x16xf16, #NHWC, @CMX_NN, {mode = OVERLAPPED, num_tiles = [1, 1, 4, 1], kernel = [3, 3], pads = {bottom = 1 : i64, left = 1 : i64, right = 1 : i64, top = 1 : i64}, num_clusters = 4 : i64}> {
+    //CHECK-SAME:               -> !VPUIP.DistributedBuffer<1x32x16x16xf16, #NHWC, @CMX_NN, {mode = OVERLAPPED, num_tiles = [1, 1, 4, 1], kernel = [3, 3], pads = {bottom = 1 : i64, left = 1 : i64, right = 1 : i64, top = 1 : i64}, strides = [1, 1], num_clusters = 4 : i64}> {
     //CHECK:                %6 = IERT.Copy {out_mem_space = @CMX_NN} inputs(%arg1 : memref<1x32x16x16xf16, #NHWC, @DDR>)
     //CHECK-SAME:                   outputs(%arg2 : memref<1x32x16x16xf16, #NHWC, @CMX_NN>) -> memref<1x32x16x16xf16, #NHWC, @CMX_NN>
     //CHECK:              }
