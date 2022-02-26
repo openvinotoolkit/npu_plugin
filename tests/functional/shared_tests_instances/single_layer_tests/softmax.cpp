@@ -70,6 +70,7 @@ TEST_P(VPUXSoftMaxLayerTest, MLIR) {
 }
 
 TEST_P(VPUXSoftMaxLayerTest, MLIR_MTL) {
+    abs_threshold = 1e-3;
     useCompilerMLIR();
     setPlatformMTL();
     setDefaultHardwareModeMLIR();

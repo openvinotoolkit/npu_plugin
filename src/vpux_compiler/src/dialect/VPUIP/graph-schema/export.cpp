@@ -759,9 +759,14 @@ flatbuffers::DetachedBuffer vpux::VPUIP::exportToBlob(mlir::ModuleOp module, mli
                 // Invocations aligning
                 auto invocations = actKernelTask->invocations();
                 for (auto&& invocation : *invocations) {
-                    auto offset = alignKernelDataSection(invocation->dataSection(), ".data");
-                    alignReferenceSection(invocation->dataSection(), offset);
-                    alignReferenceSection(invocation->invocationArgs(), offset);
+                    auto dataOffset = alignKernelDataSection(invocation->dataSection(), ".data");
+                    alignReferenceSection(invocation->dataSection(), dataOffset);
+
+                    // TODO: need a test of serialisation with non zero data section that clearly show problem
+                    // data section and invocation args are packed in single locale buffer one by one
+                    // [Track number: E#32997]
+                    auto args_offset = dataOffset + invocation->dataSection()->referenced_data_size();
+                    alignReferenceSection(invocation->invocationArgs(), args_offset);
                 }
             }
         }
