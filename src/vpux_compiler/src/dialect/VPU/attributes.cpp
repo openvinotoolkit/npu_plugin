@@ -64,10 +64,8 @@ constexpr int MTL_MAX_DPU_GROUPS = 2;
 
 }  // namespace
 
-uint32_t vpux::VPU::getMaxDPUClusterNum(mlir::Operation* op) {
-    const auto kind = VPU::getArch(op);
-
-    switch (kind) {
+uint32_t vpux::VPU::getMaxDPUClusterNum(ArchKind arch) {
+    switch (arch) {
     case VPU::ArchKind::KMB:
         return KMB_MAX_DPU_GROUPS;
     case VPU::ArchKind::TBH:
@@ -75,8 +73,12 @@ uint32_t vpux::VPU::getMaxDPUClusterNum(mlir::Operation* op) {
     case VPU::ArchKind::MTL:
         return MTL_MAX_DPU_GROUPS;
     default:
-        VPUX_THROW("Unsupported architecture '{0}'", kind);
+        VPUX_THROW("Unsupported architecture '{0}'", arch);
     }
+}
+
+uint32_t vpux::VPU::getMaxDPUClusterNum(mlir::Operation* op) {
+    return VPU::getMaxDPUClusterNum(VPU::getArch(op));
 }
 
 Byte vpux::VPU::getTotalCMXSize(mlir::Operation* op) {

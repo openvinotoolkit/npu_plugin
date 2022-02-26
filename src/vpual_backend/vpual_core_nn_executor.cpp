@@ -21,6 +21,7 @@
 #include <ie_common.h>
 
 #include <algorithm>
+#include <atomic>
 #include <blob_factory.hpp>
 #include <dims_parser.hpp>
 #include <map>
@@ -311,7 +312,7 @@ VpualCoreNNExecutor::VpualCoreNNExecutor(const vpux::NetworkDescription::Ptr& ne
     _inputBuffer.reset(reinterpret_cast<uint8_t*>(_allocator->alloc(inputsTotalSize.count())));
     _logger.debug("Allocated buffer for input with the size: {0}", inputsTotalSize);
 
-    allocateGraph(_networkDescription->getCompiledNetwork());
+    allocateGraph();
     initWatchDog();
 #else
     VPUX_UNUSED(deviceId);
@@ -497,28 +498,15 @@ const static vpux::EnumSet<InferenceEngine::VPUXConfigParams::VPUXPlatform> plat
 }  // namespace
 #endif
 
-void VpualCoreNNExecutor::allocateGraph(const std::vector<char>& graphFileContent) {
+void VpualCoreNNExecutor::allocateGraph() {
 #if defined(__arm__) || defined(__aarch64__)
     OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "allocateGraph");
-    static int graphId_main = 1;
-    int nThreads = _config.get<THROUGHPUT_STREAMS>();
-    if (nThreads < 0) {
-        if (_config.has<PERFORMANCE_HINT>()) {
-            switch (_config.get<PERFORMANCE_HINT>()) {
-            case PerformanceHint::Latency:
-                nThreads = 3;
-                break;
-            case PerformanceHint::Throughput:
-            default:
-                nThreads = 6;
-                break;
-            }
-        } else {
-            nThreads = 6;  // TODO: consider updating once multi-clustering is enabled in compiler
-        }
-    }
+
+    static std::atomic<int> graphId_main(1);
 
     _logger.info("allocateGraph begins");
+
+    const auto& graphFileContent = _networkDescription->getCompiledNetwork();
 
     _blobHandle->graphid = graphId_main++;
     _blobHandle->graphBuff = 0x00000000;
@@ -541,6 +529,7 @@ void VpualCoreNNExecutor::allocateGraph(const std::vector<char>& graphFileConten
     // inference runtime cannot address more than that
     _blobHandle->graphBuff = _allocator->getPhysicalAddress(blob_file.get()) & 0xffffffff;
 
+    const auto nThreads = getNumThroughputStreams(_config, _networkDescription->getNumStreams());
     auto status = _nnCorePlg->Create(*_blobHandle, nThreads);
     if (MVNCI_SUCCESS != status) {
         _logger.error("allocateGraph: failed to create NnCorePlg");

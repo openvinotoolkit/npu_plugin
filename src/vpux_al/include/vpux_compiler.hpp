@@ -150,6 +150,13 @@ public:
      * @return size in bytes
      */
     virtual std::size_t getNetworkModelSize() const = 0;
+
+    /**
+     * @brief Get the number of streams, that can be executed in parallel
+     * with current network configuration.
+     */
+    virtual int getNumStreams() const = 0;
+
     virtual ~INetworkDescription() = default;
 
 protected:
@@ -212,6 +219,10 @@ public:
     }
     std::size_t getNetworkModelSize() const {
         return _impl->getNetworkModelSize();
+    }
+
+    int getNumStreams() const {
+        return _impl->getNumStreams();
     }
 
 private:

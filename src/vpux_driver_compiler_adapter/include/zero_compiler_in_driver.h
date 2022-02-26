@@ -12,6 +12,7 @@
 //
 
 #include "iexternal_compiler.h"
+#include "network_description.h"
 #include "ze_api.h"
 #include "ze_graph_ext.h"
 
@@ -33,15 +34,17 @@ public:
 
     size_t getSupportedOpset() override;
 
-    std::shared_ptr<INetworkDescription> compileIR(const std::string& graphName, const std::vector<char>& xml, const std::vector<char>& weights,
-                const InferenceEngine::InputsDataMap& inputsInfo, const InferenceEngine::OutputsDataMap& outputsInfo,
-                const vpux::Config& config) final;
+    std::shared_ptr<INetworkDescription> compileIR(const std::string& graphName, const std::vector<char>& xml,
+                                                   const std::vector<char>& weights,
+                                                   const InferenceEngine::InputsDataMap& inputsInfo,
+                                                   const InferenceEngine::OutputsDataMap& outputsInfo,
+                                                   const vpux::Config& config) final;
 
-    std::shared_ptr<INetworkDescription> parseBlob(const std::string& graphName, const std::vector<char>& blob, const vpux::Config& config) final;
+    std::shared_ptr<INetworkDescription> parseBlob(const std::string& graphName, const std::vector<char>& blob,
+                                                   const vpux::Config& config) final;
 
 private:
-    std::tuple<const NetworkInputs, const NetworkOutputs, const DeviceInputs, const DeviceOutputs> getNetworkMeta(
-            ze_graph_handle_t graph_handle);
+    NetworkMeta getNetworkMeta(ze_graph_handle_t graph_handle);
 
     std::vector<uint8_t> serializeIR(const std::vector<char>& xml, const std::vector<char>& weights);
 

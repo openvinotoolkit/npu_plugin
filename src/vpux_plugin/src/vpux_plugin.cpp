@@ -250,12 +250,11 @@ IE::Parameter Engine::GetConfig(const std::string& name,
                                 const std::map<std::string, IE::Parameter>& /*options*/) const {
     if (GetCore()->isNewAPI()) {
         if (name == ov::streams::num.name()) {
-            return _globalConfig.get<THROUGHPUT_STREAMS>();
+            return checked_cast<int32_t>(getNumThroughputStreams(_globalConfig, None));
         } else if (name == ov::enable_profiling) {
             return _globalConfig.get<PERF_COUNT>();
         } else if (name == ov::hint::performance_mode) {
-            return _globalConfig.has<PERFORMANCE_HINT>() ? cvtPerformanceHint(_globalConfig.get<PERFORMANCE_HINT>())
-                                                         : ov::hint::PerformanceMode::UNDEFINED;
+            return _globalConfig.get<PERFORMANCE_HINT>();
         } else if (name == ov::log::level) {
             return cvtLogLevel(_globalConfig.get<LOG_LEVEL>());
         } else if (name == ov::device::id) {
@@ -328,12 +327,9 @@ IE::Parameter Engine::GetConfig(const std::string& name,
     } else if (name == CONFIG_KEY(DEVICE_ID)) {
         return _globalConfig.get<DEVICE_ID>();
     } else if (name == CONFIG_KEY(PERFORMANCE_HINT)) {
-        const auto val = _globalConfig.has<PERFORMANCE_HINT>()
-                                 ? stringifyEnum(_globalConfig.get<PERFORMANCE_HINT>()).str()
-                                 : std::string{};
-        return val;
+        return stringifyEnum(_globalConfig.get<PERFORMANCE_HINT>()).str();
     } else if (name == ov::num_streams) {
-        return checked_cast<int>(_globalConfig.get<THROUGHPUT_STREAMS>());
+        return checked_cast<int>(getNumThroughputStreams(_globalConfig, None));
     } else if (name == ov::intel_vpux::inference_shaves) {
         return checked_cast<int>(_globalConfig.get<INFERENCE_SHAVES>());
     } else if (name == ov::intel_vpux::compilation_mode_params) {

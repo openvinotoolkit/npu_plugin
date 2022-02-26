@@ -99,7 +99,7 @@ private:
 #endif
 
     VpualCoreNNExecutor();
-    void allocateGraph(const std::vector<char>& compiledNetwork);
+    void allocateGraph();
 
     ie::Blob::Ptr prepareInputForInference(const ie::Blob::Ptr& actualInput,
                                            const InferenceEngine::TensorDesc& deviceDesc);

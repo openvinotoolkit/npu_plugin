@@ -34,21 +34,16 @@ void registerCommonOptions(OptionsDesc& desc);
 // PERFORMANCE_HINT
 //
 
-enum class PerformanceHint {
-    Latency,
-    Throughput,
-};
-
-StringLiteral stringifyEnum(PerformanceHint val);
-
-ov::hint::PerformanceMode cvtPerformanceHint(PerformanceHint hint);
-
-struct PERFORMANCE_HINT final : OptionBase<PERFORMANCE_HINT, PerformanceHint> {
+struct PERFORMANCE_HINT final : OptionBase<PERFORMANCE_HINT, ov::hint::PerformanceMode> {
     static StringRef key() {
         return ov::hint::performance_mode.name();
     }
 
-    static PerformanceHint parse(StringRef val);
+    static ov::hint::PerformanceMode defaultValue() {
+        return ov::hint::PerformanceMode::UNDEFINED;
+    }
+
+    static ov::hint::PerformanceMode parse(StringRef val);
 };
 
 //
@@ -130,3 +125,11 @@ vpux::StringLiteral stringifyEnum(VPUXPlatform val);
 
 }  // namespace VPUXConfigParams
 }  // namespace InferenceEngine
+
+namespace ov {
+namespace hint {
+
+vpux::StringLiteral stringifyEnum(PerformanceMode val);
+
+}  // namespace hint
+}  // namespace ov

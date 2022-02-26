@@ -14,6 +14,7 @@
 #include "vpux/compiler/dialect/VPUIP/network_description.hpp"
 
 #include "vpux/compiler/core/attributes/dims_order.hpp"
+#include "vpux/compiler/dialect/VPUIP/graph-schema/blob_reader.hpp"
 #include "vpux/compiler/dialect/VPUIP/graph-schema/schema.hpp"
 
 #include "vpux/utils/core/enums.hpp"
@@ -244,6 +245,35 @@ std::vector<OVRawNode> deserializeOVNodes(const flatbuffers::Vector<flatbuffers:
     }
     return nodes;
 }
+
+void adjustNumStreams(const MVCNN::SummaryHeader* header, int& numStreams) {
+    VPUX_THROW_WHEN(header->resources() == nullptr, "Can't get resource utilization information from compiler blob");
+    VPUX_THROW_WHEN(header->resources()->processor_allocation() == nullptr,
+                    "Can't get processor utilization information from compiler blob");
+
+    int numClusters = 0;
+    for (const auto* proc : *header->resources()->processor_allocation()) {
+        if (proc == nullptr) {
+            continue;
+        }
+
+        if (proc->item() == MVCNN::PhysicalProcessor_NCE_Cluster) {
+            numClusters = static_cast<int>(proc->number());
+            break;
+        }
+    }
+    VPUX_THROW_WHEN(numClusters == 0, "Can't get NCE clusters/tiles utilization information from compiler blob");
+
+    const auto arch = VPUIP::BlobReader::parseDeviceRevision(header);
+    const auto maxNumClusters = checked_cast<int>(VPU::getMaxDPUClusterNum(arch));
+
+    VPUX_THROW_WHEN(numClusters > maxNumClusters,
+                    "Got wrong NCE clusters utilization '{0}', it is larger than total number of resources '{1}'",
+                    numClusters, maxNumClusters);
+
+    numStreams = maxNumClusters / numClusters;
+}
+
 }  // namespace
 
 vpux::VPUIP::NetworkDescription::NetworkDescription(std::vector<char> blob)
@@ -282,4 +312,6 @@ vpux::VPUIP::NetworkDescription::NetworkDescription(std::vector<char> blob)
 
     VPUX_THROW_UNLESS(!_networkOutputs.empty(), "VPUIP blob does not contain network outputs");
     VPUX_THROW_UNLESS(!_deviceOutputs.empty(), "VPUIP blob does not contain device outputs");
+
+    adjustNumStreams(header, _numStreams);
 }

@@ -13,7 +13,6 @@
 
 #include "zero_compiler_in_driver.h"
 #include "ie_layouts.h"
-#include "network_description.h"
 #include "vpux/al/config/common.hpp"
 
 namespace vpux {
@@ -458,8 +457,7 @@ size_t LevelZeroCompilerInDriver::getSupportedOpset() {
     return maxOpsetVersion;
 }
 
-std::tuple<const NetworkInputs, const NetworkOutputs, const DeviceInputs, const DeviceOutputs>
-LevelZeroCompilerInDriver::getNetworkMeta(ze_graph_handle_t graph_handle) {
+NetworkMeta LevelZeroCompilerInDriver::getNetworkMeta(ze_graph_handle_t graph_handle) {
     ze_graph_properties_t graph_properties{};
     auto result = _graph_ddi_table_ext->pfnGetProperties(graph_handle, &graph_properties);
     if (ZE_RESULT_SUCCESS != result) {
@@ -504,7 +502,10 @@ LevelZeroCompilerInDriver::getNetworkMeta(ze_graph_handle_t graph_handle) {
         }
     }
 
-    return std::make_tuple(net_inputs, net_outputs, dev_inputs, dev_outputs);
+    // TODO: support this information in CiD [track: E#33479]
+    int numStreams = 1;
+
+    return NetworkMeta {net_inputs, net_outputs, dev_inputs, dev_outputs, numStreams};
 }
 
 }  // namespace driverCompilerAdapter
