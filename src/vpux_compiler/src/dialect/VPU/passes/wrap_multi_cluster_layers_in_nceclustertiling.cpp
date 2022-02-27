@@ -39,8 +39,8 @@ namespace {
 
 class NCEConvolutionToNCEClusterTiling final : public mlir::OpRewritePattern<NCEConvolutionOp> {
 public:
-    NCEConvolutionToNCEClusterTiling(mlir::MLIRContext* ctx, Logger log)
-            : mlir::OpRewritePattern<NCEConvolutionOp>(ctx), _log(log) {
+    NCEConvolutionToNCEClusterTiling(mlir::MLIRContext* ctx, VPU::ArchKind arch, Logger log)
+            : mlir::OpRewritePattern<NCEConvolutionOp>(ctx), _arch(arch), _log(log) {
         setDebugName("NCEConvolutionToNCEClusterTiling");
     }
 
@@ -48,6 +48,7 @@ public:
     mlir::LogicalResult matchAndRewrite(NCEConvolutionOp origOp, mlir::PatternRewriter& rewriter) const final;
 
 private:
+    VPU::ArchKind _arch;
     Logger _log;
 };
 
@@ -58,24 +59,42 @@ mlir::LogicalResult NCEConvolutionToNCEClusterTiling::matchAndRewrite(NCEConvolu
     if (origOp->template getParentOfType<NCEClusterTilingOp>() != nullptr) {
         return matchFailed(_log, rewriter, origOp, "The operation is already wrapped with NCEClusterTiling");
     }
+
     const auto strategy = origOp->getAttr(multiClusterStrategy).cast<mlir::StringAttr>().getValue();
+    DistributionMode activationWindowDistributionMode = DistributionMode::NONE;
+    mlir::ArrayAttr activationWindowNumTiles;
+    NCEClusterTilingOp distributedActivationWindowCopyOp = nullptr;
+    NCEClusterTilingOp clusterTilingOp = nullptr;
+
+    const auto inOrder = DimsOrder::fromValue(origOp.input());
+    if (inOrder == DimsOrder::NCHW) {
+        activationWindowDistributionMode = getActivationWindowTensorDistributionMode(origOp, strategy, _arch);
+        activationWindowNumTiles = getActivationWindowTensorNumTiles(origOp, strategy, _arch);
+        distributedActivationWindowCopyOp =
+                createDistributedTensor(origOp, origOp.activationWindow(), strategy, activationWindowDistributionMode,
+                                        activationWindowNumTiles);
+    }
+
     auto activationTensorDistributionMode = getActivationTensorDistributionMode(origOp, strategy);
-    auto weightsTensorDistributionMode = getWeightsTensorDistributionMode(origOp, strategy);
     auto activationTensorNumTiles = getActivationTensorNumTiles(origOp, strategy);
+    auto weightsTensorDistributionMode = getWeightsTensorDistributionMode(origOp, strategy);
     auto weightTensorNumTiles = getWeightsTensorNumTiles(origOp, strategy);
+    auto weightsTableTensorDistributionMode = getWeightsTensorDistributionMode(origOp, strategy);
+    auto weightsTableTensorNumTiles = getWeightsTensorNumTiles(origOp, strategy);
     auto outputTensorDistributionMode = getOutputTensorDistributionMode(origOp, strategy);
+    auto outputTensorNumTiles = getOutputTensorNumTiles(origOp, strategy);
 
-    auto distributedActivationCopyOp =
-            createDistributedTensor(origOp, origOp.input(), activationTensorDistributionMode, activationTensorNumTiles);
+    auto distributedActivationCopyOp = createDistributedTensor(
+            origOp, origOp.input(), strategy, activationTensorDistributionMode, activationTensorNumTiles);
 
-    auto distributedWeightsCopyOp =
-            createDistributedTensor(origOp, origOp.filter(), weightsTensorDistributionMode, weightTensorNumTiles);
+    auto distributedWeightsCopyOp = createDistributedTensor(origOp, origOp.filter(), strategy,
+                                                            weightsTensorDistributionMode, weightTensorNumTiles);
 
-    auto distributedWeightTableCopyOp =
-            createDistributedTensor(origOp, origOp.weightsTable(), weightsTensorDistributionMode, weightTensorNumTiles);
+    auto distributedWeightTableCopyOp = createDistributedTensor(
+            origOp, origOp.weightsTable(), strategy, weightsTableTensorDistributionMode, weightsTableTensorNumTiles);
 
-    auto distributedOutputTensorType = createDistributedTensorType(
-            origOp, origOp.output(), outputTensorDistributionMode, activationTensorNumTiles);
+    auto distributedOutputTensorType = createDistributedTensorType(origOp, origOp.output(), strategy,
+                                                                   outputTensorDistributionMode, outputTensorNumTiles);
 
     auto origOutput = origOp->getResult(0);
     const auto origOutType = origOutput.getType().cast<vpux::NDTypeInterface>();
@@ -92,11 +111,21 @@ mlir::LogicalResult NCEConvolutionToNCEClusterTiling::matchAndRewrite(NCEConvolu
     };
 
     _log.trace("Wrap {0} into NCEClusterTilingOp", origOp->getName());
-    auto clusterTilingOp = rewriter.create<NCEClusterTilingOp>(
-            origOp->getLoc(), distributedOutputTensorType,
-            mlir::ValueRange{distributedActivationCopyOp->getResult(0), distributedWeightsCopyOp->getResult(0),
-                             distributedWeightTableCopyOp->getResult(0)},
-            bodyBuilder);
+
+    if (inOrder == DimsOrder::NCHW) {
+        clusterTilingOp = rewriter.create<NCEClusterTilingOp>(
+                origOp->getLoc(), distributedOutputTensorType,
+                mlir::ValueRange{distributedActivationCopyOp->getResult(0), distributedWeightsCopyOp->getResult(0),
+                                 distributedWeightTableCopyOp->getResult(0),
+                                 distributedActivationWindowCopyOp->getResult(0)},
+                bodyBuilder);
+    } else {
+        clusterTilingOp = rewriter.create<NCEClusterTilingOp>(
+                origOp->getLoc(), distributedOutputTensorType,
+                mlir::ValueRange{distributedActivationCopyOp->getResult(0), distributedWeightsCopyOp->getResult(0),
+                                 distributedWeightTableCopyOp->getResult(0)},
+                bodyBuilder);
+    }
 
     const auto outputTensorBodyBuilder = [&](mlir::OpBuilder& builder, mlir::Location loc,
                                              mlir::ValueRange newOperands) {
@@ -119,8 +148,8 @@ mlir::LogicalResult NCEConvolutionToNCEClusterTiling::matchAndRewrite(NCEConvolu
 
 class NCEDepthConvolutionToNCEClusterTiling final : public mlir::OpRewritePattern<NCEDepthConvolutionOp> {
 public:
-    NCEDepthConvolutionToNCEClusterTiling(mlir::MLIRContext* ctx, Logger log)
-            : mlir::OpRewritePattern<NCEDepthConvolutionOp>(ctx), _log(log) {
+    NCEDepthConvolutionToNCEClusterTiling(mlir::MLIRContext* ctx, VPU::ArchKind arch, Logger log)
+            : mlir::OpRewritePattern<NCEDepthConvolutionOp>(ctx), _arch(arch), _log(log) {
         setDebugName("NCEDepthConvolutionToNCEClusterTiling");
     }
 
@@ -128,6 +157,7 @@ public:
     mlir::LogicalResult matchAndRewrite(NCEDepthConvolutionOp origOp, mlir::PatternRewriter& rewriter) const final;
 
 private:
+    VPU::ArchKind _arch;
     Logger _log;
 };
 
@@ -140,25 +170,30 @@ mlir::LogicalResult NCEDepthConvolutionToNCEClusterTiling::matchAndRewrite(NCEDe
     }
     const auto strategy = origOp->getAttr(multiClusterStrategy).cast<mlir::StringAttr>().getValue();
     auto activationTensorDistributionMode = getActivationTensorDistributionMode(origOp, strategy);
-    auto weightsTensorDistributionMode = getWeightsTensorDistributionMode(origOp, strategy);
     auto activationTensorNumTiles = getActivationTensorNumTiles(origOp, strategy);
+    auto weightsTensorDistributionMode = getWeightsTensorDistributionMode(origOp, strategy);
     auto weightTensorNumTiles = getWeightsTensorNumTiles(origOp, strategy);
+    auto weightsTableTensorDistributionMode = getWeightsTensorDistributionMode(origOp, strategy);
+    auto weightsTableTensorNumTiles = getWeightsTensorNumTiles(origOp, strategy);
+    auto activationWindowDistributionMode = getActivationWindowTensorDistributionMode(origOp, strategy, _arch);
+    auto activationWindowNumTiles = getActivationWindowTensorNumTiles(origOp, strategy, _arch);
     auto outputTensorDistributionMode = getOutputTensorDistributionMode(origOp, strategy);
+    auto outputTensorNumTiles = getOutputTensorNumTiles(origOp, strategy);
 
-    auto distributedActivationCopyOp =
-            createDistributedTensor(origOp, origOp.input(), activationTensorDistributionMode, activationTensorNumTiles);
+    auto distributedActivationCopyOp = createDistributedTensor(
+            origOp, origOp.input(), strategy, activationTensorDistributionMode, activationTensorNumTiles);
 
-    auto distributedWeightsCopyOp =
-            createDistributedTensor(origOp, origOp.filter(), weightsTensorDistributionMode, weightTensorNumTiles);
+    auto distributedWeightsCopyOp = createDistributedTensor(origOp, origOp.filter(), strategy,
+                                                            weightsTensorDistributionMode, weightTensorNumTiles);
 
-    auto distributedWeightTableCopyOp =
-            createDistributedTensor(origOp, origOp.weightsTable(), weightsTensorDistributionMode, weightTensorNumTiles);
+    auto distributedWeightTableCopyOp = createDistributedTensor(
+            origOp, origOp.weightsTable(), strategy, weightsTableTensorDistributionMode, weightsTableTensorNumTiles);
 
     auto distributedActivationWindowCopyOp = createDistributedTensor(
-            origOp, origOp.activationWindow(), weightsTensorDistributionMode, weightTensorNumTiles);
+            origOp, origOp.activationWindow(), strategy, activationWindowDistributionMode, activationWindowNumTiles);
 
-    auto distributedOutputTensorType = createDistributedTensorType(
-            origOp, origOp.output(), outputTensorDistributionMode, activationTensorNumTiles);
+    auto distributedOutputTensorType = createDistributedTensorType(origOp, origOp.output(), strategy,
+                                                                   outputTensorDistributionMode, outputTensorNumTiles);
 
     auto origOutput = origOp->getResult(0);
     const auto origOutType = origOutput.getType().cast<vpux::NDTypeInterface>();
@@ -203,8 +238,8 @@ mlir::LogicalResult NCEDepthConvolutionToNCEClusterTiling::matchAndRewrite(NCEDe
 
 class NCEMaxPoolToNCEClusterTiling final : public mlir::OpRewritePattern<NCEMaxPoolOp> {
 public:
-    NCEMaxPoolToNCEClusterTiling(mlir::MLIRContext* ctx, Logger log)
-            : mlir::OpRewritePattern<NCEMaxPoolOp>(ctx), _log(log) {
+    NCEMaxPoolToNCEClusterTiling(mlir::MLIRContext* ctx, VPU::ArchKind arch, Logger log)
+            : mlir::OpRewritePattern<NCEMaxPoolOp>(ctx), _arch(arch), _log(log) {
         setDebugName("NCEMaxPoolToNCEClusterTiling");
     }
 
@@ -212,6 +247,7 @@ public:
     mlir::LogicalResult matchAndRewrite(NCEMaxPoolOp origOp, mlir::PatternRewriter& rewriter) const final;
 
 private:
+    VPU::ArchKind _arch;
     Logger _log;
 };
 
@@ -226,18 +262,24 @@ mlir::LogicalResult NCEMaxPoolToNCEClusterTiling::matchAndRewrite(NCEMaxPoolOp o
     const auto strategy = origOp->getAttr(multiClusterStrategy).cast<mlir::StringAttr>().getValue();
     auto activationTensorDistributionMode = getActivationTensorDistributionMode(origOp, strategy);
     auto activationTensorNumTiles = getActivationTensorNumTiles(origOp, strategy);
+    auto weightsTableTensorDistributionMode = getWeightsTensorDistributionMode(origOp, strategy);
+    auto weightsTableTensorNumTiles = getWeightsTensorNumTiles(origOp, strategy);
+    auto activationWindowDistributionMode = getActivationWindowTensorDistributionMode(origOp, strategy, _arch);
+    auto activationWindowNumTiles = getActivationWindowTensorNumTiles(origOp, strategy, _arch);
+    auto outputTensorDistributionMode = getOutputTensorDistributionMode(origOp, strategy);
+    auto outputTensorNumTiles = getOutputTensorNumTiles(origOp, strategy);
 
-    auto distributedActivationCopyOp =
-            createDistributedTensor(origOp, origOp.input(), activationTensorDistributionMode, activationTensorNumTiles);
+    auto distributedActivationCopyOp = createDistributedTensor(
+            origOp, origOp.input(), strategy, activationTensorDistributionMode, activationTensorNumTiles);
 
     auto distributedWeightTableCopyOp = createDistributedTensor(
-            origOp, origOp.weightsTable(), activationTensorDistributionMode, activationTensorNumTiles);
+            origOp, origOp.weightsTable(), strategy, weightsTableTensorDistributionMode, weightsTableTensorNumTiles);
 
     auto distributedActivationWindowCopyOp = createDistributedTensor(
-            origOp, origOp.activationWindow(), activationTensorDistributionMode, activationTensorNumTiles);
+            origOp, origOp.activationWindow(), strategy, activationWindowDistributionMode, activationWindowNumTiles);
 
-    auto distributedOutputTensorType = createDistributedTensorType(
-            origOp, origOp.output(), activationTensorDistributionMode, activationTensorNumTiles);
+    auto distributedOutputTensorType = createDistributedTensorType(origOp, origOp.output(), strategy,
+                                                                   outputTensorDistributionMode, outputTensorNumTiles);
 
     auto origOutput = origOp->getResult(0);
     const auto origOutType = origOutput.getType().cast<vpux::NDTypeInterface>();
@@ -305,13 +347,13 @@ mlir::LogicalResult NCEEltwiseToNCEClusterTiling::matchAndRewrite(NCEEltwiseOp o
     auto activationTensorNumTiles = getActivationTensorNumTiles(origOp, strategy);
 
     auto distributedActivationCopyOp1 = createDistributedTensor(
-            origOp, origOp.input1(), activationTensorDistributionMode, activationTensorNumTiles);
+            origOp, origOp.input1(), strategy, activationTensorDistributionMode, activationTensorNumTiles);
 
     auto distributedActivationCopyOp2 = createDistributedTensor(
-            origOp, origOp.input2(), activationTensorDistributionMode, activationTensorNumTiles);
+            origOp, origOp.input2(), strategy, activationTensorDistributionMode, activationTensorNumTiles);
 
     auto distributedOutputTensorType = createDistributedTensorType(
-            origOp, origOp.output(), activationTensorDistributionMode, activationTensorNumTiles);
+            origOp, origOp.output(), strategy, activationTensorDistributionMode, activationTensorNumTiles);
 
     auto origOutput = origOp->getResult(0);
     const auto origOutType = origOutput.getType().cast<NDTypeInterface>();
@@ -370,11 +412,14 @@ void WrapMultiClusterLayersInNCEClusterTilingPass::safeRunOnFunc() {
     auto func = getFunction();
     auto& ctx = getContext();
 
+    auto module = func->getParentOfType<mlir::ModuleOp>();
+    const auto arch = VPU::getArch(module);
+
     mlir::RewritePatternSet patterns(&ctx);
 
-    patterns.insert<NCEConvolutionToNCEClusterTiling>(&ctx, _log);
-    patterns.insert<NCEDepthConvolutionToNCEClusterTiling>(&ctx, _log);
-    patterns.insert<NCEMaxPoolToNCEClusterTiling>(&ctx, _log);
+    patterns.insert<NCEConvolutionToNCEClusterTiling>(&ctx, arch, _log);
+    patterns.insert<NCEDepthConvolutionToNCEClusterTiling>(&ctx, arch, _log);
+    patterns.insert<NCEMaxPoolToNCEClusterTiling>(&ctx, arch, _log);
     patterns.insert<NCEEltwiseToNCEClusterTiling>(&ctx, _log);
 
     mlir::ConversionTarget target(ctx);
