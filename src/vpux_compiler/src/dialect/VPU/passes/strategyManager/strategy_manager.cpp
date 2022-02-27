@@ -58,14 +58,16 @@ void StrategyManager::assignMultiClusterStrategy() {
                     }
                 })
                 .Case<NCEConvolutionOp>([this](NCEConvolutionOp origOp) {
-                    // For WW10 channel major convolution will not be excecuted in multi-cluster mode
-                    // Only z-major convolution will be considered for multi-cluster mode
+                    // For WW10 only z-major convolution will be considered for multi-cluster mode
                     if (DimsOrder::fromValue(origOp.input()) == DimsOrder::NHWC) {
                         if (_convolutionStrategy.isOperationSplitOverHeightCompatible(origOp.getOperation()) &&
                             _convolutionStrategy.doesLayerFitIntoCMX(origOp.getOperation(), splitOverHeight)) {
                             setLayerStrategy(splitOverHeight, origOp.getOperation());
                         }
                     }
+                    _log.trace("Operation '{0}' at '{1}' is a channel major convolution which is currently not "
+                               "supported in multi-cluster mode ",
+                               origOp->getName(), origOp->getLoc());
                 })
                 .Case<NCEDepthConvolutionOp>([this](NCEDepthConvolutionOp origOp) {
                     if (_depthConvolutionStrategy.isOperationSplitOverHeightCompatible(origOp.getOperation()) &&
@@ -86,17 +88,17 @@ void StrategyManager::assignMultiClusterStrategy() {
 void StrategyManager::setLayerStrategy(StringRef strategy, mlir::Operation* origOp) const {
     if (strategy == splitOverHeightOverlapped) {
         origOp->setAttr(multiClusterStrategy, mlir::StringAttr::get(origOp->getContext(), "SplitOverHeightOverlapped"));
-        _log.trace("Assiging multi-cluster strategy '{0}' to layer '{1}'", strategy, origOp->getName());
+        _log.trace("Assigning multi-cluster strategy '{0}' to layer '{1}'", strategy, origOp->getName());
     } else if (strategy == splitOverHeight) {
         origOp->setAttr(multiClusterStrategy, mlir::StringAttr::get(origOp->getContext(), "SplitOverHeight"));
-        _log.trace("Assiging multi-cluster strategy '{0}' to layer '{1}'", strategy, origOp->getName());
+        _log.trace("Assigning multi-cluster strategy '{0}' to layer '{1}'", strategy, origOp->getName());
     } else if (strategy == splitOverKernel) {
         origOp->setAttr(multiClusterStrategy, mlir::StringAttr::get(origOp->getContext(), "SplitOverKernel"));
-        _log.trace("Assiging multi-cluster strategy '{0}' to layer '{1}'", strategy, origOp->getName());
+        _log.trace("Assigning multi-cluster strategy '{0}' to layer '{1}'", strategy, origOp->getName());
     } else if (strategy == clustering) {
         origOp->setAttr(multiClusterStrategy, mlir::StringAttr::get(origOp->getContext(), "Clustering"));
-        _log.trace("Assiging multi-cluster strategy '{0}' to layer '{1}'", strategy, origOp->getName());
+        _log.trace("Assigning multi-cluster strategy '{0}' to layer '{1}'", strategy, origOp->getName());
     } else {
-        VPUX_THROW("Attempting to assing an invalid strategy to operation {0}", origOp->getName());
+        VPUX_THROW("Attempting to assign an invalid strategy to operation {0}", origOp->getName());
     }
 }
