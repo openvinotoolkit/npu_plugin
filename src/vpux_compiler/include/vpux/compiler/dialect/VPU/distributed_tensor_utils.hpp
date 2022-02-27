@@ -241,7 +241,7 @@ DistributionMode getOutputTensorDistributionMode(ConcreteOp origOp, StringRef st
     } else if (strategy == splitOverHeight) {
         return DistributionMode::SEGMENTED;
     } else if (strategy == splitOverKernel) {
-        return DistributionMode::DUPLICATED;
+        return DistributionMode::SEGMENTED | DistributionMode::DUPLICATED;
     } else if (strategy == clustering) {
         return DistributionMode::DUPLICATED;
     } else {
