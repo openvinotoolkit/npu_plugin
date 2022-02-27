@@ -90,7 +90,7 @@ NCEClusterTilingOp createDistributedCopyIn(ConcreteOp origOp, mlir::Value input,
 }
 
 template <class ConcreteOp>
-DistributedTensorType createDistributedTensorType(ConcreteOp origOp, mlir::Value input,
+DistributedTensorType createDistributedTensorType(ConcreteOp origOp, mlir::Value input, StringRef strategy,
                                                   DistributionMode distributionMode, mlir::ArrayAttr numTiles) {
     DistributedTensorAttr distributedActivationTensorAttr;
     auto module = origOp->template getParentOfType<mlir::ModuleOp>();
@@ -123,6 +123,58 @@ DistributedTensorType createDistributedTensorType(ConcreteOp origOp, mlir::Value
 
     return DistributedTensorType::get(origOp.getContext(), shape.raw(), elemType, order, memSpace,
                                       distributedActivationTensorAttr);
+}
+
+template <class ConcreteOp>
+mlir::ArrayAttr getActivationWindowTensorNumTiles(ConcreteOp origOp, StringRef strategy, ArchKind arch) {
+    auto module = origOp->template getParentOfType<mlir::ModuleOp>();
+    auto nceOp = IE::getAvailableExecutor(module, ExecutorKind::NCE);
+    const auto numClusters = nceOp.count();
+    if (strategy == splitOverHeightOverlapped) {
+        return getIntArrayAttr(origOp.getContext(), makeArrayRef({1, 1, 1, 1}));
+    } else if (strategy == splitOverHeight) {
+        return getIntArrayAttr(origOp.getContext(), makeArrayRef({1, 1, 1, 1}));
+    } else if (strategy == splitOverKernel) {
+        if (arch == ArchKind::MTL) {
+            return getIntArrayAttr(origOp.getContext(), makeArrayRef({static_cast<int>(numClusters), 1, 1, 1}));
+        } else if (arch == ArchKind::KMB) {
+            return getIntArrayAttr(origOp.getContext(), makeArrayRef({1, 1, 1, 1}));
+        } else {
+            VPUX_THROW("Unsupported arch {0}", arch);
+        }
+    } else if (strategy == clustering) {
+        return getIntArrayAttr(origOp.getContext(), makeArrayRef({1, 1, 1, 1}));
+    } else {
+        VPUX_THROW("Operation {0} was not assigned a valid multi-cluster strategy, unable to determine the number of "
+                   "tiles "
+                   "for the activation window tensor",
+                   origOp->getName());
+    }
+}
+
+template <class ConcreteOp>
+DistributionMode getActivationWindowTensorDistributionMode(ConcreteOp origOp, StringRef strategy, ArchKind arch) {
+    if (strategy == splitOverHeightOverlapped) {
+        return DistributionMode::DUPLICATED;
+    } else if (strategy == splitOverHeight) {
+        return DistributionMode::DUPLICATED;
+    } else if (strategy == splitOverKernel) {
+        if (arch == ArchKind::MTL) {
+            return DistributionMode::SEGMENTED;
+        } else if (arch == ArchKind::KMB) {
+            return DistributionMode::DUPLICATED;
+        } else {
+            VPUX_THROW("Unsupported arch {0}", arch);
+        }
+    } else if (strategy == clustering) {
+        return DistributionMode::DUPLICATED;
+    } else {
+        VPUX_THROW(
+                "Operation {0} was not assigned a valid multi-cluster strategy, unable to determine the distribution "
+                "mode "
+                "for the activation window tensor",
+                origOp->getName());
+    }
 }
 
 }  // namespace VPU
