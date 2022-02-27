@@ -81,9 +81,10 @@ inline PaddingAttr getPad<NCEEltwiseOp>(NCEEltwiseOp) {
 }
 
 template <class ConcreteOp>
-NCEClusterTilingOp createDistributedTensor(ConcreteOp origOp, mlir::Value input, DistributionMode distributionMode,
-                                           mlir::ArrayAttr numTiles) {
-    auto inputTensorDistributedTensorType = createDistributedTensorType(origOp, input, distributionMode, numTiles);
+NCEClusterTilingOp createDistributedTensor(ConcreteOp origOp, mlir::Value input, StringRef strategy,
+                                           DistributionMode distributionMode, mlir::ArrayAttr numTiles) {
+    auto inputTensorDistributedTensorType =
+            createDistributedTensorType(origOp, input, strategy, distributionMode, numTiles);
 
     mlir::OpBuilder builder(origOp);
     builder.setInsertionPoint(origOp);
@@ -101,20 +102,26 @@ NCEClusterTilingOp createDistributedTensor(ConcreteOp origOp, mlir::Value input,
 }
 
 template <class ConcreteOp>
-DistributedTensorType createDistributedTensorType(ConcreteOp origOp, mlir::Value input,
+DistributedTensorType createDistributedTensorType(ConcreteOp origOp, mlir::Value input, StringRef strategy,
                                                   DistributionMode distributionMode, mlir::ArrayAttr numTiles) {
-    const auto activationTensorDistributionModeAttr = DistributionModeAttr::get(origOp.getContext(), distributionMode);
-
-    auto kernel = getKernelSize(origOp);
-    auto stride = getStride(origOp);
-    auto pad = getPad(origOp);
+    DistributedTensorAttr distributedactivationTensorAttr;
     auto module = origOp->template getParentOfType<mlir::ModuleOp>();
     auto nceOp = IE::getAvailableExecutor(module, ExecutorKind::NCE);
-
     const auto numClusters = getIntAttr(origOp.getContext(), nceOp.count());
+    const auto activationTensorDistributionModeAttr = DistributionModeAttr::get(origOp.getContext(), distributionMode);
 
-    auto distributedactivationTensorAttr = DistributedTensorAttr::get(
-            activationTensorDistributionModeAttr, numTiles, kernel, pad, stride, numClusters, origOp.getContext());
+    if (strategy == splitOverHeightOverlapped) {
+        auto kernel = getKernelSize(origOp);
+        auto stride = getStride(origOp);
+        auto pad = getPad(origOp);
+
+        distributedactivationTensorAttr = DistributedTensorAttr::get(
+                activationTensorDistributionModeAttr, numTiles, kernel, pad, stride, numClusters, origOp.getContext());
+    } else {
+        distributedactivationTensorAttr =
+                DistributedTensorAttr::get(activationTensorDistributionModeAttr, numTiles, nullptr, nullptr, nullptr,
+                                           numClusters, origOp.getContext());
+    }
 
     const auto shape = getShape(input);
     const auto memSpace = vpux::IndexedSymbolAttr::get(MemoryKindAttr::get(origOp.getContext(), MemoryKind::CMX_NN));
@@ -128,9 +135,9 @@ DistributedTensorType createDistributedTensorType(ConcreteOp origOp, mlir::Value
 
 template <class ConcreteOp>
 mlir::ArrayAttr getActivationTensorNumTiles(ConcreteOp origOp, StringRef strategy) {
-    // auto module = origOp->template getParentOfType<mlir::ModuleOp>();
-    // auto nceOp = IE::getAvailableExecutor(module, ExecutorKind::NCE);
-    const auto numClusters = 4;
+    auto module = origOp->template getParentOfType<mlir::ModuleOp>();
+    auto nceOp = IE::getAvailableExecutor(module, ExecutorKind::NCE);
+    const auto numClusters = nceOp.count();
     if (strategy == splitOverHeightOverlapped) {
         return getIntArrayAttr(origOp.getContext(), makeArrayRef({1, 1, static_cast<int>(numClusters), 1}));
     } else if (strategy == splitOverHeight) {
@@ -149,9 +156,9 @@ mlir::ArrayAttr getActivationTensorNumTiles(ConcreteOp origOp, StringRef strateg
 
 template <class ConcreteOp>
 mlir::ArrayAttr getOutputTensorNumTiles(ConcreteOp origOp, StringRef strategy) {
-    // auto module = origOp->template getParentOfType<mlir::ModuleOp>();
-    // auto nceOp = IE::getAvailableExecutor(module, ExecutorKind::NCE);
-    const auto numClusters = 4;
+    auto module = origOp->template getParentOfType<mlir::ModuleOp>();
+    auto nceOp = IE::getAvailableExecutor(module, ExecutorKind::NCE);
+    const auto numClusters = nceOp.count();
     if (strategy == splitOverHeightOverlapped) {
         return getIntArrayAttr(origOp.getContext(), makeArrayRef({1, 1, static_cast<int>(numClusters), 1}));
     } else if (strategy == splitOverHeight) {
@@ -170,9 +177,9 @@ mlir::ArrayAttr getOutputTensorNumTiles(ConcreteOp origOp, StringRef strategy) {
 
 template <class ConcreteOp>
 mlir::ArrayAttr getWeightsTensorNumTiles(ConcreteOp origOp, StringRef strategy) {
-    // auto module = origOp->template getParentOfType<mlir::ModuleOp>();
-    // auto nceOp = IE::getAvailableExecutor(module, ExecutorKind::NCE);
-    const auto numClusters = 4;
+    auto module = origOp->template getParentOfType<mlir::ModuleOp>();
+    auto nceOp = IE::getAvailableExecutor(module, ExecutorKind::NCE);
+    const auto numClusters = nceOp.count();
     if (strategy == splitOverHeightOverlapped) {
         return getIntArrayAttr(origOp.getContext(), makeArrayRef({1, 1, 1, 1}));
     } else if (strategy == splitOverHeight) {
@@ -242,6 +249,58 @@ DistributionMode getOutputTensorDistributionMode(ConcreteOp origOp, StringRef st
                 "Operation {0} was not assigned a valid multi-cluster strategy, unable to determine the distribution "
                 "mode "
                 "for the output tensor",
+                origOp->getName());
+    }
+}
+
+template <class ConcreteOp>
+mlir::ArrayAttr getActivationWindowTensorNumTiles(ConcreteOp origOp, StringRef strategy, ArchKind arch) {
+    auto module = origOp->template getParentOfType<mlir::ModuleOp>();
+    auto nceOp = IE::getAvailableExecutor(module, ExecutorKind::NCE);
+    const auto numClusters = nceOp.count();
+    if (strategy == splitOverHeightOverlapped) {
+        return getIntArrayAttr(origOp.getContext(), makeArrayRef({1, 1, 1, 1}));
+    } else if (strategy == splitOverHeight) {
+        return getIntArrayAttr(origOp.getContext(), makeArrayRef({1, 1, 1, 1}));
+    } else if (strategy == splitOverKernel) {
+        if (arch == ArchKind::MTL) {
+            return getIntArrayAttr(origOp.getContext(), makeArrayRef({static_cast<int>(numClusters), 1, 1, 1}));
+        } else if (arch == ArchKind::KMB) {
+            return getIntArrayAttr(origOp.getContext(), makeArrayRef({1, 1, 1, 1}));
+        } else {
+            VPUX_THROW("Unsupported arch {0}", arch);
+        }
+    } else if (strategy == clustering) {
+        return getIntArrayAttr(origOp.getContext(), makeArrayRef({1, 1, 1, 1}));
+    } else {
+        VPUX_THROW("Operation {0} was not assigned a valid multi-cluster strategy, unable to determine the number of "
+                   "tiles "
+                   "for the activation window tensor",
+                   origOp->getName());
+    }
+}
+
+template <class ConcreteOp>
+DistributionMode getActivationWindowTensorDistributionMode(ConcreteOp origOp, StringRef strategy, ArchKind arch) {
+    if (strategy == splitOverHeightOverlapped) {
+        return DistributionMode::DUPLICATED;
+    } else if (strategy == splitOverHeight) {
+        return DistributionMode::DUPLICATED;
+    } else if (strategy == splitOverKernel) {
+        if (arch == ArchKind::MTL) {
+            return DistributionMode::SEGMENTED;
+        } else if (arch == ArchKind::KMB) {
+            return DistributionMode::DUPLICATED;
+        } else {
+            VPUX_THROW("Unsupported arch {0}", arch);
+        }
+    } else if (strategy == clustering) {
+        return DistributionMode::DUPLICATED;
+    } else {
+        VPUX_THROW(
+                "Operation {0} was not assigned a valid multi-cluster strategy, unable to determine the distribution "
+                "mode "
+                "for the activation window tensor",
                 origOp->getName());
     }
 }
