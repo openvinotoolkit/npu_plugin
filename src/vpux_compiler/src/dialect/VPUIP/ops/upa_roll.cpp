@@ -17,19 +17,39 @@
 
 using namespace vpux;
 
+mlir::LogicalResult vpux::VPUIP::verifyOp(RollUPAOp op) {
+    
+    const auto inShape_shift = getShape(op.shift());
+
+    if (inShape_shift.size() != 1 ) {
+        return errorAt(op, "Dimension of the input shift should be 1D tensor. Got {0} D tensor", inShape_shift.size());
+    }
+
+    const auto inShape_axes = getShape(op.axes());
+
+    if (inShape_axes.size() != 1 ) {
+        return errorAt(op, "Dimension of the input axes should be 1D tensor. Got {0} D tensor", inShape_axes.size());
+    }
+
+    return mlir::success();
+}
+
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::RollUPAOp::serialize(VPUIP::BlobWriter& writer) {
     MVCNN::RollParamsBuilder builder(writer);
-    builder.add_axis(checked_cast<int32_t>(axis()));
+    
+   //builder.add... ;
+
     const auto paramsOff = builder.Finish();
     return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_RollParams});
 }
 
-mlir::Operation* vpux::VPUIP::BlobReader::parseRoll(mlir::OpBuilder& builder, ArrayRef<mlir::Value> inputs,
-                                                              ArrayRef<mlir::Value> outputs,
-                                                              const MVCNN::UPALayerTask* task) {
-    VPUX_THROW_UNLESS(inputs.size() == 3, "RollUPA supports only 3 inputs", inputs.size());
-    VPUX_THROW_UNLESS(outputs.size() == 1, "RollUPA supports only 1 output", outputs.size());
+// mlir::Operation* vpux::VPUIP::BlobReader::parseRoll(mlir::OpBuilder& builder, ArrayRef<mlir::Value> inputs,
+//                                                               ArrayRef<mlir::Value> outputs
+//                                                               /* , const MVCNN::UPALayerTask* task */ ) {
+//     VPUX_THROW_UNLESS(inputs.size() == 3, "RollUPA supports only 3 inputs", inputs.size());
+//     VPUX_THROW_UNLESS(outputs.size() == 1, "RollUPA supports only 1 output", outputs.size());
 
-    return builder.create<VPUIP::RollUPAOp>(mlir::UnknownLoc::get(_ctx), inputs[0], inputs[1], inputs[3], outputs[0],
-                                                      axis);
-}
+//   //  const auto params = task->softLayerParams_as_RollParams();
+
+//     return builder.create<VPUIP::RollUPAOp>(mlir::UnknownLoc::get(_ctx), inputs[0], inputs[1], inputs[3], outputs[0] );
+// }

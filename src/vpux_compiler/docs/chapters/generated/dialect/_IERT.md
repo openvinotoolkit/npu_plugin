@@ -2617,6 +2617,36 @@ operation ::= `IERT.ReverseSequence` attr-dict
 | :----: | ----------- |
 `output` | memref of 16-bit float values
 
+### `IERT.Roll` (vpux::IERT::RollOp)
+
+InferenceEngine run-time Roll layer
+
+
+Syntax:
+
+```
+operation ::= `IERT.Roll` attr-dict
+              `inputs` `(` $data `:` type($data) `,` $shift `:` type($shift) `,` $axes `:` type($axes) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`data` | memref of any type values
+`shift` | memref of 64-bit signless integer or 32-bit signless integer values
+`axes` | memref of 64-bit signless integer or 32-bit signless integer values
+`output_buff` | memref of any type values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of any type values
+
 ### `IERT.Round` (vpux::IERT::RoundOp)
 
 InferenceEngine run-time Round layer
@@ -3332,33 +3362,4 @@ operation ::= `IERT.YuvToRgb` attr-dict
 | Result | Description |
 | :----: | ----------- |
 `output` | memref of 8-bit signless integer or 16-bit float or 32-bit float values
-
-### `IERT.Roll` (vpux::IERT::RollOp)
-
-InferenceEngine run-time Roll layer
-
-
-Syntax:
-
-```
-operation ::= `IERT.Roll` attr-dict
-              `inputs` `(` $input `:` type($input) `)`
-              `outputs` `(` $output_buff `:` type($output_buff) `)`
-              `->` type(results)
-```
-
-
-#### Operands:
-
-| Operand | Description |
-| :-----: | ----------- |
-`data` | memref of any type values
-`shift` | memref of integer values
-`axes` | memref of integer values
-
-#### Results:
-
-| Result | Description |
-| :----: | ----------- |
-`output` |  memref of any type values
 

@@ -2096,8 +2096,7 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
     addOutputs(origNode, op);
 }
 
-void NGraphImporter::parseNode(mlir::OpBuilder& builder,
-                               const std::shared_ptr<opset_latest::Roll>& origNode) {
+void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Roll>& origNode) {
     static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v7::Roll>::value,
                   "opset operation mismatch");
 
@@ -2105,7 +2104,7 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder,
     VPUX_THROW_UNLESS(inputs.size() == 3, "nGraph Roll node '{0}' has unsupported number of inputs '{1}'",
                       origNode->get_friendly_name(), inputs.size());
 
-    auto op = builder.create<IE::GatherElementsOp>(createLocation(origNode), inputs[0], inputs[1], inputs[2]);
+    auto op = builder.create<IE::RollOp>(createLocation(origNode), inputs[0], inputs[1], inputs[2]);
     addOutputs(origNode, op);
 }
 

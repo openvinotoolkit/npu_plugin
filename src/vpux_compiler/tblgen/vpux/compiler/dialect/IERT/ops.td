@@ -3409,6 +3409,10 @@ def IERT_YuvToRgbOp :
     }];
 }
 
+//
+// RollOp
+//
+
 def IERT_RollOp :
         IERT_LayerOp<1, "Roll",
             [
@@ -3430,7 +3434,7 @@ def IERT_RollOp :
 
         let assemblyFormat = [{
             attr-dict
-            `inputs` `(` $input `:` type($input) `,` $indices `:` type($indices) `)`
+            `inputs` `(` $data `:` type($data) `,` $shift `:` type($shift) `,` $axes `:` type($axes) `)`
             `outputs` `(` $output_buff `:` type($output_buff) `)`
             `->` type(results)
         }];

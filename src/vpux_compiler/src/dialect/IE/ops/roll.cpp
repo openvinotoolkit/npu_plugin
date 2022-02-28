@@ -12,6 +12,8 @@
 //
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
+#include "vpux/compiler/dialect/IE/utils/shape_infer.hpp"
+#include "vpux/compiler/dialect/IE/utils/reduce_infer.hpp"
 
 using namespace vpux;
 
@@ -26,9 +28,17 @@ mlir::LogicalResult vpux::IE::RollOp::inferReturnTypeComponents(
         return mlir::failure();
     }
 
+    //TODO
+    
     const auto inType = roll.data().getType().cast<mlir::ShapedType>();
-    //todo
-    inferredReturnShapes.emplace_back(inType.getShape(), inType.getElementType());
+    //const auto inShape = inType.getShape();
+    
+    // auto shiftType = IE::constInputToData(loc, roll.shift()).getValue();
+    //  auto axesType = IE::constInputToData(loc, roll.axes()).getValue();
+
+    //SmallVector<int64_t> outShape;
+    
+    inferredReturnShapes.emplace_back(inType.getElementType());
 
     return mlir::success();
 }

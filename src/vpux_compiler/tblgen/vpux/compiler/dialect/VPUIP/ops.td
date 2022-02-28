@@ -3222,10 +3222,15 @@ def VPUIP_RollUPAOp :
 
     let assemblyFormat = [{
         attr-dict
-        `inputs` `(` $input `:` type($input) `,` $indices `:` type($indices) `)`
+        `inputs` `(` $data `:` type($data) `,` $shift `:` type($shift) `,` $axes `:` type($axes) `)`
         `outputs` `(` $output_buff `:` type($output_buff) `)`
         `->` type(results)
     }];
+
+    let verifier = [{
+        return vpux::VPUIP::verifyOp(*this);
+    }];
+
 }
 
 #endif
