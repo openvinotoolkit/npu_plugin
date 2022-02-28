@@ -2963,7 +2963,8 @@ def VPUIP_NCEClusterTilingOp :
                 MemoryEffectsOpInterface,
                 DeclareOpInterfaceMethods<IERT_LayerOpInterface>,
                 DeclareOpInterfaceMethods<RegionBranchOpInterface,
-                    ["getSuccessorEntryOperands", "getNumRegionInvocations"]>
+                    ["getSuccessorEntryOperands", "getNumRegionInvocations"]>,
+                IERT_AsyncLayerOpInterface
             ]
         > {
     let summary = "Operation that encapsulates details of tiling operation between clusters";
@@ -2996,6 +2997,8 @@ def VPUIP_NCEClusterTilingOp :
         mlir::Operation* getInnerTaskOp();
         mlir::MutableArrayRef<mlir::BlockArgument> getInnerInputs();
         mlir::MutableArrayRef<mlir::BlockArgument> getInnerOutputs();
+
+        vpux::IndexedSymbolAttr getExecutor();
     }];
 }
 

@@ -13,6 +13,8 @@
 
 #include "vpux/compiler/utils/analysis.hpp"
 
+#include "vpux/compiler/dialect/VPUIP/ops.hpp"
+
 #include "vpux/utils/core/error.hpp"
 
 #include <mlir/IR/BuiltinTypes.h>
@@ -46,7 +48,7 @@ bool vpux::isBufAllocOp(mlir::Operation* op) {
         return false;
     }
 
-    if (!op->getResult(0).getType().isa<mlir::MemRefType>()) {
+    if (!op->getResult(0).getType().isa<mlir::MemRefType, VPUIP::DistributedBufferType>()) {
         return false;
     }
 
