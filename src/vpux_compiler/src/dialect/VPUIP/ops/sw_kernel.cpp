@@ -93,19 +93,19 @@ IERT::KernelInfo SwKernelOp::getKernelInfo(mlir::Operation* origOp) {
             })
             .Case<IERT::InterpolateOp>([&](IERT::InterpolateOp Interpolate) {
                 const auto mode = static_cast<int>(Interpolate.modeAttr().getValue());
-                const auto coord_mode = static_cast<int>(Interpolate.coord_modeAttr().getValue());
-                const auto nearest_mode = static_cast<int>(Interpolate.nearest_modeAttr().getValue());
+                const auto coordMode = static_cast<int>(Interpolate.coord_modeAttr().getValue());
+                const auto nearestMode = static_cast<int>(Interpolate.nearest_modeAttr().getValue());
                 const auto antialias = static_cast<bool>(Interpolate.antialiasAttr() != nullptr);
 
                 const auto modeAttr = getIntAttr(ctx, mode);
-                const auto coord_modeAttr = getIntAttr(ctx, coord_mode);
-                const auto nearest_modeAttr = getIntAttr(ctx, nearest_mode);
+                const auto coordModeAttr = getIntAttr(ctx, coordMode);
+                const auto nearestModeAttr = getIntAttr(ctx, nearestMode);
                 const auto antialiasAttr = getIntAttr(ctx, antialias);
 
                 return IERT::KernelInfo{SmallVector<mlir::Attribute>{
                                                                     modeAttr,
-                                                                    coord_modeAttr,
-                                                                    nearest_modeAttr,
+                                                                    coordModeAttr,
+                                                                    nearestModeAttr,
                                                                     antialiasAttr
                                                                     },
                                         {"singleShaveInterpolate"},
