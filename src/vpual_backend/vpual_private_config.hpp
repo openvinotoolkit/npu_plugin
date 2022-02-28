@@ -12,13 +12,13 @@
 //
 
 /**
- * 
+ *
  * @deprecated Configuration API v1.0 would be deprecated in 2023.1 release.
  * It was left due to backward compatibility needs.
  * As such usage of this version of API is discouraged.
  * Prefer Configuration API v2.0.
- * 
-*/
+ *
+ */
 
 #pragma once
 

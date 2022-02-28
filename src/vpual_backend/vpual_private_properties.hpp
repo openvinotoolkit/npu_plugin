@@ -13,9 +13,9 @@
 
 #pragma once
 
+#include <openvino/runtime/properties.hpp>
 #include <string>
 #include <vpux/vpux_plugin_config.hpp>
-#include <openvino/runtime/properties.hpp>
 
 namespace ov {
 namespace intel_vpux {
@@ -35,5 +35,5 @@ static constexpr Property<bool> repack_input_layout{"VPUX_VPUAL_REPACK_INPUT_LAY
  */
 static constexpr Property<int64_t> vpual_inference_shaves{"VPUX_VPUAL_INFERENCE_SHAVES"};
 
-}  // namespace inte_vpux
+}  // namespace intel_vpux
 }  // namespace ov
