@@ -61,11 +61,10 @@ mlir::LogicalResult CopyOpSequence::matchAndRewrite(IERT::CopyOp copyOp, mlir::P
         // Remove redundant CMX2CMX CopyOps
         if (srcMemory == dstMemory && srcMemory == VPU::MemoryKind::CMX_NN) {
             // CMX Concat case with subView, update the buffers used
-            auto copySubView = copyOp.output_buff().getDefiningOp<IERT::SubViewOp>();
-            if (copySubView != nullptr) {
-                // retrieve operations to be re-linked
-                auto parentNCE = copyOp.input().getDefiningOp<VPUIP::NCEClusterTaskOp>();
-                if (parentNCE == nullptr) {
+            if (auto copySubView = copyOp.output_buff().getDefiningOp<IERT::SubViewOp>()) {
+                // case with subView - retrieve operations to be re-linked
+                auto parentOp = copyOp.input().getDefiningOp<IERT::LayerOpInterface>();
+                if (parentOp == nullptr) {
                     return mlir::failure();
                 }
                 auto masterBuffer = copySubView.source().getDefiningOp<mlir::memref::AllocOp>();
@@ -73,20 +72,25 @@ mlir::LogicalResult CopyOpSequence::matchAndRewrite(IERT::CopyOp copyOp, mlir::P
                     return mlir::failure();
                 }
                 // replace the copy with the subView
-                copySubView->moveAfter(parentNCE.input().getDefiningOp());
-                parentNCE.output().setType(copySubView.getType());
-                parentNCE.output_buff().replaceAllUsesWith(copySubView);
+                copySubView->moveAfter(parentOp->getOperand(0).getDefiningOp());
+                parentOp->getResult(0).setType(copySubView.getType());
+                if (auto parentNCE = copyOp.input().getDefiningOp<VPUIP::NCEClusterTaskOp>()) {
+                    parentNCE.output_buff().replaceAllUsesWith(copySubView);
+                }
                 copyOp.output().replaceAllUsesWith(copyOp.input());
 
                 // update IR location of the master buffer
                 if (copySubView->isBeforeInBlock(masterBuffer)) {
                     masterBuffer->moveBefore(copySubView);
                 }
-            } else {
+                rewriter.eraseOp(copyOp);
+            } else if (copyOp.input().getType() == copyOp.output().getType()) {
                 // case with no subView
                 copyOp.output().replaceAllUsesWith(copyOp.input());
+                rewriter.eraseOp(copyOp);
+            } else {
+                _log.trace("Copy not optimized {0}", copyOp->getLoc());
             }
-            rewriter.eraseOp(copyOp);
             return mlir::success();
         }
 
