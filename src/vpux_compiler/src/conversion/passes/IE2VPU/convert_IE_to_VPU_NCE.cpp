@@ -115,10 +115,10 @@ mlir::LogicalResult ConvToNCE::matchAndRewrite(IE::ConvolutionOp origOp, mlir::P
 
         const auto fakeSparsity = VPU::NCESparsity::getFakeSparsity(VPU::NCESparsity::Mode::CM_CONV, kernelSize,
                                                                     kernelStrides[Dims4D::Strides::X],
-                                                                    origInputType.getElementType(), IC, OC);
+                                                                    origInputType.getElementType(), IC, 1);
 
         activationWindowChannelLength = getIntAttr(getContext(), bitPatternSize);
-        activationWindow = VPU::createActivationWindowTensor(rewriter, origOp->getLoc(), fakeSparsity, OC);
+        activationWindow = VPU::createActivationWindowTensor(rewriter, origOp->getLoc(), fakeSparsity, 1);
 
         filter = VPU::alignChannelMajorWeightsTensor(rewriter, origOp->getLoc(), filter);
     }
@@ -202,10 +202,10 @@ mlir::LogicalResult DepthConvToNCE::matchAndRewrite(IE::GroupConvolutionOp origO
                                                 kernelStrides[Dims4D::Strides::X], origInputType.getElementType(), IC);
     const auto activationWindowChannelLength = getIntAttr(getContext(), bitPatternSize);
 
-    const auto fakeSparsity = VPU::NCESparsity::getFakeSparsity(VPU::NCESparsity::Mode::DW_CONV, kernelSize,
-                                                                kernelStrides[Dims4D::Strides::X],
-                                                                origInputType.getElementType(), IC, OC);
-    const auto activationWindow = VPU::createActivationWindowTensor(rewriter, origOp->getLoc(), fakeSparsity, OC);
+    const auto fakeSparsity =
+            VPU::NCESparsity::getFakeSparsity(VPU::NCESparsity::Mode::DW_CONV, kernelSize,
+                                              kernelStrides[Dims4D::Strides::X], origInputType.getElementType(), IC, 1);
+    const auto activationWindow = VPU::createActivationWindowTensor(rewriter, origOp->getLoc(), fakeSparsity, 1);
 
     Const::ContentAttr bias;
     if (origOp.bias() != nullptr) {
@@ -292,10 +292,10 @@ mlir::LogicalResult MaxPoolToNCE::matchAndRewrite(IE::MaxPoolOp origOp, mlir::Pa
                                                 kernelStrides[Dims4D::Strides::X], origInputType.getElementType(), IC);
 
     // Generate activation window
-    const auto fakeSparsity = VPU::NCESparsity::getFakeSparsity(VPU::NCESparsity::Mode::POOL, kernelSize,
-                                                                kernelStrides[Dims4D::Strides::X],
-                                                                origInputType.getElementType(), IC, IC);
-    const auto activationWindow = VPU::createActivationWindowTensor(rewriter, origOp->getLoc(), fakeSparsity, IC);
+    const auto fakeSparsity =
+            VPU::NCESparsity::getFakeSparsity(VPU::NCESparsity::Mode::POOL, kernelSize,
+                                              kernelStrides[Dims4D::Strides::X], origInputType.getElementType(), IC, 1);
+    const auto activationWindow = VPU::createActivationWindowTensor(rewriter, origOp->getLoc(), fakeSparsity, 1);
     const auto activationWindowChannelLength = getIntAttr(getContext(), static_cast<uint32_t>(bitPatternSize));
 
     // Generate weights table
