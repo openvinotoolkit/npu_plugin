@@ -86,7 +86,7 @@ IERT::KernelInfo SwKernelOp::getKernelInfo(mlir::Operation* origOp) {
             .Case<IERT::SoftMaxOp>([&](IERT::SoftMaxOp softmax) {
                 // input tensor, to transform axis
                 const auto axisParam = computeReverseMemDim(softmax.input(), softmax.axisInd());
-                const auto axisParamAttr = getIntAttr(softmax.getContext(), axisParam);
+                const auto axisParamAttr = getIntAttr(ctx, axisParam);
                 return IERT::KernelInfo{SmallVector<mlir::Attribute>{axisParamAttr},
                                         {"singleShaveSoftmax"},
                                         {"single_shave_softmax.cpp"}};
