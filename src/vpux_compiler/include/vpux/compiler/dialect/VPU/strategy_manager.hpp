@@ -78,7 +78,7 @@ private:
     double getOperationSOKEfficiency(ConcreteOp op) const;
     template <class ConcreteOp>
     double depthwiseConvolutionTotalDataTransfer(ConcreteOp origOp, const llvm::StringRef strategy) const;
-    double dpuComputeTime(mlir::Operation* op, multiClusterStrategyRange Strategy);
+    double clusterComputeTime(mlir::Operation* op, multiClusterStrategyRange Strategy);
     double dmaTime(mlir::Operation* op, multiClusterStrategyRange Strategy);
 
     double computeLayerSplitOverHeightEfficency(mlir::Operation* op) const;
