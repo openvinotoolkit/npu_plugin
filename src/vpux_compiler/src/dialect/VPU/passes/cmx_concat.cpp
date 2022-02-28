@@ -47,6 +47,11 @@ public:
     // Storing Concat use chain consisting of NCE -> (Slice) -> Copy -> Concat
     // or Concat -> (Slice) -> Copy -> NCE
     struct ConcatPart {
+        IE::CopyOp copyOp;
+        IE::SliceOp sliceOp;
+        VPU::NCEOpInterface nceOp;
+        size_t inputIdx;
+
         ConcatPart(IE::CopyOp copy, IE::SliceOp slice, VPU::NCEOpInterface nce, size_t idx)
                 : copyOp(copy), sliceOp(slice), nceOp(nce), inputIdx(idx) {
         }
@@ -56,15 +61,15 @@ public:
         bool hasSliceOp() {
             return sliceOp != nullptr;
         }
-        IE::CopyOp copyOp;
-        IE::SliceOp sliceOp;
-        VPU::NCEOpInterface nceOp;
-        size_t inputIdx;
     };
 
     // Stores multiple Concat parts for a given Concat
     struct ConcatPattern {
-        ConcatPattern(): concat(nullptr) {
+        SmallVector<ConcatPart> concatParts;
+        IE::ConcatOp concat;
+        Logger _log;
+
+        ConcatPattern(Logger log): concat(nullptr), _log(log) {
         }
         void setConcat(IE::ConcatOp rootConcat) {
             concat = rootConcat;
@@ -76,8 +81,13 @@ public:
             return concat != nullptr;
         }
 
-        SmallVector<ConcatPart> concatParts;
-        IE::ConcatOp concat;
+        size_t getSize(mlir::Value val);
+        bool concatFitsInCMX(size_t cmxSize);
+        bool inputsHaveMultipleUsers();
+        bool inputPatternCanBeCMXed(size_t cmxSize);
+        bool childOpsFitInCMX(size_t parallelConsumerCount, size_t cmxSize);
+        size_t getParallelConsumerCount();
+        bool outputPatternCanBeCMXed(size_t cmxSize);
     };
 
 private:
@@ -88,27 +98,20 @@ private:
     int64_t WEIGHT_TABLE_NUM_ELEMENTS_PER_OC = 4;
 
 private:
-    size_t getSize(mlir::Value val);
-    ConcatPattern getInputPattern(IE::ConcatOp concat);
     bool isSplitSupportedOnDPU(IE::SliceOp sliceOp);
+    ConcatPattern getInputPattern(IE::ConcatOp concat);
     ConcatPattern getOutputPattern(IE::ConcatOp concat);
-    bool concatFitsInCMX(ConcatPattern concatPattern, size_t cmxSize);
-    bool inputsHaveMultipleUsers(ConcatPattern concatPattern);
-    bool inputPatternCanBeCMXed(ConcatPattern concatPattern, size_t cmxSize);
-    bool childOpsFitInCMX(ConcatPattern concatPattern, size_t parallelConsumerCount, size_t cmxSize);
-    size_t getParallelConsumerCount(ConcatPattern concatPattern);
-    bool outputPatternCanBeCMXed(ConcatPattern concatPattern, size_t cmxSize);
     IE::SliceOp convertCopyToSlice(IE::CopyOp copyOp);
     void rewriteInputPattern(ConcatPattern concatPattern);
     void rewriteOutputPattern(ConcatPattern concatPattern);
 };
 
-size_t CMXConcatPass::getSize(mlir::Value val) {
+size_t CMXConcatPass::ConcatPattern::getSize(mlir::Value val) {
     return static_cast<size_t>(getTotalSize(val).count());
 }
 
 CMXConcatPass::ConcatPattern CMXConcatPass::getInputPattern(IE::ConcatOp concat) {
-    ConcatPattern concatPattern;
+    ConcatPattern concatPattern(_log);
     // store all required input info in a struct
     for (size_t inputIdx = 0; inputIdx < concat.inputs().size(); inputIdx++) {
         auto input = concat.getOperand(static_cast<int>(inputIdx));
@@ -172,7 +175,7 @@ bool CMXConcatPass::isSplitSupportedOnDPU(IE::SliceOp silceOp) {
 }
 
 CMXConcatPass::ConcatPattern CMXConcatPass::getOutputPattern(IE::ConcatOp concat) {
-    ConcatPattern concatPattern;
+    ConcatPattern concatPattern(_log);
     // store all required output info in a struct
     for (auto user : concat.output().getUsers()) {
         auto outputSliceOp = mlir::dyn_cast<IE::SliceOp>(user);
@@ -216,16 +219,16 @@ CMXConcatPass::ConcatPattern CMXConcatPass::getOutputPattern(IE::ConcatOp concat
     return concatPattern;
 }
 
-bool CMXConcatPass::concatFitsInCMX(ConcatPattern concatPattern, size_t cmxSize) {
+bool CMXConcatPass::ConcatPattern::concatFitsInCMX(size_t cmxSize) {
     // check if the concat can fit in CMX
     // in order to CMX a concat the entire output buffer + inputs for the
     // largest tile must fit in CMX at the same time
-    size_t concatSize = getSize(concatPattern.concat.getResult());
+    size_t concatSize = getSize(concat.getResult());
     size_t maxUserSize = 0;
     size_t currUserSize = 0;
 
     // from all users find the one with the largest size
-    for (auto concatPart : concatPattern.concatParts) {
+    for (auto concatPart : concatParts) {
         currUserSize = 0;
         // consts (weights table and activation window) already exists
         for (auto input : concatPart.nceOp->getOperands()) {
@@ -239,10 +242,10 @@ bool CMXConcatPass::concatFitsInCMX(ConcatPattern concatPattern, size_t cmxSize)
     return (concatSize + maxUserSize) <= cmxSize;
 }
 
-bool CMXConcatPass::inputsHaveMultipleUsers(ConcatPattern concatPattern) {
+bool CMXConcatPass::ConcatPattern::inputsHaveMultipleUsers() {
     // avoid concats which are complex, where the inputs to the concat are used
     // by other operations
-    for (auto concatPart : concatPattern.concatParts) {
+    for (auto concatPart : concatParts) {
         for (auto result : concatPart.nceOp->getResults()) {
             for (auto resultUser : result.getUsers()) {
                 if (resultUser != concatPart.copyOp.getOperation()) {
@@ -256,20 +259,21 @@ bool CMXConcatPass::inputsHaveMultipleUsers(ConcatPattern concatPattern) {
     return false;
 }
 
-bool CMXConcatPass::inputPatternCanBeCMXed(ConcatPattern concatPattern, size_t cmxSize) {
+bool CMXConcatPass::ConcatPattern::inputPatternCanBeCMXed(size_t cmxSize) {
     // if concat is a Result operation
-    if (concatPattern.concat.output().isa<mlir::BlockArgument>()) {
+    if (concat.output().isa<mlir::BlockArgument>()) {
         _log.nest(2).trace("Concat output is part of network output");
         return false;
     }
 
     // assert that the concat will fit in CMX
-    if (!concatFitsInCMX(concatPattern, cmxSize)) {
+
+    if (!concatFitsInCMX(cmxSize)) {
         _log.nest(2).trace("Concat does not fit in cmx");
         return false;
     }
 
-    if (inputsHaveMultipleUsers(concatPattern)) {
+    if (inputsHaveMultipleUsers()) {
         // TODO implement complex concat
         // where part of the concatenated buffer is also used by another operation
         // visible in yolo-v4-tiny concatinate 4
@@ -280,14 +284,14 @@ bool CMXConcatPass::inputPatternCanBeCMXed(ConcatPattern concatPattern, size_t c
     return true;
 }
 
-bool CMXConcatPass::childOpsFitInCMX(ConcatPattern concatPattern, size_t parallelConsumerCount, size_t cmxSize) {
+bool CMXConcatPass::ConcatPattern::childOpsFitInCMX(size_t parallelConsumerCount, size_t cmxSize) {
     // check if the child operations - operations using the concat output buffer
     // will fit in CMX along with their inputs and output
     // auto output = concat.getResult();
-    size_t concatSize = getSize(concatPattern.concat.getResult());
+    size_t concatSize = getSize(concat.getResult());
     size_t maxConsumerSize = 0;
 
-    for (auto& concatPart : concatPattern.concatParts) {
+    for (auto& concatPart : concatParts) {
         if (!concatPart.isValidPart()) {
             return false;
         }
@@ -313,12 +317,12 @@ bool CMXConcatPass::childOpsFitInCMX(ConcatPattern concatPattern, size_t paralle
     return (parallelConsumerCount * (maxConsumerSize + concatSize)) <= cmxSize;
 }
 
-size_t CMXConcatPass::getParallelConsumerCount(ConcatPattern concatPattern) {
+size_t CMXConcatPass::ConcatPattern::getParallelConsumerCount() {
     // tiling operations are considered a single consumer
     SmallVector<mlir::Location> locations;
     size_t parallelConsumerCount = 0;
 
-    for (auto concatPart : concatPattern.concatParts) {
+    for (auto concatPart : concatParts) {
         // for fused loc ignore tiling details
         if (const auto fused = concatPart.nceOp.getLoc().dyn_cast<mlir::FusedLoc>()) {
             auto nceLoc = fused.getLocations().front();
@@ -339,11 +343,11 @@ size_t CMXConcatPass::getParallelConsumerCount(ConcatPattern concatPattern) {
     return parallelConsumerCount;
 }
 
-bool CMXConcatPass::outputPatternCanBeCMXed(ConcatPattern concatPattern, size_t cmxSize) {
+bool CMXConcatPass::ConcatPattern::outputPatternCanBeCMXed(size_t cmxSize) {
     // verify the following operation can fit in CMX
-    size_t parallelConsumerCount = getParallelConsumerCount(concatPattern);
+    size_t parallelConsumerCount = getParallelConsumerCount();
 
-    if (!childOpsFitInCMX(concatPattern, parallelConsumerCount, cmxSize)) {
+    if (!childOpsFitInCMX(parallelConsumerCount, cmxSize)) {
         _log.nest(2).trace("Concat consumers do not fit in cmx");
         return false;
     }
@@ -432,7 +436,7 @@ void CMXConcatPass::safeRunOnFunc() {
             _log.nest(1).trace("Concat input pattern not valid");
             return;
         }
-        if (!inputPatternCanBeCMXed(inputPattern, cmxSize)) {
+        if (!inputPattern.inputPatternCanBeCMXed(cmxSize)) {
             _log.nest(1).trace("Concat input pattern can not be cmx-ed");
             return;
         }
@@ -442,7 +446,7 @@ void CMXConcatPass::safeRunOnFunc() {
             _log.nest(1).trace("Concat output pattern not valid");
             return;
         }
-        if (!outputPatternCanBeCMXed(outputPattern, cmxSize)) {
+        if (!outputPattern.outputPatternCanBeCMXed(cmxSize)) {
             _log.nest(1).trace("Concat output pattern can not be cmx-ed");
             return;
         }
