@@ -1376,7 +1376,7 @@ Operation that encapsulates details of tiling operation between clusters
 
 | Result | Description |
 | :----: | ----------- |
-`results` | memref of 16-bit float or bfloat16 type or QuantizedType values or VPUIP buffer type to describe the buffer tiling
+`results` | memref of any type values or VPUIP buffer type to describe the buffer tiling
 
 ### `VPUIP.NNDMA` (vpux::VPUIP::NNDMAOp)
 

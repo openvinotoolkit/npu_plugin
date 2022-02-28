@@ -3133,7 +3133,7 @@ def VPUIP_NCEClusterTilingOp :
     );
 
     let results = (outs
-        Variadic<AnyTypeOf<[MemRefOf<[F16, BF16, quant_QuantizedType]>, VPUIP_DistributedBuffer]>>:$results
+        Variadic<AnyTypeOf<[AnyMemRef, VPUIP_DistributedBuffer]>>:$results
     );
 
     let regions = (region SizedRegion<1>:$body);
