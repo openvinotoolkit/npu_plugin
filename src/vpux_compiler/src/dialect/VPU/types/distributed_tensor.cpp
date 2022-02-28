@@ -182,12 +182,64 @@ mlir::Type VPU::DistributedTensorType::parse(mlir::DialectAsmParser& parser) {
 }
 
 //
+// verify
+//
+
+mlir::LogicalResult VPU::DistributedTensorType::verify(FuncRef<mlir::InFlightDiagnostic()> emitError,
+                                                       ::llvm::ArrayRef<int64_t> /*shape*/, mlir::Type /*elementType*/,
+                                                       mlir::AffineMapAttr /*order*/,
+                                                       vpux::IndexedSymbolAttr /*memSpace*/,
+                                                       DistributedTensorAttr distribution) {
+    return VPU::verify(emitError, distribution);
+}
+
+//
 // getCompactType
 //
 
-mlir::RankedTensorType vpux::VPU::DistributedTensorType::getCompactType() const {
+mlir::RankedTensorType VPU::DistributedTensorType::getCompactType() const {
     return mlir::RankedTensorType::get(getShape().raw(), getElementType(),
                                        IE::TensorAttr::get(getOrder(), getMemSpace(), nullptr, getContext()));
+}
+
+//
+// Shape utils
+//
+
+// @brief Retrive the array of compute shapes.
+// @warning An important thing to consider with regards to compute shapes,
+// is that modes like SEGMENTED and OVERLAPPED take precedence over
+// DUPLICATED and MULTICASTED.
+// In an example case of a "SEGMENTED | DUPLICATED" (needed for SplitOverK)
+// tensor with shape [1, 64, 4, 4], the compute shape in each cluster is
+// [1, 16, 4, 4], which is needed when tiling and generating workloads,
+// while the allocated shape is [1, 64, 4, 4] (because of duplicated)
+// information which is needed for scheduler and strategy manager,
+// in order to estimate memory
+SmallVector<Shape> VPU::DistributedTensorType::getPerClusterComputeShapes() const {
+    return VPU::getPerClusterComputeShapes(getShape(), getDistribution());
+}
+
+// @brief Get largest compact compute shape
+// @warning This function should not be used for memory size calculation,
+// because it does not retrieve the true allocate shape in cases
+// of broadcasting.
+Shape VPU::DistributedTensorType::getLargestCompactShape() const {
+    auto tiledComputeShapes = getPerClusterComputeShapes();
+    return *std::max_element(tiledComputeShapes.begin(), tiledComputeShapes.end(), [](ShapeRef a, ShapeRef b) {
+        return vpux::details::calcTotalShapeSize(a.raw()) < vpux::details::calcTotalShapeSize(b.raw());
+    });
+}
+
+// @brief Get the compact compute shape for a specific cluster
+// @warning This function should not be used for memory size calculation,
+// because it does not retrieve the true allocate shape in cases
+// of broadcasting.
+Shape VPU::DistributedTensorType::getCompactShape(int64_t tileInd) const {
+    auto tiledComputeShapes = getPerClusterComputeShapes();
+    VPUX_THROW_UNLESS(tileInd < static_cast<int64_t>(tiledComputeShapes.size()),
+                      "Requesting tiled shape outside of cluster pool");
+    return tiledComputeShapes[tileInd];
 }
 
 //
@@ -257,19 +309,21 @@ Byte VPU::DistributedTensorType::getCompactAllocSize() const {
     const auto tilingScheme = parseIntArrayAttr<int64_t>(distribution.num_tiles());
     const auto distributionMode = distribution.mode();
 
-    auto tiledShape = SmallVector<int64_t>(shape.size());
-    if (VPU::bitEnumContains(distributionMode.getValue(), VPU::DistributionMode::SEGMENTED)) {
-        std::transform(shape.begin(), shape.end(), tilingScheme.begin(), tiledShape.begin(),
-                       [](int64_t dim, int64_t tile) {
-                           return divUp(dim, tile);
-                       });
-    } else if (VPU::bitEnumContains(distributionMode.getValue(), VPU::DistributionMode::OVERLAPPED)) {
-        VPUX_THROW("OVERLAPPED distribution mode is not supported yet");
+    // DUPLICATED|MULTICASTED takes priority since it means that each cluster will have the entire
+    // tensor, regardless wheter it's tiled or not.
+    Shape tiledShape;
+    if (VPU::bitEnumContains(distributionMode.getValue(), VPU::DistributionMode::DUPLICATED) ||
+        VPU::bitEnumContains(distributionMode.getValue(), VPU::DistributionMode::MULTICASTED)) {
+        tiledShape = Shape(shape.raw());
+    } else if (VPU::bitEnumContains(distributionMode.getValue(), VPU::DistributionMode::SEGMENTED) ||
+               VPU::bitEnumContains(distributionMode.getValue(), VPU::DistributionMode::OVERLAPPED)) {
+        tiledShape = getLargestCompactShape();
     } else {
-        tiledShape = to_small_vector(shape);
+        // No distribution mode.
+        tiledShape = Shape(shape.raw());
     }
 
-    return Byte(getElemTypeSize()) * vpux::details::calcTotalShapeSize(tiledShape);
+    return Byte(getElemTypeSize()) * vpux::details::calcTotalShapeSize(tiledShape.raw());
 }
 
 NDTypeInterface VPU::DistributedTensorType::changeShape(ShapeRef shape) const {

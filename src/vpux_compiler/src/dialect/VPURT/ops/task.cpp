@@ -21,8 +21,8 @@
 
 using namespace vpux;
 
-VPUIP::TaskOpInterface vpux::VPURT::TaskOp::getInnerTaskOp() {
-    return mlir::cast<VPUIP::TaskOpInterface>(body().front().front());
+mlir::Operation* vpux::VPURT::TaskOp::getInnerTaskOp() {
+    return &body().front().front();
 }
 
 void vpux::VPURT::TaskOp::build(::mlir::OpBuilder& odsBuilder, ::mlir::OperationState& odsState,
@@ -31,28 +31,31 @@ void vpux::VPURT::TaskOp::build(::mlir::OpBuilder& odsBuilder, ::mlir::Operation
 }
 
 VPUIP::BlobWriter::SpecificTask vpux::VPURT::TaskOp::serialize(VPUIP::BlobWriter& writer) {
-    auto task = getInnerTaskOp();
+    auto task = mlir::dyn_cast<VPUIP::TaskOpInterface>(getInnerTaskOp());
+    VPUX_THROW_UNLESS(task != nullptr, "Inner task  does not implement TaskOpInterface");
+
     writer.setAliasForSerializedTensors(task);
     return task.serialize(writer);
 }
 
 VPU::ExecutorKind vpux::VPURT::TaskOp::getExecutorKind() {
-    return getInnerTaskOp().getExecutorKind();
+    auto task = mlir::dyn_cast<VPUIP::TaskOpInterface>(getInnerTaskOp());
+    VPUX_THROW_UNLESS(task != nullptr, "Inner task  does not implement TaskOpInterface");
+
+    return task.getExecutorKind();
 }
 
 mlir::LogicalResult vpux::VPURT::verifyTaskOp(TaskOp task) {
     if (task.body().getBlocks().size() != 1) {
-        return errorAt(task, "The task body should contain excatly one block");
+        return errorAt(task, "The task body should contain exactly one block");
     }
 
-    if (task.body().front().getOperations().size() != 1) {
-        return errorAt(task, "The task body should contain exactly one operation");
+    auto numOps = task.body().front().getOperations().size();
+    if (numOps != 1) {
+        return errorAt(task, "The task body should contain exactly one operation. Got: {0}", numOps);
     }
 
     auto& innerOp = task.body().front().front();
-    if (!mlir::isa<VPUIP::TaskOpInterface>(innerOp)) {
-        return errorAt(task, "The task body should contain VPUIP Task operation");
-    }
     if (!mlir::isa<mlir::MemoryEffectOpInterface>(innerOp)) {
         return errorAt(task, "The task body should contain operation with memory effects");
     }
@@ -84,6 +87,6 @@ void vpux::VPURT::TaskOp::getEffects(SmallVectorImpl<MemoryEffect>& effects) {
         effects.emplace_back(mlir::MemoryEffects::Write::get(), updateBarrier, VPURT::BarrierResource::get());
     }
 
-    auto bodyEffects = mlir::cast<mlir::MemoryEffectOpInterface>(getInnerTaskOp().getOperation());
+    auto bodyEffects = mlir::cast<mlir::MemoryEffectOpInterface>(getInnerTaskOp());
     bodyEffects.getEffects(effects);
 }

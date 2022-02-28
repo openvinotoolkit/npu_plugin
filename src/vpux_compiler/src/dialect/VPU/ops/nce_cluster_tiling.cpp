@@ -203,3 +203,65 @@ mlir::LogicalResult vpux::VPU::verifyOp(vpux::VPU::NCEClusterTilingOp op) {
 
     return mlir::success();
 }
+
+namespace {
+
+/// @brief Finds and eliminates sequences of surplus Copies that effectively leave the Type unchanged
+/// @details The pattern of surplus Copy chains can appear when two consequent operations are ClusterTiled the same way:
+/// for example, when a (Conv)->(Conv) chain is all split-over-height
+/// @example The expected pattern is:
+/// %1 = VPU.NCEClusterTiling(%0 as %arg0 : !Type1) -> !Type2 {
+///     %3 = IE.Copy(%arg0)
+///     VPU.Yield %3
+/// }
+/// %2 = VPU.NCEClusterTiling(%1 as %arg0 : !Type2) -> !Type1 {
+///     %3 = IE.Copy(%arg0)
+///     VPU.Yield %3
+/// }
+/// Action expected: replace %2 usage with %0, eliminate the unused CopyOps
+class EliminateCopyPairs final : public mlir::OpRewritePattern<VPU::NCEClusterTilingOp> {
+public:
+    using OpRewritePattern::OpRewritePattern;
+
+    mlir::LogicalResult matchAndRewrite(VPU::NCEClusterTilingOp origOp, mlir::PatternRewriter& rewriter) const final;
+};
+
+mlir::LogicalResult EliminateCopyPairs::matchAndRewrite(VPU::NCEClusterTilingOp origOp,
+                                                        mlir::PatternRewriter& rewriter) const {
+    // This particular ClusterTilingOp should contain a single Copy operation
+    auto copyOps = origOp.body().getOps<vpux::IE::CopyOp>();
+    if (std::distance(copyOps.begin(), copyOps.end()) != 1) {
+        return mlir::failure();
+    }
+
+    // Its input should be produced by a ClusterTilingOp that contains a single Copy operation
+    auto producerClusterTilingOp = origOp.operands()[0].getDefiningOp<VPU::NCEClusterTilingOp>();
+    if (producerClusterTilingOp == nullptr) {
+        return mlir::failure();
+    }
+    auto producerCopyOps = producerClusterTilingOp.body().getOps<vpux::IE::CopyOp>();
+    if (std::distance(producerCopyOps.begin(), producerCopyOps.end()) != 1) {
+        return mlir::failure();
+    }
+
+    // The I/O types of this CopyOp-chain should be similar
+    auto producerInput = producerClusterTilingOp.operands()[0];
+    auto output = origOp.results()[0];
+    if (producerInput.getType() != output.getType()) {
+        return mlir::failure();
+    }
+
+    rewriter.replaceOp(origOp, producerInput);
+    return mlir::success();
+}
+
+}  // namespace
+
+//
+// getCanonicalizationPatterns
+//
+
+void vpux::VPU::NCEClusterTilingOp::getCanonicalizationPatterns(mlir::RewritePatternSet& patterns,
+                                                                mlir::MLIRContext* ctx) {
+    patterns.add<EliminateCopyPairs>(ctx);
+}

@@ -60,3 +60,31 @@ VPU::PwlQuantReqs vpux::VPU::getPwlQuantReqs(VPU::PPEMode ppeType) {
                       ppeType);
     return quantReqs->second;
 }
+
+int64_t vpux::VPU::getPwlPostShift(const VPU::PPEMode ppeType) {
+    const auto quantReqs = VPU::getPwlQuantReqs(ppeType);
+    return quantReqs.input.postShift;
+}
+
+int64_t vpux::VPU::getPwlClamp(const mlir::Type inElemType, const mlir::Type outElemType, const VPU::PPEMode ppeType,
+                               const bool getMin) {
+    constexpr int64_t CLAMP_MIN = -4096;
+    constexpr int64_t CLAMP_MAX = 4095;
+
+    // Input type defines the compute type
+    if (inElemType.template isa<mlir::FloatType>()) {
+        return getMin ? CLAMP_MIN : CLAMP_MAX;
+    }
+
+    const auto quantReqs = VPU::getPwlQuantReqs(ppeType);
+    const auto rMin = quantReqs.input.rMin;
+    const auto rMax = quantReqs.input.rMax;
+
+    if (const auto qElemType = outElemType.template dyn_cast<mlir::quant::UniformQuantizedType>()) {
+        const auto scale = qElemType.getScale();
+        const auto actualMin = std::max(CLAMP_MIN, static_cast<int64_t>(std::ceil(rMin / scale)));
+        const auto actualMax = std::min(CLAMP_MAX, static_cast<int64_t>(std::floor(rMax / scale)));
+        return getMin ? actualMin : actualMax;
+    }
+    VPUX_THROW("Unexpected output element type: {0}", outElemType);
+}

@@ -360,6 +360,34 @@ std::vector<uint8_t> vpux::VPU::NCESparsity::getFakeSparsity(Mode mode, ShapeRef
     return fakeSparsity;
 }
 
+int32_t vpux::VPU::NCESparsity::getWeightPtrStep(mlir::Value weights, mlir::Value activationWindow) {
+    if (weights == nullptr) {
+        return 0;
+    }
+
+    const auto filterShape = getShape(weights);
+
+    const auto IC = filterShape[Dims4D::Filter::IC];
+    const auto KY = filterShape[Dims4D::Filter::KY];
+    const auto KX = filterShape[Dims4D::Filter::KX];
+
+    if (activationWindow != nullptr) {
+        // Channel major and depthwise convolution case.
+        // Weights table contains both activation window and weights.
+        // Check that weights have expected alignment.
+        // Other than that, weight step is the same for both z-major (OYXI) and depthwise convolutions.
+        const auto origFilterType = weights.getType().cast<vpux::NDTypeInterface>();
+        const auto convAlignment = VPU::NCEInvariant::getAlignment(origFilterType.getElementType());
+        const auto weightsElementCount = IC * KY * KX;
+        VPUX_THROW_UNLESS(weightsElementCount % convAlignment == 0,
+                          "Channel Major and Depthwise convolution weights size must be a multiple of {0}, got {1}",
+                          convAlignment, weightsElementCount);
+    }
+
+    const Byte eltSize = getElemTypeSize(weights.getType());
+    return checked_cast<int32_t>(IC * KY * KX * eltSize.count());
+}
+
 std::vector<int32_t> vpux::VPU::NCESparsity::getWeightsTable(mlir::Type inElemType, mlir::Type outElemType,
                                                              Optional<int32_t> weightPtr, int32_t weightPtrStep,
                                                              Optional<int32_t> sparsityPtr, VPU::ArchKind arch,

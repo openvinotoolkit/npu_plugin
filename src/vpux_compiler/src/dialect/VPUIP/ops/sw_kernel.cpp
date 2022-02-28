@@ -18,6 +18,18 @@
 using namespace vpux;
 using namespace mlir;
 
+namespace {
+// special format of dims/order available only on kernel-FW side
+int64_t computeReverseMemDim(mlir::Value tensorArg, int64_t dimIdx) {
+    const auto inOrder = DimsOrder::fromValue(tensorArg);
+    MemDim md = inOrder.toMemDim(Dim(dimIdx));
+
+    const auto shape = getShape(tensorArg);
+    auto nDims = checked_cast<uint32_t>(shape.size());
+    return nDims - 1 - md.ind();
+}
+}  // namespace
+
 namespace vpux {
 namespace VPUIP {
 
@@ -77,12 +89,18 @@ IERT::KernelInfo SwKernelOp::getKernelInfo(mlir::Operation* origOp) {
                 return IERT::KernelInfo{SmallVector<mlir::Attribute>{}, {"minimum"}, {"minimum.cpp"}};
             })
             .Case<IERT::SoftMaxOp>([&](IERT::SoftMaxOp softmax) {
-                return IERT::KernelInfo{SmallVector<mlir::Attribute>{softmax.axisIndAttr()},
+                // input tensor, to transform axis
+                const auto axisParam = computeReverseMemDim(softmax.input(), softmax.axisInd());
+                const auto axisParamAttr = getIntAttr(softmax.getContext(), axisParam);
+                return IERT::KernelInfo{SmallVector<mlir::Attribute>{axisParamAttr},
                                         {"singleShaveSoftmax"},
                                         {"single_shave_softmax.cpp"}};
             })
             .Case<IERT::EluOp>([&](IERT::EluOp elu) {
                 return IERT::KernelInfo{SmallVector<mlir::Attribute>{elu.xAttr()}, {"elu_fp16"}, {"elu_fp16.cpp"}};
+            })
+            .Case<IERT::SqrtOp>([&](IERT::SqrtOp) {
+                return IERT::KernelInfo{SmallVector<mlir::Attribute>{}, {"sqrt_fp16"}, {"sqrt_fp16.cpp"}};
             })
             .Case<IERT::MVNOp>([&](IERT::MVNOp MVN) {
                 return IERT::KernelInfo{SmallVector<mlir::Attribute>{MVN.across_channelsAttr(),

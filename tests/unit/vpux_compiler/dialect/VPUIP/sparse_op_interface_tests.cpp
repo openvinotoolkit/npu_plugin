@@ -35,12 +35,12 @@ TEST(MLIR_VPUIP_Sparsity, SparseOpInterface) {
         module @test {
             func @main(%arg0: memref<1x8x20x20xf16, #NHWC, @CMX_NN>, %arg1: memref<1x16x19x19xf16, #NHWC, @CMX_NN>) -> memref<1x16x19x19xf16, #NHWC, @CMX_NN> {
                 %0 = const.Declare memref<16x8x2x2xf16, #NHWC, @CMX_NN> = #const.Content<dense<2.0> : tensor<16x8x2x2xf16>, [#const.Reorder<#NHWC>]>
+                %1 = const.Declare memref<16x1x1x4xsi32> = #const.Content<dense<10> : tensor<16x1x1x4xsi32>>
+                %2 = memref.alloc() : memref<16x1x1x4xsi32, @CMX_NN>
+                %3 = IERT.Copy inputs(%1 : memref<16x1x1x4xsi32>) outputs(%2 : memref<16x1x1x4xsi32, @CMX_NN>) -> memref<16x1x1x4xsi32, @CMX_NN>
 
-                %1 = VPUIP.WeightsTableOp op_input(%arg0 : memref<1x8x20x20xf16, #NHWC, @CMX_NN>) op_output(%arg1 : memref<1x16x19x19xf16, #NHWC, @CMX_NN>)
-                    weights(%0 : memref<16x8x2x2xf16, #NHWC, @CMX_NN>) bias(#const.Content<dense<2.0> : tensor<1x16x1x1xf16>>) -> memref<16x1x1x4xsi32, @CMX_NN>
-
-                %2 = VPUIP.NCEClusterTask { kernel_padding = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}, kernel_size = [2, 2], kernel_strides = [1, 1], task_type = "CONV" }
-                    input(%arg0 : memref<1x8x20x20xf16, #NHWC, @CMX_NN>) weights(%0 : memref<16x8x2x2xf16, #NHWC, @CMX_NN>) weight_table(%1 : memref<16x1x1x4xsi32, @CMX_NN>)
+                %4 = VPUIP.NCEClusterTask { kernel_padding = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}, kernel_size = [2, 2], kernel_strides = [1, 1], task_type = "CONV" }
+                    input(%arg0 : memref<1x8x20x20xf16, #NHWC, @CMX_NN>) weights(%0 : memref<16x8x2x2xf16, #NHWC, @CMX_NN>) weight_table(%3 : memref<16x1x1x4xsi32, @CMX_NN>)
                     parent_input(%arg0 : memref<1x8x20x20xf16, #NHWC, @CMX_NN>) parent_output(%arg1 : memref<1x16x19x19xf16, #NHWC, @CMX_NN>)
                     outputs(%arg1 : memref<1x16x19x19xf16, #NHWC, @CMX_NN>) -> memref<1x16x19x19xf16, #NHWC, @CMX_NN>
                     variants : { DPUTask { end = [18, 2, 15], mpe_mode = "VECTOR_FP16", pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}, start = [0, 0, 0] }
@@ -51,7 +51,7 @@ TEST(MLIR_VPUIP_Sparsity, SparseOpInterface) {
                     } PPE : {
                     }
 
-                return %2 : memref<1x16x19x19xf16, #NHWC, @CMX_NN>
+                return %4 : memref<1x16x19x19xf16, #NHWC, @CMX_NN>
             }
         }
     )";

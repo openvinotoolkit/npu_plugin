@@ -34,6 +34,12 @@ enum class CaseType {
     MaxPool,
     AvgPool,
     ActShave,
+    ReadAfterWriteDPUDMA,
+    ReadAfterWriteDMADPU,
+    ReadAfterWriteACTDMA,
+    ReadAfterWriteDMAACT,
+    ReadAfterWriteDPUACT,
+    ReadAfterWriteACTDPU,
     RaceConditionDMA,
     RaceConditionDPU,
     RaceConditionDPUDMA,
@@ -178,6 +184,9 @@ public:
     std::size_t getIterationCount() const {
         return iterationCount_;
     }
+    std::size_t getClusterNumber() const {
+        return clusterNumber_;
+    }
     std::shared_ptr<TestCaseJsonDescriptor> getUnderlyingOp() const {
         return underlyingOp_;
     }
@@ -194,6 +203,7 @@ private:
     QuantParams loadQuantizationParams(llvm::json::Object* obj);
     RaceConditionParams loadRaceConditionParams(llvm::json::Object* obj);
     std::size_t loadIterationCount(llvm::json::Object* obj);
+    std::size_t loadClusterNumber(llvm::json::Object* obj);
 
     CaseType caseType_;
     DMAparams DMAparams_;
@@ -209,6 +219,7 @@ private:
     vpux::VPU::PPEMode ppeLayerType_ = vpux::VPU::PPEMode::ADD;
     MVCNN::Permutation odu_permutation_ = MVCNN::Permutation::Permutation_ZXY;
     std::size_t iterationCount_;
+    std::size_t clusterNumber_;
     std::shared_ptr<TestCaseJsonDescriptor> underlyingOp_;
     RaceConditionParams raceConditionParams_;
 };

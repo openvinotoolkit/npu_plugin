@@ -81,6 +81,34 @@ operation ::= `VPUIP.AsinhUPA` attr-dict
 | :----: | ----------- |
 `output` | memref of 16-bit float values
 
+### `VPUIP.AtanhUPA` (vpux::VPUIP::AtanhUPAOp)
+
+Atanh UPA SHAVE kernel
+
+
+Syntax:
+
+```
+operation ::= `VPUIP.AtanhUPA` attr-dict
+              `inputs` `(` $input `:` type($input) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of 16-bit float values
+`output_buff` | memref of 16-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float values
+
 ### `VPUIP.BroadcastUPA` (vpux::VPUIP::BroadcastUPAOp)
 
 Broadcast UPA SHAVE kernel
@@ -2413,46 +2441,6 @@ operation ::= `VPUIP.UpsamplingUPA` attr-dict
 | Result | Description |
 | :----: | ----------- |
 `output` | memref of 16-bit float values
-
-### `VPUIP.WeightsTableOp` (vpux::VPUIP::WeightsTableOp)
-
-Intermediate task for creating weights table based on the addresses of CMX buffers
-
-
-Syntax:
-
-```
-operation ::= `VPUIP.WeightsTableOp` attr-dict
-              `op_input` `(` $op_input `:` type($op_input) `)`
-              `op_output` `(` $op_output `:` type($op_output) `)`
-              (`weights` `(` $weights^ `:` type($weights) `)`)?
-              (`activation_window` `(` $activation_window^ `:` type($activation_window) `)`)?
-              (`bias` `(` $bias^ `)`)?
-              `->` type(results)
-```
-
-
-#### Attributes:
-
-| Attribute | MLIR Type | Description |
-| :-------: | :-------: | ----------- |
-`bias` | vpux::Const::ContentAttr | Lazy folded constant content
-`ppe` | vpux::VPU::PPETaskAttr | DictionaryAttr with field(s): 'mode', 'clamp_low', 'clamp_high', 'lrelu_mult', 'lrelu_shift', 'quant_mult', 'quant_shift', 'quant_post_shift' (each field having its own constraints)
-
-#### Operands:
-
-| Operand | Description |
-| :-----: | ----------- |
-`op_input` | memref of 16-bit float or QuantizedType values or VPURT Sparse Buffer Type
-`op_output` | memref of 16-bit float or QuantizedType values or VPURT Sparse Buffer Type
-`weights` | memref of 16-bit float or QuantizedType values or VPURT Sparse Buffer Type
-`activation_window` | memref of 8-bit unsigned integer values
-
-#### Results:
-
-| Result | Description |
-| :----: | ----------- |
-`output` | memref of 32-bit signed integer values
 
 ### `VPUIP.YuvToRgbUPA` (vpux::VPUIP::YuvToRgbUPAOp)
 

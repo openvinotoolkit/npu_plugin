@@ -16,6 +16,7 @@
 #include "vpux/utils/IE/config.hpp"
 #include "vpux/utils/core/mem_size.hpp"
 #include "vpux/utils/core/numeric.hpp"
+#include "vpux/utils/core/optional.hpp"
 
 #include "vpux/properties.hpp"
 #include "vpux/vpux_plugin_config.hpp"
@@ -72,6 +73,8 @@ struct THROUGHPUT_STREAMS final : OptionBase<THROUGHPUT_STREAMS, int64_t> {
         return OptionMode::RunTime;
     }
 };
+
+int64_t getNumThroughputStreams(const Config& config, Optional<int> numNetStreams);
 
 //
 // INFERENCE_SHAVES

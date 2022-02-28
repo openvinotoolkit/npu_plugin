@@ -107,45 +107,6 @@ PadInfo vpux::backInferPadsTile(const TileInfo& outputTile, ShapeRef outShape, c
 
 namespace {
 
-struct DimRange final {
-    int64_t begin = 0;
-    int64_t end = 0;
-
-    DimRange() = default;
-    DimRange(int64_t begin, int64_t end): begin(begin), end(end) {
-        VPUX_THROW_UNLESS(end >= begin, "Got wrong dimension range [{0}, {1})", begin, end);
-    }
-
-    int64_t length() const {
-        return end - begin;
-    }
-
-    bool intersects(const DimRange& other) const {
-        return (begin < other.end) && (other.begin < end);
-    }
-
-    bool contains(const DimRange& other) const {
-        return (begin <= other.begin) && (end >= other.end);
-    }
-
-    // Represents `other` range to ROI of the current one.
-    DimRange asROI(const DimRange& other) const {
-        VPUX_THROW_UNLESS(contains(other), "DimRange '{0}' is not contained in '{1}'", other, *this);
-        return {other.begin - begin, other.end - begin};
-    }
-
-    bool operator==(const DimRange& other) const {
-        return begin == other.begin && end == other.end;
-    }
-    bool operator!=(const DimRange& other) const {
-        return !(*this == other);
-    }
-
-    void printFormat(llvm::raw_ostream& stream) const {
-        printTo(stream, "DimRange [{0}, {1})", begin, end);
-    }
-};
-
 struct PlaneTile final {
     DimRange width;
     DimRange height;
@@ -188,53 +149,6 @@ struct PlaneTileSolution final {
         printTo(stream, "PlaneTileSolution [inputTile = {0}, inputPad = {1}]", inputTile, inputPad);
     }
 };
-
-std::tuple<DimRange, int64_t, int64_t> inputForOutputDim(const DimRange& output, int64_t kernel, int64_t stride,
-                                                         const DimRange& initialInputRange, int64_t padBefore,
-                                                         int64_t padAfter) {
-    VPUX_THROW_UNLESS(output.length() > 0, "Wrong output tile '{0}'", output);
-    VPUX_THROW_UNLESS(initialInputRange.length() > 0, "Wrong initial input range '{0}'", initialInputRange);
-    VPUX_THROW_UNLESS(kernel > 0, "Wrong kernel '{0}'", kernel);
-    VPUX_THROW_UNLESS(stride > 0, "Wrong stride '{0}'", stride);
-    VPUX_THROW_UNLESS(padBefore >= 0, "Wrong padBefore '{0}'", padBefore);
-    VPUX_THROW_UNLESS(padAfter >= 0, "Wrong padAfter '{0}'", padAfter);
-
-    DimRange input = {0, 0};
-    int64_t before = 0;
-    int64_t after = 0;
-
-    input.begin = output.begin * stride - padBefore;
-
-    if (input.begin < initialInputRange.begin) {
-        VPUX_THROW_UNLESS(initialInputRange.begin - input.begin <= padBefore,
-                          "Input tile '{0}' and padBefore '{1}' doesn't match to initial range '{2}'", input, padBefore,
-                          initialInputRange);
-
-        before = std::min(initialInputRange.begin - input.begin, padBefore);
-        input.begin = initialInputRange.begin;
-    }
-
-    VPUX_THROW_UNLESS(input.begin < initialInputRange.end, "Input tile '{0}' doesn't match to initial range '{1}'",
-                      input, initialInputRange);
-
-    input.end = (output.end - 1) * stride + kernel - padBefore;
-
-    if (input.end > initialInputRange.end) {
-        VPUX_THROW_UNLESS(input.end - initialInputRange.end <= padAfter,
-                          "Input tile '{0}' and padAfter '{1}' doesn't match to initial range '{2}'", input, padAfter,
-                          initialInputRange);
-
-        after = std::min(input.end - initialInputRange.end, padAfter);
-        input.end = initialInputRange.end;
-    }
-
-    VPUX_THROW_UNLESS(input.end > initialInputRange.begin, "Input tile '{0}' doesn't match to initial range '{1}'",
-                      input, initialInputRange);
-    VPUX_THROW_UNLESS(input.length() > 0, "Input tile '{0}' doesn't match to initial range '{1}'", input,
-                      initialInputRange);
-
-    return std::make_tuple(input, before, after);
-}
 
 // Return input tile and padding required to calculate the output tile.
 // Padding should be applied to the input tile. It could be assymetric, or doesn't meet HW requirements in terms of its
@@ -364,4 +278,55 @@ InputTiling vpux::backInferPoolTile(const TileInfo& outputTile, ShapeRef origInp
     inputTile.shape[Dims4D::Act::W] = solution.inputTile.width.length();
 
     return TilingInfo{{inputTile}, solution.inputPad};
+}
+
+//
+// Tiling utils
+//
+
+std::tuple<DimRange, int64_t, int64_t> vpux::inputForOutputDim(const DimRange& output, int64_t kernel, int64_t stride,
+                                                               const DimRange& initialInputRange, int64_t padBefore,
+                                                               int64_t padAfter) {
+    VPUX_THROW_UNLESS(output.length() > 0, "Wrong output tile '{0}'", output);
+    VPUX_THROW_UNLESS(initialInputRange.length() > 0, "Wrong initial input range '{0}'", initialInputRange);
+    VPUX_THROW_UNLESS(kernel > 0, "Wrong kernel '{0}'", kernel);
+    VPUX_THROW_UNLESS(stride > 0, "Wrong stride '{0}'", stride);
+    VPUX_THROW_UNLESS(padBefore >= 0, "Wrong padBefore '{0}'", padBefore);
+    VPUX_THROW_UNLESS(padAfter >= 0, "Wrong padAfter '{0}'", padAfter);
+
+    DimRange input = {0, 0};
+    int64_t before = 0;
+    int64_t after = 0;
+
+    input.begin = output.begin * stride - padBefore;
+
+    if (input.begin < initialInputRange.begin) {
+        VPUX_THROW_UNLESS(initialInputRange.begin - input.begin <= padBefore,
+                          "Input tile '{0}' and padBefore '{1}' doesn't match to initial range '{2}'", input, padBefore,
+                          initialInputRange);
+
+        before = std::min(initialInputRange.begin - input.begin, padBefore);
+        input.begin = initialInputRange.begin;
+    }
+
+    VPUX_THROW_UNLESS(input.begin < initialInputRange.end, "Input tile '{0}' doesn't match to initial range '{1}'",
+                      input, initialInputRange);
+
+    input.end = (output.end - 1) * stride + kernel - padBefore;
+
+    if (input.end > initialInputRange.end) {
+        VPUX_THROW_UNLESS(input.end - initialInputRange.end <= padAfter,
+                          "Input tile '{0}' and padAfter '{1}' doesn't match to initial range '{2}'", input, padAfter,
+                          initialInputRange);
+
+        after = std::min(input.end - initialInputRange.end, padAfter);
+        input.end = initialInputRange.end;
+    }
+
+    VPUX_THROW_UNLESS(input.end > initialInputRange.begin, "Input tile '{0}' doesn't match to initial range '{1}'",
+                      input, initialInputRange);
+    VPUX_THROW_UNLESS(input.length() > 0, "Input tile '{0}' doesn't match to initial range '{1}'", input,
+                      initialInputRange);
+
+    return std::make_tuple(input, before, after);
 }

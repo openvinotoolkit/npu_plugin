@@ -1,6 +1,16 @@
-/*
- * {% copyright %}
- */
+//
+// Copyright Intel Corporation.
+//
+// LEGAL NOTICE: Your use of this software and any required dependent software
+// (the "Software Package") is subject to the terms and conditions of
+// the Intel(R) OpenVINO(TM) Distribution License for the Software Package,
+// which may also include notices, disclaimers, or license terms for
+// third party or open source software included in or with the Software Package,
+// and your use indicates your acceptance of all such terms. Please refer
+// to the "third-party-programs.txt" or other similarly-named text file
+// included with the Software Package for additional details.
+//
+
 #pragma once
 
 #include <mv_types.h>
@@ -57,6 +67,9 @@ struct ActPerfReport {
 uint32_t actPRPackedSize(uint32_t metricMask);
 
 #if defined(__leon__) || defined(__leon_nn__)
+
+void unpackSNNPerfReport(uint32_t metricMask, const void *prPtr, SNNPerfReport &pr);
+void unpackActPerfReport(uint32_t metricMask, const void *prPtr, ActPerfReport &pr);
 
 uint32_t buildMetricMask(bool enableTimestamp, bool enableDuration, const uint8_t *counters, uint32_t ctSize,
                          const uint8_t *stallFilters, uint32_t sfSize);

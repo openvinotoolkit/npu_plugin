@@ -90,6 +90,9 @@ public:
     StorageType code() const {
         return _code;
     }
+    StorageType invertedCode() const {
+        return _invertedCode;
+    }
 
 public:
     bool empty() const {

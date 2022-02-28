@@ -54,6 +54,7 @@ StringLiteral getMemoryDerateAttrName();
 StringLiteral getMemoryBandwidthAttrName();
 StringLiteral getProcessorFrequencyAttrName();
 
+uint32_t getMaxDPUClusterNum(ArchKind arch);
 uint32_t getMaxDPUClusterNum(mlir::Operation* op);
 
 Byte getTotalCMXSize(mlir::Operation* op);
@@ -96,6 +97,13 @@ PPETaskAttr getPPETaskAttr(mlir::MLIRContext* ctx, VPU::PPEMode mode, int64_t cl
                            ArrayRef<int64_t> quantShift, int64_t quantPostShift);
 
 VPU::PPEMode getPPEMode(VPU::EltwiseType type);
+
+//
+// DistributedTensorAttr
+//
+
+mlir::LogicalResult verify(FuncRef<mlir::InFlightDiagnostic()> emitError, DistributedTensorAttr distributedAttr);
+SmallVector<Shape> getPerClusterComputeShapes(ShapeRef shapeRef, DistributedTensorAttr distributionAttr);
 
 }  // namespace VPU
 }  // namespace vpux

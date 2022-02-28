@@ -68,6 +68,10 @@ public:
         return _ovResults;
     }
 
+    int getNumStreams() const final {
+        return _numStreams;
+    }
+
 private:
     std::vector<char> _compiledNetwork;
 
@@ -83,6 +87,8 @@ private:
 
     std::vector<OVRawNode> _ovResults;
     std::vector<OVRawNode> _ovParameters;
+
+    int _numStreams = 1;
 };
 
 }  // namespace VPUIP

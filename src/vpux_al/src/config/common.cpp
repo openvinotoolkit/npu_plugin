@@ -32,33 +32,26 @@ void vpux::registerCommonOptions(OptionsDesc& desc) {
 // PERFORMANCE_HINT
 //
 
-StringLiteral vpux::stringifyEnum(PerformanceHint val) {
+StringLiteral ov::hint::stringifyEnum(PerformanceMode val) {
     switch (val) {
-    case PerformanceHint::Latency:
-        return "Latency";
-    case PerformanceHint::Throughput:
-        return "Throughput";
+    case PerformanceMode::LATENCY:
+        return "LATENCY";
+    case PerformanceMode::THROUGHPUT:
+        return "THROUGHPUT";
+    case PerformanceMode::UNDEFINED:
+        return "";
     default:
         return "<UNKNOWN>";
     }
 }
 
-ov::hint::PerformanceMode vpux::cvtPerformanceHint(PerformanceHint hint) {
-    switch (hint) {
-    case PerformanceHint::Latency:
+ov::hint::PerformanceMode vpux::PERFORMANCE_HINT::parse(StringRef val) {
+    if (val == "LATENCY") {
         return ov::hint::PerformanceMode::LATENCY;
-    case PerformanceHint::Throughput:
+    } else if (val == "THROUGHPUT") {
         return ov::hint::PerformanceMode::THROUGHPUT;
-    default:
+    } else if (val.empty()) {
         return ov::hint::PerformanceMode::UNDEFINED;
-    }
-}
-
-PerformanceHint vpux::PERFORMANCE_HINT::parse(StringRef val) {
-    if (val == CONFIG_VALUE(LATENCY)) {
-        return PerformanceHint::Latency;
-    } else if (val == CONFIG_VALUE(THROUGHPUT)) {
-        return PerformanceHint::Throughput;
     }
 
     VPUX_THROW("Value '{0}' is not a valid PERFORMANCE_HINT option", val);

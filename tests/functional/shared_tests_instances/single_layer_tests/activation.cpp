@@ -56,6 +56,7 @@ std::set<ngraph::helpers::ActivationTypes> supportedTypesMLIR {
     ngraph::helpers::Cosh,
     ngraph::helpers::Asinh,
     ngraph::helpers::Acosh,
+    ngraph::helpers::Atanh,
     ngraph::helpers::Log,
     ngraph::helpers::Ceiling,
     ngraph::helpers::Gelu,
@@ -157,6 +158,7 @@ const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes
     {Cosh,     {{1.0f}}},
     {Asinh,    {{1.0f}}},
     {Acosh,    {{1.0f}}},
+    {Atanh,    {{1.0f}}},
     {Erf,      {{1.0f}}},
     {Gelu,     {{1.0f}}},
     {Exp,      {{1.0f}}},
@@ -260,6 +262,7 @@ const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes
         {Sigmoid,  {{1.0f}}},
         {HSwish,   {{1.0f}}},
         {Elu,      {{1.0f}}},
+        {Sqrt,     {{1.0f}}},
         {Exp,      {{1.0f}}},
         {Tanh,     {{1.0f}}},
 };

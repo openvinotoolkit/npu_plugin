@@ -6,7 +6,7 @@
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include "VPU_Stereo_NN_IR_Generator.h"
-#include "json.hpp"
+#include <nlohmann/json.hpp>
 
 using namespace InferenceEngine;
 using namespace ngraph;

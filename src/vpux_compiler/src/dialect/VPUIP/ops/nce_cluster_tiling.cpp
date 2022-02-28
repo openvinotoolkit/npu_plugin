@@ -44,6 +44,22 @@ void vpux::VPUIP::NCEClusterTilingOp::getSuccessorRegions(Optional<unsigned> ind
 }
 
 //
+// Inner info
+//
+
+mlir::Operation* vpux::VPUIP::NCEClusterTilingOp::getInnerTaskOp() {
+    return &body().front().front();
+}
+
+mlir::MutableArrayRef<mlir::BlockArgument> vpux::VPUIP::NCEClusterTilingOp::getInnerInputs() {
+    return body().getArguments().take_front(getInputs().size());
+}
+
+mlir::MutableArrayRef<mlir::BlockArgument> vpux::VPUIP::NCEClusterTilingOp::getInnerOutputs() {
+    return body().getArguments().slice(getInputs().size(), getOutputs().size());
+}
+
+//
 // print/parse
 //
 
@@ -158,6 +174,13 @@ void vpux::VPUIP::NCEClusterTilingOp::build(mlir::OpBuilder& builder, mlir::Oper
     result.addOperands(operands);
     result.addTypes(resultTypes);
 
+    int32_t inCount = static_cast<int32_t>(operands.size()) - static_cast<int32_t>(resultTypes.size());
+    int32_t outCount = static_cast<int32_t>(resultTypes.size());
+
+    auto operandSegmentSizes =
+            mlir::DenseIntElementsAttr::get(mlir::VectorType::get({2}, builder.getI32Type()), {inCount, outCount});
+    result.addAttribute("operand_segment_sizes", operandSegmentSizes);
+
     // Add a body region with block arguments
     auto* bodyRegion = result.addRegion();
     auto& bodyBlock = bodyRegion->emplaceBlock();
@@ -167,7 +190,7 @@ void vpux::VPUIP::NCEClusterTilingOp::build(mlir::OpBuilder& builder, mlir::Oper
             type = distributedType.getCompactType();
         }
 
-        bodyBlock.addArgument(operand.getType());
+        bodyBlock.addArgument(type);
     }
 
     mlir::OpBuilder::InsertionGuard guard(builder);

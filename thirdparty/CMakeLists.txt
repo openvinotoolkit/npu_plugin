@@ -294,11 +294,3 @@ target_include_directories(${HUFFMAN_CODEC_TARGET_NAME}
         "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/src/mcmCompiler/include/huffman_encoding"
         "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/src/mcmCompiler"
 )
-
-#
-# json
-#
-
-if(ENABLE_KMB_SAMPLES)
-    set(SAMPLES_JSON "${CMAKE_CURRENT_SOURCE_DIR}/json/single_include/nlohmann/" CACHE INTERNAL "")
-endif()

@@ -55,6 +55,44 @@ std::vector<std::string> extractKeys(const std::map<std::string, T>& map) {
     return keys;
 }
 
+void adjustNumStreams(const MVCNN::SummaryHeader* header, int& numStreams) {
+    VPUX_THROW_WHEN(header->resources() == nullptr, "Can't get resource utilization information from compiler blob");
+    VPUX_THROW_WHEN(header->resources()->processor_allocation() == nullptr,
+                    "Can't get processor utilization information from compiler blob");
+
+    int numClusters = 0;
+    for (const auto* proc : *header->resources()->processor_allocation()) {
+        if (proc == nullptr) {
+            continue;
+        }
+
+        if (proc->item() == MVCNN::PhysicalProcessor_NCE_Cluster) {
+            numClusters = static_cast<int>(proc->number());
+            break;
+        }
+    }
+    VPUX_THROW_WHEN(numClusters == 0, "Can't get NCE clusters/tiles utilization information from compiler blob");
+
+    int maxNumClusters = 0;
+    switch (header->device()) {
+    case MVCNN::TargetDevice_KMB:
+    case MVCNN::TargetDevice_TBH:
+        maxNumClusters = 4;
+        break;
+    case MVCNN::TargetDevice_MTL:
+        maxNumClusters = 2;
+        break;
+    default:
+        VPUX_THROW("Unsupported target device '{0}'", MVCNN::EnumNameTargetDevice(header->device()));
+    }
+
+    VPUX_THROW_WHEN(numClusters > maxNumClusters,
+                    "Got wrong NCE clusters utilization '{0}', it is larger than total number of resources '{1}'",
+                    numClusters, maxNumClusters);
+
+    numStreams = maxNumClusters / numClusters;
+}
+
 }  // namespace
 
 MCMNetworkDescription::MCMNetworkDescription(const std::vector<char>& compiledNetwork, const Config& config,
@@ -113,6 +151,7 @@ MCMNetworkDescription::MCMNetworkDescription(const std::vector<char>& compiledNe
         _name = networkName;
     }
 
+    adjustNumStreams(graphHeader, _numStreams);
     // TODO: it makes sense to print maps here under log level
 }
 

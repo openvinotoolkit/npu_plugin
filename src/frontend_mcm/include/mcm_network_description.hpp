@@ -48,6 +48,10 @@ public:
 
     const std::string& getName() const override;
 
+    int getNumStreams() const final {
+        return _numStreams;
+    }
+
 private:
     std::string _name;
     const std::vector<char> _compiledNetwork;
@@ -63,6 +67,8 @@ private:
     std::vector<vpux::OVRawNode> _ovParameters;
 
     vpux::QuantizationParamMap _quantParams;
+
+    int _numStreams = 1;
 
     vpux::Logger _logger;
 

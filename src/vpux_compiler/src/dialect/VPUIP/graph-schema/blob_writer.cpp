@@ -43,6 +43,9 @@ using namespace vpux;
 
 namespace {
 
+// offset of 1 to force offset field to be actually serialized by FlatBuffers
+constexpr uint64_t nonEmptyOffset = 1;
+
 SmallVector<uint8_t> createInvocationArgs(VPUIP::BlobWriter& blobWriter, VPUIP::SwKernelOp swKernelOp,
                                           size_t dataOffset, Logger log) {
     vpux::InvocationBuilder invocationBuilder(dataOffset, log);
@@ -137,9 +140,7 @@ const vpux::VPUIP::BlobWriter::ActShavesKernelDataMap& vpux::VPUIP::BlobWriter::
 }
 
 vpux::VPUIP::BlobWriter::KernelDataRef vpux::VPUIP::BlobWriter::createKernelDataRef(const KernelDataDesc& desc) {
-    // offset is 1 to force field to be serialized by FlatBuffers
-    const uint64_t non_empty_offset = 1;
-    return createKernelDataRef(desc.name, non_empty_offset, desc.size, desc.data);
+    return createKernelDataRef(desc.name, nonEmptyOffset, desc.size, desc.data);
 }
 
 vpux::VPUIP::BlobWriter::KernelDataRef vpux::VPUIP::BlobWriter::createKernelDataRef(StringRef name, uint64_t dataOffset,
@@ -272,16 +273,13 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BlobWriter::createSW_KernelTask(mli
         uniqueInvocationName.append(StringRef(std::to_string(kernelMapEntries)));
     }
 
-    const uint64_t non_empty_offset = 1;
-
     // offset is preliminary and will be further corrected 1 is force flatbuffer to produce 4 bytes in storage
     auto dataSection =
-            createKernelDataRef(uniqueInvocationName, non_empty_offset, actKernelDesc.data.size, invocationArgsAndData);
+            createKernelDataRef(uniqueInvocationName, nonEmptyOffset, actKernelDesc.data.size, invocationArgsAndData);
 
     // offset is preliminary and will be further corrected
     auto invocationSection =
-            createKernelDataRef(uniqueInvocationName, non_empty_offset + actKernelDesc.data.data.size(),
-                                invocationArgs.size(), invocationArgsAndData);
+            createKernelDataRef(uniqueInvocationName, nonEmptyOffset, invocationArgs.size(), invocationArgsAndData);
 
     MVCNN::ActKernelInvocationBuilder invocationBuilder(_impl);
     invocationBuilder.add_dataSection(dataSection);
@@ -477,8 +475,7 @@ VPUIP::BlobWriter::Barrier vpux::VPUIP::BlobWriter::createBarrier(mlir::Value va
 
         unsigned usesCount = 1;
         if (auto taskOp = mlir::dyn_cast<VPURT::TaskOp>(userOp)) {
-            if (auto nceClusterTaskOp =
-                        mlir::dyn_cast<VPUIP::NCEClusterTaskOp>(taskOp.getInnerTaskOp().getOperation())) {
+            if (auto nceClusterTaskOp = mlir::dyn_cast<VPUIP::NCEClusterTaskOp>(taskOp.getInnerTaskOp())) {
                 usesCount = 0;
                 for (auto dpuTaskOp : nceClusterTaskOp.variants().getOps<VPUIP::DPUTaskOp>()) {
                     VPUX_UNUSED(dpuTaskOp);

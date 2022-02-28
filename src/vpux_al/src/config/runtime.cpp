@@ -13,6 +13,8 @@
 
 #include "vpux/al/config/runtime.hpp"
 
+#include "vpux/al/config/common.hpp"
+
 using namespace vpux;
 using namespace ov::intel_vpux;
 using namespace InferenceEngine::VPUXConfigParams;
@@ -37,6 +39,34 @@ void vpux::registerRunTimeOptions(OptionsDesc& desc) {
     desc.add<INFERENCE_TIMEOUT_MS>();
     desc.add<PRINT_PROFILING>();
     desc.add<PROFILING_OUTPUT_FILE>();
+}
+
+//
+// THROUGHPUT_STREAMS
+//
+
+int64_t vpux::getNumThroughputStreams(const Config& config, Optional<int> numNetStreams) {
+    if (config.has<THROUGHPUT_STREAMS>()) {
+        const auto numStreams = config.get<THROUGHPUT_STREAMS>();
+        if (numStreams > 0) {
+            return numStreams;
+        }
+    }
+
+    if (numNetStreams.hasValue()) {
+        // The '+ 2' part is used to adapt the configuration to the values from E#16060 ticket.
+        return numNetStreams.getValue() + 2;
+    }
+
+    // The values were taken from E#16060 ticket.
+    switch (config.get<PERFORMANCE_HINT>()) {
+    case ov::hint::PerformanceMode::LATENCY:
+        return 3;
+    case ov::hint::PerformanceMode::THROUGHPUT:
+    case ov::hint::PerformanceMode::UNDEFINED:
+    default:
+        return 6;
+    }
 }
 
 //

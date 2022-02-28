@@ -6,23 +6,27 @@
 !InputDistributed = type !VPUIP.DistributedBuffer<
     1x16x32x32xf16, #NHWC, @CMX_NN, {
     mode = "SEGMENTED",
+    num_tiles = [1, 1, 2, 1],
     num_clusters = 2
 }>
 
 !OutputDistributed = type !VPUIP.DistributedBuffer<
     1x16x32x32xf16, #NHWC, @CMX_NN, {
     mode = "SEGMENTED",
+    num_tiles = [1, 1, 2, 1],
     num_clusters = 2
 }>
 
 !WeightsDistributed = type !VPUIP.DistributedBuffer<
     16x16x1x1xf16, #NHWC, @CMX_NN, {
-    mode = "DUPLICATED"
+    mode = "DUPLICATED",
+    num_clusters = 2
 }>
 
 !WeightsTableDistributed = type !VPUIP.DistributedBuffer<
     16x1x1x4xsi32, #NCHW, @CMX_NN, {
-    mode = "DUPLICATED"
+    mode = "DUPLICATED",
+    num_clusters = 2
 }>
 
 module @TestMultiClusterSOH attributes {VPU.arch = "KMB"} {
@@ -75,11 +79,11 @@ func @main(%arg0: memref<1x16x32x32xf16>, %arg1: memref<1x16x32x32xf16>) -> memr
     %output2_ddr = VPURT.DeclareBuffer "DDR" <49152> -> memref<1x16x16x32xf16, #NHWC>
 
     // CMX buffers
-    %parent_input_cmx = VPURT.DeclareBuffer "CMX_NN" [0, 1] <0> -> !InputDistributed
+    %parent_input_cmx = VPURT.DeclareBuffer "CMX_NN" <0> -> !InputDistributed
     %input1 = VPURT.DeclareBuffer "CMX_NN" [0] <0> -> memref<1x16x16x32xf16, #NHWC, [@CMX_NN, 0]>
     %input2 = VPURT.DeclareBuffer "CMX_NN" [1] <0> -> memref<1x16x16x32xf16, #NHWC, [@CMX_NN, 1]>
 
-    %parent_out_cmx = VPURT.DeclareBuffer "CMX_NN" [0, 1] <16384> -> !OutputDistributed
+    %parent_out_cmx = VPURT.DeclareBuffer "CMX_NN" <16384> -> !OutputDistributed
     %output1 = VPURT.DeclareBuffer "CMX_NN" [0] <16384> -> memref<1x16x16x32xf16, #NHWC, [@CMX_NN, 0]>
     %output2 = VPURT.DeclareBuffer "CMX_NN" [1] <16384> -> memref<1x16x16x32xf16, #NHWC, [@CMX_NN, 1]>
 
@@ -244,8 +248,7 @@ func @main(%arg0: memref<1x16x32x32xf16>, %arg1: memref<1x16x32x32xf16>) -> memr
 // CHECK:                 data_index: 0
 // CHECK:               locale: "VPU_CMX_NN",
 // CHECK:               locale_index: [
-// CHECK:                 0,
-// CHECK:                 1
+// CHECK:                 0
 // CHECK:               ],
 // CHECK:               data_dtype: "FP16",
 // CHECK:             parent_output_tensor: {
@@ -265,8 +268,7 @@ func @main(%arg0: memref<1x16x32x32xf16>, %arg1: memref<1x16x32x32xf16>) -> memr
 // CHECK:                 data_index: 16384
 // CHECK:               locale: "VPU_CMX_NN",
 // CHECK:               locale_index: [
-// CHECK:                 0,
-// CHECK:                 1
+// CHECK:                 0
 // CHECK:               ],
 // CHECK:               data_dtype: "FP16",
 // CHECK:             input_data: {
@@ -374,8 +376,7 @@ func @main(%arg0: memref<1x16x32x32xf16>, %arg1: memref<1x16x32x32xf16>) -> memr
 // CHECK:                 data_index: 0
 // CHECK:               locale: "VPU_CMX_NN",
 // CHECK:               locale_index: [
-// CHECK:                 0,
-// CHECK:                 1
+// CHECK:                 0
 // CHECK:               ],
 // CHECK:               data_dtype: "FP16",
 // CHECK:             },
@@ -396,8 +397,7 @@ func @main(%arg0: memref<1x16x32x32xf16>, %arg1: memref<1x16x32x32xf16>) -> memr
 // CHECK:                 data_index: 16384
 // CHECK:               locale: "VPU_CMX_NN",
 // CHECK:               locale_index: [
-// CHECK:                 0,
-// CHECK:                 1
+// CHECK:                 0
 // CHECK:               ],
 // CHECK:               data_dtype: "FP16",
 // CHECK:             input_data: {

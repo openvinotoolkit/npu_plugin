@@ -58,7 +58,45 @@ def VPUIP_DistributedBuffer :
 
         mlir::MemRefLayoutAttrInterface getLayout() const;
         VPU::DistributedTensorAttr getDistribution() const;
+
+        // @brief Retrive the array of compute shapes.
+        // @warning An important thing to consider with regards to compute shapes,
+        // is that modes like SEGMENTED and OVERLAPPED take precedence over
+        // DUPLICATED and MULTICASTED.
+        // In an example case of a "SEGMENTED | DUPLICATED" (needed for SplitOverK)
+        // tensor with shape [1, 64, 4, 4], the compute shape in each cluster is
+        // [1, 16, 4, 4], which is needed when tiling and generating workloads,
+        // while the allocated shape is [1, 64, 4, 4] (because of duplicated)
+        // information which is needed for scheduler and strategy manager,
+        // in order to estimate memory
+        mlir::SmallVector<vpux::Shape> getPerClusterComputeShapes() const;
+
+        // @brief Get largest compact compute shape
+        // @warning This function should not be used for memory size calculation,
+        // because it does not retrieve the true allocate shape in cases
+        // of broadcasting.
+        vpux::Shape getLargestCompactShape() const;
+
+        // @brief Get the compact compute shape for a specific cluster
+        // @warning This function should not be used for memory size calculation,
+        // because it does not retrieve the true allocate shape in cases
+        // of broadcasting.
+        vpux::Shape getCompactShape(int64_t tileInd) const;
+
+        // @brief Get largest strided compute shape
+        // @warning This function should not be used for memory size calculation,
+        // because it does not retrieve the true allocate shape in cases
+        // of broadcasting.
+        vpux::Shape getLargestStridedShape() const;
+
+        // @brief Get the strided compute shape for a specific cluster
+        // @warning This function should not be used for memory size calculation,
+        // because it does not retrieve the true allocate shape in cases
+        // of broadcasting.
+        vpux::Shape getStridedShape(int64_t tileInd) const;
     }];
+
+    let genVerifyDecl = 1;
 }
 
 #endif

@@ -24,8 +24,8 @@ using namespace vpux;
 // SubElementTypeInterface
 //
 
-void vpux::VPUIP::DistributedBufferType::walkImmediateSubElements(
-        llvm::function_ref<void(mlir::Attribute)> walkAttrsFn, llvm::function_ref<void(mlir::Type)> walkTypesFn) const {
+void VPUIP::DistributedBufferType::walkImmediateSubElements(llvm::function_ref<void(mlir::Attribute)> walkAttrsFn,
+                                                            llvm::function_ref<void(mlir::Type)> walkTypesFn) const {
     walkTypesFn(getElementType());
     if (!getLayout().isIdentity()) {
         walkAttrsFn(getLayout());
@@ -38,7 +38,7 @@ void vpux::VPUIP::DistributedBufferType::walkImmediateSubElements(
 // print/parse
 //
 
-void vpux::VPUIP::DistributedBufferType::print(mlir::DialectAsmPrinter& printer) const {
+void VPUIP::DistributedBufferType::print(mlir::DialectAsmPrinter& printer) const {
     printer << getMnemonic() << "<";
     for (auto& dim : getShape()) {
         printer << dim << "x";
@@ -79,7 +79,7 @@ void vpux::VPUIP::DistributedBufferType::print(mlir::DialectAsmPrinter& printer)
     printer << ">";
 }
 
-mlir::Type vpux::VPUIP::DistributedBufferType::parse(mlir::DialectAsmParser& parser) {
+mlir::Type VPUIP::DistributedBufferType::parse(mlir::DialectAsmParser& parser) {
     if (parser.parseLess()) {
         return Type();
     }
@@ -198,38 +198,110 @@ mlir::Type vpux::VPUIP::DistributedBufferType::parse(mlir::DialectAsmParser& par
 }
 
 //
+// verify
+//
+mlir::LogicalResult VPUIP::DistributedBufferType::verify(FuncRef<mlir::InFlightDiagnostic()> emitError,
+                                                         ::llvm::ArrayRef<int64_t> /*shape*/,
+                                                         mlir::Type /*elementType*/,
+                                                         mlir::MemRefLayoutAttrInterface /*layout*/,
+                                                         IndexedSymbolAttr /*memSpace*/,
+                                                         VPU::DistributedTensorAttr distribution) {
+    return VPU::verify(emitError, distribution);
+}
+
+//
 // getCompactType
 //
 
-mlir::MemRefType vpux::VPUIP::DistributedBufferType::getCompactType() const {
+mlir::MemRefType VPUIP::DistributedBufferType::getCompactType() const {
     return mlir::MemRefType::get(getShape().raw(), getElementType(), getLayout(), getMemSpace());
+}
+
+//
+// Shape utils
+//
+
+// @brief Retrive the array of compute shapes.
+// @warning An important thing to consider with regards to compute shapes,
+// is that modes like SEGMENTED and OVERLAPPED take precedence over
+// DUPLICATED and MULTICASTED.
+// In an example case of a "SEGMENTED | DUPLICATED" (needed for SplitOverK)
+// tensor with shape [1, 64, 4, 4], the compute shape in each cluster is
+// [1, 16, 4, 4], which is needed when tiling and generating workloads,
+// while the allocated shape is [1, 64, 4, 4] (because of duplicated)
+// information which is needed for scheduler and strategy manager,
+// in order to estimate memory
+SmallVector<Shape> VPUIP::DistributedBufferType::getPerClusterComputeShapes() const {
+    const auto shape = getShape();
+    const auto strideInReqs = StrideReqs::compact(shape.size());
+    VPUX_THROW_UNLESS(strideInReqs.checkStrides(*this), "Only compact strides are supported");
+
+    return VPU::getPerClusterComputeShapes(getShape(), getDistribution());
+}
+
+// @brief Get largest compact compute shape
+// @warning This function should not be used for memory size calculation,
+// because it does not retrieve the true allocate shape in cases
+// of broadcasting.
+Shape VPUIP::DistributedBufferType::getLargestCompactShape() const {
+    auto tiledComputeShapes = getPerClusterComputeShapes();
+    return *std::max_element(tiledComputeShapes.begin(), tiledComputeShapes.end(), [](ShapeRef a, ShapeRef b) {
+        return details::calcTotalShapeSize(a.raw()) < details::calcTotalShapeSize(b.raw());
+    });
+}
+
+// @brief Get the compact compute shape for a specific cluster
+// @warning This function should not be used for memory size calculation,
+// because it does not retrieve the true allocate shape in cases
+// of broadcasting.
+Shape VPUIP::DistributedBufferType::getCompactShape(int64_t tileInd) const {
+    auto tiledComputeShapes = getPerClusterComputeShapes();
+    VPUX_THROW_UNLESS(tileInd < static_cast<int64_t>(tiledComputeShapes.size()),
+                      "Requesting tiled shape outside of cluster pool");
+    return tiledComputeShapes[tileInd];
+}
+
+// @brief Get largest strided compute shape
+// @warning This function should not be used for memory size calculation,
+// because it does not retrieve the true allocate shape in cases
+// of broadcasting.
+Shape VPUIP::DistributedBufferType::getLargestStridedShape() const {
+    VPUX_THROW("getLargestStridedShape method is not implemented for DistributedBufferType");
+}
+
+// @brief Get the strided compute shape for a specific cluster
+// @warning This function should not be used for memory size calculation,
+// because it does not retrieve the true allocate shape in cases
+// of broadcasting.
+Shape VPUIP::DistributedBufferType::getStridedShape(int64_t /*tileInd*/) const {
+    VPUX_THROW("getStridedShape method is not implemented for DistributedBufferType");
 }
 
 //
 // NDTypeInterface
 //
 
-vpux::MemShape vpux::VPUIP::DistributedBufferType::getMemShape() const {
+MemShape VPUIP::DistributedBufferType::getMemShape() const {
     const auto dimsOrder = getDimsOrder();
     const auto shape = getShape();
     return dimsOrder.toMemoryOrder(shape);
 }
 
-bool vpux::VPUIP::DistributedBufferType::hasRank() const {
+bool VPUIP::DistributedBufferType::hasRank() const {
     return true;
 }
 
-int64_t vpux::VPUIP::DistributedBufferType::getRank() const {
+int64_t VPUIP::DistributedBufferType::getRank() const {
     return checked_cast<int64_t>(getShape().size());
 }
 
-int64_t vpux::VPUIP::DistributedBufferType::getNumElements() const {
+int64_t VPUIP::DistributedBufferType::getNumElements() const {
     auto shape = getShape().raw();
-    VPUX_THROW_UNLESS(!vpux::details::isDynamicDimValues(shape), "Cannot get element count of dynamic shaped type");
-    return vpux::details::calcTotalShapeSize(shape);
+    VPUX_THROW_UNLESS(!details::isDynamicDimValues(shape), "Cannot get element count of dynamic shaped type");
+    return details::calcTotalShapeSize(shape);
 }
 
-vpux::DimsOrder vpux::VPUIP::DistributedBufferType::getDimsOrder() const {
+DimsOrder VPUIP::DistributedBufferType::getDimsOrder() const {
     const auto layout = getLayout();
     if (const auto mapAttr = layout.dyn_cast<mlir::AffineMapAttr>()) {
         return DimsOrder::fromAffineMap(mapAttr.getValue());
@@ -242,16 +314,16 @@ vpux::DimsOrder vpux::VPUIP::DistributedBufferType::getDimsOrder() const {
     VPUX_THROW("Missing layout information");
 }
 
-vpux::VPU::MemoryKind vpux::VPUIP::DistributedBufferType::getMemoryKind() const {
+VPU::MemoryKind VPUIP::DistributedBufferType::getMemoryKind() const {
     const auto memSpace = getMemSpace();
     if (memSpace == nullptr) {
-        return vpux::VPU::MemoryKind::DDR;
+        return VPU::MemoryKind::DDR;
     }
 
-    return vpux::VPU::symbolizeEnum<VPU::MemoryKind>(memSpace.getLeafName()).getValue();
+    return VPU::symbolizeEnum<VPU::MemoryKind>(memSpace.getLeafName()).getValue();
 }
 
-vpux::Strides vpux::VPUIP::DistributedBufferType::getStrides() const {
+Strides VPUIP::DistributedBufferType::getStrides() const {
     const auto layout = getLayout();
     if (const auto mapAttr = layout.dyn_cast<mlir::AffineMapAttr>()) {
         VPUX_THROW_UNLESS(mapAttr.getValue().isPermutation(), "Got non permutation layout attribute '{0}'", layout);
@@ -276,60 +348,63 @@ vpux::Strides vpux::VPUIP::DistributedBufferType::getStrides() const {
     VPUX_THROW("Unsupported layout attribute type '{0}'", layout);
 }
 
-vpux::MemStrides vpux::VPUIP::DistributedBufferType::getMemStrides() const {
+MemStrides VPUIP::DistributedBufferType::getMemStrides() const {
     const auto order = getDimsOrder();
     const auto strides = getStrides();
     return order.toMemoryOrder(strides);
 }
 
-vpux::Bit vpux::VPUIP::DistributedBufferType::getElemTypeSize() const {
+Bit VPUIP::DistributedBufferType::getElemTypeSize() const {
     return vpux::getElemTypeSize(getElementType());
 }
 
-vpux::Byte vpux::VPUIP::DistributedBufferType::getTotalAllocSize() const {
-    if (getRank() == 0) {
-        return getElemTypeSize();
-    }
-
-    const auto memShape = getMemShape();
-    const auto memStrides = getMemStrides();
-
-    VPUX_THROW_UNLESS(memShape.size() == memStrides.size(), "Shape and strides mismatch : {0} vs {1}", memShape,
-                      memStrides);
-
-    return Byte(memStrides.front() * memShape.front());
+Byte VPUIP::DistributedBufferType::getTotalAllocSize() const {
+    return getCompactAllocSize();
 }
 
-vpux::Byte vpux::VPUIP::DistributedBufferType::getCompactAllocSize() const {
-    const auto typeSize = static_cast<Bit>(getElemTypeSize());
-    if (getRank() == 0) {
-        return typeSize;
+Byte VPUIP::DistributedBufferType::getCompactAllocSize() const {
+    auto shape = getShape();
+    const auto distribution = getDistribution();
+    const auto tilingScheme = parseIntArrayAttr<int64_t>(distribution.num_tiles());
+    const auto distributionMode = distribution.mode();
+
+    // DUPLICATED|MULTICASTED takes priority since it means that each cluster will have the entire
+    // tensor, regardless wheter it's tiled or not.
+    ShapeRef tiledShape;
+    if (VPU::bitEnumContains(distributionMode.getValue(), VPU::DistributionMode::DUPLICATED) ||
+        VPU::bitEnumContains(distributionMode.getValue(), VPU::DistributionMode::MULTICASTED)) {
+        tiledShape = shape;
+    } else if (VPU::bitEnumContains(distributionMode.getValue(), VPU::DistributionMode::SEGMENTED) ||
+               VPU::bitEnumContains(distributionMode.getValue(), VPU::DistributionMode::OVERLAPPED)) {
+        tiledShape = getLargestCompactShape();
+    } else {
+        // No distribution mode.
+        tiledShape = shape;
     }
 
-    const auto shape = getShape();
-    return shape.totalSize() * typeSize;
+    return Byte(getElemTypeSize()) * details::calcTotalShapeSize(tiledShape.raw());
 }
 
-vpux::NDTypeInterface vpux::VPUIP::DistributedBufferType::changeShape(vpux::ShapeRef) const {
+NDTypeInterface VPUIP::DistributedBufferType::changeShape(ShapeRef) const {
     VPUX_THROW("changeShape method is not implemented for DistributedBufferType");
 }
 
-vpux::NDTypeInterface vpux::VPUIP::DistributedBufferType::changeElemType(mlir::Type) const {
+NDTypeInterface VPUIP::DistributedBufferType::changeElemType(mlir::Type) const {
     VPUX_THROW("changeElemType method is not implemented for DistributedBufferType");
 }
 
-vpux::NDTypeInterface vpux::VPUIP::DistributedBufferType::changeDimsOrder(vpux::DimsOrder) const {
+NDTypeInterface VPUIP::DistributedBufferType::changeDimsOrder(DimsOrder) const {
     VPUX_THROW("changeDimsOrder method is not implemented for DistributedBufferType");
 }
 
-vpux::NDTypeInterface vpux::VPUIP::DistributedBufferType::changeMemSpace(vpux::IndexedSymbolAttr) const {
+NDTypeInterface VPUIP::DistributedBufferType::changeMemSpace(IndexedSymbolAttr) const {
     VPUX_THROW("changeMemSpace method is not implemented for DistributedBufferType");
 }
 
-vpux::NDTypeInterface vpux::VPUIP::DistributedBufferType::extractDenseTile(vpux::ShapeRef, vpux::ShapeRef) const {
+NDTypeInterface VPUIP::DistributedBufferType::extractDenseTile(ShapeRef, ShapeRef) const {
     VPUX_THROW("extractDenseTile method is not implemented for DistributedBufferType");
 }
 
-vpux::NDTypeInterface vpux::VPUIP::DistributedBufferType::pad(vpux::ShapeRef, vpux::ShapeRef) const {
+NDTypeInterface VPUIP::DistributedBufferType::pad(ShapeRef, ShapeRef) const {
     VPUX_THROW("pad method is not implemented for DistributedBufferType");
 }

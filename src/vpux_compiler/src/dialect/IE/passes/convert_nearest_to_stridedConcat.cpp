@@ -25,6 +25,15 @@ using namespace vpux;
 
 namespace {
 
+mlir::Value createFQ(mlir::PatternRewriter& rewriter, mlir::Value input, IE::FakeQuantizeOp fq) {
+    const auto outputType = fq.output().getType().cast<vpux::NDTypeInterface>();
+    const auto newOutputType = outputType.changeShape(getShape(input));
+    return rewriter
+            .create<IE::FakeQuantizeOp>(fq.getLoc(), newOutputType, input, fq.input_low(), fq.input_high(),
+                                        fq.output_low(), fq.output_high(), fq.levels(), fq.auto_broadcast())
+            ->getResult(0);
+}
+
 //
 // ConvertNearestToStridedConcatPass
 //
@@ -69,6 +78,11 @@ mlir::LogicalResult ConvertNearestToStridedConcatPass::NearestInterpolateOpConve
     const auto scaleX = outShape[1] / inputShape[Dims4D::Act::W];
     const auto scaleY = outShape[0] / inputShape[Dims4D::Act::H];
 
+    const auto inputFQ = origOp.input().getDefiningOp<IE::FakeQuantizeOp>();
+    const auto outputFQ = !(origOp->getResult(0).use_empty())
+                                  ? mlir::dyn_cast<IE::FakeQuantizeOp>(*(origOp->getResult(0).user_begin()))
+                                  : nullptr;
+
     SmallVector<mlir::Value> widthSlices;
     SmallVector<mlir::Value> heightSlices;
     // Here is an assumption : scaleX !=0 AND scaleY !=0 as output shape is non-zero
@@ -76,9 +90,18 @@ mlir::LogicalResult ConvertNearestToStridedConcatPass::NearestInterpolateOpConve
         for (int j = 0; j < scaleX; ++j) {
             widthSlices.push_back(origOp.input());
         }
-        heightSlices.push_back(widthSlices.size() != 1 ? rewriter.create<IE::ConcatOp>(origOp->getLoc(), widthSlices,
-                                                                                       Dims4D::Act::W, 1, scaleX)
-                                                       : widthSlices.front());
+
+        auto newOp = widthSlices.size() != 1
+                             ? rewriter.create<IE::ConcatOp>(origOp->getLoc(), widthSlices, Dims4D::Act::W, 1, scaleX)
+                                       .output()
+                             : widthSlices.front();
+
+        // TODO remove this propagation after moving such functionality to Q-D propagation pass
+        if (inputFQ != nullptr && outputFQ != nullptr && widthSlices.size() != 0) {
+            newOp = createFQ(rewriter, newOp, outputFQ);
+        }
+
+        heightSlices.push_back(newOp);
         widthSlices.clear();
     }
     const auto resultConcat = heightSlices.size() != 1 ? rewriter.create<IE::ConcatOp>(origOp->getLoc(), heightSlices,
@@ -105,6 +128,7 @@ void ConvertNearestToStridedConcatPass::safeRunOnFunc() {
     });
     target.addLegalOp<IE::SliceOp>();
     target.addLegalOp<IE::ConcatOp>();
+    target.addLegalOp<IE::FakeQuantizeOp>();
 
     mlir::RewritePatternSet patterns(&ctx);
     patterns.insert<NearestInterpolateOpConverter>(&ctx, _log);

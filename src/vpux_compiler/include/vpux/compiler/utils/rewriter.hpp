@@ -76,6 +76,21 @@ public:
 void populateBufferizeMaterializationLegality(mlir::ConversionTarget& target);
 
 //
+// BufferizeWithDistributedTypeConverter
+//
+
+class BufferizeWithDistributedTypeConverter : public BufferizeTypeConverter {
+public:
+    BufferizeWithDistributedTypeConverter();
+};
+
+//
+// populateBufferizeWithDistributedMaterializationLegality
+//
+
+void populateBufferizeWithDistributedMaterializationLegality(mlir::ConversionTarget& target);
+
+//
 // inferReturnTypes
 //
 
