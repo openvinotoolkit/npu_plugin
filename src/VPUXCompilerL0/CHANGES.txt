@@ -1,6 +1,13 @@
 Change Log:
 -----------
 
+VPUXCompilerL0 2.0.0:
+  - API Change
+    - Use options to set all configs(include i/o precision and layout).
+      - Set one precision(layout) to all inputs(outputs) is not supported now.
+    - Update API version to 2.0.0, need to change the version in modelIRData.
+  - Use debug_level to control package local log.
+
 VPUXCompilerL0 1.3.0:
   - Add profiling API
 

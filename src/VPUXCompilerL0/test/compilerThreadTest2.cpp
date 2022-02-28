@@ -57,6 +57,29 @@ private:
 };
 
 vcl_result_t CompilerTest::init(char* netName, char* weightName) {
+    vcl_result_t ret = VCL_RESULT_SUCCESS;
+
+    vcl_version_info_t version;
+    vcl_compiler_desc_t compilerDesc = {VCL_PLATFORM_VPU3700, 0};
+    vcl_compiler_handle_t compiler = NULL;
+    ret = vclCompilerCreate(compilerDesc, &compiler);
+    if (ret) {
+        std::cerr << "Failed to create compiler! Result:0x" << std::hex << uint64_t(ret) << std::dec << std::endl;
+        return ret;
+    }
+
+    vcl_compiler_properties_t compilerProp;
+    ret = vclCompilerGetProperties(compiler, &compilerProp);
+    if (ret) {
+        std::cerr << "Failed to query compiler props! Result:0x" << std::hex << uint64_t(ret) << std::dec << std::endl;
+        vclCompilerDestroy(compiler);
+        return ret;
+    } else {
+        version.major = compilerProp.version.major;
+        version.minor = compilerProp.version.minor;
+        vclCompilerDestroy(compiler);
+    }
+
     // Read buffer, add net.xml
     size_t bytesRead = 0;
     FILE* fpN = fopen(netName, "rb");
@@ -79,7 +102,6 @@ vcl_result_t CompilerTest::init(char* netName, char* weightName) {
     uint64_t weightsSize = ftell(fpW);
 
     // Init modelIR
-    vcl_version_info_t version = {1, 2};
     uint32_t numberOfInputData = 2;
     modelIRSize =
             sizeof(version) + sizeof(numberOfInputData) + sizeof(xmlSize) + xmlSize + sizeof(weightsSize) + weightsSize;
@@ -159,14 +181,11 @@ vcl_result_t CompilerTest::run() {
         std::cout << threadName.c_str() << "\tSupported opsets:" << compilerProp.supportedOpsets << std::endl;
         std::cout << "############################################" << std::endl;
     }
-
-    vcl_tensor_precision_t inPrc = VCL_TENSOR_PRECISION_FP32;
-    vcl_tensor_layout_t inLayout = VCL_TENSOR_LAYOUT_ANY;
-    vcl_tensor_precision_t outPrc = VCL_TENSOR_PRECISION_FP32;
-    vcl_tensor_layout_t outLayout = VCL_TENSOR_LAYOUT_ANY;
-    char options[] = "VPUX_PLATFORM 3700 ";
-    vcl_executable_desc_t exeDesc = {modelIR, modelIRSize, inPrc,   inLayout,
-                                     outPrc,  outLayout,   options, sizeof(options)};
+    char options[] = "--inputs_precisions=\"input:U8\" --inputs_layouts=\"input:NCHW\" "
+                     "--outputs_precisions=\"InceptionV1/Logits/Predictions/Softmax:FP32\" "
+                     "--outputs_layouts=\"InceptionV1/Logits/Predictions/Softmax:NC\" --config  "
+                     "VPUX_COMPILATION_MODE_PARAMS=\"use-user-precision=false propagate-quant-dequant=0\"";
+    vcl_executable_desc_t exeDesc = {modelIR, modelIRSize, options, sizeof(options)};
 
     // Get the outputs from multiple threads env;
     std::vector<std::thread> compilationThreads;

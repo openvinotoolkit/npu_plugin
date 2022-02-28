@@ -23,10 +23,10 @@
 
 ```bash
 cd CiD_Linux_XXXX
-LD_LIBRARY_PATH=./lib/ ./compilerTest xxx.xml xxx.bin output.net
-LD_LIBRARY_PATH=./lib/ ./compilerTest xxx.xml xxx.bin output.net FP16 C FP16 C config.file
-LD_LIBRARY_PATH=./lib/ ./compilerThreadTest xxx.xml xxx.bin
-LD_LIBRARY_PATH=./lib/ ./compilerThreadTest2 xxx.xml xxx.bin
+LD_LIBRARY_PATH=./lib/ ./compilerTest googlenet-v1.xml googlenet-v1.bin output.net
+LD_LIBRARY_PATH=./lib/ ./compilerTest xxx.xml xxx.bin output.net config.file
+LD_LIBRARY_PATH=./lib/ ./compilerThreadTest googlenet-v1.xml googlenet-v1.bin
+LD_LIBRARY_PATH=./lib/ ./compilerThreadTest2 googlenet-v1.xml googlenet-v1.bin
 LD_LIBRARY_PATH=./lib/ ./profilingTest xxx.blob profiling-0.bin
 ```
 
@@ -59,10 +59,10 @@ LD_LIBRARY_PATH=./lib/ ./profilingTest xxx.blob profiling-0.bin
 
 ```bash
 cd CiD_WIN_XXXX
-PATH=$PATH:./lib/ ./compilerTest.exe xxx.xml xxx.bin output.net
-PATH=$PATH:./lib/ ./compilerTest.exe xxx.xml xxx.bin output.net FP16 C FP16 C config.file
-PATH=$PATH:./lib/ ./compilerThreadTest.exe xxx.xml xxx.bin
-PATH=$PATH:./lib/ ./compilerThreadTest2.exe xxx.xml xxx.bin
+PATH=$PATH:./lib/ ./compilerTest.exe googlenet-v1.xml googlenet-v1.bin output.net
+PATH=$PATH:./lib/ ./compilerTest.exe xxx.xml xxx.bin output.net config.file
+PATH=$PATH:./lib/ ./compilerThreadTest googlenet-v1.xml googlenet-v1.bin
+PATH=$PATH:./lib/ ./compilerThreadTest2 googlenet-v1.xml ad_abc.bin
 PATH=$PATH:./lib/ ./profilingTest.exe xxx.blob profiling-0.bin
 ```
 
@@ -71,10 +71,10 @@ PATH=$PATH:./lib/ ./profilingTest.exe xxx.blob profiling-0.bin
 ```bash
 cd .\CiD_WIN_XXXX\
 $Env:Path +=";.\lib"
-.\compilerTest.exe xxx.xml xxx.bin output.net
-.\compilerTest.exe xxx.xml xxx.bin output.net FP16 C FP16 C config.file
-.\compilerThreadTest.exe xxx.xml xxx.bin
-.\compilerThreadTest2.exe xxx.xml xxx.bin
+.\compilerTest.exe googlenet-v1.xml googlenet-v1.bin output.net
+.\compilerTest.exe xxx.xml xxx.bin output.net config.file
+.\compilerThreadTest googlenet-v1.xml googlenet-v1.bin
+.\compilerThreadTest2 googlenet-v1.xml googlenet-v1.bin
 .\profilingTest.exe xxx.blob profiling-0.bin
 ```
 
