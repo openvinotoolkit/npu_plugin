@@ -342,7 +342,8 @@ double StrategyManager::dmaTime(mlir::Operation* op, multiClusterStrategyRange S
 
     auto output = op->getResult(0);
     auto outShape = getShape(output);
-    const auto outDtypeFactor = output.getType().cast<mlir::ShapedType>().getElementType().getIntOrFloatBitWidth() / 8;
+    const auto outDtypeFactor =
+            output.getType().cast<mlir::ShapedType>().getElementType().getIntOrFloatBitWidth() / CHAR_BIT;
     // TODO: Overhead for spilled output
 
     // This section captures the output cost to multicast to all clusters
@@ -353,7 +354,7 @@ double StrategyManager::dmaTime(mlir::Operation* op, multiClusterStrategyRange S
         if (Strategy == multiClusterStrategyRange::SplitOverK) {
             outputSize *= _numClusters;
         }
-        outputCycles += (_numClusters * LATENCY_CMX_) + ((double)outputSize / CMX_BANDWIDTH_);
+        outputCycles += (_numClusters * LATENCY_CMX_) + (static_cast<double>(outputSize) / CMX_BANDWIDTH_);
     }
 
     return inputCycles + weightsCycles + outputCycles;
