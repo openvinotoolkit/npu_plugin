@@ -14,8 +14,8 @@
 #include "vpux_driver_compiler_adapter.h"
 #include "network_description.h"
 #include "ngraph_transformations.h"
-#include "zero_compiler_in_driver.h"
 #include "vpux/al/config/common.hpp"
+#include "zero_compiler_in_driver.h"
 
 namespace vpux {
 namespace driverCompilerAdapter {

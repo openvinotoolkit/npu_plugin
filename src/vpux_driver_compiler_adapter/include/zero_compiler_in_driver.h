@@ -1,5 +1,5 @@
 //
-// Copyright Intel Corporation.
+// Copyright 2022 Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -42,6 +42,8 @@ public:
 
     std::shared_ptr<INetworkDescription> parseBlob(const std::string& graphName, const std::vector<char>& blob,
                                                    const vpux::Config& config) final;
+    static std::string serializeIOInfo(const InferenceEngine::InputsDataMap& inputsInfo,
+                                       const InferenceEngine::OutputsDataMap& outputsInfo);
 
 private:
     NetworkMeta getNetworkMeta(ze_graph_handle_t graph_handle);

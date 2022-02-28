@@ -1,5 +1,5 @@
 //
-// Copyright Intel Corporation.
+// Copyright 2022 Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -288,6 +288,66 @@ SerializedIR LevelZeroCompilerInDriver::serializeIR(const std::vector<char>& xml
     return serializedIR;
 }
 
+/**
+ * @brief Serialize input / output information to string format
+ * Format:
+ * --inputs_precisions="<input1Name>:<input1Precision> [<input2Name>:<input2Precision>]"
+ * --inputs_layouts="<input1Name>:<input1Layout> [<input2Name>:<input2Layout>]"
+ * --outputs_precisions="<output1Name>:<output1Precision>"
+ * --outputs_layouts="<output1Name>:<output1Layout>"
+ */
+std::string LevelZeroCompilerInDriver::serializeIOInfo(const InferenceEngine::InputsDataMap& inputsInfo,
+                                                       const InferenceEngine::OutputsDataMap& outputsInfo) {
+    const std::string inputsPrecisionsKey = "--inputs_precisions";
+    const std::string inputsLayoutsKey = "--inputs_layouts";
+    const std::string outputsPrecisionsKey = "--outputs_precisions";
+    const std::string outputsLayoutsKey = "--outputs_layouts";
+
+    // <option key>="<option value>"
+    const std::string keyValueSeparator = "=";
+    const std::string valueDelimiter = "\"";    // marks beginning and end of value
+
+    // Format inside "<option value>"
+    // <name1>:<value (precision / layout)> [<name2>:<value>]
+    const std::string nameValueSeparator = ":";
+    const std::string valuesSeparator = " ";
+
+    auto serializeOptionValue = [&](auto& portsInfo, auto& precisionSS, auto& layoutSS) {
+        for (auto&& port : portsInfo) {
+            if (port.first != portsInfo.cbegin()->first) {
+                precisionSS << valuesSeparator;
+                layoutSS << valuesSeparator;
+            }
+            precisionSS << port.first << nameValueSeparator << port.second->getPrecision();
+            layoutSS << port.first << nameValueSeparator << port.second->getLayout();
+        }
+
+        precisionSS << valueDelimiter;
+        layoutSS << valueDelimiter;
+    };
+
+    std::stringstream inputsPrecisionSS;
+    std::stringstream inputsLayoutSS;
+
+    inputsPrecisionSS << inputsPrecisionsKey << keyValueSeparator << valueDelimiter;
+    inputsLayoutSS << inputsLayoutsKey << keyValueSeparator << valueDelimiter;
+
+    serializeOptionValue(inputsInfo, inputsPrecisionSS, inputsLayoutSS);
+
+
+    std::stringstream outputsPrecisionSS;
+    std::stringstream outputsLayoutSS;
+
+    outputsPrecisionSS << outputsPrecisionsKey << keyValueSeparator << valueDelimiter;
+    outputsLayoutSS << outputsLayoutsKey << keyValueSeparator << valueDelimiter;
+
+    serializeOptionValue(outputsInfo, outputsPrecisionSS, outputsLayoutSS);
+
+    // One line without spaces to avoid parsing as config option inside CID
+    return inputsPrecisionSS.str() + valuesSeparator + inputsLayoutSS.str() + valuesSeparator +
+           outputsPrecisionSS.str() + valuesSeparator + outputsLayoutSS.str();
+}
+
 std::string toString(const ze_graph_argument_precision_t& precision) {
     switch (precision) {
     case ZE_GRAPH_ARGUMENT_PRECISION_UINT8:
@@ -354,38 +414,13 @@ INetworkDescription::Ptr LevelZeroCompilerInDriver::compileIR(
     if (inputsInfo.empty() || outputsInfo.empty()) {
         THROW_IE_EXCEPTION << "Information about inputs or outputs is not provided.";
     }
-    // TODO #-30404 Add ability to specify precision and layout for multiple inputs and outputs
-    if (inputsInfo.size() > 1) {
-        _logger.warning(
-                "More than one input. Layout and precision from the first input will be propagated to all inputs.");
-    }
-    if (outputsInfo.size() > 1) {
-        _logger.warning(
-                "More than one output. Layout and precision from the first output will be propagated to all outputs.");
-    }
 
-    // Build flags for compilation
     std::string build_flags;
 
-    const auto inputPrecision = toZePrecision(inputsInfo.begin()->second->getPrecision());
-    build_flags += "-ze_graph_input_precision:";
-    build_flags += toString(inputPrecision);
-    build_flags += ",";
+    build_flags += serializeIOInfo(inputsInfo, outputsInfo);
+    // TODO #-31612 serialize config options
 
-    const auto inputLayout = toZeLayout(inputsInfo.begin()->second->getLayout());
-    build_flags += "-ze_graph_input_layout:";
-    build_flags += toString(inputLayout);
-    build_flags += ",";
-
-    const auto outputPrecision = toZePrecision(outputsInfo.begin()->second->getPrecision());
-    build_flags += "-ze_graph_output_precision:";
-    build_flags += toString(outputPrecision);
-    build_flags += ",";
-
-    const auto outputLayout = toZeLayout(outputsInfo.begin()->second->getLayout());
-    build_flags += "-ze_graph_output_layout:";
-    build_flags += toString(outputLayout);
-
+    _logger.debug(build_flags);
     ze_graph_desc_t desc{ZE_STRUCTURE_TYPE_GRAPH_DESC_PROPERTIES,
                          nullptr,
                          format,
