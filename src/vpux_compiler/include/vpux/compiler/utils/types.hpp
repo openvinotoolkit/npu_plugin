@@ -114,6 +114,8 @@ mlir::RankedTensorType getTensorType(ShapeRef shape, mlir::Type elemType, DimsOr
 
 mlir::RankedTensorType changeSparse(mlir::RankedTensorType origType, bool sparse);
 
+mlir::RankedTensorType getDilatedType(mlir::RankedTensorType origType, ShapeRef dilations);
+
 //
 // ShapedType utilities
 //

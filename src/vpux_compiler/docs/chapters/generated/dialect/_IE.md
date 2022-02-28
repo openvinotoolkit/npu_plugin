@@ -930,6 +930,36 @@ operation ::= `IE.Exp` `(` operands `)` attr-dict `:` type(operands) `->` type(r
 | :----: | ----------- |
 `output` | ranked tensor of 16-bit float or 32-bit float values
 
+### `IE.ExpandDilated` (vpux::IE::ExpandDilatedOp)
+
+Expand tensor with uninitialized values according to dilations
+
+
+Syntax:
+
+```
+operation ::= `IE.ExpandDilated` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`dilations` | ::mlir::ArrayAttr | 64-bit integer array attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of any type values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of any type values
+
 ### `IE.Expand` (vpux::IE::ExpandOp)
 
 Expand tensor with uninitialized values

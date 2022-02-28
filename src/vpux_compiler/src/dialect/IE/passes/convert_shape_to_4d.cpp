@@ -185,10 +185,10 @@ mlir::LogicalResult FakeQuantizeConverter::matchAndRewrite(IE::FakeQuantizeOp or
 
     const auto newInputShapeAttr = getIntArrayAttr(getContext(), input4D.shape);
     auto inputReshape =
-            rewriter.create<IE::ReshapeOp>(origOp->getLoc(), newArgs.input(), nullptr, false, newInputShapeAttr);
+            rewriter.createOrFold<IE::ReshapeOp>(origOp->getLoc(), newArgs.input(), nullptr, false, newInputShapeAttr);
 
     auto newFakeQuantizeOp =
-            rewriter.create<IE::FakeQuantizeOp>(origOp->getLoc(), inputReshape.output(), inputLow, inputHigh, outputLow,
+            rewriter.create<IE::FakeQuantizeOp>(origOp->getLoc(), inputReshape, inputLow, inputHigh, outputLow,
                                                 outputHigh, origOp.levels(), origOp.auto_broadcast());
 
     const auto outputShapeAttr = getIntArrayAttr(getContext(), getShape(origOp.output()));

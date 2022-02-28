@@ -144,6 +144,11 @@ in parallel or continue computation in tiles.
 
 The pass doesn't use any cost model and just choose the first largest tile size,
 which fits into the memory requirements.
+### `-legalize-dilated-conv`: Handle dilated convolutions
+The pass is a part of `buildHardwareModePipeline` pipeline.
+
+This pass expands filter of dilated convolution so that they are able to be infered
+    on dpu because of hardware limitation.
 ### `-matmul-inputs-to-2d`: Convert MatMul inputs to 2d
 This pass converts `MatMul` inputs to 2d.
 

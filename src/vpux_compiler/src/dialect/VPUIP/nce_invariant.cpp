@@ -1126,17 +1126,16 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(mlir::Location loc, 
                                                             Logger log) {
     log.setName("NCEInvariant");
 
-    static const int32_t NCE_MAX_KERNEL_SIZE = 11;
     static const int32_t NCE_MAX_STRIDE_SIZE = 8;
 
-    if (KY > NCE_MAX_KERNEL_SIZE || KY <= 0) {
+    if (KY > VPU::NCEInvariant::MAX_KERNEL_SIZE || KY <= 0) {
         log.trace("[{0}] Unsupported kernel height dimension '{1}', must be in range [1, {2}]", loc, KY,
-                  NCE_MAX_KERNEL_SIZE);
+                  VPU::NCEInvariant::MAX_KERNEL_SIZE);
         return mlir::failure();
     }
-    if (KX > NCE_MAX_KERNEL_SIZE || KX <= 0) {
+    if (KX > VPU::NCEInvariant::MAX_KERNEL_SIZE || KX <= 0) {
         log.trace("[{0}] Unsupported kernel width dimension '{1}', must be in range [1, {2}]", loc, KX,
-                  NCE_MAX_KERNEL_SIZE);
+                  VPU::NCEInvariant::MAX_KERNEL_SIZE);
         return mlir::failure();
     }
 

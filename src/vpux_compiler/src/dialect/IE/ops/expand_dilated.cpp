@@ -1,0 +1,86 @@
+//
+// Copyright Intel Corporation.
+//
+// LEGAL NOTICE: Your use of this software and any required dependent software
+// (the "Software Package") is subject to the terms and conditions of
+// the Intel(R) OpenVINO(TM) Distribution License for the Software Package,
+// which may also include notices, disclaimers, or license terms for
+// third party or open source software included in or with the Software Package,
+// and your use indicates your acceptance of all such terms. Please refer
+// to the "third-party-programs.txt" or other similarly-named text file
+// included with the Software Package for additional details.
+//
+
+#include "vpux/compiler/dialect/IE/ops.hpp"
+
+#include "vpux/compiler/core/layers.hpp"
+#include "vpux/compiler/utils/attributes.hpp"
+#include "vpux/compiler/utils/types.hpp"
+
+using namespace vpux;
+
+//
+// inferReturnTypeComponents
+//
+
+mlir::LogicalResult vpux::IE::ExpandDilatedOp::inferReturnTypeComponents(
+        mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
+        mlir::DictionaryAttr attrs, mlir::RegionRange,
+        SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
+    const auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
+
+    IE::ExpandDilatedOpAdaptor expandDilated(operands, attrs);
+    if (mlir::failed(expandDilated.verify(loc))) {
+        return mlir::failure();
+    }
+
+    const auto inType = expandDilated.input().getType().dyn_cast<mlir::RankedTensorType>();
+    if (!inType) {
+        return mlir::failure();
+    }
+
+    const auto dilations = parseIntArrayAttr<int64_t>(expandDilated.dilations());
+    const auto newType = getDilatedType(inType, ShapeRef(dilations));
+    inferredReturnShapes.emplace_back(newType.getShape(), newType.getElementType(), newType.getEncoding());
+
+    return mlir::success();
+}
+
+//
+// inferElemTypeInfo
+//
+
+void vpux::IE::ExpandDilatedOp::inferElemTypeInfo(vpux::IE::LayerDataInfo<mlir::Type>& info) {
+    const auto inputElemType = info.getInput(0);
+
+    for (size_t outputInd = 0; outputInd < info.getNumOutputs(); ++outputInd) {
+        info.setOutput(outputInd, inputElemType);
+    }
+}
+
+void vpux::IE::ExpandDilatedOp::inferElemTypeInfoUp(vpux::IE::LayerDataInfo<mlir::Type>& info) {
+    const auto outputElemType = info.getOutput(0);
+
+    for (size_t inputInd = 0; inputInd < info.getNumInputs(); ++inputInd) {
+        info.setInput(inputInd, outputElemType);
+    }
+}
+
+//
+// fold
+//
+
+mlir::OpFoldResult vpux::IE::ExpandDilatedOp::fold(ArrayRef<mlir::Attribute> operands) {
+    if (input().getType() == output().getType()) {
+        return input();
+    }
+
+    VPUX_THROW_UNLESS(!operands.empty(), "Wrong number of operands : {0}", operands.size());
+
+    if (const auto attr = operands[0].dyn_cast_or_null<Const::ContentAttr>()) {
+        const auto dilationsVal = parseIntArrayAttr<int64_t>(dilations());
+        return attr.expandDilated(ShapeRef(dilationsVal));
+    }
+
+    return nullptr;
+}

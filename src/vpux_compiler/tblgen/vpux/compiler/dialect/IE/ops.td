@@ -1133,7 +1133,7 @@ def IE_EluOp :
 
 def IE_ReshapeOp :
         IE_LayerOp<
-            "Reshape", 
+            "Reshape",
             [
                 DeclareOpInterfaceMethods<IE_ElemTypeInfoOpInterface>
             ]
@@ -3119,6 +3119,32 @@ def IE_YuvToRgbOp :
     let results = (outs
         4DTensorOf<[SI8, F16, F32]>:$output
     );
+}
+
+//
+// ExpandDilatedOp
+//
+
+def IE_ExpandDilatedOp :
+        IE_LayerOp<
+            "ExpandDilated",
+            [
+                DeclareOpInterfaceMethods<IE_ElemTypeInfoOpInterface>
+            ]
+        > {
+    let summary = "Expand tensor with uninitialized values according to dilations";
+
+    let arguments = (ins
+        AnyRankedTensor:$input,
+
+        I64ArrayAttr:$dilations
+    );
+
+    let results = (outs
+        AnyRankedTensor:$output
+    );
+
+    let hasFolder = 1;
 }
 
 #endif

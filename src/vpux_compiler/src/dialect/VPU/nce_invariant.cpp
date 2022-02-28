@@ -95,17 +95,16 @@ bool vpux::VPU::NCEInvariant::verifyPads(mlir::ArrayAttr kernelSizeAttr, mlir::A
 bool vpux::VPU::NCEInvariant::isAttrsSupported(ArchKind arch, int64_t KY, int64_t KX, int64_t SY, int64_t SX,
                                                int64_t padTop, int64_t padBottom, int64_t padLeft, int64_t padRight,
                                                LogCb logCb) {
-    static const int64_t NCE_MAX_KERNEL_SIZE = 11;
     static const int64_t NCE_MAX_STRIDE_SIZE = 8;
 
-    if (KY > NCE_MAX_KERNEL_SIZE || KY <= 0) {
+    if (KY > MAX_KERNEL_SIZE || KY <= 0) {
         logCb(llvm::formatv("Unsupported kernel height dimension '{0}', must be in range [1, {1}]", KY,
-                            NCE_MAX_KERNEL_SIZE));
+                            MAX_KERNEL_SIZE));
         return false;
     }
-    if (KX > NCE_MAX_KERNEL_SIZE || KX <= 0) {
+    if (KX > MAX_KERNEL_SIZE || KX <= 0) {
         logCb(llvm::formatv("Unsupported kernel width dimension '{0}', must be in range [1, {1}]", KX,
-                            NCE_MAX_KERNEL_SIZE));
+                            MAX_KERNEL_SIZE));
         return false;
     }
 
