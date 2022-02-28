@@ -485,3 +485,45 @@ void vpux::IE::ConcatOp::getCanonicalizationPatterns(mlir::RewritePatternSet& re
     results.add<ConvertPerAxisToOffsets>(ctx);
     results.add<FuseConcat>(ctx);
 }
+
+//
+// LayoutInfoOpInterface
+//
+
+void vpux::IE::ConcatOp::inferLayoutInfo(IE::LayerLayoutInfo& info) {
+    info.fill(DimsOrder::NHWC);
+}
+
+//
+// inferElemTypeInfo
+//
+
+void vpux::IE::ConcatOp::inferElemTypeInfo(vpux::IE::LayerDataInfo<mlir::Type>& info) {
+    auto inputElemType = info.getInput(0);
+    for (size_t inputInd = 1; inputInd < info.getNumInputs(); ++inputInd) {
+        if (info.getInput(inputInd).isa<mlir::quant::QuantizedType>()) {
+            inputElemType = info.getInput(inputInd);
+        }
+    }
+
+    // Do not propagate element type down in per channel case.
+    // EISW-31030
+    if (inputElemType.dyn_cast_or_null<mlir::quant::UniformQuantizedPerAxisType>() == nullptr) {
+        for (size_t outputInd = 0; outputInd < info.getNumOutputs(); ++outputInd) {
+            info.setOutput(outputInd, inputElemType);
+        }
+    }
+}
+
+void vpux::IE::ConcatOp::inferElemTypeInfoUp(vpux::IE::LayerDataInfo<mlir::Type>& info) {
+    const auto outputElemType = info.getOutput(0);
+
+    if (outputElemType.dyn_cast_or_null<mlir::quant::UniformQuantizedPerAxisType>() != nullptr) {
+        // EISW-31029: implement propagate type up for per channel, currently it leads to failures in later passes.
+        return;
+    }
+
+    for (size_t inputInd = 0; inputInd < info.getNumInputs(); ++inputInd) {
+        info.setInput(inputInd, outputElemType);
+    }
+}

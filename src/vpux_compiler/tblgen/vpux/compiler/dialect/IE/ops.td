@@ -448,7 +448,10 @@ def IE_ReLUOp :
 
 def IE_SplitOp :
         IE_LayerOp<
-            "Split"
+            "Split",
+            [
+                DeclareOpInterfaceMethods<IE_ElemTypeInfoOpInterface>
+            ]
         > {
     let summary = "InferenceEngine Split layer";
 
@@ -2253,7 +2256,11 @@ def IE_MVNOp :
 
 def IE_ConcatOp :
         IE_LayerOp<
-            "Concat"
+            "Concat",
+            [
+                DeclareOpInterfaceMethods<IE_LayoutInfoOpInterface>,
+                DeclareOpInterfaceMethods<IE_ElemTypeInfoOpInterface>
+            ]
         > {
     let summary = "InferenceEngine Concat layer";
 

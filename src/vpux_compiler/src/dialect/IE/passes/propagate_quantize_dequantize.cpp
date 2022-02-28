@@ -157,12 +157,29 @@ and replaces it with
 quantized_tensor -> [ElemTypeInfoOpInterface] -> quantized_tensor(inferred) -> [Dequantize] -> fp_tensor */
 mlir::LogicalResult PropagateDequantize::matchAndRewrite(IE::ElemTypeInfoOpInterface origOp,
                                                          mlir::PatternRewriter& rewriter) const {
+    // origOp.dump();
+
     auto layer = mlir::cast<IE::LayerOpInterface>(origOp.getOperation());
-    if (layer->getNumOperands() != 1 || layer->getNumResults() != 1) {
-        return mlir::failure();
+    // if (layer->getNumOperands() != 1 || layer->getNumResults() != 1){
+    //     return mlir::failure();
+    // }
+
+    auto inputs = layer.getInputs();
+    vpux::IE::DequantizeOp dequantOp = nullptr;
+    size_t dequantInd;
+
+    for (size_t inputInd = 0; inputInd < inputs.size(); ++inputInd) {
+        auto input = inputs[inputInd];
+
+        if (input.getDefiningOp<Const::DeclareOp>() == nullptr) {
+            dequantOp = input.getDefiningOp<IE::DequantizeOp>();
+            dequantInd = inputInd;
+            if (dequantOp == nullptr) {
+                return mlir::failure();
+            }
+        }
     }
 
-    auto dequantOp = layer.getInputs()[0].getDefiningOp<IE::DequantizeOp>();
     if (dequantOp == nullptr) {
         return mlir::failure();
     }
@@ -181,16 +198,44 @@ mlir::LogicalResult PropagateDequantize::matchAndRewrite(IE::ElemTypeInfoOpInter
     const auto quantizedElemType = dequantOp.input().getType().cast<vpux::NDTypeInterface>().getElementType();
     auto elemTypeInfo = origOp.getElemTypeInfo();
 
-    elemTypeInfo.setInput(0, quantizedElemType);
+    elemTypeInfo.setInput(dequantInd, quantizedElemType);
     origOp.inferElemTypeInfo(elemTypeInfo);
 
-    if (elemTypeInfo.getInput(0) != quantizedElemType || !elemTypeInfo.getOutput(0).isa<mlir::quant::QuantizedType>()) {
+    if (elemTypeInfo.getInput(dequantInd) != quantizedElemType ||
+        !elemTypeInfo.getOutput(0).isa<mlir::quant::QuantizedType>()) {
         return matchFailed(rewriter, origOp, "Operation does not support quantization params propagation");
     }
 
     // Rewrite the sub-graph.
     rewriter.startRootUpdate(origOp);
-    origOp->getOpOperand(0).set(dequantOp.input());
+    origOp->getOpOperand(dequantInd).set(dequantOp.input());
+
+    // for (size_t inputInd = 0; inputInd < inputs.size(); ++inputInd) {
+    //     auto input = layer.getInputs()[inputInd].getDefiningOp();
+    //     input->dump();
+    // }
+
+    for (size_t inputInd = 0; inputInd < inputs.size(); ++inputInd) {
+        if (inputInd == dequantInd) {
+            continue;
+        }
+
+        auto input = layer.getInputs()[inputInd];
+        auto inputOp = input.getDefiningOp();
+
+        if (input != nullptr && (input.getType() != quantizedElemType)) {
+            const auto output = inputOp->getOpResult(0);
+            rewriter.setInsertionPointAfter(inputOp);
+            auto newQuant = rewriter.create<IE::QuantizeOp>(origOp->getLoc(), output, quantizedElemType);
+            layer->getOpOperand(inputInd).set(newQuant.output());
+        }
+    }
+
+    for (size_t inputInd = 0; inputInd < inputs.size(); ++inputInd) {
+        auto input = layer.getInputs()[inputInd].getDefiningOp();
+        input->dump();
+        input->getOpResult(0);
+    }
 
     // infer return type
     mlir::SmallVector<mlir::Type> inferredTypes;
@@ -199,16 +244,18 @@ mlir::LogicalResult PropagateDequantize::matchAndRewrite(IE::ElemTypeInfoOpInter
                                           op->getRegions(), inferredTypes)
                               .succeeded(),
                       "New type inference failed for '{0}'", op);
-    origOp->getResult(0).setType(inferredTypes[0]);
 
-    const auto output = origOp->getOpResult(0);
-    rewriter.setInsertionPointAfter(origOp);
-    auto newDequant = rewriter.create<IE::DequantizeOp>(dequantOp.getLoc(), output, dequantOp.dstElemType());
-    output.replaceAllUsesExcept(newDequant.output(), llvm::SmallPtrSet<mlir::Operation*, 1>{newDequant});
+    for (size_t outputInd = 0; outputInd < origOp->getResults().size(); ++outputInd) {
+        origOp->getResult(outputInd).setType(inferredTypes[outputInd]);
 
+        const auto output = origOp->getOpResult(outputInd);
+        rewriter.setInsertionPointAfter(origOp);
+        auto newDequant = rewriter.create<IE::DequantizeOp>(dequantOp.getLoc(), output, dequantOp.dstElemType());
+        output.replaceAllUsesExcept(newDequant.output(), llvm::SmallPtrSet<mlir::Operation*, 1>{newDequant});
+    }
     rewriter.finalizeRootUpdate(origOp);
     return mlir::success();
-}
+}  // namespace
 
 class PropagateQuantizeDequantizePass final :
         public IE::PropagateQuantizeDequantizeBase<PropagateQuantizeDequantizePass> {

@@ -157,3 +157,32 @@ void vpux::IE::SplitOp::getCanonicalizationPatterns(mlir::OwningRewritePatternLi
                                                     mlir::MLIRContext* context) {
     patterns.insert<ConvertConstToAttr>(context);
 }
+
+//
+// inferElemTypeInfo
+//
+
+void vpux::IE::SplitOp::inferElemTypeInfo(vpux::IE::LayerDataInfo<mlir::Type>& info) {
+    const auto inputElemType = info.getInput(0);
+
+    // Do not propagate element type down in per channel case.
+    // EISW-31030
+    if (inputElemType.dyn_cast_or_null<mlir::quant::UniformQuantizedPerAxisType>() == nullptr) {
+        for (size_t outputInd = 0; outputInd < info.getNumOutputs(); ++outputInd) {
+            info.setOutput(outputInd, inputElemType);
+        }
+    }
+}
+
+void vpux::IE::SplitOp::inferElemTypeInfoUp(vpux::IE::LayerDataInfo<mlir::Type>& info) {
+    const auto outputElemType = info.getOutput(0);
+
+    if (outputElemType.dyn_cast_or_null<mlir::quant::UniformQuantizedPerAxisType>() != nullptr) {
+        // EISW-31029: implement propagate type up for per channel, currently it leads to failures in later passes.
+        return;
+    }
+
+    for (size_t inputInd = 0; inputInd < info.getNumInputs(); ++inputInd) {
+        info.setInput(inputInd, outputElemType);
+    }
+}
