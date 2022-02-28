@@ -83,14 +83,14 @@ mlir::LogicalResult CopyOpSequence::matchAndRewrite(IERT::CopyOp copyOp, mlir::P
                 if (copySubView->isBeforeInBlock(masterBuffer)) {
                     masterBuffer->moveBefore(copySubView);
                 }
-                rewriter.eraseOp(copyOp);
             } else if (copyOp.input().getType() == copyOp.output().getType()) {
                 // case with no subView
                 copyOp.output().replaceAllUsesWith(copyOp.input());
-                rewriter.eraseOp(copyOp);
             } else {
                 _log.trace("Copy not optimized {0}", copyOp->getLoc());
+                return mlir::failure();
             }
+            rewriter.eraseOp(copyOp);
             return mlir::success();
         }
 
