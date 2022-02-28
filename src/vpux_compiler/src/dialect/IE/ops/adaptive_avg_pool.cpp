@@ -47,7 +47,6 @@ mlir::LogicalResult vpux::IE::AdaptivePoolOpAdaptor::inferReturnTypeComponents(
                        inShapePooled.size());
     }
 
-
     SmallVector<int64_t> output_shape;
     output_shape.push_back(inShapeFeatureMap[0]);
     output_shape.push_back(inShapeFeatureMap[1]);

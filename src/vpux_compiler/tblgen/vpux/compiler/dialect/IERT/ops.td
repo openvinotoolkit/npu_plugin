@@ -319,8 +319,6 @@ def IERT_AdaptivePoolOp :
 
 
         IE_AdaptivePoolMethod:$method
-
-
     );
 
     let results = (outs
