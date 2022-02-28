@@ -223,3 +223,46 @@ func @MultiAxesAndPerAxisQuant(
 // CHECK-SAME:      -> tensor<1x32x8x8x!qElemType0>
 
 // CHECK:       return [[OUTPUT]] : tensor<1x32x8x8x!qElemType0>
+
+#NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
+
+func @AvoidClusterTiling(%arg0: tensor<1x32x100x100xf16, {mem_space = @CMX_NN, order = #NHWC}>) -> tensor<1x128x100x100xf16, {mem_space = @CMX_NN, order = #NHWC}> {
+    %weights = const.Declare tensor<128x32x3x3xf16, {mem_space = @CMX_NN, order = #NHWC}> = #const.Content<dense<1.000000e+00> : tensor<128x32x3x3xf16, {mem_space = @CMX_NN}>, [#const.Reorder<#NHWC>]>
+
+    %0 = VPU.NCE.ClusterTiling (
+            %arg0 as %arg1: tensor<1x32x100x100xf16, {mem_space = @CMX_NN, order = #NHWC}>,
+            %weights as %arg2: tensor<128x32x3x3xf16, {mem_space = @CMX_NN, order = #NHWC}>)
+                -> tensor<1x128x100x100xf16, {mem_space = @CMX_NN, order = #NHWC}> {
+
+        %1 = VPU.NCE.Convolution(%arg1, %arg2) (bias : #const.Content<dense<1.000000e+00> : tensor<1x128x1x1xf16>>) {
+            pad = {bottom = 1 : i64, left = 1 : i64, right = 1 : i64, top = 1 : i64},
+            rawFilterShape = [128, 32, 3, 3],
+            strides = [1, 1]
+        } : tensor<1x32x100x100xf16, {mem_space = @CMX_NN, order = #NHWC}>,
+                tensor<128x32x3x3xf16, {mem_space = @CMX_NN, order = #NHWC}>
+                -> tensor<1x128x100x100xf16, {mem_space = @CMX_NN, order = #NHWC}>
+
+      VPU.Yield %1
+    }
+
+    return %0 : tensor<1x128x100x100xf16, {mem_space = @CMX_NN, order = #NHWC}>
+}
+
+// CHECK-LABEL:   @AvoidClusterTiling
+// CHECK-SAME:          [[INPUT:%arg[0-9]]]: tensor<1x32x100x100xf16, {mem_space = @CMX_NN, order = #NHWC}>
+
+// CHECK:        [[WEIGHTS:%.+]] = const.Declare tensor<128x32x3x3xf16, {mem_space = @CMX_NN, order = #NHWC}>
+
+// CHECK:        [[CLUSTER_TILING:%.+]] = VPU.NCE.ClusterTiling (
+// CHECK-SAME:          %arg0 as %arg1: tensor<1x32x100x100xf16, {mem_space = @CMX_NN, order = #NHWC}>
+// CHECK-SAME:          [[WEIGHTS]] as %arg2: tensor<128x32x3x3xf16, {mem_space = @CMX_NN, order = #NHWC}>)
+// CHECK-SAME:          -> tensor<1x128x100x100xf16, {mem_space = @CMX_NN, order = #NHWC}>
+// CHECK:           [[NCE_CONV:%.*]] = VPU.NCE.Convolution(%arg1, %arg2) (
+// CHECK-SAME:              bias : #const.Content<dense<1.000000e+00> : tensor<1x128x1x1xf16>>)
+// CHECK-SAME:              pad = {bottom = 1 : i64, left = 1 : i64, right = 1 : i64, top = 1 : i64}
+// CHECK-SAME:              rawFilterShape = [128, 32, 3, 3]
+// CHECK-SAME:              strides = [1, 1]
+// CHECK-SAME:              -> tensor<1x128x100x100xf16, {mem_space = @CMX_NN, order = #NHWC}>
+// CHECK:           VPU.Yield [[NCE_CONV]]
+
+// CHECK:         return [[CLUSTER_TILING]] : tensor<1x128x100x100xf16, {mem_space = @CMX_NN, order = #NHWC}>
