@@ -111,13 +111,19 @@ bool FeasibleMemoryScheduler::isDataOp(operationIdxType opIdx) {
     }
 
     for (auto& innerOp : bodyBlock->getOperations()) {
-        if (mlir::isa<IERT::CopyOp>(innerOp)) {
-            if (auto copyOp = mlir::dyn_cast<IERT::CopyOp>(innerOp)) {
-                // DMA from DDR to NN_CMX
-                auto srcMemSpace = copyOp.input().getType().cast<vpux::NDTypeInterface>().getMemSpace();
-                auto dstMemSpace = copyOp.output().getType().cast<vpux::NDTypeInterface>().getMemSpace();
-                return (_memSpace == dstMemSpace && _memSpace != srcMemSpace);
-            }
+        IERT::CopyOp copyOp;
+        // CopyOp can be placed directly in async exec op or wrapped with NCEClusterTiling
+        if (auto nceClustOp = mlir::dyn_cast<VPUIP::NCEClusterTilingOp>(innerOp)) {
+            copyOp = mlir::dyn_cast<IERT::CopyOp>(nceClustOp.getInnerTaskOp());
+        } else {
+            copyOp = mlir::dyn_cast<IERT::CopyOp>(innerOp);
+        }
+
+        if (copyOp) {
+            // DMA from DDR to NN_CMX
+            auto srcMemSpace = copyOp.input().getType().cast<vpux::NDTypeInterface>().getMemSpace();
+            auto dstMemSpace = copyOp.output().getType().cast<vpux::NDTypeInterface>().getMemSpace();
+            return (_memSpace == dstMemSpace && _memSpace != srcMemSpace);
         }
     }
 
@@ -144,12 +150,17 @@ bool FeasibleMemoryScheduler::isCopyOutOp(operationIdxType opIdx) {
     auto op = _depsInfo.getExecuteOpAtIndex(opIdx);
     auto* bodyBlock = &op.body().front();
     for (auto& innerOp : bodyBlock->getOperations()) {
-        if (mlir::isa<IERT::CopyOp>(innerOp)) {
-            if (auto copyOp = mlir::dyn_cast<IERT::CopyOp>(innerOp)) {
-                // DMA to DDR
-                auto dstMemSpace = copyOp.output().getType().cast<vpux::NDTypeInterface>().getMemSpace();
-                return _memSpace != dstMemSpace;
-            }
+        IERT::CopyOp copyOp;
+        // CopyOp can be placed directly in async exec op or wrapped with NCEClusterTiling
+        if (auto nceClustOp = mlir::dyn_cast<VPUIP::NCEClusterTilingOp>(innerOp)) {
+            copyOp = mlir::dyn_cast<IERT::CopyOp>(nceClustOp.getInnerTaskOp());
+        } else {
+            copyOp = mlir::dyn_cast<IERT::CopyOp>(innerOp);
+        }
+
+        if (copyOp) {
+            auto dstMemSpace = copyOp.output().getType().cast<vpux::NDTypeInterface>().getMemSpace();
+            return _memSpace != dstMemSpace;
         }
     }
 
