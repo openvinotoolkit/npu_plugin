@@ -1825,8 +1825,18 @@ def VPUIP_DPUTaskOp :
         I64ArrayAttr:$start,
         I64ArrayAttr:$end,
         VPU_PaddingAttr:$pad,
-        VPU_MPEMode:$mpe_mode
+        VPU_MPEMode:$mpe_mode,
+        OptionalAttr<IntAttr>:$cluster_id
     );
+
+    let builders = [
+        OpBuilder<(ins
+            "mlir::ArrayAttr":$start,
+            "mlir::ArrayAttr":$end,
+            "VPU::PaddingAttr":$pad,
+            "VPU::MPEMode":$mpeMode
+        )>
+    ];
 
     let assemblyFormat = [{
         attr-dict

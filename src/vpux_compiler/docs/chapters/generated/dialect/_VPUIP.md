@@ -443,6 +443,7 @@ operation ::= `VPUIP.DPUTask` attr-dict
 `end` | ::mlir::ArrayAttr | 64-bit integer array attribute
 `pad` | vpux::VPU::PaddingAttr | DictionaryAttr with field(s): 'left', 'right', 'top', 'bottom' (each field having its own constraints)
 `mpe_mode` | vpux::VPU::MPEModeAttr | MPE Mode
+`cluster_id` | mlir::IntegerAttr | Integer attribute
 
 ### `VPUIP.DepthToSpaceUPA` (vpux::VPUIP::DepthToSpaceUPAOp)
 
