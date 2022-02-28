@@ -220,6 +220,13 @@ void ConvertShapeTo4DPass::safeRunOnFunc() {
             return type;
         } else if (type.getRank() > TARGET_TENSOR_DIM) {
             VPUX_THROW("Tensors with rank > 4 are not supported");
+        } else if (type.getRank() == 3) {
+            SmallVector<int64_t> newShape = {type.getShape()[Dim(0)], type.getShape()[Dim(1)], 1,
+                                             type.getShape()[Dim(2)]};
+            return type.changeShape(ShapeRef(newShape));
+        } else if (type.getRank() == 2) {
+            SmallVector<int64_t> newShape = {1, type.getShape()[Dim(0)], 1, type.getShape()[Dim(1)]};
+            return type.changeShape(ShapeRef(newShape));
         } else {
             SmallVector<int64_t> newShape(TARGET_TENSOR_DIM - type.getRank(), 1);
             newShape.append(type.getShape().begin(), type.getShape().end());
