@@ -37,7 +37,7 @@ namespace {
 
 VPU::MPEMode getMpeModeForKmb(mlir::Type inElemType, mlir::Type outElemType, mlir::Operation*) {
     if (inElemType.isa<mlir::quant::QuantizedType>() || outElemType.isa<mlir::quant::QuantizedType>()) {
-        return VPU::MPEMode::MATRIX;
+        return VPU::MPEMode::VECTOR;
     }
 
     if (inElemType.isF16() || inElemType.isBF16() || outElemType.isF16() || outElemType.isBF16()) {
