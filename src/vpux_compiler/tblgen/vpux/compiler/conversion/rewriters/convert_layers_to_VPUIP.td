@@ -187,6 +187,21 @@ def RewriteMaxPool :
         >;
 
 //
+// IERT.AdaptiveAvg -> VPUIP.AdaptiveAvgUPA
+//
+def createAdaptiveAvgUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::AdaptiveAvgUPA>(
+                $_loc, $0, $1, $2)
+        }]>;
+
+def RewriteAdaptiveAvg :
+        Pat<
+            (IERT_AdaptiveAvgOp $input1, $input2, $output, $mode),
+            (createPSROIPoolingUPAOp $input1, $input2, $output, $mode)
+        >;
+
+//
 // IERT.Convolution -> VPUIP.ConvolutionUPA
 //
 
@@ -373,7 +388,7 @@ def RewriteSqrt :
             (IERT_SqrtOp $input, $output),
             (createSqrtUPAOp $input, $output)
         >;
-        
+
 //
 // IERT.Sinh -> VPUIP.SinhUPA
 //
@@ -434,7 +449,7 @@ def RewriteAcosh :
             (IERT_AcoshOp $input, $output),
             (createAcoshUPAOp $input, $output)
         >;
-        
+
 //
 // IERT.Atanh -> VPUIP.AtanhUPA
 //

@@ -50,6 +50,8 @@ private:
 
     mlir::Value createTensorOp(mlir::OpBuilder& builder, const MVCNN::TensorReference* tensorRef);
 
+    mlir::Operation* parseAdaptive(mlir::OpBuilder& builder, ArrayRef<mlir::Value> inputs,
+                                      ArrayRef<mlir::Value> outputs, const MVCNN::UPALayerTask* task);
     mlir::Operation* parseConvert(mlir::OpBuilder& builder, ArrayRef<mlir::Value> inputs, ArrayRef<mlir::Value> outputs,
                                   const MVCNN::UPALayerTask* task);
     mlir::Operation* parseConvolution(mlir::OpBuilder& builder, ArrayRef<mlir::Value> inputs,

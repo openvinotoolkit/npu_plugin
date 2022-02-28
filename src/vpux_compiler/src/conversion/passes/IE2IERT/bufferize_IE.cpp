@@ -799,6 +799,11 @@ mlir::Operation* createRTLayer(IE::MaxPoolOp origOp, ArrayRef<mlir::Value> allBu
                                      origOp.post_opAttr());
 }
 
+mlir::Operation* createRTLayer(IE::AdaptiveAvgPoolOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
+    IERT::AdaptiveAvgPoolOp::Adaptor newOp(allBufs);
+    return b.create<IERT::AdaptiveAvgPoolOp>(origOp.getLoc(), newOp.input1(), newOp.input2(), newOp.output_buff());
+}
+
 mlir::Operation* createRTLayer(IE::ClampOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
     IERT::ClampOp::Adaptor newOp(allBufs);
     return b.create<IERT::ClampOp>(origOp.getLoc(), newOp.input(), newOp.output_buff(), origOp.minAttr(),
@@ -1158,6 +1163,7 @@ mlir::LogicalResult LayerRewrite::matchAndRewrite(mlir::Operation* origOp, Array
     CASE(IE::SoftMaxOp)
     CASE(IE::AvgPoolOp)
     CASE(IE::MaxPoolOp)
+    CASE(IE::AdaptiveAvgPoolOp)
     CASE(IE::ConvolutionOp)
     CASE(IE::GroupConvolutionOp)
     CASE(IE::ReLUOp)

@@ -320,6 +320,42 @@ def VPUIP_PoolingUPAOp :
 }
 
 //
+// AdaptiveAvgUPAOp
+//
+
+def VPUIP_AdaptiveAvgUPAOp :
+        VPUIP_UPATaskOp<1, "AdaptiveAvgUPA",
+            [
+                ViewLikeOpInterface,
+                IERT_SameElementType,
+                IERT_SameInOutDimsOrder_CHW_HWC_NCHW_NHWC
+            ]
+        > {
+    let summary = "Adaptive UPA SHAVE kernel";
+
+    let arguments = (ins
+        F16MemRef:$input1,
+        F16MemRef:$input2,
+        F16MemRef:$output_buff,
+    );
+
+    let results = (outs
+        F16MemRef:$output
+    );
+
+    let verifier = [{
+        return vpux::VPUIP::verifyOp(*this);
+    }];
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input1 `:` type($input1) `,` $input2 `:` type($input2) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
+//
 // ConvolutionUPAOp
 //
 
