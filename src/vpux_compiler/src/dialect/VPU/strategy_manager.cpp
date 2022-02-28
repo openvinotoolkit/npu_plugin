@@ -262,24 +262,22 @@ double StrategyManager::dpuComputeTime(mlir::Operation* op, multiClusterStrategy
     }
 
     size_t baseKernelCost;
-    if (mlir::dyn_cast<VPU::NCEEltwiseOp>(op) || mlir::dyn_cast<IE::ConcatOp>(op)) {
+    if (mlir::isa<VPU::NCEEltwiseOp>(op) || mlir::isa<IE::ConcatOp>(op)) {
         baseKernelCost = 1;
     } else if (auto maxPoolOp = mlir::dyn_cast<VPU::NCEMaxPoolOp>(op)) {
         auto kernel = parseIntArrayAttr<int64_t>(maxPoolOp.kernel_size());
         baseKernelCost = kernel[0] * kernel[1];
-    } else if (mlir::dyn_cast<VPU::NCEDepthConvolutionOp>(op) || mlir::dyn_cast<VPU::NCEConvolutionOp>(op)) {
+    } else if (mlir::isa<VPU::NCEDepthConvolutionOp>(op) || mlir::isa<VPU::NCEConvolutionOp>(op)) {
         auto weightsShape = getShape(op->getOperand(1));
-        baseKernelCost = weightsShape[Dims4D::Act::H] * weightsShape[Dims4D::Act::W];
+        baseKernelCost = weightsShape[Dims4D::Filter::KY] * weightsShape[Dims4D::Filter::KX];
+        if (mlir::isa<VPU::NCEConvolutionOp>(op)) {
+            baseKernelCost *= weightsShape[Dims4D::Filter::IC];
+        }
     } else {
         VPUX_THROW("Invalid operation type");
     }
-    bool channelAccum = (mlir::dyn_cast<VPU::NCEConvolutionOp>(op)) ? true : false;
-    if (channelAccum) {
-        auto weightsShape = getShape(op->getOperand(1));
-        baseKernelCost *= weightsShape[Dims4D::Act::C];
-    }
 
-    return ((double)(clusterOutShape.totalSize() * baseKernelCost) / dpuEff);
+    return (static_cast<double>(clusterOutShape.totalSize() * baseKernelCost)) / dpuEff;
 }
 
 double StrategyManager::dmaTime(mlir::Operation* op, multiClusterStrategyRange Strategy) {
@@ -297,7 +295,7 @@ double StrategyManager::dmaTime(mlir::Operation* op, multiClusterStrategyRange S
     size_t alignedSplitOutChannels = alignedOutChannels;
 
     // Each DMA cost is modelled as latency + size*transfer_rate
-    if (mlir::dyn_cast<VPU::NCEDepthConvolutionOp>(op) || mlir::dyn_cast<VPU::NCEConvolutionOp>(op)) {
+    if (mlir::isa<VPU::NCEDepthConvolutionOp>(op) || mlir::isa<VPU::NCEConvolutionOp>(op)) {
         if (Strategy == multiClusterStrategyRange::SplitOverK) {
             alignedSplitOutChannels = VPU::align(alignedSplitOutChannels / _numClusters, _numChannelAlignment);
         }
@@ -307,17 +305,17 @@ double StrategyManager::dmaTime(mlir::Operation* op, multiClusterStrategyRange S
         auto weightsShape = getShape(weights);
         const auto weightsType = weights.getType().cast<mlir::ShapedType>();
         const auto elementType = weightsType.getElementType();
-        const auto dtypeFactor = elementType.getIntOrFloatBitWidth() / 8;
-        if (mlir::dyn_cast<VPU::NCEConvolutionOp>(op)) {
+        const auto dtypeFactor = elementType.getIntOrFloatBitWidth() / CHAR_BIT;
+        if (mlir::isa<VPU::NCEConvolutionOp>(op)) {
             if (isCMajor) {
-                size_t alignedWidth = VPU::align(weightsShape[Dims4D::Act::W], _numChannelAlignment);
-                weightsSize += (weightsShape[Dims4D::Act::N] * alignedSplitOutChannels * weightsShape[Dims4D::Act::H] *
-                                alignedWidth) *
+                size_t alignedWidth = VPU::align(weightsShape[Dims4D::Filter::KX], _numChannelAlignment);
+                weightsSize += (weightsShape[Dims4D::Filter::IC] * alignedSplitOutChannels *
+                                weightsShape[Dims4D::Filter::KY] * alignedWidth) *
                                dtypeFactor;
             } else {
-                size_t alignedInputChannels = VPU::align(weightsShape[Dims4D::Act::N], _numChannelAlignment);
-                weightsSize += (alignedInputChannels * alignedSplitOutChannels * weightsShape[Dims4D::Act::H] *
-                                weightsShape[Dims4D::Act::W]) *
+                size_t alignedInputChannels = VPU::align(weightsShape[Dims4D::Filter::IC], _numChannelAlignment);
+                weightsSize += (alignedInputChannels * alignedSplitOutChannels * weightsShape[Dims4D::Filter::KY] *
+                                weightsShape[Dims4D::Filter::KX]) *
                                dtypeFactor;
             }
 
@@ -325,8 +323,8 @@ double StrategyManager::dmaTime(mlir::Operation* op, multiClusterStrategyRange S
                 weightsSize *= _numClusters;
             }
         } else {  // Depthwise
-            size_t alignedHW =
-                    VPU::align(weightsShape[Dims4D::Act::H] * weightsShape[Dims4D::Act::W], _numChannelAlignment);
+            size_t alignedHW = VPU::align(weightsShape[Dims4D::Filter::KY] * weightsShape[Dims4D::Filter::KX],
+                                          _numChannelAlignment);
             weightsSize += (alignedSplitOutChannels * alignedHW * dtypeFactor);
             if (Strategy == multiClusterStrategyRange::SplitOverK) {
                 weightsSize *= _numClusters;
@@ -335,7 +333,7 @@ double StrategyManager::dmaTime(mlir::Operation* op, multiClusterStrategyRange S
         // TODO: weightTableSize = sparsity/weights pointer, bias and multi/shfit quantized params
         std::size_t weightTableSize = 16 * alignedSplitOutChannels;  // weights table size
         weightsSize += weightTableSize;
-        weightsCycles = (LATENCY_DDR_ + ((double)weightsSize / DDR_BANDWIDTH_));
+        weightsCycles = (LATENCY_DDR_ + (static_cast<double>(weightsSize) / DDR_BANDWIDTH_));
     }
 
     // TODO: Overhead for Spilled input should be considered in the future
