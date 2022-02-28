@@ -39,7 +39,11 @@ VPUIP::BlobWriter::SpecificTask vpux::VPURT::TaskOp::serialize(VPUIP::BlobWriter
 }
 
 VPU::ExecutorKind vpux::VPURT::TaskOp::getExecutorKind() {
-    auto task = mlir::dyn_cast<VPUIP::TaskOpInterface>(getInnerTaskOp());
+    auto innerTaskOp = getInnerTaskOp();
+    if (auto clusterTilingOp = mlir::dyn_cast<VPUIP::NCEClusterTilingOp>(innerTaskOp)) {
+        innerTaskOp = clusterTilingOp.getInnerTaskOp();
+    }
+    auto task = mlir::dyn_cast<VPUIP::TaskOpInterface>(innerTaskOp);
     VPUX_THROW_UNLESS(task != nullptr, "Inner task  does not implement TaskOpInterface");
 
     return task.getExecutorKind();

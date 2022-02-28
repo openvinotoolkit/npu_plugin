@@ -15,6 +15,8 @@
 #include "vpux/compiler/dialect/VPURT/barrier_resource_state.hpp"
 #include "vpux/compiler/dialect/VPURT/barrier_simulator.hpp"
 
+#include "vpux/compiler/dialect/IE/utils/resources.hpp"
+
 #include <llvm/ADT/BitVector.h>
 
 namespace vpux {

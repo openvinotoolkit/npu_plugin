@@ -528,9 +528,11 @@ void BarrierScheduler::assignTaskUniqueIds() {
 size_t BarrierScheduler::countProducerTasksToBarrier(mlir::Operation* op) {
     if (mlir::dyn_cast<VPURT::TaskOp>(op).getExecutorKind() == VPU::ExecutorKind::NCE) {
         auto taskOp = mlir::dyn_cast<VPURT::TaskOp>(op);
-        auto& block = taskOp.body().getBlocks().front();
-        auto wrappedTaskOp = block.begin();
-        auto nceOp = mlir::dyn_cast<VPUIP::NCEClusterTaskOp>(wrappedTaskOp);
+        auto innerTaskOp = taskOp.getInnerTaskOp();
+        if (auto clusterTilingOp = mlir::dyn_cast<VPUIP::NCEClusterTilingOp>(innerTaskOp)) {
+            innerTaskOp = clusterTilingOp.getInnerTaskOp();
+        }
+        auto nceOp = mlir::dyn_cast<VPUIP::NCEClusterTaskOp>(innerTaskOp);
         VPUX_THROW_UNLESS(nceOp != nullptr, "Could not cast to NCE task");
         return nceOp.getNumVariants();
     }
@@ -797,6 +799,28 @@ bool BarrierScheduler::performRuntimeSimulation() {
 
 // If two barriers have same consumers, they can be merged
 // If a barrier has no producers, it can be removed
+//
+// Notes: there is a limitation about the producer number of invariants and variants of a barrier
+// The limitation is not related to HW capabilities or FIFO depth, but to the fact that the runtime needs to know when a
+// workload is completed, in order to replace it with another one in NN CMX.
+//
+// Since there's no other efficient feedback mechanism from DPU/SNN to LNN, LNN monitors the barrier production of DPU
+// tasks and recycles the storage when the corresponding barrier gets produced. The limitation comes from how many
+// invariants/variants can be stored in NN CMX at the same time. For single cluster inferences these counts are 64/512,
+// while for 4-cluster inferences 128/512. If too many invariants/variants contribute to the same barrier, the runtime
+// will not receive the confirmation that it may recycle the storage to bring in the next workloads, hence the deadlock.
+//
+// Since the storage area is double buffered, and the workloads in question may start at any index in the buffer, it's
+// only safe for at most <storage_size / 2 + 1> consecutive invariants/variants to produce the same barrier. So finally,
+// the limits are:
+//
+// On single cluster:
+//   32 + 1 invariants
+//   256 + 1 variants
+// On 4 clusters:
+//   64 + 1 invariants
+//   256 + 1 variants
+//
 void BarrierScheduler::removeRedundantBarriers() {
     for (size_t ind = 0; ind < _configureBarrierOpUpdateMap.size(); ind++) {
         auto& consumers = _configureBarrierOpUpdateMap[ind];
@@ -818,10 +842,11 @@ void BarrierScheduler::removeRedundantBarriers() {
                         invariantsCount++;
                     }
 
-                    // consider the limitation of invariants number and variants number on single cluster:
-                    // 32 + 1 invariants
-                    // 256 + 1 variants
-                    if ((variantsCount <= _slotsPerBarrier) && (invariantsCount <= 32)) {
+                    auto module = _func->getParentOfType<mlir::ModuleOp>();
+                    auto nceOp = IE::getAvailableExecutor(module, VPU::ExecutorKind::NCE);
+                    auto numClusters = nceOp.count();
+                    size_t invariantsLimits = (numClusters == 1) ? 32 : 64;
+                    if ((variantsCount <= _slotsPerBarrier) && (invariantsCount <= invariantsLimits)) {
                         for (auto task : producers.set_bits()) {
                             _configureBarrierOpWaitMap[ind].set(task);
                         }

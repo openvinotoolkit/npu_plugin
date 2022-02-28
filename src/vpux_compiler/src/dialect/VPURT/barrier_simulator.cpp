@@ -185,6 +185,9 @@ void vpux::VPURT::BarrierSimulator::parseTasks(mlir::Operation* parentOp) {
 
     parentOp->walk([&](VPURT::TaskOp taskOp) {
         auto* wrappedTaskOp = taskOp.getInnerTaskOp();
+        if (auto clusterTilingOp = mlir::dyn_cast<VPUIP::NCEClusterTilingOp>(wrappedTaskOp)) {
+            wrappedTaskOp = clusterTilingOp.getInnerTaskOp();
+        }
 
         const auto virtualDep = _vdt.add(taskOp);
 
