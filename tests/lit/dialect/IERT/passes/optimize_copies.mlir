@@ -408,7 +408,18 @@ func @CopyWithSubViewOp(%in : memref<1x16x113x113xf16, #NHWC, @DDR>,
 
     // verify that the SubView operation is not removed along with the copy operation
 
-    // CHECK: IERT.Copy
-    // CHECK: IERT.SubView
-    // CHECK: VPUIP.NCEClusterTask
+    // CHECK:       [[VAL0:%.+]] = memref.alloc() : memref<1x16x113x113xf16, #NHWC, @CMX_NN>
+    // CHECK:       [[VAL1:%.+]] = memref.alloc() : memref<1x32x56x56xf16, #NHWC, @CMX_NN>
+
+    // CHECK:       [[VAL2:%.+]] = IERT.Copy
+    // CHECK-SAME:      inputs(%arg0 : memref<1x16x113x113xf16, #NHWC, @DDR>)
+    // CHECK-SAME:      outputs([[VAL0]] : memref<1x16x113x113xf16, #NHWC, @CMX_NN>)
+    // CHECK:       [[VAL3:%.+]] = IERT.SubView [[VAL1]]
+    // CHECK:       [[VAL4:%.+]] = VPUIP.NCEClusterTask
+    
+    // copy optimized
+    // CHECK-NOT:   IE.Copy
+
+    // CHECK:       return [[VAL3:%.+]] : memref<1x16x56x56xf16, {order = #NHWC, strides = [100352, 1, 1792, 32]}, @CMX_NN>
+
 }

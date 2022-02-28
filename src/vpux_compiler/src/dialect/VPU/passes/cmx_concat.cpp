@@ -47,40 +47,40 @@ public:
     // Storing Concat use chain consiting of NCE -> (Slice) -> Copy -> Concat
     // or Concat -> (Slice) -> Copy -> NCE
     struct ConcatPart {
-        ConcatPart(IE::CopyOp copyOp, IE::SliceOp sliceOp, VPU::NCEOpInterface nceOp, size_t inputIdx) {
-            _copyOp = copyOp;
-            _sliceOp = sliceOp;
-            _nceOp = nceOp;
-            _inputIdx = inputIdx;
+        ConcatPart(IE::CopyOp copy, IE::SliceOp slice, VPU::NCEOpInterface nce, size_t idx) {
+            copyOp = copy;
+            sliceOp = slice;
+            nceOp = nce;
+            inputIdx = idx;
         }
         bool isValidPart() {
-            return _nceOp != nullptr;
+            return nceOp != nullptr;
         }
         bool hasSliceOp() {
-            return _sliceOp != nullptr;
+            return sliceOp != nullptr;
         }
-        size_t _inputIdx;
-        IE::CopyOp _copyOp;
-        IE::SliceOp _sliceOp;
-        VPU::NCEOpInterface _nceOp;
+        size_t inputIdx;
+        IE::CopyOp copyOp;
+        IE::SliceOp sliceOp;
+        VPU::NCEOpInterface nceOp;
     };
 
     // Stores multiple Concat parts for a given Concat
     struct ConcatPattern {
         ConcatPattern() {
-            _concat = nullptr;
+            concat = nullptr;
         }
-        void setConcat(IE::ConcatOp concat) {
-            _concat = concat;
+        void setConcat(IE::ConcatOp rootConcat) {
+            concat = rootConcat;
         }
         void addConcatPart(ConcatPart concatPart) {
-            _concatParts.push_back(concatPart);
+            concatParts.push_back(concatPart);
         }
         bool isValidPatern() {
-            return _concat != nullptr;
+            return concat != nullptr;
         }
-        SmallVector<ConcatPart> _concatParts;
-        IE::ConcatOp _concat;
+        SmallVector<ConcatPart> concatParts;
+        IE::ConcatOp concat;
     };
 
 private:
@@ -92,7 +92,6 @@ private:
 
 private:
     size_t getSize(mlir::Value val);
-    size_t calculateExtraConstSize(VPU::NCEOpInterface nce);
     ConcatPattern getInputPattern(IE::ConcatOp concat);
     bool isSplitSupportedOnDPU(IE::SliceOp sliceOp);
     ConcatPattern getOutputPattern(IE::ConcatOp concat);
@@ -109,15 +108,6 @@ private:
 
 size_t CMXConcatPass::getSize(mlir::Value val) {
     return static_cast<size_t>(getTotalSize(val).count());
-}
-
-size_t CMXConcatPass::calculateExtraConstSize(VPU::NCEOpInterface nce) {
-    // calculate weights table size
-    const auto OC = getShape(nce->getResult(0))[Dims4D::Act::C];
-    auto weightsTableSize = OC * WEIGHT_TABLE_NUM_ELEMENTS_PER_OC * 4_Byte;
-
-    // TODO add activation window size and sparsity data
-    return static_cast<size_t>(weightsTableSize.count());
 }
 
 CMXConcatPass::ConcatPattern CMXConcatPass::getInputPattern(IE::ConcatOp concat) {
@@ -236,18 +226,17 @@ bool CMXConcatPass::concatOperationDoesNotFitInCMX(ConcatPattern concatPattern, 
     // check if the concat can fit in CMX
     // in order to CMX a concat the entire output buffer + inputs for the
     // largest tile must fit in CMX at the same time
-    size_t concatSize = getSize(concatPattern._concat.getResult());
+    size_t concatSize = getSize(concatPattern.concat.getResult());
     size_t maxUserSize = 0;
     size_t currUserSize = 0;
 
     // from all users find the one with the largest size
-    for (auto concatPart : concatPattern._concatParts) {
+    for (auto concatPart : concatPattern.concatParts) {
         currUserSize = 0;
-        for (auto input : concatPart._nceOp->getOperands()) {
+        // consts (weights table and activation window) already exists
+        for (auto input : concatPart.nceOp->getOperands()) {
             currUserSize += getSize(input);
         }
-        // add weight table and activation window size
-        currUserSize += calculateExtraConstSize(concatPart._nceOp);
         maxUserSize = std::max<size_t>(maxUserSize, currUserSize);
     }
 
@@ -259,10 +248,10 @@ bool CMXConcatPass::concatOperationDoesNotFitInCMX(ConcatPattern concatPattern, 
 bool CMXConcatPass::isThisAComplexConcat(ConcatPattern concatPattern) {
     // avoid concats which are complex, where the inputs to the concat are used
     // by other operations
-    for (auto concatPart : concatPattern._concatParts) {
-        for (auto result : concatPart._nceOp->getResults()) {
+    for (auto concatPart : concatPattern.concatParts) {
+        for (auto result : concatPart.nceOp->getResults()) {
             for (auto resultUser : result.getUsers()) {
-                if (resultUser != concatPart._copyOp.getOperation()) {
+                if (resultUser != concatPart.copyOp.getOperation()) {
                     // the NCE contains a different user
                     return true;
                 }
@@ -275,7 +264,7 @@ bool CMXConcatPass::isThisAComplexConcat(ConcatPattern concatPattern) {
 
 bool CMXConcatPass::inputPatternCanBeCMXed(ConcatPattern concatPattern, size_t cmxSize) {
     // if concat is a Result operation
-    if (concatPattern._concat.output().isa<mlir::BlockArgument>()) {
+    if (concatPattern.concat.output().isa<mlir::BlockArgument>()) {
         _log.nest(2).trace("Concat output is part of network output");
         return false;
     }
@@ -302,25 +291,24 @@ bool CMXConcatPass::childOperationsDoNotFitInCMX(ConcatPattern concatPattern, si
     // check if the child operations - operations using the concat output buffer
     // will fit in CMX along with their inputs and output
     // auto output = concat.getResult();
-    size_t concatSize = getSize(concatPattern._concat.getResult());
+    size_t concatSize = getSize(concatPattern.concat.getResult());
     size_t maxConsumerSize = 0;
 
-    for (auto& concatPart : concatPattern._concatParts) {
+    for (auto& concatPart : concatPattern.concatParts) {
         if (!concatPart.isValidPart()) {
             return false;
         }
         size_t currentConsumerSize = 0;
-        for (auto input : concatPart._nceOp->getOperands()) {
-            if (input.getDefiningOp() == concatPart._copyOp.getOperation()) {
+        // consts (weights table and activation window) already exists
+        for (auto input : concatPart.nceOp->getOperands()) {
+            if (input.getDefiningOp() == concatPart.copyOp.getOperation()) {
                 continue;
             }
             currentConsumerSize += getSize(input);
         }
-        for (auto output : concatPart._nceOp->getResults()) {
+        for (auto output : concatPart.nceOp->getResults()) {
             currentConsumerSize += getSize(output);
         }
-        // add weight table and activation window size
-        currentConsumerSize += calculateExtraConstSize(concatPart._nceOp);
         maxConsumerSize = std::max<size_t>(maxConsumerSize, currentConsumerSize);
     }
     // in cases of parallel consumers the graph level differences could be large and the
@@ -337,16 +325,16 @@ size_t CMXConcatPass::getParallelConsumerCount(ConcatPattern concatPattern) {
     SmallVector<mlir::Location> locations;
     size_t parallelConsumerCount = 0;
 
-    for (auto concatPart : concatPattern._concatParts) {
+    for (auto concatPart : concatPattern.concatParts) {
         // for fused loc ignore tiling details
-        if (const auto fused = concatPart._nceOp.getLoc().dyn_cast<mlir::FusedLoc>()) {
+        if (const auto fused = concatPart.nceOp.getLoc().dyn_cast<mlir::FusedLoc>()) {
             auto nceLoc = fused.getLocations().front();
             if (llvm::find(locations, nceLoc) == locations.end()) {
                 ++parallelConsumerCount;
                 locations.push_back(nceLoc);
             }
         } else {
-            auto nceLoc = concatPart._nceOp.getLoc();
+            auto nceLoc = concatPart.nceOp.getLoc();
             if (llvm::find(locations, nceLoc) == locations.end()) {
                 ++parallelConsumerCount;
                 locations.push_back(nceLoc);
@@ -388,11 +376,11 @@ void CMXConcatPass::rewriteInputPattern(ConcatPattern concatPattern) {
           \    /
           Concat
     */
-    for (auto concatPart : concatPattern._concatParts) {
-        _log.nest(1).trace("Removing input Copy from NNCMX to DDR '{0}' at '{1}'", concatPart._copyOp->getName(),
-                           concatPart._copyOp->getLoc());
+    for (auto concatPart : concatPattern.concatParts) {
+        _log.nest(1).trace("Removing input Copy from NNCMX to DDR '{0}' at '{1}'", concatPart.copyOp->getName(),
+                           concatPart.copyOp->getLoc());
         // modify only current concat input as it may have multiple uses
-        concatPattern._concat.setOperand(static_cast<int>(concatPart._inputIdx), concatPart._copyOp.input());
+        concatPattern.concat.setOperand(static_cast<int>(concatPart.inputIdx), concatPart.copyOp.input());
     }
 }
 
@@ -415,26 +403,26 @@ void CMXConcatPass::rewriteOutputPattern(ConcatPattern concatPattern) {
          |        |
         NCE      NCE
     */
-    for (auto concatPart : concatPattern._concatParts) {
-        _log.nest(1).trace("Removing output Copy from DDR to NNCMX '{0}' at '{1}'", concatPart._copyOp->getName(),
-                           concatPart._copyOp->getLoc());
+    for (auto concatPart : concatPattern.concatParts) {
+        _log.nest(1).trace("Removing output Copy from DDR to NNCMX '{0}' at '{1}'", concatPart.copyOp->getName(),
+                           concatPart.copyOp->getLoc());
         // change memory space for concat output
-        const auto origType = concatPattern._concat.output().getType().dyn_cast<vpux::NDTypeInterface>();
+        const auto origType = concatPattern.concat.output().getType().dyn_cast<vpux::NDTypeInterface>();
         VPUX_THROW_UNLESS(origType != nullptr, "Got non NDTypeInterface '{0}'",
-                          concatPattern._concat.output().getType());
+                          concatPattern.concat.output().getType());
         const auto newType = origType.changeMemSpace(VPU::MemoryKind::CMX_NN);
-        concatPattern._concat.output().setType(newType);
+        concatPattern.concat.output().setType(newType);
         // and for slice op
         if (concatPart.hasSliceOp()) {
-            concatPart._sliceOp.source().setType(newType);
-            const auto sliceOrigType = concatPart._sliceOp.result().getType().dyn_cast<vpux::NDTypeInterface>();
+            concatPart.sliceOp.source().setType(newType);
+            const auto sliceOrigType = concatPart.sliceOp.result().getType().dyn_cast<vpux::NDTypeInterface>();
             VPUX_THROW_UNLESS(sliceOrigType != nullptr, "Got non NDTypeInterface '{0}'",
-                              concatPattern._concat.output().getType());
+                              concatPattern.concat.output().getType());
             const auto sliceNewType = sliceOrigType.changeMemSpace(VPU::MemoryKind::CMX_NN);
-            concatPart._sliceOp.result().setType(sliceNewType);
+            concatPart.sliceOp.result().setType(sliceNewType);
         }
         // remove the copy out op
-        concatPart._copyOp.output().replaceAllUsesWith(concatPart._copyOp.input());
+        concatPart.copyOp.output().replaceAllUsesWith(concatPart.copyOp.input());
     }
 }
 
