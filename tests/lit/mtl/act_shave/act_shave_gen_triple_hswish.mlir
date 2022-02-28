@@ -268,7 +268,7 @@ func @main(%in0: memref<1x1x1x1000xf16>, %in1: memref<1x1x1x1000xf16>) -> memref
 // CHECK:        kernelText: {
 // CHECK:          name: "nnActEntry",
 // CHECK:          locale: "GFEmbeddedKernel",
-// CHECK:          referenced_data_size: 656
+// CHECK:          referenced_data_size: {{[1-9][0-9]+}}
 // CHECK:        },
 // CHECK:        globalArgs: {
 // CHECK:          name: "nnActEntry.data",
@@ -287,7 +287,7 @@ func @main(%in0: memref<1x1x1x1000xf16>, %in1: memref<1x1x1x1000xf16>) -> memref
 // CHECK:                kernelText: {
 // CHECK:                  name: "builtin_hswish",
 // CHECK:                  locale: "GFEmbeddedKernel",
-// CHECK:                  referenced_data_size: 816
+// CHECK:                  referenced_data_size: {{[1-9][0-9]+}}
 // CHECK:                }
 // CHECK:              },
 // CHECK:              invocations: [
@@ -320,7 +320,7 @@ func @main(%in0: memref<1x1x1x1000xf16>, %in1: memref<1x1x1x1000xf16>) -> memref
 // CHECK:                kernelText: {
 // CHECK:                  name: "builtin_hswish",
 // CHECK:                  locale: "GFEmbeddedKernel",
-// CHECK:                  referenced_data_size: 816
+// CHECK:                  referenced_data_size: {{[1-9][0-9]+}}
 // CHECK:                }
 // CHECK:              },
 // CHECK:              invocations: [
@@ -353,7 +353,7 @@ func @main(%in0: memref<1x1x1x1000xf16>, %in1: memref<1x1x1x1000xf16>) -> memref
 // CHECK:                kernelText: {
 // CHECK:                  name: "builtin_hswish",
 // CHECK:                  locale: "GFEmbeddedKernel",
-// CHECK:                  referenced_data_size: 816
+// CHECK:                  referenced_data_size: {{[1-9][0-9]+}}
 // CHECK:                }
 // CHECK:              },
 // CHECK:              invocations: [
@@ -381,4 +381,3 @@ func @main(%in0: memref<1x1x1x1000xf16>, %in1: memref<1x1x1x1000xf16>) -> memref
 // CHECK:          }
 // CHECK:        ]
 // CHECK:      }
-
