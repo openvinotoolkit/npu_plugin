@@ -1097,6 +1097,26 @@ mlir::Operation* createRTLayer(IE::CopyOp origOp, ArrayRef<mlir::Value> allBufs,
     return b.create<IERT::CopyOp>(origOp.getLoc(), newOp.input(), newOp.output_buff());
 }
 
+mlir::Operation* createRTLayer(IE::AbsOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
+    IERT::AbsOp::Adaptor newOp(allBufs);
+    return b.create<IERT::AbsOp>(origOp.getLoc(), newOp.input(), newOp.output_buff());
+}
+
+mlir::Operation* createRTLayer(IE::AtanOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
+    IERT::AtanOp::Adaptor newOp(allBufs);
+    return b.create<IERT::AtanOp>(origOp.getLoc(), newOp.input(), newOp.output_buff());
+}
+
+mlir::Operation* createRTLayer(IE::AsinOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
+    IERT::AsinOp::Adaptor newOp(allBufs);
+    return b.create<IERT::AsinOp>(origOp.getLoc(), newOp.input(), newOp.output_buff());
+}
+
+mlir::Operation* createRTLayer(IE::AcosOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
+    IERT::AcosOp::Adaptor newOp(allBufs);
+    return b.create<IERT::AcosOp>(origOp.getLoc(), newOp.input(), newOp.output_buff());
+}
+
 class LayerRewrite final : public mlir::ConversionPattern {
 public:
     LayerRewrite(mlir::TypeConverter& typeConverter, mlir::MLIRContext* ctx, Logger log)
@@ -1218,6 +1238,10 @@ mlir::LogicalResult LayerRewrite::matchAndRewrite(mlir::Operation* origOp, Array
     CASE(IE::LogicalOrOp)
     CASE(IE::LogicalXorOp)
     CASE(IE::CopyOp)
+    CASE(IE::AbsOp)
+    CASE(IE::AtanOp)
+    CASE(IE::AsinOp)
+    CASE(IE::AcosOp)
     .Default([](mlir::Operation*) {
         return nullptr;
     });

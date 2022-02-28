@@ -63,6 +63,62 @@ The **IERT Dialect** uses the following scheme to represent scheduling informati
 
 ## Operation definition
 
+### `IERT.Abs` (vpux::IERT::AbsOp)
+
+InferenceEngine run-time Abs layer
+
+
+Syntax:
+
+```
+operation ::= `IERT.Abs` attr-dict
+              `inputs` `(` $input `:` type($input) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of 16-bit float or 32-bit float values
+`output_buff` | memref of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float or 32-bit float values
+
+### `IERT.Acos` (vpux::IERT::AcosOp)
+
+InferenceEngine run-time Acos layer
+
+
+Syntax:
+
+```
+operation ::= `IERT.Acos` attr-dict
+              `inputs` `(` $input `:` type($input) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of 16-bit float or 32-bit float values
+`output_buff` | memref of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float or 32-bit float values
+
 ### `IERT.Acosh` (vpux::IERT::AcoshOp)
 
 InferenceEngine run-time Acosh layer
@@ -161,6 +217,34 @@ operation ::= `IERT.And` attr-dict
 | :----: | ----------- |
 `output` | memref of 16-bit float or 32-bit float or QuantizedType values
 
+### `IERT.Asin` (vpux::IERT::AsinOp)
+
+InferenceEngine run-time Asin layer
+
+
+Syntax:
+
+```
+operation ::= `IERT.Asin` attr-dict
+              `inputs` `(` $input `:` type($input) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of 16-bit float or 32-bit float values
+`output_buff` | memref of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float or 32-bit float values
+
 ### `IERT.Asinh` (vpux::IERT::AsinhOp)
 
 InferenceEngine run-time Asinh layer
@@ -170,6 +254,34 @@ Syntax:
 
 ```
 operation ::= `IERT.Asinh` attr-dict
+              `inputs` `(` $input `:` type($input) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of 16-bit float or 32-bit float values
+`output_buff` | memref of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float or 32-bit float values
+
+### `IERT.Atan` (vpux::IERT::AtanOp)
+
+InferenceEngine run-time Atan layer
+
+
+Syntax:
+
+```
+operation ::= `IERT.Atan` attr-dict
               `inputs` `(` $input `:` type($input) `)`
               `outputs` `(` $output_buff `:` type($output_buff) `)`
               `->` type(results)

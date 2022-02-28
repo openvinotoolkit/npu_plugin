@@ -634,6 +634,10 @@ void redirectOpInterfacesForIE(mlir::DialectRegistry& registry) {
     registry.addOpInterface<IE::LogicalOrOp, OpModelForSW<VPUIP::EltwiseUPAOp>>();
     registry.addOpInterface<IE::LogicalXorOp, OpModelForSW<VPUIP::EltwiseUPAOp>>();
     registry.addOpInterface<IE::SpaceToDepthOp, OpModelForSW<VPUIP::SpaceToDepthUPAOp>>();
+    registry.addOpInterface<IE::AbsOp, OpModelForSW<VPUIP::AbsUPAOp>>();
+    registry.addOpInterface<IE::AtanOp, OpModelForSW<VPUIP::AtanUPAOp>>();
+    registry.addOpInterface<IE::AsinOp, OpModelForSW<VPUIP::AsinUPAOp>>();
+    registry.addOpInterface<IE::AcosOp, OpModelForSW<VPUIP::AcosUPAOp>>();
 }
 
 //
@@ -736,6 +740,10 @@ void redirectOpInterfacesForIERT(mlir::DialectRegistry& registry) {
     registry.addOpInterface<IERT::LogicalOrOp, OpModelForSW>();
     registry.addOpInterface<IERT::LogicalXorOp, OpModelForSW>();
     registry.addOpInterface<IERT::SpaceToDepthOp, OpModelForSW>();
+    registry.addOpInterface<IERT::AbsOp, OpModelForSW>();
+    registry.addOpInterface<IERT::AtanOp, OpModelForSW>();
+    registry.addOpInterface<IERT::AsinOp, OpModelForSW>();
+    registry.addOpInterface<IERT::AcosOp, OpModelForSW>();
 }
 
 }  // namespace

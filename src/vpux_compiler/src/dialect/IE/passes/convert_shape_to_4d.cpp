@@ -280,6 +280,10 @@ void ConvertShapeTo4DPass::safeRunOnFunc() {
     target.addDynamicallyLegalOp<IE::LogicalNotOp>(isLegalOp);
     target.addDynamicallyLegalOp<IE::LogicalOrOp>(isLegalOp);
     target.addDynamicallyLegalOp<IE::LogicalXorOp>(isLegalOp);
+    target.addDynamicallyLegalOp<IE::AbsOp>(isLegalOp);
+    target.addDynamicallyLegalOp<IE::AtanOp>(isLegalOp);
+    target.addDynamicallyLegalOp<IE::AsinOp>(isLegalOp);
+    target.addDynamicallyLegalOp<IE::AcosOp>(isLegalOp);
 
     mlir::RewritePatternSet patterns(&ctx);
     patterns.add<GenericConverter<IE::ClampOp>>(typeConverter, &ctx, _log);
@@ -309,6 +313,10 @@ void ConvertShapeTo4DPass::safeRunOnFunc() {
     patterns.add<GenericConverter<IE::LogicalNotOp>>(typeConverter, &ctx, _log);
     patterns.add<GenericConverter<IE::LogicalOrOp>>(typeConverter, &ctx, _log);
     patterns.add<GenericConverter<IE::LogicalXorOp>>(typeConverter, &ctx, _log);
+    patterns.add<GenericConverter<IE::AbsOp>>(typeConverter, &ctx, _log);
+    patterns.add<GenericConverter<IE::AtanOp>>(typeConverter, &ctx, _log);
+    patterns.add<GenericConverter<IE::AsinOp>>(typeConverter, &ctx, _log);
+    patterns.add<GenericConverter<IE::AcosOp>>(typeConverter, &ctx, _log);
     patterns.add<FakeQuantizeConverter>(typeConverter, &ctx, _log);
 
     auto func = getFunction();

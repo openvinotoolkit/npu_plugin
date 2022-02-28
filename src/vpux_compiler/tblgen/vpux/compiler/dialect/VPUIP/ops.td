@@ -928,6 +928,154 @@ def VPUIP_AcoshUPAOp :
 }
 
 //
+// AbsUPAOp
+//
+
+def VPUIP_AbsUPAOp :
+        VPUIP_UPATaskOp<1, "AbsUPA",
+            [
+                ViewLikeOpInterface,
+                IERT_SameShape,
+                IERT_SameElementType,
+                IERT_SameInOutDimsOrder_CHW_HWC_NCHW_NHWC,
+                VPUIP_Legacy4D
+            ]
+        > {
+    let summary = "Abs UPA SHAVE kernel";
+
+    let arguments = (ins
+        F16MemRef:$input,
+        F16MemRef:$output_buff
+    );
+
+    let results = (outs
+        F16MemRef:$output
+    );
+
+    let verifier = [{
+        return vpux::VPUIP::verifyPostOp(*this);
+    }];
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
+//
+// AtanUPAOp
+//
+
+def VPUIP_AtanUPAOp :
+        VPUIP_UPATaskOp<1, "AtanUPA",
+            [
+                ViewLikeOpInterface,
+                IERT_SameShape,
+                IERT_SameElementType,
+                IERT_SameInOutDimsOrder_CHW_HWC_NCHW_NHWC,
+                VPUIP_Legacy4D
+            ]
+        > {
+    let summary = "Atan UPA SHAVE kernel";
+
+    let arguments = (ins
+        F16MemRef:$input,
+        F16MemRef:$output_buff
+    );
+
+    let results = (outs
+        F16MemRef:$output
+    );
+
+    let verifier = [{
+        return vpux::VPUIP::verifyPostOp(*this);
+    }];
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
+//
+// AsinUPAOp
+//
+
+def VPUIP_AsinUPAOp :
+        VPUIP_UPATaskOp<1, "AsinUPA",
+            [
+                ViewLikeOpInterface,
+                IERT_SameShape,
+                IERT_SameElementType,
+                IERT_SameInOutDimsOrder_CHW_HWC_NCHW_NHWC,
+                VPUIP_Legacy4D
+            ]
+        > {
+    let summary = "Asin UPA SHAVE kernel";
+
+    let arguments = (ins
+        F16MemRef:$input,
+        F16MemRef:$output_buff
+    );
+
+    let results = (outs
+        F16MemRef:$output
+    );
+
+    let verifier = [{
+        return vpux::VPUIP::verifyPostOp(*this);
+    }];
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
+//
+// AcosUPAOp
+//
+
+def VPUIP_AcosUPAOp :
+        VPUIP_UPATaskOp<1, "AcosUPA",
+            [
+                ViewLikeOpInterface,
+                IERT_SameShape,
+                IERT_SameElementType,
+                IERT_SameInOutDimsOrder_CHW_HWC_NCHW_NHWC,
+                VPUIP_Legacy4D
+            ]
+        > {
+    let summary = "Acos UPA SHAVE kernel";
+
+    let arguments = (ins
+        F16MemRef:$input,
+        F16MemRef:$output_buff
+    );
+
+    let results = (outs
+        F16MemRef:$output
+    );
+
+    let verifier = [{
+        return vpux::VPUIP::verifyPostOp(*this);
+    }];
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
+//
 // AtanhUPAOp
 //
 

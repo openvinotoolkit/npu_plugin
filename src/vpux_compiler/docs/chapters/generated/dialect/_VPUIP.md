@@ -25,6 +25,62 @@ This type of buffer is used together with the ClusterTiling operation
                            to describe a tile operation between clusters
 ## Operation definition
 
+### `VPUIP.AbsUPA` (vpux::VPUIP::AbsUPAOp)
+
+Abs UPA SHAVE kernel
+
+
+Syntax:
+
+```
+operation ::= `VPUIP.AbsUPA` attr-dict
+              `inputs` `(` $input `:` type($input) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of 16-bit float values
+`output_buff` | memref of 16-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float values
+
+### `VPUIP.AcosUPA` (vpux::VPUIP::AcosUPAOp)
+
+Acos UPA SHAVE kernel
+
+
+Syntax:
+
+```
+operation ::= `VPUIP.AcosUPA` attr-dict
+              `inputs` `(` $input `:` type($input) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of 16-bit float values
+`output_buff` | memref of 16-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float values
+
 ### `VPUIP.AcoshUPA` (vpux::VPUIP::AcoshUPAOp)
 
 Acosh UPA SHAVE kernel
@@ -53,6 +109,34 @@ operation ::= `VPUIP.AcoshUPA` attr-dict
 | :----: | ----------- |
 `output` | memref of 16-bit float values
 
+### `VPUIP.AsinUPA` (vpux::VPUIP::AsinUPAOp)
+
+Asin UPA SHAVE kernel
+
+
+Syntax:
+
+```
+operation ::= `VPUIP.AsinUPA` attr-dict
+              `inputs` `(` $input `:` type($input) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of 16-bit float values
+`output_buff` | memref of 16-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float values
+
 ### `VPUIP.AsinhUPA` (vpux::VPUIP::AsinhUPAOp)
 
 Asinh UPA SHAVE kernel
@@ -62,6 +146,34 @@ Syntax:
 
 ```
 operation ::= `VPUIP.AsinhUPA` attr-dict
+              `inputs` `(` $input `:` type($input) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of 16-bit float values
+`output_buff` | memref of 16-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float values
+
+### `VPUIP.AtanUPA` (vpux::VPUIP::AtanUPAOp)
+
+Atan UPA SHAVE kernel
+
+
+Syntax:
+
+```
+operation ::= `VPUIP.AtanUPA` attr-dict
               `inputs` `(` $input `:` type($input) `)`
               `outputs` `(` $output_buff `:` type($output_buff) `)`
               `->` type(results)
