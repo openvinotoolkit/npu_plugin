@@ -59,11 +59,7 @@ def InitCompiler : PassBase<"init-compiler", "vpux::ModulePass"> {
 //
 
 def MultiClusterStrategyAssignment : PassBase<"multi-cluster-strategy-assignment", "vpux::FunctionPass"> {
-    let summary = "Determines which multi-cluster strategy is the most optimal for a given layer";
-
-    let description = [{
-        Determines which multi-cluster strategy is the most optimal for a given layer
-    }];
+    let summary = "This pass compute the hardware efficiency of layer that is executed as SOH or SOK and assigns the most optimal strategy";
 
     let constructor = "vpux::VPU::createMultiClusterStrategyAssignmentPass()";
 
