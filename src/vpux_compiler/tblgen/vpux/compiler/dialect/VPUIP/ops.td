@@ -2159,7 +2159,7 @@ def VPUIP_NCEClusterTaskOp :
     let extraClassDeclaration = [{
         vpux::VPUIP::DPUTaskOp addDPUTask(mlir::OpBuilder& builder,
                                           mlir::ArrayAttr start, mlir::ArrayAttr end,
-                                          vpux::VPU::PaddingAttr pad, vpux::VPU::MPEMode mpeMode);
+                                          vpux::VPU::PaddingAttr pad, vpux::VPU::MPEMode mpeMode, mlir::IntegerAttr clusterId = nullptr);
 
         template <typename... Args>
         vpux::VPUIP::PPETaskOp addPPETask(mlir::OpBuilder& builder, Args&&... args);

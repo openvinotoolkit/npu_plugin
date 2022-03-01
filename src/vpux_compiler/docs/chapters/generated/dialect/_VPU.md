@@ -36,6 +36,7 @@ operation ::= `VPU.DPU.Workload` $offsets $sizes $pad $mpe_mode attr-dict-with-k
 `sizes` | ::mlir::ArrayAttr | 64-bit integer array attribute with exactly 4 elements
 `pad` | vpux::VPU::PaddingAttr | DictionaryAttr with field(s): 'left', 'right', 'top', 'bottom' (each field having its own constraints)
 `mpe_mode` | vpux::VPU::MPEModeAttr | MPE Mode
+`cluster_id` | mlir::IntegerAttr | Integer attribute
 
 ### `VPU.NCE.ClusterTiling` (vpux::VPU::NCEClusterTilingOp)
 

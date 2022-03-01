@@ -68,6 +68,64 @@ const EnumMap<VPU::ArchKind, GetMpeModeCb> mpeMap = {
         {VPU::ArchKind::MTL, getMpeModeForMtl},
 };
 
+OutputTiling tileOverH(int64_t numDPU, ShapeRef outputShape) {
+    const int64_t minTileSize = 1;
+
+    const int64_t minTilesCount = 1;
+    const int64_t maxTilesCount = numDPU;
+
+    int64_t tilesCount = outputShape[Dims4D::Act::H] / minTileSize;
+    tilesCount = std::min(std::max(tilesCount, minTilesCount), maxTilesCount);
+
+    Shape nTilesOnDim(outputShape.size(), minTilesCount);
+    nTilesOnDim[Dims4D::Act::H] = tilesCount;
+
+    return fillDividedTiles(nTilesOnDim, outputShape);
+}
+
+// for workloads in sub tensors, offsets need to be from original full output tensor
+void addSubTensorOffset(TileInfo& tileInfo, ShapeRef tensorOffset) {
+    VPUX_THROW_WHEN(tileInfo.offsets.size() != tensorOffset.size(),
+                    "Invalid size for TileInfo.offset {0} and sub tensor offset {1}", tileInfo.offsets.size(),
+                    tensorOffset.size());
+    for (auto d : irange(tileInfo.offsets.size())) {
+        const auto dim = Dim(d);
+        tileInfo.offsets[dim] += tensorOffset[dim];
+    }
+}
+
+vpux::PadInfo getPaddingForSubTensor(VPU::PaddingAttr pads, ShapeRef origOutputShape, ShapeRef subTensor,
+                                     ShapeRef subTensorOffset) {
+    PadInfo newPad = VPU::toPadInfo(pads);
+    if (subTensorOffset[Dims4D::Act::H] != 0) {
+        newPad.top = 0;
+    }
+    if (subTensorOffset[Dims4D::Act::W] != 0) {
+        newPad.left = 0;
+    }
+    if (subTensorOffset[Dims4D::Act::H] + subTensor[Dims4D::Act::H] != origOutputShape[Dims4D::Act::H]) {
+        newPad.bottom = 0;
+    }
+    if (subTensorOffset[Dims4D::Act::W] + subTensor[Dims4D::Act::W] != origOutputShape[Dims4D::Act::W]) {
+        newPad.right = 0;
+    }
+    return newPad;
+}
+
+void addWorkload(mlir::PatternRewriter& rewriter, VPU::NCEOpInterface origOp, int64_t numDPU, ShapeRef outputShape,
+                 VPU::PaddingAttr pads, VPU::MPEMode mpeMode, mlir::IntegerAttr clusterId = nullptr,
+                 ShapeRef subTensorOffset = {}) {
+    auto outTiles = tileOverH(numDPU, outputShape);
+    for (auto& outTile : outTiles) {
+        const auto padsTileConf = backInferPadsTile(outTile, outputShape, VPU::toPadInfo(pads));
+        auto tilePad = VPU::getPaddingAttr(rewriter.getContext(), padsTileConf);
+        if (clusterId != nullptr) {
+            addSubTensorOffset(outTile, subTensorOffset);
+        }
+        origOp.addWorkload(rewriter, origOp.getLoc(), outTile.offsets, outTile.shape, tilePad, mpeMode, clusterId);
+    }
+}
+
 //
 // GenericNCERewrite
 //
@@ -93,25 +151,31 @@ void addDPUTasks(mlir::PatternRewriter& rewriter, VPU::NCEOpInterface origOp, VP
                  VPU::ArchKind arch) {
     const auto mpeByType = mpeMap.at(arch);
 
-    const int64_t minTileSize = 1;
+    if (auto clusterOp = mlir::dyn_cast<VPU::NCEClusterTilingOp>(origOp->getParentOp())) {
+        const auto outputs = clusterOp->getResults();
+        VPUX_THROW_UNLESS(outputs.size() == 1, "Wrong outputs size: {0}", outputs.size());
 
-    const int64_t minTilesCount = 1;
-    const int64_t maxTilesCount = numDPU;
+        const auto output = *outputs.begin();
+        auto distributedOutputType = output.getType().dyn_cast<VPU::DistributedTensorType>();
+        VPUX_THROW_WHEN(distributedOutputType == nullptr, "Wrong output type {0} for NCEClusterTilingOp",
+                        output.getType());
+        const auto& outputSubTensorShapes = distributedOutputType.getPerClusterComputeShapes();
+        const auto& outputSubTensorOffsets = distributedOutputType.getPerClusterComputeShapeOffsets();
 
-    int64_t tilesCount = outputShape[Dims4D::Act::H] / minTileSize;
-    tilesCount = std::min(std::max(tilesCount, minTilesCount), maxTilesCount);
+        VPUX_THROW_WHEN(outputSubTensorShapes.size() != outputSubTensorOffsets.size(),
+                        "sub tensor size:{0} not equal to offset size:{1}", outputSubTensorShapes.size(),
+                        outputSubTensorOffsets.size());
+        for (size_t clusterId = 0; clusterId < outputSubTensorShapes.size(); clusterId++) {
+            auto clusterIdAttr = getIntAttr(origOp->getContext(), clusterId);
 
-    Shape nTilesOnDim(outputShape.size(), minTilesCount);
-    nTilesOnDim[Dims4D::Act::H] = tilesCount;
-
-    const auto outTiles = fillDividedTiles(nTilesOnDim, outputShape);
-
-    for (const auto& outTile : outTiles) {
-        const auto padsTileConf = backInferPadsTile(outTile, outputShape, VPU::toPadInfo(pads));
-        const auto tilePad = VPU::getPaddingAttr(rewriter.getContext(), padsTileConf);
-
-        origOp.addWorkload(rewriter, origOp.getLoc(), outTile.offsets, outTile.shape, tilePad,
-                           mpeByType(inElemType, outElemType, origOp));
+            auto workloadPad = getPaddingForSubTensor(pads, outputShape, outputSubTensorShapes[clusterId],
+                                                      outputSubTensorOffsets[clusterId]);
+            addWorkload(rewriter, origOp, numDPU, outputSubTensorShapes[clusterId],
+                        getPaddingAttr(origOp->getContext(), workloadPad), mpeByType(inElemType, outElemType, origOp),
+                        clusterIdAttr, outputSubTensorOffsets[clusterId]);
+        }
+    } else {
+        addWorkload(rewriter, origOp, numDPU, outputShape, pads, mpeByType(inElemType, outElemType, origOp));
     }
 }
 

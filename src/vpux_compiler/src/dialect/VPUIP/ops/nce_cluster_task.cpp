@@ -74,7 +74,7 @@ void vpux::VPUIP::NCEClusterTaskOp::build(mlir::OpBuilder& builder, mlir::Operat
 
 VPUIP::DPUTaskOp vpux::VPUIP::NCEClusterTaskOp::addDPUTask(mlir::OpBuilder& builder, mlir::ArrayAttr start,
                                                            mlir::ArrayAttr end, VPU::PaddingAttr pad,
-                                                           VPU::MPEMode mpeMode) {
+                                                           VPU::MPEMode mpeMode, mlir::IntegerAttr clusterId) {
     if (variants().empty()) {
         variants().emplaceBlock();
     }
@@ -82,7 +82,7 @@ VPUIP::DPUTaskOp vpux::VPUIP::NCEClusterTaskOp::addDPUTask(mlir::OpBuilder& buil
     mlir::OpBuilder::InsertionGuard guard(builder);
     builder.setInsertionPointToEnd(&variants().front());
 
-    return builder.create<VPUIP::DPUTaskOp>(getLoc(), start, end, pad, mpeMode);
+    return builder.create<VPUIP::DPUTaskOp>(getLoc(), start, end, pad, mpeMode, clusterId);
 }
 
 //
@@ -450,12 +450,11 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(VPUIP::NCEClusterTaskOp op) {
         ++numDPUTasks;
     }
 
-    static const size_t MAX_NUM_DPUS_PER_CLUSTER = 5;
     static const size_t MIN_NUM_DPUS_PER_CLUSTER = 1;
 
-    if (numDPUTasks > MAX_NUM_DPUS_PER_CLUSTER || numDPUTasks < MIN_NUM_DPUS_PER_CLUSTER) {
-        return errorAt(op, "There should be a total of {0}-{1} DPU Tasks per NCEClusterTask, but got {2}",
-                       MIN_NUM_DPUS_PER_CLUSTER, MAX_NUM_DPUS_PER_CLUSTER, numDPUTasks);
+    if (numDPUTasks < MIN_NUM_DPUS_PER_CLUSTER) {
+        return errorAt(op, "There should be at least {0} DPU Tasks per NCEClusterTask, but got {1}",
+                       MIN_NUM_DPUS_PER_CLUSTER, numDPUTasks);
     }
 
     for (auto& ppeOp : op.ppe().getOps()) {

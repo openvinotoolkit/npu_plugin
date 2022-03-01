@@ -260,3 +260,156 @@ func @EltwiseAdd(%arg0: memref<1x64x28x28xf16, #NHWC, @CMX_NN>, %arg1: memref<1x
 // CHECK-SAME:          pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64},
 // CHECK-SAME:          start = [0, 20, 0]
 // CHECK:           PPETask "ADD" {clamp_high = 2147483647 : i64, clamp_low = -2147483648 : i64, lrelu_mult = 1 : i64, lrelu_shift = 0 : i64}
+
+// -----
+
+#NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
+
+// CHECK-LABEL: @ConvWithClusterIdAttr
+func @ConvWithClusterIdAttr(%arg0: memref<1x32x16x16xf16, #NHWC, @CMX_NN>, %arg1: memref<64x32x3x3xf16, #NHWC, @CMX_NN>, %arg2 : memref<64x1x1x4xsi32, @CMX_NN>) -> memref<1x64x16x16xf16, #NHWC, @CMX_NN> {
+    %0 = builtin.unrealized_conversion_cast %arg0 : memref<1x32x16x16xf16, #NHWC, @CMX_NN>
+        to tensor<1x32x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>
+    %1 = builtin.unrealized_conversion_cast %arg1 : memref<64x32x3x3xf16, #NHWC, @CMX_NN>
+        to tensor<64x32x3x3xf16, {mem_space = @CMX_NN, order = #NHWC}>
+    %2 = builtin.unrealized_conversion_cast %arg2 : memref<64x1x1x4xsi32, @CMX_NN>
+        to tensor<64x1x1x4xsi32, {mem_space = @CMX_NN}>
+
+    %3 = VPU.NCE.Convolution(%0, %1, %2) {
+                pad = {bottom = 1, left = 1, right = 1, top = 1},
+                ppe = {clamp_high = 2147483647, clamp_low = 0, lrelu_mult = 1, lrelu_shift = 0, mode = "LRELU"},
+                strides = [1, 1]
+            } -> tensor<1x64x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}> {
+                 VPU.DPU.Workload [0, 0, 0, 0] [1, 64, 1, 16] {bottom = 0 : i64, left = 1 : i64, right = 1 : i64, top = 1 : i64} "VECTOR_FP16" attributes {cluster_id = 0 : i64}
+                 VPU.DPU.Workload [0, 0, 1, 0] [1, 64, 1, 16] {bottom = 0 : i64, left = 1 : i64, right = 1 : i64, top = 0 : i64} "VECTOR_FP16" attributes {cluster_id = 0 : i64}
+                 VPU.DPU.Workload [0, 0, 2, 0] [1, 64, 1, 16] {bottom = 0 : i64, left = 1 : i64, right = 1 : i64, top = 0 : i64} "VECTOR_FP16" attributes {cluster_id = 0 : i64}
+                 VPU.DPU.Workload [0, 0, 3, 0] [1, 64, 1, 16] {bottom = 0 : i64, left = 1 : i64, right = 1 : i64, top = 0 : i64} "VECTOR_FP16" attributes {cluster_id = 0 : i64}
+                 VPU.DPU.Workload [0, 0, 4, 0] [1, 64, 1, 16] {bottom = 0 : i64, left = 1 : i64, right = 1 : i64, top = 0 : i64} "VECTOR_FP16" attributes {cluster_id = 1 : i64}
+                 VPU.DPU.Workload [0, 0, 5, 0] [1, 64, 1, 16] {bottom = 0 : i64, left = 1 : i64, right = 1 : i64, top = 0 : i64} "VECTOR_FP16" attributes {cluster_id = 1 : i64}
+                 VPU.DPU.Workload [0, 0, 6, 0] [1, 64, 1, 16] {bottom = 0 : i64, left = 1 : i64, right = 1 : i64, top = 0 : i64} "VECTOR_FP16" attributes {cluster_id = 1 : i64}
+                 VPU.DPU.Workload [0, 0, 7, 0] [1, 64, 1, 16] {bottom = 0 : i64, left = 1 : i64, right = 1 : i64, top = 0 : i64} "VECTOR_FP16" attributes {cluster_id = 1 : i64}
+                 VPU.DPU.Workload [0, 0, 8, 0] [1, 64, 1, 16] {bottom = 0 : i64, left = 1 : i64, right = 1 : i64, top = 0 : i64} "VECTOR_FP16" attributes {cluster_id = 2 : i64}
+                 VPU.DPU.Workload [0, 0, 9, 0] [1, 64, 1, 16] {bottom = 0 : i64, left = 1 : i64, right = 1 : i64, top = 0 : i64} "VECTOR_FP16" attributes {cluster_id = 2 : i64}
+                 VPU.DPU.Workload [0, 0, 10, 0] [1, 64, 1, 16] {bottom = 0 : i64, left = 1 : i64, right = 1 : i64, top = 0 : i64} "VECTOR_FP16" attributes {cluster_id = 2 : i64}
+                 VPU.DPU.Workload [0, 0, 11, 0] [1, 64, 1, 16] {bottom = 0 : i64, left = 1 : i64, right = 1 : i64, top = 0 : i64} "VECTOR_FP16" attributes {cluster_id = 2 : i64}
+                 VPU.DPU.Workload [0, 0, 12, 0] [1, 64, 1, 16] {bottom = 0 : i64, left = 1 : i64, right = 1 : i64, top = 0 : i64} "VECTOR_FP16" attributes {cluster_id = 3 : i64}
+                 VPU.DPU.Workload [0, 0, 13, 0] [1, 64, 1, 16] {bottom = 0 : i64, left = 1 : i64, right = 1 : i64, top = 0 : i64} "VECTOR_FP16" attributes {cluster_id = 3 : i64}
+                 VPU.DPU.Workload [0, 0, 14, 0] [1, 64, 1, 16] {bottom = 0 : i64, left = 1 : i64, right = 1 : i64, top = 0 : i64} "VECTOR_FP16" attributes {cluster_id = 3 : i64}
+                 VPU.DPU.Workload [0, 0, 15, 0] [1, 64, 1, 16] {bottom = 1 : i64, left = 1 : i64, right = 1 : i64, top = 0 : i64} "VECTOR_FP16" attributes {cluster_id = 3 : i64}
+    }
+
+    %4 = builtin.unrealized_conversion_cast %3 : tensor<1x64x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>
+        to memref<1x64x16x16xf16, #NHWC, @CMX_NN>
+
+    return %4 : memref<1x64x16x16xf16, #NHWC, @CMX_NN>
+}
+
+// CHECK:       [[OUT_BUF:%.+]] = memref.alloc() : memref<1x64x16x16xf16, #NHWC, @CMX_NN>
+
+// CHECK:       VPUIP.NCEClusterTask
+// CHECK-SAME:          kernel_padding = {bottom = 1 : i64, left = 1 : i64, right = 1 : i64, top = 1 : i64},
+// CHECK-SAME:          kernel_size = [3, 3],
+// CHECK-SAME:          kernel_strides = [1, 1],
+// CHECK-SAME:          task_type = "CONV"
+// CHECK-SAME:      input(%arg0 : memref<1x32x16x16xf16, #NHWC, @CMX_NN>)
+// CHECK-SAME:      weights(%arg1 : memref<64x32x3x3xf16, #NHWC, @CMX_NN>)
+// CHECK-SAME:      weight_table(%arg2 : memref<64x1x1x4xsi32, @CMX_NN>)
+// CHECK-SAME:      parent_input(%arg0 : memref<1x32x16x16xf16, #NHWC, @CMX_NN>)
+// CHECK-SAME:      parent_output([[OUT_BUF]] : memref<1x64x16x16xf16, #NHWC, @CMX_NN>)
+// CHECK-SAME:      outputs([[OUT_BUF]] : memref<1x64x16x16xf16, #NHWC, @CMX_NN>)
+// CHECK:           DPUTask
+// CHECK-SAME:          cluster_id = 0 : i64
+// CHECK-SAME:          end = [15, 0, 63],
+// CHECK-SAME:          mpe_mode = "VECTOR_FP16",
+// CHECK-SAME:          pad = {bottom = 0 : i64, left = 1 : i64, right = 1 : i64, top = 1 : i64},
+// CHECK-SAME:          start = [0, 0, 0]
+// CHECK:           DPUTask
+// CHECK-SAME:          cluster_id = 0 : i64
+// CHECK-SAME:          end = [15, 1, 63],
+// CHECK-SAME:          mpe_mode = "VECTOR_FP16",
+// CHECK-SAME:          pad = {bottom = 0 : i64, left = 1 : i64, right = 1 : i64, top = 0 : i64},
+// CHECK-SAME:          start = [0, 1, 0]
+// CHECK:           DPUTask
+// CHECK-SAME:          cluster_id = 0 : i64
+// CHECK-SAME:          end = [15, 2, 63],
+// CHECK-SAME:          mpe_mode = "VECTOR_FP16",
+// CHECK-SAME:          pad = {bottom = 0 : i64, left = 1 : i64, right = 1 : i64, top = 0 : i64},
+// CHECK-SAME:          start = [0, 2, 0]
+// CHECK:           DPUTask
+// CHECK-SAME:          cluster_id = 0 : i64
+// CHECK-SAME:          end = [15, 3, 63],
+// CHECK-SAME:          mpe_mode = "VECTOR_FP16",
+// CHECK-SAME:          pad = {bottom = 0 : i64, left = 1 : i64, right = 1 : i64, top = 0 : i64},
+// CHECK-SAME:          start = [0, 3, 0]
+// CHECK:           DPUTask
+// CHECK-SAME:          cluster_id = 1 : i64
+// CHECK-SAME:          end = [15, 4, 63],
+// CHECK-SAME:          mpe_mode = "VECTOR_FP16",
+// CHECK-SAME:          pad = {bottom = 0 : i64, left = 1 : i64, right = 1 : i64, top = 0 : i64},
+// CHECK-SAME:          start = [0, 4, 0]
+// CHECK:           DPUTask
+// CHECK-SAME:          cluster_id = 1 : i64
+// CHECK-SAME:          end = [15, 5, 63],
+// CHECK-SAME:          mpe_mode = "VECTOR_FP16",
+// CHECK-SAME:          pad = {bottom = 0 : i64, left = 1 : i64, right = 1 : i64, top = 0 : i64},
+// CHECK-SAME:          start = [0, 5, 0]
+// CHECK:           DPUTask
+// CHECK-SAME:          cluster_id = 1 : i64
+// CHECK-SAME:          end = [15, 6, 63],
+// CHECK-SAME:          mpe_mode = "VECTOR_FP16",
+// CHECK-SAME:          pad = {bottom = 0 : i64, left = 1 : i64, right = 1 : i64, top = 0 : i64},
+// CHECK-SAME:          start = [0, 6, 0]
+// CHECK:           DPUTask
+// CHECK-SAME:          cluster_id = 1 : i64
+// CHECK-SAME:          end = [15, 7, 63],
+// CHECK-SAME:          mpe_mode = "VECTOR_FP16",
+// CHECK-SAME:          pad = {bottom = 0 : i64, left = 1 : i64, right = 1 : i64, top = 0 : i64},
+// CHECK-SAME:          start = [0, 7, 0]
+// CHECK:           DPUTask
+// CHECK-SAME:          cluster_id = 2 : i64
+// CHECK-SAME:          end = [15, 8, 63],
+// CHECK-SAME:          mpe_mode = "VECTOR_FP16",
+// CHECK-SAME:          pad = {bottom = 0 : i64, left = 1 : i64, right = 1 : i64, top = 0 : i64},
+// CHECK-SAME:          start = [0, 8, 0]
+// CHECK:           DPUTask
+// CHECK-SAME:          cluster_id = 2 : i64
+// CHECK-SAME:          end = [15, 9, 63],
+// CHECK-SAME:          mpe_mode = "VECTOR_FP16",
+// CHECK-SAME:          pad = {bottom = 0 : i64, left = 1 : i64, right = 1 : i64, top = 0 : i64},
+// CHECK-SAME:          start = [0, 9, 0]
+// CHECK:           DPUTask
+// CHECK-SAME:          cluster_id = 2 : i64
+// CHECK-SAME:          end = [15, 10, 63],
+// CHECK-SAME:          mpe_mode = "VECTOR_FP16",
+// CHECK-SAME:          pad = {bottom = 0 : i64, left = 1 : i64, right = 1 : i64, top = 0 : i64},
+// CHECK-SAME:          start = [0, 10, 0]
+// CHECK:           DPUTask
+// CHECK-SAME:          cluster_id = 2 : i64
+// CHECK-SAME:          end = [15, 11, 63],
+// CHECK-SAME:          mpe_mode = "VECTOR_FP16",
+// CHECK-SAME:          pad = {bottom = 0 : i64, left = 1 : i64, right = 1 : i64, top = 0 : i64},
+// CHECK-SAME:          start = [0, 11, 0]
+// CHECK:           DPUTask
+// CHECK-SAME:          cluster_id = 3 : i64
+// CHECK-SAME:          end = [15, 12, 63],
+// CHECK-SAME:          mpe_mode = "VECTOR_FP16",
+// CHECK-SAME:          pad = {bottom = 0 : i64, left = 1 : i64, right = 1 : i64, top = 0 : i64},
+// CHECK-SAME:          start = [0, 12, 0]
+// CHECK:           DPUTask
+// CHECK-SAME:          cluster_id = 3 : i64
+// CHECK-SAME:          end = [15, 13, 63],
+// CHECK-SAME:          mpe_mode = "VECTOR_FP16",
+// CHECK-SAME:          pad = {bottom = 0 : i64, left = 1 : i64, right = 1 : i64, top = 0 : i64},
+// CHECK-SAME:          start = [0, 13, 0]
+// CHECK:           DPUTask
+// CHECK-SAME:          cluster_id = 3 : i64
+// CHECK-SAME:          end = [15, 14, 63],
+// CHECK-SAME:          mpe_mode = "VECTOR_FP16",
+// CHECK-SAME:          pad = {bottom = 0 : i64, left = 1 : i64, right = 1 : i64, top = 0 : i64},
+// CHECK-SAME:          start = [0, 14, 0]
+// CHECK:           DPUTask
+// CHECK-SAME:          cluster_id = 3 : i64
+// CHECK-SAME:          end = [15, 15, 63],
+// CHECK-SAME:          mpe_mode = "VECTOR_FP16",
+// CHECK-SAME:          pad = {bottom = 1 : i64, left = 1 : i64, right = 1 : i64, top = 0 : i64},
+// CHECK-SAME:          start = [0, 15, 0]
+// CHECK:           PPETask "LRELU" {clamp_high = 2147483647 : i64, clamp_low = 0 : i64, lrelu_mult = 1 : i64, lrelu_shift = 0 : i64}

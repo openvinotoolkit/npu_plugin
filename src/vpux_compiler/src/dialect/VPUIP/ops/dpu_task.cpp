@@ -16,7 +16,7 @@
 using namespace vpux;
 
 //
-// NNDMAOp
+// DPUTaskOp
 //
 
 void vpux::VPUIP::DPUTaskOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::ArrayAttr start,
