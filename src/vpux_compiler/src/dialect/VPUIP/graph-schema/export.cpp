@@ -150,8 +150,10 @@ flatbuffers::Offset<MVCNN::MemoryMapping> createMemoryMapping(VPUIP::BlobWriter&
     const auto memKindAttr = res.getKindAs<VPU::MemoryKindAttr>();
 
     MVCNN::MemoryMappingBuilder builder(writer);
-    builder.add_item(createPhysicalMem(memKindAttr.getValue()));
-    builder.add_number(checked_cast<double>(res.byteSize()));
+    const auto item = createPhysicalMem(memKindAttr.getValue());
+    builder.add_item(item);
+    double number = (item == MVCNN::PhysicalMem_NN_CMX) ? 917504 : 65536;
+    builder.add_number(checked_cast<double>(number));
     return builder.Finish();
 }
 
@@ -177,9 +179,10 @@ flatbuffers::Offset<MVCNN::Resources> createResources(VPUIP::BlobWriter& writer,
             VPU::ExecutorKind::DPU         //
     };
 
-    const auto usedMemory = writer.createVector(IE::getUsedMemory(module) | transformed([&](IE::MemoryResourceOp res) {
-                                                    return createMemoryMapping(writer, res);
-                                                }));
+    // const auto usedMemory = writer.createVector(IE::getUsedMemory(module) | transformed([&](IE::MemoryResourceOp res)
+    // {
+    //                                                 return createMemoryMapping(writer, res);
+    //                                             }));
 
     SmallVector<flatbuffers::Offset<MVCNN::ProcessorMapping>> executorsOffsets;
     SmallVector<flatbuffers::Offset<MVCNN::ProcessorMapping>> processorVec;
@@ -203,6 +206,10 @@ flatbuffers::Offset<MVCNN::Resources> createResources(VPUIP::BlobWriter& writer,
             memoryTypes.push_back(src);
         }
     }
+
+    const auto usedMemory = writer.createVector(memoryTypes | transformed([&](IE::MemoryResourceOp res) {
+                                                    return createMemoryMapping(writer, res);
+                                                }));
 
     double DMA_BANDWIDTH = 20.0;
     for (auto src : memoryTypes) {
