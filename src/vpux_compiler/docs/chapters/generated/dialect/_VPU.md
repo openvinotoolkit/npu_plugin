@@ -82,7 +82,7 @@ operation ::= `VPU.NCE.Convolution` `(` $input `,` $filter `,` $weightsTable `)`
 `pad` | vpux::VPU::PaddingAttr | DictionaryAttr with field(s): 'left', 'right', 'top', 'bottom' (each field having its own constraints)
 `post_op` | vpux::IE::PostOp | DictionaryAttr with field(s): 'name', 'attrs' (each field having its own constraints)
 `ppe` | vpux::VPU::PPETaskAttr | DictionaryAttr with field(s): 'mode', 'clamp_low', 'clamp_high', 'lrelu_mult', 'lrelu_shift', 'quant_mult', 'quant_shift', 'quant_post_shift' (each field having its own constraints)
-`rawFilterShape` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`rawFilterShape` | ::mlir::ArrayAttr | 64-bit integer array attribute with exactly 4 elements
 `activation_window_channel_length` | mlir::IntegerAttr | Integer attribute
 
 #### Operands:
@@ -126,7 +126,7 @@ operation ::= `VPU.NCE.DepthConvolution` `(` $input `,` $filter `,` $weightsTabl
 `pad` | vpux::VPU::PaddingAttr | DictionaryAttr with field(s): 'left', 'right', 'top', 'bottom' (each field having its own constraints)
 `post_op` | vpux::IE::PostOp | DictionaryAttr with field(s): 'name', 'attrs' (each field having its own constraints)
 `ppe` | vpux::VPU::PPETaskAttr | DictionaryAttr with field(s): 'mode', 'clamp_low', 'clamp_high', 'lrelu_mult', 'lrelu_shift', 'quant_mult', 'quant_shift', 'quant_post_shift' (each field having its own constraints)
-`rawFilterShape` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`rawFilterShape` | ::mlir::ArrayAttr | 64-bit integer array attribute with exactly 4 elements
 `activation_window_channel_length` | mlir::IntegerAttr | Integer attribute
 
 #### Operands:

@@ -240,9 +240,10 @@ func @AvoidClusterTiling(%arg0: tensor<1x32x100x100xf16, {mem_space = @CMX_NN, o
                 -> tensor<1x128x100x100xf16, {mem_space = @CMX_NN, order = #NHWC}> {
       %1 = VPU.NCE.Convolution(%arg1, %arg2, %arg3) (activationWindow : %arg4 : ) (bias : #const.Content<dense<1.000000e+00> : tensor<1x128x1x1xf16>>) {
                 pad = {bottom = 1 : i64, left = 1 : i64, right = 1 : i64, top = 1 : i64},
+                rawFilterShape = [128, 32, 3, 3],
                 strides = [1, 1],
                 activation_window_channel_length = 44
-            } : tensor<1x32x100x100xf16, {mem_space = @CMX_NN, order = #NHWC}>, 
+            } : tensor<1x32x100x100xf16, {mem_space = @CMX_NN, order = #NHWC}>,
                 tensor<128x32x3x3xf16, {mem_space = @CMX_NN, order = #NHWC}>,
                 tensor<32x1x1x4xsi32, {mem_space = @CMX_NN, order = #NCHW}>
                 -> tensor<1x128x100x100xf16, {mem_space = @CMX_NN, order = #NHWC}>

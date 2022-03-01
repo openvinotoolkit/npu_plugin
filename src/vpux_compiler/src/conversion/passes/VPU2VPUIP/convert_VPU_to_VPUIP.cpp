@@ -121,9 +121,7 @@ mlir::LogicalResult ConvRewriter::matchAndRewrite(VPU::NCEConvolutionOp origOp, 
     // Get dimensions
     //
 
-    const Shape filterShape = origOp.rawFilterShapeAttr() != nullptr
-                                      ? Shape(parseIntArrayAttr<int64_t>(origOp.rawFilterShapeAttr()))
-                                      : getShape(newArgs.filter()).toValues();
+    const auto filterShape = Shape(parseIntArrayAttr<int64_t>(origOp.rawFilterShape()));
 
     const auto KY = filterShape[Dims4D::Filter::KY];
     const auto KX = filterShape[Dims4D::Filter::KX];
@@ -248,10 +246,7 @@ mlir::LogicalResult DepthwiseConvRewriter::matchAndRewrite(VPU::NCEDepthConvolut
     // Get dimensions
     //
 
-    const Shape filterShape = origOp.rawFilterShapeAttr() != nullptr
-                                      ? Shape(parseIntArrayAttr<int64_t>(origOp.rawFilterShapeAttr()))
-                                      : getShape(newArgs.filter()).toValues();
-
+    const auto filterShape = Shape(parseIntArrayAttr<int64_t>(origOp.rawFilterShape()));
     const auto KY = filterShape[Dims4D::Filter::KY];
     const auto KX = filterShape[Dims4D::Filter::KX];
 
