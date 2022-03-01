@@ -466,38 +466,31 @@ void Convert2VPUIPRegMappedAndELFPass::safeRunOnModule() {
 
     _log.info("Convert2VPUIPRegMappedAndELFPass::safeRunOnFunc(): moduleOp = {0}\n", moduleOp);
 
-    for (mlir::Operation& op : moduleOp) {
-        if (vpux::IE::CNNNetworkOp cnnOp = llvm::dyn_cast<vpux::IE::CNNNetworkOp>(op)) {
-            _log.info("Found a IE::CNNNetworkOp operation\n");
+    vpux::IE::CNNNetworkOp cnnOp;
+    vpux::IE::CNNNetworkOp::getFromModule(moduleOp, cnnOp, funcOp);
 
-            diOpInVec = cnnOp.getInputsInfo();
-            diOpOutVec = cnnOp.getOutputsInfo();
+    diOpInVec = cnnOp.getInputsInfo();
+    diOpOutVec = cnnOp.getOutputsInfo();
+    //
+    _log.info("  diOpInVec.size() = {0}\n", diOpInVec.size());
+    _log.info("  diOpOutVec.size() = {0}\n", diOpOutVec.size());
 
-            _log.info("  diOpInVec.size() = {0}\n", diOpInVec.size());
-            _log.info("  diOpOutVec.size() = {0}\n", diOpOutVec.size());
-        } else if (mlir::isa<mlir::FuncOp>(op)) {
-            funcOp = llvm::cast<mlir::FuncOp>(op);
+    // We build 4 different createSections, one for VPUIPRegMapped::DeclareBufferOp,
+    //   one for Const::DeclareOp, one for VPUIPRegMapped::NNDMAOp and
+    //   one for VPUIPRegMapped::ConfigureBarrierOp.
+    createSection<vpux::VPURT::DeclareBufferOp>(funcOp, ctx, ".data.Weights", vpux::ELF::SectionTypeAttr::SHT_PROGBITS,
+                                                vpux::ELF::SectionFlagsAttr::SHF_ALLOC);
+    createSection<vpux::Const::DeclareOp>(funcOp, ctx, ".data.Weights_ct", vpux::ELF::SectionTypeAttr::SHT_PROGBITS,
+                                          vpux::ELF::SectionFlagsAttr::SHF_ALLOC);
+    mlir::Value nndmaSectionOpValue = createSection<vpux::VPUIPRegMapped::NNDMAOp>(
+            funcOp, ctx, ".text.dmaTasks", vpux::ELF::SectionTypeAttr::SHT_PROGBITS,
+            vpux::ELF::SectionFlagsAttr::SHF_ALLOC | vpux::ELF::SectionFlagsAttr::SHF_EXECINSTR, true);
+    createSection<vpux::VPUIPRegMapped::ConfigureBarrierOp>(funcOp, ctx, ".text.BarrierConfigs",
+                                                            vpux::ELF::SectionTypeAttr::SHT_PROGBITS,
+                                                            vpux::ELF::SectionFlagsAttr::SHF_EXECINSTR);
 
-            // We build 4 different createSections, one for VPUIPRegMapped::DeclareBufferOp,
-            //   one for Const::DeclareOp, one for VPUIPRegMapped::NNDMAOp and
-            //   one for VPUIPRegMapped::ConfigureBarrierOp.
-            createSection<vpux::VPURT::DeclareBufferOp>(funcOp, ctx, ".data.Weights",
-                                                        vpux::ELF::SectionTypeAttr::SHT_PROGBITS,
-                                                        vpux::ELF::SectionFlagsAttr::SHF_ALLOC);
-            createSection<vpux::Const::DeclareOp>(funcOp, ctx, ".data.Weights_ct",
-                                                  vpux::ELF::SectionTypeAttr::SHT_PROGBITS,
-                                                  vpux::ELF::SectionFlagsAttr::SHF_ALLOC);
-            mlir::Value nndmaSectionOpValue = createSection<vpux::VPUIPRegMapped::NNDMAOp>(
-                    funcOp, ctx, ".text.dmaTasks", vpux::ELF::SectionTypeAttr::SHT_PROGBITS,
-                    vpux::ELF::SectionFlagsAttr::SHF_ALLOC | vpux::ELF::SectionFlagsAttr::SHF_EXECINSTR, true);
-            createSection<vpux::VPUIPRegMapped::ConfigureBarrierOp>(funcOp, ctx, ".text.BarrierConfigs",
-                                                                    vpux::ELF::SectionTypeAttr::SHT_PROGBITS,
-                                                                    vpux::ELF::SectionFlagsAttr::SHF_EXECINSTR);
-
-            // Now, for each NNDMAOp input and output we want to perform relocation
-            createRelocationSection(funcOp, ctx, nndmaSectionOpValue);
-        }
-    }
+    // Now, for each NNDMAOp input and output we want to perform relocation
+    createRelocationSection(funcOp, ctx, nndmaSectionOpValue);
 
     _log.info("Convert2VPUIPRegMappedAndELFPass::safeRunOnFunc(): moduleOp = {0}\n", moduleOp);
 }

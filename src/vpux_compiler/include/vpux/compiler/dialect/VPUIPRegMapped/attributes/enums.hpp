@@ -27,24 +27,3 @@
 #include <vpux/compiler/dialect/VPUIPRegMapped/generated/attributes/enums.hpp.inc>
 
 #include <mlir/IR/BuiltinOps.h>
-
-namespace vpux {
-namespace VPUIPRegMapped {
-
-//
-// MemoryLocation utilities
-//
-
-// PhysicalMemory getPhysicalMemory(MemoryLocation location);
-// mlir::FailureOr<PhysicalMemory> getPhysicalMemory(mlir::MemRefType memref);
-
-// MemoryLocation getDefaultMemoryLocation(PhysicalMemory location);
-// mlir::FailureOr<VPUIPRegMapped::MemoryLocation> getMemoryLocation(mlir::MemRefType memref);
-
-// bool isMemoryCompatible(MemoryLocation location, mlir::MemRefType memref);
-
-// CompilationMode getCompilationMode(mlir::Operation* op);
-// void setCompilationMode(mlir::ModuleOp module, CompilationMode compilationMode);
-
-}  // namespace VPUIPRegMapped
-}  // namespace vpux

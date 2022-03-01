@@ -67,7 +67,7 @@ def ELF_RelocationObjectInterface : OpInterface<"ElfRelocationObjectInterface"> 
 }
 
 //
-// ELFObjectInterface
+// OpInterface
 //
 
 def ELF_OpInterface : OpInterface<"ElfObjectInterface"> {

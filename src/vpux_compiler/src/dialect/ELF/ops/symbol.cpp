@@ -12,6 +12,7 @@
 //
 
 #include <vpux_elf/writer.hpp>
+#include "llvm/Support/Debug.h"  // 2022_01_22
 #include "vpux/compiler/dialect/ELF/ops.hpp"
 
 namespace {
@@ -20,14 +21,21 @@ mlir::Operation* getParentSectionOp(mlir::Value val) {
     // Based on IR validity, any PutOpInSection op is always in a CreateSymbolTableSection (or CreateSection).
     mlir::Operation* op = nullptr;
     for (auto user : val.getUsers()) {
+        llvm::dbgs() << "getParentSectionOp(): *user: " << *user << "\n";  // 2022_02_25
+        llvm::dbgs().flush();                                              // 2022_02_25
+
         if (mlir::dyn_cast_or_null<vpux::ELF::PutOpInSectionOp>(user)) {
+            // llvm::dbgs() << "    *op: " << *op << "\n";  // 2022_01_22
+            // llvm::dbgs().flush();  // 2022_01_22
+
             op = user;
             // In a section we should have only 1 PutOpInSectionOp user for each object put in it.
             break;
         }
     }
 
-    // This happens normally in case val is a BlockArgument (e.g., "arg0" in the .mlir file)
+    // This happens normally in case val is a BlockArgument (e.g., "arg0" in the .mlir file).
+    //  OR in the case of a value assigned in the FuncOp scope.
     if (op == nullptr) {
         op = val.getDefiningOp();
 
@@ -48,6 +56,9 @@ void vpux::ELF::SymbolOp::serialize(elf::writer::Symbol* symbol, vpux::ELF::Sect
     auto symType = type().getValueOr(vpux::ELF::SymbolTypeAttr::STT_NOTYPE);
     auto symSize = size().getValueOr(0);
     auto symVal = value().getValueOr(0);
+
+    llvm::dbgs() << "vpux::ELF::SymbolOp::serialize(): symName = " << symName << "\n";  // 2022_02_25
+    llvm::dbgs().flush();                                                               // 2022_02_25
 
     /* From serialization perspective symbols can be of 5 types:
         - SECTION symbols : in this case the parentSection is the defining op itself;
@@ -70,7 +81,11 @@ void vpux::ELF::SymbolOp::serialize(elf::writer::Symbol* symbol, vpux::ELF::Sect
         } else {
             parentSection = getParentSectionOp(inputArg());
 
-            VPUX_THROW_UNLESS(parentSection != nullptr, "Could not find valid parent section for op");
+            if (mlir::isa<mlir::FuncOp>(parentSection)) {
+                parentSection = nullptr;
+            } else {
+                VPUX_THROW_UNLESS(parentSection != nullptr, "Could not find valid parent section for op");
+            }
         }
     }
 
@@ -78,6 +93,12 @@ void vpux::ELF::SymbolOp::serialize(elf::writer::Symbol* symbol, vpux::ELF::Sect
     symbol->setType(static_cast<elf::Elf_Word>(symType));
     symbol->setSize(symSize);
     symbol->setValue(symVal);
+
+    llvm::dbgs() << "vpux::ELF::SymbolOp::serialize(): parentSection = " << parentSection << "\n";  // 2022_02_25
+    if (parentSection != nullptr) {
+        llvm::dbgs() << "vpux::ELF::SymbolOp::serialize(): *parentSection = " << *parentSection << "\n";  // 2022_02_25
+    }
+    llvm::dbgs().flush();  // 2022_02_25
 
     if (parentSection != nullptr) {
         auto sectionMapEntry = sectionMap.find(parentSection);
