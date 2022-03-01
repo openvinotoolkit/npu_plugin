@@ -17,8 +17,6 @@
 
 using namespace vpux;
 
-namespace {}  // namespace
-
 //
 // initialize
 //

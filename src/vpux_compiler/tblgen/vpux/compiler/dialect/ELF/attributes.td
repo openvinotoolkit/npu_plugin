@@ -126,15 +126,15 @@ def ELF_RelocationTypeAttr :
             [
                 StrEnumAttrCase<"R_VPU_64",                                  0>,
                 StrEnumAttrCase<"R_VPU_64_OR",                               1>,
-                StrEnumAttrCase<"R_VPU_64_OR_RTM",                           2>,
+                StrEnumAttrCase<"R_VPU_DISP40_RTM",                          2>,
                 StrEnumAttrCase<"R_VPU_64_LSHIFT",                           3>,
                 StrEnumAttrCase<"R_VPU_32",                                  4>,
-                StrEnumAttrCase<"R_VPU_32_OR_RTM",                           5>,
+                StrEnumAttrCase<"R_VPU_32_RTM",                              5>,
                 StrEnumAttrCase<"R_VPU_32_SUM",                              6>,
                 StrEnumAttrCase<"R_VPU_32_MULTICAST_BASE",                   7>,
                 StrEnumAttrCase<"R_VPU_32_MULTICAST_BASE_SUB",               8>,
-                StrEnumAttrCase<"R_VPU_32_MULTICAST_OFFSET_4_BIT_SHIFT_OR",  9>,
-                StrEnumAttrCase<"R_VPU_32_MULTICAST_OFFSET_CMP_OR",         10>,
+                StrEnumAttrCase<"R_VPU_DISP28_MULTICAST_OFFSET",             9>,
+                StrEnumAttrCase<"R_VPU_DISP4_MULTICAST_OFFSET_CMP",         10>,
             ]
         > {
     let cppNamespace = "vpux::ELF";

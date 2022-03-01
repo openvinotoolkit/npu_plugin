@@ -52,11 +52,6 @@
 namespace vpux {
 namespace VPUIPRegMapped {
 
-constexpr Bit FP16_SIZE = 16_Bit;
-constexpr KB SHAVE_LIB_DATA_SIZE = 112_KB;
-
-mlir::LogicalResult verifyOp(NCEClusterTaskOp op);
-mlir::LogicalResult verifyOp(DPUTaskOp op);
 mlir::LogicalResult verifyPostOp(mlir::Operation* op);
 
 }  // namespace VPUIPRegMapped

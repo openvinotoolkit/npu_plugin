@@ -58,6 +58,16 @@ func @main(%arg0: memref<1x1x2x1000xf16>, %arg1: memref<1x1x2x1000xf16>) -> memr
     %symArg0 = ELF.Symbol %arg0 name("inputCNN") size(4000) : memref<1x1x2x1000xf16>
     %symArg1 = ELF.Symbol %arg1 name("outputCNN") size(4000) : memref<1x1x2x1000xf16>
 
+    %const_3 = arith.constant 3 : i32
+    // %sym_3 = ELF.Symbol %const_3 name("VPU_NNRD_SYM_RTM_DMA0") { isBuiltin = true } : i32
+    %sym_3 = ELF.Symbol %const_3 name("VPU_NNRD_SYM_RTM_DMA0") : i32
+    //
+    // %vpu_symtab = ELF.CreateSymbolTableSection secName("VPU_RT_SYMTAB") secFlags(SHF_NONE) { isBuiltin = true } -> !ELF.Section
+    %vpu_symtab = ELF.CreateSymbolTableSection secName("VPU_RT_SYMTAB") secFlags(SHF_NONE) -> !ELF.Section
+    {
+        ELF.PutOpInSection %sym_3 : !ELF.Symbol
+    }
+
     %genericSymSection = ELF.CreateSymbolTableSection secName(".symtab") secFlags(SHF_NONE) -> !ELF.Section
     {
         ELF.PutOpInSection %sym_for_dmaSection : !ELF.Symbol
@@ -87,6 +97,11 @@ func @main(%arg0: memref<1x1x2x1000xf16>, %arg1: memref<1x1x2x1000xf16>) -> memr
     {
         ELF.Reloc 24 "R_VPU_64" %sym_for_scratchSection 0
         ELF.Reloc 208 "R_VPU_64" %sym_for_scratchSection 0
+    }
+
+    %dmaSpecialRelocs = ELF.CreateRelocationSection secName(".rlt.dmaSpecialRelocations") sourceSymbolTableSection(%vpu_symtab) targetSection(%dmaSection) secFlags(SHF_INFO_LINK) -> !ELF.Section
+    {
+        ELF.Reloc 0 "R_VPU_32_RTM" %sym_3 192
     }
 
     %inputRelocs = ELF.CreateRelocationSection secName(".rlt.inputs") sourceSymbolTableSection(%inputSymSection) targetSection(%dmaSection) secFlags("SHF_INFO_LINK|VPU_SHF_JIT|VPU_SHF_USERINPUT") -> !ELF.Section

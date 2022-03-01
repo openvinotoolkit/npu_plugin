@@ -250,7 +250,6 @@ add_type_interfaces("core")
 add_passes("core" "Core")
 
 add_dialect("const")
-#add_op_interfaces("dialect/const")
 add_attr_interfaces("dialect/const")
 add_attributes("const")
 
@@ -296,8 +295,6 @@ add_dialect("VPUIPRegMapped")
 add_op_interfaces("dialect/VPUIPRegMapped")
 add_enum_attrs("VPUIPRegMapped")
 add_struct_attrs("VPUIPRegMapped")
-#add_types("VPUIPRegMapped")
-#add_passes("dialect/VPUIPRegMapped" "VPUIPRegMapped")
 
 add_passes("conversion" "Conversion")
 add_rewriters("conversion")

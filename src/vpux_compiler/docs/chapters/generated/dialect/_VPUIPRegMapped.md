@@ -59,27 +59,6 @@ operation ::= `VPUIPRegMapped.ConfigureBarrier` attr-dict
 | :----: | ----------- |
 `barrier` | VPUIP Barrier Type
 
-### `VPUIPRegMapped.DPUTask` (vpux::VPUIPRegMapped::DPUTaskOp)
-
-This object represents workload for a single DPU tile
-
-
-Syntax:
-
-```
-operation ::= `VPUIPRegMapped.DPUTask` attr-dict
-```
-
-
-#### Attributes:
-
-| Attribute | MLIR Type | Description |
-| :-------: | :-------: | ----------- |
-`start` | ::mlir::ArrayAttr | 64-bit integer array attribute
-`end` | ::mlir::ArrayAttr | 64-bit integer array attribute
-`pad` | vpux::VPUIPRegMapped::PaddingAttr | DictionaryAttr with field(s): 'left', 'right', 'top', 'bottom' (each field having its own constraints)
-`mpe_mode` | vpux::VPUIPRegMapped::MPEModeAttr | MPE Mode
-
 ### `VPUIPRegMapped.DeclareVirtualBarrier` (vpux::VPUIPRegMapped::DeclareVirtualBarrierOp)
 
 VPUIPRegMapped virtual Barrier declaration
@@ -188,74 +167,6 @@ operation ::= `VPUIPRegMapped.MappedInference` attr-dict
 | :----: | ----------- |
 `output` | index
 
-### `VPUIPRegMapped.NCEClusterTask` (vpux::VPUIPRegMapped::NCEClusterTaskOp)
-
-NCE Cluster Task Operation
-
-
-Syntax:
-
-```
-operation ::= `VPUIPRegMapped.NCEClusterTask` attr-dict
-              `input` `(` $input  `:` type($input) `)`
-              (`weights` `(` $weights^  `:` type($weights) `)`)?
-              (`weight_table` `(` $weight_table^  `:` type($weight_table) `)`)?
-              (`activation_window` `(` $activation_window^  `:` type($activation_window) `)`)?
-              `parent_input` `(` $parent_input `:` type($parent_input) `)`
-              `parent_output` `(` $parent_output `:` type($parent_output) `)`
-              `outputs` `(` $output_buff `:` type($output_buff) `)`
-              (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
-              (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
-              `->` type(results)
-              `variants` `:` $variants
-              `PPE` `:` $ppe
-```
-
-This operation defines NCE cluster task which describes single cluster of 5 DPUs. It is
-comprised of two argument categories:
-
-* Variants - describes the attributes for an individual DPU within the cluster.
-* Invariants - describes the collective attributes of the cluster.
-
-The variants argument takes on a region argument and up to 5 DPUTaskOps. The invariants
-take on a variety of argument types.
-
-The NCEClusterTaskOp also supports fixed PPE functions as well as generic PPE instruction
-lists. The generic PPE instruction list argument needs to be described as a region of PPE
-supported ops. Single fixed PPE functions and generic PPE instruciton list usage is
-mutually exclusive.
-
-#### Attributes:
-
-| Attribute | MLIR Type | Description |
-| :-------: | :-------: | ----------- |
-`task_type` | vpux::VPUIPRegMapped::NCETaskTypeAttr | NCE task type
-`kernel_size` | ::mlir::ArrayAttr | 64-bit integer array attribute
-`kernel_strides` | ::mlir::ArrayAttr | 64-bit integer array attribute
-`kernel_padding` | ::mlir::ArrayAttr | 64-bit integer array attribute
-`activation_window_channel_length` | mlir::IntegerAttr | Integer attribute
-`is_continued` | ::mlir::UnitAttr | unit attribute
-
-#### Operands:
-
-| Operand | Description |
-| :-----: | ----------- |
-`input` | memref of 16-bit float or QuantizedType values
-`weights` | memref of 16-bit float or QuantizedType values
-`weight_table` | memref of 32-bit signed integer values
-`activation_window` | memref of 8-bit unsigned integer values
-`parent_input` | memref of any type values
-`parent_output` | memref of any type values
-`output_buff` | memref of 16-bit float or QuantizedType values
-`waitBarriers` | VPUIP Barrier Type
-`updateBarriers` | VPUIP Barrier Type
-
-#### Results:
-
-| Result | Description |
-| :----: | ----------- |
-`output` | memref of 16-bit float or QuantizedType values
-
 ### `VPUIPRegMapped.NNDMA` (vpux::VPUIPRegMapped::NNDMAOp)
 
 NN DMA task
@@ -296,28 +207,6 @@ operation ::= `VPUIPRegMapped.NNDMA` attr-dict
 | Result | Description |
 | :----: | ----------- |
 `output` | memref of any type values
-
-### `VPUIPRegMapped.PPETask` (vpux::VPUIPRegMapped::PPETaskOp)
-
-PPE Type for NCE Task
-
-
-Syntax:
-
-```
-operation ::= `VPUIPRegMapped.PPETask` $ppe_layer_type attr-dict
-```
-
-
-#### Attributes:
-
-| Attribute | MLIR Type | Description |
-| :-------: | :-------: | ----------- |
-`ppe_layer_type` | vpux::VPUIPRegMapped::PPELayerTypeAttr | Post Processing Element Type
-`clamp_low` | mlir::IntegerAttr | Integer attribute
-`clamp_high` | mlir::IntegerAttr | Integer attribute
-`lrelu_mult` | mlir::IntegerAttr | Integer attribute
-`lrelu_shift` | mlir::IntegerAttr | Integer attribute
 
 ### `VPUIPRegMapped.WeightsTableOp` (vpux::VPUIPRegMapped::WeightsTableOp)
 

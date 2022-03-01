@@ -27,10 +27,8 @@ void vpux::VPUIPRegMapped::ConfigureBarrierOp::serialize(elf::writer::BinaryData
 
     barrier.next_same_id = next_same_id();
     barrier.real_id = id();
-    barrier.consumer_count = consumer_count().getValueOr(0);  // TODO: make it fixed after dialect refactor
+    barrier.consumer_count = consumer_count().getValueOr(0);
     barrier.producer_count = producer_count().getValueOr(0);
-
-    VPUX_UNUSED(binDataSection);
 
     uint8_t* ptrCharTmp = reinterpret_cast<uint8_t*>(&barrier);
     binDataSection.appendData(ptrCharTmp, getBinarySize());
