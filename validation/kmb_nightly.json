@@ -253,7 +253,7 @@
         {
             "name" : "por_tf_FP16-INT8_yolo_v4",
             "ir" : "por/yolo_v4/tf/FP16-INT8/yolo_v4.xml",
-            "category" : "MLIR/precommit",
+            "category" : "MLIR/precommit/SKIP_WIN",
             "3720": {
                 "disabled" : true
             },
@@ -277,7 +277,8 @@
             },
             "CI-options" : {
                 "blob_name" : "yolo-v4_tf_int8"
-            }
+            },
+            "comments": "EISW-33677: RuntimeError: throwOnFail: zeCommandQueueExecuteCommandLists result: 0x70000001"
         },
 
         {
