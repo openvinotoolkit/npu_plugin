@@ -89,8 +89,24 @@ NCEClusterTilingOp createDistributedCopyIn(ConcreteOp origOp, mlir::Value input,
     return distributedInputCopyOp;
 }
 
+NCEClusterTilingOp createDistributedSpilledCopy(mlir::Operation* origOp, NCEClusterTilingOp clusterTilingOp) {
+    mlir::OpBuilder builder(origOp);
+    auto origOutput = origOp->getResult(0);
+    const auto origOutType = origOutput.getType().cast<NDTypeInterface>();
+    const auto origOutMemSpace = origOutType.getMemSpace();
+
+    const auto outputTensorBodyBuilder = [&](mlir::OpBuilder& builder, mlir::Location loc,
+                                             mlir::ValueRange newOperands) {
+        auto outputTensorDistributedCopyOp = builder.create<IE::CopyOp>(loc, newOperands[0], origOutMemSpace);
+        builder.create<YieldOp>(loc, outputTensorDistributedCopyOp->getResults());
+    };
+
+    return builder.create<NCEClusterTilingOp>(clusterTilingOp->getLoc(), origOutType, clusterTilingOp->getResult(0),
+                                              outputTensorBodyBuilder);
+}
+
 template <class ConcreteOp>
-DistributedTensorType createDistributedTensorType(ConcreteOp origOp, mlir::Value input, StringRef strategy,
+DistributedTensorType createDistributedTensorType(ConcreteOp origOp, mlir::Value input,
                                                   DistributionMode distributionMode, mlir::ArrayAttr numTiles) {
     DistributedTensorAttr distributedActivationTensorAttr;
     auto module = origOp->template getParentOfType<mlir::ModuleOp>();
@@ -125,35 +141,23 @@ DistributedTensorType createDistributedTensorType(ConcreteOp origOp, mlir::Value
                                       distributedActivationTensorAttr);
 }
 
-template <class ConcreteOp>
-mlir::ArrayAttr getActivationWindowTensorNumTiles(ConcreteOp origOp, StringRef strategy, ArchKind arch) {
-    auto module = origOp->template getParentOfType<mlir::ModuleOp>();
-    auto nceOp = IE::getAvailableExecutor(module, ExecutorKind::NCE);
-    const auto numClusters = nceOp.count();
+DistributionMode getOutputTensorDistributionMode(StringRef strategy) {
     if (strategy == splitOverHeightOverlapped) {
-        return getIntArrayAttr(origOp.getContext(), makeArrayRef({1, 1, 1, 1}));
+        return DistributionMode::SEGMENTED;
     } else if (strategy == splitOverHeight) {
-        return getIntArrayAttr(origOp.getContext(), makeArrayRef({1, 1, 1, 1}));
+        return DistributionMode::SEGMENTED;
     } else if (strategy == splitOverKernel) {
-        if (arch == ArchKind::MTL) {
-            return getIntArrayAttr(origOp.getContext(), makeArrayRef({static_cast<int>(numClusters), 1, 1, 1}));
-        } else if (arch == ArchKind::KMB) {
-            return getIntArrayAttr(origOp.getContext(), makeArrayRef({1, 1, 1, 1}));
-        } else {
-            VPUX_THROW("Unsupported arch {0}", arch);
-        }
+        return DistributionMode::SEGMENTED | DistributionMode::DUPLICATED;
     } else if (strategy == clustering) {
-        return getIntArrayAttr(origOp.getContext(), makeArrayRef({1, 1, 1, 1}));
+        return DistributionMode::DUPLICATED;
     } else {
-        VPUX_THROW("Operation {0} was not assigned a valid multi-cluster strategy, unable to determine the number of "
-                   "tiles "
-                   "for the activation window tensor",
-                   origOp->getName());
+        VPUX_THROW("{0} is an invalid multi-cluster strategy, unable to determine the distribution mode for the "
+                   "output tensor",
+                   strategy);
     }
 }
 
-template <class ConcreteOp>
-DistributionMode getActivationWindowTensorDistributionMode(ConcreteOp origOp, StringRef strategy, ArchKind arch) {
+DistributionMode getActivationWindowTensorDistributionMode(StringRef strategy, ArchKind arch) {
     if (strategy == splitOverHeightOverlapped) {
         return DistributionMode::DUPLICATED;
     } else if (strategy == splitOverHeight) {
@@ -169,11 +173,9 @@ DistributionMode getActivationWindowTensorDistributionMode(ConcreteOp origOp, St
     } else if (strategy == clustering) {
         return DistributionMode::DUPLICATED;
     } else {
-        VPUX_THROW(
-                "Operation {0} was not assigned a valid multi-cluster strategy, unable to determine the distribution "
-                "mode "
-                "for the activation window tensor",
-                origOp->getName());
+        VPUX_THROW("{0} is an invalid multi-cluster strategy, unable to determine the distribution mode for the "
+                   " activation window tensor",
+                   strategy);
     }
 }
 
