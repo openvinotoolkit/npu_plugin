@@ -20,20 +20,20 @@
 
 using namespace vpux;
 
-mlir::LogicalResult vpux::IE::AdaptivePoolOpAdaptor::inferReturnTypeComponents(
+mlir::LogicalResult vpux::IE::AdaptiveAvgPoolOpAdaptor::inferReturnTypeComponents(
         mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
         mlir::DictionaryAttr attrs, mlir::RegionRange,
         SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
     const auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
 
-    IE::AdaptivePoolOpAdaptor adaptivePool(operands, attrs);
-    if (mlir::failed(adaptivePool.verify(loc))) {
+    IE::AdaptiveAvgPoolOpAdaptor adaptiveAvgPool(operands, attrs);
+    if (mlir::failed(adaptiveAvgPool.verify(loc))) {
         return mlir::failure();
     }
 
-    const auto inTypeFeatureMap = adaptivePool.input1().getType().cast<mlir::ShapedType>();
+    const auto inTypeFeatureMap = adaptiveAvgPool.input1().getType().cast<mlir::ShapedType>();
     const auto inShapeFeatureMap = inTypeFeatureMap.getShape();
-    const auto inTypePooled = adaptivePool.input2().getType().cast<mlir::ShapedType>();
+    const auto inTypePooled = adaptiveAvgPool.input2().getType().cast<mlir::ShapedType>();
     const auto inShapePooled = inTypePooled.getShape();
 
 

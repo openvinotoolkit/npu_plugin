@@ -148,15 +148,15 @@ operation ::= `IE.Acosh` `(` operands `)` attr-dict `:` type(operands) `->` type
 | :----: | ----------- |
 `output` | ranked tensor of 16-bit float or 32-bit float values
 
-### `IE.AdaptivePoolOp` (vpux::IE::AdaptivePoolOp)
+### `IE.AdaptiveAvgPoolOp` (vpux::IE::AdaptiveAvgPoolOp)
 
-InferenceEngine AdaptivePool layer
+InferenceEngine AdaptiveAvgPool layer
 
 
 Syntax:
 
 ```
-operation ::= `IE.AdaptivePoolOp` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+operation ::= `IE.AdaptiveAvgPoolOp` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
 ```
 
 

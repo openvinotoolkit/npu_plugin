@@ -193,18 +193,19 @@ def RewriteMaxPool :
         >;
 
 //
-// IERT.AdaptiveAvg -> VPUIP.AdaptiveAvgUPA
+// IERT.AdaptiveAvgPool -> VPUIP.AdaptiveAvgPoolUPA
 //
-def createAdaptiveAvgUPAOp :
+
+def createAdaptiveAvgPoolUPAOp :
         NativeCodeCall<[{
-            $_builder.create<vpux::VPUIP::AdaptiveAvgUPA>(
-                $_loc, $0, $1, $2)
+            $_builder.create<vpux::VPUIP::AdaptiveAvgPoolUPA>(
+                $_loc, $0, $1, $2, $3)
         }]>;
 
-def RewriteAdaptiveAvg :
+def RewriteAdaptiveAvgPool :
         Pat<
-            (IERT_AdaptiveAvgOp $input1, $input2, $output, $mode),
-            (createPSROIPoolingUPAOp $input1, $input2, $output, $mode)
+            (IERT_AdaptiveAvgPoolOp $input1, $input2, $output, $mode),
+            (createAdaptiveAvgPoolUPAOp $input1, $input2, $output, $mode)
         >;
 
 //

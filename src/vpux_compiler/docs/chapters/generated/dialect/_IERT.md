@@ -147,15 +147,15 @@ operation ::= `IERT.Acosh` attr-dict
 | :----: | ----------- |
 `output` | memref of 16-bit float or 32-bit float values
 
-### `IERT.AdaptivePool` (vpux::IERT::AdaptivePoolOp)
+### `IERT.AdaptiveAvgPool` (vpux::IERT::AdaptiveAvgPoolOp)
 
-InferenceEngine run-time AdaptivePool layer
+InferenceEngine run-time AdaptiveAvgPool layer
 
 
 Syntax:
 
 ```
-operation ::= `IERT.AdaptivePool` attr-dict
+operation ::= `IERT.AdaptiveAvgPool` attr-dict
               `inputs` `(` $input1 `:` type($input1) `,` $input2 `:` type($input2) `)`
               `outputs` `(` $output_buff `:` type($output_buff) `)`
               `->` type(results)

@@ -303,22 +303,20 @@ def IERT_MaxPoolOp :
 // AdaptivePoolOp
 //
 
-def IERT_AdaptivePoolOp :
-        IERT_LayerOp<1, "AdaptivePool",
+def IERT_AdaptiveAvgPoolOp :
+        IERT_LayerOp<1, "AdaptiveAvgPool",
             [
                 ViewLikeOpInterface,
                 SameOperandsElementType
             ]
         > {
-    let summary = "InferenceEngine run-time AdaptivePool layer";
+    let summary = "InferenceEngine run-time AdaptiveAvgPool layer";
 
     let arguments = (ins
         MemRefOf<[F16, F32]>:$input1,
         MemRefOf<[F16, F32]>:$input2,
         MemRefOf<[F16, F32]>:$output_buff,
-
-
-        IE_AdaptivePoolMethod:$method
+        IE_AdaptivePoolMode:$mode
     );
 
     let results = (outs

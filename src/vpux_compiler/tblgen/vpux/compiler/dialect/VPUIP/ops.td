@@ -336,7 +336,7 @@ def VPUIP_AdaptiveAvgUPAOp :
     let arguments = (ins
         F16MemRef:$input1,
         F16MemRef:$input2,
-        F16MemRef:$output_buff,
+        F16MemRef:$output_buff
     );
 
     let results = (outs

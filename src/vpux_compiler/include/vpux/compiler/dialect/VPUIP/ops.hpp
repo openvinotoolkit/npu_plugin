@@ -60,7 +60,7 @@ constexpr int64_t CMX_DMA_MAX_NUM_PLANES = 255;
 mlir::LogicalResult verifyOp(ConvertUPAOp op);
 mlir::LogicalResult verifyOp(SoftMaxUPAOp op);
 mlir::LogicalResult verifyOp(PoolingUPAOp op);
-mlir::LogicalResult verifyOp(AdaptiveAvgPoolUPAOp op);
+//mlir::LogicalResult verifyOp(AdaptiveAvgPoolUPAOp op);
 mlir::LogicalResult verifyOp(FakeQuantizeUPAOp op);
 mlir::LogicalResult verifyOp(QuantCastUPAOp op);
 mlir::LogicalResult verifyOp(PerAxisTileUPAOp op);

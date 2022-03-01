@@ -983,20 +983,20 @@ def IE_MaxPoolOp :
 
 
 //
-// AdaPoolingOp
+// AdaptiveAvgPoolOp
 //
 
-def IE_AdaptivePoolOp :
+def IE_AdaptiveAvgPoolOp :
         IE_LayerOp<
-            "AdaptivePoolOp"
+            "AdaptiveAvgPoolOp"
         > {
-    let summary = "InferenceEngine AdaptivePool layer";
+    let summary = "InferenceEngine AdaptiveAvgPool layer";
 
     let arguments = (ins
         RankedTensorOf<[F16, F32]>:$input1,
         RankedTensorOf<[F16, F32]>:$input2,
 
-        IE_AdaptivePoolMethod:$method
+        OptionalAttr<IE_AdaptivePoolMode>:$mode
     );
 
     let results = (outs

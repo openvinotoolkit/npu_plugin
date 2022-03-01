@@ -710,7 +710,7 @@ void redirectOpInterfacesForIE(mlir::DialectRegistry& registry) {
     registry.addOpInterface<IE::ConvertOp, OpModelForSW<VPUIP::ConvertUPAOp>>();
     registry.addOpInterface<IE::SoftMaxOp, OpModelForSW<VPUIP::SoftMaxUPAOp>>();
     registry.addOpInterface<IE::AvgPoolOp, OpModelForSW<VPUIP::PoolingUPAOp>>();
-    registry.addOpInterface<IE::AdaptiveAvgPoolOp, OpModelForSW<VPUIP::AdaptiveAvgPoolUPAOp>>();
+    registry.addOpInterface<IE::AdaptiveAvgPoolOp, OpModelForSW<VPUIP::AdaptivePoolUPAOp>>();
     registry.addOpInterface<IE::ReLUOp, OpModelForSW<VPUIP::ReLUUPAOp>>();
     registry.addOpInterface<IE::SigmoidOp, OpModelForSW<VPUIP::SigmoidUPAOp>>();
     registry.addOpInterface<IE::ClampOp, OpModelForSW<VPUIP::ClampUPAOp>>();
