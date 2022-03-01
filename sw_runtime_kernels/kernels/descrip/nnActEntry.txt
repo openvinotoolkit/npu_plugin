@@ -1,0 +1,3 @@
+set(kernel_src "nnActEntry.cpp")
+
+set(kernel_src_dir "act_runtime/src")

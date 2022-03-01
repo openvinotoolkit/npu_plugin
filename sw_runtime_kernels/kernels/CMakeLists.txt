@@ -8,29 +8,10 @@ project(kernels)
 message(STATUS "BUILD_BLOB_BINARIES = ${BUILD_BLOB_BINARIES}")
 message(STATUS "BUILD_JTAG_BINARIES = ${BUILD_JTAG_BINARIES}")
 
-set(kernel_srcs_list
-  dummy.cpp
-#  elu_fp16.cpp
-#  exp_fp16.cpp
-#  hswish_fp16.cpp
-#  reorder_fp16.cpp
-#  sigmoid_fp16.c
-#  singleShaveInterpolate.cpp
-#  singleShaveMVN.cpp
-#  singleShaveSoftmax.cpp
-#  sqrt_fp16.cpp
-#  tanh_fp16.cpp
-#  nnActEntry.cpp
-)
+set(kernel_src_dir_default "src")
+set(kernel_cpunum_default "3010")
 
-set(kernel_src_dir_DEFAULT "src")
-set(kernel_src_dir_nnActEntry "act_runtime/src")
-
-set(kernel_cpunum_DEFAULT "3010")
-set(kernel_cpunum_elu_fp16 "3270")
-set(kernel_cpunum_exp_fp16 "3270")
-
-message(STATUS "source files: ${kernel_srcs_list}")
+#message(STATUS "source files: ${kernel_srcs_list}")
 
 if(NOT DEFINED ENV{MV_TOOLS_DIR})
   message(FATAL_ERROR "MV_TOOLS_DIR environment variable must be defined")
@@ -105,18 +86,33 @@ set(compile_options
 #-c "${KERNEL_DIR}/${kernel_name}.cpp"
 #-o "${KERNEL_DIR}/prebuild/${kernel_name}_${cpu}.o"
 
-foreach(kernel_src ${kernel_srcs_list})
+file(GLOB kernel_descrip_list ${KERNEL_DIR}/descrip/*.txt)
+
+set(kernel_descrip_list "${KERNEL_DIR}/descrip/dummy.txt")
+#set(kernel_descrip_list "${KERNEL_DIR}/descrip/elu_fp16.cpp")
+#set(kernel_descrip_list "${KERNEL_DIR}/descrip/exp_fp16.cpp")
+#set(kernel_descrip_list "${KERNEL_DIR}/descrip/hswish_fp16.cpp")
+#set(kernel_descrip_list "${KERNEL_DIR}/descrip/reorder_fp16.cpp")
+#set(kernel_descrip_list "${KERNEL_DIR}/descrip/sigmoid_fp16.c")
+#set(kernel_descrip_list "${KERNEL_DIR}/descrip/singleShaveInterpolate.cpp")
+#set(kernel_descrip_list "${KERNEL_DIR}/descrip/singleShaveMVN.cpp")
+#set(kernel_descrip_list "${KERNEL_DIR}/descrip/singleShaveSoftmax.cpp")
+#set(kernel_descrip_list "${KERNEL_DIR}/descrip/sqrt_fp16.cpp")
+#set(kernel_descrip_list "${KERNEL_DIR}/descrip/tanh_fp16.cpp")
+#set(kernel_descrip_list "${KERNEL_DIR}/descrip/nnActEntry.cpp")
+
+message(STATUS "kernel_descrip_list = ${kernel_descrip_list}")
+
+#foreach(kernel_src ${kernel_srcs_list})
+foreach(kernel_descrip ${kernel_descrip_list})
+
+  set(kernel_src "<unknown>")
+  set(kernel_src_dir ${kernel_src_dir_default})
+  set(kernel_cpunum ${kernel_cpunum_default})
+
+  include("${kernel_descrip}")
   get_filename_component(kernel_name ${kernel_src} NAME_WE)
 
-  set(kernel_src_dir ${kernel_src_dir_${kernel_name}})
-  if ("${kernel_src_dir}" STREQUAL "")
-    set(kernel_src_dir ${kernel_src_dir_DEFAULT})
-  endif()
-
-  set(kernel_cpunum ${kernel_cpunum_${kernel_name}})
-  if ("${kernel_cpunum}" STREQUAL "")
-    set(kernel_cpunum ${kernel_cpunum_DEFAULT})
-  endif()
   set(kernel_cpu "${kernel_cpunum}xx")
   set(kernel_cpu_suffix ".${kernel_cpunum}xx")
 
