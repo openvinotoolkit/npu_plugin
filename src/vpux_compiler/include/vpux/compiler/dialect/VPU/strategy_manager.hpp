@@ -33,7 +33,7 @@ constexpr llvm::StringLiteral splitOverHeightOverLapped =
 constexpr llvm::StringLiteral splitOverHeight = "SplitOverHeight";
 constexpr llvm::StringLiteral splitOverKernel = "SplitOverKernel";
 constexpr llvm::StringLiteral clustering = "Clustering";
-enum class multiClusterStrategyRange { Cluster, SplitOverH, SplitOverK, SplitOverHOverlapped };
+enum class multiClusterStrategyRange { Clustering, SplitOverH, SplitOverK, SplitOverHOverlapped };
 
 //
 // StrategyManager

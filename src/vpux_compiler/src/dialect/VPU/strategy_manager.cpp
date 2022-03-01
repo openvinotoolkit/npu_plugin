@@ -290,7 +290,9 @@ double StrategyManager::dmaTime(mlir::Operation* op, multiClusterStrategyRange S
     double weightsCycles = 0;
     double outputCycles = 0;
     double inputCycles = 0;
-    size_t outChannels = getShape(op->getResult(0))[Dims4D::Act::C];
+    auto output = op->getResult(0);
+    auto outShape = getShape(output);
+    size_t outChannels = outShape[Dims4D::Act::C];
     size_t alignedOutChannels = alignVal<size_t>(outChannels, _numChannelAlignment);
     size_t alignedSplitOutChannels = alignedOutChannels;
 
@@ -309,33 +311,32 @@ double StrategyManager::dmaTime(mlir::Operation* op, multiClusterStrategyRange S
 
         weightsSize += (alignedSplitOutChannels *
                         alignVal<size_t>(weightsShape[Dims4D::Filter::IC] * weightsShape[Dims4D::Filter::KY] *
-                                                 weightsShape[Dims4D::Filter::KX],
-                                         _numChannelAlignment) *
-                        dtypeFactor);
+                                                 weightsShape[Dims4D::Filter::KX] * dtypeFactor,
+                                         _numChannelAlignment));
         if (Strategy == multiClusterStrategyRange::SplitOverK) {
             weightsSize *= _numClusters;
         }
 
-        // Below line is moved from MCM however we need to double-check it
-        // TODO: weightTableSize = sparsity/weights pointer, bias and multi/shfit quantized params ?
-        std::size_t weightTableSize = 16 * alignedSplitOutChannels;  // weights table size
+        // WeightTable has OC entries, each entries includes sparsity/weights pointer, bias and multi/shfit quantized
+        // params. The total size for those is 16 Bytes
+        std::size_t weightTableSize = 16 * alignedSplitOutChannels;
         weightsSize += weightTableSize;
 
         weightsCycles = (LATENCY_DDR_ + (static_cast<double>(weightsSize) / DDR_BANDWIDTH_));
     }
 
-    // TODO: Overhead for Spilled input should be considered in the future
-    // that we will get spill info here
+    // @todo Overhead for Spilled input should be considered in the future,
+    // as we can't get spilling strategy now
     inputCycles += 0;
 
-    auto output = op->getResult(0);
-    auto outShape = getShape(output);
+    // @todo Overhead for spilled output for the same reason
     const auto outDtypeFactor =
             output.getType().cast<mlir::ShapedType>().getElementType().getIntOrFloatBitWidth() / CHAR_BIT;
-    // TODO: Overhead for spilled output
-
-    // This section captures the output cost to multicast to all clusters
-    if (Strategy == multiClusterStrategyRange::SplitOverK || Strategy == multiClusterStrategyRange::Cluster) {
+    // @brief This section captures the output cost to multicast to all clusters
+    // @todo ODU multicast include SOK and HKSwitch,
+    // Currently we don't have HKSwitch Mode,
+    // We should consider it once it's added in the future
+    if (Strategy == multiClusterStrategyRange::SplitOverK) {
         auto outputSize =
                 (alignedSplitOutChannels * outShape[Dims4D::Act::H] * outShape[Dims4D::Act::W]) * outDtypeFactor;
         if (Strategy == multiClusterStrategyRange::SplitOverK) {
