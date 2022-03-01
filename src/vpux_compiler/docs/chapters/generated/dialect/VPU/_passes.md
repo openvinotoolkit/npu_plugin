@@ -10,3 +10,8 @@ initializes **IERT Dialect** run-time resources information.
 -num-of-dpu-groups : [Optional] Number of available DPU groups
 ```
 ### `-split-NCE-ops-onto-workloads`: Split VPU NCE operation onto workloads
+### `-wrap-vpu-ops-in-ncecluster-tiling`: This pass wraps vpu operations that should be executed across multiple clusters in NCEClusterTiling operations
+This pass builds an IR in order to represent multi-cluster compilation. It performs a number of functions.
+1) It creates variations of distributed tensors depending on the multi-cluster strategy of the layer. 
+2) It creates DMA operations DDR->CMX and wraps the DMAs in NCEClusterTiling.
+3) It wraps hardware executable operations in NCEClusterTiling. 

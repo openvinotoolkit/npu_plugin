@@ -361,8 +361,9 @@ mlir::LogicalResult vpux::VPU::verify(FuncRef<mlir::InFlightDiagnostic()> emitEr
         }
 
         if (VPU::bitEnumContains(distributionMode, VPU::DistributionMode::SEGMENTED) &&
-            !(axis == Dims4D::Act::H.ind() || axis == Dims4D::Act::C.ind())) {
-            return printTo(emitError(), "Segmented cluster tiling is only supported for dimensions H and K");
+            !(axis == Dims4D::Act::H.ind() || axis == Dims4D::Act::C.ind() || axis == Dims4D::Filter::OC.ind())) {
+            return printTo(emitError(), "Segmented cluster tiling is only supported for activation dimensions H and K "
+                                        "and kernel dimension K");
         }
     }
 
