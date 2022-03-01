@@ -105,12 +105,13 @@ private:
     size_t _numDPUPerCluster;
     size_t _numDPU;
     size_t _numChannelAlignment = 16;  // TODO: read this from some hardware config
+    size_t _cmxAddressAlignment = 16;  // This one for kernel address alignment
     mlir::FuncOp _func;
     mlir::MLIRContext* _ctx;
-    double CMX_BANDWIDTH_;
-    double DDR_BANDWIDTH_;
-    double LATENCY_CMX_;
-    double LATENCY_DDR_;
+    double _CMXBandwidth;
+    double _DDRBandwidth;
+    double _CMXLatency;
+    double _DDRLatency;
 };
 
 template <class ConcreteOp>

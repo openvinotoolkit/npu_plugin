@@ -35,15 +35,15 @@ StrategyManager::StrategyManager(mlir::FuncOp func, Logger log, mlir::MLIRContex
     _numDPU = _numClusters * _numDPUPerCluster;
 
     // These latency numbers inferred from KMB db v1.2
-    LATENCY_CMX_ = 5;  // Cycles, attempt to capture cost accessing CMX
+    _CMXLatency = 5;  // Cycles, attempt to capture cost accessing CMX
     // DDR latency also measured for kmb at ~100 cycles per dma
-    LATENCY_DDR_ = 100;        // Cycles, attempt to capture cost of setup DMA
-    DDR_BANDWIDTH_ = 8 * 0.6;  // bytes per cycle times derating factor
+    _DDRLatency = 100;        // Cycles, attempt to capture cost of setup DMA
+    _DDRBandwidth = 8 * 0.6;  // bytes per cycle times derating factor
     const auto arch = VPU::getArch(func);
     if (arch == VPU::ArchKind::KMB) {
-        CMX_BANDWIDTH_ = 15;  // 32 * 1.0; //bytes per cycle times derating factor
+        _CMXBandwidth = 15;  // 32 * 1.0; //bytes per cycle times derating factor
     } else if (arch == VPU::ArchKind::TBH) {
-        CMX_BANDWIDTH_ = 30;  // 64 * 1.0; //bytes per cycle times derating factor
+        _DDRBandwidth = 30;  // 64 * 1.0; //bytes per cycle times derating factor
     }
     // TODO include params for ma3720
 }
@@ -283,8 +283,7 @@ double StrategyManager::clusterComputeTime(mlir::Operation* op, multiClusterStra
 }
 
 double StrategyManager::dmaTime(mlir::Operation* op, multiClusterStrategyRange Strategy) {
-    //    const auto inOrder = DimsOrder::fromValue(op->getOperand(0));
-    //    const auto isCMajor = inOrder == DimsOrder::NCHW;
+    // @todo decide CMajor impact to dmaTime, if no just remove this
 
     // Each layer calculates the cost to move it's weights (if they exist), and it's activations
     double weightsCycles = 0;
@@ -312,7 +311,7 @@ double StrategyManager::dmaTime(mlir::Operation* op, multiClusterStrategyRange S
         weightsSize += (alignedSplitOutChannels *
                         alignVal<size_t>(weightsShape[Dims4D::Filter::IC] * weightsShape[Dims4D::Filter::KY] *
                                                  weightsShape[Dims4D::Filter::KX] * dtypeFactor,
-                                         _numChannelAlignment));
+                                         _cmxAddressAlignment));
         if (Strategy == multiClusterStrategyRange::SplitOverK) {
             weightsSize *= _numClusters;
         }
@@ -322,7 +321,7 @@ double StrategyManager::dmaTime(mlir::Operation* op, multiClusterStrategyRange S
         std::size_t weightTableSize = 16 * alignedSplitOutChannels;
         weightsSize += weightTableSize;
 
-        weightsCycles = (LATENCY_DDR_ + (static_cast<double>(weightsSize) / DDR_BANDWIDTH_));
+        weightsCycles = (_DDRLatency + (static_cast<double>(weightsSize) / _DDRBandwidth));
     }
 
     // @todo Overhead for Spilled input should be considered in the future,
@@ -343,7 +342,7 @@ double StrategyManager::dmaTime(mlir::Operation* op, multiClusterStrategyRange S
             outputSize *= _numClusters;
         }
         outputCycles +=
-                (_numClusters * LATENCY_CMX_) + (static_cast<double>(outputSize * (_numClusters - 1)) / CMX_BANDWIDTH_);
+                (_numClusters * _CMXLatency) + (static_cast<double>(outputSize * (_numClusters - 1)) / _CMXBandwidth);
     }
 
     return inputCycles + weightsCycles + outputCycles;
