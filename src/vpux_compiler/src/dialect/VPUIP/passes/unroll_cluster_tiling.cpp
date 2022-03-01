@@ -32,14 +32,13 @@ mlir::Value getClusterOperand(VPUIP::NCEClusterTilingOp clusterOp, mlir::Value i
         return nullptr;
     }
 
-    for (auto& operand : clusterOp.body().getArguments()) {
-        if (operand == innerOperand) {
-            return clusterOp->getOperand(operand.getArgNumber());
-        }
-    }
+    const auto blockArg = innerOperand.dyn_cast<mlir::BlockArgument>();
+    VPUX_THROW_WHEN(blockArg == nullptr, "Inner operand '{0}' is not a block argument", innerOperand);
+    VPUX_THROW_WHEN(blockArg.getOwner() != clusterOp.getInnerTaskOp()->getBlock(),
+                    "Cannot match the origin operand with the inner one '{0}'", innerOperand);
 
-    VPUX_THROW("Cannot match the origin operand with the inner one '{0}'", innerOperand);
-};
+    return clusterOp->getOperand(blockArg.getArgNumber());
+}
 
 SmallVector<mlir::Value> getPerClusterBuffers(mlir::Location loc, VPUIP::NCEClusterTilingOp clusterOp,
                                               mlir::Value innerOperand, int64_t numClusters,
