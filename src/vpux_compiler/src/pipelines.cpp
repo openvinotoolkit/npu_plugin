@@ -332,6 +332,8 @@ void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOp
     pm.addPass(createConvertIEToVPUNCEPass(log));
     pm.addPass(VPU::createSplitNCEOpsOntoWorkloadsPass(log));
 
+    pm.addPass(mlir::createCanonicalizerPass(grc));
+
     // Lowering
 
     buildLowerIE2IERTPipeline(pm, log);
