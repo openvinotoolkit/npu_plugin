@@ -15,7 +15,7 @@
 
 #include "vpux/compiler/core/layers.hpp"
 #include "vpux/compiler/dialect/IE/ops.hpp"
-#include "vpux/compiler/dialect/VPUIP/nce_invariant.hpp"
+#include "vpux/compiler/dialect/VPU/nce_invariant.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/error.hpp"
@@ -34,7 +34,6 @@ using namespace vpux;
 
 namespace {
 
-constexpr int64_t MAX_KERNEL = 11;
 constexpr int64_t PADDING_RIGHT = 1;
 constexpr int64_t PADDING_BOT = 3;
 
@@ -51,7 +50,8 @@ struct Factors {
 bool checkFactors(const Factors& factors, int64_t kernelSize = 0) {
     const auto hasZeroFactors = factors.larger == 0 || factors.smaller == 0;
     const auto factorLessThanKernelSize = factors.larger * factors.smaller < kernelSize;
-    const auto hasUnsupportedFactors = factors.larger > MAX_KERNEL || factors.smaller > MAX_KERNEL;
+    const auto hasUnsupportedFactors =
+            factors.larger > VPU::NCEInvariant::MAX_KERNEL_SIZE || factors.smaller > VPU::NCEInvariant::MAX_KERNEL_SIZE;
     const auto hasBadFactors = factors.larger * factors.smaller > (kernelSize + factors.smaller / 2);
     return !(hasZeroFactors || factorLessThanKernelSize || hasUnsupportedFactors || hasBadFactors);
     // those last 2 checks have the main scope of finding the best suited factors:
@@ -101,9 +101,10 @@ void getFactorsForSecondDimension(std::array<int64_t, 4>& padding, std::array<in
     log.trace("Second Dimension kernel[{0}]= {1}, larger factor: {2} , smaller factor: {3}", smallDim,
               kernelSize[smallDim], factorsSecondDim.larger, factorsSecondDim.smaller);
 
-    VPUX_THROW_UNLESS((factorsSecondDim.larger <= MAX_KERNEL) && (factorsSecondDim.smaller <= MAX_KERNEL),
-                      "Second dimension factors ({1}, {2})  are larger than MAX_KERNEL {0}", MAX_KERNEL,
-                      factorsSecondDim.larger, factorsSecondDim.smaller);
+    VPUX_THROW_UNLESS((factorsSecondDim.larger <= VPU::NCEInvariant::MAX_KERNEL_SIZE) &&
+                              (factorsSecondDim.smaller <= VPU::NCEInvariant::MAX_KERNEL_SIZE),
+                      "Second dimension factors ({1}, {2})  are larger than MAX_KERNEL_SIZE {0}",
+                      VPU::NCEInvariant::MAX_KERNEL_SIZE, factorsSecondDim.larger, factorsSecondDim.smaller);
     firstOpKernel[smallDim] = factorsSecondDim.larger;
     sequencedOpKernel[smallDim] = factorsSecondDim.smaller;
     auto multipliedFactors = firstOpKernel[smallDim] * sequencedOpKernel[smallDim];
@@ -122,9 +123,10 @@ void calculateKernelsAndPadding(ArrayRef<int64_t> kernelSize, std::array<int64_t
     auto largeDim = Dims4D::Kernel::X.ind();
     auto smallDim = Dims4D::Kernel::Y.ind();
     auto asymmetricCase = (KX != KY);
-    auto asymmetricBothKernelsLarge = (asymmetricCase && (KX > MAX_KERNEL) && (KY > MAX_KERNEL));
+    auto asymmetricBothKernelsLarge =
+            (asymmetricCase && (KX > VPU::NCEInvariant::MAX_KERNEL_SIZE) && (KY > VPU::NCEInvariant::MAX_KERNEL_SIZE));
 
-    // deal with asymetric kernels when one dim is larger than MAX_KERNEL
+    // deal with asymetric kernels when one dim is larger than MAX_KERNEL_SIZE
     if (asymmetricCase && (KX < KY)) {
         largerKernelSize = KY;
         largeDim = Dims4D::Kernel::Y.ind();
@@ -134,9 +136,10 @@ void calculateKernelsAndPadding(ArrayRef<int64_t> kernelSize, std::array<int64_t
 
     log.trace("Large Dimension kernelSize[{0}] = {1}, larger factor: {2} , smaller factor: {3}", largeDim,
               largerKernelSize, factors.larger, factors.smaller);
-    VPUX_THROW_UNLESS((factors.larger <= MAX_KERNEL) && (factors.smaller <= MAX_KERNEL),
-                      "Large dimension factors ({1}, {2})  are larger the MAX_KERNEL {0}", MAX_KERNEL, factors.larger,
-                      factors.smaller);
+    VPUX_THROW_UNLESS((factors.larger <= VPU::NCEInvariant::MAX_KERNEL_SIZE) &&
+                              (factors.smaller <= VPU::NCEInvariant::MAX_KERNEL_SIZE),
+                      "Large dimension factors ({1}, {2})  are larger the MAX_KERNEL_SIZE {0}",
+                      VPU::NCEInvariant::MAX_KERNEL_SIZE, factors.larger, factors.smaller);
 
     // cascading supported ops
     // first op kernel [factors.larger, factorsSecondDim.larger] - firstOpKernel
@@ -437,7 +440,7 @@ void HandleLargeKernelsPass::safeRunOnFunc() {
         const auto KY = kernelSize[Dims4D::Kernel::Y.ind()];
         const auto KX = kernelSize[Dims4D::Kernel::X.ind()];
 
-        return KY <= MAX_KERNEL && KX <= MAX_KERNEL;
+        return KY <= VPU::NCEInvariant::MAX_KERNEL_SIZE && KX <= VPU::NCEInvariant::MAX_KERNEL_SIZE;
     };
 
     mlir::ConversionTarget target(ctx);

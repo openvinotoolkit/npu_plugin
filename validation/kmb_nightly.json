@@ -4228,7 +4228,7 @@
 
         {
             "name" : "caffe2_FP16-INT8_intel_dns",
-            "ir" : "models/clientmodels/MTL/IntelDNS/FP16-INT8/intel_dns.xml",
+            "ir" : "models/clientmodels/MTL_poweron/intel_dns/onnx/FP16-INT8/intel_dns.xml",
             "category" : "MLIR",
             "3720": {
                 "disabled" : true
@@ -4262,7 +4262,7 @@
 
         {
             "name" : "caffe2_FP16_intel_dns",
-            "ir" : "models/clientmodels/MTL/IntelDNS/FP16/intel_dns.xml",
+            "ir" : "models/clientmodels/MTL_poweron/intel_dns/onnx/FP16/intel_dns.xml",
             "category" : "MLIR",
             "3720": {
                 "disabled" : true

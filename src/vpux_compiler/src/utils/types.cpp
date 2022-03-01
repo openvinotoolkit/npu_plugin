@@ -270,6 +270,33 @@ mlir::RankedTensorType vpux::changeSparse(mlir::RankedTensorType origType, bool 
                          sparse);
 }
 
+mlir::RankedTensorType vpux::getDilatedType(mlir::RankedTensorType tensor, vpux::ShapeRef dilations) {
+    const auto type = tensor.cast<vpux::NDTypeInterface>();
+    const auto targetRank = 4;
+    VPUX_THROW_UNLESS(type.getRank() == targetRank, "Got invalid tensor rank '{0}'", targetRank);
+
+    const auto origShape = type.getShape();
+
+    const auto OC = origShape[vpux::Dims4D::Filter::OC];
+    const auto IC = origShape[vpux::Dims4D::Filter::IC];
+    const auto KY = origShape[vpux::Dims4D::Filter::KY];
+    const auto KX = origShape[vpux::Dims4D::Filter::KX];
+
+    // Calculate dilated kernel shape
+    const auto dKY = KY + (KY - 1) * (dilations[Dim(0)] - 1);
+    const auto dKX = KX + (KX - 1) * (dilations[Dim(1)] - 1);
+
+    const auto dilatedShape = Shape({OC, IC, dKY, dKX});
+
+    const auto newType = vpux::getTensorType(dilatedShape, type.getElementType(), type.getDimsOrder(),
+                                             type.getMemSpace(), IE::isSparse(tensor));
+
+    const auto loc = mlir::UnknownLoc::get(type.getContext());
+    VPUX_THROW_UNLESS(vpux::validateQuantElemType(loc, newType).succeeded(), "Got invalid ShapedType '{0}'", newType);
+
+    return newType;
+}
+
 //
 // ShapedType utilities
 //

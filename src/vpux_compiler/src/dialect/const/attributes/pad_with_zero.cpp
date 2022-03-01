@@ -28,60 +28,6 @@
 
 using namespace vpux;
 
-namespace {
-
-void fillWithZero(Const::Content& output) {
-    if (auto perAxisQType = output.getElementType().dyn_cast_or_null<mlir::quant::UniformQuantizedPerAxisType>()) {
-        const auto outShape = output.getType().getShape();
-        const auto order = output.getType().getDimsOrder();
-        const auto outMemShape = order.toMemoryOrder(outShape);
-
-        VPUX_THROW_UNLESS(outShape.size() == 4, "Unsupported shape size {0}", outShape.size());
-        VPUX_THROW_UNLESS(perAxisQType.getQuantizedDimension() == 0, "Only per-channel quantization is supported");
-
-        const auto OC = outShape[Dims4D::Filter::OC];
-        const auto IC = outShape[Dims4D::Filter::IC];
-        const auto H = outShape[Dims4D::Filter::KY];
-        const auto W = outShape[Dims4D::Filter::KX];
-
-        const auto zeroPoints = perAxisQType.getZeroPoints();
-        for (int i = 0; i < OC; ++i) {
-            const auto zp = zeroPoints[i];
-
-            const auto fillChannel = [&](auto buffer) {
-                loop_3d(LoopExecPolicy::Parallel, IC, H, W, [&](int64_t ic, int64_t h, int64_t w) {
-                    using BufferType = std::decay_t<decltype(buffer)>;
-                    using ElemType = typename BufferType::value_type;
-
-                    const auto inMemIndND = order.toMemoryOrder(Shape{i, ic, h, w});
-                    const auto inMemInd1D = getMemIndex1D(inMemIndND, outMemShape);
-
-                    buffer[inMemInd1D] = checked_cast<ElemType>(zp);
-                });
-            };
-
-            output.mutate(fillChannel);
-        }
-
-    } else if (auto qType = output.getElementType().dyn_cast_or_null<mlir::quant::UniformQuantizedType>()) {
-        const auto zp = qType.getZeroPoint();
-
-        const auto fillBuffer = [&](auto buffer) {
-            using BufferType = std::decay_t<decltype(buffer)>;
-            using ElemType = typename BufferType::value_type;
-
-            std::fill_n(buffer.data(), buffer.size(), checked_cast<ElemType>(zp));
-        };
-
-        output.mutate(fillBuffer);
-    } else {
-        auto outBuf = output.getRawTempBuf();
-        std::fill_n(outBuf.data(), outBuf.size(), char(0));
-    }
-}
-
-}  // namespace
-
 //
 // PadWithZeroAttr::walkImmediateSubElements
 //
@@ -186,7 +132,7 @@ vpux::NDTypeInterface vpux::Const::PadWithZeroAttr::inferOutputType(vpux::NDType
 Const::Content vpux::Const::PadWithZeroAttr::transform(vpux::Const::Content& input) const {
     auto output = Const::Content::allocTempBuffer(inferOutputType(input.getType()), input.getStorageElemType(), false);
 
-    fillWithZero(output);
+    output.fillWithZero();
 
     const auto inBuf = input.getRawStorageBuf();
     auto outBuf = output.getRawTempBuf();

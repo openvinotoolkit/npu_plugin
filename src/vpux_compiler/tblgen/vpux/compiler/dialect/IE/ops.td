@@ -1133,7 +1133,7 @@ def IE_EluOp :
 
 def IE_ReshapeOp :
         IE_LayerOp<
-            "Reshape", 
+            "Reshape",
             [
                 DeclareOpInterfaceMethods<IE_ElemTypeInfoOpInterface>
             ]
@@ -1698,6 +1698,98 @@ def IE_AcoshOp :
             ]
         > {
     let summary = "InferenceEngine Acosh layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$input
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+}
+
+//
+// AbsOp
+//
+
+def IE_AbsOp :
+        IE_LayerOp<
+            "Abs",
+            [
+                IE_TilingBuilderOpInterface,
+                IE_EltwiseOp
+            ]
+        > {
+    let summary = "InferenceEngine Abs layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$input
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+}
+
+//
+// AtanOp
+//
+
+def IE_AtanOp :
+        IE_LayerOp<
+            "Atan",
+            [
+                IE_TilingBuilderOpInterface,
+                IE_EltwiseOp
+            ]
+        > {
+    let summary = "InferenceEngine Atan layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$input
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+}
+
+//
+// AsinOp
+//
+
+def IE_AsinOp :
+        IE_LayerOp<
+            "Asin",
+            [
+                IE_TilingBuilderOpInterface,
+                IE_EltwiseOp
+            ]
+        > {
+    let summary = "InferenceEngine Asin layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$input
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+}
+
+//
+// AcosOp
+//
+
+def IE_AcosOp :
+        IE_LayerOp<
+            "Acos",
+            [
+                IE_TilingBuilderOpInterface,
+                IE_EltwiseOp
+            ]
+        > {
+    let summary = "InferenceEngine Acos layer";
 
     let arguments = (ins
         RankedTensorOf<[F16, F32]>:$input
@@ -3119,6 +3211,32 @@ def IE_YuvToRgbOp :
     let results = (outs
         4DTensorOf<[SI8, F16, F32]>:$output
     );
+}
+
+//
+// ExpandDilatedOp
+//
+
+def IE_ExpandDilatedOp :
+        IE_LayerOp<
+            "ExpandDilated",
+            [
+                DeclareOpInterfaceMethods<IE_ElemTypeInfoOpInterface>
+            ]
+        > {
+    let summary = "Expand tensor with uninitialized values according to dilations";
+
+    let arguments = (ins
+        AnyRankedTensor:$input,
+
+        I64ArrayAttr:$dilations
+    );
+
+    let results = (outs
+        AnyRankedTensor:$output
+    );
+
+    let hasFolder = 1;
 }
 
 #endif

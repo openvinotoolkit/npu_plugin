@@ -28,6 +28,9 @@ namespace VPUIP {
 
 class BlobReader final {
 public:
+    static VPU::ArchKind parseDeviceRevision(const MVCNN::SummaryHeader* header);
+
+public:
     BlobReader(mlir::MLIRContext* ctx, ArrayRef<char> blob, Logger log);
     mlir::OwningModuleRef read();
 

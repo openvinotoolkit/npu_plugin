@@ -185,10 +185,10 @@ mlir::LogicalResult FakeQuantizeConverter::matchAndRewrite(IE::FakeQuantizeOp or
 
     const auto newInputShapeAttr = getIntArrayAttr(getContext(), input4D.shape);
     auto inputReshape =
-            rewriter.create<IE::ReshapeOp>(origOp->getLoc(), newArgs.input(), nullptr, false, newInputShapeAttr);
+            rewriter.createOrFold<IE::ReshapeOp>(origOp->getLoc(), newArgs.input(), nullptr, false, newInputShapeAttr);
 
     auto newFakeQuantizeOp =
-            rewriter.create<IE::FakeQuantizeOp>(origOp->getLoc(), inputReshape.output(), inputLow, inputHigh, outputLow,
+            rewriter.create<IE::FakeQuantizeOp>(origOp->getLoc(), inputReshape, inputLow, inputHigh, outputLow,
                                                 outputHigh, origOp.levels(), origOp.auto_broadcast());
 
     const auto outputShapeAttr = getIntArrayAttr(getContext(), getShape(origOp.output()));
@@ -220,6 +220,13 @@ void ConvertShapeTo4DPass::safeRunOnFunc() {
             return type;
         } else if (type.getRank() > TARGET_TENSOR_DIM) {
             VPUX_THROW("Tensors with rank > 4 are not supported");
+        } else if (type.getRank() == 3) {
+            SmallVector<int64_t> newShape = {type.getShape()[Dim(0)], type.getShape()[Dim(1)], 1,
+                                             type.getShape()[Dim(2)]};
+            return type.changeShape(ShapeRef(newShape));
+        } else if (type.getRank() == 2) {
+            SmallVector<int64_t> newShape = {1, type.getShape()[Dim(0)], 1, type.getShape()[Dim(1)]};
+            return type.changeShape(ShapeRef(newShape));
         } else {
             SmallVector<int64_t> newShape(TARGET_TENSOR_DIM - type.getRank(), 1);
             newShape.append(type.getShape().begin(), type.getShape().end());
@@ -280,6 +287,10 @@ void ConvertShapeTo4DPass::safeRunOnFunc() {
     target.addDynamicallyLegalOp<IE::LogicalNotOp>(isLegalOp);
     target.addDynamicallyLegalOp<IE::LogicalOrOp>(isLegalOp);
     target.addDynamicallyLegalOp<IE::LogicalXorOp>(isLegalOp);
+    target.addDynamicallyLegalOp<IE::AbsOp>(isLegalOp);
+    target.addDynamicallyLegalOp<IE::AtanOp>(isLegalOp);
+    target.addDynamicallyLegalOp<IE::AsinOp>(isLegalOp);
+    target.addDynamicallyLegalOp<IE::AcosOp>(isLegalOp);
 
     mlir::RewritePatternSet patterns(&ctx);
     patterns.add<GenericConverter<IE::ClampOp>>(typeConverter, &ctx, _log);
@@ -309,6 +320,10 @@ void ConvertShapeTo4DPass::safeRunOnFunc() {
     patterns.add<GenericConverter<IE::LogicalNotOp>>(typeConverter, &ctx, _log);
     patterns.add<GenericConverter<IE::LogicalOrOp>>(typeConverter, &ctx, _log);
     patterns.add<GenericConverter<IE::LogicalXorOp>>(typeConverter, &ctx, _log);
+    patterns.add<GenericConverter<IE::AbsOp>>(typeConverter, &ctx, _log);
+    patterns.add<GenericConverter<IE::AtanOp>>(typeConverter, &ctx, _log);
+    patterns.add<GenericConverter<IE::AsinOp>>(typeConverter, &ctx, _log);
+    patterns.add<GenericConverter<IE::AcosOp>>(typeConverter, &ctx, _log);
     patterns.add<FakeQuantizeConverter>(typeConverter, &ctx, _log);
 
     auto func = getFunction();

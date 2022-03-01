@@ -261,7 +261,8 @@ IE::Parameter ExecutableNetwork::GetMetric(const std::string& name) const {
             VPUX_THROW_WHEN(_networkPtr == nullptr, "GetMetric: network is not initialized");
             return _networkPtr->getName();
         } else if (name == ov::optimal_number_of_infer_requests) {
-            return static_cast<uint32_t>(8);
+            VPUX_THROW_WHEN(_networkPtr == nullptr, "GetMetric: network is not initialized");
+            return static_cast<uint32_t>(2 * _networkPtr->getNumStreams());
         } else if (name == ov::device::id) {
             return _config.get<DEVICE_ID>();
         } else if (name == ov::intel_vpux::csram_size) {
@@ -296,13 +297,12 @@ IE::Parameter ExecutableNetwork::GetMetric(const std::string& name) const {
     }
 
     if (name == METRIC_KEY(NETWORK_NAME)) {
-        if (_networkPtr != nullptr) {
-            IE_SET_METRIC_RETURN(NETWORK_NAME, _networkPtr->getName());
-        } else {
-            IE_THROW() << "GetMetric: network is not initialized";
-        }
+        VPUX_THROW_WHEN(_networkPtr == nullptr, "GetMetric: network is not initialized");
+        IE_SET_METRIC_RETURN(NETWORK_NAME, _networkPtr->getName());
     } else if (name == METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)) {
-        IE_SET_METRIC_RETURN(OPTIMAL_NUMBER_OF_INFER_REQUESTS, static_cast<unsigned int>(8u));
+        VPUX_THROW_WHEN(_networkPtr == nullptr, "GetMetric: network is not initialized");
+        IE_SET_METRIC_RETURN(OPTIMAL_NUMBER_OF_INFER_REQUESTS,
+                             static_cast<unsigned int>(2 * _networkPtr->getNumStreams()));
     }
 
     VPUX_THROW("Unsupported metric {0}", name);

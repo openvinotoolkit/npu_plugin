@@ -54,13 +54,6 @@ static const std::unordered_map<std::string, std::string> getUniteConfigByPlugin
     return hddlUniteConfig;
 }
 
-int getNumThreads(const Config& config) {
-    static const int DEFAULT_NUM_THREADS = 6;
-    const auto nnThreadNum = checked_cast<int>(config.get<THROUGHPUT_STREAMS>());
-    // TODO: add support for performance hints
-    return (nnThreadNum < 0) ? DEFAULT_NUM_THREADS : nnThreadNum;
-}
-
 HddlUniteGraph::HddlUniteGraph(const vpux::NetworkDescription::CPtr& network, const std::string& deviceID,
                                const Config& config)
         : _logger("Graph", config.get<LOG_LEVEL>()) {
@@ -82,9 +75,7 @@ HddlUniteGraph::HddlUniteGraph(const vpux::NetworkDescription::CPtr& network, co
         _logger.info("All devices will be used.");
     }
 
-    // TODO we need to get number of NN shaves and threads via config, not as parameters
-    // [Track number: S#39350]
-    const auto nnThreadNum = getNumThreads(config);
+    const auto nnThreadNum = getNumThroughputStreams(config, network->getNumStreams());
     const auto nnShaveNum = config.get<INFERENCE_SHAVES>();
     const auto& hddlUniteConfig = getUniteConfigByPluginConfig(config);
     statusCode = HddlUnite::Inference::loadGraph(_uniteGraphPtr, graphName, graphData.data(), graphData.size(),
@@ -113,9 +104,7 @@ HddlUniteGraph::HddlUniteGraph(const vpux::NetworkDescription::CPtr& network,
     const std::string graphName = network->getName();
     const std::vector<char> graphData = network->getCompiledNetwork();
 
-    // TODO we need to get number of NN shaves and threads via config, not as parameters
-    // [Track number: S#39350]
-    const auto nnThreadNum = config.get<THROUGHPUT_STREAMS>();
+    const auto nnThreadNum = getNumThroughputStreams(config, network->getNumStreams());
     const auto nnShaveNum = config.get<INFERENCE_SHAVES>();
     const auto& hddlUniteConfig = getUniteConfigByPluginConfig(config);
     statusCode = HddlUnite::Inference::loadGraph(_uniteGraphPtr, graphName, graphData.data(), graphData.size(),

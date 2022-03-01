@@ -57,3 +57,32 @@ func @ConcatView(%arg0: memref<50xf16>, %arg1: memref<100xf16>) -> memref<100xf1
 
     // CHECK:       return [[VAR4]] : memref<100xf16>
 }
+
+// -----
+
+#NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
+
+// CHECK-LABEL: @NCEClusterTiling
+func @NCEClusterTiling(%arg0: memref<1x32x16x16xf16, #NHWC, @DDR>) -> memref<1x32x16x16xf16, #NHWC, @CMX_NN> {
+    %0 = memref.alloc() : memref<1x32x16x16xf16, #NHWC, @CMX_NN>
+    %1 = VPUIP.NCEClusterTiling inputs(%arg0 as %arg2: memref<1x32x16x16xf16, #NHWC, @DDR>) outputs(%0 as %arg3: memref<1x32x16x16xf16, #NHWC, @CMX_NN>) -> memref<1x32x16x16xf16, #NHWC, @CMX_NN> {
+      %2 = IERT.Copy inputs(%arg2 : memref<1x32x16x16xf16, #NHWC, @DDR>) outputs(%arg3 : memref<1x32x16x16xf16, #NHWC, @CMX_NN>) -> memref<1x32x16x16xf16, #NHWC, @CMX_NN>
+    }
+    return %1 : memref<1x32x16x16xf16, #NHWC, @CMX_NN>
+
+    // CHECK:       [[BUF0:%.+]] = memref.alloc()
+
+    // CHECK:       [[T1:%.+]], [[R1:%.+]] = async.execute -> !async.value
+    // CHECK-SAME:          IERT.executor = @DMA_NN
+    // CHECK:           [[R2:%.+]] = VPUIP.NCEClusterTiling
+    // CHECK-SAME:          inputs(%arg0 as [[ARG0:%.+]]: memref<1x32x16x16xf16, #NHWC, @DDR>)
+    // CHECK-SAME:          outputs([[BUF0]] as [[ARG1:%.+]]: memref<1x32x16x16xf16, #NHWC, @CMX_NN>)
+    // CHECK:               IERT.Copy
+    // CHECK-SAME:              inputs([[ARG0]] : memref<1x32x16x16xf16, #NHWC, @DDR>)
+    // CHECK-SAME:              outputs([[ARG1]] : memref<1x32x16x16xf16, #NHWC, @CMX_NN>)
+    // CHECK:           async.yield [[R2]]
+
+    // CHECK:       [[R2:%.+]] = async.await [[R1]]
+
+    // CHECK:       return [[R2]]
+}

@@ -14,8 +14,13 @@
 #pragma once
 
 #include "vpux/compiler/dialect/VPU/attributes.hpp"
+#include "vpux/compiler/dialect/VPU/nce_sparsity.hpp"
+#include "vpux/compiler/dialect/VPU/ops.hpp"
 
 #include "vpux/utils/core/enums.hpp"
+#include "vpux/utils/core/numeric.hpp"
+
+#include <mlir/Dialect/Quant/QuantTypes.h>
 
 namespace vpux {
 namespace VPU {
@@ -36,6 +41,10 @@ struct PwlQuantReqs {
 extern const EnumMap<VPU::PPEMode, PwlQuantReqs> pwlQuantReqs;
 
 PwlQuantReqs getPwlQuantReqs(VPU::PPEMode ppeType);
+
+int64_t getPwlPostShift(const VPU::PPEMode ppeType);
+int64_t getPwlClamp(const mlir::Type inElemType, const mlir::Type outElemType, const VPU::PPEMode ppeType,
+                    const bool getMin);
 
 }  // namespace VPU
 }  // namespace vpux

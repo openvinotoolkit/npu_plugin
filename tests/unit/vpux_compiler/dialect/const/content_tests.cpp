@@ -814,3 +814,54 @@ TEST_F(MLIR_ConstContentAttrTest, BitPackIsLast) {
     const auto quantContentAttr = contentAttr.quantCast(quantType);
     ASSERT_NE(quantContentAttr, nullptr);
 }
+
+TEST_F(MLIR_ConstContentAttrTest, ExpandDilated) {
+    const int64_t OC = 2;
+    const int64_t IC = 2;
+    const int64_t KY = 5;
+    const int64_t KX = 5;
+    const auto baseType = mlir::RankedTensorType::get({OC, IC, KY, KX}, getSInt32Type(&ctx));
+
+    const auto vals = generateValues<int32_t>(baseType.getNumElements());
+    const auto baseAttr = mlir::DenseElementsAttr::get(baseType, makeArrayRef(vals));
+
+    const auto baseContentAttr = Const::ContentAttr::get(baseAttr);
+    ASSERT_NE(baseContentAttr, nullptr);
+    EXPECT_EQ(baseContentAttr.getType(), baseType);
+
+    const int64_t dilY = 3;
+    const int64_t dilX = 3;
+
+    const auto contentAttr = baseContentAttr.expandDilated({dilY, dilX});
+    ASSERT_NE(contentAttr, nullptr);
+    EXPECT_NE(contentAttr.getType(), baseType);
+
+    const auto content = contentAttr.fold();
+    EXPECT_NE(content.getType(), baseType);
+    EXPECT_FALSE(content.isSplat());
+
+    const int64_t dKY = KY + (KY - 1) * (dilY - 1);
+    const int64_t dKX = KX + (KX - 1) * (dilX - 1);
+    std::vector<int8_t> expectedVals(OC * IC * dKY * dKX, 0);
+
+    for (int64_t oc = 0; oc < OC; ++oc) {
+        for (int64_t ic = 0; ic < IC; ++ic) {
+            for (int64_t ky = 0; ky < KY; ++ky) {
+                for (int64_t kx = 0; kx < KX; ++kx) {
+                    const auto dky = ky + (dilY - 1) * ky;
+                    const auto dkx = kx + (dilX - 1) * kx;
+                    const auto expectedValsInd = dkx + dky * dKX + ic * dKX * dKY + oc * dKX * dKY * IC;
+                    const auto valsInd = kx + ky * KX + ic * KX * KY + oc * KX * KY * IC;
+                    expectedVals[expectedValsInd] = vals[valsInd];
+                }
+            }
+        }
+    }
+
+    const auto contentVals = content.getValues<int32_t>();
+    EXPECT_EQ(contentVals.size(), expectedVals.size());
+
+    for (size_t i = 0; i < contentVals.size(); ++i) {
+        EXPECT_EQ(contentVals[i], expectedVals[i]);
+    }
+}

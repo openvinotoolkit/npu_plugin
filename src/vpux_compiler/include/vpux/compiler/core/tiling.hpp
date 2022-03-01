@@ -135,4 +135,55 @@ InputTiling backInferGroupConvTile(const TileInfo& outputTile, ShapeRef origInpu
 InputTiling backInferPoolTile(const TileInfo& outputTile, ShapeRef origInputShape, mlir::ArrayAttr kernel_size,
                               mlir::ArrayAttr strides, mlir::ArrayAttr pads_begin, mlir::ArrayAttr pads_end);
 
+//
+// DimRange
+//
+
+struct DimRange final {
+    int64_t begin = 0;
+    int64_t end = 0;
+
+    DimRange() = default;
+    DimRange(int64_t begin, int64_t end): begin(begin), end(end) {
+        VPUX_THROW_UNLESS(end >= begin, "Got wrong dimension range [{0}, {1})", begin, end);
+    }
+
+    int64_t length() const {
+        return end - begin;
+    }
+
+    bool intersects(const DimRange& other) const {
+        return (begin < other.end) && (other.begin < end);
+    }
+
+    bool contains(const DimRange& other) const {
+        return (begin <= other.begin) && (end >= other.end);
+    }
+
+    // Represents `other` range to ROI of the current one.
+    DimRange asROI(const DimRange& other) const {
+        VPUX_THROW_UNLESS(contains(other), "DimRange '{0}' is not contained in '{1}'", other, *this);
+        return {other.begin - begin, other.end - begin};
+    }
+
+    bool operator==(const DimRange& other) const {
+        return begin == other.begin && end == other.end;
+    }
+    bool operator!=(const DimRange& other) const {
+        return !(*this == other);
+    }
+
+    void printFormat(llvm::raw_ostream& stream) const {
+        printTo(stream, "DimRange [{0}, {1})", begin, end);
+    }
+};
+
+//
+// Tiling utils
+//
+
+std::tuple<DimRange, int64_t, int64_t> inputForOutputDim(const DimRange& output, int64_t kernel, int64_t stride,
+                                                         const DimRange& initialInputRange, int64_t padBefore,
+                                                         int64_t padAfter);
+
 }  // namespace vpux

@@ -248,8 +248,7 @@ mlir::ArrayAttr vpux::VPUIP::BlobReader::parseOrder3(const MVCNN::order3* order,
     return getIntArrayAttr(_ctx, coords);
 }
 
-VPU::ArchKind vpux::VPUIP::BlobReader::parseDeviceRevision() {
-    const auto* header = _graphFile->header();
+VPU::ArchKind vpux::VPUIP::BlobReader::parseDeviceRevision(const MVCNN::SummaryHeader* header) {
     switch (header->device()) {
     case MVCNN::TargetDevice_NONE:
         return VPU::ArchKind::UNKNOWN;
@@ -269,6 +268,10 @@ VPU::ArchKind vpux::VPUIP::BlobReader::parseDeviceRevision() {
     default:
         VPUX_THROW("Unsupported TargetDevice '{0}'", header->device());
     }
+}
+
+VPU::ArchKind vpux::VPUIP::BlobReader::parseDeviceRevision() {
+    return parseDeviceRevision(_graphFile->header());
 }
 
 mlir::Type vpux::VPUIP::BlobReader::convertType(mlir::MLIRContext* ctx, const MVCNN::DType& precision) {

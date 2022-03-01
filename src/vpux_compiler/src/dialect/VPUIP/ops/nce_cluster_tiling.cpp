@@ -60,6 +60,17 @@ mlir::MutableArrayRef<mlir::BlockArgument> vpux::VPUIP::NCEClusterTilingOp::getI
 }
 
 //
+// Executor info
+//
+
+IndexedSymbolAttr vpux::VPUIP::NCEClusterTilingOp::getExecutor() {
+    // For NCEClusterTiling retrieve executer of inner operation
+    auto op = mlir::dyn_cast<IERT::AsyncLayerOpInterface>(getInnerTaskOp());
+    VPUX_THROW_UNLESS(op != nullptr, "Inner operation does not support interface for executors");
+    return op.getExecutor();
+}
+
+//
 // print/parse
 //
 
@@ -87,7 +98,7 @@ void vpux::VPUIP::print(mlir::OpAsmPrinter& p, VPUIP::NCEClusterTilingOp op) {
     printGroupOfOperands("inputs", op.inputs());
     printGroupOfOperands("outputs", op.output_buffs());
 
-    p.printOptionalAttrDictWithKeyword(op->getAttrs());
+    p.printOptionalAttrDictWithKeyword(op->getAttrs(), {"operand_segment_sizes"});
     p.printOptionalArrowTypeList(op.getResultTypes());
     p.printRegion(op.body(), /*printEntryBlockArgs=*/false);
 }

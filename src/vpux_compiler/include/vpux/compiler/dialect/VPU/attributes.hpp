@@ -54,6 +54,7 @@ StringLiteral getMemoryDerateAttrName();
 StringLiteral getMemoryBandwidthAttrName();
 StringLiteral getProcessorFrequencyAttrName();
 
+uint32_t getMaxDPUClusterNum(ArchKind arch);
 uint32_t getMaxDPUClusterNum(mlir::Operation* op);
 
 Byte getTotalCMXSize(mlir::Operation* op);

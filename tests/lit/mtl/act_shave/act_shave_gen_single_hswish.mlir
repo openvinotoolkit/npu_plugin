@@ -211,7 +211,7 @@ func @main(%1: memref<1x1x1x1000xf16>, %2: memref<1x1x1x1000xf16>) -> memref<1x1
 // CHECK:        kernelText: {
 // CHECK:          name: "nnActEntry",
 // CHECK:          locale: "GFEmbeddedKernel",
-// CHECK:          referenced_data_size: 656
+// CHECK:          referenced_data_size: {{[1-9][0-9]+}}
 // CHECK:        },
 // CHECK:        globalArgs: {
 // CHECK:          name: "nnActEntry.data",
@@ -246,7 +246,7 @@ func @main(%1: memref<1x1x1x1000xf16>, %2: memref<1x1x1x1000xf16>) -> memref<1x1
 // CHECK:                kernelText: {
 // CHECK:                  name: "builtin_hswish",
 // CHECK:                  locale: "GFEmbeddedKernel",
-// CHECK:                  referenced_data_size: 816
+// CHECK:                  referenced_data_size: {{[1-9][0-9]+}}
 // CHECK:                }
 // CHECK:              },
 // CHECK:              invocations: [

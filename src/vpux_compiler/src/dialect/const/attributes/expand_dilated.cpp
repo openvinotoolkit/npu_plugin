@@ -1,0 +1,150 @@
+//
+// Copyright Intel Corporation.
+//
+// LEGAL NOTICE: Your use of this software and any required dependent software
+// (the "Software Package") is subject to the terms and conditions of
+// the Intel(R) OpenVINO(TM) Distribution License for the Software Package,
+// which may also include notices, disclaimers, or license terms for
+// third party or open source software included in or with the Software Package,
+// and your use indicates your acceptance of all such terms. Please refer
+// to the "third-party-programs.txt" or other similarly-named text file
+// included with the Software Package for additional details.
+//
+
+#include "vpux/compiler/conversion.hpp"
+#include "vpux/compiler/core/layers.hpp"
+#include "vpux/compiler/dialect/const/attributes/content.hpp"
+#include "vpux/compiler/utils/attributes.hpp"
+#include "vpux/compiler/utils/subspaces.hpp"
+#include "vpux/compiler/utils/types.hpp"
+
+#include "vpux/utils/IE/loop.hpp"
+#include "vpux/utils/core/format.hpp"
+#include "vpux/utils/core/func_ref.hpp"
+
+#include <mlir/Dialect/Quant/QuantTypes.h>
+
+using namespace vpux;
+
+//
+// ExpandDilatedAttr::walkImmediateSubElements
+//
+
+void vpux::Const::ExpandDilatedAttr::walkImmediateSubElements(llvm::function_ref<void(Attribute)> walkAttrsFn,
+                                                              llvm::function_ref<void(mlir::Type)>) const {
+    walkAttrsFn(getDilations());
+}
+
+//
+// ExpandDilatedAttr::verify
+//
+
+mlir::LogicalResult vpux::Const::ExpandDilatedAttr::verify(FuncRef<mlir::InFlightDiagnostic()> emitError,
+                                                           mlir::ArrayAttr dilations) {
+    if (dilations == nullptr) {
+        return printTo(emitError(), "Got NULL 'dilations' in 'ExpandDilatedAttr'");
+    }
+
+    for (const auto dimDilationAttr : dilations.getValue()) {
+        if (!dimDilationAttr.isa<mlir::IntegerAttr>()) {
+            return printTo(emitError(), "Got non-integer value in 'dilations' for 'ExpandDilatedAttr'");
+        }
+        if (dimDilationAttr.cast<mlir::IntegerAttr>().getInt() <= 0) {
+            return printTo(emitError(), "Got unsupported dimension value '{0}' in 'shape' for 'ExpandDilatedAttr'",
+                           dimDilationAttr);
+        }
+    }
+
+    return mlir::success();
+}
+
+//
+// ExpandDilatedAttr::print
+//
+
+void vpux::Const::ExpandDilatedAttr::print(mlir::DialectAsmPrinter& printer) const {
+    printer << getMnemonic() << "<";
+    printer.printAttribute(getDilations());
+    printer << ">";
+}
+
+//
+// ExpandDilatedAttr::parse
+//
+
+mlir::Attribute vpux::Const::ExpandDilatedAttr::parse(mlir::DialectAsmParser& parser, mlir::Type) {
+    if (mlir::failed(parser.parseLess())) {
+        return nullptr;
+    }
+
+    mlir::ArrayAttr dilations;
+    if (mlir::failed(parser.parseAttribute(dilations))) {
+        return nullptr;
+    }
+
+    if (mlir::failed(parser.parseGreater())) {
+        return nullptr;
+    }
+
+    return parser.getChecked<Const::ExpandDilatedAttr>(dilations);
+}
+
+//
+// ExpandDilatedAttr::inferOutputType
+//
+
+vpux::NDTypeInterface vpux::Const::ExpandDilatedAttr::inferOutputType(vpux::NDTypeInterface input) const {
+    const auto dilations = parseIntArrayAttr<int64_t>(getDilations());
+    auto tensor = input.cast<mlir::RankedTensorType>();
+    return getDilatedType(tensor, ShapeRef(dilations));
+}
+
+//
+// ExpandDilatedAttr::transform
+//
+
+Const::Content vpux::Const::ExpandDilatedAttr::transform(vpux::Const::Content& input) const {
+    auto output = Const::Content::allocTempBuffer(inferOutputType(input.getType()), input.getStorageElemType(), false);
+
+    output.fillWithZero();
+
+    const auto inBuf = input.getRawStorageBuf();
+    auto outBuf = output.getRawTempBuf();
+
+    const Byte elemSize = getElemTypeSize(input.getStorageElemType());
+
+    const auto inShape = input.getType().getShape();
+    const auto outShape = output.getType().getShape();
+
+    const auto dilations = parseIntArrayAttr<int64_t>(getDilations());
+
+    const auto OC = inShape[vpux::Dims4D::Filter::OC];
+    const auto IC = inShape[vpux::Dims4D::Filter::IC];
+    const auto KY = inShape[vpux::Dims4D::Filter::KY];
+    const auto KX = inShape[vpux::Dims4D::Filter::KX];
+    const auto dKY = outShape[vpux::Dims4D::Filter::KY];
+    const auto dKX = outShape[vpux::Dims4D::Filter::KX];
+
+    loop_4d(LoopExecPolicy::Parallel, OC, IC, KY, KX, [&](int64_t oc, int64_t ic, int64_t ky, int64_t kx) {
+        const auto dky = ky + (dilations[0] - 1) * ky;
+        const auto dkx = kx + (dilations[1] - 1) * kx;
+
+        const auto outRawInd = dkx + dky * dKX + ic * dKX * dKY + oc * dKX * dKY * IC;
+        const auto inRawInd = kx + ky * KX + ic * KX * KY + oc * KX * KY * IC;
+
+        std::copy_n(inBuf.data() + checked_cast<size_t>(inRawInd * elemSize.count()),
+                    checked_cast<size_t>(elemSize.count()),
+                    outBuf.data() + checked_cast<size_t>(outRawInd * elemSize.count()));
+    });
+
+    return output;
+}
+
+//
+// ContentAttr::expandDilated
+//
+
+Const::ContentAttr vpux::Const::ContentAttr::expandDilated(ShapeRef dilations) const {
+    return get(*this, Const::ExpandDilatedAttr::get(getIntArrayAttr(getContext(), dilations))
+                              .cast<Const::TransformAttrInterface>());
+}

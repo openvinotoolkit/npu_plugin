@@ -179,7 +179,23 @@ extern "C" void nnActEntry(void *config, void *scratch) {
             }
         } else {
             writeFRC();
+#if defined(LOW_LEVEL_TESTS_PERF)
+            if (ki->perfPacketOut_) {
+                perfMetricMask = (0b1 << perf::FRC_TIMESTAMP_EN) | (0b1 << perf::FRC_DURATION_EN);
+                perfPackedSize = actPRPackedSize(perfMetricMask);
+                //configCounters(perfMetricMask); // the call hangs but not need for TIMESTAMP|DURATION
+                resetCounters(pr);
+            }
+#endif // LOW_LEVEL_TESTS_PERF
             (kr->kernelEntry_)(ki->kernelArgs_);
+#if defined(LOW_LEVEL_TESTS_PERF)
+            if (ki->perfPacketOut_) {
+                recordCounters(pr);
+                packActPerfReport(perfMetricMask, pr, reinterpret_cast<void *>(packedPr));
+                memcpy_s(ki->perfPacketOut_, sizeof(ActPerfReport), reinterpret_cast<const void *>(packedPr),
+                         perfPackedSize);
+            }
+#endif // LOW_LEVEL_TESTS_PERF
         }
 
         HglBarrierProduce(barriers.post_mask_);

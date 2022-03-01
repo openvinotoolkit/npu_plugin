@@ -77,6 +77,22 @@ void buildDWConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp modu
                  Logger& log, mlir::Type inputType, mlir::Type weightsType, mlir::Type outputType);
 void buildActShave(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module, mlir::OpBuilder builder,
                    Logger& log, mlir::Type inputType, mlir::Type outputType);
+void buildReadAfterWriteDPUDMATest(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module,
+                                   mlir::OpBuilder builder, Logger& log, mlir::Type inputType, mlir::Type weightsType,
+                                   mlir::Type outputType);
+void buildReadAfterWriteDMADPUTest(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module,
+                                   mlir::OpBuilder builder, Logger& log, mlir::Type inputType, mlir::Type weightsType,
+                                   mlir::Type outputType);
+void buildReadAfterWriteACTDMATest(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module,
+                                   mlir::OpBuilder builder, Logger& log, mlir::Type inputType, mlir::Type outputType);
+void buildReadAfterWriteDMAACTTest(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module,
+                                   mlir::OpBuilder builder, Logger& log, mlir::Type inputType, mlir::Type outputType);
+void buildReadAfterWriteDPUACTTest(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module,
+                                   mlir::OpBuilder builder, Logger& log, mlir::Type inputType, mlir::Type weightsType,
+                                   mlir::Type outputType);
+void buildReadAfterWriteACTDPUTest(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module,
+                                   mlir::OpBuilder builder, Logger& log, mlir::Type inputType, mlir::Type weightsType,
+                                   mlir::Type outputType);
 
 // TODO: remove buildRaceConditionDMATest and buildRaceConditionDPUTest once buildRaceConditionTest is able to cover
 // all testcases [Track number: E#31468]

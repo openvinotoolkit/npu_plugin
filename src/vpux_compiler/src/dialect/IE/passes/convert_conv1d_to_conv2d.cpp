@@ -37,7 +37,7 @@ mlir::Value extendTensor(mlir::PatternRewriter& rewriter, mlir::Location loc, ml
     newShape.insert(newShape.end() - 1, 1);
 
     const auto newShapeAttr = getIntArrayAttr(rewriter.getContext(), newShape);
-    return rewriter.create<IE::ReshapeOp>(loc, input, nullptr, false, newShapeAttr).output();
+    return rewriter.createOrFold<IE::ReshapeOp>(loc, input, nullptr, false, newShapeAttr);
 }
 
 mlir::ArrayAttr append(mlir::MLIRContext* context, mlir::ArrayAttr attr, int64_t value) {
@@ -165,6 +165,7 @@ void ConvertConv1DToConv2DPass::safeRunOnFunc() {
     target.addDynamicallyLegalOp<IE::ConvolutionOp>(isLegalConvOp);
     target.addDynamicallyLegalOp<IE::GroupConvolutionOp>(isLegalGroupConvOp);
     target.addLegalOp<IE::ReshapeOp>();
+    target.addLegalOp<Const::DeclareOp>();
 
     mlir::RewritePatternSet patterns(&ctx);
     patterns.insert<ConvolutionExpansion>(&ctx, _log);

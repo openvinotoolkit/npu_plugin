@@ -928,6 +928,154 @@ def VPUIP_AcoshUPAOp :
 }
 
 //
+// AbsUPAOp
+//
+
+def VPUIP_AbsUPAOp :
+        VPUIP_UPATaskOp<1, "AbsUPA",
+            [
+                ViewLikeOpInterface,
+                IERT_SameShape,
+                IERT_SameElementType,
+                IERT_SameInOutDimsOrder_CHW_HWC_NCHW_NHWC,
+                VPUIP_Legacy4D
+            ]
+        > {
+    let summary = "Abs UPA SHAVE kernel";
+
+    let arguments = (ins
+        F16MemRef:$input,
+        F16MemRef:$output_buff
+    );
+
+    let results = (outs
+        F16MemRef:$output
+    );
+
+    let verifier = [{
+        return vpux::VPUIP::verifyPostOp(*this);
+    }];
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
+//
+// AtanUPAOp
+//
+
+def VPUIP_AtanUPAOp :
+        VPUIP_UPATaskOp<1, "AtanUPA",
+            [
+                ViewLikeOpInterface,
+                IERT_SameShape,
+                IERT_SameElementType,
+                IERT_SameInOutDimsOrder_CHW_HWC_NCHW_NHWC,
+                VPUIP_Legacy4D
+            ]
+        > {
+    let summary = "Atan UPA SHAVE kernel";
+
+    let arguments = (ins
+        F16MemRef:$input,
+        F16MemRef:$output_buff
+    );
+
+    let results = (outs
+        F16MemRef:$output
+    );
+
+    let verifier = [{
+        return vpux::VPUIP::verifyPostOp(*this);
+    }];
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
+//
+// AsinUPAOp
+//
+
+def VPUIP_AsinUPAOp :
+        VPUIP_UPATaskOp<1, "AsinUPA",
+            [
+                ViewLikeOpInterface,
+                IERT_SameShape,
+                IERT_SameElementType,
+                IERT_SameInOutDimsOrder_CHW_HWC_NCHW_NHWC,
+                VPUIP_Legacy4D
+            ]
+        > {
+    let summary = "Asin UPA SHAVE kernel";
+
+    let arguments = (ins
+        F16MemRef:$input,
+        F16MemRef:$output_buff
+    );
+
+    let results = (outs
+        F16MemRef:$output
+    );
+
+    let verifier = [{
+        return vpux::VPUIP::verifyPostOp(*this);
+    }];
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
+//
+// AcosUPAOp
+//
+
+def VPUIP_AcosUPAOp :
+        VPUIP_UPATaskOp<1, "AcosUPA",
+            [
+                ViewLikeOpInterface,
+                IERT_SameShape,
+                IERT_SameElementType,
+                IERT_SameInOutDimsOrder_CHW_HWC_NCHW_NHWC,
+                VPUIP_Legacy4D
+            ]
+        > {
+    let summary = "Acos UPA SHAVE kernel";
+
+    let arguments = (ins
+        F16MemRef:$input,
+        F16MemRef:$output_buff
+    );
+
+    let results = (outs
+        F16MemRef:$output
+    );
+
+    let verifier = [{
+        return vpux::VPUIP::verifyPostOp(*this);
+    }];
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
+//
 // AtanhUPAOp
 //
 
@@ -1825,8 +1973,18 @@ def VPUIP_DPUTaskOp :
         I64ArrayAttr:$start,
         I64ArrayAttr:$end,
         VPU_PaddingAttr:$pad,
-        VPU_MPEMode:$mpe_mode
+        VPU_MPEMode:$mpe_mode,
+        OptionalAttr<IntAttr>:$cluster_id
     );
+
+    let builders = [
+        OpBuilder<(ins
+            "mlir::ArrayAttr":$start,
+            "mlir::ArrayAttr":$end,
+            "VPU::PaddingAttr":$pad,
+            "VPU::MPEMode":$mpeMode
+        )>
+    ];
 
     let assemblyFormat = [{
         attr-dict
@@ -2963,7 +3121,8 @@ def VPUIP_NCEClusterTilingOp :
                 MemoryEffectsOpInterface,
                 DeclareOpInterfaceMethods<IERT_LayerOpInterface>,
                 DeclareOpInterfaceMethods<RegionBranchOpInterface,
-                    ["getSuccessorEntryOperands", "getNumRegionInvocations"]>
+                    ["getSuccessorEntryOperands", "getNumRegionInvocations"]>,
+                IERT_AsyncLayerOpInterface
             ]
         > {
     let summary = "Operation that encapsulates details of tiling operation between clusters";
@@ -2974,7 +3133,7 @@ def VPUIP_NCEClusterTilingOp :
     );
 
     let results = (outs
-        Variadic<AnyTypeOf<[MemRefOf<[F16, BF16, quant_QuantizedType]>, VPUIP_DistributedBuffer]>>:$results
+        Variadic<AnyTypeOf<[AnyMemRef, VPUIP_DistributedBuffer]>>:$results
     );
 
     let regions = (region SizedRegion<1>:$body);
@@ -2996,6 +3155,8 @@ def VPUIP_NCEClusterTilingOp :
         mlir::Operation* getInnerTaskOp();
         mlir::MutableArrayRef<mlir::BlockArgument> getInnerInputs();
         mlir::MutableArrayRef<mlir::BlockArgument> getInnerOutputs();
+
+        vpux::IndexedSymbolAttr getExecutor();
     }];
 }
 

@@ -15,6 +15,7 @@
 #include "vpux/compiler/core/tiling.hpp"
 #include "vpux/compiler/dialect/IE/passes.hpp"
 #include "vpux/compiler/dialect/IE/utils/generate_tiling.hpp"
+#include "vpux/compiler/dialect/VPU/ops.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
 
 using namespace vpux;
@@ -237,6 +238,10 @@ void PrefetchTilingPass::safeRunOnFunc() {
 
     mlir::ConversionTarget target(ctx);
     target.addLegalOp<IE::SliceOp, IE::ConcatOp>();
+    target.addLegalOp<VPU::NCEClusterTilingOp>();
+    target.markOpRecursivelyLegal<VPU::NCEClusterTilingOp>([&](mlir::Operation*) {
+        return true;
+    });
     target.markUnknownOpDynamicallyLegal([this](mlir::Operation* op) {
         if (auto iface = mlir::dyn_cast<IE::TilingInfoOpInterface>(op)) {
             const auto resShape = getShape(op->getResult(0));

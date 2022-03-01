@@ -17,57 +17,15 @@
 #include <string.h>
 #include "VPUXCompilerL0.h"
 
-vcl_tensor_precision_t getPrecision(const char* value) {
-    if (!strcmp(value, "fp32") || !strcmp(value, "FP32")) {
-        return VCL_TENSOR_PRECISION_FP32;
-    } else if (!strcmp(value, "fp16") || !strcmp(value, "FP16")) {
-        return VCL_TENSOR_PRECISION_FP16;
-    } else if (!strcmp(value, "i32") || !strcmp(value, "I32")) {
-        return VCL_TENSOR_PRECISION_INT32;
-    } else if (!strcmp(value, "u32") || !strcmp(value, "U32")) {
-        return VCL_TENSOR_PRECISION_UINT32;
-    } else if (!strcmp(value, "i8") || !strcmp(value, "I8")) {
-        return VCL_TENSOR_PRECISION_INT8;
-    } else if (!strcmp(value, "u8") || !strcmp(value, "U8")) {
-        return VCL_TENSOR_PRECISION_UINT8;
-    } else {
-        printf("The precison of %s is unknown, use UNKNOWN precision now!\n", value);
-        return VCL_TENSOR_PRECISION_UNKNOWN;
-    }
-}
-
-vcl_tensor_layout_t getLayout(const char* value) {
-    if (!strcmp(value, "ncdhw") || !strcmp(value, "NCDHW")) {
-        return VCL_TENSOR_LAYOUT_NCDHW;
-    } else if (!strcmp(value, "ndhwc") || !strcmp(value, "NDHWC")) {
-        return VCL_TENSOR_LAYOUT_NDHWC;
-    } else if (!strcmp(value, "nchw") || !strcmp(value, "NCHW")) {
-        return VCL_TENSOR_LAYOUT_NCHW;
-    } else if (!strcmp(value, "nhwc") || !strcmp(value, "NHWC")) {
-        return VCL_TENSOR_LAYOUT_NHWC;
-    } else if (!strcmp(value, "chw") || !strcmp(value, "CHW")) {
-        return VCL_TENSOR_LAYOUT_CHW;
-    } else if (!strcmp(value, "hwc") || !strcmp(value, "HWC")) {
-        return VCL_TENSOR_LAYOUT_HWC;
-    } else if (!strcmp(value, "nc") || !strcmp(value, "NC")) {
-        return VCL_TENSOR_LAYOUT_NC;
-    } else if (!strcmp(value, "c") || !strcmp(value, "C")) {
-        return VCL_TENSOR_LAYOUT_C;
-    } else {
-        printf("The layout of %s is unknown, use ANY precision now!\n", value);
-        return VCL_TENSOR_LAYOUT_ANY;
-    }
-}
-
 vcl_result_t testCompiler(int argc, char** argv) {
-    if (argc != 4 && argc != 9) {
+    if (argc != 4 && argc != 5) {
         printf("usage:\n\tcompilerTest net.xml weight.bin output.net\n");
-        printf("usage:\n\tcompilerTest net.xml weight.bin output.net $IP $IO $OP $OO $configFile\n");
+        printf("usage:\n\tcompilerTest net.xml weight.bin output.net $configFile\n");
         return -1;
     }
 
     vcl_result_t ret = VCL_RESULT_SUCCESS;
-    vcl_compiler_desc_t compilerDesc = {VCL_PLATFORM_VPU3700, 0};
+    vcl_compiler_desc_t compilerDesc = {VCL_PLATFORM_VPU3700, 5};
     vcl_compiler_handle_t compiler = NULL;
     ret = vclCompilerCreate(compilerDesc, &compiler);
     if (ret) {
@@ -179,21 +137,17 @@ vcl_result_t testCompiler(int argc, char** argv) {
     }
 
     vcl_executable_handle_t executable = NULL;
-    if (argc != 9) {
-        vcl_tensor_precision_t inPrc = VCL_TENSOR_PRECISION_FP32;
-        vcl_tensor_layout_t inLayout = VCL_TENSOR_LAYOUT_ANY;
-        vcl_tensor_precision_t outPrc = VCL_TENSOR_PRECISION_FP32;
-        vcl_tensor_layout_t outLayout = VCL_TENSOR_LAYOUT_ANY;
-        char options[] = "VPUX_PLATFORM 3700 LOG_LEVEL LOG_INFO ";
-        vcl_executable_desc_t exeDesc = {modelIR, modelIRSize, inPrc,   inLayout,
-                                         outPrc,  outLayout,   options, sizeof(options)};
+    if (argc != 5) {
+        // The options are for googlenet-v1
+        char options[] =
+                "--inputs_precisions=\"input:U8\" --inputs_layouts=\"input:NCHW\" "
+                "--outputs_precisions=\"InceptionV1/Logits/Predictions/Softmax:FP32\" "
+                "--outputs_layouts=\"InceptionV1/Logits/Predictions/Softmax:NC\" --config LOG_LEVEL=\"LOG_INFO\" "
+                "VPUX_COMPILATION_MODE_PARAMS=\"use-user-precision=false propagate-quant-dequant=0\"";
+        vcl_executable_desc_t exeDesc = {modelIR, modelIRSize, options, sizeof(options)};
         ret = vclExecutableCreate(compiler, exeDesc, &executable);
     } else {
-        vcl_tensor_precision_t inPrc = getPrecision(argv[4]);
-        vcl_tensor_layout_t inLayout = getLayout(argv[5]);
-        vcl_tensor_precision_t outPrc = getPrecision(argv[6]);
-        vcl_tensor_layout_t outLayout = getLayout(argv[7]);
-        char* configFile = argv[8];
+        char* configFile = argv[4];
         FILE* fpC = fopen(configFile, "rb");
         if (!fpC) {
             printf("Cannot open file %s\n", configFile);
@@ -205,17 +159,11 @@ vcl_result_t testCompiler(int argc, char** argv) {
         uint32_t configSize = ftell(fpC);
         fseek(fpC, 0, SEEK_SET);
         if (configSize == 0) {
-            cret = fclose(fpC);
-            if (cret) {
-                printf("Failed to close %s. Result:%d\n", configFile, cret);
-                free(modelIR);
-                vclCompilerDestroy(compiler);
-                return cret;
-            }
-            char options[] = "VPUX_PLATFORM 3700 LOG_LEVEL LOG_INFO ";
-            vcl_executable_desc_t exeDesc = {modelIR, modelIRSize, inPrc,   inLayout,
-                                             outPrc,  outLayout,   options, sizeof(options)};
-            ret = vclExecutableCreate(compiler, exeDesc, &executable);
+            printf("The config file %s is empty\n", configFile);
+            fclose(fpC);
+            free(modelIR);
+            vclCompilerDestroy(compiler);
+            return VCL_RESULT_ERROR_INVALID_ARGUMENT;
         } else {
             char* options = (char*)malloc(configSize);
             if (!options) {
@@ -243,8 +191,7 @@ vcl_result_t testCompiler(int argc, char** argv) {
                 return cret;
             }
 
-            vcl_executable_desc_t exeDesc = {modelIR, modelIRSize, inPrc,   inLayout,
-                                             outPrc,  outLayout,   options, configSize};
+            vcl_executable_desc_t exeDesc = {modelIR, modelIRSize, options, configSize};
             ret = vclExecutableCreate(compiler, exeDesc, &executable);
             free(options);
         }

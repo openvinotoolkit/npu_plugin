@@ -268,6 +268,14 @@ std::pair<uint8_t, int8_t> vpux::getQuantShiftAndPostShiftFromScale(double quant
     return getShiftAndPostShiftFromScale<15, uint8_t, int8_t>(quantScale);
 }
 
+std::pair<int64_t, int64_t> vpux::getClampValuesForQuantizedOps(mlir::quant::QuantizedType outElemQType,
+                                                                mlir::Type outElemType) {
+    const auto zps = extractScalesAndZeroPoints(outElemType).second;
+    auto clampLow = outElemQType.getStorageTypeMin() - zps.front();
+    auto clampHigh = outElemQType.getStorageTypeMax() - zps.front();
+    return {clampLow, clampHigh};
+}
+
 //
 // FakeQuantize support
 //

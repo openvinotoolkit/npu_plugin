@@ -18,29 +18,37 @@
 namespace vpux {
 namespace driverCompilerAdapter {
 
+struct NetworkMeta final {
+    DataMap networkInputs;
+    DataMap networkOutputs;
+    DataMap deviceInputs;
+    DataMap deviceOutputs;
+    int numStreams = 1;
+};
+
 /**
  * @brief Network blob + meta information
  */
 class NetworkDescription final : public INetworkDescription {
 public:
-    explicit NetworkDescription(const std::vector<char>& compiledNetwork, const std::string& name,
-                                const DataMap& networkInputs, const DataMap& networkOutputs,
-                                const DataMap& deviceInputs, const DataMap& deviceOutputs)
+    NetworkDescription(const std::vector<char>& compiledNetwork, const std::string& name, const DataMap& networkInputs,
+                       const DataMap& networkOutputs, const DataMap& deviceInputs, const DataMap& deviceOutputs,
+                       int numStreams)
             : _compiledNetwork(compiledNetwork),
               _name(name),
               _networkInputs(networkInputs),
               _networkOutputs(networkOutputs),
               _deviceInputs(deviceInputs),
-              _deviceOutputs(deviceOutputs) {
+              _deviceOutputs(deviceOutputs),
+              _numStreams(numStreams) {
     }
 
-    explicit NetworkDescription(
-            const std::vector<char>& compliedNetwork, const std::string graphName,
-            const std::tuple<const DataMap, const DataMap, const DataMap, const DataMap>& networkMeta)
-            : NetworkDescription(compliedNetwork, graphName, std::get<0>(networkMeta), std::get<1>(networkMeta),
-                                 std::get<2>(networkMeta), std::get<3>(networkMeta)) {
+    NetworkDescription(const std::vector<char>& compiledNetwork, const std::string& name,
+                       const NetworkMeta& networkMeta)
+            : NetworkDescription(compiledNetwork, name, networkMeta.networkInputs, networkMeta.networkOutputs,
+                                 networkMeta.deviceInputs, networkMeta.deviceOutputs, networkMeta.numStreams) {
     }
-    
+
 public:
     const vpux::QuantizationParamMap& getQuantParamsInfo() const final {
         return _quantParams;
@@ -86,6 +94,10 @@ public:
         return _ovResults;
     }
 
+    int getNumStreams() const final {
+        return _numStreams;
+    }
+
 private:
     std::vector<char> _compiledNetwork;
 
@@ -106,6 +118,8 @@ private:
     // TODO #-30196 Support ovParameters and ovResults which required for OV2.0 support
     const std::vector<vpux::OVRawNode> _ovParameters;
     const std::vector<vpux::OVRawNode> _ovResults;
+
+    int _numStreams = 1;
 };
 
 }  // namespace driverCompilerAdapter

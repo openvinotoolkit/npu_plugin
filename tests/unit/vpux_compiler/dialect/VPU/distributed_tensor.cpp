@@ -239,3 +239,92 @@ TEST(MLIR_ClusterShapeUtils, SegmentedDuplicatedDistribution) {
         EXPECT_EQ(expectedShapes[clusterIdx], distributedType.getCompactShape(clusterIdx));
     }
 }
+
+TEST(MLIR_ClusterShapeUtils, OverlappedDistribution) {
+    mlir::DialectRegistry registry;
+    vpux::registerDialects(registry);
+
+    mlir::MLIRContext ctx(registry);
+    ctx.loadDialect<VPU::VPUDialect>();
+
+    const auto distributionModeAttr = VPU::DistributionModeAttr::get(&ctx, VPU::DistributionMode::OVERLAPPED);
+    const auto numTilesAttr = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 1, 4, 1}));
+    const auto numClustersAttr = getIntAttr(&ctx, 4);
+
+    const auto shape = SmallVector<int64_t>({1, 64, 13, 16});
+    const auto elemType = mlir::Float16Type::get(&ctx);
+    const auto dimsOrder = mlir::AffineMapAttr::get(DimsOrder::NHWC.toAffineMap(&ctx));
+    const auto dimsSpace = vpux::IndexedSymbolAttr::get(&ctx, CMX_NAME);
+
+    {
+        const auto kernel = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 1}));
+        const auto pads = VPU::PaddingAttr::get(getIntAttr(&ctx, 0), getIntAttr(&ctx, 0), getIntAttr(&ctx, 0),
+                                                getIntAttr(&ctx, 0), &ctx);
+        const auto strides = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 1}));
+        const auto distributedAttr = VPU::DistributedTensorAttr::get(distributionModeAttr, numTilesAttr, kernel, pads,
+                                                                     strides, numClustersAttr, &ctx);
+        const auto distributedType =
+                VPU::DistributedTensorType::get(&ctx, shape, elemType, dimsOrder, dimsSpace, distributedAttr);
+
+        const auto perClusterShapes = distributedType.getPerClusterComputeShapes();
+        const SmallVector<Shape> expectedShapes(
+                {Shape({1, 64, 4, 16}), Shape({1, 64, 4, 16}), Shape({1, 64, 4, 16}), Shape({1, 64, 1, 16})});
+        for (const auto shapePair : zip(perClusterShapes, expectedShapes)) {
+            EXPECT_EQ(std::get<0>(shapePair), std::get<1>(shapePair));
+        }
+        const auto largestComputeShape = distributedType.getLargestCompactShape();
+        EXPECT_EQ(largestComputeShape, Shape({1, 64, 4, 16}));
+        const auto numClusters = distributedType.getDistribution().num_clusters().getInt();
+        for (auto clusterIdx = 0; clusterIdx < numClusters; clusterIdx++) {
+            EXPECT_EQ(expectedShapes[clusterIdx], distributedType.getCompactShape(clusterIdx));
+        }
+    }
+
+    {
+        const auto kernel = getIntArrayAttr(&ctx, SmallVector<int64_t>({3, 3}));
+        const auto pads = VPU::PaddingAttr::get(getIntAttr(&ctx, 1), getIntAttr(&ctx, 1), getIntAttr(&ctx, 1),
+                                                getIntAttr(&ctx, 1), &ctx);
+        const auto strides = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 1}));
+        const auto distributedAttr = VPU::DistributedTensorAttr::get(distributionModeAttr, numTilesAttr, kernel, pads,
+                                                                     strides, numClustersAttr, &ctx);
+        const auto distributedType =
+                VPU::DistributedTensorType::get(&ctx, shape, elemType, dimsOrder, dimsSpace, distributedAttr);
+
+        const auto perClusterShapes = distributedType.getPerClusterComputeShapes();
+        const SmallVector<Shape> expectedShapes(
+                {Shape({1, 64, 5, 16}), Shape({1, 64, 6, 16}), Shape({1, 64, 6, 16}), Shape({1, 64, 2, 16})});
+        for (const auto shapePair : zip(perClusterShapes, expectedShapes)) {
+            EXPECT_EQ(std::get<0>(shapePair), std::get<1>(shapePair));
+        }
+        const auto largestComputeShape = distributedType.getLargestCompactShape();
+        EXPECT_EQ(largestComputeShape, Shape({1, 64, 6, 16}));
+        const auto numClusters = distributedType.getDistribution().num_clusters().getInt();
+        for (auto clusterIdx = 0; clusterIdx < numClusters; clusterIdx++) {
+            EXPECT_EQ(expectedShapes[clusterIdx], distributedType.getCompactShape(clusterIdx));
+        }
+    }
+
+    {
+        const auto kernel = getIntArrayAttr(&ctx, SmallVector<int64_t>({3, 3}));
+        const auto pads = VPU::PaddingAttr::get(getIntAttr(&ctx, 1), getIntAttr(&ctx, 1), getIntAttr(&ctx, 1),
+                                                getIntAttr(&ctx, 1), &ctx);
+        const auto strides = getIntArrayAttr(&ctx, SmallVector<int64_t>({2, 2}));
+        const auto distributedAttr = VPU::DistributedTensorAttr::get(distributionModeAttr, numTilesAttr, kernel, pads,
+                                                                     strides, numClustersAttr, &ctx);
+        const auto distributedType =
+                VPU::DistributedTensorType::get(&ctx, shape, elemType, dimsOrder, dimsSpace, distributedAttr);
+
+        const auto perClusterShapes = distributedType.getPerClusterComputeShapes();
+        const SmallVector<Shape> expectedShapes(
+                {Shape({1, 64, 4, 16}), Shape({1, 64, 5, 16}), Shape({1, 64, 5, 16}), Shape({1, 64, 2, 16})});
+        for (const auto shapePair : zip(perClusterShapes, expectedShapes)) {
+            EXPECT_EQ(std::get<0>(shapePair), std::get<1>(shapePair));
+        }
+        const auto largestComputeShape = distributedType.getLargestCompactShape();
+        EXPECT_EQ(largestComputeShape, Shape({1, 64, 5, 16}));
+        const auto numClusters = distributedType.getDistribution().num_clusters().getInt();
+        for (auto clusterIdx = 0; clusterIdx < numClusters; clusterIdx++) {
+            EXPECT_EQ(expectedShapes[clusterIdx], distributedType.getCompactShape(clusterIdx));
+        }
+    }
+}

@@ -213,6 +213,8 @@ public:
 public:
     void copyTo(MutableArrayRef<char> buf) const;
 
+    void fillWithZero();
+
     template <typename Caller>
     void mutate(Caller&& caller) & {
         dispatchByElemType<void>(getStorageElemType(), [this, caller](auto dummy) {

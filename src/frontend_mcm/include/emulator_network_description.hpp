@@ -52,6 +52,10 @@ public:
 
     const std::string& getName() const final;
 
+    int getNumStreams() const final {
+        return 1;
+    }
+
 private:
     std::string _name;
     vpux::Logger _logger;

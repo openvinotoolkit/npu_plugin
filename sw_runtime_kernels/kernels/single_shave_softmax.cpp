@@ -413,16 +413,18 @@ extern "C" {
 void singleShaveSoftmax(uint32_t lParams) {
     uint8_t * cmxData = nullptr;   // TODO: Restore the possibility of working with DDR tensors
     int32_t availableCmxBytes = 0;
+    auto layerParams = reinterpret_cast<const SoftmaxParams *>(lParams);
+
     // Special DMA to copy layer params from physical DDR
-    half* p_act_data = (half*)(reinterpret_cast<SoftmaxParams*>(lParams)->input.dataAddr); // 0x1F000000
-    half* p_act_out = (half*)(reinterpret_cast<SoftmaxParams*>(lParams)->output.dataAddr); // 0x1F004000
-    const SoftmaxParams * layerParams = reinterpret_cast<const SoftmaxParams *>(lParams);
+    half* p_act_data = (half*)(layerParams->input.dataAddr); // 0x1F000000
+    half* p_act_out = (half*)(layerParams->output.dataAddr); // 0x1F004000
+
     t_MvSoftMaxParamNClasses softmaxParamsCMX;
     t_MvSoftMaxParamNClasses* sp = &softmaxParamsCMX;
 
     // parameters specific for softmax in customCpp parameter buffer
     sp->axis = layerParams->axis;  // axis in arguments in memory notation because tensors are represented as TensorRefNDData
-                         // which is in memory notation too
+                                                // which is in memory notation too
     sp->inputInCmx = true;//(layerParams->input.location == sw_params::Location::NN_CMX || layerParams->input.location == sw_params::Location::UPA_CMX);
     sp->outputInCmx = true;//(layerParams->output.location == sw_params::Location::NN_CMX || layerParams->output.location == sw_params::Location::UPA_CMX);
     sp->ndims = layerParams->input.numDims;
@@ -431,10 +433,6 @@ void singleShaveSoftmax(uint32_t lParams) {
     int64_t *iPStrides = (int64_t *)(layerParams->input.stridesAddr);
     int64_t *oPStrides = (int64_t *)(layerParams->output.stridesAddr);
 
-    p_act_out[15 + 0] = iPStrides[0];
-    p_act_out[15 + 1] = iPStrides[1];
-    p_act_out[15 + 2] = iPStrides[2];
-    p_act_out[15 + 3] = iPStrides[3];
     for (int i = 0; i < layerParams->input.numDims; i++) {
         sp->in_dims[i] = pDims[i];
         sp->in_strides[i] = iPStrides[i] / CHAR_BIT;
@@ -445,7 +443,7 @@ void singleShaveSoftmax(uint32_t lParams) {
     for (int i = sp->ndims - 1; i >= 0; --i) {
         if (sp->ndims <= 1)
             break;
-        if (sp->in_dims[i] == 1) {
+        if (sp->in_dims[i] == 1 && sp->axis != i) {
             nnLog(MVLOG_DEBUG, "excluded: i %d, idim %d, istride %d, ostride %d, axis %d", i,
                     sp->in_dims[i], sp->in_strides[i], sp->out_strides[i], sp->axis);
             arrayElementExclude(sp->in_dims, i, sp->ndims);
@@ -454,13 +452,14 @@ void singleShaveSoftmax(uint32_t lParams) {
             nnLog(MVLOG_DEBUG, ", new_axis %d, new ndims: %d\n", sp->axis, sp->ndims);
         }
     }
-
+    //    Inner 1 dimension added to make the algorithm work in 'calculateSoftMaxOuter' way
+    //    in the case when inner stride  more than size of one tensor element
     if (sp->axis == 0 &&
             (sp->in_strides[0]  > static_cast<int32_t>(sizeof(fp16)) ||
              sp->out_strides[0] > static_cast<int32_t>(sizeof(fp16)))) {
-        arrayElementInclude(sp->in_dims, 0, 1, 1);
-        arrayElementInclude(sp->in_strides,  0, sp->in_strides[0],  1);
-        arrayElementInclude(sp->out_strides, 0, sp->out_strides[0], 1);
+        arrayElementInclude(sp->in_dims, 0, 1, sp->ndims);
+        arrayElementInclude(sp->in_strides,  0, sp->in_strides[0],  sp->ndims);
+        arrayElementInclude(sp->out_strides, 0, sp->out_strides[0], sp->ndims);
         sp->ndims++;
         sp->axis = 1;
     }

@@ -88,6 +88,10 @@ void IsolatedTilingPass::safeRunOnFunc() {
 
     mlir::ConversionTarget target(ctx);
     target.addLegalOp<IE::SliceOp, IE::ConcatOp>();
+    target.addLegalOp<VPU::NCEClusterTilingOp>();
+    target.markOpRecursivelyLegal<VPU::NCEClusterTilingOp>([&](mlir::Operation*) {
+        return true;
+    });
     target.markUnknownOpDynamicallyLegal([this](mlir::Operation* op) {
         if (auto iface = mlir::dyn_cast<IE::TilingInfoOpInterface>(op)) {
             const auto resShape = getShape(op->getResult(0));

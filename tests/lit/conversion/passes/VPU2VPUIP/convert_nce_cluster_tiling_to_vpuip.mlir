@@ -56,7 +56,9 @@ func @NCEClusterTilingCopyOpTensorResult(%input0: !type_DDR_memref) -> !type_CMX
     mode = OVERLAPPED,
     num_tiles = [1, 1, 4, 1],
     kernel = [3, 3],
-    pads = {bottom = 1, left = 1, right = 1, top = 1}
+    pads = {bottom = 1, left = 1, right = 1, top = 1},
+    strides = [1, 1],
+    num_clusters = 4
 }>
 
 !type_DDR_tensor = type tensor<1x32x16x16xf16, {mem_space = @DDR, order = #NHWC}>
@@ -114,7 +116,9 @@ func @NCEClusterTilingCopyOpDistributedResult(%input0: !type_DDR_memref) -> !typ
     mode = OVERLAPPED,
     num_tiles = [1, 1, 4, 1],
     kernel = [3, 3],
-    pads = {bottom = 1, left = 1, right = 1, top = 1}
+    pads = {bottom = 1, left = 1, right = 1, top = 1},
+    strides = [1, 1],
+    num_clusters = 4
 }>
 
 !type_DDR_tensor = type tensor<1x32x16x16xf16, {mem_space = @DDR, order = #NHWC}>

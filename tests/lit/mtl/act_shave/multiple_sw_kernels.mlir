@@ -167,7 +167,7 @@ func @main(%1: memref<1x1x1x1000xf16>, %2: memref<1x1x1x1000xf16>) -> memref<1x1
 // CHECK:              kernelText: {
 // CHECK:                name: "builtin_sigmoid",
 // CHECK:                locale: "GFEmbeddedKernel",
-// CHECK:                referenced_data_size: 1376
+// CHECK:                referenced_data_size: {{[1-9][0-9]+}}
 // CHECK:              }
 // CHECK:            },
 // CHECK:            invocations: [
@@ -218,7 +218,7 @@ func @main(%1: memref<1x1x1x1000xf16>, %2: memref<1x1x1x1000xf16>) -> memref<1x1
 // CHECK:              kernelText: {
 // CHECK:                name: "builtin_softmax",
 // CHECK:                locale: "GFEmbeddedKernel",
-// CHECK:                referenced_data_size: 5968
+// CHECK:                referenced_data_size: {{[1-9][0-9]+}}
 // CHECK:              }
 // CHECK:            },
 // CHECK:            invocations: [
@@ -268,7 +268,7 @@ func @main(%1: memref<1x1x1x1000xf16>, %2: memref<1x1x1x1000xf16>) -> memref<1x1
 // CHECK:              kernelText: {
 // CHECK:                name: "builtin_sigmoid",
 // CHECK:                locale: "GFEmbeddedKernel",
-// CHECK:                referenced_data_size: 1376
+// CHECK:                referenced_data_size: {{[1-9][0-9]+}}
 // CHECK:              }
 // CHECK:            },
 // CHECK:            invocations: [

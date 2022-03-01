@@ -365,7 +365,6 @@ Byte VPUIP::DistributedBufferType::getTotalAllocSize() const {
 Byte VPUIP::DistributedBufferType::getCompactAllocSize() const {
     auto shape = getShape();
     const auto distribution = getDistribution();
-    const auto tilingScheme = parseIntArrayAttr<int64_t>(distribution.num_tiles());
     const auto distributionMode = distribution.mode();
 
     // DUPLICATED|MULTICASTED takes priority since it means that each cluster will have the entire

@@ -1260,6 +1260,614 @@ class ActKernel(Operation):
             return False
         return True
 
+class ReadAfterWriteACTDMA(Operation):
+    PARAMS = ['mpe_op_class', 
+              'input_ttype', 
+              'input_shape', 
+              'output_ttype', 
+              'activation_type',
+              'cluster_number',
+              'iteration_count']
+
+    NAME = 'ReadAfterWriteACTDMA'
+
+    def __init__(self, settings):
+        self.settings = settings
+
+    @property
+    def ident(self) -> str:
+        ident = f'ReadAfterWriteACTDMA_{self.settings.input_ttype.stype}_iter_count_{self.settings.iteration_count}_cluster_{self.settings.cluster_number}'
+        return ident
+
+    @property
+    def orderer(self) -> Orderer:
+        return OrderNHWC
+
+    @property
+    def output_orderer(self) -> Orderer:
+        return OrderNHWC
+
+    @property
+    def data(self) -> dict:
+        ActivationType2String = {
+            ActivationType.HSwish: 'HSwish',
+        }
+
+        return {
+            'Name': self.ident,
+            'Input Type': np.dtype(self.settings.input_ttype),
+            'Output Type': np.dtype(self.settings.output_ttype),
+            'Input Shape': ', '.join([str(s) for s in self.settings.input_shape]),
+            'Type': ActivationType2String[self.settings.activation_type[0]],
+            'Cluster Number' : self.settings.cluster_number.stype,
+            'Iteration Count': self.settings.iteration_count.stype
+        }
+
+    def validate(self):
+        return True
+
+    def generate_inputs(self, rng) -> List[Value]:
+        return [
+            self.settings.input_ttype.generate('input-0.bin', self.settings.input_shape, rng)
+        ]
+
+    def json_info(self, inputs, output):
+        assert(output.is_float)
+
+        json = {
+            'case_type': 'ReadAfterWriteACTDMA',
+            'input': inputs[0].json_info,
+            'output': output.json_info,
+            'activation': {
+                'name' : self.settings.activation_type[0].name
+            },
+            'cluster_number' : self.settings.cluster_number,
+            'iteration_count' : self.settings.iteration_count
+        }
+
+        return json
+
+    def apply(self, values: List[Value]) -> np.ndarray:
+        count = (self.settings.iteration_count - 1) // 2
+        result = values[0].data.astype(self.settings.input_ttype.dtype)
+        for i in range(0, count) :
+            result = HSwish().inference(result)
+            result = result.astype(self.settings.input_ttype.dtype)
+    
+        result = ma.getdata(result)
+        return result
+
+    def filter_issues(self, args) -> bool:
+        if(self.settings.cluster_number == 1):
+            # EISW-29786
+            return False
+
+        # EISW-29771
+        return False
+
+class ReadAfterWriteDMAACT(Operation):
+    PARAMS = ['mpe_op_class', 
+              'input_ttype', 
+              'input_shape', 
+              'output_ttype', 
+              'activation_type', 
+              'cluster_number',
+              'iteration_count']
+    NAME = 'ReadAfterWriteDMAACT'
+
+    def __init__(self, settings):
+        self.settings = settings
+
+    @property
+    def ident(self) -> str:
+        ident = f'ReadAfterWriteDMAACT_{self.settings.input_ttype.stype}_iter_count_{self.settings.iteration_count}_cluster_{self.settings.cluster_number}'
+        return ident
+
+    @property
+    def orderer(self) -> Orderer:
+        return OrderNHWC
+
+    @property
+    def output_orderer(self) -> Orderer:
+        return OrderNHWC
+
+    @property
+    def data(self) -> dict:
+        ActivationType2String = {
+            ActivationType.HSwish: 'HSwish',
+        }
+
+        return {
+            'Name': self.ident,
+            'Input Type': np.dtype(self.settings.input_ttype),
+            'Output Type': np.dtype(self.settings.output_ttype),
+            'Input Shape': ', '.join([str(s) for s in self.settings.input_shape]),
+            'Type': ActivationType2String[self.settings.activation_type[0]],
+            'Cluster Number' : self.settings.cluster_number.stype,
+            'Iteration Count': self.settings.iteration_count.stype
+        }
+
+    def validate(self):
+        return True
+
+    def generate_inputs(self, rng) -> List[Value]:
+        return [
+            self.settings.input_ttype.generate('input-0.bin', self.settings.input_shape, rng)
+        ]
+
+    def json_info(self, inputs, output):
+        assert(output.is_float)
+
+        json = {
+            'case_type': 'ReadAfterWriteDMAACT',
+            'input': inputs[0].json_info,
+            'output': output.json_info,
+            'activation': {
+                'name' : self.settings.activation_type[0].name
+            },
+            'cluster_number' : self.settings.cluster_number,
+            'iteration_count' : self.settings.iteration_count
+        }
+
+        return json
+
+    def apply(self, values: List[Value]) -> np.ndarray:
+        lhs, _ = idu(values[0], values[0])
+        return lhs
+
+    def filter_issues(self, args) -> bool:
+        if(self.settings.cluster_number == 1):
+            # EISW-29786
+            return False
+
+        return True
+
+class ReadAfterWriteDPUDMA(Operation):
+
+    PARAMS = [
+        'mpe_op_class',
+        'input_ttype',
+        'input_shape',
+        'weight_ttype',
+        'kernel_channels',
+        'kernel_shape',
+        'output_ttype',
+        'output_order',
+        'kernel_strides',
+        'kernel_pads',
+        'compress',
+        'mpe_cub',
+        'cluster_number',
+        'iteration_count'
+    ]
+
+    def __init__(self, settings):
+        self.settings = settings
+        settings.weight_shape = [settings.kernel_channels, settings.input_shape[1]] + settings.kernel_shape
+
+    def json_info(self, inputs, output):
+        return {
+            'case_type': 'ReadAfterWriteDPUDMA',
+            'input': inputs[0].json_info,
+            'weight': inputs[1].json_info,
+            'output': output.json_info,
+            'conv_op': {
+                'stride': self.settings.kernel_strides,
+                'pad': self.settings.kernel_pads,
+                'group': 1,
+                'dilation': 1,
+                'compress': self.settings.compress,
+                'mpe_cub': self.settings.mpe_cub.name
+            },
+            'output_order': self.settings.output_order.name.lower(),
+            'cluster_number' : self.settings.cluster_number,
+            'iteration_count' : self.settings.iteration_count
+        }
+
+    def validate(self):
+        pass
+
+    @property
+    def ident(self) -> str:
+        return f'ReadAfterWriteDPUDMA_{self.settings.input_ttype.stype}_iter_count_{self.settings.iteration_count}_cluster_{self.settings.cluster_number}'
+
+    @property
+    def orderer(self) -> Orderer:
+        return OrderNHWC
+
+    @property
+    def output_orderer(self) -> Orderer:
+        return orderToOrderer(self.settings.output_order)
+
+    @property
+    def data(self) -> dict:
+        return {
+            'Name': self.ident,
+            'Input Type': np.dtype(self.settings.input_ttype),
+            'Input Scale': self.settings.input_ttype.scale if hasattr(self.settings.input_ttype, 'scale') else 1,
+            'Input Zero Point': self.settings.input_ttype.zero if hasattr(self.settings.input_ttype, 'zero') else 0,
+            'Weights Type': np.dtype(self.settings.weight_ttype),
+            'Weights Scale': self.settings.weight_ttype.scale if hasattr(self.settings.weight_ttype, 'scale') else 1,
+            'Weights Zero Point': self.settings.weight_ttype.zero if hasattr(self.settings.weight_ttype, 'zero') else 0,
+            'Output Type': np.dtype(self.settings.output_ttype),
+            'Output Scale': self.settings.output_ttype.scale if hasattr(self.settings.output_ttype, 'scale') else 1,
+            'Output Zero Point': self.settings.output_ttype.zero if hasattr(self.settings.output_ttype, 'zero') else 0,
+            'IC': self.settings.input_shape[1],
+            'IH': self.settings.input_shape[2],
+            'IW': self.settings.input_shape[3],
+            'IK': self.settings.kernel_channels,
+            'KH': self.settings.kernel_shape[0],
+            'KW': self.settings.kernel_shape[1],
+            'SH': self.settings.kernel_strides[1],
+            'SW': self.settings.kernel_strides[0],
+            'PT': self.settings.kernel_pads[0],
+            'PB': self.settings.kernel_pads[2],
+            'PL': self.settings.kernel_pads[1],
+            'PR': self.settings.kernel_pads[3],
+            'NTHW_NTK': mpeCube2NTHW_NTK[self.settings.mpe_cub],
+            'Output Permute': SW2HWOrder[self.settings.output_order],
+            'Compression': int(self.settings.compress),
+            'Cluster Number' : self.settings.cluster_number.stype,
+            'Iteration Count': self.settings.iteration_count.stype
+        }
+
+    def generate_inputs(self, rng) -> List[Value]:
+        return [
+            self.settings.input_ttype.generate('input-0.bin', self.settings.input_shape, rng),
+            self.settings.weight_ttype.generate('weights.dat', self.settings.weight_shape, rng, orderer=OrderNCHW)
+        ]
+
+    def apply(self, values: List[Value]) -> np.ndarray:
+        c2d = MTLConv2D(kernel_shape=self.settings.kernel_shape,
+                        pads = self.settings.kernel_pads,
+                        strides = self.settings.kernel_strides)
+        count = (self.settings.iteration_count - 1) // 2
+        lhs, rhs = iduConvCustom(values[0], values[1])
+        for i in range(0, count) :
+            result = c2d.inference(lhs, rhs)
+            ndarray = result.value if isinstance(result, NBQuantized) else result
+            lhs = ndarray.astype(self.settings.input_ttype.dtype)
+
+        return result
+
+    def filter_issues(self, args) -> bool:
+        return True
+
+class ReadAfterWriteDMADPU(Operation):
+
+    PARAMS = [
+        'mpe_op_class',
+        'input_ttype',
+        'input_shape',
+        'weight_ttype',
+        'kernel_channels',
+        'kernel_shape',
+        'output_ttype',
+        'output_order',
+        'kernel_strides',
+        'kernel_pads',
+        'compress',
+        'mpe_cub',
+        'cluster_number',
+        'iteration_count'
+    ]
+
+    def __init__(self, settings):
+        self.settings = settings
+        settings.weight_shape = [settings.kernel_channels, settings.input_shape[1]] + settings.kernel_shape
+
+    def json_info(self, inputs, output):
+        return {
+            'case_type': 'ReadAfterWriteDMADPU',
+            'input': inputs[0].json_info,
+            'weight': inputs[1].json_info,
+            'output': output.json_info,
+            'conv_op': {
+                'stride': self.settings.kernel_strides,
+                'pad': self.settings.kernel_pads,
+                'group': 1,
+                'dilation': 1,
+                'compress': self.settings.compress,
+                'mpe_cub': self.settings.mpe_cub.name
+            },
+            'output_order': self.settings.output_order.name.lower(),
+            'cluster_number' : self.settings.cluster_number,
+            'iteration_count' : self.settings.iteration_count
+        }
+
+    def validate(self):
+        pass
+
+    @property
+    def ident(self) -> str:
+        return f'ReadAfterWriteDMADPU_{self.settings.input_ttype.stype}_iter_count_{self.settings.iteration_count}_cluster_{self.settings.cluster_number}'
+
+    @property
+    def orderer(self) -> Orderer:
+        return OrderNHWC
+
+    @property
+    def output_orderer(self) -> Orderer:
+        return orderToOrderer(self.settings.output_order)
+
+    @property
+    def data(self) -> dict:
+        return {
+            'Name': self.ident,
+            'Input Type': np.dtype(self.settings.input_ttype),
+            'Input Scale': self.settings.input_ttype.scale if hasattr(self.settings.input_ttype, 'scale') else 1,
+            'Input Zero Point': self.settings.input_ttype.zero if hasattr(self.settings.input_ttype, 'zero') else 0,
+            'Weights Type': np.dtype(self.settings.weight_ttype),
+            'Weights Scale': self.settings.weight_ttype.scale if hasattr(self.settings.weight_ttype, 'scale') else 1,
+            'Weights Zero Point': self.settings.weight_ttype.zero if hasattr(self.settings.weight_ttype, 'zero') else 0,
+            'Output Type': np.dtype(self.settings.output_ttype),
+            'Output Scale': self.settings.output_ttype.scale if hasattr(self.settings.output_ttype, 'scale') else 1,
+            'Output Zero Point': self.settings.output_ttype.zero if hasattr(self.settings.output_ttype, 'zero') else 0,
+            'IC': self.settings.input_shape[1],
+            'IH': self.settings.input_shape[2],
+            'IW': self.settings.input_shape[3],
+            'IK': self.settings.kernel_channels,
+            'KH': self.settings.kernel_shape[0],
+            'KW': self.settings.kernel_shape[1],
+            'SH': self.settings.kernel_strides[1],
+            'SW': self.settings.kernel_strides[0],
+            'PT': self.settings.kernel_pads[0],
+            'PB': self.settings.kernel_pads[2],
+            'PL': self.settings.kernel_pads[1],
+            'PR': self.settings.kernel_pads[3],
+            'NTHW_NTK': mpeCube2NTHW_NTK[self.settings.mpe_cub],
+            'Output Permute': SW2HWOrder[self.settings.output_order],
+            'Compression': int(self.settings.compress),
+            'Cluster Number' : self.settings.cluster_number.stype,
+            'Iteration Count': self.settings.iteration_count.stype
+        }
+
+    def generate_inputs(self, rng) -> List[Value]:
+        return [
+            self.settings.input_ttype.generate('input-0.bin', self.settings.input_shape, rng),
+            self.settings.weight_ttype.generate('weights.dat', self.settings.weight_shape, rng, orderer=OrderNCHW)
+        ]
+
+    def apply(self, values: List[Value]) -> np.ndarray:
+        lhs, _ = idu(values[0], values[0])
+        return lhs
+
+    def filter_issues(self, args) -> bool:
+        return True
+
+class ReadAfterWriteDPUACT(Operation):
+    PARAMS = [
+        'mpe_op_class',
+        'input_ttype',
+        'input_shape',
+        'weight_ttype',
+        'kernel_channels',
+        'kernel_shape',
+        'output_ttype',
+        'output_order',
+        'kernel_strides',
+        'kernel_pads',
+        'compress',
+        'mpe_cub',
+        'act_op',
+        'cluster_number',
+        'iteration_count'
+    ]
+
+    def __init__(self, settings):
+        self.settings = settings
+        settings.weight_shape = [settings.kernel_channels, settings.input_shape[1]] + settings.kernel_shape
+
+    def json_info(self, inputs, output):
+        return {
+            'case_type': 'ReadAfterWriteDPUACT',
+            'input': inputs[0].json_info,
+            'weight': inputs[1].json_info,
+            'output': output.json_info,
+            'conv_op': {
+                'stride': self.settings.kernel_strides,
+                'pad': self.settings.kernel_pads,
+                'group': 1,
+                'dilation': 1,
+                'compress': self.settings.compress,
+                'mpe_cub': self.settings.mpe_cub.name
+            },
+            'activation': {
+                'name' : self.settings.act_op.name
+            },
+            'output_order': self.settings.output_order.name.lower(),
+            'cluster_number' : self.settings.cluster_number,
+            'iteration_count' : self.settings.iteration_count
+        }
+
+    def validate(self):
+        pass
+
+    @property
+    def ident(self) -> str:
+        return f'ReadAfterWriteDPUACT_{self.settings.input_ttype.stype}_iter_count_{self.settings.iteration_count}_cluster_{self.settings.cluster_number}'
+
+    @property
+    def orderer(self) -> Orderer:
+        return OrderNHWC
+
+    @property
+    def output_orderer(self) -> Orderer:
+        return orderToOrderer(self.settings.output_order)
+
+    @property
+    def data(self) -> dict:
+        return {
+            'Name': self.ident,
+            'Input Type': np.dtype(self.settings.input_ttype),
+            'Input Scale': self.settings.input_ttype.scale if hasattr(self.settings.input_ttype, 'scale') else 1,
+            'Input Zero Point': self.settings.input_ttype.zero if hasattr(self.settings.input_ttype, 'zero') else 0,
+            'Weights Type': np.dtype(self.settings.weight_ttype),
+            'Weights Scale': self.settings.weight_ttype.scale if hasattr(self.settings.weight_ttype, 'scale') else 1,
+            'Weights Zero Point': self.settings.weight_ttype.zero if hasattr(self.settings.weight_ttype, 'zero') else 0,
+            'Output Type': np.dtype(self.settings.output_ttype),
+            'Output Scale': self.settings.output_ttype.scale if hasattr(self.settings.output_ttype, 'scale') else 1,
+            'Output Zero Point': self.settings.output_ttype.zero if hasattr(self.settings.output_ttype, 'zero') else 0,
+            'IC': self.settings.input_shape[1],
+            'IH': self.settings.input_shape[2],
+            'IW': self.settings.input_shape[3],
+            'IK': self.settings.kernel_channels,
+            'KH': self.settings.kernel_shape[0],
+            'KW': self.settings.kernel_shape[1],
+            'SH': self.settings.kernel_strides[1],
+            'SW': self.settings.kernel_strides[0],
+            'PT': self.settings.kernel_pads[0],
+            'PB': self.settings.kernel_pads[2],
+            'PL': self.settings.kernel_pads[1],
+            'PR': self.settings.kernel_pads[3],
+            'NTHW_NTK': mpeCube2NTHW_NTK[self.settings.mpe_cub],
+            'Output Permute': SW2HWOrder[self.settings.output_order],
+            'Compression': int(self.settings.compress),
+            'Cluster Number' : self.settings.cluster_number.stype,
+            'Iteration Count': self.settings.iteration_count.stype
+        }
+
+    def generate_inputs(self, rng) -> List[Value]:
+        return [
+            self.settings.input_ttype.generate('input-0.bin', self.settings.input_shape, rng),
+            self.settings.weight_ttype.generate('weights.dat', self.settings.weight_shape, rng, orderer=OrderNCHW)
+        ]
+
+    def apply(self, values: List[Value]) -> np.ndarray:
+        c2d = MTLConv2D(kernel_shape=self.settings.kernel_shape,
+                        pads = self.settings.kernel_pads,
+                        strides = self.settings.kernel_strides)
+        count = (self.settings.iteration_count - 1) // 2
+        lhs, rhs = iduConvCustom(values[0], values[1])
+        for i in range(0, count) :
+            result = c2d.inference(lhs, rhs)
+            ndarray = result.value if isinstance(result, NBQuantized) else result
+            lhs = ndarray.astype(self.settings.input_ttype.dtype)
+
+        return result
+
+    def filter_issues(self, args) -> bool:
+        if(self.settings.cluster_number == 1):
+            # EISW-29786
+            return False
+
+        return True
+
+class ReadAfterWriteACTDPU(Operation):
+    PARAMS = [
+        'mpe_op_class',
+        'input_ttype',
+        'input_shape',
+        'weight_ttype',
+        'kernel_channels',
+        'kernel_shape',
+        'output_ttype',
+        'output_order',
+        'kernel_strides',
+        'kernel_pads',
+        'compress',
+        'mpe_cub',
+        'act_op',
+        'cluster_number',
+        'iteration_count'
+    ]
+
+    def __init__(self, settings):
+        self.settings = settings
+        settings.weight_shape = [settings.kernel_channels, settings.input_shape[1]] + settings.kernel_shape
+
+    def json_info(self, inputs, output):
+        return {
+            'case_type': 'ReadAfterWriteACTDPU',
+            'input': inputs[0].json_info,
+            'weight': inputs[1].json_info,
+            'output': output.json_info,
+            'conv_op': {
+                'stride': self.settings.kernel_strides,
+                'pad': self.settings.kernel_pads,
+                'group': 1,
+                'dilation': 1,
+                'compress': self.settings.compress,
+                'mpe_cub': self.settings.mpe_cub.name
+            },
+            'activation': {
+                'name' : self.settings.act_op.name
+            },
+            'output_order': self.settings.output_order.name.lower(),
+            'cluster_number' : self.settings.cluster_number,
+            'iteration_count' : self.settings.iteration_count
+        }
+
+    def validate(self):
+        pass
+
+    @property
+    def ident(self) -> str:
+        return f'ReadAfterWriteACTDPU_{self.settings.input_ttype.stype}_iter_count_{self.settings.iteration_count}_cluster_{self.settings.cluster_number}'
+
+    @property
+    def orderer(self) -> Orderer:
+        return OrderNHWC
+
+    @property
+    def output_orderer(self) -> Orderer:
+        return orderToOrderer(self.settings.output_order)
+
+    @property
+    def data(self) -> dict:
+        return {
+            'Name': self.ident,
+            'Input Type': np.dtype(self.settings.input_ttype),
+            'Input Scale': self.settings.input_ttype.scale if hasattr(self.settings.input_ttype, 'scale') else 1,
+            'Input Zero Point': self.settings.input_ttype.zero if hasattr(self.settings.input_ttype, 'zero') else 0,
+            'Weights Type': np.dtype(self.settings.weight_ttype),
+            'Weights Scale': self.settings.weight_ttype.scale if hasattr(self.settings.weight_ttype, 'scale') else 1,
+            'Weights Zero Point': self.settings.weight_ttype.zero if hasattr(self.settings.weight_ttype, 'zero') else 0,
+            'Output Type': np.dtype(self.settings.output_ttype),
+            'Output Scale': self.settings.output_ttype.scale if hasattr(self.settings.output_ttype, 'scale') else 1,
+            'Output Zero Point': self.settings.output_ttype.zero if hasattr(self.settings.output_ttype, 'zero') else 0,
+            'IC': self.settings.input_shape[1],
+            'IH': self.settings.input_shape[2],
+            'IW': self.settings.input_shape[3],
+            'IK': self.settings.kernel_channels,
+            'KH': self.settings.kernel_shape[0],
+            'KW': self.settings.kernel_shape[1],
+            'SH': self.settings.kernel_strides[1],
+            'SW': self.settings.kernel_strides[0],
+            'PT': self.settings.kernel_pads[0],
+            'PB': self.settings.kernel_pads[2],
+            'PL': self.settings.kernel_pads[1],
+            'PR': self.settings.kernel_pads[3],
+            'NTHW_NTK': mpeCube2NTHW_NTK[self.settings.mpe_cub],
+            'Output Permute': SW2HWOrder[self.settings.output_order],
+            'Compression': int(self.settings.compress),
+            'Cluster Number' : self.settings.cluster_number.stype,
+            'Iteration Count': self.settings.iteration_count.stype
+        }
+
+    def generate_inputs(self, rng) -> List[Value]:
+        return [
+            self.settings.input_ttype.generate('input-0.bin', self.settings.input_shape, rng),
+            self.settings.weight_ttype.generate('weights.dat', self.settings.weight_shape, rng, orderer=OrderNCHW)
+        ]
+
+    def apply(self, values: List[Value]) -> np.ndarray:
+        count = (self.settings.iteration_count - 1) // 2
+        result = values[0].data.astype(self.settings.input_ttype.dtype)
+        for i in range(0, count) :
+            result = HSwish().inference(result)
+            result = result.astype(self.settings.input_ttype.dtype)
+    
+        result = ma.getdata(result)
+        return result
+
+    def filter_issues(self, args) -> bool:
+        if(self.settings.cluster_number == 1):
+            # EISW-29786
+            return False
+        
+        return True
+
 class MemoryLocation(Enum):
     DDR = auto()
     CMX0 = auto()
@@ -2059,6 +2667,190 @@ def genDepthWiseConvs(input_types=[FP16(2)],
                                                      pad
                                                      ))
 
+def genReadAfterWriteACTDMA(input_types=[FP16(0)],
+                            input_shapes=[[1, 10, 2, 3]],
+                            output_types=[FP16()],
+                            act_shave_subtypes=[
+                                [ActivationType.HSwish],
+                            ],
+                            cluster_numbers=[0, 1],
+                            iteration_count = 19):
+                    for (input_type, input_shape, output_type, act_shave_subtype, cluster_number) in itertools.product(input_types, input_shapes, output_types, act_shave_subtypes, cluster_numbers):
+                        yield DPUPipeline(ReadAfterWriteACTDMA.PARAMS, (ReadAfterWriteACTDMA, input_type, input_shape, output_type, act_shave_subtype, cluster_number, iteration_count))
+
+def genReadAfterWriteDMAACT(input_types=[FP16(0)],
+                            input_shapes=[[1, 10, 2, 3]],
+                            output_types=[FP16()],
+                            act_shave_subtypes=[
+                                [ActivationType.HSwish],
+                            ],
+                            cluster_numbers=[0, 1],
+                            iteration_count = 19):
+                    for (input_type, input_shape, output_type, act_shave_subtype, cluster_number) in itertools.product(input_types, input_shapes, output_types, act_shave_subtypes, cluster_numbers):
+                        yield DPUPipeline(ReadAfterWriteDMAACT.PARAMS, (ReadAfterWriteDMAACT, input_type, input_shape, output_type, act_shave_subtype, cluster_number, iteration_count))
+
+def genReadAfterWriteDPUDMA(input_types=[FP16(0)],
+                            input_shapes=[[1, 16, 16, 16]],
+                            weight_types=[FP16(0)],
+                            kernel_channels=[16],
+                            kernel_shapes=[[1, 1]],
+                            output_types=[FP16()],
+                            output_orders=[Order.NHWC],
+                            strides=[[1, 1]],
+                            pads=Pad.none,
+                            compress=False,
+                            mpe_cubs=[MPE_CUBES.CUBOID_16x16],
+                            cluster_numbers=[0, 1],
+                            iteration_count = 19):
+    for (input_type, input_shape, kernel_channel, kernel_shape, output_order, stride, pad, mpe_cub, cluster_number) in itertools.product(input_types, input_shapes, kernel_channels, kernel_shapes, output_orders, strides, pads, mpe_cubs, cluster_numbers):
+
+        current_weight_types = weight_types
+        for weight_type in current_weight_types:
+
+            current_output_types = output_types
+            for output_type in current_output_types:
+                if(output_order != Order.NHWC and not _PPE_HAS_PERMUTATION_SUPPORT[output_type.__class__]) :
+                    print("skip", output_order, output_type)
+                    continue
+                yield DPUPipeline(ReadAfterWriteDPUDMA.PARAMS, (ReadAfterWriteDPUDMA,
+                                                                input_type,
+                                                                input_shape,
+                                                                weight_type,
+                                                                kernel_channel,
+                                                                kernel_shape,
+                                                                output_type,
+                                                                output_order,
+                                                                stride,
+                                                                pad,
+                                                                compress,
+                                                                mpe_cub,
+                                                                cluster_number,
+                                                                iteration_count
+                                                                ))
+
+def genReadAfterWriteDMADPU(input_types=[FP16(0)],
+                            input_shapes=[[1, 16, 16, 16]],
+                            weight_types=[FP16(0)],
+                            kernel_channels=[16],
+                            kernel_shapes=[[1, 1]],
+                            output_types=[FP16()],
+                            output_orders=[Order.NHWC],
+                            strides=[[1, 1]],
+                            pads=Pad.none,
+                            compress=False,
+                            mpe_cubs=[MPE_CUBES.CUBOID_16x16],
+                            cluster_numbers=[0, 1],
+                            iteration_count = 19):
+    for (input_type, input_shape, kernel_channel, kernel_shape, output_order, stride, pad, mpe_cub, cluster_number) in itertools.product(input_types, input_shapes, kernel_channels, kernel_shapes, output_orders, strides, pads, mpe_cubs, cluster_numbers):
+
+        current_weight_types = weight_types
+        for weight_type in current_weight_types:
+
+            current_output_types = output_types
+            for output_type in current_output_types:
+                if(output_order != Order.NHWC and not _PPE_HAS_PERMUTATION_SUPPORT[output_type.__class__]) :
+                    print("skip", output_order, output_type)
+                    continue
+                yield DPUPipeline(ReadAfterWriteDMADPU.PARAMS, (ReadAfterWriteDMADPU,
+                                                                input_type,
+                                                                input_shape,
+                                                                weight_type,
+                                                                kernel_channel,
+                                                                kernel_shape,
+                                                                output_type,
+                                                                output_order,
+                                                                stride,
+                                                                pad,
+                                                                compress,
+                                                                mpe_cub,
+                                                                cluster_number,
+                                                                iteration_count
+                                                                ))
+
+def genReadAfterWriteDPUACT(input_types=[FP16(0)],
+                            input_shapes=[[1, 16, 8, 8]],
+                            weight_types=[FP16(0)],
+                            kernel_channels=[16],
+                            kernel_shapes=[[1, 1]],
+                            output_types=[FP16()],
+                            output_orders=[Order.NHWC],
+                            strides=[[1, 1]],
+                            pads=Pad.none,
+                            compress=False,
+                            mpe_cubs=[MPE_CUBES.CUBOID_16x16],
+                            act_types=[ActivationType.HSwish],
+                            cluster_numbers=[0, 1],
+                            iteration_count = 19):
+
+    for (input_type, input_shape, kernel_channel, kernel_shape, output_order, stride, pad, mpe_cub, act_type, cluster_number) in itertools.product(input_types, input_shapes, kernel_channels, kernel_shapes, output_orders, strides, pads, mpe_cubs, act_types, cluster_numbers):
+
+        current_weight_types = weight_types
+        for weight_type in current_weight_types:
+
+            current_output_types = output_types
+            for output_type in current_output_types:
+                if(output_order != Order.NHWC and not _PPE_HAS_PERMUTATION_SUPPORT[output_type.__class__]) :
+                    print("skip", output_order, output_type)
+                    continue
+                yield DPUPipeline(ReadAfterWriteDPUACT.PARAMS, (ReadAfterWriteDPUACT,
+                                                                input_type,
+                                                                input_shape,
+                                                                weight_type,
+                                                                kernel_channel,
+                                                                kernel_shape,
+                                                                output_type,
+                                                                output_order,
+                                                                stride,
+                                                                pad,
+                                                                compress,
+                                                                mpe_cub,
+                                                                act_type,
+                                                                cluster_number,
+                                                                iteration_count
+                                                                ))
+
+def genReadAfterWriteACTDPU(input_types=[FP16(0)],
+                            input_shapes=[[1, 16, 8, 8]],
+                            weight_types=[FP16(0)],
+                            kernel_channels=[16],
+                            kernel_shapes=[[1, 1]],
+                            output_types=[FP16()],
+                            output_orders=[Order.NHWC],
+                            strides=[[1, 1]],
+                            pads=Pad.none,
+                            compress=False,
+                            mpe_cubs=[MPE_CUBES.CUBOID_16x16],
+                            act_types=[ActivationType.HSwish],
+                            cluster_numbers=[0, 1],
+                            iteration_count = 19):
+
+    for (input_type, input_shape, kernel_channel, kernel_shape, output_order, stride, pad, mpe_cub, act_type, cluster_number) in itertools.product(input_types, input_shapes, kernel_channels, kernel_shapes, output_orders, strides, pads, mpe_cubs, act_types, cluster_numbers):
+
+        current_weight_types = weight_types
+        for weight_type in current_weight_types:
+
+            current_output_types = output_types
+            for output_type in current_output_types:
+                if(output_order != Order.NHWC and not _PPE_HAS_PERMUTATION_SUPPORT[output_type.__class__]) :
+                    print("skip", output_order, output_type)
+                    continue
+                yield DPUPipeline(ReadAfterWriteACTDPU.PARAMS, (ReadAfterWriteACTDPU,
+                                                                input_type,
+                                                                input_shape,
+                                                                weight_type,
+                                                                kernel_channel,
+                                                                kernel_shape,
+                                                                output_type,
+                                                                output_order,
+                                                                stride,
+                                                                pad,
+                                                                compress,
+                                                                mpe_cub,
+                                                                act_type,
+                                                                cluster_number,
+                                                                iteration_count
+                                                                ))
+
 def genActShave(input_types,
                input_shapes,
                output_types,
@@ -2784,7 +3576,32 @@ def generate_options(args):
             output_orders=[Order.NCHW],
             pads=[[0, 0, 0, 0]]
         ),
-        # check all datatypes
+
+        genReadAfterWriteACTDMA(
+            iteration_count=13
+        ),
+
+        genReadAfterWriteDMAACT(
+            iteration_count=13
+        ),
+
+        genReadAfterWriteDPUACT(
+            iteration_count=11
+        ),
+
+        genReadAfterWriteACTDPU(
+            iteration_count=13
+        ),
+
+        genReadAfterWriteDPUDMA(
+            iteration_count=13
+        ),
+
+        genReadAfterWriteDMADPU(
+            iteration_count=13
+        ),
+
+        # # check all datatypes
         genDMA(
             tensor_types=[Int4(3), UInt4(3), Int8(3), UInt8(3), FP16(4), BF16(4)],
             input_shapes=[[1, 16, 32, 32]]

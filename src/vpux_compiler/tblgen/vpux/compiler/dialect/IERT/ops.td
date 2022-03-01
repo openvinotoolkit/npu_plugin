@@ -1013,6 +1013,130 @@ def IERT_AcoshOp :
 }
 
 //
+// AbsOp
+//
+
+def IERT_AbsOp :
+        IERT_LayerOp<1, "Abs",
+            [
+                ViewLikeOpInterface,
+                SameOperandsShape,
+                SameOperandsElementType
+            ]
+        > {
+    let summary = "InferenceEngine run-time Abs layer";
+
+    let arguments = (ins
+        MemRefOf<[F16, F32]>:$input,
+        MemRefOf<[F16, F32]>:$output_buff
+    );
+
+    let results = (outs
+        MemRefOf<[F16, F32]>:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
+//
+// AtanOp
+//
+
+def IERT_AtanOp :
+        IERT_LayerOp<1, "Atan",
+            [
+                ViewLikeOpInterface,
+                SameOperandsShape,
+                SameOperandsElementType
+            ]
+        > {
+    let summary = "InferenceEngine run-time Atan layer";
+
+    let arguments = (ins
+        MemRefOf<[F16, F32]>:$input,
+        MemRefOf<[F16, F32]>:$output_buff
+    );
+
+    let results = (outs
+        MemRefOf<[F16, F32]>:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
+//
+// AsinOp
+//
+
+def IERT_AsinOp :
+        IERT_LayerOp<1, "Asin",
+            [
+                ViewLikeOpInterface,
+                SameOperandsShape,
+                SameOperandsElementType
+            ]
+        > {
+    let summary = "InferenceEngine run-time Asin layer";
+
+    let arguments = (ins
+        MemRefOf<[F16, F32]>:$input,
+        MemRefOf<[F16, F32]>:$output_buff
+    );
+
+    let results = (outs
+        MemRefOf<[F16, F32]>:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
+//
+// AcosOp
+//
+
+def IERT_AcosOp :
+        IERT_LayerOp<1, "Acos",
+            [
+                ViewLikeOpInterface,
+                SameOperandsShape,
+                SameOperandsElementType
+            ]
+        > {
+    let summary = "InferenceEngine run-time Acos layer";
+
+    let arguments = (ins
+        MemRefOf<[F16, F32]>:$input,
+        MemRefOf<[F16, F32]>:$output_buff
+    );
+
+    let results = (outs
+        MemRefOf<[F16, F32]>:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
+//
 // AtanhOp
 //
 
@@ -3056,7 +3180,7 @@ def IERT_EqualOp :
     }];
 }
 
-// 
+//
 // DepthToSpaceOp
 //
 
@@ -3124,7 +3248,7 @@ def IERT_NotEqualOp :
 //
 
 def IERT_ReverseSequenceOp :
-        IERT_LayerOp<1, 
+        IERT_LayerOp<1,
             "ReverseSequence",
             [
                 ViewLikeOpInterface

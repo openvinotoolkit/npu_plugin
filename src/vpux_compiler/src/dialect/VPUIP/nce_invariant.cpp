@@ -311,7 +311,7 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyConvCMX(mlir::Location loc,
 
         const auto activationWindowSize = VPU::NCESparsity::getActivationWindowSize(
                 VPU::NCESparsity::Mode::CM_CONV, kernelSize, kernelStridesVals[Dims4D::Strides::X],
-                inputType.getElementType(), IC);
+                inputType.getElementType(), IC, 1);
 
         requiredCMX =
                 getRequiredCMXForTiling({inputType, alignedFilterType, outputType}, OC) + activationWindowSize * 1_Byte;
@@ -358,17 +358,17 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyPoolCMX(mlir::Location loc,
     VPUX_THROW_UNLESS(kernelSize.size() == 2, "Unsupported kernel size: {0}", kernelSize.size());
     VPUX_THROW_UNLESS(kernelStrides.size() == 2, "Unsupported strides size: {0}", kernelSize.size());
 
-    const auto inputShape = inputType.getShape();
-    const auto IC = inputShape[Dims4D::Act::C];
+    const auto outputShape = outputType.getShape();
+    const auto OC = outputShape[Dims4D::Act::C];
 
     const auto kernelSizeVals = Shape(parseIntArrayAttr<int64_t>(kernelSize));
     const auto kernelStridesVals = Shape(parseIntArrayAttr<int64_t>(kernelStrides));
 
     const auto activationWindowSize = VPU::NCESparsity::getActivationWindowSize(
             VPU::NCESparsity::Mode::POOL, kernelSizeVals, kernelStridesVals[Dims4D::Strides::X],
-            inputType.getElementType(), IC);
+            inputType.getElementType(), 1, 1);
 
-    const auto requiredCMX = getRequiredCMXForTiling({inputType, outputType}, IC) + activationWindowSize * 1_Byte;
+    const auto requiredCMX = getRequiredCMXForTiling({inputType, outputType}, OC) + activationWindowSize * 1_Byte;
 
     const auto cmxSize = getCMXSizeForTiling(module);
     if (requiredCMX > cmxSize) {
@@ -510,7 +510,7 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyGroupConvCMX(mlir::Location
 
     const auto activationWindowSize = VPU::NCESparsity::getActivationWindowSize(
             VPU::NCESparsity::Mode::DW_CONV, kernelSizeVals, kernelStridesVals[Dims4D::Strides::X],
-            inputType.getElementType(), OC);
+            inputType.getElementType(), 1, 1);
 
     const auto requiredCMX =
             getRequiredCMXForTiling({inputType, alignedFilterType, outputType}, OC) + activationWindowSize * 1_Byte;
@@ -670,23 +670,16 @@ int64_t getRequiredChannelSizeForPrefetch(IE::MaxPoolOp origOp, vpux::OutputTili
     return curInputShape[Dims4D::Act::C] + nextInputShape[Dims4D::Act::C];
 }
 
-Byte getRequiredActWindowForPrefetch(IE::MaxPoolOp origOp, vpux::OutputTiling tiling) {
+Byte getRequiredActWindowForPrefetch(IE::MaxPoolOp origOp) {
     const auto kernelSizeVals = Shape(parseIntArrayAttr<int64_t>(origOp.kernel_sizeAttr()));
     const auto kernelStridesVals = Shape(parseIntArrayAttr<int64_t>(origOp.stridesAttr()));
-    auto curInputShape = getTileTypes(origOp, tiling[0])[0].getShape();
-    auto nextInputShape = getTileTypes(origOp, tiling[1])[0].getShape();
-    auto curIC = curInputShape[Dims4D::Act::C];
-    auto nextIC = nextInputShape[Dims4D::Act::C];
 
     //  Consider tiling does not change the element type
     const auto inType = origOp.input().getType().cast<vpux::NDTypeInterface>();
-    const auto curActivationWindowSize = VPU::NCESparsity::getActivationWindowSize(
+    const auto activationWindowSizePerTile = VPU::NCESparsity::getActivationWindowSize(
             VPU::NCESparsity::Mode::POOL, kernelSizeVals, kernelStridesVals[Dims4D::Strides::X],
-            inType.getElementType(), curIC);
-    const auto nextActivationWindowSize = VPU::NCESparsity::getActivationWindowSize(
-            VPU::NCESparsity::Mode::POOL, kernelSizeVals, kernelStridesVals[Dims4D::Strides::X],
-            inType.getElementType(), nextIC);
-    return Byte(curActivationWindowSize + nextActivationWindowSize);
+            inType.getElementType(), 1, 1);
+    return Byte(activationWindowSizePerTile * 2);
 }
 
 mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyPrefetchCMX(IE::MaxPoolOp origOp, vpux::OutputTiling tiling,
@@ -706,7 +699,7 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyPrefetchCMX(IE::MaxPoolOp o
 
     requiredCMX = getRequiredCMXForTiling(getRequiredOperandsForPrefetch(origOp, tiling),
                                           getRequiredChannelSizeForPrefetch(origOp, tiling)) +
-                  getRequiredActWindowForPrefetch(origOp, tiling);
+                  getRequiredActWindowForPrefetch(origOp);
     if (requiredCMX > cmxSize) {
         log.trace("[{0}] CMX memory is not enough for prefetch pipeline, available '{1}', required '{2}'",
                   origOp->getLoc(), cmxSize, requiredCMX);
@@ -762,25 +755,18 @@ int64_t getRequiredChannelSizeForPrefetch(IE::GroupConvolutionOp origOp, vpux::O
     return curFilterShape[Dims4D::Filter::OC] + nextFilterShape[Dims4D::Filter::OC];
 }
 
-Byte getRequiredActWindowForPrefetch(IE::GroupConvolutionOp origOp, vpux::OutputTiling tiling) {
+Byte getRequiredActWindowForPrefetch(IE::GroupConvolutionOp origOp) {
     const auto inType = origOp.input().getType().cast<vpux::NDTypeInterface>();
+    const auto filterType = origOp.filter().getType().cast<vpux::NDTypeInterface>();
 
-    const Shape kernelSizeVals{getTileTypes(origOp, tiling[0])[1].getShape()[Dims4D::Filter::KY],
-                               getTileTypes(origOp, tiling[0])[1].getShape()[Dims4D::Filter::KX]};
+    const Shape kernelSizeVals{filterType.getShape()[Dims4D::Filter::KY], filterType.getShape()[Dims4D::Filter::KX]};
     const auto kernelStridesVals = Shape(parseIntArrayAttr<int64_t>(origOp.stridesAttr()));
-    auto curInputShape = getTileTypes(origOp, tiling[0])[0].getShape();
-    auto nextInputShape = getTileTypes(origOp, tiling[1])[0].getShape();
-    auto curIC = curInputShape[Dims4D::Act::C];
-    auto nextIC = nextInputShape[Dims4D::Act::C];
 
-    const auto curActivationWindowSize = VPU::NCESparsity::getActivationWindowSize(
+    const auto activationWindowSizePerTile = VPU::NCESparsity::getActivationWindowSize(
             VPU::NCESparsity::Mode::DW_CONV, kernelSizeVals, kernelStridesVals[Dims4D::Strides::X],
-            inType.getElementType(), curIC);
-    const auto nextActivationWindowSize = VPU::NCESparsity::getActivationWindowSize(
-            VPU::NCESparsity::Mode::DW_CONV, kernelSizeVals, kernelStridesVals[Dims4D::Strides::X],
-            inType.getElementType(), nextIC);
+            inType.getElementType(), 1, 1);
 
-    return Byte(curActivationWindowSize + nextActivationWindowSize);
+    return Byte(activationWindowSizePerTile * 2);
 }
 
 mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyPrefetchCMX(IE::GroupConvolutionOp origOp,
@@ -800,7 +786,7 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyPrefetchCMX(IE::GroupConvol
 
     requiredCMX = getRequiredCMXForTiling(getRequiredOperandsForPrefetch(origOp, tiling),
                                           getRequiredChannelSizeForPrefetch(origOp, tiling)) +
-                  getRequiredActWindowForPrefetch(origOp, tiling);
+                  getRequiredActWindowForPrefetch(origOp);
     if (requiredCMX > cmxSize) {
         log.trace("[{0}] CMX memory is not enough for prefetch pipeline, available '{1}', required '{2}'",
                   origOp->getLoc(), cmxSize, requiredCMX);
@@ -948,7 +934,6 @@ Byte getRequiredCMX(IE::GroupConvolutionOp gConvOp, const vpux::TileInfo& tiling
     const auto inputTileType = tileTypes[0];
     const auto filterTileShape = tileTypes[1];
     const auto filterShape = filterTileShape.getShape();
-    const auto IC = filterShape[Dims4D::Filter::IC];
     const auto KY = filterShape[Dims4D::Filter::KY];
     const auto KX = filterShape[Dims4D::Filter::KX];
     const Shape kernelSizeVals{KY, KX};
@@ -957,7 +942,7 @@ Byte getRequiredCMX(IE::GroupConvolutionOp gConvOp, const vpux::TileInfo& tiling
 
     const auto activationWindowSize = VPU::NCESparsity::getActivationWindowSize(
             VPU::NCESparsity::Mode::CM_CONV, kernelSizeVals, kernelStridesVals[Dims4D::Strides::X],
-            inputTileType.getElementType(), IC);
+            inputTileType.getElementType(), 1, 1);
 
     return getRequiredCMXForTiling({inputTileType, inputTileType}, 0) + activationWindowSize * 1_Byte +
            getRequiredCMXForWeight(gConvOp, tiling);
@@ -981,7 +966,7 @@ Byte getRequiredCMX(IE::MaxPoolOp poolOp, const vpux::TileInfo& tiling) {
 
     const auto activationWindowSize = VPU::NCESparsity::getActivationWindowSize(
             VPU::NCESparsity::Mode::POOL, kernelSizeVals, kernelStridesVals[Dims4D::Strides::X],
-            inputType.getElementType(), IC);
+            inputType.getElementType(), 1, 1);
 
     return getRequiredCMXForTiling({inputType, outputType}, IC) + activationWindowSize * 1_Byte;
 }
@@ -1126,17 +1111,16 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(mlir::Location loc, 
                                                             Logger log) {
     log.setName("NCEInvariant");
 
-    static const int32_t NCE_MAX_KERNEL_SIZE = 11;
     static const int32_t NCE_MAX_STRIDE_SIZE = 8;
 
-    if (KY > NCE_MAX_KERNEL_SIZE || KY <= 0) {
+    if (KY > VPU::NCEInvariant::MAX_KERNEL_SIZE || KY <= 0) {
         log.trace("[{0}] Unsupported kernel height dimension '{1}', must be in range [1, {2}]", loc, KY,
-                  NCE_MAX_KERNEL_SIZE);
+                  VPU::NCEInvariant::MAX_KERNEL_SIZE);
         return mlir::failure();
     }
-    if (KX > NCE_MAX_KERNEL_SIZE || KX <= 0) {
+    if (KX > VPU::NCEInvariant::MAX_KERNEL_SIZE || KX <= 0) {
         log.trace("[{0}] Unsupported kernel width dimension '{1}', must be in range [1, {2}]", loc, KX,
-                  NCE_MAX_KERNEL_SIZE);
+                  VPU::NCEInvariant::MAX_KERNEL_SIZE);
         return mlir::failure();
     }
 

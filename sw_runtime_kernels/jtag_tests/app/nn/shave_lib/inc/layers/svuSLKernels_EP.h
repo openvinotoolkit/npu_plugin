@@ -154,6 +154,7 @@ extern uint32_t SLK_singleShaveInterpolate;
 extern uint32_t SLK_elu_fp16;
 extern uint32_t SLK_exp_fp16;
 extern uint32_t SLK_dummy;
+extern uint32_t SLK_sqrt_fp16;
 extern uint32_t SLK_tanh_fp16;
 extern uint32_t SLK_preCorrelation;
 extern uint32_t SLK_preROIPooling;

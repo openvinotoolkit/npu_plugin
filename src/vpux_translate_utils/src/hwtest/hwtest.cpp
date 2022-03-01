@@ -54,6 +54,12 @@ mlir::OwningModuleRef importHWTEST(llvm::StringRef sourceJson, mlir::MLIRContext
     bool isEltwiseMult = jsonDesc.getCaseType() == nb::CaseType::EltwiseMult;
     bool isAvgPool = jsonDesc.getCaseType() == nb::CaseType::AvgPool;
     bool isActShave = jsonDesc.getCaseType() == nb::CaseType::ActShave;
+    bool isReadAfterWriteDPUDMA = jsonDesc.getCaseType() == nb::CaseType::ReadAfterWriteDPUDMA;
+    bool isReadAfterWriteDMADPU = jsonDesc.getCaseType() == nb::CaseType::ReadAfterWriteDMADPU;
+    bool isReadAfterWriteACTDMA = jsonDesc.getCaseType() == nb::CaseType::ReadAfterWriteACTDMA;
+    bool isReadAfterWriteDMAACT = jsonDesc.getCaseType() == nb::CaseType::ReadAfterWriteDMAACT;
+    bool isReadAfterWriteDPUACT = jsonDesc.getCaseType() == nb::CaseType::ReadAfterWriteDPUACT;
+    bool isReadAfterWriteACTDPU = jsonDesc.getCaseType() == nb::CaseType::ReadAfterWriteACTDPU;
     bool isRaceConditionDMA = jsonDesc.getCaseType() == nb::CaseType::RaceConditionDMA;
     bool isRaceConditionDPU = jsonDesc.getCaseType() == nb::CaseType::RaceConditionDPU;
     bool isRaceConditionDPUDMA = jsonDesc.getCaseType() == nb::CaseType::RaceConditionDPUDMA;
@@ -99,6 +105,18 @@ mlir::OwningModuleRef importHWTEST(llvm::StringRef sourceJson, mlir::MLIRContext
         hwtest::buildAvgpool(jsonDesc, module, builder, log, input_type, output_type);
     } else if (isActShave) {
         hwtest::buildActShave(jsonDesc, module, builder, log, input_type, output_type);
+    } else if (isReadAfterWriteDPUDMA) {
+        hwtest::buildReadAfterWriteDPUDMATest(jsonDesc, module, builder, log, input_type, weightType(), output_type);
+    } else if (isReadAfterWriteDMADPU) {
+        hwtest::buildReadAfterWriteDMADPUTest(jsonDesc, module, builder, log, input_type, weightType(), output_type);
+    } else if (isReadAfterWriteACTDMA) {
+        hwtest::buildReadAfterWriteACTDMATest(jsonDesc, module, builder, log, input_type, output_type);
+    } else if (isReadAfterWriteDMAACT) {
+        hwtest::buildReadAfterWriteDMAACTTest(jsonDesc, module, builder, log, input_type, output_type);
+    } else if (isReadAfterWriteDPUACT) {
+        hwtest::buildReadAfterWriteDPUACTTest(jsonDesc, module, builder, log, input_type, weightType(), output_type);
+    } else if (isReadAfterWriteACTDPU) {
+        hwtest::buildReadAfterWriteACTDPUTest(jsonDesc, module, builder, log, input_type, weightType(), output_type);
     } else if (isRaceConditionDMA) {
         hwtest::buildRaceConditionDMATest(jsonDesc, module, builder, log, input_type, output_type);
     } else if (isRaceConditionDPU) {

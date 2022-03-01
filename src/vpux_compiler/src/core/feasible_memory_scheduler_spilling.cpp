@@ -307,9 +307,15 @@ mlir::async::ExecuteOp FeasibleMemorySchedulerSpilling::insertSpillWriteCopyOp(m
                                        llvm::formatv("spill_write_{0}", _depsInfo.getIndex(opThatWasSpilled)).str());
     _log.trace("Insert Spill Write copyOp - '{0}'", spillWriteNameLoc);
 
-    auto opToSpillNDType = bufferToSpill.getType().cast<vpux::NDTypeInterface>();
-
-    auto spillBufferNDType = opToSpillNDType.changeMemSpace(_secondLvlMemSpace);
+    // Get spill destination buffer type (memref) from the provided
+    // type of source buffer that is to be spilled
+    auto getSpillBufferType = [&](vpux::NDTypeInterface type) {
+        const auto shape = type.getShape();
+        const auto elemType = type.getElementType();
+        const auto order = type.getDimsOrder();
+        return getMemRefType(shape, elemType, order, _secondLvlMemSpace);
+    };
+    auto spillBufferType = getSpillBufferType(bufferToSpill.getType());
 
     // Update address of the buffer that is to be spilled as spillWrite source buffer
     // is not correctly configured during scheduler memory allocation
@@ -318,24 +324,43 @@ mlir::async::ExecuteOp FeasibleMemorySchedulerSpilling::insertSpillWriteCopyOp(m
     // Create buffer in second level memory
     mlir::OpBuilder builder(_allocOpInsertionPoint);
     builder.setInsertionPoint(_allocOpInsertionPoint);
-    auto spillBuffer =
-            builder.create<mlir::memref::AllocOp>(spillWriteNameLoc, spillBufferNDType.cast<mlir::MemRefType>());
+    auto spillBuffer = builder.create<mlir::memref::AllocOp>(spillWriteNameLoc, spillBufferType);
+
+    // Update aliases info for newly created root buffer
+    _aliasInfo.addAlias(spillBuffer.memref(), spillBuffer.memref());
 
     // Create new AsyncExecOp
     builder.setInsertionPointAfter(insertAfterExecOp);
     auto spillWriteExecOp =
             builder.create<mlir::async::ExecuteOp>(spillWriteNameLoc, spillBuffer->getResultTypes(), None, None);
 
-    // Create CopyOp in the body of new AsyncExecOp
+    IERT::CopyOp spillWriteCopyOp;
+
     auto bodyBlock = &spillWriteExecOp.body().front();
     builder.setInsertionPointToStart(bodyBlock);
-    auto spillWriteCopyOp = builder.create<IERT::CopyOp>(spillWriteNameLoc, bufferToSpill, spillBuffer.memref());
-    builder.create<mlir::async::YieldOp>(spillWriteNameLoc, spillWriteCopyOp->getResults());
+
+    // Build body of spill write async exec op
+    if (bufferToSpill.getType().isa<VPUIP::DistributedBufferType>()) {
+        // Create NCEClusterTiling with CopyOp in the body of new AsyncExecOp
+        SmallVector<mlir::Value> inputsOutputOperands = {bufferToSpill, spillBuffer.memref()};
+
+        const auto bodyBuilder = [&](mlir::OpBuilder& builder, mlir::Location loc, mlir::ValueRange newOperands) {
+            spillWriteCopyOp = builder.create<IERT::CopyOp>(loc, newOperands[0], newOperands[1]);
+        };
+
+        auto clusterTilingOp = builder.create<VPUIP::NCEClusterTilingOp>(spillWriteNameLoc, spillBufferType,
+                                                                         inputsOutputOperands, bodyBuilder);
+        builder.create<mlir::async::YieldOp>(spillWriteNameLoc, clusterTilingOp.results()[0]);
+        _aliasInfo.addAlias(spillBuffer.memref(), clusterTilingOp.results()[0]);
+    } else {
+        // Create CopyOp in the body of new AsyncExecOp
+        spillWriteCopyOp = builder.create<IERT::CopyOp>(spillWriteNameLoc, bufferToSpill, spillBuffer.memref());
+        builder.create<mlir::async::YieldOp>(spillWriteNameLoc, spillWriteCopyOp->getResults());
+    }
 
     // Update aliases for spillWrite result
-    _aliasInfo.addAlias(spillBuffer.memref(), spillBuffer.memref());
-    _aliasInfo.addAlias(spillBuffer.memref(), spillWriteExecOp.results()[0]);
     _aliasInfo.addAlias(spillBuffer.memref(), spillWriteCopyOp.output());
+    _aliasInfo.addAlias(spillBuffer.memref(), spillWriteExecOp.results()[0]);
 
     // Update executor attributes of new AsyncExecOp
     auto copyOpExecutor = mlir::dyn_cast_or_null<IERT::AsyncLayerOpInterface>(spillWriteCopyOp.getOperation());
@@ -365,53 +390,77 @@ mlir::async::ExecuteOp FeasibleMemorySchedulerSpilling::insertSpillReadCopyOp(ml
     // Get information about spill write returned memref type and prepare new one with proper memory location
     auto spillWriteResult = spillWriteExecOp.results()[0];
     auto spillWriteAsyncType = spillWriteResult.getType().dyn_cast<mlir::async::ValueType>();
-    auto spillWriteNDType = spillWriteAsyncType.getValueType().cast<vpux::NDTypeInterface>();
-    auto newBufferNDType = spillWriteNDType.changeMemSpace(_memSpace);
 
-    // Create buffer in first level memory to bring back spilled buffer. Configure its
-    // address as since it is a new buffer corresponding AllocOp operation was not set
-    // an address
+    // Create buffer in first level memory to bring back spilled buffer
     mlir::OpBuilder builder(_allocOpInsertionPoint);
     builder.setInsertionPoint(_allocOpInsertionPoint);
-    auto newBuffer = builder.create<mlir::memref::AllocOp>(spillReadNameLoc, newBufferNDType.cast<mlir::MemRefType>());
-    _scan.handler().setAddress(newBuffer.memref(), allocatedAddress);
+    mlir::Operation* newBufferOp;
+    if (bufferToSpill.getType().isa<VPUIP::DistributedBufferType>()) {
+        newBufferOp = builder.create<VPURT::AllocDistributed>(spillReadNameLoc, bufferToSpill.getType());
+    } else {
+        newBufferOp = builder.create<mlir::memref::AllocOp>(spillReadNameLoc,
+                                                            bufferToSpill.getType().cast<mlir::MemRefType>());
+    }
+    auto newBufferResult = newBufferOp->getResult(0);
 
-    _log.trace("newBuffer - '{0}'", newBuffer);
+    // Update aliases info for newly created root buffer
+    _aliasInfo.addAlias(newBufferResult, newBufferResult);
+
+    // Configure address as prepared by scheduler.
+    // Since it is a new buffer it was not assigned before
+    _scan.handler().setAddress(newBufferResult, allocatedAddress);
 
     // Store information about what buffer replaces original buffer that was marked for spilling
     // If such replacement pair already exists, then update it with a new buffer
     bool replacementPairFound = false;
     for (auto& replacementPairs : _bufferReplacementAfterSpillRead) {
         if (replacementPairs.second == bufferToSpill) {
-            replacementPairs.second = newBuffer.memref();
+            replacementPairs.second = newBufferResult;
             replacementPairFound = true;
             break;
         }
     }
     // If this buffer didn't correspond to any exisitng buffer replacement pair then insert a new one
     if (!replacementPairFound) {
-        _bufferReplacementAfterSpillRead.insert({bufferToSpill, newBuffer.memref()});
+        _bufferReplacementAfterSpillRead.insert({bufferToSpill, newBufferResult});
     }
 
     // Create new AsyncExecOp in correct place
     builder.setInsertionPointAfter(insertAfterExecOp);
     auto spillReadExecOp =
-            builder.create<mlir::async::ExecuteOp>(spillReadNameLoc, newBuffer->getResultTypes(), None, None);
+            builder.create<mlir::async::ExecuteOp>(spillReadNameLoc, newBufferOp->getResultTypes(), None, None);
 
     // Update operands of new AsyncExecOp to contain result of AsyncExecOp of spillWrite
     spillReadExecOp.operandsMutable().append(spillWriteResult);
-    auto innerArg = spillReadExecOp.getBody()->addArgument(spillWriteAsyncType.getValueType());
+    auto innerAsyncArgForSpill = spillReadExecOp.getBody()->addArgument(spillWriteAsyncType.getValueType());
 
-    // Create CopyOp in the body of new AsyncExecOp
+    IERT::CopyOp spillReadCopyOp;
+
     auto bodyBlock = &spillReadExecOp.body().front();
     builder.setInsertionPointToStart(bodyBlock);
-    auto spillReadCopyOp = builder.create<IERT::CopyOp>(spillReadNameLoc, innerArg, newBuffer.memref());
-    builder.create<mlir::async::YieldOp>(spillReadNameLoc, spillReadCopyOp->getResults());
+
+    // Build body of spill read async exec op
+    if (bufferToSpill.getType().isa<VPUIP::DistributedBufferType>()) {
+        // Create NCEClusterTiling with CopyOp in the body of new AsyncExecOp
+        SmallVector<mlir::Value> inputsOutputOperands = {innerAsyncArgForSpill, newBufferResult};
+
+        const auto bodyBuilder = [&](mlir::OpBuilder& builder, mlir::Location loc, mlir::ValueRange newOperands) {
+            spillReadCopyOp = builder.create<IERT::CopyOp>(loc, newOperands[0], newOperands[1]);
+        };
+
+        auto clusterTilingOp = builder.create<VPUIP::NCEClusterTilingOp>(spillReadNameLoc, bufferToSpill.getType(),
+                                                                         inputsOutputOperands, bodyBuilder);
+        builder.create<mlir::async::YieldOp>(spillReadNameLoc, clusterTilingOp.results()[0]);
+        _aliasInfo.addAlias(newBufferResult, clusterTilingOp.results()[0]);
+    } else {
+        // Create CopyOp in the body of new AsyncExecOp
+        spillReadCopyOp = builder.create<IERT::CopyOp>(spillReadNameLoc, innerAsyncArgForSpill, newBufferResult);
+        builder.create<mlir::async::YieldOp>(spillReadNameLoc, spillReadCopyOp->getResults());
+    }
 
     // Update alias for spillRead result
-    _aliasInfo.addAlias(newBuffer.memref(), newBuffer.memref());
-    _aliasInfo.addAlias(newBuffer.memref(), spillReadExecOp.results()[0]);
-    _aliasInfo.addAlias(newBuffer.memref(), spillReadCopyOp.output());
+    _aliasInfo.addAlias(newBufferResult, spillReadCopyOp.output());
+    _aliasInfo.addAlias(newBufferResult, spillReadExecOp.results()[0]);
 
     // Update executor attributes of new AsyncExecOp
     auto copyOpExecutor = mlir::dyn_cast_or_null<IERT::AsyncLayerOpInterface>(spillReadCopyOp.getOperation());

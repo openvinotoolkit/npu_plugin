@@ -18,6 +18,7 @@
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/IERT/ops.hpp"
+#include "vpux/compiler/dialect/VPU/attributes.hpp"
 #include "vpux/compiler/dialect/VPU/passes.hpp"
 #include "vpux/compiler/dialect/VPUIP/graph-schema/export.hpp"
 #include "vpux/compiler/dialect/VPUIP/network_description.hpp"
@@ -98,17 +99,13 @@ Optional<int> getNumberOfDPUGroups(const Config& config) {
         return checked_cast<int>(config.get<DPU_GROUPS>());
     }
 
-    if (!config.has<PERFORMANCE_HINT>()) {
-        return 1;  // TODO: consider updating once multi-clustering is enabled
-    }
-
     switch (config.get<PERFORMANCE_HINT>()) {
-    case PerformanceHint::Latency:
-        return 4;
-    case PerformanceHint::Throughput:
-        return 1;
+    case ov::hint::PerformanceMode::LATENCY:
+        return checked_cast<int>(VPU::getMaxDPUClusterNum(getArchKind(config)));
+    case ov::hint::PerformanceMode::THROUGHPUT:
+    case ov::hint::PerformanceMode::UNDEFINED:
     default:
-        return 1;  // TODO: consider updating once multi-clustering is enabled
+        return 1;
     }
 }
 
