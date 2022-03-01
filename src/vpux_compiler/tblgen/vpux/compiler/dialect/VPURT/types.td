@@ -48,7 +48,7 @@ def VPURT_SparseBuffer :
         VPURT_Type<
             "SparseBuffer",
             [
-                NDTypeInterface
+                DeclareTypeInterfaceMethods<NDTypeInterface>
             ]
         > {
     let summary = "VPURT Sparse Buffer Type";
@@ -79,27 +79,6 @@ def VPURT_SparseBuffer :
         static mlir::Value getSparsityMap(mlir::Value val);
         static mlir::Value getStorageElementTable(mlir::Value val);
         static mlir::Type getDataType(mlir::Value val);
-
-        vpux::ShapeRef getShape() const;
-        vpux::MemShape getMemShape() const;
-        bool hasRank() const;
-        int64_t getRank() const;
-        int64_t getNumElements() const;
-        mlir::Type getElementType() const;
-        vpux::DimsOrder getDimsOrder() const;
-        vpux::IndexedSymbolAttr getMemSpace() const;
-        vpux::VPU::MemoryKind getMemoryKind() const;
-        vpux::Strides getStrides() const;
-        vpux::MemStrides getMemStrides() const;
-        vpux::Bit getElemTypeSize() const;
-        vpux::Byte getTotalAllocSize() const;
-        vpux::Byte getCompactAllocSize() const;
-        vpux::NDTypeInterface changeShape(vpux::ShapeRef shape) const;
-        vpux::NDTypeInterface changeElemType(mlir::Type elemType) const;
-        vpux::NDTypeInterface changeDimsOrder(vpux::DimsOrder order) const;
-        vpux::NDTypeInterface changeMemSpace(vpux::IndexedSymbolAttr memSpace) const;
-        vpux::NDTypeInterface extractDenseTile(vpux::ShapeRef tileOffsets, vpux::ShapeRef tileShape) const;
-        vpux::NDTypeInterface pad(vpux::ShapeRef padBefore, vpux::ShapeRef padAfter) const;
     }];
 }
 

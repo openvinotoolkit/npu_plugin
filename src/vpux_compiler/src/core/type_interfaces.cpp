@@ -162,6 +162,8 @@ vpux::NDTypeInterface TensorNDTypeInterface::changeShape(mlir::Type type, vpux::
     const auto tensor = type.cast<mlir::RankedTensorType>();
     const auto origOrder = getDimsOrder(type);
     const auto newOrder = origOrder.isIdentity() ? DimsOrder::fromNumDims(shape.size()) : origOrder;
+    VPUX_THROW_UNLESS(newOrder.numDims() == shape.size(), "Order '{0}' is incompatible with the new shape '{1}'",
+                      newOrder, shape);
 
     auto elemType = getElementType(type);
     if (auto perAxisType = elemType.dyn_cast<mlir::quant::UniformQuantizedPerAxisType>()) {
@@ -190,6 +192,25 @@ vpux::NDTypeInterface TensorNDTypeInterface::changeElemType(mlir::Type type, mli
                            .Default([](mlir::Type type) -> mlir::ShapedType {
                                VPUX_THROW("Unsupported type '{0}'", type);
                            });
+
+    const auto loc = mlir::UnknownLoc::get(type.getContext());
+    VPUX_THROW_UNLESS(vpux::validateQuantElemType(loc, newType).succeeded(), "Got invalid ShapedType '{0}'", newType);
+
+    return newType;
+}
+
+vpux::NDTypeInterface TensorNDTypeInterface::changeShapeElemType(mlir::Type type, vpux::ShapeRef shape,
+                                                                 mlir::Type elemType) const {
+    VPUX_THROW_UNLESS(type.isa<mlir::RankedTensorType>(),
+                      "Only RankedTensorType is supported for 'changeShapeElemType'. Got '{0}'", type);
+
+    const auto tensor = type.cast<mlir::RankedTensorType>();
+    const auto origOrder = getDimsOrder(type);
+    const auto newOrder = origOrder.isIdentity() ? DimsOrder::fromNumDims(shape.size()) : origOrder;
+    VPUX_THROW_UNLESS(newOrder.numDims() == shape.size(), "Order '{0}' is incompatible with the new shape '{1}'",
+                      newOrder, shape);
+
+    const auto newType = vpux::getTensorType(shape, elemType, newOrder, getMemSpace(type), IE::isSparse(tensor));
 
     const auto loc = mlir::UnknownLoc::get(type.getContext());
     VPUX_THROW_UNLESS(vpux::validateQuantElemType(loc, newType).succeeded(), "Got invalid ShapedType '{0}'", newType);
@@ -421,13 +442,12 @@ vpux::Byte MemRefNDTypeInterface::getCompactAllocSize(mlir::Type type) const {
 vpux::NDTypeInterface MemRefNDTypeInterface::changeShape(mlir::Type type, vpux::ShapeRef shape) const {
     VPUX_THROW_UNLESS(type.isa<mlir::MemRefType>(), "Only MemRefType is supported for 'changeShape'. Got '{0}'", type);
 
-    const auto elemType = getElementType(type);
-    const auto memSpace = getMemSpace(type);
-
     const auto origOrder = getDimsOrder(type);
     const auto newOrder = origOrder.isIdentity() ? DimsOrder::fromNumDims(shape.size()) : origOrder;
+    VPUX_THROW_UNLESS(newOrder.numDims() == shape.size(), "Order '{0}' is incompatible with the new shape '{1}'",
+                      newOrder, shape);
 
-    const auto newType = vpux::getMemRefType(shape, elemType, newOrder, memSpace);
+    const auto newType = vpux::getMemRefType(shape, getElementType(type), newOrder, getMemSpace(type));
 
     const auto loc = mlir::UnknownLoc::get(type.getContext());
     VPUX_THROW_UNLESS(vpux::validateQuantElemType(loc, newType).succeeded(), "Got invalid ShapedType '{0}'", newType);
@@ -447,6 +467,24 @@ vpux::NDTypeInterface MemRefNDTypeInterface::changeElemType(mlir::Type type, mli
                     .Default([](mlir::Type type) -> mlir::ShapedType {
                         VPUX_THROW("Unsupported type '{0}'", type);
                     });
+
+    const auto loc = mlir::UnknownLoc::get(type.getContext());
+    VPUX_THROW_UNLESS(vpux::validateQuantElemType(loc, newType).succeeded(), "Got invalid ShapedType '{0}'", newType);
+
+    return newType;
+}
+
+vpux::NDTypeInterface MemRefNDTypeInterface::changeShapeElemType(mlir::Type type, vpux::ShapeRef shape,
+                                                                 mlir::Type elemType) const {
+    VPUX_THROW_UNLESS(type.isa<mlir::MemRefType>(), "Only MemRefType is supported for 'changeShapeElemType'. Got '{0}'",
+                      type);
+
+    const auto origOrder = getDimsOrder(type);
+    const auto newOrder = origOrder.isIdentity() ? DimsOrder::fromNumDims(shape.size()) : origOrder;
+    VPUX_THROW_UNLESS(newOrder.numDims() == shape.size(), "Order '{0}' is incompatible with the new shape '{1}'",
+                      newOrder, shape);
+
+    const auto newType = vpux::getMemRefType(shape, elemType, newOrder, getMemSpace(type));
 
     const auto loc = mlir::UnknownLoc::get(type.getContext());
     VPUX_THROW_UNLESS(vpux::validateQuantElemType(loc, newType).succeeded(), "Got invalid ShapedType '{0}'", newType);

@@ -357,6 +357,8 @@ Byte VPU::DistributedTensorType::getCompactAllocSize() const {
 }
 
 NDTypeInterface VPU::DistributedTensorType::changeShape(ShapeRef shape) const {
+    VPUX_THROW_UNLESS(getDimsOrder().numDims() == shape.size(), "Order '{0}' is incompatible with the new shape '{1}'",
+                      getDimsOrder(), shape);
     auto elemType = getElementType();
     if (auto perAxisType = elemType.dyn_cast<mlir::quant::UniformQuantizedPerAxisType>()) {
         const auto axis = getQuantizedAxis(perAxisType.getQuantizedDimension(), getShape(), shape);
@@ -370,6 +372,13 @@ NDTypeInterface VPU::DistributedTensorType::changeShape(ShapeRef shape) const {
 
 NDTypeInterface VPU::DistributedTensorType::changeElemType(mlir::Type elemType) const {
     return VPU::DistributedTensorType::get(getContext(), getShape().raw(), elemType, getOrder(), getMemSpace(),
+                                           getDistribution());
+}
+
+NDTypeInterface VPU::DistributedTensorType::changeShapeElemType(ShapeRef shape, mlir::Type elemType) const {
+    VPUX_THROW_UNLESS(getDimsOrder().numDims() == shape.size(), "Order '{0}' is incompatible with the new shape '{1}'",
+                      getDimsOrder(), shape);
+    return VPU::DistributedTensorType::get(getContext(), shape.raw(), elemType, getOrder(), getMemSpace(),
                                            getDistribution());
 }
 

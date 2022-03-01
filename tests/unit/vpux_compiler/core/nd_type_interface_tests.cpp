@@ -73,185 +73,121 @@ TEST(MLIR_NDTypeInterface, RankedTensorType) {
     vpux::registerDialects(registry);
 
     mlir::MLIRContext ctx(registry);
+    ctx.loadDialect<Const::ConstDialect>();
 
-    constexpr llvm::StringLiteral inputIR = R"(
-        #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
+    const Shape shape{1, 16, 32, 32};
+    const auto tensorType = mlir::RankedTensorType::get(shape.raw(), mlir::Float16Type::get(&ctx));
 
-        module @test {
-            func @main(%arg0: tensor<1x16x32x32xf16>) -> tensor<1x16x16x16xf16> {
-                %cst = const.Declare tensor<16x16x1x1xf16, {order = #NHWC}> = #const.Content<dense<1.000000e+00> : tensor<16x16x1x1xf32>, [#const.ConvertElemType<f16>, #const.Reorder<#NHWC>]>
-                %0 = IE.Convolution(%arg0, %cst) {dilations = [1, 1], pads_begin = [0, 0], pads_end = [0, 0], strides = [2, 2]} : tensor<1x16x32x32xf16>, tensor<16x16x1x1xf16, {order = #NHWC}> -> tensor<1x16x16x16xf16>
-                return %0 : tensor<1x16x16x16xf16>
-            }
-        }
-    )";
+    const auto ndType = tensorType.dyn_cast<vpux::NDTypeInterface>();
+    ASSERT_TRUE(ndType != nullptr) << "Type cannot be cast to vpux::NDTypeInterface";
 
-    auto module = mlir::parseSourceString(inputIR, &ctx);
-    ASSERT_TRUE(module.get() != nullptr);
+    EXPECT_EQ(ndType.getShape(), ShapeRef(shape));
+    EXPECT_EQ(ndType.getMemShape(), MemShape(shape.raw()));
 
-    auto func = module.get().lookupSymbol<mlir::FuncOp>("main");
-    ASSERT_TRUE(func != nullptr);
+    EXPECT_TRUE(ndType.hasRank());
+    EXPECT_EQ(ndType.getRank(), 4);
+    EXPECT_EQ(ndType.getNumElements(), 16 * 32 * 32);
 
-    mlir::PassManager pm(&ctx, mlir::OpPassManager::Nesting::Implicit);
-    pm.addPass(
-            VPU::createInitCompilerPass(VPU::ArchKind::KMB, VPU::CompilationMode::DefaultHW, None, Logger::global()));
+    EXPECT_TRUE(ndType.getElementType().isa<mlir::Float16Type>());
 
-    ASSERT_TRUE(mlir::succeeded(pm.run(module.get())));
+    EXPECT_EQ(ndType.getDimsOrder(), DimsOrder::NCHW);
 
-    for (auto& op : func.getOps()) {
-        if (auto convOp = mlir::dyn_cast<IE::ConvolutionOp>(op)) {
-            // Input type
-            const auto ndInputType = convOp.input().getType().dyn_cast<vpux::NDTypeInterface>();
-            EXPECT_TRUE(ndInputType != nullptr) << "Input is not of vpux::NDTypeInterface type";
+    EXPECT_EQ(ndType.getMemSpace(), nullptr);
+    EXPECT_EQ(ndType.getMemoryKind(), VPU::MemoryKind::DDR);
 
-            EXPECT_EQ(ndInputType.getShape(), ShapeRef({1, 16, 32, 32}));
-            EXPECT_EQ(ndInputType.getMemShape(), MemShape({1, 16, 32, 32}));
+    const SmallVector<Bit> strides({262144_Bit, 16384_Bit, 512_Bit, 16_Bit});
+    EXPECT_EQ(ndType.getStrides().raw(), strides);
+    EXPECT_EQ(ndType.getMemStrides().raw(), strides);
 
-            EXPECT_TRUE(ndInputType.hasRank());
-            EXPECT_EQ(ndInputType.getRank(), 4);
-            EXPECT_EQ(ndInputType.getNumElements(), 16 * 32 * 32);
+    EXPECT_EQ(ndType.getElemTypeSize().count(), 16);
+    EXPECT_EQ(ndType.getTotalAllocSize().count(), 32768);
+    EXPECT_EQ(ndType.getCompactAllocSize().count(), 32768);
 
-            EXPECT_TRUE(ndInputType.getElementType().isa<mlir::Float16Type>());
+    const SmallVector<int64_t> newShape({1, 16, 64, 16});
+    const auto changedShape = ndType.changeShape(ShapeRef(newShape));
+    EXPECT_EQ(changedShape.getShape(), ShapeRef(newShape));
 
-            EXPECT_EQ(ndInputType.getDimsOrder(), DimsOrder::NCHW);
+    const auto changedElemType = ndType.changeElemType(mlir::Float32Type::get(&ctx));
+    EXPECT_TRUE(changedElemType.getElementType().isa<mlir::Float32Type>());
 
-            EXPECT_EQ(ndInputType.getMemSpace(), nullptr);
-            EXPECT_EQ(ndInputType.getMemoryKind(), VPU::MemoryKind::DDR);
+    const SmallVector<int64_t> newShape2({1, 32, 32, 16});
+    const auto changedShapeElemType = ndType.changeShapeElemType(ShapeRef(newShape2), mlir::IntegerType::get(&ctx, 8));
+    EXPECT_EQ(changedShapeElemType.getShape(), ShapeRef(newShape2));
+    EXPECT_TRUE(changedShapeElemType.getElementType().isa<mlir::IntegerType>());
 
-            const SmallVector<Bit> strides({262144_Bit, 16384_Bit, 512_Bit, 16_Bit});
-            EXPECT_EQ(ndInputType.getStrides().raw(), strides);
-            EXPECT_EQ(ndInputType.getMemStrides().raw(), strides);
+    const auto dimsOrder = DimsOrder::NHWC;
+    const auto changedDimsOrder = ndType.changeDimsOrder(dimsOrder);
+    EXPECT_EQ(changedDimsOrder.getDimsOrder(), dimsOrder);
 
-            EXPECT_EQ(ndInputType.getElemTypeSize().count(), 16);
-            EXPECT_EQ(ndInputType.getTotalAllocSize().count(), 32768);
-            EXPECT_EQ(ndInputType.getCompactAllocSize().count(), 32768);
+    auto changedMemSpace = ndType.changeMemSpace(IndexedSymbolAttr::get(&ctx, CMX_NAME));
+    EXPECT_EQ(changedMemSpace.getMemSpace().getLeafName(), CMX_NAME);
+    changedMemSpace = ndType.changeMemSpace(VPU::MemoryKind::CMX_NN);
+    EXPECT_EQ(changedMemSpace.getMemSpace().getLeafName(), CMX_NAME);
 
-            // Filter type
-            const auto ndFilterType = convOp.filter().getType().dyn_cast<vpux::NDTypeInterface>();
-            EXPECT_TRUE(ndFilterType != nullptr) << "Filter is not of vpux::NDTypeInterface type";
+    const SmallVector<int64_t> tileOffsets({0, 8, 0, 0});
+    const SmallVector<int64_t> tileShape({1, 8, 32, 32});
+    const auto outputTile = ndType.extractDenseTile(ShapeRef(tileOffsets), ShapeRef(tileShape));
+    EXPECT_EQ(outputTile.getShape(), ShapeRef(tileShape));
 
-            EXPECT_EQ(ndFilterType.getShape(), ShapeRef({16, 16, 1, 1}));
-            EXPECT_EQ(ndFilterType.getMemShape(), MemShape({16, 1, 1, 16}));
-
-            EXPECT_EQ(ndFilterType.getDimsOrder(), DimsOrder::NHWC);
-
-            // Output type
-            const auto ndOutputType = convOp.output().getType().dyn_cast<vpux::NDTypeInterface>();
-            EXPECT_TRUE(ndOutputType != nullptr) << "Output is not of vpux::NDTypeInterface type";
-
-            EXPECT_EQ(ndOutputType.getShape(), ShapeRef({1, 16, 16, 16}));
-            const SmallVector<int64_t> shape({1, 16, 64, 64});
-            const auto newOutputShape = ndOutputType.changeShape(ShapeRef(shape));
-            EXPECT_EQ(newOutputShape.getShape(), ShapeRef(shape));
-
-            EXPECT_TRUE(ndOutputType.getElementType().isa<mlir::Float16Type>());
-            const auto elemType = mlir::Float32Type::get(op.getContext());
-            const auto newOutputElemType = ndOutputType.changeElemType(elemType);
-            EXPECT_TRUE(newOutputElemType.getElementType().isa<mlir::Float32Type>());
-
-            EXPECT_EQ(ndOutputType.getDimsOrder(), DimsOrder::NCHW);
-            const auto dimsOrder = DimsOrder::NHWC;
-            const auto newOutputDimsOrder = ndOutputType.changeDimsOrder(dimsOrder);
-            EXPECT_EQ(newOutputDimsOrder.getDimsOrder(), dimsOrder);
-
-            EXPECT_EQ(ndOutputType.getMemSpace(), nullptr);
-            const auto memSpace = vpux::IndexedSymbolAttr::get(op.getContext(), CMX_NAME);
-            auto newOutputMemSpace = ndOutputType.changeMemSpace(memSpace);
-            EXPECT_EQ(newOutputMemSpace.getMemSpace().getLeafName(), CMX_NAME);
-            newOutputMemSpace = ndOutputType.changeMemSpace(VPU::MemoryKind::CMX_NN);
-            EXPECT_EQ(newOutputMemSpace.getMemSpace().getLeafName(), CMX_NAME);
-
-            const SmallVector<int64_t> tileOffsets({0, 8, 0, 0});
-            const SmallVector<int64_t> tileShape({1, 8, 16, 16});
-            const auto outputTile = ndOutputType.extractDenseTile(ShapeRef(tileOffsets), ShapeRef(tileShape));
-            EXPECT_EQ(outputTile.getShape(), ShapeRef(tileShape));
-
-            const SmallVector<int64_t> padBefore({0, 0, 1, 1});
-            const SmallVector<int64_t> padAfter({0, 0, 1, 1});
-            const auto paddedOutput = ndOutputType.pad(ShapeRef(padBefore), ShapeRef(padAfter));
-            EXPECT_EQ(paddedOutput.getShape(), ShapeRef({1, 16, 18, 18}));
-        }
-    }
+    const SmallVector<int64_t> padBefore({0, 0, 1, 1});
+    const SmallVector<int64_t> padAfter({0, 0, 1, 1});
+    const SmallVector<int64_t> paddedShape({1, 16, 34, 34});
+    const auto paddedOutput = ndType.pad(ShapeRef(padBefore), ShapeRef(padAfter));
+    EXPECT_EQ(paddedOutput.getShape(), ShapeRef(paddedShape));
 }
 
 TEST(MLIR_NDTypeInterface, UnrankedTensorType) {
     mlir::DialectRegistry registry;
     vpux::registerDialects(registry);
-    registry.insert<TestDialect>();
-    registry.addTypeInterface<TestDialect, mlir::UnrankedTensorType, vpux::TensorNDTypeInterface>();
 
     mlir::MLIRContext ctx(registry);
+    ctx.loadDialect<Const::ConstDialect>();
 
-    constexpr llvm::StringLiteral inputIR = R"(
-        module @test {
-            func @main(%arg0: tensor<*xf16>) -> tensor<*xf16> {
-                %0 = "test.UnrankedOp"(%arg0) : (tensor<*xf16>) -> (tensor<*xf16>)
-                return %0 : tensor<*xf16>
-            }
-        }
-    )";
+    const Shape shape{};
+    const auto tensorType = mlir::UnrankedTensorType::get(mlir::Float16Type::get(&ctx));
 
-    auto module = mlir::parseSourceString(inputIR, &ctx);
-    ASSERT_TRUE(module.get() != nullptr);
+    const auto ndType = tensorType.dyn_cast<vpux::NDTypeInterface>();
+    ASSERT_TRUE(ndType != nullptr) << "Type cannot be cast to vpux::NDTypeInterface";
 
-    auto func = module.get().lookupSymbol<mlir::FuncOp>("main");
-    ASSERT_TRUE(func != nullptr);
+    EXPECT_EQ(ndType.getShape(), ShapeRef(shape));
+    EXPECT_ANY_THROW(ndType.getMemShape());
 
-    mlir::PassManager pm(&ctx, mlir::OpPassManager::Nesting::Implicit);
-    pm.addPass(
-            VPU::createInitCompilerPass(VPU::ArchKind::KMB, VPU::CompilationMode::DefaultHW, None, Logger::global()));
+    EXPECT_FALSE(ndType.hasRank());
+    EXPECT_ANY_THROW(ndType.getRank());
+    EXPECT_ANY_THROW(ndType.getNumElements());
 
-    ASSERT_TRUE(mlir::succeeded(pm.run(module.get())));
+    EXPECT_TRUE(ndType.getElementType().isa<mlir::Float16Type>());
 
-    for (auto& op : func.getOps()) {
-        if (auto testOp = mlir::dyn_cast<TestUnrankedOp>(op)) {
-            const auto ndInputType = testOp->getOperand(0).getType().dyn_cast<vpux::NDTypeInterface>();
-            EXPECT_TRUE(ndInputType != nullptr) << "Input is not of vpux::NDTypeInterface type";
+    EXPECT_ANY_THROW(ndType.getDimsOrder());
 
-            EXPECT_EQ(ndInputType.getShape(), ShapeRef({}));
-            ASSERT_ANY_THROW(ndInputType.getMemShape());
+    EXPECT_ANY_THROW(ndType.getMemSpace());
+    EXPECT_ANY_THROW(ndType.getMemoryKind());
 
-            EXPECT_FALSE(ndInputType.hasRank());
-            ASSERT_ANY_THROW(ndInputType.getRank());
-            ASSERT_ANY_THROW(ndInputType.getNumElements());
+    EXPECT_ANY_THROW(ndType.getStrides());
+    EXPECT_ANY_THROW(ndType.getMemStrides());
 
-            EXPECT_TRUE(ndInputType.getElementType().isa<mlir::Float16Type>());
+    EXPECT_EQ(ndType.getElemTypeSize().count(), 16);
+    EXPECT_ANY_THROW(ndType.getTotalAllocSize());
+    EXPECT_ANY_THROW(ndType.getCompactAllocSize());
 
-            ASSERT_ANY_THROW(ndInputType.getDimsOrder());
+    const SmallVector<int64_t> newShape({1, 16, 64, 16});
+    EXPECT_ANY_THROW(ndType.changeShape(ShapeRef(newShape)));
 
-            ASSERT_ANY_THROW(ndInputType.getMemSpace());
-            ASSERT_ANY_THROW(ndInputType.getMemoryKind());
+    const auto changedElemType = ndType.changeElemType(mlir::Float32Type::get(&ctx));
+    EXPECT_TRUE(changedElemType.getElementType().isa<mlir::Float32Type>());
 
-            ASSERT_ANY_THROW(ndInputType.getStrides());
-            ASSERT_ANY_THROW(ndInputType.getMemStrides());
+    EXPECT_ANY_THROW(ndType.changeShapeElemType(ShapeRef(newShape), mlir::Float32Type::get(&ctx)));
+    EXPECT_ANY_THROW(ndType.changeDimsOrder(DimsOrder::NHWC));
+    EXPECT_ANY_THROW(ndType.changeMemSpace(IndexedSymbolAttr::get(&ctx, CMX_NAME)));
+    EXPECT_ANY_THROW(ndType.changeMemSpace(VPU::MemoryKind::CMX_NN));
 
-            EXPECT_EQ(ndInputType.getElemTypeSize().count(), 16);
-            ASSERT_ANY_THROW(ndInputType.getTotalAllocSize());
-            ASSERT_ANY_THROW(ndInputType.getCompactAllocSize());
+    const SmallVector<int64_t> tileOffsets({0, 8, 0, 0});
+    const SmallVector<int64_t> tileShape({1, 8, 32, 32});
+    EXPECT_ANY_THROW(ndType.extractDenseTile(ShapeRef(tileOffsets), ShapeRef(tileShape)));
 
-            const SmallVector<int64_t> shape({1, 16, 64, 64});
-            ASSERT_ANY_THROW(ndInputType.changeShape(ShapeRef(shape)));
-
-            const auto elemType = mlir::Float32Type::get(op.getContext());
-            const auto newInputElemType = ndInputType.changeElemType(elemType);
-            EXPECT_TRUE(newInputElemType.getElementType().isa<mlir::Float32Type>());
-
-            const auto dimsOrder = DimsOrder::NHWC;
-            ASSERT_ANY_THROW(ndInputType.changeDimsOrder(dimsOrder));
-
-            const auto memSpace = vpux::IndexedSymbolAttr::get(op.getContext(), CMX_NAME);
-            ASSERT_ANY_THROW(ndInputType.changeMemSpace(memSpace));
-            ASSERT_ANY_THROW(ndInputType.changeMemSpace(VPU::MemoryKind::CMX_NN));
-
-            const SmallVector<int64_t> tileOffsets({0, 8, 0, 0});
-            const SmallVector<int64_t> tileShape({1, 8, 16, 16});
-            ASSERT_ANY_THROW(ndInputType.extractDenseTile(ShapeRef(tileOffsets), ShapeRef(tileShape)));
-
-            const SmallVector<int64_t> padBefore({0, 0, 1, 1});
-            const SmallVector<int64_t> padAfter({0, 0, 1, 1});
-            ASSERT_ANY_THROW(ndInputType.pad(ShapeRef(padBefore), ShapeRef(padAfter)));
-        }
-    }
+    const SmallVector<int64_t> padBefore({0, 0, 1, 1});
+    const SmallVector<int64_t> padAfter({0, 0, 1, 1});
+    EXPECT_ANY_THROW(ndType.pad(ShapeRef(padBefore), ShapeRef(padAfter)));
 }
 
 TEST(MLIR_NDTypeInterface, MemRefType) {
@@ -259,199 +195,129 @@ TEST(MLIR_NDTypeInterface, MemRefType) {
     vpux::registerDialects(registry);
 
     mlir::MLIRContext ctx(registry);
+    ctx.loadDialect<Const::ConstDialect>();
 
-    constexpr llvm::StringLiteral inputIR = R"(
-        #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
+    const Shape shape{1, 16, 32, 32};
+    const DimsOrder order = DimsOrder::NCHW;
+    const mlir::AffineMapAttr layout = mlir::AffineMapAttr::get(order.toAffineMap(&ctx));
+    const IndexedSymbolAttr memSpace = IndexedSymbolAttr::get(&ctx, DDR_NAME);
+    const auto memrefType = mlir::MemRefType::get(shape.raw(), mlir::Float16Type::get(&ctx), layout, memSpace);
 
-        module @test {
-            func @main(%arg0: memref<1x16x32x32xf16, #NHWC, @CMX_NN>, %arg1: memref<1x16x32x32xf16, #NHWC, @CMX_NN>) -> memref<1x16x32x32xf16, #NHWC, @CMX_NN> {
-                %cst_w = VPURT.DeclareBuffer "CMX_NN" <0> -> memref<16x16x1x1xf16, #NHWC, @CMX_NN>
-                %cst_wt = VPURT.DeclareBuffer "CMX_NN" <512> -> memref<16x1x1x4xsi32, @CMX_NN>
-                VPURT.Task attributes {isTrailingSWLayer = false}  {
-                    %16 = VPUIP.NCEClusterTask {kernel_padding = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}, kernel_size = [1, 1], kernel_strides = [1, 1], task_type = "CONV"} input(%arg0 : memref<1x16x32x32xf16, #NHWC, @CMX_NN>) weights(%cst_w : memref<16x16x1x1xf16, #NHWC, @CMX_NN>) weight_table(%cst_wt : memref<16x1x1x4xsi32, @CMX_NN>) parent_input(%arg0 : memref<1x16x32x32xf16, #NHWC, @CMX_NN>) parent_output(%arg1 : memref<1x16x32x32xf16, #NHWC, @CMX_NN>) outputs(%arg1 : memref<1x16x32x32xf16, #NHWC, @CMX_NN>) -> memref<1x16x32x32xf16, #NHWC, @CMX_NN> variants :  {
-                    DPUTask {end = [31, 5, 15], mpe_mode = "VECTOR_FP16", pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}, start = [0, 0, 0]}
-                    DPUTask {end = [31, 11, 15], mpe_mode = "VECTOR_FP16", pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}, start = [0, 6, 0]}
-                    DPUTask {end = [31, 17, 15], mpe_mode = "VECTOR_FP16", pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}, start = [0, 12, 0]}
-                    DPUTask {end = [31, 23, 15], mpe_mode = "VECTOR_FP16", pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}, start = [0, 18, 0]}
-                    DPUTask {end = [31, 31, 15], mpe_mode = "VECTOR_FP16", pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}, start = [0, 24, 0]}
-                    } PPE :  {
-                    }
-                }
-                return %arg1 : memref<1x16x32x32xf16, #NHWC, @CMX_NN>
-            }
-        }
-    )";
+    const auto ndType = memrefType.dyn_cast<vpux::NDTypeInterface>();
+    ASSERT_TRUE(ndType != nullptr) << "Type cannot be cast to vpux::NDTypeInterface";
 
-    auto module = mlir::parseSourceString(inputIR, &ctx);
-    ASSERT_TRUE(module.get() != nullptr);
+    EXPECT_EQ(ndType.getShape(), ShapeRef(shape));
+    EXPECT_EQ(ndType.getMemShape(), MemShape(shape.raw()));
 
-    auto func = module.get().lookupSymbol<mlir::FuncOp>("main");
-    ASSERT_TRUE(func != nullptr);
+    EXPECT_TRUE(ndType.hasRank());
+    EXPECT_EQ(ndType.getRank(), 4);
+    EXPECT_EQ(ndType.getNumElements(), 16 * 32 * 32);
 
-    mlir::PassManager pm(&ctx, mlir::OpPassManager::Nesting::Implicit);
-    pm.addPass(
-            VPU::createInitCompilerPass(VPU::ArchKind::KMB, VPU::CompilationMode::DefaultHW, None, Logger::global()));
+    EXPECT_TRUE(ndType.getElementType().isa<mlir::Float16Type>());
 
-    ASSERT_TRUE(mlir::succeeded(pm.run(module.get())));
+    EXPECT_EQ(ndType.getDimsOrder(), order);
 
-    for (auto& op : func.getOps()) {
-        if (auto taskOp = mlir::dyn_cast<VPURT::TaskOp>(op)) {
-            auto wrappedTaskOp = taskOp.body().getBlocks().front().begin();
-            if (auto nceOp = mlir::dyn_cast<VPUIP::NCEClusterTaskOp>(wrappedTaskOp)) {
-                // Input type
-                const auto ndInputType = nceOp.input().getType().dyn_cast<vpux::NDTypeInterface>();
-                EXPECT_TRUE(ndInputType != nullptr) << "Input is not of vpux::NDTypeInterface type";
+    EXPECT_EQ(ndType.getMemSpace(), memSpace);
+    EXPECT_EQ(ndType.getMemoryKind(), VPU::MemoryKind::DDR);
 
-                EXPECT_EQ(ndInputType.getShape(), ShapeRef({1, 16, 32, 32}));
-                EXPECT_EQ(ndInputType.getMemShape(), MemShape({1, 32, 32, 16}));
+    const SmallVector<Bit> strides({262144_Bit, 16384_Bit, 512_Bit, 16_Bit});
+    const SmallVector<Bit> memStrides({262144_Bit, 16384_Bit, 512_Bit, 16_Bit});
+    EXPECT_EQ(ndType.getStrides().raw(), strides);
+    EXPECT_EQ(ndType.getMemStrides().raw(), strides);
 
-                EXPECT_TRUE(ndInputType.hasRank());
-                EXPECT_EQ(ndInputType.getRank(), 4);
-                EXPECT_EQ(ndInputType.getNumElements(), 16 * 32 * 32);
+    EXPECT_EQ(ndType.getElemTypeSize().count(), 16);
+    EXPECT_EQ(ndType.getTotalAllocSize().count(), 32768);
+    EXPECT_EQ(ndType.getCompactAllocSize().count(), 32768);
 
-                EXPECT_TRUE(ndInputType.getElementType().isa<mlir::Float16Type>());
+    const SmallVector<int64_t> newShape({1, 16, 64, 16});
+    const auto changedShape = ndType.changeShape(ShapeRef(newShape));
+    EXPECT_EQ(changedShape.getShape(), ShapeRef(newShape));
 
-                EXPECT_EQ(ndInputType.getDimsOrder(), DimsOrder::NHWC);
+    const auto changedElemType = ndType.changeElemType(mlir::Float32Type::get(&ctx));
+    EXPECT_TRUE(changedElemType.getElementType().isa<mlir::Float32Type>());
 
-                EXPECT_EQ(ndInputType.getMemSpace().getLeafName(), CMX_NAME);
-                EXPECT_EQ(ndInputType.getMemoryKind(), VPU::MemoryKind::CMX_NN);
+    const SmallVector<int64_t> newShape2({1, 32, 32, 16});
+    const auto changedShapeElemType = ndType.changeShapeElemType(ShapeRef(newShape2), mlir::IntegerType::get(&ctx, 8));
+    EXPECT_EQ(changedShapeElemType.getShape(), ShapeRef(newShape2));
+    EXPECT_TRUE(changedShapeElemType.getElementType().isa<mlir::IntegerType>());
 
-                const SmallVector<Bit> strides({262144_Bit, 16_Bit, 8192_Bit, 256_Bit});
-                const SmallVector<Bit> memStrides({262144_Bit, 8192_Bit, 256_Bit, 16_Bit});
-                EXPECT_EQ(ndInputType.getStrides().raw(), strides);
-                EXPECT_EQ(ndInputType.getMemStrides().raw(), memStrides);
+    const auto dimsOrder = DimsOrder::NHWC;
+    const auto changedDimsOrder = ndType.changeDimsOrder(dimsOrder);
+    EXPECT_EQ(changedDimsOrder.getDimsOrder(), dimsOrder);
 
-                EXPECT_EQ(ndInputType.getElemTypeSize().count(), 16);
-                EXPECT_EQ(ndInputType.getTotalAllocSize().count(), 32768);
-                EXPECT_EQ(ndInputType.getCompactAllocSize().count(), 32768);
+    auto changedMemSpace = ndType.changeMemSpace(IndexedSymbolAttr::get(&ctx, CMX_NAME));
+    EXPECT_EQ(changedMemSpace.getMemSpace().getLeafName(), CMX_NAME);
+    changedMemSpace = ndType.changeMemSpace(VPU::MemoryKind::CMX_NN);
+    EXPECT_EQ(changedMemSpace.getMemSpace().getLeafName(), CMX_NAME);
 
-                // Filter type
-                const auto ndFilterType = nceOp.weights().getType().dyn_cast<vpux::NDTypeInterface>();
-                EXPECT_TRUE(ndFilterType != nullptr) << "Filter is not of vpux::NDTypeInterface type";
+    const SmallVector<int64_t> tileOffsets({0, 8, 0, 0});
+    const SmallVector<int64_t> tileShape({1, 8, 32, 32});
+    const auto outputTile = ndType.extractDenseTile(ShapeRef(tileOffsets), ShapeRef(tileShape));
+    EXPECT_EQ(outputTile.getShape(), ShapeRef(tileShape));
 
-                EXPECT_EQ(ndFilterType.getShape(), ShapeRef({16, 16, 1, 1}));
-                EXPECT_EQ(ndFilterType.getMemShape(), MemShape({16, 1, 1, 16}));
-
-                // Output type
-                const auto ndOutputType = nceOp.output().getType().dyn_cast<vpux::NDTypeInterface>();
-                EXPECT_TRUE(ndOutputType != nullptr) << "Output is not of vpux::NDTypeInterface type";
-
-                EXPECT_EQ(ndOutputType.getShape(), ShapeRef({1, 16, 32, 32}));
-                const SmallVector<int64_t> shape({1, 16, 64, 64});
-                const auto newOutputShape = ndOutputType.changeShape(ShapeRef(shape));
-                EXPECT_EQ(newOutputShape.getShape(), ShapeRef(shape));
-
-                EXPECT_TRUE(ndOutputType.getElementType().isa<mlir::Float16Type>());
-                const auto elemType = mlir::Float32Type::get(op.getContext());
-                const auto newOutputElemType = ndOutputType.changeElemType(elemType);
-                EXPECT_TRUE(newOutputElemType.getElementType().isa<mlir::Float32Type>());
-
-                EXPECT_EQ(ndOutputType.getDimsOrder(), DimsOrder::NHWC);
-                const auto dimsOrder = DimsOrder::NCHW;
-                const auto newOutputDimsOrder = ndOutputType.changeDimsOrder(dimsOrder);
-                EXPECT_EQ(newOutputDimsOrder.getDimsOrder(), dimsOrder);
-
-                EXPECT_EQ(ndOutputType.getMemSpace().getLeafName(), CMX_NAME);
-                const auto memSpace = vpux::IndexedSymbolAttr::get(op.getContext(), DDR_NAME);
-                auto newOutputMemSpace = ndOutputType.changeMemSpace(memSpace);
-                EXPECT_EQ(newOutputMemSpace.getMemSpace().getLeafName(), DDR_NAME);
-                newOutputMemSpace = ndOutputType.changeMemSpace(VPU::MemoryKind::DDR);
-                EXPECT_EQ(newOutputMemSpace.getMemSpace().getLeafName(), DDR_NAME);
-
-                const SmallVector<int64_t> tileOffsets({0, 8, 0, 0});
-                const SmallVector<int64_t> tileShape({1, 8, 32, 32});
-                const auto outputTile = ndOutputType.extractDenseTile(ShapeRef(tileOffsets), ShapeRef(tileShape));
-                EXPECT_EQ(outputTile.getShape(), ShapeRef(tileShape));
-
-                const SmallVector<int64_t> padBefore({0, 0, 2, 2});
-                const SmallVector<int64_t> padAfter({0, 0, 2, 2});
-                const auto paddedOutput = ndOutputType.pad(ShapeRef(padBefore), ShapeRef(padAfter));
-                EXPECT_EQ(paddedOutput.getShape(), ShapeRef({1, 16, 36, 36}));
-            }
-        }
-    }
+    const SmallVector<int64_t> padBefore({0, 0, 1, 1});
+    const SmallVector<int64_t> padAfter({0, 0, 1, 1});
+    const SmallVector<int64_t> paddedShape({1, 16, 34, 34});
+    const auto paddedOutput = ndType.pad(ShapeRef(padBefore), ShapeRef(padAfter));
+    EXPECT_EQ(paddedOutput.getShape(), ShapeRef(paddedShape));
 }
 
 TEST(MLIR_NDTypeInterface, UnrankedMemRefType) {
     mlir::DialectRegistry registry;
     vpux::registerDialects(registry);
-    registry.insert<TestDialect>();
-    registry.addTypeInterface<TestDialect, mlir::UnrankedMemRefType, vpux::MemRefNDTypeInterface>();
 
     mlir::MLIRContext ctx(registry);
+    ctx.loadDialect<Const::ConstDialect>();
 
-    constexpr llvm::StringLiteral inputIR = R"(
-        module @test {
-            func @main(%arg0: memref<*xf16, @CMX_NN>, %arg1: memref<*xf16, @CMX_NN>) -> memref<*xf16, @CMX_NN> {
-                %0 = "test.UnrankedOp"(%arg0, %arg1) : (memref<*xf16, @CMX_NN>, memref<*xf16, @CMX_NN>) -> (memref<*xf16, @CMX_NN>)
-                return %0 : memref<*xf16, @CMX_NN>
-            }
-        }
-    )";
+    const Shape shape{};
+    const IndexedSymbolAttr memSpace = IndexedSymbolAttr::get(&ctx, DDR_NAME);
+    const auto memrefType = mlir::UnrankedMemRefType::get(mlir::Float16Type::get(&ctx), memSpace);
 
-    auto module = mlir::parseSourceString(inputIR, &ctx);
-    ASSERT_TRUE(module.get() != nullptr);
+    const auto ndType = memrefType.dyn_cast<vpux::NDTypeInterface>();
+    ASSERT_TRUE(ndType != nullptr) << "Type cannot be cast to vpux::NDTypeInterface";
 
-    auto func = module.get().lookupSymbol<mlir::FuncOp>("main");
-    ASSERT_TRUE(func != nullptr);
+    EXPECT_EQ(ndType.getShape(), ShapeRef(shape));
+    EXPECT_ANY_THROW(ndType.getMemShape());
 
-    mlir::PassManager pm(&ctx, mlir::OpPassManager::Nesting::Implicit);
-    pm.addPass(
-            VPU::createInitCompilerPass(VPU::ArchKind::KMB, VPU::CompilationMode::DefaultHW, None, Logger::global()));
+    EXPECT_FALSE(ndType.hasRank());
+    EXPECT_ANY_THROW(ndType.getRank());
+    EXPECT_ANY_THROW(ndType.getNumElements());
 
-    ASSERT_TRUE(mlir::succeeded(pm.run(module.get())));
+    EXPECT_TRUE(ndType.getElementType().isa<mlir::Float16Type>());
 
-    for (auto& op : func.getOps()) {
-        if (auto testOp = mlir::dyn_cast<TestUnrankedOp>(op)) {
-            const auto ndInputType = testOp->getOperand(0).getType().dyn_cast<vpux::NDTypeInterface>();
-            EXPECT_TRUE(ndInputType != nullptr) << "Input is not of vpux::NDTypeInterface type";
+    EXPECT_ANY_THROW(ndType.getDimsOrder());
 
-            EXPECT_EQ(ndInputType.getShape(), ShapeRef({}));
-            ASSERT_ANY_THROW(ndInputType.getMemShape());
+    EXPECT_EQ(ndType.getMemSpace().getLeafName(), DDR_NAME);
+    EXPECT_EQ(ndType.getMemoryKind(), VPU::MemoryKind::DDR);
 
-            EXPECT_FALSE(ndInputType.hasRank());
-            ASSERT_ANY_THROW(ndInputType.getRank());
-            ASSERT_ANY_THROW(ndInputType.getNumElements());
+    EXPECT_ANY_THROW(ndType.getStrides());
+    EXPECT_ANY_THROW(ndType.getMemStrides());
 
-            EXPECT_TRUE(ndInputType.getElementType().isa<mlir::Float16Type>());
+    EXPECT_EQ(ndType.getElemTypeSize().count(), 16);
+    EXPECT_ANY_THROW(ndType.getTotalAllocSize());
+    EXPECT_ANY_THROW(ndType.getCompactAllocSize());
 
-            ASSERT_ANY_THROW(ndInputType.getDimsOrder());
+    const SmallVector<int64_t> newShape({1, 16, 64, 16});
+    EXPECT_ANY_THROW(ndType.changeShape(ShapeRef(newShape)));
 
-            EXPECT_EQ(ndInputType.getMemSpace().getLeafName(), CMX_NAME);
-            EXPECT_EQ(ndInputType.getMemoryKind(), VPU::MemoryKind::CMX_NN);
+    const auto changedElemType = ndType.changeElemType(mlir::Float32Type::get(&ctx));
+    EXPECT_TRUE(changedElemType.getElementType().isa<mlir::Float32Type>());
 
-            ASSERT_ANY_THROW(ndInputType.getStrides());
-            ASSERT_ANY_THROW(ndInputType.getMemStrides());
+    EXPECT_ANY_THROW(ndType.changeShapeElemType(ShapeRef(newShape), mlir::Float32Type::get(&ctx)));
+    EXPECT_ANY_THROW(ndType.changeDimsOrder(DimsOrder::NHWC));
 
-            EXPECT_EQ(ndInputType.getElemTypeSize().count(), 16);
-            ASSERT_ANY_THROW(ndInputType.getTotalAllocSize());
-            ASSERT_ANY_THROW(ndInputType.getCompactAllocSize());
+    auto changedMemSpace = ndType.changeMemSpace(IndexedSymbolAttr::get(&ctx, CMX_NAME));
+    EXPECT_EQ(changedMemSpace.getMemSpace().getLeafName(), CMX_NAME);
+    changedMemSpace = ndType.changeMemSpace(VPU::MemoryKind::CMX_NN);
+    EXPECT_EQ(changedMemSpace.getMemSpace().getLeafName(), CMX_NAME);
 
-            const SmallVector<int64_t> shape({1, 16, 64, 64});
-            ASSERT_ANY_THROW(ndInputType.changeShape(ShapeRef(shape)));
+    const SmallVector<int64_t> tileOffsets({0, 8, 0, 0});
+    const SmallVector<int64_t> tileShape({1, 8, 32, 32});
+    EXPECT_ANY_THROW(ndType.extractDenseTile(ShapeRef(tileOffsets), ShapeRef(tileShape)));
 
-            const auto elemType = mlir::Float32Type::get(op.getContext());
-            const auto newInputElemType = ndInputType.changeElemType(elemType);
-            EXPECT_TRUE(newInputElemType.getElementType().isa<mlir::Float32Type>());
-
-            const auto dimsOrder = DimsOrder::NHWC;
-            ASSERT_ANY_THROW(ndInputType.changeDimsOrder(dimsOrder));
-
-            const auto memSpace = vpux::IndexedSymbolAttr::get(op.getContext(), DDR_NAME);
-            auto newInputMemSpace = ndInputType.changeMemSpace(memSpace);
-            EXPECT_EQ(newInputMemSpace.getMemSpace().getLeafName(), DDR_NAME);
-            newInputMemSpace = ndInputType.changeMemSpace(VPU::MemoryKind::DDR);
-            EXPECT_EQ(newInputMemSpace.getMemSpace().getLeafName(), DDR_NAME);
-
-            const SmallVector<int64_t> tileOffsets({0, 8, 0, 0});
-            const SmallVector<int64_t> tileShape({1, 8, 16, 16});
-            ASSERT_ANY_THROW(ndInputType.extractDenseTile(ShapeRef(tileOffsets), ShapeRef(tileShape)));
-
-            const SmallVector<int64_t> padBefore({0, 0, 1, 1});
-            const SmallVector<int64_t> padAfter({0, 0, 1, 1});
-            ASSERT_ANY_THROW(ndInputType.pad(ShapeRef(padBefore), ShapeRef(padAfter)));
-        }
-    }
+    const SmallVector<int64_t> padBefore({0, 0, 1, 1});
+    const SmallVector<int64_t> padAfter({0, 0, 1, 1});
+    EXPECT_ANY_THROW(ndType.pad(ShapeRef(padBefore), ShapeRef(padAfter)));
 }
 
 TEST(MLIR_NDTypeInterface, SparseBufferType) {
@@ -459,96 +325,68 @@ TEST(MLIR_NDTypeInterface, SparseBufferType) {
     vpux::registerDialects(registry);
 
     mlir::MLIRContext ctx(registry);
+    ctx.loadDialect<VPURT::VPURTDialect>();
 
-    constexpr llvm::StringLiteral inputIR = R"(
-        #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
+    const Shape shape{1, 16, 32, 32};
+    const DimsOrder order = DimsOrder::NCHW;
+    const mlir::AffineMapAttr layout = mlir::AffineMapAttr::get(order.toAffineMap(&ctx));
+    const IndexedSymbolAttr memSpace = IndexedSymbolAttr::get(&ctx, DDR_NAME);
+    const auto data = mlir::MemRefType::get(shape.raw(), mlir::Float16Type::get(&ctx), layout, memSpace);
+    const auto sparsityMap = mlir::MemRefType::get(shape.raw(), mlir::IntegerType::get(&ctx, 1), layout, memSpace);
+    const auto sparseBufferType = VPURT::SparseBufferType::get(data, sparsityMap);
 
-        module @test {
-            func @main(%arg0: memref<1x16x32x32xf16, #NHWC, @CMX_NN>, %arg1: memref<1x16x32x32xf16, #NHWC, @CMX_NN>) -> memref<1x16x32x32xf16, #NHWC, @CMX_NN> {
-                %cst_w = VPURT.DeclareBuffer "CMX_NN" <0> -> memref<16x16x1x1xf16, #NHWC, @CMX_NN>
-                %cst_sm = VPURT.DeclareBuffer "CMX_NN" <512> -> memref<16x16x1x1xi1, #NHWC, @CMX_NN>
-                %cst_sparse = VPURT.DeclareSparseBuffer %cst_w : memref<16x16x1x1xf16, #NHWC, @CMX_NN>, %cst_sm : memref<16x16x1x1xi1, #NHWC, @CMX_NN> -> !VPURT.SparseBuffer<data=memref<16x16x1x1xf16, #NHWC, @CMX_NN>, sparsity_map=memref<16x16x1x1xi1, #NHWC, @CMX_NN>>
-                %cst_wt = VPURT.DeclareBuffer "CMX_NN" <544> -> memref<16x1x1x4xsi32, @CMX_NN>
-                VPURT.Task attributes {isTrailingSWLayer = false}  {
-                    %16 = VPUIP.NCEClusterTask {kernel_padding = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}, kernel_size = [1, 1], kernel_strides = [1, 1], task_type = "CONV"} input(%arg0 : memref<1x16x32x32xf16, #NHWC, @CMX_NN>) weights(%cst_sparse : !VPURT.SparseBuffer<data=memref<16x16x1x1xf16, #NHWC, @CMX_NN>, sparsity_map=memref<16x16x1x1xi1, #NHWC, @CMX_NN>>) weight_table(%cst_wt : memref<16x1x1x4xsi32, @CMX_NN>) parent_input(%arg0 : memref<1x16x32x32xf16, #NHWC, @CMX_NN>) parent_output(%arg1 : memref<1x16x32x32xf16, #NHWC, @CMX_NN>) outputs(%arg1 : memref<1x16x32x32xf16, #NHWC, @CMX_NN>) -> memref<1x16x32x32xf16, #NHWC, @CMX_NN> variants :  {
-                    DPUTask {end = [31, 5, 15], mpe_mode = "VECTOR_FP16", pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}, start = [0, 0, 0]}
-                    DPUTask {end = [31, 11, 15], mpe_mode = "VECTOR_FP16", pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}, start = [0, 6, 0]}
-                    DPUTask {end = [31, 17, 15], mpe_mode = "VECTOR_FP16", pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}, start = [0, 12, 0]}
-                    DPUTask {end = [31, 23, 15], mpe_mode = "VECTOR_FP16", pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}, start = [0, 18, 0]}
-                    DPUTask {end = [31, 31, 15], mpe_mode = "VECTOR_FP16", pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}, start = [0, 24, 0]}
-                    } PPE :  {
-                    }
-                }
-                return %arg1 : memref<1x16x32x32xf16, #NHWC, @CMX_NN>
-            }
-        }
-    )";
+    const auto ndType = sparseBufferType.dyn_cast<vpux::NDTypeInterface>();
+    ASSERT_TRUE(ndType != nullptr) << "Type cannot be cast to vpux::NDTypeInterface";
 
-    auto module = mlir::parseSourceString(inputIR, &ctx);
-    ASSERT_TRUE(module.get() != nullptr);
+    EXPECT_EQ(ndType.getShape(), ShapeRef(shape));
+    EXPECT_EQ(ndType.getMemShape(), MemShape(shape.raw()));
 
-    auto func = module.get().lookupSymbol<mlir::FuncOp>("main");
-    ASSERT_TRUE(func != nullptr);
+    EXPECT_TRUE(ndType.hasRank());
+    EXPECT_EQ(ndType.getRank(), 4);
+    EXPECT_EQ(ndType.getNumElements(), 16 * 32 * 32);
 
-    mlir::PassManager pm(&ctx, mlir::OpPassManager::Nesting::Implicit);
-    pm.addPass(
-            VPU::createInitCompilerPass(VPU::ArchKind::KMB, VPU::CompilationMode::DefaultHW, None, Logger::global()));
+    EXPECT_TRUE(ndType.getElementType().isa<mlir::Float16Type>());
 
-    ASSERT_TRUE(mlir::succeeded(pm.run(module.get())));
+    EXPECT_EQ(ndType.getDimsOrder(), order);
 
-    for (auto& op : func.getOps()) {
-        if (auto taskOp = mlir::dyn_cast<VPURT::TaskOp>(op)) {
-            auto wrappedTaskOp = taskOp.body().getBlocks().front().begin();
-            if (auto nceOp = mlir::dyn_cast<VPUIP::NCEClusterTaskOp>(wrappedTaskOp)) {
-                // Sparse filter type
-                const auto ndFilterType = nceOp.weights().getType().dyn_cast<vpux::NDTypeInterface>();
-                EXPECT_TRUE(ndFilterType != nullptr) << "Filter is not of vpux::NDTypeInterface type";
+    EXPECT_EQ(ndType.getMemSpace(), memSpace);
+    EXPECT_EQ(ndType.getMemoryKind(), VPU::MemoryKind::DDR);
 
-                EXPECT_EQ(ndFilterType.getShape(), ShapeRef({16, 16, 1, 1}));
-                EXPECT_EQ(ndFilterType.getMemShape(), MemShape({16, 1, 1, 16}));
+    const SmallVector<Bit> strides({262144_Bit, 16384_Bit, 512_Bit, 16_Bit});
+    const SmallVector<Bit> memStrides({262144_Bit, 16384_Bit, 512_Bit, 16_Bit});
+    EXPECT_EQ(ndType.getStrides().raw(), strides);
+    EXPECT_EQ(ndType.getMemStrides().raw(), strides);
 
-                EXPECT_TRUE(ndFilterType.hasRank());
-                EXPECT_EQ(ndFilterType.getRank(), 4);
-                EXPECT_EQ(ndFilterType.getNumElements(), 16 * 16);
+    EXPECT_EQ(ndType.getElemTypeSize().count(), 16);
+    EXPECT_EQ(ndType.getTotalAllocSize().count(), 34816);
+    EXPECT_EQ(ndType.getCompactAllocSize().count(), 34816);
 
-                EXPECT_TRUE(ndFilterType.getElementType().isa<mlir::Float16Type>());
+    const SmallVector<int64_t> newShape({1, 16, 64, 16});
+    const auto changedShape = ndType.changeShape(ShapeRef(newShape));
+    EXPECT_EQ(changedShape.getShape(), ShapeRef(newShape));
 
-                EXPECT_EQ(ndFilterType.getDimsOrder(), DimsOrder::NHWC);
+    const auto changedElemType = ndType.changeElemType(mlir::Float32Type::get(&ctx));
+    EXPECT_TRUE(changedElemType.getElementType().isa<mlir::Float32Type>());
 
-                EXPECT_EQ(ndFilterType.getMemSpace().getLeafName(), CMX_NAME);
-                EXPECT_EQ(ndFilterType.getMemoryKind(), VPU::MemoryKind::CMX_NN);
+    const SmallVector<int64_t> newShape2({1, 32, 32, 16});
+    const auto changedShapeElemType = ndType.changeShapeElemType(ShapeRef(newShape2), mlir::IntegerType::get(&ctx, 8));
+    EXPECT_EQ(changedShapeElemType.getShape(), ShapeRef(newShape2));
+    EXPECT_TRUE(changedShapeElemType.getElementType().isa<mlir::IntegerType>());
 
-                const SmallVector<Bit> strides({256_Bit, 16_Bit, 256_Bit, 256_Bit});
-                const SmallVector<Bit> memStrides({256_Bit, 256_Bit, 256_Bit, 16_Bit});
-                EXPECT_EQ(ndFilterType.getStrides().raw(), strides);
-                EXPECT_EQ(ndFilterType.getMemStrides().raw(), memStrides);
+    const auto dimsOrder = DimsOrder::NHWC;
+    const auto changedDimsOrder = ndType.changeDimsOrder(dimsOrder);
+    EXPECT_EQ(changedDimsOrder.getDimsOrder(), dimsOrder);
 
-                EXPECT_EQ(ndFilterType.getElemTypeSize().count(), 16);
-                EXPECT_EQ(ndFilterType.getTotalAllocSize().count(), 544);
-                EXPECT_EQ(ndFilterType.getCompactAllocSize().count(), 544);
+    auto changedMemSpace = ndType.changeMemSpace(IndexedSymbolAttr::get(&ctx, CMX_NAME));
+    EXPECT_EQ(changedMemSpace.getMemSpace().getLeafName(), CMX_NAME);
+    changedMemSpace = ndType.changeMemSpace(VPU::MemoryKind::CMX_NN);
+    EXPECT_EQ(changedMemSpace.getMemSpace().getLeafName(), CMX_NAME);
 
-                EXPECT_EQ(ndFilterType.getShape(), ShapeRef({16, 16, 1, 1}));
-                const SmallVector<int64_t> shape({8, 32, 1, 1});
-                const auto newFilterShape = ndFilterType.changeShape(ShapeRef(shape));
-                EXPECT_EQ(newFilterShape.getShape(), ShapeRef(shape));
+    const SmallVector<int64_t> tileOffsets({0, 8, 0, 0});
+    const SmallVector<int64_t> tileShape({1, 8, 32, 32});
+    EXPECT_ANY_THROW(ndType.extractDenseTile(ShapeRef(tileOffsets), ShapeRef(tileShape)));
 
-                EXPECT_TRUE(ndFilterType.getElementType().isa<mlir::Float16Type>());
-                const auto elemType = mlir::Float32Type::get(op.getContext());
-                const auto newFilterElemType = ndFilterType.changeElemType(elemType);
-                EXPECT_TRUE(newFilterElemType.getElementType().isa<mlir::Float32Type>());
-
-                EXPECT_EQ(ndFilterType.getDimsOrder(), DimsOrder::NHWC);
-                const auto dimsOrder = DimsOrder::NCHW;
-                const auto newFilterDimsOrder = ndFilterType.changeDimsOrder(dimsOrder);
-                EXPECT_EQ(newFilterDimsOrder.getDimsOrder(), dimsOrder);
-
-                EXPECT_EQ(ndFilterType.getMemSpace().getLeafName(), CMX_NAME);
-                const auto memSpace = vpux::IndexedSymbolAttr::get(op.getContext(), DDR_NAME);
-                auto newFilterMemSpace = ndFilterType.changeMemSpace(memSpace);
-                EXPECT_EQ(newFilterMemSpace.getMemSpace().getLeafName(), DDR_NAME);
-                newFilterMemSpace = ndFilterType.changeMemSpace(VPU::MemoryKind::DDR);
-                EXPECT_EQ(newFilterMemSpace.getMemSpace().getLeafName(), DDR_NAME);
-            }
-        }
-    }
+    const SmallVector<int64_t> padBefore({0, 0, 1, 1});
+    const SmallVector<int64_t> padAfter({0, 0, 1, 1});
+    EXPECT_ANY_THROW(ndType.pad(ShapeRef(padBefore), ShapeRef(padAfter)));
 }
