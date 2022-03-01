@@ -50,7 +50,9 @@ public:
     virtual ~BaseLayerStrategy() = default;
 
     virtual bool doesLayerFitIntoCMX(mlir::Operation* op, StringRef strategy) const = 0;
+    virtual double computeSplitOverHeightEfficiency(mlir::Operation* op) const = 0;
     bool isOperationSplitOverHeightCompatible(mlir::Operation* op) const;
+    double getChannelAlignment(double input, size_t unit) const;
 
 protected:
     int64_t _numClusters;
@@ -70,6 +72,8 @@ public:
     }
 
     bool doesLayerFitIntoCMX(mlir::Operation* op, StringRef strategy) const override final;
+    double computeSplitOverHeightEfficiency(mlir::Operation* op) const override final;
+    double computeSplitOverKernelEfficiency(mlir::Operation* op) const;
 };
 
 //
@@ -80,6 +84,10 @@ public:
     DepthConvolutionStrategy(mlir::FuncOp func, Logger log): BaseLayerStrategy(func, log) {
     }
     bool doesLayerFitIntoCMX(mlir::Operation* op, StringRef strategy) const override final;
+    double computeSplitOverHeightEfficiency(mlir::Operation* op) const override final;
+    double computeSplitOverKernelEfficiency(mlir::Operation* op) const;
+    std::map<int64_t, std::map<int64_t, double>> depthwiseEfficiencyTable() const;
+    double getDepthwiseEfficiencyConstant(int64_t kernel, int64_t stride) const;
 };
 
 //
@@ -91,6 +99,7 @@ public:
     }
 
     bool doesLayerFitIntoCMX(mlir::Operation* op, StringRef strategy) const override final;
+    double computeSplitOverHeightEfficiency(mlir::Operation* op) const override final;
 };
 
 //
@@ -102,11 +111,13 @@ public:
     }
 
     bool doesLayerFitIntoCMX(mlir::Operation* op, StringRef strategy) const override final;
+    double computeSplitOverHeightEfficiency(mlir::Operation* op) const override final;
 };
 
 //
 // StrategyManager
 //
+
 // Higher level strategy manager class
 // Its current purpose is to globally assign strategies
 // In future it may have methods for finding sub-graphs

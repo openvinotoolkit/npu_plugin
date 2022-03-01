@@ -35,3 +35,78 @@ bool DepthConvolutionStrategy::doesLayerFitIntoCMX(mlir::Operation* op, StringRe
     return origOp.fitIntoCMX(distributedActivationTensorType, distributeddWeightsTensorType,
                              distributedOutputTensorType);
 }
+
+// This depthwise convolution efficiency table is from the ArchBench tool
+// It returns a h/w efficiency constant for a given stride and kernel size
+std::map<int64_t, std::map<int64_t, double>> DepthConvolutionStrategy::depthwiseEfficiencyTable() const {
+    return {{
+            {3, {{1, 0.165}, {2, 0.128}, {4, 0.128}, {6, 0.165}}},
+            {5, {{1, 0.483}, {2, 0.241}, {4, 0.132}, {6, 0.483}}},
+            {7, {{1, 0.6}, {2, 0.2965}, {4, 0.15}, {6, 0.0395}}},
+            {9, {{1, 0.8008}, {2, 0.4687}, {4, 0.2266}, {6, 0.8008}}},
+            {11, {{1, 0.9023}, {2, 0.4687}, {4, 0.2366}, {6, 0.9023}}},
+    }};
+}
+
+double DepthConvolutionStrategy::getDepthwiseEfficiencyConstant(int64_t kernel, int64_t stride) const {
+    if (depthwiseEfficiencyTable().count(kernel)) {
+        auto table = depthwiseEfficiencyTable()[kernel];
+        if (table.count(stride)) {
+            return depthwiseEfficiencyTable()[kernel][stride];
+        } else {
+            VPUX_THROW("The stide size {0} does not exist in the depthwise efficiency table", stride);
+        }
+    } else {
+        VPUX_THROW("The kernel size {0} does not exist in the depthwise efficiency table", kernel);
+    }
+}
+
+double DepthConvolutionStrategy::computeSplitOverHeightEfficiency(mlir::Operation* op) const {
+    auto origOp = mlir::cast<NCEDepthConvolutionOp>(op);
+    const auto outputShape = getShape(origOp.output());
+    const auto OC = outputShape[Dims4D::Act::C];
+    const auto OH = outputShape[Dims4D::Act::H];
+    const auto OW = outputShape[Dims4D::Act::W];
+    double outputTensorVolume = OC * OH * OW;
+    const auto filterShape = Shape(parseIntArrayAttr<int64_t>(origOp.rawFilterShapeAttr()));
+    const auto strides = parseIntArrayAttr<int64_t>(origOp.strides());
+    const auto KY = filterShape[Dims4D::Filter::KY];
+    const double efficiencyConstant = getDepthwiseEfficiencyConstant(KY, strides[0]);
+
+    return efficiencyConstant *
+           std::max((outputTensorVolume / _numClusters) /
+                            getChannelAlignment((getChannelAlignment(std::ceil(OH / _numClusters), _numClusters) *
+                                                 getChannelAlignment(OW, _numClusters) *
+                                                 getChannelAlignment(OC, _numChannelAlignment)),
+                                                _numDPUPerCluster),
+                    (outputTensorVolume / _numClusters) /
+                            getChannelAlignment(
+                                    (getChannelAlignment(std::ceil(OH / _numClusters), _numChannelAlignment) *
+                                     getChannelAlignment(OW, 1) * getChannelAlignment(OC, _numChannelAlignment)),
+                                    _numDPUPerCluster));
+}
+
+double DepthConvolutionStrategy::computeSplitOverKernelEfficiency(mlir::Operation* op) const {
+    auto origOp = mlir::cast<NCEDepthConvolutionOp>(op);
+    const auto outputShape = getShape(origOp.output());
+    const auto OC = outputShape[Dims4D::Act::C];
+    const auto OH = outputShape[Dims4D::Act::H];
+    const auto OW = outputShape[Dims4D::Act::W];
+    double outputTensorVolume = OC * OH * OW;
+    const auto filterShape = Shape(parseIntArrayAttr<int64_t>(origOp.rawFilterShapeAttr()));
+    const auto strides = parseIntArrayAttr<int64_t>(origOp.strides());
+    const auto KY = filterShape[Dims4D::Filter::KY];
+    const double efficiencyConstant = getDepthwiseEfficiencyConstant(KY, strides[0]);
+
+    return efficiencyConstant *
+           std::max((outputTensorVolume / _numClusters) /
+                            getChannelAlignment(
+                                    (getChannelAlignment(OH, _numClusters) * getChannelAlignment(OW, _numClusters) *
+                                     getChannelAlignment(std::ceil(OC / _numClusters), _numChannelAlignment)),
+                                    _numDPUPerCluster),
+                    (outputTensorVolume / _numClusters) /
+                            getChannelAlignment(
+                                    (getChannelAlignment(OH, _numChannelAlignment) * getChannelAlignment(OW, 1) *
+                                     getChannelAlignment(std::ceil(OC / _numClusters), _numChannelAlignment)),
+                                    _numDPUPerCluster));
+}
