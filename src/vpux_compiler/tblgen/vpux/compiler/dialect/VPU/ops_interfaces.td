@@ -48,10 +48,10 @@ def VPU_NCEOpInterface : OpInterface<"NCEOpInterface"> {
             "mlir::Operation*", "addWorkload",
             (ins "mlir::OpBuilder&":$builder, "mlir::Location":$loc,
                  "ShapeRef":$offsets, "ShapeRef":$sizes,
-                 "vpux::VPU::PaddingAttr":$pad, "MPEMode":$mpeMode),
+                 "vpux::VPU::PaddingAttr":$pad, "MPEMode":$mpeMode, "mlir::IntegerAttr":$clusterId),
             [{}],
             [{
-                return vpux::VPU::details::addWorkload($_op.workloads(), builder, loc, offsets, sizes, pad, mpeMode);
+                return vpux::VPU::details::addWorkload($_op.workloads(), builder, loc, offsets, sizes, pad, mpeMode, clusterId);
             }]
         >,
 

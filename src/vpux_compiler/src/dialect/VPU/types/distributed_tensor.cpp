@@ -220,6 +220,36 @@ SmallVector<Shape> VPU::DistributedTensorType::getPerClusterComputeShapes() cons
     return VPU::getPerClusterComputeShapes(getShape(), getDistribution());
 }
 
+// @brief Retrive the offsets for each compute shape with regards to full tensor shape.
+SmallVector<Shape> VPU::DistributedTensorType::getPerClusterComputeShapeOffsets() const {
+    const auto distribution = getDistribution();
+    const auto distributionMode = distribution.mode().getValue();
+    const auto numClusters = distribution.num_clusters().getInt();
+    auto tiledComputeShapeOffset = SmallVector<Shape>(numClusters);
+    if (VPU::bitEnumContains(distributionMode, VPU::DistributionMode::SEGMENTED)) {
+        const auto tilingScheme = parseIntArrayAttr<int64_t>(distribution.num_tiles());
+        const auto isValidTile = [](auto dim) {
+            return dim > 1;
+        };
+        const auto axis = std::distance(tilingScheme.begin(), llvm::find_if(tilingScheme, isValidTile));
+        const auto computeShapes = getPerClusterComputeShapes();
+        int64_t totalOffset = 0;
+
+        for (int64_t idx = 0; idx < numClusters; idx++) {
+            SmallVector<int64_t> offset(getShape().size(), 0);
+            offset[axis] = totalOffset;
+            totalOffset += computeShapes[idx][Dim(axis)];
+            tiledComputeShapeOffset[idx] = Shape(offset);
+        }
+    } else if (VPU::bitEnumContains(distributionMode, VPU::DistributionMode::OVERLAPPED)) {
+        VPUX_THROW("OVERLAPPED distribution mode is not supported yet");
+    } else {
+        std::fill_n(tiledComputeShapeOffset.begin(), tiledComputeShapeOffset.size(), Shape(getShape().size(), 0));
+    }
+
+    return tiledComputeShapeOffset;
+}
+
 // @brief Get largest compact compute shape
 // @warning This function should not be used for memory size calculation,
 // because it does not retrieve the true allocate shape in cases

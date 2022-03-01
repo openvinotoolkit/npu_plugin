@@ -68,28 +68,38 @@ const EnumMap<VPU::ArchKind, GetMpeModeCb> mpeMap = {
         {VPU::ArchKind::MTL, getMpeModeForMtl},
 };
 
-//
-// GenericNCERewrite
-//
-
-template <class ConcreteOp>
-class GenericNCERewrite final : public mlir::OpRewritePattern<ConcreteOp> {
-public:
-    GenericNCERewrite(mlir::MLIRContext* ctx, int64_t numDPU, VPU::ArchKind arch, Logger log)
-            : mlir::OpRewritePattern<ConcreteOp>(ctx), _numDPU(numDPU), _arch(arch), _log(log) {
+// for workloads in sub tensors, offsets need to be from original full output tensor
+void addSubTensorOffset(TileInfo& tileInfo, ShapeRef tensorOffset) {
+    VPUX_THROW_WHEN(tileInfo.offsets.size() != tensorOffset.size(),
+                    "Invalid size for TileInfo.offset {0} and sub tensor offset {1}", tileInfo.offsets.size(),
+                    tensorOffset.size());
+    for (auto d : irange(tileInfo.offsets.size())) {
+        const auto dim = Dim(d);
+        tileInfo.offsets[dim] += tensorOffset[dim];
     }
+}
 
-public:
-    mlir::LogicalResult matchAndRewrite(ConcreteOp origOp, mlir::PatternRewriter& rewriter) const final;
+vpux::PadInfo getPaddingForSubTensor(VPU::PaddingAttr pads, ShapeRef origOutputShape, ShapeRef subTensor,
+                                     ShapeRef subTensorOffset) {
+    PadInfo newPad = VPU::toPadInfo(pads);
+    if (subTensorOffset[Dims4D::Act::H] != 0) {
+        newPad.top = 0;
+    }
+    if (subTensorOffset[Dims4D::Act::W] != 0) {
+        newPad.left = 0;
+    }
+    if (subTensorOffset[Dims4D::Act::H] + subTensor[Dims4D::Act::H] != origOutputShape[Dims4D::Act::H]) {
+        newPad.bottom = 0;
+    }
+    if (subTensorOffset[Dims4D::Act::W] + subTensor[Dims4D::Act::W] != origOutputShape[Dims4D::Act::W]) {
+        newPad.right = 0;
+    }
+    return newPad;
+}
 
-private:
-    const int64_t _numDPU;
-    VPU::ArchKind _arch;
-    Logger _log;
-};
-
-void addDPUTasks(mlir::PatternRewriter& rewriter, VPU::NCEOpInterface origOp, VPU::PaddingAttr pads,
-                 ShapeRef outputShape, int64_t numDPU, VPU::MPEMode mpeMode, bool isZTilingSupported) {
+void addWorkload(mlir::PatternRewriter& rewriter, VPU::NCEOpInterface origOp, int64_t numDPU, ShapeRef outputShape,
+                 VPU::PaddingAttr pads, VPU::MPEMode mpeMode, bool isZTilingSupported,
+                 mlir::IntegerAttr clusterId = nullptr, ShapeRef subTensorOffset = {}) {
     VPUIP::DpuTiler dpuTiler(outputShape, mpeMode);
     dpuTiler.tileOverH(numDPU);
 
@@ -115,11 +125,64 @@ void addDPUTasks(mlir::PatternRewriter& rewriter, VPU::NCEOpInterface origOp, VP
         }
     }
 
-    const auto& outTiles = splitCandidates[minCostIdx];
-    for (const auto& outTile : outTiles) {
+    auto outTiles = splitCandidates[minCostIdx];
+    for (auto& outTile : outTiles) {
         const auto padsTileConf = backInferPadsTile(outTile, outputShape, VPU::toPadInfo(pads));
-        const auto tilePad = VPU::getPaddingAttr(rewriter.getContext(), padsTileConf);
-        origOp.addWorkload(rewriter, origOp.getLoc(), outTile.offsets, outTile.shape, tilePad, mpeMode);
+        auto tilePad = VPU::getPaddingAttr(rewriter.getContext(), padsTileConf);
+        if (clusterId != nullptr) {
+            addSubTensorOffset(outTile, subTensorOffset);
+        }
+        origOp.addWorkload(rewriter, origOp.getLoc(), outTile.offsets, outTile.shape, tilePad, mpeMode, clusterId);
+    }
+}
+
+//
+// GenericNCERewrite
+//
+
+template <class ConcreteOp>
+class GenericNCERewrite final : public mlir::OpRewritePattern<ConcreteOp> {
+public:
+    GenericNCERewrite(mlir::MLIRContext* ctx, int64_t numDPU, VPU::ArchKind arch, Logger log)
+            : mlir::OpRewritePattern<ConcreteOp>(ctx), _numDPU(numDPU), _arch(arch), _log(log) {
+    }
+
+public:
+    mlir::LogicalResult matchAndRewrite(ConcreteOp origOp, mlir::PatternRewriter& rewriter) const final;
+
+private:
+    const int64_t _numDPU;
+    VPU::ArchKind _arch;
+    Logger _log;
+};
+
+void addDPUTasks(mlir::PatternRewriter& rewriter, VPU::NCEOpInterface origOp, VPU::PaddingAttr pads,
+                 ShapeRef outputShape, int64_t numDPU, VPU::MPEMode mpeMode, bool isZTilingSupported) {
+    if (auto clusterOp = mlir::dyn_cast<VPU::NCEClusterTilingOp>(origOp->getParentOp())) {
+        const auto outputs = clusterOp->getResults();
+        VPUX_THROW_UNLESS(outputs.size() == 1, "Wrong outputs size: {0}", outputs.size());
+
+        const auto output = *outputs.begin();
+        auto distributedOutputType = output.getType().dyn_cast<VPU::DistributedTensorType>();
+        VPUX_THROW_WHEN(distributedOutputType == nullptr, "Wrong output type {0} for NCEClusterTilingOp",
+                        output.getType());
+        const auto& outputSubTensorShapes = distributedOutputType.getPerClusterComputeShapes();
+        const auto& outputSubTensorOffsets = distributedOutputType.getPerClusterComputeShapeOffsets();
+
+        VPUX_THROW_WHEN(outputSubTensorShapes.size() != outputSubTensorOffsets.size(),
+                        "sub tensor size:{0} not equal to offset size:{1}", outputSubTensorShapes.size(),
+                        outputSubTensorOffsets.size());
+        for (size_t clusterId = 0; clusterId < outputSubTensorShapes.size(); clusterId++) {
+            auto clusterIdAttr = getIntAttr(origOp->getContext(), clusterId);
+
+            auto workloadPad = getPaddingForSubTensor(pads, outputShape, outputSubTensorShapes[clusterId],
+                                                      outputSubTensorOffsets[clusterId]);
+            addWorkload(rewriter, origOp, numDPU, outputSubTensorShapes[clusterId],
+                        getPaddingAttr(origOp->getContext(), workloadPad), mpeMode, isZTilingSupported, clusterIdAttr,
+                        outputSubTensorOffsets[clusterId]);
+        }
+    } else {
+        addWorkload(rewriter, origOp, numDPU, outputShape, pads, mpeMode, isZTilingSupported);
     }
 }
 

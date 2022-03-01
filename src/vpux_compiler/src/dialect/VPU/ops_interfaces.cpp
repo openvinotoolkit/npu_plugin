@@ -75,7 +75,8 @@ mlir::LogicalResult vpux::VPU::details::validateWorkloadsRegion(mlir::Location l
 }
 
 mlir::Operation* vpux::VPU::details::addWorkload(mlir::Region& workloads, mlir::OpBuilder& builder, mlir::Location loc,
-                                                 ShapeRef offsets, ShapeRef sizes, PaddingAttr pad, MPEMode mpeMode) {
+                                                 ShapeRef offsets, ShapeRef sizes, PaddingAttr pad, MPEMode mpeMode,
+                                                 mlir::IntegerAttr clusterId) {
     if (workloads.empty()) {
         workloads.emplaceBlock();
     }
@@ -86,7 +87,7 @@ mlir::Operation* vpux::VPU::details::addWorkload(mlir::Region& workloads, mlir::
     const auto offsetsAttr = getIntArrayAttr(builder.getContext(), offsets);
     const auto sizesAttr = getIntArrayAttr(builder.getContext(), sizes);
 
-    return builder.create<DPUWorkloadOp>(loc, offsetsAttr, sizesAttr, pad, mpeMode);
+    return builder.create<DPUWorkloadOp>(loc, offsetsAttr, sizesAttr, pad, mpeMode, clusterId);
 }
 
 //

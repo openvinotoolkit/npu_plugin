@@ -92,8 +92,18 @@ def VPU_DPUWorkloadOp :
         Confined<I64ArrayAttr, [ArrayCount<4>]>:$offsets,
         Confined<I64ArrayAttr, [ArrayCount<4>]>:$sizes,
         VPU_PaddingAttr:$pad,
-        VPU_MPEMode:$mpe_mode
+        VPU_MPEMode:$mpe_mode,
+        OptionalAttr<IntAttr>:$cluster_id
     );
+
+    let builders = [
+        OpBuilder<(ins
+            "mlir::Value":$offsets,
+            "mlir::Value":$sizes,
+            "vpux::VPU::PaddingAttr":$kernelFunction,
+            "vpux::VPU::MPEMode":$mpe_mode
+        )>
+    ];
 
     let assemblyFormat = [{
         $offsets $sizes $pad $mpe_mode attr-dict-with-keyword
