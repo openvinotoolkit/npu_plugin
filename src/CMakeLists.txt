@@ -27,7 +27,10 @@ if(ENABLE_MCM_COMPILER)
     add_subdirectory(frontend_mcm)
 endif()
 
-add_subdirectory(custom_extension_library)
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/custom_extension_library")
+    add_subdirectory(custom_extension_library)
+endif()
+
 add_subdirectory(vpux_ngraph_transformations)
 
 # TODO Should be only on AARCH64. Enabled for kmbPlugin Windows build
