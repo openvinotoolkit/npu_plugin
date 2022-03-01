@@ -14,6 +14,7 @@
 #include "vpux/compiler/dialect/IE/utils/resources.hpp"
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
+#include "vpux/compiler/dialect/VPU/nce_invariant.hpp"
 #include "vpux/compiler/dialect/VPU/ops.hpp"
 #include "vpux/compiler/dialect/VPU/ops_interfaces.hpp"
 #include "vpux/compiler/dialect/VPU/passes.hpp"
@@ -74,7 +75,7 @@ public:
         void setConcat(IE::ConcatOp rootConcat) {
             concat = rootConcat;
         }
-        void addConcatPart(ConcatPart concatPart) {
+        void addConcatPart(const ConcatPart& concatPart) {
             concatParts.push_back(concatPart);
         }
         bool isValidPattern() {
@@ -95,15 +96,14 @@ private:
 
 private:
     Logger _log;
-    int64_t WEIGHT_TABLE_NUM_ELEMENTS_PER_OC = 4;
 
 private:
     bool isSplitSupportedOnDPU(IE::SliceOp sliceOp);
     ConcatPattern getInputPattern(IE::ConcatOp concat);
     ConcatPattern getOutputPattern(IE::ConcatOp concat);
     IE::SliceOp convertCopyToSlice(IE::CopyOp copyOp);
-    void rewriteInputPattern(ConcatPattern concatPattern);
-    void rewriteOutputPattern(ConcatPattern concatPattern);
+    void rewriteInputPattern(ConcatPattern& concatPattern);
+    void rewriteOutputPattern(ConcatPattern& concatPattern);
 };
 
 size_t CMXConcatPass::ConcatPattern::getSize(mlir::Value val) const {
@@ -199,18 +199,18 @@ CMXConcatPass::ConcatPattern CMXConcatPass::getOutputPattern(IE::ConcatOp concat
             copyOutOps.push_back(outputCopyOp);
         }
         for (auto& copyOutOp : copyOutOps) {
-            SmallVector<VPU::NCEOpInterface> nceUsers;
+            llvm::DenseSet<mlir::Operation*> nceUsers;
             for (auto copyUser : copyOutOp.getResult().getUsers()) {
                 auto childNCEOp = mlir::dyn_cast<VPU::NCEOpInterface>(copyUser);
                 if (childNCEOp == nullptr) {
                     return concatPattern;
                 }
-                if (llvm::find(nceUsers, childNCEOp) != nceUsers.end()) {
+                if (nceUsers.find(copyUser) != nceUsers.end()) {
                     // avoid multiple reads from the same location at the same time
                     _log.nest(2).trace("Concat input used twice by the same operation, can not cmx");
                     return concatPattern;
                 }
-                nceUsers.push_back(childNCEOp);
+                nceUsers.insert(copyUser);
                 concatPattern.addConcatPart(ConcatPart(copyOutOp, outputSliceOp, childNCEOp, 0));
             }
         }
@@ -261,9 +261,11 @@ bool CMXConcatPass::ConcatPattern::inputsHaveMultipleUsers() const {
 
 bool CMXConcatPass::ConcatPattern::inputPatternCanBeCMXed(size_t cmxSize) {
     // if concat is a Result operation
-    if (concat.output().isa<mlir::BlockArgument>()) {
-        _log.nest(2).trace("Concat output is part of network output");
-        return false;
+    for (auto concatOutputUser : concat.output().getUsers()) {
+        if (mlir::isa<mlir::ReturnOp>(concatOutputUser)) {
+            _log.nest(2).trace("Concat output is part of network output");
+            return false;
+        }
     }
 
     // assert that the concat will fit in CMX
@@ -354,7 +356,7 @@ bool CMXConcatPass::ConcatPattern::outputPatternCanBeCMXed(size_t cmxSize) {
     return true;
 }
 
-void CMXConcatPass::rewriteInputPattern(ConcatPattern concatPattern) {
+void CMXConcatPass::rewriteInputPattern(ConcatPattern& concatPattern) {
     /*
         From DDR IR
 
@@ -380,7 +382,7 @@ void CMXConcatPass::rewriteInputPattern(ConcatPattern concatPattern) {
     }
 }
 
-void CMXConcatPass::rewriteOutputPattern(ConcatPattern concatPattern) {
+void CMXConcatPass::rewriteOutputPattern(ConcatPattern& concatPattern) {
     /*
                             From DDR IR
 
