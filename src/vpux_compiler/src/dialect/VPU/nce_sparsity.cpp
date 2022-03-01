@@ -405,14 +405,12 @@ std::vector<int32_t> vpux::VPU::NCESparsity::getWeightsTable(mlir::Type inElemTy
     // In case of dense operation use sparsityPtrOffset beyond CMX memory range to satisfy HW requirements
     auto sparsityPtrOffset = sparsityPtr.hasValue() ? sparsityPtr.getValue() : SPARSITY_PTR_WHEN_NO_SPARISTY;
     int32_t sparsityPtrStep = 0;
-    if (arch == VPU::ArchKind::MTL) {
-        if (weightsElemType) {
-            auto elementBitSize = static_cast<Bit>(getElemTypeSize(weightsElemType));
-            sparsityPtrStep = static_cast<int32_t>(
-                    static_cast<Byte>(Bit(weightPtrStep * CHAR_BIT / elementBitSize.count())).count());
-        } else {
-            sparsityPtrOffset = SPARSITY_PTR_WHEN_NO_SPARISTY;
-        }
+    if (weightsElemType) {
+        auto elementBitSize = static_cast<Bit>(getElemTypeSize(weightsElemType));
+        sparsityPtrStep =
+                static_cast<int32_t>(static_cast<Byte>(Bit(weightPtrStep * CHAR_BIT / elementBitSize.count())).count());
+    } else {
+        sparsityPtrOffset = SPARSITY_PTR_WHEN_NO_SPARISTY;
     }
 
     const auto weightsElementTypeBitSize =

@@ -45,7 +45,7 @@ bool vpux::VPU::NCEDepthConvolutionOp::fitIntoCMX(mlir::Operation* op, mlir::Arr
     const auto SX = kernelStrides[Dims4D::Strides::X];
 
     int64_t activationWindowSize = NCESparsity::getActivationWindowSize(NCESparsity::Mode::DW_CONV, kernelSize, SX,
-                                                                        input.getElementType(), 1, 1);
+                                                                        input.getElementType(), 1, OC);
 
     const auto alignment = NCEInvariant::getAlignment(output.getElementType());
 

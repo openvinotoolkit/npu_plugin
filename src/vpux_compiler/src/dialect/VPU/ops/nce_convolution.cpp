@@ -66,7 +66,7 @@ bool vpux::VPU::NCEConvolutionOp::fitIntoCMX(mlir::Operation* op, mlir::ArrayAtt
         const auto SX = kernelStrides[Dims4D::Strides::X];
 
         auto activationWindowSize = NCESparsity::getActivationWindowSize(NCESparsity::Mode::CM_CONV, kernelSize, SX,
-                                                                         input.getElementType(), IC, 1);
+                                                                         input.getElementType(), IC, OC);
 
         requiredCMX += alignedFilter.getTotalAllocSize();
         requiredCMX += activationWindowSize * 1_Byte;
