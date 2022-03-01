@@ -89,22 +89,6 @@ NCEClusterTilingOp createDistributedCopyIn(ConcreteOp origOp, mlir::Value input,
     return distributedInputCopyOp;
 }
 
-NCEClusterTilingOp createDistributedSpilledCopy(mlir::Operation* origOp, NCEClusterTilingOp clusterTilingOp) {
-    mlir::OpBuilder builder(origOp);
-    auto origOutput = origOp->getResult(0);
-    const auto origOutType = origOutput.getType().cast<NDTypeInterface>();
-    const auto origOutMemSpace = origOutType.getMemSpace();
-
-    const auto outputTensorBodyBuilder = [&](mlir::OpBuilder& builder, mlir::Location loc,
-                                             mlir::ValueRange newOperands) {
-        auto outputTensorDistributedCopyOp = builder.create<IE::CopyOp>(loc, newOperands[0], origOutMemSpace);
-        builder.create<YieldOp>(loc, outputTensorDistributedCopyOp->getResults());
-    };
-
-    return builder.create<NCEClusterTilingOp>(clusterTilingOp->getLoc(), origOutType, clusterTilingOp->getResult(0),
-                                              outputTensorBodyBuilder);
-}
-
 template <class ConcreteOp>
 DistributedTensorType createDistributedTensorType(ConcreteOp origOp, mlir::Value input,
                                                   DistributionMode distributionMode, mlir::ArrayAttr numTiles) {
@@ -140,44 +124,6 @@ DistributedTensorType createDistributedTensorType(ConcreteOp origOp, mlir::Value
 
     return DistributedTensorType::get(origOp.getContext(), shape.raw(), elemType, order, memSpace,
                                       distributedActivationTensorAttr);
-}
-
-DistributionMode getOutputTensorDistributionMode(StringRef strategy) {
-    if (strategy == splitOverHeightOverlapped) {
-        return DistributionMode::SEGMENTED;
-    } else if (strategy == splitOverHeight) {
-        return DistributionMode::SEGMENTED;
-    } else if (strategy == splitOverKernel) {
-        return DistributionMode::SEGMENTED | DistributionMode::DUPLICATED;
-    } else if (strategy == clustering) {
-        return DistributionMode::DUPLICATED;
-    } else {
-        VPUX_THROW("{0} is an invalid multi-cluster strategy, unable to determine the distribution mode for the "
-                   "output tensor",
-                   strategy);
-    }
-}
-
-DistributionMode getActivationWindowTensorDistributionMode(StringRef strategy, ArchKind arch) {
-    if (strategy == splitOverHeightOverlapped) {
-        return DistributionMode::DUPLICATED;
-    } else if (strategy == splitOverHeight) {
-        return DistributionMode::DUPLICATED;
-    } else if (strategy == splitOverKernel) {
-        if (arch == ArchKind::MTL) {
-            return DistributionMode::SEGMENTED;
-        } else if (arch == ArchKind::KMB) {
-            return DistributionMode::DUPLICATED;
-        } else {
-            VPUX_THROW("Unsupported arch {0}", arch);
-        }
-    } else if (strategy == clustering) {
-        return DistributionMode::DUPLICATED;
-    } else {
-        VPUX_THROW("{0} is an invalid multi-cluster strategy, unable to determine the distribution mode for the "
-                   " activation window tensor",
-                   strategy);
-    }
 }
 
 }  // namespace VPU
