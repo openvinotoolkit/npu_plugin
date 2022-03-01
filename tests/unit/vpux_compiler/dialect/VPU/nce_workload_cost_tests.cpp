@@ -39,35 +39,6 @@ struct NceOpTensorShape {
     vpux::Shape inputShape;
     vpux::Shape outputShape;
 };
-
-vpux::SmallString getVPUNNModelFile() {
-    vpux::SmallString modelDir;
-    // probe for OpenVINO runtime dir
-    auto ovBuildDir = InferenceEngine::getIELibraryPath();
-    modelDir = ovBuildDir;
-    llvm::sys::path::append(modelDir, "vpunn");
-    llvm::sys::path::append(modelDir, "vpu_2_0.vpunn");
-    VPUX_THROW_UNLESS(llvm::sys::fs::exists(modelDir), "vpunn model {0} does not exist", modelDir);
-    return modelDir;
-}
-
-vpux::VPUIP::WorkloadCostParams buildWorkloadCost(const NceOpTensorShape& tensorShape, vpux::VPU::MPEMode mpeMode,
-                                                  mlir::MLIRContext* ctx) {
-    const auto outputShape = tensorShape.outputShape;
-    const auto inputShape = tensorShape.inputShape;
-    vpux::VPUIP::WorkloadCostParams costParams;
-    costParams.dataType = mlir::Float16Type::get(ctx);
-    costParams.inputShape = tensorShape.inputShape;
-    costParams.outputShape = tensorShape.outputShape;
-    costParams.padInfo = vpux::PadInfo(0, 0, 0, 0);
-    costParams.kernelSize = {1, 1};
-    costParams.kernelStride = {1, 1};
-    costParams.nceTaskType = vpux::VPUIP::NCETaskType::CONV;
-    costParams.arch = vpux::VPU::ArchKind::KMB;
-    costParams.mpeMode = mpeMode;
-    costParams.numDPU = numDPU;
-    return costParams;
-}
 }  // namespace
 
 TEST(MLIR_VPU_WorkloadCost, VPUNNCostInterface) {
@@ -76,8 +47,6 @@ TEST(MLIR_VPU_WorkloadCost, VPUNNCostInterface) {
     llvm::SmallVector<vpux::VPU::MPEMode> mpeModeList{vpux::VPU::MPEMode::VECTOR_FP16, vpux::VPU::MPEMode::VECTOR,
                                                       vpux::VPU::MPEMode::MATRIX, vpux::VPU::MPEMode::CUBOID_4x16};
 
-    auto modelPath = getVPUNNModelFile();
-    auto costModel = std::make_shared<VPUNN::VPUCostModel>(modelPath.str().str());
     llvm::SmallVector<NceOpTensorShape> testTensorLists;
     for (int64_t h = initDimensionValue; h < maxDimensionValue; h *= testStep) {
         for (int64_t w = initDimensionValue; w < maxDimensionValue; w *= testStep) {
@@ -89,13 +58,12 @@ TEST(MLIR_VPU_WorkloadCost, VPUNNCostInterface) {
     }
     for (auto& testTensor : testTensorLists) {
         for (auto& mpeMode : mpeModeList) {
-            auto costParams = buildWorkloadCost(testTensor, mpeMode, &ctx);
-            vpux::VPUIP::DpuTiler dpuTiler(costParams.outputShape, mpeMode, costModel);
+            vpux::VPUIP::DpuTiler dpuTiler(testTensor.outputShape, mpeMode);
             const auto& splitPool = dpuTiler.generateSplitNumberPool(numDPU, maxSplitNum);
 
-            vpux::Shape nTilesOnDim(costParams.outputShape.size(), 1);
-            const auto& outTilesWithSingleSplit = vpux::fillDividedTiles(nTilesOnDim, costParams.outputShape);
-            auto baseHardwareExecutionCost = dpuTiler.cost(outTilesWithSingleSplit, costParams);
+            vpux::Shape nTilesOnDim(testTensor.outputShape.size(), 1);
+            const auto& outTilesWithSingleSplit = vpux::fillDividedTiles(nTilesOnDim, testTensor.outputShape);
+            auto baseHardwareExecutionCost = dpuTiler.simpleCost(numDPU, outTilesWithSingleSplit);
 
             dpuTiler.tileOverH(numDPU);
             for (auto& splitNum : splitPool) {
@@ -104,7 +72,7 @@ TEST(MLIR_VPU_WorkloadCost, VPUNNCostInterface) {
 
             const auto& splitCandidates = dpuTiler.getSplitPool();
             for (size_t idx = 0; idx < splitCandidates.size(); idx++) {
-                auto hardwareExecutionCost = dpuTiler.cost(splitCandidates[idx], costParams);
+                auto hardwareExecutionCost = dpuTiler.simpleCost(numDPU, splitCandidates[idx]);
                 EXPECT_LE(hardwareExecutionCost, baseHardwareExecutionCost);
             }
         }

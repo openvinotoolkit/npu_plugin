@@ -294,11 +294,3 @@ target_include_directories(${HUFFMAN_CODEC_TARGET_NAME}
         "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/src/mcmCompiler/include/huffman_encoding"
         "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/src/mcmCompiler"
 )
-
-#
-# nn cost model
-#
-set(VPUNN_BUILD_SHARED_LIB OFF CACHE BOOL "" FORCE)
-set(VPUNN_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
-set(VPUNN_BUILD_TESTS OFF CACHE BOOL "" FORCE)
-add_subdirectory(vpucostmodel)

@@ -15,95 +15,16 @@
 #include "vpux/compiler/core/layers.hpp"
 #include "vpux/utils/core/numeric.hpp"
 
+#include <llvm/ADT/PriorityQueue.h>
 #include <numeric>
-#include <set>
 
 using namespace vpux;
 
 namespace {
 
 constexpr uint32_t DEFAULT_ZTILE_VALUE = 16;
-
 constexpr size_t MIN_VALID_ZTILE_EXPONENT = 4;
 constexpr size_t MAX_VALID_ZTILE_EXPONENT = 8;
-
-VPUNN::ExecutionMode getExecutionMode(VPU::MPEMode mpeMode) {
-    switch (mpeMode) {
-    case VPU::MPEMode::VECTOR:
-        return VPUNN::ExecutionMode::VECTOR;
-    case VPU::MPEMode::MATRIX:
-        return VPUNN::ExecutionMode::MATRIX;
-    case VPU::MPEMode::VECTOR_FP16:
-        return VPUNN::ExecutionMode::VECTOR_FP16;
-    case VPU::MPEMode::CUBOID_16x16:
-        return VPUNN::ExecutionMode::CUBOID_16x16;
-    case VPU::MPEMode::CUBOID_8x16:
-        return VPUNN::ExecutionMode::CUBOID_8x16;
-    case VPU::MPEMode::CUBOID_4x16:
-        return VPUNN::ExecutionMode::CUBOID_4x16;
-    default:
-        VPUX_THROW("Unsupported MPE mode type: '{0}'", mpeMode);
-    }
-}
-
-VPUNN::Operation getOperationType(VPUIP::NCETaskType taskType) {
-    switch (taskType) {
-    case VPUIP::NCETaskType::CONV:
-        return VPUNN::Operation::CONVOLUTION;
-    case VPUIP::NCETaskType::DWCONV:
-        return VPUNN::Operation::DW_CONVOLUTION;
-    case VPUIP::NCETaskType::MAXPOOL:
-        return VPUNN::Operation::MAXPOOL;
-    case VPUIP::NCETaskType::AVEPOOL:
-        return VPUNN::Operation::AVEPOOL;
-    case VPUIP::NCETaskType::ELTWISE:
-        return VPUNN::Operation::ELTWISE;
-    case VPUIP::NCETaskType::CMCONV:
-        return VPUNN::Operation::CM_CONVOLUTION;
-    // unsupported type for vpunn, use convolution as work around
-    case VPUIP::NCETaskType::IDENTITY:
-    case VPUIP::NCETaskType::FCL:
-        return VPUNN::Operation::CONVOLUTION;
-    default:
-        VPUX_THROW("Unsupported operation type: '{0}'", taskType);
-    }
-}
-
-VPUNN::DataType getElementType(mlir::Type type) {
-    if (type.isBF16()) {
-        return VPUNN::DataType::BFLOAT16;
-    } else if (type.isF16()) {
-        return VPUNN::DataType::FLOAT16;
-    } else if (type.isInteger(CHAR_BIT * sizeof(int8_t))) {
-        return VPUNN::DataType::INT8;
-    } else if (type.isUnsignedInteger(CHAR_BIT * sizeof(int8_t))) {
-        return VPUNN::DataType::UINT8;
-    } else if (auto qType = type.dyn_cast<mlir::quant::QuantizedType>()) {
-        if (qType.getStorageTypeIntegralWidth() == 8) {
-            return qType.isSigned() ? VPUNN::DataType::INT8 : VPUNN::DataType::UINT8;
-        }
-    }
-    VPUX_THROW("Unsupported data type: '{0}'", type);
-}
-
-VPUNN::VPUDevice getVPUDeviceType(VPU::ArchKind archKind) {
-    switch (archKind) {
-    case VPU::ArchKind::KMB:
-    case VPU::ArchKind::TBH:
-        return VPUNN::VPUDevice::VPU_2_0;
-    case VPU::ArchKind::MTL:
-        return VPUNN::VPUDevice::VPU_2_7;
-    default:
-        VPUX_THROW("Unsupported VPU arch type: '{0}'", archKind);
-    }
-}
-
-VPUNN::VPUTensor getOutputTensor(const TileInfo& tileInfo, VPUNN::DataType dataType) {
-    return VPUNN::VPUTensor({static_cast<unsigned int>(tileInfo.shape[Dims4D::Act::W]),
-                             static_cast<unsigned int>(tileInfo.shape[Dims4D::Act::H]),
-                             static_cast<unsigned int>(tileInfo.shape[Dims4D::Act::C]), 1},
-                            dataType);
-}
 
 SmallVector<uint32_t> getSplitsFromRange(uint32_t maxSplitRange, uint32_t maxLimit) {
     SmallVector<uint32_t> splits;
@@ -115,6 +36,25 @@ SmallVector<uint32_t> getSplitsFromRange(uint32_t maxSplitRange, uint32_t maxLim
         }
     }
     return splits;
+}
+
+double totalCostOnDpuCluster(int64_t numDPU, ArrayRef<double> workloadCosts) {
+    VPUX_THROW_WHEN(numDPU < 1, "Wrong DPU number: {0}", numDPU);
+    VPUX_THROW_WHEN(workloadCosts.empty(), "Workload cost list is empty");
+
+    SmallVector<double> costOnDPU(numDPU, 0);
+    llvm::PriorityQueue<double, SmallVector<double>, std::greater<double>> queue(costOnDPU.begin(), costOnDPU.end());
+    for (const auto& cost : workloadCosts) {
+        auto currentMinCost = queue.top();
+        queue.pop();
+        queue.push(currentMinCost + cost);
+    }
+    // get the max cost from queue
+    auto queueSize = queue.size();
+    for (size_t i = 0; i < queueSize - 1; i++) {
+        queue.pop();
+    }
+    return queue.top();
 }
 }  // namespace
 
@@ -187,20 +127,18 @@ void vpux::VPUIP::DpuTiler::tileOverZ(uint32_t splitNumber) {
     auto C = _outShape.size() >= 3 ? _outShape[Dims4D::Act::C] : 0;
 
     auto maxChannelPerWL = divUp(static_cast<uint32_t>(C), splitNumber);
-    std::set<uint32_t> validZTileSet;
     maxChannelPerWL = alignVal(maxChannelPerWL, DEFAULT_ZTILE_VALUE);
     if (maxChannelPerWL < DEFAULT_ZTILE_VALUE) {
         return;
     }
-    Shape originalShape(4, 1);
+    Shape originalShape(_outShape.size(), 1);
     originalShape[Dims4D::Act::W] = W;
     originalShape[Dims4D::Act::H] = H;
 
     auto remainedChannel = static_cast<uint32_t>(C);
     for (uint32_t idx = 0; idx < splitNumber; idx++) {
         TileInfo outTile(_outShape.size());
-        outTile.shape[Dims4D::Act::W] = W;
-        outTile.shape[Dims4D::Act::H] = H;
+        outTile.shape = originalShape;
         if (remainedChannel > maxChannelPerWL) {
             outTile.shape[Dims4D::Act::C] = maxChannelPerWL;
             remainedChannel -= maxChannelPerWL;
@@ -223,59 +161,16 @@ void vpux::VPUIP::DpuTiler::tileOverZ(uint32_t splitNumber) {
     _splitPool.push_back(std::move(outputTiles));
 }
 
-uint32_t vpux::VPUIP::DpuTiler::cost(const OutputTiling& dpuTiles, const WorkloadCostParams& params) {
-    VPUX_THROW_WHEN(params.kernelSize.size() < 2, "kernel array size less than 2");
-    const auto KY = static_cast<unsigned int>(params.kernelSize[0]);
-    const auto KX = static_cast<unsigned int>(params.kernelSize[1]);
-    VPUX_THROW_WHEN(params.kernelStride.size() < 2, "kernel stride array size less than 2");
-    const auto SY = static_cast<unsigned int>(params.kernelStride[0]);
-    const auto SX = static_cast<unsigned int>(params.kernelStride[1]);
-
-    const auto opType = getOperationType(params.nceTaskType);
-    const auto elemType = getElementType(params.dataType);
-
-    std::vector<unsigned int> workloadCost;
-    for (const auto& dpuTile : dpuTiles) {
-        const auto padsTileConf = backInferPadsTile(dpuTile, params.outputShape, params.padInfo);
-
-        VPUNN::VPUTensor outputTensor = getOutputTensor(dpuTile, elemType);
-        VPUNN::VPUTensor inputTensor({(outputTensor.x() - 1) * SX + KX - static_cast<unsigned int>(padsTileConf.left) -
-                                              static_cast<unsigned int>(padsTileConf.right),
-                                      (outputTensor.y() - 1) * SY + KY - static_cast<unsigned int>(padsTileConf.top) -
-                                              static_cast<unsigned int>(padsTileConf.bottom),
-                                      static_cast<unsigned int>(params.inputShape[Dims4D::Act::C]), 1},
-                                     elemType);
-        auto result = _costModel->DPU(
-                {getVPUDeviceType(params.arch),
-                 opType,
-                 {inputTensor},
-                 {outputTensor},
-                 {KX, KY},
-                 {SX, SY},
-                 {static_cast<unsigned int>(padsTileConf.top), static_cast<unsigned int>(padsTileConf.bottom),
-                  static_cast<unsigned int>(padsTileConf.left), static_cast<unsigned int>(padsTileConf.right)},
-                 getExecutionMode(params.mpeMode)});
-        workloadCost.push_back(result);
-    }
-    return VPUNN::dpu_schedule(static_cast<unsigned int>(params.numDPU), workloadCost);
-}
-
-double vpux::VPUIP::DpuTiler::simpleCost(const OutputTiling& dpuTiles, const WorkloadCostParams& params) {
-    VPUX_THROW_WHEN(params.kernelSize.size() < 2, "kernel array size less than 2");
-    VPUX_THROW_WHEN(params.kernelStride.size() < 2, "kernel stride array size less than 2");
-
+double vpux::VPUIP::DpuTiler::simpleCost(int64_t numDPU, const OutputTiling& dpuTiles) {
     auto mpeMode = getMode();
-    double max_cost = 0;
-
+    SmallVector<double> workloadCosts;
     for (const auto& dpuTile : dpuTiles) {
         const auto W = dpuTile.shape[Dims4D::Act::W];
         const auto H = dpuTile.shape[Dims4D::Act::H];
         const auto C = dpuTile.shape[Dims4D::Act::C];
-        double cost = ceil(W / mpeMode.second) * ceil(H / mpeMode.first) * ceil(C / 16.0);
-
-        max_cost = std::max(max_cost, cost);
+        workloadCosts.push_back(ceil(W / mpeMode.second) * ceil(H / mpeMode.first) * ceil(C / 16.0));
     }
-    return max_cost;
+    return totalCostOnDpuCluster(numDPU, workloadCosts);
 }
 
 SmallVector<OutputTiling> vpux::VPUIP::DpuTiler::getSplitPool() {
