@@ -30,13 +30,15 @@ mlir::LogicalResult vpux::IE::QuantizeCastOp::inferReturnTypeComponents(
     const auto inType = quantizeCast.input().getType().cast<mlir::RankedTensorType>();
     const auto dstElemType = quantizeCast.dstElemType().getValue();
     const auto outDesc = IE::getTensorAttr(inType);
-
-    auto quantizedOutput = dstElemType.dyn_cast<mlir::quant::QuantizedType>();
-    if (!quantizedOutput) {
-        return errorAt(loc, "Destination type is not quantized: '{0}'", dstElemType);
+    unsigned int outputWidth;
+    if (auto quantizedOutput = dstElemType.dyn_cast<mlir::quant::QuantizedType>()) {
+        outputWidth = quantizedOutput.getStorageTypeIntegralWidth();
+    } else if (auto quantizedOutput = dstElemType.dyn_cast<mlir::IntegerType>()) {
+        outputWidth = quantizedOutput.getWidth();
+    } else {
+        return errorAt(loc, "Unsupported output type: {0}", dstElemType);
     }
 
-    const auto outputWidth = quantizedOutput.getStorageTypeIntegralWidth();
     if (auto integerInput = inType.getElementType().dyn_cast<mlir::IntegerType>()) {
         const auto inputWidth = integerInput.getWidth();
         if (inputWidth != outputWidth) {
