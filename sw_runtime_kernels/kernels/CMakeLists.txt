@@ -8,7 +8,20 @@ project(kernels)
 message(STATUS "BUILD_BLOB_BINARIES = ${BUILD_BLOB_BINARIES}")
 message(STATUS "BUILD_JTAG_BINARIES = ${BUILD_JTAG_BINARIES}")
 
-set(kernel_srcs_list dummy.cpp elu_fp16.cpp exp_fp16.cpp hswish_fp16.cpp reorder_fp16.cpp sigmoid_fp16.c singleShaveInterpolate.cpp singleShaveMVN.cpp singleShaveSoftmax.cpp sqrt_fp16.cpp tanh_fp16.cpp nnActEntry.cpp)
+set(kernel_srcs_list
+  dummy.cpp
+#  elu_fp16.cpp
+#  exp_fp16.cpp
+#  hswish_fp16.cpp
+#  reorder_fp16.cpp
+#  sigmoid_fp16.c
+#  singleShaveInterpolate.cpp
+#  singleShaveMVN.cpp
+#  singleShaveSoftmax.cpp
+#  sqrt_fp16.cpp
+#  tanh_fp16.cpp
+#  nnActEntry.cpp
+)
 
 set(kernel_src_dir_DEFAULT "src")
 set(kernel_src_dir_nnActEntry "act_runtime/src")
@@ -58,10 +71,39 @@ if(BUILD_JTAG_BINARIES AND (NOT EXISTS "${host_tools_xxd}"))
   message(FATAL_ERROR "xxd utility is required for JTAG tests but is not installed")
 endif()
 
+set(target_prefix "sk.")
+set(obj_suffix ".o")
+set(elf_suffix ".elf")
 set(blob_text_suffix ".text")
 set(blob_data_suffix ".data")
 set(jtag_text_suffix ".text.xdat")
 set(jtag_data_suffix ".data.xdat")
+
+set(link_script_file "${KERNEL_DIR}/prebuild/shave_kernel.ld")
+
+set(link_libraries_list
+  "${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}/common/moviCompile/lib/30xxxx-leon/mlibc.a \
+   ${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}/common/moviCompile/lib/30xxxx-leon/mlibcrt.a"
+)
+
+set(compile_options
+  -I"${KERNEL_DIR}/inc"
+)
+
+#"${mv_tools_compile}"
+#-mcpu=${kernel_cpu}
+#${optimization}
+#-I"${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}"
+#-I"${KERNEL_DIR}/inc"
+#-I"${KERNEL_DIR}/common/inc"
+#-I"${KERNEL_DIR}/inc/3720"
+#-I"${FIRMWARE_VPU_DIR}/drivers/hardware/utils/inc"
+#-DCONFIG_TARGET_SOC_3720
+#-D__shave_nn__
+#${always_inline}
+#${USE_3720_INTSTRUCTIONS}
+#-c "${KERNEL_DIR}/${kernel_name}.cpp"
+#-o "${KERNEL_DIR}/prebuild/${kernel_name}_${cpu}.o"
 
 foreach(kernel_src ${kernel_srcs_list})
   get_filename_component(kernel_name ${kernel_src} NAME_WE)
@@ -75,6 +117,7 @@ foreach(kernel_src ${kernel_srcs_list})
   if ("${kernel_cpunum}" STREQUAL "")
     set(kernel_cpunum ${kernel_cpunum_DEFAULT})
   endif()
+  set(kernel_cpu "${kernel_cpunum}xx")
   set(kernel_cpu_suffix ".${kernel_cpunum}xx")
 
   set(kernel_src_file "${kernel_src_dir}/${kernel_src}")
@@ -82,21 +125,61 @@ foreach(kernel_src ${kernel_srcs_list})
 
   message(STATUS "kernel = ${kernel_name} ${kernel_src_file}")
 
+  if(BUILD_BLOB_BINARIES OR BUILD_JTAG_BINARIES)
+    set(obj_file "${kernel_src}${kernel_cpu_suffix}${obj_suffix}")
+    set(obj_path "${CMAKE_BINARY_DIR}/${obj_file}")
+    message(STATUS "obj = ${obj_path}")
+
+    set(elf_file "${kernel_name}${kernel_cpu_suffix}${elf_suffix}")
+    set(elf_path "${CMAKE_BINARY_DIR}/${elf_file}")
+    message(STATUS "elf = ${elf_path}")
+
+    add_custom_target("${obj_file}"
+      DEPENDS "${kernel_src_file}"
+      COMMAND "${mv_tools_compile}" -mcpu=${kernel_cpu} "${compile_options}" -c "${kernel_src_path}" -o "${obj_file}"
+    )
+
+    set(obj_file_list "${obj_file}")
+
+    add_custom_target("${elf_file}"
+      DEPENDS "${obj_file_list}"
+      COMMAND "${mv_tools_link}" --script "${link_script_file}" -entry "${kernel_name}" --gc-sections --strip-debug --discard-all -zmax-page-size=16 "${obj_file_list}" "-EL ${link_libraries_list}" --output "${elf_file}"
+    )
+  endif()
+
   if(BUILD_BLOB_BINARIES)
-    set(target_blob_text_file "${kernel_name}${kernel_cpu_suffix}${blob_text_suffix}")
-    set(target_blob_data_file "${kernel_name}${kernel_cpu_suffix}${blob_data_suffix}")
-    set(target_blob_text_path "${CMAKE_BINARY_DIR}/${target_blob_text_file}")
-    set(target_blob_data_path "${CMAKE_BINARY_DIR}/${target_blob_data_file}")
-    message(STATUS "blob_text = ${target_blob_text_path}")
-    message(STATUS "blob_data = ${target_blob_data_path}")
+    set(blob_text_file "${target_prefix}${kernel_name}${kernel_cpu_suffix}${blob_text_suffix}")
+    set(blob_data_file "${target_prefix}${kernel_name}${kernel_cpu_suffix}${blob_data_suffix}")
+    set(blob_text_path "${CMAKE_BINARY_DIR}/${blob_text_file}")
+    set(blob_data_path "${CMAKE_BINARY_DIR}/${blob_data_file}")
+    message(STATUS "blob_text = ${blob_text_path}")
+    message(STATUS "blob_data = ${blob_data_path}")
+
+    add_custom_target("${blob_text_file}" ALL
+      COMMAND "${mv_tools_objcopy}" -O binary --only-section=.text "${elf_file}" "${blob_text_file}"
+      DEPENDS "${elf_file}"
+    )
+    add_custom_target("${blob_data_file}" ALL
+      COMMAND "${mv_tools_objcopy}" -O binary --only-section=.data "${elf_file}" "${blob_data_file}"
+      DEPENDS "${elf_file}"
+    )
   endif()
 
   if(BUILD_JTAG_BINARIES)
-    set(target_jtag_text_file "${kernel_name}${kernel_cpu_suffix}${jtag_text_suffix}")
-    set(target_jtag_data_file "${kernel_name}${kernel_cpu_suffix}${jtag_data_suffix}")
-    set(target_jtag_text_path "${CMAKE_BINARY_DIR}/${target_jtag_text_file}")
-    set(target_jtag_data_path "${CMAKE_BINARY_DIR}/${target_jtag_data_file}")
-    message(STATUS "jtag_text = ${target_jtag_text_path}")
-    message(STATUS "jtag_data = ${target_jtag_data_path}")
+    set(jtag_text_file "${target_prefix}${kernel_name}${kernel_cpu_suffix}${jtag_text_suffix}")
+    set(jtag_data_file "${target_prefix}${kernel_name}${kernel_cpu_suffix}${jtag_data_suffix}")
+    set(jtag_text_path "${CMAKE_BINARY_DIR}/${jtag_text_file}")
+    set(jtag_data_path "${CMAKE_BINARY_DIR}/${jtag_data_file}")
+    message(STATUS "jtag_text = ${jtag_text_path}")
+    message(STATUS "jtag_data = ${jtag_data_path}")
+
+    add_custom_target("${jtag_text_file}" ALL
+      COMMAND ${host_tools_xxd} -i "${blob_text_file}" "${jtag_text_path}"
+      DEPENDS "${blob_text_file}"
+    )
+    add_custom_target("${jtag_data_file}" ALL
+      COMMAND ${host_tools_xxd} -i "${blob_data_file}" "${jtag_data_path}"
+      DEPENDS "${blob_data_file}"
+    )
   endif()
 endforeach()
