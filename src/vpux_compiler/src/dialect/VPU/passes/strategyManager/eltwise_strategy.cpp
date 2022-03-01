@@ -19,16 +19,16 @@ using namespace VPU;
 
 bool EltwiseStrategy::doesLayerFitIntoCMX(mlir::Operation* op, StringRef strategy) const {
     auto origOp = mlir::cast<NCEEltwiseOp>(op);
-    auto activationTensorDistributionMode = getActivationTensorDistributionMode(origOp, strategy);
-    auto activationTensorNumTiles = getActivationTensorNumTiles(origOp, strategy);
-    auto outputTensorDistributionMode = getOutputTensorDistributionMode(origOp, strategy);
-    auto outputTensorNumTiles = getOutputTensorNumTiles(origOp, strategy);
+    auto activationTensorDistributionMode = getActivationTensorDistributionMode(op, strategy);
+    auto activationTensorNumTiles = getActivationTensorNumTiles(origOp, _numClusters, strategy);
+    auto outputTensorDistributionMode = getOutputTensorDistributionMode(strategy);
+    auto outputTensorNumTiles = getOutputTensorNumTiles(_numClusters, strategy);
     auto distributedInput1TensorType = createDistributedTensorType(
-            origOp, origOp.input1(), strategy, activationTensorDistributionMode, activationTensorNumTiles);
+            origOp, origOp.input1(), activationTensorDistributionMode, activationTensorNumTiles);
     auto distributedInput2TensorType = createDistributedTensorType(
-            origOp, origOp.input2(), strategy, activationTensorDistributionMode, activationTensorNumTiles);
-    auto distributedOutputTensorType = createDistributedTensorType(origOp, origOp.output(), strategy,
-                                                                   outputTensorDistributionMode, outputTensorNumTiles);
+            origOp, origOp.input2(), activationTensorDistributionMode, activationTensorNumTiles);
+    auto distributedOutputTensorType =
+            createDistributedTensorType(origOp, origOp.output(), outputTensorDistributionMode, outputTensorNumTiles);
     return true;
     // return origOp.fitIntoCMX(distributedInput1TensorType, distributedInput2TensorType, distributedOutputTensorType);
 }
