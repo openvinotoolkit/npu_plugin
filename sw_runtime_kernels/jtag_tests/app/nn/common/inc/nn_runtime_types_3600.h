@@ -54,6 +54,18 @@ enum class MpeActivationWeightDtype : uint8_t {
     MPE_DTYPE_UNKNOWN
 };
 
+// NCE_DPU_HWP_CTRL dtype 2 bit field
+enum class HWPStatMode : uint8_t {
+    /// odu_time_stat, idu_time_stat
+    MODE0 = 00,
+    /// dense_act, sparse_act, dense_wt, sparse_wt when odu done
+    MODE1 = 01,
+    /// dense_wt, sparse_wt, idu_time_stat
+    MODE2 = 02,
+    /// dense_act, sparse_act, idu_time_stat
+    MODE3 = 03
+};
+
 // NCE_DPU_ODU_CFG  dtype 4 bit field
 enum class OutputTensorDType : uint8_t {
     FP16 = 0x00,
@@ -66,7 +78,7 @@ enum class OutputTensorDType : uint8_t {
     LOG = 0x07,
     BIN = 0x08,
     FP32 = I32, // The FP32 is same as I32 since NCE_DPU_ODU_CFG enums are based on dtype size
-    U4 = I4, // The U4 is same as I4 since NCE_DPU_ODU_CFG enums are based on dtype size
+    U4 = I4,    // The U4 is same as I4 since NCE_DPU_ODU_CFG enums are based on dtype size
     OUTPUT_DTYPE_UNKNOWN = 0x0A
 };
 
@@ -110,12 +122,31 @@ struct BarrierGpioConfig {
     unsigned char group_;
     unsigned char mask_;
 };
+
+typedef void (*actRuntimeEntry)(const uint32_t);
+
+extern "C" struct NNShaveRuntimeConfigs {
+    unsigned int stackFrames_[common_runtime::AS_TOTAL]{0};
+    unsigned int stackSize_{0};
+    bool useScheduleEmbeddedRt_{false};
+
+    // when useScheduleEmbeddedRt = true
+    // this is a windowed address
+    actRuntimeEntry runtimeEntry_{nullptr};
+
+    // when useScheduleEmbeddedRt = false; FW copies ActRt to this buffer
+    // when useScheduleEmbeddedRt = true; buffer already contains the ActRt
+    unsigned char *actRtWindowBase_{nullptr};
+    unsigned int codeWindowBufferSize_{0};
+
+    unsigned int perfMetricsMask_{0};
+    HWPStatMode dpuPerfMode{HWPStatMode::MODE0};
+};
+
 } // namespace common_runtime
 
 namespace dpu_runtime {
-enum {
-    PPE_ILIST_ENTRIES = 16,
-};
+constexpr uint32_t PPE_ILIST_ENTRIES = 16;
 
 typedef struct {
     /* IDU */
@@ -562,7 +593,8 @@ struct DPUInvariant {
     unsigned short task_id_;
     unsigned int channel_major_stride_;
     unsigned int output_sparsity_offset_;
-    bool isContConv_;
+    unsigned int hwp_cmx_base_offset_;
+    bool is_cont_conv_;
 };
 
 struct DPUAddresses {
@@ -580,6 +612,7 @@ struct DPUVariant {
     unsigned int weight_table_offset_;
     unsigned char cluster_;
     unsigned short task_id_;
+    int wload_id_;
 };
 
 union se_table_entry {
@@ -604,7 +637,6 @@ typedef void *actKernelDataBuffer;
 typedef void *actKernelTextBuffer;
 typedef void act_kernel_args;
 typedef void (*actKernelEntry)(act_kernel_args *);
-typedef void (*actRuntimeEntry)(const uint32_t);
 
 // these are going to be done via ctrl messages, but special tasks like loops may stay here
 // refactor/remove in the futore
@@ -628,6 +660,14 @@ enum class ActDebug : uint32_t {
     DEBUG_FIFO_CLEAR = 0xC,
 };
 #endif
+
+enum class ActRtTag : uint8_t {
+    INVALID = 0x00,
+    DEBUG_FIFO_WL_DEQUE,
+    DEBUG_BARRIER_CONSUME,
+    DEBUG_WL_BEGIN,
+    DEBUG_BARRIER_PRODUCE,
+};
 
 extern "C" struct ActKernelRange {
     ActWLType type_{ActWLType::WL_UNKNOWN};
