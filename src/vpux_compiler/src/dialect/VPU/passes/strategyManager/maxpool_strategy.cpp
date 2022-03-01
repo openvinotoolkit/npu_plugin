@@ -19,10 +19,11 @@ using namespace VPU;
 
 bool MaxPoolStrategy::doesLayerFitIntoCMX(mlir::Operation* op, StringRef strategy) const {
     auto origOp = mlir::dyn_cast<NCEMaxPoolOp>(op);
-    auto activationTensorDistributionMode = getActivationTensorDistributionMode(op, strategy);
-    auto activationTensorNumTiles = getActivationTensorNumTiles(origOp, _numClusters, strategy);
+    auto activationTensorDistributionMode = getActivationTensorDistributionMode(strategy);
+    auto activationTensorNumTiles = getIntArrayAttr(
+            origOp.getContext(), getActivationTensorNumTiles(origOp.getOperation(), _numClusters, strategy));
     auto outputTensorDistributionMode = getOutputTensorDistributionMode(strategy);
-    auto outputTensorNumTiles = getOutputTensorNumTiles(_numClusters, strategy);
+    auto outputTensorNumTiles = getIntArrayAttr(origOp.getContext(), getOutputTensorNumTiles(_numClusters, strategy));
     auto distributedActivationTensorType = createDistributedTensorType(
             origOp, origOp.input(), activationTensorDistributionMode, activationTensorNumTiles);
     auto distributedOutputTensorType =
