@@ -37,24 +37,47 @@ bool ConvolutionStrategy::doesLayerFitIntoCMX(mlir::Operation* op, StringRef str
                              distributedOutputTensorType);
 }
 
+// This channel major convolution efficiency table is from the ArchBench tool
+// It returns a h/w efficiency constant for a given stride and kernel size
+std::map<int64_t, std::map<int64_t, double>> ConvolutionStrategy::channelMajorEfficiencyTable() const {
+    return {{
+            {3, {{1, 0.253}, {2, 0.183594}, {4, 0.183594}}},
+            {5, {{1, 0.535156}, {2, 0.2773}, {4, 0.152344}}},
+            {7, {{1, 0.6}, {2, 0.2965}, {4, 0.15}}},
+            {9, {{1, 0.8008}, {2, 0.4687}, {4, 0.2266}}},
+            {11, {{1, 0.9023}, {2, 0.4687}, {4, 0.2366}}},
+    }};
+}
+
+double ConvolutionStrategy::getChannelMajorEfficiencyConstant(int64_t kernel, int64_t stride) const {
+    if (channelMajorEfficiencyTable().count(kernel)) {
+        auto table = channelMajorEfficiencyTable()[kernel];
+        if (table.count(stride)) {
+            return channelMajorEfficiencyTable()[kernel][stride];
+        } else {
+            VPUX_THROW("The stide size {0} does not exist in the channel major efficiency table", stride);
+        }
+    } else {
+        VPUX_THROW("The kernel size {0} does not exist in the channel major efficiency table", kernel);
+    }
+}
+
 double ConvolutionStrategy::computeSplitOverHeightEfficiency(mlir::Operation* op) const {
     auto origOp = mlir::cast<NCEConvolutionOp>(op);
     const auto outputShape = getShape(origOp.output());
     auto OC = outputShape[Dims4D::Act::C];
     auto OH = outputShape[Dims4D::Act::H];
     auto OW = outputShape[Dims4D::Act::W];
-    double outputTensorVolume = OC * OH * OW;
 
-    return std::max(
-            (outputTensorVolume / _numClusters) /
-                    getChannelAlignment(
-                            (getChannelAlignment(std::ceil(OH / _numClusters), _numClusters) *
-                             getChannelAlignment(OW, _numClusters) * getChannelAlignment(OC, _numChannelAlignment)),
-                            _numDPUPerCluster),
-            (outputTensorVolume / _numClusters) /
-                    getChannelAlignment((getChannelAlignment(std::ceil(OH / _numClusters), _numChannelAlignment) *
-                                         getChannelAlignment(OW, 1) * getChannelAlignment(OC, _numChannelAlignment)),
-                                        _numDPUPerCluster));
+    if (DimsOrder::fromValue(origOp.input()) == DimsOrder::NCHW) {
+        const auto filterShape = Shape(parseIntArrayAttr<int64_t>(origOp.rawFilterShapeAttr()));
+        const auto strides = parseIntArrayAttr<int64_t>(origOp.strides());
+        const auto KY = filterShape[Dims4D::Filter::KY];
+        auto efficiencyConstant = getChannelMajorEfficiencyConstant(KY, strides[0]);
+        return efficiencyConstant * channelMajorSplitOverHeightFormula(OH, OW, OC);
+    } else {
+        return splitOverHeightFormula(OH, OW, OC);
+    }
 }
 
 double ConvolutionStrategy::computeSplitOverKernelEfficiency(mlir::Operation* op) const {
@@ -63,15 +86,29 @@ double ConvolutionStrategy::computeSplitOverKernelEfficiency(mlir::Operation* op
     auto OC = outputShape[Dims4D::Act::C];
     auto OH = outputShape[Dims4D::Act::H];
     auto OW = outputShape[Dims4D::Act::W];
-    double outputTensorVolume = OC * OH * OW;
 
-    return std::max(
-            (outputTensorVolume / _numClusters) /
-                    getChannelAlignment((getChannelAlignment(OH, _numClusters) * getChannelAlignment(OW, _numClusters) *
-                                         getChannelAlignment(std::ceil(OC / _numClusters), _numChannelAlignment)),
-                                        _numDPUPerCluster),
-            (outputTensorVolume / _numClusters) /
-                    getChannelAlignment((getChannelAlignment(OH, _numChannelAlignment) * getChannelAlignment(OW, 1) *
-                                         getChannelAlignment(std::ceil(OC / _numClusters), _numChannelAlignment)),
-                                        _numDPUPerCluster));
+    return splitOverKernelFormula(OH, OW, OC);
+}
+
+StringRef ConvolutionStrategy::getBestLayerStrategy(mlir::Operation* op) const {
+    auto origOp = mlir::cast<NCEConvolutionOp>(op);
+    bool isChannelMajor = (DimsOrder::fromValue(origOp.input()) == DimsOrder::NCHW);
+    double splitOverHeightEfficiency = 0.0;
+    double splitOverKernelEfficiency = 0.0;
+
+    if (isOperationSplitOverHeightCompatible(op) &&
+        ((isChannelMajor && doesLayerFitIntoCMX(op, splitOverHeightOverlapped)) ||
+         (!isChannelMajor && doesLayerFitIntoCMX(op, splitOverHeight)))) {
+        splitOverHeightEfficiency = computeSplitOverHeightEfficiency(op);
+    }
+
+    if (isOperationSplitOverKernelCompatible(op) && doesLayerFitIntoCMX(op, splitOverKernel)) {
+        splitOverKernelEfficiency = computeSplitOverKernelEfficiency(op);
+    }
+
+    if (splitOverHeightEfficiency >= splitOverKernelEfficiency) {
+        return isChannelMajor ? splitOverHeightOverlapped : splitOverHeight;
+    } else {
+        return splitOverKernel;
+    }
 }

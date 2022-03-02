@@ -37,6 +37,61 @@ bool BaseLayerStrategy::isOperationSplitOverHeightCompatible(mlir::Operation* op
     return OH >= _minimumOutputHeightForSOH;
 }
 
+// An operation is SOK compitable if it has an output channel of at least 64
+// The reason is because the output tensor in each cluster will only have a
+// channel of 16 (64/4, assuming 4 cluster compilation).
+// There are 5 DPUs in a cluster so each DPU will compute at least one output channel
+bool BaseLayerStrategy::isOperationSplitOverKernelCompatible(mlir::Operation* op) const {
+    const auto outputShape = getShape(op->getResult(0));
+    const auto OC = outputShape[Dims4D::Act::C];
+    return OC >= _minimumOutputChannelsPerCluster * _numClusters;
+}
+
+bool BaseLayerStrategy::isOperationMultiClusterCompatible(mlir::Operation* op) const {
+    if (isOperationSplitOverHeightCompatible(op) || isOperationSplitOverKernelCompatible(op)) {
+        return true;
+    }
+
+    return false;
+}
+
+double BaseLayerStrategy::splitOverHeightFormula(double OH, double OW, double OC) const {
+    double outputTensorVolume = OC * OH * OW;
+    return std::max(
+            (outputTensorVolume / _numClusters) /
+                    getChannelAlignment(
+                            (getChannelAlignment(std::ceil(OH / _numClusters), _numClusters) *
+                             getChannelAlignment(OW, _numClusters) * getChannelAlignment(OC, _numChannelAlignment)),
+                            _numDPUPerCluster),
+            (outputTensorVolume / _numClusters) /
+                    getChannelAlignment((getChannelAlignment(std::ceil(OH / _numClusters), _numChannelAlignment) *
+                                         getChannelAlignment(OW, 1) * getChannelAlignment(OC, _numChannelAlignment)),
+                                        _numDPUPerCluster));
+}
+
+double BaseLayerStrategy::channelMajorSplitOverHeightFormula(double OH, double OW, double OC) const {
+    double outputTensorVolume = OC * OH * OW;
+    return std::max(
+            outputTensorVolume / (getChannelAlignment(OH, _numChannelAlignment) * getChannelAlignment(OH, _numDPU) *
+                                  getChannelAlignment(OC, _numChannelAlignment)),
+            outputTensorVolume /
+                    (getChannelAlignment(OH, _numChannelAlignment * _numClusters) *
+                     getChannelAlignment(OW, _numDPUPerCluster) * getChannelAlignment(OC, _numChannelAlignment)));
+}
+
+double BaseLayerStrategy::splitOverKernelFormula(double OH, double OW, double OC) const {
+    double outputTensorVolume = OC * OH * OW;
+    return std::max(
+            (outputTensorVolume / _numClusters) /
+                    getChannelAlignment((getChannelAlignment(OH, _numClusters) * getChannelAlignment(OW, _numClusters) *
+                                         getChannelAlignment(std::ceil(OC / _numClusters), _numChannelAlignment)),
+                                        _numDPUPerCluster),
+            (outputTensorVolume / _numClusters) /
+                    getChannelAlignment((getChannelAlignment(OH, _numChannelAlignment) * getChannelAlignment(OW, 1) *
+                                         getChannelAlignment(std::ceil(OC / _numClusters), _numChannelAlignment)),
+                                        _numDPUPerCluster));
+}
+
 StrategyManager::StrategyManager(mlir::FuncOp func, Logger log)
         : _func(func),
           _log(log),
@@ -62,21 +117,15 @@ void StrategyManager::assignMultiClusterStrategy() {
                     }
                 })
                 .Case<NCEConvolutionOp>([this](NCEConvolutionOp origOp) {
-                    // For WW10 only z-major convolution will be considered for multi-cluster mode
-                    if (DimsOrder::fromValue(origOp.input()) == DimsOrder::NHWC) {
-                        if (_convolutionStrategy.isOperationSplitOverHeightCompatible(origOp.getOperation()) &&
-                            _convolutionStrategy.doesLayerFitIntoCMX(origOp.getOperation(), splitOverHeight)) {
-                            setLayerStrategy(splitOverHeight, origOp.getOperation());
-                        }
+                    if (_convolutionStrategy.isOperationMultiClusterCompatible(origOp.getOperation())) {
+                        auto bestStrategy = _convolutionStrategy.getBestLayerStrategy(origOp.getOperation());
+                        setLayerStrategy(bestStrategy, origOp.getOperation());
                     }
-                    _log.trace("Operation '{0}' at '{1}' is a channel major convolution which is currently not "
-                               "supported in multi-cluster mode ",
-                               origOp->getName(), origOp->getLoc());
                 })
                 .Case<NCEDepthConvolutionOp>([this](NCEDepthConvolutionOp origOp) {
-                    if (_depthConvolutionStrategy.isOperationSplitOverHeightCompatible(origOp.getOperation()) &&
-                        _depthConvolutionStrategy.doesLayerFitIntoCMX(origOp.getOperation(), splitOverHeight)) {
-                        setLayerStrategy(splitOverHeight, origOp.getOperation());
+                    if (_depthConvolutionStrategy.isOperationMultiClusterCompatible(origOp.getOperation())) {
+                        auto bestStrategy = _depthConvolutionStrategy.getBestLayerStrategy(origOp.getOperation());
+                        setLayerStrategy(bestStrategy, origOp.getOperation());
                     }
                 })
                 .Default([this](mlir::Operation* unknownOp) -> void {
