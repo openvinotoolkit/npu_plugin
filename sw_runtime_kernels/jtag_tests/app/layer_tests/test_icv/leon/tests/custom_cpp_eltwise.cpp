@@ -124,12 +124,6 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Power)) {
             }
         }
         void generateReferenceData() override {
-            if(1){
-              float a =  0.000000f;
-              float b = -1.469727f;
-              float c = powf(a,b);
-              printf("a=%f b=%f pow=%f(0x%x)\n", a, b, c, *((uint32_t*)&c));
-            }
 
             std::function<float (const float&, const float&)> reference;
 
