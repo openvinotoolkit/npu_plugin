@@ -55,7 +55,7 @@ endfunction()
 # setup source package configuration
 #
 
-read_config_file("${CMAKE_SOURCE_DIR}/SourcePackageConfig.json" EXCLUDE_PATTERNS)
+read_config_file("${CMAKE_CURRENT_SOURCE_DIR}/SourcePackageConfig.json" EXCLUDE_PATTERNS)
 
 set(CPACK_SOURCE_OUTPUT_CONFIG_FILE "CPackSourceConfigVPUX.cmake")
 set(CPACK_SOURCE_IGNORE_FILES ${EXCLUDE_PATTERNS})
