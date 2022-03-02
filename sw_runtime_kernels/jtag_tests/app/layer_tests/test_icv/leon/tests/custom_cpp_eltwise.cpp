@@ -17,6 +17,15 @@
 #include "layers/param_custom_cpp.h"
 #include "mvSubspaces.h"
 
+enum EltOpType : int32_t
+{
+    POWER,
+    //ADD,
+    //SUB,
+    //MIN,
+    //MAX,
+};
+
 #ifdef CONFIG_TARGET_SOC_3720
 __attribute__((aligned(1024)))
 #include "sk.power_fp16.3010xx.text.xdat"
@@ -108,10 +117,15 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Power)) {
               printf("a=%f b=%f pow=%f(0x%x)\n", a, b, c, *((uint32_t*)&c));
             }
 
+            std::function<float (const float&, const float&)> reference;
+
+            //POWER
+            reference = [](const float& a, const float& b) { return powf(a, b); };
+
             m_inTensor[0].forEach(false, [&](const MemoryDims& indices) {
-                float val1 = f16Tof32(m_inTensor[0].at(indices));
-                float val2 = f16Tof32(m_inTensor[1].at(indices));
-                float ref  = powf(val1, val2);
+                float a   = f16Tof32(m_inTensor[0].at(indices));
+                float b   = f16Tof32(m_inTensor[1].at(indices));
+                float ref = reference(a,b);
                 m_referenceOutputTensor.at(indices) = f32Tof16(ref);
             });
         }
