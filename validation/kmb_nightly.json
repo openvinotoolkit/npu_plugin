@@ -1848,7 +1848,7 @@
             "category" : "MLIR",
             "disabled" : true,
             "3720": {
-                "disabled" : true
+                "disabled" : false
             },
             "BenchmarkApp" : {
                 "disabled" : true
@@ -1889,8 +1889,7 @@
             },
             "CI-options" : {
                 "blob_name" : "MTL_scale_tf_fp16-int8_mobilenet-v3-large-1.0-224_tf"
-            },
-            "comments": "#-32535"
+            }
         },
 
         {
@@ -2536,9 +2535,7 @@
             },
             "CI-options" : {
                 "blob_name" : "scale_tf_fp16-int8_mobilenet-v3-large-1.0-224_tf"
-            },
-            "disabled": true,
-            "comments": "#-32535"
+            }
         },
 
         {

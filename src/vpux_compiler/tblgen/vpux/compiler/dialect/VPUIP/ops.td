@@ -2052,28 +2052,27 @@ def VPUIP_PPETaskOp :
         OptionalAttr<IntAttr>:$clamp_high,
         OptionalAttr<IntAttr>:$lrelu_mult,
         OptionalAttr<IntAttr>:$lrelu_shift,
-        OptionalAttr<I32ArrayAttr>:$quant_mult,
-        OptionalAttr<I32ArrayAttr>:$quant_shift,
+        OptionalAttr<I64ArrayAttr>:$quant_mult,
+        OptionalAttr<I64ArrayAttr>:$quant_shift,
         OptionalAttr<IntAttr>:$quant_post_shift
     );
 
     let builders = [
         OpBuilder<(ins
             CArg<"vpux::VPU::PPEMode", "vpux::VPU::PPEMode::NOOP">:$ppe_layer_type,
-            CArg<"int32_t", "std::numeric_limits<int32_t>::min()">:$clamp_low,
-            CArg<"int32_t", "std::numeric_limits<int32_t>::max()">:$clamp_high,
-            CArg<"int32_t", "1">:$lrelu_mult,
-            CArg<"uint32_t", "0">:$lrelu_shift
+            CArg<"int64_t", "std::numeric_limits<int32_t>::min()">:$clamp_low,
+            CArg<"int64_t", "std::numeric_limits<int32_t>::max()">:$clamp_high,
+            CArg<"int64_t", "1">:$lrelu_mult,
+            CArg<"int64_t", "0">:$lrelu_shift
         )>,
         OpBuilder<(ins
             "vpux::VPU::PPEMode":$ppe_layer_type,
-            "int32_t":$clamp_low,
-            "int32_t":$clamp_high,
-            "int32_t":$lrelu_mult,
-            "uint32_t":$lrelu_shift,
-            "ArrayRef<int32_t>":$quant_mult,
-            "ArrayRef<int32_t>":$quant_shift,
-            "int32_t":$quant_post_shift
+            "int64_t":$clamp_low,
+            "int64_t":$clamp_high,
+            "int64_t":$lrelu_mult,
+            "int64_t":$lrelu_shift,
+            "int64_t":$quant_mult,
+            "int64_t":$quant_shift
         )>
     ];
 

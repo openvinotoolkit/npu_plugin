@@ -16,19 +16,17 @@
 using namespace vpux;
 
 void vpux::VPUIP::PPETaskOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, VPU::PPEMode ppe_layer_type,
-                                   int32_t clamp_low, int32_t clamp_high, int32_t lrelu_mult, uint32_t lrelu_shift) {
+                                   int64_t clamp_low, int64_t clamp_high, int64_t lrelu_mult, int64_t lrelu_shift) {
     build(builder, state, VPU::PPEModeAttr::get(builder.getContext(), ppe_layer_type),
-          builder.getI32IntegerAttr(clamp_low), builder.getI32IntegerAttr(clamp_high),
-          builder.getI32IntegerAttr(lrelu_mult), builder.getUI32IntegerAttr(lrelu_shift), nullptr, nullptr, nullptr);
+          builder.getI64IntegerAttr(clamp_low), builder.getI64IntegerAttr(clamp_high),
+          builder.getI64IntegerAttr(lrelu_mult), builder.getI64IntegerAttr(lrelu_shift), nullptr, nullptr, nullptr);
 }
 
 void vpux::VPUIP::PPETaskOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, VPU::PPEMode ppe_layer_type,
-                                   int32_t clamp_low, int32_t clamp_high, int32_t lrelu_mult, uint32_t lrelu_shift,
-                                   ArrayRef<int32_t> quant_mult, ArrayRef<int32_t> quant_shift,
-                                   int32_t quant_post_shift) {
+                                   int64_t clamp_low, int64_t clamp_high, int64_t lrelu_mult, int64_t lrelu_shift,
+                                   int64_t quant_mult, int64_t quant_shift) {
     build(builder, state, VPU::PPEModeAttr::get(builder.getContext(), ppe_layer_type),
-          builder.getI32IntegerAttr(clamp_low), builder.getI32IntegerAttr(clamp_high),
-          builder.getI32IntegerAttr(lrelu_mult), builder.getUI32IntegerAttr(lrelu_shift),
-          builder.getI32ArrayAttr(quant_mult), builder.getI32ArrayAttr(quant_shift),
-          builder.getI32IntegerAttr(quant_post_shift));
+          builder.getI64IntegerAttr(clamp_low), builder.getI64IntegerAttr(clamp_high),
+          builder.getI64IntegerAttr(lrelu_mult), builder.getI64IntegerAttr(lrelu_shift),
+          builder.getI64ArrayAttr({quant_mult}), builder.getI64ArrayAttr({quant_shift}), builder.getI64IntegerAttr(0));
 }

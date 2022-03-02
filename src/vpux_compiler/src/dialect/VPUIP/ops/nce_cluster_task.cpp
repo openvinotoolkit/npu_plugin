@@ -656,9 +656,9 @@ VPU::MPEMode getMPEFrequentModeFromDPUTasks(mlir::Region& dpuTaskOps) {
 // quantization scale parameters
 vpux::VPUIP::BlobWriter::TensorReference getTensorReferenceWithUpdatedQuantParams(VPUIP::NCEClusterTaskOp nceTask,
                                                                                   VPUIP::BlobWriter& writer,
-                                                                                  ArrayRef<uint16_t> ppeQuantMult,
-                                                                                  ArrayRef<uint8_t> ppeQuantShift,
-                                                                                  int8_t ppeQuantPostShift) {
+                                                                                  ArrayRef<int64_t> ppeQuantMult,
+                                                                                  ArrayRef<int64_t> ppeQuantShift,
+                                                                                  int64_t ppeQuantPostShift) {
     // Get also ZP from output
     SmallVector<uint8_t> quantZeroPoints;
 
@@ -732,9 +732,9 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NCEClusterTaskOp::serialize(VPUIP::
     int32_t clampHigh = std::numeric_limits<int32_t>::max();
     int32_t LreluMult = 1;
     uint32_t LreluShift = 0;
-    ::llvm::Optional<SmallVector<uint16_t>> ppeQuantMult;
-    ::llvm::Optional<SmallVector<uint8_t>> ppeQuantShift;
-    ::llvm::Optional<int8_t> ppeQuantPostShift;
+    ::llvm::Optional<SmallVector<int64_t>> ppeQuantMult;
+    ::llvm::Optional<SmallVector<int64_t>> ppeQuantShift;
+    ::llvm::Optional<int64_t> ppeQuantPostShift;
 
     for (auto ppeOp : ppe().getOps<VPUIP::PPETaskOp>()) {
         const auto type = getPPELayerType(ppeOp.ppe_layer_type());
@@ -754,13 +754,13 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NCEClusterTaskOp::serialize(VPUIP::
             LreluShift = checked_cast<uint32_t>(ppeOp.lrelu_shift().getValue());
         }
         if (ppeOp.quant_mult().hasValue()) {
-            ppeQuantMult = parseIntArrayAttr<uint16_t>(ppeOp.quant_mult().getValue());
+            ppeQuantMult = parseIntArrayAttr<int64_t>(ppeOp.quant_mult().getValue());
         }
         if (ppeOp.quant_shift().hasValue()) {
-            ppeQuantShift = parseIntArrayAttr<uint8_t>(ppeOp.quant_shift().getValue());
+            ppeQuantShift = parseIntArrayAttr<int64_t>(ppeOp.quant_shift().getValue());
         }
         if (ppeOp.quant_post_shift().hasValue()) {
-            ppeQuantPostShift = checked_cast<int8_t>(ppeOp.quant_post_shift().getValue());
+            ppeQuantPostShift = checked_cast<int64_t>(ppeOp.quant_post_shift().getValue());
         }
     }
     VPUX_THROW_UNLESS(ppeList.size() <= 1, "Cannot set more than one PPE task");

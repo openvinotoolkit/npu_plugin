@@ -133,15 +133,9 @@ void buildEltwiseAdd(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp 
                                                                VPU::ArchKind::MTL, false);
     if (quantScale.hasValue()) {
         const auto scale = quantScale.getValue();
-
-        const auto mult = getQuantMultFromScale(scale);
-        const auto shifts = getQuantShiftAndPostShiftFromScale(scale);
-
-        const auto shift = shifts.first;
-        const auto post_shift = shifts.second;
-
+        const auto scaleApproximation = QuantizationApproximation(VPU::ArchKind::MTL, scale);
         nceTask.addPPETask(funcbuilder, VPU::PPEMode::ADD, clampLow, clampHigh, LreluMult, LreluShift,
-                           SmallVector<int32_t>{mult}, SmallVector<int32_t>{shift}, post_shift);
+                           scaleApproximation.mult(), scaleApproximation.shift());
     } else {
         nceTask.addPPETask(funcbuilder, VPU::PPEMode::ADD, clampLow, clampHigh, LreluMult, LreluShift);
     }

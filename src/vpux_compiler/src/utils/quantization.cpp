@@ -81,21 +81,30 @@ mlir::quant::UniformQuantizedPerAxisType vpux::expandScalesAndZP(mlir::quant::Un
     }
 
     const auto scales = perAxisQType.getScales();
+    VPUX_THROW_UNLESS(!scales.empty(), "Can't get value for expand scales.");
+
     const auto zeroPoints = perAxisQType.getZeroPoints();
-
-    const auto scale = 1;
-    std::vector<double> newScales(padBeforeOC, scale);
-    newScales.insert(newScales.end(), scales.begin(), scales.end());
-    newScales.insert(newScales.end(), padAfterOC, scale);
-
     VPUX_THROW_UNLESS(!zeroPoints.empty(), "Can't get value for expand zero points.");
     VPUX_THROW_UNLESS(std::equal(zeroPoints.begin() + 1, zeroPoints.end(), zeroPoints.begin()),
                       "All zero points should be equal");
 
-    const auto zp = zeroPoints.front();
-    std::vector<int64_t> newZeroPoints(padBeforeOC, zp);
+    // Here we need to expand scales & zero points with some values which will allow correct execution of expanded
+    // convolution. Some default values (e.g. 1) does not fit here since it may lead to unsupported quantization
+    // parameters (e.g. big scale value which approximation does not fit into mult & shift registers of target HW)
+    // Euristic that scales are not that different between each other is used here
+    // Technically we need some way to detect if output channels we are processing are expanded ones (fake)
+    // And do validation of them accordingly
+    std::vector<double> newScales(padBeforeOC, scales.front());
+    newScales.insert(newScales.end(), scales.begin(), scales.end());
+    newScales.insert(newScales.end(), padAfterOC, scales.back());
+
+    std::vector<int64_t> newZeroPoints(padBeforeOC, zeroPoints.front());
     newZeroPoints.insert(newZeroPoints.end(), zeroPoints.begin(), zeroPoints.end());
-    newZeroPoints.insert(newZeroPoints.end(), padAfterOC, zp);
+    newZeroPoints.insert(newZeroPoints.end(), padAfterOC, zeroPoints.back());
+
+    VPUX_THROW_UNLESS(newScales.size() == newZeroPoints.size(),
+                      "Scales & Zero Points must be of the same size, got {0} vs {1} correspondingly", newScales.size(),
+                      newZeroPoints.size());
 
     return mlir::quant::UniformQuantizedPerAxisType::get(
             perAxisQType.getFlags(), perAxisQType.getStorageType(), perAxisQType.getExpressedType(), newScales,
@@ -219,53 +228,61 @@ std::pair<Scales, ZeroPoints> vpux::extractScalesAndZeroPoints(mlir::Type tensor
 
 namespace {
 
-template <uint8_t BITS, typename OutputType>
-OutputType getMultFromScale(double scale) {
+template <typename MultType>
+std::tuple<MultType, uint8_t, int8_t> approximate(uint8_t bits, double target) {
     int exponent = 0;
-    const auto mantissa = std::frexp(scale, &exponent);
-    return checked_cast<OutputType>(mantissa * std::pow(2, BITS));
-}
+    const auto mantissa = std::frexp(target, &exponent);
 
-template <uint8_t BITS, typename ShiftType, typename PostShiftType>
-std::pair<ShiftType, PostShiftType> getShiftAndPostShiftFromScale(double scale) {
-    int exponent = 0;
-    std::frexp(scale, &exponent);
+    const auto mult = checked_cast<MultType>(mantissa * std::pow(2, bits));
+    const auto shift = exponent > bits ? 0 : checked_cast<uint8_t>(bits - exponent);
+    const auto postShift = exponent > bits ? checked_cast<int8_t>(bits - exponent) : 0;
 
-    const auto shift = exponent > BITS ? 0 : checked_cast<ShiftType>(BITS - exponent);
-    const auto postShift = exponent > BITS ? checked_cast<PostShiftType>(BITS - exponent) : 0;
-
-    return {shift, postShift};
-}
-
-template <uint8_t BITS, typename OutputType>
-OutputType getShiftFromScale(double scale) {
-    const auto shiftAndPostShift = getShiftAndPostShiftFromScale<BITS, OutputType, int32_t>(scale);
-    const auto& shift = shiftAndPostShift.first;
-    const auto& postShift = shiftAndPostShift.second;
-    VPUX_THROW_UNLESS(shift >= 0 && postShift == 0, "Failed to get non-negative shift from {0}", scale);
-    return shift;
+    return std::make_tuple(mult, shift, postShift);
 }
 
 }  // namespace
 
-int32_t vpux::getPReLUMultFromScale(double preluScale) {
-    return getMultFromScale<11, int32_t>(preluScale);
+vpux::QuantizationApproximation::QuantizationApproximation(vpux::VPU::ArchKind architecture, double target)
+        : _mult(0), _shift(0), _postShift(0) {
+    std::tie(_mult, _shift, _postShift) = approximate<decltype(_mult)>(15, target);
+
+    VPUX_THROW_UNLESS(architecture == vpux::VPU::ArchKind::KMB || _postShift == 0,
+                      "Encountered an attempt to approximate {0} as mult = {1}, shift = {2}, postShift{3} on {4}, but "
+                      "postShift is "
+                      "unsupported",
+                      target, _mult, _shift, _postShift, architecture);
 }
 
-uint32_t vpux::getPReLUShiftFromScale(double preluScale) {
-    return getShiftFromScale<11, uint32_t>(preluScale);
+int64_t vpux::QuantizationApproximation::mult() const {
+    return _mult;
 }
 
-uint16_t vpux::getQuantMultFromScale(double quantScale) {
-    return getMultFromScale<15, uint16_t>(quantScale);
+int64_t vpux::QuantizationApproximation::shift() const {
+    return _shift;
 }
 
-uint8_t vpux::getQuantShiftFromScale(double quantScale) {
-    return getShiftFromScale<15, uint8_t>(quantScale);
+int64_t vpux::QuantizationApproximation::postShift() const {
+    return _postShift;
 }
 
-std::pair<uint8_t, int8_t> vpux::getQuantShiftAndPostShiftFromScale(double quantScale) {
-    return getShiftAndPostShiftFromScale<15, uint8_t, int8_t>(quantScale);
+vpux::PReLUApproximation::PReLUApproximation(vpux::VPU::ArchKind architecture, double target): _mult(0), _shift(0) {
+    const auto bits = architecture == vpux::VPU::ArchKind::KMB ? 7 : 11;
+    int8_t postShift = 0;
+    std::tie(_mult, _shift, postShift) = approximate<decltype(_mult)>(bits, target);
+
+    VPUX_THROW_UNLESS(postShift == 0,
+                      "Encountered an attempt to approximate {0} as mult = {1}, shift = {2}, postShift{3} on {4}, but "
+                      "postShift is "
+                      "unsupported",
+                      target, _mult, _shift, postShift, architecture);
+}
+
+int64_t vpux::PReLUApproximation::mult() const {
+    return _mult;
+}
+
+int64_t vpux::PReLUApproximation::shift() const {
+    return _shift;
 }
 
 std::pair<int64_t, int64_t> vpux::getClampValuesForQuantizedOps(mlir::quant::QuantizedType outElemQType,

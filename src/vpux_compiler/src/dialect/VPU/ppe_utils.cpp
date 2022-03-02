@@ -181,14 +181,11 @@ VPU::PPETaskAttr getNCEEltwisePPETaskAttr(mlir::Value opInput1, mlir::Value opIn
     if (quantScale.hasValue()) {
         const auto scale = quantScale.getValue();
 
-        const auto mult = getQuantMultFromScale(scale);
-        const auto shifts = getQuantShiftAndPostShiftFromScale(scale);
+        const auto scaleApproximation = QuantizationApproximation(arch, scale);
 
-        const auto shift = shifts.first;
-        const auto post_shift = shifts.second;
-
-        ppeAttr = getPPETaskAttr(ctx, ppeType, clampLow, clampHigh, LreluMult, LreluShift, ArrayRef<int64_t>{mult},
-                                 ArrayRef<int64_t>{shift}, post_shift);
+        ppeAttr = getPPETaskAttr(ctx, ppeType, clampLow, clampHigh, LreluMult, LreluShift,
+                                 ArrayRef<int64_t>{scaleApproximation.mult()},
+                                 ArrayRef<int64_t>{scaleApproximation.shift()}, scaleApproximation.postShift());
     } else {
         ppeAttr = getPPETaskAttr(ctx, ppeType, clampLow, clampHigh, LreluMult, LreluShift);
     }
@@ -260,16 +257,16 @@ llvm::Optional<VPU::PostOpParams> parsePostOp(IE::PostOp postOp, const mlir::Typ
         }
 
         int64_t clampHigh = (outElemQType != nullptr) ? clampHighQuantized : std::numeric_limits<int32_t>::max();
-        uint32_t leakyAccuracyBits = arch == VPU::ArchKind::MTL ? 31 : 7;
-        uint32_t LreluMult = 1;
-        uint32_t LreluShift = 0;
+        int64_t preluMult = 1;
+        int64_t preluShift = 0;
         if (isDoubleEqual(alpha, 0.0)) {
-            LreluMult = 0;
+            preluMult = 0;
         } else if (!isDoubleEqual(alpha, 1.0)) {
-            vpux::VPU::NCESparsity::computeQuantMultShift(alpha, LreluShift, LreluMult, leakyAccuracyBits);
+            const auto alphaApproximation = PReLUApproximation(arch, alpha);
+            preluMult = alphaApproximation.mult();
+            preluShift = alphaApproximation.shift();
         }
-        return PostOpParams{VPU::PPEMode::LPRELU, static_cast<int64_t>(clampLow), clampHigh,
-                            static_cast<int64_t>(LreluMult), static_cast<int64_t>(LreluShift)};
+        return PostOpParams{VPU::PPEMode::LPRELU, static_cast<int64_t>(clampLow), clampHigh, preluMult, preluShift};
     } else if (postOp.name().getValue() == IE::SigmoidOp::getOperationName()) {
         return VPU::getPwlPostOpParams(inElemType, outElemType, VPU::PPEMode::SIGMOID);
     } else if (postOp.name().getValue() == IE::TanhOp::getOperationName()) {

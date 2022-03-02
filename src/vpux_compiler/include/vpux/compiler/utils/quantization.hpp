@@ -51,11 +51,33 @@ using ZeroPoints = SmallVector<int64_t>;
 
 std::pair<Scales, ZeroPoints> extractScalesAndZeroPoints(mlir::Type tensorElemType);
 
-int32_t getPReLUMultFromScale(double preluMult);
-uint32_t getPReLUShiftFromScale(double preluMult);
-uint16_t getQuantMultFromScale(double quantScale);
-uint8_t getQuantShiftFromScale(double quantScale);
-std::pair<uint8_t, int8_t> getQuantShiftAndPostShiftFromScale(double quantScale);
+class QuantizationApproximation {
+public:
+    QuantizationApproximation(vpux::VPU::ArchKind architecture, double target);
+
+    int64_t mult() const;
+    int64_t shift() const;
+    int64_t postShift() const;
+
+private:
+    uint16_t _mult;
+    uint8_t _shift;
+    int8_t _postShift;
+};
+
+class PReLUApproximation {
+public:
+    PReLUApproximation(vpux::VPU::ArchKind architecture, double alpha);
+
+    int64_t mult() const;
+    int64_t shift() const;
+
+private:
+    // KMB mult is int8_t, MTL mult is uint16_t - using int32_t as common storage
+    int32_t _mult;
+    uint8_t _shift;
+};
+
 std::pair<int64_t, int64_t> getClampValuesForQuantizedOps(mlir::quant::QuantizedType outElemQType,
                                                           mlir::Type outElemType);
 

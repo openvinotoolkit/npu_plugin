@@ -46,11 +46,11 @@ namespace {
 void addPPETask(mlir::OpBuilder& builder, VPUIP::NCEClusterTaskOp& nceOp, VPU::PPETaskAttr ppeAttr) {
     const auto multList =
             ppeAttr.quant_mult() != nullptr
-                    ? builder.getI32ArrayAttr(makeArrayRef(parseIntArrayAttr<int32_t>(ppeAttr.quant_mult())))
+                    ? builder.getI64ArrayAttr(makeArrayRef(parseIntArrayAttr<int64_t>(ppeAttr.quant_mult())))
                     : nullptr;
     const auto shiftList =
             ppeAttr.quant_shift() != nullptr
-                    ? builder.getI32ArrayAttr(makeArrayRef(parseIntArrayAttr<int32_t>(ppeAttr.quant_shift())))
+                    ? builder.getI64ArrayAttr(makeArrayRef(parseIntArrayAttr<int64_t>(ppeAttr.quant_shift())))
                     : nullptr;
     nceOp.addPPETask(builder, ppeAttr.mode(), ppeAttr.clamp_low(), ppeAttr.clamp_high(), ppeAttr.lrelu_mult(),
                      ppeAttr.lrelu_shift(), multList, shiftList, ppeAttr.quant_post_shift());

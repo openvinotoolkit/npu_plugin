@@ -256,11 +256,13 @@ llvm::unique_function<int32_t(size_t)> getMultShiftFunc(mlir::Type inElemType, m
         }
 
         const auto ppeConverter = VPU::NCESparsity::ppeConvertersMap.at(arch);
-        return [rescale = std::move(rescale), ppeConverter, inElemType, ppe, updateMultForPPE](size_t oc) {
+        return [rescale = std::move(rescale), ppeConverter, inElemType, ppe, updateMultForPPE, arch](size_t oc) {
             const auto quantScale = rescale[oc];
-            const auto mult = vpux::getQuantMultFromScale(quantScale);
-            const auto shift = vpux::getQuantShiftFromScale(quantScale);
-            auto multShift = ppeConverter(shift, mult, rescale[oc], inElemType);
+
+            const auto scaleApproximation = QuantizationApproximation(arch, quantScale);
+
+            auto multShift = ppeConverter(checked_cast<uint8_t>(scaleApproximation.shift()),
+                                          checked_cast<uint16_t>(scaleApproximation.mult()), rescale[oc], inElemType);
             updateMultForPPE(multShift, ppe);
             return multShift;
         };
@@ -284,14 +286,6 @@ const EnumMap<VPU::ArchKind, VPU::NCESparsity::BiasConverterCb> vpux::VPU::NCESp
         {VPU::ArchKind::TBH, toFixedPoint},
         {VPU::ArchKind::MTL, toHex},
 };
-
-void vpux::VPU::NCESparsity::computeQuantMultShift(double scale, uint32_t& shift, uint32_t& mult, uint32_t bits) {
-    int32_t exponent = 0;
-
-    const double mantissa = std::frexp(scale, &exponent);
-    shift = bits - exponent;
-    mult = static_cast<uint32_t>((mantissa * pow(2, bits)));
-}
 
 int64_t vpux::VPU::NCESparsity::getBitPatternSize(Mode mode, ShapeRef kernelSize, int64_t SX, mlir::Type elemType,
                                                   int64_t IC) {
