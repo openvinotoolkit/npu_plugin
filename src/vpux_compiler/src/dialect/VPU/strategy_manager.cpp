@@ -250,15 +250,14 @@ double StrategyManager::computeLayerSplitOverKernelEfficency(mlir::Operation* op
             });
 }
 
-double StrategyManager::clusterComputeTime(mlir::Operation* op, multiClusterStrategyRange Strategy) {
+double StrategyManager::clusterComputeTime(mlir::Operation* op, MultiClusterStrategy Strategy) {
     const auto outputShape = getShape(op->getResult(0));
     auto clusterOutShape = outputShape.toValues();
     double clusterEff = 0;
-    if (Strategy == multiClusterStrategyRange::SplitOverH ||
-        Strategy == multiClusterStrategyRange::SplitOverHOverlapped) {
+    if (Strategy == MultiClusterStrategy::SplitOverH || Strategy == MultiClusterStrategy::SplitOverHOverlapped) {
         clusterOutShape[Dims4D::Act::H] = outputShape[Dims4D::Act::H] / _numClusters;
         clusterEff = computeLayerSplitOverHeightEfficency(op);
-    } else if (Strategy == multiClusterStrategyRange::SplitOverK) {
+    } else if (Strategy == MultiClusterStrategy::SplitOverK) {
         clusterOutShape[Dims4D::Act::C] = outputShape[Dims4D::Act::C] / _numClusters;
         clusterEff = computeLayerSplitOverKernelEfficency(op);
     }
@@ -282,7 +281,7 @@ double StrategyManager::clusterComputeTime(mlir::Operation* op, multiClusterStra
     return (static_cast<double>(clusterOutShape.totalSize() * baseKernelCost)) / clusterEff;
 }
 
-double StrategyManager::dmaTime(mlir::Operation* op, multiClusterStrategyRange Strategy) {
+double StrategyManager::dmaTime(mlir::Operation* op, MultiClusterStrategy Strategy) {
     // @todo decide CMajor impact to dmaTime, if no just remove this
 
     // Each layer calculates the cost to move it's weights (if they exist), and it's activations
@@ -296,9 +295,9 @@ double StrategyManager::dmaTime(mlir::Operation* op, multiClusterStrategyRange S
     size_t alignedSplitOutChannels = alignedOutChannels;
 
     // Each DMA cost is modelled as latency + size*transfer_rate
-    // IC * KX * KY need to align to 16 for actual kernel size
+    // IC * KX * KY * BytesPerElement need to align to 16B for kernels
     if (mlir::isa<VPU::NCEDepthConvolutionOp>(op) || mlir::isa<VPU::NCEConvolutionOp>(op)) {
-        if (Strategy == multiClusterStrategyRange::SplitOverK) {
+        if (Strategy == MultiClusterStrategy::SplitOverK) {
             alignedSplitOutChannels = alignVal<size_t>(alignedSplitOutChannels / _numClusters, _numChannelAlignment);
         }
         size_t weightsSize = 0;
@@ -312,7 +311,7 @@ double StrategyManager::dmaTime(mlir::Operation* op, multiClusterStrategyRange S
                         alignVal<size_t>(weightsShape[Dims4D::Filter::IC] * weightsShape[Dims4D::Filter::KY] *
                                                  weightsShape[Dims4D::Filter::KX] * dtypeFactor,
                                          _cmxAddressAlignment));
-        if (Strategy == multiClusterStrategyRange::SplitOverK) {
+        if (Strategy == MultiClusterStrategy::SplitOverK) {
             weightsSize *= _numClusters;
         }
 
@@ -335,10 +334,10 @@ double StrategyManager::dmaTime(mlir::Operation* op, multiClusterStrategyRange S
     // @todo ODU multicast include SOK and HKSwitch,
     // Currently we don't have HKSwitch Mode,
     // We should consider it once it's added in the future
-    if (Strategy == multiClusterStrategyRange::SplitOverK) {
+    if (Strategy == MultiClusterStrategy::SplitOverK) {
         auto outputSize =
                 (alignedSplitOutChannels * outShape[Dims4D::Act::H] * outShape[Dims4D::Act::W]) * outDtypeFactor;
-        if (Strategy == multiClusterStrategyRange::SplitOverK) {
+        if (Strategy == MultiClusterStrategy::SplitOverK) {
             outputSize *= _numClusters;
         }
         outputCycles +=
