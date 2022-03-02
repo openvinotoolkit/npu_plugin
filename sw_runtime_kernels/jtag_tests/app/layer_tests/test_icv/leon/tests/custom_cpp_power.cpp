@@ -24,7 +24,7 @@ __attribute__((aligned(1024)))
 #include "svuSLKernels_EP.h"
 #endif
 
-#include "param_power.h"
+#include "param_eltwise.h"
 
 namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Power)) {
     static constexpr std::initializer_list<SingleTest> pow_test_list {
@@ -69,11 +69,11 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Power)) {
             allocBuffer(m_outputTensor);
             allocBuffer(m_referenceOutputTensor);
 
-            m_powParams = reinterpret_cast<sw_params::PowerParams*>(paramContainer);
-           *m_powParams = sw_params::PowerParams(); //default ctor init obj
+            m_powParams = reinterpret_cast<sw_params::EltwiseParams*>(paramContainer);
+           *m_powParams = sw_params::EltwiseParams(); //default ctor init obj
 
             m_params.paramData = reinterpret_cast<uint32_t*>(paramContainer);
-            m_params.paramDataLen = sizeof(sw_params::PowerParams);
+            m_params.paramDataLen = sizeof(sw_params::EltwiseParams);
             m_requiredTensorLocation = static_cast<sw_params::Location>(m_currentTest->customLayerParams.layerParams[0]);
             m_params.baseParamData = sw_params::ToBaseKernelParams(m_powParams);
 
@@ -186,7 +186,7 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Power)) {
     private:
         ListIterator<SingleTest> m_testsLoop;
         Tensor<fp16> m_inTensor[2]; //2x inputs
-        sw_params::PowerParams* m_powParams;
+        sw_params::EltwiseParams* m_powParams;
     };
 
     ICV_TESTS_REGISTER_SUITE(CustomCppPowerTest)

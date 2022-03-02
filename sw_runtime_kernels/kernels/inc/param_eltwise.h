@@ -16,7 +16,7 @@
 #ifdef __MOVICOMPILE__
 #include <moviVectorTypes.h>
 #else
-//typedef fp16 half; //???
+typedef fp16 half; //???
 #endif
 
 #include <common_types.h>
