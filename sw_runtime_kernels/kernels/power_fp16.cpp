@@ -12,9 +12,8 @@
 //
 
 #include <math.h>
-#include <nn_log.h>
-//#include <param_power.h>
 #include <param_eltwise.h>
+#include <eltwise_base.h>
 
 using namespace sw_params;
 
@@ -23,23 +22,8 @@ namespace shave_lib {
 
 extern "C" {
 
-void power_fp16(const struct EltwiseParams *lParams) {
-
-    half* inA = (half*)(lParams->input[0].dataAddr);
-    half* inB = (half*)(lParams->input[1].dataAddr);
-    half* out = (half*)(lParams->output.dataAddr);
-
-    int32_t *pDims = (int32_t *)(lParams->input[0].dimsAddr);
-    uint32_t nElements = 1;
-
-    for (uint32_t i=0; i < lParams->input[0].numDims; i++) {
-        nElements *= pDims[i];
-    }
-
-    for (uint32_t i=0; i < nElements; i++) {
-        out[i] = powf(inA[i], inB[i]);
-    }
-}
+#define ELTWISE_FN(a,b) powf(a,b)
+ELTWISE_MATH_2_OP(power_fp16);
 
 }
 }  // namespace shave_lib

@@ -11,6 +11,8 @@
 // included with the Software Package for additional details.
 //
 
+#error TO_BE_REMOVED
+
 #pragma once
 
 #ifdef __MOVICOMPILE__
