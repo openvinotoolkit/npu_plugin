@@ -392,6 +392,10 @@ NDTypeInterface VPUIP::DistributedBufferType::changeElemType(mlir::Type) const {
     VPUX_THROW("changeElemType method is not implemented for DistributedBufferType");
 }
 
+NDTypeInterface VPUIP::DistributedBufferType::changeShapeElemType(ShapeRef, mlir::Type) const {
+    VPUX_THROW("changeShapeElemType method is not implemented for DistributedBufferType");
+}
+
 NDTypeInterface VPUIP::DistributedBufferType::changeDimsOrder(DimsOrder) const {
     VPUX_THROW("changeDimsOrder method is not implemented for DistributedBufferType");
 }

@@ -27,13 +27,14 @@ using namespace vpux;
 namespace {
 
 //
-// LayerRewriter
+// ConvertQuantizeRewriter
 //
 
-class LayerRewriter final : public mlir::OpRewritePattern<IE::QuantizeOp> {
+class ConvertQuantizeRewriter final : public mlir::OpRewritePattern<IE::QuantizeOp> {
 public:
-    LayerRewriter(mlir::MLIRContext* ctx, Logger log): mlir::OpRewritePattern<IE::QuantizeOp>(ctx), _log(log) {
-        setDebugName("LayerRewriter");
+    ConvertQuantizeRewriter(mlir::MLIRContext* ctx, Logger log)
+            : mlir::OpRewritePattern<IE::QuantizeOp>(ctx), _log(log) {
+        setDebugName("ConvertQuantizeRewriter");
     }
 
 public:
@@ -43,7 +44,8 @@ private:
     Logger _log;
 };
 
-mlir::LogicalResult LayerRewriter::matchAndRewrite(IE::QuantizeOp quantizeOp, mlir::PatternRewriter& rewriter) const {
+mlir::LogicalResult ConvertQuantizeRewriter::matchAndRewrite(IE::QuantizeOp quantizeOp,
+                                                             mlir::PatternRewriter& rewriter) const {
     auto convertOp = quantizeOp.input().getDefiningOp<IE::ConvertOp>();
     if (convertOp == nullptr) {
         return mlir::failure();
@@ -80,6 +82,45 @@ mlir::LogicalResult LayerRewriter::matchAndRewrite(IE::QuantizeOp quantizeOp, ml
 }
 
 //
+// DequantizeConvertRewriter
+//
+
+class DequantizeConvertRewriter final : public mlir::OpRewritePattern<IE::ConvertOp> {
+public:
+    DequantizeConvertRewriter(mlir::MLIRContext* ctx, Logger log)
+            : mlir::OpRewritePattern<IE::ConvertOp>(ctx), _log(log) {
+        setDebugName("DequantizeConvertRewriter");
+    }
+
+public:
+    mlir::LogicalResult matchAndRewrite(IE::ConvertOp origOp, mlir::PatternRewriter& rewriter) const final;
+
+private:
+    Logger _log;
+};
+
+mlir::LogicalResult DequantizeConvertRewriter::matchAndRewrite(IE::ConvertOp convertOp,
+                                                               mlir::PatternRewriter& rewriter) const {
+    auto dequantizeOp = convertOp.input().getDefiningOp<IE::DequantizeOp>();
+    if (dequantizeOp == nullptr) {
+        return mlir::failure();
+    }
+
+    auto outElemType = convertOp.getType().cast<vpux::NDTypeInterface>().getElementType();
+    if (!outElemType.isInteger(CHAR_BIT)) {
+        return mlir::failure();
+    }
+
+    _log.trace("Fusing operations: '{1}' and '{2}'", dequantizeOp->getName(), convertOp->getName());
+
+    auto originDstType = convertOp.dstElemType();
+
+    rewriter.replaceOpWithNewOp<IE::QuantizeCastOp>(convertOp, dequantizeOp.input(), originDstType);
+
+    return mlir::success();
+}
+
+//
 // FuseConvertWithQuantizePass
 //
 
@@ -97,7 +138,8 @@ void FuseConvertWithQuantizePass::safeRunOnFunc() {
     auto& ctx = getContext();
 
     mlir::OwningRewritePatternList patterns(&ctx);
-    patterns.add<LayerRewriter>(&ctx, _log);
+    patterns.add<ConvertQuantizeRewriter>(&ctx, _log);
+    patterns.add<DequantizeConvertRewriter>(&ctx, _log);
 
     auto func = getFunction();
     if (mlir::failed(applyPatternsAndFoldGreedily(func, std::move(patterns), getDefaultGreedyRewriteConfig()))) {

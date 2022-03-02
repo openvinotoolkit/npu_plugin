@@ -55,6 +55,27 @@ def InitCompiler : PassBase<"init-compiler", "vpux::ModulePass"> {
 }
 
 //
+// Wrap multi-cluster layers in NCEClusterTiling
+//
+
+def WrapVPUOpsInNCEClusterTiling : PassBase<"wrap-vpu-ops-in-ncecluster-tiling", "vpux::FunctionPass"> {
+    let summary = "This pass wraps vpu operations that should be executed across multiple clusters in NCEClusterTiling operations";
+
+    let description = [{
+        This pass builds an IR in order to represent multi-cluster compilation. It performs a number of functions.
+        1) It creates variations of distributed tensors depending on the multi-cluster strategy of the layer. 
+        2) It creates DMA operations DDR->CMX and wraps the DMAs in NCEClusterTiling.
+        3) It wraps hardware executable operations in NCEClusterTiling. 
+    }];
+
+    let constructor = "vpux::VPU::createWrapVPUOpsInNCEClusterTilingPass()";
+
+    let dependentDialects = [
+        "vpux::VPU::VPUDialect"
+    ];
+}
+
+//
 // SplitNCEOpsOntoWorkloads
 //
 

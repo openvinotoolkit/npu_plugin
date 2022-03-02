@@ -14,6 +14,7 @@ func @Conv(%arg0: memref<1x16x16x16xf16, #NHWC, @CMX_NN>, %arg1: memref<16x16x1x
 
     %3 = VPU.NCE.Convolution(%0, %1, %2) {
                 pad = {bottom = 0, left = 0, right = 0, top = 0},
+                rawFilterShape = [16, 16, 1, 1],
                 ppe = {clamp_high = 2147483647, clamp_low = 0, lrelu_mult = 1, lrelu_shift = 0, mode = "LRELU"},
                 strides = [1, 1]
             } -> tensor<1x16x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}> {
@@ -75,7 +76,7 @@ func @Conv(%arg0: memref<1x16x16x16xf16, #NHWC, @CMX_NN>, %arg1: memref<16x16x1x
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
 // CHECK-LABEL: @MaxPool
-func @MaxPool(%arg0: memref<1x16x1x4xf16, #NHWC, @CMX_NN>, %arg1 : memref<16x1x1x4xsi32, @CMX_NN>, %arg2 : memref<16x1x1x16xui8, @CMX_NN>) 
+func @MaxPool(%arg0: memref<1x16x1x4xf16, #NHWC, @CMX_NN>, %arg1 : memref<16x1x1x4xsi32, @CMX_NN>, %arg2 : memref<16x1x1x16xui8, @CMX_NN>)
         -> memref<1x16x1x4xf16, #NHWC, @CMX_NN> {
     %0 = builtin.unrealized_conversion_cast %arg0 : memref<1x16x1x4xf16, #NHWC, @CMX_NN>
         to tensor<1x16x1x4xf16, {mem_space = @CMX_NN, order = #NHWC}>
@@ -124,7 +125,7 @@ func @MaxPool(%arg0: memref<1x16x1x4xf16, #NHWC, @CMX_NN>, %arg1 : memref<16x1x1
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
 // CHECK-LABEL: @DepthConv
-func @DepthConv(%arg0: memref<1x16x40x80xf16, #NHWC, @CMX_NN>, %arg1: memref<16x1x4x8xf16, #NHWC, @CMX_NN>, 
+func @DepthConv(%arg0: memref<1x16x40x80xf16, #NHWC, @CMX_NN>, %arg1: memref<16x1x4x8xf16, #NHWC, @CMX_NN>,
         %arg2 : memref<16x1x1x4xsi32, @CMX_NN>, %arg3 : memref<16x1x1x16xui8, @CMX_NN>)
         -> memref<1x16x37x73xf16, #NHWC, @CMX_NN> {
     %0 = builtin.unrealized_conversion_cast %arg0 : memref<1x16x40x80xf16, #NHWC, @CMX_NN>
@@ -138,6 +139,7 @@ func @DepthConv(%arg0: memref<1x16x40x80xf16, #NHWC, @CMX_NN>, %arg1: memref<16x
 
     %4 = VPU.NCE.DepthConvolution(%0, %1, %2, %3) {
                 pad = {bottom = 0, left = 0, right = 0, top = 0},
+                rawFilterShape = [16, 1, 4, 8],
                 strides = [1, 1],
                 activation_window_channel_length = 44
             } -> tensor<1x16x37x73xf16, {mem_space = @CMX_NN, order = #NHWC}> {
@@ -276,6 +278,7 @@ func @ConvWithClusterIdAttr(%arg0: memref<1x32x16x16xf16, #NHWC, @CMX_NN>, %arg1
 
     %3 = VPU.NCE.Convolution(%0, %1, %2) {
                 pad = {bottom = 1, left = 1, right = 1, top = 1},
+                rawFilterShape = [64, 32, 3, 3],
                 ppe = {clamp_high = 2147483647, clamp_low = 0, lrelu_mult = 1, lrelu_shift = 0, mode = "LRELU"},
                 strides = [1, 1]
             } -> tensor<1x64x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}> {

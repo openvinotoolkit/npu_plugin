@@ -109,6 +109,11 @@ def NDTypeInterface : TypeInterface<"NDTypeInterface"> {
         >,
 
         InterfaceMethod<
+            "Returns the type with the new shape and element type",
+            "vpux::NDTypeInterface", "changeShapeElemType", (ins "vpux::ShapeRef":$shape, "mlir::Type":$elemType)
+        >,
+
+        InterfaceMethod<
             "Returns the type with the new order",
             "vpux::NDTypeInterface", "changeDimsOrder", (ins "vpux::DimsOrder":$order)
         >,

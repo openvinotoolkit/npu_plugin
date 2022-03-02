@@ -17,9 +17,10 @@ func @ConvRewriter(%arg0: tensor<1x16x16x16xf16, {order = #NHWC}>) -> tensor<1x1
         -> tensor<16x1x1x4xsi32, {mem_space = @CMX_NN, order = #NHWC}>
     %3 = VPU.NCE.Convolution(%0, %1, %2) {
             pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64},
+            rawFilterShape = [16, 16, 1, 1],
             strides = [1, 1]
-        } : tensor<1x16x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>, 
-            tensor<16x16x1x1xf16, {mem_space = @CMX_NN, order = #NHWC}>, 
+        } : tensor<1x16x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>,
+            tensor<16x16x1x1xf16, {mem_space = @CMX_NN, order = #NHWC}>,
             tensor<16x1x1x4xsi32, {mem_space = @CMX_NN, order = #NHWC}>
         -> tensor<1x16x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>
 
@@ -79,8 +80,9 @@ func @DepthConvRewriter(%arg0: tensor<1x16x40x80xf16, {order = #NHWC}>) -> tenso
 
     %4 = VPU.NCE.DepthConvolution(%0, %1, %2, %3) {
             pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64},
+            rawFilterShape = [16, 1, 4, 8],
             strides = [1, 1]
-        } : tensor<1x16x40x80xf16, {mem_space = @CMX_NN, order = #NHWC}>, 
+        } : tensor<1x16x40x80xf16, {mem_space = @CMX_NN, order = #NHWC}>,
             tensor<16x1x4x8xf16, {mem_space = @CMX_NN, order = #NHWC}>,
             tensor<16x1x1x4xsi32, {mem_space = @CMX_NN, order = #NHWC}>,
             tensor<16x1x1x16xui8, {mem_space = @CMX_NN, order = #NHWC}>
@@ -131,7 +133,7 @@ func @MaxPoolRewriter(%arg0: tensor<1x16x1x4xf16, {order = #NHWC}>) -> tensor<1x
         #const.Content<dense<10> : tensor<16x1x1x4xsi32>, [#const.Reorder<#NHWC>]>
     %aw = const.Declare tensor<16x1x1x16xui8, {order = #NHWC}> =
         #const.Content<dense<1> : tensor<16x1x1x16xui8>, [#const.Reorder<#NHWC>]>
-    
+
     %0 = IE.Copy(%arg0) {out_mem_space = @CMX_NN} : tensor<1x16x1x4xf16, {order = #NHWC}>
         -> tensor<1x16x1x4xf16, {mem_space = @CMX_NN, order = #NHWC}>
     %1 = IE.Copy(%wt) {out_mem_space = @CMX_NN} : tensor<16x1x1x4xsi32, {order = #NHWC}>
@@ -288,9 +290,10 @@ func @ConvolutionWithDistributedTensor(%arg0: !Input_DDR) -> !Output_DDR {
               %wt_cmx as %arg3: !WeightsTableStub_CMX)
               -> !OutputDistributed {
         %0 = VPU.NCE.Convolution(%arg1, %arg2, %arg3) (activationWindow : : ) (bias : #const.Content<dense<1.000000e+00> : tensor<1x64x1x1xf16>>) {
-                  pad = {bottom = 1 : i64, left = 1 : i64, right = 1 : i64, top = 1 : i64},
-                  strides = [1, 1]
-              } -> !OutputStub_CMX
+                pad = {bottom = 1 : i64, left = 1 : i64, right = 1 : i64, top = 1 : i64},
+                rawFilterShape = [64, 32, 3, 3],
+                strides = [1, 1]
+            } -> !OutputStub_CMX
         VPU.Yield %0
     }
     %output = VPU.NCE.ClusterTiling(%output_cmx as %arg1: !OutputStub_CMX) -> !Output_DDR {

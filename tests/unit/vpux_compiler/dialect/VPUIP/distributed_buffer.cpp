@@ -83,6 +83,7 @@ TEST(MLIR_NDTypeInterface, SegmentedDistributedBufferType) {
     const SmallVector<int64_t> newShape({1, 32, 52, 8});
     EXPECT_ANY_THROW(ndType.changeShape(vpux::ShapeRef(newShape)));
     EXPECT_ANY_THROW(ndType.changeElemType(mlir::Float32Type::get(&ctx)));
+    EXPECT_ANY_THROW(ndType.changeShapeElemType(vpux::ShapeRef(newShape), mlir::Float32Type::get(&ctx)));
     EXPECT_ANY_THROW(ndType.changeDimsOrder(DimsOrder::NCHW));
     EXPECT_ANY_THROW(ndType.changeMemSpace(vpux::IndexedSymbolAttr::get(&ctx, DDR_NAME)));
 
@@ -144,6 +145,7 @@ TEST(MLIR_NDTypeInterface, SegmentedDuplicatedDistributedBufferType) {
     const SmallVector<int64_t> newShape({1, 32, 52, 8});
     EXPECT_ANY_THROW(ndType.changeShape(vpux::ShapeRef(newShape)));
     EXPECT_ANY_THROW(ndType.changeElemType(mlir::Float32Type::get(&ctx)));
+    EXPECT_ANY_THROW(ndType.changeShapeElemType(vpux::ShapeRef(newShape), mlir::Float32Type::get(&ctx)));
     EXPECT_ANY_THROW(ndType.changeDimsOrder(DimsOrder::NCHW));
     EXPECT_ANY_THROW(ndType.changeMemSpace(vpux::IndexedSymbolAttr::get(&ctx, DDR_NAME)));
 

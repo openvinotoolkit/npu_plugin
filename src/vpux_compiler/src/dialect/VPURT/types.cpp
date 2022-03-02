@@ -269,6 +269,22 @@ vpux::NDTypeInterface vpux::VPURT::SparseBufferType::changeElemType(mlir::Type e
     return VPURT::SparseBufferType::get(data, getSparsity_map(), getStorage_element_table());
 }
 
+vpux::NDTypeInterface vpux::VPURT::SparseBufferType::changeShapeElemType(vpux::ShapeRef shape,
+                                                                         mlir::Type elemType) const {
+    VPUX_THROW_UNLESS(getStorage_element_table() == nullptr, "Storage element table is not yet supported");
+
+    const auto ndData = getData().cast<vpux::NDTypeInterface>();
+    const auto data = ndData.changeShapeElemType(shape, elemType).cast<mlir::MemRefType>();
+
+    auto sparsityMap = getSparsity_map();
+    if (sparsityMap != nullptr) {
+        const auto ndSparsityMap = sparsityMap.cast<vpux::NDTypeInterface>();
+        sparsityMap = ndSparsityMap.changeShape(shape).cast<mlir::MemRefType>();
+    }
+
+    return VPURT::SparseBufferType::get(data, sparsityMap);
+}
+
 vpux::NDTypeInterface vpux::VPURT::SparseBufferType::changeDimsOrder(vpux::DimsOrder order) const {
     const auto ndData = getData().cast<vpux::NDTypeInterface>();
     const auto data = ndData.changeDimsOrder(order).cast<mlir::MemRefType>();

@@ -75,25 +75,25 @@ TEST(MLIR_NDTypeInterface, SegmentedDistributedTensorType) {
     EXPECT_EQ(ndType.getTotalAllocSize().count(), 2 * 64 * 4 * 16);
     EXPECT_EQ(ndType.getCompactAllocSize().count(), 2 * 64 * 4 * 16);
 
-    EXPECT_EQ(ndType.getShape(), vpux::ShapeRef({1, 64, 13, 16}));
     const SmallVector<int64_t> newShape({1, 32, 52, 8});
-    const auto newFilterTypeShape = ndType.changeShape(vpux::ShapeRef(newShape));
-    EXPECT_EQ(newFilterTypeShape.getShape(), vpux::ShapeRef(newShape));
+    const auto changedShape = ndType.changeShape(vpux::ShapeRef(newShape));
+    EXPECT_EQ(changedShape.getShape(), vpux::ShapeRef(newShape));
 
-    EXPECT_TRUE(ndType.getElementType().isa<mlir::Float16Type>());
-    const auto newElemType = mlir::Float32Type::get(&ctx);
-    const auto newFilterTypeElemType = ndType.changeElemType(newElemType);
-    EXPECT_TRUE(newFilterTypeElemType.getElementType().isa<mlir::Float32Type>());
+    const auto changedElemType = ndType.changeElemType(mlir::Float32Type::get(&ctx));
+    EXPECT_TRUE(changedElemType.getElementType().isa<mlir::Float32Type>());
 
-    EXPECT_EQ(ndType.getDimsOrder(), DimsOrder::NHWC);
+    const SmallVector<int64_t> newShape2({1, 32, 26, 16});
+    const auto changedShapeElemType = ndType.changeShapeElemType(vpux::ShapeRef(newShape2), mlir::IntegerType::get(&ctx, 8));
+    EXPECT_EQ(changedShapeElemType.getShape(), vpux::ShapeRef(newShape2));
+    EXPECT_TRUE(changedShapeElemType.getElementType().isa<mlir::IntegerType>());
+
     const auto newDimsOrder = DimsOrder::NCHW;
-    const auto newFilterTypeDimsOrder = ndType.changeDimsOrder(newDimsOrder);
-    EXPECT_EQ(newFilterTypeDimsOrder.getDimsOrder(), newDimsOrder);
+    const auto changedDimsOrder = ndType.changeDimsOrder(newDimsOrder);
+    EXPECT_EQ(changedDimsOrder.getDimsOrder(), newDimsOrder);
 
-    EXPECT_EQ(ndType.getMemSpace().getLeafName(), CMX_NAME);
     const auto newMemSpace = vpux::IndexedSymbolAttr::get(&ctx, DDR_NAME);
-    const auto newFilterTypeMemSpace = ndType.changeMemSpace(newMemSpace);
-    EXPECT_EQ(newFilterTypeMemSpace.getMemSpace().getLeafName(), DDR_NAME);
+    const auto changedMemSpace = ndType.changeMemSpace(newMemSpace);
+    EXPECT_EQ(changedMemSpace.getMemSpace().getLeafName(), DDR_NAME);
 
     const SmallVector<int64_t> tileOffset({0, 0, 32, 0});
     const SmallVector<int64_t> tileShape({1, 32, 20, 8});
@@ -147,25 +147,26 @@ TEST(MLIR_NDTypeInterface, SegmentedDuplicatedDistributedTensorType) {
     EXPECT_EQ(ndType.getTotalAllocSize().count(), 2 * 64 * 13 * 16);
     EXPECT_EQ(ndType.getCompactAllocSize().count(), 2 * 64 * 13 * 16);
 
-    EXPECT_EQ(ndType.getShape(), vpux::ShapeRef({1, 64, 13, 16}));
     const SmallVector<int64_t> newShape({1, 32, 52, 8});
-    const auto newFilterTypeShape = ndType.changeShape(vpux::ShapeRef(newShape));
-    EXPECT_EQ(newFilterTypeShape.getShape(), vpux::ShapeRef(newShape));
+    const auto changedShape = ndType.changeShape(vpux::ShapeRef(newShape));
+    EXPECT_EQ(changedShape.getShape(), vpux::ShapeRef(newShape));
 
     EXPECT_TRUE(ndType.getElementType().isa<mlir::Float16Type>());
-    const auto newElemType = mlir::Float32Type::get(&ctx);
-    const auto newFilterTypeElemType = ndType.changeElemType(newElemType);
-    EXPECT_TRUE(newFilterTypeElemType.getElementType().isa<mlir::Float32Type>());
+    const auto changedElemType = ndType.changeElemType(mlir::Float32Type::get(&ctx));
+    EXPECT_TRUE(changedElemType.getElementType().isa<mlir::Float32Type>());
 
-    EXPECT_EQ(ndType.getDimsOrder(), DimsOrder::NHWC);
+    const SmallVector<int64_t> newShape2({1, 32, 32, 32});
+    const auto changedShapeElemType = ndType.changeShapeElemType(vpux::ShapeRef(newShape2), mlir::IntegerType::get(&ctx, 8));
+    EXPECT_EQ(changedShapeElemType.getShape(), vpux::ShapeRef(newShape2));
+    EXPECT_TRUE(changedShapeElemType.getElementType().isa<mlir::IntegerType>());
+
     const auto newDimsOrder = DimsOrder::NCHW;
-    const auto newFilterTypeDimsOrder = ndType.changeDimsOrder(newDimsOrder);
-    EXPECT_EQ(newFilterTypeDimsOrder.getDimsOrder(), newDimsOrder);
+    const auto changedDimsOrder = ndType.changeDimsOrder(newDimsOrder);
+    EXPECT_EQ(changedDimsOrder.getDimsOrder(), newDimsOrder);
 
-    EXPECT_EQ(ndType.getMemSpace().getLeafName(), CMX_NAME);
     const auto newMemSpace = vpux::IndexedSymbolAttr::get(&ctx, DDR_NAME);
-    const auto newFilterTypeMemSpace = ndType.changeMemSpace(newMemSpace);
-    EXPECT_EQ(newFilterTypeMemSpace.getMemSpace().getLeafName(), DDR_NAME);
+    const auto changedMemSpace = ndType.changeMemSpace(newMemSpace);
+    EXPECT_EQ(changedMemSpace.getMemSpace().getLeafName(), DDR_NAME);
 
     const SmallVector<int64_t> tileOffset({0, 0, 32, 0});
     const SmallVector<int64_t> tileShape({1, 32, 20, 8});

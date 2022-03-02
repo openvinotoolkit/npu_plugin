@@ -192,8 +192,7 @@ mlir::LogicalResult vpux::VPU::NCEDepthConvolutionOp::inferReturnTypeComponents(
         return mlir::failure();
     }
 
-    const Shape filterShape = op.rawFilterShape() != nullptr ? Shape(parseIntArrayAttr<int64_t>(op.rawFilterShape()))
-                                                             : getShape(op.filter()).toValues();
+    const auto filterShape = Shape(parseIntArrayAttr<int64_t>(op.rawFilterShape()));
     const auto fIC = filterShape[Dims4D::Filter::IC];
 
     if (fIC != 1) {

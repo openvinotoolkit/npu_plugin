@@ -13,9 +13,11 @@
 #include "vpux_private_config.hpp"
 #include "common/functions.h"
 #include <details/ie_exception.hpp>
+#include <vpux/al/config/compiler.hpp>
 
 
 using LoadNetwork = BehaviorTestsUtils::BehaviorTestsBasic;
+using CompilerType = InferenceEngine::VPUXConfigParams::CompilerType;
 
 namespace {
 
@@ -76,31 +78,34 @@ TEST_P(LoadNetworkWithoutDevice, NoThrowIfNoDeviceAndButPlatformPassed) {
     }
 }
 
-const std::map<std::string, std::string> wrongDevice =
+const std::map<std::string, std::array<std::string, 2>> wrongDevice =
 {
-    {"3400_A0", "3400"},
-    {"3400", "3400_A0"},
-    {"3700", "3400_A0"},
-    {"3720", "3400"},
-    {"3900", "3400"},
-    {"3400_A0_EMU", "3400"},
-    {"3400_EMU", "3400_A0"},
-    {"3700_EMU", "3400_A0"},
-    {"3720_EMU", "3400"},
-    {"3800_EMU", "3400"},
-    {"3900_EMU", "3400"},
+    // {orig, {wrong for MCM, wrong for MLIR}}
+    {"3400_A0", {"3400", "3400"}},
+    {"3400", {"3400_A0", "3700"}},
+    {"3700", {"3400_A0", "3400"}},
+    {"3720", {"3400", "3400"}},
+    {"3900", {"3400", "3400"}},
+    {"3400_A0_EMU", {"3400", "3400"}},
+    {"3400_EMU", {"3400_A0", "3700"}},
+    {"3700_EMU", {"3400_A0", "3400"}},
+    {"3720_EMU", {"3400", "3400"}},
+    {"3800_EMU", {"3400", "3400"}},
+    {"3900_EMU", {"3400", "3400"}},
     // For AUTO we can set 3400_A0 which is deprecated
-    {"AUTO", "3400_A0"}
+    {"AUTO", {"3400_A0", "3400"}}
 };
 
-std::string getWrongDevice(const std::string& platform)
+std::string getWrongDevice(const std::string& platform, const CompilerType& compilerType)
 {
     // here we mix up devices in order to test the check on the runtime side
     auto device = wrongDevice.find(platform);
 
     if (device == wrongDevice.end())
         THROW_IE_EXCEPTION << "Cannot map wrong device for the platform " << platform;
-    return device->second;
+    if (compilerType == CompilerType::MLIR)
+        return device->second[1];
+    return device->second[0];
 }
 
 TEST_P(LoadNetwork, CheckDeviceInBlob) {
@@ -108,13 +113,21 @@ TEST_P(LoadNetwork, CheckDeviceInBlob) {
     {
         InferenceEngine::CNNNetwork cnnNet = buildSingleLayerSoftMaxNetwork();
         // Load CNNNetwork to target plugins
-        auto netConfiguration = configuration;
-        netConfiguration[VPUX_CONFIG_KEY(PLATFORM)] = getWrongDevice(PlatformEnvironment::PLATFORM);
-        netConfiguration[VPUX_CONFIG_KEY(COMPILER_TYPE)] = VPUX_CONFIG_VALUE(MCM);
+        auto netConfigurationMCM = configuration;
+        netConfigurationMCM[VPUX_CONFIG_KEY(PLATFORM)] =
+                getWrongDevice(PlatformEnvironment::PLATFORM, CompilerType::MCM);
+        netConfigurationMCM[VPUX_CONFIG_KEY(COMPILER_TYPE)] = VPUX_CONFIG_VALUE(MCM);
+
+        auto netConfigurationMLIR = configuration;
+        netConfigurationMLIR[VPUX_CONFIG_KEY(PLATFORM)] =
+                getWrongDevice(PlatformEnvironment::PLATFORM, CompilerType::MLIR);
+        netConfigurationMLIR[VPUX_CONFIG_KEY(COMPILER_TYPE)] = VPUX_CONFIG_VALUE(MLIR);
 #if defined(__arm__) || defined(__aarch64__)
-        EXPECT_ANY_THROW(ie->LoadNetwork(cnnNet, targetDevice, netConfiguration));
+        EXPECT_ANY_THROW(ie->LoadNetwork(cnnNet, targetDevice, netConfigurationMCM));
+        EXPECT_ANY_THROW(ie->LoadNetwork(cnnNet, targetDevice, netConfigurationMLIR));
 #else
-        EXPECT_NO_THROW(ie->LoadNetwork(cnnNet, targetDevice, netConfiguration));
+        EXPECT_NO_THROW(ie->LoadNetwork(cnnNet, targetDevice, netConfigurationMCM));
+        EXPECT_NO_THROW(ie->LoadNetwork(cnnNet, targetDevice, netConfigurationMLIR));
 #endif
     }
 }

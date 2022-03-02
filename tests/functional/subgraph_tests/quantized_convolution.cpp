@@ -93,12 +93,16 @@ class KmbQuantizedConvSubGraphTest :
     }
 
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<std::tuple<std::vector<float>, LayerTestsUtils::TargetDevice>> obj) {
+    static std::string getTestCaseName(testing::TestParamInfo<QuantizedConvTestParams> obj) {
+        InferenceEngine::Precision ip;
+        InferenceEngine::Precision op;
         std::vector<float> fqRanges;
         std::string targetDevice;
-        std::tie(fqRanges, targetDevice) = obj.param;
+        std::tie(ip, op, fqRanges, targetDevice) = obj.param;
 
         std::ostringstream result;
+        result << "InputPrec=" << ip.name() << "_";
+        result << "OutputPrec=" << op.name() << "_";
         result << "FQ={" << fqRanges.at(0) << ", " << fqRanges.at(1) << ", " << fqRanges.at(2) << ", " << fqRanges.at(3) << "}_";
         result << "targetDevice=" << targetDevice;
         return result.str();
@@ -129,12 +133,17 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
         InferenceEngine::Precision::FP16
 };
 
+const std::vector<InferenceEngine::Precision> netOutputPrecisions = {
+        InferenceEngine::Precision::U8,
+        InferenceEngine::Precision::FP32
+};
+
 const auto basicCases = ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(InferenceEngine::Precision::FP32),
+        ::testing::ValuesIn(netOutputPrecisions),
         ::testing::ValuesIn(fqRanges),
         ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));
 
-INSTANTIATE_TEST_SUITE_P(smoke, KmbQuantizedConvSubGraphTest, basicCases);
+INSTANTIATE_TEST_SUITE_P(smoke, KmbQuantizedConvSubGraphTest, basicCases, KmbQuantizedConvSubGraphTest::getTestCaseName);
 
 }  // namespace

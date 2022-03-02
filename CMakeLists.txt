@@ -43,7 +43,11 @@ find_package(InferenceEngineDeveloperPackage REQUIRED)
 
 include(cmake/features.cmake)
 include(cmake/compile_options.cmake)
-include(cmake/dependencies.cmake)
+
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/cmake/dependencies.cmake")
+    include(cmake/dependencies.cmake)
+endif()
+
 include(cmake/cross_compilation.cmake)
 include(cmake/flatbuffers.cmake)
 include(cmake/bundle_static_library.cmake)
@@ -121,6 +125,10 @@ endif()
 #
 # targets install
 #
+
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/cmake/source_package.cmake")
+    include(cmake/source_package.cmake)
+endif()
 
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/
         DESTINATION "runtime/include/ie"

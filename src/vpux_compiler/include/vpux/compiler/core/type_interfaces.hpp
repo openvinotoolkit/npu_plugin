@@ -50,6 +50,7 @@ public:
     vpux::Byte getCompactAllocSize(mlir::Type type) const;
     vpux::NDTypeInterface changeShape(mlir::Type type, vpux::ShapeRef shape) const;
     vpux::NDTypeInterface changeElemType(mlir::Type type, mlir::Type elemType) const;
+    vpux::NDTypeInterface changeShapeElemType(mlir::Type type, vpux::ShapeRef shape, mlir::Type elemType) const;
     vpux::NDTypeInterface changeDimsOrder(mlir::Type type, vpux::DimsOrder order) const;
     vpux::NDTypeInterface changeMemSpace(mlir::Type type, vpux::IndexedSymbolAttr memSpace) const;
     vpux::NDTypeInterface extractDenseTile(mlir::Type type, vpux::ShapeRef tileOffsets, vpux::ShapeRef tileShape) const;
@@ -74,6 +75,7 @@ public:
     vpux::Byte getCompactAllocSize(mlir::Type type) const;
     vpux::NDTypeInterface changeShape(mlir::Type type, vpux::ShapeRef shape) const;
     vpux::NDTypeInterface changeElemType(mlir::Type type, mlir::Type elemType) const;
+    vpux::NDTypeInterface changeShapeElemType(mlir::Type type, vpux::ShapeRef shape, mlir::Type elemType) const;
     vpux::NDTypeInterface changeDimsOrder(mlir::Type type, vpux::DimsOrder order) const;
     vpux::NDTypeInterface changeMemSpace(mlir::Type type, vpux::IndexedSymbolAttr memSpace) const;
     vpux::NDTypeInterface extractDenseTile(mlir::Type type, vpux::ShapeRef tileOffsets, vpux::ShapeRef tileShape) const;

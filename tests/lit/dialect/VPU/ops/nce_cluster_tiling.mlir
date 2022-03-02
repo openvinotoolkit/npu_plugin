@@ -16,6 +16,7 @@ func @ParsePrintClusterTiling(%arg0: tensor<1x32x16x16xf16, {mem_space = @CMX_NN
                 -> tensor<1x64x14x14xf16, {mem_space = @CMX_NN, order = #NHWC}> {
       %1 = VPU.NCE.Convolution(%arg1, %arg2, %arg3) (activationWindow : %arg4 : ) (bias : #const.Content<dense<1.000000e+00> : tensor<1x64x1x1xf16>>) {
                 pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64},
+                rawFilterShape = [64, 32, 3, 3],
                 strides = [1, 1],
                 activation_window_channel_length = 44
             } : tensor<1x32x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>, 
@@ -135,6 +136,7 @@ func @ParsePrintDistributedTensor(%arg0: !Input_DDR) -> !Output_DDR {
               -> !OutputDistributed {
         %0 = VPU.NCE.Convolution(%arg1, %arg2, %arg3) (activationWindow : %arg4 : ) (bias : #const.Content<dense<1.000000e+00> : tensor<1x64x1x1xf16>>) {
                   pad = {bottom = 1 : i64, left = 1 : i64, right = 1 : i64, top = 1 : i64},
+                  rawFilterShape = [64, 32, 3, 3],
                   strides = [1, 1]
               } -> !OutputStub_CMX
         VPU.Yield %0
@@ -352,6 +354,7 @@ func @CanonicalizeTwoConvs(%arg0: !Input_DDR) -> !Output_DDR {
               %aw_first_cmx as %arg4: !ActWinFirstStub_CMX) -> !IntermediateDistributed {
         %0 = VPU.NCE.Convolution(%arg1, %arg2, %arg3) (activationWindow : %arg4 : ) (bias : #const.Content<dense<1.000000e+00> : tensor<1x64x1x1xf16>>) {
                   pad = {bottom = 1 : i64, left = 1 : i64, right = 1 : i64, top = 1 : i64},
+                  rawFilterShape = [64, 32, 3, 3],
                   strides = [1, 1]
               } -> !IntermediateStub_CMX
         VPU.Yield %0
@@ -393,6 +396,7 @@ func @CanonicalizeTwoConvs(%arg0: !Input_DDR) -> !Output_DDR {
               %aw_second_cmx as %arg4: !ActWinSecondStub_CMX) -> !OutputDistributed {
         %0 = VPU.NCE.Convolution(%arg1, %arg2, %arg3) (activationWindow : %arg4 : ) (bias : #const.Content<dense<1.000000e+00> : tensor<1x16x1x1xf16>>) {
                   pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64},
+                  rawFilterShape = [16, 64, 1, 1],
                   strides = [1, 1]
               } -> !OutputStub_CMX
         VPU.Yield %0
