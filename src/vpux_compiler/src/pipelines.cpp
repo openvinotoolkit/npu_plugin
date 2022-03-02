@@ -332,6 +332,7 @@ void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOp
 
     pm.addPass(createConvertIEToVPUNCEPass(log));
     pm.addPass(VPU::createMultiClusterStrategyAssignmentPass(log));
+    pm.addPass(VPU::createManualStrategyUtilsPass(log));
     pm.addPass(VPU::createWrapVPUOpsInNCEClusterTilingPass(log));
 
     pm.addPass(IE::createPrefetchTilingPass(log));
