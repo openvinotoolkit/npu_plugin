@@ -31,7 +31,7 @@ Preprocessor::Preprocessor(unsigned int shaveFirst, unsigned int shaveLast, unsi
 Preprocessor::~Preprocessor() = default;
 
 void Preprocessor::execDataPreprocessing(const PreprocTask& t, const int deviceId) {
-    OV_ITT_SCOPED_TASK(vpux::itt::domains::VPUXPlugin, "Preprocessor::execDataPreprocessing for task");
+    OV_ITT_SCOPED_TASK(vpux::itt::domains::VPUXPlugin, "Preprocessor::execDataPreprocessing");
     IE_ASSERT(t.inputs.size() == 1);
     for (auto& input : t.inputs) {
         const auto& blobName = input.first;
@@ -65,7 +65,7 @@ PreprocessorPool::PreprocessorPool(
 }
 
 void PreprocessorPool::execDataPreprocessing(const PreprocTask& task, const int deviceId) {
-    OV_ITT_SCOPED_TASK(vpux::itt::domains::VPUXPlugin, "PreprocessorPool::execDataPreprocessing for task");
+    OV_ITT_SCOPED_TASK(vpux::itt::domains::VPUXPlugin, "PreprocessorPool::execDataPreprocessing");
     std::unique_lock<std::mutex> lock(_mutex);
     if (_free_preprocs.empty()) {
         _free_cond.wait(lock, [&]() {

@@ -11,6 +11,7 @@
 // included with the Software Package for additional details.
 //
 
+#include "vpux/utils/IE/itt.hpp"
 #include "ze_api.h"
 
 #include "zero_device.h"
@@ -27,6 +28,7 @@ std::shared_ptr<Allocator> ZeroDevice::getAllocator() const {
 
 std::shared_ptr<Executor> ZeroDevice::createExecutor(const NetworkDescription::Ptr& networkDescription,
                                                      const Config& config) {
+    OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "Device::createExecutor");
     return std::make_shared<ZeroExecutor>(_driver_handle, _device_handle, _context, _graph_ddi_table_ext,
                                           networkDescription, config);
 }

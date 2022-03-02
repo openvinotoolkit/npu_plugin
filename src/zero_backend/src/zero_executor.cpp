@@ -21,6 +21,7 @@
 
 #include <blob_factory.hpp>
 
+#include "vpux/utils/IE/itt.hpp"
 #include "vpux/utils/plugin/profiling_parser.hpp"
 
 #include <functional>
@@ -272,6 +273,7 @@ bool isRepackingPossible(const IE::TensorDesc& userTensorDesc, const IE::TensorD
 
 void prepareInputForInference(const IE::Blob::Ptr& userInput, const IE::TensorDesc& deviceTensorDesc, void* destData,
                               const vpux::Optional<QuantizationParam>& quantParam, Logger logger) {
+    OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "Executor::prepareInputForInference");
     if (userInput == nullptr) {
         IE_THROW() << "User input blob null pointer";
     }
@@ -310,6 +312,7 @@ void prepareInputForInference(const IE::Blob::Ptr& userInput, const IE::TensorDe
 
 void getOutputAfterInference(IE::Blob::Ptr& userOutput, const IE::TensorDesc& deviceTensorDesc, const void* srcData,
                              Logger logger) {
+    OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "Executor::getOutputsAfterInference");
     if (userOutput == nullptr) {
         IE_THROW() << "User output blob null pointer";
     }
@@ -479,6 +482,7 @@ ZeroExecutor::Graph::Graph(const ze_device_handle_t& device_handle, const ze_con
           _command_list(device_handle, _context, graph_ddi_table_ext),
           _fence(std::make_shared<Fence>(_command_queue)),
           _graph_ddi_table_ext(graph_ddi_table_ext) {
+    OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "Executor::Graph::Graph");
     ze_graph_desc_t desc{ZE_STRUCTURE_TYPE_GRAPH_DESC_PROPERTIES,        nullptr, ZE_GRAPH_FORMAT_NATIVE, _blob.size(),
                          reinterpret_cast<const uint8_t*>(_blob.data()), nullptr};
     throwOnFail("pfnCreate", _graph_ddi_table_ext->pfnCreate(_context, device_handle, &desc, &_handle));
@@ -493,11 +497,11 @@ ZeroExecutor::Graph::Graph(const ze_device_handle_t& device_handle, const ze_con
             _outputs_desc_map.emplace(std::make_pair(std::string(arg.name), ArgumentDescriptor{arg, index}));
         }
     }
-
     _command_list.appendGraphInitialize(_handle);
     _command_list.close();
 }
 void ZeroExecutor::Graph::init() {
+    OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "Executor::Graph::init");
     _command_queue->executeCommandList(_command_list, *_fence);
     _fence->hostSynchronize();
 }
@@ -539,6 +543,7 @@ ZeroExecutor::Pipeline::Pipeline(const ze_driver_handle_t& driver_handle, const 
           _event{{{device_handle, context, _event_pool._handle, stage::UPLOAD},
                   {device_handle, context, _event_pool._handle, stage::EXECUTE},
                   {device_handle, context, _event_pool._handle, stage::READBACK}}} {
+    OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "Executor::Pipeline::Pipeline");
     for (const auto& desc : graph->_inputs_desc_map) {
         auto size = getSizeIOBytes(desc.second.info);
         _inputs_host_mem_map.emplace(std::make_pair(desc.first, HostMem{driver_handle, context, size}));
@@ -615,10 +620,11 @@ void ZeroExecutor::Event::AppendEventReset(CommandList& command_list) {
 }
 
 void ZeroExecutor::push(const IE::BlobMap& inputs) {
+    OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "Executor::push");
     _logger.info("ZeroExecutor::push started");
     const auto& deviceInputs = _networkDesc->getDeviceInputsInfo();
     const auto quantParamsInfo = _networkDesc->getQuantParamsInfo();
-
+    OV_ITT_TASK_CHAIN(ZERO_EXECUTOR_PUSH, itt::domains::LevelZeroBackend, "Executor::push", "PrepareInput");
     // Copy input data to staging buffer on Cpu (input always first argument)
     for (const auto& inferInput : inputs) {
         const auto& name = inferInput.first;
@@ -649,33 +655,38 @@ void ZeroExecutor::push(const IE::BlobMap& inputs) {
             prepareInputForInference(input, deviceInput->getTensorDesc(), hostMem.data(), quantParams, _logger);
         }
     }
-
+    OV_ITT_TASK_NEXT(ZERO_EXECUTOR_PUSH, "UPLOAD");
     // Dispatch command to copy input data from upload heap to default heap
     _command_queue[stage::UPLOAD]->executeCommandList(_pipeline->_command_list[stage::UPLOAD]);
 
+    OV_ITT_TASK_NEXT(ZERO_EXECUTOR_PUSH, "EXECUTE");
     // Submit the command list for execute
     _command_queue[stage::EXECUTE]->executeCommandList(_pipeline->_command_list[stage::EXECUTE],
                                                        _pipeline->_fence[stage::EXECUTE]);
+    OV_ITT_TASK_SKIP(ZERO_EXECUTOR_PUSH);
 }
 
 Executor::Ptr ZeroExecutor::clone() const {
+    OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "Executor::clone");
     return std::make_shared<ZeroExecutor>(_driver_handle, _device_handle, _context, _graph_ddi_table_ext, _networkDesc,
                                           _command_queue, _graph, _config);
 }
 
 void ZeroExecutor::pull(IE::BlobMap& outputs) {
+    OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "Executor::pull");
     const auto& deviceOutputs = _networkDesc->getDeviceOutputsInfo();
 
+    OV_ITT_TASK_CHAIN(ZERO_EXECUTOR_PULL, itt::domains::LevelZeroBackend, "Executor::pull", "EXECUTE");
     // Wait for execute to finish
     _pipeline->_fence[stage::EXECUTE].hostSynchronize();
-
+    OV_ITT_TASK_NEXT(ZERO_EXECUTOR_PULL, "READBACK");
     // Schedule the copy of outputs from zeDriverAllocDeviceMem to zeDriverAllocHostMem
     _command_queue[stage::READBACK]->executeCommandList(_pipeline->_command_list[stage::READBACK],
                                                         _pipeline->_fence[stage::READBACK]);
     // Wait for output copy to finish execution for _fence from the host, to make sure that data
     // is available in the hostMem buffer of the output
     _pipeline->_fence[stage::READBACK].hostSynchronize();
-
+    OV_ITT_TASK_NEXT(ZERO_EXECUTOR_PULL, "GetOutput");
     // Copy output data to staging buffer on Cpu (input always first argument)
     for (auto& inferOutput : outputs) {
         const auto& name = inferOutput.first;
@@ -707,6 +718,7 @@ void ZeroExecutor::pull(IE::BlobMap& outputs) {
     for (auto& fence : _pipeline->_fence) {
         fence.reset();
     }
+    OV_ITT_TASK_SKIP(ZERO_EXECUTOR_PULL);
 }
 
 IE::Parameter ZeroExecutor::getParameter(const std::string&) const {

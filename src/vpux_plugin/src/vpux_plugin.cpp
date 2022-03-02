@@ -71,6 +71,7 @@ static Config mergeConfigs(const Config& globalConfig, const std::map<std::strin
 
 Engine::Engine()
         : _options(std::make_shared<OptionsDesc>()), _globalConfig(_options), _logger("VPUXEngine", LogLevel::Error) {
+    OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "Engine::Engine");
     _pluginName = "VPUX";
 
     registerCommonOptions(*_options);
@@ -123,7 +124,7 @@ Engine::Engine()
 IE::IExecutableNetworkInternal::Ptr Engine::LoadExeNetwork(const IE::CNNNetwork& network,
                                                            std::shared_ptr<Device>& device,
                                                            const Config& networkConfig) {
-    OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "LoadExeNetwork");
+    OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "Engine::LoadExeNetwork");
     try {
         return std::make_shared<ExecutableNetwork>(network, device, networkConfig);
     } catch (const std::exception&) {
@@ -136,11 +137,9 @@ IE::IExecutableNetworkInternal::Ptr Engine::LoadExeNetwork(const IE::CNNNetwork&
 IE::IExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(const IE::CNNNetwork& network,
                                                                const std::map<std::string, std::string>& config) {
     auto localConfig = mergeConfigs(_globalConfig, config);
-
     const auto platform = _backends->getCompilationPlatform(localConfig.get<PLATFORM>(), localConfig.get<DEVICE_ID>());
     auto device = _backends->getDevice(localConfig.get<DEVICE_ID>());
     localConfig.update({{ov::intel_vpux::vpux_platform.name(), platform}});
-
     return LoadExeNetwork(network, device, localConfig);
 }
 
@@ -152,7 +151,6 @@ IE::IExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(const IE::CNNNetw
     const auto platform = _backends->getCompilationPlatform(localConfig.get<PLATFORM>(), localConfig.get<DEVICE_ID>());
     auto device = _backends->getDevice(context);
     localConfig.update({{ov::intel_vpux::vpux_platform.name(), platform}});
-
     return LoadExeNetwork(network, device, localConfig);
 }
 
@@ -161,6 +159,7 @@ IE::IExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(const IE::CNNNetw
 //------------------------------------------------------------------------------
 IE::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(const std::string& modelFileName,
                                                           const std::map<std::string, std::string>& config) {
+    OV_ITT_TASK_CHAIN(IMPORT_NETWORK, itt::domains::VPUXPlugin, "Engine::ImportNetwork", "FileToStream");
     std::ifstream blobStream(modelFileName, std::ios::binary);
 #if defined(__arm__) || defined(__aarch64__)
     try {
@@ -173,12 +172,13 @@ IE::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(const std::string& mod
         _logger.warning("{0}", ex.what());
     }
 #endif
+    OV_ITT_TASK_SKIP(IMPORT_NETWORK);
     return ImportNetwork(vpu::KmbPlugin::utils::skipMagic(blobStream), config);
 }
 
 IE::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(std::istream& networkModel,
                                                           const std::map<std::string, std::string>& config) {
-    OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "ImportNetwork");
+    OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "Engine::ImportNetwork");
     try {
         auto localConfig = mergeConfigs(_globalConfig, config, OptionMode::RunTime);
         auto device = _backends->getDevice(localConfig.get<DEVICE_ID>());
@@ -195,7 +195,7 @@ IE::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(std::istream& networkM
 IE::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(std::istream& networkModel,
                                                           const IE::RemoteContext::Ptr& context,
                                                           const std::map<std::string, std::string>& config) {
-    OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "ImportNetwork");
+    OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "Engine::ImportNetwork");
     try {
         auto localConfig = mergeConfigs(_globalConfig, config, OptionMode::RunTime);
         auto device = _backends->getDevice(context);
@@ -225,7 +225,7 @@ void Engine::SetConfig(const std::map<std::string, std::string>& config) {
 
 IE::QueryNetworkResult Engine::QueryNetwork(const IE::CNNNetwork& network,
                                             const std::map<std::string, std::string>& config) const {
-    OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "QueryNetwork");
+    OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "Engine::QueryNetwork");
 
     if (nullptr == network.getFunction()) {
         IE_THROW() << "VPUX Plugin supports only ngraph cnn network representation";

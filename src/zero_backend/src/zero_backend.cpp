@@ -18,6 +18,7 @@
 
 #include "zero_device.h"
 
+#include "vpux/utils/IE/itt.hpp"
 #include "vpux/utils/core/logger.hpp"
 
 using namespace vpux;
@@ -25,6 +26,7 @@ using namespace vpux;
 namespace {
 class ZeroDevicesSingleton {
     ZeroDevicesSingleton(): log(Logger::global().nest("ZeroDevicesSingleton", 0)) {
+        OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "ZeroDevicesSingleton::ZeroDevicesSingleton");
         auto result = zeInit(ZE_INIT_FLAG_VPU_ONLY);
         if (ZE_RESULT_SUCCESS != result) {
             log.warning("zeInit failed {0:X+}", uint64_t(result));

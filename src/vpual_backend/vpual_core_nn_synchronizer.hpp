@@ -33,13 +33,13 @@ public:
 
     // Sends requests via XLink
     int RequestInferenceFunction(NnExecWithProfilingMsg& request) {
-        OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "_nnXlinkPlg->RequestInference");
+        OV_ITT_SCOPED_TASK(itt::domains::VpualBackend, "_nnXlinkPlg->RequestInference");
         return _nnXlinkPlg->RequestInferenceWithProfiling(request);
     }
 
     // Blocks thread until some response is received via XLink
     int PollForResponseFunction(NnExecWithProfilingResponseMsg& response) {
-        OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "_nnXlinkPlg->WaitForResponse");
+        OV_ITT_SCOPED_TASK(itt::domains::VpualBackend, "_nnXlinkPlg->WaitForResponse");
         return _nnXlinkPlg->WaitForResponseWithProfiling(response);
     }
 
