@@ -26,11 +26,22 @@ enum EltOpType : int32_t
     //MAX,
 };
 
+typedef struct {
+   EltOpType type;
+   void   *kernel;
+} EltOpInfo;
+
 #ifdef CONFIG_TARGET_SOC_3720
 __attribute__((aligned(1024)))
 #include "sk.power_fp16.3010xx.text.xdat"
 #else
 #include "svuSLKernels_EP.h"
+#endif
+
+#ifdef CONFIG_TARGET_SOC_3720
+#define KERNEL_SELECT(a,b) (a)
+#else
+#define KERNEL_SELECT(a,b) (b)
 #endif
 
 #include "param_eltwise.h"
@@ -47,9 +58,12 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Power)) {
     public:
         explicit CustomCppPowerTest():
                     m_testsLoop(pow_test_list, "test"),
-                    m_opTypesLoop(
-                      {EltOpType::POWER}
-                    ) { }
+                    m_opInfoLoop(
+                      {
+                         {EltOpType::POWER, KERNEL_SELECT(sk_power_fp16_3010xx_text, &SLK_power_fp16)},
+                      }
+                    )
+                    { }
 
         virtual ~CustomCppPowerTest() { }
 
@@ -58,7 +72,7 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Power)) {
             return "CustomCppPowerTest";
         }
         void userLoops() override {
-            addLoop(m_opTypesLoop);
+            addLoop(m_opInfoLoop);
             addLoop(m_testsLoop);
         }
 
@@ -90,11 +104,7 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Power)) {
             m_requiredTensorLocation = static_cast<sw_params::Location>(m_currentTest->customLayerParams.layerParams[0]);
             m_params.baseParamData = sw_params::ToBaseKernelParams(m_powParams);
 
-#ifdef CONFIG_TARGET_SOC_3720
-            m_params.kernel = reinterpret_cast<uint64_t>(sk_power_fp16_3010xx_text);
-#else
-            m_params.kernel = reinterpret_cast<uint64_t>(PREAMBLE_FUNC(power_fp16));
-#endif
+            m_params.kernel = reinterpret_cast<uint64_t>(m_opInfoLoop.value().kernel);
         }
 
         void initTestCase() override {
@@ -123,7 +133,7 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Power)) {
 
             std::function<float (const float&, const float&)> reference;
 
-            switch(m_opTypesLoop.value()){
+            switch(m_opInfoLoop.value().type){
               case EltOpType::POWER: reference = [](const float& a, const float& b) { return powf(a, b); }; break;
               default: assert(0); //unimp
             }
@@ -205,7 +215,7 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Power)) {
 
     private:
         ListIterator<SingleTest> m_testsLoop;
-        ListIterator<EltOpType>  m_opTypesLoop;
+        ListIterator<EltOpInfo>  m_opInfoLoop;
         Tensor<fp16> m_inTensor[2]; //2x inputs
         sw_params::EltwiseParams* m_powParams;
     };
