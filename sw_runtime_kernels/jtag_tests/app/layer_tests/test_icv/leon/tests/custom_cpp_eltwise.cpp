@@ -45,16 +45,20 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Power)) {
 
     class CustomCppPowerTest : public CustomCppTests<fp16> {
     public:
-        explicit CustomCppPowerTest(): m_testsLoop(pow_test_list, "test") {
-        }
-        virtual ~CustomCppPowerTest() {
-        }
+        explicit CustomCppPowerTest():
+                    m_testsLoop(pow_test_list, "test"),
+                    m_opTypesLoop(
+                      {EltOpType::POWER}
+                    ) { }
+
+        virtual ~CustomCppPowerTest() { }
 
     protected:
         const char* suiteName() const override {
             return "CustomCppPowerTest";
         }
         void userLoops() override {
+            addLoop(m_opTypesLoop);
             addLoop(m_testsLoop);
         }
 
@@ -119,8 +123,10 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Power)) {
 
             std::function<float (const float&, const float&)> reference;
 
-            //POWER
-            reference = [](const float& a, const float& b) { return powf(a, b); };
+            switch(m_opTypesLoop.value()){
+              case EltOpType::POWER: reference = [](const float& a, const float& b) { return powf(a, b); }; break;
+              default: assert(0); //unimp
+            }
 
             m_inTensor[0].forEach(false, [&](const MemoryDims& indices) {
                 float a   = f16Tof32(m_inTensor[0].at(indices));
@@ -199,6 +205,7 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Power)) {
 
     private:
         ListIterator<SingleTest> m_testsLoop;
+        ListIterator<EltOpType>  m_opTypesLoop;
         Tensor<fp16> m_inTensor[2]; //2x inputs
         sw_params::EltwiseParams* m_powParams;
     };
