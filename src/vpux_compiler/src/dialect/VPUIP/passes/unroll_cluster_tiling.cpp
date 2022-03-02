@@ -499,8 +499,11 @@ mlir::LogicalResult ClusterDMARewriter::matchAndRewrite(VPUIP::NNDMAOp nndmaOp, 
         VPUX_THROW_UNLESS(inputType.isa<VPUIP::DistributedBufferType>(),
                           "Input operand must have DistributedBuffer type");
 
-        auto inDeclBuff = input.getDefiningOp<VPURT::DeclareBufferOp>();
-        VPUX_THROW_UNLESS(inDeclBuff != nullptr, "Can't get input buffer offset");
+        const auto numClusters = distributionAttr.num_clusters().getInt();
+        SmallVector<int64_t> clusters(numClusters);
+        for (int64_t i = 0; i < numClusters; ++i) {
+            clusters[i] = i;
+        }
 
         const auto symbolAttr = vpux::IndexedSymbolAttr::get(_ctx, {_cmxNameAttr, vpux::getIntAttr(_ctx, 0)});
 
