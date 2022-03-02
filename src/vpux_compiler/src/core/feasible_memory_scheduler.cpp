@@ -386,8 +386,16 @@ void FeasibleMemoryScheduler::getReadyComputeList() {
 SmallVector<mlir::Value> FeasibleMemoryScheduler::sortUsedBuffers(mlir::DenseSet<mlir::Value>& operationBuffers) {
     SmallVector<std::pair<vpux::AddressType, mlir::Value>> buffersWithSize;
     for (auto& val : operationBuffers) {
-        auto size = _scan.handler().getSize(val);
-        buffersWithSize.push_back(std::make_pair(size, val));
+        auto opSize = _scan.handler().getSize(val);
+        // check for NNCMX buffers used by Concat so they can be allocated first
+        // required for exceeding NNCMX invariant by offset + stride in cases
+        // of NNCMX Concat from the runtime side - EISW#30278
+        for (auto bufferUser : val.getUsers()) {
+            if (mlir::isa<IERT::ConcatViewOp>(bufferUser)) {
+                opSize = std::numeric_limits<vpux::AddressType>::max();
+            }
+        }
+        buffersWithSize.push_back(std::make_pair(opSize, val));
     }
     // sort based on size of buffer
     llvm::sort(buffersWithSize.begin(), buffersWithSize.end(),
