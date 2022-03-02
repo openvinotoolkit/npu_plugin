@@ -63,6 +63,21 @@ Byte getTotalCMXSize(mlir::Operation* op);
 // ArchKind
 //
 
+namespace {
+
+constexpr StringLiteral archAttrName = "VPU.arch";
+
+constexpr Byte DDR_HEAP_SIZE = 500_MB;
+constexpr Byte CSRAM_SIZE = 24_MB;
+
+// See https://github.com/movidius/vpuip_2/blob/develop/system/nn/inference_runtime_common/inc/nn_cmx_memory_map.h
+constexpr Byte KMB_CMX_WORKSPACE_SIZE = Byte(896_KB);
+
+// See https://github.com/movidius/vpuip_2/blob/develop/system/nn_mtl/common_runtime/inc/nn_cmx_memory_map.h
+constexpr Byte MTL_CMX_WORKSPACE_SIZE = Byte(1936_KB);
+
+}  // namespace
+
 void setArch(mlir::ModuleOp module, ArchKind kind, Optional<int> numOfDPUGroups = None);
 ArchKind getArch(mlir::Operation* op);
 

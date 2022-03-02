@@ -96,6 +96,9 @@ void buildReadAfterWriteDPUACTTest(const nb::TestCaseJsonDescriptor& testDesc, m
 void buildReadAfterWriteACTDPUTest(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module,
                                    mlir::OpBuilder builder, Logger& log, mlir::Type inputType, mlir::Type weightsType,
                                    mlir::Type outputType);
+void buildMultiClusteringSOKTest(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module,
+                                 mlir::OpBuilder builder, Logger& log, mlir::Type inputType, mlir::Type weightsType,
+                                 mlir::Type outputType);
 
 // TODO: remove buildRaceConditionDMATest and buildRaceConditionDPUTest once buildRaceConditionTest is able to cover
 // all testcases [Track number: E#31468]
@@ -128,6 +131,9 @@ mlir::MemRefType getMemRefType(VPURT::BufferSection section, ArrayRef<int64_t> s
 vpux::VPURT::DeclareBufferOp createDeclareTensorOp(mlir::OpBuilder& builder, VPURT::BufferSection section,
                                                    ArrayRef<int64_t> shape, mlir::Type elemType, DimsOrder order,
                                                    int64_t locale, size_t offset);
+vpux::VPURT::DeclareBufferOp createDeclareTensorOp(mlir::OpBuilder& builder, VPURT::BufferSection section,
+                                                   ArrayRef<int64_t> shape, mlir::Type elemType, DimsOrder order,
+                                                   size_t offset);
 vpux::VPURT::DeclareBufferOp createDeclareTensorOp(mlir::OpBuilder builder, VPURT::BufferSection section,
                                                    ArrayRef<int64_t> shape, mlir::Type elemType, DimsOrder order,
                                                    StridesRef strides, int64_t locale, size_t offset);
