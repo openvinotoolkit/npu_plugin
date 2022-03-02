@@ -13,7 +13,8 @@
 
 #include <math.h>
 #include <nn_log.h>
-#include <param_power.h>
+//#include <param_power.h>
+#include <param_eltwise.h>
 
 using namespace sw_params;
 
@@ -22,7 +23,7 @@ namespace shave_lib {
 
 extern "C" {
 
-void power_fp16(const struct PowerParams *lParams) {
+void power_fp16(const struct EltwiseParams *lParams) {
 
     half* inA = (half*)(lParams->input[0].dataAddr);
     half* inB = (half*)(lParams->input[1].dataAddr);
