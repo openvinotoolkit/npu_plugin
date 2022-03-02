@@ -199,16 +199,11 @@ NCEClusterTilingOp vpux::VPU::createDistributedCopyOut(mlir::Operation* origOp, 
 
 mlir::ArrayAttr vpux::VPU::getKernelSize(mlir::Operation* origOp) {
     if (auto depthwiseConvolutionOp = mlir::dyn_cast<NCEDepthConvolutionOp>(origOp)) {
-        const Shape filterShape =
-                depthwiseConvolutionOp.rawFilterShape().hasValue()
-                        ? Shape(parseIntArrayAttr<int64_t>(depthwiseConvolutionOp.rawFilterShape().getValue()))
-                        : getShape(depthwiseConvolutionOp.filter()).toValues();
+        const Shape filterShape = Shape(parseIntArrayAttr<int64_t>(depthwiseConvolutionOp.rawFilterShape()));
         return getIntArrayAttr(origOp->getContext(),
                                makeArrayRef({filterShape[Dims4D::Filter::KY], filterShape[Dims4D::Filter::KX]}));
     } else if (auto convolutionOp = mlir::dyn_cast<NCEConvolutionOp>(origOp)) {
-        const Shape filterShape = convolutionOp.rawFilterShape().hasValue()
-                                          ? Shape(parseIntArrayAttr<int64_t>(convolutionOp.rawFilterShape().getValue()))
-                                          : getShape(convolutionOp.filter()).toValues();
+        const Shape filterShape = Shape(parseIntArrayAttr<int64_t>(convolutionOp.rawFilterShape()));
         return getIntArrayAttr(origOp->getContext(),
                                makeArrayRef({filterShape[Dims4D::Filter::KY], filterShape[Dims4D::Filter::KX]}));
     } else if (auto maxPoolOp = mlir::dyn_cast<NCEMaxPoolOp>(origOp)) {
