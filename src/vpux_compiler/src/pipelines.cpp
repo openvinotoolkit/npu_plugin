@@ -342,7 +342,7 @@ void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOp
 
     pm.addPass(VPU::createCMXConcatPass(log));
     pm.addPass(mlir::createCanonicalizerPass(grc));
-    
+
     pm.addPass(VPU::createSplitNCEOpsOntoWorkloadsPass(log));
 
     // Lowering
