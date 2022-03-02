@@ -220,7 +220,7 @@ SmallVector<Shape> VPU::DistributedTensorType::getPerClusterComputeShapes() cons
     return VPU::getPerClusterComputeShapes(getShape(), getDistribution());
 }
 
-// @brief Retrive the offsets for each compute shape with regards to full tensor shape.
+// @brief Retrieve the offsets for each compute shape with regards to full tensor shape.
 // @warning An important thing to consider with regards to compute offsets,
 // is that modes like SEGMENTED and OVERLAPPED take precedence over
 // DUPLICATED and MULTICASTED.

@@ -180,8 +180,9 @@ mlir::LogicalResult ClusterNCERewriter::matchAndRewrite(VPUIP::NCEClusterTaskOp 
     auto outputBuffs = getPerClusterBuffers(loc, clusterOp, nceTask.output_buff(), numClusters, rewriter);
 
     mlir::UnitAttr isSegmented = nullptr;
-    if (isSegmentedNCETask(nceTask, parentInputType))
+    if (isSegmentedNCETask(nceTask, parentInputType)) {
         isSegmented = mlir::UnitAttr::get(nceTask.getContext());
+    }
 
     for (int64_t clusterId = 0; clusterId < numClusters; ++clusterId) {
         auto newTask = VPURT::wrapIntoTaskOp<VPUIP::NCEClusterTaskOp>(
@@ -225,152 +226,230 @@ class ClusterDMARewriter final : public mlir::OpRewritePattern<VPUIP::NNDMAOp> {
 public:
     ClusterDMARewriter(mlir::MLIRContext* ctx, Logger log): mlir::OpRewritePattern<VPUIP::NNDMAOp>(ctx), _log(log) {
         setDebugName("ClusterDMARewriter");
+
+        _ctx = getContext();
+        _cmxNameAttr = mlir::FlatSymbolRefAttr::get(ctx, stringifyEnum(VPU::MemoryKind::CMX_NN));
     }
 
     mlir::LogicalResult matchAndRewrite(VPUIP::NNDMAOp nndmaOp, mlir::PatternRewriter& rewriter) const final;
 
 private:
+    void unrollSegmented(mlir::Location loc, VPUIP::NCEClusterTilingOp clusterOp, VPURT::TaskOp vpurtTask,
+                         VPUIP::DistributedBufferType distributedType, mlir::PatternRewriter& rewriter) const;
+
+private:
     Logger _log;
+    mlir::MLIRContext* _ctx;
+    mlir::FlatSymbolRefAttr _cmxNameAttr;
 };
 
+void ClusterDMARewriter::unrollSegmented(mlir::Location loc, VPUIP::NCEClusterTilingOp clusterOp,
+                                         VPURT::TaskOp vpurtTask, VPUIP::DistributedBufferType distributedType,
+                                         mlir::PatternRewriter& rewriter) const {
+    const auto input = *clusterOp.getInputs().begin();
+    const auto output = *clusterOp.getOutputs().begin();
+
+    const auto inputType = input.getType().cast<vpux::NDTypeInterface>();
+    const auto outputType = output.getType().cast<vpux::NDTypeInterface>();
+
+    const auto innerInput = *clusterOp.getInnerInputs().begin();
+    const auto innerOutput = *clusterOp.getInnerOutputs().begin();
+
+    const auto innerInputType = innerInput.getType().cast<vpux::NDTypeInterface>();
+    const auto innerOutputType = innerOutput.getType().cast<vpux::NDTypeInterface>();
+
+    const auto distributionAttr = distributedType.getDistribution();
+    const auto numClusters = distributionAttr.num_clusters().getInt();
+
+    const auto originInShape = inputType.getShape().raw();
+    const auto originOutShape = outputType.getShape().raw();
+
+    const auto strideInReqs = StrideReqs::compact(originInShape.size());
+    VPUX_THROW_UNLESS(strideInReqs.checkStrides(input), "Only compact strides are supported");
+    const auto strideOutReqs = StrideReqs::compact(originOutShape.size());
+    VPUX_THROW_UNLESS(strideOutReqs.checkStrides(output), "Only compact strides are supported");
+
+    const auto numTiles = parseIntArrayAttr<int64_t>(distributionAttr.num_tiles());
+    VPUX_THROW_UNLESS(originInShape.size() == numTiles.size(),
+                      "Input shape size '{0}' and tiles array size '{1}' are mismatch", originInShape.size(),
+                      numTiles.size());
+
+    const auto perClusterShapes = distributedType.getPerClusterComputeShapes();
+    VPUX_THROW_UNLESS(checked_cast<int64_t>(perClusterShapes.size()) == numClusters,
+                      "Number of shapes '{0}' and clusters '{1}' are mismatch", perClusterShapes.size(), numClusters);
+    const auto perClusterShapeOffsets = distributedType.getPerClusterComputeShapeOffsets();
+    VPUX_THROW_UNLESS(checked_cast<int64_t>(perClusterShapeOffsets.size()) == numClusters,
+                      "Number of shape offsets '{0}' and clusters '{1}' are mismatch", perClusterShapeOffsets.size(),
+                      numClusters);
+
+    const auto createNewTypes = [&](vpux::NDTypeInterface innerType) {
+        SmallVector<vpux::NDTypeInterface> newTypes(numClusters);
+        for (size_t clusterId = 0; clusterId < perClusterShapes.size(); ++clusterId) {
+            newTypes[clusterId] = innerType.changeShape(perClusterShapes[clusterId]);
+        }
+
+        return newTypes;
+    };
+
+    const auto isValidTile = [](auto dim) {
+        return dim > 1;
+    };
+
+    const auto tilingScheme = parseIntArrayAttr<int64_t>(distributionAttr.num_tiles());
+    const auto axis = std::distance(tilingScheme.begin(), llvm::find_if(tilingScheme, isValidTile));
+    const auto strides = distributedType.getStrides();
+
+    const auto inTypes = createNewTypes(innerInputType);
+    const auto outTypes = createNewTypes(innerOutputType);
+
+    const auto getOperand = [&](int64_t clusterId, mlir::Value operand, vpux::NDTypeInterface newType) -> mlir::Value {
+        // For example, copy of weights in case of SOK
+        // <32x16x1x1xfp16, @DDR>  -> <16x16x1x1xfp16, [@CMX, 0]>
+        //                         -> <16x16x1x1xfp16, [@CMX, 1]>
+        if (auto cts = operand.getDefiningOp<Const::DeclareOp>()) {
+            VPUX_THROW_UNLESS(outputType.getMemoryKind() == VPU::MemoryKind::CMX_NN,
+                              "Output operand type must have NN_CMX memory space. Got: {0}",
+                              outputType.getMemoryKind());
+
+            return rewriter.create<IERT::SubViewOp>(loc, cts, perClusterShapeOffsets[clusterId].raw(),
+                                                    perClusterShapes[clusterId].raw());
+        }
+
+        auto declBuff = operand.getDefiningOp<VPURT::DeclareBufferOp>();
+        VPUX_THROW_UNLESS(declBuff != nullptr, "Can't get buffer offset");
+
+        // For example, copy of input in case of SOH
+        // <1x16x33x32xf16, @DDR>  -> <1x16x17x32xf16, [@CMX, 0]>
+        //                         -> <1x16x16x32xf16, [@CMX, 1]>
+
+        // OR copy back of output in case of SOH
+        // <1x16x17x32xf16, [@CMX, 0]>  -> <1x16x33x32xf16, @DDR>
+        // <1x16x16x32xf16, [@CMX, 1]>  /
+
+        if (newType.getMemoryKind() == VPU::MemoryKind::CMX_NN) {
+            const auto symbolAttr =
+                    vpux::IndexedSymbolAttr::get(_ctx, {_cmxNameAttr, vpux::getIntAttr(_ctx, clusterId)});
+            auto newCMXType = newType.changeMemSpace(symbolAttr);
+            return rewriter.create<VPURT::DeclareBufferOp>(loc, newCMXType, VPURT::BufferSection::CMX_NN, clusterId,
+                                                           declBuff.byteOffset());
+        }
+
+        Byte ddrOffset{declBuff.byteOffset()};
+        ddrOffset += perClusterShapeOffsets[clusterId][Dim(axis)] * static_cast<Byte>(strides[Dim(axis)]);
+
+        return rewriter.create<VPURT::DeclareBufferOp>(loc, newType, VPURT::BufferSection::DDR, ddrOffset.count());
+    };
+
+    for (int64_t clusterId = 0; clusterId < numClusters; ++clusterId) {
+        const auto newInputType = inTypes[clusterId];
+        const auto newOutType = outTypes[clusterId];
+
+        const auto inputBuffer = getOperand(clusterId, input, newInputType);
+        _log.trace("Insert new input buffer declaration: '{0}'", inputBuffer);
+
+        const auto outBuffer = getOperand(clusterId, output, newOutType);
+        _log.trace("Insert new output buffer declaration: '{0}'", outBuffer);
+
+        const auto newLoc = appendLoc(loc, llvm::formatv("_cluster_{0}", clusterId).str());
+        const auto newNNDMA = VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(
+                rewriter, vpurtTask.waitBarriers(), vpurtTask.updateBarriers(), newLoc, inputBuffer, outBuffer);
+        _log.trace("Insert new NNDMA op: '{0}'", newNNDMA);
+    }
+}
+
 mlir::LogicalResult ClusterDMARewriter::matchAndRewrite(VPUIP::NNDMAOp nndmaOp, mlir::PatternRewriter& rewriter) const {
+    _log.trace("Process NNDMA op: {0}", nndmaOp);
+
     auto clusterOp = nndmaOp->getParentOfType<VPUIP::NCEClusterTilingOp>();
     if (clusterOp == nullptr) {
+        _log.trace("NNDMA is not a child of NCEClusterTiling op");
         return mlir::failure();
     }
 
     VPUX_THROW_UNLESS(clusterOp.getInputs().size() == 1, "Wrong inputs size: {0}", clusterOp.getInputs().size());
     VPUX_THROW_UNLESS(clusterOp.getOutputs().size() == 1, "Wrong outputs size: {0}", clusterOp.getOutputs().size());
 
-    auto input = *clusterOp.getInputs().begin();
-    auto output = *clusterOp.getOutputs().begin();
+    const auto input = *clusterOp.getInputs().begin();
+    const auto output = *clusterOp.getOutputs().begin();
 
-    auto inputType = input.getType().cast<vpux::NDTypeInterface>();
-    auto outputType = output.getType().cast<vpux::NDTypeInterface>();
+    const auto inputType = input.getType().cast<vpux::NDTypeInterface>();
+    const auto outputType = output.getType().cast<vpux::NDTypeInterface>();
 
     VPUX_THROW_UNLESS(clusterOp.getInnerInputs().size() == 1, "Wrong inputs size: {0}",
                       clusterOp.getInnerInputs().size());
     VPUX_THROW_UNLESS(clusterOp.getInnerOutputs().size() == 1, "Wrong outputs size: {0}",
                       clusterOp.getInnerOutputs().size());
 
-    auto innerInput = *clusterOp.getInnerInputs().begin();
-    auto innerOutput = *clusterOp.getInnerOutputs().begin();
-
-    auto innerInputType = innerInput.getType().cast<vpux::NDTypeInterface>();
-    auto innerOutputType = innerOutput.getType().cast<vpux::NDTypeInterface>();
-
     auto vpurtTask = clusterOp->getParentOfType<VPURT::TaskOp>();
     VPUX_THROW_UNLESS(vpurtTask != nullptr, "Can't get VPURT task operation");
     rewriter.setInsertionPointAfter(vpurtTask);
 
-    auto distributedType = inputType.isa<VPUIP::DistributedBufferType>()
-                                   ? inputType.dyn_cast<VPUIP::DistributedBufferType>()
-                                   : outputType.dyn_cast<VPUIP::DistributedBufferType>();
+    const auto distributedType = inputType.isa<VPUIP::DistributedBufferType>()
+                                         ? inputType.dyn_cast<VPUIP::DistributedBufferType>()
+                                         : outputType.dyn_cast<VPUIP::DistributedBufferType>();
 
     VPUX_THROW_UNLESS(distributedType != nullptr, "One of operands must have DistributedBuffer type");
     VPUX_THROW_WHEN(inputType.isa<VPUIP::DistributedBufferType>() && outputType.isa<VPUIP::DistributedBufferType>(),
                     "Only one operand can have DistributedBuffer type");
 
-    auto distributionAttr = distributedType.getDistribution();
-    auto numClusters = distributionAttr.num_clusters().getInt();
-
-    auto outDeclBuff = output.getDefiningOp<VPURT::DeclareBufferOp>();
-    VPUX_THROW_UNLESS(outDeclBuff != nullptr, "Can't get output buffer offset");
-
-    auto mode = distributionAttr.mode().getValue();
+    const auto loc = nndmaOp->getLoc();
+    const auto distributionAttr = distributedType.getDistribution();
+    const auto mode = distributionAttr.mode().getValue();
     if (mode == VPU::DistributionMode::SEGMENTED) {
-        auto originInShape = inputType.getShape().raw();
-        auto originOutShape = outputType.getShape().raw();
-
-        const auto strideInReqs = StrideReqs::compact(originInShape.size());
-        VPUX_THROW_UNLESS(strideInReqs.checkStrides(input), "Only compact strides are supported");
-        const auto strideOutReqs = StrideReqs::compact(originOutShape.size());
-        VPUX_THROW_UNLESS(strideOutReqs.checkStrides(output), "Only compact strides are supported");
-
-        auto numTiles = parseIntArrayAttr<int64_t>(distributionAttr.num_tiles());
-        VPUX_THROW_UNLESS(originInShape.size() == numTiles.size(),
-                          "Input shape size '{0}' and tiles array size '{1}' are mismatch", originInShape.size(),
-                          numTiles.size());
-
-        auto inDeclBuff = input.getDefiningOp<VPURT::DeclareBufferOp>();
-        VPUX_THROW_UNLESS(inDeclBuff != nullptr, "Can't get input buffer offset");
-
-        Byte inByteOffset{inDeclBuff.byteOffset()};
-        Byte outByteOffset{outDeclBuff.byteOffset()};
-
-        auto perClusterShapes = distributedType.getPerClusterComputeShapes();
-        VPUX_THROW_UNLESS(checked_cast<int64_t>(perClusterShapes.size()) == numClusters,
-                          "Number of shapes '{0}' and clusters '{1}' are mismatch", perClusterShapes.size(),
-                          numClusters);
-
-        const auto createNewTypes = [&](vpux::NDTypeInterface innerType) {
-            SmallVector<vpux::NDTypeInterface> newTypes(numClusters);
-            for (size_t clusterId = 0; clusterId < perClusterShapes.size(); ++clusterId) {
-                newTypes[clusterId] = innerType.changeShape(perClusterShapes[clusterId]);
-            }
-
-            return newTypes;
-        };
-
-        auto inTypes = createNewTypes(innerInputType);
-        auto outTypes = createNewTypes(innerOutputType);
-
-        for (int64_t clusterId = 0; clusterId < numClusters; ++clusterId) {
-            auto newInputType = inTypes[clusterId];
-            auto newOutType = outTypes[clusterId];
-
-            auto* ctx = getContext();
-            const auto cmxNameAttr = mlir::FlatSymbolRefAttr::get(ctx, "CMX_NN");
-            const auto symbolAttr = vpux::IndexedSymbolAttr::get(ctx, {cmxNameAttr, vpux::getIntAttr(ctx, clusterId)});
-
-            const auto insertBufferDeclarations = [&](vpux::NDTypeInterface newCMXType, Byte cmxOffset,
-                                                      vpux::NDTypeInterface newDDRType,
-                                                      Byte& ddrOffset) -> std::pair<mlir::Value, mlir::Value> {
-                auto cmxBuffer = rewriter.create<VPURT::DeclareBufferOp>(
-                        vpurtTask->getLoc(), newCMXType, VPURT::BufferSection::CMX_NN, clusterId, cmxOffset.count());
-                auto ddrBuffer = rewriter.create<VPURT::DeclareBufferOp>(vpurtTask->getLoc(), newDDRType,
-                                                                         VPURT::BufferSection::DDR, ddrOffset.count());
-
-                ddrOffset += newOutType.getCompactAllocSize();
-
-                return {cmxBuffer, ddrBuffer};
-            };
-
-            mlir::Value inputBuffer;
-            mlir::Value outBuffer;
-            if (inputType.getMemoryKind() == VPU::MemoryKind::CMX_NN) {
-                newInputType = newInputType.changeMemSpace(symbolAttr);
-
-                auto newDecls = insertBufferDeclarations(newInputType, inByteOffset, newOutType, outByteOffset);
-                inputBuffer = newDecls.first;
-                outBuffer = newDecls.second;
-            } else if (outputType.getMemoryKind() == VPU::MemoryKind::CMX_NN) {
-                newOutType = newOutType.changeMemSpace(symbolAttr);
-
-                auto newDecls = insertBufferDeclarations(newOutType, outByteOffset, newInputType, inByteOffset);
-                inputBuffer = newDecls.second;
-                outBuffer = newDecls.first;
-            } else {
-                VPUX_THROW("One of operands type must have NN_CMX memory space");
-            }
-
-            VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(rewriter, vpurtTask.waitBarriers(), vpurtTask.updateBarriers(),
-                                                  vpurtTask->getLoc(), inputBuffer, outBuffer);
-        }
+        _log.trace("Process SEGMENTED mode");
+        unrollSegmented(loc, clusterOp, vpurtTask, distributedType, rewriter);
     } else if (mode == VPU::DistributionMode::DUPLICATED) {
-        VPUX_THROW_UNLESS(outputType.isa<VPUIP::DistributedBufferType>(),
-                          "Only output operand can have DistributedBuffer type");
+        // For example, copy of weights in case of SOH
+        // <16x16x1x1xf16, @DDR> -> <16x16x1x1xf16, [@CMX, 0]>
+        //                       -> <16x16x1x1xf16, [@CMX, 1]>
 
+        _log.trace("Process DUPLICATED mode");
+        VPUX_THROW_UNLESS(outputType.isa<VPUIP::DistributedBufferType>(),
+                          "Output operand must have DistributedBuffer type");
+
+        auto outDeclBuff = output.getDefiningOp<VPURT::DeclareBufferOp>();
+        VPUX_THROW_UNLESS(outDeclBuff != nullptr, "Can't get output buffer offset");
+
+        const auto numClusters = distributionAttr.num_clusters().getInt();
         SmallVector<int64_t> clusters(numClusters);
         for (int64_t i = 0; i < numClusters; ++i) {
             clusters[i] = i;
         }
 
-        auto cmxBuffer = rewriter.create<VPURT::DeclareBufferOp>(vpurtTask->getLoc(), outDeclBuff.getType(),
-                                                                 VPURT::BufferSection::CMX_NN, clusters,
-                                                                 outDeclBuff.byteOffset());
-        VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(rewriter, vpurtTask.waitBarriers(), vpurtTask.updateBarriers(),
-                                              vpurtTask->getLoc(), input, cmxBuffer);
+        auto cmxBuffer = rewriter.create<VPURT::DeclareBufferOp>(
+                loc, outDeclBuff.getType(), VPURT::BufferSection::CMX_NN, clusters, outDeclBuff.byteOffset());
+        _log.trace("Insert new CMX buffer declaration: '{0}'", cmxBuffer);
+
+        const auto newLoc = appendLoc(
+                loc, llvm::formatv("_broadcast_copy_to_CMX[{0},{1}]", clusters.front(), clusters.back()).str());
+        const auto newNNDMA = VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(
+                rewriter, vpurtTask.waitBarriers(), vpurtTask.updateBarriers(), newLoc, input, cmxBuffer);
+        _log.trace("Insert new NNDMA op: '{0}'", newNNDMA);
+    } else if (mode == (VPU::DistributionMode::DUPLICATED | VPU::DistributionMode::SEGMENTED)) {
+        // For example, copy back of output in case of SOK
+        // <1x32x32x32xf16, [@CMX, 0]> -> <1x32x32x32xf16, @DDR>
+        // <1x32x32x32xf16, [@CMX, 1]>
+
+        _log.trace("Process DUPLICATED|SEGMENTED mode");
+        VPUX_THROW_UNLESS(inputType.isa<VPUIP::DistributedBufferType>(),
+                          "Input operand must have DistributedBuffer type");
+
+        auto inDeclBuff = input.getDefiningOp<VPURT::DeclareBufferOp>();
+        VPUX_THROW_UNLESS(inDeclBuff != nullptr, "Can't get input buffer offset");
+
+        const auto symbolAttr = vpux::IndexedSymbolAttr::get(_ctx, {_cmxNameAttr, vpux::getIntAttr(_ctx, 0)});
+
+        const auto innerInput = *clusterOp.getInnerInputs().begin();
+        const auto innerInputType = innerInput.getType().cast<vpux::NDTypeInterface>();
+        const auto newInType = innerInputType.changeMemSpace(symbolAttr);
+
+        auto cmxBuffer = rewriter.create<VPURT::DeclareBufferOp>(loc, newInType, VPURT::BufferSection::CMX_NN, 0,
+                                                                 inDeclBuff.byteOffset());
+        _log.trace("Insert new CMX buffer declaration: '{0}'", cmxBuffer);
+
+        const auto newNNDMA = VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(rewriter, vpurtTask.waitBarriers(),
+                                                                    vpurtTask.updateBarriers(), loc, cmxBuffer, output);
+        _log.trace("Insert new NNDMA op: '{0}'", newNNDMA);
     } else {
         VPUX_THROW("Unsupported distribution mode: {0}", VPU::stringifyDistributionMode(mode));
     }
