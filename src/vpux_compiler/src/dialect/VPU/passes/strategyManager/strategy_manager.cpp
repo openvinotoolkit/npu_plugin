@@ -20,13 +20,17 @@ using namespace VPU;
 BaseLayerStrategy::BaseLayerStrategy(mlir::FuncOp func, Logger log): _func(func), _log(log) {
     auto module = func->getParentOfType<mlir::ModuleOp>();
     auto nceOp = IE::getAvailableExecutor(module, ExecutorKind::NCE);
+    auto dpuExec = nceOp.getSubExecutor(VPU::ExecutorKindAttr::get(module->getContext(), VPU::ExecutorKind::DPU));
     _numClusters = nceOp.count();
+    _numDPUs = dpuExec.count();
+    _minimumOutputHeightForSOH = _numDPUs * _numClusters;
 }
 
-// An operation is SOH compitable if it has an output height of at least 20
-// The reason is because the output tensor in each cluster will only have a
-// height of 5 (20/4, assuming 4 cluster compilation).
-// There are 5 DPUs in a cluster so each DPU will compute at least one output line
+// Each DPU should compute at least one output line. Therefore in order for a layer to be SOH
+// compitable it must have an output height of at least the number of DPUs x the number of clusters
+// specified for compilation.
+// For example for 4 cluster compilation with 5 DPUs per cluster the output height must be a
+// minimum of 5x4=20.
 bool BaseLayerStrategy::isOperationSplitOverHeightCompatible(mlir::Operation* op) const {
     const auto outputShape = getShape(op->getResult(0));
     const auto OH = outputShape[Dims4D::Act::H];

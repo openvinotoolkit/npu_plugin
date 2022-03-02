@@ -13,9 +13,10 @@ func @ConvAssignedSOH(%arg0: tensor<1x64x28x28xf16, {order = #NHWC}>) -> tensor<
     //CHECK:        [[WEIGHTS:%.*]] = const.Declare tensor<80x64x3x3xf16, {order = #NHWC}> = #const.Content<dense<1.000000e+00> : tensor<80x64x3x3xf16>, [#const.Reorder<#NHWC>]>
    
     //CHECK:        [[VAL0:%.+]] = VPU.NCE.Convolution(%arg0, %cst_0, %cst)
-    //CHECK-SAME    {multiClusterStrategy = "SplitOverHeightWRONG", pad = {bottom = 1 : i64, left = 1 : i64, right = 1 : i64, top = 1 : i64}, rawFilterShape = [80, 64, 3, 3], strides = [1, 1]}
-    //CHECK-SAME      -> tensor<1x80x28x28xf16, {order = #NHWC}>
+    //CHECK-SAME:    {multiClusterStrategy = "SplitOverHeight", pad = {bottom = 1 : i64, left = 1 : i64, right = 1 : i64, top = 1 : i64}, rawFilterShape = [80, 64, 3, 3], strides = [1, 1]}
+    //CHECK-SAME:      -> tensor<1x80x28x28xf16, {order = #NHWC}>
 
     //CHECK:        return [[VAL0]] : tensor<1x80x28x28xf16, {order = #NHWC}>
   
 }
+
