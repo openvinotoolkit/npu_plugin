@@ -1,1 +1,1 @@
-tag: ci_tag_dKMB_BDK4_vpu_release_22ww10.2.2
+tag: ci_tag_dKMB_BDK4_vpu_release_22ww10.2.1
