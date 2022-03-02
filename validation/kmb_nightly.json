@@ -284,7 +284,7 @@
         {
             "name" : "ea_tf_FP16_yolo_v4_ww14",
             "ir" : "yolo_v4-ww14/tf/FP16/yolo_v4.xml",
-            "category" : "MLIR",
+            "category" : "MLIR/SKIP_WIN",
             "3720": {
                 "disabled" : true
             },
@@ -308,7 +308,8 @@
             },
             "CI-options" : {
                 "blob_name" : "yolo-v4_tf_fp16"
-            }
+            },
+            "comments": "EISW-33869: RuntimeError: throwOnFail: zeCommandQueueCreate result: 0x70010001"
         },
 
         {
