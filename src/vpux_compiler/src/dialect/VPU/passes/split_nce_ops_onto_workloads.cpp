@@ -106,10 +106,11 @@ void addWorkload(mlir::PatternRewriter& rewriter, VPU::NCEOpInterface origOp, in
     // This value is aligned with the max DPU task value in NCEClusterTask Op
     static const size_t MAX_SPLIT_NUMBER = 5;
     const auto& splitNumPool = dpuTiler.generateSplitNumberPool(numDPU, MAX_SPLIT_NUMBER);
-    if (isZTilingSupported) {
-        for (const auto& splitNum : splitNumPool) {
+    for (const auto& splitNum : splitNumPool) {
+        if (isZTilingSupported) {
             dpuTiler.tileOverZ(splitNum);
         }
+        dpuTiler.tileOverXY(splitNum);
     }
 
     // select workload with minimum cost

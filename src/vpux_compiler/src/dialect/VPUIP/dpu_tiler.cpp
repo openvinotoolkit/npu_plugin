@@ -56,6 +56,62 @@ double totalCostOnDpuCluster(int64_t numDPU, ArrayRef<double> workloadCosts) {
     }
     return queue.top();
 }
+
+struct Factors {
+    int64_t larger = 0;
+    int64_t smaller = 0;
+
+    Factors() {
+    }
+    Factors(int64_t larger, int64_t smaller): larger(larger), smaller(smaller) {
+    }
+};
+
+SmallVector<Factors> getFactorsList(int64_t n) {
+    SmallVector<Factors> factors;
+    auto factorMax = static_cast<int64_t>(std::ceil(std::sqrt(n)));
+    for (int64_t i = 1; i <= factorMax; i++) {
+        if (n % i == 0) {
+            factors.emplace_back(n / i, i);  // larger, smaller
+        }
+    }
+    return factors;
+}
+
+OutputTiling createDpuTilesOverXY(ShapeRef shape, int64_t widthFactor, int64_t heightFactor,
+                                  const std::pair<uint8_t, uint8_t>& mpeMode) {
+    auto width = shape[Dims4D::Act::W];
+    auto height = shape[Dims4D::Act::H];
+
+    auto maxWidth = divUp(width, widthFactor);
+    maxWidth = alignVal(maxWidth, static_cast<int64_t>(mpeMode.second));
+    auto actualWidthSplitsNum = divUp(width, maxWidth);
+    auto maxHeight = divUp(height, heightFactor);
+    maxHeight = alignVal(maxHeight, static_cast<int64_t>(mpeMode.first));
+    auto actualHeightSplitsNum = divUp(height, maxHeight);
+
+    OutputTiling outputTiles;
+    auto remainedHeight = height;
+    for (int64_t idx = 0; idx < actualHeightSplitsNum; idx++) {
+        auto currentHeightStep = remainedHeight > maxHeight ? maxHeight : remainedHeight;
+        auto remainedWidth = width;
+        for (int64_t idy = 0; idy < actualWidthSplitsNum; idy++) {
+            TileInfo outTile(shape);
+            outTile.shape[Dims4D::Act::C] = shape[Dims4D::Act::C];
+            outTile.shape[Dims4D::Act::H] = currentHeightStep;
+            outTile.shape[Dims4D::Act::W] = remainedWidth > maxWidth ? maxWidth : remainedWidth;
+            remainedWidth -= outTile.shape[Dims4D::Act::W];
+            outTile.offsets[Dims4D::Act::H] = idx * maxHeight;
+            outTile.offsets[Dims4D::Act::W] = idy * maxWidth;
+            outTile.offsets[Dims4D::Act::C] = 0;
+            outTile.axis[Dims4D::Act::H] = actualHeightSplitsNum;
+            outTile.axis[Dims4D::Act::W] = actualWidthSplitsNum;
+            outputTiles.push_back(std::move(outTile));
+        }
+        remainedHeight -= currentHeightStep;
+    }
+    return outputTiles;
+}
 }  // namespace
 
 SmallVector<uint32_t> vpux::VPUIP::DpuTiler::generateSplitNumberPool(int64_t numDPU, uint32_t maxSplits) {
@@ -101,7 +157,7 @@ SmallVector<uint32_t> vpux::VPUIP::DpuTiler::generateSplitNumberPool(int64_t num
     return SmallVector<uint32_t>(dpuMulSplits.begin(), dpuMulSplits.end());
 }
 
-void vpux::VPUIP::DpuTiler::tileOverH(int64_t numDPU) {
+void VPUIP::DpuTiler::tileOverH(int64_t numDPU) {
     const int64_t minTileSize = 1;
 
     const int64_t minTilesCount = 1;
@@ -114,51 +170,58 @@ void vpux::VPUIP::DpuTiler::tileOverH(int64_t numDPU) {
     nTilesOnDim[Dims4D::Act::H] = tilesCount;
 
     auto outTiles = fillDividedTiles(nTilesOnDim, _outShape);
-    _splitPool.push_back(std::move(outTiles));
+    addDpuTilesIntoSplitPool(outTiles);
 }
 
-void vpux::VPUIP::DpuTiler::tileOverZ(uint32_t splitNumber) {
-    OutputTiling outputTiles;
+void VPUIP::DpuTiler::tileOverZ(uint32_t splitNumber) {
     VPUX_THROW_WHEN(_outShape.size() < 2, "Invalid output shape size: {0}", _outShape.size());
     VPUX_THROW_WHEN(splitNumber == 0, "Invalid split number: {0}", splitNumber);
 
-    auto W = _outShape[Dims4D::Act::W];
-    auto H = _outShape[Dims4D::Act::H];
     auto C = _outShape.size() >= 3 ? _outShape[Dims4D::Act::C] : 0;
-
     auto maxChannelPerWL = divUp(static_cast<uint32_t>(C), splitNumber);
     maxChannelPerWL = alignVal(maxChannelPerWL, DEFAULT_ZTILE_VALUE);
     if (maxChannelPerWL < DEFAULT_ZTILE_VALUE) {
         return;
     }
-    Shape originalShape(_outShape.size(), 1);
-    originalShape[Dims4D::Act::W] = W;
-    originalShape[Dims4D::Act::H] = H;
-
+    OutputTiling outputTiles;
+    auto actualSplitNumber = divUp(static_cast<uint32_t>(C), maxChannelPerWL);
     auto remainedChannel = static_cast<uint32_t>(C);
-    for (uint32_t idx = 0; idx < splitNumber; idx++) {
-        TileInfo outTile(_outShape.size());
-        outTile.shape = originalShape;
-        if (remainedChannel > maxChannelPerWL) {
-            outTile.shape[Dims4D::Act::C] = maxChannelPerWL;
-            remainedChannel -= maxChannelPerWL;
-        } else {
-            outTile.shape[Dims4D::Act::C] = remainedChannel;
-            remainedChannel = 0;
-        }
+    for (uint32_t idx = 0; idx < actualSplitNumber; idx++) {
+        TileInfo outTile(_outShape);
+        outTile.shape[Dims4D::Act::C] = remainedChannel > maxChannelPerWL ? maxChannelPerWL : remainedChannel;
+        remainedChannel -= static_cast<uint32_t>(outTile.shape[Dims4D::Act::C]);
         outTile.offsets[Dims4D::Act::W] = 0;
         outTile.offsets[Dims4D::Act::H] = 0;
         outTile.offsets[Dims4D::Act::C] = idx * maxChannelPerWL;
+        outTile.axis[Dims4D::Act::C] = actualSplitNumber;
         if (outTile.shape[Dims4D::Act::C] % DEFAULT_ZTILE_VALUE != 0) {
             return;
         }
         outputTiles.push_back(std::move(outTile));
+    }
+    addDpuTilesIntoSplitPool(outputTiles);
+}
 
-        if (remainedChannel == 0) {
-            break;
+void VPUIP::DpuTiler::tileOverXY(uint32_t splitNumber) {
+    VPUX_THROW_WHEN(_outShape.size() < 2, "Invalid output shape size: {0}", _outShape.size());
+    VPUX_THROW_WHEN(splitNumber == 0, "Invalid split number: {0}", splitNumber);
+
+    auto width = _outShape[Dims4D::Act::W];
+    auto height = _outShape[Dims4D::Act::H];
+    auto factorList = getFactorsList(splitNumber);
+    auto mpeMode = getMode();
+    for (const auto& factor : factorList) {
+        // Map factor.larger , factor.smaller -> width, height
+        if (factor.larger <= width && factor.smaller <= height) {
+            auto outputTiles = createDpuTilesOverXY(_outShape, factor.larger, factor.smaller, mpeMode);
+            addDpuTilesIntoSplitPool(outputTiles);
+        }
+        // Map factor.smaller, factor.larger -> width, height
+        if (factor.smaller <= width && factor.larger <= height) {
+            auto outputTiles = createDpuTilesOverXY(_outShape, factor.smaller, factor.larger, mpeMode);
+            addDpuTilesIntoSplitPool(outputTiles);
         }
     }
-    _splitPool.push_back(std::move(outputTiles));
 }
 
 double vpux::VPUIP::DpuTiler::simpleCost(int64_t numDPU, const OutputTiling& dpuTiles) {
@@ -193,5 +256,24 @@ std::pair<uint8_t, uint8_t> vpux::VPUIP::DpuTiler::getMode() {
         return {4, 16};
     default:
         VPUX_THROW("Unsupported MPE mode {0}", _mpeMode);
+    }
+}
+
+void vpux::VPUIP::DpuTiler::addDpuTilesIntoSplitPool(OutputTiling& outputTiling) {
+    auto isSame = [](const OutputTiling& lhs, const OutputTiling& rhs) {
+        if (lhs.size() != rhs.size()) {
+            return false;
+        }
+        for (size_t i = 0; i < lhs.size(); i++) {
+            if (lhs[i] != rhs[i]) {
+                return false;
+            }
+        }
+        return true;
+    };
+    if (llvm::find_if(_splitPool, [&](const OutputTiling& elem) {
+            return isSame(elem, outputTiling);
+        }) == _splitPool.end()) {
+        _splitPool.push_back(std::move(outputTiling));
     }
 }

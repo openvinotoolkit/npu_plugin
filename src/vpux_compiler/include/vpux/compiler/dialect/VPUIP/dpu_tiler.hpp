@@ -30,11 +30,13 @@ public:
     SmallVector<uint32_t> generateSplitNumberPool(int64_t numDPU, uint32_t maxSplits);
     void tileOverH(int64_t numDPU);
     void tileOverZ(uint32_t splitNumber);
+    void tileOverXY(uint32_t splitNumber);
     SmallVector<OutputTiling> getSplitPool();
     double simpleCost(int64_t numDPU, const OutputTiling& dpuTiles);
 
 private:
     std::pair<uint8_t, uint8_t> getMode();
+    void addDpuTilesIntoSplitPool(OutputTiling& outputTiling);
 
     Shape _outShape;
     VPU::MPEMode _mpeMode;
