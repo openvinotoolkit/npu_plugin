@@ -409,6 +409,7 @@ if(EXISTS "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/sw_runtime_kernels/kernels/prebuild
             DEPENDS ${OBJ_TARGET_NAME})
 endif()
 
+
 target_include_directories(${OBJ_TARGET_NAME}
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -422,7 +423,18 @@ target_include_directories(${OBJ_TARGET_NAME}
         $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>
         $<BUILD_INTERFACE:${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/include>
         $<BUILD_INTERFACE:${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/sw_runtime_kernels>
+        ${VPUNN_INCLUDE_DIRS}
 )
+
+find_package(Git REQUIRED)
+add_custom_target(download_vpunn_model ALL
+        COMMAND ${GIT_EXECUTABLE} lfs pull
+        WORKING_DIRECTORY ${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/thirdparty/vpucostmodel)
+add_custom_target(copy-vpunn-model ALL
+        COMMAND ${CMAKE_COMMAND} -E copy_directory ${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/thirdparty/vpucostmodel/models ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${CMAKE_CFG_INTDIR}/vpunn
+        DEPENDS download_vpunn_model)
+
+add_dependencies(${OBJ_TARGET_NAME} inferenceStatic copy-vpunn-model)
 
 link_system_libraries(${OBJ_TARGET_NAME}
     PUBLIC
@@ -433,6 +445,7 @@ link_system_libraries(${OBJ_TARGET_NAME}
         IE::ngraph_reference
         vpux_ngraph_transformations
         vpux_utils
+        inferenceStatic
 )
 
 target_link_libraries(${OBJ_TARGET_NAME}
@@ -459,7 +472,7 @@ target_link_libraries(mlir-dependencies INTERFACE
     MLIRTranslation
 )
 target_include_directories(mlir-dependencies
-    SYSTEM INTERFACE 
+    SYSTEM INTERFACE
         ${MLIR_INCLUDE_DIRS}
 )
 
@@ -496,3 +509,12 @@ endif()
 install(TARGETS ${TARGET_NAME} EXPORT OpenVINOTargets
         ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT ${VPUX_PLUGIN_COMPONENT}
         LIBRARY DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT ${VPUX_PLUGIN_COMPONENT})
+
+install(DIRECTORY   "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/thirdparty/vpucostmodel/models/"
+        DESTINATION "${IE_CPACK_RUNTIME_PATH}/vpunn"
+        COMPONENT    ${VPUX_PLUGIN_COMPONENT})
+
+install(DIRECTORY   "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/thirdparty/vpucostmodel/models/"
+        DESTINATION "${IE_CPACK_RUNTIME_PATH}/vpunn"
+        COMPONENT    tests)
+

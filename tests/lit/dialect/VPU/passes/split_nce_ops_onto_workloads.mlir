@@ -289,6 +289,7 @@ func @ConvolutionWithDistributedTensor(%arg0: !Input_DDR) -> !Output_DDR {
               %weights_cmx as %arg2: !WeightsStub_CMX,
               %wt_cmx as %arg3: !WeightsTableStub_CMX)
               -> !OutputDistributed {
+        // Generate different workloads due to different pads on each cluster
         %0 = VPU.NCE.Convolution(%arg1, %arg2, %arg3) (activationWindow : : ) (bias : #const.Content<dense<1.000000e+00> : tensor<1x64x1x1xf16>>) {
                 pad = {bottom = 1 : i64, left = 1 : i64, right = 1 : i64, top = 1 : i64},
                 rawFilterShape = [64, 32, 3, 3],
@@ -331,10 +332,10 @@ func @ConvolutionWithDistributedTensor(%arg0: !Input_DDR) -> !Output_DDR {
     //CHECK-SAME:                            pad = {bottom = 1 : i64, left = 1 : i64, right = 1 : i64, top = 1 : i64},
     //CHECK-SAME:                            strides = [1, 1]
     //CHECK-SAME:             } -> tensor<1x64x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>
-    //CHECK:                    VPU.DPU.Workload [0, 0, 0, 0] [1, 64, 1, 16] {bottom = 0 : i64, left = 1 : i64, right = 1 : i64, top = 1 : i64} "VECTOR_FP16" attributes {cluster_id = 0 : i64}
-    //CHECK:                    VPU.DPU.Workload [0, 0, 1, 0] [1, 64, 1, 16] {bottom = 0 : i64, left = 1 : i64, right = 1 : i64, top = 0 : i64} "VECTOR_FP16" attributes {cluster_id = 0 : i64}
-    //CHECK:                    VPU.DPU.Workload [0, 0, 2, 0] [1, 64, 1, 16] {bottom = 0 : i64, left = 1 : i64, right = 1 : i64, top = 0 : i64} "VECTOR_FP16" attributes {cluster_id = 0 : i64}
-    //CHECK:                    VPU.DPU.Workload [0, 0, 3, 0] [1, 64, 1, 16] {bottom = 0 : i64, left = 1 : i64, right = 1 : i64, top = 0 : i64} "VECTOR_FP16" attributes {cluster_id = 0 : i64}
+    //CHECK:                    VPU.DPU.Workload [0, 0, 0, 0] [1, 16, 4, 16] {bottom = 0 : i64, left = 1 : i64, right = 1 : i64, top = 1 : i64} "VECTOR_FP16" attributes {cluster_id = 0 : i64}
+    //CHECK:                    VPU.DPU.Workload [0, 16, 0, 0] [1, 16, 4, 16] {bottom = 0 : i64, left = 1 : i64, right = 1 : i64, top = 1 : i64} "VECTOR_FP16" attributes {cluster_id = 0 : i64}
+    //CHECK:                    VPU.DPU.Workload [0, 32, 0, 0] [1, 16, 4, 16] {bottom = 0 : i64, left = 1 : i64, right = 1 : i64, top = 1 : i64} "VECTOR_FP16" attributes {cluster_id = 0 : i64}
+    //CHECK:                    VPU.DPU.Workload [0, 48, 0, 0] [1, 16, 4, 16] {bottom = 0 : i64, left = 1 : i64, right = 1 : i64, top = 1 : i64} "VECTOR_FP16" attributes {cluster_id = 0 : i64}
     //CHECK:                    VPU.DPU.Workload [0, 0, 4, 0] [1, 64, 1, 16] {bottom = 0 : i64, left = 1 : i64, right = 1 : i64, top = 0 : i64} "VECTOR_FP16" attributes {cluster_id = 1 : i64}
     //CHECK:                    VPU.DPU.Workload [0, 0, 5, 0] [1, 64, 1, 16] {bottom = 0 : i64, left = 1 : i64, right = 1 : i64, top = 0 : i64} "VECTOR_FP16" attributes {cluster_id = 1 : i64}
     //CHECK:                    VPU.DPU.Workload [0, 0, 6, 0] [1, 64, 1, 16] {bottom = 0 : i64, left = 1 : i64, right = 1 : i64, top = 0 : i64} "VECTOR_FP16" attributes {cluster_id = 1 : i64}

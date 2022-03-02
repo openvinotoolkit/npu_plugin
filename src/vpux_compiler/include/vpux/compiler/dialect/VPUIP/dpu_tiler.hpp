@@ -12,25 +12,52 @@
 //
 
 #include "vpux/compiler/core/attributes/shape.hpp"
+#include "vpux/compiler/core/tiling.hpp"
+#include "vpux/compiler/dialect/VPU/attributes.hpp"
+#include "vpux/compiler/dialect/VPU/ops.hpp"
+#include "vpux/compiler/dialect/VPUIP/ops.hpp"
 
+#include <vpu_cost_model.h>
 #pragma once
 
 namespace vpux {
 namespace VPUIP {
 
-struct DpuTile final {
-    SmallVector<int64_t> start;
-    SmallVector<int64_t> end;
-    int64_t padLeft;
-    int64_t padRight;
-    int64_t padTop;
-    int64_t padBottom;
+struct WorkloadCostParams {
+    bool isZTilingSupported;
+    VPUIP::NCETaskType nceTaskType;
+    mlir::Type dataType;
+    VPU::ArchKind arch;
+    VPU::MPEMode mpeMode;
+    Shape inputShape;
+    Shape outputShape;
+    PadInfo padInfo;
+    int64_t numDPU;
+    SmallVector<int64_t> kernelSize;
+    SmallVector<int64_t> kernelStride;
 };
 
 class DpuTiler final {
 public:
-    static SmallVector<DpuTile> tileOverH(int64_t numDPU, ShapeRef outShape, int64_t padLeft, int64_t padRight,
-                                          int64_t padTop, int64_t padBottom);
+    DpuTiler(ShapeRef outShape, VPU::MPEMode mpeMode, std::shared_ptr<VPUNN::VPUCostModel> costModel)
+            : _outShape(outShape.raw()), _mpeMode(mpeMode), _costModel(costModel) {
+    }
+
+    SmallVector<uint32_t> generateSplitNumberPool(int64_t numDPU, uint32_t maxSplits);
+    void tileOverH(int64_t numDPU);
+    void tileOverZ(uint32_t splitNumber);
+    SmallVector<OutputTiling> getSplitPool();
+
+    uint32_t cost(const OutputTiling& dpuTiles, const WorkloadCostParams& params);
+    double simpleCost(const OutputTiling& dpuTiles, const WorkloadCostParams& params);
+
+private:
+    std::pair<uint8_t, uint8_t> getMode();
+
+    Shape _outShape;
+    VPU::MPEMode _mpeMode;
+    std::shared_ptr<VPUNN::VPUCostModel> _costModel;
+    SmallVector<OutputTiling> _splitPool;
 };
 
 }  // namespace VPUIP
