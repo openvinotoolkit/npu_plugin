@@ -15,6 +15,7 @@
 
 #include "vpux/utils/IE/config.hpp"
 
+#include "common.hpp"
 #include "mcm_private_config.hpp"
 #include "vpux/properties.hpp"
 #include "vpux/vpux_plugin_config.hpp"
@@ -82,6 +83,10 @@ struct COMPILATION_MODE final : OptionBase<COMPILATION_MODE, std::string> {
     }
 #endif
 
+    static std::string defaultValue() {
+        return "";
+    }
+
     static OptionMode mode() {
         return OptionMode::CompileTime;
     }
@@ -126,6 +131,10 @@ struct DPU_GROUPS final : OptionBase<DPU_GROUPS, int64_t> {
         return {VPU_COMPILER_CONFIG_KEY(NUM_CLUSTER)};
     }
 
+    static int64_t defaultValue() {
+        return -1;
+    }
+
     static OptionMode mode() {
         return OptionMode::CompileTime;
     }
@@ -142,6 +151,10 @@ struct DPU_GROUPS final : OptionBase<DPU_GROUPS, int64_t> {
 struct CUSTOM_LAYERS final : OptionBase<CUSTOM_LAYERS, std::string> {
     static StringRef key() {
         return ov::intel_vpux::custom_layers.name();
+    }
+
+    static std::string defaultValue() {
+        return "";
     }
 
     static OptionMode mode() {

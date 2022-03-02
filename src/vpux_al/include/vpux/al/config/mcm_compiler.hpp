@@ -183,6 +183,10 @@ struct MCM_COMPILATION_PASS_BAN_LIST final : OptionBase<MCM_COMPILATION_PASS_BAN
         return ov::intel_vpux::compilation_pass_ban_list.name();
     }
 
+    static std::string defaultValue() {
+        return "";
+    }
+
     static OptionMode mode() {
         return OptionMode::CompileTime;
     }

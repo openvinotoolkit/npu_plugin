@@ -249,7 +249,7 @@ IE::RemoteContext::Ptr Engine::CreateContext(const IE::ParamMap& map) {
 IE::Parameter Engine::GetConfig(const std::string& name,
                                 const std::map<std::string, IE::Parameter>& /*options*/) const {
     if (GetCore()->isNewAPI()) {
-        if (name == ov::streams::num.name()) {
+        if (name == ov::streams::num) {
             return checked_cast<int32_t>(getNumThroughputStreams(_globalConfig, None));
         } else if (name == ov::enable_profiling) {
             return _globalConfig.get<PERF_COUNT>();
@@ -280,7 +280,7 @@ IE::Parameter Engine::GetConfig(const std::string& name,
         } else if (name == ov::intel_vpux::compilation_pass_ban_list) {
             return _globalConfig.get<MCM_COMPILATION_PASS_BAN_LIST>();
         } else if (name == ov::intel_vpux::compiler_type) {
-            return _globalConfig.get<COMPILER_TYPE>();
+            return stringifyEnum(_globalConfig.get<COMPILER_TYPE>()).str();
         } else if (name == ov::intel_vpux::concat_scales_alignment) {
             return _globalConfig.get<MCM_CONCAT_SCALES_ALIGNMENT>();
         } else if (name == ov::intel_vpux::graph_color_format) {
