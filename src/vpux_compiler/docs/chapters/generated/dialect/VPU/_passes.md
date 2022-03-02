@@ -18,6 +18,8 @@ initializes **IERT Dialect** run-time resources information.
 -num-of-dpu-groups : [Optional] Number of available DPU groups
 ```
 ### `-multi-cluster-strategy-assignment`: This pass compute the hardware efficiency of layer that is executed as SOH or SOK and assigns the most optimal strategy
+### `-manual-strategy-utils`: Utils for reading/writing a json strategy
+Utils for reading/writing a json strategy
 ### `-split-NCE-ops-onto-workloads`: Split VPU NCE operation onto workloads
 ### `-wrap-vpu-ops-in-ncecluster-tiling`: This pass wraps vpu operations that should be executed across multiple clusters in NCEClusterTiling operations
 This pass builds an IR in order to represent multi-cluster compilation. It performs a number of functions.

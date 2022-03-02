@@ -90,6 +90,24 @@ def WrapVPUOpsInNCEClusterTiling : PassBase<"wrap-vpu-ops-in-ncecluster-tiling",
 }
 
 //
+// Manual strategy utils
+//
+
+def ManualStrategyUtils : PassBase<"manual-strategy-utils", "vpux::FunctionPass"> {
+    let summary = "Utils for reading/writing a json strategy";
+
+    let description = [{
+        Utils for reading/writing a json strategy
+    }];
+
+    let constructor = "vpux::VPU::createManualStrategyUtilsPass()";
+
+    let dependentDialects = [
+        "vpux::VPU::VPUDialect"
+    ];
+}
+
+//
 // SplitNCEOpsOntoWorkloads
 //
 
