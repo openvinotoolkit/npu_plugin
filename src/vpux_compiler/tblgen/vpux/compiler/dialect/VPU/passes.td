@@ -76,6 +76,20 @@ def WrapVPUOpsInNCEClusterTiling : PassBase<"wrap-vpu-ops-in-ncecluster-tiling",
 }
 
 //
+// Multi-cluster strategy assignment
+//
+
+def MultiClusterStrategyAssignment : PassBase<"multi-cluster-strategy-assignment", "vpux::FunctionPass"> {
+    let summary = "This pass compute the hardware efficiency of layer that is executed as SOH or SOK and assigns the most optimal strategy";
+
+    let constructor = "vpux::VPU::createMultiClusterStrategyAssignmentPass()";
+
+    let dependentDialects = [
+        "vpux::VPU::VPUDialect"
+    ];
+}
+
+//
 // SplitNCEOpsOntoWorkloads
 //
 
