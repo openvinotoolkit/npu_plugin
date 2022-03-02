@@ -29,6 +29,8 @@
 #include "vpux/utils/core/error.hpp"
 #include "vpux/utils/core/numeric.hpp"
 
+#include "vpux/compiler/dialect/IE/utils/resources.hpp"
+
 namespace vpux {
 namespace hwtest {
 
@@ -365,6 +367,14 @@ void buildMultiClustering(const nb::TestCaseJsonDescriptor& testDesc, mlir::Modu
     if (conv.compress) {
         pm.addPass(VPUIP::createCompressWeightsPass(log));
     }
+
+    // set memory sizes
+    auto usedMemModule = module.lookupSymbol<mlir::ModuleOp>(IE::usedMemModuleName);
+    if (usedMemModule == nullptr) {
+        usedMemModule = builder.create<mlir::ModuleOp>(module->getLoc(), IE::usedMemModuleName);
+    }
+    IE::addAvailableMemory(usedMemModule, VPU::MemoryKind::CMX_NN, Byte(896_KB));
+    IE::addAvailableMemory(usedMemModule, VPU::MemoryKind::DDR, Byte(2 * OUTPUT_DDR_OFFSET));
 
     VPUX_THROW_UNLESS(mlir::succeeded(pm.run(module)), "Compilation failed");
 
