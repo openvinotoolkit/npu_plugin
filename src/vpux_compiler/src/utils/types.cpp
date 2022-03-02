@@ -91,7 +91,8 @@ mlir::IntegerType vpux::getUInt64Type(mlir::MLIRContext* ctx) {
     return mlir::IntegerType::get(ctx, 64, mlir::IntegerType::Unsigned);
 }
 
-mlir::IntegerType vpux::getBoolType(mlir::MLIRContext* ctx) {
+mlir::IntegerType vpux::getBool8Type(mlir::MLIRContext* ctx) {
+    // Signless 8-bit integer use for BOOL, to distinguish it from U8
     return mlir::IntegerType::get(ctx, 8, mlir::IntegerType::Signless);
 }
 

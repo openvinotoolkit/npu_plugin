@@ -81,6 +81,7 @@ mlir::LogicalResult verifyOp(ReverseSequenceUPAOp op);
 mlir::LogicalResult verifyOp(TopKUPAOp op);
 mlir::LogicalResult verifyPostOp(mlir::Operation* op);
 mlir::LogicalResult verifyOp(NNDMAOp op);
+mlir::LogicalResult verifyOp(SelectUPAOp op);
 mlir::LogicalResult verifyOp(NCEClusterTilingOp op);
 
 void print(mlir::OpAsmPrinter& p, NCEClusterTilingOp op);

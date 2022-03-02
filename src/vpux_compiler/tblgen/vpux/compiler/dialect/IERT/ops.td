@@ -3181,6 +3181,42 @@ def IERT_EqualOp :
 }
 
 //
+// SelectOp
+//
+
+def IERT_SelectOp :
+        IERT_LayerOp<1, "Select",
+            [
+                ViewLikeOpInterface
+            ]
+        > {
+    let summary = "InferenceEngine run-time Select layer";
+
+    let arguments = (ins
+        MemRefOf<[SI32, F16]>:$input1,
+        MemRefOf<[SI32, F16]>:$input2,
+        MemRefOf<[SI32, F16]>:$input3,
+        MemRefOf<[SI32, F16]>:$output_buff
+    );
+
+    let results = (outs
+        MemRefOf<[SI32, F16]>:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` 
+                    $input1 `:` type($input1) `,`
+                    $input2 `:` type($input2) `,`
+                    $input3 `:` type($input3)
+                `)`
+
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
+//
 // DepthToSpaceOp
 //
 

@@ -1438,6 +1438,43 @@ def VPUIP_LogicalNotUPAOp :
 }
 
 //
+// SelectUPAOp
+//
+
+def VPUIP_SelectUPAOp :
+        VPUIP_UPATaskOp<1, "SelectUPA",
+            [
+                ViewLikeOpInterface,
+                IERT_SameShape,
+                IERT_SameInOutDimsOrder
+            ]
+        > {
+    let summary = "Select UPA SHAVE kernel";
+
+    let arguments = (ins
+        MemRefOf<[SI32,F16]>:$input1,
+        MemRefOf<[SI32,F16]>:$input2,
+        MemRefOf<[SI32,F16]>:$input3,
+        MemRefOf<[SI32,F16]>:$output_buff
+    );
+
+    let results = (outs
+        MemRefOf<[SI32,F16]>:$output
+    );
+
+    let verifier = [{
+        return vpux::VPUIP::verifyOp(*this);
+    }];
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input1 `:` type($input1) `,` $input2 `:` type($input2) `,` $input3 `:` type($input3) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
+//
 // DetectionOutput
 //
 

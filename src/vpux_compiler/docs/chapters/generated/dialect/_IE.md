@@ -2859,6 +2859,38 @@ operation ::= `IE.ScatterNDUpdate` `(` operands `)` attr-dict `:` type(operands)
 | :----: | ----------- |
 `output` | ranked tensor of any type values
 
+### `IE.Select` (vpux::IE::SelectOp)
+
+InferenceEngine Select layer
+
+
+Syntax:
+
+```
+operation ::= `IE.Select` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`auto_broadcast` | vpux::IE::AutoBroadcastTypeAttr | Specifies rules used for auto-broadcasting of input tensors
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input1` | ranked tensor of 8-bit signless integer or 32-bit signed integer or 16-bit float values
+`input2` | ranked tensor of 32-bit signed integer or 16-bit float values
+`input3` | ranked tensor of 32-bit signed integer or 16-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 32-bit signed integer or 16-bit float values
+
 ### `IE.ShuffleChannels` (vpux::IE::ShuffleChannelsOp)
 
 InferenceEngine ShuffleChannels layer

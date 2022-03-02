@@ -2124,6 +2124,36 @@ operation ::= `VPUIP.ScatterNDUpdateUPA` attr-dict
 | :----: | ----------- |
 `output` | memref of 16-bit float values
 
+### `VPUIP.SelectUPA` (vpux::VPUIP::SelectUPAOp)
+
+Select UPA SHAVE kernel
+
+
+Syntax:
+
+```
+operation ::= `VPUIP.SelectUPA` attr-dict
+              `inputs` `(` $input1 `:` type($input1) `,` $input2 `:` type($input2) `,` $input3 `:` type($input3) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input1` | memref of 32-bit signed integer or 16-bit float values
+`input2` | memref of 32-bit signed integer or 16-bit float values
+`input3` | memref of 32-bit signed integer or 16-bit float values
+`output_buff` | memref of 32-bit signed integer or 16-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 32-bit signed integer or 16-bit float values
+
 ### `VPUIP.SigmoidUPA` (vpux::VPUIP::SigmoidUPAOp)
 
 Sigmoid UPA SHAVE kernel

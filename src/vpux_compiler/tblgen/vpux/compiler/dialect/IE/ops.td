@@ -16,6 +16,7 @@
 
 include "vpux/compiler/core/attributes.td"
 include "vpux/compiler/core/ops_interfaces.td"
+include "vpux/compiler/core/types.td"
 include "vpux/compiler/dialect/IE/dialect.td"
 include "vpux/compiler/dialect/IE/ops_interfaces.td"
 include "vpux/compiler/dialect/IE/attributes.td"
@@ -2996,6 +2997,33 @@ def IE_EqualOp :
         RankedTensorOf<[F16, F32]>:$output
     );
 }
+
+//
+// SelectOp
+//
+
+def IE_SelectOp :
+        IE_LayerOp<
+            "Select",
+            [
+                IE_TilingBuilderOpInterface,
+                IE_EltwiseOp
+            ]
+        > {
+    let summary = "InferenceEngine Select layer";
+
+    let arguments = (ins
+        RankedTensorOf<[Bool8, SI32, F16]>:$input1,
+        RankedTensorOf<[SI32, F16]>:$input2,
+        RankedTensorOf<[SI32, F16]>:$input3,
+        IE_AutoBroadcastType:$auto_broadcast
+    );
+
+    let results = (outs
+        RankedTensorOf<[SI32, F16]>:$output
+    );
+}
+
 //
 // SpaceToDepthOp
 //

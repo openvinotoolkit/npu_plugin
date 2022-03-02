@@ -770,6 +770,22 @@ def RewriteLogicalNot :
         >;
 
 //
+// IERT.Select -> VPUIP.SelectUPA
+//
+
+def createSelectUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::SelectUPAOp>(
+                $_loc, $0, $1, $2, $3)
+        }]>;
+
+def RewriteSelect :
+        Pat<
+            (IERT_SelectOp $input1, $input2, $input3, $output),
+            (createSelectUPAOp $input1, $input2, $input3, $output)
+        >;
+
+//
 // IERT.GRN -> VPUIP.GRNUPA
 //
 
