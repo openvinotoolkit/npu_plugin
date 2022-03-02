@@ -118,15 +118,13 @@ class MPE_CUBES(Enum):
     VECTOR_FP16 = auto()
     VECTOR = auto()
 
-
 mpeCube2NTHW_NTK = {
     MPE_CUBES.CUBOID_16x16: '16x4',
     MPE_CUBES.CUBOID_4x16: '4x16',
     MPE_CUBES.CUBOID_8x16: '8x8',
     MPE_CUBES.MATRIX: '4x4x16',
     MPE_CUBES.VECTOR_FP16: '1x4x16',
-    MPE_CUBES.VECTOR: '1x16x16',
-
+    MPE_CUBES.VECTOR: '1x16x16'
 }
 
 def orderToOrderer(order: Order) -> np.ndarray:
@@ -690,7 +688,7 @@ class PReLU:
         else:
             return PRelu(output_data_type=np.float16).inference(values, self.slope)
 
-class MultiClustering(Operation):
+class MultiClusteringSOH(Operation):
 
     # kernel_strides are x|y directions
     # The padding order is top|left|bottom|right
@@ -721,7 +719,129 @@ class MultiClustering(Operation):
 
     def json_info(self, inputs, output):
         return {
-            'case_type': 'MultiClustering',
+            'case_type': 'MultiClusteringSOH',
+            'input': inputs[0].json_info,
+            'weight': inputs[1].json_info,
+            'output': output.json_info,
+            'conv_op': {
+                'stride': self.settings.kernel_strides,
+                'pad': self.settings.kernel_pads,
+                'group': 1,
+                'dilation': 1,
+                'compress': self.settings.compress,
+                'mpe_cub': self.settings.mpe_cub.name
+            },
+            'output_order': self.settings.output_order.name.lower()
+        }
+        
+    def validate(self):
+        ValidatePaddings(self.settings.kernel_shape, self.settings.kernel_pads)
+        # validate input tensor channels allignement
+        # ValidateHWAlignment(self.settings.input_ttype, self.settings.input_shape[1])
+        # validate weight tensor channels allignement
+        # ValidateHWAlignment(self.settings.weight_ttype, self.settings.input_shape[1])
+        # validate output tensor channels allignement
+        ValidateHWAlignment(self.settings.output_ttype, self.settings.kernel_channels)
+
+    @property
+    def ident(self) -> str:
+        name = f'multi_clustering_SOH_{shape_to_str(self.settings.input_shape)}x{self.settings.input_ttype.stype}_{shape_to_str(self.settings.weight_shape)}x{self.settings.weight_ttype.stype}_pads_{shape_to_str(self.settings.kernel_pads)}_strides_{shape_to_str(self.settings.kernel_strides)}_kern_chan_{self.settings.kernel_channels}'
+        if self.settings.output_order != Order.NHWC:
+            name += '_' + self.settings.output_order.name.lower()
+        if self.settings.compress:
+            name += '_compressed'
+        if self.settings.mpe_cub != MPE_CUBES.CUBOID_16x16:
+            name += '_' + self.settings.mpe_cub.name
+        return name
+
+    @property
+    def orderer(self) -> Orderer:
+        return OrderNHWC
+
+    @property
+    def output_orderer(self) -> Orderer:
+        return orderToOrderer(self.settings.output_order)
+
+    @property
+    def data(self) -> dict:
+        return {
+            'Name': self.ident,
+            'Input Type': np.dtype(self.settings.input_ttype),
+            'Input Scale': self.settings.input_ttype.scale if hasattr(self.settings.input_ttype, 'scale') else 1,
+            'Input Zero Point': self.settings.input_ttype.zero if hasattr(self.settings.input_ttype, 'zero') else 0,
+            'Weights Type': np.dtype(self.settings.weight_ttype),
+            'Weights Scale': self.settings.weight_ttype.scale if hasattr(self.settings.weight_ttype, 'scale') else 1,
+            'Weights Zero Point': self.settings.weight_ttype.zero if hasattr(self.settings.weight_ttype, 'zero') else 0,
+            'Output Type': np.dtype(self.settings.output_ttype),
+            'Output Scale': self.settings.output_ttype.scale if hasattr(self.settings.output_ttype, 'scale') else 1,
+            'Output Zero Point': self.settings.output_ttype.zero if hasattr(self.settings.output_ttype, 'zero') else 0,
+            'IC': self.settings.input_shape[1],
+            'IH': self.settings.input_shape[2],
+            'IW': self.settings.input_shape[3],
+            'IK': self.settings.kernel_channels,
+            'KH': self.settings.kernel_shape[0],
+            'KW': self.settings.kernel_shape[1],
+            'SH': self.settings.kernel_strides[1],
+            'SW': self.settings.kernel_strides[0],
+            'PT': self.settings.kernel_pads[0],
+            'PB': self.settings.kernel_pads[2],
+            'PL': self.settings.kernel_pads[1],
+            'PR': self.settings.kernel_pads[3],
+            'NTHW_NTK': mpeCube2NTHW_NTK[self.settings.mpe_cub],
+            'Output Permute': SW2HWOrder[self.settings.output_order],
+            'Compression': int(self.settings.compress),
+        }
+
+    def generate_inputs(self, rng) -> List[Value]:
+        return [
+            self.settings.input_ttype.generate('input-0.bin', self.settings.input_shape, rng),
+            self.settings.weight_ttype.generate('weights.dat', self.settings.weight_shape, rng, orderer=OrderNCHW)
+        ]
+
+    def apply(self, values: List[Value]) -> np.ndarray:
+        lhs, rhs = iduConvCustom(values[0], values[1])
+        c2d = NBConv2D(kernel_shape=self.settings.kernel_shape,
+                        pads = self.settings.kernel_pads,
+                        strides = self.settings.kernel_strides,
+                        platform = Platform())
+        result = c2d.inference(lhs, rhs)
+        return result
+
+    def filter_issues(self, args) -> bool:
+        return True
+        
+class MultiClusteringSOK(Operation):
+
+    # kernel_strides are x|y directions
+    # The padding order is top|left|bottom|right
+    PARAMS = [
+        'mpe_op_class',
+        'input_ttype',
+        'input_shape',
+        'weight_ttype',
+        'kernel_channels',
+        'kernel_shape',
+        'output_ttype',
+        'output_order',
+        'kernel_strides',
+        'kernel_pads',
+        # 'input_model',
+        # 'output_model',
+        # 'weight_model',
+        # 'weight_table_model',
+        # 'number_clusters',
+        'compress',
+        'mpe_cub'
+    ]
+    NAME = 'Multi_Clustering'
+
+    def __init__(self, settings):
+        self.settings = settings
+        settings.weight_shape = [settings.kernel_channels, settings.input_shape[1]] + settings.kernel_shape
+
+    def json_info(self, inputs, output):
+        return {
+            'case_type': 'MultiClusteringSOK',
             'input': inputs[0].json_info,
             'weight': inputs[1].json_info,
             'output': output.json_info,
@@ -747,7 +867,7 @@ class MultiClustering(Operation):
 
     @property
     def ident(self) -> str:
-        name = f'multi_clustering_{shape_to_str(self.settings.input_shape)}x{self.settings.input_ttype.stype}_{shape_to_str(self.settings.weight_shape)}x{self.settings.weight_ttype.stype}_pads_{shape_to_str(self.settings.kernel_pads)}_strides_{shape_to_str(self.settings.kernel_strides)}_kern_chan_{self.settings.kernel_channels}'
+        name = f'multi_clustering_SOK_{shape_to_str(self.settings.input_shape)}x{self.settings.input_ttype.stype}_{shape_to_str(self.settings.weight_shape)}x{self.settings.weight_ttype.stype}_pads_{shape_to_str(self.settings.kernel_pads)}_strides_{shape_to_str(self.settings.kernel_strides)}_kern_chan_{self.settings.kernel_channels}'
         if self.settings.output_order != Order.NHWC:
             name += '_' + self.settings.output_order.name.lower()
         if self.settings.compress:
@@ -2744,7 +2864,7 @@ _PPE_HAS_PERMUTATION_SUPPORT = {
     FP32: True
 }
 
-def genMultiClustring(input_types=[UInt8(2)],
+def genMultiClusteringSOH(input_types=[UInt8(2)],
                input_shapes=[[1, 16, 32, 32]],
                weight_types=None,
                kernel_channels=[16],
@@ -2776,7 +2896,54 @@ def genMultiClustring(input_types=[UInt8(2)],
                 if(output_order != Order.NHWC and not _PPE_HAS_PERMUTATION_SUPPORT[output_type.__class__]) :
                     print("skip", output_order, output_type)
                     continue
-                yield DPUPipeline(MultiClustering.PARAMS, (MultiClustering,
+
+                yield DPUPipeline(MultiClusteringSOH.PARAMS, (MultiClusteringSOH,
+                                                             input_type,
+                                                             input_shape,
+                                                             weight_type,
+                                                             kernel_channel,
+                                                             kernel_shape,
+                                                             output_type,
+                                                             output_order,
+                                                             stride,
+                                                             pad,
+                                                             compress,
+                                                             mpe_cub), activation)
+                
+def genMultiClusteringSOK(input_types=[UInt8(2)],
+               input_shapes=[[1, 16, 32, 32]],
+               weight_types=None,
+               kernel_channels=[16],
+               kernel_shapes=[[1, 1]],
+               output_types=None,
+               output_orders=[Order.NHWC],
+               strides=[[1, 1]],
+               pads=Pad.none,
+               compress=False,
+               mpe_cubs=[MPE_CUBES.VECTOR],
+               activations=[None]):
+
+    for (input_type, input_shape, kernel_channel, kernel_shape, output_order, stride, pad, mpe_cub, activation) in itertools.product(input_types, input_shapes, kernel_channels, kernel_shapes, output_orders, strides, pads, mpe_cubs, activations):
+
+        if weight_types is None:
+            current_weight_types = _ZMCONV_VALID_WEIGHT_TYPES[input_type.__class__]
+
+        else:
+            current_weight_types = weight_types
+
+        for weight_type in current_weight_types:
+
+            if output_types is None:
+                current_output_types = _PPE_VALID_OUTPUT_TYPES[input_type.is_float or weight_type.is_float]
+            else:
+                current_output_types = output_types
+
+            for output_type in current_output_types:
+                if(output_order != Order.NHWC and not _PPE_HAS_PERMUTATION_SUPPORT[output_type.__class__]) :
+                    print("skip", output_order, output_type)
+                    continue
+
+                yield DPUPipeline(MultiClusteringSOK.PARAMS, (MultiClusteringSOK,
                                                              input_type,
                                                              input_shape,
                                                              weight_type,
@@ -3334,7 +3501,7 @@ def genRaceConditionDPUDMAACT(input_types=[FP16(0)],
 def generate_options(args):
     return itertools.chain(
     #   MultiClustring
-        genMultiClustring(input_types=[FP16(2)],
+        genMultiClusteringSOH(input_types=[FP16(2)],
                 input_shapes=[[1, 16, 32, 32]],
                 weight_types=[FP16(2)],
                 kernel_channels=[16],
@@ -3342,6 +3509,708 @@ def generate_options(args):
                 output_types=[FP16()],
                 pads=Pad.none,
                 mpe_cubs=[MPE_CUBES.VECTOR_FP16]),
+
+        genMultiClusteringSOK(input_types=[FP16(2)],
+                input_shapes=[[1, 16, 32, 32]],
+                weight_types=[FP16(2)],
+                kernel_channels=[32],
+                kernel_shapes=[[1, 1]],
+                output_types=[FP16()],
+                pads=Pad.none,
+                mpe_cubs=[MPE_CUBES.VECTOR_FP16]),
+
+        # # ActShave
+        # genActShave(
+        #     input_types=[FP16(0)],
+        #     input_shapes=[[1, 10, 2, 3],  [1, 1000, 1, 1], [1, 1, 1000, 1], [1, 1, 1, 1000]],
+        #     output_types=[FP16()],
+        #     act_shave_subtypes=[
+        #         [ActivationType.HSwish],
+        #         [ActivationType.Sigmoid], # - Sigmoid testcase fails on. Inference result is close enough to NumericBench reference, but not bit-exact
+        #         [ActivationType.Softmax, 1],  # axis C
+        #         [ActivationType.Softmax, 2],  # axis H
+        #         [ActivationType.Softmax, 3],  # axis W
+        #     ]),
+
+        # # Z-Major Convolution
+        # #
+        # # NB MoviSim seems to require uint8 activations when using uint8
+        # #    weights, and vice-versa.
+        # #
+        # # NB NumericsBench requires that if we're using quantized (integer)
+        # #    activations, the weights must also be quantized.  It also complains
+        # #    about mixing signed/unsigned values, or integer activations with
+        # #    fp16 weights.
+
+        # # Z-Major Convolution
+        # genZMConvs(input_types=[Int8(3), Int4(3), UInt8(3), UInt4(3), FP16(4), BF16(4)]),
+
+        # # Z-Major Convolution, uint8 activations with extended kernel shapes
+        # # NB The number of bits used is turned pretty far down, to avoid issues
+        # # with floating point rounding.
+        # genZMConvs(input_types=[UInt8(1)],
+        #            weight_types=[UInt8(1)],
+        #            kernel_shapes=[[r, c] for r in range(1, 12) for c in range(1, 12) if (r, c) != (1, 1)],
+        #            output_types=[FP16()]),
+
+        # # Z-Major Convolution with strides
+        # genZMConvs(input_types=[FP16(3)],
+        #            weight_types=[Int8(3), FP16(3)],
+        #            output_types=[FP16()],
+        #            kernel_shapes=[[2, 2]],
+        #            strides=[[r, c] for r in range(1, 8) for c in range(1, 8)]),
+
+        # # Z-Major Convolution, padding, uint8
+        # genZMConvs(input_types=[UInt8(2)],
+        #            input_shapes=[[1, 16, 32, 32]],
+        #            weight_types=[UInt8(1)],
+        #            kernel_channels=[16],
+        #            kernel_shapes=[[10, 10], [11, 11]],
+        #            output_types=[UInt8()],
+        #            pads=Pad.none + Pad.all(5) + Pad.top(5) + Pad.left(5) + Pad.bottom(5) + Pad.right(5)),
+
+        # # Z-Major Convolution, padding, uint8
+        # genZMConvs(input_types=[UInt8(2)],
+        #            input_shapes=[[1, 16, 32, 32]],
+        #            weight_types=[UInt8(1)],
+        #            kernel_channels=[32],
+        #            kernel_shapes=[[10, 10], [11, 11]],
+        #            output_types=[Int4(), UInt4()],
+        #            pads=Pad.none + Pad.all(5) + Pad.top(5) + Pad.left(5) + Pad.bottom(5) + Pad.right(5)),
+
+        # # Z-Major Convolution, padding, int8
+        # genZMConvs(input_types=[Int8(2)],
+        #            input_shapes=[[1, 16, 32, 32]],
+        #            weight_types=[Int8(2)],
+        #            kernel_channels=[16],
+        #            kernel_shapes=[[10, 10]],
+        #            output_types=[Int8()],
+        #            pads=Pad.none + Pad.top(5) + Pad.left(5) + Pad.bottom(5) + Pad.right(5)),
+
+        # # Z-Major Convolution, padding, int8
+        # genZMConvs(input_types=[Int8(2)],
+        #            input_shapes=[[1, 32, 32, 32]],
+        #            weight_types=[Int4(2)],
+        #            kernel_channels=[16],
+        #            kernel_shapes=[[10, 10]],
+        #            output_types=[Int8()],
+        #            pads=Pad.none + Pad.top(5) + Pad.left(5) + Pad.bottom(5) + Pad.right(5)),
+
+        # # Z-Major Convolution, padding, int8
+        # genZMConvs(input_types=[Int8(2)],
+        #            input_shapes=[[1, 16, 32, 32]],
+        #            weight_types=[Int8(2)],
+        #            kernel_channels=[32],
+        #            kernel_shapes=[[10, 10]],
+        #            output_types=[Int4(), UInt4()],
+        #            pads=Pad.none + Pad.top(5) + Pad.left(5) + Pad.bottom(5) + Pad.right(5)),
+
+        # # Z-Major Convolution, padding, int8
+        # genZMConvs(input_types=[Int8(2)],
+        #            input_shapes=[[1, 32, 32, 32]],
+        #            weight_types=[Int4(2)],
+        #            kernel_channels=[32],
+        #            kernel_shapes=[[10, 10]],
+        #            output_types=[Int4(), UInt4()],
+        #            pads=Pad.none + Pad.top(5) + Pad.left(5) + Pad.bottom(5) + Pad.right(5)),
+
+        # # Z-Major Convolution, padding, fp16
+        # genZMConvs(input_types=[FP16(2)],
+        #            input_shapes=[[1, 16, 32, 32]],
+        #            weight_types=[FP16(2)],
+        #            kernel_channels=[16],
+        #            kernel_shapes=[[10, 10]],
+        #            output_types=[FP16()],
+        #            pads=Pad.none + Pad.top(5) + Pad.left(5) + Pad.bottom(5) + Pad.right(5)),
+
+        # # Z-Major Convolution, padding, bf16
+        # genZMConvs(input_types=[BF16(2)],
+        #            input_shapes=[[1, 16, 32, 32]],
+        #            weight_types=[BF16(2)],
+        #            kernel_channels=[16],
+        #            kernel_shapes=[[10, 10]],
+        #            output_types=[BF16()],
+        #            pads=Pad.none + Pad.top(5) + Pad.left(5) + Pad.bottom(5) + Pad.right(5)),
+
+        # # Z-Major Convolution, padding, 4x6 kernel, uint8
+        # genZMConvs(input_types=[UInt8(2)],
+        #            input_shapes=[[1, 16, 8, 8]],
+        #            weight_types=[UInt8(1)],
+        #            kernel_channels=[16],
+        #            kernel_shapes=[[4, 6]],
+        #            output_types=[UInt8()],
+        #            pads=[[2,0,0,0],[0,3,0,0]]),
+
+        # # Z-Major Convolution, padding, 5x5 kernel, uint8
+        # genZMConvs(input_types=[UInt8(2)],
+        #            input_shapes=[[1, 16, 32, 32]],
+        #            weight_types=[UInt8(1)],
+        #            kernel_channels=[16],
+        #            kernel_shapes=[[8, 10]],
+        #            output_types=[UInt8()],
+        #            pads=[[4,0,0,0],[0,5,0,0]]),
+
+        # # Z-Major Convolution, output order
+        # genZMConvs(input_types=[Int8(3), FP16(4)],
+        #            output_orders=[Order.NWHC, Order.NWCH, Order.NCWH, Order.NHCW, Order.NCHW]),
+
+        # # Z-Major Convolution, integer cuboid combinations
+        # genZMConvs(input_types=[Int8(3)],
+        #            input_shapes=[[1, 16, 32, 64]],
+        #            weight_types=[Int8(2)],
+        #            output_types=[Int8()],
+        #            mpe_cubs=[MPE_CUBES.CUBOID_16x16, MPE_CUBES.CUBOID_8x16, MPE_CUBES.CUBOID_4x16]),
+
+        # # Z-Major Convolution, fp cuboid combinations
+        # genZMConvs(input_types=[FP16(4)],
+        #            input_shapes=[[1, 16, 32, 64]],
+        #            weight_types=[FP16(2)],
+        #            output_types=[FP16()],
+        #            mpe_cubs=[MPE_CUBES.CUBOID_16x16, MPE_CUBES.CUBOID_8x16, MPE_CUBES.CUBOID_4x16]),
+
+        # # Eltwise Add
+        # genEltwiseAdds(input_types=[Int8(6), UInt8(6), FP16(6), BF16(6)],
+        #                input_shapes=[[1, 256, 16, 16]]),
+
+        # # Eltwise Mult
+        # genEltwiseMults(input_types=[Int8(3), UInt8(4), FP16(6), BF16(6)],
+        #                 input_shapes=[[1, 1, 1, 64]]),
+
+        # # MaxPool
+        # genMaxPools(input_types=[UInt8(6), Int8(6), FP16(6), BF16(6)],
+        #             input_shapes=[[1, 64, 16, 16]],
+        #             pads=Pad.none + Pad.all(1) + Pad.top_bottom(1) + Pad.left_right(1)),
+
+        # genMaxPools(input_types=[UInt8(6)],
+        #             output_types=[UInt8()],
+        #             strides=[[r, c] for r in range(2, 8) for c in range(2, 8) if (r, c) != (2, 2)]),
+
+        # genMaxPools(input_types=[UInt8(6)],
+        #             output_types=[UInt8()],
+        #             kernel_shapes=[[r, c] for r in range(2, 12) for c in range(2, 12) if (r, c) != (2, 2)]),
+
+        # # AvgPool
+        # genAvgPools(input_types=[Int8(6), UInt8(6), FP16(6), BF16(6)],
+        #             input_shapes=[[1, 64, 32, 32]]),
+
+        # # DepthWiseConv
+        # genDepthWiseConvs(input_types=[Int8(6), UInt8(6), FP16(6), BF16(6)],
+        #                   pads=[[0, 0, 0, 0], [1, 0, 0, 0]]),
+
+        # genDepthWiseConvs(input_types=[Int8(6), UInt8(6), FP16(6), BF16(6)],
+        #                   input_shapes=[[1, 32, 32, 32]],
+        #                   kernel_channels=[32]),
+
+        # genDepthWiseConvs(input_types=[Int8(6), UInt8(6), FP16(6), BF16(6)],
+        #                   input_shapes=[[1, 64, 32, 32]],
+        #                   kernel_channels=[64]),
+
+        # genDepthWiseConvs(input_types=[UInt8(6)],
+        #                   output_types=[UInt8()],
+        #                   strides=[[r, c] for r in range(1, 8) for c in range(1, 8) if (r, c) != (1, 1)]),
+
+        # genDepthWiseConvs(input_types=[UInt8(6)],
+        #                   output_types=[UInt8()],
+        #                   kernel_shapes=[[r, c] for r in range(1, 12) for c in range(1, 12) if (r, c) != (4, 4)]),
+
+        # # MobileNet ELTWISE, uint8
+        # genEltwiseAdds(input_types=[UInt8(2)],
+        #                input_shapes=[[1, 32, 56, 56],
+        #                              [1, 32, 28, 28],
+        #                              [1, 64, 14, 14]],
+        #                output_types=[UInt8()]),
+
+        # # MobileNet CONV (ZMajorConv)
+        # genZMConvs(input_types=[UInt8(2)],
+        #            input_shapes=[[1, 32, 112, 112]],
+        #            weight_types=[UInt8(2)],
+        #            kernel_channels=[16],
+        #            output_types=[UInt8()]),
+
+        # genZMConvs(input_types=[UInt8(2)],
+        #            input_shapes=[[1, 16, 112, 112]],
+        #            weight_types=[UInt8(2)],
+        #            kernel_channels=[96],
+        #            output_types=[UInt8()]),
+
+        # genZMConvs(input_types=[UInt8(2)],
+        #            input_shapes=[[1, 96, 56, 56]],
+        #            weight_types=[UInt8(2)],
+        #            kernel_channels=[32],
+        #            output_types=[UInt8()]),
+
+        # genZMConvs(input_types=[UInt8(2)],
+        #            input_shapes=[[1, 32, 56, 56]],
+        #            weight_types=[UInt8(2)],
+        #            kernel_channels=[144],
+        #            output_types=[UInt8()]),
+
+        # genZMConvs(input_types=[UInt8(2)],
+        #            input_shapes=[[1, 144, 56, 56]],
+        #            weight_types=[UInt8(2)],
+        #            kernel_channels=[32],
+        #            output_types=[UInt8()]),
+
+        # genZMConvs(input_types=[UInt8(2)],
+        #            input_shapes=[[1, 144, 28, 28]],
+        #            weight_types=[UInt8(2)],
+        #            kernel_channels=[32],
+        #            output_types=[UInt8()]),
+
+        # genZMConvs(input_types=[UInt8(2)],
+        #            input_shapes=[[1, 32, 28, 28]],
+        #            weight_types=[UInt8(2)],
+        #            kernel_channels=[192],
+        #            output_types=[UInt8()]),
+
+        # genZMConvs(input_types=[UInt8(2)],
+        #            input_shapes=[[1, 192, 28, 28]],
+        #            weight_types=[UInt8(2)],
+        #            kernel_channels=[32],
+        #            output_types=[UInt8()]),
+
+        # genZMConvs(input_types=[UInt8(2)],
+        #            input_shapes=[[1, 192, 14, 14]],
+        #            weight_types=[UInt8(2)],
+        #            kernel_channels=[64],
+        #            output_types=[UInt8()]),
+
+        # genZMConvs(input_types=[UInt8(2)],
+        #            input_shapes=[[1, 64, 14, 14]],
+        #            weight_types=[UInt8(2)],
+        #            kernel_channels=[384],
+        #            output_types=[UInt8()]),
+
+        # genZMConvs(input_types=[UInt8(2)],
+        #            input_shapes=[[1, 384, 14, 14]],
+        #            weight_types=[UInt8(2)],
+        #            kernel_channels=[64],
+        #            output_types=[UInt8()]),
+
+        # # Z-Major Convolution, weights swizzling_key = 1-to-5
+        # genZMConvs(input_types=[FP16(3)],
+        #            input_shapes=[[1, 16, 1, 1]],
+        #            weight_types=[FP16(-3)],
+        #            kernel_channels=[64,128,256,512,1024],
+        #            kernel_shapes=[[1, 1]],
+        #            output_types=[FP16()],
+        #            pads=Pad.none),
+
+        # # Z-Major Continued Convolution, fp16
+        # genZMConvs(input_types=[FP16(3)],
+        #            input_shapes=[[1, 16*1024, 1, 1]],
+        #            weight_types=[FP16(-3)],
+        #            kernel_channels=[16],
+        #            kernel_shapes=[[1, 1]],
+        #            output_types=[FP16()],
+        #            pads=Pad.none),
+
+        # # Z-major compressed Convolution, int8
+        # genZMConvs(input_types=[Int8(2)],
+        #            input_shapes=[[1, 16, 64, 64]],
+        #            weight_types=[Int8(2)],
+        #            kernel_channels=[16],
+        #            kernel_shapes=[[5, 5]],
+        #            output_types=[Int8()],
+        #            strides=[[1, 1]],
+        #            pads=[[0, 0, 0, 0]],
+        #            compress=True),
+
+        # # Z-major first layer DPU optimization uint8
+        # genZMConvs(
+        #     input_types=[UInt8(2)],
+        #     input_shapes=[[1, 1, 16, 16]],
+        #     weight_types=[UInt8(2)],
+        #     kernel_channels=[64],
+        #     kernel_shapes=[[2, 4]],
+        #     output_types=[UInt8()],
+        #     pads=[[0, 0, 0, 0]]
+        # ),
+
+        # genZMConvs(
+        #     input_types=[UInt8(2)],
+        #     input_shapes=[[1, 2, 16, 16]],
+        #     weight_types=[UInt8(2)],
+        #     kernel_channels=[64],
+        #     kernel_shapes=[[2, 2]],
+        #     output_types=[UInt8()],
+        #     pads=[[0, 0, 0, 0]]
+        # ),
+
+        # genZMConvs(
+        #     input_types=[UInt8(2)],
+        #     input_shapes=[[1, 3, 16, 16]],
+        #     weight_types=[UInt8(2)],
+        #     kernel_channels=[64],
+        #     kernel_shapes=[[2, 4]],
+        #     output_types=[UInt8()],
+        #     pads=[[0, 0, 0, 0]]
+        # ),
+
+        # genZMConvs(
+        #     input_types=[UInt8(2)],
+        #     input_shapes=[[1, 4, 16, 16]],
+        #     weight_types=[UInt8(2)],
+        #     kernel_channels=[64],
+        #     kernel_shapes=[[2, 2]],
+        #     output_types=[UInt8()],
+        #     pads=[[0, 0, 0, 0]]
+        # ),
+
+        # genZMConvs(
+        #     input_types=[UInt8(2)],
+        #     input_shapes=[[1, 5, 16, 16]],
+        #     weight_types=[UInt8(2)],
+        #     kernel_channels=[64],
+        #     kernel_shapes=[[2, 4]],
+        #     output_types=[UInt8()],
+        #     pads=[[0, 0, 0, 0]]
+        # ),
+
+        # genZMConvs(
+        #     input_types=[UInt8(2)],
+        #     input_shapes=[[1, 6, 16, 16]],
+        #     weight_types=[UInt8(2)],
+        #     kernel_channels=[64],
+        #     kernel_shapes=[[2, 2]],
+        #     output_types=[UInt8()],
+        #     pads=[[0, 0, 0, 0]]
+        # ),
+
+        # genZMConvs(
+        #     input_types=[UInt8(2)],
+        #     input_shapes=[[1, 7, 16, 16]],
+        #     weight_types=[UInt8(2)],
+        #     kernel_channels=[64],
+        #     kernel_shapes=[[2, 4]],
+        #     output_types=[UInt8()],
+        #     pads=[[0, 0, 0, 0]]
+        # ),
+
+        # genZMConvs(
+        #     input_types=[UInt8(2)],
+        #     input_shapes=[[1, 8, 16, 16]],
+        #     weight_types=[UInt8(2)],
+        #     kernel_channels=[64],
+        #     kernel_shapes=[[1, 1]],
+        #     output_types=[UInt8()],
+        #     pads=[[0, 0, 0, 0]]
+        # ),
+
+        # genZMConvs(
+        #     input_types=[UInt8(2)],
+        #     input_shapes=[[1, 9, 16, 16]],
+        #     weight_types=[UInt8(2)],
+        #     kernel_channels=[64],
+        #     kernel_shapes=[[2, 4]],
+        #     output_types=[UInt8()],
+        #     pads=[[0, 0, 0, 0]]
+        # ),
+
+        # genZMConvs(
+        #     input_types=[UInt8(2)],
+        #     input_shapes=[[1, 10, 16, 16]],
+        #     weight_types=[UInt8(2)],
+        #     kernel_channels=[64],
+        #     kernel_shapes=[[2, 4]],
+        #     output_types=[UInt8()],
+        #     pads=[[0, 0, 0, 0]]
+        # ),
+
+        # genZMConvs(
+        #     input_types=[UInt8(2)],
+        #     input_shapes=[[1, 11, 16, 16]],
+        #     weight_types=[UInt8(2)],
+        #     kernel_channels=[64],
+        #     kernel_shapes=[[2, 4]],
+        #     output_types=[UInt8()],
+        #     pads=[[0, 0, 0, 0]]
+        # ),
+
+        # genZMConvs(
+        #     input_types=[UInt8(2)],
+        #     input_shapes=[[1, 12, 16, 16]],
+        #     weight_types=[UInt8(2)],
+        #     kernel_channels=[64],
+        #     kernel_shapes=[[4, 4]],
+        #     output_types=[UInt8()],
+        #     pads=[[0, 0, 0, 0]]
+        # ),
+
+        # genZMConvs(
+        #     input_types=[UInt8(2)],
+        #     input_shapes=[[1, 13, 16, 16]],
+        #     weight_types=[UInt8(2)],
+        #     kernel_channels=[64],
+        #     kernel_shapes=[[2, 4]],
+        #     output_types=[UInt8()],
+        #     pads=[[0, 0, 0, 0]]
+        # ),
+
+        # genZMConvs(
+        #     input_types=[UInt8(2)],
+        #     input_shapes=[[1, 14, 16, 16]],
+        #     weight_types=[UInt8(2)],
+        #     kernel_channels=[64],
+        #     kernel_shapes=[[2, 4]],
+        #     output_types=[UInt8()],
+        #     pads=[[0, 0, 0, 0]]
+        # ),
+
+        # genZMConvs(
+        #     input_types=[UInt8(2)],
+        #     input_shapes=[[1, 15, 16, 16]],
+        #     weight_types=[UInt8(2)],
+        #     kernel_channels=[64],
+        #     kernel_shapes=[[2, 4]],
+        #     output_types=[UInt8()],
+        #     pads=[[0, 0, 0, 0]]
+        # ),
+
+        # # Z-major first layer DPU optimization fp16
+        # genZMConvs(
+        #     input_types=[FP16(2)],
+        #     input_shapes=[[1, 1, 16, 16]],
+        #     weight_types=[FP16(2)],
+        #     kernel_channels=[64],
+        #     kernel_shapes=[[2, 4]],
+        #     output_types=[FP16()],
+        #     pads=[[0, 0, 0, 0]]
+        # ),
+
+        # genZMConvs(
+        #     input_types=[FP16(2)],
+        #     input_shapes=[[1, 2, 16, 16]],
+        #     weight_types=[FP16(2)],
+        #     kernel_channels=[64],
+        #     kernel_shapes=[[2, 2]],
+        #     output_types=[FP16()],
+        #     pads=[[0, 0, 0, 0]]
+        # ),
+
+        # genZMConvs(
+        #     input_types=[FP16(2)],
+        #     input_shapes=[[1, 3, 16, 16]],
+        #     weight_types=[FP16(2)],
+        #     kernel_channels=[64],
+        #     kernel_shapes=[[2, 4]],
+        #     output_types=[FP16()],
+        #     pads=[[0, 0, 0, 0]]
+        # ),
+
+        # genZMConvs(
+        #     input_types=[FP16(2)],
+        #     input_shapes=[[1, 4, 16, 16]],
+        #     weight_types=[FP16(2)],
+        #     kernel_channels=[64],
+        #     kernel_shapes=[[2, 2]],
+        #     output_types=[FP16()],
+        #     pads=[[0, 0, 0, 0]]
+        # ),
+
+
+        # genZMConvs(
+        #     input_types=[FP16(2)],
+        #     input_shapes=[[1, 5, 16, 16]],
+        #     weight_types=[FP16(2)],
+        #     kernel_channels=[64],
+        #     kernel_shapes=[[2, 4]],
+        #     output_types=[FP16()],
+        #     pads=[[0, 0, 0, 0]]
+        # ),
+
+        # genZMConvs(
+        #     input_types=[FP16(2)],
+        #     input_shapes=[[1, 6, 16, 16]],
+        #     weight_types=[FP16(2)],
+        #     kernel_channels=[64],
+        #     kernel_shapes=[[2, 2]],
+        #     output_types=[FP16()],
+        #     pads=[[0, 0, 0, 0]]
+        # ),
+
+        # genZMConvs(
+        #     input_types=[FP16(2)],
+        #     input_shapes=[[1, 7, 16, 16]],
+        #     weight_types=[FP16(2)],
+        #     kernel_channels=[64],
+        #     kernel_shapes=[[2, 4]],
+        #     output_types=[FP16()],
+        #     pads=[[0, 0, 0, 0]]
+        # ),
+
+        # genZMConvs(
+        #     input_types=[FP16(2)],
+        #     input_shapes=[[1, 8, 16, 16]],
+        #     weight_types=[FP16(2)],
+        #     kernel_channels=[64],
+        #     kernel_shapes=[[1, 1]],
+        #     output_types=[FP16()],
+        #     pads=[[0, 0, 0, 0]]
+        # ),
+
+        # genZMConvs(
+        #     input_types=[FP16(2)],
+        #     input_shapes=[[1, 9, 16, 16]],
+        #     weight_types=[FP16(2)],
+        #     kernel_channels=[64],
+        #     kernel_shapes=[[2, 4]],
+        #     output_types=[FP16()],
+        #     pads=[[0, 0, 0, 0]]
+        # ),
+
+        # genZMConvs(
+        #     input_types=[FP16(2)],
+        #     input_shapes=[[1, 10, 16, 16]],
+        #     weight_types=[FP16(2)],
+        #     kernel_channels=[64],
+        #     kernel_shapes=[[2, 4]],
+        #     output_types=[FP16()],
+        #     pads=[[0, 0, 0, 0]]
+        # ),
+
+        # genZMConvs(
+        #     input_types=[FP16(2)],
+        #     input_shapes=[[1, 11, 16, 16]],
+        #     weight_types=[FP16(2)],
+        #     kernel_channels=[64],
+        #     kernel_shapes=[[2, 4]],
+        #     output_types=[FP16()],
+        #     pads=[[0, 0, 0, 0]]
+        # ),
+
+        # genZMConvs(
+        #     input_types=[FP16(2)],
+        #     input_shapes=[[1, 32, 2, 15]],
+        #     weight_types=[FP16(2)],
+        #     kernel_channels=[64],
+        #     kernel_shapes=[[1, 1]],
+        #     output_types=[FP16()],
+        #     output_orders=[Order.NCHW],
+        #     pads=[[0, 0, 0, 0]]
+        # ),
+
+        # genReadAfterWriteACTDMA(
+        #     iteration_count=13
+        # ),
+
+        # genReadAfterWriteDMAACT(
+        #     iteration_count=13
+        # ),
+
+        # genReadAfterWriteDPUACT(
+        #     iteration_count=11
+        # ),
+
+        # genReadAfterWriteACTDPU(
+        #     iteration_count=13
+        # ),
+
+        # genReadAfterWriteDPUDMA(
+        #     iteration_count=13
+        # ),
+
+        # genReadAfterWriteDMADPU(
+        #     iteration_count=13
+        # ),
+
+        # # # check all datatypes
+        # genDMA(
+        #     tensor_types=[Int4(3), UInt4(3), Int8(3), UInt8(3), FP16(4), BF16(4)],
+        #     input_shapes=[[1, 16, 32, 32]]
+        # ),
+
+        # # check all memory locations
+        # genDMA(
+        #     tensor_types=[Int8(3)],
+        #     input_shapes=[[1, 32, 16, 16]],
+        #     src_locations=[MemoryLocation.CMX0, MemoryLocation.CMX1, MemoryLocation.DDR],
+        #     dst_locations=[MemoryLocation.CMX0, MemoryLocation.CMX1, MemoryLocation.DDR],
+        #     dma_engines=[0, 1]
+        # ),
+        # # check max aviable CMX
+        # genDMA(
+        #     tensor_types=[UInt8(3)],
+        #     input_shapes=[[1, 1, 1, HALF_OF_CMX_SIZE]],
+        #     src_locations=[MemoryLocation.CMX0, MemoryLocation.CMX1],
+        #     dst_locations=[MemoryLocation.CMX0, MemoryLocation.CMX1],
+        #     dma_engines=[0, 1]
+        # ),
+        # genRaceConditionDMA(
+        #     input_types=[FP16(2)],
+        #     output_types=[FP16(2)],
+        #     iteration_count=64
+        # ),
+
+        # genRaceConditionDPU(
+        #     iteration_count=48
+        # ),
+
+        # genRaceConditionDPUDMA(
+        #     iteration_count=48
+        # ),
+
+        # genRaceConditionDPUDMAACT(
+        #     iteration_count=24
+        # ),
+
+        # genRaceCondition(
+        #     ops = genActShave(
+        #         input_types=[FP16(0)],
+        #         input_shapes=[[1, 10, 2, 3]],
+        #         output_types=[FP16()],
+        #         act_shave_subtypes=[
+        #             [ActivationType.HSwish],
+        #             [ActivationType.Sigmoid], # Sigmoid testcase fails. Inference result is close enough to NumericBench reference, but not bit-exact
+        #             [ActivationType.Softmax, 1],  # axis C
+        #             [ActivationType.Softmax, 2],  # axis H
+        #             [ActivationType.Softmax, 3],  # axis W
+        #         ]
+        #     ),
+        #     iteration_counts=[10],
+        #     requested_clusters=[1, 2],
+        #     requested_units=[1, 2]
+        # ),
+
+        # genZMConvs(
+        #     input_types=[Int8(2)],
+        #     input_shapes=[[1, 16, 16, 16]],
+        #     weight_types=[Int8(2)],
+        #     kernel_channels=[16],
+        #     kernel_shapes=[[1, 1]],
+        #     output_types=[Int32()],
+        #     pads=[[0, 0, 0, 0]],
+        #     activations=[
+        #         PReLU(0.1, np.int8),
+        #         PReLU(0.1, np.uint8),
+        #         PReLU(0.5, np.int8),
+        #         PReLU(0.5, np.uint8),
+        #         PReLU(1, np.int8),
+        #         PReLU(1, np.uint8),
+        #         PReLU(1.5, np.int8),
+        #         PReLU(1.5, np.uint8),
+        #     ]
+        # ),
+
+        # genZMConvs(
+        #     input_types=[FP16(2)],
+        #     input_shapes=[[1, 16, 16, 16]],
+        #     weight_types=[FP16(2)],
+        #     kernel_channels=[16],
+        #     kernel_shapes=[[1, 1]],
+        #     output_types=[FP16()],
+        #     pads=[[0, 0, 0, 0]],
+        #     activations=[
+        #         PReLU(0.1),
+        #         PReLU(0.5),
+        #         PReLU(1),
+        #         PReLU(1.5),
+        #         PReLU(-0.1),
+        #         PReLU(-0.5),
+        #         PReLU(-1),
+        #         PReLU(-1.5),
+        #     ]
+        # ),
     )
 
 

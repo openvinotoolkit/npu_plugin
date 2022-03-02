@@ -46,7 +46,8 @@ enum class CaseType {
     RaceConditionDPUDMA,
     RaceConditionDPUDMAACT,
     RaceCondition,
-    MultiClustering,
+    MultiClusteringSOH,
+    MultiClusteringSOK,
     Unknown
 };
 

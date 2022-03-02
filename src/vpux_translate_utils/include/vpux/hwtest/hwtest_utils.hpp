@@ -96,8 +96,12 @@ void buildReadAfterWriteDPUACTTest(const nb::TestCaseJsonDescriptor& testDesc, m
 void buildReadAfterWriteACTDPUTest(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module,
                                    mlir::OpBuilder builder, Logger& log, mlir::Type inputType, mlir::Type weightsType,
                                    mlir::Type outputType);
-void buildMultiClustering(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module, mlir::OpBuilder builder,
-                          Logger& log, mlir::Type inputType, mlir::Type weightsType, mlir::Type outputType);
+void buildMultiClusteringSOHTest(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module,
+                                 mlir::OpBuilder builder, Logger& log, mlir::Type inputType, mlir::Type weightsType,
+                                 mlir::Type outputType);
+void buildMultiClusteringSOKTest(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module,
+                                 mlir::OpBuilder builder, Logger& log, mlir::Type inputType, mlir::Type weightsType,
+                                 mlir::Type outputType);
 
 // TODO: remove buildRaceConditionDMATest and buildRaceConditionDPUTest once buildRaceConditionTest is able to cover
 // all testcases [Track number: E#31468]

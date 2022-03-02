@@ -254,8 +254,10 @@ std::string nb::to_string(CaseType case_) {
         return "RaceConditionDPUDMAACT";
     case CaseType::RaceCondition:
         return "RaceCondition";
-    case CaseType::MultiClustering:
-        return "MultiClustering";
+    case CaseType::MultiClusteringSOH:
+        return "MultiClusteringSOH";
+    case CaseType::MultiClusteringSOK:
+        return "MultiClusteringSOK";
     default:
         return "unknown";
     }
@@ -302,8 +304,10 @@ nb::CaseType nb::to_case(llvm::StringRef str) {
         return CaseType::RaceConditionDPUDMAACT;
     if (isEqual(str, "RaceCondition"))
         return CaseType::RaceCondition;
-    if (isEqual(str, "MultiClustering"))
-        return CaseType::MultiClustering;
+    if (isEqual(str, "MultiClusteringSOH"))
+        return CaseType::MultiClusteringSOH;
+    if (isEqual(str, "MultiClusteringSOK"))
+        return CaseType::MultiClusteringSOK;
     return CaseType::Unknown;
 };
 
@@ -628,7 +632,8 @@ void nb::TestCaseJsonDescriptor::parse(llvm::json::Object json_obj) {
         caseType_ == CaseType::RaceConditionDPU || caseType_ == CaseType::RaceConditionDPUDMA ||
         caseType_ == CaseType::RaceConditionDPUDMAACT || caseType_ == CaseType::ReadAfterWriteDPUDMA ||
         caseType_ == CaseType::ReadAfterWriteDMADPU || caseType_ == CaseType::ReadAfterWriteDPUACT ||
-        caseType_ == CaseType::ReadAfterWriteACTDPU || caseType_ == CaseType::MultiClustering) {
+        caseType_ == CaseType::ReadAfterWriteACTDPU || caseType_ == CaseType::MultiClusteringSOH ||
+        caseType_ == CaseType::MultiClusteringSOK) {
         wtLayer_ = loadWeightLayer(&json_obj);
         convLayer_ = loadConvLayer(&json_obj);
 
