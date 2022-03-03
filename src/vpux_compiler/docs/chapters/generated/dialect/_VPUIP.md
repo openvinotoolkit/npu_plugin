@@ -984,6 +984,34 @@ operation ::= `VPUIP.GeluUPA` attr-dict
 | :----: | ----------- |
 `output` | memref of 16-bit float values
 
+### `VPUIP.HSigmoidUPA` (vpux::VPUIP::HSigmoidUPAOp)
+
+HSigmoid UPA SHAVE kernel
+
+
+Syntax:
+
+```
+operation ::= `VPUIP.HSigmoidUPA` attr-dict
+              `inputs` `(` $input `:` type($input) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of 16-bit float values
+`output_buff` | memref of 16-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float values
+
 ### `VPUIP.HSwishUPA` (vpux::VPUIP::HSwishUPAOp)
 
 HSwish UPA SHAVE kernel

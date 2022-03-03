@@ -1825,6 +1825,29 @@ def IE_AtanhOp :
 }
 
 //
+// HSigmoidOp
+//
+
+def IE_HSigmoidOp :
+        IE_LayerOp<
+            "HSigmoid",
+            [
+                IE_TilingBuilderOpInterface,
+                IE_EltwiseOp
+            ]
+        > {
+    let summary = "InferenceEngine HSigmoid layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$input
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+}
+
+//
 // LogOp
 //
 

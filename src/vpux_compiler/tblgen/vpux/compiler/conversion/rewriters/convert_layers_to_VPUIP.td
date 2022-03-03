@@ -466,6 +466,21 @@ def RewriteAbs :
         >;
 
 //
+// IERT.HSigmoid -> VPUIP.HSigmoidUPA
+//
+
+def createHSigmoidUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::HSigmoidUPAOp>($_loc, $0, $1)
+        }]>;
+
+def RewriteHSigmoid :
+        Pat<
+            (IERT_HSigmoidOp $input, $output),
+            (createHSigmoidUPAOp $input, $output)
+        >;
+
+//
 // IERT.Atan -> VPUIP.AtanUPA
 //
 

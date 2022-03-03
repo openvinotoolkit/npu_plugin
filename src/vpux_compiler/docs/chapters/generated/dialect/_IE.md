@@ -1420,6 +1420,30 @@ operation ::= `IE.GroupConvolution` `(` operands `)` attr-dict `:` type(operands
 | :----: | ----------- |
 `output` | ranked tensor of 16-bit float or 32-bit float or QuantizedType values
 
+### `IE.HSigmoid` (vpux::IE::HSigmoidOp)
+
+InferenceEngine HSigmoid layer
+
+
+Syntax:
+
+```
+operation ::= `IE.HSigmoid` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+
 ### `IE.HSwish` (vpux::IE::HSwishOp)
 
 InferenceEngine HSwish layer

@@ -64,6 +64,7 @@ std::set<ngraph::helpers::ActivationTypes> supportedTypesMLIR {
     ngraph::helpers::Atan,
     ngraph::helpers::Asin,
     ngraph::helpers::Acos,
+    ngraph::helpers::HSigmoid,
 };
 
 } // namespace
@@ -173,6 +174,7 @@ const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes
     {Atan,     {{1.0f}}},
     {Asin,     {{1.0f}}},
     {Acos,     {{1.0f}}},
+    {HSigmoid, {{1.0f}}},
     {RoundHalfToEven,       {}},
     {RoundHalfAwayFromZero, {}},
 #if 0 // Unsupported layers
@@ -197,6 +199,10 @@ const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes
 
 const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypesFP16Only = {
     {Ceiling,  {{1.0f}}},
+};
+
+const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypesHSigmoid = {
+    {HSigmoid, {{1.0f}}},
 };
 
 std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> basic = {
@@ -255,6 +261,16 @@ const auto basicFP16OnlyCases = ::testing::Combine(
     ::testing::ValuesIn(CommonTestUtils::combineParams(basic)),
     ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));
 
+const auto basicCasesHSigmoid = ::testing::Combine(
+    ::testing::ValuesIn(CommonTestUtils::combineParams(activationTypesHSigmoid)),
+    ::testing::ValuesIn(netPrecisions),
+    ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+    ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+    ::testing::Values(InferenceEngine::Layout::ANY),
+    ::testing::Values(InferenceEngine::Layout::ANY),
+    ::testing::ValuesIn(CommonTestUtils::combineParams(basic)),
+    ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));
+
 INSTANTIATE_TEST_SUITE_P(smoke_Activation_Test, KmbActivationLayerTest, basicCases, ActivationLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Activation_Test_PRelu, KmbActivationLayerTest, basicPReluCases, ActivationLayerTest::getTestCaseName);
@@ -262,6 +278,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_Activation_Test_PRelu, KmbActivationLayerTest, ba
 INSTANTIATE_TEST_SUITE_P(smoke_Activation_Test_ND, KmbActivationLayerTest, basicNDCases, ActivationLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Activation_Test_FP16Only, KmbActivationLayerTest, basicFP16OnlyCases, ActivationLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Activation_Test_HSigmoid, KmbActivationLayerTest, basicCasesHSigmoid, ActivationLayerTest::getTestCaseName);
 
 // ------ MTL ------
 

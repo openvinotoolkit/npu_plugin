@@ -283,6 +283,21 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::AbsUPAOp::serialize(VPUIP::BlobWrit
 }
 
 //
+// HSigmoidUPAOp
+//
+
+VPUIP::BlobWriter::SpecificTask vpux::VPUIP::HSigmoidUPAOp::serialize(VPUIP::BlobWriter& writer) {
+    const auto hsigmoid = MVCNN::CreateHSigmoidParams(writer);
+
+    MVCNN::PostOpsParamsBuilder builder(writer);
+    builder.add_nested_params_type(MVCNN::PostOpsNestedParams_HSigmoidParams);
+    builder.add_nested_params(hsigmoid.Union());
+    const auto paramsOff = builder.Finish();
+
+    return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_PostOpsParams});
+}
+
+//
 // AtanUPAOp
 //
 
@@ -659,6 +674,9 @@ mlir::Operation* vpux::VPUIP::BlobReader::parsePostOps(mlir::OpBuilder& builder,
         break;
     case MVCNN::PostOpsNestedParams_AbsParams:
         op = builder.create<VPUIP::AbsUPAOp>(mlir::UnknownLoc::get(_ctx), inputs[0], outputs[0]);
+        break;
+    case MVCNN::PostOpsNestedParams_HSigmoidParams:
+        op = builder.create<VPUIP::HSigmoidUPAOp>(mlir::UnknownLoc::get(_ctx), inputs[0], outputs[0]);
         break;
     case MVCNN::PostOpsNestedParams_AtanParams:
         op = builder.create<VPUIP::AtanUPAOp>(mlir::UnknownLoc::get(_ctx), inputs[0], outputs[0]);

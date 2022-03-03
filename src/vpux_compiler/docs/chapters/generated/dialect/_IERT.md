@@ -1324,6 +1324,34 @@ operation ::= `IERT.GroupConvolution` attr-dict
 | :----: | ----------- |
 `output` | memref of 16-bit float or 32-bit float or QuantizedType values
 
+### `IERT.HSigmoid` (vpux::IERT::HSigmoidOp)
+
+InferenceEngine run-time HSigmoid layer
+
+
+Syntax:
+
+```
+operation ::= `IERT.HSigmoid` attr-dict
+              `inputs` `(` $input `:` type($input) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of 16-bit float or 32-bit float values
+`output_buff` | memref of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float or 32-bit float values
+
 ### `IERT.HSwish` (vpux::IERT::HSwishOp)
 
 InferenceEngine run-time HSwish layer
