@@ -510,7 +510,11 @@ void CMXConcatPass::rewriteInputPattern(ConcatPattern& concatPattern) {
         _log.nest(1).trace("Removing input Copy from NNCMX to DDR '{0}' at '{1}'", concatPart.copyOp->getName(),
                            concatPart.copyOp->getLoc());
         // modify only current concat input as it may have multiple uses
-        concatPattern.concat.setOperand(static_cast<int>(concatPart.inputIdx), concatPart.copyOp.input());
+        auto newConcatInput = concatPart.copyOp.input();
+        if (concatPart.copyClusterOp) {
+            newConcatInput = concatPart.copyClusterOp.getOperand(0);
+        }
+        concatPattern.concat.setOperand(static_cast<int>(concatPart.inputIdx), newConcatInput);
     }
 }
 
@@ -536,19 +540,35 @@ void CMXConcatPass::rewriteOutputPattern(ConcatPattern& concatPattern) {
     for (auto concatPart : concatPattern.concatParts) {
         _log.nest(1).trace("Removing output Copy from DDR to NNCMX '{0}' at '{1}'", concatPart.copyOp->getName(),
                            concatPart.copyOp->getLoc());
-        // change memory space for concat output
+
+        vpux::NDTypeInterface newConcatType;
         const auto origType = concatPattern.concat.output().getType().cast<vpux::NDTypeInterface>();
-        const auto newType = origType.changeMemSpace(VPU::MemoryKind::CMX_NN);
-        concatPattern.concat.output().setType(newType);
+        if (concatPart.nceClusterOp) {
+            // newConcatType = DistributedTensorType::get(origOp.getContext(), shape.raw(), elemType, order, memSpace,
+            //                                      distributedActivationTensorAttr);
+            newConcatType = concatPattern.concat.getOperand(0).getType().cast<vpux::NDTypeInterface>();
+            newConcatType.changeShape(origType.getShape());
+
+        } else {
+            // change memory space for concat output
+            newConcatType = origType.changeMemSpace(VPU::MemoryKind::CMX_NN);
+        }
+
+        concatPattern.concat.output().setType(newConcatType);
         // and for slice op
         if (concatPart.hasSliceOp()) {
-            concatPart.sliceOp.source().setType(newType);
+            // TODO for NCEClsuterTiling
+            concatPart.sliceOp.source().setType(newConcatType);
             const auto sliceOrigType = concatPart.sliceOp.result().getType().cast<vpux::NDTypeInterface>();
             const auto sliceNewType = sliceOrigType.changeMemSpace(VPU::MemoryKind::CMX_NN);
             concatPart.sliceOp.result().setType(sliceNewType);
         }
         // remove the copy out op
-        concatPart.copyOp.output().replaceAllUsesWith(concatPart.copyOp.input());
+        if (concatPart.copyClusterOp) {
+            concatPart.copyClusterOp.getResult(0).replaceAllUsesWith(concatPart.copyClusterOp.getOperand(0));
+        } else {
+            concatPart.copyOp.output().replaceAllUsesWith(concatPart.copyOp.input());
+        }
     }
 }
 
@@ -592,6 +612,7 @@ void CMXConcatPass::safeRunOnFunc() {
         rewriteInputPattern(inputPattern);
         _log.nest(1).trace("Concat rewriteOutputPattern");
         rewriteOutputPattern(outputPattern);
+        func->dump();
         _log.trace("Concat '{0}' at '{1}' was cmx-ed", concat->getName(), concat->getLoc());
     });
 }
