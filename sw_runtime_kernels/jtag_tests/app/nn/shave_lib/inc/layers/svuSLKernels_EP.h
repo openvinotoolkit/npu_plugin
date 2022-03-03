@@ -146,7 +146,8 @@ extern uint32_t SLK_singleShaveMVN;
 extern uint32_t SLK_elu_fp16;
 extern uint32_t SLK_exp_fp16;
 extern uint32_t SLK_tanh_fp16;
-extern uint32_t SLK_power_fp16;
+extern uint32_t SLK_power_fp16; //eltwise
+extern uint32_t SLK_add_fp16;   //eltwise
 extern uint32_t SLK_preCorrelation;
 extern uint32_t SLK_preROIPooling;
 extern uint32_t SLK_preCTCDecoder;
