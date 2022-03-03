@@ -257,6 +257,27 @@ Shape VPU::DistributedTensorType::getCompactShape(int64_t tileInd) const {
     return tiledComputeShapes[tileInd];
 }
 
+// @brief Retrive the array of strided compute shapes
+SmallVector<std::pair<Shape, Strides>> VPU::DistributedTensorType::getPerClusterStridedShapes() const {
+    VPUX_THROW("getPerClusterStridedShapes method is not implemented for DistributedTensorType");
+}
+
+// @brief Get largest strided compute shape
+// @warning This function should not be used for memory size calculation,
+// because it does not retrieve the true allocate shape in cases
+// of broadcasting.
+std::pair<Shape, Strides> VPU::DistributedTensorType::getLargestStridedShape() const {
+    VPUX_THROW("getLargestStridedShape method is not implemented for DistributedTensorType");
+}
+
+// @brief Get the strided compute shape for a specific cluster
+// @warning This function should not be used for memory size calculation,
+// because it does not retrieve the true allocate shape in cases
+// of broadcasting.
+std::pair<Shape, Strides> VPU::DistributedTensorType::getStridedShape(int64_t /*tileInd*/) const {
+    VPUX_THROW("getStridedShape method is not implemented for DistributedTensorType");
+}
+
 //
 // NDTypeInterface
 //

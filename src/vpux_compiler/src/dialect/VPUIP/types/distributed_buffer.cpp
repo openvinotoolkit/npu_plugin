@@ -276,11 +276,16 @@ Shape VPUIP::DistributedBufferType::getCompactShape(int64_t tileInd) const {
     return tiledComputeShapes[tileInd];
 }
 
+// @brief Retrive the array of strided compute shapes
+SmallVector<std::pair<Shape, Strides>> VPUIP::DistributedBufferType::getPerClusterStridedShapes() const {
+    VPUX_THROW("getPerClusterStridedShapes method is not implemented for DistributedBufferType");
+}
+
 // @brief Get largest strided compute shape
 // @warning This function should not be used for memory size calculation,
 // because it does not retrieve the true allocate shape in cases
 // of broadcasting.
-Shape VPUIP::DistributedBufferType::getLargestStridedShape() const {
+std::pair<Shape, Strides> VPUIP::DistributedBufferType::getLargestStridedShape() const {
     VPUX_THROW("getLargestStridedShape method is not implemented for DistributedBufferType");
 }
 
@@ -288,7 +293,7 @@ Shape VPUIP::DistributedBufferType::getLargestStridedShape() const {
 // @warning This function should not be used for memory size calculation,
 // because it does not retrieve the true allocate shape in cases
 // of broadcasting.
-Shape VPUIP::DistributedBufferType::getStridedShape(int64_t /*tileInd*/) const {
+std::pair<Shape, Strides> VPUIP::DistributedBufferType::getStridedShape(int64_t /*tileInd*/) const {
     VPUX_THROW("getStridedShape method is not implemented for DistributedBufferType");
 }
 
