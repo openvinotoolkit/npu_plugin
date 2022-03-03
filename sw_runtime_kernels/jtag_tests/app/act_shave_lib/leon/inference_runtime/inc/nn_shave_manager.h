@@ -31,6 +31,9 @@ public:
     ShaveManager(const common_runtime::StaticMapping &sMapping);
     ~ShaveManager();
 
+    void startNNShavesForTile(const uint32_t tile);
+    void startNNShavesForTiles();
+    void stopNNShavesForTileMask(uint32_t mask);
     void startNNShavesForTileMask(uint32_t mask);
 
     /// These functions reduce to a noop if the shaves are already running, they match the requested configuration, and
@@ -39,11 +42,18 @@ public:
     void startActShavesForTile(const uint32_t tile, const ActKernelRuntimeConfigs &cfgs, bool forceRestart = false);
     void startActShavesForTiles(const ActKernelRuntimeConfigs &cfgs, bool forceRestart = false);
 
+    void stopNNShavesForTile(const uint32_t tile);
+    void stopNNShavesForTiles();
+
     void stopActShavesForTile(const uint32_t tile);
     void stopActShavesForTiles();
 
+    void updateSNNConfigsForTile(const uint32_t tile, const common_runtime::NNShaveRuntimeConfigs &cfgs);
+    void updateSNNConfigsForTiles(const common_runtime::NNShaveRuntimeConfigs &cfgs);
+
 private:
     void startActShaves(const uint8_t tile, const ActKernelRuntimeConfigs &cfgs);
+    bool processConfigChanges(const uint8_t tile, const common_runtime::NNShaveRuntimeConfigs &cfgs);
     bool processConfigChanges(const uint8_t tile, const ActKernelRuntimeConfigs &cfgs);
     void initActRtCodeBuffer(const uint8_t tile);
 
@@ -61,6 +71,7 @@ private:
     actRuntimeEntry actShvEntries[MAX_TILES]{0};
     uint8_t *actShvTextsBuffers[MAX_TILES]{nullptr};
     uint32_t actShvTxtBuffSizes[MAX_TILES]{0};
+    uint32_t perfMasks[common_runtime::MAX_TILES]{0};
 };
 
 } // namespace shaves

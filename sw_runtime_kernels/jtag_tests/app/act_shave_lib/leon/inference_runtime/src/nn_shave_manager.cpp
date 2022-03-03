@@ -250,6 +250,41 @@ void ShaveManager::startActShavesForTiles(const ActKernelRuntimeConfigs &cfgs, b
     startActShavesForTile(1, cfgs, forceRestart);
 }
 
+void ShaveManager::startActShavesForTiles(const NNShaveRuntimeConfigs &cfgs, bool forceRestart) {
+    startActShavesForTile(0, cfgs, forceRestart);
+    startActShavesForTile(1, cfgs, forceRestart);
+}
+
+void ShaveManager::stopNNShavesForTile(uint32_t tile) {
+    // Shave IDs, depending on the tile
+    const uint32_t startShvId = tile * SNN_PER_TILE;
+    const uint32_t maxShvId = startShvId + SNN_PER_TILE;
+
+    for (uint32_t i = startShvId; i < maxShvId; i++) {
+        auto rc = ShaveCtrlStop(nnShvHnd[i]);
+        if (rc != SHAVE_CTRL_SUCCESS)
+            nnLog(MVLOG_ERROR, "ShaveCtrlStop: rc = %x", (int)rc);
+    }
+}
+
+void ShaveManager::stopNNShavesForTiles() {
+    static_assert(MAX_TILES == HGL_NCE_TILE_NB, "Supports up to 2 tiles only");
+    stopNNShavesForTile(TILE_0);
+    stopNNShavesForTile(TILE_1);
+}
+
+void ShaveManager::stopNNShavesForTileMask(uint32_t mask) {
+    for (unsigned int i = 0; i < MAX_TILES; i++)
+        if (mask & (1 << i))
+            stopNNShavesForTile(i);
+}
+
+void ShaveManager::startNNShavesForTileMask(uint32_t mask) {
+    for (unsigned int i = 0; i < MAX_TILES; i++)
+        if (mask & (1 << i))
+            startNNShavesForTile(i);
+}
+
 void ShaveManager::stopActShavesForTile(uint32_t tile) {
     const unsigned int startAct = tile ? AS0_TILE1_GLOBAL_SHAVE_INDEX : AS0_TILE0_GLOBAL_SHAVE_INDEX;
     const unsigned int finalAct = startAct + AS_PER_TILE;
