@@ -12,6 +12,8 @@
 //
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
+#include "vpux/compiler/dialect/IE/utils/shape_infer.hpp"
+#include "vpux/compiler/dialect/const/ops.hpp"
 
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/error.hpp"
@@ -20,7 +22,7 @@
 
 using namespace vpux;
 
-mlir::LogicalResult vpux::IE::AdaptiveAvgPoolOpAdaptor::inferReturnTypeComponents(
+mlir::LogicalResult vpux::IE::AdaptiveAvgPoolOp::inferReturnTypeComponents(
         mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
         mlir::DictionaryAttr attrs, mlir::RegionRange,
         SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
@@ -31,27 +33,17 @@ mlir::LogicalResult vpux::IE::AdaptiveAvgPoolOpAdaptor::inferReturnTypeComponent
         return mlir::failure();
     }
 
-    const auto inTypeFeatureMap = adaptiveAvgPool.input1().getType().cast<mlir::ShapedType>();
-    const auto inShapeFeatureMap = inTypeFeatureMap.getShape();
-    const auto inTypePooled = adaptiveAvgPool.input2().getType().cast<mlir::ShapedType>();
-    const auto inShapePooled = inTypePooled.getShape();
+    const auto inputType = adaptiveAvgPool.input().getType().cast<mlir::ShapedType>();
+    const auto inputShape = inputType.getShape();
+    auto pooledSpatialShape = IE::constInputToData(loc, adaptiveAvgPool.pooled_spatial_shape()).getValue();
 
-
-    if (inShapeFeatureMap.size() != 4) {
-        return errorAt(loc, "Dimension of the feature maps input should be 4. Got {0} D tensor",
-                       inShapeFeatureMap.size());
+    SmallVector<int64_t> outputShape;
+    outputShape.push_back(inputShape[0]);
+    outputShape.push_back(inputShape[1]);
+    for (size_t i = 0; i < pooledSpatialShape.size(); i++) {
+        outputShape.push_back(pooledSpatialShape[i]);
     }
 
-    if (inShapePooled.size() != 1) {
-        return errorAt(loc, "Dimension of the pooled shape input with box coordinates should be 1. Got {0} D tensor",
-                       inShapePooled.size());
-    }
-
-    SmallVector<int64_t> output_shape;
-    output_shape.push_back(inShapeFeatureMap[0]);
-    output_shape.push_back(inShapeFeatureMap[1]);
-
-    inferredReturnShapes.emplace_back(output_shape, inTypeFeatureMap.getElementType());
+    inferredReturnShapes.emplace_back(outputShape, inputType.getElementType());
     return mlir::success();
 }
-

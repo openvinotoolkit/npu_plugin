@@ -109,16 +109,16 @@ operation ::= `VPUIP.AcoshUPA` attr-dict
 | :----: | ----------- |
 `output` | memref of 16-bit float values
 
-### `VPUIP.AdaptiveAvgUPA` (vpux::VPUIP::AdaptiveAvgUPAOp)
+### `VPUIP.AdaptivePoolUPA` (vpux::VPUIP::AdaptivePoolUPAOp)
 
-Adaptive UPA SHAVE kernel
+Adaptive AVG UPA SHAVE kernel
 
 
 Syntax:
 
 ```
-operation ::= `VPUIP.AdaptiveAvgUPA` attr-dict
-              `inputs` `(` $input1 `:` type($input1) `,` $input2 `:` type($input2) `)`
+operation ::= `VPUIP.AdaptivePoolUPA` attr-dict
+              `inputs` `(` $input `:` type($input) `,` $pooled_spatial_shape `:` type($pooled_spatial_shape) `)`
               `outputs` `(` $output_buff `:` type($output_buff) `)`
               `->` type(results)
 ```
@@ -128,15 +128,15 @@ operation ::= `VPUIP.AdaptiveAvgUPA` attr-dict
 
 | Operand | Description |
 | :-----: | ----------- |
-`input1` | memref of 16-bit float values
-`input2` | memref of 16-bit float values
-`output_buff` | memref of 16-bit float values
+`input` | memref of 16-bit float or 32-bit float values
+`pooled_spatial_shape` | memref of 32-bit signed integer or 64-bit signed integer values
+`output_buff` | memref of 16-bit float or 32-bit float values
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-`output` | memref of 16-bit float values
+`output` | memref of 16-bit float or 32-bit float values
 
 ### `VPUIP.AsinUPA` (vpux::VPUIP::AsinUPAOp)
 

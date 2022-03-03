@@ -307,16 +307,14 @@ def IERT_AdaptiveAvgPoolOp :
         IERT_LayerOp<1, "AdaptiveAvgPool",
             [
                 ViewLikeOpInterface,
-                SameOperandsElementType
             ]
         > {
     let summary = "InferenceEngine run-time AdaptiveAvgPool layer";
 
     let arguments = (ins
-        MemRefOf<[F16, F32]>:$input1,
-        MemRefOf<[F16, F32]>:$input2,
-        MemRefOf<[F16, F32]>:$output_buff,
-        IE_AdaptivePoolMode:$mode
+        MemRefOf<[F16, F32]>:$input,
+        MemRefOf<[SI32, SI64]>:$pooled_spatial_shape,
+        MemRefOf<[F16, F32]>:$output_buff
     );
 
     let results = (outs
@@ -325,7 +323,7 @@ def IERT_AdaptiveAvgPoolOp :
 
     let assemblyFormat = [{
         attr-dict
-        `inputs` `(` $input1 `:` type($input1) `,` $input2 `:` type($input2) `)`
+        `inputs` `(` $input `:` type($input) `,` $pooled_spatial_shape `:` type($pooled_spatial_shape) `)`
         `outputs` `(` $output_buff `:` type($output_buff) `)`
         `->` type(results)
     }];

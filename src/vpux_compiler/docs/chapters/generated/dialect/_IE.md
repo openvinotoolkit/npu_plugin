@@ -160,18 +160,12 @@ operation ::= `IE.AdaptiveAvgPoolOp` `(` operands `)` attr-dict `:` type(operand
 ```
 
 
-#### Attributes:
-
-| Attribute | MLIR Type | Description |
-| :-------: | :-------: | ----------- |
-`method` | vpux::IE::AdaptivePoolMethodAttr | AdaptivePoolMethod that the InferenceEngine supports
-
 #### Operands:
 
 | Operand | Description |
 | :-----: | ----------- |
-`input1` | ranked tensor of 16-bit float or 32-bit float values
-`input2` | ranked tensor of 16-bit float or 32-bit float values
+`input` | ranked tensor of 16-bit float or 32-bit float values
+`pooled_spatial_shape` | 1D tensor of 32-bit signed integer or 64-bit signed integer values
 
 #### Results:
 

@@ -290,7 +290,7 @@ private:
     IE::InterpolateAttr importInterpolateAttrs(const opset_latest::Interpolate::InterpolateAttrs& val);
     IE::DetectionOutputAttr importDetectionOutputAttrs(const ngraph::op::DetectionOutputAttrs& val);
     IE::ROIPoolingMethodAttr importROIPoolingMethod(const std::string& method);
-    IE::AdaptivePoolMethodAttr NGraphImporter::importAdaptivePoolMethod(const std::string& method);
+    // IE::AdaptivePoolMethodAttr NGraphImporter::importAdaptivePoolMethod(const std::string& mode);
     IE::ROIAlignMethodAttr importROIAlignMethod(const ngraph::op::v3::ROIAlign::PoolingMode& mode);
     IE::PadModeAttr importPadMode(const ngraph::op::PadMode val);
     IE::RoundModeAttr importRoundMode(const ngraph::op::v5::Round::RoundMode val);
@@ -782,7 +782,8 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
     addOutputs(origNode, op);
 }
 
-void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset8::AdaptiveAvgPool>& origNode) {
+void NGraphImporter::parseNode(mlir::OpBuilder& builder,
+                               const std::shared_ptr<ngraph::opset8::AdaptiveAvgPool>& origNode) {
     static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v8::AdaptiveAvgPool>::value,
                   "opset operation mismatch");
 
@@ -790,8 +791,7 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<n
     VPUX_THROW_UNLESS(inputs.size() == 2, "nGraph node '{0}' has unsupported number of inputs '{1}'",
                       origNode->get_friendly_name(), inputs.size());
 
-    const auto method = importAdaptivePoolMethod(origNode->get_mode());
-    auto op = builder.create<IE::AdaptiveAvgPoolOp>(createLocation(origNode), inputs[0], inputs[1], method);
+    auto op = builder.create<IE::AdaptiveAvgPoolOp>(createLocation(origNode), inputs[0], inputs[1]);
     addOutputs(origNode, op);
 }
 
@@ -2462,17 +2462,17 @@ IE::ROIPoolingMethodAttr NGraphImporter::importROIPoolingMethod(const std::strin
     return attr;
 }
 
-IE::AdaptivePoolMethodAttr NGraphImporter::importAdaptivePoolMethod(const std::string& method) {
-    IE::AdaptivePoolMethodAttr attr;
-    if (method == "avg") {
-        attr = IE::AdaptivePoolMethodAttr::get(_ctx, IE::AdaptivePoolMethod::avg);
-    } else if (method == "max") {
-        attr = IE::AdaptivePoolMethodAttr::get(_ctx, IE::AdaptivePoolMethod::max);
-    } else {
-        VPUX_THROW("Unknown AdaptivePoolMethod");
-    }
-    return attr;
-}
+// IE::AdaptivePoolMethodAttr NGraphImporter::importAdaptivePoolMethod(const std::string& mode) {
+//     IE::AdaptivePoolMethodAttr attr;
+//     if (mode == "avg") {
+//         attr = IE::AdaptivePoolMethodAttr::get(_ctx, IE::AdaptivePoolMethod::AVG);
+//     } else if (mode == "max") {
+//         attr = IE::AdaptivePoolMethodAttr::get(_ctx, IE::AdaptivePoolMethod::MAX);
+//     } else {
+//         VPUX_THROW("Unknown AdaptivePoolMethod");
+//     }
+//     return attr;
+// }
 
 IE::ROIAlignMethodAttr NGraphImporter::importROIAlignMethod(const ngraph::op::v3::ROIAlign::PoolingMode& mode) {
     IE::ROIAlignMethodAttr attr;

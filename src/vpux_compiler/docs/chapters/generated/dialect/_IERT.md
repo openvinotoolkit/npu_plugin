@@ -156,24 +156,18 @@ Syntax:
 
 ```
 operation ::= `IERT.AdaptiveAvgPool` attr-dict
-              `inputs` `(` $input1 `:` type($input1) `,` $input2 `:` type($input2) `)`
+              `inputs` `(` $input `:` type($input) `,` $pooled_spatial_shape `:` type($pooled_spatial_shape) `)`
               `outputs` `(` $output_buff `:` type($output_buff) `)`
               `->` type(results)
 ```
 
 
-#### Attributes:
-
-| Attribute | MLIR Type | Description |
-| :-------: | :-------: | ----------- |
-`method` | vpux::IE::AdaptivePoolMethodAttr | AdaptivePoolMethod that the InferenceEngine supports
-
 #### Operands:
 
 | Operand | Description |
 | :-----: | ----------- |
-`input1` | memref of 16-bit float or 32-bit float values
-`input2` | memref of 16-bit float or 32-bit float values
+`input` | memref of 16-bit float or 32-bit float values
+`pooled_spatial_shape` | memref of 32-bit signed integer or 64-bit signed integer values
 `output_buff` | memref of 16-bit float or 32-bit float values
 
 #### Results:

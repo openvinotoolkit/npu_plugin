@@ -4,21 +4,19 @@
 
 #include <vector>
 
+#include <common/functions.h>
 #include "common_test_utils/test_constants.hpp"
 #include "kmb_layer_test.hpp"
 #include "single_layer_tests/adaptive_pooling.hpp"
-#include <common/functions.h>
 
 namespace LayerTestsDefinitions {
 
 class KmbAdaPoolLayerTest : public AdaPoolLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
     void SkipBeforeLoad() override {
-        if (isCompilerMCM()) {
-            if (envConfig.IE_KMB_TESTS_RUN_INFER) {
-                // [Track number: S#44493]
-                // Test hangs on the the board
-                throw LayerTestsUtils::KmbSkipTestException("Issues with MCM compiler");
-            }
+        std::string poolingMode;
+        std::tie(std::ignore, std::ignore, poolingMode, std::ignore, targetDevice) = this->GetParam();
+        if (poolingMode == "max") {
+            throw LayerTestsUtils::KmbSkipTestException("MAX mode is unsupported for now");
         }
     }
 };
@@ -32,29 +30,45 @@ TEST_P(KmbAdaPoolLayerTest, CompareWithRefs_MLIR) {
 
 using namespace LayerTestsDefinitions;
 
-/* ============= Adaptive_AVG_Pool / 3D ============= */
+const std::vector<InferenceEngine::Precision> netPrecisions = {
+        InferenceEngine::Precision::FP16,
+        InferenceEngine::Precision::FP32,
 
-     const std::vector<InferenceEngine::Precision> inputPrecisions = {
-           // InferenceEngine::Precision::FP32,
-            InferenceEngine::Precision::FP16,
-        //    InferenceEngine::Precision::U8,
-    };
+};
 
+const auto AdaPoolAvg3DCases =
+        ::testing::Combine(::testing::ValuesIn(std::vector<std::vector<size_t>>{{2, 3, 7}}),  // inputShape
+                           ::testing::ValuesIn(std::vector<std::vector<int>>{{3}}),           // pooledSpatialShape
+                           ::testing::ValuesIn(std::vector<std::string>{"avg"}),              // mode
+                           ::testing::ValuesIn(netPrecisions),                                // precision
+                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));     // device
 
-const auto AdaPool3DCases =
-        ::testing::Combine(::testing::ValuesIn(
-                std::vector<std::vector<size_t>> {
-                        // { 1, 2, 1},
-                        // { 1, 1, 3 },
-                        // { 3, 17, 5 }}
-                    {1, 3, 32, 32}
-                }),
+INSTANTIATE_TEST_CASE_P(smoke_TestsAdaPoolAvg3D, KmbAdaPoolLayerTest, AdaPoolAvg3DCases,
+                        KmbAdaPoolLayerTest::getTestCaseName);
 
-        ::testing::ValuesIn(std::vector<std::vector<int>>{ {1}, {3}, {5} }),
-        ::testing::ValuesIn(std::vector<std::string>{"avg"}),
-        ::testing::ValuesIn(inputPrecisions),
-        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)
-);
+const auto AdaPoolAvg4DCases =
+        ::testing::Combine(::testing::ValuesIn(std::vector<std::vector<size_t>>{{1, 3, 32, 32}}),  // inputShape
+                           ::testing::ValuesIn(std::vector<std::vector<int>>{{16, 16}}),           // pooledSpatialShape
+                           ::testing::ValuesIn(std::vector<std::string>{"avg"}),                   // mode
+                           ::testing::ValuesIn(netPrecisions),                                     // precision
+                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));          // device
+INSTANTIATE_TEST_CASE_P(smoke_TestsAdaPoolAvg4D, KmbAdaPoolLayerTest, AdaPoolAvg4DCases,
+                        KmbAdaPoolLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_TestsAdaPool3D, KmbAdaPoolLayerTest, AdaPool3DCases, KmbAdaPoolLayerTest::getTestCaseName);
+const auto AdaPoolAvg5DCases =
+        ::testing::Combine(::testing::ValuesIn(std::vector<std::vector<size_t>>{{1, 17, 4, 5, 4}}),  // inputShape
+                           ::testing::ValuesIn(std::vector<std::vector<int>>{{3, 5, 3}}),  // pooledSpatialShape
+                           ::testing::ValuesIn(std::vector<std::string>{"avg"}),           // mode
+                           ::testing::ValuesIn(netPrecisions),                             // precision
+                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));  // device
+INSTANTIATE_TEST_CASE_P(smoke_TestsAdaPoolAvg5D, KmbAdaPoolLayerTest, AdaPoolAvg5DCases,
+                        KmbAdaPoolLayerTest::getTestCaseName);
 
+const auto AdaPoolMax3DCases =
+        ::testing::Combine(::testing::ValuesIn(std::vector<std::vector<size_t>>{{2, 2, 3}}),  // inputShape
+                           ::testing::ValuesIn(std::vector<std::vector<int>>{{1}}),           // pooledSpatialShape
+                           ::testing::ValuesIn(std::vector<std::string>{"max"}),              // mode
+                           ::testing::ValuesIn(netPrecisions),                                // precision
+                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));     // device
+INSTANTIATE_TEST_CASE_P(smoke_TestsAdaPoolMax3D, KmbAdaPoolLayerTest, AdaPoolMax3DCases,
+                        KmbAdaPoolLayerTest::getTestCaseName);

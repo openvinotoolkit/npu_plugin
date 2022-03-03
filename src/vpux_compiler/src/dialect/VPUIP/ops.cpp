@@ -817,7 +817,7 @@ void redirectOpInterfacesForIERT(mlir::DialectRegistry& registry) {
 
     registry.addOpInterface<IERT::ConvertOp, OpModelForSW>();
     registry.addOpInterface<IERT::SoftMaxOp, OpModelForSW>();
-    registry.addOpInterface<IERT::AvgPoolOp, OpModelForSW>();
+    registry.addOpInterface<IERT::AdaptiveAvgPoolOp, OpModelForSW>();
     registry.addOpInterface<IERT::ReLUOp, OpModelForSW>();
     registry.addOpInterface<IERT::SigmoidOp, OpModelForSW>();
     registry.addOpInterface<IERT::SignOp, OpModelForSW>();
@@ -926,7 +926,6 @@ void vpux::VPUIP::VPUIPDialect::setupExtraInterfaces(mlir::DialectRegistry& regi
     registry.addOpInterface<IE::ConvolutionOp, AlignedChannelsOpModel<IE::ConvolutionOp>>();
     registry.addOpInterface<IE::GroupConvolutionOp, AlignedChannelsOpModel<IE::GroupConvolutionOp>>();
     registry.addOpInterface<IE::MaxPoolOp, AlignedChannelsOpModel<IE::MaxPoolOp>>();
-    registry.addOpInterface<IE::AdaptiveAvgPoolOp, AlignedChannelsOpModel<IE::AdaptiveAvgPoolOp>>();
     registry.addOpInterface<IE::AddOp, AlignedChannelsOpModel<IE::AddOp>>();
     registry.addOpInterface<IE::MultiplyOp, AlignedChannelsOpModel<IE::MultiplyOp>>();
     registry.addOpInterface<IE::SubtractOp, AlignedChannelsOpModel<IE::SubtractOp>>();

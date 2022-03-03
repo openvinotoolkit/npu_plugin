@@ -25,78 +25,24 @@
 
 using namespace vpux;
 
-namespace {
-// This method converts value from AdaptivePoolMode view to corresponds t_AdaptivePool_mode view from runtime
-MVCNN::AdaptivePoolMode AdaptivePoolMode2Int32(IE::AdaptivePoolMode mode) {
-    MVCNN::AdaptivePoolMode out_code = MVCNN::AdaptivePoolMode::AdaptivePoolMode_AVG;
-    switch (mode) {
-    case IE::AdaptivePoolMode::avg:
-        out_code = MVCNN::AdaptivePoolMode::AdaptivePoolMode_AVG;
-        break;
-    case IE::AdaptivePoolMode::max:
-        out_code = MVCNN::AdaptivePoolMode::AdaptivePoolMode_MAX;
-        break;
-    default:
-        VPUX_THROW("Unknown AdaptivePoolMode, avg and max modes are supported only");
-    }
-    return out_code;
-}
-}  // namespace
-
 mlir::LogicalResult vpux::VPUIP::verifyOp(AdaptivePoolUPAOp op) {
-    const auto inShapeFeatureMap = getShape(op.input());
-    const auto inShapeCoord = getShape(op.coords());
+    const auto inputShape = getShape(op.input());
+    const auto pooledSpatialShape = getShape(op.pooled_spatial_shape());
 
-    if (inShapeFeatureMap.size() != 4) {
-        return errorAt(op, "Dimension of the feature maps input should be 4. Got {0} D tensor",
-                       inShapeFeatureMap.size());
+    if (inputShape.size() != 3 && inputShape.size() != 4 && inputShape.size() != 5) {
+        return errorAt(op, "Input shape should have 3, 4 or 5 dimensions");
     }
-
-    if (inShapeCoord.size() != 2) {
-        return errorAt(op, "Dimension of the ROIs input with box coordinates should be 2. Got {0} D tensor",
-                       inShapeCoord.size());
-    }
-
-    const auto output_dim = op.output_dim();
-
-    if (output_dim <= 0) {
-        return errorAt(op, "Attribute output_dim should be positive.");
+    if (pooledSpatialShape.size() != 1) {
+        return errorAt(op, "Dimension of input2 should be 1. Got {0} D tensor", pooledSpatialShape.size());
     }
 
     return mlir::success();
 }
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::AdaptivePoolUPAOp::serialize(VPUIP::BlobWriter& writer) {
-
-    const auto _mode = mode().hasValue() ? mode().getValue() : IE::AdaptivePoolMode::avg;
-
-    MVCNN::AdaptivePoolParamsBuilder builder(writer);
-
-    builder.add_mode(AdaptivePoolMode2Int32(_mode));
+    MVCNN::AdaptiveAvgPoolParamsBuilder builder(writer);
 
     const auto paramsOff = builder.Finish();
 
-    return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_AdaptivePool});
-}
-
-mlir::Operation* vpux::VPUIP::BlobReader::parseAdaptivePool(mlir::OpBuilder& builder, ArrayRef<mlir::Value> inputs,
-                                                            ArrayRef<mlir::Value> outputs,
-                                                            const MVCNN::UPALayerTask* task) {
-    VPUX_THROW_UNLESS(inputs.size() == 2, "UPAAdaptivePool supports only 2 inputs, got {0}", inputs.size());
-    VPUX_THROW_UNLESS(outputs.size() == 1, "UPAAdaptivePool supports only 1 output, got {0}", outputs.size());
-
-    IE::AdaptivePoolMode mode;
-    switch (params->mode()) {
-    case 0:
-        mode = IE::AdaptivePoolMode::avg;
-        break;
-    case 1:
-        mode = IE::AdaptivePoolMode::max;
-        break;
-    default:
-        VPUX_THROW("Unknown AdaptivePoolMode. avg and max mode are supported only");
-    }
-
-    return builder.create<VPUIP::AdaptivePoolUPAOp>(mlir::UnknownLoc::get(_ctx), inputs[0], inputs[1], outputs[0],
-                                                   IE::AdaptivePoolModeAttr::get(_ctx, mode));
+    return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_AdaptiveAvgPoolParams});
 }

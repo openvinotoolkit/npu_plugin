@@ -323,24 +323,24 @@ def VPUIP_PoolingUPAOp :
 // AdaptiveAvgUPAOp
 //
 
-def VPUIP_AdaptiveAvgUPAOp :
-        VPUIP_UPATaskOp<1, "AdaptiveAvgUPA",
+def VPUIP_AdaptivePoolUPAOp :
+        VPUIP_UPATaskOp<1, "AdaptivePoolUPA",
             [
                 ViewLikeOpInterface,
-                IERT_SameElementType,
-                IERT_SameInOutDimsOrder_CHW_HWC_NCHW_NHWC
+                IERT_SameInOutDimsOrder
             ]
         > {
-    let summary = "Adaptive UPA SHAVE kernel";
+    let summary = "Adaptive AVG UPA SHAVE kernel";
 
     let arguments = (ins
-        F16MemRef:$input1,
-        F16MemRef:$input2,
-        F16MemRef:$output_buff
+        MemRefOf<[F16, F32]>:$input,
+        MemRefOf<[SI32, SI64]>:$pooled_spatial_shape,
+        MemRefOf<[F16, F32]>:$output_buff
+
     );
 
     let results = (outs
-        F16MemRef:$output
+        MemRefOf<[F16, F32]>:$output
     );
 
     let verifier = [{
@@ -349,7 +349,7 @@ def VPUIP_AdaptiveAvgUPAOp :
 
     let assemblyFormat = [{
         attr-dict
-        `inputs` `(` $input1 `:` type($input1) `,` $input2 `:` type($input2) `)`
+        `inputs` `(` $input `:` type($input) `,` $pooled_spatial_shape `:` type($pooled_spatial_shape) `)`
         `outputs` `(` $output_buff `:` type($output_buff) `)`
         `->` type(results)
     }];

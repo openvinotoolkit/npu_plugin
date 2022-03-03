@@ -993,10 +993,9 @@ def IE_AdaptiveAvgPoolOp :
     let summary = "InferenceEngine AdaptiveAvgPool layer";
 
     let arguments = (ins
-        RankedTensorOf<[F16, F32]>:$input1,
-        RankedTensorOf<[F16, F32]>:$input2,
+        RankedTensorOf<[F16, F32]>:$input,
+        1DTensorOf<[SI32, SI64]>:$pooled_spatial_shape
 
-        OptionalAttr<IE_AdaptivePoolMode>:$mode
     );
 
     let results = (outs
