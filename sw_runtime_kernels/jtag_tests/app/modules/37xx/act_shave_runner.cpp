@@ -58,7 +58,7 @@ using namespace nn;
 extern bool HglShaveAccessAllowed[HGL_SHAVE_TYPE_NB];
 
 //  FIXME: Temporarily are located on CMX due to problem of ACT_SHAVE cache invalidation
-nn::act_runtime::ActKernelRuntimeConfigs actRtConfigs __attribute__((section(".nncmx0.shared.data")));   // Initialize properly
+nn::common_runtime::NNShaveRuntimeConfigs actRtConfigs __attribute__((section(".nncmx0.shared.data")));   // Initialize properly
 act_runtime::ActKernelRange kRange __attribute__((section(".nncmx0.shared.data")));
 act_runtime::ActKernelInvocation kInvo __attribute__((section(".nncmx0.shared.data")));
 
@@ -101,7 +101,7 @@ bool ShaveTaskRunner::enqueTask(Op * operation,
 
     CustomCpp * customOp = static_cast<CustomCpp*>(operation);
 
-    actRtConfigs.runtimeEntry_ = reinterpret_cast<nn::act_runtime::actRuntimeEntry>(sk_nnActEntry_3010xx_text);
+    actRtConfigs.runtimeEntry_ = reinterpret_cast<nn::common_runtime::actRuntimeEntry>(sk_nnActEntry_3010xx_text);
     actRtConfigs.actRtWindowBase_ = reinterpret_cast<unsigned char*>(sk_nnActEntry_3010xx_text);
 
     operation->parse(&layer);

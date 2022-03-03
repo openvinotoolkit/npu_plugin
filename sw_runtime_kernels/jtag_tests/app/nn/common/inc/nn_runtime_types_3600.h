@@ -706,7 +706,7 @@ extern "C" struct ActKernelRuntimeConfigs {
 
     // when useScheduleEmbeddedRt = true
     // this is a windowed address
-    act_runtime::actRuntimeEntry runtimeEntry_{nullptr};
+    nn::common_runtime::actRuntimeEntry runtimeEntry_{nullptr};
 
     // when useScheduleEmbeddedRt = false; FW copies ActRt to this buffer
     // when useScheduleEmbeddedRt = true; buffer already contains the ActRt

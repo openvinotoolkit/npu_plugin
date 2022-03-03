@@ -100,7 +100,7 @@ ShaveManager::~ShaveManager(void) {
     }
 }
 
-bool ShaveManager::processConfigChanges(const uint8_t tile, const ActKernelRuntimeConfigs &cfgs) {
+bool ShaveManager::processConfigChanges(const uint8_t tile, const common_runtime::NNShaveRuntimeConfigs &cfgs) {
     bool foundChanges{false};
 
     if (cfgs.actRtWindowBase_ != nullptr) {
@@ -149,7 +149,7 @@ void ShaveManager::initActRtCodeBuffer(const uint8_t tile) {
 }
 
 #ifdef CONFIG_VALIDATION_APP_ENABLED
-void ShaveManager::initActRtStacksAndDatas(const uint8_t tile, const ActKernelRuntimeConfigs &cfgs) {
+void ShaveManager::initActRtStacksAndDatas(const uint8_t tile, const common_runtime::NNShaveRuntimeConfigs &cfgs) {
     // TODO: Implement this when the compiler is ready to embed the ActRT into the blob
     nnLog(MVLOG_DEBUG, "Validation App Mode: Using embedded Act stacks");
 
@@ -174,7 +174,7 @@ void ShaveManager::initActRtStacksAndDatas(const uint8_t tile, const ActKernelRu
 }
 #endif
 
-void ShaveManager::startActShaves(const uint8_t tile, const ActKernelRuntimeConfigs &cfgs) {
+void ShaveManager::startActShaves(const uint8_t tile, const common_runtime::NNShaveRuntimeConfigs &cfgs) {
     static_assert(AS_PER_TILE == SUPPORTED_ACT_SHV_PER_TILE_NB, "Only 2 ActShvs per tile is supported");
 
     // Check that we are operating on a supported tile ID
@@ -226,8 +226,78 @@ void ShaveManager::startActShaves(const uint8_t tile, const ActKernelRuntimeConf
         }
     }
 }
+//void ShaveManager::startActShaves(const uint8_t tile, const ActKernelRuntimeConfigs &cfgs) {
+//    static_assert(AS_PER_TILE == SUPPORTED_ACT_SHV_PER_TILE_NB, "Only 2 ActShvs per tile is supported");
+//
+//    // Check that we are operating on a supported tile ID
+//    if (!(tile < MAX_TILES)) {
+//        nnLog(MVLOG_ERROR, "Invalid Shave type selected");
+//        return;
+//    }
+//
+//    // Shave IDs, depending on the tile
+//    const uint32_t startShvId = tile * AS_PER_TILE;
+//    const uint32_t maxShvId = startShvId + AS_PER_TILE;
+//
+//    // Set stack location, set the stack size, then start the Shave
+//    for (uint32_t i = startShvId; i < startShvId + 1; i++) {
+//        nnLog(MVLOG_DEBUG, "ACTSHV %d stack addr @ %p", i, actShvStacks[i]);
+//        auto rc = ShCtrlSetStackAddr(actShvHnd[i], actShvStacks[i]);
+//        if (rc != HGL_SHAVE_CTRL_SUCCESS) {
+//            nnLog(MVLOG_ERROR, "ActShaveCtrlSetStackAddr: %d", (int)rc);
+//        }
+//
+//        nnLog(MVLOG_DEBUG, "ACTSHV %d stack size = 0x%x", i, cfgs.stackSize_);
+//        rc = ShCtrlSetStackSize(actShvHnd[i], cfgs.stackSize_);
+//        if (rc != HGL_SHAVE_CTRL_SUCCESS) {
+//            nnLog(MVLOG_ERROR, "ActShaveCtrlSetStackSize: %d", (int)rc);
+//        }
+//
+//        nnLog(MVLOG_DEBUG, "ACTSHV %d WIN_%d = %p", i, mapWindowAddrMaskToName(ACT_RT_CODE_WINDOW),
+//              reinterpret_cast<uint32_t>(actShvTextsBuffers[tile]));
+//        rc = ShCtrlSetWindowAddr(actShvHnd[i], mapWindowAddrMaskToName(ACT_RT_CODE_WINDOW),
+//                                    reinterpret_cast<uint32_t>(actShvTextsBuffers[tile]));
+//        if (rc != HGL_SHAVE_CTRL_SUCCESS) {
+//            nnLog(MVLOG_ERROR, "ShaveCtrlSetWindowAddr (for RT code buffer): 0x%x", ACT_RT_CODE_WINDOW);
+//        }
+//
+//        nnLog(MVLOG_DEBUG, "ACTSHV %d WIN_%d = %p", i, mapWindowAddrMaskToName(ACT_CMX_WINDOW),
+//              cmxMapping.workareas_[tile].addr32());
+//        rc = ShCtrlSetWindowAddr(actShvHnd[i], mapWindowAddrMaskToName(ACT_CMX_WINDOW),
+//                                    cmxMapping.workareas_[tile].addr32());
+//        if (rc != HGL_SHAVE_CTRL_SUCCESS) {
+//            nnLog(MVLOG_ERROR, "ShaveCtrlSetWindowAddr (for window into CMX): ox%x", ACT_CMX_WINDOW);
+//        }
+//
+//        nnLog(MVLOG_DEBUG, "Starting ACTSHV %d from %p windowed to A", i, actShvEntries[tile]);
+//        auto fifoCfg = acts_cfgs[i];
+//        printFifoConfig(unpackSHVConfig(fifoCfg));
+//        rc = ShCtrlStart(actShvHnd[i], reinterpret_cast<void *>(actShvEntries[tile]), "i", fifoCfg);
+//        if (rc != HGL_SHAVE_CTRL_SUCCESS) {
+//            nnLog(MVLOG_ERROR, "ActShaveCtrlStart: %d", (int)rc);
+//        }
+//    }
+//}
 
-void ShaveManager::startActShavesForTile(const uint32_t tile, const ActKernelRuntimeConfigs &cfgs, bool forceRestart) {
+//void ShaveManager::startActShavesForTile(const uint32_t tile, const ActKernelRuntimeConfigs &cfgs, bool forceRestart) {
+//    forceRestart |= processConfigChanges(tile, cfgs);
+//
+//    if (forceRestart) {
+//        stopActShavesForTile(tile);
+//
+//#ifdef CONFIG_VALIDATION_APP_ENABLED
+//        initActRtStacksAndDatas(tile, cfgs);
+//#endif
+//
+//        if (!cfgs.useScheduleEmbeddedRt_) {
+//            initActRtCodeBuffer(tile);
+//        }
+//    }
+//
+//    startActShaves(tile, cfgs);
+//}
+//
+void ShaveManager::startActShavesForTile(const uint32_t tile, const NNShaveRuntimeConfigs &cfgs, bool forceRestart) {
     forceRestart |= processConfigChanges(tile, cfgs);
 
     if (forceRestart) {
@@ -245,10 +315,10 @@ void ShaveManager::startActShavesForTile(const uint32_t tile, const ActKernelRun
     startActShaves(tile, cfgs);
 }
 
-void ShaveManager::startActShavesForTiles(const ActKernelRuntimeConfigs &cfgs, bool forceRestart) {
-    startActShavesForTile(0, cfgs, forceRestart);
-    startActShavesForTile(1, cfgs, forceRestart);
-}
+//void ShaveManager::startActShavesForTiles(const ActKernelRuntimeConfigs &cfgs, bool forceRestart) {
+//    startActShavesForTile(0, cfgs, forceRestart);
+//    startActShavesForTile(1, cfgs, forceRestart);
+//}
 
 void ShaveManager::startActShavesForTiles(const NNShaveRuntimeConfigs &cfgs, bool forceRestart) {
     startActShavesForTile(0, cfgs, forceRestart);

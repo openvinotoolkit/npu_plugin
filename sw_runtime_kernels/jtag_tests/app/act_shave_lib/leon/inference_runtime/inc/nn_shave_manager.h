@@ -39,8 +39,10 @@ public:
     /// These functions reduce to a noop if the shaves are already running, they match the requested configuration, and
     /// forceRestart = false
     /// @param tile description
-    void startActShavesForTile(const uint32_t tile, const ActKernelRuntimeConfigs &cfgs, bool forceRestart = false);
-    void startActShavesForTiles(const ActKernelRuntimeConfigs &cfgs, bool forceRestart = false);
+    void startActShavesForTile(const uint32_t tile, const NNShaveRuntimeConfigs &cfgs, bool forceRestart = false);
+//    void startActShavesForTile(const uint32_t tile, const ActKernelRuntimeConfigs &cfgs, bool forceRestart = false);
+    void startActShavesForTiles(const NNShaveRuntimeConfigs &cfgs, bool forceRestart);
+//    void startActShavesForTiles(const ActKernelRuntimeConfigs &cfgs, bool forceRestart = false);
 
     void stopNNShavesForTile(const uint32_t tile);
     void stopNNShavesForTiles();
@@ -52,13 +54,15 @@ public:
     void updateSNNConfigsForTiles(const common_runtime::NNShaveRuntimeConfigs &cfgs);
 
 private:
-    void startActShaves(const uint8_t tile, const ActKernelRuntimeConfigs &cfgs);
+    void startActShaves(const uint8_t tile, const common_runtime::NNShaveRuntimeConfigs &cfgs);
+//    void startActShaves(const uint8_t tile, const ActKernelRuntimeConfigs &cfgs);
     bool processConfigChanges(const uint8_t tile, const common_runtime::NNShaveRuntimeConfigs &cfgs);
-    bool processConfigChanges(const uint8_t tile, const ActKernelRuntimeConfigs &cfgs);
+//    bool processConfigChanges(const uint8_t tile, const ActKernelRuntimeConfigs &cfgs);
     void initActRtCodeBuffer(const uint8_t tile);
 
 #ifdef CONFIG_VALIDATION_APP_ENABLED
-    void initActRtStacksAndDatas(const uint8_t tile, const ActKernelRuntimeConfigs &cfgs);
+//    void initActRtStacksAndDatas(const uint8_t tile, const ActKernelRuntimeConfigs &cfgs);
+    void initActRtStacksAndDatas(const uint8_t tile, const common_runtime::NNShaveRuntimeConfigs &cfgs);
 #endif
 
     const StaticMapping &cmxMapping;
