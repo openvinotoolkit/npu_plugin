@@ -33,7 +33,6 @@ bool ConvolutionStrategy::doesLayerFitIntoCMX(mlir::Operation* op, StringRef str
     auto distributedOutputTensorType =
             createDistributedTensorType(origOp, origOp.output(), outputTensorDistributionMode, outputTensorNumTiles);
 
-    return true;
-    // return origOp.fitIntoCMX(distributedActivationTensorType, distributeddWeightsTensorType,
-    //                         distributedOutputTensorType);
+    return origOp.fitIntoCMX(distributedActivationTensorType, distributeddWeightsTensorType,
+                            distributedOutputTensorType);
 }
