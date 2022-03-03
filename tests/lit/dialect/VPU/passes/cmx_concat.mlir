@@ -302,3 +302,199 @@ func @main(%input: tensor<1x144x64x64xf16, {order = #NHWC}>,
 }
 
 }
+
+// -----
+
+#NCHW = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
+#NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
+
+!Distributed = type !VPU.DistributedTensor<
+    1x144x64x64xf16, #NHWC, @CMX_NN, {
+    mode = DUPLICATED,
+    num_clusters = 4
+}>
+
+!DistributedTile = type !VPU.DistributedTensor<
+    1x48x64x64xf16, #NHWC, @CMX_NN, {
+    mode = DUPLICATED,
+    num_clusters = 4
+}>
+
+// CHECK-LABEL: @CaseWithNceClusterTilingWithoutChildTiling
+module @CaseWithNceClusterTilingWithoutChildTiling attributes {VPU.arch = "KMB"} {
+    
+IE.MemoryResource 31457280 bytes of @DDR {VPU.bandwidth = 8, VPU.derateFactor = 6.000000e-01}
+IE.MemoryResource 4194304 bytes of @CMX_UPA {VPU.bandwidth = 16, VPU.derateFactor = 8.500000e-01}
+IE.MemoryResource 2361600 bytes of @CMX_NN {VPU.bandwidth = 32, VPU.derateFactor = 1.000000e+00}
+
+IE.CNNNetwork
+    entryPoint : @main
+    inputsInfo : {
+        DataInfo "input" : tensor<1x144x64x64xf16, {order = #NHWC}>
+        DataInfo "filter" : tensor<48x16x1x1xf16, {mem_space = @CMX_NN, order = #NHWC}>
+        DataInfo "weightsTable" : tensor<16x1x1x4xsi32, {mem_space = @CMX_NN, order = #NCHW}>
+        DataInfo "activationWindow" : tensor<48x1x1x16xui8, {mem_space = @CMX_NN, order = #NCHW}>
+    }
+    outputsInfo : {
+        DataInfo "prob" : tensor<1x144x64x64xf16, {order = #NHWC}>
+    }
+
+func @main(%input: tensor<1x144x64x64xf16, {order = #NHWC}>,
+           %filter: tensor<48x16x1x1xf16, {mem_space = @CMX_NN, order = #NHWC}>,
+           %weightsTable: tensor<16x1x1x4xsi32, {mem_space = @CMX_NN, order = #NCHW}>,
+           %activationWindow: tensor<48x1x1x16xui8, {mem_space = @CMX_NN, order = #NCHW}>)
+           -> tensor<1x144x64x64xf16, {order = #NHWC}> {
+
+    // Create a concat subgraph with three input tiles and one output user
+    
+    // Concat input tile 1
+    %0 = IE.Slice %input [0, 0, 0, 0] [1, 48, 64, 64] : tensor<1x144x64x64xf16, {order = #NHWC}> to tensor<1x48x64x64xf16, {order = #NHWC}>
+
+    %1 = VPU.NCE.ClusterTiling (%0 as %arg0: tensor<1x48x64x64xf16, {order = #NHWC}>) -> !DistributedTile {
+        %16 = IE.Copy(%arg0) {out_mem_space = @CMX_NN} : tensor<1x48x64x64xf16, {order = #NHWC}> -> tensor<1x48x64x64xf16, {mem_space = @CMX_NN, order = #NHWC}>
+        VPU.Yield %16
+    }
+
+    %2 = VPU.NCE.ClusterTiling (%1 as %arg0: tensor<1x48x64x64xf16, {mem_space = @CMX_NN, order = #NHWC}>, %filter as %arg1: tensor<48x16x1x1xf16, {mem_space = @CMX_NN, order = #NHWC}>, %weightsTable as %arg2: tensor<16x1x1x4xsi32, {mem_space = @CMX_NN, order = #NCHW}>, %activationWindow as %arg3: tensor<48x1x1x16xui8, {mem_space = @CMX_NN, order = #NCHW}>) -> !DistributedTile {
+        %16 = VPU.NCE.DepthConvolution(%arg0, %arg1, %arg2, %arg3) 
+            (bias : #const.Content<dense<2.0> : tensor<1x144x1x1xf16>, [#const.SubView<[0, 0, 0, 0], [1, 48, 1, 1]>]>) 
+            {pad = {bottom = 1 : i64, left = 1 : i64, right = 1 : i64, top = 1 : i64}, 
+            post_op = {attrs = {max = 6.000000e+00 : f64, min = 0.000000e+00 : f64}, name = "IE.Clamp"}, 
+            rawFilterShape = [48, 1, 3, 3], 
+            strides = [1, 1]} 
+            -> tensor<1x48x64x64xf16, {mem_space = @CMX_NN, order = #NHWC}>
+        VPU.Yield %16
+    }
+
+    // NCE copy-out to concatinate in DDR
+    %3 = VPU.NCE.ClusterTiling (%2 as %arg0: tensor<1x48x64x64xf16, {mem_space = @CMX_NN, order = #NHWC}>) -> tensor<1x48x64x64xf16, {order = #NHWC}> {
+        %16 = IE.Copy(%arg0) : tensor<1x48x64x64xf16, {mem_space = @CMX_NN, order = #NHWC}> -> tensor<1x48x64x64xf16, {order = #NHWC}>
+        VPU.Yield %16
+    }
+
+    // Concat input tile 2
+    %4 = IE.Slice %input [0, 48, 0, 0] [1, 48, 64, 64] : tensor<1x144x64x64xf16, {order = #NHWC}> to tensor<1x48x64x64xf16, {order = #NHWC}>
+    
+    %5 = VPU.NCE.ClusterTiling (%4 as %arg0: tensor<1x48x64x64xf16, {order = #NHWC}>) -> !DistributedTile {
+        %16 = IE.Copy(%arg0) {out_mem_space = @CMX_NN} : tensor<1x48x64x64xf16, {order = #NHWC}> -> tensor<1x48x64x64xf16, {mem_space = @CMX_NN, order = #NHWC}>
+        VPU.Yield %16
+    }
+
+    %6 = VPU.NCE.ClusterTiling (%5 as %arg0: tensor<1x48x64x64xf16, {mem_space = @CMX_NN, order = #NHWC}>, %filter as %arg1: tensor<48x16x1x1xf16, {mem_space = @CMX_NN, order = #NHWC}>, %weightsTable as %arg2: tensor<16x1x1x4xsi32, {mem_space = @CMX_NN, order = #NCHW}>, %activationWindow as %arg3: tensor<48x1x1x16xui8, {mem_space = @CMX_NN, order = #NCHW}>) -> !DistributedTile {
+        %16 = VPU.NCE.DepthConvolution(%arg0, %arg1, %arg2, %arg3) 
+            (bias : #const.Content<dense<2.0> : tensor<1x144x1x1xf16>, [#const.SubView<[0, 48, 0, 0], [1, 48, 1, 1]>]>) 
+            {pad = {bottom = 1 : i64, left = 1 : i64, right = 1 : i64, top = 1 : i64}, 
+            post_op = {attrs = {max = 6.000000e+00 : f64, min = 0.000000e+00 : f64}, name = "IE.Clamp"}, 
+            rawFilterShape = [48, 1, 3, 3], 
+            strides = [1, 1]} 
+            -> tensor<1x48x64x64xf16, {mem_space = @CMX_NN, order = #NHWC}>
+        VPU.Yield %16
+    }
+
+    // NCE copy-out to concatinate in DDR
+    %7 = VPU.NCE.ClusterTiling (%6 as %arg0: tensor<1x48x64x64xf16, {mem_space = @CMX_NN, order = #NHWC}>) -> tensor<1x48x64x64xf16, {order = #NHWC}> {
+        %16 = IE.Copy(%arg0) : tensor<1x48x64x64xf16, {mem_space = @CMX_NN, order = #NHWC}> -> tensor<1x48x64x64xf16, {order = #NHWC}>
+        VPU.Yield %16
+    }
+    
+    // Concat input tile 3
+    %8 = IE.Slice %input [0, 96, 0, 0] [1, 48, 64, 64] : tensor<1x144x64x64xf16, {order = #NHWC}> to tensor<1x48x64x64xf16, {order = #NHWC}>
+
+    %9 = VPU.NCE.ClusterTiling (%8 as %arg0: tensor<1x48x64x64xf16, {order = #NHWC}>) -> !DistributedTile {
+        %16 = IE.Copy(%arg0) {out_mem_space = @CMX_NN} : tensor<1x48x64x64xf16, {order = #NHWC}> -> tensor<1x48x64x64xf16, {mem_space = @CMX_NN, order = #NHWC}>
+        VPU.Yield %16
+    }
+
+    %10 = VPU.NCE.ClusterTiling (%9 as %arg0: tensor<1x48x64x64xf16, {mem_space = @CMX_NN, order = #NHWC}>, %filter as %arg1: tensor<48x16x1x1xf16, {mem_space = @CMX_NN, order = #NHWC}>, %weightsTable as %arg2: tensor<16x1x1x4xsi32, {mem_space = @CMX_NN, order = #NCHW}>, %activationWindow as %arg3: tensor<48x1x1x16xui8, {mem_space = @CMX_NN, order = #NCHW}>) -> !DistributedTile {
+        %16 = VPU.NCE.DepthConvolution(%arg0, %arg1, %arg2, %arg3) 
+            (bias : #const.Content<dense<2.0> : tensor<1x144x1x1xf16>, [#const.SubView<[0, 96, 0, 0], [1, 48, 1, 1]>]>) 
+            {pad = {bottom = 1 : i64, left = 1 : i64, right = 1 : i64, top = 1 : i64}, 
+            post_op = {attrs = {max = 6.000000e+00 : f64, min = 0.000000e+00 : f64}, 
+            name = "IE.Clamp"}, rawFilterShape = [48, 1, 3, 3], 
+            strides = [1, 1]} 
+            -> tensor<1x48x64x64xf16, {mem_space = @CMX_NN, order = #NHWC}>
+        VPU.Yield %16
+    }
+
+    // NCE copy-out to concatinate in DDR
+    %11 = VPU.NCE.ClusterTiling (%10 as %arg0: tensor<1x48x64x64xf16, {mem_space = @CMX_NN, order = #NHWC}>) -> tensor<1x48x64x64xf16, {order = #NHWC}> {
+        %16 = IE.Copy(%arg0) : tensor<1x48x64x64xf16, {mem_space = @CMX_NN, order = #NHWC}> -> tensor<1x48x64x64xf16, {order = #NHWC}>
+        VPU.Yield %16
+    }    
+    
+    // Concat inputs are in DDR and Concat output is in DDR
+    %12 = IE.Concat(%3, %7, %11) {static_offsets = [[0, 0, 0, 0], [0, 48, 0, 0], [0, 96, 0, 0]]} : tensor<1x48x64x64xf16, {order = #NHWC}>, tensor<1x48x64x64xf16, {order = #NHWC}>, tensor<1x48x64x64xf16, {order = #NHWC}> -> tensor<1x144x64x64xf16, {order = #NHWC}>
+    
+    // Concat result copy-in for NCE user
+    %13 = VPU.NCE.ClusterTiling (%12 as %arg0: tensor<1x144x64x64xf16, {order = #NHWC}>) -> !Distributed {
+        %16 = IE.Copy(%arg0) {out_mem_space = @CMX_NN} : tensor<1x144x64x64xf16, {order = #NHWC}> -> tensor<1x144x64x64xf16, {mem_space = @CMX_NN, order = #NHWC}>
+        VPU.Yield %16
+    }
+
+    %14 = VPU.NCE.ClusterTiling (%13 as %arg0: tensor<1x144x64x64xf16, {mem_space = @CMX_NN, order = #NHWC}>, %weightsTable as %arg1: tensor<16x1x1x4xsi32, {mem_space = @CMX_NN, order = #NCHW}>, %activationWindow as %arg2: tensor<48x1x1x16xui8, {mem_space = @CMX_NN, order = #NCHW}>) -> !Distributed {
+        %16 = VPU.NCE.MaxPool(%arg0, %arg1, %arg2) {
+                pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}, strides = [1, 1], kernel_size = [1, 1]
+            } -> tensor<1x144x64x64xf16, {mem_space = @CMX_NN, order = #NHWC}>
+        VPU.Yield %16
+    }
+
+    %15 = VPU.NCE.ClusterTiling (%14 as %arg0: tensor<1x144x64x64xf16, {mem_space = @CMX_NN, order = #NHWC}>) -> tensor<1x144x64x64xf16, {order = #NHWC}> {
+        %16 = IE.Copy(%arg0) : tensor<1x144x64x64xf16, {mem_space = @CMX_NN, order = #NHWC}> -> tensor<1x144x64x64xf16, {order = #NHWC}>
+        VPU.Yield %16
+    }
+
+    return %15 : tensor<1x144x64x64xf16, {order = #NHWC}>
+
+    // TODO: Below checks need to be updated for NCEClusterTiling
+    
+    // the below checks that the concat is occuring in NNCMX and the copy operations
+    // arround the concat are not used by the concat producer and consumer operations
+
+    // input to the first tile copy-in (DDR->NNCMX) for activation and weights
+    // CHECK:       [[VAL0:%.+]] = IE.Slice %arg0
+    // CHECK-SAME:      [0, 0, 0, 0] [1, 48, 64, 64] : tensor<1x144x64x64xf16, {order = #NHWC}> to tensor<1x48x64x64xf16, {order = #NHWC}>
+    // CHECK:       [[VAL1:%.+]] = IE.Copy([[VAL0]])
+
+    // first tile of NCE task
+    // CHECK:       [[VAL2:%.+]] = VPU.NCE.DepthConvolution([[VAL1]], %arg1, %arg2, %arg3)
+
+    // no copy-out to concatinate in DDR
+    // CHECK-NOT:   IE.Copy
+
+    // input to the second tile copy-in (DDR->NNCMX) for activation and weights
+    // CHECK:       [[VAL3:%.+]] = IE.Slice %arg0
+    // CHECK-SAME:      [0, 48, 0, 0] [1, 48, 64, 64] : tensor<1x144x64x64xf16, {order = #NHWC}> to tensor<1x48x64x64xf16, {order = #NHWC}>
+    // CHECK:       [[VAL4:%.+]] = IE.Copy([[VAL3]])
+
+    // second tile of NCE task
+    // CHECK:       [[VAL5:%.+]] = VPU.NCE.DepthConvolution([[VAL4]], %arg1, %arg2, %arg3)
+
+    // no copy-out to concatinate in DDR
+    // CHECK-NOT:   IE.Copy
+
+    // input to the third tile copy-in (DDR->NNCMX) for activation and weights
+    // CHECK:       [[VAL6:%.+]] = IE.Slice %arg0
+    // CHECK-SAME:      [0, 96, 0, 0] [1, 48, 64, 64] : tensor<1x144x64x64xf16, {order = #NHWC}> to tensor<1x48x64x64xf16, {order = #NHWC}>
+    // CHECK:       [[VAL7:%.+]] = IE.Copy([[VAL6]])
+
+    // third tile of NCE task
+    // CHECK:       [[VAL8:%.+]] = VPU.NCE.DepthConvolution([[VAL7]], %arg1, %arg2, %arg3)
+
+    // no copy-out to concatinate in DDR
+    // CHECK-NOT:   IE.Copy
+
+    // no copy-out (NNCMX->DDR) operations to concatinate in DDR
+    // Concat in NNCMX using results of NCE tiles in NNCMX
+    // CHECK:       [[VAL9:%.+]] = IE.Concat([[VAL2]], [[VAL5]], [[VAL8]])
+
+    // no Concat buffer copy-in to NNCMX
+    // CHECK-NOT:   IE.Copy
+
+    // user of the concat uses result of concat without intermediate copy operation
+    // CHECK:       [[VAL10:%.+]] = VPU.NCE.MaxPool([[VAL9]], %arg2, %arg3)
+    // CHECK:       [[VAL11:%.+]] = IE.Copy([[VAL10]])
+
+    // CHECK:       return [[VAL11:%.+]] : tensor<1x144x64x64xf16, {order = #NHWC}>
+}
+
+}
