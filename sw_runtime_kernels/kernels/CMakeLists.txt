@@ -67,6 +67,7 @@ set(jtag_data_suffix ".data.xdat")
 set(link_script_file "${KERNEL_DIR}/prebuild/shave_kernel.ld")
 
 set(link_libraries_list
+  "${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}/common/moviCompile/lib/30xxxx-leon/mlibm.a"
   "${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}/common/moviCompile/lib/30xxxx-leon/mlibc.a"
   "${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}/common/moviCompile/lib/30xxxx-leon/mlibcrt.a"
 )
@@ -74,17 +75,17 @@ set(link_libraries_list
 #file(GLOB kernel_descrip_list ${KERNEL_DIR}/descrip/*.txt)
 
 set(kernel_descrip_list "")
-list(APPEND kernel_descrip_list "${KERNEL_DIR}/descrip/dummy.txt")
-list(APPEND kernel_descrip_list "${KERNEL_DIR}/descrip/elu_fp16.txt")
-list(APPEND kernel_descrip_list "${KERNEL_DIR}/descrip/exp_fp16.txt")
+##list(APPEND kernel_descrip_list "${KERNEL_DIR}/descrip/dummy.txt")
+##list(APPEND kernel_descrip_list "${KERNEL_DIR}/descrip/elu_fp16.txt")
+##list(APPEND kernel_descrip_list "${KERNEL_DIR}/descrip/exp_fp16.txt")
 #list(APPEND kernel_descrip_list "${KERNEL_DIR}/descrip/hswish_fp16.txt")
 #list(APPEND kernel_descrip_list "${KERNEL_DIR}/descrip/reorder_fp16.txt")
-#list(APPEND kernel_descrip_list "${KERNEL_DIR}/descrip/sigmoid_fp16.txt")
+##list(APPEND kernel_descrip_list "${KERNEL_DIR}/descrip/sigmoid_fp16.txt")
 #list(APPEND kernel_descrip_list "${KERNEL_DIR}/descrip/singleShaveInterpolate.txt")
 #list(APPEND kernel_descrip_list "${KERNEL_DIR}/descrip/singleShaveMVN.txt")
 #list(APPEND kernel_descrip_list "${KERNEL_DIR}/descrip/singleShaveSoftmax.txt")
 #list(APPEND kernel_descrip_list "${KERNEL_DIR}/descrip/sqrt_fp16.txt")
-#list(APPEND kernel_descrip_list "${KERNEL_DIR}/descrip/tanh_fp16.txt")
+##list(APPEND kernel_descrip_list "${KERNEL_DIR}/descrip/tanh_fp16.txt")
 #list(APPEND kernel_descrip_list "${KERNEL_DIR}/descrip/nnActEntry.txt")
 
 message(STATUS "kernel_descrip_list = ${kernel_descrip_list}")
