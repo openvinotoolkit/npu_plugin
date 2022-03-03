@@ -129,6 +129,13 @@ void initSwKernel(VPUIP::SwKernelOp swKernelOp, mlir::ValueRange inputs, mlir::V
 
     auto swKernelBlockBuilder = mlir::OpBuilder::atBlockBegin(&swKernelBlock, &builderLog);
 
+    SmallVector<mlir::Attribute> attrs;
+    auto fetchAttrs = [&attrs](auto&& cnt) {
+        for (auto&& arg : cnt) {
+            attrs.push_back(arg);
+        }
+    };
+
     // pack input/outputs and constants into single call to sw_kernel_run
     SmallVector<mlir::Value> operands;
     auto fetchOperands = [&operands](auto&& cnt) {
@@ -139,9 +146,10 @@ void initSwKernel(VPUIP::SwKernelOp swKernelOp, mlir::ValueRange inputs, mlir::V
 
     auto blockArgs = swKernelBlock.getArguments();
     fetchOperands(blockArgs);
+    fetchAttrs(args);
 
     swKernelBlockBuilder.create<VPUIP::SwKernelRun>(mlir::UnknownLoc::get(ctx), mlir::ValueRange(operands),
-                                                    mlir::ArrayAttr::get(ctx, args));
+                                                    mlir::ArrayAttr::get(ctx, attrs));
 }
 
 }  // namespace VPUIP

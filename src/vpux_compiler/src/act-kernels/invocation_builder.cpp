@@ -26,7 +26,7 @@ using namespace vpux;
 
 void InvocationBuilder::parseBasicAttrTypes(mlir::Attribute attr) {
     if (auto val = attr.dyn_cast_or_null<mlir::IntegerAttr>()) {
-        appendValue(_scalarStorage, val.getValue().getSExtValue());
+        appendValue(_scalarStorage, static_cast<int32_t>(val.getValue().getSExtValue()));
     } else if (auto val = attr.dyn_cast_or_null<mlir::FloatAttr>()) {
         appendValue(_scalarStorage, static_cast<float>(val.getValue().convertToDouble()));
     } else {
@@ -96,7 +96,7 @@ void InvocationBuilder::addTensorArg(mlir::Value value, const MVCNN::TensorRefer
     const auto addr = indirectDataRef->data_index() + tensorRef->leading_offset();
 
     memrefData.dataAddr = checked_cast<uint32_t>(mvds::nce2p7::ACT_KERNEL_CMX_WINDOW + addr);
-    memrefData.dataType = 0;  // TODO: to be defined
+    memrefData.dataType = tensorRef->data_dtype() - 1;
     memrefData.location = sw_params::NN_CMX;
 
     appendValue(_scalarStorage, memrefData);

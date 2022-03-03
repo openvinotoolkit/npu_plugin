@@ -67,20 +67,15 @@ mlir::LogicalResult SwKernelOp::inferReturnTypes(mlir::MLIRContext* ctx, mlir::O
         return mlir::failure();
     }
 
-    VPUX_THROW_UNLESS(swKernelOp.inputs().size() == 1, "For now act-kernels with only one input are supported. Got {0}",
-                      swKernelOp.inputs().size());
-    VPUX_THROW_UNLESS(swKernelOp.output_buffs().size() == 1,
-                      "For now act-kernels with only one output are supported. Got {0}",
-                      swKernelOp.output_buffs().size());
-
-    const auto outType = swKernelOp.output_buffs()[0].getType();
-
-    inferredTypes.push_back(outType);
+    for (auto out : swKernelOp.output_buffs()) {
+        inferredTypes.push_back(out.getType());
+    }
 
     return mlir::success();
 }
 
 IERT::KernelInfo SwKernelOp::getKernelInfo(mlir::Operation* origOp) {
+    mlir::MLIRContext* ctx = origOp->getContext();
     return llvm::TypeSwitch<mlir::Operation*, IERT::KernelInfo>(origOp)
             .Case<IERT::ExpOp>([&](IERT::ExpOp) {
                 return IERT::KernelInfo{SmallVector<mlir::Attribute>{}, {"exp_fp16"}, {"exp_fp16.cpp"}};
@@ -120,6 +115,38 @@ IERT::KernelInfo SwKernelOp::getKernelInfo(mlir::Operation* origOp) {
                 return IERT::KernelInfo{SmallVector<mlir::Attribute>{getIntArrayAttr(ctx, memPermArr)},
                                         {"reorder_fp16"},
                                         {"reorder_fp16.cpp"}};
+            })
+            .Case<IERT::TopKOp>([&](IERT::TopKOp topk) {
+                mlir::IntegerAttr modeIntAttr;
+                switch (topk.modeAttr().getValue()) {
+                case IE::TopKMode::MAX:
+                    modeIntAttr = getIntAttr(ctx, 0);
+                    break;
+                case IE::TopKMode::MIN:
+                    modeIntAttr = getIntAttr(ctx, 1);
+                    break;
+                default:
+                    VPUX_THROW("Unknown TopKMode");
+                }
+
+                mlir::IntegerAttr sortIntAttr;
+                switch (topk.sortAttr().getValue()) {
+                case IE::TopKSortType::SORT_INDICES:
+                    sortIntAttr = getIntAttr(ctx, 1);
+                    break;
+                case IE::TopKSortType::SORT_VALUES:
+                    sortIntAttr = getIntAttr(ctx, 0);
+                    break;
+                default:
+                    VPUX_THROW("Unknown TopKSortType");
+                }
+
+                mlir::IntegerAttr elementTypeIntAttr;
+                elementTypeIntAttr = getIntAttr(ctx, 0);
+                return IERT::KernelInfo{SmallVector<mlir::Attribute>{topk.k_valueAttr(), topk.axisAttr(), modeIntAttr,
+                                                                     sortIntAttr, elementTypeIntAttr},
+                                        {"single_shave_topk"},
+                                        {"single_shave_topk.cpp"}};
             })
             .Default([](mlir::Operation* unknownOp) -> IERT::KernelInfo {
                 VPUX_THROW("Operation '{0}' is not supported by the act-shaves", unknownOp->getName());
