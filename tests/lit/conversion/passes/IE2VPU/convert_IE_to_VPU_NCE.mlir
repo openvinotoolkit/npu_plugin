@@ -23,7 +23,6 @@ func @ConvToNCE(%arg0: tensor<1x16x16x16xf16, {order = #NHWC}>) -> tensor<1x16x1
     // CHECK:       [[WEIGHTS:%.+]] = const.Declare tensor<16x16x1x1xf16, {order = #NHWC}>
 
     // CHECK:       [[VAL0:%.+]] = VPU.NCE.Convolution(%arg0, [[WEIGHTS]], [[MAP]])
-    // CHECK-SAME:      (bias : #const.Content<dense<1.000000e+00> : tensor<1x16x1x1xf16>>)
     // CHECK-SAME:      pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}
     // CHECK-SAME:      strides = [1, 1]
     // CHECK-SAME:      -> tensor<1x16x16x16xf16, {order = #NHWC}>
@@ -57,7 +56,6 @@ func @ConvWithReluRewriter(%arg0: tensor<1x16x16x16xf16, {order = #NHWC}>) -> te
     // CHECK:       [[WEIGHTS:%.+]] = const.Declare tensor<16x16x1x1xf16, {order = #NHWC}>
 
     // CHECK:       [[OUT:%.+]] = VPU.NCE.Convolution(%arg0, [[WEIGHTS]], [[MAP]])
-    // CHECK-SAME:      (bias : #const.Content<dense<1.000000e+00> : tensor<1x16x1x1xf16>>)
     // CHECK-SAME:      pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}
     // CHECK-SAME:      ppe = {clamp_high = 2147483647 : i64, clamp_low = 0 : i64,
     // CHECK-SAME:              lrelu_mult = 1 : i64, lrelu_shift = 0 : i64, mode = "LRELU"},

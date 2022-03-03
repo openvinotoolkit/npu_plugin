@@ -311,7 +311,7 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyConvCMX(mlir::Location loc,
 
         const auto activationWindowSize = VPU::NCESparsity::getActivationWindowSize(
                 VPU::NCESparsity::Mode::CM_CONV, kernelSize, kernelStridesVals[Dims4D::Strides::X],
-                inputType.getElementType(), IC, 1);
+                inputType.getElementType(), IC);
 
         requiredCMX =
                 getRequiredCMXForTiling({inputType, alignedFilterType, outputType}, OC) + activationWindowSize * 1_Byte;
@@ -366,7 +366,7 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyPoolCMX(mlir::Location loc,
 
     const auto activationWindowSize = VPU::NCESparsity::getActivationWindowSize(
             VPU::NCESparsity::Mode::POOL, kernelSizeVals, kernelStridesVals[Dims4D::Strides::X],
-            inputType.getElementType(), 1, 1);
+            inputType.getElementType(), 1);
 
     const auto requiredCMX = getRequiredCMXForTiling({inputType, outputType}, OC) + activationWindowSize * 1_Byte;
 
@@ -510,7 +510,7 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyGroupConvCMX(mlir::Location
 
     const auto activationWindowSize = VPU::NCESparsity::getActivationWindowSize(
             VPU::NCESparsity::Mode::DW_CONV, kernelSizeVals, kernelStridesVals[Dims4D::Strides::X],
-            inputType.getElementType(), 1, 1);
+            inputType.getElementType(), 1);
 
     const auto requiredCMX =
             getRequiredCMXForTiling({inputType, alignedFilterType, outputType}, OC) + activationWindowSize * 1_Byte;
@@ -678,7 +678,7 @@ Byte getRequiredActWindowForPrefetch(IE::MaxPoolOp origOp) {
     const auto inType = origOp.input().getType().cast<vpux::NDTypeInterface>();
     const auto activationWindowSizePerTile = VPU::NCESparsity::getActivationWindowSize(
             VPU::NCESparsity::Mode::POOL, kernelSizeVals, kernelStridesVals[Dims4D::Strides::X],
-            inType.getElementType(), 1, 1);
+            inType.getElementType(), 1);
     return Byte(activationWindowSizePerTile * 2);
 }
 
@@ -764,7 +764,7 @@ Byte getRequiredActWindowForPrefetch(IE::GroupConvolutionOp origOp) {
 
     const auto activationWindowSizePerTile = VPU::NCESparsity::getActivationWindowSize(
             VPU::NCESparsity::Mode::DW_CONV, kernelSizeVals, kernelStridesVals[Dims4D::Strides::X],
-            inType.getElementType(), 1, 1);
+            inType.getElementType(), 1);
 
     return Byte(activationWindowSizePerTile * 2);
 }
@@ -942,7 +942,7 @@ Byte getRequiredCMX(IE::GroupConvolutionOp gConvOp, const vpux::TileInfo& tiling
 
     const auto activationWindowSize = VPU::NCESparsity::getActivationWindowSize(
             VPU::NCESparsity::Mode::CM_CONV, kernelSizeVals, kernelStridesVals[Dims4D::Strides::X],
-            inputTileType.getElementType(), 1, 1);
+            inputTileType.getElementType(), 1);
 
     return getRequiredCMXForTiling({inputTileType, inputTileType}, 0) + activationWindowSize * 1_Byte +
            getRequiredCMXForWeight(gConvOp, tiling);
@@ -966,7 +966,7 @@ Byte getRequiredCMX(IE::MaxPoolOp poolOp, const vpux::TileInfo& tiling) {
 
     const auto activationWindowSize = VPU::NCESparsity::getActivationWindowSize(
             VPU::NCESparsity::Mode::POOL, kernelSizeVals, kernelStridesVals[Dims4D::Strides::X],
-            inputType.getElementType(), 1, 1);
+            inputType.getElementType(), 1);
 
     return getRequiredCMXForTiling({inputType, outputType}, IC) + activationWindowSize * 1_Byte;
 }

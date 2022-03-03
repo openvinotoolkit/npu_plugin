@@ -13,15 +13,16 @@
 
 #include "vpux/compiler/dialect/VPU/const_utils.hpp"
 
+#include "vpux/compiler/dialect/const/ops.hpp"
+
 namespace vpux {
 namespace VPU {
 
-mlir::Value createActivationWindowTensor(mlir::OpBuilder& builder, mlir::Location loc, ArrayRef<uint8_t> fakeSparsity,
-                                         int64_t numChannels) {
+mlir::Value createActivationWindowTensor(mlir::OpBuilder& builder, mlir::Location loc, ArrayRef<uint8_t> fakeSparsity) {
     const auto elemType = getUInt8Type(builder.getContext());
-    SmallVector<int64_t> fakeSparsityShape{numChannels, 1, 1, static_cast<int64_t>(fakeSparsity.size()) / numChannels};
+    const auto fakeSparsityShape = NCESparsity::inferActivationWindowShape(static_cast<int64_t>(fakeSparsity.size()));
 
-    const auto dataStorageType = mlir::RankedTensorType::get(fakeSparsityShape, elemType);
+    const auto dataStorageType = mlir::RankedTensorType::get(fakeSparsityShape.raw(), elemType);
     const auto dataAttr = mlir::DenseElementsAttr::get(dataStorageType, fakeSparsity);
 
     auto dataConstOp = builder.create<Const::DeclareOp>(loc, dataStorageType, Const::ContentAttr::get(dataAttr));
@@ -46,9 +47,9 @@ std::vector<int32_t> createWeightsTableData(mlir::Value opInput, mlir::Value opO
 mlir::Value createWeightsTableTensor(mlir::OpBuilder& builder, mlir::Location loc, ArrayRef<int32_t> weightsTable,
                                      int64_t OC) {
     const auto elemType = getSInt32Type(builder.getContext());
-    SmallVector<int64_t> weightTableShape{OC, 1, 1, VPUIP::NCEInvariant::WEIGHT_TABLE_NUM_ELEMENTS_PER_OC};
+    const auto weightTableShape = NCESparsity::inferWeightsTableShape(OC);
 
-    const auto dataStorageType = mlir::RankedTensorType::get(weightTableShape, elemType);
+    const auto dataStorageType = mlir::RankedTensorType::get(weightTableShape.raw(), elemType);
     const auto dataAttr = mlir::DenseElementsAttr::get(dataStorageType, weightsTable);
 
     auto dataConstOp = builder.create<Const::DeclareOp>(loc, dataStorageType, Const::ContentAttr::get(dataAttr));

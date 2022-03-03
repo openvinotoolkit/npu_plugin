@@ -229,24 +229,18 @@ func @MultiAxesAndPerAxisQuant(
 
 func @AvoidClusterTiling(%arg0: tensor<1x32x100x100xf16, {mem_space = @CMX_NN, order = #NHWC}>) -> tensor<1x128x100x100xf16, {mem_space = @CMX_NN, order = #NHWC}> {
     %weights = const.Declare tensor<128x32x3x3xf16, {mem_space = @CMX_NN, order = #NHWC}> = #const.Content<dense<1.000000e+00> : tensor<128x32x3x3xf16, {mem_space = @CMX_NN}>, [#const.Reorder<#NHWC>]>
-    %wt = const.Declare tensor<32x1x1x4xsi32, {mem_space = @CMX_NN, order = #NCHW}> = #const.Content<dense<10> : tensor<32x1x1x4xsi32, {mem_space = @CMX_NN}>>
-    %aw = const.Declare tensor<1x1x1x16xui8, {mem_space = @CMX_NN, order = #NCHW}> = #const.Content<dense<1> : tensor<1x1x1x16xui8, {mem_space = @CMX_NN}>>
+    %wt = const.Declare tensor<128x1x1x4xsi32, {mem_space = @CMX_NN, order = #NCHW}> = #const.Content<dense<10> : tensor<128x1x1x4xsi32, {mem_space = @CMX_NN}>>
 
     %0 = VPU.NCE.ClusterTiling (
             %arg0 as %arg1: tensor<1x32x100x100xf16, {mem_space = @CMX_NN, order = #NHWC}>,
             %weights as %arg2: tensor<128x32x3x3xf16, {mem_space = @CMX_NN, order = #NHWC}>,
-            %wt as %arg3: tensor<32x1x1x4xsi32, {mem_space = @CMX_NN, order = #NCHW}>,
-            %aw as %arg4: tensor<1x1x1x16xui8, {mem_space = @CMX_NN, order = #NCHW}>)
+            %wt as %arg3: tensor<128x1x1x4xsi32, {mem_space = @CMX_NN, order = #NCHW}>)
                 -> tensor<1x128x100x100xf16, {mem_space = @CMX_NN, order = #NHWC}> {
-      %1 = VPU.NCE.Convolution(%arg1, %arg2, %arg3) (activationWindow : %arg4 : ) (bias : #const.Content<dense<1.000000e+00> : tensor<1x128x1x1xf16>>) {
+      %1 = VPU.NCE.Convolution(%arg1, %arg2, %arg3) {
                 pad = {bottom = 1 : i64, left = 1 : i64, right = 1 : i64, top = 1 : i64},
                 rawFilterShape = [128, 32, 3, 3],
-                strides = [1, 1],
-                activation_window_channel_length = 44
-            } : tensor<1x32x100x100xf16, {mem_space = @CMX_NN, order = #NHWC}>,
-                tensor<128x32x3x3xf16, {mem_space = @CMX_NN, order = #NHWC}>,
-                tensor<32x1x1x4xsi32, {mem_space = @CMX_NN, order = #NCHW}>
-                -> tensor<1x128x100x100xf16, {mem_space = @CMX_NN, order = #NHWC}>
+                strides = [1, 1]
+            } -> tensor<1x128x100x100xf16, {mem_space = @CMX_NN, order = #NHWC}>
       VPU.Yield %1
     }
 
@@ -256,20 +250,15 @@ func @AvoidClusterTiling(%arg0: tensor<1x32x100x100xf16, {mem_space = @CMX_NN, o
 // CHECK-LABEL:   @AvoidClusterTiling
 // CHECK-SAME:          [[INPUT:%arg[0-9]]]: tensor<1x32x100x100xf16, {mem_space = @CMX_NN, order = #NHWC}>
 
-// CHECK:        [[ACT_WINDOW:%.+]] = const.Declare tensor<1x1x1x16xui8, {mem_space = @CMX_NN, order = #NCHW}>
-// CHECK:        [[WEIGHT_TABLE:%.+]] = const.Declare tensor<32x1x1x4xsi32, {mem_space = @CMX_NN, order = #NCHW}>
+// CHECK:        [[WEIGHT_TABLE:%.+]] = const.Declare tensor<128x1x1x4xsi32, {mem_space = @CMX_NN, order = #NCHW}>
 // CHECK:        [[WEIGHTS:%.+]] = const.Declare tensor<128x32x3x3xf16, {mem_space = @CMX_NN, order = #NHWC}>
 
 // CHECK:        [[CLUSTER_TILING:%.+]] = VPU.NCE.ClusterTiling (
 // CHECK-SAME:          %arg0 as %arg1: tensor<1x32x100x100xf16, {mem_space = @CMX_NN, order = #NHWC}>
 // CHECK-SAME:          [[WEIGHTS]] as %arg2: tensor<128x32x3x3xf16, {mem_space = @CMX_NN, order = #NHWC}>
-// CHECK-SAME:          [[WEIGHT_TABLE]] as %arg3: tensor<32x1x1x4xsi32, {mem_space = @CMX_NN, order = #NCHW}>
-// CHECK-SAME:          [[ACT_WINDOW]] as %arg4: tensor<1x1x1x16xui8, {mem_space = @CMX_NN, order = #NCHW}>)
+// CHECK-SAME:          [[WEIGHT_TABLE]] as %arg3: tensor<128x1x1x4xsi32, {mem_space = @CMX_NN, order = #NCHW}>)
 // CHECK-SAME:          -> tensor<1x128x100x100xf16, {mem_space = @CMX_NN, order = #NHWC}>
 // CHECK:           [[NCE_CONV:%.*]] = VPU.NCE.Convolution(%arg1, %arg2, %arg3)
-// CHECK-SAME:              activationWindow : %arg4
-// CHECK-SAME:              bias : #const.Content<dense<1.000000e+00> : tensor<1x128x1x1xf16>>
-// CHECK-SAME:              activation_window_channel_length = 44
 // CHECK-SAME:              pad = {bottom = 1 : i64, left = 1 : i64, right = 1 : i64, top = 1 : i64}
 // CHECK-SAME:              strides = [1, 1]
 // CHECK-SAME:              -> tensor<1x128x100x100xf16, {mem_space = @CMX_NN, order = #NHWC}>

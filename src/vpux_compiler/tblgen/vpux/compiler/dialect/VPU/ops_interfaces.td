@@ -65,10 +65,6 @@ def VPU_NCEOpInterface : OpInterface<"NCEOpInterface"> {
     ];
 
     let extraTraitClassDeclaration = [{
-        bool isSupportedPostOp(mlir::Operation* postOp) {
-            return vpux::VPU::NCEInvariant::isPostOpSupported(postOp);
-        }
-
         mlir::LogicalResult verifyChannels() {
             return mlir::success(
                 vpux::VPU::NCEInvariant::isActTypeSupported(
@@ -107,10 +103,6 @@ def VPU_NCEOpInterface : OpInterface<"NCEOpInterface"> {
 
         if (vpux::VPU::details::validateWorkloadsRegion($_op->getLoc(), mlir::cast<ConcreteOp>($_op).workloads()).failed()) {
             return mlir::failure();
-        }
-
-        if (mlir::cast<ConcreteOp>($_op).post_opAttr() != nullptr && mlir::cast<ConcreteOp>($_op).ppeAttr() != nullptr) {
-            return vpux::errorAt($_op, "Can't have both 'post_op' and 'ppe' attributes at the same time");
         }
 
         return mlir::success();

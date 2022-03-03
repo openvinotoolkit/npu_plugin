@@ -99,10 +99,10 @@ mlir::LogicalResult ConvToNCE::matchAndRewrite(IE::ConvolutionOp origOp, mlir::P
 
         const auto fakeSparsity = VPU::NCESparsity::getFakeSparsity(VPU::NCESparsity::Mode::CM_CONV, kernelSize,
                                                                     kernelStrides[Dims4D::Strides::X],
-                                                                    origInputType.getElementType(), IC, 1);
+                                                                    origInputType.getElementType(), IC);
 
         activationWindowChannelLength = getIntAttr(getContext(), bitPatternSize);
-        activationWindow = VPU::createActivationWindowTensor(rewriter, origOp->getLoc(), fakeSparsity, 1);
+        activationWindow = VPU::createActivationWindowTensor(rewriter, origOp->getLoc(), fakeSparsity);
 
         alignedFilter = VPU::alignChannelMajorWeightsTensor(rewriter, origOp->getLoc(), alignedFilter);
     }
@@ -117,10 +117,9 @@ mlir::LogicalResult ConvToNCE::matchAndRewrite(IE::ConvolutionOp origOp, mlir::P
     const auto padAttr = VPU::getPaddingAttr(getContext(), PadInfo(origOp.pads_begin(), origOp.pads_end()));
     const auto rawFilterShape = getIntArrayAttr(rewriter, filterShape);
 
-    auto nceOp = rewriter.create<VPU::NCEConvolutionOp>(origOp->getLoc(), origOp.getType(), origOp.input(),
-                                                        alignedFilter, weightsTable, activationWindow, bias,
-                                                        origOp.stridesAttr(), padAttr, /*post_op=*/nullptr, ppeTaskAttr,
-                                                        rawFilterShape, activationWindowChannelLength);
+    auto nceOp = rewriter.create<VPU::NCEConvolutionOp>(
+            origOp->getLoc(), origOp.getType(), origOp.input(), alignedFilter, weightsTable, activationWindow,
+            origOp.stridesAttr(), padAttr, ppeTaskAttr, rawFilterShape, activationWindowChannelLength);
 
     rewriter.replaceOp(origOp, nceOp.output());
     return mlir::success();
@@ -177,8 +176,8 @@ mlir::LogicalResult DepthConvToNCE::matchAndRewrite(IE::GroupConvolutionOp origO
 
     const auto fakeSparsity =
             VPU::NCESparsity::getFakeSparsity(VPU::NCESparsity::Mode::DW_CONV, kernelSize,
-                                              kernelStrides[Dims4D::Strides::X], origInputType.getElementType(), IC, 1);
-    const auto activationWindow = VPU::createActivationWindowTensor(rewriter, origOp->getLoc(), fakeSparsity, 1);
+                                              kernelStrides[Dims4D::Strides::X], origInputType.getElementType(), IC);
+    const auto activationWindow = VPU::createActivationWindowTensor(rewriter, origOp->getLoc(), fakeSparsity);
 
     Const::ContentAttr bias;
     if (origOp.bias() != nullptr) {
@@ -204,9 +203,8 @@ mlir::LogicalResult DepthConvToNCE::matchAndRewrite(IE::GroupConvolutionOp origO
     const auto rawFilterShape = getIntArrayAttr(rewriter, filterShape);
 
     auto nceOp = rewriter.create<VPU::NCEDepthConvolutionOp>(
-            origOp->getLoc(), origOp.getType(), origOp.input(), alignedFilter, weightsTable, activationWindow, bias,
-            origOp.stridesAttr(), padAttr, /*post_op=*/nullptr, ppeTaskAttr, rawFilterShape,
-            activationWindowChannelLength);
+            origOp->getLoc(), origOp.getType(), origOp.input(), alignedFilter, weightsTable, activationWindow,
+            origOp.stridesAttr(), padAttr, ppeTaskAttr, rawFilterShape, activationWindowChannelLength);
 
     rewriter.replaceOp(origOp, nceOp.output());
     return mlir::success();
@@ -257,8 +255,8 @@ mlir::LogicalResult MaxPoolToNCE::matchAndRewrite(IE::MaxPoolOp origOp, mlir::Pa
     // Generate activation window
     const auto fakeSparsity =
             VPU::NCESparsity::getFakeSparsity(VPU::NCESparsity::Mode::POOL, kernelSize,
-                                              kernelStrides[Dims4D::Strides::X], origInputType.getElementType(), IC, 1);
-    const auto activationWindow = VPU::createActivationWindowTensor(rewriter, origOp->getLoc(), fakeSparsity, 1);
+                                              kernelStrides[Dims4D::Strides::X], origInputType.getElementType(), IC);
+    const auto activationWindow = VPU::createActivationWindowTensor(rewriter, origOp->getLoc(), fakeSparsity);
     const auto activationWindowChannelLength = getIntAttr(getContext(), static_cast<uint32_t>(bitPatternSize));
 
     // Generate weights table
@@ -272,8 +270,7 @@ mlir::LogicalResult MaxPoolToNCE::matchAndRewrite(IE::MaxPoolOp origOp, mlir::Pa
 
     auto nceOp = rewriter.create<VPU::NCEMaxPoolOp>(origOp->getLoc(), origOp.getType(), origOp.input(), weightsTable,
                                                     activationWindow, origOp.kernel_sizeAttr(), origOp.stridesAttr(),
-                                                    padAttr, /*post_op=*/nullptr, ppeTaskAttr,
-                                                    activationWindowChannelLength);
+                                                    padAttr, ppeTaskAttr, activationWindowChannelLength);
 
     rewriter.replaceOp(origOp, nceOp.output());
     return mlir::success();
@@ -321,8 +318,7 @@ mlir::LogicalResult EltwiseToNCE<ConcreteOp>::matchAndRewrite(ConcreteOp origOp,
 
     auto nceOp =
             rewriter.create<VPU::NCEEltwiseOp>(origOp->getLoc(), origOp.getType(), origOp.input1(), origOp.input2(),
-                                               VPU::EltwiseTypeAttr::get(this->getContext(), _opType),
-                                               /*post_op=*/nullptr, ppeTaskAttr);
+                                               VPU::EltwiseTypeAttr::get(this->getContext(), _opType), ppeTaskAttr);
 
     rewriter.replaceOp(origOp, nceOp.output());
     return mlir::success();

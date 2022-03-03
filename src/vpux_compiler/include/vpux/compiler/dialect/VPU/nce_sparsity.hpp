@@ -41,11 +41,12 @@ enum class Mode { CM_CONV, DW_CONV, POOL };
 
 int64_t getBitPatternSize(Mode mode, ShapeRef kernelSize, int64_t SX, mlir::Type elemType, int64_t IC);
 
-int64_t getActivationWindowSize(Mode mode, ShapeRef kernelSize, int64_t SX, mlir::Type elemType, int64_t IC,
-                                int64_t OC);
+int64_t getActivationWindowSize(Mode mode, ShapeRef kernelSize, int64_t SX, mlir::Type elemType, int64_t IC);
 
-std::vector<uint8_t> getFakeSparsity(Mode mode, ShapeRef kernelSize, int64_t SX, mlir::Type elemType, int64_t IC,
-                                     int64_t OC);
+Shape inferActivationWindowShape(int64_t fakeSparsitySize);
+Shape inferActivationWindowShape(Mode mode, ShapeRef kernelSize, int64_t SX, mlir::Type elemType, int64_t IC);
+
+std::vector<uint8_t> getFakeSparsity(Mode mode, ShapeRef kernelSize, int64_t SX, mlir::Type elemType, int64_t IC);
 
 int32_t getWeightPtrStep(mlir::Value weights, mlir::Value activationWindow);
 
@@ -53,6 +54,8 @@ std::vector<int32_t> getWeightsTable(mlir::Type inElemType, mlir::Type outElemTy
                                      int32_t weightPtrStep, Optional<int32_t> sparsityPtrOffset, ArchKind arch,
                                      int64_t OC, mlir::Type weightsElemType = nullptr,
                                      Const::ContentAttr bias = nullptr, VPU::PPETaskAttr ppe = nullptr);
+
+Shape inferWeightsTableShape(int64_t OC);
 
 }  // namespace NCESparsity
 

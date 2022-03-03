@@ -76,14 +76,14 @@ func @Conv(%arg0: memref<1x16x16x16xf16, #NHWC, @CMX_NN>, %arg1: memref<16x16x1x
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
 // CHECK-LABEL: @MaxPool
-func @MaxPool(%arg0: memref<1x16x1x4xf16, #NHWC, @CMX_NN>, %arg1 : memref<16x1x1x4xsi32, @CMX_NN>, %arg2 : memref<16x1x1x16xui8, @CMX_NN>)
+func @MaxPool(%arg0: memref<1x16x1x4xf16, #NHWC, @CMX_NN>, %arg1 : memref<16x1x1x4xsi32, @CMX_NN>, %arg2 : memref<1x1x1x16xui8, @CMX_NN>)
         -> memref<1x16x1x4xf16, #NHWC, @CMX_NN> {
     %0 = builtin.unrealized_conversion_cast %arg0 : memref<1x16x1x4xf16, #NHWC, @CMX_NN>
         to tensor<1x16x1x4xf16, {mem_space = @CMX_NN, order = #NHWC}>
     %1 = builtin.unrealized_conversion_cast %arg1 : memref<16x1x1x4xsi32, @CMX_NN>
         to tensor<16x1x1x4xsi32, {mem_space = @CMX_NN}>
-    %2 = builtin.unrealized_conversion_cast %arg2 : memref<16x1x1x16xui8, @CMX_NN>
-        to tensor<16x1x1x16xui8, {mem_space = @CMX_NN}>
+    %2 = builtin.unrealized_conversion_cast %arg2 : memref<1x1x1x16xui8, @CMX_NN>
+        to tensor<1x1x1x16xui8, {mem_space = @CMX_NN}>
 
     %3 = VPU.NCE.MaxPool(%0, %1, %2) {
                 kernel_size = [1, 1],
@@ -109,7 +109,7 @@ func @MaxPool(%arg0: memref<1x16x1x4xf16, #NHWC, @CMX_NN>, %arg1 : memref<16x1x1
     // CHECK-SAME:          task_type = "MAXPOOL"
     // CHECK-SAME:      input(%arg0 : memref<1x16x1x4xf16, #NHWC, @CMX_NN>)
     // CHECK-SAME:      weight_table(%arg1 : memref<16x1x1x4xsi32, @CMX_NN>)
-    // CHECK-SAME:      activation_window(%arg2 : memref<16x1x1x16xui8, @CMX_NN>)
+    // CHECK-SAME:      activation_window(%arg2 : memref<1x1x1x16xui8, @CMX_NN>)
     // CHECK-SAME:      parent_input(%arg0 : memref<1x16x1x4xf16, #NHWC, @CMX_NN>)
     // CHECK-SAME:      parent_output([[OUT_BUF]] : memref<1x16x1x4xf16, #NHWC, @CMX_NN>)
     // CHECK-SAME:      outputs([[OUT_BUF]] : memref<1x16x1x4xf16, #NHWC, @CMX_NN>)
@@ -126,7 +126,7 @@ func @MaxPool(%arg0: memref<1x16x1x4xf16, #NHWC, @CMX_NN>, %arg1 : memref<16x1x1
 
 // CHECK-LABEL: @DepthConv
 func @DepthConv(%arg0: memref<1x16x40x80xf16, #NHWC, @CMX_NN>, %arg1: memref<16x1x4x8xf16, #NHWC, @CMX_NN>,
-        %arg2 : memref<16x1x1x4xsi32, @CMX_NN>, %arg3 : memref<16x1x1x16xui8, @CMX_NN>)
+        %arg2 : memref<16x1x1x4xsi32, @CMX_NN>, %arg3 : memref<1x1x1x16xui8, @CMX_NN>)
         -> memref<1x16x37x73xf16, #NHWC, @CMX_NN> {
     %0 = builtin.unrealized_conversion_cast %arg0 : memref<1x16x40x80xf16, #NHWC, @CMX_NN>
         to tensor<1x16x40x80xf16, {mem_space = @CMX_NN, order = #NHWC}>
@@ -134,8 +134,8 @@ func @DepthConv(%arg0: memref<1x16x40x80xf16, #NHWC, @CMX_NN>, %arg1: memref<16x
         to tensor<16x1x4x8xf16, {mem_space = @CMX_NN, order = #NHWC}>
     %2 = builtin.unrealized_conversion_cast %arg2 : memref<16x1x1x4xsi32, @CMX_NN>
         to tensor<16x1x1x4xsi32, {mem_space = @CMX_NN}>
-    %3 = builtin.unrealized_conversion_cast %arg3 : memref<16x1x1x16xui8, @CMX_NN>
-        to tensor<16x1x1x16xui8, {mem_space = @CMX_NN}>
+    %3 = builtin.unrealized_conversion_cast %arg3 : memref<1x1x1x16xui8, @CMX_NN>
+        to tensor<1x1x1x16xui8, {mem_space = @CMX_NN}>
 
     %4 = VPU.NCE.DepthConvolution(%0, %1, %2, %3) {
                 pad = {bottom = 0, left = 0, right = 0, top = 0},
@@ -167,7 +167,7 @@ func @DepthConv(%arg0: memref<1x16x40x80xf16, #NHWC, @CMX_NN>, %arg1: memref<16x
 // CHECK-SAME:      input(%arg0 : memref<1x16x40x80xf16, #NHWC, @CMX_NN>)
 // CHECK-SAME:      weights(%arg1 : memref<16x1x4x8xf16, #NHWC, @CMX_NN>)
 // CHECK-SAME:      weight_table(%arg2 : memref<16x1x1x4xsi32, @CMX_NN>)
-// CHECK-SAME:      activation_window(%arg3 : memref<16x1x1x16xui8, @CMX_NN>)
+// CHECK-SAME:      activation_window(%arg3 : memref<1x1x1x16xui8, @CMX_NN>)
 // CHECK-SAME:      parent_input(%arg0 : memref<1x16x40x80xf16, #NHWC, @CMX_NN>)
 // CHECK-SAME:      parent_output([[OUT_BUF]] : memref<1x16x37x73xf16, #NHWC, @CMX_NN>)
 // CHECK-SAME:      outputs([[OUT_BUF]] : memref<1x16x37x73xf16, #NHWC, @CMX_NN>)

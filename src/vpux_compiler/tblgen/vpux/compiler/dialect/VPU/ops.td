@@ -121,7 +121,6 @@ def VPU_NCEConvolutionOp :
                 NoRegionArguments,
                 NoTerminator,
                 SingleBlock,
-                IE_LayerWithPostOpInterface,
                 DeclareOpInterfaceMethods<IE_LayoutInfoOpInterface>,
                 DeclareOpInterfaceMethods<VPU_NCEOpInterface>
             ]
@@ -134,12 +133,9 @@ def VPU_NCEConvolutionOp :
         4DTensorOf<[SI32]>:$weightsTable,
         Optional<4DTensorOf<[UI8]>>:$activationWindow,
 
-        OptionalAttr<Const_ContentAttr>:$bias,
-
         Confined<I64ArrayAttr, [ArrayCount<2>]>:$strides,
         VPU_PaddingAttr:$pad,
 
-        OptionalAttr<IE_PostOp>:$post_op,
         OptionalAttr<VPU_PPETaskAttr>:$ppe,
 
         Confined<I64ArrayAttr, [ArrayCount<4>]>:$rawFilterShape,
@@ -155,9 +151,7 @@ def VPU_NCEConvolutionOp :
     );
 
     let assemblyFormat = [{
-        `(` $input `,` $filter `,` $weightsTable `)`
-        (`(` `activationWindow` `:` $activationWindow^ `:` custom<OptionalTypes>(type($activationWindow)) `)`)?
-        (`(` `bias` `:` $bias^ `)`)?
+        `(` $input `,` $filter `,` $weightsTable (`,` $activationWindow^ custom<OptionalTypes>(type($activationWindow)) ``)? `)`
         attr-dict
         custom<OptionalTypes>(type($input), type($filter), type($weightsTable)) ``
         `->` type(results)
@@ -176,6 +170,8 @@ def VPU_NCEConvolutionOp :
         static bool isSupported(vpux::IE::ConvolutionOp origOp, vpux::VPU::NCEInvariant::LogCb logCb);
 
         static int64_t getInputChannelAlignment(vpux::NDTypeInterface inputType);
+
+        vpux::Shape inferAlignedFilterShape(vpux::NDTypeInterface input, vpux::NDTypeInterface output);
     }] # baseExtraClassDeclaration;
 
     let elemComparisonModes = [IE_TypeComparisonMode_ALLOW_QUANT_MIXED_PRECISION, IE_TypeComparisonMode_ALLOW_DIFFERENT_QUANT];
@@ -192,7 +188,6 @@ def VPU_NCEDepthConvolutionOp :
                 NoRegionArguments,
                 NoTerminator,
                 SingleBlock,
-                IE_LayerWithPostOpInterface,
                 DeclareOpInterfaceMethods<IE_LayoutInfoOpInterface>,
                 DeclareOpInterfaceMethods<VPU_NCEOpInterface>
             ]
@@ -205,16 +200,13 @@ def VPU_NCEDepthConvolutionOp :
         4DTensorOf<[SI32]>:$weightsTable,
         4DTensorOf<[UI8]>:$activationWindow,
 
-        OptionalAttr<Const_ContentAttr>:$bias,
-
         Confined<I64ArrayAttr, [ArrayCount<2>]>:$strides,
         VPU_PaddingAttr:$pad,
 
-        OptionalAttr<IE_PostOp>:$post_op,
         OptionalAttr<VPU_PPETaskAttr>:$ppe,
 
         Confined<I64ArrayAttr, [ArrayCount<4>]>:$rawFilterShape,
-        OptionalAttr<IntAttr>:$activation_window_channel_length
+        IntAttr:$activation_window_channel_length
     );
 
     let results = (outs
@@ -227,7 +219,6 @@ def VPU_NCEDepthConvolutionOp :
 
     let assemblyFormat = [{
         `(` $input `,` $filter `,` $weightsTable `,` $activationWindow `)`
-        (`(` `bias` `:` $bias^ `)`)?
         attr-dict
         custom<OptionalTypes>(type($input), type($filter), type($weightsTable), type($activationWindow)) ``
         `->` type(results)
@@ -246,6 +237,8 @@ def VPU_NCEDepthConvolutionOp :
         static bool isSupported(vpux::IE::GroupConvolutionOp origOp, vpux::VPU::NCEInvariant::LogCb logCb);
 
         bool checkChannelRestrictions(int64_t channels);
+
+        vpux::Shape inferAlignedFilterShape(vpux::NDTypeInterface output);
     }] # baseExtraClassDeclaration;
 
     let elemComparisonModes = [IE_TypeComparisonMode_ALLOW_QUANT_MIXED_PRECISION, IE_TypeComparisonMode_ALLOW_DIFFERENT_QUANT];
@@ -262,7 +255,6 @@ def VPU_NCEMaxPoolOp :
                 NoRegionArguments,
                 NoTerminator,
                 SingleBlock,
-                IE_LayerWithPostOpInterface,
                 DeclareOpInterfaceMethods<IE_LayoutInfoOpInterface>,
                 DeclareOpInterfaceMethods<VPU_NCEOpInterface>
             ]
@@ -278,9 +270,8 @@ def VPU_NCEMaxPoolOp :
         Confined<I64ArrayAttr, [ArrayCount<2>]>:$strides,
         VPU_PaddingAttr:$pad,
 
-        OptionalAttr<IE_PostOp>:$post_op,
         OptionalAttr<VPU_PPETaskAttr>:$ppe,
-        OptionalAttr<IntAttr>:$activation_window_channel_length
+        IntAttr:$activation_window_channel_length
     );
 
     let results = (outs
@@ -327,7 +318,6 @@ def VPU_NCEEltwiseOp :
                 NoTerminator,
                 SingleBlock,
                 IE_EltwiseOp,
-                IE_LayerWithPostOpInterface,
                 DeclareOpInterfaceMethods<IE_LayoutInfoOpInterface>,
                 DeclareOpInterfaceMethods<VPU_NCEOpInterface>
             ]
@@ -340,7 +330,6 @@ def VPU_NCEEltwiseOp :
 
         VPU_EltwiseType:$op_type,
 
-        OptionalAttr<IE_PostOp>:$post_op,
         OptionalAttr<VPU_PPETaskAttr>:$ppe
     );
 

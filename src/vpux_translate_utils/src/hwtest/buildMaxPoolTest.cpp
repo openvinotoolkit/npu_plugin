@@ -107,13 +107,11 @@ void buildMaxPool(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp mod
                                                                     stride_vec[1], uderlyingInputType, in_shape[1]);
     mlir::IntegerAttr actChannelLength = funcbuilder.getI32IntegerAttr(checked_cast<int32_t>(bitPatternSize));
 
-    const auto fakeSparsity =
-            VPU::NCESparsity::getFakeSparsity(VPU::NCESparsity::Mode::POOL, ShapeRef(filter_size), stride_vec[1],
-                                              uderlyingInputType, in_shape[1], out_shape[1]);
+    const auto fakeSparsity = VPU::NCESparsity::getFakeSparsity(VPU::NCESparsity::Mode::POOL, ShapeRef(filter_size),
+                                                                stride_vec[1], uderlyingInputType, in_shape[1]);
 
     const auto elemType = getUInt8Type(ctx);
-    int64_t numChannels = in_shape[1];
-    SmallVector<int64_t> sparsity_shape{numChannels, 1, 1, static_cast<int64_t>(fakeSparsity.size()) / numChannels};
+    SmallVector<int64_t> sparsity_shape{1, 1, 1, static_cast<int64_t>(fakeSparsity.size())};
 
     const auto dataStorageType = mlir::RankedTensorType::get(sparsity_shape, elemType);
     const auto dataAttr = mlir::DenseElementsAttr::get(dataStorageType, makeArrayRef(fakeSparsity));
@@ -135,7 +133,7 @@ void buildMaxPool(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp mod
                                           builder.getUnknownLoc(), dataConstOp.getOperation()->getResult(0),
                                           actWindow_cmx.getOperation()->getResult(0));
     // weights table ddr tensor
-    SmallVector<int64_t> wtTbl_data_shape{sparsity_shape[0], 1, 1, 4};
+    SmallVector<int64_t> wtTbl_data_shape{output.shape[1], 1, 1, 4};
     auto weightTblData_ddr_type = getMemRefType(VPURT::BufferSection::DDR, wtTbl_data_shape,
                                                 builder.getIntegerType(32, true), DimsOrder::NHWC);
     const auto wtTblData_ddr_valueType =
