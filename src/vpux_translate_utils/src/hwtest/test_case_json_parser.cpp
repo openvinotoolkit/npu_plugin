@@ -228,6 +228,8 @@ std::string nb::to_string(CaseType case_) {
         return "MaxPool";
     case CaseType::AvgPool:
         return "AvgPool";
+    case CaseType::DifferentClustersDPU:
+        return "DifferentClustersDPU";
     case CaseType::ActShave:
         return "ActShave";
     case CaseType::ReadAfterWriteDPUDMA:
@@ -272,6 +274,8 @@ nb::CaseType nb::to_case(llvm::StringRef str) {
         return CaseType::MaxPool;
     if (isEqual(str, "AvgPool"))
         return CaseType::AvgPool;
+    if (isEqual(str, "DifferentClustersDPU"))
+        return CaseType::DifferentClustersDPU;
     if (isEqual(str, "ActShave"))
         return CaseType::ActShave;
     if (isEqual(str, "ReadAfterWriteDPUDMA"))
@@ -318,6 +322,17 @@ nb::RaceConditionParams nb::TestCaseJsonDescriptor::loadRaceConditionParams(llvm
     params.requestedClusters = jsonObj->getInteger("requested_clusters").getValue();
     params.requestedUnits = jsonObj->getInteger("requested_units").getValue();
 
+    return params;
+}
+
+nb::DPUTaskParams nb::TestCaseJsonDescriptor::loadDPUTaskParams(llvm::json::Object* jsonObj) {
+    nb::DPUTaskParams params;
+    auto* task_params = jsonObj->getObject("DPUTaskParams");
+
+    params.inputCluster = task_params->getInteger("input_cluster").getValue();
+    params.outputCluster = task_params->getInteger("output_cluster").getValue();
+    params.weightsCluster = task_params->getInteger("weights_cluster").getValue();
+    params.weightsTableCluster = task_params->getInteger("weights_table_cluster").getValue();
     return params;
 }
 
@@ -624,6 +639,13 @@ void nb::TestCaseJsonDescriptor::parse(llvm::json::Object json_obj) {
             caseType_ == CaseType::ReadAfterWriteDPUACT || caseType_ == CaseType::ReadAfterWriteACTDPU) {
             clusterNumber_ = loadClusterNumber(&json_obj);
         }
+        return;
+    }
+
+    if (caseType_ == CaseType::DifferentClustersDPU) {
+        wtLayer_ = loadWeightLayer(&json_obj);
+        convLayer_ = loadConvLayer(&json_obj);
+        DPUTaskParams_ = loadDPUTaskParams(&json_obj);
         return;
     }
 
