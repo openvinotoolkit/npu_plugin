@@ -44,11 +44,11 @@ bool vpux::VPU::NCEConvolutionOp::fitIntoCMX(vpux::NDTypeInterface input, vpux::
     Byte requiredCMX(0);
 
     requiredCMX += input.getTotalAllocSize();
+    requiredCMX += filter.getTotalAllocSize();
     requiredCMX += output.getTotalAllocSize();
 
     requiredCMX += NCEInvariant::getWeightsTableSize(OC);
 
-    requiredCMX += filter.getTotalAllocSize();
     if (inOrder == DimsOrder::NHWC) {
         // do nothing
     } else if (inOrder == DimsOrder::NCHW) {
@@ -103,8 +103,8 @@ bool vpux::VPU::NCEConvolutionOp::isSupported(IE::ConvolutionOp op, NCEInvariant
     const auto filterType = op.filter().getType().cast<vpux::NDTypeInterface>();
     const auto outputType = op.output().getType().cast<vpux::NDTypeInterface>();
 
-    if (!NCEInvariant::isActTypeSupported(inputType, getInputChannelAlignment(inputType)) ||
-        !NCEInvariant::isActTypeSupported(outputType, getOutputChannelAlignment(outputType))) {
+    if (!NCEInvariant::isActTypeSupported(inputType, getInputChannelAlignmentImpl(inputType)) ||
+        !NCEInvariant::isActTypeSupported(outputType, getOutputChannelAlignmentImpl(outputType))) {
         logCb(llvm::formatv("Misaligned tensor shape"));
         return false;
     }
@@ -362,7 +362,7 @@ void vpux::VPU::NCEConvolutionOp::inferLayoutInfo(IE::LayerLayoutInfo& info) {
 // AlignedChannelsOpInterface
 //
 
-int64_t vpux::VPU::NCEConvolutionOp::getInputChannelAlignment(vpux::NDTypeInterface inputType) {
+int64_t vpux::VPU::NCEConvolutionOp::getInputChannelAlignmentImpl(vpux::NDTypeInterface inputType) {
     const auto inOrder = inputType.getDimsOrder();
     if (inOrder == DimsOrder::NCHW) {
         // C-major convolution has no specific requirements
@@ -378,7 +378,7 @@ int64_t vpux::VPU::NCEConvolutionOp::getInputChannelAlignment(vpux::NDTypeInterf
 
 vpux::InputTiling vpux::VPU::NCEConvolutionOp::backInferTileInfo(const vpux::TileInfo& outputTile) {
     const auto origInputShape = getShape(input());
-    const auto origFilterShape = getShape(filter());
+    const auto origFilterShape = Shape(parseIntArrayAttr<int64_t>(rawFilterShape()));
     const auto origPadding = toPadInfo(pad());
 
     // This op incorporates bias values in WeightsTable
@@ -394,9 +394,8 @@ vpux::InputTiling vpux::VPU::NCEConvolutionOp::backInferTileInfo(const vpux::Til
     inputTiling.tiles[1].shape = getShape(filter()).toValues();
     inputTiling.tiles[1].shape[Dims4D::Filter::OC] = outputTile.shape[Dims4D::Act::C];
 
-    if (weightsTable() != nullptr) {
-        inputTiling.tiles.push_back(VPU::getWeightsTableTile(this, outputTile));
-    }
+    inputTiling.tiles.push_back(VPU::getWeightsTableTile(this, outputTile));
+
     if (activationWindow() != nullptr) {
         inputTiling.tiles.push_back(VPU::getActivationWindowTile(this, outputTile));
     }

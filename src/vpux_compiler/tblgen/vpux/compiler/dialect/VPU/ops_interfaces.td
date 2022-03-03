@@ -75,20 +75,20 @@ def VPU_NCEOpInterface : OpInterface<"NCEOpInterface"> {
                     mlir::cast<ConcreteOp>($_op).getOutputChannelAlignment()));
         }
 
-        static int64_t getInputChannelAlignment(vpux::NDTypeInterface inputType) {
+        static int64_t getInputChannelAlignmentImpl(vpux::NDTypeInterface inputType) {
             return vpux::VPU::NCEInvariant::getAlignment(inputType.getElementType());
         }
-        static int64_t getOutputChannelAlignment(vpux::NDTypeInterface outputType) {
+        static int64_t getOutputChannelAlignmentImpl(vpux::NDTypeInterface outputType) {
             return vpux::VPU::NCEInvariant::getAlignment(outputType.getElementType());
         }
 
         int64_t getInputChannelAlignment() {
             const auto inputType = $_op->getOperand(0).getType().template cast<vpux::NDTypeInterface>();
-            return ConcreteOp::getInputChannelAlignment(inputType);
+            return ConcreteOp::getInputChannelAlignmentImpl(inputType);
         }
         int64_t getOutputChannelAlignment() {
             const auto outputType = $_op->getResult(0).getType().template cast<vpux::NDTypeInterface>();
-            return ConcreteOp::getOutputChannelAlignment(outputType);
+            return ConcreteOp::getOutputChannelAlignmentImpl(outputType);
         }
 
         bool checkChannelRestrictions(int64_t /*channels*/) {
@@ -105,7 +105,7 @@ def VPU_NCEOpInterface : OpInterface<"NCEOpInterface"> {
             return mlir::failure();
         }
 
-        return mlir::success();
+        return mlir::cast<ConcreteOp>($_op).verifyChannels();
     }];
 }
 

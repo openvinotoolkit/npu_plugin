@@ -123,7 +123,8 @@ def VPU_NCEConvolutionOp :
                 SingleBlock,
                 DeclareOpInterfaceMethods<IE_LayoutInfoOpInterface>,
                 DeclareOpInterfaceMethods<IE_TilingBuilderOpInterface>,
-                DeclareOpInterfaceMethods<VPU_NCEOpInterface>
+                DeclareOpInterfaceMethods<VPU_NCEOpInterface>,
+                IE_AlignedChannelsOpInterface
             ]
         > {
     let summary = "NCE version of Convolution layer";
@@ -168,7 +169,7 @@ def VPU_NCEConvolutionOp :
 
         static bool isSupported(vpux::IE::ConvolutionOp origOp, vpux::VPU::NCEInvariant::LogCb logCb);
 
-        static int64_t getInputChannelAlignment(vpux::NDTypeInterface inputType);
+        static int64_t getInputChannelAlignmentImpl(vpux::NDTypeInterface inputType);
 
         vpux::Shape inferAlignedFilterShape(vpux::NDTypeInterface input, vpux::NDTypeInterface output);
     }] # baseExtraClassDeclaration;
@@ -189,7 +190,8 @@ def VPU_NCEDepthConvolutionOp :
                 SingleBlock,
                 DeclareOpInterfaceMethods<IE_LayoutInfoOpInterface>,
                 DeclareOpInterfaceMethods<IE_TilingBuilderOpInterface>,
-                DeclareOpInterfaceMethods<VPU_NCEOpInterface>
+                DeclareOpInterfaceMethods<VPU_NCEOpInterface>,
+                IE_AlignedChannelsOpInterface
             ]
         > {
     let summary = "NCE version of Depthwise Convolution layer";
@@ -255,7 +257,8 @@ def VPU_NCEMaxPoolOp :
                 SingleBlock,
                 DeclareOpInterfaceMethods<IE_LayoutInfoOpInterface>,
                 DeclareOpInterfaceMethods<IE_TilingBuilderOpInterface>,
-                DeclareOpInterfaceMethods<VPU_NCEOpInterface>
+                DeclareOpInterfaceMethods<VPU_NCEOpInterface>,
+                IE_AlignedChannelsOpInterface
             ]
         > {
     let summary = "NCE version of MaxPool layer";
@@ -318,7 +321,8 @@ def VPU_NCEEltwiseOp :
                 IE_EltwiseOp,
                 IE_TilingBuilderOpInterface,
                 DeclareOpInterfaceMethods<IE_LayoutInfoOpInterface>,
-                DeclareOpInterfaceMethods<VPU_NCEOpInterface>
+                DeclareOpInterfaceMethods<VPU_NCEOpInterface>,
+                IE_AlignedChannelsOpInterface
             ]
         > {
     let summary = "NCE version of Eltwise layer";

@@ -67,6 +67,7 @@ func @DepthConvNCEtoCMX(%arg0: tensor<1x16x40x80xf16, {order = #NHWC}>) -> tenso
     // CHECK-SAME:      -> tensor<1x1x1x16xui8, {mem_space = @CMX_NN, order = #NHWC}>
 
     // CHECK:       [[OUT_CMX:%.+]] = VPU.NCE.DepthConvolution([[IN_CMX]], [[WEIGHTS_CMX]], [[WEIGHTS_TABLE_CMX]], [[ACTIVATION_WINDOW_CMX]])
+    // CHECK-SAME:      activation_window_channel_length = 44 : i64,
     // CHECK-SAME:      pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}
     // CHECK-SAME:      strides = [1, 1]
     // CHECK-SAME:      -> tensor<1x16x37x73xf16, {mem_space = @CMX_NN, order = #NHWC}>

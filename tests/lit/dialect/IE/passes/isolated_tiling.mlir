@@ -471,6 +471,7 @@ func @SplitNCEMaxPoolOverH(%arg0: tensor<1x16x100x100xf16, {order = #NHWC}>) -> 
 // CHECK-SAME:      to tensor<1x16x51x100xf16, {order = #NHWC}>
 
 // CHECK:       [[OUTPUT_TILE0:%.+]] = VPU.NCE.MaxPool([[INPUT_TILE0]], [[WEIGHTS_TABLE]], [[ACTIVATION_WINDOW]]) {
+// CHECK-SAME:      activation_window_channel_length = 18 : i64,
 // CHECK-SAME:      pad = {bottom = 0 : i64, left = 1 : i64, right = 1 : i64, top = 1 : i64},
 // CHECK-SAME:      } -> tensor<1x16x50x100xf16, {order = #NHWC}>
 
@@ -481,6 +482,7 @@ func @SplitNCEMaxPoolOverH(%arg0: tensor<1x16x100x100xf16, {order = #NHWC}>) -> 
 // CHECK-SAME:      to tensor<1x16x51x100xf16, {order = #NHWC}>
 
 // CHECK:       [[OUTPUT_TILE1:%.+]] = VPU.NCE.MaxPool([[INPUT_TILE1]], [[WEIGHTS_TABLE]], [[ACTIVATION_WINDOW]]) {
+// CHECK-SAME:      activation_window_channel_length = 18 : i64,
 // CHECK-SAME:      pad = {bottom = 1 : i64, left = 1 : i64, right = 1 : i64, top = 0 : i64},
 // CHECK-SAME:      } -> tensor<1x16x50x100xf16, {order = #NHWC}>
 

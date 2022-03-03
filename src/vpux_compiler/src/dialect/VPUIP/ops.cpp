@@ -231,7 +231,13 @@ bool isSupportedTiling(IE::ConvolutionOp origOp, const OutputTiling& tiles, Logg
     const auto filterType = origOp.filter().getType().cast<vpux::NDTypeInterface>();
     const auto outputType = origOp.output().getType().cast<vpux::NDTypeInterface>();
 
+    auto channelsInfo = mlir::dyn_cast<IE::AlignedChannelsOpInterface>(origOp.getOperation());
+
     return llvm::all_of(tiles, [&](const TileInfo& outputTile) {
+        if (channelsInfo != nullptr && !channelsInfo.checkChannelRestrictions(outputTile.shape[Dims4D::Act::C])) {
+            return false;
+        }
+
         const auto origInputShape = getShape(origOp.input());
         const auto origFilterShape = getShape(origOp.filter());
         const auto origBiasShape = origOp.bias() != nullptr ? getShape(origOp.bias()) : ShapeRef();
@@ -261,7 +267,13 @@ bool isSupportedTiling(VPU::NCEConvolutionOp origOp, const OutputTiling& tiles, 
     const auto filterType = origOp.filter().getType().cast<vpux::NDTypeInterface>();
     const auto outputType = origOp.output().getType().cast<vpux::NDTypeInterface>();
 
+    auto channelsInfo = mlir::dyn_cast<IE::AlignedChannelsOpInterface>(origOp.getOperation());
+
     return llvm::all_of(tiles, [&](const TileInfo& outputTile) {
+        if (channelsInfo != nullptr && !channelsInfo.checkChannelRestrictions(outputTile.shape[Dims4D::Act::C])) {
+            return false;
+        }
+
         const auto inputTiles = origOp.backInferTileInfo(outputTile).tiles;
 
         VPUX_THROW_UNLESS(inputTiles.size() > 1, "Missed tile information. Got {0} tiles info, must be at least 2",
@@ -318,7 +330,13 @@ bool isSupportedTiling(VPU::NCEDepthConvolutionOp origOp, const OutputTiling& ti
     const auto filterType = origOp.filter().getType().cast<vpux::NDTypeInterface>();
     const auto outputType = origOp.output().getType().cast<vpux::NDTypeInterface>();
 
+    auto channelsInfo = mlir::dyn_cast<IE::AlignedChannelsOpInterface>(origOp.getOperation());
+
     return llvm::all_of(tiles, [&](const TileInfo& outputTile) {
+        if (channelsInfo != nullptr && !channelsInfo.checkChannelRestrictions(outputTile.shape[Dims4D::Act::C])) {
+            return false;
+        }
+
         const auto inputTiles = origOp.backInferTileInfo(outputTile).tiles;
 
         VPUX_THROW_UNLESS(inputTiles.size() > 1, "Missed tile information. Got {0} tiles info, must be at least 2",
@@ -446,8 +464,10 @@ bool isSupportedPrefetchTiling(VPU::NCEConvolutionOp origOp, ShapeRef tileAxis, 
         return vpux::VPUIP::NCEInvariant::verifyPrefetchCMX(origOp, tileResult, log).succeeded();
     };
 
-    return isDivisibleTile(origOp.getOperation(), tileAxis, tileDim, getShape(origOp.filter())[tileDim]) &&
-           isMemPrefetchable() && !isLastTileBiggest(tileAxis, outputShape, tileDim);
+    const auto rawFilterShape = Shape(parseIntArrayAttr<int64_t>(origOp.rawFilterShape()));
+
+    return isDivisibleTile(origOp.getOperation(), tileAxis, tileDim, rawFilterShape[tileDim]) && isMemPrefetchable() &&
+           !isLastTileBiggest(tileAxis, outputShape, tileDim);
 }
 
 bool isSupportedPrefetchTiling(IE::GroupConvolutionOp origOp, ShapeRef tileAxis, Logger log) {
@@ -490,8 +510,10 @@ bool isSupportedPrefetchTiling(VPU::NCEDepthConvolutionOp origOp, ShapeRef tileA
         return vpux::VPUIP::NCEInvariant::verifyPrefetchCMX(origOp, tileResult, log).succeeded();
     };
 
-    return isDivisibleTile(origOp.getOperation(), tileAxis, tileDim, getShape(origOp.filter())[tileDim]) &&
-           isMemPrefetchable() && !isLastTileBiggest(tileAxis, outputShape, tileDim);
+    const auto rawFilterShape = Shape(parseIntArrayAttr<int64_t>(origOp.rawFilterShape()));
+
+    return isDivisibleTile(origOp.getOperation(), tileAxis, tileDim, rawFilterShape[tileDim]) && isMemPrefetchable() &&
+           !isLastTileBiggest(tileAxis, outputShape, tileDim);
 }
 
 bool isSupportedPrefetchTiling(IE::MaxPoolOp origOp, ShapeRef tileAxis, Logger log) {
@@ -901,9 +923,6 @@ void vpux::VPUIP::VPUIPDialect::setupExtraInterfaces(mlir::DialectRegistry& regi
     registry.addOpInterface<IE::MultiplyOp, AlignedChannelsOpModel<IE::MultiplyOp>>();
     registry.addOpInterface<IE::SubtractOp, AlignedChannelsOpModel<IE::SubtractOp>>();
     registry.addOpInterface<IE::AndOp, AlignedChannelsOpModel<IE::AndOp>>();
-    registry.addOpInterface<VPU::NCEConvolutionOp, AlignedChannelsOpModel<VPU::NCEConvolutionOp>>();
-    registry.addOpInterface<VPU::NCEDepthConvolutionOp, AlignedChannelsOpModel<VPU::NCEDepthConvolutionOp>>();
-    registry.addOpInterface<VPU::NCEMaxPoolOp, AlignedChannelsOpModel<VPU::NCEMaxPoolOp>>();
 
     registry.addOpInterface<IE::ConvolutionOp, NCETilingInfoOpModel<IE::ConvolutionOp>>();
     registry.addOpInterface<IE::GroupConvolutionOp, NCETilingInfoOpModel<IE::GroupConvolutionOp>>();
