@@ -13,7 +13,6 @@
 
 #include <math.h>
 #include <param_eltwise.h>
-#include <eltwise_base.h>
 
 using namespace sw_params;
 
@@ -22,7 +21,11 @@ namespace shave_lib {
 
 extern "C" {
 
+#define VECTOR_SIZE    8
+#define ELTWISE_VEC_OP __builtin_shave_vau_add_f16_rr
 #define ELTWISE_FN(a,b) (a+b)
+#include <eltwise_base.h>
+
 ELTWISE_BINARY_OP(add_fp16);
 
 }

@@ -15,22 +15,45 @@
 
 #include <nn_log.h>
 
-#define ELTWISE_BINARY_OP(funcName)                           \
-                                                              \
-void funcName(const struct EltwiseParams *lParams) {          \
-                                                              \
-    half* inA = (half*)(lParams->input[0].dataAddr);          \
-    half* inB = (half*)(lParams->input[1].dataAddr);          \
-    half* out = (half*)(lParams->output.dataAddr);            \
-                                                              \
-    int32_t *pDims = (int32_t *)(lParams->input[0].dimsAddr); \
-    uint32_t nElements = 1;                                   \
-                                                              \
-    for (uint32_t i=0; i < lParams->input[0].numDims; i++) {  \
-        nElements *= pDims[i];                                \
-    }                                                         \
-                                                              \
-    for (uint32_t i=0; i < nElements; i++) {                  \
-        out[i] = ELTWISE_FN(inA[i],inB[i]);                   \
-    }                                                         \
+#if defined(ELTWISE_VEC_OP)
+#define VECTOR_LOOP                                       \
+ {                                                        \
+    half8* vecInA = (half8*)(p->input[0].dataAddr);       \
+    half8* vecInB = (half8*)(p->input[1].dataAddr);       \
+    half8* vecOut = (half8*)(p->output.dataAddr);         \
+    const uint32_t numVectors = nElements / VECTOR_SIZE;  \
+                                                          \
+    for (i = 0; i < numVectors; i++) {                    \
+        vecOut[i] = ELTWISE_VEC_OP(vecInA[i], vecInB[i]); \
+    }                                                     \
+    i = i * VECTOR_SIZE;                                  \
+  }
+#else
+#define VECTOR_LOOP //nothing, just run scalar-loop
+#endif
+
+
+
+#define ELTWISE_BINARY_OP(funcName)                     \
+                                                        \
+void funcName(const struct EltwiseParams *p) {          \
+                                                        \
+    half* inA = (half*)(p->input[0].dataAddr);          \
+    half* inB = (half*)(p->input[1].dataAddr);          \
+    half* out = (half*)(p->output.dataAddr);            \
+                                                        \
+    int32_t *pDims = (int32_t *)(p->input[0].dimsAddr); \
+    uint32_t nElements = 1;                             \
+    uint32_t i;                                         \
+                                                        \
+    for (uint32_t i=0; i < p->input[0].numDims; i++) {  \
+        nElements *= pDims[i];                          \
+    }                                                   \
+                                                        \
+    i = 0;                                              \
+    VECTOR_LOOP;                                        \
+                                                        \
+    for (; i<nElements; i++) {                          \
+        out[i] = ELTWISE_FN(inA[i],inB[i]);             \
+    }                                                   \
 }
