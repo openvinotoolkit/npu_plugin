@@ -2110,8 +2110,9 @@ def IE_TopKOp :
 
     let arguments = (ins
         AnyRankedTensor:$input,
-        0DTensorOf<[AnyInteger]>:$k,
+        Optional<0DTensorOf<[AnyInteger]>>:$k,
 
+        OptionalAttr<IntAttr>:$k_value,
         IntAttr:$axis,
         IE_TopKMode:$mode,
         IE_TopKSortType:$sort,
@@ -2122,6 +2123,8 @@ def IE_TopKOp :
         AnyRankedTensor:$output_values,
         AnyRankedTensor:$target_shape
     );
+
+    let hasCanonicalizer = 1;
 }
 
 //

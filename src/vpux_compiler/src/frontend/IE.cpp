@@ -1494,15 +1494,13 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
                   "opset operation mismatch");
 
     const auto inputs = getInputs(origNode);
-    VPUX_THROW_UNLESS(inputs.size() == 2, "nGraph TopK node '{0}' has unsupported number of inputs '{1}'",
-                      origNode->get_friendly_name(), inputs.size());
 
     const auto axisAttr = getIntAttr(_ctx, origNode->get_axis());
     const auto modeAttr = importTopKMode(origNode->get_mode());
     const auto sortTypeAttr = importTopKSortType(origNode->get_sort_type());
     const auto indexElementTypeAttr = mlir::TypeAttr::get(importElemType(origNode->get_index_element_type()));
 
-    auto op = builder.create<IE::TopKOp>(createLocation(origNode), inputs[0], inputs[1], axisAttr, modeAttr,
+    auto op = builder.create<IE::TopKOp>(createLocation(origNode), inputs[0], inputs[1], nullptr, axisAttr, modeAttr,
                                          sortTypeAttr, indexElementTypeAttr);
     addOutputs(origNode, op);
 }

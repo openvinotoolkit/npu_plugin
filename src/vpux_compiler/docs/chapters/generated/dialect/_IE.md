@@ -3397,6 +3397,7 @@ operation ::= `IE.TopK` `(` operands `)` attr-dict `:` type(operands) `->` type(
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
+`k_value` | mlir::IntegerAttr | Integer attribute
 `axis` | mlir::IntegerAttr | Integer attribute
 `mode` | vpux::IE::TopKModeAttr | TopKMode that the InferenceEngine supports
 `sort` | vpux::IE::TopKSortTypeAttr | TopKSortType that the InferenceEngine supports

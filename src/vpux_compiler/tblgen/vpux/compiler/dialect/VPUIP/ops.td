@@ -2386,7 +2386,7 @@ def VPUIP_SwKernelRun
     : VPUIP_Op<"SW.Kernel.run"> {
 
     let arguments  = (ins
-        Variadic<AnyType>:$args,
+        Variadic<AnyMemRef>:$args,
         OptionalAttr<ArrayAttr>:$attrs
     );
 
@@ -3050,10 +3050,10 @@ def VPUIP_TopKUPAOp:
 
     let arguments = (ins
         F16MemRef:$input,
-        MemRefOf<[SI32]>:$k,
         F16MemRef:$output_values_buff,
         MemRefOf<[SI32]>:$target_shape_buff,
 
+        IntAttr:$k_value,
         IntAttr:$axis,
         IE_TopKMode:$mode,
         IE_TopKSortType:$sort,

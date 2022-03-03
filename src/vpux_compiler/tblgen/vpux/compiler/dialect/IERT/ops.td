@@ -3327,10 +3327,11 @@ def IERT_TopKOp:
 
     let arguments = (ins
         MemRefOf<[F16]>:$input,
-        MemRefOf<[SI32]>:$k,
+        Optional<MemRefOf<[SI32]>>:$k,
         MemRefOf<[F16]>:$output_values_buff,
         MemRefOf<[SI32]>:$target_shape_buff,
 
+        IntAttr:$k_value,
         IntAttr:$axis,
         IE_TopKMode:$mode,
         IE_TopKSortType:$sort,
@@ -3341,6 +3342,13 @@ def IERT_TopKOp:
         MemRefOf<[F16]>:$output_values,
         MemRefOf<[SI32]>:$target_shape
     );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `,` $k `:` type($k) `)`
+        `outputs` `(` $output_values_buff `:` type($output_values_buff) `,` $target_shape_buff `:` type($target_shape_buff) `)`
+        `->` type(results)
+    }];
 }
 
 //

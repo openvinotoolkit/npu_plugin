@@ -54,6 +54,7 @@ protected:
     void setPlatformMTL();
     bool isCompilerMCM() const;
     bool isCompilerMLIR() const;
+    bool isPlatformMTL() const;
 
     void disableMcmPasses(const std::vector<std::pair<std::string, std::string>>& banList);
 

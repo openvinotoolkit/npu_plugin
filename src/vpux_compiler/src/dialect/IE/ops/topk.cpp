@@ -14,6 +14,7 @@
 #include "vpux/compiler/dialect/IE/ops.hpp"
 
 #include "vpux/compiler/dialect/const/ops.hpp"
+#include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/error.hpp"
 
 #include "vpux/utils/core/checked_cast.hpp"
@@ -59,4 +60,44 @@ mlir::LogicalResult vpux::IE::TopKOp::inferReturnTypeComponents(
     inferredReturnShapes.emplace_back(outShape, topK.element_type().getValue());
 
     return mlir::success();
+}
+
+//
+// ConvertConstToAttr
+//
+
+namespace {
+
+class ConvertConstToAttr final : public mlir::OpRewritePattern<IE::TopKOp> {
+public:
+    using mlir::OpRewritePattern<IE::TopKOp>::OpRewritePattern;
+
+public:
+    mlir::LogicalResult matchAndRewrite(IE::TopKOp topKOp, mlir::PatternRewriter& rewriter) const final;
+};
+
+mlir::LogicalResult ConvertConstToAttr::matchAndRewrite(IE::TopKOp topKOp, mlir::PatternRewriter& rewriter) const {
+    // Translate k input to k attr.
+    if (topKOp.k_value().hasValue()) {
+        return mlir::failure();
+    }
+
+    auto kConst = topKOp.k().getDefiningOp<Const::DeclareOp>();
+    const auto kContent = kConst.content();
+    mlir::FailureOr<int64_t> k = kContent.getSplatValue<int64_t>();
+    if (mlir::failed(k)) {
+        return mlir::failure();
+    }
+    const auto kAttr = getIntAttr(topKOp.getContext(), k.getValue());
+
+    rewriter.replaceOpWithNewOp<IE::TopKOp>(topKOp, topKOp.input(), topKOp.k(), kAttr, topKOp.axisAttr(),
+                                            topKOp.modeAttr(), topKOp.sortAttr(), topKOp.element_typeAttr());
+
+    return mlir::success();
+}
+
+}  // namespace
+
+void vpux::IE::TopKOp::getCanonicalizationPatterns(mlir::RewritePatternSet& patterns, mlir::MLIRContext* context) {
+    patterns.insert<ConvertConstToAttr>(context);
 }

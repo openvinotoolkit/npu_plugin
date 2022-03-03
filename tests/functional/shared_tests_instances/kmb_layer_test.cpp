@@ -344,6 +344,15 @@ bool KmbLayerTestsCommon::isCompilerMLIR() const {
     return it->second == VPUX_CONFIG_VALUE(MLIR);
 }
 
+bool KmbLayerTestsCommon::isPlatformMTL() const {
+    const auto it = configuration.find(VPUX_CONFIG_KEY(PLATFORM));
+    if (it == configuration.end()) {
+        return false;
+    }
+
+    return it->second == "VPU3720";
+}
+
 void KmbLayerTestsCommon::disableMcmPasses(const std::vector<std::pair<std::string, std::string>>& banList) {
     const auto passFold = [](std::string list, const std::pair<std::string, std::string>& pass) {
         return std::move(list) + pass.first + "," + pass.second + ";";

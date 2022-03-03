@@ -2461,7 +2461,7 @@ operation ::= `VPUIP.SW.Kernel.run` attr-dict
 
 | Operand | Description |
 | :-----: | ----------- |
-`args` | any type
+`args` | memref of any type values
 
 ### `VPUIP.SwishUPA` (vpux::VPUIP::SwishUPAOp)
 
@@ -2534,6 +2534,7 @@ TopK UPA SHAVE kernel
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
+`k_value` | mlir::IntegerAttr | Integer attribute
 `axis` | mlir::IntegerAttr | Integer attribute
 `mode` | vpux::IE::TopKModeAttr | TopKMode that the InferenceEngine supports
 `sort` | vpux::IE::TopKSortTypeAttr | TopKSortType that the InferenceEngine supports
@@ -2544,7 +2545,6 @@ TopK UPA SHAVE kernel
 | Operand | Description |
 | :-----: | ----------- |
 `input` | memref of 16-bit float values
-`k` | memref of 32-bit signed integer values
 `output_values_buff` | memref of 16-bit float values
 `target_shape_buff` | memref of 32-bit signed integer values
 

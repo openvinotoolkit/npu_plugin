@@ -286,16 +286,9 @@ private:
 mlir::LogicalResult TopKRewrite::matchAndRewrite(IERT::TopKOp origOp, mlir::PatternRewriter& rewriter) const {
     _log.trace("Found TopK Operation '{0}'", origOp->getLoc());
 
-    // Change value k from scalars (0D tensor) to 1D tensor
-    auto kType = origOp.k().getType().cast<vpux::NDTypeInterface>();
-    const std::array<int64_t, 1> newKShape = {1};
-    ShapeRef newShape(newKShape);
-    auto newShapedKType = kType.changeShape(newShape);
-    auto k1DTensor = rewriter.create<IERT::GenericReshapeOp>(origOp->getLoc(), newShapedKType, origOp.k());
-
-    rewriter.replaceOpWithNewOp<VPUIP::TopKUPAOp>(origOp, origOp.input(), k1DTensor, origOp.output_values_buff(),
-                                                  origOp.target_shape_buff(), origOp.axisAttr(), origOp.modeAttr(),
-                                                  origOp.sortAttr(), origOp.element_typeAttr());
+    rewriter.replaceOpWithNewOp<VPUIP::TopKUPAOp>(origOp, origOp.input(), origOp.output_values_buff(),
+                                                  origOp.target_shape_buff(), origOp.k_valueAttr(), origOp.axisAttr(),
+                                                  origOp.modeAttr(), origOp.sortAttr(), origOp.element_typeAttr());
 
     return mlir::success();
 }

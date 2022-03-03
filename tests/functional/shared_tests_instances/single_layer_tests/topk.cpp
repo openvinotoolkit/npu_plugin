@@ -16,12 +16,39 @@ namespace LayerTestsDefinitions {
         }
     };
 
+    class KmbTopKLayerTest_MTL : public TopKLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
+        void SkipBeforeInfer() override {
+#ifndef ENABLE_IMD_BACKEND
+            throw LayerTestsUtils::KmbSkipTestException("Runtime issue.");
+#endif
+        }
+
+        void SkipBeforeLoad() override {
+            if(isPlatformMTL()) {
+                if (std::getenv("OV_BUILD_DIR") == nullptr) {
+                    throw LayerTestsUtils::KmbSkipTestException("OV_BUILD_DIR env directory must be specified, in order to reach act-shave kernels.");
+                }
+
+#if defined(__arm__) || defined(__aarch64__) || defined(_WIN32) || defined(_WIN64)
+                throw LayerTestsUtils::KmbSkipTestException("Does not compile on ARM and Windows.");
+#endif
+            }
+        }
+    };
+    
     TEST_P(KmbTopKLayerTest, CompareWithRefs) {
         Run();
     }
 
     TEST_P(KmbTopKLayerTest, CompareWithRefs_MLIR) {
         useCompilerMLIR();
+        Run();
+    }
+
+    TEST_P(KmbTopKLayerTest_MTL, CompareWithRefs_MLIR){
+        useCompilerMLIR();
+        setPlatformMTL();
+        setDefaultHardwareModeMLIR();
         Run();
     }
 
@@ -36,7 +63,11 @@ namespace {
     };
 
     const std::vector<int64_t> axes = {0, 1, 2};
-
+    
+    const std::vector<std::vector<InferenceEngine::Precision>> outPrecisions = {
+            {InferenceEngine::Precision::FP16, InferenceEngine::Precision::I32}
+    };
+    
     const std::vector<int64_t> k = {1, 5, 10};
 
     const std::vector<ngraph::opset4::TopK::Mode> modes = {
@@ -67,4 +98,18 @@ namespace {
                                      ::testing::Values(std::vector<size_t>({10, 10, 10})),
                                      ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
                              TopKLayerTest::getTestCaseName);
+
+    INSTANTIATE_TEST_SUITE_P(smoke_TopK, KmbTopKLayerTest_MTL,
+                            ::testing::Combine(
+                                    ::testing::ValuesIn(k),
+                                    ::testing::ValuesIn(axes),
+                                    ::testing::ValuesIn(modes),
+                                    ::testing::ValuesIn(sortTypes),
+                                    ::testing::ValuesIn(netPrecisions),
+                                    ::testing::Values(InferenceEngine::Precision::FP16),
+                                    ::testing::ValuesIn(outPrecisions),
+                                    ::testing::Values(InferenceEngine::Layout::ANY),
+                                    ::testing::Values(std::vector<size_t>({10, 10, 10})),
+                                    ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                            TopKLayerTest::getTestCaseName);
 }  // namespace

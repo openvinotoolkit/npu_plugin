@@ -1057,9 +1057,9 @@ mlir::Operation* createRTLayer(IE::LessEqualOp origOp, ArrayRef<mlir::Value> all
 
 mlir::Operation* createRTLayer(IE::TopKOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
     IERT::TopKOp::Adaptor newOp(allBufs);
-    return b.create<IERT::TopKOp>(origOp.getLoc(), newOp.input(), newOp.k(), newOp.output_values_buff(),
-                                  newOp.target_shape_buff(), origOp.axisAttr(), origOp.modeAttr(), origOp.sortAttr(),
-                                  origOp.element_typeAttr());
+    return b.create<IERT::TopKOp>(origOp.getLoc(), newOp.input(), nullptr, newOp.output_values_buff(),
+                                  newOp.target_shape_buff(), origOp.k_valueAttr(), origOp.axisAttr(), origOp.modeAttr(),
+                                  origOp.sortAttr(), origOp.element_typeAttr());
 }
 
 mlir::Operation* createRTLayer(IE::NotEqualOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {

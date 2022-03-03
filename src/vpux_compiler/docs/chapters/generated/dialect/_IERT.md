@@ -3235,10 +3235,21 @@ Get timer timestamp operation
 InferenceEngine run-time TopK layer
 
 
+Syntax:
+
+```
+operation ::= `IERT.TopK` attr-dict
+              `inputs` `(` $input `:` type($input) `,` $k `:` type($k) `)`
+              `outputs` `(` $output_values_buff `:` type($output_values_buff) `,` $target_shape_buff `:` type($target_shape_buff) `)`
+              `->` type(results)
+```
+
+
 #### Attributes:
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
+`k_value` | mlir::IntegerAttr | Integer attribute
 `axis` | mlir::IntegerAttr | Integer attribute
 `mode` | vpux::IE::TopKModeAttr | TopKMode that the InferenceEngine supports
 `sort` | vpux::IE::TopKSortTypeAttr | TopKSortType that the InferenceEngine supports
