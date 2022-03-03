@@ -49,12 +49,29 @@ public:
     // or Concat -> (Slice) -> Copy -> NCE
     struct ConcatPart {
         IE::CopyOp copyOp;
+        VPU::NCEClusterTilingOp copyClusterOp;
         IE::SliceOp sliceOp;
         VPU::NCEOpInterface nceOp;
+        VPU::NCEClusterTilingOp nceClusterOp;
         size_t inputIdx;
 
         ConcatPart(IE::CopyOp copy, IE::SliceOp slice, VPU::NCEOpInterface nce, size_t idx)
-                : copyOp(copy), sliceOp(slice), nceOp(nce), inputIdx(idx) {
+                : copyOp(copy),
+                  copyClusterOp(nullptr),
+                  sliceOp(slice),
+                  nceOp(nce),
+                  nceClusterOp(nullptr),
+                  inputIdx(idx) {
+        }
+
+        ConcatPart(IE::CopyOp copy, VPU::NCEClusterTilingOp copyCluster, IE::SliceOp slice, VPU::NCEOpInterface nce,
+                   VPU::NCEClusterTilingOp nceCluster, size_t idx)
+                : copyOp(copy),
+                  copyClusterOp(copyCluster),
+                  sliceOp(slice),
+                  nceOp(nce),
+                  nceClusterOp(nceCluster),
+                  inputIdx(idx) {
         }
         bool isValidPart() {
             return nceOp != nullptr;
@@ -115,17 +132,49 @@ CMXConcatPass::ConcatPattern CMXConcatPass::getInputPattern(IE::ConcatOp concat)
     // store all required input info in a struct
     for (size_t inputIdx = 0; inputIdx < concat.inputs().size(); inputIdx++) {
         auto input = concat.getOperand(static_cast<int>(inputIdx));
-        auto inputCopyOp = input.getDefiningOp<IE::CopyOp>();
+
+        // auto inputCopyOp = input.getDefiningOp<IE::CopyOp>();
+        IE::CopyOp inputCopyOp;
+        VPU::NCEClusterTilingOp inputClusterTilingOp = input.getDefiningOp<VPU::NCEClusterTilingOp>();
+
+        if (inputClusterTilingOp) {
+            // auto bodyBlock = &spillWriteExecOp.body().front();
+            // auto& bodyBlock = inputClusterTilingOp.body().front();
+            // auto& innerOp = bodyBlock.front();
+            auto& innerOp = inputClusterTilingOp.body().front().front();
+            if (mlir::isa<IE::CopyOp>(innerOp)) {
+                inputCopyOp = mlir::dyn_cast<IE::CopyOp>(innerOp);
+            }
+        } else {
+            inputCopyOp = input.getDefiningOp<IE::CopyOp>();
+        }
+
         if (inputCopyOp == nullptr) {
             return concatPattern;
         }
 
-        auto parentNCEOp = inputCopyOp.input().getDefiningOp<VPU::NCEOpInterface>();
+        // auto parentNCEOp = inputCopyOp.input().getDefiningOp<VPU::NCEOpInterface>();
+        VPU::NCEOpInterface parentNCEOp;
+        VPU::NCEClusterTilingOp parentNCEClusterTilingOp;
+
+        if (inputClusterTilingOp) {
+            auto inputClusterTiling = inputClusterTilingOp.getOperand(0);
+            if ((parentNCEClusterTilingOp = inputClusterTiling.getDefiningOp<VPU::NCEClusterTilingOp>())) {
+                auto& innerOp = parentNCEClusterTilingOp.body().front().front();
+                if (mlir::isa<VPU::NCEOpInterface>(innerOp)) {
+                    parentNCEOp = mlir::dyn_cast<VPU::NCEOpInterface>(innerOp);
+                }
+            }
+        } else {
+            parentNCEOp = inputCopyOp.input().getDefiningOp<VPU::NCEOpInterface>();
+        }
+
         if (parentNCEOp == nullptr) {
             return concatPattern;
         }
 
-        concatPattern.addConcatPart(ConcatPart(inputCopyOp, nullptr, parentNCEOp, inputIdx));
+        concatPattern.addConcatPart(ConcatPart(inputCopyOp, inputClusterTilingOp, nullptr, parentNCEOp,
+                                               parentNCEClusterTilingOp, inputIdx));
     }
     // make valid by adding concat
     concatPattern.setConcat(concat);
@@ -180,38 +229,98 @@ CMXConcatPass::ConcatPattern CMXConcatPass::getOutputPattern(IE::ConcatOp concat
     for (auto user : concat.output().getUsers()) {
         auto outputSliceOp = mlir::dyn_cast<IE::SliceOp>(user);
         auto outputCopyOp = mlir::dyn_cast<IE::CopyOp>(user);
+        auto outputClusterCopyOp = mlir::dyn_cast<VPU::NCEClusterTilingOp>(user);
+
+        if (outputClusterCopyOp) {
+            auto& innerOp = outputClusterCopyOp.body().front().front();
+            if (mlir::isa<IE::CopyOp>(innerOp)) {
+                outputCopyOp = mlir::dyn_cast<IE::CopyOp>(innerOp);
+            }
+        }
+
         if (outputCopyOp == nullptr && outputSliceOp == nullptr) {
             return concatPattern;
         }
+
         if (outputSliceOp && !isSplitSupportedOnDPU(outputSliceOp)) {
             return concatPattern;
         }
-        SmallVector<IE::CopyOp> copyOutOps;
+        // SmallVector<IE::CopyOp> copyOutOps;
+        SmallVector<mlir::Operation*> copyOutOps;
         if (outputSliceOp) {
+            // TODO: Update for NCEClsuterTiling
             for (auto copyOp : outputSliceOp.result().getUsers()) {
                 auto childCopyOp = mlir::dyn_cast<IE::CopyOp>(copyOp);
+
+                auto outputClusterCopyOp = mlir::dyn_cast<VPU::NCEClusterTilingOp>(copyOp);
+
+                if (outputClusterCopyOp) {
+                    auto& innerOp = outputClusterCopyOp.body().front().front();
+                    if (mlir::isa<IE::CopyOp>(innerOp)) {
+                        childCopyOp = mlir::dyn_cast<IE::CopyOp>(innerOp);
+                    }
+                }
+
                 if (childCopyOp == nullptr) {
                     return concatPattern;
                 }
                 copyOutOps.push_back(childCopyOp);
             }
         } else {
-            copyOutOps.push_back(outputCopyOp);
+            if (outputClusterCopyOp) {
+                copyOutOps.push_back(outputClusterCopyOp);
+            } else {
+                copyOutOps.push_back(outputCopyOp);
+            }
         }
-        for (auto& copyOutOp : copyOutOps) {
+        for (auto& op : copyOutOps) {
             llvm::DenseSet<mlir::Operation*> nceUsers;
-            for (auto copyUser : copyOutOp.getResult().getUsers()) {
-                auto childNCEOp = mlir::dyn_cast<VPU::NCEOpInterface>(copyUser);
+            for (auto opUser : op->getResult(0).getUsers()) {
+                auto childNCEOp = mlir::dyn_cast<VPU::NCEOpInterface>(opUser);
+                auto childNCEClusterOp = mlir::dyn_cast<VPU::NCEClusterTilingOp>(opUser);
+
+                if (childNCEClusterOp) {
+                    auto& innerOp = childNCEClusterOp.body().front().front();
+                    if (mlir::isa<VPU::NCEOpInterface>(innerOp)) {
+                        childNCEOp = mlir::dyn_cast<VPU::NCEOpInterface>(innerOp);
+                    }
+                }
+
                 if (childNCEOp == nullptr) {
                     return concatPattern;
                 }
-                if (nceUsers.find(copyUser) != nceUsers.end()) {
+
+                if (nceUsers.find(opUser) != nceUsers.end()) {
                     // avoid multiple reads from the same location at the same time
                     _log.nest(2).trace("Concat input used twice by the same operation, can not cmx");
                     return concatPattern;
                 }
-                nceUsers.insert(copyUser);
-                concatPattern.addConcatPart(ConcatPart(copyOutOp, outputSliceOp, childNCEOp, 0));
+                nceUsers.insert(opUser);
+                if (childNCEClusterOp) {
+                    // TODO: fix how copyOp is added
+                    IE::CopyOp copyOp;
+                    VPU::NCEClusterTilingOp copyClusterOp;
+                    if (mlir::isa<VPU::NCEClusterTilingOp>(op)) {
+                        copyClusterOp = mlir::dyn_cast<VPU::NCEClusterTilingOp>(op);
+                        auto& innerOp = copyClusterOp.body().front().front();
+                        if (mlir::isa<IE::CopyOp>(innerOp)) {
+                            copyOp = mlir::dyn_cast<IE::CopyOp>(innerOp);
+                        }
+
+                    } else if (mlir::isa<IE::CopyOp>(op)) {
+                        copyOp = mlir::dyn_cast<IE::CopyOp>(op);
+                    }
+
+                    if (copyOp == nullptr) {
+                        return concatPattern;
+                    }
+
+                    concatPattern.addConcatPart(
+                            ConcatPart(copyOp, copyClusterOp, outputSliceOp, childNCEOp, childNCEClusterOp, 0));
+                } else {
+                    concatPattern.addConcatPart(
+                            ConcatPart(mlir::dyn_cast<IE::CopyOp>(op), outputSliceOp, childNCEOp, 0));
+                }
             }
         }
     }
@@ -246,9 +355,18 @@ bool CMXConcatPass::ConcatPattern::inputsHaveMultipleUsers() const {
     // avoid concats which are complex, where the inputs to the concat are used
     // by other operations
     for (auto concatPart : concatParts) {
-        for (auto result : concatPart.nceOp->getResults()) {
+        auto nceOp = concatPart.nceOp.getOperation();
+        if (concatPart.nceClusterOp) {
+            nceOp = concatPart.nceClusterOp.getOperation();
+        }
+        for (auto result : nceOp->getResults()) {
             for (auto resultUser : result.getUsers()) {
-                if (resultUser != concatPart.copyOp.getOperation()) {
+                auto copyOp = concatPart.copyOp.getOperation();
+                if (concatPart.nceClusterOp) {
+                    copyOp = concatPart.copyClusterOp.getOperation();
+                }
+
+                if (resultUser != copyOp) {
                     // the NCE contains a different user
                     return true;
                 }
@@ -300,13 +418,21 @@ bool CMXConcatPass::ConcatPattern::childOpsFitInCMX(size_t cmxSize) {
         }
         size_t currentConsumerSize = 0;
         // consts (weights table and activation window) already exists
-        for (auto input : concatPart.nceOp->getOperands()) {
-            if (input.getDefiningOp() == concatPart.copyOp.getOperation()) {
+        auto nceOp = concatPart.nceOp.getOperation();
+        if (concatPart.nceClusterOp) {
+            nceOp = concatPart.nceClusterOp.getOperation();
+        }
+        auto copyOp = concatPart.copyOp.getOperation();
+        if (concatPart.copyClusterOp) {
+            copyOp = concatPart.copyClusterOp.getOperation();
+        }
+        for (auto input : nceOp->getOperands()) {
+            if (input.getDefiningOp() == copyOp) {
                 continue;
             }
             currentConsumerSize += getSize(input);
         }
-        for (auto output : concatPart.nceOp->getResults()) {
+        for (auto output : nceOp->getResults()) {
             currentConsumerSize += getSize(output);
         }
         maxConsumerSize = std::max<size_t>(maxConsumerSize, currentConsumerSize);
@@ -327,14 +453,20 @@ size_t CMXConcatPass::ConcatPattern::getParallelConsumerCount() const {
 
     for (auto concatPart : concatParts) {
         // for fused loc ignore tiling details
-        if (const auto fused = concatPart.nceOp.getLoc().dyn_cast<mlir::FusedLoc>()) {
+
+        auto nceOp = concatPart.nceOp.getOperation();
+        if (concatPart.nceClusterOp) {
+            nceOp = concatPart.nceClusterOp.getOperation();
+        }
+
+        if (const auto fused = nceOp->getLoc().dyn_cast<mlir::FusedLoc>()) {
             auto nceLoc = fused.getLocations().front();
             if (llvm::find(locations, nceLoc) == locations.end()) {
                 ++parallelConsumerCount;
                 locations.push_back(nceLoc);
             }
         } else {
-            auto nceLoc = concatPart.nceOp.getLoc();
+            auto nceLoc = nceOp->getLoc();
             if (llvm::find(locations, nceLoc) == locations.end()) {
                 ++parallelConsumerCount;
                 locations.push_back(nceLoc);
@@ -435,22 +567,30 @@ void CMXConcatPass::safeRunOnFunc() {
             _log.nest(1).trace("Concat input pattern not valid");
             return;
         }
+        _log.nest(1).trace("Concat input pattern valid");
+
         if (!inputPattern.inputPatternCanBeCMXed(cmxSize)) {
             _log.nest(1).trace("Concat input pattern can not be cmx-ed");
             return;
         }
+        _log.nest(1).trace("Concat input pattern can be cmx-ed");
         // check concat output pattern
         auto outputPattern = getOutputPattern(concat);
         if (!outputPattern.isValidPattern()) {
             _log.nest(1).trace("Concat output pattern not valid");
             return;
         }
+        _log.nest(1).trace("Concat output pattern valid");
         if (!outputPattern.outputPatternCanBeCMXed(cmxSize)) {
             _log.nest(1).trace("Concat output pattern can not be cmx-ed");
             return;
         }
+        _log.nest(1).trace("Concat output pattern can be cmx-ed");
         // rewrite from DDR to NNCMX
+
+        _log.nest(1).trace("Concat rewriteInputPattern");
         rewriteInputPattern(inputPattern);
+        _log.nest(1).trace("Concat rewriteOutputPattern");
         rewriteOutputPattern(outputPattern);
         _log.trace("Concat '{0}' at '{1}' was cmx-ed", concat->getName(), concat->getLoc());
     });
