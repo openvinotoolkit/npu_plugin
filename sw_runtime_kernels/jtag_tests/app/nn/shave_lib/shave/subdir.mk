@@ -49,6 +49,7 @@ shavelib-preserved-symbols-$(CONFIG_TARGET_SOC_MA2490) += reorder_fp16
 shavelib-preserved-symbols-$(CONFIG_TARGET_SOC_MA2490) += hswish_fp16
 shavelib-preserved-symbols-y += singleShaveMVN
 shavelib-preserved-symbols-y += singleShaveInterpolate
+shavelib-preserved-symbols-y += singleShaveScatterNDUpdate
 shavelib-preserved-symbols-$(CONFIG_TARGET_SOC_MA2490) += elu_fp16
 shavelib-preserved-symbols-$(CONFIG_TARGET_SOC_MA2490) += sqrt_fp16
 shavelib-preserved-symbols-$(CONFIG_TARGET_SOC_MA2490) += exp_fp16
