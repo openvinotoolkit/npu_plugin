@@ -32,7 +32,6 @@ bool DepthConvolutionStrategy::doesLayerFitIntoCMX(mlir::Operation* op, StringRe
             createDistributedTensorType(origOp, origOp.filter(), weightsTensorDistributionMode, weightTensorNumTiles);
     auto distributedOutputTensorType =
             createDistributedTensorType(origOp, origOp.output(), outputTensorDistributionMode, outputTensorNumTiles);
-    return true;
-    //     return origOp.fitIntoCMX(distributedActivationTensorType, distributeddWeightsTensorType,
-    //                              distributedOutputTensorType);
+    return origOp.fitIntoCMX(distributedActivationTensorType, distributeddWeightsTensorType,
+                             distributedOutputTensorType);
 }

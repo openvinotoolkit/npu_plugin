@@ -107,7 +107,7 @@ DistributedTensorType createDistributedTensorType(ConcreteOp origOp, mlir::Value
                 activationTensorDistributionModeAttr, numTiles, kernel, pad, stride, numClusters, origOp.getContext());
     } else if (distributionMode == DistributionMode::DUPLICATED) {
         distributedActivationTensorAttr =
-                DistributedTensorAttr::get(activationTensorDistributionModeAttr, numTiles, nullptr, nullptr, nullptr,
+                DistributedTensorAttr::get(activationTensorDistributionModeAttr, nullptr, nullptr, nullptr, nullptr,
                                            numClusters, origOp.getContext());
     } else {
         distributedActivationTensorAttr =
