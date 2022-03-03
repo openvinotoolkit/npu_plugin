@@ -3279,8 +3279,8 @@ def IE_RollOp :
 
     let arguments = (ins
         AnyRankedTensor:$data,
-        RankedTensorOf<[AnyInteger]>:$shift,
-        RankedTensorOf<[AnyInteger]>:$axes
+        RankedTensorOf<[SI64, SI32]>:$shift,
+        RankedTensorOf<[SI64, SI32]>:$axes
     );
 
     let results = (outs

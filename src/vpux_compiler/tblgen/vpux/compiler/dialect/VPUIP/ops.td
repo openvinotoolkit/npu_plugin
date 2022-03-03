@@ -3211,8 +3211,8 @@ def VPUIP_RollUPAOp :
 
     let arguments = (ins
             AnyMemRef:$data,
-            MemRefOf<[I64, I32]>:$shift,
-            MemRefOf<[I64, I32]>:$axes,
+            MemRefOf<[SI64, SI32]>:$shift,
+            MemRefOf<[SI64, SI32]>:$axes,
             AnyMemRef:$output_buff
     );
 
@@ -3227,9 +3227,9 @@ def VPUIP_RollUPAOp :
         `->` type(results)
     }];
 
-    let verifier = [{
-        return vpux::VPUIP::verifyOp(*this);
-    }];
+    // let verifier = [{
+    //     return vpux::VPUIP::verifyOp(*this);
+    // }];
 
 }
 

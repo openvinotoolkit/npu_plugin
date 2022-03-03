@@ -2050,8 +2050,8 @@ operation ::= `VPUIP.RollUPA` attr-dict
 | Operand | Description |
 | :-----: | ----------- |
 `data` | memref of any type values
-`shift` | memref of 64-bit signless integer or 32-bit signless integer values
-`axes` | memref of 64-bit signless integer or 32-bit signless integer values
+`shift` | memref of 64-bit signed integer or 32-bit signed integer values
+`axes` | memref of 64-bit signed integer or 32-bit signed integer values
 `output_buff` | memref of any type values
 
 #### Results:

@@ -2581,7 +2581,7 @@ static void addCommonOptimizationsPasses(ngraph::pass::Manager& manager) {
 
     // LinOpSequenceFusion must be executed after all decompositions
     manager.register_pass<ngraph::pass::LinOpSequenceFusion>();
-    manager.register_pass<ngraph::pass::UnrollIf>();
+  //  manager.register_pass<ngraph::pass::UnrollIf>();
 
     auto conv_fusions = manager.register_pass<ngraph::pass::GraphRewrite>();
     conv_fusions->add_matcher<ngraph::pass::ConvolutionMultiplyFusion>();

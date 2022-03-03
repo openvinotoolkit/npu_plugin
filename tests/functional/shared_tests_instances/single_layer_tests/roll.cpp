@@ -30,15 +30,15 @@ namespace {
     };
 
     const std::vector<InferenceEngine::Precision> inputPrecisions = {
-            InferenceEngine::Precision::I32
+                InferenceEngine::Precision::I32
     };
 
-   const std::vector<InferenceEngine::SizeVector> inputShapes = {
-           InferenceEngine::SizeVector {3, 11, 6, 4}
-   };
+//    const std::vector<InferenceEngine::SizeVector> inputShapes = {
+//            InferenceEngine::SizeVector {3, 11, 6, 4}
+//    };
 
-   std::vector<int64_t> shift = {7,3};        // Shift
-   std::vector<int64_t> axes = {-3, -2};        // Axes
+//    std::vector<int64_t> shift = {7,3};        // Shift
+//    std::vector<int64_t> axes = {-3, -2};        // Axes
 
 //     const auto testRollParams = ::testing::Combine(
 //            ::testing::ValuesIn(inputShapes),
@@ -49,12 +49,21 @@ namespace {
 //            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)
 //     );
 
+/*
+const auto testCase1D = ::testing::Combine(
+    ::testing::Values(std::vector<size_t>{16}), // Input shape
+    ::testing::ValuesIn(inputPrecision), // Precision
+    ::testing::Values(std::vector<int64_t>{5}), // Shift
+    ::testing::Values(std::vector<int64_t>{0}), // Axes
+    ::testing::Values(CommonTestUtils::DEVICE_CPU)
+);
+*/
+
     const auto testRollParams = ::testing::Combine(
-           ::testing::Values(std::vector<size_t>{3, 11, 6, 4}),
-//           ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+           ::testing::Values(std::vector<size_t>{16}),
            ::testing::ValuesIn(inputPrecisions),
-           ::testing::Values(std::vector<int64_t>{7, 3}),
-           ::testing::Values(std::vector<int64_t>{-3, -2}),
+           ::testing::Values(std::vector<int64_t>{5}),
+           ::testing::Values(std::vector<int64_t>{0}),
            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)
     );
 
