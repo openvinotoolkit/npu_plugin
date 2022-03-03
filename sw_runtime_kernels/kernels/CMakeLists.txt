@@ -1,16 +1,6 @@
-cmake_minimum_required(VERSION 2.6)
+cmake_minimum_required(VERSION 3.15)
 
 project(kernels)
-
-#set(xx a b=yy c)
-#set(xx "a" "b=yy" "c")
-#set(xx "${xx}" "d")
-#set(xs "")
-#foreach(x ${xx})
-#  set(xs "${xs} -D${x}")
-#endforeach()
-#message(STATUS "xx = ${xx}")
-#message(STATUS "xs = ${xs}")
 
 #set(BUILD_BLOB_BINARIES OFF CACHE BOOL "" FORCE)
 #set(BUILD_JTAG_BINARIES OFF CACHE BOOL "" FORCE)
@@ -77,24 +67,25 @@ set(jtag_data_suffix ".data.xdat")
 set(link_script_file "${KERNEL_DIR}/prebuild/shave_kernel.ld")
 
 set(link_libraries_list
-  "${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}/common/moviCompile/lib/30xxxx-leon/mlibc.a \
-   ${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}/common/moviCompile/lib/30xxxx-leon/mlibcrt.a"
+  "${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}/common/moviCompile/lib/30xxxx-leon/mlibc.a"
+  "${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}/common/moviCompile/lib/30xxxx-leon/mlibcrt.a"
 )
 
-file(GLOB kernel_descrip_list ${KERNEL_DIR}/descrip/*.txt)
+#file(GLOB kernel_descrip_list ${KERNEL_DIR}/descrip/*.txt)
 
-set(kernel_descrip_list "${KERNEL_DIR}/descrip/dummy.txt")
-#set(kernel_descrip_list "${KERNEL_DIR}/descrip/elu_fp16.cpp")
-#set(kernel_descrip_list "${KERNEL_DIR}/descrip/exp_fp16.cpp")
-#set(kernel_descrip_list "${KERNEL_DIR}/descrip/hswish_fp16.cpp")
-#set(kernel_descrip_list "${KERNEL_DIR}/descrip/reorder_fp16.cpp")
-#set(kernel_descrip_list "${KERNEL_DIR}/descrip/sigmoid_fp16.c")
-#set(kernel_descrip_list "${KERNEL_DIR}/descrip/singleShaveInterpolate.cpp")
-#set(kernel_descrip_list "${KERNEL_DIR}/descrip/singleShaveMVN.cpp")
-#set(kernel_descrip_list "${KERNEL_DIR}/descrip/singleShaveSoftmax.cpp")
-#set(kernel_descrip_list "${KERNEL_DIR}/descrip/sqrt_fp16.cpp")
-#set(kernel_descrip_list "${KERNEL_DIR}/descrip/tanh_fp16.cpp")
-#set(kernel_descrip_list "${KERNEL_DIR}/descrip/nnActEntry.cpp")
+set(kernel_descrip_list "")
+list(APPEND kernel_descrip_list "${KERNEL_DIR}/descrip/dummy.txt")
+list(APPEND kernel_descrip_list "${KERNEL_DIR}/descrip/elu_fp16.txt")
+list(APPEND kernel_descrip_list "${KERNEL_DIR}/descrip/exp_fp16.txt")
+#list(APPEND kernel_descrip_list "${KERNEL_DIR}/descrip/hswish_fp16.txt")
+#list(APPEND kernel_descrip_list "${KERNEL_DIR}/descrip/reorder_fp16.txt")
+#list(APPEND kernel_descrip_list "${KERNEL_DIR}/descrip/sigmoid_fp16.txt")
+#list(APPEND kernel_descrip_list "${KERNEL_DIR}/descrip/singleShaveInterpolate.txt")
+#list(APPEND kernel_descrip_list "${KERNEL_DIR}/descrip/singleShaveMVN.txt")
+#list(APPEND kernel_descrip_list "${KERNEL_DIR}/descrip/singleShaveSoftmax.txt")
+#list(APPEND kernel_descrip_list "${KERNEL_DIR}/descrip/sqrt_fp16.txt")
+#list(APPEND kernel_descrip_list "${KERNEL_DIR}/descrip/tanh_fp16.txt")
+#list(APPEND kernel_descrip_list "${KERNEL_DIR}/descrip/nnActEntry.txt")
 
 message(STATUS "kernel_descrip_list = ${kernel_descrip_list}")
 
@@ -120,15 +111,15 @@ foreach(kernel_descrip ${kernel_descrip_list})
   message(STATUS "kernel_cpunum = ${kernel_cpunum}")
 
   if(kernel_cpunum STREQUAL "3720")
-    set(define_symbols_list "${define_symbols_list}" "USE_3720_INTSTRUCTIONS")
+    list(APPEND define_symbols_list "USE_3720_INTSTRUCTIONS")
   endif()
 
   if(always_inline STREQUAL "yes")
-    set(define_symbols_list "${define_symbols_list}" "CONFIG_ALWAYS_INLINE")
+    list(APPEND define_symbols_list "CONFIG_ALWAYS_INLINE")
   endif()
 
-  set(include_dirs_list ${include_dirs_list_default} ${include_dirs_list})
-  set(define_symbols_list ${define_symbols_list_default} ${define_symbols_list})
+  list(PREPEND include_dirs_list ${include_dirs_list_default})
+  list(PREPEND define_symbols_list ${define_symbols_list_default})
 
   set(kernel_cpu "${kernel_cpunum}xx")
   set(kernel_cpu_suffix ".${kernel_cpunum}xx")
@@ -138,18 +129,11 @@ foreach(kernel_descrip ${kernel_descrip_list})
 
   message(STATUS "kernel = ${kernel_name} ${kernel_src_file}")
 
-  set(include_dirs "")
-  foreach(dir ${include_dirs_list})
-    set(include_dirs "${include_dirs} -I${dir}")
-  endforeach()
+  list(TRANSFORM include_dirs_list PREPEND "-I")
+  list(TRANSFORM define_symbols_list PREPEND "-D")
 
-  set(define_symbols "")
-  foreach(sym ${define_symbols_list})
-    set(define_symbols "${define_symbols} -D${sym}")
-  endforeach()
-
-  message(STATUS "include_dirs = ${include_dirs}")
-  message(STATUS "define_symbols = ${define_symbols}")
+  message(STATUS "define_symbols_list = ${define_symbols_list}")
+  message(STATUS "include_dirs_list = ${include_dirs_list}")
 
   if(BUILD_BLOB_BINARIES OR BUILD_JTAG_BINARIES)
     set(obj_file "${kernel_src}${kernel_cpu_suffix}${obj_suffix}")
@@ -162,14 +146,14 @@ foreach(kernel_descrip ${kernel_descrip_list})
 
     add_custom_target("${obj_file}"
       DEPENDS "${kernel_src_file}"
-      COMMAND "${mv_tools_compile}" "-mcpu=${kernel_cpu}" "${optimization_opts}" "${include_dirs}" "${define_symbols}" "-c ${kernel_src_path}" "-o ${obj_file}"
+      COMMAND "${mv_tools_compile}" -mcpu=${kernel_cpu} ${optimization_opts} ${include_dirs_list} ${define_symbols_list} -c "${kernel_src_path}" -o "${obj_file}"
     )
 
     set(obj_file_list "${obj_file}")
 
     add_custom_target("${elf_file}"
       DEPENDS "${obj_file_list}"
-      COMMAND "${mv_tools_link}" "--script ${link_script_file}" "-entry ${kernel_entry}" "--gc-sections" "--strip-debug" "--discard-all" "-zmax-page-size=16" "${obj_file_list}" "-EL ${link_libraries_list}" "--output ${elf_file}"
+      COMMAND "${mv_tools_link}" --script "${link_script_file}" -entry "${kernel_entry}" --gc-sections --strip-debug --discard-all -zmax-page-size=16 "${obj_file_list}" -EL ${link_libraries_list} --output "${elf_file}"
     )
   endif()
 
