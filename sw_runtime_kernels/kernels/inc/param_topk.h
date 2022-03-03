@@ -21,13 +21,13 @@ struct TopKParams {
     int32_t hasIndices;
 };
 
-#pragma pack (pop)
+#pragma pack(pop)
 
-inline struct BaseKernelParams ToBaseKernelParams(struct TopKParams * params) {
+inline struct BaseKernelParams ToBaseKernelParams(struct TopKParams* params) {
     struct BaseKernelParams result;
     result.numInputs = 1;
     result.numOutputs = 2;
-#ifdef  __cplusplus
+#ifdef __cplusplus
     result.inputsOffset = reinterpret_cast<uint8_t*>(&(params->inputValues)) - reinterpret_cast<uint8_t*>(params);
     result.outputsOffset = reinterpret_cast<uint8_t*>(&(params->outputValues)) - reinterpret_cast<uint8_t*>(params);
 #else
@@ -39,4 +39,4 @@ inline struct BaseKernelParams ToBaseKernelParams(struct TopKParams * params) {
 
 #ifdef __cplusplus
 }  // namespace sw_params
-#endif 
+#endif
