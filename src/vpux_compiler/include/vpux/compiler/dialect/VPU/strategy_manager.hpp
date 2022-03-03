@@ -50,6 +50,7 @@ public:
     virtual bool doesLayerFitIntoCMX(mlir::Operation* op, StringRef strategy) const = 0;
     bool isOperationSplitOverHeightCompatible(mlir::Operation* op) const;
 
+private:
     int64_t _numClusters;
     int64_t _numDPUs;
     int64_t _minimumOutputHeightForSOH;
