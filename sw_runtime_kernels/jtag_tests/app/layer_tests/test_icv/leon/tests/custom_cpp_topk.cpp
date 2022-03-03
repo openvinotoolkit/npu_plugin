@@ -98,34 +98,28 @@ protected:
     void initData() override{
         printf("init data.\n");
         m_params = {0xFFFFFFFF, m_elfBuffer, 0, nullptr, MAX_LOCAL_PARAMS, 0, 0};
-        paramContainer.resize(((int)sizeof(sw_params::TopKParams) + 7) / 8);
+//        paramContainer.resize(((int)sizeof(sw_params::TopKParams) + 7) / 8);
 
         CustomCppTests<fp16>::initData();
-        initElfBuffer();
-        initTestCase();
+//        initElfBuffer();
+//        initTestCase();
 
         const Dimensions& dimIn = m_currentTest->inDim;
         const Dimensions& dimOut = m_currentTest->outDim;
         const StorageOrder& storageOrder = m_currentTest->storageOrder;
 
-//        const TensorDims dims3K(1, 1, 1, 1);
         const TensorDims dims3In(dimIn.width,   dimIn.height,  dimIn.channels,  1);
         const TensorDims dims3Out(dimOut.width, dimOut.height, dimOut.channels, 1);
 
         m_inputTensor.init(storageOrder, dims3In);
-//        m_inputKTensor.init(storageOrder, dims3K);
         m_outputValuesTensor.init(storageOrder, dims3Out);
         m_outputIndexTensor.init(storageOrder, dims3Out);
         m_referenceValueTensor.init(storageOrder, dims3Out);
         m_referenceIndexTensor.init(storageOrder, dims3Out);
 
-//        printf("m_inputTensor's size = %d Byte\n",dimIn.width*dimIn.height*dimIn.channels*2);
-//        printf("m_outputValuesTensor's size = %d Byte\n",dimOut.width*dimOut.height*dimOut.channels*4);
-//        printf("m_outputIndexTensor's size = %d Byte\n",dimOut.width*dimOut.het*dimOut.channels*4);
         printf("Total in CMX:%d Byte\n",dimIn.width*dimIn.height*dimIn.channels*2 +dimOut.width*dimOut.height*dimOut.channels*4+ dimOut.width*dimOut.height*dimOut.channels*4);
 
         allocBuffer(m_inputTensor);
-//        allocBuffer(m_inputKTensor);
         allocBuffer(m_outputValuesTensor);
         allocBuffer(m_outputIndexTensor);
         allocBuffer(m_referenceValueTensor);
@@ -142,7 +136,7 @@ protected:
         m_hasOutputValues = 1;
         m_hasOutputIndices = 1;
 
-        m_TopKParams = reinterpret_cast<sw_params::TopKParams*>(paramContainer.data());
+        m_TopKParams = reinterpret_cast<sw_params::TopKParams*>(paramContainer);
         *m_TopKParams = sw_params::TopKParams();
         m_TopKParams->axis = m_axis;
         m_TopKParams->mode = m_mode;
@@ -150,8 +144,8 @@ protected:
         m_TopKParams->k = m_k;
         m_TopKParams->hasValues = m_hasOutputValues;
         m_TopKParams->hasIndices = m_hasOutputIndices;
-        m_params.paramData = reinterpret_cast<uint32_t*>(paramContainer.data());
-        m_params.paramDataLen = paramContainer.size() * sizeof(uint64_t);
+        m_params.paramData = reinterpret_cast<uint32_t*>(paramContainer);
+        m_params.paramDataLen = sizeof(sw_params::TopKParams);
         m_requiredTensorLocation = static_cast<sw_params::Location>(test->customLayerParams.layerParams[4]);
         m_params.baseParamData = sw_params::ToBaseKernelParams(m_TopKParams);
 
@@ -165,32 +159,28 @@ protected:
         m_test_threshold = 0.01f;
     }
 
-    void initParserRunner() override {
-        printf("init parser runner.\n");
-        initMyriadResources();
-        initDebugInfo();
-
-        static_assert(std::is_base_of<Op, CustomCpp>());
-        CustomCpp* customCppOp = static_cast<CustomCpp*>(m_op);
-
-        OpTensor inBuff;
-        m_inputTensor.exportToBuffer(inBuff);
-        customCppOp->addInputBuffer(inBuff, m_requiredTensorLocation);
-
-//        OpTensor kBuff;
-//        m_inputKTensor.exportToBuffer(kBuff);
-//        customCppOp->addInputBuffer(kBuff, m_requiredTensorLocation);
-
-        OpTensor valueBuff;
-        m_outputValuesTensor.exportToBuffer(valueBuff);
-        customCppOp->addOutputBuffer(valueBuff, m_requiredTensorLocation);
-
-        OpTensor indexBuff;
-        m_outputIndexTensor.exportToBuffer(indexBuff);
-        customCppOp->addOutputBuffer(indexBuff, m_requiredTensorLocation);
-
-        customCppOp->ops = *getParams();
-    }
+//    void initParserRunner() override {
+//        printf("init parser runner.\n");
+//        initMyriadResources();
+//        initDebugInfo();
+//
+//        static_assert(std::is_base_of<Op, CustomCpp>());
+//        CustomCpp* customCppOp = static_cast<CustomCpp*>(m_op);
+//
+//        OpTensor inBuff;
+//        m_inputTensor.exportToBuffer(inBuff);
+//        customCppOp->addInputBuffer(inBuff, m_requiredTensorLocation);
+//        
+//        OpTensor valueBuff;
+//        m_outputValuesTensor.exportToBuffer(valueBuff);
+//        customCppOp->addOutputBuffer(valueBuff, m_requiredTensorLocation);
+//
+//        OpTensor indexBuff;
+//        m_outputIndexTensor.exportToBuffer(indexBuff);
+//        customCppOp->addOutputBuffer(indexBuff, m_requiredTensorLocation);
+//
+//        customCppOp->ops = *getParams();
+//    }
 
     void generateInputData() override {
         printf("generate input data.\n");
@@ -199,21 +189,12 @@ protected:
 #else
         m_params.kernel  = reinterpret_cast<uint64_t>(PREAMBLE_FUNC(single_shave_topk));
 #endif
-        const u32 range = m_inputTensor.fullSize() + 3;
 
-//        std::vector<float> input = {-5,-3.334,-4.168,-0.8335,2.5,4.168,-1.667,0.8335,0,3.334,-2.5,1.667};
-//        int32_t index=0;
         // input values
         m_inputTensor.forEach(false, [&](const MemoryDims& indices){
             float tmp = float(rand() % 1000) / 100 - 5.0f;
             m_inputTensor.at(indices) = f32Tof16(tmp);
-//            index++;
         });
-
-        int32_t k = m_k;
-//        m_inputKTensor.forEach(false, [&](const MemoryDims& indices) {
-//            m_inputKTensor.at(indices) = k;
-//        });
     }
 
     void generateReferenceData() override {
@@ -254,8 +235,6 @@ protected:
 
             for (int32_t i = 0; i < n; ++i) {
                 temp[i] = Pair(inputValuesData[i * inputValuesAxisStep], i);
-//                printf("inputValuesData[i * inputValuesAxisStep] = %f\n",
-//                       f16Tof32(inputValuesData[i * inputValuesAxisStep]));
             }
 
             std::partial_sort(temp.begin(), temp.begin() + k, temp.begin() + n, compareValues);
@@ -267,7 +246,6 @@ protected:
                 const auto& t = temp[i];
                 refValuesData[i * refValuesAxisStep] = t.first;
                 refIndicesData[i * refIndicesAxisStep] = t.second;
-//                printf("refValuesData[%d] = %f, refIndicesData[%d] = %d\n", i * refValuesAxisStep, f16Tof32(refValuesData[i * refValuesAxisStep]), i * refIndicesAxisStep, refIndicesData[i * refIndicesAxisStep]);
             }
         });
     }
@@ -330,7 +308,6 @@ private:
 
     Tensor<fp16> m_outputValuesTensor;
     Tensor<int32_t> m_outputIndexTensor;
-//    Tensor<int32_t> m_inputKTensor;
 
     Tensor<fp16> m_referenceValueTensor;
     Tensor<int32_t> m_referenceIndexTensor;
