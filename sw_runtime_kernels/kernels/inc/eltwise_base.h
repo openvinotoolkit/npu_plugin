@@ -15,6 +15,10 @@
 
 #include <nn_log.h>
 
+#ifndef VECTOR_SIZE
+#define VECTOR_SIZE    8
+#endif
+
 #if defined(ELTWISE_VEC_OP)
 #define VECTOR_LOOP                                       \
  {                                                        \
@@ -44,16 +48,15 @@ void funcName(const struct EltwiseParams *p) {          \
                                                         \
     int32_t *pDims = (int32_t *)(p->input[0].dimsAddr); \
     uint32_t nElements = 1;                             \
-    uint32_t i;                                         \
                                                         \
     for (uint32_t i=0; i < p->input[0].numDims; i++) {  \
         nElements *= pDims[i];                          \
     }                                                   \
                                                         \
-    i = 0;                                              \
+    uint32_t i = 0;                                     \
     VECTOR_LOOP;                                        \
                                                         \
     for (; i<nElements; i++) {                          \
-        out[i] = ELTWISE_FN(inA[i],inB[i]);             \
+        out[i] = ELTWISE_FN(inA[i], inB[i]);            \
     }                                                   \
 }
