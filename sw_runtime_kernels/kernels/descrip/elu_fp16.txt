@@ -1,3 +1,5 @@
+# -*- Cmake -*-
+
 set(kernel_src "elu_fp16.cpp")
 
 set(kernel_cpunum "3720")

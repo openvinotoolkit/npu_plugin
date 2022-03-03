@@ -1,1 +1,3 @@
+# -*- Cmake -*-
+
 set(kernel_src "sigmoid_fp16.c")

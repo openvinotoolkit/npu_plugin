@@ -1,1 +1,3 @@
+# -*- Cmake -*-
+
 set(kernel_src "dummy.cpp")
