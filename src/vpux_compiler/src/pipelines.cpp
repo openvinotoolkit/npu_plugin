@@ -338,7 +338,6 @@ void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOp
     pm.addPass(VPU::createAdjustMemorySpacePass(log));
     pm.addPass(mlir::createCanonicalizerPass(grc));
 
-    pm.addPass(VPU::createMultiClusterStrategyAssignmentPass(log));
     pm.addPass(VPU::createSplitNCEOpsOntoWorkloadsPass(log));
 
     // Lowering
