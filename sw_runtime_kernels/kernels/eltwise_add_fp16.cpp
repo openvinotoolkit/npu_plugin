@@ -22,8 +22,8 @@ namespace shave_lib {
 
 extern "C" {
 
-#define ELTWISE_FN(a,b) (powf(a,b))
-ELTWISE_BINARY_OP(power_fp16);
+#define ELTWISE_FN(a,b) (a+b)
+ELTWISE_BINARY_OP(add_fp16);
 
 }
 }  // namespace shave_lib

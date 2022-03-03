@@ -15,7 +15,7 @@
 
 #include <nn_log.h>
 
-#define ELTWISE_MATH_2_OP(funcName)                           \
+#define ELTWISE_BINARY_OP(funcName)                           \
                                                               \
 void funcName(const struct EltwiseParams *lParams) {          \
                                                               \
