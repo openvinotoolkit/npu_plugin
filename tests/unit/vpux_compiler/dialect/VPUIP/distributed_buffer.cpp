@@ -186,6 +186,12 @@ TEST(MLIR_ClusterShapeUtils, SegmentedBufferDistribution) {
     for (const auto shapePair : zip(perClusterShapes, expectedShapes)) {
         EXPECT_EQ(std::get<0>(shapePair), std::get<1>(shapePair));
     }
+    const auto perClusterTensorOffsets = distributedBufferType.getPerClusterComputeShapeOffsets();
+    const SmallVector<Shape> expectedOffsets(
+            {Shape({0, 0, 0, 0}), Shape({0, 0, 4, 0}), Shape({0, 0, 8, 0}), Shape({0, 0, 12, 0})});
+    for (const auto shapePair : zip(perClusterTensorOffsets, expectedOffsets)) {
+        EXPECT_EQ(std::get<0>(shapePair), std::get<1>(shapePair));
+    }
     const auto largestComputeShape = distributedBufferType.getLargestCompactShape();
     EXPECT_EQ(largestComputeShape, Shape({1, 64, 4, 16}));
     const auto numClusters = distributedBufferType.getDistribution().num_clusters().getInt();
@@ -222,6 +228,12 @@ TEST(MLIR_ClusterShapeUtils, SegmentedDuplicatedBufferDistribution) {
     const SmallVector<Shape> expectedShapes(
             {Shape({1, 64, 4, 16}), Shape({1, 64, 4, 16}), Shape({1, 64, 4, 16}), Shape({1, 64, 1, 16})});
     for (const auto shapePair : zip(perClusterShapes, expectedShapes)) {
+        EXPECT_EQ(std::get<0>(shapePair), std::get<1>(shapePair));
+    }
+    const auto perClusterTensorOffsets = distributedBufferType.getPerClusterComputeShapeOffsets();
+    const SmallVector<Shape> expectedOffsets(
+            {Shape({0, 0, 0, 0}), Shape({0, 0, 4, 0}), Shape({0, 0, 8, 0}), Shape({0, 0, 12, 0})});
+    for (const auto shapePair : zip(perClusterTensorOffsets, expectedOffsets)) {
         EXPECT_EQ(std::get<0>(shapePair), std::get<1>(shapePair));
     }
     const auto largestComputeShape = distributedBufferType.getLargestCompactShape();
@@ -269,6 +281,12 @@ TEST(MLIR_ClusterShapeUtils, OverlappedBufferDistribution) {
         for (const auto shapePair : zip(perClusterShapes, expectedShapes)) {
             EXPECT_EQ(std::get<0>(shapePair), std::get<1>(shapePair));
         }
+        const auto perClusterTensorOffsets = distributedBufferType.getPerClusterComputeShapeOffsets();
+        const SmallVector<Shape> expectedOffsets(
+                {Shape({0, 0, 0, 0}), Shape({0, 0, 4, 0}), Shape({0, 0, 8, 0}), Shape({0, 0, 12, 0})});
+        for (const auto shapePair : zip(perClusterTensorOffsets, expectedOffsets)) {
+            EXPECT_EQ(std::get<0>(shapePair), std::get<1>(shapePair));
+        }
         const auto largestComputeShape = distributedBufferType.getLargestCompactShape();
         EXPECT_EQ(largestComputeShape, Shape({1, 64, 4, 16}));
         const auto numClusters = distributedBufferType.getDistribution().num_clusters().getInt();
@@ -293,6 +311,12 @@ TEST(MLIR_ClusterShapeUtils, OverlappedBufferDistribution) {
         for (const auto shapePair : zip(perClusterShapes, expectedShapes)) {
             EXPECT_EQ(std::get<0>(shapePair), std::get<1>(shapePair));
         }
+        const auto perClusterTensorOffsets = distributedBufferType.getPerClusterComputeShapeOffsets();
+        const SmallVector<Shape> expectedOffsets(
+                {Shape({0, 0, 0, 0}), Shape({0, 0, 3, 0}), Shape({0, 0, 7, 0}), Shape({0, 0, 11, 0})});
+        for (const auto shapePair : zip(perClusterTensorOffsets, expectedOffsets)) {
+            EXPECT_EQ(std::get<0>(shapePair), std::get<1>(shapePair));
+        }
         const auto largestComputeShape = distributedBufferType.getLargestCompactShape();
         EXPECT_EQ(largestComputeShape, Shape({1, 64, 6, 16}));
         const auto numClusters = distributedBufferType.getDistribution().num_clusters().getInt();
@@ -315,6 +339,12 @@ TEST(MLIR_ClusterShapeUtils, OverlappedBufferDistribution) {
         const SmallVector<Shape> expectedShapes(
                 {Shape({1, 64, 4, 16}), Shape({1, 64, 5, 16}), Shape({1, 64, 5, 16}), Shape({1, 64, 2, 16})});
         for (const auto shapePair : zip(perClusterShapes, expectedShapes)) {
+            EXPECT_EQ(std::get<0>(shapePair), std::get<1>(shapePair));
+        }
+        const auto perClusterTensorOffsets = distributedBufferType.getPerClusterComputeShapeOffsets();
+        const SmallVector<Shape> expectedOffsets(
+                {Shape({0, 0, 0, 0}), Shape({0, 0, 3, 0}), Shape({0, 0, 7, 0}), Shape({0, 0, 11, 0})});
+        for (const auto shapePair : zip(perClusterTensorOffsets, expectedOffsets)) {
             EXPECT_EQ(std::get<0>(shapePair), std::get<1>(shapePair));
         }
         const auto largestComputeShape = distributedBufferType.getLargestCompactShape();

@@ -74,7 +74,7 @@ def VPU_DistributedTensor :
         // @warning This function should not be used for memory size calculation,
         // because it does not retrieve the true allocate shape in cases
         // of broadcasting.
-        SmallVector<Shape> getPerClusterComputeShapeOffsets() const;
+        mlir::SmallVector<vpux::Shape>  getPerClusterComputeShapeOffsets() const;
 
         // @brief Get largest compact compute shape
         // @warning This function should not be used for memory size calculation,

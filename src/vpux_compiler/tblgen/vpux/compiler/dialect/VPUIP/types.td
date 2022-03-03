@@ -71,6 +71,12 @@ def VPUIP_DistributedBuffer :
         // in order to estimate memory
         mlir::SmallVector<vpux::Shape> getPerClusterComputeShapes() const;
 
+        // @brief Retrive the array of compute shape offsets with regards to the full buffer.
+        // @warning An important thing to consider with regards to compute offsets,
+        // is that modes like SEGMENTED and OVERLAPPED take precedence over
+        // DUPLICATED and MULTICASTED.
+        mlir::SmallVector<vpux::Shape>  getPerClusterComputeShapeOffsets() const;
+
         // @brief Get largest compact compute shape
         // @warning This function should not be used for memory size calculation,
         // because it does not retrieve the true allocate shape in cases
