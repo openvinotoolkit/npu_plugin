@@ -87,6 +87,9 @@ protected:
                  {batch}, {num_directions, 4 * hidden_size, input_size}, {num_directions, 4 * hidden_size, hidden_size}, {num_directions, 4 * hidden_size}},
         };
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+        outPrc.front() = netPrecision;
+        outPrc.push_back(netPrecision);
+        outPrc.push_back(netPrecision);
         auto params = makeParams(ngPrc, {inputShapes[0], inputShapes[1], inputShapes[2]});
         std::vector<ngraph::Shape> WRB = {inputShapes[4], inputShapes[5], inputShapes[6], inputShapes[3]};
         auto lstm_sequence = makeLSTM(convert2OutputVector(castOps2Nodes(params)), WRB, hidden_size, activations,

@@ -18,11 +18,11 @@ class VPUXSoftMaxLayerTest : public SoftMaxLayerTest, virtual public VPUXLayerTe
     SkipMessage SkipBeforeLoad() override {
         InputShape inShapes;
         size_t axisInd;
-        std::tie(std::ignore, inType, outType, inShapes, axisInd, std::ignore, std::ignore) = GetParam();
+        std::tie(std::ignore, inType, outType.front(), inShapes, axisInd, std::ignore, std::ignore) = GetParam();
 
         if (isCompilerMCM()) {
             // [Track number: S#44702]
-            if (inType == ov::element::f32 || outType == ov::element::f32) {
+            if (inType == ov::element::f32 || outType.front() == ov::element::f32) {
                 return {"SoftMax with FP32 input/output hangs on graph loading"};
             }
 

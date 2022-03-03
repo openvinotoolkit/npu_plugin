@@ -34,7 +34,7 @@ class KmbQuantizedConvSubGraphTest :
         public testing::WithParamInterface<QuantizedConvTestParams> {
     void SetUp() override {
         std::vector<float> dataFQRanges;
-        std::tie(inPrc, outPrc, dataFQRanges, targetDevice) = GetParam();
+        std::tie(inPrc, outPrc.front(), dataFQRanges, targetDevice) = GetParam();
         threshold = 0.1f;
 
         const InferenceEngine::SizeVector inputShape{1, 3, 62, 62};

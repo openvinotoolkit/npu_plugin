@@ -51,7 +51,7 @@ void ConvActTest::buildFloatFunction() {
 
     std::pair<std::vector<size_t>, std::vector<size_t>> shapes;
     std::pair<ngraph::helpers::ActivationTypes, std::vector<float>> activationDecl;
-    std::tie(activationDecl, netPrecision, inPrc, outPrc, inLayout, outLayout, shapes, targetDevice) = aParams;
+    std::tie(activationDecl, netPrecision, inPrc, outPrc.front(), inLayout, outLayout, shapes, targetDevice) = aParams;
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     auto params = ngraph::builder::makeParams(ngPrc, {shapes.first});
@@ -93,7 +93,7 @@ void ConvActTest::buildFQFunction() {
 
     std::pair<std::vector<size_t>, std::vector<size_t>> shapes;
     std::pair<ngraph::helpers::ActivationTypes, std::vector<float>> activationDecl;
-    std::tie(activationDecl, netPrecision, inPrc, outPrc, inLayout, outLayout, shapes, targetDevice) = aParams;
+    std::tie(activationDecl, netPrecision, inPrc, outPrc.front(), inLayout, outLayout, shapes, targetDevice) = aParams;
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 

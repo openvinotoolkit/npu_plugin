@@ -28,7 +28,7 @@ class KmbMvnLayerTestMLIR_MTL : public Mvn1LayerTest, virtual public LayerTestsU
         Mvn1LayerTest::SetUp();
 
         inPrc = InferenceEngine::Precision::FP16;
-        outPrc = InferenceEngine::Precision::FP16;
+        outPrc.front() = InferenceEngine::Precision::FP16;
     }
     void SkipBeforeLoad() override {
         if (std::getenv("OV_BUILD_DIR") == nullptr) {

@@ -21,7 +21,7 @@ class KmbSwishSingleInputTest :
 
         InferenceEngine::SizeVector inputShape;
 
-        std::tie(inPrc, outPrc, inputShape) = prms;
+        std::tie(inPrc, outPrc.front(), inputShape) = prms;
 
         inLayout = InferenceEngine::Layout::NCHW;
 

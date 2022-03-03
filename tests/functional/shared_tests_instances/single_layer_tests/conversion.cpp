@@ -14,7 +14,7 @@ class KmbConversionLayerTest: public ConversionLayerTest, virtual public LayerTe
         std::tie(
             std::ignore /*conversionOpType*/,
             std::ignore /*shape*/,
-            inPrc, outPrc,
+            inPrc, outPrc.front(),
             std::ignore /*inLayout*/, std::ignore /*outLayout*/,
             std::ignore /*deviceName*/
         ) = GetParam();
@@ -23,23 +23,23 @@ class KmbConversionLayerTest: public ConversionLayerTest, virtual public LayerTe
     }
 
     void SkipBeforeLoad() override {
-        if (inPrc == outPrc && isCompilerMCM()) {
+        if (inPrc == outPrc.front() && isCompilerMCM()) {
             throw LayerTestsUtils::KmbSkipTestException("Same input/output precision not supported for MCM");
         }
-        if (outPrc == InferenceEngine::Precision::FP32 && isCompilerMCM()) {
+        if (outPrc.front() == InferenceEngine::Precision::FP32 && isCompilerMCM()) {
             throw LayerTestsUtils::KmbSkipTestException("FP32 output issue for MCM (bug: E#9603");
         }
         if (inPrc == InferenceEngine::Precision::U8 &&
-            (outPrc == InferenceEngine::Precision::FP32 || outPrc == InferenceEngine::Precision::FP16) &&
+            (outPrc.front() == InferenceEngine::Precision::FP32 || outPrc.front() == InferenceEngine::Precision::FP16) &&
             isCompilerMCM()) {
             throw LayerTestsUtils::KmbSkipTestException("FP <-> U8 issue for MCM (bug: E#9602");
         }
         if ((inPrc == InferenceEngine::Precision::FP32 || inPrc == InferenceEngine::Precision::FP16) &&
-            outPrc == InferenceEngine::Precision::U8 &&
+            outPrc.front() == InferenceEngine::Precision::U8 &&
             isCompilerMCM()) {
             throw LayerTestsUtils::KmbSkipTestException("FP <-> U8 issue for MCM (bug: E#9602");
         }
-        if (inPrc == InferenceEngine::Precision::FP32 && outPrc == InferenceEngine::Precision::FP16 &&
+        if (inPrc == InferenceEngine::Precision::FP32 && outPrc.front() == InferenceEngine::Precision::FP16 &&
             isCompilerMCM()) {
             throw LayerTestsUtils::KmbSkipTestException("FP <-> FP16 issue for MCM (bug: E#28335");
         }

@@ -34,7 +34,7 @@ class KmbQuantizedMulSubGraphTest :
         public testing::WithParamInterface<QuantizedMulTestParams> {
     void SetUp() override {
         std::vector<float> data0FQRanges, data1FQRanges;
-        std::tie(inPrc, outPrc, data0FQRanges, data1FQRanges, targetDevice) = GetParam();
+        std::tie(inPrc, outPrc.front(), data0FQRanges, data1FQRanges, targetDevice) = GetParam();
         threshold = 0.1f;
 
         const InferenceEngine::SizeVector shape{1, 16, 32, 32};

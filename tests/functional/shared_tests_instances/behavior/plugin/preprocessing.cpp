@@ -27,7 +27,7 @@ class VpuxPreprocessingPrecisionConvertTest : virtual public PreprocessingPrecis
         PreprocessingPrecisionConvertTest::SetRefMode(LayerTestsUtils::RefMode::INTERPRETER);
 
         std::tie(PreprocessingPrecisionConvertTest::inPrc, channels, use_set_input, PreprocessingPrecisionConvertTest::targetDevice, PreprocessingPrecisionConvertTest::configuration) = this->GetParam();
-        PreprocessingPrecisionConvertTest::outPrc = PreprocessingPrecisionConvertTest::inPrc;
+        PreprocessingPrecisionConvertTest::outPrc.front() = PreprocessingPrecisionConvertTest::inPrc;
 
         auto make_ngraph = [&](bool with_extra_conv) {
             const auto inputShape = std::vector<size_t>{1, 3, 224, 224};

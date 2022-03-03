@@ -64,6 +64,8 @@ void MultioutputTest::SetUp()
     std::tie(inputShape, kernelShape, stride) = convolutionParams;
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+    outPrc.front() = netPrecision;
+    outPrc.push_back(netPrecision);
     
     // input
     auto params = ngraph::builder::makeParams(ngPrc, { inputShape });
