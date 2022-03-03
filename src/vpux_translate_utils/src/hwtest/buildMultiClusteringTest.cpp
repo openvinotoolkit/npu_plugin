@@ -30,6 +30,7 @@
 #include "vpux/utils/core/numeric.hpp"
 
 #include "vpux/compiler/dialect/IE/utils/resources.hpp"
+#include "vpux/compiler/dialect/VPU/attributes.hpp"
 
 namespace vpux {
 namespace hwtest {
@@ -128,6 +129,7 @@ void buildMultiClustering(const nb::TestCaseJsonDescriptor& testDesc, mlir::Modu
     const auto subInputCMXSize = vpux::hwtest::totalTensorSize(subInputShapes.back(), inputType);
     const auto subOutputCMXSize = vpux::hwtest::totalTensorSize(subOutputShapes.back(), outputType);
     const auto weightsCMXSize = vpux::hwtest::totalTensorSize(weightsCMXShape, weightsType);
+    const auto outputCMXSize = vpux::hwtest::totalTensorSize(outputShape, outputType);
 
     const auto alignment =
             (alignmentRequirement * static_cast<vpux::Bit>(getElemTypeSize(inputType)).count()) / CHAR_BIT;
@@ -197,6 +199,8 @@ void buildMultiClustering(const nb::TestCaseJsonDescriptor& testDesc, mlir::Modu
                                                      outputType, vpux::DimsOrder::NHWC,
                                                      OUTPUT_DDR_OFFSET + OUTPUT_DDR_STRIDE * index));
     }
+
+    const auto MAX_DDR_USED_SIZE = OUTPUT_DDR_OFFSET + outputCMXSize;
 
     // Define weights and weights table DDR buffer
     const auto weightsValues = generateWeights(weightsShape, weightsType, ctx, weightsFileName);
@@ -373,8 +377,8 @@ void buildMultiClustering(const nb::TestCaseJsonDescriptor& testDesc, mlir::Modu
     if (usedMemModule == nullptr) {
         usedMemModule = builder.create<mlir::ModuleOp>(module->getLoc(), IE::usedMemModuleName);
     }
-    IE::addAvailableMemory(usedMemModule, VPU::MemoryKind::CMX_NN, Byte(896_KB));
-    IE::addAvailableMemory(usedMemModule, VPU::MemoryKind::DDR, Byte(2 * OUTPUT_DDR_OFFSET));
+    IE::addAvailableMemory(usedMemModule, VPU::MemoryKind::CMX_NN, VPU::KMB_CMX_WORKSPACE_SIZE);
+    IE::addAvailableMemory(usedMemModule, VPU::MemoryKind::DDR, Byte(MAX_DDR_USED_SIZE));
 
     VPUX_THROW_UNLESS(mlir::succeeded(pm.run(module)), "Compilation failed");
 
