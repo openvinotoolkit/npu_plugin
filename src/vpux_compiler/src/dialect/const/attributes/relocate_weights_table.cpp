@@ -110,11 +110,11 @@ Const::Content vpux::Const::RelocateWeightsTableAttr::transform(vpux::Const::Con
     loop_1d(LoopExecPolicy::Parallel, values.size() / numElemPerOC, [&](size_t i) {
         const auto wtInd = i * numElemPerOC;
 
-        patchedValues[wtInd + 0] = weightsPtr + i * weightPtrStep;
+        patchedValues[wtInd + 0] = checked_cast<int32_t>(weightsPtr + i * weightPtrStep);
 
         patchedValues[wtInd + 1] = values[wtInd + 1];
         if (values[wtInd + 1] != VPU::NCESparsity::SPARSITY_PTR_WHEN_NO_SPARSITY) {
-            patchedValues[wtInd + 1] = sparsityPtr + i * sparsityPtrStep;
+            patchedValues[wtInd + 1] = checked_cast<int32_t>(sparsityPtr + i * sparsityPtrStep);
         }
 
         patchedValues[wtInd + 2] = values[wtInd + 2];
