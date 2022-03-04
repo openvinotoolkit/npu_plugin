@@ -73,8 +73,11 @@ SmallVector<uint8_t> createInvocationArgs(VPUIP::BlobWriter& blobWriter, VPUIP::
                 auto tensorRef = flatbuffers::GetTemporaryPointer(blobWriter, tensorRefOffset);
                 invocationBuilder.addTensorArg(operandVal, tensorRef);
             } else {
-                invocationBuilder.addArg(operand);
+                VPUX_THROW("Only block arguments are supported");
             }
+        }
+        for (auto&& attr : kernelRun.attrs().getValue()) {
+            invocationBuilder.addArg(attr);
         }
     }
 

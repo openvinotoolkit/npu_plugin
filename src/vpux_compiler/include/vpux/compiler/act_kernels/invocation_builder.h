@@ -40,7 +40,7 @@ public:
      * register serialisation for given invocation argument, might be MemRefType or any other supported types
      * @param operand
      */
-    void addArg(mlir::Value operand);
+    void addArg(mlir::Attribute attr);
     void addTensorArg(mlir::Value value, const MVCNN::TensorReference* tenorRef);
 
     /**
@@ -54,6 +54,8 @@ private:
         ArrayRef<char> valueAsArray(reinterpret_cast<const char*>(&anyValue), sizeof(anyValue));
         storage.insert(storage.end(), valueAsArray.begin(), valueAsArray.end());
     }
+
+    void parseBasicAttrTypes(mlir::Attribute attr);
 
     /**
      * create a patch entry, that can be further updated

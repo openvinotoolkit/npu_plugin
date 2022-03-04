@@ -12,6 +12,24 @@ namespace LayerTestsDefinitions {
 
 class KmbTransposeLayerTest: public TransposeLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {};
 class KmbTransposeLayerTest_MLIR : public KmbTransposeLayerTest {};
+class KmbTransposeLayerTest_MTL : public KmbTransposeLayerTest {
+    void SkipBeforeLoad() override {
+        if (std::getenv("OV_BUILD_DIR") == nullptr) {
+            throw LayerTestsUtils::KmbSkipTestException(
+                    "OV_BUILD_DIR env directory must be specified, in order to reach act-shave kernels.");
+        }
+
+#if defined(__arm__) || defined(__aarch64__) || defined(_WIN32) || defined(_WIN64)
+        throw LayerTestsUtils::KmbSkipTestException("Does not compile on ARM and Windows.");
+#endif
+    }
+
+    void SkipBeforeInfer() override {
+#ifndef ENABLE_IMD_BACKEND
+        throw LayerTestsUtils::KmbSkipTestException("Runtime issue.");
+#endif
+    }
+};
 
 TEST_P(KmbTransposeLayerTest, CompareWithRefs) {
     Run();
@@ -19,6 +37,13 @@ TEST_P(KmbTransposeLayerTest, CompareWithRefs) {
 
 TEST_P(KmbTransposeLayerTest_MLIR, CompareWithRefs_MLIR) {
     useCompilerMLIR();
+    Run();
+}
+
+TEST_P(KmbTransposeLayerTest_MTL, MLIR_MTL) {
+    useCompilerMLIR();
+    setPlatformMTL();
+    setDefaultHardwareModeMLIR();
     Run();
 }
 
@@ -167,6 +192,29 @@ INSTANTIATE_TEST_CASE_P(
         smoke_TransposeMemPermNHWC,
         KmbTransposeLayerTest_MLIR,
         paramsMemPermInNHWC,
+        KmbTransposeLayerTest::getTestCaseName);
+
+// ------ MTL ------
+
+const std::vector<std::vector<size_t>> inputOrderMTL = {
+        std::vector<size_t>{0, 2, 3, 1},
+};
+
+const auto paramsMTL = testing::Combine(
+    testing::ValuesIn(inputOrderMTL),
+    testing::ValuesIn(netPrecisions),
+    testing::Values(InferenceEngine::Precision::FP16),
+    testing::Values(InferenceEngine::Precision::FP16),
+    testing::Values(InferenceEngine::Layout::ANY),
+    testing::Values(InferenceEngine::Layout::ANY),
+    testing::ValuesIn(inputShapesMemPerm),
+    testing::Values(LayerTestsUtils::testPlatformTargetDevice)
+);
+
+INSTANTIATE_TEST_CASE_P(
+        smoke_TransposeMTL,
+        KmbTransposeLayerTest_MTL,
+        paramsMTL,
         KmbTransposeLayerTest::getTestCaseName);
 
 }  // namespace

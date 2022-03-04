@@ -76,7 +76,7 @@ func @main(%in0: memref<1x1x1x1000xf16>, %in1: memref<1x1x1x1000xf16>) -> memref
         -> memref<1x1x1x1000xf16, @CMX_NN> {
 
             ^bb0(%arg0 : memref<1x1x1x1000xf16, @CMX_NN>, %arg1 : memref<1x1x1x1000xf16, @CMX_NN>):
-                VPUIP.SW.Kernel.run(%arg0, %arg1)
+                VPUIP.SW.Kernel.run {attrs = []}(%arg0, %arg1)
                     : memref<1x1x1x1000xf16, @CMX_NN>
                     , memref<1x1x1x1000xf16, @CMX_NN>
         }
@@ -107,7 +107,7 @@ func @main(%in0: memref<1x1x1x1000xf16>, %in1: memref<1x1x1x1000xf16>) -> memref
         -> memref<1x1x1x1000xf16, @CMX_NN> {
 
             ^bb0(%arg0 : memref<1x1x1x1000xf16, @CMX_NN>, %arg1 : memref<1x1x1x1000xf16, @CMX_NN>):
-                VPUIP.SW.Kernel.run(%arg0, %arg1)
+                VPUIP.SW.Kernel.run {attrs = []}(%arg0, %arg1)
                     : memref<1x1x1x1000xf16, @CMX_NN>
                     , memref<1x1x1x1000xf16, @CMX_NN>
         }
@@ -138,7 +138,7 @@ func @main(%in0: memref<1x1x1x1000xf16>, %in1: memref<1x1x1x1000xf16>) -> memref
         -> memref<1x1x1x1000xf16, @CMX_NN> {
 
             ^bb0(%arg0 : memref<1x1x1x1000xf16, @CMX_NN>, %arg1 : memref<1x1x1x1000xf16, @CMX_NN>):
-                VPUIP.SW.Kernel.run(%arg0, %arg1)
+                VPUIP.SW.Kernel.run {attrs = []}(%arg0, %arg1)
                     : memref<1x1x1x1000xf16, @CMX_NN>
                     , memref<1x1x1x1000xf16, @CMX_NN>
         }

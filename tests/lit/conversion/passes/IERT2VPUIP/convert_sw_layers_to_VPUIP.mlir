@@ -22,12 +22,82 @@ func @SingleSWLayer(%arg0: memref<1x1x1x1000xf16>, %arg1: memref<1x1x1x1000xf16>
 // CHECK: [[VAR2:%.*]] = memref.alloc() : memref<1x1x1x1000xf16, @CMX_NN>
 // CHECK: [[VAR3:%.*]] = VPUIP.SW.Kernel @VPU.SW::@builtin_SoftMax inputs([[VAR1]] : memref<1x1x1x1000xf16, @CMX_NN>) outputs([[VAR2]] : memref<1x1x1x1000xf16, @CMX_NN>) on tile 0 -> memref<1x1x1x1000xf16, @CMX_NN>  {
 // CHECK: ^bb0(%arg2: memref<1x1x1x1000xf16, @CMX_NN>, %arg3: memref<1x1x1x1000xf16, @CMX_NN>):
-// CHECK:   [[VAR4:%.*]] = arith.constant 0 : i64
-// CHECK:   VPUIP.SW.Kernel.run(%arg2, %arg3, [[VAR4]]) : memref<1x1x1x1000xf16, @CMX_NN>, memref<1x1x1x1000xf16, @CMX_NN>, i64
+// CHECK:   VPUIP.SW.Kernel.run {attrs = [0]}(%arg2, %arg3) : memref<1x1x1x1000xf16, @CMX_NN>, memref<1x1x1x1000xf16, @CMX_NN>
 // CHECK: }
 
-// CHECK: [[VAR5:%.*]] = IERT.Copy inputs([[VAR3]] : memref<1x1x1x1000xf16, @CMX_NN>) outputs(%arg1 : memref<1x1x1x1000xf16>) -> memref<1x1x1x1000xf16>
-// CHECK: return [[VAR5]] : memref<1x1x1x1000xf16>
+// CHECK: [[VAR4:%.*]] = IERT.Copy inputs([[VAR3]] : memref<1x1x1x1000xf16, @CMX_NN>) outputs(%arg1 : memref<1x1x1x1000xf16>) -> memref<1x1x1x1000xf16>
+// CHECK: return [[VAR4]] : memref<1x1x1x1000xf16>
+
+}
+
+}
+
+// -----
+
+module @Test attributes {VPU.arch = "MTL", VPU.compilationMode = "ReferenceHW"} {
+
+// CHECK: VPURT.SW.Runtime entryPoint : @VPU.SW::@runtime stack_configuration : [4096, 4096, 4096, 4096]
+
+
+// CHECK: module @VPU.SW {
+// CHECK-NEXT:   func private @builtin_MemPermute(memref<*xf16>, memref<*xf16>, none) attributes {VPU.kernel_code = "reorder_fp16.cpp", VPU.kernel_entry = "reorder_fp16"}
+// CHECK-NEXT:   func private @runtime() attributes {VPU.kernel_code = "nnActEntry"}
+// CHECK-NEXT: }
+
+func @MemPermuteSWLayer(%arg0: memref<1x2x3x4xf16>, %arg1: memref<1x3x4x2xf16>) -> memref<1x3x4x2xf16> {
+    %0 = IERT.MemPermute {mem_perm = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>} inputs(%arg0 : memref<1x2x3x4xf16>) outputs(%arg1 : memref<1x3x4x2xf16>) -> memref<1x3x4x2xf16>
+    return %0: memref<1x3x4x2xf16>
+
+// CHECK: [[VAR0:%.*]] = memref.alloc() : memref<1x2x3x4xf16, @CMX_NN>
+// CHECK: [[VAR1:%.*]] = IERT.Copy inputs(%arg0 : memref<1x2x3x4xf16>) outputs([[VAR0]] : memref<1x2x3x4xf16, @CMX_NN>) -> memref<1x2x3x4xf16, @CMX_NN>
+
+// CHECK: [[VAR2:%.*]] = memref.alloc() : memref<1x3x4x2xf16, @CMX_NN>
+// CHECK: [[VAR3:%.*]] = VPUIP.SW.Kernel @VPU.SW::@builtin_MemPermute inputs([[VAR1]] : memref<1x2x3x4xf16, @CMX_NN>) outputs([[VAR2]] : memref<1x3x4x2xf16, @CMX_NN>) on tile 0 -> memref<1x3x4x2xf16, @CMX_NN>  {
+// CHECK: ^bb0(%arg2: memref<1x2x3x4xf16, @CMX_NN>, %arg3: memref<1x3x4x2xf16, @CMX_NN>):  // no predecessors
+// CHECK:   VPUIP.SW.Kernel.run {attrs = [
+// CHECK:   [2, 0, 1, 3]
+// CHECK:   ]}(%arg2, %arg3) : memref<1x2x3x4xf16, @CMX_NN>, memref<1x3x4x2xf16, @CMX_NN>
+// CHECK: }
+
+// CHECK: [[VAR4:%.*]] = IERT.Copy inputs([[VAR3]] : memref<1x3x4x2xf16, @CMX_NN>) outputs(%arg1 : memref<1x3x4x2xf16>) -> memref<1x3x4x2xf16>
+// CHECK: return [[VAR4]] : memref<1x3x4x2xf16>
+
+}
+
+}
+
+// -----
+
+#NCHW = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
+#NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
+
+module @Test attributes {VPU.arch = "MTL", VPU.compilationMode = "ReferenceHW"} {
+
+// CHECK: VPURT.SW.Runtime entryPoint : @VPU.SW::@runtime stack_configuration : [4096, 4096, 4096, 4096]
+
+
+// CHECK: module @VPU.SW {
+// CHECK-NEXT:   func private @builtin_MemPermute(memref<*xf16>, memref<*xf16>, none) attributes {VPU.kernel_code = "reorder_fp16.cpp", VPU.kernel_entry = "reorder_fp16"}
+// CHECK-NEXT:   func private @runtime() attributes {VPU.kernel_code = "nnActEntry"}
+// CHECK-NEXT: }
+
+func @ReorderSWLayer(%arg0: memref<1x2x3x4xf16>, %arg1: memref<1x2x3x4xf16, #NHWC>) -> memref<1x2x3x4xf16, #NHWC> {
+    %0 = IERT.MemPermute {mem_perm = #NHWC} inputs(%arg0 : memref<1x2x3x4xf16>) outputs(%arg1 : memref<1x2x3x4xf16, #NHWC>) -> memref<1x2x3x4xf16, #NHWC>
+    return %0: memref<1x2x3x4xf16, #NHWC>
+
+// CHECK: [[VAR0:%.*]] = memref.alloc() : memref<1x2x3x4xf16, @CMX_NN>
+// CHECK: [[VAR1:%.*]] = IERT.Copy inputs(%arg0 : memref<1x2x3x4xf16>) outputs([[VAR0]] : memref<1x2x3x4xf16, @CMX_NN>) -> memref<1x2x3x4xf16, @CMX_NN>
+
+// CHECK: [[VAR2:%.*]] = memref.alloc() : memref<1x2x3x4xf16, #NHWC, @CMX_NN>
+// CHECK: [[VAR3:%.*]] = VPUIP.SW.Kernel @VPU.SW::@builtin_MemPermute inputs([[VAR1]] : memref<1x2x3x4xf16, @CMX_NN>) outputs([[VAR2]] : memref<1x2x3x4xf16, #NHWC, @CMX_NN>) on tile 0 -> memref<1x2x3x4xf16, #NHWC, @CMX_NN>  {
+// CHECK: ^bb0(%arg2: memref<1x2x3x4xf16, @CMX_NN>, %arg3: memref<1x2x3x4xf16, #NHWC, @CMX_NN>):  // no predecessors
+// CHECK:   VPUIP.SW.Kernel.run {attrs = [
+// CHECK:   [2, 0, 1, 3]
+// CHECK:   ]}(%arg2, %arg3) : memref<1x2x3x4xf16, @CMX_NN>, memref<1x2x3x4xf16, #NHWC, @CMX_NN>
+// CHECK: }
+
+// CHECK: [[VAR4:%.*]] = IERT.Copy inputs([[VAR3]] : memref<1x2x3x4xf16, #NHWC, @CMX_NN>) outputs(%arg1 : memref<1x2x3x4xf16, #NHWC>) -> memref<1x2x3x4xf16, #NHWC>
+// CHECK: return [[VAR4]] : memref<1x2x3x4xf16, #NHWC>
 
 }
 
@@ -68,8 +138,7 @@ func @ThreeSWLayers(%arg0: memref<1x1x1x2000xf16>, %arg1: memref<1x1x1x1000xf16>
 // CHECK: [[VAR4:%.*]] = memref.alloc() : memref<1x1x1x2000xf16, @CMX_NN>
 // CHECK: [[VAR5:%.*]] = VPUIP.SW.Kernel @VPU.SW::@builtin_SoftMax inputs([[VAR3]] : memref<1x1x1x2000xf16, @CMX_NN>) outputs([[VAR4]] : memref<1x1x1x2000xf16, @CMX_NN>) on tile 0 -> memref<1x1x1x2000xf16, @CMX_NN>  {
 // CHECK:       ^bb0(%arg2: memref<1x1x1x2000xf16, @CMX_NN>, %arg3: memref<1x1x1x2000xf16, @CMX_NN>):  // no predecessors
-// CHECK:         [[VAR100:%.*]] = arith.constant 0 : i64
-// CHECK:         VPUIP.SW.Kernel.run(%arg2, %arg3, [[VAR100]]) : memref<1x1x1x2000xf16, @CMX_NN>, memref<1x1x1x2000xf16, @CMX_NN>, i64
+// CHECK:         VPUIP.SW.Kernel.run {attrs = [0]}(%arg2, %arg3) : memref<1x1x1x2000xf16, @CMX_NN>, memref<1x1x1x2000xf16, @CMX_NN>
 // CHECK:       }
 // CHECK: [[VAR6:%.*]] = IERT.Copy inputs([[VAR5]] : memref<1x1x1x2000xf16, @CMX_NN>) outputs([[VAR0]] : memref<1x1x1x2000xf16>) -> memref<1x1x1x2000xf16>
 
@@ -78,7 +147,7 @@ func @ThreeSWLayers(%arg0: memref<1x1x1x2000xf16>, %arg1: memref<1x1x1x1000xf16>
 // CHECK: [[VAR9:%.*]] = memref.alloc() : memref<1x1x1x2000xf16, @CMX_NN>
 // CHECK: [[VAR10:%.*]] = VPUIP.SW.Kernel @VPU.SW::@builtin_Sigmoid inputs([[VAR8]] : memref<1x1x1x2000xf16, @CMX_NN>) outputs([[VAR9]] : memref<1x1x1x2000xf16, @CMX_NN>) on tile 0 -> memref<1x1x1x2000xf16, @CMX_NN>  {
 // CHECK:      ^bb0(%arg2: memref<1x1x1x2000xf16, @CMX_NN>, %arg3: memref<1x1x1x2000xf16, @CMX_NN>):  // no predecessors
-// CHECK:       VPUIP.SW.Kernel.run(%arg2, %arg3) : memref<1x1x1x2000xf16, @CMX_NN>, memref<1x1x1x2000xf16, @CMX_NN>
+// CHECK:       VPUIP.SW.Kernel.run {attrs = []}(%arg2, %arg3) : memref<1x1x1x2000xf16, @CMX_NN>, memref<1x1x1x2000xf16, @CMX_NN>
 // CHECK:  }
 // CHECK: [[VAR11:%.*]] = IERT.Copy inputs([[VAR10]] : memref<1x1x1x2000xf16, @CMX_NN>) outputs([[VAR1]] : memref<1x1x1x2000xf16>) -> memref<1x1x1x2000xf16>
 
@@ -89,8 +158,7 @@ func @ThreeSWLayers(%arg0: memref<1x1x1x2000xf16>, %arg1: memref<1x1x1x1000xf16>
 // CHECK: [[VAR15:%.*]] = memref.alloc() : memref<1x1x1x1000xf16, @CMX_NN>
 // CHECK: [[VAR16:%.*]] = VPUIP.SW.Kernel @VPU.SW::@builtin_SoftMax inputs([[VAR14]] : memref<1x1x1x1000xf16, @CMX_NN>) outputs([[VAR15]] : memref<1x1x1x1000xf16, @CMX_NN>) on tile 0 -> memref<1x1x1x1000xf16, @CMX_NN>  {
 // CHECK:  ^bb0(%arg2: memref<1x1x1x1000xf16, @CMX_NN>, %arg3: memref<1x1x1x1000xf16, @CMX_NN>):  // no predecessors
-// CHECK:  [[VAR101:%.*]] = arith.constant 0 : i64
-// CHECK:  VPUIP.SW.Kernel.run(%arg2, %arg3, [[VAR101]]) : memref<1x1x1x1000xf16, @CMX_NN>, memref<1x1x1x1000xf16, @CMX_NN>, i64
+// CHECK:  VPUIP.SW.Kernel.run {attrs = [0]}(%arg2, %arg3) : memref<1x1x1x1000xf16, @CMX_NN>, memref<1x1x1x1000xf16, @CMX_NN>
 // CHECK:  }
 // CHECK: [[VAR17:%.*]] = IERT.Copy inputs([[VAR16]] : memref<1x1x1x1000xf16, @CMX_NN>) outputs(%arg1 : memref<1x1x1x1000xf16>) -> memref<1x1x1x1000xf16>
 

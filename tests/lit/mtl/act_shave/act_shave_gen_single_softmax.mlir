@@ -61,14 +61,11 @@ func @main(%1: memref<1x1x1x1000xf16>, %2: memref<1x1x1x1000xf16>) -> memref<1x1
 
             ^bb0(%arg0 : memref<1x1x1x1000xf16, @CMX_NN>, %arg1 : memref<1x1x1x1000xf16, @CMX_NN>):
                 // Inner region, isolated from above, which holds the information about arguments mapping.
-                // We can use constant scalars/arrays definitions here.
-                %axis   = arith.constant 0 : i64
 
                 // The arguments mapping, the order must match the kernel parameter structure.
-                VPUIP.SW.Kernel.run(%arg0, %arg1, %axis)
+                VPUIP.SW.Kernel.run {attrs = [0]}(%arg0, %arg1)
                     : memref<1x1x1x1000xf16, @CMX_NN>
                     , memref<1x1x1x1000xf16, @CMX_NN>
-                    , i64
         }
     }
 

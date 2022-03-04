@@ -39,7 +39,7 @@ VPURT.SW.Runtime
 module @VPU.SW {
     // The declaration should match C++ params structure in decomposed form.
     // `memref` will be translated to `MemRefData`, while raw scalars will be translated as is.
-    func private @builtin_dummy(%ins : i64, %outs : i64, %input : memref<*xf16>, %output : memref<*xf16>)
+    func private @builtin_dummy(%input : memref<*xf16>, %output : memref<*xf16>, %ins : i64, %outs : i64)
         attributes {
             VPU.kernel_code = "dummy.cpp",
             VPU.kernel_entry = "dummy"
@@ -75,15 +75,10 @@ func @main(%1: memref<1x1x1x1000xf16>, %2: memref<1x1x1x1000xf16>) -> memref<1x1
 
             ^bb0(%arg0 : memref<1x1x1x1000xf16, @CMX_NN>, %arg1 : memref<1x1x1x1000xf16, @CMX_NN>):
                 // Inner region, isolated from above, which holds the information about arguments mapping.
-                // We can use constant scalars/arrays definitions here.
-                %ins   = arith.constant 1 : i64
-                %outs  = arith.constant 1 : i64
 
                 // The arguments mapping, the order must match the kernel parameter structure.
-                VPUIP.SW.Kernel.run(%ins, %outs, %arg0, %arg1)
-                    : i64
-                    , i64
-                    , memref<1x1x1x1000xf16, @CMX_NN>
+                VPUIP.SW.Kernel.run {attrs = [1, 1]}(%arg0, %arg1)
+                    : memref<1x1x1x1000xf16, @CMX_NN>
                     , memref<1x1x1x1000xf16, @CMX_NN>
         }
     }

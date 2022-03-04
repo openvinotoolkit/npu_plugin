@@ -81,7 +81,7 @@ func @main(%1: memref<1x1x1x1000xf16>, %2: memref<1x1x1x1000xf16>) -> memref<1x1
                 // We can use constant scalars/arrays definitions here.
 
                 // The arguments mapping, the order must match the kernel parameter structure.
-                VPUIP.SW.Kernel.run(%arg0, %arg1)
+                VPUIP.SW.Kernel.run {attrs = []}(%arg0, %arg1)
                     : memref<1x1x1x1000xf16, @CMX_NN>
                     , memref<1x1x1x1000xf16, @CMX_NN>
         }

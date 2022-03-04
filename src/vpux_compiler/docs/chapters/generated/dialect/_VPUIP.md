@@ -2451,6 +2451,12 @@ operation ::= `VPUIP.SW.Kernel.run` attr-dict
 ```
 
 
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`attrs` | ::mlir::ArrayAttr | array attribute
+
 #### Operands:
 
 | Operand | Description |

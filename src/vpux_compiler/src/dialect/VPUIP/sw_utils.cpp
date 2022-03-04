@@ -129,12 +129,6 @@ void initSwKernel(VPUIP::SwKernelOp swKernelOp, mlir::ValueRange inputs, mlir::V
 
     auto swKernelBlockBuilder = mlir::OpBuilder::atBlockBegin(&swKernelBlock, &builderLog);
 
-    // embedding args of IERT operation as constants
-    SmallVector<mlir::arith::ConstantOp> constantArgs;
-    for (auto&& arg : args) {
-        constantArgs.push_back(swKernelBlockBuilder.create<mlir::arith::ConstantOp>(mlir::UnknownLoc::get(ctx), arg));
-    }
-
     // pack input/outputs and constants into single call to sw_kernel_run
     SmallVector<mlir::Value> operands;
     auto fetchOperands = [&operands](auto&& cnt) {
@@ -145,9 +139,9 @@ void initSwKernel(VPUIP::SwKernelOp swKernelOp, mlir::ValueRange inputs, mlir::V
 
     auto blockArgs = swKernelBlock.getArguments();
     fetchOperands(blockArgs);
-    fetchOperands(constantArgs);
 
-    swKernelBlockBuilder.create<VPUIP::SwKernelRun>(mlir::UnknownLoc::get(ctx), mlir::ValueRange(operands));
+    swKernelBlockBuilder.create<VPUIP::SwKernelRun>(mlir::UnknownLoc::get(ctx), mlir::ValueRange(operands),
+                                                    mlir::ArrayAttr::get(ctx, args));
 }
 
 }  // namespace VPUIP

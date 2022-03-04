@@ -2386,7 +2386,8 @@ def VPUIP_SwKernelRun
     : VPUIP_Op<"SW.Kernel.run"> {
 
     let arguments  = (ins
-        Variadic<AnyType>:$args
+        Variadic<AnyType>:$args,
+        OptionalAttr<ArrayAttr>:$attrs
     );
 
     let assemblyFormat = [{

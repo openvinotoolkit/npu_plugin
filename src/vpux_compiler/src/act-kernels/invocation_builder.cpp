@@ -24,16 +24,24 @@
 
 using namespace vpux;
 
-void InvocationBuilder::addArg(mlir::Value operand) {
-    // TODO: add support for non int constants
-    llvm::APInt intVal;
-    mlir::FloatAttr floatVal;
-    if (mlir::matchPattern(operand, mlir::m_ConstantInt(&intVal))) {
-        appendValue(_scalarStorage, intVal.getSExtValue());
-    } else if (mlir::matchPattern(operand, mlir::m_Constant(&floatVal))) {
-        appendValue(_scalarStorage, static_cast<float>(floatVal.getValue().convertToDouble()));
+void InvocationBuilder::parseBasicAttrTypes(mlir::Attribute attr) {
+    if (auto val = attr.dyn_cast_or_null<mlir::IntegerAttr>()) {
+        appendValue(_scalarStorage, val.getValue().getSExtValue());
+    } else if (auto val = attr.dyn_cast_or_null<mlir::FloatAttr>()) {
+        appendValue(_scalarStorage, static_cast<float>(val.getValue().convertToDouble()));
     } else {
-        VPUX_THROW("Act Shave Invocation: cannot store arg of type {0}", operand.getType());
+        VPUX_THROW("Act Shave Invocation: cannot store arg of type {0}", attr.getType());
+    }
+}
+
+void InvocationBuilder::addArg(mlir::Attribute attr) {
+    if (auto arr = attr.dyn_cast_or_null<mlir::ArrayAttr>()) {
+        auto vals = arr.getValue();
+        for (auto val : vals) {
+            parseBasicAttrTypes(val);
+        }
+    } else {
+        parseBasicAttrTypes(attr);
     }
 }
 

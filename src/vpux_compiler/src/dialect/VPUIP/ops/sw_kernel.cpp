@@ -28,6 +28,19 @@ int64_t computeReverseMemDim(mlir::Value tensorArg, int64_t dimIdx) {
     auto nDims = checked_cast<uint32_t>(shape.size());
     return nDims - 1 - md.ind();
 }
+
+static SmallVector<int64_t> reversePermutation(mlir::AffineMap map) {
+    const auto origPerm = DimsOrder::fromAffineMap(map).toPermutation();
+    SmallVector<int64_t> revPerm(origPerm.size());
+    for (const auto srcInd : irange(origPerm.size())) {
+        const auto dstInd = origPerm[srcInd].ind();
+        const auto revSrcInd = origPerm.size() - 1 - srcInd;
+        const auto revDstInd = origPerm.size() - 1 - dstInd;
+        revPerm[revSrcInd] = revDstInd;
+    }
+
+    return revPerm;
+}
 }  // namespace
 
 namespace vpux {
@@ -60,12 +73,9 @@ mlir::LogicalResult SwKernelOp::inferReturnTypes(mlir::MLIRContext* ctx, mlir::O
                       "For now act-kernels with only one output are supported. Got {0}",
                       swKernelOp.output_buffs().size());
 
-    const auto inType = swKernelOp.inputs()[0].getType();
     const auto outType = swKernelOp.output_buffs()[0].getType();
 
-    VPUX_THROW_UNLESS(inType == outType, "Operands of different type not yet supported: {0} vs {1}", inType, outType);
-
-    inferredTypes.push_back(inType);
+    inferredTypes.push_back(outType);
 
     return mlir::success();
 }
@@ -103,6 +113,13 @@ IERT::KernelInfo SwKernelOp::getKernelInfo(mlir::Operation* origOp) {
                                                                      MVN.normalize_varianceAttr(), MVN.epsAttr()},
                                         {"singleShaveMVN"},
                                         {"single_shave_MVN.cpp"}};
+            })
+            .Case<IERT::MemPermuteOp>([&](IERT::MemPermuteOp permute) {
+                auto memPermArr = reversePermutation(permute.mem_perm());
+                mlir::MLIRContext* ctx = origOp->getContext();
+                return IERT::KernelInfo{SmallVector<mlir::Attribute>{getIntArrayAttr(ctx, memPermArr)},
+                                        {"reorder_fp16"},
+                                        {"reorder_fp16.cpp"}};
             })
             .Default([](mlir::Operation* unknownOp) -> IERT::KernelInfo {
                 VPUX_THROW("Operation '{0}' is not supported by the act-shaves", unknownOp->getName());
