@@ -74,6 +74,9 @@ void VPUIP::DistributedBufferType::print(mlir::DialectAsmPrinter& printer) const
     if (distribution.num_clusters() != nullptr) {
         printer << ", num_clusters = " << distribution.num_clusters();
     }
+    if (distribution.alignment() != nullptr) {
+        printer << ", alignment = " << distribution.alignment();
+    }
     printer << "}";
 
     printer << ">";
@@ -151,6 +154,7 @@ mlir::Type VPUIP::DistributedBufferType::parse(mlir::DialectAsmParser& parser) {
     VPU::PaddingAttr pads;
     mlir::ArrayAttr strides;
     mlir::IntegerAttr numClusters;
+    mlir::ArrayAttr alignment;
 
     while (parser.parseOptionalRBrace()) {
         if (parser.parseComma()) {
@@ -183,6 +187,10 @@ mlir::Type VPUIP::DistributedBufferType::parse(mlir::DialectAsmParser& parser) {
             if (parser.parseAttribute(numClusters)) {
                 return Type();
             }
+        } else if (attrName == "alignment") {
+            if (parser.parseAttribute(alignment)) {
+                return Type();
+            }
         } else {
             return Type();
         }
@@ -192,7 +200,7 @@ mlir::Type VPUIP::DistributedBufferType::parse(mlir::DialectAsmParser& parser) {
         return Type();
     }
     auto distributedAttr = VPU::DistributedTensorAttr::get(distributionModeAttr, numTiles, kernel, pads, strides,
-                                                           numClusters, parser.getContext());
+                                                           numClusters, alignment, parser.getContext());
     return static_cast<mlir::Type>(
             get(parser.getContext(), makeArrayRef(shape), elemType, layout, memSpace, distributedAttr));
 }

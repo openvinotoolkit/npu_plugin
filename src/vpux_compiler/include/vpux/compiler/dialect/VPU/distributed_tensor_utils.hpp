@@ -104,15 +104,15 @@ DistributedTensorType createDistributedTensorType(ConcreteOp origOp, mlir::Value
         auto pad = getPad(origOp);
 
         distributedActivationTensorAttr = DistributedTensorAttr::get(
-                activationTensorDistributionModeAttr, numTiles, kernel, pad, stride, numClusters, origOp.getContext());
+                activationTensorDistributionModeAttr, numTiles, kernel, pad, stride, numClusters, nullptr, origOp.getContext());
     } else if (distributionMode == DistributionMode::DUPLICATED) {
         distributedActivationTensorAttr =
                 DistributedTensorAttr::get(activationTensorDistributionModeAttr, nullptr, nullptr, nullptr, nullptr,
-                                           numClusters, origOp.getContext());
+                                           numClusters, nullptr, origOp.getContext());
     } else {
         distributedActivationTensorAttr =
                 DistributedTensorAttr::get(activationTensorDistributionModeAttr, numTiles, nullptr, nullptr, nullptr,
-                                           numClusters, origOp.getContext());
+                                           numClusters, nullptr, origOp.getContext());
     }
 
     const auto shape = getShape(input);
