@@ -423,7 +423,6 @@ target_include_directories(${OBJ_TARGET_NAME}
         $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>
         $<BUILD_INTERFACE:${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/include>
         $<BUILD_INTERFACE:${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/sw_runtime_kernels>
-        ${VPUNN_INCLUDE_DIRS}
 )
 
 find_package(Git REQUIRED)
@@ -445,8 +444,9 @@ link_system_libraries(${OBJ_TARGET_NAME}
         IE::ngraph_reference
         vpux_ngraph_transformations
         vpux_utils
-        inferenceStatic
 )
+
+target_link_libraries(${OBJ_TARGET_NAME} PUBLIC $<BUILD_INTERFACE:inferenceStatic>)
 
 target_link_libraries(${OBJ_TARGET_NAME}
     PUBLIC
@@ -474,6 +474,7 @@ target_link_libraries(mlir-dependencies INTERFACE
 target_include_directories(mlir-dependencies
     SYSTEM INTERFACE
         ${MLIR_INCLUDE_DIRS}
+        ${VPUNN_INCLUDE_DIRS}
 )
 
 target_link_libraries(${OBJ_TARGET_NAME} PUBLIC $<BUILD_INTERFACE:mlir-dependencies>)
@@ -498,7 +499,7 @@ if(BUILD_SHARED_LIBS)
     add_library(${STATIC_TARGET_NAME} STATIC $<TARGET_OBJECTS:${OBJ_TARGET_NAME}> $<TARGET_OBJECTS:bitcompactor> $<TARGET_OBJECTS:huffman_codec>)
     target_link_libraries(${STATIC_TARGET_NAME} PUBLIC $<BUILD_INTERFACE:${OBJ_TARGET_NAME}>)
 else()
-    bundle_static_library(${OBJ_TARGET_NAME} mlir-dependencies)
+    bundle_static_library(${OBJ_TARGET_NAME} mlir-dependencies inferenceStatic)
     add_library(${STATIC_TARGET_NAME} ALIAS ${OBJ_TARGET_NAME})
 endif()
 
@@ -517,4 +518,3 @@ install(DIRECTORY   "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/thirdparty/vpucostmodel/m
 install(DIRECTORY   "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/thirdparty/vpucostmodel/models/"
         DESTINATION "${IE_CPACK_RUNTIME_PATH}/vpunn"
         COMPONENT    tests)
-
