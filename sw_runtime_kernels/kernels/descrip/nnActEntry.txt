@@ -1,5 +1,26 @@
 # -*- Cmake -*-
 
 set(kernel_src "nnActEntry.cpp")
-
 set(kernel_src_dir "act_runtime/src")
+
+set(include_dirs_list
+  "${FIRMWARE_VPU_DIR}/drivers/errors/errorCodes/inc"
+  "${FIRMWARE_VPU_DIR}/drivers/hardware/registerMap/inc"
+  "${FIRMWARE_VPU_DIR}/drivers/nn/inc"
+  "${FIRMWARE_VPU_DIR}/drivers/resource/barrier/inc"
+  "${FIRMWARE_VPU_DIR}/drivers/shave/svuCtrl_3600/inc"
+  "${FIRMWARE_VPU_DIR}/drivers/shave/svuL1c/inc"
+  "${FIRMWARE_VPU_DIR}/drivers/shave/svuShared_3600/inc"
+  "${FIRMWARE_VPU_DIR}/drivers/vcpr/perf_timer/inc"
+  "${FIRMWARE_VPU_DIR}/system/nn_mtl/act_runtime/inc"
+  "${FIRMWARE_VPU_DIR}/system/shave/svuCtrl_3600/inc"
+  "${KERNEL_DIR}/../jtag_tests/app/act_shave_lib/leon/common_runtime/inc"
+  "${KERNEL_DIR}/../jtag_tests/app/nn/common/inc"
+)
+
+set(extra_src_list
+  "${KERNEL_DIR}/../jtag_tests/app/act_shave_lib/leon/common_runtime/src/nn_fifo_manager.cpp"
+)
+
+#"${FIRMWARE_VPU_DIR}/drivers/shave/svuShared_3600/src/HglShaveId.c"
+#"${KERNEL_DIR}/../jtag_tests/app/act_shave_lib/leon/common_runtime/src/nn_perf_manager.cpp"
