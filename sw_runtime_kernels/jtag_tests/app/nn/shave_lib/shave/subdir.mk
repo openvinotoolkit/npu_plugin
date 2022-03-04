@@ -54,6 +54,7 @@ shavelib-preserved-symbols-$(CONFIG_TARGET_SOC_MA2490) += tanh_fp16
 shavelib-preserved-symbols-$(CONFIG_TARGET_SOC_MA2490) += power_fp16
 shavelib-preserved-symbols-$(CONFIG_TARGET_SOC_MA2490) += add_fp16
 shavelib-preserved-symbols-$(CONFIG_TARGET_SOC_MA2490) += sub_fp16
+shavelib-preserved-symbols-$(CONFIG_TARGET_SOC_MA2490) += min_fp16
 shavelib-preserved-symbols-y += edsl
 shavelib-preserved-symbols-y += Dummy
 shavelib-preserved-symbols-y += proposal
