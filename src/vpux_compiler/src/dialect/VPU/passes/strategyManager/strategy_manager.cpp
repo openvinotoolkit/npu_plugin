@@ -108,24 +108,32 @@ void StrategyManager::assignMultiClusterStrategy() {
                     if (_maxPoolStrategy.isOperationSplitOverHeightCompatible(origOp.getOperation()) &&
                         _maxPoolStrategy.doesLayerFitIntoCMX(origOp.getOperation(), splitOverHeight)) {
                         setLayerStrategy(splitOverHeight, origOp.getOperation());
+                    } else if (_maxPoolStrategy.doesLayerFitIntoCMX(origOp.getOperation(), clustering)) {
+                        setLayerStrategy(clustering, origOp.getOperation());
                     }
                 })
                 .Case<NCEEltwiseOp>([this](NCEEltwiseOp origOp) {
                     if (_eltwiseStrategy.isOperationSplitOverHeightCompatible(origOp.getOperation()) &&
                         _eltwiseStrategy.doesLayerFitIntoCMX(origOp.getOperation(), splitOverHeight)) {
                         setLayerStrategy(splitOverHeight, origOp.getOperation());
+                    } else if (_eltwiseStrategy.doesLayerFitIntoCMX(origOp.getOperation(), clustering)) {
+                        setLayerStrategy(clustering, origOp.getOperation());
                     }
                 })
                 .Case<NCEConvolutionOp>([this](NCEConvolutionOp origOp) {
                     if (_convolutionStrategy.isOperationMultiClusterCompatible(origOp.getOperation())) {
                         auto bestStrategy = _convolutionStrategy.getBestLayerStrategy(origOp.getOperation());
                         setLayerStrategy(bestStrategy, origOp.getOperation());
+                    } else if (_convolutionStrategy.doesLayerFitIntoCMX(origOp.getOperation(), clustering)) {
+                        setLayerStrategy(clustering, origOp.getOperation());
                     }
                 })
                 .Case<NCEDepthConvolutionOp>([this](NCEDepthConvolutionOp origOp) {
                     if (_depthConvolutionStrategy.isOperationMultiClusterCompatible(origOp.getOperation())) {
                         auto bestStrategy = _depthConvolutionStrategy.getBestLayerStrategy(origOp.getOperation());
                         setLayerStrategy(bestStrategy, origOp.getOperation());
+                    } else if (_depthConvolutionStrategy.doesLayerFitIntoCMX(origOp.getOperation(), clustering)) {
+                        setLayerStrategy(clustering, origOp.getOperation());
                     }
                 })
                 .Default([this](mlir::Operation* unknownOp) -> void {
