@@ -14,11 +14,9 @@ struct TopKParams {
     struct MemRefData outputIndex;
 
     int32_t k;
+    int32_t axis;
     int32_t mode;
     int32_t sort;
-    int32_t axis;
-    int32_t hasValues;
-    int32_t hasIndices;
 };
 
 #pragma pack(pop)

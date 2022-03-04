@@ -112,16 +112,12 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, TopK)) {
             m_axis = ind[test->customLayerParams.layerParams[1]];
             m_mode = test->customLayerParams.layerParams[2];
             m_sort = test->customLayerParams.layerParams[3];
-            m_hasOutputValues = 1;
-            m_hasOutputIndices = 1;
             m_TopKParams = reinterpret_cast<sw_params::TopKParams*>(paramContainer);
             *m_TopKParams = sw_params::TopKParams();
             m_TopKParams->axis = m_axis;
             m_TopKParams->mode = m_mode;
             m_TopKParams->sort = m_sort;
             m_TopKParams->k = m_k;
-            m_TopKParams->hasValues = m_hasOutputValues;
-            m_TopKParams->hasIndices = m_hasOutputIndices;
             m_params.paramData = reinterpret_cast<uint32_t*>(paramContainer);
             m_params.paramDataLen = sizeof(sw_params::TopKParams);
             m_requiredTensorLocation = static_cast<sw_params::Location>(test->customLayerParams.layerParams[4]);

@@ -117,6 +117,8 @@ IERT::KernelInfo SwKernelOp::getKernelInfo(mlir::Operation* origOp) {
                                         {"reorder_fp16.cpp"}};
             })
             .Case<IERT::TopKOp>([&](IERT::TopKOp topk) {
+                const auto axisParam = computeReverseMemDim(topk.input(), topk.axis());
+                const auto axisParamAttr = getIntAttr(topk.getContext(), axisParam);
                 mlir::IntegerAttr modeIntAttr;
                 switch (topk.modeAttr().getValue()) {
                 case IE::TopKMode::MAX:
@@ -141,12 +143,10 @@ IERT::KernelInfo SwKernelOp::getKernelInfo(mlir::Operation* origOp) {
                     VPUX_THROW("Unknown TopKSortType");
                 }
 
-                mlir::IntegerAttr elementTypeIntAttr;
-                elementTypeIntAttr = getIntAttr(ctx, 0);
-                return IERT::KernelInfo{SmallVector<mlir::Attribute>{topk.k_valueAttr(), topk.axisAttr(), modeIntAttr,
-                                                                     sortIntAttr, elementTypeIntAttr},
-                                        {"single_shave_topk"},
-                                        {"single_shave_topk.cpp"}};
+                return IERT::KernelInfo{
+                        SmallVector<mlir::Attribute>{topk.k_valueAttr(), axisParamAttr, modeIntAttr, sortIntAttr},
+                        {"single_shave_topk"},
+                        {"single_shave_topk.cpp"}};
             })
             .Default([](mlir::Operation* unknownOp) -> IERT::KernelInfo {
                 VPUX_THROW("Operation '{0}' is not supported by the act-shaves", unknownOp->getName());
