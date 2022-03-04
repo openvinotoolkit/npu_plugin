@@ -1,0 +1,10 @@
+# -*- Cmake -*-
+
+set(kernel_src "singleShaveSoftmax.cpp")
+
+set(optimization_opts "") # -O3
+set(always_inline "yes") # "no"
+
+if(NOT always_inline STREQUAL "yes")
+  set(extra_src_list "${KERNEL_DIR}/common/src/mvSubspaces.cpp")
+endif()
