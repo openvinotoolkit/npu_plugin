@@ -75,6 +75,10 @@ ie_cpack_add_component(${KMB_DEVICE_NAME} REQUIRED)
 # Sub-directories
 #
 
+if (ENABLE_LOCAL_PRE_PROC)
+    add_definitions(-DUSE_LOCAL_PRE_PROC)
+endif()
+
 add_subdirectory(thirdparty)
 
 set(LLVM_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/llvm-project/llvm")

@@ -22,6 +22,18 @@
 #include "vpux/vpux_plugin_params.hpp"
 #include "vpux_params_private_options.hpp"
 
+#ifdef USE_LOCAL_PRE_PROC
+#include <PlgPreProc.h>
+#include <PlgPreProcXIn.h>
+#include <PlgXlinkIn.h>
+#include <PlgXlinkOut.h>
+#include <XPool.h>
+#include <mvMacros.h>
+#include <vpumgr.h>
+
+#define EN_ASPECT_RATIO 0
+#endif
+
 // clang-format off
 namespace InferenceEngine {
 namespace KmbPreproc {
@@ -86,6 +98,32 @@ public:
     void preprocessBlob(const BlobTypePtr &inBlob, MemoryBlob::Ptr &outBlob,
                         ResizeAlgorithm algorithm,
                         ColorFormat in_fmt, ColorFormat out_fmt, const int deviceId);
+
+#ifdef USE_LOCAL_PRE_PROC
+    void initVpualObjects(const uint32_t deviceId);
+
+    int pipe_created = 0;
+
+    int xpoolChannel = -1;
+    int xlinkChannelInY = -1;
+    int xlinkChannelInUV = -1;
+    int xlinkChannelOut = -1;
+    std::shared_ptr<PlgXlinkIn> plgSrcY;
+    std::shared_ptr<PlgXlinkIn> plgSrcUV;
+    std::shared_ptr<PlgXlinkOut> plgSink;
+    std::shared_ptr<PlgPreProc> plgPreProccess;
+    std::shared_ptr<PlgPreProcXIn> plgPPCfg;
+    std::shared_ptr<VpuData> preprocCfg;
+
+    std::shared_ptr<PlgXlinkIn> plgSrcObuf;
+
+    std::shared_ptr<Pipeline> pipe;
+
+    const int start_shave = 0;  // Not actualy used in VPU FW
+    const int last_shave = 3;  // Not actualy used in VPU FW
+    int input_num = 2;
+    int ins_id;
+#endif
 
     PrivSIPP(unsigned int shaveFirst, unsigned int shaveLast, unsigned int lpi)
         : _shaveFirst(shaveFirst)
@@ -728,6 +766,7 @@ void PrivSIPP::executeGraph(const std::vector<cv::gapi::own::Mat>& input_plane_m
     _lastComp(std::move(call_ins), std::move(call_outs));
 }
 
+#ifndef USE_LOCAL_PRE_PROC
 namespace {
 std::vector<cv::gapi::own::Mat> input_from_blob(const MemoryBlob::Ptr& inBlob) {
     return bind_to_blob(inBlob);
@@ -743,8 +782,264 @@ std::vector<cv::gapi::own::Mat> input_from_blob(const NV12Blob::Ptr& inBlob) {
     return input_plane_mats;
 }
 } // anonymous namespace
+#endif
+
+#ifdef USE_LOCAL_PRE_PROC
+#define MAX_PP_INSTANCE (8)
+int pp_ins = 0;
+std::mutex pp_lk;
+
+void PrivSIPP::initVpualObjects(const uint32_t deviceId) {
+    if (!plgPreProccess) {
+        plgPreProccess = std::make_shared<PlgPreProc>(deviceId);
+    }
+    if (!plgSrcObuf) {
+        plgSrcObuf = std::make_shared<PlgXlinkIn>(deviceId);
+    }
+    if (!plgSrcY) {
+        plgSrcY = std::make_shared<PlgXlinkIn>(deviceId);
+    }
+    if (!plgSrcUV) {
+        plgSrcUV = std::make_shared<PlgXlinkIn>(deviceId);
+    }
+    if (!plgSink) {
+        plgSink = std::make_shared<PlgXlinkOut>(deviceId);
+    }
+    if (!plgPPCfg) {
+        plgPPCfg = std::make_shared<PlgPreProcXIn>(deviceId);
+    }
+    if (!pipe) {
+        pipe = std::make_shared<Pipeline>(MAX_PLUGS_PER_PIPE, deviceId);
+    }
+    if (!preprocCfg) {
+        preprocCfg = std::make_shared<VpuData>(sizeof(PreProcDesc), deviceId);
+    }
+}
+#endif
 
 template<typename BlobTypePtr>
+#ifdef USE_LOCAL_PRE_PROC
+void PrivSIPP::preprocessBlob(const BlobTypePtr &inBlob, MemoryBlob::Ptr &outBlob,
+                              ResizeAlgorithm algorithm,
+                              ColorFormat in_fmt, ColorFormat out_fmt, const int deviceId) {
+    validateBlob(inBlob);
+
+    auto desc_and_layout = getTensorDescAndLayout(inBlob);
+
+    const auto& in_desc_ie = desc_and_layout.first;
+    const auto  in_layout  = desc_and_layout.second;
+
+    const auto& out_desc_ie = outBlob->getTensorDesc();
+    const auto  out_layout = out_desc_ie.getLayout();
+
+    UNUSED(algorithm);
+    UNUSED(in_layout);
+    UNUSED(in_fmt);
+    UNUSED(out_layout);
+
+    validateTensorDesc(in_desc_ie);
+    validateTensorDesc(out_desc_ie);
+
+    if (in_fmt == ColorFormat::NV12) {
+        auto inNV12Blob = as<NV12Blob>((const Blob::Ptr)inBlob);
+        IE_ASSERT(inNV12Blob != nullptr);
+
+        const auto& y_blob = inNV12Blob->y();
+        const auto& uv_blob = inNV12Blob->uv();
+
+        const auto& out_desc = outBlob->getTensorDesc();
+        const auto& out_dims = out_desc.getDims();
+
+        uint32_t nn_w = out_dims[3];
+        uint32_t nn_h = out_dims[2];
+        uint32_t nn_input_sz = 3 * nn_w * nn_h;
+
+        const unsigned int shavel2CacheLineSize = 64;
+        unsigned int outputSize = ROUND_UP(nn_input_sz, shavel2CacheLineSize);
+
+        // new pipeline for pre-proc should be add here
+        pp_lk.lock();
+        if (!pipe_created) {
+            ins_id = pp_ins;
+            initVpualObjects(deviceId);
+
+            printf("nn_w x nn_h: %d x %d\n", nn_w, nn_h);
+            plgPreProccess->Create(input_num, start_shave, last_shave, NN);
+
+            plgPPCfg->Create(7000, 0);
+
+            xpoolChannel = 3;
+            plgSrcObuf->Create(7000, xpoolChannel);
+
+            xlinkChannelInY = 4;
+            xlinkChannelInUV = 5;
+            xlinkChannelOut = 6;
+            plgSrcY->Create(7000, xlinkChannelInY);
+            plgSrcUV->Create(7000, xlinkChannelInUV);
+            plgSink->Create(7000, xlinkChannelOut);
+
+            printf("Created plgSrc & plgSink\n");
+
+            // Add the plugins to the pipeline:
+            pipe->Add(plgSrcY.get());
+            pipe->Add(plgSrcUV.get());
+            pipe->Add(plgSrcObuf.get());
+            pipe->Add(plgPPCfg.get());
+            pipe->Add(plgSink.get());
+            pipe->Add(plgPreProccess.get());
+
+            printf("Added Plugins to pre-proc Pipeline\n");
+
+            // Link the plugins' messages:
+            plgSrcObuf->out.Link(&plgPreProccess->ppResult);
+            plgPPCfg->out.Link(&plgPreProccess->ppConfig);
+            plgSrcY->out.Link(&plgPreProccess->in[0]);
+            plgSrcUV->out.Link(&plgPreProccess->in[1]);
+            plgPreProccess->out.Link(&plgSink->in);
+            printf("Linked Plugins...\n");
+            pipe->Start();
+            printf("Started pre-proc FLIC pipeline...\n");
+
+            pipe_created = 1;
+            pp_ins++;
+            if (pp_ins > MAX_PP_INSTANCE) {
+                printf("Too many pre-proc instances %d\n", pp_ins);
+                IE_ASSERT(0);
+            }
+        }
+        pp_lk.unlock();
+
+        const auto& Y_desc = y_blob->getTensorDesc();
+        const auto& Y_desc_blk = Y_desc.getBlockingDesc();
+        const auto& Y_offset = Y_desc_blk.getOffsetPadding();
+        const auto& Y_blk_dims = Y_desc_blk.getBlockDims();
+        const auto& Y_blk_strides = Y_desc_blk.getStrides();
+#if 0
+        printf("strides %d %d %d %d\n", static_cast<int>(Y_blk_strides[0]),
+            static_cast<int>(Y_blk_strides[1]),
+            static_cast<int>(Y_blk_strides[2]),
+            static_cast<int>(Y_blk_strides[3]));
+#endif
+        uint32_t roi_w, roi_h, roi_x, roi_y;
+        uint32_t raw_w = Y_blk_strides[1];
+        uint32_t raw_h = Y_blk_strides[0]/Y_blk_strides[1];
+
+        if (Y_desc.getLayout() == NCHW) {
+            roi_w = static_cast<int>(Y_blk_dims[3]);
+            roi_h = static_cast<int>(Y_blk_dims[2]);
+        } else if (Y_desc.getLayout() == NHWC) {
+            roi_w = static_cast<int>(Y_blk_dims[2]);
+            roi_h = static_cast<int>(Y_blk_dims[1]);
+        } else {
+            IE_ASSERT(0);
+        }
+
+        // printf("raw_w %d, raw_h %d\n", raw_w, raw_h);
+        roi_y = static_cast<int32_t>(Y_offset) / static_cast<int32_t>(raw_w);
+        roi_x = static_cast<int32_t>(Y_offset) % static_cast<int32_t>(raw_w);
+
+        // printf("Y_offset %d, ROI %d %d %d %d\n", static_cast<int>(Y_offset), roi_x, roi_y, roi_w, roi_h);
+
+        frameSpec fspec_inY = {
+            RAW8,        // Frame type
+            raw_h,   // Height
+            raw_w,    // Width
+            raw_w,    // Stride
+            2,              // BPP (technically 1.5)
+        };
+
+        frameSpec fspec_inUV = {
+            RAW8,        // Frame type
+            raw_h / 2,   // Height
+            raw_w,    // Width
+            raw_w,    // Stride
+            2,              // BPP (technically 1.5)
+        };
+
+        frameSpec fspec_oBuf = {
+            RGB888,      // Frame type
+            nn_h ,    // Height
+            nn_w,    // Width
+            nn_w,    // Stride
+            3,              // BPP (technically 1.5)
+        };
+
+        // Config pre-proc parameters
+        Roi roi_in = {
+            roi_x,
+            roi_y,
+            roi_w,
+            roi_h,
+        };
+
+        Roi roi_out = {
+            0,
+            0,
+            nn_w,
+            nn_h,
+        };
+
+        PreProcDesc cfg;
+        cfg.inputRoi = roi_in;
+        cfg.outputRoi = roi_out;
+        cfg.inType = FMT_NV12;
+        switch(out_fmt) {
+            case ColorFormat::BGR :
+                cfg.outType = FMT_BGRp;
+                break;
+            case ColorFormat::RGB :
+                cfg.outType = FMT_RGBp;
+                break;
+            default :
+                printf("Unsupported color format\n");
+                return;
+        }
+
+#if EN_ASPECT_RATIO
+        cfg.aspect_ratio = 1;
+        cfg.align_center = 1;
+#else
+        cfg.aspect_ratio = 0;
+        cfg.align_center = 0;
+#endif
+
+        memcpy((*preprocCfg), &cfg, sizeof(PreProcDesc));
+
+        // Push input Y
+        void* inputYPtr = y_blob->buffer();
+        // Input might not be allocated from kmb allocator.
+        // auto physAddr = vpu::KmbPlugin::getKmbAllocator()->getPhysicalAddress(inputPtr);
+        auto physAddrY = vpusmm_ptr_to_vpu(inputYPtr);
+        plgSrcY->Push(physAddrY, raw_w * raw_h, &fspec_inY);
+
+        // Push input UV
+        void* inputUVPtr = uv_blob->buffer();
+        // Input might not be allocated from kmb allocator.
+        // auto physAddr = vpu::KmbPlugin::getKmbAllocator()->getPhysicalAddress(inputPtr);
+        auto physAddrUV = vpusmm_ptr_to_vpu(inputUVPtr);
+        plgSrcUV->Push(physAddrUV, raw_w * raw_h / 2, &fspec_inUV);
+
+        // Push output buffer
+        void* ObufPtr = outBlob->buffer();
+        auto physAddrO = vpusmm_ptr_to_vpu(ObufPtr);
+        plgSrcObuf->Push(physAddrO, outBlob->size(), &fspec_oBuf);
+
+        // Push the pre-proc configuration
+        uint32_t physAddrCfg = static_cast<uint32_t>(*preprocCfg);
+        plgPPCfg->Push(physAddrCfg, sizeof(PreProcDesc));
+
+        if (outBlob->size() != outputSize)
+            printf("outBlob->size() %d, expect aligned buffer sz %d\n", static_cast<int>(outBlob->size()), outputSize);
+
+        // Pull output
+        uint32_t out_len = 0;
+        uint32_t out_pAddr = 0;
+        plgSink->Pull(&out_pAddr, &out_len);
+    } else {
+        THROW_IE_EXCEPTION  << "Unsupported input blob for color format " << in_fmt;
+    }
+}
+#else
 void PrivSIPP::preprocessBlob(const BlobTypePtr &inBlob, MemoryBlob::Ptr &outBlob,
                               ResizeAlgorithm algorithm,
                               ColorFormat in_fmt, ColorFormat out_fmt, const int deviceId) {
@@ -783,6 +1078,7 @@ void PrivSIPP::preprocessBlob(const BlobTypePtr &inBlob, MemoryBlob::Ptr &outBlo
 
     executeGraph(input_plane_mats, output_plane_mats);
 }
+#endif
 
 void PrivSIPP::go(const Blob::Ptr &inBlob, Blob::Ptr &outBlob,
                   const ResizeAlgorithm& algorithm,
