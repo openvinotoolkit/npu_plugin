@@ -22,7 +22,7 @@ namespace shave_lib {
 extern "C" {
 
 #define ELTWISE_VEC_OP      __builtin_shave_cmu_max_f16_rr_half8
-#define ELTWISE_SCL_OP(a,b) (a>b?a:b)
+#define ELTWISE_SCL_OP      __builtin_shave_cmu_max_f16_rr_half
 #include <eltwise_base.h>
 
 ELTWISE_BINARY_OP(max_fp16);
