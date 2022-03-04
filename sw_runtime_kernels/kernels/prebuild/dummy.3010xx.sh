@@ -20,7 +20,7 @@ fi
 
 if [ $env_is_set = 0 ]; then exit 1; fi
 
-rm -f ${KERNEL_DIR}/prebuild/dummy_${cpu}.o ${KERNEL_DIR}/prebuild/dummy_${cpu}.elf ${KERNEL_DIR}/prebuild/act_shave_bin/sk.dummy.3010xx.text ${KERNEL_DIR}/prebuild/act_shave_bin/sk.dummy.3010xx.data ${KERNEL_DIR}/prebuild/sk.dummy.3010xx.text.xdat ${KERNEL_DIR}/prebuild/sk.dummy.3010xx.data.xdat
+rm -f ${KERNEL_DIR}/prebuild/dummy_${cpu}.o ${KERNEL_DIR}/prebuild/dummy_${cpu}.elf ${KERNEL_DIR}/prebuild/act_shave_bin/sk.dummy.${cpu}.text ${KERNEL_DIR}/prebuild/act_shave_bin/sk.dummy.${cpu}.data ${KERNEL_DIR}/prebuild/sk.dummy.${cpu}.text.xdat ${KERNEL_DIR}/prebuild/sk.dummy.${cpu}.data.xdat
 
 "${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}/linux64/bin/moviCompile" -mcpu=${cpu} ${optimization} \
  -c "${KERNEL_DIR}/dummy.cpp" -o "${KERNEL_DIR}/prebuild/dummy_${cpu}.o" \
@@ -47,21 +47,21 @@ if [ $? -ne 0 ]; then exit $?; fi
  -EL "${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}/common/moviCompile/lib/30xxxx-leon/mlibcrt.a" \
  --output "${KERNEL_DIR}/prebuild/dummy_${cpu}.elf"
 
-if [ $? -ne 0 ]; then echo $'\nLinking of dummy_3010xx.elf failed exit $?\n'; exit $?; fi
-"${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}/linux64/sparc-myriad-rtems-6.3.0/bin/sparc-myriad-rtems-objcopy" -O binary --only-section=.text "${KERNEL_DIR}/prebuild/dummy_${cpu}.elf" "${KERNEL_DIR}/prebuild/act_shave_bin/sk.dummy.3010xx.text"
-if [ $? -ne 0 ]; then echo $'\nExtracting of sk.dummy.3010xx.text failed exit $?\n'; exit $?; fi
-"${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}/linux64/sparc-myriad-rtems-6.3.0/bin/sparc-myriad-rtems-objcopy" -O binary --only-section=.arg.data "${KERNEL_DIR}/prebuild/dummy_${cpu}.elf" "${KERNEL_DIR}/prebuild/act_shave_bin/sk.dummy.3010xx.data"
-if [ $? -ne 0 ]; then echo $'\nExtracting of sk.dummy.3010xx.data failed exit $?\n'; exit $?; fi
+if [ $? -ne 0 ]; then echo $'\nLinking of dummy_${cpu}.elf failed exit $?\n'; exit $?; fi
+"${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}/linux64/sparc-myriad-rtems-6.3.0/bin/sparc-myriad-rtems-objcopy" -O binary --only-section=.text "${KERNEL_DIR}/prebuild/dummy_${cpu}.elf" "${KERNEL_DIR}/prebuild/act_shave_bin/sk.dummy.${cpu}.text"
+if [ $? -ne 0 ]; then echo $'\nExtracting of sk.dummy.${cpu}.text failed exit $?\n'; exit $?; fi
+"${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}/linux64/sparc-myriad-rtems-6.3.0/bin/sparc-myriad-rtems-objcopy" -O binary --only-section=.arg.data "${KERNEL_DIR}/prebuild/dummy_${cpu}.elf" "${KERNEL_DIR}/prebuild/act_shave_bin/sk.dummy.${cpu}.data"
+if [ $? -ne 0 ]; then echo $'\nExtracting of sk.dummy.${cpu}.data failed exit $?\n'; exit $?; fi
 
 cd ${KERNEL_DIR}/prebuild/act_shave_bin
 if [ $? -ne 0 ]; then echo $'\nCan not cd to \"$${KERNEL_DIR}/prebuild/act_shave_bin\"\n'; exit $?; fi
-xxd -i sk.dummy.3010xx.text ../sk.dummy.3010xx.text.xdat
+xxd -i sk.dummy.${cpu}.text ../sk.dummy.${cpu}.text.xdat
 if [ $? -ne 0 ]; then echo $'\nGenerating includable binary of text segment failed $?\n'; cd -; exit $?; fi
-xxd -i sk.dummy.3010xx.data ../sk.dummy.3010xx.data.xdat
+xxd -i sk.dummy.${cpu}.data ../sk.dummy.${cpu}.data.xdat
 if [ $? -ne 0 ]; then echo $'\nGenerating includable binary of data segment failed $?\n'; cd -; exit $?; fi
 cd -
 
 rm -f ${KERNEL_DIR}/prebuild/dummy_${cpu}.o ${KERNEL_DIR}/prebuild/dummy_${cpu}.elf
-printf "\n \"${KERNEL_DIR}/prebuild/act_shave_bin/sk.dummy.3010xx.text\"\n \"${KERNEL_DIR}/prebuild/act_shave_bin/sk.dummy.3010xx.data\"\nhave been created successfully\n"
+printf "\n \"${KERNEL_DIR}/prebuild/act_shave_bin/sk.dummy.${cpu}.text\"\n \"${KERNEL_DIR}/prebuild/act_shave_bin/sk.dummy.${cpu}.data\"\nhave been created successfully\n"
 exit $?
 

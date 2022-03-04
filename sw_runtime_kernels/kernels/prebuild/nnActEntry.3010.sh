@@ -41,30 +41,30 @@ if [ $? -ne 0 ]; then exit $?; fi
 
 "${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}/linux64/sparc-myriad-rtems-6.3.0/bin/sparc-myriad-rtems-ld" -zmax-page-size=16 --script "${KERNEL_DIR}/prebuild/shave_rt_kernel.ld" -entry nnActEntry --gc-sections --strip-debug --discard-all "${KERNEL_DIR}/prebuild/nnActEntry.${cpu}_jtag.o" "${KERNEL_DIR}/prebuild/HglShaveId_${cpu}.o" "${KERNEL_DIR}/prebuild/nn_fifo_manager_${cpu}.o" "${KERNEL_DIR}/prebuild/nn_perf_manager_${cpu}.o" -EL "${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}/common/moviCompile/lib/30xxxx-leon/mlibm.a" "${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}/common/moviCompile/lib/30xxxx-leon/mlibc.a" --output "${KERNEL_DIR}/prebuild/nnActEntry_${cpu}_jtag.elf"
 
-if [ $? -ne 0 ]; then echo $'\nLinking of singleShaveSoftmax_${cpu}.elf failed exit $?\n'; exit $?; fi
+if [ $? -ne 0 ]; then echo $'\nLinking of nnActEntry_${cpu}_jtag.elf failed exit $?\n'; exit $?; fi
 
 "${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}/linux64/sparc-myriad-rtems-6.3.0/bin/sparc-myriad-rtems-ld" -zmax-page-size=16 --script "${KERNEL_DIR}/prebuild/shave_rt_kernel.ld" -entry nnActEntry --gc-sections --strip-debug --discard-all "${KERNEL_DIR}/prebuild/nnActEntry.${cpu}.o" "${KERNEL_DIR}/prebuild/HglShaveId_${cpu}.o" "${KERNEL_DIR}/prebuild/nn_fifo_manager_${cpu}.o" "${KERNEL_DIR}/prebuild/nn_perf_manager_${cpu}.o" -EL "${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}/common/moviCompile/lib/30xxxx-leon/mlibm.a" "${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}/common/moviCompile/lib/30xxxx-leon/mlibc.a" --output "${KERNEL_DIR}/prebuild/nnActEntry_${cpu}.elf"
 
-if [ $? -ne 0 ]; then echo $'\nLinking of singleShaveSoftmax_${cpu}.elf failed exit $?\n'; exit $?; fi
+if [ $? -ne 0 ]; then echo $'\nLinking of nnActEntry_${cpu}_jtag.elf failed exit $?\n'; exit $?; fi
 
-"${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}/linux64/sparc-myriad-rtems-6.3.0/bin/sparc-myriad-rtems-objcopy" -O binary --only-section=.text "${KERNEL_DIR}/prebuild/nnActEntry_${cpu}_jtag.elf" "${KERNEL_DIR}/prebuild/sk.nnActEntry.3010xx.text"
+"${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}/linux64/sparc-myriad-rtems-6.3.0/bin/sparc-myriad-rtems-objcopy" -O binary --only-section=.text "${KERNEL_DIR}/prebuild/nnActEntry_${cpu}_jtag.elf" "${KERNEL_DIR}/prebuild/sk.nnActEntry.${cpu}.text"
 
 if [ $? -ne 0 ]; then echo $'\nExtracting of sk.nnActEntry.${cpu}.text failed exit $?\n'; exit $?; fi
 
-xxd -i "sk.nnActEntry.3010xx.text" "sk.nnActEntry.3010xx.text.xdat"
+xxd -i "sk.nnActEntry.${cpu}.text" "sk.nnActEntry.${cpu}.text.xdat"
 
 if [ $? -ne 0 ]; then echo $'\nGenerating includable binary of text segment failed $?\n'; cd -; exit $?; fi
 
-"${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}/linux64/sparc-myriad-rtems-6.3.0/bin/sparc-myriad-rtems-objcopy" -O binary --only-section=.text "${KERNEL_DIR}/prebuild/nnActEntry_${cpu}.elf" "${KERNEL_DIR}/prebuild/act_shave_bin/sk.nnActEntry.3010xx.text"
+"${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}/linux64/sparc-myriad-rtems-6.3.0/bin/sparc-myriad-rtems-objcopy" -O binary --only-section=.text "${KERNEL_DIR}/prebuild/nnActEntry_${cpu}.elf" "${KERNEL_DIR}/prebuild/act_shave_bin/sk.nnActEntry.${cpu}.text"
 
 if [ $? -ne 0 ]; then echo $'\nExtracting of sk.nnActEntry.${cpu}.text failed exit $?\n'; exit $?; fi
 
-"${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}/linux64/sparc-myriad-rtems-6.3.0/bin/sparc-myriad-rtems-objcopy" -O binary --only-section=.arg.data "${KERNEL_DIR}/prebuild/nnActEntry_${cpu}.elf" "${KERNEL_DIR}/prebuild/act_shave_bin/sk.nnActEntry.3010xx.data"
+"${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}/linux64/sparc-myriad-rtems-6.3.0/bin/sparc-myriad-rtems-objcopy" -O binary --only-section=.arg.data "${KERNEL_DIR}/prebuild/nnActEntry_${cpu}.elf" "${KERNEL_DIR}/prebuild/act_shave_bin/sk.nnActEntry.${cpu}.data"
 
 if [ $? -ne 0 ]; then echo $'\nExtracting of sk.nnActEntry.${cpu}.data failed exit $?\n'; exit $?; fi
 
 cd "${KERNEL_DIR}/prebuild/act_shave_bin"
-xxd -i "sk.nnActEntry.3010xx.data" "../sk.nnActEntry.3010xx.data.xdat"
+xxd -i "sk.nnActEntry.${cpu}.data" "../sk.nnActEntry.${cpu}.data.xdat"
 if [ $? -ne 0 ]; then echo $'\nGenerating includable binary of data segment failed $?\n'; cd -; exit $?; fi
 cd -
 
@@ -75,9 +75,9 @@ rm \
 "${KERNEL_DIR}/prebuild/nn_fifo_manager_${cpu}.o" \
 "${KERNEL_DIR}/prebuild/nn_perf_manager_${cpu}.o" \
 "${KERNEL_DIR}/prebuild/nnActEntry.${cpu}_jtag.o" \
-"${KERNEL_DIR}/prebuild/sk.nnActEntry.3010xx.text" \
+"${KERNEL_DIR}/prebuild/sk.nnActEntry.${cpu}.text" \
 "${KERNEL_DIR}/prebuild/nnActEntry_${cpu}.elf" \
 "${KERNEL_DIR}/prebuild/nnActEntry_${cpu}_jtag.elf"
 
-printf "\"${KERNEL_DIR}/prebuild/act_shave_bin/sk.nnActEntry.3010xx.text\"\n\"${KERNEL_DIR}/prebuild/act_shave_bin/sk.nnActEntry.3010xx.data\" \n have been created successfully\n"
+printf "\"${KERNEL_DIR}/prebuild/act_shave_bin/sk.nnActEntry.${cpu}.text\"\n\"${KERNEL_DIR}/prebuild/act_shave_bin/sk.nnActEntry.${cpu}.data\" \n have been created successfully\n"
 exit $?

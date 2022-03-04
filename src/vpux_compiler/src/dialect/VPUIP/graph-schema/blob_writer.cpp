@@ -84,9 +84,7 @@ SmallVector<uint8_t> createInvocationArgs(VPUIP::BlobWriter& blobWriter, VPUIP::
 }  // namespace
 
 const ActShaveCompileParams& vpux::VPUIP::BlobWriter::compileParams() {
-    static const ActShaveCompileParams params = {
-            /*cpu=*/"3010xx",
-    };
+    static const ActShaveCompileParams params = {/*cpu=*/{"3720xx", "3700xx", "3600xx", "3010xx", "3010xx"}};
 
     return params;
 }

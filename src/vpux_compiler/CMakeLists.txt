@@ -405,7 +405,7 @@ target_compile_definitions(${OBJ_TARGET_NAME}
 if(EXISTS "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/sw_runtime_kernels/kernels/prebuild/act_shave_bin")
     # either copy sources or binaries to output folder
     add_custom_target(copy-act-shave-runtime ALL
-            COMMAND ${CMAKE_COMMAND} -E copy_directory ${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/sw_runtime_kernels/kernels/prebuild/act_shave_bin ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/act-kernels
+            COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/act-kernels && ${CMAKE_COMMAND} -E copy_directory ${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/sw_runtime_kernels/kernels/prebuild/act_shave_bin ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/act-kernels
             DEPENDS ${OBJ_TARGET_NAME})
 endif()
 

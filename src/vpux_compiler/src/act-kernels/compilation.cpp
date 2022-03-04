@@ -72,10 +72,17 @@ static void getActShaveBinaries(const ActShaveCompileParams& params, const Compi
 
     SmallString prebuiltKernelBinariesPath(genDir);
 
-    SmallString prebuiltKernelText(prebuiltKernelBinariesPath);
-    sys::path::append(prebuiltKernelText, "sk." + entryPoint + "." + params.cpu + ".text");
-    SmallString prebuiltKernelData(prebuiltKernelBinariesPath);
-    sys::path::append(prebuiltKernelData, "sk." + entryPoint + "." + params.cpu + ".data");
+    SmallString prebuiltKernelText;
+    SmallString prebuiltKernelData;
+    for (const auto cpu : params.cpu) {
+        prebuiltKernelText = SmallString(prebuiltKernelBinariesPath);
+        prebuiltKernelData = SmallString(prebuiltKernelBinariesPath);
+        sys::path::append(prebuiltKernelText, "sk." + entryPoint + "." + cpu + ".text");
+        sys::path::append(prebuiltKernelData, "sk." + entryPoint + "." + cpu + ".data");
+        if (sys::fs::exists(prebuiltKernelText) && sys::fs::exists(prebuiltKernelData)) {
+            break;
+        }
+    }
 
     auto readBinary = [](SmallString& path, SmallVector<uint8_t>& buffer, uint32_t alignment = 1) {
         std::string err;
