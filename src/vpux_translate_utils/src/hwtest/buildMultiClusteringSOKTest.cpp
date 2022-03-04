@@ -32,6 +32,8 @@
 #include "vpux/compiler/dialect/IE/utils/resources.hpp"
 #include "vpux/compiler/dialect/VPU/attributes.hpp"
 
+#include "vpux/compiler/core/passes.hpp"
+
 namespace vpux {
 namespace hwtest {
 
@@ -104,8 +106,16 @@ void buildMultiClusteringSOKTest(const nb::TestCaseJsonDescriptor& testDesc, mli
         subWeightsTableCMXShape[0] = subWeightsTableCMXShape[0] / numCluster;
     }
 
+    const auto byteNumber = (static_cast<vpux::Bit>(getElemTypeSize(inputType)).count()) / CHAR_BIT;
+    const auto orderAttr = mlir::AffineMapAttr::get(DimsOrder::NHWC.toAffineMap(ctx));
+    const auto elemStrides =
+            SmallVector<int64_t>({subOutputShape[1] * subOutputShape[2] * subOutputShape[3] * byteNumber, 1,
+                                  subOutputShape[1] * subOutputShape[3] * byteNumber, subOutputShape[1] * byteNumber});
+    const auto stridesAttr = getIntArrayAttr(ctx, elemStrides);
+    const auto layout = IERT::MemRefAttr::get(orderAttr, stridesAttr, ctx);
+
     auto OutputDistributed = VPUIP::DistributedBufferType::get(
-            ctx, subOutputShape, outputType, mlir::AffineMapAttr::get(DimsOrder::NHWC.toAffineMap(ctx)),
+            ctx, subOutputShape, outputType, layout,
             IndexedSymbolAttr::get(VPU::MemoryKindAttr::get(ctx, VPU::MemoryKind::CMX_NN)),
             VPU::DistributedTensorAttr::get(VPU::DistributionModeAttr::get(ctx, VPU::DistributionMode::DUPLICATED),
                                             nullptr, nullptr, VPU::getPaddingAttr(ctx, 0, 0, 0, 0), nullptr,
@@ -323,11 +333,9 @@ void buildMultiClusteringSOKTest(const nb::TestCaseJsonDescriptor& testDesc, mli
 
     // copy output from CMX to DDR
     updateBarrier = functionBuilder.create<vpux::VPURT::ConfigureBarrierOp>(builder.getUnknownLoc(), barrierNumber++);
-    for (auto index = 0; index < numCluster; index++) {
-        VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(
-                functionBuilder, waitDPUTaskBarrier.barrier(), updateBarrier.barrier(), builder.getUnknownLoc(),
-                parentOutputCMXCompact.getOperation()->getResult(0), parentOutputDDR.getOperation()->getResult(0));
-    }
+    VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, waitDPUTaskBarrier.barrier(), updateBarrier.barrier(),
+                                          builder.getUnknownLoc(), parentOutputCMXCompact.getOperation()->getResult(0),
+                                          parentOutputDDR.getOperation()->getResult(0));
 
     // reorder output / copy output data from DDR to output buffer
     VPURT::ConfigureBarrierOp waitCMXToDDRBarrier = updateBarrier;
@@ -350,6 +358,10 @@ void buildMultiClusteringSOKTest(const nb::TestCaseJsonDescriptor& testDesc, mli
     if (conv.compress) {
         pm.addPass(VPUIP::createCompressWeightsPass(log));
     }
+
+    // output dot
+    pm.addPass(
+            vpux::createPrintDotPass("/home/sgl/Github/openvino/bin/intel64/Release/dot/PSS.dot", {}, {}, true, true));
 
     // set memory sizes
     auto usedMemModule = module.lookupSymbol<mlir::ModuleOp>(IE::usedMemModuleName);
