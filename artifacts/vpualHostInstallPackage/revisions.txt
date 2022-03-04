@@ -1,2 +1,2 @@
-tag:ci_tag_vpual_release_21ww47.5.1
-commit:9bfba27eed5ad17f48119ba3638153f9284c1703
+branch:prc_kmb_dev_mr2
+commit:bee801828cf8d4013c9ebf6014d2c40c4b1116e5
