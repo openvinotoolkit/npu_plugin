@@ -1807,7 +1807,7 @@
 
         {
             "name" : "MTL_scale_tf_FP16_mobilenet-v3-large-1.0-224",
-            "ir" : "scale/mobilenet-v3-large-1.0-224/tf/FP16/mobilenet-v3-large-1.0-224.xml",
+            "ir" : "models/clientmodels/MTL_poweron/mobilenet-v3-large-1.0-224/tf/FP16/mobilenet-v3-large-1.0-224.xml",
             "category" : "MLIR",
             "disabled" : true,
             "3720": {
@@ -1844,7 +1844,7 @@
 
         {
             "name" : "MTL_scale_tf_FP16-INT8_mobilenet-v3-large-1.0-224",
-            "ir" : "scale/mobilenet-v3-large-1.0-224/tf/FP16-INT8/mobilenet-v3-large-1.0-224.xml",
+            "ir" : "models/clientmodels/MTL_poweron/mobilenet-v3-large-1.0-224/tf/FP16-INT8/mobilenet-v3-large-1.0-224.xml",
             "category" : "MLIR",
             "disabled" : true,
             "3720": {
@@ -3811,7 +3811,7 @@
 
         {
             "name" : "MTL_por_onnx_FP16_INT8_resnet-50-pytorch",
-            "ir" : "por/resnet-50-pytorch/onnx/FP16-INT8/resnet-50-pytorch.xml",
+            "ir" : "models/clientmodels/MTL_poweron/resnet-50-pytorch/caffe2/FP16-INT8/resnet-50-pytorch.xml",
             "category" : "MLIR",
             "disabled" : true,
             "3720": {
@@ -3861,7 +3861,7 @@
 
         {
             "name" : "MTL_por_onnx_FP16_INT8_mobilenet-v2",
-            "ir" : "por/mobilenet-v2/onnx/FP16-INT8/mobilenet-v2.xml",
+            "ir" : "models/clientmodels/MTL_poweron/mobilenet-v2/onnx/FP16-INT8/mobilenet-v2.xml",
             "category" : "MLIR",
             "disabled" : true,
             "3720": {
@@ -3951,7 +3951,7 @@
 
         {
             "name" : "MTL_por_onnx_FP16_mobilenet-v2",
-            "ir" : "por/mobilenet-v2/onnx/FP16/mobilenet-v2.xml",
+            "ir" : "models/clientmodels/MTL_poweron/mobilenet-v2/onnx/FP16/mobilenet-v2.xml",
             "category" : "MLIR",
             "disabled" : true,
             "3720": {
@@ -4576,6 +4576,48 @@
             },
             "CI-options" : {
                 "blob_name" : "yolo-v4-tiny-cut"
+            },
+            "comments" : "NHWC layout was chosen on purpose because this model for MTL."
+        },
+
+        {
+            "name" : "MTL_FP16_INT8_yolo_v4_tiny",
+            "ir" : "models/clientmodels/MTL_poweron/yolo-v4-tiny/tf/FP16-INT8/yolo-v4-tiny.xml",
+            "category" : "MLIR",
+            "disabled" : true,
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_COMPILER_TYPE": "MLIR",
+                "PERFORMANCE_HINT": "THROUGHPUT",
+                "VPUX_INFERENCE_SHAVES": "16"
+            },
+            "Compile" : {
+                "input_layout" : "NHWC",
+                "output_layout" : "NHWC",
+                "input_precision" : "FP16",
+                "output_precision" : "FP16",
+                "old_api" : true
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "416x416"
+            },
+            "NetTest-CalcRef": {
+                "inputs" : [["416x416/person.bmp"]],
+                "params" : [
+                    "--mode", "raw",
+                    "--raw_tolerance", "0.1"
+                ]
+            },
+            "NetTest-Validate": {
+                "disabled" : true
+            },
+            "AccuracyCheck" : {
+                "disabled" : true
+            },
+            "CI-options" : {
+                "blob_name" : "yolo-v4-tiny"
             },
             "comments" : "NHWC layout was chosen on purpose because this model for MTL."
         },
