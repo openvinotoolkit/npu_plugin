@@ -42,8 +42,8 @@ TEST(MLIR_NDTypeInterface, SegmentedDistributedTensorType) {
     const auto distributionMode = VPU::DistributionModeAttr::get(&ctx, VPU::DistributionMode::SEGMENTED);
     const auto numTiles = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 1, 4, 1}));
     const auto numClusters = getIntAttr(&ctx, 4);
-    const auto distributedAttr =
-            VPU::DistributedTensorAttr::get(distributionMode, numTiles, nullptr, nullptr, nullptr, numClusters, &ctx);
+    const auto distributedAttr = VPU::DistributedTensorAttr::get(distributionMode, numTiles, nullptr, nullptr, nullptr,
+                                                                 numClusters, nullptr, &ctx);
 
     const auto shape = SmallVector<int64_t>({1, 64, 13, 16});
     const auto elemType = mlir::Float16Type::get(&ctx);
@@ -85,7 +85,8 @@ TEST(MLIR_NDTypeInterface, SegmentedDistributedTensorType) {
     EXPECT_TRUE(changedElemType.getElementType().isa<mlir::Float32Type>());
 
     const SmallVector<int64_t> newShape2({1, 32, 26, 16});
-    const auto changedShapeElemType = ndType.changeShapeElemType(vpux::ShapeRef(newShape2), mlir::IntegerType::get(&ctx, 8));
+    const auto changedShapeElemType =
+            ndType.changeShapeElemType(vpux::ShapeRef(newShape2), mlir::IntegerType::get(&ctx, 8));
     EXPECT_EQ(changedShapeElemType.getShape(), vpux::ShapeRef(newShape2));
     EXPECT_TRUE(changedShapeElemType.getElementType().isa<mlir::IntegerType>());
 
@@ -117,8 +118,8 @@ TEST(MLIR_NDTypeInterface, SegmentedDuplicatedDistributedTensorType) {
             VPU::DistributionModeAttr::get(&ctx, VPU::DistributionMode::SEGMENTED | VPU::DistributionMode::DUPLICATED);
     const auto numTiles = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 1, 4, 1}));
     const auto numClusters = getIntAttr(&ctx, 4);
-    const auto distributedAttr =
-            VPU::DistributedTensorAttr::get(distributionMode, numTiles, nullptr, nullptr, nullptr, numClusters, &ctx);
+    const auto distributedAttr = VPU::DistributedTensorAttr::get(distributionMode, numTiles, nullptr, nullptr, nullptr,
+                                                                 numClusters, nullptr, &ctx);
 
     const auto shape = SmallVector<int64_t>({1, 64, 13, 16});
     const auto elemType = mlir::Float16Type::get(&ctx);
@@ -161,7 +162,8 @@ TEST(MLIR_NDTypeInterface, SegmentedDuplicatedDistributedTensorType) {
     EXPECT_TRUE(changedElemType.getElementType().isa<mlir::Float32Type>());
 
     const SmallVector<int64_t> newShape2({1, 32, 32, 32});
-    const auto changedShapeElemType = ndType.changeShapeElemType(vpux::ShapeRef(newShape2), mlir::IntegerType::get(&ctx, 8));
+    const auto changedShapeElemType =
+            ndType.changeShapeElemType(vpux::ShapeRef(newShape2), mlir::IntegerType::get(&ctx, 8));
     EXPECT_EQ(changedShapeElemType.getShape(), vpux::ShapeRef(newShape2));
     EXPECT_TRUE(changedShapeElemType.getElementType().isa<mlir::IntegerType>());
 
@@ -191,7 +193,7 @@ TEST(MLIR_ClusterShapeUtils, SegmentedDistribution) {
     const auto numTilesAttr = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 1, 4, 1}));
     const auto numClustersAttr = getIntAttr(&ctx, 4);
     const auto distributedAttr = VPU::DistributedTensorAttr::get(distributionModeAttr, numTilesAttr, nullptr, nullptr,
-                                                                 nullptr, numClustersAttr, &ctx);
+                                                                 nullptr, numClustersAttr, nullptr, &ctx);
 
     const auto shape = SmallVector<int64_t>({1, 64, 13, 16});
     const auto elemType = mlir::Float16Type::get(&ctx);
@@ -233,7 +235,7 @@ TEST(MLIR_ClusterShapeUtils, SegmentedDuplicatedDistribution) {
     const auto numTilesAttr = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 1, 4, 1}));
     const auto numClustersAttr = getIntAttr(&ctx, 4);
     const auto distributedAttr = VPU::DistributedTensorAttr::get(distributionModeAttr, numTilesAttr, nullptr, nullptr,
-                                                                 nullptr, numClustersAttr, &ctx);
+                                                                 nullptr, numClustersAttr, nullptr, &ctx);
 
     const auto shape = SmallVector<int64_t>({1, 64, 13, 16});
     const auto elemType = mlir::Float16Type::get(&ctx);
@@ -285,7 +287,7 @@ TEST(MLIR_ClusterShapeUtils, OverlappedDistribution) {
                                                 getIntAttr(&ctx, 0), &ctx);
         const auto strides = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 1}));
         const auto distributedAttr = VPU::DistributedTensorAttr::get(distributionModeAttr, numTilesAttr, kernel, pads,
-                                                                     strides, numClustersAttr, &ctx);
+                                                                     strides, numClustersAttr, nullptr, &ctx);
         const auto distributedType =
                 VPU::DistributedTensorType::get(&ctx, shape, elemType, dimsOrder, dimsSpace, distributedAttr);
 
@@ -315,7 +317,7 @@ TEST(MLIR_ClusterShapeUtils, OverlappedDistribution) {
                                                 getIntAttr(&ctx, 1), &ctx);
         const auto strides = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 1}));
         const auto distributedAttr = VPU::DistributedTensorAttr::get(distributionModeAttr, numTilesAttr, kernel, pads,
-                                                                     strides, numClustersAttr, &ctx);
+                                                                     strides, numClustersAttr, nullptr, &ctx);
         const auto distributedType =
                 VPU::DistributedTensorType::get(&ctx, shape, elemType, dimsOrder, dimsSpace, distributedAttr);
 
@@ -345,7 +347,7 @@ TEST(MLIR_ClusterShapeUtils, OverlappedDistribution) {
                                                 getIntAttr(&ctx, 1), &ctx);
         const auto strides = getIntArrayAttr(&ctx, SmallVector<int64_t>({2, 2}));
         const auto distributedAttr = VPU::DistributedTensorAttr::get(distributionModeAttr, numTilesAttr, kernel, pads,
-                                                                     strides, numClustersAttr, &ctx);
+                                                                     strides, numClustersAttr, nullptr, &ctx);
         const auto distributedType =
                 VPU::DistributedTensorType::get(&ctx, shape, elemType, dimsOrder, dimsSpace, distributedAttr);
 

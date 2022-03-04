@@ -42,7 +42,8 @@ TEST(MLIR_NDTypeInterface, SegmentedDistributedBufferType) {
     const auto distributionModeAttr = VPU::DistributionModeAttr::get(&ctx, VPU::DistributionMode::SEGMENTED);
     const auto numTilesAttr = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 1, 4, 1}));
     const auto numClustersAttr = getIntAttr(&ctx, 4);
-    const auto distributedAttr = VPU::DistributedTensorAttr::get(distributionModeAttr, numTilesAttr, nullptr, nullptr, nullptr, numClustersAttr ,&ctx);
+    const auto distributedAttr = VPU::DistributedTensorAttr::get(distributionModeAttr, numTilesAttr, nullptr, nullptr,
+                                                                 nullptr, numClustersAttr, nullptr, &ctx);
 
     const auto shape = SmallVector<int64_t>({1, 64, 13, 16});
     const auto elemType = mlir::Float16Type::get(&ctx);
@@ -54,7 +55,8 @@ TEST(MLIR_NDTypeInterface, SegmentedDistributedBufferType) {
 
     const auto dimsSpace = vpux::IndexedSymbolAttr::get(&ctx, CMX_NAME);
 
-    const auto ndType = VPUIP::DistributedBufferType::get(&ctx, shape, elemType, layout, dimsSpace, distributedAttr).dyn_cast<vpux::NDTypeInterface>();
+    const auto ndType = VPUIP::DistributedBufferType::get(&ctx, shape, elemType, layout, dimsSpace, distributedAttr)
+                                .dyn_cast<vpux::NDTypeInterface>();
     ASSERT_TRUE(ndType != nullptr) << "Buffer is not of vpux::NDTypeInterface type";
 
     EXPECT_EQ(ndType.getShape(), vpux::ShapeRef({1, 64, 13, 16}));
@@ -101,10 +103,12 @@ TEST(MLIR_NDTypeInterface, SegmentedDuplicatedDistributedBufferType) {
     mlir::MLIRContext ctx(registry);
     ctx.loadDialect<VPUIP::VPUIPDialect>();
 
-    const auto distributionModeAttr = VPU::DistributionModeAttr::get(&ctx, VPU::DistributionMode::SEGMENTED | VPU::DistributionMode::DUPLICATED);
+    const auto distributionModeAttr =
+            VPU::DistributionModeAttr::get(&ctx, VPU::DistributionMode::SEGMENTED | VPU::DistributionMode::DUPLICATED);
     const auto numTilesAttr = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 1, 4, 1}));
     const auto numClustersAttr = getIntAttr(&ctx, 4);
-    const auto distributedAttr = VPU::DistributedTensorAttr::get(distributionModeAttr, numTilesAttr, nullptr, nullptr, nullptr, numClustersAttr ,&ctx);
+    const auto distributedAttr = VPU::DistributedTensorAttr::get(distributionModeAttr, numTilesAttr, nullptr, nullptr,
+                                                                 nullptr, numClustersAttr, nullptr, &ctx);
 
     const auto shape = SmallVector<int64_t>({1, 64, 13, 16});
     const auto elemType = mlir::Float16Type::get(&ctx);
@@ -116,7 +120,8 @@ TEST(MLIR_NDTypeInterface, SegmentedDuplicatedDistributedBufferType) {
 
     const auto dimsSpace = vpux::IndexedSymbolAttr::get(&ctx, CMX_NAME);
 
-    const auto ndType = VPUIP::DistributedBufferType::get(&ctx, shape, elemType, layout, dimsSpace, distributedAttr).dyn_cast<vpux::NDTypeInterface>();
+    const auto ndType = VPUIP::DistributedBufferType::get(&ctx, shape, elemType, layout, dimsSpace, distributedAttr)
+                                .dyn_cast<vpux::NDTypeInterface>();
     ASSERT_TRUE(ndType != nullptr) << "Buffer is not of vpux::NDTypeInterface type";
 
     EXPECT_EQ(ndType.getShape(), vpux::ShapeRef({1, 64, 13, 16}));
@@ -166,7 +171,8 @@ TEST(MLIR_ClusterShapeUtils, SegmentedBufferDistribution) {
     const auto distributionModeAttr = VPU::DistributionModeAttr::get(&ctx, VPU::DistributionMode::SEGMENTED);
     const auto numTilesAttr = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 1, 4, 1}));
     const auto numClustersAttr = getIntAttr(&ctx, 4);
-    const auto distributedAttr = VPU::DistributedTensorAttr::get(distributionModeAttr, numTilesAttr, nullptr, nullptr, nullptr, numClustersAttr ,&ctx);
+    const auto distributedAttr = VPU::DistributedTensorAttr::get(distributionModeAttr, numTilesAttr, nullptr, nullptr,
+                                                                 nullptr, numClustersAttr, nullptr, &ctx);
 
     const auto shape = SmallVector<int64_t>({1, 64, 13, 16});
     const auto elemType = mlir::Float16Type::get(&ctx);
@@ -178,7 +184,8 @@ TEST(MLIR_ClusterShapeUtils, SegmentedBufferDistribution) {
 
     const auto dimsSpace = vpux::IndexedSymbolAttr::get(&ctx, CMX_NAME);
 
-    const auto distributedBufferType = VPUIP::DistributedBufferType::get(&ctx, shape, elemType, layout, dimsSpace, distributedAttr);
+    const auto distributedBufferType =
+            VPUIP::DistributedBufferType::get(&ctx, shape, elemType, layout, dimsSpace, distributedAttr);
 
     const auto perClusterShapes = distributedBufferType.getPerClusterComputeShapes();
     const SmallVector<Shape> expectedShapes(
@@ -207,10 +214,12 @@ TEST(MLIR_ClusterShapeUtils, SegmentedDuplicatedBufferDistribution) {
     mlir::MLIRContext ctx(registry);
     ctx.loadDialect<VPUIP::VPUIPDialect>();
 
-    const auto distributionModeAttr = VPU::DistributionModeAttr::get(&ctx, VPU::DistributionMode::SEGMENTED | VPU::DistributionMode::DUPLICATED);
+    const auto distributionModeAttr =
+            VPU::DistributionModeAttr::get(&ctx, VPU::DistributionMode::SEGMENTED | VPU::DistributionMode::DUPLICATED);
     const auto numTilesAttr = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 1, 4, 1}));
     const auto numClustersAttr = getIntAttr(&ctx, 4);
-    const auto distributedAttr = VPU::DistributedTensorAttr::get(distributionModeAttr, numTilesAttr, nullptr, nullptr, nullptr, numClustersAttr ,&ctx);
+    const auto distributedAttr = VPU::DistributedTensorAttr::get(distributionModeAttr, numTilesAttr, nullptr, nullptr,
+                                                                 nullptr, numClustersAttr, nullptr, &ctx);
 
     const auto shape = SmallVector<int64_t>({1, 64, 13, 16});
     const auto elemType = mlir::Float16Type::get(&ctx);
@@ -222,7 +231,8 @@ TEST(MLIR_ClusterShapeUtils, SegmentedDuplicatedBufferDistribution) {
 
     const auto dimsSpace = vpux::IndexedSymbolAttr::get(&ctx, CMX_NAME);
 
-    const auto distributedBufferType = VPUIP::DistributedBufferType::get(&ctx, shape, elemType, layout, dimsSpace, distributedAttr);
+    const auto distributedBufferType =
+            VPUIP::DistributedBufferType::get(&ctx, shape, elemType, layout, dimsSpace, distributedAttr);
 
     const auto perClusterShapes = distributedBufferType.getPerClusterComputeShapes();
     const SmallVector<Shape> expectedShapes(
@@ -271,7 +281,7 @@ TEST(MLIR_ClusterShapeUtils, OverlappedBufferDistribution) {
                                                 getIntAttr(&ctx, 0), &ctx);
         const auto strides = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 1}));
         const auto distributedAttr = VPU::DistributedTensorAttr::get(distributionModeAttr, numTilesAttr, kernel, pads,
-                                                                     strides, numClustersAttr, &ctx);
+                                                                     strides, numClustersAttr, nullptr, &ctx);
         const auto distributedBufferType =
                 VPUIP::DistributedBufferType::get(&ctx, shape, elemType, layout, dimsSpace, distributedAttr);
 
@@ -301,7 +311,7 @@ TEST(MLIR_ClusterShapeUtils, OverlappedBufferDistribution) {
                                                 getIntAttr(&ctx, 1), &ctx);
         const auto strides = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 1}));
         const auto distributedAttr = VPU::DistributedTensorAttr::get(distributionModeAttr, numTilesAttr, kernel, pads,
-                                                                     strides, numClustersAttr, &ctx);
+                                                                     strides, numClustersAttr, nullptr, &ctx);
         const auto distributedBufferType =
                 VPUIP::DistributedBufferType::get(&ctx, shape, elemType, layout, dimsSpace, distributedAttr);
 
@@ -331,7 +341,7 @@ TEST(MLIR_ClusterShapeUtils, OverlappedBufferDistribution) {
                                                 getIntAttr(&ctx, 1), &ctx);
         const auto strides = getIntArrayAttr(&ctx, SmallVector<int64_t>({2, 2}));
         const auto distributedAttr = VPU::DistributedTensorAttr::get(distributionModeAttr, numTilesAttr, kernel, pads,
-                                                                     strides, numClustersAttr, &ctx);
+                                                                     strides, numClustersAttr, nullptr, &ctx);
         const auto distributedBufferType =
                 VPUIP::DistributedBufferType::get(&ctx, shape, elemType, layout, dimsSpace, distributedAttr);
 
