@@ -162,8 +162,8 @@ void vpux::IE::ConvolutionOp::adjustAttrs(const TilingInfo& inputTiling) {
 
 std::unique_ptr<ngraph::Node> vpux::IE::ConvolutionOp::toNgraph(ngraph::OutputVector &outputs)
 {
-    VPUX_THROW_WHEN(bias() != nullptr, "bias input for '{0}' is not supported", IE::ConcatOp::getOperationName());
-    VPUX_THROW_WHEN(post_opAttr() != nullptr, "post_op attribute for '{0}' is not supported", IE::ConcatOp::getOperationName());
+    VPUX_THROW_WHEN(bias() != nullptr, "bias input for '{0}' is not supported", IE::ConvolutionOp::getOperationName());
+    VPUX_THROW_WHEN(post_opAttr() != nullptr, "post_op attribute for '{0}' is not supported", IE::ConvolutionOp::getOperationName());
     const auto strides = parseIntArrayAttr<size_t>(stridesAttr());
     const auto padsBegin = parseIntArrayAttr<std::ptrdiff_t>(pads_begin());
     const auto padsEnd = parseIntArrayAttr<std::ptrdiff_t>(pads_end());
@@ -305,8 +305,8 @@ void vpux::IE::GroupConvolutionOp::adjustAttrs(const TilingInfo& inputTiling) {
 
 std::unique_ptr<ngraph::Node> vpux::IE::GroupConvolutionOp::toNgraph(ngraph::OutputVector &outputs)
 {
-    VPUX_THROW_WHEN(bias() != nullptr, "bias input for '{0}' is not supported", IE::ConcatOp::getOperationName());
-    VPUX_THROW_WHEN(post_opAttr() != nullptr, "post_op attribute for '{0}' is not supported", IE::ConcatOp::getOperationName());
+    VPUX_THROW_WHEN(bias() != nullptr, "bias input for '{0}' is not supported", IE::GroupConvolutionOp::getOperationName());
+    VPUX_THROW_WHEN(post_opAttr() != nullptr, "post_op attribute for '{0}' is not supported", IE::GroupConvolutionOp::getOperationName());
     const auto strides = parseIntArrayAttr<size_t>(stridesAttr());
     const auto padsBegin = parseIntArrayAttr<std::ptrdiff_t>(pads_begin());
     const auto padsEnd = parseIntArrayAttr<std::ptrdiff_t>(pads_end());
