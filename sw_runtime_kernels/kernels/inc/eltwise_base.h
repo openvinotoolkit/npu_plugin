@@ -54,9 +54,9 @@ void funcName(const struct EltwiseParams *p) {          \
     }                                                   \
                                                         \
     uint32_t i = 0;                                     \
-    VECTOR_LOOP;                                        \
+    VECTOR_LOOP                                         \
                                                         \
     for (; i<nElements; i++) {                          \
-        out[i] = ELTWISE_FN(inA[i], inB[i]);            \
+        out[i] = ELTWISE_SCL_OP(inA[i], inB[i]);        \
     }                                                   \
 }

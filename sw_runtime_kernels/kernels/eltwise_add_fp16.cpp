@@ -21,8 +21,8 @@ namespace shave_lib {
 
 extern "C" {
 
-#define ELTWISE_VEC_OP __builtin_shave_vau_add_f16_rr
-#define ELTWISE_FN(a,b) (a+b)
+#define ELTWISE_VEC_OP      __builtin_shave_vau_add_f16_rr
+#define ELTWISE_SCL_OP(a,b) (a+b)
 #include <eltwise_base.h>
 
 ELTWISE_BINARY_OP(add_fp16);

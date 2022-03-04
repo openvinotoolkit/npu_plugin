@@ -22,7 +22,7 @@ namespace shave_lib {
 
 extern "C" {
 
-#define ELTWISE_FN(a,b) (powf(a,b))
+#define ELTWISE_SCL_OP(a,b) (powf(a,b))
 ELTWISE_BINARY_OP(power_fp16);
 
 }
