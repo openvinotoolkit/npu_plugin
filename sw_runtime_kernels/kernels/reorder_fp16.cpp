@@ -28,18 +28,20 @@ void reorder_fp16(const struct ReorderParams *lParams) {
     const int32_t* inDims = (int32_t *)(lParams->input.dimsAddr);
     const int32_t* outDims = (int32_t *)(lParams->output.dimsAddr);
 
-    const int32_t* perm = (int32_t *)(lParams->perm);
+    const int64_t* perm64 = (int64_t *)(lParams->perm);
 
     const uint64_t* inStrides64 = (uint64_t *)(lParams->input.stridesAddr);
     const uint64_t* outStrides64 = (uint64_t *)(lParams->output.stridesAddr);
 
     int32_t inStrides[MAX_ND_DIMS] = {};
     int32_t outStrides[MAX_ND_DIMS] = {};
+    int32_t perm[MAX_ND_DIMS] = {};
 
     for (int i = 0; i < ndims; ++i)
     {
         inStrides[i] = int32_t(inStrides64[i] / 8);
         outStrides[i] = int32_t(outStrides64[i] / 8);
+        perm[i] = (int32_t)(perm64[i]);
     }
 
     const int total = subspace::getTotal(inDims, ndims);

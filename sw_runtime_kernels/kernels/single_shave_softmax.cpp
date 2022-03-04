@@ -423,7 +423,7 @@ void singleShaveSoftmax(uint32_t lParams) {
     t_MvSoftMaxParamNClasses* sp = &softmaxParamsCMX;
 
     // parameters specific for softmax in customCpp parameter buffer
-    sp->axis = layerParams->axis;  // axis in arguments in memory notation because tensors are represented as TensorRefNDData
+    sp->axis = (int32_t)(layerParams->axis);  // axis in arguments in memory notation because tensors are represented as TensorRefNDData
                                                 // which is in memory notation too
     sp->inputInCmx = true;//(layerParams->input.location == sw_params::Location::NN_CMX || layerParams->input.location == sw_params::Location::UPA_CMX);
     sp->outputInCmx = true;//(layerParams->output.location == sw_params::Location::NN_CMX || layerParams->output.location == sw_params::Location::UPA_CMX);

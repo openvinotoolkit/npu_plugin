@@ -63,7 +63,7 @@ protected:
         m_temp = allocData<float>(m_inputTensor.memoryDims().dims[m_axis]);
         m_softmaxParams = reinterpret_cast<sw_params::SoftmaxParams *>(paramContainer);
         *m_softmaxParams = sw_params::SoftmaxParams();
-        m_softmaxParams->axis = m_axis;
+        m_softmaxParams->axis = (int64_t)m_axis;
         m_params.paramData = reinterpret_cast<uint32_t*>(paramContainer);
         m_params.paramDataLen = sizeof(sw_params::SoftmaxParams);
         m_requiredTensorLocation = static_cast<sw_params::Location>(test->customLayerParams.layerParams[1]);

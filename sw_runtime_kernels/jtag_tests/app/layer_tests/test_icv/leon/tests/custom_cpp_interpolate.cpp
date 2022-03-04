@@ -300,7 +300,7 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Interpolate)
             m_interpolateParams->interpolation_mode = static_cast<InterpolationMethod>(test->customLayerParams.layerParams[0]);
             m_interpolateParams->coord_transform_mode = static_cast<InterpolationCoordTransMode>(test->customLayerParams.layerParams[1]);
             m_interpolateParams->nearest_mode = static_cast<InterpolationNearestMode>(test->customLayerParams.layerParams[2]);
-            m_interpolateParams->antialias = static_cast<int>(test->customLayerParams.layerParams[3]);
+            m_interpolateParams->antialias = static_cast<int64_t>(test->customLayerParams.layerParams[3]);
 
 #ifdef CONFIG_TARGET_SOC_3720
             m_params.kernel = reinterpret_cast<uint64_t>(sk_singleShaveInterpolate_3010xx_text);
