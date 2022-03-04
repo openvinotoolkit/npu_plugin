@@ -40,6 +40,135 @@ FeasibleMemorySchedulerSpilling::FeasibleMemorySchedulerSpilling(mlir::FuncOp ne
                       "Unable to find insertion point for new allocation operations");
 }
 
+// Optimize immediate spilling of computeOps output that happens as a buffer relocation
+// Example sequence:
+//  1. t = 0: ORIGINAL (computeOp)
+//  .. t = 0: .....
+//  .. t = 1:
+//  2. t = 1: SPILL_WRITE
+//  .. t = 1:
+//  3. t = 2: SPILL_READ
+//
+// COMPUTEOP -> SPILL_WRITE -> SPILL_READ sequence must happen immediately one after the other with respect
+// to timeline as only then removal of SPILL_WRITE/READ sequence is possible. In other cases there might be
+// a clash in terms of buffer ranges for operation happeninig in between.
+// During optimization SPILL_WRITE -> SPILL_READ pair is removed from schedule and ORIGINAL (computeOp) is
+// assigned final memory range - result of SPILL_READ
+void FeasibleMemorySchedulerSpilling::removeComputeOpRelocationSpills(
+        SmallVector<FeasibleMemoryScheduler::ScheduledOpInfo>& scheduledOps) {
+    _log.trace("Optimize spills resulting from compute op immediate relocation");
+
+    SmallVector<size_t> operationIndexesToRemove;
+    for (size_t opIndex = 0; opIndex < scheduledOps.size(); opIndex++) {
+        if (scheduledOps[opIndex].isSpillWrite() && !scheduledOps[opIndex].isDataOp()) {
+            // Located SPILL_WRITE for compute op
+            size_t spillWriteIndex = opIndex;
+            mlir::Optional<size_t> origOpIndex;
+            mlir::Optional<size_t> prevTime;
+            mlir::Optional<size_t> spillReadIndex;
+            mlir::Optional<size_t> nextTime;
+
+            // Search for corresponding ORIGINAL op and check
+            // if it is at closest previous time
+            for (size_t i = opIndex - 1; i < scheduledOps.size(); i--) {
+                if (!prevTime.hasValue() && scheduledOps[i].time_ < scheduledOps[spillWriteIndex].time_) {
+                    // Identified previous time value
+                    prevTime = scheduledOps[i].time_;
+                }
+
+                if (prevTime.hasValue()) {
+                    if (scheduledOps[i].time_ < prevTime) {
+                        // Time of op in given iteration is smaller than closest previous time
+                        // In such case break early as that means that COMPUTEOP -> SPILL_WRITE
+                        // sequence does not appear immediately one after the other
+                        break;
+                    }
+
+                    if (scheduledOps[i].op_ == scheduledOps[spillWriteIndex].op_) {
+                        // Identified original COMPUTEOP that appears just before SPILL_WRITE
+                        origOpIndex = i;
+                        break;
+                    }
+                }
+            }
+
+            // Original operation was no located. Stop analysis for given operation index
+            if (!origOpIndex.hasValue()) {
+                continue;
+            }
+
+            // Search for matching SPILL_READ op and check
+            // if it is at closest next time
+            for (size_t i = opIndex + 1; i < scheduledOps.size(); i++) {
+                if (!nextTime.hasValue() && scheduledOps[i].time_ > scheduledOps[spillWriteIndex].time_) {
+                    nextTime = scheduledOps[i].time_;
+                }
+
+                if (nextTime.hasValue()) {
+                    if (scheduledOps[i].time_ > nextTime) {
+                        // Time of op in given iteration is larger than closest next time
+                        // In such case break early as that means that SPILL_WRITE -> SPILL_READ
+                        // sequence does not appear immediately one after the other
+                        break;
+                    }
+
+                    if (scheduledOps[i].op_ == scheduledOps[spillWriteIndex].op_) {
+                        // Identified SPILL_READ that appears just after SPILL_WRITE
+                        spillReadIndex = i;
+                        break;
+                    }
+                }
+            }
+
+            if (spillReadIndex.hasValue()) {
+                // Identified COMPUTEOP -> SPILL_WRITE -> SPILL_READ sequence that can be optimized
+                _log.trace("Identified COMPUTEOP -> SPILL_WRITE -> SPILL_READ sequence that can be optimized");
+
+                auto& origOp = scheduledOps[origOpIndex.getValue()];
+                auto& spillWriteOp = scheduledOps[spillWriteIndex];
+                auto& spillReadOp = scheduledOps[spillReadIndex.getValue()];
+
+                _log.nest().trace("op = '{0}'\t type = '{1}'\t time = '{2}'\t '{3}'", origOp.op_, origOp.opTypeName(),
+                                  origOp.time_);
+                _log.nest().trace("op = '{0}'\t type = '{1}'\t time = '{2}'\t '{3}'", spillWriteOp.op_,
+                                  spillWriteOp.opTypeName(), spillWriteOp.time_);
+                _log.nest().trace("op = '{0}'\t type = '{1}'\t time = '{2}'\t '{3}'", spillReadOp.op_,
+                                  spillReadOp.opTypeName(), spillReadOp.time_);
+
+                // ComputeOp output buffer range can be assigned resulting range of SPILL_READ
+                // First find matching buffer that was spilled
+                bool foundMatchingBuffer = false;
+                for (size_t i = 0; i < origOp.numOfResources(); i++) {
+                    if (origOp.getBuffer(i) == spillReadOp.getBuffer(0)) {
+                        // Found matching resource index. Update assigned range
+                        origOp.resourceInfo_[i].begin_ = spillReadOp.resourceInfo_[0].begin_;
+                        origOp.resourceInfo_[i].end_ = spillReadOp.resourceInfo_[0].end_;
+                        foundMatchingBuffer = true;
+                        break;
+                    }
+                }
+                VPUX_THROW_UNLESS(foundMatchingBuffer, "Matching buffer not found for relocation spilling optimzation");
+
+                // SPILL_WRITE and SPILL_READ operations can be removed
+                operationIndexesToRemove.push_back(spillWriteIndex);
+                operationIndexesToRemove.push_back(spillReadIndex.getValue());
+            }
+        }
+    }
+
+    if (operationIndexesToRemove.empty()) {
+        _log.trace("No compute ops immediate relocation spilling identified");
+        return;
+    }
+
+    // Remove in reverse order to have indexes valid after erasing entries in scheduledOp
+    for (auto opIt = operationIndexesToRemove.rbegin(); opIt != operationIndexesToRemove.rend(); opIt++) {
+        scheduledOps.erase(scheduledOps.begin() + *opIt);
+    }
+
+    _log.trace("Operations that have been removed - '{0}'", operationIndexesToRemove.size());
+}
+
 // Optimize spilling of dataOps. This function will check scheduledOps list and analyze spilling sequence of dataOps.
 // Example sequence:
 //  1. ORIGINAL (dataOp)
