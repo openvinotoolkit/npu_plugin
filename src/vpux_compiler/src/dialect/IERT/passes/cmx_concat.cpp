@@ -407,6 +407,11 @@ void CMXConcatPass::safeRunOnFunc() {
 
     // 4. Remove left over operations with no users
     func->walk([](IERT::LayerOpInterface op) {
+        // Skip for operations wrapped in NCEClusterTiling as their result
+        // is not used directly
+        if (mlir::isa_and_nonnull<VPUIP::NCEClusterTilingOp>(op->getParentOp())) {
+            return;
+        }
         bool canRemove = true;
         for (const auto res : op->getResults()) {
             if (!res.use_empty()) {
