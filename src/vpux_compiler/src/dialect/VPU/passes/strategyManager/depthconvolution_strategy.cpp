@@ -19,8 +19,8 @@ using namespace VPU;
 
 bool DepthConvolutionStrategy::doesLayerFitIntoCMX(mlir::Operation* op, StringRef strategy) const {
     auto origOp = mlir::dyn_cast<NCEDepthConvolutionOp>(op);
-    auto activationTensorDistributionMode = getActivationTensorDistributionMode(strategy);
-    auto activationTensorNumTiles = getIntArrayAttr(
+    const auto activationTensorDistributionMode = getActivationTensorDistributionMode(strategy);
+    const auto activationTensorNumTiles = getIntArrayAttr(
             origOp.getContext(), getActivationTensorNumTiles(origOp.getOperation(), _numClusters, strategy));
     auto weightsTensorDistributionMode = getWeightsTensorDistributionMode(strategy);
     auto weightsTensorNumTiles = getIntArrayAttr(origOp.getContext(), getWeightsTensorNumTiles(_numClusters, strategy));
@@ -54,7 +54,7 @@ double DepthConvolutionStrategy::getDepthwiseEfficiencyConstant(int64_t kernel, 
         if (table.count(stride)) {
             return depthwiseEfficiencyTable()[kernel][stride];
         } else {
-            VPUX_THROW("The stide size {0} does not exist in the depthwise efficiency table", stride);
+            VPUX_THROW("The stride size {0} does not exist in the depthwise efficiency table", stride);
         }
     } else {
         VPUX_THROW("The kernel size {0} does not exist in the depthwise efficiency table", kernel);
@@ -67,12 +67,23 @@ double DepthConvolutionStrategy::computeSplitOverHeightEfficiency(mlir::Operatio
     const auto OC = outputShape[Dims4D::Act::C];
     const auto OH = outputShape[Dims4D::Act::H];
     const auto OW = outputShape[Dims4D::Act::W];
+    const double outputTensorVolume = OC * OH * OW;
     const auto filterShape = Shape(parseIntArrayAttr<int64_t>(origOp.rawFilterShapeAttr()));
     const auto strides = parseIntArrayAttr<int64_t>(origOp.strides());
     const auto KY = filterShape[Dims4D::Filter::KY];
     const double efficiencyConstant = getDepthwiseEfficiencyConstant(KY, strides[0]);
 
-    return efficiencyConstant * splitOverHeightFormula(OH, OW, OC);
+    return efficiencyConstant *
+           std::max((outputTensorVolume / _numClusters) /
+                            getChannelAlignment((getChannelAlignment(std::ceil(OH / _numClusters), _numClusters) *
+                                                 getChannelAlignment(OW, _numClusters) *
+                                                 getChannelAlignment(OC, _numChannelAlignment)),
+                                                _numDPUPerCluster),
+                    (outputTensorVolume / _numClusters) /
+                            getChannelAlignment(
+                                    (getChannelAlignment(std::ceil(OH / _numClusters), _numChannelAlignment) *
+                                     getChannelAlignment(OW, 1) * getChannelAlignment(OC, _numChannelAlignment)),
+                                    _numDPUPerCluster));
 }
 
 double DepthConvolutionStrategy::computeSplitOverKernelEfficiency(mlir::Operation* op) const {
@@ -81,15 +92,26 @@ double DepthConvolutionStrategy::computeSplitOverKernelEfficiency(mlir::Operatio
     const auto OC = outputShape[Dims4D::Act::C];
     const auto OH = outputShape[Dims4D::Act::H];
     const auto OW = outputShape[Dims4D::Act::W];
+    const double outputTensorVolume = OC * OH * OW;
     const auto filterShape = Shape(parseIntArrayAttr<int64_t>(origOp.rawFilterShapeAttr()));
     const auto strides = parseIntArrayAttr<int64_t>(origOp.strides());
     const auto KY = filterShape[Dims4D::Filter::KY];
     const double efficiencyConstant = getDepthwiseEfficiencyConstant(KY, strides[0]);
 
-    return efficiencyConstant * splitOverKernelFormula(OH, OW, OC);
+    return efficiencyConstant *
+           std::max((outputTensorVolume / _numClusters) /
+                            getChannelAlignment(
+                                    (getChannelAlignment(OH, _numClusters) * getChannelAlignment(OW, _numClusters) *
+                                     getChannelAlignment(std::ceil(OC / _numClusters), _numChannelAlignment)),
+                                    _numDPUPerCluster),
+                    (outputTensorVolume / _numClusters) /
+                            getChannelAlignment(
+                                    (getChannelAlignment(OH, _numChannelAlignment) * getChannelAlignment(OW, 1) *
+                                     getChannelAlignment(std::ceil(OC / _numClusters), _numChannelAlignment)),
+                                    _numDPUPerCluster));
 }
 
-StringRef DepthConvolutionStrategy::getBestLayerStrategy(mlir::Operation* op) const {
+StringRef DepthConvolutionStrategy::getOptimalLayerStrategy(mlir::Operation* op) const {
     double splitOverHeightEfficiency = 0.0;
     double splitOverKernelEfficiency = 0.0;
 

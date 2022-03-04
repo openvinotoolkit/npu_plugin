@@ -49,11 +49,13 @@ public:
     explicit BaseLayerStrategy(mlir::FuncOp func, Logger log);
     virtual ~BaseLayerStrategy() = default;
 
-    virtual bool doesLayerFitIntoCMX(mlir::Operation* op, StringRef strategy) const = 0;
-    virtual double computeSplitOverHeightEfficiency(mlir::Operation* op) const = 0;
     bool isOperationSplitOverHeightCompatible(mlir::Operation* op) const;
     bool isOperationSplitOverKernelCompatible(mlir::Operation* op) const;
     bool isOperationMultiClusterCompatible(mlir::Operation* op) const;
+
+protected:
+    virtual bool doesLayerFitIntoCMX(mlir::Operation* op, StringRef strategy) const = 0;
+    virtual double computeSplitOverHeightEfficiency(mlir::Operation* op) const = 0;
     double getChannelAlignment(double input, size_t unit) const;
     double splitOverHeightFormula(double OH, double OW, double OC) const;
     double channelMajorSplitOverHeightFormula(double OH, double OW, double OC) const;
@@ -77,11 +79,13 @@ public:
     }
 
     bool doesLayerFitIntoCMX(mlir::Operation* op, StringRef strategy) const override final;
+    StringRef getOptimalLayerStrategy(mlir::Operation* op) const;
+
+private:
     double computeSplitOverHeightEfficiency(mlir::Operation* op) const override final;
     double computeSplitOverKernelEfficiency(mlir::Operation* op) const;
     std::map<int64_t, std::map<int64_t, double>> channelMajorEfficiencyTable() const;
     double getChannelMajorEfficiencyConstant(int64_t kernel, int64_t stride) const;
-    StringRef getBestLayerStrategy(mlir::Operation* op) const;
 };
 
 //
@@ -92,11 +96,13 @@ public:
     DepthConvolutionStrategy(mlir::FuncOp func, Logger log): BaseLayerStrategy(func, log) {
     }
     bool doesLayerFitIntoCMX(mlir::Operation* op, StringRef strategy) const override final;
+    StringRef getOptimalLayerStrategy(mlir::Operation* op) const;
+
+private:
     double computeSplitOverHeightEfficiency(mlir::Operation* op) const override final;
     double computeSplitOverKernelEfficiency(mlir::Operation* op) const;
     std::map<int64_t, std::map<int64_t, double>> depthwiseEfficiencyTable() const;
     double getDepthwiseEfficiencyConstant(int64_t kernel, int64_t stride) const;
-    StringRef getBestLayerStrategy(mlir::Operation* op) const;
 };
 
 //
@@ -108,6 +114,8 @@ public:
     }
 
     bool doesLayerFitIntoCMX(mlir::Operation* op, StringRef strategy) const override final;
+
+private:
     double computeSplitOverHeightEfficiency(mlir::Operation* op) const override final;
 };
 
@@ -120,6 +128,8 @@ public:
     }
 
     bool doesLayerFitIntoCMX(mlir::Operation* op, StringRef strategy) const override final;
+
+private:
     double computeSplitOverHeightEfficiency(mlir::Operation* op) const override final;
 };
 
