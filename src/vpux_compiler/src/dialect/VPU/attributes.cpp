@@ -143,6 +143,7 @@ void vpux::VPU::setArch(mlir::ModuleOp module, ArchKind kind, Optional<int> numO
         addExecutor(ExecutorKind::SHAVE_UPA, 16);
         nceCluster = IE::addAvailableExecutor(module, ExecutorKind::NCE, getNumOfDPUGroupsVal(KMB_MAX_DPU_GROUPS));
         nceCluster.addSubExecutor(ExecutorKind::DPU, 5);
+        nceCluster->setAttr(processorFrequencyAttrName, getFPAttr(module.getContext(), 700.0));
 
         break;
     }
@@ -155,6 +156,7 @@ void vpux::VPU::setArch(mlir::ModuleOp module, ArchKind kind, Optional<int> numO
         addExecutor(ExecutorKind::SHAVE_UPA, 16);
         nceCluster = IE::addAvailableExecutor(module, ExecutorKind::NCE, getNumOfDPUGroupsVal(KMB_MAX_DPU_GROUPS));
         nceCluster.addSubExecutor(ExecutorKind::DPU, 5);
+        nceCluster->setAttr(processorFrequencyAttrName, getFPAttr(module.getContext(), 700.0));
 
         break;
     }
@@ -170,14 +172,13 @@ void vpux::VPU::setArch(mlir::ModuleOp module, ArchKind kind, Optional<int> numO
         addExecutor(ExecutorKind::SHAVE_ACT, 1);
         nceCluster = IE::addAvailableExecutor(module, ExecutorKind::NCE, getNumOfDPUGroupsVal(MTL_MAX_DPU_GROUPS));
         nceCluster.addSubExecutor(ExecutorKind::DPU, 1);
+        nceCluster->setAttr(processorFrequencyAttrName, getFPAttr(module.getContext(), 1300.0));
 
         break;
     }
     default:
         VPUX_THROW("Unsupported architecture '{0}'", kind);
     }
-
-    nceCluster->setAttr(processorFrequencyAttrName, getFPAttr(module.getContext(), 700.0));
 }
 
 VPU::ArchKind vpux::VPU::getArch(mlir::Operation* op) {

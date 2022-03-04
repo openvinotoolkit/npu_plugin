@@ -204,14 +204,14 @@ flatbuffers::Offset<MVCNN::Resources> createResources(VPUIP::BlobWriter& writer,
         }
     }
 
-    double DMA_BANDWIDTH = 20.0;
+    // double DMA_BANDWIDTH = 20.0;
     for (auto src : memoryTypes) {
         for (auto dst : memoryTypes) {
             // TODO EISW-20897: update calculations with the below factors:
-            // auto memoryBandwidth = VPUIP::getMemoryBandwidth(src);
+            auto memoryBandwidth = VPUIP::getMemoryBandwidth(src);
             // auto memoryDerateFactor = VPUIP::getMemoryDerateFactor(src);
             if (src != dst) {
-                memoryVec.push_back(createBandwidthMapping(writer, src, dst, DMA_BANDWIDTH));
+                memoryVec.push_back(createBandwidthMapping(writer, src, dst, memoryBandwidth));
             }
         }
     }
