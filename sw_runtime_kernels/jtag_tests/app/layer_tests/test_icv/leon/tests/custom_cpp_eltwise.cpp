@@ -23,7 +23,7 @@ enum EltOpType : int32_t
     ADD,
     SUB,
     MIN,
-    //MAX,
+    MAX,
 };
 
 typedef struct {
@@ -37,6 +37,7 @@ __attribute__((aligned(1024)))
 #include "sk.add_fp16.3010xx.text.xdat"
 #include "sk.sub_fp16.3010xx.text.xdat"
 #include "sk.min_fp16.3010xx.text.xdat"
+#include "sk.max_fp16.3010xx.text.xdat"
 #else
 #include "svuSLKernels_EP.h"
 #endif
@@ -67,6 +68,7 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Power)) {
                          {EltOpType::ADD,   KERNEL_SELECT(sk_add_fp16_3010xx_text, &SLK_add_fp16)},
                          {EltOpType::SUB,   KERNEL_SELECT(sk_sub_fp16_3010xx_text, &SLK_sub_fp16)},
                          {EltOpType::MIN,   KERNEL_SELECT(sk_min_fp16_3010xx_text, &SLK_min_fp16)},
+                         {EltOpType::MAX,   KERNEL_SELECT(sk_max_fp16_3010xx_text, &SLK_max_fp16)},
                       }
                     )
                     { }
@@ -138,6 +140,7 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Power)) {
               case EltOpType::ADD:   reference = [](const float& a, const float& b) { return a + b;      }; break;
               case EltOpType::SUB:   reference = [](const float& a, const float& b) { return a - b;      }; break;
               case EltOpType::MIN:   reference = [](const float& a, const float& b) { return a<b ? a:b;  }; break;
+              case EltOpType::MAX:   reference = [](const float& a, const float& b) { return a>b ? a:b;  }; break;
               default: assert(0); //unimp
             }
 
