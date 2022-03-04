@@ -148,6 +148,7 @@ extern uint32_t SLK_exp_fp16;
 extern uint32_t SLK_tanh_fp16;
 extern uint32_t SLK_power_fp16; //eltwise
 extern uint32_t SLK_add_fp16;   //eltwise
+extern uint32_t SLK_sub_fp16;   //eltwise
 extern uint32_t SLK_preCorrelation;
 extern uint32_t SLK_preROIPooling;
 extern uint32_t SLK_preCTCDecoder;
