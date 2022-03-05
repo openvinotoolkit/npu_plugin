@@ -13,14 +13,14 @@
 
 #include <moviVectorTypes.h>
 #include <math.h>
-#include <param_vau_sqrt.h>
+#include <pss/param_vau_dp4a.h>
 
 using namespace sw_params;
 
 extern "C"
-void vau_sqrt_fp16(const struct VauSqrtParams *lParams) {
+void vau_dp4a(const struct VauDp4aParams *lParams) {
     const struct MemRefData* inputs = lParams->tensors + 0;
-    const struct MemRefData* outputs = lParams->tensors + VauSqrtParams::NumInputs;
+    const struct MemRefData* outputs = lParams->tensors + VauDp4aParams::NumInputs;
 
     const int32_t *dims = (int32_t*)(outputs[0].dimsAddr);
 
@@ -32,13 +32,22 @@ void vau_sqrt_fp16(const struct VauSqrtParams *lParams) {
     }
 
     // NOTE: test must align tensor size according to vector size
-    nElements = nElements / 8;
+    nElements = nElements / 4;
 
-    half8* in = (half8*)(inputs[0].dataAddr);
-    half8* out = (half8*)(outputs[0].dataAddr);
+    schar16* in1 = (schar16*)(inputs[0].dataAddr);
+    schar16* in2 = (schar16*)(inputs[1].dataAddr);
+    int4* out = (int4*)(outputs[0].dataAddr);
 
-    for (int32_t e = 0; e < nElements; ++e) {
-        half8 a = *in++;
-        *out++ = __builtin_shave_vau_sqt_v8f16_r(a);
+    if (nElements > 0) {
+        // zero the accumulator before MAC
+        schar16 a = *in1++;
+        schar16 b = *in2++;
+        *out++ = __builtin_shave_vau_dp4az_v16i8_vacc0_rr(a, b);
+    }
+    for (int32_t e = 1; e < nElements; ++e) {
+        // retain previous accumulator value
+        schar16 a = *in1++;
+        schar16 b = *in2++;
+        *out++ = __builtin_shave_vau_dp4a_v16i8_vacc0_rr(a, b);
     }
 }

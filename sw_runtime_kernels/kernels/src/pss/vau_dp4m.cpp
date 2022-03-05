@@ -13,14 +13,14 @@
 
 #include <moviVectorTypes.h>
 #include <math.h>
-#include <param_sau_dp4m.h>
+#include <pss/param_vau_dp4m.h>
 
 using namespace sw_params;
 
 extern "C"
-void sau_dp4m(const struct SauDp4mParams *lParams) {
+void vau_dp4m(const struct VauDp4mParams *lParams) {
     const struct MemRefData* inputs = lParams->tensors + 0;
-    const struct MemRefData* outputs = lParams->tensors + SauDp4mParams::NumInputs;
+    const struct MemRefData* outputs = lParams->tensors + VauDp4mParams::NumInputs;
 
     const int32_t *dims = (int32_t*)(outputs[0].dimsAddr);
 
@@ -32,14 +32,15 @@ void sau_dp4m(const struct SauDp4mParams *lParams) {
     }
 
     // NOTE: test must align tensor size according to vector size
+    nElements = nElements / 4;
 
-    schar4* in1 = (schar4*)(inputs[0].dataAddr);
-    uchar4* in2 = (uchar4*)(inputs[1].dataAddr);
-    int32_t* out = (int32_t*)(outputs[0].dataAddr);
+    schar16* in1 = (schar16*)(inputs[0].dataAddr);
+    uchar16* in2 = (uchar16*)(inputs[1].dataAddr);
+    int4* out = (int4*)(outputs[0].dataAddr);
 
     for (int32_t e = 0; e < nElements; ++e) {
-        schar4 a = *in1++;
-        uchar4 b = *in2++;
-        *out++ = __builtin_shave_sau_dp4m_v4i8_rr(a, b);
+        schar16 a = *in1++;
+        uchar16 b = *in2++;
+        *out++ = __builtin_shave_vau_dp4m_v16i8_rr(a, b);
     }
 }

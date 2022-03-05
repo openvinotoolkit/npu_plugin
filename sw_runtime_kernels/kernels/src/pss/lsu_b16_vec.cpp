@@ -13,14 +13,14 @@
 
 #include <moviVectorTypes.h>
 #include <math.h>
-#include <param_vau_tanh.h>
+#include <pss/param_lsu_b16_vec.h>
 
 using namespace sw_params;
 
 extern "C"
-void vau_tanh_fp16(const struct VauTanhParams *lParams) {
+void lsu_b16_vec(const struct LsuB16VecParams *lParams) {
     const struct MemRefData* inputs = lParams->tensors + 0;
-    const struct MemRefData* outputs = lParams->tensors + VauTanhParams::NumInputs;
+    const struct MemRefData* outputs = lParams->tensors + LsuB16VecParams::NumInputs;
 
     const int32_t *dims = (int32_t*)(outputs[0].dimsAddr);
 
@@ -32,13 +32,13 @@ void vau_tanh_fp16(const struct VauTanhParams *lParams) {
     }
 
     // NOTE: test must align tensor size according to vector size
-    nElements = nElements / 8;
+    nElements = nElements / 4;
 
-    half8* in = (half8*)(inputs[0].dataAddr);
-    half8* out = (half8*)(outputs[0].dataAddr);
+    half4* in = (half4*)(inputs[0].dataAddr);
+    half4* out = (half4*)(outputs[0].dataAddr);
 
     for (int32_t e = 0; e < nElements; ++e) {
-        half8 a = *in++;
-        *out++ = __builtin_shave_vau_tanh_v8f16_r(a);
+        float4 val = __builtin_shave_lsu_ld128_b16_f32_r(in++);
+        __builtin_shave_lsu_st64_f32_b16_rr(val, out++);
     }
 }

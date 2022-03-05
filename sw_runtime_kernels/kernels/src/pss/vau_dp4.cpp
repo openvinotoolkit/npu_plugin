@@ -13,14 +13,14 @@
 
 #include <moviVectorTypes.h>
 #include <math.h>
-#include <param_lsu_b16.h>
+#include <pss/param_vau_dp4.h>
 
 using namespace sw_params;
 
 extern "C"
-void lsu_b16(const struct LsuB16Params *lParams) {
+void vau_dp4(const struct VauDp4Params *lParams) {
     const struct MemRefData* inputs = lParams->tensors + 0;
-    const struct MemRefData* outputs = lParams->tensors + LsuB16Params::NumInputs;
+    const struct MemRefData* outputs = lParams->tensors + VauDp4Params::NumInputs;
 
     const int32_t *dims = (int32_t*)(outputs[0].dimsAddr);
 
@@ -31,11 +31,16 @@ void lsu_b16(const struct LsuB16Params *lParams) {
         nElements *= dims[i];
     }
 
-    half* in = (half*)(inputs[0].dataAddr);
-    half* out = (half*)(outputs[0].dataAddr);
+    // NOTE: test must align tensor size according to vector size
+    nElements = nElements / 4;
+
+    schar16* in1 = (schar16*)(inputs[0].dataAddr);
+    schar16* in2 = (schar16*)(inputs[1].dataAddr);
+    int4* out = (int4*)(outputs[0].dataAddr);
 
     for (int32_t e = 0; e < nElements; ++e) {
-        float val = __builtin_shave_lsu_ld32_b16_f32_r(in++);
-        __builtin_shave_lsu_st16_f32_b16_rr(val, out++);
+        schar16 a = *in1++;
+        schar16 b = *in2++;
+        *out++ = __builtin_shave_vau_dp4_v16i8_rr(a, b);
     }
 }

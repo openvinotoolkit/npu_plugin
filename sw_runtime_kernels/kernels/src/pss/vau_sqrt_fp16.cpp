@@ -13,14 +13,14 @@
 
 #include <moviVectorTypes.h>
 #include <math.h>
-#include <param_vau_sigm.h>
+#include <pss/param_vau_sqrt.h>
 
 using namespace sw_params;
 
 extern "C"
-void vau_sigm_fp16(const struct VauSigmParams *lParams) {
+void vau_sqrt_fp16(const struct VauSqrtParams *lParams) {
     const struct MemRefData* inputs = lParams->tensors + 0;
-    const struct MemRefData* outputs = lParams->tensors + VauSigmParams::NumInputs;
+    const struct MemRefData* outputs = lParams->tensors + VauSqrtParams::NumInputs;
 
     const int32_t *dims = (int32_t*)(outputs[0].dimsAddr);
 
@@ -39,6 +39,6 @@ void vau_sigm_fp16(const struct VauSigmParams *lParams) {
 
     for (int32_t e = 0; e < nElements; ++e) {
         half8 a = *in++;
-        *out++ = __builtin_shave_vau_sigm_v8f16_r(a);
+        *out++ = __builtin_shave_vau_sqt_v8f16_r(a);
     }
 }

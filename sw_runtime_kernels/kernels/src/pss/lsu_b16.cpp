@@ -13,14 +13,14 @@
 
 #include <moviVectorTypes.h>
 #include <math.h>
-#include <param_lsu_b16_vec.h>
+#include <pss/param_lsu_b16.h>
 
 using namespace sw_params;
 
 extern "C"
-void lsu_b16_vec(const struct LsuB16VecParams *lParams) {
+void lsu_b16(const struct LsuB16Params *lParams) {
     const struct MemRefData* inputs = lParams->tensors + 0;
-    const struct MemRefData* outputs = lParams->tensors + LsuB16VecParams::NumInputs;
+    const struct MemRefData* outputs = lParams->tensors + LsuB16Params::NumInputs;
 
     const int32_t *dims = (int32_t*)(outputs[0].dimsAddr);
 
@@ -31,14 +31,11 @@ void lsu_b16_vec(const struct LsuB16VecParams *lParams) {
         nElements *= dims[i];
     }
 
-    // NOTE: test must align tensor size according to vector size
-    nElements = nElements / 4;
-
-    half4* in = (half4*)(inputs[0].dataAddr);
-    half4* out = (half4*)(outputs[0].dataAddr);
+    half* in = (half*)(inputs[0].dataAddr);
+    half* out = (half*)(outputs[0].dataAddr);
 
     for (int32_t e = 0; e < nElements; ++e) {
-        float4 val = __builtin_shave_lsu_ld128_b16_f32_r(in++);
-        __builtin_shave_lsu_st64_f32_b16_rr(val, out++);
+        float val = __builtin_shave_lsu_ld32_b16_f32_r(in++);
+        __builtin_shave_lsu_st16_f32_b16_rr(val, out++);
     }
 }
