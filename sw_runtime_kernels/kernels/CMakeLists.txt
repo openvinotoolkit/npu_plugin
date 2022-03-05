@@ -5,6 +5,8 @@ project(kernels)
 #set(BUILD_BLOB_BINARIES OFF CACHE BOOL "" FORCE)
 #set(BUILD_JTAG_BINARIES OFF CACHE BOOL "" FORCE)
 
+message(STATUS "BUILD_STD_KERNELS = ${BUILD_STD_KERNELS}")
+message(STATUS "BUILD_PSS_KERNELS = ${BUILD_PSS_KERNELS}")
 message(STATUS "BUILD_BLOB_BINARIES = ${BUILD_BLOB_BINARIES}")
 message(STATUS "BUILD_JTAG_BINARIES = ${BUILD_JTAG_BINARIES}")
 
@@ -84,7 +86,15 @@ set(link_libraries_list
   "${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}/common/moviCompile/lib/30xxxx-leon/mlibcrt.a"
 )
 
-file(GLOB kernel_descrip_list ${KERNEL_DIR}/descrip/*.txt)
+set(kernel_descrip_list "")
+if(BUILD_STD_KERNELS)
+  file(GLOB std_list ${KERNEL_DIR}/descrip/*.txt)
+  list(APPEND kernel_descrip_list ${std_list})
+endif()
+if(BUILD_PSS_KERNELS)
+  file(GLOB pss_list ${KERNEL_DIR}/descrip/pss/*.txt)
+  list(APPEND kernel_descrip_list ${pss_list})
+endif()
 
 #set(kernel_descrip_list "")
 #list(APPEND kernel_descrip_list "${KERNEL_DIR}/descrip/dummy.txt")

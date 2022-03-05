@@ -1,0 +1,6 @@
+# -*- Cmake -*-
+
+set(kernel_src "lsu_b16.cpp")
+set(kernel_src_dir "src/pss")
+
+set(kernel_cpunum "3720")

@@ -1,0 +1,6 @@
+# -*- Cmake -*-
+
+set(kernel_src "vau_log_fp16.cpp")
+set(kernel_src_dir "src/pss")
+
+set(kernel_cpunum "3720")
