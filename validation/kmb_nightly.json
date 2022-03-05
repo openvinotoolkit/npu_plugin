@@ -2754,7 +2754,7 @@
         {
             "name" : "BDK_FP16-INT8_hg-s8-b1-mpii",
             "ir" : "models/clientmodels/BDK4/StackedHourglass/Surface/FP16-INT8/hg-s8-b1-mpii.xml",
-            "category" : "MLIR",
+            "category" : "MLIR/SKIP_WIN",
             "3720": {
                 "disabled" : true
             },
@@ -2855,7 +2855,7 @@
         {
             "name" : "BDK_FP16-INT8_SuperRes_AA",
             "ir" : "models/clientmodels/BDK4/SuperRes/AccuracyAware/SuperRes_INT8_AA.xml",
-            "category" : "MCM/weekly_private/SKIP_WIN",
+            "category" : "MCM/weekly_private/SKIP_ALL",
             "3720": {
                 "disabled" : true
             },
@@ -4481,13 +4481,7 @@
             "extra_config" : {
                 "VPUX_COMPILER_TYPE": "MLIR",
                 "PERFORMANCE_HINT": "THROUGHPUT",
-                "VPUX_COMPILATION_MODE": "ReferenceHW",
-                "VPUX_INFERENCE_SHAVES": "16",
-                "VPUX_EXECUTOR_STREAMS": "1"
-            },
-            "Compile" : {
-                "input_precision" : "FP16",
-                "output_precision" : "FP16"
+                "VPUX_INFERENCE_SHAVES": "16"
             },
             "BenchmarkApp" : {
                 "input_folder" : "416x416"
