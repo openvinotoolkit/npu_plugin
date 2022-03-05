@@ -99,17 +99,17 @@ set(link_libraries_list
   "${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}/common/moviCompile/lib/30xxxx-leon/mlibcrt.a"
 )
 
-set(kernel_descrip_list "")
-if(BUILD_STD_KERNELS)
-  file(GLOB std_list ${KERNEL_DIR}/descrip/*.txt)
-  list(APPEND kernel_descrip_list ${std_list})
-endif()
-if(BUILD_PSS_KERNELS)
-  file(GLOB pss_list ${KERNEL_DIR}/descrip/pss/*.txt)
-  list(APPEND kernel_descrip_list ${pss_list})
-endif()
-
 #set(kernel_descrip_list "")
+#if(BUILD_STD_KERNELS)
+#  file(GLOB std_list ${KERNEL_DIR}/descrip/*.txt)
+#  list(APPEND kernel_descrip_list ${std_list})
+#endif()
+#if(BUILD_PSS_KERNELS)
+#  file(GLOB pss_list ${KERNEL_DIR}/descrip/pss/*.txt)
+#  list(APPEND kernel_descrip_list ${pss_list})
+#endif()
+
+set(kernel_descrip_list "")
 #list(APPEND kernel_descrip_list "${KERNEL_DIR}/descrip/dummy.txt")
 #list(APPEND kernel_descrip_list "${KERNEL_DIR}/descrip/elu_fp16.txt")
 #list(APPEND kernel_descrip_list "${KERNEL_DIR}/descrip/exp_fp16.txt")
@@ -121,7 +121,7 @@ endif()
 #list(APPEND kernel_descrip_list "${KERNEL_DIR}/descrip/singleShaveSoftmax.txt")
 #list(APPEND kernel_descrip_list "${KERNEL_DIR}/descrip/sqrt_fp16.txt")
 #list(APPEND kernel_descrip_list "${KERNEL_DIR}/descrip/tanh_fp16.txt")
-#list(APPEND kernel_descrip_list "${KERNEL_DIR}/descrip/nnActEntry.txt")
+list(APPEND kernel_descrip_list "${KERNEL_DIR}/descrip/nnActEntry.txt")
 
 message(STATUS "kernel_descrip_list = ${kernel_descrip_list}")
 

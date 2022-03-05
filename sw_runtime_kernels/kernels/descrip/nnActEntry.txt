@@ -35,5 +35,14 @@ set(extra_src_list
   "${KERNEL_DIR}/../jtag_tests/app/act_shave_lib/leon/common_runtime/src/nn_fifo_manager.cpp"
 )
 
+# performance measurement support
+
+list(APPEND define_symbols_list
+  "LOW_LEVEL_TESTS_PERF"
+)
+
+list(APPEND extra_src_list
+  "${KERNEL_DIR}/../jtag_tests/app/act_shave_lib/leon/common_runtime/src/nn_perf_manager.cpp"
+)
+
 #"${FIRMWARE_VPU_DIR}/drivers/shave/svuShared_3600/src/HglShaveId.c"
-#"${KERNEL_DIR}/../jtag_tests/app/act_shave_lib/leon/common_runtime/src/nn_perf_manager.cpp"
