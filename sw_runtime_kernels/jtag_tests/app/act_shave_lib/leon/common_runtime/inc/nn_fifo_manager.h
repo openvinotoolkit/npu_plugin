@@ -46,9 +46,18 @@ struct SHVFifoConfig {
 };
 
 struct SNNCtrlMessage {
+    SNNCtrlMessage(SHVCtrlMessage message, uint32_t payload) {
+        this->message = message;
+        this->payload = payload;
+    }
+
     SHVCtrlMessage message;
     uint32_t payload;
 };
+//struct SNNCtrlMessage {
+//    SHVCtrlMessage message;
+//    uint32_t payload;
+//};
 
 struct SNNCtrlResponse {};
 

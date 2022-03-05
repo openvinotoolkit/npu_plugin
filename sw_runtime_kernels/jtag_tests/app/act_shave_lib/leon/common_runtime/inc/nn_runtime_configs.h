@@ -39,11 +39,32 @@ enum : unsigned int {
     // (since it may be running in parallel)
     MAX_BARRIERS_PER_INFERENCE = 64,
 
-    // See docs/ReadMe.md : Windowing and Memory Layout
-    ACT_CMX_WINDOW = 0x1F000000,
-    ACT_RT_CODE_WINDOW = 0x1C000000,
-    ACT_KERNEL_CODE_WINDOW = 0x1D000000,
-    ACT_KERNEL_DATA_WINDOW = 0x1E000000
+//    // See docs/ReadMe.md : Windowing and Memory Layout
+//    ACT_CMX_WINDOW = 0x1F000000,
+//    ACT_RT_CODE_WINDOW = 0x1C000000,
+//    ACT_KERNEL_CODE_WINDOW = 0x1D000000,
+//    ACT_KERNEL_DATA_WINDOW = 0x1E000000
 };
+// See docs/ReadMe.md : Windowing and Memory Layout
+constexpr static uint32_t ACT_CMX_WINDOW{0x1F000000};
+constexpr static uint32_t ACT_RT_CODE_WINDOW{0x1C000000};
+constexpr static uint32_t ACT_KERNEL_CODE_WINDOW{0x1D000000};
+constexpr static uint32_t ACT_KERNEL_DATA_WINDOW{0x1E000000};
+
+// ShaveNN window layout
+constexpr static uint32_t SNN_RT_CODE_WINDOW{0x1C000000};
+constexpr static uint32_t SNN_RT_DATA_WINDOW{0x1D000000};
+
+constexpr static uint32_t SNN_DATA_SIZE{1_KB};
+constexpr static uint32_t SNN_STACK_SIZE{1_KB};
+constexpr static uint32_t ACTSHV_SCRATCH_SIZE{1_KB};
+constexpr static uint32_t METADATA_SIZE{64_KB};
+constexpr static uint32_t WORKSPACE_SIZE{1942_KB};
+constexpr static uint32_t ACTSHV_STACK_SIZE{7_KB};
+constexpr static uint32_t DMA_STORAGE_SIZE{32_KB};
+
+// Shave windows must be aligned on a 1K boundary
+constexpr static uint32_t SHV_WIN_ALIGN{0x400};
+
 } // namespace common_runtime
 } // namespace nn

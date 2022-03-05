@@ -21,7 +21,16 @@
 
 namespace nn {
 namespace common_runtime {
-enum : unsigned int{
+
+static constexpr unsigned long long operator"" _KB(unsigned long long x) {
+    return x << 10;
+}
+
+static constexpr unsigned long long operator"" _MB(unsigned long long x) {
+    return x << 20;
+}
+
+enum : unsigned int {
 
     // base resources
     MAX_TILES = 2,
@@ -71,7 +80,6 @@ enum : unsigned int{
 
     FIFO_COUNT = MAX_CLUSTERS,
     FIFO_LENGTH = 1024 / FIFO_COUNT,
-
 };
 
 #include <HglResources.h>
@@ -79,3 +87,4 @@ static_assert(HGL_NCE_TILE_NB == MAX_TILES, "Desync between HW const declaration
 
 } // namespace common_runtime
 } // namespace nn
+
