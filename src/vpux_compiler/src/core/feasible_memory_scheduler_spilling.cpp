@@ -182,6 +182,8 @@ void FeasibleMemorySchedulerSpilling::removeComputeOpRelocationSpills(
             if (rangeUsed) {
                 _log.trace("Range is used, cannot relocate output of op - '{0}'",
                            scheduledOps[origOpIndex.getValue()].op_);
+                std::cout << "Mateusz: ange is used, cannot relocate output of op - "
+                          << scheduledOps[origOpIndex.getValue()].op_ << "\n";
                 continue;
             }
 
@@ -221,6 +223,7 @@ void FeasibleMemorySchedulerSpilling::removeComputeOpRelocationSpills(
 
     if (operationIndexesToRemove.empty()) {
         _log.trace("No compute ops immediate relocation spilling identified");
+        std::cout << "Mateusz: No compute ops immediate relocation spilling identified\n";
         return;
     }
 
@@ -230,6 +233,7 @@ void FeasibleMemorySchedulerSpilling::removeComputeOpRelocationSpills(
     }
 
     _log.trace("Operations that have been removed - '{0}'", operationIndexesToRemove.size());
+    std::cout << "Mateusz: Operations that have been removed - " << operationIndexesToRemove.size() << "\n";
 }
 
 // Optimize spilling of dataOps. This function will check scheduledOps list and analyze spilling sequence of dataOps.
