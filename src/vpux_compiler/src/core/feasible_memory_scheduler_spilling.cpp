@@ -65,6 +65,7 @@ void FeasibleMemorySchedulerSpilling::removeComputeOpRelocationSpills(
             size_t spillWriteIndex = opIndex;
             mlir::Optional<size_t> origOpIndex;
             mlir::Optional<size_t> prevTime;
+            size_t prevTimeFirstOpIndex = 0;
             mlir::Optional<size_t> spillReadIndex;
             mlir::Optional<size_t> nextTime;
 
@@ -81,18 +82,18 @@ void FeasibleMemorySchedulerSpilling::removeComputeOpRelocationSpills(
                         // Time of op in given iteration is smaller than closest previous time
                         // In such case break early as that means that COMPUTEOP -> SPILL_WRITE
                         // sequence does not appear immediately one after the other
+                        prevTimeFirstOpIndex = i + 1;
                         break;
                     }
 
-                    if (scheduledOps[i].op_ == scheduledOps[spillWriteIndex].op_) {
+                    if (scheduledOps[i].op_ == scheduledOps[spillWriteIndex].op_ && scheduledOps[i].isOriginalOp()) {
                         // Identified original COMPUTEOP that appears just before SPILL_WRITE
                         origOpIndex = i;
-                        break;
                     }
                 }
             }
 
-            // Original operation was no located. Stop analysis for given operation index
+            // Original operation just before SPILL_WRITE was no located. Stop analysis for given operation index
             if (!origOpIndex.hasValue()) {
                 continue;
             }
@@ -120,39 +121,87 @@ void FeasibleMemorySchedulerSpilling::removeComputeOpRelocationSpills(
                 }
             }
 
-            if (spillReadIndex.hasValue()) {
-                // Identified COMPUTEOP -> SPILL_WRITE -> SPILL_READ sequence that can be optimized
-                _log.trace("Identified COMPUTEOP -> SPILL_WRITE -> SPILL_READ sequence that can be optimized");
+            // SPILL_READ does not appear right after SPILL_WRITE. Stop analysis for given op
+            if (!spillReadIndex.hasValue()) {
+                continue;
+            }
 
-                auto& origOp = scheduledOps[origOpIndex.getValue()];
-                auto& spillWriteOp = scheduledOps[spillWriteIndex];
-                auto& spillReadOp = scheduledOps[spillReadIndex.getValue()];
+            // Check if no operation depends on range assigned later to SPILL_READ output between
+            // scheduled ops at index starting from prevTimeFirstOpIndex to spillReadIndex
+            auto resBegin = scheduledOps[spillReadIndex.getValue()].beginOutputResource(0);
+            auto resEnd = scheduledOps[spillReadIndex.getValue()].endOutputResource(0) - 1;
+            bool rangeUsed = false;
+            for (size_t i = prevTimeFirstOpIndex; i < spillReadIndex.getValue(); i++) {
+                if (scheduledOps[i].hasActiveInputResource()) {
+                    for (size_t r = 0; r < scheduledOps[i].numOfInputResources(); r++) {
+                        auto beg = scheduledOps[i].beginInputResource(r);
+                        auto end = scheduledOps[i].endInputResource(r) - 1;
 
-                _log.nest().trace("op = '{0}'\t type = '{1}'\t time = '{2}'\t '{3}'", origOp.op_, origOp.opTypeName(),
-                                  origOp.time_);
-                _log.nest().trace("op = '{0}'\t type = '{1}'\t time = '{2}'\t '{3}'", spillWriteOp.op_,
-                                  spillWriteOp.opTypeName(), spillWriteOp.time_);
-                _log.nest().trace("op = '{0}'\t type = '{1}'\t time = '{2}'\t '{3}'", spillReadOp.op_,
-                                  spillReadOp.opTypeName(), spillReadOp.time_);
-
-                // ComputeOp output buffer range can be assigned resulting range of SPILL_READ
-                // First find matching buffer that was spilled
-                bool foundMatchingBuffer = false;
-                for (size_t i = 0; i < origOp.numOfResources(); i++) {
-                    if (origOp.getBuffer(i) == spillReadOp.getBuffer(0)) {
-                        // Found matching resource index. Update assigned range
-                        origOp.resourceInfo_[i].begin_ = spillReadOp.resourceInfo_[0].begin_;
-                        origOp.resourceInfo_[i].end_ = spillReadOp.resourceInfo_[0].end_;
-                        foundMatchingBuffer = true;
-                        break;
+                        if ((resBegin <= beg && beg <= resEnd) || (resBegin <= end && end <= resEnd)) {
+                            rangeUsed = true;
+                            break;
+                        }
                     }
                 }
-                VPUX_THROW_UNLESS(foundMatchingBuffer, "Matching buffer not found for relocation spilling optimzation");
 
-                // SPILL_WRITE and SPILL_READ operations can be removed
-                operationIndexesToRemove.push_back(spillWriteIndex);
-                operationIndexesToRemove.push_back(spillReadIndex.getValue());
+                if (rangeUsed) {
+                    break;
+                }
+
+                if (scheduledOps[i].hasActiveOutputResource()) {
+                    for (size_t r = 0; r < scheduledOps[i].numOfOutputResources(); r++) {
+                        auto beg = scheduledOps[i].beginOutputResource(r);
+                        auto end = scheduledOps[i].endOutputResource(r) - 1;
+
+                        if ((resBegin <= beg && beg <= resEnd) || (resBegin <= end && end <= resEnd)) {
+                            rangeUsed = true;
+                            break;
+                        }
+                    }
+                }
+                if (rangeUsed) {
+                    break;
+                }
             }
+
+            // Range is used by other operation. Optimization cannot be performed
+            if (rangeUsed) {
+                _log.trace("Range is used, cannot relocate output of op - '{0}'",
+                           scheduledOps[origOpIndex.getValue()].op_);
+                continue;
+            }
+
+            // Identified COMPUTEOP -> SPILL_WRITE -> SPILL_READ sequence that can be optimized
+            _log.trace("Identified COMPUTEOP -> SPILL_WRITE -> SPILL_READ sequence that can be optimized");
+
+            auto& origOp = scheduledOps[origOpIndex.getValue()];
+            auto& spillWriteOp = scheduledOps[spillWriteIndex];
+            auto& spillReadOp = scheduledOps[spillReadIndex.getValue()];
+
+            _log.nest().trace("op = '{0}'\t type = '{1}'\t time = '{2}'\t '{3}'", origOp.op_, origOp.opTypeName(),
+                              origOp.time_);
+            _log.nest().trace("op = '{0}'\t type = '{1}'\t time = '{2}'\t '{3}'", spillWriteOp.op_,
+                              spillWriteOp.opTypeName(), spillWriteOp.time_);
+            _log.nest().trace("op = '{0}'\t type = '{1}'\t time = '{2}'\t '{3}'", spillReadOp.op_,
+                              spillReadOp.opTypeName(), spillReadOp.time_);
+
+            // ComputeOp output buffer range can be assigned resulting range of SPILL_READ
+            // First find matching buffer that was spilled
+            bool foundMatchingBuffer = false;
+            for (size_t i = 0; i < origOp.numOfOutputResources(); i++) {
+                if (origOp.getOutputBuffer(i) == spillReadOp.getOutputBuffer(0)) {
+                    // Found matching resource index. Update assigned range
+                    origOp.outputResourceInfo_[i].begin_ = spillReadOp.outputResourceInfo_[0].begin_;
+                    origOp.outputResourceInfo_[i].end_ = spillReadOp.outputResourceInfo_[0].end_;
+                    foundMatchingBuffer = true;
+                    break;
+                }
+            }
+            VPUX_THROW_UNLESS(foundMatchingBuffer, "Matching buffer not found for relocation spilling optimzation");
+
+            // SPILL_WRITE and SPILL_READ operations can be removed
+            operationIndexesToRemove.push_back(spillWriteIndex);
+            operationIndexesToRemove.push_back(spillReadIndex.getValue());
         }
     }
 
