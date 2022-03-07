@@ -248,11 +248,10 @@ void buildEltwiseMultWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir
             VPU::NCESparsity::Mode::DW_CONV, ShapeRef(filter_size), stride_vec[1],
             inputType.isa<mlir::quant::QuantizedType>() ? inputType.cast<mlir::quant::QuantizedType>().getStorageType()
                                                         : inputType,
-            input_nce_shape[1], output_nce_shape[1]);
+            input_nce_shape[1]);
 
     const auto sparsity_type = getUInt8Type(ctx);
-    int64_t numChannels = input_nce_shape[1];
-    SmallVector<int64_t> sparsity_shape{numChannels, 1, 1, static_cast<int64_t>(fakeSparsity.size()) / numChannels};
+    SmallVector<int64_t> sparsity_shape{1, 1, 1, static_cast<int64_t>(fakeSparsity.size())};
 
     const auto dataStorageType = mlir::RankedTensorType::get(sparsity_shape, sparsity_type);
     const auto sparsityAttr = mlir::DenseElementsAttr::get(dataStorageType, makeArrayRef(fakeSparsity));
@@ -273,7 +272,7 @@ void buildEltwiseMultWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir
                                           getConstResult(act_window_ddr), getTensorResult(act_window_cmx));
 
     // weights table ddr
-    SmallVector<int64_t> weightstable_data_shape{sparsity_shape[0], 1, 1, 4};
+    SmallVector<int64_t> weightstable_data_shape{output_nce_shape[1], 1, 1, 4};
     auto weightstable_ddr_memreftype = getMemRefType(VPURT::BufferSection::Constant, weightstable_data_shape,
                                                      builder.getIntegerType(32, /*isSigned=*/true), DimsOrder::NHWC);
     const auto wtTblData_ddr_valueType =

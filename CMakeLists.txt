@@ -43,7 +43,11 @@ find_package(InferenceEngineDeveloperPackage REQUIRED)
 
 include(cmake/features.cmake)
 include(cmake/compile_options.cmake)
-include(cmake/dependencies.cmake)
+
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/cmake/dependencies.cmake")
+    include(cmake/dependencies.cmake)
+endif()
+
 include(cmake/cross_compilation.cmake)
 include(cmake/flatbuffers.cmake)
 include(cmake/bundle_static_library.cmake)
@@ -95,6 +99,14 @@ list(APPEND CMAKE_MODULE_PATH
     "${LLVM_SOURCE_DIR}/cmake/modules"
 )
 
+set(VPUNN_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/vpucostmodel")
+set(VPUNN_BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/thirdparty/vpucostmodel")
+
+set(VPUNN_INCLUDE_DIRS
+        "${VPUNN_SOURCE_DIR}/include"
+        "${VPUNN_BINARY_DIR}/include"
+)
+
 include(cmake/tblgen.cmake)
 
 if(ENABLE_DEVELOPER_BUILD)
@@ -121,6 +133,10 @@ endif()
 #
 # targets install
 #
+
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/cmake/source_package.cmake")
+    include(cmake/source_package.cmake)
+endif()
 
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/
         DESTINATION "runtime/include/ie"

@@ -46,11 +46,11 @@ namespace {
 void addPPETask(mlir::OpBuilder& builder, VPUIP::NCEClusterTaskOp& nceOp, VPU::PPETaskAttr ppeAttr) {
     const auto multList =
             ppeAttr.quant_mult() != nullptr
-                    ? builder.getI32ArrayAttr(makeArrayRef(parseIntArrayAttr<int32_t>(ppeAttr.quant_mult())))
+                    ? builder.getI64ArrayAttr(makeArrayRef(parseIntArrayAttr<int64_t>(ppeAttr.quant_mult())))
                     : nullptr;
     const auto shiftList =
             ppeAttr.quant_shift() != nullptr
-                    ? builder.getI32ArrayAttr(makeArrayRef(parseIntArrayAttr<int32_t>(ppeAttr.quant_shift())))
+                    ? builder.getI64ArrayAttr(makeArrayRef(parseIntArrayAttr<int64_t>(ppeAttr.quant_shift())))
                     : nullptr;
     nceOp.addPPETask(builder, ppeAttr.mode(), ppeAttr.clamp_low(), ppeAttr.clamp_high(), ppeAttr.lrelu_mult(),
                      ppeAttr.lrelu_shift(), multList, shiftList, ppeAttr.quant_post_shift());
@@ -73,7 +73,7 @@ void addDPUTasks(VPUIP::NCEClusterTaskOp nceOp, mlir::PatternRewriter& rewriter,
         const auto dpuEnds = {ends[Dims4D::Act::W.ind()], ends[Dims4D::Act::H.ind()], ends[Dims4D::Act::C.ind()]};
 
         nceOp.addDPUTask(rewriter, getIntArrayAttr(rewriter, dpuStart), getIntArrayAttr(rewriter, dpuEnds),
-                         dpuTaskOp.pad(), dpuTaskOp.mpe_mode());
+                         dpuTaskOp.pad(), dpuTaskOp.mpe_mode(), dpuTaskOp.cluster_idAttr());
     }
 }
 
@@ -121,9 +121,7 @@ mlir::LogicalResult ConvRewriter::matchAndRewrite(VPU::NCEConvolutionOp origOp, 
     // Get dimensions
     //
 
-    const Shape filterShape = origOp.rawFilterShapeAttr() != nullptr
-                                      ? Shape(parseIntArrayAttr<int64_t>(origOp.rawFilterShapeAttr()))
-                                      : getShape(newArgs.filter()).toValues();
+    const auto filterShape = Shape(parseIntArrayAttr<int64_t>(origOp.rawFilterShape()));
 
     const auto KY = filterShape[Dims4D::Filter::KY];
     const auto KX = filterShape[Dims4D::Filter::KX];
@@ -248,10 +246,7 @@ mlir::LogicalResult DepthwiseConvRewriter::matchAndRewrite(VPU::NCEDepthConvolut
     // Get dimensions
     //
 
-    const Shape filterShape = origOp.rawFilterShapeAttr() != nullptr
-                                      ? Shape(parseIntArrayAttr<int64_t>(origOp.rawFilterShapeAttr()))
-                                      : getShape(newArgs.filter()).toValues();
-
+    const auto filterShape = Shape(parseIntArrayAttr<int64_t>(origOp.rawFilterShape()));
     const auto KY = filterShape[Dims4D::Filter::KY];
     const auto KX = filterShape[Dims4D::Filter::KX];
 

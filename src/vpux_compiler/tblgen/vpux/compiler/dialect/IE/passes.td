@@ -413,6 +413,27 @@ def ExpandActivationChannels : PassBase<"expand-activation-channels", "vpux::Fun
 }
 
 //
+// LegalizeDilatedConvolution
+//
+
+def LegalizeDilatedConvolution : PassBase<"legalize-dilated-conv", "vpux::FunctionPass"> {
+    let summary = "Handle dilated convolutions";
+
+    let description = [{
+        The pass is a part of `buildHardwareModePipeline` pipeline.
+
+        This pass expands filter of dilated convolution so that they are able to be infered
+            on dpu because of hardware limitation.
+    }];
+
+    let constructor = "vpux::IE::createLegalizeDilatedConvolutionPass()";
+
+    let dependentDialects = [
+        "vpux::IE::IEDialect"
+    ];
+}
+
+//
 // ResolveStridedSlice
 //
 

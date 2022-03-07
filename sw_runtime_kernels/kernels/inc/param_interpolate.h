@@ -54,7 +54,7 @@ struct __attribute__((packed)) InterpolateParams {
     InterpolationMethod interpolation_mode;
     InterpolationCoordTransMode coord_transform_mode;
     InterpolationNearestMode nearest_mode;
-    uint32_t antialias;
+    uint64_t antialias;
 };
 
 inline struct BaseKernelParams ToBaseKernelParams(struct InterpolateParams * params) {

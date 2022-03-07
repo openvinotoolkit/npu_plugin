@@ -133,6 +133,14 @@ vpux::NDTypeInterface changeElemType(mlir::Type elemType);
 Returns the type with the new element type
 NOTE: This method *must* be implemented by the user.
 
+#### `changeShapeElemType`
+
+```c++
+vpux::NDTypeInterface changeShapeElemType(vpux::ShapeRef shape, mlir::Type elemType);
+```
+Returns the type with the new shape and element type
+NOTE: This method *must* be implemented by the user.
+
 #### `changeDimsOrder`
 
 ```c++

@@ -15,16 +15,34 @@
 #include "vpux/compiler/core/tiling.hpp"
 #include "vpux/compiler/dialect/IE/passes.hpp"
 #include "vpux/compiler/dialect/IE/utils/generate_tiling.hpp"
+#include "vpux/compiler/dialect/VPU/ops.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
 
 using namespace vpux;
 
 namespace {
 
+bool hasMultiBranches(mlir::Operation* op) {
+    // not the only result
+    if (op->getResults().size() != 1) {
+        return true;
+    }
+    // only one result but multiple users
+    if (!op->getResult(0).hasOneUse()) {
+        auto user1 = op->getResult(0).user_begin();
+        for (auto remainUser : op->getResult(0).getUsers()) {
+            if (remainUser != *user1) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
 mlir::Operation* getParentConvOp(mlir::Operation* op) {
     // for const prefetch ignore cases where activation is handled by
-    // indermediate operations and causes a stall
-    // prefetch is wanted from conv to previous conv
+    // intermediate operations and causes a stall
+    // prefetch is wanted from current op to parent op
     mlir::Operation* parentOp = op->getOperand(0).getDefiningOp();
     auto isOpIgnorable = [](mlir::Operation* op) -> bool {
         return mlir::isa<IE::AndOp>(op) || mlir::isa<IE::PermuteCastOp>(op) || mlir::isa<IE::ReshapeOp>(op);
@@ -34,9 +52,15 @@ mlir::Operation* getParentConvOp(mlir::Operation* op) {
         if (parentOp->getOperands().size() < 1) {
             break;
         }
+        if (hasMultiBranches(parentOp)) {
+            // for parallel sub-graphs, the order is undecided yet
+            // abandon prefetching these cases
+            return nullptr;
+        }
         parentOp = parentOp->getOperand(0).getDefiningOp();
     }
-    return parentOp;
+    // check the last op
+    return (parentOp == nullptr || hasMultiBranches(parentOp)) ? nullptr : parentOp;
 }
 
 OutputTiling generatePrefetchTiles(mlir::Operation* op, Logger log) {
@@ -143,7 +167,7 @@ SmallVector<Shape> generatePrefetchPatternTiles(mlir::Operation* op, mlir::Opera
 
 bool prefetchTilingConditionsViolated(mlir::Operation* op, Logger log) {
     auto parentOp = getParentConvOp(op);
-    if (!parentOp) {
+    if (parentOp == nullptr) {
         return false;
     }
     auto opTilingInter = mlir::dyn_cast<IE::TilingInfoOpInterface>(op);
@@ -151,16 +175,7 @@ bool prefetchTilingConditionsViolated(mlir::Operation* op, Logger log) {
     if (!opTilingInter || !parentTilingInter) {
         return false;
     }
-    // For parallel sub-graphs, the order is undecided yet
-    // Abandon prefetching these cases
-    if (!parentOp->getResult(0).hasOneUse()) {
-        auto user1 = *parentOp->getResult(0).getUsers().begin();
-        for (auto remainUser : parentOp->getResult(0).getUsers()) {
-            if (remainUser != user1) {
-                return false;
-            }
-        }
-    }
+
     // Check if tile pattern is supported
     const auto resShape = getShape(op->getResult(0));
     const Shape neutralTile(resShape.size(), 1);
@@ -207,6 +222,7 @@ mlir::LogicalResult PrefetchTiling::matchAndRewrite(IE::TilingBuilderOpInterface
         auto parentOp = getParentConvOp(op);
         auto tiles = generatePrefetchPatternTiles(op, parentOp, _log.nest());
         auto curTiles = fillDividedTiles(tiles[0], resShape);
+        _log.nest(1).trace("Create {0} tiles:", curTiles.size());
         return applyTileStrategy(origOp, curTiles, rewriter, _log);
     } else {
         const auto tiles = generatePrefetchTiles(origOp.getOperation(), _log.nest());
@@ -237,6 +253,10 @@ void PrefetchTilingPass::safeRunOnFunc() {
 
     mlir::ConversionTarget target(ctx);
     target.addLegalOp<IE::SliceOp, IE::ConcatOp>();
+    target.addLegalOp<VPU::NCEClusterTilingOp>();
+    target.markOpRecursivelyLegal<VPU::NCEClusterTilingOp>([&](mlir::Operation*) {
+        return true;
+    });
     target.markUnknownOpDynamicallyLegal([this](mlir::Operation* op) {
         if (auto iface = mlir::dyn_cast<IE::TilingInfoOpInterface>(op)) {
             const auto resShape = getShape(op->getResult(0));

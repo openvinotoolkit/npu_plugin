@@ -451,6 +451,66 @@ def RewriteAtanh :
         >;
 
 //
+// IERT.Abs -> VPUIP.AbsUPA
+//
+
+def createAbsUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::AbsUPAOp>($_loc, $0, $1)
+        }]>;
+
+def RewriteAbs :
+        Pat<
+            (IERT_AbsOp $input, $output),
+            (createAbsUPAOp $input, $output)
+        >;
+
+//
+// IERT.Atan -> VPUIP.AtanUPA
+//
+
+def createAtanUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::AtanUPAOp>($_loc, $0, $1)
+        }]>;
+
+def RewriteAtan :
+        Pat<
+            (IERT_AtanOp $input, $output),
+            (createAtanUPAOp $input, $output)
+        >;
+
+//
+// IERT.Asin -> VPUIP.AsinUPA
+//
+
+def createAsinUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::AsinUPAOp>($_loc, $0, $1)
+        }]>;
+
+def RewriteAsin :
+        Pat<
+            (IERT_AsinOp $input, $output),
+            (createAsinUPAOp $input, $output)
+        >;
+
+//
+// IERT.Acos -> VPUIP.AcosUPA
+//
+
+def createAcosUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::AcosUPAOp>($_loc, $0, $1)
+        }]>;
+
+def RewriteAcos :
+        Pat<
+            (IERT_AcosOp $input, $output),
+            (createAcosUPAOp $input, $output)
+        >;
+
+//
 // IERT.Log -> VPUIP.LogUPA
 //
 
@@ -707,6 +767,22 @@ def RewriteLogicalNot :
         Pat<
             (IERT_LogicalNotOp $input1, $output),
             (createLogicalNotEltwiseUPAOp $input1, $output)
+        >;
+
+//
+// IERT.Select -> VPUIP.SelectUPA
+//
+
+def createSelectUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::SelectUPAOp>(
+                $_loc, $0, $1, $2, $3)
+        }]>;
+
+def RewriteSelect :
+        Pat<
+            (IERT_SelectOp $input1, $input2, $input3, $output),
+            (createSelectUPAOp $input1, $input2, $input3, $output)
         >;
 
 //

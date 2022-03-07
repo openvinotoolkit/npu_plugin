@@ -253,7 +253,7 @@
         {
             "name" : "por_tf_FP16-INT8_yolo_v4",
             "ir" : "por/yolo_v4/tf/FP16-INT8/yolo_v4.xml",
-            "category" : "MLIR/precommit",
+            "category" : "MLIR/precommit/SKIP_WIN",
             "3720": {
                 "disabled" : true
             },
@@ -277,13 +277,14 @@
             },
             "CI-options" : {
                 "blob_name" : "yolo-v4_tf_int8"
-            }
+            },
+            "comments": "EISW-33677: RuntimeError: throwOnFail: zeCommandQueueExecuteCommandLists result: 0x70000001"
         },
 
         {
             "name" : "ea_tf_FP16_yolo_v4_ww14",
             "ir" : "yolo_v4-ww14/tf/FP16/yolo_v4.xml",
-            "category" : "MLIR",
+            "category" : "MLIR/SKIP_WIN",
             "3720": {
                 "disabled" : true
             },
@@ -307,7 +308,8 @@
             },
             "CI-options" : {
                 "blob_name" : "yolo-v4_tf_fp16"
-            }
+            },
+            "comments": "EISW-33869: RuntimeError: throwOnFail: zeCommandQueueCreate result: 0x70010001"
         },
 
         {
@@ -1846,7 +1848,7 @@
             "category" : "MLIR",
             "disabled" : true,
             "3720": {
-                "disabled" : true
+                "disabled" : false
             },
             "BenchmarkApp" : {
                 "disabled" : true
@@ -1887,8 +1889,7 @@
             },
             "CI-options" : {
                 "blob_name" : "MTL_scale_tf_fp16-int8_mobilenet-v3-large-1.0-224_tf"
-            },
-            "comments": "#-32535"
+            }
         },
 
         {
@@ -2534,9 +2535,7 @@
             },
             "CI-options" : {
                 "blob_name" : "scale_tf_fp16-int8_mobilenet-v3-large-1.0-224_tf"
-            },
-            "disabled": true,
-            "comments": "#-32535"
+            }
         },
 
         {
@@ -4228,7 +4227,7 @@
 
         {
             "name" : "caffe2_FP16-INT8_intel_dns",
-            "ir" : "models/clientmodels/MTL/IntelDNS/FP16-INT8/intel_dns.xml",
+            "ir" : "models/clientmodels/MTL_poweron/intel_dns/onnx/FP16-INT8/intel_dns.xml",
             "category" : "MLIR",
             "3720": {
                 "disabled" : true
@@ -4262,7 +4261,7 @@
 
         {
             "name" : "caffe2_FP16_intel_dns",
-            "ir" : "models/clientmodels/MTL/IntelDNS/FP16/intel_dns.xml",
+            "ir" : "models/clientmodels/MTL_poweron/intel_dns/onnx/FP16/intel_dns.xml",
             "category" : "MLIR",
             "3720": {
                 "disabled" : true

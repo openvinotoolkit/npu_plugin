@@ -55,6 +55,27 @@ def InitCompiler : PassBase<"init-compiler", "vpux::ModulePass"> {
 }
 
 //
+// Wrap multi-cluster layers in NCEClusterTiling
+//
+
+def WrapVPUOpsInNCEClusterTiling : PassBase<"wrap-vpu-ops-in-ncecluster-tiling", "vpux::FunctionPass"> {
+    let summary = "This pass wraps vpu operations that should be executed across multiple clusters in NCEClusterTiling operations";
+
+    let description = [{
+        This pass builds an IR in order to represent multi-cluster compilation. It performs a number of functions.
+        1) It creates variations of distributed tensors depending on the multi-cluster strategy of the layer. 
+        2) It creates DMA operations DDR->CMX and wraps the DMAs in NCEClusterTiling.
+        3) It wraps hardware executable operations in NCEClusterTiling. 
+    }];
+
+    let constructor = "vpux::VPU::createWrapVPUOpsInNCEClusterTilingPass()";
+
+    let dependentDialects = [
+        "vpux::VPU::VPUDialect"
+    ];
+}
+
+//
 // SplitNCEOpsOntoWorkloads
 //
 
@@ -62,6 +83,27 @@ def SplitNCEOpsOntoWorkloads : PassBase<"split-NCE-ops-onto-workloads", "vpux::F
     let summary = "Split VPU NCE operation onto workloads";
 
     let constructor = "vpux::VPU::createSplitNCEOpsOntoWorkloadsPass()";
+
+    let dependentDialects = [
+        "vpux::VPU::VPUDialect"
+    ];
+}
+
+//
+// AdjustMemorySpace
+//
+
+def AdjustMemorySpace : PassBase<"adjust-memory-space", "vpux::FunctionPass"> {
+    let summary = "Adjusts the tensor location for VPU-driven operations";
+
+    let description = [{
+        The pass adjusts the location of tensors that are used by hardware-driven operations
+
+        Currently, it surrounds VPU-driven nodes with Copy operations to specify that all the data
+        that they consume/produce must reside in CMX
+    }];
+
+    let constructor = "vpux::VPU::createAdjustMemorySpacePass()";
 
     let dependentDialects = [
         "vpux::VPU::VPUDialect"

@@ -82,7 +82,7 @@ public:
     using Vector = flatbuffers::Offset<flatbuffers::Vector<T>>;
 
 public:
-    explicit BlobWriter(Logger log): _log(log) {
+    BlobWriter(Logger log, VPU::ArchKind architecture): _log(log), _architecture(architecture) {
     }
 
 public:
@@ -107,8 +107,8 @@ public:
 
 public:
     TensorReference createTensorRef(StringRef name, vpux::NDTypeInterface type, VPURT::BufferSection section,
-                                    ArrayRef<int64_t> sectionIndex, int64_t byteOffset, ArrayRef<uint16_t> mult,
-                                    ArrayRef<uint8_t> shift, int8_t postShift, ArrayRef<uint8_t> zeroPoints,
+                                    ArrayRef<int64_t> sectionIndex, int64_t byteOffset, ArrayRef<int64_t> mult,
+                                    ArrayRef<int64_t> shift, int64_t postShift, ArrayRef<uint8_t> zeroPoints,
                                     Optional<int64_t> sparsityMapOffset = None,
                                     Optional<int64_t> storageElementOffset = None);
     TensorReference createTensorRef(StringRef name, vpux::NDTypeInterface type, VPURT::BufferSection section,
@@ -185,8 +185,18 @@ private:
     using TensorReferenceMap = mlir::DenseMap<mlir::Value, TensorReference>;
     using BarrierMap = mlir::DenseMap<mlir::Value, uint32_t>;
 
+    template <class UnderlyingType>
+    auto arrayCast(ArrayRef<int64_t> source) {
+        SmallVector<UnderlyingType> casted(source.size());
+        std::transform(source.begin(), source.end(), casted.begin(), [](auto value) {
+            return checked_cast<UnderlyingType>(value);
+        });
+        return createVector(casted);
+    }
+
 private:
     Logger _log;
+    VPU::ArchKind _architecture;
     flatbuffers::FlatBufferBuilder _impl;
     TaskMap _tasks;
     ActShavesKernelDataMap _actKernelsData;

@@ -28,7 +28,7 @@ namespace sw_params {
 struct __attribute__((packed)) SoftmaxParams {
     struct MemRefData input;
     struct MemRefData output;
-    int32_t axis;
+    int64_t axis;
 };
 
 inline BaseKernelParams softmaxParamsToBaseKernelParams(SoftmaxParams * softmaxParams) {

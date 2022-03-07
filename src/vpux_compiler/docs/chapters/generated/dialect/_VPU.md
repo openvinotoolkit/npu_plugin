@@ -36,6 +36,7 @@ operation ::= `VPU.DPU.Workload` $offsets $sizes $pad $mpe_mode attr-dict-with-k
 `sizes` | ::mlir::ArrayAttr | 64-bit integer array attribute with exactly 4 elements
 `pad` | vpux::VPU::PaddingAttr | DictionaryAttr with field(s): 'left', 'right', 'top', 'bottom' (each field having its own constraints)
 `mpe_mode` | vpux::VPU::MPEModeAttr | MPE Mode
+`cluster_id` | mlir::IntegerAttr | Integer attribute
 
 ### `VPU.NCE.ClusterTiling` (vpux::VPU::NCEClusterTilingOp)
 
@@ -62,9 +63,7 @@ NCE version of Convolution layer
 Syntax:
 
 ```
-operation ::= `VPU.NCE.Convolution` `(` $input `,` $filter `,` $weightsTable `)`
-              (`(` `activationWindow` `:` $activationWindow^ `:` custom<OptionalTypes>(type($activationWindow)) `)`)?
-              (`(` `bias` `:` $bias^ `)`)?
+operation ::= `VPU.NCE.Convolution` `(` $input `,` $filter `,` $weightsTable (`,` $activationWindow^ custom<OptionalTypes>(type($activationWindow)) ``)? `)`
               attr-dict
               custom<OptionalTypes>(type($input), type($filter), type($weightsTable)) ``
               `->` type(results)
@@ -76,12 +75,10 @@ operation ::= `VPU.NCE.Convolution` `(` $input `,` $filter `,` $weightsTable `)`
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-`bias` | vpux::Const::ContentAttr | Lazy folded constant content
 `strides` | ::mlir::ArrayAttr | 64-bit integer array attribute with exactly 2 elements
 `pad` | vpux::VPU::PaddingAttr | DictionaryAttr with field(s): 'left', 'right', 'top', 'bottom' (each field having its own constraints)
-`post_op` | vpux::IE::PostOp | DictionaryAttr with field(s): 'name', 'attrs' (each field having its own constraints)
 `ppe` | vpux::VPU::PPETaskAttr | DictionaryAttr with field(s): 'mode', 'clamp_low', 'clamp_high', 'lrelu_mult', 'lrelu_shift', 'quant_mult', 'quant_shift', 'quant_post_shift' (each field having its own constraints)
-`rawFilterShape` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`rawFilterShape` | ::mlir::ArrayAttr | 64-bit integer array attribute with exactly 4 elements
 `activation_window_channel_length` | mlir::IntegerAttr | Integer attribute
 
 #### Operands:
@@ -108,7 +105,6 @@ Syntax:
 
 ```
 operation ::= `VPU.NCE.DepthConvolution` `(` $input `,` $filter `,` $weightsTable `,` $activationWindow `)`
-              (`(` `bias` `:` $bias^ `)`)?
               attr-dict
               custom<OptionalTypes>(type($input), type($filter), type($weightsTable), type($activationWindow)) ``
               `->` type(results)
@@ -120,12 +116,10 @@ operation ::= `VPU.NCE.DepthConvolution` `(` $input `,` $filter `,` $weightsTabl
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-`bias` | vpux::Const::ContentAttr | Lazy folded constant content
 `strides` | ::mlir::ArrayAttr | 64-bit integer array attribute with exactly 2 elements
 `pad` | vpux::VPU::PaddingAttr | DictionaryAttr with field(s): 'left', 'right', 'top', 'bottom' (each field having its own constraints)
-`post_op` | vpux::IE::PostOp | DictionaryAttr with field(s): 'name', 'attrs' (each field having its own constraints)
 `ppe` | vpux::VPU::PPETaskAttr | DictionaryAttr with field(s): 'mode', 'clamp_low', 'clamp_high', 'lrelu_mult', 'lrelu_shift', 'quant_mult', 'quant_shift', 'quant_post_shift' (each field having its own constraints)
-`rawFilterShape` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`rawFilterShape` | ::mlir::ArrayAttr | 64-bit integer array attribute with exactly 4 elements
 `activation_window_channel_length` | mlir::IntegerAttr | Integer attribute
 
 #### Operands:
@@ -164,7 +158,6 @@ operation ::= `VPU.NCE.Eltwise` `(` $input1 `,` $input2 `)`
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
 `op_type` | vpux::VPU::EltwiseTypeAttr | Type of Eltwise operation
-`post_op` | vpux::IE::PostOp | DictionaryAttr with field(s): 'name', 'attrs' (each field having its own constraints)
 `ppe` | vpux::VPU::PPETaskAttr | DictionaryAttr with field(s): 'mode', 'clamp_low', 'clamp_high', 'lrelu_mult', 'lrelu_shift', 'quant_mult', 'quant_shift', 'quant_post_shift' (each field having its own constraints)
 
 #### Operands:
@@ -203,7 +196,6 @@ operation ::= `VPU.NCE.MaxPool` `(` $input `,` $weightsTable `,` $activationWind
 `kernel_size` | ::mlir::ArrayAttr | 64-bit integer array attribute with exactly 2 elements
 `strides` | ::mlir::ArrayAttr | 64-bit integer array attribute with exactly 2 elements
 `pad` | vpux::VPU::PaddingAttr | DictionaryAttr with field(s): 'left', 'right', 'top', 'bottom' (each field having its own constraints)
-`post_op` | vpux::IE::PostOp | DictionaryAttr with field(s): 'name', 'attrs' (each field having its own constraints)
 `ppe` | vpux::VPU::PPETaskAttr | DictionaryAttr with field(s): 'mode', 'clamp_low', 'clamp_high', 'lrelu_mult', 'lrelu_shift', 'quant_mult', 'quant_shift', 'quant_post_shift' (each field having its own constraints)
 `activation_window_channel_length` | mlir::IntegerAttr | Integer attribute
 

@@ -60,6 +60,10 @@ std::set<ngraph::helpers::ActivationTypes> supportedTypesMLIR {
     ngraph::helpers::Log,
     ngraph::helpers::Ceiling,
     ngraph::helpers::Gelu,
+    ngraph::helpers::Abs,
+    ngraph::helpers::Atan,
+    ngraph::helpers::Asin,
+    ngraph::helpers::Acos,
 };
 
 } // namespace
@@ -165,11 +169,14 @@ const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes
     {Log,      {{1.0f}}},
     {Swish,    {{1.0f}}},
     {Negative, {{1.0f}}},
+    {Abs,      {{1.0f}}},
+    {Atan,     {{1.0f}}},
+    {Asin,     {{1.0f}}},
+    {Acos,     {{1.0f}}},
     {RoundHalfToEven,       {}},
     {RoundHalfAwayFromZero, {}},
 #if 0 // Unsupported layers
     {Sign,     {{1.0f}}},
-    {Abs,      {{1.0f}}},
 #endif
 };
 

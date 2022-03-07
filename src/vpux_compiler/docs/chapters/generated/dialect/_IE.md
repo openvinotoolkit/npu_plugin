@@ -76,6 +76,54 @@ The `IE.ExecutorResource` and `IE.MemoryResource` are added by underlying low-le
 
 ## Operation definition
 
+### `IE.Abs` (vpux::IE::AbsOp)
+
+InferenceEngine Abs layer
+
+
+Syntax:
+
+```
+operation ::= `IE.Abs` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+
+### `IE.Acos` (vpux::IE::AcosOp)
+
+InferenceEngine Acos layer
+
+
+Syntax:
+
+```
+operation ::= `IE.Acos` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+
 ### `IE.Acosh` (vpux::IE::AcoshOp)
 
 InferenceEngine Acosh layer
@@ -195,6 +243,30 @@ operation ::= `IE.And` `(` operands `)` attr-dict `:` type(operands) `->` type(r
 | :----: | ----------- |
 `output` | ranked tensor of 8-bit signless integer or 16-bit float or 32-bit float or QuantizedType values
 
+### `IE.Asin` (vpux::IE::AsinOp)
+
+InferenceEngine Asin layer
+
+
+Syntax:
+
+```
+operation ::= `IE.Asin` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+
 ### `IE.Asinh` (vpux::IE::AsinhOp)
 
 InferenceEngine Asinh layer
@@ -204,6 +276,30 @@ Syntax:
 
 ```
 operation ::= `IE.Asinh` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+
+### `IE.Atan` (vpux::IE::AtanOp)
+
+InferenceEngine Atan layer
+
+
+Syntax:
+
+```
+operation ::= `IE.Atan` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
 ```
 
 
@@ -929,6 +1025,36 @@ operation ::= `IE.Exp` `(` operands `)` attr-dict `:` type(operands) `->` type(r
 | Result | Description |
 | :----: | ----------- |
 `output` | ranked tensor of 16-bit float or 32-bit float values
+
+### `IE.ExpandDilated` (vpux::IE::ExpandDilatedOp)
+
+Expand tensor with uninitialized values according to dilations
+
+
+Syntax:
+
+```
+operation ::= `IE.ExpandDilated` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`dilations` | ::mlir::ArrayAttr | 64-bit integer array attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of any type values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of any type values
 
 ### `IE.Expand` (vpux::IE::ExpandOp)
 
@@ -2272,7 +2398,7 @@ operation ::= `IE.QuantizeCast` `(` operands `)` attr-dict `:` type(operands) `-
 
 | Result | Description |
 | :----: | ----------- |
-`output` | ranked tensor of QuantizedType values
+`output` | ranked tensor of 8-bit signed integer or 8-bit unsigned integer or QuantizedType values
 
 ### `IE.Quantize` (vpux::IE::QuantizeOp)
 
@@ -2732,6 +2858,38 @@ operation ::= `IE.ScatterNDUpdate` `(` operands `)` attr-dict `:` type(operands)
 | Result | Description |
 | :----: | ----------- |
 `output` | ranked tensor of any type values
+
+### `IE.Select` (vpux::IE::SelectOp)
+
+InferenceEngine Select layer
+
+
+Syntax:
+
+```
+operation ::= `IE.Select` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`auto_broadcast` | vpux::IE::AutoBroadcastTypeAttr | Specifies rules used for auto-broadcasting of input tensors
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input1` | ranked tensor of 8-bit signless integer or 32-bit signed integer or 16-bit float values
+`input2` | ranked tensor of 32-bit signed integer or 16-bit float values
+`input3` | ranked tensor of 32-bit signed integer or 16-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 32-bit signed integer or 16-bit float values
 
 ### `IE.ShuffleChannels` (vpux::IE::ShuffleChannelsOp)
 

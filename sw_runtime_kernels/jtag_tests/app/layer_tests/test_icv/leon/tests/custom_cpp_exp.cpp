@@ -19,7 +19,7 @@
 
 #ifdef CONFIG_TARGET_SOC_3720
 __attribute__((aligned(1024)))
-#include "sk.exp_fp16.3010xx.text.xdat"
+#include "sk.exp_fp16.3720xx.text.xdat"
 #else
 #include "svuSLKernels_EP.h"
 #endif
@@ -62,7 +62,7 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Exp)) {
             m_params.baseParamData = sw_params::ToBaseKernelParams(m_expParams);
 
 #ifdef CONFIG_TARGET_SOC_3720
-            m_params.kernel = reinterpret_cast<uint64_t>(sk_exp_fp16_3010xx_text);
+            m_params.kernel = reinterpret_cast<uint64_t>(sk_exp_fp16_3720xx_text);
 #else
             m_params.kernel = reinterpret_cast<uint64_t>(PREAMBLE_FUNC(exp_fp16));
 #endif

@@ -179,11 +179,6 @@ public:
         return getType().getElemTypeSize();
     }
 
-    Bit getTotalSize() const {
-        VPUX_THROW_UNLESS(getType().isa<mlir::ShapedType>(), "Expected mlir::ShapedType. Got '{0}'", getType());
-        return Bit(getType().cast<mlir::ShapedType>().getSizeInBits());
-    }
-
 public:
     template <typename OutT>
     details::ContentRange<OutT> getValues() const& {
@@ -212,6 +207,8 @@ public:
 
 public:
     void copyTo(MutableArrayRef<char> buf) const;
+
+    void fillWithZero();
 
     template <typename Caller>
     void mutate(Caller&& caller) & {

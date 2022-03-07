@@ -104,6 +104,7 @@ def Const_ContentAttr : Const_Attr<"Content", [DeclareAttrInterfaceMethods<SubEl
         vpux::Const::ContentAttr subview(vpux::ShapeRef offset, vpux::ShapeRef shape) const;
         vpux::Const::ContentAttr bitPack(int64_t width) const;
         vpux::Const::ContentAttr transpose(vpux::DimsOrder newOrder) const;
+        vpux::Const::ContentAttr expandDilated(vpux::ShapeRef dilations) const;
     }];
 
     let storageType = "vpux::Const::ContentAttr";
@@ -418,6 +419,31 @@ def Const_RelocateWeightsTableAttr : Const_Attr<"RelocateWeightsTable",
     ];
 
     let storageNamespace = "details";
+    let skipDefaultBuilders = 1;
+}
+
+//
+// ExpandDilatedAttr
+//
+
+def Const_ExpandDilatedAttr : Const_Attr<"ExpandDilated",
+        [DeclareAttrInterfaceMethods<Const_TransformAttrInterface>, DeclareAttrInterfaceMethods<SubElementAttrInterface>]> {
+    let summary = "Expand constant content with zeros according to dilations";
+
+    let parameters = (ins
+        "mlir::ArrayAttr":$dilations
+    );
+
+    let builders = [
+        AttrBuilderWithInferredContext<
+            (ins "mlir::ArrayAttr":$dilations), [{
+                return $_get(dilations.getContext(), dilations);
+            }]
+        >
+    ];
+
+    let storageNamespace = "details";
+    let genVerifyDecl = 1;
     let skipDefaultBuilders = 1;
 }
 

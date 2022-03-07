@@ -25,7 +25,7 @@
 namespace vpux {
 
 struct ActShaveCompileParams {
-    std::string cpu;
+    std::vector<std::string> cpu;
 };
 
 struct KernelDataDesc {

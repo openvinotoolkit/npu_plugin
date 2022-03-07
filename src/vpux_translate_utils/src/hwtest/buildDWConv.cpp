@@ -175,11 +175,10 @@ void buildDWConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp modu
             VPU::NCESparsity::Mode::DW_CONV, ShapeRef(filter_size), stried_vec[1],
             inputType.isa<mlir::quant::QuantizedType>() ? inputType.cast<mlir::quant::QuantizedType>().getStorageType()
                                                         : inputType,
-            in_shape[1], out_shape[1]);
+            in_shape[1]);
 
     const auto sparsity_type = getUInt8Type(ctx);
-    int64_t numChannels = in_shape[1];
-    SmallVector<int64_t> sparsity_shape{numChannels, 1, 1, static_cast<int64_t>(fakeSparsity.size()) / numChannels};
+    SmallVector<int64_t> sparsity_shape{1, 1, 1, static_cast<int64_t>(fakeSparsity.size())};
 
     const auto dataStorageType = mlir::RankedTensorType::get(sparsity_shape, sparsity_type);
     const auto sparsityAttr = mlir::DenseElementsAttr::get(dataStorageType, makeArrayRef(fakeSparsity));
@@ -206,13 +205,13 @@ void buildDWConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp modu
                                                 actWindow_cmx.getOperation()->getResult(0));
 
     // weights table ddr tensor
-    SmallVector<int64_t> wtTbl_data_shape{sparsity_shape[0], 1, 1, 4};
+    auto weights_outChannel = wtData_cmx_type.getShape()[0];
+    SmallVector<int64_t> wtTbl_data_shape{weights_outChannel, 1, 1, 4};
     auto weightTblData_ddr_type = getMemRefType(VPURT::BufferSection::Constant, wtTbl_data_shape,
                                                 builder.getIntegerType(32, /*isSigned=*/true), DimsOrder::NHWC);
     const auto wtTblData_ddr_valueType =
             mlir::RankedTensorType::get(wtTbl_data_shape, builder.getIntegerType(32, /*isSigned=*/true));
 
-    auto weights_outChannel = wtData_cmx_type.getShape()[0];
     auto weights_set_size =
             wtData_cmx_type.getShape()[1] * wtData_cmx_type.getShape()[2] * wtData_cmx_type.getShape()[3];
     size_t elementsize_bytes = 0;

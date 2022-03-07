@@ -16,6 +16,7 @@
 
 include "vpux/compiler/core/attributes.td"
 include "vpux/compiler/core/ops_interfaces.td"
+include "vpux/compiler/core/types.td"
 include "vpux/compiler/dialect/IE/dialect.td"
 include "vpux/compiler/dialect/IE/ops_interfaces.td"
 include "vpux/compiler/dialect/IE/attributes.td"
@@ -1133,7 +1134,7 @@ def IE_EluOp :
 
 def IE_ReshapeOp :
         IE_LayerOp<
-            "Reshape", 
+            "Reshape",
             [
                 DeclareOpInterfaceMethods<IE_ElemTypeInfoOpInterface>
             ]
@@ -1539,7 +1540,7 @@ def IE_QuantizeCastOp :
     );
 
     let results = (outs
-        RankedTensorOf<[quant_QuantizedType]>:$output
+        RankedTensorOf<[SI8, UI8, quant_QuantizedType]>:$output
     );
 
     let hasFolder = 1;
@@ -1698,6 +1699,98 @@ def IE_AcoshOp :
             ]
         > {
     let summary = "InferenceEngine Acosh layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$input
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+}
+
+//
+// AbsOp
+//
+
+def IE_AbsOp :
+        IE_LayerOp<
+            "Abs",
+            [
+                IE_TilingBuilderOpInterface,
+                IE_EltwiseOp
+            ]
+        > {
+    let summary = "InferenceEngine Abs layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$input
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+}
+
+//
+// AtanOp
+//
+
+def IE_AtanOp :
+        IE_LayerOp<
+            "Atan",
+            [
+                IE_TilingBuilderOpInterface,
+                IE_EltwiseOp
+            ]
+        > {
+    let summary = "InferenceEngine Atan layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$input
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+}
+
+//
+// AsinOp
+//
+
+def IE_AsinOp :
+        IE_LayerOp<
+            "Asin",
+            [
+                IE_TilingBuilderOpInterface,
+                IE_EltwiseOp
+            ]
+        > {
+    let summary = "InferenceEngine Asin layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$input
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+}
+
+//
+// AcosOp
+//
+
+def IE_AcosOp :
+        IE_LayerOp<
+            "Acos",
+            [
+                IE_TilingBuilderOpInterface,
+                IE_EltwiseOp
+            ]
+        > {
+    let summary = "InferenceEngine Acos layer";
 
     let arguments = (ins
         RankedTensorOf<[F16, F32]>:$input
@@ -2904,6 +2997,33 @@ def IE_EqualOp :
         RankedTensorOf<[F16, F32]>:$output
     );
 }
+
+//
+// SelectOp
+//
+
+def IE_SelectOp :
+        IE_LayerOp<
+            "Select",
+            [
+                IE_TilingBuilderOpInterface,
+                IE_EltwiseOp
+            ]
+        > {
+    let summary = "InferenceEngine Select layer";
+
+    let arguments = (ins
+        RankedTensorOf<[Bool8, SI32, F16]>:$input1,
+        RankedTensorOf<[SI32, F16]>:$input2,
+        RankedTensorOf<[SI32, F16]>:$input3,
+        IE_AutoBroadcastType:$auto_broadcast
+    );
+
+    let results = (outs
+        RankedTensorOf<[SI32, F16]>:$output
+    );
+}
+
 //
 // SpaceToDepthOp
 //
@@ -3119,6 +3239,32 @@ def IE_YuvToRgbOp :
     let results = (outs
         4DTensorOf<[SI8, F16, F32]>:$output
     );
+}
+
+//
+// ExpandDilatedOp
+//
+
+def IE_ExpandDilatedOp :
+        IE_LayerOp<
+            "ExpandDilated",
+            [
+                DeclareOpInterfaceMethods<IE_ElemTypeInfoOpInterface>
+            ]
+        > {
+    let summary = "Expand tensor with uninitialized values according to dilations";
+
+    let arguments = (ins
+        AnyRankedTensor:$input,
+
+        I64ArrayAttr:$dilations
+    );
+
+    let results = (outs
+        AnyRankedTensor:$output
+    );
+
+    let hasFolder = 1;
 }
 
 #endif

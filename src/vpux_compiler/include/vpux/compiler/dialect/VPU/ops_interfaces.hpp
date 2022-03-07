@@ -42,7 +42,7 @@ mlir::LogicalResult validatePrecisionForNCE(mlir::Operation* op);
 mlir::LogicalResult validateWorkloadsRegion(mlir::Location loc, mlir::Region& workloads);
 
 mlir::Operation* addWorkload(mlir::Region& workloads, mlir::OpBuilder& builder, mlir::Location loc, ShapeRef offsets,
-                             ShapeRef sizes, PaddingAttr pad, MPEMode mpeMode);
+                             ShapeRef sizes, PaddingAttr pad, MPEMode mpeMode, mlir::IntegerAttr clusterId);
 
 }  // namespace details
 

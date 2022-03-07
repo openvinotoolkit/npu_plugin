@@ -130,32 +130,6 @@ typedef struct __vcl_compiler_desc_t {
 } vcl_compiler_desc_t;
 
 ///////////////////////////////////////////////////////////////////////////////
-/// @brief Defines tensor precision
-typedef enum _vcl_tensor_precision_t {
-    VCL_TENSOR_PRECISION_UNKNOWN,
-    VCL_TENSOR_PRECISION_FP32,
-    VCL_TENSOR_PRECISION_FP16,
-    VCL_TENSOR_PRECISION_UINT8 = 4,
-    VCL_TENSOR_PRECISION_INT32,
-    VCL_TENSOR_PRECISION_INT8 = 7,
-    VCL_TENSOR_PRECISION_UINT32 = 0xD0,
-} vcl_tensor_precision_t;
-
-///////////////////////////////////////////////////////////////////////////////
-/// @brief Defines tensor layout
-typedef enum _vcl_tensor_layout_t {
-    VCL_TENSOR_LAYOUT_ANY = 0x00,
-    VCL_TENSOR_LAYOUT_NCHW,
-    VCL_TENSOR_LAYOUT_NHWC,
-    VCL_TENSOR_LAYOUT_NCDHW,
-    VCL_TENSOR_LAYOUT_NDHWC,
-    VCL_TENSOR_LAYOUT_C = 0x60,
-    VCL_TENSOR_LAYOUT_CHW = 0x80,
-    VCL_TENSOR_LAYOUT_NC = 0xC1,
-    VCL_TENSOR_LAYOUT_HWC = 0xD0,
-} vcl_tensor_layout_t;
-
-///////////////////////////////////////////////////////////////////////////////
 /// @brief Defines executable description to be passed during executable
 ///        creation
 ///
@@ -169,10 +143,6 @@ typedef enum _vcl_tensor_layout_t {
 typedef struct __vcl_executable_desc_t {
     const uint8_t* modelIRData;
     uint64_t modelIRSize;           ///< Size of modelIRData
-    vcl_tensor_precision_t inPrc;   ///< Input data precision
-    vcl_tensor_layout_t inLayout;   ///< Input data layout
-    vcl_tensor_precision_t outPrc;  ///< Output data precision
-    vcl_tensor_layout_t outLayout;  ///< Output data layout
     const char* options;            ///< Compiler config options
     uint64_t optionsSize;           ///< Size of options
 } vcl_executable_desc_t;

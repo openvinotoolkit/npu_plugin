@@ -73,6 +73,48 @@ mlir::LogicalResult AllocRewrite::matchAndRewrite(mlir::memref::AllocOp origOp, 
 }
 
 //
+// AllocDistributedRewrite
+//
+
+class AllocDistributedRewrite final : public mlir::OpRewritePattern<VPURT::AllocDistributed> {
+public:
+    AllocDistributedRewrite(LinearScanHandler& allocInfo, mlir::MLIRContext* ctx, Logger log)
+            : mlir::OpRewritePattern<VPURT::AllocDistributed>(ctx), _allocInfo(allocInfo), _log(log) {
+    }
+
+public:
+    mlir::LogicalResult matchAndRewrite(VPURT::AllocDistributed origOp, mlir::PatternRewriter& rewriter) const final;
+
+private:
+    LinearScanHandler& _allocInfo;
+    Logger _log;
+};
+
+mlir::LogicalResult AllocDistributedRewrite::matchAndRewrite(VPURT::AllocDistributed origOp,
+                                                             mlir::PatternRewriter& rewriter) const {
+    _log.trace("Found Alloc Operation '{0}'", origOp->getLoc());
+
+    const auto val = origOp.buffer();
+
+    for (auto* user : origOp->getUsers()) {
+        if (auto iface = mlir::dyn_cast<mlir::MemoryEffectOpInterface>(user)) {
+            if (iface.getEffectOnValue<mlir::MemoryEffects::Free>(val)) {
+                return errorAt(origOp, "IR with explicit deallocation operations is not supported");
+            }
+        }
+    }
+
+    const auto offset = checked_cast<int64_t>(_allocInfo.getAddress(val));
+    _log.trace("Replace with statically allocated VPURT.DeclareBufferOp (offset = {0})", offset);
+
+    auto section = VPURT::getBufferSection(val.getType().cast<vpux::NDTypeInterface>().getMemoryKind());
+
+    rewriter.replaceOpWithNewOp<VPURT::DeclareBufferOp>(origOp, val.getType(), section, offset);
+
+    return mlir::success();
+}
+
+//
 // FeasibleAllocationPass
 //
 
@@ -217,13 +259,19 @@ void FeasibleAllocationPass::safeRunOnModule() {
     // 6. convert to allocated ops
     mlir::ConversionTarget target(ctx);
     target.addLegalDialect<IERT::IERTDialect>();
+    target.addLegalDialect<VPURT::VPURTDialect>();
     target.addDynamicallyLegalOp<mlir::memref::AllocOp>([&](mlir::memref::AllocOp op) {
-        const auto type = op.memref().getType().dyn_cast<mlir::MemRefType>();
-        return type == nullptr || type.getMemorySpace() != _memSpace;
+        const auto type = op.memref().getType().cast<vpux::NDTypeInterface>();
+        return type == nullptr || type.getMemSpace() != _memSpace;
+    });
+    target.addDynamicallyLegalOp<VPURT::AllocDistributed>([&](VPURT::AllocDistributed op) {
+        const auto type = op.buffer().getType().cast<vpux::NDTypeInterface>();
+        return type == nullptr || type.getMemSpace() != _memSpace;
     });
 
     mlir::RewritePatternSet patterns(&ctx);
     patterns.add<AllocRewrite>(scan.handler(), &ctx, _log);
+    patterns.add<AllocDistributedRewrite>(scan.handler(), &ctx, _log);
 
     if (mlir::failed(mlir::applyPartialConversion(module, target, std::move(patterns)))) {
         _log.error("Failed to replace Alloc/Dealloc Operations");

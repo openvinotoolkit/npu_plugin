@@ -53,6 +53,7 @@ mlir::OwningModuleRef importHWTEST(llvm::StringRef sourceJson, mlir::MLIRContext
     bool isMaxPool = jsonDesc.getCaseType() == nb::CaseType::MaxPool;
     bool isEltwiseMult = jsonDesc.getCaseType() == nb::CaseType::EltwiseMult;
     bool isAvgPool = jsonDesc.getCaseType() == nb::CaseType::AvgPool;
+    bool isDifferentClustersDPU = jsonDesc.getCaseType() == nb::CaseType::DifferentClustersDPU;
     bool isActShave = jsonDesc.getCaseType() == nb::CaseType::ActShave;
     bool isReadAfterWriteDPUDMA = jsonDesc.getCaseType() == nb::CaseType::ReadAfterWriteDPUDMA;
     bool isReadAfterWriteDMADPU = jsonDesc.getCaseType() == nb::CaseType::ReadAfterWriteDMADPU;
@@ -103,6 +104,8 @@ mlir::OwningModuleRef importHWTEST(llvm::StringRef sourceJson, mlir::MLIRContext
     } else if (isAvgPool) {
         // hwtest::buildAvgpoolWithDwConv(jsonDesc, module, builder, log, input_type, output_type);
         hwtest::buildAvgpool(jsonDesc, module, builder, log, input_type, output_type);
+    } else if (isDifferentClustersDPU) {
+        hwtest::buildDifferentClustersDPUTest(jsonDesc, module, builder, log, input_type, weightType(), output_type);
     } else if (isActShave) {
         hwtest::buildActShave(jsonDesc, module, builder, log, input_type, output_type);
     } else if (isReadAfterWriteDPUDMA) {

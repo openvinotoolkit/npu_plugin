@@ -79,6 +79,10 @@ private:
 
 void WrapIntoAsyncRegionsPass::safeRunOnFunc() {
     const auto callback = [&](IERT::AsyncLayerOpInterface op) {
+        if (mlir::isa<IERT::AsyncLayerOpInterface>(op->getParentOp())) {
+            _log.trace("Skip for operation '{0}' at '{1}' which is wrapped in other op", op->getName(), op->getLoc());
+            return;
+        }
         _log.trace("Process Layer Operation '{0}' at '{1}'", op->getName(), op->getLoc());
         warpIntoAsyncRegion(op, _log.nest());
     };

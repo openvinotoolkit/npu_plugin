@@ -12,13 +12,11 @@
 //
 
 #include "vpux/compiler/dialect/VPU/nce_sparsity.hpp"
-#include "vpux/compiler/dialect/VPUIP/nce_invariant.hpp"
 
 namespace vpux {
 namespace VPU {
 
-mlir::Value createActivationWindowTensor(mlir::OpBuilder& builder, mlir::Location loc, ArrayRef<uint8_t> fakeSparsity,
-                                         int64_t numChannels);
+mlir::Value createActivationWindowTensor(mlir::OpBuilder& builder, mlir::Location loc, ArrayRef<uint8_t> fakeSparsity);
 
 std::vector<int32_t> createWeightsTableData(mlir::Value opInput, mlir::Value opOutput, mlir::Value weights,
                                             mlir::Value activationWindow, Const::ContentAttr bias, int64_t OC,

@@ -7,7 +7,7 @@ Base interface for VPU NCE Operations
 #### `addWorkload`
 
 ```c++
-mlir::Operation*addWorkload(mlir::OpBuilder&builder, mlir::Location loc, ShapeRef offsets, ShapeRef sizes, vpux::VPU::PaddingAttr pad, MPEMode mpeMode);
+mlir::Operation*addWorkload(mlir::OpBuilder&builder, mlir::Location loc, ShapeRef offsets, ShapeRef sizes, vpux::VPU::PaddingAttr pad, MPEMode mpeMode, mlir::IntegerAttr clusterId);
 ```
 Add workload
 NOTE: This method *must* be implemented by the user.

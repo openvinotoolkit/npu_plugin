@@ -52,7 +52,7 @@ bool vpux::VPU::NCEMaxPoolOp::fitIntoCMX(mlir::Operation* op, mlir::ArrayAttr ke
         const auto SX = kernelStrides[Dims4D::Strides::X];
 
         const auto activationWindowSize = NCESparsity::getActivationWindowSize(NCESparsity::Mode::POOL, kernelSize, SX,
-                                                                               input.getElementType(), OC);
+                                                                               input.getElementType(), 1);
 
         requiredCMX += NCEInvariant::getWeightsTableSize(OC);
         requiredCMX += activationWindowSize * 1_Byte;
@@ -147,6 +147,37 @@ mlir::LogicalResult vpux::VPU::verifyOp(NCEMaxPoolOp op) {
 
     if (!NCEInvariant::isAttrsSupported(arch, KY, KX, SY, SX, padTop, padBottom, padLeft, padRight, logCb)) {
         return mlir::failure();
+    }
+
+    const auto inputType = op.input().getType().cast<NDTypeInterface>();
+    const auto IC = inputType.getShape()[Dims4D::Act::C];
+
+    const auto outputType = op.output().getType().cast<NDTypeInterface>();
+    const auto OC = outputType.getShape()[Dims4D::Act::C];
+
+    const auto weightsTableShape = getShape(op.weightsTable());
+    const auto expectedWeightsTableShape = NCESparsity::inferWeightsTableShape(OC);
+
+    if (weightsTableShape != expectedWeightsTableShape) {
+        return errorAt(op, "Got wrong shape for 'weightsTable' '{0}', expected '{1}'", weightsTableShape,
+                       expectedWeightsTableShape);
+    }
+
+    const auto activationWindowShape = getShape(op.activationWindow());
+    const auto expectedActivationWindowShape = NCESparsity::inferActivationWindowShape(
+            NCESparsity::Mode::POOL, kernelSize, SX, inputType.getElementType(), 1);
+
+    if (activationWindowShape != expectedActivationWindowShape) {
+        return errorAt(op, "Got wrong shape for 'activationWindow' '{0}', expected '{1}'", activationWindowShape,
+                       expectedActivationWindowShape);
+    }
+
+    const auto bitPatternSize = VPU::NCESparsity::getBitPatternSize(VPU::NCESparsity::Mode::POOL, kernelSize, SX,
+                                                                    inputType.getElementType(), IC);
+
+    if (op.activation_window_channel_length() != bitPatternSize) {
+        return errorAt(op, "Got wrong value for 'activation_window_channel_length' '{0}', expected '{1}'",
+                       op.activation_window_channel_length(), bitPatternSize);
     }
 
     return mlir::success();

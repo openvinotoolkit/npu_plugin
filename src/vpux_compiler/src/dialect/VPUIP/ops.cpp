@@ -620,6 +620,7 @@ void redirectOpInterfacesForIE(mlir::DialectRegistry& registry) {
     registry.addOpInterface<IE::CeilingOp, OpModelForSW<VPUIP::CeilingUPAOp>>();
     registry.addOpInterface<IE::NormalizeIEOp, OpModelForSW<VPUIP::NormalizeIEUPAOp>>();
     registry.addOpInterface<IE::EqualOp, OpModelForSW<VPUIP::EltwiseUPAOp>>();
+    registry.addOpInterface<IE::SelectOp, OpModelForSW<VPUIP::SelectUPAOp>>();
     registry.addOpInterface<IE::DepthToSpaceOp, OpModelForSW<VPUIP::DepthToSpaceUPAOp>>();
     registry.addOpInterface<IE::ReverseSequenceOp, OpModelForSW<VPUIP::ReverseSequenceUPAOp>>();
     registry.addOpInterface<IE::UpsamplingOp, OpModelForSW<VPUIP::UpsamplingUPAOp>>();
@@ -634,6 +635,10 @@ void redirectOpInterfacesForIE(mlir::DialectRegistry& registry) {
     registry.addOpInterface<IE::LogicalOrOp, OpModelForSW<VPUIP::EltwiseUPAOp>>();
     registry.addOpInterface<IE::LogicalXorOp, OpModelForSW<VPUIP::EltwiseUPAOp>>();
     registry.addOpInterface<IE::SpaceToDepthOp, OpModelForSW<VPUIP::SpaceToDepthUPAOp>>();
+    registry.addOpInterface<IE::AbsOp, OpModelForSW<VPUIP::AbsUPAOp>>();
+    registry.addOpInterface<IE::AtanOp, OpModelForSW<VPUIP::AtanUPAOp>>();
+    registry.addOpInterface<IE::AsinOp, OpModelForSW<VPUIP::AsinUPAOp>>();
+    registry.addOpInterface<IE::AcosOp, OpModelForSW<VPUIP::AcosUPAOp>>();
 }
 
 //
@@ -721,6 +726,7 @@ void redirectOpInterfacesForIERT(mlir::DialectRegistry& registry) {
     registry.addOpInterface<IERT::CeilingOp, OpModelForSW>();
     registry.addOpInterface<IERT::NormalizeIEOp, OpModelForSW>();
     registry.addOpInterface<IERT::EqualOp, OpModelForSW>();
+    registry.addOpInterface<IERT::SelectOp, OpModelForSW>();
     registry.addOpInterface<IERT::DepthToSpaceOp, OpModelForSW>();
     registry.addOpInterface<IERT::ReverseSequenceOp, OpModelForSW>();
     registry.addOpInterface<IERT::UpsamplingOp, OpModelForSW>();
@@ -736,6 +742,10 @@ void redirectOpInterfacesForIERT(mlir::DialectRegistry& registry) {
     registry.addOpInterface<IERT::LogicalOrOp, OpModelForSW>();
     registry.addOpInterface<IERT::LogicalXorOp, OpModelForSW>();
     registry.addOpInterface<IERT::SpaceToDepthOp, OpModelForSW>();
+    registry.addOpInterface<IERT::AbsOp, OpModelForSW>();
+    registry.addOpInterface<IERT::AtanOp, OpModelForSW>();
+    registry.addOpInterface<IERT::AsinOp, OpModelForSW>();
+    registry.addOpInterface<IERT::AcosOp, OpModelForSW>();
 }
 
 }  // namespace

@@ -653,7 +653,7 @@ flatbuffers::DetachedBuffer vpux::VPUIP::exportToBlob(mlir::ModuleOp module, mli
     mlir::FuncOp netFunc;
     IE::CNNNetworkOp::getFromModule(module, netOp, netFunc);
 
-    VPUIP::BlobWriter writer(log.nest());
+    VPUIP::BlobWriter writer(log.nest(), VPU::getArch(module));
 
     const auto withDynamicBarriers = !netFunc.getOps<VPURT::DeclareVirtualBarrierOp>().empty();
 

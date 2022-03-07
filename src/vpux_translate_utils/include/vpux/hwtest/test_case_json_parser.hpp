@@ -33,6 +33,7 @@ enum class CaseType {
     EltwiseMult,
     MaxPool,
     AvgPool,
+    DifferentClustersDPU,
     ActShave,
     ReadAfterWriteDPUDMA,
     ReadAfterWriteDMADPU,
@@ -118,6 +119,13 @@ struct RaceConditionParams {
     size_t requestedUnits;
 };
 
+struct DPUTaskParams {
+    std::size_t inputCluster;
+    std::size_t outputCluster;
+    std::size_t weightsCluster;
+    std::size_t weightsTableCluster;
+};
+
 struct OutputLayer {
     std::array<std::int64_t, 4> shape = {0};
     DType dtype = DType::UNK;
@@ -166,6 +174,9 @@ public:
     RaceConditionParams getRaceConditionParams() const {
         return raceConditionParams_;
     }
+    DPUTaskParams getDPUTaskParams() const {
+        return DPUTaskParams_;
+    }
     CaseType getCaseType() const {
         return caseType_;
     }
@@ -202,6 +213,7 @@ private:
     CaseType loadCaseType(llvm::json::Object* jsonObj);
     QuantParams loadQuantizationParams(llvm::json::Object* obj);
     RaceConditionParams loadRaceConditionParams(llvm::json::Object* obj);
+    DPUTaskParams loadDPUTaskParams(llvm::json::Object* obj);
     std::size_t loadIterationCount(llvm::json::Object* obj);
     std::size_t loadClusterNumber(llvm::json::Object* obj);
 
@@ -222,6 +234,7 @@ private:
     std::size_t clusterNumber_;
     std::shared_ptr<TestCaseJsonDescriptor> underlyingOp_;
     RaceConditionParams raceConditionParams_;
+    DPUTaskParams DPUTaskParams_;
 };
 
 }  // namespace nb

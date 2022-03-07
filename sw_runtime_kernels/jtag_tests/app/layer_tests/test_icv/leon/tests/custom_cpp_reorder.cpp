@@ -58,7 +58,7 @@ protected:
             const int ndims = m_inputTensor.ndims();
 
             for (int i = 0; i < ndims; ++i)
-                m_reorderParams->perm[i] = test->customLayerParams.layerParams[i];
+                m_reorderParams->perm[i] = (int64_t)test->customLayerParams.layerParams[i];
 
             m_params.paramData = reinterpret_cast<uint32_t*>(paramContainer);
             m_params.paramDataLen = sizeof(sw_params::ReorderParams);

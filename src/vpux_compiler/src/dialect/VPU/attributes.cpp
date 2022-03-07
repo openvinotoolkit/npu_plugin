@@ -361,8 +361,9 @@ mlir::LogicalResult vpux::VPU::verify(FuncRef<mlir::InFlightDiagnostic()> emitEr
         }
 
         if (VPU::bitEnumContains(distributionMode, VPU::DistributionMode::SEGMENTED) &&
-            !(axis == Dims4D::Act::H.ind() || axis == Dims4D::Act::C.ind())) {
-            return printTo(emitError(), "Segmented cluster tiling is only supported for dimensions H and K");
+            !(axis == Dims4D::Act::H.ind() || axis == Dims4D::Act::C.ind() || axis == Dims4D::Filter::OC.ind())) {
+            return printTo(emitError(), "Segmented cluster tiling is only supported for activation dimensions H and K "
+                                        "and kernel dimension K");
         }
     }
 
@@ -425,6 +426,48 @@ SmallVector<Shape> splitSegmentedShape(ArrayRef<int64_t> shape, ArrayRef<int64_t
     return segmentedTiles;
 }
 
+SmallVector<DimRange> getOverlappedInputTileDimRanges(ArrayRef<int64_t> shape, ArrayRef<int64_t> tilingScheme,
+                                                      VPU::DistributedTensorAttr distributionAttr, const int64_t axis,
+                                                      const int64_t numClusters) {
+    const auto N = shape[Dims4D::Act::N.ind()];
+    const auto C = shape[Dims4D::Act::C.ind()];
+    const auto Y = shape[Dims4D::Act::H.ind()];
+    const auto X = shape[Dims4D::Act::W.ind()];
+
+    const auto kernel = parseIntArrayAttr<int64_t>(distributionAttr.kernel());
+    const auto KY = kernel[Dims4D::Kernel::Y.ind()];
+    const auto KX = kernel[Dims4D::Kernel::X.ind()];
+
+    const auto pads = distributionAttr.pads();
+    const auto padTop = pads.top().getInt();
+    const auto padBottom = pads.bottom().getInt();
+    const auto padLeft = pads.left().getInt();
+    const auto padRight = pads.right().getInt();
+
+    const auto strides = parseIntArrayAttr<int64_t>(distributionAttr.strides());
+    const auto SY = strides[Dims4D::Strides::Y.ind()];
+    const auto SX = strides[Dims4D::Strides::X.ind()];
+
+    const auto outputHeight = (Y - KY + padTop + padBottom) / SY + 1;
+    const auto outputWidth = (X - KX + padLeft + padRight) / SX + 1;
+    const SmallVector<int64_t> outputShape{N, C, outputHeight, outputWidth};
+    const auto outputTiles = splitSegmentedShape(outputShape, tilingScheme, numClusters, axis);
+
+    int64_t offset = 0;
+    SmallVector<DimRange> inputTileDimRanges;
+    for (const auto& outputTile : outputTiles) {
+        const auto height = outputTile[Dim(axis)];
+        const DimRange tileHeight(offset, offset + height);
+        offset += height;
+
+        DimRange inputTile(0, 0);
+        std::tie(inputTile, std::ignore, std::ignore) =
+                vpux::inputForOutputDim(tileHeight, KY, SY, {0, Y}, padTop, padBottom);
+        inputTileDimRanges.push_back(inputTile);
+    }
+    return inputTileDimRanges;
+}
+
 SmallVector<Shape> vpux::VPU::getPerClusterComputeShapes(ShapeRef shapeRef, DistributedTensorAttr distributionAttr) {
     const auto shape = to_small_vector(shapeRef.raw());
     const auto distributionMode = distributionAttr.mode().getValue();
@@ -444,44 +487,12 @@ SmallVector<Shape> vpux::VPU::getPerClusterComputeShapes(ShapeRef shapeRef, Dist
     } else if (VPU::bitEnumContains(distributionMode, VPU::DistributionMode::OVERLAPPED)) {
         const auto tilingScheme = parseIntArrayAttr<int64_t>(distributionAttr.num_tiles());
         const auto axis = std::distance(tilingScheme.begin(), llvm::find_if(tilingScheme, isValidTile));
+        const auto inputTileDimRanges =
+                getOverlappedInputTileDimRanges(shape, tilingScheme, distributionAttr, axis, numClusters);
 
-        const auto N = shape[Dims4D::Act::N.ind()];
-        const auto C = shape[Dims4D::Act::C.ind()];
-        const auto Y = shape[Dims4D::Act::H.ind()];
-        const auto X = shape[Dims4D::Act::W.ind()];
-
-        const auto kernel = parseIntArrayAttr<int64_t>(distributionAttr.kernel());
-        const auto KY = kernel[Dims4D::Kernel::Y.ind()];
-        const auto KX = kernel[Dims4D::Kernel::X.ind()];
-
-        const auto pads = distributionAttr.pads();
-        const auto padTop = pads.top().getInt();
-        const auto padBottom = pads.bottom().getInt();
-        const auto padLeft = pads.left().getInt();
-        const auto padRight = pads.right().getInt();
-
-        const auto strides = parseIntArrayAttr<int64_t>(distributionAttr.strides());
-        const auto SY = strides[Dims4D::Strides::Y.ind()];
-        const auto SX = strides[Dims4D::Strides::X.ind()];
-
-        const auto outputHeight = (Y - KY + padTop + padBottom) / SY + 1;
-        const auto outputWidth = (X - KX + padLeft + padRight) / SX + 1;
-        const SmallVector<int64_t> outputShape{N, C, outputHeight, outputWidth};
-        const auto outputTiles = splitSegmentedShape(outputShape, tilingScheme, numClusters, axis);
-
-        int64_t offset = 0;
-        for (auto p : outputTiles | indexed) {
-            const auto outputTile = p.value();
+        for (auto p : inputTileDimRanges | indexed) {
+            const auto inputTile = p.value();
             const auto cluster = p.index();
-
-            const auto height = outputTile[Dim(axis)];
-            const DimRange tileHeight(offset, offset + height);
-            offset += height;
-
-            DimRange inputTile(0, 0);
-            std::tie(inputTile, std::ignore, std::ignore) =
-                    vpux::inputForOutputDim(tileHeight, KY, SY, {0, Y}, padTop, padBottom);
-
             tiledComputeShapes[cluster] = Shape(shape);
             tiledComputeShapes[cluster][Dim(axis)] = inputTile.end - inputTile.begin;
         }
@@ -492,6 +503,41 @@ SmallVector<Shape> vpux::VPU::getPerClusterComputeShapes(ShapeRef shapeRef, Dist
     return tiledComputeShapes;
 }
 
+SmallVector<Shape> vpux::VPU::getPerClusterComputeShapeOffsets(ShapeRef shapeRef,
+                                                               DistributedTensorAttr distributionAttr) {
+    const auto shape = to_small_vector(shapeRef.raw());
+    const auto distributionMode = distributionAttr.mode().getValue();
+
+    const auto numClusters = distributionAttr.num_clusters().getInt();
+    auto tiledComputeShapeOffsets = SmallVector<Shape>(numClusters, Shape(shapeRef.size(), 0));
+
+    const auto isValidTile = [](auto dim) {
+        return dim > 1;
+    };
+
+    if (VPU::bitEnumContains(distributionMode, VPU::DistributionMode::SEGMENTED)) {
+        const auto tiledComputeShapes = getPerClusterComputeShapes(shapeRef, distributionAttr);
+        const auto tilingScheme = parseIntArrayAttr<int64_t>(distributionAttr.num_tiles());
+        const auto axis = std::distance(tilingScheme.begin(), llvm::find_if(tilingScheme, isValidTile));
+        int64_t offset = 0;
+        for (int64_t idx = 0; idx < numClusters; idx++) {
+            tiledComputeShapeOffsets[idx][Dim(axis)] = offset;
+            offset += tiledComputeShapes[idx][Dim(axis)];
+        }
+    } else if (VPU::bitEnumContains(distributionMode, VPU::DistributionMode::OVERLAPPED)) {
+        const auto tilingScheme = parseIntArrayAttr<int64_t>(distributionAttr.num_tiles());
+        const auto axis = std::distance(tilingScheme.begin(), llvm::find_if(tilingScheme, isValidTile));
+        const auto inputTileDimRanges =
+                getOverlappedInputTileDimRanges(shape, tilingScheme, distributionAttr, axis, numClusters);
+
+        for (auto p : inputTileDimRanges | indexed) {
+            const auto inputTile = p.value();
+            const auto cluster = p.index();
+            tiledComputeShapeOffsets[cluster][Dim(axis)] = inputTile.begin;
+        }
+    }
+    return tiledComputeShapeOffsets;
+}
 //
 // Generated
 //

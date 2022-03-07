@@ -26,6 +26,7 @@
 
 // Plugin
 #include "vpux/utils/IE/config.hpp"
+#include "vpux/utils/IE/itt.hpp"
 #include "vpux_async_infer_request.h"
 #include "vpux_exceptions.h"
 #include "vpux_executable_network.h"
@@ -76,9 +77,13 @@ ExecutableNetwork::ExecutableNetwork(const Config& config, const Device::Ptr& de
 //------------------------------------------------------------------------------
 ExecutableNetwork::ExecutableNetwork(const IE::CNNNetwork& orignet, const Device::Ptr& device, const Config& config)
         : ExecutableNetwork(config, device) {
+    OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "ExecutableNetwork::ExecutableNetwork[Load]");
     // FIXME: This is a copy-paste from kmb_executable_network.cpp
     // should be fixed after switching to VPUX completely
+    OV_ITT_TASK_CHAIN(EXECUTABLE_NETWORK_LOAD, itt::domains::VPUXPlugin, "ExecutableNetwork::ExecutableNetwork[Load]",
+                      "CloneNetwork");
     IE::CNNNetwork network = IE::details::cloneNetwork(orignet);
+    OV_ITT_TASK_NEXT(EXECUTABLE_NETWORK_LOAD, "Compile");
     if (const auto func = network.getFunction()) {
         IE::InputsDataMap inputsInfo = network.getInputsInfo();
         IE::OutputsDataMap outputsInfo = network.getOutputsInfo();
@@ -94,7 +99,7 @@ ExecutableNetwork::ExecutableNetwork(const IE::CNNNetwork& orignet, const Device
         _logger.warning("Failed to read NGraph network");
         IE_THROW() << "Failed to read NGraph network";
     }
-
+    OV_ITT_TASK_NEXT(EXECUTABLE_NETWORK_LOAD, "createExecutor");
     // TODO: Fix this WA for EISW-22783, EISW-25449
     bool IE_VPUX_CREATE_EXECUTOR = true;
     if (const auto var = std::getenv("IE_VPUX_CREATE_EXECUTOR")) {
@@ -105,6 +110,7 @@ ExecutableNetwork::ExecutableNetwork(const IE::CNNNetwork& orignet, const Device
         _executorPtr = createExecutor(_networkPtr, _config, device);
         ConfigureStreamsExecutor(network.getName());
     }
+    OV_ITT_TASK_SKIP(EXECUTABLE_NETWORK_LOAD);
 }
 
 //------------------------------------------------------------------------------
@@ -112,15 +118,21 @@ ExecutableNetwork::ExecutableNetwork(const IE::CNNNetwork& orignet, const Device
 //------------------------------------------------------------------------------
 ExecutableNetwork::ExecutableNetwork(std::istream& networkModel, const Device::Ptr& device, const Config& config)
         : ExecutableNetwork(config, device) {
+    OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "ExecutableNetwork::ExecutableNetwork[Import]");
     try {
+        OV_ITT_TASK_CHAIN(EXECUTABLE_NETWORK_IMPORT, itt::domains::VPUXPlugin,
+                          "ExecutableNetwork::ExecutableNetwork[Import]", "Parse");
         const std::string networkName = "net" + std::to_string(loadBlobCounter);
         _networkPtr = _compiler->parse(networkModel, _config, networkName);
+        OV_ITT_TASK_NEXT(EXECUTABLE_NETWORK_IMPORT, "createExecutor");
         _executorPtr = createExecutor(_networkPtr, _config, device);
+        OV_ITT_TASK_NEXT(EXECUTABLE_NETWORK_IMPORT, "Init");
         _networkInputs = helpers::dataMapIntoInputsDataMap(_networkPtr->getInputsInfo());
         _networkOutputs = helpers::dataMapIntoOutputsDataMap(_networkPtr->getOutputsInfo());
         setInputs(helpers::ovRawNodesIntoOVNodes(_networkPtr->getOVParameters(), false));
         setOutputs(helpers::ovRawNodesIntoOVNodes(_networkPtr->getOVResults(), true));
         ConfigureStreamsExecutor(networkName);
+        OV_ITT_TASK_SKIP(EXECUTABLE_NETWORK_IMPORT);
     } catch (const std::exception& ex) {
         IE_THROW() << ex.what();
     } catch (...) {
@@ -165,6 +177,7 @@ IE::ITaskExecutor::Ptr ExecutableNetwork::getNextTaskExecutor() {
 //------------------------------------------------------------------------------
 IE::IInferRequestInternal::Ptr ExecutableNetwork::CreateInferRequestImpl(const IE::InputsDataMap networkInputs,
                                                                          const IE::OutputsDataMap networkOutputs) {
+    OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "ExecutableNetwork::CreateInferRequestImpl");
     if (!_executorPtr) {
         _executorPtr = createExecutor(_networkPtr, _config, _device);
         ConfigureStreamsExecutor(_networkName);
@@ -176,6 +189,7 @@ IE::IInferRequestInternal::Ptr ExecutableNetwork::CreateInferRequestImpl(const I
 }
 
 InferenceEngine::IInferRequestInternal::Ptr ExecutableNetwork::CreateInferRequest() {
+    OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "ExecutableNetwork::CreateInferRequest");
     if (!_executorPtr) {
         _executorPtr = createExecutor(_networkPtr, _config, _device);
         ConfigureStreamsExecutor(_networkName);

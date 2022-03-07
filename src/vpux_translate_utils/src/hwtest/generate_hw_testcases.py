@@ -1929,6 +1929,114 @@ class DMA(Operation):
     def filter_issues(self, args) -> bool:
         return True
 
+class DifferentClustersDPU(Operation):
+
+    PARAMS = [
+        'mpe_op_class',
+        'input_ttype',
+        'input_shape',
+        'weight_ttype',
+        'kernel_channels',
+        'kernel_shape',
+        'output_ttype',
+        'output_order',
+        'kernel_strides',
+        'kernel_pads',
+        'compress',
+        'mpe_cub',
+        'DPU_task_params'
+    ]
+    NAME = 'DifferentClustersDPU'
+
+    def __init__(self, settings):
+        self.settings = settings
+        settings.weight_shape = [settings.kernel_channels, settings.input_shape[1]] + settings.kernel_shape
+
+    def json_info(self, inputs, output):
+        return {
+            'case_type': 'DifferentClustersDPU',
+            'input': inputs[0].json_info,
+            'weight': inputs[1].json_info,
+            'output': output.json_info,
+            'conv_op': {
+                'stride': self.settings.kernel_strides,
+                'pad': self.settings.kernel_pads,
+                'group': 1,
+                'dilation': 1,
+                'compress': self.settings.compress,
+                'mpe_cub': self.settings.mpe_cub.name
+            },
+            'output_order': self.settings.output_order.name.lower(),
+            'DPUTaskParams': {
+                'input_cluster' : self.settings.DPU_task_params[0],
+                'output_cluster' : self.settings.DPU_task_params[1],
+                'weights_cluster' : self.settings.DPU_task_params[2],
+                'weights_table_cluster' : self.settings.DPU_task_params[3]
+            }
+        }
+
+    def validate(self):
+        pass
+
+    @property
+    def ident(self) -> str:
+        return f'DifferentClustersDPU_{self.settings.input_ttype.stype}_input_cluster_{self.settings.DPU_task_params[0]}_output_cluster_{self.settings.DPU_task_params[1]}_weights_cluster_{self.settings.DPU_task_params[2]}_weights_table_cluster_{self.settings.DPU_task_params[3]}'
+
+    @property
+    def orderer(self) -> Orderer:
+        return OrderNHWC
+
+    @property
+    def output_orderer(self) -> Orderer:
+        return orderToOrderer(self.settings.output_order)
+
+    @property
+    def data(self) -> dict:
+        return {
+            'Name': self.ident,
+            'Input Type': np.dtype(self.settings.input_ttype),
+            'Input Scale': self.settings.input_ttype.scale if hasattr(self.settings.input_ttype, 'scale') else 1,
+            'Input Zero Point': self.settings.input_ttype.zero if hasattr(self.settings.input_ttype, 'zero') else 0,
+            'Weights Type': np.dtype(self.settings.weight_ttype),
+            'Weights Scale': self.settings.weight_ttype.scale if hasattr(self.settings.weight_ttype, 'scale') else 1,
+            'Weights Zero Point': self.settings.weight_ttype.zero if hasattr(self.settings.weight_ttype, 'zero') else 0,
+            'Output Type': np.dtype(self.settings.output_ttype),
+            'Output Scale': self.settings.output_ttype.scale if hasattr(self.settings.output_ttype, 'scale') else 1,
+            'Output Zero Point': self.settings.output_ttype.zero if hasattr(self.settings.output_ttype, 'zero') else 0,
+            'IC': self.settings.input_shape[1],
+            'IH': self.settings.input_shape[2],
+            'IW': self.settings.input_shape[3],
+            'IK': self.settings.kernel_channels,
+            'KH': self.settings.kernel_shape[0],
+            'KW': self.settings.kernel_shape[1],
+            'SH': self.settings.kernel_strides[1],
+            'SW': self.settings.kernel_strides[0],
+            'PT': self.settings.kernel_pads[0],
+            'PB': self.settings.kernel_pads[2],
+            'PL': self.settings.kernel_pads[1],
+            'PR': self.settings.kernel_pads[3],
+            'NTHW_NTK': mpeCube2NTHW_NTK[self.settings.mpe_cub],
+            'Output Permute': SW2HWOrder[self.settings.output_order],
+            'Compression': int(self.settings.compress),
+        }
+
+    def generate_inputs(self, rng) -> List[Value]:
+        return [
+            self.settings.input_ttype.generate('input-0.bin', self.settings.input_shape, rng),
+            self.settings.weight_ttype.generate('weights.dat', self.settings.weight_shape, rng, orderer=OrderNCHW)
+        ]
+
+    def apply(self, values: List[Value]) -> np.ndarray:
+        lhs, rhs = iduConvCustom(values[0], values[1])
+        c2d = MTLConv2D(kernel_shape=self.settings.kernel_shape,
+                        pads = self.settings.kernel_pads,
+                        strides = self.settings.kernel_strides)
+        result = c2d.inference(lhs, rhs)
+        return result
+
+    def filter_issues(self, args) -> bool:
+        return True
+
 class RaceConditionDMA(Operation):
 
     PARAMS = ['mpe_op_class', 'input_ttype', 'output_ttype', 'iteration_count']
@@ -2851,6 +2959,50 @@ def genReadAfterWriteACTDPU(input_types=[FP16(0)],
                                                                 iteration_count
                                                                 ))
 
+def genDifferentClustersDPU(input_types=[FP16(4)],
+                            input_shapes=[[1, 32, 16, 16]],
+                            weight_types=[FP16(4)],
+                            kernel_channels=[64],
+                            kernel_shapes=[[1, 1]],
+                            output_types=[FP16(4)],
+                            output_orders=[Order.NHWC],
+                            strides=[[1, 1]],
+                            pads=Pad.none,
+                            compress=False,
+                            mpe_cubs=[MPE_CUBES.CUBOID_16x16],
+                            input_clusters = [0, 1],
+                            output_clusters = [0, 1],
+                            weights_clusters = [0, 1],
+                            weights_table_clusters = [0, 1]):
+
+    for (input_type, input_shape, kernel_channel, kernel_shape, output_order, stride, pad, mpe_cub, input_cluster, output_cluster, weights_cluster, weights_table_cluster) in itertools.product(input_types, input_shapes, kernel_channels, kernel_shapes, output_orders, strides, pads, mpe_cubs, input_clusters, output_clusters, weights_clusters, weights_table_clusters):
+
+        current_weight_types = weight_types
+        for weight_type in current_weight_types:
+
+            current_output_types = output_types
+            for output_type in current_output_types:
+                if(output_order != Order.NHWC and not _PPE_HAS_PERMUTATION_SUPPORT[output_type.__class__]) :
+                    print("skip", output_order, output_type)
+                    continue
+                if(input_cluster == output_cluster == weights_cluster == weights_table_cluster) :
+                    print("skip, DPU uses the memory of the same cluster, cluster num:", input_cluster)
+                    continue
+                yield DPUPipeline(DifferentClustersDPU.PARAMS, (DifferentClustersDPU,
+                                                                input_type,
+                                                                input_shape,
+                                                                weight_type,
+                                                                kernel_channel,
+                                                                kernel_shape,
+                                                                output_type,
+                                                                output_order,
+                                                                stride,
+                                                                pad,
+                                                                compress,
+                                                                mpe_cub,
+                                                                [input_cluster, output_cluster, weights_cluster, weights_table_cluster]
+                                                                ))
+
 def genActShave(input_types,
                input_shapes,
                output_types,
@@ -3600,6 +3752,8 @@ def generate_options(args):
         genReadAfterWriteDMADPU(
             iteration_count=13
         ),
+
+        genDifferentClustersDPU(),
 
         # # check all datatypes
         genDMA(

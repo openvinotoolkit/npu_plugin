@@ -51,6 +51,10 @@ target_include_directories(${TARGET_NAME}
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 )
 
+# TODO It doesn't work with openvino::itt
+target_compile_definitions(${TARGET_NAME} PUBLIC
+        $<TARGET_PROPERTY:IE::itt,INTERFACE_COMPILE_DEFINITIONS>)
+
 link_system_libraries(${TARGET_NAME}
     PRIVATE
         IE::inference_engine_plugin_api

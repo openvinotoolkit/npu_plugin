@@ -133,3 +133,300 @@ func @PatchWeightTableWithSpill() ->  memref<1x1008x2x2xf16, #NHWC, @CMX_NN> {
     // CHECK-SAME:  weight_table([[WEIGHT_TABLE_BUF2]] : memref<1008x1x1x4xsi32, @CMX_NN>)
     // CHECK-SAME:  activation_window([[ACT_WIN_BUF]] : memref<1008x1x1x16xui8, @CMX_NN>)
 }
+
+// -----
+
+#NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
+
+!InputDistributed = type !VPUIP.DistributedBuffer<
+    1x32x16x16xf16, #NHWC, @CMX_NN, {
+    mode = SEGMENTED,
+    num_tiles = [1, 1, 4, 1],
+    kernel = [3, 3],
+    pads = {bottom = 1, left = 1, right = 1, top = 1},
+    num_clusters = 4
+}>
+
+!WeightsDistributed = type !VPUIP.DistributedBuffer<
+    64x32x3x3xf16, #NHWC, @CMX_NN, {
+    mode = DUPLICATED,
+    num_clusters = 4
+}>
+
+!WeightsTableDistributed = type !VPUIP.DistributedBuffer<
+    64x1x1x4xsi32, #NHWC, @CMX_NN, {
+    mode = DUPLICATED,
+    num_clusters = 4
+}>
+
+!OutputDistributed = type !VPUIP.DistributedBuffer<
+    1x64x16x16xf16, #NHWC, @CMX_NN, {
+    mode = SEGMENTED,
+    num_tiles = [1, 1, 4, 1],
+    num_clusters = 4
+}>
+
+!Input_DDR = type memref<1x32x16x16xf16, #NHWC, @DDR>
+!Weights_DDR = type memref<64x32x3x3xf16, #NHWC, @DDR>
+!WeightsTable_DDR = type memref<64x1x1x4xsi32, #NHWC, @DDR>
+!Output_DDR = type memref<1x64x16x16xf16, #NHWC, @DDR>
+
+!InputStub_CMX = type memref<1x32x16x16xf16, #NHWC, @CMX_NN>
+!WeightsStub_CMX = type memref<64x32x3x3xf16, #NHWC, @CMX_NN>
+!WeightsTableStub_CMX = type memref<64x1x1x4xsi32, #NHWC, @CMX_NN>
+!OutputStub_CMX = type memref<1x64x16x16xf16, #NHWC, @CMX_NN>
+
+// CHECK-LABEL: @PatchWeightTableWithNCEClusterTiling
+func @PatchWeightTableWithNCEClusterTiling(%arg0: !Input_DDR) -> !Output_DDR {
+
+    %buf_in = VPURT.DeclareBuffer "CMX_NN" <0> -> !InputDistributed
+    %buf_W = VPURT.DeclareBuffer "CMX_NN" <16384> -> !WeightsDistributed
+    %buf_WT = VPURT.DeclareBuffer "CMX_NN" <86016> -> !WeightsTableDistributed
+    %buf_out = VPURT.DeclareBuffer "CMX_NN" <53248> -> !OutputDistributed
+    %buf_out_DDR = VPURT.DeclareBuffer "DDR" <0> -> !Output_DDR
+
+    %cst_W = const.Declare !Weights_DDR = #const.Content<dense<1.000000e+00> : tensor<64x32x3x3xf16>, [#const.Reorder<#NHWC>]>
+    %cst_WT = const.Declare !WeightsTable_DDR = #const.Content<dense<1> : tensor<64x1x1x4xsi32>, [#const.Reorder<#NHWC>]>
+
+    %5 = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
+    %6 = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
+    %7 = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
+
+    VPURT.Task updates(%5 : !VPURT.Barrier) attributes {isTrailingSWLayer = false}  {
+      %8 = VPUIP.NCEClusterTiling inputs(%arg0 as %arg1: !Input_DDR) outputs(%buf_in as %arg2: !InputStub_CMX) -> !InputDistributed {
+        %9 = VPUIP.NNDMA {port = 0 : i64} inputs(%arg1 : !Input_DDR) outputs(%arg2 : !InputStub_CMX) -> !InputStub_CMX
+      }
+    }
+
+    VPURT.Task waits(%5 : !VPURT.Barrier) updates(%6 : !VPURT.Barrier) attributes {isTrailingSWLayer = false}  {
+      %8 = VPUIP.NCEClusterTiling inputs(%cst_W as %arg1: !Weights_DDR) outputs(%buf_W as %arg2: !WeightsStub_CMX) -> !WeightsDistributed {
+        %9 = VPUIP.NNDMA {port = 0 : i64} inputs(%arg1 : !Weights_DDR) outputs(%arg2 : !WeightsStub_CMX) -> !WeightsStub_CMX
+      }
+    }
+
+    VPURT.Task waits(%5 : !VPURT.Barrier) updates(%6 : !VPURT.Barrier) attributes {isTrailingSWLayer = false}  {
+      %8 = VPUIP.NCEClusterTiling inputs(%cst_WT as %arg1: !WeightsTable_DDR) outputs(%buf_WT as %arg2: !WeightsTableStub_CMX) -> !WeightsTableDistributed {
+        %9 = VPUIP.NNDMA {port = 0 : i64} inputs(%arg1 : !WeightsTable_DDR) outputs(%arg2 : !WeightsTableStub_CMX) -> !WeightsTableStub_CMX
+      }
+    }
+
+    VPURT.Task waits(%6 : !VPURT.Barrier) updates(%7 : !VPURT.Barrier) attributes {isTrailingSWLayer = false}  {
+      %8 = VPUIP.NCEClusterTiling inputs(%buf_in as %arg1: !InputStub_CMX, %buf_W as %arg2: !WeightsStub_CMX, %buf_WT as %arg3: !WeightsTableStub_CMX) outputs(%buf_out as %arg4: !OutputStub_CMX) -> !OutputStub_CMX {
+        %9 = VPUIP.NCEClusterTask {kernel_padding = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}, kernel_size = [1, 1], kernel_strides = [1, 1], task_type = "CONV"} input(%arg1 : !InputStub_CMX) weights(%arg2 : !WeightsStub_CMX) weight_table(%arg3 : !WeightsTableStub_CMX) parent_input(%arg1 : !InputStub_CMX) parent_output(%arg4 : !OutputStub_CMX) outputs(%arg4 : !OutputStub_CMX) -> !OutputStub_CMX variants :  {
+          DPUTask {end = [31, 15, 15], mpe_mode = "VECTOR_FP16", pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}, start = [0, 0, 0]}
+        } PPE :  {
+        }
+      }
+    }
+
+    VPURT.Task waits(%7 : !VPURT.Barrier) attributes {isTrailingSWLayer = false}  {
+      %8 = VPUIP.NCEClusterTiling inputs(%buf_out as %arg1: !OutputStub_CMX) outputs(%buf_out_DDR as %arg2: !Output_DDR) -> !Output_DDR {
+        %9 = VPUIP.NNDMA {port = 0 : i64} inputs(%arg1 : !OutputStub_CMX) outputs(%arg2 : !Output_DDR) -> !Output_DDR
+      }
+    }
+    return %buf_out_DDR : !Output_DDR
+
+    // CHECK:       [[INPUT_BUF:%.*]] = VPURT.DeclareBuffer "CMX_NN" <0> -> !VPUIP.DistributedBuffer
+    // CHECK:       [[WEIGHT_BUF:%.*]] = VPURT.DeclareBuffer "CMX_NN" <[[WEIGHTS_ADDR:[^>]+]]> -> !VPUIP.DistributedBuffer
+    // CHECK:       [[WEIGHT_TABLE_BUF:%.*]] = VPURT.DeclareBuffer "CMX_NN" <86016> -> !VPUIP.DistributedBuffer
+    // CHECK:       [[OUTPUT_BUF:%.*]] = VPURT.DeclareBuffer "CMX_NN" <53248> -> !VPUIP.DistributedBuffer
+    // CHECK:       [[OUTPUT_BUF_DDR:%.*]] = VPURT.DeclareBuffer "DDR" <0> -> memref<1x64x16x16xf16, #NHWC, @DDR>
+
+    // CHECK:       [[CONST_W:%.*]] = const.Declare memref<64x32x3x3xf16, #NHWC, @DDR>
+    // CHECK:       [[CONST_WT:%.*]] = const.Declare memref<64x1x1x4xsi32, #NHWC, @DDR> = #const.Content<dense<1> : tensor<64x1x1x4xsi32>, [#const.Reorder<#NHWC>, #const.RelocateWeightsTable<[[WEIGHTS_ADDR]] : i64, 16777215 : i64>]>
+
+    // CHECK:       VPURT.Task
+    // CHECK-NEXT:      VPUIP.NCEClusterTiling
+    // CHECK-SAME:          inputs(%arg0
+    // CHECK-SAME:          outputs([[INPUT_BUF]]
+    // CHECK-NEXT:          VPUIP.NNDMA 
+
+    // CHECK:       VPURT.Task
+    // CHECK-NEXT:      VPUIP.NCEClusterTiling
+    // CHECK-SAME:          inputs([[CONST_W]]
+    // CHECK-SAME:          outputs([[WEIGHT_BUF]]
+    // CHECK-NEXT:          VPUIP.NNDMA   
+
+    // CHECK:       VPURT.Task
+    // CHECK-NEXT:      VPUIP.NCEClusterTiling
+    // CHECK-SAME:          inputs([[CONST_WT]]
+    // CHECK-SAME:          outputs([[WEIGHT_TABLE_BUF]]
+    // CHECK-NEXT:          VPUIP.NNDMA 
+
+    // CHECK:       VPURT.Task
+    // CHECK-NEXT:      VPUIP.NCEClusterTiling
+    // CHECK-SAME:          inputs([[INPUT_BUF]] as %arg1: memref<1x32x16x16xf16, #NHWC, @CMX_NN>, [[WEIGHT_BUF]] as %arg2: memref<64x32x3x3xf16, #NHWC, @CMX_NN>, [[WEIGHT_TABLE_BUF]] as %arg3: memref<64x1x1x4xsi32, #NHWC, @CMX_NN>)
+    // CHECK-SAME:          outputs([[OUTPUT_BUF]] as %arg4: memref<1x64x16x16xf16, #NHWC, @CMX_NN>)
+    // CHECK-NEXT:          VPUIP.NCEClusterTask 
+
+    // CHECK:       VPURT.Task
+    // CHECK-NEXT:      VPUIP.NCEClusterTiling
+    // CHECK-SAME:          inputs([[OUTPUT_BUF]]
+    // CHECK-SAME:          outputs([[OUTPUT_BUF_DDR]]
+    // CHECK-NEXT:          VPUIP.NNDMA 
+
+}
+
+
+// -----
+
+#NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
+
+!InputDistributed = type !VPUIP.DistributedBuffer<
+    1x32x16x16xf16, #NHWC, @CMX_NN, {
+    mode = SEGMENTED,
+    num_tiles = [1, 1, 4, 1],
+    kernel = [3, 3],
+    pads = {bottom = 1, left = 1, right = 1, top = 1},
+    num_clusters = 4
+}>
+
+!WeightsDistributed = type !VPUIP.DistributedBuffer<
+    64x32x3x3xf16, #NHWC, @CMX_NN, {
+    mode = DUPLICATED,
+    num_clusters = 4
+}>
+
+!WeightsTableDistributed = type !VPUIP.DistributedBuffer<
+    64x1x1x4xsi32, #NHWC, @CMX_NN, {
+    mode = DUPLICATED,
+    num_clusters = 4
+}>
+
+!OutputDistributed = type !VPUIP.DistributedBuffer<
+    1x64x16x16xf16, #NHWC, @CMX_NN, {
+    mode = SEGMENTED,
+    num_tiles = [1, 1, 4, 1],
+    num_clusters = 4
+}>
+
+!Input_DDR = type memref<1x32x16x16xf16, #NHWC, @DDR>
+!Weights_DDR = type memref<64x32x3x3xf16, #NHWC, @DDR>
+!WeightsTable_DDR = type memref<64x1x1x4xsi32, #NHWC, @DDR>
+!Output_DDR = type memref<1x64x16x16xf16, #NHWC, @DDR>
+
+!InputStub_CMX = type memref<1x32x16x16xf16, #NHWC, @CMX_NN>
+!WeightsStub_CMX = type memref<64x32x3x3xf16, #NHWC, @CMX_NN>
+!WeightsTableStub_CMX = type memref<64x1x1x4xsi32, #NHWC, @CMX_NN>
+!OutputStub_CMX = type memref<1x64x16x16xf16, #NHWC, @CMX_NN>
+
+// CHECK-LABEL: @PatchWeightTableWithNCEClusterTilingWithSpilling
+func @PatchWeightTableWithNCEClusterTilingWithSpilling(%arg0: !Input_DDR) -> !Output_DDR {
+
+    %buf_in = VPURT.DeclareBuffer "CMX_NN" <0> -> !InputDistributed
+    %buf_W = VPURT.DeclareBuffer "CMX_NN" <16384> -> !WeightsDistributed
+    %buf_WT_1 = VPURT.DeclareBuffer "CMX_NN" <86016> -> !WeightsTableDistributed
+    %buf_WT_DDR = VPURT.DeclareBuffer "DDR" <0> -> !WeightsTable_DDR
+    %buf_WT_2 = VPURT.DeclareBuffer "CMX_NN" <86016> -> !WeightsTableDistributed
+    %buf_out = VPURT.DeclareBuffer "CMX_NN" <53248> -> !OutputDistributed
+    %buf_out_DDR = VPURT.DeclareBuffer "DDR" <0> -> !Output_DDR
+
+    %cst_W = const.Declare !Weights_DDR = #const.Content<dense<1.000000e+00> : tensor<64x32x3x3xf16>, [#const.Reorder<#NHWC>]>
+    %cst_WT = const.Declare !WeightsTable_DDR = #const.Content<dense<1> : tensor<64x1x1x4xsi32>, [#const.Reorder<#NHWC>]>
+
+    %5 = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
+    %6 = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
+    %7 = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
+    %8 = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
+    %9 = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
+
+    VPURT.Task updates(%5 : !VPURT.Barrier) attributes {isTrailingSWLayer = false}  {
+      %10 = VPUIP.NCEClusterTiling inputs(%arg0 as %arg1: !Input_DDR) outputs(%buf_in as %arg2: !InputStub_CMX) -> !InputDistributed {
+        %11 = VPUIP.NNDMA {port = 0 : i64} inputs(%arg1 : !Input_DDR) outputs(%arg2 : !InputStub_CMX) -> !InputStub_CMX
+      }
+    }
+
+    VPURT.Task waits(%5 : !VPURT.Barrier) updates(%6 : !VPURT.Barrier) attributes {isTrailingSWLayer = false}  {
+      %10 = VPUIP.NCEClusterTiling inputs(%cst_W as %arg1: !Weights_DDR) outputs(%buf_W as %arg2: !WeightsStub_CMX) -> !WeightsDistributed {
+        %11 = VPUIP.NNDMA {port = 0 : i64} inputs(%arg1 : !Weights_DDR) outputs(%arg2 : !WeightsStub_CMX) -> !WeightsStub_CMX
+      }
+    }
+
+    VPURT.Task waits(%5 : !VPURT.Barrier) updates(%6 : !VPURT.Barrier) attributes {isTrailingSWLayer = false}  {
+      %10 = VPUIP.NCEClusterTiling inputs(%cst_WT as %arg1: !WeightsTable_DDR) outputs(%buf_WT_1 as %arg2: !WeightsTableStub_CMX) -> !WeightsTableDistributed {
+        %11 = VPUIP.NNDMA {port = 0 : i64} inputs(%arg1 : !WeightsTable_DDR) outputs(%arg2 : !WeightsTableStub_CMX) -> !WeightsTableStub_CMX
+      }
+    }
+
+    VPURT.Task waits(%6 : !VPURT.Barrier) updates(%7 : !VPURT.Barrier) attributes {isTrailingSWLayer = false}  {
+      %10 = VPUIP.NCEClusterTiling inputs(%buf_WT_1 as %arg1: !WeightsTableStub_CMX) outputs(%buf_WT_DDR as %arg2: !WeightsTable_DDR) -> !WeightsTable_DDR {
+        %11 = VPUIP.NNDMA {port = 0 : i64} inputs(%arg1 : !WeightsTableStub_CMX) outputs(%arg2 : !WeightsTable_DDR) -> !WeightsTable_DDR
+      }
+    }
+
+    VPURT.Task waits(%7 : !VPURT.Barrier) updates(%8 : !VPURT.Barrier) attributes {isTrailingSWLayer = false}  {
+      %10 = VPUIP.NCEClusterTiling inputs(%buf_WT_DDR as %arg1: !WeightsTable_DDR) outputs(%buf_WT_2 as %arg2: !WeightsTableStub_CMX) -> !WeightsTableDistributed {
+        %11 = VPUIP.NNDMA {port = 0 : i64} inputs(%arg1 : !WeightsTable_DDR) outputs(%arg2 : !WeightsTableStub_CMX) -> !WeightsTableStub_CMX
+      }
+    }
+
+    VPURT.Task waits(%8 : !VPURT.Barrier) updates(%9 : !VPURT.Barrier) attributes {isTrailingSWLayer = false}  {
+      %10 = VPUIP.NCEClusterTiling inputs(%buf_in as %arg1: !InputStub_CMX, %buf_W as %arg2: !WeightsStub_CMX, %buf_WT_2 as %arg3: !WeightsTableStub_CMX) outputs(%buf_out as %arg4: !OutputStub_CMX) -> !OutputStub_CMX {
+        %11 = VPUIP.NCEClusterTask {kernel_padding = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}, kernel_size = [1, 1], kernel_strides = [1, 1], task_type = "CONV"} input(%arg1 : !InputStub_CMX) weights(%arg2 : !WeightsStub_CMX) weight_table(%arg3 : !WeightsTableStub_CMX) parent_input(%arg1 : !InputStub_CMX) parent_output(%arg4 : !OutputStub_CMX) outputs(%arg4 : !OutputStub_CMX) -> !OutputStub_CMX variants :  {
+          DPUTask {end = [31, 15, 15], mpe_mode = "VECTOR_FP16", pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}, start = [0, 0, 0]}
+        } PPE :  {
+        }
+      }
+    }
+
+    VPURT.Task waits(%7 : !VPURT.Barrier) attributes {isTrailingSWLayer = false}  {
+      %10 = VPUIP.NCEClusterTiling inputs(%buf_out as %arg1: !OutputStub_CMX) outputs(%buf_out_DDR as %arg2: !Output_DDR) -> !Output_DDR {
+        %11 = VPUIP.NNDMA {port = 0 : i64} inputs(%arg1 : !OutputStub_CMX) outputs(%arg2 : !Output_DDR) -> !Output_DDR
+      }
+    }
+    return %buf_out_DDR : !Output_DDR
+
+    // CHECK:       [[INPUT_BUF:%.*]] = VPURT.DeclareBuffer "CMX_NN" <0> -> !VPUIP.DistributedBuffer
+    // CHECK:       [[WEIGHT_BUF:%.*]] = VPURT.DeclareBuffer "CMX_NN" <[[WEIGHTS_ADDR:[^>]+]]> -> !VPUIP.DistributedBuffer
+    // CHECK:       [[WEIGHT_TABLE_BUF_1:%.*]] = VPURT.DeclareBuffer "CMX_NN" <86016> -> !VPUIP.DistributedBuffer
+    // CHECK:       [[WEIGHT_TABLE_BUF_DDR:%.*]] = VPURT.DeclareBuffer "DDR" <0> -> memref<64x1x1x4xsi32, #NHWC, @DDR>
+    // CHECK:       [[WEIGHT_TABLE_BUF_2:%.*]] = VPURT.DeclareBuffer "CMX_NN" <86016> -> !VPUIP.DistributedBuffer
+    // CHECK:       [[OUTPUT_BUF:%.*]] = VPURT.DeclareBuffer "CMX_NN" <53248> -> !VPUIP.DistributedBuffer
+    // CHECK:       [[OUTPUT_BUF_DDR:%.*]] = VPURT.DeclareBuffer "DDR" <0> -> memref<1x64x16x16xf16, #NHWC, @DDR>
+
+    // CHECK:       [[CONST_W:%.*]] = const.Declare memref<64x32x3x3xf16, #NHWC, @DDR>
+    // CHECK:       [[CONST_WT:%.*]] = const.Declare memref<64x1x1x4xsi32, #NHWC, @DDR> = #const.Content<dense<1> : tensor<64x1x1x4xsi32>, [#const.Reorder<#NHWC>, #const.RelocateWeightsTable<[[WEIGHTS_ADDR]] : i64, 16777215 : i64>]>
+
+    // CHECK:       VPURT.Task
+    // CHECK-NEXT:      VPUIP.NCEClusterTiling
+    // CHECK-SAME:          inputs(%arg0
+    // CHECK-SAME:          outputs([[INPUT_BUF]]
+    // CHECK-NEXT:          VPUIP.NNDMA 
+
+    // CHECK:       VPURT.Task
+    // CHECK-NEXT:      VPUIP.NCEClusterTiling
+    // CHECK-SAME:          inputs([[CONST_W]]
+    // CHECK-SAME:          outputs([[WEIGHT_BUF]]
+    // CHECK-NEXT:          VPUIP.NNDMA   
+
+    // CHECK:       VPURT.Task
+    // CHECK-NEXT:      VPUIP.NCEClusterTiling
+    // CHECK-SAME:          inputs([[CONST_WT]]
+    // CHECK-SAME:          outputs([[WEIGHT_TABLE_BUF_1]]
+    // CHECK-NEXT:          VPUIP.NNDMA 
+
+    // CHECK:       VPURT.Task
+    // CHECK-NEXT:      VPUIP.NCEClusterTiling
+    // CHECK-SAME:          inputs([[WEIGHT_TABLE_BUF_1]]
+    // CHECK-SAME:          outputs([[WEIGHT_TABLE_BUF_DDR]]
+    // CHECK-NEXT:          VPUIP.NNDMA 
+
+    // CHECK:       VPURT.Task
+    // CHECK-NEXT:      VPUIP.NCEClusterTiling
+    // CHECK-SAME:          inputs([[WEIGHT_TABLE_BUF_DDR]]
+    // CHECK-SAME:          outputs([[WEIGHT_TABLE_BUF_2]]
+    // CHECK-NEXT:          VPUIP.NNDMA 
+
+    // CHECK:       VPURT.Task
+    // CHECK-NEXT:      VPUIP.NCEClusterTiling
+    // CHECK-SAME:          inputs([[INPUT_BUF]] as %arg1: memref<1x32x16x16xf16, #NHWC, @CMX_NN>, [[WEIGHT_BUF]] as %arg2: memref<64x32x3x3xf16, #NHWC, @CMX_NN>, [[WEIGHT_TABLE_BUF_2]] as %arg3: memref<64x1x1x4xsi32, #NHWC, @CMX_NN>)
+    // CHECK-SAME:          outputs([[OUTPUT_BUF]] as %arg4: memref<1x64x16x16xf16, #NHWC, @CMX_NN>)
+    // CHECK-NEXT:          VPUIP.NCEClusterTask 
+
+    // CHECK:       VPURT.Task
+    // CHECK-NEXT:      VPUIP.NCEClusterTiling
+    // CHECK-SAME:          inputs([[OUTPUT_BUF]]
+    // CHECK-SAME:          outputs([[OUTPUT_BUF_DDR]]
+    // CHECK-NEXT:          VPUIP.NNDMA 
+
+}

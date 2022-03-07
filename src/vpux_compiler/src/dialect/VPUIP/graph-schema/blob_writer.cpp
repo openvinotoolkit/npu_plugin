@@ -84,9 +84,7 @@ SmallVector<uint8_t> createInvocationArgs(VPUIP::BlobWriter& blobWriter, VPUIP::
 }  // namespace
 
 const ActShaveCompileParams& vpux::VPUIP::BlobWriter::compileParams() {
-    static const ActShaveCompileParams params = {
-            /*cpu=*/"3010xx",
-    };
+    static const ActShaveCompileParams params = {/*cpu=*/{"3720xx", "3700xx", "3600xx", "3010xx", "3010xx"}};
 
     return params;
 }
@@ -339,7 +337,7 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BlobWriter::createUPALayerTask(mlir
 
 VPUIP::BlobWriter::TensorReference vpux::VPUIP::BlobWriter::createTensorRef(
         StringRef name, vpux::NDTypeInterface type, VPURT::BufferSection section, ArrayRef<int64_t> sectionIndex,
-        int64_t byteOffset, ArrayRef<uint16_t> mult, ArrayRef<uint8_t> shift, int8_t postShift,
+        int64_t byteOffset, ArrayRef<int64_t> mult, ArrayRef<int64_t> shift, int64_t postShift,
         ArrayRef<uint8_t> zeroPoints, Optional<int64_t> sparsityMapOffset, Optional<int64_t> storageElementOffset) {
     const auto serializedName = createString(name);
 
@@ -352,15 +350,12 @@ VPUIP::BlobWriter::TensorReference vpux::VPUIP::BlobWriter::createTensorRef(
             createIndirectDataReference(byteOffset, sparsityMapOffset, storageElementOffset);
 
     const auto serializedLocale = VPUIP::createMemoryLocation(section);
-    SmallVector<uint32_t> castedSectionIndex(sectionIndex.size());
-    std::transform(sectionIndex.begin(), sectionIndex.end(), castedSectionIndex.begin(), [](int64_t val) {
-        return checked_cast<uint32_t>(val);
-    });
-    const auto serializedLocaleIndex = createVector(castedSectionIndex);
 
     Vector<uint8_t> serializedQuantZero = createVector(zeroPoints);
-    Vector<uint16_t> serializedQuantMult = createVector(mult);
-    Vector<uint8_t> serializedQuantShift = createVector(shift);
+
+    const auto serializedLocaleIndex = arrayCast<uint32_t>(sectionIndex);
+    const auto serializedQuantMult = arrayCast<uint16_t>(mult);
+    const auto serializedQuantShift = arrayCast<uint8_t>(shift);
 
     const auto basePtrs = createVector(std::vector<uint16_t>{});
 
@@ -375,7 +370,7 @@ VPUIP::BlobWriter::TensorReference vpux::VPUIP::BlobWriter::createTensorRef(
     builder.add_quant_zero(serializedQuantZero);
     builder.add_quant_mult(serializedQuantMult);
     builder.add_quant_shift(serializedQuantShift);
-    builder.add_quant_post_shift_right(postShift);
+    builder.add_quant_post_shift_right(checked_cast<int8_t>(postShift));
     builder.add_order(dimsOrder.code());
     builder.add_base_ptrs(basePtrs);
     return builder.Finish();
@@ -385,33 +380,38 @@ VPUIP::BlobWriter::TensorReference vpux::VPUIP::BlobWriter::createTensorRef(
         StringRef name, vpux::NDTypeInterface type, VPURT::BufferSection section, ArrayRef<int64_t> sectionIndex,
         int64_t byteOffset, Optional<int64_t> sparsityMapOffset, Optional<int64_t> storageElementOffset) {
     SmallVector<uint8_t> zeroPoints;
-    SmallVector<uint16_t> mult;
-    SmallVector<uint8_t> shift;
+    SmallVector<int64_t> mults;
+    SmallVector<int64_t> shifts;
 
     if (const auto qType = type.getElementType().dyn_cast<mlir::quant::UniformQuantizedType>()) {
         zeroPoints.push_back(checked_cast<uint8_t>(qType.getZeroPoint()));
-        mult.push_back(getQuantMultFromScale(qType.getScale()));
-        shift.push_back(getQuantShiftFromScale(qType.getScale()));
+        const auto scaleApproximation = QuantizationApproximation(_architecture, qType.getScale());
+        mults.push_back(scaleApproximation.mult());
+        shifts.push_back(scaleApproximation.shift());
     } else if (const auto qPerAxisType = type.getElementType().dyn_cast<mlir::quant::UniformQuantizedPerAxisType>()) {
         auto qtype_quant_zp = qPerAxisType.getZeroPoints();
         auto qtype_quant_scale = qPerAxisType.getScales();
-        zeroPoints.resize(qtype_quant_zp.size());
-        mult.resize(qtype_quant_scale.size());
-        shift.resize(qtype_quant_scale.size());
 
+        zeroPoints.resize(qtype_quant_zp.size());
         std::transform(qtype_quant_zp.begin(), qtype_quant_zp.end(), zeroPoints.begin(), [](int64_t val) {
             return checked_cast<uint8_t>(val);
         });
-        std::transform(qtype_quant_scale.begin(), qtype_quant_scale.end(), mult.begin(), getQuantMultFromScale);
-        std::transform(qtype_quant_scale.begin(), qtype_quant_scale.end(), shift.begin(), getQuantShiftFromScale);
+
+        mults.resize(qtype_quant_scale.size());
+        shifts.resize(qtype_quant_scale.size());
+        for (std::size_t i = 0; i < qtype_quant_scale.size(); ++i) {
+            const auto scaleApproximation = QuantizationApproximation(_architecture, qtype_quant_scale[i]);
+            mults[i] = scaleApproximation.mult();
+            shifts[i] = scaleApproximation.shift();
+        }
     } else {
         zeroPoints.push_back(0);
-        mult.push_back(1);
-        shift.push_back(0);
+        mults.push_back(1);
+        shifts.push_back(0);
     }
 
-    return createTensorRef(name, type, section, sectionIndex, byteOffset, mult, shift, 0, zeroPoints, sparsityMapOffset,
-                           storageElementOffset);
+    return createTensorRef(name, type, section, sectionIndex, byteOffset, mults, shifts, 0, zeroPoints,
+                           sparsityMapOffset, storageElementOffset);
 }
 
 VPUIP::BlobWriter::TensorReference vpux::VPUIP::BlobWriter::createTensorRef(StringRef name, vpux::NDTypeInterface type,

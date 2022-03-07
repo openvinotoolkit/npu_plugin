@@ -256,11 +256,13 @@ llvm::unique_function<int32_t(size_t)> getMultShiftFunc(mlir::Type inElemType, m
         }
 
         const auto ppeConverter = VPU::NCESparsity::ppeConvertersMap.at(arch);
-        return [rescale = std::move(rescale), ppeConverter, inElemType, ppe, updateMultForPPE](size_t oc) {
+        return [rescale = std::move(rescale), ppeConverter, inElemType, ppe, updateMultForPPE, arch](size_t oc) {
             const auto quantScale = rescale[oc];
-            const auto mult = vpux::getQuantMultFromScale(quantScale);
-            const auto shift = vpux::getQuantShiftFromScale(quantScale);
-            auto multShift = ppeConverter(shift, mult, rescale[oc], inElemType);
+
+            const auto scaleApproximation = QuantizationApproximation(arch, quantScale);
+
+            auto multShift = ppeConverter(checked_cast<uint8_t>(scaleApproximation.shift()),
+                                          checked_cast<uint16_t>(scaleApproximation.mult()), rescale[oc], inElemType);
             updateMultForPPE(multShift, ppe);
             return multShift;
         };
@@ -285,46 +287,69 @@ const EnumMap<VPU::ArchKind, VPU::NCESparsity::BiasConverterCb> vpux::VPU::NCESp
         {VPU::ArchKind::MTL, toHex},
 };
 
-void vpux::VPU::NCESparsity::computeQuantMultShift(double scale, uint32_t& shift, uint32_t& mult, uint32_t bits) {
-    int32_t exponent = 0;
-
-    const double mantissa = std::frexp(scale, &exponent);
-    shift = bits - exponent;
-    mult = static_cast<uint32_t>((mantissa * pow(2, bits)));
-}
-
 int64_t vpux::VPU::NCESparsity::getBitPatternSize(Mode mode, ShapeRef kernelSize, int64_t SX, mlir::Type elemType,
                                                   int64_t IC) {
     VPUX_THROW_UNLESS(kernelSize.size() == 2, "Unsupported kernel size: %d", kernelSize.size());
 
-    const auto actualType = getBaseStorageType(elemType);
-    const auto windowSize = getWindowSize(kernelSize[Dims4D::Kernel::X], SX, actualType);
+    const auto KY = kernelSize[Dims4D::Kernel::Y];
+    const auto KX = kernelSize[Dims4D::Kernel::X];
 
-    if (mode == Mode::CM_CONV) {
-        return kernelSize[Dims4D::Kernel::Y] * windowSize * IC;
-    } else if (mode == Mode::DW_CONV || mode == Mode::POOL) {
-        return kernelSize[Dims4D::Kernel::Y] * windowSize;
-    } else {
-        VPUX_THROW("Unsupported FakeSparsity mode");
-    }
+    const auto actualType = getBaseStorageType(elemType);
+    const auto windowSize = getWindowSize(KX, SX, actualType);
+
+    VPUX_THROW_UNLESS(windowSize >= KX, "windowsSize must be greater than or equal to KX. windowsSize={0}, KX={1}",
+                      windowSize, KX);
+
+    const auto numOfRepeat = mode == VPU::NCESparsity::Mode::CM_CONV ? KY * IC : KY;
+
+    return numOfRepeat * windowSize;
 }
 
 int64_t vpux::VPU::NCESparsity::getActivationWindowSize(Mode mode, ShapeRef kernelSize, int64_t SX, mlir::Type elemType,
                                                         int64_t IC) {
-    const auto actualType = getBaseStorageType(elemType);
-    const auto bitPatternSize = getBitPatternSize(mode, kernelSize, SX, actualType, IC);
-    const auto perChannelSparsitySize = static_cast<size_t>(std::ceil(bitPatternSize / 128.0) * 16);
-    const auto activationWindowSize = IC * perChannelSparsitySize;
-    return activationWindowSize;
+    // Align each activation map entry to 128 bits to abide the hw restriction.
+    // MaxPool is supported only in depth wise mode.
+    // Depth wise does not support weights sparsity in the real sense, but it will have to have an activation window
+    // pointer, which is regarded as "fake sparsity".
+    size_t perChannelSparsitySize = 0;
+    if (mode == Mode::CM_CONV) {
+        VPUX_THROW_UNLESS(kernelSize.size() == 2, "Unsupported kernel size: %d", kernelSize.size());
+        const auto KX = kernelSize[Dims4D::Kernel::X];
+
+        const auto actualType = getBaseStorageType(elemType);
+        const auto windowSize = getWindowSize(KX, SX, actualType);
+        const auto windowSparsitySize = std::ceil(windowSize / 8.0);
+        const auto numberOfRowsSparsityBytes = std::ceil((KX * IC * windowSparsitySize) / 16.0);
+
+        perChannelSparsitySize = static_cast<size_t>(numberOfRowsSparsityBytes * 16.0);
+    } else if (mode == Mode::DW_CONV || mode == Mode::POOL) {
+        const auto bitPatternSize = getBitPatternSize(mode, kernelSize, SX, elemType, IC);
+
+        perChannelSparsitySize = static_cast<size_t>(std::ceil(bitPatternSize / 128.0) * 16.0);
+    } else {
+        VPUX_THROW("Unsupported FakeSparsity mode");
+    }
+
+    return perChannelSparsitySize;
+}
+
+Shape vpux::VPU::NCESparsity::inferActivationWindowShape(int64_t fakeSparsitySize) {
+    return Shape{1, 1, 1, fakeSparsitySize};
+}
+
+Shape vpux::VPU::NCESparsity::inferActivationWindowShape(Mode mode, ShapeRef kernelSize, int64_t SX,
+                                                         mlir::Type elemType, int64_t IC) {
+    const auto activationWindowSize = getActivationWindowSize(mode, kernelSize, SX, elemType, IC);
+    return inferActivationWindowShape(activationWindowSize);
 }
 
 std::vector<uint8_t> vpux::VPU::NCESparsity::getFakeSparsity(Mode mode, ShapeRef kernelSize, int64_t SX,
-                                                             mlir::Type elemType, int64_t IC, int64_t OC) {
+                                                             mlir::Type elemType, int64_t IC) {
     const auto actualType = getBaseStorageType(elemType);
     const auto windowSize = getWindowSize(kernelSize[Dims4D::Kernel::X], SX, actualType);
     const auto bitPattern = getBitPattern(mode, kernelSize, windowSize, IC);
 
-    // Align each activation map entry to 16 bytes to abide the hw restriction.
+    // Align each activation map entry to 128 bits to abide the hw restriction.
     // MaxPool is supported only in depth wise mode.
     // Depth wise does not support weights sparsity in the real sense, but it will have to have an activation window
     // pointer, which is regarded as "fake sparsity".
@@ -341,7 +366,7 @@ std::vector<uint8_t> vpux::VPU::NCESparsity::getFakeSparsity(Mode mode, ShapeRef
     }
 
     // Repackaging each byte from bitPattern to a bit from fakeSparsity, the rest of the bits remain zero.
-    SmallVector<uint8_t> perChannelSparsity(perChannelSparsitySize, 0);
+    std::vector<uint8_t> perChannelSparsity(perChannelSparsitySize, 0);
     for (auto i : irange(bitPattern.size())) {
         const auto dstInd = (i / 128) * 16 + (i % 128) / 8;
         VPUX_THROW_UNLESS(dstInd < perChannelSparsity.size(),
@@ -350,14 +375,7 @@ std::vector<uint8_t> vpux::VPU::NCESparsity::getFakeSparsity(Mode mode, ShapeRef
         perChannelSparsity[dstInd] |= bitPattern[i] << (i % 8);
     }
 
-    std::vector<uint8_t> fakeSparsity;
-    fakeSparsity.reserve(OC * perChannelSparsitySize);
-    for (auto i : irange(OC)) {
-        std::ignore = i;
-        fakeSparsity.insert(fakeSparsity.end(), perChannelSparsity.begin(), perChannelSparsity.end());
-    }
-
-    return fakeSparsity;
+    return perChannelSparsity;
 }
 
 int32_t vpux::VPU::NCESparsity::getWeightPtrStep(mlir::Value weights, mlir::Value activationWindow) {
@@ -404,16 +422,6 @@ std::vector<int32_t> vpux::VPU::NCESparsity::getWeightsTable(mlir::Type inElemTy
 
     // In case of dense operation use sparsityPtrOffset beyond CMX memory range to satisfy HW requirements
     auto sparsityPtrOffset = sparsityPtr.hasValue() ? sparsityPtr.getValue() : SPARSITY_PTR_WHEN_NO_SPARISTY;
-    int32_t sparsityPtrStep = 0;
-    if (arch == VPU::ArchKind::MTL) {
-        if (weightsElemType) {
-            auto elementBitSize = static_cast<Bit>(getElemTypeSize(weightsElemType));
-            sparsityPtrStep = static_cast<int32_t>(
-                    static_cast<Byte>(Bit(weightPtrStep * CHAR_BIT / elementBitSize.count())).count());
-        } else {
-            sparsityPtrOffset = SPARSITY_PTR_WHEN_NO_SPARISTY;
-        }
-    }
 
     const auto weightsElementTypeBitSize =
             weightsElemType ? static_cast<Bit>(getElemTypeSize(weightsElemType)).count() : 0;
@@ -433,7 +441,11 @@ std::vector<int32_t> vpux::VPU::NCESparsity::getWeightsTable(mlir::Type inElemTy
         weightsTableVals[wtInd + 3] = getBiasFP(oc);
 
         weightPtrOffset += weightPtrStep;
-        sparsityPtrOffset += sparsityPtrStep;
     }
+
     return weightsTableVals;
+}
+
+Shape vpux::VPU::NCESparsity::inferWeightsTableShape(int64_t OC) {
+    return Shape{OC, 1, 1, VPU::NCEInvariant::WEIGHT_TABLE_NUM_ELEMENTS_PER_OC};
 }

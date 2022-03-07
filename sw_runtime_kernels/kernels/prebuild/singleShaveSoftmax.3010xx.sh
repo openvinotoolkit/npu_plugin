@@ -5,14 +5,14 @@ always_inline=-DCONFIG_ALWAYS_INLINE
 cpunum=3010
 cpu=${cpunum}xx
 
+if [ -z "${KERNEL_DIR}" ]; then KERNEL_DIR=..; fi
 if [ -z ${FIRMWARE_VPU_DIR} ]; then FIRMWARE_VPU_DIR=${VPUIP_2_DIR}; fi
 if [ -z "${MV_TOOLS_DIR}" ]; then echo "MV_TOOLS_DIR is not set"; env_is_set=0; fi
-if [ -z "${KERNEL_DIR}" ]; then KERNEL_DIR="../"; fi
 if [ -z "${MV_TOOLS_VERSION}" ]; then 
-  mv_tools_version_str=`grep "mv_tools_version" ${KERNEL_DIR}/../firmware_vpu_revision.txt`
-  mv_tools_version_arr=($mv_tools_version_str)
-  MV_TOOLS_VERSION=${mv_tools_version_arr[1]}
-  if [ -z "${MV_TOOLS_VERSION}" ]; then echo "MV_TOOLS_VERSION is not set"; env_is_set=0; fi
+mv_tools_version_str=`grep "mv_tools_version" ${KERNEL_DIR}/../firmware_vpu_revision.txt`
+mv_tools_version_arr=($mv_tools_version_str)
+MV_TOOLS_VERSION=${mv_tools_version_arr[1]}
+if [ -z "${MV_TOOLS_VERSION}" ]; then echo "MV_TOOLS_VERSION is not set"; env_is_set=0; fi
 fi
 if [ -z "${FIRMWARE_VPU_DIR}" ]; then echo "FIRMWARE_VPU_DIR is not set"; env_is_set=0; fi
 
@@ -72,18 +72,18 @@ fi
  -EL "${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}/common/moviCompile/lib/30xxxx-leon/mlibcrt.a" \
  --output "${KERNEL_DIR}/prebuild/singleShaveSoftmax_${cpu}.elf"
 
-if [ $? -ne 0 ]; then echo $'\nLinking of singleShaveSoftmax_3010.elf failed exit $?\n'; exit $?; fi
-"${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}/linux64/sparc-myriad-rtems-6.3.0/bin/sparc-myriad-rtems-objcopy" -O binary --only-section=.text "${KERNEL_DIR}/prebuild/singleShaveSoftmax_${cpu}.elf" "${KERNEL_DIR}/prebuild/act_shave_bin/sk.singleShaveSoftmax.3010xx.text"
+if [ $? -ne 0 ]; then echo $'\nLinking of singleShaveSoftmax_${cpu}.elf failed exit $?\n'; exit $?; fi
+"${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}/linux64/sparc-myriad-rtems-6.3.0/bin/sparc-myriad-rtems-objcopy" -O binary --only-section=.text "${KERNEL_DIR}/prebuild/singleShaveSoftmax_${cpu}.elf" "${KERNEL_DIR}/prebuild/act_shave_bin/sk.singleShaveSoftmax.${cpu}.text"
 if [ $? -ne 0 ]; then echo $'\nExtracting of sk.singleShaveSoftmax.${cpu}.text failed exit $?\n'; exit $?; fi
-"${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}/linux64/sparc-myriad-rtems-6.3.0/bin/sparc-myriad-rtems-objcopy" -O binary --only-section=.arg.data "${KERNEL_DIR}/prebuild/singleShaveSoftmax_${cpu}.elf" "${KERNEL_DIR}/prebuild/act_shave_bin/sk.singleShaveSoftmax.3010xx.data"
+"${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}/linux64/sparc-myriad-rtems-6.3.0/bin/sparc-myriad-rtems-objcopy" -O binary --only-section=.arg.data "${KERNEL_DIR}/prebuild/singleShaveSoftmax_${cpu}.elf" "${KERNEL_DIR}/prebuild/act_shave_bin/sk.singleShaveSoftmax.${cpu}.data"
 if [ $? -ne 0 ]; then echo $'\nExtracting of sk.singleShaveSoftmax.${cpu}.data failed exit $?\n'; exit $?; fi
 
 cd ${KERNEL_DIR}/prebuild/act_shave_bin
 if [ $? -ne 0 ]; then echo $'\nCan not cd to \"$${KERNEL_DIR}/prebuildact_shave_bin\"\n'; exit $?; fi
-xxd -i sk.singleShaveSoftmax.3010xx.text ../sk.singleShaveSoftmax.3010xx.text.xdat
-#xxd -i sk.singleShaveSoftmax.3010xx.text sk.singleShaveSoftmax.3010xx.text.xdat
+xxd -i sk.singleShaveSoftmax.${cpu}.text ../sk.singleShaveSoftmax.${cpu}.text.xdat
+#xxd -i sk.singleShaveSoftmax.${cpu}.text sk.singleShaveSoftmax.${cpu}.text.xdat
 if [ $? -ne 0 ]; then echo $'\nGenerating includable binary of text segment failed $?\n'; cd -; exit $?; fi
-xxd -i sk.singleShaveSoftmax.3010xx.data ../sk.singleShaveSoftmax.3010xx.data.xdat
+xxd -i sk.singleShaveSoftmax.${cpu}.data ../sk.singleShaveSoftmax.${cpu}.data.xdat
 if [ $? -ne 0 ]; then echo $'\nGenerating includable binary of data segment failed $?\n'; cd -; exit $?; fi
 cd -
 

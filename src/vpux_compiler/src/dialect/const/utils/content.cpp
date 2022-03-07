@@ -13,6 +13,7 @@
 
 #include "vpux/compiler/dialect/const/utils/content.hpp"
 
+#include "vpux/compiler/core/layers.hpp"
 #include "vpux/utils/IE/loop.hpp"
 
 using namespace vpux;
@@ -127,5 +128,59 @@ void vpux::Const::Content::copyTo(MutableArrayRef<char> buf) const {
             using ElemT = std::decay_t<decltype(dummy)>;
             fillBuf(this->getValues<ElemT>(), buf);
         });
+    }
+}
+
+//
+// Content::fillWithZero
+//
+
+void vpux::Const::Content::fillWithZero() {
+    if (auto perAxisQType = getElementType().dyn_cast_or_null<mlir::quant::UniformQuantizedPerAxisType>()) {
+        const auto outShape = getType().getShape();
+        const auto order = getType().getDimsOrder();
+        const auto outMemShape = order.toMemoryOrder(outShape);
+
+        VPUX_THROW_UNLESS(outShape.size() == 4, "Unsupported shape size {0}", outShape.size());
+        VPUX_THROW_UNLESS(perAxisQType.getQuantizedDimension() == 0, "Only per-channel quantization is supported");
+
+        const auto OC = outShape[Dims4D::Filter::OC];
+        const auto IC = outShape[Dims4D::Filter::IC];
+        const auto H = outShape[Dims4D::Filter::KY];
+        const auto W = outShape[Dims4D::Filter::KX];
+
+        const auto zeroPoints = perAxisQType.getZeroPoints();
+        for (int i = 0; i < OC; ++i) {
+            const auto zp = zeroPoints[i];
+
+            const auto fillChannel = [&](auto buffer) {
+                loop_3d(LoopExecPolicy::Parallel, IC, H, W, [&](int64_t ic, int64_t h, int64_t w) {
+                    using BufferType = std::decay_t<decltype(buffer)>;
+                    using ElemType = typename BufferType::value_type;
+
+                    const auto inMemIndND = order.toMemoryOrder(Shape{i, ic, h, w});
+                    const auto inMemInd1D = getMemIndex1D(inMemIndND, outMemShape);
+
+                    buffer[inMemInd1D] = checked_cast<ElemType>(zp);
+                });
+            };
+
+            mutate(fillChannel);
+        }
+
+    } else if (auto qType = getElementType().dyn_cast_or_null<mlir::quant::UniformQuantizedType>()) {
+        const auto zp = qType.getZeroPoint();
+
+        const auto fillBuffer = [&](auto buffer) {
+            using BufferType = std::decay_t<decltype(buffer)>;
+            using ElemType = typename BufferType::value_type;
+
+            std::fill_n(buffer.data(), buffer.size(), checked_cast<ElemType>(zp));
+        };
+
+        mutate(fillBuffer);
+    } else {
+        auto outBuf = getRawTempBuf();
+        std::fill_n(outBuf.data(), outBuf.size(), char(0));
     }
 }

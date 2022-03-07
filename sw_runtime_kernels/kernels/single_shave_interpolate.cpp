@@ -614,7 +614,7 @@ void singleShaveInterpolate(uint32_t lParams) {
     sp->interpolation_mode = layerParams->interpolation_mode;
     sp->coord_transform_mode = layerParams->coord_transform_mode;
     sp->nearest_mode = layerParams->nearest_mode;
-    sp->antialias = layerParams->antialias;
+    sp->antialias = (uint32_t)layerParams->antialias;
 
     sp->inDims.storageOrder = layerParams->input.dimsOrder;
     sp->outDims.storageOrder = layerParams->output.dimsOrder;

@@ -220,6 +220,14 @@ SmallVector<Shape> VPU::DistributedTensorType::getPerClusterComputeShapes() cons
     return VPU::getPerClusterComputeShapes(getShape(), getDistribution());
 }
 
+// @brief Retrive the offsets for each compute shape with regards to full tensor shape.
+// @warning An important thing to consider with regards to compute offsets,
+// is that modes like SEGMENTED and OVERLAPPED take precedence over
+// DUPLICATED and MULTICASTED.
+SmallVector<Shape> VPU::DistributedTensorType::getPerClusterComputeShapeOffsets() const {
+    return VPU::getPerClusterComputeShapeOffsets(getShape(), getDistribution());
+}
+
 // @brief Get largest compact compute shape
 // @warning This function should not be used for memory size calculation,
 // because it does not retrieve the true allocate shape in cases
@@ -327,6 +335,8 @@ Byte VPU::DistributedTensorType::getCompactAllocSize() const {
 }
 
 NDTypeInterface VPU::DistributedTensorType::changeShape(ShapeRef shape) const {
+    VPUX_THROW_UNLESS(getDimsOrder().numDims() == shape.size(), "Order '{0}' is incompatible with the new shape '{1}'",
+                      getDimsOrder(), shape);
     auto elemType = getElementType();
     if (auto perAxisType = elemType.dyn_cast<mlir::quant::UniformQuantizedPerAxisType>()) {
         const auto axis = getQuantizedAxis(perAxisType.getQuantizedDimension(), getShape(), shape);
@@ -340,6 +350,13 @@ NDTypeInterface VPU::DistributedTensorType::changeShape(ShapeRef shape) const {
 
 NDTypeInterface VPU::DistributedTensorType::changeElemType(mlir::Type elemType) const {
     return VPU::DistributedTensorType::get(getContext(), getShape().raw(), elemType, getOrder(), getMemSpace(),
+                                           getDistribution());
+}
+
+NDTypeInterface VPU::DistributedTensorType::changeShapeElemType(ShapeRef shape, mlir::Type elemType) const {
+    VPUX_THROW_UNLESS(getDimsOrder().numDims() == shape.size(), "Order '{0}' is incompatible with the new shape '{1}'",
+                      getDimsOrder(), shape);
+    return VPU::DistributedTensorType::get(getContext(), shape.raw(), elemType, getOrder(), getMemSpace(),
                                            getDistribution());
 }
 

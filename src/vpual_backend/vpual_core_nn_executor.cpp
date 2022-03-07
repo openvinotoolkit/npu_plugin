@@ -500,7 +500,7 @@ const static vpux::EnumSet<InferenceEngine::VPUXConfigParams::VPUXPlatform> plat
 
 void VpualCoreNNExecutor::allocateGraph() {
 #if defined(__arm__) || defined(__aarch64__)
-    OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "allocateGraph");
+    OV_ITT_SCOPED_TASK(itt::domains::VpualBackend, "Executor::allocateGraph");
 
     static std::atomic<int> graphId_main(1);
 
@@ -727,7 +727,7 @@ static bool needRepackForNHWC(const ie::TensorDesc& actualDesc) {
 
 ie::Blob::Ptr VpualCoreNNExecutor::prepareInputForInference(const ie::Blob::Ptr& actualInput,
                                                             const ie::TensorDesc& deviceDesc) {
-    OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "prepareInputForInference");
+    OV_ITT_SCOPED_TASK(itt::domains::VpualBackend, "Executor::prepareInputForInference");
 
     const auto& actualDesc = actualInput->getTensorDesc();
     const auto& actualInputPrecision = actualDesc.getPrecision();
@@ -772,7 +772,7 @@ ie::Blob::Ptr VpualCoreNNExecutor::prepareInputForInference(const ie::Blob::Ptr&
 
 void VpualCoreNNExecutor::push(const ie::BlobMap& inputs) {
 #if defined(__arm__) || defined(__aarch64__)
-    OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "push");
+    OV_ITT_SCOPED_TASK(itt::domains::VpualBackend, "Executor::push");
     _logger.info("::push started");
 
     ie::BlobMap updatedInputs;
@@ -856,7 +856,7 @@ uint32_t VpualCoreNNExecutor::extractPhysAddrForInference(const ie::BlobMap& inp
 
 void VpualCoreNNExecutor::pull(ie::BlobMap& outputs) {
 #if defined(__arm__) || defined(__aarch64__)
-    OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "pull");
+    OV_ITT_SCOPED_TASK(itt::domains::VpualBackend, "Executor::pull");
     _logger.info("pull started");
     _wd->Start(this);
     const auto status = _nnSync->WaitForResponse(_execInferId);

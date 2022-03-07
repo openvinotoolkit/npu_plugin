@@ -65,8 +65,8 @@ bool vpux::VPU::NCEConvolutionOp::fitIntoCMX(mlir::Operation* op, mlir::ArrayAtt
         const auto kernelStrides = Shape(parseIntArrayAttr<int64_t>(strides));
         const auto SX = kernelStrides[Dims4D::Strides::X];
 
-        const auto activationWindowSize = NCESparsity::getActivationWindowSize(NCESparsity::Mode::CM_CONV, kernelSize,
-                                                                               SX, input.getElementType(), IC);
+        auto activationWindowSize = NCESparsity::getActivationWindowSize(NCESparsity::Mode::CM_CONV, kernelSize, SX,
+                                                                         input.getElementType(), IC);
 
         requiredCMX += alignedFilter.getTotalAllocSize();
         requiredCMX += activationWindowSize * 1_Byte;
@@ -155,42 +155,10 @@ mlir::LogicalResult vpux::VPU::verifyConv(mlir::Location loc, ArchKind arch, NCE
         std::ignore = errorAt(loc, "{0}", msg.str());
     };
 
-    if (op.bias() != nullptr) {
-        const auto biasType = op.bias().getType();
+    const auto outputShape = getShape(output);
+    const auto OC = outputShape[Dims4D::Act::C];
 
-        const auto outputShape = getShape(output);
-        const auto OC = outputShape[Dims4D::Act::C];
-
-        if (!biasType.getElementType().isa<mlir::FloatType>()) {
-            return errorAt(loc, "Bias must have Float element type");
-        }
-
-        if (biasType.getRank() != 4 && biasType.getRank() != 1) {
-            return errorAt(loc, "Bias must be either 1D or 4D");
-        }
-
-        if (biasType.getRank() == 1) {
-            const auto numBiases = biasType.getNumElements();
-
-            if (numBiases != OC) {
-                return errorAt(loc, "Number of Biases values do not match output channels");
-            }
-        } else {
-            const auto propBiasType = biasType.cast<vpux::NDTypeInterface>();
-            const auto biasShape = propBiasType.getShape();
-
-            if (biasShape[Dims4D::Act::N] != 1 || biasShape[Dims4D::Act::H] != 1 || biasShape[Dims4D::Act::W] != 1) {
-                return errorAt(loc, "Biases must have 1 elements for N, H and W dimensions");
-            }
-
-            if (biasShape[Dims4D::Act::C] != OC) {
-                return errorAt(loc, "Number of Biases channels do not match output channels");
-            }
-        }
-    }
-
-    const Shape filterShape = op.rawFilterShape() != nullptr ? Shape(parseIntArrayAttr<int64_t>(op.rawFilterShape()))
-                                                             : getShape(op.filter()).toValues();
+    const auto filterShape = Shape(parseIntArrayAttr<int64_t>(op.rawFilterShape()));
     const auto KY = filterShape[Dims4D::Filter::KY];
     const auto KX = filterShape[Dims4D::Filter::KX];
 
@@ -207,12 +175,127 @@ mlir::LogicalResult vpux::VPU::verifyConv(mlir::Location loc, ArchKind arch, NCE
         return mlir::failure();
     }
 
+    const auto weightsTableShape = getShape(op.weightsTable());
+    const auto expectedWeightsTableShape = NCESparsity::inferWeightsTableShape(OC);
+
+    if (weightsTableShape != expectedWeightsTableShape) {
+        return errorAt(loc, "Got wrong shape for 'weightsTable' '{0}', expected '{1}'", weightsTableShape,
+                       expectedWeightsTableShape);
+    }
+
     return mlir::success();
 }
 
 mlir::LogicalResult vpux::VPU::verifyOp(NCEConvolutionOp op) {
     const auto arch = getArch(op);
-    return verifyConv(op->getLoc(), arch, op, op.output());
+
+    if (mlir::failed(verifyConv(op->getLoc(), arch, op, op.output()))) {
+        return mlir::failure();
+    }
+
+    const auto inputOrder = DimsOrder::fromValue(op.input());
+    const auto filterOrder = DimsOrder::fromValue(op.filter());
+    const auto outputOrder = DimsOrder::fromValue(op.output());
+
+    if (arch == VPU::ArchKind::MTL) {
+        if (inputOrder != DimsOrder::NHWC) {
+            return errorAt(op, "Unsupported 'input' layout '{0}', expected NHWC", inputOrder);
+        }
+    } else {
+        if (inputOrder != DimsOrder::NHWC && inputOrder != DimsOrder::NCHW) {
+            return errorAt(op, "Unsupported 'input' layout '{0}', expected NHWC or NCHW", inputOrder);
+        }
+    }
+    if (filterOrder != DimsOrder::OYXI) {
+        return errorAt(op, "Unsupported 'filter' layout '{0}', expected OYXI", filterOrder);
+    }
+    if (arch != VPU::ArchKind::MTL && outputOrder != DimsOrder::NHWC) {
+        return errorAt(op, "Unsupported 'output' layout '{0}', expected NHWC", outputOrder);
+    }
+
+    const auto filterShape = Shape(parseIntArrayAttr<int64_t>(op.rawFilterShape()));
+    const auto KY = filterShape[Dims4D::Filter::KY];
+    const auto KX = filterShape[Dims4D::Filter::KX];
+
+    const auto kernelStrides = Shape(parseIntArrayAttr<int64_t>(op.strides()));
+    const auto SX = kernelStrides[Dims4D::Strides::X];
+
+    const auto inputType = op.input().getType().cast<NDTypeInterface>();
+    const auto outputType = op.output().getType().cast<NDTypeInterface>();
+
+    const auto alignedFilterShape = getShape(op.filter());
+    const auto expectedAlignedFilterShape = op.inferAlignedFilterShape(inputType, outputType);
+
+    if (alignedFilterShape != expectedAlignedFilterShape) {
+        return errorAt(op, "Got wrong shape for C-Major NCE Convolution 'filter' '{0}', expected '{1}'",
+                       alignedFilterShape, expectedAlignedFilterShape);
+    }
+
+    if (inputOrder == DimsOrder::NHWC) {
+        if (op.activationWindow() != nullptr) {
+            return errorAt(op, "'activationWindow' should not be used with Z-Major NCE Convolution");
+        }
+        if (op.activation_window_channel_length().hasValue()) {
+            return errorAt(op, "'activation_window_channel_length' should not be used with Z-Major NCE Convolution");
+        }
+    } else {
+        if (op.activationWindow() == nullptr) {
+            return errorAt(op, "Missing 'activationWindow' operand for C-Major NCE Convolution");
+        }
+        if (!op.activation_window_channel_length().hasValue()) {
+            return errorAt(op, "Missing 'activation_window_channel_length' operand for C-Major NCE Convolution");
+        }
+
+        const auto IC = inputType.getShape()[Dims4D::Act::C];
+
+        const auto kernelSize = Shape{KY, KX};
+
+        const auto activationWindowShape = getShape(op.activationWindow());
+        const auto expectedActivationWindowShape = NCESparsity::inferActivationWindowShape(
+                NCESparsity::Mode::CM_CONV, kernelSize, SX, inputType.getElementType(), IC);
+
+        if (activationWindowShape != expectedActivationWindowShape) {
+            return errorAt(op, "Got wrong shape for 'activationWindow' '{0}', expected '{1}'", activationWindowShape,
+                           expectedActivationWindowShape);
+        }
+
+        const auto bitPatternSize = VPU::NCESparsity::getBitPatternSize(VPU::NCESparsity::Mode::CM_CONV, kernelSize, SX,
+                                                                        inputType.getElementType(), IC);
+
+        if (op.activation_window_channel_length().getValue() != bitPatternSize) {
+            return errorAt(op, "Got wrong value for 'activation_window_channel_length' '{0}', expected '{1}'",
+                           op.activation_window_channel_length(), bitPatternSize);
+        }
+    }
+
+    return mlir::success();
+}
+
+Shape vpux::VPU::NCEConvolutionOp::inferAlignedFilterShape(NDTypeInterface input, NDTypeInterface output) {
+    const auto rawFilterShape = Shape(parseIntArrayAttr<int64_t>(this->rawFilterShape()));
+    const auto KY = rawFilterShape[Dims4D::Filter::KY];
+    const auto KX = rawFilterShape[Dims4D::Filter::KX];
+
+    const auto IC = input.getShape()[Dims4D::Act::C];
+    const auto OC = output.getShape()[Dims4D::Act::C];
+
+    const auto inputOrder = input.getDimsOrder();
+
+    if (inputOrder == DimsOrder::NHWC) {
+        return Shape{OC, IC, KY, KX};
+    } else {
+        const auto alignment = NCEInvariant::getAlignment(output.getElementType());
+
+        const auto remainder = (IC * KY * KX) % alignment;
+
+        if (remainder == 0) {
+            return Shape{OC, IC, KY, KX};
+        }
+
+        const auto padding = (remainder > 0) ? (alignment - remainder) : 0;
+
+        return Shape{OC, 1, 1, IC * KY * KX + padding};
+    }
 }
 
 //
@@ -231,8 +314,7 @@ mlir::LogicalResult vpux::VPU::NCEConvolutionOp::inferReturnTypeComponents(
     }
 
     const auto inShape = getShape(op.input());
-    const Shape filterShape = op.rawFilterShape() != nullptr ? Shape(parseIntArrayAttr<int64_t>(op.rawFilterShape()))
-                                                             : getShape(op.filter()).toValues();
+    const auto filterShape = Shape(parseIntArrayAttr<int64_t>(op.rawFilterShape()));
 
     if (inShape[Dims4D::Act::C] != filterShape[Dims4D::Filter::IC]) {
         return errorAt(loc, "Input tensor channels and filter shape must be the same");

@@ -282,16 +282,15 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
     const auto ppeConfiguration = testDesc.getActivationLayer();
     if (ppeConfiguration.activationType != nb::ActivationType::None) {
         const auto outputScale = 1.0 / output.qp.scale;
-        const auto quantMult = vpux::getQuantMultFromScale(outputScale);
-        const auto quantShifts = vpux::getQuantShiftAndPostShiftFromScale(outputScale);
+        const auto scaleApproximation = QuantizationApproximation(VPU::ArchKind::MTL, outputScale);
 
         const auto preluScale = ppeConfiguration.alpha;
-        const auto preluMult = vpux::getPReLUMultFromScale(preluScale);
-        const auto preluShift = vpux::getPReLUShiftFromScale(preluScale);
+        const auto alphaApproximation = PReLUApproximation(VPU::ArchKind::MTL, preluScale);
 
         nceTask.addPPETask(functionBuilder, getPPEMode(ppeConfiguration.activationType),
-                           std::numeric_limits<int32_t>::min(), std::numeric_limits<int32_t>::max(), preluMult,
-                           preluShift, quantMult, quantShifts.first, quantShifts.second);
+                           std::numeric_limits<int32_t>::min(), std::numeric_limits<int32_t>::max(),
+                           alphaApproximation.mult(), alphaApproximation.shift(), scaleApproximation.mult(),
+                           scaleApproximation.shift());
     }
 
     functionBuilder.create<mlir::ReturnOp>(builder.getUnknownLoc(), functionOutput);

@@ -239,6 +239,14 @@ SmallVector<Shape> VPUIP::DistributedBufferType::getPerClusterComputeShapes() co
     return VPU::getPerClusterComputeShapes(getShape(), getDistribution());
 }
 
+// @brief Retrive the array of compute buffer offsets with regards to the full buffer.
+// @warning An important thing to consider with regards to compute shapes,
+// is that modes like SEGMENTED and OVERLAPPED take precedence over
+// DUPLICATED and MULTICASTED.
+SmallVector<Shape> VPUIP::DistributedBufferType::getPerClusterComputeShapeOffsets() const {
+    return VPU::getPerClusterComputeShapeOffsets(getShape(), getDistribution());
+}
+
 // @brief Get largest compact compute shape
 // @warning This function should not be used for memory size calculation,
 // because it does not retrieve the true allocate shape in cases
@@ -365,7 +373,6 @@ Byte VPUIP::DistributedBufferType::getTotalAllocSize() const {
 Byte VPUIP::DistributedBufferType::getCompactAllocSize() const {
     auto shape = getShape();
     const auto distribution = getDistribution();
-    const auto tilingScheme = parseIntArrayAttr<int64_t>(distribution.num_tiles());
     const auto distributionMode = distribution.mode();
 
     // DUPLICATED|MULTICASTED takes priority since it means that each cluster will have the entire
@@ -391,6 +398,10 @@ NDTypeInterface VPUIP::DistributedBufferType::changeShape(ShapeRef) const {
 
 NDTypeInterface VPUIP::DistributedBufferType::changeElemType(mlir::Type) const {
     VPUX_THROW("changeElemType method is not implemented for DistributedBufferType");
+}
+
+NDTypeInterface VPUIP::DistributedBufferType::changeShapeElemType(ShapeRef, mlir::Type) const {
+    VPUX_THROW("changeShapeElemType method is not implemented for DistributedBufferType");
 }
 
 NDTypeInterface VPUIP::DistributedBufferType::changeDimsOrder(DimsOrder) const {

@@ -268,6 +268,66 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::AcoshUPAOp::serialize(VPUIP::BlobWr
 }
 
 //
+// AbsUPAOp
+//
+
+VPUIP::BlobWriter::SpecificTask vpux::VPUIP::AbsUPAOp::serialize(VPUIP::BlobWriter& writer) {
+    const auto abs = MVCNN::CreateAbsParams(writer);
+
+    MVCNN::PostOpsParamsBuilder builder(writer);
+    builder.add_nested_params_type(MVCNN::PostOpsNestedParams_AbsParams);
+    builder.add_nested_params(abs.Union());
+    const auto paramsOff = builder.Finish();
+
+    return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_PostOpsParams});
+}
+
+//
+// AtanUPAOp
+//
+
+VPUIP::BlobWriter::SpecificTask vpux::VPUIP::AtanUPAOp::serialize(VPUIP::BlobWriter& writer) {
+    const auto atan = MVCNN::CreateAtanParams(writer);
+
+    MVCNN::PostOpsParamsBuilder builder(writer);
+    builder.add_nested_params_type(MVCNN::PostOpsNestedParams_AtanParams);
+    builder.add_nested_params(atan.Union());
+    const auto paramsOff = builder.Finish();
+
+    return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_PostOpsParams});
+}
+
+//
+// AsinUPAOp
+//
+
+VPUIP::BlobWriter::SpecificTask vpux::VPUIP::AsinUPAOp::serialize(VPUIP::BlobWriter& writer) {
+    const auto asin = MVCNN::CreateAsinParams(writer);
+
+    MVCNN::PostOpsParamsBuilder builder(writer);
+    builder.add_nested_params_type(MVCNN::PostOpsNestedParams_AsinParams);
+    builder.add_nested_params(asin.Union());
+    const auto paramsOff = builder.Finish();
+
+    return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_PostOpsParams});
+}
+
+//
+// AcosUPAOp
+//
+
+VPUIP::BlobWriter::SpecificTask vpux::VPUIP::AcosUPAOp::serialize(VPUIP::BlobWriter& writer) {
+    const auto acos = MVCNN::CreateAcosParams(writer);
+
+    MVCNN::PostOpsParamsBuilder builder(writer);
+    builder.add_nested_params_type(MVCNN::PostOpsNestedParams_AcosParams);
+    builder.add_nested_params(acos.Union());
+    const auto paramsOff = builder.Finish();
+
+    return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_PostOpsParams});
+}
+
+//
 // Atanh
 //
 
@@ -596,6 +656,18 @@ mlir::Operation* vpux::VPUIP::BlobReader::parsePostOps(mlir::OpBuilder& builder,
         break;
     case MVCNN::PostOpsNestedParams_SoftPlusParams:
         op = builder.create<VPUIP::SoftPlusUPAOp>(mlir::UnknownLoc::get(_ctx), inputs[0], outputs[0]);
+        break;
+    case MVCNN::PostOpsNestedParams_AbsParams:
+        op = builder.create<VPUIP::AbsUPAOp>(mlir::UnknownLoc::get(_ctx), inputs[0], outputs[0]);
+        break;
+    case MVCNN::PostOpsNestedParams_AtanParams:
+        op = builder.create<VPUIP::AtanUPAOp>(mlir::UnknownLoc::get(_ctx), inputs[0], outputs[0]);
+        break;
+    case MVCNN::PostOpsNestedParams_AsinParams:
+        op = builder.create<VPUIP::AsinUPAOp>(mlir::UnknownLoc::get(_ctx), inputs[0], outputs[0]);
+        break;
+    case MVCNN::PostOpsNestedParams_AcosParams:
+        op = builder.create<VPUIP::AcosUPAOp>(mlir::UnknownLoc::get(_ctx), inputs[0], outputs[0]);
         break;
     default:
         VPUX_THROW("Unsupported PostOps operation type {0}", params->nested_params_type());
