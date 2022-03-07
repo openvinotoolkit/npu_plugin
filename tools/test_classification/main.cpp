@@ -273,6 +273,8 @@ int main(int argc, char *argv[]) {
                 outputInfoIt->second->setPrecision(prc);
                 if (outputInfoIt->second->getDims().size() == 2) {
                     outputInfoIt->second->setLayout(InferenceEngine::Layout::NC);
+                } else if (outputInfoIt->second->getDims().size() == 3) {
+                    outputInfoIt->second->setLayout(InferenceEngine::Layout::HWC);
                 } else {
                     outputInfoIt->second->setLayout(InferenceEngine::Layout::NHWC);
                 }
@@ -313,6 +315,8 @@ int main(int argc, char *argv[]) {
                 num_channels = 1;
                 image_size = totalSize;
             }
+            std::cout<<"num channels = " << num_channels<<std::endl;
+            std::cout<<"image size = " << image_size <<std::endl;
             // ASSUMPTION inputSeq_u8 is Z-Major (NHWC), BGR
             std::vector<uint8_t> input_nchw_rgb(num_channels * image_size);
             std::vector<uint8_t> input_nchw_bgr(num_channels * image_size);
@@ -409,6 +413,7 @@ int main(int argc, char *argv[]) {
              }
             // TODO Update to create all 4 options for input
             else if (inPrecision == Precision::FP32) {
+                std::cout<<"inPrecision == Precision::FP32" <<std::endl;
                 std::ifstream file(inputNames[inputIndex], std::ios::in | std::ios::binary);
                 if (!file.is_open())
                     throw std::logic_error("Input: " + inputNames[inputIndex] + " cannot be read!");
@@ -427,8 +432,9 @@ int main(int argc, char *argv[]) {
                 for (size_t pid = 0; pid < image_size; pid++) {
                     /** Iterate over all channels **/
                     for (size_t ch = 0; ch < num_channels; ++ch) {
-                        data[ch * image_size + pid] = inputSeq_fp32.at(pid*num_channels + ch);
-                        // std::cout << " data[" << (ch * image_size + pid) << "] = " << data[ch * image_size + pid];
+//                        data[ch * image_size + pid] = inputSeq_fp32.at(pid*num_channels + ch);
+                        data[ch * image_size + pid] = inputSeq_fp32.at(ch * image_size + pid);
+//                         std::cout << " data[" << (ch * image_size + pid) << "] = " << data[ch * image_size + pid];
                     }
                 }
                 writeToFile<float>(inputSeq_fp32, "./input_cpu_nhwc_bgr.bin");
