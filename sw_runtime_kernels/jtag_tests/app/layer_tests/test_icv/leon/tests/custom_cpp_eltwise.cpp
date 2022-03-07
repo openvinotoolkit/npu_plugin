@@ -56,10 +56,10 @@ __attribute__((aligned(1024)))
 
 namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, EltwiseBinaryMath)) {
     static constexpr std::initializer_list<SingleTest> test_list {
-          {{1, 1, 7},    {1, 1, 7},    orderZYX, FPE("power_fp16.elf"), {sw_params::Location::NN_CMX}},
-          {{1, 1, 20},   {1, 1, 20},   orderZYX, FPE("power_fp16.elf"), {sw_params::Location::NN_CMX}},
-          {{1000, 1, 1}, {1000, 1, 1}, orderZYX, FPE("power_fp16.elf"), {sw_params::Location::NN_CMX}},
-          {{9, 5, 17},   {9, 5, 17},   orderZYX, FPE("power_fp16.elf"), {sw_params::Location::NN_CMX}},
+          {{1, 1, 7},    {1, 1, 7},    orderZYX, FPE("???_fp16.elf"), {sw_params::Location::NN_CMX}},
+          {{1, 1, 20},   {1, 1, 20},   orderZYX, FPE("???_fp16.elf"), {sw_params::Location::NN_CMX}},
+          {{1000, 1, 1}, {1000, 1, 1}, orderZYX, FPE("???_fp16.elf"), {sw_params::Location::NN_CMX}},
+          {{9, 5, 17},   {9, 5, 17},   orderZYX, FPE("???_fp16.elf"), {sw_params::Location::NN_CMX}},
        };
 
     class CustomCppEltwiseBinaryMathTest : public CustomCppTests<fp16> {
