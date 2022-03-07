@@ -27,6 +27,7 @@
     half8* vecOut = (half8*)(p->output.dataAddr);         \
     const uint32_t numVectors = nElements / VECTOR_SIZE;  \
                                                           \
+    _Pragma("clang loop unroll_count(8)")                 \
     for (i = 0; i < numVectors; i++) {                    \
         vecOut[i] = ELTWISE_VEC_OP(vecInA[i], vecInB[i]); \
     }                                                     \
