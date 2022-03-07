@@ -46,8 +46,16 @@ private:
 
 void MultiClusterStrategyAssignmentPass::safeRunOnFunc() {
     auto func = getFunction();
-    StrategyManager strategyManager(func, _log);
-    strategyManager.assignMultiClusterStrategy();
+
+    auto module = func->getParentOfType<mlir::ModuleOp>();
+
+    auto nceCluster = IE::getAvailableExecutor(module, VPU::ExecutorKind::NCE);
+    VPUX_THROW_UNLESS(nceCluster != nullptr, "Failed to get NCE_Cluster information");
+
+    if (nceCluster.count() > 1) {
+        StrategyManager strategyManager(func, _log);
+        strategyManager.assignMultiClusterStrategy();
+    }
 }
 
 }  // namespace
