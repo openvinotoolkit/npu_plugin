@@ -39,6 +39,12 @@ static const char scale_message[] = "Scale of output from fully connected layer.
 /// @brief message for zero point
 static const char zeropoint_message[] = "Zero point of output from fully connected layer. Default value is 0";
 
+/// @brief message for iterations
+static const char iteration_message[] = "Execute iteration. Default value is 500";
+
+/// @brief message for infer request number
+static const char ireq_message[] = "Inference request number. Default value is 4";
+
 /// @brief Define flag for showing help message <br>
 DEFINE_bool(h, false, help_message);
 
@@ -55,6 +61,12 @@ DEFINE_double(s, DEFAULT_SCALE, scale_message);
 
 /// @brief message for zero point
 DEFINE_int32(z, DEFAULT_ZERO_POINT, zeropoint_message);
+
+/// @brief message for iterations
+DEFINE_int32(niter, 500, iteration_message);
+
+/// @brief message for iterations
+DEFINE_int32(nireq, 4, ireq_message);
 
 /**
 * @brief This function show a help message

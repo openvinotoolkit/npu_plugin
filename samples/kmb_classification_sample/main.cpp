@@ -25,9 +25,44 @@
 #include <samples/slog.hpp>
 
 #include "classification_sample.h"
-#include <format_reader_ptr.h>
+#include "infer_request_wrap.hpp"
+
+#include <file_reader.h>
+// define for NV12Blob
+#include <ie_compound_blob.h>
 
 using namespace InferenceEngine;
+#define IMAGE_WIDTH 1920
+#define IMAGE_HEIGHT 1080
+
+static void setNV12Preproc(const std::string& inputName, const std::string& inputFilePath,
+    std::vector<InferReqWrap::Ptr> requests, std::shared_ptr<vpu::KmbPlugin::utils::VPUAllocator>& allocator,
+    size_t expectedWidth, size_t expectedHeight) {
+    Blob::Ptr inputBlob;
+    inputBlob = vpu::KmbPlugin::utils::fromNV12File(inputFilePath, expectedWidth, expectedHeight, allocator);
+    for (size_t requestId = 0; requestId < requests.size(); requestId++) {
+        PreProcessInfo preprocInfo = requests.at(requestId)->getPreProcess(inputName);
+        preprocInfo.setResizeAlgorithm(RESIZE_BILINEAR);
+        preprocInfo.setColorFormat(ColorFormat::NV12);
+        requests.at(requestId)->setBlob(inputName, inputBlob, preprocInfo);
+    }
+}
+
+std::shared_ptr<vpu::KmbPlugin::utils::VPUAllocator> buildAllocator(const char* allocatorType) {
+    if (allocatorType == nullptr) {
+        return std::make_shared<vpu::KmbPlugin::utils::VPUSMMAllocator>();
+    }
+
+    std::string allocTypeStr(allocatorType);
+    if (allocTypeStr == "NATIVE") {
+        return std::make_shared<vpu::KmbPlugin::utils::NativeAllocator>();
+    } else if (allocTypeStr == "UDMA") {
+        throw std::runtime_error("buildAllocator: UDMA is not supported");
+    }
+
+    // VPUSMM is default
+    return std::make_shared<vpu::KmbPlugin::utils::VPUSMMAllocator>();
+}
 
 bool ParseAndCheckCommandLine(int argc, char *argv[]) {
     // ---------------------------Parsing and validation of input args--------------------------------------
@@ -103,10 +138,19 @@ int main(int argc, char *argv[]) {
             return 0;
         }
 
+        // Number of requests
+        uint32_t nireq = FLAGS_nireq;
+
+        size_t iteration = 0;
+        uint32_t niter = FLAGS_niter;
+
+
         /** This vector stores paths to the processed images **/
         std::string imageFileName = FLAGS_i;
 
         // -----------------------------------------------------------------------------------------------------
+        std::shared_ptr<vpu::KmbPlugin::utils::VPUAllocator> kmbAllocator =
+            buildAllocator(std::getenv("IE_VPU_KMB_MEMORY_ALLOCATOR_TYPE"));
 
         // --------------------------- 1. Load inference engine -------------------------------------
         slog::info << "Creating Inference Engine" << slog::endl;
@@ -116,7 +160,7 @@ int main(int argc, char *argv[]) {
         std::string binFileName = FLAGS_m;
         slog::info << "Loading blob:\t" << binFileName << slog::endl;
 
-        ExecutableNetwork importedNetwork = ie.ImportNetwork(binFileName, "KMB", {});
+        ExecutableNetwork importedNetwork = ie.ImportNetwork(binFileName, "VPUX", {});
         // -----------------------------------------------------------------------------------------------------
 
         // --------------------------- 3. Configure input & output ---------------------------------------------
@@ -127,93 +171,117 @@ int main(int argc, char *argv[]) {
         // -----------------------------------------------------------------------------------------------------
 
         // --------------------------- 4. Create infer request -------------------------------------------------
-        InferenceEngine::InferRequest inferRequest = importedNetwork.CreateInferRequest();
+        InferRequestsQueue inferRequestsQueue(importedNetwork, nireq);
         slog::info << "CreateInferRequest completed successfully" << slog::endl;
         // -----------------------------------------------------------------------------------------------------
 
         // --------------------------- 5. Prepare input --------------------------------------------------------
         /** Creating input blob **/
-        /** Filling input tensor with images. **/
-        FormatReader::ReaderPtr image_reader(imageFileName.c_str());
-        if (image_reader.get() == nullptr) {
-            throw std::logic_error("Image " + imageFileName + " cannot be read!");
+        std::string input_name = inputInfo.begin()->first;
+        setNV12Preproc(input_name, imageFileName, inferRequestsQueue.requests, kmbAllocator, IMAGE_WIDTH, IMAGE_HEIGHT);
+
+        auto startTime = Time::now();
+        while ((niter != 0LL && iteration < niter)) {
+            auto inferRequest = inferRequestsQueue.getIdleRequest();
+            if (!inferRequest) {
+                THROW_IE_EXCEPTION << "No idle Infer Requests!";
+            }
+            inferRequest->startAsync();
+            iteration++;
+            if (iteration%100 == 0)
+                slog::info << "inferRequest completed successfully #" << iteration << slog::endl;
         }
-
-        /** Image reader is expected to return interlaced (NHWC) BGR image **/
-        TensorDesc inputDataDesc = inputInfo.begin()->second->getTensorDesc();
-        std::vector<size_t> inputBlobDims = inputDataDesc.getDims();
-        size_t imageWidth = inputBlobDims.at(3);
-        size_t imageHeight = inputBlobDims.at(2);
-
-        Blob::Ptr imageBlob = make_shared_blob<uint8_t>(TensorDesc(Precision::U8,
-            inputBlobDims,
-            Layout::NHWC), image_reader->getData(imageWidth, imageHeight).get());
-
-        std::string firstInputName = inputInfo.begin()->first;
-        inferRequest.SetBlob(firstInputName.c_str(), imageBlob);
-
-        inferRequest.Infer();
-        slog::info << "inferRequest completed successfully" << slog::endl;
         // -----------------------------------------------------------------------------------------------------
+
+        // wait the latest inference executions
+        inferRequestsQueue.waitAll();
+        auto execTime = std::chrono::duration_cast<std::chrono::nanoseconds>(Time::now() - startTime).count();
 
         // --------------------------- 6. Process output -------------------------------------------------------
         slog::info << "Processing output blobs" << slog::endl;
 
         ConstOutputsDataMap outputInfo = importedNetwork.GetOutputsInfo();
-        if (outputInfo.size() != 1) throw std::logic_error("Sample supports topologies only with 1 output");
 
         std::string firstOutputName = outputInfo.begin()->first;
+        Blob::Ptr firstoutputBlob = inferRequestsQueue.requests.at(0)->getBlob(firstOutputName.c_str());
+        const SizeVector outputDims = firstoutputBlob->getTensorDesc().getDims();
+        size_t batchSize = outputDims.at(0);
+        slog::info << "Output batch size " << batchSize << slog::endl;
 
-        Blob::Ptr outputBlob = inferRequest.GetBlob(firstOutputName.c_str());
-        if (!outputBlob) {
-            throw std::logic_error("Cannot get output blob from inferRequest");
-        }
+        if (outputInfo.size() != 1) { // Multiple outputs
+            int outputId = 0;
+            for (const auto& output : outputInfo) {
+                const auto outputBlobName = output.first;
+                for (size_t requestId = 0; requestId < nireq; requestId++) {
+                    Blob::Ptr outputBlob = inferRequestsQueue.requests.at(requestId)->getBlob(outputBlobName.c_str());
+                    if (!outputBlob) {
+                        throw std::logic_error("Cannot get output blob from inferRequest");
+                    }
 
-        /** Read labels from file (e.x. AlexNet.labels) **/
-        std::string labelFileName = fileNameNoExt(FLAGS_m) + ".labels";
-        std::vector<std::string> labels = readLabelsFromFile(labelFileName);
+                    std::string outFilePath = "./output" + std::to_string(outputId) + "_"+ std::to_string(requestId) + ".dat";
+                    std::ofstream outFile(outFilePath, std::ios::binary);
+                    if (outFile.is_open()) {
+                        outFile.write(outputBlob->buffer(), outputBlob->byteSize());
+                    } else {
+                        slog::warn << "Failed to open '" << outFilePath << "'" << slog::endl;
+                    }
+                    outFile.close();
+                }
+                outputId++;
+            }
+        } else { // Single output
+            for (size_t requestId = 0; requestId < nireq; requestId++) {
+                Blob::Ptr outputBlob = inferRequestsQueue.requests.at(requestId)->getBlob(firstOutputName.c_str());
+                /** Read labels from file (e.x. AlexNet.labels) **/
+                std::string labelFileName = fileNameNoExt(FLAGS_m) + ".labels";
+                std::vector<std::string> labels = readLabelsFromFile(labelFileName);
 
-        auto inputInfoItem = *inputInfo.begin();
-        Blob::Ptr input_blob = inferRequest.GetBlob(inputInfoItem.first.c_str());
+                std::vector<std::string> imageNames = { imageFileName };
+                const size_t maxNumOfTop = 10;
+                const size_t resultsCount = outputBlob->size() / batchSize;
+                const size_t printedResultsCount = resultsCount > maxNumOfTop ? maxNumOfTop : resultsCount;
+                slog::info << "resultsCount " << resultsCount << slog::endl;
+                slog::info << "printedResultsCount " << printedResultsCount << slog::endl;
 
-        const SizeVector inputDims = input_blob->getTensorDesc().getDims();
-        size_t batchSize = inputDims.at(0);
+                // de-Quantization
+                int zeroPoint = FLAGS_z;
+                if (zeroPoint < std::numeric_limits<uint8_t>::min() || zeroPoint > std::numeric_limits<uint8_t>::max()) {
+                    slog::warn << "zeroPoint value " << zeroPoint << " overflows byte. Setting default." << slog::endl;
+                    zeroPoint = DEFAULT_ZERO_POINT;
+                }
+                float scale = static_cast<float>(FLAGS_s);
+                slog::info<< "zeroPoint:" << zeroPoint << slog::endl;
+                slog::info<< "scale:" << scale << slog::endl;
 
-        std::vector<std::string> imageNames = { imageFileName };
-        const size_t maxNumOfTop = 10;
-        const size_t resultsCount = outputBlob->size() / batchSize;
-        const size_t printedResultsCount = resultsCount > maxNumOfTop ? maxNumOfTop : resultsCount;
+                Blob::Ptr classificationOut = nullptr;
+                if (outputBlob->getTensorDesc().getPrecision() == InferenceEngine::Precision::U8) {
+                    classificationOut = deQuantize(outputBlob, scale, zeroPoint);
+                } else {
+                    classificationOut = outputBlob;
+                }
 
-        // de-Quantization
-        int zeroPoint = FLAGS_z;
-        if (zeroPoint < std::numeric_limits<uint8_t>::min() || zeroPoint > std::numeric_limits<uint8_t>::max()) {
-            slog::warn << "zeroPoint value " << zeroPoint << " overflows byte. Setting default." << slog::endl;
-            zeroPoint = DEFAULT_ZERO_POINT;
-        }
-        float scale = static_cast<float>(FLAGS_s);
-        slog::info << "zeroPoint: " << zeroPoint << slog::endl;
-        slog::info << "scale: " << scale << slog::endl;
-
-        Blob::Ptr classificationOut = nullptr;
-        if (outputBlob->getTensorDesc().getPrecision() == InferenceEngine::Precision::U8) {
-            classificationOut = deQuantize(outputBlob, scale, zeroPoint);
-        } else {
-            classificationOut = outputBlob;
-        }
-
-        ClassificationResult classificationResult(classificationOut, imageNames,
+                ClassificationResult classificationResult(classificationOut, imageNames,
                                                   batchSize, printedResultsCount,
                                                   labels);
-        classificationResult.print();
+                classificationResult.print();
 
-        std::string outFilePath = "./output.dat";
-        std::ofstream outFile(outFilePath, std::ios::binary);
-        if (outFile.is_open()) {
-            outFile.write(outputBlob->buffer(), outputBlob->byteSize());
-        } else {
-            slog::warn << "Failed to open '" << outFilePath << "'" << slog::endl;
+                std::string outFilePath = "./output_" + std::to_string(requestId) + ".dat";
+                std::ofstream outFile(outFilePath, std::ios::binary);
+                if (outFile.is_open()) {
+                    outFile.write(outputBlob->buffer(), outputBlob->byteSize());
+                } else {
+                    slog::warn << "Failed to open '" << outFilePath << "'" << slog::endl;
+                }
+                outFile.close();
+            }
         }
-        outFile.close();
+        double fps = batchSize * 1000.0 * 1000 * 1000 * iteration / execTime;
+        auto double_to_string = [] (const double number) {
+                    std::stringstream ss;
+                    ss << std::fixed << std::setprecision(2) << number;
+                    return ss.str();
+        };
+        std::cout << "Throughput: " << double_to_string(fps) << " FPS" << std::endl;
     }
     catch (const std::exception& error) {
         slog::err << "" << error.what() << slog::endl;
