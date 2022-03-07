@@ -186,8 +186,7 @@ PlaneTileSolution solutionForOutputTile(const PlaneTile& output, int64_t kernelX
 //
 
 InputTiling vpux::backInferConvTile(const TileInfo& outputTile, ShapeRef origInputShape, ShapeRef origFilterShape,
-                                    ShapeRef origBiasShape, mlir::ArrayAttr strides, mlir::ArrayAttr pads_begin,
-                                    mlir::ArrayAttr pads_end) {
+                                    ShapeRef origBiasShape, mlir::ArrayAttr strides, const PadInfo& origPadding) {
     PlaneTile output;
     output.height.begin = outputTile.offsets[Dims4D::Act::H];
     output.height.end = outputTile.offsets[Dims4D::Act::H] + outputTile.shape[Dims4D::Act::H];
@@ -197,11 +196,9 @@ InputTiling vpux::backInferConvTile(const TileInfo& outputTile, ShapeRef origInp
     const auto strideY = strides[Dims4D::Strides::Y.ind()].cast<mlir::IntegerAttr>().getValue().getSExtValue();
     const auto strideX = strides[Dims4D::Strides::X.ind()].cast<mlir::IntegerAttr>().getValue().getSExtValue();
 
-    const PadInfo origPads(pads_begin, pads_end);
-
     const auto solution =
             solutionForOutputTile(output, origFilterShape[Dims4D::Filter::KX], origFilterShape[Dims4D::Filter::KY],
-                                  strideX, strideY, origInputShape, origPads);
+                                  strideX, strideY, origInputShape, origPadding);
 
     TileInfo inputTile(origInputShape);
     TileInfo filterTile(origFilterShape);
@@ -228,10 +225,8 @@ InputTiling vpux::backInferConvTile(const TileInfo& outputTile, ShapeRef origInp
 }
 
 InputTiling vpux::backInferGroupConvTile(const TileInfo& outputTile, ShapeRef origInputShape, ShapeRef origFilterShape,
-                                         ShapeRef origBiasShape, mlir::ArrayAttr strides, mlir::ArrayAttr pads_begin,
-                                         mlir::ArrayAttr pads_end) {
-    auto res = backInferConvTile(outputTile, origInputShape, origFilterShape, origBiasShape, strides, pads_begin,
-                                 pads_end);
+                                         ShapeRef origBiasShape, mlir::ArrayAttr strides, const PadInfo& origPadding) {
+    auto res = backInferConvTile(outputTile, origInputShape, origFilterShape, origBiasShape, strides, origPadding);
 
     auto& inputTiles = res.tiles;
     const auto inputTileIdx = 0;
@@ -246,7 +241,7 @@ InputTiling vpux::backInferGroupConvTile(const TileInfo& outputTile, ShapeRef or
 //
 
 InputTiling vpux::backInferPoolTile(const TileInfo& outputTile, ShapeRef origInputShape, mlir::ArrayAttr kernel_size,
-                                    mlir::ArrayAttr strides, mlir::ArrayAttr pads_begin, mlir::ArrayAttr pads_end) {
+                                    mlir::ArrayAttr strides, const PadInfo& origPadding) {
     PlaneTile output;
     output.height.begin = outputTile.offsets[Dims4D::Act::H];
     output.height.end = outputTile.offsets[Dims4D::Act::H] + outputTile.shape[Dims4D::Act::H];
@@ -259,9 +254,8 @@ InputTiling vpux::backInferPoolTile(const TileInfo& outputTile, ShapeRef origInp
     const auto strideY = strides[Dims4D::Strides::Y.ind()].cast<mlir::IntegerAttr>().getValue().getSExtValue();
     const auto strideX = strides[Dims4D::Strides::X.ind()].cast<mlir::IntegerAttr>().getValue().getSExtValue();
 
-    const PadInfo origPads(pads_begin, pads_end);
-
-    const auto solution = solutionForOutputTile(output, kernelX, kernelY, strideX, strideY, origInputShape, origPads);
+    const auto solution =
+            solutionForOutputTile(output, kernelX, kernelY, strideX, strideY, origInputShape, origPadding);
 
     TileInfo inputTile(origInputShape);
 

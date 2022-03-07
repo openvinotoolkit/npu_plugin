@@ -122,7 +122,9 @@ def VPU_NCEConvolutionOp :
                 NoTerminator,
                 SingleBlock,
                 DeclareOpInterfaceMethods<IE_LayoutInfoOpInterface>,
-                DeclareOpInterfaceMethods<VPU_NCEOpInterface>
+                DeclareOpInterfaceMethods<IE_TilingBuilderOpInterface>,
+                DeclareOpInterfaceMethods<VPU_NCEOpInterface>,
+                IE_AlignedChannelsOpInterface
             ]
         > {
     let summary = "NCE version of Convolution layer";
@@ -163,13 +165,11 @@ def VPU_NCEConvolutionOp :
     }];
 
     let extraClassDeclaration = [{
-        static bool fitIntoCMX(mlir::Operation* op, mlir::ArrayAttr strides,
-                               vpux::NDTypeInterface input, vpux::NDTypeInterface filter,
-                               vpux::NDTypeInterface output);
+        bool fitIntoCMX(vpux::NDTypeInterface input, vpux::NDTypeInterface filter, vpux::NDTypeInterface output);
 
         static bool isSupported(vpux::IE::ConvolutionOp origOp, vpux::VPU::NCEInvariant::LogCb logCb);
 
-        static int64_t getInputChannelAlignment(vpux::NDTypeInterface inputType);
+        static int64_t getInputChannelAlignmentImpl(vpux::NDTypeInterface inputType);
 
         vpux::Shape inferAlignedFilterShape(vpux::NDTypeInterface input, vpux::NDTypeInterface output);
     }] # baseExtraClassDeclaration;
@@ -189,7 +189,9 @@ def VPU_NCEDepthConvolutionOp :
                 NoTerminator,
                 SingleBlock,
                 DeclareOpInterfaceMethods<IE_LayoutInfoOpInterface>,
-                DeclareOpInterfaceMethods<VPU_NCEOpInterface>
+                DeclareOpInterfaceMethods<IE_TilingBuilderOpInterface>,
+                DeclareOpInterfaceMethods<VPU_NCEOpInterface>,
+                IE_AlignedChannelsOpInterface
             ]
         > {
     let summary = "NCE version of Depthwise Convolution layer";
@@ -230,9 +232,7 @@ def VPU_NCEDepthConvolutionOp :
     }];
 
     let extraClassDeclaration = [{
-        static bool fitIntoCMX(mlir::Operation* op, mlir::ArrayAttr strides,
-                               vpux::NDTypeInterface input, vpux::NDTypeInterface filter,
-                               vpux::NDTypeInterface output);
+        bool fitIntoCMX(vpux::NDTypeInterface input, vpux::NDTypeInterface filter, vpux::NDTypeInterface output);
 
         static bool isSupported(vpux::IE::GroupConvolutionOp origOp, vpux::VPU::NCEInvariant::LogCb logCb);
 
@@ -256,7 +256,9 @@ def VPU_NCEMaxPoolOp :
                 NoTerminator,
                 SingleBlock,
                 DeclareOpInterfaceMethods<IE_LayoutInfoOpInterface>,
-                DeclareOpInterfaceMethods<VPU_NCEOpInterface>
+                DeclareOpInterfaceMethods<IE_TilingBuilderOpInterface>,
+                DeclareOpInterfaceMethods<VPU_NCEOpInterface>,
+                IE_AlignedChannelsOpInterface
             ]
         > {
     let summary = "NCE version of MaxPool layer";
@@ -295,8 +297,7 @@ def VPU_NCEMaxPoolOp :
     }];
 
     let extraClassDeclaration = [{
-        static bool fitIntoCMX(mlir::Operation* op, mlir::ArrayAttr kernel_size, mlir::ArrayAttr strides,
-                               vpux::NDTypeInterface input, vpux::NDTypeInterface output);
+        bool fitIntoCMX(vpux::NDTypeInterface input, vpux::NDTypeInterface output);
 
         static bool isSupported(vpux::IE::MaxPoolOp origOp, vpux::VPU::NCEInvariant::LogCb logCb);
 
@@ -318,8 +319,10 @@ def VPU_NCEEltwiseOp :
                 NoTerminator,
                 SingleBlock,
                 IE_EltwiseOp,
+                IE_TilingBuilderOpInterface,
                 DeclareOpInterfaceMethods<IE_LayoutInfoOpInterface>,
-                DeclareOpInterfaceMethods<VPU_NCEOpInterface>
+                DeclareOpInterfaceMethods<VPU_NCEOpInterface>,
+                IE_AlignedChannelsOpInterface
             ]
         > {
     let summary = "NCE version of Eltwise layer";
@@ -350,9 +353,7 @@ def VPU_NCEEltwiseOp :
     }];
 
     let extraClassDeclaration = [{
-        static bool fitIntoCMX(mlir::Operation* op,
-                               vpux::NDTypeInterface input1, vpux::NDTypeInterface input2,
-                               vpux::NDTypeInterface output);
+        bool fitIntoCMX(vpux::NDTypeInterface input1, vpux::NDTypeInterface input2, vpux::NDTypeInterface output);
 
         static bool isSupported(mlir::Operation* op, bool allowDifferentScales, bool allowDifferentZp,
                                 vpux::VPU::NCEInvariant::LogCb logCb);

@@ -29,7 +29,7 @@ namespace VPU {
 
 namespace NCESparsity {
 
-constexpr int32_t SPARSITY_PTR_WHEN_NO_SPARISTY = 0xFFFFFF;
+constexpr int32_t SPARSITY_PTR_WHEN_NO_SPARSITY = 0xFFFFFF;
 
 using BiasConverterCb = int32_t (*)(double);
 using PPEConverterCb = int32_t (*)(uint8_t, uint16_t, double, mlir::Type);

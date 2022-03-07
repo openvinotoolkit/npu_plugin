@@ -51,8 +51,7 @@ mlir::LogicalResult vpux::IE::MaxPoolOp::inferReturnTypeComponents(
             ngraph::CoordinateDiff(dataPaddingBelow.begin(), dataPaddingBelow.end()),
             ngraph::CoordinateDiff(dataPaddingAbove.begin(), dataPaddingAbove.end()),
             ngraph::Shape(windowShape.begin(), windowShape.end()),
-            ngraph::Strides(windowStrides.begin(), windowStrides.end()), true,
-            roundingType == vpux::IE::RoundingType::CEIL);
+            ngraph::Strides(windowStrides.begin(), windowStrides.end()), true, roundingType == RoundingType::CEIL);
 
     const auto shapeI64 = to_small_vector(outputShape.get_shape() | transformed([](size_t val) {
                                               return checked_cast<int64_t>(val);
@@ -64,10 +63,11 @@ mlir::LogicalResult vpux::IE::MaxPoolOp::inferReturnTypeComponents(
 
 InputTiling vpux::IE::MaxPoolOp::backInferTileInfo(const vpux::TileInfo& outputTile) {
     const auto origInputShape = getShape(input());
+    const auto origPadding = PadInfo(pads_begin(), pads_end());
 
-    return backInferPoolTile(outputTile, origInputShape, kernel_size(), strides(), pads_begin(), pads_end());
+    return backInferPoolTile(outputTile, origInputShape, kernel_size(), strides(), origPadding);
 }
 
-void vpux::IE::MaxPoolOp::adjustAttrs(const TilingInfo& inputTiling) {
+void vpux::IE::MaxPoolOp::adjustAttrs(const TilingInfo& inputTiling, const TileInfo& /*outputTile*/) {
     IE::adjustPaddings(this, inputTiling);
 }

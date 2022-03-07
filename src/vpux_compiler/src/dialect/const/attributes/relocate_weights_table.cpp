@@ -11,15 +11,14 @@
 // included with the Software Package for additional details.
 //
 
+#include "vpux/compiler/dialect/VPU/nce_invariant.hpp"
 #include "vpux/compiler/dialect/VPU/nce_sparsity.hpp"
-#include "vpux/compiler/dialect/VPUIP/nce_invariant.hpp"
 #include "vpux/compiler/dialect/const/attributes/content.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 
 #include "vpux/utils/IE/loop.hpp"
 #include "vpux/utils/core/func_ref.hpp"
 
-#include <mlir/Dialect/Quant/QuantTypes.h>
 #include <mlir/IR/DialectImplementation.h>
 
 using namespace vpux;
@@ -89,6 +88,8 @@ vpux::NDTypeInterface vpux::Const::RelocateWeightsTableAttr::inferOutputType(vpu
 //
 
 Const::Content vpux::Const::RelocateWeightsTableAttr::transform(vpux::Const::Content& input) const {
+    constexpr auto numElemPerOC = static_cast<size_t>(VPU::NCEInvariant::WEIGHT_TABLE_NUM_ELEMENTS_PER_OC);
+
     auto output =
             Const::Content::allocTempBuffer(inferOutputType(input.getType()),
                                             mlir::IntegerType::get(getContext(), 32, mlir::IntegerType::Signed), false);
@@ -98,14 +99,24 @@ Const::Content vpux::Const::RelocateWeightsTableAttr::transform(vpux::Const::Con
 
     const auto weightsPtr = static_cast<int32_t>(*getWeightsPtr().getValue().getRawData());
     const auto sparsityPtr = static_cast<int32_t>(*getSparsityPtr().getValue().getRawData());
-    const auto numElemPerOC = static_cast<size_t>(vpux::VPUIP::NCEInvariant::WEIGHT_TABLE_NUM_ELEMENTS_PER_OC);
+
+    int32_t weightPtrStep = 0;
+    int32_t sparsityPtrStep = 0;
+    if (values.size() >= numElemPerOC * 2) {
+        weightPtrStep = values[1 * numElemPerOC + 0] - values[0 * numElemPerOC + 0];
+        sparsityPtrStep = values[1 * numElemPerOC + 1] - values[0 * numElemPerOC + 1];
+    }
+
     loop_1d(LoopExecPolicy::Parallel, values.size() / numElemPerOC, [&](size_t i) {
         const auto wtInd = i * numElemPerOC;
-        patchedValues[wtInd + 0] = weightsPtr + values[wtInd + 0];
+
+        patchedValues[wtInd + 0] = checked_cast<int32_t>(weightsPtr + i * weightPtrStep);
+
         patchedValues[wtInd + 1] = values[wtInd + 1];
-        if (values[wtInd + 1] != VPU::NCESparsity::SPARSITY_PTR_WHEN_NO_SPARISTY) {
-            patchedValues[wtInd + 1] += sparsityPtr;
+        if (values[wtInd + 1] != VPU::NCESparsity::SPARSITY_PTR_WHEN_NO_SPARSITY) {
+            patchedValues[wtInd + 1] = checked_cast<int32_t>(sparsityPtr + i * sparsityPtrStep);
         }
+
         patchedValues[wtInd + 2] = values[wtInd + 2];
         patchedValues[wtInd + 3] = values[wtInd + 3];
     });

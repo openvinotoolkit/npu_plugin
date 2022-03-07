@@ -27,15 +27,15 @@ using namespace vpux;
 // fitIntoCMX
 //
 
-bool vpux::VPU::NCEEltwiseOp::fitIntoCMX(mlir::Operation* op, vpux::NDTypeInterface input1,
-                                         vpux::NDTypeInterface input2, vpux::NDTypeInterface output) {
+bool vpux::VPU::NCEEltwiseOp::fitIntoCMX(vpux::NDTypeInterface input1, vpux::NDTypeInterface input2,
+                                         vpux::NDTypeInterface output) {
     Byte requiredCMX(0);
 
     for (const auto& type : {input1, input2, output}) {
         requiredCMX += type.getTotalAllocSize();
     }
 
-    return requiredCMX <= getTotalCMXSize(op);
+    return requiredCMX <= getTotalCMXSize(getOperation());
 }
 
 //
@@ -92,9 +92,9 @@ bool vpux::VPU::NCEEltwiseOp::isSupported(mlir::Operation* op, bool allowDiffere
         return false;
     }
 
-    if (!NCEInvariant::isActTypeSupported(input1, getInputChannelAlignment(input1)) ||
-        !NCEInvariant::isActTypeSupported(input2, getInputChannelAlignment(input2)) ||
-        !NCEInvariant::isActTypeSupported(output, getOutputChannelAlignment(output))) {
+    if (!NCEInvariant::isActTypeSupported(input1, getInputChannelAlignmentImpl(input1)) ||
+        !NCEInvariant::isActTypeSupported(input2, getInputChannelAlignmentImpl(input2)) ||
+        !NCEInvariant::isActTypeSupported(output, getOutputChannelAlignmentImpl(output))) {
         logCb(llvm::formatv("Misaligned tensor shape"));
         return false;
     }
@@ -105,11 +105,6 @@ bool vpux::VPU::NCEEltwiseOp::isSupported(mlir::Operation* op, bool allowDiffere
 
     if (inputOrder1 != DimsOrder::NHWC || inputOrder2 != DimsOrder::NHWC || outputOrder != DimsOrder::NHWC) {
         logCb(llvm::formatv("Unsupported layout"));
-        return false;
-    }
-
-    if (!fitIntoCMX(op, input1, input2, output)) {
-        logCb(llvm::formatv("Operation doesn't fit into CMX memory"));
         return false;
     }
 

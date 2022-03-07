@@ -145,7 +145,7 @@ void buildReadAfterWriteDPUACTTest(const nb::TestCaseJsonDescriptor& testDesc, m
     const auto weightsTable = VPU::NCESparsity::getWeightsTable(
             inputType, outputType, static_cast<std::int32_t>(WEIGHTS_CMX_OFFSET),
             static_cast<std::int32_t>(weightsOutputChannelsStrideInBits.count() / CHAR_BIT),
-            static_cast<std::int32_t>(VPU::NCESparsity::SPARSITY_PTR_WHEN_NO_SPARISTY), vpux::VPU::ArchKind::MTL,
+            static_cast<std::int32_t>(VPU::NCESparsity::SPARSITY_PTR_WHEN_NO_SPARSITY), vpux::VPU::ArchKind::MTL,
             output.shape[1], weightsType);
 
     const auto weightsTableDDRMemRef =
