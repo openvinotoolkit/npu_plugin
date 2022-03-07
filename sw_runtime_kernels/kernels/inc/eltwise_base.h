@@ -43,7 +43,7 @@
 
 #define ELTWISE_BINARY_OP(funcName)                     \
                                                         \
-void funcName(const struct EltwiseParams *p) {          \
+void funcName(const struct Elt2OpdParams *p) {          \
                                                         \
     half* inA = (half*)(p->input[0].dataAddr);          \
     half* inB = (half*)(p->input[1].dataAddr);          \

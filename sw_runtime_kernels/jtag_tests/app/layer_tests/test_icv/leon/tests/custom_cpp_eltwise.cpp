@@ -110,11 +110,11 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Power)) {
             allocBuffer(m_outputTensor);
             allocBuffer(m_referenceOutputTensor);
 
-            m_powParams = reinterpret_cast<sw_params::EltwiseParams*>(paramContainer);
-           *m_powParams = sw_params::EltwiseParams(); //default ctor init obj
+            m_powParams = reinterpret_cast<sw_params::Elt2OpdParams*>(paramContainer);
+           *m_powParams = sw_params::Elt2OpdParams(); //default ctor init obj
 
             m_params.paramData = reinterpret_cast<uint32_t*>(paramContainer);
-            m_params.paramDataLen = sizeof(sw_params::EltwiseParams);
+            m_params.paramDataLen = sizeof(sw_params::Elt2OpdParams);
             m_requiredTensorLocation = static_cast<sw_params::Location>(m_currentTest->customLayerParams.layerParams[0]);
             m_params.baseParamData = sw_params::ToBaseKernelParams(m_powParams);
 
@@ -231,7 +231,7 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Power)) {
         ListIterator<SingleTest> m_testsLoop;
         ListIterator<EltOpInfo>  m_opInfoLoop;
         Tensor<fp16> m_inTensor[2]; //2x inputs
-        sw_params::EltwiseParams* m_powParams;
+        sw_params::Elt2OpdParams* m_powParams;
     };
 
     ICV_TESTS_REGISTER_SUITE(CustomCppPowerTest)

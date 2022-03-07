@@ -27,14 +27,14 @@ namespace sw_params {
 
 #pragma pack(push, 1)
 
-    struct __attribute__((packed)) EltwiseParams {
+    struct __attribute__((packed)) Elt2OpdParams {
         struct MemRefData input[2];
         struct MemRefData output;
     };
 
 #pragma pack(pop)
 
-    inline struct BaseKernelParams ToBaseKernelParams(struct EltwiseParams * params) {
+    inline struct BaseKernelParams ToBaseKernelParams(struct Elt2OpdParams * params) {
         struct BaseKernelParams result;
         result.numInputs  = 2;
         result.numOutputs = 1;
