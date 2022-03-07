@@ -59,7 +59,7 @@ void buildMultiClusteringSOKTest(const nb::TestCaseJsonDescriptor& testDesc, mli
     VPUX_THROW_UNLESS(!weightsShape.empty(), "buildMultiClusteringSOK: Got empty weightsShape");
 
     const char* weightsFileName = "weights.dat";
-    auto numCluster = 2;
+    auto numCluster = 4;
     VPUX_THROW_UNLESS(numCluster <= 4, "number of clustering must <= 4");
 
     auto ParentInputDistributed = VPUIP::DistributedBufferType::get(
@@ -106,11 +106,9 @@ void buildMultiClusteringSOKTest(const nb::TestCaseJsonDescriptor& testDesc, mli
         subWeightsTableCMXShape[0] = subWeightsTableCMXShape[0] / numCluster;
     }
 
-    const auto byteNumber = (static_cast<vpux::Bit>(getElemTypeSize(inputType)).count()) / CHAR_BIT;
     const auto orderAttr = mlir::AffineMapAttr::get(DimsOrder::NHWC.toAffineMap(ctx));
-    const auto elemStrides =
-            SmallVector<int64_t>({subOutputShape[1] * subOutputShape[2] * subOutputShape[3] * byteNumber, 1,
-                                  subOutputShape[1] * subOutputShape[3] * byteNumber, subOutputShape[1] * byteNumber});
+    const auto elemStrides = SmallVector<int64_t>(
+            {outputShape[1] * outputShape[2] * outputShape[3], 1, outputShape[1] * outputShape[3], outputShape[1]});
     const auto stridesAttr = getIntArrayAttr(ctx, elemStrides);
     const auto layout = IERT::MemRefAttr::get(orderAttr, stridesAttr, ctx);
 
@@ -214,9 +212,10 @@ void buildMultiClusteringSOKTest(const nb::TestCaseJsonDescriptor& testDesc, mli
 
         const auto weightsTableDDRType = mlir::RankedTensorType::get(subWeightsTableCMXShape, int32);
         const auto weightsTable = VPU::NCESparsity::getWeightsTable(
-                inputType, outputType, static_cast<std::int32_t>(WEIGHTS_CMX_OFFSET + index * subWeightsCMXSize),
+                inputType, outputType, static_cast<std::int32_t>(WEIGHTS_CMX_OFFSET),
                 static_cast<std::int32_t>(weightsOutputChannelsStrideInBits.count() / CHAR_BIT),
-                static_cast<std::int32_t>(0xFFFFFF), vpux::VPU::ArchKind::KMB, subOutputShape[1], weightsType);
+                VPU::NCESparsity::SPARSITY_PTR_WHEN_NO_SPARISTY, vpux::VPU::ArchKind::KMB, subOutputShape[1],
+                weightsType);
 
         const auto weightsTableDDRMemRef =
                 getMemRefType(VPURT::BufferSection::Constant, subWeightsTableCMXShape, int32, DimsOrder::NCHW)
