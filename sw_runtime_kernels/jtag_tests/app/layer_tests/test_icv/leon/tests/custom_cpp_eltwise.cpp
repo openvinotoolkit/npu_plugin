@@ -55,7 +55,7 @@ __attribute__((aligned(1024)))
 #include "param_eltwise.h"
 
 namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Power)) {
-    static constexpr std::initializer_list<SingleTest> pow_test_list {
+    static constexpr std::initializer_list<SingleTest> test_list {
           {{1, 1, 7},    {1, 1, 7},    orderZYX, FPE("power_fp16.elf"), {sw_params::Location::NN_CMX}},
           {{1, 1, 20},   {1, 1, 20},   orderZYX, FPE("power_fp16.elf"), {sw_params::Location::NN_CMX}},
           {{1000, 1, 1}, {1000, 1, 1}, orderZYX, FPE("power_fp16.elf"), {sw_params::Location::NN_CMX}},
@@ -65,7 +65,7 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Power)) {
     class CustomCppPowerTest : public CustomCppTests<fp16> {
     public:
         explicit CustomCppPowerTest():
-                    m_testsLoop(pow_test_list, "test"),
+                    m_testsLoop(test_list, "test"),
                     m_opInfoLoop(
                       {
                          {EltOpType::POWER, KERNEL_SELECT(sk_power_fp16_3010xx_text, &SLK_power_fp16)},
