@@ -94,13 +94,33 @@ def WrapVPUOpsInNCEClusterTiling : PassBase<"wrap-vpu-ops-in-ncecluster-tiling",
 //
 
 def ManualStrategyUtils : PassBase<"manual-strategy-utils", "vpux::FunctionPass"> {
-    let summary = "Utils for reading/writing a json strategy";
+    let summary = "Utils for reading or writing a json strategy";
 
     let description = [{
-        Utils for reading/writing a json strategy
+        Utility allowing to store and write as JSON the current selected strategy from the two strategy passes
+        createMultiClusterStrategyAssignmentPass() and createPrefetchTilingPass(). And also to manually 
+        overwrite the strategy.
     }];
 
     let constructor = "vpux::VPU::createManualStrategyUtilsPass()";
+
+    let options = [
+        Option<
+            "writeStrategyToJSON", "write-strategy-to-json",
+            "bool", "false",
+            "Flag to enable writing strategy to file"
+        >,
+        Option<
+            "readStrategyFromJSON", "read-strategy-from-json",
+            "bool", "false",
+            "Flag to enable reading strategy from file"
+        >,
+        Option<
+            "strategyFileLocation", "strategy-file-location",
+            "std::string", [{"strategy.json"}],
+            "Location/path to strategy file"
+        >
+    ];
 
     let dependentDialects = [
         "vpux::VPU::VPUDialect"
