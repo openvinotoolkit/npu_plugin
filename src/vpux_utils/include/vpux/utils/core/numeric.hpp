@@ -46,11 +46,6 @@ T divUp(T a, T b) {
     return (a + b - 1) / b;
 }
 
-template <typename T, typename = require_t<std::is_integral<T>>>
-T divUpRemainder(T a, T b) {
-    return a - divUp(a, b) * (b - 1);
-}
-
 //
 // Float arithmetic
 //

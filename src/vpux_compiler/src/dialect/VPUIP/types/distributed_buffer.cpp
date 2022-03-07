@@ -209,12 +209,11 @@ mlir::Type VPUIP::DistributedBufferType::parse(mlir::DialectAsmParser& parser) {
 // verify
 //
 mlir::LogicalResult VPUIP::DistributedBufferType::verify(FuncRef<mlir::InFlightDiagnostic()> emitError,
-                                                         ::llvm::ArrayRef<int64_t> /*shape*/,
-                                                         mlir::Type /*elementType*/,
+                                                         ::llvm::ArrayRef<int64_t> shape, mlir::Type /*elementType*/,
                                                          mlir::MemRefLayoutAttrInterface /*layout*/,
                                                          IndexedSymbolAttr /*memSpace*/,
                                                          VPU::DistributedTensorAttr distribution) {
-    return VPU::verify(emitError, distribution);
+    return VPU::verify(emitError, distribution, shape);
 }
 
 //
