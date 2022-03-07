@@ -15,6 +15,7 @@
 #include <iomanip>
 #include "vpux/compiler/dialect/VPU/attributes.hpp"
 #include "vpux/compiler/dialect/VPU/json.hpp"
+#include "vpux/compiler/dialect/VPU/ops.hpp"
 #include "vpux/compiler/utils/strings.hpp"
 
 #ifdef _MSC_VER
@@ -38,10 +39,10 @@ namespace VPU {
 Json readManualStrategyJSON(StringRef fileName);
 void writeManualStrategyJSON(StringRef fileName, Json json);
 
-std::string convertAttrToString(mlir::Attribute attr);
-Json createStrategyJSONFromOperations(llvm::DenseMap<mlir::Location, mlir::Operation*> operations,
+Json convertAttrToString(mlir::Attribute attr);
+Json createStrategyJSONFromOperations(Json j, llvm::DenseMap<mlir::Location, mlir::Operation*> operations,
                                       SmallVector<StringRef> strategyAttributes);
-mlir::Attribute convertStringToAttr(mlir::Attribute oldAttr, std::string newAttrVal);
+mlir::Attribute convertJSONToAttr(mlir::Attribute oldAttr, Json newAttrVal);
 void overwriteManualStrategy(Json manualStrategy, llvm::DenseMap<mlir::Location, mlir::Operation*> operations);
 
 }  // namespace VPU
