@@ -104,6 +104,22 @@ OutputTiling generatePrefetchTiles(mlir::Operation* op, Logger log) {
         prefetchableTilesOnDim[targetDim]++;
     }
 
+    // Manual Strategy Utils
+    if (op->hasAttr("tilingStrategy")) {
+        // use the specified number of tiles
+        auto manualTiling = Shape(parseIntArrayAttr<int64_t>(op->getAttr("tilingStrategy").cast<mlir::ArrayAttr>()));
+        log.trace("Using manual tiles for op {0} at {1} : {2}", op->getName(), op->getLoc(), manualTiling);
+        return fillDividedTiles(manualTiling, outputShape);
+    } else if (tilingInfo.isSupportedPrefetchTiling(prefetchableTilesOnDim, log)) {
+        // store prefetchableTilesOnDim
+        const auto tilesAttr = getIntArrayAttr(op->getContext(), prefetchableTilesOnDim);
+        op->setAttr("tilingStrategy", tilesAttr);
+    } else {
+        // store nTilesOnDim
+        const auto tilesAttr = getIntArrayAttr(op->getContext(), nTilesOnDim);
+        op->setAttr("tilingStrategy", tilesAttr);
+    }
+
     return tilingInfo.isSupportedPrefetchTiling(prefetchableTilesOnDim, log)
                    ? fillDividedTiles(prefetchableTilesOnDim, outputShape)
                    : fillDividedTiles(nTilesOnDim, outputShape);
@@ -166,6 +182,19 @@ SmallVector<Shape> generatePrefetchPatternTiles(mlir::Operation* op, mlir::Opera
             nTilesOnDim[dimToTile]++;
         }
     }
+
+    // Manual Strategy Utils
+    if (op->hasAttr("tilingStrategy")) {
+        // use the specified number of tiles
+        auto manualTiling = Shape(parseIntArrayAttr<int64_t>(op->getAttr("tilingStrategy").cast<mlir::ArrayAttr>()));
+        log.trace("Using manual tiles for op {0} at {1} : {2}", op->getName(), op->getLoc(), manualTiling);
+        return {manualTiling, nTilesOnDimParent};
+    } else {
+        // store nTilesOnDim
+        const auto tilesAttr = getIntArrayAttr(op->getContext(), nTilesOnDim);
+        op->setAttr("tilingStrategy", tilesAttr);
+    }
+
     return {nTilesOnDim, nTilesOnDimParent};
 }
 
