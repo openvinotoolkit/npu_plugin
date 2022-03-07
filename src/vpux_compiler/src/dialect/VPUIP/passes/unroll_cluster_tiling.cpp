@@ -105,9 +105,11 @@ bool isSegmentedNCETask(VPUIP::NCEClusterTaskOp nceTask, VPUIP::DistributedBuffe
 
     // Only for valid segmentation cases, when need to read lines from
     // other clusters
-    const auto kernels = parseIntArrayAttr<int64_t>(nceTask.kernel_sizeAttr());
-    if (kernels[Dims4D::Kernel::Y.ind()] <= 1) {
-        return false;
+    if (nceTask.kernel_sizeAttr() != nullptr) {
+        const auto kernels = parseIntArrayAttr<int64_t>(nceTask.kernel_sizeAttr());
+        if (kernels[Dims4D::Kernel::Y.ind()] <= 1) {
+            return false;
+        }
     }
 
     return true;
