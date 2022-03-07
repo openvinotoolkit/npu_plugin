@@ -54,7 +54,7 @@ __attribute__((aligned(1024)))
 
 #include "param_eltwise.h"
 
-namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Power)) {
+namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, EltwiseBinaryMath)) {
     static constexpr std::initializer_list<SingleTest> test_list {
           {{1, 1, 7},    {1, 1, 7},    orderZYX, FPE("power_fp16.elf"), {sw_params::Location::NN_CMX}},
           {{1, 1, 20},   {1, 1, 20},   orderZYX, FPE("power_fp16.elf"), {sw_params::Location::NN_CMX}},
@@ -62,9 +62,9 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Power)) {
           {{9, 5, 17},   {9, 5, 17},   orderZYX, FPE("power_fp16.elf"), {sw_params::Location::NN_CMX}},
        };
 
-    class CustomCppPowerTest : public CustomCppTests<fp16> {
+    class CustomCppEltwiseBinaryMathTest : public CustomCppTests<fp16> {
     public:
-        explicit CustomCppPowerTest():
+        explicit CustomCppEltwiseBinaryMathTest():
                     m_testsLoop(test_list, "test"),
                     m_opInfoLoop(
                       {
@@ -79,11 +79,11 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Power)) {
                     )
                     { }
 
-        virtual ~CustomCppPowerTest() { }
+        virtual ~CustomCppEltwiseBinaryMathTest() { }
 
     protected:
         const char* suiteName() const override {
-            return "CustomCppPowerTest";
+            return "CustomCppEltwiseBinaryMathTest";
         }
         void userLoops() override {
             addLoop(m_opInfoLoop);
@@ -234,5 +234,5 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Power)) {
         sw_params::Elt2OpdParams* m_powParams;
     };
 
-    ICV_TESTS_REGISTER_SUITE(CustomCppPowerTest)
+    ICV_TESTS_REGISTER_SUITE(CustomCppEltwiseBinaryMathTest)
 }  // namespace )
