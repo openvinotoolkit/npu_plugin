@@ -212,11 +212,9 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, EltwiseBinar
                 float gt_value = f16Tof32(m_referenceOutputTensor.at(indices));
                 float abs_diff = fabsf(value - gt_value);
 
-                //"powf returns NaN if base is finite and negative and exponent is finite and non-integer"
                 if (isnanf(value) && isnan(gt_value)) {
                     abs_diff = 0.0f;
                 }
-                //"powf(+/-0, exponent) where exponent is negative, finite and is even-integer or non-integer, returns +Inf"
                 else if (isinf(value) && isinf(gt_value)) {
                    if(signbit(value) == signbit(gt_value)) {
                      abs_diff = 0.0f;
