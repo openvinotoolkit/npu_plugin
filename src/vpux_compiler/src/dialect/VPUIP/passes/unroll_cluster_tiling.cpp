@@ -300,8 +300,9 @@ public:
     mlir::LogicalResult matchAndRewrite(VPUIP::NNDMAOp nndmaOp, mlir::PatternRewriter& rewriter) const final;
 
 private:
-    void unrollSegmented(mlir::Location loc, VPUIP::NCEClusterTilingOp clusterOp, VPURT::TaskOp vpurtTask,
-                         VPUIP::DistributedBufferType distributedType, mlir::PatternRewriter& rewriter) const;
+    void unrollSegmentedOrOverlapped(mlir::Location loc, VPUIP::NCEClusterTilingOp clusterOp, VPURT::TaskOp vpurtTask,
+                                     VPUIP::DistributedBufferType distributedType,
+                                     mlir::PatternRewriter& rewriter) const;
 
 private:
     Logger _log;
@@ -309,9 +310,10 @@ private:
     mlir::FlatSymbolRefAttr _cmxNameAttr;
 };
 
-void ClusterDMARewriter::unrollSegmented(mlir::Location loc, VPUIP::NCEClusterTilingOp clusterOp,
-                                         VPURT::TaskOp vpurtTask, VPUIP::DistributedBufferType distributedType,
-                                         mlir::PatternRewriter& rewriter) const {
+void ClusterDMARewriter::unrollSegmentedOrOverlapped(mlir::Location loc, VPUIP::NCEClusterTilingOp clusterOp,
+                                                     VPURT::TaskOp vpurtTask,
+                                                     VPUIP::DistributedBufferType distributedType,
+                                                     mlir::PatternRewriter& rewriter) const {
     const auto input = *clusterOp.getInputs().begin();
     const auto output = *clusterOp.getOutputs().begin();
 
@@ -464,7 +466,10 @@ mlir::LogicalResult ClusterDMARewriter::matchAndRewrite(VPUIP::NNDMAOp nndmaOp, 
     const auto mode = distributionAttr.mode().getValue();
     if (mode == VPU::DistributionMode::SEGMENTED) {
         _log.trace("Process SEGMENTED mode");
-        unrollSegmented(loc, clusterOp, vpurtTask, distributedType, rewriter);
+        unrollSegmentedOrOverlapped(loc, clusterOp, vpurtTask, distributedType, rewriter);
+    } else if (mode == VPU::DistributionMode::OVERLAPPED) {
+        _log.trace("Process OVERLAPPED mode");
+        unrollSegmentedOrOverlapped(loc, clusterOp, vpurtTask, distributedType, rewriter);
     } else if (mode == VPU::DistributionMode::DUPLICATED) {
         // For example, copy of weights in case of SOH
         // <16x16x1x1xf16, @DDR> -> <16x16x1x1xf16, [@CMX, 0]>
