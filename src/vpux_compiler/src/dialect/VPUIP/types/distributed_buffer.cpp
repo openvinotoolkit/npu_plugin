@@ -239,10 +239,6 @@ mlir::MemRefType VPUIP::DistributedBufferType::getCompactType() const {
 // information which is needed for scheduler and strategy manager,
 // in order to estimate memory
 SmallVector<Shape> VPUIP::DistributedBufferType::getPerClusterComputeShapes() const {
-    const auto shape = getShape();
-    const auto strideInReqs = StrideReqs::compact(shape.size());
-    VPUX_THROW_UNLESS(strideInReqs.checkStrides(*this), "Only compact strides are supported");
-
     return VPU::getPerClusterComputeShapes(getShape(), getDistribution());
 }
 
@@ -278,7 +274,52 @@ Shape VPUIP::DistributedBufferType::getCompactShape(int64_t tileInd) const {
 
 // @brief Retrive the array of strided compute shapes
 SmallVector<std::pair<Shape, Strides>> VPUIP::DistributedBufferType::getPerClusterStridedShapes() const {
-    VPUX_THROW("getPerClusterStridedShapes method is not implemented for DistributedBufferType");
+    SmallVector<std::pair<Shape, Strides>> stridedShapes;
+
+    const auto distribution = getDistribution();
+    const auto distributionMode = distribution.mode().getValue();
+
+    const auto computeShapes = getPerClusterComputeShapes();
+
+    if (VPU::bitEnumContains(distributionMode, VPU::DistributionMode::DUPLICATED)) {
+        for (const auto& computeShape : computeShapes) {
+            stridedShapes.emplace_back(computeShape, getStrides());
+        }
+        return stridedShapes;
+    }
+
+    const auto memShape = getMemShape();
+    const auto memStrides = getMemStrides();
+    const auto dimsOrder = getDimsOrder();
+    const auto elemTypeSize = getElemTypeSize();
+
+    if (VPU::bitEnumContains(distributionMode, VPU::DistributionMode::SEGMENTED)) {
+        const auto comapctStrideReqs = StrideReqs::compact(dimsOrder.numDims());
+        const auto compactStrides = comapctStrideReqs.calcStrides(elemTypeSize, memShape);
+        SmallVector<Bit> stridesMultiplier(memStrides.size());
+        std::transform(memStrides.begin(), memStrides.end(), compactStrides.begin(), stridesMultiplier.begin(),
+                       [](Bit stride, Bit compactStride) {
+                           return Bit(stride.count() / compactStride.count());
+                       });
+
+        for (const auto& computeShape : computeShapes) {
+            const auto computeMemShape = dimsOrder.toMemoryOrder(Shape(computeShape));
+            const auto computeCompactStrides = comapctStrideReqs.calcStrides(elemTypeSize, computeMemShape);
+
+            SmallVector<Bit> computeMemStrides(computeCompactStrides.size());
+            for (auto p : zip(computeCompactStrides, stridesMultiplier) | indexed) {
+                const auto dim = std::get<0>(p.value());
+                const auto mul = std::get<1>(p.value());
+                computeMemStrides[p.index()] = Bit(dim.count() * mul.count());
+            }
+            const auto computeStrides = dimsOrder.toLogicalOrder(MemStrides(computeMemStrides));
+            stridedShapes.emplace_back(computeShape, computeStrides);
+        }
+    } else {
+        VPUX_THROW("Unsupported mode '{0}'", VPU::stringifyEnum(distributionMode));
+    }
+
+    return stridedShapes;
 }
 
 // @brief Get largest strided compute shape
@@ -286,15 +327,26 @@ SmallVector<std::pair<Shape, Strides>> VPUIP::DistributedBufferType::getPerClust
 // because it does not retrieve the true allocate shape in cases
 // of broadcasting.
 std::pair<Shape, Strides> VPUIP::DistributedBufferType::getLargestStridedShape() const {
-    VPUX_THROW("getLargestStridedShape method is not implemented for DistributedBufferType");
+    const auto stridedShapeSize = [](const std::pair<Shape, Strides>& stridedShape) {
+        return stridedShape.first.front() * stridedShape.second.front();
+    };
+
+    const auto stridedShapes = getPerClusterStridedShapes();
+    return *std::max_element(stridedShapes.begin(), stridedShapes.end(),
+                             [&](std::pair<Shape, Strides> a, std::pair<Shape, Strides> b) {
+                                 return stridedShapeSize(a) < stridedShapeSize(b);
+                             });
 }
 
 // @brief Get the strided compute shape for a specific cluster
 // @warning This function should not be used for memory size calculation,
 // because it does not retrieve the true allocate shape in cases
 // of broadcasting.
-std::pair<Shape, Strides> VPUIP::DistributedBufferType::getStridedShape(int64_t /*tileInd*/) const {
-    VPUX_THROW("getStridedShape method is not implemented for DistributedBufferType");
+std::pair<Shape, Strides> VPUIP::DistributedBufferType::getStridedShape(int64_t tileInd) const {
+    const auto stridedShapes = getPerClusterStridedShapes();
+    VPUX_THROW_UNLESS(tileInd < static_cast<int64_t>(stridedShapes.size()),
+                      "Requesting tiled shape outside of cluster pool");
+    return stridedShapes[tileInd];
 }
 
 //

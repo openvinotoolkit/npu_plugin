@@ -221,6 +221,26 @@ TEST(MLIR_ClusterShapeUtils, SegmentedDistribution) {
     for (auto clusterIdx = 0; clusterIdx < numClusters; clusterIdx++) {
         EXPECT_EQ(expectedShapes[clusterIdx], distributedType.getCompactShape(clusterIdx));
     }
+
+    const SmallVector<Strides> expectedStrides({{65536_Bit, 16_Bit, 16384_Bit, 1024_Bit},
+                                                {65536_Bit, 16_Bit, 16384_Bit, 1024_Bit},
+                                                {65536_Bit, 16_Bit, 16384_Bit, 1024_Bit},
+                                                {16384_Bit, 16_Bit, 16384_Bit, 1024_Bit}});
+    const auto perClusterStridedShapes = distributedType.getPerClusterStridedShapes();
+    for (const auto p : perClusterStridedShapes | indexed) {
+        const auto cluster = p.index();
+        const auto stridedShape = p.value();
+        EXPECT_EQ(stridedShape.first, expectedShapes[cluster]);
+        EXPECT_EQ(stridedShape.second, expectedStrides[cluster]);
+    }
+    const auto largestStridedShape = distributedType.getLargestStridedShape();
+    EXPECT_EQ(largestStridedShape.first, expectedShapes[0]);
+    EXPECT_EQ(largestStridedShape.second, expectedStrides[0]);
+    for (auto clusterIdx = 0; clusterIdx < numClusters; clusterIdx++) {
+        const auto stridedShape = distributedType.getStridedShape(clusterIdx);
+        EXPECT_EQ(stridedShape.first, expectedShapes[clusterIdx]);
+        EXPECT_EQ(stridedShape.second, expectedStrides[clusterIdx]);
+    }
 }
 
 TEST(MLIR_ClusterShapeUtils, SegmentedDuplicatedDistribution) {
@@ -262,6 +282,23 @@ TEST(MLIR_ClusterShapeUtils, SegmentedDuplicatedDistribution) {
     const auto numClusters = distributedType.getDistribution().num_clusters().getInt();
     for (auto clusterIdx = 0; clusterIdx < numClusters; clusterIdx++) {
         EXPECT_EQ(expectedShapes[clusterIdx], distributedType.getCompactShape(clusterIdx));
+    }
+
+    const Strides expectedStrides({212992_Bit, 16_Bit, 16384_Bit, 1024_Bit});
+    const auto perClusterStridedShapes = distributedType.getPerClusterStridedShapes();
+    for (const auto p : perClusterStridedShapes | indexed) {
+        const auto cluster = p.index();
+        const auto stridedShape = p.value();
+        EXPECT_EQ(stridedShape.first, expectedShapes[cluster]);
+        EXPECT_EQ(stridedShape.second, expectedStrides);
+    }
+    const auto largestStridedShape = distributedType.getLargestStridedShape();
+    EXPECT_EQ(largestStridedShape.first, expectedShapes[0]);
+    EXPECT_EQ(largestStridedShape.second, expectedStrides);
+    for (auto clusterIdx = 0; clusterIdx < numClusters; clusterIdx++) {
+        const auto stridedShape = distributedType.getStridedShape(clusterIdx);
+        EXPECT_EQ(stridedShape.first, expectedShapes[clusterIdx]);
+        EXPECT_EQ(stridedShape.second, expectedStrides);
     }
 }
 
