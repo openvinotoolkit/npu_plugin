@@ -331,6 +331,8 @@ void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOp
     pm.addPass(mlir::createCanonicalizerPass(grc));
 
     pm.addPass(createConvertIEToVPUNCEPass(log));
+    pm.addPass(VPU::createMultiClusterStrategyAssignmentPass(log));
+    pm.addPass(VPU::createWrapVPUOpsInNCEClusterTilingPass(log));
 
     pm.addPass(IE::createPrefetchTilingPass(log));
     pm.addPass(mlir::createCanonicalizerPass(grc));
@@ -405,6 +407,7 @@ void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOp
     pm.addPass(VPURT::createAssignVirtualBarriersPass(log));
     pm.addPass(VPURT::createAssignPhysicalBarriersPass(log));
     pm.addPass(VPURT::createBarrierSimulationPass(log));
+    pm.addPass(VPUIP::createUnrollClusterTilingPass(log));
     pm.addPass(VPUIP::createDumpStatisticsOfTaskOpsPass(log));
 }
 
