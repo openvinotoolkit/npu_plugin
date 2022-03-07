@@ -85,6 +85,7 @@ public:
         size_t getSize(mlir::Value val) const;
         bool concatFitsInCMX(size_t cmxSize);
         bool inputsHaveMultipleUsers() const;
+        bool isFusedConcat() const;
         bool inputPatternCanBeCMXed(size_t cmxSize);
         bool childOpsFitInCMX(size_t cmxSize);
         size_t getParallelConsumerCount() const;
@@ -269,9 +270,13 @@ bool CMXConcatPass::ConcatPattern::inputPatternCanBeCMXed(size_t cmxSize) {
     }
 
     // assert that the concat will fit in CMX
-
     if (!concatFitsInCMX(cmxSize)) {
         _log.nest(2).trace("Concat does not fit in cmx");
+        return false;
+    }
+
+    if (isFusedConcat()) {
+        _log.nest(2).trace("Concat is Fused and will not be cmx-ed");
         return false;
     }
 
@@ -289,7 +294,6 @@ bool CMXConcatPass::ConcatPattern::inputPatternCanBeCMXed(size_t cmxSize) {
 bool CMXConcatPass::ConcatPattern::childOpsFitInCMX(size_t cmxSize) {
     // check if the child operations - operations using the concat output buffer
     // will fit in CMX along with their inputs and output
-    // auto output = concat.getResult();
     size_t concatSize = getSize(concat.getResult());
     size_t parallelConsumerCount = getParallelConsumerCount();
     size_t maxConsumerSize = 0;
@@ -298,52 +302,81 @@ bool CMXConcatPass::ConcatPattern::childOpsFitInCMX(size_t cmxSize) {
         if (!concatPart.isValidPart()) {
             return false;
         }
-        size_t currentConsumerSize = 0;
+        size_t consumerInputSize = 0;
+        size_t consumerOutputSize = 0;
         // consts (weights table and activation window) already exists
         for (auto input : concatPart.nceOp->getOperands()) {
             if (input.getDefiningOp() == concatPart.copyOp.getOperation()) {
                 continue;
             }
-            currentConsumerSize += getSize(input);
+            consumerInputSize += getSize(input);
         }
         for (auto output : concatPart.nceOp->getResults()) {
-            currentConsumerSize += getSize(output);
+            consumerOutputSize += getSize(output);
         }
-        maxConsumerSize = std::max<size_t>(maxConsumerSize, currentConsumerSize);
+        if (parallelConsumerCount > 1) {
+            // in cases of parallel consumers the graph level differences could be large and the
+            // NNCMX buffer could be held for many cycles filling up NNCMX space. To avoid this
+            // scenario, ensure that there is space for parallel consumer branches
+            maxConsumerSize = std::max<size_t>(maxConsumerSize, 2 * (consumerInputSize + consumerOutputSize));
+        } else {
+            maxConsumerSize = std::max<size_t>(maxConsumerSize, consumerInputSize + consumerOutputSize);
+        }
     }
-    // in cases of parallel consumers the graph level differences could be large and the
-    // NNCMX buffer could be held for many cycles filling up NNCMX space. To avoid this
-    // scenario, ensure that there is space for parallel consumer branches
-    // assume longest branch is equal to number of parallel consumers
-    _log.nest(3).trace("Concat consumer max size '{0}'", (parallelConsumerCount * (maxConsumerSize + concatSize)));
+
+    _log.nest(3).trace("Concat consumer max size '{0}'", (maxConsumerSize + concatSize));
+
     // return concat size greater than CMX size
-    return (parallelConsumerCount * (maxConsumerSize + concatSize)) <= cmxSize;
+    return (maxConsumerSize + concatSize) <= cmxSize;
 }
 
 size_t CMXConcatPass::ConcatPattern::getParallelConsumerCount() const {
     // tiling operations are considered a single consumer
     SmallVector<mlir::Location> locations;
-    size_t parallelConsumerCount = 0;
 
     for (auto concatPart : concatParts) {
         // for fused loc ignore tiling details
         if (const auto fused = concatPart.nceOp.getLoc().dyn_cast<mlir::FusedLoc>()) {
             auto nceLoc = fused.getLocations().front();
             if (llvm::find(locations, nceLoc) == locations.end()) {
-                ++parallelConsumerCount;
                 locations.push_back(nceLoc);
             }
         } else {
             auto nceLoc = concatPart.nceOp.getLoc();
             if (llvm::find(locations, nceLoc) == locations.end()) {
-                ++parallelConsumerCount;
                 locations.push_back(nceLoc);
             }
         }
     }
 
-    _log.nest(3).trace("Parallel consumer count '{0}'", parallelConsumerCount);
-    return parallelConsumerCount;
+    _log.nest(3).trace("Parallel consumer count '{0}'", locations.size());
+    return locations.size();
+}
+
+bool CMXConcatPass::ConcatPattern::isFusedConcat() const {
+    // search for concat with producers from both tiling
+    // and original operations which are fused
+    SmallVector<mlir::Location> locations;
+    SmallVector<mlir::Location> fusedLocations;
+
+    for (auto concatPart : concatParts) {
+        if (const auto fused = concatPart.nceOp.getLoc().dyn_cast<mlir::FusedLoc>()) {
+            auto nceLoc = fused.getLocations().front();
+            if (llvm::find(fusedLocations, nceLoc) == fusedLocations.end()) {
+                // tiling producers
+                fusedLocations.push_back(nceLoc);
+            }
+        } else {
+            auto nceLoc = concatPart.nceOp.getLoc();
+            if (llvm::find(locations, nceLoc) == locations.end()) {
+                // original producers
+                locations.push_back(nceLoc);
+            }
+        }
+    }
+
+    // true if concat produced by both tiling and original ops, or different tiling ops
+    return (!fusedLocations.empty() && !locations.empty()) || fusedLocations.size() > 1;
 }
 
 bool CMXConcatPass::ConcatPattern::outputPatternCanBeCMXed(size_t cmxSize) {
