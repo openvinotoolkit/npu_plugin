@@ -137,12 +137,29 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, EltwiseBinar
              });
             }
         }
+
+        static float myPow(float base, float exp){
+           float out = powf(base, exp);
+
+           // Workaround for Leon-compiler for this case (which returns -Inf instead of +Inf)
+           // "powf(+/-0, exponent) where exponent is negative, finite and is even-integer or non-integer, returns +Inf"
+           if((base==0) && ((exp<0) && !isinf(exp))){
+              bool isInt = (ceilf(exp) == exp);
+              bool isEvenInt = isInt && ((((int)exp)&0x1)==0);
+              if((!isInt) || isEvenInt){
+                out = (+INFINITY);
+              }
+           }
+
+           return out;
+        }
+
         void generateReferenceData() override {
 
             std::function<float (const float&, const float&)> reference;
 
             switch(m_opInfoLoop.value().type){
-              case EltOpType::POWER: reference = [](const float& a, const float& b) { return powf(a, b); }; break;
+              case EltOpType::POWER: reference = [](const float& a, const float& b) { return myPow(a,b); }; break;
               case EltOpType::ADD:   reference = [](const float& a, const float& b) { return a + b;      }; break;
               case EltOpType::SUB:   reference = [](const float& a, const float& b) { return a - b;      }; break;
               case EltOpType::MIN:   reference = [](const float& a, const float& b) { return a<b ? a:b;  }; break;
@@ -202,22 +219,14 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, EltwiseBinar
                 //"powf(+/-0, exponent) where exponent is negative, finite and is even-integer or non-integer, returns +Inf"
                 else if (isinf(value) && isinf(gt_value)) {
                    if(signbit(value) == signbit(gt_value)) {
-                    abs_diff = 0.0f; //OK
-                   } else {
-                     float inA = f16Tof32(m_inTensor[0].at(indices));
-                     float inB = f16Tof32(m_inTensor[1].at(indices));
-                     bool  inBisInt = (ceilf(inB) == inB);
-                     /*DBG*/ printf("__fail for A=%f B=%f (%f vs %f)\n", inA, inB, value, gt_value);
-                     if((inA == 0.0f) && (inB < 0.0f) && (!inBisInt)){
-                       abs_diff = 0.0f; //workaround for BUG
-                     }
+                     abs_diff = 0.0f;
                    }
                 }
 
                 bool differ = !bool(abs_diff <= m_test_threshold);
                 threshold_test_failed |= differ;
 
-                if (differ )//&& GlobalData::doPrintDiffs)
+                if (differ && GlobalData::doPrintDiffs)
                 {
                     const TensorDims ti = m_outputTensor.toTensor(indices);
                     printf("DIFF HWC [%d:%d:%d] %f %f %f\n", ti.height, ti.width, ti.channels, value, gt_value,
