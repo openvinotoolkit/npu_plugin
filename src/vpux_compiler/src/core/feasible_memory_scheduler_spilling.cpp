@@ -132,12 +132,18 @@ void FeasibleMemorySchedulerSpilling::removeComputeOpRelocationSpills(
             auto resEnd = scheduledOps[spillReadIndex.getValue()].endOutputResource(0) - 1;
             bool rangeUsed = false;
             for (size_t i = prevTimeFirstOpIndex; i < spillReadIndex.getValue(); i++) {
+                // Skip check for SPILL_WRITE
+                if (i == spillWriteIndex) {
+                    continue;
+                }
+
                 if (scheduledOps[i].hasActiveInputResource()) {
                     for (size_t r = 0; r < scheduledOps[i].numOfInputResources(); r++) {
                         auto beg = scheduledOps[i].beginInputResource(r);
                         auto end = scheduledOps[i].endInputResource(r) - 1;
 
-                        if ((resBegin <= beg && beg <= resEnd) || (resBegin <= end && end <= resEnd)) {
+                        if ((beg <= resBegin && resEnd <= end) || (resBegin <= beg && beg <= resEnd) ||
+                            (resBegin <= end && end <= resEnd)) {
                             rangeUsed = true;
                             break;
                         }
@@ -150,10 +156,18 @@ void FeasibleMemorySchedulerSpilling::removeComputeOpRelocationSpills(
 
                 if (scheduledOps[i].hasActiveOutputResource()) {
                     for (size_t r = 0; r < scheduledOps[i].numOfOutputResources(); r++) {
+                        if (i == origOpIndex.getValue() &&
+                            scheduledOps[origOpIndex.getValue()].getOutputBuffer(r) ==
+                                    scheduledOps[spillReadIndex.getValue()].getOutputBuffer(0)) {
+                            // Skip check for buffer that is planned for relocation
+                            continue;
+                        }
+
                         auto beg = scheduledOps[i].beginOutputResource(r);
                         auto end = scheduledOps[i].endOutputResource(r) - 1;
 
-                        if ((resBegin <= beg && beg <= resEnd) || (resBegin <= end && end <= resEnd)) {
+                        if ((beg <= resBegin && resEnd <= end) || (resBegin <= beg && beg <= resEnd) ||
+                            (resBegin <= end && end <= resEnd)) {
                             rangeUsed = true;
                             break;
                         }
@@ -178,12 +192,12 @@ void FeasibleMemorySchedulerSpilling::removeComputeOpRelocationSpills(
             auto& spillWriteOp = scheduledOps[spillWriteIndex];
             auto& spillReadOp = scheduledOps[spillReadIndex.getValue()];
 
-            _log.nest().trace("op = '{0}'\t type = '{1}'\t time = '{2}'\t '{3}'", origOp.op_, origOp.opTypeName(),
+            _log.nest().trace("op = '{0}'\t type = '{1}'\t time = '{2}'", origOp.op_, origOp.opTypeName(),
                               origOp.time_);
-            _log.nest().trace("op = '{0}'\t type = '{1}'\t time = '{2}'\t '{3}'", spillWriteOp.op_,
-                              spillWriteOp.opTypeName(), spillWriteOp.time_);
-            _log.nest().trace("op = '{0}'\t type = '{1}'\t time = '{2}'\t '{3}'", spillReadOp.op_,
-                              spillReadOp.opTypeName(), spillReadOp.time_);
+            _log.nest().trace("op = '{0}'\t type = '{1}'\t time = '{2}'", spillWriteOp.op_, spillWriteOp.opTypeName(),
+                              spillWriteOp.time_);
+            _log.nest().trace("op = '{0}'\t type = '{1}'\t time = '{2}'", spillReadOp.op_, spillReadOp.opTypeName(),
+                              spillReadOp.time_);
 
             // ComputeOp output buffer range can be assigned resulting range of SPILL_READ
             // First find matching buffer that was spilled
@@ -197,7 +211,7 @@ void FeasibleMemorySchedulerSpilling::removeComputeOpRelocationSpills(
                     break;
                 }
             }
-            VPUX_THROW_UNLESS(foundMatchingBuffer, "Matching buffer not found for relocation spilling optimzation");
+            VPUX_THROW_UNLESS(foundMatchingBuffer, "Matching buffer not found for relocation spilling optimization");
 
             // SPILL_WRITE and SPILL_READ operations can be removed
             operationIndexesToRemove.push_back(spillWriteIndex);
