@@ -45,7 +45,10 @@ std::unique_ptr<mlir::Pass> createSplitNCEOpsOntoWorkloadsPass(Logger log = Logg
 std::unique_ptr<mlir::Pass> createWrapVPUOpsInNCEClusterTilingPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createAdjustMemorySpacePass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createMultiClusterStrategyAssignmentPass(Logger log = Logger::global());
-std::unique_ptr<mlir::Pass> createManualStrategyUtilsPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createManualStrategyUtilsPass();
+std::unique_ptr<mlir::Pass> createManualStrategyUtilsPass(bool writeStrategyToJSON, bool readStrategyFromJSON,
+                                                          StringRef strategyFileLocation = "strategy.json",
+                                                          Logger log = Logger::global());
 
 //
 // Generated
