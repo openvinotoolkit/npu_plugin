@@ -17,22 +17,22 @@
 
 using namespace vpux;
 
-// mlir::LogicalResult vpux::VPUIP::verifyOp(RollUPAOp op) {
+mlir::LogicalResult vpux::VPUIP::verifyOp(RollUPAOp op) {
     
-//     const auto inShape_shift = getShape(op.shift());
+    const auto inShape_shift = getShape(op.shift());
 
-//     if (inShape_shift.size() != 1 ) {
-//         return errorAt(op, "Dimension of the input shift should be 1D tensor. Got {0} D tensor", inShape_shift.size());
-//     }
+    if (inShape_shift.size() != 1 ) {
+        return errorAt(op, "Dimension of the input shift should be 1D tensor. Got {0} D tensor", inShape_shift.size());
+    }
 
-//     const auto inShape_axes = getShape(op.axes());
+    const auto inShape_axes = getShape(op.axes());
 
-//     if (inShape_axes.size() != 1 ) {
-//         return errorAt(op, "Dimension of the input axes should be 1D tensor. Got {0} D tensor", inShape_axes.size());
-//     }
+    if (inShape_axes.size() != 1 ) {
+        return errorAt(op, "Dimension of the input axes should be 1D tensor. Got {0} D tensor", inShape_axes.size());
+    }
 
-//     return mlir::success();
-// }
+    return mlir::success();
+}
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::RollUPAOp::serialize(VPUIP::BlobWriter& writer) {
     MVCNN::RollParamsBuilder builder(writer);
