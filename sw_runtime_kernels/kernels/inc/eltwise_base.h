@@ -33,8 +33,10 @@
     }                                                     \
     i = i * VECTOR_SIZE;                                  \
   }
+#define SCL_UNROLL "clang loop unroll_count(1)"
 #else
 #define VECTOR_LOOP //nothing, just run scalar-loop
+#define SCL_UNROLL "clang loop unroll_count(8)"
 #endif
 
 
@@ -57,6 +59,7 @@ void funcName(const struct EltwiseParams *p) {          \
     uint32_t i = 0;                                     \
     VECTOR_LOOP                                         \
                                                         \
+    _Pragma(SCL_UNROLL)                                 \
     for (; i<nElements; i++) {                          \
         out[i] = ELTWISE_SCL_OP(inA[i], inB[i]);        \
     }                                                   \
