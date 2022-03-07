@@ -80,7 +80,7 @@ DEFINE_bool(r, false, rgb_message);
 
 /// @brief Define input precision <br>
 /// It is an optional parameter
-DEFINE_string(ip, "u8", input_precision_message);
+DEFINE_string(ip, "fp32", input_precision_message);
 
 /// @brief Define output precision <br>
 /// It is an optional parameter

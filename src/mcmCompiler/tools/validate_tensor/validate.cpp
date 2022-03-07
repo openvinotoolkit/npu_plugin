@@ -41,7 +41,7 @@ const std::string FILE_CPU_INPUT_NCHW_RGB   = "input_cpu_nchw_rgb.bin";
 const std::string FILE_CPU_INPUT_NHWC_RGB   = "input_cpu_nhwc_rgb.bin";
 const std::string FILE_CPU_INPUT_NCHW_BGR   = "input_cpu_nchw_bgr.bin";
 const std::string FILE_CPU_INPUT_NHWC_BGR   = "input_cpu_nhwc_bgr.bin";
-      std::string OPENVINO_BIN_FOLDER   = "/bin/intel64/Release/";
+      std::string OPENVINO_BIN_FOLDER   = "/bin/intel64/Debug/";
 const std::string FILE_BLOB_NAME        = "mcm.blob";
 const std::string TEST_RUNTIME          = "application/demo/InferenceManagerDemo";
 
@@ -440,7 +440,7 @@ int runEmulator(std::string pathXML, std::string pathImage, std::string& blobPat
         FLAGS_ip = inputPrecision;
     }
 
-    std::string outputPrecision = getEnvVarDefault("OUTPUT_PRECISION", "FP16");
+    std::string outputPrecision = getEnvVarDefault("OUTPUT_PRECISION", "FP32");
     commandline += " -op " + outputPrecision;
     
     if (! FLAGS_c.empty() )
