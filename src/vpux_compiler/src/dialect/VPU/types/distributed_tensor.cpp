@@ -194,11 +194,11 @@ mlir::Type VPU::DistributedTensorType::parse(mlir::DialectAsmParser& parser) {
 //
 
 mlir::LogicalResult VPU::DistributedTensorType::verify(FuncRef<mlir::InFlightDiagnostic()> emitError,
-                                                       ::llvm::ArrayRef<int64_t> /*shape*/, mlir::Type /*elementType*/,
+                                                       ::llvm::ArrayRef<int64_t> shape, mlir::Type /*elementType*/,
                                                        mlir::AffineMapAttr /*order*/,
                                                        vpux::IndexedSymbolAttr /*memSpace*/,
                                                        DistributedTensorAttr distribution) {
-    return VPU::verify(emitError, distribution);
+    return VPU::verify(emitError, distribution, shape);
 }
 
 //
