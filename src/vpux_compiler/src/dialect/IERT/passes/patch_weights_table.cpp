@@ -134,7 +134,7 @@ void PatchWeightsTablePass::patchWeightsTable(Const::DeclareOp cstOp, mlir::Oper
     // Retrieve sparsity and weight pointers which have correct values as they are already allocated
     // by the memory scheduler
     auto activationWindow = getTopBufferOfNCEClusterTiling(nceOp, nceOp.activation_window());
-    uint64_t sparsityBasePtr = getPointer(activationWindow, VPU::NCESparsity::SPARSITY_PTR_WHEN_NO_SPARISTY);
+    uint64_t sparsityBasePtr = getPointer(activationWindow, VPU::NCESparsity::SPARSITY_PTR_WHEN_NO_SPARSITY);
     auto weights = getTopBufferOfNCEClusterTiling(nceOp, nceOp.weights());
     uint64_t weightBasePointer = getPointer(weights, 0);
 
