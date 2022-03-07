@@ -8,15 +8,16 @@ module @CaseWithoutChildTiling attributes {VPU.arch = "KMB"} {
     
 IE.MemoryResource 31457280 bytes of @DDR {VPU.bandwidth = 8, VPU.derateFactor = 6.000000e-01}
 IE.MemoryResource 4194304 bytes of @CMX_UPA {VPU.bandwidth = 16, VPU.derateFactor = 8.500000e-01}
-IE.MemoryResource 2361600 bytes of @CMX_NN {VPU.bandwidth = 32, VPU.derateFactor = 1.000000e+00}
+IE.MemoryResource 3548160 bytes of @CMX_NN {VPU.bandwidth = 32, VPU.derateFactor = 1.000000e+00}
 
 IE.CNNNetwork
     entryPoint : @main
     inputsInfo : {
         DataInfo "input" : tensor<1x144x64x64xf16, {order = #NHWC}>
         DataInfo "filter" : tensor<48x16x1x1xf16, {mem_space = @CMX_NN, order = #NHWC}>
-        DataInfo "weightsTable" : tensor<16x1x1x4xsi32, {mem_space = @CMX_NN, order = #NCHW}>
-        DataInfo "activationWindow" : tensor<48x1x1x16xui8, {mem_space = @CMX_NN, order = #NCHW}>
+        DataInfo "weightsTable" : tensor<48x1x1x4xsi32, {mem_space = @CMX_NN, order = #NCHW}>
+        DataInfo "activationWindow" : tensor<1x1x1x16xui8, {mem_space = @CMX_NN, order = #NCHW}>
+        DataInfo "weightsTableMaxPool" : tensor<144x1x1x4xsi32, {mem_space = @CMX_NN, order = #NCHW}>
     }
     outputsInfo : {
         DataInfo "prob" : tensor<1x144x64x64xf16, {order = #NHWC}>
@@ -24,8 +25,9 @@ IE.CNNNetwork
 
 func @main(%input: tensor<1x144x64x64xf16, {order = #NHWC}>,
            %filter: tensor<48x16x1x1xf16, {mem_space = @CMX_NN, order = #NHWC}>,
-           %weightsTable: tensor<16x1x1x4xsi32, {mem_space = @CMX_NN, order = #NCHW}>,
-           %activationWindow: tensor<48x1x1x16xui8, {mem_space = @CMX_NN, order = #NCHW}>)
+           %weightsTable: tensor<48x1x1x4xsi32, {mem_space = @CMX_NN, order = #NCHW}>,
+           %activationWindow: tensor<1x1x1x16xui8, {mem_space = @CMX_NN, order = #NCHW}>,
+           %weightsTableMaxPool: tensor<144x1x1x4xsi32, {mem_space = @CMX_NN, order = #NCHW}>)
            -> tensor<1x144x64x64xf16, {order = #NHWC}> {
 
     // Create a concat subgraph with three input tiles and one output user
@@ -35,8 +37,8 @@ func @main(%input: tensor<1x144x64x64xf16, {order = #NHWC}>,
     %1 = IE.Copy(%0) {out_mem_space = @CMX_NN} : tensor<1x48x64x64xf16, {order = #NHWC}> -> tensor<1x48x64x64xf16, {mem_space = @CMX_NN, order = #NHWC}>
 
     %2 = VPU.NCE.DepthConvolution(%1, %filter, %weightsTable, %activationWindow) 
-        (bias : #const.Content<dense<2.0> : tensor<1x144x1x1xf16>, [#const.SubView<[0, 0, 0, 0], [1, 48, 1, 1]>]>) 
-        {pad = {bottom = 1 : i64, left = 1 : i64, right = 1 : i64, top = 1 : i64}, 
+        {activation_window_channel_length = 18 : i64, 
+        pad = {bottom = 1 : i64, left = 1 : i64, right = 1 : i64, top = 1 : i64}, 
         post_op = {attrs = {max = 6.000000e+00 : f64, min = 0.000000e+00 : f64}, name = "IE.Clamp"}, 
         rawFilterShape = [48, 1, 3, 3], 
         strides = [1, 1]} 
@@ -49,8 +51,8 @@ func @main(%input: tensor<1x144x64x64xf16, {order = #NHWC}>,
     %5 = IE.Copy(%4) {out_mem_space = @CMX_NN} : tensor<1x48x64x64xf16, {order = #NHWC}> -> tensor<1x48x64x64xf16, {mem_space = @CMX_NN, order = #NHWC}>
     
     %6 = VPU.NCE.DepthConvolution(%5, %filter, %weightsTable, %activationWindow) 
-        (bias : #const.Content<dense<2.0> : tensor<1x144x1x1xf16>, [#const.SubView<[0, 48, 0, 0], [1, 48, 1, 1]>]>) 
-        {pad = {bottom = 1 : i64, left = 1 : i64, right = 1 : i64, top = 1 : i64}, 
+        {activation_window_channel_length = 18 : i64, 
+        pad = {bottom = 1 : i64, left = 1 : i64, right = 1 : i64, top = 1 : i64}, 
         post_op = {attrs = {max = 6.000000e+00 : f64, min = 0.000000e+00 : f64}, name = "IE.Clamp"}, 
         rawFilterShape = [48, 1, 3, 3], 
         strides = [1, 1]} 
@@ -63,8 +65,8 @@ func @main(%input: tensor<1x144x64x64xf16, {order = #NHWC}>,
     %9 = IE.Copy(%8) {out_mem_space = @CMX_NN} : tensor<1x48x64x64xf16, {order = #NHWC}> -> tensor<1x48x64x64xf16, {mem_space = @CMX_NN, order = #NHWC}>
     
     %10 = VPU.NCE.DepthConvolution(%9, %filter, %weightsTable, %activationWindow) 
-        (bias : #const.Content<dense<2.0> : tensor<1x144x1x1xf16>, [#const.SubView<[0, 96, 0, 0], [1, 48, 1, 1]>]>) 
-        {pad = {bottom = 1 : i64, left = 1 : i64, right = 1 : i64, top = 1 : i64}, 
+        {activation_window_channel_length = 18 : i64, 
+        pad = {bottom = 1 : i64, left = 1 : i64, right = 1 : i64, top = 1 : i64}, 
         post_op = {attrs = {max = 6.000000e+00 : f64, min = 0.000000e+00 : f64}, 
         name = "IE.Clamp"}, rawFilterShape = [48, 1, 3, 3], 
         strides = [1, 1]} 
@@ -78,8 +80,10 @@ func @main(%input: tensor<1x144x64x64xf16, {order = #NHWC}>,
     // Concat result copy-in for NCE user
     %13 = IE.Copy(%12) {out_mem_space = @CMX_NN} : tensor<1x144x64x64xf16, {order = #NHWC}> -> tensor<1x144x64x64xf16, {mem_space = @CMX_NN, order = #NHWC}>
     
-    %14 = VPU.NCE.MaxPool(%13, %weightsTable, %activationWindow) {
-            pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}, strides = [1, 1], kernel_size = [1, 1]
+    %14 = VPU.NCE.MaxPool(%13, %weightsTableMaxPool, %activationWindow) {
+            activation_window_channel_length = 4 : i64,
+            pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64},
+            strides = [1, 1], kernel_size = [1, 1]
         } -> tensor<1x144x64x64xf16, {mem_space = @CMX_NN, order = #NHWC}>
 
     %15 = IE.Copy(%14) : tensor<1x144x64x64xf16, {mem_space = @CMX_NN, order = #NHWC}> -> tensor<1x144x64x64xf16, {order = #NHWC}>
@@ -130,7 +134,7 @@ func @main(%input: tensor<1x144x64x64xf16, {order = #NHWC}>,
     // CHECK-NOT:   IE.Copy
 
     // user of the concat uses result of concat without intermediate copy operation
-    // CHECK:       [[VAL10:%.+]] = VPU.NCE.MaxPool([[VAL9]], %arg2, %arg3)
+    // CHECK:       [[VAL10:%.+]] = VPU.NCE.MaxPool([[VAL9]], %arg4, %arg3)
     // CHECK:       [[VAL11:%.+]] = IE.Copy([[VAL10]])
 
     // CHECK:       return [[VAL11:%.+]] : tensor<1x144x64x64xf16, {order = #NHWC}>
@@ -155,8 +159,10 @@ IE.CNNNetwork
     inputsInfo : {
         DataInfo "input" : tensor<1x144x64x64xf16, {order = #NHWC}>
         DataInfo "filter" : tensor<48x16x1x1xf16, {mem_space = @CMX_NN, order = #NHWC}>
-        DataInfo "weightsTable" : tensor<16x1x1x4xsi32, {mem_space = @CMX_NN, order = #NCHW}>
-        DataInfo "activationWindow" : tensor<48x1x1x16xui8, {mem_space = @CMX_NN, order = #NCHW}>
+        DataInfo "weightsTable" : tensor<48x1x1x4xsi32, {mem_space = @CMX_NN, order = #NCHW}>
+        DataInfo "activationWindow" : tensor<1x1x1x16xui8, {mem_space = @CMX_NN, order = #NCHW}>
+        DataInfo "filterCons" : tensor<144x16x1x1xf16, {mem_space = @CMX_NN, order = #NHWC}>
+        DataInfo "weightsTableCons" : tensor<144x1x1x4xsi32, {mem_space = @CMX_NN, order = #NCHW}>
     }
     outputsInfo : {
         DataInfo "prob1" : tensor<1x144x32x64xf16, {order = #NHWC}>
@@ -165,8 +171,10 @@ IE.CNNNetwork
 
 func @main(%input: tensor<1x144x64x64xf16, {order = #NHWC}>,
            %filter: tensor<48x16x1x1xf16, {mem_space = @CMX_NN, order = #NHWC}>,
-           %weightsTable: tensor<16x1x1x4xsi32, {mem_space = @CMX_NN, order = #NCHW}>,
-           %activationWindow: tensor<48x1x1x16xui8, {mem_space = @CMX_NN, order = #NCHW}>)
+           %weightsTable: tensor<48x1x1x4xsi32, {mem_space = @CMX_NN, order = #NCHW}>,
+           %activationWindow: tensor<1x1x1x16xui8, {mem_space = @CMX_NN, order = #NCHW}>,
+           %filterCons: tensor<144x16x1x1xf16, {mem_space = @CMX_NN, order = #NHWC}>,
+           %weightsTableCons: tensor<144x1x1x4xsi32, {mem_space = @CMX_NN, order = #NCHW}>)
            -> (tensor<1x144x32x64xf16, {order = #NHWC}>, tensor<1x144x32x64xf16, {order = #NHWC}>) {
 
     // Create a concat subgraph with three input tiles and one output user
@@ -176,8 +184,8 @@ func @main(%input: tensor<1x144x64x64xf16, {order = #NHWC}>,
     %1 = IE.Copy(%0) {out_mem_space = @CMX_NN} : tensor<1x48x64x64xf16, {order = #NHWC}> -> tensor<1x48x64x64xf16, {mem_space = @CMX_NN, order = #NHWC}>
 
     %2 = VPU.NCE.DepthConvolution(%1, %filter, %weightsTable, %activationWindow) 
-        (bias : #const.Content<dense<2.0> : tensor<1x144x1x1xf16>, [#const.SubView<[0, 0, 0, 0], [1, 48, 1, 1]>]>) 
-        {pad = {bottom = 1 : i64, left = 1 : i64, right = 1 : i64, top = 1 : i64}, 
+        {activation_window_channel_length = 18 : i64, 
+        pad = {bottom = 1 : i64, left = 1 : i64, right = 1 : i64, top = 1 : i64}, 
         post_op = {attrs = {max = 6.000000e+00 : f64, min = 0.000000e+00 : f64}, name = "IE.Clamp"}, 
         rawFilterShape = [48, 1, 3, 3], 
         strides = [1, 1]} 
@@ -190,8 +198,8 @@ func @main(%input: tensor<1x144x64x64xf16, {order = #NHWC}>,
     %5 = IE.Copy(%4) {out_mem_space = @CMX_NN} : tensor<1x48x64x64xf16, {order = #NHWC}> -> tensor<1x48x64x64xf16, {mem_space = @CMX_NN, order = #NHWC}>
     
     %6 = VPU.NCE.DepthConvolution(%5, %filter, %weightsTable, %activationWindow) 
-        (bias : #const.Content<dense<2.0> : tensor<1x144x1x1xf16>, [#const.SubView<[0, 48, 0, 0], [1, 48, 1, 1]>]>) 
-        {pad = {bottom = 1 : i64, left = 1 : i64, right = 1 : i64, top = 1 : i64}, 
+        {activation_window_channel_length = 18 : i64, 
+        pad = {bottom = 1 : i64, left = 1 : i64, right = 1 : i64, top = 1 : i64}, 
         post_op = {attrs = {max = 6.000000e+00 : f64, min = 0.000000e+00 : f64}, name = "IE.Clamp"}, 
         rawFilterShape = [48, 1, 3, 3], 
         strides = [1, 1]} 
@@ -204,8 +212,8 @@ func @main(%input: tensor<1x144x64x64xf16, {order = #NHWC}>,
     %9 = IE.Copy(%8) {out_mem_space = @CMX_NN} : tensor<1x48x64x64xf16, {order = #NHWC}> -> tensor<1x48x64x64xf16, {mem_space = @CMX_NN, order = #NHWC}>
     
     %10 = VPU.NCE.DepthConvolution(%9, %filter, %weightsTable, %activationWindow) 
-        (bias : #const.Content<dense<2.0> : tensor<1x144x1x1xf16>, [#const.SubView<[0, 96, 0, 0], [1, 48, 1, 1]>]>) 
-        {pad = {bottom = 1 : i64, left = 1 : i64, right = 1 : i64, top = 1 : i64}, 
+        {activation_window_channel_length = 18 : i64, 
+        pad = {bottom = 1 : i64, left = 1 : i64, right = 1 : i64, top = 1 : i64}, 
         post_op = {attrs = {max = 6.000000e+00 : f64, min = 0.000000e+00 : f64}, 
         name = "IE.Clamp"}, rawFilterShape = [48, 1, 3, 3], 
         strides = [1, 1]} 
@@ -219,13 +227,13 @@ func @main(%input: tensor<1x144x64x64xf16, {order = #NHWC}>,
     %13 = IE.Slice %12 [0, 0, 0, 0] [1, 144, 32, 64] : tensor<1x144x64x64xf16, {order = #NHWC}> to tensor<1x144x32x64xf16, {order = #NHWC}>
     // Concat slice result copy-in for NCE user
     %14 = IE.Copy(%13) {out_mem_space = @CMX_NN} : tensor<1x144x32x64xf16, {order = #NHWC}> -> tensor<1x144x32x64xf16, {mem_space = @CMX_NN, order = #NHWC}>
-    %15 = VPU.NCE.DepthConvolution(%14, %filter, %weightsTable, %activationWindow) (bias : #const.Content<dense<2.0> : tensor<1x144x1x1xf16>, [#const.SubView<[0, 0, 0, 0], [1, 144, 1, 1]>]>) {pad = {bottom = 1 : i64, left = 1 : i64, right = 1 : i64, top = 1 : i64}, post_op = {attrs = {max = 6.000000e+00 : f64, min = 0.000000e+00 : f64}, name = "IE.Clamp"}, rawFilterShape = [144, 1, 3, 3], strides = [1, 1]} -> tensor<1x144x32x64xf16, {mem_space = @CMX_NN, order = #NHWC}> 
+    %15 = VPU.NCE.DepthConvolution(%14, %filterCons, %weightsTableCons, %activationWindow) {activation_window_channel_length = 18 : i64, pad = {bottom = 1 : i64, left = 1 : i64, right = 1 : i64, top = 1 : i64}, post_op = {attrs = {max = 6.000000e+00 : f64, min = 0.000000e+00 : f64}, name = "IE.Clamp"}, rawFilterShape = [144, 1, 3, 3], strides = [1, 1]} -> tensor<1x144x32x64xf16, {mem_space = @CMX_NN, order = #NHWC}> 
     %16 = IE.Copy(%15) : tensor<1x144x32x64xf16, {mem_space = @CMX_NN, order = #NHWC}> -> tensor<1x144x32x64xf16, {order = #NHWC}>
     
     %17 = IE.Slice %12 [0, 144, 0, 0] [1, 144, 32, 64] : tensor<1x144x64x64xf16, {order = #NHWC}> to tensor<1x144x32x64xf16, {order = #NHWC}>
     // Concat slice result copy-in for NCE user
     %18 = IE.Copy(%17) {out_mem_space = @CMX_NN} : tensor<1x144x32x64xf16, {order = #NHWC}> -> tensor<1x144x32x64xf16, {mem_space = @CMX_NN, order = #NHWC}>
-    %19 = VPU.NCE.DepthConvolution(%18, %filter, %weightsTable, %activationWindow) (bias : #const.Content<dense<2.0> : tensor<1x144x1x1xf16>, [#const.SubView<[0, 144, 0, 0], [1, 144, 1, 1]>]>) {pad = {bottom = 1 : i64, left = 1 : i64, right = 1 : i64, top = 1 : i64}, post_op = {attrs = {max = 6.000000e+00 : f64, min = 0.000000e+00 : f64}, name = "IE.Clamp"}, rawFilterShape = [144, 1, 3, 3], strides = [1, 1]} -> tensor<1x144x32x64xf16, {mem_space = @CMX_NN, order = #NHWC}> 
+    %19 = VPU.NCE.DepthConvolution(%18, %filterCons, %weightsTableCons, %activationWindow) {activation_window_channel_length = 18 : i64, pad = {bottom = 1 : i64, left = 1 : i64, right = 1 : i64, top = 1 : i64}, post_op = {attrs = {max = 6.000000e+00 : f64, min = 0.000000e+00 : f64}, name = "IE.Clamp"}, rawFilterShape = [144, 1, 3, 3], strides = [1, 1]} -> tensor<1x144x32x64xf16, {mem_space = @CMX_NN, order = #NHWC}> 
     %20 = IE.Copy(%19) : tensor<1x144x32x64xf16, {mem_space = @CMX_NN, order = #NHWC}> -> tensor<1x144x32x64xf16, {order = #NHWC}>
 
     return %16, %20 : tensor<1x144x32x64xf16, {order = #NHWC}>, tensor<1x144x32x64xf16, {order = #NHWC}>
@@ -282,7 +290,7 @@ func @main(%input: tensor<1x144x64x64xf16, {order = #NHWC}>,
     // CHECK-NOT:   IE.Copy
 
     // concat user reading from NNCMX slice without intermediate copy operation
-    // CHECK:       [[VAL11:%.+]] = VPU.NCE.DepthConvolution([[VAL10]], %arg1, %arg2, %arg3)
+    // CHECK:       [[VAL11:%.+]] = VPU.NCE.DepthConvolution([[VAL10]], %arg4, %arg5, %arg3)
     // copy-out
     // CHECK:       [[VAL12:%.+]] = IE.Copy([[VAL11]])
 
@@ -294,7 +302,7 @@ func @main(%input: tensor<1x144x64x64xf16, {order = #NHWC}>,
     // CHECK-NOT:   IE.Copy
 
     // user reading from NNCMX without intermediate copy operation
-    // CHECK:       [[VAL14:%.+]] = VPU.NCE.DepthConvolution([[VAL13]], %arg1, %arg2, %arg3)
+    // CHECK:       [[VAL14:%.+]] = VPU.NCE.DepthConvolution([[VAL13]], %arg4, %arg5, %arg3)
     // copy-out
     // CHECK:       [[VAL15:%.+]] = IE.Copy([[VAL14]])
 
