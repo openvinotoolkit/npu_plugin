@@ -46,7 +46,7 @@
             },
             "extra_config" : {
                 "VPUX_COMPILER_TYPE": "MLIR",
-                "PERFORMANCE_HINT": "THROUGHPUT",
+                "PERFORMANCE_HINT": "LATENCY",
                 "VPUX_INFERENCE_SHAVES": "16"
             },
             "BenchmarkApp" : {
@@ -82,7 +82,7 @@
             },
             "extra_config" : {
                 "VPUX_COMPILER_TYPE": "MLIR",
-                "PERFORMANCE_HINT": "THROUGHPUT",
+                "PERFORMANCE_HINT": "LATENCY",
                 "VPUX_INFERENCE_SHAVES": "16"
             },
             "BenchmarkApp" : {
@@ -259,7 +259,7 @@
             },
             "extra_config" : {
                 "VPUX_COMPILER_TYPE": "MLIR",
-                "PERFORMANCE_HINT": "THROUGHPUT",
+                "PERFORMANCE_HINT": "LATENCY",
                 "VPUX_INFERENCE_SHAVES": "16"
             },
             "BenchmarkApp" : {
@@ -290,7 +290,7 @@
             },
             "extra_config" : {
                 "VPUX_COMPILER_TYPE": "MLIR",
-                "PERFORMANCE_HINT": "THROUGHPUT",
+                "PERFORMANCE_HINT": "LATENCY",
                 "VPUX_INFERENCE_SHAVES": "16"
             },
             "BenchmarkApp" : {
@@ -357,7 +357,7 @@
             },
             "extra_config" : {
                 "VPUX_COMPILER_TYPE": "MLIR",
-                "PERFORMANCE_HINT": "THROUGHPUT",
+                "PERFORMANCE_HINT": "LATENCY",
                 "VPUX_INFERENCE_SHAVES": "16"
             },
             "NetTest-CalcRef" : {
@@ -388,7 +388,7 @@
             },
             "extra_config" : {
                 "VPUX_COMPILER_TYPE": "MLIR",
-                "PERFORMANCE_HINT": "THROUGHPUT",
+                "PERFORMANCE_HINT": "LATENCY",
                 "VPUX_INFERENCE_SHAVES": "16"
             },
             "BenchmarkApp" : {
@@ -418,7 +418,7 @@
             },
             "extra_config" : {
                 "VPUX_COMPILER_TYPE": "MLIR",
-                "PERFORMANCE_HINT": "THROUGHPUT",
+                "PERFORMANCE_HINT": "LATENCY",
                 "VPUX_INFERENCE_SHAVES": "16"
             },
             "BenchmarkApp" : {
@@ -516,7 +516,7 @@
             },
             "extra_config" : {
                 "VPUX_COMPILER_TYPE": "MLIR",
-                "PERFORMANCE_HINT": "THROUGHPUT",
+                "PERFORMANCE_HINT": "LATENCY",
                 "VPUX_INFERENCE_SHAVES": "16"
             },
             "BenchmarkApp" : {
@@ -681,7 +681,7 @@
             },
             "extra_config" : {
                 "VPUX_COMPILER_TYPE": "MLIR",
-                "PERFORMANCE_HINT": "THROUGHPUT",
+                "PERFORMANCE_HINT": "LATENCY",
                 "VPUX_INFERENCE_SHAVES": "16"
             },
             "Compile" : {
@@ -718,7 +718,7 @@
             },
             "extra_config" : {
                 "VPUX_COMPILER_TYPE": "MLIR",
-                "PERFORMANCE_HINT": "THROUGHPUT",
+                "PERFORMANCE_HINT": "LATENCY",
                 "VPUX_INFERENCE_SHAVES": "16"
             },
             "BenchmarkApp" : {
@@ -750,7 +750,7 @@
             },
             "extra_config" : {
                 "VPUX_COMPILER_TYPE": "MLIR",
-                "PERFORMANCE_HINT": "THROUGHPUT",
+                "PERFORMANCE_HINT": "LATENCY",
                 "VPUX_INFERENCE_SHAVES": "16"
             },
             "BenchmarkApp" : {
@@ -816,7 +816,7 @@
             },
             "extra_config" : {
                 "VPUX_COMPILER_TYPE": "MLIR",
-                "PERFORMANCE_HINT": "THROUGHPUT",
+                "PERFORMANCE_HINT": "LATENCY",
                 "VPUX_INFERENCE_SHAVES": "16"
             },
             "BenchmarkApp" : {
@@ -847,7 +847,7 @@
             },
             "extra_config" : {
                 "VPUX_COMPILER_TYPE": "MLIR",
-                "PERFORMANCE_HINT": "THROUGHPUT",
+                "PERFORMANCE_HINT": "LATENCY",
                 "VPUX_INFERENCE_SHAVES": "16"
             },
             "BenchmarkApp" : {
@@ -879,7 +879,7 @@
             },
             "extra_config" : {
                 "VPUX_COMPILER_TYPE": "MLIR",
-                "PERFORMANCE_HINT": "THROUGHPUT",
+                "PERFORMANCE_HINT": "LATENCY",
                 "VPUX_INFERENCE_SHAVES": "16"
             },
             "BenchmarkApp" : {
@@ -983,7 +983,7 @@
             },
             "extra_config" : {
                 "VPUX_COMPILER_TYPE": "MLIR",
-                "PERFORMANCE_HINT": "THROUGHPUT",
+                "PERFORMANCE_HINT": "LATENCY",
                 "VPUX_INFERENCE_SHAVES": "16"
             },
             "BenchmarkApp" : {
@@ -1014,7 +1014,7 @@
             },
             "extra_config" : {
                 "VPUX_COMPILER_TYPE": "MLIR",
-                "PERFORMANCE_HINT": "THROUGHPUT",
+                "PERFORMANCE_HINT": "LATENCY",
                 "VPUX_INFERENCE_SHAVES": "16"
             },
             "BenchmarkApp" : {
@@ -1081,7 +1081,7 @@
             },
             "extra_config" : {
                 "VPUX_COMPILER_TYPE": "MLIR",
-                "PERFORMANCE_HINT": "THROUGHPUT",
+                "PERFORMANCE_HINT": "LATENCY",
                 "VPUX_INFERENCE_SHAVES": "16"
             },
             "BenchmarkApp" : {
@@ -1112,7 +1112,7 @@
             },
             "extra_config" : {
                 "VPUX_COMPILER_TYPE": "MLIR",
-                "PERFORMANCE_HINT": "THROUGHPUT",
+                "PERFORMANCE_HINT": "LATENCY",
                 "VPUX_INFERENCE_SHAVES": "16"
             },
             "BenchmarkApp" : {
@@ -1179,7 +1179,7 @@
             },
             "extra_config" : {
                 "VPUX_COMPILER_TYPE": "MLIR",
-                "PERFORMANCE_HINT": "THROUGHPUT",
+                "PERFORMANCE_HINT": "LATENCY",
                 "VPUX_INFERENCE_SHAVES": "16"
             },
             "BenchmarkApp" : {
@@ -1252,7 +1252,7 @@
             },
             "extra_config" : {
                 "VPUX_COMPILER_TYPE": "MLIR",
-                "PERFORMANCE_HINT": "THROUGHPUT",
+                "PERFORMANCE_HINT": "LATENCY",
                 "VPUX_INFERENCE_SHAVES": "16"
             },
             "BenchmarkApp" : {
@@ -1472,7 +1472,7 @@
             },
             "extra_config" : {
                 "VPUX_COMPILER_TYPE": "MLIR",
-                "PERFORMANCE_HINT": "THROUGHPUT",
+                "PERFORMANCE_HINT": "LATENCY",
                 "VPUX_INFERENCE_SHAVES": "16"
             },
             "BenchmarkApp" : {
@@ -1503,7 +1503,7 @@
             },
             "extra_config" : {
                 "VPUX_COMPILER_TYPE": "MLIR",
-                "PERFORMANCE_HINT": "THROUGHPUT",
+                "PERFORMANCE_HINT": "LATENCY",
                 "VPUX_INFERENCE_SHAVES": "16"
             },
             "BenchmarkApp" : {
@@ -1568,7 +1568,7 @@
             },
             "extra_config" : {
                 "VPUX_COMPILER_TYPE": "MLIR",
-                "PERFORMANCE_HINT": "THROUGHPUT",
+                "PERFORMANCE_HINT": "LATENCY",
                 "VPUX_INFERENCE_SHAVES": "16"
             },
             "BenchmarkApp": {
@@ -1600,7 +1600,7 @@
             },
             "extra_config": {
                 "VPUX_COMPILER_TYPE": "MLIR",
-                "PERFORMANCE_HINT": "THROUGHPUT",
+                "PERFORMANCE_HINT": "LATENCY",
                 "VPUX_INFERENCE_SHAVES": "16"
             },
             "BenchmarkApp": {
@@ -1670,7 +1670,7 @@
             },
             "extra_config" : {
                 "VPUX_COMPILER_TYPE": "MLIR",
-                "PERFORMANCE_HINT": "THROUGHPUT",
+                "PERFORMANCE_HINT": "LATENCY",
                 "VPUX_INFERENCE_SHAVES": "16"
             },
             "BenchmarkApp" : {
@@ -1737,7 +1737,7 @@
             },
             "extra_config" : {
                 "VPUX_COMPILER_TYPE": "MLIR",
-                "PERFORMANCE_HINT": "THROUGHPUT",
+                "PERFORMANCE_HINT": "LATENCY",
                 "VPUX_INFERENCE_SHAVES": "16"
             },
             "BenchmarkApp" : {
@@ -1768,7 +1768,7 @@
             },
             "extra_config" : {
                 "VPUX_COMPILER_TYPE": "MLIR",
-                "PERFORMANCE_HINT": "THROUGHPUT",
+                "PERFORMANCE_HINT": "LATENCY",
                 "VPUX_INFERENCE_SHAVES": "16"
             },
             "Compile" : {
@@ -1818,7 +1818,7 @@
             },
             "extra_config": {
                 "VPUX_COMPILER_TYPE": "MLIR",
-                "PERFORMANCE_HINT": "THROUGHPUT",
+                "PERFORMANCE_HINT": "LATENCY",
                 "VPUX_INFERENCE_SHAVES": "16"
             },
             "Compile" : {
@@ -1855,7 +1855,7 @@
             },
             "extra_config": {
                 "VPUX_COMPILER_TYPE": "MLIR",
-                "PERFORMANCE_HINT": "THROUGHPUT",
+                "PERFORMANCE_HINT": "LATENCY",
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_IMD_MV_RUN_TIMEOUT": "3600"
             },
@@ -1901,7 +1901,7 @@
             },
             "extra_config" : {
                 "VPUX_COMPILER_TYPE": "MLIR",
-                "PERFORMANCE_HINT": "THROUGHPUT",
+                "PERFORMANCE_HINT": "LATENCY",
                 "VPUX_INFERENCE_SHAVES": "16"
             },
             "BenchmarkApp" : {
@@ -1931,7 +1931,7 @@
             },
             "extra_config" : {
                 "VPUX_COMPILER_TYPE": "MLIR",
-                "PERFORMANCE_HINT": "THROUGHPUT",
+                "PERFORMANCE_HINT": "LATENCY",
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_COMPILATION_MODE_PARAMS": "compress-weights"
             },
@@ -1962,7 +1962,7 @@
             },
             "extra_config" : {
                 "VPUX_COMPILER_TYPE": "MLIR",
-                "PERFORMANCE_HINT": "THROUGHPUT",
+                "PERFORMANCE_HINT": "LATENCY",
                 "VPUX_INFERENCE_SHAVES": "16"
             },
             "BenchmarkApp" : {
@@ -1993,7 +1993,7 @@
             },
             "extra_config" : {
                 "VPUX_COMPILER_TYPE": "MLIR",
-                "PERFORMANCE_HINT": "THROUGHPUT",
+                "PERFORMANCE_HINT": "LATENCY",
                 "VPUX_INFERENCE_SHAVES": "16"
             },
             "BenchmarkApp" : {
@@ -2024,7 +2024,7 @@
             },
             "extra_config" : {
                 "VPUX_COMPILER_TYPE": "MLIR",
-                "PERFORMANCE_HINT": "THROUGHPUT",
+                "PERFORMANCE_HINT": "LATENCY",
                 "VPUX_INFERENCE_SHAVES": "16"
             },
             "BenchmarkApp" : {
@@ -2055,7 +2055,7 @@
             },
             "extra_config" : {
                 "VPUX_COMPILER_TYPE": "MLIR",
-                "PERFORMANCE_HINT": "THROUGHPUT",
+                "PERFORMANCE_HINT": "LATENCY",
                 "VPUX_INFERENCE_SHAVES": "16"
             },
             "BenchmarkApp" : {
@@ -2163,7 +2163,7 @@
                 "VPUX_COMPILER_TYPE": "MCM",
                 "PERFORMANCE_HINT": "LATENCY",
                 "VPUX_INFERENCE_SHAVES": "16",
-                "VPUX_THROUGHPUT_STREAMS": "1",
+                "VPUX_LATENCY_STREAMS": "1",
                 "VPUX_EXECUTOR_STREAMS": "1"
             },
             "Compile" : {
@@ -2197,9 +2197,9 @@
             "category" : "MLIR/SKIP_WIN",
             "extra_config" : {
                 "VPUX_COMPILER_TYPE": "MLIR",
-                "PERFORMANCE_HINT": "THROUGHPUT",
+                "PERFORMANCE_HINT": "LATENCY",
                 "VPUX_INFERENCE_SHAVES": "16",
-                "VPUX_THROUGHPUT_STREAMS": "1",
+                "VPUX_LATENCY_STREAMS": "1",
                 "VPUX_EXECUTOR_STREAMS": "1",
                 "VPUX_INFERENCE_TIMEOUT": "60000"
             },
@@ -2488,7 +2488,7 @@
             },
             "extra_config": {
                 "VPUX_COMPILER_TYPE": "MLIR",
-                "PERFORMANCE_HINT": "THROUGHPUT",
+                "PERFORMANCE_HINT": "LATENCY",
                 "VPUX_INFERENCE_SHAVES": "16"
             },
             "NetTest": {
@@ -2519,7 +2519,7 @@
             },
             "extra_config": {
                 "VPUX_COMPILER_TYPE": "MLIR",
-                "PERFORMANCE_HINT": "THROUGHPUT",
+                "PERFORMANCE_HINT": "LATENCY",
                 "VPUX_INFERENCE_SHAVES": "16"
             },
             "NetTest": {
@@ -2547,7 +2547,7 @@
             },
             "extra_config": {
                 "VPUX_COMPILER_TYPE": "MLIR",
-                "PERFORMANCE_HINT": "THROUGHPUT",
+                "PERFORMANCE_HINT": "LATENCY",
                 "VPUX_INFERENCE_SHAVES": "16"
             },
             "BenchmarkApp" : {
@@ -2577,7 +2577,7 @@
             },
             "extra_config": {
                 "VPUX_COMPILER_TYPE": "MLIR",
-                "PERFORMANCE_HINT": "THROUGHPUT",
+                "PERFORMANCE_HINT": "LATENCY",
                 "VPUX_INFERENCE_SHAVES": "16"
             },
             "BenchmarkApp" : {
@@ -2763,7 +2763,7 @@
             },
             "extra_config" : {
                 "VPUX_COMPILER_TYPE": "MLIR",
-                "PERFORMANCE_HINT": "THROUGHPUT",
+                "PERFORMANCE_HINT": "LATENCY",
                 "VPUX_INFERENCE_SHAVES": "16"
             },
             "BenchmarkApp" : {
@@ -2792,9 +2792,9 @@
             },
             "extra_config": {
                 "VPUX_COMPILER_TYPE": "MLIR",
-                "PERFORMANCE_HINT": "THROUGHPUT",
+                "PERFORMANCE_HINT": "LATENCY",
                 "VPUX_INFERENCE_SHAVES": "16",
-                "VPUX_THROUGHPUT_STREAMS": "1",
+                "VPUX_LATENCY_STREAMS": "1",
                 "VPUX_EXECUTOR_STREAMS": "1",
                 "VPUX_INFERENCE_TIMEOUT": "100000"
             },
@@ -2934,7 +2934,7 @@
             },
             "extra_config" : {
                 "VPUX_COMPILER_TYPE": "MLIR",
-                "PERFORMANCE_HINT": "THROUGHPUT",
+                "PERFORMANCE_HINT": "LATENCY",
                 "VPUX_INFERENCE_SHAVES": "16"
             },
             "BenchmarkApp" : {
@@ -3032,9 +3032,9 @@
             "category" : "MLIR",
             "extra_config": {
                 "VPUX_COMPILER_TYPE": "MLIR",
-                "PERFORMANCE_HINT": "THROUGHPUT",
+                "PERFORMANCE_HINT": "LATENCY",
                 "VPUX_INFERENCE_SHAVES": "16",
-                "VPUX_THROUGHPUT_STREAMS": "1"
+                "VPUX_LATENCY_STREAMS": "1"
             },
             "3720": {
                 "disabled" : true
@@ -3771,7 +3771,7 @@
             },
             "extra_config" : {
                 "VPUX_COMPILER_TYPE": "MLIR",
-                "PERFORMANCE_HINT": "THROUGHPUT",
+                "PERFORMANCE_HINT": "LATENCY",
                 "VPUX_INFERENCE_SHAVES": "16"
             },
             "Compile" : {
@@ -3819,7 +3819,7 @@
             },
             "extra_config" : {
                 "VPUX_COMPILER_TYPE": "MLIR",
-                "PERFORMANCE_HINT": "THROUGHPUT",
+                "PERFORMANCE_HINT": "LATENCY",
                 "VPUX_INFERENCE_SHAVES": "16"
             },
             "Compile" : {
@@ -3869,7 +3869,7 @@
             },
             "extra_config" : {
                 "VPUX_COMPILER_TYPE": "MLIR",
-                "PERFORMANCE_HINT": "THROUGHPUT",
+                "PERFORMANCE_HINT": "LATENCY",
                 "VPUX_INFERENCE_SHAVES": "16"
             },
             "Compile" : {
@@ -3921,7 +3921,7 @@
             },
             "extra_config" : {
                 "VPUX_COMPILER_TYPE": "MLIR",
-                "PERFORMANCE_HINT": "THROUGHPUT",
+                "PERFORMANCE_HINT": "LATENCY",
                 "VPUX_INFERENCE_SHAVES": "16"
             },
             "Compile" : {
@@ -3959,7 +3959,7 @@
             },
             "extra_config" : {
                 "VPUX_COMPILER_TYPE": "MLIR",
-                "PERFORMANCE_HINT": "THROUGHPUT",
+                "PERFORMANCE_HINT": "LATENCY",
                 "VPUX_INFERENCE_SHAVES": "16"
             },
             "Compile" : {
@@ -3996,9 +3996,9 @@
             },
             "extra_config" : {
                 "VPUX_COMPILER_TYPE": "MLIR",
-                "PERFORMANCE_HINT": "THROUGHPUT",
+                "PERFORMANCE_HINT": "LATENCY",
                 "VPUX_INFERENCE_SHAVES": "16",
-                "VPUX_THROUGHPUT_STREAMS": "1"
+                "VPUX_LATENCY_STREAMS": "1"
             },
             "Compile" : {
                 "input_precision" : "FP32",
@@ -4040,7 +4040,7 @@
             },
             "extra_config" : {
                 "VPUX_COMPILER_TYPE": "MLIR",
-                "PERFORMANCE_HINT": "THROUGHPUT",
+                "PERFORMANCE_HINT": "LATENCY",
                 "VPUX_INFERENCE_SHAVES": "16"
             },
             "Compile" : {
@@ -4234,7 +4234,7 @@
             },
             "extra_config" : {
                 "VPUX_COMPILER_TYPE": "MLIR",
-                "PERFORMANCE_HINT": "THROUGHPUT",
+                "PERFORMANCE_HINT": "LATENCY",
                 "VPUX_INFERENCE_SHAVES": "16"
             },
             "Compile" : {
@@ -4268,7 +4268,7 @@
             },
             "extra_config" : {
                 "VPUX_COMPILER_TYPE": "MLIR",
-                "PERFORMANCE_HINT": "THROUGHPUT",
+                "PERFORMANCE_HINT": "LATENCY",
                 "VPUX_INFERENCE_SHAVES": "16"
             },
             "Compile" : {
@@ -4381,7 +4381,7 @@
             },
             "extra_config" : {
                 "VPUX_COMPILER_TYPE": "MLIR",
-                "PERFORMANCE_HINT": "THROUGHPUT",
+                "PERFORMANCE_HINT": "LATENCY",
                 "VPUX_INFERENCE_SHAVES": "16"
             },
             "BenchmarkApp" : {
@@ -4411,7 +4411,7 @@
             },
             "extra_config" : {
                 "VPUX_COMPILER_TYPE": "MLIR",
-                "PERFORMANCE_HINT": "THROUGHPUT",
+                "PERFORMANCE_HINT": "LATENCY",
                 "VPUX_INFERENCE_SHAVES": "16"
             },
             "BenchmarkApp" : {
@@ -4445,7 +4445,7 @@
             },
             "extra_config" : {
                 "VPUX_COMPILER_TYPE": "MLIR",
-                "PERFORMANCE_HINT": "THROUGHPUT",
+                "PERFORMANCE_HINT": "LATENCY",
                 "VPUX_INFERENCE_SHAVES": "16",
                 "VPUX_INFERENCE_TIMEOUT": "100000"
             },
@@ -4480,7 +4480,7 @@
             },
             "extra_config" : {
                 "VPUX_COMPILER_TYPE": "MLIR",
-                "PERFORMANCE_HINT": "THROUGHPUT",
+                "PERFORMANCE_HINT": "LATENCY",
                 "VPUX_INFERENCE_SHAVES": "16"
             },
             "BenchmarkApp" : {
@@ -4506,7 +4506,7 @@
             "category" : "MLIR",
             "extra_config" : {
                 "VPUX_COMPILER_TYPE": "MLIR",
-                "PERFORMANCE_HINT": "THROUGHPUT",
+                "PERFORMANCE_HINT": "LATENCY",
                 "VPUX_INFERENCE_TIMEOUT":"100000",
                 "VPUX_INFERENCE_SHAVES": "16"
             },
@@ -4542,7 +4542,7 @@
             },
             "extra_config" : {
                 "VPUX_COMPILER_TYPE": "MLIR",
-                "PERFORMANCE_HINT": "THROUGHPUT",
+                "PERFORMANCE_HINT": "LATENCY",
                 "VPUX_INFERENCE_SHAVES": "16"
             },
             "Compile" : {
@@ -4584,7 +4584,7 @@
             },
             "extra_config" : {
                 "VPUX_COMPILER_TYPE": "MLIR",
-                "PERFORMANCE_HINT": "THROUGHPUT",
+                "PERFORMANCE_HINT": "LATENCY",
                 "VPUX_INFERENCE_SHAVES": "16"
             },
             "Compile" : {
@@ -4626,7 +4626,7 @@
             },
             "extra_config" : {
                 "VPUX_COMPILER_TYPE": "MLIR",
-                "PERFORMANCE_HINT": "THROUGHPUT",
+                "PERFORMANCE_HINT": "LATENCY",
                 "VPUX_INFERENCE_SHAVES": "16"
             },
             "BenchmarkApp": {
@@ -4655,7 +4655,7 @@
             },
             "extra_config" : {
                 "VPUX_COMPILER_TYPE": "MLIR",
-                "PERFORMANCE_HINT": "THROUGHPUT",
+                "PERFORMANCE_HINT": "LATENCY",
                 "VPUX_INFERENCE_SHAVES": "16"
             },
             "BenchmarkApp": {
@@ -4684,7 +4684,7 @@
             },
             "extra_config" : {
                 "VPUX_COMPILER_TYPE": "MLIR",
-                "PERFORMANCE_HINT": "THROUGHPUT",
+                "PERFORMANCE_HINT": "LATENCY",
                 "VPUX_INFERENCE_SHAVES": "16"
             },
             "BenchmarkApp": {
@@ -4713,7 +4713,7 @@
             },
             "extra_config" : {
                 "VPUX_COMPILER_TYPE": "MLIR",
-                "PERFORMANCE_HINT": "THROUGHPUT",
+                "PERFORMANCE_HINT": "LATENCY",
                 "VPUX_INFERENCE_SHAVES": "16"
             },
             "BenchmarkApp": {
@@ -4742,7 +4742,7 @@
             },
             "extra_config" : {
                 "VPUX_COMPILER_TYPE": "MLIR",
-                "PERFORMANCE_HINT": "THROUGHPUT",
+                "PERFORMANCE_HINT": "LATENCY",
                 "VPUX_INFERENCE_SHAVES": "16"
             },
             "BenchmarkApp": {
@@ -4772,7 +4772,7 @@
             },
             "extra_config" : {
                 "VPUX_COMPILER_TYPE": "MLIR",
-                "PERFORMANCE_HINT": "THROUGHPUT",
+                "PERFORMANCE_HINT": "LATENCY",
                 "VPUX_INFERENCE_SHAVES": "16"
             },
             "BenchmarkApp": {
