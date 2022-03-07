@@ -85,6 +85,34 @@ SmallVector<mlir::Value> getPerClusterBuffers(mlir::Location loc, VPUIP::NCEClus
     return perClusterBuffers;
 }
 
+bool isSegmentedNCETask(VPUIP::NCEClusterTaskOp nceTask, VPUIP::DistributedBufferType inputType) {
+    // Only for explicit SEGMENTED mode, not in combination with
+    // DUPLICATED or MULTICASTED
+    if (inputType.getDistribution().mode().getValue() != VPU::DistributionMode::SEGMENTED) {
+        return false;
+    }
+
+    // Segmentation not present on H axis
+    const auto numTiles = parseIntArrayAttr<int64_t>(inputType.getDistribution().num_tiles());
+    if (numTiles[Dims4D::Act::H.ind()] <= 1) {
+        return false;
+    }
+
+    // Segmentation not supported with non NHWC input such as CM Conv
+    if (inputType.getDimsOrder() != DimsOrder::NHWC) {
+        return false;
+    }
+
+    // Only for valid segmentation cases, when need to read lines from
+    // other clusters
+    const auto kernels = parseIntArrayAttr<int64_t>(nceTask.kernel_sizeAttr());
+    if (kernels[Dims4D::Kernel::Y.ind()] <= 1) {
+        return false;
+    }
+
+    return true;
+}
+
 //
 // ClusterNCERewriter
 //
@@ -149,13 +177,17 @@ mlir::LogicalResult ClusterNCERewriter::matchAndRewrite(VPUIP::NCEClusterTaskOp 
             getPerClusterBuffers(loc, clusterOp, nceTask.activation_window(), numClusters, rewriter);
     auto outputBuffs = getPerClusterBuffers(loc, clusterOp, nceTask.output_buff(), numClusters, rewriter);
 
+    mlir::UnitAttr isSegmented = nullptr;
+    if (isSegmentedNCETask(nceTask, parentInputType))
+        isSegmented = mlir::UnitAttr::get(nceTask.getContext());
+
     for (int64_t clusterId = 0; clusterId < numClusters; ++clusterId) {
         auto newTask = VPURT::wrapIntoTaskOp<VPUIP::NCEClusterTaskOp>(
                 rewriter, vpurtTask.waitBarriers(), vpurtTask.updateBarriers(), loc, inputBuffs[clusterId],
                 weightsBuffs[clusterId], weightTableBuffs[clusterId], activationWindowBuffs[clusterId], parentInput,
                 parentOutput, outputBuffs[clusterId], nceTask.task_type(), nceTask.kernel_sizeAttr(),
                 nceTask.kernel_stridesAttr(), nceTask.kernel_paddingAttr(),
-                nceTask.activation_window_channel_lengthAttr());
+                nceTask.activation_window_channel_lengthAttr(), nullptr, nullptr, isSegmented);
 
         {
             mlir::OpBuilder::InsertionGuard guard(rewriter);
