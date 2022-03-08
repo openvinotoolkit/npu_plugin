@@ -104,25 +104,29 @@ OutputTiling generatePrefetchTiles(mlir::Operation* op, Logger log) {
         prefetchableTilesOnDim[targetDim]++;
     }
 
+    if (tilingInfo.isSupportedPrefetchTiling(prefetchableTilesOnDim, log)) {
+        // if prefetch tiling supported - overwrite
+        nTilesOnDim = prefetchableTilesOnDim;
+    }
+
     // Manual Strategy Utils
     if (op->hasAttr("tilingStrategy")) {
         // use the specified number of tiles
         auto manualTiling = Shape(parseIntArrayAttr<int64_t>(op->getAttr("tilingStrategy").cast<mlir::ArrayAttr>()));
-        log.trace("Using manual tiles for op {0} at {1} : {2}", op->getName(), op->getLoc(), manualTiling);
+        if (manualTiling != nTilesOnDim) {
+            // compare against original strategy and log if different
+            log.trace("Using manual tiles for op {0} at {1}", op->getName(), op->getLoc());
+            log.nest(1).trace("Manual   tiles: {0}", manualTiling);
+            log.nest(1).trace("Original tiles: {0}", nTilesOnDim);
+        }
         return fillDividedTiles(manualTiling, outputShape);
-    } else if (tilingInfo.isSupportedPrefetchTiling(prefetchableTilesOnDim, log)) {
-        // store prefetchableTilesOnDim
-        const auto tilesAttr = getIntArrayAttr(op->getContext(), prefetchableTilesOnDim);
-        op->setAttr("tilingStrategy", tilesAttr);
     } else {
         // store nTilesOnDim
         const auto tilesAttr = getIntArrayAttr(op->getContext(), nTilesOnDim);
         op->setAttr("tilingStrategy", tilesAttr);
     }
 
-    return tilingInfo.isSupportedPrefetchTiling(prefetchableTilesOnDim, log)
-                   ? fillDividedTiles(prefetchableTilesOnDim, outputShape)
-                   : fillDividedTiles(nTilesOnDim, outputShape);
+    return fillDividedTiles(nTilesOnDim, outputShape);
 }
 
 SmallVector<Shape> generatePrefetchPatternTiles(mlir::Operation* op, mlir::Operation* parentOp, Logger log) {
@@ -187,7 +191,12 @@ SmallVector<Shape> generatePrefetchPatternTiles(mlir::Operation* op, mlir::Opera
     if (op->hasAttr("tilingStrategy")) {
         // use the specified number of tiles
         auto manualTiling = Shape(parseIntArrayAttr<int64_t>(op->getAttr("tilingStrategy").cast<mlir::ArrayAttr>()));
-        log.trace("Using manual tiles for op {0} at {1} : {2}", op->getName(), op->getLoc(), manualTiling);
+        if (manualTiling != nTilesOnDim) {
+            // compare against original strategy and log if different
+            log.trace("Using manual tiles for op {0} at {1}", op->getName(), op->getLoc());
+            log.nest(1).trace("Manual   tiles: {0}", manualTiling);
+            log.nest(1).trace("Original tiles: {0}", nTilesOnDim);
+        }
         return {manualTiling, nTilesOnDimParent};
     } else {
         // store nTilesOnDim
