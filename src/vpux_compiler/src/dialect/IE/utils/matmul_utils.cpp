@@ -46,8 +46,8 @@ SmallVector<mlir::Operation*> getMatMulParentOps(IE::MatMulOp origOp) {
 
     VPUX_THROW_UNLESS(parentList.size() == 2, "MatMul {0} does not have two parent ops", origOp->getLoc());
 
-    mlir::Operation* actInputOp;
-    mlir::Operation* weightInputOp;
+    mlir::Operation* actInputOp = nullptr;
+    mlir::Operation* weightInputOp = nullptr;
 
     // consider the input with rank=2 to be the activation
     // and rank=1 to be the weight
