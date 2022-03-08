@@ -32,6 +32,7 @@ public:
     void markAllBuffersAsDead();
     void markAsAlive(mlir::Value val);
     Byte maxAllocatedSize() const;
+    bool checkInvariantExceedingNNCMX(mlir::Value val, vpux::AddressType baseOffset, vpux::AddressType cmxSize) const;
 
 public:
     bool isAlive(mlir::Value val) const;
@@ -46,6 +47,13 @@ public:
     static int getSpillWeight(mlir::Value);
     static bool spilled(mlir::Value);
     void setAddress(mlir::Value val, AddressType address);
+
+private:
+    IERT::SubViewOp getSubViewUserOp(mlir::Value val) const;
+    vpux::AddressType calculateStaticOffsetWithStrides(ArrayRef<vpux::AddressType> subViewStaticOffsets,
+                                                       StridesRef subViewStrides) const;
+    bool addressWithStridesExceedsNNCMX(vpux::AddressType baseOffset, vpux::AddressType staticOffsetWithStrides,
+                                        StridesRef subViewStrides, vpux::AddressType cmxSize) const;
 
 private:
     mlir::DenseMap<mlir::Value, AddressType> _valOffsets;

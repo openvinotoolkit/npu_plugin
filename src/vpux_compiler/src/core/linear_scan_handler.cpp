@@ -110,6 +110,61 @@ void LinearScanHandler::freed(mlir::Value val) {
     markAsDead(val);
 }
 
+IERT::SubViewOp LinearScanHandler::getSubViewUserOp(mlir::Value val) const {
+    for (auto use : val.getUsers()) {
+        if (mlir::isa<IERT::SubViewOp>(use)) {
+            return mlir::cast<IERT::SubViewOp>(use);
+        }
+    }
+
+    return nullptr;
+}
+
+vpux::AddressType LinearScanHandler::calculateStaticOffsetWithStrides(ArrayRef<vpux::AddressType> subViewStaticOffsets,
+                                                                      StridesRef subViewStrides) const {
+    Byte offset(0);
+
+    for (auto p : zip(subViewStaticOffsets, subViewStrides)) {
+        offset += Byte(std::get<0>(p) * std::get<1>(p));
+    }
+
+    return offset.count();
+}
+
+bool LinearScanHandler::addressWithStridesExceedsNNCMX(vpux::AddressType baseOffset,
+                                                       vpux::AddressType staticOffsetWithStrides,
+                                                       StridesRef subViewStrides, vpux::AddressType cmxSize) const {
+    Byte cmxLeft(cmxSize - (baseOffset + staticOffsetWithStrides));
+
+    for (auto stride : subViewStrides) {
+        if (Byte(stride) > cmxLeft) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+bool LinearScanHandler::checkInvariantExceedingNNCMX(mlir::Value val, vpux::AddressType baseOffset,
+                                                     vpux::AddressType cmxSize) const {
+    // for concatenation in NNCMX with non contigious block memory write
+    // prevent a scenario where tensor strides exceed NNCMX size
+    
+    auto subView = getSubViewUserOp(val);
+    if (subView == nullptr) {
+        return false;
+    }
+
+    const auto subViewStaticOffsets = parseIntArrayAttr<vpux::AddressType>(subView.static_offsets());
+    const auto subViewStrides = getStrides(subView.source());
+    VPUX_THROW_UNLESS(subViewStrides.size() == subViewStaticOffsets.size(),
+                      "SubView offsets '{0}' doesn't match strides '{1}'", subViewStaticOffsets, subViewStrides);
+
+    auto staticOffsetWithStrides = calculateStaticOffsetWithStrides(subViewStaticOffsets, subViewStrides);
+
+    return addressWithStridesExceedsNNCMX(baseOffset, staticOffsetWithStrides, subViewStrides, cmxSize);
+}
+
 int LinearScanHandler::getSpillWeight(mlir::Value) {
     VPUX_THROW("Spills are not implemented");
 }
