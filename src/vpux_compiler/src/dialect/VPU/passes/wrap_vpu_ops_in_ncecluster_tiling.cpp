@@ -68,7 +68,7 @@ mlir::LogicalResult NCEConvolutionRewriter::matchAndRewrite(NCEConvolutionOp ori
     auto activationTensorNumTiles = getIntArrayAttr(
             origOp.getContext(), getActivationTensorNumTiles(origOp.getOperation(), _numClusters, strategy));
     auto weightsTensorDistributionMode = getWeightsTensorDistributionMode(strategy);
-    auto weightTensorNumTiles = getIntArrayAttr(origOp.getContext(), getWeightsTensorNumTiles(_numClusters, strategy));
+    auto weightsTensorNumTiles = getIntArrayAttr(origOp.getContext(), getWeightsTensorNumTiles(_numClusters, strategy));
     auto weightsTableTensorDistributionMode = getWeightsTensorDistributionMode(strategy);
     auto weightsTableTensorNumTiles =
             getIntArrayAttr(origOp.getContext(), getWeightsTableTensorNumTiles(_numClusters, strategy));
@@ -79,7 +79,7 @@ mlir::LogicalResult NCEConvolutionRewriter::matchAndRewrite(NCEConvolutionOp ori
             createDistributedCopyIn(origOp, origOp.input(), activationTensorDistributionMode, activationTensorNumTiles);
 
     auto distributedWeightsCopyOp =
-            createDistributedCopyIn(origOp, origOp.filter(), weightsTensorDistributionMode, weightTensorNumTiles);
+            createDistributedCopyIn(origOp, origOp.filter(), weightsTensorDistributionMode, weightsTensorNumTiles);
 
     auto distributedWeightTableCopyOp = createDistributedCopyIn(
             origOp, origOp.weightsTable(), weightsTableTensorDistributionMode, weightsTableTensorNumTiles);
@@ -162,7 +162,7 @@ mlir::LogicalResult NCEDepthConvolutionRewriter::matchAndRewrite(NCEDepthConvolu
     auto activationTensorNumTiles = getIntArrayAttr(
             origOp.getContext(), getActivationTensorNumTiles(origOp.getOperation(), _numClusters, strategy));
     auto weightsTensorDistributionMode = getWeightsTensorDistributionMode(strategy);
-    auto weightTensorNumTiles = getIntArrayAttr(origOp.getContext(), getWeightsTensorNumTiles(_numClusters, strategy));
+    auto weightsTensorNumTiles = getIntArrayAttr(origOp.getContext(), getWeightsTensorNumTiles(_numClusters, strategy));
     auto weightsTableTensorDistributionMode = getWeightsTensorDistributionMode(strategy);
     auto weightsTableTensorNumTiles =
             getIntArrayAttr(origOp.getContext(), getWeightsTableTensorNumTiles(_numClusters, strategy));
@@ -176,7 +176,7 @@ mlir::LogicalResult NCEDepthConvolutionRewriter::matchAndRewrite(NCEDepthConvolu
             createDistributedCopyIn(origOp, origOp.input(), activationTensorDistributionMode, activationTensorNumTiles);
 
     auto distributedWeightsCopyOp =
-            createDistributedCopyIn(origOp, origOp.filter(), weightsTensorDistributionMode, weightTensorNumTiles);
+            createDistributedCopyIn(origOp, origOp.filter(), weightsTensorDistributionMode, weightsTensorNumTiles);
 
     auto distributedWeightTableCopyOp = createDistributedCopyIn(
             origOp, origOp.weightsTable(), weightsTableTensorDistributionMode, weightsTableTensorNumTiles);

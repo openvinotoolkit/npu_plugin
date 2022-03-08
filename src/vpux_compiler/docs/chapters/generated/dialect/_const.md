@@ -168,17 +168,6 @@ Convert constant content element type
 Dequantize constant content
 
 
-### ExpandDilatedAttr
-
-Expand constant content with zeros according to dilations
-
-
-#### Parameters:
-
-| Parameter | C++ type | Description |
-| :-------: | :-------: | ----------- |
-| dilations | `mlir::ArrayAttr` |  |
-
 ### PadWithZeroAttr
 
 Pad constant content with zeros
