@@ -533,7 +533,7 @@ SmallVector<Shape> vpux::VPU::getPerClusterComputeShapes(ShapeRef shapeRef, Dist
             tiledComputeShapes[cluster] = Shape(alignShape(shape, alignment));
         }
     } else {
-        std::fill_n(tiledComputeShapes.begin(), tiledComputeShapes.size(), Shape(shape));
+        std::fill_n(tiledComputeShapes.begin(), tiledComputeShapes.size(), Shape(alignShape(shape, alignment)));
     }
 
     return tiledComputeShapes;

@@ -396,6 +396,11 @@ Byte VPUIP::DistributedBufferType::getCompactAllocSize() const {
         tiledShape = shape;
     }
 
+    if (distribution.alignment() != nullptr) {
+        Optional<ArrayRef<int64_t>> alignment = makeArrayRef(parseIntArrayAttr<int64_t>(distribution.alignment()));
+        tiledShape = Shape(alignShape(tiledShape.raw(), alignment));
+    }
+
     return Byte(getElemTypeSize()) * details::calcTotalShapeSize(tiledShape.raw());
 }
 
