@@ -162,6 +162,7 @@ std::unique_ptr<mlir::Pass> createResolvePWLPostOpsPass(Logger log = Logger::glo
 
 std::unique_ptr<mlir::Pass> createUnrollBatchPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createMatMulInputsTo2dPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createConvertMatMulPatternToDWConvPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createConvertFCToConvPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createConvertAvgPoolToDWConvPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createConvertScaleShiftToDWPass(Logger log = Logger::global());

@@ -331,6 +331,26 @@ def MatMulInputsTo2d : PassBase<"matmul-inputs-to-2d", "vpux::FunctionPass"> {
 }
 
 //
+// ConvertMatMulPatternToDWConv
+//
+
+def ConvertMatMulPatternToDWConv : PassBase<"convert-matmul-pattern-to-dwconv", "vpux::FunctionPass"> {
+    let summary = "Convert Transpose+MatMul pattern to DWconv";
+
+    let description = [{
+        This pass converts `Transpose` + `MatMul` pattern to `DWconv`.
+
+        This is especially used to optimize ModelF.
+    }];
+
+    let constructor = "vpux::IE::createConvertMatMulPatternToDWConvPass()";
+
+    let dependentDialects = [
+        "vpux::IE::IEDialect"
+    ];
+}
+
+//
 // ConvertScaleShiftToDW
 //
 
