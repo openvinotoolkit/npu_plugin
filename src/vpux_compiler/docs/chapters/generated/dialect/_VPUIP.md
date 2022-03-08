@@ -1339,6 +1339,7 @@ mutually exclusive.
 `is_continued` | ::mlir::UnitAttr | unit attribute
 `cm_sp_pattern` | mlir::IntegerAttr | Integer attribute
 `is_segmented` | ::mlir::UnitAttr | unit attribute
+`out_channel_offset` | mlir::IntegerAttr | Integer attribute
 
 #### Operands:
 
