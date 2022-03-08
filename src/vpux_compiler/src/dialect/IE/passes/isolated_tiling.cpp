@@ -43,7 +43,12 @@ OutputTiling generateTiles(IE::TilingBuilderOpInterface origOp, Logger log) {
     if (op->hasAttr("tilingStrategy")) {
         // use the specified number of tiles
         auto manualTiling = Shape(parseIntArrayAttr<int64_t>(op->getAttr("tilingStrategy").cast<mlir::ArrayAttr>()));
-        log.trace("Using manual tiles for op {0} at {1} : {2}", op->getName(), op->getLoc(), manualTiling);
+        if (manualTiling != nTilesOnDim) {
+            // compare against original strategy and log if different
+            log.trace("Using manual tiles for op {0} at {1}", op->getName(), op->getLoc());
+            log.nest(1).trace("Manual   tiles: {0}", manualTiling);
+            log.nest(1).trace("Original tiles: {0}", nTilesOnDim);
+        }
         return vpux::fillDividedTiles(manualTiling, outputShape);
     } else {
         // store nTilesOnDim
