@@ -2,9 +2,10 @@
 # 'VPUIPRegMapped' Dialect
 
 VPU NN Register Mapped RunTime Dialect
-The **VPUIPRegMapped Dialect** represents NN RunTime IR in terms of MLIR framework.
+The **VPUIPRegMapped Dialect** represents NN RunTime IR together with RegMapped
+    constructs in terms of the MLIR framework.
 
-It allows to work with the graph schema inside MLIR framework:
+It allows to work with the graph schema inside the MLIR framework in order to:
 
 * Validate it.
 * Perform additional low level transformations/optimizations.
@@ -14,6 +15,8 @@ It handles such VPU-specifics as:
 * Memory/executors hierarchy.
 * HW barriers notion.
 * Supported operation set.
+
+Again, it represents also the register mapped configuration of the hardware registers.
 
 [./VPUIPRegMapped/_ops_interfaces.md]
 
@@ -58,66 +61,6 @@ operation ::= `VPUIPRegMapped.ConfigureBarrier` attr-dict
 | Result | Description |
 | :----: | ----------- |
 `barrier` | VPUIP Barrier Type
-
-### `VPUIPRegMapped.DeclareVirtualBarrier` (vpux::VPUIPRegMapped::DeclareVirtualBarrierOp)
-
-VPUIPRegMapped virtual Barrier declaration
-
-
-Syntax:
-
-```
-operation ::= `VPUIPRegMapped.DeclareVirtualBarrier` attr-dict `->` type(results)
-```
-
-
-#### Results:
-
-| Result | Description |
-| :----: | ----------- |
-`barrier` | VPUIP Barrier Type
-
-### `VPUIPRegMapped.Empty` (vpux::VPUIPRegMapped::EmptyOp)
-
-Empty op
-
-
-Syntax:
-
-```
-operation ::= `VPUIPRegMapped.Empty` attr-dict
-              (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
-              (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
-```
-
-
-#### Operands:
-
-| Operand | Description |
-| :-----: | ----------- |
-`waitBarriers` | VPUIP Barrier Type
-`updateBarriers` | VPUIP Barrier Type
-
-### `VPUIPRegMapped.Graph` (vpux::VPUIPRegMapped::GraphOp)
-
-The root object for the VPUIPRegMapped Execution Graph
-
-
-Syntax:
-
-```
-operation ::= `VPUIPRegMapped.Graph` attr-dict
-              `options` `:` $options
-              `version` `:` $version
-```
-
-
-#### Attributes:
-
-| Attribute | MLIR Type | Description |
-| :-------: | :-------: | ----------- |
-`options` | vpux::VPUIPRegMapped::ExecutionFlagAttr | Each of these enums' presence informs how the current schedule is configured
-`version` | vpux::VPUIPRegMapped::VersionAttr | DictionaryAttr with field(s): 'majorV', 'minorV', 'patchV', 'hash', 'contextStr' (each field having its own constraints)
 
 ### `VPUIPRegMapped.MappedInference` (vpux::VPUIPRegMapped::MappedInferenceOp)
 
@@ -207,38 +150,4 @@ operation ::= `VPUIPRegMapped.NNDMA` attr-dict
 | Result | Description |
 | :----: | ----------- |
 `output` | memref of any type values
-
-### `VPUIPRegMapped.WeightsTableOp` (vpux::VPUIPRegMapped::WeightsTableOp)
-
-Intermediate task for creating weights table based on the addresses of CMX buffers
-
-
-Syntax:
-
-```
-operation ::= `VPUIPRegMapped.WeightsTableOp` attr-dict
-              (`op_input` `(` $op_input^  `:` type($op_input) `)`)?
-              (`op_output` `(` $op_output^  `:` type($op_output) `)`)?
-              (`weights` `(` $weights^  `:` type($weights) `)`)?
-              (`bias` `(` $bias^  `:` type($bias) `)`)?
-              (`activation_window` `(` $activation_window^  `:` type($activation_window) `)`)?
-              `->` type(results)
-```
-
-
-#### Operands:
-
-| Operand | Description |
-| :-----: | ----------- |
-`op_input` | memref of 16-bit float or QuantizedType values
-`op_output` | memref of 16-bit float or QuantizedType values
-`weights` | memref of 16-bit float or QuantizedType values
-`bias` | memref of 16-bit float or 32-bit float values
-`activation_window` | memref of 8-bit unsigned integer values
-
-#### Results:
-
-| Result | Description |
-| :----: | ----------- |
-`output` | memref of 32-bit signed integer values
 

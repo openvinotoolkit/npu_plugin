@@ -19,39 +19,6 @@ include "vpux/compiler/dialect/VPUIPRegMapped/dialect.td"
 
 
 //
-// Version
-//
-
-def VPUIPRegMapped_Version :
-        StructAttr<
-            "VersionAttr",
-            VPUIPRegMapped_Dialect,
-            [
-                StructFieldAttr<"majorV",     IntAttr>,
-                StructFieldAttr<"minorV",     IntAttr>,
-                StructFieldAttr<"patchV",     IntAttr>,
-                StructFieldAttr<"hash",       StrAttr>,
-                StructFieldAttr<"contextStr", StrAttr>,
-            ]
-        >;
-
-//
-// ExecutionFlag
-//
-
-def VPUIPRegMapped_ExecutionFlag:
-        BitEnumAttr<
-            "ExecutionFlag",
-            "Each of these enums' presence informs how the current schedule is configured",
-            [
-                BitEnumAttrCase<"NONE",             0x0000>,
-                BitEnumAttrCase<"DynamicBarriers",  0x0001>,
-            ]
-        > {
-    let cppNamespace = "vpux::VPUIPRegMapped";
-}
-
-//
 // TaskType
 //
 
@@ -141,43 +108,4 @@ def VPUIPRegMapped_MPEMode :
     let cppNamespace = "vpux::VPUIPRegMapped";
     let genSpecializedAttr = 1;
 }
-
-//
-// NCETaskType
-//
-
-def VPUIPRegMapped_NCETaskType :
-        StrEnumAttr<
-            "NCETaskType",
-            "NCE task type",
-            [
-                StrEnumAttrCase<"CONV">,
-                StrEnumAttrCase<"DWCONV">,
-                StrEnumAttrCase<"MAXPOOL">,
-                StrEnumAttrCase<"AVEPOOL">,
-                StrEnumAttrCase<"FCL">,
-                StrEnumAttrCase<"ELTWISE">,
-                StrEnumAttrCase<"IDENTITY">,
-                StrEnumAttrCase<"CMCONV">
-            ]
-        > {
-    let cppNamespace = "vpux::VPUIPRegMapped";
-    let genSpecializedAttr = 1;
-}
-
-//
-// PaddingAttr
-//
-
-def VPUIPRegMapped_PaddingAttr :
-        StructAttr<
-            "PaddingAttr",
-            VPUIPRegMapped_Dialect,
-            [
-                StructFieldAttr<"left",   IntAttr>,
-                StructFieldAttr<"right",  IntAttr>,
-                StructFieldAttr<"top",    IntAttr>,
-                StructFieldAttr<"bottom", IntAttr>,
-            ]
-        >;
 #endif

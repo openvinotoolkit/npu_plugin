@@ -68,58 +68,6 @@ class VPUIPRegMapped_TaskOp<int numResult, string mnemonic, list<OpTrait> traits
 }
 
 //
-// GraphOp
-//
-
-def VPUIPRegMapped_GraphOp :
-        VPUIPRegMapped_Op<
-            "Graph",
-            [
-                HasParent<"mlir::ModuleOp">
-            ]
-        > {
-    let summary = "The root object for the VPUIPRegMapped Execution Graph";
-
-    let arguments = (ins
-        VPUIPRegMapped_ExecutionFlag:$options,
-        VPUIPRegMapped_Version:$version
-    );
-
-    let extraClassDeclaration = [{
-        static vpux::VPUIPRegMapped::GraphOp getFromModule(mlir::ModuleOp module);
-    }];
-
-    let assemblyFormat = [{
-        attr-dict
-        `options` `:` $options
-        `version` `:` $version
-    }];
-}
-
-//
-// DeclareVirtualBarrierOp
-//
-
-def VPUIPRegMapped_DeclareVirtualBarrierOp :
-        VPUIPRegMapped_Op<
-            "DeclareVirtualBarrier",
-            [
-                NoSideEffect,
-                DeclarationOp
-            ]
-        > {
-    let summary = "VPUIPRegMapped virtual Barrier declaration";
-
-    let results = (outs
-        VPURT_Barrier:$barrier
-    );
-
-    let assemblyFormat = [{
-        attr-dict `->` type(results)
-    }];
-}
-
-//
 // ConfigureBarrierOp
 //
 
@@ -176,38 +124,6 @@ def VPUIPRegMapped_ConfigureBarrierOp :
         (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
         (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
         `->` type(results)
-    }];
-}
-
-//
-// EmptyOp
-//
-
-def VPUIPRegMapped_EmptyOp :
-        VPUIPRegMapped_Op<"Empty",
-            [
-                AttrSizedOperandSegments,
-                DeclareOpInterfaceMethods<VPUIPRegMapped_TaskOpInterface>,
-                DeclareOpInterfaceMethods<ELF_BinaryOpInterface>
-            ]
-        > {
-    let summary = "Empty op";
-
-    let arguments = (ins
-        Variadic<VPURT_Barrier>:$waitBarriers,
-        Variadic<VPURT_Barrier>:$updateBarriers
-    );
-
-    let extraClassDeclaration = [{
-        static vpux::VPUIPRegMapped::TaskType getTaskType() {
-            return vpux::VPUIPRegMapped::TaskType::Controller;
-        }
-    }];
-
-    let assemblyFormat = [{
-        attr-dict
-        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
-        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
     }];
 }
 
@@ -314,42 +230,6 @@ def VPUIPRegMapped_NNDMAOp :
         (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
         (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
         `start_after` `(` $start_after `)`
-        `->` type(results)
-    }];
-}
-
-
-//
-// WeightsTableOp
-//
-
-def VPUIPRegMapped_WeightsTableOp :
-        VPUIPRegMapped_Op<"WeightsTableOp",
-            [
-                AttrSizedOperandSegments,
-            ]
-        > {
-    let summary = "Intermediate task for creating weights table based on the addresses of CMX buffers";
-
-    let arguments = (ins
-        Optional<MemRefOf<[F16, quant_QuantizedType]>>:$op_input,
-        Optional<MemRefOf<[F16, quant_QuantizedType]>>:$op_output,
-        Optional<MemRefOf<[F16, quant_QuantizedType]>>:$weights,
-        Optional<MemRefOf<[F16, F32]>>:$bias,
-        Optional<MemRefOf<[UI8]>>:$activation_window
-    );
-
-    let results = (outs
-        MemRefOf<[SI32]>:$output
-    );
-
-    let assemblyFormat = [{
-        attr-dict
-        (`op_input` `(` $op_input^  `:` type($op_input) `)`)?
-        (`op_output` `(` $op_output^  `:` type($op_output) `)`)?
-        (`weights` `(` $weights^  `:` type($weights) `)`)?
-        (`bias` `(` $bias^  `:` type($bias) `)`)?
-        (`activation_window` `(` $activation_window^  `:` type($activation_window) `)`)?
         `->` type(results)
     }];
 }

@@ -43,69 +43,58 @@ private:
     void replaceVPURTTaskOpWithNNDMAOp(mlir::FuncOp& funcOp, Logger _log) {
         _log.info("Entered replaceVPURTTaskOpWithNNDMAOp().");
 
-        mlir::Block& blkFunc = (funcOp.getCallableRegion())->front();
-
         for (;;) {
             bool foundTaskOp = false;
 
-            mlir::Block::iterator blkIt;
-            for (blkIt = blkFunc.begin(); blkIt != blkFunc.end(); ++blkIt) {
-                _log.info("replaceVPURTTaskOpWithNNDMAOp(): op = {0}", *blkIt);
+            for (auto taskOp : funcOp.getOps<VPURT::TaskOp>()) {
+                foundTaskOp = true;
 
-                VPURT::TaskOp taskOp = llvm::dyn_cast<VPURT::TaskOp>(blkIt);
-                if (taskOp) {
-                    foundTaskOp = true;
+                _log.info("replaceVPURTTaskOpWithNNDMAOp(): taskOp = {0}", taskOp);
 
-                    _log.info("replaceVPURTTaskOpWithNNDMAOp(): taskOp = {0}", taskOp);
+                // mlir::Region& aRegOrig = taskOp.body();
+                // mlir::Block& blkOrig = aRegOrig.front();
 
-                    mlir::Region& aRegOrig = taskOp.body();
-                    mlir::Block& blkOrig = aRegOrig.front();
+                // Although on the TimiCompiler meeting from Dec 2nd 2021 we discussed that:
+                //  - the first NNDMAOp takes the waits field from the VPURT.TaskOp
+                //  - the last NNDMAOp takes the updates field from the VPURT.TaskOp
+                //  - all the others are with waits and updates on 0.
+                // Currently the VPURT TaskOp can have only 1 block with only 1 Op,
+                //    and this op is for now an NNDMAOp.
 
-                    // Although on the TimiCompiler meeting from Dec 2nd 2021 we discussed that:
-                    //  - the first NNDMAOp takes the waits field from the VPURT.TaskOp
-                    //  - the last NNDMAOp takes the updates field from the VPURT.TaskOp
-                    //  - all the others are with waits and updates on 0.
-                    // Currently the VPURT TaskOp can have only 1 block with only 1 Op,
-                    //    and this op is for now an NNDMAOp.
+                for (auto op : taskOp.body().getOps<VPUIP::NNDMAOp>()) {
+                    _log.info("replaceVPURTTaskOpWithNNDMAOp(): op = {0}.", op);
+                    _log.info("replaceVPURTTaskOpWithNNDMAOp(): op.getNumResults() = {0}.",
+                              op.getOperation()->getNumResults());
+                    _log.info("replaceVPURTTaskOpWithNNDMAOp(): op.getResult(0).getType() = {0}.",
+                              op.getOperation()->getResult(0).getType());
 
-                    for (mlir::Operation& opB : blkOrig) {
-                        VPUIP::NNDMAOp nndmaOpOrig = llvm::dyn_cast<VPUIP::NNDMAOp>(opB);
-                        if (nndmaOpOrig) {
-                            _log.info("replaceVPURTTaskOpWithNNDMAOp(): opB = {0}.", opB);
-                            _log.info("replaceVPURTTaskOpWithNNDMAOp(): opB.getNumResults() = {0}.",
-                                      opB.getNumResults());
-                            _log.info("replaceVPURTTaskOpWithNNDMAOp(): opB.getResult(0).getType() = {0}.",
-                                      opB.getResult(0).getType());
+                    mlir::OpBuilder builderBlk(taskOp);
 
-                            mlir::OpBuilder builderBlk(&blkFunc, blkIt);
+                    // Using this builder:
+                    // void NNDMAOp::build(::mlir::OpBuilder &odsBuilder, ::mlir::OperationState &odsState,
+                    //   ::mlir::Type output, ::mlir::Value input, ::mlir::Value output_buff,
+                    //   ::mlir::ValueRange waitBarriers, ::mlir::ValueRange updateBarriers,
+                    //   bool compression, int64_t port, uint64_t start_after)
+                    builderBlk.create<VPUIPRegMapped::NNDMAOp>(
+                            builderBlk.getUnknownLoc(),                 // op->getLoc(),
+                            op.getOperation()->getResult(0).getType(),  // op.output(),
+                            op.input(), op.output_buff(), mlir::ValueRange(taskOp.waitBarriers()),
+                            mlir::ValueRange(taskOp.updateBarriers()),
+                            false,  // compression // MEGA-TODO: I guess, unless compression is a RegMapped
+                                    // value (see huf_en in HglCmxDmaConfigBits in
+                                    // src/dialect/VPUIPRegMapped/ops/dma.cpp), I should take out compression
+                                    // from VPUIPRegMapped::NNDMAOp
+                            op.port(),
+                            0  // start_after // MEGA-TODO: initialize
+                    );
 
-                            // Using this builder:
-                            // void NNDMAOp::build(::mlir::OpBuilder &odsBuilder, ::mlir::OperationState &odsState,
-                            //   ::mlir::Type output, ::mlir::Value input, ::mlir::Value output_buff,
-                            //   ::mlir::ValueRange waitBarriers, ::mlir::ValueRange updateBarriers,
-                            //   bool compression, int64_t port, uint64_t start_after)
-                            builderBlk.create<VPUIPRegMapped::NNDMAOp>(
-                                    builderBlk.getUnknownLoc(),  // op->getLoc(),
-                                    opB.getResult(0).getType(),  // nndmaOpOrig.output(),
-                                    nndmaOpOrig.input(), nndmaOpOrig.output_buff(),
-                                    mlir::ValueRange(taskOp.waitBarriers()), mlir::ValueRange(taskOp.updateBarriers()),
-                                    false,  // compression // MEGA-TODO: I guess, unless compression is a RegMapped
-                                            // value (see huf_en in HglCmxDmaConfigBits in
-                                            // src/dialect/VPUIPRegMapped/ops/dma.cpp), I should take out compression
-                                            // from VPUIPRegMapped::NNDMAOp
-                                    nndmaOpOrig.port(),
-                                    0  // start_after // MEGA-TODO: initialize
-                            );
+                    _log.info("replaceVPURTTaskOpWithNNDMAOp(): funcOp = {0}", funcOp);
+                }
 
-                            _log.info("replaceVPURTTaskOpWithNNDMAOp(): funcOp = {0}", funcOp);
-                        }
-                    }
+                taskOp->erase();
+                _log.info("replaceVPURTTaskOpWithNNDMAOp(): After erase(): funcOp = {0}", funcOp);
 
-                    taskOp->erase();
-                    _log.info("replaceVPURTTaskOpWithNNDMAOp(): After erase(): funcOp = {0}", funcOp);
-
-                    break;  // Block iterator gets invalidated after erase().
-                }           // END if (taskOp)
+                break;  // Block iterator gets invalidated after erase().
             }
 
             if (foundTaskOp == false)
