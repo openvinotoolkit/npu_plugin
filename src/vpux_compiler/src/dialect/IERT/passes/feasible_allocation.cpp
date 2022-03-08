@@ -234,8 +234,8 @@ void FeasibleAllocationPass::safeRunOnModule() {
     // 3. optimize spills
     FeasibleMemorySchedulerSpilling spilling(netFunc, _memSpace, _secondLvlMemSpace, depsInfo, aliasesInfo, _log, scan);
     spilling.optimizeDataOpsSpills(scheduledOps);
-    spilling.removeRedundantSpillWrites(scheduledOps);
     spilling.removeComputeOpRelocationSpills(scheduledOps);
+    spilling.removeRedundantSpillWrites(scheduledOps);
 
     // 3. re-order the IR
     updateAsyncExecuteOpPosition(netFunc, depsInfo, scheduledOps);
