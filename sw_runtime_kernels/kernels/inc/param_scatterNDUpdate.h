@@ -1,5 +1,5 @@
 //
-// Copyright 2022 Intel Corporation.
+// Copyright Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -14,24 +14,21 @@
 #pragma once
 
 #include <common_types.h>
-#include <mv_types.h>
 
-#ifdef __MOVICOMPILE__
-#    include <moviVectorTypes.h>
-#else
-typedef fp16 half;
-#endif
-
+#ifdef __cplusplus
 namespace sw_params {
+#endif
 
 struct __attribute__((packed)) ScatterNDUpdateParams {
     struct MemRefData input;
+    struct MemRefData indices;
+    struct MemRefData updates;
     struct MemRefData output;
 };
 
 inline struct BaseKernelParams ToBaseKernelParams(struct ScatterNDUpdateParams * params) {
     struct BaseKernelParams result;
-    result.numInputs = 1; ///
+    result.numInputs = 3;
     result.numOutputs = 1;
 #ifdef  __cplusplus
     result.inputsOffset = reinterpret_cast<uint8_t*>(&(params->input)) - reinterpret_cast<uint8_t*>(params);
@@ -43,4 +40,6 @@ inline struct BaseKernelParams ToBaseKernelParams(struct ScatterNDUpdateParams *
     return result;
 }
 
-}
+#ifdef __cplusplus
+}  // namespace sw_params
+#endif
