@@ -32,6 +32,8 @@ struct __attribute__ ((packed)) GatherParams {
     struct MemRefData indices;
     struct MemRefData axis;
     struct MemRefData output;
+    struct MemRefData windowfp16;
+    struct MemRefData windowint32;
 };
 
 #pragma pack(pop)
@@ -39,7 +41,7 @@ struct __attribute__ ((packed)) GatherParams {
 inline struct BaseKernelParams ToBaseKernelParams(struct GatherParams * params) {
     struct BaseKernelParams result;
     result.numInputs = 3;
-    result.numOutputs = 1;
+    result.numOutputs = 3;
 #ifdef  __cplusplus
     result.inputsOffset = reinterpret_cast<uint8_t*>(&(params->input)) - reinterpret_cast<uint8_t*>(params);
     result.outputsOffset = reinterpret_cast<uint8_t*>(&(params->output)) - reinterpret_cast<uint8_t*>(params);
