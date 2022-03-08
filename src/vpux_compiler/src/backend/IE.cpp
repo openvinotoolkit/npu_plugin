@@ -65,7 +65,7 @@ std::shared_ptr<ngraph::Node> parseDeclareOp(Const::DeclareOp origOp)
     auto ctx = elType.getContext();
     const auto elShape = cont.getShape();
     const ngraph::Shape sh(elShape.begin(), elShape.end());
-    std::vector<int8_t> vals(cont.getTotalSize().count() / 8, 0);
+    std::vector<int8_t> vals(cont.getNumElements() * cont.getElemTypeSize().count() / 8, 0);
     auto buffer = makeMutableArrayRef(reinterpret_cast<char*>(vals.data()), vals.size());
     cont.copyTo(buffer);
     return std::make_shared<opset_latest::Constant>(IE::exportElemType(ctx, elType), sh, buffer.data());

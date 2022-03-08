@@ -310,7 +310,7 @@ InferenceEngine::TensorDesc IE::exportUserTensor(mlir::RankedTensorType tensor) 
         dims.push_back(ddim);
     const mlir::Type elementType = tensor.getElementType();
     const InferenceEngine::Precision precision = IE::exportPrecision(elementType.getContext(), elementType);
-    DimsOrder dimsOrder = DimsOrder::fromType(tensor);
+    auto dimsOrder = DimsOrder::fromAffineMap(IE::getOrder(tensor));
     InferenceEngine::Layout layout = dimsOrder.toIE();
     return InferenceEngine::TensorDesc{precision, dims, layout};
 }
@@ -364,7 +364,7 @@ InferenceEngine::Precision IE::exportPrecision(mlir::MLIRContext* ctx, mlir::Typ
         return InferenceEngine::Precision::I8;
     } else if (type == getUInt8Type(ctx)) {
         return InferenceEngine::Precision::U8;
-    } else if (type == getBoolType(ctx)) {
+    } else if (type == getBool8Type(ctx)) {
         return InferenceEngine::Precision::BOOL;
     } else {
         VPUX_THROW("Unsupported precision : '{0}'", type);
