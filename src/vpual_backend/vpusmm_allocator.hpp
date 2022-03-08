@@ -33,6 +33,10 @@ public:
 
     virtual void* alloc(const size_t size) noexcept override;
 
+    void* alloc_cacheable(const size_t size) noexcept override;
+    bool flush(void* handle, const size_t size) noexcept override;
+    bool invalidate(void* handle, const size_t size) noexcept override;
+
     virtual bool free(void* handle) noexcept override;
 
     unsigned long getPhysicalAddress(void* handle) noexcept override;

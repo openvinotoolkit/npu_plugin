@@ -66,6 +66,23 @@ static IE::Blob::Ptr allocateLocalBlob(const IE::TensorDesc& tensorDesc,
     return blob;
 }
 
+static IE::Blob::Ptr allocateLocalCacheableBlob(const IE::TensorDesc& tensorDesc,
+                                                const std::shared_ptr<InferenceEngine::IAllocator>& allocator) {
+    checkNetworkPrecision(tensorDesc.getPrecision());
+
+    IE::Blob::Ptr blob;
+    if (allocator == nullptr) {
+        blob = make_blob_with_precision(tensorDesc);
+    } else {
+        blob = make_blob_with_precision(tensorDesc, allocator);
+    }
+    if (blob == nullptr) {
+        IE_THROW() << "InputBlob is nullptr.";
+    }
+    blob->allocate_cacheable();
+    return blob;
+}
+
 //------------------------------------------------------------------------------
 InferRequest::InferRequest(const IE::InputsDataMap& networkInputs, const IE::OutputsDataMap& networkOutputs,
                            const Executor::Ptr& executor, const VPUXConfig& config, const std::string& netName,
@@ -95,7 +112,7 @@ InferRequest::InferRequest(const IE::InputsDataMap& networkInputs, const IE::Out
         const std::string outputName = networkOutput.first;
         const IE::TensorDesc outputTensorDesc = networkOutput.second->getTensorDesc();
 
-        _outputs[outputName] = allocateLocalBlob(outputTensorDesc, _allocator);
+        _outputs[outputName] = allocateLocalCacheableBlob(outputTensorDesc, _allocator);
     }
 }
 

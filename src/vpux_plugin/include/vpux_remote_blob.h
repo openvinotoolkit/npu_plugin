@@ -40,7 +40,14 @@ public:
     /** @details Since Remote blob just wraps remote memory, allocation is not required */
     void allocate() noexcept override {
     }
-
+    void allocate_cacheable() noexcept override {
+    }
+    bool flush() noexcept override {
+        return false;
+    }
+    bool invalidate() noexcept override {
+        return false;
+    }
     /** @details Since Remote blob just wraps remote memory, deallocation does nothing */
     bool deallocate() noexcept override {
         return false;

@@ -123,6 +123,15 @@ public:
     virtual void* alloc(size_t size) noexcept override {
         return _actual->alloc(size);
     }
+    virtual void* alloc_cacheable(size_t size) noexcept override {
+        return _actual->alloc_cacheable(size);
+    }
+    virtual bool flush(void* handle, const size_t size) noexcept override {
+        return _actual->flush(handle, size);
+    }
+    virtual bool invalidate(void* handle, const size_t size) noexcept override {
+        return _actual->invalidate(handle, size);
+    }
     virtual bool free(void* handle) noexcept override {
         return _actual->free(handle);
     }

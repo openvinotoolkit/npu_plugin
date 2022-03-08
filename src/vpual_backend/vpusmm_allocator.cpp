@@ -24,6 +24,8 @@
 #include "vpux/kmb_params.hpp"
 
 #if defined(__arm__) || defined(__aarch64__)
+#include <linux/dma-buf.h>
+#include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <unistd.h>
 #include <vpumgr.h>
@@ -277,6 +279,95 @@ void* VpusmmAllocator::alloc(size_t size) noexcept {
 #else
     VPUX_UNUSED(size);
     return nullptr;
+#endif
+}
+
+void* VpusmmAllocator::alloc_cacheable(size_t size) noexcept {
+#if defined(__arm__) || defined(__aarch64__)
+    size_t realSize = alignMemorySize(size);
+
+    auto fd = vpurm_alloc_dmabuf(realSize, VPUSMMType::VPUSMMTYPE_NON_COHERENT, _deviceId);
+
+    auto physAddr = vpurm_import_dmabuf(fd, VPU_DEFAULT, _deviceId);
+
+    void* virtAddr = mmap(nullptr, realSize, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+
+    if (virtAddr == MAP_FAILED)
+        return nullptr;
+
+    MemoryDescriptor memDesc = {
+            realSize,  // size
+            fd,        // file descriptor
+            physAddr,  // physical address
+            true       // memory was allocated
+    };
+    std::lock_guard<std::mutex> lock(_allocatedMemoryMutex);
+    _allocatedMemory[virtAddr] = memDesc;
+
+    return virtAddr;
+#else
+    VPUX_UNUSED(size);
+    return nullptr;
+#endif
+}
+
+bool VpusmmAllocator::flush(void* handle, const size_t size) noexcept {
+#if defined(__arm__) || defined(__aarch64__)
+    VPUX_UNUSED(size);
+    std::lock_guard<std::mutex> lock(_allocatedMemoryMutex);
+    auto memoryIt = _allocatedMemory.find(handle);
+    if (memoryIt == _allocatedMemory.end()) {
+        return false;
+    }
+    if (!memoryIt->second.isMemoryOwner) {
+        return true;
+    }
+
+    auto memoryDesc = memoryIt->second;
+
+    struct dma_buf_sync sync_start = {0};
+    sync_start.flags = DMA_BUF_SYNC_START | DMA_BUF_SYNC_WRITE;
+    int ret = ioctl(memoryDesc.fd, DMA_BUF_IOCTL_SYNC, &sync_start);
+    if (ret) {
+        printf("DMA_BUF_IOCTL_SYNC error - flush\n");
+        return false;
+    }
+
+    return true;
+#else
+    VPUX_UNUSED(handle);
+    VPUX_UNUSED(size);
+    return false;
+#endif
+}
+
+bool VpusmmAllocator::invalidate(void* handle, const size_t size) noexcept {
+#if defined(__arm__) || defined(__aarch64__)
+    VPUX_UNUSED(size);
+    std::lock_guard<std::mutex> lock(_allocatedMemoryMutex);
+    auto memoryIt = _allocatedMemory.find(handle);
+    if (memoryIt == _allocatedMemory.end()) {
+        return false;
+    }
+    if (!memoryIt->second.isMemoryOwner) {
+        return true;
+    }
+
+    auto memoryDesc = memoryIt->second;
+
+    struct dma_buf_sync sync_start = {0};
+    sync_start.flags = DMA_BUF_SYNC_START | DMA_BUF_SYNC_READ;
+    int ret = ioctl(memoryDesc.fd, DMA_BUF_IOCTL_SYNC, &sync_start);
+    if (ret) {
+        printf("DMA_BUF_IOCTL_SYNC error - invalidate\n");
+        return false;
+    }
+
+    return true;
+#else
+    VPUX_UNUSED(handle);
+    VPUX_UNUSED(size);
+    return false;
 #endif
 }
 
