@@ -149,6 +149,9 @@ public:
             if (allocAddr == InvalidAddress) {
                 canAllocAll = false;
                 break;
+            } else if (_handler.checkInvariantExceedingNNCMX(newRange, allocAddr, _par.totalSize())) {
+                canAllocAll = false;
+                break;
             }
             auto allocPair = std::make_pair(allocAddr, newRangeSize);
             tempAlloc.push_back(allocPair);
