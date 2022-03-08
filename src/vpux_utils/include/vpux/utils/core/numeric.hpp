@@ -38,7 +38,7 @@ T isPowerOfTwo(T val) {
 
 template <typename T, typename = require_t<std::is_integral<T>>>
 T alignVal(T val, T align) {
-    return (val + (align - 1)) & ~(align - 1);
+    return ((val + align - 1) / align) * align;
 }
 
 template <typename T, typename = require_t<std::is_integral<T>>>
