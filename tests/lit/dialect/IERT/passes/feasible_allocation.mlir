@@ -769,9 +769,9 @@ func @main(%in: memref<1x120000xf16>, %out: memref<1x120000xf16>) -> memref<1x12
     // CHECK:       [[BUF1:%.*]] = IERT.StaticAlloc<240000>
     // CHECK:       [[BUF2:%.*]] = IERT.StaticAlloc<480000>
     // CHECK:       [[BUF3:%.*]] = IERT.StaticAlloc<0>
-    // CHECK:       [[BUF4:%.*]] = IERT.StaticAlloc<240000>
+    // CHECK:       [[BUF4:%.*]] = IERT.StaticAlloc<480000>
     // CHECK:       [[BUF_SPILL_WRITE:%.*]] = memref.alloc() : memref<1x120000xf16, @DDR>
-    // CHECK:       [[BUF_SPILL_READ:%.*]] = IERT.StaticAlloc<480000> -> memref<1x120000xf16, @CMX_NN>
+    // CHECK:       [[BUF_SPILL_READ:%.*]] = IERT.StaticAlloc<240000> -> memref<1x120000xf16, @CMX_NN>
 
     // CHECK:       [[T0:%.+]], [[R0:%.+]] = async.execute ->
     // CHECK-NEXT:       IERT.Copy
@@ -1063,9 +1063,9 @@ func @main(%input: !Input_DDR) -> !Output_DDR {
     // CHECK:       [[CST_WEIGHTS:%.*]] = const.Declare memref<64x32x3x3xf16, #NHWC, @DDR>
     // CHECK:       [[CST_WEIGHTS_TABLE:%.*]] = const.Declare memref<64x1x1x4xsi32, #NHWC, @DDR>
     // CHECK:       [[BUF0:%.*]] = VPURT.DeclareBuffer "CMX_NN" <0> -> !VPUIP.DistributedBuffer
-    // CHECK:       [[BUF1:%.*]] = VPURT.DeclareBuffer "CMX_NN" <12288> -> !VPUIP.DistributedBuffer
+    // CHECK:       [[BUF1:%.*]] = VPURT.DeclareBuffer "CMX_NN" <4096> -> !VPUIP.DistributedBuffer
     // CHECK:       [[BUF2:%.*]] = VPURT.DeclareBuffer "CMX_NN" <49152> -> !VPUIP.DistributedBuffer
-    // CHECK:       [[BUF3:%.*]] = VPURT.DeclareBuffer "CMX_NN" <4096> -> !VPUIP.DistributedBuffer
+    // CHECK:       [[BUF3:%.*]] = VPURT.DeclareBuffer "CMX_NN" <40960> -> !VPUIP.DistributedBuffer
     // CHECK:       [[BUF4:%.*]] = memref.alloc() : memref<1x64x16x16xf16, #NHWC, @DDR>
 
     // CHECK:       [[T0:%.*]] = async.execute
@@ -1205,10 +1205,10 @@ func @main(%input: !BufMemrefDDR) -> !BufMemrefDDR {
     // CHECK:       [[BUF1:%.*]] = VPURT.DeclareBuffer "CMX_NN" <480000> -> !VPUIP.DistributedBuffer
     // CHECK:       [[BUF2:%.*]] = VPURT.DeclareBuffer "CMX_NN" <240000> -> !VPUIP.DistributedBuffer
     // CHECK:       [[BUF3:%.*]] = VPURT.DeclareBuffer "CMX_NN" <0> -> !VPUIP.DistributedBuffer
-    // CHECK:       [[BUF4:%.*]] = VPURT.DeclareBuffer "CMX_NN" <240000> -> !VPUIP.DistributedBuffer
+    // CHECK:       [[BUF4:%.*]] = VPURT.DeclareBuffer "CMX_NN" <480000> -> !VPUIP.DistributedBuffer
     // CHECK:       [[BUF5:%.*]] = memref.alloc() : memref<1x1x1x120000xf16, #NHWC, @DDR>
     // CHECK:       [[BUF_SPILL_WRITE:%.*]] = memref.alloc() : memref<1x1x1x120000xf16, #NHWC, @DDR>
-    // CHECK:       [[BUF_SPILL_READ:%.*]] = VPURT.DeclareBuffer "CMX_NN" <480000> -> !VPUIP.DistributedBuffer
+    // CHECK:       [[BUF_SPILL_READ:%.*]] = VPURT.DeclareBuffer "CMX_NN" <240000> -> !VPUIP.DistributedBuffer
 
     // CHECK:       [[T0:%.*]], [[R0:%.*]] = async.execute
     // CHECK:           VPUIP.NCEClusterTiling
