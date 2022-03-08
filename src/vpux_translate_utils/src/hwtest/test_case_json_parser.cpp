@@ -651,7 +651,8 @@ void nb::TestCaseJsonDescriptor::parse(llvm::json::Object json_obj) {
             activationLayer_ = loadActivationLayer(&json_obj);
         }
         if (caseType_ == CaseType::ReadAfterWriteDPUDMA || caseType_ == CaseType::ReadAfterWriteDMADPU ||
-            caseType_ == CaseType::ReadAfterWriteDPUACT || caseType_ == CaseType::ReadAfterWriteACTDPU) {
+            caseType_ == CaseType::ReadAfterWriteDPUACT || caseType_ == CaseType::ReadAfterWriteACTDPU ||
+            caseType_ == CaseType::MultiClusteringSOH || caseType_ == CaseType::MultiClusteringSOK) {
             clusterNumber_ = loadClusterNumber(&json_obj);
         }
         return;

@@ -703,15 +703,11 @@ class MultiClusteringSOH(Operation):
         'output_order',
         'kernel_strides',
         'kernel_pads',
-        # 'input_model',
-        # 'output_model',
-        # 'weight_model',
-        # 'weight_table_model',
-        # 'number_clusters',
+        'cluster_number',
         'compress',
         'mpe_cub'
     ]
-    NAME = 'Multi_Clustering'
+    NAME = 'Multi_Clustering_SOH'
 
     def __init__(self, settings):
         self.settings = settings
@@ -731,6 +727,7 @@ class MultiClusteringSOH(Operation):
                 'compress': self.settings.compress,
                 'mpe_cub': self.settings.mpe_cub.name
             },
+            'cluster_number' : self.settings.cluster_number,
             'output_order': self.settings.output_order.name.lower()
         }
         
@@ -745,7 +742,7 @@ class MultiClusteringSOH(Operation):
 
     @property
     def ident(self) -> str:
-        name = f'multi_clustering_SOH_{shape_to_str(self.settings.input_shape)}x{self.settings.input_ttype.stype}_{shape_to_str(self.settings.weight_shape)}x{self.settings.weight_ttype.stype}_pads_{shape_to_str(self.settings.kernel_pads)}_strides_{shape_to_str(self.settings.kernel_strides)}_kern_chan_{self.settings.kernel_channels}'
+        name = f'multi_clustering_SOH_{shape_to_str(self.settings.input_shape)}x{self.settings.input_ttype.stype}_{shape_to_str(self.settings.weight_shape)}x{self.settings.weight_ttype.stype}_pads_{shape_to_str(self.settings.kernel_pads)}_strides_{shape_to_str(self.settings.kernel_strides)}_kern_chan_{self.settings.kernel_channels}_cluster_{self.settings.cluster_number}'
         if self.settings.output_order != Order.NHWC:
             name += '_' + self.settings.output_order.name.lower()
         if self.settings.compress:
@@ -790,6 +787,7 @@ class MultiClusteringSOH(Operation):
             'NTHW_NTK': mpeCube2NTHW_NTK[self.settings.mpe_cub],
             'Output Permute': SW2HWOrder[self.settings.output_order],
             'Compression': int(self.settings.compress),
+            'Cluster Number' : self.settings.cluster_number.stype,
         }
 
     def generate_inputs(self, rng) -> List[Value]:
@@ -825,15 +823,11 @@ class MultiClusteringSOK(Operation):
         'output_order',
         'kernel_strides',
         'kernel_pads',
-        # 'input_model',
-        # 'output_model',
-        # 'weight_model',
-        # 'weight_table_model',
-        # 'number_clusters',
+        'cluster_number',
         'compress',
         'mpe_cub'
     ]
-    NAME = 'Multi_Clustering'
+    NAME = 'Multi_Clustering_SOK'
 
     def __init__(self, settings):
         self.settings = settings
@@ -853,6 +847,7 @@ class MultiClusteringSOK(Operation):
                 'compress': self.settings.compress,
                 'mpe_cub': self.settings.mpe_cub.name
             },
+            'cluster_number' : self.settings.cluster_number,
             'output_order': self.settings.output_order.name.lower()
         }
 
@@ -867,7 +862,7 @@ class MultiClusteringSOK(Operation):
 
     @property
     def ident(self) -> str:
-        name = f'multi_clustering_SOK_{shape_to_str(self.settings.input_shape)}x{self.settings.input_ttype.stype}_{shape_to_str(self.settings.weight_shape)}x{self.settings.weight_ttype.stype}_pads_{shape_to_str(self.settings.kernel_pads)}_strides_{shape_to_str(self.settings.kernel_strides)}_kern_chan_{self.settings.kernel_channels}'
+        name = f'multi_clustering_SOK_{shape_to_str(self.settings.input_shape)}x{self.settings.input_ttype.stype}_{shape_to_str(self.settings.weight_shape)}x{self.settings.weight_ttype.stype}_pads_{shape_to_str(self.settings.kernel_pads)}_strides_{shape_to_str(self.settings.kernel_strides)}_kern_chan_{self.settings.kernel_channels}_cluster_{self.settings.cluster_number}'
         if self.settings.output_order != Order.NHWC:
             name += '_' + self.settings.output_order.name.lower()
         if self.settings.compress:
@@ -912,6 +907,7 @@ class MultiClusteringSOK(Operation):
             'NTHW_NTK': mpeCube2NTHW_NTK[self.settings.mpe_cub],
             'Output Permute': SW2HWOrder[self.settings.output_order],
             'Compression': int(self.settings.compress),
+            'Cluster Number' : self.settings.cluster_number.stype,
         }
 
     def generate_inputs(self, rng) -> List[Value]:
@@ -2873,6 +2869,7 @@ def genMultiClusteringSOH(input_types=[UInt8(2)],
                output_orders=[Order.NHWC],
                strides=[[1, 1]],
                pads=Pad.none,
+               cluster_number=4,
                compress=False,
                mpe_cubs=[MPE_CUBES.VECTOR],
                activations=[None]):
@@ -2907,6 +2904,7 @@ def genMultiClusteringSOH(input_types=[UInt8(2)],
                                                              output_order,
                                                              stride,
                                                              pad,
+                                                             cluster_number,
                                                              compress,
                                                              mpe_cub), activation)
                 
@@ -2919,6 +2917,7 @@ def genMultiClusteringSOK(input_types=[UInt8(2)],
                output_orders=[Order.NHWC],
                strides=[[1, 1]],
                pads=Pad.none,
+               cluster_number=4,
                compress=False,
                mpe_cubs=[MPE_CUBES.VECTOR],
                activations=[None]):
@@ -2953,6 +2952,7 @@ def genMultiClusteringSOK(input_types=[UInt8(2)],
                                                              output_order,
                                                              stride,
                                                              pad,
+                                                             cluster_number,
                                                              compress,
                                                              mpe_cub), activation)
 
@@ -3508,7 +3508,38 @@ def generate_options(args):
                 kernel_shapes=[[1, 1]],
                 output_types=[FP16()],
                 pads=Pad.none,
+                cluster_number=2,
                 mpe_cubs=[MPE_CUBES.VECTOR_FP16]),
+
+        genMultiClusteringSOH(input_types=[UInt8(2)],
+                input_shapes=[[1, 16, 32, 32]],
+                weight_types=[UInt8(2)],
+                kernel_channels=[16],
+                kernel_shapes=[[1, 1]],
+                output_types=[UInt8()],
+                pads=Pad.none,
+                cluster_number=2,
+                mpe_cubs=[MPE_CUBES.MATRIX]),
+
+        genMultiClusteringSOH(input_types=[FP16(2)],
+                input_shapes=[[1, 16, 32, 32]],
+                weight_types=[FP16(2)],
+                kernel_channels=[16],
+                kernel_shapes=[[1, 1]],
+                output_types=[FP16()],
+                pads=Pad.none,
+                cluster_number=4,
+                mpe_cubs=[MPE_CUBES.VECTOR_FP16]),
+
+        genMultiClusteringSOH(input_types=[UInt8(2)],
+                input_shapes=[[1, 16, 32, 32]],
+                weight_types=[UInt8(2)],
+                kernel_channels=[16],
+                kernel_shapes=[[1, 1]],
+                output_types=[UInt8()],
+                pads=Pad.none,
+                cluster_number=4,
+                mpe_cubs=[MPE_CUBES.MATRIX]),
 
         genMultiClusteringSOK(input_types=[FP16(2)],
                 input_shapes=[[1, 16, 32, 32]],
@@ -3517,7 +3548,38 @@ def generate_options(args):
                 kernel_shapes=[[1, 1]],
                 output_types=[FP16()],
                 pads=Pad.none,
+                cluster_number=2,
                 mpe_cubs=[MPE_CUBES.VECTOR_FP16]),
+
+        genMultiClusteringSOK(input_types=[UInt8(2)],
+                input_shapes=[[1, 16, 32, 32]],
+                weight_types=[UInt8(2)],
+                kernel_channels=[32],
+                kernel_shapes=[[1, 1]],
+                output_types=[UInt8()],
+                pads=Pad.none,
+                cluster_number=2,
+                mpe_cubs=[MPE_CUBES.MATRIX]),
+
+        genMultiClusteringSOK(input_types=[FP16(2)],
+                input_shapes=[[1, 16, 32, 32]],
+                weight_types=[FP16(2)],
+                kernel_channels=[64],
+                kernel_shapes=[[1, 1]],
+                output_types=[FP16()],
+                pads=Pad.none,
+                cluster_number=4,
+                mpe_cubs=[MPE_CUBES.VECTOR_FP16]),
+
+        genMultiClusteringSOK(input_types=[UInt8(2)],
+                input_shapes=[[1, 16, 32, 32]],
+                weight_types=[UInt8(2)],
+                kernel_channels=[64],
+                kernel_shapes=[[1, 1]],
+                output_types=[UInt8()],
+                pads=Pad.none,
+                cluster_number=4,
+                mpe_cubs=[MPE_CUBES.MATRIX]),
 
         # # ActShave
         # genActShave(

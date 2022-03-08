@@ -32,8 +32,6 @@
 #include "vpux/compiler/dialect/IE/utils/resources.hpp"
 #include "vpux/compiler/dialect/VPU/attributes.hpp"
 
-#include "vpux/compiler/core/passes.hpp"
-
 namespace vpux {
 namespace hwtest {
 
@@ -52,15 +50,15 @@ void buildMultiClusteringSOKTest(const nb::TestCaseJsonDescriptor& testDesc, mli
     const llvm::SmallVector<std::int64_t> inputShape(input.shape.begin(), input.shape.end());
     const llvm::SmallVector<std::int64_t> outputShape(output.shape.begin(), output.shape.end());
     const llvm::SmallVector<std::int64_t> weightsShape{weights.shape.begin(), weights.shape.end()};
-    const llvm::SmallVector<std::int64_t> weightsTableShape{weightsShape[0], 1, 1, 4};
+    const llvm::SmallVector<std::int64_t> weightsTableShape{weightsShape[vpux::Dims4D::Filter::OC.ind()], 1, 1, 4};
 
     VPUX_THROW_UNLESS(!inputShape.empty(), "buildMultiClusteringSOK: Got empty inputShape");
     VPUX_THROW_UNLESS(!outputShape.empty(), "buildMultiClusteringSOK: Got empty outputShape");
     VPUX_THROW_UNLESS(!weightsShape.empty(), "buildMultiClusteringSOK: Got empty weightsShape");
 
     const char* weightsFileName = "weights.dat";
-    auto numCluster = 4;
-    VPUX_THROW_UNLESS(numCluster <= 4, "number of clustering must <= 4");
+    const auto numCluster = testDesc.getClusterNumber();
+    VPUX_THROW_UNLESS(numCluster <= 4 && numCluster > 0, "number of clustering must (0, 4], but got ");
 
     auto ParentInputDistributed = VPUIP::DistributedBufferType::get(
             ctx, inputShape, inputType, mlir::AffineMapAttr::get(DimsOrder::NHWC.toAffineMap(ctx)),
@@ -79,13 +77,6 @@ void buildMultiClusteringSOKTest(const nb::TestCaseJsonDescriptor& testDesc, mli
                     VPU::getPaddingAttr(ctx, 0, 0, 0, 0), nullptr, vpux::getIntAttr(ctx, numCluster), ctx));
 
     // get suboutputs and weight CMX shape
-    const auto inputDistr = ParentInputDistributed.getDistribution();
-    const auto outputDistr = ParentOutputDistributed.getDistribution();
-    const auto inputMode = VPU::stringifyDistributionMode(inputDistr.mode().getValue());
-    const auto outputMode = VPU::stringifyDistributionMode(outputDistr.mode().getValue());
-    VPUX_THROW_UNLESS(inputMode == "DUPLICATED", "Input distribution mode must be DUPLICATED");
-    VPUX_THROW_UNLESS(outputMode == "DUPLICATED|SEGMENTED", "Output distribution mode must be DUPLICATED|SEGMENTED");
-
     const auto ChannelsIndex = vpux::Dims4D::Act::C.ind();
     const auto inputChannels = inputShape[ChannelsIndex];
     const auto outputChannels = outputShape[ChannelsIndex];
@@ -97,14 +88,18 @@ void buildMultiClusteringSOKTest(const nb::TestCaseJsonDescriptor& testDesc, mli
     auto subWeightsCMXShape = weightsShape;
     auto subWeightsTableCMXShape = weightsTableShape;
 
-    if (outputMode == "DUPLICATED|SEGMENTED") {
-        VPUX_THROW_UNLESS(outputChannels % numCluster == 0,
-                          "outputChannels must be multiple of number clusters {0}, got {1}", numCluster,
-                          outputChannels);
-        subOutputShape[ChannelsIndex] = subOutputShape[ChannelsIndex] / numCluster;
-        subWeightsCMXShape[0] = subWeightsCMXShape[0] / numCluster;
-        subWeightsTableCMXShape[0] = subWeightsTableCMXShape[0] / numCluster;
-    }
+    VPUX_THROW_UNLESS(outputChannels % numCluster == 0,
+                      "outputChannels must be multiple of number clusters {0}, got {1}", numCluster, outputChannels);
+
+    subOutputShape[ChannelsIndex] = subOutputShape[ChannelsIndex] / numCluster;
+    subWeightsCMXShape[vpux::Dims4D::Filter::OC.ind()] =
+            subWeightsCMXShape[vpux::Dims4D::Filter::OC.ind()] / numCluster;
+    subWeightsTableCMXShape[vpux::Dims4D::Filter::OC.ind()] =
+            subWeightsTableCMXShape[vpux::Dims4D::Filter::OC.ind()] / numCluster;
+
+    VPUX_THROW_UNLESS(subOutputShape[ChannelsIndex] % alignmentRequirement == 0,
+                      "subOutputChannels must be multiple of {0}, got {1}", alignmentRequirement,
+                      subOutputShape[ChannelsIndex]);
 
     const auto orderAttr = mlir::AffineMapAttr::get(DimsOrder::NHWC.toAffineMap(ctx));
     const auto elemStrides = SmallVector<int64_t>(
@@ -196,8 +191,8 @@ void buildMultiClusteringSOKTest(const nb::TestCaseJsonDescriptor& testDesc, mli
     }
 
     llvm::SmallVector<Const::DeclareOp> weightsDDRs, weightsTableDDRs;
-    for (auto index = 0; index < numCluster; index++) {
-        const auto offset = Shape({index * subWeightsCMXShape[0], 0, 0, 0});
+    for (size_t index = 0; index < numCluster; index++) {
+        const auto offset = Shape({int(index) * subWeightsCMXShape[vpux::Dims4D::Filter::OC.ind()], 0, 0, 0});
         const auto shape = Shape(subWeightsCMXShape);
         const auto subWeightsAttribute = weightsAttribute.subview(offset, shape);
 
@@ -214,8 +209,8 @@ void buildMultiClusteringSOKTest(const nb::TestCaseJsonDescriptor& testDesc, mli
         const auto weightsTable = VPU::NCESparsity::getWeightsTable(
                 inputType, outputType, static_cast<std::int32_t>(WEIGHTS_CMX_OFFSET),
                 static_cast<std::int32_t>(weightsOutputChannelsStrideInBits.count() / CHAR_BIT),
-                VPU::NCESparsity::SPARSITY_PTR_WHEN_NO_SPARISTY, vpux::VPU::ArchKind::KMB, subOutputShape[1],
-                weightsType);
+                VPU::NCESparsity::SPARSITY_PTR_WHEN_NO_SPARISTY, vpux::VPU::ArchKind::KMB,
+                subOutputShape[vpux::Dims4D::Act::C.ind()], weightsType);
 
         const auto weightsTableDDRMemRef =
                 getMemRefType(VPURT::BufferSection::Constant, subWeightsTableCMXShape, int32, DimsOrder::NCHW)
@@ -227,19 +222,18 @@ void buildMultiClusteringSOKTest(const nb::TestCaseJsonDescriptor& testDesc, mli
                 vpux::Const::ContentAttr::get(weightsTableValues).reorder(vpux::DimsOrder::NCHW)));
     }
 
+    // Define CMX buffer
     llvm::SmallVector<int64_t> sectionIndex;
-    for (auto index = 0; index < numCluster; index++) {
+    for (size_t index = 0; index < numCluster; index++) {
         sectionIndex.push_back(index);
     }
 
-    // Define CMX buffer
-    auto parentInputCMX = functionBuilder.create<VPURT::DeclareBufferOp>(
-            builder.getUnknownLoc(), ParentInputDistributed, VPURT::BufferSection::CMX_NN, INPUT_CMX_OFFSET);
-    auto parentInputCMXCopy = functionBuilder.create<VPURT::DeclareBufferOp>(
-            builder.getUnknownLoc(), ParentInputDistributed, VPURT::BufferSection::CMX_NN, sectionIndex,
-            INPUT_CMX_OFFSET);
-    auto parentOutputCMX = functionBuilder.create<VPURT::DeclareBufferOp>(
-            builder.getUnknownLoc(), ParentOutputDistributed, VPURT::BufferSection::CMX_NN, OUTPUT_CMX_OFFSET);
+    auto parentInputCMX = createDeclareTensorOp(functionBuilder, ParentInputDistributed, VPURT::BufferSection::CMX_NN,
+                                                INPUT_CMX_OFFSET);
+    auto parentInputCMXCopy = createDeclareTensorOp(functionBuilder, ParentInputDistributed,
+                                                    VPURT::BufferSection::CMX_NN, sectionIndex, INPUT_CMX_OFFSET);
+    auto parentOutputCMX = createDeclareTensorOp(functionBuilder, ParentOutputDistributed, VPURT::BufferSection::CMX_NN,
+                                                 OUTPUT_CMX_OFFSET);
     auto parentOutputCMXCompact = createDeclareTensorOp(functionBuilder, VPURT::BufferSection::CMX_NN, outputShape,
                                                         outputType, vpux::DimsOrder::NHWC, 0, OUTPUT_CMX_OFFSET);
 
@@ -248,12 +242,11 @@ void buildMultiClusteringSOKTest(const nb::TestCaseJsonDescriptor& testDesc, mli
     llvm::SmallVector<VPURT::DeclareBufferOp> subWeightsCMX;
     llvm::SmallVector<VPURT::DeclareBufferOp> subWeightsTableCMX;
 
-    for (auto index = 0; index < numCluster; index++) {
+    for (size_t index = 0; index < numCluster; index++) {
         subInputCMX.push_back(createDeclareTensorOp(functionBuilder, VPURT::BufferSection::CMX_NN, inputShape,
                                                     inputType, vpux::DimsOrder::NHWC, index, INPUT_CMX_OFFSET));
-        subOutputCMX.push_back(functionBuilder.create<VPURT::DeclareBufferOp>(
-                builder.getUnknownLoc(), OutputDistributed, VPURT::BufferSection::CMX_NN, sectionIndex,
-                OUTPUT_CMX_OFFSET));
+        subOutputCMX.push_back(createDeclareTensorOp(functionBuilder, OutputDistributed, VPURT::BufferSection::CMX_NN,
+                                                     sectionIndex, OUTPUT_CMX_OFFSET));
         subWeightsCMX.push_back(createDeclareTensorOp(functionBuilder, VPURT::BufferSection::CMX_NN, subWeightsCMXShape,
                                                       weightsType, vpux::DimsOrder::NHWC, index, WEIGHTS_CMX_OFFSET));
         subWeightsTableCMX.push_back(createDeclareTensorOp(functionBuilder, VPURT::BufferSection::CMX_NN,
@@ -262,32 +255,37 @@ void buildMultiClusteringSOKTest(const nb::TestCaseJsonDescriptor& testDesc, mli
     }
 
     int barrierNumber = 0;
+    auto createBarrier = [&]() -> VPURT::ConfigureBarrierOp {
+        barrierNumber = barrierNumber > 31 ? 1 : barrierNumber;
+        return functionBuilder.create<vpux::VPURT::ConfigureBarrierOp>(builder.getUnknownLoc(), barrierNumber++);
+    };
 
-    // Reorder input / copy input from inputbuffer to DDR
-    auto updateBarrier =
-            functionBuilder.create<vpux::VPURT::ConfigureBarrierOp>(builder.getUnknownLoc(), barrierNumber++);
+    // Step1: Reorder input / copy input from inputbuffer to DDR
+    auto updateBarrier = createBarrier();
+
+    // Option 1: Reorder input from NCHW to NHWC
     //     const auto inputMemPerm = vpux::getPermutationFromOrders(DimsOrder::NCHW, DimsOrder::NHWC, ctx);
     //     VPURT::wrapIntoTaskOp<VPUIP::PermuteUPAOp>(
     //             functionBuilder, mlir::ValueRange(), mlir::ValueRange(updateBarrier.barrier()),
     //             builder.getUnknownLoc(), functionInput, parentInputDDR.getOperation()->getResult(0), inputMemPerm);
+
+    // Option 2: just copy input with NHWC to DDR
     VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(), updateBarrier.barrier(),
                                           builder.getUnknownLoc(), functionInput,
                                           parentInputDDR.getOperation()->getResult(0));
     VPURT::ConfigureBarrierOp waitInputReorderBarrier = updateBarrier;
 
-    // Copy input from DDR to CMX
-    updateBarrier = functionBuilder.create<vpux::VPURT::ConfigureBarrierOp>(builder.getUnknownLoc(), barrierNumber++);
-
+    // Step2: Copy input from DDR to CMX
+    updateBarrier = createBarrier();
     VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, waitInputReorderBarrier.barrier(), updateBarrier.barrier(),
                                           builder.getUnknownLoc(), parentInputDDR.getOperation()->getResult(0),
                                           parentInputCMXCopy.getOperation()->getResult(0));
-
     VPURT::ConfigureBarrierOp waitInputToCMXBarrier = updateBarrier;
 
-    // Move weights and weights table from DDR to CMX
-    updateBarrier = functionBuilder.create<vpux::VPURT::ConfigureBarrierOp>(builder.getUnknownLoc(), barrierNumber++);
+    // Step3: Move weights and weights table from DDR to CMX
+    updateBarrier = createBarrier();
 
-    for (auto index = 0; index < numCluster; index++) {
+    for (size_t index = 0; index < numCluster; index++) {
         VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(
                 functionBuilder, mlir::ValueRange(), mlir::ValueRange(updateBarrier.barrier()), builder.getUnknownLoc(),
                 weightsDDRs[index].getOperation()->getResult(0), subWeightsCMX[index].getOperation()->getResult(0));
@@ -299,8 +297,8 @@ void buildMultiClusteringSOKTest(const nb::TestCaseJsonDescriptor& testDesc, mli
 
     VPURT::ConfigureBarrierOp waitWeightsBarrier = updateBarrier;
 
-    // tile task
-    updateBarrier = functionBuilder.create<vpux::VPURT::ConfigureBarrierOp>(builder.getUnknownLoc(), barrierNumber++);
+    // Step4: Sub NCE task
+    updateBarrier = createBarrier();
 
     const auto strides = getIntArrayAttr(ctx, conv.stride);
     std::vector<std::int64_t> paddings = convertNBPadtoNCETaskPad(conv.pad);
@@ -309,7 +307,7 @@ void buildMultiClusteringSOKTest(const nb::TestCaseJsonDescriptor& testDesc, mli
     llvm::SmallVector<std::int64_t> kernel = {weightsShape[2], weightsShape[3]};
     const auto kernelSize = getIntArrayAttr(ctx, kernel);
 
-    for (auto index = 0; index < numCluster; index++) {
+    for (size_t index = 0; index < numCluster; index++) {
         auto nceTask = VPURT::wrapIntoTaskOp<VPUIP::NCEClusterTaskOp>(
                 functionBuilder, mlir::ValueRange({waitWeightsBarrier.barrier(), waitInputToCMXBarrier.barrier()}),
                 updateBarrier.barrier(), builder.getUnknownLoc(), subInputCMX[index].getOperation()->getResult(0),
@@ -319,9 +317,10 @@ void buildMultiClusteringSOKTest(const nb::TestCaseJsonDescriptor& testDesc, mli
                 subOutputCMX[index].getOperation()->getResult(0), vpux::VPUIP::NCETaskType::CONV, kernelSize, strides,
                 kernelPaddings, nullptr, nullptr);
 
-        const auto start = getIntArrayAttr(ctx, std::vector<std::int64_t>{0, 0, inputShape[ChannelsIndex] * index});
+        const auto start =
+                getIntArrayAttr(ctx, std::vector<std::int64_t>{0, 0, inputShape[ChannelsIndex] * int(index)});
         const auto end = getIntArrayAttr(ctx, std::vector<std::int64_t>{outputShape[3] - 1, outputShape[2] - 1,
-                                                                        inputShape[1] * (index + 1) - 1});
+                                                                        inputShape[1] * (int(index) + 1) - 1});
         const auto pad = VPU::getPaddingAttr(ctx, paddings[PAD_NCETASK_LEFT], paddings[PAD_NCETASK_RIGHT],
                                              paddings[PAD_NCETASK_TOP], paddings[PAD_NCETASK_BOTTOM]);
 
@@ -330,20 +329,24 @@ void buildMultiClusteringSOKTest(const nb::TestCaseJsonDescriptor& testDesc, mli
 
     VPURT::ConfigureBarrierOp waitDPUTaskBarrier = updateBarrier;
 
-    // copy output from CMX to DDR
-    updateBarrier = functionBuilder.create<vpux::VPURT::ConfigureBarrierOp>(builder.getUnknownLoc(), barrierNumber++);
+    // Step5: Copy output from CMX to DDR
+    updateBarrier = createBarrier();
     VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, waitDPUTaskBarrier.barrier(), updateBarrier.barrier(),
                                           builder.getUnknownLoc(), parentOutputCMXCompact.getOperation()->getResult(0),
                                           parentOutputDDR.getOperation()->getResult(0));
 
-    // reorder output / copy output data from DDR to output buffer
+    // Step6: Reorder output / copy output data from DDR to output buffer
     VPURT::ConfigureBarrierOp waitCMXToDDRBarrier = updateBarrier;
+
+    // Option 1: Reorder output from NHWC to NCHW
     //     const auto outMemPerm = vpux::getPermutationFromOrders(DimsOrder::NHWC, DimsOrder::NCHW, ctx);
     //     VPURT::wrapIntoTaskOp<VPUIP::PermuteUPAOp>(functionBuilder, waitCMXToDDRBarrier.barrier(),
     //     mlir::ValueRange(),
     //                                                builder.getUnknownLoc(),
     //                                                parentOutputDDR.getOperation()->getResult(0), functionOutput,
     //                                                outMemPerm);
+
+    // Option 2: just copy output with NHWC to output buffer
     VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, waitCMXToDDRBarrier.barrier(), mlir::ValueRange(),
                                           builder.getUnknownLoc(), parentOutputDDR.getOperation()->getResult(0),
                                           functionOutput);
@@ -357,10 +360,6 @@ void buildMultiClusteringSOKTest(const nb::TestCaseJsonDescriptor& testDesc, mli
     if (conv.compress) {
         pm.addPass(VPUIP::createCompressWeightsPass(log));
     }
-
-    // output dot
-    pm.addPass(
-            vpux::createPrintDotPass("/home/sgl/Github/openvino/bin/intel64/Release/dot/PSS.dot", {}, {}, true, true));
 
     // set memory sizes
     auto usedMemModule = module.lookupSymbol<mlir::ModuleOp>(IE::usedMemModuleName);

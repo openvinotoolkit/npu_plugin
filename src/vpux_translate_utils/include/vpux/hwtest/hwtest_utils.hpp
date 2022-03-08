@@ -137,6 +137,11 @@ vpux::VPURT::DeclareBufferOp createDeclareTensorOp(mlir::OpBuilder& builder, VPU
 vpux::VPURT::DeclareBufferOp createDeclareTensorOp(mlir::OpBuilder& builder, VPURT::BufferSection section,
                                                    ArrayRef<int64_t> shape, mlir::Type elemType, DimsOrder order,
                                                    size_t offset);
+vpux::VPURT::DeclareBufferOp createDeclareTensorOp(mlir::OpBuilder& builder, VPUIP::DistributedBufferType type,
+                                                   VPURT::BufferSection section, ArrayRef<int64_t> locale,
+                                                   size_t offset);
+vpux::VPURT::DeclareBufferOp createDeclareTensorOp(mlir::OpBuilder& builder, VPUIP::DistributedBufferType type,
+                                                   VPURT::BufferSection section, size_t offset);
 vpux::VPURT::DeclareBufferOp createDeclareTensorOp(mlir::OpBuilder builder, VPURT::BufferSection section,
                                                    ArrayRef<int64_t> shape, mlir::Type elemType, DimsOrder order,
                                                    StridesRef strides, int64_t locale, size_t offset);
