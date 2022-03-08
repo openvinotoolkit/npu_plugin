@@ -46,6 +46,9 @@ public:
             const std::string& modelFileName, const std::map<std::string, std::string>& config) override;
 
     InferenceEngine::IExecutableNetworkInternal::Ptr ImportNetwork(
+            uint8_t* modelBuffer, size_t modelLen, const std::map<std::string, std::string>& config) override;
+
+    InferenceEngine::IExecutableNetworkInternal::Ptr ImportNetwork(
             std::istream& networkModel, const std::map<std::string, std::string>& config) override;
 
     InferenceEngine::IExecutableNetworkInternal::Ptr ImportNetwork(

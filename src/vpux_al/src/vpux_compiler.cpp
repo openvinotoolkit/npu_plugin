@@ -52,6 +52,18 @@ std::shared_ptr<vpux::INetworkDescription> vpux::ICompiler::parse(std::istream& 
     return parse(blob, config, graphName);
 }
 
+std::shared_ptr<vpux::INetworkDescription> vpux::ICompiler::parse(uint8_t* modelBuffer, size_t modelLen,
+                                                                  const VPUXConfig& config,
+                                                                  const std::string& graphName) {
+    const size_t graphSize = modelLen;
+    if (graphSize == 0) {
+        IE_THROW() << "Blob is empty";
+    }
+    std::vector<char> blob(graphSize);
+    memcpy(blob.data(), modelBuffer, graphSize);
+    return parse(blob, config, graphName);
+}
+
 vpux::Compiler::Ptr vpux::Compiler::create(const VPUXConfig& config) {
     switch (config.compilerType()) {
     case InferenceEngine::VPUXConfigParams::CompilerType::MCM: {

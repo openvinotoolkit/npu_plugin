@@ -32,7 +32,8 @@ public:
     explicit ExecutableNetwork(const InferenceEngine::CNNNetwork& network, const Device::Ptr& device,
                                const VPUXConfig& config);
     explicit ExecutableNetwork(std::istream& networkModel, const Device::Ptr& device, const VPUXConfig& config);
-
+    explicit ExecutableNetwork(uint8_t* modelBuffer, size_t modelLen, const Device::Ptr& device,
+                               const VPUXConfig& config);
     InferenceEngine::IInferRequestInternal::Ptr CreateInferRequestImpl(
             const InferenceEngine::InputsDataMap networkInputs,
             const InferenceEngine::OutputsDataMap networkOutputs) override;

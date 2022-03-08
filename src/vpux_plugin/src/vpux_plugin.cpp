@@ -144,6 +144,20 @@ IE::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(const std::string& mod
     return ImportNetwork(vpu::KmbPlugin::utils::skipMagic(blobStream), config);
 }
 
+IE::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(uint8_t *modelBuffer, size_t modelLen,
+                                                          const std::map<std::string, std::string>& config) {
+    OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "ImportNetwork");
+    try {
+        auto networkConfig = mergePluginAndNetworkConfigs(_parsedConfig, config);
+        auto device = _backends->getDevice(networkConfig.deviceId());
+        return std::make_shared<ExecutableNetwork>(modelBuffer, modelLen, device, networkConfig);
+    } catch (const std::exception&) {
+        throw;
+    } catch (...) {
+        IE_THROW() << "VPUX ImportNetwork got unexpected exception from ExecutableNetwork";
+    }
+}
+
 IE::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(std::istream& networkModel,
                                                           const std::map<std::string, std::string>& config) {
     OV_ITT_SCOPED_TASK(itt::domains::VPUXPlugin, "ImportNetwork");

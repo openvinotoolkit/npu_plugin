@@ -222,6 +222,9 @@ public:
                                                              const VPUXConfig& config = {});
     virtual std::shared_ptr<vpux::INetworkDescription> parse(std::istream& stream, const VPUXConfig& config = {},
                                                              const std::string& netName = "");
+    virtual std::shared_ptr<vpux::INetworkDescription> parse(uint8_t* modelBuffer, size_t modelLen,
+                                                             const VPUXConfig& config = {},
+                                                             const std::string& netName = "");
 
     virtual std::unordered_set<std::string> getSupportedOptions() {
         return {};
@@ -267,6 +270,11 @@ public:
     std::shared_ptr<vpux::NetworkDescription> parse(std::istream& stream, const VPUXConfig& config = {},
                                                     const std::string& graphName = "") {
         return std::make_shared<NetworkDescription>(_actual->parse(stream, config, graphName), _actual);
+    }
+
+    std::shared_ptr<vpux::NetworkDescription> parse(uint8_t* modelBuffer, size_t modelLen,
+                                                    const VPUXConfig& config = {}, const std::string& graphName = "") {
+        return std::make_shared<NetworkDescription>(_actual->parse(modelBuffer, modelLen, config, graphName), _actual);
     }
 
     std::unordered_set<std::string> getSupportedOptions() {

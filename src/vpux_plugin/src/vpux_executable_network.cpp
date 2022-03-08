@@ -119,6 +119,24 @@ ExecutableNetwork::ExecutableNetwork(std::istream& networkModel, const Device::P
     }
 }
 
+ExecutableNetwork::ExecutableNetwork(uint8_t* modelBuffer, size_t modelLen, const Device::Ptr& device,
+                                     const VPUXConfig& config)
+        : ExecutableNetwork(config, device) {
+    try {
+        const std::string networkName = "net" + std::to_string(loadBlobCounter);
+        _networkPtr = _compiler->parse(modelBuffer, modelLen, _config, networkName);
+        _executorPtr = createExecutor(_networkPtr, _config, device);
+        _networkInputs = helpers::dataMapIntoInputsDataMap(_networkPtr->getInputsInfo());
+        _networkOutputs = helpers::dataMapIntoOutputsDataMap(_networkPtr->getOutputsInfo());
+        ConfigureStreamsExecutor(networkName);
+    } catch (const std::exception& ex) {
+        IE_THROW() << ex.what();
+    } catch (...) {
+        _logger->error("Unexpected exception");
+        IE_THROW() << "VPUX ExecutableNetwork got unexpected exception from compiler";
+    }
+}
+
 void ExecutableNetwork::ConfigureStreamsExecutor(const std::string& networkName) {
     size_t maxTaskExecutorGetResultCount = 1;
     if (_config.exclusiveAsyncRequests()) {
