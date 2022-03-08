@@ -5,6 +5,8 @@ The pass adjusts the location of tensors that are used by hardware-driven operat
 Currently, it surrounds VPU-driven nodes with Copy operations to specify that all the data
 that they consume/produce must reside in CMX
 ### `-cmx-concat`: Move Concat operations from DDR to NNCMX
+This pass will try to check if a Concat operation can fit in NNCMX
+with few restrictions and if so move the concat from DDR to NNCMX.
 ### `-init-compiler`: Initializes compiler for VPU platforms
 This pass attaches VPU related compilation parameters to Module attributes and
 initializes **IERT Dialect** run-time resources information.
