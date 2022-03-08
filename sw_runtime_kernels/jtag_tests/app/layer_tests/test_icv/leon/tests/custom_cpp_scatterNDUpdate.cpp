@@ -23,57 +23,322 @@ __attribute__((aligned(1024)))
 #include "svuSLKernels_EP.h"
 #endif
 
+#include <numeric>
+// #include "icv_test_suite.h"
+
+#include "ScatterNDUpdate.h"
 #include "param_scatterNDUpdate.h"
+#include "custom_cpp_test_base.h"
 
-namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, ScatterNDUpdate)) {
+using namespace icv_tests;
 
-    const bool save_to_file = false;
-// #define ALL_PARAMS_SET
+extern uint64_t cmxParamContainer[];
 
-    static constexpr std::initializer_list<SingleTest> scatterNDUpdate_test_list{
+namespace
+{
 
+// #define USE_MANUAL_DATA
+
+const bool save_to_file = false;
+
+struct ScatterNDUpdateTestParams
+{
+    std::initializer_list<int32_t> inputDims;
+    std::initializer_list<int32_t> indicesDims;
+    std::initializer_list<int32_t> updatesDims;
+};
+
+const std::initializer_list<ScatterNDUpdateTestParams> scatterNDUpdate_test_list =
+    {
+        { {8, 3, 3},       {2, 2},         {3, 2}    },
     };
 
-    class CustomCppScatterNDUpdateTest : public CustomCppTests<fp16> {
-    public:
-        explicit CustomCppScatterNDUpdateTest(): m_testsLoop(scatterNDUpdate_test_list, "test") {
+template<class T>
+int32_t read(const uint8_t* pointer);
+
+template <class SrcType>
+class CustomCppScatterNDUpdateTest : public CustomCppTestBase<ScatterNDUpdateTestParams>
+{
+ public:
+    // ScatterNDUpdateTest()
+    //     : m_inputDimensionsLoop(scatterNDUpdate_test_list, "dim")
+    // {}
+
+    // ~ScatterNDUpdateTest() = default;
+
+    explicit CustomCppScatterNDUpdateTest(): m_testsLoop(scatterNDUpdate_test_list, "test") {
+    }
+    virtual ~CustomCppScatterNDUpdateTest() {
+    }
+
+ protected:
+    const char* suiteName() const override
+    {
+        static const std::string name = std::string{ICV_TESTS_STRINGIFY(ICV_TEST_SUITE_NAME)}
+            + "_" + TypeNameTrait<SrcType>::name()
+            + "_" + TypeNameTrait<int32_t>::name();
+        return name.c_str();
+    }
+
+    void userLoops() override
+    {
+        addLoop(m_testsLoop);
+    }
+
+    void initData() override
+    {
+        std::vector<int32_t>  inputDims   = m_inputDimensionsLoop.value().inputDims;
+        std::vector<int32_t>  indicesDims = m_inputDimensionsLoop.value().indicesDims;
+        std::vector<int32_t>  updatesDims = m_inputDimensionsLoop.value().updatesDims;
+
+        // construct output dims
+        const auto& outputDims = inputDims;
+
+        MemoryDims md_input_dims(inputDims.data(), inputDims.size());
+        MemoryDims md_indices_dims(indicesDims.data(), indicesDims.size());
+        MemoryDims md_updates_dims(updatesDims.data(), updatesDims.size());
+        MemoryDims md_output_dims(outputDims.data(), outputDims.size());
+
+        m_inputTensor.init(maskOrder(FULL_ORDER, inputDims.size()), md_input_dims, md_input_dims);
+        m_indicesTensor.init(maskOrder(FULL_ORDER, indicesDims.size()), md_indices_dims, md_indices_dims);
+        m_updatesTensor.init(maskOrder(FULL_ORDER, updatesDims.size()), md_updates_dims, md_updates_dims);
+        m_outputTensor.init(maskOrder(FULL_ORDER, outputDims.size()), md_output_dims, md_output_dims);
+        m_referenceTensor.init(maskOrder(FULL_ORDER, outputDims.size()), md_output_dims, md_output_dims);
+
+        allocBuffer(m_inputTensor);
+        allocBuffer(m_outputTensor);
+        allocBuffer(m_indicesTensor);
+        allocBuffer(m_updatesTensor);
+        allocBuffer(m_referenceTensor);
+
+        m_params = {0xFFFFFFFF, m_elfBuffer, 0, nullptr, MAX_LOCAL_PARAMS, 0, 0};
+
+        // CustomCppTests<fp16>::initData();
+        // const SingleTest* test = m_currentTest;
+        // int32_t ind[subspace::MAX_DIMS] = {0};
+        // subspace::orderToIndices((t_D8StorageOrder)(test->storageOrder), ind);
+        m_scatterNDUpdateParams = reinterpret_cast<sw_params::ScatterNDUpdateParams*>(paramContainer);
+        *m_scatterNDUpdateParams = sw_params::ScatterNDUpdateParams();
+        m_params.paramData = reinterpret_cast<uint32_t*>(paramContainer);
+        m_params.paramDataLen = sizeof(sw_params::ScatterNDUpdateParams);
+        // m_requiredTensorLocation =
+        //         static_cast<sw_params::Location>(test->customLayerParams.layerParams[4]);
+        m_params.baseParamData = sw_params::ToBaseKernelParams(m_scatterNDUpdateParams);
+
+        m_params.kernel = reinterpret_cast<uint64_t>(PREAMBLE_FUNC(singleShaveScatterNDUpdate));
+    }
+
+    void formatTestParams(char* str, int maxLength) const override
+    {
+        char inSizes_str[100];
+        char outSizes_str[100];
+        char idxSizes_str[100];
+        char updatesSizes_str[100];
+
+        snprintf_append(str, maxLength, "input: %s, output: %s, indices: %s, updates: %s",
+                        m_inputTensor.dimsToStringNCHW(inSizes_str),
+                        m_outputTensor.dimsToStringNCHW(outSizes_str),
+                        m_indicesTensor.dimsToStringNCHW(idxSizes_str),
+                        m_updatesTensor.dimsToStringNCHW(updatesSizes_str));
+    }
+
+    // t_MvTensorOpType opType() const override
+    // {
+    //     return kScatterNDUpdate;
+    // }
+
+    void initParserRunner() override
+    {
+        initMyriadResources();
+        initDebugInfo();
+
+        static_assert(std::is_base_of<Op, CustomCpp>());
+        CustomCpp* customCppOp = static_cast<CustomCpp*>(m_op);
+        OpTensor inBuff;
+        OpTensor indicesBuff;
+        OpTensor updatesBuff;
+        OpTensor outBuff;
+        m_inputTensor.exportToBuffer(inBuff);
+        m_inputTensor.exportToBuffer(indicesBuff);
+        m_inputTensor.exportToBuffer(updatesBuff);
+        m_outputTensor.exportToBuffer(outBuff);
+
+        customCppOp->addInputBuffer(inBuff, m_requiredTensorLocation);
+        customCppOp->addInputBuffer(indicesBuff, m_requiredTensorLocation);
+        customCppOp->addInputBuffer(updatesBuff, m_requiredTensorLocation);
+        customCppOp->addOutputBuffer(outBuff, m_requiredTensorLocation);
+        customCppOp->ops = *getParams();
+        // auto ScatterNDUpdateOP = static_cast<ScatterNDUpdate*>(m_op);
+        // m_inputTensor.exportToBuffer(ScatterNDUpdateOP->input);
+        // m_outputTensor.exportToBuffer(ScatterNDUpdateOP->output);
+        // m_indicesTensor.exportToBuffer(ScatterNDUpdateOP->indices);
+        // m_updatesTensor.exportToBuffer(ScatterNDUpdateOP->updates);
+    }
+
+    void resetOutputData() override
+    {
+        resetTensorBuffer(m_outputTensor);
+    }
+
+    void calcReferenceOutput()
+    {
+        const auto& test_value = m_inputDimensionsLoop.value();
+
+        const auto idx     = m_indicesTensor.data();
+        const auto updates = m_updatesTensor.data();
+        const auto src     = m_inputTensor.data();
+              auto dst     = m_referenceTensor.data();
+
+        std::vector<int32_t> input_dims(test_value.inputDims.begin(),
+                                        test_value.inputDims.end());
+
+        std::vector<int32_t> indices_dims(test_value.indicesDims.begin(),
+                                          test_value.indicesDims.end());
+
+        std::vector<int32_t> updates_dims(test_value.updatesDims.begin(),
+                                          test_value.updatesDims.end());
+
+        int last_idx_dim = indices_dims.front();
+        int update_chunk_size = input_dims.size() - last_idx_dim;
+        if(update_chunk_size < 0)
+            update_chunk_size = 0;
+        const auto update_el_number = subspace::getTotal(m_inputTensor.memoryDims().dims, update_chunk_size);
+
+        for(int i=0; i<subspace::getTotal(m_inputTensor.memoryDims().dims, input_dims.size()); i++)
+            dst[i] = src[i];
+
+        const auto input_data_dim_pading = [&] {
+            std::vector<size_t> padding(input_dims.size(), 1);
+            for (int32_t i = input_dims.size() - 1; i != 0; --i) {
+                padding[i - 1] = padding[i] * input_dims[input_dims.size() - 1 - i];
+            };
+            return padding;
+        }();
+
+        const auto num_of_updates = subspace::getTotal(&m_indicesTensor.memoryDims().dims[1], indices_dims.size()-1);
+        for (int32_t i = 0; i != num_of_updates; ++i) {
+            const auto indices_coord = idx + i * last_idx_dim;
+            std::vector<int32_t> coord (indices_coord, indices_coord + last_idx_dim);
+            const auto out_index = std::inner_product(coord.begin(), coord.end(), input_data_dim_pading.begin(), 0);
+            const int32_t update_mem_size = update_el_number;
+            for(int32_t j = 0; j < update_mem_size; j++){
+                dst[out_index + j] = updates[i * update_el_number + j];
+            }
         }
-        virtual ~CustomCppScatterNDUpdateTest() {
+    }
+
+ protected:
+    ListIterator<ScatterNDUpdateTestParams> m_inputDimensionsLoop;
+    Tensor<SrcType> m_inputTensor;
+    Tensor<SrcType> m_outputTensor;
+    Tensor<SrcType> m_referenceTensor;
+    Tensor<int32_t> m_indicesTensor;
+    Tensor<SrcType> m_updatesTensor;
+
+    ListIterator<ScatterNDUpdateTestParams> m_testsLoop;
+    sw_params::ScatterNDUpdateParams* m_scatterNDUpdateParams;
+
+    sw_params::Location m_requiredTensorLocation = sw_params::Location::DDR;
+
+    //  FIXME: Temporarily is located on CMX due to problem of ACT_SHAVE cache invalidation
+    uint64_t * paramContainer = cmxParamContainer;
+    float m_test_threshold = 0.0f;
+
+    // Debug-specific
+    bool m_save_to_file = false;
+    int m_num_of_debug_output = 0;
+};
+
+
+class ScatterNDUpdateTestFP16 : public CustomCppScatterNDUpdateTest<fp16> {
+    const char *suiteName() const override { return ICV_TESTS_STRINGIFY(ICV_TEST_SUITE_NAME) "ScatterNDUpdateTest"; }
+    void generateData() override
+    {
+#if defined (USE_MANUAL_DATA)
+        counter_expected = 0;
+        int k=0;
+        m_inputTensor.forEach(false, [&](const MemoryDims& indices)
+        {
+            float val = (float)manual_input_val[k++];
+            m_inputTensor.at(indices) = f32Tof16(val);
+        });
+        k=0;
+        m_indicesTensor.forEach(false, [&](const MemoryDims& indices)
+        {
+            int32_t val = manual_indices_val[k++];
+            m_indicesTensor.at(indices) = val;
+        });
+        k=0;
+        m_updatesTensor.forEach(false, [&](const MemoryDims& indices)
+        {
+            float val = (float)manual_updates_val[k++];
+            m_updatesTensor.at(indices) = f32Tof16(val);
+        });
+#else
+        int i = 100;
+        m_inputTensor.forEach(false, [&](const MemoryDims& indices)
+        {
+            if (i > 200.0) i = 100;
+            float val = (float)(i++);
+            m_inputTensor.at(indices) = f32Tof16(val);
+        });
+        const auto &test = m_inputDimensionsLoop.value();
+        m_indicesTensor.forEach(false, [&](const MemoryDims& indices)
+        {
+            const auto dim = test.inputDims.size() - indices.dims[Dim::W] - 1;
+            const auto maxValue = test.inputDims.begin()[dim];
+            m_indicesTensor.at(indices) = rand() % maxValue;
+        });
+
+        i = 10;
+        m_updatesTensor.forEach(false, [&](const MemoryDims& indices)
+        {
+            if (i > 99.0) i = 10;
+            float val = (float)(i++);
+            m_updatesTensor.at(indices) = f32Tof16(val);
+        });
+#endif
+        calcReferenceOutput();
+    }
+
+    bool checkResult() override
+    {
+        m_outputTensor.confirmBufferData();
+        m_referenceTensor.confirmBufferData();
+
+        // save output data
+        if (save_to_file)
+        {
+            saveMemoryToFile(reinterpret_cast<u32>(m_outputTensor.buffer()), m_outputTensor.bufferSize(), "outMyriad.bin");
         }
 
-    protected:
-        const char* suiteName() const override {
-            return "CustomCppScatterNDUpdateTest";
-        }
-        void userLoops() override {
-            addLoop(m_testsLoop);
-        }
+        bool threshold_test_failed = false;
+        m_outputTensor.forEach(true, [&](const MemoryDims& indices)
+        {
+#if defined (USE_MANUAL_DATA)
+            float gt_value = manual_expected_val[counter_expected++];
+#else
+            float gt_value = f16Tof32(m_referenceTensor.at(indices, true));
+#endif
+            float value = f16Tof32(m_outputTensor.at(indices, true));
 
-        void initData() override {
+            bool differ = bool(!(gt_value == value));
 
-        }
+            if (differ)
+            {
+                const TensorDims ti = m_outputTensor.toTensor(indices);
+                threshold_test_failed |= differ;
+                if (GlobalData::doPrintDiffs)
+                    printf("DIFF CHW [%" PRId32":%" PRId32":%" PRId32"] %f %f\n", ti.channels, ti.height, ti.width, value, gt_value);
+            }
+        });
 
-        void initTestCase() override {
-            m_currentTest = &m_testsLoop.value();
-        }
+        return !threshold_test_failed;
+    }
+};
 
-        void generateInputData() override {
+}
 
-        }
-
-        void generateReferenceData() override {
-
-        }
-
-        virtual bool checkResult() override {
-
-        }
-
-    private:
-        ListIterator<SingleTest> m_testsLoop;
-
-        sw_params::ScatterNDUpdateParams* m_scatterNDUpdateParams;
-    };
-
-    ICV_TESTS_REGISTER_SUITE(CustomCppScatterNDUpdateTest)
-}  // namespace )
+namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, ScatterNDUpdateTest)) {
+    ICV_TESTS_REGISTER_SUITE(ScatterNDUpdateTestFP16)
+}
