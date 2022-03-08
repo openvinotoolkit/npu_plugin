@@ -30,6 +30,10 @@ The pass is a part of `AdjustForVPU` pipeline.
 
 This pass replaces all `FullyConnected` operations with `Convolution` operation.
 It inserts extra `Reshape` operations to satisfy `Convolution` specification.
+### `-convert-matmul-pattern-to-dwconv`: Convert Transpose+MatMul pattern to DWconv
+This pass converts `Transpose` + `MatMul` pattern to `DWconv`.
+
+This is especially used to optimize ModelF.
 ### `-convert-nearest-to-strided-concat`: Convert nearest interpolate op to strided concat ops
 The pass is a part of `AdjustForVPU` pipeline.
 

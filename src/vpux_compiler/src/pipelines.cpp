@@ -268,8 +268,13 @@ void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOp
 
     // Level 3 : Topology
 
+    pm.addPass(vpux::createPrintDotPass("./output/init.dot"));
     pm.addPass(IE::createMatMulInputsTo2dPass(log));
+    pm.addPass(vpux::createPrintDotPass("./output/createMatMulInputsTo2dPass.dot"));
+    pm.addPass(IE::createConvertMatMulPatternToDWConvPass(log));
+    pm.addPass(vpux::createPrintDotPass("./output/createConvertMatMulPatternToDWConvPass.dot"));
     pm.addPass(mlir::createCanonicalizerPass(grc));
+    pm.addPass(vpux::createPrintDotPass("./output/createMatMulInputsTo2dPassCanon.dot"));
 
     IE::buildAdjustPrecisionPipeline(pm, IE::AdjustPrecisionOptions(options), log);
 
