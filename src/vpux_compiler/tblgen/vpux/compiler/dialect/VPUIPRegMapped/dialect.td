@@ -20,9 +20,10 @@ def VPUIPRegMapped_Dialect : Dialect {
     let summary = "VPU NN Register Mapped RunTime Dialect";
 
     let description = [{
-The **VPUIPRegMapped Dialect** represents NN RunTime IR in terms of MLIR framework.
+The **VPUIPRegMapped Dialect** represents NN RunTime IR together with RegMapped
+    constructs in terms of the MLIR framework.
 
-It allows to work with the graph schema inside MLIR framework:
+It allows to work with the graph schema inside the MLIR framework in order to:
 
 * Validate it.
 * Perform additional low level transformations/optimizations.
@@ -32,6 +33,8 @@ It handles such VPU-specifics as:
 * Memory/executors hierarchy.
 * HW barriers notion.
 * Supported operation set.
+
+Again, it represents also the register mapped configuration of the hardware registers.
 
 [./VPUIPRegMapped/_ops_interfaces.md]
     }];

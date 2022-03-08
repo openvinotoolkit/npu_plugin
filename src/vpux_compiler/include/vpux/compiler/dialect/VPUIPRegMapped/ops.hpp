@@ -44,15 +44,3 @@
 
 #define GET_OP_CLASSES
 #include <vpux/compiler/dialect/VPUIPRegMapped/generated/ops.hpp.inc>
-
-//
-// Operation verifiers
-//
-
-namespace vpux {
-namespace VPUIPRegMapped {
-
-mlir::LogicalResult verifyPostOp(mlir::Operation* op);
-
-}  // namespace VPUIPRegMapped
-}  // namespace vpux

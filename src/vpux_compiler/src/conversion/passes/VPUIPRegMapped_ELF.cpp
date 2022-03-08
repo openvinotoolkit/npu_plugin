@@ -28,13 +28,6 @@ using namespace vpux;
 
 namespace {
 
-int SIZEOF_SERIALIZED_STRUCT = 192;
-int OFFSET_SRC_SERIALIZED_STRUCT = 16;
-int OFFSET_DST_SERIALIZED_STRUCT = 24;
-
-#define NUM_MAX_SYMBOLS 2000
-#define NUM_MAX_NNDMAOps 1000
-
 //
 // Convert2VPUIPRegMappedAndELFPass
 //
@@ -62,15 +55,19 @@ private:
     vpux::SmallVector<vpux::IE::DataInfoOp, 1> diOpInVec;
     vpux::SmallVector<vpux::IE::DataInfoOp, 1> diOpOutVec;
 
-    unsigned int numNNDMAOps = 0;
-    mlir::Value NNDMAOpInput[NUM_MAX_NNDMAOps];
-    mlir::Value NNDMAOpOutput[NUM_MAX_NNDMAOps];
+    unsigned int numNndmaOps = 0;
+    std::vector<mlir::Value> nndmaOpInput;
+    std::vector<mlir::Value> nndmaOpOutput;
+
+    int sizeOfNNDMAOpStruct;
+    int offsetOfSrcInNNDMAOpStruct;
+    int offsetOfDstInNNDMAOpStruct;
 };
 
 // createSection() creates an ELF::CreateSectionOp and puts into its body
 //   for each object of type DerivedOpType from the FuncOp func an
-//   ELFPutOpInSectionOp instruction.
-//  In case isNNDMAOp is true, then we store in the NNDMAOpInput and NNDMAOpOutput
+//   ELF.PutOpInSectionOp instruction.
+//  In case isNNDMAOp is true, then we store in the nndmaOpInput and nndmaOpOutput
 //    the input, respectively the output of the current NNDMAOp operation.
 template <typename DerivedOpType>
 mlir::Value Convert2VPUIPRegMappedAndELFPass::createSection(mlir::FuncOp func, mlir::MLIRContext* ctx,
@@ -80,54 +77,45 @@ mlir::Value Convert2VPUIPRegMappedAndELFPass::createSection(mlir::FuncOp func, m
 
     mlir::OpBuilder builderFunc(&(blkFunc.back()));
 
-    mlir::Operation* endOp = blkFunc.getTerminator();
-    llvm::StringRef secName = secNameStr;
     vpux::ELF::SectionType sectionType = vpux::ELF::SectionType::get(ctx);
 
-    ELF::CreateSectionOp ELFCreateSectionOp =
-            builderFunc.create<ELF::CreateSectionOp>(endOp->getLoc(),
+    auto elfCreateSectionOp =
+            builderFunc.create<ELF::CreateSectionOp>(mlir::UnknownLoc::get(ctx),
                                                      sectionType,  // mlir::Type
-                                                     secName,      // llvm::StringRef secName,
+                                                     secNameStr,   // llvm::StringRef secName,
                                                      secType,      // vpux::ELF::SectionTypeAttr secType,
                                                      secFlags,     // vpux::ELF::SectionFlagsAttr secFlags,
                                                      1,            // int64_t secInfo,
                                                      64            // int64_t secAddrAlign
             );
 
-    mlir::Region& aReg = ELFCreateSectionOp.getOperation()->getRegion(0);
+    mlir::Block* blkNew = &(elfCreateSectionOp.aRegion().emplaceBlock());
 
-    mlir::Block* blkNew = new mlir::Block();
+    for (auto op : func.getOps<DerivedOpType>()) {
+        if (isNNDMAOp) {
+            // isNNDMAOp is true only when DerivedOpType is vpux::VPUIPRegMapped::NNDMAOp
+            nndmaOpInput.push_back(((vpux::VPUIPRegMapped::NNDMAOp)op).input());
+            nndmaOpOutput.push_back(((vpux::VPUIPRegMapped::NNDMAOp)op).output_buff());
+            _log.info("createSection(): nndmaOpInput[numNndmaOps] = {0}\n", nndmaOpInput[numNndmaOps]);
+            _log.info("createSection(): nndmaOpOutput[numNndmaOps] = {0}\n", nndmaOpOutput[numNndmaOps]);
 
-    aReg.push_back(blkNew);
-
-    for (mlir::Operation& op : blkFunc.getOperations()) {
-        DerivedOpType opCasted = llvm::dyn_cast<DerivedOpType>(op);
-
-        if (opCasted) {
-            if (isNNDMAOp) {
-                // isNNDMAOp is true only when DerivedOpType is vpux::VPUIPRegMapped::NNDMAOp
-                NNDMAOpInput[numNNDMAOps] = ((vpux::VPUIPRegMapped::NNDMAOp)opCasted).input();
-                NNDMAOpOutput[numNNDMAOps] = ((vpux::VPUIPRegMapped::NNDMAOp)opCasted).output_buff();
-                _log.info("createSection(): NNDMAOpInput[numNNDMAOps] = {0}\n", NNDMAOpInput[numNNDMAOps]);
-                _log.info("createSection(): NNDMAOpOutput[numNNDMAOps] = {0}\n", NNDMAOpOutput[numNNDMAOps]);
-
-                numNNDMAOps++;
-            }
-
-            mlir::OpBuilder builderELFSectionOpReg(blkNew, blkNew->begin());
-
-            _log.info("createSection(): Before builderELFSectionOpReg.create()\n");
-
-            ELF::PutOpInSectionOp ELFPutOpInSectionOp = builderELFSectionOpReg.create<ELF::PutOpInSectionOp>(
-                    builderELFSectionOpReg.getUnknownLoc(),  // endOp->getLoc(),
-                    opCasted.getOperation()->getResult(0)    // mlir::Value inputArg
-            );
-
-            VPUX_UNUSED(ELFPutOpInSectionOp);
+            numNndmaOps++;
         }
-    }
 
-    return ELFCreateSectionOp.getOperation()->getResult(0);
+        mlir::OpBuilder builderElfSectionOpReg(blkNew, blkNew->begin());
+
+        _log.info("createSection(): Before builderElfSectionOpReg.create()\n");
+
+        auto elfPutOpInSectionOp = builderElfSectionOpReg.create<ELF::PutOpInSectionOp>(
+                builderElfSectionOpReg.getUnknownLoc(),  // endOp->getLoc(),
+                op.getOperation()->getResult(0)          // mlir::Value inputArg
+        );
+
+        VPUX_UNUSED(elfPutOpInSectionOp);
+    }
+    // }
+
+    return elfCreateSectionOp.getOperation()->getResult(0);
 }
 
 // We check if val is a Neural-Network argument, defined in the IE.CNNNetwork,
@@ -177,14 +165,12 @@ void Convert2VPUIPRegMappedAndELFPass::createRelocationSection(mlir::FuncOp func
 
     mlir::OpBuilder builderFunc(&(blkFunc.back()));
 
-    mlir::Operation* endOp = blkFunc.getTerminator();
-
     // Creating the required ELF.SymbolOps
-    ELF::SymbolOp ELFSymbolOp[NUM_MAX_SYMBOLS];
-    unsigned int numELFSymbolOps = 0;
+    std::vector<ELF::SymbolOp> elfSymbolOp;
+    unsigned int numElfSymbolOps = 0;
 
     unsigned int idx;
-    for (idx = 0; idx < numNNDMAOps; idx++) {
+    for (idx = 0; idx < numNndmaOps; idx++) {
         std::string nameSymStr = "nndmaOp";
         nameSymStr += std::to_string(idx);
 
@@ -199,10 +185,10 @@ void Convert2VPUIPRegMappedAndELFPass::createRelocationSection(mlir::FuncOp func
 
         std::string tmpStr;
 
-        _log.info("NNDMAOpInput[idx] = {0}\n", NNDMAOpInput[idx]);
+        _log.info("nndmaOpInput[idx] = {0}\n", nndmaOpInput[idx]);
 
-        // We handle the NNDMAOpInput[idx] value
-        bool res = checkIfValueIsNetArg(NNDMAOpInput[idx], tmpStr);
+        // We handle the nndmaOpInput[idx] value
+        bool res = checkIfValueIsNetArg(nndmaOpInput[idx], tmpStr);
         if (res) {
             nameSym = mlir::StringAttr::get(ctx, tmpStr);
         } else {
@@ -210,21 +196,21 @@ void Convert2VPUIPRegMappedAndELFPass::createRelocationSection(mlir::FuncOp func
         }
         _log.info("nameSym = {0}\n", nameSym);
 
-        ELFSymbolOp[numELFSymbolOps] = builderFunc.create<ELF::SymbolOp>(endOp->getLoc(),
-                                                                         symbolType,         // mlir::Type
-                                                                         NNDMAOpInput[idx],  // mlir::Value inputArg
-                                                                         nameSym,            // mlir::StringAttr
-                                                                         typeSym,  // vpux::ELF::SymbolTypeAttrAttr
-                                                                         sizeSym,  // size
-                                                                         valueSym  // value
-        );
-        _log.info("ELFSymbolOp[{0}] = {1}\n", numELFSymbolOps, ELFSymbolOp[numELFSymbolOps]);
-        numELFSymbolOps++;
+        elfSymbolOp.push_back(builderFunc.create<ELF::SymbolOp>(mlir::UnknownLoc::get(ctx),
+                                                                symbolType,         // mlir::Type
+                                                                nndmaOpInput[idx],  // mlir::Value inputArg
+                                                                nameSym,            // mlir::StringAttr
+                                                                typeSym,            // vpux::ELF::SymbolTypeAttrAttr
+                                                                sizeSym,            // size
+                                                                valueSym            // value
+                                                                ));
+        _log.info("elfSymbolOp[{0}] = {1}\n", numElfSymbolOps, elfSymbolOp[numElfSymbolOps]);
+        numElfSymbolOps++;
 
-        _log.info("NNDMAOpOutput[idx] = {0}\n", NNDMAOpOutput[idx]);
+        _log.info("nndmaOpOutput[idx] = {0}\n", nndmaOpOutput[idx]);
 
-        // We handle the NNDMAOpInput[idx] value
-        res = checkIfValueIsNetArg(NNDMAOpOutput[idx], tmpStr);
+        // We handle the nndmaOpInput[idx] value
+        res = checkIfValueIsNetArg(nndmaOpOutput[idx], tmpStr);
         if (res) {
             nameSym = mlir::StringAttr::get(ctx, tmpStr);
         } else {
@@ -232,16 +218,16 @@ void Convert2VPUIPRegMappedAndELFPass::createRelocationSection(mlir::FuncOp func
         }
         _log.info("nameSym = {0}\n", nameSym);
 
-        ELFSymbolOp[numELFSymbolOps] = builderFunc.create<ELF::SymbolOp>(endOp->getLoc(),
-                                                                         symbolType,          // mlir::Type
-                                                                         NNDMAOpOutput[idx],  // mlir::Value inputArg
-                                                                         nameSym,             // mlir::StringAttr
-                                                                         typeSym,  // vpux::ELF::SymbolTypeAttrAttr
-                                                                         sizeSym,  // size
-                                                                         valueSym  // value
-        );
-        _log.info("ELFSymbolOp[{0}] = {1}\n", numELFSymbolOps, ELFSymbolOp[numELFSymbolOps]);
-        numELFSymbolOps++;
+        elfSymbolOp.push_back(builderFunc.create<ELF::SymbolOp>(mlir::UnknownLoc::get(ctx),
+                                                                symbolType,          // mlir::Type
+                                                                nndmaOpOutput[idx],  // mlir::Value inputArg
+                                                                nameSym,             // mlir::StringAttr
+                                                                typeSym,             // vpux::ELF::SymbolTypeAttrAttr
+                                                                sizeSym,             // size
+                                                                valueSym             // value
+                                                                ));
+        _log.info("elfSymbolOp[{0}] = {1}\n", numElfSymbolOps, elfSymbolOp[numElfSymbolOps]);
+        numElfSymbolOps++;
     }
 
     // Now, we create the symbol tables.
@@ -249,7 +235,7 @@ void Convert2VPUIPRegMappedAndELFPass::createRelocationSection(mlir::FuncOp func
     vpux::ELF::SectionType sectionType2 = vpux::ELF::SectionType::get(ctx);
 
     ELF::CreateSymbolTableSectionOp createRestSymTableSectionOp =
-            builderFunc.create<ELF::CreateSymbolTableSectionOp>(endOp->getLoc(),
+            builderFunc.create<ELF::CreateSymbolTableSectionOp>(mlir::UnknownLoc::get(ctx),
                                                                 sectionType2,                // mlir::Type
                                                                 ".rest.symbolTableSection",  // llvm::StringRef secName,
                                                                 vpux::ELF::SectionFlagsAttr::SHF_NONE);
@@ -264,7 +250,7 @@ void Convert2VPUIPRegMappedAndELFPass::createRelocationSection(mlir::FuncOp func
 
     // Secondly we create the symbol table for the input symbols
     ELF::CreateSymbolTableSectionOp createInputSymTableSectionOp = builderFunc.create<ELF::CreateSymbolTableSectionOp>(
-            endOp->getLoc(),
+            mlir::UnknownLoc::get(ctx),
             sectionType2,                                   // mlir::Type
             ".symtab.input",                                // llvm::StringRef secName,
             vpux::ELF::SectionFlagsAttr::VPU_SHF_USERINPUT  // vpux::ELF::SectionFlagsAttr secFlags,
@@ -280,7 +266,7 @@ void Convert2VPUIPRegMappedAndELFPass::createRelocationSection(mlir::FuncOp func
 
     // Thirdly we create the symbol table for the output symbols
     ELF::CreateSymbolTableSectionOp createOutputSymTableSectionOp = builderFunc.create<ELF::CreateSymbolTableSectionOp>(
-            endOp->getLoc(),
+            mlir::UnknownLoc::get(ctx),
             sectionType2,                                    // mlir::Type
             ".symtab.output",                                // llvm::StringRef secName,
             vpux::ELF::SectionFlagsAttr::VPU_SHF_USEROUTPUT  // vpux::ELF::SectionFlagsAttr secFlags,
@@ -296,33 +282,33 @@ void Convert2VPUIPRegMappedAndELFPass::createRelocationSection(mlir::FuncOp func
 
     // We now create PutOpInSectionOp and put them accordingly with SymbolOps
     //   in the 3 corresponding symbol tables.
-    for (idx = 0; idx < numELFSymbolOps; idx++) {
+    for (idx = 0; idx < numElfSymbolOps; idx++) {
         ELF::PutOpInSectionOp putOpInSectionOp;
 
-        mlir::Value inputArgELFSymbolOp = ELFSymbolOp[idx].inputArg();
-        mlir::BlockArgument blockArg = inputArgELFSymbolOp.dyn_cast_or_null<mlir::BlockArgument>();
-        _log.info("inputArgELFSymbolOp = {0}\n", inputArgELFSymbolOp);
+        mlir::Value inputArgElfSymbolOp = elfSymbolOp[idx].inputArg();
+        mlir::BlockArgument blockArg = inputArgElfSymbolOp.dyn_cast_or_null<mlir::BlockArgument>();
+        _log.info("inputArgElfSymbolOp = {0}\n", inputArgElfSymbolOp);
 
         if (blockArg) {
             unsigned int blockArgNum = blockArg.getArgNumber();
 
-            _log.info("    inputArgELFSymbolOp is a BlockArgument and blockArgNum = {0}\n", blockArgNum);
+            _log.info("    inputArgElfSymbolOp is a BlockArgument and blockArgNum = {0}\n", blockArgNum);
 
             if (blockArgNum < diOpInVec.size()) {
                 putOpInSectionOp = builderInputSymTabSec.create<ELF::PutOpInSectionOp>(
                         builderInputSymTabSec.getUnknownLoc(),         // endOp->getLoc(),
-                        ELFSymbolOp[idx].getOperation()->getResult(0)  // mlir::Value inputArg
+                        elfSymbolOp[idx].getOperation()->getResult(0)  // mlir::Value inputArg
                 );
             } else {
                 putOpInSectionOp = builderOutputSymTabSec.create<ELF::PutOpInSectionOp>(
                         builderOutputSymTabSec.getUnknownLoc(),        // endOp->getLoc(),
-                        ELFSymbolOp[idx].getOperation()->getResult(0)  // mlir::Value inputArg
+                        elfSymbolOp[idx].getOperation()->getResult(0)  // mlir::Value inputArg
                 );
             }
         } else {
             putOpInSectionOp = builderRestSymTabSec.create<ELF::PutOpInSectionOp>(
                     builderRestSymTabSec.getUnknownLoc(),          // endOp->getLoc(),
-                    ELFSymbolOp[idx].getOperation()->getResult(0)  // mlir::Value inputArg
+                    elfSymbolOp[idx].getOperation()->getResult(0)  // mlir::Value inputArg
             );
         }
 
@@ -334,7 +320,7 @@ void Convert2VPUIPRegMappedAndELFPass::createRelocationSection(mlir::FuncOp func
     // We now create the relocation sections
     // First, we create the "rest" relocation section
     ELF::CreateRelocationSectionOp createRestRelocationSectionOp = builderFunc.create<ELF::CreateRelocationSectionOp>(
-            endOp->getLoc(),
+            mlir::UnknownLoc::get(ctx),
             sectionType2,                                              // mlir::Type
             ".rlt.dma",                                                // secName, // llvm::StringRef
             createRestSymTableSectionOp.getOperation()->getResult(0),  // sourceSymbolTableSection,
@@ -354,7 +340,7 @@ void Convert2VPUIPRegMappedAndELFPass::createRelocationSection(mlir::FuncOp func
 
     // Secondly, we create the input relocation section
     ELF::CreateRelocationSectionOp createInputRelocationSectionOp = builderFunc.create<ELF::CreateRelocationSectionOp>(
-            endOp->getLoc(),
+            mlir::UnknownLoc::get(ctx),
             sectionType2,                                               // mlir::Type
             ".rlt.input",                                               // llvm::StringRef secName,
             createInputSymTableSectionOp.getOperation()->getResult(0),  // sourceSymbolTableSection,
@@ -375,7 +361,7 @@ void Convert2VPUIPRegMappedAndELFPass::createRelocationSection(mlir::FuncOp func
 
     // Thirdly, we create the output relocation section
     ELF::CreateRelocationSectionOp createOutputRelocationSectionOp = builderFunc.create<ELF::CreateRelocationSectionOp>(
-            endOp->getLoc(),
+            mlir::UnknownLoc::get(ctx),
             sectionType2,                                                // mlir::Type
             ".rlt.output",                                               // llvm::StringRef secName,
             createOutputSymTableSectionOp.getOperation()->getResult(0),  // sourceSymbolTableSection,
@@ -395,12 +381,12 @@ void Convert2VPUIPRegMappedAndELFPass::createRelocationSection(mlir::FuncOp func
     mlir::OpBuilder builderOutputRelocSec(blkOutputRelocSec, blkOutputRelocSec->begin());
 
     // We now create the RelocOps
-    for (idx = 0; idx < numELFSymbolOps; idx++) {
+    for (idx = 0; idx < numElfSymbolOps; idx++) {
         bool isBlkFuncArg = false;
 
-        mlir::Value inputArgELFSymbolOp = ELFSymbolOp[idx].inputArg();
-        _log.info("inputArgELFSymbolOp = {0}\n", inputArgELFSymbolOp);
-        mlir::BlockArgument blockArg = inputArgELFSymbolOp.dyn_cast_or_null<mlir::BlockArgument>();
+        mlir::Value inputArgElfSymbolOp = elfSymbolOp[idx].inputArg();
+        _log.info("inputArgElfSymbolOp = {0}\n", inputArgElfSymbolOp);
+        mlir::BlockArgument blockArg = inputArgElfSymbolOp.dyn_cast_or_null<mlir::BlockArgument>();
         unsigned int blockArgNum;
 
         if (blockArg) {
@@ -409,40 +395,40 @@ void Convert2VPUIPRegMappedAndELFPass::createRelocationSection(mlir::FuncOp func
             _log.info("    blockArgNum = {0}\n", blockArgNum);
         }
 
-        ELF::RelocOp ELFRelocOp;
+        ELF::RelocOp elfRelocOp;
 
         if (isBlkFuncArg) {
             if (blockArgNum < diOpInVec.size()) {
-                ELFRelocOp = builderInputRelocSec.create<ELF::RelocOp>(
+                elfRelocOp = builderInputRelocSec.create<ELF::RelocOp>(
                         builderInputRelocSec.getUnknownLoc(),
-                        ((idx & 1) == 0 ? OFFSET_SRC_SERIALIZED_STRUCT : OFFSET_DST_SERIALIZED_STRUCT) +
-                                (SIZEOF_SERIALIZED_STRUCT * (idx / 2)),  // offsetTargetField // MEGA-TODO
-                        vpux::ELF::RelocationTypeAttr::R_VPU_64,         // relocationType
-                        ELFSymbolOp[idx].getOperation()->getResult(0),   // ::mlir::Value sourceSymbol
-                        0                                                // int64_t addend
+                        ((idx & 1) == 0 ? offsetOfSrcInNNDMAOpStruct : offsetOfDstInNNDMAOpStruct) +
+                                (sizeOfNNDMAOpStruct * (idx / 2)),      // offsetTargetField // MEGA-TODO
+                        vpux::ELF::RelocationTypeAttr::R_VPU_64,        // relocationType
+                        elfSymbolOp[idx].getOperation()->getResult(0),  // ::mlir::Value sourceSymbol
+                        0                                               // int64_t addend
                 );
             } else {
-                ELFRelocOp = builderOutputRelocSec.create<ELF::RelocOp>(
+                elfRelocOp = builderOutputRelocSec.create<ELF::RelocOp>(
                         builderOutputRelocSec.getUnknownLoc(),
-                        ((idx & 1) == 0 ? OFFSET_SRC_SERIALIZED_STRUCT : OFFSET_DST_SERIALIZED_STRUCT) +
-                                (SIZEOF_SERIALIZED_STRUCT * (idx / 2)),  // offsetTargetField // MEGA-TODO
-                        vpux::ELF::RelocationTypeAttr::R_VPU_64,         // relocationType
-                        ELFSymbolOp[idx].getOperation()->getResult(0),   // ::mlir::Value sourceSymbol
-                        0                                                // int64_t addend
+                        ((idx & 1) == 0 ? offsetOfSrcInNNDMAOpStruct : offsetOfDstInNNDMAOpStruct) +
+                                (sizeOfNNDMAOpStruct * (idx / 2)),      // offsetTargetField // MEGA-TODO
+                        vpux::ELF::RelocationTypeAttr::R_VPU_64,        // relocationType
+                        elfSymbolOp[idx].getOperation()->getResult(0),  // ::mlir::Value sourceSymbol
+                        0                                               // int64_t addend
                 );
             }
         } else {
-            ELFRelocOp = builderRestRelocSec.create<ELF::RelocOp>(
+            elfRelocOp = builderRestRelocSec.create<ELF::RelocOp>(
                     builderRestRelocSec.getUnknownLoc(),
-                    ((idx & 1) == 0 ? OFFSET_SRC_SERIALIZED_STRUCT : OFFSET_DST_SERIALIZED_STRUCT) +
-                            (SIZEOF_SERIALIZED_STRUCT * (idx / 2)),  // offsetTargetField // MEGA-TODO
-                    vpux::ELF::RelocationTypeAttr::R_VPU_64,         // relocationType
-                    ELFSymbolOp[idx].getOperation()->getResult(0),   // ::mlir::Value sourceSymbol
-                    0                                                // int64_t addend
+                    ((idx & 1) == 0 ? offsetOfSrcInNNDMAOpStruct : offsetOfDstInNNDMAOpStruct) +
+                            (sizeOfNNDMAOpStruct * (idx / 2)),      // offsetTargetField // MEGA-TODO
+                    vpux::ELF::RelocationTypeAttr::R_VPU_64,        // relocationType
+                    elfSymbolOp[idx].getOperation()->getResult(0),  // ::mlir::Value sourceSymbol
+                    0                                               // int64_t addend
             );
         }
 
-        _log.info("createRelocationSection(): ELFRelocOp = {0}\n", ELFRelocOp);
+        _log.info("createRelocationSection(): elfRelocOp = {0}\n", elfRelocOp);
     }
 
     _log.info("createRelocationSection(): funcOp = {0}\n", funcOp);
@@ -454,15 +440,13 @@ void Convert2VPUIPRegMappedAndELFPass::safeRunOnModule() {
     mlir::ModuleOp moduleOp = getOperation();
 
     vpux::VPUIPRegMapped::NNDMAOp nndmaOpTmp;
-    SIZEOF_SERIALIZED_STRUCT = (int)nndmaOpTmp.getBinarySize();
-
-    host_parsing::DmaWrapper tmp;
-    OFFSET_SRC_SERIALIZED_STRUCT = (int)((char*)(&tmp.transaction.src) - (char*)(&tmp));
-    OFFSET_DST_SERIALIZED_STRUCT = (int)((char*)(&tmp.transaction.dst) - (char*)(&tmp));
-
-    _log.info("SIZEOF_SERIALIZED_STRUCT = {0}\n", SIZEOF_SERIALIZED_STRUCT);
-    _log.info("OFFSET_SRC_SERIALIZED_STRUCT = {0}\n", OFFSET_SRC_SERIALIZED_STRUCT);
-    _log.info("OFFSET_DST_SERIALIZED_STRUCT = {0}\n", OFFSET_DST_SERIALIZED_STRUCT);
+    sizeOfNNDMAOpStruct = (int)nndmaOpTmp.getBinarySize();
+    offsetOfSrcInNNDMAOpStruct = offsetof(host_parsing::DmaDescriptor, src);
+    offsetOfDstInNNDMAOpStruct = offsetof(host_parsing::DmaDescriptor, dst);
+    //
+    _log.info("sizeOfNNDMAOpStruct = {0}\n", sizeOfNNDMAOpStruct);
+    _log.info("offsetOfSrcInNNDMAOpStruct = {0}\n", offsetOfSrcInNNDMAOpStruct);
+    _log.info("offsetOfDstInNNDMAOpStruct = {0}\n", offsetOfDstInNNDMAOpStruct);
 
     _log.info("Convert2VPUIPRegMappedAndELFPass::safeRunOnFunc(): moduleOp = {0}\n", moduleOp);
 

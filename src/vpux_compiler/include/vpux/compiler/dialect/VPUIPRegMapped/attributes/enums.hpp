@@ -25,5 +25,3 @@
 //
 
 #include <vpux/compiler/dialect/VPUIPRegMapped/generated/attributes/enums.hpp.inc>
-
-#include <mlir/IR/BuiltinOps.h>
