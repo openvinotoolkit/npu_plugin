@@ -115,7 +115,7 @@ CMXConcatPass::ConcatPattern CMXConcatPass::getInputPattern(IE::ConcatOp concat)
     ConcatPattern concatPattern(_log);
     // store all required input info in a struct
     for (size_t inputIdx = 0; inputIdx < concat.inputs().size(); inputIdx++) {
-        auto input = concat.getOperand(static_cast<int>(inputIdx));
+        auto input = concat.getOperand(inputIdx);
         auto inputCopyOp = input.getDefiningOp<IE::CopyOp>();
         if (inputCopyOp == nullptr) {
             return concatPattern;
@@ -314,14 +314,17 @@ bool CMXConcatPass::ConcatPattern::childOpsFitInCMX(size_t cmxSize) {
         for (auto output : concatPart.nceOp->getResults()) {
             consumerOutputSize += getSize(output);
         }
-        if (parallelConsumerCount > 1) {
-            // in cases of parallel consumers the graph level differences could be large and the
-            // NNCMX buffer could be held for many cycles filling up NNCMX space. To avoid this
-            // scenario, ensure that there is space for parallel consumer branches
-            maxConsumerSize = std::max<size_t>(maxConsumerSize, 2 * (consumerInputSize + consumerOutputSize));
-        } else {
-            maxConsumerSize = std::max<size_t>(maxConsumerSize, consumerInputSize + consumerOutputSize);
-        }
+
+        maxConsumerSize = std::max<size_t>(maxConsumerSize, consumerInputSize + consumerOutputSize);
+    }
+
+    if (parallelConsumerCount > 1) {
+        // in cases of parallel consumers the graph level differences could be large and the
+        // NNCMX buffer could be held for many cycles filling up NNCMX space. To avoid this
+        // scenario, ensure that there is space for parallel consumer branches.
+        // Note: multiplying by 2 since only 1 compute operation can be live at any given time,
+        // during second consumer execution first will be freed and the third can be allocated.
+        maxConsumerSize = 2 * maxConsumerSize;
     }
 
     _log.nest(3).trace("Concat consumer max size '{0}'", (maxConsumerSize + concatSize));
