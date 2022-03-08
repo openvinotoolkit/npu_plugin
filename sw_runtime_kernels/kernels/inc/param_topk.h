@@ -13,10 +13,10 @@ struct TopKParams {
     struct MemRefData outputValues;
     struct MemRefData outputIndex;
 
-    int32_t k;
-    int32_t axis;
-    int32_t mode;
-    int32_t sort;
+    int64_t k;
+    int64_t axis;
+    int64_t mode;
+    int64_t sort;
 };
 
 #pragma pack(pop)

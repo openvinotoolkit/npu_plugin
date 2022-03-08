@@ -138,10 +138,10 @@ void single_shave_topk(uint32_t lParamsAddr) {
     int32_t* pIndexDims = (int32_t*)(lParams->outputIndex.dimsAddr);
     int64_t* pIndexStrides = (int64_t*)(lParams->outputIndex.stridesAddr);
 
-    int32_t k = (int32_t)lParams->k;
-    int32_t axis = (int32_t)lParams->axis;
-    int32_t mode = (int32_t)lParams->mode;  // max: 0, min: 1
-    int32_t sort = (int32_t)lParams->sort;
+    int64_t k = (int64_t)lParams->k;
+    int64_t axis = (int64_t)lParams->axis;
+    int64_t mode = (int64_t)lParams->mode;  // max: 0, min: 1
+    int64_t sort = (int64_t)lParams->sort;
 
     // calculate top K inner (axis = 0)
     if (axis == 0) {

@@ -26,7 +26,7 @@ using namespace vpux;
 
 void InvocationBuilder::parseBasicAttrTypes(mlir::Attribute attr) {
     if (auto val = attr.dyn_cast_or_null<mlir::IntegerAttr>()) {
-        appendValue(_scalarStorage, static_cast<int32_t>(val.getValue().getSExtValue()));
+        appendValue(_scalarStorage, val.getValue().getSExtValue());
     } else if (auto val = attr.dyn_cast_or_null<mlir::FloatAttr>()) {
         appendValue(_scalarStorage, static_cast<float>(val.getValue().convertToDouble()));
     } else {

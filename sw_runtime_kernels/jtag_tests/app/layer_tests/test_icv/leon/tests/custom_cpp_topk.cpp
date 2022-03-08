@@ -107,13 +107,13 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, TopK)) {
                     0,
             };
             subspace::orderToIndices((t_D8StorageOrder)(test->storageOrder), ind);
-            m_k = test->customLayerParams.layerParams[0];
+            m_k = static_cast<int64_t>(test->customLayerParams.layerParams[0]);
             m_axis = ind[test->customLayerParams.layerParams[1]];
-            m_mode = test->customLayerParams.layerParams[2];
-            m_sort = test->customLayerParams.layerParams[3];
+            m_mode = static_cast<int64_t>(test->customLayerParams.layerParams[2]);
+            m_sort = static_cast<int64_t>(test->customLayerParams.layerParams[3]);
             m_TopKParams = reinterpret_cast<sw_params::TopKParams*>(paramContainer);
             *m_TopKParams = sw_params::TopKParams();
-            m_TopKParams->axis = m_axis;
+            m_TopKParams->axis = (int64_t)m_axis;
             m_TopKParams->mode = m_mode;
             m_TopKParams->sort = m_sort;
             m_TopKParams->k = m_k;
@@ -188,11 +188,11 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, TopK)) {
         }
 
         void generateReferenceData() override {
-            const int32_t k = m_k;
-            const int32_t mode = m_mode;
-            const int32_t sort = m_sort;
+            const int64_t k = m_k;
+            const int64_t mode = m_mode;
+            const int64_t sort = m_sort;
             const int32_t ndims = m_inputTensor.ndims();
-            const int32_t axis = m_axis;
+            const int64_t axis = m_axis;
 
             MemoryDims dims = m_inputTensor.memoryDims();
             const int32_t n = dims.dims[axis];
@@ -266,12 +266,10 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, TopK)) {
 
     private:
         ListIterator<SingleTest> m_testsLoop;
-        int32_t m_k;
-        int32_t m_axis;
-        int32_t m_mode;
-        int32_t m_sort;
-        int32_t m_hasOutputValues;
-        int32_t m_hasOutputIndices;
+        int64_t m_k;
+        int64_t m_axis;
+        int64_t m_mode;
+        int64_t m_sort;
 
         sw_params::TopKParams* m_TopKParams;
 
