@@ -160,7 +160,21 @@ int main(int argc, char *argv[]) {
         std::string binFileName = FLAGS_m;
         slog::info << "Loading blob:\t" << binFileName << slog::endl;
 
+#if 1  //Load blob from memory buffer
+        std::ifstream fileReader(binFileName, std::ios_base::ate | std::ios_base::binary);
+        if (!fileReader.good()) {
+            throw std::runtime_error("readNV12FileHelper: failed to open file " + binFileName);
+        }
+        const size_t fileSize = fileReader.tellg();
+        char * blob_buf = reinterpret_cast<char *>(malloc(fileSize));
+        fileReader.seekg(0, std::ios_base::beg);
+        fileReader.read(blob_buf, fileSize);
+        fileReader.close();
+        ExecutableNetwork importedNetwork = ie.ImportNetwork(reinterpret_cast<uint8_t *>(blob_buf), fileSize, "VPUX", {});
+        free(blob_buf);
+#else
         ExecutableNetwork importedNetwork = ie.ImportNetwork(binFileName, "VPUX", {});
+#endif
         // -----------------------------------------------------------------------------------------------------
 
         // --------------------------- 3. Configure input & output ---------------------------------------------
