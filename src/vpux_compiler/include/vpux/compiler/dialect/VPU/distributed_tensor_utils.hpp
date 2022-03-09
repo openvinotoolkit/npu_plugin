@@ -111,9 +111,16 @@ DistributedTensorType createDistributedTensorType(ConcreteOp origOp, mlir::Value
                 DistributedTensorAttr::get(activationTensorDistributionModeAttr, nullptr, nullptr, nullptr, nullptr,
                                            numClusters, nullptr, origOp.getContext());
     } else {
+        // Attempt to align the height
+        auto alignment = SmallVector<int64_t>(numTiles.size(), 1);
+        if (numTiles[Dims4D::Act::H] > 1) {
+            alignment[Dims4D::Act::H] = 8;
+        }
+        const auto alignmentAttr = getIntArrayAttr(alignment);
+
         distributedActivationTensorAttr =
                 DistributedTensorAttr::get(activationTensorDistributionModeAttr, numTiles, nullptr, nullptr, nullptr,
-                                           numClusters, nullptr, origOp.getContext());
+                                           numClusters, alignmentAttr, origOp.getContext());
     }
 
     const auto shape = getShape(input);
