@@ -98,21 +98,5 @@ bool checkPermuteMatMulPattern(IE::MatMulOp origOp) {
     return true;
 }
 
-// TODO
-// mlir::LogicalResult convertMatMulPatternToDWConv(IE::MatMulOp) {
-//    auto parentOps = getMatMulParentOps(origOp);
-//    mlir::Operation* actInputOp = parentOps[0];
-//    mlir::Operation* weightInputOp = parentOps[1];
-//
-//    if (actInputOp == nullptr || weightInputOp == nullptr) {
-//        return false;
-//    }
-//
-//    // build the activation
-//    // build the weight
-//
-//    return mlir::success();
-//}
-
 }  // namespace IE
 }  // namespace vpux

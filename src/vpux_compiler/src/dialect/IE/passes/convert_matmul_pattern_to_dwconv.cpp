@@ -24,6 +24,145 @@
 
 namespace vpux {
 namespace IE {
+
+//
+// MatMulPatternConverter
+//
+
+class MatMulPatternConverter final : public mlir::OpRewritePattern<IE::MatMulOp> {
+public:
+    using mlir::OpRewritePattern<IE::MatMulOp>::OpRewritePattern;
+
+public:
+    mlir::LogicalResult matchAndRewrite(IE::MatMulOp matmulOp, mlir::PatternRewriter& rewriter) const final;
+};
+
+mlir::LogicalResult MatMulPatternConverter::matchAndRewrite(IE::MatMulOp origOp,
+                                                            mlir::PatternRewriter& rewriter) const {
+    auto parentOps = getMatMulParentOps(origOp);
+    mlir::Operation* origTransposeOp = parentOps[0];
+    mlir::Operation* weightInputOp = parentOps[1];
+
+    if (origTransposeOp == nullptr || weightInputOp == nullptr) {
+        return mlir::failure();
+    }
+    VPUX_THROW_UNLESS(mlir::isa<IE::TransposeOp>(origTransposeOp), "MatMul pattern does not match",
+                      origTransposeOp->getLoc());
+
+    // build the activation
+    auto reshape1 = *(origTransposeOp->getResult(0).getUsers().begin());
+    VPUX_THROW_WHEN(reshape1 == nullptr, "MatMul pattern mismatch.");
+    auto reshape2 = *(reshape1->getResult(0).getUsers().begin());
+    VPUX_THROW_WHEN(reshape2 == nullptr, "MatMul pattern mismatch.");
+    // replace reshape2
+    const auto outShape4DAttr =
+            getIntArrayAttr(rewriter.getContext(), Shape({1, 6, 8, 512}));  // TODO get factor function
+    auto factorReshape =
+            rewriter.create<IE::ReshapeOp>(reshape2->getLoc(), reshape1->getResult(0), nullptr, false, outShape4DAttr);
+    // insert transpose
+    const auto orderAttr =
+            mlir::AffineMapAttr::get(mlir::AffineMap::getPermutationMap({0, 3, 1, 2}, rewriter.getContext()));
+    auto transpose =
+            rewriter.create<IE::TransposeOp>(factorReshape->getLoc(), factorReshape->getResult(0), nullptr, orderAttr);
+    reshape2->replaceAllUsesWith(transpose);
+    reshape2->erase();
+    const auto channelSize = transpose->getResult(0).getType().cast<vpux::NDTypeInterface>().getShape()[Dims4D::Act::C];
+
+    // build the weight
+    auto weightReshape1 = *(weightInputOp->getResult(0).getUsers().begin());
+    VPUX_THROW_WHEN(weightReshape1 == nullptr, "MatMul pattern mismatch.");
+    auto weightReshape2 = *(weightReshape1->getResult(0).getUsers().begin());
+    VPUX_THROW_WHEN(weightReshape2 == nullptr, "MatMul pattern mismatch.");
+    weightReshape1->replaceAllUsesWith(weightReshape2);
+    weightReshape1->erase();
+    const auto weightOutShape4DAttr =
+            getIntArrayAttr(rewriter.getContext(), Shape({1, 1, 6, 8}));  // TODO get factor function
+    auto factorWeightReshape = rewriter.create<IE::ReshapeOp>(weightInputOp->getLoc(), weightInputOp->getResult(0),
+                                                              nullptr, false, weightOutShape4DAttr);
+    //  concat
+    SmallVector<mlir::Value> concatSlices;
+    SmallVector<Shape> concatOffsets;
+    concatSlices.reserve(channelSize);
+    concatOffsets.reserve(channelSize);
+    for (auto index = 0; index < channelSize; index++) {
+        concatSlices.push_back(factorWeightReshape);
+        concatOffsets.push_back(Shape({index, 0, 0, 0, 0}));
+    }
+    auto concatOp = rewriter.create<IE::ConcatOp>(factorWeightReshape->getLoc(), mlir::ValueRange(concatSlices), 0);
+    weightReshape2->replaceAllUsesWith(concatOp);
+    weightReshape2->erase();
+
+    // replace matmul
+    const SmallVector<int32_t> strides = {1, 1};
+    const SmallVector<int32_t> padBegin = {0, 0};
+    const SmallVector<int32_t> padEnd = {0, 0};
+    const SmallVector<int32_t> dilations = {1, 1};
+
+    auto dilationsAttr = getIntArrayAttr(origOp.getContext(), dilations);
+    auto stridesAttr = getIntArrayAttr(origOp.getContext(), strides);
+    auto padBeginAttr = getIntArrayAttr(origOp.getContext(), padBegin);
+    auto padEndAttr = getIntArrayAttr(origOp.getContext(), padEnd);
+
+    auto groupAttr = getIntAttr(origOp.getContext(), channelSize);
+
+    auto dwconv = rewriter.create<IE::GroupConvolutionOp>(origOp->getLoc(), transpose.output(), concatOp.output(),
+                                                          /*bias=*/nullptr, stridesAttr, padBeginAttr, padEndAttr,
+                                                          dilationsAttr, groupAttr, nullptr);
+    origOp->replaceAllUsesWith(dwconv);
+    origOp->erase();
+    //    rewriter.replaceOpWithNewOp<IE::GroupConvolutionOp>(origOp, transpose.output(), concatOp.output(),
+    //                                                        /*bias=*/nullptr, stridesAttr, padBeginAttr, padEndAttr,
+    //                                                        dilationsAttr, groupAttr, nullptr);
+    //    origOp->replaceAllUsesWith(*(concatOp->getResult(0).getUsers().begin()));
+    //    origOp->erase();
+    //
+    //    // test
+    //    auto tmp = *(reshape1->getResult(0).getUsers().begin());
+    //    std::cout << llvm::formatv("\n\nACT:\nafter reshape 1: {0}, {1}, {2}", tmp->getName(), tmp->getLoc(),
+    //                               tmp->getResult(0).getType().cast<vpux::NDTypeInterface>().getShape())
+    //                         .str()
+    //              << std::endl;
+    //    tmp = *(tmp->getResult(0).getUsers().begin());
+    //    std::cout << llvm::formatv("after : {0}, {1}, {2}", tmp->getName(), tmp->getLoc(),
+    //                               tmp->getResult(0).getType().cast<vpux::NDTypeInterface>().getShape())
+    //                         .str()
+    //              << std::endl;
+    //    tmp = *(tmp->getResult(0).getUsers().begin());
+    //    std::cout << llvm::formatv("after : {0}, {1}, {2}\n\n", tmp->getName(), tmp->getLoc(),
+    //                               tmp->getResult(0).getType().cast<vpux::NDTypeInterface>().getShape())
+    //                         .str()
+    //              << std::endl;
+    //
+    //    std::cout << llvm::formatv("\n\nFINAL: \nweightInputOp: {0}, {1}, {2}", weightInputOp->getName(),
+    //                               weightInputOp->getLoc(),
+    //                               weightInputOp->getResult(0).getType().cast<vpux::NDTypeInterface>().getShape())
+    //                         .str()
+    //              << std::endl;
+    //    tmp = *(weightInputOp->getResult(0).getUsers().begin());
+    //    std::cout << llvm::formatv("after weightInputOp: {0}, {1}, {2}", tmp->getName(), tmp->getLoc(),
+    //                               tmp->getResult(0).getType().cast<vpux::NDTypeInterface>().getShape())
+    //                         .str()
+    //              << std::endl;
+    //    tmp = *(tmp->getResult(0).getUsers().begin());
+    //    std::cout << llvm::formatv("after : {0}, {1}, {2}", tmp->getName(), tmp->getLoc(),
+    //                               tmp->getResult(0).getType().cast<vpux::NDTypeInterface>().getShape())
+    //                         .str()
+    //              << std::endl;
+    //
+    //    tmp = *(tmp->getResult(0).getUsers().begin());
+    //    std::cout << llvm::formatv("after : {0}, {1}, {2}", tmp->getName(), tmp->getLoc(),
+    //                               tmp->getResult(0).getType().cast<vpux::NDTypeInterface>().getShape())
+    //                         .str()
+    //              << std::endl;
+    //    tmp = *(tmp->getResult(0).getUsers().begin());
+    //    std::cout << llvm::formatv("after : {0}, {1}, {2}", tmp->getName(), tmp->getLoc(),
+    //                               tmp->getResult(0).getType().cast<vpux::NDTypeInterface>().getShape())
+    //                         .str()
+    //              << std::endl;
+
+    return mlir::success();
+}
+
 //
 // ConvertMatMulPatternToDWConvPass
 //
@@ -44,15 +183,30 @@ private:
 //
 
 void ConvertMatMulPatternToDWConvPass::safeRunOnFunc() {
-    getFunction().walk([&](IE::MatMulOp origOp) {
+    auto& ctx = getContext();
+    mlir::ConversionTarget target(ctx);
+    target.addLegalOp<IE::GroupConvolutionOp>();
+    target.addDynamicallyLegalOp<IE::MatMulOp>([&](IE::MatMulOp origOp) {
         _log.trace("Check '{0}' operation at '{1}'", origOp->getName(), origOp->getLoc());
         std::cout << llvm::formatv("Check '{0}' operation at '{1}'", origOp->getName(), origOp->getLoc()).str()
                   << std::endl;
         if (checkPermuteMatMulPattern(origOp)) {
-            std::cout << "match!" << std::endl;
-            //            convertMatMulPatternToDWConv(origOp);
+            std::cout << "Match!" << std::endl;
+            return false;
         }
+        return true;
     });
+
+    mlir::RewritePatternSet patterns(&ctx);
+    patterns.add<MatMulPatternConverter>(&ctx);
+
+    if (mlir::failed(mlir::applyPatternsAndFoldGreedily(getFunction(), std::move(patterns),
+                                                        getDefaultGreedyRewriteConfig()))) {
+        signalPassFailure();
+    }
+    //    if (mlir::failed(mlir::applyPartialConversion(getFunction(), target, std::move(patterns)))) {
+    //        signalPassFailure();
+    //    }
 }
 
 }  // namespace IE

@@ -21,7 +21,8 @@
 
 namespace vpux {
 namespace IE {
+SmallVector<mlir::Operation*> getMatMulParentOps(IE::MatMulOp origOp);
 bool checkPermuteMatMulPattern(IE::MatMulOp);
-// mlir::LogicalResult convertMatMulPatternToDWConv(IE::MatMulOp);
+size_t getShapeSize(vpux::NDTypeInterface type);
 }  // namespace IE
 }  // namespace vpux

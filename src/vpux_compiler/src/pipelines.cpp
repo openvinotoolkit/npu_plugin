@@ -272,8 +272,8 @@ void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOp
     pm.addPass(vpux::createPrintDotPass("./output/init.dot"));
     pm.addPass(IE::createMatMulInputsTo2dPass(log));
     pm.addPass(vpux::createPrintDotPass("./output/createMatMulInputsTo2dPass.dot"));
-    pm.addPass(IE::createConvertMatMulPatternToDWConvPass(log));
-    pm.addPass(vpux::createPrintDotPass("./output/createConvertMatMulPatternToDWConvPass.dot"));
+    //    pm.addPass(IE::createConvertMatMulPatternToDWConvPass(log));
+    //    pm.addPass(vpux::createPrintDotPass("./output/createConvertMatMulPatternToDWConvPass.dot"));
     pm.addPass(mlir::createCanonicalizerPass(grc));
     pm.addPass(vpux::createPrintDotPass("./output/createMatMulInputsTo2dPassCanon.dot"));
 
@@ -320,7 +320,9 @@ void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOp
         pm.addPass(IE::createUpstreamSlicePass(log));
     }
 
+    pm.addPass(vpux::createPrintDotPass("./output/BeforeAdjustLayoutOptions.dot"));
     IE::buildAdjustLayoutPipeline(pm, IE::AdjustLayoutOptions(options), log);
+    pm.addPass(vpux::createPrintDotPass("./output/AdjustLayoutOptions.dot"));
 
     if (options.enableExpandActivationChannels) {
         pm.addPass(IE::createExpandActivationChannelsPass(log));
@@ -368,6 +370,7 @@ void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOp
     pm.addPass(IERT::createCopyOpLegalizationPass(log));
     pm.addPass(IERT::createCopyOpSplitByPlanesPass(log));
     pm.addPass(IERT::createCMXConcatPass(log));
+    pm.addPass(vpux::createPrintDotPass("./output/createCMXConcatPass.dot"));
     pm.addPass(mlir::createCanonicalizerPass(grc));
 
     if (options.enableProfiling && options.enableDPUProfiling) {
