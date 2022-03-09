@@ -538,7 +538,6 @@ SmallVector<Shape> vpux::VPU::getPerClusterComputeShapeOffsets(ShapeRef shapeRef
     }
     return tiledComputeShapeOffsets;
 }
-
 //
 // Generated
 //
