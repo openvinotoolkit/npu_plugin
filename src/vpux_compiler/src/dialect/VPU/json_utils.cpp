@@ -120,6 +120,11 @@ void overwriteManualStrategy(Json manualStrategy, llvm::DenseMap<mlir::Location,
                         manualAttribute = convertJSONToAttr(dummyAttr, it.value());
                     }
                     op.second->setAttr(it.key(), manualAttribute);
+                } else {
+                    if (op.second->hasAttr(it.key())) {
+                        // currently no default value, to diable multiclustering remove the attribute
+                        op.second->removeAttr(it.key());
+                    }
                 }
             }
         }
