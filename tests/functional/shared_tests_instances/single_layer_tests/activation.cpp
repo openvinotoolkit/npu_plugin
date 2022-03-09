@@ -199,7 +199,6 @@ const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes
 
 const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypesFP16Only = {
     {Ceiling,  {{1.0f}}},
-    {HSigmoid, {{1.0f}}},
 };
 
 std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> basic = {
