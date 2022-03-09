@@ -34,7 +34,30 @@ BaseLayerStrategy::BaseLayerStrategy(mlir::FuncOp func, Logger log): _func(func)
 bool BaseLayerStrategy::isOperationSplitOverHeightCompatible(mlir::Operation* op) const {
     const auto outputShape = getShape(op->getResult(0));
     const auto OH = outputShape[Dims4D::Act::H];
-    return OH >= _minimumOutputHeightForSOH;
+
+    if (OH < _minimumOutputHeightForSOH) {
+        return false;
+    }
+
+    int64_t multOf8 = 1;
+    constexpr int64_t alignment = 8;
+
+    while (true) {
+        auto x = OH - (_numClusters - 1) * alignment * multOf8;
+
+        if (x < 0) {
+            return false;
+        }
+
+        if (alignment * multOf8 > x) {
+            return true;
+        }
+
+        multOf8++;
+    }
+
+    return false;
+    // return OH >= _minimumOutputHeightForSOH;
 }
 
 StrategyManager::StrategyManager(mlir::FuncOp func, Logger log)
