@@ -113,10 +113,16 @@ DistributedTensorType createDistributedTensorType(ConcreteOp origOp, mlir::Value
     } else {
         // Attempt to align the height
         auto alignment = SmallVector<int64_t>(numTiles.size(), 1);
-        if (numTiles[Dims4D::Act::H] > 1) {
-            alignment[Dims4D::Act::H] = 8;
+        // mateusz
+        // if (numTiles[Dims4D::Act::H] > 1) {
+        //     alignment[Dims4D::Act::H] = 8;
+        // }
+        // const auto alignmentAttr = getIntArrayAttr(alignment);
+        const auto numTilesArray = parseIntArrayAttr<int64_t>(numTiles);
+        if (numTilesArray[2] > 1) {
+            alignment[2] = 8;
         }
-        const auto alignmentAttr = getIntArrayAttr(alignment);
+        const auto alignmentAttr = getIntArrayAttr(origOp.getContext(), alignment);
 
         distributedActivationTensorAttr =
                 DistributedTensorAttr::get(activationTensorDistributionModeAttr, numTiles, nullptr, nullptr, nullptr,
