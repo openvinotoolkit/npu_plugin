@@ -372,7 +372,7 @@ TEST(MLIR_ClusterShapeUtils, OverlappedDistribution) {
     }
 }
 
-TEST(MLIR_ClusterShapeUtils, AlignedDistribution) {
+TEST(MLIR_ClusterShapeUtils, AlignedTensorDistribution) {
     mlir::DialectRegistry registry;
     vpux::registerDialects(registry);
 
@@ -793,7 +793,7 @@ TEST(MLIR_ClusterShapeUtils, AlignedDistribution) {
     }
 }
 
-TEST(MLIR_ClusterShapeUtilsDeathTest, AlignedDistribution) {
+TEST(MLIR_ClusterShapeUtilsDeathTest, AlignedTensorDistribution) {
     testing::GTEST_FLAG(death_test_style) = "threadsafe";
     mlir::DialectRegistry registry;
     vpux::registerDialects(registry);
