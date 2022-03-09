@@ -237,9 +237,17 @@ mlir::LogicalResult ClusterNCERewriter::matchAndRewrite(VPUIP::NCEClusterTaskOp 
         isSegmented = mlir::UnitAttr::get(nceTask.getContext());
     }
 
+    mlir::IntegerAttr outputChannelOffset = mlir::IntegerAttr::get(getInt64Type(_ctx), 0);
+    auto weightsType = nceTask.weights().getType().dyn_cast<VPUIP::DistributedBufferType>();
+
     for (int64_t clusterId = 0; clusterId < numClusters; ++clusterId) {
         const auto newLoc = appendLoc(loc, llvm::formatv("_cluster_{0}", clusterId).str());
-        auto outputChannelOffset = computeOutputChannelOffset(outputBuffs, clusterId);
+
+        if (weightsType != nullptr) {
+            if (weightsType.getDistribution().mode().getValue() == VPU::DistributionMode::SEGMENTED) {
+                outputChannelOffset = computeOutputChannelOffset(outputBuffs, clusterId);
+            }
+        }
         auto newTask = VPURT::wrapIntoTaskOp<VPUIP::NCEClusterTaskOp>(
                 rewriter, vpurtTask.waitBarriers(), vpurtTask.updateBarriers(), newLoc, inputBuffs[clusterId],
                 weightsBuffs[clusterId], weightTableBuffs[clusterId], activationWindowBuffs[clusterId], parentInput,
