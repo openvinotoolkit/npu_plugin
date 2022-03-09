@@ -57,9 +57,6 @@ protected:
     virtual bool doesLayerFitIntoCMX(mlir::Operation* op, StringRef strategy) const = 0;
     virtual double computeSplitOverHeightEfficiency(mlir::Operation* op) const = 0;
     double getChannelAlignment(double input, size_t unit) const;
-    double splitOverHeightFormula(double OH, double OW, double OC) const;
-    double channelMajorSplitOverHeightFormula(double OH, double OW, double OC) const;
-    double splitOverKernelFormula(double OH, double OW, double OC) const;
 
 protected:
     int64_t _numClusters;
