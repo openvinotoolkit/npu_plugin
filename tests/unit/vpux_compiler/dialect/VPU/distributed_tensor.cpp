@@ -388,12 +388,11 @@ TEST(MLIR_ClusterShapeUtils, AlignedDistribution) {
     // Single axis H alignment, H SEGMENTED mode
     {
         const auto shape = SmallVector<int64_t>({1, 60, 59, 16});
-        const auto distributionModeAttr =
-            VPU::DistributionModeAttr::get(&ctx, VPU::DistributionMode::SEGMENTED);
+        const auto distributionModeAttr = VPU::DistributionModeAttr::get(&ctx, VPU::DistributionMode::SEGMENTED);
         const auto numTilesAttr = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 1, 4, 1}));
         const auto alignment = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 1, 9, 1}));
-        const auto distributedAttr = VPU::DistributedTensorAttr::get(distributionModeAttr, numTilesAttr, nullptr, nullptr,
-                                                                nullptr, numClustersAttr, alignment, &ctx);
+        const auto distributedAttr = VPU::DistributedTensorAttr::get(
+                distributionModeAttr, numTilesAttr, nullptr, nullptr, nullptr, numClustersAttr, alignment, &ctx);
         const auto distributedType =
                 VPU::DistributedTensorType::get(&ctx, shape, elemType, dimsOrder, dimsSpace, distributedAttr);
 
@@ -426,12 +425,11 @@ TEST(MLIR_ClusterShapeUtils, AlignedDistribution) {
     // Multiple axis H and K alignment, H SEGMENTED mode
     {
         const auto shape = SmallVector<int64_t>({1, 60, 59, 16});
-        const auto distributionModeAttr =
-            VPU::DistributionModeAttr::get(&ctx, VPU::DistributionMode::SEGMENTED);
+        const auto distributionModeAttr = VPU::DistributionModeAttr::get(&ctx, VPU::DistributionMode::SEGMENTED);
         const auto numTilesAttr = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 1, 4, 1}));
         const auto alignment = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 16, 9, 1}));
-        const auto distributedAttr = VPU::DistributedTensorAttr::get(distributionModeAttr, numTilesAttr, nullptr, nullptr,
-                                                                nullptr, numClustersAttr, alignment, &ctx);
+        const auto distributedAttr = VPU::DistributedTensorAttr::get(
+                distributionModeAttr, numTilesAttr, nullptr, nullptr, nullptr, numClustersAttr, alignment, &ctx);
         const auto distributedType =
                 VPU::DistributedTensorType::get(&ctx, shape, elemType, dimsOrder, dimsSpace, distributedAttr);
 
@@ -464,12 +462,11 @@ TEST(MLIR_ClusterShapeUtils, AlignedDistribution) {
     // Single axis H alignment, DUPLICATED mode
     {
         const auto shape = SmallVector<int64_t>({1, 60, 59, 16});
-        const auto distributionModeAttr =
-            VPU::DistributionModeAttr::get(&ctx, VPU::DistributionMode::DUPLICATED);
+        const auto distributionModeAttr = VPU::DistributionModeAttr::get(&ctx, VPU::DistributionMode::DUPLICATED);
         const auto numTilesAttr = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 1, 4, 1}));
         const auto alignment = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 1, 9, 1}));
-        const auto distributedAttr = VPU::DistributedTensorAttr::get(distributionModeAttr, numTilesAttr, nullptr, nullptr,
-                                                                nullptr, numClustersAttr, alignment, &ctx);
+        const auto distributedAttr = VPU::DistributedTensorAttr::get(
+                distributionModeAttr, numTilesAttr, nullptr, nullptr, nullptr, numClustersAttr, alignment, &ctx);
         const auto distributedType =
                 VPU::DistributedTensorType::get(&ctx, shape, elemType, dimsOrder, dimsSpace, distributedAttr);
 
@@ -502,12 +499,12 @@ TEST(MLIR_ClusterShapeUtils, AlignedDistribution) {
     // Single axis H alignment, SEGMENTED|DUPLICATED mode
     {
         const auto shape = SmallVector<int64_t>({1, 60, 59, 16});
-        const auto distributionModeAttr =
-            VPU::DistributionModeAttr::get(&ctx, VPU::DistributionMode::DUPLICATED | VPU::DistributionMode::SEGMENTED);
+        const auto distributionModeAttr = VPU::DistributionModeAttr::get(
+                &ctx, VPU::DistributionMode::DUPLICATED | VPU::DistributionMode::SEGMENTED);
         const auto numTilesAttr = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 1, 4, 1}));
         const auto alignment = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 1, 9, 1}));
-        const auto distributedAttr = VPU::DistributedTensorAttr::get(distributionModeAttr, numTilesAttr, nullptr, nullptr,
-                                                                nullptr, numClustersAttr, alignment, &ctx);
+        const auto distributedAttr = VPU::DistributedTensorAttr::get(
+                distributionModeAttr, numTilesAttr, nullptr, nullptr, nullptr, numClustersAttr, alignment, &ctx);
         const auto distributedType =
                 VPU::DistributedTensorType::get(&ctx, shape, elemType, dimsOrder, dimsSpace, distributedAttr);
 
@@ -540,12 +537,12 @@ TEST(MLIR_ClusterShapeUtils, AlignedDistribution) {
     // Multiple axis H and K alignment, SEGMENTED|DUPLICATED mode
     {
         const auto shape = SmallVector<int64_t>({1, 60, 59, 16});
-        const auto distributionModeAttr =
-            VPU::DistributionModeAttr::get(&ctx, VPU::DistributionMode::DUPLICATED | VPU::DistributionMode::SEGMENTED);
+        const auto distributionModeAttr = VPU::DistributionModeAttr::get(
+                &ctx, VPU::DistributionMode::DUPLICATED | VPU::DistributionMode::SEGMENTED);
         const auto numTilesAttr = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 1, 4, 1}));
         const auto alignment = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 16, 9, 1}));
-        const auto distributedAttr = VPU::DistributedTensorAttr::get(distributionModeAttr, numTilesAttr, nullptr, nullptr,
-                                                                nullptr, numClustersAttr, alignment, &ctx);
+        const auto distributedAttr = VPU::DistributedTensorAttr::get(
+                distributionModeAttr, numTilesAttr, nullptr, nullptr, nullptr, numClustersAttr, alignment, &ctx);
         const auto distributedType =
                 VPU::DistributedTensorType::get(&ctx, shape, elemType, dimsOrder, dimsSpace, distributedAttr);
 
@@ -578,12 +575,11 @@ TEST(MLIR_ClusterShapeUtils, AlignedDistribution) {
     // Single axis K alignment, SEGMENTED mode, K tiling
     {
         const auto shape = SmallVector<int64_t>({1, 110, 59, 16});
-        const auto distributionModeAttr =
-            VPU::DistributionModeAttr::get(&ctx, VPU::DistributionMode::SEGMENTED);
+        const auto distributionModeAttr = VPU::DistributionModeAttr::get(&ctx, VPU::DistributionMode::SEGMENTED);
         const auto numTilesAttr = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 4, 1, 1}));
         const auto alignment = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 16, 1, 1}));
-        const auto distributedAttr = VPU::DistributedTensorAttr::get(distributionModeAttr, numTilesAttr, nullptr, nullptr,
-                                                                nullptr, numClustersAttr, alignment, &ctx);
+        const auto distributedAttr = VPU::DistributedTensorAttr::get(
+                distributionModeAttr, numTilesAttr, nullptr, nullptr, nullptr, numClustersAttr, alignment, &ctx);
         const auto distributedType =
                 VPU::DistributedTensorType::get(&ctx, shape, elemType, dimsOrder, dimsSpace, distributedAttr);
 
@@ -616,12 +612,11 @@ TEST(MLIR_ClusterShapeUtils, AlignedDistribution) {
     // Single axis K alignment, SEGMENTED mode, K tiling, invalid 4 cluster tiling
     {
         const auto shape = SmallVector<int64_t>({1, 96, 59, 16});
-        const auto distributionModeAttr =
-            VPU::DistributionModeAttr::get(&ctx, VPU::DistributionMode::SEGMENTED);
+        const auto distributionModeAttr = VPU::DistributionModeAttr::get(&ctx, VPU::DistributionMode::SEGMENTED);
         const auto numTilesAttr = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 4, 1, 1}));
         const auto alignment = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 16, 1, 1}));
-        const auto distributedAttr = VPU::DistributedTensorAttr::get(distributionModeAttr, numTilesAttr, nullptr, nullptr,
-                                                                nullptr, numClustersAttr, alignment, &ctx);
+        const auto distributedAttr = VPU::DistributedTensorAttr::get(
+                distributionModeAttr, numTilesAttr, nullptr, nullptr, nullptr, numClustersAttr, alignment, &ctx);
         const auto distributedType =
                 VPU::DistributedTensorType::get(&ctx, shape, elemType, dimsOrder, dimsSpace, distributedAttr);
 
@@ -644,12 +639,11 @@ TEST(MLIR_ClusterShapeUtils, AlignedDistribution) {
     {
         const auto numClustersAttr = getIntAttr(&ctx, 3);
         const auto shape = SmallVector<int64_t>({1, 96, 59, 16});
-        const auto distributionModeAttr =
-            VPU::DistributionModeAttr::get(&ctx, VPU::DistributionMode::SEGMENTED);
+        const auto distributionModeAttr = VPU::DistributionModeAttr::get(&ctx, VPU::DistributionMode::SEGMENTED);
         const auto numTilesAttr = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 3, 1, 1}));
         const auto alignment = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 16, 1, 1}));
-        const auto distributedAttr = VPU::DistributedTensorAttr::get(distributionModeAttr, numTilesAttr, nullptr, nullptr,
-                                                                nullptr, numClustersAttr, alignment, &ctx);
+        const auto distributedAttr = VPU::DistributedTensorAttr::get(
+                distributionModeAttr, numTilesAttr, nullptr, nullptr, nullptr, numClustersAttr, alignment, &ctx);
         const auto distributedType =
                 VPU::DistributedTensorType::get(&ctx, shape, elemType, dimsOrder, dimsSpace, distributedAttr);
 
@@ -660,8 +654,7 @@ TEST(MLIR_ClusterShapeUtils, AlignedDistribution) {
             EXPECT_EQ(std::get<0>(shapePair), std::get<1>(shapePair));
         }
         const auto perClusterTensorOffsets = distributedType.getPerClusterComputeShapeOffsets();
-        const SmallVector<Shape> expectedOffsets(
-                {Shape({0, 0, 0, 0}), Shape({0, 32, 0, 0}), Shape({0, 64, 0, 0})});
+        const SmallVector<Shape> expectedOffsets({Shape({0, 0, 0, 0}), Shape({0, 32, 0, 0}), Shape({0, 64, 0, 0})});
         for (const auto shapePair : zip(perClusterTensorOffsets, expectedOffsets)) {
             EXPECT_EQ(std::get<0>(shapePair), std::get<1>(shapePair));
         }
@@ -683,12 +676,12 @@ TEST(MLIR_ClusterShapeUtils, AlignedDistribution) {
     {
         const auto numClustersAttr = getIntAttr(&ctx, 3);
         const auto shape = SmallVector<int64_t>({1, 96, 59, 16});
-        const auto distributionModeAttr =
-            VPU::DistributionModeAttr::get(&ctx, VPU::DistributionMode::SEGMENTED | VPU::DistributionMode::DUPLICATED);
+        const auto distributionModeAttr = VPU::DistributionModeAttr::get(
+                &ctx, VPU::DistributionMode::SEGMENTED | VPU::DistributionMode::DUPLICATED);
         const auto numTilesAttr = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 3, 1, 1}));
         const auto alignment = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 16, 1, 1}));
-        const auto distributedAttr = VPU::DistributedTensorAttr::get(distributionModeAttr, numTilesAttr, nullptr, nullptr,
-                                                                nullptr, numClustersAttr, alignment, &ctx);
+        const auto distributedAttr = VPU::DistributedTensorAttr::get(
+                distributionModeAttr, numTilesAttr, nullptr, nullptr, nullptr, numClustersAttr, alignment, &ctx);
         const auto distributedType =
                 VPU::DistributedTensorType::get(&ctx, shape, elemType, dimsOrder, dimsSpace, distributedAttr);
 
@@ -699,8 +692,7 @@ TEST(MLIR_ClusterShapeUtils, AlignedDistribution) {
             EXPECT_EQ(std::get<0>(shapePair), std::get<1>(shapePair));
         }
         const auto perClusterTensorOffsets = distributedType.getPerClusterComputeShapeOffsets();
-        const SmallVector<Shape> expectedOffsets(
-                {Shape({0, 0, 0, 0}), Shape({0, 32, 0, 0}), Shape({0, 64, 0, 0})});
+        const SmallVector<Shape> expectedOffsets({Shape({0, 0, 0, 0}), Shape({0, 32, 0, 0}), Shape({0, 64, 0, 0})});
         for (const auto shapePair : zip(perClusterTensorOffsets, expectedOffsets)) {
             EXPECT_EQ(std::get<0>(shapePair), std::get<1>(shapePair));
         }
@@ -720,21 +712,18 @@ TEST(MLIR_ClusterShapeUtils, AlignedDistribution) {
 
     // Single axis K alignment, OVERLAPPED mode, H tiling
     {
-
         const auto kernel = getIntArrayAttr(&ctx, SmallVector<int64_t>({3, 3}));
         const auto pads = VPU::PaddingAttr::get(getIntAttr(&ctx, 1), getIntAttr(&ctx, 1), getIntAttr(&ctx, 1),
                                                 getIntAttr(&ctx, 1), &ctx);
         const auto strides = getIntArrayAttr(&ctx, SmallVector<int64_t>({2, 2}));
         const auto shape = SmallVector<int64_t>({1, 60, 13, 15});
-        const auto distributionModeAttr =
-            VPU::DistributionModeAttr::get(&ctx, VPU::DistributionMode::OVERLAPPED);
+        const auto distributionModeAttr = VPU::DistributionModeAttr::get(&ctx, VPU::DistributionMode::OVERLAPPED);
         const auto numTilesAttr = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 1, 4, 1}));
         const auto alignment = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 16, 1, 1}));
         const auto distributedAttr = VPU::DistributedTensorAttr::get(distributionModeAttr, numTilesAttr, kernel, pads,
-                                                                strides, numClustersAttr, alignment, &ctx);
+                                                                     strides, numClustersAttr, alignment, &ctx);
         const auto distributedType =
                 VPU::DistributedTensorType::get(&ctx, shape, elemType, dimsOrder, dimsSpace, distributedAttr);
-
 
         const auto perClusterShapes = distributedType.getPerClusterComputeShapes();
         const SmallVector<Shape> expectedShapes(
@@ -769,15 +758,13 @@ TEST(MLIR_ClusterShapeUtils, AlignedDistribution) {
                                                 getIntAttr(&ctx, 1), &ctx);
         const auto strides = getIntArrayAttr(&ctx, SmallVector<int64_t>({2, 2}));
         const auto shape = SmallVector<int64_t>({1, 60, 13, 15});
-        const auto distributionModeAttr =
-            VPU::DistributionModeAttr::get(&ctx, VPU::DistributionMode::OVERLAPPED);
+        const auto distributionModeAttr = VPU::DistributionModeAttr::get(&ctx, VPU::DistributionMode::OVERLAPPED);
         const auto numTilesAttr = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 1, 4, 1}));
         const auto alignment = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 1, 1, 16}));
         const auto distributedAttr = VPU::DistributedTensorAttr::get(distributionModeAttr, numTilesAttr, kernel, pads,
-                                                                strides, numClustersAttr, alignment, &ctx);
+                                                                     strides, numClustersAttr, alignment, &ctx);
         const auto distributedType =
                 VPU::DistributedTensorType::get(&ctx, shape, elemType, dimsOrder, dimsSpace, distributedAttr);
-
 
         const auto perClusterShapes = distributedType.getPerClusterComputeShapes();
         const SmallVector<Shape> expectedShapes(
@@ -827,14 +814,13 @@ TEST(MLIR_ClusterShapeUtilsDeathTest, AlignedDistribution) {
                                                 getIntAttr(&ctx, 1), &ctx);
         const auto strides = getIntArrayAttr(&ctx, SmallVector<int64_t>({2, 2}));
         const auto shape = SmallVector<int64_t>({1, 60, 59, 15});
-        const auto distributionModeAttr =
-            VPU::DistributionModeAttr::get(&ctx, VPU::DistributionMode::OVERLAPPED);
+        const auto distributionModeAttr = VPU::DistributionModeAttr::get(&ctx, VPU::DistributionMode::OVERLAPPED);
         const auto numTilesAttr = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 1, 4, 1}));
         const auto alignment = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 1, 9, 1}));
         const auto distributedAttr = VPU::DistributedTensorAttr::get(distributionModeAttr, numTilesAttr, kernel, pads,
-                                                                strides, numClustersAttr, alignment, &ctx);
+                                                                     strides, numClustersAttr, alignment, &ctx);
 
         EXPECT_DEATH(VPU::DistributedTensorType::get(&ctx, shape, elemType, dimsOrder, dimsSpace, distributedAttr),
-            "Overlapped cluster tiling does not support alignment on the same axis used for tiling");
+                     "Overlapped cluster tiling does not support alignment on the same axis used for tiling");
     }
 }
