@@ -78,12 +78,12 @@ double DepthConvolutionStrategy::computeSplitOverHeightEfficiency(mlir::Operatio
                             getChannelAlignment((getChannelAlignment(std::ceil(OH / _numClusters), _numClusters) *
                                                  getChannelAlignment(OW, _numClusters) *
                                                  getChannelAlignment(OC, _numChannelAlignment)),
-                                                _numDPUPerCluster),
+                                                _numDPUs),
                     (outputTensorVolume / _numClusters) /
                             getChannelAlignment(
                                     (getChannelAlignment(std::ceil(OH / _numClusters), _numChannelAlignment) *
                                      getChannelAlignment(OW, 1) * getChannelAlignment(OC, _numChannelAlignment)),
-                                    _numDPUPerCluster));
+                                    _numDPUs));
 }
 
 double DepthConvolutionStrategy::computeSplitOverKernelEfficiency(mlir::Operation* op) const {
@@ -103,12 +103,12 @@ double DepthConvolutionStrategy::computeSplitOverKernelEfficiency(mlir::Operatio
                             getChannelAlignment(
                                     (getChannelAlignment(OH, _numClusters) * getChannelAlignment(OW, _numClusters) *
                                      getChannelAlignment(std::ceil(OC / _numClusters), _numChannelAlignment)),
-                                    _numDPUPerCluster),
+                                    _numDPUs),
                     (outputTensorVolume / _numClusters) /
                             getChannelAlignment(
                                     (getChannelAlignment(OH, _numChannelAlignment) * getChannelAlignment(OW, 1) *
                                      getChannelAlignment(std::ceil(OC / _numClusters), _numChannelAlignment)),
-                                    _numDPUPerCluster));
+                                    _numDPUs));
 }
 
 StringRef DepthConvolutionStrategy::getOptimalLayerStrategy(mlir::Operation* op) const {

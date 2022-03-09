@@ -26,6 +26,10 @@ BaseLayerStrategy::BaseLayerStrategy(mlir::FuncOp func, Logger log): _func(func)
     _minimumOutputHeightForSOH = _numDPUs * _numClusters;
 }
 
+double BaseLayerStrategy::getChannelAlignment(double input, size_t unit) const {
+    return std::ceil(input / unit) * unit;
+}
+
 // Each DPU should compute at least one output line. Therefore in order for a layer to be SOH
 // compitable it must have an output height of at least the number of DPUs x the number of clusters
 // specified for compilation.

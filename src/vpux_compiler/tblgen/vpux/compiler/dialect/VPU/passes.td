@@ -69,20 +69,6 @@ def MultiClusterStrategyAssignment : PassBase<"multi-cluster-strategy-assignment
 }
 
 //
-// Multi-cluster strategy assignment
-//
-
-def MultiClusterStrategyAssignment : PassBase<"multi-cluster-strategy-assignment", "vpux::FunctionPass"> {
-    let summary = "This pass compute the hardware efficiency of layer that is executed as SOH or SOK and assigns the most optimal strategy";
-
-    let constructor = "vpux::VPU::createMultiClusterStrategyAssignmentPass()";
-
-    let dependentDialects = [
-        "vpux::VPU::VPUDialect"
-    ];
-}
-
-//
 // Wrap multi-cluster layers in NCEClusterTiling
 //
 

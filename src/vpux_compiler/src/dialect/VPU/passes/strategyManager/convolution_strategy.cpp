@@ -19,9 +19,10 @@ using namespace VPU;
 
 bool ConvolutionStrategy::doesLayerFitIntoCMX(mlir::Operation* op, StringRef strategy) const {
     auto origOp = mlir::cast<NCEConvolutionOp>(op);
-    const auto activationTensorDistributionMode = getActivationTensorDistributionMode(strategy);
-    const auto activationTensorNumTiles = getIntArrayAttr(
+    auto activationTensorDistributionMode = getActivationTensorDistributionMode(strategy);
+    auto activationTensorNumTiles = getIntArrayAttr(
             origOp.getContext(), getActivationTensorNumTiles(origOp.getOperation(), _numClusters, strategy));
+    auto weightsTensorDistributionMode = getWeightsTensorDistributionMode(strategy);
     auto weightsTensorNumTiles = getIntArrayAttr(origOp.getContext(), getWeightsTensorNumTiles(_numClusters, strategy));
     auto outputTensorDistributionMode = getOutputTensorDistributionMode(strategy);
     auto outputTensorNumTiles = getIntArrayAttr(origOp.getContext(), getOutputTensorNumTiles(_numClusters, strategy));
@@ -31,6 +32,7 @@ bool ConvolutionStrategy::doesLayerFitIntoCMX(mlir::Operation* op, StringRef str
             createDistributedTensorType(origOp, origOp.filter(), weightsTensorDistributionMode, weightsTensorNumTiles);
     auto distributedOutputTensorType =
             createDistributedTensorType(origOp, origOp.output(), outputTensorDistributionMode, outputTensorNumTiles);
+
     return origOp.fitIntoCMX(distributedActivationTensorType, distributeddWeightsTensorType,
                              distributedOutputTensorType);
 }
@@ -74,22 +76,22 @@ double ConvolutionStrategy::computeSplitOverHeightEfficiency(mlir::Operation* op
         const auto efficiencyConstant = getChannelMajorEfficiencyConstant(KY, strides[0]);
         return efficiencyConstant *
                std::max(outputTensorVolume /
-                                (getChannelAlignment(OH, _numChannelAlignment) * getChannelAlignment(OH, _numDPU) *
+                                (getChannelAlignment(OH, _numChannelAlignment) * getChannelAlignment(OH, _numDPUs) *
                                  getChannelAlignment(OC, _numChannelAlignment)),
-                        outputTensorVolume / (getChannelAlignment(OH, _numChannelAlignment * _numClusters) *
-                                              getChannelAlignment(OW, _numDPUPerCluster) *
-                                              getChannelAlignment(OC, _numChannelAlignment)));
+                        outputTensorVolume /
+                                (getChannelAlignment(OH, _numChannelAlignment * _numClusters) *
+                                 getChannelAlignment(OW, _numDPUs) * getChannelAlignment(OC, _numChannelAlignment)));
     } else {
         return std::max((outputTensorVolume / _numClusters) /
                                 getChannelAlignment((getChannelAlignment(std::ceil(OH / _numClusters), _numClusters) *
                                                      getChannelAlignment(OW, _numClusters) *
                                                      getChannelAlignment(OC, _numChannelAlignment)),
-                                                    _numDPUPerCluster),
+                                                    _numDPUs),
                         (outputTensorVolume / _numClusters) /
                                 getChannelAlignment(
                                         (getChannelAlignment(std::ceil(OH / _numClusters), _numChannelAlignment) *
                                          getChannelAlignment(OW, 1) * getChannelAlignment(OC, _numChannelAlignment)),
-                                        _numDPUPerCluster));
+                                        _numDPUs));
     }
 }
 
@@ -105,11 +107,11 @@ double ConvolutionStrategy::computeSplitOverKernelEfficiency(mlir::Operation* op
             (outputTensorVolume / _numClusters) /
                     getChannelAlignment((getChannelAlignment(OH, _numClusters) * getChannelAlignment(OW, _numClusters) *
                                          getChannelAlignment(std::ceil(OC / _numClusters), _numChannelAlignment)),
-                                        _numDPUPerCluster),
+                                        _numDPUs),
             (outputTensorVolume / _numClusters) /
                     getChannelAlignment((getChannelAlignment(OH, _numChannelAlignment) * getChannelAlignment(OW, 1) *
                                          getChannelAlignment(std::ceil(OC / _numClusters), _numChannelAlignment)),
-                                        _numDPUPerCluster));
+                                        _numDPUs));
 }
 
 StringRef ConvolutionStrategy::getOptimalLayerStrategy(mlir::Operation* op) const {

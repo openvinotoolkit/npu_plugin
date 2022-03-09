@@ -65,6 +65,7 @@ protected:
     int64_t _numClusters;
     int64_t _numDPUs;
     int64_t _minimumOutputHeightForSOH;
+    const int64_t _minimumOutputChannelsPerCluster = 16;
     const size_t _numChannelAlignment = 16;
     mlir::FuncOp _func;
     Logger _log;
