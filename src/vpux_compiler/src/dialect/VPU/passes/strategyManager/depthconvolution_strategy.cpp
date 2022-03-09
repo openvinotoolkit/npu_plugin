@@ -39,13 +39,14 @@ bool DepthConvolutionStrategy::doesLayerFitIntoCMX(mlir::Operation* op, StringRe
 // This depthwise convolution efficiency table is from the ArchBench tool
 // It returns a h/w efficiency constant for a given stride and kernel size
 std::map<int64_t, std::map<int64_t, double>> DepthConvolutionStrategy::depthwiseEfficiencyTable() const {
-    return {{
+    static const std::map<int64_t, std::map<int64_t, double>> table = {{
             {3, {{1, 0.165}, {2, 0.128}, {4, 0.128}, {6, 0.165}}},
             {5, {{1, 0.483}, {2, 0.241}, {4, 0.132}, {6, 0.483}}},
             {7, {{1, 0.6}, {2, 0.2965}, {4, 0.15}, {6, 0.0395}}},
             {9, {{1, 0.8008}, {2, 0.4687}, {4, 0.2266}, {6, 0.8008}}},
             {11, {{1, 0.9023}, {2, 0.4687}, {4, 0.2366}, {6, 0.9023}}},
     }};
+    return table;
 }
 
 double DepthConvolutionStrategy::getDepthwiseEfficiencyConstant(int64_t kernel, int64_t stride) const {
@@ -53,12 +54,10 @@ double DepthConvolutionStrategy::getDepthwiseEfficiencyConstant(int64_t kernel, 
         auto table = depthwiseEfficiencyTable()[kernel];
         if (table.count(stride)) {
             return depthwiseEfficiencyTable()[kernel][stride];
-        } else {
-            VPUX_THROW("The stride size {0} does not exist in the depthwise efficiency table", stride);
         }
-    } else {
-        VPUX_THROW("The kernel size {0} does not exist in the depthwise efficiency table", kernel);
+        VPUX_THROW("The stride size {0} does not exist in the depthwise efficiency table", stride);
     }
+    VPUX_THROW("The kernel size {0} does not exist in the depthwise efficiency table", kernel);
 }
 
 double DepthConvolutionStrategy::computeSplitOverHeightEfficiency(mlir::Operation* op) const {

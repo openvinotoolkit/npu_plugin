@@ -40,12 +40,13 @@ bool ConvolutionStrategy::doesLayerFitIntoCMX(mlir::Operation* op, StringRef str
 // This channel major convolution efficiency table is from the ArchBench tool
 // It returns a h/w efficiency constant for a given stride and kernel size
 std::map<int64_t, std::map<int64_t, double>> ConvolutionStrategy::channelMajorEfficiencyTable() const {
-    return {{
+    static const std::map<int64_t, std::map<int64_t, double>> table = {{
             {3, {{1, 0.253}, {2, 0.183594}, {4, 0.183594}}},
             {5, {{1, 0.535156}, {2, 0.2773}, {4, 0.152344}}},
             {7, {{1, 0.6}, {2, 0.2965}, {4, 0.15}}},
             {11, {{1, 0.9023}, {2, 0.4687}, {4, 0.2366}}},
     }};
+    return table;
 }
 
 double ConvolutionStrategy::getChannelMajorEfficiencyConstant(int64_t kernel, int64_t stride) const {
@@ -53,12 +54,10 @@ double ConvolutionStrategy::getChannelMajorEfficiencyConstant(int64_t kernel, in
         auto table = channelMajorEfficiencyTable()[kernel];
         if (table.count(stride)) {
             return channelMajorEfficiencyTable()[kernel][stride];
-        } else {
-            VPUX_THROW("The stride size {0} does not exist in the channel major efficiency table", stride);
         }
-    } else {
-        VPUX_THROW("The kernel size {0} does not exist in the channel major efficiency table", kernel);
+        VPUX_THROW("The stride size {0} does not exist in the channel major efficiency table", stride);
     }
+    VPUX_THROW("The kernel size {0} does not exist in the channel major efficiency table", kernel);
 }
 
 double ConvolutionStrategy::computeSplitOverHeightEfficiency(mlir::Operation* op) const {
@@ -81,18 +80,17 @@ double ConvolutionStrategy::computeSplitOverHeightEfficiency(mlir::Operation* op
                         outputTensorVolume /
                                 (getChannelAlignment(OH, _numChannelAlignment * _numClusters) *
                                  getChannelAlignment(OW, _numDPUs) * getChannelAlignment(OC, _numChannelAlignment)));
-    } else {
-        return std::max((outputTensorVolume / _numClusters) /
-                                getChannelAlignment((getChannelAlignment(std::ceil(OH / _numClusters), _numClusters) *
-                                                     getChannelAlignment(OW, _numClusters) *
-                                                     getChannelAlignment(OC, _numChannelAlignment)),
-                                                    _numDPUs),
-                        (outputTensorVolume / _numClusters) /
-                                getChannelAlignment(
-                                        (getChannelAlignment(std::ceil(OH / _numClusters), _numChannelAlignment) *
+    }
+    return std::max(
+            (outputTensorVolume / _numClusters) /
+                    getChannelAlignment(
+                            (getChannelAlignment(std::ceil(OH / _numClusters), _numClusters) *
+                             getChannelAlignment(OW, _numClusters) * getChannelAlignment(OC, _numChannelAlignment)),
+                            _numDPUs),
+            (outputTensorVolume / _numClusters) /
+                    getChannelAlignment((getChannelAlignment(std::ceil(OH / _numClusters), _numChannelAlignment) *
                                          getChannelAlignment(OW, 1) * getChannelAlignment(OC, _numChannelAlignment)),
                                         _numDPUs));
-    }
 }
 
 double ConvolutionStrategy::computeSplitOverKernelEfficiency(mlir::Operation* op) const {
@@ -121,8 +119,7 @@ StringRef ConvolutionStrategy::getOptimalLayerStrategy(mlir::Operation* op) cons
     double splitOverKernelEfficiency = 0.0;
 
     if (isOperationSplitOverHeightCompatible(op) &&
-        ((isChannelMajor && doesLayerFitIntoCMX(op, splitOverHeightOverlapped)) ||
-         (!isChannelMajor && doesLayerFitIntoCMX(op, splitOverHeight)))) {
+        (doesLayerFitIntoCMX(op, splitOverHeightOverlapped) || doesLayerFitIntoCMX(op, splitOverHeight))) {
         splitOverHeightEfficiency = computeSplitOverHeightEfficiency(op);
     }
 

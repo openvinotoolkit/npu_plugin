@@ -93,6 +93,9 @@ void StrategyManager::assignMultiClusterStrategy() {
                     }
                 })
                 .Case<NCEConvolutionOp>([this](NCEConvolutionOp origOp) {
+                    const auto outputShape = getShape(origOp.output());
+                    const auto OC = outputShape[Dims4D::Act::C];
+                    _log.trace("OC '{0}'", OC);
                     if (_convolutionStrategy.isOperationMultiClusterCompatible(origOp.getOperation())) {
                         auto bestStrategy = _convolutionStrategy.getOptimalLayerStrategy(origOp.getOperation());
                         setLayerStrategy(bestStrategy, origOp.getOperation());
