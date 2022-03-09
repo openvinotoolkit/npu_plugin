@@ -339,8 +339,9 @@ Byte VPU::DistributedTensorType::getCompactAllocSize() const {
     }
 
     if (distribution.alignment() != nullptr) {
-        Optional<ArrayRef<int64_t>> alignment = makeArrayRef(parseIntArrayAttr<int64_t>(distribution.alignment()));
-        tiledShape = Shape(alignShape(tiledShape.raw(), alignment));
+        const auto alignment = parseIntArrayAttr<int64_t>(distribution.alignment());
+        const auto optionalAlignment = Optional<ArrayRef<int64_t>>(alignment);
+        tiledShape = Shape(alignShape(tiledShape.raw(), optionalAlignment));
     }
 
     return Byte(getElemTypeSize()) * vpux::details::calcTotalShapeSize(tiledShape.raw());

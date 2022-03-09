@@ -510,16 +510,18 @@ SmallVector<Shape> vpux::VPU::getPerClusterComputeShapes(ShapeRef shapeRef, Dist
         return dim > 1;
     };
 
-    Optional<ArrayRef<int64_t>> alignment = None;
+    Optional<ArrayRef<int64_t>> optionalAlignment = None;
+    auto alignment = SmallVector<int64_t>(numClusters);
     if (distributionAttr.alignment() != nullptr) {
         alignment = parseIntArrayAttr<int64_t>(distributionAttr.alignment());
+        optionalAlignment = Optional<ArrayRef<int64_t>>(alignment);
     }
 
     if (VPU::bitEnumContains(distributionMode, VPU::DistributionMode::SEGMENTED)) {
         const auto tilingScheme = parseIntArrayAttr<int64_t>(distributionAttr.num_tiles());
         const auto axis = std::distance(tilingScheme.begin(), llvm::find_if(tilingScheme, isValidTile));
 
-        tiledComputeShapes = splitSegmentedShape(shape, tilingScheme, numClusters, axis, alignment);
+        tiledComputeShapes = splitSegmentedShape(shape, tilingScheme, numClusters, axis, optionalAlignment);
     } else if (VPU::bitEnumContains(distributionMode, VPU::DistributionMode::OVERLAPPED)) {
         const auto tilingScheme = parseIntArrayAttr<int64_t>(distributionAttr.num_tiles());
         const auto axis = std::distance(tilingScheme.begin(), llvm::find_if(tilingScheme, isValidTile));
@@ -530,10 +532,10 @@ SmallVector<Shape> vpux::VPU::getPerClusterComputeShapes(ShapeRef shapeRef, Dist
             const auto inputTile = p.value();
             const auto cluster = p.index();
             shape[axis] = inputTile.end - inputTile.begin;
-            tiledComputeShapes[cluster] = Shape(alignShape(shape, alignment));
+            tiledComputeShapes[cluster] = Shape(alignShape(shape, optionalAlignment));
         }
     } else {
-        std::fill_n(tiledComputeShapes.begin(), tiledComputeShapes.size(), Shape(alignShape(shape, alignment)));
+        std::fill_n(tiledComputeShapes.begin(), tiledComputeShapes.size(), Shape(alignShape(shape, optionalAlignment)));
     }
 
     return tiledComputeShapes;
