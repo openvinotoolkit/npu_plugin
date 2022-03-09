@@ -20,6 +20,7 @@
 #include <ie_blob.h>
 #include <blob_factory.hpp>
 
+#include "zero_executor.h"
 #include "zero_infer_request.h"
 
 #include "vpux/al/config/common.hpp"
@@ -44,20 +45,13 @@ static void checkNetworkPrecision(const IE::Precision& precision) {
     }
 }
 
-static IE::Blob::Ptr allocateLocalBlob(const IE::TensorDesc& tensorDesc,
-                                       const std::shared_ptr<InferenceEngine::IAllocator>& allocator) {
+static IE::Blob::Ptr allocateLocalBlob(const IE::TensorDesc& tensorDesc, void* ptr) {
     checkNetworkPrecision(tensorDesc.getPrecision());
 
-    IE::Blob::Ptr blob;
-    if (allocator == nullptr) {
-        blob = make_blob_with_precision(tensorDesc);
-    } else {
-        blob = make_blob_with_precision(tensorDesc, allocator);
-    }
+    IE::Blob::Ptr blob = make_blob_with_precision(tensorDesc, ptr);
     if (blob == nullptr) {
-        IE_THROW() << "InputBlob is nullptr.";
+        IE_THROW() << "Can't make blob.";
     }
-    blob->allocate();
     return blob;
 }
 
@@ -78,18 +72,22 @@ ZeroInferRequest::ZeroInferRequest(const IE::InputsDataMap& networkInputs, const
     _parameters = parameters;
     _results = results;
 
+    // we assume that _executorPtr contains ZeroExecutor ptr only
+    auto& pipeline = static_cast<ZeroExecutor*>(_executorPtr.get())->getPipeline();
+
     for (const auto& networkInput : _networkInputs) {
         const std::string inputName = networkInput.first;
         const IE::TensorDesc inputTensorDesc = networkInput.second->getTensorDesc();
 
-        _inputs[inputName] = allocateLocalBlob(inputTensorDesc, _allocator);
+        _inputs[inputName] = allocateLocalBlob(inputTensorDesc, pipeline._inputs_host_mem_map.at(inputName).data());
     }
 
     for (const auto& networkOutput : _networkOutputs) {
         const std::string outputName = networkOutput.first;
         const IE::TensorDesc outputTensorDesc = networkOutput.second->getTensorDesc();
 
-        _outputs[outputName] = allocateLocalBlob(outputTensorDesc, _allocator);
+        _outputs[outputName] =
+                allocateLocalBlob(outputTensorDesc, pipeline._outputs_host_mem_map.at(outputName).data());
     }
 }
 

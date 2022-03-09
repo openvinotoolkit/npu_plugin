@@ -65,6 +65,11 @@ public:
 
     ZeroExecutor::Ptr clone() const override;
 
+    struct Pipeline;
+    Pipeline& getPipeline() {
+        return *_pipeline.get();
+    }
+
     ~ZeroExecutor() = default;
 
 protected:
