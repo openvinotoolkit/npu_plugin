@@ -7,8 +7,13 @@ IE.CNNNetwork entryPoint : @main inputsInfo :  {
 }
 
 func @main(%arg0: memref<1x1x1x1000xf16>, %arg1: memref<1x1x1x1000xf16>) -> memref<1x1x1x1000xf16> {
-    %0 = VPUIPRegMapped.DeclareBuffer "VPU_CMX_NN" [0, 1, 2, 3] <0> -> memref<1x1x1x1000xf16, "CMX_NN">
-    %1 = VPUIPRegMapped.DeclareBuffer "VPU_CMX_NN" [0, 1, 2, 3] <2000> -> memref<1x1x1x1000xf16, "CMX_NN">
+    // %0 = VPURT.DeclareBuffer "VPU_CMX_NN" [0, 1, 2, 3] <0> -> memref<1x1x1x1000xf16, "CMX_NN">
+    // VPURT.BufferSection can be found at /home/alexsusu/OpenVINO/vpux-plugin/src/vpux_compiler/tblgen/vpux/compiler/dialect/VPURT/attributes.td
+    // The assemblyFormat = [{        $section ($sectionIndex^)? ` ``<` $byteOffset `>` attr-dict `->` type(results)     }];
+    %0 = VPURT.DeclareBuffer "CMX_NN" <0> -> memref<1x1x1x1000xf16, @CMX_NN>
+
+    //%1 = VPURT.DeclareBuffer "VPU_CMX_NN" [0, 1, 2, 3] <2000> -> memref<1x1x1x1000xf16, "CMX_NN">
+    %1 = VPURT.DeclareBuffer "CMX_NN" <2000> -> memref<1x1x1x1000xf16, @CMX_NN>
 
     %3 = VPUIPRegMapped.ConfigureBarrier<0, -1> -> !VPURT.Barrier
     %5 = VPUIPRegMapped.ConfigureBarrier<1, -1> -> !VPURT.Barrier
@@ -18,8 +23,8 @@ func @main(%arg0: memref<1x1x1x1000xf16>, %arg1: memref<1x1x1x1000xf16>) -> memr
     // See Table from slide 26 of Andrew Bakalin's presentation ELF PoC_new.pptx
     %secDW = ELF.CreateSection secType("SHT_PROGBITS") secFlags(SHF_ALLOC) {secName = ".data.Weights", secInfo = 1, secAddrAlign = 4} -> !ELF.Section
       {
-        ELF.PutOpInSection %0 : memref<1x1x1x1000xf16, "CMX_NN">
-        ELF.PutOpInSection %1 : memref<1x1x1x1000xf16, "CMX_NN">
+        ELF.PutOpInSection %0 : memref<1x1x1x1000xf16, @CMX_NN>
+        ELF.PutOpInSection %1 : memref<1x1x1x1000xf16, @CMX_NN>
       }
 
 
@@ -38,14 +43,14 @@ func @main(%arg0: memref<1x1x1x1000xf16>, %arg1: memref<1x1x1x1000xf16>) -> memr
      }
 
 
-    %2 = VPUIPRegMapped.NNDMA inputs(%arg0 : memref<1x1x1x1000xf16>) outputs(%0 : memref<1x1x1x1000xf16, "CMX_NN">) start_after(0) -> memref<1x1x1x1000xf16, "CMX_NN">
-    %4 = VPUIPRegMapped.NNDMA inputs(%2 : memref<1x1x1x1000xf16, "CMX_NN">) outputs(%1 : memref<1x1x1x1000xf16, "CMX_NN">) waits(%3 : !VPURT.Barrier) start_after(0) -> memref<1x1x1x1000xf16, "CMX_NN">
-    %6 = VPUIPRegMapped.NNDMA inputs(%4 : memref<1x1x1x1000xf16, "CMX_NN">) outputs(%arg1 : memref<1x1x1x1000xf16>) waits(%5 : !VPURT.Barrier) start_after(0) -> memref<1x1x1x1000xf16>
+    %2 = VPUIPRegMapped.NNDMA inputs(%arg0 : memref<1x1x1x1000xf16>) outputs(%0 : memref<1x1x1x1000xf16, @CMX_NN>) start_after(0) -> memref<1x1x1x1000xf16, @CMX_NN>
+    %4 = VPUIPRegMapped.NNDMA inputs(%2 : memref<1x1x1x1000xf16, @CMX_NN>) outputs(%1 : memref<1x1x1x1000xf16, @CMX_NN>) waits(%3 : !VPURT.Barrier) start_after(0) -> memref<1x1x1x1000xf16, @CMX_NN>
+    %6 = VPUIPRegMapped.NNDMA inputs(%4 : memref<1x1x1x1000xf16, @CMX_NN>) outputs(%arg1 : memref<1x1x1x1000xf16>) waits(%5 : !VPURT.Barrier) start_after(0) -> memref<1x1x1x1000xf16>
 
     %sec1 = ELF.CreateSection secType("SHT_PROGBITS") secFlags("SHF_ALLOC|SHF_EXECINSTR") {secName = ".text.dmaTasks", secInfo = 1, secAddrAlign = 4} -> !ELF.Section
       {
-          ELF.PutOpInSection %2 : memref<1x1x1x1000xf16, "CMX_NN">
-          ELF.PutOpInSection %4 : memref<1x1x1x1000xf16, "CMX_NN">
+          ELF.PutOpInSection %2 : memref<1x1x1x1000xf16, @CMX_NN>
+          ELF.PutOpInSection %4 : memref<1x1x1x1000xf16, @CMX_NN>
           ELF.PutOpInSection %6 : memref<1x1x1x1000xf16>
       }
 
@@ -54,10 +59,10 @@ func @main(%arg0: memref<1x1x1x1000xf16>, %arg1: memref<1x1x1x1000xf16>) -> memr
     %symArg0 = ELF.Symbol %arg0 name("inputCNN") : memref<1x1x1x1000xf16>
     %symArg1 = ELF.Symbol %arg1 name("outputCNN") : memref<1x1x1x1000xf16>
     //
-    %sym0 = ELF.Symbol %0 name("nndmaOp0_output") : memref<1x1x1x1000xf16, "CMX_NN">
-    %sym1 = ELF.Symbol %1 name("nndmaOp1_output") : memref<1x1x1x1000xf16, "CMX_NN">
-    %sym2 = ELF.Symbol %2 name("nndmaOp1_input") : memref<1x1x1x1000xf16, "CMX_NN">
-    %sym4 = ELF.Symbol %4 name("nndmaOp2_input") : memref<1x1x1x1000xf16, "CMX_NN">
+    %sym0 = ELF.Symbol %0 name("nndmaOp0_output") : memref<1x1x1x1000xf16, @CMX_NN>
+    %sym1 = ELF.Symbol %1 name("nndmaOp1_output") : memref<1x1x1x1000xf16, @CMX_NN>
+    %sym2 = ELF.Symbol %2 name("nndmaOp1_input") : memref<1x1x1x1000xf16, @CMX_NN>
+    %sym4 = ELF.Symbol %4 name("nndmaOp2_input") : memref<1x1x1x1000xf16, @CMX_NN>
 
 
     // These symbols are used for 1 relocation per inference run (JIT relocation)
