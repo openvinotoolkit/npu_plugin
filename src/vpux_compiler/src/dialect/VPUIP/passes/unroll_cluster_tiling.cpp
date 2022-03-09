@@ -75,6 +75,7 @@ public:
 
 private:
     mlir::Value getClusterOperand(VPUIP::NCEClusterTilingOp clusterOp, mlir::Value innerOperand) const;
+    mlir::IntegerAttr computeOutputChannelOffset(SmallVector<mlir::Value> outputBuffs, int64_t clusterId) const;
     SmallVector<mlir::Value> getPerClusterBuffers(mlir::Location loc, StringRef bufferName,
                                                   VPUIP::NCEClusterTilingOp clusterOp, mlir::Value innerOperand,
                                                   int64_t numClusters, mlir::PatternRewriter& rewriter) const;
@@ -84,6 +85,14 @@ private:
     mlir::MLIRContext* _ctx;
     mlir::FlatSymbolRefAttr _cmxNameAttr;
 };
+
+mlir::IntegerAttr ClusterNCERewriter::computeOutputChannelOffset(SmallVector<mlir::Value> outputBuffs,
+                                                                 int64_t clusterId) const {
+    static int64_t outputChannelOffset = 0;
+    auto OC = getShape(outputBuffs[clusterId])[Dims4D::Act::C];
+    outputChannelOffset += OC;
+    return mlir::IntegerAttr::get(getInt64Type(_ctx), outputChannelOffset - OC);
+}
 
 mlir::Value ClusterNCERewriter::getClusterOperand(VPUIP::NCEClusterTilingOp clusterOp, mlir::Value innerOperand) const {
     if (innerOperand == nullptr) {
@@ -230,12 +239,13 @@ mlir::LogicalResult ClusterNCERewriter::matchAndRewrite(VPUIP::NCEClusterTaskOp 
 
     for (int64_t clusterId = 0; clusterId < numClusters; ++clusterId) {
         const auto newLoc = appendLoc(loc, llvm::formatv("_cluster_{0}", clusterId).str());
+        auto outputChannelOffset = computeOutputChannelOffset(outputBuffs, clusterId);
         auto newTask = VPURT::wrapIntoTaskOp<VPUIP::NCEClusterTaskOp>(
                 rewriter, vpurtTask.waitBarriers(), vpurtTask.updateBarriers(), newLoc, inputBuffs[clusterId],
                 weightsBuffs[clusterId], weightTableBuffs[clusterId], activationWindowBuffs[clusterId], parentInput,
                 parentOutput, outputBuffs[clusterId], nceTask.task_type(), nceTask.kernel_sizeAttr(),
                 nceTask.kernel_stridesAttr(), nceTask.kernel_paddingAttr(),
-                nceTask.activation_window_channel_lengthAttr(), nullptr, nullptr, isSegmented);
+                nceTask.activation_window_channel_lengthAttr(), nullptr, nullptr, isSegmented, outputChannelOffset);
 
         {
             mlir::OpBuilder::InsertionGuard guard(rewriter);
