@@ -102,7 +102,11 @@ mlir::OpFoldResult vpux::Const::DeclareOp::fold(ArrayRef<mlir::Attribute> operan
 void vpux::Const::DeclareOp::serialize(elf::writer::BinaryDataSection<uint8_t>& binDataSection) {
     vpux::Const::Content cnt = content();
 
-    const Byte byteTotalSize = cnt.getTotalSize();
+    // We implment here, inlined, a getTotalSize() (that was removed from
+    // include/vpux/compiler/dialect/const/utils/content.hpp)
+    VPUX_THROW_UNLESS(cnt.getType().isa<mlir::ShapedType>(), "Expected mlir::ShapedType. Got '{0}'", cnt.getType());
+    const Byte byteTotalSize = Bit(cnt.getType().cast<mlir::ShapedType>().getSizeInBits());
+
     int64_t typeTotalSize = byteTotalSize.count();
 
     char* tmpBuf = new char[typeTotalSize];
@@ -122,7 +126,12 @@ void vpux::Const::DeclareOp::serialize(elf::writer::BinaryDataSection<uint8_t>& 
 
 size_t vpux::Const::DeclareOp::getBinarySize() {
     vpux::Const::Content cnt = content();
-    const Byte aByteTotal = cnt.getTotalSize();
+
+    // We implment here, inlined, a getTotalSize() (that was removed from
+    // include/vpux/compiler/dialect/const/utils/content.hpp)
+    VPUX_THROW_UNLESS(cnt.getType().isa<mlir::ShapedType>(), "Expected mlir::ShapedType. Got '{0}'", cnt.getType());
+    const Byte aByteTotal = Bit(cnt.getType().cast<mlir::ShapedType>().getSizeInBits());
+
     int64_t typeTotalSize = aByteTotal.count();
 
     return typeTotalSize;
