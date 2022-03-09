@@ -14,7 +14,7 @@
 #pragma once
 
 #include "cpp_interfaces/impl/ie_infer_async_request_thread_safe_default.hpp"
-#include "vpux_infer_request.h"
+#include "vpux.hpp"
 
 namespace vpux {
 
@@ -30,7 +30,7 @@ public:
     ~AsyncInferRequest();
 
 private:
-    InferRequest::Ptr _inferRequest;
+    IInferRequest::Ptr _inferRequest;
     InferenceEngine::ITaskExecutor::Ptr _getResultExecutor;
 };
 

@@ -32,6 +32,25 @@ target_include_directories(${TARGET_NAME}
 
 set(VPUX_VERSION_FILE ${CMAKE_CURRENT_SOURCE_DIR}/src/version.cpp)
 addVersionDefines(${VPUX_VERSION_FILE} CI_BUILD_NUMBER)
+# FIXME: begin
+# E#-34790
+# backend shouldn't refer to plugin headers
+# temporary work-around until everything related to the backend moved
+# from the plugin to the backend
+target_include_directories(${TARGET_NAME}
+    PUBLIC
+        $<BUILD_INTERFACE:${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/src/vpux_plugin/include>
+        $<BUILD_INTERFACE:${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/src/vpux_plugin/preproc_gapi>
+)
+target_link_libraries(${TARGET_NAME}
+    PRIVATE
+        preproc_gapi
+)
+target_sources(${TARGET_NAME}
+    PRIVATE
+    ${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/src/vpux_plugin/src/vpux_remote_blob.cpp
+)
+# FIXME: end
 
 link_system_libraries(${TARGET_NAME}
     PRIVATE

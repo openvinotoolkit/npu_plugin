@@ -52,4 +52,5 @@ std::shared_ptr<Allocator> VpualDevice::getAllocator(const InferenceEngine::Para
 std::string VpualDevice::getName() const {
     return _name;
 }
+
 }  // namespace vpux

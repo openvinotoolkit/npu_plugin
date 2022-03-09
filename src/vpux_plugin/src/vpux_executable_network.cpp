@@ -30,9 +30,8 @@
 #include "vpux_async_infer_request.h"
 #include "vpux_exceptions.h"
 #include "vpux_executable_network.h"
-#include "vpux_infer_request.h"
 
-// Subplugin
+// Abstraction layer
 #include "vpux.hpp"
 #include "vpux/al/config/common.hpp"
 #include "vpux/al/config/runtime.hpp"
@@ -184,8 +183,8 @@ IE::IInferRequestInternal::Ptr ExecutableNetwork::CreateInferRequestImpl(const I
     }
     const auto inferExecutor = getExecutorForInference(_executorPtr, _logger);
     const auto allocator = _device->getAllocator();
-    return std::make_shared<InferRequest>(networkInputs, networkOutputs, inferExecutor, _config, _networkName,
-                                          _parameters, _results, allocator);
+    return _device->createInferRequest(networkInputs, networkOutputs, inferExecutor, _config, _networkName, _parameters,
+                                       _results, allocator);
 }
 
 InferenceEngine::IInferRequestInternal::Ptr ExecutableNetwork::CreateInferRequest() {
@@ -196,8 +195,8 @@ InferenceEngine::IInferRequestInternal::Ptr ExecutableNetwork::CreateInferReques
     }
     const auto inferExecutor = getExecutorForInference(_executorPtr, _logger);
     const auto allocator = _device->getAllocator();
-    auto syncRequestImpl = std::make_shared<InferRequest>(_networkInputs, _networkOutputs, inferExecutor, _config,
-                                                          _networkName, _parameters, _results, allocator);
+    auto syncRequestImpl = _device->createInferRequest(_networkInputs, _networkOutputs, inferExecutor, _config,
+                                                       _networkName, _parameters, _results, allocator);
     syncRequestImpl->setPointerToExecutableNetworkInternal(shared_from_this());
     return std::make_shared<AsyncInferRequest>(syncRequestImpl, _taskExecutor, getNextTaskExecutor(),
                                                _callbackExecutor);
