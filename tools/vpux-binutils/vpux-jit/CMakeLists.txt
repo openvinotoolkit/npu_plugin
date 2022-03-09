@@ -27,6 +27,7 @@
 
 if(NOT ENABLE_EMULATOR)
     message(WARNING "Emulator not enabled. VPUX-JIT will not be built")
+    return()
 endif()
 
 set(TARGET_NAME "vpux-jit")
