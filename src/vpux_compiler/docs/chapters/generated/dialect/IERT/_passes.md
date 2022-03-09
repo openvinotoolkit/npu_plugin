@@ -66,5 +66,7 @@ It uses simple LinearScan algorithm.
 ```
 -memory-space : Memory space to perform allocation
 ```
+### `-tile-copies`: Legalizes Copy Ops which do not fit hardware capabilities
+This pass checks if Copy Op can be executed at target hardware and splits it into a few tiles if necessary.
 ### `-wrap-into-async-regions`: Wraps layer operations into asynchronous regions
 This pass wraps each IERT layer operation into async region preserving linear execution.
