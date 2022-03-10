@@ -149,12 +149,15 @@ public:
             if (allocAddr == InvalidAddress) {
                 canAllocAll = false;
                 break;
-            } else if (_handler.checkInvariantExceedingNNCMX(newRange, allocAddr, _par.totalSize())) {
-                canAllocAll = false;
-                break;
             }
             auto allocPair = std::make_pair(allocAddr, newRangeSize);
             tempAlloc.push_back(allocPair);
+            // EISW#30278 case for exceeding NNCMX invariant with CMX-Concat
+            if (_handler.checkInvariantExceedingNNCMX(newRange, allocAddr, _par.totalSize())) {
+                std::cout << "checkInvariantExceedingNNCMX()" << std::endl; // remove after CI run
+                canAllocAll = false;
+                break;
+            }
         }
         // deallocation
         for (auto curIt = tempAlloc.begin(); curIt != tempAlloc.end(); ++curIt) {

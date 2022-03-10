@@ -149,7 +149,7 @@ bool LinearScanHandler::checkInvariantExceedingNNCMX(mlir::Value val, vpux::Addr
                                                      vpux::AddressType cmxSize) const {
     // for concatenation in NNCMX with non contigious block memory write
     // prevent a scenario where tensor strides exceed NNCMX size
-    
+
     auto subView = getSubViewUserOp(val);
     if (subView == nullptr) {
         return false;
@@ -162,7 +162,14 @@ bool LinearScanHandler::checkInvariantExceedingNNCMX(mlir::Value val, vpux::Addr
 
     auto staticOffsetWithStrides = calculateStaticOffsetWithStrides(subViewStaticOffsets, subViewStrides);
 
-    return addressWithStridesExceedsNNCMX(baseOffset, staticOffsetWithStrides, subViewStrides, cmxSize);
+    auto exceeding = addressWithStridesExceedsNNCMX(baseOffset, staticOffsetWithStrides, subViewStrides, cmxSize);
+
+    if (exceeding) {
+        // set attribute to change the order of buffer allocation
+        subView->setAttr("exceedingNNCMX", mlir::BoolAttr::get(subView.getContext(), true));
+    }
+
+    return exceeding;
 }
 
 int LinearScanHandler::getSpillWeight(mlir::Value) {
