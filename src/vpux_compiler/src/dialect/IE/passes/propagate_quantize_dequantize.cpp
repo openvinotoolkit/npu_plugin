@@ -77,16 +77,6 @@ mlir::LogicalResult PropagateQuantize::matchAndRewrite(IE::ElemTypeInfoOpInterfa
         return mlir::failure();
     }
 
-    // 3. Check that tensor rank is 4, otherwise compilation fails in later passes
-    // EISW-31028
-    const auto hasNot4DRank = [&](mlir::Value operand) {
-        return operand.getType().cast<vpux::NDTypeInterface>().getRank() != QUANT_DEQUANT_RANK;
-    };
-
-    if (llvm::any_of(layer->getOperands(), hasNot4DRank)) {
-        return mlir::failure();
-    }
-
     // 4. Check that operation supports quantization params propagation.
     const auto quantizedElemType = quantizeOp.output().getType().cast<vpux::NDTypeInterface>().getElementType();
     auto elemTypeInfo = origOp.getElemTypeInfo();
@@ -164,16 +154,6 @@ mlir::LogicalResult PropagateDequantize::matchAndRewrite(IE::ElemTypeInfoOpInter
 
     auto dequantOp = layer.getInputs()[0].getDefiningOp<IE::DequantizeOp>();
     if (dequantOp == nullptr) {
-        return mlir::failure();
-    }
-
-    // Check that tensor rank is 4, otherwise compilation fails in later passes
-    // EISW-31028
-    const auto hasNot4DRank = [&](mlir::Type resultType) {
-        return resultType.cast<vpux::NDTypeInterface>().getRank() != QUANT_DEQUANT_RANK;
-    };
-
-    if (llvm::any_of(layer->getResultTypes(), hasNot4DRank)) {
         return mlir::failure();
     }
 

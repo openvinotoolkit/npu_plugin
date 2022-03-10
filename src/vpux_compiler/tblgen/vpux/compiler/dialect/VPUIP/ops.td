@@ -1379,15 +1379,15 @@ def VPUIP_EltwiseUPAOp :
     let summary = "Eltwise UPA SHAVE kernel";
 
     let arguments = (ins
-        F16MemRef:$input1,
-        F16MemRef:$input2,
-        F16MemRef:$output_buff,
+        MemRefOf<[F16, quant_QuantizedType]>:$input1,
+        MemRefOf<[F16, quant_QuantizedType]>:$input2,
+        MemRefOf<[F16, quant_QuantizedType]>:$output_buff,
 
         VPU_EltwiseType:$type
     );
 
     let results = (outs
-        F16MemRef:$output
+        MemRefOf<[F16, quant_QuantizedType]>:$output
     );
 
     let extraClassDeclaration = [{
