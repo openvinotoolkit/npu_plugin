@@ -97,17 +97,12 @@ double ConvolutionStrategy::computeSplitOverKernelEfficiency(mlir::Operation* op
     const auto OC = outputShape[Dims4D::Act::C];
     const auto OH = outputShape[Dims4D::Act::H];
     const auto OW = outputShape[Dims4D::Act::W];
-    const double outputTensorVolume = OC * OH * OW;
+    const double perClusterChannels = OC / _numClusters;
 
-    return std::max(
-            (outputTensorVolume / _numClusters) /
-                    getChannelAlignment((getChannelAlignment(OH, _numClusters) * getChannelAlignment(OW, _numClusters) *
-                                         getChannelAlignment(std::ceil(OC / _numClusters), _numChannelAlignment)),
-                                        _numDPUs),
-            (outputTensorVolume / _numClusters) /
-                    getChannelAlignment((getChannelAlignment(OH, _numChannelAlignment) * getChannelAlignment(OW, 1) *
-                                         getChannelAlignment(std::ceil(OC / _numClusters), _numChannelAlignment)),
-                                        _numDPUs));
+    return std::max((perClusterChannels * OH * OW) /
+                            calculateMPEComputation(VPU::MPEMode::MATRIX, outputShape, DimsOrder::NHWC),
+                    (perClusterChannels * OH * OW) /
+                            calculateMPEComputation(VPU::MPEMode::VECTOR, outputShape, DimsOrder::NHWC));
 }
 
 StringRef ConvolutionStrategy::getOptimalLayerStrategy(mlir::Operation* op) const {
