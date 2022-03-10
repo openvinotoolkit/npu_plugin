@@ -34,6 +34,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <type_traits>
 #include <unordered_map>
 #include <vector>
 
@@ -84,6 +85,47 @@ struct OptionParser<std::vector<T>> final {
     }
 };
 
+//
+// OptionPrinter
+//
+
+template <typename T>
+struct OptionPrinter final {
+    static std::string toString(const T& val) {
+        return printToString("{0}", val);
+    }
+};
+
+// NB: boolean config option has values YES for true, NO for false
+template <>
+struct OptionPrinter<bool> final {
+    static std::string toString(bool val) {
+        return val ? "YES" : "NO";
+    }
+};
+
+template <>
+struct OptionPrinter<LogLevel> final {
+    static std::string toString(LogLevel val) {
+        switch (val) {
+        case LogLevel::None:
+            return "LOG_NONE";
+        case LogLevel::Fatal:
+        case LogLevel::Error:
+            return "LOG_ERROR";
+        case LogLevel::Warning:
+            return "LOG_WARNING";
+        case LogLevel::Info:
+            return "LOG_INFO";
+        case LogLevel::Debug:
+            return "LOG_DEBUG";
+        case LogLevel::Trace:
+            return "LOG_TRACE";
+        default:
+            return "LOG_NONE";
+        }
+    }
+};
 //
 // OptionMode
 //
@@ -142,6 +184,10 @@ struct OptionBase {
     static bool isPublic() {
         return true;
     }
+
+    static std::string toString(const ValueType& val) {
+        return OptionPrinter<ValueType>::toString(val);
+    }
 };
 
 //
@@ -155,13 +201,16 @@ public:
     virtual ~OptionValue();
 
     virtual StringRef getTypeName() const = 0;
+    virtual std::string toString() const = 0;
 };
 
 template <typename T>
 class OptionValueImpl final : public OptionValue {
+    using ToStringFunc = std::string (*)(const T&);
+
 public:
     template <typename U>
-    OptionValueImpl(U&& val): _val(std::forward<U>(val)) {
+    OptionValueImpl(U&& val, ToStringFunc toStringImpl): _val(std::forward<U>(val)), _toStringImpl(toStringImpl) {
     }
 
     StringRef getTypeName() const final {
@@ -172,8 +221,13 @@ public:
         return _val;
     }
 
+    std::string toString() const override {
+        return _toStringImpl(_val);
+    }
+
 private:
     T _val;
+    ToStringFunc _toStringImpl = nullptr;
 };
 
 }  // namespace details
@@ -199,7 +253,7 @@ std::shared_ptr<OptionValue> validateAndParse(StringRef val) {
     try {
         auto parsedVal = Opt::parse(val);
         Opt::validateValue(parsedVal);
-        return std::make_shared<OptionValueImpl<ValueType>>(std::move(parsedVal));
+        return std::make_shared<OptionValueImpl<ValueType>>(std::move(parsedVal), &Opt::toString);
     } catch (const std::exception& e) {
         VPUX_THROW("Failed to parse '{0}' option : {1}", Opt::key(), e.what());
     }
@@ -284,6 +338,8 @@ public:
 
     template <class Opt>
     typename Opt::ValueType get() const;
+
+    std::string toString() const;
 
 private:
     std::shared_ptr<const OptionsDesc> _desc;

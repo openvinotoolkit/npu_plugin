@@ -26,6 +26,16 @@
 #include <ie_plugin_config.hpp>
 #include <openvino/runtime/properties.hpp>
 
+namespace InferenceEngine {
+
+namespace VPUXConfigParams {
+
+llvm::StringLiteral stringifyEnum(InferenceEngine::VPUXConfigParams::ProfilingOutputTypeArg val);
+
+}  // namespace VPUXConfigParams
+
+}  // namespace InferenceEngine
+
 namespace vpux {
 
 //

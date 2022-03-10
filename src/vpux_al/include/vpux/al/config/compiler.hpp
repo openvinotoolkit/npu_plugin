@@ -24,6 +24,16 @@
 
 #include <ie_plugin_config.hpp>
 
+namespace InferenceEngine {
+
+namespace VPUXConfigParams {
+
+llvm::StringLiteral stringifyEnum(InferenceEngine::VPUXConfigParams::CompilerType val);
+
+}  // namespace VPUXConfigParams
+
+}  // namespace InferenceEngine
+
 namespace vpux {
 
 //
@@ -35,8 +45,6 @@ void registerCompilerOptions(OptionsDesc& desc);
 //
 // COMPILER_TYPE
 //
-
-StringLiteral stringifyEnum(InferenceEngine::VPUXConfigParams::CompilerType val);
 
 struct COMPILER_TYPE final : OptionBase<COMPILER_TYPE, InferenceEngine::VPUXConfigParams::CompilerType> {
     static StringRef key() {

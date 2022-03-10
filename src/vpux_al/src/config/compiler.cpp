@@ -32,7 +32,7 @@ void vpux::registerCompilerOptions(OptionsDesc& desc) {
 // COMPILER_TYPE
 //
 
-StringLiteral vpux::stringifyEnum(InferenceEngine::VPUXConfigParams::CompilerType val) {
+StringLiteral InferenceEngine::VPUXConfigParams::stringifyEnum(InferenceEngine::VPUXConfigParams::CompilerType val) {
     switch (val) {
     case InferenceEngine::VPUXConfigParams::CompilerType::MCM:
         return "MCM";

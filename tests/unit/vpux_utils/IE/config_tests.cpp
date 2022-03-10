@@ -13,6 +13,8 @@
 
 #include "vpux/utils/IE/config.hpp"
 
+#include "vpux/al/config/common.hpp"
+
 #include <gtest/gtest.h>
 
 using namespace vpux;
@@ -123,4 +125,83 @@ TEST_F(MLIR_ConfigTests, Deprecated) {
 
 TEST_F(MLIR_ConfigTests, Unsupported) {
     EXPECT_ANY_THROW(conf.update({{"UNSUPPORTED_OPT", "1"}}));
+}
+
+class MLIR_ConfigSerializationTests : public testing::Test {
+public:
+    std::shared_ptr<OptionsDesc> options;
+    Config conf;
+
+    MLIR_ConfigSerializationTests(): options(std::make_shared<OptionsDesc>()), conf(options) {
+    }
+};
+
+TEST_F(MLIR_ConfigSerializationTests, CanDumpConfigToString) {
+    struct StringOption final : OptionBase<StringOption, std::string> {
+        static StringRef key() {
+            return "STRING_OPT";
+        }
+
+        static std::string defaultValue() {
+            return "VALUE";
+        }
+    };
+
+    options->add<SimpleOption>();
+    options->add<PrivateOption>();
+    options->add<StringOption>();
+
+    conf.update({ {"PRIVATE_OPT", "5"}, {"PUBLIC_OPT", "NO"}, {"STRING_OPT", "AAA"} });
+    std::string expected1 = "STRING_OPT=\"AAA\"";
+    std::string expected2 = "PUBLIC_OPT=\"NO\"";
+    std::string expected3 = "PRIVATE_OPT=\"5\"";
+
+    EXPECT_TRUE(conf.toString().find(expected1) != std::string::npos);
+    EXPECT_TRUE(conf.toString().find(expected2) != std::string::npos);
+    EXPECT_TRUE(conf.toString().find(expected3) != std::string::npos);
+}
+
+TEST_F(MLIR_ConfigSerializationTests, CanDumpConfigWithDoubleToString) {
+    struct DoubleOption final : OptionBase<DoubleOption, double> {
+        static StringRef key() {
+            return "DOUBLE_OPT";
+        }
+
+        static char defaultValue() {
+            return 0.0;
+        }
+    };
+    options->add<DoubleOption>();
+
+    conf.update({ {"DOUBLE_OPT", "1.0"} });
+    std::string expected = "DOUBLE_OPT=\"1.00\"";
+
+    EXPECT_EQ(expected, conf.toString());
+}
+
+TEST_F(MLIR_ConfigSerializationTests, CanDumpConfigWithSpacesToString) {
+    struct StringWithSpacesOption final : OptionBase<StringWithSpacesOption, std::string> {
+        static StringRef key() {
+            return "STRING_WITH_SPACES_OPT";
+        }
+
+        static std::string defaultValue() {
+            return "MY DEFAULT VALUE WITH SPACES";
+        }
+    };
+    options->add<StringWithSpacesOption>();
+
+    conf.update({ {"STRING_WITH_SPACES_OPT", "MY VALUE WITH SPACES"} });
+    std::string expected = "STRING_WITH_SPACES_OPT=\"MY VALUE WITH SPACES\"";
+
+    EXPECT_EQ(expected, conf.toString());
+}
+
+TEST_F(MLIR_ConfigSerializationTests, CanDumpLogLevel) {
+    options->add<LOG_LEVEL>();
+
+    conf.update({ {"LOG_LEVEL", "LOG_TRACE"} });
+    std::string expected = "LOG_LEVEL=\"LOG_TRACE\"";
+
+    EXPECT_EQ(expected, conf.toString());
 }

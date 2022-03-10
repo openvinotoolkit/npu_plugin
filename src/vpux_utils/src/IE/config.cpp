@@ -186,3 +186,17 @@ bool vpux::envVarStrToBool(const char* varName, const char* varValue) {
         IE_THROW() << "Environment variable " << varName << " has wrong value : " << e.what();
     }
 }
+
+std::string vpux::Config::toString() const {
+    std::stringstream resultStream;
+    for (auto it = _impl.cbegin(); it != _impl.cend(); ++it) {
+        const auto key = it->first.str();
+
+        resultStream << key << "=\"" << it->second->toString() << "\"";
+        if (std::next(it) != _impl.end()) {
+            resultStream << " ";
+        }
+    }
+
+    return resultStream.str();
+}
