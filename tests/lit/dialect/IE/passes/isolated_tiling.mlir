@@ -416,9 +416,7 @@ func @InterpSplitOverH(
 
 // CHECK:       return [[OUTPUT]] : tensor<1x32x512x512xf16>
 // -----
-<<<<<<< HEAD
 
-<<<<<<< HEAD
 !qElemType0 = type !quant.uniform<u8:f16:2, {0.1:127, 0.2:127, 0.3:127, 0.4:127, 0.5:127, 0.6:127, 0.7:127, 0.8:127}>
 !qElemType1 = type !quant.uniform<u8:f16:2, {0.1:127, 0.2:127, 0.3:127, 0.4:127}>
 !qElemType2 = type !quant.uniform<u8:f16:2, {0.5:127, 0.6:127, 0.7:127, 0.8:127}>
@@ -542,7 +540,4 @@ func @AvoidClusterTiling(%arg0: tensor<1x32x100x100xf16, {mem_space = @CMX_NN, o
 // CHECK:           VPU.Yield [[NCE_CONV]]
 
 // CHECK:         return [[CLUSTER_TILING]] : tensor<1x128x100x100xf16, {mem_space = @CMX_NN, order = #NHWC}>
-=======
->>>>>>> cb1df7cf48 (trivial implementation of tilingbuilder interface)
-=======
->>>>>>> d08270ec9d (clean-up)
+

@@ -378,3 +378,15 @@ bool vpux::IE::InterpolateOp::isSupportedTiling(const vpux::OutputTiling& tiles,
 
     return true;
 }
+
+bool vpux::IE::InterpolateOp::isSupportedPrefetchTiling(ShapeRef /*tileAxis*/, Logger /*log*/) {
+    // The DPU time of eltwise operations are too short to worth prefetching.
+    return false;
+}
+
+bool vpux::IE::InterpolateOp::isSupportedPrefetchPattern(ShapeRef /*tileAxis*/, mlir::Operation* /*parentOp*/,
+                                                         ShapeRef /*parentTileAxis*/, vpux::Logger /*log*/) {
+    // Avoid tiling for eltwise operations
+    // the DPU time is too short compared to the DMA time.
+    return true;
+}
