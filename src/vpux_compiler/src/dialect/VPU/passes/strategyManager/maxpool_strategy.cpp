@@ -30,3 +30,46 @@ bool MaxPoolStrategy::doesLayerFitIntoCMX(mlir::Operation* op, StringRef strateg
             createDistributedTensorType(origOp, origOp.output(), outputTensorDistributionMode, outputTensorNumTiles);
     return origOp.fitIntoCMX(distributedActivationTensorType, distributedOutputTensorType);
 }
+
+// Each DPU should compute at least one output line. Therefore in order for a layer to be SOH
+// compitable it must have an output height of at least the number of DPUs x the number of clusters
+// specified for compilation.
+// For example for 4 cluster compilation with 5 DPUs per cluster the output height must be a
+// minimum of 5x4=20.
+bool MaxPoolStrategy::isOperationSplitOverHeightCompatible(mlir::Operation* op) const {
+    const auto outputShape = getShape(op->getResult(0));
+    const auto OH = outputShape[Dims4D::Act::H];
+
+    if (OH < _minimumOutputHeightForSOH) {
+        return false;
+    }
+
+    auto maxPoolOp = mlir::dyn_cast<VPU::NCEMaxPoolOp>(op);
+    VPUX_THROW_UNLESS(maxPoolOp != nullptr, "Provided operation is not a NCEMaxPoolOp");
+    const auto kernelSize = parseIntArrayAttr<int64_t>(maxPoolOp.kernel_size());
+    const auto KY = kernelSize[0];
+
+    if (KY == 1) {
+        return true;
+    }
+
+    int64_t multOf8 = 1;
+    constexpr int64_t alignment = 8;
+
+    while (true) {
+        auto x = OH - (_numClusters - 1) * alignment * multOf8;
+
+        if (x <= 0) {
+            return false;
+        }
+
+        if (alignment * multOf8 > x) {
+            return true;
+        }
+
+        multOf8++;
+    }
+
+    return false;
+    // return OH >= _minimumOutputHeightForSOH;
+}

@@ -68,6 +68,7 @@ public:
     }
 
     bool doesLayerFitIntoCMX(mlir::Operation* op, StringRef strategy) const override final;
+    bool isOperationSplitOverHeightCompatible(mlir::Operation* op) const override final;
 };
 
 //
@@ -90,6 +91,7 @@ public:
     }
 
     bool doesLayerFitIntoCMX(mlir::Operation* op, StringRef strategy) const override final;
+    bool isOperationSplitOverHeightCompatible(mlir::Operation* op) const override final;
 };
 
 //
@@ -101,6 +103,7 @@ public:
     }
 
     bool doesLayerFitIntoCMX(mlir::Operation* op, StringRef strategy) const override final;
+    bool isOperationSplitOverHeightCompatible(mlir::Operation* op) const override final;
 };
 
 //

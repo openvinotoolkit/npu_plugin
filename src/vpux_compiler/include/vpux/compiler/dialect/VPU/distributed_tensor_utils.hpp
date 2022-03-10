@@ -98,8 +98,9 @@ DistributedTensorType createDistributedTensorType(ConcreteOp origOp, mlir::Value
     const auto numClusters = getIntAttr(origOp.getContext(), nceOp.count());
     const auto activationTensorDistributionModeAttr = DistributionModeAttr::get(origOp.getContext(), distributionMode);
 
+    auto kernel = getKernelSize(origOp);
     if (distributionMode == DistributionMode::OVERLAPPED) {
-        auto kernel = getKernelSize(origOp);
+        // auto kernel = getKernelSize(origOp);
         auto stride = getStride(origOp);
         auto pad = getPad(origOp);
 
@@ -119,8 +120,12 @@ DistributedTensorType createDistributedTensorType(ConcreteOp origOp, mlir::Value
         // }
         // const auto alignmentAttr = getIntArrayAttr(alignment);
         const auto numTilesArray = parseIntArrayAttr<int64_t>(numTiles);
-        if (numTilesArray[2] > 1) {
-            alignment[2] = 8;
+        if (numTilesArray[2] > 1 && kernel) {
+            const auto kernelArray = parseIntArrayAttr<int64_t>(kernel);
+            const auto KY = kernelArray[0];
+            if (KY > 1) {
+                alignment[2] = 8;
+            }
         }
         const auto alignmentAttr = getIntArrayAttr(origOp.getContext(), alignment);
 

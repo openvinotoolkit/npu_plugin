@@ -32,3 +32,10 @@ bool EltwiseStrategy::doesLayerFitIntoCMX(mlir::Operation* op, StringRef strateg
             createDistributedTensorType(origOp, origOp.output(), outputTensorDistributionMode, outputTensorNumTiles);
     return origOp.fitIntoCMX(distributedInput1TensorType, distributedInput2TensorType, distributedOutputTensorType);
 }
+
+bool EltwiseStrategy::isOperationSplitOverHeightCompatible(mlir::Operation* op) const {
+    const auto outputShape = getShape(op->getResult(0));
+    const auto OH = outputShape[Dims4D::Act::H];
+
+    return OH >= _minimumOutputHeightForSOH;
+}
