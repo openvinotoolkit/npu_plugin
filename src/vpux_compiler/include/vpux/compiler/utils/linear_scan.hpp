@@ -154,7 +154,6 @@ public:
             tempAlloc.push_back(allocPair);
             // EISW#30278 case for exceeding NNCMX invariant with CMX-Concat
             if (_handler.checkInvariantExceedingNNCMX(newRange, allocAddr, _par.totalSize())) {
-                std::cout << "checkInvariantExceedingNNCMX()" << std::endl; // remove after CI run
                 canAllocAll = false;
                 break;
             }

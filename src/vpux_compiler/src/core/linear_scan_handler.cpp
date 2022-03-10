@@ -132,12 +132,13 @@ vpux::AddressType LinearScanHandler::calculateStaticOffsetWithStrides(ArrayRef<v
 }
 
 bool LinearScanHandler::addressWithStridesExceedsNNCMX(vpux::AddressType baseOffset,
+                                                       ArrayRef<vpux::AddressType> subViewStaticOffsets,
                                                        vpux::AddressType staticOffsetWithStrides,
                                                        StridesRef subViewStrides, vpux::AddressType cmxSize) const {
     Byte cmxLeft(cmxSize - (baseOffset + staticOffsetWithStrides));
 
-    for (auto stride : subViewStrides) {
-        if (Byte(stride) > cmxLeft) {
+    for (auto p : zip(subViewStaticOffsets, subViewStrides)) {
+        if (Byte(std::get<0>(p) * std::get<1>(p)) > cmxLeft) {
             return true;
         }
     }
@@ -162,7 +163,8 @@ bool LinearScanHandler::checkInvariantExceedingNNCMX(mlir::Value val, vpux::Addr
 
     auto staticOffsetWithStrides = calculateStaticOffsetWithStrides(subViewStaticOffsets, subViewStrides);
 
-    auto exceeding = addressWithStridesExceedsNNCMX(baseOffset, staticOffsetWithStrides, subViewStrides, cmxSize);
+    auto exceeding = addressWithStridesExceedsNNCMX(baseOffset, subViewStaticOffsets, staticOffsetWithStrides,
+                                                    subViewStrides, cmxSize);
 
     if (exceeding) {
         // set attribute to change the order of buffer allocation
