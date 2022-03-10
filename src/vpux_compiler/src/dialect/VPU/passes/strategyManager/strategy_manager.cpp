@@ -97,15 +97,10 @@ double BaseLayerStrategy::calculateMPEComputation(VPU::MPEMode mpeMode, ShapeRef
 // hardwarefor each MPE Mode 4x4x16 and 16x1x16 is computed and the maximum is selected.
 // A hardware efficiency constant is multiplied by the result for channel-major convolutions.
 double BaseLayerStrategy::computeSplitOverHeightEfficiency(mlir::Operation* op, double efficiencyConstant) const {
-    auto origOp = mlir::cast<NCEConvolutionOp>(op);
-    const auto outputShape = getShape(origOp.output());
+    const auto outputShape = getShape(op->getResult(0));
     const auto OC = outputShape[Dims4D::Act::C];
     const auto OH = outputShape[Dims4D::Act::H];
     const auto OW = outputShape[Dims4D::Act::W];
-    const auto filterShape = Shape(parseIntArrayAttr<int64_t>(origOp.rawFilterShapeAttr()));
-    const auto strides = parseIntArrayAttr<int64_t>(origOp.strides());
-    const auto KY = filterShape[Dims4D::Filter::KY];
-    const double outputTensorVolume = OC * OH * OW;
     const double perClusteroutputTensorVolume = (OH / _numClusters) * OW * OC;
 
     // if (DimsOrder::fromValue(origOp.input()) == DimsOrder::NCHW) {
@@ -128,8 +123,7 @@ double BaseLayerStrategy::computeSplitOverHeightEfficiency(mlir::Operation* op, 
 }
 
 double BaseLayerStrategy::computeSplitOverKernelEfficiency(mlir::Operation* op, double efficiencyConstant) const {
-    auto origOp = mlir::cast<NCEConvolutionOp>(op);
-    const auto outputShape = getShape(origOp.output());
+    const auto outputShape = getShape(op->getResult(0));
     const auto OC = outputShape[Dims4D::Act::C];
     const auto OH = outputShape[Dims4D::Act::H];
     const auto OW = outputShape[Dims4D::Act::W];
