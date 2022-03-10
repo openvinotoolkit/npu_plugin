@@ -174,11 +174,14 @@ def StaticAllocation : PassBase<"static-allocation", "vpux::ModulePass"> {
 //
 
 def PatchWeightsTable : PassBase<"patch-weight-table", "vpux::FunctionPass"> {
-    let summary = "Adjusts weights and sparsity pointers after memory scheduling";
+    let summary = "Adjusts weights and sparsity pointers after memory scheduling and unroll cluster tiling pass";
 
     let description = [{
         This pass adds RelocateWeightsTable transformation to weights table constants. The transformation adds weights and sparsity base pointers
 	to offset that are already filled in the weights table constants.
+        This pass is used twice. The pass is first called after memory scheduling to compute the pointer offsets. But for the case of a "SEGMENTED"
+    layer (i.e. Split over Kernel) the weight table would contain incorrect offsets. The pass is called again after the NCEClusterTiling operations
+    have been unrolled. At this point the correct offsets can be computed for this mode.
     }];
 
     let constructor = "vpux::IERT::createPatchWeightsTablePass()";

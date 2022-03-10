@@ -64,7 +64,11 @@ void PatchWeightsTablePass::safeRunOnFunc() {
 
         // Get operation that loads weights table to CMX for NCE Task
         auto* cstLoadOp = getLoadOpForDstBuffer(wtDecBuf.getResult());
-        VPUX_THROW_UNLESS(cstLoadOp != nullptr, "Operation loading weight table expected, but not located");
+        if (cstLoadOp == nullptr) {
+            _log.trace(
+                    "Operation loading weight table not found. This operation could have a DUPLICATED weight table.");
+            return;
+        }
 
         // Get the constant definition op whose content will be patched
         inputBuffer = cstLoadOp->getOperand(0);

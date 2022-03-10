@@ -38,9 +38,12 @@ This pass checks if Copy Op can be optimized out to reduce the amount of unneces
 ### `-optimize-parallel-copies`: Copy the data only once for all the tiles that share the same data
 This pass checks all the CopyOps consumed by tiles of one tiling subgraph.
 If the CopyOps operate on the same weight or activation, merge the parallel copies into one.
-### `-patch-weight-table`: Adjusts weights and sparsity pointers after memory scheduling
+### `-patch-weight-table`: Adjusts weights and sparsity pointers after memory scheduling and unroll cluster tiling pass
 This pass adds RelocateWeightsTable transformation to weights table constants. The transformation adds weights and sparsity base pointers
 et that are already filled in the weights table constants.
+This pass is used twice. The pass is first called after memory scheduling to compute the pointer offsets. But for the case of a "SEGMENTED"
+r (i.e. Split over Kernel) the weight table would contain incorrect offsets. The pass is called again after the NCEClusterTiling operations
+ been unrolled. At this point the correct offsets can be computed for this mode.
 ### `-set-internal-memory-space`: Set specific memory space for all internal memory buffers
 This pass updates all Types for internal memory buffers and sets the specified memory space for them.
 
