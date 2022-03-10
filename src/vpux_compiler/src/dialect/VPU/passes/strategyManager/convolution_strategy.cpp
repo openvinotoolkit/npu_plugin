@@ -74,9 +74,9 @@ double ConvolutionStrategy::computeSplitOverHeightEfficiency(mlir::Operation* op
         const auto KY = filterShape[Dims4D::Filter::KY];
         const auto efficiencyConstant = getChannelMajorEfficiencyConstant(KY, strides[0]);
         return efficiencyConstant *
-               std::max(outputTensorVolume /
-                                (getChannelAlignment(OH, _numChannelAlignment) * getChannelAlignment(OH, _numDPUs) *
-                                 getChannelAlignment(OC, _numChannelAlignment)),
+               std::max(outputTensorVolume / (getChannelAlignment(OH, _numChannelAlignment) *
+                                              getChannelAlignment(OW, _numDPUs * _numClusters) *
+                                              getChannelAlignment(OC, _numChannelAlignment)),
                         outputTensorVolume /
                                 (getChannelAlignment(OH, _numChannelAlignment * _numClusters) *
                                  getChannelAlignment(OW, _numDPUs) * getChannelAlignment(OC, _numChannelAlignment)));
