@@ -150,17 +150,6 @@ size_t getSizeIOBytes(const ze_graph_argument_properties_t& argument) {
 }
 
 template <typename Map>
-auto mapArguments(Map& zero, const std::string& key) -> typename Map::mapped_type& {
-    for (auto& p : zero) {
-        if (std::string::npos != p.first.find(key)) {
-            return p.second;
-        }
-    }
-
-    IE_THROW() << "mapArguments: fail to map";
-}
-
-template <typename Map>
 auto mapArguments(Map& zero, const std::string& key, const std::size_t pos) -> typename Map::mapped_type& {
     for (auto& p : zero) {
         if (std::string::npos != p.first.find(key)) {
@@ -184,39 +173,6 @@ size_t getNumDims(const T& dims) {
     return std::count_if(std::begin(dims), std::end(dims), [](const size_t& dim) -> bool {
         return (dim > 1);
     });
-}
-
-bool isRepackingRequired(const IE::TensorDesc& userTensorDesc, const IE::TensorDesc& deviceTensorDesc) {
-    const auto userPrecision = userTensorDesc.getPrecision();
-    const auto devicePrecision = deviceTensorDesc.getPrecision();
-    if (userPrecision == devicePrecision) {
-        const auto userLayout = userTensorDesc.getLayout();
-        const auto deviceLayout = deviceTensorDesc.getLayout();
-        // Equal layouts - no repacking
-        if (userLayout == deviceLayout) {
-            return false;
-        }
-
-        const auto userNumDims = getNumDims(userTensorDesc.getDims());
-        const auto deviceNumDims = getNumDims(deviceTensorDesc.getDims());
-        // Different 3D/4D/5D layouts - repacking required
-        if (userNumDims == deviceNumDims) {
-            return (userNumDims > 2);
-        }
-        const auto minNumDims = std::min(userNumDims, deviceNumDims);
-        // Any 1D/2D layouts - no repacking
-        if (minNumDims <= 2) {
-            return false;
-        }
-        std::pair<IE::Layout, IE::Layout> layouts{userLayout, deviceLayout};
-        if (userNumDims < deviceNumDims) {
-            std::swap(layouts.first, layouts.second);
-        }
-        // Some 4D/3D layouts cases - no repacking
-        return !((layouts.first == IE::Layout::NCHW && layouts.second == IE::Layout::CHW) ||
-                 (layouts.first == IE::Layout::NHWC && layouts.second == IE::Layout::HWC));
-    }
-    return true;
 }
 
 bool isRepackingPossible(const IE::TensorDesc& userTensorDesc, const IE::TensorDesc& deviceTensorDesc) {
@@ -374,6 +330,41 @@ void getOutputAfterInference(IE::Blob::Ptr& userOutput, const IE::TensorDesc& de
 }
 
 }  // namespace
+
+namespace vpux {
+bool isRepackingRequired(const IE::TensorDesc& userTensorDesc, const IE::TensorDesc& deviceTensorDesc) {
+    const auto userPrecision = userTensorDesc.getPrecision();
+    const auto devicePrecision = deviceTensorDesc.getPrecision();
+    if (userPrecision == devicePrecision) {
+        const auto userLayout = userTensorDesc.getLayout();
+        const auto deviceLayout = deviceTensorDesc.getLayout();
+        // Equal layouts - no repacking
+        if (userLayout == deviceLayout) {
+            return false;
+        }
+
+        const auto userNumDims = getNumDims(userTensorDesc.getDims());
+        const auto deviceNumDims = getNumDims(deviceTensorDesc.getDims());
+        // Different 3D/4D/5D layouts - repacking required
+        if (userNumDims == deviceNumDims) {
+            return (userNumDims > 2);
+        }
+        const auto minNumDims = std::min(userNumDims, deviceNumDims);
+        // Any 1D/2D layouts - no repacking
+        if (minNumDims <= 2) {
+            return false;
+        }
+        std::pair<IE::Layout, IE::Layout> layouts{userLayout, deviceLayout};
+        if (userNumDims < deviceNumDims) {
+            std::swap(layouts.first, layouts.second);
+        }
+        // Some 4D/3D layouts cases - no repacking
+        return !((layouts.first == IE::Layout::NCHW && layouts.second == IE::Layout::CHW) ||
+                 (layouts.first == IE::Layout::NHWC && layouts.second == IE::Layout::HWC));
+    }
+    return true;
+}
+}  // namespace vpux
 
 ZeroExecutor::ZeroExecutor(ze_driver_handle_t driver_handle, ze_device_handle_t device_handle,
                            ze_context_handle_t context, ze_graph_dditable_ext_t* graph_ddi_table_ext,
@@ -646,9 +637,7 @@ void ZeroExecutor::push(const IE::BlobMap& inputs) {
         }
 
         auto& hostMem = mapArguments(_pipeline->_inputs_host_mem_map, name);
-        if (!isRepackingRequired(input->getTensorDesc(), deviceInput->getTensorDesc())) {
-            hostMem.copyFrom(input);
-        } else {
+        if (isRepackingRequired(input->getTensorDesc(), deviceInput->getTensorDesc())) {
             if (!isRepackingPossible(input->getTensorDesc(), deviceInput->getTensorDesc())) {
                 IE_THROW() << "Push blobs: repacking is not possible";
             }
@@ -704,9 +693,7 @@ void ZeroExecutor::pull(IE::BlobMap& outputs) {
         }
 
         const auto& hostMem = mapArguments(_pipeline->_outputs_host_mem_map, name);
-        if (!isRepackingRequired(output->getTensorDesc(), deviceOutput->getTensorDesc())) {
-            hostMem.copyTo(output);
-        } else {
+        if (isRepackingRequired(output->getTensorDesc(), deviceOutput->getTensorDesc())) {
             if (!isRepackingPossible(output->getTensorDesc(), deviceOutput->getTensorDesc())) {
                 IE_THROW() << "Pull blobs: repacking is not possible";
             }

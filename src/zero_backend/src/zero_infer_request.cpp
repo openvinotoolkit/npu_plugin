@@ -45,11 +45,19 @@ static void checkNetworkPrecision(const IE::Precision& precision) {
     }
 }
 
-static IE::Blob::Ptr allocateLocalBlob(const IE::TensorDesc& tensorDesc, void* ptr) {
+static IE::Blob::Ptr allocateLocalBlob(const IE::TensorDesc& tensorDesc, void* dataPtr) {
     checkNetworkPrecision(tensorDesc.getPrecision());
 
-    IE::Blob::Ptr blob = make_blob_with_precision(tensorDesc, ptr);
-    if (blob == nullptr) {
+    IE::Blob::Ptr blob;
+    if (dataPtr) {
+        blob = make_blob_with_precision(tensorDesc, dataPtr);
+    } else {
+        blob = make_blob_with_precision(tensorDesc);
+        if (blob) {
+            blob->allocate();
+        }
+    }
+    if (nullptr == blob) {
         IE_THROW() << "Can't make blob.";
     }
     return blob;
@@ -74,20 +82,32 @@ ZeroInferRequest::ZeroInferRequest(const IE::InputsDataMap& networkInputs, const
 
     // we assume that _executorPtr contains ZeroExecutor ptr only
     auto& pipeline = static_cast<ZeroExecutor*>(_executorPtr.get())->getPipeline();
+    const auto& deviceInputs = static_cast<ZeroExecutor*>(_executorPtr.get())->getNetworkDesc().getDeviceInputsInfo();
 
     for (const auto& networkInput : _networkInputs) {
         const std::string inputName = networkInput.first;
         const IE::TensorDesc inputTensorDesc = networkInput.second->getTensorDesc();
 
-        _inputs[inputName] = allocateLocalBlob(inputTensorDesc, pipeline._inputs_host_mem_map.at(inputName).data());
+        if (isRepackingRequired(inputTensorDesc, mapArguments(deviceInputs, inputName)->getTensorDesc())) {
+            _inputs[inputName] = allocateLocalBlob(inputTensorDesc, nullptr);
+        } else {
+            _inputs[inputName] =
+                    allocateLocalBlob(inputTensorDesc, mapArguments(pipeline._inputs_host_mem_map, inputName).data());
+        }
     }
 
+    const auto& deviceeOutputs =
+            static_cast<ZeroExecutor*>(_executorPtr.get())->getNetworkDesc().getDeviceOutputsInfo();
     for (const auto& networkOutput : _networkOutputs) {
         const std::string outputName = networkOutput.first;
         const IE::TensorDesc outputTensorDesc = networkOutput.second->getTensorDesc();
 
-        _outputs[outputName] =
-                allocateLocalBlob(outputTensorDesc, pipeline._outputs_host_mem_map.at(outputName).data());
+        if (isRepackingRequired(outputTensorDesc, mapArguments(deviceeOutputs, outputName)->getTensorDesc())) {
+            _outputs[outputName] = allocateLocalBlob(outputTensorDesc, nullptr);
+        } else {
+            _outputs[outputName] = allocateLocalBlob(outputTensorDesc,
+                                                     mapArguments(pipeline._outputs_host_mem_map, outputName).data());
+        }
     }
 }
 

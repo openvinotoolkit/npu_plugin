@@ -70,6 +70,10 @@ public:
         return *_pipeline.get();
     }
 
+    NetworkDescription& getNetworkDesc() {
+        return *_networkDesc.get();
+    }
+
     ~ZeroExecutor() = default;
 
 protected:
@@ -307,5 +311,30 @@ private:
 
     std::unique_ptr<Pipeline> _pipeline;
 };
+
+bool isRepackingRequired(const InferenceEngine::TensorDesc& userTensorDesc,
+                         const InferenceEngine::TensorDesc& deviceTensorDesc);
+
+template <typename Map>
+auto mapArguments(Map& zero, const std::string& key) -> typename Map::mapped_type& {
+    for (auto& p : zero) {
+        if (std::string::npos != p.first.find(key)) {
+            return p.second;
+        }
+    }
+
+    IE_THROW() << "mapArguments: fail to map";
+}
+
+template <typename Map>
+auto mapArguments(const Map& zero, const std::string& key) -> typename const Map::mapped_type& {
+    for (auto& p : zero) {
+        if (std::string::npos != p.first.find(key)) {
+            return p.second;
+        }
+    }
+
+    IE_THROW() << "mapArguments: fail to map";
+}
 
 }  // namespace vpux
