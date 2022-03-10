@@ -26,7 +26,7 @@ __attribute__((aligned(1024)))
 
 namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Gather)) {
     static constexpr std::initializer_list<SingleTest> gather_test_list {
-        {{4, 3, 2}, {4, 3, 2}, orderZYX, FPE("gather.elf"), {sw_params::Location::NN_CMX}}
+        {{4, 3, 2}, {4, 3, 2}, orderCHW, FPE("gather.elf"), {sw_params::Location::NN_CMX}}
     };
 
     class CustomCppGatherTest : public CustomCppTests<fp16> {
@@ -52,29 +52,29 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Gather)) {
             initElfBuffer();
             initTestCase();
             const Dimensions& dimIn = m_currentTest->inDim;
-            const Dimensions& dimOut = m_currentTest->outDim;
+            //const Dimensions& dimOut = m_currentTest->outDim;
             const StorageOrder& storageOrder = m_currentTest->storageOrder;
 
             const TensorDims dims3Input(dimIn.width,   dimIn.height,  dimIn.channels,  1);
             const TensorDims dims3Indices(2, 3, 1, 1);
             const TensorDims dims3Axis(1, 1, 1, 1);
-            const TensorDims dims3Output(dimOut.width, dimOut.height, dimOut.channels, 1);
+            const TensorDims dims3Output(4, 2, 3, 2);
 
             m_inputTensor.init(storageOrder, dims3Input);
-            m_indicesTensor.init(storageOrder, dims3Indices);
+            m_indicesTensor.init(0x21, dims3Indices); // orderHW Unsupported?
             m_axisTensor.init(storageOrder, dims3Axis);
-            m_outputTensor.init(storageOrder, dims3Output);
-            m_referenceOutputTensor.init(storageOrder, dims3Output);
+            m_outputValueTensor.init(orderNCHW, dims3Output);
+            m_referenceOutputTensor.init(orderNCHW, dims3Output);
 
             allocBuffer(m_inputTensor);
             allocBuffer(m_indicesTensor);
             allocBuffer(m_axisTensor);
-            allocBuffer(m_outputTensor);
+            allocBuffer(m_outputValueTensor);
             allocBuffer(m_referenceOutputTensor);
 
             // TODO: Check window in kernel
-            m_windowfp16.init(storageOrder, dims3Input);
-            m_windowint32.init(storageOrder, dims3Input);
+            m_windowfp16.init(storageOrder, TensorDims(50, 1, 1, 1));
+            m_windowint32.init(storageOrder, TensorDims(50, 1, 1, 1));
             allocBuffer(m_windowfp16);
             allocBuffer(m_windowint32);
 
@@ -123,7 +123,7 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Gather)) {
             customCppOp->addInputBuffer(axisBuff, m_requiredTensorLocation);
 
             OpTensor outputBuff;
-            m_outputTensor.exportToBuffer(outputBuff);
+            m_outputValueTensor.exportToBuffer(outputBuff);
             customCppOp->addOutputBuffer(outputBuff, m_requiredTensorLocation);
 
             // TODO: Check window in kernel
@@ -175,7 +175,7 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Gather)) {
             }
 
             int32_t int32Val;
-            for (int i = 0; i < 24; i++) {
+            for (int i = 0; i < 50; i++) {
                 int32Val = m_windowint32.at(MemoryDims(i, 0, 0, 0, 0, 0, 0, 0));
                 printf("int32 window: %ld\n", int32Val);
             }
@@ -188,6 +188,8 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Gather)) {
 
         Tensor<int32_t> m_indicesTensor;
         Tensor<int32_t> m_axisTensor;
+        // Tensor params will align with m_input if output is not redefined.
+        Tensor<half> m_outputValueTensor;
 
         // TODO: Check window in kernel
         Tensor<fp16> m_windowfp16;
