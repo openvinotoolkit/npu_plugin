@@ -471,6 +471,41 @@ void Convert2VPUIPRegMappedAndELFPass::safeRunOnModule() {
                                                             vpux::ELF::SectionTypeAttr::SHT_PROGBITS,
                                                             vpux::ELF::SectionFlagsAttr::SHF_EXECINSTR);
 
+    // We use this constructor: OpBuilder(Operation *op, Listener *listener=nullptr)
+    mlir::OpBuilder builderFunc(&(funcOp.getBody().front().back()));
+    // mlir::Block& blkFunc = (funcOp.getCallableRegion())->front();
+    // mlir::OpBuilder builderFunc(&(blkFunc.back()));
+    // mlir::Operation* endOp = blkFunc.getTerminator();
+    //
+    int barrierCount = 0;
+    for (auto op : funcOp.getOps<VPUIPRegMapped::ConfigureBarrierOp>()) {
+        VPUX_UNUSED(op);
+        barrierCount++;
+    }
+    //
+    mlir::Value dmaList;
+    mlir::Value invariantList;
+    mlir::Value variantList;
+    mlir::Value actInvocations;
+    mlir::Value barrierList;
+    //
+    VPUIPRegMapped::MappedInferenceOp mappedInferenceOp =
+            builderFunc.create<VPUIPRegMapped::MappedInferenceOp>(mlir::UnknownLoc::get(ctx),
+                                                                  dmaList,         // mlir::Value dmaList
+                                                                  invariantList,   // mlir::Value invariantList
+                                                                  variantList,     // mlir::Value variantList
+                                                                  actInvocations,  // mlir::Value actInvocations
+                                                                  barrierList,     // mlir::Value barrierList
+                                                                  numNndmaOps,     // uint32_t dmaCount
+                                                                  0,               // uint32_t invariantCount
+                                                                  0,               // uint32_t variantCount
+                                                                  0,               // uint32_t actInvocationsCount
+                                                                  barrierCount     // uint32_t barrierCount
+            );
+    VPUX_UNUSED(mappedInferenceOp);
+    _log.fatal("Convert2VPUIPRegMappedAndELFPass::safeRunOnFunc(): numNndmaOps = {0}", numNndmaOps);
+    _log.fatal("Convert2VPUIPRegMappedAndELFPass::safeRunOnFunc(): barrierCount = {0}", barrierCount);
+
     // Now, for each NNDMAOp input and output we want to perform relocation
     createRelocationSection(funcOp, ctx, nndmaSectionOpValue);
 
