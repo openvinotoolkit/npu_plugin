@@ -52,8 +52,9 @@ private:
     IERT::SubViewOp getSubViewUserOp(mlir::Value val) const;
     vpux::AddressType calculateStaticOffsetWithStrides(ArrayRef<vpux::AddressType> subViewStaticOffsets,
                                                        StridesRef subViewStrides) const;
-    bool addressWithStridesExceedsNNCMX(vpux::AddressType baseOffset, vpux::AddressType staticOffsetWithStrides,
-                                        StridesRef subViewStrides, vpux::AddressType cmxSize) const;
+    bool addressWithStridesExceedsNNCMX(vpux::AddressType baseOffset, ArrayRef<vpux::AddressType> subViewStaticOffsets,
+                                        vpux::AddressType staticOffsetWithStrides, StridesRef subViewStrides,
+                                        vpux::AddressType cmxSize) const;
 
 private:
     mlir::DenseMap<mlir::Value, AddressType> _valOffsets;
