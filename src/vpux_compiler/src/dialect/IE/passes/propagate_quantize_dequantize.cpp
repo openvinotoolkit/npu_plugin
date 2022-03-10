@@ -124,6 +124,48 @@ mlir::LogicalResult PropagateQuantize::matchAndRewrite(IE::ElemTypeInfoOpInterfa
 }
 
 //
+// PropagateQuantizeWithSoftmax
+//
+
+class PropagateQuantizeWithSoftmax final : public mlir::OpRewritePattern<IE::SoftMaxOp> {
+public:
+    PropagateQuantizeWithSoftmax(mlir::MLIRContext* ctx, Logger log)
+            : mlir::OpRewritePattern<IE::SoftMaxOp>(ctx), _log(log) {
+    }
+
+public:
+    mlir::LogicalResult matchAndRewrite(IE::SoftMaxOp origOp, mlir::PatternRewriter& rewriter) const final;
+
+private:
+    Logger _log;
+};
+
+/* This rewriter searches for pattern:
+fp_tensor -> [SoftMax] -> Quantize -> quantized_tensor
+and replaces it with
+fp_tensor -> Quantize -> quantized_tensor -> Dequantize -> fp_tensor -> [SoftMax] -> Quantize -> quantized_tensor */
+mlir::LogicalResult PropagateQuantizeWithSoftmax::matchAndRewrite(IE::SoftMaxOp origOp,
+                                                                  mlir::PatternRewriter& rewriter) const {
+    if (origOp.input().getDefiningOp<IE::DequantizeOp>() != nullptr) {
+        return mlir::failure();
+    }
+
+    auto outQuantizeOp = mlir::dyn_cast<IE::QuantizeOp>(*origOp->getUsers().begin());
+    if (outQuantizeOp == nullptr) {
+        return mlir::failure();
+    }
+
+    auto quantizeDstTypeAttr = outQuantizeOp.dstElemTypeAttr();
+
+    auto newQuantizeOp = rewriter.create<IE::QuantizeOp>(origOp.getLoc(), origOp.input(), quantizeDstTypeAttr);
+    auto softmaxInputType = origOp.input().getType().cast<vpux::NDTypeInterface>().getElementType();
+    auto dequantizeOp = rewriter.create<IE::DequantizeOp>(origOp.getLoc(), newQuantizeOp.output(), softmaxInputType);
+    rewriter.replaceOpWithNewOp<IE::SoftMaxOp>(origOp, dequantizeOp.output(), origOp.axisIndAttr());
+
+    return mlir::success();
+}
+
+//
 // PropagateDequantize
 //
 
@@ -206,6 +248,7 @@ void PropagateQuantizeDequantizePass::safeRunOnFunc() {
 
     mlir::RewritePatternSet patterns(&ctx);
     patterns.insert<PropagateQuantize>(&ctx, _log.nest());
+    patterns.insert<PropagateQuantizeWithSoftmax>(&ctx, _log.nest());
     patterns.insert<PropagateDequantize>(&ctx, _log.nest());
 
     auto func = getFunction();
