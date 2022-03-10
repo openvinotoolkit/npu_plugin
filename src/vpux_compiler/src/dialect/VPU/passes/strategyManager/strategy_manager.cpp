@@ -45,7 +45,7 @@ bool BaseLayerStrategy::isOperationSplitOverHeightCompatible(mlir::Operation* op
     while (true) {
         auto x = OH - (_numClusters - 1) * alignment * multOf8;
 
-        if (x < 0) {
+        if (x <= 0) {
             return false;
         }
 

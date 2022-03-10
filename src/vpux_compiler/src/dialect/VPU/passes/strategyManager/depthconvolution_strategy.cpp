@@ -35,3 +35,35 @@ bool DepthConvolutionStrategy::doesLayerFitIntoCMX(mlir::Operation* op, StringRe
     return origOp.fitIntoCMX(distributedActivationTensorType, distributeddWeightsTensorType,
                              distributedOutputTensorType);
 }
+
+bool DepthConvolutionStrategy::isOperationSplitOverHeightCompatible(mlir::Operation* op) const {
+    const auto outputShape = getShape(op->getResult(0));
+    const auto OH = outputShape[Dims4D::Act::H];
+    auto origOp = mlir::dyn_cast<NCEDepthConvolutionOp>(op);
+    const auto filterShape = Shape(parseIntArrayAttr<int64_t>(origOp.rawFilterShapeAttr()));
+    const auto KY = filterShape[Dims4D::Filter::KY];
+
+    if (OH < _minimumOutputHeightForSOH) {
+        return false;
+    }
+
+    int64_t multOf8 = 1;
+    constexpr int64_t alignment = 8;
+
+    while (true) {
+        auto x = OH - (_numClusters - 1) * alignment * multOf8;
+
+        if (x < KY) {
+            return false;
+        }
+
+        if (alignment * multOf8 > x) {
+            return true;
+        }
+
+        multOf8++;
+    }
+
+    return false;
+    // return OH >= _minimumOutputHeightForSOH;
+}
