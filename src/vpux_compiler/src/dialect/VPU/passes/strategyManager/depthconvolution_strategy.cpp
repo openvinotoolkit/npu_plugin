@@ -36,34 +36,89 @@ bool DepthConvolutionStrategy::doesLayerFitIntoCMX(mlir::Operation* op, StringRe
                              distributedOutputTensorType);
 }
 
+// bool DepthConvolutionStrategy::isOperationSplitOverHeightCompatible(mlir::Operation* op) const {
+//     const auto outputShape = getShape(op->getResult(0));
+//     const auto OH = outputShape[Dims4D::Act::H];
+//     auto origOp = mlir::dyn_cast<NCEDepthConvolutionOp>(op);
+//     const auto filterShape = Shape(parseIntArrayAttr<int64_t>(origOp.rawFilterShapeAttr()));
+//     const auto KY = filterShape[Dims4D::Filter::KY];
+
+//     if (OH < _minimumOutputHeightForSOH) {
+//         return false;
+//     }
+
+//     int64_t multOf8 = 1;
+//     constexpr int64_t alignment = 8;
+
+//     while (true) {
+//         auto x = OH - (_numClusters - 1) * alignment * multOf8;
+
+//         if (x < KY) {
+//             return false;
+//         }
+
+//         if (alignment * multOf8 > x) {
+//             return true;
+//         }
+
+//         multOf8++;
+//     }
+
+//     return false;
+//     // return OH >= _minimumOutputHeightForSOH;
+// }
+
 bool DepthConvolutionStrategy::isOperationSplitOverHeightCompatible(mlir::Operation* op) const {
     const auto outputShape = getShape(op->getResult(0));
     const auto OH = outputShape[Dims4D::Act::H];
-    auto origOp = mlir::dyn_cast<NCEDepthConvolutionOp>(op);
-    const auto filterShape = Shape(parseIntArrayAttr<int64_t>(origOp.rawFilterShapeAttr()));
-    const auto KY = filterShape[Dims4D::Filter::KY];
+    const auto OW = outputShape[Dims4D::Act::W];
 
     if (OH < _minimumOutputHeightForSOH) {
         return false;
     }
 
-    int64_t multOf8 = 1;
-    constexpr int64_t alignment = 8;
+    auto origOp = mlir::dyn_cast<NCEDepthConvolutionOp>(op);
+    const auto filterShape = Shape(parseIntArrayAttr<int64_t>(origOp.rawFilterShapeAttr()));
+    const auto KY = filterShape[Dims4D::Filter::KY];
+    if (KY == 1) {
+        return true;
+    }
 
-    while (true) {
-        auto x = OH - (_numClusters - 1) * alignment * multOf8;
+    const auto inputShape = getShape(origOp.input());
+    const auto IH = inputShape[Dims4D::Act::H];
+    const auto IW = inputShape[Dims4D::Act::W];
 
-        if (x < KY) {
+    for (int ih = IH / _numClusters; ih < IH; ih++) {
+        if (ih * IW % 4 != 0) {
+            continue;
+        }
+
+        int ihLastCluster = IH - ih * (_numClusters - 1);
+        if (ihLastCluster <= KY) {
             return false;
         }
 
-        if (alignment * multOf8 > x) {
-            return true;
+        if (ihLastCluster < ih) {
+            break;
+            // return true;
+        }
+    }
+
+    // How to check if result will be possible to divide between clusters?
+    for (int oh = OH / _numClusters; oh < OH; oh++) {
+        if (oh * OW % 4 != 0) {
+            continue;
         }
 
-        multOf8++;
+        int ohLastCluster = OH - oh * (_numClusters - 1);
+        if (ohLastCluster <= 0) {
+            return false;
+        }
+
+        if (ohLastCluster < oh) {
+            return true;
+        }
     }
 
     return false;
-    // return OH >= _minimumOutputHeightForSOH;
 }

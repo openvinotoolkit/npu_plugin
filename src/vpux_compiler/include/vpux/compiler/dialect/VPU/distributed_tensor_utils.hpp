@@ -99,6 +99,7 @@ DistributedTensorType createDistributedTensorType(ConcreteOp origOp, mlir::Value
     const auto activationTensorDistributionModeAttr = DistributionModeAttr::get(origOp.getContext(), distributionMode);
 
     auto kernel = getKernelSize(origOp);
+    const auto shape = getShape(input);
     if (distributionMode == DistributionMode::OVERLAPPED) {
         // auto kernel = getKernelSize(origOp);
         auto stride = getStride(origOp);
@@ -120,11 +121,23 @@ DistributedTensorType createDistributedTensorType(ConcreteOp origOp, mlir::Value
         // }
         // const auto alignmentAttr = getIntArrayAttr(alignment);
         const auto numTilesArray = parseIntArrayAttr<int64_t>(numTiles);
-        if (numTilesArray[2] > 1 && kernel) {
+        if (numTilesArray[Dims4D::Act::H.ind()] > 1 && kernel) {
             const auto kernelArray = parseIntArrayAttr<int64_t>(kernel);
             const auto KY = kernelArray[0];
             if (KY > 1) {
-                alignment[2] = 8;
+                // W * h_per_cluster must be divisible by 4, thus
+                // if W % 4 == 0, then h alignment needs to be 1
+                // if W % 2 == 0, then h alignment needs to be 2
+                // else h alignment needs to be 4
+                const auto W = shape[Dims4D::Act::W];
+
+                if (W % 4 == 0) {
+                    alignment[Dims4D::Act::H.ind()] = 1;
+                } else if (W % 2 == 0) {
+                    alignment[Dims4D::Act::H.ind()] = 2;
+                } else {
+                    alignment[Dims4D::Act::H.ind()] = 4;
+                }
             }
         }
         const auto alignmentAttr = getIntArrayAttr(origOp.getContext(), alignment);
@@ -134,7 +147,6 @@ DistributedTensorType createDistributedTensorType(ConcreteOp origOp, mlir::Value
                                            numClusters, alignmentAttr, origOp.getContext());
     }
 
-    const auto shape = getShape(input);
     const auto memSpace = vpux::IndexedSymbolAttr::get(MemoryKindAttr::get(origOp.getContext(), MemoryKind::CMX_NN));
 
     const auto order = mlir::AffineMapAttr::get(DimsOrder::fromValue(input).toAffineMap(origOp.getContext()));
