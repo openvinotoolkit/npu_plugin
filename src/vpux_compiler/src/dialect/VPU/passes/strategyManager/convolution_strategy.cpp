@@ -74,7 +74,7 @@ double ConvolutionStrategy::computeSplitOverHeightEfficiency(mlir::Operation* op
     const auto strides = parseIntArrayAttr<int64_t>(origOp.strides());
     const auto KY = filterShape[Dims4D::Filter::KY];
     const double outputTensorVolume = OC * OH * OW;
-    const double perClusterHeight = OH / _numClusters;
+    const double perClusteroutputTensorVolume = (OH / _numClusters) * OW * OC;
 
     if (DimsOrder::fromValue(origOp.input()) == DimsOrder::NCHW) {
         const auto efficiencyConstant = getChannelMajorEfficiencyConstant(KY, strides[0]);
@@ -87,8 +87,8 @@ double ConvolutionStrategy::computeSplitOverHeightEfficiency(mlir::Operation* op
     }
 
     return std::max(
-            (perClusterHeight * OH * OC) / calculateMPEComputation(VPU::MPEMode::MATRIX, outputShape, DimsOrder::NHWC),
-            (perClusterHeight * OH * OC) / calculateMPEComputation(VPU::MPEMode::VECTOR, outputShape, DimsOrder::NHWC));
+            perClusteroutputTensorVolume / calculateMPEComputation(VPU::MPEMode::MATRIX, outputShape, DimsOrder::NHWC),
+            perClusteroutputTensorVolume / calculateMPEComputation(VPU::MPEMode::VECTOR, outputShape, DimsOrder::NHWC));
 }
 
 double ConvolutionStrategy::computeSplitOverKernelEfficiency(mlir::Operation* op) const {
@@ -97,12 +97,11 @@ double ConvolutionStrategy::computeSplitOverKernelEfficiency(mlir::Operation* op
     const auto OC = outputShape[Dims4D::Act::C];
     const auto OH = outputShape[Dims4D::Act::H];
     const auto OW = outputShape[Dims4D::Act::W];
-    const double perClusterChannels = OC / _numClusters;
+    const double perClusteroutputTensorVolume = (OC / _numClusters) * OH * OW;
 
-    return std::max((perClusterChannels * OH * OW) /
-                            calculateMPEComputation(VPU::MPEMode::MATRIX, outputShape, DimsOrder::NHWC),
-                    (perClusterChannels * OH * OW) /
-                            calculateMPEComputation(VPU::MPEMode::VECTOR, outputShape, DimsOrder::NHWC));
+    return std::max(
+            perClusteroutputTensorVolume / calculateMPEComputation(VPU::MPEMode::MATRIX, outputShape, DimsOrder::NHWC),
+            perClusteroutputTensorVolume / calculateMPEComputation(VPU::MPEMode::VECTOR, outputShape, DimsOrder::NHWC));
 }
 
 StringRef ConvolutionStrategy::getOptimalLayerStrategy(mlir::Operation* op) const {
@@ -122,7 +121,6 @@ StringRef ConvolutionStrategy::getOptimalLayerStrategy(mlir::Operation* op) cons
 
     if (splitOverHeightEfficiency >= splitOverKernelEfficiency) {
         return isChannelMajor ? splitOverHeightOverlapped : splitOverHeight;
-    } else {
-        return splitOverKernel;
     }
+    return splitOverKernel;
 }
