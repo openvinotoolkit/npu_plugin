@@ -41,6 +41,40 @@ bool BaseLayerStrategy::isOperationSplitOverHeightCompatible(mlir::Operation* op
     return OH >= _minimumOutputHeightForSOH;
 }
 
+double BaseLayerStrategy::calculateMPEComputation(VPU::MPEMode mpeMode, ShapeRef outputShape, DimsOrder order) const {
+    const auto OC = outputShape[Dims4D::Act::C];
+    const auto OH = outputShape[Dims4D::Act::H];
+    const auto OW = outputShape[Dims4D::Act::W];
+    double mpeHeight = 16;
+    double mpeWidth = 1;
+    double mpeHeightComputation = mpeHeight * _numClusters;
+    double mpeWidthComputation = mpeWidth * _numDPUs;
+
+    if (mpeMode == VPU::MPEMode::VECTOR) {
+        mpeHeight = 16;
+        mpeWidth = 1;
+        mpeHeightComputation = mpeHeight * _numClusters;
+        mpeWidthComputation = mpeWidth * _numDPUs;
+    } else if (mpeMode == VPU::MPEMode::MATRIX) {
+        mpeHeight = 4;
+        mpeWidth = 4;
+        mpeHeightComputation = mpeHeight * _numClusters;
+        mpeWidthComputation = mpeWidth * _numDPUs;
+    } else {
+        VPUX_THROW("Unsupported MPE mode {0}", mpeMode);
+    }
+
+    if (order == DimsOrder::NCHW) {
+        return mpeHeightComputation * std::ceil(OH / mpeHeightComputation) * mpeWidthComputation *
+               std::ceil(OW / mpeWidthComputation) * _numChannelAlignment * std::ceil(OC / _numChannelAlignment);
+    }
+
+    return _numDPUs *
+           std::ceil((mpeHeight * std::ceil(std::ceil(OH / _numClusters) / mpeHeight) * mpeWidth *
+                      std::ceil(OW / mpeWidth) * _numChannelAlignment * std::ceil(OC / _numChannelAlignment)) /
+                     _numDPUs);
+}
+
 // Each cluster should compute at least 16 output channels. Therefore in order for a layer to be SOK
 // compitable it must have an output channel of at least the number of clusters x 16
 // specified for compilation.
@@ -49,7 +83,7 @@ bool BaseLayerStrategy::isOperationSplitOverHeightCompatible(mlir::Operation* op
 bool BaseLayerStrategy::isOperationSplitOverKernelCompatible(mlir::Operation* op) const {
     const auto outputShape = getShape(op->getResult(0));
     const auto OC = outputShape[Dims4D::Act::C];
-    return OC >= _minimumOutputChannelsPerCluster * _numClusters;
+    return OC >= _numChannelAlignment * _numClusters;
 }
 
 bool BaseLayerStrategy::isOperationMultiClusterCompatible(mlir::Operation* op) const {

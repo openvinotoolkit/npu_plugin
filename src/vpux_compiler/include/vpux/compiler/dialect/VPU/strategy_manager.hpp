@@ -57,12 +57,12 @@ protected:
     virtual bool doesLayerFitIntoCMX(mlir::Operation* op, StringRef strategy) const = 0;
     virtual double computeSplitOverHeightEfficiency(mlir::Operation* op) const = 0;
     double getChannelAlignment(double input, size_t unit) const;
+    double calculateMPEComputation(VPU::MPEMode mpeMode, ShapeRef outputShape, DimsOrder order) const;
 
 protected:
     int64_t _numClusters;
     int64_t _numDPUs;
     int64_t _minimumOutputHeightForSOH;
-    const int64_t _minimumOutputChannelsPerCluster = 16;
     const size_t _numChannelAlignment = 16;
     mlir::FuncOp _func;
     Logger _log;

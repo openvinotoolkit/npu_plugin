@@ -60,37 +60,35 @@ double ConvolutionStrategy::getChannelMajorEfficiencyConstant(int64_t kernel, in
     VPUX_THROW("The kernel size {0} does not exist in the channel major efficiency table", kernel);
 }
 
+// The efficiency calculation that is being performed here can be described as follows.
+// A ratio of the real output tensor volume to the actual computation that occurs on the
+// hardwarefor each MPE Mode 4x4x16 and 16x1x16 is computed and the maximum is selected.
+// A hardware efficiency constant is multiplied by the result for channel-major convolutions.
 double ConvolutionStrategy::computeSplitOverHeightEfficiency(mlir::Operation* op) const {
     auto origOp = mlir::cast<NCEConvolutionOp>(op);
     const auto outputShape = getShape(origOp.output());
     const auto OC = outputShape[Dims4D::Act::C];
     const auto OH = outputShape[Dims4D::Act::H];
     const auto OW = outputShape[Dims4D::Act::W];
+    const auto filterShape = Shape(parseIntArrayAttr<int64_t>(origOp.rawFilterShapeAttr()));
+    const auto strides = parseIntArrayAttr<int64_t>(origOp.strides());
+    const auto KY = filterShape[Dims4D::Filter::KY];
     const double outputTensorVolume = OC * OH * OW;
+    const double perClusterHeight = OH / _numClusters;
 
     if (DimsOrder::fromValue(origOp.input()) == DimsOrder::NCHW) {
-        const auto filterShape = Shape(parseIntArrayAttr<int64_t>(origOp.rawFilterShapeAttr()));
-        const auto strides = parseIntArrayAttr<int64_t>(origOp.strides());
-        const auto KY = filterShape[Dims4D::Filter::KY];
         const auto efficiencyConstant = getChannelMajorEfficiencyConstant(KY, strides[0]);
-        return efficiencyConstant *
-               std::max(outputTensorVolume / (getChannelAlignment(OH, _numChannelAlignment) *
-                                              getChannelAlignment(OW, _numDPUs * _numClusters) *
-                                              getChannelAlignment(OC, _numChannelAlignment)),
-                        outputTensorVolume /
-                                (getChannelAlignment(OH, _numChannelAlignment * _numClusters) *
-                                 getChannelAlignment(OW, _numDPUs) * getChannelAlignment(OC, _numChannelAlignment)));
+
+        auto efficiency = std::max(
+                outputTensorVolume / calculateMPEComputation(VPU::MPEMode::MATRIX, outputShape, DimsOrder::NCHW),
+                outputTensorVolume / calculateMPEComputation(VPU::MPEMode::VECTOR, outputShape, DimsOrder::NCHW));
+
+        return efficiencyConstant * efficiency;
     }
+
     return std::max(
-            (outputTensorVolume / _numClusters) /
-                    getChannelAlignment(
-                            (getChannelAlignment(std::ceil(OH / _numClusters), _numClusters) *
-                             getChannelAlignment(OW, _numClusters) * getChannelAlignment(OC, _numChannelAlignment)),
-                            _numDPUs),
-            (outputTensorVolume / _numClusters) /
-                    getChannelAlignment((getChannelAlignment(std::ceil(OH / _numClusters), _numChannelAlignment) *
-                                         getChannelAlignment(OW, 1) * getChannelAlignment(OC, _numChannelAlignment)),
-                                        _numDPUs));
+            (perClusterHeight * OH * OC) / calculateMPEComputation(VPU::MPEMode::MATRIX, outputShape, DimsOrder::NHWC),
+            (perClusterHeight * OH * OC) / calculateMPEComputation(VPU::MPEMode::VECTOR, outputShape, DimsOrder::NHWC));
 }
 
 double ConvolutionStrategy::computeSplitOverKernelEfficiency(mlir::Operation* op) const {
