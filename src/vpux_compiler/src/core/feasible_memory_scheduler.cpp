@@ -386,8 +386,15 @@ void FeasibleMemoryScheduler::getReadyComputeList() {
 SmallVector<mlir::Value> FeasibleMemoryScheduler::sortUsedBuffers(mlir::DenseSet<mlir::Value>& operationBuffers) {
     SmallVector<std::pair<vpux::AddressType, mlir::Value>> buffersWithSize;
     for (auto& val : operationBuffers) {
-        auto size = _scan.handler().getSize(val);
-        buffersWithSize.push_back(std::make_pair(size, val));
+        auto opSize = _scan.handler().getSize(val);
+        for (auto user : val.getUsers()) {
+            if (user->hasAttr("exceedingNNCMX")) {
+                // allocate exceeding buffers first to not exceed NNCMX
+                _log.trace("Re-ordering exceeding NNCMX buffer: '{0}'", val);
+                opSize = std::numeric_limits<vpux::AddressType>::max();
+            }
+        }
+        buffersWithSize.push_back(std::make_pair(opSize, val));
     }
     // sort based on size of buffer
     llvm::sort(buffersWithSize.begin(), buffersWithSize.end(),
@@ -475,9 +482,16 @@ bool FeasibleMemoryScheduler::isReadyComputeOperationSchedulable(operationIdxTyp
 
     // sort to minimize fragmentation
     auto sortedBuffers = sortUsedBuffers(buffersNeedingAllocation);
-
     // are resources available and can be allocated
-    return _scan.canAlloc(sortedBuffers);
+    auto canAlloc = _scan.canAlloc(sortedBuffers);
+
+    if (!canAlloc) {
+        // if failed possibly a case with exceeding NNCMX, need to re-order
+        sortedBuffers = sortUsedBuffers(buffersNeedingAllocation);
+        canAlloc = _scan.canAlloc(sortedBuffers);
+    }
+
+    return canAlloc;
 }
 
 void FeasibleMemoryScheduler::scheduleInputOpForComputeOp(operationIdxType inputIdx, size_t delay) {
