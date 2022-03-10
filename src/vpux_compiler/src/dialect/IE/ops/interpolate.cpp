@@ -335,7 +335,6 @@ void vpux::IE::InterpolateOp::adjustAttrs(const TilingInfo& inputTiling) {
     SmallVector<int64_t> endPads = {0, 0, 0, 0};
     SmallVector<int64_t> beginPads = {0, 0, 0, 0};
 
-    // TODO: tensor tile index = 0, 1, etc
     endPads[2] = inputTiling.pads.getValue().right;
     endPads[3] = inputTiling.pads.getValue().bottom;
 
@@ -351,7 +350,15 @@ void vpux::IE::InterpolateOp::adjustAttrs(const TilingInfo& inputTiling) {
 }
 
 bool vpux::IE::InterpolateOp::isSupportedTiling(const vpux::OutputTiling& tiles, vpux::Logger log) {
+    const auto arch = VPU::getArch(*this);
+    if (arch != VPU::ArchKind::MTL) {
+        // TODO: E**W-35009 UPA shaves has no need to use tiling yet -
+        //  when switching to shave-nn, or another arch support might need to be added based on restrictions
+        return true;
+    }
+
     const auto origInputShape = getShape(input());
+    // TODO: how to get constrains based on arch
     constexpr auto cmxAvailable = (2_MB).to<KB>() - 100_KB;
 
     for (auto&& outputTile : tiles) {
@@ -380,13 +387,20 @@ bool vpux::IE::InterpolateOp::isSupportedTiling(const vpux::OutputTiling& tiles,
 }
 
 bool vpux::IE::InterpolateOp::isSupportedPrefetchTiling(ShapeRef /*tileAxis*/, Logger /*log*/) {
-    // The DPU time of eltwise operations are too short to worth prefetching.
+    const auto arch = VPU::getArch(*this);
+
+    if (arch != VPU::ArchKind::MTL) {
+        // TODO: The prefetch tiling fo act Shave OP need to be investigated
+    }
     return false;
 }
 
 bool vpux::IE::InterpolateOp::isSupportedPrefetchPattern(ShapeRef /*tileAxis*/, mlir::Operation* /*parentOp*/,
                                                          ShapeRef /*parentTileAxis*/, vpux::Logger /*log*/) {
-    // Avoid tiling for eltwise operations
-    // the DPU time is too short compared to the DMA time.
+    const auto arch = VPU::getArch(*this);
+    if (arch != VPU::ArchKind::MTL) {
+        // TODO: The prefetch tiling fo act Shave OP need to be investigated
+    }
+
     return true;
 }
