@@ -73,9 +73,8 @@ template <typename DerivedOpType>
 mlir::Value Convert2VPUIPRegMappedAndELFPass::createSection(mlir::FuncOp func, mlir::MLIRContext* ctx,
                                                             std::string secNameStr, vpux::ELF::SectionTypeAttr secType,
                                                             vpux::ELF::SectionFlagsAttr secFlags, bool isNNDMAOp) {
-    mlir::Block& blkFunc = (func.getCallableRegion())->front();
-
-    mlir::OpBuilder builderFunc(&(blkFunc.back()));
+    // We use this constructor: OpBuilder(Operation *op, Listener *listener=nullptr)
+    mlir::OpBuilder builderFunc(&(func.getBody().front().back()));
 
     vpux::ELF::SectionType sectionType = vpux::ELF::SectionType::get(ctx);
 
@@ -161,9 +160,8 @@ void Convert2VPUIPRegMappedAndELFPass::createRelocationSection(mlir::FuncOp func
                                                                mlir::Value& nndmaSectionOpValue) {
     _log.info("createRelocationSection(): funcOp = {0}\n", funcOp);
 
-    mlir::Block& blkFunc = (funcOp.getCallableRegion())->front();
-
-    mlir::OpBuilder builderFunc(&(blkFunc.back()));
+    // We use this constructor: OpBuilder(Operation *op, Listener *listener=nullptr)
+    mlir::OpBuilder builderFunc(&(funcOp.getBody().front().back()));
 
     // Creating the required ELF.SymbolOps
     std::vector<ELF::SymbolOp> elfSymbolOp;
@@ -402,7 +400,7 @@ void Convert2VPUIPRegMappedAndELFPass::createRelocationSection(mlir::FuncOp func
                 elfRelocOp = builderInputRelocSec.create<ELF::RelocOp>(
                         builderInputRelocSec.getUnknownLoc(),
                         ((idx & 1) == 0 ? offsetOfSrcInNNDMAOpStruct : offsetOfDstInNNDMAOpStruct) +
-                                (sizeOfNNDMAOpStruct * (idx / 2)),      // offsetTargetField // MEGA-TODO
+                                (sizeOfNNDMAOpStruct * (idx / 2)),      // offsetTargetField // TODO
                         vpux::ELF::RelocationTypeAttr::R_VPU_64,        // relocationType
                         elfSymbolOp[idx].getOperation()->getResult(0),  // ::mlir::Value sourceSymbol
                         0                                               // int64_t addend
@@ -411,7 +409,7 @@ void Convert2VPUIPRegMappedAndELFPass::createRelocationSection(mlir::FuncOp func
                 elfRelocOp = builderOutputRelocSec.create<ELF::RelocOp>(
                         builderOutputRelocSec.getUnknownLoc(),
                         ((idx & 1) == 0 ? offsetOfSrcInNNDMAOpStruct : offsetOfDstInNNDMAOpStruct) +
-                                (sizeOfNNDMAOpStruct * (idx / 2)),      // offsetTargetField // MEGA-TODO
+                                (sizeOfNNDMAOpStruct * (idx / 2)),      // offsetTargetField // TODO
                         vpux::ELF::RelocationTypeAttr::R_VPU_64,        // relocationType
                         elfSymbolOp[idx].getOperation()->getResult(0),  // ::mlir::Value sourceSymbol
                         0                                               // int64_t addend
@@ -421,7 +419,7 @@ void Convert2VPUIPRegMappedAndELFPass::createRelocationSection(mlir::FuncOp func
             elfRelocOp = builderRestRelocSec.create<ELF::RelocOp>(
                     builderRestRelocSec.getUnknownLoc(),
                     ((idx & 1) == 0 ? offsetOfSrcInNNDMAOpStruct : offsetOfDstInNNDMAOpStruct) +
-                            (sizeOfNNDMAOpStruct * (idx / 2)),      // offsetTargetField // MEGA-TODO
+                            (sizeOfNNDMAOpStruct * (idx / 2)),      // offsetTargetField // TODO
                     vpux::ELF::RelocationTypeAttr::R_VPU_64,        // relocationType
                     elfSymbolOp[idx].getOperation()->getResult(0),  // ::mlir::Value sourceSymbol
                     0                                               // int64_t addend

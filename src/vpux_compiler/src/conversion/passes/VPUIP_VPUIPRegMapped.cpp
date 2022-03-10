@@ -80,12 +80,12 @@ private:
                             op.getOperation()->getResult(0).getType(),  // op.output(),
                             op.input(), op.output_buff(), mlir::ValueRange(taskOp.waitBarriers()),
                             mlir::ValueRange(taskOp.updateBarriers()),
-                            false,  // compression // MEGA-TODO: I guess, unless compression is a RegMapped
+                            false,  // compression // TODO: I guess, unless compression is a RegMapped
                                     // value (see huf_en in HglCmxDmaConfigBits in
                                     // src/dialect/VPUIPRegMapped/ops/dma.cpp), I should take out compression
                                     // from VPUIPRegMapped::NNDMAOp
                             op.port(),
-                            0  // start_after // MEGA-TODO: initialize
+                            0  // start_after // TODO: initialize
                     );
 
                     _log.info("replaceVPURTTaskOpWithNNDMAOp(): funcOp = {0}", funcOp);
@@ -112,7 +112,7 @@ public:
     mlir::LogicalResult matchAndRewrite(VPURT::ConfigureBarrierOp origOp, mlir::PatternRewriter& rewriter) const {
         _log.info("Entered ConvertVPURTConfigureBarrierOp::matchAndRewrite().");
 
-        mlir::ValueRange waitBarriers, updateBarriers;  // MEGA-TODO: put right values
+        mlir::ValueRange waitBarriers, updateBarriers;  // TODO: put right values
 
         vpux::VPURT::BarrierType bType = vpux::VPURT::BarrierType::get(getContext());
 
@@ -123,16 +123,16 @@ public:
                 origOp,
                 bType,  // origOp.getOperation()->getResult(0).getType(),
                 origOp.id(),
-                // MEGA-TODO: put also a virtualId attribute in ConfigureBarrierOp, as it is found in
+                // TODO: put also a virtualId attribute in ConfigureBarrierOp, as it is found in
                 //              VPURT::ConfigureBarrierOp
-                1,  // MEGA-TODO: put right value // uint16_t next_same_id
+                1,  // TODO: put right value // uint16_t next_same_id
                 // See https://mlir.llvm.org/doxygen/classmlir_1_1ValueRange.html
                 // Note: from https://mlir.llvm.org/doxygen/Operation_8h_source.html: using operand_range =
                 // OperandRange;
                 producer_count,  // origOp.producer_countAttr(),
                 consumer_count,  // origOp.consumer_countAttr(),
-                waitBarriers,    // mlir::ValueRange(origOp.waitBarriers()), // MEGA-TODO
-                updateBarriers   // mlir::ValueRange(origOp.updateBarriers()) // MEGA-TODO
+                waitBarriers,    // mlir::ValueRange(origOp.waitBarriers()), // TODO
+                updateBarriers   // mlir::ValueRange(origOp.updateBarriers()) // TODO
         );
 
         return mlir::success();
