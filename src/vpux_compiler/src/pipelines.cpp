@@ -256,6 +256,8 @@ void vpux::buildReferenceHWModePipeline(mlir::OpPassManager& pm, const Reference
     }
     pm.addPass(VPURT::createAssignPhysicalBarriersPass(log));
     pm.addPass(VPURT::createBarrierSimulationPass(log));
+    // pm.addPass(IERT::createUnrollClusterTilingPass(log));
+    pm.addPass(IERT::createPatchWeightsTablePass(log));
     pm.addPass(VPUIP::createDumpStatisticsOfTaskOpsPass(log));
 }
 
@@ -403,6 +405,8 @@ void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOp
     pm.addPass(VPURT::createAssignVirtualBarriersPass(log));
     pm.addPass(VPURT::createAssignPhysicalBarriersPass(log));
     pm.addPass(VPURT::createBarrierSimulationPass(log));
+    // pm.addPass(IERT::createUnrollClusterTilingPass(log));
+    pm.addPass(IERT::createPatchWeightsTablePass(log));
     pm.addPass(VPUIP::createDumpStatisticsOfTaskOpsPass(log));
 }
 

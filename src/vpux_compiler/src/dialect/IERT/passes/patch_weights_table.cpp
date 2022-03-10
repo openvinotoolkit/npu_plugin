@@ -63,8 +63,13 @@ void PatchWeightsTablePass::safeRunOnFunc() {
         mlir::Value inputBuffer;
 
         // Get operation that loads weights table to CMX for NCE Task
+        // For "DUPLIOCATED" case, Losing use-def chain, update befor unrolling pass
+        // For "SEGMENTED" case, can find cstLoadOp, update after unrolling pass
         auto* cstLoadOp = getLoadOpForDstBuffer(wtDecBuf.getResult());
-        VPUX_THROW_UNLESS(cstLoadOp != nullptr, "Operation loading weight table expected, but not located");
+        if (cstLoadOp == nullptr) {
+            _log.nest().trace("Operation loading weight table not find, but maybe the case of duplicated.");
+            return;
+        }
 
         // Get the constant definition op whose content will be patched
         inputBuffer = cstLoadOp->getOperand(0);
