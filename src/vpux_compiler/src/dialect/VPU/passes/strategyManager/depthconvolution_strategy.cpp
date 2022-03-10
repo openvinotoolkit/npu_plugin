@@ -33,89 +33,48 @@ bool DepthConvolutionStrategy::doesLayerFitIntoCMX(mlir::Operation* op, StringRe
     auto distributedOutputTensorType =
             createDistributedTensorType(origOp, origOp.output(), outputTensorDistributionMode, outputTensorNumTiles);
 
-    std::cout << origOp.fitIntoCMX(distributedActivationTensorType, distributeddWeightsTensorType,
-                                   distributedOutputTensorType)
-              << std::endl;
     return origOp.fitIntoCMX(distributedActivationTensorType, distributeddWeightsTensorType,
                              distributedOutputTensorType);
 }
 
-// This depthwise convolution efficiency table is from the ArchBench tool
-// It returns a h/w efficiency constant for a given stride and kernel size
-std::map<int64_t, std::map<int64_t, double>> DepthConvolutionStrategy::depthwiseEfficiencyTable() const {
-    static const std::map<int64_t, std::map<int64_t, double>> table = {{
-            {3, {{1, 0.165}, {2, 0.128}, {4, 0.128}, {6, 0.165}}},
-            {5, {{1, 0.483}, {2, 0.241}, {4, 0.132}, {6, 0.483}}},
-            {7, {{1, 0.6}, {2, 0.2965}, {4, 0.15}, {6, 0.0395}}},
-            {9, {{1, 0.8008}, {2, 0.4687}, {4, 0.2266}, {6, 0.8008}}},
-            {11, {{1, 0.9023}, {2, 0.4687}, {4, 0.2366}, {6, 0.9023}}},
-    }};
-    return table;
-}
+// double DepthConvolutionStrategy::computeSplitOverHeightEfficiency(mlir::Operation* op) const {
+//     auto origOp = mlir::cast<NCEDepthConvolutionOp>(op);
+//     const auto outputShape = getShape(origOp.output());
+//     const auto OC = outputShape[Dims4D::Act::C];
+//     const auto OH = outputShape[Dims4D::Act::H];
+//     const auto OW = outputShape[Dims4D::Act::W];
+//     const auto filterShape = Shape(parseIntArrayAttr<int64_t>(origOp.rawFilterShapeAttr()));
+//     const auto strides = parseIntArrayAttr<int64_t>(origOp.strides());
+//     const auto KY = filterShape[Dims4D::Filter::KY];
+//     const double efficiencyConstant = getDepthwiseEfficiencyConstant(KY, strides[0]);
+//     const double perClusteroutputTensorVolume = (OH / _numClusters) * OW * OC;
 
-double DepthConvolutionStrategy::getDepthwiseEfficiencyConstant(int64_t kernel, int64_t stride) const {
-    if (depthwiseEfficiencyTable().count(kernel)) {
-        auto table = depthwiseEfficiencyTable()[kernel];
-        if (table.count(stride)) {
-            return depthwiseEfficiencyTable()[kernel][stride];
-        }
-        VPUX_THROW("The stride size {0} does not exist in the depthwise efficiency table", stride);
-    }
-    VPUX_THROW("The kernel size {0} does not exist in the depthwise efficiency table", kernel);
-}
+//     auto efficiency =
+//             std::max(perClusteroutputTensorVolume / calculateMPEComputation(VPU::MPEMode::MATRIX, outputShape,
+//                                                                             DimsOrder::NHWC, splitOverHeight),
+//                      perClusteroutputTensorVolume / calculateMPEComputation(VPU::MPEMode::VECTOR, outputShape,
+//                                                                             DimsOrder::NHWC, splitOverHeight));
 
-double DepthConvolutionStrategy::computeSplitOverHeightEfficiency(mlir::Operation* op) const {
-    auto origOp = mlir::cast<NCEDepthConvolutionOp>(op);
-    const auto outputShape = getShape(origOp.output());
-    const auto OC = outputShape[Dims4D::Act::C];
-    const auto OH = outputShape[Dims4D::Act::H];
-    const auto OW = outputShape[Dims4D::Act::W];
-    const auto filterShape = Shape(parseIntArrayAttr<int64_t>(origOp.rawFilterShapeAttr()));
-    const auto strides = parseIntArrayAttr<int64_t>(origOp.strides());
-    const auto KY = filterShape[Dims4D::Filter::KY];
-    const double efficiencyConstant = getDepthwiseEfficiencyConstant(KY, strides[0]);
-    const double perClusteroutputTensorVolume = (OH / _numClusters) * OW * OC;
+//     return efficiencyConstant * efficiency;
+// }
 
-    auto efficiency = std::max(
-            perClusteroutputTensorVolume / calculateMPEComputation(VPU::MPEMode::MATRIX, outputShape, DimsOrder::NHWC),
-            perClusteroutputTensorVolume / calculateMPEComputation(VPU::MPEMode::VECTOR, outputShape, DimsOrder::NHWC));
+// double DepthConvolutionStrategy::computeSplitOverKernelEfficiency(mlir::Operation* op) const {
+//     auto origOp = mlir::cast<NCEDepthConvolutionOp>(op);
+//     const auto outputShape = getShape(origOp.output());
+//     const auto OC = outputShape[Dims4D::Act::C];
+//     const auto OH = outputShape[Dims4D::Act::H];
+//     const auto OW = outputShape[Dims4D::Act::W];
+//     const auto filterShape = Shape(parseIntArrayAttr<int64_t>(origOp.rawFilterShapeAttr()));
+//     const auto strides = parseIntArrayAttr<int64_t>(origOp.strides());
+//     const auto KY = filterShape[Dims4D::Filter::KY];
+//     const double efficiencyConstant = getDepthwiseEfficiencyConstant(KY, strides[0]);
+//     const double perClusteroutputTensorVolume = (OC / _numClusters) * OW * OH;
 
-    return efficiencyConstant * efficiency;
-}
+//     auto efficiency =
+//             std::max(perClusteroutputTensorVolume / calculateMPEComputation(VPU::MPEMode::MATRIX, outputShape,
+//                                                                             DimsOrder::NHWC, splitOverKernel),
+//                      perClusteroutputTensorVolume / calculateMPEComputation(VPU::MPEMode::VECTOR, outputShape,
+//                                                                             DimsOrder::NHWC, splitOverKernel));
 
-double DepthConvolutionStrategy::computeSplitOverKernelEfficiency(mlir::Operation* op) const {
-    auto origOp = mlir::cast<NCEDepthConvolutionOp>(op);
-    const auto outputShape = getShape(origOp.output());
-    const auto OC = outputShape[Dims4D::Act::C];
-    const auto OH = outputShape[Dims4D::Act::H];
-    const auto OW = outputShape[Dims4D::Act::W];
-    const auto filterShape = Shape(parseIntArrayAttr<int64_t>(origOp.rawFilterShapeAttr()));
-    const auto strides = parseIntArrayAttr<int64_t>(origOp.strides());
-    const auto KY = filterShape[Dims4D::Filter::KY];
-    const double efficiencyConstant = getDepthwiseEfficiencyConstant(KY, strides[0]);
-    const double perClusteroutputTensorVolume = (OC / _numClusters) * OW * OH;
-
-    auto efficiency = std::max(
-            perClusteroutputTensorVolume / calculateMPEComputation(VPU::MPEMode::MATRIX, outputShape, DimsOrder::NHWC),
-            perClusteroutputTensorVolume / calculateMPEComputation(VPU::MPEMode::VECTOR, outputShape, DimsOrder::NHWC));
-
-    return efficiencyConstant * efficiency;
-}
-
-StringRef DepthConvolutionStrategy::getOptimalLayerStrategy(mlir::Operation* op) const {
-    double splitOverHeightEfficiency = 0.0;
-    double splitOverKernelEfficiency = 0.0;
-
-    if (isOperationSplitOverHeightCompatible(op) && doesLayerFitIntoCMX(op, splitOverHeight)) {
-        splitOverHeightEfficiency = computeSplitOverHeightEfficiency(op);
-    }
-
-    if (isOperationSplitOverKernelCompatible(op) && doesLayerFitIntoCMX(op, splitOverKernel)) {
-        splitOverKernelEfficiency = computeSplitOverKernelEfficiency(op);
-    }
-
-    if (splitOverHeightEfficiency >= splitOverKernelEfficiency) {
-        return splitOverHeight;
-    }
-    return splitOverKernel;
-}
+//     return efficiencyConstant * efficiency;
+// }

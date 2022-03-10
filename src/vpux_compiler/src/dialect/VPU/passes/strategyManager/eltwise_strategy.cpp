@@ -33,7 +33,3 @@ bool EltwiseStrategy::doesLayerFitIntoCMX(mlir::Operation* op, StringRef strateg
             createDistributedTensorType(origOp, origOp.output(), outputTensorDistributionMode, outputTensorNumTiles);
     return origOp.fitIntoCMX(distributedInput1TensorType, distributedInput2TensorType, distributedOutputTensorType);
 }
-
-double EltwiseStrategy::computeSplitOverHeightEfficiency(mlir::Operation*) const {
-    return 1;
-}
