@@ -1664,7 +1664,7 @@
         {
             "name" : "por_onnx_FP16-INT8_mobilenet-v2",
             "ir" : "por/mobilenet-v2/onnx/FP16-INT8/mobilenet-v2.xml",
-            "category" : "MLIR/precommit",
+            "category" : "MLIR/precommit/SKIP_WIN",
             "3720": {
                 "disabled" : true
             },
@@ -1692,6 +1692,37 @@
             "CI-options" : {
                 "blob_name" : "por_onnx_FP16-INT8_mobilenet-v2"
             }
+        },
+
+        {
+            "name" : "por_onnx_FP16-INT8_mobilenet-v2_WIN",
+            "ir" : "por/mobilenet-v2/onnx/FP16-INT8/mobilenet-v2.xml",
+            "category" : "MLIR/precommit/SKIP_LIN",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_COMPILER_TYPE": "MLIR",
+                "PERFORMANCE_HINT": "THROUGHPUT",
+                "VPUX_INFERENCE_SHAVES": "16"
+            },
+            "BenchmarkApp" : {
+                "input_folder" : "224x224"
+            },
+            "NetTest-CalcRef" : {
+                "disabled" : true
+            },
+            "NetTest-Validate" : {
+                "disabled" : true
+            },
+            "AccuracyCheck" : {
+                "config": "mobilenet-v2-pytorch_v10.yml",
+                "disabled" : true
+            },
+            "CI-options" : {
+                "blob_name" : "por_onnx_FP16-INT8_mobilenet-v2"
+            },
+            "comments": "Inaccurate result in single-image-test on Windows stack [EISW-35079]"
         },
 
         {
@@ -4471,7 +4502,7 @@
         {
             "name" : "por_onnx_FP16-INT8_yolo_v5m",
             "ir" : "por/yolo_v5m/onnx/FP16-INT8/yolo_v5m.xml",
-            "category" : "MLIR",
+            "category" : "MLIR/SKIP_WIN",
             "3720": {
                 "disabled" : true
             },
@@ -4498,6 +4529,39 @@
             "CI-options" : {
                 "blob_name" : "yolo_v5m"
             }
+        },
+
+        {
+            "name" : "por_onnx_FP16-INT8_yolo_v5m_WIN",
+            "ir" : "por/yolo_v5m/onnx/FP16-INT8/yolo_v5m.xml",
+            "category" : "MLIR/SKIP_LIN",
+            "3720": {
+                "disabled" : true
+            },
+            "3900": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_COMPILER_TYPE": "MLIR",
+                "PERFORMANCE_HINT": "THROUGHPUT",
+                "VPUX_INFERENCE_SHAVES": "16"
+            },
+            "BenchmarkApp" : {
+                "disabled" : true
+            },
+            "NetTest-CalcRef" : {
+                "disabled" : true
+            },
+            "NetTest-Validate" : {
+                "disabled" : true
+            },
+            "AccuracyCheck" : {
+                "disabled" : true
+            },
+            "CI-options" : {
+                "blob_name" : "yolo_v5m"
+            },
+            "comments" : "Failed to infer on Windows stack [EISW-34943]"
         },
 
         {
@@ -4707,7 +4771,7 @@
         {
             "name" : "BDK_FP16-INT8_segnet_custom",
             "ir" : "models/clientmodels/BDK4/segnet_custom/caffe2/FP16-INT8/segnet_custom.xml",
-            "category" : "MLIR/precommit",
+            "category" : "MLIR/precommit/SKIP_WIN",
             "3720": {
                 "disabled" : true
             },
@@ -4731,6 +4795,36 @@
             "CI-options" : {
                 "blob_name" : "bdk_FP16-INT8_segnet_custom"
             }
+        },
+
+        {
+            "name" : "BDK_FP16-INT8_segnet_custom_WIN",
+            "ir" : "models/clientmodels/BDK4/segnet_custom/caffe2/FP16-INT8/segnet_custom.xml",
+            "category" : "MLIR/precommit/SKIP_LIN",
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_COMPILER_TYPE": "MLIR",
+                "PERFORMANCE_HINT": "THROUGHPUT",
+                "VPUX_INFERENCE_SHAVES": "16"
+            },
+            "BenchmarkApp": {
+                "disabled" : true
+            },
+            "NetTest-CalcRef" : {
+                "disabled" : true
+            },
+            "NetTest-Validate" : {
+                "disabled" : true
+            },
+            "AccuracyCheck": {
+                "disabled" : true
+            },
+            "CI-options" : {
+                "blob_name" : "bdk_FP16-INT8_segnet_custom"
+            },
+            "comments" : "Failed to infer on Windows stack [EISW-34946]"
         },
 
         {
