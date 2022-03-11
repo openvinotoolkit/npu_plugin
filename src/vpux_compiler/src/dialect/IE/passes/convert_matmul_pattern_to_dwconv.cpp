@@ -40,6 +40,10 @@ public:
 
 mlir::LogicalResult MatMulPatternConverter::matchAndRewrite(IE::MatMulOp origOp,
                                                             mlir::PatternRewriter& rewriter) const {
+    if (!checkPermuteMatMulPattern(origOp)) {
+        return mlir::failure();
+    }
+
     auto parentOps = getMatMulParentOps(origOp);
     mlir::Operation* origTransposeOp = parentOps[0];
     mlir::Operation* weightInputOp = parentOps[1];
@@ -54,12 +58,6 @@ mlir::LogicalResult MatMulPatternConverter::matchAndRewrite(IE::MatMulOp origOp,
     const auto channelSize = origTransposeShape[Dims4D::Act::H] * origTransposeShape[Dims4D::Act::W];
     const auto totalKernelSize = origTransposeShape[Dims4D::Act::C];
     auto kernelFactors = getKernelFactors(totalKernelSize);
-
-    VPUX_THROW_WHEN(std::any_of(kernelFactors.begin(), kernelFactors.end(),
-                                [](int64_t factor) {
-                                    return factor < 1 || factor > VPU::NCEInvariant::MAX_KERNEL_SIZE;
-                                }),
-                    "The shape of MatMul is not divisible for DWConv kernel.");
 
     // build the activation
     auto reshape1 = *(origTransposeOp->getResult(0).getUsers().begin());
@@ -190,19 +188,6 @@ private:
 
 void ConvertMatMulPatternToDWConvPass::safeRunOnFunc() {
     auto& ctx = getContext();
-    mlir::ConversionTarget target(ctx);
-    target.addLegalOp<IE::GroupConvolutionOp>();
-    target.addDynamicallyLegalOp<IE::MatMulOp>([&](IE::MatMulOp origOp) {
-        _log.trace("Check '{0}' operation at '{1}'", origOp->getName(), origOp->getLoc());
-        std::cout << llvm::formatv("Check '{0}' operation at '{1}'", origOp->getName(), origOp->getLoc()).str()
-                  << std::endl;
-        if (checkPermuteMatMulPattern(origOp)) {
-            std::cout << "Match!" << std::endl;
-            return false;
-        }
-        return true;
-    });
-
     mlir::RewritePatternSet patterns(&ctx);
     patterns.add<MatMulPatternConverter>(&ctx);
 

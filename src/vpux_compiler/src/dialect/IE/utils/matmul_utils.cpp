@@ -16,7 +16,7 @@
 namespace vpux {
 namespace IE {
 
-size_t getShapeSize(vpux::NDTypeInterface type) {
+size_t getShapeSize(const vpux::NDTypeInterface type) {
     auto shape = type.getShape();
     size_t typeSize = 0;
     for (auto dim : shape) {
@@ -76,6 +76,21 @@ bool oneDimMatch(vpux::NDTypeInterface actType, vpux::NDTypeInterface filterType
     return actType.getShape()[Dims4D::Act::C] == filterSize;
 }
 
+bool isKernelDivisible(ShapeRef weightShape) {
+    int64_t totalShape = 1;
+    for (auto dim : weightShape) {
+        if (dim != 1) {
+            totalShape = dim;
+        }
+    }
+    auto kernelFactors = getKernelFactors(totalShape);
+    if (kernelFactors.size() != 2)
+        return false;
+    return std::all_of(kernelFactors.begin(), kernelFactors.end(), [](int64_t factor) {
+        return factor >= 1 || factor <= VPU::NCEInvariant::MAX_KERNEL_SIZE;
+    });
+}
+
 bool checkPermuteMatMulPattern(IE::MatMulOp origOp) {
     auto parentOps = getMatMulParentOps(origOp);
     mlir::Operation* actInputOp = parentOps[0];
@@ -95,7 +110,7 @@ bool checkPermuteMatMulPattern(IE::MatMulOp origOp) {
         return false;
     }
 
-    return true;
+    return isKernelDivisible(weightInputOp->getResult(0).getType().cast<vpux::NDTypeInterface>().getShape());
 }
 
 SmallVector<int64_t, 2> getKernelFactors(int64_t total) {
@@ -104,7 +119,6 @@ SmallVector<int64_t, 2> getKernelFactors(int64_t total) {
     while (total % kx != 0) {
         kx--;
         ky = total / kx;
-        std::cout << "divide " << total << " into " << kx << " " << ky << std::endl;
     }
     std::cout << "divide " << total << " into " << kx << " " << ky << std::endl;
     return {kx, ky};
