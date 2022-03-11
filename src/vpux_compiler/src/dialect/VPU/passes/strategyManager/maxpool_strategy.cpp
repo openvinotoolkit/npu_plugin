@@ -77,7 +77,6 @@ bool MaxPoolStrategy::doesLayerFitIntoCMX(mlir::Operation* op, StringRef strateg
 bool MaxPoolStrategy::isOperationSplitOverHeightCompatible(mlir::Operation* op) const {
     const auto outputShape = getShape(op->getResult(0));
     const auto OH = outputShape[Dims4D::Act::H];
-    const auto OW = outputShape[Dims4D::Act::W];
 
     if (OH < _minimumOutputHeightForSOH) {
         return false;
@@ -92,7 +91,6 @@ bool MaxPoolStrategy::isOperationSplitOverHeightCompatible(mlir::Operation* op) 
 
     const auto inputShape = getShape(origOp.input());
     const auto IH = inputShape[Dims4D::Act::H];
-    const auto IW = inputShape[Dims4D::Act::W];
 
     for (int ih = IH / _numClusters; ih < IH; ih++) {
         int ihLastCluster = IH - ih * (_numClusters - 1);
