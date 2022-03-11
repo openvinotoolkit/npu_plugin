@@ -2794,8 +2794,8 @@ operation ::= `IE.Roll` `(` operands `)` attr-dict `:` type(operands) `->` type(
 | Operand | Description |
 | :-----: | ----------- |
 `data` | ranked tensor of any type values
-`shift` | 1D tensor of 64-bit signed integer or 32-bit signed integer values
-`axes` | 1D tensor of 64-bit signed integer or 32-bit signed integer values
+`shift` | 1D tensor of integer values
+`axes` | 1D tensor of integer values
 
 #### Results:
 
