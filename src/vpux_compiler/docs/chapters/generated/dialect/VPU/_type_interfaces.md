@@ -10,7 +10,17 @@ Interface for generating cluster-aware information for types.
 ```c++
 SmallVector<Shape> getPerClusterComputeShapes();
 ```
-Retrive the array of compute shapes
+@brief Retrieve the array of compute shapes
+@warning An important thing to consider with regards to compute shapes,
+         is that modes like SEGMENTED and OVERLAPPED take precedence over
+         DUPLICATED and MULTICASTED.
+         In an example case of a "SEGMENTED | DUPLICATED" (needed for SplitOverK)
+         tensor with shape [1, 64, 4, 4], the compute shape in each cluster is
+         [1, 16, 4, 4], which is needed when tiling and generating workloads,
+         while the allocated shape is [1, 64, 4, 4] (because of duplicated)
+         information which is needed for scheduler and strategy manager,
+         in order to estimate memory
+
 NOTE: This method *must* be implemented by the user.
 
 #### `getPerClusterComputeShapeOffsets`
@@ -18,7 +28,11 @@ NOTE: This method *must* be implemented by the user.
 ```c++
 SmallVector<Shape> getPerClusterComputeShapeOffsets();
 ```
-Retrive the array of compute shape offsets with regards to the full buffer
+@brief Retrieve the array of compute shape offsets with regards to the full buffer
+@warning An important thing to consider with regards to compute offsets,
+         is that modes like SEGMENTED and OVERLAPPED take precedence over
+         DUPLICATED and MULTICASTED.
+
 NOTE: This method *must* be implemented by the user.
 
 #### `getLargestCompactShape`
@@ -26,7 +40,11 @@ NOTE: This method *must* be implemented by the user.
 ```c++
 Shape getLargestCompactShape();
 ```
-Get largest compact compute shape
+@brief Get largest compact compute shape
+@warning This function should not be used for memory size calculation,
+         because it does not retrieve the true allocate shape in cases
+         of broadcasting.
+
 NOTE: This method *must* be implemented by the user.
 
 #### `getCompactShape`
@@ -34,30 +52,46 @@ NOTE: This method *must* be implemented by the user.
 ```c++
 Shape getCompactShape(int64_t tileInd);
 ```
-Get the compact compute shape for a specific cluster
+@brief Get the compact compute shape for a specific cluster
+@warning This function should not be used for memory size calculation,
+         because it does not retrieve the true allocate shape in cases
+         of broadcasting.
+
 NOTE: This method *must* be implemented by the user.
 
 #### `getPerClusterStridedShapes`
 
 ```c++
-SmallVector<std::pair<Shape, Strides>> getPerClusterStridedShapes();
+SmallVector<StridedShape> getPerClusterStridedShapes();
 ```
-Retrive the array of strided compute shapes
+@brief Retrieve the array of strided compute shapes
+@warning This function should not be used for memory size calculation,
+         because it does not retrieve the true allocate shape in cases
+         of broadcasting.
+
 NOTE: This method *must* be implemented by the user.
 
 #### `getLargestStridedShape`
 
 ```c++
-std::pair<Shape, Strides> getLargestStridedShape();
+StridedShape getLargestStridedShape();
 ```
-Get largest strided compute shape
+@brief Get largest strided compute shape
+@warning This function should not be used for memory size calculation,
+         because it does not retrieve the true allocate shape in cases
+         of broadcasting.
+
 NOTE: This method *must* be implemented by the user.
 
 #### `getStridedShape`
 
 ```c++
-std::pair<Shape, Strides> getStridedShape(int64_t tileInd);
+StridedShape getStridedShape(int64_t tileInd);
 ```
-Get the strided compute shape for a specific cluster
+@brief Get the strided compute shape for a specific cluster
+@warning This function should not be used for memory size calculation,
+         because it does not retrieve the true allocate shape in cases
+         of broadcasting.
+
 NOTE: This method *must* be implemented by the user.
 

@@ -28,39 +28,73 @@ def ClusterTypeInterface : TypeInterface<"ClusterTypeInterface"> {
     let cppNamespace = "vpux";
 
     let methods = [
-        InterfaceMethod<
-            "Retrive the array of compute shapes",
+        InterfaceMethod<[{
+            @brief Retrieve the array of compute shapes
+            @warning An important thing to consider with regards to compute shapes,
+                     is that modes like SEGMENTED and OVERLAPPED take precedence over
+                     DUPLICATED and MULTICASTED.
+                     In an example case of a "SEGMENTED | DUPLICATED" (needed for SplitOverK)
+                     tensor with shape [1, 64, 4, 4], the compute shape in each cluster is
+                     [1, 16, 4, 4], which is needed when tiling and generating workloads,
+                     while the allocated shape is [1, 64, 4, 4] (because of duplicated)
+                     information which is needed for scheduler and strategy manager,
+                     in order to estimate memory
+            }],
             "SmallVector<Shape>", "getPerClusterComputeShapes", (ins)
         >,
 
-        InterfaceMethod<
-            "Retrive the array of compute shape offsets with regards to the full buffer",
+        InterfaceMethod<[{
+            @brief Retrieve the array of compute shape offsets with regards to the full buffer
+            @warning An important thing to consider with regards to compute offsets,
+                     is that modes like SEGMENTED and OVERLAPPED take precedence over
+                     DUPLICATED and MULTICASTED.
+             }],
             "SmallVector<Shape>", "getPerClusterComputeShapeOffsets", (ins)
         >,
 
-        InterfaceMethod<
-            "Get largest compact compute shape",
+        InterfaceMethod<[{
+            @brief Get largest compact compute shape
+            @warning This function should not be used for memory size calculation,
+                     because it does not retrieve the true allocate shape in cases
+                     of broadcasting.
+            }],
             "Shape", "getLargestCompactShape", (ins)
         >,
 
-        InterfaceMethod<
-            "Get the compact compute shape for a specific cluster",
+        InterfaceMethod<[{
+            @brief Get the compact compute shape for a specific cluster
+            @warning This function should not be used for memory size calculation,
+                     because it does not retrieve the true allocate shape in cases
+                     of broadcasting.
+            }],
             "Shape", "getCompactShape", (ins "int64_t":$tileInd)
         >,
 
-       InterfaceMethod<
-            "Retrive the array of strided compute shapes",
-            "SmallVector<std::pair<Shape, Strides>>", "getPerClusterStridedShapes", (ins)
+       InterfaceMethod<[{
+            @brief Retrieve the array of strided compute shapes
+            @warning This function should not be used for memory size calculation,
+                     because it does not retrieve the true allocate shape in cases
+                     of broadcasting.
+            }],
+            "SmallVector<StridedShape>", "getPerClusterStridedShapes", (ins)
         >,
 
-        InterfaceMethod<
-            "Get largest strided compute shape",
-            "std::pair<Shape, Strides>", "getLargestStridedShape", (ins)
+        InterfaceMethod<[{
+            @brief Get largest strided compute shape
+            @warning This function should not be used for memory size calculation,
+                     because it does not retrieve the true allocate shape in cases
+                     of broadcasting.
+            }],
+            "StridedShape", "getLargestStridedShape", (ins)
         >,
 
-        InterfaceMethod<
-            "Get the strided compute shape for a specific cluster",
-            "std::pair<Shape, Strides>", "getStridedShape", (ins "int64_t":$tileInd)
+        InterfaceMethod<[{
+            @brief Get the strided compute shape for a specific cluster
+            @warning This function should not be used for memory size calculation,
+                     because it does not retrieve the true allocate shape in cases
+                     of broadcasting.
+            }],
+            "StridedShape", "getStridedShape", (ins "int64_t":$tileInd)
         >,
     ];
 }

@@ -213,7 +213,7 @@ mlir::RankedTensorType VPU::DistributedTensorType::getCompactType() const {
 // Shape utils
 //
 
-// @brief Retrive the array of compute shapes.
+// @brief Retrieve the array of compute shapes.
 // @warning An important thing to consider with regards to compute shapes,
 // is that modes like SEGMENTED and OVERLAPPED take precedence over
 // DUPLICATED and MULTICASTED.
@@ -257,51 +257,27 @@ Shape VPU::DistributedTensorType::getCompactShape(int64_t tileInd) const {
     return tiledComputeShapes[tileInd];
 }
 
-// @brief Retrive the array of strided compute shapes
-SmallVector<std::pair<Shape, Strides>> VPU::DistributedTensorType::getPerClusterStridedShapes() const {
-    SmallVector<std::pair<Shape, Strides>> stridedShapes;
-
-    const auto distribution = getDistribution();
-    const auto distributionMode = distribution.mode().getValue();
-
-    const auto computeShapes = getPerClusterComputeShapes();
-
-    if (VPU::bitEnumContains(distributionMode, VPU::DistributionMode::DUPLICATED)) {
-        for (const auto& computeShape : computeShapes) {
-            stridedShapes.emplace_back(computeShape, getStrides());
-        }
-        return stridedShapes;
-    }
-
-    if (VPU::bitEnumContains(distributionMode, VPU::DistributionMode::SEGMENTED)) {
-        const auto dimsOrder = getDimsOrder();
-        const auto elemTypeSize = getElemTypeSize();
-
-        const auto comapctStrideReqs = StrideReqs::compact(dimsOrder.numDims());
-
-        for (const auto& computeShape : computeShapes) {
-            const auto computeMemShape = dimsOrder.toMemoryOrder(Shape(computeShape));
-            const auto computeMemStrides = comapctStrideReqs.calcStrides(elemTypeSize, computeMemShape);
-            const auto computeStrides = dimsOrder.toLogicalOrder(MemStrides(computeMemStrides));
-            stridedShapes.emplace_back(computeShape, computeStrides);
-        }
-    }
-
-    return stridedShapes;
+// @brief Retrieve the array of strided compute shapes
+// @warning This function should not be used for memory size calculation,
+// because it does not retrieve the true allocate shape in cases
+// of broadcasting.
+SmallVector<StridedShape> VPU::DistributedTensorType::getPerClusterStridedShapes() const {
+    return VPU::getPerClusterStridedShapes(getShape(), getStrides(), getDimsOrder(), getElemTypeSize(),
+                                           getDistribution());
 }
 
 // @brief Get largest strided compute shape
 // @warning This function should not be used for memory size calculation,
 // because it does not retrieve the true allocate shape in cases
 // of broadcasting.
-std::pair<Shape, Strides> VPU::DistributedTensorType::getLargestStridedShape() const {
-    const auto stridedShapeSize = [](const std::pair<Shape, Strides>& stridedShape) {
-        return stridedShape.first.front() * stridedShape.second.front();
+StridedShape VPU::DistributedTensorType::getLargestStridedShape() const {
+    const auto stridedShapeSize = [](const StridedShape& stridedShape) {
+        return stridedShape.shape.front() * stridedShape.strides.front();
     };
 
     const auto stridedShapes = getPerClusterStridedShapes();
     return *std::max_element(stridedShapes.begin(), stridedShapes.end(),
-                             [&](std::pair<Shape, Strides> a, std::pair<Shape, Strides> b) {
+                             [&](const StridedShape& a, const StridedShape& b) {
                                  return stridedShapeSize(a) < stridedShapeSize(b);
                              });
 }
@@ -310,7 +286,7 @@ std::pair<Shape, Strides> VPU::DistributedTensorType::getLargestStridedShape() c
 // @warning This function should not be used for memory size calculation,
 // because it does not retrieve the true allocate shape in cases
 // of broadcasting.
-std::pair<Shape, Strides> VPU::DistributedTensorType::getStridedShape(int64_t tileInd) const {
+StridedShape VPU::DistributedTensorType::getStridedShape(int64_t tileInd) const {
     const auto stridedShapes = getPerClusterStridedShapes();
     VPUX_THROW_UNLESS(tileInd < static_cast<int64_t>(stridedShapes.size()),
                       "Requesting tiled shape outside of cluster pool");

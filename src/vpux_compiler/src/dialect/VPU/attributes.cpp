@@ -13,6 +13,7 @@
 
 #include "vpux/compiler/dialect/VPU/attributes.hpp"
 
+#include "vpux/compiler/core/attributes/stride_reqs.hpp"
 #include "vpux/compiler/core/tiling.hpp"
 #include "vpux/compiler/dialect/IE/attributes/structs.hpp"
 #include "vpux/compiler/dialect/IE/ops.hpp"
@@ -588,6 +589,51 @@ SmallVector<Shape> vpux::VPU::getPerClusterComputeShapeOffsets(ShapeRef shapeRef
         }
     }
     return tiledComputeShapeOffsets;
+}
+
+SmallVector<StridedShape> vpux::VPU::getPerClusterStridedShapes(ShapeRef shape, StridesRef strides, DimsOrder dimsOrder,
+                                                                Bit elemSize, DistributedTensorAttr distributionAttr) {
+    const auto distributionMode = distributionAttr.mode().getValue();
+    const auto computeShapes = getPerClusterComputeShapes(shape, distributionAttr);
+
+    SmallVector<StridedShape> stridedShapes;
+    if (VPU::bitEnumContains(distributionMode, VPU::DistributionMode::DUPLICATED)) {
+        for (const auto& computeShape : computeShapes) {
+            stridedShapes.emplace_back(computeShape, strides.raw());
+        }
+        return stridedShapes;
+    }
+
+    const auto memShape = dimsOrder.toMemoryOrder(shape);
+    const auto memStrides = dimsOrder.toMemoryOrder(strides);
+
+    if (VPU::bitEnumContains(distributionMode, VPU::DistributionMode::SEGMENTED)) {
+        const auto compactStrideReqs = StrideReqs::compact(dimsOrder.numDims());
+        const auto compactStrides = compactStrideReqs.calcStrides(elemSize, memShape);
+        SmallVector<Bit> stridesMultiplier(memStrides.size());
+        std::transform(memStrides.begin(), memStrides.end(), compactStrides.begin(), stridesMultiplier.begin(),
+                       [](Bit stride, Bit compactStride) {
+                           return Bit(stride.count() / compactStride.count());
+                       });
+
+        for (const auto& computeShape : computeShapes) {
+            const auto computeMemShape = dimsOrder.toMemoryOrder(Shape(computeShape));
+            const auto computeCompactStrides = compactStrideReqs.calcStrides(elemSize, computeMemShape);
+
+            SmallVector<Bit> computeMemStrides(computeCompactStrides.size());
+            for (auto p : zip(computeCompactStrides, stridesMultiplier) | indexed) {
+                const auto dim = std::get<0>(p.value());
+                const auto mul = std::get<1>(p.value());
+                computeMemStrides[p.index()] = Bit(dim.count() * mul.count());
+            }
+            const auto computeStrides = dimsOrder.toLogicalOrder(MemStrides(computeMemStrides));
+            stridedShapes.emplace_back(computeShape, computeStrides);
+        }
+    } else {
+        VPUX_THROW("Unsupported mode '{0}'", VPU::stringifyEnum(distributionMode));
+    }
+
+    return stridedShapes;
 }
 
 //

@@ -17,6 +17,22 @@
 #include "vpux/compiler/core/attributes/strides.hpp"
 #include "vpux/utils/core/small_vector.hpp"
 
+namespace vpux {
+
+//
+// StridedShape
+//
+
+struct StridedShape {
+    StridedShape(Shape shape, Strides strides): shape(shape), strides(strides) {
+    }
+
+    Shape shape;
+    Strides strides;
+};
+
+}  // namespace vpux
+
 //
 // Generated
 //
