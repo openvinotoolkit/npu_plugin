@@ -49,7 +49,7 @@ bool BaseLayerStrategy::isOperationSplitOverKernelCompatible(mlir::Operation* op
 }
 
 // The function computes the actual per cluster output tensor volume (i.e. computation that is performed)
-// given the stratey and the MPE mode 
+// given the stratey and the MPE mode
 double BaseLayerStrategy::calculateMPEVolume(VPU::MPEMode mpeMode, ShapeRef outputShape, StringRef strategy) const {
     const auto OC = outputShape[Dims4D::Act::C];
     const auto OH = outputShape[Dims4D::Act::H];
