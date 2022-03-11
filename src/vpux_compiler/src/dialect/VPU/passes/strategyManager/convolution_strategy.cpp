@@ -27,11 +27,11 @@ bool ConvolutionStrategy::doesLayerFitIntoCMX(mlir::Operation* op, StringRef str
     auto outputTensorDistributionMode = getOutputTensorDistributionMode(strategy);
     auto outputTensorNumTiles = getIntArrayAttr(origOp.getContext(), getOutputTensorNumTiles(_numClusters, strategy));
     auto distributedActivationTensorType = createDistributedTensorType(
-            origOp, origOp.input(), activationTensorDistributionMode, activationTensorNumTiles);
-    auto distributeddWeightsTensorType =
-            createDistributedTensorType(origOp, origOp.filter(), weightsTensorDistributionMode, weightsTensorNumTiles);
-    auto distributedOutputTensorType =
-            createDistributedTensorType(origOp, origOp.output(), outputTensorDistributionMode, outputTensorNumTiles);
+            origOp, origOp.input(), activationTensorDistributionMode, activationTensorNumTiles, true);
+    auto distributeddWeightsTensorType = createDistributedTensorType(
+            origOp, origOp.filter(), weightsTensorDistributionMode, weightsTensorNumTiles, true);
+    auto distributedOutputTensorType = createDistributedTensorType(
+            origOp, origOp.output(), outputTensorDistributionMode, outputTensorNumTiles, true);
 
     return origOp.fitIntoCMX(distributedActivationTensorType, distributeddWeightsTensorType,
                              distributedOutputTensorType);
