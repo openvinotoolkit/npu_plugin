@@ -60,9 +60,10 @@ double BaseLayerStrategy::calculateMPEVolume(mlir::Operation* op, VPU::MPEMode m
     const auto distributedOutputTensorType =
             createDistributedTensorType(op, op->getResult(0), outputTensorDistributionMode, outputTensorNumTiles);
 
-    double perClusterOutputWidth = distributedOutputTensorType.getLargestCompactShape()[Dims4D::Act::W];
-    double perClusterOutputHeight = distributedOutputTensorType.getLargestCompactShape()[Dims4D::Act::H];
-    double perClusterOutputChannels = distributedOutputTensorType.getLargestCompactShape()[Dims4D::Act::C];
+    auto perClusterShape = distributedOutputTensorType.getLargestCompactShape();
+    double perClusterOutputWidth = perClusterShape[Dims4D::Act::W];
+    double perClusterOutputHeight = perClusterShape[Dims4D::Act::H];
+    double perClusterOutputChannels = perClusterShape[Dims4D::Act::C];
 
     if (mpeMode == VPU::MPEMode::VECTOR) {
         mpeHeight = 16;
