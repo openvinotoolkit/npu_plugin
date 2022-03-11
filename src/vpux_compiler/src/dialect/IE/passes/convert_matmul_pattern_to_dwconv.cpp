@@ -26,6 +26,34 @@
 namespace vpux {
 namespace IE {
 
+// In this pass we convert the pattern in ModelF
+// to remove redundant UPA Permute layers
+//
+// input          weights           input          weights    
+//   │               │                │               │
+//┌──▼──────┐   ┌────▼────┐        ┌──▼──────┐   ┌────▼────┐
+//│Transpose│   │ Reshape │        │Transpose│   │ Reshape │
+//└──┬──────┘   └────┬────┘        └──┬──────┘   └────┬────┘
+//   │               │                │               │ x channelSize 
+//┌──▼──────┐   ┌────▼────┐        ┌──▼──────┐   ┌────▼────┐
+//│Reshape  │   │ Reshape │        │Reshape  │   │ concat  │  
+//└──┬──────┘   └────┬────┘  ===>  └──┬──────┘   └────┬────┘   
+//   │               │                │               │
+//┌──▼──────┐   ┌────▼────┐        ┌──▼──────┐        │
+//│Reshape  │   │ Reshape │        │Reshape  │        │
+//└──┬──────┘   └────┬────┘        └──┬──────┘        │
+//   │               │                │               │
+//┌──▼───────────────▼───┐         ┌──▼───────────────▼───┐
+//│        MatMul        │         │        DWConv        │
+//└──────────┬───────────┘         └──────────┬───────────┘
+//           │                                │
+//      ┌────▼────┐                      ┌────▼────┐    
+//      │ Reshape │                      │ Reshape │  
+//      └────┬────┘                      └────┬────┘     
+//           │                                │       
+//           │                                │        
+//           ▼                                ▼                
+// 
 //
 // MatMulPatternConverter
 //
