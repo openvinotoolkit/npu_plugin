@@ -642,6 +642,16 @@ void ZeroExecutor::push(const IE::BlobMap& inputs) {
                 IE_THROW() << "Push blobs: repacking is not possible";
             }
             prepareInputForInference(input, deviceInput->getTensorDesc(), hostMem.data(), quantParams, _logger);
+        } else {
+            // set blob case
+            // TODO: multiple inputs handling
+            // TODO: same for outputs
+            if (inputs.size() == 1 && input->buffer().as<uint8_t*>() != hostMem.data()) {
+                if (0 !=
+                    ie_memcpy(hostMem.data(), input->byteSize(), input->buffer().as<uint8_t*>(), input->byteSize())) {
+                    IE_THROW() << "memcpy error for push blobs";
+                }
+            }
         }
     }
     OV_ITT_TASK_NEXT(ZERO_EXECUTOR_PUSH, "UPLOAD");
