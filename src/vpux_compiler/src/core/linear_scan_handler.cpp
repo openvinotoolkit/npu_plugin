@@ -120,6 +120,17 @@ IERT::SubViewOp LinearScanHandler::getSubViewUserOp(mlir::Value val) const {
     return nullptr;
 }
 
+bool LinearScanHandler::hasEltwiseUser(mlir::Value val) const {
+    for (auto use : val.getUsers()) {
+        auto nceClusterTaskOp = mlir::dyn_cast<VPUIP::NCEClusterTaskOp>(use);
+        if (nceClusterTaskOp && nceClusterTaskOp.task_type() == VPUIP::NCETaskType::ELTWISE) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 vpux::AddressType LinearScanHandler::calculateStaticOffsetWithStrides(ArrayRef<vpux::AddressType> subViewStaticOffsets,
                                                                       StridesRef subViewStrides) const {
     Byte offset(0);
@@ -132,13 +143,12 @@ vpux::AddressType LinearScanHandler::calculateStaticOffsetWithStrides(ArrayRef<v
 }
 
 bool LinearScanHandler::addressWithStridesExceedsNNCMX(vpux::AddressType baseOffset,
-                                                       ArrayRef<vpux::AddressType> subViewStaticOffsets,
                                                        vpux::AddressType staticOffsetWithStrides,
                                                        StridesRef subViewStrides, vpux::AddressType cmxSize) const {
     Byte cmxLeft(cmxSize - (baseOffset + staticOffsetWithStrides));
 
-    for (auto p : zip(subViewStaticOffsets, subViewStrides)) {
-        if (Byte(std::get<0>(p) * std::get<1>(p)) > cmxLeft) {
+    for (auto stride : subViewStrides) {
+        if (Byte(stride) > cmxLeft) {
             return true;
         }
     }
@@ -156,6 +166,11 @@ bool LinearScanHandler::checkInvariantExceedingNNCMX(mlir::Value val, vpux::Addr
         return false;
     }
 
+    if (!hasEltwiseUser(subView.result())) {
+        // only impacted with Eltwise users
+        return false;
+    }
+
     const auto subViewStaticOffsets = parseIntArrayAttr<vpux::AddressType>(subView.static_offsets());
     const auto subViewStrides = getStrides(subView.source());
     VPUX_THROW_UNLESS(subViewStrides.size() == subViewStaticOffsets.size(),
@@ -163,15 +178,13 @@ bool LinearScanHandler::checkInvariantExceedingNNCMX(mlir::Value val, vpux::Addr
 
     auto staticOffsetWithStrides = calculateStaticOffsetWithStrides(subViewStaticOffsets, subViewStrides);
 
-    auto exceeding = addressWithStridesExceedsNNCMX(baseOffset, subViewStaticOffsets, staticOffsetWithStrides,
-                                                    subViewStrides, cmxSize);
-
-    if (exceeding) {
+    if (addressWithStridesExceedsNNCMX(baseOffset, staticOffsetWithStrides, subViewStrides, cmxSize)) {
         // set attribute to change the order of buffer allocation
         subView->setAttr("exceedingNNCMX", mlir::BoolAttr::get(subView.getContext(), true));
+        return true;
     }
 
-    return exceeding;
+    return false;
 }
 
 int LinearScanHandler::getSpillWeight(mlir::Value) {
