@@ -38,6 +38,38 @@ operation ::= `VPU.DPU.Workload` $offsets $sizes $pad $mpe_mode attr-dict-with-k
 `mpe_mode` | vpux::VPU::MPEModeAttr | MPE Mode
 `cluster_id` | mlir::IntegerAttr | Integer attribute
 
+### `VPU.DistributedCast` (vpux::VPU::DistributedCastOp)
+
+Operation that casts one DistributedTensor type to another.
+
+
+Syntax:
+
+```
+operation ::= `VPU.DistributedCast` `(` $input `:` type($input) `)`
+              attr-dict
+              `->` type($output)
+```
+
+Used to cast one DistributedTensor type to another and help with NNCMX retention
+of data.
+
+Currently following distribution mode pairs are compatible:
+
+DUPLICATED|SEGMENTED -> DUPLICATED ## needed for K cluster tiling
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | VPU tensor type to describe the tensor tiling
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | VPU tensor type to describe the tensor tiling
+
 ### `VPU.NCE.ClusterTiling` (vpux::VPU::NCEClusterTilingOp)
 
 Operation that encapsulates details of tiling operation between clusters

@@ -46,6 +46,8 @@ mlir::LogicalResult verifyOp(NCEMaxPoolOp op);
 mlir::LogicalResult verifyOp(NCEClusterTilingOp op);
 mlir::LogicalResult verifyOp(YieldOp op);
 
+mlir::LogicalResult verifyOp(DistributedCastOp op);
+
 //
 // Tiling
 //
@@ -114,6 +116,9 @@ void adjustRawFilterShape(ConcreteOp* op, const TileInfo& outputTile) {
 
 void print(mlir::OpAsmPrinter& p, VPU::NCEClusterTilingOp op);
 mlir::ParseResult parseNCEClusterTilingOp(mlir::OpAsmParser& parser, mlir::OperationState& result);
+
+mlir::LogicalResult isDistributedCastCompatible(VPU::DistributedTensorType inDistributedType,
+                                                VPU::DistributedTensorType outDistributedType);
 
 }  // namespace VPU
 }  // namespace vpux

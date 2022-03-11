@@ -245,10 +245,26 @@ mlir::LogicalResult EliminateCopyPairs::matchAndRewrite(VPU::NCEClusterTilingOp 
     }
 
     // The I/O types of this CopyOp-chain should be similar
-    auto producerInput = producerClusterTilingOp.operands()[0];
-    auto output = origOp.results()[0];
+    auto producerInput = producerClusterTilingOp.getOperand(0);
+    auto output = origOp.getResult(0);
+
     if (producerInput.getType() != output.getType()) {
-        return mlir::failure();
+        const auto inDistributedType = producerInput.getType().dyn_cast<vpux::VPU::DistributedTensorType>();
+        const auto outDistributedType = output.getType().dyn_cast<vpux::VPU::DistributedTensorType>();
+
+        if (inDistributedType == nullptr || outDistributedType == nullptr) {
+            return mlir::failure();
+        }
+
+        if (VPU::isDistributedCastCompatible(inDistributedType, outDistributedType).failed()) {
+            return mlir::failure();
+        }
+
+        const auto distributedCastOp =
+                rewriter.create<VPU::DistributedCastOp>(origOp.getLoc(), output.getType(), producerInput);
+
+        rewriter.replaceOp(origOp, distributedCastOp->getResult(0));
+        return mlir::success();
     }
 
     rewriter.replaceOp(origOp, producerInput);

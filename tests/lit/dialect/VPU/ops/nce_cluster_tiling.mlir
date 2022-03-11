@@ -175,7 +175,7 @@ func @ParsePrintDistributedTensor(%arg0: !Input_DDR) -> !Output_DDR {
 !Tensor_DDR = type tensor<1x64x16x16xf16, {mem_space = @DDR, order = #NHWC}>
 !TensorStub_CMX = type tensor<1x64x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>
 
-func @EraseCopySequence(%arg0: !TensorDistributed) -> !TensorDistributed {
+func @EraseSOHCopySequence(%arg0: !TensorDistributed) -> !TensorDistributed {
     %spilled_ddr = VPU.NCE.ClusterTiling(%arg0 as %arg1: !TensorStub_CMX) -> !Tensor_DDR {
         %0 = IE.Copy(%arg1) { out_mem_space = @DDR } : !TensorStub_CMX -> !Tensor_DDR
         VPU.Yield %0
@@ -187,9 +187,207 @@ func @EraseCopySequence(%arg0: !TensorDistributed) -> !TensorDistributed {
     }
 
     return %output: !TensorDistributed
+    // CHECK: return %arg0 : !VPU.DistributedTensor<1x64x16x16xf16, #NHWC, @CMX_NN, {mode = SEGMENTED, num_tiles = [1, 1, 4, 1], num_clusters = 4 : i64}>
 }
 
-// CHECK: return %arg0 : !VPU.DistributedTensor<1x64x16x16xf16, #NHWC, @CMX_NN, {mode = SEGMENTED, num_tiles = [1, 1, 4, 1], num_clusters = 4 : i64}>
+
+// -----
+
+#NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
+
+!TensorDistributed = type !VPU.DistributedTensor<
+    1x64x16x16xf16, #NHWC, @CMX_NN, {
+    mode = SEGMENTED,
+    num_tiles = [1, 1, 4, 1],
+    num_clusters = 4
+}>
+
+!Tensor_DDR = type tensor<1x64x16x16xf16, {mem_space = @DDR, order = #NHWC}>
+!TensorStub_CMX = type tensor<1x64x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>
+
+func @EraseCopySequenceDontAlterCMXConsumers(%arg0: !TensorDistributed) -> (!TensorDistributed, !Tensor_DDR) {
+    %spilled_ddr = VPU.NCE.ClusterTiling(%arg0 as %arg1: !TensorStub_CMX) -> !Tensor_DDR {
+        %0 = IE.Copy(%arg1) { out_mem_space = @DDR } : !TensorStub_CMX -> !Tensor_DDR
+        VPU.Yield %0
+    }
+
+    %spilled_ddr2 = VPU.NCE.ClusterTiling(%arg0 as %arg1: !TensorStub_CMX) -> !Tensor_DDR {
+        %0 = IE.Copy(%arg1) { out_mem_space = @DDR } : !TensorStub_CMX -> !Tensor_DDR
+        VPU.Yield %0
+    }
+
+    %output = VPU.NCE.ClusterTiling(%spilled_ddr as %arg1: !Tensor_DDR) -> !TensorDistributed {
+        %0 = IE.Copy(%arg1) { out_mem_space = @CMX_NN } : !Tensor_DDR -> !TensorStub_CMX
+        VPU.Yield %0
+    }
+
+    return %output, %spilled_ddr2: !TensorDistributed, !Tensor_DDR
+
+    // CHECK:    [[DDR_2:%.*]] = VPU.NCE.ClusterTiling (%arg0 as %arg1: tensor<1x64x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>) -> tensor<1x64x16x16xf16, {mem_space = @DDR, order = #NHWC}> {
+    // CHECK:    IE.Copy(%arg1) {out_mem_space = @DDR} : tensor<1x64x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}> -> tensor<1x64x16x16xf16, {mem_space = @DDR, order = #NHWC}>
+    // CHECK:    return %arg0, [[DDR_2]] : !VPU.DistributedTensor<1x64x16x16xf16, #NHWC, @CMX_NN, {mode = SEGMENTED, num_tiles = [1, 1, 4, 1], num_clusters = 4 : i64}>,
+    // CHECK-SAME:  tensor<1x64x16x16xf16, {mem_space = @DDR, order = #NHWC}>
+}
+
+// -----
+
+#NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
+
+!TensorDistributed = type !VPU.DistributedTensor<
+    1x64x16x16xf16, #NHWC, @CMX_NN, {
+    mode = SEGMENTED,
+    num_tiles = [1, 1, 4, 1],
+    num_clusters = 4
+}>
+
+!Tensor_DDR = type tensor<1x64x16x16xf16, {mem_space = @DDR, order = #NHWC}>
+!TensorStub_CMX = type tensor<1x64x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>
+
+func @EraseCopySequenceMultipleDDRConsumersSameMode(%arg0: !TensorDistributed) -> (!TensorDistributed, !TensorDistributed) {
+    %spilled_ddr = VPU.NCE.ClusterTiling(%arg0 as %arg1: !TensorStub_CMX) -> !Tensor_DDR {
+        %0 = IE.Copy(%arg1) { out_mem_space = @DDR } : !TensorStub_CMX -> !Tensor_DDR
+        VPU.Yield %0
+    }
+
+    %output = VPU.NCE.ClusterTiling(%spilled_ddr as %arg1: !Tensor_DDR) -> !TensorDistributed {
+        %0 = IE.Copy(%arg1) { out_mem_space = @CMX_NN } : !Tensor_DDR -> !TensorStub_CMX
+        VPU.Yield %0
+    }
+
+    %output2 = VPU.NCE.ClusterTiling(%spilled_ddr as %arg1: !Tensor_DDR) -> !TensorDistributed {
+        %0 = IE.Copy(%arg1) { out_mem_space = @CMX_NN } : !Tensor_DDR -> !TensorStub_CMX
+        VPU.Yield %0
+    }
+
+    return %output, %output2: !TensorDistributed, !TensorDistributed
+
+    // CHECK:   return %arg0, %arg0 : !VPU.DistributedTensor<1x64x16x16xf16, #NHWC, @CMX_NN, {mode = SEGMENTED, num_tiles = [1, 1, 4, 1], num_clusters = 4 : i64}>,
+    // CHECK-SAME:  !VPU.DistributedTensor<1x64x16x16xf16, #NHWC, @CMX_NN, {mode = SEGMENTED, num_tiles = [1, 1, 4, 1], num_clusters = 4 : i64}>
+}
+
+// -----
+
+#NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
+
+!TensorSegmented = type !VPU.DistributedTensor<
+    1x64x16x16xf16, #NHWC, @CMX_NN, {
+    mode = SEGMENTED,
+    num_tiles = [1, 1, 4, 1],
+    num_clusters = 4
+}>
+
+!TensorDuplicated = type !VPU.DistributedTensor<
+    1x64x16x16xf16, #NHWC, @CMX_NN, {
+    mode = DUPLICATED,
+    num_clusters = 4
+}>
+
+!Tensor_DDR = type tensor<1x64x16x16xf16, {mem_space = @DDR, order = #NHWC}>
+!TensorStub_CMX = type tensor<1x64x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>
+
+func @EraseCopySequenceMultipleDDRConsumersDiffMode(%arg0: !TensorSegmented) -> (!TensorSegmented, !TensorDuplicated) {
+    %spilled_ddr = VPU.NCE.ClusterTiling(%arg0 as %arg1: !TensorStub_CMX) -> !Tensor_DDR {
+        %0 = IE.Copy(%arg1) { out_mem_space = @DDR } : !TensorStub_CMX -> !Tensor_DDR
+        VPU.Yield %0
+    }
+
+    %output = VPU.NCE.ClusterTiling(%spilled_ddr as %arg1: !Tensor_DDR) -> !TensorSegmented {
+        %0 = IE.Copy(%arg1) { out_mem_space = @CMX_NN } : !Tensor_DDR -> !TensorStub_CMX
+        VPU.Yield %0
+    }
+
+    %output2 = VPU.NCE.ClusterTiling(%spilled_ddr as %arg1: !Tensor_DDR) -> !TensorDuplicated {
+        %0 = IE.Copy(%arg1) { out_mem_space = @CMX_NN } : !Tensor_DDR -> !TensorStub_CMX
+        VPU.Yield %0
+    }
+
+    return %output, %output2: !TensorSegmented, !TensorDuplicated
+
+    // CHECK:   [[DDR:%.*]] = VPU.NCE.ClusterTiling (%arg0 as %arg1: tensor<1x64x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>) -> tensor<1x64x16x16xf16, {mem_space = @DDR, order = #NHWC}> {
+    // CHECK:   IE.Copy(%arg1) {out_mem_space = @DDR} : tensor<1x64x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}> -> tensor<1x64x16x16xf16, {mem_space = @DDR, order = #NHWC}>
+    // CHECK:   [[CMX:%.*]] = VPU.NCE.ClusterTiling (%0 as %arg1: tensor<1x64x16x16xf16, {mem_space = @DDR, order = #NHWC}>) -> !VPU.DistributedTensor<1x64x16x16xf16, #NHWC, @CMX_NN, {mode = DUPLICATED, num_clusters = 4 : i64}> {
+    // CHECK:   IE.Copy(%arg1) {out_mem_space = @CMX_NN} : tensor<1x64x16x16xf16, {mem_space = @DDR, order = #NHWC}> -> tensor<1x64x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>
+    // CHECK:   return %arg0, [[CMX]] : !VPU.DistributedTensor<1x64x16x16xf16, #NHWC, @CMX_NN, {mode = SEGMENTED, num_tiles = [1, 1, 4, 1], num_clusters = 4 : i64}>, !VPU.DistributedTensor<1x64x16x16xf16, #NHWC, @CMX_NN, {mode = DUPLICATED, num_clusters = 4 : i64}>
+}
+
+// -----
+
+#NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
+
+!CopyOutTensorDistributed = type !VPU.DistributedTensor<
+    1x64x16x16xf16, #NHWC, @CMX_NN, {
+    mode = "SEGMENTED|DUPLICATED",
+    num_tiles = [1, 4, 1, 1],
+    num_clusters = 4
+}>
+
+!CopyInTensorDistributed = type !VPU.DistributedTensor<
+    1x64x16x16xf16, #NHWC, @CMX_NN, {
+    mode = "DUPLICATED",
+    num_clusters = 4
+}>
+
+!Tensor_DDR = type tensor<1x64x16x16xf16, {mem_space = @DDR, order = #NHWC}>
+!TensorStub_CMX = type tensor<1x64x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>
+
+func @EraseSOKCopySequence(%arg0: !CopyOutTensorDistributed) -> !CopyInTensorDistributed {
+    %spilled_ddr = VPU.NCE.ClusterTiling(%arg0 as %arg1: !TensorStub_CMX) -> !Tensor_DDR {
+        %0 = IE.Copy(%arg1) { out_mem_space = @DDR } : !TensorStub_CMX -> !Tensor_DDR
+        VPU.Yield %0
+    }
+
+    %output = VPU.NCE.ClusterTiling(%spilled_ddr as %arg1: !Tensor_DDR) -> !CopyInTensorDistributed {
+        %0 = IE.Copy(%arg1) { out_mem_space = @CMX_NN } : !Tensor_DDR -> !TensorStub_CMX
+        VPU.Yield %0
+    }
+
+    return %output: !CopyInTensorDistributed
+
+    // CHECK:    [[CAST:%.*]] = VPU.DistributedCast(%arg0 : !VPU.DistributedTensor<1x64x16x16xf16, #NHWC, @CMX_NN, {mode = DUPLICATED|SEGMENTED, num_tiles = [1, 4, 1, 1], num_clusters = 4 : i64}>) ->
+    // CHECK-SAME:  !VPU.DistributedTensor<1x64x16x16xf16, #NHWC, @CMX_NN, {mode = DUPLICATED, num_clusters = 4 : i64}>
+    // CHECK:    return [[CAST]] : !VPU.DistributedTensor<1x64x16x16xf16, #NHWC, @CMX_NN, {mode = DUPLICATED, num_clusters = 4 : i64}>
+}
+
+// -----
+
+#NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
+
+!CopyOutTensorDistributed = type !VPU.DistributedTensor<
+    1x64x16x16xf16, #NHWC, @CMX_NN, {
+    mode = "SEGMENTED|DUPLICATED",
+    num_tiles = [1, 4, 1, 1],
+    num_clusters = 4
+}>
+
+!CopyInTensorDistributed = type !VPU.DistributedTensor<
+    1x64x16x16xf16, #NHWC, @CMX_NN, {
+    mode = "SEGMENTED",
+    num_tiles = [1, 4, 1, 1],
+    num_clusters = 4
+}>
+
+!Tensor_DDR = type tensor<1x64x16x16xf16, {mem_space = @DDR, order = #NHWC}>
+!TensorStub_CMX = type tensor<1x64x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>
+
+func @DontEraseSOKtoSOHCopySequence(%arg0: !CopyOutTensorDistributed) -> !CopyInTensorDistributed {
+    %spilled_ddr = VPU.NCE.ClusterTiling(%arg0 as %arg1: !TensorStub_CMX) -> !Tensor_DDR {
+        %0 = IE.Copy(%arg1) { out_mem_space = @DDR } : !TensorStub_CMX -> !Tensor_DDR
+        VPU.Yield %0
+    }
+
+    %output = VPU.NCE.ClusterTiling(%spilled_ddr as %arg1: !Tensor_DDR) -> !CopyInTensorDistributed {
+        %0 = IE.Copy(%arg1) { out_mem_space = @CMX_NN } : !Tensor_DDR -> !TensorStub_CMX
+        VPU.Yield %0
+    }
+
+    return %output: !CopyInTensorDistributed
+
+    // CHECK:  [[TENSOR_DDR:%.*]] = VPU.NCE.ClusterTiling (%arg0 as %arg1: tensor<1x64x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>) -> tensor<1x64x16x16xf16, {mem_space = @DDR, order = #NHWC}> {
+    // CHECK:  IE.Copy
+    // CHECK:  [[TENSOR_CMX:%.*]] = VPU.NCE.ClusterTiling ([[TENSOR_DDR]] as %arg1: tensor<1x64x16x16xf16, {mem_space = @DDR, order = #NHWC}>) -> !VPU.DistributedTensor<1x64x16x16xf16, #NHWC, @CMX_NN, {mode = SEGMENTED, num_tiles = [1, 4, 1, 1], num_clusters = 4 : i64}> {
+    // CHECK:  IE.Copy
+    // CHECK:  return [[TENSOR_CMX]] : !VPU.DistributedTensor<1x64x16x16xf16, #NHWC, @CMX_NN, {mode = SEGMENTED, num_tiles = [1, 4, 1, 1], num_clusters = 4 : i64}>
+}
 
 // -----
 
@@ -341,24 +539,24 @@ func @CanonicalizeTwoConvs(%arg0: !Input_DDR) -> !Output_DDR {
     }
 
     return %output: !Output_DDR
+
+    // CHECK:    [[INTERMEDIATE:%.*]] = VPU.NCE.ClusterTiling ([[INPUT:%.*]] as %arg1: tensor<1x32x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>,
+    // CHECK-SAME:                    [[WEIGHTS_1:%.*]] as %arg2: tensor<64x32x3x3xf16, {mem_space = @CMX_NN, order = #NHWC}>,
+    // CHECK-SAME:                    [[WT_1:%.*]] as %arg3: tensor<64x1x1x4xsi32, {mem_space = @CMX_NN, order = #NCHW}>)
+    // CHECK-SAME:             -> !VPU.DistributedTensor<1x64x16x16xf16, #NHWC, @CMX_NN, {mode = SEGMENTED, num_tiles = [1, 1, 4, 1], num_clusters = 4 : i64}> {
+    // CHECK:        [[TEMP_1:%.*]] = VPU.NCE.Convolution(%arg1, %arg2, %arg3)
+    // CHECK-SAME:       -> tensor<1x64x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>
+
+    // CHECK-NOT: [[SPILLED:%.*]] = VPU.NCE.ClusterTiling ([[TEMP_OUTPUT:%.*]] as %arg1: tensor<1x64x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>) -> tensor<1x64x16x16xf16, {mem_space = @DDR, order = #NHWC}>
+    // CHECK-NOT:     [[WHATEVER_DDR:%.*]] = IE.Copy(%arg1) {out_mem_space = @DDR} : tensor<1x64x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}> -> tensor<1x64x16x16xf16, {mem_space = @DDR, order = #NHWC}>
+
+    // CHECK-NOT: [[FILLED:%.*]] = VPU.NCE.ClusterTiling ([[TEMP_INPUT:%.*]] as %arg1: tensor<1x64x16x16xf16, {mem_space = @DDR, order = #NHWC}>) -> tensor<1x64x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}> {
+    // CHECK-NOT:     [[WHATEVER_CMX:%.*]] = IE.Copy(%arg1) {out_mem_space = @CMX_NN} : tensor<1x64x16x16xf16, {mem_space = @DDR, order = #NHWC}> -> tensor<1x64x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>
+
+    // CHECK:    [[OUTPUT:%.*]] = VPU.NCE.ClusterTiling ([[INTERMEDIATE]] as %arg1: tensor<1x64x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>,
+    // CHECK-SAME:                    [[WEIGHTS_1:%.*]] as %arg2: tensor<16x64x1x1xf16, {mem_space = @CMX_NN, order = #NHWC}>,
+    // CHECK-SAME:                    [[WT_1:%.*]] as %arg3: tensor<16x1x1x4xsi32, {mem_space = @CMX_NN, order = #NCHW}>
+    // CHECK-SAME:            ) -> !VPU.DistributedTensor<1x16x16x16xf16, #NHWC, @CMX_NN, {mode = SEGMENTED, num_tiles = [1, 1, 4, 1], num_clusters = 4 : i64}> {
+    // CHECK:        [[TEMP_2:%.*]] = VPU.NCE.Convolution(%arg1, %arg2, %arg3)
+    // CHECK-SAME:       -> tensor<1x16x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>
 }
-
-// CHECK:    [[INTERMEDIATE:%.*]] = VPU.NCE.ClusterTiling ([[INPUT:%.*]] as %arg1: tensor<1x32x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>,
-// CHECK-SAME:                    [[WEIGHTS_1:%.*]] as %arg2: tensor<64x32x3x3xf16, {mem_space = @CMX_NN, order = #NHWC}>,
-// CHECK-SAME:                    [[WT_1:%.*]] as %arg3: tensor<64x1x1x4xsi32, {mem_space = @CMX_NN, order = #NCHW}>)
-// CHECK-SAME:             -> !VPU.DistributedTensor<1x64x16x16xf16, #NHWC, @CMX_NN, {mode = SEGMENTED, num_tiles = [1, 1, 4, 1], num_clusters = 4 : i64}> {
-// CHECK:        [[TEMP_1:%.*]] = VPU.NCE.Convolution(%arg1, %arg2, %arg3)
-// CHECK-SAME:       -> tensor<1x64x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>
-
-// CHECK-NOT: [[SPILLED:%.*]] = VPU.NCE.ClusterTiling ([[TEMP_OUTPUT:%.*]] as %arg1: tensor<1x64x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>) -> tensor<1x64x16x16xf16, {mem_space = @DDR, order = #NHWC}>
-// CHECK-NOT:     [[WHATEVER_DDR:%.*]] = IE.Copy(%arg1) {out_mem_space = @DDR} : tensor<1x64x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}> -> tensor<1x64x16x16xf16, {mem_space = @DDR, order = #NHWC}>
-
-// CHECK-NOT: [[FILLED:%.*]] = VPU.NCE.ClusterTiling ([[TEMP_INPUT:%.*]] as %arg1: tensor<1x64x16x16xf16, {mem_space = @DDR, order = #NHWC}>) -> tensor<1x64x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}> {
-// CHECK-NOT:     [[WHATEVER_CMX:%.*]] = IE.Copy(%arg1) {out_mem_space = @CMX_NN} : tensor<1x64x16x16xf16, {mem_space = @DDR, order = #NHWC}> -> tensor<1x64x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>
-
-// CHECK:    [[OUTPUT:%.*]] = VPU.NCE.ClusterTiling ([[INTERMEDIATE]] as %arg1: tensor<1x64x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>,
-// CHECK-SAME:                    [[WEIGHTS_1:%.*]] as %arg2: tensor<16x64x1x1xf16, {mem_space = @CMX_NN, order = #NHWC}>,
-// CHECK-SAME:                    [[WT_1:%.*]] as %arg3: tensor<16x1x1x4xsi32, {mem_space = @CMX_NN, order = #NCHW}>
-// CHECK-SAME:            ) -> !VPU.DistributedTensor<1x16x16x16xf16, #NHWC, @CMX_NN, {mode = SEGMENTED, num_tiles = [1, 1, 4, 1], num_clusters = 4 : i64}> {
-// CHECK:        [[TEMP_2:%.*]] = VPU.NCE.Convolution(%arg1, %arg2, %arg3)
-// CHECK-SAME:       -> tensor<1x16x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>
