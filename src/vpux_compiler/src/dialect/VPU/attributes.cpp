@@ -459,7 +459,9 @@ SmallVector<Shape> splitSegmentedShape(ArrayRef<int64_t> shape, ArrayRef<int64_t
     remainderTileShape[axis] = shape[axis] - tiledShape[axis] * (tilingScheme[axis] - 1);
     VPUX_THROW_UNLESS(remainderTileShape[axis] > 0, "Improper split, '{0}' over '{1}' tiles", shape[axis],
                       tilingScheme[axis]);
-    remainderTileShape = alignShape(remainderTileShape, alignment);
+    // mateusz
+    // Temporary comment out to leave last tile unaligned
+    // remainderTileShape = alignShape(remainderTileShape, alignment);
 
     SmallVector<Shape> segmentedTiles(numClusters - 1, Shape(tiledShape));
     segmentedTiles.push_back(Shape(remainderTileShape));
