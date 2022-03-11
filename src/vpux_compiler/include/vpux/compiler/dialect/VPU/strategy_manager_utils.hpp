@@ -20,8 +20,8 @@
 namespace vpux {
 namespace VPU {
 
-llvm::Optional<double> getChannelMajorEfficiencyConstant(int64_t kernel, int64_t stride);
-llvm::Optional<double> getDepthwiseEfficiencyConstant(int64_t kernel, int64_t stride);
+Optional<double> getChannelMajorEfficiencyConstant(int64_t kernel, int64_t stride);
+Optional<double> getDepthwiseEfficiencyConstant(int64_t kernel, int64_t stride);
 
 }  // namespace VPU
 }  // namespace vpux

@@ -36,20 +36,22 @@ static std::map<int64_t, std::map<int64_t, double>> depthwiseEfficiencyTable = {
         {11, {{1, 0.9023}, {2, 0.4687}, {4, 0.2366}, {6, 0.9023}}},
 }};
 
-llvm::Optional<double> vpux::VPU::getChannelMajorEfficiencyConstant(int64_t kernel, int64_t stride) {
+Optional<double> vpux::VPU::getChannelMajorEfficiencyConstant(int64_t kernel, int64_t stride) {
     if (channelMajorEfficiencyTable.count(kernel)) {
         auto table = channelMajorEfficiencyTable[kernel];
         if (table.count(stride)) {
             return channelMajorEfficiencyTable[kernel][stride];
         }
     }
+    return None;
 }
 
-llvm::Optional<double> vpux::VPU::getDepthwiseEfficiencyConstant(int64_t kernel, int64_t stride) {
+Optional<double> vpux::VPU::getDepthwiseEfficiencyConstant(int64_t kernel, int64_t stride) {
     if (depthwiseEfficiencyTable.count(kernel)) {
         auto table = depthwiseEfficiencyTable[kernel];
         if (table.count(stride)) {
             return depthwiseEfficiencyTable[kernel][stride];
         }
     }
+    return None;
 }
