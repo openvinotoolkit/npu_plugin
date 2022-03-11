@@ -248,7 +248,7 @@ void PropagateQuantizeDequantizePass::safeRunOnFunc() {
 
     mlir::RewritePatternSet patterns(&ctx);
     patterns.insert<PropagateQuantize>(&ctx, _log.nest());
-    patterns.insert<PropagateQuantizeWithSoftmax>(&ctx, _log.nest());
+    //    patterns.insert<PropagateQuantizeWithSoftmax>(&ctx, _log.nest());
     patterns.insert<PropagateDequantize>(&ctx, _log.nest());
 
     auto func = getFunction();
