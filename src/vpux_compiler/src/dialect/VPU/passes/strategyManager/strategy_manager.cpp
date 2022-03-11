@@ -48,15 +48,12 @@ bool BaseLayerStrategy::isOperationSplitOverKernelCompatible(mlir::Operation* op
     return OC >= _numChannelAlignment * _numClusters;
 }
 
-double BaseLayerStrategy::calculateMPEComputation(VPU::MPEMode mpeMode, ShapeRef outputShape, DimsOrder order,
-                                                  StringRef strategy) const {
+double BaseLayerStrategy::calculateMPEVolume(VPU::MPEMode mpeMode, ShapeRef outputShape, StringRef strategy) const {
     const auto OC = outputShape[Dims4D::Act::C];
     const auto OH = outputShape[Dims4D::Act::H];
     const auto OW = outputShape[Dims4D::Act::W];
     double mpeHeight = 16;
     double mpeWidth = 1;
-    double mpeHeightComputation = mpeHeight * _numClusters;
-    double mpeWidthComputation = mpeWidth * _numDPUs;
     double perClusterOutputHeight = OH;
     double perClusterOutputChannels = OC;
 
@@ -78,62 +75,38 @@ double BaseLayerStrategy::calculateMPEComputation(VPU::MPEMode mpeMode, ShapeRef
         VPUX_THROW("Unsupported MPE mode {0}", mpeMode);
     }
 
-    // if (order == DimsOrder::NCHW) {
-    //     mpeHeightComputation = mpeHeight * _numClusters;
-    //     mpeWidthComputation = mpeWidth * _numDPUs;
-    //     return mpeHeightComputation * std::ceil(OH / mpeHeightComputation) * mpeWidthComputation *
-    //            std::ceil(OW / mpeWidthComputation) * _numChannelAlignment * std::ceil(OC / _numChannelAlignment);
-    // }
-
-    auto eff = _numDPUs * std::ceil((mpeHeight * std::ceil(perClusterOutputHeight / mpeHeight) * mpeWidth *
-                                     std::ceil(OW / mpeWidth) * _numChannelAlignment *
-                                     std::ceil(perClusterOutputChannels / _numChannelAlignment)) /
-                                    _numDPUs);
-    return eff;
+    return _numDPUs *
+           std::ceil((mpeHeight * std::ceil(perClusterOutputHeight / mpeHeight) * mpeWidth * std::ceil(OW / mpeWidth) *
+                      _numChannelAlignment * std::ceil(perClusterOutputChannels / _numChannelAlignment)) /
+                     _numDPUs);
 }
 
 // The efficiency calculation that is being performed here can be described as follows.
 // A ratio of the real output tensor volume to the actual computation that occurs on the
 // hardwarefor each MPE Mode 4x4x16 and 16x1x16 is computed and the maximum is selected.
 // A hardware efficiency constant is multiplied by the result for channel-major convolutions.
-double BaseLayerStrategy::computeSplitOverHeightEfficiency(mlir::Operation* op, double efficiencyConstant) const {
+double BaseLayerStrategy::computeSplitEfficiency(mlir::Operation* op, StringRef strategy,
+                                                 double efficiencyConstant) const {
     const auto outputShape = getShape(op->getResult(0));
     const auto OC = outputShape[Dims4D::Act::C];
     const auto OH = outputShape[Dims4D::Act::H];
     const auto OW = outputShape[Dims4D::Act::W];
-    const double perClusteroutputTensorVolume = (OH / _numClusters) * OW * OC;
+    double perClusteroutputTensorVolume = 0;
 
-    // if (DimsOrder::fromValue(origOp.input()) == DimsOrder::NCHW) {
-    //     const auto efficiencyConstant = getChannelMajorEfficiencyConstant(KY, strides[0]);
-
-    //     auto efficiency =
-    //             std::max(outputTensorVolume / calculateMPEComputation(VPU::MPEMode::MATRIX, outputShape,
-    //                                                                   DimsOrder::NCHW, splitOverHeightOverlapped),
-    //                      outputTensorVolume / calculateMPEComputation(VPU::MPEMode::VECTOR, outputShape,
-    //                                                                   DimsOrder::NCHW, splitOverHeightOverlapped));
-
-    //     return efficiencyConstant * efficiency;
-    // }
+    if (strategy == splitOverHeight) {
+        perClusteroutputTensorVolume = (OH / _numClusters) * OW * OC;
+    }
+    if (strategy == splitOverKernel) {
+        perClusteroutputTensorVolume = (OC / _numClusters) * OH * OW;
+    } else {
+        VPUX_THROW("Unsupported strategy {0}", strategy);
+    }
 
     return efficiencyConstant *
-           std::max(perClusteroutputTensorVolume / calculateMPEComputation(VPU::MPEMode::MATRIX, outputShape,
-                                                                           DimsOrder::NHWC, splitOverHeight),
-                    perClusteroutputTensorVolume / calculateMPEComputation(VPU::MPEMode::VECTOR, outputShape,
-                                                                           DimsOrder::NHWC, splitOverHeight));
-}
-
-double BaseLayerStrategy::computeSplitOverKernelEfficiency(mlir::Operation* op, double efficiencyConstant) const {
-    const auto outputShape = getShape(op->getResult(0));
-    const auto OC = outputShape[Dims4D::Act::C];
-    const auto OH = outputShape[Dims4D::Act::H];
-    const auto OW = outputShape[Dims4D::Act::W];
-    const double perClusteroutputTensorVolume = (OC / _numClusters) * OH * OW;
-
-    return efficiencyConstant *
-           std::max(perClusteroutputTensorVolume / calculateMPEComputation(VPU::MPEMode::MATRIX, outputShape,
-                                                                           DimsOrder::NHWC, splitOverKernel),
-                    perClusteroutputTensorVolume / calculateMPEComputation(VPU::MPEMode::VECTOR, outputShape,
-                                                                           DimsOrder::NHWC, splitOverKernel));
+           std::max(perClusteroutputTensorVolume /
+                            calculateMPEVolume(VPU::MPEMode::MATRIX, outputShape, splitOverHeight),
+                    perClusteroutputTensorVolume /
+                            calculateMPEVolume(VPU::MPEMode::VECTOR, outputShape, splitOverHeight));
 }
 
 StringRef BaseLayerStrategy::getOptimalLayerStrategy(mlir::Operation* op) const {
@@ -161,11 +134,11 @@ StringRef BaseLayerStrategy::getOptimalLayerStrategy(mlir::Operation* op) const 
 
     if (isOperationSplitOverHeightCompatible(op) &&
         (doesLayerFitIntoCMX(op, splitOverHeightOverlapped) || doesLayerFitIntoCMX(op, splitOverHeight))) {
-        splitOverHeightEfficiency = computeSplitOverHeightEfficiency(op, efficiencyConstant);
+        splitOverHeightEfficiency = computeSplitEfficiency(op, splitOverHeight, efficiencyConstant);
     }
 
     if (isOperationSplitOverKernelCompatible(op) && doesLayerFitIntoCMX(op, splitOverKernel)) {
-        splitOverKernelEfficiency = computeSplitOverKernelEfficiency(op, efficiencyConstant);
+        splitOverKernelEfficiency = computeSplitEfficiency(op, splitOverKernel, efficiencyConstant);
     }
 
     if (splitOverHeightEfficiency >= splitOverKernelEfficiency) {
