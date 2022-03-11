@@ -262,6 +262,8 @@ Shape VPU::DistributedTensorType::getCompactShape(int64_t tileInd) const {
 // because it does not retrieve the true allocate shape in cases
 // of broadcasting.
 SmallVector<StridedShape> VPU::DistributedTensorType::getPerClusterStridedShapes() const {
+    const auto strideInReqs = StrideReqs::compact(getShape().size());
+    VPUX_THROW_UNLESS(strideInReqs.checkStrides(*this), "Only compact strides are supported");
     return VPU::getPerClusterStridedShapes(getShape(), getStrides(), getDimsOrder(), getElemTypeSize(),
                                            getDistribution());
 }
