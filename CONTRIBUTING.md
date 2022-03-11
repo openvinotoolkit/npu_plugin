@@ -84,15 +84,7 @@
 * Reviewer is responsible for what was actually merged.
 
 ### Reviewer List
-* MLIR Compiler - Vinogradov, Vladislav / Kudriavtsev, Nikita 
-* Quantization / Mixed Datatypes - Shokin, Alexander / Rotuna, Harald Razvan / Zomborat, Zoran 
-* Strategy Generation - DeFlumere, Ashley
-* Binaries (RT, vpualHost), Backends - Skrebkov, Artemy / Znamenskiy, Mikhail 
-* Software Layers - Shumihim, Sergey
-* mcmCompiler - Yao, Shaojun / Mineeva, Marina
-* Memory/Barrier scheduling - Brady, John / Gwizdz, Michal
-* MTL - Gladilov, Gleb / Pedus, Mikhail / Losev, Sergey
-* Testing - Perepelkin, Alexander
+[CODEOWNERS](./CODEOWNERS)
 
 ### Maintainer
 * Resolving request dependencies and merging functionality in right order.
@@ -100,9 +92,7 @@
 * Make sure there is no potential conflicts with other changes merged recently.
 
 ### Maintainers List
-* VPUX Plugin - Artemy, Skrebkov
-* mcmCompiler - Marina, Mineeva
-* MLIR Compiler - Vlad, Vinogradov
+https://github.com/orgs/intel-innersource/teams/kmb-plugin-maintainers/members 
 
 ## How to run CI jobs
 1. [IE MDK](https://wiki.ith.intel.com/display/VPUWIKI/Functional+validation+CI)
