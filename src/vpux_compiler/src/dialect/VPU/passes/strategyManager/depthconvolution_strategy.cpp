@@ -23,9 +23,11 @@ bool DepthConvolutionStrategy::doesLayerFitIntoCMX(mlir::Operation* op, StringRe
     const auto activationTensorNumTiles = getIntArrayAttr(
             origOp.getContext(), getActivationTensorNumTiles(origOp.getOperation(), _numClusters, strategy));
     const auto weightsTensorDistributionMode = getWeightsTensorDistributionMode(strategy);
-    const auto weightsTensorNumTiles = getIntArrayAttr(origOp.getContext(), getWeightsTensorNumTiles(_numClusters, strategy));
+    const auto weightsTensorNumTiles =
+            getIntArrayAttr(origOp.getContext(), getWeightsTensorNumTiles(_numClusters, strategy));
     const auto outputTensorDistributionMode = getOutputTensorDistributionMode(strategy);
-    const auto outputTensorNumTiles = getIntArrayAttr(origOp.getContext(), getOutputTensorNumTiles(_numClusters, strategy));
+    const auto outputTensorNumTiles =
+            getIntArrayAttr(origOp.getContext(), getOutputTensorNumTiles(_numClusters, strategy));
     const auto distributedActivationTensorType = createDistributedTensorType(
             origOp, origOp.input(), activationTensorDistributionMode, activationTensorNumTiles);
     const auto distributeddWeightsTensorType =

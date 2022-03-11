@@ -93,19 +93,19 @@ double BaseLayerStrategy::computeSplitEfficiency(mlir::Operation* op, StringRef 
     const auto OC = outputShape[Dims4D::Act::C];
     const auto OH = outputShape[Dims4D::Act::H];
     const auto OW = outputShape[Dims4D::Act::W];
-    double perClusteroutputTensorVolume = 0;
+    double perClusterOutputTensorVolume = 0;
 
     if (strategy == splitOverHeight) {
-        perClusteroutputTensorVolume = (OH / _numClusters) * OW * OC;
+        perClusterOutputTensorVolume = (OH / _numClusters) * OW * OC;
     } else if (strategy == splitOverKernel) {
-        perClusteroutputTensorVolume = (OC / _numClusters) * OH * OW;
+        perClusterOutputTensorVolume = (OC / _numClusters) * OH * OW;
     } else {
         VPUX_THROW("Unsupported strategy {0}", strategy);
     }
 
     return efficiencyConstant *
-           std::max(perClusteroutputTensorVolume / calculateMPEVolume(VPU::MPEMode::MATRIX, outputShape, strategy),
-                    perClusteroutputTensorVolume / calculateMPEVolume(VPU::MPEMode::VECTOR, outputShape, strategy));
+           std::max(perClusterOutputTensorVolume / calculateMPEVolume(VPU::MPEMode::MATRIX, outputShape, strategy),
+                    perClusterOutputTensorVolume / calculateMPEVolume(VPU::MPEMode::VECTOR, outputShape, strategy));
 }
 
 StringRef BaseLayerStrategy::getOptimalLayerStrategy(mlir::Operation* op) const {
