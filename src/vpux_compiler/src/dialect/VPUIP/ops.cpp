@@ -73,7 +73,7 @@ bool isSupportedHWPostOp(mlir::Operation* postOp) {
     };
 
     if (mlir::isa<IE::LeakyReluOp>(postOp) && isQuantized(producerOp, postOp)) {
-        return false;
+        return true;
     }
 
     return true;
