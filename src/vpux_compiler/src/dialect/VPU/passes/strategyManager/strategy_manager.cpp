@@ -50,22 +50,19 @@ bool BaseLayerStrategy::isOperationSplitOverKernelCompatible(mlir::Operation* op
 
 // The function computes the actual per cluster output tensor volume (i.e. computation that is performed)
 // given the stratey and the MPE mode
-double BaseLayerStrategy::calculateMPEVolume(VPU::MPEMode mpeMode, ShapeRef outputShape, StringRef strategy) const {
-    const auto OC = outputShape[Dims4D::Act::C];
-    const auto OH = outputShape[Dims4D::Act::H];
-    const auto OW = outputShape[Dims4D::Act::W];
+double BaseLayerStrategy::calculateMPEVolume(mlir::Operation* op, VPU::MPEMode mpeMode, StringRef strategy) const {
     double mpeHeight = 16;
     double mpeWidth = 1;
-    double perClusterOutputHeight = OH;
-    double perClusterOutputChannels = OC;
 
-    if (strategy == splitOverHeight) {
-        perClusterOutputHeight = OH / _numClusters;
-    } else if (strategy == splitOverKernel) {
-        perClusterOutputChannels = OC / _numClusters;
-    } else {
-        VPUX_THROW("Unsupported strategy {0}", strategy);
-    }
+    const auto outputTensorDistributionMode = getOutputTensorDistributionMode(strategy);
+    const auto outputTensorNumTiles =
+            getIntArrayAttr(op->getContext(), getOutputTensorNumTiles(_numClusters, strategy));
+    const auto distributedOutputTensorType =
+            createDistributedTensorType(op, op->getResult(0), outputTensorDistributionMode, outputTensorNumTiles);
+
+    double perClusterOutputWidth = distributedOutputTensorType.getLargestCompactShape()[Dims4D::Act::H];
+    double perClusterOutputHeight = distributedOutputTensorType.getLargestCompactShape()[Dims4D::Act::H];
+    double perClusterOutputChannels = distributedOutputTensorType.getLargestCompactShape()[Dims4D::Act::C];
 
     if (mpeMode == VPU::MPEMode::VECTOR) {
         mpeHeight = 16;
@@ -77,10 +74,10 @@ double BaseLayerStrategy::calculateMPEVolume(VPU::MPEMode mpeMode, ShapeRef outp
         VPUX_THROW("Unsupported MPE mode {0}", mpeMode);
     }
 
-    return _numDPUs *
-           std::ceil((mpeHeight * std::ceil(perClusterOutputHeight / mpeHeight) * mpeWidth * std::ceil(OW / mpeWidth) *
-                      _numChannelAlignment * std::ceil(perClusterOutputChannels / _numChannelAlignment)) /
-                     _numDPUs);
+    return _numDPUs * std::ceil((mpeHeight * std::ceil(perClusterOutputHeight / mpeHeight) * mpeWidth *
+                                 std::ceil(perClusterOutputWidth / mpeWidth) * _numChannelAlignment *
+                                 std::ceil(perClusterOutputChannels / _numChannelAlignment)) /
+                                _numDPUs);
 }
 
 // The efficiency calculation that is being performed here can be described as follows.
@@ -88,23 +85,20 @@ double BaseLayerStrategy::calculateMPEVolume(VPU::MPEMode mpeMode, ShapeRef outp
 // hardware for each MPE Mode 4x4x16 and 16x1x16 is computed and the maximum is selected.
 double BaseLayerStrategy::computeSplitEfficiency(mlir::Operation* op, StringRef strategy,
                                                  double efficiencyConstant) const {
-    const auto outputShape = getShape(op->getResult(0));
-    const auto OC = outputShape[Dims4D::Act::C];
-    const auto OH = outputShape[Dims4D::Act::H];
-    const auto OW = outputShape[Dims4D::Act::W];
     double perClusterOutputTensorVolume = 0;
 
-    if (strategy == splitOverHeight) {
-        perClusterOutputTensorVolume = (OH / _numClusters) * OW * OC;
-    } else if (strategy == splitOverKernel) {
-        perClusterOutputTensorVolume = (OC / _numClusters) * OH * OW;
-    } else {
-        VPUX_THROW("Unsupported strategy {0}", strategy);
-    }
+    const auto outputTensorDistributionMode = getOutputTensorDistributionMode(strategy);
+    const auto outputTensorNumTiles =
+            getIntArrayAttr(op->getContext(), getOutputTensorNumTiles(_numClusters, strategy));
+    const auto distributedOutputTensorType =
+            createDistributedTensorType(op, op->getResult(0), outputTensorDistributionMode, outputTensorNumTiles);
 
+    const auto largestPerClusterShape = distributedOutputTensorType.getLargestCompactShape();
+    perClusterOutputTensorVolume = largestPerClusterShape[Dims4D::Act::H] * largestPerClusterShape[Dims4D::Act::W] *
+                                   largestPerClusterShape[Dims4D::Act::C];
     return efficiencyConstant *
-           std::max(perClusterOutputTensorVolume / calculateMPEVolume(VPU::MPEMode::MATRIX, outputShape, strategy),
-                    perClusterOutputTensorVolume / calculateMPEVolume(VPU::MPEMode::VECTOR, outputShape, strategy));
+           std::max(perClusterOutputTensorVolume / calculateMPEVolume(op, VPU::MPEMode::MATRIX, strategy),
+                    perClusterOutputTensorVolume / calculateMPEVolume(op, VPU::MPEMode::VECTOR, strategy));
 }
 
 StringRef BaseLayerStrategy::getOptimalLayerStrategy(mlir::Operation* op) const {
@@ -116,18 +110,18 @@ StringRef BaseLayerStrategy::getOptimalLayerStrategy(mlir::Operation* op) const 
 
     if (auto origOp = mlir::dyn_cast<NCEDepthConvolutionOp>(op)) {
         const auto filterShape = Shape(parseIntArrayAttr<int64_t>(origOp.rawFilterShapeAttr()));
-        const auto strides = parseIntArrayAttr<int64_t>(origOp.strides());
+        const auto kernelStrides = Shape(parseIntArrayAttr<int64_t>(origOp.strides()));
         const auto KY = filterShape[Dims4D::Filter::KY];
-        efficiencyConstant = getDepthwiseEfficiencyConstant(KY, strides[0]);
+        efficiencyConstant = getDepthwiseEfficiencyConstant(KY, kernelStrides[Dims4D::Strides::X]);
     }
 
     if (auto origOp = mlir::dyn_cast<NCEConvolutionOp>(op)) {
         isChannelMajor = (DimsOrder::fromValue(origOp.input()) == DimsOrder::NCHW);
         if (isChannelMajor) {
             const auto filterShape = Shape(parseIntArrayAttr<int64_t>(origOp.rawFilterShapeAttr()));
-            const auto strides = parseIntArrayAttr<int64_t>(origOp.strides());
+            const auto kernelStrides = Shape(parseIntArrayAttr<int64_t>(origOp.strides()));
             const auto KY = filterShape[Dims4D::Filter::KY];
-            efficiencyConstant = getChannelMajorEfficiencyConstant(KY, strides[0]);
+            efficiencyConstant = getChannelMajorEfficiencyConstant(KY, kernelStrides[Dims4D::Strides::X]);
         }
     }
 

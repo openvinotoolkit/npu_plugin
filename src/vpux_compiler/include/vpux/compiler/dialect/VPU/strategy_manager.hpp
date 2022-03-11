@@ -56,7 +56,7 @@ public:
 protected:
     virtual bool doesLayerFitIntoCMX(mlir::Operation* op, StringRef strategy) const = 0;
     double computeSplitEfficiency(mlir::Operation* op, StringRef strategy, double efficiencyConstant = 1) const;
-    double calculateMPEVolume(VPU::MPEMode mpeMode, ShapeRef outputShape, StringRef strategy) const;
+    double calculateMPEVolume(mlir::Operation* op, VPU::MPEMode mpeMode, StringRef strategy) const;
 
 protected:
     int64_t _numClusters;

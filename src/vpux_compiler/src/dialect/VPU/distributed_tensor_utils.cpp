@@ -214,3 +214,68 @@ mlir::ArrayAttr vpux::VPU::getKernelSize(mlir::Operation* origOp) {
         VPUX_THROW("Attempting to get kernel size for operation {0}, which is not a NCE Task", origOp->getName());
     }
 }
+
+mlir::ArrayAttr vpux::VPU::getStride(mlir::Operation* origOp) {
+    if (auto depthwiseConvolutionOp = mlir::dyn_cast<NCEDepthConvolutionOp>(origOp)) {
+        return depthwiseConvolutionOp.strides();
+    } else if (auto convolutionOp = mlir::dyn_cast<NCEConvolutionOp>(origOp)) {
+        return convolutionOp.strides();
+    } else if (auto maxPoolOp = mlir::dyn_cast<NCEMaxPoolOp>(origOp)) {
+        return maxPoolOp.strides();
+    } else if (auto eltwiseOp = mlir::dyn_cast<NCEEltwiseOp>(origOp)) {
+        return nullptr;
+    } else {
+        VPUX_THROW("Attempting to get strides for operation {0}, which is not a NCE Task", origOp->getName());
+    }
+}
+
+PaddingAttr vpux::VPU::getPad(mlir::Operation* origOp) {
+    if (auto depthwiseConvolutionOp = mlir::dyn_cast<NCEDepthConvolutionOp>(origOp)) {
+        return depthwiseConvolutionOp.padAttr();
+    } else if (auto convolutionOp = mlir::dyn_cast<NCEConvolutionOp>(origOp)) {
+        return convolutionOp.padAttr();
+    } else if (auto maxPoolOp = mlir::dyn_cast<NCEMaxPoolOp>(origOp)) {
+        return maxPoolOp.padAttr();
+    } else if (auto eltwiseOp = mlir::dyn_cast<NCEEltwiseOp>(origOp)) {
+        return nullptr;
+    } else {
+        VPUX_THROW("Attempting to get pad for operation {0}, which is not a NCE Task", origOp->getName());
+    }
+}
+
+DistributedTensorType vpux::VPU::createDistributedTensorType(mlir::Operation* origOp, mlir::Value input,
+                                                             DistributionMode distributionMode,
+                                                             mlir::ArrayAttr numTiles) {
+    DistributedTensorAttr distributedActivationTensorAttr;
+    auto module = origOp->getParentOfType<mlir::ModuleOp>();
+    auto nceOp = IE::getAvailableExecutor(module, ExecutorKind::NCE);
+    const auto numClusters = getIntAttr(origOp->getContext(), nceOp.count());
+    const auto activationTensorDistributionModeAttr = DistributionModeAttr::get(origOp->getContext(), distributionMode);
+
+    if (distributionMode == DistributionMode::OVERLAPPED) {
+        auto kernel = getKernelSize(origOp);
+        auto stride = getStride(origOp);
+        auto pad = getPad(origOp);
+
+        distributedActivationTensorAttr =
+                DistributedTensorAttr::get(activationTensorDistributionModeAttr, numTiles, kernel, pad, stride,
+                                           numClusters, nullptr, origOp->getContext());
+    } else if (distributionMode == DistributionMode::DUPLICATED) {
+        distributedActivationTensorAttr =
+                DistributedTensorAttr::get(activationTensorDistributionModeAttr, nullptr, nullptr, nullptr, nullptr,
+                                           numClusters, nullptr, origOp->getContext());
+    } else {
+        distributedActivationTensorAttr =
+                DistributedTensorAttr::get(activationTensorDistributionModeAttr, numTiles, nullptr, nullptr, nullptr,
+                                           numClusters, nullptr, origOp->getContext());
+    }
+
+    const auto shape = getShape(input);
+    const auto memSpace = vpux::IndexedSymbolAttr::get(MemoryKindAttr::get(origOp->getContext(), MemoryKind::CMX_NN));
+
+    const auto order = mlir::AffineMapAttr::get(DimsOrder::fromValue(input).toAffineMap(origOp->getContext()));
+    auto elemType = input.getType().template cast<vpux::NDTypeInterface>().getElementType();
+
+    return DistributedTensorType::get(origOp->getContext(), shape.raw(), elemType, order, memSpace,
+                                      distributedActivationTensorAttr);
+}

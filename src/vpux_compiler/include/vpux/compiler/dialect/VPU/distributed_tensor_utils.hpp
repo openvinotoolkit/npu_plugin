@@ -47,7 +47,11 @@ DistributionMode getWeightsTensorDistributionMode(StringRef strategy);
 DistributionMode getOutputTensorDistributionMode(StringRef strategy);
 DistributionMode getActivationWindowTensorDistributionMode(StringRef strategy, ArchKind arch);
 NCEClusterTilingOp createDistributedCopyOut(mlir::Operation* origOp, NCEClusterTilingOp clusterTilingOp);
+DistributedTensorType createDistributedTensorType(mlir::Operation* origOp, mlir::Value input,
+                                                  DistributionMode distributionMode, mlir::ArrayAttr numTiles);
 mlir::ArrayAttr getKernelSize(mlir::Operation* origOp);
+mlir::ArrayAttr getStride(mlir::Operation* origOp);
+PaddingAttr getPad(mlir::Operation* origOp);
 
 template <class ConcreteOp>
 mlir::ArrayAttr getStride(ConcreteOp origOp) {
