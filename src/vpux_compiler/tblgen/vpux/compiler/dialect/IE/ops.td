@@ -1710,6 +1710,31 @@ def IE_AcoshOp :
 }
 
 //
+// HardSigmoidOp
+//
+
+def IE_HardSigmoidOp :
+        IE_LayerOp<
+            "HardSigmoid",
+            [
+                IE_TilingBuilderOpInterface,
+                IE_EltwiseOp
+            ]
+        > {
+    let summary = "InferenceEngine HardSigmoid layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$input1,
+        RankedTensorOf<[F16, F32]>:$input2,
+        RankedTensorOf<[F16, F32]>:$input3
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+}
+
+//
 // AbsOp
 //
 

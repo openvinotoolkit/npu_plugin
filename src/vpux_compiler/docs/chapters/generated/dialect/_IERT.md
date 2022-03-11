@@ -1352,6 +1352,40 @@ operation ::= `IERT.HSwish` attr-dict
 | :----: | ----------- |
 `output` | memref of 16-bit float or 32-bit float values
 
+### `IERT.HardSigmoid` (vpux::IERT::HardSigmoidOp)
+
+InferenceEngine run-time HardSigmoid layer
+
+
+Syntax:
+
+```
+operation ::= `IERT.HardSigmoid` attr-dict
+              `inputs` `(`
+              $input1 `:` type($input1) `,`
+              $input2 `:` type($input2) `,`
+              $input3 `:` type($input3)
+              `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input1` | memref of 16-bit float or 32-bit float values
+`input2` | memref of 16-bit float or 32-bit float values
+`input3` | memref of 16-bit float or 32-bit float values
+`output_buff` | memref of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float or 32-bit float values
+
 ### `IERT.Interpolate` (vpux::IERT::InterpolateOp)
 
 InferenceEngine run-time Interpolate layer

@@ -1013,6 +1013,42 @@ def IERT_AcoshOp :
 }
 
 //
+// HardSigmoidOp
+//
+
+def IERT_HardSigmoidOp :
+        IERT_LayerOp<1, "HardSigmoid",
+            [
+                ViewLikeOpInterface
+            ]
+        > {
+    let summary = "InferenceEngine run-time HardSigmoid layer";
+
+    let arguments = (ins
+        MemRefOf<[F16, F32]>:$input1,
+        MemRefOf<[F16, F32]>:$input2,
+        MemRefOf<[F16, F32]>:$input3,
+        MemRefOf<[F16, F32]>:$output_buff
+    );
+
+    let results = (outs
+        MemRefOf<[F16, F32]>:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` 
+                    $input1 `:` type($input1) `,`
+                    $input2 `:` type($input2) `,`
+                    $input3 `:` type($input3)
+                `)`
+
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
+//
 // AbsOp
 //
 

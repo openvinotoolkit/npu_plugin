@@ -1444,6 +1444,32 @@ operation ::= `IE.HSwish` `(` operands `)` attr-dict `:` type(operands) `->` typ
 | :----: | ----------- |
 `output` | ranked tensor of 16-bit float or 32-bit float values
 
+### `IE.HardSigmoid` (vpux::IE::HardSigmoidOp)
+
+InferenceEngine HardSigmoid layer
+
+
+Syntax:
+
+```
+operation ::= `IE.HardSigmoid` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input1` | ranked tensor of 16-bit float or 32-bit float values
+`input2` | ranked tensor of 16-bit float or 32-bit float values
+`input3` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+
 ### `IE.Interpolate` (vpux::IE::InterpolateOp)
 
 InferenceEngine Interpolate layer

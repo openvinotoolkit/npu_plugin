@@ -1123,6 +1123,12 @@ mlir::Operation* createRTLayer(IE::AcosOp origOp, ArrayRef<mlir::Value> allBufs,
     return b.create<IERT::AcosOp>(origOp.getLoc(), newOp.input(), newOp.output_buff());
 }
 
+mlir::Operation* createRTLayer(IE::HardSigmoidOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
+    IERT::HardSigmoidOp::Adaptor newOp(allBufs);
+    return b.create<IERT::HardSigmoidOp>(origOp.getLoc(), newOp.input1(), newOp.input2(), newOp.input3(),
+                                    newOp.output_buff());
+}
+
 class LayerRewrite final : public mlir::ConversionPattern {
 public:
     LayerRewrite(mlir::TypeConverter& typeConverter, mlir::MLIRContext* ctx, Logger log)
@@ -1249,6 +1255,7 @@ mlir::LogicalResult LayerRewrite::matchAndRewrite(mlir::Operation* origOp, Array
     CASE(IE::AtanOp)
     CASE(IE::AsinOp)
     CASE(IE::AcosOp)
+    CASE(IE::HardSigmoidOp)
     .Default([](mlir::Operation*) {
         return nullptr;
     });

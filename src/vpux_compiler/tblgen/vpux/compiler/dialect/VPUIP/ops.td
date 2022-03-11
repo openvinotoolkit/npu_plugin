@@ -928,6 +928,45 @@ def VPUIP_AcoshUPAOp :
 }
 
 //
+// HardSigmoidOp
+//
+
+def VPUIP_HardSigmoidUPAOp :
+        VPUIP_UPATaskOp<1, "HardSigmoidUPA",
+            [
+                ViewLikeOpInterface,
+                IERT_SameShape,
+                IERT_SameElementType,
+                IERT_SameInOutDimsOrder_CHW_HWC_NCHW_NHWC,
+                VPUIP_Legacy4D
+            ]
+        > {
+    let summary = "HardSigmoid UPA SHAVE kernel";
+
+    let arguments = (ins
+        F16MemRef:$input1,
+        F16MemRef:$input2,
+        F16MemRef:$input3,
+        F16MemRef:$output_buff
+    );
+
+    let results = (outs
+        F16MemRef:$output
+    );
+
+    let verifier = [{
+        return vpux::VPUIP::verifyPostOp(*this);
+    }];
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input1 `:` type($input1) `,` $input2 `:` type($input2) `,` $input3 `:` type($input3) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
+//
 // AbsUPAOp
 //
 

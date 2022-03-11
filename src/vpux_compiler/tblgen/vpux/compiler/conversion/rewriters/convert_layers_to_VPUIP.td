@@ -451,6 +451,22 @@ def RewriteAtanh :
         >;
 
 //
+// IERT.HardSigmoid -> VPUIP.HardSigmoidUPA
+//
+
+def createHardSigmoidUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::HardSigmoidUPAOp>(
+                $_loc, $0, $1, $2, $3)
+        }]>;
+
+def RewriteHardSigmoid :
+        Pat<
+            (IERT_HardSigmoidOp $input1, $input2, $input3, $output),
+            (createHardSigmoidUPAOp $input1, $input2, $input3, $output)
+        >;
+
+//
 // IERT.Abs -> VPUIP.AbsUPA
 //
 

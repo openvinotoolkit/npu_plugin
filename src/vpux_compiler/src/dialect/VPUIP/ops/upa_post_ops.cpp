@@ -537,6 +537,21 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::SoftPlusUPAOp::serialize(VPUIP::Blo
     return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_PostOpsParams});
 }
 
+//
+// HardSigmoidUPAOp
+//
+
+VPUIP::BlobWriter::SpecificTask vpux::VPUIP::HardSigmoidUPAOp::serialize(VPUIP::BlobWriter& writer) {
+    const auto hardsigmoid = MVCNN::CreateHardSigmoidParams(writer);
+
+    MVCNN::PostOpsParamsBuilder builder(writer);
+    builder.add_nested_params_type(MVCNN::PostOpsNestedParams_HardSigmoidParams);
+    builder.add_nested_params(hardsigmoid.Union());
+    const auto paramsOff = builder.Finish();
+
+    return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_PostOpsParams});
+}
+
 mlir::Operation* vpux::VPUIP::BlobReader::parsePostOps(mlir::OpBuilder& builder, ArrayRef<mlir::Value> inputs,
                                                        ArrayRef<mlir::Value> outputs, const MVCNN::UPALayerTask* task) {
     VPUX_THROW_UNLESS(inputs.size() >= 1 && inputs.size() <= 3, "UPAPostOps supports 1, 2 or 3 inputs, got {0}",
@@ -668,6 +683,10 @@ mlir::Operation* vpux::VPUIP::BlobReader::parsePostOps(mlir::OpBuilder& builder,
         break;
     case MVCNN::PostOpsNestedParams_AcosParams:
         op = builder.create<VPUIP::AcosUPAOp>(mlir::UnknownLoc::get(_ctx), inputs[0], outputs[0]);
+        break;
+    case MVCNN::PostOpsNestedParams_HardSigmoidParams:
+        op = builder.create<VPUIP::HardSigmoidUPAOp>(mlir::UnknownLoc::get(_ctx), inputs[0], inputs[1], inputs[2],
+                                                    outputs[0]);
         break;
     default:
         VPUX_THROW("Unsupported PostOps operation type {0}", params->nested_params_type());

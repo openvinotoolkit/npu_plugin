@@ -64,6 +64,7 @@ std::set<ngraph::helpers::ActivationTypes> supportedTypesMLIR {
     ngraph::helpers::Atan,
     ngraph::helpers::Asin,
     ngraph::helpers::Acos,
+    ngraph::helpers::HardSigmoid,
 };
 
 } // namespace
@@ -173,6 +174,7 @@ const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes
     {Atan,     {{1.0f}}},
     {Asin,     {{1.0f}}},
     {Acos,     {{1.0f}}},
+    {HardSigmoid,     {{1.0f}}},
     {RoundHalfToEven,       {}},
     {RoundHalfAwayFromZero, {}},
 #if 0 // Unsupported layers
