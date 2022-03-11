@@ -246,7 +246,7 @@ SmallVector<Shape> VPUIP::DistributedBufferType::getPerClusterComputeShapes() co
     return VPU::getPerClusterComputeShapes(getShape(), getDistribution());
 }
 
-// @brief Retrive the array of compute buffer offsets with regards to the full buffer.
+// @brief Retrieve the array of compute buffer offsets with regards to the full buffer.
 // @warning An important thing to consider with regards to compute shapes,
 // is that modes like SEGMENTED and OVERLAPPED take precedence over
 // DUPLICATED and MULTICASTED.
