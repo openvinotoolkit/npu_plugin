@@ -812,6 +812,27 @@ def FuseConvertWithQuantize : PassBase<"fuse-convert-with-quantize", "vpux::Func
     ];
 }
 
+
+//
+// FuseMemPermuteReshape
+//
+
+def FuseMemPermuteReshape : PassBase<"fuse-mempermute-with-reshape", "vpux::FunctionPass"> {
+    let summary = "Fuse MemPermute with Reshape";
+
+    let description = [{
+        Pass detects pattern Convert(i8/ui8 -> FP16) -> Quantize(FP16 -> !quant.uniform<...>)
+        and fuses it into single QuantCast(i8/ui8 -> !quant.uniform<...>) operation.
+    }];
+
+    let constructor = "vpux::IE::createFuseMemPermuteReshapePass()";
+
+    let dependentDialects = [
+        "vpux::IE::IEDialect"
+    ];
+}
+
+
 //
 // ConvertAvgPoolToDWConv
 //

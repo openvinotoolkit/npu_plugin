@@ -104,6 +104,9 @@ This pass processes operations, which can be compile as a DPU tasks and
 ### `-fuse-convert-with-quantize`: Fuse Convert with Quantize into QuantCast operation
 Pass detects pattern Convert(i8/ui8 -> FP16) -> Quantize(FP16 -> !quant.uniform<...>)
 and fuses it into single QuantCast(i8/ui8 -> !quant.uniform<...>) operation.
+### `-fuse-mempermute-with-reshape`: Fuse MemPermute with Reshape
+Pass detects pattern Convert(i8/ui8 -> FP16) -> Quantize(FP16 -> !quant.uniform<...>)
+and fuses it into single QuantCast(i8/ui8 -> !quant.uniform<...>) operation.
 ### `-fuse-pad-ops`: Fuse PadOp with CONSTANT model
 The pass is a part of `AdjustForVPU` pipeline.
 

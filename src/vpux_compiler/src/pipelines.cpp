@@ -352,6 +352,9 @@ void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOp
 
     pm.addPass(VPU::createSplitNCEOpsOntoWorkloadsPass(log));
 
+    pm.addPass(createPrintDotPass("./output/last_ie.dot"));
+
+
     // Lowering
 
     buildLowerIE2IERTPipeline(pm, log);
@@ -400,7 +403,14 @@ void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOp
     pm.addPass(IERT::createBreakDataFlowPass(log));
     pm.addPass(IERT::createConvertScalarToTensorPass(log));
 
+    pm.addPass(createPrintDotPass("./output/last_iert.dot"));
+
+
     buildLowerIERT2VPUIPPipeline(pm, LowerIERT2VPUIPOptions(options), log);
+
+    pm.addPass(createPrintDotPass("./output/iert2vpuip.dot"));
+
+
     // Handle WeightsTable, which requires statically allocated memory
     pm.addPass(IERT::createPatchWeightsTablePass(log));
 
