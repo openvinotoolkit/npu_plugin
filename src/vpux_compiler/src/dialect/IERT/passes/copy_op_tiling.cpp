@@ -130,11 +130,11 @@ SmallVector<mlir::Value> CopyOpTiling::createChannelWiseTiles(IERT::CopyOp origO
     //          impossible to split 4 channels into 3 tiles each of those would fit the limits
     const auto numPlanesOfFullShape = origInputShape[tileDim];
     const auto singlePlaneSize = fullCopySize / numPlanesOfFullShape;
-    // How many channels DMA could process within one tile. In case of small spatial dimensions of tensor (f.e. 1x2048x8x8)
-    // it can exceed CMX_DMA_MAX_NUM_PLANES, so neccesary to limit this value
+    // How many channels DMA could process within one tile. In case of small spatial dimensions of tensor (f.e.
+    // 1x2048x8x8) it can exceed CMX_DMA_MAX_NUM_PLANES, so neccesary to limit this value
     const auto desiredPlanesPerTileAmount = (VPUIP::DMA_LIMIT.count() / singlePlaneSize.count());
     VPUX_THROW_UNLESS(desiredPlanesPerTileAmount != 0,
-                    "Couldn't split a CopyOp with single plane size greater then DMA_LIMIT");
+                      "Couldn't split a CopyOp with single plane size greater then DMA_LIMIT");
 
     const auto numPlanesPerTile = std::min(desiredPlanesPerTileAmount, VPUIP::CMX_DMA_MAX_NUM_PLANES);
 
@@ -156,8 +156,7 @@ SmallVector<mlir::Value> CopyOpTiling::createChannelWiseTiles(IERT::CopyOp origO
 
         concatInputs.push_back(copyTile.output());
         _log.nest().trace("Created tile #{0} for {1} channels that requires {2}", tileIdx,
-                          currentTileShapeVector[tileDim.ind()],
-                          static_cast<Byte>(getCompactSize(copyTile.input())));
+                          currentTileShapeVector[tileDim.ind()], static_cast<Byte>(getCompactSize(copyTile.input())));
 
         // Take into account the part of the original tensor covered with the newly created tile
         planesLeftToCopy -= currentTileShapeVector[tileDim.ind()];
@@ -190,7 +189,7 @@ void CopyOpTilingPass::safeRunOnFunc() {
 
     auto isLegalOp = [](IERT::CopyOp copyOp) {
         const auto isDmaLegal = getDmaSize(copyOp) <= VPUIP::DMA_LIMIT;
-        
+
         const auto inputShape = getShape(copyOp.input());
         if (inputShape.size() < 4) {
             return true;
