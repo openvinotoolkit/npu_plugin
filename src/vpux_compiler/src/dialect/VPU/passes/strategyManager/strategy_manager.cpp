@@ -60,7 +60,7 @@ double BaseLayerStrategy::calculateMPEVolume(mlir::Operation* op, VPU::MPEMode m
     const auto distributedOutputTensorType =
             createDistributedTensorType(op, op->getResult(0), outputTensorDistributionMode, outputTensorNumTiles);
 
-    double perClusterOutputWidth = distributedOutputTensorType.getLargestCompactShape()[Dims4D::Act::H];
+    double perClusterOutputWidth = distributedOutputTensorType.getLargestCompactShape()[Dims4D::Act::W];
     double perClusterOutputHeight = distributedOutputTensorType.getLargestCompactShape()[Dims4D::Act::H];
     double perClusterOutputChannels = distributedOutputTensorType.getLargestCompactShape()[Dims4D::Act::C];
 
@@ -93,9 +93,10 @@ double BaseLayerStrategy::computeSplitEfficiency(mlir::Operation* op, StringRef 
     const auto distributedOutputTensorType =
             createDistributedTensorType(op, op->getResult(0), outputTensorDistributionMode, outputTensorNumTiles);
 
-    const auto largestPerClusterShape = distributedOutputTensorType.getLargestCompactShape();
-    perClusterOutputTensorVolume = largestPerClusterShape[Dims4D::Act::H] * largestPerClusterShape[Dims4D::Act::W] *
-                                   largestPerClusterShape[Dims4D::Act::C];
+    const auto perClusterShape = distributedOutputTensorType.getLargestCompactShape();
+    perClusterOutputTensorVolume =
+            perClusterShape[Dims4D::Act::H] * perClusterShape[Dims4D::Act::W] * perClusterShape[Dims4D::Act::C];
+
     return efficiencyConstant *
            std::max(perClusterOutputTensorVolume / calculateMPEVolume(op, VPU::MPEMode::MATRIX, strategy),
                     perClusterOutputTensorVolume / calculateMPEVolume(op, VPU::MPEMode::VECTOR, strategy));
