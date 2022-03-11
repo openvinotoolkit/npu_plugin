@@ -43,28 +43,20 @@ set(MV_TOOLS_DIR "$ENV{MV_TOOLS_DIR}")
 set(MV_TOOLS_VERSION "$ENV{MV_TOOLS_VERSION}")
 set(FIRMWARE_VPU_DIR "$ENV{FIRMWARE_VPU_DIR}")
 
-message(STATUS "source directory: ${CMAKE_SOURCE_DIR}")
-
-if (DEFINED ENV{KERNEL_DIR})
-  set(KERNEL_DIR "$ENV{KERNEL_DIR}")
-else()
-  set(KERNEL_DIR "${CMAKE_SOURCE_DIR}")
-  message(WARNING "KERNEL_DIR environment variable is not set; using default ${KERNEL_DIR}")
-endif()
-
 message(STATUS "MV_TOOLS_DIR     = ${MV_TOOLS_DIR}")
 message(STATUS "MV_TOOLS_VERSION = ${MV_TOOLS_VERSION}")
 message(STATUS "FIRMWARE_VPU_DIR = ${FIRMWARE_VPU_DIR}")
-message(STATUS "KERNEL_DIR       = ${KERNEL_DIR}")
+
+message(STATUS "source directory: ${CMAKE_SOURCE_DIR}")
 
 set(kernel_src_dir_default "src")
 set(kernel_cpunum_default "3010")
 set(optimization_opts_default "-O3")
 
 set(include_dirs_list_default
-  "${KERNEL_DIR}/inc"
-  "${KERNEL_DIR}/inc/3720"
-  "${KERNEL_DIR}/common/inc"
+  "${CMAKE_SOURCE_DIR}/inc"
+  "${CMAKE_SOURCE_DIR}/inc/3720"
+  "${CMAKE_SOURCE_DIR}/common/inc"
   "${FIRMWARE_VPU_DIR}/drivers/hardware/utils/inc"
 )
 
@@ -92,7 +84,7 @@ set(blob_data_suffix ".data")
 set(jtag_text_suffix ".text.xdat")
 set(jtag_data_suffix ".data.xdat")
 
-set(link_script_file "${KERNEL_DIR}/prebuild/shave_kernel.ld")
+set(link_script_file "${CMAKE_SOURCE_DIR}/prebuild/shave_kernel.ld")
 
 set(link_libraries_list
   "${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}/common/moviCompile/lib/30xxxx-leon/mlibm.a"
@@ -103,7 +95,7 @@ set(link_libraries_list
 
 set(kernel_descrip_dir "${CUSTOM_KERNELS_DIR}")
 if (kernel_descrip_dir STREQUAL "")
-  set(kernel_descrip_dir "${KERNEL_DIR}/descrip/")
+  set(kernel_descrip_dir "${CMAKE_SOURCE_DIR}/descrip/")
 endif()
 
 set(kernel_descrip_list "${CUSTOM_KERNELS_LIST}")
@@ -163,7 +155,7 @@ foreach(kernel_descrip ${kernel_descrip_list})
   set(kernel_cpu_suffix ".${kernel_cpunum}xx")
 
   set(kernel_src_file "${kernel_src_dir}/${kernel_src}")
-  set(kernel_src_path "${KERNEL_DIR}/${kernel_src_file}")
+  set(kernel_src_path "${CMAKE_SOURCE_DIR}/${kernel_src_file}")
 
   message(STATUS "kernel = ${kernel_name} ${kernel_src_file}")
 
