@@ -48,6 +48,8 @@ bool BaseLayerStrategy::isOperationSplitOverKernelCompatible(mlir::Operation* op
     return OC >= _numChannelAlignment * _numClusters;
 }
 
+// The function computes the actual per cluster output tensor volume (i.e. computation that is performed)
+// given the stratey and the MPE mode 
 double BaseLayerStrategy::calculateMPEVolume(VPU::MPEMode mpeMode, ShapeRef outputShape, StringRef strategy) const {
     const auto OC = outputShape[Dims4D::Act::C];
     const auto OH = outputShape[Dims4D::Act::H];
@@ -83,7 +85,7 @@ double BaseLayerStrategy::calculateMPEVolume(VPU::MPEMode mpeMode, ShapeRef outp
 
 // The efficiency calculation that is being performed here can be described as follows.
 // A ratio of the real output tensor volume to the actual computation that occurs on the
-// hardwarefor each MPE Mode 4x4x16 and 16x1x16 is computed and the maximum is selected.
+// hardware for each MPE Mode 4x4x16 and 16x1x16 is computed and the maximum is selected.
 // A hardware efficiency constant is multiplied by the result for channel-major convolutions.
 double BaseLayerStrategy::computeSplitEfficiency(mlir::Operation* op, StringRef strategy,
                                                  double efficiencyConstant) const {
