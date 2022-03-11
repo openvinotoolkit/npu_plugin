@@ -4481,16 +4481,16 @@
             "extra_config" : {
                 "VPUX_COMPILER_TYPE": "MLIR",
                 "PERFORMANCE_HINT": "THROUGHPUT",
-                "VPUX_COMPILATION_MODE": "ReferenceHW",
-                "VPUX_INFERENCE_SHAVES": "16",
-                "VPUX_EXECUTOR_STREAMS": "1"
+                "VPUX_INFERENCE_SHAVES": "1",
+                "VPUX_EXECUTOR_STREAMS": "1",
+                "OPTIMAL_NUMBER_OF_INFER_REQUESTS": "1"
             },
             "Compile" : {
                 "input_precision" : "FP16",
                 "output_precision" : "FP16"
             },
             "BenchmarkApp" : {
-                "input_folder" : "416x416"
+                "input_folder" : "416x416"    
             },
             "NetTest-CalcRef" : {
                 "disabled" : true
