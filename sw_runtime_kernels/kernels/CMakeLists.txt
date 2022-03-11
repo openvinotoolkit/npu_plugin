@@ -31,8 +31,17 @@ if (NOT DEFINED ENV{MV_TOOLS_DIR})
   message(FATAL_ERROR "MV_TOOLS_DIR environment variable must be defined")
 endif()
 
-if (NOT DEFINED ENV{MV_TOOLS_VERSION})
-  message(FATAL_ERROR "MV_TOOLS_VERSION environment variable must be defined")
+if (DEFINED ENV{MV_TOOLS_VERSION})
+  set(MV_TOOLS_VERSION "$ENV{MV_TOOLS_VERSION}")
+else()
+  execute_process(
+    COMMAND grep "mv_tools_version" ${CMAKE_SOURCE_DIR}/../firmware_vpu_revision.txt
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    OUTPUT_VARIABLE tools_version_string
+  )
+  string(REPLACE "mv_tools_version:	" "" tools_version_string "${tools_version_string}")
+  string(STRIP "${tools_version_string}" tools_version_string)
+  set(MV_TOOLS_VERSION "${tools_version_string}")
 endif()
 
 if (NOT DEFINED ENV{FIRMWARE_VPU_DIR})
@@ -40,7 +49,6 @@ if (NOT DEFINED ENV{FIRMWARE_VPU_DIR})
 endif()
 
 set(MV_TOOLS_DIR "$ENV{MV_TOOLS_DIR}")
-set(MV_TOOLS_VERSION "$ENV{MV_TOOLS_VERSION}")
 set(FIRMWARE_VPU_DIR "$ENV{FIRMWARE_VPU_DIR}")
 
 message(STATUS "MV_TOOLS_DIR     = ${MV_TOOLS_DIR}")
