@@ -102,7 +102,16 @@ mlir::LogicalResult CopyOpSequence::matchAndRewrite(IERT::CopyOp copyOp, mlir::P
         return mlir::failure();
     }
 
-    rewriter.replaceOpWithNewOp<IERT::CopyOp>(copyOp, parentCopyOp.input(), copyOp.output_buff());
+    if (auto copySubView = copyOp.output_buff().getDefiningOp<IERT::SubViewOp>()) {
+        // case with subView - extract subView
+        auto subView =
+                rewriter.create<IERT::SubViewOp>(copySubView->getLoc(), parentCopyOp.input(),
+                                                 copySubView.static_offsetsAttr(), copySubView.static_sizesAttr());
+
+        rewriter.replaceOpWithNewOp<IERT::CopyOp>(copyOp, subView, parentCopyOp.output_buff());
+    } else {
+        rewriter.replaceOpWithNewOp<IERT::CopyOp>(copyOp, parentCopyOp.input(), copyOp.output_buff());
+    }
 
     // CopyOp can have MemoryEffect so "hanging" unused parentCopyOp might not be erased by MLIR automatically
     if (parentCopyOp->use_empty()) {
