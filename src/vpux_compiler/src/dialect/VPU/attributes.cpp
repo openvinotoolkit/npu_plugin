@@ -607,7 +607,8 @@ SmallVector<StridedShape> vpux::VPU::getPerClusterStridedShapes(ShapeRef shape, 
     const auto memShape = dimsOrder.toMemoryOrder(shape);
     const auto memStrides = dimsOrder.toMemoryOrder(strides);
 
-    if (VPU::bitEnumContains(distributionMode, VPU::DistributionMode::SEGMENTED)) {
+    if (VPU::bitEnumContains(distributionMode, VPU::DistributionMode::SEGMENTED) ||
+        VPU::bitEnumContains(distributionMode, VPU::DistributionMode::OVERLAPPED)) {
         const auto compactStrideReqs = StrideReqs::compact(dimsOrder.numDims());
         const auto compactStrides = compactStrideReqs.calcStrides(elemSize, memShape);
         SmallVector<Bit> stridesMultiplier(memStrides.size());
