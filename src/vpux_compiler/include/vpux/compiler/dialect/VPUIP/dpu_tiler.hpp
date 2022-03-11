@@ -44,7 +44,7 @@ public:
     }
 
     SmallVector<uint32_t> generateSplitNumberPool(int64_t numDPU, uint32_t maxSplits);
-    void tileOverH(int64_t numDPU);
+    void tileOverH(int64_t numDPU, mlir::IntegerAttr clusterId = nullptr);
     void tileOverZ(uint32_t splitNumber);
     SmallVector<OutputTiling> getSplitPool();
 
