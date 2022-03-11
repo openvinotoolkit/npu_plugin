@@ -25,6 +25,8 @@ __attribute__((aligned(1024)))
 #include "param_gather.h"
 
 namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Gather)) {
+    const bool saveToFile = false;
+
     static constexpr std::initializer_list<SingleTest> gather_test_list {
         {{4, 3, 2}, {4, 3, 2}, orderCHW, FPE("gather.elf"), {sw_params::Location::NN_CMX}}
     };
@@ -64,13 +66,13 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Gather)) {
             m_indicesTensor.init(0x21, dims3Indices); // orderHW Unsupported?
             m_axisTensor.init(storageOrder, dims3Axis);
             m_outputValueTensor.init(orderNCHW, dims3Output);
-            m_referenceOutputTensor.init(orderNCHW, dims3Output);
+            m_referenceValueTensor.init(orderNCHW, dims3Output);
 
             allocBuffer(m_inputTensor);
             allocBuffer(m_indicesTensor);
             allocBuffer(m_axisTensor);
             allocBuffer(m_outputValueTensor);
-            allocBuffer(m_referenceOutputTensor);
+            allocBuffer(m_referenceValueTensor);
 
             // TODO: Check window in kernel
             m_windowfp16.init(storageOrder, TensorDims(50, 1, 1, 1));
@@ -161,10 +163,66 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Gather)) {
 
         void generateReferenceData() override {
             printf("generate reference data.\n");
+
+            int numIndicesDims = m_indicesTensor.ndims();
+            int numInputDims = m_inputTensor.ndims();
+            int axis = m_axisTensor.at(MemoryDims(0, 0, 0, 0));
+            m_referenceValueTensor.forEach(false, [&](const MemoryDims& outIdx) {
+                int32_t indicesDims[MAX_DIMS];
+                for (int i = 0; i < numIndicesDims; i++) {
+                    indicesDims[i] = outIdx.dims[axis + i];
+                }
+                MemoryDims indicesIdx(indicesDims, numIndicesDims);
+                int inputDimIdx = m_indicesTensor.at(indicesIdx);
+
+                int32_t inputDims[MAX_DIMS];
+                for (int i = 0; i < numInputDims; i++) {
+                    if (i < axis) {
+                        inputDims[i] = outIdx.dims[i];
+                    } else if (i == axis) {
+                        inputDims[i] = inputDimIdx;
+                    }
+                    else {
+                        inputDims[i] = outIdx.dims[i + numIndicesDims - 1];
+                    }
+                }
+                MemoryDims inputIdx(inputDims, numInputDims);
+
+                m_referenceValueTensor.at(outIdx) = m_inputTensor.at(inputIdx);
+            });
         }
 
         virtual bool checkResult() override {
             printf("check results.\n");
+            m_outputValueTensor.confirmBufferData();
+
+            if (saveToFile) {
+                saveMemoryToFile(reinterpret_cast<u32>(m_inputTensor.buffer()), m_inputTensor.bufferSize(),
+                        "inMyriad.bin");
+
+                saveMemoryToFile(reinterpret_cast<u32>(m_outputValueTensor.buffer()), m_outputValueTensor.bufferSize(),
+                        "outMyriad.bin");
+
+                saveMemoryToFile(reinterpret_cast<u32>(m_referenceValueTensor.buffer()),
+                        m_referenceValueTensor.bufferSize(), "refOutMyriad.bin");
+            }
+
+            bool thresholdTestFailed = false;
+
+            m_outputValueTensor.forEach(false, [&](const MemoryDims& indices) {
+                float value = f16Tof32(m_outputValueTensor.at(indices));
+                float gtValue = f16Tof32(m_referenceValueTensor.at(indices));
+                float absDiff = fabs(value - gtValue);
+                bool differ = !bool(absDiff <= m_test_threshold);
+
+                thresholdTestFailed |= differ;
+
+                if (differ && GlobalData::doPrintDiffs) {
+                    const TensorDims ti = m_outputValueTensor.toTensor(indices);
+                    printf("DIFF HWC [%d:%d:%d] %f %f %f\n", ti.height, ti.width, ti.channels, value, gtValue,
+                           absDiff);
+                }
+            });
 
             // TODO: Check window in kernel
             float fp32Val;
@@ -184,7 +242,7 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Gather)) {
                 printf("output value [%d]: %f\n", i, fp32Val);
             }
 
-            return true;
+            return !thresholdTestFailed;
         }
 
     private:
@@ -194,8 +252,10 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Gather)) {
         Tensor<int32_t> m_axisTensor;
         // Tensor params will align with m_input if output is not redefined.
         Tensor<half> m_outputValueTensor;
+        Tensor<half> m_referenceValueTensor;
 
         // TODO: Check window in kernel
+        // Tensor class is in icv_test_suite.h
         Tensor<fp16> m_windowfp16;
         Tensor<int32_t> m_windowint32;
 
