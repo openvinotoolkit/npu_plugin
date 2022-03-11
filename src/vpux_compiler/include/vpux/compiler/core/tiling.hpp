@@ -184,4 +184,6 @@ std::tuple<DimRange, int64_t, int64_t> inputForOutputDim(const DimRange& output,
                                                          const DimRange& initialInputRange, int64_t padBefore,
                                                          int64_t padAfter);
 
+SmallVector<int64_t> alignShape(ArrayRef<int64_t> shape, Optional<ArrayRef<int64_t>> alignment);
+
 }  // namespace vpux

@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "vpux/utils/core/error.hpp"
 #include "vpux/utils/core/type_traits.hpp"
 
 #include <limits>
@@ -38,17 +39,14 @@ T isPowerOfTwo(T val) {
 
 template <typename T, typename = require_t<std::is_integral<T>>>
 T alignVal(T val, T align) {
-    return (val + (align - 1)) & ~(align - 1);
+    VPUX_THROW_UNLESS(align != 0, "Zero-alignment is not supported");
+    const T isPos = static_cast<T>(val >= 0);
+    return ((val + isPos * (align - 1)) / align) * align;
 }
 
 template <typename T, typename = require_t<std::is_integral<T>>>
 T divUp(T a, T b) {
     return (a + b - 1) / b;
-}
-
-template <typename T, typename = require_t<std::is_integral<T>>>
-T divUpRemainder(T a, T b) {
-    return a - divUp(a, b) * (b - 1);
 }
 
 //

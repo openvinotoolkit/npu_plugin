@@ -66,6 +66,9 @@ void VPU::DistributedTensorType::print(mlir::DialectAsmPrinter& printer) const {
     if (distribution.num_clusters() != nullptr) {
         printer << ", num_clusters = " << distribution.num_clusters();
     }
+    if (distribution.alignment() != nullptr) {
+        printer << ", alignment = " << distribution.alignment();
+    }
     printer << "}";
 
     printer << ">";
@@ -135,6 +138,7 @@ mlir::Type VPU::DistributedTensorType::parse(mlir::DialectAsmParser& parser) {
     VPU::PaddingAttr pads;
     mlir::ArrayAttr strides;
     mlir::IntegerAttr numClusters;
+    mlir::ArrayAttr alignment;
 
     while (parser.parseOptionalRBrace()) {
         if (parser.parseComma()) {
@@ -167,6 +171,10 @@ mlir::Type VPU::DistributedTensorType::parse(mlir::DialectAsmParser& parser) {
             if (parser.parseAttribute(numClusters)) {
                 return Type();
             }
+        } else if (attrName == "alignment") {
+            if (parser.parseAttribute(alignment)) {
+                return Type();
+            }
         } else {
             return Type();
         }
@@ -176,7 +184,7 @@ mlir::Type VPU::DistributedTensorType::parse(mlir::DialectAsmParser& parser) {
         return Type();
     }
     auto distributedAttr = VPU::DistributedTensorAttr::get(distributionModeAttr, numTiles, kernel, pads, strides,
-                                                           numClusters, parser.getContext());
+                                                           numClusters, alignment, parser.getContext());
     return static_cast<mlir::Type>(
             get(parser.getContext(), makeArrayRef(shape), elemType, order, memSpace, distributedAttr));
 }
@@ -186,11 +194,10 @@ mlir::Type VPU::DistributedTensorType::parse(mlir::DialectAsmParser& parser) {
 //
 
 mlir::LogicalResult VPU::DistributedTensorType::verify(FuncRef<mlir::InFlightDiagnostic()> emitError,
-                                                       ::llvm::ArrayRef<int64_t> /*shape*/, mlir::Type /*elementType*/,
-                                                       mlir::AffineMapAttr /*order*/,
-                                                       vpux::IndexedSymbolAttr /*memSpace*/,
+                                                       ::llvm::ArrayRef<int64_t> shape, mlir::Type /*elementType*/,
+                                                       mlir::AffineMapAttr /*order*/, IndexedSymbolAttr /*memSpace*/,
                                                        DistributedTensorAttr distribution) {
-    return VPU::verify(emitError, distribution);
+    return VPU::verify(emitError, distribution, shape);
 }
 
 //
@@ -328,6 +335,12 @@ Byte VPU::DistributedTensorType::getCompactAllocSize() const {
     } else {
         // No distribution mode.
         tiledShape = Shape(shape.raw());
+    }
+
+    if (distribution.alignment() != nullptr) {
+        const auto alignment = parseIntArrayAttr<int64_t>(distribution.alignment());
+        const auto optionalAlignment = Optional<ArrayRef<int64_t>>(alignment);
+        tiledShape = Shape(alignShape(tiledShape.raw(), optionalAlignment));
     }
 
     return Byte(getElemTypeSize()) * vpux::details::calcTotalShapeSize(tiledShape.raw());
