@@ -146,6 +146,7 @@ private:
 mlir::LogicalResult DepthConvToNCE::matchAndRewrite(IE::GroupConvolutionOp origOp,
                                                     mlir::PatternRewriter& rewriter) const {
     _log.trace("[{0}] Got '{1}' at '{2}'", getDebugName(), origOp->getName(), origOp->getLoc());
+    std::cout << llvm::formatv("\n\n ===== ConvertIEToVPUNCE =====\n: {0} {1}", origOp->getName(), origOp->getLoc()).str() << std::endl;
 
     const auto logCb = [&](const llvm::formatv_object_base& msg) {
         std::ignore = matchFailed(_log, rewriter, origOp, "[{0}] {1}", getDebugName(), msg.str());
@@ -207,6 +208,7 @@ mlir::LogicalResult DepthConvToNCE::matchAndRewrite(IE::GroupConvolutionOp origO
             origOp.stridesAttr(), padAttr, ppeTaskAttr, rawFilterShape, activationWindowChannelLength);
 
     rewriter.replaceOp(origOp, nceOp.output());
+    std::cout << llvm::formatv("GroupConv check done").str() << std::endl;
     return mlir::success();
 }
 
@@ -342,6 +344,7 @@ private:
 };
 
 void ConvertIEToVPUNCEPass::safeRunOnFunc() {
+    std::cout << "\n\nConvertIEToVPUNCEPass!!!" << std::endl;
     auto& ctx = getContext();
     auto func = getFunction();
     auto module = func->getParentOfType<mlir::ModuleOp>();

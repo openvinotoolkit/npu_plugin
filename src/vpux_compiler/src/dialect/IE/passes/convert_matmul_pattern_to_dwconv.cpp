@@ -15,6 +15,7 @@
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/IE/utils/matmul_utils.hpp"
+#include "vpux/compiler/dialect/VPU/nce_invariant.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
 #include "vpux/compiler/utils/types.hpp"
@@ -49,6 +50,17 @@ mlir::LogicalResult MatMulPatternConverter::matchAndRewrite(IE::MatMulOp origOp,
     VPUX_THROW_UNLESS(mlir::isa<IE::TransposeOp>(origTransposeOp), "MatMul pattern does not match",
                       origTransposeOp->getLoc());
 
+    auto origTransposeShape = origTransposeOp->getResult(0).getType().cast<vpux::NDTypeInterface>().getShape();
+    const auto channelSize = origTransposeShape[Dims4D::Act::H] * origTransposeShape[Dims4D::Act::W];
+    const auto totalKernelSize = origTransposeShape[Dims4D::Act::C];
+    auto kernelFactors = getKernelFactors(totalKernelSize);
+
+    VPUX_THROW_WHEN(std::any_of(kernelFactors.begin(), kernelFactors.end(),
+                                [](int64_t factor) {
+                                    return factor < 1 || factor > VPU::NCEInvariant::MAX_KERNEL_SIZE;
+                                }),
+                    "The shape of MatMul is not divisible for DWConv kernel.");
+
     // build the activation
     auto reshape1 = *(origTransposeOp->getResult(0).getUsers().begin());
     VPUX_THROW_WHEN(reshape1 == nullptr, "MatMul pattern mismatch.");
@@ -56,7 +68,7 @@ mlir::LogicalResult MatMulPatternConverter::matchAndRewrite(IE::MatMulOp origOp,
     VPUX_THROW_WHEN(reshape2 == nullptr, "MatMul pattern mismatch.");
     // replace reshape2
     const auto outShape4DAttr =
-            getIntArrayAttr(rewriter.getContext(), Shape({1, 6, 8, 512}));  // TODO get factor function
+            getIntArrayAttr(rewriter.getContext(), Shape({1, kernelFactors[0], kernelFactors[1], channelSize}));
     auto factorReshape =
             rewriter.create<IE::ReshapeOp>(reshape2->getLoc(), reshape1->getResult(0), nullptr, false, outShape4DAttr);
     // insert transpose
@@ -66,7 +78,6 @@ mlir::LogicalResult MatMulPatternConverter::matchAndRewrite(IE::MatMulOp origOp,
             rewriter.create<IE::TransposeOp>(factorReshape->getLoc(), factorReshape->getResult(0), nullptr, orderAttr);
     reshape2->replaceAllUsesWith(transpose);
     reshape2->erase();
-    const auto channelSize = transpose->getResult(0).getType().cast<vpux::NDTypeInterface>().getShape()[Dims4D::Act::C];
 
     // build the weight
     auto weightReshape1 = *(weightInputOp->getResult(0).getUsers().begin());
@@ -76,7 +87,7 @@ mlir::LogicalResult MatMulPatternConverter::matchAndRewrite(IE::MatMulOp origOp,
     weightReshape1->replaceAllUsesWith(weightReshape2);
     weightReshape1->erase();
     const auto weightOutShape4DAttr =
-            getIntArrayAttr(rewriter.getContext(), Shape({1, 1, 6, 8}));  // TODO get factor function
+            getIntArrayAttr(rewriter.getContext(), Shape({1, 1, kernelFactors[0], kernelFactors[1]}));
     auto factorWeightReshape = rewriter.create<IE::ReshapeOp>(weightInputOp->getLoc(), weightInputOp->getResult(0),
                                                               nullptr, false, weightOutShape4DAttr);
     //  concat
@@ -110,11 +121,6 @@ mlir::LogicalResult MatMulPatternConverter::matchAndRewrite(IE::MatMulOp origOp,
                                                           dilationsAttr, groupAttr, nullptr);
     origOp->replaceAllUsesWith(dwconv);
     origOp->erase();
-    //    rewriter.replaceOpWithNewOp<IE::GroupConvolutionOp>(origOp, transpose.output(), concatOp.output(),
-    //                                                        /*bias=*/nullptr, stridesAttr, padBeginAttr, padEndAttr,
-    //                                                        dilationsAttr, groupAttr, nullptr);
-    //    origOp->replaceAllUsesWith(*(concatOp->getResult(0).getUsers().begin()));
-    //    origOp->erase();
     //
     //    // test
     //    auto tmp = *(reshape1->getResult(0).getUsers().begin());
@@ -204,9 +210,6 @@ void ConvertMatMulPatternToDWConvPass::safeRunOnFunc() {
                                                         getDefaultGreedyRewriteConfig()))) {
         signalPassFailure();
     }
-    //    if (mlir::failed(mlir::applyPartialConversion(getFunction(), target, std::move(patterns)))) {
-    //        signalPassFailure();
-    //    }
 }
 
 }  // namespace IE

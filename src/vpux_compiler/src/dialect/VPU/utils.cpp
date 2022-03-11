@@ -97,18 +97,20 @@ mlir::Value getAlignedNonConstWeights(mlir::OpBuilder& builder, mlir::Location l
     auto ctx = builder.getContext();
     // Step 1: Flatten input to OCxICx1x1, where IC = filters * KY * KX.
     const auto origFilterType = origFilter.getType().cast<vpux::NDTypeInterface>();
-    const auto origOrder = origFilterType.getDimsOrder();
-    const auto flatWeightType = origFilterType.changeShape(flatWeightShape).changeDimsOrder(origOrder);
+    //    const auto origOrder = origFilterType.getDimsOrder();
+    const auto flatWeightType = origFilterType.changeShape(flatWeightShape).changeDimsOrder(DimsOrder::NCHW);
+    std::cout << llvm::formatv("flatWeightShape {0}", flatWeightShape).str() << std::endl;
     auto flatWeightsOp = builder.create<IE::ReshapeOp>(loc, flatWeightType, origFilter, nullptr, false,
                                                        getIntArrayAttr(ctx, flatWeightShape));
+    flatWeightsOp->dump();
 
     // Step 2: Permute flat input to NCHW.
-    auto flatWeightTypeNCHWType = flatWeightType.changeDimsOrder(DimsOrder::NCHW);
-    const auto nchwAttr = mlir::AffineMapAttr::get(DimsOrder::NCHW.toAffineMap(ctx));
-    const auto flatWeightsDimsAttr =
-            mlir::AffineMapAttr::get(getPermutationFromOrders(origOrder, DimsOrder::NCHW, ctx));
-    auto flatWeightsNCHW = builder.create<IE::PermuteCastOp>(loc, flatWeightTypeNCHWType, flatWeightsOp.output(),
-                                                             nchwAttr, flatWeightsDimsAttr);
+    //    auto flatWeightTypeNCHWType = flatWeightType.changeDimsOrder(DimsOrder::NCHW);
+    //    const auto nchwAttr = mlir::AffineMapAttr::get(DimsOrder::NCHW.toAffineMap(ctx));
+    //    const auto flatWeightsDimsAttr =
+    //            mlir::AffineMapAttr::get(getPermutationFromOrders(origOrder, DimsOrder::NCHW, ctx));
+    //    auto flatWeightsNCHW = builder.create<IE::PermuteCastOp>(loc, flatWeightTypeNCHWType, flatWeightsOp.output(),
+    //                                                             nchwAttr, flatWeightsDimsAttr);
 
     // Step 3: Create padding for flat NCHW input. IC must be a multiple of 16.
     const auto OC = flatWeightShape[Dims4D::Filter::OC];
@@ -130,7 +132,7 @@ mlir::Value getAlignedNonConstWeights(mlir::OpBuilder& builder, mlir::Location l
     // Step 4: Concatenate flat NCHW input with padding.
 
     auto concatViewOp =
-            builder.create<IE::ConcatOp>(loc, SmallVector<mlir::Value>{flatWeightsNCHW, paddedTensor}, Dims4D::Act::C);
+            builder.create<IE::ConcatOp>(loc, SmallVector<mlir::Value>{flatWeightsOp, paddedTensor}, Dims4D::Act::C);
 
     // Step 5: Permute the result to NHWC.
     const auto nhwcAttr = mlir::AffineMapAttr::get(DimsOrder::NHWC.toAffineMap(ctx));

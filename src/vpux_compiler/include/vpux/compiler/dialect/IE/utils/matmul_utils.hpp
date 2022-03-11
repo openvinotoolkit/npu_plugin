@@ -24,5 +24,6 @@ namespace IE {
 SmallVector<mlir::Operation*> getMatMulParentOps(IE::MatMulOp origOp);
 bool checkPermuteMatMulPattern(IE::MatMulOp);
 size_t getShapeSize(vpux::NDTypeInterface type);
+SmallVector<int64_t, 2> getKernelFactors(int64_t total);
 }  // namespace IE
 }  // namespace vpux

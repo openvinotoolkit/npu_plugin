@@ -98,5 +98,17 @@ bool checkPermuteMatMulPattern(IE::MatMulOp origOp) {
     return true;
 }
 
+SmallVector<int64_t, 2> getKernelFactors(int64_t total) {
+    int64_t kx = sqrt(total);
+    int64_t ky = total / kx;
+    while (total % kx != 0) {
+        kx--;
+        ky = total / kx;
+        std::cout << "divide " << total << " into " << kx << " " << ky << std::endl;
+    }
+    std::cout << "divide " << total << " into " << kx << " " << ky << std::endl;
+    return {kx, ky};
+}
+
 }  // namespace IE
 }  // namespace vpux
