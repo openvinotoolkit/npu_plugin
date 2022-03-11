@@ -95,10 +95,6 @@ bool MaxPoolStrategy::isOperationSplitOverHeightCompatible(mlir::Operation* op) 
     const auto IW = inputShape[Dims4D::Act::W];
 
     for (int ih = IH / _numClusters; ih < IH; ih++) {
-        if (ih * IW % 4 != 0) {
-            continue;
-        }
-
         int ihLastCluster = IH - ih * (_numClusters - 1);
         if (ihLastCluster <= 0) {
             return false;
@@ -112,10 +108,6 @@ bool MaxPoolStrategy::isOperationSplitOverHeightCompatible(mlir::Operation* op) 
 
     // How to check if result will be possible to divide between clusters?
     for (int oh = OH / _numClusters; oh < OH; oh++) {
-        if (oh * OW % 4 != 0) {
-            continue;
-        }
-
         int ohLastCluster = OH - oh * (_numClusters - 1);
         if (ohLastCluster <= 0) {
             return false;

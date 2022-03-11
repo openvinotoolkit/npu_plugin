@@ -71,8 +71,9 @@ inline PaddingAttr getPad<NCEEltwiseOp>(NCEEltwiseOp) {
 
 template <class ConcreteOp>
 NCEClusterTilingOp createDistributedCopyIn(ConcreteOp origOp, mlir::Value input, DistributionMode distributionMode,
-                                           mlir::ArrayAttr numTiles) {
-    auto inputTensorDistributedTensorType = createDistributedTensorType(origOp, input, distributionMode, numTiles);
+                                           mlir::ArrayAttr numTiles, bool needAlignment = false) {
+    auto inputTensorDistributedTensorType =
+            createDistributedTensorType(origOp, input, distributionMode, numTiles, needAlignment);
 
     mlir::OpBuilder builder(origOp);
     builder.setInsertionPoint(origOp);
@@ -91,7 +92,8 @@ NCEClusterTilingOp createDistributedCopyIn(ConcreteOp origOp, mlir::Value input,
 
 template <class ConcreteOp>
 DistributedTensorType createDistributedTensorType(ConcreteOp origOp, mlir::Value input,
-                                                  DistributionMode distributionMode, mlir::ArrayAttr numTiles) {
+                                                  DistributionMode distributionMode, mlir::ArrayAttr numTiles,
+                                                  bool needAlignment = false) {
     DistributedTensorAttr distributedActivationTensorAttr;
     auto module = origOp->template getParentOfType<mlir::ModuleOp>();
     auto nceOp = IE::getAvailableExecutor(module, ExecutorKind::NCE);
@@ -121,7 +123,7 @@ DistributedTensorType createDistributedTensorType(ConcreteOp origOp, mlir::Value
         // }
         // const auto alignmentAttr = getIntArrayAttr(alignment);
         const auto numTilesArray = parseIntArrayAttr<int64_t>(numTiles);
-        if (numTilesArray[Dims4D::Act::H.ind()] > 1 && kernel) {
+        if (numTilesArray[Dims4D::Act::H.ind()] > 1 && kernel && needAlignment) {
             const auto kernelArray = parseIntArrayAttr<int64_t>(kernel);
             const auto KY = kernelArray[0];
             if (KY > 1) {
