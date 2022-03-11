@@ -33,8 +33,8 @@ IE.MemoryResource 4194304 bytes of @CMX_UPA {VPU.bandwidth = 16, VPU.derateFacto
 IE.MemoryResource 1048576 bytes of @CMX_NN {VPU.bandwidth = 32, VPU.derateFactor = 1.000000e+00}
 
 module @UsedMemory {
-    IE.MemoryResource 2048 bytes of @DDR
-    IE.MemoryResource 1048576 bytes of @CMX_NN
+    IE.MemoryResource 99840 bytes of @DDR
+    IE.MemoryResource 917504 bytes of @CMX_NN
 }
 
 IE.ExecutorResource 16 of @SHAVE_UPA
@@ -62,11 +62,11 @@ func @main(%arg0: memref<1x16x32x32xf16>, %arg1: memref<1x32x32x32xf16>) -> memr
     %weights_table_cst2 = const.Declare memref<16x1x1x4xsi32> = #const.Content<dense<1> : tensor<16x1x1x4xsi32>>
 
     // Barriers
-    %bar0 = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
-    %bar1 = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
-    %bar2 = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
-    %bar3 = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
-    %bar10 = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
+    %bar0 = VPURT.ConfigureBarrier<0> -> !VPURT.Barrier
+    %bar1 = VPURT.ConfigureBarrier<1> -> !VPURT.Barrier
+    %bar2 = VPURT.ConfigureBarrier<2> -> !VPURT.Barrier
+    %bar3 = VPURT.ConfigureBarrier<3> -> !VPURT.Barrier
+    %bar10 = VPURT.ConfigureBarrier<4> -> !VPURT.Barrier
 
     // DDR input buffer
     %zmajor_in = VPURT.DeclareBuffer "DDR" <0> -> memref<1x16x32x32xf16, #NHWC>
@@ -146,7 +146,8 @@ func @main(%arg0: memref<1x16x32x32xf16>, %arg1: memref<1x32x32x32xf16>) -> memr
                 kernel_padding = {bottom = 0, left = 0, right = 0, top = 0},
                 kernel_size = [1, 1],
                 kernel_strides = [1, 1],
-                task_type = "CONV"
+                task_type = "CONV",
+                out_channel_offset = 0
             }
             input(%input_1: memref<1x16x32x32xf16, #NHWC, [@CMX_NN, 0]>)
             weights(%weights1: memref<16x16x1x1xf16, #NHWC, [@CMX_NN, 0]>)
@@ -173,7 +174,8 @@ func @main(%arg0: memref<1x16x32x32xf16>, %arg1: memref<1x32x32x32xf16>) -> memr
                 kernel_padding = {bottom = 0, left = 0, right = 0, top = 0},
                 kernel_size = [1, 1],
                 kernel_strides = [1, 1],
-                task_type = "CONV"
+                task_type = "CONV",
+                out_channel_offset = 16
             }
             input(%input_2: memref<1x16x32x32xf16, #NHWC, [@CMX_NN, 1]>)
             weights(%weights2: memref<16x16x1x1xf16, #NHWC, [@CMX_NN, 1]>)
@@ -490,6 +492,7 @@ func @main(%arg0: memref<1x16x32x32xf16>, %arg1: memref<1x32x32x32xf16>) -> memr
 // CHECK:                 1
 // CHECK:               ],
 // CHECK:               data_dtype: "I32",
+// CHECK:             out_channel_offset: 16
 // CHECK:           variant: [
 // CHECK:               mpe_mode: "VECTOR_FP16",
 // CHECK:               workload_start_Z: 16,
