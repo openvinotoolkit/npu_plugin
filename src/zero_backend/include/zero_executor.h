@@ -31,7 +31,10 @@
 namespace vpux {
 
 class ZeroExecutor final : public Executor {
-protected:
+    // NB: originally, it was protected as an implementation detail
+    // made public for InferRequest to make accessible Pipeline and its details (HostMem)
+    // protected:
+public:
     struct Graph;
     struct CommandQueue;
     enum stage {
@@ -42,7 +45,6 @@ protected:
         COUNT
     };
 
-public:
     ZeroExecutor(ze_driver_handle_t driver_handle, ze_device_handle_t device_handle, ze_context_handle_t context,
                  ze_graph_dditable_ext_t* graph_ddi_table_ext, const vpux::NetworkDescription::Ptr& networkDescription,
                  const Config& config);
@@ -328,7 +330,7 @@ auto mapArguments(Map& zero, const std::string& key) -> typename Map::mapped_typ
 }
 
 template <typename Map>
-auto mapArguments(const Map& zero, const std::string& key) -> typename const Map::mapped_type& {
+auto mapArguments(const Map& zero, const std::string& key) -> const typename Map::mapped_type& {
     for (auto& p : zero) {
         if (std::string::npos != p.first.find(key)) {
             return p.second;
