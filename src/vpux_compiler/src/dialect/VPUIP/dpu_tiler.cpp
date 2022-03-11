@@ -22,9 +22,9 @@ using namespace vpux;
 
 namespace {
 
-constexpr uint32_t DEFAULT_ZTILE_VALUE = 16;
+constexpr uint32_t DEFAULT_ZTILE_VALUE = 32;
 
-constexpr size_t MIN_VALID_ZTILE_EXPONENT = 4;
+constexpr size_t MIN_VALID_ZTILE_EXPONENT = 5;
 constexpr size_t MAX_VALID_ZTILE_EXPONENT = 8;
 
 VPUNN::ExecutionMode getExecutionMode(VPU::MPEMode mpeMode) {
@@ -159,6 +159,22 @@ SmallVector<uint32_t> vpux::VPUIP::DpuTiler::generateSplitNumberPool(int64_t num
     }
     dpuMulSplits.insert(1);
     return SmallVector<uint32_t>(dpuMulSplits.begin(), dpuMulSplits.end());
+}
+
+void vpux::VPUIP::DpuTiler::tileOverW(int64_t numDPU) {
+    const int64_t minTileSize = 32;
+
+    const int64_t minTilesCount = 1;
+    const int64_t maxTilesCount = numDPU;
+
+    int64_t tilesCount = _outShape[Dims4D::Act::W] / minTileSize;
+    tilesCount = std::min(std::max(tilesCount, minTilesCount), maxTilesCount);
+
+    Shape nTilesOnDim(_outShape.size(), minTilesCount);
+    nTilesOnDim[Dims4D::Act::W] = tilesCount;
+
+    auto outTiles = fillDividedTiles(nTilesOnDim, _outShape);
+    _splitPool.push_back(std::move(outTiles));
 }
 
 void vpux::VPUIP::DpuTiler::tileOverH(int64_t numDPU) {

@@ -44,7 +44,7 @@ constexpr size_t MAX_SPLIT_NUMBER = 128;
 
 VPU::MPEMode getMpeModeForKmb(mlir::Type inElemType, mlir::Type outElemType, mlir::Operation*) {
     if (inElemType.isa<mlir::quant::QuantizedType>() || outElemType.isa<mlir::quant::QuantizedType>()) {
-        return VPU::MPEMode::MATRIX;
+        return VPU::MPEMode::VECTOR;
     }
 
     if (inElemType.isF16() || inElemType.isBF16() || outElemType.isF16() || outElemType.isBF16()) {
@@ -130,6 +130,7 @@ void addWorkload(mlir::PatternRewriter& rewriter, VPU::NCEOpInterface origOp,
                  mlir::IntegerAttr clusterId = nullptr, ShapeRef subTensorOffset = {}) {
     VPUIP::DpuTiler dpuTiler(costParams.outputShape, costParams.mpeMode, costModel);
     dpuTiler.tileOverH(costParams.numDPU);
+    dpuTiler.tileOverW(costParams.numDPU);
 
     const auto& splitNumPool = dpuTiler.generateSplitNumberPool(costParams.numDPU, MAX_SPLIT_NUMBER);
     if (costParams.isZTilingSupported) {
