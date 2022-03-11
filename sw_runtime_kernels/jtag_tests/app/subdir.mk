@@ -48,6 +48,9 @@ subdirs-lnn-y += nn/common nn/inference_runtime_common
 subdirs-shave-y += nn/common
 subdirs-shave-y += nn/shave_lib
 subdirs-shave-y += ../../kernels
+#subdirs-shave-$(CONFIG_TARGET_SOC_MA2490) += nn/common
+#subdirs-shave-$(CONFIG_TARGET_SOC_MA2490)+= nn/shave_lib
+#subdirs-shave-$(CONFIG_TARGET_SOC_MA2490) += ../../kernels
 subdirs-lrt-$(CONFIG_TARGET_SOC_3720) +=  act_shave_lib
 
 subdirs-lnn-$(CONFIG_TARGET_SOC_3720) +=  act_shave_lib

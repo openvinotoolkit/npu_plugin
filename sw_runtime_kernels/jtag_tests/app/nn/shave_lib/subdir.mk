@@ -50,7 +50,7 @@ ccopt-lrt-y += -DDISPATCHER_OS
 
 # Only to get SHAVE specific defines for LRT code
 subdirs-lrt-y += shave
-subdirs-shave-y += shave
+subdirs-shave-$(CONFIG_TARGET_SOC_MA2490) += shave
 endif
 
 # CONFIG_TARGET_SOC_* options are mutually exclusive. Only one can be enabled at a time

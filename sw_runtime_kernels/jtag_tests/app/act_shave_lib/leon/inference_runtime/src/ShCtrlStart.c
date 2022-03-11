@@ -14,10 +14,14 @@
 #include <ShCtrl.h>
 #include <stdarg.h>
 
+//#define SHAVE_LOG(...) {printf(__VA_ARGS__); printf("\n"); }
+//#define SHAVE_FUNC(...) {printf("%s:%d: ", __func__, __LINE__); SHAVE_LOG(__VA_ARGS__);}
+
+
 #define ALIGN_POINTER(XX, YY) ((uint32_t *)(((intptr_t)(XX) + YY - 1) & (~(YY - 1))))
 
 static void shCtrlParamAddU32(ShHandle *handle, uint32_t value32) {
-    SHAVE_FUNC("%p, %" PRId32"", handle, value32);
+    SHAVE_FUNC("%p, %d", handle, value32);
     // Parameters and conditions for failing are already checked in ShaveCtrlStart
     // This function cannot fail.
 
@@ -34,7 +38,7 @@ static void shCtrlParamAddU32(ShHandle *handle, uint32_t value32) {
 }
 
 static void shCtrlParamAddU64(ShHandle *handle, uint64_t value64) {
-    SHAVE_FUNC("%p, %" PRId64"", handle, value64);
+    SHAVE_FUNC("%p, %d", handle, value64);
     // Parameters and conditions for failing are already checked in ShaveCtrlStart
     // This function cannot fail.
     uint32_t value32_1 = value64 >> 32;
@@ -58,7 +62,7 @@ static void shCtrlParamAddU64(ShHandle *handle, uint64_t value64) {
 }
 
 static void shCtrlParamAddV64(ShHandle *handle, uint32_t v0, uint32_t v1, uint32_t v2, uint32_t v3) {
-    SHAVE_FUNC("%p, %" PRId32", %" PRId32", %" PRId32", %" PRId32"", handle, v0, v1, v2, v3);
+    SHAVE_FUNC("%p, %d, %d, %d, %d", handle, v0, v1, v2, v3);
     // do we have one free VRF register?
     if (handle->availableVrf > SHAVE_PARAMS_LAST_VRF) {
         handle->availableVrf -= 1; // use one VRF
@@ -125,7 +129,7 @@ static HglShaveCtrlError shPrepareAndStart(ShHandle *handle, void *entry) {
     SHAVE_FUNC("%p, %p", handle, entry);
     rtems_status_code sc = rtems_semaphore_obtain(handle->waitSema, RTEMS_NO_WAIT, 0);
     if (RTEMS_SUCCESSFUL != sc) {
-        SHAVE_LOG(" - Failed due to rtems_semaphore_obtain with return code: %" PRId32"", sc);
+        SHAVE_LOG(" - Failed due to rtems_semaphore_obtain with return code: %d", sc);
         SHAVE_RETURN_ERR(HGL_SHAVE_CTRL_SEMA_FAILURE);
     }
     handle->collected = false; // trigger a new return collect when done
@@ -177,7 +181,7 @@ static HglShaveCtrlError shProcessParamsAndStart(ShHandle *handle, void *entry, 
 }
 
 static HglShaveCtrlError ShCtrlRawAddressWinToAbs(ShHandle *handle, uint32_t address, uint32_t *absAddr, bool passthrough) {
-    SHAVE_FUNC("%p, 0x%" PRIX32", %p, %s", handle, address, absAddr, passthrough ? "true" : "false");
+    SHAVE_FUNC("%p, 0x%x, %p, %s", handle, address, absAddr, passthrough ? "true" : "false");
     uint32_t win = address >> 24;
     uint32_t winNo = win - 0x1C; // underflow intentional
     if (winNo > HGL_SHAVE_WINDOW_NB) {

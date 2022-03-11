@@ -6,3 +6,6 @@ srcs-lrt-y += $(wildcard *.cpp)
 
 subdirs-los-y += tests
 subdirs-lrt-y += tests
+
+global-symbols-y += \
+	shvNN0_nnEntry

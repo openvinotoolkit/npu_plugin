@@ -24,5 +24,18 @@ REL_TO_ROOT := $(patsubst %,../,${REL_TO_ROOT})
 REL_TO_ROOT := $(subst $(SPACE),,$(REL_TO_ROOT))
 FIRMWARE_VPU_REL_THROUGH_ROOT := $(REL_TO_ROOT)$(FIRMWARE_VPU_ABS_DIR)
 
-subdirs-shave_nn-$(CONFIG_TARGET_SOC_3720) +=  leon/common leon/inference_runtime leon/common_runtime $(FIRMWARE_VPU_REL_THROUGH_ROOT)/system/nn_mtl/dpu_runtime
+subdirs-shave_nn-$(CONFIG_TARGET_SOC_3720) +=  leon/common leon/inference_runtime leon/common_runtime
+#subdirs-shave_nn-$(CONFIG_TARGET_SOC_3720) +=  $(FIRMWARE_VPU_REL_THROUGH_ROOT)/drivers
+#subdirs-shave_nn-$(CONFIG_TARGET_SOC_3720) +=  $(FIRMWARE_VPU_REL_THROUGH_ROOT)/system/nn_mtl/dpu_runtime
+#subdirs-shave_nn-$(CONFIG_TARGET_SOC_3720) +=  $(FIRMWARE_VPU_REL_THROUGH_ROOT)/system/nn_mtl/dpu_runtime
+#subdirs-shave_nn-$(CONFIG_TARGET_SOC_3720) +=  leon/common leon/inference_runtime leon/common_runtime $(FIRMWARE_VPU_REL_THROUGH_ROOT)/system/nn_mtl/dpu_runtime
+#subdirs-shave_nn-$(CONFIG_TARGET_SOC_3720) +=  leon/common leon/inference_runtime leon/common_runtime $(FIRMWARE_VPU_REL_THROUGH_ROOT)/system/nn_mtl/dpu_runtime
+#subdirs-shave_nn-$(CONFIG_TARGET_SOC_3720) +=  leon/common leon/inference_runtime leon/common_runtime $(FIRMWARE_VPU_REL_THROUGH_ROOT)/system/nn_mtl/dpu_runtime
+
 subdirs-lrt-$(CONFIG_TARGET_SOC_3720) +=  leon
+# $(FIRMWARE_VPU_REL_THROUGH_ROOT)/system/nn_mtl/dpu_runtime
+
+
+include-dirs-shave_nn-y += $(FIRMWARE_VPU_REL_THROUGH_ROOT)/system/nn_mtl/dpu_runtime/inc
+srcs-shave_nn-y += $(wildcard $(FIRMWARE_VPU_REL_THROUGH_ROOT)/system/nn_mtl/dpu_runtime/src/*.c*) $(wildcard $(FIRMWARE_VPU_REL_THROUGH_ROOT)/system/nn_mtl/dpu_runtime/src/*.asm)
+

@@ -20,11 +20,15 @@
 
 using namespace nn::common_runtime;
 
+extern unsigned char actShaveData[];
+
 namespace nn {
 namespace inference_runtime {
 namespace shaves {
 
 using namespace act_runtime;
+
+
 
 class ShaveManager {
 public:

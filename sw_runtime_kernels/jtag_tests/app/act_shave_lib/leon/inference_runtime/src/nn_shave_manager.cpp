@@ -24,7 +24,24 @@
 #include <OsDrvBootShave.h>
 #include <ShaveL2Cache.h>
 
-extern void const *shvNNx_nnEntry;
+//extern void const *shvNNx_nnEntry;
+
+
+__attribute__((aligned(1024)))
+#include "sk.nnEntry.3010xx.text.xdat"
+
+__attribute__((aligned(1024)))
+#include "sk.nnEntry.3010xx.data.xdat"
+
+extern void *shvNN0_nnEntry;
+extern unsigned char sk_nnActEntry_3010xx_text[];
+//extern unsigned char sk_nnEntry_3010xx_text[];
+//extern unsigned char sk_nnEntry_3010xx_text_len;
+//extern unsigned char sk_nnEntry_3010xx_data[];
+//extern unsigned char sk_nnEntry_3010xx_data_len;
+void *shvNNx_nnEntry = sk_nnEntry_3010xx_text;//shvNN0_nnEntry;//sk_nnActEntry_3010xx_text;
+
+//void *shvNNx_nnEntry_data = sk_nnEntry_3010xx_data;//shvNN0_nnEntry;//sk_nnActEntry_3010xx_text;
 
 namespace {
 #define MAX_SUPPORTED_NN_SHV_PER_TILE 2
@@ -81,7 +98,21 @@ ShaveManager::ShaveManager(const StaticMapping &sMapping)
                                            unpackSHVConfig(acts_cfgs[shave]).work.index);
     }
 
-    // For STD FW apps: L2C_PAGE_TABLE is set in OsDrvInitShave.c
+    // NNSHV handle init
+    for (unsigned int shave = 0; shave < SNN_TOTAL; ++shave) {
+        nnLog(MVLOG_DEBUG, "ShaveCtrlOpen: NNSHV %d SNN_TOTAL %d", shave, SNN_TOTAL);
+        auto rc = ShCtrlOpen(SHAVE_NN, nnShaveId[shave], &nnShvHnd[shave]);
+        /*if (rc != HGL_SHAVE_CTRL_SUCCESS) */{
+            nnLog(MVLOG_ERROR, "ShaveCtrlOpen: rc = %x", (int)rc);
+        }
+    }
+
+    nnLog(MVLOG_DEBUG, "ShaveL2CacheInit");
+    auto rc2 = ShaveL2CacheInit(SHAVE_L2C_NORMAL);
+    if (rc2 != SHAVE_L2_SUCCESS)
+        nnLog(MVLOG_ERROR, "ShaveL2CacheInit: rc = %x", (int)rc2);
+
+        // For STD FW apps: L2C_PAGE_TABLE is set in OsDrvInitShave.c
 #if (!(defined(CONFIG_STD_FW_APP_CLIENT)) && defined(CONFIG_NN_NCE_L2C_PAGE_TABLE))
     // Apply L2C page table setting
     uint32_t l2c_page_table = CONFIG_NN_NCE_L2C_PAGE_TABLE;
@@ -90,12 +121,21 @@ ShaveManager::ShaveManager(const StaticMapping &sMapping)
     if (rc3 != SHAVE_L2_SUCCESS)
         nnLog(MVLOG_ERROR, "ShaveL2CacheSetPage: rc = %x", (int)rc3);
 #endif
+    nnLog(MVLOG_DEBUG, "ShaveManager created");
 }
 
 ShaveManager::~ShaveManager(void) {
     // ACTSHV handle de-init
     for (unsigned int shave = 0; shave < AS_TOTAL; ++shave) {
         auto rc = ShCtrlClose(&actShvHnd[shave]);
+        if (rc != HGL_SHAVE_CTRL_SUCCESS) {
+            nnLog(MVLOG_WARN, "ShaveCtrlClose: rc = %x", (int)rc);
+        }
+    }
+
+    // NNSHV handle de-init
+    for (unsigned int shave = 0; shave < SNN_TOTAL; ++shave) {
+        auto rc = ShCtrlClose(&nnShvHnd[shave]);
         if (rc != HGL_SHAVE_CTRL_SUCCESS) {
             nnLog(MVLOG_WARN, "ShaveCtrlClose: rc = %x", (int)rc);
         }
@@ -205,27 +245,31 @@ void ShaveManager::startNNShavesForTile(const uint32_t tile) {
         }
 
 //        uint32_t snnCodeWin = shaveElfs->snn.code.addr32();
-        uint32_t snnCodeWin = (uint32_t)shvNNx_nnEntry;
-        nnLog(MVLOG_DEBUG, "Setting WIN_%d for NN Shave %d to %x", mapWindowAddrMaskToName(SNN_RT_CODE_WINDOW), i,
+        uint32_t snnCodeWin = (uint32_t)sk_nnEntry_3010xx_text;//shvNNx_nnEntry;//shvNN_nnEntry;
+        snnCodeWin = snnCodeWin & (~(1024-1));
+        nnLog(MVLOG_ERROR, "Setting WIN_%d for NN Shave %d to %x", mapWindowAddrMaskToName(SNN_RT_CODE_WINDOW), i,
               snnCodeWin);
         rc = ShCtrlSetWindowAddr(nnShvHnd[i], mapWindowAddrMaskToName(SNN_RT_CODE_WINDOW), snnCodeWin);
         if (rc != HGL_SHAVE_CTRL_SUCCESS) {
             nnLog(MVLOG_ERROR, "ShaveCtrlSetWindowAddr: %d", (int)rc);
         }
 
-//        uint32_t snnDataWin = cmxMapping.snnData_[0].addr32();
-//        nnLog(MVLOG_DEBUG, "Setting WIN_%d for NN Shave %d to %x", mapWindowAddrMaskToName(SNN_RT_DATA_WINDOW), i,
-//              snnDataWin);
-//        rc = ShCtrlSetWindowAddr(nnShvHnd[i], mapWindowAddrMaskToName(SNN_RT_DATA_WINDOW), snnDataWin);
-//        if (rc != HGL_SHAVE_CTRL_SUCCESS) {
-//            nnLog(MVLOG_ERROR, "ShaveCtrlSetWindowAddr: %d", (int)rc);
-//        }
+        uint32_t snnDataWin = (uint32_t)sk_nnEntry_3010xx_data;//cmxMapping.globalData_[tile].addr32();
+        nnLog(MVLOG_DEBUG, "Setting WIN_%d for NN Shave %d to %x", mapWindowAddrMaskToName(SNN_RT_DATA_WINDOW), i,
+              snnDataWin);
+        rc = ShCtrlSetWindowAddr(nnShvHnd[i], mapWindowAddrMaskToName(SNN_RT_DATA_WINDOW), snnDataWin);
+        if (rc != HGL_SHAVE_CTRL_SUCCESS) {
+            nnLog(MVLOG_ERROR, "ShaveCtrlSetWindowAddr: %d", (int)rc);
+        }
 
         auto fifoCfg = snn_cfgs[i];
         printFifoConfig(unpackSHVConfig(fifoCfg));
-        nnLog(MVLOG_INFO, "Starting NN Shave %d from %p", i, &shvNNx_nnEntry);
+        nnLog(MVLOG_INFO, "Starting NN Shave %d from %p", i, sk_nnEntry_3010xx_text);
 
-        auto rc3 = ShCtrlStart(nnShvHnd[i], &shvNNx_nnEntry, "ii", fifoCfg, cmxMapping.workareas_[tile].addr32());
+        int * tmp = (int*)0x2e006580;
+        printf("!!!!!!!!!!! %s: %p 0x%x %p %d(0x%x) !!!!!!!!!!\n", __func__, actShaveData, snnCodeWin, sk_nnEntry_3010xx_text, tmp[0], tmp[0]);
+
+        auto rc3 = ShCtrlStart(nnShvHnd[i], sk_nnEntry_3010xx_text/*(void*)((uint32_t)(&shvNNx_nnEntry) - snnCodeWin)*/, "ii", fifoCfg, cmxMapping.workareas_[tile].addr32());
         if (rc3 != HGL_SHAVE_CTRL_SUCCESS) {
             nnLog(MVLOG_ERROR, "ShaveCtrlStart: %d", (int)rc3);
         }

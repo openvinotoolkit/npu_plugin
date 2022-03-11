@@ -24,8 +24,13 @@
 #include <bsp.h>
 #endif
 
+//#define SHAVE_LOG(...) {printf(__VA_ARGS__); printf("\n"); }
+//#define SHAVE_FUNC(...) {printf("%s:%d: ", __func__, __LINE__); SHAVE_LOG(__VA_ARGS__);}
+
 #define LOCAL_SH_COUNT (HGL_NCE_ACT_SHAVE_NB + HGL_NCE_DPU_NB)
 
+//#define SHAVE_FUNC(...) printf("%s:%d\n", __func__, __LINE__)
+//#define SHAVE_LOG(...) {printf(__VA_ARGS__); printf("\n"); }
 ShHandle ShConfig[LOCAL_SH_COUNT];
 
 // This file has potentially HW dependent functions
@@ -61,24 +66,25 @@ uint32_t ShCtrlGetCurrentProcessor(void) {
 #if defined(SHAVE_PLATFORM_37xx)
 
 static uint32_t ShCtrlGetIrqLine(HglShaveType type, uint32_t id) {
-    SHAVE_FUNC("%" PRId32", %" PRId32"", type, id);
+    SHAVE_FUNC("%d, %d", type, id);
     uint32_t irq[] = {LRT_IRQ_SHAVE, LNN_IRQ_DPU_IRQ_0_0, LNN_IRQ_DPU_IRQ_16_0};
     uint32_t line = irq[type];
     if (type == SHAVE_UPA) {
-        SHAVE_RETURN(line + id, "%" PRId32"");
+        SHAVE_RETURN(line + id, "%d");
     } else {
-        SHAVE_RETURN(line + id * 2, "%" PRId32"");
+        SHAVE_RETURN(line + id * 2, "%d");
     }
 }
 
 static uint32_t ShCtrlGetHandleIndex(HglShaveType type, uint32_t id) {
-    SHAVE_FUNC("%" PRId32", %" PRId32"", type, id);
+    SHAVE_FUNC("%d, %d", type, id);
 #if defined(__leon_rt__)
-    (void)type; // unused in leon_rt
-    SHAVE_RETURN(id, "%" PRId32"");
+//    (void)type; // unused in leon_rt
+    SHAVE_RETURN(((type == SHAVE_ACT) * HGL_MAX_ACT_SHAVES) + id, "%d");
+//    SHAVE_RETURN(id, "%d");
 #endif
 #if defined(__leon_nn__)
-    SHAVE_RETURN(((type == SHAVE_ACT) * HGL_MAX_ACT_SHAVES) + id, "%" PRId32"");
+    SHAVE_RETURN(((type == SHAVE_ACT) * HGL_MAX_ACT_SHAVES) + id, "%d");
 #endif
 }
 
@@ -139,7 +145,7 @@ static HglShaveCtrlError ShCtrlRemoveISR(ShHandle *handle) {
 #endif
 
 static void SetShHandle(HglShaveType type, uint32_t id, ShHandle *handle) {
-    SHAVE_FUNC("%" PRId32", %" PRId32", %p", type, id, handle);
+    SHAVE_FUNC("%d, %d, %p", type, id, handle);
     memset(handle, 0, sizeof(HglShaveType));
     HglShaveSetHandle(type, id, (HglShaveHandle *)handle);
 }
@@ -162,12 +168,12 @@ static void shSemaCleanup(void) {
 }
 
 static bool shHandleCreate(HglShaveType type) {
-    SHAVE_FUNC("%" PRId32"", type);
+    SHAVE_FUNC("%d", type);
     rtems_status_code rs;
     static uint32_t semaId = 0;
     uint32_t count = HglShaveMaxId[type];
     for (uint32_t id = 0; id < count; id++) {
-        SHAVE_LOG(" - Creating sema %" PRId32"", id);
+        SHAVE_LOG(" - Creating sema %d", id);
         uint32_t idx = ShCtrlGetHandleIndex(type, id);
         ShHandle *h = &ShConfig[idx];
         SetShHandle(type, id, h);
@@ -217,18 +223,19 @@ HglShaveCtrlError ShCtrlInit(void) {
 
 static inline HglShaveCtrlError protect(ShHandle *handle) {
     SHAVE_FUNC("%p", handle);
-    HglShaveCtrlError err = (HglShaveCtrlError)ShaveSvuLock(handle->type, handle->id);
+    HglShaveCtrlError err = /*0;//*/(HglShaveCtrlError)ShaveSvuLock(handle->type, handle->id);
     SHAVE_RETURN_ERR(err);
 }
 
 static inline HglShaveCtrlError unprotect(ShHandle *handle) {
     SHAVE_FUNC("%p", handle);
-    HglShaveCtrlError err = (HglShaveCtrlError)ShaveSvuUnlock(handle->type, handle->id);
+    HglShaveCtrlError err = /*0;//*/(HglShaveCtrlError)ShaveSvuUnlock(handle->type, handle->id);
     SHAVE_RETURN_ERR(err);
 }
 
 HglShaveCtrlError ShCtrlOpen(HglShaveType type, uint32_t id, ShHandle **handle) {
-    SHAVE_FUNC("%" PRId32", %" PRId32", %p", type, id, handle);
+    SHAVE_FUNC("%d, %d, %p", type, id, handle);
+    SHAVE_LOG("%d, %d, %p", type, id, handle);
     if (handle == NULL) {
         SHAVE_LOG(" - Shave *handle null");
         SHAVE_RETURN_ERR(HGL_SHAVE_CTRL_PARAMETER_ERROR);
@@ -241,9 +248,9 @@ HglShaveCtrlError ShCtrlOpen(HglShaveType type, uint32_t id, ShHandle **handle) 
         SHAVE_RETURN_ERR((HglShaveCtrlError)hsgerr);
     }
 
-    SHAVE_LOG(" - Opening [%s, %" PRId32"]", typeCharptr[type], id);
+    SHAVE_LOG(" - Opening [%s, %d]", typeCharptr[type], id);
     uint32_t idx = ShCtrlGetHandleIndex(type, id);
-    SHAVE_LOG(" - Using handle id %" PRId32"", idx);
+    SHAVE_LOG(" - Using handle id %d", idx);
     ShHandle *h = &ShConfig[idx];
     SHAVE_LOG(" - Using handle %p", h);
     if (h->opened) {
@@ -253,7 +260,7 @@ HglShaveCtrlError ShCtrlOpen(HglShaveType type, uint32_t id, ShHandle **handle) 
         *handle = h;
         SHAVE_LOG(" - Protecting handle");
         HglShaveCtrlError er = protect(h);
-        SHAVE_LOG(" - Protecting handle %" PRId32"", er);
+        SHAVE_LOG(" - Protecting handle %d", er);
         if (er != HGL_SHAVE_CTRL_SUCCESS) {
             // doesnt need unprotect
             // since protect failed
@@ -266,7 +273,7 @@ HglShaveCtrlError ShCtrlOpen(HglShaveType type, uint32_t id, ShHandle **handle) 
 #ifndef SHAVE_WAIT_POLL
         SHAVE_LOG(" - Installing ISR");
         er = ShCtrlInstallISR(h);
-        SHAVE_LOG(" - Installing ISR status %" PRId32"", er);
+        SHAVE_LOG(" - Installing ISR status %d", er);
 #endif
         HglShaveCtrlError unprotErr = unprotect(h);
         SHAVE_LOG(" - Unprotecting");
@@ -324,7 +331,7 @@ HglShaveCtrlError ShCtrlClose(ShHandle **handle) {
 }
 
 HglShaveCtrlError ShCtrlSetStackAddr(ShHandle *handle, uint32_t stack) {
-    SHAVE_FUNC("%p, 0x%" PRIX32"", handle, stack);
+    SHAVE_FUNC("%p, 0x%x", handle, stack);
     if (handle == NULL) {
         SHAVE_LOG(" - Failed due to null handle");
         SHAVE_RETURN_ERR(HGL_SHAVE_CTRL_PARAMETER_ERROR);
@@ -345,7 +352,7 @@ HglShaveCtrlError ShCtrlSetStackAddr(ShHandle *handle, uint32_t stack) {
 }
 
 HglShaveCtrlError ShCtrlSetStackSize(ShHandle *handle, uint32_t size) {
-    SHAVE_FUNC("%p, %" PRId32"", handle, size);
+    SHAVE_FUNC("%p, %d", handle, size);
     if (handle == NULL) {
         SHAVE_LOG(" - Failed due to null handle");
         SHAVE_RETURN_ERR(HGL_SHAVE_CTRL_PARAMETER_ERROR);
@@ -360,7 +367,7 @@ HglShaveCtrlError ShCtrlSetStackSize(ShHandle *handle, uint32_t size) {
 }
 
 HglShaveCtrlError ShCtrlSetWindowAddr(ShHandle *handle, HglShaveWindow win, uint32_t winAddr) {
-    SHAVE_FUNC("%p, %" PRId32", %p", handle, win, winAddr);
+    SHAVE_FUNC("%p, %d, %p", handle, win, winAddr);
     if (handle == NULL) {
         SHAVE_LOG(" - Failed due to null handle");
         SHAVE_RETURN_ERR(HGL_SHAVE_CTRL_PARAMETER_ERROR);
