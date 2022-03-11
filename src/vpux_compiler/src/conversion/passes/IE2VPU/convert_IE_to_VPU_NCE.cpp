@@ -146,7 +146,9 @@ private:
 mlir::LogicalResult DepthConvToNCE::matchAndRewrite(IE::GroupConvolutionOp origOp,
                                                     mlir::PatternRewriter& rewriter) const {
     _log.trace("[{0}] Got '{1}' at '{2}'", getDebugName(), origOp->getName(), origOp->getLoc());
-    std::cout << llvm::formatv("\n\n ===== ConvertIEToVPUNCE =====\n: {0} {1}", origOp->getName(), origOp->getLoc()).str() << std::endl;
+    std::cout
+            << llvm::formatv("\n\n ===== ConvertIEToVPUNCE =====\n: {0} {1}", origOp->getName(), origOp->getLoc()).str()
+            << std::endl;
 
     const auto logCb = [&](const llvm::formatv_object_base& msg) {
         std::ignore = matchFailed(_log, rewriter, origOp, "[{0}] {1}", getDebugName(), msg.str());
