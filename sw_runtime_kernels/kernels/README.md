@@ -30,10 +30,10 @@ option must be:
   specifies whether to build the mostly kernels, including Management Kernel (nnActEntry) (description: descrip/*.txt)
 - BUILD_PSS_KERNELS=ON|Off
   specifies whether to build PSS tests - targeted kernels (description: descrip/pss/*.txt)
-- CUSTOM_KERNELS_DIR=<descrip-dir-path>
+- CUSTOM_KERNELS_DIR=descrip-dir-path
   specifies path to an alternative directory containing kernel description file(s). Default is sw_runtime_kernels/kernels/descrip/
-- CUSTOM_KERNELS_LIST=<kernels-list>
-  specifies a semicolon-separated list of description file names, for kernels to build. Default: all files found in description directory
+- CUSTOM_KERNELS_LIST=kernels-list
+  specifies a semicolon-separated list of description file names (possibly in quotes), for kernels to build. Default: all files found in description directory
 
 ## Binaries installation
 
