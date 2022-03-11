@@ -45,9 +45,7 @@ target_include_directories(${TARGET_NAME}
 
 link_system_libraries(${TARGET_NAME}
     PRIVATE
-        # IE::inference_engine
         IE::inference_engine_plugin_api
-        vpux_utils
         ze_loader
  )
 
@@ -55,6 +53,7 @@ target_link_libraries(${TARGET_NAME}
     PRIVATE
         vpux_al
         kmb_utils
+        vpux_utils
 )
 
 if(ENABLE_CLANG_FORMAT)

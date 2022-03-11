@@ -402,6 +402,10 @@ std::string toString(const ze_graph_argument_layout_t& layout) {
     }
 }
 
+static std::string serializeConfig(const vpux::Config& config) {
+    return "--config " + config.toString();
+}
+
 INetworkDescription::Ptr LevelZeroCompilerInDriver::compileIR(
         const std::string& graphName, const std::vector<char>& xml, const std::vector<char>& weights,
         const IE::InputsDataMap& inputsInfo, const IE::OutputsDataMap& outputsInfo, const vpux::Config& config) {
@@ -418,9 +422,11 @@ INetworkDescription::Ptr LevelZeroCompilerInDriver::compileIR(
     std::string build_flags;
 
     build_flags += serializeIOInfo(inputsInfo, outputsInfo);
-    // TODO #-31612 serialize config options
+    build_flags += " ";
+    build_flags += serializeConfig(config);
 
     _logger.debug(build_flags);
+
     ze_graph_desc_t desc{ZE_STRUCTURE_TYPE_GRAPH_DESC_PROPERTIES,
                          nullptr,
                          format,

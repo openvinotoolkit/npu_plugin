@@ -2134,7 +2134,8 @@ def VPUIP_NCEClusterTaskOp :
         OptionalAttr<IntAttr>:$activation_window_channel_length,
         OptionalAttr<UnitAttr>:$is_continued,
         OptionalAttr<IntAttr>:$cm_sp_pattern,
-        OptionalAttr<UnitAttr>:$is_segmented
+        OptionalAttr<UnitAttr>:$is_segmented,
+        OptionalAttr<IntAttr>:$out_channel_offset
     );
 
     let results = (outs
@@ -2157,7 +2158,8 @@ def VPUIP_NCEClusterTaskOp :
             "mlir::IntegerAttr":$activation_window_channel_length,
             CArg<"mlir::UnitAttr", "nullptr">:$is_continued,
             CArg<"mlir::IntegerAttr", "nullptr">:$cm_sp_pattern,
-            CArg<"mlir::UnitAttr", "nullptr">:$is_segmented
+            CArg<"mlir::UnitAttr", "nullptr">:$is_segmented,
+            CArg<"mlir::IntegerAttr", "nullptr">:$out_channel_offset
         )>,
         OpBuilder<(ins
             "mlir::Type":$output,
@@ -2169,7 +2171,8 @@ def VPUIP_NCEClusterTaskOp :
             "mlir::IntegerAttr":$activation_window_channel_length,
             CArg<"mlir::UnitAttr", "nullptr">:$is_continued,
             CArg<"mlir::IntegerAttr", "nullptr">:$cm_sp_pattern,
-            CArg<"mlir::UnitAttr", "nullptr">:$is_segmented
+            CArg<"mlir::UnitAttr", "nullptr">:$is_segmented,
+            CArg<"mlir::IntegerAttr", "nullptr">:$out_channel_offset
         )>
     ];
 

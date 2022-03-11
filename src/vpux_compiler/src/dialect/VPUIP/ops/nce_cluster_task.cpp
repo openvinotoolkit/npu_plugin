@@ -39,11 +39,11 @@ void vpux::VPUIP::NCEClusterTaskOp::build(mlir::OpBuilder& builder, mlir::Operat
                                           mlir::ArrayAttr kernel_strides, VPU::PaddingAttr kernel_padding,
                                           mlir::IntegerAttr activation_window_channel_length,
                                           mlir::UnitAttr is_continued, mlir::IntegerAttr cm_sp_pattern,
-                                          mlir::UnitAttr is_segmented) {
+                                          mlir::UnitAttr is_segmented, mlir::IntegerAttr out_channel_offset) {
     build(builder, state, output_buff.getType(), input, weights, weight_table, activation_window, parent_input,
           parent_output, output_buff, nullptr, vpux::VPUIP::NCETaskTypeAttr::get(builder.getContext(), task_type),
           kernel_size, kernel_strides, kernel_padding, activation_window_channel_length, is_continued, cm_sp_pattern,
-          is_segmented);
+          is_segmented, out_channel_offset);
 
     for (auto& region : state.regions) {
         region->emplaceBlock();
@@ -58,10 +58,11 @@ void vpux::VPUIP::NCEClusterTaskOp::build(mlir::OpBuilder& builder, mlir::Operat
                                           mlir::ArrayAttr kernel_strides, VPU::PaddingAttr kernel_padding,
                                           mlir::IntegerAttr activation_window_channel_length,
                                           mlir::UnitAttr is_continued, mlir::IntegerAttr cm_sp_pattern,
-                                          mlir::UnitAttr is_segmented) {
+                                          mlir::UnitAttr is_segmented, mlir::IntegerAttr out_channel_offset) {
     build(builder, state, output, input, weights, weight_table, activation_window, parent_input, parent_output,
           output_buff, nullptr, vpux::VPUIP::NCETaskTypeAttr::get(builder.getContext(), task_type), kernel_size,
-          kernel_strides, kernel_padding, activation_window_channel_length, is_continued, cm_sp_pattern, is_segmented);
+          kernel_strides, kernel_padding, activation_window_channel_length, is_continued, cm_sp_pattern, is_segmented,
+          out_channel_offset);
 
     for (auto& region : state.regions) {
         region->emplaceBlock();
@@ -811,6 +812,10 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NCEClusterTaskOp::serialize(VPUIP::
 
     if (cm_sp_patternAttr() != nullptr) {
         cm_sp_pattern = checked_cast<uint16_t>(cm_sp_patternAttr().getValue().getSExtValue());
+    }
+
+    if (out_channel_offsetAttr() != nullptr) {
+        out_channel_offset = checked_cast<int32_t>(out_channel_offsetAttr().getValue().getSExtValue());
     }
 
     const auto inputData = writer.getTensorRef(VPURT::SparseBufferType::getData(input()));

@@ -31,7 +31,10 @@
 namespace vpux {
 
 class ZeroExecutor final : public Executor {
-protected:
+    // NB: originally, it was protected as an implementation detail
+    // made public for InferRequest to make accessible Pipeline and its details (HostMem)
+    // protected:
+public:
     struct Graph;
     struct CommandQueue;
     enum stage {
@@ -42,7 +45,6 @@ protected:
         COUNT
     };
 
-public:
     ZeroExecutor(ze_driver_handle_t driver_handle, ze_device_handle_t device_handle, ze_context_handle_t context,
                  ze_graph_dditable_ext_t* graph_ddi_table_ext, const vpux::NetworkDescription::Ptr& networkDescription,
                  const Config& config);
@@ -65,9 +67,19 @@ public:
 
     ZeroExecutor::Ptr clone() const override;
 
-    ~ZeroExecutor() = default;
+    struct Pipeline;
+    Pipeline& getPipeline() {
+        return *_pipeline.get();
+    }
 
-protected:
+    NetworkDescription& getNetworkDesc() {
+        return *_networkDesc.get();
+    }
+
+    ~ZeroExecutor() = default;
+    // NB: originally, it was protected as an implementation detail
+    // made public for InferRequest to make accessible Pipeline and its details (HostMem)
+    // protected:
     struct HostMem {
         HostMem() = default;
         HostMem(const ze_driver_handle_t driver_handle, const ze_context_handle_t context, const size_t size);
@@ -302,5 +314,30 @@ private:
 
     std::unique_ptr<Pipeline> _pipeline;
 };
+
+bool isRepackingRequired(const InferenceEngine::TensorDesc& userTensorDesc,
+                         const InferenceEngine::TensorDesc& deviceTensorDesc);
+
+template <typename Map>
+auto mapArguments(Map& zero, const std::string& key) -> typename Map::mapped_type& {
+    for (auto& p : zero) {
+        if (std::string::npos != p.first.find(key)) {
+            return p.second;
+        }
+    }
+
+    IE_THROW() << "mapArguments: fail to map";
+}
+
+template <typename Map>
+auto mapArguments(const Map& zero, const std::string& key) -> const typename Map::mapped_type& {
+    for (auto& p : zero) {
+        if (std::string::npos != p.first.find(key)) {
+            return p.second;
+        }
+    }
+
+    IE_THROW() << "mapArguments: fail to map";
+}
 
 }  // namespace vpux

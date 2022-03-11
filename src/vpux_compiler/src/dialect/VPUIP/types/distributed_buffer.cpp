@@ -74,6 +74,9 @@ void VPUIP::DistributedBufferType::print(mlir::DialectAsmPrinter& printer) const
     if (distribution.num_clusters() != nullptr) {
         printer << ", num_clusters = " << distribution.num_clusters();
     }
+    if (distribution.alignment() != nullptr) {
+        printer << ", alignment = " << distribution.alignment();
+    }
     printer << "}";
 
     printer << ">";
@@ -151,6 +154,7 @@ mlir::Type VPUIP::DistributedBufferType::parse(mlir::DialectAsmParser& parser) {
     VPU::PaddingAttr pads;
     mlir::ArrayAttr strides;
     mlir::IntegerAttr numClusters;
+    mlir::ArrayAttr alignment;
 
     while (parser.parseOptionalRBrace()) {
         if (parser.parseComma()) {
@@ -183,6 +187,10 @@ mlir::Type VPUIP::DistributedBufferType::parse(mlir::DialectAsmParser& parser) {
             if (parser.parseAttribute(numClusters)) {
                 return Type();
             }
+        } else if (attrName == "alignment") {
+            if (parser.parseAttribute(alignment)) {
+                return Type();
+            }
         } else {
             return Type();
         }
@@ -192,7 +200,7 @@ mlir::Type VPUIP::DistributedBufferType::parse(mlir::DialectAsmParser& parser) {
         return Type();
     }
     auto distributedAttr = VPU::DistributedTensorAttr::get(distributionModeAttr, numTiles, kernel, pads, strides,
-                                                           numClusters, parser.getContext());
+                                                           numClusters, alignment, parser.getContext());
     return static_cast<mlir::Type>(
             get(parser.getContext(), makeArrayRef(shape), elemType, layout, memSpace, distributedAttr));
 }
@@ -201,12 +209,11 @@ mlir::Type VPUIP::DistributedBufferType::parse(mlir::DialectAsmParser& parser) {
 // verify
 //
 mlir::LogicalResult VPUIP::DistributedBufferType::verify(FuncRef<mlir::InFlightDiagnostic()> emitError,
-                                                         ::llvm::ArrayRef<int64_t> /*shape*/,
-                                                         mlir::Type /*elementType*/,
+                                                         ::llvm::ArrayRef<int64_t> shape, mlir::Type /*elementType*/,
                                                          mlir::MemRefLayoutAttrInterface /*layout*/,
                                                          IndexedSymbolAttr /*memSpace*/,
                                                          VPU::DistributedTensorAttr distribution) {
-    return VPU::verify(emitError, distribution);
+    return VPU::verify(emitError, distribution, shape);
 }
 
 //
@@ -239,7 +246,7 @@ SmallVector<Shape> VPUIP::DistributedBufferType::getPerClusterComputeShapes() co
     return VPU::getPerClusterComputeShapes(getShape(), getDistribution());
 }
 
-// @brief Retrive the array of compute buffer offsets with regards to the full buffer.
+// @brief Retrieve the array of compute buffer offsets with regards to the full buffer.
 // @warning An important thing to consider with regards to compute shapes,
 // is that modes like SEGMENTED and OVERLAPPED take precedence over
 // DUPLICATED and MULTICASTED.
@@ -377,16 +384,22 @@ Byte VPUIP::DistributedBufferType::getCompactAllocSize() const {
 
     // DUPLICATED|MULTICASTED takes priority since it means that each cluster will have the entire
     // tensor, regardless wheter it's tiled or not.
-    ShapeRef tiledShape;
+    Shape tiledShape;
     if (VPU::bitEnumContains(distributionMode.getValue(), VPU::DistributionMode::DUPLICATED) ||
         VPU::bitEnumContains(distributionMode.getValue(), VPU::DistributionMode::MULTICASTED)) {
-        tiledShape = shape;
+        tiledShape = Shape(shape.raw());
     } else if (VPU::bitEnumContains(distributionMode.getValue(), VPU::DistributionMode::SEGMENTED) ||
                VPU::bitEnumContains(distributionMode.getValue(), VPU::DistributionMode::OVERLAPPED)) {
         tiledShape = getLargestCompactShape();
     } else {
         // No distribution mode.
-        tiledShape = shape;
+        tiledShape = Shape(shape.raw());
+    }
+
+    if (distribution.alignment() != nullptr) {
+        const auto alignment = parseIntArrayAttr<int64_t>(distribution.alignment());
+        const auto optionalAlignment = Optional<ArrayRef<int64_t>>(alignment);
+        tiledShape = Shape(alignShape(tiledShape.raw(), optionalAlignment));
     }
 
     return Byte(getElemTypeSize()) * details::calcTotalShapeSize(tiledShape.raw());

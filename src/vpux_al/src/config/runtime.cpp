@@ -91,17 +91,27 @@ InferenceEngine::ColorFormat vpux::GRAPH_COLOR_FORMAT::parse(StringRef val) {
 // PRINT_PROFILING
 //
 
-ProfilingOutputTypeArg vpux::PRINT_PROFILING::parse(StringRef val) {
-    const auto extractProfilingString = [](ProfilingOutputTypeArg arg) -> std::string {
-        return print_profiling(arg).second.as<std::string>();
-    };
+StringLiteral InferenceEngine::VPUXConfigParams::stringifyEnum(
+        InferenceEngine::VPUXConfigParams::ProfilingOutputTypeArg val) {
+    switch (val) {
+    case InferenceEngine::VPUXConfigParams::ProfilingOutputTypeArg::JSON:
+        return "JSON";
+    case InferenceEngine::VPUXConfigParams::ProfilingOutputTypeArg::TEXT:
+        return "TEXT";
+    case InferenceEngine::VPUXConfigParams::ProfilingOutputTypeArg::NONE:
+        return "NONE";
+    default:
+        return "<UNKNOWN>";
+    }
+}
 
-    if (val == extractProfilingString(ProfilingOutputTypeArg::NONE)) {
-        return ProfilingOutputTypeArg::NONE;
-    } else if (val == extractProfilingString(ProfilingOutputTypeArg::TEXT)) {
-        return ProfilingOutputTypeArg::TEXT;
-    } else if (val == extractProfilingString(ProfilingOutputTypeArg::JSON)) {
-        return ProfilingOutputTypeArg::JSON;
+InferenceEngine::VPUXConfigParams::ProfilingOutputTypeArg vpux::PRINT_PROFILING::parse(StringRef val) {
+    if (val == VPUX_CONFIG_VALUE(NONE)) {
+        return InferenceEngine::VPUXConfigParams::ProfilingOutputTypeArg::NONE;
+    } else if (val == VPUX_CONFIG_VALUE(TEXT)) {
+        return InferenceEngine::VPUXConfigParams::ProfilingOutputTypeArg::TEXT;
+    } else if (val == VPUX_CONFIG_VALUE(JSON)) {
+        return InferenceEngine::VPUXConfigParams::ProfilingOutputTypeArg::JSON;
     }
 
     VPUX_THROW("Value '{0}' is not a valid PRINT_PROFILING option", val);

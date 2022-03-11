@@ -18,6 +18,7 @@
 
 #include "zero_allocator.h"
 #include "zero_executor.h"
+#include "zero_infer_request.h"
 
 using namespace vpux;
 
@@ -66,4 +67,15 @@ std::string ZeroDevice::getName() const {
     }
 
     return name + ".0";
+}
+
+InferRequest::Ptr ZeroDevice::createInferRequest(const InferenceEngine::InputsDataMap& networkInputs,
+                                                 const InferenceEngine::OutputsDataMap& networkOutputs,
+                                                 const Executor::Ptr& executor, const Config& config,
+                                                 const std::string& netName,
+                                                 const std::vector<std::shared_ptr<const ov::Node>>& parameters,
+                                                 const std::vector<std::shared_ptr<const ov::Node>>& results,
+                                                 const std::shared_ptr<InferenceEngine::IAllocator>& allocator) {
+    return std::make_shared<ZeroInferRequest>(networkInputs, networkOutputs, executor, config, netName, parameters,
+                                              results, allocator);
 }

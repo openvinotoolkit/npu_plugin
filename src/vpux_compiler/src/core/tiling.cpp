@@ -13,6 +13,7 @@
 
 #include "vpux/compiler/core/tiling.hpp"
 #include "vpux/compiler/conversion.hpp"
+#include "vpux/utils/core/numeric.hpp"
 
 #include <mlir/Parser.h>
 
@@ -323,4 +324,13 @@ std::tuple<DimRange, int64_t, int64_t> vpux::inputForOutputDim(const DimRange& o
                       initialInputRange);
 
     return std::make_tuple(input, before, after);
+}
+
+SmallVector<int64_t> vpux::alignShape(ArrayRef<int64_t> shape, Optional<ArrayRef<int64_t>> alignment) {
+    auto alignedShape = to_small_vector(shape);
+    if (!alignment.hasValue()) {
+        return alignedShape;
+    }
+    std::transform(shape.begin(), shape.end(), alignment.getValue().begin(), alignedShape.begin(), alignVal<int64_t>);
+    return alignedShape;
 }

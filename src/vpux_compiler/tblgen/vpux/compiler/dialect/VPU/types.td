@@ -70,7 +70,7 @@ def VPU_DistributedTensor :
         // in order to estimate memory
         mlir::SmallVector<vpux::Shape> getPerClusterComputeShapes() const;
 
-        // @brief Retrive the array of compute tensor offsets.
+        // @brief Retrieve the array of compute tensor offsets.
         // @warning This function should not be used for memory size calculation,
         // because it does not retrieve the true allocate shape in cases
         // of broadcasting.

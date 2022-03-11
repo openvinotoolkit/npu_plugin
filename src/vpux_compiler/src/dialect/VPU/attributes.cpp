@@ -302,7 +302,7 @@ VPU::PPEMode vpux::VPU::getPPEMode(VPU::EltwiseType type) {
 //
 
 mlir::LogicalResult vpux::VPU::verify(FuncRef<mlir::InFlightDiagnostic()> emitError,
-                                      DistributedTensorAttr distributedAttr) {
+                                      DistributedTensorAttr distributedAttr, ArrayRef<int64_t> shape) {
     const auto distributionMode = distributedAttr.mode().getValue();
 
     if (distributionMode != VPU::DistributionMode::NONE) {
@@ -354,6 +354,16 @@ mlir::LogicalResult vpux::VPU::verify(FuncRef<mlir::InFlightDiagnostic()> emitEr
             if (axis != Dims4D::Act::H.ind()) {
                 return printTo(emitError(), "Overlapped cluster tiling is only supported for dimension H");
             }
+
+            if (distributedAttr.alignment() != nullptr) {
+                const auto alignment = parseIntArrayAttr<int64_t>(distributedAttr.alignment());
+                if (alignment[axis] != 1) {
+                    return printTo(
+                            emitError(),
+                            "Overlapped cluster tiling does not support alignment on the same axis used for tiling.");
+                }
+            }
+
             if (distributedAttr.kernel() == nullptr || distributedAttr.pads() == nullptr ||
                 distributedAttr.strides() == nullptr) {
                 return printTo(emitError(), "Overlapped cluster tiling requires kernel, pads and strides to be set");
@@ -364,6 +374,22 @@ mlir::LogicalResult vpux::VPU::verify(FuncRef<mlir::InFlightDiagnostic()> emitEr
             !(axis == Dims4D::Act::H.ind() || axis == Dims4D::Act::C.ind() || axis == Dims4D::Filter::OC.ind())) {
             return printTo(emitError(), "Segmented cluster tiling is only supported for activation dimensions H and K "
                                         "and kernel dimension K");
+        }
+    }
+
+    if (distributedAttr.alignment() != nullptr) {
+        const auto alignment = parseIntArrayAttr<int64_t>(distributedAttr.alignment());
+        if (shape.size() != alignment.size()) {
+            return printTo(emitError(), "Incompatibility in sizes between tensor shape '{0}' and alignment '{1}'",
+                           shape.size(), alignment.size());
+        }
+    }
+
+    if (distributedAttr.num_tiles() != nullptr) {
+        const auto numTiles = parseIntArrayAttr<int64_t>(distributedAttr.num_tiles());
+        if (shape.size() != numTiles.size()) {
+            return printTo(emitError(), "Incompatibility in sizes between tensor shape '{0}' and tiling scheme '{1}'",
+                           shape.size(), numTiles.size());
         }
     }
 
@@ -412,14 +438,17 @@ mlir::LogicalResult vpux::VPU::verify(FuncRef<mlir::InFlightDiagnostic()> emitEr
 // Segmentation logic operates on schema and runtime asumption that a segmented tensor should be split equally
 // across the axis, with the remainder cluster possibly having a smaller tile.
 SmallVector<Shape> splitSegmentedShape(ArrayRef<int64_t> shape, ArrayRef<int64_t> tilingScheme,
-                                       const int64_t numClusters, const int64_t axis) {
+                                       const int64_t numClusters, const int64_t axis,
+                                       Optional<ArrayRef<int64_t>> alignment) {
     auto tiledShape = to_small_vector(shape);
     tiledShape[axis] = divUp(tiledShape[axis], tilingScheme[axis]);
+    tiledShape = alignShape(tiledShape, alignment);
 
     auto remainderTileShape = to_small_vector(shape);
-    remainderTileShape[axis] = divUpRemainder(shape[axis], tilingScheme[axis]);
+    remainderTileShape[axis] = shape[axis] - tiledShape[axis] * (tilingScheme[axis] - 1);
     VPUX_THROW_UNLESS(remainderTileShape[axis] > 0, "Improper split, '{0}' over '{1}' tiles", shape[axis],
                       tilingScheme[axis]);
+    remainderTileShape = alignShape(remainderTileShape, alignment);
 
     SmallVector<Shape> segmentedTiles(numClusters - 1, Shape(tiledShape));
     segmentedTiles.push_back(Shape(remainderTileShape));
@@ -451,7 +480,9 @@ SmallVector<DimRange> getOverlappedInputTileDimRanges(ArrayRef<int64_t> shape, A
     const auto outputHeight = (Y - KY + padTop + padBottom) / SY + 1;
     const auto outputWidth = (X - KX + padLeft + padRight) / SX + 1;
     const SmallVector<int64_t> outputShape{N, C, outputHeight, outputWidth};
-    const auto outputTiles = splitSegmentedShape(outputShape, tilingScheme, numClusters, axis);
+    // Alignment should only be considered for final input shape,
+    // not the intermediary output shape
+    const auto outputTiles = splitSegmentedShape(outputShape, tilingScheme, numClusters, axis, None);
 
     int64_t offset = 0;
     SmallVector<DimRange> inputTileDimRanges;
@@ -469,7 +500,7 @@ SmallVector<DimRange> getOverlappedInputTileDimRanges(ArrayRef<int64_t> shape, A
 }
 
 SmallVector<Shape> vpux::VPU::getPerClusterComputeShapes(ShapeRef shapeRef, DistributedTensorAttr distributionAttr) {
-    const auto shape = to_small_vector(shapeRef.raw());
+    auto shape = to_small_vector(shapeRef.raw());
     const auto distributionMode = distributionAttr.mode().getValue();
 
     const auto numClusters = distributionAttr.num_clusters().getInt();
@@ -479,11 +510,18 @@ SmallVector<Shape> vpux::VPU::getPerClusterComputeShapes(ShapeRef shapeRef, Dist
         return dim > 1;
     };
 
+    Optional<ArrayRef<int64_t>> optionalAlignment = None;
+    auto alignment = SmallVector<int64_t>(numClusters);
+    if (distributionAttr.alignment() != nullptr) {
+        alignment = parseIntArrayAttr<int64_t>(distributionAttr.alignment());
+        optionalAlignment = Optional<ArrayRef<int64_t>>(alignment);
+    }
+
     if (VPU::bitEnumContains(distributionMode, VPU::DistributionMode::SEGMENTED)) {
         const auto tilingScheme = parseIntArrayAttr<int64_t>(distributionAttr.num_tiles());
         const auto axis = std::distance(tilingScheme.begin(), llvm::find_if(tilingScheme, isValidTile));
 
-        tiledComputeShapes = splitSegmentedShape(shape, tilingScheme, numClusters, axis);
+        tiledComputeShapes = splitSegmentedShape(shape, tilingScheme, numClusters, axis, optionalAlignment);
     } else if (VPU::bitEnumContains(distributionMode, VPU::DistributionMode::OVERLAPPED)) {
         const auto tilingScheme = parseIntArrayAttr<int64_t>(distributionAttr.num_tiles());
         const auto axis = std::distance(tilingScheme.begin(), llvm::find_if(tilingScheme, isValidTile));
@@ -493,11 +531,11 @@ SmallVector<Shape> vpux::VPU::getPerClusterComputeShapes(ShapeRef shapeRef, Dist
         for (auto p : inputTileDimRanges | indexed) {
             const auto inputTile = p.value();
             const auto cluster = p.index();
-            tiledComputeShapes[cluster] = Shape(shape);
-            tiledComputeShapes[cluster][Dim(axis)] = inputTile.end - inputTile.begin;
+            shape[axis] = inputTile.end - inputTile.begin;
+            tiledComputeShapes[cluster] = Shape(alignShape(shape, optionalAlignment));
         }
     } else {
-        std::fill_n(tiledComputeShapes.begin(), tiledComputeShapes.size(), Shape(shape));
+        std::fill_n(tiledComputeShapes.begin(), tiledComputeShapes.size(), Shape(alignShape(shape, optionalAlignment)));
     }
 
     return tiledComputeShapes;
@@ -538,6 +576,7 @@ SmallVector<Shape> vpux::VPU::getPerClusterComputeShapeOffsets(ShapeRef shapeRef
     }
     return tiledComputeShapeOffsets;
 }
+
 //
 // Generated
 //

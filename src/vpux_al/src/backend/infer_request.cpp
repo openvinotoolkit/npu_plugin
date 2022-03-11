@@ -22,11 +22,10 @@
 #include <ie_layouts.h>
 #include <blob_factory.hpp>
 
-#include "vpux_infer_request.h"
-#include "vpux_remote_blob.h"
-
+#include "vpux.hpp"
 #include "vpux/al/config/common.hpp"
 #include "vpux/al/config/runtime.hpp"
+#include "vpux_remote_blob.h"
 
 #include <device_helpers.hpp>
 #include "vpux/utils/IE/blob.hpp"
@@ -76,7 +75,7 @@ InferRequest::InferRequest(const IE::InputsDataMap& networkInputs, const IE::Out
                            const std::vector<std::shared_ptr<const ov::Node>>& parameters,
                            const std::vector<std::shared_ptr<const ov::Node>>& results,
                            const std::shared_ptr<InferenceEngine::IAllocator>& allocator)
-        : IInferRequestInternal(networkInputs, networkOutputs),
+        : IInferRequest(networkInputs, networkOutputs),
           _executorPtr(executor),
           _config(config),
           _logger("InferRequest", config.get<LOG_LEVEL>()),
