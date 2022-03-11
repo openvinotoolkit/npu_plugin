@@ -200,6 +200,73 @@ mlir::LogicalResult FakeQuantizeConverter::matchAndRewrite(IE::FakeQuantizeOp or
 }
 
 //
+// SoftMaxConverter
+//
+
+class SoftMaxConverter final : public mlir::OpConversionPattern<IE::SoftMaxOp> {
+public:
+    SoftMaxConverter(mlir::TypeConverter& typeConverter, mlir::MLIRContext* ctx, Logger log)
+            : mlir::OpConversionPattern<IE::SoftMaxOp>(typeConverter, ctx), _log(log) {
+    }
+
+public:
+    mlir::LogicalResult matchAndRewrite(IE::SoftMaxOp origOp, OpAdaptor newArgs,
+                                        mlir::ConversionPatternRewriter& rewriter) const final;
+
+private:
+    Logger _log;
+};
+
+mlir::LogicalResult SoftMaxConverter::matchAndRewrite(IE::SoftMaxOp origOp, OpAdaptor newArgs,
+                                                      mlir::ConversionPatternRewriter& rewriter) const {
+    _log.trace("[{0}] Found IE::FakeQuantize Operation '{1}'", getDebugName(), origOp->getLoc());
+
+    const auto inShape = origOp.input().getType().cast<vpux::NDTypeInterface>().getShape().raw();
+    const int64_t axis = origOp.axisInd();
+
+    SmallVector<int64_t> new4dShape;
+    int64_t newAxis = axis;
+
+    switch (inShape.size()) {
+    case 1: {
+        new4dShape = {1, 1, 1, inShape[0]};
+        newAxis = 3;
+        break;
+    }
+    case 2: {
+        if (axis == 0) {
+            newAxis = 1;
+        } else if (axis == 1) {
+            newAxis = 3;
+        }
+        new4dShape = {1, inShape[0], 1, inShape[1]};
+        break;
+    }
+    case 3: {
+        if (axis == 2) {
+            newAxis = 3;
+        }
+        new4dShape = {inShape[0], inShape[1], 1, inShape[2]};
+        break;
+    }
+    }
+
+    const auto newInputShapeAttr = getIntArrayAttr(getContext(), new4dShape);
+    auto inputReshape =
+            rewriter.createOrFold<IE::ReshapeOp>(origOp->getLoc(), newArgs.input(), nullptr, false, newInputShapeAttr);
+
+    const auto newAxisAttr = getIntAttr(getContext(), newAxis);
+    auto newSoftMaxOp = rewriter.create<IE::SoftMaxOp>(origOp->getLoc(), inputReshape, newAxisAttr);
+
+    const auto outputShapeAttr = getIntArrayAttr(getContext(), getShape(origOp.output()));
+    rewriter.replaceOpWithNewOp<IE::ReshapeOp>(origOp, newSoftMaxOp.output(), nullptr, false, outputShapeAttr);
+
+    _log.trace("[{0}] Replaced with 'IE::SoftMax'", getDebugName());
+
+    return mlir::success();
+}
+
+//
 // safeRunOnFunc
 //
 
@@ -291,6 +358,7 @@ void ConvertShapeTo4DPass::safeRunOnFunc() {
     target.addDynamicallyLegalOp<IE::AtanOp>(isLegalOp);
     target.addDynamicallyLegalOp<IE::AsinOp>(isLegalOp);
     target.addDynamicallyLegalOp<IE::AcosOp>(isLegalOp);
+    target.addDynamicallyLegalOp<IE::SoftMaxOp>(isLegalOp);
 
     mlir::RewritePatternSet patterns(&ctx);
     patterns.add<GenericConverter<IE::ClampOp>>(typeConverter, &ctx, _log);
@@ -324,6 +392,7 @@ void ConvertShapeTo4DPass::safeRunOnFunc() {
     patterns.add<GenericConverter<IE::AtanOp>>(typeConverter, &ctx, _log);
     patterns.add<GenericConverter<IE::AsinOp>>(typeConverter, &ctx, _log);
     patterns.add<GenericConverter<IE::AcosOp>>(typeConverter, &ctx, _log);
+    patterns.add<SoftMaxConverter>(typeConverter, &ctx, _log);
     patterns.add<FakeQuantizeConverter>(typeConverter, &ctx, _log);
 
     auto func = getFunction();

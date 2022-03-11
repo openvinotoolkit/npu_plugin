@@ -655,15 +655,15 @@ operation ::= `VPUIP.EltwiseUPA` attr-dict
 
 | Operand | Description |
 | :-----: | ----------- |
-`input1` | memref of 16-bit float or QuantizedType values
-`input2` | memref of 16-bit float or QuantizedType values
-`output_buff` | memref of 16-bit float or QuantizedType values
+`input1` | memref of 16-bit float values
+`input2` | memref of 16-bit float values
+`output_buff` | memref of 16-bit float values
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-`output` | memref of 16-bit float or QuantizedType values
+`output` | memref of 16-bit float values
 
 ### `VPUIP.EluUPA` (vpux::VPUIP::EluUPAOp)
 
