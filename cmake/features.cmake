@@ -55,8 +55,8 @@ if(ENABLE_HDDL2)
     add_definitions(-DENABLE_HDDL2)
 endif()
 
-ie_dependent_option(ENABLE_MODELS "download all models required for functional testing" ON "ENABLE_FUNCTIONAL_TESTS" OFF)
-ie_dependent_option(ENABLE_VALIDATION_SET "download validation_set required for functional testing" ON "ENABLE_FUNCTIONAL_TESTS" OFF)
+ie_dependent_option(ENABLE_MODELS "download all models required for functional testing" OFF "ENABLE_FUNCTIONAL_TESTS" OFF)
+ie_dependent_option(ENABLE_VALIDATION_SET "download validation_set required for functional testing" OFF "ENABLE_FUNCTIONAL_TESTS" OFF)
 
 ie_option(ENABLE_EXPORT_SYMBOLS "Enable compiler -fvisibility=default and linker -export-dynamic options" OFF)
 
