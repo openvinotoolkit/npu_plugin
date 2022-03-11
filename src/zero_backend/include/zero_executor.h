@@ -75,9 +75,9 @@ public:
     }
 
     ~ZeroExecutor() = default;
-// NB: originally, it was protected as an implementation detail
-// made public for InferRequest to make accessible Pipeline and its details (HostMem)
-// protected:
+    // NB: originally, it was protected as an implementation detail
+    // made public for InferRequest to make accessible Pipeline and its details (HostMem)
+    // protected:
     struct HostMem {
         HostMem() = default;
         HostMem(const ze_driver_handle_t driver_handle, const ze_context_handle_t context, const size_t size);
