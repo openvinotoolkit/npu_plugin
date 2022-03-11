@@ -20,10 +20,8 @@
 namespace vpux {
 namespace VPU {
 
-std::map<int64_t, std::map<int64_t, double>> channelMajorEfficiencyTable();
-std::map<int64_t, std::map<int64_t, double>> depthwiseEfficiencyTable();
-double getChannelMajorEfficiencyConstant(int64_t kernel, int64_t stride);
-double getDepthwiseEfficiencyConstant(int64_t kernel, int64_t stride);
+llvm::Optional<double> getChannelMajorEfficiencyConstant(int64_t kernel, int64_t stride);
+llvm::Optional<double> getDepthwiseEfficiencyConstant(int64_t kernel, int64_t stride);
 
 }  // namespace VPU
 }  // namespace vpux

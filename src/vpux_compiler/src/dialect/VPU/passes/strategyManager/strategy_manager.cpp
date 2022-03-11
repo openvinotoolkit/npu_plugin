@@ -109,10 +109,11 @@ double BaseLayerStrategy::computeSplitEfficiency(mlir::Operation* op, StringRef 
 }
 
 StringRef BaseLayerStrategy::getOptimalLayerStrategy(mlir::Operation* op) const {
-    double efficiencyConstant = 1.0;
+    llvm::Optional<double> efficiencyConstant = None;
     double splitOverHeightEfficiency = 0.0;
     double splitOverKernelEfficiency = 0.0;
     bool isChannelMajor = false;
+    double constant = 1.0;
 
     if (auto origOp = mlir::dyn_cast<NCEDepthConvolutionOp>(op)) {
         const auto filterShape = Shape(parseIntArrayAttr<int64_t>(origOp.rawFilterShapeAttr()));
@@ -131,13 +132,17 @@ StringRef BaseLayerStrategy::getOptimalLayerStrategy(mlir::Operation* op) const 
         }
     }
 
+    if (efficiencyConstant.hasValue()) {
+        constant = efficiencyConstant.getValue();
+    }
+
     if (isOperationSplitOverHeightCompatible(op) &&
         (doesLayerFitIntoCMX(op, splitOverHeightOverlapped) || doesLayerFitIntoCMX(op, splitOverHeight))) {
-        splitOverHeightEfficiency = computeSplitEfficiency(op, splitOverHeight, efficiencyConstant);
+        splitOverHeightEfficiency = computeSplitEfficiency(op, splitOverHeight, constant);
     }
 
     if (isOperationSplitOverKernelCompatible(op) && doesLayerFitIntoCMX(op, splitOverKernel)) {
-        splitOverKernelEfficiency = computeSplitEfficiency(op, splitOverKernel, efficiencyConstant);
+        splitOverKernelEfficiency = computeSplitEfficiency(op, splitOverKernel, constant);
     }
 
     if (splitOverHeightEfficiency >= splitOverKernelEfficiency) {
