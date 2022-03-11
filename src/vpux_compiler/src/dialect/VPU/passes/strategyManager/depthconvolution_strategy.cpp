@@ -91,7 +91,7 @@ bool DepthConvolutionStrategy::isOperationSplitOverHeightCompatible(mlir::Operat
             return false;
         }
 
-        if (ihLastCluster < ih) {
+        if (ihLastCluster <= ih) {
             break;
             // return true;
         }
@@ -104,7 +104,7 @@ bool DepthConvolutionStrategy::isOperationSplitOverHeightCompatible(mlir::Operat
             return false;
         }
 
-        if (ohLastCluster < oh) {
+        if (ohLastCluster <= oh) {
             return true;
         }
     }

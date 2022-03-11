@@ -129,7 +129,7 @@ void addWorkload(mlir::PatternRewriter& rewriter, VPU::NCEOpInterface origOp,
                  const VPUIP::WorkloadCostParams& costParams, std::shared_ptr<VPUNN::VPUCostModel> costModel,
                  mlir::IntegerAttr clusterId = nullptr, ShapeRef subTensorOffset = {}) {
     VPUIP::DpuTiler dpuTiler(costParams.outputShape, costParams.mpeMode, costModel);
-    dpuTiler.tileOverH(costParams.numDPU);
+    dpuTiler.tileOverH(costParams.numDPU, clusterId);
 
     const auto& splitNumPool = dpuTiler.generateSplitNumberPool(costParams.numDPU, MAX_SPLIT_NUMBER);
     if (costParams.isZTilingSupported) {

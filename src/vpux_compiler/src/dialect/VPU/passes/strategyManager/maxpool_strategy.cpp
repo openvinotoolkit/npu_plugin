@@ -98,7 +98,7 @@ bool MaxPoolStrategy::isOperationSplitOverHeightCompatible(mlir::Operation* op) 
             return false;
         }
 
-        if (ihLastCluster < ih) {
+        if (ihLastCluster <= ih) {
             // return true;
             break;
         }
@@ -111,7 +111,7 @@ bool MaxPoolStrategy::isOperationSplitOverHeightCompatible(mlir::Operation* op) 
             return false;
         }
 
-        if (ohLastCluster < oh) {
+        if (ohLastCluster <= oh) {
             return true;
         }
     }

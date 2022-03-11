@@ -108,7 +108,7 @@ bool ConvolutionStrategy::isOperationSplitOverHeightCompatible(mlir::Operation* 
             return false;
         }
 
-        if (ihLastCluster < ih) {
+        if (ihLastCluster <= ih) {
             break;
             // return true;
         }
@@ -125,7 +125,7 @@ bool ConvolutionStrategy::isOperationSplitOverHeightCompatible(mlir::Operation* 
             return false;
         }
 
-        if (ohLastCluster < oh) {
+        if (ohLastCluster <= oh) {
             return true;
         }
     }
