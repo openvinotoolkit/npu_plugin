@@ -148,15 +148,14 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Gather)) {
             });
 
             // indices value
-            int32_t int32Val = 0;
             m_indicesTensor.forEach(false, [&](const MemoryDims& indices) {
-                m_indicesTensor.at(indices) = int32Val;
+                m_indicesTensor.at(indices) = indices.dims[1];
             });
 
             // axis
             int32_t axis = 1;
             m_axisTensor.forEach(false, [&](const MemoryDims& indices) {
-               m_axisTensor.at(indices) = axis;
+                m_axisTensor.at(indices) = axis;
             });
         }
 
@@ -171,13 +170,18 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Gather)) {
             float fp32Val;
             for (int i = 0; i < 24; i++) {
                 fp32Val = f16Tof32(m_windowfp16.at(MemoryDims(i, 0, 0, 0, 0, 0, 0, 0)));
-                printf("fp16 window: %f\n", fp32Val);
+                printf("fp16 window [%d]: %f\n", i, fp32Val);
             }
 
             int32_t int32Val;
             for (int i = 0; i < 50; i++) {
                 int32Val = m_windowint32.at(MemoryDims(i, 0, 0, 0, 0, 0, 0, 0));
-                printf("int32 window: %ld\n", int32Val);
+                printf("int32 window [%d]: %ld\n", i, int32Val);
+            }
+
+            for (int i = 0; i < 48; i++) {
+                fp32Val = f16Tof32(m_outputValueTensor.at(MemoryDims(i, 0, 0, 0, 0, 0, 0, 0)));
+                printf("output value [%d]: %f\n", i, fp32Val);
             }
 
             return true;

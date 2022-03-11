@@ -46,17 +46,19 @@ void singleShaveGather(uint32_t lParams) {
     // TODO: Check window in kernel
     half* pActWindowFp16 = (half*)(layerParams->windowfp16.dataAddr);
     half* pActWindowFp16Values = pActWindowFp16;
+    half* pActInputValues = pActInput;
     for (int i = 0; i < 4 * 3 * 2; i++) {
-        *pActWindowFp16Values = *pActInput;
+        *pActWindowFp16Values = *pActInputValues;
         if (i == 0) {
             *pActWindowFp16Values = 1234;
         }
         pActWindowFp16Values++;
-        pActInput++;
+        pActInputValues++;
     }
 
     int32_t* pActWindowInt32 = (int32_t*)(layerParams->windowint32.dataAddr);
     int32_t* pActWindowInt32Values = pActWindowInt32;
+    int32_t* pActIndicesValues = pActIndices;
     for (int i = 0; i < 4 * 3 * 2; i++) {
         *pActWindowInt32Values = 1;
         if (i == 0) {
@@ -67,9 +69,9 @@ void singleShaveGather(uint32_t lParams) {
 
     pActWindowInt32Values = pActWindowInt32 + 1;
     for (int i = 1; i < 2 * 3 + 1; i++) {
-        *pActWindowInt32Values = *pActIndices;
+        *pActWindowInt32Values = *pActIndicesValues;
         pActWindowInt32Values++;
-        pActIndices++;
+        pActIndicesValues++;
     }
 
     pActWindowInt32[7] = numInputDims; // 3
@@ -105,15 +107,22 @@ void singleShaveGather(uint32_t lParams) {
     // TODO: Check window in kernel End
 
     int numOutputValues = getTotal(pOutputDims, numOutputDims); // 48
-    pActWindowInt32[34] = numOutputValues;
 
     int32_t inputCoords[4] = {0, 0, 0, 0};
     int32_t indicesCoords[4] = {0, 0, 0, 0};
     int32_t outputCoords[4] = {0, 0, 0, 0};
 
+    int32_t inputStrides[4] = {0, 0, 0, 0};
+    for(int i = 0; i < numInputDims; i++) {
+        inputStrides[i] = pInputStrides[i] / CHAR_BIT;
+    }
     int32_t indicesStrides[4] = {0, 0, 0, 0};
     for(int i = 0; i < numIndicesDims; i++) {
         indicesStrides[i] = pIndicesStrides[i] / CHAR_BIT;
+    }
+    int32_t outputStrides[4] = {0, 0, 0, 0};
+    for(int i = 0; i < numOutputDims; i++) {
+        outputStrides[i] = pOutputStrides[i] / CHAR_BIT;
     }
 
     for (int outIdx = 0; outIdx < numOutputValues; outIdx++) {
@@ -141,12 +150,13 @@ void singleShaveGather(uint32_t lParams) {
                 inputCoords[inIdx] = outputCoords[inIdx + numIndicesDims - 1];
             }
         }
+        int inputOffset = getOffsetU8(inputCoords, inputStrides, numInputDims);
 
-        // get input value as output value
-
-        // set output value by output offset
-
+        // set output value by corresponding input value
+        const uint8_t* pInputValue = (uint8_t*)pActInput + inputOffset;
+        int outputOffset = getOffsetU8(outputCoords, outputStrides, numOutputDims);
+        const uint8_t* pOutputValue = (uint8_t*)pActOutput + outputOffset;
+        *(half*)pOutputValue = *(half*)pInputValue;
     }
-
 }
 }
