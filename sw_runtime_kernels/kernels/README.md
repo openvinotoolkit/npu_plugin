@@ -86,13 +86,13 @@ Variables intended for use/set in description files:
 
 Examples:
 
-dummy.txt
+### dummy.txt
 
 ```
 set(kernel_src "dummy.cpp")
 ```
 
-singleShaveSoftmax.txt
+### singleShaveSoftmax.txt
 
 ```
 set(kernel_src "singleShaveSoftmax.cpp")
@@ -105,7 +105,7 @@ if(NOT always_inline STREQUAL "yes")
 endif()
 ```
 
-nnActEntry.txt
+### nnActEntry.txt
 
 ```
 set(kernel_src "nnActEntry.cpp")
