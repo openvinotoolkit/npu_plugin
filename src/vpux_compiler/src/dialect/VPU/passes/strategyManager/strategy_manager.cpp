@@ -86,7 +86,6 @@ double BaseLayerStrategy::calculateMPEVolume(VPU::MPEMode mpeMode, ShapeRef outp
 // The efficiency calculation that is being performed here can be described as follows.
 // A ratio of the real output tensor volume to the actual computation that occurs on the
 // hardware for each MPE Mode 4x4x16 and 16x1x16 is computed and the maximum is selected.
-// A hardware efficiency constant is multiplied by the result for channel-major convolutions.
 double BaseLayerStrategy::computeSplitEfficiency(mlir::Operation* op, StringRef strategy,
                                                  double efficiencyConstant) const {
     const auto outputShape = getShape(op->getResult(0));
