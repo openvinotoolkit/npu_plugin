@@ -48,104 +48,6 @@ bool BaseLayerStrategy::isOperationSplitOverKernelCompatible(mlir::Operation* op
     return OC >= _numChannelAlignment * _numClusters;
 }
 
-// The function computes the actual per cluster output tensor volume (i.e. computation that is performed)
-// given the stratey and the MPE mode
-double BaseLayerStrategy::calculateMPEVolume(mlir::Operation* op, VPU::MPEMode mpeMode, StringRef strategy) const {
-    double mpeHeight = 16;
-    double mpeWidth = 1;
-
-    const auto outputTensorDistributionMode = getOutputTensorDistributionMode(strategy);
-    const auto outputTensorNumTiles =
-            getIntArrayAttr(op->getContext(), getOutputTensorNumTiles(_numClusters, strategy));
-    const auto distributedOutputTensorType =
-            createDistributedTensorType(op, op->getResult(0), outputTensorDistributionMode, outputTensorNumTiles);
-
-    auto perClusterShape = distributedOutputTensorType.getLargestCompactShape();
-    double perClusterOutputWidth = perClusterShape[Dims4D::Act::W];
-    double perClusterOutputHeight = perClusterShape[Dims4D::Act::H];
-    double perClusterOutputChannels = perClusterShape[Dims4D::Act::C];
-
-    if (mpeMode == VPU::MPEMode::VECTOR) {
-        mpeHeight = 16;
-        mpeWidth = 1;
-    } else if (mpeMode == VPU::MPEMode::MATRIX) {
-        mpeHeight = 4;
-        mpeWidth = 4;
-    } else {
-        VPUX_THROW("Unsupported MPE mode {0}", mpeMode);
-    }
-
-    return _numDPUs * std::ceil((mpeHeight * std::ceil(perClusterOutputHeight / mpeHeight) * mpeWidth *
-                                 std::ceil(perClusterOutputWidth / mpeWidth) * _numChannelAlignment *
-                                 std::ceil(perClusterOutputChannels / _numChannelAlignment)) /
-                                _numDPUs);
-}
-
-// The efficiency calculation that is being performed here can be described as follows.
-// A ratio of the real output tensor volume to the actual computation that occurs on the
-// hardware for each MPE Mode 4x4x16 and 16x1x16 is computed and the maximum is selected.
-double BaseLayerStrategy::computeSplitEfficiency(mlir::Operation* op, StringRef strategy,
-                                                 double efficiencyConstant) const {
-    double perClusterOutputTensorVolume = 0;
-
-    const auto outputTensorDistributionMode = getOutputTensorDistributionMode(strategy);
-    const auto outputTensorNumTiles =
-            getIntArrayAttr(op->getContext(), getOutputTensorNumTiles(_numClusters, strategy));
-    const auto distributedOutputTensorType =
-            createDistributedTensorType(op, op->getResult(0), outputTensorDistributionMode, outputTensorNumTiles);
-
-    const auto perClusterShape = distributedOutputTensorType.getLargestCompactShape();
-    perClusterOutputTensorVolume =
-            perClusterShape[Dims4D::Act::H] * perClusterShape[Dims4D::Act::W] * perClusterShape[Dims4D::Act::C];
-
-    return efficiencyConstant *
-           std::max(perClusterOutputTensorVolume / calculateMPEVolume(op, VPU::MPEMode::MATRIX, strategy),
-                    perClusterOutputTensorVolume / calculateMPEVolume(op, VPU::MPEMode::VECTOR, strategy));
-}
-
-StringRef BaseLayerStrategy::getOptimalLayerStrategy(mlir::Operation* op) const {
-    llvm::Optional<double> efficiencyConstant = None;
-    double splitOverHeightEfficiency = 0.0;
-    double splitOverKernelEfficiency = 0.0;
-    bool isChannelMajor = false;
-    double constant = 1.0;
-
-    if (auto origOp = mlir::dyn_cast<NCEDepthConvolutionOp>(op)) {
-        const auto filterShape = Shape(parseIntArrayAttr<int64_t>(origOp.rawFilterShapeAttr()));
-        const auto kernelStrides = Shape(parseIntArrayAttr<int64_t>(origOp.strides()));
-        const auto KY = filterShape[Dims4D::Filter::KY];
-        efficiencyConstant = getDepthwiseEfficiencyConstant(KY, kernelStrides[Dims4D::Strides::X]);
-    }
-
-    if (auto origOp = mlir::dyn_cast<NCEConvolutionOp>(op)) {
-        isChannelMajor = (DimsOrder::fromValue(origOp.input()) == DimsOrder::NCHW);
-        if (isChannelMajor) {
-            const auto filterShape = Shape(parseIntArrayAttr<int64_t>(origOp.rawFilterShapeAttr()));
-            const auto kernelStrides = Shape(parseIntArrayAttr<int64_t>(origOp.strides()));
-            const auto KY = filterShape[Dims4D::Filter::KY];
-            efficiencyConstant = getChannelMajorEfficiencyConstant(KY, kernelStrides[Dims4D::Strides::X]);
-        }
-    }
-
-    if (efficiencyConstant.hasValue()) {
-        constant = efficiencyConstant.getValue();
-    }
-
-    if (isOperationSplitOverHeightCompatible(op) &&
-        (doesLayerFitIntoCMX(op, splitOverHeightOverlapped) || doesLayerFitIntoCMX(op, splitOverHeight))) {
-        splitOverHeightEfficiency = computeSplitEfficiency(op, splitOverHeight, constant);
-    }
-
-    if (isOperationSplitOverKernelCompatible(op) && doesLayerFitIntoCMX(op, splitOverKernel)) {
-        splitOverKernelEfficiency = computeSplitEfficiency(op, splitOverKernel, constant);
-    }
-
-    if (splitOverHeightEfficiency >= splitOverKernelEfficiency) {
-        return isChannelMajor ? splitOverHeightOverlapped : splitOverHeight;
-    }
-    return splitOverKernel;
-}
-
 bool BaseLayerStrategy::isOperationMultiClusterCompatible(mlir::Operation* op) const {
     if (isOperationSplitOverHeightCompatible(op) && doesLayerFitIntoCMX(op, splitOverHeight)) {
         return true;
@@ -187,16 +89,32 @@ void StrategyManager::assignMultiClusterStrategy() {
                     }
                 })
                 .Case<NCEConvolutionOp>([this](NCEConvolutionOp origOp) {
-                    if (_convolutionStrategy.isOperationMultiClusterCompatible(origOp.getOperation())) {
-                        auto bestStrategy = _convolutionStrategy.getOptimalLayerStrategy(origOp.getOperation());
-                        setLayerStrategy(bestStrategy, origOp.getOperation());
-                    } else if (_convolutionStrategy.doesLayerFitIntoCMX(origOp.getOperation(), clustering)) {
+                    if (DimsOrder::fromValue(origOp.input()) == DimsOrder::NHWC) {
+                        if (_convolutionStrategy.isOperationSplitOverHeightCompatible(origOp.getOperation()) &&
+                            _convolutionStrategy.doesLayerFitIntoCMX(origOp.getOperation(), splitOverHeight)) {
+                            setLayerStrategy(splitOverHeight, origOp.getOperation());
+                        }
                         setLayerStrategy(clustering, origOp.getOperation());
+                    } else if (DimsOrder::fromValue(origOp.input()) == DimsOrder::NCHW) {
+                        const auto arch = VPU::getArch(origOp.getOperation());
+                        const auto canUseCMajor = VPU::NCEInvariant::isChannelMajorCompatible(
+                                arch, origOp.input().getType().cast<vpux::NDTypeInterface>());
+
+                        if (_convolutionStrategy.isOperationSplitOverHeightCompatible(origOp.getOperation()) &&
+                            _convolutionStrategy.doesLayerFitIntoCMX(origOp.getOperation(),
+                                                                     splitOverHeightOverlapped) &&
+                            canUseCMajor) {
+                            setLayerStrategy(splitOverHeightOverlapped, origOp.getOperation());
+                        }
+                        setLayerStrategy(clustering, origOp.getOperation());
+                    } else {
+                        VPUX_THROW("Unsupported input layout {0} to convolution ",
+                                   DimsOrder::fromValue(origOp.input()));
                     }
                 })
                 .Case<NCEDepthConvolutionOp>([this](NCEDepthConvolutionOp origOp) {
                     if (_depthConvolutionStrategy.isOperationMultiClusterCompatible(origOp.getOperation())) {
-                        auto bestStrategy = _depthConvolutionStrategy.getOptimalLayerStrategy(origOp.getOperation());
+                        auto bestStrategy = _depthConvolutionStrategy.getOptimalLayerStrategy(origOp);
                         setLayerStrategy(bestStrategy, origOp.getOperation());
                     } else if (_depthConvolutionStrategy.doesLayerFitIntoCMX(origOp.getOperation(), clustering)) {
                         setLayerStrategy(clustering, origOp.getOperation());

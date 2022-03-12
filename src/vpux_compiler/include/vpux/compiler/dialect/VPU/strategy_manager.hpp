@@ -18,7 +18,6 @@
 #include "vpux/compiler/dialect/VPU/attributes.hpp"
 #include "vpux/compiler/dialect/VPU/distributed_tensor_utils.hpp"
 #include "vpux/compiler/dialect/VPU/ops.hpp"
-#include "vpux/compiler/dialect/VPU/strategy_manager_utils.hpp"
 #include "vpux/compiler/dialect/VPU/utils.hpp"
 #include "vpux/utils/core/checked_cast.hpp"
 
@@ -51,12 +50,17 @@ public:
     bool isOperationSplitOverHeightCompatible(mlir::Operation* op) const;
     bool isOperationSplitOverKernelCompatible(mlir::Operation* op) const;
     bool isOperationMultiClusterCompatible(mlir::Operation* op) const;
-    StringRef getOptimalLayerStrategy(mlir::Operation* op) const;
+
+    template <class ConcreteOp>
+    StringRef getOptimalLayerStrategy(ConcreteOp op) const;
 
 protected:
     virtual bool doesLayerFitIntoCMX(mlir::Operation* op, StringRef strategy) const = 0;
-    double computeSplitEfficiency(mlir::Operation* op, StringRef strategy, double efficiencyConstant = 1) const;
-    double calculateMPEVolume(mlir::Operation* op, VPU::MPEMode mpeMode, StringRef strategy) const;
+
+    template <class ConcreteOp>
+    double computeSplitEfficiency(ConcreteOp op, StringRef strategy) const;
+    template <class ConcreteOp>
+    double calculateMPEVolume(ConcreteOp op, VPU::MPEMode mpeMode, StringRef strategy) const;
 
 protected:
     int64_t _numClusters;
@@ -136,6 +140,82 @@ private:
     MaxPoolStrategy _maxPoolStrategy;
     EltwiseStrategy _eltwiseStrategy;
 };
+
+// The function computes the actual per cluster output tensor volume (i.e. computation that is performed)
+// given the stratey and the MPE mode
+template <class ConcreteOp>
+double BaseLayerStrategy::calculateMPEVolume(ConcreteOp op, VPU::MPEMode mpeMode, StringRef strategy) const {
+    double mpeHeight = 16;
+    double mpeWidth = 1;
+
+    const auto outputTensorDistributionMode = getOutputTensorDistributionMode(strategy);
+    const auto outputTensorNumTiles =
+            getIntArrayAttr(op->getContext(), getOutputTensorNumTiles(_numClusters, strategy));
+    const auto distributedOutputTensorType =
+            createDistributedTensorType(op, op.output(), outputTensorDistributionMode, outputTensorNumTiles);
+
+    auto perClusterShape = distributedOutputTensorType.getLargestCompactShape();
+    double perClusterOutputWidth = perClusterShape[Dims4D::Act::W];
+    double perClusterOutputHeight = perClusterShape[Dims4D::Act::H];
+    double perClusterOutputChannels = perClusterShape[Dims4D::Act::C];
+
+    if (mpeMode == VPU::MPEMode::VECTOR) {
+        mpeHeight = 16;
+        mpeWidth = 1;
+    } else if (mpeMode == VPU::MPEMode::MATRIX) {
+        mpeHeight = 4;
+        mpeWidth = 4;
+    } else {
+        VPUX_THROW("Unsupported MPE mode {0}", mpeMode);
+    }
+
+    return _numDPUs * std::ceil((mpeHeight * std::ceil(perClusterOutputHeight / mpeHeight) * mpeWidth *
+                                 std::ceil(perClusterOutputWidth / mpeWidth) * _numChannelAlignment *
+                                 std::ceil(perClusterOutputChannels / _numChannelAlignment)) /
+                                _numDPUs);
+}
+
+// The efficiency calculation that is being performed here can be described as follows.
+// A ratio of the real output tensor volume to the actual computation that occurs on the
+// hardware for each MPE Mode 4x4x16 and 16x1x16 is computed and the maximum is selected.
+template <class ConcreteOp>
+double BaseLayerStrategy::computeSplitEfficiency(ConcreteOp op, StringRef strategy) const {
+    double perClusterOutputTensorVolume = 0;
+
+    const auto outputTensorDistributionMode = getOutputTensorDistributionMode(strategy);
+    const auto outputTensorNumTiles =
+            getIntArrayAttr(op->getContext(), getOutputTensorNumTiles(_numClusters, strategy));
+    const auto distributedOutputTensorType =
+            createDistributedTensorType(op, op.output(), outputTensorDistributionMode, outputTensorNumTiles);
+
+    const auto perClusterShape = distributedOutputTensorType.getLargestCompactShape();
+    perClusterOutputTensorVolume =
+            perClusterShape[Dims4D::Act::H] * perClusterShape[Dims4D::Act::W] * perClusterShape[Dims4D::Act::C];
+
+    return std::max(perClusterOutputTensorVolume / calculateMPEVolume(op, VPU::MPEMode::MATRIX, strategy),
+                    perClusterOutputTensorVolume / calculateMPEVolume(op, VPU::MPEMode::VECTOR, strategy));
+}
+
+template <class ConcreteOp>
+StringRef BaseLayerStrategy::getOptimalLayerStrategy(ConcreteOp op) const {
+    double splitOverHeightEfficiency = 0.0;
+    double splitOverKernelEfficiency = 0.0;
+    bool isChannelMajor = false;
+
+    if (isOperationSplitOverHeightCompatible(op) &&
+        (doesLayerFitIntoCMX(op, splitOverHeightOverlapped) || doesLayerFitIntoCMX(op, splitOverHeight))) {
+        splitOverHeightEfficiency = computeSplitEfficiency(op, splitOverHeight);
+    }
+
+    if (isOperationSplitOverKernelCompatible(op) && doesLayerFitIntoCMX(op, splitOverKernel)) {
+        splitOverKernelEfficiency = computeSplitEfficiency(op, splitOverKernel);
+    }
+
+    if (splitOverHeightEfficiency >= splitOverKernelEfficiency) {
+        return isChannelMajor ? splitOverHeightOverlapped : splitOverHeight;
+    }
+    return splitOverKernel;
+}
 
 }  // namespace VPU
 }  // namespace vpux
