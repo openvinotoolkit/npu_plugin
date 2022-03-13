@@ -37,11 +37,14 @@ constexpr StringLiteral splitOverHeight = "SplitOverHeight";
 constexpr StringLiteral splitOverKernel = "SplitOverKernel";
 constexpr StringLiteral clustering = "Clustering";
 
+double getChannelAlignment(double input, int64_t align);
+int64_t getOptimalNumberOfClustersForSOKLayer(int64_t outputChannels, int64_t numClustersForCompilation);
 SmallVector<int64_t> getActivationTensorNumTiles(mlir::Operation* op, int64_t numClusters, StringRef strategy);
-SmallVector<int64_t> getOutputTensorNumTiles(int64_t numClusters, StringRef strategy);
-SmallVector<int64_t> getWeightsTensorNumTiles(int64_t numClusters, StringRef strategy);
-SmallVector<int64_t> getWeightsTableTensorNumTiles(int64_t numClusters, StringRef strategy);
-SmallVector<int64_t> getActivationWindowTensorNumTiles(int64_t numClusters, StringRef strategy, ArchKind arch);
+SmallVector<int64_t> getOutputTensorNumTiles(mlir::Operation* op, int64_t numClusters, StringRef strategy);
+SmallVector<int64_t> getWeightsTensorNumTiles(mlir::Operation* op, int64_t numClusters, StringRef strategy);
+SmallVector<int64_t> getWeightsTableTensorNumTiles(mlir::Operation* op, int64_t numClusters, StringRef strategy);
+SmallVector<int64_t> getActivationWindowTensorNumTiles(mlir::Operation* op, int64_t numClusters, StringRef strategy,
+                                                       ArchKind arch);
 DistributionMode getActivationTensorDistributionMode(StringRef strategy);
 DistributionMode getWeightsTensorDistributionMode(StringRef strategy);
 DistributionMode getOutputTensorDistributionMode(StringRef strategy);
