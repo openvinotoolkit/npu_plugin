@@ -144,7 +144,6 @@ void StrategyManager::assignMultiClusterStrategy() {
                             _convolutionStrategy.doesLayerFitIntoCMX(origOp.getOperation(), splitOverHeight)) {
                             setLayerStrategy(splitOverHeight, origOp.getOperation());
                         }
-                        setLayerStrategy(clustering, origOp.getOperation());
                     } else if (DimsOrder::fromValue(origOp.input()) == DimsOrder::NCHW) {
                         const auto arch = VPU::getArch(origOp.getOperation());
                         const auto canUseCMajor = VPU::NCEInvariant::isChannelMajorCompatible(
@@ -156,7 +155,6 @@ void StrategyManager::assignMultiClusterStrategy() {
                             canUseCMajor) {
                             setLayerStrategy(splitOverHeightOverlapped, origOp.getOperation());
                         }
-                        setLayerStrategy(clustering, origOp.getOperation());
                     } else {
                         VPUX_THROW("Unsupported input layout {0} to convolution ",
                                    DimsOrder::fromValue(origOp.input()));
