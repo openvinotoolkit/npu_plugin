@@ -140,21 +140,22 @@ void StrategyManager::assignMultiClusterStrategy() {
                             _convolutionStrategy.doesLayerFitIntoCMX(origOp.getOperation(), splitOverHeight)) {
                             setLayerStrategy(splitOverHeight, origOp.getOperation());
                         }
-                    } else if (DimsOrder::fromValue(origOp.input()) == DimsOrder::NCHW) {
-                        const auto arch = VPU::getArch(origOp.getOperation());
-                        const auto canUseCMajor = VPU::NCEInvariant::isChannelMajorCompatible(
-                                arch, origOp.input().getType().cast<vpux::NDTypeInterface>());
+                    } 
+                    // else if (DimsOrder::fromValue(origOp.input()) == DimsOrder::NCHW) {
+                    //     const auto arch = VPU::getArch(origOp.getOperation());
+                    //     const auto canUseCMajor = VPU::NCEInvariant::isChannelMajorCompatible(
+                    //             arch, origOp.input().getType().cast<vpux::NDTypeInterface>());
 
-                        if (_convolutionStrategy.isOperationSplitOverHeightCompatible(origOp.getOperation()) &&
-                            _convolutionStrategy.doesLayerFitIntoCMX(origOp.getOperation(),
-                                                                     splitOverHeightOverlapped) &&
-                            canUseCMajor) {
-                            setLayerStrategy(splitOverHeightOverlapped, origOp.getOperation());
-                        }
-                    } else {
-                        VPUX_THROW("Unsupported input layout {0} to convolution ",
-                                   DimsOrder::fromValue(origOp.input()));
-                    }
+                    //     if (_convolutionStrategy.isOperationSplitOverHeightCompatible(origOp.getOperation()) &&
+                    //         _convolutionStrategy.doesLayerFitIntoCMX(origOp.getOperation(),
+                    //                                                  splitOverHeightOverlapped) &&
+                    //         canUseCMajor) {
+                    //         setLayerStrategy(splitOverHeightOverlapped, origOp.getOperation());
+                    //     }
+                    // } else {
+                    //     VPUX_THROW("Unsupported input layout {0} to convolution ",
+                    //                DimsOrder::fromValue(origOp.input()));
+                    // }
                 })
                 .Case<NCEDepthConvolutionOp>([this](NCEDepthConvolutionOp origOp) {
                     if (_depthConvolutionStrategy.isOperationSplitOverHeightCompatible(origOp.getOperation()) &&
