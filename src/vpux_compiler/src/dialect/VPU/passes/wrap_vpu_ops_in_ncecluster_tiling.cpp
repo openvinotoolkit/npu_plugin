@@ -68,12 +68,14 @@ mlir::LogicalResult NCEConvolutionRewriter::matchAndRewrite(NCEConvolutionOp ori
     auto activationTensorNumTiles = getIntArrayAttr(
             origOp.getContext(), getActivationTensorNumTiles(origOp.getOperation(), _numClusters, strategy));
     auto weightsTensorDistributionMode = getWeightsTensorDistributionMode(strategy);
-    auto weightsTensorNumTiles = getIntArrayAttr(origOp.getContext(), getWeightsTensorNumTiles(_numClusters, strategy));
+    auto weightsTensorNumTiles = getIntArrayAttr(
+            origOp.getContext(), getWeightsTensorNumTiles(origOp.getOperation(), _numClusters, strategy));
     auto weightsTableTensorDistributionMode = getWeightsTensorDistributionMode(strategy);
-    auto weightsTableTensorNumTiles =
-            getIntArrayAttr(origOp.getContext(), getWeightsTableTensorNumTiles(_numClusters, strategy));
+    auto weightsTableTensorNumTiles = getIntArrayAttr(
+            origOp.getContext(), getWeightsTableTensorNumTiles(origOp.getOperation(), _numClusters, strategy));
     auto outputTensorDistributionMode = getOutputTensorDistributionMode(strategy);
-    auto outputTensorNumTiles = getIntArrayAttr(origOp.getContext(), getOutputTensorNumTiles(_numClusters, strategy));
+    auto outputTensorNumTiles = getIntArrayAttr(origOp.getContext(),
+                                                getOutputTensorNumTiles(origOp.getOperation(), _numClusters, strategy));
 
     auto distributedActivationCopyOp =
             createDistributedCopyIn(origOp, origOp.input(), activationTensorDistributionMode, activationTensorNumTiles);
@@ -103,8 +105,9 @@ mlir::LogicalResult NCEConvolutionRewriter::matchAndRewrite(NCEConvolutionOp ori
     const auto inOrder = DimsOrder::fromValue(origOp.input());
     if (inOrder == DimsOrder::NCHW) {
         auto activationWindowDistributionMode = getActivationWindowTensorDistributionMode(strategy, _arch);
-        auto activationWindowNumTiles =
-                getIntArrayAttr(origOp.getContext(), getActivationWindowTensorNumTiles(_numClusters, strategy, _arch));
+        auto activationWindowNumTiles = getIntArrayAttr(
+                origOp.getContext(),
+                getActivationWindowTensorNumTiles(origOp.getOperation(), _numClusters, strategy, _arch));
         auto distributedActivationWindowCopyOp = createDistributedCopyIn(
                 origOp, origOp.activationWindow(), activationWindowDistributionMode, activationWindowNumTiles);
 
@@ -162,15 +165,18 @@ mlir::LogicalResult NCEDepthConvolutionRewriter::matchAndRewrite(NCEDepthConvolu
     auto activationTensorNumTiles = getIntArrayAttr(
             origOp.getContext(), getActivationTensorNumTiles(origOp.getOperation(), _numClusters, strategy));
     auto weightsTensorDistributionMode = getWeightsTensorDistributionMode(strategy);
-    auto weightsTensorNumTiles = getIntArrayAttr(origOp.getContext(), getWeightsTensorNumTiles(_numClusters, strategy));
+    auto weightsTensorNumTiles = getIntArrayAttr(
+            origOp.getContext(), getWeightsTensorNumTiles(origOp.getOperation(), _numClusters, strategy));
     auto weightsTableTensorDistributionMode = getWeightsTensorDistributionMode(strategy);
-    auto weightsTableTensorNumTiles =
-            getIntArrayAttr(origOp.getContext(), getWeightsTableTensorNumTiles(_numClusters, strategy));
+    auto weightsTableTensorNumTiles = getIntArrayAttr(
+            origOp.getContext(), getWeightsTableTensorNumTiles(origOp.getOperation(), _numClusters, strategy));
     auto activationWindowDistributionMode = getActivationWindowTensorDistributionMode(strategy, _arch);
     auto activationWindowNumTiles =
-            getIntArrayAttr(origOp.getContext(), getActivationWindowTensorNumTiles(_numClusters, strategy, _arch));
+            getIntArrayAttr(origOp.getContext(),
+                            getActivationWindowTensorNumTiles(origOp.getOperation(), _numClusters, strategy, _arch));
     auto outputTensorDistributionMode = getOutputTensorDistributionMode(strategy);
-    auto outputTensorNumTiles = getIntArrayAttr(origOp.getContext(), getOutputTensorNumTiles(_numClusters, strategy));
+    auto outputTensorNumTiles = getIntArrayAttr(origOp.getContext(),
+                                                getOutputTensorNumTiles(origOp.getOperation(), _numClusters, strategy));
 
     auto distributedActivationCopyOp =
             createDistributedCopyIn(origOp, origOp.input(), activationTensorDistributionMode, activationTensorNumTiles);
@@ -247,13 +253,15 @@ mlir::LogicalResult NCEMaxPoolRewriter::matchAndRewrite(NCEMaxPoolOp origOp, mli
     auto activationTensorNumTiles = getIntArrayAttr(
             origOp.getContext(), getActivationTensorNumTiles(origOp.getOperation(), _numClusters, strategy));
     auto weightsTableTensorDistributionMode = getWeightsTensorDistributionMode(strategy);
-    auto weightsTableTensorNumTiles =
-            getIntArrayAttr(origOp.getContext(), getWeightsTableTensorNumTiles(_numClusters, strategy));
+    auto weightsTableTensorNumTiles = getIntArrayAttr(
+            origOp.getContext(), getWeightsTableTensorNumTiles(origOp.getOperation(), _numClusters, strategy));
     auto activationWindowDistributionMode = getActivationWindowTensorDistributionMode(strategy, _arch);
     auto activationWindowNumTiles =
-            getIntArrayAttr(origOp.getContext(), getActivationWindowTensorNumTiles(_numClusters, strategy, _arch));
+            getIntArrayAttr(origOp.getContext(),
+                            getActivationWindowTensorNumTiles(origOp.getOperation(), _numClusters, strategy, _arch));
     auto outputTensorDistributionMode = getOutputTensorDistributionMode(strategy);
-    auto outputTensorNumTiles = getIntArrayAttr(origOp.getContext(), getOutputTensorNumTiles(_numClusters, strategy));
+    auto outputTensorNumTiles = getIntArrayAttr(origOp.getContext(),
+                                                getOutputTensorNumTiles(origOp.getOperation(), _numClusters, strategy));
 
     auto distributedActivationCopyOp =
             createDistributedCopyIn(origOp, origOp.input(), activationTensorDistributionMode, activationTensorNumTiles);
@@ -324,7 +332,8 @@ mlir::LogicalResult NCEEltwiseRewriter::matchAndRewrite(NCEEltwiseOp origOp, mli
     auto activationTensorNumTiles = getIntArrayAttr(
             origOp.getContext(), getActivationTensorNumTiles(origOp.getOperation(), _numClusters, strategy));
     auto outputTensorDistributionMode = getOutputTensorDistributionMode(strategy);
-    auto outputTensorNumTiles = getIntArrayAttr(origOp.getContext(), getOutputTensorNumTiles(_numClusters, strategy));
+    auto outputTensorNumTiles = getIntArrayAttr(origOp.getContext(),
+                                                getOutputTensorNumTiles(origOp.getOperation(), _numClusters, strategy));
 
     auto distributedActivationCopyOp1 = createDistributedCopyIn(
             origOp, origOp.input1(), activationTensorDistributionMode, activationTensorNumTiles);
