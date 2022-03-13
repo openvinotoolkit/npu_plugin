@@ -87,6 +87,28 @@ bool BaseLayerStrategy::isSplitOverHeightSupportedByDPU(ShapeRef inputShape, Sha
 
     return false;
 }
+// Each cluster should compute at least 16 output channels. Therefore in order for a layer to be SOK
+// compitable it must have an output channel of at least the number of clusters x 16
+// specified for compilation.
+// For example for 4 cluster compilation the output channel must be a
+// minimum of 4x16=64.
+bool BaseLayerStrategy::isOperationSplitOverKernelCompatible(mlir::Operation* op) const {
+    const auto outputShape = getShape(op->getResult(0));
+    const auto OC = outputShape[Dims4D::Act::C];
+    return OC >= _numChannelAlignment * _numClusters;
+}
+
+bool BaseLayerStrategy::isOperationMultiClusterCompatible(mlir::Operation* op) const {
+    if (isOperationSplitOverHeightCompatible(op) && doesLayerFitIntoCMX(op, splitOverHeight)) {
+        return true;
+    }
+
+    if (isOperationSplitOverKernelCompatible(op) && doesLayerFitIntoCMX(op, splitOverKernel)) {
+        return true;
+    }
+
+    return false;
+}
 
 StrategyManager::StrategyManager(mlir::FuncOp func, Logger log)
         : _func(func),
@@ -104,30 +126,48 @@ void StrategyManager::assignMultiClusterStrategy() {
                     if (_maxPoolStrategy.isOperationSplitOverHeightCompatible(origOp.getOperation()) &&
                         _maxPoolStrategy.doesLayerFitIntoCMX(origOp.getOperation(), splitOverHeight)) {
                         setLayerStrategy(splitOverHeight, origOp.getOperation());
+                    } else if (_maxPoolStrategy.doesLayerFitIntoCMX(origOp.getOperation(), clustering)) {
+                        setLayerStrategy(clustering, origOp.getOperation());
                     }
                 })
                 .Case<NCEEltwiseOp>([this](NCEEltwiseOp origOp) {
                     if (_eltwiseStrategy.isOperationSplitOverHeightCompatible(origOp.getOperation()) &&
                         _eltwiseStrategy.doesLayerFitIntoCMX(origOp.getOperation(), splitOverHeight)) {
                         setLayerStrategy(splitOverHeight, origOp.getOperation());
+                    } else if (_eltwiseStrategy.doesLayerFitIntoCMX(origOp.getOperation(), clustering)) {
+                        setLayerStrategy(clustering, origOp.getOperation());
                     }
                 })
                 .Case<NCEConvolutionOp>([this](NCEConvolutionOp origOp) {
-                    // For WW10 only z-major convolution will be considered for multi-cluster mode
                     if (DimsOrder::fromValue(origOp.input()) == DimsOrder::NHWC) {
                         if (_convolutionStrategy.isOperationSplitOverHeightCompatible(origOp.getOperation()) &&
                             _convolutionStrategy.doesLayerFitIntoCMX(origOp.getOperation(), splitOverHeight)) {
                             setLayerStrategy(splitOverHeight, origOp.getOperation());
                         }
+                        setLayerStrategy(clustering, origOp.getOperation());
+                    } else if (DimsOrder::fromValue(origOp.input()) == DimsOrder::NCHW) {
+                        const auto arch = VPU::getArch(origOp.getOperation());
+                        const auto canUseCMajor = VPU::NCEInvariant::isChannelMajorCompatible(
+                                arch, origOp.input().getType().cast<vpux::NDTypeInterface>());
+
+                        if (_convolutionStrategy.isOperationSplitOverHeightCompatible(origOp.getOperation()) &&
+                            _convolutionStrategy.doesLayerFitIntoCMX(origOp.getOperation(),
+                                                                     splitOverHeightOverlapped) &&
+                            canUseCMajor) {
+                            setLayerStrategy(splitOverHeightOverlapped, origOp.getOperation());
+                        }
+                        setLayerStrategy(clustering, origOp.getOperation());
+                    } else {
+                        VPUX_THROW("Unsupported input layout {0} to convolution ",
+                                   DimsOrder::fromValue(origOp.input()));
                     }
-                    _log.trace("Operation '{0}' at '{1}' is a channel major convolution which is currently not "
-                               "supported in multi-cluster mode ",
-                               origOp->getName(), origOp->getLoc());
                 })
                 .Case<NCEDepthConvolutionOp>([this](NCEDepthConvolutionOp origOp) {
-                    if (_depthConvolutionStrategy.isOperationSplitOverHeightCompatible(origOp.getOperation()) &&
-                        _depthConvolutionStrategy.doesLayerFitIntoCMX(origOp.getOperation(), splitOverHeight)) {
-                        setLayerStrategy(splitOverHeight, origOp.getOperation());
+                    if (_depthConvolutionStrategy.isOperationMultiClusterCompatible(origOp.getOperation())) {
+                        auto bestStrategy = _depthConvolutionStrategy.getOptimalLayerStrategy(origOp);
+                        setLayerStrategy(bestStrategy, origOp.getOperation());
+                    } else if (_depthConvolutionStrategy.doesLayerFitIntoCMX(origOp.getOperation(), clustering)) {
+                        setLayerStrategy(clustering, origOp.getOperation());
                     }
                 })
                 .Default([this](mlir::Operation* unknownOp) -> void {
