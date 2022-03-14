@@ -193,13 +193,11 @@ void QuantDequantPropagateSeq::safeRunOnFunc() {
 #ifdef NEWNADOP
         mlir::OpBuilder andOpBuilder(firstMemPerm);
         auto inOp = convOp;
-        // auto outElemType = firstAndOp.output().getType().cast<vpux::NDTypeInterface>().getElementType();
-        const auto ndType = (*inOp->getResultTypes().begin()).dyn_cast<vpux::NDTypeInterface>();
+        const auto ndType = (*firstAndOp->getResultTypes().begin()).dyn_cast<vpux::NDTypeInterface>();
         const auto tensor = firstMemPerm.getOutputs().front().getType().cast<mlir::RankedTensorType>();
-        // auto newOutType = mlir::RankedTensorType::get(ndType.getShape().raw(), outElemType);
-
-        const auto newType = vpux::getTensorType(ndType.getShape(), ndType.getElementType(), ndType.getDimsOrder(),
-                                                 ndType.getMemSpace(), IE::isSparse(tensor));
+        const auto newType = vpux::getTensorType(
+                (*convOp->getResultTypes().begin()).dyn_cast<vpux::NDTypeInterface>().getShape(),
+                ndType.getElementType(), ndType.getDimsOrder(), ndType.getMemSpace(), IE::isSparse(tensor));
 
         auto newQuantOp = andOpBuilder.create<IE::AndOp>(firstAndOp->getLoc(), newType, inOp.output(), inOp.output(),
                                                          firstAndOp.auto_broadcastAttr(), firstAndOp.post_opAttr());
@@ -211,16 +209,16 @@ void QuantDequantPropagateSeq::safeRunOnFunc() {
 
 #ifdef RESHAPE
         mlir::OpBuilder reshapeBuilder(lastConvOp);
-        auto inOp = lastPermCast;
-        // const auto tensor = inOp.getOutputs().front().getType().cast<mlir::RankedTensorType>();
-        const auto inShape = inOp.getOutputs().front().getType().cast<mlir::ShapedType>().getShape();
+        auto reshapeInOp = lastPermCast;
+        const auto reshapeTensor = reshapeInOp.getOutputs().front().getType().cast<mlir::RankedTensorType>();
+        const auto inShape = reshapeInOp.getOutputs().front().getType().cast<mlir::ShapedType>().getShape();
         // const auto type = tensor.cast<vpux::NDTypeInterface>();
-        const auto outShapeDims = SmallVector<int64_t>{1, 2, 32, 8};
+        const auto outShapeDims = SmallVector<int64_t>{1, 64, 2, 4};
         // const auto newType = vpux::getTensorType(Shape{outShapeDims}, type.getElementType(), type.getDimsOrder(),
         //                                         type.getMemSpace(), IE::isSparse(tensor));
 
         auto forwardReshapeOp = reshapeBuilder.create<IE::AffineReshapeOp>(
-                inOp->getLoc(), /* newType,*/ inOp.output(),
+                reshapeInOp->getLoc(), /* newType,*/ reshapeInOp.output(),
                 getIntArrayOfArray(&getContext(), getReassociationMap(inShape, outShapeDims).getValue()),
                 getIntArrayAttr(&getContext(), Shape{outShapeDims}));
 
@@ -254,12 +252,10 @@ void QuantDequantPropagateSeq::safeRunOnFunc() {
         lastAffineReshape.setOperand(affineReshape.output());
         lastAffineReshape->dump();
         lastPermCast->dump();
-#endif
 #ifdef RESHAPE
         forwardReshapeOp->dump();
         reverseReshapeOp->dump();
 #endif
-#if 0
         lastConvOp->dump();
 #ifdef NEWNADOP
         newQuantOp->dump();
