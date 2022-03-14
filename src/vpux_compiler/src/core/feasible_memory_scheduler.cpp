@@ -962,6 +962,10 @@ void FeasibleMemoryScheduler::populateScheduledOps(HeapElement& scheduledOp) {
                     intervals.push_back(interval);
                 }
             }
+            if (op.hasAttr("exceedingNNCMX")) {
+                // remove pass specific attributes after allocation
+                op.removeAttr("exceedingNNCMX");
+            }
         }
     }
     // populate the struct fields
