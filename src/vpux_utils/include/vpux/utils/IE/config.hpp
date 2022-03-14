@@ -105,6 +105,13 @@ struct OptionPrinter<bool> final {
 };
 
 template <>
+struct OptionPrinter<std::chrono::duration<long int>> final {
+    static std::string toString(const std::chrono::duration<long int>& val) {
+        return std::to_string(val.count());
+    }
+};
+
+template <>
 struct OptionPrinter<LogLevel> final {
     static std::string toString(LogLevel val) {
         switch (val) {

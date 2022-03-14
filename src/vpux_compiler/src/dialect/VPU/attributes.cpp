@@ -431,6 +431,17 @@ mlir::LogicalResult vpux::VPU::verify(FuncRef<mlir::InFlightDiagnostic()> emitEr
     return mlir::success();
 }
 
+mlir::LogicalResult vpux::VPU::areDistributionModesCompatible(DistributionMode sourceMode,
+                                                              DistributionMode targetMode) {
+    // Consecutive distribution modes for a SOK chain
+    if (sourceMode == (DistributionMode::DUPLICATED | DistributionMode::SEGMENTED) &&
+        targetMode == DistributionMode::DUPLICATED) {
+        return mlir::success();
+    }
+
+    return mlir::failure();
+}
+
 //
 // Tiling utils
 //

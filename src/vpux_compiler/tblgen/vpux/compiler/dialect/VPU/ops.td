@@ -434,4 +434,42 @@ def VPU_YieldOp :
     let verifier = [{ return vpux::VPU::verifyOp(*this); }];
 }
 
+//
+// DistributedCastOp
+//
+
+def VPU_DistributedCastOp :
+        VPU_Op<
+            "DistributedCast"
+        > {
+    let summary = "Operation that casts one DistributedTensor type to another.";
+
+    let description = [{
+        Used to cast one DistributedTensor type to another and help with NNCMX retention
+        of data.
+
+        Currently following distribution mode pairs are compatible:
+
+        DUPLICATED|SEGMENTED -> DUPLICATED ## needed for K cluster tiling
+    }];
+
+    let arguments = (ins
+        VPU_DistributedTensor:$input
+    );
+
+    let results = (outs
+        VPU_DistributedTensor:$output
+    );
+
+    let assemblyFormat = [{
+        `(` $input `:` type($input) `)`
+        attr-dict
+        `->` type($output)
+    }];
+
+    let hasFolder = 1;
+
+    let verifier = [{ return vpux::VPU::verifyOp(*this); }];
+}
+
 #endif
