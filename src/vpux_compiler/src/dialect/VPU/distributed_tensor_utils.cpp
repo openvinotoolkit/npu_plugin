@@ -28,7 +28,7 @@ double vpux::VPU::getChannelAlignment(double input, int64_t align) {
 // layer such that additional alignment of the per cluster output channels is not required.
 // Example: For 80 output channel / 4 clusters = [20, 20, 20, 20] output channels per cluster.
 // 20 is not aligned to 16. Therefore, the compiler should only execute this layer on 3 clusters.
-// This would result in [32, 16, 16] output channels per cluster.
+// This would result in [32, 32, 16] output channels per cluster.
 int64_t vpux::VPU::getOptimalNumberOfClustersForSOKLayer(int64_t outputChannels, int64_t numClustersForCompilation) {
     int64_t optimalNumberOfClusters = numClustersForCompilation;
     for (size_t clusters = numClustersForCompilation; clusters >= 1; clusters--) {
