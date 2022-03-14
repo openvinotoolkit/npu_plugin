@@ -51,7 +51,6 @@ public:
     virtual bool isOperationSplitOverHeightCompatible(mlir::Operation* op) const;
 
 protected:
-    bool isSplitOverHeightSupportedByDPU(ShapeRef inputShape, ShapeRef outputShape, int64_t KY, bool DWTypeOp) const;
     int64_t _numClusters;
     int64_t _numDPUs;
     int64_t _minimumOutputHeightForSOH;

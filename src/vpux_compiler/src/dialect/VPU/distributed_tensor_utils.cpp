@@ -214,3 +214,47 @@ mlir::ArrayAttr vpux::VPU::getKernelSize(mlir::Operation* origOp) {
         VPUX_THROW("Attempting to get kernel size for operation {0}, which is not a NCE Task", origOp->getName());
     }
 }
+
+int64_t vpux::VPU::getSOHPerClusterHeightAlignment(int64_t inputWidth) {
+    // W * h_per_cluster must be divisible by 4, thus
+    // if W % 4 == 0, then h alignment needs to be 1
+    // if W % 2 == 0, then h alignment needs to be 2
+    // else h alignment needs to be 4
+    if (inputWidth % 4 == 0) {
+        return 1;
+    } else if (inputWidth % 2 == 0) {
+        return 2;
+    } else {
+        return 4;
+    }
+}
+
+// When doing SOH not all combinations are supported by HW in terms of how input is segmented
+// Following rules need to be satisfied if KY > 1:
+// - height of clusters from 0 to N - 1 must be equal
+// - height of last cluster (which stores the remainder) must be <= of height of previous clusters
+// Additional requirement if operation is not of depth-wise type (it is needed for CONV but not for DWCONV or MAXPOOL)
+// - Width * height_per_cluster (for cluster 0 - N-1) must be multiple of 4
+bool vpux::VPU::isSplitOverHeightSupportedByDPU(ShapeRef inputShape, int64_t KY, int64_t numClusters, bool DWTypeOp) {
+    if (KY == 1) {
+        return true;
+    }
+
+    const auto IH = inputShape[Dims4D::Act::H];
+    const auto IW = inputShape[Dims4D::Act::W];
+
+    auto hPerCluster = divUp(IH, numClusters);
+    auto alignment = (DWTypeOp ? 1 : getSOHPerClusterHeightAlignment(IW));
+
+    hPerCluster = alignVal(hPerCluster, alignment);
+
+    auto hLastCluster = IH - hPerCluster * (numClusters - 1);
+
+    // TODO: Below condition needs to be analyzed and probably replaced by different checks
+    // as it is not justifiable in general
+    if (hLastCluster <= KY) {
+        return false;
+    }
+
+    return (hLastCluster >= 0);
+}

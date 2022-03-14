@@ -53,5 +53,5 @@ bool DepthConvolutionStrategy::isOperationSplitOverHeightCompatible(mlir::Operat
     const auto filterShape = Shape(parseIntArrayAttr<int64_t>(origOp.rawFilterShapeAttr()));
     const auto KY = filterShape[Dims4D::Filter::KY];
 
-    return isSplitOverHeightSupportedByDPU(inputShape, outputShape, KY, true);
+    return isSplitOverHeightSupportedByDPU(inputShape, KY, _numClusters, true);
 }
