@@ -73,6 +73,14 @@ mlir::LogicalResult CopyOpSequence::matchAndRewrite(IERT::CopyOp copyOp, mlir::P
         return mlir::failure();
     }
 
+    for (auto user : parentCopyOp.output().getUsers()) {
+        if (user != copyOp.getOperation()) {
+            // if other users, skip
+            // TODO: implement support for parallel users
+            return mlir::failure();
+        }
+    }
+
     rewriter.replaceOpWithNewOp<IERT::CopyOp>(copyOp, parentCopyOp.input(), copyOp.output_buff());
 
     // CopyOp can have MemoryEffect so "hanging" unused parentCopyOp might not be erased by MLIR automatically
