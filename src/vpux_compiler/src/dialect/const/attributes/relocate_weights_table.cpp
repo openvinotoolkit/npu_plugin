@@ -31,6 +31,7 @@ void vpux::Const::RelocateWeightsTableAttr::walkImmediateSubElements(llvm::funct
                                                                      llvm::function_ref<void(mlir::Type)>) const {
     walkAttrsFn(getWeightsPtr());
     walkAttrsFn(getSparsityPtr());
+    walkAttrsFn(getNumTiles());
 }
 
 //
@@ -42,6 +43,8 @@ void vpux::Const::RelocateWeightsTableAttr::print(mlir::DialectAsmPrinter& print
     printer.printAttribute(getWeightsPtr());
     printer << ", ";
     printer.printAttribute(getSparsityPtr());
+    printer << ", ";
+    printer.printAttribute(getNumTiles());
     printer << ">";
 }
 
@@ -68,11 +71,16 @@ mlir::Attribute vpux::Const::RelocateWeightsTableAttr::parse(mlir::DialectAsmPar
         return nullptr;
     }
 
+    mlir::IntegerAttr numTiles;
+    if (mlir::failed(parser.parseAttribute(numTiles))) {
+        return nullptr;
+    }
+
     if (mlir::failed(parser.parseGreater())) {
         return nullptr;
     }
 
-    return Const::RelocateWeightsTableAttr::get(weightsPtr, sparsityPtr);
+    return Const::RelocateWeightsTableAttr::get(weightsPtr, sparsityPtr, numTiles);
 }
 
 //
@@ -99,6 +107,7 @@ Const::Content vpux::Const::RelocateWeightsTableAttr::transform(vpux::Const::Con
 
     const auto weightsPtr = static_cast<int32_t>(*getWeightsPtr().getValue().getRawData());
     const auto sparsityPtr = static_cast<int32_t>(*getSparsityPtr().getValue().getRawData());
+    const auto numTiles = static_cast<int32_t>(*getNumTiles().getValue().getRawData());
 
     int32_t weightPtrStep = 0;
     int32_t sparsityPtrStep = 0;
@@ -107,14 +116,17 @@ Const::Content vpux::Const::RelocateWeightsTableAttr::transform(vpux::Const::Con
         sparsityPtrStep = values[1 * numElemPerOC + 1] - values[0 * numElemPerOC + 1];
     }
 
-    loop_1d(LoopExecPolicy::Parallel, values.size() / numElemPerOC, [&](size_t i) {
+    const auto channelNum = values.size() / numElemPerOC;
+    const auto tilesBatchSize = channelNum / numTiles;
+
+    loop_1d(LoopExecPolicy::Parallel, channelNum, [&](size_t i) {
         const auto wtInd = i * numElemPerOC;
 
-        patchedValues[wtInd + 0] = checked_cast<int32_t>(weightsPtr + i * weightPtrStep);
+        patchedValues[wtInd + 0] = checked_cast<int32_t>(weightsPtr + (i % tilesBatchSize) * weightPtrStep);
 
         patchedValues[wtInd + 1] = values[wtInd + 1];
         if (values[wtInd + 1] != VPU::NCESparsity::SPARSITY_PTR_WHEN_NO_SPARSITY) {
-            patchedValues[wtInd + 1] = checked_cast<int32_t>(sparsityPtr + i * sparsityPtrStep);
+            patchedValues[wtInd + 1] = checked_cast<int32_t>(sparsityPtr + (i % tilesBatchSize) * sparsityPtrStep);
         }
 
         patchedValues[wtInd + 2] = values[wtInd + 2];
@@ -124,9 +136,10 @@ Const::Content vpux::Const::RelocateWeightsTableAttr::transform(vpux::Const::Con
     return output;
 }
 
-Const::ContentAttr vpux::Const::ContentAttr::relocateWeightsTablePointers(uint64_t weightsPtr,
-                                                                          uint64_t sparsityPtr) const {
+Const::ContentAttr vpux::Const::ContentAttr::relocateWeightsTablePointers(uint64_t weightsPtr, uint64_t sparsityPtr,
+                                                                          uint64_t numTiles) const {
     return get(*this, Const::RelocateWeightsTableAttr::get(getIntAttr(getContext(), weightsPtr),
-                                                           getIntAttr(getContext(), sparsityPtr))
+                                                           getIntAttr(getContext(), sparsityPtr),
+                                                           getIntAttr(getContext(), numTiles))
                               .cast<Const::TransformAttrInterface>());
 }

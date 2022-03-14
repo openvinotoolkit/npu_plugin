@@ -138,11 +138,25 @@ void PatchWeightsTablePass::patchWeightsTable(Const::DeclareOp cstOp, mlir::Oper
     auto weights = getTopBufferOfNCEClusterTiling(nceOp, nceOp.weights());
     uint64_t weightBasePointer = getPointer(weights, 0);
 
+    // get weight table numTiles
+    auto wTable = getTopBufferOfNCEClusterTiling(nceOp, nceOp.weight_table());
+    auto wtDecBuf = wTable.getDefiningOp<VPURT::DeclareBufferOp>();
+
+    auto numTiles = 1;
+    auto distributedType = wtDecBuf.getType().dyn_cast<VPUIP::DistributedBufferType>();
+    if (distributedType != nullptr) {
+        auto distributionAttr = distributedType.getDistribution();
+        auto mode = distributionAttr.mode().getValue();
+        VPUX_THROW_UNLESS(mode == VPU::DistributionMode::DUPLICATED || mode == VPU::DistributionMode::SEGMENTED,
+                          "Unsupported distribution mode: {0} for weights table", VPU::stringifyDistributionMode(mode));
+        numTiles = (mode == VPU::DistributionMode::DUPLICATED) ? 1 : distributionAttr.num_clusters().getInt();
+    }
+
     // Extract content attrib with existing transformations
     auto origConstAttr = cstOp.contentAttr();
     // Create new attribute based on existing one by adding new relocateWeightTable
     // transformation
-    auto newConstAttr = origConstAttr.relocateWeightsTablePointers(weightBasePointer, sparsityBasePtr);
+    auto newConstAttr = origConstAttr.relocateWeightsTablePointers(weightBasePointer, sparsityBasePtr, numTiles);
     mlir::OpBuilder builder(cstOp);
 
     // Create new DeclareOp with the new content attribute and replace the old DeclareOp
