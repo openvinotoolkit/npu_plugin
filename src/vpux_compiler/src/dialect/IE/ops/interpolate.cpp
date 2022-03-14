@@ -233,21 +233,18 @@ void vpux::IE::InterpolateOp::getCanonicalizationPatterns(mlir::OwningRewritePat
 }
 
 InputTiling vpux::IE::InterpolateOp::backInferTileInfo(const vpux::TileInfo& outputTile, vpux::Logger log) {
-    auto axesAttr = axes_attr().getValueOr<mlir::ArrayAttr>({});
-    const auto origAxes = extractIntVector(getLoc(), axes(), axesAttr);
+    const auto origAxes = extractIntVector(getLoc(), axes(), axes_attrAttr());
 
     auto forwardScaleOrError = extractFPVector(getLoc(), scales(), scales_attr().getValueOr<mlir::ArrayAttr>({}));
-    if (mlir::failed(forwardScaleOrError)) {
-        // TODO: what to do in case of error
-        return TilingInfo(ArrayRef<TileInfo>());
-    }
+    VPUX_THROW_UNLESS(mlir::succeeded(forwardScaleOrError),
+                      "InterpolateOp::backInferTileInfo failed to extract scales");
 
     SmallVector<double> backwardScale;
     for (auto fwScale : forwardScaleOrError.getValue()) {
         backwardScale.push_back(1. / fwScale);
     }
 
-    auto inferShape = [&](Shape inputShapeFromTile, MutableArrayRef<int64_t> beginPads,
+    auto inferShape = [&](ShapeRef inputShapeFromTile, MutableArrayRef<int64_t> beginPads,
                           MutableArrayRef<int64_t> endPads) {
         SmallVector<int64_t> inputShape;
         for (auto dim : inputShapeFromTile) {
@@ -260,20 +257,17 @@ InputTiling vpux::IE::InterpolateOp::backInferTileInfo(const vpux::TileInfo& out
                 propagateShape(getLoc(), origAxes, inputShape, {beginPads}, {endPads}, shape_calc_mode,
                                extractIntVector(getLoc(), sizes(), sizes_attr().getValueOr<mlir::ArrayAttr>({})),
                                {backwardScale}, log);
-        if (mlir::failed(outputShape)) {
-            // TODO: what to do in case of error
-            return outputShape;
-        }
+        VPUX_THROW_UNLESS(mlir::succeeded(outputShape),
+                          "InterpolateOp::backInferTileInfo failed to propagate Shape-back");
+
         // need to run forward propagate in order to adjust pads
         auto inputShapeAfterProp =
                 propagateShape(getLoc(), origAxes, outputShape.getValue(), {beginPads}, {endPads}, shape_calc_mode,
                                extractIntVector(getLoc(), sizes(), sizes_attr().getValueOr<mlir::ArrayAttr>({})),
                                {forwardScaleOrError}, log);
 
-        if (mlir::failed(inputShapeAfterProp)) {
-            // TODO: what to do in case of error
-            return outputShape;
-        }
+        VPUX_THROW_UNLESS(mlir::succeeded(inputShapeAfterProp),
+                          "InterpolateOp::backInferTileInfo failed to propagate Shape-forward");
 
         // TODO: we counting only endpads - begin pad might matter for offsets not for dims
         if (endPads.size() == inputShape.size()) {
@@ -300,22 +294,13 @@ InputTiling vpux::IE::InterpolateOp::backInferTileInfo(const vpux::TileInfo& out
 
     TileInfo inputTile{inputShapeForTile.getValue().size()};
 
-    inputTile.shape[Dims4D::Act::N] = inputShapeForTile.getValue()[0];
-    inputTile.shape[Dims4D::Act::C] = inputShapeForTile.getValue()[1];
-    inputTile.shape[Dims4D::Act::H] = inputShapeForTile.getValue()[2];
-    inputTile.shape[Dims4D::Act::W] = inputShapeForTile.getValue()[3];
-
-    inputTile.offsets[Dims4D::Act::N] = inputOffsetForTile.getValue()[0];
-    inputTile.offsets[Dims4D::Act::C] = inputOffsetForTile.getValue()[1];
-    inputTile.offsets[Dims4D::Act::H] = inputOffsetForTile.getValue()[2];
-    inputTile.offsets[Dims4D::Act::W] = inputOffsetForTile.getValue()[3];
+    inputTile.shape = Shape(inputShapeForTile.getValue());
+    inputTile.offsets = Shape(inputOffsetForTile.getValue());
 
     auto convertShape = [](::mlir::Value plainShape) {
         auto origShape = getShape(plainShape);
         TileInfo tileShape{origShape.size()};
-        for (const auto& sz : origShape | indexed) {
-            tileShape.shape[Dim(sz.index())] = sz.value();
-        }
+        tileShape.shape = getShape(plainShape).toValues();
         return tileShape;
     };
 
