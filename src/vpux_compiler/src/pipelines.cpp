@@ -311,6 +311,12 @@ void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOp
     pm.addPass(IE::createUnrollBatchPass(log));
     pm.addPass(IE::createResolvePWLPostOpsPass(log));
 
+    //fixme: move createConvertScaleShiftToDWPass after low percision passes  
+    if (options.enableConvertScaleShiftDW) {
+        pm.addPass(IE::createConvertScaleShiftToDWPass(log));
+    }
+
+
     if (options.enableUpstreamSlice) {
         pm.addPass(IE::createUpstreamSlicePass(log));
     }
