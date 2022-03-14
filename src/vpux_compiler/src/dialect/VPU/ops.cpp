@@ -49,6 +49,11 @@ mlir::LogicalResult VPU::isDistributedCastCompatible(VPU::DistributedTensorType 
                        inDistributionAttr.num_clusters(), outDistributionAttr.num_clusters());
     }
 
+    if (inDistributionAttr.alignment() != outDistributionAttr.alignment()) {
+        return errorAt(loc, "Mismatch between tensor alignment of clusters for input ({0}) and output ({1}).",
+                       inDistributionAttr.alignment(), outDistributionAttr.alignment());
+    }
+
     const auto inDistributionMode = inDistributionAttr.mode().getValue();
     const auto outDistributionMode = outDistributionAttr.mode().getValue();
 
