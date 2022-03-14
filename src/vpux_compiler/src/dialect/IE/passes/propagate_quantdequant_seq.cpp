@@ -236,6 +236,7 @@ void QuantDequantPropagateSeq::safeRunOnFunc() {
                 getIntArrayAttr(&getContext(), Shape{outShapeDims2}));
         lastConvOp.setOperand(0, reverseReshapeOp.output());
 #endif
+        lastAffineReshape.setOperand(affineReshape.output());
 #if 0
         llvm::errs() << "------------------------------------------"
                      << "\n";
@@ -249,7 +250,6 @@ void QuantDequantPropagateSeq::safeRunOnFunc() {
         secondAndOp->dump();
         sliceOp->dump();
         lastMemPerm->dump();
-        lastAffineReshape.setOperand(affineReshape.output());
         lastAffineReshape->dump();
         lastPermCast->dump();
 #ifdef RESHAPE
