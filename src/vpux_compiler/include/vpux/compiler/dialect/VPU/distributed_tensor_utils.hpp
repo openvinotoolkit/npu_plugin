@@ -39,12 +39,16 @@ constexpr StringLiteral clustering = "Clustering";
 
 double getChannelAlignment(double input, int64_t align);
 int64_t getOptimalNumberOfClustersForSOKLayer(int64_t outputChannels, int64_t numClustersForCompilation);
-SmallVector<int64_t> getActivationTensorNumTiles(mlir::Operation* op, int64_t numClusters, StringRef strategy);
-SmallVector<int64_t> getOutputTensorNumTiles(mlir::Operation* op, int64_t numClusters, StringRef strategy);
-SmallVector<int64_t> getWeightsTensorNumTiles(mlir::Operation* op, int64_t numClusters, StringRef strategy);
-SmallVector<int64_t> getWeightsTableTensorNumTiles(mlir::Operation* op, int64_t numClusters, StringRef strategy);
-SmallVector<int64_t> getActivationWindowTensorNumTiles(mlir::Operation* op, int64_t numClusters, StringRef strategy,
-                                                       ArchKind arch);
+SmallVector<int64_t> getActivationTensorNumTiles(mlir::Operation* op, int64_t numClustersAvailableForCompilation,
+                                                 StringRef strategy);
+SmallVector<int64_t> getOutputTensorNumTiles(mlir::Operation* op, int64_t numClustersAvailableForCompilation,
+                                             StringRef strategy);
+SmallVector<int64_t> getWeightsTensorNumTiles(mlir::Operation* op, int64_t numClustersAvailableForCompilation,
+                                              StringRef strategy);
+SmallVector<int64_t> getWeightsTableTensorNumTiles(mlir::Operation* op, int64_t numClustersAvailableForCompilation,
+                                                   StringRef strategy);
+SmallVector<int64_t> getActivationWindowTensorNumTiles(mlir::Operation* op, int64_t numClustersAvailableForCompilation,
+                                                       StringRef strategy, ArchKind arch);
 DistributionMode getActivationTensorDistributionMode(StringRef strategy);
 DistributionMode getWeightsTensorDistributionMode(StringRef strategy);
 DistributionMode getOutputTensorDistributionMode(StringRef strategy);
@@ -98,8 +102,9 @@ DistributedTensorType createDistributedTensorType(ConcreteOp origOp, mlir::Value
     DistributedTensorAttr distributedActivationTensorAttr;
     auto module = origOp->template getParentOfType<mlir::ModuleOp>();
     auto nceOp = IE::getAvailableExecutor(module, ExecutorKind::NCE);
-    const auto numClusters = getIntAttr(origOp.getContext(), nceOp.count());
+    const auto numClustersAvailableForCompilation = getIntAttr(origOp.getContext(), nceOp.count());
     const auto activationTensorDistributionModeAttr = DistributionModeAttr::get(origOp.getContext(), distributionMode);
+    mlir::IntegerAttr optimalNumberOfClusters = numClustersAvailableForCompilation;
 
     if (distributionMode == DistributionMode::OVERLAPPED) {
         auto kernel = getKernelSize(origOp);
@@ -108,15 +113,23 @@ DistributedTensorType createDistributedTensorType(ConcreteOp origOp, mlir::Value
 
         distributedActivationTensorAttr =
                 DistributedTensorAttr::get(activationTensorDistributionModeAttr, numTiles, kernel, pad, stride,
-                                           numClusters, nullptr, origOp.getContext());
+                                           numClustersAvailableForCompilation, nullptr, origOp.getContext());
     } else if (distributionMode == DistributionMode::DUPLICATED) {
+        auto OC = getShape(origOp->getResult(0))[Dims4D::Act::C];
+        int64_t optimalNumClustersForLayer =
+                getOptimalNumberOfClustersForSOKLayer(OC, numClustersAvailableForCompilation.getValue().getSExtValue());
+        optimalNumberOfClusters =
+                mlir::IntegerAttr::get(getInt64Type(origOp->getContext()), optimalNumClustersForLayer);
         distributedActivationTensorAttr =
                 DistributedTensorAttr::get(activationTensorDistributionModeAttr, nullptr, nullptr, nullptr, nullptr,
-                                           numClusters, nullptr, origOp.getContext());
+                                           optimalNumberOfClusters, nullptr, origOp.getContext());
     } else {
+        const auto tileInfo = parseIntArrayAttr<int64_t>(numTiles);
+        optimalNumberOfClusters = mlir::IntegerAttr::get(getInt64Type(origOp->getContext()),
+                                                         *std::max_element(tileInfo.begin(), tileInfo.end()));
         distributedActivationTensorAttr =
                 DistributedTensorAttr::get(activationTensorDistributionModeAttr, numTiles, nullptr, nullptr, nullptr,
-                                           numClusters, nullptr, origOp.getContext());
+                                           optimalNumberOfClusters, nullptr, origOp.getContext());
     }
 
     const auto shape = getShape(input);
