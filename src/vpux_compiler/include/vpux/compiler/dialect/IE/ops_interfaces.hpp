@@ -228,7 +228,7 @@ public:
         return IE::verifyEltwiseOp(op);
     }
 
-    InputTiling backInferTileInfo(const vpux::TileInfo& outputTile) {
+    InputTiling backInferTileInfo(const vpux::TileInfo& outputTile, vpux::Logger) {
         return IE::backInferEltwiseTile(this->getOperation(), outputTile);
     }
 

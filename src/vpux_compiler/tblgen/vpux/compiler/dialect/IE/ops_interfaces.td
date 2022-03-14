@@ -191,7 +191,7 @@ def IE_TilingBuilderOpInterface : OpInterface<"TilingBuilderOpInterface"> {
         InterfaceMethod<
             "Infer input tiles information from the output tile",
             "vpux::TilingInfo", "backInferTileInfo",
-            (ins "const vpux::TileInfo&":$outputTile)
+            (ins "const vpux::TileInfo&":$outputTile, "vpux::Logger":$log)
         >,
 
         InterfaceMethod<

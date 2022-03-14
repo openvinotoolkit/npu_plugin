@@ -62,7 +62,7 @@ mlir::LogicalResult vpux::IE::MaxPoolOp::inferReturnTypeComponents(
     return mlir::success();
 }
 
-InputTiling vpux::IE::MaxPoolOp::backInferTileInfo(const vpux::TileInfo& outputTile) {
+InputTiling vpux::IE::MaxPoolOp::backInferTileInfo(const vpux::TileInfo& outputTile, vpux::Logger /*log*/) {
     const auto origInputShape = getShape(input());
 
     return backInferPoolTile(outputTile, origInputShape, kernel_size(), strides(), pads_begin(), pads_end());

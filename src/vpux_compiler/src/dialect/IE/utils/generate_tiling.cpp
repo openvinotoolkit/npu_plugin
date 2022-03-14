@@ -88,7 +88,7 @@ mlir::Value reifyTile(IE::TilingBuilderOpInterface origOp, const TileInfo& outpu
                       Logger log) {
     log.nest(2).trace("{0}", outputTile);
 
-    const auto inputTiling = origOp.backInferTileInfo(outputTile);
+    const auto inputTiling = origOp.backInferTileInfo(outputTile, log);
     const auto& inTiles = inputTiling.tiles;
     VPUX_THROW_UNLESS(!inTiles.empty(), "Got empty tile information");
 

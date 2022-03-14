@@ -175,7 +175,7 @@ NOTE: This method *must* be implemented by the user.
 #### `backInferTileInfo`
 
 ```c++
-vpux::TilingInfo backInferTileInfo(const vpux::TileInfo&outputTile);
+vpux::TilingInfo backInferTileInfo(const vpux::TileInfo&outputTile, vpux::Logger log);
 ```
 Infer input tiles information from the output tile
 NOTE: This method *must* be implemented by the user.

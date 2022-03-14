@@ -17,6 +17,7 @@
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/error.hpp"
 
+#include "vpux/compiler/dialect/IE/utils/resources.hpp"
 #include "vpux/utils/core/checked_cast.hpp"
 
 using namespace vpux;
@@ -73,10 +74,8 @@ mlir::FailureOr<SmallVector<int64_t>> propagateShape(mlir::Location loc, mlir::F
                                                      mlir::FailureOr<ArrayRef<int64_t>> padsEnd,
                                                      vpux::IE::InterpolateCalcMode calcMode,
                                                      mlir::FailureOr<ArrayRef<int64_t>> sizes,
-                                                     mlir::FailureOr<ArrayRef<double>> scales) {
-    // TODO: use logs stream here
-    llvm::outs() << "propagate shape: input = " << inputShape[0] << "," << inputShape[1] << "," << inputShape[2] << ","
-                 << inputShape[3] << "\n";
+                                                     mlir::FailureOr<ArrayRef<double>> scales, vpux::Logger log) {
+    log.trace("Interp propagate shape: input = {0}", inputShape);
     const auto axes_val = axes.getValue();
 
     SmallVector<int64_t> outShape;
@@ -95,8 +94,10 @@ mlir::FailureOr<SmallVector<int64_t>> propagateShape(mlir::Location loc, mlir::F
         }
         auto sizesIter = sizes_val.begin();
 
-        for (const auto& i : axes_val)
+        for (const auto& i : axes_val) {
+            log.trace("Interp sizes - axis: {0}", i);
             outShape[i] = *sizesIter++;
+        }
 
     } else if (calcMode == IE::InterpolateCalcMode::scales) {
         const auto scales_val = scales.getValue();
@@ -110,7 +111,7 @@ mlir::FailureOr<SmallVector<int64_t>> propagateShape(mlir::Location loc, mlir::F
         auto scalesIter = scales_val.begin();
 
         for (const auto& i : axes_val) {
-            llvm::outs() << "axis: " << i << "\n";
+            log.trace("Interp scales - axis: {0}", i);
             outShape[i] = static_cast<int64_t>(floor((*scalesIter++) * inputShape[i]));
         }
 
@@ -122,13 +123,13 @@ mlir::FailureOr<SmallVector<int64_t>> propagateShape(mlir::Location loc, mlir::F
         applyInterpPads(outShape, padsBegin.getValue(), padsEnd.getValue());
     }
 
-    llvm::outs() << "propagate shape: output = " << outShape[0] << "," << outShape[1] << "," << outShape[2] << ","
-                 << outShape[3] << "\n";
+    log.trace("Interp propagate shape: output = {0}", outShape);
 
     return outShape;
 }
 
-mlir::FailureOr<SmallVector<int64_t>> calcOutputShapes(mlir::Location loc, IE::InterpolateOpAdaptor interpolate) {
+mlir::FailureOr<SmallVector<int64_t>> calcOutputShapes(mlir::Location loc, IE::InterpolateOpAdaptor interpolate,
+                                                       vpux::Logger log) {
     const auto axes = extractIntVector(loc, interpolate.axes(), interpolate.axes_attr());
     const auto beginPads = extractIntVector(loc, {}, interpolate.attr().pads_begin());
     const auto endPads = extractIntVector(loc, {}, interpolate.attr().pads_end());
@@ -138,7 +139,7 @@ mlir::FailureOr<SmallVector<int64_t>> calcOutputShapes(mlir::Location loc, IE::I
 
     return propagateShape(loc, axes, inputShape, beginPads, endPads, interpolate.attr().shape_calc_mode().getValue(),
                           extractIntVector(loc, interpolate.sizes(), interpolate.sizes_attr()),
-                          extractFPVector(loc, interpolate.scales(), interpolate.scales_attr()));
+                          extractFPVector(loc, interpolate.scales(), interpolate.scales_attr()), log);
 }
 
 }  // namespace
@@ -155,8 +156,10 @@ mlir::LogicalResult vpux::IE::InterpolateOp::inferReturnTypeComponents(
     }
 
     const auto inType = interpolate.input().getType().cast<mlir::ShapedType>();
+    // todo: is there better way to send log object from here
+    vpux::Logger log("none", LogLevel::None);
 
-    auto outShape = calcOutputShapes(loc, interpolate);
+    auto outShape = calcOutputShapes(loc, interpolate, log);
 
     if (mlir::failed(outShape)) {
         return mlir::failure();
@@ -229,7 +232,7 @@ void vpux::IE::InterpolateOp::getCanonicalizationPatterns(mlir::OwningRewritePat
     patterns.insert<ConvertInputsToAttr>(context);
 }
 
-InputTiling vpux::IE::InterpolateOp::backInferTileInfo(const vpux::TileInfo& outputTile) {
+InputTiling vpux::IE::InterpolateOp::backInferTileInfo(const vpux::TileInfo& outputTile, vpux::Logger log) {
     auto axesAttr = axes_attr().getValueOr<mlir::ArrayAttr>({});
     const auto origAxes = extractIntVector(getLoc(), axes(), axesAttr);
 
@@ -253,9 +256,10 @@ InputTiling vpux::IE::InterpolateOp::backInferTileInfo(const vpux::TileInfo& out
         // TODO: how to deal with calc-mode = size if scales missed - recalc them somewhere: attr().shape_calc_mode()
         auto shape_calc_mode = IE::InterpolateCalcMode::scales;
 
-        auto outputShape = propagateShape(
-                getLoc(), origAxes, inputShape, {beginPads}, {endPads}, shape_calc_mode,
-                extractIntVector(getLoc(), sizes(), sizes_attr().getValueOr<mlir::ArrayAttr>({})), {backwardScale});
+        auto outputShape =
+                propagateShape(getLoc(), origAxes, inputShape, {beginPads}, {endPads}, shape_calc_mode,
+                               extractIntVector(getLoc(), sizes(), sizes_attr().getValueOr<mlir::ArrayAttr>({})),
+                               {backwardScale}, log);
         if (mlir::failed(outputShape)) {
             // TODO: what to do in case of error
             return outputShape;
@@ -264,7 +268,7 @@ InputTiling vpux::IE::InterpolateOp::backInferTileInfo(const vpux::TileInfo& out
         auto inputShapeAfterProp =
                 propagateShape(getLoc(), origAxes, outputShape.getValue(), {beginPads}, {endPads}, shape_calc_mode,
                                extractIntVector(getLoc(), sizes(), sizes_attr().getValueOr<mlir::ArrayAttr>({})),
-                               {forwardScaleOrError});
+                               {forwardScaleOrError}, log);
 
         if (mlir::failed(inputShapeAfterProp)) {
             // TODO: what to do in case of error
@@ -352,17 +356,18 @@ void vpux::IE::InterpolateOp::adjustAttrs(const TilingInfo& inputTiling) {
 bool vpux::IE::InterpolateOp::isSupportedTiling(const vpux::OutputTiling& tiles, vpux::Logger log) {
     const auto arch = VPU::getArch(*this);
     if (arch != VPU::ArchKind::MTL) {
-        // TODO: E**W-35009 UPA shaves has no need to use tiling yet -
-        //  when switching to shave-nn, or another arch support might need to be added based on restrictions
+        // TODO: E**W-35009 UPA shaves has no need to use tiling yet
+        // when switching to shave-nn, or another runtime implementation support might need to be added based on
+        // restrictions
         return true;
     }
 
     const auto origInputShape = getShape(input());
-    // TODO: how to get constrains based on arch
-    constexpr auto cmxAvailable = (2_MB).to<KB>() - 100_KB;
+
+    auto cmxAvailable = vpux::VPU::getTotalCMXSize(*this);
 
     for (auto&& outputTile : tiles) {
-        auto inputTiles = backInferTileInfo(outputTile);
+        auto inputTiles = backInferTileInfo(outputTile, log);
         VPUX_THROW_UNLESS(inputTiles.tiles.size() == 4,
                           "Only single input tile and params tiles expected in tile backprop for interpolate");
 
@@ -378,7 +383,6 @@ bool vpux::IE::InterpolateOp::isSupportedTiling(const vpux::OutputTiling& tiles,
     log.trace("Interp tiling probe: from {0} -> {1}", origInputShape, (tiles.empty() ? Shape() : tiles.front().shape));
 
     for (auto&& tile : tiles) {
-        // TODO: use addEntry for correct logging
         tile.printFormat(log.getLevelStream(LogLevel::Trace));
         log.trace("\n");
     }

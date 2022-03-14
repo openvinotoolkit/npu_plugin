@@ -146,7 +146,7 @@ void vpux::IE::ConvolutionOp::getCanonicalizationPatterns(mlir::RewritePatternSe
     patterns.insert<FuseConvAndBias>(context);
 }
 
-InputTiling vpux::IE::ConvolutionOp::backInferTileInfo(const vpux::TileInfo& outputTile) {
+InputTiling vpux::IE::ConvolutionOp::backInferTileInfo(const vpux::TileInfo& outputTile, vpux::Logger) {
     const auto origInputShape = getShape(input());
     const auto origFilterShape = getShape(filter());
     const auto origBiasShape = bias() != nullptr ? getShape(bias()) : ShapeRef();
@@ -266,7 +266,7 @@ void vpux::IE::GroupConvolutionOp::getCanonicalizationPatterns(mlir::RewritePatt
     patterns.insert<GroupsToAttr>(context);
 }
 
-InputTiling vpux::IE::GroupConvolutionOp::backInferTileInfo(const vpux::TileInfo& outputTile) {
+InputTiling vpux::IE::GroupConvolutionOp::backInferTileInfo(const vpux::TileInfo& outputTile, vpux::Logger) {
     const auto origInputShape = getShape(input());
     const auto origFilterShape = getShape(filter());
     const auto origBiasShape = bias() != nullptr ? getShape(bias()) : ShapeRef();

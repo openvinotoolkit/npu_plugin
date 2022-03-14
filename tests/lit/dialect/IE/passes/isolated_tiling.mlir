@@ -342,7 +342,8 @@ func @MultiAxesAndPerAxisQuant(
 
 // -----
 
-IE.MemoryResource 1000000 bytes of @CMX_NN
+module @Test attributes {VPU.arch = "MTL", VPU.compilationMode = "ReferenceHW"} {
+IE.MemoryResource 1900000 bytes of @CMX_NN
 
 func @InterpSplitOverH(
         %input1: tensor<1x32x128x128xf16>)
@@ -359,6 +360,7 @@ func @InterpSplitOverH(
     return %3 : tensor<1x32x512x512xf16>
 }
 
+}
 
 // CHECK-LABEL: func @InterpSplitOverH
 // CHECK-SAME:        [[INPUT1:%arg[0-9]]]: tensor<1x32x128x128xf16>
