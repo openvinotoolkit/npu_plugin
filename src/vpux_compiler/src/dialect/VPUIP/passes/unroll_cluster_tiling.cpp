@@ -139,7 +139,8 @@ SmallVector<mlir::Value> ClusterNCERewriter::getPerClusterBuffers(mlir::Location
     VPUX_THROW_UNLESS(declBuff != nullptr, "Can't get buffer offset");
 
     SmallVector<mlir::Value> perClusterBuffers(numClusters);
-    if (distributionMode == VPU::DistributionMode::SEGMENTED || distributionMode == VPU::DistributionMode::DUPLICATED) {
+    if (distributionMode == VPU::DistributionMode::SEGMENTED || distributionMode == VPU::DistributionMode::DUPLICATED ||
+        distributionMode == VPU::DistributionMode::OVERLAPPED) {
         for (int64_t clusterId = 0; clusterId < numClusters; ++clusterId) {
             auto cmxBuffType =
                     changeShape(innerOperandType, perClusterShapes[clusterId], perClusterShapeOffsets[clusterId]);
@@ -232,6 +233,15 @@ mlir::LogicalResult ClusterNCERewriter::matchAndRewrite(VPUIP::NCEClusterTaskOp 
                       "Input '{0}' and output '{1}' number of clusters are not equal", inDistribution.num_clusters(),
                       outDistribution.num_clusters());
 
+    auto inDistributionMode = inDistribution.mode().getValue();
+    auto outDistributionMode = outDistribution.mode().getValue();
+    VPUX_THROW_WHEN(outDistributionMode == VPU::DistributionMode::OVERLAPPED,
+                    "No support for NCE output in OVERLAPPED mode.");
+    VPUX_THROW_WHEN(inDistributionMode == VPU::DistributionMode::OVERLAPPED &&
+                            outDistributionMode != VPU::DistributionMode::SEGMENTED,
+                    "When NCE has input in OVERLAPPED mode then output must be segmented. out mode = '{0}'",
+                    VPU::stringifyDistributionMode(outDistributionMode));
+
     auto numClusters = inDistribution.num_clusters().getInt();
     auto loc = nceTask->getLoc();
     auto inputBuffs = getPerClusterBuffers(loc, "input", clusterOp, nceTask.input(), numClusters, rewriter);
@@ -300,8 +310,9 @@ public:
     mlir::LogicalResult matchAndRewrite(VPUIP::NNDMAOp nndmaOp, mlir::PatternRewriter& rewriter) const final;
 
 private:
-    void unrollSegmented(mlir::Location loc, VPUIP::NCEClusterTilingOp clusterOp, VPURT::TaskOp vpurtTask,
-                         VPUIP::DistributedBufferType distributedType, mlir::PatternRewriter& rewriter) const;
+    void unrollSegmentedOrOverlapped(mlir::Location loc, VPUIP::NCEClusterTilingOp clusterOp, VPURT::TaskOp vpurtTask,
+                                     VPUIP::DistributedBufferType distributedType,
+                                     mlir::PatternRewriter& rewriter) const;
 
 private:
     Logger _log;
@@ -309,9 +320,10 @@ private:
     mlir::FlatSymbolRefAttr _cmxNameAttr;
 };
 
-void ClusterDMARewriter::unrollSegmented(mlir::Location loc, VPUIP::NCEClusterTilingOp clusterOp,
-                                         VPURT::TaskOp vpurtTask, VPUIP::DistributedBufferType distributedType,
-                                         mlir::PatternRewriter& rewriter) const {
+void ClusterDMARewriter::unrollSegmentedOrOverlapped(mlir::Location loc, VPUIP::NCEClusterTilingOp clusterOp,
+                                                     VPURT::TaskOp vpurtTask,
+                                                     VPUIP::DistributedBufferType distributedType,
+                                                     mlir::PatternRewriter& rewriter) const {
     const auto input = *clusterOp.getInputs().begin();
     const auto output = *clusterOp.getOutputs().begin();
 
@@ -464,7 +476,10 @@ mlir::LogicalResult ClusterDMARewriter::matchAndRewrite(VPUIP::NNDMAOp nndmaOp, 
     const auto mode = distributionAttr.mode().getValue();
     if (mode == VPU::DistributionMode::SEGMENTED) {
         _log.trace("Process SEGMENTED mode");
-        unrollSegmented(loc, clusterOp, vpurtTask, distributedType, rewriter);
+        unrollSegmentedOrOverlapped(loc, clusterOp, vpurtTask, distributedType, rewriter);
+    } else if (mode == VPU::DistributionMode::OVERLAPPED) {
+        _log.trace("Process OVERLAPPED mode");
+        unrollSegmentedOrOverlapped(loc, clusterOp, vpurtTask, distributedType, rewriter);
     } else if (mode == VPU::DistributionMode::DUPLICATED) {
         // For example, copy of weights in case of SOH
         // <16x16x1x1xf16, @DDR> -> <16x16x1x1xf16, [@CMX, 0]>
