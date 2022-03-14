@@ -107,20 +107,19 @@ public:
     mlir::LogicalResult matchAndRewrite(IERT::CopyOp origOp, mlir::PatternRewriter& rewriter) const final;
 
 private:
-    SmallVector<mlir::Value> createChannelWiseTiles(IERT::CopyOp origOp, mlir::PatternRewriter& rewriter) const;
+    SmallVector<mlir::Value> createTiles(IERT::CopyOp origOp, mlir::PatternRewriter& rewriter) const;
 
     Logger _log;
 };
 
-SmallVector<mlir::Value> CopyOpTiling::createChannelWiseTiles(IERT::CopyOp origOp,
-                                                              mlir::PatternRewriter& rewriter) const {
-    // Currently, only C-wise tiling is implemented for 4D shapes. TODO: reuse the generic tiling utilities
+SmallVector<mlir::Value> CopyOpTiling::createTiles(IERT::CopyOp origOp, mlir::PatternRewriter& rewriter) const {
+    // Currently, tiling is implemented only for 4D shapes.
     const auto origInputShape = getShape(origOp.input());
     VPUX_THROW_UNLESS(origInputShape.size() == 4,
                       "CopyOpTiling: found shape {0} which is not supported yet (only 4D tensors are)", origInputShape);
 
     const auto fullCopySize = getDmaSize(origOp);
-    // Work around to split always by first dim, not depending on layout
+    // A workaround to always split by the first non-batch dimension, regardless the layout
     // NCHW - C, NHWC - H, NWHC - W
     const auto inOrder = DimsOrder::fromValue(origOp.input());
     const auto tileDim = inOrder.toDim(MemDim(Dims4D::Act::C.ind()));
@@ -155,7 +154,7 @@ SmallVector<mlir::Value> CopyOpTiling::createChannelWiseTiles(IERT::CopyOp origO
         auto copyTile = rewriter.create<IERT::CopyOp>(tileLoc, inputSubView.result(), outputSubView.result());
 
         concatInputs.push_back(copyTile.output());
-        _log.nest().trace("Created tile #{0} for {1} channels that requires {2}", tileIdx,
+        _log.nest().trace("Created tile #{0} for {1} planes that requires {2}", tileIdx,
                           currentTileShapeVector[tileDim.ind()], static_cast<Byte>(getCompactSize(copyTile.input())));
 
         // Take into account the part of the original tensor covered with the newly created tile
@@ -172,8 +171,7 @@ SmallVector<mlir::Value> CopyOpTiling::createChannelWiseTiles(IERT::CopyOp origO
 mlir::LogicalResult CopyOpTiling::matchAndRewrite(IERT::CopyOp origOp, mlir::PatternRewriter& rewriter) const {
     _log.trace("Found Copy Operation '{0}'", origOp->getLoc());
 
-    // Current implementation only tries C-wise tiling. TODO: reuse the generic tiling utilities instead
-    const auto concatInputs = createChannelWiseTiles(origOp, rewriter);
+    const auto concatInputs = createTiles(origOp, rewriter);
 
     rewriter.replaceOpWithNewOp<IERT::ConcatViewOp>(origOp, concatInputs, origOp.output_buff());
 
@@ -188,7 +186,10 @@ void CopyOpTilingPass::safeRunOnFunc() {
     auto& ctx = getContext();
 
     auto isLegalOp = [](IERT::CopyOp copyOp) {
-        const auto isDmaLegal = getDmaSize(copyOp) <= VPUIP::DMA_LIMIT;
+        // If tensor size is greater than DMA_LIMIT its no longer legal operation
+        if (getDmaSize(copyOp) > VPUIP::DMA_LIMIT) {
+            return false;
+        }
 
         const auto inputShape = getShape(copyOp.input());
         if (inputShape.size() < 4) {
@@ -200,11 +201,11 @@ void CopyOpTilingPass::safeRunOnFunc() {
         constexpr int64_t maxStridingLevel = 2;
         if (inputStridingLevel < maxStridingLevel && outputStridingLevel < maxStridingLevel) {
             // DMA transaction is able to handle such striding
-            return isDmaLegal;
+            return true;
         }
 
         // If striding level is greater than 1, try splitting the tensor by plane dimension.
-        return getNumberOfPlanes(copyOp) <= VPUIP::CMX_DMA_MAX_NUM_PLANES && isDmaLegal;
+        return getNumberOfPlanes(copyOp) <= VPUIP::CMX_DMA_MAX_NUM_PLANES;
     };
 
     mlir::ConversionTarget target(ctx);
