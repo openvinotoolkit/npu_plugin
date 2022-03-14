@@ -48,6 +48,8 @@ DistributionMode getOutputTensorDistributionMode(StringRef strategy);
 DistributionMode getActivationWindowTensorDistributionMode(StringRef strategy, ArchKind arch);
 NCEClusterTilingOp createDistributedCopyOut(mlir::Operation* origOp, NCEClusterTilingOp clusterTilingOp);
 mlir::ArrayAttr getKernelSize(mlir::Operation* origOp);
+int64_t getSOHPerClusterHeightAlignment(int64_t inputWidth);
+bool isSplitOverHeightSupportedByDPU(ShapeRef inputShape, int64_t KY, int64_t numClusters, bool DWTypeOp);
 
 template <class ConcreteOp>
 mlir::ArrayAttr getStride(ConcreteOp origOp) {
@@ -103,7 +105,6 @@ DistributedTensorType createDistributedTensorType(ConcreteOp origOp, mlir::Value
     auto kernel = getKernelSize(origOp);
     const auto shape = getShape(input);
     if (distributionMode == DistributionMode::OVERLAPPED) {
-        // auto kernel = getKernelSize(origOp);
         auto stride = getStride(origOp);
         auto pad = getPad(origOp);
 
@@ -123,19 +124,7 @@ DistributedTensorType createDistributedTensorType(ConcreteOp origOp, mlir::Value
             const auto kernelArray = parseIntArrayAttr<int64_t>(kernel);
             const auto KY = kernelArray[0];
             if (KY > 1) {
-                // W * h_per_cluster must be divisible by 4, thus
-                // if W % 4 == 0, then h alignment needs to be 1
-                // if W % 2 == 0, then h alignment needs to be 2
-                // else h alignment needs to be 4
-                const auto W = shape[Dims4D::Act::W];
-
-                if (W % 4 == 0) {
-                    alignment[Dims4D::Act::H.ind()] = 1;
-                } else if (W % 2 == 0) {
-                    alignment[Dims4D::Act::H.ind()] = 2;
-                } else {
-                    alignment[Dims4D::Act::H.ind()] = 4;
-                }
+                alignment[Dims4D::Act::H.ind()] = getSOHPerClusterHeightAlignment(shape[Dims4D::Act::W]);
             }
         }
         const auto alignmentAttr = getIntArrayAttr(origOp.getContext(), alignment);

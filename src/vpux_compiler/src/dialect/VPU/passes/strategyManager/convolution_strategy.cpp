@@ -54,5 +54,5 @@ bool ConvolutionStrategy::isOperationSplitOverHeightCompatible(mlir::Operation* 
     const auto filterShape = Shape(parseIntArrayAttr<int64_t>(origOp.rawFilterShapeAttr()));
     const auto KY = filterShape[Dims4D::Filter::KY];
 
-    return isSplitOverHeightSupportedByDPU(inputShape, outputShape, KY, false);
+    return isSplitOverHeightSupportedByDPU(inputShape, KY, _numClusters, false);
 }

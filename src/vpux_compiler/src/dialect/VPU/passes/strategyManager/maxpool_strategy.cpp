@@ -48,5 +48,5 @@ bool MaxPoolStrategy::isOperationSplitOverHeightCompatible(mlir::Operation* op) 
     const auto kernelSize = parseIntArrayAttr<int64_t>(origOp.kernel_size());
     const auto KY = kernelSize[0];
 
-    return isSplitOverHeightSupportedByDPU(inputShape, outputShape, KY, true);
+    return isSplitOverHeightSupportedByDPU(inputShape, KY, _numClusters, true);
 }
