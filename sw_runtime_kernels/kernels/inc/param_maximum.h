@@ -25,15 +25,11 @@ typedef fp16 half;
 namespace sw_params {
 #endif
 
-#pragma pack(push, 1)
-
 struct __attribute__ ((packed)) MaximumParams {
     struct MemRefData input;
     struct MemRefData input2;
     struct MemRefData output;
 };
-
-#pragma pack (pop)
 
 inline struct BaseKernelParams ToBaseKernelParams(struct MaximumParams * params) {
     struct BaseKernelParams result;

@@ -19,6 +19,7 @@
 #include <param_minimum.h>
 #include <math.h>
 
+#define VECTOR_SIZE 8  // Changes to this should be reflected in the code as well.
 #define MIN(a, b) (((a) < (b)) ? (a) : (b))
 
 using namespace sw_params;
@@ -29,19 +30,31 @@ namespace shave_lib {
 extern "C" {
 
 void minimum(const struct MinimumParams *lParams) {
-    half* in = (half*)lParams->input.dataAddr;
-    half* in2 = (half*)lParams->input2.dataAddr;
-    half* out = (half*)lParams->output.dataAddr;
+    half8* in_v = (half8*)lParams->input.dataAddr;
+    half8* in2_v = (half8*)lParams->input2.dataAddr;
+    half8* out_v = (half8*)lParams->output.dataAddr;
+
+    half* in_s = (half*)lParams->input.dataAddr;
+    half* in2_s = (half*)lParams->input2.dataAddr;
+    half* out_s = (half*)lParams->output.dataAddr;
 
     int32_t *pDims = (int32_t *)(lParams->input.dimsAddr);
     int32_t nElements = 1;
+
+    const int numVectors = nElements / VECTOR_SIZE;
 
     for (int32_t i = 0; i != lParams->input.numDims; i++) {
         nElements *=  pDims[i];
     }
 
-    for (int32_t i = 0; i < nElements; i++) {
-        out[i] = MIN(in[i] , in2[i]);
+#pragma clang loop unroll_count(8)
+    for (int32_t i = 0; i < numVectors; i++) {
+        out_v[i] = __builtin_shave_cmu_min_f16_rr_half8(in_v[i], in2_v[i]);
+    }
+
+    // Compensate
+    for (int32_t i = numVectors * VECTOR_SIZE; i < nElements; i++) {
+        out_s[i] = MIN(in_s[i], in2_s[i]);
     }
 }
 
