@@ -149,6 +149,7 @@ std::unique_ptr<mlir::Pass> createDequantizeConstPass(Logger log = Logger::globa
 std::unique_ptr<mlir::Pass> createMergeFakeQuantPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createFuseQuantizedOpsPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createRemoveQuantDequantSeqPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createQuantDequantPropagateSeqPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createConvertWeightsToU8Pass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createFuseConvertWithQuantizePass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createConvertQuantizeOpsToEltwisePass(Logger log = Logger::global());

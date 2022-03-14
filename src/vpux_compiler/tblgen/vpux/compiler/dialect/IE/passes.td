@@ -751,6 +751,28 @@ def RemoveQuantDequantSeq : PassBase<"remove-quantdequant-seq", "vpux::FunctionP
     ];
 }
 
+//
+// QuantDequantPropagateSeq
+//
+
+def QuantDequantPropagateSeq : PassBase<"propagate-quantdequant-seq", "vpux::FunctionPass"> {
+    let summary = "Optimizes quantize->dequantize ops sequence";
+
+    let description = [{
+        The optional pass in the `LowPrecision` pipeline.
+
+        Pass detects pattern quantize -> dequantize and removes it
+    }];
+
+    let constructor = "vpux::IE::createQuantDequantPropagateSeqPass()";
+
+    let dependentDialects = [
+        "vpux::IE::IEDialect",
+        "mlir::quant::QuantizationDialect"
+    ];
+}
+
+
 
 //
 // ConvertWeightsToU8
