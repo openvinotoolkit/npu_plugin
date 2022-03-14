@@ -38,56 +38,6 @@ bool BaseLayerStrategy::isOperationSplitOverHeightCompatible(mlir::Operation* op
     return OH >= _minimumOutputHeightForSOH;
 }
 
-// When doing SOH not all combinations are supported by HW in terms of how input is segmented
-// Following rules need to be satisfied if KY > 1:
-// - height of clusters from 0 to N - 1 must be equal
-// - height of last cluster (which stores the remainder) must be <= of height of previous clusters
-// Additional requirement if operation is not of depth-wise type (it ise needed for CONV but not for DWCONV or MAXPOOL)
-// - Width * height_per_cluster (for cluster 0 - N-1) must be multiple of 4
-bool BaseLayerStrategy::isSplitOverHeightSupportedByDPU(ShapeRef inputShape, ShapeRef outputShape, int64_t KY,
-                                                        bool DWTypeOp) const {
-    if (KY == 1) {
-        return true;
-    }
-
-    const auto OH = outputShape[Dims4D::Act::H];
-    const auto OW = outputShape[Dims4D::Act::W];
-    const auto IH = inputShape[Dims4D::Act::H];
-    const auto IW = inputShape[Dims4D::Act::W];
-
-    for (int ih = IH / _numClusters; ih < IH; ih++) {
-        if (!DWTypeOp && (ih * IW % 4 != 0)) {
-            continue;
-        }
-
-        int ihLastCluster = IH - ih * (_numClusters - 1);
-        if (ihLastCluster <= KY) {
-            return false;
-        }
-
-        if (ihLastCluster <= ih) {
-            break;
-        }
-    }
-
-    for (int oh = OH / _numClusters; oh < OH; oh++) {
-        if (DWTypeOp && (oh * OW % 4 != 0)) {
-            continue;
-        }
-
-        int ohLastCluster = OH - oh * (_numClusters - 1);
-        if (ohLastCluster <= 0) {
-            return false;
-        }
-
-        if (ohLastCluster <= oh) {
-            return true;
-        }
-    }
-
-    return false;
-}
-
 StrategyManager::StrategyManager(mlir::FuncOp func, Logger log)
         : _func(func),
           _log(log),
