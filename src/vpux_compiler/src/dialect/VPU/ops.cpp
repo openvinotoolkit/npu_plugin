@@ -60,6 +60,11 @@ mlir::LogicalResult VPU::isDistributedCastCompatible(VPU::DistributedTensorType 
         }
     }
 
+    if (inDistributionAttr.alignment() != outDistributionAttr.alignment()) {
+        return errorAt(loc, "Mismatch between alignments for input ({0}) and output ({1}).",
+                       inDistributionAttr.alignment(), outDistributionAttr.alignment());
+    }
+
     return mlir::success();
 }
 
