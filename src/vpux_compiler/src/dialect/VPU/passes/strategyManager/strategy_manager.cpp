@@ -66,24 +66,27 @@ bool BaseLayerStrategy::isSplitOverHeightSupportedByDPU(ShapeRef inputShape, Sha
         }
 
         if (ihLastCluster <= ih) {
-            break;
-        }
-    }
-
-    for (int oh = OH / _numClusters; oh < OH; oh++) {
-        if (DWTypeOp && (oh * OW % 4 != 0)) {
-            continue;
-        }
-
-        int ohLastCluster = OH - oh * (_numClusters - 1);
-        if (ohLastCluster <= 0) {
-            return false;
-        }
-
-        if (ohLastCluster <= oh) {
             return true;
         }
     }
+
+    std::ignore = OH;
+    std::ignore = OW;
+
+    // for (int oh = OH / _numClusters; oh < OH; oh++) {
+    //     if (DWTypeOp && (oh * OW % 4 != 0)) {
+    //         continue;
+    //     }
+
+    //     int ohLastCluster = OH - oh * (_numClusters - 1);
+    //     if (ohLastCluster <= 0) {
+    //         return false;
+    //     }
+
+    //     if (ohLastCluster <= oh) {
+    //         return true;
+    //     }
+    // }
 
     return false;
 }
