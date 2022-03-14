@@ -75,17 +75,20 @@ mlir::LogicalResult NCEConvolutionRewriter::matchAndRewrite(NCEConvolutionOp ori
     auto outputTensorDistributionMode = getOutputTensorDistributionMode(strategy);
     auto outputTensorNumTiles = getIntArrayAttr(origOp.getContext(), getOutputTensorNumTiles(_numClusters, strategy));
 
+    bool needAlignment = ((strategy == splitOverHeight) ? true : false);
+
     auto distributedActivationCopyOp = createDistributedCopyIn(origOp, origOp.input(), activationTensorDistributionMode,
-                                                               activationTensorNumTiles, true);
+                                                               activationTensorNumTiles, needAlignment);
 
     auto distributedWeightsCopyOp = createDistributedCopyIn(origOp, origOp.filter(), weightsTensorDistributionMode,
-                                                            weightsTensorNumTiles, true);
+                                                            weightsTensorNumTiles, needAlignment);
 
-    auto distributedWeightTableCopyOp = createDistributedCopyIn(
-            origOp, origOp.weightsTable(), weightsTableTensorDistributionMode, weightsTableTensorNumTiles, true);
+    auto distributedWeightTableCopyOp =
+            createDistributedCopyIn(origOp, origOp.weightsTable(), weightsTableTensorDistributionMode,
+                                    weightsTableTensorNumTiles, needAlignment);
 
     auto distributedOutputTensorType = createDistributedTensorType(
-            origOp, origOp.output(), outputTensorDistributionMode, outputTensorNumTiles, true);
+            origOp, origOp.output(), outputTensorDistributionMode, outputTensorNumTiles, needAlignment);
 
     const auto bodyBuilder = [origOp](mlir::OpBuilder& builder, mlir::Location loc, mlir::ValueRange newOperands) {
         mlir::BlockAndValueMapping mapper;
