@@ -599,22 +599,21 @@ SmallVector<StridedShape> vpux::VPU::getPerClusterStridedShapes(ShapeRef shape, 
     SmallVector<StridedShape> stridedShapes;
     if (VPU::bitEnumContains(distributionMode, VPU::DistributionMode::DUPLICATED)) {
         for (const auto& computeShape : computeShapes) {
-            stridedShapes.emplace_back(computeShape, strides.raw());
+            stridedShapes.emplace_back(computeShape, strides);
         }
         return stridedShapes;
     }
 
-    const auto memShape = dimsOrder.toMemoryOrder(shape);
-    const auto memStrides = dimsOrder.toMemoryOrder(strides);
-
     if (VPU::bitEnumContains(distributionMode, VPU::DistributionMode::SEGMENTED) ||
         VPU::bitEnumContains(distributionMode, VPU::DistributionMode::OVERLAPPED)) {
+        const auto memShape = dimsOrder.toMemoryOrder(shape);
+        const auto memStrides = dimsOrder.toMemoryOrder(strides);
         const auto compactStrideReqs = StrideReqs::compact(dimsOrder.numDims());
         const auto compactStrides = compactStrideReqs.calcStrides(elemSize, memShape);
-        SmallVector<Bit> stridesMultiplier(memStrides.size());
+        SmallVector<int64_t> stridesMultiplier(memStrides.size());
         std::transform(memStrides.begin(), memStrides.end(), compactStrides.begin(), stridesMultiplier.begin(),
                        [](Bit stride, Bit compactStride) {
-                           return Bit(stride.count() / compactStride.count());
+                           return stride.count() / compactStride.count();
                        });
 
         for (const auto& computeShape : computeShapes) {
@@ -625,16 +624,16 @@ SmallVector<StridedShape> vpux::VPU::getPerClusterStridedShapes(ShapeRef shape, 
             for (auto p : zip(computeCompactStrides, stridesMultiplier) | indexed) {
                 const auto dim = std::get<0>(p.value());
                 const auto mul = std::get<1>(p.value());
-                computeMemStrides[p.index()] = Bit(dim.count() * mul.count());
+                computeMemStrides[p.index()] = Bit(dim.count() * mul);
             }
             const auto computeStrides = dimsOrder.toLogicalOrder(MemStrides(computeMemStrides));
             stridedShapes.emplace_back(computeShape, computeStrides);
         }
-    } else {
-        VPUX_THROW("Unsupported mode '{0}'", VPU::stringifyEnum(distributionMode));
+
+        return stridedShapes;
     }
 
-    return stridedShapes;
+    VPUX_THROW("Unsupported mode '{0}'", VPU::stringifyEnum(distributionMode));
 }
 
 //

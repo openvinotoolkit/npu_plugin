@@ -13,11 +13,21 @@
 
 #pragma once
 
-#include "vpux/compiler/core/attributes/strided_shape.hpp"
-#include "vpux/utils/core/small_vector.hpp"
+#include "vpux/compiler/core/attributes/shape.hpp"
+#include "vpux/compiler/core/attributes/strides.hpp"
+
+namespace vpux {
 
 //
-// Generated
+// StridedShape
 //
 
-#include <vpux/compiler/dialect/VPU/generated/type_interfaces.hpp.inc>
+struct StridedShape {
+    StridedShape(ShapeRef shape, StridesRef strides): shape(shape.raw()), strides(strides.raw()) {
+    }
+
+    Shape shape;
+    Strides strides;
+};
+
+}  // namespace vpux

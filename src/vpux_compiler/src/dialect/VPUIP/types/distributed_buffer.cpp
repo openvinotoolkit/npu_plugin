@@ -291,6 +291,7 @@ StridedShape VPUIP::DistributedBufferType::getLargestStridedShape() const {
     };
 
     const auto stridedShapes = getPerClusterStridedShapes();
+    VPUX_THROW_UNLESS(!stridedShapes.empty(), "Missing per-cluster strided shapes");
     return *std::max_element(stridedShapes.begin(), stridedShapes.end(),
                              [&](const StridedShape& a, const StridedShape& b) {
                                  return stridedShapeSize(a) < stridedShapeSize(b);
