@@ -259,12 +259,6 @@ mlir::LogicalResult EliminateCopyPairs::matchAndRewrite(VPU::NCEClusterTilingOp 
         if (VPU::isDistributedCastCompatible(inDistributedType, outDistributedType).failed()) {
             return mlir::failure();
         }
-
-        const auto distributedCastOp =
-                rewriter.create<VPU::DistributedCastOp>(origOp.getLoc(), output.getType(), producerInput);
-
-        rewriter.replaceOp(origOp, distributedCastOp->getResult(0));
-        return mlir::success();
     }
 
     rewriter.replaceOp(origOp, producerInput);
