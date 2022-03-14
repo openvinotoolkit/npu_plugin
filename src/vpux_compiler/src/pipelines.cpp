@@ -341,6 +341,7 @@ void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOp
     pm.addPass(createPrintDotPass("./output/convert_to_mem_permute.dot"));
 
     pm.addPass(IE::createFuseMemPermuteReshapePass(log));
+    pm.addPass(createPrintDotPass("./output/fuse_mempermute_reshape.dot"));
 
     pm.addPass(mlir::createCanonicalizerPass(grc));
 
