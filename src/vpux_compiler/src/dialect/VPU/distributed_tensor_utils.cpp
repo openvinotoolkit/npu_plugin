@@ -29,9 +29,10 @@ double vpux::VPU::getChannelAlignment(double input, int64_t align) {
 // Example: For 80 output channel / 4 clusters = [20, 20, 20, 20] output channels per cluster.
 // 20 is not aligned to 16. Therefore, the compiler should only execute this layer on 3 clusters.
 // This would result in [32, 32, 16] output channels per cluster.
-int64_t vpux::VPU::getOptimalNumberOfClustersForSOKLayer(int64_t outputChannels, int64_t numClustersForCompilation) {
-    int64_t optimalNumberOfClusters = numClustersForCompilation;
-    for (size_t clusters = numClustersForCompilation; clusters >= 1; clusters--) {
+int64_t vpux::VPU::getOptimalNumberOfClustersForSOKLayer(int64_t outputChannels,
+                                                         int64_t numClustersAvailableForCompilation) {
+    int64_t optimalNumberOfClusters = numClustersAvailableForCompilation;
+    for (size_t clusters = numClustersAvailableForCompilation; clusters >= 1; clusters--) {
         auto alignedOutputChannels = getChannelAlignment(std::floor(outputChannels / optimalNumberOfClusters), 16);
         auto remainder = outputChannels - (clusters - 1) * alignedOutputChannels;
         if (remainder <= 0) {
@@ -43,19 +44,20 @@ int64_t vpux::VPU::getOptimalNumberOfClustersForSOKLayer(int64_t outputChannels,
     return optimalNumberOfClusters;
 }
 
-SmallVector<int64_t> vpux::VPU::getActivationTensorNumTiles(mlir::Operation* op, int64_t numClusters,
+SmallVector<int64_t> vpux::VPU::getActivationTensorNumTiles(mlir::Operation* op,
+                                                            int64_t numClustersAvailableForCompilation,
                                                             StringRef strategy) {
     if (strategy == splitOverHeightOverlapped) {
-        return {1, 1, numClusters, 1};
+        return {1, 1, numClustersAvailableForCompilation, 1};
     } else if (strategy == splitOverHeight) {
-        return {1, 1, numClusters, 1};
+        return {1, 1, numClustersAvailableForCompilation, 1};
     } else if (strategy == splitOverKernel) {
-        auto OC = getShape(op->getResult(0))[Dims4D::Act::C];
-        int64_t numClustersForLayer = getOptimalNumberOfClustersForSOKLayer(OC, numClusters);
+        int64_t optimalNumClustersForLayer = getOptimalNumberOfClustersForSOKLayer(
+                getShape(op->getResult(0))[Dims4D::Act::C], numClustersAvailableForCompilation);
         if (auto origOp = mlir::dyn_cast<NCEConvolutionOp>(op)) {
             return {1, 1, 1, 1};
         }
-        return {1, numClustersForLayer, 1, 1};
+        return {1, optimalNumClustersForLayer, 1, 1};
     } else if (strategy == clustering) {
         return {1, 1, 1, 1};
     } else {
@@ -65,15 +67,17 @@ SmallVector<int64_t> vpux::VPU::getActivationTensorNumTiles(mlir::Operation* op,
     }
 }
 
-SmallVector<int64_t> vpux::VPU::getOutputTensorNumTiles(mlir::Operation* op, int64_t numClusters, StringRef strategy) {
+SmallVector<int64_t> vpux::VPU::getOutputTensorNumTiles(mlir::Operation* op, int64_t numClustersAvailableForCompilation,
+                                                        StringRef strategy) {
     if (strategy == splitOverHeightOverlapped) {
-        return {1, 1, numClusters, 1};
+        return {1, 1, numClustersAvailableForCompilation, 1};
     } else if (strategy == splitOverHeight) {
-        return {1, 1, numClusters, 1};
+        return {1, 1, numClustersAvailableForCompilation, 1};
     } else if (strategy == splitOverKernel) {
         auto OC = getShape(op->getResult(0))[Dims4D::Act::C];
-        int64_t numClustersForLayer = getOptimalNumberOfClustersForSOKLayer(OC, numClusters);
-        return {1, numClustersForLayer, 1, 1};
+        int64_t optimalNumClustersForLayer =
+                getOptimalNumberOfClustersForSOKLayer(OC, numClustersAvailableForCompilation);
+        return {1, optimalNumClustersForLayer, 1, 1};
     } else if (strategy == clustering) {
         return {1, 1, 1, 1};
     } else {
@@ -83,15 +87,18 @@ SmallVector<int64_t> vpux::VPU::getOutputTensorNumTiles(mlir::Operation* op, int
     }
 }
 
-SmallVector<int64_t> vpux::VPU::getWeightsTensorNumTiles(mlir::Operation* op, int64_t numClusters, StringRef strategy) {
+SmallVector<int64_t> vpux::VPU::getWeightsTensorNumTiles(mlir::Operation* op,
+                                                         int64_t numClustersAvailableForCompilation,
+                                                         StringRef strategy) {
     if (strategy == splitOverHeightOverlapped) {
         return {1, 1, 1, 1};
     } else if (strategy == splitOverHeight) {
         return {1, 1, 1, 1};
     } else if (strategy == splitOverKernel) {
         auto OC = getShape(op->getResult(0))[Dims4D::Act::C];
-        int64_t numClustersForLayer = getOptimalNumberOfClustersForSOKLayer(OC, numClusters);
-        return {numClustersForLayer, 1, 1, 1};
+        int64_t optimalNumClustersForLayer =
+                getOptimalNumberOfClustersForSOKLayer(OC, numClustersAvailableForCompilation);
+        return {optimalNumClustersForLayer, 1, 1, 1};
     } else if (strategy == clustering) {
         return {1, 1, 1, 1};
     } else {
@@ -101,7 +108,8 @@ SmallVector<int64_t> vpux::VPU::getWeightsTensorNumTiles(mlir::Operation* op, in
     }
 }
 
-SmallVector<int64_t> vpux::VPU::getWeightsTableTensorNumTiles(mlir::Operation* op, int64_t numClusters,
+SmallVector<int64_t> vpux::VPU::getWeightsTableTensorNumTiles(mlir::Operation* op,
+                                                              int64_t numClustersAvailableForCompilation,
                                                               StringRef strategy) {
     if (strategy == splitOverHeightOverlapped) {
         return {1, 1, 1, 1};
@@ -109,8 +117,9 @@ SmallVector<int64_t> vpux::VPU::getWeightsTableTensorNumTiles(mlir::Operation* o
         return {1, 1, 1, 1};
     } else if (strategy == splitOverKernel) {
         auto OC = getShape(op->getResult(0))[Dims4D::Act::C];
-        int64_t numClustersForLayer = getOptimalNumberOfClustersForSOKLayer(OC, numClusters);
-        return {numClustersForLayer, 1, 1, 1};
+        int64_t optimalNumClustersForLayer =
+                getOptimalNumberOfClustersForSOKLayer(OC, numClustersAvailableForCompilation);
+        return {optimalNumClustersForLayer, 1, 1, 1};
     } else if (strategy == clustering) {
         return {1, 1, 1, 1};
     } else {
@@ -120,7 +129,8 @@ SmallVector<int64_t> vpux::VPU::getWeightsTableTensorNumTiles(mlir::Operation* o
     }
 }
 
-SmallVector<int64_t> vpux::VPU::getActivationWindowTensorNumTiles(mlir::Operation* op, int64_t numClusters,
+SmallVector<int64_t> vpux::VPU::getActivationWindowTensorNumTiles(mlir::Operation* op,
+                                                                  int64_t numClustersAvailableForCompilation,
                                                                   StringRef strategy, ArchKind arch) {
     if (strategy == splitOverHeightOverlapped) {
         return {1, 1, 1, 1};
@@ -129,8 +139,9 @@ SmallVector<int64_t> vpux::VPU::getActivationWindowTensorNumTiles(mlir::Operatio
     } else if (strategy == splitOverKernel) {
         if (arch == ArchKind::MTL) {
             auto OC = getShape(op->getResult(0))[Dims4D::Act::C];
-            int64_t numClustersForLayer = getOptimalNumberOfClustersForSOKLayer(OC, numClusters);
-            return {numClustersForLayer, 1, 1, 1};
+            int64_t optimalNumClustersForLayer =
+                    getOptimalNumberOfClustersForSOKLayer(OC, numClustersAvailableForCompilation);
+            return {optimalNumClustersForLayer, 1, 1, 1};
         } else if (arch == ArchKind::KMB) {
             return {1, 1, 1, 1};
         } else {
