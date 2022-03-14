@@ -29,15 +29,15 @@ namespace IE {
 // In this pass we convert the pattern in ModelF
 // to remove redundant UPA Permute layers
 //
-// input          weights           input          weights    
+// input          weights           input          weights
 //   │               │                │               │
 //┌──▼──────┐   ┌────▼────┐        ┌──▼──────┐   ┌────▼────┐
 //│Transpose│   │ Reshape │        │Transpose│   │ Reshape │
 //└──┬──────┘   └────┬────┘        └──┬──────┘   └────┬────┘
-//   │               │                │               │ x channelSize 
+//   │               │                │               │ x channelSize
 //┌──▼──────┐   ┌────▼────┐        ┌──▼──────┐   ┌────▼────┐
-//│Reshape  │   │ Reshape │        │Reshape  │   │ concat  │  
-//└──┬──────┘   └────┬────┘  ===>  └──┬──────┘   └────┬────┘   
+//│Reshape  │   │ Reshape │        │Reshape  │   │ concat  │
+//└──┬──────┘   └────┬────┘  ===>  └──┬──────┘   └────┬────┘
 //   │               │                │               │
 //┌──▼──────┐   ┌────▼────┐        ┌──▼──────┐        │
 //│Reshape  │   │ Reshape │        │Reshape  │        │
@@ -47,13 +47,13 @@ namespace IE {
 //│        MatMul        │         │        DWConv        │
 //└──────────┬───────────┘         └──────────┬───────────┘
 //           │                                │
-//      ┌────▼────┐                      ┌────▼────┐    
-//      │ Reshape │                      │ Reshape │  
-//      └────┬────┘                      └────┬────┘     
-//           │                                │       
-//           │                                │        
-//           ▼                                ▼                
-// 
+//      ┌────▼────┐                      ┌────▼────┐
+//      │ Reshape │                      │ Reshape │
+//      └────┬────┘                      └────┬────┘
+//           │                                │
+//           │                                │
+//           ▼                                ▼
+//
 //
 // MatMulPatternConverter
 //
@@ -108,10 +108,10 @@ mlir::LogicalResult MatMulPatternConverter::matchAndRewrite(IE::MatMulOp origOp,
     // build the weight
     auto weightReshape1 = *(weightInputOp->getResult(0).getUsers().begin());
     VPUX_THROW_WHEN(weightReshape1 == nullptr, "MatMul pattern mismatch.");
-    auto weightReshape2 = *(weightReshape1->getResult(0).getUsers().begin());
-    VPUX_THROW_WHEN(weightReshape2 == nullptr, "MatMul pattern mismatch.");
-    weightReshape1->replaceAllUsesWith(weightReshape2);
-    weightReshape1->erase();
+    //    auto weightReshape2 = *(weightReshape1->getResult(0).getUsers().begin());
+    //    VPUX_THROW_WHEN(weightReshape2 == nullptr, "MatMul pattern mismatch.");
+    //    weightReshape1->replaceAllUsesWith(weightReshape2);
+    //    weightReshape1->erase();
     const auto weightOutShape4DAttr =
             getIntArrayAttr(rewriter.getContext(), Shape({1, 1, kernelFactors[0], kernelFactors[1]}));
     auto factorWeightReshape = rewriter.create<IE::ReshapeOp>(weightInputOp->getLoc(), weightInputOp->getResult(0),
@@ -126,8 +126,8 @@ mlir::LogicalResult MatMulPatternConverter::matchAndRewrite(IE::MatMulOp origOp,
         concatOffsets.push_back(Shape({index, 0, 0, 0, 0}));
     }
     auto concatOp = rewriter.create<IE::ConcatOp>(factorWeightReshape->getLoc(), mlir::ValueRange(concatSlices), 0);
-    weightReshape2->replaceAllUsesWith(concatOp);
-    weightReshape2->erase();
+    weightReshape1->replaceAllUsesWith(concatOp);
+    weightReshape1->erase();
 
     // replace matmul
     const SmallVector<int32_t> strides = {1, 1};
