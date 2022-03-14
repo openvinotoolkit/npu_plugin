@@ -249,16 +249,7 @@ mlir::LogicalResult EliminateCopyPairs::matchAndRewrite(VPU::NCEClusterTilingOp 
     auto output = origOp.getResult(0);
 
     if (producerInput.getType() != output.getType()) {
-        const auto inDistributedType = producerInput.getType().dyn_cast<vpux::VPU::DistributedTensorType>();
-        const auto outDistributedType = output.getType().dyn_cast<vpux::VPU::DistributedTensorType>();
-
-        if (inDistributedType == nullptr || outDistributedType == nullptr) {
-            return mlir::failure();
-        }
-
-        if (VPU::isDistributedCastCompatible(inDistributedType, outDistributedType).failed()) {
-            return mlir::failure();
-        }
+        return mlir::failure();
     }
 
     rewriter.replaceOp(origOp, producerInput);
