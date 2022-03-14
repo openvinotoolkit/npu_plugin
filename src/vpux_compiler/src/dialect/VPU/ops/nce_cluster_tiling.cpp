@@ -279,5 +279,7 @@ mlir::LogicalResult EliminateCopyPairs::matchAndRewrite(VPU::NCEClusterTilingOp 
 
 void vpux::VPU::NCEClusterTilingOp::getCanonicalizationPatterns(mlir::RewritePatternSet& patterns,
                                                                 mlir::MLIRContext* ctx) {
-    patterns.add<EliminateCopyPairs>(ctx);
+    VPUX_UNUSED(patterns);
+    VPUX_UNUSED(ctx);
+    // patterns.add<EliminateCopyPairs>(ctx);
 }
