@@ -58,9 +58,57 @@ mlir::LogicalResult CopyOpSequence::matchAndRewrite(IERT::CopyOp copyOp, mlir::P
         const auto srcMemory = copyOp.input().getType().cast<vpux::NDTypeInterface>().getMemoryKind();
         const auto dstMemory = copyOp.output().getType().cast<vpux::NDTypeInterface>().getMemoryKind();
 
-        // Remove redundant CMX2CMX CopyOps
-        if (srcMemory == dstMemory && srcMemory == VPU::MemoryKind::CMX_NN) {
-            copyOp.output().replaceAllUsesWith(copyOp.input());
+        // Remove redundant same location copy ops
+        if (srcMemory == dstMemory) {
+            if (auto copySubView = copyOp.output_buff().getDefiningOp<IERT::SubViewOp>()) {
+                // if input also subview
+                auto parentSubViewOp = copyOp.input().getDefiningOp<IERT::SubViewOp>();
+                if (parentSubViewOp) {
+                    auto finalOffsets = parseIntArrayAttr<int64_t>(copySubView.static_offsets());
+                    const auto secondOffsets = parseIntArrayAttr<int64_t>(parentSubViewOp.static_offsets());
+                    for (auto i : irange(finalOffsets.size())) {
+                        finalOffsets[i] += secondOffsets[i];
+                    }
+                    const auto finalOffsetsAttr = getIntArrayAttr(getContext(), finalOffsets);
+                    auto newSubView = rewriter.replaceOpWithNewOp<IERT::SubViewOp>(
+                            copySubView, parentSubViewOp.source(), finalOffsetsAttr, copySubView.static_sizesAttr());
+
+                    parentSubViewOp.result().replaceAllUsesWith(newSubView.result());
+                    copyOp.getResult().replaceAllUsesWith(newSubView.getResult());
+                    copyOp.output_buff().replaceAllUsesWith(newSubView.source());
+                    rewriter.eraseOp(parentSubViewOp);
+                    rewriter.eraseOp(copyOp);
+                    return mlir::success();
+                }
+
+                // case with subView - retrieve operations to be re-linked
+                auto parentOp = copyOp.input().getDefiningOp<IERT::LayerOpInterface>();
+                if (parentOp == nullptr) {
+                    return mlir::failure();
+                }
+                auto masterBuffer = copySubView.source().getDefiningOp<mlir::memref::AllocOp>();
+                if (masterBuffer == nullptr) {
+                    return mlir::failure();
+                }
+                // replace the copy with the subView
+                copySubView->moveAfter(parentOp->getOperand(0).getDefiningOp());
+                parentOp->getResult(0).setType(copySubView.getType());
+                if (auto parentNCE = copyOp.input().getDefiningOp<VPUIP::NCEClusterTaskOp>()) {
+                    parentNCE.output_buff().replaceAllUsesWith(copySubView);
+                }
+                copyOp.output().replaceAllUsesWith(copyOp.input());
+
+                // update IR location of the master buffer
+                if (copySubView->isBeforeInBlock(masterBuffer)) {
+                    masterBuffer->moveBefore(copySubView);
+                }
+            } else if (copyOp.input().getType() == copyOp.output().getType()) {
+                // case with no subView
+                copyOp.output().replaceAllUsesWith(copyOp.input());
+            } else {
+                _log.trace("Copy not optimized {0}", copyOp->getLoc());
+                return mlir::failure();
+            }
             rewriter.eraseOp(copyOp);
             return mlir::success();
         }
@@ -74,9 +122,31 @@ mlir::LogicalResult CopyOpSequence::matchAndRewrite(IERT::CopyOp copyOp, mlir::P
     }
 
     for (auto user : parentCopyOp.output().getUsers()) {
-        if (user != copyOp.getOperation()) {
-            // if other users, skip
-            // TODO: implement support for parallel users
+        // user->dump();
+        if (user == copyOp.getOperation()) {
+            // if child copy op skip this case, will be replaced later
+            continue;
+        } else if (auto subViewOp = mlir::dyn_cast<IERT::SubViewOp>(user)) {
+            // if subView op consumer, extract the subView to use the parent input if possible
+            auto finalOffsets = parseIntArrayAttr<int64_t>(subViewOp.static_offsets());
+            auto newSubViewSource = parentCopyOp.input();
+
+            auto parentSubViewOp = mlir::dyn_cast<IERT::SubViewOp>(parentCopyOp.input().getDefiningOp());
+            if (parentSubViewOp) {
+                // if SubView -> SubView merge static_offsets
+                newSubViewSource = parentSubViewOp.source();
+                const auto secondOffsets = parseIntArrayAttr<int64_t>(parentSubViewOp.static_offsets());
+                for (auto i : irange(finalOffsets.size())) {
+                    finalOffsets[i] += secondOffsets[i];
+                }
+            }
+
+            const auto finalOffsetsAttr = getIntArrayAttr(getContext(), finalOffsets);
+            rewriter.replaceOpWithNewOp<IERT::SubViewOp>(subViewOp, newSubViewSource, finalOffsetsAttr,
+                                                         subViewOp.static_sizesAttr());
+
+        } else {
+            // parent has multiple users, implement solution.
             return mlir::failure();
         }
     }
