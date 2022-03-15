@@ -793,6 +793,40 @@ def IERT_ErfOp :
 }
 
 //
+// BroadcastOp
+//
+
+def IERT_BroadcastOp :
+        IERT_LayerOp<1, "Broadcast",
+            [
+                ViewLikeOpInterface
+            ]
+        > {
+    let summary = "InferenceEngine run-time Broadcast layer";
+
+    let arguments = (ins
+        AnyMemRef:$input,
+        MemRefOf<[SI64, SI32]>:$target_shape,
+        Optional<MemRefOf<[SI64, SI32]>>:$axes_mapping,
+
+        AnyMemRef:$output_buff,
+
+        OptionalAttr<IE_BroadcastType>:$mode
+    );
+
+    let results = (outs
+        AnyMemRef:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `,` $target_shape `:` type($target_shape) (`,` $axes_mapping^ `:` type($axes_mapping))? `)`
+        `ouputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
+//
 // TanhOp
 //
 
