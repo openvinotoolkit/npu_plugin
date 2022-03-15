@@ -122,7 +122,7 @@ std::vector<uint8_t> getBitPattern(VPU::NCESparsity::Mode mode, ShapeRef kernelS
     return bitPattern;
 }
 
-constexpr std::int32_t ALIGNMENT_REQUIREMENT_IN_ELEMENTS = 16;
+constexpr std::int32_t ALIGNMENT_REQUIREMENT_IN_ELEMENTS = 8;
 
 int32_t toHex(double realVal) {
     union f32toint32 {
