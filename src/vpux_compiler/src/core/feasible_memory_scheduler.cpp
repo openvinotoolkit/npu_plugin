@@ -962,10 +962,6 @@ void FeasibleMemoryScheduler::populateScheduledOps(HeapElement& scheduledOp) {
                     intervals.push_back(interval);
                 }
             }
-            if (op.hasAttr("exceedingNNCMX")) {
-                // remove pass specific attributes after allocation
-                op.removeAttr("exceedingNNCMX");
-            }
         }
     }
     // populate the struct fields
@@ -1082,6 +1078,12 @@ SmallVector<FeasibleMemoryScheduler::ScheduledOpInfo> FeasibleMemoryScheduler::g
                                     std::to_string((op.endResource(resourceIdx) - op.beginResource(resourceIdx))) +
                                     ", ";
                 }
+            }
+        }
+        if (!prefetchEdges.empty()) {
+            if (_depsInfo.getExecuteOpAtIndex(op.op_)->hasAttr("exceedingNNCMX")) {
+                // remove pass specific attributes after complete allocation
+                _depsInfo.getExecuteOpAtIndex(op.op_)->removeAttr("exceedingNNCMX");
             }
         }
         _log.trace("op = '{0}'\t type = '{1}'\t time = '{2}'\t '{3}'", op.op_, op.opTypeName(), op.time_, resourceInfo);
