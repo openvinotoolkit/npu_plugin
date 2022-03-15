@@ -30,6 +30,10 @@
 #include <cstring>
 #include <stdio.h>
 
+#include <custom_cpp_tests.h>
+#include <mvTensorUtil.h>
+
+
 using namespace mv::tensor;
 
 CustomCpp::~CustomCpp() = default;
@@ -206,9 +210,16 @@ void CustomCpp::run(mv::tensor::Processor& ,
         if (outTensors[i].location == sw_params::Location::NN_CMX || outTensors[i].location == sw_params::Location::UPA_CMX) {
             DmaAlShave dmaTask;
             auto totalBytes = (outputVec[i].ndims > 0) ? outputVec[i].dims[outputVec[i].ndims - 1] * outputVec[i].strides[outputVec[i].ndims - 1] : 0;
+            rtems_cache_invalidate_multiple_data_lines(reinterpret_cast<uint8_t*>(outTensors[i].dataAddr), 300);
             dmaTask.start(reinterpret_cast<uint8_t*>(outTensors[i].dataAddr), reinterpret_cast<uint8_t*>(outputVec[i].addr),
                     totalBytes);
             dmaTask.wait();
+            printf("!!!!!!!!!! out tensor %d : ", i);
+            for(int k = 0; k < 5; k++) {
+                float val = f16Tof32(((half*)(outTensors[i].dataAddr))[k]);
+                printf("%f ", val);
+            }
+            printf("!!!!!!!!!!\n");
         }
     }
 #endif

@@ -14,7 +14,6 @@
 #pragma once
 
 #include <DrvRegUtils.h>
-#include <DrvSvuL1Cache.h>
 #include <nn_runtime_types.h>
 
 #define TO_STR(X) #X

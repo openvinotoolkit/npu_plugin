@@ -54,6 +54,9 @@ constexpr static uint32_t ACT_KERNEL_DATA_WINDOW{0x1E000000};
 // ShaveNN window layout
 constexpr static uint32_t SNN_RT_CODE_WINDOW{0x1C000000};
 constexpr static uint32_t SNN_RT_DATA_WINDOW{0x1D000000};
+constexpr static uint32_t SNN_KERNEL_CODE_WINDOW{0x1E000000};
+//constexpr static uint32_t SNN_KERNEL_DATA_WINDOW{0x1E000000};
+constexpr static uint32_t SNN_CMX_WINDOW{0x1F000000};
 
 constexpr static uint32_t SNN_DATA_SIZE{1_KB};
 constexpr static uint32_t SNN_STACK_SIZE{1_KB};
