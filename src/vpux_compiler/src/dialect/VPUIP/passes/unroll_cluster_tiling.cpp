@@ -39,6 +39,21 @@ vpux::NDTypeInterface changeShape(vpux::NDTypeInterface originType, ShapeRef sha
     return originType.changeShape(shape);
 }
 
+vpux::NDTypeInterface changeShapeLeaveStrides(vpux::NDTypeInterface originType, ShapeRef shape, ShapeRef offset) {
+    VPUX_THROW_UNLESS(originType.isa<mlir::MemRefType>(),
+                      "Only MemRefType is supported for 'changeShapeLeaveStrides'. Got '{0}'", originType);
+
+    auto elemType = originType.getElementType();
+    if (auto qType = elemType.dyn_cast<mlir::quant::UniformQuantizedPerAxisType>()) {
+        elemType = tileScalesAndZP(qType, shape, offset);
+    }
+
+    const auto origOrder = originType.getDimsOrder();
+    const auto newOrder = origOrder.isIdentity() ? DimsOrder::fromNumDims(shape.size()) : origOrder;
+
+    return vpux::getMemRefType(shape, elemType, newOrder, originType.getStrides(), originType.getMemSpace());
+}
+
 bool isSegmentedNCETask(VPUIP::NCEClusterTaskOp nceTask, VPUIP::DistributedBufferType inputType) {
     // Only for explicit SEGMENTED mode, not in combination with
     // DUPLICATED or MULTICASTED
@@ -408,6 +423,16 @@ void ClusterDMARewriter::unrollSegmentedOrOverlapped(mlir::Location loc, VPUIP::
         return newTypes;
     };
 
+    const auto tileInnerTypeLeaveStrides = [&](vpux::NDTypeInterface innerType) {
+        SmallVector<vpux::NDTypeInterface> newTypes(numClusters);
+        for (size_t clusterId = 0; clusterId < perClusterShapes.size(); ++clusterId) {
+            newTypes[clusterId] =
+                    changeShapeLeaveStrides(innerType, perClusterShapes[clusterId], perClusterShapeOffsets[clusterId]);
+        }
+
+        return newTypes;
+    };
+
     const auto isValidTile = [](auto dim) {
         return dim > 1;
     };
@@ -416,7 +441,16 @@ void ClusterDMARewriter::unrollSegmentedOrOverlapped(mlir::Location loc, VPUIP::
     const auto axis = std::distance(tilingScheme.begin(), llvm::find_if(tilingScheme, isValidTile));
     const auto strides = distributedType.getStrides();
 
-    const auto inTypes = tileInnerType(innerInputType);
+    bool useParentTensorStrides = false;
+    // Check if per-cluster DMA input will not be a contiguous block of memory.
+    // In such case DMA input buffers should have strides according to parent input tensor
+    if ((numTiles[Dims4D::Act::H.ind()] > 1 && inputType.getDimsOrder() == DimsOrder::NCHW) ||
+        (numTiles[Dims4D::Act::C.ind()] > 1 && inputType.getDimsOrder() == DimsOrder::NHWC)) {
+        useParentTensorStrides = true;
+    }
+
+    const auto inTypes =
+            (useParentTensorStrides ? tileInnerTypeLeaveStrides(innerInputType) : tileInnerType(innerInputType));
     const auto outTypes = tileInnerType(innerOutputType);
 
     const auto getOperand = [&](int64_t clusterId, mlir::Value operand, vpux::NDTypeInterface newType) -> mlir::Value {
