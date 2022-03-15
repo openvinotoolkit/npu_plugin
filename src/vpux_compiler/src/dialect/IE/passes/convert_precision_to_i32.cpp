@@ -55,6 +55,7 @@ void ConvertPrecisionToI32Pass::safeRunOnModule() {
     target.addLegalDialect<Const::ConstDialect>();
     target.addDynamicallyLegalDialect<IE::IEDialect>(isLegalOp);
     target.addDynamicallyLegalOp<IE::GatherOp>(isLegalOp);
+    target.addDynamicallyLegalOp<IE::BroadcastOp>(isLegalOp);
     target.addDynamicallyLegalOp<IE::ReduceMaxOp>(isLegalOp);
     target.addDynamicallyLegalOp<IE::ReduceMeanOp>(isLegalOp);
     target.addDynamicallyLegalOp<IE::ReduceSumOp>(isLegalOp);
