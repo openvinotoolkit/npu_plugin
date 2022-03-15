@@ -29,6 +29,31 @@ bool SubgraphOptimizer::addSpillsAtStrategyTransition(){
 
 }
 
+bool SubgraphOptimizer::isKCompatible(mlir::Operation* op, bool allowHK){
+    const auto strategy = op->getAttr(multiClusterStrategy).cast<mlir::StringAttr>().getValue();
+    if (strategy == splitOverKernel || strategy == clustering || (allowHK && strategy == HKSwitch)){
+        return true;
+    }
+    return false;
+}
+
+bool SubgraphOptimizer::isSpillingFromStrategy(mlir::Operation* op){
+    bool opKCompatible = isKCompatible(op);
+    for (auto child : op->getResult(0).getUsers()){
+        if (!child->getAttr(multiClusterStrategy)) continue;
+        if (opKCompatible != isKCompatible(child)){
+            return true;
+        }
+    }
+    return false;
+}
+
 void SubgraphOptimizer::rollbackOrSpill(){
+    const auto callback = [](mlir::Operation* op){
+        if(!op->getAttr(multiClusterStrategy)) continue;
+
+    }
+
+    _func.walk(callback);
 
 }

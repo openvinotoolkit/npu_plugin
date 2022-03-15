@@ -116,6 +116,8 @@ public:
     void rollbackOrSpill();
 
 private:
+    bool isSpillingFromStrategy(mlir::Operator* op);
+    bool isKCompatible(mlir::Operator* op);
     mlir::FuncOp _func;
     Logger _log;
     // format: {opname: {parentSpilling, spilling}}

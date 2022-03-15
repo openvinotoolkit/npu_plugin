@@ -36,6 +36,7 @@ constexpr StringLiteral splitOverHeightOverlapped =
 constexpr StringLiteral splitOverHeight = "SplitOverHeight";
 constexpr StringLiteral splitOverKernel = "SplitOverKernel";
 constexpr StringLiteral clustering = "Clustering";
+constexpr StringLiteral HKSwitch = "HKSwitch";
 
 SmallVector<int64_t> getActivationTensorNumTiles(mlir::Operation* op, int64_t numClusters, StringRef strategy);
 SmallVector<int64_t> getOutputTensorNumTiles(int64_t numClusters, StringRef strategy);
