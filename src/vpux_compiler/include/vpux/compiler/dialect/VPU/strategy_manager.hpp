@@ -103,6 +103,26 @@ public:
 };
 
 //
+// Subgraph optimizer
+//
+class SubgraphOptimizer final {
+public:
+    SubgraphOptimizer(mlir::FuncOp func, Logger log);
+    
+    void verifySpillStrategies(bool lockClusteringStrategy)
+
+    bool addSpillsAtStrategyTransition()
+
+    void rollbackOrSpill();
+
+private:
+    mlir::FuncOp _func;
+    Logger _log;
+    // format: {opname: {parentSpilling, spilling}}
+    std::unordered_map<std::string, std::pair<bool, bool>> spillingInfo;
+};
+
+//
 // StrategyManager
 //
 // Higher level strategy manager class
@@ -115,6 +135,7 @@ public:
 
 public:
     void assignMultiClusterStrategy();
+    void optimizeMulticlusterStrategy();
 
 private:
     void setLayerStrategy(const llvm::StringRef strategy, mlir::Operation* origOp) const;
@@ -125,6 +146,7 @@ private:
     DepthConvolutionStrategy _depthConvolutionStrategy;
     MaxPoolStrategy _maxPoolStrategy;
     EltwiseStrategy _eltwiseStrategy;
+    SubgraphOptimizer _optimizer;
 };
 
 }  // namespace VPU
