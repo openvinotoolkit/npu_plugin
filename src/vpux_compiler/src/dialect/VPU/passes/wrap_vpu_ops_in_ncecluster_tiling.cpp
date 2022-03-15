@@ -86,17 +86,17 @@ mlir::LogicalResult NCEConvolutionRewriter::matchAndRewrite(NCEConvolutionOp ori
     }
 
     auto distributedActivationCopyOp = createDistributedCopyIn(origOp, origOp.input(), activationTensorDistributionMode,
-                                                               activationTensorNumTiles, activationAlignment);
+                                                               activationTensorNumTiles, activationAlignment, strategy);
 
     auto distributedWeightsCopyOp = createDistributedCopyIn(origOp, origOp.filter(), weightsTensorDistributionMode,
-                                                            weightsTensorNumTiles, weightAlignment);
+                                                            weightsTensorNumTiles, weightAlignment, strategy);
 
     auto distributedWeightTableCopyOp =
             createDistributedCopyIn(origOp, origOp.weightsTable(), weightsTableTensorDistributionMode,
-                                    weightsTableTensorNumTiles, weightAlignment);
+                                    weightsTableTensorNumTiles, weightAlignment, strategy);
 
     auto distributedOutputTensorType = createDistributedTensorType(
-            origOp, origOp.output(), outputTensorDistributionMode, outputTensorNumTiles, activationAlignment);
+            origOp, origOp.output(), outputTensorDistributionMode, outputTensorNumTiles, activationAlignment, strategy);
 
     const auto bodyBuilder = [origOp](mlir::OpBuilder& builder, mlir::Location loc, mlir::ValueRange newOperands) {
         mlir::BlockAndValueMapping mapper;
@@ -117,8 +117,9 @@ mlir::LogicalResult NCEConvolutionRewriter::matchAndRewrite(NCEConvolutionOp ori
         auto activationWindowNumTiles = getIntArrayAttr(
                 origOp.getContext(),
                 getActivationWindowTensorNumTiles(origOp.getOperation(), _numClusters, strategy, _arch));
-        auto distributedActivationWindowCopyOp = createDistributedCopyIn(
-                origOp, origOp.activationWindow(), activationWindowDistributionMode, activationWindowNumTiles, nullptr);
+        auto distributedActivationWindowCopyOp =
+                createDistributedCopyIn(origOp, origOp.activationWindow(), activationWindowDistributionMode,
+                                        activationWindowNumTiles, nullptr, strategy);
 
         clusterTilingOp = rewriter.create<NCEClusterTilingOp>(
                 origOp->getLoc(), distributedOutputTensorType,
@@ -197,21 +198,21 @@ mlir::LogicalResult NCEDepthConvolutionRewriter::matchAndRewrite(NCEDepthConvolu
     }
 
     auto distributedActivationCopyOp = createDistributedCopyIn(origOp, origOp.input(), activationTensorDistributionMode,
-                                                               activationTensorNumTiles, activationAlignment);
+                                                               activationTensorNumTiles, activationAlignment, strategy);
 
     auto distributedWeightsCopyOp = createDistributedCopyIn(origOp, origOp.filter(), weightsTensorDistributionMode,
-                                                            weightsTensorNumTiles, weightAlignment);
+                                                            weightsTensorNumTiles, weightAlignment, strategy);
 
     auto distributedWeightTableCopyOp =
             createDistributedCopyIn(origOp, origOp.weightsTable(), weightsTableTensorDistributionMode,
-                                    weightsTableTensorNumTiles, weightAlignment);
+                                    weightsTableTensorNumTiles, weightAlignment, strategy);
 
     auto distributedActivationWindowCopyOp =
             createDistributedCopyIn(origOp, origOp.activationWindow(), activationWindowDistributionMode,
-                                    activationWindowNumTiles, weightAlignment);
+                                    activationWindowNumTiles, weightAlignment, strategy);
 
     auto distributedOutputTensorType = createDistributedTensorType(
-            origOp, origOp.output(), outputTensorDistributionMode, outputTensorNumTiles, activationAlignment);
+            origOp, origOp.output(), outputTensorDistributionMode, outputTensorNumTiles, activationAlignment, strategy);
 
     auto origOutput = origOp->getResult(0);
 
@@ -292,18 +293,18 @@ mlir::LogicalResult NCEMaxPoolRewriter::matchAndRewrite(NCEMaxPoolOp origOp, mli
     }
 
     auto distributedActivationCopyOp = createDistributedCopyIn(origOp, origOp.input(), activationTensorDistributionMode,
-                                                               activationTensorNumTiles, activationAlignment);
+                                                               activationTensorNumTiles, activationAlignment, strategy);
 
     auto distributedWeightTableCopyOp =
             createDistributedCopyIn(origOp, origOp.weightsTable(), weightsTableTensorDistributionMode,
-                                    weightsTableTensorNumTiles, weightAlignment);
+                                    weightsTableTensorNumTiles, weightAlignment, strategy);
 
     auto distributedActivationWindowCopyOp =
             createDistributedCopyIn(origOp, origOp.activationWindow(), activationWindowDistributionMode,
-                                    activationWindowNumTiles, weightAlignment);
+                                    activationWindowNumTiles, weightAlignment, strategy);
 
     auto distributedOutputTensorType = createDistributedTensorType(
-            origOp, origOp.output(), outputTensorDistributionMode, outputTensorNumTiles, activationAlignment);
+            origOp, origOp.output(), outputTensorDistributionMode, outputTensorNumTiles, activationAlignment, strategy);
 
     auto origOutput = origOp->getResult(0);
 
@@ -371,14 +372,16 @@ mlir::LogicalResult NCEEltwiseRewriter::matchAndRewrite(NCEEltwiseOp origOp, mli
                 getIntArrayAttr(origOp.getContext(), getActivationTensorAlignment(origOp.getOperation(), strategy));
     }
 
-    auto distributedActivationCopyOp1 = createDistributedCopyIn(
-            origOp, origOp.input1(), activationTensorDistributionMode, activationTensorNumTiles, activationAlignment);
+    auto distributedActivationCopyOp1 =
+            createDistributedCopyIn(origOp, origOp.input1(), activationTensorDistributionMode, activationTensorNumTiles,
+                                    activationAlignment, strategy);
 
-    auto distributedActivationCopyOp2 = createDistributedCopyIn(
-            origOp, origOp.input2(), activationTensorDistributionMode, activationTensorNumTiles, activationAlignment);
+    auto distributedActivationCopyOp2 =
+            createDistributedCopyIn(origOp, origOp.input2(), activationTensorDistributionMode, activationTensorNumTiles,
+                                    activationAlignment, strategy);
 
     auto distributedOutputTensorType = createDistributedTensorType(
-            origOp, origOp.output(), outputTensorDistributionMode, outputTensorNumTiles, activationAlignment);
+            origOp, origOp.output(), outputTensorDistributionMode, outputTensorNumTiles, activationAlignment, strategy);
 
     auto origOutput = origOp->getResult(0);
 

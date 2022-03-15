@@ -210,7 +210,7 @@ DistributionMode vpux::VPU::getOutputTensorDistributionMode(StringRef strategy) 
     } else if (strategy == splitOverHeight) {
         return DistributionMode::SEGMENTED;
     } else if (strategy == splitOverKernel) {
-        return DistributionMode::SEGMENTED | DistributionMode::DUPLICATED;
+        return DistributionMode::DUPLICATED | DistributionMode::SEGMENTED;
     } else if (strategy == clustering) {
         return DistributionMode::DUPLICATED;
     } else {

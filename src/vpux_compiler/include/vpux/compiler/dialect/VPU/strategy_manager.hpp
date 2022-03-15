@@ -156,8 +156,8 @@ double BaseLayerStrategy::calculateMPEVolume(ConcreteOp op, VPU::MPEMode mpeMode
     const auto outputTensorDistributionMode = getOutputTensorDistributionMode(strategy);
     const auto outputTensorNumTiles =
             getIntArrayAttr(op->getContext(), getOutputTensorNumTiles(op.getOperation(), _numClusters, strategy));
-    const auto distributedOutputTensorType = createDistributedTensorType(op, op.output(), outputTensorDistributionMode,
-                                                                         outputTensorNumTiles, activationAlignment);
+    const auto distributedOutputTensorType = createDistributedTensorType(
+            op, op.output(), outputTensorDistributionMode, outputTensorNumTiles, activationAlignment, strategy);
 
     auto perClusterShape = distributedOutputTensorType.getLargestCompactShape();
     double perClusterOutputWidth = perClusterShape[Dims4D::Act::W];
@@ -195,8 +195,8 @@ double BaseLayerStrategy::computeSplitEfficiency(ConcreteOp op, StringRef strate
         activationAlignment =
                 getIntArrayAttr(op.getContext(), getActivationTensorAlignment(op.getOperation(), strategy));
     }
-    const auto distributedOutputTensorType = createDistributedTensorType(op, op.output(), outputTensorDistributionMode,
-                                                                         outputTensorNumTiles, activationAlignment);
+    const auto distributedOutputTensorType = createDistributedTensorType(
+            op, op.output(), outputTensorDistributionMode, outputTensorNumTiles, activationAlignment, strategy);
 
     const auto perClusterShape = distributedOutputTensorType.getLargestCompactShape();
     perClusterOutputTensorVolume =
