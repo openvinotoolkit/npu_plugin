@@ -19,8 +19,10 @@ using namespace VPU;
 
 bool DepthConvolutionStrategy::doesLayerFitIntoCMX(mlir::Operation* op, StringRef strategy) const {
     auto origOp = mlir::dyn_cast<NCEDepthConvolutionOp>(op);
-    auto activationTensorDistributionMode = getActivationTensorDistributionMode(strategy);
-    auto activationTensorNumTiles = getIntArrayAttr(
+    mlir::ArrayAttr activationAlignment = nullptr;
+    mlir::ArrayAttr weightAlignment = nullptr;
+    const auto activationTensorDistributionMode = getActivationTensorDistributionMode(strategy);
+    const auto activationTensorNumTiles = getIntArrayAttr(
             origOp.getContext(), getActivationTensorNumTiles(origOp.getOperation(), _numClusters, strategy));
     auto weightsTensorDistributionMode = getWeightsTensorDistributionMode(strategy);
     auto weightsTensorNumTiles = getIntArrayAttr(
@@ -28,12 +30,17 @@ bool DepthConvolutionStrategy::doesLayerFitIntoCMX(mlir::Operation* op, StringRe
     auto outputTensorDistributionMode = getOutputTensorDistributionMode(strategy);
     auto outputTensorNumTiles = getIntArrayAttr(origOp.getContext(),
                                                 getOutputTensorNumTiles(origOp.getOperation(), _numClusters, strategy));
+    if (strategy == splitOverKernel) {
+        activationAlignment = getIntArrayAttr(origOp.getContext(), getActivationTensorAlignment(op, strategy));
+        weightAlignment = getIntArrayAttr(origOp.getContext(), getWeightsTensorAlignment(op, strategy));
+    }
     auto distributedActivationTensorType = createDistributedTensorType(
-            origOp, origOp.input(), activationTensorDistributionMode, activationTensorNumTiles);
-    auto distributeddWeightsTensorType =
-            createDistributedTensorType(origOp, origOp.filter(), weightsTensorDistributionMode, weightsTensorNumTiles);
-    auto distributedOutputTensorType =
-            createDistributedTensorType(origOp, origOp.output(), outputTensorDistributionMode, outputTensorNumTiles);
+            origOp, origOp.input(), activationTensorDistributionMode, activationTensorNumTiles, activationAlignment);
+    const auto distributeddWeightsTensorType = createDistributedTensorType(
+            origOp, origOp.filter(), weightsTensorDistributionMode, weightsTensorNumTiles, weightAlignment);
+    const auto distributedOutputTensorType = createDistributedTensorType(
+            origOp, origOp.output(), outputTensorDistributionMode, outputTensorNumTiles, activationAlignment);
+
     return origOp.fitIntoCMX(distributedActivationTensorType, distributeddWeightsTensorType,
                              distributedOutputTensorType);
 }

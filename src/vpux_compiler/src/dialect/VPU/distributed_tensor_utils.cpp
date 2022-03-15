@@ -67,6 +67,14 @@ SmallVector<int64_t> vpux::VPU::getActivationTensorNumTiles(mlir::Operation* op,
     }
 }
 
+SmallVector<int64_t> vpux::VPU::getActivationTensorAlignment(mlir::Operation* op, StringRef strategy) {
+    if (strategy == splitOverKernel) {
+        return {1, 16, 1, 1};
+    } else {
+        return {1, 1, 1, 1};
+    }
+}
+
 SmallVector<int64_t> vpux::VPU::getOutputTensorNumTiles(mlir::Operation* op, int64_t numClustersAvailableForCompilation,
                                                         StringRef strategy) {
     if (strategy == splitOverHeightOverlapped) {
@@ -105,6 +113,14 @@ SmallVector<int64_t> vpux::VPU::getWeightsTensorNumTiles(mlir::Operation* op,
         VPUX_THROW("{0} is an invalid multi-cluster strategy, unable to determine the number of tiles for the "
                    "weights tensor",
                    strategy);
+    }
+}
+
+SmallVector<int64_t> vpux::VPU::getWeightsTensorAlignment(mlir::Operation* op, StringRef strategy) {
+    if (strategy == splitOverKernel) {
+        return {16, 1, 1, 1};
+    } else {
+        return {1, 1, 1, 1};
     }
 }
 
