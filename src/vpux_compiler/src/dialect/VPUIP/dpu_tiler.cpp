@@ -161,7 +161,7 @@ SmallVector<uint32_t> vpux::VPUIP::DpuTiler::generateSplitNumberPool(int64_t num
     return SmallVector<uint32_t>(dpuMulSplits.begin(), dpuMulSplits.end());
 }
 
-void vpux::VPUIP::DpuTiler::tileOverH(int64_t numDPU, mlir::IntegerAttr clusterId) {
+void vpux::VPUIP::DpuTiler::tileOverH(int64_t numDPU) {
     const int64_t minTileSize = 1;
 
     const int64_t minTilesCount = 1;
@@ -173,7 +173,7 @@ void vpux::VPUIP::DpuTiler::tileOverH(int64_t numDPU, mlir::IntegerAttr clusterI
     Shape nTilesOnDim(_outShape.size(), minTilesCount);
     nTilesOnDim[Dims4D::Act::H] = tilesCount;
 
-    auto outTiles = fillDividedTiles(nTilesOnDim, _outShape, clusterId);
+    auto outTiles = fillDividedTiles(nTilesOnDim, _outShape);
     _splitPool.push_back(std::move(outTiles));
 }
 
