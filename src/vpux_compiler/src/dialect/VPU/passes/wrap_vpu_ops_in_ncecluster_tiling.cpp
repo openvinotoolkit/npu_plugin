@@ -74,18 +74,22 @@ mlir::LogicalResult NCEConvolutionRewriter::matchAndRewrite(NCEConvolutionOp ori
             getIntArrayAttr(origOp.getContext(), getWeightsTableTensorNumTiles(_numClusters, strategy));
     auto outputTensorDistributionMode = getOutputTensorDistributionMode(strategy);
     auto outputTensorNumTiles = getIntArrayAttr(origOp.getContext(), getOutputTensorNumTiles(_numClusters, strategy));
+    const auto arch = VPU::getArch(origOp.getOperation());
+    const auto canUseCMajor =
+            VPU::NCEInvariant::isChannelMajorCompatible(arch, origOp.input().getType().cast<vpux::NDTypeInterface>());
 
     auto distributedActivationCopyOp = createDistributedCopyIn(origOp, origOp.input(), activationTensorDistributionMode,
-                                                               activationTensorNumTiles, true);
+                                                               activationTensorNumTiles, !canUseCMajor);
 
     auto distributedWeightsCopyOp = createDistributedCopyIn(origOp, origOp.filter(), weightsTensorDistributionMode,
-                                                            weightsTensorNumTiles, true);
+                                                            weightsTensorNumTiles, !canUseCMajor);
 
-    auto distributedWeightTableCopyOp = createDistributedCopyIn(
-            origOp, origOp.weightsTable(), weightsTableTensorDistributionMode, weightsTableTensorNumTiles, true);
+    auto distributedWeightTableCopyOp =
+            createDistributedCopyIn(origOp, origOp.weightsTable(), weightsTableTensorDistributionMode,
+                                    weightsTableTensorNumTiles, !canUseCMajor);
 
     auto distributedOutputTensorType = createDistributedTensorType(
-            origOp, origOp.output(), outputTensorDistributionMode, outputTensorNumTiles, true);
+            origOp, origOp.output(), outputTensorDistributionMode, outputTensorNumTiles, !canUseCMajor);
 
     const auto bodyBuilder = [origOp](mlir::OpBuilder& builder, mlir::Location loc, mlir::ValueRange newOperands) {
         mlir::BlockAndValueMapping mapper;
@@ -100,8 +104,7 @@ mlir::LogicalResult NCEConvolutionRewriter::matchAndRewrite(NCEConvolutionOp ori
 
     _log.trace("Wrap {0} into NCEClusterTilingOp", origOp->getName());
 
-    const auto inOrder = DimsOrder::fromValue(origOp.input());
-    if (inOrder == DimsOrder::NCHW) {
+    if (canUseCMajor) {
         auto activationWindowDistributionMode = getActivationWindowTensorDistributionMode(strategy, _arch);
         auto activationWindowNumTiles =
                 getIntArrayAttr(origOp.getContext(), getActivationWindowTensorNumTiles(_numClusters, strategy, _arch));
