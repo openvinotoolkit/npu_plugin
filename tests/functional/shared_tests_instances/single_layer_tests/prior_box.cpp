@@ -6,10 +6,6 @@
 #include "common_test_utils/test_constants.hpp"
 #include "kmb_layer_test.hpp"
 
-// tiny misspelling in 'prior_box.hpp'
-// http://github.com/openvinotoolkit/openvino/issues/9336
-using namespace LayerTestDefinitions;
-
 namespace LayerTestsDefinitions {
 
 class KmbPriorBoxLayerTest : public PriorBoxLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {};
