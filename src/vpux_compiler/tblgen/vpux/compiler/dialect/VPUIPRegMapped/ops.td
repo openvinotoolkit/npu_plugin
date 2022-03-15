@@ -97,69 +97,6 @@ def VPUIPRegMapped_GraphOp :
 }
 
 //
-// DeclareBufferOp
-//
-
-def VPUIPRegMapped_DeclareBufferOp :
-        VPUIPRegMapped_Op<
-            "DeclareBuffer",
-            [
-                NoSideEffect,
-                DeclarationOp,
-                DotInterface,
-                DeclareOpInterfaceMethods<ELF_BinaryOpInterface>
-            ]
-        > {
-    let summary = "TensorReference value declaration";
-
-    let arguments = (ins
-        VPUIPRegMapped_MemoryLocation:$locale,
-        I64ArrayAttr:$localeIndex,
-
-        IntAttr:$dataIndex,
-        OptionalAttr<IntAttr>:$sparsityIndex,
-        OptionalAttr<IntAttr>:$storageElementIndex,
-        OptionalAttr<IntAttr>:$storageElementSize,
-
-        OptionalAttr<IntAttr>:$leadingOffset,
-        OptionalAttr<IntAttr>:$trailingOffset
-    );
-
-    let results = (outs
-        AnyMemRef:$memory
-    );
-
-    let builders = [
-        OpBuilder<
-            (ins "mlir::Type":$memory, "vpux::VPUIPRegMapped::MemoryLocation":$locale, "uint64_t":$dataIndex)
-        >,
-        OpBuilder<
-            (ins "mlir::Type":$memory, "vpux::VPUIPRegMapped::MemoryLocation":$locale, "uint32_t":$localeIndex, "uint64_t":$dataIndex)
-        >,
-        OpBuilder<
-            (ins "mlir::Type":$memory, "vpux::VPUIPRegMapped::MemoryLocation":$locale, "ArrayRef<int64_t>":$localeIndex, "uint64_t":$dataIndex)
-        >
-    ];
-
-    let verifier = [{
-        return vpux::VPUIPRegMapped::verifyOp(*this);
-    }];
-
-    let assemblyFormat = [{
-        $locale custom<LocaleIndex>($localeIndex) `<` $dataIndex `>` attr-dict `->` type(results)
-    }];
-
-    let extraClassDeclaration = [{
-        static mlir::ParseResult parseLocaleIndex(mlir::OpAsmParser& parser, mlir::ArrayAttr& localeIndex);
-        static void printLocaleIndex(mlir::OpAsmPrinter& printer, vpux::VPUIPRegMapped::DeclareBufferOp& op, mlir::ArrayAttr localeIndex);
-
-        vpux::DotNodeColor getNodeColor() {
-            return vpux::DotNodeColor::ORANGE;
-        }
-    }];
-}
-
-//
 // DeclareVirtualBarrierOp
 //
 
@@ -361,10 +298,8 @@ def VPUIPRegMapped_NNDMAOp :
         }
 
         vpux::DotNodeColor getNodeColor() {
-            auto memResource = VPUIPRegMapped::getPhysicalMemory(output().getType().cast<mlir::MemRefType>());
-            if (!mlir::failed(memResource) && memResource.getValue() == VPUIPRegMapped::PhysicalMemory::DDR)
-                return DotNodeColor::RED;
-            return DotNodeColor::GREEN;
+            const auto memKind = vpux::VPU::getMemoryKind(getType());
+            return memKind == vpux::VPU::MemoryKind::DDR ? vpux::DotNodeColor::RED : vpux::DotNodeColor::GREEN;
         }
 
         void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects) {

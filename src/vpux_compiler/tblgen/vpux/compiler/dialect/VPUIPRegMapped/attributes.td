@@ -17,64 +17,6 @@
 include "vpux/compiler/core/attributes.td"
 include "vpux/compiler/dialect/VPUIPRegMapped/dialect.td"
 
-//
-// PhysicalProcessor
-//
-
-def VPUIPRegMapped_PhysicalProcessor :
-        StrEnumAttr<
-            "PhysicalProcessor",
-            "Enum for describing processor resources",
-            [
-                StrEnumAttrCase<"ARM">,
-                StrEnumAttrCase<"Leon_RT">,
-                StrEnumAttrCase<"Leon_NN">,
-                StrEnumAttrCase<"SHAVE_UPA">,
-                StrEnumAttrCase<"SHAVE_NN">,
-                StrEnumAttrCase<"NCE_Cluster">,
-                StrEnumAttrCase<"NCE_PerClusterDPU">,
-            ]
-        > {
-    let cppNamespace = "vpux::VPUIPRegMapped";
-    let genSpecializedAttr = 1;
-}
-
-//
-// DMAEngine
-//
-
-def VPUIPRegMapped_DMAEngine :
-        StrEnumAttr<
-            "DMAEngine",
-            "DMA engine kind",
-            [
-                StrEnumAttrCase<"DMA_UPA">,
-                StrEnumAttrCase<"DMA_NN">,
-            ]
-        > {
-    let cppNamespace = "vpux::VPUIPRegMapped";
-    let genSpecializedAttr = 1;
-}
-
-//
-// PhysicalMemory
-//
-
-def VPUIPRegMapped_PhysicalMemory :
-        StrEnumAttr<
-            "PhysicalMemory",
-            "Represents the actual hardware memory hierarchy",
-            [
-                StrEnumAttrCase<"DDR">,
-                StrEnumAttrCase<"CSRAM">,
-                StrEnumAttrCase<"CMX_UPA">,
-                StrEnumAttrCase<"CMX_NN">,
-                StrEnumAttrCase<"Register">,
-            ]
-        > {
-    let cppNamespace = "vpux::VPUIPRegMapped";
-    let genSpecializedAttr = 1;
-}
 
 //
 // Version
@@ -125,89 +67,6 @@ def VPUIPRegMapped_TaskType :
                 StrEnumAttrCase<"UPA">,
                 StrEnumAttrCase<"SNN">,
                 StrEnumAttrCase<"Generic">,
-            ]
-        > {
-    let cppNamespace = "vpux::VPUIPRegMapped";
-    let genSpecializedAttr = 1;
-}
-
-//
-// MemoryLocation
-//
-
-def VPUIPRegMapped_MemoryLocation :
-        StrEnumAttr<
-            "MemoryLocation",
-            "Values indicating which type of memory a tensor resides in",
-            [
-                StrEnumAttrCase<"ProgrammableInput">,
-                StrEnumAttrCase<"ProgrammableOutput">,
-                StrEnumAttrCase<"VPU_DDR_Heap">,
-                StrEnumAttrCase<"GraphFile">,
-                StrEnumAttrCase<"VPU_CMX_NN">,
-                StrEnumAttrCase<"VPU_CMX_UPA">,
-                StrEnumAttrCase<"VPU_DDR_BSS">,
-                StrEnumAttrCase<"VPU_CSRAM">,
-                StrEnumAttrCase<"AbsoluteAddr">,
-                StrEnumAttrCase<"MAC_Accumulators">,
-            ]
-        > {
-    let cppNamespace = "vpux::VPUIPRegMapped";
-    let genSpecializedAttr = 1;
-}
-
-//
-// ArchKind
-//
-
-def VPUIPRegMapped_ArchKind :
-        StrEnumAttr<
-            "ArchKind",
-            "Represents VPU architecture generation",
-            [
-                StrEnumAttrCase<"KMB">,
-                StrEnumAttrCase<"TBH">,
-                StrEnumAttrCase<"MTL">,
-            ]
-        > {
-    let cppNamespace = "vpux::VPUIPRegMapped";
-    let genSpecializedAttr = 1;
-}
-
-//
-// PoolLayerType
-//
-
-def VPUIPRegMapped_PoolLayerType :
-        StrEnumAttr<
-            "PoolLayerType",
-            "Type of Pooling layer",
-            [
-                StrEnumAttrCase<"MAX">,
-                StrEnumAttrCase<"AVG">,
-            ]
-        > {
-    let cppNamespace = "vpux::VPUIPRegMapped";
-    let genSpecializedAttr = 1;
-}
-
-//
-// EltwiseLayerType
-//
-
-def VPUIPRegMapped_EltwiseLayerType :
-        StrEnumAttr<
-            "EltwiseLayerType",
-            "Type of Eltwise layer",
-            [
-                StrEnumAttrCase<"ADD">,
-                StrEnumAttrCase<"MULTIPLY">,
-                StrEnumAttrCase<"DIVIDE">,
-                StrEnumAttrCase<"SQUARED_DIFF">,
-                StrEnumAttrCase<"POWER">,
-                StrEnumAttrCase<"FLOOR_MOD">,
-                StrEnumAttrCase<"MIN">,
-                StrEnumAttrCase<"MAX">,
             ]
         > {
     let cppNamespace = "vpux::VPUIPRegMapped";
@@ -307,23 +166,6 @@ def VPUIPRegMapped_NCETaskType :
 }
 
 //
-// CompilationMode
-//
-
-def VPUIPRegMapped_CompilationMode  :
-        StrEnumAttr<
-            "CompilationMode",
-            "Compilation Mode",
-            [
-                StrEnumAttrCase<"ReferenceSW">,
-                StrEnumAttrCase<"ReferenceHW">
-            ]
-        > {
-    let cppNamespace = "vpux::VPUIPRegMapped";
-    let genSpecializedAttr = 1;
-}
-
-//
 // PaddingAttr
 //
 
@@ -338,55 +180,4 @@ def VPUIPRegMapped_PaddingAttr :
                 StructFieldAttr<"bottom", IntAttr>,
             ]
         >;
-
-//
-// eDSL DMA
-//
-
-def VPUIPRegMapped_EdslDMAStage :
-        StrEnumAttr<
-            "EdslDMAStage",
-            "eDSL DMA stage",
-            [
-                StrEnumAttrCase<"NONE">,
-                StrEnumAttrCase<"OUTER">,
-                StrEnumAttrCase<"MIDDLE">,
-                StrEnumAttrCase<"ALL">,
-            ]
-        > {
-    let cppNamespace = "vpux::VPUIPRegMapped";
-    let genSpecializedAttr = 1;
-}
-
-def VPUIPRegMapped_EdslDMADirection :
-        StrEnumAttr<
-            "EdslDMADirection",
-            "eDSL DMA direction",
-            [
-                StrEnumAttrCase<"NONE">,
-                StrEnumAttrCase<"IN">,
-                StrEnumAttrCase<"OUT">,
-                StrEnumAttrCase<"INOUT">,
-            ]
-        > {
-    let cppNamespace = "vpux::VPUIPRegMapped";
-    let genSpecializedAttr = 1;
-}
-
-def VPUIPRegMapped_EdslDMADesc :
-        StructAttr<
-            "VPUIPRegMapped_EdslDMADesc",
-            VPUIPRegMapped_Dialect,
-            [
-                StructFieldAttr<"baseMap", AffineMapAttr>,
-                StructFieldAttr<"stage", VPUIPRegMapped_EdslDMAStage>,
-                StructFieldAttr<"dir", VPUIPRegMapped_EdslDMADirection>
-            ]
-        > {
-    let cppNamespace = "vpux::VPUIPRegMapped";
-}
-
-def VPUIPRegMapped_EdslDMADescArrayAttr : TypedArrayAttrBase<VPUIPRegMapped_EdslDMADesc,
-                                      "eDSL DMA descriptor array attribute">;
-
 #endif

@@ -15,14 +15,12 @@
 #include "vpux/compiler/dialect/ELF/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPUIPRegMapped/ops.hpp"
+#include "vpux/compiler/dialect/VPURT/ops.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
-
-#include "llvm/Support/Debug.h"
 
 #include <mlir/IR/BlockAndValueMapping.h>
 #include <mlir/Transforms/DialectConversion.h>
 #include <mlir/Transforms/GreedyPatternRewriteDriver.h>
-//#include "mlir/IR/PatternMatch.h"
 
 #include "host_parsed_inference.h"
 
@@ -312,12 +310,12 @@ void Convert2VPUIPRegMappedAndELFPass::createRelocationSection(mlir::FuncOp func
 
             if (blockArgNum < diOpInVec.size()) {
                 putOpInSectionOp = builderInputSymTabSec.create<ELF::PutOpInSectionOp>(
-                        builderInputSymTabSec.getUnknownLoc(),         // endOp->getLoc(), // 2022_02_09
+                        builderInputSymTabSec.getUnknownLoc(),         // endOp->getLoc(),
                         ELFSymbolOp[idx].getOperation()->getResult(0)  // mlir::Value inputArg
                 );
             } else {
                 putOpInSectionOp = builderOutputSymTabSec.create<ELF::PutOpInSectionOp>(
-                        builderOutputSymTabSec.getUnknownLoc(),        // endOp->getLoc(), // 2022_02_09
+                        builderOutputSymTabSec.getUnknownLoc(),        // endOp->getLoc(),
                         ELFSymbolOp[idx].getOperation()->getResult(0)  // mlir::Value inputArg
                 );
             }
@@ -341,8 +339,7 @@ void Convert2VPUIPRegMappedAndELFPass::createRelocationSection(mlir::FuncOp func
             ".rlt.dma",                                                // secName, // llvm::StringRef
             createRestSymTableSectionOp.getOperation()->getResult(0),  // sourceSymbolTableSection,
             nndmaSectionOpValue,                                       // targetSection,
-            // vpux::ELF::SectionFlagsAttr::SHF_NONE                      // vpux::ELF::SectionFlagsAttr secFlags, //
-            // 2022_02_09
+            // vpux::ELF::SectionFlagsAttr::SHF_NONE                      // vpux::ELF::SectionFlagsAttr secFlags,
             vpux::ELF::SectionFlagsAttr::SHF_INFO_LINK);
     //
     _log.fatal("createRelocationSection(): createRestRelocationSectionOp = {0}\n", createRestRelocationSectionOp);
@@ -486,9 +483,9 @@ void Convert2VPUIPRegMappedAndELFPass::safeRunOnModule() {
             // We build 4 different createSections, one for VPUIPRegMapped::DeclareBufferOp,
             //   one for Const::DeclareOp, one for VPUIPRegMapped::NNDMAOp and
             //   one for VPUIPRegMapped::ConfigureBarrierOp.
-            createSection<vpux::VPUIPRegMapped::DeclareBufferOp>(funcOp, ctx, ".data.Weights",
-                                                                 vpux::ELF::SectionTypeAttr::SHT_PROGBITS,
-                                                                 vpux::ELF::SectionFlagsAttr::SHF_ALLOC);
+            createSection<vpux::VPURT::DeclareBufferOp>(funcOp, ctx, ".data.Weights",
+                                                        vpux::ELF::SectionTypeAttr::SHT_PROGBITS,
+                                                        vpux::ELF::SectionFlagsAttr::SHF_ALLOC);
             createSection<vpux::Const::DeclareOp>(funcOp, ctx, ".data.Weights_ct",
                                                   vpux::ELF::SectionTypeAttr::SHT_PROGBITS,
                                                   vpux::ELF::SectionFlagsAttr::SHF_ALLOC);

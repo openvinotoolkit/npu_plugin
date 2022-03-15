@@ -35,16 +35,16 @@ namespace VPUIPRegMapped {
 // MemoryLocation utilities
 //
 
-PhysicalMemory getPhysicalMemory(MemoryLocation location);
-mlir::FailureOr<PhysicalMemory> getPhysicalMemory(mlir::MemRefType memref);
+// PhysicalMemory getPhysicalMemory(MemoryLocation location);
+// mlir::FailureOr<PhysicalMemory> getPhysicalMemory(mlir::MemRefType memref);
 
-MemoryLocation getDefaultMemoryLocation(PhysicalMemory location);
-mlir::FailureOr<VPUIPRegMapped::MemoryLocation> getMemoryLocation(mlir::MemRefType memref);
+// MemoryLocation getDefaultMemoryLocation(PhysicalMemory location);
+// mlir::FailureOr<VPUIPRegMapped::MemoryLocation> getMemoryLocation(mlir::MemRefType memref);
 
-bool isMemoryCompatible(MemoryLocation location, mlir::MemRefType memref);
+// bool isMemoryCompatible(MemoryLocation location, mlir::MemRefType memref);
 
-CompilationMode getCompilationMode(mlir::Operation* op);
-void setCompilationMode(mlir::ModuleOp module, CompilationMode compilationMode);
+// CompilationMode getCompilationMode(mlir::Operation* op);
+// void setCompilationMode(mlir::ModuleOp module, CompilationMode compilationMode);
 
 }  // namespace VPUIPRegMapped
 }  // namespace vpux

@@ -13,9 +13,18 @@
 
 #include <vpux_elf/writer.hpp>
 #include "vpux/compiler/dialect/ELF/ops.hpp"
+#include "vpux/compiler/dialect/VPURT/ops.hpp"
 
 void vpux::ELF::PutOpInSectionOp::serialize(elf::writer::BinaryDataSection<uint8_t>& binDataSection) {
     auto inputArgDefOp = inputArg().getDefiningOp();
+
+    if (llvm::dyn_cast_or_null<vpux::VPURT::DeclareBufferOp>(inputArgDefOp) != nullptr) {
+        // No serialiation, since VPURT::DeclareBufferOp is a simple logical operations.
+        // We don't treat specially VPURT::DeclareBufferOp since it
+        //   doesn't have any data for serialization.
+        return;
+    }
+
     auto binaryIface = llvm::dyn_cast_or_null<vpux::ELF::BinaryOpInterface>(inputArgDefOp);
 
     VPUX_THROW_UNLESS(binaryIface != nullptr, "inputArgDefOp is expected to define elf::BinaryOpInterface");
