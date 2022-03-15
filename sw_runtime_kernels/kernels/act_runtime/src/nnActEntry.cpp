@@ -12,7 +12,7 @@
 //
 
 #include <DrvRegUtils.h>
-#include <DrvSvuL1Cache.h>
+//#include <DrvSvuL1Cache.h>
 #include <cpuWhoAmI.h>
 #include <nn_barrier.h>
 #include <nn_fifo.h>

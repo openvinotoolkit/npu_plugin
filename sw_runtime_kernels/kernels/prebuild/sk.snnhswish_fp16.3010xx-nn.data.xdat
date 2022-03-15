@@ -1,0 +1,3 @@
+unsigned char sk_snnhswish_fp16_3010xx_nn_data[] = {
+};
+unsigned int sk_snnhswish_fp16_3010xx_nn_data_len = 0;

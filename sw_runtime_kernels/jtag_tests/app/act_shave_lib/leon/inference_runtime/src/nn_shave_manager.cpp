@@ -33,6 +33,12 @@ __attribute__((aligned(1024)))
 __attribute__((aligned(1024)))
 #include "sk.nnEntry.3010xx.data.xdat"
 
+__attribute__((aligned(1024)))
+#include "sk.snnhswish_fp16.3010xx-nn.text.xdat"
+
+__attribute__((aligned(1024)))
+#include "sk.snnhswish_fp16.3010xx-nn.data.xdat"
+
 extern void *shvNN0_nnEntry;
 extern unsigned char sk_nnActEntry_3010xx_text[];
 //extern unsigned char sk_nnEntry_3010xx_text[];
@@ -261,6 +267,16 @@ void ShaveManager::startNNShavesForTile(const uint32_t tile) {
         if (rc != HGL_SHAVE_CTRL_SUCCESS) {
             nnLog(MVLOG_ERROR, "ShaveCtrlSetWindowAddr: %d", (int)rc);
         }
+
+
+        uint32_t snnKernelCodeWin = (uint32_t)sk_snnhswish_fp16_3010xx_nn_text;//cmxMapping.globalData_[tile].addr32();
+        nnLog(MVLOG_ERROR, "Setting WIN_%d for NN Shave %d to %x", mapWindowAddrMaskToName(SNN_KERNEL_CODE_WINDOW), i,
+                snnKernelCodeWin);
+        rc = ShCtrlSetWindowAddr(nnShvHnd[i], mapWindowAddrMaskToName(SNN_KERNEL_CODE_WINDOW), snnKernelCodeWin);
+        if (rc != HGL_SHAVE_CTRL_SUCCESS) {
+            nnLog(MVLOG_ERROR, "ShaveCtrlSetWindowAddr: %d", (int)rc);
+        }
+
 
         auto fifoCfg = snn_cfgs[i];
         printFifoConfig(unpackSHVConfig(fifoCfg));

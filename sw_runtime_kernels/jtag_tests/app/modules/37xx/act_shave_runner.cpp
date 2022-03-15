@@ -30,6 +30,8 @@ __attribute__((aligned(1024)))
 
 #include <nn_perf_manager.h>
 
+extern unsigned char sk_snnhswish_fp16_3010xx_nn_text[];
+
 unsigned char __attribute__((section(".nncmx0.shared.data"), aligned(64))) actShaveData[SHAVE_LIB_DATA_SIZE];
 unsigned int actShaveDataReserved = 0;
 
@@ -83,84 +85,9 @@ perf::ActPerfReport __attribute__((section(".nncmx0.shared.data"), aligned(64)))
 
 PerformanceData* perfData = nullptr;
 
-//bool ShaveTaskRunner::enqueTask(Op * operation,
-//                              const std::vector<OpTensor> &inputs,
-//                              const std::vector<OpTensor> &outputs,
-//                              int /*numSHAVEs*/,
-//                              PerformanceData *_perfData) {
-//
-//    actShaveDataReserved = 0;
-//
-//    HglShaveAccessAllowed[1] = false;
-//    HglShaveAccessAllowed[2] = true;
-//    cache::flush(HglShaveAccessAllowed, sizeof(bool) * HGL_SHAVE_TYPE_NB);
-//    auto globalAreas = getStaticMapping(nnCmx);
-//    _shaveManager = getShaveManager(globalAreas);
-//
-//    actRtConfigs.useScheduleEmbeddedRt_ = true;
-//
-//    CustomCpp * customOp = static_cast<CustomCpp*>(operation);
-//
-//    actRtConfigs.runtimeEntry_ = reinterpret_cast<nn::common_runtime::actRuntimeEntry>(sk_nnActEntry_3010xx_text);
-//    actRtConfigs.actRtWindowBase_ = reinterpret_cast<unsigned char*>(sk_nnActEntry_3010xx_text);
-//
-//    operation->parse(&layer);
-//
-//    cache::flush(actRtConfigs);
-//    cache::flush(globalAreas);
-//    cache::flush(_shaveManager);
-//    cache::flush(*globalAreas);
-//    cache::flush(*_shaveManager);
-//    _shaveManager->startActShavesForTile(0, actRtConfigs, true);
-//
-//    act_runtime::ActKernelRange kRng = {nn::act_runtime::ActWLType::WL_KERNEL,
-//                                            reinterpret_cast<act_runtime::actKernelEntry>(customOp->ops.kernel),
-//                                            reinterpret_cast<act_runtime::actKernelTextBuffer>(customOp->ops.kernel),
-//                                            customOp->ops.kernelDataLen,
-//                                            0};
-//
-//    kRange = kRng;
-//    cache::flush(kRange);
-//
-//    const BarrierUserConfig userBariers = {ConsumerMask, ProducerMask, 0, 0, 0};
-////        PhysicalBarrierMask wait_mask_;
-////        PhysicalBarrierMask post_mask_;
-////        unsigned short start_after_;
-////        unsigned short clean_after_;
-////        unsigned int virtual_dep_;
-////    };
-//    cache::flush(userBariers);
-//
-//    const BarrierGpioConfig gpioBarriers = {0, 0};
-////    {
-////        unsigned char group_;
-////        unsigned char mask_;
-////    };
-//    cache::flush(gpioBarriers);
-//
-//    HglBarrierReset(ConsumerMask);
-//    HglBarrierReset(ProducerMask);
-//    HglBarrierSetProdConsCounts(ConsumerNum, 1, 1);
-//    HglBarrierSetProdConsCounts(ProducerNum, 1, 0);
-//
-//    perfData = _perfData;
-//
-//    act_runtime::ActKernelInvocation kInv = {&kRange,
-//            (void*)(customOp->ops.paramData),
-//            reinterpret_cast<act_runtime::actKernelDataBuffer>(customOp->ops.paramData),
-//            userBariers, gpioBarriers, (perfData ? &actPerfReport : 0)
-//    };
-//    kInvo = kInv;
-//    cache::flush(kInvo);
-//    leonDataCacheFlush();
-//    fifo::sendWorkToASs(0/*local_aki.tile_*/, &kInvo);
-//
-//    HglBarrierProduce(ConsumerMask);
-//
-//    _enqued = true;
-//    return true;
-//}
 
+//#define ACT_SHAVES
+#ifdef ACT_SHAVES
 bool ShaveTaskRunner::enqueTask(Op * operation,
                               const std::vector<OpTensor> &inputs,
                               const std::vector<OpTensor> &outputs,
@@ -171,8 +98,6 @@ bool ShaveTaskRunner::enqueTask(Op * operation,
 
     HglShaveAccessAllowed[1] = true;
     HglShaveAccessAllowed[2] = true;
-//    HglShaveAccessAllowed[1] = false;
-//    HglShaveAccessAllowed[2] = true;
     cache::flush(HglShaveAccessAllowed, sizeof(bool) * HGL_SHAVE_TYPE_NB);
     auto globalAreas = getStaticMapping(nnCmx);
     _shaveManager = getShaveManager(globalAreas);
@@ -186,16 +111,12 @@ bool ShaveTaskRunner::enqueTask(Op * operation,
 
     operation->parse(&layer);
 
-    int * tmp = (int*)0x2e006580;
-    tmp[0] = 345;
-    cache::flush(tmp, sizeof(int) * 32);
     cache::flush(actRtConfigs);
     cache::flush(globalAreas);
     cache::flush(_shaveManager);
     cache::flush(*globalAreas);
     cache::flush(*_shaveManager);
-    _shaveManager->startNNShavesForTile(0/*, actRtConfigs, true*/);
-    return true;
+    _shaveManager->startActShavesForTile(0, actRtConfigs, true);
 
     act_runtime::ActKernelRange kRng = {nn::act_runtime::ActWLType::WL_KERNEL,
                                             reinterpret_cast<act_runtime::actKernelEntry>(customOp->ops.kernel),
@@ -245,34 +166,106 @@ bool ShaveTaskRunner::enqueTask(Op * operation,
     return true;
 }
 
-//bool ShaveTaskRunner::dequeResult() {
-//    if (_enqued) {
-//        HglBarrierWait(ProducerMask);
-//
-//        nnLog(MVLOG_DEBUG, "After send waiting is done");
-//
-//        _shaveManager->stopActShavesForTiles();
-//        _enqued = false;
-//    }
-//
-//    if (perfData) {
-//        if (perfData->perfCounters)
-//            perfData->perfCounters->cycles = actPerfReport.duration;
-//        perfData->elapsedTimeNs = (actPerfReport.duration * 1000.0f) / OsDrvBootCalculateBootFrequency();
-//        perfData = nullptr;
-//    }
-//
-//    return true;
-//}
+#else
+bool ShaveTaskRunner::enqueTask(Op * operation,
+                              const std::vector<OpTensor> &inputs,
+                              const std::vector<OpTensor> &outputs,
+                              int /*numSHAVEs*/,
+                              PerformanceData *_perfData) {
 
-bool ShaveTaskRunner::dequeResult() {
+    actShaveDataReserved = 0;
+
+    HglShaveAccessAllowed[1] = true;
+    HglShaveAccessAllowed[2] = true;
+//    HglShaveAccessAllowed[1] = false;
+//    HglShaveAccessAllowed[2] = true;
+    cache::flush(HglShaveAccessAllowed, sizeof(bool) * HGL_SHAVE_TYPE_NB);
+    auto globalAreas = getStaticMapping(nnCmx);
+    _shaveManager = getShaveManager(globalAreas);
+
+    actRtConfigs.useScheduleEmbeddedRt_ = true;
+
+    CustomCpp * customOp = static_cast<CustomCpp*>(operation);
+
+    actRtConfigs.runtimeEntry_ = reinterpret_cast<nn::common_runtime::actRuntimeEntry>(sk_nnActEntry_3010xx_text);
+    actRtConfigs.actRtWindowBase_ = reinterpret_cast<unsigned char*>(sk_nnActEntry_3010xx_text);
+
+    operation->parse(&layer);
+
+//    int * tmp = (int*)0x2e006580;
+//    tmp[0] = 345;
+//    cache::flush(tmp, sizeof(int) * 32);
+    cache::flush(actRtConfigs);
+    cache::flush(globalAreas);
+    cache::flush(_shaveManager);
+    cache::flush(*globalAreas);
+    cache::flush(*_shaveManager);
+    leonDataCacheFlush();
+    _shaveManager->startNNShavesForTile(0/*, actRtConfigs, true*/);
+    printf("!!!!!!!!!!!!  sk_snnhswish_fp16_3010xx_nn_text %p  ops.paramData %p !!!!!!!!!!!!!\n",
+            sk_snnhswish_fp16_3010xx_nn_text, customOp->ops.paramData);
 //    return true;
+
+    act_runtime::ActKernelRange kRng = {nn::act_runtime::ActWLType::WL_KERNEL,
+                                            reinterpret_cast<act_runtime::actKernelEntry>(customOp->ops.kernel),
+                                            reinterpret_cast<act_runtime::actKernelTextBuffer>(customOp->ops.kernel),
+                                            customOp->ops.kernelDataLen,
+                                            0};
+
+    kRange = kRng;
+    cache::flush(kRange);
+
+    const BarrierUserConfig userBariers = {ConsumerMask, ProducerMask, 0, 0, 0};
+//        PhysicalBarrierMask wait_mask_;
+//        PhysicalBarrierMask post_mask_;
+//        unsigned short start_after_;
+//        unsigned short clean_after_;
+//        unsigned int virtual_dep_;
+//    };
+    cache::flush(userBariers);
+
+    const BarrierGpioConfig gpioBarriers = {0, 0};
+//    {
+//        unsigned char group_;
+//        unsigned char mask_;
+//    };
+    cache::flush(gpioBarriers);
+
+//    HglBarrierReset(ConsumerMask);
+//    HglBarrierReset(ProducerMask);
+//    HglBarrierSetProdConsCounts(ConsumerNum, 1, 1);
+//    HglBarrierSetProdConsCounts(ProducerNum, 1, 0);
+
+    perfData = _perfData;
+
+    act_runtime::ActKernelInvocation kInv = {&kRange,
+            (void*)(customOp->ops.paramData),
+            reinterpret_cast<act_runtime::actKernelDataBuffer>(customOp->ops.paramData),
+            userBariers, gpioBarriers, (perfData ? &actPerfReport : 0)
+    };
+
+    kInvo = kInv;
+    cache::flush(kInvo);
+    leonDataCacheFlush();
+//    fifo::sendWorkToASs(0/*local_aki.tile_*/, &kInvo);
+
+//    HglBarrierProduce(ConsumerMask);
+
+//    _shaveManager->startNNShavesForTile(0/*, actRtConfigs, true*/);
+
+    _enqued = true;
+    return true;
+}
+#endif
+
+#ifdef ACT_SHAVES
+bool ShaveTaskRunner::dequeResult() {
     if (_enqued) {
         HglBarrierWait(ProducerMask);
 
         nnLog(MVLOG_DEBUG, "After send waiting is done");
 
-        _shaveManager->stopNNShavesForTiles();
+        _shaveManager->stopActShavesForTiles();
         _enqued = false;
     }
 
@@ -283,17 +276,41 @@ bool ShaveTaskRunner::dequeResult() {
         perfData = nullptr;
     }
 
-    int * tmp = (int*)0x2e006580;
-    cache::invalidate(tmp, sizeof(int) * 32);
-    for (int i = 0; i < 20; i += 10) {
-        printf("!!!!!!!!!!! %p : %d) ", actShaveData, i);
-        for(int j = 0; j < 10; j++) {
-            cache::invalidate(tmp, sizeof(int) * 32);
-            printf(" %d ", tmp[i + j]);
-//            if (tmp[0] == 123) break;
-        }
-        if (tmp[0] == 123) break;
-        printf("!!!!!!!!!!\n");
-    }
     return true;
 }
+#else
+bool ShaveTaskRunner::dequeResult() {
+//    return true;
+    for(int i = 0; i < 10000; i++) {
+        if(i > 9800) break;
+    }
+    if (_enqued) {
+//        HglBarrierWait(ProducerMask);
+//        nnLog(MVLOG_DEBUG, "After send waiting is done");
+
+        _shaveManager->stopNNShavesForTiles();
+        _enqued = false;
+    }
+
+//    if (perfData) {
+//        if (perfData->perfCounters)
+//            perfData->perfCounters->cycles = actPerfReport.duration;
+//        perfData->elapsedTimeNs = (actPerfReport.duration * 1000.0f) / OsDrvBootCalculateBootFrequency();
+//        perfData = nullptr;
+//    }
+
+//    int * tmp = (int*)0x2e006580;
+//    cache::invalidate(tmp, sizeof(int) * 32);
+//    for (int i = 0; i < 30; i += 10) {
+//        printf("!!!!!!!!!!! %p : %d) ", actShaveData, i);
+//        for(int j = 0; j < 10; j++) {
+//            cache::invalidate(tmp, sizeof(int) * 32);
+//            printf(" %d(0x%x, %f) ", tmp[i + j], tmp[i + j], ((float*)tmp)[i + j]);
+////            if (tmp[0] == 123) break;
+//        }
+////        if (tmp[0] == 123) break;
+//        printf("!!!!!!!!!!\n");
+//    }
+    return true;
+}
+#endif

@@ -19,9 +19,9 @@ __attribute__((aligned(1024)))
 
 namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, HSwish)) {
     static constexpr std::initializer_list<SingleTest> hswish_test_list{
-//            {{1, 1, 7}, {1, 1, 7}, orderZYX, FPE("hswish_fp16.elf"), {sw_params::Location::NN_CMX}},
+            {{1, 1, 7}, {1, 1, 7}, orderZYX, FPE("hswish_fp16.elf"), {sw_params::Location::NN_CMX}},
+            {{1, 1, 8}, {1, 1, 7}, orderZYX, FPE("hswish_fp16.elf"), {sw_params::Location::NN_CMX}},
             {{1, 1, 20}, {1, 1, 20}, orderZYX, FPE("hswish_fp16.elf"), {sw_params::Location::NN_CMX}},
-//            {{1000, 1, 1}, {1000, 1, 1}, orderZYX, FPE("hswish_fp16.elf"), {sw_params::Location::NN_CMX}}
             };
 
     class CustomCppHSwishTest : public CustomCppTests<fp16> {
@@ -66,13 +66,13 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, HSwish)) {
         }
 
         void generateInputData() override {
-#if defined(USE_SEED_VALUE)
-            auto seedValue = USE_SEED_VALUE;
-#else
-            u64 systemTicks;
-            DrvTimerGetSystemTicks64(&systemTicks);
-            auto seedValue = static_cast<unsigned int>(systemTicks);
-#endif
+//#if defined(USE_SEED_VALUE)
+//            auto seedValue = USE_SEED_VALUE;
+//#else
+            static u64 systemTicks = 0;
+//            DrvTimerGetSystemTicks64(&systemTicks);
+            auto seedValue = static_cast<unsigned int>(systemTicks++);
+//#endif
             std::mt19937 generator(seedValue);
             m_inputTensor.forEach(false, [this, &generator](const MemoryDims& indices) {
                 // We generate the random value between -8.f and 8f and the kernel do x * relu6(x+3) / 6
@@ -128,7 +128,7 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, HSwish)) {
 
                 threshold_test_failed |= differ;
 
-                if (differ && GlobalData::doPrintDiffs) {
+                /*if (differ && GlobalData::doPrintDiffs) */{
                     char indices_str[64];
                     printf("DIFF [%s] %f %f %f abs_diff: %f rel_diff: %f\n",
                            m_outputTensor.indicesToString(indices, indices_str), f16Tof32(m_inputTensor.at(indices)),
