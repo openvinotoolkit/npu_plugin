@@ -4436,7 +4436,7 @@
         {
             "name" : "BDK_onnx_FP16_INT8_modnet_custom",
             "ir" : "models/clientmodels/BDK4/modnet_custom/onnx/FP16-INT8/modnet_custom.xml",
-            "category" : "MLIR/weekly_private",            
+            "category" : "MLIR/weekly_private",
             "3720": {
                 "disabled" : true
             },
@@ -4883,6 +4883,74 @@
             },
             "CI-options" : {
                 "blob_name" : "bdk_tf_FP16-INT8_ssd-mobilenet"
+            }
+        },
+        {
+            "name" : "scale_tf_FP16-INT8_shufflenet-v2-x1.0",
+            "ir" : "scale/shufflenet-v2-x1.0/tf/FP16-INT8/shufflenet-v2-x1.0.xml",
+            "category" : "MLIR/SKIP_WIN",
+            "3900" : {
+                "disabled" : true
+            },
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_COMPILER_TYPE": "MLIR",
+                "PERFORMANCE_HINT": "THROUGHPUT",
+                "VPUX_INFERENCE_SHAVES": "16"
+            },
+            "BenchmarkApp" : {
+                "input_folder": "224x224"
+            },
+            "AccuracyCheck" : {
+                "config": "shufflenet-v2-x1.0.yml",
+                "subsample_size": 100
+            },
+            "NetTest": {
+                "inputs" : [["224x224/watch.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "1",
+                    "--prob_tolerance", "0.7"
+                ]
+            },
+            "CI-options" : {
+                "blob_name" : "shufflenet-v2-x1.0"
+            }
+        },
+        {
+            "name" : "scale_tf_FP16-INT8_se-resnext-50",
+            "ir" : "scale/se-resnext-50/tf/FP16-INT8/se-resnext-50.xml",
+            "category" : "MLIR/SKIP_WIN",
+            "3900" : {
+                "disabled" : true
+            },
+            "3720": {
+                "disabled" : true
+			},
+            "extra_config" : {
+                "VPUX_COMPILER_TYPE": "MLIR",
+                "PERFORMANCE_HINT": "THROUGHPUT",
+                "VPUX_INFERENCE_SHAVES": "16"
+            },
+            "BenchmarkApp" : {
+                "input_folder": "224x224"
+            },
+            "AccuracyCheck" : {
+                "config": "se-resnext-50.yml",
+                "subsample_size": 100
+            },
+            "NetTest": {
+                "inputs" : [["224x224/watch.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "1",
+                    "--prob_tolerance", "0.7"
+                ]
+            },
+            "CI-options" : {
+                "blob_name" : "se-resnext-50"
             }
         }
     ]
