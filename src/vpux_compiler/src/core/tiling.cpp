@@ -52,6 +52,8 @@ OutputTiling vpux::fillDividedTiles(ShapeRef divisors, ShapeRef orig, mlir::Inte
         for (int64_t i : irange(dividedTiles.size())) {
             const bool remainderTile = !(((i / repeatCtr) + 1) % (divisor));
 
+            // This is a workaround to resolve mobilnet-v3-large accuracy issue in multi-cluster mode.
+            // Please check ticket EISW-35630 for details.
             const bool firstClusterFirstTile = clusterIdAttr && (clusterIdAttr.getValue().getSExtValue() == 0);
 
             if (firstClusterFirstTile) {
