@@ -150,7 +150,7 @@ double BaseLayerStrategy::calculateMPEVolume(ConcreteOp op, VPU::MPEMode mpeMode
 
     const auto outputTensorDistributionMode = getOutputTensorDistributionMode(strategy);
     const auto outputTensorNumTiles =
-            getIntArrayAttr(op->getContext(), getOutputTensorNumTiles(_numClusters, strategy));
+            getIntArrayAttr(op->getContext(), getOutputTensorNumTiles(op.getOperation(), _numClusters, strategy));
     const auto distributedOutputTensorType =
             createDistributedTensorType(op, op.output(), outputTensorDistributionMode, outputTensorNumTiles);
 
@@ -184,7 +184,7 @@ double BaseLayerStrategy::computeSplitEfficiency(ConcreteOp op, StringRef strate
 
     const auto outputTensorDistributionMode = getOutputTensorDistributionMode(strategy);
     const auto outputTensorNumTiles =
-            getIntArrayAttr(op->getContext(), getOutputTensorNumTiles(_numClusters, strategy));
+            getIntArrayAttr(op->getContext(), getOutputTensorNumTiles(op.getOperation(), _numClusters, strategy));
     const auto distributedOutputTensorType =
             createDistributedTensorType(op, op.output(), outputTensorDistributionMode, outputTensorNumTiles);
 
