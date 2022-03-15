@@ -271,7 +271,6 @@ void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOp
 
     pm.addPass(IE::createMatMulInputsTo2dPass(log));
     pm.addPass(IE::createConvertMatMulPatternToDWConvPass(log));
-    pm.addPass(vpux::createPrintDotPass("./output/createConvertMatMulPatternToDWConvPass.dot"));
     pm.addPass(mlir::createCanonicalizerPass(grc));
 
     IE::buildAdjustPrecisionPipeline(pm, IE::AdjustPrecisionOptions(options), log);
