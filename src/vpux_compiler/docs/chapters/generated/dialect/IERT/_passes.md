@@ -56,7 +56,7 @@ It uses simple LinearScan algorithm.
 ```
 ### `-tile-copies`: Legalizes Copy Ops which do not fit hardware capabilities
 This pass checks if Copy Op can be executed at target hardware and splits it into a few tiles if necessary.
-To fit hardware requirements it should copy less or equal than 16MB(2**24 bytes) and have less then 256 planes.
+To fit hardware requirements it should copy less or equal than 16MB(2**24 bytes) and have less than 256 planes.
 The number of planes is defined by the outermost dimension in the tensor (except for N - batch).
 Depending on the order of the data in memory, there may be several options for what to count as the number of planes.
 For example, if the dimension order (from the outermost to the innermost) is NCHW, then HW (height-width) is considered a plane,
