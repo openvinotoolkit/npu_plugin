@@ -26,12 +26,15 @@ bool ConvolutionStrategy::doesLayerFitIntoCMX(mlir::Operation* op, StringRef str
     auto weightsTensorNumTiles = getIntArrayAttr(origOp.getContext(), getWeightsTensorNumTiles(_numClusters, strategy));
     auto outputTensorDistributionMode = getOutputTensorDistributionMode(strategy);
     auto outputTensorNumTiles = getIntArrayAttr(origOp.getContext(), getOutputTensorNumTiles(_numClusters, strategy));
+    const auto arch = VPU::getArch(origOp.getOperation());
+    const auto canUseCMajor =
+            VPU::NCEInvariant::isChannelMajorCompatible(arch, origOp.input().getType().cast<vpux::NDTypeInterface>());
     auto distributedActivationTensorType = createDistributedTensorType(
-            origOp, origOp.input(), activationTensorDistributionMode, activationTensorNumTiles, true);
+            origOp, origOp.input(), activationTensorDistributionMode, activationTensorNumTiles, !canUseCMajor);
     auto distributeddWeightsTensorType = createDistributedTensorType(
-            origOp, origOp.filter(), weightsTensorDistributionMode, weightsTensorNumTiles, true);
+            origOp, origOp.filter(), weightsTensorDistributionMode, weightsTensorNumTiles, !canUseCMajor);
     auto distributedOutputTensorType = createDistributedTensorType(
-            origOp, origOp.output(), outputTensorDistributionMode, outputTensorNumTiles, true);
+            origOp, origOp.output(), outputTensorDistributionMode, outputTensorNumTiles, !canUseCMajor);
 
     return origOp.fitIntoCMX(distributedActivationTensorType, distributeddWeightsTensorType,
                              distributedOutputTensorType);
