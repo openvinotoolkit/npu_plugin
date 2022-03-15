@@ -250,11 +250,5 @@ bool vpux::VPU::isSplitOverHeightSupportedByDPU(ShapeRef inputShape, int64_t KY,
 
     auto hLastCluster = IH - hPerCluster * (numClusters - 1);
 
-    // TODO: Below condition needs to be analyzed and probably replaced by different checks
-    // as it is not justifiable in general
-    if (hLastCluster <= 0) {
-        return false;
-    }
-
-    return (hLastCluster >= 0);
+    return (hLastCluster > 0);
 }
