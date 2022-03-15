@@ -395,7 +395,7 @@ TEST(MLIR_ClusterShapeUtils, AlignedBufferDistribution) {
 
         const auto perClusterShapes = distributedType.getPerClusterComputeShapes();
         const SmallVector<Shape> expectedShapes(
-                {Shape({1, 60, 18, 16}), Shape({1, 60, 18, 16}), Shape({1, 60, 18, 16}), Shape({1, 60, 9, 16})});
+                {Shape({1, 60, 18, 16}), Shape({1, 60, 18, 16}), Shape({1, 60, 18, 16}), Shape({1, 60, 5, 16})});
         for (const auto shapePair : zip(perClusterShapes, expectedShapes)) {
             EXPECT_EQ(std::get<0>(shapePair), std::get<1>(shapePair));
         }
@@ -435,7 +435,7 @@ TEST(MLIR_ClusterShapeUtils, AlignedBufferDistribution) {
 
         const auto perClusterShapes = distributedType.getPerClusterComputeShapes();
         const SmallVector<Shape> expectedShapes(
-                {Shape({1, 64, 18, 16}), Shape({1, 64, 18, 16}), Shape({1, 64, 18, 16}), Shape({1, 64, 9, 16})});
+                {Shape({1, 64, 18, 16}), Shape({1, 64, 18, 16}), Shape({1, 64, 18, 16}), Shape({1, 60, 5, 16})});
         for (const auto shapePair : zip(perClusterShapes, expectedShapes)) {
             EXPECT_EQ(std::get<0>(shapePair), std::get<1>(shapePair));
         }
@@ -516,7 +516,7 @@ TEST(MLIR_ClusterShapeUtils, AlignedBufferDistribution) {
 
         const auto perClusterShapes = distributedType.getPerClusterComputeShapes();
         const SmallVector<Shape> expectedShapes(
-                {Shape({1, 60, 18, 16}), Shape({1, 60, 18, 16}), Shape({1, 60, 18, 16}), Shape({1, 60, 9, 16})});
+                {Shape({1, 60, 18, 16}), Shape({1, 60, 18, 16}), Shape({1, 60, 18, 16}), Shape({1, 60, 5, 16})});
         for (const auto shapePair : zip(perClusterShapes, expectedShapes)) {
             EXPECT_EQ(std::get<0>(shapePair), std::get<1>(shapePair));
         }
@@ -557,7 +557,7 @@ TEST(MLIR_ClusterShapeUtils, AlignedBufferDistribution) {
 
         const auto perClusterShapes = distributedType.getPerClusterComputeShapes();
         const SmallVector<Shape> expectedShapes(
-                {Shape({1, 64, 18, 16}), Shape({1, 64, 18, 16}), Shape({1, 64, 18, 16}), Shape({1, 64, 9, 16})});
+                {Shape({1, 64, 18, 16}), Shape({1, 64, 18, 16}), Shape({1, 64, 18, 16}), Shape({1, 60, 5, 16})});
         for (const auto shapePair : zip(perClusterShapes, expectedShapes)) {
             EXPECT_EQ(std::get<0>(shapePair), std::get<1>(shapePair));
         }
@@ -597,7 +597,7 @@ TEST(MLIR_ClusterShapeUtils, AlignedBufferDistribution) {
 
         const auto perClusterShapes = distributedType.getPerClusterComputeShapes();
         const SmallVector<Shape> expectedShapes(
-                {Shape({1, 32, 59, 16}), Shape({1, 32, 59, 16}), Shape({1, 32, 59, 16}), Shape({1, 16, 59, 16})});
+                {Shape({1, 32, 59, 16}), Shape({1, 32, 59, 16}), Shape({1, 32, 59, 16}), Shape({1, 14, 59, 16})});
         for (const auto shapePair : zip(perClusterShapes, expectedShapes)) {
             EXPECT_EQ(std::get<0>(shapePair), std::get<1>(shapePair));
         }
