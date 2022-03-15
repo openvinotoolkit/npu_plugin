@@ -388,6 +388,12 @@ void ClusterDMARewriter::unrollSegmentedOrOverlapped(mlir::Location loc, VPUIP::
         auto declBuff = operand.getDefiningOp<VPURT::DeclareBufferOp>();
         VPUX_THROW_UNLESS(declBuff != nullptr, "Can't get buffer offset");
 
+        VPURT::BufferSection section = VPURT::BufferSection::DDR;
+        Optional<mlir::ArrayAttr> sectionIndex;
+
+        section = declBuff.section();
+        sectionIndex = declBuff.sectionIndex();
+
         // For example, copy of input in case of SOH
         // <1x16x33x32xf16, @DDR>  -> <1x16x17x32xf16, [@CMX, 0]>
         //                         -> <1x16x16x32xf16, [@CMX, 1]>
@@ -407,7 +413,12 @@ void ClusterDMARewriter::unrollSegmentedOrOverlapped(mlir::Location loc, VPUIP::
         Byte ddrOffset{declBuff.byteOffset()};
         ddrOffset += perClusterShapeOffsets[clusterId][Dim(axis)] * static_cast<Byte>(strides[Dim(axis)]);
 
-        return rewriter.create<VPURT::DeclareBufferOp>(loc, newType, VPURT::BufferSection::DDR, ddrOffset.count());
+        if (sectionIndex.hasValue()) {
+            return rewriter.create<VPURT::DeclareBufferOp>(loc, newType, section, sectionIndex.getValue(),
+                                                           ddrOffset.count());
+        } else {
+            return rewriter.create<VPURT::DeclareBufferOp>(loc, newType, section, ddrOffset.count());
+        }
     };
 
     for (int64_t clusterId = 0; clusterId < numClusters; ++clusterId) {
