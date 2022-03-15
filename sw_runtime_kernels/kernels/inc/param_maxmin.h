@@ -25,16 +25,10 @@ typedef fp16 half;
 namespace sw_params {
 #endif
 
-enum MaxMinOpType : int32_t {
-    MAXIMUM = 0,
-    MINIMUM = 1
-};
-
 struct __attribute__ ((packed)) MaxMinParams {
     struct MemRefData input;
     struct MemRefData input2;
     struct MemRefData output;
-    MaxMinOpType opType;
 };
 
 inline struct BaseKernelParams ToBaseKernelParams(struct MaxMinParams * params) {

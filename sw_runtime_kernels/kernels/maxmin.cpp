@@ -28,7 +28,7 @@ namespace shave_lib {
 
 extern "C" {
 
-void maxmin(const struct MaxMinParams *lParams) {
+void maximum(const struct MaxMinParams *lParams) {
     half8* in_v = (half8*)lParams->input.dataAddr;
     half8* in2_v = (half8*)lParams->input2.dataAddr;
     half8* out_v = (half8*)lParams->output.dataAddr;
@@ -36,8 +36,6 @@ void maxmin(const struct MaxMinParams *lParams) {
     half* in_s = (half*)lParams->input.dataAddr;
     half* in2_s = (half*)lParams->input2.dataAddr;
     half* out_s = (half*)lParams->output.dataAddr;
-
-    MaxMinOpType opType = (MaxMinOpType)lParams->opType;
 
     int32_t *pDims = (int32_t *)(lParams->input.dimsAddr);
     int32_t nElements = 1;
@@ -48,24 +46,41 @@ void maxmin(const struct MaxMinParams *lParams) {
 
     int32_t numVectors = floor(nElements / VECTOR_SIZE);
 
-    if (opType == MAXIMUM) {
-        for (int32_t i = 0; i < numVectors; i++) {
-            out_v[i] = __builtin_shave_cmu_max_f16_rr_half8(in_v[i], in2_v[i]);
-        }
+    for (int32_t i = 0; i < numVectors; i++) {
+        out_v[i] = __builtin_shave_cmu_max_f16_rr_half8(in_v[i], in2_v[i]);
+    }
 
-        // Compensate
-        for (int32_t i = numVectors * VECTOR_SIZE; i < nElements; i++) {
-            out_s[i] = __builtin_shave_cmu_max_f16_rr_half(in_s[i], in2_s[i]);
-        }
-    } else if (opType == MINIMUM) {
-        for (int32_t i = 0; i < numVectors; i++) {
-            out_v[i] = __builtin_shave_cmu_min_f16_rr_half8(in_v[i], in2_v[i]);
-        }
+    // Compensate
+    for (int32_t i = numVectors * VECTOR_SIZE; i < nElements; i++) {
+        out_s[i] = __builtin_shave_cmu_max_f16_rr_half(in_s[i], in2_s[i]);
+    }
+}
 
-        // Compensate
-        for (int32_t i = numVectors * VECTOR_SIZE; i < nElements; i++) {
-            out_s[i] = __builtin_shave_cmu_min_f16_rr_half(in_s[i], in2_s[i]);
-        }
+void minimum(const struct MaxMinParams *lParams) {
+    half8* in_v = (half8*)lParams->input.dataAddr;
+    half8* in2_v = (half8*)lParams->input2.dataAddr;
+    half8* out_v = (half8*)lParams->output.dataAddr;
+
+    half* in_s = (half*)lParams->input.dataAddr;
+    half* in2_s = (half*)lParams->input2.dataAddr;
+    half* out_s = (half*)lParams->output.dataAddr;
+
+    int32_t *pDims = (int32_t *)(lParams->input.dimsAddr);
+    int32_t nElements = 1;
+
+    for (int32_t i = 0; i != lParams->input.numDims; i++) {
+        nElements *=  pDims[i];
+    }
+
+    int32_t numVectors = floor(nElements / VECTOR_SIZE);
+
+    for (int32_t i = 0; i < numVectors; i++) {
+        out_v[i] = __builtin_shave_cmu_min_f16_rr_half8(in_v[i], in2_v[i]);
+    }
+
+    // Compensate
+    for (int32_t i = numVectors * VECTOR_SIZE; i < nElements; i++) {
+        out_s[i] = __builtin_shave_cmu_min_f16_rr_half(in_s[i], in2_s[i]);
     }
 }
 

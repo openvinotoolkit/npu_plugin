@@ -44,7 +44,9 @@ class KmbMaxMinLayerTestMLIR_MTL: public KmbMaxMinLayerTest {
 #endif
     }
     void SkipBeforeInfer() override {
+#ifndef ENABLE_IMD_BACKEND
         throw LayerTestsUtils::KmbSkipTestException("Runtime issue.");
+#endif
     }
  };
 
@@ -155,7 +157,7 @@ const std::vector<ngraph::helpers::InputLayerType> inputType_MTL = {
         ngraph::helpers::InputLayerType::PARAMETER
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_maximum_3D_MTL, KmbMaxMinLayerTestMLIR_MTL,
+INSTANTIATE_TEST_SUITE_P(smoke_maxmin_3D_MTL, KmbMaxMinLayerTestMLIR_MTL,
                         ::testing::Combine(
                                 ::testing::ValuesIn(inShapes3D_MTL),
                                 ::testing::ValuesIn(opType),

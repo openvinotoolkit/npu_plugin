@@ -18,7 +18,8 @@
 
 #ifdef CONFIG_TARGET_SOC_3720
 __attribute__((aligned(1024)))
-#include "sk.maxmin.3720xx.text.xdat"
+#include "sk.maximum.3720xx.text.xdat"
+#include "sk.minimum.3720xx.text.xdat"
 #else
 #include "svuSLKernels_EP.h"
 #endif
@@ -30,6 +31,11 @@ __attribute__((aligned(1024)))
 #define MAX(a, b) (((a) > (b)) ? (a) : (b))
 #define MIN(a, b) (((a) < (b)) ? (a) : (b))
 
+enum MaxMinOpType : int32_t {
+    MAXIMUM = 0,
+    MINIMUM = 1
+};
+
 namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, MaxMin)) {
     static constexpr std::initializer_list<SingleTest> maxmin_test_list{
             {{4, 4, 4},
@@ -37,7 +43,7 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, MaxMin)) {
              orderZXY,
              FPE("maxmin.elf"),
              {{
-                     sw_params::MaxMinOpType::MAXIMUM,
+                     MaxMinOpType::MAXIMUM,
                      sw_params::Location::NN_CMX /*mem type*/,
              }}},
             {{2, 2, 2},
@@ -45,7 +51,7 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, MaxMin)) {
              orderZXY,
              FPE("maxmin.elf"),
              {{
-                     sw_params::MaxMinOpType::MAXIMUM,
+                     MaxMinOpType::MAXIMUM,
                      sw_params::Location::NN_CMX /*mem type*/,
              }}},
             {{8, 8, 8},
@@ -53,7 +59,7 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, MaxMin)) {
              orderZXY,
              FPE("maxmin.elf"),
              {{
-                     sw_params::MaxMinOpType::MAXIMUM,
+                     MaxMinOpType::MAXIMUM,
                      sw_params::Location::NN_CMX /*mem type*/,
              }}},
             {{4, 4, 4},
@@ -61,7 +67,7 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, MaxMin)) {
              orderZXY,
              FPE("maxmin.elf"),
              {{
-                     sw_params::MaxMinOpType::MINIMUM,
+                     MaxMinOpType::MINIMUM,
                      sw_params::Location::NN_CMX /*mem type*/,
              }}},
             {{2, 2, 2},
@@ -69,7 +75,7 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, MaxMin)) {
              orderZXY,
              FPE("maxmin.elf"),
              {{
-                     sw_params::MaxMinOpType::MINIMUM,
+                     MaxMinOpType::MINIMUM,
                      sw_params::Location::NN_CMX /*mem type*/,
              }}},
             {{8, 8, 8},
@@ -77,7 +83,7 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, MaxMin)) {
              orderZXY,
              FPE("maxmin.elf"),
              {{
-                     sw_params::MaxMinOpType::MINIMUM,
+                     MaxMinOpType::MINIMUM,
                      sw_params::Location::NN_CMX /*mem type*/,
              }}},
     };
@@ -124,16 +130,22 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, MaxMin)) {
             const SingleTest* test = m_currentTest;
             m_maxminParams = reinterpret_cast<sw_params::MaxMinParams*>(paramContainer);
             *m_maxminParams = sw_params::MaxMinParams();
-            m_maxminParams->opType = (sw_params::MaxMinOpType)(test->customLayerParams.layerParams[0]);
             m_params.paramData = reinterpret_cast<uint32_t*>(paramContainer);
             m_params.paramDataLen = sizeof(sw_params::MaxMinParams);
             m_requiredTensorLocation = static_cast<sw_params::Location>(test->customLayerParams.layerParams[1]);
             m_params.baseParamData = sw_params::ToBaseKernelParams(m_maxminParams);
+            opType = (MaxMinOpType)(test->customLayerParams.layerParams[0]);
 
 #ifdef CONFIG_TARGET_SOC_3720
-            m_params.kernel = reinterpret_cast<uint64_t>(sk_maxmin_3720xx_text);
+            if (opType == MaxMinOpType::MAXIMUM)
+                m_params.kernel = reinterpret_cast<uint64_t>(sk_maximum_3720xx_text);
+            else if (opType == MaxMinOpType::MINIMUM)
+                m_params.kernel = reinterpret_cast<uint64_t>(sk_minimum_3720xx_text);
 #else
-            m_params.kernel = reinterpret_cast<uint64_t>(PREAMBLE_FUNC(maxmin));
+        if (opType == MaxMinOpType::MAXIMUM)
+            m_params.kernel = reinterpret_cast<uint64_t>(PREAMBLE_FUNC(maximum));
+        else if (opType == MaxMinOpType::MINIMUM)
+            m_params.kernel = reinterpret_cast<uint64_t>(PREAMBLE_FUNC(minimum));
 #endif
         }
 
@@ -206,9 +218,9 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, MaxMin)) {
                 float val1 = f16Tof32(m_inputTensor.at(indices));
                 float val2 = f16Tof32(m_inputTensor2.at(indices));
 
-                if (m_maxminParams->opType == sw_params::MaxMinOpType::MAXIMUM)
+                if (opType  == MaxMinOpType::MAXIMUM)
                     ref = MAX(val1, val2);
-                else if (m_maxminParams->opType == sw_params::MaxMinOpType::MINIMUM)
+                else if (opType  == MaxMinOpType::MINIMUM)
                     ref = MIN(val1, val2);
 
                 m_referenceOutputTensor.at(indices) = f32Tof16(ref);
@@ -249,6 +261,7 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, MaxMin)) {
 
         Tensor<fp16> m_inputTensor2;
         sw_params::MaxMinParams* m_maxminParams;
+        MaxMinOpType opType;
     };
 
     ICV_TESTS_REGISTER_SUITE(CustomCppMaxMinTest)
