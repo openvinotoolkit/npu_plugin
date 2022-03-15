@@ -145,3 +145,34 @@ func @PermuteCast(%arg0: memref<1x12x16x16xf16, #NHWC>, %arg1: memref<1x16x16x12
     //CHECK-SAME:       outputs(%arg1 : memref<1x16x16x12xf16>) -> memref<1x16x16x12xf16>
     //CHECK:        return [[VAR3]] : memref<1x16x16x12xf16>
 }
+
+// -----
+
+#NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
+
+!InputDistributedBuffer = type !VPUIP.DistributedBuffer<
+    1x128x16x16xf16, #NHWC, @CMX_NN, {
+    mode = "DUPLICATED|SEGMENTED",
+    num_tiles = [1, 4, 1, 1],
+    num_clusters = 4
+}>
+
+!OutputDistributedBuffer = type !VPUIP.DistributedBuffer<
+    1x128x16x16xf16, #NHWC, @CMX_NN, {
+    mode = "DUPLICATED",
+    num_tiles = [1, 4, 1, 1],
+    num_clusters = 4
+}>
+
+// CHECK-LABEL: @DistributedCast
+func @DistributedCast(%arg0: memref<1x128x16x16xf16, #NHWC>) -> memref<1x128x16x16xf16, #NHWC> {
+    %0 = VPURT.DeclareBuffer "CMX_NN" <0> -> !InputDistributedBuffer
+    %1 = VPUIP.DistributedCast inputs(%0 : !InputDistributedBuffer) -> !OutputDistributedBuffer
+    return %arg0 : memref<1x128x16x16xf16, #NHWC>
+
+    // CHECK:       VPURT.DeclareBuffer "CMX_NN" <0> -> !VPUIP.DistributedBuffer<1x128x16x16xf16, #NHWC, @CMX_NN,
+    // CHECK-SAME:        {mode = DUPLICATED|SEGMENTED, num_tiles = [1, 4, 1, 1], num_clusters = 4 : i64}>
+    // CHECK:       VPURT.DeclareBuffer "CMX_NN" <0> -> !VPUIP.DistributedBuffer<1x128x16x16xf16, #NHWC, @CMX_NN,
+    // CHECK-SAME:        {mode = DUPLICATED, num_tiles = [1, 4, 1, 1], num_clusters = 4 : i64}>
+    // CHECK-NOT:   VPUIP.DistributedCast
+}

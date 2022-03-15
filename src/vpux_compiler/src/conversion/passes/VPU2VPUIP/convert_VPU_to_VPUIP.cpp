@@ -345,6 +345,40 @@ mlir::LogicalResult EltwiseRewriter::matchAndRewrite(VPU::NCEEltwiseOp origOp, O
 }
 
 //
+// DistributedCastRewriter
+//
+
+class DistributedCastRewriter final : public mlir::OpConversionPattern<VPU::DistributedCastOp> {
+    using OpAdaptor = typename mlir::OpConversionPattern<VPU::DistributedCastOp>::OpAdaptor;
+
+public:
+    DistributedCastRewriter(mlir::TypeConverter& typeConverter, mlir::MLIRContext* ctx, Logger log)
+            : mlir::OpConversionPattern<VPU::DistributedCastOp>(typeConverter, ctx), _log(log) {
+        this->setDebugName("DistributedCastRewriter");
+    }
+
+public:
+    mlir::LogicalResult matchAndRewrite(VPU::DistributedCastOp origOp, OpAdaptor newArgs,
+                                        mlir::ConversionPatternRewriter& rewriter) const final;
+
+private:
+    Logger _log;
+};
+
+mlir::LogicalResult DistributedCastRewriter::matchAndRewrite(VPU::DistributedCastOp origOp, OpAdaptor newArgs,
+                                                             mlir::ConversionPatternRewriter& rewriter) const {
+    _log.trace("Found DistributedCast Operation '{0}' at '{1}'", origOp->getName(), origOp->getLoc());
+
+    auto* typeConverter = getTypeConverter();
+    VPUX_THROW_UNLESS(typeConverter != nullptr, "TypeConverter is not set");
+
+    const auto newOutType = typeConverter->convertType(origOp.getType());
+
+    rewriter.replaceOpWithNewOp<VPUIP::DistributedCastOp>(origOp, newOutType, newArgs.input());
+    return mlir::success();
+}
+
+//
 // ConvertVPUToVPUIPPass
 //
 
@@ -384,6 +418,7 @@ void ConvertVPUToVPUIPPass::safeRunOnFunc() {
     patterns.add<DepthwiseConvRewriter>(typeConverter, &ctx, _log);
     patterns.add<MaxPoolRewriter>(typeConverter, &ctx, _log);
     patterns.add<EltwiseRewriter>(typeConverter, &ctx, _log);
+    patterns.add<DistributedCastRewriter>(typeConverter, &ctx, _log);
 
     if (mlir::failed(mlir::applyPartialConversion(func, target, std::move(patterns)))) {
         signalPassFailure();

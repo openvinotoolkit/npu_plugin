@@ -3200,4 +3200,37 @@ def VPUIP_NCEClusterTilingOp :
     }];
 }
 
+//
+// DistributedCastOp
+//
+
+def VPUIP_DistributedCastOp :
+        VPUIP_Op<
+            "DistributedCast",
+            [
+                DeclareOpInterfaceMethods<ViewLikeOpInterface>,
+                NoSideEffect
+            ]
+        > {
+    let summary = "Operation that casts one DistributedBuffer type to another.";
+
+    let arguments = (ins
+        VPUIP_DistributedBuffer:$input
+    );
+
+    let results = (outs
+        VPUIP_DistributedBuffer:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `->` type(results)
+    }];
+
+    let hasFolder = 1;
+
+    let verifier = [{ return vpux::VPUIP::verifyOp(*this); }];
+}
+
 #endif

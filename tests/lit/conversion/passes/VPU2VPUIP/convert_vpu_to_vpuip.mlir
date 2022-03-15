@@ -416,3 +416,37 @@ func @ConvWithClusterIdAttr(%arg0: memref<1x32x16x16xf16, #NHWC, @CMX_NN>, %arg1
 // CHECK-SAME:          pad = {bottom = 1 : i64, left = 1 : i64, right = 1 : i64, top = 0 : i64},
 // CHECK-SAME:          start = [0, 15, 0]
 // CHECK:           PPETask "LRELU" {clamp_high = 2147483647 : i64, clamp_low = 0 : i64, lrelu_mult = 1 : i64, lrelu_shift = 0 : i64}
+
+
+// -----
+
+#NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
+
+!InputDistributedTensor = type !VPU.DistributedTensor<
+    1x128x16x16xf16, #NHWC, @CMX_NN, {
+    mode = "DUPLICATED|SEGMENTED",
+    num_tiles = [1, 4, 1, 1],
+    num_clusters = 4
+}>
+
+!OutputDistributedTensor = type !VPU.DistributedTensor<
+    1x128x16x16xf16, #NHWC, @CMX_NN, {
+    mode = "DUPLICATED",
+    num_tiles = [1, 4, 1, 1],
+    num_clusters = 4
+}>
+
+// CHECK-LABEL: @DistributedCast
+func @DistributedCast(%arg0: memref<1x128x16x16xf16, #NHWC, @CMX_NN>, %arg1 : memref<1x128x16x16xf16, #NHWC, @CMX_NN>) -> memref<1x128x16x16xf16, #NHWC, @CMX_NN> {
+    %0 = builtin.unrealized_conversion_cast %arg0 : memref<1x128x16x16xf16, #NHWC, @CMX_NN> to !InputDistributedTensor
+    %1 = builtin.unrealized_conversion_cast %arg1 : memref<1x128x16x16xf16, #NHWC, @CMX_NN> to !OutputDistributedTensor
+
+    %2 = VPU.DistributedCast(%0 : !InputDistributedTensor) -> !OutputDistributedTensor
+
+    %3 = builtin.unrealized_conversion_cast %2 : !OutputDistributedTensor to memref<1x128x16x16xf16, #NHWC, @CMX_NN>
+    return %3 : memref<1x128x16x16xf16, #NHWC, @CMX_NN>
+
+    // CHECK:       VPUIP.DistributedCast inputs(
+    // CHECK-SAME:         !VPUIP.DistributedBuffer<1x128x16x16xf16, #NHWC, @CMX_NN, {mode = DUPLICATED|SEGMENTED, num_tiles = [1, 4, 1, 1], num_clusters = 4 : i64}>)
+    // CHECK-SAME:      -> !VPUIP.DistributedBuffer<1x128x16x16xf16, #NHWC, @CMX_NN, {mode = DUPLICATED, num_tiles = [1, 4, 1, 1], num_clusters = 4 : i64}>
+}

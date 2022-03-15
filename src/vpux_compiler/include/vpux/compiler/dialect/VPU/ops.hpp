@@ -18,6 +18,7 @@
 #include "vpux/compiler/dialect/VPU/dialect.hpp"
 #include "vpux/compiler/dialect/VPU/ops_interfaces.hpp"
 #include "vpux/compiler/dialect/VPU/types.hpp"
+#include "vpux/compiler/dialect/VPUIP/types.hpp"
 
 #include "vpux/utils/core/error.hpp"
 
@@ -117,8 +118,58 @@ void adjustRawFilterShape(ConcreteOp* op, const TileInfo& outputTile) {
 void print(mlir::OpAsmPrinter& p, VPU::NCEClusterTilingOp op);
 mlir::ParseResult parseNCEClusterTilingOp(mlir::OpAsmParser& parser, mlir::OperationState& result);
 
-mlir::LogicalResult isDistributedCastCompatible(VPU::DistributedTensorType inDistributedType,
-                                                VPU::DistributedTensorType outDistributedType);
+mlir::LogicalResult sameOrder(mlir::Location loc, VPU::DistributedTensorType inDistributedType,
+                              VPU::DistributedTensorType outDistributedType);
+mlir::LogicalResult sameOrder(mlir::Location loc, VPUIP::DistributedBufferType inDistributedType,
+                              VPUIP::DistributedBufferType outDistributedType);
+
+template <typename T, enable_if_t<or_<std::is_same<VPU::DistributedTensorType, T>,
+                                      std::is_same<VPUIP::DistributedBufferType, T>>::value,
+                                  bool> = true>
+mlir::LogicalResult isDistributedCastCompatible(T inDistributedType, T outDistributedType) {
+    const auto loc = mlir::UnknownLoc::get(inDistributedType.getContext());
+
+    if (inDistributedType.getShape() != outDistributedType.getShape()) {
+        return errorAt(loc, "Mismatch between shapes for input ({0}) and output ({1}).", inDistributedType.getShape(),
+                       outDistributedType.getShape());
+    }
+
+    if (inDistributedType.getElementType() != outDistributedType.getElementType()) {
+        return errorAt(loc, "Mismatch between element types for input ({0}) and output ({1}).",
+                       inDistributedType.getElementType(), outDistributedType.getElementType());
+    }
+
+    if (inDistributedType.getMemSpace() != outDistributedType.getMemSpace()) {
+        return errorAt(loc, "Mismatch between memspaces for input ({0}) and output ({1}).",
+                       inDistributedType.getMemSpace(), outDistributedType.getMemSpace());
+    }
+
+    const auto sameOrderCheck = sameOrder(loc, inDistributedType, outDistributedType);
+    if (sameOrderCheck.failed()) {
+        return sameOrderCheck;
+    }
+
+    const auto inDistributionAttr = inDistributedType.getDistribution();
+    const auto outDistributionAttr = outDistributedType.getDistribution();
+
+    if (inDistributionAttr.num_clusters() != outDistributionAttr.num_clusters()) {
+        return errorAt(loc, "Mismatch between number of clusters for input ({0}) and output ({1}).",
+                       inDistributionAttr.num_clusters(), outDistributionAttr.num_clusters());
+    }
+
+    const auto inDistributionMode = inDistributionAttr.mode().getValue();
+    const auto outDistributionMode = outDistributionAttr.mode().getValue();
+
+    if (inDistributionMode != outDistributionMode) {
+        if (VPU::areDistributionModesCompatible(inDistributionMode, outDistributionMode).failed()) {
+            return errorAt(loc, "Incompatible distribution modes for input ({0}) and output ({1}).",
+                           VPU::stringifyDistributionMode(inDistributionMode),
+                           VPU::stringifyDistributionMode(outDistributionMode));
+        }
+    }
+
+    return mlir::success();
+}
 
 }  // namespace VPU
 }  // namespace vpux
