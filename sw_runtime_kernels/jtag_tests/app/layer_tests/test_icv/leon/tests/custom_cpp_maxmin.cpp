@@ -18,52 +18,80 @@
 
 #ifdef CONFIG_TARGET_SOC_3720
 __attribute__((aligned(1024)))
-#include "sk.minimum.3720xx.text.xdat"
+#include "sk.maxmin.3720xx.text.xdat"
 #else
 #include "svuSLKernels_EP.h"
 #endif
 
-#include "param_minimum.h"
+#include "param_maxmin.h"
 
 #define USE_SEED_VALUE 0xbdd1cb13  // defined to use this value as random seed
 #define USE_SEED_VALUE_IN2 0xfa3b8fed  // defined to use this value as random seed
+#define MAX(a, b) (((a) > (b)) ? (a) : (b))
 #define MIN(a, b) (((a) < (b)) ? (a) : (b))
 
-namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Minimum)) {
-    static constexpr std::initializer_list<SingleTest> minimum_test_list{
+namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, MaxMin)) {
+    static constexpr std::initializer_list<SingleTest> maxmin_test_list{
+            {{4, 4, 4},
+             {4, 4, 4},
+             orderZXY,
+             FPE("maxmin.elf"),
+             {{
+                     sw_params::MaxMinOpType::MAXIMUM,
+                     sw_params::Location::NN_CMX /*mem type*/,
+             }}},
             {{2, 2, 2},
              {2, 2, 2},
              orderZXY,
-             FPE("minimum.elf"),
+             FPE("maxmin.elf"),
              {{
+                     sw_params::MaxMinOpType::MAXIMUM,
                      sw_params::Location::NN_CMX /*mem type*/,
              }}},
-            {{2, 2, 1},
-             {2, 2, 1},
+            {{8, 8, 8},
+             {8, 8, 8},
              orderZXY,
-             FPE("minimum.elf"),
+             FPE("maxmin.elf"),
              {{
+                     sw_params::MaxMinOpType::MAXIMUM,
                      sw_params::Location::NN_CMX /*mem type*/,
              }}},
-            {{32, 32, 32},
-             {32, 32, 32},
+            {{4, 4, 4},
+             {4, 4, 4},
              orderZXY,
-             FPE("minimum.elf"),
+             FPE("maxmin.elf"),
              {{
+                     sw_params::MaxMinOpType::MINIMUM,
+                     sw_params::Location::NN_CMX /*mem type*/,
+             }}},
+            {{2, 2, 2},
+             {2, 2, 2},
+             orderZXY,
+             FPE("maxmin.elf"),
+             {{
+                     sw_params::MaxMinOpType::MINIMUM,
+                     sw_params::Location::NN_CMX /*mem type*/,
+             }}},
+            {{8, 8, 8},
+             {8, 8, 8},
+             orderZXY,
+             FPE("maxmin.elf"),
+             {{
+                     sw_params::MaxMinOpType::MINIMUM,
                      sw_params::Location::NN_CMX /*mem type*/,
              }}},
     };
 
-    class CustomCppMinimumTest : public CustomCppTests<fp16> {
+    class CustomCppMaxMinTest : public CustomCppTests<fp16> {
     public:
-        explicit CustomCppMinimumTest(): m_testsLoop(minimum_test_list, "test") {
+        explicit CustomCppMaxMinTest(): m_testsLoop(maxmin_test_list, "test") {
         }
-        virtual ~CustomCppMinimumTest() {
+        virtual ~CustomCppMaxMinTest() {
         }
 
     protected:
         const char* suiteName() const override {
-            return "CustomCppMinimumTest";
+            return "CustomCppMaxMinTest";
         }
         void userLoops() override {
             addLoop(m_testsLoop);
@@ -94,17 +122,18 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Minimum)) {
             allocBuffer(m_referenceOutputTensor);
 
             const SingleTest* test = m_currentTest;
-            m_minimumParams = reinterpret_cast<sw_params::MinimumParams*>(paramContainer);
-            *m_minimumParams = sw_params::MinimumParams();
+            m_maxminParams = reinterpret_cast<sw_params::MaxMinParams*>(paramContainer);
+            *m_maxminParams = sw_params::MaxMinParams();
+            m_maxminParams->opType = (sw_params::MaxMinOpType)(test->customLayerParams.layerParams[0]);
             m_params.paramData = reinterpret_cast<uint32_t*>(paramContainer);
-            m_params.paramDataLen = sizeof(sw_params::MinimumParams);
+            m_params.paramDataLen = sizeof(sw_params::MaxMinParams);
             m_requiredTensorLocation = static_cast<sw_params::Location>(test->customLayerParams.layerParams[1]);
-            m_params.baseParamData = sw_params::ToBaseKernelParams(m_minimumParams);
+            m_params.baseParamData = sw_params::ToBaseKernelParams(m_maxminParams);
 
 #ifdef CONFIG_TARGET_SOC_3720
-            m_params.kernel = reinterpret_cast<uint64_t>(sk_minimum_3720xx_text);
+            m_params.kernel = reinterpret_cast<uint64_t>(sk_maxmin_3720xx_text);
 #else
-            m_params.kernel = reinterpret_cast<uint64_t>(PREAMBLE_FUNC(minimum));
+            m_params.kernel = reinterpret_cast<uint64_t>(PREAMBLE_FUNC(maxmin));
 #endif
         }
 
@@ -172,10 +201,16 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Minimum)) {
         }
 
         void generateReferenceData() override {
+            float ref = 0;
             m_referenceOutputTensor.forEach(false, [&](const MemoryDims& indices) {
                 float val1 = f16Tof32(m_inputTensor.at(indices));
                 float val2 = f16Tof32(m_inputTensor2.at(indices));
-                float ref = MIN(val1, val2);
+
+                if (m_maxminParams->opType == sw_params::MaxMinOpType::MAXIMUM)
+                    ref = MAX(val1, val2);
+                else if (m_maxminParams->opType == sw_params::MaxMinOpType::MINIMUM)
+                    ref = MIN(val1, val2);
+
                 m_referenceOutputTensor.at(indices) = f32Tof16(ref);
             });
         }
@@ -213,8 +248,8 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Minimum)) {
         ListIterator<SingleTest> m_testsLoop;
 
         Tensor<fp16> m_inputTensor2;
-        sw_params::MinimumParams* m_minimumParams;
+        sw_params::MaxMinParams* m_maxminParams;
     };
 
-    ICV_TESTS_REGISTER_SUITE(CustomCppMinimumTest)
-}  // namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME,Minimum))
+    ICV_TESTS_REGISTER_SUITE(CustomCppMaxMinTest)
+}  // namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME,MaxMin))

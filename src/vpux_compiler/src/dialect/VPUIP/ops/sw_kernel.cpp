@@ -82,11 +82,8 @@ IERT::KernelInfo SwKernelOp::getKernelInfo(mlir::Operation* origOp) {
             .Case<IERT::SigmoidOp>([&](IERT::SigmoidOp) {
                 return IERT::KernelInfo{SmallVector<mlir::Attribute>{}, {"sigmoid_fp16"}, {"sigmoid_fp16.c"}};
             })
-            .Case<IERT::MaximumOp>([&](IERT::MaximumOp) {
-                return IERT::KernelInfo{SmallVector<mlir::Attribute>{}, {"maximum"}, {"maximum.cpp"}};
-            })
-            .Case<IERT::MinimumOp>([&](IERT::MinimumOp) {
-                return IERT::KernelInfo{SmallVector<mlir::Attribute>{}, {"minimum"}, {"minimum.cpp"}};
+            .Case<IERT::MaxMinOp>([&](IERT::MaxMinOp) {
+                return IERT::KernelInfo{SmallVector<mlir::Attribute>{}, {"maxmin"}, {"maxmin.cpp"}};
             })
             .Case<IERT::SoftMaxOp>([&](IERT::SoftMaxOp softmax) {
                 // input tensor, to transform axis

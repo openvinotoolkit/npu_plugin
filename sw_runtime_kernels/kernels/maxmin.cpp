@@ -16,11 +16,10 @@
 #else
 #define nnLog(level, ...)
 #endif
-#include <param_maximum.h>
+#include <param_maxmin.h>
 #include <math.h>
 
 #define VECTOR_SIZE 8  // Changes to this should be reflected in the code as well.
-#define MAX(a, b) (((a) > (b)) ? (a) : (b))
 
 using namespace sw_params;
 
@@ -29,7 +28,7 @@ namespace shave_lib {
 
 extern "C" {
 
-void maximum(const struct MaximumParams *lParams) {
+void maxmin(const struct MaxMinParams *lParams) {
     half8* in_v = (half8*)lParams->input.dataAddr;
     half8* in2_v = (half8*)lParams->input2.dataAddr;
     half8* out_v = (half8*)lParams->output.dataAddr;
@@ -38,23 +37,35 @@ void maximum(const struct MaximumParams *lParams) {
     half* in2_s = (half*)lParams->input2.dataAddr;
     half* out_s = (half*)lParams->output.dataAddr;
 
+    MaxMinOpType opType = (MaxMinOpType)lParams->opType;
+
     int32_t *pDims = (int32_t *)(lParams->input.dimsAddr);
     int32_t nElements = 1;
-
-    const int numVectors = nElements / VECTOR_SIZE;
 
     for (int32_t i = 0; i != lParams->input.numDims; i++) {
         nElements *=  pDims[i];
     }
 
-#pragma clang loop unroll_count(8)
-    for (int32_t i = 0; i < numVectors; i++) {
-        out_v[i] = __builtin_shave_cmu_max_f16_rr_half8(in_v[i], in2_v[i]);
-    }
+    int32_t numVectors = floor(nElements / VECTOR_SIZE);
 
-    // Compensate
-    for (int32_t i = numVectors * VECTOR_SIZE; i < nElements; i++) {
-        out_s[i] = MAX(in_s[i], in2_s[i]);
+    if (opType == MAXIMUM) {
+        for (int32_t i = 0; i < numVectors; i++) {
+            out_v[i] = __builtin_shave_cmu_max_f16_rr_half8(in_v[i], in2_v[i]);
+        }
+
+        // Compensate
+        for (int32_t i = numVectors * VECTOR_SIZE; i < nElements; i++) {
+            out_s[i] = __builtin_shave_cmu_max_f16_rr_half(in_s[i], in2_s[i]);
+        }
+    } else if (opType == MINIMUM) {
+        for (int32_t i = 0; i < numVectors; i++) {
+            out_v[i] = __builtin_shave_cmu_min_f16_rr_half8(in_v[i], in2_v[i]);
+        }
+
+        // Compensate
+        for (int32_t i = numVectors * VECTOR_SIZE; i < nElements; i++) {
+            out_s[i] = __builtin_shave_cmu_min_f16_rr_half(in_s[i], in2_s[i]);
+        }
     }
 }
 
