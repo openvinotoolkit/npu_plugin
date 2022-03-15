@@ -85,6 +85,13 @@ mlir::LogicalResult generalRewrite(mlir::Operation* origOp, mlir::PatternRewrite
         return matchFailed(log, rewriter, origOp, "Both input and output channels are already aligned");
     }
 
+    // For Eltwise ops in case when input and output have diffenet element types (e.g. quantized input and float output)
+    //    if (origOp->hasTrait<IE::EltwiseOp>() && (inPadsEnd[Dims4D::Act::C] != outPadsEnd[Dims4D::Act::C])) {
+    //        auto maxPadsEnd = std::max<int64_t>(inPadsEnd[Dims4D::Act::C], outPadsEnd[Dims4D::Act::C]);
+    //        inPadsEnd[Dims4D::Act::C] = maxPadsEnd;
+    //        outPadsEnd[Dims4D::Act::C] = maxPadsEnd;
+    //    }
+
     mlir::Value paddedInput;
     if (inPadsEnd[Dims4D::Act::C] == 0) {
         log.trace("Input channels are already aligned");

@@ -132,7 +132,7 @@ bool vpux::VPU::NCEInvariant::isAttrsSupported(ArchKind arch, int64_t KY, int64_
 
 int64_t vpux::VPU::NCEInvariant::getAlignment(mlir::Type elemType) {
     const auto typeSizeInBits = static_cast<Bit>(getElemTypeSize(elemType));
-    return std::max<int64_t>(128 / typeSizeInBits.count(), 16);
+    return std::max<int64_t>(64 / typeSizeInBits.count(), 8);
 }
 
 bool vpux::VPU::NCEInvariant::isActTypeSupported(vpux::NDTypeInterface type, int64_t alignment, LogCb logCb) {
