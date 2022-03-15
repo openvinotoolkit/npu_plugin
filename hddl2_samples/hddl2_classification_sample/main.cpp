@@ -171,6 +171,8 @@ int main(int argc, char *argv[]) {
         slog::info << "Creating Inference Engine" << slog::endl;
         Core ie;
 
+        ie.SetConfig({{"VPUX_GRAPH_COLOR_FORMAT", "RGB"}}, "VPUX");
+
         // ---- Init context map and create context based on it
         ParamMap paramMap = {{HDDL2_PARAM_KEY(WORKLOAD_CONTEXT_ID), workloadId}};
         RemoteContext::Ptr contextPtr = ie.CreateContext("VPUX", paramMap);
