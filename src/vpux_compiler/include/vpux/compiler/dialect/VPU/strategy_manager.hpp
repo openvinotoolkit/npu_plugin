@@ -145,14 +145,19 @@ private:
 // given the stratey and the MPE mode
 template <class ConcreteOp>
 double BaseLayerStrategy::calculateMPEVolume(ConcreteOp op, VPU::MPEMode mpeMode, StringRef strategy) const {
+    mlir::ArrayAttr activationAlignment = nullptr;
     double mpeHeight = 16;
     double mpeWidth = 1;
+    if (strategy == splitOverKernel) {
+        activationAlignment =
+                getIntArrayAttr(op.getContext(), getActivationTensorAlignment(op.getOperation(), strategy));
+    }
 
     const auto outputTensorDistributionMode = getOutputTensorDistributionMode(strategy);
     const auto outputTensorNumTiles =
             getIntArrayAttr(op->getContext(), getOutputTensorNumTiles(op.getOperation(), _numClusters, strategy));
-    const auto distributedOutputTensorType =
-            createDistributedTensorType(op, op.output(), outputTensorDistributionMode, outputTensorNumTiles);
+    const auto distributedOutputTensorType = createDistributedTensorType(op, op.output(), outputTensorDistributionMode,
+                                                                         outputTensorNumTiles, activationAlignment);
 
     auto perClusterShape = distributedOutputTensorType.getLargestCompactShape();
     double perClusterOutputWidth = perClusterShape[Dims4D::Act::W];
@@ -181,12 +186,17 @@ double BaseLayerStrategy::calculateMPEVolume(ConcreteOp op, VPU::MPEMode mpeMode
 template <class ConcreteOp>
 double BaseLayerStrategy::computeSplitEfficiency(ConcreteOp op, StringRef strategy) const {
     double perClusterOutputTensorVolume = 0;
+    mlir::ArrayAttr activationAlignment = nullptr;
 
     const auto outputTensorDistributionMode = getOutputTensorDistributionMode(strategy);
     const auto outputTensorNumTiles =
             getIntArrayAttr(op->getContext(), getOutputTensorNumTiles(op.getOperation(), _numClusters, strategy));
-    const auto distributedOutputTensorType =
-            createDistributedTensorType(op, op.output(), outputTensorDistributionMode, outputTensorNumTiles);
+    if (strategy == splitOverKernel) {
+        activationAlignment =
+                getIntArrayAttr(op.getContext(), getActivationTensorAlignment(op.getOperation(), strategy));
+    }
+    const auto distributedOutputTensorType = createDistributedTensorType(op, op.output(), outputTensorDistributionMode,
+                                                                         outputTensorNumTiles, activationAlignment);
 
     const auto perClusterShape = distributedOutputTensorType.getLargestCompactShape();
     perClusterOutputTensorVolume =
