@@ -60,8 +60,10 @@ mlir::LogicalResult NCEConvolutionRewriter::matchAndRewrite(NCEConvolutionOp ori
     if (origOp->template getParentOfType<NCEClusterTilingOp>() != nullptr) {
         return matchFailed(_log, rewriter, origOp, "The operation is already wrapped with NCEClusterTiling");
     }
-    mlir::ArrayAttr activationAlignment = nullptr;
-    mlir::ArrayAttr weightAlignment = nullptr;
+    Optional<SmallVector<int64_t>> activationAlignment = None;
+    Optional<SmallVector<int64_t>> weightAlignment = None;
+    mlir::ArrayAttr activationAlignmentAttr = nullptr;
+    mlir::ArrayAttr weightAlignmentAttr = nullptr;
     NCEClusterTilingOp clusterTilingOp = nullptr;
     const auto strategy = origOp->getAttr(multiClusterStrategy).cast<mlir::StringAttr>().getValue();
 
@@ -78,25 +80,28 @@ mlir::LogicalResult NCEConvolutionRewriter::matchAndRewrite(NCEConvolutionOp ori
     auto outputTensorNumTiles = getIntArrayAttr(origOp.getContext(),
                                                 getOutputTensorNumTiles(origOp.getOperation(), _numClusters, strategy));
 
-    if (strategy == splitOverKernel) {
-        activationAlignment =
-                getIntArrayAttr(origOp.getContext(), getActivationTensorAlignment(origOp.getOperation(), strategy));
-        weightAlignment =
-                getIntArrayAttr(origOp.getContext(), getWeightsTensorAlignment(origOp.getOperation(), strategy));
+    activationAlignment = getActivationTensorAlignment(strategy);
+    weightAlignment = getWeightsTensorAlignment(strategy);
+
+    if (activationAlignment.hasValue()) {
+        activationAlignmentAttr = getIntArrayAttr(origOp.getContext(), activationAlignment.getValue());
+        weightAlignmentAttr = getIntArrayAttr(origOp.getContext(), weightAlignment.getValue());
     }
 
-    auto distributedActivationCopyOp = createDistributedCopyIn(origOp, origOp.input(), activationTensorDistributionMode,
-                                                               activationTensorNumTiles, activationAlignment);
+    auto distributedActivationCopyOp =
+            createDistributedCopyIn(origOp, origOp.input(), activationTensorDistributionMode, activationTensorNumTiles,
+                                    activationAlignmentAttr, strategy);
 
     auto distributedWeightsCopyOp = createDistributedCopyIn(origOp, origOp.filter(), weightsTensorDistributionMode,
-                                                            weightsTensorNumTiles, weightAlignment);
+                                                            weightsTensorNumTiles, weightAlignmentAttr, strategy);
 
     auto distributedWeightTableCopyOp =
             createDistributedCopyIn(origOp, origOp.weightsTable(), weightsTableTensorDistributionMode,
-                                    weightsTableTensorNumTiles, weightAlignment);
+                                    weightsTableTensorNumTiles, weightAlignmentAttr, strategy);
 
-    auto distributedOutputTensorType = createDistributedTensorType(
-            origOp, origOp.output(), outputTensorDistributionMode, outputTensorNumTiles, activationAlignment);
+    auto distributedOutputTensorType =
+            createDistributedTensorType(origOp, origOp.output(), outputTensorDistributionMode, outputTensorNumTiles,
+                                        activationAlignmentAttr, strategy);
 
     const auto bodyBuilder = [origOp](mlir::OpBuilder& builder, mlir::Location loc, mlir::ValueRange newOperands) {
         mlir::BlockAndValueMapping mapper;
@@ -117,8 +122,9 @@ mlir::LogicalResult NCEConvolutionRewriter::matchAndRewrite(NCEConvolutionOp ori
         auto activationWindowNumTiles = getIntArrayAttr(
                 origOp.getContext(),
                 getActivationWindowTensorNumTiles(origOp.getOperation(), _numClusters, strategy, _arch));
-        auto distributedActivationWindowCopyOp = createDistributedCopyIn(
-                origOp, origOp.activationWindow(), activationWindowDistributionMode, activationWindowNumTiles, nullptr);
+        auto distributedActivationWindowCopyOp =
+                createDistributedCopyIn(origOp, origOp.activationWindow(), activationWindowDistributionMode,
+                                        activationWindowNumTiles, nullptr, strategy);
 
         clusterTilingOp = rewriter.create<NCEClusterTilingOp>(
                 origOp->getLoc(), distributedOutputTensorType,
@@ -169,8 +175,10 @@ mlir::LogicalResult NCEDepthConvolutionRewriter::matchAndRewrite(NCEDepthConvolu
     if (origOp->getParentOfType<NCEClusterTilingOp>() != nullptr) {
         return matchFailed(_log, rewriter, origOp, "The operation is already wrapped with NCEClusterTiling");
     }
-    mlir::ArrayAttr activationAlignment = nullptr;
-    mlir::ArrayAttr weightAlignment = nullptr;
+    Optional<SmallVector<int64_t>> activationAlignment = None;
+    Optional<SmallVector<int64_t>> weightAlignment = None;
+    mlir::ArrayAttr activationAlignmentAttr = nullptr;
+    mlir::ArrayAttr weightAlignmentAttr = nullptr;
     const auto strategy = origOp->getAttr(multiClusterStrategy).cast<mlir::StringAttr>().getValue();
     auto activationTensorDistributionMode = getActivationTensorDistributionMode(strategy);
     auto activationTensorNumTiles = getIntArrayAttr(
@@ -189,29 +197,32 @@ mlir::LogicalResult NCEDepthConvolutionRewriter::matchAndRewrite(NCEDepthConvolu
     auto outputTensorNumTiles = getIntArrayAttr(origOp.getContext(),
                                                 getOutputTensorNumTiles(origOp.getOperation(), _numClusters, strategy));
 
-    if (strategy == splitOverKernel) {
-        activationAlignment =
-                getIntArrayAttr(origOp.getContext(), getActivationTensorAlignment(origOp.getOperation(), strategy));
-        weightAlignment =
-                getIntArrayAttr(origOp.getContext(), getWeightsTensorAlignment(origOp.getOperation(), strategy));
+    activationAlignment = getActivationTensorAlignment(strategy);
+    weightAlignment = getWeightsTensorAlignment(strategy);
+
+    if (activationAlignment.hasValue()) {
+        activationAlignmentAttr = getIntArrayAttr(origOp.getContext(), activationAlignment.getValue());
+        weightAlignmentAttr = getIntArrayAttr(origOp.getContext(), weightAlignment.getValue());
     }
 
-    auto distributedActivationCopyOp = createDistributedCopyIn(origOp, origOp.input(), activationTensorDistributionMode,
-                                                               activationTensorNumTiles, activationAlignment);
+    auto distributedActivationCopyOp =
+            createDistributedCopyIn(origOp, origOp.input(), activationTensorDistributionMode, activationTensorNumTiles,
+                                    activationAlignmentAttr, strategy);
 
     auto distributedWeightsCopyOp = createDistributedCopyIn(origOp, origOp.filter(), weightsTensorDistributionMode,
-                                                            weightsTensorNumTiles, weightAlignment);
+                                                            weightsTensorNumTiles, weightAlignmentAttr, strategy);
 
     auto distributedWeightTableCopyOp =
             createDistributedCopyIn(origOp, origOp.weightsTable(), weightsTableTensorDistributionMode,
-                                    weightsTableTensorNumTiles, weightAlignment);
+                                    weightsTableTensorNumTiles, weightAlignmentAttr, strategy);
 
     auto distributedActivationWindowCopyOp =
             createDistributedCopyIn(origOp, origOp.activationWindow(), activationWindowDistributionMode,
-                                    activationWindowNumTiles, weightAlignment);
+                                    activationWindowNumTiles, weightAlignmentAttr, strategy);
 
-    auto distributedOutputTensorType = createDistributedTensorType(
-            origOp, origOp.output(), outputTensorDistributionMode, outputTensorNumTiles, activationAlignment);
+    auto distributedOutputTensorType =
+            createDistributedTensorType(origOp, origOp.output(), outputTensorDistributionMode, outputTensorNumTiles,
+                                        activationAlignmentAttr, strategy);
 
     auto origOutput = origOp->getResult(0);
 
@@ -267,8 +278,10 @@ mlir::LogicalResult NCEMaxPoolRewriter::matchAndRewrite(NCEMaxPoolOp origOp, mli
     if (origOp->getParentOfType<NCEClusterTilingOp>() != nullptr) {
         return matchFailed(_log, rewriter, origOp, "The operation is already wrapped with NCEClusterTiling");
     }
-    mlir::ArrayAttr activationAlignment = nullptr;
-    mlir::ArrayAttr weightAlignment = nullptr;
+    Optional<SmallVector<int64_t>> activationAlignment = None;
+    Optional<SmallVector<int64_t>> weightAlignment = None;
+    mlir::ArrayAttr activationAlignmentAttr = nullptr;
+    mlir::ArrayAttr weightAlignmentAttr = nullptr;
     const auto strategy = origOp->getAttr(multiClusterStrategy).cast<mlir::StringAttr>().getValue();
     auto activationTensorDistributionMode = getActivationTensorDistributionMode(strategy);
     auto activationTensorNumTiles = getIntArrayAttr(
@@ -284,26 +297,29 @@ mlir::LogicalResult NCEMaxPoolRewriter::matchAndRewrite(NCEMaxPoolOp origOp, mli
     auto outputTensorNumTiles = getIntArrayAttr(origOp.getContext(),
                                                 getOutputTensorNumTiles(origOp.getOperation(), _numClusters, strategy));
 
-    if (strategy == splitOverKernel) {
-        activationAlignment =
-                getIntArrayAttr(origOp.getContext(), getActivationTensorAlignment(origOp.getOperation(), strategy));
-        weightAlignment =
-                getIntArrayAttr(origOp.getContext(), getWeightsTensorAlignment(origOp.getOperation(), strategy));
+    activationAlignment = getActivationTensorAlignment(strategy);
+    weightAlignment = getWeightsTensorAlignment(strategy);
+
+    if (activationAlignment.hasValue()) {
+        activationAlignmentAttr = getIntArrayAttr(origOp.getContext(), activationAlignment.getValue());
+        weightAlignmentAttr = getIntArrayAttr(origOp.getContext(), weightAlignment.getValue());
     }
 
-    auto distributedActivationCopyOp = createDistributedCopyIn(origOp, origOp.input(), activationTensorDistributionMode,
-                                                               activationTensorNumTiles, activationAlignment);
+    auto distributedActivationCopyOp =
+            createDistributedCopyIn(origOp, origOp.input(), activationTensorDistributionMode, activationTensorNumTiles,
+                                    activationAlignmentAttr, strategy);
 
     auto distributedWeightTableCopyOp =
             createDistributedCopyIn(origOp, origOp.weightsTable(), weightsTableTensorDistributionMode,
-                                    weightsTableTensorNumTiles, weightAlignment);
+                                    weightsTableTensorNumTiles, weightAlignmentAttr, strategy);
 
     auto distributedActivationWindowCopyOp =
             createDistributedCopyIn(origOp, origOp.activationWindow(), activationWindowDistributionMode,
-                                    activationWindowNumTiles, weightAlignment);
+                                    activationWindowNumTiles, weightAlignmentAttr, strategy);
 
-    auto distributedOutputTensorType = createDistributedTensorType(
-            origOp, origOp.output(), outputTensorDistributionMode, outputTensorNumTiles, activationAlignment);
+    auto distributedOutputTensorType =
+            createDistributedTensorType(origOp, origOp.output(), outputTensorDistributionMode, outputTensorNumTiles,
+                                        activationAlignmentAttr, strategy);
 
     auto origOutput = origOp->getResult(0);
 
@@ -357,7 +373,8 @@ mlir::LogicalResult NCEEltwiseRewriter::matchAndRewrite(NCEEltwiseOp origOp, mli
         return matchFailed(_log, rewriter, origOp, "The operation is already wrapped with NCEClusterTiling");
     }
 
-    mlir::ArrayAttr activationAlignment = nullptr;
+    Optional<SmallVector<int64_t>> activationAlignment = None;
+    mlir::ArrayAttr activationAlignmentAttr = nullptr;
     const auto strategy = origOp->getAttr(multiClusterStrategy).cast<mlir::StringAttr>().getValue();
     auto activationTensorDistributionMode = getActivationTensorDistributionMode(strategy);
     auto activationTensorNumTiles = getIntArrayAttr(
@@ -366,19 +383,23 @@ mlir::LogicalResult NCEEltwiseRewriter::matchAndRewrite(NCEEltwiseOp origOp, mli
     auto outputTensorNumTiles = getIntArrayAttr(origOp.getContext(),
                                                 getOutputTensorNumTiles(origOp.getOperation(), _numClusters, strategy));
 
-    if (strategy == splitOverKernel) {
-        activationAlignment =
-                getIntArrayAttr(origOp.getContext(), getActivationTensorAlignment(origOp.getOperation(), strategy));
+    activationAlignment = getActivationTensorAlignment(strategy);
+
+    if (activationAlignment.hasValue()) {
+        activationAlignmentAttr = getIntArrayAttr(origOp.getContext(), activationAlignment.getValue());
     }
 
-    auto distributedActivationCopyOp1 = createDistributedCopyIn(
-            origOp, origOp.input1(), activationTensorDistributionMode, activationTensorNumTiles, activationAlignment);
+    auto distributedActivationCopyOp1 =
+            createDistributedCopyIn(origOp, origOp.input1(), activationTensorDistributionMode, activationTensorNumTiles,
+                                    activationAlignmentAttr, strategy);
 
-    auto distributedActivationCopyOp2 = createDistributedCopyIn(
-            origOp, origOp.input2(), activationTensorDistributionMode, activationTensorNumTiles, activationAlignment);
+    auto distributedActivationCopyOp2 =
+            createDistributedCopyIn(origOp, origOp.input2(), activationTensorDistributionMode, activationTensorNumTiles,
+                                    activationAlignmentAttr, strategy);
 
-    auto distributedOutputTensorType = createDistributedTensorType(
-            origOp, origOp.output(), outputTensorDistributionMode, outputTensorNumTiles, activationAlignment);
+    auto distributedOutputTensorType =
+            createDistributedTensorType(origOp, origOp.output(), outputTensorDistributionMode, outputTensorNumTiles,
+                                        activationAlignmentAttr, strategy);
 
     auto origOutput = origOp->getResult(0);
 

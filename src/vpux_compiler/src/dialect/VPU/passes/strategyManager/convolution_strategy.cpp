@@ -19,8 +19,10 @@ using namespace VPU;
 
 bool ConvolutionStrategy::doesLayerFitIntoCMX(mlir::Operation* op, StringRef strategy) const {
     auto origOp = mlir::cast<NCEConvolutionOp>(op);
-    mlir::ArrayAttr activationAlignment = nullptr;
-    mlir::ArrayAttr weightAlignment = nullptr;
+    Optional<SmallVector<int64_t>> activationAlignment = None;
+    Optional<SmallVector<int64_t>> weightAlignment = None;
+    mlir::ArrayAttr activationAlignmentAttr = nullptr;
+    mlir::ArrayAttr weightAlignmentAttr = nullptr;
     const auto activationTensorDistributionMode = getActivationTensorDistributionMode(strategy);
     const auto activationTensorNumTiles = getIntArrayAttr(
             origOp.getContext(), getActivationTensorNumTiles(origOp.getOperation(), _numClusters, strategy));
@@ -30,16 +32,23 @@ bool ConvolutionStrategy::doesLayerFitIntoCMX(mlir::Operation* op, StringRef str
     auto outputTensorDistributionMode = getOutputTensorDistributionMode(strategy);
     auto outputTensorNumTiles = getIntArrayAttr(origOp.getContext(),
                                                 getOutputTensorNumTiles(origOp.getOperation(), _numClusters, strategy));
-    if (strategy == splitOverKernel) {
-        activationAlignment = getIntArrayAttr(origOp.getContext(), getActivationTensorAlignment(op, strategy));
-        weightAlignment = getIntArrayAttr(origOp.getContext(), getWeightsTensorAlignment(op, strategy));
+    activationAlignment = getActivationTensorAlignment(strategy);
+    weightAlignment = getWeightsTensorAlignment(strategy);
+
+    if (activationAlignment.hasValue()) {
+        activationAlignmentAttr = getIntArrayAttr(origOp.getContext(), activationAlignment.getValue());
+        weightAlignmentAttr = getIntArrayAttr(origOp.getContext(), weightAlignment.getValue());
     }
-    auto distributedActivationTensorType = createDistributedTensorType(
-            origOp, origOp.input(), activationTensorDistributionMode, activationTensorNumTiles, activationAlignment);
-    const auto distributeddWeightsTensorType = createDistributedTensorType(
-            origOp, origOp.filter(), weightsTensorDistributionMode, weightsTensorNumTiles, weightAlignment);
-    const auto distributedOutputTensorType = createDistributedTensorType(
-            origOp, origOp.output(), outputTensorDistributionMode, outputTensorNumTiles, activationAlignment);
+
+    auto distributedActivationTensorType =
+            createDistributedTensorType(origOp, origOp.input(), activationTensorDistributionMode,
+                                        activationTensorNumTiles, activationAlignmentAttr, strategy);
+    const auto distributeddWeightsTensorType =
+            createDistributedTensorType(origOp, origOp.filter(), weightsTensorDistributionMode, weightsTensorNumTiles,
+                                        weightAlignmentAttr, strategy);
+    const auto distributedOutputTensorType =
+            createDistributedTensorType(origOp, origOp.output(), outputTensorDistributionMode, outputTensorNumTiles,
+                                        activationAlignmentAttr, strategy);
 
     return origOp.fitIntoCMX(distributedActivationTensorType, distributeddWeightsTensorType,
                              distributedOutputTensorType);

@@ -19,21 +19,26 @@ using namespace VPU;
 
 bool EltwiseStrategy::doesLayerFitIntoCMX(mlir::Operation* op, StringRef strategy) const {
     auto origOp = mlir::cast<NCEEltwiseOp>(op);
-    mlir::ArrayAttr activationAlignment = nullptr;
+    Optional<SmallVector<int64_t>> activationAlignment = None;
+    mlir::ArrayAttr activationAlignmentAttr = nullptr;
     const auto activationTensorDistributionMode = getActivationTensorDistributionMode(strategy);
     const auto activationTensorNumTiles = getIntArrayAttr(
             origOp.getContext(), getActivationTensorNumTiles(origOp.getOperation(), _numClusters, strategy));
     auto outputTensorDistributionMode = getOutputTensorDistributionMode(strategy);
     auto outputTensorNumTiles = getIntArrayAttr(origOp.getContext(),
                                                 getOutputTensorNumTiles(origOp.getOperation(), _numClusters, strategy));
-    if (strategy == splitOverKernel) {
-        activationAlignment = getIntArrayAttr(origOp.getContext(), getActivationTensorAlignment(op, strategy));
+    activationAlignment = getActivationTensorAlignment(strategy);
+    if (activationAlignment.hasValue()) {
+        activationAlignmentAttr = getIntArrayAttr(origOp.getContext(), activationAlignment.getValue());
     }
-    auto distributedInput1TensorType = createDistributedTensorType(
-            origOp, origOp.input1(), activationTensorDistributionMode, activationTensorNumTiles, activationAlignment);
-    const auto distributedInput2TensorType = createDistributedTensorType(
-            origOp, origOp.input2(), activationTensorDistributionMode, activationTensorNumTiles, activationAlignment);
-    const auto distributedOutputTensorType = createDistributedTensorType(
-            origOp, origOp.output(), outputTensorDistributionMode, outputTensorNumTiles, activationAlignment);
+    auto distributedInput1TensorType =
+            createDistributedTensorType(origOp, origOp.input1(), activationTensorDistributionMode,
+                                        activationTensorNumTiles, activationAlignmentAttr, strategy);
+    const auto distributedInput2TensorType =
+            createDistributedTensorType(origOp, origOp.input2(), activationTensorDistributionMode,
+                                        activationTensorNumTiles, activationAlignmentAttr, strategy);
+    const auto distributedOutputTensorType =
+            createDistributedTensorType(origOp, origOp.output(), outputTensorDistributionMode, outputTensorNumTiles,
+                                        activationAlignmentAttr, strategy);
     return origOp.fitIntoCMX(distributedInput1TensorType, distributedInput2TensorType, distributedOutputTensorType);
 }
