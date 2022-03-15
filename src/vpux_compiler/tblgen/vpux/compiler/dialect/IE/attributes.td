@@ -145,6 +145,24 @@ def IE_AutoBroadcastType :
 }
 
 //
+// BroadcastType
+//
+
+def IE_BroadcastType :
+        StrEnumAttr<
+            "BroadcastType",
+            "Broadcast type that operations support",
+            [
+                StrEnumAttrCase<"NUMPY">,
+                StrEnumAttrCase<"EXPLICIT">,
+                StrEnumAttrCase<"BIDIRECTIONAL">,
+            ]
+        > {
+    let cppNamespace = "vpux::IE";
+    let genSpecializedAttr = 1;
+}
+
+//
 // RoundingType
 //
 

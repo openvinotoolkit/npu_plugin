@@ -1303,6 +1303,29 @@ def IE_LRN_IEOp :
 }
 
 //
+// BroadcastOp
+//
+
+def IE_BroadcastOp :
+        IE_LayerOp<
+            "Broadcast"
+        > {
+    let summary = "InferenceEngine Broadcast layer";
+
+    let arguments = (ins
+        AnyRankedTensor:$input,
+        1DTensorOf<[AnyInteger]>:$target_shape,
+        Optional<1DTensorOf<[AnyInteger]>>:$axes_mapping,
+
+        OptionalAttr<IE_BroadcastType>:$mode
+    );
+
+    let results = (outs
+        AnyRankedTensor:$output
+    );
+}
+
+//
 // ReduceMaxOp
 //
 
