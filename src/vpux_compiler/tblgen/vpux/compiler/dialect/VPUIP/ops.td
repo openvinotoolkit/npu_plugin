@@ -1652,41 +1652,6 @@ def VPUIP_NormUPAOp :
 }
 
 //
-// BroadcastUPAOp
-//
-
-def VPUIP_BroadcastUPAOp :
-        VPUIP_UPATaskOp<1, "BroadcastUPA",
-            [
-                ViewLikeOpInterface,
-                IERT_AnyDimsOrder
-            ]
-        > {
-    let summary = "Broadcast UPA SHAVE kernel";
-
-    let arguments = (ins
-        F16MemRef:$input,
-        MemRefOf<[SI32]>:$target_shape,
-        Optional<MemRefOf<[SI32]>>:$axes_mapping,
-
-        F16MemRef:$output_buff,
-
-        OptionalAttr<IE_BroadcastType>:$mode
-    );
-
-    let results = (outs
-        F16MemRef:$output
-    );
-
-    let assemblyFormat = [{
-        attr-dict
-        `inputs` `(` $input `:` type($input) `,` $target_shape `:` type($target_shape) (`,` $axes_mapping^ `:` type($axes_mapping))? `)`
-        `outputs` `(` $output_buff `:` type($output_buff) `)`
-        `->` type(results)
-    }];
-}
-
-//
 // ScaleShiftUPAOp
 //
 

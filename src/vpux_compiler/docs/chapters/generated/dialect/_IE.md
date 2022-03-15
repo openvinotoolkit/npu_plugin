@@ -374,38 +374,6 @@ operation ::= `IE.AvgPool` `(` operands `)` attr-dict `:` type(operands) `->` ty
 | :----: | ----------- |
 `output` | ranked tensor of 16-bit float or 32-bit float values
 
-### `IE.Broadcast` (vpux::IE::BroadcastOp)
-
-InferenceEngine Broadcast layer
-
-
-Syntax:
-
-```
-operation ::= `IE.Broadcast` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
-```
-
-
-#### Attributes:
-
-| Attribute | MLIR Type | Description |
-| :-------: | :-------: | ----------- |
-`mode` | vpux::IE::BroadcastTypeAttr | Broadcast type that operations support
-
-#### Operands:
-
-| Operand | Description |
-| :-----: | ----------- |
-`input` | ranked tensor of any type values
-`target_shape` | 1D tensor of integer values
-`axes_mapping` | 1D tensor of integer values
-
-#### Results:
-
-| Result | Description |
-| :----: | ----------- |
-`output` | ranked tensor of any type values
-
 ### `IE.CNNNetwork` (vpux::IE::CNNNetworkOp)
 
 InferenceEngine CNN Network description

@@ -113,24 +113,6 @@ def RewriteLRN_IE :
         >;
 
 //
-// IERT.Broadcast -> VPUIP.BroadcastUPA
-//
-
-def createBroadcastUPAOp :
-        NativeCodeCall<[{
-            $_builder.create<vpux::VPUIP::BroadcastUPAOp> (
-                $_loc, $0, $1,
-                $2.size() == 1 ? $2[0] : nullptr,
-                $3, $4)
-        }]>;
-
-def RewriteBroadcast :
-        Pat<
-            (IERT_BroadcastOp $input, $target_shape, $axes_mapping, $output, $mode),
-            (createBroadcastUPAOp $input, $target_shape, $axes_mapping, $output, $mode)
-        >;
-
-//
 // IERT.Reduce[Max|Mean|Sum]Op -> VPUIP.ReduceUPA
 //
 
