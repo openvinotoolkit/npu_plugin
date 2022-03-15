@@ -37,7 +37,14 @@ string(TOLOWER "${VPUX_DEVICE_NAME}" VPUX_PLUGIN_COMPONENT)
 set(VPUX_TESTS_COMPONENT "${VPUX_PLUGIN_COMPONENT}_tests")
 
 set(IE_MAIN_VPUX_PLUGIN_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
-set(THIRDPARTY_SERVER_PATH "http://nnt-srv01.inn.intel.com/dl_score_engine/")
+
+if(DEFINED ENV{THIRDPARTY_SERVER_PATH})
+    set(THIRDPARTY_SERVER_PATH "$ENV{THIRDPARTY_SERVER_PATH}")
+elseif(DEFINED THIRDPARTY_SERVER_PATH)
+    set(THIRDPARTY_SERVER_PATH "${THIRDPARTY_SERVER_PATH}")
+else()
+    set(THIRDPARTY_SERVER_PATH "http://nnt-srv01.inn.intel.com/dl_score_engine/")
+endif()
 
 find_package(InferenceEngineDeveloperPackage REQUIRED)
 
