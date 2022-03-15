@@ -1,0 +1,37 @@
+models:
+  - name: efficientdet-d0
+
+    launchers:
+      - framework: dlsdk
+        model: @MODEL_PATH@
+        adapter: ssd
+
+    datasets:
+      - name: COCO2017_detection_91cl
+        annotation_conversion:
+          converter: mscoco_detection
+          annotation_file: MSCOCO/annotations/instances_val2017.json
+          has_background: False
+          sort_annotations: True
+          use_full_label_map: True
+        annotation:  mscoco_det_90.pickle
+        data_source: MSCOCO/val2017
+        dataset_meta:  mscoco_det_90.json
+
+        preprocessing:
+          - type: resize
+            aspect_ratio_scale: fit_to_window
+            size: 512
+          - type: padding
+            size: 512
+            pad_type: right_bottom
+
+        postprocessing:
+          - type: faster_rcnn_postprocessing_resize
+            size: 512
+          - type: shift_labels
+            offset: 1
+
+        metrics:
+          - type: coco_precision
+            reference: 0.3195
