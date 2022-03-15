@@ -12,6 +12,7 @@
 //
 
 #include "vpux/compiler/dialect/IERT/passes.hpp"
+#include "vpux/compiler/dialect/VPU/attributes.hpp"
 #include "vpux/compiler/dialect/VPU/nce_sparsity.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
@@ -37,7 +38,8 @@ public:
 private:
     void safeRunOnFunc() final;
     uint64_t getPointer(mlir::Value value, uint64_t defaultValue);
-    void patchWeightsTable(Const::DeclareOp cstOp, mlir::Operation* cstLoadOp, VPUIP::NCEClusterTaskOp nceOp);
+    void patchWeightsTable(Const::DeclareOp cstOp, mlir::Operation* cstLoadOp, VPUIP::NCEClusterTaskOp nceOp,
+                           VPURT::DeclareBufferOp wtDecBuf);
     mlir::Value getTopBufferOfNCEClusterTiling(mlir::Operation* innerOp, mlir::Value buffer);
     mlir::Operation* getLoadOpForDstBuffer(mlir::Value dstBuffer);
 };
@@ -89,7 +91,7 @@ void PatchWeightsTablePass::safeRunOnFunc() {
         // with sparsity and weights pointers. The pointers are passed as  parameters of the
         // new transformation.
         _log.nest().trace("Constant for patching '{0}'", cstOp->getLoc());
-        patchWeightsTable(cstOp, cstLoadOp, nceOp);
+        patchWeightsTable(cstOp, cstLoadOp, nceOp, wtDecBuf);
     });
 }
 
@@ -130,7 +132,7 @@ mlir::Operation* PatchWeightsTablePass::getLoadOpForDstBuffer(mlir::Value dstBuf
 }
 
 void PatchWeightsTablePass::patchWeightsTable(Const::DeclareOp cstOp, mlir::Operation* cstLoadOp,
-                                              VPUIP::NCEClusterTaskOp nceOp) {
+                                              VPUIP::NCEClusterTaskOp nceOp, VPURT::DeclareBufferOp wtDecBuf) {
     // Retrieve sparsity and weight pointers which have correct values as they are already allocated
     // by the memory scheduler
     auto activationWindow = getTopBufferOfNCEClusterTiling(nceOp, nceOp.activation_window());
@@ -138,25 +140,28 @@ void PatchWeightsTablePass::patchWeightsTable(Const::DeclareOp cstOp, mlir::Oper
     auto weights = getTopBufferOfNCEClusterTiling(nceOp, nceOp.weights());
     uint64_t weightBasePointer = getPointer(weights, 0);
 
-    // get weight table numTiles
-    auto wTable = getTopBufferOfNCEClusterTiling(nceOp, nceOp.weight_table());
-    auto wtDecBuf = wTable.getDefiningOp<VPURT::DeclareBufferOp>();
-
-    auto numTiles = 1;
-    auto distributedType = wtDecBuf.getType().dyn_cast<VPUIP::DistributedBufferType>();
-    if (distributedType != nullptr) {
+    SmallVector<int64_t> offsets;
+    if (auto distributedType = wtDecBuf.getType().dyn_cast<VPUIP::DistributedBufferType>()) {
         auto distributionAttr = distributedType.getDistribution();
-        auto mode = distributionAttr.mode().getValue();
-        VPUX_THROW_UNLESS(mode == VPU::DistributionMode::DUPLICATED || mode == VPU::DistributionMode::SEGMENTED,
-                          "Unsupported distribution mode: {0} for weights table", VPU::stringifyDistributionMode(mode));
-        numTiles = (mode == VPU::DistributionMode::DUPLICATED) ? 1 : distributionAttr.num_clusters().getInt();
+        const auto numClusters = distributionAttr.num_clusters().getInt();
+        const auto perClusterShapeOffsets = distributedType.getPerClusterComputeShapeOffsets();
+        VPUX_THROW_UNLESS(perClusterShapeOffsets.size() == checked_cast<size_t>(numClusters),
+                          "Number of shape offsets '{0}' and clusters '{1}' are mismatch",
+                          perClusterShapeOffsets.size(), numClusters);
+
+        for (auto clusterOffsets : perClusterShapeOffsets) {
+            offsets.push_back(clusterOffsets[Dims4D::Filter::OC]);
+        }
+    } else {
+        offsets.push_back(0);
     }
 
     // Extract content attrib with existing transformations
     auto origConstAttr = cstOp.contentAttr();
     // Create new attribute based on existing one by adding new relocateWeightTable
     // transformation
-    auto newConstAttr = origConstAttr.relocateWeightsTablePointers(weightBasePointer, sparsityBasePtr, numTiles);
+    auto newConstAttr =
+            origConstAttr.relocateWeightsTablePointers(weightBasePointer, sparsityBasePtr, ShapeRef(offsets));
     mlir::OpBuilder builder(cstOp);
 
     // Create new DeclareOp with the new content attribute and replace the old DeclareOp
