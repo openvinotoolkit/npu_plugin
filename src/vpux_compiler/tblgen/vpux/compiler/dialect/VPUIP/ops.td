@@ -1122,8 +1122,7 @@ def VPUIP_LogUPAOp :
                 ViewLikeOpInterface,
                 IERT_SameShape,
                 IERT_SameElementType,
-                IERT_SameInOutDimsOrder_CHW_HWC_NCHW_NHWC,
-                VPUIP_Legacy4D
+                IERT_SameInOutDimsOrder
             ]
         > {
     let summary = "Log UPA SHAVE kernel";
