@@ -1,0 +1,35 @@
+models:
+  - name: efficientnet-b0
+
+    launchers:
+      - framework: dlsdk
+        model: @MODEL_PATH@
+        adapter: classification
+
+    datasets:
+    - name: ImageNet2012
+      annotation_conversion:
+        converter: imagenet
+        annotation_file: val.txt
+      annotation: imagenet1000.pickle
+      data_source: ILSVRC2012_img_val
+
+
+      preprocessing:
+      - type: crop
+        central_fraction: 0.875
+        use_pillow: true
+      - type: resize
+        size: 224
+        use_pillow: true
+        interpolation: BICUBIC
+
+      metrics:
+      - name: accuracy@top1
+        type: accuracy
+        top_k: 1
+        reference: 0.757
+      - name: accuracy@top5
+        type: accuracy
+        top_k: 5
+        reference: 0.9276
