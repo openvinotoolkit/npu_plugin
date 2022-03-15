@@ -446,6 +446,72 @@ std::vector<int32_t> vpux::VPU::NCESparsity::getWeightsTable(mlir::Type inElemTy
     return weightsTableVals;
 }
 
+SmallVector<int32_t> vpux::VPU::NCESparsity::getInstructionListTable(const SmallVector<int> rangeAttr,
+                                                                     const SmallVector<int> shiftAttr,
+                                                                     const SmallVector<int> biasAttr,
+                                                                     const int32_t size) {
+    // NOTE : The instruction list has 5 bits of addresses so the biggest count of instructions is 11111 = 27
+    // 27 of course will be aligned to 32 and will contain NOPS inside
+    const auto range = rangeAttr;
+    const auto shift = shiftAttr;
+    const auto bias = biasAttr;
+    SmallVector<int32_t> templateTable(size, 0);
+
+    // NOTE: first 2 are hardware reserved areas
+    int32_t ADDR_OF_RESERVED = 6;
+    int32_t ADDR_OF_ADDR_FLEX = 11;
+    int32_t ADDR_OF_FIRST2_BITS = 9;
+    int32_t ADDR_OF_REST_BITS = 16;
+    int32_t ADDR_OF_VALUE = 19;
+    int32_t MASK_FIRST2_BITS = 3;
+    int32_t ALU_HALT_OPCODE = 6;
+    int32_t ALU_LOAD = 2;
+    int32_t first2Bits, first3Bits;
+    int32_t sizeRange = static_cast<int32_t>(range.size());
+    int32_t sizeShift = static_cast<int32_t>(shift.size());
+    int32_t sizeBias = static_cast<int32_t>(bias.size());
+    int32_t nopCount = (sizeRange + sizeShift + sizeBias) >> 4;
+
+    // Populate the instruction list from the table
+    int32_t k = 0;
+    for (int32_t j = 0; j < size; j++) {
+        first2Bits = j & MASK_FIRST2_BITS;
+        first3Bits = j >> 2;
+
+        if ((j > sizeRange + sizeShift + sizeBias + nopCount) || (j == 15))
+            templateTable[j] = (ALU_HALT_OPCODE);
+        else {
+            if (j < sizeRange) {
+                templateTable[j] =
+                        ((range[j] << ADDR_OF_VALUE) | (first3Bits << ADDR_OF_REST_BITS) | (8 << ADDR_OF_ADDR_FLEX) |
+                         (first2Bits << ADDR_OF_FIRST2_BITS) | (0 << ADDR_OF_RESERVED) | ALU_LOAD);
+            } else if (j < sizeRange + sizeShift + 1) {
+                if (j < 16)
+                    templateTable[j] = ((shift[j - sizeRange] << ADDR_OF_VALUE) | (first3Bits << ADDR_OF_REST_BITS) |
+                                        (8 << ADDR_OF_ADDR_FLEX) | (first2Bits << ADDR_OF_FIRST2_BITS) |
+                                        (0 << ADDR_OF_RESERVED) | ALU_LOAD);
+                else {
+                    k = j - 1;
+                    first2Bits = k & MASK_FIRST2_BITS;
+                    first3Bits = k >> 2;
+                    templateTable[j] = ((shift[k - sizeRange] << ADDR_OF_VALUE) | (first3Bits << ADDR_OF_REST_BITS) |
+                                        (8 << ADDR_OF_ADDR_FLEX) | (first2Bits << ADDR_OF_FIRST2_BITS) |
+                                        (0 << ADDR_OF_RESERVED) | ALU_LOAD);
+                }
+            } else if (j < sizeRange + sizeShift + sizeBias + 1) {
+                k = j - 1;
+                first2Bits = k & MASK_FIRST2_BITS;
+                first3Bits = k >> 2;
+                templateTable[j] = ((bias[k - sizeRange - sizeShift] << ADDR_OF_VALUE) |
+                                    (first3Bits << ADDR_OF_REST_BITS) | (8 << ADDR_OF_ADDR_FLEX) |
+                                    (first2Bits << ADDR_OF_FIRST2_BITS) | (0 << ADDR_OF_RESERVED) | ALU_LOAD);
+            }
+        }
+    }
+
+    return templateTable;
+}
+
 Shape vpux::VPU::NCESparsity::inferWeightsTableShape(int64_t OC) {
     return Shape{OC, 1, 1, VPU::NCEInvariant::WEIGHT_TABLE_NUM_ELEMENTS_PER_OC};
 }

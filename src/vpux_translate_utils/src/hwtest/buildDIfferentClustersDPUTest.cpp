@@ -178,7 +178,7 @@ void buildDifferentClustersDPUTest(const nb::TestCaseJsonDescriptor& testDesc, m
     updateBarrier = functionBuilder.create<vpux::VPURT::ConfigureBarrierOp>(loc, 1);
     auto nceTask = VPURT::wrapIntoTaskOp<VPUIP::NCEClusterTaskOp>(
             functionBuilder, mlir::ValueRange(waitBarrier.barrier()), mlir::ValueRange(updateBarrier.barrier()), loc,
-            inputCMX.buffer(), weightsCMX.buffer(), weightsTableCMX.buffer(), nullptr, inputCMX.buffer(),
+            inputCMX.buffer(), weightsCMX.buffer(), nullptr, weightsTableCMX.buffer(), nullptr, inputCMX.buffer(),
             outputCMX.buffer(), outputCMX.buffer(), vpux::VPUIP::NCETaskType::CONV, kernelSize, strides, kernelPaddings,
             nullptr, nullptr);
 

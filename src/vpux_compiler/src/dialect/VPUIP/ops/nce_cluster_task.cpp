@@ -41,10 +41,11 @@ void vpux::VPUIP::NCEClusterTaskOp::build(mlir::OpBuilder& builder, mlir::Operat
                                           mlir::IntegerAttr activation_window_channel_length,
                                           mlir::UnitAttr is_continued, mlir::IntegerAttr cm_sp_pattern,
                                           mlir::UnitAttr is_segmented, mlir::IntegerAttr out_channel_offset) {
-    build(builder, state, output_buff.getType(), input, weights, weight_table, instruction_list_table, activation_window, parent_input,
-          parent_output, output_buff, nullptr, vpux::VPUIP::NCETaskTypeAttr::get(builder.getContext(), task_type),
-          kernel_size, kernel_strides, kernel_padding, activation_window_channel_length, is_continued, cm_sp_pattern,
-          is_segmented, out_channel_offset);
+    build(builder, state, output_buff.getType(), input, weights, weight_table, instruction_list_table,
+          activation_window, parent_input, parent_output, output_buff, nullptr,
+          vpux::VPUIP::NCETaskTypeAttr::get(builder.getContext(), task_type), kernel_size, kernel_strides,
+          kernel_padding, activation_window_channel_length, is_continued, cm_sp_pattern, is_segmented,
+          out_channel_offset);
 
     for (auto& region : state.regions) {
         region->emplaceBlock();
@@ -60,10 +61,10 @@ void vpux::VPUIP::NCEClusterTaskOp::build(mlir::OpBuilder& builder, mlir::Operat
                                           mlir::IntegerAttr activation_window_channel_length,
                                           mlir::UnitAttr is_continued, mlir::IntegerAttr cm_sp_pattern,
                                           mlir::UnitAttr is_segmented, mlir::IntegerAttr out_channel_offset) {
-    build(builder, state, output, input, weights, weight_table, instruction_list_table, activation_window, parent_input, parent_output,
-          output_buff, nullptr, vpux::VPUIP::NCETaskTypeAttr::get(builder.getContext(), task_type), kernel_size,
-          kernel_strides, kernel_padding, activation_window_channel_length, is_continued, cm_sp_pattern, is_segmented,
-          out_channel_offset);
+    build(builder, state, output, input, weights, weight_table, instruction_list_table, activation_window, parent_input,
+          parent_output, output_buff, nullptr, vpux::VPUIP::NCETaskTypeAttr::get(builder.getContext(), task_type),
+          kernel_size, kernel_strides, kernel_padding, activation_window_channel_length, is_continued, cm_sp_pattern,
+          is_segmented, out_channel_offset);
 
     for (auto& region : state.regions) {
         region->emplaceBlock();

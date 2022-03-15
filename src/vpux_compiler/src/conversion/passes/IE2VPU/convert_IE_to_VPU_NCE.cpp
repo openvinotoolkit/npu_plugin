@@ -114,12 +114,17 @@ mlir::LogicalResult ConvToNCE::matchAndRewrite(IE::ConvolutionOp origOp, mlir::P
                                                              activationWindow, bias, OC, ppeTaskAttr, _arch);
     const auto weightsTable = VPU::createWeightsTableTensor(rewriter, origOp->getLoc(), weightsTableVec, OC);
 
+    const auto instructionListTableVec = VPU::createInstructionListTableData(origOp.output(), origOp.post_opAttr());
+    const auto instructionListTable =
+            VPU::createInstructionListTableTensor(rewriter, origOp->getLoc(), instructionListTableVec);
+
     const auto padAttr = VPU::getPaddingAttr(getContext(), PadInfo(origOp.pads_begin(), origOp.pads_end()));
     const auto rawFilterShape = getIntArrayAttr(rewriter, filterShape);
 
-    auto nceOp = rewriter.create<VPU::NCEConvolutionOp>(
-            origOp->getLoc(), origOp.getType(), origOp.input(), alignedFilter, weightsTable, activationWindow,
-            origOp.stridesAttr(), padAttr, ppeTaskAttr, rawFilterShape, activationWindowChannelLength);
+    auto nceOp = rewriter.create<VPU::NCEConvolutionOp>(origOp->getLoc(), origOp.getType(), origOp.input(),
+                                                        alignedFilter, weightsTable, instructionListTable,
+                                                        activationWindow, origOp.stridesAttr(), padAttr, ppeTaskAttr,
+                                                        rawFilterShape, activationWindowChannelLength);
 
     rewriter.replaceOp(origOp, nceOp.output());
     return mlir::success();
@@ -199,12 +204,17 @@ mlir::LogicalResult DepthConvToNCE::matchAndRewrite(IE::GroupConvolutionOp origO
                                                        bias, OC, ppeTaskAttr, _arch);
     auto weightsTable = VPU::createWeightsTableTensor(rewriter, origOp->getLoc(), weightsTableVec, OC);
 
+    const auto instructionListTableVec = VPU::createInstructionListTableData(origOp.output(), origOp.post_opAttr());
+    const auto instructionListTable =
+            VPU::createInstructionListTableTensor(rewriter, origOp->getLoc(), instructionListTableVec);
+
     const auto padAttr = VPU::getPaddingAttr(getContext(), PadInfo(origOp.pads_begin(), origOp.pads_end()));
     const auto rawFilterShape = getIntArrayAttr(rewriter, filterShape);
 
     auto nceOp = rewriter.create<VPU::NCEDepthConvolutionOp>(
-            origOp->getLoc(), origOp.getType(), origOp.input(), alignedFilter, weightsTable, activationWindow,
-            origOp.stridesAttr(), padAttr, ppeTaskAttr, rawFilterShape, activationWindowChannelLength);
+            origOp->getLoc(), origOp.getType(), origOp.input(), alignedFilter, weightsTable, instructionListTable,
+            activationWindow, origOp.stridesAttr(), padAttr, ppeTaskAttr, rawFilterShape,
+            activationWindowChannelLength);
 
     rewriter.replaceOp(origOp, nceOp.output());
     return mlir::success();
@@ -266,11 +276,15 @@ mlir::LogicalResult MaxPoolToNCE::matchAndRewrite(IE::MaxPoolOp origOp, mlir::Pa
                                                        nullptr, IC, ppeTaskAttr, _arch);
     auto weightsTable = VPU::createWeightsTableTensor(rewriter, origOp->getLoc(), weightsTableVec, IC);
 
+    const auto instructionListTableVec = VPU::createInstructionListTableData(origOp.output(), origOp.post_opAttr());
+    const auto instructionListTable =
+            VPU::createInstructionListTableTensor(rewriter, origOp->getLoc(), instructionListTableVec);
+
     const auto padAttr = VPU::getPaddingAttr(getContext(), PadInfo(origOp.pads_begin(), origOp.pads_end()));
 
-    auto nceOp = rewriter.create<VPU::NCEMaxPoolOp>(origOp->getLoc(), origOp.getType(), origOp.input(), weightsTable,
-                                                    activationWindow, origOp.kernel_sizeAttr(), origOp.stridesAttr(),
-                                                    padAttr, ppeTaskAttr, activationWindowChannelLength);
+    auto nceOp = rewriter.create<VPU::NCEMaxPoolOp>(
+            origOp->getLoc(), origOp.getType(), origOp.input(), weightsTable, instructionListTable, activationWindow,
+            origOp.kernel_sizeAttr(), origOp.stridesAttr(), padAttr, ppeTaskAttr, activationWindowChannelLength);
 
     rewriter.replaceOp(origOp, nceOp.output());
     return mlir::success();

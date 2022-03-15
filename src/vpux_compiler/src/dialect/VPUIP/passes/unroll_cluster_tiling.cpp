@@ -328,7 +328,8 @@ mlir::LogicalResult ClusterNCERewriter::matchAndRewrite(VPUIP::NCEClusterTaskOp 
         const auto newLoc = appendLoc(loc, llvm::formatv("_cluster_{0}", clusterId).str());
         auto newTask = VPURT::wrapIntoTaskOp<VPUIP::NCEClusterTaskOp>(
                 rewriter, vpurtTask.waitBarriers(), vpurtTask.updateBarriers(), newLoc, inputBuffs[clusterId],
-                weightsBuffs[clusterId], weightTableBuffs[clusterId], activationWindowBuffs[clusterId], parentInput,
+                weightsBuffs[clusterId], nceTask.instruction_list_table(), weightTableBuffs[clusterId], 
+                activationWindowBuffs[clusterId], parentInput,
                 parentOutput, outputBuffs[clusterId], nceTask.task_type(), nceTask.kernel_sizeAttr(),
                 nceTask.kernel_stridesAttr(), padAttrForCluster[clusterId],
                 nceTask.activation_window_channel_lengthAttr(), nullptr, nullptr, isSegmented,

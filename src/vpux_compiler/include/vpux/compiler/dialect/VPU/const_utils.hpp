@@ -11,6 +11,7 @@
 // included with the Software Package for additional details.
 //
 
+#include "vpux/compiler/dialect/IERT/ops_interfaces.hpp"
 #include "vpux/compiler/dialect/VPU/nce_sparsity.hpp"
 
 namespace vpux {
@@ -23,6 +24,9 @@ std::vector<int32_t> createWeightsTableData(mlir::Value opInput, mlir::Value opO
                                             vpux::VPU::PPETaskAttr ppeTaskAttr, VPU::ArchKind _arch);
 mlir::Value createWeightsTableTensor(mlir::OpBuilder& builder, mlir::Location loc, ArrayRef<int32_t> weightsTable,
                                      int64_t OC);
+Optional<SmallVector<int32_t>> createInstructionListTableData(mlir::Value opOutput, vpux::IE::PostOp postOp);
+mlir::Value createInstructionListTableTensor(mlir::OpBuilder& builder, mlir::Location loc,
+                                             Optional<SmallVector<int32_t>> instructionListTable);
 
 }  // namespace VPU
 }  // namespace vpux

@@ -58,41 +58,6 @@ void addPPETask(mlir::OpBuilder& builder, VPUIP::NCEClusterTaskOp& nceOp, VPU::P
                      ppeAttr.lrelu_shift(), multList, shiftList, ppeAttr.quant_post_shift());
 }
 
-mlir::Value createInstructionListTableTensor(mlir::OpBuilder& builder, mlir::Location loc, IE::PostOp postOp,
-                                             mlir::Type outElemType) {
-    if (postOp == nullptr) {
-        return nullptr;
-    }
-
-    const auto pwlTable = findCustomPWLTable(postOp.name().getValue(), outElemType);
-
-    if (!pwlTable.hasValue()) {
-        return nullptr;
-    }
-
-    const auto pwlTableRange = pwlTable.getValue().range;
-    const auto pwlTableShift = pwlTable.getValue().shift;
-    const auto pwlTableBias = pwlTable.getValue().bias;
-
-    auto ctx = builder.getContext();
-    const size_t vectorSize = pwlTableRange.size() + pwlTableShift.size() + pwlTableBias.size();
-    // We need a NOP to terminate each chain of 16 instructions.
-    const size_t nopCount = vectorSize >> 4;
-    const size_t instructionListTableSize = alignVal<size_t>(vectorSize + nopCount, 16);
-    SmallVector<int64_t> instructionListTableShape{1, 1, 1, static_cast<int64_t>(instructionListTableSize)};
-
-    const auto dataType = mlir::MemRefType::get(instructionListTableShape, getSInt32Type(ctx));
-    auto instructionListTableOp = builder.create<VPUIP::InstructionListTableOp>(
-            loc, dataType, getIntArrayAttr(ctx, makeArrayRef(pwlTableRange)),
-            getIntArrayAttr(ctx, makeArrayRef(pwlTableShift)), getIntArrayAttr(ctx, makeArrayRef(pwlTableBias)));
-
-    const auto dataTypeCMX = dataType.cast<vpux::NDTypeInterface>().changeMemSpace(VPU::MemoryKind::CMX_NN);
-
-    auto dataAllocOp = builder.create<mlir::memref::AllocOp>(loc, dataTypeCMX.cast<mlir::MemRefType>());
-    auto copyOp = builder.create<IERT::CopyOp>(loc, instructionListTableOp.output(), dataAllocOp);
-    return copyOp.output();
-}  // namespace
-
 void addDPUTasks(VPUIP::NCEClusterTaskOp nceOp, mlir::PatternRewriter& rewriter, mlir::Region& workloads) {
     for (auto dpuTaskOp : workloads.getOps<VPU::DPUWorkloadOp>()) {
         SmallVector<int64_t> ends;
@@ -172,10 +137,6 @@ mlir::LogicalResult ConvRewriter::matchAndRewrite(VPU::NCEConvolutionOp origOp, 
 
     const auto outputBuffer = allocateResult(origOp.getLoc(), rewriter, *typeConverter, origOp.output());
 
-    auto instructionListTable =
-            createInstructionListTableTensor(rewriter, origOp->getLoc(), origOp.post_opAttr(),
-                                             origOp.output().getType().cast<mlir::ShapedType>().getElementType());
-
     //
     // Create NCE per-cluster Operation
     //
@@ -184,7 +145,7 @@ mlir::LogicalResult ConvRewriter::matchAndRewrite(VPU::NCEConvolutionOp origOp, 
     const auto taskType = isCMajor ? VPUIP::NCETaskType::CMCONV : VPUIP::NCETaskType::CONV;
 
     auto nceOp = rewriter.create<VPUIP::NCEClusterTaskOp>(
-            origOp->getLoc(), newArgs.input(), newArgs.filter(), newArgs.weightsTable(), instructionListTable,
+            origOp->getLoc(), newArgs.input(), newArgs.filter(), newArgs.weightsTable(), newArgs.instructionListTable(),
             newArgs.activationWindow(),
             /*parent_input=*/newArgs.input(),
             /*parent_output=*/outputBuffer,
@@ -241,7 +202,7 @@ mlir::LogicalResult MaxPoolRewriter::matchAndRewrite(VPU::NCEMaxPoolOp origOp, O
 
     auto nceOp = rewriter.create<VPUIP::NCEClusterTaskOp>(
             origOp->getLoc(), newArgs.input(), /*weights=*/nullptr, newArgs.weightsTable(),
-            /*instruction_table_list=*/nullptr, newArgs.activationWindow(),
+            newArgs.instructionListTable(), newArgs.activationWindow(),
             /*parent_input=*/newArgs.input(),
             /*parent_output=*/outputBuffer,
             /*output_buff=*/outputBuffer, VPUIP::NCETaskType::MAXPOOL, origOp.kernel_size(), origOp.strides(),
@@ -299,9 +260,6 @@ mlir::LogicalResult DepthwiseConvRewriter::matchAndRewrite(VPU::NCEDepthConvolut
 
     const auto outputBuffer = allocateResult(origOp.getLoc(), rewriter, *typeConverter, origOp.output());
 
-    auto instructionListTable =
-            createInstructionListTableTensor(rewriter, origOp->getLoc(), origOp.post_opAttr(),
-                                             origOp.output().getType().cast<mlir::ShapedType>().getElementType());
     //
     // Create NCE per-cluster Operation
     //
@@ -309,7 +267,7 @@ mlir::LogicalResult DepthwiseConvRewriter::matchAndRewrite(VPU::NCEDepthConvolut
     const auto kernelSizeAttr = getIntArrayAttr(getContext(), makeArrayRef({KY, KX}));
 
     auto nceOp = rewriter.create<VPUIP::NCEClusterTaskOp>(
-            origOp->getLoc(), newArgs.input(), newArgs.filter(), newArgs.weightsTable(), instructionListTable,
+            origOp->getLoc(), newArgs.input(), newArgs.filter(), newArgs.weightsTable(), newArgs.instructionListTable(),
             newArgs.activationWindow(),
             /*parent_input=*/newArgs.input(),
             /*parent_output=*/outputBuffer,
