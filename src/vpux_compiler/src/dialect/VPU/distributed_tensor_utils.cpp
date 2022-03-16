@@ -135,24 +135,13 @@ SmallVector<int64_t> vpux::VPU::getWeightsTableTensorNumTiles(mlir::Operation* o
     }
 }
 
-SmallVector<int64_t> vpux::VPU::getActivationWindowTensorNumTiles(mlir::Operation* op,
-                                                                  int64_t numClustersAvailableForCompilation,
-                                                                  StringRef strategy, ArchKind arch) {
+SmallVector<int64_t> vpux::VPU::getActivationWindowTensorNumTiles(StringRef strategy) {
     if (strategy == splitOverHeightOverlapped) {
         return {1, 1, 1, 1};
     } else if (strategy == splitOverHeight) {
         return {1, 1, 1, 1};
     } else if (strategy == splitOverKernel) {
-        if (arch == ArchKind::MTL) {
-            auto OC = getShape(op->getResult(0))[Dims4D::Act::C];
-            int64_t numClustersToUseForLayer =
-                    getNumberOfClustersToAvoidAlignment(OC, numClustersAvailableForCompilation);
-            return {numClustersToUseForLayer, 1, 1, 1};
-        } else if (arch == ArchKind::KMB) {
-            return {1, 1, 1, 1};
-        } else {
-            VPUX_THROW("Unsupported arch {0}", arch);
-        }
+        return {1, 1, 1, 1};
     } else if (strategy == clustering) {
         return {1, 1, 1, 1};
     } else {
@@ -210,19 +199,13 @@ DistributionMode vpux::VPU::getOutputTensorDistributionMode(StringRef strategy) 
     }
 }
 
-DistributionMode vpux::VPU::getActivationWindowTensorDistributionMode(StringRef strategy, ArchKind arch) {
+DistributionMode vpux::VPU::getActivationWindowTensorDistributionMode(StringRef strategy) {
     if (strategy == splitOverHeightOverlapped) {
         return DistributionMode::DUPLICATED;
     } else if (strategy == splitOverHeight) {
         return DistributionMode::DUPLICATED;
     } else if (strategy == splitOverKernel) {
-        if (arch == ArchKind::MTL) {
-            return DistributionMode::SEGMENTED;
-        } else if (arch == ArchKind::KMB) {
-            return DistributionMode::DUPLICATED;
-        } else {
-            VPUX_THROW("Unsupported arch {0}", arch);
-        }
+        return DistributionMode::DUPLICATED;
     } else if (strategy == clustering) {
         return DistributionMode::DUPLICATED;
     } else {

@@ -50,12 +50,11 @@ SmallVector<int64_t> getWeightsTensorNumTiles(mlir::Operation* op, int64_t numCl
 Optional<SmallVector<int64_t>> getWeightsTensorAlignment(StringRef strategy);
 SmallVector<int64_t> getWeightsTableTensorNumTiles(mlir::Operation* op, int64_t numClustersAvailableForCompilation,
                                                    StringRef strategy);
-SmallVector<int64_t> getActivationWindowTensorNumTiles(mlir::Operation* op, int64_t numClustersAvailableForCompilation,
-                                                       StringRef strategy, ArchKind arch);
+SmallVector<int64_t> getActivationWindowTensorNumTiles(StringRef strategy);
 DistributionMode getActivationTensorDistributionMode(StringRef strategy);
 DistributionMode getWeightsTensorDistributionMode(StringRef strategy);
 DistributionMode getOutputTensorDistributionMode(StringRef strategy);
-DistributionMode getActivationWindowTensorDistributionMode(StringRef strategy, ArchKind arch);
+DistributionMode getActivationWindowTensorDistributionMode(StringRef strategy);
 NCEClusterTilingOp createDistributedCopyOut(mlir::Operation* origOp, NCEClusterTilingOp clusterTilingOp);
 mlir::ArrayAttr getKernelSize(mlir::Operation* origOp);
 

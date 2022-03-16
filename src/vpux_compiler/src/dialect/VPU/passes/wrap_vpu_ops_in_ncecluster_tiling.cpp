@@ -39,8 +39,8 @@ namespace {
 
 class NCEConvolutionRewriter final : public mlir::OpRewritePattern<NCEConvolutionOp> {
 public:
-    NCEConvolutionRewriter(mlir::MLIRContext* ctx, VPU::ArchKind arch, int64_t numClusters, Logger log)
-            : mlir::OpRewritePattern<NCEConvolutionOp>(ctx), _arch(arch), _numClusters(numClusters), _log(log) {
+    NCEConvolutionRewriter(mlir::MLIRContext* ctx, int64_t numClusters, Logger log)
+            : mlir::OpRewritePattern<NCEConvolutionOp>(ctx), _numClusters(numClusters), _log(log) {
         setDebugName("NCEConvolutionRewriter");
     }
 
@@ -48,7 +48,6 @@ public:
     mlir::LogicalResult matchAndRewrite(NCEConvolutionOp origOp, mlir::PatternRewriter& rewriter) const final;
 
 private:
-    VPU::ArchKind _arch;
     int64_t _numClusters;
     Logger _log;
 };
@@ -118,10 +117,9 @@ mlir::LogicalResult NCEConvolutionRewriter::matchAndRewrite(NCEConvolutionOp ori
 
     const auto inOrder = DimsOrder::fromValue(origOp.input());
     if (inOrder == DimsOrder::NCHW) {
-        auto activationWindowDistributionMode = getActivationWindowTensorDistributionMode(strategy, _arch);
-        auto activationWindowNumTiles = getIntArrayAttr(
-                origOp.getContext(),
-                getActivationWindowTensorNumTiles(origOp.getOperation(), _numClusters, strategy, _arch));
+        auto activationWindowDistributionMode = getActivationWindowTensorDistributionMode(strategy);
+        auto activationWindowNumTiles =
+                getIntArrayAttr(origOp.getContext(), getActivationWindowTensorNumTiles(strategy));
         auto distributedActivationWindowCopyOp =
                 createDistributedCopyIn(origOp, origOp.activationWindow(), activationWindowDistributionMode,
                                         activationWindowNumTiles, nullptr, strategy);
@@ -154,8 +152,8 @@ mlir::LogicalResult NCEConvolutionRewriter::matchAndRewrite(NCEConvolutionOp ori
 
 class NCEDepthConvolutionRewriter final : public mlir::OpRewritePattern<NCEDepthConvolutionOp> {
 public:
-    NCEDepthConvolutionRewriter(mlir::MLIRContext* ctx, VPU::ArchKind arch, int64_t numClusters, Logger log)
-            : mlir::OpRewritePattern<NCEDepthConvolutionOp>(ctx), _arch(arch), _numClusters(numClusters), _log(log) {
+    NCEDepthConvolutionRewriter(mlir::MLIRContext* ctx, int64_t numClusters, Logger log)
+            : mlir::OpRewritePattern<NCEDepthConvolutionOp>(ctx), _numClusters(numClusters), _log(log) {
         setDebugName("NCEDepthConvolutionRewriter");
     }
 
@@ -163,7 +161,6 @@ public:
     mlir::LogicalResult matchAndRewrite(NCEDepthConvolutionOp origOp, mlir::PatternRewriter& rewriter) const final;
 
 private:
-    VPU::ArchKind _arch;
     int64_t _numClusters;
     Logger _log;
 };
@@ -189,10 +186,8 @@ mlir::LogicalResult NCEDepthConvolutionRewriter::matchAndRewrite(NCEDepthConvolu
     auto weightsTableTensorDistributionMode = getWeightsTensorDistributionMode(strategy);
     auto weightsTableTensorNumTiles = getIntArrayAttr(
             origOp.getContext(), getWeightsTableTensorNumTiles(origOp.getOperation(), _numClusters, strategy));
-    auto activationWindowDistributionMode = getActivationWindowTensorDistributionMode(strategy, _arch);
-    auto activationWindowNumTiles =
-            getIntArrayAttr(origOp.getContext(),
-                            getActivationWindowTensorNumTiles(origOp.getOperation(), _numClusters, strategy, _arch));
+    auto activationWindowDistributionMode = getActivationWindowTensorDistributionMode(strategy);
+    auto activationWindowNumTiles = getIntArrayAttr(origOp.getContext(), getActivationWindowTensorNumTiles(strategy));
     auto outputTensorDistributionMode = getOutputTensorDistributionMode(strategy);
     auto outputTensorNumTiles = getIntArrayAttr(origOp.getContext(),
                                                 getOutputTensorNumTiles(origOp.getOperation(), _numClusters, strategy));
@@ -258,8 +253,8 @@ mlir::LogicalResult NCEDepthConvolutionRewriter::matchAndRewrite(NCEDepthConvolu
 
 class NCEMaxPoolRewriter final : public mlir::OpRewritePattern<NCEMaxPoolOp> {
 public:
-    NCEMaxPoolRewriter(mlir::MLIRContext* ctx, VPU::ArchKind arch, int64_t numClusters, Logger log)
-            : mlir::OpRewritePattern<NCEMaxPoolOp>(ctx), _arch(arch), _numClusters(numClusters), _log(log) {
+    NCEMaxPoolRewriter(mlir::MLIRContext* ctx, int64_t numClusters, Logger log)
+            : mlir::OpRewritePattern<NCEMaxPoolOp>(ctx), _numClusters(numClusters), _log(log) {
         setDebugName("NCEMaxPoolRewriter");
     }
 
@@ -267,7 +262,6 @@ public:
     mlir::LogicalResult matchAndRewrite(NCEMaxPoolOp origOp, mlir::PatternRewriter& rewriter) const final;
 
 private:
-    VPU::ArchKind _arch;
     int64_t _numClusters;
     Logger _log;
 };
@@ -289,10 +283,8 @@ mlir::LogicalResult NCEMaxPoolRewriter::matchAndRewrite(NCEMaxPoolOp origOp, mli
     auto weightsTableTensorDistributionMode = getWeightsTensorDistributionMode(strategy);
     auto weightsTableTensorNumTiles = getIntArrayAttr(
             origOp.getContext(), getWeightsTableTensorNumTiles(origOp.getOperation(), _numClusters, strategy));
-    auto activationWindowDistributionMode = getActivationWindowTensorDistributionMode(strategy, _arch);
-    auto activationWindowNumTiles =
-            getIntArrayAttr(origOp.getContext(),
-                            getActivationWindowTensorNumTiles(origOp.getOperation(), _numClusters, strategy, _arch));
+    auto activationWindowDistributionMode = getActivationWindowTensorDistributionMode(strategy);
+    auto activationWindowNumTiles = getIntArrayAttr(origOp.getContext(), getActivationWindowTensorNumTiles(strategy));
     auto outputTensorDistributionMode = getOutputTensorDistributionMode(strategy);
     auto outputTensorNumTiles = getIntArrayAttr(origOp.getContext(),
                                                 getOutputTensorNumTiles(origOp.getOperation(), _numClusters, strategy));
@@ -450,15 +442,14 @@ void WrapVPUOpsInNCEClusterTilingPass::safeRunOnFunc() {
     auto& ctx = getContext();
 
     auto module = func->getParentOfType<mlir::ModuleOp>();
-    const auto arch = VPU::getArch(module);
     auto nceOp = IE::getAvailableExecutor(module, ExecutorKind::NCE);
     const auto numClusters = nceOp.count();
 
     mlir::RewritePatternSet patterns(&ctx);
 
-    patterns.insert<NCEConvolutionRewriter>(&ctx, arch, numClusters, _log);
-    patterns.insert<NCEDepthConvolutionRewriter>(&ctx, arch, numClusters, _log);
-    patterns.insert<NCEMaxPoolRewriter>(&ctx, arch, numClusters, _log);
+    patterns.insert<NCEConvolutionRewriter>(&ctx, numClusters, _log);
+    patterns.insert<NCEDepthConvolutionRewriter>(&ctx, numClusters, _log);
+    patterns.insert<NCEMaxPoolRewriter>(&ctx, numClusters, _log);
     patterns.insert<NCEEltwiseRewriter>(&ctx, numClusters, _log);
 
     mlir::ConversionTarget target(ctx);
