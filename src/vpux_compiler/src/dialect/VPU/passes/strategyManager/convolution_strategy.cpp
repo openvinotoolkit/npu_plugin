@@ -30,8 +30,7 @@ bool ConvolutionStrategy::doesLayerFitIntoCMX(mlir::Operation* op, StringRef str
     auto weightsTensorNumTiles = getIntArrayAttr(
             origOp.getContext(), getWeightsTensorNumTiles(origOp.getOperation(), _numClusters, strategy));
     auto outputTensorDistributionMode = getOutputTensorDistributionMode(strategy);
-    auto outputTensorNumTiles = getIntArrayAttr(origOp.getContext(),
-                                                getOutputTensorNumTiles(origOp.getOperation(), _numClusters, strategy));
+    auto outputTensorNumTiles = getIntArrayAttr(origOp.getContext(), getOutputTensorNumTiles(_numClusters, strategy));
     activationAlignment = getActivationTensorAlignment(strategy);
     weightAlignment = getWeightsTensorAlignment(strategy);
 

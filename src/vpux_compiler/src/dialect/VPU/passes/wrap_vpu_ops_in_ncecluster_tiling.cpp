@@ -76,8 +76,7 @@ mlir::LogicalResult NCEConvolutionRewriter::matchAndRewrite(NCEConvolutionOp ori
     auto weightsTableTensorNumTiles = getIntArrayAttr(
             origOp.getContext(), getWeightsTableTensorNumTiles(origOp.getOperation(), _numClusters, strategy));
     auto outputTensorDistributionMode = getOutputTensorDistributionMode(strategy);
-    auto outputTensorNumTiles = getIntArrayAttr(origOp.getContext(),
-                                                getOutputTensorNumTiles(origOp.getOperation(), _numClusters, strategy));
+    auto outputTensorNumTiles = getIntArrayAttr(origOp.getContext(), getOutputTensorNumTiles(_numClusters, strategy));
 
     activationAlignment = getActivationTensorAlignment(strategy);
     weightAlignment = getWeightsTensorAlignment(strategy);
@@ -189,8 +188,7 @@ mlir::LogicalResult NCEDepthConvolutionRewriter::matchAndRewrite(NCEDepthConvolu
     auto activationWindowDistributionMode = getActivationWindowTensorDistributionMode(strategy);
     auto activationWindowNumTiles = getIntArrayAttr(origOp.getContext(), getActivationWindowTensorNumTiles(strategy));
     auto outputTensorDistributionMode = getOutputTensorDistributionMode(strategy);
-    auto outputTensorNumTiles = getIntArrayAttr(origOp.getContext(),
-                                                getOutputTensorNumTiles(origOp.getOperation(), _numClusters, strategy));
+    auto outputTensorNumTiles = getIntArrayAttr(origOp.getContext(), getOutputTensorNumTiles(_numClusters, strategy));
 
     activationAlignment = getActivationTensorAlignment(strategy);
     weightAlignment = getWeightsTensorAlignment(strategy);
@@ -213,7 +211,7 @@ mlir::LogicalResult NCEDepthConvolutionRewriter::matchAndRewrite(NCEDepthConvolu
 
     auto distributedActivationWindowCopyOp =
             createDistributedCopyIn(origOp, origOp.activationWindow(), activationWindowDistributionMode,
-                                    activationWindowNumTiles, weightAlignmentAttr, strategy);
+                                    activationWindowNumTiles, nullptr, strategy);
 
     auto distributedOutputTensorType =
             createDistributedTensorType(origOp, origOp.output(), outputTensorDistributionMode, outputTensorNumTiles,
@@ -286,8 +284,7 @@ mlir::LogicalResult NCEMaxPoolRewriter::matchAndRewrite(NCEMaxPoolOp origOp, mli
     auto activationWindowDistributionMode = getActivationWindowTensorDistributionMode(strategy);
     auto activationWindowNumTiles = getIntArrayAttr(origOp.getContext(), getActivationWindowTensorNumTiles(strategy));
     auto outputTensorDistributionMode = getOutputTensorDistributionMode(strategy);
-    auto outputTensorNumTiles = getIntArrayAttr(origOp.getContext(),
-                                                getOutputTensorNumTiles(origOp.getOperation(), _numClusters, strategy));
+    auto outputTensorNumTiles = getIntArrayAttr(origOp.getContext(), getOutputTensorNumTiles(_numClusters, strategy));
 
     activationAlignment = getActivationTensorAlignment(strategy);
     weightAlignment = getWeightsTensorAlignment(strategy);
@@ -307,7 +304,7 @@ mlir::LogicalResult NCEMaxPoolRewriter::matchAndRewrite(NCEMaxPoolOp origOp, mli
 
     auto distributedActivationWindowCopyOp =
             createDistributedCopyIn(origOp, origOp.activationWindow(), activationWindowDistributionMode,
-                                    activationWindowNumTiles, weightAlignmentAttr, strategy);
+                                    activationWindowNumTiles, nullptr, strategy);
 
     auto distributedOutputTensorType =
             createDistributedTensorType(origOp, origOp.output(), outputTensorDistributionMode, outputTensorNumTiles,
@@ -372,8 +369,7 @@ mlir::LogicalResult NCEEltwiseRewriter::matchAndRewrite(NCEEltwiseOp origOp, mli
     auto activationTensorNumTiles = getIntArrayAttr(
             origOp.getContext(), getActivationTensorNumTiles(origOp.getOperation(), _numClusters, strategy));
     auto outputTensorDistributionMode = getOutputTensorDistributionMode(strategy);
-    auto outputTensorNumTiles = getIntArrayAttr(origOp.getContext(),
-                                                getOutputTensorNumTiles(origOp.getOperation(), _numClusters, strategy));
+    auto outputTensorNumTiles = getIntArrayAttr(origOp.getContext(), getOutputTensorNumTiles(_numClusters, strategy));
 
     activationAlignment = getActivationTensorAlignment(strategy);
 

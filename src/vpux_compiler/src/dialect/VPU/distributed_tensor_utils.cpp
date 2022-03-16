@@ -26,9 +26,8 @@ using namespace VPU;
 // 20 is not aligned to 16. Therefore, the compiler should only execute this layer on 3 clusters.
 // This would result in [32, 32, 16] output channels per cluster.
 int64_t vpux::VPU::getNumberOfClustersToAvoidAlignment(int64_t outputChannels, int64_t numClustersToUseForLayer) {
-    for (size_t clusters = numClustersToUseForLayer; clusters >= 1; clusters--) {
-        auto alignedOutputChannels =
-                alignVal<int64_t>(std::floor(outputChannels / clusters), KMB_DPU_CHANNELS_ALIGNMENT);
+    for (int64_t clusters = numClustersToUseForLayer; clusters >= 1; clusters--) {
+        auto alignedOutputChannels = alignVal<int64_t>(divUp(outputChannels, clusters), KMB_DPU_CHANNELS_ALIGNMENT);
         int64_t remainder = outputChannels - (clusters - 1) * alignedOutputChannels;
         if (remainder <= 0) {
             numClustersToUseForLayer = numClustersToUseForLayer - 1;
@@ -69,16 +68,14 @@ Optional<SmallVector<int64_t>> vpux::VPU::getActivationTensorAlignment(StringRef
     return None;
 }
 
-SmallVector<int64_t> vpux::VPU::getOutputTensorNumTiles(mlir::Operation* op, int64_t numClustersAvailableForCompilation,
+SmallVector<int64_t> vpux::VPU::getOutputTensorNumTiles(int64_t numClustersAvailableForCompilation,
                                                         StringRef strategy) {
     if (strategy == splitOverHeightOverlapped) {
         return {1, 1, numClustersAvailableForCompilation, 1};
     } else if (strategy == splitOverHeight) {
         return {1, 1, numClustersAvailableForCompilation, 1};
     } else if (strategy == splitOverKernel) {
-        auto OC = getShape(op->getResult(0))[Dims4D::Act::C];
-        int64_t numClustersToUseForLayer = getNumberOfClustersToAvoidAlignment(OC, numClustersAvailableForCompilation);
-        return {1, numClustersToUseForLayer, 1, 1};
+        return {1, 1, 1, 1};
     } else if (strategy == clustering) {
         return {1, 1, 1, 1};
     } else {

@@ -43,8 +43,7 @@ int64_t getNumberOfClustersToAvoidAlignment(int64_t outputChannels, int64_t numC
 SmallVector<int64_t> getActivationTensorNumTiles(mlir::Operation* op, int64_t numClustersAvailableForCompilation,
                                                  StringRef strategy);
 Optional<SmallVector<int64_t>> getActivationTensorAlignment(StringRef strategy);
-SmallVector<int64_t> getOutputTensorNumTiles(mlir::Operation* op, int64_t numClustersAvailableForCompilation,
-                                             StringRef strategy);
+SmallVector<int64_t> getOutputTensorNumTiles(int64_t numClustersAvailableForCompilation, StringRef strategy);
 SmallVector<int64_t> getWeightsTensorNumTiles(mlir::Operation* op, int64_t numClustersAvailableForCompilation,
                                               StringRef strategy);
 Optional<SmallVector<int64_t>> getWeightsTensorAlignment(StringRef strategy);
@@ -110,6 +109,14 @@ DistributedTensorType createDistributedTensorType(ConcreteOp origOp, mlir::Value
     const auto activationTensorDistributionModeAttr = DistributionModeAttr::get(origOp.getContext(), distributionMode);
     mlir::IntegerAttr optimalNumberOfClusters = numClustersAvailableForCompilation;
 
+    if (strategy == splitOverKernel) {
+        int64_t numClustersToUseForLayer = numClustersAvailableForCompilation.getValue().getSExtValue();
+        auto OC = getShape(origOp->getResult(0))[Dims4D::Act::C];
+        numClustersToUseForLayer =
+                getNumberOfClustersToAvoidAlignment(OC, numClustersAvailableForCompilation.getValue().getSExtValue());
+        optimalNumberOfClusters = mlir::IntegerAttr::get(getInt64Type(origOp->getContext()), numClustersToUseForLayer);
+    }
+
     if (distributionMode == DistributionMode::OVERLAPPED) {
         auto kernel = getKernelSize(origOp);
         auto stride = getStride(origOp);
@@ -119,20 +126,11 @@ DistributedTensorType createDistributedTensorType(ConcreteOp origOp, mlir::Value
                 DistributedTensorAttr::get(activationTensorDistributionModeAttr, numTiles, kernel, pad, stride,
                                            numClustersAvailableForCompilation, alignment, origOp.getContext());
     } else if (distributionMode == DistributionMode::DUPLICATED) {
-        int64_t numClustersToUseForLayer = numClustersAvailableForCompilation.getValue().getSExtValue();
-        if (strategy == splitOverKernel) {
-            auto OC = getShape(origOp->getResult(0))[Dims4D::Act::C];
-            numClustersToUseForLayer = getNumberOfClustersToAvoidAlignment(
-                    OC, numClustersAvailableForCompilation.getValue().getSExtValue());
-        }
-        optimalNumberOfClusters = mlir::IntegerAttr::get(getInt64Type(origOp->getContext()), numClustersToUseForLayer);
         distributedActivationTensorAttr =
                 DistributedTensorAttr::get(activationTensorDistributionModeAttr, nullptr, nullptr, nullptr, nullptr,
                                            optimalNumberOfClusters, alignment, origOp.getContext());
     } else {
         const auto tileInfo = parseIntArrayAttr<int64_t>(numTiles);
-        optimalNumberOfClusters = mlir::IntegerAttr::get(getInt64Type(origOp->getContext()),
-                                                         *std::max_element(tileInfo.begin(), tileInfo.end()));
         distributedActivationTensorAttr =
                 DistributedTensorAttr::get(activationTensorDistributionModeAttr, numTiles, nullptr, nullptr, nullptr,
                                            optimalNumberOfClusters, alignment, origOp.getContext());
