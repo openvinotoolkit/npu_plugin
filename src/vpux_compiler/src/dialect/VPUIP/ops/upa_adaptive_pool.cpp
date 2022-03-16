@@ -46,3 +46,12 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::AdaptivePoolUPAOp::serialize(VPUIP:
 
     return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_AdaptiveAvgPoolParams});
 }
+
+mlir::Operation* vpux::VPUIP::BlobReader::parseAdaptiveAvgPool(mlir::OpBuilder& builder, ArrayRef<mlir::Value> inputs,
+                                                            ArrayRef<mlir::Value> outputs,
+                                                            const MVCNN::UPALayerTask*) {
+    VPUX_THROW_UNLESS(inputs.size() == 2, "UPAAdaptivePool supports only 2 inputs, got {0}", inputs.size());
+    VPUX_THROW_UNLESS(outputs.size() == 1, "UPAAdaptivePool supports only 1 output, got {0}", outputs.size());
+
+    return builder.create<VPUIP::AdaptivePoolUPAOp>(mlir::UnknownLoc::get(_ctx), inputs[0], inputs[1], outputs[0]);
+}

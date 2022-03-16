@@ -90,6 +90,8 @@ private:
                                   const MVCNN::UPALayerTask* task);
     mlir::Operation* parsePooling(mlir::OpBuilder& builder, ArrayRef<mlir::Value> inputs, ArrayRef<mlir::Value> outputs,
                                   const MVCNN::UPALayerTask* task);
+    mlir::Operation* parseAdaptiveAvgPool(mlir::OpBuilder& builder, ArrayRef<mlir::Value> inputs,
+                                      ArrayRef<mlir::Value> outputs, const MVCNN::UPALayerTask* task);
     mlir::Operation* parseQuantCast(mlir::OpBuilder& builder, ArrayRef<mlir::Value> inputs,
                                     ArrayRef<mlir::Value> outputs, const MVCNN::UPALayerTask* task);
     mlir::Operation* parseReorgYolo(mlir::OpBuilder& builder, ArrayRef<mlir::Value> inputs,
