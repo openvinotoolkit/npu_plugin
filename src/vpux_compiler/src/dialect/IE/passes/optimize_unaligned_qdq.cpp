@@ -20,9 +20,9 @@ using namespace vpux;
 
 namespace {
 
-class OpimizeUnalignedQDQSeqPass final : public IE::OpimizeUnalignedQDQSeqBase<OpimizeUnalignedQDQSeqPass> {
+class OptimizeUnalignedQDQSeqPass final : public IE::OptimizeUnalignedQDQSeqBase<OptimizeUnalignedQDQSeqPass> {
 public:
-    explicit OpimizeUnalignedQDQSeqPass(Logger log) {
+    explicit OptimizeUnalignedQDQSeqPass(Logger log) {
         Base::initLogger(log, Base::getArgumentName());
     }
 
@@ -30,10 +30,44 @@ private:
     void safeRunOnFunc() final;
 };
 
-void OpimizeUnalignedQDQSeqPass::safeRunOnFunc() {
+void OptimizeUnalignedQDQSeqPass::safeRunOnFunc() {
     auto func = getFunction();
 
-    func.walk([this](vpux::IE::PermuteCastOp lastPermCast) {
+    func.walk([this](vpux::IE::AffineReshapeOp firstAffineReshape) {
+        if (!firstAffineReshape->hasOneUse()) {
+            return;
+        }
+        const auto outType = firstAffineReshape.getType().dyn_cast<vpux::NDTypeInterface>();
+        if ((outType.getShape()[Dims4D::Act::C] % 16) == 0) {
+            return;
+        }
+        const auto inType = firstAffineReshape.input().getType().dyn_cast<vpux::NDTypeInterface>();
+        if ((inType.getShape()[Dims4D::Act::C] % 16) != 0) {
+            return;
+        }
+        auto fakeQuantize = mlir::dyn_cast<vpux::IE::FakeQuantizeOp>(*firstAffineReshape->getUsers().begin());
+        if (fakeQuantize == nullptr) {
+            return;
+        }
+        if (!fakeQuantize->hasOneUse()) {
+            return;
+        }
+        mlir::OpBuilder fakeOpBuilder(firstAffineReshape);
+        auto newFakeQuantize = fakeOpBuilder.create<IE::FakeQuantizeOp>(
+                fakeQuantize->getLoc(), firstAffineReshape.input(), fakeQuantize.input_low(), fakeQuantize.input_high(),
+                fakeQuantize.output_low(), fakeQuantize.output_high(), fakeQuantize.levelsAttr(),
+                fakeQuantize.auto_broadcastAttr());
+        firstAffineReshape.setOperand(newFakeQuantize);
+        fakeQuantize.replaceAllUsesWith(firstAffineReshape.output());
+#if 0
+        llvm::errs() << "------------------------------------------\n";
+        firstAffineReshape.getOperand().dump();
+        firstAffineReshape->dump();
+        fakeQuantize.dump();
+        newFakeQuantize->dump();
+        newFakeQuantize.getOperand(0).dump();
+        firstAffineReshape->getUsers().begin()->dump();
+        llvm::errs() << "------------------------------------------\n";
         auto lastAffineReshape = lastPermCast.getOperand().getDefiningOp<IE::AffineReshapeOp>();
         if (lastAffineReshape == nullptr) {
             return;
@@ -107,15 +141,16 @@ void OpimizeUnalignedQDQSeqPass::safeRunOnFunc() {
                                                            firstAndOp.post_opAttr());
         firstMemPerm.setOperand(newDequantOp);
         lastAffineReshape.setOperand(affineReshape.output());
+#endif
     });
 }
 
 }  // namespace
 
 //
-// createOpimizeUnalignedQDQSeq
+// createOptimizeUnalignedQDQSeq
 //
 
-std::unique_ptr<mlir::Pass> vpux::IE::createOpimizeUnalignedQDQSeqPass(Logger log) {
-    return std::make_unique<OpimizeUnalignedQDQSeqPass>(log);
+std::unique_ptr<mlir::Pass> vpux::IE::createOptimizeUnalignedQDQSeqPass(Logger log) {
+    return std::make_unique<OptimizeUnalignedQDQSeqPass>(log);
 }
