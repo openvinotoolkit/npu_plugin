@@ -102,7 +102,7 @@ mlir::OpFoldResult vpux::Const::DeclareOp::fold(ArrayRef<mlir::Attribute> operan
 void vpux::Const::DeclareOp::serialize(elf::writer::BinaryDataSection<uint8_t>& binDataSection) {
     vpux::Const::Content cnt = content();
 
-    // We implment here, inlined, a getTotalSize() (that was removed from
+    // We implement here, inlined, a getTotalSize() (that was removed from
     // include/vpux/compiler/dialect/const/utils/content.hpp)
     VPUX_THROW_UNLESS(cnt.getType().isa<mlir::ShapedType>(), "Expected mlir::ShapedType. Got '{0}'", cnt.getType());
     const Byte byteTotalSize = Bit(cnt.getType().cast<mlir::ShapedType>().getSizeInBits());
@@ -127,7 +127,7 @@ void vpux::Const::DeclareOp::serialize(elf::writer::BinaryDataSection<uint8_t>& 
 size_t vpux::Const::DeclareOp::getBinarySize() {
     vpux::Const::Content cnt = content();
 
-    // We implment here, inlined, a getTotalSize() (that was removed from
+    // We implement here, inlined, a getTotalSize() (that was removed from
     // include/vpux/compiler/dialect/const/utils/content.hpp)
     VPUX_THROW_UNLESS(cnt.getType().isa<mlir::ShapedType>(), "Expected mlir::ShapedType. Got '{0}'", cnt.getType());
     const Byte aByteTotal = Bit(cnt.getType().cast<mlir::ShapedType>().getSizeInBits());

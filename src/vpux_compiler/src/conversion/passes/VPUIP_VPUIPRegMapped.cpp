@@ -125,7 +125,7 @@ public:
                 origOp.id(),
                 // TODO: put also a virtualId attribute in ConfigureBarrierOp, as it is found in
                 //              VPURT::ConfigureBarrierOp
-                1,  // TODO: put right value // uint16_t next_same_id
+                1,  // uint32_t next_same_id()
                 // See https://mlir.llvm.org/doxygen/classmlir_1_1ValueRange.html
                 // Note: from https://mlir.llvm.org/doxygen/Operation_8h_source.html: using operand_range =
                 // OperandRange;

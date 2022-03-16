@@ -39,42 +39,6 @@ void vpux::VPUIPRegMapped::getTaskEffects(mlir::Operation* op, SmallVectorImpl<M
 }
 
 //
-// Legacy4D
-//
-
-mlir::LogicalResult vpux::VPUIPRegMapped::verifyLegacy4D(mlir::Operation* op) {
-    auto layer = mlir::dyn_cast<IERT::LayerOpInterface>(op);
-    if (layer == nullptr) {
-        return errorAt(op, "Operation '{0}' doesn't implement RT Layer interface", op->getName());
-    }
-
-    for (const auto& val : layer.getOpOperands()) {
-        const auto shape = getShape(val.get());
-        const auto order = DimsOrder::fromValue(val.get());
-
-        if (shape.size() != 3 && shape.size() != 4) {
-            return errorAt(op, "Got unsupported shape '{0}', only 3D/4D are supported", shape);
-        }
-
-        if (shape.size() == 3) {
-            if (order != DimsOrder::CHW && order != DimsOrder::HWC) {
-                return errorAt(op, "Got unsupported input DimsOrder '{0}', only CHW and HWC are supported", order);
-            }
-        } else if (shape.size() == 4) {
-            if (order != DimsOrder::NCHW && order != DimsOrder::NHWC) {
-                return errorAt(op, "Got unsupported input DimsOrder '{0}', only NCHW and NHWC are supported", order);
-            }
-
-            if (shape.front() != 1) {
-                return errorAt(op, "Batch size != 1 is not supported");
-            }
-        }
-    }
-
-    return mlir::success();
-}
-
-//
 // Generated
 //
 

@@ -112,7 +112,6 @@ mlir::Value Convert2VPUIPRegMappedAndELFPass::createSection(mlir::FuncOp func, m
 
         VPUX_UNUSED(elfPutOpInSectionOp);
     }
-    // }
 
     return elfCreateSectionOp.getOperation()->getResult(0);
 }
@@ -131,9 +130,10 @@ bool Convert2VPUIPRegMappedAndELFPass::checkIfValueIsNetArg(mlir::Value val, std
 
         _log.info("    blockArgNum = {0}\n", blockArgNum);
 
-        // By convention the arguments of the FuncOp are described in-order in
-        //   the IE.CNNNetwork block, within its parameters inputsInfo and
-        //   outputsInfo (with DataInfo operations).
+        // By convention, the arguments of the FuncOp are described in-order in
+        //   the IE.CNNNetwork block, with its parameters inputsInfo and
+        //   outputsInfo of the DataInfo operations.
+        //  Note: we should be guaranteed that blockArgNum < diOpInVec.size() + diOpOutVec.size() .
         vpux::IE::DataInfoOp respectiveNetArg;
         if (blockArgNum < diOpInVec.size()) {
             respectiveNetArg = diOpInVec[blockArgNum];
@@ -473,9 +473,6 @@ void Convert2VPUIPRegMappedAndELFPass::safeRunOnModule() {
 
     // We use this constructor: OpBuilder(Operation *op, Listener *listener=nullptr)
     mlir::OpBuilder builderFunc(&(funcOp.getBody().front().back()));
-    // mlir::Block& blkFunc = (funcOp.getCallableRegion())->front();
-    // mlir::OpBuilder builderFunc(&(blkFunc.back()));
-    // mlir::Operation* endOp = blkFunc.getTerminator();
     //
     int barrierCount = 0;
     for (auto op : funcOp.getOps<VPUIPRegMapped::ConfigureBarrierOp>()) {
