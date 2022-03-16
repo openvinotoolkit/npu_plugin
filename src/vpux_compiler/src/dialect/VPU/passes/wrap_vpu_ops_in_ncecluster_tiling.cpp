@@ -59,16 +59,14 @@ mlir::LogicalResult NCEConvolutionRewriter::matchAndRewrite(NCEConvolutionOp ori
     if (origOp->template getParentOfType<NCEClusterTilingOp>() != nullptr) {
         return matchFailed(_log, rewriter, origOp, "The operation is already wrapped with NCEClusterTiling");
     }
-    Optional<SmallVector<int64_t>> activationAlignment = None;
-    Optional<SmallVector<int64_t>> weightAlignment = None;
     mlir::ArrayAttr activationAlignmentAttr = nullptr;
     mlir::ArrayAttr weightAlignmentAttr = nullptr;
     NCEClusterTilingOp clusterTilingOp = nullptr;
     const auto strategy = origOp->getAttr(multiClusterStrategy).cast<mlir::StringAttr>().getValue();
 
     auto activationTensorDistributionMode = getActivationTensorDistributionMode(strategy);
-    auto activationTensorNumTiles = getIntArrayAttr(
-            origOp.getContext(), getActivationTensorNumTiles(origOp.getOperation(), _numClusters, strategy));
+    auto activationTensorNumTiles =
+            getIntArrayAttr(origOp.getContext(), getActivationTensorNumTiles(_numClusters, strategy));
     auto weightsTensorDistributionMode = getWeightsTensorDistributionMode(strategy);
     auto weightsTensorNumTiles = getIntArrayAttr(
             origOp.getContext(), getWeightsTensorNumTiles(origOp.getOperation(), _numClusters, strategy));
@@ -76,13 +74,16 @@ mlir::LogicalResult NCEConvolutionRewriter::matchAndRewrite(NCEConvolutionOp ori
     auto weightsTableTensorNumTiles = getIntArrayAttr(
             origOp.getContext(), getWeightsTableTensorNumTiles(origOp.getOperation(), _numClusters, strategy));
     auto outputTensorDistributionMode = getOutputTensorDistributionMode(strategy);
-    auto outputTensorNumTiles = getIntArrayAttr(origOp.getContext(), getOutputTensorNumTiles(_numClusters, strategy));
+    auto outputTensorNumTiles = getIntArrayAttr(origOp.getContext(),
+                                                getOutputTensorNumTiles(origOp.getOperation(), _numClusters, strategy));
 
-    activationAlignment = getActivationTensorAlignment(strategy);
-    weightAlignment = getWeightsTensorAlignment(strategy);
+    auto activationAlignment = getActivationTensorAlignment(strategy);
+    auto weightAlignment = getWeightsTensorAlignment(strategy);
 
     if (activationAlignment.hasValue()) {
         activationAlignmentAttr = getIntArrayAttr(origOp.getContext(), activationAlignment.getValue());
+    }
+    if (weightAlignment.hasValue()) {
         weightAlignmentAttr = getIntArrayAttr(origOp.getContext(), weightAlignment.getValue());
     }
 
@@ -171,14 +172,12 @@ mlir::LogicalResult NCEDepthConvolutionRewriter::matchAndRewrite(NCEDepthConvolu
     if (origOp->getParentOfType<NCEClusterTilingOp>() != nullptr) {
         return matchFailed(_log, rewriter, origOp, "The operation is already wrapped with NCEClusterTiling");
     }
-    Optional<SmallVector<int64_t>> activationAlignment = None;
-    Optional<SmallVector<int64_t>> weightAlignment = None;
     mlir::ArrayAttr activationAlignmentAttr = nullptr;
     mlir::ArrayAttr weightAlignmentAttr = nullptr;
     const auto strategy = origOp->getAttr(multiClusterStrategy).cast<mlir::StringAttr>().getValue();
     auto activationTensorDistributionMode = getActivationTensorDistributionMode(strategy);
-    auto activationTensorNumTiles = getIntArrayAttr(
-            origOp.getContext(), getActivationTensorNumTiles(origOp.getOperation(), _numClusters, strategy));
+    auto activationTensorNumTiles =
+            getIntArrayAttr(origOp.getContext(), getActivationTensorNumTiles(_numClusters, strategy));
     auto weightsTensorDistributionMode = getWeightsTensorDistributionMode(strategy);
     auto weightsTensorNumTiles = getIntArrayAttr(
             origOp.getContext(), getWeightsTensorNumTiles(origOp.getOperation(), _numClusters, strategy));
@@ -188,13 +187,16 @@ mlir::LogicalResult NCEDepthConvolutionRewriter::matchAndRewrite(NCEDepthConvolu
     auto activationWindowDistributionMode = getActivationWindowTensorDistributionMode(strategy);
     auto activationWindowNumTiles = getIntArrayAttr(origOp.getContext(), getActivationWindowTensorNumTiles(strategy));
     auto outputTensorDistributionMode = getOutputTensorDistributionMode(strategy);
-    auto outputTensorNumTiles = getIntArrayAttr(origOp.getContext(), getOutputTensorNumTiles(_numClusters, strategy));
+    auto outputTensorNumTiles = getIntArrayAttr(origOp.getContext(),
+                                                getOutputTensorNumTiles(origOp.getOperation(), _numClusters, strategy));
 
-    activationAlignment = getActivationTensorAlignment(strategy);
-    weightAlignment = getWeightsTensorAlignment(strategy);
+    auto activationAlignment = getActivationTensorAlignment(strategy);
+    auto weightAlignment = getWeightsTensorAlignment(strategy);
 
     if (activationAlignment.hasValue()) {
         activationAlignmentAttr = getIntArrayAttr(origOp.getContext(), activationAlignment.getValue());
+    }
+    if (weightAlignment.hasValue()) {
         weightAlignmentAttr = getIntArrayAttr(origOp.getContext(), weightAlignment.getValue());
     }
 
@@ -270,27 +272,28 @@ mlir::LogicalResult NCEMaxPoolRewriter::matchAndRewrite(NCEMaxPoolOp origOp, mli
     if (origOp->getParentOfType<NCEClusterTilingOp>() != nullptr) {
         return matchFailed(_log, rewriter, origOp, "The operation is already wrapped with NCEClusterTiling");
     }
-    Optional<SmallVector<int64_t>> activationAlignment = None;
-    Optional<SmallVector<int64_t>> weightAlignment = None;
     mlir::ArrayAttr activationAlignmentAttr = nullptr;
     mlir::ArrayAttr weightAlignmentAttr = nullptr;
     const auto strategy = origOp->getAttr(multiClusterStrategy).cast<mlir::StringAttr>().getValue();
     auto activationTensorDistributionMode = getActivationTensorDistributionMode(strategy);
-    auto activationTensorNumTiles = getIntArrayAttr(
-            origOp.getContext(), getActivationTensorNumTiles(origOp.getOperation(), _numClusters, strategy));
+    auto activationTensorNumTiles =
+            getIntArrayAttr(origOp.getContext(), getActivationTensorNumTiles(_numClusters, strategy));
     auto weightsTableTensorDistributionMode = getWeightsTensorDistributionMode(strategy);
     auto weightsTableTensorNumTiles = getIntArrayAttr(
             origOp.getContext(), getWeightsTableTensorNumTiles(origOp.getOperation(), _numClusters, strategy));
     auto activationWindowDistributionMode = getActivationWindowTensorDistributionMode(strategy);
     auto activationWindowNumTiles = getIntArrayAttr(origOp.getContext(), getActivationWindowTensorNumTiles(strategy));
     auto outputTensorDistributionMode = getOutputTensorDistributionMode(strategy);
-    auto outputTensorNumTiles = getIntArrayAttr(origOp.getContext(), getOutputTensorNumTiles(_numClusters, strategy));
+    auto outputTensorNumTiles = getIntArrayAttr(origOp.getContext(),
+                                                getOutputTensorNumTiles(origOp.getOperation(), _numClusters, strategy));
 
-    activationAlignment = getActivationTensorAlignment(strategy);
-    weightAlignment = getWeightsTensorAlignment(strategy);
+    auto activationAlignment = getActivationTensorAlignment(strategy);
+    auto weightAlignment = getWeightsTensorAlignment(strategy);
 
     if (activationAlignment.hasValue()) {
         activationAlignmentAttr = getIntArrayAttr(origOp.getContext(), activationAlignment.getValue());
+    }
+    if (weightAlignment.hasValue()) {
         weightAlignmentAttr = getIntArrayAttr(origOp.getContext(), weightAlignment.getValue());
     }
 
@@ -362,16 +365,16 @@ mlir::LogicalResult NCEEltwiseRewriter::matchAndRewrite(NCEEltwiseOp origOp, mli
         return matchFailed(_log, rewriter, origOp, "The operation is already wrapped with NCEClusterTiling");
     }
 
-    Optional<SmallVector<int64_t>> activationAlignment = None;
     mlir::ArrayAttr activationAlignmentAttr = nullptr;
     const auto strategy = origOp->getAttr(multiClusterStrategy).cast<mlir::StringAttr>().getValue();
     auto activationTensorDistributionMode = getActivationTensorDistributionMode(strategy);
-    auto activationTensorNumTiles = getIntArrayAttr(
-            origOp.getContext(), getActivationTensorNumTiles(origOp.getOperation(), _numClusters, strategy));
+    auto activationTensorNumTiles =
+            getIntArrayAttr(origOp.getContext(), getActivationTensorNumTiles(_numClusters, strategy));
     auto outputTensorDistributionMode = getOutputTensorDistributionMode(strategy);
-    auto outputTensorNumTiles = getIntArrayAttr(origOp.getContext(), getOutputTensorNumTiles(_numClusters, strategy));
+    auto outputTensorNumTiles = getIntArrayAttr(origOp.getContext(),
+                                                getOutputTensorNumTiles(origOp.getOperation(), _numClusters, strategy));
 
-    activationAlignment = getActivationTensorAlignment(strategy);
+    auto activationAlignment = getActivationTensorAlignment(strategy);
 
     if (activationAlignment.hasValue()) {
         activationAlignmentAttr = getIntArrayAttr(origOp.getContext(), activationAlignment.getValue());

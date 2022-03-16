@@ -19,25 +19,27 @@ using namespace VPU;
 
 bool DepthConvolutionStrategy::doesLayerFitIntoCMX(mlir::Operation* op, StringRef strategy) const {
     auto origOp = mlir::dyn_cast<NCEDepthConvolutionOp>(op);
-    Optional<SmallVector<int64_t>> activationAlignment = None;
-    Optional<SmallVector<int64_t>> weightAlignment = None;
     mlir::ArrayAttr activationAlignmentAttr = nullptr;
     mlir::ArrayAttr weightAlignmentAttr = nullptr;
     const auto activationTensorDistributionMode = getActivationTensorDistributionMode(strategy);
-    const auto activationTensorNumTiles = getIntArrayAttr(
-            origOp.getContext(), getActivationTensorNumTiles(origOp.getOperation(), _numClusters, strategy));
+    const auto activationTensorNumTiles =
+            getIntArrayAttr(origOp.getContext(), getActivationTensorNumTiles(_numClusters, strategy));
     auto weightsTensorDistributionMode = getWeightsTensorDistributionMode(strategy);
     auto weightsTensorNumTiles = getIntArrayAttr(
             origOp.getContext(), getWeightsTensorNumTiles(origOp.getOperation(), _numClusters, strategy));
     auto outputTensorDistributionMode = getOutputTensorDistributionMode(strategy);
-    auto outputTensorNumTiles = getIntArrayAttr(origOp.getContext(), getOutputTensorNumTiles(_numClusters, strategy));
-    activationAlignment = getActivationTensorAlignment(strategy);
-    weightAlignment = getWeightsTensorAlignment(strategy);
+    auto outputTensorNumTiles =
+            getIntArrayAttr(origOp.getContext(), getOutputTensorNumTiles(op, _numClusters, strategy));
+    auto activationAlignment = getActivationTensorAlignment(strategy);
+    auto weightAlignment = getWeightsTensorAlignment(strategy);
 
     if (activationAlignment.hasValue()) {
         activationAlignmentAttr = getIntArrayAttr(origOp.getContext(), activationAlignment.getValue());
+    }
+    if (weightAlignment.hasValue()) {
         weightAlignmentAttr = getIntArrayAttr(origOp.getContext(), weightAlignment.getValue());
     }
+
     auto distributedActivationTensorType =
             createDistributedTensorType(origOp, origOp.input(), activationTensorDistributionMode,
                                         activationTensorNumTiles, activationAlignmentAttr, strategy);

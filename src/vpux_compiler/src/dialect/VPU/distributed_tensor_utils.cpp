@@ -38,20 +38,14 @@ int64_t vpux::VPU::getNumberOfClustersToAvoidAlignment(int64_t outputChannels, i
     return numClustersToUseForLayer;
 }
 
-SmallVector<int64_t> vpux::VPU::getActivationTensorNumTiles(mlir::Operation* op,
-                                                            int64_t numClustersAvailableForCompilation,
+SmallVector<int64_t> vpux::VPU::getActivationTensorNumTiles(int64_t numClustersAvailableForCompilation,
                                                             StringRef strategy) {
     if (strategy == splitOverHeightOverlapped) {
         return {1, 1, numClustersAvailableForCompilation, 1};
     } else if (strategy == splitOverHeight) {
         return {1, 1, numClustersAvailableForCompilation, 1};
     } else if (strategy == splitOverKernel) {
-        int64_t numClustersToUseForLayer = getNumberOfClustersToAvoidAlignment(
-                getShape(op->getResult(0))[Dims4D::Act::C], numClustersAvailableForCompilation);
-        if (auto origOp = mlir::dyn_cast<NCEConvolutionOp>(op)) {
-            return {1, 1, 1, 1};
-        }
-        return {1, numClustersToUseForLayer, 1, 1};
+        return {1, 1, 1, 1};
     } else if (strategy == clustering) {
         return {1, 1, 1, 1};
     } else {
@@ -68,14 +62,16 @@ Optional<SmallVector<int64_t>> vpux::VPU::getActivationTensorAlignment(StringRef
     return None;
 }
 
-SmallVector<int64_t> vpux::VPU::getOutputTensorNumTiles(int64_t numClustersAvailableForCompilation,
+SmallVector<int64_t> vpux::VPU::getOutputTensorNumTiles(mlir::Operation* op, int64_t numClustersAvailableForCompilation,
                                                         StringRef strategy) {
     if (strategy == splitOverHeightOverlapped) {
         return {1, 1, numClustersAvailableForCompilation, 1};
     } else if (strategy == splitOverHeight) {
         return {1, 1, numClustersAvailableForCompilation, 1};
     } else if (strategy == splitOverKernel) {
-        return {1, 1, 1, 1};
+        auto OC = getShape(op->getResult(0))[Dims4D::Act::C];
+        int64_t numClustersToUseForLayer = getNumberOfClustersToAvoidAlignment(OC, numClustersAvailableForCompilation);
+        return {1, numClustersToUseForLayer, 1, 1};
     } else if (strategy == clustering) {
         return {1, 1, 1, 1};
     } else {

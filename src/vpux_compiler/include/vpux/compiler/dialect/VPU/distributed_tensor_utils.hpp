@@ -40,10 +40,10 @@ constexpr StringLiteral splitOverKernel = "SplitOverKernel";
 constexpr StringLiteral clustering = "Clustering";
 
 int64_t getNumberOfClustersToAvoidAlignment(int64_t outputChannels, int64_t numClustersForCompilation);
-SmallVector<int64_t> getActivationTensorNumTiles(mlir::Operation* op, int64_t numClustersAvailableForCompilation,
-                                                 StringRef strategy);
+SmallVector<int64_t> getActivationTensorNumTiles(int64_t numClustersAvailableForCompilation, StringRef strategy);
 Optional<SmallVector<int64_t>> getActivationTensorAlignment(StringRef strategy);
-SmallVector<int64_t> getOutputTensorNumTiles(int64_t numClustersAvailableForCompilation, StringRef strategy);
+SmallVector<int64_t> getOutputTensorNumTiles(mlir::Operation* op, int64_t numClustersAvailableForCompilation,
+                                             StringRef strategy);
 SmallVector<int64_t> getWeightsTensorNumTiles(mlir::Operation* op, int64_t numClustersAvailableForCompilation,
                                               StringRef strategy);
 Optional<SmallVector<int64_t>> getWeightsTensorAlignment(StringRef strategy);
@@ -109,6 +109,13 @@ DistributedTensorType createDistributedTensorType(ConcreteOp origOp, mlir::Value
     const auto activationTensorDistributionModeAttr = DistributionModeAttr::get(origOp.getContext(), distributionMode);
     mlir::IntegerAttr optimalNumberOfClusters = numClustersAvailableForCompilation;
 
+    // Here the number of clusters to be used for an individual SOK ayer is determined
+    // such that additional alignment of the per cluster output channels is not required.
+    // For example 80 output channels, the weights should only be split on 3 clusters [32, 32, 16].
+    // Also when creating the copy-in for the activation we need to ensure that the number
+    // of clusters that the input is duplicated to is also 3 clusters in this case.
+    // Therefore we use the varibale optimalNumberOfClusters for both purposes here, to detemine
+    // num_tiles and numClusters for the activations and the weights.
     if (strategy == splitOverKernel) {
         int64_t numClustersToUseForLayer = numClustersAvailableForCompilation.getValue().getSExtValue();
         auto OC = getShape(origOp->getResult(0))[Dims4D::Act::C];
@@ -121,19 +128,21 @@ DistributedTensorType createDistributedTensorType(ConcreteOp origOp, mlir::Value
         auto kernel = getKernelSize(origOp);
         auto stride = getStride(origOp);
         auto pad = getPad(origOp);
+        auto optimalNumberOfClusters = getIntAttr(origOp.getContext(), nceOp.count());
 
         distributedActivationTensorAttr =
                 DistributedTensorAttr::get(activationTensorDistributionModeAttr, numTiles, kernel, pad, stride,
-                                           numClustersAvailableForCompilation, alignment, origOp.getContext());
+                                           optimalNumberOfClusters, alignment, origOp.getContext());
     } else if (distributionMode == DistributionMode::DUPLICATED) {
         distributedActivationTensorAttr =
                 DistributedTensorAttr::get(activationTensorDistributionModeAttr, nullptr, nullptr, nullptr, nullptr,
                                            optimalNumberOfClusters, alignment, origOp.getContext());
-    } else {
-        const auto tileInfo = parseIntArrayAttr<int64_t>(numTiles);
+    } else if (VPU ::bitEnumContains(distributionMode, VPU::DistributionMode::SEGMENTED)) {
         distributedActivationTensorAttr =
                 DistributedTensorAttr::get(activationTensorDistributionModeAttr, numTiles, nullptr, nullptr, nullptr,
                                            optimalNumberOfClusters, alignment, origOp.getContext());
+    } else {
+        VPUX_THROW("Unsupported distribution mode: {0}", VPU::stringifyDistributionMode(distributionMode));
     }
 
     const auto shape = getShape(input);
