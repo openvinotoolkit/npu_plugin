@@ -120,8 +120,10 @@ private:
     bool isKCompatible(mlir::Operator* op);
     mlir::FuncOp _func;
     Logger _log;
-    // format: {opname: {parentSpilling, spilling}}
-    std::unordered_map<std::string, std::pair<bool, bool>> spillingInfo;
+    // format: {opname: (parentSpilling, spilling)}
+    std::unordered_map<std::string, std::pair<bool, bool>> _spillingInfo;
+    // format: {opname: {strategy, doesSkip}}
+    std::unordered_map<std::string, std::unordered_map<StringLiteral, bool>> _strategySkip;
 };
 
 //

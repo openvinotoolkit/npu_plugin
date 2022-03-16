@@ -29,12 +29,40 @@ bool SubgraphOptimizer::addSpillsAtStrategyTransition(){
 
 }
 
+// Op is Kcompatible means the following op can be SOK
 bool SubgraphOptimizer::isKCompatible(mlir::Operation* op, bool allowHK){
     const auto strategy = op->getAttr(multiClusterStrategy).cast<mlir::StringAttr>().getValue();
     if (strategy == splitOverKernel || strategy == clustering || (allowHK && strategy == HKSwitch)){
         return true;
     }
     return false;
+}
+
+void SubgraphOptimizer::skipSOH(mlir::Operation* op, bool allowHK){
+    auto opID = op->getName().getStringRef();
+    if (!_strategySkip.find(opID)){
+        _strategySkip.insert({opID, {}});
+    }
+
+    if (_strategySkip.at(opID).find(splitOverHeight)){
+        _strategySkip.at(opID).at(splitOverHeight) = true;
+    }else{
+        _strategySkip.at(opID).insert({splitOverHeight, true})
+    }
+
+    if (_strategySkip.at(opID).find(splitOverHeightOverlapped)){
+        _strategySkip.at(opID).at(splitOverHeightOverlapped) = true;
+    }else{
+        _strategySkip.at(opID).insert({splitOverHeightOverlapped, true})
+    }
+
+    if (!allowHK){
+        if (_strategySkip.at(opID).find(HKSwitch)){
+            _strategySkip.at(opID).at(HKSwitch) = true;
+        }else{
+            _strategySkip.at(opID).insert({HKSwitch, true})
+        }
+    }
 }
 
 bool SubgraphOptimizer::isSpillingFromStrategy(mlir::Operation* op){
