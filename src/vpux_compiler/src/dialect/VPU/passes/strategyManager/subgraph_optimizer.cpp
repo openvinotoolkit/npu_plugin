@@ -76,6 +76,31 @@ bool SubgraphOptimizer::isSpillingFromStrategy(mlir::Operation* op){
     return false;
 }
 
+double bestCostOfKCompatible(mlir::Operation* op, bool allowHK){
+    double SOKCost = greedyCostOfLayer(op, splitOverKernel);
+    double clusteringCost = greedyCostOfLayer(op, clustering);
+    double HKSwitchCost = allowHK? greedyCostOfLayer(op, HKSwitch) : COST_MAX;
+    return std::min({SOKCost, clusteringCost, HKSwitchCost});
+}
+
+// @warning I drop the allowHK flag for HCompatible
+double bestCostOfHCompatible(mlir::Operation* op){
+    double SOHCost = greedyCostOfLayer(op, splitOverHeight);
+    double SOHOverCost = greedyCostOfLayer(op, splitOverHeightOverlapped);
+    return std::min({SOHCost, SOHOverCost});
+}
+
+// @mcm let's don't consider the spill portion of the SOH->SOK transition point here
+// just consider, from a pure computational time persepective, will this layer be
+// better suited to SOH or SOK
+// @warning Currently we may not need this in vpux, as we didn't consider spilling 
+// in our simple cost model
+bool hasGreedySOK(mlir::Operation* op){
+    auto hCost = bestCostOfHCompatible(op);
+    auto kCost = bestCostOfKCompatible(op, true);
+    return kCost < hCost ? true : false;
+}
+
 void SubgraphOptimizer::rollbackOrSpill(){
     const auto callback = [](mlir::Operation* op){
         if(!op->getAttr(multiClusterStrategy)) continue;

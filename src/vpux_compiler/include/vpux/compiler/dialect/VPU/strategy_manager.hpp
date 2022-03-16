@@ -120,6 +120,7 @@ private:
     bool isKCompatible(mlir::Operator* op);
     mlir::FuncOp _func;
     Logger _log;
+    double COST_MAX = numeric_limits<double>::infinity();
     // format: {opname: (parentSpilling, spilling)}
     std::unordered_map<std::string, std::pair<bool, bool>> _spillingInfo;
     // format: {opname: {strategy, doesSkip}}
