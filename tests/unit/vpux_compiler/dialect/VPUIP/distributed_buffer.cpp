@@ -366,7 +366,7 @@ TEST(MLIR_ClusterShapeUtils, OverlappedBufferDistribution) {
     }
 }
 
-TEST(MLIR_ClusterShapeUtils, AlignedBufferDistribution) {
+TEST(MLIR_ClusterShapeUtils, DISABLED_AlignedBufferDistribution) {
     mlir::DialectRegistry registry;
     vpux::registerDialects(registry);
 

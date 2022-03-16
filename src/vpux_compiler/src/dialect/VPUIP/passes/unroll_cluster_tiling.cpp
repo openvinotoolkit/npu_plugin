@@ -86,6 +86,8 @@ public:
 
 private:
     mlir::Value getClusterOperand(VPUIP::NCEClusterTilingOp clusterOp, mlir::Value innerOperand) const;
+    SmallVector<mlir::IntegerAttr> getOutChannelOffsets(VPUIP::DistributedBufferType inType,
+                                                        VPUIP::DistributedBufferType outType) const;
     SmallVector<mlir::Value> getPerClusterBuffers(mlir::Location loc, StringRef bufferName,
                                                   VPUIP::NCEClusterTilingOp clusterOp, mlir::Value innerOperand,
                                                   int64_t numClusters, mlir::PatternRewriter& rewriter) const;
@@ -107,6 +109,34 @@ mlir::Value ClusterNCERewriter::getClusterOperand(VPUIP::NCEClusterTilingOp clus
                     "Cannot match the origin operand with the inner one '{0}'", innerOperand);
 
     return clusterOp->getOperand(blockArg.getArgNumber());
+}
+
+SmallVector<mlir::IntegerAttr> ClusterNCERewriter::getOutChannelOffsets(VPUIP::DistributedBufferType inType,
+                                                                        VPUIP::DistributedBufferType outType) const {
+    auto inDistribution = inType.getDistribution();
+    auto outDistribution = outType.getDistribution();
+
+    auto inDistributionMode = inDistribution.mode().getValue();
+    auto outDistributionMode = outDistribution.mode().getValue();
+
+    const auto numClusters = inDistribution.num_clusters().getInt();
+    if (inDistributionMode != VPU::DistributionMode::DUPLICATED ||
+        outDistributionMode != (VPU::DistributionMode::SEGMENTED | VPU::DistributionMode::DUPLICATED)) {
+        // not SOK case
+        return SmallVector<mlir::IntegerAttr>(numClusters, nullptr);
+    }
+
+    const auto perClusterShapeOffsets = outType.getPerClusterComputeShapeOffsets();
+    VPUX_THROW_UNLESS(perClusterShapeOffsets.size() == checked_cast<size_t>(numClusters),
+                      "Number of shape offsets '{0}' and clusters '{1}' are mismatch", perClusterShapeOffsets.size(),
+                      numClusters);
+
+    SmallVector<mlir::IntegerAttr> outChannelOffsets(numClusters);
+    for (int64_t clusterId = 0; clusterId < numClusters; ++clusterId) {
+        outChannelOffsets[clusterId] = getIntAttr(_ctx, perClusterShapeOffsets[clusterId][Dims4D::Act::C]);
+    }
+
+    return outChannelOffsets;
 }
 
 SmallVector<mlir::Value> ClusterNCERewriter::getPerClusterBuffers(mlir::Location loc, StringRef bufferName,
@@ -257,6 +287,8 @@ mlir::LogicalResult ClusterNCERewriter::matchAndRewrite(VPUIP::NCEClusterTaskOp 
         isSegmented = mlir::UnitAttr::get(nceTask.getContext());
     }
 
+    const auto outChannelOffsets = getOutChannelOffsets(parentInputType, parentOutputType);
+
     for (int64_t clusterId = 0; clusterId < numClusters; ++clusterId) {
         const auto newLoc = appendLoc(loc, llvm::formatv("_cluster_{0}", clusterId).str());
         auto newTask = VPURT::wrapIntoTaskOp<VPUIP::NCEClusterTaskOp>(
@@ -264,7 +296,8 @@ mlir::LogicalResult ClusterNCERewriter::matchAndRewrite(VPUIP::NCEClusterTaskOp 
                 weightsBuffs[clusterId], weightTableBuffs[clusterId], activationWindowBuffs[clusterId], parentInput,
                 parentOutput, outputBuffs[clusterId], nceTask.task_type(), nceTask.kernel_sizeAttr(),
                 nceTask.kernel_stridesAttr(), nceTask.kernel_paddingAttr(),
-                nceTask.activation_window_channel_lengthAttr(), nullptr, nullptr, isSegmented);
+                nceTask.activation_window_channel_lengthAttr(), nullptr, nullptr, isSegmented,
+                outChannelOffsets[clusterId]);
 
         {
             mlir::OpBuilder::InsertionGuard guard(rewriter);

@@ -47,7 +47,7 @@ public:
     explicit BaseLayerStrategy(mlir::FuncOp func, Logger log);
     virtual ~BaseLayerStrategy() = default;
 
-    bool isOperationSplitOverHeightCompatible(mlir::Operation* op) const;
+    virtual bool isOperationSplitOverHeightCompatible(mlir::Operation* op) const;
     bool isOperationSplitOverKernelCompatible(mlir::Operation* op) const;
     bool isOperationMultiClusterCompatible(mlir::Operation* op) const;
 
@@ -80,6 +80,7 @@ public:
     }
 
     bool doesLayerFitIntoCMX(mlir::Operation* op, StringRef strategy) const override final;
+    bool isOperationSplitOverHeightCompatible(mlir::Operation* op) const override final;
 };
 
 //
@@ -91,6 +92,7 @@ public:
     }
 
     bool doesLayerFitIntoCMX(mlir::Operation* op, StringRef strategy) const override final;
+    bool isOperationSplitOverHeightCompatible(mlir::Operation* op) const override final;
 };
 
 //
@@ -102,6 +104,7 @@ public:
     }
 
     bool doesLayerFitIntoCMX(mlir::Operation* op, StringRef strategy) const override final;
+    bool isOperationSplitOverHeightCompatible(mlir::Operation* op) const override final;
 };
 
 //
@@ -149,8 +152,11 @@ double BaseLayerStrategy::calculateMPEVolume(ConcreteOp op, VPU::MPEMode mpeMode
     double mpeHeight = 16;
     double mpeWidth = 1;
     if (strategy == splitOverKernel) {
-        activationAlignment =
-                getIntArrayAttr(op.getContext(), getActivationTensorAlignment(op.getOperation(), strategy));
+        const auto activationTensorNumTiles = getIntArrayAttr(
+                op.getContext(), getActivationTensorNumTiles(op.getOperation(), _numClusters, strategy));
+        activationAlignment = getIntArrayAttr(
+                op.getContext(),
+                getActivationTensorAlignment(op.getOperation(), strategy, false, activationTensorNumTiles));
     }
 
     const auto outputTensorDistributionMode = getOutputTensorDistributionMode(strategy);
@@ -192,8 +198,11 @@ double BaseLayerStrategy::computeSplitEfficiency(ConcreteOp op, StringRef strate
     const auto outputTensorNumTiles =
             getIntArrayAttr(op->getContext(), getOutputTensorNumTiles(op.getOperation(), _numClusters, strategy));
     if (strategy == splitOverKernel) {
-        activationAlignment =
-                getIntArrayAttr(op.getContext(), getActivationTensorAlignment(op.getOperation(), strategy));
+        const auto activationTensorNumTiles = getIntArrayAttr(
+                op.getContext(), getActivationTensorNumTiles(op.getOperation(), _numClusters, strategy));
+        activationAlignment = getIntArrayAttr(
+                op.getContext(),
+                getActivationTensorAlignment(op.getOperation(), strategy, false, activationTensorNumTiles));
     }
     const auto distributedOutputTensorType = createDistributedTensorType(op, op.output(), outputTensorDistributionMode,
                                                                          outputTensorNumTiles, activationAlignment);

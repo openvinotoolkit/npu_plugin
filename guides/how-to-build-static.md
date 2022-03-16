@@ -60,7 +60,6 @@ To select a compiler at runtime, use the `VPUX_COMPILER_TYPE` config option with
         -D ENABLE_ZEROAPI_BACKEND=ON ^
         ..
 
-    cmake --build . --config Release -j 8 --target _ie_plugins_hpp ade fluid vpu_common_lib_tests_static
     cmake --build . --config Release -j 8
     ```
     Please note, that the mentioned commands set the `ENABLE_MLIR_COMPILER` option to `OFF`, so `vpux_mlir_compiler` will not be built. Change the value to `ON`, if required.

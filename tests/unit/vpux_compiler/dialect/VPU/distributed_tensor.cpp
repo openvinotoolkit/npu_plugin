@@ -372,7 +372,7 @@ TEST(MLIR_ClusterShapeUtils, OverlappedDistribution) {
     }
 }
 
-TEST(MLIR_ClusterShapeUtils, AlignedTensorDistribution) {
+TEST(MLIR_ClusterShapeUtils, DISABLED_AlignedTensorDistribution) {
     mlir::DialectRegistry registry;
     vpux::registerDialects(registry);
 

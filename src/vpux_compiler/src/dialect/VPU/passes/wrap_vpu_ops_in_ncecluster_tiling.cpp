@@ -77,10 +77,20 @@ mlir::LogicalResult NCEConvolutionRewriter::matchAndRewrite(NCEConvolutionOp ori
     auto outputTensorDistributionMode = getOutputTensorDistributionMode(strategy);
     auto outputTensorNumTiles = getIntArrayAttr(origOp.getContext(),
                                                 getOutputTensorNumTiles(origOp.getOperation(), _numClusters, strategy));
+    const auto arch = VPU::getArch(origOp.getOperation());
+    const auto canUseCMajor =
+            VPU::NCEInvariant::isChannelMajorCompatible(arch, origOp.input().getType().cast<vpux::NDTypeInterface>());
 
     if (strategy == splitOverKernel) {
-        activationAlignment =
-                getIntArrayAttr(origOp.getContext(), getActivationTensorAlignment(origOp.getOperation(), strategy));
+        activationAlignment = getIntArrayAttr(
+                origOp.getContext(),
+                getActivationTensorAlignment(origOp.getOperation(), strategy, false, activationTensorNumTiles));
+        weightAlignment =
+                getIntArrayAttr(origOp.getContext(), getWeightsTensorAlignment(origOp.getOperation(), strategy));
+    } else if (strategy == splitOverHeight) {
+        activationAlignment = getIntArrayAttr(
+                origOp.getContext(),
+                getActivationTensorAlignment(origOp.getOperation(), strategy, !canUseCMajor, activationTensorNumTiles));
         weightAlignment =
                 getIntArrayAttr(origOp.getContext(), getWeightsTensorAlignment(origOp.getOperation(), strategy));
     }
@@ -111,8 +121,7 @@ mlir::LogicalResult NCEConvolutionRewriter::matchAndRewrite(NCEConvolutionOp ori
 
     _log.trace("Wrap {0} into NCEClusterTilingOp", origOp->getName());
 
-    const auto inOrder = DimsOrder::fromValue(origOp.input());
-    if (inOrder == DimsOrder::NCHW) {
+    if (canUseCMajor) {
         auto activationWindowDistributionMode = getActivationWindowTensorDistributionMode(strategy, _arch);
         auto activationWindowNumTiles = getIntArrayAttr(
                 origOp.getContext(),
@@ -190,8 +199,9 @@ mlir::LogicalResult NCEDepthConvolutionRewriter::matchAndRewrite(NCEDepthConvolu
                                                 getOutputTensorNumTiles(origOp.getOperation(), _numClusters, strategy));
 
     if (strategy == splitOverKernel) {
-        activationAlignment =
-                getIntArrayAttr(origOp.getContext(), getActivationTensorAlignment(origOp.getOperation(), strategy));
+        activationAlignment = getIntArrayAttr(
+                origOp.getContext(),
+                getActivationTensorAlignment(origOp.getOperation(), strategy, false, activationTensorNumTiles));
         weightAlignment =
                 getIntArrayAttr(origOp.getContext(), getWeightsTensorAlignment(origOp.getOperation(), strategy));
     }
@@ -285,8 +295,9 @@ mlir::LogicalResult NCEMaxPoolRewriter::matchAndRewrite(NCEMaxPoolOp origOp, mli
                                                 getOutputTensorNumTiles(origOp.getOperation(), _numClusters, strategy));
 
     if (strategy == splitOverKernel) {
-        activationAlignment =
-                getIntArrayAttr(origOp.getContext(), getActivationTensorAlignment(origOp.getOperation(), strategy));
+        activationAlignment = getIntArrayAttr(
+                origOp.getContext(),
+                getActivationTensorAlignment(origOp.getOperation(), strategy, false, activationTensorNumTiles));
         weightAlignment =
                 getIntArrayAttr(origOp.getContext(), getWeightsTensorAlignment(origOp.getOperation(), strategy));
     }
@@ -367,8 +378,9 @@ mlir::LogicalResult NCEEltwiseRewriter::matchAndRewrite(NCEEltwiseOp origOp, mli
                                                 getOutputTensorNumTiles(origOp.getOperation(), _numClusters, strategy));
 
     if (strategy == splitOverKernel) {
-        activationAlignment =
-                getIntArrayAttr(origOp.getContext(), getActivationTensorAlignment(origOp.getOperation(), strategy));
+        activationAlignment = getIntArrayAttr(
+                origOp.getContext(),
+                getActivationTensorAlignment(origOp.getOperation(), strategy, false, activationTensorNumTiles));
     }
 
     auto distributedActivationCopyOp1 = createDistributedCopyIn(

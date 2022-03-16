@@ -41,7 +41,8 @@ double getChannelAlignment(double input, int64_t align);
 int64_t getOptimalNumberOfClustersForSOKLayer(int64_t outputChannels, int64_t numClustersForCompilation);
 SmallVector<int64_t> getActivationTensorNumTiles(mlir::Operation* op, int64_t numClustersAvailableForCompilation,
                                                  StringRef strategy);
-SmallVector<int64_t> getActivationTensorAlignment(mlir::Operation* op, StringRef strategy);
+SmallVector<int64_t> getActivationTensorAlignment(mlir::Operation* op, StringRef strategy, bool needAlignment,
+                                                  mlir::ArrayAttr numTiles);
 SmallVector<int64_t> getOutputTensorNumTiles(mlir::Operation* op, int64_t numClustersAvailableForCompilation,
                                              StringRef strategy);
 SmallVector<int64_t> getWeightsTensorNumTiles(mlir::Operation* op, int64_t numClustersAvailableForCompilation,
@@ -57,6 +58,9 @@ DistributionMode getOutputTensorDistributionMode(StringRef strategy);
 DistributionMode getActivationWindowTensorDistributionMode(StringRef strategy, ArchKind arch);
 NCEClusterTilingOp createDistributedCopyOut(mlir::Operation* origOp, NCEClusterTilingOp clusterTilingOp);
 mlir::ArrayAttr getKernelSize(mlir::Operation* origOp);
+ShapeRef getInputShape(mlir::Operation* origOp);
+int64_t getSOHPerClusterHeightAlignment(int64_t inputWidth);
+bool isSplitOverHeightSupportedByDPU(ShapeRef inputShape, int64_t KY, int64_t numClusters, bool DWTypeOp);
 
 template <class ConcreteOp>
 mlir::ArrayAttr getStride(ConcreteOp origOp) {
@@ -110,8 +114,9 @@ DistributedTensorType createDistributedTensorType(ConcreteOp origOp, mlir::Value
     const auto activationTensorDistributionModeAttr = DistributionModeAttr::get(origOp.getContext(), distributionMode);
     mlir::IntegerAttr optimalNumberOfClusters = numClustersAvailableForCompilation;
 
+    auto kernel = getKernelSize(origOp);
+    const auto shape = getShape(input);
     if (distributionMode == DistributionMode::OVERLAPPED) {
-        auto kernel = getKernelSize(origOp);
         auto stride = getStride(origOp);
         auto pad = getPad(origOp);
 
@@ -136,7 +141,6 @@ DistributedTensorType createDistributedTensorType(ConcreteOp origOp, mlir::Value
                                            optimalNumberOfClusters, alignment, origOp.getContext());
     }
 
-    const auto shape = getShape(input);
     const auto memSpace = vpux::IndexedSymbolAttr::get(MemoryKindAttr::get(origOp.getContext(), MemoryKind::CMX_NN));
 
     const auto order = mlir::AffineMapAttr::get(DimsOrder::fromValue(input).toAffineMap(origOp.getContext()));

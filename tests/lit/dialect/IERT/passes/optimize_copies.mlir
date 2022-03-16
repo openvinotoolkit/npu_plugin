@@ -236,3 +236,50 @@ func @NoChangesDifferentMemSpace(%arg0: memref<1x2x4x4xf16>, %arg1: memref<1x2x4
 
     // CHECK: return [[VAR1]]
 }
+
+// -----
+
+#NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
+
+func @CopiesWithSubViewOps(%act : memref<1x80x28x28xf16, #NHWC, @DDR>)                           
+                              -> memref<1x80x28x27xf16, #NHWC, @DDR> 
+{
+    %buf0 = memref.alloc() : memref<1x70x28x27xf16, #NHWC, @DDR>    
+    %buf1 = memref.alloc() : memref<1x80x28x27xf16, #NHWC, @DDR>
+    %0 = IERT.SubView %act [0, 0, 0, 1] [1, 70, 28, 27] : memref<1x80x28x28xf16, #NHWC, @DDR> to memref<1x70x28x27xf16, {order = #NHWC, strides = [62720, 1, 2240, 80]}, @DDR>    
+    %1 = IERT.Copy inputs(%0 : memref<1x70x28x27xf16, {order = #NHWC, strides = [62720, 1, 2240, 80]}, @DDR>) outputs(%buf0 : memref<1x70x28x27xf16, #NHWC, @DDR>) -> memref<1x70x28x27xf16, #NHWC, @DDR>    
+    %2 = IERT.SubView %buf1 [0, 0, 0, 0] [1, 70, 28, 27] : memref<1x80x28x27xf16, #NHWC, @DDR> to memref<1x70x28x27xf16, {order = #NHWC, strides = [60480, 1, 2160, 80]}, @DDR>    
+    %3 = IERT.Copy inputs(%1 : memref<1x70x28x27xf16, #NHWC, @DDR>) outputs(%2 : memref<1x70x28x27xf16, {order = #NHWC, strides = [60480, 1, 2160, 80]}, @DDR>) -> memref<1x70x28x27xf16, {order = #NHWC, strides = [60480, 1, 2160, 80]}, @DDR>    
+    %4 = IERT.SubView %1 [0, 0, 0, 0] [1, 10, 28, 27] : memref<1x70x28x27xf16, #NHWC, @DDR> to memref<1x10x28x27xf16, {order = #NHWC, strides = [52920, 1, 1890, 70]}, @DDR>    
+    %5 = IERT.SubView %buf1 [0, 70, 0, 0] [1, 10, 28, 27] : memref<1x80x28x27xf16, #NHWC, @DDR> to memref<1x10x28x27xf16, {order = #NHWC, strides = [60480, 1, 2160, 80]}, @DDR>    
+    %6 = IERT.Copy inputs(%4 : memref<1x10x28x27xf16, {order = #NHWC, strides = [52920, 1, 1890, 70]}, @DDR>) outputs(%5 : memref<1x10x28x27xf16, {order = #NHWC, strides = [60480, 1, 2160, 80]}, @DDR>) -> memref<1x10x28x27xf16, {order = #NHWC, strides = [60480, 1, 2160, 80]}, @DDR>    
+    %7 = IERT.ConcatView inputs(%3, %6 : memref<1x70x28x27xf16, {order = #NHWC, strides = [60480, 1, 2160, 80]}, @DDR>, memref<1x10x28x27xf16, {order = #NHWC, strides = [60480, 1, 2160, 80]}, @DDR>) outputs(%buf1 : memref<1x80x28x27xf16, #NHWC, @DDR>) -> memref<1x80x28x27xf16, #NHWC, @DDR>
+    return %7 : memref<1x80x28x27xf16, #NHWC, @DDR>
+
+    // Copy %3 with parent Copy %1 will be tried to be optimized
+    // do not optimize since Copy %1 is also used by SubView %4 
+    // and will not be removed.
+    // implement a solution to optimize both E#35612
+
+    // currently no changes after pass, desired outcome in E#35612
+
+    // CHECK:       [[VAR0:%.*]] = memref.alloc() : memref<1x70x28x27xf16, #NHWC, @DDR>
+    // CHECK:       [[VAR1:%.*]] = memref.alloc() : memref<1x80x28x27xf16, #NHWC, @DDR>
+    // CHECK:       [[VAR2:%.*]] = IERT.SubView %arg0 [0, 0, 0, 1] [1, 70, 28, 27] : 
+    // CHECK-SAME:      memref<1x80x28x28xf16, #NHWC, @DDR> to memref<1x70x28x27xf16, {order = #NHWC, strides = [62720, 1, 2240, 80]}, @DDR>
+    // CHECK:       [[VAR3:%.*]] = IERT.Copy inputs(%2 : memref<1x70x28x27xf16, {order = #NHWC, strides = [62720, 1, 2240, 80]}, @DDR>) outputs(%0 : memref<1x70x28x27xf16, #NHWC, @DDR>) -> 
+    // CHECK-SAME:      memref<1x70x28x27xf16, #NHWC, @DDR>
+    // CHECK:       [[VAR4:%.*]] = IERT.SubView [[VAR1]] [0, 0, 0, 0] [1, 70, 28, 27] : 
+    // CHECK-SAME:      memref<1x80x28x27xf16, #NHWC, @DDR> to memref<1x70x28x27xf16, {order = #NHWC, strides = [60480, 1, 2160, 80]}, @DDR>
+    // CHECK:       [[VAR5:%.*]] = IERT.Copy inputs(%3 : memref<1x70x28x27xf16, #NHWC, @DDR>) outputs(%4 : memref<1x70x28x27xf16, {order = #NHWC, strides = [60480, 1, 2160, 80]}, @DDR>) -> 
+    // CHECK-SAME:      memref<1x70x28x27xf16, {order = #NHWC, strides = [60480, 1, 2160, 80]}, @DDR>
+    // CHECK:       [[VAR6:%.*]] = IERT.SubView [[VAR3]] [0, 0, 0, 0] [1, 10, 28, 27] : 
+    // CHECK-SAME:      memref<1x70x28x27xf16, #NHWC, @DDR> to memref<1x10x28x27xf16, {order = #NHWC, strides = [52920, 1, 1890, 70]}, @DDR>
+    // CHECK:       [[VAR7:%.*]] = IERT.SubView [[VAR1]] [0, 70, 0, 0] [1, 10, 28, 27] : 
+    // CHECK-SAME:      memref<1x80x28x27xf16, #NHWC, @DDR> to memref<1x10x28x27xf16, {order = #NHWC, strides = [60480, 1, 2160, 80]}, @DDR>
+    // CHECK:       [[VAR8:%.*]] = IERT.Copy inputs(%6 : memref<1x10x28x27xf16, {order = #NHWC, strides = [52920, 1, 1890, 70]}, @DDR>) outputs(%7 : memref<1x10x28x27xf16, {order = #NHWC, strides = [60480, 1, 2160, 80]}, @DDR>) -> 
+    // CHECK-SAME:      memref<1x10x28x27xf16, {order = #NHWC, strides = [60480, 1, 2160, 80]}, @DDR>
+    // CHECK:       [[VAR9:%.*]] = IERT.ConcatView inputs(%5, %8 : memref<1x70x28x27xf16, {order = #NHWC, strides = [60480, 1, 2160, 80]}, @DDR>, memref<1x10x28x27xf16, {order = #NHWC, strides = [60480, 1, 2160, 80]}, @DDR>) 
+    // CHECK-SAME:      outputs(%1 : memref<1x80x28x27xf16, #NHWC, @DDR>) -> memref<1x80x28x27xf16, #NHWC, @DDR>
+    // CHECK:       return %9 : memref<1x80x28x27xf16, #NHWC, @DDR>
+}

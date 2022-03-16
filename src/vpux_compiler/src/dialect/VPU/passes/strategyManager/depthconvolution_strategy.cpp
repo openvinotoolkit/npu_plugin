@@ -31,7 +31,8 @@ bool DepthConvolutionStrategy::doesLayerFitIntoCMX(mlir::Operation* op, StringRe
     auto outputTensorNumTiles = getIntArrayAttr(origOp.getContext(),
                                                 getOutputTensorNumTiles(origOp.getOperation(), _numClusters, strategy));
     if (strategy == splitOverKernel) {
-        activationAlignment = getIntArrayAttr(origOp.getContext(), getActivationTensorAlignment(op, strategy));
+        activationAlignment = getIntArrayAttr(
+                origOp.getContext(), getActivationTensorAlignment(op, strategy, false, activationTensorNumTiles));
         weightAlignment = getIntArrayAttr(origOp.getContext(), getWeightsTensorAlignment(op, strategy));
     }
     auto distributedActivationTensorType = createDistributedTensorType(
@@ -43,4 +44,24 @@ bool DepthConvolutionStrategy::doesLayerFitIntoCMX(mlir::Operation* op, StringRe
 
     return origOp.fitIntoCMX(distributedActivationTensorType, distributeddWeightsTensorType,
                              distributedOutputTensorType);
+}
+
+// Each DPU should compute at least one output line. Therefore in order for a layer to be SOH
+// compitable it must have an output height of at least the number of DPUs x the number of clusters
+// specified for compilation.
+// For example for 4 cluster compilation with 5 DPUs per cluster the output height must be a
+// minimum of 5x4=20.
+bool DepthConvolutionStrategy::isOperationSplitOverHeightCompatible(mlir::Operation* op) const {
+    const auto outputShape = getShape(op->getResult(0));
+
+    if (outputShape[Dims4D::Act::H] < _minimumOutputHeightForSOH) {
+        return false;
+    }
+
+    auto origOp = mlir::dyn_cast<NCEDepthConvolutionOp>(op);
+    const auto inputShape = getShape(origOp.input());
+    const auto filterShape = Shape(parseIntArrayAttr<int64_t>(origOp.rawFilterShapeAttr()));
+    const auto KY = filterShape[Dims4D::Filter::KY];
+
+    return isSplitOverHeightSupportedByDPU(inputShape, KY, _numClusters, true);
 }
