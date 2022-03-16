@@ -30,11 +30,13 @@ bool EltwiseStrategy::doesLayerFitIntoCMX(mlir::Operation* op, StringRef strateg
         activationAlignment = getIntArrayAttr(
                 origOp.getContext(), getActivationTensorAlignment(op, strategy, false, activationTensorNumTiles));
     }
-    auto distributedInput1TensorType = createDistributedTensorType(
-            origOp, origOp.input1(), activationTensorDistributionMode, activationTensorNumTiles, activationAlignment);
-    const auto distributedInput2TensorType = createDistributedTensorType(
-            origOp, origOp.input2(), activationTensorDistributionMode, activationTensorNumTiles, activationAlignment);
+    auto distributedInput1TensorType =
+            createDistributedTensorType(origOp, origOp.input1(), activationTensorDistributionMode,
+                                        activationTensorNumTiles, activationAlignment, strategy);
+    const auto distributedInput2TensorType =
+            createDistributedTensorType(origOp, origOp.input2(), activationTensorDistributionMode,
+                                        activationTensorNumTiles, activationAlignment, strategy);
     const auto distributedOutputTensorType = createDistributedTensorType(
-            origOp, origOp.output(), outputTensorDistributionMode, outputTensorNumTiles, activationAlignment);
+            origOp, origOp.output(), outputTensorDistributionMode, outputTensorNumTiles, activationAlignment, strategy);
     return origOp.fitIntoCMX(distributedInput1TensorType, distributedInput2TensorType, distributedOutputTensorType);
 }

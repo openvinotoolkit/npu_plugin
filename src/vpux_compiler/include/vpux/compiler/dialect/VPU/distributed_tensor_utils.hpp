@@ -84,9 +84,9 @@ inline PaddingAttr getPad<NCEEltwiseOp>(NCEEltwiseOp) {
 
 template <class ConcreteOp>
 NCEClusterTilingOp createDistributedCopyIn(ConcreteOp origOp, mlir::Value input, DistributionMode distributionMode,
-                                           mlir::ArrayAttr numTiles, mlir::ArrayAttr alignment) {
+                                           mlir::ArrayAttr numTiles, mlir::ArrayAttr alignment, StringRef strategy) {
     auto inputTensorDistributedTensorType =
-            createDistributedTensorType(origOp, input, distributionMode, numTiles, alignment);
+            createDistributedTensorType(origOp, input, distributionMode, numTiles, alignment, strategy);
 
     mlir::OpBuilder builder(origOp);
     builder.setInsertionPoint(origOp);
@@ -106,7 +106,7 @@ NCEClusterTilingOp createDistributedCopyIn(ConcreteOp origOp, mlir::Value input,
 template <class ConcreteOp>
 DistributedTensorType createDistributedTensorType(ConcreteOp origOp, mlir::Value input,
                                                   DistributionMode distributionMode, mlir::ArrayAttr numTiles,
-                                                  mlir::ArrayAttr alignment) {
+                                                  mlir::ArrayAttr alignment, StringRef strategy) {
     DistributedTensorAttr distributedActivationTensorAttr;
     auto module = origOp->template getParentOfType<mlir::ModuleOp>();
     auto nceOp = IE::getAvailableExecutor(module, ExecutorKind::NCE);
@@ -124,14 +124,20 @@ DistributedTensorType createDistributedTensorType(ConcreteOp origOp, mlir::Value
                 DistributedTensorAttr::get(activationTensorDistributionModeAttr, numTiles, kernel, pad, stride,
                                            numClustersAvailableForCompilation, alignment, origOp.getContext());
     } else if (distributionMode == DistributionMode::DUPLICATED) {
-        auto OC = getShape(origOp->getResult(0))[Dims4D::Act::C];
-        int64_t optimalNumClustersForLayer =
-                getOptimalNumberOfClustersForSOKLayer(OC, numClustersAvailableForCompilation.getValue().getSExtValue());
-        optimalNumberOfClusters =
-                mlir::IntegerAttr::get(getInt64Type(origOp->getContext()), optimalNumClustersForLayer);
-        distributedActivationTensorAttr =
-                DistributedTensorAttr::get(activationTensorDistributionModeAttr, nullptr, nullptr, nullptr, nullptr,
-                                           optimalNumberOfClusters, alignment, origOp.getContext());
+        if (strategy == splitOverKernel) {
+            auto OC = getShape(origOp->getResult(0))[Dims4D::Act::C];
+            int64_t optimalNumClustersForLayer = getOptimalNumberOfClustersForSOKLayer(
+                    OC, numClustersAvailableForCompilation.getValue().getSExtValue());
+            optimalNumberOfClusters =
+                    mlir::IntegerAttr::get(getInt64Type(origOp->getContext()), optimalNumClustersForLayer);
+            distributedActivationTensorAttr =
+                    DistributedTensorAttr::get(activationTensorDistributionModeAttr, nullptr, nullptr, nullptr, nullptr,
+                                               optimalNumberOfClusters, alignment, origOp.getContext());
+        } else {
+            distributedActivationTensorAttr =
+                    DistributedTensorAttr::get(activationTensorDistributionModeAttr, nullptr, nullptr, nullptr, nullptr,
+                                               numClustersAvailableForCompilation, alignment, origOp.getContext());
+        }
     } else {
         const auto tileInfo = parseIntArrayAttr<int64_t>(numTiles);
         optimalNumberOfClusters = mlir::IntegerAttr::get(getInt64Type(origOp->getContext()),
