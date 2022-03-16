@@ -73,9 +73,9 @@ void StrategyManager::assignMultiClusterStrategy() {
     const auto callback = [this](mlir::Operation* op) {
         llvm::TypeSwitch<mlir::Operation*, void>(op)
                 .Case<NCEMaxPoolOp>([this](NCEMaxPoolOp origOp) {
-                    if (_maxPoolStrategy.isOperationSplitOverHeightCompatible(origOp.getOperation()) &&
-                        _maxPoolStrategy.doesLayerFitIntoCMX(origOp.getOperation(), splitOverHeight)) {
-                        setLayerStrategy(splitOverHeight, origOp.getOperation());
+                    if (_maxPoolStrategy.isOperationSplitOverKernelCompatible(origOp.getOperation()) &&
+                        _maxPoolStrategy.doesLayerFitIntoCMX(origOp.getOperation(), splitOverKernel)) {
+                        setLayerStrategy(splitOverKernel, origOp.getOperation());
                     } else {
                         // setLayerStrategy(clustering, origOp.getOperation());
                     }
@@ -83,16 +83,16 @@ void StrategyManager::assignMultiClusterStrategy() {
                 .Case<NCEEltwiseOp>([this](NCEEltwiseOp origOp) {
                     if (_eltwiseStrategy.isOperationSplitOverHeightCompatible(origOp.getOperation()) &&
                         _eltwiseStrategy.doesLayerFitIntoCMX(origOp.getOperation(), splitOverHeight)) {
-                        setLayerStrategy(splitOverHeight, origOp.getOperation());
+                        // setLayerStrategy(splitOverHeight, origOp.getOperation());
                     } else {
                         // setLayerStrategy(clustering, origOp.getOperation());
                     }
                 })
                 .Case<NCEConvolutionOp>([this](NCEConvolutionOp origOp) {
                     if (DimsOrder::fromValue(origOp.input()) == DimsOrder::NHWC) {
-                        if (_convolutionStrategy.isOperationMultiClusterCompatible(origOp.getOperation())) {
-                            auto bestStrategy = _convolutionStrategy.getOptimalLayerStrategy(origOp);
-                            setLayerStrategy(bestStrategy, origOp.getOperation());
+                        if (_convolutionStrategy.isOperationSplitOverKernelCompatible(origOp.getOperation()) &&
+                            _convolutionStrategy.doesLayerFitIntoCMX(origOp.getOperation(), splitOverKernel)) {
+                            setLayerStrategy(splitOverKernel, origOp.getOperation());
                         } else {
                             // setLayerStrategy(clustering, origOp.getOperation());
                         }
@@ -116,9 +116,9 @@ void StrategyManager::assignMultiClusterStrategy() {
                     }
                 })
                 .Case<NCEDepthConvolutionOp>([this](NCEDepthConvolutionOp origOp) {
-                    if (_depthConvolutionStrategy.isOperationMultiClusterCompatible(origOp.getOperation())) {
-                        auto bestStrategy = _depthConvolutionStrategy.getOptimalLayerStrategy(origOp);
-                        setLayerStrategy(bestStrategy, origOp.getOperation());
+                    if (_depthConvolutionStrategy.isOperationSplitOverKernelCompatible(origOp.getOperation()) &&
+                        _depthConvolutionStrategy.doesLayerFitIntoCMX(origOp.getOperation(), splitOverKernel)) {
+                        setLayerStrategy(splitOverKernel, origOp.getOperation());
                     }
                 })
                 .Default([this](mlir::Operation* unknownOp) -> void {
