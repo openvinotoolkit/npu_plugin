@@ -309,13 +309,28 @@ mlir::LogicalResult ClusterNCERewriter::matchAndRewrite(VPUIP::NCEClusterTaskOp 
 
     const auto outChannelOffsets = getOutChannelOffsets(nceTask, parentInputType, parentOutputType);
 
+    auto padAttr = nceTask.kernel_paddingAttr();
+    SmallVector<VPU::PaddingAttr> padAttrForCluster(numClusters, padAttr);
+
+    // In case of OVERLAPPED mode padding setting in invariint needs to be calculated
+    // for each cluster based on distributed type properties
+    if (inDistribution.mode().getValue() == VPU::DistributionMode::OVERLAPPED) {
+        auto perClusterPadInfo = parentInputType.getPerClusterPadding();
+        VPUX_THROW_UNLESS(perClusterPadInfo.size() == static_cast<size_t>(numClusters),
+                          "Mismatch between number of padding settings ({0}) and number of clusters ({1})",
+                          perClusterPadInfo.size(), numClusters);
+        for (int64_t clusterId = 0; clusterId < numClusters; ++clusterId) {
+            padAttrForCluster[clusterId] = VPU::getPaddingAttr(_ctx, perClusterPadInfo[clusterId]);
+        }
+    }
+
     for (int64_t clusterId = 0; clusterId < numClusters; ++clusterId) {
         const auto newLoc = appendLoc(loc, llvm::formatv("_cluster_{0}", clusterId).str());
         auto newTask = VPURT::wrapIntoTaskOp<VPUIP::NCEClusterTaskOp>(
                 rewriter, vpurtTask.waitBarriers(), vpurtTask.updateBarriers(), newLoc, inputBuffs[clusterId],
                 weightsBuffs[clusterId], weightTableBuffs[clusterId], activationWindowBuffs[clusterId], parentInput,
                 parentOutput, outputBuffs[clusterId], nceTask.task_type(), nceTask.kernel_sizeAttr(),
-                nceTask.kernel_stridesAttr(), nceTask.kernel_paddingAttr(),
+                nceTask.kernel_stridesAttr(), padAttrForCluster[clusterId],
                 nceTask.activation_window_channel_lengthAttr(), nullptr, nullptr, isSegmented,
                 outChannelOffsets[clusterId]);
 
