@@ -11,27 +11,9 @@
 // included with the Software Package for additional details.
 //
 
-#include <fstream>
-#include <iomanip>
 #include "vpux/compiler/dialect/VPU/attributes.hpp"
 #include "vpux/compiler/dialect/VPU/json.hpp"
 #include "vpux/compiler/dialect/VPU/ops.hpp"
-#include "vpux/compiler/utils/strings.hpp"
-
-#ifdef _MSC_VER
-#pragma warning(push)
-#pragma warning(disable : 4267)  // size_t to integer conversion
-#endif
-
-#include <llvm/ADT/DenseSet.h>
-#include <llvm/Support/FileSystem.h>
-#include <llvm/Support/GraphWriter.h>
-#include <llvm/Support/JSON.h>
-#include <llvm/Support/raw_ostream.h>
-
-#ifdef _MSC_VER
-#pragma warning(pop)
-#endif
 
 namespace vpux {
 namespace VPU {
@@ -40,7 +22,7 @@ Json readManualStrategyJSON(StringRef fileName);
 void writeManualStrategyJSON(StringRef fileName, Json json);
 
 Json convertAttrToString(mlir::Attribute attr);
-Json createStrategyJSONFromOperations(Json j, llvm::DenseMap<mlir::Location, mlir::Operation*> operations,
+Json createStrategyJSONFromOperations(Json json, llvm::DenseMap<mlir::Location, mlir::Operation*> operations,
                                       SmallVector<StringRef> strategyAttributes);
 mlir::Attribute convertJSONToAttr(mlir::Attribute oldAttr, Json newAttrVal);
 void overwriteManualStrategy(Json manualStrategy, llvm::DenseMap<mlir::Location, mlir::Operation*> operations);
