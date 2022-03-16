@@ -63,7 +63,9 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(NNDMAOp op) {
 
     if (auto distributedOut = op.output().getType().dyn_cast<VPUIP::DistributedBufferType>()) {
         auto mode = distributedOut.getDistribution().mode().getValue();
-        if (mode != VPU::DistributionMode::DUPLICATED) {
+        // In this case DUPLICATED|SEGMENTED is an alias of DUPLICATED mode
+        if (mode != VPU::DistributionMode::DUPLICATED &&
+            mode != (VPU::DistributionMode::DUPLICATED | VPU::DistributionMode::SEGMENTED)) {
             return errorAt(loc, "Only duplicated mode supported for output operand. Got: {0}",
                            VPU::stringifyDistributionMode(mode));
         }
