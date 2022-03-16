@@ -96,7 +96,7 @@ def Const_ContentAttr : Const_Attr<"Content", [DeclareAttrInterfaceMethods<SubEl
         vpux::Const::ContentAttr quantCast(mlir::quant::QuantizedType newElemType = nullptr) const;
         vpux::Const::ContentAttr dequantize() const;
         vpux::Const::ContentAttr rescale(double scale) const;
-        vpux::Const::ContentAttr relocateWeightsTablePointers(uint64_t weightsPtr, uint64_t sparsityPtr) const;
+        vpux::Const::ContentAttr relocateWeightsTablePointers(uint64_t weightsPtr, uint64_t sparsityPtr, vpux::ShapeRef offsets) const;
         vpux::Const::ContentAttr add(double bias) const;
         vpux::Const::ContentAttr reshape(vpux::ShapeRef newShape) const;
         vpux::Const::ContentAttr reorder(vpux::DimsOrder newOrder) const;
@@ -407,13 +407,14 @@ def Const_RelocateWeightsTableAttr : Const_Attr<"RelocateWeightsTable",
 
     let parameters = (ins
         "mlir::IntegerAttr":$weightsPtr,
-        "mlir::IntegerAttr":$sparsityPtr
+        "mlir::IntegerAttr":$sparsityPtr,
+        "mlir::ArrayAttr":$offsets
     );
 
     let builders = [
         AttrBuilderWithInferredContext<
-            (ins "mlir::IntegerAttr":$weightsPtr, "mlir::IntegerAttr":$sparsityPtr), [{
-                return $_get(weightsPtr.getContext(), weightsPtr, sparsityPtr);
+            (ins "mlir::IntegerAttr":$weightsPtr, "mlir::IntegerAttr":$sparsityPtr, "mlir::ArrayAttr":$offsets), [{
+                return $_get(weightsPtr.getContext(), weightsPtr, sparsityPtr, offsets);
             }]
         >
     ];
