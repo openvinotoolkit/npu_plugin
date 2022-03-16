@@ -145,7 +145,10 @@ DistributedTensorType createDistributedTensorType(ConcreteOp origOp, mlir::Value
                                            optimalNumberOfClusters, alignment, origOp.getContext());
     } else if (VPU ::bitEnumContains(distributionMode, VPU::DistributionMode::SEGMENTED)) {
         // Add height alignment
-        // This should done where the alignment attribute is created
+        // On the release branch, the alignment is created and added here. 
+        // Now alignment is passed as a parameter. 
+        // This could could be moved where the alignment that is passed to this fucntion is created
+        // Instead of modifying here and adding the height
         if (alignment != nullptr) {
             auto alignmentVector = parseIntArrayAttr<int64_t>(alignment);
             const auto numTilesArray = parseIntArrayAttr<int64_t>(numTiles);
