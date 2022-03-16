@@ -109,12 +109,12 @@ DistributedTensorType createDistributedTensorType(ConcreteOp origOp, mlir::Value
     const auto activationTensorDistributionModeAttr = DistributionModeAttr::get(origOp.getContext(), distributionMode);
     mlir::IntegerAttr optimalNumberOfClusters = numClustersAvailableForCompilation;
 
-    // Here the number of clusters to be used for an individual SOK ayer is determined
+    // Here the number of clusters to be used for an individual SOK layer is determined
     // such that additional alignment of the per cluster output channels is not required.
     // For example 80 output channels, the weights should only be split on 3 clusters [32, 32, 16].
     // Also when creating the copy-in for the activation we need to ensure that the number
     // of clusters that the input is duplicated to is also 3 clusters in this case.
-    // Therefore we use the varibale optimalNumberOfClusters for both purposes here, to detemine
+    // Therefore we use the variable optimalNumberOfClusters for both purposes here, to detemine
     // num_tiles and numClusters for the activations and the weights.
     if (strategy == splitOverKernel) {
         int64_t numClustersToUseForLayer = numClustersAvailableForCompilation.getValue().getSExtValue();
