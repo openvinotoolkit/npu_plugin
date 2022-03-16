@@ -214,7 +214,6 @@ void vpux::buildReferenceHWModePipeline(mlir::OpPassManager& pm, const Reference
     pm.addPass(createConvertVPUToVPUIPPass(log));
     pm.addPass(createConvertNCEClusterTilingToVPUIPPass(log));
     pm.addPass(createConvertSWLayers2VPUIPPass(log));
-    pm.addPass(VPUIP::createConvertInstructionListTableOp2ConstPass(log));
     pm.addPass(mlir::createCanonicalizerPass(grc));
 
     // Level 2 : Abstract RunTime
@@ -355,7 +354,6 @@ void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOp
     pm.addPass(createConvertVPUToVPUIPPass(log));
     pm.addPass(createConvertNCEClusterTilingToVPUIPPass(log));
     pm.addPass(createConvertSWLayers2VPUIPPass(log));
-    pm.addPass(VPUIP::createConvertInstructionListTableOp2ConstPass(log));
 
     pm.addPass(mlir::createCanonicalizerPass(grc));
 

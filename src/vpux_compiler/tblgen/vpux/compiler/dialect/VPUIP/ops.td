@@ -1994,41 +1994,6 @@ def VPUIP_PermuteUPAOp :
 }
 
 //
-// InstructionListTableOp
-//
-
-def VPUIP_InstructionListTableOp :
-        VPUIP_Op<"InstructionListTableOp",
-            [
-                NoSideEffect,
-                ViewLikeOpInterface
-            ]
-        > {
-    let summary = "Intermediate task for creating instruction list table";
-
-    let arguments = (ins
-        I64ArrayAttr:$range,
-        I64ArrayAttr:$shift,
-        I64ArrayAttr:$bias
-    );
-
-    let results = (outs
-        MemRefOf<[SI32]>:$output
-    );
-
-    let extraClassDeclaration = [{
-        mlir::Value getViewSource() {
-            return output();
-        }
-    }];
-
-    let assemblyFormat = [{
-        attr-dict
-        `->` type(results)
-    }];
-}
-
-//
 // DPUTaskOp
 //
 

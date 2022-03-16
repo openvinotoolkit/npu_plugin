@@ -1038,33 +1038,6 @@ operation ::= `VPUIP.HSwishUPA` attr-dict
 | :----: | ----------- |
 `output` | memref of 16-bit float values
 
-### `VPUIP.InstructionListTableOp` (vpux::VPUIP::InstructionListTableOp)
-
-Intermediate task for creating instruction list table
-
-
-Syntax:
-
-```
-operation ::= `VPUIP.InstructionListTableOp` attr-dict
-              `->` type(results)
-```
-
-
-#### Attributes:
-
-| Attribute | MLIR Type | Description |
-| :-------: | :-------: | ----------- |
-`range` | ::mlir::ArrayAttr | 64-bit integer array attribute
-`shift` | ::mlir::ArrayAttr | 64-bit integer array attribute
-`bias` | ::mlir::ArrayAttr | 64-bit integer array attribute
-
-#### Results:
-
-| Result | Description |
-| :----: | ----------- |
-`output` | memref of 32-bit signed integer values
-
 ### `VPUIP.Interpolate` (vpux::VPUIP::InterpolateUPAOp)
 
 Interpolate UPA SHAVE kernel

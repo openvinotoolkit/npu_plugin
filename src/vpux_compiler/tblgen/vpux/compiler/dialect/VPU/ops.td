@@ -270,7 +270,7 @@ def VPU_NCEMaxPoolOp :
         4DTensorOf<[SI32]>:$weightsTable,
         4DTensorOf<[SI32]>:$instructionListTable,
         4DTensorOf<[UI8]>:$activationWindow,
-
+    
         Confined<I64ArrayAttr, [ArrayCount<2>]>:$kernel_size,
         Confined<I64ArrayAttr, [ArrayCount<2>]>:$strides,
         VPU_PaddingAttr:$pad,
