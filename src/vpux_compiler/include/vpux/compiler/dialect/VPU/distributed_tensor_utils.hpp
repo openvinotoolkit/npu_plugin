@@ -107,6 +107,7 @@ DistributedTensorType createDistributedTensorType(ConcreteOp origOp, mlir::Value
                                                   mlir::ArrayAttr alignment, StringRef strategy,
                                                   bool needAlignment = false) {
     DistributedTensorAttr distributedActivationTensorAttr;
+    mlir::ArrayAttr alignmentAttr = nullptr;
     auto module = origOp->template getParentOfType<mlir::ModuleOp>();
     auto nceOp = IE::getAvailableExecutor(module, ExecutorKind::NCE);
     const auto numClustersAvailableForCompilation = getIntAttr(origOp.getContext(), nceOp.count());
@@ -145,16 +146,18 @@ DistributedTensorType createDistributedTensorType(ConcreteOp origOp, mlir::Value
     } else if (VPU ::bitEnumContains(distributionMode, VPU::DistributionMode::SEGMENTED)) {
         // Add height alignment
         // This should done where the alignment attribute is created
-        auto alignmentVector = parseIntArrayAttr<int64_t>(alignment);
-        const auto numTilesArray = parseIntArrayAttr<int64_t>(numTiles);
-        if (numTilesArray[Dims4D::Act::H.ind()] > 1 && kernel && needAlignment) {
-            const auto kernelArray = parseIntArrayAttr<int64_t>(kernel);
-            const auto KY = kernelArray[0];
-            if (KY > 1) {
-                alignmentVector[Dims4D::Act::H.ind()] = getSOHPerClusterHeightAlignment(shape[Dims4D::Act::W]);
+        if (alignment != nullptr) {
+            auto alignmentVector = parseIntArrayAttr<int64_t>(alignment);
+            const auto numTilesArray = parseIntArrayAttr<int64_t>(numTiles);
+            if (numTilesArray[Dims4D::Act::H.ind()] > 1 && kernel && needAlignment) {
+                const auto kernelArray = parseIntArrayAttr<int64_t>(kernel);
+                const auto KY = kernelArray[0];
+                if (KY > 1) {
+                    alignmentVector[Dims4D::Act::H.ind()] = getSOHPerClusterHeightAlignment(shape[Dims4D::Act::W]);
+                }
             }
+            alignmentAttr = getIntArrayAttr(origOp.getContext(), alignmentVector);
         }
-        const auto alignmentAttr = getIntArrayAttr(origOp.getContext(), alignmentVector);
         distributedActivationTensorAttr =
                 DistributedTensorAttr::get(activationTensorDistributionModeAttr, numTiles, nullptr, nullptr, nullptr,
                                            optimalNumberOfClusters, alignmentAttr, origOp.getContext());
