@@ -334,26 +334,10 @@ bool CMXConcatPass::ConcatPattern::childOpsFitInCMX(size_t cmxSize) {
 }
 
 size_t CMXConcatPass::ConcatPattern::getParallelConsumerCount() const {
-    // tiling operations are considered a single consumer
-    SmallVector<mlir::Location> locations;
+    // number of concat output parts
 
-    for (auto concatPart : concatParts) {
-        // for fused loc ignore tiling details
-        if (const auto fused = concatPart.nceOp.getLoc().dyn_cast<mlir::FusedLoc>()) {
-            auto nceLoc = fused.getLocations().front();
-            if (llvm::find(locations, nceLoc) == locations.end()) {
-                locations.push_back(nceLoc);
-            }
-        } else {
-            auto nceLoc = concatPart.nceOp.getLoc();
-            if (llvm::find(locations, nceLoc) == locations.end()) {
-                locations.push_back(nceLoc);
-            }
-        }
-    }
-
-    _log.nest(3).trace("Parallel consumer count '{0}'", locations.size());
-    return locations.size();
+    _log.nest(3).trace("Parallel consumer count '{0}'", concatParts.size());
+    return concatParts.size();
 }
 
 bool CMXConcatPass::ConcatPattern::isFusedConcat() const {
