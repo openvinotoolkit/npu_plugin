@@ -257,6 +257,10 @@ Shape VPU::DistributedTensorType::getCompactShape(int64_t tileInd) const {
     return tiledComputeShapes[tileInd];
 }
 
+SmallVector<PadInfo> VPU::DistributedTensorType::getPerClusterPadding() const {
+    return VPU::getPerClusterPadding(getDistribution());
+}
+
 // @brief Retrieve the array of strided compute shapes
 // @warning This function should not be used for memory size calculation,
 // because it does not retrieve the true allocate shape in cases
