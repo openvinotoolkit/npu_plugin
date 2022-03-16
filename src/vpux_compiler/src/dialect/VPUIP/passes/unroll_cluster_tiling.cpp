@@ -264,13 +264,23 @@ mlir::LogicalResult ClusterNCERewriter::matchAndRewrite(VPUIP::NCEClusterTaskOp 
         isSegmented = mlir::UnitAttr::get(nceTask.getContext());
     }
 
+    auto padAttr = nceTask.kernel_paddingAttr();
+    SmallVector<VPU::PaddingAttr> padAttrForCluster(numClusters, padAttr);
+
+    if (inDistribution.mode().getValue() == VPU::DistributionMode::OVERLAPPED) {
+        auto perClusterPadInfo = parentInputType.getPerClusterPadding();
+        for (int64_t clusterId = 0; clusterId < numClusters; ++clusterId) {
+            padAttrForCluster[clusterId] = VPU::getPaddingAttr(_ctx, perClusterPadInfo[clusterId]);
+        }
+    }
+
     for (int64_t clusterId = 0; clusterId < numClusters; ++clusterId) {
         const auto newLoc = appendLoc(loc, llvm::formatv("_cluster_{0}", clusterId).str());
         auto newTask = VPURT::wrapIntoTaskOp<VPUIP::NCEClusterTaskOp>(
                 rewriter, vpurtTask.waitBarriers(), vpurtTask.updateBarriers(), newLoc, inputBuffs[clusterId],
                 weightsBuffs[clusterId], weightTableBuffs[clusterId], activationWindowBuffs[clusterId], parentInput,
                 parentOutput, outputBuffs[clusterId], nceTask.task_type(), nceTask.kernel_sizeAttr(),
-                nceTask.kernel_stridesAttr(), nceTask.kernel_paddingAttr(),
+                nceTask.kernel_stridesAttr(), padAttrForCluster[clusterId],
                 nceTask.activation_window_channel_lengthAttr(), nullptr, nullptr, isSegmented);
 
         {
