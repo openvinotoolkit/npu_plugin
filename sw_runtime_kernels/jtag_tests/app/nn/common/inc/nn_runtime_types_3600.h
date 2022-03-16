@@ -143,6 +143,11 @@ extern "C" struct NNShaveRuntimeConfigs {
     HWPStatMode dpuPerfMode{HWPStatMode::MODE0};
 };
 
+enum class SWKernelType : uint8_t { WL_KERNEL = 0x00, WL_DEBUG = 0x04, WL_UNKNOWN, WL_NONE };
+typedef void *kernelDataBuffer;
+typedef void *kernelTextBuffer;
+typedef void kernel_args;
+
 } // namespace common_runtime
 
 namespace dpu_runtime {
@@ -583,6 +588,37 @@ enum MPEGrid { MPE_GRID_4x4, MPE_GRID_16x1 };
 typedef common_runtime::BarrierUserConfig BarrierUserConfig;
 typedef common_runtime::BarrierGpioConfig BarrierGpioConfig;
 
+typedef void (*SNNSWKernelEntry)(common_runtime::kernel_args *);  // TODO it might be some additional optional arguments will be necessary
+
+extern "C" struct SNNSWKernel {
+    common_runtime::SWKernelType kernelType = common_runtime::SWKernelType::WL_NONE;
+    SNNSWKernelEntry kernelEntry_{nullptr};
+    common_runtime::kernelTextBuffer textWindowBase_{nullptr};
+
+    uint32_t codeSize_{0};
+    uint32_t dataSecSize_{0};
+
+//#ifdef NN_ENABLE_CONTEXT_DEBUGGING
+//    ActDebug dbg_type_{ActDebug::INVALID};
+//    volatile uint32_t dbg0_{0};
+//    volatile uint32_t dbg1_{0};
+//    volatile uint32_t dbg2_{0};
+//    volatile uint32_t dbg3_{0};
+//#endif
+};
+
+extern "C" struct SNNSWKernelVariant {
+    SNNSWKernel *kernel_{nullptr};
+    common_runtime::kernel_args *kernelArgs_{nullptr};
+    common_runtime::kernelDataBuffer dataWindowBase_{nullptr};
+
+//    void *perfPacketOut_{0};
+//    /// The schedule compiler can infer an index if it's needed pre/post inference
+//    /// Update: we can/will use the index to virtualize a WI FIFO state in a preemption payload
+//    unsigned int invoIndex_{0};
+};
+
+
 struct DPUInvariant {
     DPUInvariantRegisters registers_;
     BarrierUserConfig barriers_;
@@ -595,6 +631,7 @@ struct DPUInvariant {
     unsigned int output_sparsity_offset_;
     unsigned int hwp_cmx_base_offset_;
     bool is_cont_conv_;
+    SNNSWKernel snn_sw_kernel_;
 };
 
 struct DPUAddresses {
@@ -613,6 +650,7 @@ struct DPUVariant {
     unsigned char cluster_;
     unsigned short task_id_;
     int wload_id_;
+    SNNSWKernelVariant snn_sw_kernel_{nullptr};
 };
 
 union se_table_entry {
@@ -633,15 +671,15 @@ typedef common_runtime::PhysicalBarrierMask BarrierMask;
 typedef common_runtime::BarrierUserConfig BarrierUserConfig;
 typedef common_runtime::BarrierGpioConfig BarrierGpioConfig;
 
-typedef void *actKernelDataBuffer;
-typedef void *actKernelTextBuffer;
-typedef void act_kernel_args;
+typedef common_runtime::kernelDataBuffer actKernelDataBuffer;
+typedef common_runtime::kernelTextBuffer actKernelTextBuffer;
+typedef common_runtime::kernel_args act_kernel_args;
 typedef void (*actKernelEntry)(act_kernel_args *);
 
 // these are going to be done via ctrl messages, but special tasks like loops may stay here
 // refactor/remove in the futore
 ///@deprecated
-enum class ActWLType : uint8_t { WL_KERNEL = 0x00, WL_DEBUG = 0x04, WL_UNKNOWN };
+typedef common_runtime::SWKernelType ActWLType;
 
 #ifdef NN_ENABLE_CONTEXT_DEBUGGING
 enum class ActDebug : uint32_t {
