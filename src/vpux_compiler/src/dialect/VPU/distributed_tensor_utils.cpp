@@ -68,6 +68,7 @@ SmallVector<int64_t> vpux::VPU::getActivationTensorNumTiles(mlir::Operation* op,
 }
 
 SmallVector<int64_t> vpux::VPU::getActivationTensorAlignment(mlir::Operation* op, StringRef strategy) {
+    VPUX_UNUSED(op);
     if (strategy == splitOverKernel) {
         return {1, 16, 1, 1};
     } else {
@@ -117,6 +118,7 @@ SmallVector<int64_t> vpux::VPU::getWeightsTensorNumTiles(mlir::Operation* op,
 }
 
 SmallVector<int64_t> vpux::VPU::getWeightsTensorAlignment(mlir::Operation* op, StringRef strategy) {
+    VPUX_UNUSED(op);
     if (strategy == splitOverKernel) {
         return {16, 1, 1, 1};
     } else {
