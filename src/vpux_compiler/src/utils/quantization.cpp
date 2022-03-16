@@ -362,6 +362,15 @@ std::tuple<int64_t, int64_t, mlir::Type> getStorageParams(mlir::MLIRContext* ctx
 
         return {0, levels - 1, getUInt4Type(ctx)};
 
+    // Because in the absence of I1 support, we must use U8 datatype.
+    // [Track number: E#24341].
+    case 2:
+        if (isSigned) {
+            return {0, 1, getSInt8Type(ctx)};
+        }
+
+        return {0, levels - 1, getUInt8Type(ctx)};
+
     default:
         VPUX_THROW("Got unsupported levels '{0}'", levels);
     }
