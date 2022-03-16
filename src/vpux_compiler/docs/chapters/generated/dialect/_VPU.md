@@ -95,9 +95,10 @@ NCE version of Convolution layer
 Syntax:
 
 ```
-operation ::= `VPU.NCE.Convolution` `(` $input `,` $filter `,` $instructionListTable `,` $weightsTable (`,` $activationWindow^ custom<OptionalTypes>(type($activationWindow)) ``)? `)`
+operation ::= `VPU.NCE.Convolution` `(` $input `,` $filter `,` $weightsTable (`,` $activationWindow^ custom<OptionalTypes>(type($activationWindow)) ``)?
+              (`,` $instructionListTable^ custom<OptionalTypes>(type($instructionListTable)) ``)? `)`
               attr-dict
-              custom<OptionalTypes>(type($input), type($filter), type($weightsTable),  type($instructionListTable)) ``
+              custom<OptionalTypes>(type($input), type($filter), type($weightsTable)) ``
               `->` type(results)
               custom<OptionalRegion>($workloads)
 ```
@@ -137,9 +138,10 @@ NCE version of Depthwise Convolution layer
 Syntax:
 
 ```
-operation ::= `VPU.NCE.DepthConvolution` `(` $input `,` $filter `,` $weightsTable `,` $instructionListTable `,` $activationWindow `)`
+operation ::= `VPU.NCE.DepthConvolution` `(` $input `,` $filter `,` $weightsTable `,` $activationWindow `)`
+              (`,` $instructionListTable^ custom<OptionalTypes>(type($instructionListTable)) ``)? `)`
               attr-dict
-              custom<OptionalTypes>(type($input), type($filter), type($weightsTable), type($instructionListTable), type($activationWindow)) ``
+              custom<OptionalTypes>(type($input), type($filter), type($weightsTable), type($activationWindow)) ``
               `->` type(results)
               custom<OptionalRegion>($workloads)
 ```
@@ -215,9 +217,10 @@ NCE version of MaxPool layer
 Syntax:
 
 ```
-operation ::= `VPU.NCE.MaxPool` `(` $input `,` $weightsTable `,` $instructionListTable `,` $activationWindow `)`
+operation ::= `VPU.NCE.MaxPool` `(` $input `,` $weightsTable `,` $activationWindow `)`
+              (`,` $instructionListTable^ custom<OptionalTypes>(type($instructionListTable)) ``)? `)`
               attr-dict
-              custom<OptionalTypes>(type($input), type($weightsTable), type($instructionListTable), type($activationWindow)) ``
+              custom<OptionalTypes>(type($input), type($weightsTable), type($activationWindow)) ``
               `->` type(results)
               custom<OptionalRegion>($workloads)
 ```

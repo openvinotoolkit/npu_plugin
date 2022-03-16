@@ -124,6 +124,7 @@ def VPU_NCEConvolutionOp :
                 DeclareOpInterfaceMethods<IE_LayoutInfoOpInterface>,
                 DeclareOpInterfaceMethods<IE_TilingBuilderOpInterface>,
                 DeclareOpInterfaceMethods<VPU_NCEOpInterface>,
+                AttrSizedOperandSegments,
                 IE_AlignedChannelsOpInterface
             ]
         > {
@@ -133,7 +134,7 @@ def VPU_NCEConvolutionOp :
         4DTensorOf<[F16, BF16, quant_QuantizedType]>:$input,
         4DTensorOf<[F16, BF16, quant_QuantizedType]>:$filter,
         4DTensorOf<[SI32]>:$weightsTable,
-        4DTensorOf<[SI32]>:$instructionListTable,
+        Optional<4DTensorOf<[SI32]>>:$instructionListTable,
         Optional<4DTensorOf<[UI8]>>:$activationWindow,
 
         Confined<I64ArrayAttr, [ArrayCount<2>]>:$strides,
@@ -154,9 +155,10 @@ def VPU_NCEConvolutionOp :
     );
 
     let assemblyFormat = [{
-        `(` $input `,` $filter `,` $instructionListTable `,` $weightsTable (`,` $activationWindow^ custom<OptionalTypes>(type($activationWindow)) ``)? `)`
+        `(` $input `,` $filter `,` $weightsTable (`,` $activationWindow^ custom<OptionalTypes>(type($activationWindow)) ``)?
+         (`,` $instructionListTable^ custom<OptionalTypes>(type($instructionListTable)) ``)? `)`
         attr-dict
-        custom<OptionalTypes>(type($input), type($filter), type($weightsTable),  type($instructionListTable)) ``
+        custom<OptionalTypes>(type($input), type($filter), type($weightsTable)) ``
         `->` type(results)
         custom<OptionalRegion>($workloads)
     }];
@@ -201,7 +203,7 @@ def VPU_NCEDepthConvolutionOp :
         4DTensorOf<[F16, BF16, quant_QuantizedType]>:$input,
         4DTensorOf<[F16, BF16, quant_QuantizedType]>:$filter,
         4DTensorOf<[SI32]>:$weightsTable,
-        4DTensorOf<[SI32]>:$instructionListTable,
+        Optional<4DTensorOf<[SI32]>>:$instructionListTable,
         4DTensorOf<[UI8]>:$activationWindow,
 
         Confined<I64ArrayAttr, [ArrayCount<2>]>:$strides,
@@ -222,9 +224,10 @@ def VPU_NCEDepthConvolutionOp :
     );
 
     let assemblyFormat = [{
-        `(` $input `,` $filter `,` $weightsTable `,` $instructionListTable `,` $activationWindow `)`
+        `(` $input `,` $filter `,` $weightsTable `,` $activationWindow `)`
+         (`,` $instructionListTable^ custom<OptionalTypes>(type($instructionListTable)) ``)? `)`
         attr-dict
-        custom<OptionalTypes>(type($input), type($filter), type($weightsTable), type($instructionListTable), type($activationWindow)) ``
+        custom<OptionalTypes>(type($input), type($filter), type($weightsTable), type($activationWindow)) ``
         `->` type(results)
         custom<OptionalRegion>($workloads)
     }];
@@ -268,7 +271,7 @@ def VPU_NCEMaxPoolOp :
     let arguments = (ins
         4DTensorOf<[F16, BF16, quant_QuantizedType]>:$input,
         4DTensorOf<[SI32]>:$weightsTable,
-        4DTensorOf<[SI32]>:$instructionListTable,
+        Optional<4DTensorOf<[SI32]>>:$instructionListTable,
         4DTensorOf<[UI8]>:$activationWindow,
     
         Confined<I64ArrayAttr, [ArrayCount<2>]>:$kernel_size,
@@ -288,9 +291,10 @@ def VPU_NCEMaxPoolOp :
     );
 
     let assemblyFormat = [{
-        `(` $input `,` $weightsTable `,` $instructionListTable `,` $activationWindow `)`
+        `(` $input `,` $weightsTable `,` $activationWindow `)`
+         (`,` $instructionListTable^ custom<OptionalTypes>(type($instructionListTable)) ``)? `)`
         attr-dict
-        custom<OptionalTypes>(type($input), type($weightsTable), type($instructionListTable), type($activationWindow)) ``
+        custom<OptionalTypes>(type($input), type($weightsTable), type($activationWindow)) ``
         `->` type(results)
         custom<OptionalRegion>($workloads)
     }];
