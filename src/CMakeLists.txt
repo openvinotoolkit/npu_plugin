@@ -53,7 +53,6 @@ endif()
 if(BUILD_COMPILER_FOR_DRIVER)
     add_subdirectory(VPUXCompilerL0)
 endif()
-add_subdirectory(vpux_elf)
 add_subdirectory(vpux_plugin)
 
 if(ENABLE_DRIVER_COMPILER_ADAPTER)

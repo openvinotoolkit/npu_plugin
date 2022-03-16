@@ -207,7 +207,8 @@ public:
 
     struct CommandQueue {
         CommandQueue() = default;
-        CommandQueue(const ze_device_handle_t& device_handle, const ze_context_handle_t& context);
+        CommandQueue(const ze_device_handle_t& device_handle, const ze_context_handle_t& context,
+                     const ze_command_queue_priority_t& priority);
         CommandQueue(const CommandQueue&) = delete;
         CommandQueue& operator=(const CommandQueue&) = delete;
         void executeCommandList(CommandList& command_list);

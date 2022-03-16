@@ -1092,4 +1092,26 @@ def TransposeToPermuteCast : PassBase<"transpose-to-permute-cast", "vpux::Functi
     ];
 }
 
+//
+// PropagateFqThroughPad
+//
+
+def PropagateFqThroughPad : PassBase<"propagate-fq-through-pad", "vpux::FunctionPass"> {
+    let summary = "Propagate FakeQuantize operation after Pad is replaced with Concat";
+
+    let description = [{
+        `ConvertPadToConcat` adds a `Concat` operation which does not propagate `FakeQuantize` operation.
+
+        1. Check if such `Concat` operation has one and only one quantized input
+        2. Fetch quantization parameters
+        3. Apply them to every single `Concat` input and output
+    }];
+
+    let constructor = "vpux::IE::createPropagateFqThroughPadPass()";
+
+    let dependentDialects = [
+        "vpux::IE::IEDialect"
+    ];
+}
+
 #endif

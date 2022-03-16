@@ -73,8 +73,8 @@ Byte ViewLikeRewrite::calculateOffset(mlir::Value val) const {
 
 mlir::LogicalResult ViewLikeRewrite::matchAndRewrite(mlir::ViewLikeOpInterface origOp,
                                                      mlir::PatternRewriter& rewriter) const {
-    if (!mlir::isa<IERT::GenericReshapeOp, IERT::SubViewOp, IERT::PermuteCastOp, IERT::QuantizeCastOp>(
-                origOp.getOperation())) {
+    if (!mlir::isa<IERT::GenericReshapeOp, IERT::SubViewOp, IERT::PermuteCastOp, IERT::QuantizeCastOp,
+                   VPUIP::DistributedCastOp>(origOp.getOperation())) {
         return matchFailed(rewriter, origOp, "Unknown view-like operation '{0}'", origOp->getName());
     }
 
@@ -141,7 +141,7 @@ mlir::LogicalResult ViewLikeRewrite::matchAndRewrite(mlir::ViewLikeOpInterface o
         VPUX_THROW("Unknown source owner");
     }
 
-    const auto outType = origOp->getResult(0).getType().cast<mlir::MemRefType>();
+    const auto outType = origOp->getResult(0).getType();
 
     if (sectionIndex.hasValue()) {
         rewriter.replaceOpWithNewOp<VPURT::DeclareBufferOp>(origOp, outType, section, sectionIndex.getValue(),
@@ -202,6 +202,7 @@ void ConvertViewOps2VPUIPPass::safeRunOnFunc() {
     target.addLegalDialect<VPUIP::VPUIPDialect>();
     target.addLegalDialect<VPURT::VPURTDialect>();
     target.addLegalOp<mlir::FuncOp, mlir::ReturnOp>();
+    target.addIllegalOp<VPUIP::DistributedCastOp>();
 
     target.addLegalOp<VPUIP::SwKernelOp>();
     target.markOpRecursivelyLegal<VPUIP::SwKernelOp>([&](mlir::Operation*) {

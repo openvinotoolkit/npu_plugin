@@ -51,7 +51,6 @@ CMakeLists.txt @vinograd47 @mmineeva @ArtemySkrebkov-intel
 /src/vpux_compiler @vinograd47 @nikita-kud @AndrewBakalinIntel @AlexeyPushchin @MateuszDareckiIntel @hrotuna @ZoranZomborat @bradyjohn @sshumihi @andrejsokolov @vadim-intel @ZhibinLiIntel
 /src/vpux_driver_compiler_adapter @sshumihi @ArtemySkrebkov-intel @mznamens
 /src/VPUXCompilerL0 @mznamens @sshumihi @ArtemySkrebkov-intel
-/src/vpux_elf @AndrewBakalinIntel @szilveszteri @gladilov-gleb
 /src/vpux_ngraph_transformations @shokinal @maxim-kurin
 /src/vpux_plugin @ArtemySkrebkov-intel @mznamens
 /src/vpux_translate_utils @gladilov-gleb @MikhailPedus
@@ -86,7 +85,7 @@ CMakeLists.txt @vinograd47 @mmineeva @ArtemySkrebkov-intel
 /tests/unit/mtl @gladilov-gleb @MikhailPedus @briangrifiin
 /tests/unit/vpux_compiler @vinograd47 @nikita-kud @AndrewBakalinIntel @AlexeyPushchin @MateuszDareckiIntel @hrotuna @ZoranZomborat @bradyjohn
 /tests/unit/vpux_driver_compiler_adapter @sshumihi @ArtemySkrebkov-intel @mznamens
-/tests/unit/vpux_elf @AndrewBakalinIntel @szilveszteri @gladilov-gleb
+/tests/unit/vpux_elf @AndrewBakalinIntel @szilveszteri @gladilov-gleb @PaulCarabas
 /tests/unit/vpux_utils @vinograd47 @nikita-kud
 #
 # tools folder

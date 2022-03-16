@@ -24,6 +24,7 @@ const std::vector<std::map<std::string, std::string>> configs = {
     {{VPUX_CONFIG_KEY(THROUGHPUT_STREAMS), "1"}},
     {{KMB_CONFIG_KEY(THROUGHPUT_STREAMS), "1"}},
     {{VPUX_CONFIG_KEY(CSRAM_SIZE), "2097152"}},
+    {{CONFIG_KEY(MODEL_PRIORITY), CONFIG_VALUE(MODEL_PRIORITY_HIGH)}},
 
     // Private options
     {{"VPUX_GRAPH_COLOR_FORMAT", "RGB"}},

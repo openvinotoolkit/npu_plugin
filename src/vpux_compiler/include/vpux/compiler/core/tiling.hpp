@@ -55,7 +55,7 @@ using OutputTiling = SmallVector<TileInfo>;
 
 // helper function to generate a set of tiles from dividing a shape. A shape divided across multiple dimensions will
 // generate a set of tiles, each having its own size and offsets
-OutputTiling fillDividedTiles(ShapeRef divisors, ShapeRef orig);
+OutputTiling fillDividedTiles(ShapeRef divisors, ShapeRef orig, mlir::IntegerAttr clusterId = nullptr);
 
 //
 // PadInfo

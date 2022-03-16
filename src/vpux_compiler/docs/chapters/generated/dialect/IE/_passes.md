@@ -173,6 +173,12 @@ The 'prefetch' means that the next tile could be loaded in advance when the curr
 
 The pass does not consider cost models,
 only tiles layers to make at least two tiles could be loaded in CMX memory at the same time.
+### `-propagate-fq-through-pad`: Propagate FakeQuantize operation after Pad is replaced with Concat
+`ConvertPadToConcat` adds a `Concat` operation which does not propagate `FakeQuantize` operation.
+
+1. Check if such `Concat` operation has one and only one quantized input
+2. Fetch quantization parameters
+3. Apply them to every single `Concat` input and output
 ### `-propagate-quantize-dequantize`: Propagate Quantize/Dequantize through agnostic operations
 The pass is a part of LowPrecision pipeline.
 

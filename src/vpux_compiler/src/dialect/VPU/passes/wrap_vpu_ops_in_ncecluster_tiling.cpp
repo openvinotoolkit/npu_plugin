@@ -79,6 +79,9 @@ mlir::LogicalResult NCEConvolutionRewriter::matchAndRewrite(NCEConvolutionOp ori
 
     auto activationAlignment = getActivationTensorAlignment(strategy);
     auto weightAlignment = getWeightsTensorAlignment(strategy);
+    const auto arch = VPU::getArch(origOp.getOperation());
+    const auto canUseCMajor =
+            VPU::NCEInvariant::isChannelMajorCompatible(arch, origOp.input().getType().cast<vpux::NDTypeInterface>());
 
     if (activationAlignment.hasValue()) {
         activationAlignmentAttr = getIntArrayAttr(origOp.getContext(), activationAlignment.getValue());
@@ -89,18 +92,19 @@ mlir::LogicalResult NCEConvolutionRewriter::matchAndRewrite(NCEConvolutionOp ori
 
     auto distributedActivationCopyOp =
             createDistributedCopyIn(origOp, origOp.input(), activationTensorDistributionMode, activationTensorNumTiles,
-                                    activationAlignmentAttr, strategy);
+                                    activationAlignmentAttr, strategy, !canUseCMajor);
 
-    auto distributedWeightsCopyOp = createDistributedCopyIn(origOp, origOp.filter(), weightsTensorDistributionMode,
-                                                            weightsTensorNumTiles, weightAlignmentAttr, strategy);
+    auto distributedWeightsCopyOp =
+            createDistributedCopyIn(origOp, origOp.filter(), weightsTensorDistributionMode, weightsTensorNumTiles,
+                                    weightAlignmentAttr, strategy, !canUseCMajor);
 
     auto distributedWeightTableCopyOp =
             createDistributedCopyIn(origOp, origOp.weightsTable(), weightsTableTensorDistributionMode,
-                                    weightsTableTensorNumTiles, weightAlignmentAttr, strategy);
+                                    weightsTableTensorNumTiles, weightAlignmentAttr, strategy, !canUseCMajor);
 
     auto distributedOutputTensorType =
             createDistributedTensorType(origOp, origOp.output(), outputTensorDistributionMode, outputTensorNumTiles,
-                                        activationAlignmentAttr, strategy);
+                                        activationAlignmentAttr, strategy, !canUseCMajor);
 
     const auto bodyBuilder = [origOp](mlir::OpBuilder& builder, mlir::Location loc, mlir::ValueRange newOperands) {
         mlir::BlockAndValueMapping mapper;
@@ -115,8 +119,7 @@ mlir::LogicalResult NCEConvolutionRewriter::matchAndRewrite(NCEConvolutionOp ori
 
     _log.trace("Wrap {0} into NCEClusterTilingOp", origOp->getName());
 
-    const auto inOrder = DimsOrder::fromValue(origOp.input());
-    if (inOrder == DimsOrder::NCHW) {
+    if (canUseCMajor) {
         auto activationWindowDistributionMode = getActivationWindowTensorDistributionMode(strategy);
         auto activationWindowNumTiles =
                 getIntArrayAttr(origOp.getContext(), getActivationWindowTensorNumTiles(strategy));

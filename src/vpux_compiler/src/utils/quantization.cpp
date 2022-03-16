@@ -247,10 +247,9 @@ vpux::QuantizationApproximation::QuantizationApproximation(vpux::VPU::ArchKind a
     std::tie(_mult, _shift, _postShift) = approximate<decltype(_mult)>(15, target);
 
     VPUX_THROW_UNLESS(architecture == vpux::VPU::ArchKind::KMB || _postShift == 0,
-                      "Encountered an attempt to approximate {0} as mult = {1}, shift = {2}, postShift{3} on {4}, but "
-                      "postShift is "
-                      "unsupported",
-                      target, _mult, _shift, _postShift, architecture);
+                      "Encountered an attempt to approximate {0} as mult = {1}, shift = {2}, postShift = {3} on {4}, "
+                      "but postShift is not supported",
+                      target, mult(), shift(), postShift(), architecture);
 }
 
 int64_t vpux::QuantizationApproximation::mult() const {
@@ -271,10 +270,9 @@ vpux::PReLUApproximation::PReLUApproximation(vpux::VPU::ArchKind architecture, d
     std::tie(_mult, _shift, postShift) = approximate<decltype(_mult)>(bits, target);
 
     VPUX_THROW_UNLESS(postShift == 0,
-                      "Encountered an attempt to approximate {0} as mult = {1}, shift = {2}, postShift{3} on {4}, but "
-                      "postShift is "
-                      "unsupported",
-                      target, _mult, _shift, postShift, architecture);
+                      "Encountered an attempt to approximate {0} as mult = {1}, shift = {2}, postShift = {3} on {4}, "
+                      "but postShift is not supported",
+                      target, mult(), shift(), int64_t(postShift), architecture);
 }
 
 int64_t vpux::PReLUApproximation::mult() const {
@@ -363,6 +361,15 @@ std::tuple<int64_t, int64_t, mlir::Type> getStorageParams(mlir::MLIRContext* ctx
         }
 
         return {0, levels - 1, getUInt4Type(ctx)};
+
+    // Because in the absence of I1 support, we must use U8 datatype.
+    // [Track number: E#24341].
+    case 2:
+        if (isSigned) {
+            return {0, 1, getSInt8Type(ctx)};
+        }
+
+        return {0, levels - 1, getUInt8Type(ctx)};
 
     default:
         VPUX_THROW("Got unsupported levels '{0}'", levels);

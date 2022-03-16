@@ -250,9 +250,10 @@ IE::Parameter ExecutableNetwork::GetMetric(const std::string& name) const {
 
         if (name == ov::supported_properties) {
             static const std::vector<ov::PropertyName> supportedProperties{
-                    RO_property(ov::supported_properties.name()),               //
-                    RO_property(ov::model_name.name()),                         //
-                    RO_property(ov::optimal_number_of_infer_requests.name()),   //
+                    RO_property(ov::supported_properties.name()),              //
+                    RO_property(ov::model_name.name()),                        //
+                    RO_property(ov::optimal_number_of_infer_requests.name()),  //
+                    RO_property(ov::hint::model_priority.name()),
                     RO_property(ov::device::id.name()),                         //
                     RW_property(ov::intel_vpux::csram_size.name()),             //
                     RW_property(ov::intel_vpux::executor_streams.name()),       //
@@ -306,6 +307,8 @@ IE::Parameter ExecutableNetwork::GetMetric(const std::string& name) const {
             return _config.get<USE_SIPP>();
         } else if (name == ov::intel_vpux::vpux_platform) {
             return _config.get<PLATFORM>();
+        } else if (name == ov::hint::model_priority) {
+            return _config.get<MODEL_PRIORITY>();
         }
     }
 
