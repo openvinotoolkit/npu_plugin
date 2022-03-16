@@ -13,6 +13,12 @@
 # included with the Software Package for additional details.
 #
 
-include("${kernel_descrip_path}/common.inc")
+set(kernel_src_dir "src/pss")
+set(binary_subdir "pss")
 
-set(kernel_src "sau_dp4a.cpp")
+set(kernel_cpunum "3720")
+
+set(include_dirs_list
+  "${CMAKE_SOURCE_DIR}/inc/pss"
+)
+

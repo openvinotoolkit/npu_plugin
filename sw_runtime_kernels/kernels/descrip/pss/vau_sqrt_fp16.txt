@@ -13,7 +13,6 @@
 # included with the Software Package for additional details.
 #
 
-set(kernel_src "vau_sqrt_fp16.cpp")
-set(kernel_src_dir "src/pss")
+include("${kernel_descrip_path}/common.inc")
 
-set(kernel_cpunum "3720")
+set(kernel_src "vau_sqrt_fp16.cpp")

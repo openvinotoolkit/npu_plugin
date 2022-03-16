@@ -13,7 +13,7 @@
 
 #include <moviVectorTypes.h>
 #include <math.h>
-#include <pss/param_vau_sqrt.h>
+#include <param_vau_sqrt.h>
 
 using namespace sw_params;
 

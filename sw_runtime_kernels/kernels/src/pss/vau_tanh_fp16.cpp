@@ -13,7 +13,7 @@
 
 #include <moviVectorTypes.h>
 #include <math.h>
-#include <pss/param_vau_tanh.h>
+#include <param_vau_tanh.h>
 
 using namespace sw_params;
 

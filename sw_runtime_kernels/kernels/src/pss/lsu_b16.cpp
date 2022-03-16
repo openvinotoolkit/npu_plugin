@@ -13,7 +13,7 @@
 
 #include <moviVectorTypes.h>
 #include <math.h>
-#include <pss/param_lsu_b16.h>
+#include <param_lsu_b16.h>
 
 using namespace sw_params;
 

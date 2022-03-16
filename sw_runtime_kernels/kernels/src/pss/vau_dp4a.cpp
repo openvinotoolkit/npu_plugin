@@ -13,7 +13,7 @@
 
 #include <moviVectorTypes.h>
 #include <math.h>
-#include <pss/param_vau_dp4a.h>
+#include <param_vau_dp4a.h>
 
 using namespace sw_params;
 

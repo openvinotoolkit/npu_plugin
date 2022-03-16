@@ -57,6 +57,24 @@ message(STATUS "FIRMWARE_VPU_DIR = ${FIRMWARE_VPU_DIR}")
 
 message(STATUS "source directory: ${CMAKE_SOURCE_DIR}")
 
+message(STATUS "TARGET_BINARY_DIR = ${TARGET_BINARY_DIR}")
+message(STATUS "TARGET_JTAG_DIR = ${TARGET_JTAG_DIR}")
+
+if (DEFINED TARGET_BINARY_DIR)
+  set(target_binary_dir "${TARGET_BINARY_DIR}")
+else()
+  set(target_binary_dir "${CMAKE_SOURCE_DIR}/prebuild/act_shave_bin")
+endif()
+
+if (DEFINED TARGET_JTAG_DIR)
+  set(target_jtag_dir "${TARGET_JTAG_DIR}")
+else()
+  set(target_jtag_dir "${target_binary_dir}/..")
+endif()
+
+message(STATUS "target_binary_dir = ${target_binary_dir}")
+message(STATUS "target_jtag_dir = ${target_jtag_dir}")
+
 set(kernel_src_dir_default "src")
 set(kernel_cpunum_default "3010")
 set(optimization_opts_default "-O3")
@@ -126,6 +144,7 @@ else()
 endif()
 
 message(STATUS "kernel_descrip_list = ${kernel_descrip_list}")
+message(STATUS "CMAKE_INSTALL_PREFIX = ${CMAKE_INSTALL_PREFIX}")
 
 foreach(kernel_descrip ${kernel_descrip_list})
 
@@ -138,6 +157,10 @@ foreach(kernel_descrip ${kernel_descrip_list})
   set(define_symbols_list "")
   set(always_inline "${always_inline_default}")
   set(extra_src_list "")
+  set(binary_subdir "")
+
+  get_filename_component(kernel_descrip_path ${kernel_descrip} DIRECTORY)
+  message(STATUS "kernel_descrip_path = ${kernel_descrip_path}")
 
   include("${kernel_descrip}")
   get_filename_component(kernel_name ${kernel_src} NAME_WE)
@@ -217,10 +240,14 @@ foreach(kernel_descrip ${kernel_descrip_list})
 
     add_custom_target("${blob_text_file}" ALL
       COMMAND "${mv_tools_objcopy}" -O binary --only-section=.text "${elf_file}" "${blob_text_file}"
+      COMMAND mkdir -p "${target_binary_dir}/${binary_subdir}"
+      COMMAND cp "${blob_text_file}" "${target_binary_dir}/${binary_subdir}"
       DEPENDS "${elf_file}"
     )
     add_custom_target("${blob_data_file}" ALL
       COMMAND "${mv_tools_objcopy}" -O binary --only-section=.data "${elf_file}" "${blob_data_file}"
+      COMMAND mkdir -p "${target_binary_dir}/${binary_subdir}"
+      COMMAND cp "${blob_data_file}" "${target_binary_dir}/${binary_subdir}"
       DEPENDS "${elf_file}"
     )
   endif()
@@ -235,10 +262,14 @@ foreach(kernel_descrip ${kernel_descrip_list})
 
     add_custom_target("${jtag_text_file}" ALL
       COMMAND ${host_tools_xxd} -i "${blob_text_file}" "${jtag_text_path}"
+      COMMAND mkdir -p "${target_jtag_dir}"
+      COMMAND cp "${jtag_text_path}" "${target_jtag_dir}"
       DEPENDS "${blob_text_file}"
     )
     add_custom_target("${jtag_data_file}" ALL
       COMMAND ${host_tools_xxd} -i "${blob_data_file}" "${jtag_data_path}"
+      COMMAND mkdir -p "${target_jtag_dir}"
+      COMMAND cp "${jtag_data_path}" "${target_jtag_dir}"
       DEPENDS "${blob_data_file}"
     )
   endif()
