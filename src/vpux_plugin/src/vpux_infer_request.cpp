@@ -66,6 +66,7 @@ static IE::Blob::Ptr allocateLocalBlob(const IE::TensorDesc& tensorDesc,
     return blob;
 }
 
+#ifdef __aarch64__
 static IE::Blob::Ptr allocateLocalCacheableBlob(const IE::TensorDesc& tensorDesc,
                                                 const std::shared_ptr<InferenceEngine::IAllocator>& allocator) {
     checkNetworkPrecision(tensorDesc.getPrecision());
@@ -82,6 +83,7 @@ static IE::Blob::Ptr allocateLocalCacheableBlob(const IE::TensorDesc& tensorDesc
     blob->allocate_cacheable();
     return blob;
 }
+#endif
 
 //------------------------------------------------------------------------------
 InferRequest::InferRequest(const IE::InputsDataMap& networkInputs, const IE::OutputsDataMap& networkOutputs,
@@ -112,7 +114,11 @@ InferRequest::InferRequest(const IE::InputsDataMap& networkInputs, const IE::Out
         const std::string outputName = networkOutput.first;
         const IE::TensorDesc outputTensorDesc = networkOutput.second->getTensorDesc();
 
+#ifdef __aarch64__
         _outputs[outputName] = allocateLocalCacheableBlob(outputTensorDesc, _allocator);
+#else
+        _outputs[outputName] = allocateLocalBlob(outputTensorDesc, _allocator);
+#endif
     }
 }
 
