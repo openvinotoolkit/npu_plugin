@@ -48,7 +48,7 @@ public:
     virtual ~BaseLayerStrategy() = default;
 
     virtual bool doesLayerFitIntoCMX(mlir::Operation* op, StringRef strategy) const = 0;
-    bool isOperationSplitOverHeightCompatible(mlir::Operation* op) const;
+    virtual bool isOperationSplitOverHeightCompatible(mlir::Operation* op) const;
 
 protected:
     int64_t _numClusters;
@@ -68,6 +68,7 @@ public:
     }
 
     bool doesLayerFitIntoCMX(mlir::Operation* op, StringRef strategy) const override final;
+    bool isOperationSplitOverHeightCompatible(mlir::Operation* op) const override final;
 };
 
 //
@@ -78,6 +79,7 @@ public:
     DepthConvolutionStrategy(mlir::FuncOp func, Logger log): BaseLayerStrategy(func, log) {
     }
     bool doesLayerFitIntoCMX(mlir::Operation* op, StringRef strategy) const override final;
+    bool isOperationSplitOverHeightCompatible(mlir::Operation* op) const override final;
 };
 
 //
@@ -89,6 +91,7 @@ public:
     }
 
     bool doesLayerFitIntoCMX(mlir::Operation* op, StringRef strategy) const override final;
+    bool isOperationSplitOverHeightCompatible(mlir::Operation* op) const override final;
 };
 
 //

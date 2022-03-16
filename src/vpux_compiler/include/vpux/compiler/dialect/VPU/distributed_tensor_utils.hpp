@@ -48,6 +48,8 @@ DistributionMode getOutputTensorDistributionMode(StringRef strategy);
 DistributionMode getActivationWindowTensorDistributionMode(StringRef strategy, ArchKind arch);
 NCEClusterTilingOp createDistributedCopyOut(mlir::Operation* origOp, NCEClusterTilingOp clusterTilingOp);
 mlir::ArrayAttr getKernelSize(mlir::Operation* origOp);
+int64_t getSOHPerClusterHeightAlignment(int64_t inputWidth);
+bool isSOHSupportedByDPU(ShapeRef inputShape, int64_t KY, int64_t numClusters, bool DWTypeOp);
 
 template <class ConcreteOp>
 mlir::ArrayAttr getStride(ConcreteOp origOp) {
@@ -71,8 +73,9 @@ inline PaddingAttr getPad<NCEEltwiseOp>(NCEEltwiseOp) {
 
 template <class ConcreteOp>
 NCEClusterTilingOp createDistributedCopyIn(ConcreteOp origOp, mlir::Value input, DistributionMode distributionMode,
-                                           mlir::ArrayAttr numTiles) {
-    auto inputTensorDistributedTensorType = createDistributedTensorType(origOp, input, distributionMode, numTiles);
+                                           mlir::ArrayAttr numTiles, bool needAlignment = false) {
+    auto inputTensorDistributedTensorType =
+            createDistributedTensorType(origOp, input, distributionMode, numTiles, needAlignment);
 
     mlir::OpBuilder builder(origOp);
     builder.setInsertionPoint(origOp);
@@ -91,15 +94,17 @@ NCEClusterTilingOp createDistributedCopyIn(ConcreteOp origOp, mlir::Value input,
 
 template <class ConcreteOp>
 DistributedTensorType createDistributedTensorType(ConcreteOp origOp, mlir::Value input,
-                                                  DistributionMode distributionMode, mlir::ArrayAttr numTiles) {
+                                                  DistributionMode distributionMode, mlir::ArrayAttr numTiles,
+                                                  bool needAlignment = false) {
     DistributedTensorAttr distributedActivationTensorAttr;
     auto module = origOp->template getParentOfType<mlir::ModuleOp>();
     auto nceOp = IE::getAvailableExecutor(module, ExecutorKind::NCE);
     const auto numClusters = getIntAttr(origOp.getContext(), nceOp.count());
     const auto activationTensorDistributionModeAttr = DistributionModeAttr::get(origOp.getContext(), distributionMode);
 
+    auto kernel = getKernelSize(origOp);
+    const auto shape = getShape(input);
     if (distributionMode == DistributionMode::OVERLAPPED) {
-        auto kernel = getKernelSize(origOp);
         auto stride = getStride(origOp);
         auto pad = getPad(origOp);
 
@@ -111,12 +116,24 @@ DistributedTensorType createDistributedTensorType(ConcreteOp origOp, mlir::Value
                 DistributedTensorAttr::get(activationTensorDistributionModeAttr, nullptr, nullptr, nullptr, nullptr,
                                            numClusters, nullptr, origOp.getContext());
     } else {
+        // Attempt to align the height
+        auto alignment = SmallVector<int64_t>(numTiles.size(), 1);
+
+        const auto numTilesArray = parseIntArrayAttr<int64_t>(numTiles);
+        if (numTilesArray[Dims4D::Act::H.ind()] > 1 && kernel && needAlignment) {
+            const auto kernelArray = parseIntArrayAttr<int64_t>(kernel);
+            const auto KY = kernelArray[0];
+            if (KY > 1) {
+                alignment[Dims4D::Act::H.ind()] = getSOHPerClusterHeightAlignment(shape[Dims4D::Act::W]);
+            }
+        }
+        const auto alignmentAttr = getIntArrayAttr(origOp.getContext(), alignment);
+
         distributedActivationTensorAttr =
                 DistributedTensorAttr::get(activationTensorDistributionModeAttr, numTiles, nullptr, nullptr, nullptr,
-                                           numClusters, nullptr, origOp.getContext());
+                                           numClusters, alignmentAttr, origOp.getContext());
     }
 
-    const auto shape = getShape(input);
     const auto memSpace = vpux::IndexedSymbolAttr::get(MemoryKindAttr::get(origOp.getContext(), MemoryKind::CMX_NN));
 
     const auto order = mlir::AffineMapAttr::get(DimsOrder::fromValue(input).toAffineMap(origOp.getContext()));

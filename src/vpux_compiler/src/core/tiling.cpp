@@ -23,7 +23,7 @@ using namespace vpux;
 // TileInfo
 //
 
-OutputTiling vpux::fillDividedTiles(ShapeRef divisors, ShapeRef orig) {
+OutputTiling vpux::fillDividedTiles(ShapeRef divisors, ShapeRef orig, mlir::IntegerAttr clusterIdAttr) {
     OutputTiling dividedTiles(divisors.totalSize(), TileInfo(divisors.size()));
 
     int64_t repeatCtr = 1;
@@ -52,10 +52,22 @@ OutputTiling vpux::fillDividedTiles(ShapeRef divisors, ShapeRef orig) {
         for (int64_t i : irange(dividedTiles.size())) {
             const bool remainderTile = !(((i / repeatCtr) + 1) % (divisor));
 
-            if (remainderTile) {
-                dividedTiles[i].shape[dim] = origSize - (tileSize * (divisor - 1));
+            // This is a workaround to resolve mobilnet-v3-large accuracy issue in multi-cluster mode.
+            // Please check ticket E#35630 for details.
+            const bool firstClusterFirstTile = clusterIdAttr && (clusterIdAttr.getValue().getSExtValue() == 0);
+
+            if (firstClusterFirstTile) {
+                if (i == 0) {
+                    dividedTiles[i].shape[dim] = origSize - (tileSize * (divisor - 1));
+                } else {
+                    dividedTiles[i].shape[dim] = tileSize;
+                }
             } else {
-                dividedTiles[i].shape[dim] = tileSize;
+                if (remainderTile) {
+                    dividedTiles[i].shape[dim] = origSize - (tileSize * (divisor - 1));
+                } else {
+                    dividedTiles[i].shape[dim] = tileSize;
+                }
             }
 
             dividedTiles[i].offsets[dim] = offset;
@@ -63,7 +75,7 @@ OutputTiling vpux::fillDividedTiles(ShapeRef divisors, ShapeRef orig) {
 
             const bool incrementOffset = !((i + 1) % repeatCtr);
             if (incrementOffset) {
-                offset += tileSize;
+                offset += dividedTiles[i].shape[dim];
             }
 
             const bool resetOffset = (remainderTile && incrementOffset);
