@@ -36,24 +36,27 @@ namespace {
 class ManualStrategyUtilsPass final : public ManualStrategyUtilsBase<ManualStrategyUtilsPass> {
 public:
     ManualStrategyUtilsPass() = default;
-    ManualStrategyUtilsPass(bool writeStrategyToJSON, bool readStrategyFromJSON, StringRef strategyFileLocation,
-                            Logger log);
+    ManualStrategyUtilsPass(bool writeStrategyToJSON, StringRef writeStrategyFileLocation, bool readStrategyFromJSON,
+                            StringRef readStrategyFileLocation, Logger log);
 
 private:
     void safeRunOnFunc() final;
 
 private:
     bool _writeStrategyToJSON;
+    StringRef _writeStrategyFileLocation;
     bool _readStrategyFromJSON;
-    StringRef _strategyFileLocation;
+    StringRef _readStrategyFileLocation;
 };
 
-ManualStrategyUtilsPass::ManualStrategyUtilsPass(bool writeStrategyToJSON, bool readStrategyFromJSON,
-                                                 StringRef strategyFileLocation, Logger log)
+ManualStrategyUtilsPass::ManualStrategyUtilsPass(bool writeStrategyToJSON, StringRef writeStrategyFileLocation,
+                                                 bool readStrategyFromJSON, StringRef readStrategyFileLocation,
+                                                 Logger log)
         // NOTE: currently called after two strategy passes, flags in both must match.
         : _writeStrategyToJSON(writeStrategyToJSON),
+          _writeStrategyFileLocation(writeStrategyFileLocation),
           _readStrategyFromJSON(readStrategyFromJSON),
-          _strategyFileLocation(strategyFileLocation) {
+          _readStrategyFileLocation(readStrategyFileLocation) {
     Base::initLogger(log, Base::getArgumentName());
 }
 
@@ -69,15 +72,21 @@ void ManualStrategyUtilsPass::safeRunOnFunc() {
         return;
     }
 
-    if (_strategyFileLocation.empty()) {
-        _log.trace("Invalid location for manual strategy, skipping pass");
+    if (_readStrategyFromJSON && _readStrategyFileLocation.empty()) {
+        _log.trace("Invalid read location for manual strategy, skipping pass");
+        return;
+    }
+
+    if (_writeStrategyToJSON && _writeStrategyFileLocation.empty()) {
+        _log.trace("Invalid write location for manual strategy, skipping pass");
         return;
     }
 
     _log.trace("Starting Manual Strategy Pass");
     _log.nest(1).trace("Option to write strategy: '{0}'", _writeStrategyToJSON);
+    _log.nest(1).trace("Strategy write file location: '{0}'", _writeStrategyFileLocation);
     _log.nest(1).trace("Option to read strategy: '{0}'", _readStrategyFromJSON);
-    _log.nest(1).trace("Strategy file location: '{0}'", _strategyFileLocation);
+    _log.nest(1).trace("Strategy read file location: '{0}'", _readStrategyFileLocation);
 
     // store operations with Location as key to enable Location based mapping
     llvm::DenseMap<mlir::Location, mlir::Operation*> operations;
@@ -85,23 +94,20 @@ void ManualStrategyUtilsPass::safeRunOnFunc() {
     bool operationsWrappedInClusterTiling = false;
     bool operationsHaveTilingAttr = false;
 
-    func->walk([&](IE::LayerOpInterface op) {
-        if (mlir::isa<VPU::NCEConvolutionOp>(op) || mlir::isa<VPU::NCEDepthConvolutionOp>(op) ||
-            mlir::isa<VPU::NCEEltwiseOp>(op) || mlir::isa<VPU::NCEMaxPoolOp>(op)) {
-            // store unique operations (tiled operations are merged)
-            if (const auto fused = op.getLoc().dyn_cast<mlir::FusedLoc>()) {
-                operations.insert({fused.getLocations().front(), op.getOperation()});
-            } else {
-                operations.insert({op.getLoc(), op.getOperation()});
-            }
-            if (!operationsWrappedInClusterTiling && op->getParentOfType<VPU::NCEClusterTilingOp>() != nullptr) {
-                _log.nest(2).trace("Operations wrapped in cluster tiling exist");
-                operationsWrappedInClusterTiling = true;
-            }
-            if (!operationsHaveTilingAttr && op->hasAttr("tilingStrategy")) {
-                _log.nest(2).trace("Tiled operations exist");
-                operationsHaveTilingAttr = true;
-            }
+    func->walk([&](VPU::NCEOpInterface op) {
+        // store unique operations (tiled operations are merged)
+        if (const auto fused = op.getLoc().dyn_cast<mlir::FusedLoc>()) {
+            operations.insert({fused.getLocations().front(), op.getOperation()});
+        } else {
+            operations.insert({op.getLoc(), op.getOperation()});
+        }
+        if (!operationsWrappedInClusterTiling && op->getParentOfType<VPU::NCEClusterTilingOp>() != nullptr) {
+            _log.nest(2).trace("Operations wrapped in cluster tiling exist");
+            operationsWrappedInClusterTiling = true;
+        }
+        if (!operationsHaveTilingAttr && op->hasAttr("tilingStrategy")) {
+            _log.nest(2).trace("Tiled operations exist");
+            operationsHaveTilingAttr = true;
         }
     });
 
@@ -113,22 +119,22 @@ void ManualStrategyUtilsPass::safeRunOnFunc() {
         //  - tilingStrategy
         SmallVector<StringRef> strategyAttributes = {"multiClusterStrategy", "tilingStrategy"};
 
-        Json j;
+        Json json;
         if (operationsWrappedInClusterTiling) {
             // read stategies from first strategy pass and append new strategies
             _log.nest(2).trace("Appending to strategies from first strategy pass");
-            j = readManualStrategyJSON(_strategyFileLocation);
+            json = readManualStrategyJSON(_writeStrategyFileLocation);
         }
         // writing current strategy to json
-        j = createStrategyJSONFromOperations(j, operations, strategyAttributes);
-        writeManualStrategyJSON(_strategyFileLocation, j);
+        json = createStrategyJSONFromOperations(json, operations, strategyAttributes);
+        writeManualStrategyJSON(_writeStrategyFileLocation, json);
     }
 
     if (_readStrategyFromJSON) {
         _log.nest(1).trace("Reading strategy from JSON");
         if (!operationsHaveTilingAttr) {
             // reading strategy from json only during first pass call
-            auto manualStrategy = readManualStrategyJSON(_strategyFileLocation);
+            auto manualStrategy = readManualStrategyJSON(_readStrategyFileLocation);
 
             // overwriting operation attributes
             if (!manualStrategy.is_null()) {
@@ -149,8 +155,10 @@ std::unique_ptr<mlir::Pass> vpux::VPU::createManualStrategyUtilsPass() {
     return std::make_unique<ManualStrategyUtilsPass>();
 }
 
-std::unique_ptr<mlir::Pass> VPU::createManualStrategyUtilsPass(bool writeStrategyToJSON, bool readStrategyFromJSON,
-                                                               StringRef strategyFileLocation, Logger log) {
-    return std::make_unique<ManualStrategyUtilsPass>(writeStrategyToJSON, readStrategyFromJSON, strategyFileLocation,
-                                                     log);
+std::unique_ptr<mlir::Pass> VPU::createManualStrategyUtilsPass(bool writeStrategyToJSON,
+                                                               StringRef writeStrategyFileLocation,
+                                                               bool readStrategyFromJSON,
+                                                               StringRef readStrategyFileLocation, Logger log) {
+    return std::make_unique<ManualStrategyUtilsPass>(writeStrategyToJSON, writeStrategyFileLocation,
+                                                     readStrategyFromJSON, readStrategyFileLocation, log);
 }
