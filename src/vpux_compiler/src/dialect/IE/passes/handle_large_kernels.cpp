@@ -454,7 +454,9 @@ void HandleLargeKernelsPass::safeRunOnFunc() {
         const auto inDataType = op.input().getType().cast<vpux::NDTypeInterface>();
         const auto inDataShape = inDataType.getShape().raw();
         const auto strides = parseIntArrayAttr<int64_t>(op.strides());
-        const auto maxKernelSizeSupported = 121;  // we can only get 2 factors and max kernel should be 11 * 11 = 121
+        const auto maxKernelSizeSupported =
+                VPU::NCEInvariant::MAX_KERNEL_SIZE *
+                VPU::NCEInvariant::MAX_KERNEL_SIZE;  // we can only get 2 factors and max kernel should be 11 * 11 = 121
         auto unsupportedKernelCheck = [&](int32_t kernelInd, int32_t actInd, int32_t strideInd) {
             return ((kernelSize[kernelInd] < inDataShape[actInd] && kernelSize[kernelInd] != strides[strideInd]) ||
                     kernelSize[kernelInd] > maxKernelSizeSupported);

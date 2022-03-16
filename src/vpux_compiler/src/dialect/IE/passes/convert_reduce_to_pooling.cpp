@@ -15,6 +15,7 @@
 
 #include "vpux/compiler/conversion.hpp"
 #include "vpux/compiler/dialect/IE/ops.hpp"
+#include "vpux/compiler/dialect/IE/utils/handle_kernels_utils.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
 #include "vpux/compiler/utils/types.hpp"
@@ -301,16 +302,27 @@ void ConvertReduceToPoolingPass::safeRunOnFunc() {
             }
         }
 
-        // Check that axis dimensions <= 255 otherwise this conversion is not applicable
         auto module = getOperation();
         const auto arch = VPU::getArch(module);
         if (arch == VPU::ArchKind::KMB) {
+            // Check that axis dimensions <= 255 otherwise this conversion is not applicable
+            bool upaCompatible = true;
             int64_t mergedDim = 1;
             for (const auto& axis : axes) {
                 mergedDim *= inputShape[axis];
                 if (inputShape[axis] > 255 || mergedDim > 255) {
-                    return true;
+                    upaCompatible = false;
+                    break;
                 }
+            }
+
+            // Check that handleLargeKernels supports this op
+            const bool dpuCompatible = IE::isGlobalPoolingKernelSupported(op);
+            const bool isHWCompilationMode = VPU::getCompilationMode(op) == VPU::CompilationMode::ReferenceHW ||
+                                             VPU::getCompilationMode(op) == VPU::CompilationMode::DefaultHW;
+
+            if (!(upaCompatible || (dpuCompatible && isHWCompilationMode))) {
+                return true;
             }
         }
 
