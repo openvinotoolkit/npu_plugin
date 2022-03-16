@@ -17,6 +17,7 @@
 #include "vpux/compiler/utils/adjust_layout_utils.hpp"
 #include "vpux/compiler/utils/error.hpp"
 #include "vpux/compiler/utils/logging.hpp"
+#include "vpux/compiler/utils/permute_utils.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
 #include "vpux/compiler/utils/types.hpp"
 #include "vpux/utils/core/range.hpp"
@@ -97,10 +98,48 @@ void swapExpandWithReorder(mlir::PatternRewriter& rewriter, IE::ExpandOp expandO
     rewriter.replaceOpWithNewOp<IE::ReorderOp>(expandOp, newExpandOp.output(), origReorderOp.dstOrderAttr());
 }
 
+bool expandBreaksTrivialReorder(IE::ExpandOp origExpandOp, IE::ReorderOp origReorderOp) {
+    // if the reorder isTrivialPermute originally but changed to !isTrivialPermute after swapping
+    // keep it unchanged to avoid introducing UPA memPermute
+    // e.g., 1x1x1x40-NCHW => Reorder => 1x1x1x40-NHWC => Expand => 1x16x1x40-NHWC
+    const auto inOrder = origReorderOp.input().getType().cast<vpux::NDTypeInterface>().getDimsOrder();
+    const auto inShape = origReorderOp.input().getType().cast<vpux::NDTypeInterface>().getShape();
+    const auto inMemShape = inOrder.toMemoryOrder(inShape);
+
+    const auto expandOrder = origReorderOp.input().getType().cast<vpux::NDTypeInterface>().getDimsOrder();
+    const auto expandShape = origExpandOp.output().getType().cast<vpux::NDTypeInterface>().getShape();
+    const auto expandMemShape = expandOrder.toMemoryOrder(expandShape);
+
+    std::cout << llvm::formatv("\norigExpandOp: {0}, {1}", origExpandOp->getName(), origExpandOp->getLoc()).str()
+              << std::endl;
+    std::cout << llvm::formatv("origReorderOp: {0}, {1}", origReorderOp->getName(), origReorderOp->getLoc()).str()
+              << std::endl;
+    std::cout << llvm::formatv("inMemShape: {0}", inMemShape).str() << std::endl;
+    std::cout << llvm::formatv("expandMemShape: {0}", expandMemShape).str() << std::endl;
+    std::cout << llvm::formatv("origReorderOp.dstOrder(): {0}", origReorderOp.dstOrder()).str() << std::endl;
+    std::cout << llvm::formatv("after.dstOrder(): {0}",
+                               origReorderOp.input().getType().cast<vpux::NDTypeInterface>().getDimsOrder().toAffineMap(
+                                       origReorderOp.getContext()))
+                         .str()
+              << std::endl;
+
+    if (isTrivialPermute(inMemShape, origReorderOp.dstOrder()) &&
+        !isTrivialPermute(expandMemShape, origReorderOp.dstOrder())) {
+        std::cout << "\t!!breaks trivial permute, avoid swapping expand+reorder" << std::endl;
+        return true;
+    }
+
+    return false;
+}
+
 mlir::LogicalResult ReorderWithExpand::matchAndRewrite(IE::ExpandOp origExpandOp,
                                                        mlir::PatternRewriter& rewriter) const {
     auto origReorderOp = origExpandOp.input().getDefiningOp<IE::ReorderOp>();
     if (origReorderOp == nullptr) {
+        return mlir::failure();
+    }
+
+    if (expandBreaksTrivialReorder(origExpandOp, origReorderOp)) {
         return mlir::failure();
     }
 
