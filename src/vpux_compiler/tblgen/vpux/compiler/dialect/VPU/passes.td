@@ -111,14 +111,19 @@ def ManualStrategyUtils : PassBase<"manual-strategy-utils", "vpux::FunctionPass"
             "Flag to enable writing strategy to file"
         >,
         Option<
+            "writeStrategyFileLocation", "write-strategy-file-location",
+            "std::string", [{"strategy.json"}],
+            "Location/path to write strategy file"
+        >,
+        Option<
             "readStrategyFromJSON", "read-strategy-from-json",
             "bool", "false",
             "Flag to enable reading strategy from file"
         >,
         Option<
-            "strategyFileLocation", "strategy-file-location",
+            "readStrategyFileLocation", "read-strategy-file-location",
             "std::string", [{"strategy.json"}],
-            "Location/path to strategy file"
+            "Location/path to read strategy file"
         >
     ];
 

@@ -24,9 +24,10 @@ overwrite the strategy.
 
 #### Options
 ```
--write-strategy-to-json  : Flag to enable writing strategy to file
--read-strategy-from-json : Flag to enable reading strategy from file
--strategy-file-location  : Location/path to strategy file
+-write-strategy-to-json       : Flag to enable writing strategy to file
+-write-strategy-file-location : Location/path to write strategy file
+-read-strategy-from-json      : Flag to enable reading strategy from file
+-read-strategy-file-location  : Location/path to read strategy file
 ```
 ### `-multi-cluster-strategy-assignment`: This pass compute the hardware efficiency of layer that is executed as SOH or SOK and assigns the most optimal strategy
 ### `-split-NCE-ops-onto-workloads`: Split VPU NCE operation onto workloads
