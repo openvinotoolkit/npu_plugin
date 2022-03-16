@@ -115,7 +115,7 @@ CMXConcatPass::ConcatPattern CMXConcatPass::getInputPattern(IE::ConcatOp concat)
     ConcatPattern concatPattern(_log);
     // store all required input info in a struct
     for (size_t inputIdx = 0; inputIdx < concat.inputs().size(); inputIdx++) {
-        auto input = concat.getOperand(inputIdx);
+        auto input = concat.getOperand(static_cast<int>(inputIdx));
         auto inputCopyOp = input.getDefiningOp<IE::CopyOp>();
         if (inputCopyOp == nullptr) {
             return concatPattern;
