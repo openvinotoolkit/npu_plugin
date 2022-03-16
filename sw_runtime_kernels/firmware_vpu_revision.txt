@@ -1,2 +1,2 @@
-firmware.vpu.iot branch: kskvorts/snn_kernels e15e704f1b9e6eddb4040b6a0ef9f4475e3c87a4
+firmware.vpu.iot branch: kskvorts/snn_kernels a4ec49b8ac23fade24380f27d7259728f20277cb
 mv_tools_version:	22.01.1-internal

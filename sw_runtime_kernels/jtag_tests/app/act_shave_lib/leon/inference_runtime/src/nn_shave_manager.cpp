@@ -267,16 +267,16 @@ void ShaveManager::startNNShavesForTile(const uint32_t tile) {
         if (rc != HGL_SHAVE_CTRL_SUCCESS) {
             nnLog(MVLOG_ERROR, "ShaveCtrlSetWindowAddr: %d", (int)rc);
         }
-
-
-        uint32_t snnKernelCodeWin = (uint32_t)sk_snnhswish_fp16_3010xx_nn_text;//cmxMapping.globalData_[tile].addr32();
-        nnLog(MVLOG_ERROR, "Setting WIN_%d for NN Shave %d to %x", mapWindowAddrMaskToName(SNN_KERNEL_CODE_WINDOW), i,
-                snnKernelCodeWin);
-        rc = ShCtrlSetWindowAddr(nnShvHnd[i], mapWindowAddrMaskToName(SNN_KERNEL_CODE_WINDOW), snnKernelCodeWin);
-        if (rc != HGL_SHAVE_CTRL_SUCCESS) {
-            nnLog(MVLOG_ERROR, "ShaveCtrlSetWindowAddr: %d", (int)rc);
-        }
-
+//
+//
+//        uint32_t snnKernelCodeWin = (uint32_t)sk_snnhswish_fp16_3010xx_nn_text;//cmxMapping.globalData_[tile].addr32();
+//        nnLog(MVLOG_ERROR, "Setting WIN_%d for NN Shave %d to %x", mapWindowAddrMaskToName(SNN_KERNEL_CODE_WINDOW), i,
+//                snnKernelCodeWin);
+//        rc = ShCtrlSetWindowAddr(nnShvHnd[i], mapWindowAddrMaskToName(SNN_KERNEL_CODE_WINDOW), snnKernelCodeWin);
+//        if (rc != HGL_SHAVE_CTRL_SUCCESS) {
+//            nnLog(MVLOG_ERROR, "ShaveCtrlSetWindowAddr: %d", (int)rc);
+//        }
+//
 
         auto fifoCfg = snn_cfgs[i];
         printFifoConfig(unpackSHVConfig(fifoCfg));
