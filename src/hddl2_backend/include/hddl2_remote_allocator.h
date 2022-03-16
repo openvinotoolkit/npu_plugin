@@ -68,6 +68,20 @@ public:
      * @return Handle to allocated memory
      */
     void* alloc(size_t size) noexcept override;
+    void* alloc_cacheable(const size_t size) noexcept override {
+        UNUSED(size);
+        return nullptr;
+    }
+    bool flush(void* handle, const size_t size) noexcept override {
+        UNUSED(handle);
+        UNUSED(size);
+        return false;
+    }
+    bool invalidate(void* handle, const size_t size) noexcept override {
+        UNUSED(handle);
+        UNUSED(size);
+        return false;
+    }
 
     /**
      * @brief Free local memory and remote if we are owner

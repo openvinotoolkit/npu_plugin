@@ -18,6 +18,10 @@
 
 #include "ze_api.h"
 
+#ifndef UNUSED
+#define UNUSED(var) (void)var
+#endif
+
 namespace vpux {
 class ZeroAllocator : public Allocator {
     ze_driver_handle_t driver_handle = nullptr;
@@ -56,6 +60,20 @@ public:
      * @return Handle to the allocated resource
      */
     void* alloc(size_t size) noexcept override;
+    void* alloc_cacheable(const size_t size) noexcept override {
+        UNUSED(size);
+        return nullptr;
+    }
+    bool flush(void* handle, const size_t size) noexcept override {
+        UNUSED(handle);
+        UNUSED(size);
+        return false;
+    }
+    bool invalidate(void* handle, const size_t size) noexcept override {
+        UNUSED(handle);
+        UNUSED(size);
+        return false;
+    }
     /**
      * @brief Releases the handle and all associated memory resources which invalidates the handle.
      * @param handle The handle to free
