@@ -24,6 +24,7 @@
 #include "vpux/utils/core/string_utils.hpp"
 
 #include <ie_parameter.hpp>
+#include <openvino/runtime/properties.hpp>
 
 #include <llvm/ADT/FunctionExtras.h>
 #include <llvm/Support/TypeName.h>
@@ -72,6 +73,11 @@ struct OptionParser<double> final {
 template <>
 struct OptionParser<LogLevel> final {
     static LogLevel parse(StringRef val);
+};
+
+template <>
+struct OptionParser<ov::hint::Priority> final {
+    static ov::hint::Priority parse(StringRef val);
 };
 
 template <typename T>
@@ -133,6 +139,16 @@ struct OptionPrinter<LogLevel> final {
         }
     }
 };
+
+template <>
+struct OptionPrinter<ov::hint::Priority> final {
+    static std::string toString(ov::hint::Priority val) {
+        std::stringstream strStream;
+        strStream << val;
+        return strStream.str();
+    }
+};
+
 //
 // OptionMode
 //

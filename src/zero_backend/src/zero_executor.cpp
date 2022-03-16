@@ -16,6 +16,7 @@
 #include "zero_allocator.h"
 
 #include "vpux/al/config/common.hpp"
+#include "vpux/al/config/runtime.hpp"
 
 #include "vpux/utils/IE/blob.hpp"
 
@@ -138,6 +139,19 @@ bool twoApiLayoutCouplingCheck(const ze_graph_argument_layout_t zeroL, const IE:
         return true;
 
     return false;
+}
+
+ze_command_queue_priority_t toZeQueuePriority(const ov::hint::Priority& val) {
+    switch (val) {
+    case ov::hint::Priority::LOW:
+        return ZE_COMMAND_QUEUE_PRIORITY_PRIORITY_LOW;
+    case ov::hint::Priority::MEDIUM:
+        return ZE_COMMAND_QUEUE_PRIORITY_NORMAL;
+    case ov::hint::Priority::HIGH:
+        return ZE_COMMAND_QUEUE_PRIORITY_PRIORITY_HIGH;
+    default:
+        IE_THROW() << "Incorrect queue priority.";
+    }
 }
 
 size_t getSizeIOBytes(const ze_graph_argument_properties_t& argument) {
@@ -377,9 +391,12 @@ ZeroExecutor::ZeroExecutor(ze_driver_handle_t driver_handle, ze_device_handle_t 
           _graph_ddi_table_ext(graph_ddi_table_ext),
           _networkDesc(networkDescription),
           _graph(std::make_shared<Graph>(_device_handle, _context, _networkDesc, _graph_ddi_table_ext)),
-          _command_queue{{std::make_shared<CommandQueue>(device_handle, context),
-                          std::make_shared<CommandQueue>(device_handle, context),
-                          std::make_shared<CommandQueue>(device_handle, context)}},
+          _command_queue{{std::make_shared<CommandQueue>(device_handle, context,
+                                                         toZeQueuePriority(_config.get<MODEL_PRIORITY>())),
+                          std::make_shared<CommandQueue>(device_handle, context,
+                                                         toZeQueuePriority(_config.get<MODEL_PRIORITY>())),
+                          std::make_shared<CommandQueue>(device_handle, context,
+                                                         toZeQueuePriority(_config.get<MODEL_PRIORITY>()))}},
           _pipeline(std::make_unique<Pipeline>(driver_handle, device_handle, context, graph_ddi_table_ext, _graph,
                                                _command_queue)) {
     _graph->init();
@@ -469,7 +486,7 @@ ZeroExecutor::Graph::Graph(const ze_device_handle_t& device_handle, const ze_con
                            const NetworkDescription::CPtr networkDesc, ze_graph_dditable_ext_t* graph_ddi_table_ext)
         : _context(context),
           _blob(networkDesc->getCompiledNetwork()),
-          _command_queue(std::make_shared<CommandQueue>(device_handle, _context)),
+          _command_queue(std::make_shared<CommandQueue>(device_handle, _context, ZE_COMMAND_QUEUE_PRIORITY_NORMAL)),
           _command_list(device_handle, _context, graph_ddi_table_ext),
           _fence(std::make_shared<Fence>(_command_queue)),
           _graph_ddi_table_ext(graph_ddi_table_ext) {
@@ -503,11 +520,11 @@ ZeroExecutor::Graph::~Graph() {
     throwOnFail("pfnDestroy", _graph_ddi_table_ext->pfnDestroy(_handle));
 }
 
-ZeroExecutor::CommandQueue::CommandQueue(const ze_device_handle_t& device_handle, const ze_context_handle_t& context)
+ZeroExecutor::CommandQueue::CommandQueue(const ze_device_handle_t& device_handle, const ze_context_handle_t& context,
+                                         const ze_command_queue_priority_t& priority)
         : _context(context) {
-    ze_command_queue_desc_t queue_desc = {
-            ZE_STRUCTURE_TYPE_COMMAND_QUEUE_DESC, nullptr, 0, 0, 0, ZE_COMMAND_QUEUE_MODE_DEFAULT,
-            ZE_COMMAND_QUEUE_PRIORITY_NORMAL};
+    ze_command_queue_desc_t queue_desc = {ZE_STRUCTURE_TYPE_COMMAND_QUEUE_DESC, nullptr, 0, 0, 0,
+                                          ZE_COMMAND_QUEUE_MODE_DEFAULT,        priority};
     throwOnFail("zeCommandQueueCreate", zeCommandQueueCreate(_context, device_handle, &queue_desc, &_handle));
 }
 void ZeroExecutor::CommandQueue::executeCommandList(CommandList& command_list) {

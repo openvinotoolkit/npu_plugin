@@ -411,4 +411,18 @@ struct PROFILING_OUTPUT_FILE final : OptionBase<PROFILING_OUTPUT_FILE, std::stri
     }
 };
 
+//
+// MODEL_PRIORITY
+//
+
+struct MODEL_PRIORITY final : OptionBase<MODEL_PRIORITY, ov::hint::Priority> {
+    static StringRef key() {
+        return ov::hint::model_priority.name();
+    }
+
+    static ov::hint::Priority defaultValue() {
+        return ov::hint::Priority::MEDIUM;
+    }
+};
+
 }  // namespace vpux

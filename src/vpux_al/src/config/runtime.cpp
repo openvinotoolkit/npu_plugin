@@ -39,6 +39,7 @@ void vpux::registerRunTimeOptions(OptionsDesc& desc) {
     desc.add<INFERENCE_TIMEOUT_MS>();
     desc.add<PRINT_PROFILING>();
     desc.add<PROFILING_OUTPUT_FILE>();
+    desc.add<MODEL_PRIORITY>();
 }
 
 //
