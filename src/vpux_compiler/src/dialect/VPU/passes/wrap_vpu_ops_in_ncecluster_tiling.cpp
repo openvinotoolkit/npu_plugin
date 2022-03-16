@@ -60,8 +60,8 @@ mlir::LogicalResult NCEConvolutionRewriter::matchAndRewrite(NCEConvolutionOp ori
     if (origOp->template getParentOfType<NCEClusterTilingOp>() != nullptr) {
         return matchFailed(_log, rewriter, origOp, "The operation is already wrapped with NCEClusterTiling");
     }
-    mlir::ArrayAttr activationAlignment = nullptr;
-    mlir::ArrayAttr weightAlignment = nullptr;
+    mlir::ArrayAttr activationAlignment = getIntArrayAttr(origOp.getContext(), SmallVector<int64_t>({1, 1, 1, 1}));
+    mlir::ArrayAttr weightAlignment = getIntArrayAttr(origOp.getContext(), SmallVector<int64_t>({1, 1, 1, 1}));
     NCEClusterTilingOp clusterTilingOp = nullptr;
     const auto strategy = origOp->getAttr(multiClusterStrategy).cast<mlir::StringAttr>().getValue();
 
@@ -126,9 +126,9 @@ mlir::LogicalResult NCEConvolutionRewriter::matchAndRewrite(NCEConvolutionOp ori
         auto activationWindowNumTiles = getIntArrayAttr(
                 origOp.getContext(),
                 getActivationWindowTensorNumTiles(origOp.getOperation(), _numClusters, strategy, _arch));
-        auto distributedActivationWindowCopyOp =
-                createDistributedCopyIn(origOp, origOp.activationWindow(), activationWindowDistributionMode,
-                                        activationWindowNumTiles, nullptr, strategy);
+        auto distributedActivationWindowCopyOp = createDistributedCopyIn(
+                origOp, origOp.activationWindow(), activationWindowDistributionMode, activationWindowNumTiles,
+                getIntArrayAttr(origOp.getContext(), SmallVector<int64_t>({1, 1, 1, 1})), strategy);
 
         clusterTilingOp = rewriter.create<NCEClusterTilingOp>(
                 origOp->getLoc(), distributedOutputTensorType,
@@ -179,8 +179,8 @@ mlir::LogicalResult NCEDepthConvolutionRewriter::matchAndRewrite(NCEDepthConvolu
     if (origOp->getParentOfType<NCEClusterTilingOp>() != nullptr) {
         return matchFailed(_log, rewriter, origOp, "The operation is already wrapped with NCEClusterTiling");
     }
-    mlir::ArrayAttr activationAlignment = nullptr;
-    mlir::ArrayAttr weightAlignment = nullptr;
+    mlir::ArrayAttr activationAlignment = getIntArrayAttr(origOp.getContext(), SmallVector<int64_t>({1, 1, 1, 1}));
+    mlir::ArrayAttr weightAlignment = getIntArrayAttr(origOp.getContext(), SmallVector<int64_t>({1, 1, 1, 1}));
     const auto strategy = origOp->getAttr(multiClusterStrategy).cast<mlir::StringAttr>().getValue();
     auto activationTensorDistributionMode = getActivationTensorDistributionMode(strategy);
     auto activationTensorNumTiles = getIntArrayAttr(
@@ -278,8 +278,8 @@ mlir::LogicalResult NCEMaxPoolRewriter::matchAndRewrite(NCEMaxPoolOp origOp, mli
     if (origOp->getParentOfType<NCEClusterTilingOp>() != nullptr) {
         return matchFailed(_log, rewriter, origOp, "The operation is already wrapped with NCEClusterTiling");
     }
-    mlir::ArrayAttr activationAlignment = nullptr;
-    mlir::ArrayAttr weightAlignment = nullptr;
+    mlir::ArrayAttr activationAlignment = getIntArrayAttr(origOp.getContext(), SmallVector<int64_t>({1, 1, 1, 1}));
+    mlir::ArrayAttr weightAlignment = getIntArrayAttr(origOp.getContext(), SmallVector<int64_t>({1, 1, 1, 1}));
     const auto strategy = origOp->getAttr(multiClusterStrategy).cast<mlir::StringAttr>().getValue();
     auto activationTensorDistributionMode = getActivationTensorDistributionMode(strategy);
     auto activationTensorNumTiles = getIntArrayAttr(
@@ -369,7 +369,7 @@ mlir::LogicalResult NCEEltwiseRewriter::matchAndRewrite(NCEEltwiseOp origOp, mli
         return matchFailed(_log, rewriter, origOp, "The operation is already wrapped with NCEClusterTiling");
     }
 
-    mlir::ArrayAttr activationAlignment = nullptr;
+    mlir::ArrayAttr activationAlignment = getIntArrayAttr(origOp.getContext(), SmallVector<int64_t>({1, 1, 1, 1}));
     const auto strategy = origOp->getAttr(multiClusterStrategy).cast<mlir::StringAttr>().getValue();
     auto activationTensorDistributionMode = getActivationTensorDistributionMode(strategy);
     auto activationTensorNumTiles = getIntArrayAttr(
