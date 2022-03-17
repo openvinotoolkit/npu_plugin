@@ -51,6 +51,7 @@ struct ReferenceSWOptions : mlir::PassPipelineOptions<ReferenceSWOptions> {
     bool enableCompressWeights = false;
     bool enableForceZMajorConcat = false;
     bool enableSwapTransposeWithFQ = false;
+    bool enableSwapConcatWithEltwise = false;
 };
 
 void buildReferenceSWModePipeline(mlir::OpPassManager& pm, const ReferenceSWOptions& options,
@@ -121,6 +122,7 @@ struct ReferenceHWOptions : mlir::PassPipelineOptions<ReferenceHWOptions> {
     BoolOption enablePropagateQuantDequant{*this, "propagate-quant-dequant",
                                            llvm::cl::desc("Enable Propagate Quantize Dequantize pass"),
                                            llvm::cl::init(true)};
+    bool enableSwapConcatWithEltwise = false;
 };
 
 void buildReferenceHWModePipeline(mlir::OpPassManager& pm, const ReferenceHWOptions& options,
@@ -206,6 +208,10 @@ struct DefaultHWOptions : mlir::PassPipelineOptions<DefaultHWOptions> {
     BoolOption enablePropagateQuantDequant{*this, "propagate-quant-dequant",
                                            llvm::cl::desc("Enable Propagate Quantize Dequantize pass"),
                                            llvm::cl::init(false)};
+
+    BoolOption enableSwapConcatWithEltwise{*this, "swap-concat-with-eltwise",
+                                           ::llvm::cl::desc("Enable SwapConcatWithEltwise pass"),
+                                           ::llvm::cl::init(true)};
 };
 
 void buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOptions& options,

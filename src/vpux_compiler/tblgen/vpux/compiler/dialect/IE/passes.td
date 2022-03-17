@@ -1114,4 +1114,27 @@ def PropagateFqThroughPad : PassBase<"propagate-fq-through-pad", "vpux::Function
     ];
 }
 
+//
+// SwapConcatWithEltwise
+//
+
+def SwapConcatWithEltwise : PassBase<"swap-concat-with-eltwise", "vpux::FunctionPass"> {
+    let summary = "Swaps Concat operation with elementwise -> FQ patterns";
+
+    let description = [{
+        The pass is a part of `HardwareMode` pipeline.
+
+        It swaps `Concat` operation with elementwise -> FQ subgraph when possible. For example:
+        * `PReLU` -> per-tensor `FakeQuantize` subgraph is eligible for such swap.
+
+        This transormation allows to fuse `FakeQuantize` to NCE operations.
+    }];
+
+    let constructor = "vpux::IE::createSwapConcatWithEltwisePass()";
+
+    let dependentDialects = [
+        "vpux::IE::IEDialect"
+    ];
+}
+
 #endif

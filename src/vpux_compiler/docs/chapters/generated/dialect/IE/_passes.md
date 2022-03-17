@@ -204,6 +204,13 @@ able to quantize convolution and fuse bias and post-processing operations.
 The pass is a part of `LowPrecision` pipeline.
 
 It splits `FakeQuantize` operations to `quant.qcast -> quant.dcast` pair.
+### `-swap-concat-with-eltwise`: Swaps Concat operation with elementwise -> FQ patterns
+The pass is a part of `HardwareMode` pipeline.
+
+It swaps `Concat` operation with elementwise -> FQ subgraph when possible. For example:
+* `PReLU` -> per-tensor `FakeQuantize` subgraph is eligible for such swap.
+
+This transormation allows to fuse `FakeQuantize` to NCE operations.
 ### `-swap-maxpool-with-act`: Swaps the MaxPool and activation
 This pass is needed for MTL only since HW MaxPool does not support post-op operations.
 Operations are swapped only if there is an operation before MaxPool that supports post-ops.
