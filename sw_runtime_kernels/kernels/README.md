@@ -39,16 +39,16 @@ option must be:
 - `CUSTOM_KERNELS_DIR=descrip-dir-path`
   specifies path to an alternative directory containing kernel description file(s). Default is [sw_runtime_kernels/kernels/descrip/](./descrip/)
 - `CUSTOM_KERNELS_LIST=kernels-list`
-  specifies a semicolon-separated list of description file names (possibly in quotes), for kernels to build. Default: all files found in description directory
+  specifies a semicolon-separated list of description file names (possibly in quotes), for kernels to build. Default: all .txt files found in description directory
 
 ## Installation of binaries
 
 Built binaries are copied to target directories automatically. To specify where we want to place the binaries, two options can be used:
 
-- [TARGET_BINARY_DIR=target-binary-dir](TARGET_BINARY_DIR=target-binary-dir)
-  specifies where to place built .text & .data files (if any). Default is ${src-dir-path}/prebuild/act_shave_bin
-- [TARGET_JTAG_DIR=target-jtag-dir](TARGET_JTAG_DIR=target-jtag-dir)
-  specifies where to place built .xdata files (if any). Default is ${target-binary-dir}/..
+- `TARGET_BINARY_DIR=target-binary-dir`
+  specifies where to place built .text & .data files (if any). Default is `${src-dir-path}/prebuild/act_shave_bin`
+- `TARGET_JTAG_DIR=target-jtag-dir`
+  specifies where to place built .xdata files (if any). Default is `${target-binary-dir}/..`
 
 ## Kernel description files (descrip/*.txt)
 
@@ -61,35 +61,35 @@ So, you can unintentionally change the behaviour of cmake and even make it wrong
 
 Variables intended for use/set in description files:
 
-- [kernel_entry](kernel_entry)
-  a string which specifies kernel entry point name (optional). Default: "${kernel_src}" without path and extension(s) (suffices).
-- [kernel_src](kernel_src)
-  a string which specifies kernel source file name, without path and relative to "${kernel_src_dir}". Required.
-- [kernel_src_dir](kernel_src_dir)
-  a string which specifies a path to directory containing "${kernel_src}" file.
-  Can be absolute, or relative to [sw_runtime_kernels/kernels](sw_runtime_kernels/kernels). Optional; default is "src".
-- [kernel_cpunum](kernel_cpunum)
-  a string which specifies a target chip level. Optional; default is "3010".
-  Sources compiled with "-mcpu=${kernel_cpunum}xx" option.
-  Built binaries' names have suffix in the form of ".${kernel_cpunum}xx" .
-- [optimization_opts](optimization_opts)
-  a string which specifies an optimization option for source files compilation. Optional; default is "-O3" .
-- [include_dirs_list](include_dirs_list)
-  a string which specifies an additional C/C++ include directories list in the cmake form ("dir1;dir2;etc").
-  List is parsed and each directory is prepended by "-I" automatically. Optional.
-- [define_symbols_list](define_symbols_list]
-  a string which specifies an additional C/C++ #define symbols list in the cmake form ("sym1;sym2;etc").
-  List is parsed and each symbol is prepended by "-D" automatically. Optional.
-- [always_inline](always_inline)
-  a string which specifies whether compilation use inlined code (-DCONFIG_ALWAYS_INLINE). Optional; default is "yes".
+- `kernel_entry`
+  a string which specifies kernel entry point name. Optional; default is `"${kernel_src}"` without path and filename suffices (extensions).
+- `kernel_src`
+  a string which specifies kernel source file name, without path and relative to `"${kernel_src_dir}"` . Required.
+- `kernel_src_dir`
+  a string which specifies a path to directory containing `"${kernel_src}"` file.
+  Can be absolute, or relative to [sw_runtime_kernels/kernels](.). Optional; default is `"src"` .
+- `kernel_cpunum`
+  a string which specifies a target chip level. Optional; default is `"3010"`.
+  Sources are compiled with `"-mcpu=${kernel_cpunum}xx"` option.
+  Built binaries' names have suffix in the form of `".${kernel_cpunum}xx"` .
+- `optimization_opts`
+  a string which specifies an optimization option for compilation of source files. Optional; default is `"-O3"` .
+- `include_dirs_list`
+  a string which specifies an additional C/C++ include directories list in the cmake form (`"dir1;dir2;etc"`).
+  The list is parsed and each directory is prepended by `"-I"` prefix automatically. Optional.
+- `define_symbols_list`
+  a string which specifies an additional C/C++ #define symbols list in the cmake form (`"sym1;sym2;etc"`).
+  The list is parsed and each symbol is prepended by `"-D"` prefix automatically. Optional.
+- `always_inline`
+  a string which specifies whether compilation use inlined code (`-DCONFIG_ALWAYS_INLINE`) or not. Optional; default is `"yes"` .
   Can also be checked in description code in if() statement(s) to change compile/link behaviour (e.g. add extra source files).
-- [extra_src_list](extra_src_list)
-  a string which specifies an additional C/C++ source files (absolute paths) which will be compiled and linked to "${kernel_src}" file.
-  List must be in the cmake form ("src1;src2;etc"), it is parsed automatically.
-- [kernel_descrip_path](kernel_descrip_path)
+- `extra_src_list`
+  a string which specifies an additional C/C++ source files (absolute paths) which will be compiled and linked together with `"${kernel_src}"` file to form the output binary.
+  The list must be in the cmake form (`"src1;src2;etc"`), it is parsed automatically.
+- `kernel_descrip_path`
   a string which specifies an absolute path to description file directory; can be used to include another (e.g. 'common') description file.
-- [binary_subdir](binary_subdir)
-  a string which specifies a particular subdirectory relative to target-binary-dir directory (i.e. ${target-binary-dir}/${binary_subdir}). See PSS description files as an examples.
+- `binary_subdir`
+  a string which specifies a particular subdirectory relative to `"${target-binary-dir}"` directory (i.e. `"${target-binary-dir}/${binary_subdir}"`). See PSS description files as an examples.
 
 Examples:
 
