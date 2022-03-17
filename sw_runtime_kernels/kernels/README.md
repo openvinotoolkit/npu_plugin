@@ -8,10 +8,10 @@
 
 - `FIRMWARE_VPU_DIR`
   absolute path to firmware.vpu.iot workspace (required)
-- [MV_TOOLS_DIR](MV_TOOLS_DIR)
+- `MV_TOOLS_DIR`
   absolute path to tools directory (required)
-- [MV_TOOLS_VERSION](MV_TOOLS_VERSION)
-  tools version string (optional). If not set, tools version is determined by the [firmware_vpu_revision.txt](firmware_vpu_revision.txt) file
+- `MV_TOOLS_VERSION`
+  tools version string (optional). If not set, tools version is determined by the [firmware_vpu_revision.txt](../firmware_vpu_revision.txt) file
 
 ## Command line
 
