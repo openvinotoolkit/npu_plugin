@@ -185,12 +185,56 @@ void FeasibleMemorySchedulerSpilling::removeComputeOpRelocationSpills(
                 continue;
             }
 
-            // Identified COMPUTEOP -> SPILL_WRITE -> SPILL_READ sequence that can be optimized
-            _log.trace("Identified COMPUTEOP -> SPILL_WRITE -> SPILL_READ sequence that can be optimized");
-
             auto& origOp = scheduledOps[origOpIndex.getValue()];
             auto& spillWriteOp = scheduledOps[spillWriteIndex];
             auto& spillReadOp = scheduledOps[spillReadIndex.getValue()];
+
+            // Check if operation writes just to part of buffer. In that case optimization cannot
+            // be performed as operation is not a sole owner of full buffer
+            bool operationOwnsBuffer = true;
+            auto* bodyBlock = &_depsInfo.getExecuteOpAtIndex(origOp.op_).body().front();
+            for (auto& op : bodyBlock->getOperations()) {
+                if (mlir::isa<IERT::LayerOpInterface>(op)) {
+                    auto layerOp = mlir::dyn_cast<IERT::LayerOpInterface>(op);
+
+                    for (auto output : layerOp.getOutputs()) {
+                        const auto type = output.getType().dyn_cast<mlir::MemRefType>();
+                        if (type == nullptr || type.getMemorySpace() != _memSpace) {
+                            continue;
+                        }
+
+                        const auto rootBuffers = _aliasInfo.getRoots(output);
+                        VPUX_THROW_UNLESS(rootBuffers.size() == 1,
+                                          "Value '{0}' expected to have only one root. Got {1}", output,
+                                          rootBuffers.size());
+                        const auto rootBuffer = *rootBuffers.begin();
+
+                        if (rootBuffer != spillReadOp.getOutputBuffer(0)) {
+                            // This is not an output that is going to be spilled. Move
+                            // to next one
+                            continue;
+                        }
+                        // Found an output corresponding to a root buffer that is marked for spilling
+                        // Check if size is the same. If not then optimization cannot be performed
+                        // because current operation only produces part of buffer and relocation
+                        // will break data for whole buffer
+                        if (getCompactSize(rootBuffer) != getCompactSize(output)) {
+                            operationOwnsBuffer = false;
+                        }
+                        break;
+                    }
+                }
+            }
+
+            // Operation is not an only producer of this buffer. Optimization cannot be performed
+            if (!operationOwnsBuffer) {
+                _log.trace("Operation is not an only producer of this buffer, cannot relocate output of op - '{0}'",
+                           origOp.op_);
+                continue;
+            }
+
+            // Identified COMPUTEOP -> SPILL_WRITE -> SPILL_READ sequence that can be optimized
+            _log.trace("Identified COMPUTEOP -> SPILL_WRITE -> SPILL_READ sequence that can be optimized");
 
             _log.nest().trace("op = '{0}'\t type = '{1}'\t time = '{2}'", origOp.op_, origOp.opTypeName(),
                               origOp.time_);
