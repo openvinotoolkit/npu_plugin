@@ -756,12 +756,10 @@ def RemoveQuantDequantSeq : PassBase<"remove-quantdequant-seq", "vpux::FunctionP
 //
 
 def OptimizeUnalignedQDQSeq : PassBase<"optimize-unaligned-qdq-seq", "vpux::FunctionPass"> {
-    let summary = "Optimizes out Expand->MemPermute->Quant->Dequant->Slice->MemPerm ops sequence";
+    let summary = "Reorders AffineReshape->FakeQuantize sequence if channels not aligned after reshape op";
 
     let description = [{
-        Pass removes sequence Expand->MemPerm->Quant->Dequant->Slice->MemPerm reisiding between
-        Conv->MemPerm->AffineReshape and AffineReshape->PermuteCast->Conv. Quant->Dequant operations
-        are inserted after the first Conv.
+        Pass changes order of AffineReshape->FakeQuantize sequence if channels become not aligned after reshape op
     }];
 
     let constructor = "vpux::IE::createOptimizeUnalignedQDQSeqPass()";
