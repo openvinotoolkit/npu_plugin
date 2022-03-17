@@ -25,7 +25,7 @@ cmake src-dir-path [options]
 make
 ```
 
-where [src-dir-path](src-dir-path) is an absolute path to [sw_runtime_kernels/kernels](sw_runtime_kernels/kernels) directory, and options is -Doption list.
+where `src-dir-path` is an absolute path to [sw_runtime_kernels/kernels](.) directory, and options is -Doption list.
 option must be:
 
 - [BUILD_BLOB_BINARIES=ON|OFF](BUILD_BLOB_BINARIES=ON|OFF)
