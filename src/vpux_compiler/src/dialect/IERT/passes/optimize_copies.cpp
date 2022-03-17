@@ -72,7 +72,7 @@ mlir::LogicalResult CopyOpSequence::matchAndRewrite(IERT::CopyOp copyOp, mlir::P
                     return mlir::failure();
                 }
                 // replace the copy with the subView
-                copySubView->moveAfter(parentOp->getOperand(0).getDefiningOp());
+                copySubView->moveBefore(parentOp);
                 parentOp->getResult(0).setType(copySubView.getType());
                 if (auto parentNCE = copyOp.input().getDefiningOp<VPUIP::NCEClusterTaskOp>()) {
                     parentNCE.output_buff().replaceAllUsesWith(copySubView);
