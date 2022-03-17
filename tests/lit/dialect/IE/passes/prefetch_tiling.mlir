@@ -35,6 +35,7 @@ func @SplitOverOC(
 // CHECK-SAME:          pads_begin = [1, 1]
 // CHECK-SAME:          pads_end = [1, 1]
 // CHECK-SAME:          strides = [1, 1]
+// CHECK-SAME:          tilingStrategy = [1, 2, 1, 1]
 // CHECK-SAME:      -> tensor<1x64x100x100xf16>
 
 // Tile 1
@@ -50,6 +51,7 @@ func @SplitOverOC(
 // CHECK-SAME:          pads_begin = [1, 1]
 // CHECK-SAME:          pads_end = [1, 1]
 // CHECK-SAME:          strides = [1, 1]
+// CHECK-SAME:          tilingStrategy = [1, 2, 1, 1]
 // CHECK-SAME:      -> tensor<1x64x100x100xf16>
 
 // Concat
@@ -91,6 +93,7 @@ func @SplitOverH(
 // CHECK-SAME:          pads_end = [0, 1]
 // CHECK-SAME:          rounding_type = "FLOOR"
 // CHECK-SAME:          strides = [1, 1]
+// CHECK-SAME:          tilingStrategy = [1, 1, 4, 1]
 // CHECK-SAME:      -> tensor<1x16x25x100xf16>
 
 // Tile 1
@@ -104,6 +107,7 @@ func @SplitOverH(
 // CHECK-SAME:          pads_end = [0, 1]
 // CHECK-SAME:          rounding_type = "FLOOR"
 // CHECK-SAME:          strides = [1, 1]
+// CHECK-SAME:          tilingStrategy = [1, 1, 4, 1]
 // CHECK-SAME:      -> tensor<1x16x25x100xf16>
 
 // Tile 2
@@ -117,6 +121,7 @@ func @SplitOverH(
 // CHECK-SAME:          pads_end = [0, 1]
 // CHECK-SAME:          rounding_type = "FLOOR"
 // CHECK-SAME:          strides = [1, 1]
+// CHECK-SAME:          tilingStrategy = [1, 1, 4, 1]
 // CHECK-SAME:      -> tensor<1x16x25x100xf16>
 
 // Tile 3
@@ -130,6 +135,7 @@ func @SplitOverH(
 // CHECK-SAME:          pads_end = [1, 1]
 // CHECK-SAME:          rounding_type = "FLOOR"
 // CHECK-SAME:          strides = [1, 1]
+// CHECK-SAME:          tilingStrategy = [1, 1, 4, 1]
 // CHECK-SAME:      -> tensor<1x16x25x100xf16>
 
 // Concat
@@ -319,7 +325,7 @@ func @GenericTiling(
 // CHECK-SAME:      tensor<1x128x1x1xf16> to tensor<1x64x1x1xf16>
 
 // CHECK:       [[OUTPUT_TILE0:%.+]] = IE.Convolution([[AND]], [[FILTER_TILE0]], [[BIAS_TILE0]])
-// CHECK-SAME:      {dilations = [1, 1], pads_begin = [1, 1], pads_end = [1, 1], strides = [1, 1]}
+// CHECK-SAME:      {dilations = [1, 1], pads_begin = [1, 1], pads_end = [1, 1], strides = [1, 1], tilingStrategy = [1, 2, 1, 1]}
 // CHECK-SAME:          -> tensor<1x64x20x20xf16>
 
 // Tile 1
@@ -331,7 +337,7 @@ func @GenericTiling(
 // CHECK-SAME:      tensor<1x128x1x1xf16> to tensor<1x64x1x1xf16>
 
 // CHECK:       [[OUTPUT_TILE1:%.+]] = IE.Convolution([[AND]], [[FILTER_TILE1]], [[BIAS_TILE1]])
-// CHECK-SAME:      {dilations = [1, 1], pads_begin = [1, 1], pads_end = [1, 1], strides = [1, 1]}
+// CHECK-SAME:      {dilations = [1, 1], pads_begin = [1, 1], pads_end = [1, 1], strides = [1, 1], tilingStrategy = [1, 2, 1, 1]}
 // CHECK-SAME:          -> tensor<1x64x20x20xf16>
 
 // Concat
