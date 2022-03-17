@@ -74,9 +74,9 @@ mlir::LogicalResult CopyOpSequence::matchAndRewrite(IERT::CopyOp copyOp, mlir::P
     }
 
     for (auto user : parentCopyOp.output().getUsers()) {
-        if (user != copyOp.getOperation()) {
-            // if other users, skip
-            // TODO E#35612: implement support for parallel users
+        if (mlir::isa<IERT::SubViewOp>(user)) {
+            // if intermediate SubViewOp users, skip due to accuracy loss
+            // TODO E#35612: implement support for intermediate SubViewOp users
             return mlir::failure();
         }
     }
