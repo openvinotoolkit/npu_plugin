@@ -23,7 +23,7 @@ using namespace vpux;
 // TileInfo
 //
 
-OutputTiling vpux::fillDividedTiles(ShapeRef divisors, ShapeRef orig, mlir::IntegerAttr clusterIdAttr) {
+OutputTiling vpux::fillDividedTiles(ShapeRef divisors, ShapeRef orig) {
     OutputTiling dividedTiles(divisors.totalSize(), TileInfo(divisors.size()));
 
     int64_t repeatCtr = 1;
@@ -46,28 +46,18 @@ OutputTiling vpux::fillDividedTiles(ShapeRef divisors, ShapeRef orig, mlir::Inte
         }
 
         const auto tileSize = origSize / divisor;
+        auto remainderTileLength = origSize % divisor;
+        auto leftLength = remainderTileLength / 2;
+        auto rightLength = remainderTileLength - leftLength;
         VPUX_THROW_UNLESS(tileSize > 0, "Got too many tiles request '{0}'", divisor);
 
         int64_t offset = 0;
         for (int64_t i : irange(dividedTiles.size())) {
-            const bool remainderTile = !(((i / repeatCtr) + 1) % (divisor));
-
-            // This is a workaround to resolve mobilnet-v3-large accuracy issue in multi-cluster mode.
-            // Please check ticket E#35630 for details.
-            const bool firstClusterFirstTile = clusterIdAttr && (clusterIdAttr.getValue().getSExtValue() == 0);
-
-            if (firstClusterFirstTile) {
-                if (i == 0) {
-                    dividedTiles[i].shape[dim] = origSize - (tileSize * (divisor - 1));
-                } else {
-                    dividedTiles[i].shape[dim] = tileSize;
-                }
+            auto indexInDim = (i / repeatCtr) % divisor;
+            if (indexInDim < leftLength || indexInDim >= divisor - rightLength) {
+                dividedTiles[i].shape[dim] = tileSize + 1;
             } else {
-                if (remainderTile) {
-                    dividedTiles[i].shape[dim] = origSize - (tileSize * (divisor - 1));
-                } else {
-                    dividedTiles[i].shape[dim] = tileSize;
-                }
+                dividedTiles[i].shape[dim] = tileSize;
             }
 
             dividedTiles[i].offsets[dim] = offset;
@@ -78,7 +68,7 @@ OutputTiling vpux::fillDividedTiles(ShapeRef divisors, ShapeRef orig, mlir::Inte
                 offset += dividedTiles[i].shape[dim];
             }
 
-            const bool resetOffset = (remainderTile && incrementOffset);
+            const bool resetOffset = (indexInDim == divisor - 1 && incrementOffset);
             if (resetOffset) {
                 offset = 0;
             }
