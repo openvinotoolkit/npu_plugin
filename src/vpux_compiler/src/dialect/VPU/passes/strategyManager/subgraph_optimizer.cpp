@@ -95,18 +95,59 @@ double bestCostOfHCompatible(mlir::Operation* op){
 // better suited to SOH or SOK
 // @warning Currently we may not need this in vpux, as we didn't consider spilling 
 // in our simple cost model
-bool hasGreedySOK(mlir::Operation* op){
+bool hasGreedyKCompatible(mlir::Operation* op){
     auto hCost = bestCostOfHCompatible(op);
     auto kCost = bestCostOfKCompatible(op, true);
     return kCost < hCost ? true : false;
 }
 
+bool areChildrenKCompatible(mlir::Operation* op){
+    for (auto child : op->getResult(0).getUsers()){
+        if (!isKCompatible(child)){
+            return false;
+        }
+    }
+    return true;
+}
+
+void setKCompatible(mlir::Operation* op, bool allowHK=true){
+    if (allowHk){
+        op->setAttr(multiClusterStrategy, mlir::StringAttr::get(origOp->getContext(), "HKSwitch"));
+    }else if (greedyCostOfLayer(op, splitOverHeight) < greedyCostOfLayer(op, clustering)){
+        op->setAttr(multiClusterStrategy, mlir::StringAttr::get(origOp->getContext(), "SplitOverKernel"));
+    }else{
+        op->setAttr(multiClusterStrategy, mlir::StringAttr::get(origOp->getContext(), "Clustering"));
+    }
+}
+
+void singleRollback(mlir::Operation* op){
+    setKCompatible(op, true);
+    skipSOH(op, true);
+}
+
+// @mcm This function is the heart of what the StrategyManager and MetaGraph did for the
+// Graph Optimizer pass. The idea is, when strategies on multiple ops must be changed
+// together (i.e. making choices around SOH, SOK), this pass will decide the most efficient way
+// to do those strategy transitions.
+// The options are, 1. rollback the transition to some earlier point in the graph
+// 2. Spill to do the transition on the spot
+// 3. If possible, do the transition in CMX
+// To decide between these options, we look at each op in turn moving backwards through the op model
+// If it marks a transition point of SOH->SOK, then we search the graph for all its neighbors that would
+// also require a change if this op where to change to K-compatible. As we go, we tally the cost of changing
+// each op, and at the end we compare that to the current cost of this neighbor subgraph. We choose the more
+// performant strategy, which either requires processing the subgraph to change each node, or leaving it be.
 void SubgraphOptimizer::rollbackOrSpill(){
     const auto callback = [](mlir::Operation* op){
         if(!op->getAttr(multiClusterStrategy)) continue;
 
+        if(isSpillingFromStrategy(op) && hasGreedyKCompatible(op) && areChildrenKCompatible(op)){
+            singleRollback(op);
+        }else{
+
+        }
+
     }
 
     _func.walk(callback);
-
 }
