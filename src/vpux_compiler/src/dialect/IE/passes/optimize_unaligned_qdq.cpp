@@ -38,10 +38,16 @@ void OptimizeUnalignedQDQSeqPass::safeRunOnFunc() {
             return;
         }
         const auto outType = affineReshape.getType().dyn_cast<vpux::NDTypeInterface>();
+        if (outType.getRank() != 4) {
+            return;
+        }
         if ((outType.getShape()[Dims4D::Act::C] % 16) == 0) {
             return;
         }
         const auto inType = affineReshape.input().getType().dyn_cast<vpux::NDTypeInterface>();
+        if (inType.getRank() != 4) {
+            return;
+        }
         if ((inType.getShape()[Dims4D::Act::C] % 16) != 0) {
             return;
         }
