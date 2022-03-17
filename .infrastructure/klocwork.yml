@@ -13,7 +13,7 @@ projects:
       - *default_view_filter
       - " -file:/onednn-plugin/"
     condition:
-      source_branch: releases/2022/1
+      source_branch: releases/2022/1_vpux_bdk4
       os_type: linux
   openvino-kmb-release-windows:
     sync:
@@ -25,7 +25,7 @@ projects:
       - *default_view_filter
       - " -file:/onednn-plugin/"
     condition:
-      source_branch: releases/2022/1
+      source_branch: releases/2022/1_vpux_bdk4
       os_type: windows
 
   openvino-kmb-linux:
