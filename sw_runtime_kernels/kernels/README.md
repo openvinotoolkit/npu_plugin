@@ -46,9 +46,9 @@ option must be:
 Built binaries are copied to target directories automatically. To specify where we want to place the binaries, two options can be used:
 
 - `TARGET_BINARY_DIR=target-binary-dir`
-  specifies where to place built .text & .data files (if any). Default is `${src-dir-path}/prebuild/act_shave_bin`
+  specifies where to place built .text & .data files (if any). Default is `"${src-dir-path}/prebuild/act_shave_bin"`
 - `TARGET_JTAG_DIR=target-jtag-dir`
-  specifies where to place built .xdata files (if any). Default is `${target-binary-dir}/..`
+  specifies where to place built .xdata files (if any). Default is `"${target-binary-dir}/.."`
 
 ## Kernel description files (descrip/*.txt)
 
