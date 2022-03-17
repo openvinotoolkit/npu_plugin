@@ -142,11 +142,52 @@ bool vpux::VPU::NCEDepthConvolutionOp::isSupported(IE::GroupConvolutionOp op, NC
 // verifyOp
 //
 
+//
+// verifyOp
+//
+
+mlir::LogicalResult verifyDepthConv(mlir::Location loc, VPU::ArchKind arch, VPU::NCEDepthConvolutionOpAdaptor op,
+                                    mlir::Value output) {
+    const auto logCb = [loc](const llvm::formatv_object_base& msg) {
+        std::ignore = errorAt(loc, "{0}", msg.str());
+    };
+
+    const auto outputShape = getShape(output);
+    const auto OC = outputShape[Dims4D::Act::C];
+
+    const auto filterShape = Shape(parseIntArrayAttr<int64_t>(op.rawFilterShape()));
+    const auto KY = filterShape[Dims4D::Filter::KY];
+    const auto KX = filterShape[Dims4D::Filter::KX];
+
+    const auto kernelStrides = Shape(parseIntArrayAttr<int64_t>(op.strides()));
+    const auto SY = kernelStrides[Dims4D::Strides::Y];
+    const auto SX = kernelStrides[Dims4D::Strides::X];
+
+    const auto padTop = op.pad().top().getValue().getSExtValue();
+    const auto padBottom = op.pad().bottom().getValue().getSExtValue();
+    const auto padLeft = op.pad().left().getValue().getSExtValue();
+    const auto padRight = op.pad().right().getValue().getSExtValue();
+
+    if (!VPU::NCEInvariant::isAttrsSupported(arch, KY, KX, SY, SX, padTop, padBottom, padLeft, padRight, logCb)) {
+        return mlir::failure();
+    }
+
+    const auto weightsTableShape = getShape(op.weightsTable());
+    const auto expectedWeightsTableShape = VPU::NCESparsity::inferWeightsTableShape(OC);
+
+    if (weightsTableShape != expectedWeightsTableShape) {
+        return errorAt(loc, "Got wrong shape for 'weightsTable' '{0}', expected '{1}'", weightsTableShape,
+                       expectedWeightsTableShape);
+    }
+
+    return mlir::success();
+}
+
 mlir::LogicalResult vpux::VPU::verifyOp(NCEDepthConvolutionOp op) {
     const auto arch = getArch(op);
 
-    const NCEConvolutionOpAdaptor convAdaptor(op->getOperands(), op->getAttrDictionary(), op->getRegions());
-    if (mlir::failed(verifyConv(op->getLoc(), arch, convAdaptor, op.output()))) {
+    const NCEDepthConvolutionOpAdaptor convAdaptor(op->getOperands(), op->getAttrDictionary(), op->getRegions());
+    if (mlir::failed(verifyDepthConv(op->getLoc(), arch, convAdaptor, op.output()))) {
         return mlir::failure();
     }
 
