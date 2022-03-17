@@ -19,13 +19,13 @@ namespace vpux {
 namespace VPU {
 
 Json readManualStrategyJSON(StringRef fileName);
-void writeManualStrategyJSON(StringRef fileName, Json json);
+void writeManualStrategyJSON(StringRef fileName, Json& json);
 
 Json convertAttrToString(mlir::Attribute attr);
-Json createStrategyJSONFromOperations(Json json, llvm::DenseMap<mlir::Location, mlir::Operation*> operations,
-                                      SmallVector<StringRef> strategyAttributes);
-mlir::Attribute convertJSONToAttr(mlir::Attribute oldAttr, Json newAttrVal);
-void overwriteManualStrategy(Json manualStrategy, llvm::DenseMap<mlir::Location, mlir::Operation*> operations);
+Json createStrategyJSONFromOperations(Json& json, llvm::DenseMap<mlir::Location, mlir::Operation*>& operations,
+                                      ArrayRef<StringRef> strategyAttributes);
+mlir::Attribute convertJSONToAttr(mlir::Attribute oldAttr, Json& newAttrVal);
+void overwriteManualStrategy(Json& manualStrategy, llvm::DenseMap<mlir::Location, mlir::Operation*>& operations);
 
 }  // namespace VPU
 }  // namespace vpux
