@@ -78,7 +78,7 @@ void StrategyManager::assignMultiClusterStrategy() {
                         _maxPoolStrategy.doesLayerFitIntoCMX(origOp.getOperation(), splitOverHeight)) {
                         setLayerStrategy(splitOverHeight, origOp.getOperation());
                     } else {
-                        // setLayerStrategy(clustering, origOp.getOperation());
+                        setLayerStrategy(clustering, origOp.getOperation());
                     }
                 })
                 .Case<NCEEltwiseOp>([this](NCEEltwiseOp origOp) {
@@ -86,7 +86,7 @@ void StrategyManager::assignMultiClusterStrategy() {
                         _eltwiseStrategy.doesLayerFitIntoCMX(origOp.getOperation(), splitOverHeight)) {
                         setLayerStrategy(splitOverHeight, origOp.getOperation());
                     } else {
-                        // setLayerStrategy(clustering, origOp.getOperation());
+                        setLayerStrategy(clustering, origOp.getOperation());
                     }
                 })
                 .Case<NCEConvolutionOp>([this](NCEConvolutionOp origOp) {
@@ -95,7 +95,7 @@ void StrategyManager::assignMultiClusterStrategy() {
                             auto bestStrategy = _convolutionStrategy.getOptimalLayerStrategy(origOp);
                             setLayerStrategy(bestStrategy, origOp.getOperation());
                         } else {
-                            // setLayerStrategy(clustering, origOp.getOperation());
+                            setLayerStrategy(clustering, origOp.getOperation());
                         }
                     } else if (DimsOrder::fromValue(origOp.input()) == DimsOrder::NCHW) {
                         const auto arch = VPU::getArch(origOp.getOperation());
@@ -119,6 +119,8 @@ void StrategyManager::assignMultiClusterStrategy() {
                     if (_depthConvolutionStrategy.isOperationMultiClusterCompatible(origOp.getOperation())) {
                         auto bestStrategy = _depthConvolutionStrategy.getOptimalLayerStrategy(origOp);
                         setLayerStrategy(bestStrategy, origOp.getOperation());
+                    } else {
+                        setLayerStrategy(clustering, origOp.getOperation());
                     }
                 })
                 .Default([this](mlir::Operation* unknownOp) -> void {
