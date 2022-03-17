@@ -45,6 +45,8 @@ private:
     void replaceVPURTTaskOpWithNNDMAOp(mlir::MLIRContext* ctx, mlir::FuncOp& funcOp, Logger _log) {
         _log.info("Entered replaceVPURTTaskOpWithNNDMAOp().");
 
+        auto dma_count = 0;
+
         for (;;) {
             bool foundTaskOp = false;
 
@@ -72,20 +74,20 @@ private:
 
                     mlir::OpBuilder builderBlk(taskOp);
 
-                    auto indexType = VPUIPRegMapped::IndexType::get(ctx, 1);
+                    auto indexType = VPUIPRegMapped::IndexType::get(ctx, dma_count);
 
                     auto wait_bars = taskOp.waitBarriers();
                     auto update_bars = taskOp.updateBarriers();
 
+                    auto trivialIndexType = VPUIPRegMapped::IndexType::get(ctx, 0);
+
                     for (auto val : wait_bars){
-                        val.setType(indexType);
+                        val.setType(trivialIndexType);
                     }
 
                     for (auto val : update_bars){
-                        val.setType(indexType);
+                        val.setType(trivialIndexType);
                     }
-
-                    std::cout<<"OMGGGGG ----- "<<indexType.getValue()<<"\n\n";
 
                     // Using this builder:
                     // void NNDMAOp::build(::mlir::OpBuilder &odsBuilder, ::mlir::OperationState &odsState,
@@ -95,6 +97,7 @@ private:
                     builderBlk.create<VPUIPRegMapped::NNDMAOp>(
                             builderBlk.getUnknownLoc(),                 // op->getLoc(),
                             indexType,  // op.output(),
+                            // op.getOperation()->getResult(0).getType(),
                             op.input(), op.output_buff(), 
                             mlir::ValueRange(wait_bars),
                             mlir::ValueRange(update_bars),
@@ -106,6 +109,7 @@ private:
                             0  // start_after // TODO: initialize
                     );
 
+                    dma_count++;
                     _log.info("replaceVPURTTaskOpWithNNDMAOp(): funcOp = {0}", funcOp);
                 }
 
@@ -119,6 +123,31 @@ private:
                 break;
         }  // End forever loop
     }
+
+    void setBarrierIndexValues(mlir::MLIRContext* ctx, mlir::FuncOp& funcOp, Logger _log) {
+        _log.info("Entered replaceVPURTTaskOpWithNNDMAOp().");
+
+        auto barrier_count = 0;
+
+        for (auto op : funcOp.getOps<VPUIPRegMapped::ConfigureBarrierOp>()) {
+
+            _log.info("replaceVPURTTaskOpWithNNDMAOp(): op = {0}.", op);
+            _log.info("replaceVPURTTaskOpWithNNDMAOp(): op.getResult(0).getType() = {0}.",
+                        op.getOperation()->getResult(0).getType());
+
+            mlir::OpBuilder builderBlk(op);
+
+            auto indexType = VPUIPRegMapped::IndexType::get(ctx, barrier_count);
+
+            op.getOperation()->getResult(0).setType(indexType);
+
+            _log.info("replaceVPURTTaskOpWithNNDMAOp(): op.getResult(0).getType() AFTER = {0}.",
+                        op.getOperation()->getResult(0).getType());
+
+            barrier_count++;
+        }
+    }
+
 };
 
 class ConvertVPURTConfigureBarrierOp final : public mlir::OpRewritePattern<VPURT::ConfigureBarrierOp> {
@@ -134,14 +163,14 @@ public:
 
         auto ctx = ConvertVPURTConfigureBarrierOp::getContext();
 
-        auto indexType = VPUIPRegMapped::IndexType::get(ctx, 1);
+        auto trivialIndexType = VPUIPRegMapped::IndexType::get(ctx, 0);
 
         mlir::IntegerAttr producer_count;  // TODO: init with special value
         mlir::IntegerAttr consumer_count;  // TODO: init with special value
 
         rewriter.replaceOpWithNewOp<VPUIPRegMapped::ConfigureBarrierOp>(
                 origOp,
-                indexType,  // origOp.getOperation()->getResult(0).getType(),
+                trivialIndexType,  // origOp.getOperation()->getResult(0).getType(),
                 origOp.id(),
                 // TODO: put also a virtualId attribute in ConfigureBarrierOp, as it is found in
                 //              VPURT::ConfigureBarrierOp
@@ -154,12 +183,13 @@ public:
                 waitBarriers,    // mlir::ValueRange(origOp.waitBarriers()), // TODO
                 updateBarriers   // mlir::ValueRange(origOp.updateBarriers()) // TODO
         );
-
+        barrier_count++;
         return mlir::success();
     }
 
 private:
     Logger _log;
+    mutable int barrier_count = 0;
 };
 
 void ConvertVPUIP2VPUIPRegMappedPass::safeRunOnFunc() {
@@ -182,12 +212,12 @@ void ConvertVPUIP2VPUIPRegMappedPass::safeRunOnFunc() {
               funcOp);
 
     // Default is operations are illegal.
-
+    replaceVPURTTaskOpWithNNDMAOp(ctx, funcOp, _log);
 
     mlir::ConversionTarget target(*ctx);
     target.addLegalDialect<VPUIPRegMapped::VPUIPRegMappedDialect>();
     target.addLegalOp<mlir::FuncOp, mlir::ReturnOp>();
-    target.addLegalOp<VPURT::DeclareBufferOp, VPUIP::NNDMAOp, VPURT::TaskOp>();
+    target.addLegalOp<VPURT::DeclareBufferOp>();
 
     mlir::RewritePatternSet patterns(ctx);
 
@@ -197,7 +227,8 @@ void ConvertVPUIP2VPUIPRegMappedPass::safeRunOnFunc() {
         signalPassFailure();
     }
 
-    replaceVPURTTaskOpWithNNDMAOp(ctx, funcOp, _log);
+    setBarrierIndexValues(ctx, funcOp, _log);
+
 
     _log.info("End ConvertVPUIP2VPUIPRegMappedPass::safeRunOnFunc(): funcOp = {0}", funcOp);
 }

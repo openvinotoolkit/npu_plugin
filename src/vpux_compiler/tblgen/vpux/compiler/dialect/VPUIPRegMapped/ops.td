@@ -181,12 +181,14 @@ def VPUIPRegMapped_MappedInferenceOp :
 //
 
 def VPUIPRegMapped_NNDMAOp :
-        VPUIPRegMapped_TaskOp<1, "NNDMA",
+        VPUIPRegMapped_Op<"NNDMA",
             [
-                ViewLikeOpInterface,
-                IERT_SameShape,
-                IERT_SameElementType,
-                IERT_SameInOutDimsOrder,
+                // ViewLikeOpInterface, //
+                // InferTypeOpInterface, //
+                MemoryEffectsOpInterface,
+                AttrSizedOperandSegments,
+                DeclareOpInterfaceMethods<VPUIPRegMapped_TaskOpInterface>,
+                DeclareOpInterfaceMethods<ELF_BinaryOpInterface>,
                 DotInterface
             ]
         > {
@@ -217,7 +219,7 @@ def VPUIPRegMapped_NNDMAOp :
         static vpux::VPUIPRegMapped::TaskType getTaskType() {
             return vpux::VPUIPRegMapped::TaskType::NNDMA;
         }
-
+        
         vpux::DotNodeColor getNodeColor() {
             const auto memKind = getType().cast<vpux::NDTypeInterface>().getMemoryKind();
             return memKind == vpux::VPU::MemoryKind::DDR ? vpux::DotNodeColor::RED : vpux::DotNodeColor::GREEN;
@@ -226,6 +228,7 @@ def VPUIPRegMapped_NNDMAOp :
         void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects) {
             vpux::VPUIPRegMapped::getTaskEffects(this->getOperation(), effects);
         }
+
     }] # IERT_InferLayerReturnTypes<1>.impl;
 
     let assemblyFormat = [{

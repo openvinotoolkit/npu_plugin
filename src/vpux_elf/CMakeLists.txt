@@ -32,7 +32,7 @@ target_link_libraries(${TARGET_NAME} PRIVATE vpux_utils)
 
 enable_warnings_as_errors(${TARGET_NAME})
 
-add_subdirectory(example)
+# add_subdirectory(example)
 
 install(TARGETS ${TARGET_NAME} EXPORT OpenVINOTargets
         RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT ${VPUX_PLUGIN_COMPONENT}

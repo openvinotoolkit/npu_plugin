@@ -8,7 +8,7 @@ IE.CNNNetwork entryPoint : @main inputsInfo :  {
 
 func @main(%arg0: memref<1x1x1x1000xf16>, %arg1: memref<1x1x1x1000xf16>) -> memref<1x1x1x1000xf16> {
 
-    %dma0 = VPUIPRegMapped.NNDMA inputs(%arg0 : memref<1x1x1x1000xf16>) outputs(%arg1 : memref<1x1x1x1000xf16>) start_after(0) -> memref<1x1x1x1000xf16>
+    %dma0 = VPUIPRegMapped.NNDMA inputs(%arg0 : memref<1x1x1x1000xf16>) outputs(%arg1 : memref<1x1x1x1000xf16>) start_after(0) -> !VPUIPRegMapped.Index<0>
     %mappedInference = VPUIPRegMapped.MappedInference
                             dmaCount(1)
                             invariantCount(0)
@@ -16,15 +16,14 @@ func @main(%arg0: memref<1x1x1x1000xf16>, %arg1: memref<1x1x1x1000xf16>) -> memr
                             actKernelRangesCount(0)
                             actKernelInvocationsCount(0)
                             barrierCount(0)
-                            ui64
 
     %dmaSection = ELF.CreateSection secType(SHT_PROGBITS) secFlags(SHF_EXECINSTR) {secName=".text.dmaTasks", secInfo = 1, secAddrAlign = 64 } -> !ELF.Section
     {
-        ELF.PutOpInSection %dma0 : memref<1x1x1x1000xf16>
+        ELF.PutOpInSection %dma0 : !VPUIPRegMapped.Index<0>
     }
     %mappedInfSec = ELF.CreateSection secType(SHT_PROGBITS) secFlags(SHF_EXECINSTR) {secName=".text.mappedInference", secInfo = 1, secAddrAlign = 64} -> !ELF.Section
     {
-        ELF.PutOpInSection %mappedInference : ui64
+        ELF.PutOpInSection %mappedInference : index
     }
 
     %sym_for_dmaSection = ELF.Symbol %dmaSection name("symDmaSection") : !ELF.Section
@@ -37,7 +36,7 @@ func @main(%arg0: memref<1x1x1x1000xf16>, %arg1: memref<1x1x1x1000xf16>) -> memr
     {
         ELF.PutOpInSection %sym_for_dmaSection : !ELF.Symbol
         ELF.PutOpInSection %sym_for_mappedInfSec : !ELF.Symbol
-        ELF.Symbol %mappedInference name("MappedInference") type("VPU_STT_ENTRY") : ui64
+        ELF.Symbol %mappedInference name("MappedInference") type("VPU_STT_ENTRY") : index
     }
 
     %inputSymSection = ELF.CreateSymbolTableSection secName(".symtab.inputs") secFlags(VPU_SHF_USERINPUT) -> !ELF.Section

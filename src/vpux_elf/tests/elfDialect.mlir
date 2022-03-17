@@ -1,3 +1,5 @@
+//broken TODO: fix it
+
 module @Test {
 
 IE.CNNNetwork entryPoint : @main inputsInfo :  {
@@ -15,8 +17,8 @@ func @main(%arg0: memref<1x1x1x1000xf16>, %arg1: memref<1x1x1x1000xf16>) -> memr
     //%1 = VPURT.DeclareBuffer "VPU_CMX_NN" [0, 1, 2, 3] <2000> -> memref<1x1x1x1000xf16, "CMX_NN">
     %1 = VPURT.DeclareBuffer "CMX_NN" <2000> -> memref<1x1x1x1000xf16, @CMX_NN>
 
-    %3 = VPUIPRegMapped.ConfigureBarrier<0, -1> -> !VPURT.Barrier
-    %5 = VPUIPRegMapped.ConfigureBarrier<1, -1> -> !VPURT.Barrier
+    %3 = VPUIPRegMapped.ConfigureBarrier<0, -1> -> !VPUIPRegMapped.Index<0>
+    %5 = VPUIPRegMapped.ConfigureBarrier<1, -1> -> !VPUIPRegMapped.Index<1>
 
 
     // Note: this section has type PROGBITS.
@@ -38,20 +40,20 @@ func @main(%arg0: memref<1x1x1x1000xf16>, %arg1: memref<1x1x1x1000xf16>) -> memr
 
     %sec0 = ELF.CreateSection secType("SHT_PROGBITS") secFlags(SHF_EXECINSTR) {secName = ".text.BarrierConfigs", secInfo = 1, secAddrAlign = 4} -> !ELF.Section
       {
-        ELF.PutOpInSection %3 : !VPURT.Barrier
-        ELF.PutOpInSection %5 : !VPURT.Barrier
+        ELF.PutOpInSection %3 : !VPUIPRegMapped.Index<0>
+        ELF.PutOpInSection %5 : !VPUIPRegMapped.Index<1>
      }
 
 
-    %2 = VPUIPRegMapped.NNDMA inputs(%arg0 : memref<1x1x1x1000xf16>) outputs(%0 : memref<1x1x1x1000xf16, @CMX_NN>) start_after(0) -> memref<1x1x1x1000xf16, @CMX_NN>
-    %4 = VPUIPRegMapped.NNDMA inputs(%2 : memref<1x1x1x1000xf16, @CMX_NN>) outputs(%1 : memref<1x1x1x1000xf16, @CMX_NN>) waits(%3 : !VPURT.Barrier) start_after(0) -> memref<1x1x1x1000xf16, @CMX_NN>
-    %6 = VPUIPRegMapped.NNDMA inputs(%4 : memref<1x1x1x1000xf16, @CMX_NN>) outputs(%arg1 : memref<1x1x1x1000xf16>) waits(%5 : !VPURT.Barrier) start_after(0) -> memref<1x1x1x1000xf16>
+    %2 = VPUIPRegMapped.NNDMA inputs(%arg0 : memref<1x1x1x1000xf16>) outputs(%0 : memref<1x1x1x1000xf16, @CMX_NN>) updates(%3 : !VPUIPRegMapped.Index<0>) start_after(0) -> !VPUIPRegMapped.Index<0>
+    %4 = VPUIPRegMapped.NNDMA listIndex(%2) inputs(%2 : memref<1x1x1x1000xf16, @CMX_NN>) outputs(%1 : memref<1x1x1x1000xf16, @CMX_NN>) waits(%3 : !VPUIPRegMapped.Index<0>) updates(%5 : !VPUIPRegMapped.Index<1>) start_after(0) -> !VPUIPRegMapped.Index<1>
+    %6 = VPUIPRegMapped.NNDMA listIndex(%4) inputs(%4 : memref<1x1x1x1000xf16, @CMX_NN>) outputs(%arg1 : memref<1x1x1x1000xf16>) waits(%5 : !VPUIPRegMapped.Index<1>) start_after(0) -> !VPUIPRegMapped.Index<2>
 
     %sec1 = ELF.CreateSection secType("SHT_PROGBITS") secFlags("SHF_ALLOC|SHF_EXECINSTR") {secName = ".text.dmaTasks", secInfo = 1, secAddrAlign = 4} -> !ELF.Section
       {
-          ELF.PutOpInSection %2 : memref<1x1x1x1000xf16, @CMX_NN>
-          ELF.PutOpInSection %4 : memref<1x1x1x1000xf16, @CMX_NN>
-          ELF.PutOpInSection %6 : memref<1x1x1x1000xf16>
+          ELF.PutOpInSection %2 : !VPUIPRegMapped.Index<0>
+          ELF.PutOpInSection %4 : !VPUIPRegMapped.Index<1>
+          ELF.PutOpInSection %6 : !VPUIPRegMapped.Index<2>
       }
 
 
@@ -61,8 +63,8 @@ func @main(%arg0: memref<1x1x1x1000xf16>, %arg1: memref<1x1x1x1000xf16>) -> memr
     //
     %sym0 = ELF.Symbol %0 name("nndmaOp0_output") : memref<1x1x1x1000xf16, @CMX_NN>
     %sym1 = ELF.Symbol %1 name("nndmaOp1_output") : memref<1x1x1x1000xf16, @CMX_NN>
-    %sym2 = ELF.Symbol %2 name("nndmaOp1_input") : memref<1x1x1x1000xf16, @CMX_NN>
-    %sym4 = ELF.Symbol %4 name("nndmaOp2_input") : memref<1x1x1x1000xf16, @CMX_NN>
+    %sym2 = ELF.Symbol %2 name("nndmaOp1_input") : !VPUIPRegMapped.Index<0>
+    %sym4 = ELF.Symbol %4 name("nndmaOp2_input") : !VPUIPRegMapped.Index<>
 
 
     // These symbols are used for 1 relocation per inference run (JIT relocation)

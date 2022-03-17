@@ -8,17 +8,17 @@ IE.CNNNetwork entryPoint : @main inputsInfo :  {
 
 func @main(%arg0: memref<1x1x2x1000xf16>, %arg1: memref<1x1x2x1000xf16>) -> memref<1x1x2x1000xf16> {
 
-    %buffer = VPUIPRegMapped.DeclareBuffer "VPU_DDR_Heap" [0] <0> -> memref<1x1x2x1000xf16, "DDR">
-    %barrier0 = VPUIPRegMapped.ConfigureBarrier {consumer_count=1:ui8, producer_count=1:ui8 } <0,-1> -> !VPURT.Barrier
+    %buffer = VPURT.DeclareBuffer "DDR" <0> -> memref<1x1x2x1000xf16, @DDR>
+    %barrier0 = VPUIPRegMapped.ConfigureBarrier {consumer_count=1:ui8, producer_count=1:ui8 } <0,-1> -> !VPUIPRegMapped.Index<0>
 
     %dma0 = VPUIPRegMapped.NNDMA inputs(%arg0 : memref<1x1x2x1000xf16>)
-                                    outputs(%buffer : memref<1x1x2x1000xf16, "DDR">)
-                                    updates(%barrier0 : !VPURT.Barrier)
-                                    start_after(0) -> memref<1x1x2x1000xf16, "DDR">
-    %dma1 = VPUIPRegMapped.NNDMA inputs(%buffer : memref<1x1x2x1000xf16, "DDR">)
+                                    outputs(%buffer : memref<1x1x2x1000xf16, @DDR>)
+                                    updates(%barrier0 : !VPUIPRegMapped.Index<0>)
+                                    start_after(0) -> !VPUIPRegMapped.Index<0>
+    %dma1 = VPUIPRegMapped.NNDMA inputs(%buffer : memref<1x1x2x1000xf16, @DDR>)
                                     outputs(%arg1 : memref<1x1x2x1000xf16>)
-                                    waits(%barrier0 : !VPURT.Barrier)
-                                    start_after(0) -> memref<1x1x2x1000xf16>
+                                    waits(%barrier0 : !VPUIPRegMapped.Index<0>)
+                                    start_after(0) -> !VPUIPRegMapped.Index<1>
 
     %mappedInference = VPUIPRegMapped.MappedInference
                             dmaCount(2)
@@ -27,27 +27,26 @@ func @main(%arg0: memref<1x1x2x1000xf16>, %arg1: memref<1x1x2x1000xf16>) -> memr
                             actKernelRangesCount(0)
                             actKernelInvocationsCount(0)
                             barrierCount(1)
-                            ui64
 
     %dmaSection = ELF.CreateSection secType(SHT_PROGBITS) secFlags(SHF_EXECINSTR) {secName=".text.dmaTasks", secInfo = 1, secAddrAlign = 64 } -> !ELF.Section
     {
-        ELF.PutOpInSection %dma0 : memref<1x1x2x1000xf16, "DDR">
-        ELF.PutOpInSection %dma1 : memref<1x1x2x1000xf16>
+        ELF.PutOpInSection %dma0 : !VPUIPRegMapped.Index<0>
+        ELF.PutOpInSection %dma1 : !VPUIPRegMapped.Index<1>
     }
 
     %barriersSection = ELF.CreateSection secType(SHT_PROGBITS) secFlags(SHF_EXECINSTR) {secName= ".text.barriers", secInfo = 1, secAddrAlign = 64} -> !ELF.Section
     {
-        ELF.PutOpInSection %barrier0 : !VPURT.Barrier
+        ELF.PutOpInSection %barrier0 : !VPUIPRegMapped.Index<0>
     }
 
     %mappedInfSec = ELF.CreateSection secType(SHT_PROGBITS) secFlags(SHF_EXECINSTR) {secName=".text.mappedInference", secInfo = 1, secAddrAlign = 64} -> !ELF.Section
     {
-        ELF.PutOpInSection %mappedInference : ui64
+        ELF.PutOpInSection %mappedInference : index
     }
 
     %scratchSection = ELF.CreateLogicalSection secType(SHT_NOBITS) secFlags(SHF_NONE) {secName=".bss.ddrScratch", secInfo = 1, secAddrAlign = 64} -> !ELF.Section
     {
-        ELF.PutOpInSection %buffer : memref<1x1x2x1000xf16, "DDR">
+        ELF.PutOpInSection %buffer : memref<1x1x2x1000xf16, @DDR>
     }
 
     %sym_for_dmaSection = ELF.Symbol %dmaSection name("symDmaSection") : !ELF.Section
@@ -65,7 +64,7 @@ func @main(%arg0: memref<1x1x2x1000xf16>, %arg1: memref<1x1x2x1000xf16>) -> memr
         ELF.PutOpInSection %sym_for_mappedInfSec : !ELF.Symbol
         ELF.PutOpInSection %sym_for_scratchSection : !ELF.Symbol
 
-        ELF.Symbol %mappedInference name("MappedInference") type("VPU_STT_ENTRY") : ui64
+        ELF.Symbol %mappedInference name("MappedInference") type("VPU_STT_ENTRY") : index
     }
 
     %inputSymSection = ELF.CreateSymbolTableSection secName(".symtab.inputs") secFlags(VPU_SHF_USERINPUT) -> !ELF.Section
@@ -109,12 +108,6 @@ func @main(%arg0: memref<1x1x2x1000xf16>, %arg1: memref<1x1x2x1000xf16>) -> memr
         ELF.Reloc 0 "R_VPU_64" %sym_for_dmaSection 0
         ELF.Reloc 72 "R_VPU_64" %sym_for_barrierSection 0
     }
-
-    // %dmaRelocs = ELF.CreateRelocationSection secName(".rlt.dmaRelocations") sourceSymbolTableSection(%genericSymSection) targetSection(%dmaSection) secFlags(SHF_INFO_LINK) -> !ELF.Section
-    // {
-        // ELF.Reloc 24 "R_VPU_64" %sym_for_scratchSection 0
-        // ELF.Reloc 208 "R_VPU_64" %sym_for_scratchSection 0
-    // }
 
     %dmaSpecialRelocs = ELF.CreateRelocationSection secName(".rlt.dmaSpecialRelocations") sourceSymbolTableSection(%vpu_symtab) targetSection(%dmaSection) secFlags(SHF_INFO_LINK) -> !ELF.Section
     {
