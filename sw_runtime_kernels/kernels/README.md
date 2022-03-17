@@ -6,7 +6,7 @@
 
 ## Environment variables
 
-- [FIRMWARE_VPU_DIR](FIRMWARE_VPU_DIR)
+- `FIRMWARE_VPU_DIR`
   absolute path to firmware.vpu.iot workspace (required)
 - [MV_TOOLS_DIR](MV_TOOLS_DIR)
   absolute path to tools directory (required)
@@ -43,7 +43,7 @@ option must be:
 
 ## Installation of binaries
 
-Built binaries copied to target directories automatically. To specify where we want to place the binaries, two options can be used:
+Built binaries are copied to target directories automatically. To specify where we want to place the binaries, two options can be used:
 
 - [TARGET_BINARY_DIR=target-binary-dir](TARGET_BINARY_DIR=target-binary-dir)
   specifies where to place built .text & .data files (if any). Default is ${src-dir-path}/prebuild/act_shave_bin
