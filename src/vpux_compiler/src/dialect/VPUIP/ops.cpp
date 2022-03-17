@@ -941,6 +941,7 @@ void vpux::VPUIP::VPUIPDialect::setupExtraInterfaces(mlir::DialectRegistry& regi
     registry.addOpInterface<IERT::SoftMaxOp, SoftwareLayerOpModel>();
     registry.addOpInterface<IERT::HSwishOp, SoftwareLayerOpModel>();
     registry.addOpInterface<IERT::MVNOp, SoftwareLayerOpModel>();
+    registry.addOpInterface<IERT::InterpolateOp, SoftwareLayerOpModel>();
     registry.addOpInterface<IERT::EluOp, SoftwareLayerOpModel>();
     registry.addOpInterface<IERT::SqrtOp, SoftwareLayerOpModel>();
     registry.addOpInterface<IERT::ExpOp, SoftwareLayerOpModel>();

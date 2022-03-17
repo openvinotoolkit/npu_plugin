@@ -81,6 +81,8 @@ mlir::LogicalResult SwKernelOp::inferReturnTypes(mlir::MLIRContext* ctx, mlir::O
 }
 
 IERT::KernelInfo SwKernelOp::getKernelInfo(mlir::Operation* origOp) {
+    mlir::MLIRContext* ctx = origOp->getContext();
+
     return llvm::TypeSwitch<mlir::Operation*, IERT::KernelInfo>(origOp)
             .Case<IERT::ExpOp>([&](IERT::ExpOp) {
                 return IERT::KernelInfo{SmallVector<mlir::Attribute>{}, {"exp_fp16"}, {"exp_fp16.cpp"}};
@@ -97,10 +99,26 @@ IERT::KernelInfo SwKernelOp::getKernelInfo(mlir::Operation* origOp) {
             .Case<IERT::SoftMaxOp>([&](IERT::SoftMaxOp softmax) {
                 // input tensor, to transform axis
                 const auto axisParam = computeReverseMemDim(softmax.input(), softmax.axisInd());
-                const auto axisParamAttr = getIntAttr(softmax.getContext(), axisParam);
+                const auto axisParamAttr = getIntAttr(ctx, axisParam);
                 return IERT::KernelInfo{SmallVector<mlir::Attribute>{axisParamAttr},
                                         {"singleShaveSoftmax"},
                                         {"single_shave_softmax.cpp"}};
+            })
+            .Case<IERT::InterpolateOp>([&](IERT::InterpolateOp Interpolate) {
+                const auto mode = static_cast<int64_t>(Interpolate.modeAttr().getValue());
+                const auto coordMode = static_cast<int64_t>(Interpolate.coord_modeAttr().getValue());
+                const auto nearestMode = static_cast<int64_t>(Interpolate.nearest_modeAttr().getValue());
+                const auto antialias = static_cast<int64_t>(Interpolate.antialiasAttr() != nullptr);
+
+                const auto modeAttr = getIntAttr(ctx, mode);
+                const auto coordModeAttr = getIntAttr(ctx, coordMode);
+                const auto nearestModeAttr = getIntAttr(ctx, nearestMode);
+                const auto antialiasAttr = getIntAttr(ctx, antialias);
+
+                return IERT::KernelInfo{
+                        SmallVector<mlir::Attribute>{modeAttr, coordModeAttr, nearestModeAttr, antialiasAttr},
+                        {"singleShaveInterpolate"},
+                        {"single_shave_interpolate.cpp"}};
             })
             .Case<IERT::EluOp>([&](IERT::EluOp elu) {
                 return IERT::KernelInfo{SmallVector<mlir::Attribute>{elu.xAttr()}, {"elu_fp16"}, {"elu_fp16.cpp"}};
@@ -116,7 +134,6 @@ IERT::KernelInfo SwKernelOp::getKernelInfo(mlir::Operation* origOp) {
             })
             .Case<IERT::MemPermuteOp>([&](IERT::MemPermuteOp permute) {
                 auto memPermArr = reversePermutation(permute.mem_perm());
-                mlir::MLIRContext* ctx = origOp->getContext();
                 return IERT::KernelInfo{SmallVector<mlir::Attribute>{getIntArrayAttr(ctx, memPermArr)},
                                         {"reorder_fp16"},
                                         {"reorder_fp16.cpp"}};

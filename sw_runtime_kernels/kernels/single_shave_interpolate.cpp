@@ -126,6 +126,19 @@ float round_prefer_floor(float x) {
     return (frac == 0.5f) ? std::floor(x) : ROUND(x);
 }
 
+// workaround for moviSim errors described in [EISW-24996]
+float round_floor(float x) {
+    return std::floor(x);
+}
+
+float round_ceil(float x) {
+    return std::ceil(x);
+}
+
+float round_roundf(float x) {
+    return std::roundf(x);
+}
+
 void interpolationHWC_nearest(const half* psrc, half* pdst, int OW, int IW, int OH, int IH, int C, float rw,
                       float alpha, float (*roundingFunc)(float), InterpolationCoordTransMode coord) {
     UNUSED(OH);
@@ -269,14 +282,14 @@ void nnResample(InterpolateParamsCMX *params)
         }
     }();
 
-    float (*roundingFunc)(float) = &std::roundf;
+    float (*roundingFunc)(float);
     switch(params->nearest_mode) {
         case InterpolationNearestMode::FLOOR : {
-            roundingFunc = &std::floor;
+            roundingFunc = round_floor;
             break;
         }
         case InterpolationNearestMode::CEIL : {
-            roundingFunc = &std::ceil;
+            roundingFunc = round_ceil;
             break;
         }
         case InterpolationNearestMode::ROUND_PREFER_FLOOR : {
@@ -284,11 +297,11 @@ void nnResample(InterpolateParamsCMX *params)
             break;
         }
         case InterpolationNearestMode::SIMPLE : {
-            roundingFunc = &std::floor;
+            roundingFunc = round_floor;
             break;
         }
         default : {
-            roundingFunc = &std::roundf;
+            roundingFunc = round_roundf;
             break;
         }
     }
