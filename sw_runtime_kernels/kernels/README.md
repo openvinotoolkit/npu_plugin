@@ -28,17 +28,17 @@ make
 where `src-dir-path` is an absolute path to [sw_runtime_kernels/kernels](.) directory, and options is -Doption list.
 option must be:
 
-- [BUILD_BLOB_BINARIES=ON|OFF](BUILD_BLOB_BINARIES=ON|OFF)
+- `BUILD_BLOB_BINARIES=ON|OFF`
   specifies whether to build 'blob' binary files (.text & .data)
-- [BUILD_JTAG_BINARIES-ON|OFF](BUILD_JTAG_BINARIES-ON|OFF)
+- `BUILD_JTAG_BINARIES=ON|OFF`
   specifies whether to build 'jtag tests' binary files (.xdata)
-- [BUILD_STD_KERNELS=ON|OFF](BUILD_STD_KERNELS=ON|OFF)
+- `BUILD_STD_KERNELS=ON|OFF`
   specifies whether to build the mostly kernels, including Management Kernel (nnActEntry) (description: descrip/*.txt)
-- [BUILD_PSS_KERNELS=ON|OFF](BUILD_PSS_KERNELS=ON|OFF)
+- `BUILD_PSS_KERNELS=ON|OFF`
   specifies whether to build PSS tests - targeted kernels (description: descrip/pss/*.txt)
-- [CUSTOM_KERNELS_DIR=descrip-dir-path](CUSTOM_KERNELS_DIR=descrip-dir-path)
-  specifies path to an alternative directory containing kernel description file(s). Default is [sw_runtime_kernels/kernels/descrip/](sw_runtime_kernels/kernels/descrip/)
-- [CUSTOM_KERNELS_LIST=kernels-list](CUSTOM_KERNELS_LIST=kernels-list)
+- `CUSTOM_KERNELS_DIR=descrip-dir-path`
+  specifies path to an alternative directory containing kernel description file(s). Default is [sw_runtime_kernels/kernels/descrip/](./descrip/)
+- `CUSTOM_KERNELS_LIST=kernels-list`
   specifies a semicolon-separated list of description file names (possibly in quotes), for kernels to build. Default: all files found in description directory
 
 ## Installation of binaries
