@@ -148,20 +148,19 @@ private:
 // given the stratey and the MPE mode
 template <class ConcreteOp>
 double BaseLayerStrategy::calculateMPEVolume(ConcreteOp op, VPU::MPEMode mpeMode, StringRef strategy) const {
-    double mpeHeight = 16;
-    double mpeWidth = 1;
-
     const auto outputTensorDistributionMode = getOutputTensorDistributionMode(strategy);
     const auto outputTensorNumTiles =
             getIntArrayAttr(op->getContext(), getOutputTensorNumTiles(_numClusters, strategy));
     const auto distributedOutputTensorType =
             createDistributedTensorType(op, op.output(), outputTensorDistributionMode, outputTensorNumTiles);
 
-    auto perClusterShape = distributedOutputTensorType.getLargestCompactShape();
-    double perClusterOutputWidth = perClusterShape[Dims4D::Act::W];
-    double perClusterOutputHeight = perClusterShape[Dims4D::Act::H];
-    double perClusterOutputChannels = perClusterShape[Dims4D::Act::C];
+    const auto perClusterShape = distributedOutputTensorType.getLargestCompactShape();
+    const auto perClusterOutputWidth = perClusterShape[Dims4D::Act::W];
+    const auto perClusterOutputHeight = perClusterShape[Dims4D::Act::H];
+    const auto perClusterOutputChannels = perClusterShape[Dims4D::Act::C];
 
+    int64_t mpeHeight;
+    int64_t mpeWidth;
     if (mpeMode == VPU::MPEMode::VECTOR) {
         mpeHeight = 16;
         mpeWidth = 1;
@@ -172,10 +171,10 @@ double BaseLayerStrategy::calculateMPEVolume(ConcreteOp op, VPU::MPEMode mpeMode
         VPUX_THROW("Unsupported MPE mode {0}", mpeMode);
     }
 
-    return _numDPUs * std::ceil((mpeHeight * std::ceil(perClusterOutputHeight / mpeHeight) * mpeWidth *
-                                 std::ceil(perClusterOutputWidth / mpeWidth) * _numChannelAlignment *
-                                 std::ceil(perClusterOutputChannels / _numChannelAlignment)) /
-                                _numDPUs);
+    return static_cast<double>(_numDPUs * divUp((mpeHeight * divUp(perClusterOutputHeight, mpeHeight) * mpeWidth *
+                                                 divUp(perClusterOutputWidth, mpeWidth) * _numChannelAlignment *
+                                                 divUp(perClusterOutputChannels, _numChannelAlignment)),
+                                                _numDPUs));
 }
 
 // The efficiency calculation that is being performed here can be described as follows.
@@ -183,8 +182,6 @@ double BaseLayerStrategy::calculateMPEVolume(ConcreteOp op, VPU::MPEMode mpeMode
 // hardware for each MPE Mode 4x4x16 and 16x1x16 is computed and the maximum is selected.
 template <class ConcreteOp>
 double BaseLayerStrategy::computeSplitEfficiency(ConcreteOp op, StringRef strategy) const {
-    double perClusterOutputTensorVolume = 0;
-
     const auto outputTensorDistributionMode = getOutputTensorDistributionMode(strategy);
     const auto outputTensorNumTiles =
             getIntArrayAttr(op->getContext(), getOutputTensorNumTiles(_numClusters, strategy));
@@ -192,11 +189,12 @@ double BaseLayerStrategy::computeSplitEfficiency(ConcreteOp op, StringRef strate
             createDistributedTensorType(op, op.output(), outputTensorDistributionMode, outputTensorNumTiles);
 
     const auto perClusterShape = distributedOutputTensorType.getLargestCompactShape();
-    perClusterOutputTensorVolume =
+    const auto perClusterOutputTensorVolume =
             perClusterShape[Dims4D::Act::H] * perClusterShape[Dims4D::Act::W] * perClusterShape[Dims4D::Act::C];
 
-    return std::max(perClusterOutputTensorVolume / calculateMPEVolume(op, VPU::MPEMode::MATRIX, strategy),
-                    perClusterOutputTensorVolume / calculateMPEVolume(op, VPU::MPEMode::VECTOR, strategy));
+    return std::max(
+            static_cast<double>(perClusterOutputTensorVolume) / calculateMPEVolume(op, VPU::MPEMode::MATRIX, strategy),
+            static_cast<double>(perClusterOutputTensorVolume) / calculateMPEVolume(op, VPU::MPEMode::VECTOR, strategy));
 }
 
 template <class ConcreteOp>
