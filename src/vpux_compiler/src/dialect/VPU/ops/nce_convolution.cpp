@@ -396,6 +396,10 @@ vpux::InputTiling vpux::VPU::NCEConvolutionOp::backInferTileInfo(const vpux::Til
 
     inputTiling.tiles.push_back(VPU::getWeightsTableTile(this, outputTile));
 
+    if (instructionListTable() != nullptr) {
+        inputTiling.tiles.push_back(VPU::getInstructionListTableTile(this, outputTile));
+    }
+
     if (activationWindow() != nullptr) {
         inputTiling.tiles.push_back(VPU::getActivationWindowTile(this, outputTile));
     }
