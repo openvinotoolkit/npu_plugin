@@ -38,13 +38,13 @@ class KmbUpstreamReduceStridedSliceSubGraphTest :
         public LayerTestsUtils::KmbLayerTestsCommon,
         public testing::WithParamInterface<UpstreamReduceStridedSliceTestParams> {
     void ValidateTestParams(UpstreamReduceStridedSliceTestParams testParams) {
-        ASSERT_NO_THROW(testParams._inDims.size() == 2);
-        ASSERT_NO_THROW(testParams._filterDims.size() == 2);
-        ASSERT_NO_THROW(testParams._kernelStrides.size() == 2);
-        ASSERT_NO_THROW(testParams._beginData.size() == 2);
-        ASSERT_NO_THROW(testParams._endData.size() == 2);
-        ASSERT_NO_THROW(testParams._beginMask.size() == 2);
-        ASSERT_NO_THROW(testParams._endMask.size() == 2);
+        ASSERT_EQ(testParams._inDims.size(), 2);
+        ASSERT_EQ(testParams._filterDims.size(), 2);
+        ASSERT_EQ(testParams._kernelStrides.size(), 2);
+        ASSERT_EQ(testParams._beginData.size(), 2);
+        ASSERT_EQ(testParams._endData.size(), 2);
+        ASSERT_EQ(testParams._beginMask.size(), 2);
+        ASSERT_EQ(testParams._endMask.size(), 2);
     }
 
     void SetUp() override {
