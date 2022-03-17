@@ -40,7 +40,7 @@ using namespace VPU;
 namespace {
 
 // up bound for workload numbers
-constexpr size_t MAX_SPLIT_NUMBER = 128;
+constexpr size_t MAX_SPLIT_NUMBER = 50;
 
 VPU::MPEMode getMpeModeForKmb(mlir::Type inElemType, mlir::Type outElemType, mlir::Operation*, ShapeRef shape) {
     if (inElemType.isa<mlir::quant::QuantizedType>() || outElemType.isa<mlir::quant::QuantizedType>()) {
