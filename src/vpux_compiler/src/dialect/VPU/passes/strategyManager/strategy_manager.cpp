@@ -77,7 +77,7 @@ void StrategyManager::assignMultiClusterStrategy() {
                     if (_maxPoolStrategy.isOperationSplitOverHeightCompatible(origOp.getOperation()) &&
                         _maxPoolStrategy.doesLayerFitIntoCMX(origOp.getOperation(), splitOverHeight)) {
                         setLayerStrategy(splitOverHeight, origOp.getOperation());
-                    } else {
+                    } else if (_maxPoolStrategy.doesLayerFitIntoCMX(origOp.getOperation(), clustering)) {
                         setLayerStrategy(clustering, origOp.getOperation());
                     }
                 })
@@ -85,7 +85,7 @@ void StrategyManager::assignMultiClusterStrategy() {
                     if (_eltwiseStrategy.isOperationSplitOverHeightCompatible(origOp.getOperation()) &&
                         _eltwiseStrategy.doesLayerFitIntoCMX(origOp.getOperation(), splitOverHeight)) {
                         setLayerStrategy(splitOverHeight, origOp.getOperation());
-                    } else {
+                    } else if (_eltwiseStrategy.doesLayerFitIntoCMX(origOp.getOperation(), clustering)) {
                         setLayerStrategy(clustering, origOp.getOperation());
                     }
                 })
@@ -94,7 +94,7 @@ void StrategyManager::assignMultiClusterStrategy() {
                         if (_convolutionStrategy.isOperationMultiClusterCompatible(origOp.getOperation())) {
                             auto bestStrategy = _convolutionStrategy.getOptimalLayerStrategy(origOp);
                             setLayerStrategy(bestStrategy, origOp.getOperation());
-                        } else {
+                        } else if (_convolutionStrategy.doesLayerFitIntoCMX(origOp.getOperation(), clustering)) {
                             setLayerStrategy(clustering, origOp.getOperation());
                         }
                     } else if (DimsOrder::fromValue(origOp.input()) == DimsOrder::NCHW) {
@@ -107,8 +107,8 @@ void StrategyManager::assignMultiClusterStrategy() {
                                                                      splitOverHeightOverlapped) &&
                             canUseCMajor) {
                             setLayerStrategy(splitOverHeightOverlapped, origOp.getOperation());
-                        } else {
-                            // setLayerStrategy(clustering, origOp.getOperation());
+                        } else if (_convolutionStrategy.doesLayerFitIntoCMX(origOp.getOperation(), clustering)) {
+                            setLayerStrategy(clustering, origOp.getOperation());
                         }
                     } else {
                         VPUX_THROW("Unsupported input layout {0} to convolution ",
@@ -119,7 +119,7 @@ void StrategyManager::assignMultiClusterStrategy() {
                     if (_depthConvolutionStrategy.isOperationMultiClusterCompatible(origOp.getOperation())) {
                         auto bestStrategy = _depthConvolutionStrategy.getOptimalLayerStrategy(origOp);
                         setLayerStrategy(bestStrategy, origOp.getOperation());
-                    } else {
+                    } else if (_depthConvolutionStrategy.doesLayerFitIntoCMX(origOp.getOperation(), clustering)) {
                         setLayerStrategy(clustering, origOp.getOperation());
                     }
                 })
