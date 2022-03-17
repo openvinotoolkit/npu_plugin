@@ -39,28 +39,28 @@ Aids the generation of release notes [Explanation of Target Platform](https://wi
 
 (Default filter: `*precommit*:*smoke*`. Empty functional_tests filter for any major changes.)
 
-* [ ] https://vpux-ci-vpuip.inn.intel.com/job/IE-MDK/job/manual/job/Ubuntu-Yocto/build?delay=0sec
-* [ ] https://vpux-ci-vpuip.inn.intel.com/job/IE-MDK/job/manual/job/Windows_dKMB/build?delay=0sec
-* [ ] https://vpux-ci-vpuip.inn.intel.com/job/IE-Packages/job/try/job/OpenVINO-Windows10/build?delay=0sec (with build_static enabled)
-* [ ] https://vpux-ci-vpuip.inn.intel.com/job/IE-Packages/job/try/job/OpenVINO-Ubuntu20/build?delay=0sec (with build_static enabled)
+* [ ] [Ubuntu-Yocto/build-number](https://vpux-ci-vpuip.inn.intel.com/job/IE-MDK/job/manual/job/Ubuntu-Yocto/build?delay=0sec)
+* [ ] [Windows_dKMB/build-number](https://vpux-ci-vpuip.inn.intel.com/job/IE-MDK/job/manual/job/Windows_dKMB/build?delay=0sec)
+* [ ] [OpenVINO-Windows10/build-number](https://vpux-ci-vpuip.inn.intel.com/job/IE-Packages/job/try/job/OpenVINO-Windows10/build?delay=0sec) (with build_static enabled)
+* [ ] [OpenVINO-Ubuntu20/build-number](https://vpux-ci-vpuip.inn.intel.com/job/IE-Packages/job/try/job/OpenVINO-Ubuntu20/build?delay=0sec) (with build_static enabled)
 
 #### Validation for compiler changes / performance affected
 
 (`*MLIR/precommit*` nets_included filter for VPUX compiler, `*MCM/precommit*` for MCM compiler.)
 
-* [ ] https://vpux-ci-vpuip.inn.intel.com/job/Nets-Validation/job/manual/job/Yocto/build?delay=0sec
+* [ ] [Nets-Validation/Yocto/build-number](https://vpux-ci-vpuip.inn.intel.com/job/Nets-Validation/job/manual/job/Yocto/build?delay=0sec)
 
 #### Validation for dKMB focused changes in compiler or major changes
 
 (Filters are the same as for Yocto.)
 
-* [ ] https://vpux-ci-vpuip.inn.intel.com/job/Nets-Validation/job/manual/job/Windows/build?delay=0sec
+* [ ] [Nets-Validation/Windows/build-number](https://vpux-ci-vpuip.inn.intel.com/job/Nets-Validation/job/manual/job/Windows/build?delay=0sec)
 
 #### Compilation and single-image test Validation on moviSim for MTL related changes
 
 (Default filter: `*MTL*`)
 
-* [ ] https://vpux-ci-vpuip.inn.intel.com/job/Nets-Validation/job/manual/job/MoviSim/build?delay=0sec
+* [ ] [Nets-Validation/MoviSim/build-number](https://vpux-ci-vpuip.inn.intel.com/job/Nets-Validation/job/manual/job/MoviSim/build?delay=0sec)
 
 ## Code Review Survey (Copy and Complete in your code review)
 [Explanation of P1/P2/P3/P4 Defects](https://wiki.ith.intel.com/pages/viewpage.action?pageId=1684473024)
