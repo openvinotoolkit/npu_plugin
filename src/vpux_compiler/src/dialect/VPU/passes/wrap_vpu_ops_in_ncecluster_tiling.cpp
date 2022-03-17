@@ -77,15 +77,26 @@ mlir::LogicalResult NCEConvolutionRewriter::matchAndRewrite(NCEConvolutionOp ori
     auto outputTensorNumTiles = getIntArrayAttr(origOp.getContext(),
                                                 getOutputTensorNumTiles(origOp.getOperation(), _numClusters, strategy));
 
-    auto activationAlignment = getActivationTensorAlignment(strategy);
-    auto weightAlignment = getWeightsTensorAlignment(strategy);
     const auto arch = VPU::getArch(origOp.getOperation());
     const auto canUseCMajor =
             VPU::NCEInvariant::isChannelMajorCompatible(arch, origOp.input().getType().cast<vpux::NDTypeInterface>());
 
-    if (activationAlignment.hasValue()) {
-        activationAlignmentAttr = getIntArrayAttr(origOp.getContext(), activationAlignment.getValue());
+    if (strategy == splitOverKernel) {
+        auto activationAlignment =
+                getActivationTensorAlignment(origOp.getOperation(), strategy, false, activationTensorNumTiles);
+        if (activationAlignment.hasValue()) {
+            activationAlignmentAttr = getIntArrayAttr(origOp.getContext(), activationAlignment.getValue());
+        }
+    } else if (strategy == splitOverHeight) {
+        auto activationAlignment =
+                getActivationTensorAlignment(origOp.getOperation(), strategy, !canUseCMajor, activationTensorNumTiles);
+        if (activationAlignment.hasValue()) {
+            activationAlignmentAttr = getIntArrayAttr(origOp.getContext(), activationAlignment.getValue());
+        }
     }
+
+    auto weightAlignment = getWeightsTensorAlignment(strategy);
+
     if (weightAlignment.hasValue()) {
         weightAlignmentAttr = getIntArrayAttr(origOp.getContext(), weightAlignment.getValue());
     }
@@ -193,7 +204,8 @@ mlir::LogicalResult NCEDepthConvolutionRewriter::matchAndRewrite(NCEDepthConvolu
     auto outputTensorNumTiles = getIntArrayAttr(origOp.getContext(),
                                                 getOutputTensorNumTiles(origOp.getOperation(), _numClusters, strategy));
 
-    auto activationAlignment = getActivationTensorAlignment(strategy);
+    auto activationAlignment =
+            getActivationTensorAlignment(origOp.getOperation(), strategy, false, activationTensorNumTiles);
     auto weightAlignment = getWeightsTensorAlignment(strategy);
 
     if (activationAlignment.hasValue()) {
@@ -290,7 +302,8 @@ mlir::LogicalResult NCEMaxPoolRewriter::matchAndRewrite(NCEMaxPoolOp origOp, mli
     auto outputTensorNumTiles = getIntArrayAttr(origOp.getContext(),
                                                 getOutputTensorNumTiles(origOp.getOperation(), _numClusters, strategy));
 
-    auto activationAlignment = getActivationTensorAlignment(strategy);
+    auto activationAlignment =
+            getActivationTensorAlignment(origOp.getOperation(), strategy, false, activationTensorNumTiles);
     auto weightAlignment = getWeightsTensorAlignment(strategy);
 
     if (activationAlignment.hasValue()) {
@@ -377,7 +390,8 @@ mlir::LogicalResult NCEEltwiseRewriter::matchAndRewrite(NCEEltwiseOp origOp, mli
     auto outputTensorNumTiles = getIntArrayAttr(origOp.getContext(),
                                                 getOutputTensorNumTiles(origOp.getOperation(), _numClusters, strategy));
 
-    auto activationAlignment = getActivationTensorAlignment(strategy);
+    auto activationAlignment =
+            getActivationTensorAlignment(origOp.getOperation(), strategy, false, activationTensorNumTiles);
 
     if (activationAlignment.hasValue()) {
         activationAlignmentAttr = getIntArrayAttr(origOp.getContext(), activationAlignment.getValue());

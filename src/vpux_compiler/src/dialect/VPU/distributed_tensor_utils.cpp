@@ -55,11 +55,26 @@ SmallVector<int64_t> vpux::VPU::getActivationTensorNumTiles(int64_t numClustersA
     }
 }
 
-Optional<SmallVector<int64_t>> vpux::VPU::getActivationTensorAlignment(StringRef strategy) {
+Optional<SmallVector<int64_t>> vpux::VPU::getActivationTensorAlignment(mlir::Operation* op, StringRef strategy,
+                                                                       bool needAlignment, mlir::ArrayAttr numTiles) {
     if (strategy == splitOverKernel) {
-        return SmallVector<int64_t>{1, 16, 1, 1};
+        return SmallVector<int64_t>({1, 16, 1, 1});
+    } else if (strategy == splitOverHeight) {
+        auto kernel = getKernelSize(op);
+        auto inputShape = getInputShape(op);
+        auto alignment = SmallVector<int64_t>(numTiles.size(), 1);
+        const auto numTilesArray = parseIntArrayAttr<int64_t>(numTiles);
+        if (numTilesArray[Dims4D::Act::H.ind()] > 1 && kernel && needAlignment) {
+            const auto kernelArray = parseIntArrayAttr<int64_t>(kernel);
+            const auto KY = kernelArray[0];
+            if (KY > 1) {
+                alignment[Dims4D::Act::H.ind()] = getSOHPerClusterHeightAlignment(inputShape[Dims4D::Act::W]);
+            }
+        }
+        return alignment;
+    } else {
+        return SmallVector<int64_t>({1, 1, 1, 1});
     }
-    return None;
 }
 
 SmallVector<int64_t> vpux::VPU::getOutputTensorNumTiles(mlir::Operation* op, int64_t numClustersAvailableForCompilation,
@@ -237,6 +252,24 @@ mlir::ArrayAttr vpux::VPU::getKernelSize(mlir::Operation* origOp) {
         return maxPoolOp.kernel_size();
     } else if (auto eltwiseOp = mlir::dyn_cast<NCEEltwiseOp>(origOp)) {
         return nullptr;
+    } else {
+        VPUX_THROW("Attempting to get kernel size for operation {0}, which is not a NCE Task", origOp->getName());
+    }
+}
+
+ShapeRef vpux::VPU::getInputShape(mlir::Operation* origOp) {
+    if (auto depthwiseConvolutionOp = mlir::dyn_cast<NCEDepthConvolutionOp>(origOp)) {
+        const auto inputShape = getShape(depthwiseConvolutionOp.input());
+        return inputShape;
+    } else if (auto convolutionOp = mlir::dyn_cast<NCEConvolutionOp>(origOp)) {
+        const auto inputShape = getShape(convolutionOp.input());
+        return inputShape;
+    } else if (auto maxPoolOp = mlir::dyn_cast<NCEMaxPoolOp>(origOp)) {
+        const auto inputShape = getShape(maxPoolOp.input());
+        return inputShape;
+    } else if (auto eltwiseOp = mlir::dyn_cast<NCEEltwiseOp>(origOp)) {
+        const auto inputShape = getShape(eltwiseOp.input1());
+        return inputShape;
     } else {
         VPUX_THROW("Attempting to get kernel size for operation {0}, which is not a NCE Task", origOp->getName());
     }

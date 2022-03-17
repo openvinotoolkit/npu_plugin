@@ -41,7 +41,8 @@ constexpr StringLiteral clustering = "Clustering";
 
 int64_t getNumberOfClustersToAvoidAlignment(int64_t outputChannels, int64_t numClustersForCompilation);
 SmallVector<int64_t> getActivationTensorNumTiles(int64_t numClustersAvailableForCompilation, StringRef strategy);
-Optional<SmallVector<int64_t>> getActivationTensorAlignment(StringRef strategy);
+Optional<SmallVector<int64_t>> getActivationTensorAlignment(mlir::Operation* op, StringRef strategy, bool needAlignment,
+                                                            mlir::ArrayAttr numTiles);
 SmallVector<int64_t> getOutputTensorNumTiles(mlir::Operation* op, int64_t numClustersAvailableForCompilation,
                                              StringRef strategy);
 SmallVector<int64_t> getWeightsTensorNumTiles(mlir::Operation* op, int64_t numClustersAvailableForCompilation,
@@ -56,6 +57,7 @@ DistributionMode getOutputTensorDistributionMode(StringRef strategy);
 DistributionMode getActivationWindowTensorDistributionMode(StringRef strategy);
 NCEClusterTilingOp createDistributedCopyOut(mlir::Operation* origOp, NCEClusterTilingOp clusterTilingOp);
 mlir::ArrayAttr getKernelSize(mlir::Operation* origOp);
+ShapeRef getInputShape(mlir::Operation* origOp);
 int64_t getSOHPerClusterHeightAlignment(int64_t inputWidth);
 bool isSOHSupportedByDPU(ShapeRef inputShape, int64_t KY, int64_t numClusters, bool DWTypeOp);
 
@@ -145,8 +147,8 @@ DistributedTensorType createDistributedTensorType(ConcreteOp origOp, mlir::Value
                                            optimalNumberOfClusters, alignment, origOp.getContext());
     } else if (VPU ::bitEnumContains(distributionMode, VPU::DistributionMode::SEGMENTED)) {
         // Add height alignment
-        // On the release branch, the alignment is created and added here. 
-        // Now alignment is passed as a parameter. 
+        // On the release branch, the alignment is created and added here.
+        // Now alignment is passed as a parameter.
         // This could could be moved where the alignment that is passed to this fucntion is created
         // Instead of modifying here and adding the height
         if (alignment != nullptr) {
