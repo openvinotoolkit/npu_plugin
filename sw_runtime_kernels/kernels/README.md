@@ -43,9 +43,12 @@ option must be:
 
 ## Installation of binaries
 
-```
-make install
-```
+Built binaries copied to target directories automatically. To specify where we want to place the binaries, two options can be used:
+
+- [TARGET_BINARY_DIR=target-binary-dir](TARGET_BINARY_DIR=target-binary-dir)
+  specifies where to place built .text & .data files (if any). Default is ${src-dir-path}/prebuild/act_shave_bin
+- [TARGET_JTAG_DIR=target-jtag-dir](TARGET_JTAG_DIR=target-jtag-dir)
+  specifies where to place built .xdata files (if any). Default is ${target-binary-dir}/..
 
 ## Kernel description files (descrip/*.txt)
 
@@ -83,6 +86,10 @@ Variables intended for use/set in description files:
 - [extra_src_list](extra_src_list)
   a string which specifies an additional C/C++ source files (absolute paths) which will be compiled and linked to "${kernel_src}" file.
   List must be in the cmake form ("src1;src2;etc"), it is parsed automatically.
+- [kernel_descrip_path](kernel_descrip_path)
+  a string which specifies an absolute path to description file directory; can be used to include another (e.g. 'common') description file.
+- [binary_subdir](binary_subdir)
+  a string which specifies a particular subdirectory relative to target-binary-dir directory (i.e. ${target-binary-dir}/${binary_subdir}). See PSS description files as an examples.
 
 Examples:
 
