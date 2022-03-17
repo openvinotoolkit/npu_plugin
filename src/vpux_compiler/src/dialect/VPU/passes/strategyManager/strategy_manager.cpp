@@ -77,7 +77,7 @@ void StrategyManager::assignMultiClusterStrategy() {
                     if (_maxPoolStrategy.isOperationSplitOverHeightCompatible(origOp.getOperation()) &&
                         _maxPoolStrategy.doesLayerFitIntoCMX(origOp.getOperation(), splitOverHeight)) {
                         setLayerStrategy(splitOverHeight, origOp.getOperation());
-                    } else {
+                    } else if (_maxPoolStrategy.doesLayerFitIntoCMX(origOp.getOperation(), clustering)) {
                         setLayerStrategy(clustering, origOp.getOperation());
                     }
                 })
@@ -85,7 +85,7 @@ void StrategyManager::assignMultiClusterStrategy() {
                     if (_eltwiseStrategy.isOperationSplitOverHeightCompatible(origOp.getOperation()) &&
                         _eltwiseStrategy.doesLayerFitIntoCMX(origOp.getOperation(), splitOverHeight)) {
                         setLayerStrategy(splitOverHeight, origOp.getOperation());
-                    } else {
+                    } else if (_eltwiseStrategy.doesLayerFitIntoCMX(origOp.getOperation(), clustering)) {
                         setLayerStrategy(clustering, origOp.getOperation());
                     }
                 })
@@ -94,7 +94,7 @@ void StrategyManager::assignMultiClusterStrategy() {
                         if (_convolutionStrategy.isOperationMultiClusterCompatible(origOp.getOperation())) {
                             auto bestStrategy = _convolutionStrategy.getOptimalLayerStrategy(origOp);
                             setLayerStrategy(bestStrategy, origOp.getOperation());
-                        } else {
+                        } else if (_convolutionStrategy.doesLayerFitIntoCMX(origOp.getOperation(), clustering)) {
                             setLayerStrategy(clustering, origOp.getOperation());
                         }
                     } else if (DimsOrder::fromValue(origOp.input()) == DimsOrder::NCHW) {
@@ -102,12 +102,12 @@ void StrategyManager::assignMultiClusterStrategy() {
                         const auto canUseCMajor = VPU::NCEInvariant::isChannelMajorCompatible(
                                 arch, origOp.input().getType().cast<vpux::NDTypeInterface>());
 
-                        if (_convolutionStrategy.isOperationSplitOverHeightCompatible(origOp.getOperation()) &&
+                        if (canUseCMajor &&
+                            _convolutionStrategy.isOperationSplitOverHeightCompatible(origOp.getOperation()) &&
                             _convolutionStrategy.doesLayerFitIntoCMX(origOp.getOperation(),
-                                                                     splitOverHeightOverlapped) &&
-                            canUseCMajor) {
+                                                                     splitOverHeightOverlapped)) {
                             setLayerStrategy(splitOverHeightOverlapped, origOp.getOperation());
-                        } else {
+                        } else if (_convolutionStrategy.doesLayerFitIntoCMX(origOp.getOperation(), clustering)) {
                             setLayerStrategy(clustering, origOp.getOperation());
                         }
                     } else {
@@ -119,6 +119,8 @@ void StrategyManager::assignMultiClusterStrategy() {
                     if (_depthConvolutionStrategy.isOperationMultiClusterCompatible(origOp.getOperation())) {
                         auto bestStrategy = _depthConvolutionStrategy.getOptimalLayerStrategy(origOp);
                         setLayerStrategy(bestStrategy, origOp.getOperation());
+                    } else if (_depthConvolutionStrategy.doesLayerFitIntoCMX(origOp.getOperation(), clustering)) {
+                        setLayerStrategy(clustering, origOp.getOperation());
                     }
                 })
                 .Default([this](mlir::Operation* unknownOp) -> void {
@@ -147,4 +149,25 @@ void StrategyManager::setLayerStrategy(StringRef strategy, mlir::Operation* orig
     } else {
         VPUX_THROW("Attempting to assign an invalid strategy to operation {0}", origOp->getName());
     }
+}
+
+// The function computes the actual output tensor volume (i.e. computation that is performed)
+// given the stratey and the MPE mode
+double BaseLayerStrategy::calculateMPEVolume(VPU::MPEMode mpeMode, Shape shape) const {
+    int64_t mpeHeight;
+    int64_t mpeWidth;
+    if (mpeMode == VPU::MPEMode::VECTOR) {
+        mpeHeight = 16;
+        mpeWidth = 1;
+    } else if (mpeMode == VPU::MPEMode::MATRIX) {
+        mpeHeight = 4;
+        mpeWidth = 4;
+    } else {
+        VPUX_THROW("Unsupported MPE mode {0}", mpeMode);
+    }
+
+    return static_cast<double>(_numDPUs * divUp((mpeHeight * divUp(shape[Dims4D::Act::H], mpeHeight) * mpeWidth *
+                                                 divUp(shape[Dims4D::Act::W], mpeWidth) * _numChannelAlignment *
+                                                 divUp(shape[Dims4D::Act::C], _numChannelAlignment)),
+                                                _numDPUs));
 }
