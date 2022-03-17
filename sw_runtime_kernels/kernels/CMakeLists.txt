@@ -198,8 +198,6 @@ foreach(kernel_descrip ${kernel_descrip_list})
 
   if (BUILD_BLOB_BINARIES OR BUILD_JTAG_BINARIES)
     set(obj_file "${kernel_src}${kernel_cpu_suffix}${obj_suffix}")
-    set(obj_path "${CMAKE_BINARY_DIR}/${obj_file}")
-    message(STATUS "obj = ${obj_path}")
 
     set(elf_file "${kernel_name}${kernel_cpu_suffix}${elf_suffix}")
     set(elf_path "${CMAKE_BINARY_DIR}/${elf_file}")
