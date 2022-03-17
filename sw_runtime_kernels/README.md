@@ -56,12 +56,12 @@ To prepare binaries the following steps should be done:
 For detailed description of cmake options and corresponding examples, see [separate readme file](kernels/README.md)
 
 The files are located in [`sw_runtime_kernels/kernels/prebuild`](kernels/prebuild) directory
-and have names `sk.<entry point>.<platform>.<text or data as etension>.xdat`.
+and have names `sk.<entry point>.<platform>.<text or data as extension>.xdat`.
 In each file the array filled by corresponding kernel segment and its size are defined in c/c++ syntax.
 The array and size have the names
 ```
-  unsigned char sk_<entry point>_<platform>_<text or data as etension>[] = { <hex values> };
-  unsigned int sk_<entry point>_<platform>_<text or data as etension>_len = <len of array>;
+  unsigned char sk_<entry point>_<platform>_<text or data as extension>[] = { <hex values> };
+  unsigned int sk_<entry point>_<platform>_<text or data as extension>_len = <len of array>;
 ```
 
 #### Kernel creating/porting 
