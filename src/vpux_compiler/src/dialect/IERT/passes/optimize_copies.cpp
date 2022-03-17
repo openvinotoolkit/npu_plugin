@@ -63,8 +63,8 @@ mlir::LogicalResult CopyOpSequence::matchAndRewrite(IERT::CopyOp copyOp, mlir::P
             // CMX Concat case with subView, update the buffers used
             if (auto copySubView = copyOp.output_buff().getDefiningOp<IERT::SubViewOp>()) {
                 // case with subView - retrieve operations to be re-linked
-                auto parentOp = copyOp.input().getDefiningOp<IERT::LayerOpInterface>();
-                if (parentOp == nullptr) {
+                auto parentNCE = copyOp.input().getDefiningOp<VPUIP::NCEClusterTaskOp>();
+                if (parentNCE == nullptr) {
                     return mlir::failure();
                 }
                 auto masterBuffer = copySubView.source().getDefiningOp<mlir::memref::AllocOp>();
@@ -72,11 +72,9 @@ mlir::LogicalResult CopyOpSequence::matchAndRewrite(IERT::CopyOp copyOp, mlir::P
                     return mlir::failure();
                 }
                 // replace the copy with the subView
-                copySubView->moveBefore(parentOp);
-                parentOp->getResult(0).setType(copySubView.getType());
-                if (auto parentNCE = copyOp.input().getDefiningOp<VPUIP::NCEClusterTaskOp>()) {
-                    parentNCE.output_buff().replaceAllUsesWith(copySubView);
-                }
+                copySubView->moveBefore(parentNCE);
+                parentNCE->getResult(0).setType(copySubView.getType());
+                parentNCE.output_buff().replaceAllUsesWith(copySubView);
                 copyOp.output().replaceAllUsesWith(copyOp.input());
 
                 // update IR location of the master buffer
