@@ -48,6 +48,13 @@ void vpux::VPUIP::NCEClusterTilingOp::getSuccessorRegions(Optional<unsigned> ind
 //
 
 mlir::Operation* vpux::VPUIP::NCEClusterTilingOp::getInnerTaskOp() {
+    auto* bodyBlock = &body().front();
+    for (auto& op : bodyBlock->getOperations()) {
+        // propagate implicit operations
+        if (!IERT::isPureViewOp(&op)) {
+            return &op;
+        }
+    }
     return &body().front().front();
 }
 
