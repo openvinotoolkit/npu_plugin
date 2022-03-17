@@ -48,7 +48,7 @@ Json readManualStrategyJSON(StringRef fileName) {
     return json;
 }
 
-void writeManualStrategyJSON(StringRef fileName, Json json) {
+void writeManualStrategyJSON(StringRef fileName, Json& json) {
     VPUX_THROW_WHEN(fileName.empty(), "Output file name for output strategy json was not provided");
 
     std::ofstream o(fileName.data());
@@ -74,10 +74,9 @@ Json convertAttrToString(mlir::Attribute attr) {
         return tilingStrategy;
     }
     VPUX_THROW("Conversion from this attribute '{0}' to string not implemented", attr);
-    // return nullptr;
 }
 
-mlir::Attribute convertJSONToAttr(mlir::Attribute oldAttr, Json newAttrVal) {
+mlir::Attribute convertJSONToAttr(mlir::Attribute oldAttr, Json& newAttrVal) {
     if (oldAttr.isa<mlir::StringAttr>()) {
         // cast to std::string so it can be compared with std::string
         return mlir::StringAttr::get(oldAttr.getContext(), static_cast<std::string>(newAttrVal.begin().value()));
@@ -90,11 +89,10 @@ mlir::Attribute convertJSONToAttr(mlir::Attribute oldAttr, Json newAttrVal) {
         return getIntArrayAttr(oldAttr.getContext(), newShape);
     }
     VPUX_THROW("Conversion from this attribute '{0}' to string not implemented", oldAttr);
-    // return nullptr;
 }
 
-Json createStrategyJSONFromOperations(Json json, llvm::DenseMap<mlir::Location, mlir::Operation*> operations,
-                                      SmallVector<StringRef> strategyAttributes) {
+Json createStrategyJSONFromOperations(Json& json, llvm::DenseMap<mlir::Location, mlir::Operation*>& operations,
+                                      ArrayRef<StringRef> strategyAttributes) {
     for (auto& op : operations) {
         const auto opName = vpux::stringifyLocation(op.first);
         auto parentClusterOp = op.second->getParentOfType<VPU::NCEClusterTilingOp>();
@@ -118,7 +116,7 @@ Json createStrategyJSONFromOperations(Json json, llvm::DenseMap<mlir::Location, 
     return json;
 }
 
-void overwriteManualStrategy(Json manualStrategy, llvm::DenseMap<mlir::Location, mlir::Operation*> operations) {
+void overwriteManualStrategy(Json& manualStrategy, llvm::DenseMap<mlir::Location, mlir::Operation*>& operations) {
     for (auto& op : operations) {
         const auto opName = vpux::stringifyLocation(op.first);
         // check if manual strategy for layer exists
