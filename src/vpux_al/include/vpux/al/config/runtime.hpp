@@ -381,7 +381,7 @@ struct PRINT_PROFILING final : OptionBase<PRINT_PROFILING, InferenceEngine::VPUX
     }
 
     static InferenceEngine::VPUXConfigParams::ProfilingOutputTypeArg defaultValue() {
-        return InferenceEngine::VPUXConfigParams::ProfilingOutputTypeArg::NONE;
+        return cvtProfilingOutputType(ov::intel_vpux::ProfilingOutputTypeArg::NONE);
     }
 
     static InferenceEngine::VPUXConfigParams::ProfilingOutputTypeArg parse(StringRef val);
