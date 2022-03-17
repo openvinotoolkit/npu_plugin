@@ -78,7 +78,7 @@ void StrategyManager::assignMultiClusterStrategy() {
                         _maxPoolStrategy.doesLayerFitIntoCMX(origOp.getOperation(), splitOverHeight)) {
                         setLayerStrategy(splitOverHeight, origOp.getOperation());
                     } else if (_maxPoolStrategy.doesLayerFitIntoCMX(origOp.getOperation(), clustering)) {
-                        // setLayerStrategy(clustering, origOp.getOperation());
+                        setLayerStrategy(clustering, origOp.getOperation());
                     }
                 })
                 .Case<NCEEltwiseOp>([this](NCEEltwiseOp origOp) {
@@ -86,7 +86,7 @@ void StrategyManager::assignMultiClusterStrategy() {
                         _eltwiseStrategy.doesLayerFitIntoCMX(origOp.getOperation(), splitOverHeight)) {
                         setLayerStrategy(splitOverHeight, origOp.getOperation());
                     } else if (_eltwiseStrategy.doesLayerFitIntoCMX(origOp.getOperation(), clustering)) {
-                        // setLayerStrategy(clustering, origOp.getOperation());
+                        setLayerStrategy(clustering, origOp.getOperation());
                     }
                 })
                 .Case<NCEConvolutionOp>([this](NCEConvolutionOp origOp) {
@@ -95,10 +95,9 @@ void StrategyManager::assignMultiClusterStrategy() {
                             auto bestStrategy = _convolutionStrategy.getOptimalLayerStrategy(origOp);
                             setLayerStrategy(bestStrategy, origOp.getOperation());
                         } else if (_convolutionStrategy.doesLayerFitIntoCMX(origOp.getOperation(), clustering)) {
-                            // setLayerStrategy(clustering, origOp.getOperation());
+                            setLayerStrategy(clustering, origOp.getOperation());
                         }
                     } else if (DimsOrder::fromValue(origOp.input()) == DimsOrder::NCHW) {
-                        return;
                         const auto arch = VPU::getArch(origOp.getOperation());
                         const auto canUseCMajor = VPU::NCEInvariant::isChannelMajorCompatible(
                                 arch, origOp.input().getType().cast<vpux::NDTypeInterface>());
@@ -121,7 +120,7 @@ void StrategyManager::assignMultiClusterStrategy() {
                         auto bestStrategy = _depthConvolutionStrategy.getOptimalLayerStrategy(origOp);
                         setLayerStrategy(bestStrategy, origOp.getOperation());
                     } else if (_depthConvolutionStrategy.doesLayerFitIntoCMX(origOp.getOperation(), clustering)) {
-                        // setLayerStrategy(clustering, origOp.getOperation());
+                        setLayerStrategy(clustering, origOp.getOperation());
                     }
                 })
                 .Default([this](mlir::Operation* unknownOp) -> void {
