@@ -1,5 +1,3 @@
-# -*- Cmake -*-
-
 #
 # Copyright 2022 Intel Corporation.
 #
