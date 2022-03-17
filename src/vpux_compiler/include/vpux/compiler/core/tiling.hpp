@@ -48,6 +48,23 @@ struct TileInfo final {
     void printFormat(llvm::raw_ostream& stream) const {
         printTo(stream, "Tile [shape = {0}, offsets = {1}, axis = {2}]", shape, offsets, axis);
     }
+
+    bool operator==(const TileInfo& other) const {
+        return shape == other.shape && offsets == other.offsets && axis == other.axis;
+    }
+
+    bool operator!=(const TileInfo& other) const {
+        return !(*this == other);
+    }
+
+    bool operator<(const TileInfo& other) const {
+        if (shape != other.shape) {
+            return shape < other.shape;
+        } else if (offsets != other.offsets) {
+            return offsets < other.offsets;
+        }
+        return axis < other.axis;
+    }
 };
 
 // Operation output tiles information

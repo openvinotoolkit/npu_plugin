@@ -19,6 +19,7 @@
 #include "vpux/compiler/dialect/const/ops.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/error.hpp"
+#include "vpux/compiler/utils/factors.hpp"
 #include "vpux/compiler/utils/quantization.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
 #include "vpux/compiler/utils/types.hpp"
@@ -37,16 +38,6 @@ namespace {
 constexpr int64_t PADDING_RIGHT = 1;
 constexpr int64_t PADDING_BOT = 3;
 
-struct Factors {
-    int64_t larger = 0;
-    int64_t smaller = 0;
-
-    Factors() {
-    }
-    Factors(int64_t larger, int64_t smaller): larger(larger), smaller(smaller) {
-    }
-};
-
 bool checkFactors(const Factors& factors, int64_t kernelSize = 0) {
     const auto hasZeroFactors = factors.larger == 0 || factors.smaller == 0;
     const auto factorLessThanKernelSize = factors.larger * factors.smaller < kernelSize;
@@ -57,16 +48,6 @@ bool checkFactors(const Factors& factors, int64_t kernelSize = 0) {
     // those last 2 checks have the main scope of finding the best suited factors:
     // if one of the last 2 checks fails it means that the gap between product of
     // those 2 factors and original kernel size is too big, which generates larger overlapping area
-}
-
-SmallVector<Factors> getFactorsList(int64_t n) {
-    SmallVector<Factors> factors;
-    for (int64_t i = 2; i <= sqrt(n); i++) {
-        if (n % i == 0) {
-            factors.emplace_back(n / i, i);  // larger, smaller
-        }
-    }
-    return factors;
 }
 
 Factors getFactorsAround(int64_t kernelSize, int64_t pad) {

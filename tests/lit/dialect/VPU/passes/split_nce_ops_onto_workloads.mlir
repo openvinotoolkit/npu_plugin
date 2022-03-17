@@ -107,11 +107,11 @@ func @DepthConvRewriter(%arg0: tensor<1x16x40x80xf16, {order = #NHWC}>) -> tenso
     // CHECK-SAME:      pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64},
     // CHECK-SAME:      strides = [1, 1]}
     // CHECK-SAME:      -> tensor<1x16x37x73xf16, {mem_space = @CMX_NN, order = #NHWC}> {
-    // CHECK:               DPU.Workload [0, 0, 0, 0] [1, 16, 7, 73] {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64} "VECTOR_FP16"
-    // CHECK:               DPU.Workload [0, 0, 7, 0] [1, 16, 7, 73] {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64} "VECTOR_FP16"
-    // CHECK:               DPU.Workload [0, 0, 14, 0] [1, 16, 7, 73] {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64} "VECTOR_FP16"
-    // CHECK:               DPU.Workload [0, 0, 21, 0] [1, 16, 7, 73] {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64} "VECTOR_FP16"
-    // CHECK:               DPU.Workload [0, 0, 28, 0] [1, 16, 9, 73] {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64} "VECTOR_FP16"
+    // CHECK:               DPU.Workload [0, 0, 0, 0] [1, 16, 37, 16] {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64} "VECTOR_FP16"
+    // CHECK:               DPU.Workload [0, 0, 0, 16] [1, 16, 37, 16] {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64} "VECTOR_FP16"
+    // CHECK:               DPU.Workload [0, 0, 0, 32] [1, 16, 37, 16] {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64} "VECTOR_FP16"
+    // CHECK:               DPU.Workload [0, 0, 0, 48] [1, 16, 37, 16] {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64} "VECTOR_FP16"
+    // CHECK:               DPU.Workload [0, 0, 0, 64] [1, 16, 37, 9] {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64} "VECTOR_FP16"
     // CHECK:           }
 
     // CHECK:       [[VAL5:%.+]] = IE.Copy([[VAL4]])
@@ -202,11 +202,11 @@ func @EltwiseAddRewriter(%arg0: tensor<1x64x28x28xf16, {order = #NHWC}>, %arg1: 
 
     // CHECK:       [[VAL2:%.+]] = VPU.NCE.Eltwise([[VAL0]], [[VAL1]]) {op_type = "ADD"}
     // CHECK-SAME:      -> tensor<1x64x28x28xf16, {mem_space = @CMX_NN, order = #NHWC}> {
-    // CHECK:               DPU.Workload [0, 0, 0, 0] [1, 64, 5, 28] {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64} "VECTOR_FP16"
-    // CHECK:               DPU.Workload [0, 0, 5, 0] [1, 64, 5, 28] {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64} "VECTOR_FP16"
-    // CHECK:               DPU.Workload [0, 0, 10, 0] [1, 64, 5, 28] {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64} "VECTOR_FP16"
-    // CHECK:               DPU.Workload [0, 0, 15, 0] [1, 64, 5, 28] {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64} "VECTOR_FP16"
-    // CHECK:               DPU.Workload [0, 0, 20, 0] [1, 64, 8, 28] {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64} "VECTOR_FP16"
+    // CHECK:               DPU.Workload [0, 0, 0, 0] [1, 64, 6, 28] {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64} "VECTOR_FP16"
+    // CHECK:               DPU.Workload [0, 0, 6, 0] [1, 64, 6, 28] {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64} "VECTOR_FP16"
+    // CHECK:               DPU.Workload [0, 0, 12, 0] [1, 64, 6, 28] {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64} "VECTOR_FP16"
+    // CHECK:               DPU.Workload [0, 0, 18, 0] [1, 64, 6, 28] {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64} "VECTOR_FP16"
+    // CHECK:               DPU.Workload [0, 0, 24, 0] [1, 64, 4, 28] {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64} "VECTOR_FP16"
     // CHECK:           }
 
     // CHECK:       [[VAL3:%.+]] = IE.Copy([[VAL2]])
