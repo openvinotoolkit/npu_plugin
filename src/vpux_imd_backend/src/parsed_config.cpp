@@ -42,7 +42,7 @@ IMD::LaunchMode vpux::IMD::LAUNCH_MODE::parse(StringRef val) {
 
 std::chrono::seconds vpux::IMD::MV_RUN_TIMEOUT::defaultValue() {
     using namespace std::chrono_literals;
-    static const auto RUN_TIMEOUT = std::chrono::duration_cast<std::chrono::seconds>(20min);
+    static const auto RUN_TIMEOUT = std::chrono::duration_cast<std::chrono::seconds>(120min);
     return RUN_TIMEOUT;
 }
 

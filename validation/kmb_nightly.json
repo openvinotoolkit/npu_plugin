@@ -11,7 +11,8 @@
             "extra_config" : {
                 "VPUX_COMPILER_TYPE": "MCM",
                 "PERFORMANCE_HINT": "LATENCY",
-                "VPUX_INFERENCE_SHAVES": "16"
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_IMD_MV_RUN_TIMEOUT": "3600"
             },
             "Compile" : {
                 "old_api" : true
@@ -317,18 +318,19 @@
             "ir" : "models/clientmodels/BDK4/yolo-v4-tiny/tf/FP16-INT8/yolo-v4-tiny.xml",
             "category" : "MCM/weekly_private/SKIP_WIN",
             "3720": {
-                "disabled" : true
+                "disabled" : false
             },
             "extra_config" : {
                 "VPUX_COMPILER_TYPE": "MCM",
                 "PERFORMANCE_HINT": "LATENCY",
-                "VPUX_INFERENCE_SHAVES": "16"
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_IMD_MV_RUN_TIMEOUT": "7200"
             },
             "Compile" : {
                 "old_api" : true
             },
             "BenchmarkApp" : {
-                "disabled" : true,
+                "disabled" : false,
                 "input_folder" : "416x416"
             },
             "NetTest": {
@@ -358,16 +360,17 @@
             "extra_config" : {
                 "VPUX_COMPILER_TYPE": "MLIR",
                 "PERFORMANCE_HINT": "THROUGHPUT",
-                "VPUX_INFERENCE_SHAVES": "16"
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_IMD_MV_RUN_TIMEOUT": "3600"
             },
             "NetTest-CalcRef" : {
-                "disabled" : true
+                "disabled" : false
             },
             "NetTest-Validate" : {
-                "disabled" : true
+                "disabled" : false
             },
             "BenchmarkApp" : {
-                "disabled" : true,
+                "disabled" : false,
                 "input_folder" : "416x416"
             },
             "AccuracyCheck" : {
@@ -4642,9 +4645,9 @@
             "name" : "MTL_FP16_INT8_yolo_v4_tiny",
             "ir" : "models/clientmodels/MTL_poweron/yolo-v4-tiny/tf/FP16-INT8/yolo-v4-tiny.xml",
             "category" : "MLIR",
-            "disabled" : true,
+            "disabled" : false,
             "3720": {
-                "disabled" : true
+                "disabled" : false
             },
             "extra_config" : {
                 "VPUX_COMPILER_TYPE": "MLIR",

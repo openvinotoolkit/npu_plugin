@@ -595,6 +595,7 @@ namespace shave_lib {
 
 extern "C" {
 void singleShaveInterpolate(uint32_t lParams) {
+    //if (1) return;
     const InterpolateParams* layerParams = reinterpret_cast<const InterpolateParams*>(lParams);
 
     half* p_act_data = (half*)(layerParams->input.dataAddr);
