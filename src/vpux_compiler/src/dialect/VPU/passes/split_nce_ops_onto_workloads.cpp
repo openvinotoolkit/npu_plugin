@@ -42,9 +42,16 @@ namespace {
 // up bound for workload numbers
 constexpr size_t MAX_SPLIT_NUMBER = 128;
 
-VPU::MPEMode getMpeModeForKmb(mlir::Type inElemType, mlir::Type outElemType, mlir::Operation*) {
+VPU::MPEMode getMpeModeForKmb(mlir::Type inElemType, mlir::Type outElemType, mlir::Operation*, ShapeRef shape) {
     if (inElemType.isa<mlir::quant::QuantizedType>() || outElemType.isa<mlir::quant::QuantizedType>()) {
-        return VPU::MPEMode::MATRIX;
+        const double W = static_cast<double>(shape[Dims4D::Act::W]);
+        const double H = static_cast<double>(shape[Dims4D::Act::H]);
+        // VPU::MPEMode::MATRIX process tensor using W=4 H=4 parts, calculate grid cells count for it
+        const double matrixPartsCount = std::ceil(W / 4.0) * std::ceil(H / 4.0);
+        // VPU::MPEMode::VECTOR process tensor using W=16 H=1 parts, calculate grid cells count for it
+        const double vectorPartsCount = std::ceil(W / 16.0) * H;
+        // Cells count is in direct ratio with work size, so choose smaller one
+        return (vectorPartsCount <= matrixPartsCount) ? VPU::MPEMode::VECTOR : VPU::MPEMode::MATRIX;
     }
 
     if (inElemType.isF16() || inElemType.isBF16() || outElemType.isF16() || outElemType.isBF16()) {
@@ -55,7 +62,7 @@ VPU::MPEMode getMpeModeForKmb(mlir::Type inElemType, mlir::Type outElemType, mli
     return VPU::MPEMode::VECTOR;
 }
 
-VPU::MPEMode getMpeModeForMtl(mlir::Type, mlir::Type, mlir::Operation* operation) {
+VPU::MPEMode getMpeModeForMtl(mlir::Type, mlir::Type, mlir::Operation* operation, ShapeRef) {
     if (mlir::isa<VPU::NCEConvolutionOp>(operation)) {
         return VPU::MPEMode::CUBOID_16x16;
     } else if (mlir::isa<VPU::NCEDepthConvolutionOp>(operation) || mlir::isa<VPU::NCEMaxPoolOp>(operation)) {
@@ -67,7 +74,7 @@ VPU::MPEMode getMpeModeForMtl(mlir::Type, mlir::Type, mlir::Operation* operation
     return VPU::MPEMode::CUBOID_16x16;
 }
 
-using GetMpeModeCb = VPU::MPEMode (*)(mlir::Type, mlir::Type, mlir::Operation*);
+using GetMpeModeCb = VPU::MPEMode (*)(mlir::Type, mlir::Type, mlir::Operation*, ShapeRef);
 
 const EnumMap<VPU::ArchKind, GetMpeModeCb> mpeMap = {
         {VPU::ArchKind::KMB, getMpeModeForKmb},
@@ -291,7 +298,7 @@ mlir::LogicalResult GenericNCERewrite<ConcreteOp>::matchAndRewrite(ConcreteOp or
     auto pads = getOpPadding(origOp);
 
     const auto mpeByType = mpeMap.at(_arch);
-    const auto mpeMode = mpeByType(inElemType, outElemType, origOp);
+    const auto mpeMode = mpeByType(inElemType, outElemType, origOp, outputShape);
 
     VPUIP::WorkloadCostParams params;
     params.mpeMode = mpeMode;
