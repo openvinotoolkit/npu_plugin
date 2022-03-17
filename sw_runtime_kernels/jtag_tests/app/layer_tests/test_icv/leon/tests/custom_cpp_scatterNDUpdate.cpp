@@ -48,12 +48,16 @@ struct ScatterNDUpdateTestParams
 {
     std::initializer_list<int32_t> inputDims;
     std::initializer_list<int32_t> indicesDims;
-    std::initializer_list<int32_t> updatesDims;
 };
 
 const std::initializer_list<ScatterNDUpdateTestParams> scatterNDUpdate_test_list =
     {
-        { {8, 3, 3},       {2, 2},         {3, 2}    },
+        //      3D input Tensor
+        { {3, 3, 3},       {3, 2, 2} },
+        { {8, 3, 3},       {2, 2}    },
+        // { {100, 50, 10},   {3, 2, 2} },
+        // { {1000, 90, 2},   {3, 2}    },
+        // { {1024, 100, 2},  {3, 2}    },
     };
 
 template <class SrcType>
@@ -85,6 +89,17 @@ class CustomCppScatterNDUpdateTest : public CustomCppTestBase<ScatterNDUpdateTes
         addLoop(m_testsLoop);
     }
 
+    void calcUpdatesDims(std::vector<int32_t> &inputDims, std::vector<int32_t> &indicesDims, std::vector<int32_t> &updatesDims){
+        // considering innermost to outermost way of working with shapes,
+        // updates shape must be input.dims[:input.ndims - indices.dims[0]] + indices.dims[1:]
+
+        for(size_t i = 0; i < inputDims.size() - indicesDims[0]; i++)
+            updatesDims.push_back(inputDims[i]);
+
+        for(size_t i = 1; i < indicesDims.size(); i++)
+            updatesDims.push_back(indicesDims[i]);
+    }
+
     void initData() override
     {
         printf("I am in initData()\n");
@@ -94,10 +109,12 @@ class CustomCppScatterNDUpdateTest : public CustomCppTestBase<ScatterNDUpdateTes
         initElfBuffer();
         initTestCase();
 
-        printf("I am in initData() end\n");
         std::vector<int32_t>  inputDims   = m_testsLoop.value().inputDims;
         std::vector<int32_t>  indicesDims = m_testsLoop.value().indicesDims;
-        std::vector<int32_t>  updatesDims = m_testsLoop.value().updatesDims;
+        std::vector<int32_t>  updatesDims;
+
+        // construct updates dims
+        calcUpdatesDims(inputDims, indicesDims, updatesDims);
 
         // construct output dims
         const auto& outputDims = inputDims;
@@ -206,9 +223,6 @@ class CustomCppScatterNDUpdateTest : public CustomCppTestBase<ScatterNDUpdateTes
 
         std::vector<int32_t> indices_dims(test_value.indicesDims.begin(),
                                           test_value.indicesDims.end());
-
-        std::vector<int32_t> updates_dims(test_value.updatesDims.begin(),
-                                          test_value.updatesDims.end());
 
         int last_idx_dim = indices_dims.front();
         int update_chunk_size = input_dims.size() - last_idx_dim;
