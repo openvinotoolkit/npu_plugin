@@ -47,7 +47,6 @@ public:
     explicit BaseLayerStrategy(mlir::FuncOp func, Logger log);
     virtual ~BaseLayerStrategy() = default;
 
-    virtual bool doesLayerFitIntoCMX(mlir::Operation* op, StringRef strategy) const = 0;
     virtual bool isOperationSplitOverHeightCompatible(mlir::Operation* op) const;
     virtual bool isOperationSplitOverKernelCompatible(mlir::Operation* op) const;
     virtual bool isOperationMultiClusterCompatible(mlir::Operation* op) const;
