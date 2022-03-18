@@ -16,7 +16,7 @@ func @SwapConcatWithLayer(%arg0: tensor<1x64x8x512xf16>, %arg1: tensor<1x64x1x51
     } : tensor<1x64x8x512xf16>, tensor<1x64x1x512xf16> -> tensor<1x64x9x512xf16>
 
     %PRELU = IE.LeakyRelu(%CONCAT) {
-        negative_slope = 0.000000e+00 : f64
+        negative_slope = 1.000000e-01 : f64
     } : tensor<1x64x9x512xf16> -> tensor<1x64x9x512xf16>
 
     %OUT_FQ = IE.FakeQuantize(%PRELU, %CST_FQ_LO, %CST_FQ_HI, %CST_FQ_LO, %CST_FQ_HI) {
@@ -34,20 +34,17 @@ func @SwapConcatWithLayer(%arg0: tensor<1x64x8x512xf16>, %arg1: tensor<1x64x1x51
     // CHECK-SAME:      dilations = [1, 1],
     // CHECK-SAME:      pads_begin = [0, 0],
     // CHECK-SAME:      pads_end = [0, 0],
+    // CHECK-SAME:      post_op = {attrs = {negative_slope = 1.000000e-01 : f64}, name = "IE.LeakyRelu"},
     // CHECK-SAME:      strides = [1, 1]
     // CHECK-SAME:  } : tensor<1x64x8x512xf16>, tensor<64x64x1x1xf16> -> tensor<1x64x8x512xf16>
 
-    // CHECK:   %[[PRELU_LEFT:.*]] = IE.LeakyRelu(%[[CONV]]) {
-    // CHECK-SAME:      negative_slope = 0.000000e+00 : f64
-    // CHECK-SAME:  } : tensor<1x64x8x512xf16> -> tensor<1x64x8x512xf16>
-
-    // CHECK:   %[[FQ_LEFT:.*]] = IE.FakeQuantize(%[[PRELU_LEFT]], %[[CST_FQ_LO]], %[[CST_FQ_HI]], %[[CST_FQ_LO]], %[[CST_FQ_HI]]) {
+    // CHECK:   %[[FQ_LEFT:.*]] = IE.FakeQuantize(%[[CONV]], %[[CST_FQ_LO]], %[[CST_FQ_HI]], %[[CST_FQ_LO]], %[[CST_FQ_HI]]) {
     // CHECK-SAME:      auto_broadcast = "NUMPY",
     // CHECK-SAME:      levels = 256 : i64
     // CHECK-SAME:  } : tensor<1x64x8x512xf16>, tensor<1x1x1x1xf16>, tensor<1x1x1x1xf16>, tensor<1x1x1x1xf16>, tensor<1x1x1x1xf16> -> tensor<1x64x8x512xf16>
 
     // CHECK:   %[[PRELU_RIGHT:.*]] = IE.LeakyRelu(%arg1) {
-    // CHECK-SAME:      negative_slope = 0.000000e+00 : f64
+    // CHECK-SAME:      negative_slope = 1.000000e-01 : f64
     // CHECK-SAME:  } : tensor<1x64x1x512xf16> -> tensor<1x64x1x512xf16>
 
     // CHECK:   %[[FQ_RIGHT:.*]] = IE.FakeQuantize(%[[PRELU_RIGHT]], %[[CST_FQ_LO]], %[[CST_FQ_HI]], %[[CST_FQ_LO]], %[[CST_FQ_HI]]) {
