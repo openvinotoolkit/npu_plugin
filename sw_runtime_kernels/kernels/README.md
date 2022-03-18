@@ -25,7 +25,7 @@ cmake src-dir-path [options]
 make
 ```
 
-where `src-dir-path` is an absolute path to [sw_runtime_kernels/kernels](.) directory, and options is -Doption list.
+where `src-dir-path` is a path to [sw_runtime_kernels/kernels](.) directory, and options is -Doption list.
 option must be:
 
 - `BUILD_BLOB_BINARIES=ON|OFF`
@@ -52,14 +52,14 @@ Built binaries are copied to target directories automatically. To specify where 
 
 ## Kernel description files (descrip/*.txt)
 
-Description file is the text file, which will be include()d into cmake script and customize build settings according to particular kernel.
+Description file is the text file, which will be included into cmake script by include() statement and customize build options according to particular kernel.
 Usually but not necessarily description file contains one or more set() or list() cmake statements which assign a values to a dedicated variables.
 As for cmake scripts, '#' character marks a comment line.
 
-CAUTION: since description file include()d into cmake script, it can't be isolated from cmake script context.
+CAUTION: since description file is included into cmake script, it can't be isolated from cmake script context.
 So, you can unintentionally change the behaviour of cmake and even make it wrong. Be careful!
 
-Variables intended for use/set in description files:
+Variables intended to be used/set in description files:
 
 - `kernel_entry`
   a string which specifies kernel entry point name. Optional; default is `"${kernel_src}"` without path and filename suffices (extensions).
@@ -88,6 +88,7 @@ Variables intended for use/set in description files:
   The list must be in the cmake form (`"src1;src2;etc"`), it is parsed automatically.
 - `kernel_descrip_path`
   a string which specifies an absolute path to description file directory; can be used to include another (e.g. 'common') description file.
+  Prepared by cmake script automatically; description file can use it.
 - `binary_subdir`
   a string which specifies a particular subdirectory relative to `"${target-binary-dir}"` directory (i.e. `"${target-binary-dir}/${binary_subdir}"`). See PSS description files as an examples.
 
