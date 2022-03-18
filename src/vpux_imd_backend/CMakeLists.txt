@@ -71,7 +71,8 @@ set(COMMON_BUILD_ARGS
     "CONFIG_NN_LOG_VERBOSITY_SNN_WARN=y"
     "CONFIG_NN_LOG_VERBOSITY_SNN_INFO=n"
     "CONFIG_PROFILING_MASK=0b00000000"
-    "-j8"
+    # E#-35030 - race condition of the threads that are performing the build
+    "-j1"
 )
 
 create_imd_for_platform("3720" ".config_sim_3720xx" "")
