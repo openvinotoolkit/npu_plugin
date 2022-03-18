@@ -23,11 +23,11 @@ bool MaxPoolStrategy::doesLayerFitIntoCMX(mlir::Operation* op, StringRef strateg
     const auto activationTensorDistributionMode = getActivationTensorDistributionMode(strategy);
     const auto activationTensorNumTiles =
             getIntArrayAttr(origOp.getContext(), getActivationTensorNumTiles(_numClusters, strategy));
-    auto outputTensorDistributionMode = getOutputTensorDistributionMode(strategy);
-    auto outputTensorNumTiles =
+    const auto outputTensorDistributionMode = getOutputTensorDistributionMode(strategy);
+    const auto outputTensorNumTiles =
             getIntArrayAttr(origOp.getContext(), getOutputTensorNumTiles(op, _numClusters, strategy));
 
-    auto distributedActivationTensorType =
+    const auto distributedActivationTensorType =
             createDistributedTensorType(origOp, origOp.input(), activationTensorDistributionMode,
                                         activationTensorNumTiles, activationAlignmentAttr, strategy);
     const auto distributedOutputTensorType =

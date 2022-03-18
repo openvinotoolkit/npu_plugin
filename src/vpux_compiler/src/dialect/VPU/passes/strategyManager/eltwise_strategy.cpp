@@ -23,11 +23,11 @@ bool EltwiseStrategy::doesLayerFitIntoCMX(mlir::Operation* op, StringRef strateg
     const auto activationTensorDistributionMode = getActivationTensorDistributionMode(strategy);
     const auto activationTensorNumTiles =
             getIntArrayAttr(origOp.getContext(), getActivationTensorNumTiles(_numClusters, strategy));
-    auto outputTensorDistributionMode = getOutputTensorDistributionMode(strategy);
-    auto outputTensorNumTiles =
+    const auto outputTensorDistributionMode = getOutputTensorDistributionMode(strategy);
+    const auto outputTensorNumTiles =
             getIntArrayAttr(origOp.getContext(), getOutputTensorNumTiles(op, _numClusters, strategy));
 
-    auto distributedInput1TensorType =
+    const auto distributedInput1TensorType =
             createDistributedTensorType(origOp, origOp.input1(), activationTensorDistributionMode,
                                         activationTensorNumTiles, activationAlignmentAttr, strategy);
     const auto distributedInput2TensorType =
