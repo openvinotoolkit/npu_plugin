@@ -122,18 +122,18 @@ SmallVector<mlir::Value> CopyOpTiling::createTiles(IERT::CopyOp origOp, mlir::Pa
     // A workaround to always split by the first non-batch dimension, regardless the layout
     // NCHW - C, NHWC - H, NWHC - W
     const auto inOrder = DimsOrder::fromValue(origOp.input());
-    const auto tileDim = inOrder.toDim(MemDim(Dims4D::Act::C.ind()));
+    const auto tileDim = inOrder.toDim(MemDim(Dims4D::Act::N.ind() + 1));
 
     // We cannot _just_ divide the fullCopySize by sizeLimit to get the number of tiles required
     // Example: let fullCopySize=48MB, sizeLimit=16MB and IFM.C=4, then it would be 48/16=3 tiles, but it's obviously
     //          impossible to split 4 channels into 3 tiles each of those would fit the limits
     const auto numPlanesOfFullShape = origInputShape[tileDim];
     const auto singlePlaneSize = fullCopySize / numPlanesOfFullShape;
-    // How many channels DMA could process within one tile. In case of small spatial dimensions of tensor (f.e.
-    // 1x2048x8x8) it can exceed CMX_DMA_MAX_NUM_PLANES, so neccesary to limit this value
+    //  The number of planes DMA could process within one tile. In case of small spatial dimensions of tensor (e.g.
+    // 1x2048x8x8) it can exceed CMX_DMA_MAX_NUM_PLANES, so it's necessary to limit this value
     const auto desiredPlanesPerTileAmount = (VPUIP::DMA_LIMIT.count() / singlePlaneSize.count());
     VPUX_THROW_UNLESS(desiredPlanesPerTileAmount != 0,
-                      "Couldn't split a CopyOp with single plane size greater then DMA_LIMIT");
+                      "Couldn't split a CopyOp with single plane size greater than DMA_LIMIT");
 
     const auto numPlanesPerTile = std::min(desiredPlanesPerTileAmount, VPUIP::CMX_DMA_MAX_NUM_PLANES);
 
