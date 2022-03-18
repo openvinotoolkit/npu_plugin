@@ -96,11 +96,19 @@ void ManualStrategyUtilsPass::safeRunOnFunc() {
 
     func->walk([&](VPU::NCEOpInterface op) {
         // store unique operations (tiled operations are merged)
+        mlir::Location opLoc = nullptr;
         if (const auto fused = op.getLoc().dyn_cast<mlir::FusedLoc>()) {
-            operations.insert({fused.getLocations().front(), op.getOperation()});
+            // fused are unique
+            opLoc = fused.getLocations().front();
         } else {
-            operations.insert({op.getLoc(), op.getOperation()});
+            opLoc = op.getLoc();
+            if (operations.find(opLoc) != operations.end()) {
+                // if duplicate locations, create unique
+                opLoc = appendLoc(opLoc, llvm::formatv("unique_{0}", operations.count(opLoc)).str());
+                op.getOperation()->setLoc(opLoc);
+            }
         }
+        operations.insert({opLoc, op.getOperation()});
         if (!operationsWrappedInClusterTiling && op->getParentOfType<VPU::NCEClusterTilingOp>() != nullptr) {
             _log.nest(2).trace("Operations wrapped in cluster tiling exist");
             operationsWrappedInClusterTiling = true;
@@ -132,7 +140,7 @@ void ManualStrategyUtilsPass::safeRunOnFunc() {
 
     if (_readStrategyFromJSON) {
         _log.nest(1).trace("Reading strategy from JSON");
-        if (!operationsHaveTilingAttr) {
+        if (!operationsWrappedInClusterTiling && !operationsHaveTilingAttr) {
             // reading strategy from json only during first pass call
             auto manualStrategy = readManualStrategyJSON(_readStrategyFileLocation);
 
