@@ -949,7 +949,7 @@ def ConvertReduceToPooling : PassBase<"convert-reduce-to-pooling", "vpux::Functi
     let summary = "Convert reduce to pooling ops";
 
     let description = [{
-        The pass is to convert reduce operations (mean, max, sum) into pooling.
+        The pass is to convert reduce operations (mean, max, sum, min) into pooling.
     }];
 
     let constructor = "vpux::IE::createConvertReduceToPoolingPass()";

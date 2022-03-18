@@ -1392,6 +1392,28 @@ def IE_ReduceSumOp :
 }
 
 //
+// ReduceMinOp
+//
+
+def IE_ReduceMinOp :
+        IE_LayerOp<
+            "ReduceMin"
+        > {
+    let summary = "InferenceEngine ReduceMin layer";
+
+    let arguments = (ins
+        AnyRankedTensor:$input,
+        1DTensorOf<[AnyInteger]>:$axes,
+
+        UnitAttr:$keep_dims
+    );
+
+    let results = (outs
+        AnyRankedTensor:$output
+    );
+}
+
+//
 // MinimumOp
 //
 

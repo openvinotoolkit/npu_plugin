@@ -135,13 +135,16 @@ mlir::LogicalResult generalReduceRewrite(
     /*
      *  ReduceMean => AvgPool
      *                AvgPool->Reshape (in case if keep_dims=False)
-     *                Reshape->AvgPool->Reshape (in case if axes doesn't match spatial dims)
+     *                Reshape->AvgPool->Reshape (in case when axes don't match spatial dims)
      *  ReduceMax  => MaxPool
      *                MaxPool->Reshape (in case if keep_dims=False)
-     *                Reshape->MaxPool->Reshape (in case if axes doesn't match spatial dims)
+     *                Reshape->MaxPool->Reshape (in case when axes don't match spatial dims)
      *  ReduceSum  => AvgPool->Multiply
      *                AvgPool->Multiply->Reshape (in case if keep_dims=False)
-     *                Reshape->AvgPool->Multiply->Reshape (in case if axes doesn't match spatial dims)
+     *                Reshape->AvgPool->Multiply->Reshape (in case when axes don't match spatial dims)
+     *  ReduceMin  => Negative->MaxPool->Negative
+     *                Negative->MaxPool->->Negative->Reshape (in case if keep_dims=False)
+     *                Reshape->Negative->MaxPool->Negative->Reshape (in case when axes don't match spatial dims)
      */
 
     auto input = origOp->getOperand(0);
@@ -266,6 +269,34 @@ mlir::LogicalResult ReduceSumRewriter::matchAndRewrite(IE::ReduceSumOp origOp, m
 }
 
 //
+// ReduceMinRewriter
+//
+
+class ReduceMinRewriter final : public mlir::OpRewritePattern<IE::ReduceMinOp> {
+public:
+    ReduceMinRewriter(mlir::MLIRContext* ctx, Logger log): mlir::OpRewritePattern<IE::ReduceMinOp>(ctx), _log(log) {
+        setDebugName("ReduceMinRewriter");
+    }
+
+    mlir::LogicalResult matchAndRewrite(IE::ReduceMinOp origOp, mlir::PatternRewriter& rewriter) const final;
+
+private:
+    Logger _log;
+};
+
+mlir::LogicalResult ReduceMinRewriter::matchAndRewrite(IE::ReduceMinOp origOp, mlir::PatternRewriter& rewriter) const {
+    _log.trace("[{0}] Got ReduceMin layer at '{1}'", getDebugName(), origOp->getLoc());
+    return generalReduceRewrite(
+            origOp, rewriter, [&](mlir::Location loc, mlir::Value input, PoolingAttr attr) -> mlir::Operation* {
+                auto scale1 = rewriter.create<IE::NegativeOp>(loc, input.getType(), input);
+                auto maxPool =
+                        rewriter.create<IE::MaxPoolOp>(loc, scale1.output(), attr.kernelAttr, attr.stridesAttr,
+                                                       attr.padBeginAttr, attr.padEndAttr, attr.roundingAttr, nullptr);
+                return rewriter.create<IE::NegativeOp>(loc, maxPool.output().getType(), maxPool.output());
+            });
+}
+
+//
 // ConvertReduceToPoolingPass
 //
 
@@ -337,11 +368,13 @@ void ConvertReduceToPoolingPass::safeRunOnFunc() {
     target.addDynamicallyLegalOp<IE::ReduceMeanOp>(isLegalOp);
     target.addDynamicallyLegalOp<IE::ReduceMaxOp>(isLegalOp);
     target.addDynamicallyLegalOp<IE::ReduceSumOp>(isLegalOp);
+    target.addDynamicallyLegalOp<IE::ReduceMinOp>(isLegalOp);
 
     mlir::RewritePatternSet patterns(&ctx);
     patterns.insert<ReduceMeanRewriter>(&ctx, _log);
     patterns.insert<ReduceMaxRewriter>(&ctx, _log);
     patterns.insert<ReduceSumRewriter>(&ctx, _log);
+    patterns.insert<ReduceMinRewriter>(&ctx, _log);
 
     auto func = getFunction();
     if (mlir::failed(mlir::applyPartialConversion(func, target, std::move(patterns)))) {

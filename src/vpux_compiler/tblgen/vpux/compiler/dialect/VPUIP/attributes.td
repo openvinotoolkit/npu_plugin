@@ -46,6 +46,7 @@ def VPUIP_ReduceLayerType :
                 StrEnumAttrCase<"MAX">,
                 StrEnumAttrCase<"MEAN">,
                 StrEnumAttrCase<"SUM">,
+                StrEnumAttrCase<"MIN">,
             ]
         > {
     let cppNamespace = "vpux::VPUIP";

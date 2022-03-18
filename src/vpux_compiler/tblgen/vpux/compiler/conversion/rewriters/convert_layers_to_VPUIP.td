@@ -131,7 +131,7 @@ def RewriteBroadcast :
         >;
 
 //
-// IERT.Reduce[Max|Mean|Sum]Op -> VPUIP.ReduceUPA
+// IERT.Reduce[Max|Mean|Sum|Min]Op -> VPUIP.ReduceUPA
 //
 
 class createReduceUPAOp<string method> :
@@ -160,6 +160,12 @@ def RewriteReduceSum :
         Pat<
             (IERT_ReduceSumOp $input, $axes, $output, $keep_dims),
             (createReduceUPAOp<"SUM"> $input, $axes, $output, $keep_dims)
+        >;
+
+def RewriteReduceMin :
+        Pat<
+            (IERT_ReduceMinOp $input, $axes, $output, $keep_dims),
+            (createReduceUPAOp<"MIN"> $input, $axes, $output, $keep_dims)
         >;
 
 //
