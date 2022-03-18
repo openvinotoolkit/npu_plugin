@@ -19,16 +19,25 @@ using namespace VPU;
 
 bool MaxPoolStrategy::doesLayerFitIntoCMX(mlir::Operation* op, StringRef strategy) const {
     auto origOp = mlir::dyn_cast<NCEMaxPoolOp>(op);
+    mlir::ArrayAttr activationAlignmentAttr = nullptr;
     const auto activationTensorDistributionMode = getActivationTensorDistributionMode(strategy);
-    const auto activationTensorNumTiles = getIntArrayAttr(
-            origOp.getContext(), getActivationTensorNumTiles(origOp.getOperation(), _numClusters, strategy));
+    const auto activationTensorNumTiles =
+            getIntArrayAttr(origOp.getContext(), getActivationTensorNumTiles(_numClusters, strategy));
     const auto outputTensorDistributionMode = getOutputTensorDistributionMode(strategy);
     const auto outputTensorNumTiles =
-            getIntArrayAttr(origOp.getContext(), getOutputTensorNumTiles(_numClusters, strategy));
-    const auto distributedActivationTensorType = createDistributedTensorType(
-            origOp, origOp.input(), activationTensorDistributionMode, activationTensorNumTiles);
+            getIntArrayAttr(origOp.getContext(), getOutputTensorNumTiles(op, _numClusters, strategy));
+
+    const auto activationAlignment = getActivationTensorAlignment(op, strategy);
+    if (activationAlignment.hasValue()) {
+        activationAlignmentAttr = getIntArrayAttr(origOp.getContext(), activationAlignment.getValue());
+    }
+
+    const auto distributedActivationTensorType =
+            createDistributedTensorType(origOp, origOp.input(), activationTensorDistributionMode,
+                                        activationTensorNumTiles, activationAlignmentAttr, strategy);
     const auto distributedOutputTensorType =
-            createDistributedTensorType(origOp, origOp.output(), outputTensorDistributionMode, outputTensorNumTiles);
+            createDistributedTensorType(origOp, origOp.output(), outputTensorDistributionMode, outputTensorNumTiles,
+                                        activationAlignmentAttr, strategy);
     return origOp.fitIntoCMX(distributedActivationTensorType, distributedOutputTensorType);
 }
 

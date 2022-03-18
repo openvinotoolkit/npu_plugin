@@ -148,11 +148,23 @@ private:
 // hardware for each MPE Mode 4x4x16 and 16x1x16 is computed and the maximum is selected.
 template <class ConcreteOp>
 double BaseLayerStrategy::computeSplitEfficiency(ConcreteOp op, StringRef strategy) const {
+    mlir::ArrayAttr activationAlignmentAttr = nullptr;
     const auto outputTensorDistributionMode = getOutputTensorDistributionMode(strategy);
     const auto outputTensorNumTiles =
-            getIntArrayAttr(op->getContext(), getOutputTensorNumTiles(_numClusters, strategy));
-    const auto distributedOutputTensorType =
-            createDistributedTensorType(op, op.output(), outputTensorDistributionMode, outputTensorNumTiles);
+            getIntArrayAttr(op->getContext(), getOutputTensorNumTiles(op, _numClusters, strategy));
+
+    const auto arch = VPU::getArch(op.getOperation());
+    const auto canUseCMajor = VPU::NCEInvariant::isChannelMajorCompatible(arch, op.input().getType());
+
+    if (!canUseCMajor) {
+        const auto activationAlignment = getActivationTensorAlignment(op, strategy);
+        if (activationAlignment.hasValue()) {
+            activationAlignmentAttr = getIntArrayAttr(op.getContext(), activationAlignment.getValue());
+        }
+    }
+
+    const auto distributedOutputTensorType = createDistributedTensorType(
+            op, op.output(), outputTensorDistributionMode, outputTensorNumTiles, activationAlignmentAttr, strategy);
 
     const auto perClusterShape = distributedOutputTensorType.getLargestCompactShape();
     const auto perClusterOutputTensorVolume =
