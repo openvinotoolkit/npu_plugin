@@ -325,6 +325,46 @@ mlir::LogicalResult EltwiseToNCE<ConcreteOp>::matchAndRewrite(ConcreteOp origOp,
 }
 
 //
+// QuantToNCE
+//
+
+template <class ConcreteOp>
+class QuantToNCE final : public mlir::OpRewritePattern<ConcreteOp> {
+public:
+    QuantToNCE<ConcreteOp>(mlir::MLIRContext* ctx, VPU::ArchKind arch, Logger log)
+            : mlir::OpRewritePattern<ConcreteOp>(ctx), _arch(arch), _log(log) {
+    }
+
+public:
+    mlir::LogicalResult matchAndRewrite(ConcreteOp origOp, mlir::PatternRewriter& rewriter) const final;
+
+private:
+    VPU::ArchKind _arch;
+    Logger _log;
+};
+
+template <class ConcreteOp>
+mlir::LogicalResult QuantToNCE<ConcreteOp>::matchAndRewrite(ConcreteOp origOp,
+                                                              mlir::PatternRewriter& rewriter) const {
+    _log.trace("[{0}] Got '{1}' at '{2}'", this->getDebugName(), origOp->getName(), origOp->getLoc());
+
+    const auto logCb = [&](const llvm::formatv_object_base& msg) {
+        std::ignore = matchFailed(_log, rewriter, origOp, "[{0}] {1}", this->getDebugName(), msg.str());
+    };
+
+    if (!VPU::NCEConvertOp::isSupported(origOp, _arch, logCb)) {
+        return mlir::failure();
+    }
+
+    auto nceOp =
+            rewriter.create<VPU::NCEConvertOp>(origOp->getLoc(), origOp.getType(), origOp.input());
+
+    rewriter.replaceOp(origOp, nceOp.output());
+    _log.trace("[{0}] Replaced '{1}' to '{2}'", this->getDebugName(), origOp->getName(), nceOp->getName());
+    return mlir::success();
+}
+
+//
 // ConvertIEToVPUNCEPass
 //
 
@@ -355,6 +395,8 @@ void ConvertIEToVPUNCEPass::safeRunOnFunc() {
     patterns.add<EltwiseToNCE<IE::MultiplyOp>>(&ctx, VPU::EltwiseType::MULTIPLY, arch, _log);
     patterns.add<EltwiseToNCE<IE::SubtractOp>>(&ctx, VPU::EltwiseType::SUBTRACT, arch, _log);
     patterns.add<EltwiseToNCE<IE::AndOp>>(&ctx, VPU::EltwiseType::AND, arch, _log);
+    patterns.add<QuantToNCE<IE::QuantizeOp>>(&ctx, arch, _log);
+    patterns.add<QuantToNCE<IE::DequantizeOp>>(&ctx, arch, _log);
 
     if (mlir::failed(mlir::applyPatternsAndFoldGreedily(func, std::move(patterns), getDefaultGreedyRewriteConfig()))) {
         signalPassFailure();

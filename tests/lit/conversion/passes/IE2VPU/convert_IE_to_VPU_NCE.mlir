@@ -193,3 +193,35 @@ func @EltwiseAndSameInputsToNCE(%arg0: tensor<1x64x28x28xf16, {order = #NHWC}>)
 
     // CHECK:       return [[OUT]] : tensor<1x64x28x28xf16, {order = #NHWC}>
 }
+
+// -----
+
+!qElemType = type !quant.uniform<u8:f16, 1.000000e+00>
+#NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
+
+func @QuantizeToNCE(%arg0: tensor<1x64x28x28xf16, {order = #NHWC}>)
+        -> tensor<1x64x28x28x!qElemType, {order = #NHWC}> {
+    %0 = IE.Quantize(%arg0) {dstElemType = !qElemType}:
+        tensor<1x64x28x28xf16, {order = #NHWC}> -> tensor<1x64x28x28x!qElemType, {order = #NHWC}>
+
+    return %0 : tensor<1x64x28x28x!qElemType, {order = #NHWC}>
+    // CHECK-NOT:   IE.Quantize
+    // CHECK:       [[VAL0:%.+]] = VPU.NCE.Convert(%arg0) -> tensor<1x64x28x28x!qElemType, {order = #NHWC}>
+    // CHECK:       return [[VAL0]] : tensor<1x64x28x28x!qElemType, {order = #NHWC}>
+}
+
+// -----
+
+!qElemType = type !quant.uniform<u8:f16, 1.000000e+00>
+#NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
+
+func @DequantizeToNCE(%arg0: tensor<1x64x28x28x!qElemType, {order = #NHWC}>)
+        -> tensor<1x64x28x28xf16, {order = #NHWC}> {
+    %0 = IE.Dequantize(%arg0) {dstElemType = f16}:
+        tensor<1x64x28x28x!qElemType, {order = #NHWC}> -> tensor<1x64x28x28xf16, {order = #NHWC}>
+
+    return %0 : tensor<1x64x28x28xf16, {order = #NHWC}>
+    // CHECK-NOT:   IE.Dequantize
+    // CHECK:       [[VAL0:%.+]] = VPU.NCE.Convert(%arg0) -> tensor<1x64x28x28xf16, {order = #NHWC}>
+    // CHECK:       return [[VAL0]] : tensor<1x64x28x28xf16, {order = #NHWC}>
+}

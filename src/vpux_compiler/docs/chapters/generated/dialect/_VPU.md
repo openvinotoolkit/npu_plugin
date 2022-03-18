@@ -87,6 +87,34 @@ Operation that encapsulates details of tiling operation between clusters
 | :----: | ----------- |
 `results` | 4D tensor of 16-bit float or bfloat16 type or 32-bit signed integer or 8-bit unsigned integer or QuantizedType values or VPU tensor type to describe the tensor tiling
 
+### `VPU.NCE.Convert` (vpux::VPU::NCEConvertOp)
+
+Hardware version of [De]Quantization operation
+
+
+Syntax:
+
+```
+operation ::= `VPU.NCE.Convert` `(` $input `)`
+              attr-dict
+              custom<OptionalTypes>(type($input)) ``
+              `->` type(results)
+              custom<OptionalRegion>($workloads)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | 4D tensor of 16-bit float or bfloat16 type or QuantizedType values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | 4D tensor of 16-bit float or bfloat16 type or QuantizedType values
+
 ### `VPU.NCE.Convolution` (vpux::VPU::NCEConvolutionOp)
 
 NCE version of Convolution layer

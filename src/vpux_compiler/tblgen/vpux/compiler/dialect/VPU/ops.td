@@ -82,7 +82,8 @@ def VPU_DPUWorkloadOp :
                     "vpux::VPU::NCEConvolutionOp",
                     "vpux::VPU::NCEDepthConvolutionOp",
                     "vpux::VPU::NCEMaxPoolOp",
-                    "vpux::VPU::NCEEltwiseOp"
+                    "vpux::VPU::NCEEltwiseOp",
+                    "vpux::VPU::NCEConvertOp"
                 ]>
             ]
         > {
@@ -470,6 +471,55 @@ def VPU_DistributedCastOp :
     let hasFolder = 1;
 
     let verifier = [{ return vpux::VPU::verifyOp(*this); }];
+}
+
+//
+// NCEConvert
+//
+
+def VPU_NCEConvertOp :
+        VPU_LayerOp<
+            "NCE.Convert",
+            [
+                NoRegionArguments,
+                NoTerminator,
+                SingleBlock,
+                IE_EltwiseOp,
+                IE_TilingBuilderOpInterface,
+                DeclareOpInterfaceMethods<IE_LayoutInfoOpInterface>,
+                DeclareOpInterfaceMethods<VPU_NCEOpInterface>,
+                IE_AlignedChannelsOpInterface
+            ]
+        > {
+    let summary = "Hardware version of [De]Quantization operation";
+
+    let arguments = (ins
+        4DTensorOf<[F16, BF16, quant_QuantizedType]>:$input
+    );
+
+    let results = (outs
+        4DTensorOf<[F16, BF16, quant_QuantizedType]>:$output
+    );
+
+    let regions = (region
+        AnyRegion:$workloads
+    );
+
+    let assemblyFormat = [{
+        `(` $input `)`
+        attr-dict
+        custom<OptionalTypes>(type($input)) ``
+        `->` type(results)
+        custom<OptionalRegion>($workloads)
+    }];
+
+    let extraClassDeclaration = [{
+
+        template<class ConcreteOp>
+        static bool isSupported(ConcreteOp op, VPU::ArchKind arch, vpux::VPU::NCEInvariant::LogCb logCb);
+    }] # baseExtraClassDeclaration;
+
+    let elemComparisonModes = [IE_TypeComparisonMode_ALLOW_QUANT_MIXED_PRECISION];
 }
 
 #endif
