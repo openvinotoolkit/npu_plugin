@@ -92,6 +92,12 @@ vpux_add_native_tool(flatc "${CMAKE_CURRENT_SOURCE_DIR}/flatbuffers"
 )
 
 #
+# vpux_elf
+#
+
+add_subdirectory(graphFile-schema/vpux_elf)
+
+#
 # vpual
 #
 

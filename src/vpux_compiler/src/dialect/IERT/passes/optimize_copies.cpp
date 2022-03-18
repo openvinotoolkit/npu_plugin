@@ -73,6 +73,14 @@ mlir::LogicalResult CopyOpSequence::matchAndRewrite(IERT::CopyOp copyOp, mlir::P
         return mlir::failure();
     }
 
+    for (auto user : parentCopyOp.output().getUsers()) {
+        if (mlir::isa<IERT::SubViewOp>(user)) {
+            // if intermediate SubViewOp users, skip due to accuracy loss
+            // TODO E#35612: implement support for intermediate SubViewOp users
+            return mlir::failure();
+        }
+    }
+
     rewriter.replaceOpWithNewOp<IERT::CopyOp>(copyOp, parentCopyOp.input(), copyOp.output_buff());
 
     // CopyOp can have MemoryEffect so "hanging" unused parentCopyOp might not be erased by MLIR automatically
@@ -119,24 +127,56 @@ void fuseLastCopy(IERT::CopyOp copyOp, const AliasesInfo& aliasesInfo, Logger lo
         // input is constant, for example
         return;
     }
+    vpux::IERT::ConcatViewOp concatViewOp;
+    auto newBuffer = copyOp.output_buff();
+    auto newOutput = copyOp.input();
 
     if (sourceRoot.getType() != copyOp.output_buff().getType()) {
-        // TODO: It is necessary to rearrange the operations of type casting
-        return;
+        // we will make a QuantizeCast over the output buffer and we will copy from CMX directly to output buffer,
+        // and we will return the output buffer. After ConcatView and QuantizeCast will be redundant.
+        // from CMX -> CopyOp[DDR] -> ConcatViewOp -> QuantizeCastOp -> CopyOp[block-arg] -> return CopyOp
+        // Output of this step:
+        //                        CMX -> CopyOp[QuantizeCastOp] -> return block-arg
+        //   block-arg -> QuantizeCastOp /
+
+        auto quantizeCastOp = mlir::dyn_cast<IERT::QuantizeCastOp>(copyOp.input().getDefiningOp());
+        if (!quantizeCastOp) {
+            return;
+        }
+
+        concatViewOp = mlir::dyn_cast<IERT::ConcatViewOp>(quantizeCastOp.input().getDefiningOp());
+        if (!concatViewOp) {
+            return;
+        }
+
+        mlir::OpBuilder builder(quantizeCastOp);
+        builder.setInsertionPoint(sourceRoot.getDefiningOp());
+
+        auto newQuantizeCast =
+                builder.create<IERT::QuantizeCastOp>(concatViewOp.getLoc(), sourceRoot.getType(), copyOp.output_buff());
+
+        quantizeCastOp.replaceAllUsesWith(quantizeCastOp.input());
+        quantizeCastOp->erase();
+
+        newBuffer = newQuantizeCast.output();
+        newOutput = copyOp.output_buff();
     }
 
     // Function outputs have to be an alias of the output buffer
     log.trace("Root of the copy operation input {0}", sourceRoot);
-    log.trace("Reassign outputs from {0} to {1}", sourceRoot, copyOp.output_buff());
+    log.trace("Reassign outputs from {0} to {1}", sourceRoot, newBuffer);
 
     for (auto& use : llvm::make_early_inc_range(sourceRoot.getUses())) {
         log.nest().trace("Got user {0}", use.getOwner()->getName());
-        log.nest().trace("Reassign {0} to {1}", use.get(), copyOp.output_buff());
-        use.set(copyOp.output_buff());
+        log.nest().trace("Reassign {0} to {1}", use.get(), newBuffer);
+        use.set(newBuffer);
     }
 
-    copyOp.replaceAllUsesWith(copyOp.input());
+    copyOp.replaceAllUsesWith(newOutput);
     copyOp->erase();
+    if (concatViewOp) {
+        concatViewOp->erase();
+    }
 }
 
 //

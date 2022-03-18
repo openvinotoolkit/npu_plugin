@@ -317,6 +317,8 @@ IE::Parameter Engine::GetConfig(const std::string& name,
             return _globalConfig.get<PLATFORM>();
         } else if (name == ov::intel_vpux::weights_zero_points_alignment) {
             return _globalConfig.get<MCM_WEIGHTS_ZERO_POINTS_ALIGNMENT>();
+        } else if (name == ov::hint::model_priority) {
+            return _globalConfig.get<MODEL_PRIORITY>();
         }
     }
 

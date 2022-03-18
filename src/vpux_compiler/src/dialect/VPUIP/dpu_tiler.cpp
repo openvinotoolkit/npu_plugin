@@ -13,6 +13,7 @@
 
 #include "vpux/compiler/dialect/VPUIP/dpu_tiler.hpp"
 #include "vpux/compiler/core/layers.hpp"
+#include "vpux/compiler/utils/factors.hpp"
 #include "vpux/utils/core/numeric.hpp"
 
 #include <numeric>
@@ -23,9 +24,13 @@ using namespace vpux;
 namespace {
 
 constexpr uint32_t DEFAULT_ZTILE_VALUE = 16;
-
 constexpr size_t MIN_VALID_ZTILE_EXPONENT = 4;
 constexpr size_t MAX_VALID_ZTILE_EXPONENT = 8;
+
+// FIXME: POR runtime currently doesn't enable management tasks feature which will leads to a big overhead for large
+// number of workloads. Estimate runtime overhead by this value. For further development, please refer comments in
+// E#24298
+constexpr size_t RUNTIME_OVERHEAD_PER_WORKLOAD = 105;
 
 VPUNN::ExecutionMode getExecutionMode(VPU::MPEMode mpeMode) {
     switch (mpeMode) {
@@ -116,6 +121,64 @@ SmallVector<uint32_t> getSplitsFromRange(uint32_t maxSplitRange, uint32_t maxLim
     }
     return splits;
 }
+
+/*
+ * Split workloads on both dimension H and W evenly. Each workload will try to make shape value align with the mpe
+ * mode on the splitting dimension. For example, output tensor is [1, 16, 12, 12],  mpe mode is 4x4, and we tried to
+ * split workloads into 5x5 pieces. On dimension W, max width = 3 = 12/5 (width/splitNumber) doesn't align with mpe mode
+ * value(4), so the max workload width will be changed to 4 (alignVal(3,4)), and the split number will be 3 instead of 5
+ * then. So does for dimension H.
+ *                            --------------------------------
+ *   [0 1 2 ...  11]|         | [0 - 3] | [4 - 7] | [8 - 11]|
+ *   [0 1 2 ...  11]|         | [0 - 3] | [4 - 7] | [8 - 11]|
+ *   [0 1 2 ...  11]|         | [0 - 3] | [4 - 7] | [8 - 11]|
+ *   [0 1 2 ...  11]|         | [0 - 3] | [4 - 7] | [8 - 11]|
+ *                            --------------------------------
+ *   [0 1 2 ...  11]|         | [0 - 3] | [4 - 7] | [8 - 11]|
+ *   [0 1 2 ...  11]|  --->   | [0 - 3] | [4 - 7] | [8 - 11]|
+ *   [0 1 2 ...  11]|         | [0 - 3] | [4 - 7] | [8 - 11]|
+ *   [0 1 2 ...  11]|         | [0 - 3] | [4 - 7] | [8 - 11]|
+ *                            --------------------------------
+ *   [0 1 2 ...  11]|         | [0 - 3] | [4 - 7] | [8 - 11]|
+ *   [0 1 2 ...  11]|         | [0 - 3] | [4 - 7] | [8 - 11]|
+ *   [0 1 2 ...  11]|         | [0 - 3] | [4 - 7] | [8 - 11]|
+ *   [0 1 2 ...  11]|         | [0 - 3] | [4 - 7] | [8 - 11]|
+ */
+
+OutputTiling createDpuTilesOverHW(ShapeRef shape, int64_t widthFactor, int64_t heightFactor,
+                                  const std::pair<uint8_t, uint8_t>& mpeMode) {
+    auto width = shape[Dims4D::Act::W];
+    auto height = shape[Dims4D::Act::H];
+
+    auto maxWidth = divUp(width, widthFactor);
+    maxWidth = alignVal(maxWidth, static_cast<int64_t>(mpeMode.second));
+    auto actualWidthSplitsNum = divUp(width, maxWidth);
+    auto maxHeight = divUp(height, heightFactor);
+    maxHeight = alignVal(maxHeight, static_cast<int64_t>(mpeMode.first));
+    auto actualHeightSplitsNum = divUp(height, maxHeight);
+
+    OutputTiling outputTiles;
+    auto remainedHeight = height;
+    for (int64_t idx = 0; idx < actualHeightSplitsNum; idx++) {
+        auto currentHeightStep = remainedHeight > maxHeight ? maxHeight : remainedHeight;
+        auto remainedWidth = width;
+        for (int64_t idy = 0; idy < actualWidthSplitsNum; idy++) {
+            TileInfo outTile(shape);
+            outTile.shape[Dims4D::Act::C] = shape[Dims4D::Act::C];
+            outTile.shape[Dims4D::Act::H] = currentHeightStep;
+            outTile.shape[Dims4D::Act::W] = remainedWidth > maxWidth ? maxWidth : remainedWidth;
+            remainedWidth -= outTile.shape[Dims4D::Act::W];
+            outTile.offsets[Dims4D::Act::H] = idx * maxHeight;
+            outTile.offsets[Dims4D::Act::W] = idy * maxWidth;
+            outTile.offsets[Dims4D::Act::C] = 0;
+            outTile.axis[Dims4D::Act::H] = actualHeightSplitsNum;
+            outTile.axis[Dims4D::Act::W] = actualWidthSplitsNum;
+            outputTiles.push_back(std::move(outTile));
+        }
+        remainedHeight -= currentHeightStep;
+    }
+    return outputTiles;
+}
 }  // namespace
 
 SmallVector<uint32_t> vpux::VPUIP::DpuTiler::generateSplitNumberPool(int64_t numDPU, uint32_t maxSplits) {
@@ -174,7 +237,7 @@ void vpux::VPUIP::DpuTiler::tileOverH(int64_t numDPU) {
     nTilesOnDim[Dims4D::Act::H] = tilesCount;
 
     auto outTiles = fillDividedTiles(nTilesOnDim, _outShape);
-    _splitPool.push_back(std::move(outTiles));
+    _splitPool.insert(std::move(outTiles));
 }
 
 void vpux::VPUIP::DpuTiler::tileOverZ(uint32_t splitNumber) {
@@ -203,7 +266,46 @@ void vpux::VPUIP::DpuTiler::tileOverZ(uint32_t splitNumber) {
         }
         outputTiles.push_back(std::move(outTile));
     }
-    _splitPool.push_back(std::move(outputTiles));
+    _splitPool.insert(std::move(outputTiles));
+}
+
+void vpux::VPUIP::DpuTiler::tileOverHW(uint32_t splitNumber, const SplitDimension splitDimension) {
+    VPUX_THROW_WHEN(_outShape.size() < 2, "Invalid output shape size: {0}", _outShape.size());
+    VPUX_THROW_WHEN(splitNumber == 0, "Invalid split number: {0}", splitNumber);
+    auto width = _outShape[Dims4D::Act::W];
+    auto height = _outShape[Dims4D::Act::H];
+    auto mpeMode = getMode();
+
+    switch (splitDimension) {
+    case SplitDimension::SPLIT_OVER_H: {
+        auto outputTiles = createDpuTilesOverHW(_outShape, 1, splitNumber, mpeMode);
+        _splitPool.insert(std::move(outputTiles));
+        break;
+    }
+    case SplitDimension::SPLIT_OVER_W: {
+        auto outputTiles = createDpuTilesOverHW(_outShape, splitNumber, 1, mpeMode);
+        _splitPool.insert(std::move(outputTiles));
+        break;
+    }
+    case SplitDimension::SPLIT_OVER_HW: {
+        auto factorList = getFactorsList(splitNumber);
+        for (const auto& factor : factorList) {
+            // Map factor.larger , factor.smaller -> width, height
+            if (factor.larger <= width && factor.smaller <= height) {
+                auto outputTiles = createDpuTilesOverHW(_outShape, factor.larger, factor.smaller, mpeMode);
+                _splitPool.insert(std::move(outputTiles));
+            }
+            // Map factor.smaller, factor.larger -> width, height
+            if (factor.smaller <= width && factor.larger <= height) {
+                auto outputTiles = createDpuTilesOverHW(_outShape, factor.smaller, factor.larger, mpeMode);
+                _splitPool.insert(std::move(outputTiles));
+            }
+        }
+        break;
+    }
+    default:
+        VPUX_THROW("Unsupported split dimension {0}", stringifySplitDimension(splitDimension));
+    }
 }
 
 uint32_t vpux::VPUIP::DpuTiler::cost(const OutputTiling& dpuTiles, const WorkloadCostParams& params) {
@@ -240,7 +342,8 @@ uint32_t vpux::VPUIP::DpuTiler::cost(const OutputTiling& dpuTiles, const Workloa
                  getExecutionMode(params.mpeMode)});
         workloadCost.push_back(result);
     }
-    return VPUNN::dpu_schedule(static_cast<unsigned int>(params.numDPU), workloadCost);
+    return VPUNN::dpu_schedule(static_cast<unsigned int>(params.numDPU), workloadCost,
+                               static_cast<unsigned int>(RUNTIME_OVERHEAD_PER_WORKLOAD));
 }
 
 double vpux::VPUIP::DpuTiler::simpleCost(const OutputTiling& dpuTiles, const WorkloadCostParams& params) {
@@ -261,7 +364,7 @@ double vpux::VPUIP::DpuTiler::simpleCost(const OutputTiling& dpuTiles, const Wor
     return max_cost;
 }
 
-SmallVector<OutputTiling> vpux::VPUIP::DpuTiler::getSplitPool() {
+std::set<OutputTiling> vpux::VPUIP::DpuTiler::getSplitPool() {
     return _splitPool;
 }
 
@@ -281,5 +384,18 @@ std::pair<uint8_t, uint8_t> vpux::VPUIP::DpuTiler::getMode() {
         return {4, 16};
     default:
         VPUX_THROW("Unsupported MPE mode {0}", _mpeMode);
+    }
+}
+
+StringLiteral vpux::VPUIP::stringifySplitDimension(SplitDimension splitDimension) {
+    switch (splitDimension) {
+    case SplitDimension::SPLIT_OVER_HW:
+        return "SPLIT_OVER_HW";
+    case SplitDimension::SPLIT_OVER_H:
+        return "SPLIT_OVER_H";
+    case SplitDimension::SPLIT_OVER_W:
+        return "SPLIT_OVER_W";
+    default:
+        return "UNKNOWN";
     }
 }

@@ -66,7 +66,19 @@ LogLevel vpux::OptionParser<LogLevel>::parse(StringRef val) {
         return LogLevel::Trace;
     }
 
-    VPUX_THROW("Value '{0}' is not a valid LOG_LEVEL option");
+    VPUX_THROW("Value '{0}' is not a valid LOG_LEVEL option", val);
+}
+
+ov::hint::Priority vpux::OptionParser<ov::hint::Priority>::parse(StringRef val) {
+    if (val == CONFIG_VALUE(MODEL_PRIORITY_LOW)) {
+        return ov::hint::Priority::LOW;
+    } else if (val == CONFIG_VALUE(MODEL_PRIORITY_MED)) {
+        return ov::hint::Priority::MEDIUM;
+    } else if (val == CONFIG_VALUE(MODEL_PRIORITY_HIGH)) {
+        return ov::hint::Priority::HIGH;
+    }
+
+    VPUX_THROW("Value '{0}' is not a valid MODEL_PRIORITY option", val);
 }
 
 //

@@ -36,19 +36,23 @@ namespace {
     const std::vector<InferenceEngine::Precision> netPrecisions = {
             InferenceEngine::Precision::FP16
     };
-    
+
     /// Current Deconv impelmentation Only support 16x channels (MCM)
-    /// The other channel which needs alignment and crop will cause concat issue 
+    /// The other channel which needs alignment and crop will cause concat issue
     const std::vector<size_t> numOutChannels = {16};
+    const std::vector<size_t> specificNumOutChannels = {128};
     const std::vector<std::vector<size_t >> emptyOutputShape = {{}};
+    const std::vector<std::vector<size_t >> outputShape = {{32, 64}};
     const std::vector<std::vector<ptrdiff_t >> emptyOutputPadding = {{}};
 
 /* ============= 2D ConvolutionBackpropData ============= */
     const std::vector<std::vector<size_t >> inputShapes2D = {{1, 3, 30, 30}};
     const std::vector<std::vector<size_t >> inputShapes2D_MLIR = {{1, 3, 30, 30}, {1, 32, 23, 30}, {1, 32, 46, 60}, {1, 32, 92, 120}, {1, 32, 184, 240}};
+    const std::vector<std::vector<size_t >> specificInputShapes2D_MLIR = {{1, 256, 16, 32}};
     /// Need Kernel_size == Stride_size (MCM)
     /// Refer: src/mcmCompiler/src/pass/adaptation/conv_dilation_pass.cpp:366
     const std::vector<std::vector<size_t >> kernels2D = {{2, 2}};
+    const std::vector<std::vector<size_t >> specificKernels2D = {{4, 4}};
     const std::vector<std::vector<size_t >> strides2D = {{2, 2}};
     const std::vector<std::vector<ptrdiff_t>> padBegins2D = {{0, 0}};
     const std::vector<std::vector<ptrdiff_t>> padEnds2D = {{0, 0}};
@@ -74,6 +78,16 @@ namespace {
             ::testing::ValuesIn(dilations2D),
             ::testing::ValuesIn(numOutChannels),
             ::testing::Values(ngraph::op::PadType::VALID),
+            ::testing::ValuesIn(emptyOutputPadding)
+    );
+    const auto conv2DParams_AutoPadSameLower = ::testing::Combine(
+            ::testing::ValuesIn(specificKernels2D),
+            ::testing::ValuesIn(strides2D),
+            ::testing::Values(std::vector<ptrdiff_t>({0, 0})),
+            ::testing::Values(std::vector<ptrdiff_t>({0, 0})),
+            ::testing::ValuesIn(dilations2D),
+            ::testing::ValuesIn(specificNumOutChannels),
+            ::testing::Values(ngraph::op::PadType::SAME_LOWER),
             ::testing::ValuesIn(emptyOutputPadding)
     );
 
@@ -109,6 +123,19 @@ namespace {
                                     ::testing::Values(InferenceEngine::Layout::ANY),
                                     ::testing::ValuesIn(inputShapes2D_MLIR),
                                     ::testing::ValuesIn(emptyOutputShape),
+                                    ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                            KmbConvolutionBackpropDataLayerTest_MLIR::getTestCaseName);
+
+    INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionBackpropData2D_OutputShape, KmbConvolutionBackpropDataLayerTest_MLIR,
+                            ::testing::Combine(
+                                    conv2DParams_AutoPadSameLower,
+                                    ::testing::ValuesIn(netPrecisions),
+                                    ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                    ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                    ::testing::Values(InferenceEngine::Layout::ANY),
+                                    ::testing::Values(InferenceEngine::Layout::ANY),
+                                    ::testing::ValuesIn(specificInputShapes2D_MLIR),
+                                    ::testing::ValuesIn(outputShape),
                                     ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
                             KmbConvolutionBackpropDataLayerTest_MLIR::getTestCaseName);
 

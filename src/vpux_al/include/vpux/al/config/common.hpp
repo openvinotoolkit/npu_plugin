@@ -92,7 +92,7 @@ struct PLATFORM final : OptionBase<PLATFORM, InferenceEngine::VPUXConfigParams::
     }
 
     static InferenceEngine::VPUXConfigParams::VPUXPlatform defaultValue() {
-        return InferenceEngine::VPUXConfigParams::VPUXPlatform::AUTO;
+        return ov::intel_vpux::cvtVPUXPlatform(ov::intel_vpux::VPUXPlatform::AUTO);
     }
 
     static InferenceEngine::VPUXConfigParams::VPUXPlatform parse(StringRef val);

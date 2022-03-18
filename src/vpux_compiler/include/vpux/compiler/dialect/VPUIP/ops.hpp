@@ -84,6 +84,7 @@ mlir::LogicalResult verifyPostOp(mlir::Operation* op);
 mlir::LogicalResult verifyOp(NNDMAOp op);
 mlir::LogicalResult verifyOp(SelectUPAOp op);
 mlir::LogicalResult verifyOp(NCEClusterTilingOp op);
+mlir::LogicalResult verifyOp(DistributedCastOp op);
 
 void print(mlir::OpAsmPrinter& p, NCEClusterTilingOp op);
 mlir::ParseResult parseNCEClusterTilingOp(mlir::OpAsmParser& parser, mlir::OperationState& result);

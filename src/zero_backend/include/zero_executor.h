@@ -82,18 +82,14 @@ public:
     // protected:
     struct HostMem {
         HostMem() = default;
-        HostMem(const ze_driver_handle_t driver_handle, const ze_context_handle_t context, const size_t size);
+        HostMem(const ze_context_handle_t context, const size_t size);
         HostMem(const HostMem&) = delete;
-        HostMem(HostMem&& other)
-                : _size(other._size),
-                  _data(other._data),
-                  _driver_handle{other._driver_handle},
-                  _context(other._context) {
+        HostMem(HostMem&& other): _size(other._size), _data(other._data), _context(other._context) {
             other._size = 0;
             other._data = nullptr;
         }
         HostMem& operator=(const HostMem&) = delete;
-        HostMem& operator=(HostMem&&) = delete;
+        HostMem& operator=(HostMem&& other);
 
         const void* data() const {
             return _data;
@@ -131,31 +127,26 @@ public:
             if (0 != ie_memcpy(mblob->buffer().as<uint8_t*>(), mblob->byteSize(), _data, _size))
                 IE_THROW() << "HostMem::copyTo::ie_memcpy return != 0";
         }
+        void free();
         ~HostMem();
 
     private:
         size_t _size = 0;
         void* _data = nullptr;
-        const ze_driver_handle_t _driver_handle = nullptr;
-        const ze_context_handle_t _context = nullptr;
+        ze_context_handle_t _context = nullptr;
         const static size_t _alignment = 4096;
     };
 
     struct DeviceMem {
         DeviceMem() = default;
-        DeviceMem(const ze_driver_handle_t driver_handle, const ze_device_handle_t device_handle,
-                  const ze_context_handle_t context, const size_t size);
+        DeviceMem(const ze_device_handle_t device_handle, const ze_context_handle_t context, const size_t size);
         DeviceMem(const DeviceMem&) = delete;
-        DeviceMem(DeviceMem&& other)
-                : _size(other._size),
-                  _data(other._data),
-                  _driver_handle(other._driver_handle),
-                  _context(other._context) {
+        DeviceMem(DeviceMem&& other): _size(other._size), _data(other._data), _context(other._context) {
             other._size = 0;
             other._data = nullptr;
         }
         DeviceMem& operator=(const DeviceMem&) = delete;
-        DeviceMem& operator=(DeviceMem&&) = delete;
+        DeviceMem& operator=(DeviceMem&& other);
 
         const void* data() const {
             return _data;
@@ -166,14 +157,41 @@ public:
         size_t size() const {
             return _size;
         }
+        void free();
         ~DeviceMem();
 
     private:
         size_t _size = 0;
         void* _data = nullptr;
-        const ze_driver_handle_t _driver_handle = nullptr;
-        const ze_context_handle_t _context = nullptr;
+        ze_context_handle_t _context = nullptr;
         const static size_t _alignment = 4096;
+    };
+
+    struct MemoryManagementUnit {
+        MemoryManagementUnit() = default;
+
+        void appendArgument(const std::string& name, const ze_graph_argument_properties_t& argument);
+        void allocate(const ze_device_handle_t device_handle, const ze_context_handle_t context);
+
+        std::size_t getSize() const;
+        const void* getHostMemRegion() const;
+        const void* getDeviceMemRegion() const;
+        void* getHostMemRegion();
+        void* getDeviceMemRegion();
+
+        void* getHostPtr(const std::string& name);
+        void* getDevicePtr(const std::string& name);
+
+        bool checkHostPtr(const void* ptr) const;
+
+    private:
+        std::size_t _size = 0;
+
+        HostMem _host;
+        DeviceMem _device;
+        std::map<std::string, std::size_t> _offsets;
+
+        const static size_t alignment = 4096;
     };
 
     struct CommandList {
@@ -207,7 +225,8 @@ public:
 
     struct CommandQueue {
         CommandQueue() = default;
-        CommandQueue(const ze_device_handle_t& device_handle, const ze_context_handle_t& context);
+        CommandQueue(const ze_device_handle_t& device_handle, const ze_context_handle_t& context,
+                     const ze_command_queue_priority_t& priority);
         CommandQueue(const CommandQueue&) = delete;
         CommandQueue& operator=(const CommandQueue&) = delete;
         void executeCommandList(CommandList& command_list);
@@ -276,18 +295,15 @@ public:
     };
 
     struct Pipeline {
-        Pipeline(const ze_driver_handle_t& driver_handle, const ze_device_handle_t& device_handle,
-                 const ze_context_handle_t context, ze_graph_dditable_ext_t* graph_ddi_table_ext,
-                 const std::shared_ptr<Graph>& graph,
+        Pipeline(const ze_device_handle_t& device_handle, const ze_context_handle_t context,
+                 ze_graph_dditable_ext_t* graph_ddi_table_ext, const std::shared_ptr<Graph>& graph,
                  const std::array<std::shared_ptr<CommandQueue>, stage::COUNT>& command_queue);
         Pipeline(const Pipeline&) = delete;
         Pipeline& operator=(const Pipeline&) = delete;
         ~Pipeline() = default;
 
-        std::map<std::string, HostMem> _inputs_host_mem_map;
-        std::map<std::string, DeviceMem> _inputs_device_mem_map;
-        std::map<std::string, HostMem> _outputs_host_mem_map;
-        std::map<std::string, DeviceMem> _outputs_device_mem_map;
+        MemoryManagementUnit _inputs;
+        MemoryManagementUnit _outputs;
 
         std::array<CommandList, stage::COUNT> _command_list;
         std::array<Fence, stage::COUNT> _fence;

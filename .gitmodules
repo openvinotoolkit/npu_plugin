@@ -13,7 +13,7 @@
 	shallow = true
 [submodule "thirdparty/bitcompactor"]
 	path = thirdparty/bitcompactor
-	url = https://gitlab-icv.inn.intel.com/movidius/btc_models.git
+	url = https://github.com/intel-innersource/frameworks.vpu.models.vpu27.bit-compactor.git
 [submodule "thirdparty/hddlunite"]
 	path = thirdparty/hddlunite
 	url = https://github.com/intel-innersource/frameworks.ai.vpu-accelerators.hddlunite.git
@@ -22,7 +22,7 @@
 	url = https://github.com/oneapi-src/level-zero.git
 [submodule "mcm-emulator"]
 	path = src/vpux_emulator
-	url = https://gitlab-icv.inn.intel.com/kmb-emulator/mcm-emulator.git
+	url = https://github.com/intel-innersource/applications.ai.vpu-accelerators.vpux-emulator.git
 [submodule "thirdparty/level-zero-ext"]
 	path = thirdparty/level-zero-ext
 	url = https://github.com/intel-innersource/drivers.vpu.user-mode.applications.umd.ze-ext-headers.git

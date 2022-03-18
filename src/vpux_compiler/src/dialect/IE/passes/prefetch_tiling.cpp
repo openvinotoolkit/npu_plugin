@@ -43,10 +43,14 @@ mlir::Operation* getParentConvOp(mlir::Operation* op) {
     // for const prefetch ignore cases where activation is handled by
     // intermediate operations and causes a stall
     // prefetch is wanted from current op to parent op
-    mlir::Operation* parentOp = op->getOperand(0).getDefiningOp();
-    auto isOpIgnorable = [](mlir::Operation* op) -> bool {
+    const auto isOpIgnorable = [](mlir::Operation* op) -> bool {
+        if (auto nceEltwiseAnd = mlir::dyn_cast<VPU::NCEEltwiseOp>(op)) {
+            return nceEltwiseAnd.op_type() == VPU::EltwiseType::AND;
+        }
         return mlir::isa<IE::AndOp>(op) || mlir::isa<IE::PermuteCastOp>(op) || mlir::isa<IE::ReshapeOp>(op);
     };
+
+    mlir::Operation* parentOp = op->getOperand(0).getDefiningOp();
     while (parentOp && isOpIgnorable(parentOp)) {
         // skip the Permute, Reshape and And
         if (parentOp->getOperands().size() < 1) {

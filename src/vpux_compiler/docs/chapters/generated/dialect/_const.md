@@ -213,6 +213,7 @@ Patches offsets in the weights table
 | :-------: | :-------: | ----------- |
 | weightsPtr | `mlir::IntegerAttr` |  |
 | sparsityPtr | `mlir::IntegerAttr` |  |
+| offsets | `mlir::ArrayAttr` |  |
 
 ### ReorderAttr
 

@@ -381,7 +381,7 @@ struct PRINT_PROFILING final : OptionBase<PRINT_PROFILING, InferenceEngine::VPUX
     }
 
     static InferenceEngine::VPUXConfigParams::ProfilingOutputTypeArg defaultValue() {
-        return InferenceEngine::VPUXConfigParams::ProfilingOutputTypeArg::NONE;
+        return cvtProfilingOutputType(ov::intel_vpux::ProfilingOutputTypeArg::NONE);
     }
 
     static InferenceEngine::VPUXConfigParams::ProfilingOutputTypeArg parse(StringRef val);
@@ -408,6 +408,20 @@ struct PROFILING_OUTPUT_FILE final : OptionBase<PROFILING_OUTPUT_FILE, std::stri
 
     static OptionMode mode() {
         return OptionMode::RunTime;
+    }
+};
+
+//
+// MODEL_PRIORITY
+//
+
+struct MODEL_PRIORITY final : OptionBase<MODEL_PRIORITY, ov::hint::Priority> {
+    static StringRef key() {
+        return ov::hint::model_priority.name();
+    }
+
+    static ov::hint::Priority defaultValue() {
+        return ov::hint::Priority::MEDIUM;
     }
 };
 

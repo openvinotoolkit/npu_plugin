@@ -11,12 +11,16 @@
 // included with the Software Package for additional details.
 //
 
-#pragma once
+#include "vpux/compiler/utils/factors.hpp"
 
-namespace elf {
-namespace utils {
+using namespace vpux;
 
-void checkELFMagic(const unsigned char* elfIdent);
-
-} // namespace utils
-} // namespace elf
+SmallVector<Factors> vpux::getFactorsList(int64_t n) {
+    SmallVector<Factors> factors;
+    for (int64_t i = 1; i <= sqrt(n); i++) {
+        if (n % i == 0) {
+            factors.emplace_back(n / i, i);  // larger, smaller
+        }
+    }
+    return factors;
+}

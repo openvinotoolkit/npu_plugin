@@ -46,14 +46,16 @@ OutputTiling vpux::fillDividedTiles(ShapeRef divisors, ShapeRef orig) {
         }
 
         const auto tileSize = origSize / divisor;
+        auto remainderTileLength = origSize % divisor;
+        auto leftLength = remainderTileLength / 2;
+        auto rightLength = remainderTileLength - leftLength;
         VPUX_THROW_UNLESS(tileSize > 0, "Got too many tiles request '{0}'", divisor);
 
         int64_t offset = 0;
         for (int64_t i : irange(dividedTiles.size())) {
-            const bool remainderTile = !(((i / repeatCtr) + 1) % (divisor));
-
-            if (remainderTile) {
-                dividedTiles[i].shape[dim] = origSize - (tileSize * (divisor - 1));
+            auto indexInDim = (i / repeatCtr) % divisor;
+            if (indexInDim < leftLength || indexInDim >= divisor - rightLength) {
+                dividedTiles[i].shape[dim] = tileSize + 1;
             } else {
                 dividedTiles[i].shape[dim] = tileSize;
             }
@@ -63,10 +65,10 @@ OutputTiling vpux::fillDividedTiles(ShapeRef divisors, ShapeRef orig) {
 
             const bool incrementOffset = !((i + 1) % repeatCtr);
             if (incrementOffset) {
-                offset += tileSize;
+                offset += dividedTiles[i].shape[dim];
             }
 
-            const bool resetOffset = (remainderTile && incrementOffset);
+            const bool resetOffset = (indexInDim == divisor - 1 && incrementOffset);
             if (resetOffset) {
                 offset = 0;
             }

@@ -366,10 +366,6 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Interpolate)
             } else if (m_interpolateParams->interpolation_mode == InterpolationMethod::NEAREST) {
                 calcReferenceOutputNearest(OH, IH, OW, IW, C, m_inputTensor, m_referenceOutputTensor, m_interpolateParams->nearest_mode, m_interpolateParams->coord_transform_mode);
             }
-
-            printf("interpolation_mode = %d\n", m_interpolateParams->interpolation_mode);
-            printf("coord_transform_mode = %d\n", m_interpolateParams->coord_transform_mode);
-            printf("nearest_mode = %d\n", m_interpolateParams->nearest_mode);
         }
 
         virtual bool checkResult() override {

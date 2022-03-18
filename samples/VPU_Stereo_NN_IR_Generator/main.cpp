@@ -57,9 +57,9 @@ std::shared_ptr<ngraph::Function> create_advanced_function() {
 
     auto kernel_constant9x9 =
             ngraph::opset3::Constant::create(ngraph::element::f16, ngraph::Shape{32, 1, 9, 9}, weights_v);
-    auto input_low_kernel = ngraph::opset3::Constant::create(ngraph::element::f16, ngraph::Shape{1}, {-128.});
+    auto input_low_kernel = ngraph::opset3::Constant::create(ngraph::element::f16, ngraph::Shape{1}, {-127.});
     auto input_high_kernel = ngraph::opset3::Constant::create(ngraph::element::f16, ngraph::Shape{1}, {127.});
-    auto output_low_kernel = ngraph::opset3::Constant::create(ngraph::element::f16, ngraph::Shape{1}, {-128.});
+    auto output_low_kernel = ngraph::opset3::Constant::create(ngraph::element::f16, ngraph::Shape{1}, {-127.});
     auto output_high_kernel = ngraph::opset3::Constant::create(ngraph::element::f16, ngraph::Shape{1}, {127.});
     auto kernel9x9_fakequantize = std::make_shared<ngraph::opset3::FakeQuantize>(
             kernel_constant9x9, input_low_kernel, input_high_kernel, output_low_kernel, output_high_kernel, 256);

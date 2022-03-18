@@ -630,6 +630,32 @@ operation ::= `VPUIP.DetectionOutputUPA` attr-dict
 | :----: | ----------- |
 `output` | memref of 16-bit float values
 
+### `VPUIP.DistributedCast` (vpux::VPUIP::DistributedCastOp)
+
+Operation that casts one DistributedBuffer type to another.
+
+
+Syntax:
+
+```
+operation ::= `VPUIP.DistributedCast` attr-dict
+              `inputs` `(` $input `:` type($input) `)`
+              `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | VPUIP buffer type to describe the buffer tiling
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | VPUIP buffer type to describe the buffer tiling
+
 ### `VPUIP.EltwiseUPA` (vpux::VPUIP::EltwiseUPAOp)
 
 Eltwise UPA SHAVE kernel

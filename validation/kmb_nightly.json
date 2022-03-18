@@ -4436,7 +4436,7 @@
         {
             "name" : "BDK_onnx_FP16_INT8_modnet_custom",
             "ir" : "models/clientmodels/BDK4/modnet_custom/onnx/FP16-INT8/modnet_custom.xml",
-            "category" : "MLIR/weekly_private",            
+            "category" : "MLIR/weekly_private",
             "3720": {
                 "disabled" : true
             },
@@ -4883,6 +4883,181 @@
             },
             "CI-options" : {
                 "blob_name" : "bdk_tf_FP16-INT8_ssd-mobilenet"
+            }
+        },
+
+        {
+            "name": "SOL_SISO_fp16_shape-1024",
+            "description": "Single input - single output IR with shape {1024}",
+            "ir": "models/IOIR/IOIR_shape-1024.xml",
+            "category": "MLIR/precommit/SOL",
+            "3720": {
+                "disabled": true
+            },
+            "3900": {
+                "disabled": true
+            },
+            "Compile": {
+                "input_precision": "FP16",
+                "output_precision": "FP16"
+            },
+            "extra_config": {
+                "VPUX_COMPILER_TYPE": "MLIR",
+                "PERFORMANCE_HINT": "LATENCY",
+                "VPUX_INFERENCE_SHAVES": "16"
+            },
+            "BenchmarkApp": {},
+            "NetTest-CalcRef": {
+                "disabled": true
+            },
+            "NetTest-Validate": {
+                "disabled": true
+            },
+            "AccuracyCheck": {
+                "disabled": true
+            },
+            "CI-options": {
+                "blob_name": "SOL_SISO_fp16_shape-1024"
+            }
+        },
+
+        {
+            "name": "SOL_SISO_fp16_shape-1048576",
+            "description": "Single input - single output IR with shape {1048576} (4Mb)",
+            "ir": "models/IOIR/IOIR_shape-1048576.xml",
+            "category": "MLIR/precommit/SOL",
+            "3720": {
+                "disabled": true
+            },
+            "3900": {
+                "disabled": true
+            },
+            "Compile": {
+                "input_precision": "FP16",
+                "output_precision": "FP16"
+            },
+            "extra_config": {
+                "VPUX_COMPILER_TYPE": "MLIR",
+                "PERFORMANCE_HINT": "LATENCY",
+                "VPUX_INFERENCE_SHAVES": "16"
+            },
+            "BenchmarkApp": {},
+            "NetTest-CalcRef": {
+                "disabled": true
+            },
+            "NetTest-Validate": {
+                "disabled": true
+            },
+            "AccuracyCheck": {
+                "disabled": true
+            },
+            "CI-options": {
+                "blob_name": "SOL_SISO_fp16_shape-1048576"
+            }
+        },
+
+        {
+            "name": "SOL_ModelF",
+            "ir": "models/SOL_Models/ModelF_SOL/FP16-INT8/ModelF_SOL.xml",
+            "category": "MLIR/precommit/SOL/SKIP_LIN",
+            "3720": {
+                "disabled": true
+            },
+            "3900": {
+                "disabled": true
+            },
+            "Compile": {
+                "input_precision": "FP16",
+                "output_precision": "FP16"
+            },
+            "extra_config": {
+                "VPUX_COMPILER_TYPE": "MLIR",
+                "PERFORMANCE_HINT": "LATENCY",
+                "VPUX_INFERENCE_SHAVES": "16"
+            },
+            "BenchmarkApp": {},
+            "NetTest-CalcRef": {
+                "disabled": true
+            },
+            "NetTest-Validate": {
+                "disabled": true
+            },
+            "AccuracyCheck": {
+                "disabled": true
+            },
+            "CI-options": {
+                "blob_name": "SoL_ModelF"
+            },
+            "comments" : "Failed to infer on Linux stack [EISW-28863]"
+        },
+
+        {
+            "name" : "scale_tf_FP16-INT8_shufflenet-v2-x1.0",
+            "ir" : "scale/shufflenet-v2-x1.0/tf/FP16-INT8/shufflenet-v2-x1.0.xml",
+            "category" : "MLIR/SKIP_WIN",
+            "3900" : {
+                "disabled" : true
+            },
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_COMPILER_TYPE": "MLIR",
+                "PERFORMANCE_HINT": "THROUGHPUT",
+                "VPUX_INFERENCE_SHAVES": "16"
+            },
+            "BenchmarkApp" : {
+                "input_folder": "224x224"
+            },
+            "AccuracyCheck" : {
+                "config": "shufflenet-v2-x1.0.yml",
+                "subsample_size": 100
+            },
+            "NetTest": {
+                "inputs" : [["224x224/watch.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "1",
+                    "--prob_tolerance", "0.7"
+                ]
+            },
+            "CI-options" : {
+                "blob_name" : "shufflenet-v2-x1.0"
+            }
+        },
+
+        {
+            "name" : "scale_tf_FP16-INT8_se-resnext-50",
+            "ir" : "scale/se-resnext-50/tf/FP16-INT8/se-resnext-50.xml",
+            "category" : "MLIR/SKIP_WIN",
+            "3900" : {
+                "disabled" : true
+            },
+            "3720": {
+                "disabled" : true
+            },
+            "extra_config" : {
+                "VPUX_COMPILER_TYPE": "MLIR",
+                "PERFORMANCE_HINT": "THROUGHPUT",
+                "VPUX_INFERENCE_SHAVES": "16"
+            },
+            "BenchmarkApp" : {
+                "input_folder": "224x224"
+            },
+            "AccuracyCheck" : {
+                "config": "se-resnext-50.yml",
+                "subsample_size": 100
+            },
+            "NetTest": {
+                "inputs" : [["224x224/watch.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "1",
+                    "--prob_tolerance", "0.7"
+                ]
+            },
+            "CI-options" : {
+                "blob_name" : "se-resnext-50"
             }
         }
     ]

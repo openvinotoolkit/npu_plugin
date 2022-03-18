@@ -60,15 +60,6 @@ mlir::LogicalResult DeconvolutionConversion::matchAndRewrite(IE::DeconvolutionOp
     const auto outputShape = getShape(origOp.output());
     VPUX_THROW_UNLESS(outputShape.size() == 4, "Only 2D deconvolution is supported");
 
-    auto origOutputX = stridesVector[Dims4D::Strides::X] * (featureShape[Dims4D::Act::W] - 1) +
-                       stridesVector[Dims4D::Strides::X] - padsBeginVector[Dims4D::PadsBegin::Left] -
-                       padsEndVector[Dims4D::PadsEnd::Right];
-    auto origOutputY = stridesVector[Dims4D::Strides::Y] * (featureShape[Dims4D::Act::H] - 1) +
-                       stridesVector[Dims4D::Strides::Y] - padsBeginVector[Dims4D::PadsBegin::Top] -
-                       padsEndVector[Dims4D::PadsEnd::Bottom];
-    VPUX_THROW_UNLESS(origOutputX == outputShape[Dims4D::Act::W] && origOutputY == outputShape[Dims4D::Act::H],
-                      "Unsupported output shape");
-
     auto filterShape = getShape(origOp.filter()).toValues();
     VPUX_THROW_UNLESS(filterShape.size() == 4, "Only 2D deconvolution is supported");
 

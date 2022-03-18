@@ -255,6 +255,11 @@ bool operator!=(const DimValues<D, T, Tag>& v1, const DimValues<D, T, Tag>& v2) 
     return v1.raw() != v2.raw();
 }
 
+template <typename D, typename T, template <class> class Tag>
+bool operator<(const DimValues<D, T, Tag>& v1, const DimValues<D, T, Tag>& v2) {
+    return v1.raw() < v2.raw();
+}
+
 }  // namespace details
 
 //

@@ -676,10 +676,11 @@ void nb::TestCaseJsonDescriptor::parse(llvm::json::Object json_obj) {
     }
 
     if (caseType_ == CaseType::RaceCondition) {
-        auto underlyingOp = json_obj.getObject("operation");
-        this->underlyingOp_ = std::make_shared<TestCaseJsonDescriptor>(*underlyingOp);
-        raceConditionParams_ = loadRaceConditionParams(&json_obj);
-        return;
+        if (auto underlyingOp = json_obj.getObject("operation")) {
+            this->underlyingOp_ = std::make_shared<TestCaseJsonDescriptor>(*underlyingOp);
+            raceConditionParams_ = loadRaceConditionParams(&json_obj);
+            return;
+        }
     }
 
     throw std::runtime_error{llvm::formatv("Unsupported case type: {0}", caseTypeStr_).str()};

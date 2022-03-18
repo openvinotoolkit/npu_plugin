@@ -11,21 +11,15 @@
 // included with the Software Package for additional details.
 //
 
-#include <vpux_elf/types/relocation_entry.hpp>
+#pragma once
 
-using namespace elf;
+#include "vpux/compiler/dialect/IE/ops.hpp"
 
-//! Extract symbol index from info
-Elf_Word elf::elf64RSym(Elf_Xword info) {
-    return info >> 32;
-}
+namespace vpux {
+namespace IE {
 
-//! Extract relocation type from info
-Elf_Word elf::elf64RType(Elf_Xword info) {
-    return static_cast<Elf_Word>(info);
-}
+bool hasSupportedKernels(ArrayRef<int64_t> kernelSize);
+bool isGlobalPoolingKernelSupported(mlir::Operation* op);
 
-//! Pack relocation type and symbol index into info
-Elf_Xword elf::elf64RInfo(Elf_Word sym, Elf_Word type) {
-    return (static_cast<Elf_Xword>(sym) << 32) + (static_cast<Elf_Xword>(type));
-}
+}  // namespace IE
+}  // namespace vpux

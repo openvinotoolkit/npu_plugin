@@ -86,6 +86,9 @@ public:
 
 private:
     mlir::Value getClusterOperand(VPUIP::NCEClusterTilingOp clusterOp, mlir::Value innerOperand) const;
+    SmallVector<mlir::IntegerAttr> getOutChannelOffsets(VPUIP::NCEClusterTaskOp nceTask,
+                                                        VPUIP::DistributedBufferType inType,
+                                                        VPUIP::DistributedBufferType outType) const;
     SmallVector<mlir::Value> getPerClusterBuffers(mlir::Location loc, StringRef bufferName,
                                                   VPUIP::NCEClusterTilingOp clusterOp, mlir::Value innerOperand,
                                                   int64_t numClusters, mlir::PatternRewriter& rewriter) const;
@@ -107,6 +110,38 @@ mlir::Value ClusterNCERewriter::getClusterOperand(VPUIP::NCEClusterTilingOp clus
                     "Cannot match the origin operand with the inner one '{0}'", innerOperand);
 
     return clusterOp->getOperand(blockArg.getArgNumber());
+}
+
+SmallVector<mlir::IntegerAttr> ClusterNCERewriter::getOutChannelOffsets(VPUIP::NCEClusterTaskOp nceTask,
+                                                                        VPUIP::DistributedBufferType inType,
+                                                                        VPUIP::DistributedBufferType outType) const {
+    auto inDistribution = inType.getDistribution();
+    auto outDistribution = outType.getDistribution();
+
+    auto inDistributionMode = inDistribution.mode().getValue();
+    auto outDistributionMode = outDistribution.mode().getValue();
+
+    const auto numClusters = inDistribution.num_clusters().getInt();
+
+    const auto hasWeightsTable = nceTask.weight_table() != nullptr;
+    const auto isSOKMode =
+            inDistributionMode == VPU::DistributionMode::DUPLICATED &&
+            outDistributionMode == (VPU::DistributionMode::SEGMENTED | VPU::DistributionMode::DUPLICATED);
+    if (!hasWeightsTable || !isSOKMode) {
+        return SmallVector<mlir::IntegerAttr>(numClusters, nullptr);
+    }
+
+    const auto perClusterShapeOffsets = outType.getPerClusterComputeShapeOffsets();
+    VPUX_THROW_UNLESS(perClusterShapeOffsets.size() == checked_cast<size_t>(numClusters),
+                      "Number of shape offsets '{0}' and clusters '{1}' are mismatch", perClusterShapeOffsets.size(),
+                      numClusters);
+
+    SmallVector<mlir::IntegerAttr> outChannelOffsets(numClusters);
+    for (int64_t clusterId = 0; clusterId < numClusters; ++clusterId) {
+        outChannelOffsets[clusterId] = getIntAttr(_ctx, perClusterShapeOffsets[clusterId][Dims4D::Act::C]);
+    }
+
+    return outChannelOffsets;
 }
 
 SmallVector<mlir::Value> ClusterNCERewriter::getPerClusterBuffers(mlir::Location loc, StringRef bufferName,
@@ -139,7 +174,8 @@ SmallVector<mlir::Value> ClusterNCERewriter::getPerClusterBuffers(mlir::Location
     VPUX_THROW_UNLESS(declBuff != nullptr, "Can't get buffer offset");
 
     SmallVector<mlir::Value> perClusterBuffers(numClusters);
-    if (distributionMode == VPU::DistributionMode::SEGMENTED || distributionMode == VPU::DistributionMode::DUPLICATED) {
+    if (distributionMode == VPU::DistributionMode::SEGMENTED || distributionMode == VPU::DistributionMode::DUPLICATED ||
+        distributionMode == VPU::DistributionMode::OVERLAPPED) {
         for (int64_t clusterId = 0; clusterId < numClusters; ++clusterId) {
             auto cmxBuffType =
                     changeShape(innerOperandType, perClusterShapes[clusterId], perClusterShapeOffsets[clusterId]);
@@ -232,6 +268,15 @@ mlir::LogicalResult ClusterNCERewriter::matchAndRewrite(VPUIP::NCEClusterTaskOp 
                       "Input '{0}' and output '{1}' number of clusters are not equal", inDistribution.num_clusters(),
                       outDistribution.num_clusters());
 
+    auto inDistributionMode = inDistribution.mode().getValue();
+    auto outDistributionMode = outDistribution.mode().getValue();
+    VPUX_THROW_WHEN(outDistributionMode == VPU::DistributionMode::OVERLAPPED,
+                    "No support for NCE output in OVERLAPPED mode.");
+    VPUX_THROW_WHEN(inDistributionMode == VPU::DistributionMode::OVERLAPPED &&
+                            outDistributionMode != VPU::DistributionMode::SEGMENTED,
+                    "When NCE has input in OVERLAPPED mode then output must be segmented. out mode = '{0}'",
+                    VPU::stringifyDistributionMode(outDistributionMode));
+
     auto numClusters = inDistribution.num_clusters().getInt();
     auto loc = nceTask->getLoc();
     auto inputBuffs = getPerClusterBuffers(loc, "input", clusterOp, nceTask.input(), numClusters, rewriter);
@@ -247,6 +292,8 @@ mlir::LogicalResult ClusterNCERewriter::matchAndRewrite(VPUIP::NCEClusterTaskOp 
         isSegmented = mlir::UnitAttr::get(nceTask.getContext());
     }
 
+    const auto outChannelOffsets = getOutChannelOffsets(nceTask, parentInputType, parentOutputType);
+
     for (int64_t clusterId = 0; clusterId < numClusters; ++clusterId) {
         const auto newLoc = appendLoc(loc, llvm::formatv("_cluster_{0}", clusterId).str());
         auto newTask = VPURT::wrapIntoTaskOp<VPUIP::NCEClusterTaskOp>(
@@ -254,7 +301,8 @@ mlir::LogicalResult ClusterNCERewriter::matchAndRewrite(VPUIP::NCEClusterTaskOp 
                 weightsBuffs[clusterId], weightTableBuffs[clusterId], activationWindowBuffs[clusterId], parentInput,
                 parentOutput, outputBuffs[clusterId], nceTask.task_type(), nceTask.kernel_sizeAttr(),
                 nceTask.kernel_stridesAttr(), nceTask.kernel_paddingAttr(),
-                nceTask.activation_window_channel_lengthAttr(), nullptr, nullptr, isSegmented);
+                nceTask.activation_window_channel_lengthAttr(), nullptr, nullptr, isSegmented,
+                outChannelOffsets[clusterId]);
 
         {
             mlir::OpBuilder::InsertionGuard guard(rewriter);
@@ -300,8 +348,9 @@ public:
     mlir::LogicalResult matchAndRewrite(VPUIP::NNDMAOp nndmaOp, mlir::PatternRewriter& rewriter) const final;
 
 private:
-    void unrollSegmented(mlir::Location loc, VPUIP::NCEClusterTilingOp clusterOp, VPURT::TaskOp vpurtTask,
-                         VPUIP::DistributedBufferType distributedType, mlir::PatternRewriter& rewriter) const;
+    void unrollSegmentedOrOverlapped(mlir::Location loc, VPUIP::NCEClusterTilingOp clusterOp, VPURT::TaskOp vpurtTask,
+                                     VPUIP::DistributedBufferType distributedType,
+                                     mlir::PatternRewriter& rewriter) const;
 
 private:
     Logger _log;
@@ -309,9 +358,10 @@ private:
     mlir::FlatSymbolRefAttr _cmxNameAttr;
 };
 
-void ClusterDMARewriter::unrollSegmented(mlir::Location loc, VPUIP::NCEClusterTilingOp clusterOp,
-                                         VPURT::TaskOp vpurtTask, VPUIP::DistributedBufferType distributedType,
-                                         mlir::PatternRewriter& rewriter) const {
+void ClusterDMARewriter::unrollSegmentedOrOverlapped(mlir::Location loc, VPUIP::NCEClusterTilingOp clusterOp,
+                                                     VPURT::TaskOp vpurtTask,
+                                                     VPUIP::DistributedBufferType distributedType,
+                                                     mlir::PatternRewriter& rewriter) const {
     const auto input = *clusterOp.getInputs().begin();
     const auto output = *clusterOp.getOutputs().begin();
 
@@ -462,17 +512,17 @@ mlir::LogicalResult ClusterDMARewriter::matchAndRewrite(VPUIP::NNDMAOp nndmaOp, 
     const auto loc = nndmaOp->getLoc();
     const auto distributionAttr = distributedType.getDistribution();
     const auto mode = distributionAttr.mode().getValue();
-    if (mode == VPU::DistributionMode::SEGMENTED) {
-        _log.trace("Process SEGMENTED mode");
-        unrollSegmented(loc, clusterOp, vpurtTask, distributedType, rewriter);
-    } else if (mode == VPU::DistributionMode::DUPLICATED) {
-        // For example, copy of weights in case of SOH
+    if (mode == VPU::DistributionMode::SEGMENTED || mode == VPU::DistributionMode::OVERLAPPED) {
+        _log.trace("Process {0} mode", VPU::stringifyDistributionMode(mode));
+        unrollSegmentedOrOverlapped(loc, clusterOp, vpurtTask, distributedType, rewriter);
+    } else if (outputType.isa<VPUIP::DistributedBufferType>() &&
+               VPU::bitEnumContains(mode, VPU::DistributionMode::DUPLICATED)) {
+        // For example, copy of weights in case of SOH (output type is DUPLICATED)
+        // Or copy spilled input of NCE task in case of SOK (output type is DUPLICATED|SEGMENTED)
         // <16x16x1x1xf16, @DDR> -> <16x16x1x1xf16, [@CMX, 0]>
         //                       -> <16x16x1x1xf16, [@CMX, 1]>
 
-        _log.trace("Process DUPLICATED mode");
-        VPUX_THROW_UNLESS(outputType.isa<VPUIP::DistributedBufferType>(),
-                          "Output operand must have DistributedBuffer type");
+        _log.trace("Process DUPLICATED output");
 
         auto outDeclBuff = output.getDefiningOp<VPURT::DeclareBufferOp>();
         VPUX_THROW_UNLESS(outDeclBuff != nullptr, "Can't get output buffer offset");
@@ -490,14 +540,14 @@ mlir::LogicalResult ClusterDMARewriter::matchAndRewrite(VPUIP::NNDMAOp nndmaOp, 
         const auto newNNDMA = VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(
                 rewriter, vpurtTask.waitBarriers(), vpurtTask.updateBarriers(), newLoc, input, cmxBuffer);
         _log.trace("Insert new NNDMA op: '{0}'", newNNDMA);
-    } else if (mode == (VPU::DistributionMode::DUPLICATED | VPU::DistributionMode::SEGMENTED)) {
-        // For example, copy back of output in case of SOK
+    } else if (inputType.isa<VPUIP::DistributedBufferType>() &&
+               VPU::bitEnumContains(mode, VPU::DistributionMode::DUPLICATED)) {
+        // For example, copy back of output of NCE task in case of SOK (input type is DUPLICATED|SEGMENTED)
+        // Or copy output of NCE task in case of Clustering strategy (input type is DUPLICATED)
         // <1x32x32x32xf16, [@CMX, 0]> -> <1x32x32x32xf16, @DDR>
         // <1x32x32x32xf16, [@CMX, 1]>
 
-        _log.trace("Process DUPLICATED|SEGMENTED mode");
-        VPUX_THROW_UNLESS(inputType.isa<VPUIP::DistributedBufferType>(),
-                          "Input operand must have DistributedBuffer type");
+        _log.trace("Process DUPLICATED|SEGMENTED input");
 
         auto inDeclBuff = input.getDefiningOp<VPURT::DeclareBufferOp>();
         VPUX_THROW_UNLESS(inDeclBuff != nullptr, "Can't get input buffer offset");

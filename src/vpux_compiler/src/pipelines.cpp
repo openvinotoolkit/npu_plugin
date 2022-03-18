@@ -75,7 +75,7 @@ void vpux::buildReferenceSWModePipeline(mlir::OpPassManager& pm, const Reference
 
     IE::buildAdjustPrecisionPipeline(pm, IE::AdjustPrecisionOptions(options), log);
 
-    IE::buildAdjustForVPUPipeline(pm, log);
+    IE::buildAdjustForVPUPipeline(pm, IE::AdjustForVPUOptions(options), log);
 
     pm.addPass(IE::createSplitFakeQuantPass(log));
     pm.addPass(mlir::createCanonicalizerPass(grc));
@@ -155,7 +155,7 @@ void vpux::buildReferenceHWModePipeline(mlir::OpPassManager& pm, const Reference
         pm.addPass(IE::createConvertAvgPoolToDWConvPass(log));
     }
 
-    IE::buildAdjustForVPUPipeline(pm, log);
+    IE::buildAdjustForVPUPipeline(pm, IE::AdjustForVPUOptions(options), log);
 
     if (options.enableSwapTransposeWithFQ) {
         pm.addPass(IE::createSwapTransposeWithFQPass(log));
@@ -282,7 +282,7 @@ void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOp
         pm.addPass(IE::createConvertAvgPoolToDWConvPass(log));
     }
 
-    IE::buildAdjustForVPUPipeline(pm, log);
+    IE::buildAdjustForVPUPipeline(pm, IE::AdjustForVPUOptions(options), log);
 
     if (options.enableSwapTransposeWithFQ) {
         pm.addPass(IE::createSwapTransposeWithFQPass(log));
@@ -329,6 +329,8 @@ void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOp
     pm.addPass(mlir::createCanonicalizerPass(grc));
 
     pm.addPass(createConvertIEToVPUNCEPass(log));
+    pm.addPass(VPU::createMultiClusterStrategyAssignmentPass(log));
+    pm.addPass(VPU::createWrapVPUOpsInNCEClusterTilingPass(log));
 
     pm.addPass(IE::createPrefetchTilingPass(log));
     pm.addPass(mlir::createCanonicalizerPass(grc));
@@ -402,6 +404,7 @@ void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOp
     pm.addPass(VPURT::createAssignVirtualBarriersPass(log));
     pm.addPass(VPURT::createAssignPhysicalBarriersPass(log));
     pm.addPass(VPURT::createBarrierSimulationPass(log));
+    pm.addPass(VPUIP::createUnrollClusterTilingPass(log));
     pm.addPass(VPUIP::createDumpStatisticsOfTaskOpsPass(log));
 }
 

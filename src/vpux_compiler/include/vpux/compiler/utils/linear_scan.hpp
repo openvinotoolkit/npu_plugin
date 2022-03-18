@@ -152,6 +152,11 @@ public:
             }
             auto allocPair = std::make_pair(allocAddr, newRangeSize);
             tempAlloc.push_back(allocPair);
+            // EISW#30278 case for exceeding NNCMX invariant with CMX-Concat
+            if (_handler.checkInvariantExceedingNNCMX(newRange, allocAddr, _par.totalSize())) {
+                canAllocAll = false;
+                break;
+            }
         }
         // deallocation
         for (auto curIt = tempAlloc.begin(); curIt != tempAlloc.end(); ++curIt) {

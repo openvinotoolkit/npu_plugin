@@ -173,6 +173,12 @@ The 'prefetch' means that the next tile could be loaded in advance when the curr
 
 The pass does not consider cost models,
 only tiles layers to make at least two tiles could be loaded in CMX memory at the same time.
+### `-propagate-fq-through-pad`: Propagate FakeQuantize operation after Pad is replaced with Concat
+`ConvertPadToConcat` adds a `Concat` operation which does not propagate `FakeQuantize` operation.
+
+1. Check if such `Concat` operation has one and only one quantized input
+2. Fetch quantization parameters
+3. Apply them to every single `Concat` input and output
 ### `-propagate-quantize-dequantize`: Propagate Quantize/Dequantize through agnostic operations
 The pass is a part of LowPrecision pipeline.
 
@@ -198,6 +204,13 @@ able to quantize convolution and fuse bias and post-processing operations.
 The pass is a part of `LowPrecision` pipeline.
 
 It splits `FakeQuantize` operations to `quant.qcast -> quant.dcast` pair.
+### `-swap-concat-with-eltwise`: Swaps Concat operation with elementwise -> FQ patterns
+The pass is a part of `HardwareMode` pipeline.
+
+It swaps `Concat` operation with elementwise -> FQ subgraph when possible. For example:
+* `PReLU` -> per-tensor `FakeQuantize` subgraph is eligible for such swap.
+
+This transormation allows to fuse `FakeQuantize` to NCE operations.
 ### `-swap-maxpool-with-act`: Swaps the MaxPool and activation
 This pass is needed for MTL only since HW MaxPool does not support post-op operations.
 Operations are swapped only if there is an operation before MaxPool that supports post-ops.

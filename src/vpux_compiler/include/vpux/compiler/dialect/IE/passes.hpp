@@ -93,7 +93,23 @@ std::unique_ptr<mlir::Pass> createTransposeToPermuteCastPass(Logger log = Logger
 // AdjustForVPU
 //
 
-void buildAdjustForVPUPipeline(mlir::OpPassManager& pm, Logger log = Logger::global());
+struct AdjustForVPUOptions : mlir::PassPipelineOptions<AdjustForVPUOptions> {
+    BoolOption enableSwapConcatWithEltwise{*this, "swap-concat-with-eltwise",
+                                           ::llvm::cl::desc("Enable SwapConcatWithEltwise pass"),
+                                           ::llvm::cl::init(true)};
+
+    AdjustForVPUOptions() = default;
+
+    template <
+            class OtherOptions,
+            typename = std::enable_if_t<std::is_base_of<mlir::PassPipelineOptions<OtherOptions>, OtherOptions>::value>>
+    explicit AdjustForVPUOptions(const OtherOptions& options) {
+        enableSwapConcatWithEltwise = options.enableSwapConcatWithEltwise;
+    }
+};
+
+void buildAdjustForVPUPipeline(mlir::OpPassManager& pm, const AdjustForVPUOptions& options,
+                               Logger log = Logger::global());
 
 std::unique_ptr<mlir::Pass> createConvertTile2PerAxisTilePass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createConvertShapeTo4DPass(Logger log = Logger::global());
@@ -111,6 +127,8 @@ std::unique_ptr<mlir::Pass> createConvertDepth2SpaceLayerPass(Logger log = Logge
 std::unique_ptr<mlir::Pass> createInsertMaxpoolToConcatLReluPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createInsertReorderBetweenTransposeAndConcatPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createSwapTransposeWithFQPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createPropagateFqThroughPadPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createSwapConcatWithEltwisePass(Logger log = Logger::global());
 
 //
 // LowPrecision

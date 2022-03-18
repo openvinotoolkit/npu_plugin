@@ -83,30 +83,26 @@ ZeroInferRequest::ZeroInferRequest(const IE::InputsDataMap& networkInputs, const
     // we assume that _executorPtr contains ZeroExecutor ptr only
     auto& pipeline = static_cast<ZeroExecutor*>(_executorPtr.get())->getPipeline();
     const auto& deviceInputs = static_cast<ZeroExecutor*>(_executorPtr.get())->getNetworkDesc().getDeviceInputsInfo();
-
     for (const auto& networkInput : _networkInputs) {
-        const std::string inputName = networkInput.first;
+        const std::string& inputName = networkInput.first;
         const IE::TensorDesc inputTensorDesc = networkInput.second->getTensorDesc();
 
         if (isRepackingRequired(inputTensorDesc, mapArguments(deviceInputs, inputName)->getTensorDesc())) {
             _inputs[inputName] = allocateLocalBlob(inputTensorDesc, nullptr);
         } else {
-            _inputs[inputName] =
-                    allocateLocalBlob(inputTensorDesc, mapArguments(pipeline._inputs_host_mem_map, inputName).data());
+            _inputs[inputName] = allocateLocalBlob(inputTensorDesc, pipeline._inputs.getHostPtr(inputName));
         }
     }
 
-    const auto& deviceeOutputs =
-            static_cast<ZeroExecutor*>(_executorPtr.get())->getNetworkDesc().getDeviceOutputsInfo();
+    const auto& deviceOutputs = static_cast<ZeroExecutor*>(_executorPtr.get())->getNetworkDesc().getDeviceOutputsInfo();
     for (const auto& networkOutput : _networkOutputs) {
-        const std::string outputName = networkOutput.first;
+        const std::string& outputName = networkOutput.first;
         const IE::TensorDesc outputTensorDesc = networkOutput.second->getTensorDesc();
 
-        if (isRepackingRequired(outputTensorDesc, mapArguments(deviceeOutputs, outputName)->getTensorDesc())) {
+        if (isRepackingRequired(outputTensorDesc, mapArguments(deviceOutputs, outputName)->getTensorDesc())) {
             _outputs[outputName] = allocateLocalBlob(outputTensorDesc, nullptr);
         } else {
-            _outputs[outputName] = allocateLocalBlob(outputTensorDesc,
-                                                     mapArguments(pipeline._outputs_host_mem_map, outputName).data());
+            _outputs[outputName] = allocateLocalBlob(outputTensorDesc, pipeline._outputs.getHostPtr(outputName));
         }
     }
 }

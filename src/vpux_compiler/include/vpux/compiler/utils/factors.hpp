@@ -13,23 +13,21 @@
 
 #pragma once
 
-#include <vpux_elf/writer/section.hpp>
+#include "vpux/utils/core/small_vector.hpp"
 
-namespace elf {
+#include <mlir/IR/Block.h>
 
-class Writer;
+namespace vpux {
 
-namespace writer {
+struct Factors final {
+    int64_t larger = 0;
+    int64_t smaller = 0;
 
-class StringSection final : public Section {
-public:
-    size_t addString(const std::string& name);
-
-private:
-    explicit StringSection(const std::string& name);
-
-    friend Writer;
+    Factors() {
+    }
+    Factors(int64_t larger, int64_t smaller): larger(larger), smaller(smaller) {
+    }
 };
 
-} // namespace writer
-} // namespace elf
+SmallVector<Factors> getFactorsList(int64_t n);
+}  // namespace vpux
