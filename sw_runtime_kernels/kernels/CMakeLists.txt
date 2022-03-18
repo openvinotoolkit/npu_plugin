@@ -15,18 +15,6 @@ cmake_minimum_required(VERSION 3.15)
 
 project(kernels)
 
-#set(BUILD_BLOB_BINARIES OFF CACHE BOOL "" FORCE)
-#set(BUILD_JTAG_BINARIES OFF CACHE BOOL "" FORCE)
-
-message(STATUS "CUSTOM_KERNELS_DIR = ${CUSTOM_KERNELS_DIR}")
-message(STATUS "CUSTOM_KERNELS_LIST = ${CUSTOM_KERNELS_LIST}")
-message(STATUS "BUILD_STD_KERNELS = ${BUILD_STD_KERNELS}")
-message(STATUS "BUILD_PSS_KERNELS = ${BUILD_PSS_KERNELS}")
-message(STATUS "BUILD_BLOB_BINARIES = ${BUILD_BLOB_BINARIES}")
-message(STATUS "BUILD_JTAG_BINARIES = ${BUILD_JTAG_BINARIES}")
-
-#message(STATUS "source files: ${kernel_srcs_list}")
-
 if (NOT DEFINED ENV{MV_TOOLS_DIR})
   message(FATAL_ERROR "MV_TOOLS_DIR environment variable must be defined")
 endif()
@@ -51,15 +39,6 @@ endif()
 set(MV_TOOLS_DIR "$ENV{MV_TOOLS_DIR}")
 set(FIRMWARE_VPU_DIR "$ENV{FIRMWARE_VPU_DIR}")
 
-message(STATUS "MV_TOOLS_DIR     = ${MV_TOOLS_DIR}")
-message(STATUS "MV_TOOLS_VERSION = ${MV_TOOLS_VERSION}")
-message(STATUS "FIRMWARE_VPU_DIR = ${FIRMWARE_VPU_DIR}")
-
-message(STATUS "source directory: ${CMAKE_SOURCE_DIR}")
-
-message(STATUS "TARGET_BINARY_DIR = ${TARGET_BINARY_DIR}")
-message(STATUS "TARGET_JTAG_DIR = ${TARGET_JTAG_DIR}")
-
 if (DEFINED TARGET_BINARY_DIR)
   set(target_binary_dir "${TARGET_BINARY_DIR}")
 else()
@@ -71,9 +50,6 @@ if (DEFINED TARGET_JTAG_DIR)
 else()
   set(target_jtag_dir "${target_binary_dir}/..")
 endif()
-
-message(STATUS "target_binary_dir = ${target_binary_dir}")
-message(STATUS "target_jtag_dir = ${target_jtag_dir}")
 
 set(kernel_src_dir_default "src")
 set(kernel_cpunum_default "3010")
@@ -126,12 +102,9 @@ endif()
 
 set(kernel_descrip_list "${CUSTOM_KERNELS_LIST}")
 if (NOT kernel_descrip_list STREQUAL "")
-  message(STATUS "[NOT CUSTOM_KERNELS_LIST STREQUAL \"\"] => T")
   set(kernel_descrip_list ${CUSTOM_KERNELS_LIST})
   list(TRANSFORM kernel_descrip_list PREPEND "${kernel_descrip_dir}")
-  message(STATUS "kernel_descrip_list = ${kernel_descrip_list}")
 else()
-  message(STATUS "[NOT CUSTOM_KERNELS_LIST STREQUAL \"\"] => F")
   set(kernel_descrip_list "")
   if (BUILD_STD_KERNELS)
     file(GLOB std_list "${kernel_descrip_dir}*.txt")
@@ -142,9 +115,6 @@ else()
     list(APPEND kernel_descrip_list ${pss_list})
   endif()
 endif()
-
-message(STATUS "kernel_descrip_list = ${kernel_descrip_list}")
-message(STATUS "CMAKE_INSTALL_PREFIX = ${CMAKE_INSTALL_PREFIX}")
 
 foreach(kernel_descrip ${kernel_descrip_list})
 
@@ -161,7 +131,6 @@ foreach(kernel_descrip ${kernel_descrip_list})
   set(binary_subdir "")
 
   get_filename_component(kernel_descrip_path ${kernel_descrip} DIRECTORY)
-  message(STATUS "kernel_descrip_path = ${kernel_descrip_path}")
 
   include("${kernel_descrip}")
   get_filename_component(kernel_name ${kernel_src} NAME_WE)
@@ -169,8 +138,6 @@ foreach(kernel_descrip ${kernel_descrip_list})
   if (kernel_entry STREQUAL "")
     set(kernel_entry "${kernel_name}")
   endif()
-
-  message(STATUS "kernel_cpunum = ${kernel_cpunum}")
 
   if (kernel_cpunum STREQUAL "3720")
     list(APPEND define_symbols_list "USE_3720_INTSTRUCTIONS")
@@ -189,20 +156,14 @@ foreach(kernel_descrip ${kernel_descrip_list})
   set(kernel_src_file "${kernel_src_dir}/${kernel_src}")
   set(kernel_src_path "${CMAKE_SOURCE_DIR}/${kernel_src_file}")
 
-  message(STATUS "kernel = ${kernel_name} ${kernel_src_file}")
-
   list(TRANSFORM include_dirs_list PREPEND "-I")
   list(TRANSFORM define_symbols_list PREPEND "-D")
-
-  message(STATUS "define_symbols_list = ${define_symbols_list}")
-  message(STATUS "include_dirs_list = ${include_dirs_list}")
 
   if (BUILD_BLOB_BINARIES OR BUILD_JTAG_BINARIES)
     set(obj_file "${kernel_src}${kernel_cpu_suffix}${obj_suffix}")
 
     set(elf_file "${kernel_name}${kernel_cpu_suffix}${elf_suffix}")
     set(elf_path "${CMAKE_BINARY_DIR}/${elf_file}")
-    message(STATUS "elf = ${elf_path}")
 
     add_custom_target("${obj_file}"
       DEPENDS "${kernel_src_file}"
@@ -212,7 +173,6 @@ foreach(kernel_descrip ${kernel_descrip_list})
 
     if (NOT extra_src_list STREQUAL "")
       foreach(extra_src_file ${extra_src_list})
-        message(STATUS "extra_src_file = ${extra_src_file}")
         get_filename_component(src_name ${extra_src_file} NAME_WE)
         set(obj_file "${src_name}${obj_suffix}")
         add_custom_target("${obj_file}"
@@ -234,8 +194,6 @@ foreach(kernel_descrip ${kernel_descrip_list})
     set(blob_data_file "${target_prefix}${kernel_name}${kernel_cpu_suffix}${blob_data_suffix}")
     set(blob_text_path "${CMAKE_BINARY_DIR}/${blob_text_file}")
     set(blob_data_path "${CMAKE_BINARY_DIR}/${blob_data_file}")
-    message(STATUS "blob_text = ${blob_text_path}")
-    message(STATUS "blob_data = ${blob_data_path}")
 
     add_custom_target("${blob_text_file}" ALL
       COMMAND "${mv_tools_objcopy}" -O binary --only-section=.text "${elf_file}" "${blob_text_file}"
@@ -256,8 +214,6 @@ foreach(kernel_descrip ${kernel_descrip_list})
     set(jtag_data_file "${target_prefix}${kernel_name}${kernel_cpu_suffix}${jtag_data_suffix}")
     set(jtag_text_path "${CMAKE_BINARY_DIR}/${jtag_text_file}")
     set(jtag_data_path "${CMAKE_BINARY_DIR}/${jtag_data_file}")
-    message(STATUS "jtag_text = ${jtag_text_path}")
-    message(STATUS "jtag_data = ${jtag_data_path}")
 
     add_custom_target("${jtag_text_file}" ALL
       COMMAND ${host_tools_xxd} -i "${blob_text_file}" "${jtag_text_path}"
