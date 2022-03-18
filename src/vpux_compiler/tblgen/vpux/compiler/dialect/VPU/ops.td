@@ -224,7 +224,7 @@ def VPU_NCEDepthConvolutionOp :
     );
 
     let assemblyFormat = [{
-        `(` $input `,` $filter `,` $weightsTable `,` $activationWindow `)`
+        `(` $input `,` $filter `,` $weightsTable `,` $activationWindow
          (`,` $instructionListTable^ custom<OptionalTypes>(type($instructionListTable)) ``)? `)`
         attr-dict
         custom<OptionalTypes>(type($input), type($filter), type($weightsTable), type($activationWindow)) ``
@@ -271,9 +271,8 @@ def VPU_NCEMaxPoolOp :
     let arguments = (ins
         4DTensorOf<[F16, BF16, quant_QuantizedType]>:$input,
         4DTensorOf<[SI32]>:$weightsTable,
-        Optional<4DTensorOf<[SI32]>>:$instructionListTable,
         4DTensorOf<[UI8]>:$activationWindow,
-
+    
         Confined<I64ArrayAttr, [ArrayCount<2>]>:$kernel_size,
         Confined<I64ArrayAttr, [ArrayCount<2>]>:$strides,
         VPU_PaddingAttr:$pad,
@@ -292,7 +291,6 @@ def VPU_NCEMaxPoolOp :
 
     let assemblyFormat = [{
         `(` $input `,` $weightsTable `,` $activationWindow `)`
-         (`,` $instructionListTable^ custom<OptionalTypes>(type($instructionListTable)) ``)? `)`
         attr-dict
         custom<OptionalTypes>(type($input), type($weightsTable), type($activationWindow)) ``
         `->` type(results)

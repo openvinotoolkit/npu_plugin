@@ -138,7 +138,7 @@ NCE version of Depthwise Convolution layer
 Syntax:
 
 ```
-operation ::= `VPU.NCE.DepthConvolution` `(` $input `,` $filter `,` $weightsTable `,` $activationWindow `)`
+operation ::= `VPU.NCE.DepthConvolution` `(` $input `,` $filter `,` $weightsTable `,` $activationWindow
               (`,` $instructionListTable^ custom<OptionalTypes>(type($instructionListTable)) ``)? `)`
               attr-dict
               custom<OptionalTypes>(type($input), type($filter), type($weightsTable), type($activationWindow)) ``
@@ -218,7 +218,6 @@ Syntax:
 
 ```
 operation ::= `VPU.NCE.MaxPool` `(` $input `,` $weightsTable `,` $activationWindow `)`
-              (`,` $instructionListTable^ custom<OptionalTypes>(type($instructionListTable)) ``)? `)`
               attr-dict
               custom<OptionalTypes>(type($input), type($weightsTable), type($activationWindow)) ``
               `->` type(results)
@@ -242,7 +241,6 @@ operation ::= `VPU.NCE.MaxPool` `(` $input `,` $weightsTable `,` $activationWind
 | :-----: | ----------- |
 `input` | 4D tensor of 16-bit float or bfloat16 type or QuantizedType values
 `weightsTable` | 4D tensor of 32-bit signed integer values
-`instructionListTable` | 4D tensor of 32-bit signed integer values
 `activationWindow` | 4D tensor of 8-bit unsigned integer values
 
 #### Results:

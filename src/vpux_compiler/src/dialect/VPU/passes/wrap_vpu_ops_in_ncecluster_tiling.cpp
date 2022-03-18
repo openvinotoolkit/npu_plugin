@@ -133,8 +133,8 @@ mlir::LogicalResult NCEConvolutionRewriter::matchAndRewrite(NCEConvolutionOp ori
         auto instructionListTableNumTiles =
                 getIntArrayAttr(origOp.getContext(), getInstructionListTableTensorNumTiles(strategy));
         auto distributedInstructionListTableCopyOp =
-                createDistributedCopyIn(origOp, origOp.instructionListTable(),
-                                        instructionListTableDistributionMode, instructionListTableNumTiles);
+                createDistributedCopyIn(origOp, origOp.instructionListTable(), instructionListTableDistributionMode,
+                                        instructionListTableNumTiles);
         distributedCopyOps.push_back(distributedInstructionListTableCopyOp.getResult(0));
     }
 
@@ -152,7 +152,7 @@ mlir::LogicalResult NCEConvolutionRewriter::matchAndRewrite(NCEConvolutionOp ori
     }
 
     auto clusterTilingOp = rewriter.create<NCEClusterTilingOp>(origOp->getLoc(), distributedOutputTensorType,
-                                                          mlir::ValueRange{distributedCopyOps}, bodyBuilder);
+                                                               mlir::ValueRange{distributedCopyOps}, bodyBuilder);
 
     const auto outputCopyOp = createDistributedCopyOut(origOp, clusterTilingOp);
     const auto origOutput = origOp->getResult(0);
@@ -245,17 +245,17 @@ mlir::LogicalResult NCEDepthConvolutionRewriter::matchAndRewrite(NCEDepthConvolu
 
     const auto origOutput = origOp->getResult(0);
 
-    SmallVector<mlir::Value> distributedCopyOps{
-            distributedActivationCopyOp->getResult(0), distributedWeightsCopyOp->getResult(0),
-            distributedWeightTableCopyOp->getResult(0)};
-            
+    SmallVector<mlir::Value> distributedCopyOps{distributedActivationCopyOp->getResult(0),
+                                                distributedWeightsCopyOp->getResult(0),
+                                                distributedWeightTableCopyOp->getResult(0)};
+
     if (origOp.instructionListTable()) {
         auto instructionListTableDistributionMode = getInstructionListTableTensorDistributionMode(strategy);
         auto instructionListTableNumTiles =
                 getIntArrayAttr(origOp.getContext(), getInstructionListTableTensorNumTiles(strategy));
         auto distributedInstructionListTableCopyOp =
-                createDistributedCopyIn(origOp, origOp.instructionListTable(),
-                                        instructionListTableDistributionMode, instructionListTableNumTiles);
+                createDistributedCopyIn(origOp, origOp.instructionListTable(), instructionListTableDistributionMode,
+                                        instructionListTableNumTiles);
         distributedCopyOps.push_back(distributedInstructionListTableCopyOp.getResult(0));
     }
     distributedCopyOps.push_back(distributedActivationWindowCopyOp->getResult(0));

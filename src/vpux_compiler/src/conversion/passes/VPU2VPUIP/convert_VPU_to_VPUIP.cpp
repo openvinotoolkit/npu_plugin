@@ -202,7 +202,7 @@ mlir::LogicalResult MaxPoolRewriter::matchAndRewrite(VPU::NCEMaxPoolOp origOp, O
 
     auto nceOp = rewriter.create<VPUIP::NCEClusterTaskOp>(
             origOp->getLoc(), newArgs.input(), /*weights=*/nullptr, newArgs.weightsTable(),
-            newArgs.instructionListTable(), newArgs.activationWindow(),
+            /*instruction_list_table=*/nullptr, newArgs.activationWindow(),
             /*parent_input=*/newArgs.input(),
             /*parent_output=*/outputBuffer,
             /*output_buff=*/outputBuffer, VPUIP::NCETaskType::MAXPOOL, origOp.kernel_size(), origOp.strides(),

@@ -3,11 +3,11 @@
 namespace vpux {
 
 vpux::PWLTableEntry getLeakyReluPWLEntry() {
-    const SmallVector<int64_t> range{-128, -109, -90, -72, -54, -36, -18, 0, 128};
-    const SmallVector<int64_t> shift{1, -1, 0, 0, 0, -1, -1, -4};
-    const SmallVector<int64_t> bias{-119, 44, -43, -31, -19, 18, 10, 0};
+    const SmallVector<int32_t> range{-128, -109, -90, -72, -54, -36, -18, 0, 128};
+    const SmallVector<int32_t> shift{1, -1, 0, 0, 0, -1, -1, -4};
+    const SmallVector<int32_t> bias{-119, 44, -43, -31, -19, 18, 10, 0};
     const double rangeMin = -65504.0, rangeMax = 65504.0;
-    const int64_t postShift = 4;
+    const int32_t postShift = 4;
 
     return PWLTableEntry{range, shift, bias, std::make_pair(rangeMin, rangeMax), postShift};
 }
