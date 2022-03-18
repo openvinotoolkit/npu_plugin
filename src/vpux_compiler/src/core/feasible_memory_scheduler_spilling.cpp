@@ -40,6 +40,242 @@ FeasibleMemorySchedulerSpilling::FeasibleMemorySchedulerSpilling(mlir::FuncOp ne
                       "Unable to find insertion point for new allocation operations");
 }
 
+// Optimize immediate spilling of computeOps output that happens as a buffer relocation
+// Example sequence:
+//  1. t = 0: ORIGINAL (computeOp)
+//  .. t = 0: .....
+//  .. t = 1:
+//  2. t = 1: SPILL_WRITE
+//  .. t = 1:
+//  3. t = 2: SPILL_READ
+//
+// COMPUTEOP -> SPILL_WRITE -> SPILL_READ sequence must happen immediately one after the other with respect
+// to timeline as only then removal of SPILL_WRITE/READ sequence is possible. In other cases there might be
+// a clash in terms of buffer ranges for operation happeninig in between.
+// During optimization SPILL_WRITE -> SPILL_READ pair is removed from schedule and ORIGINAL (computeOp) is
+// assigned final memory range - result of SPILL_READ
+void FeasibleMemorySchedulerSpilling::removeComputeOpRelocationSpills(
+        SmallVector<FeasibleMemoryScheduler::ScheduledOpInfo>& scheduledOps) {
+    _log.trace("Optimize spills resulting from compute op immediate relocation");
+
+    SmallVector<size_t> operationIndexesToRemove;
+    for (size_t opIndex = 0; opIndex < scheduledOps.size(); opIndex++) {
+        if (scheduledOps[opIndex].isSpillWrite() && !scheduledOps[opIndex].isDataOp()) {
+            // Located SPILL_WRITE for compute op
+            size_t spillWriteIndex = opIndex;
+            mlir::Optional<size_t> origOpIndex;
+            mlir::Optional<size_t> prevTime;
+            size_t prevTimeFirstOpIndex = 0;
+            mlir::Optional<size_t> spillReadIndex;
+            mlir::Optional<size_t> nextTime;
+
+            // Search for corresponding ORIGINAL op and check
+            // if it is at closest previous time
+            for (size_t i = opIndex - 1; i < scheduledOps.size(); i--) {
+                if (!prevTime.hasValue() && scheduledOps[i].time_ < scheduledOps[spillWriteIndex].time_) {
+                    // Identified previous time value
+                    prevTime = scheduledOps[i].time_;
+                }
+
+                if (prevTime.hasValue()) {
+                    if (scheduledOps[i].time_ < prevTime) {
+                        // Time of op in given iteration is smaller than closest previous time
+                        // In such case break early as that means that COMPUTEOP -> SPILL_WRITE
+                        // sequence does not appear immediately one after the other
+                        prevTimeFirstOpIndex = i + 1;
+                        break;
+                    }
+
+                    if (scheduledOps[i].op_ == scheduledOps[spillWriteIndex].op_ && scheduledOps[i].isOriginalOp()) {
+                        // Identified original COMPUTEOP that appears just before SPILL_WRITE
+                        origOpIndex = i;
+                    }
+                }
+            }
+
+            // Original operation just before SPILL_WRITE was no located. Stop analysis for given operation index
+            if (!origOpIndex.hasValue()) {
+                continue;
+            }
+
+            // Search for matching SPILL_READ op and check
+            // if it is at closest next time
+            for (size_t i = opIndex + 1; i < scheduledOps.size(); i++) {
+                if (!nextTime.hasValue() && scheduledOps[i].time_ > scheduledOps[spillWriteIndex].time_) {
+                    nextTime = scheduledOps[i].time_;
+                }
+
+                if (nextTime.hasValue()) {
+                    if (scheduledOps[i].time_ > nextTime) {
+                        // Time of op in given iteration is larger than closest next time
+                        // In such case break early as that means that SPILL_WRITE -> SPILL_READ
+                        // sequence does not appear immediately one after the other
+                        break;
+                    }
+
+                    if (scheduledOps[i].op_ == scheduledOps[spillWriteIndex].op_) {
+                        // Identified SPILL_READ that appears just after SPILL_WRITE
+                        spillReadIndex = i;
+                        break;
+                    }
+                }
+            }
+
+            // SPILL_READ does not appear right after SPILL_WRITE. Stop analysis for given op
+            if (!spillReadIndex.hasValue()) {
+                continue;
+            }
+
+            // Check if no operation depends on range assigned later to SPILL_READ output between
+            // scheduled ops at index starting from prevTimeFirstOpIndex to spillReadIndex
+            auto resBegin = scheduledOps[spillReadIndex.getValue()].beginOutputResource(0);
+            auto resEnd = scheduledOps[spillReadIndex.getValue()].endOutputResource(0) - 1;
+            bool rangeUsed = false;
+            for (size_t i = prevTimeFirstOpIndex; i < spillReadIndex.getValue(); i++) {
+                // Skip check for SPILL_WRITE
+                if (i == spillWriteIndex) {
+                    continue;
+                }
+
+                if (scheduledOps[i].hasActiveInputResource()) {
+                    for (size_t r = 0; r < scheduledOps[i].numOfInputResources(); r++) {
+                        auto beg = scheduledOps[i].beginInputResource(r);
+                        auto end = scheduledOps[i].endInputResource(r) - 1;
+
+                        if ((beg <= resBegin && resEnd <= end) || (resBegin <= beg && beg <= resEnd) ||
+                            (resBegin <= end && end <= resEnd)) {
+                            rangeUsed = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (rangeUsed) {
+                    break;
+                }
+
+                if (scheduledOps[i].hasActiveOutputResource()) {
+                    for (size_t r = 0; r < scheduledOps[i].numOfOutputResources(); r++) {
+                        if (i == origOpIndex.getValue() &&
+                            scheduledOps[origOpIndex.getValue()].getOutputBuffer(r) ==
+                                    scheduledOps[spillReadIndex.getValue()].getOutputBuffer(0)) {
+                            // Skip check for buffer that is planned for relocation
+                            continue;
+                        }
+
+                        auto beg = scheduledOps[i].beginOutputResource(r);
+                        auto end = scheduledOps[i].endOutputResource(r) - 1;
+
+                        if ((beg <= resBegin && resEnd <= end) || (resBegin <= beg && beg <= resEnd) ||
+                            (resBegin <= end && end <= resEnd)) {
+                            rangeUsed = true;
+                            break;
+                        }
+                    }
+                }
+                if (rangeUsed) {
+                    break;
+                }
+            }
+
+            // Range is used by other operation. Optimization cannot be performed
+            if (rangeUsed) {
+                _log.trace("Range is used, cannot relocate output of op - '{0}'",
+                           scheduledOps[origOpIndex.getValue()].op_);
+                continue;
+            }
+
+            auto& origOp = scheduledOps[origOpIndex.getValue()];
+            auto& spillWriteOp = scheduledOps[spillWriteIndex];
+            auto& spillReadOp = scheduledOps[spillReadIndex.getValue()];
+
+            // Check if operation writes just to part of buffer. In that case optimization cannot
+            // be performed as operation is not a sole owner of full buffer
+            bool operationOwnsBuffer = true;
+            auto* bodyBlock = &_depsInfo.getExecuteOpAtIndex(origOp.op_).body().front();
+            for (auto& op : bodyBlock->getOperations()) {
+                if (mlir::isa<IERT::LayerOpInterface>(op)) {
+                    auto layerOp = mlir::dyn_cast<IERT::LayerOpInterface>(op);
+
+                    for (auto output : layerOp.getOutputs()) {
+                        const auto type = output.getType().dyn_cast<mlir::MemRefType>();
+                        if (type == nullptr || type.getMemorySpace() != _memSpace) {
+                            continue;
+                        }
+
+                        const auto rootBuffers = _aliasInfo.getRoots(output);
+                        VPUX_THROW_UNLESS(rootBuffers.size() == 1,
+                                          "Value '{0}' expected to have only one root. Got {1}", output,
+                                          rootBuffers.size());
+                        const auto rootBuffer = *rootBuffers.begin();
+
+                        if (rootBuffer != spillReadOp.getOutputBuffer(0)) {
+                            // This is not an output that is going to be spilled. Move
+                            // to next one
+                            continue;
+                        }
+                        // Found an output corresponding to a root buffer that is marked for spilling
+                        // Check if size is the same. If not then optimization cannot be performed
+                        // because current operation only produces part of buffer and relocation
+                        // will break data for whole buffer
+                        if (getCompactSize(rootBuffer) != getCompactSize(output)) {
+                            operationOwnsBuffer = false;
+                        }
+                        break;
+                    }
+                }
+            }
+
+            // Operation is not an only producer of this buffer. Optimization cannot be performed
+            if (!operationOwnsBuffer) {
+                _log.trace("Operation is not an only producer of this buffer, cannot relocate output of op - '{0}'",
+                           origOp.op_);
+                continue;
+            }
+
+            // Identified COMPUTEOP -> SPILL_WRITE -> SPILL_READ sequence that can be optimized
+            _log.trace("Identified COMPUTEOP -> SPILL_WRITE -> SPILL_READ sequence that can be optimized");
+
+            _log.nest().trace("op = '{0}'\t type = '{1}'\t time = '{2}'", origOp.op_, origOp.opTypeName(),
+                              origOp.time_);
+            _log.nest().trace("op = '{0}'\t type = '{1}'\t time = '{2}'", spillWriteOp.op_, spillWriteOp.opTypeName(),
+                              spillWriteOp.time_);
+            _log.nest().trace("op = '{0}'\t type = '{1}'\t time = '{2}'", spillReadOp.op_, spillReadOp.opTypeName(),
+                              spillReadOp.time_);
+
+            // ComputeOp output buffer range can be assigned resulting range of SPILL_READ
+            // First find matching buffer that was spilled
+            bool foundMatchingBuffer = false;
+            for (size_t i = 0; i < origOp.numOfOutputResources(); i++) {
+                if (origOp.getOutputBuffer(i) == spillReadOp.getOutputBuffer(0)) {
+                    // Found matching resource index. Update assigned range
+                    origOp.outputResourceInfo_[i].begin_ = spillReadOp.outputResourceInfo_[0].begin_;
+                    origOp.outputResourceInfo_[i].end_ = spillReadOp.outputResourceInfo_[0].end_;
+                    foundMatchingBuffer = true;
+                    break;
+                }
+            }
+            VPUX_THROW_UNLESS(foundMatchingBuffer, "Matching buffer not found for relocation spilling optimization");
+
+            // SPILL_WRITE and SPILL_READ operations can be removed
+            operationIndexesToRemove.push_back(spillWriteIndex);
+            operationIndexesToRemove.push_back(spillReadIndex.getValue());
+        }
+    }
+
+    if (operationIndexesToRemove.empty()) {
+        _log.trace("No compute ops immediate relocation spilling identified");
+        return;
+    }
+
+    // Remove in reverse order to have indexes valid after erasing entries in scheduledOp
+    for (auto opIt = operationIndexesToRemove.rbegin(); opIt != operationIndexesToRemove.rend(); opIt++) {
+        scheduledOps.erase(scheduledOps.begin() + *opIt);
+    }
+
+    _log.trace("Operations that have been removed - '{0}'", operationIndexesToRemove.size());
+}
+
 // Optimize spilling of dataOps. This function will check scheduledOps list and analyze spilling sequence of dataOps.
 // Example sequence:
 //  1. ORIGINAL (dataOp)
@@ -135,7 +371,7 @@ void FeasibleMemorySchedulerSpilling::optimizeDataOpsSpills(
 
             bool isBufferUsedAsArgument = false;
             bool isBufferUsedAsResult = false;
-            auto buffer = scheduledOps[origOrSpillReadOpIndex].getBuffer(0);
+            auto buffer = scheduledOps[origOrSpillReadOpIndex].getOutputBuffer(0);
             for (size_t schedOpIdx = origOrSpillReadOpIndex + 1; schedOpIdx < nextSpillWriteOpIndex; schedOpIdx++) {
                 // TODO: Maybe it would make sense to create a geenric utility function
                 // to check if a given buffer is used as a operation input or output
@@ -239,7 +475,7 @@ void FeasibleMemorySchedulerSpilling::removeRedundantSpillWrites(
             for (auto spillWriteIndexIt = spillWriteIndexes.rbegin(); spillWriteIndexIt != spillWriteIndexes.rend();
                  spillWriteIndexIt++) {
                 if (scheduledOps[*spillWriteIndexIt].op_ == op.op_ &&
-                    scheduledOps[*spillWriteIndexIt].getBuffer(0) == op.getBuffer(0)) {
+                    scheduledOps[*spillWriteIndexIt].getInputBuffer(0) == op.getInputBuffer(0)) {
                     // If op and buffer match then duplicate was detected
                     duplicateSpillWriteIndexes.push_back(index);
                     _log.nest().trace(
@@ -657,7 +893,7 @@ void FeasibleMemorySchedulerSpilling::updateSpillWriteReadUsers(mlir::Value buff
 void FeasibleMemorySchedulerSpilling::createSpillWrite(
         SmallVector<FeasibleMemoryScheduler::ScheduledOpInfo>& scheduledOps, size_t schedOpIndex) {
     auto& schedOp = scheduledOps[schedOpIndex];
-    auto schedOpBuffer = schedOp.getBuffer(0);
+    auto schedOpBuffer = schedOp.getInputBuffer(0);
     _log = _log.nest();
     _log.trace("Create Spill Write for buffer - '{0}'", schedOpBuffer);
 
@@ -684,8 +920,8 @@ void FeasibleMemorySchedulerSpilling::createSpillWrite(
         _log.trace("Actual buffer for Spill Write - '{0}'", spillBuffer);
     }
 
-    auto spillWriteExecOp =
-            insertSpillWriteCopyOp(opThatWasSpilled, spillWriteInsertionPoint, spillBuffer, schedOp.beginResource(0));
+    auto spillWriteExecOp = insertSpillWriteCopyOp(opThatWasSpilled, spillWriteInsertionPoint, spillBuffer,
+                                                   schedOp.beginInputResource(0));
     _opIdAndSpillWritePairs.push_back({schedOpBuffer, spillWriteExecOp});
 
     size_t spillWriteIndex = _depsInfo.getIndex(spillWriteExecOp);
@@ -695,7 +931,6 @@ void FeasibleMemorySchedulerSpilling::createSpillWrite(
     // scheduled ops structure
     schedOp.opType_ = FeasibleMemoryScheduler::EOpType::ORIGINAL_OP;
     schedOp.op_ = spillWriteIndex;
-    schedOp.resourceInfo_[0].invalidate();
     _log = _log.unnest();
 }
 
@@ -703,7 +938,7 @@ void FeasibleMemorySchedulerSpilling::createSpillWrite(
 void FeasibleMemorySchedulerSpilling::createSpillRead(
         SmallVector<FeasibleMemoryScheduler::ScheduledOpInfo>& scheduledOps, size_t schedOpIndex) {
     auto& schedOp = scheduledOps[schedOpIndex];
-    auto schedOpBuffer = schedOp.getBuffer(0);
+    auto schedOpBuffer = schedOp.getOutputBuffer(0);
     _log = _log.nest();
     _log.trace("Create Spill Read for buffer - '{0}'", schedOpBuffer);
     // Get spillWrite operation for the given spillRead to properly
@@ -740,7 +975,7 @@ void FeasibleMemorySchedulerSpilling::createSpillRead(
         _log.trace("Actual buffer for Spill Read - '{0}'", spillBuffer);
     }
     auto spillReadExecOp = insertSpillReadCopyOp(opThatWasSpilled, spillBuffer, spillWriteExecOp,
-                                                 spillReadInsertionPoint, schedOp.beginResource(0));
+                                                 spillReadInsertionPoint, schedOp.beginOutputResource(0));
 
     // After both SpillWrite and SpillRead are inserted update connections
     updateSpillWriteReadUsers(spillBuffer, spillWriteExecOp, spillReadExecOp);
@@ -752,8 +987,9 @@ void FeasibleMemorySchedulerSpilling::createSpillRead(
     // update them to refer to new spillRead operation
     for (size_t i = schedOpIndex + 1; i < scheduledOps.size(); i++) {
         auto& otherSchedOp = scheduledOps[i];
-        if (otherSchedOp.op_ == schedOp.op_ && (otherSchedOp.isSpillWrite() || otherSchedOp.isSpillRead()) &&
-            otherSchedOp.getBuffer(0) == schedOpBuffer) {
+        if (otherSchedOp.op_ == schedOp.op_ &&
+            ((otherSchedOp.isSpillWrite() && otherSchedOp.getInputBuffer(0) == schedOpBuffer) ||
+             (otherSchedOp.isSpillRead() && otherSchedOp.getOutputBuffer(0) == schedOpBuffer))) {
             otherSchedOp.op_ = spillReadIndex;
         }
     }
