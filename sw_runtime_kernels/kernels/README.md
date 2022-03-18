@@ -52,7 +52,7 @@ Built binaries are copied to target directories automatically. To specify where 
 
 ## Kernel description files (descrip/*.txt)
 
-Description file is the text file, which will be included into cmake script by include() statement and customize build options according to particular kernel.
+Description file is the text file, which will be included into cmake script by include() statement and customize build options for a particular kernel.
 Usually but not necessarily description file contains one or more set() or list() cmake statements which assign a values to a dedicated variables.
 As for cmake scripts, '#' character marks a comment line.
 
