@@ -81,11 +81,14 @@ Variables intended to be used/set in description files:
   a string which specifies an additional C/C++ #define symbols list in the cmake form (`"sym1;sym2;etc"`).
   The list is parsed and each symbol is prepended by `"-D"` prefix automatically. Optional.
 - `always_inline`
-  a string which specifies whether compilation use inlined code (`-DCONFIG_ALWAYS_INLINE`) or not. Optional; default is `"yes"` .
+  a string which specifies whether compilation use inlined code (`-DCONFIG_ALWAYS_INLINE`) or not. Optional; default is `"no"` .
   Can also be checked in description code in if() statement(s) to change compile/link behaviour (e.g. add extra source files).
 - `extra_src_list`
   a string which specifies an additional C/C++ source files (absolute paths) which will be compiled and linked together with `"${kernel_src}"` file to form the output binary.
   The list must be in the cmake form (`"src1;src2;etc"`), it is parsed automatically.
+- `link_script_file`
+  a string which specifies custom link 'ldscript' file. Optional; default is `"${CMAKE_SOURCE_DIR}/prebuild/shave_kernel.ld"` .
+  For existing kernels only ManagementKernel (nnActEntry) uses different ldscript; for the rest of kernels defauls should be enough.
 - `kernel_descrip_path`
   a string which specifies an absolute path to description file directory; can be used to include another (e.g. 'common') description file.
   Prepared by cmake script automatically; description file can use it.
@@ -98,6 +101,8 @@ Examples:
 
 ```
 set(kernel_src "dummy.cpp")
+
+set(always_inline "yes")
 ```
 
 ### singleShaveSoftmax.txt
@@ -106,7 +111,7 @@ set(kernel_src "dummy.cpp")
 set(kernel_src "singleShaveSoftmax.cpp")
 
 set(optimization_opts "") # -O3
-set(always_inline "yes") # "no"
+set(always_inline "yes")
 
 if(NOT always_inline STREQUAL "yes")
   set(extra_src_list "${CMAKE_SOURCE_DIR}/common/src/mvSubspaces.cpp")
@@ -118,6 +123,8 @@ endif()
 ```
 set(kernel_src "nnActEntry.cpp")
 set(kernel_src_dir "act_runtime/src")
+
+set(link_script_file "${CMAKE_SOURCE_DIR}/prebuild/shave_rt_kernel.ld")
 
 set(include_dirs_list
   "${FIRMWARE_VPU_DIR}/drivers/errors/errorCodes/inc"

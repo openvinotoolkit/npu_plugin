@@ -14,6 +14,10 @@
 set(kernel_src "nnActEntry.cpp")
 set(kernel_src_dir "act_runtime/src")
 
+set(optimization_opts "") # -O3
+
+set(link_script_file "${CMAKE_SOURCE_DIR}/prebuild/shave_rt_kernel.ld")
+
 set(include_dirs_list
   "${FIRMWARE_VPU_DIR}/drivers/errors/errorCodes/inc"
   "${FIRMWARE_VPU_DIR}/drivers/hardware/registerMap/inc"
