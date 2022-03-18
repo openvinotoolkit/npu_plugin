@@ -142,13 +142,7 @@ SmallVector<int64_t> vpux::VPU::getWeightsTableTensorNumTiles(mlir::Operation* o
 }
 
 SmallVector<int64_t> vpux::VPU::getInstructionListTableTensorNumTiles(StringRef strategy) {
-    if (strategy == splitOverHeightOverlapped) {
-        return {1, 1, 1, 1};
-    } else if (strategy == splitOverHeight) {
-        return {1, 1, 1, 1};
-    } else if (strategy == splitOverKernel) {
-        return {1, 1, 1, 1};
-    } else if (strategy == clustering) {
+    if (strategy == splitOverHeightOverlapped || strategy == splitOverHeight || strategy == splitOverKernel || strategy == clustering) {
         return {1, 1, 1, 1};
     } else {
         VPUX_THROW("{0} is an invalid multi-cluster strategy, unable to determine the number of tiles for the "
@@ -220,13 +214,7 @@ DistributionMode vpux::VPU::getActivationWindowTensorDistributionMode(StringRef 
 }
 
 DistributionMode vpux::VPU::getInstructionListTableTensorDistributionMode(StringRef strategy) {
-    if (strategy == splitOverHeightOverlapped) {
-        return DistributionMode::DUPLICATED;
-    } else if (strategy == splitOverHeight) {
-        return DistributionMode::DUPLICATED;
-    } else if (strategy == splitOverKernel) {
-        return DistributionMode::DUPLICATED;
-    } else if (strategy == clustering) {
+    if (strategy == splitOverHeightOverlapped || strategy == splitOverHeight || strategy == splitOverKernel || strategy == clustering) {
         return DistributionMode::DUPLICATED;
     } else {
         VPUX_THROW("{0} is an invalid multi-cluster strategy, unable to determine the distribution mode for the "
