@@ -132,7 +132,7 @@ mlir::Value AddCMX2DDRCopyOp(mlir::OpBuilder& builder, mlir::MLIRContext* ctx, m
 };
 
 // DMA profiling pass
-// Wraps all DMA operation in the network except for profiling managment one with the two
+// Wraps all DMA operation in the network except for profiling management one with the two
 // timestamps DMAs inside one async.execute in order to guarantee no barriers execution
 // Steps:
 //   1. Allocate buffer in CMX for the first chunk(configured via HW_DMA_PROFILING_MAX_BUFFER_SIZE)

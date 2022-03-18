@@ -96,7 +96,7 @@ public:
     }
 
     // Iterate over provided intervals from begin to end. Track ranges producer and consumers
-    // and for any overlaps create new dependecy (control edge) in the output
+    // and for any overlaps create new dependency (control edge) in the output
     template <typename IntervalIterator, typename OutputFunctor = NoopFunctorType>
     size_t generateControlEdges(IntervalIterator begin, IntervalIterator end,
                                 OutputFunctor& outputDependency = OutputFunctor()) {

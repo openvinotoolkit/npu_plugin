@@ -64,7 +64,7 @@ const std::vector<std::vector<int64_t>> repeats = {
         // input shapes with more than 4D is not supported by runtime yet
         // {1, 1, 1, 2, 1, 2}
 
-        // looks like this values is too big. Test fails due result missmatch between CPU an KMB
+        // looks like this values is too big. Test fails due result mismatch between CPU an KMB
         // {1, 1, 1, 128}, {1, 1, 128, 1}, {1, 128, 1, 1}, {128, 1, 1, 1},
 };
 

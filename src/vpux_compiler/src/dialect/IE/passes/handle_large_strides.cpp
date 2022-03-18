@@ -261,7 +261,7 @@ mlir::LogicalResult MaxPoolGeneralRewriter::matchAndRewrite(IE::MaxPoolOp origOp
 
     The stride for the new op is chosen such that new_stride <= MAX_STRIDE and orig_stride % new_stride == 0.
     The new max pool op will have kernel size of 1 x 1 and stride = orig_stride / new_stride.
-    The purpose of the max pool op is to downsample the larger output obtained by striding the orginal op
+    The purpose of the max pool op is to downsample the larger output obtained by striding the original op
     with a smaller stride.
 
     The replacement is applied even if only one of the strides is larger than MAX_STRIDE. The other stride

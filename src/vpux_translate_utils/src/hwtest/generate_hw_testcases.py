@@ -171,7 +171,7 @@ def ValidatePaddings(kernel, paddings):
     # kernel size are width|height
     # The padding order is top|left|bottom|right
     # Regarding documentation (http://dub30.ir.intel.com/svn/TRUNK/keembay/docs/specification/pdf/Gen3_Intel_Movidius_VPU_3400VE-A0_Databook_v1.4.pdf KB databook (page 5558))
-    # we have next paddings constaints:
+    # we have next paddings constraints:
     # When the kernel x dimension is odd, the PAD amount is [KERNEL_X-1]/2 on left and right
     # When the kernel y dimension is odd, the PAD amount is [KERNEL_Y-1]/2 on top and bottom
     # When the kernel x dimension is even, the PAD amount is [KERNEL_X]/2 on left and [KERNEL_X]/2-1 on right
@@ -724,11 +724,11 @@ class ZMajorConvolution(Operation):
 
     def validate(self):
         ValidatePaddings(self.settings.kernel_shape, self.settings.kernel_pads)
-        # validate input tensor channels allignement
+        # validate input tensor channels alignment
         # ValidateHWAlignment(self.settings.input_ttype, self.settings.input_shape[1])
-        # validate weight tensor channels allignement
+        # validate weight tensor channels alignment
         # ValidateHWAlignment(self.settings.weight_ttype, self.settings.input_shape[1])
-        # validate output tensor channels allignement
+        # validate output tensor channels alignment
         ValidateHWAlignment(self.settings.output_ttype, self.settings.kernel_channels)
 
     @property
@@ -1253,7 +1253,7 @@ class ActKernel(Operation):
 
     def filter_issues(self, args) -> bool:
         if 'EISW-29771' in self.issues:
-            # Filter not bit-exact comparision issues
+            # Filter not bit-exact comparison issues
             return False
         if 'EISW-29786' in self.issues:
             # Filter incorrect tensor serialization issues
@@ -3769,7 +3769,7 @@ def generate_options(args):
             dst_locations=[MemoryLocation.CMX0, MemoryLocation.CMX1, MemoryLocation.DDR],
             dma_engines=[0, 1]
         ),
-        # check max aviable CMX
+        # check max available CMX
         genDMA(
             tensor_types=[UInt8(3)],
             input_shapes=[[1, 1, 1, HALF_OF_CMX_SIZE]],

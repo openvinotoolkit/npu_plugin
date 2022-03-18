@@ -30,7 +30,7 @@ ConvertExtractImagePatchesToReorgYoloVPU::ConvertExtractImagePatchesToReorgYoloV
         auto extract_image_patches = std::dynamic_pointer_cast<ngraph::opset3::ExtractImagePatches>(m.get_match_root());
 
         /*
-         * In this transformation we raplace ExtractImagePatches operation to ReorgYolo operation
+         * In this transformation we replace ExtractImagePatches operation to ReorgYolo operation
          * if ExtractImagePatches operation attributes obey the following conditions:
          *
          * EIP.sizes = EIP.strides

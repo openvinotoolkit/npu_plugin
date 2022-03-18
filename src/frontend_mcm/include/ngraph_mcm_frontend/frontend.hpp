@@ -29,7 +29,7 @@
 namespace ie = InferenceEngine;
 
 //
-// Usefull environment variables:
+// Useful environment variables:
 //
 //   * NGRAPH_ENABLE_VISUALIZE_TRACING=1
 //   * NGRAPH_VISUALIZE_TRACING_FORMAT=dot

@@ -268,7 +268,7 @@ SmallVector<mlir::Value> FeasibleMemorySchedulerSpilling::getAsyncResultsForBuff
 
     // Search if this buffer is a replacement for some original buffer which got spilled
     // If such original buffer is located use it for aliases as this information is not updated
-    // with new buffers in dependant operations
+    // with new buffers in dependent operations
     for (auto& replacementPairs : _bufferReplacementAfterSpillRead) {
         if (replacementPairs.second == buffer) {
             buffersToCheck.push_back(replacementPairs.first);
@@ -420,7 +420,7 @@ mlir::async::ExecuteOp FeasibleMemorySchedulerSpilling::insertSpillReadCopyOp(ml
             break;
         }
     }
-    // If this buffer didn't correspond to any exisitng buffer replacement pair then insert a new one
+    // If this buffer didn't correspond to any existing buffer replacement pair then insert a new one
     if (!replacementPairFound) {
         _bufferReplacementAfterSpillRead.insert({bufferToSpill, newBufferResult});
     }
@@ -748,7 +748,7 @@ void FeasibleMemorySchedulerSpilling::createSpillRead(
     size_t spillReadIndex = _depsInfo.getIndex(spillReadExecOp);
     _log.trace("Spill Read new opId - '{0}'", spillReadIndex);
 
-    // If there are any other spill operations refering to the same op,
+    // If there are any other spill operations referring to the same op,
     // update them to refer to new spillRead operation
     for (size_t i = schedOpIndex + 1; i < scheduledOps.size(); i++) {
         auto& otherSchedOp = scheduledOps[i];

@@ -52,7 +52,7 @@ void cleanUpVirtualIds(mlir::Operation* parentOp) {
 
 int64_t getVirtualId(mlir::Operation* op) {
     const auto attr = op->getAttr(virtualIdAttrName).dyn_cast_or_null<mlir::IntegerAttr>();
-    VPUX_THROW_WHEN(attr == nullptr, "The barrier operation at '{0}' doesn't have attrribute '{1}'", op->getLoc(),
+    VPUX_THROW_WHEN(attr == nullptr, "The barrier operation at '{0}' doesn't have attribute '{1}'", op->getLoc(),
                     virtualIdAttrName);
 
     return attr.getValue().getSExtValue();

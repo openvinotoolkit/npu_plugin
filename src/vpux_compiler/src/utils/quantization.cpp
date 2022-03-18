@@ -91,7 +91,7 @@ mlir::quant::UniformQuantizedPerAxisType vpux::expandScalesAndZP(mlir::quant::Un
     // Here we need to expand scales & zero points with some values which will allow correct execution of expanded
     // convolution. Some default values (e.g. 1) does not fit here since it may lead to unsupported quantization
     // parameters (e.g. big scale value which approximation does not fit into mult & shift registers of target HW)
-    // Euristic that scales are not that different between each other is used here
+    // Heuristic that scales are not that different between each other is used here
     // Technically we need some way to detect if output channels we are processing are expanded ones (fake)
     // And do validation of them accordingly
     std::vector<double> newScales(padBeforeOC, scales.front());

@@ -76,7 +76,7 @@ bool vpux::VPU::NCEMaxPoolOp::isSupported(IE::MaxPoolOp op, NCEInvariant::LogCb 
     const auto KX = kernelSize[Dims4D::Kernel::X];
 
     if (KY != KX) {
-        logCb(llvm::formatv("Assymetric kernel is not supported"));
+        logCb(llvm::formatv("Asymmetric kernel is not supported"));
         return false;
     }
 

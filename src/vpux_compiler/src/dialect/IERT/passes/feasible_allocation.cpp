@@ -219,7 +219,7 @@ void FeasibleAllocationPass::safeRunOnModule() {
     auto scheduledOps = scheduler.generateSchedule();
 
     // 2. prefetching
-    // 2.1. optimization for inital schedule - generating prefetch edges
+    // 2.1. optimization for initial schedule - generating prefetch edges
     PrefetchEdgeGenerator PrefetchEdgeGenerator(scheduledOps, depsInfo);
     auto prefetchEdges = PrefetchEdgeGenerator.generatePrefetchEdges();
 

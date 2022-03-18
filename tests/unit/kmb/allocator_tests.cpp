@@ -11,7 +11,7 @@
 // included with the Software Package for additional details.
 //
 
-// FIXME: cannot be run on x86 the tests below use vpusmm allocator and requires vpusmm driver instaled
+// FIXME: cannot be run on x86 the tests below use vpusmm allocator and requires vpusmm driver installed
 // can be enabled with other allocator
 // [Track number: S#28136]
 #ifdef __arm__

@@ -255,7 +255,7 @@ bool CompilerTest::check() const {
     const std::string& ref = outputs[0];
     for (size_t i = 1; i < count; i++) {
         if (ref != outputs[i]) {
-            std::cerr << "The " << i << " output is differnt!" << std::endl;
+            std::cerr << "The " << i << " output is different!" << std::endl;
             return false;
         }
     }

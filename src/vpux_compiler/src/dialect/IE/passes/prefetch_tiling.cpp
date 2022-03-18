@@ -151,7 +151,7 @@ SmallVector<Shape> generatePrefetchPatternTiles(mlir::Operation* op, mlir::Opera
     const auto isDimLeftToTile = [&]() -> bool {
         return nTilesOnDim[dimToTile] < maxNumTiles[dimToTile.ind()];
     };
-    // increase tiles on the dimention to tile until the tiling pattern
+    // increase tiles on the dimension to tile until the tiling pattern
     // is supported, do not exceed max tiles (HW req)
     while (!isSupportedTilesPattern()) {
         if (!isDimLeftToTile()) {

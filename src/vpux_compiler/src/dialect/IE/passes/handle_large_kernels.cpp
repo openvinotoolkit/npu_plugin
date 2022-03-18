@@ -107,7 +107,7 @@ void calculateKernelsAndPadding(ArrayRef<int64_t> kernelSize, std::array<int64_t
     auto asymmetricBothKernelsLarge =
             (asymmetricCase && (KX > VPU::NCEInvariant::MAX_KERNEL_SIZE) && (KY > VPU::NCEInvariant::MAX_KERNEL_SIZE));
 
-    // deal with asymetric kernels when one dim is larger than MAX_KERNEL_SIZE
+    // deal with asymmetric kernels when one dim is larger than MAX_KERNEL_SIZE
     if (asymmetricCase && (KX < KY)) {
         largerKernelSize = KY;
         largeDim = Dims4D::Kernel::Y.ind();

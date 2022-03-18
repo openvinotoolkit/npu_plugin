@@ -446,7 +446,7 @@ mlir::LogicalResult vpux::VPU::areDistributionModesCompatible(DistributionMode s
 // Tiling utils
 //
 
-// Segmentation logic operates on schema and runtime asumption that a segmented tensor should be split equally
+// Segmentation logic operates on schema and runtime assumption that a segmented tensor should be split equally
 // across the axis, with the remainder cluster possibly having a smaller tile.
 SmallVector<Shape> splitSegmentedShape(ArrayRef<int64_t> shape, ArrayRef<int64_t> tilingScheme,
                                        const int64_t numClusters, const int64_t axis,

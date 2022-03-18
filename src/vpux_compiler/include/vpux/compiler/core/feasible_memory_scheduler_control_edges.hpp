@@ -37,7 +37,7 @@ public:
     // Based on scheduler output insert dependencies from all tasks in time t
     // to all tasks in time t+1
     // NOTE: This is old method. It is safe in execution but doesn't allow
-    // good parallization
+    // good parallelization
     void insertDependenciesBasic(ArrayRef<FeasibleMemoryScheduler::ScheduledOpInfo> scheduledOps);
 
     // Insert control flow for overlapping memory regions

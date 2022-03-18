@@ -91,7 +91,7 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
     const auto outAlignDim = getInnermostDim(outputLayout);
     const auto outAlignmentInBits = 16 * CHAR_BIT;
     const auto outElSizeInBits = static_cast<vpux::Bit>(getElemTypeSize(outputType)).count();
-    // ODU data size = Output Z mutiple
+    // ODU data size = Output Z multiple
     // 32 bit        = 16
     // 16 bit        = 16
     // 8 bit         = 16

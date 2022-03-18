@@ -281,7 +281,7 @@ namespace {
     );
 
     // {2, 4, 6, 8} case is replaced with Reshape to {4, 6, 8}, that MCM fails to compile
-    // Tensor:Parameter_375:0 - ArgumentError: attribute identifer allocators - Undefined identifier
+    // Tensor:Parameter_375:0 - ArgumentError: attribute identifier allocators - Undefined identifier
     INSTANTIATE_TEST_SUITE_P(
             smoke_ReduceOneAxis_SKIP_MCM,
             KmbReduceOpsLayerTest,

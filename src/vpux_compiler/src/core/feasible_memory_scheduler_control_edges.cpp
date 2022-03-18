@@ -192,7 +192,7 @@ void FeasibleMemorySchedulerControlEdges::insertMemoryControlEdges(
             }
         }
 
-        // For all identified buffers used by operation create seperate entries with information
+        // For all identified buffers used by operation create separate entries with information
         // about memory ranges to properly identify range producer and consumers at a given time
         for (auto& buf : inputBuffers) {
             if (!isBufAllocOp(buf.getDefiningOp())) {

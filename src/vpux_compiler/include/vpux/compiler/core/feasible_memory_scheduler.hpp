@@ -339,7 +339,7 @@ private:
     LinearScan<mlir::Value, LinearScanHandler>& _scan;
     // heap with earliest operation start time
     SmallVector<HeapElement> _startTimeHeap;
-    // heap with earlies operation completion time
+    // heap with earliest operation completion time
     SmallVector<HeapElement> _completionTimeHeap;
     // operations with ACTIVE input
     std::set<std::pair<operationIdxType, vpux::AddressType>, SizeSort> _activeComputeOps;

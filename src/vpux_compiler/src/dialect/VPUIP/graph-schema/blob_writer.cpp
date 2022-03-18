@@ -244,7 +244,7 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BlobWriter::createSW_KernelTask(mli
 
     // NOTE: order of .data, and invocation args matters in WIN_E
     // . 1K aligned data section followed by invocation args.
-    // .data section is accessible from WIN_E adress
+    // .data section is accessible from WIN_E address
     // invocation args accessible from  WIN_E + sizeof(.data section)
 
     auto invocationArgs = createInvocationArgs(*this, swKernelTask, actKernelDesc.data.size, _log);

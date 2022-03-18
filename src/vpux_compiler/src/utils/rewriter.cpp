@@ -241,7 +241,7 @@ void vpux::inferReturnTypes(mlir::Operation* op, InferShapedTypeMode mode) {
     VPUX_THROW_WHEN(iface.inferReturnTypes(op->getContext(), op->getLoc(), op->getOperands(), op->getAttrDictionary(),
                                            op->getRegions(), newTypes)
                             .failed(),
-                    "Failed to infer return types for operaton '{0}'", op->getName());
+                    "Failed to infer return types for operation '{0}'", op->getName());
 
     for (auto p : zip(op->getResults(), newTypes)) {
         auto val = std::get<0>(p);

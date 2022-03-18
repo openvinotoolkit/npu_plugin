@@ -61,7 +61,7 @@ protected:
     u64	phy_addr = MV_CONSOLE_TX_QUEUE;
 };
 
-// this test uses specific physical adres, that might be changed unexpectedly with updating og FW
+// this test uses specific physical address, that might be changed unexpectedly with updating og FW
 // if that happened current approach is update pointer taken from previously built FW folder :
 // vpuip_2/application/vpuFirmware/FW_bootLoader/mvbuild/ma2490/payload/payload.map
 //                0x0000000094400040                mvConsoleTxQueue

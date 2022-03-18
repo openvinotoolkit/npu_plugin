@@ -743,7 +743,7 @@ TEST(Producer_Consumer_Contiguous_Resource_State, simple_dependency) {
   // current 5+2+2=9units of resource is engaged //
 
 
-  // NOTE: we dont have 5units of contigous resource //
+  // NOTE: we dont have 5units of contiguous resource //
   EXPECT_FALSE(resource_state.is_resource_available(r["f"]));
 
   // unassign resources to "a" but its resources will still be engaged until "b"

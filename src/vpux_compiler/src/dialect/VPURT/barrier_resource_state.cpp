@@ -22,7 +22,7 @@ using namespace vpux::VPURT;
 // to the main barrier list scheduler.
 //
 // The barrier scheduler can only schedule tasks if there are available barrier resources
-// and these rescources need to be assign/unassign when tasks are scheduled/unscheduled.
+// and these resources need to be assign/unassign when tasks are scheduled/unscheduled.
 //
 // VPU hardware only has a finite number of barriers, 8 per cluster. The Barrier scheduler class
 // ensures that the number of active barriers does not exceed the available
@@ -33,7 +33,7 @@ using namespace vpux::VPURT;
 // barrier resource model by using the term "barrier slots".
 // In addition to the upper bound of available barriers it is assumed that each of these barriers has
 // a maximum of 256 slots. The barrier demand is expressed as the number of slots required.
-// In the context of VPU hardware the number of slots for a DPU tasks are the DPU worklaods
+// In the context of VPU hardware the number of slots for a DPU tasks are the DPU workloads
 // and for a DMA/UPA tasks it is 1.
 
 //

@@ -91,7 +91,7 @@ mlir::LogicalResult NCEClusterTilingRewriter::matchAndRewrite(VPU::NCEClusterTil
     VPUX_THROW_UNLESS(origOpBuffers.size() == 1, "Currently only single allocation in NCEClusterTiling is supported");
 
     // When creating new VPUIP::NCEClusterTiling operation copy whole body of original VPU::NCEClusterTiling
-    // op except allocation related operations which were alread copied outside before and which will be
+    // op except allocation related operations which were already copied outside before and which will be
     // passed as new operands (output_buffs)
     const auto bodyBuilder = [&](mlir::OpBuilder& builder, mlir::Location loc, mlir::ValueRange newOperands) {
         std::ignore = loc;

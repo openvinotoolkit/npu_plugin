@@ -427,7 +427,7 @@ void DecodeBBox(const NormalizedBBox& prior_bbox, const float* prior_variance,
         float decode_bbox_width, decode_bbox_height;
 
         if (variance_encoded_in_target) {
-            // variance is encoded in target, we simply need to retore the offset
+            // variance is encoded in target, we simply need to restore the offset
             // predictions.
             decode_bbox_center_x = bbox.xmin() * prior_width + prior_center_x;
             decode_bbox_center_y = bbox.ymin() * prior_height + prior_center_y;

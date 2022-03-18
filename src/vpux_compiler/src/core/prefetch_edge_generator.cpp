@@ -72,7 +72,7 @@ bool vpux::PrefetchEdgeGenerator::prefetchConstraintsSatisifed(ScheduledOpInfo* 
 bool vpux::PrefetchEdgeGenerator::allDataOpDependenciesExecuted(operationIdxType dataIdx) {
     // condition will be false in cases of consts such as weight, weight table
     // however for tiled activations the DMAs will have a dependency, prevent
-    // the activation from being prefetched and reducing the availible free NNCMX
+    // the activation from being prefetched and reducing the available free NNCMX
     // size as it will not be scheduled at that time but some other data op might
 
     // check if all dependencies of the operations were executed
@@ -115,7 +115,7 @@ bool vpux::PrefetchEdgeGenerator::canDataOpBePrefetched(ScheduledOpInfo* dataOp)
 
 bool vpux::PrefetchEdgeGenerator::isEltwiseOp(ScheduledOpInfo* op) {
     // in order to align with strategy (no tiling prefetch for Eltwise),
-    // skip eltwise prefetch, skip this operation for perfomance reasons.
+    // skip eltwise prefetch, skip this operation for performance reasons.
     // with tensor size or cycle count heuristic Eltwise prefetch can be enabled.
     auto execOp = _depsInfo.getExecuteOpAtIndex(op->op_);
     auto* bodyBlock = &execOp.body().front();

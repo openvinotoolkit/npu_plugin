@@ -23,7 +23,7 @@ struct UpstreamReduceStridedSliceTestParams {
     std::vector<std::vector<int64_t>> _endMask;
 };
 
-// Build folowing graph which exercises the possibility to
+// Build following graph which exercises the possibility to
 // upstream Slice_1 and later on fuse it with Slice_0
 //
 // ...  Conv --- > Slice_0 (H) --- >        < --- Reshape ...

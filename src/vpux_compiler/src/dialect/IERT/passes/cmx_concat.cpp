@@ -137,10 +137,10 @@ bool childOperationsDoNotFitInCMX(IERT::ConcatViewOp concat, SmallVector<IERT::C
 }
 
 bool isSplitSupportedOnDPU(IERT::SubViewOp subViewOp) {
-    // Check if SubView performs a split along major dimension taking into accout order in memory
+    // Check if SubView performs a split along major dimension taking into account order in memory
     // For NCHW that would be split along C
     // For NHWC that would be split along H
-    // Only such cases are supported by DPU IDU becasue only then input to DPU is a contiguous
+    // Only such cases are supported by DPU IDU because only then input to DPU is a contiguous
     // block in memory. Otherwise this behavior needs to be performed by DMA
     const auto inputTypeShape = getShape(subViewOp.source()).raw();
     const auto outputType = subViewOp.result().getType().cast<vpux::NDTypeInterface>();
@@ -290,8 +290,8 @@ mlir::LogicalResult ConcatSequence::matchAndRewrite(IERT::ConcatViewOp concat, m
 
     if (isThisAComplexConcat(nceTiles, copyInOps)) {
         // TODO implement complex concat
-        // where part of the concatinated buffer is also used by another operation
-        // visible in yolo-v4-tiny concatinate 4
+        // where part of the concatenated buffer is also used by another operation
+        // visible in yolo-v4-tiny concatenated 4
         return mlir::failure();
     }
 

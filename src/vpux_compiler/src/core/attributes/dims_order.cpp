@@ -98,7 +98,7 @@ void vpux::DimsOrder::validateCode(StorageType code) {
 
     for (size_t i = numDims; i < MAX_NUM_DIMS; ++i, codeCopy >>= DimsOrder::BITS_PER_DIM) {
         auto dimInd = codeCopy & INDEX_MASK;
-        VPUX_THROW_UNLESS(dimInd == 0, "DimsOrder code {0} is not contigous", code);
+        VPUX_THROW_UNLESS(dimInd == 0, "DimsOrder code {0} is not contiguous", code);
     }
 }
 

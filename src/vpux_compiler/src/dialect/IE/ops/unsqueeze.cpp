@@ -135,7 +135,7 @@ mlir::LogicalResult vpux::IE::UnsqueezeOp::inferReturnTypeComponents(
             const auto nextAxisInd = checked_cast<size_t>(axes.getValue()[axesInd]);
 
             if (nextAxisInd < outInd) {
-                return errorAt(loc, "Axis '{0}' was occured twice", nextAxisInd);
+                return errorAt(loc, "Axis '{0}' was occurred twice", nextAxisInd);
             }
 
             if (nextAxisInd == outInd) {

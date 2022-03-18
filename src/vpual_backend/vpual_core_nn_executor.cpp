@@ -568,7 +568,7 @@ void VpualCoreNNExecutor::allocateGraph() {
     auto configPlatform = _config.get<PLATFORM>();
     auto targetPlatform = InferenceEngine::VPUXConfigParams::VPUXPlatform::AUTO;
     if (configPlatform == InferenceEngine::VPUXConfigParams::VPUXPlatform::AUTO) {
-        // use detected platfrom when auto detect is set
+        // use detected platform when auto detect is set
         targetPlatform = detectedPlatform;
     } else {
         // alternatively, use platform from user config

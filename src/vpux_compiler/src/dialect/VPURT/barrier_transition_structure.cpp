@@ -45,8 +45,8 @@ bool BarrierScheduler::barrierTransitionStructure::processNextScheduledTask(cons
         maintainInvariantTemporalChange(sinfo, builder);
         _time = currentTime;
     } else {
-        // Case-2: a trival case
-        _feasibleBarrierScheduler._log.trace("Case-2: trival case - adding the scheduled task to the producer list");
+        // Case-2: a trivial case
+        _feasibleBarrierScheduler._log.trace("Case-2: trivial case - adding the scheduled task to the producer list");
         addScheduledTaskToProducerList(sinfo);
     }
     _feasibleBarrierScheduler._log = _feasibleBarrierScheduler._log.unnest();
@@ -65,7 +65,7 @@ inline void BarrierScheduler::barrierTransitionStructure::processCurrentBarrierP
     _feasibleBarrierScheduler._log.trace("Process current barrier producer list close event");
 
     mlir::Operation* barrierEnd = NULL;
-    VPUX_THROW_UNLESS(currentBarrier != barrierEnd, "Eror the current barrier is Null");
+    VPUX_THROW_UNLESS(currentBarrier != barrierEnd, "Error the current barrier is Null");
 
     // Get the barrier object for the three barrier tasks
     mlir::Operation* barrierPrevious = NULL;

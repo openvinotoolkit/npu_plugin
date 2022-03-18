@@ -30,7 +30,7 @@ mlir::BlockArgument vpux::addNewProfilingOutput(mlir::MLIRContext* ctx, mlir::Fu
     netFunc.setType(newFunctionType);
 
     // If you hit this, IR have CNNNetworkOp without profilingOutputInfo region
-    VPUX_THROW_WHEN(netOp.profilingOutputsInfo().empty(), "Cound not add profiling output: no region added");
+    VPUX_THROW_WHEN(netOp.profilingOutputsInfo().empty(), "Could not add profiling output: no region added");
 
     const auto ndOutputType = outputType.cast<vpux::NDTypeInterface>();
 

@@ -21,7 +21,7 @@ class KmbConcatLayerTest : public ConcatLayerTest, virtual public LayerTestsUtil
             std::string targetName;
             std::tie(axis, inputShapes, netPrecision, inPrc, outPrc, inLayout, outLayout, targetName) = GetParam();
             if (inputShapes.size() != 1) {
-                throw LayerTestsUtils::KmbSkipTestException("ArgumentError: attribute identifer allocators - Undefined identifier");
+                throw LayerTestsUtils::KmbSkipTestException("ArgumentError: attribute identifier allocators - Undefined identifier");
             }
         }
     }

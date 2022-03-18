@@ -52,7 +52,7 @@ void vpux::ELF::SymbolOp::serialize(elf::writer::Symbol* symbol, vpux::ELF::Sect
        the OP or it's placeholder;
         - I/O symbols : symbols that represent function arguments. In this case we will not have a parentSection, and no
        relatedSection;
-        - Symbols refering to the "Special Symbol Table";
+        - Symbols referring to the "Special Symbol Table";
         - Standalone symbols : symbols that do not relate to any entity inside the IR (nor the ELF itself).
       The ticket #29144 plans to handle these last 2 types of sections.
     */

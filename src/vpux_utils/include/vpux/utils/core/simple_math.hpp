@@ -12,7 +12,7 @@
 //
 
 //
-// Simple integer arithmetics to be used for the work sizes calculation.
+// Simple integer arithmetic to be used for the work sizes calculation.
 // Supported operations : +,-,*,/,%,(,)
 // no unary -,+
 // Variables defined as single chars and should not include one of the ops, whitespaces or 0-9

@@ -561,7 +561,7 @@ DLLEXPORT vcl_result_t vclExecutableCreate(vcl_compiler_handle_t compiler, vcl_e
     std::size_t cs = descOptions.find(KEY_CONFIGS);
     std::vector<std::string> ioInfoOptions;
     if (ips != std::string::npos && ils != std::string::npos && ops != std::string::npos && ols != std::string::npos) {
-        // Seperate ioInfo to different section
+        // Separate ioInfo to different section
         ioInfoOptions.push_back(descOptions.substr(ips, ils));
         ioInfoOptions.push_back(descOptions.substr(ils, ops - ils));
         ioInfoOptions.push_back(descOptions.substr(ops, ols - ops));

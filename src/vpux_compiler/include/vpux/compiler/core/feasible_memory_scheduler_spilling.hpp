@@ -55,7 +55,7 @@ private:
     SmallVector<mlir::Value> getAsyncResultsForBuffer(mlir::async::ExecuteOp opThatWasSpilled, mlir::Value buffer);
     mlir::Value getBufferFromAsyncResult(mlir::Value asyncResult);
 
-    // Below nested class is inteded to handle data dependency updates
+    // Below nested class is intended to handle data dependency updates
     // for users of spilled buffers
     class SpillUsersUpdate {
     public:

@@ -24,7 +24,7 @@ namespace vpux {
 // Mask
 //
 
-// Packed mask for resouces availability marks.
+// Packed mask for resources availability marks.
 
 class Mask {
 public:

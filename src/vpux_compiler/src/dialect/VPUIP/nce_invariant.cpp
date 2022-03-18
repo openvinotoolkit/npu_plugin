@@ -1589,7 +1589,7 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(IE::MaxPoolOp origOp
 
     const auto kernelSize = parseIntArrayAttr<int64_t>(origOp.kernel_size());
     if (kernelSize[0] != kernelSize[1]) {
-        log.trace("[{0}] Assymetric kernel is not supported", origOp->getLoc());
+        log.trace("[{0}] Asymmetric kernel is not supported", origOp->getLoc());
         return mlir::failure();
     }
     const auto KY = kernelSize[0];
@@ -1624,7 +1624,7 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(IERT::MaxPoolOp orig
 
     const auto kernelSize = parseIntArrayAttr<int64_t>(origOp.kernel_size());
     if (kernelSize[0] != kernelSize[1]) {
-        log.trace("[{0}] Assymetric kernel is not supported", origOp->getLoc());
+        log.trace("[{0}] Asymmetric kernel is not supported", origOp->getLoc());
         return mlir::failure();
     }
     const auto KY = kernelSize[0];

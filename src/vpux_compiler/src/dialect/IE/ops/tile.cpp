@@ -151,7 +151,7 @@ mlir::LogicalResult vpux::IE::PerAxisTileOp::inferReturnTypeComponents(
     auto outShape = to_small_vector(inType.getShape());
 
     if (axis > outShape.size()) {
-        return errorAt(loc, "Axis is out of range. Avaliable range [0, {0}), but got axis = {1}", outShape.size(),
+        return errorAt(loc, "Axis is out of range. Available range [0, {0}), but got axis = {1}", outShape.size(),
                        axis);
     }
 

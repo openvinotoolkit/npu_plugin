@@ -162,7 +162,7 @@ LinearScanHandler StaticAllocationPass::runLinearScan(mlir::FuncOp netFunc) {
             newBufs.push_back(val);
         }
 
-        _log.trace("Alocate memory for the new buffers");
+        _log.trace("Allocate memory for the new buffers");
         VPUX_THROW_UNLESS(scan.alloc(newBufs, /*allowSpills*/ false), "Failed to statically allocate '{0}' memory",
                           _memSpace);
 

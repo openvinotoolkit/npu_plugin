@@ -3,7 +3,7 @@ There are two ways, how you can build vpualHost. **Manual** or using **CI-job**.
 
 ## Build vpualHost and VPUIP2 with CI-Job
 You can find CI job here: https://dsp-ci-icv.inn.intel.com/job/IE-Packages/job/BuildKmbArtifacts/
-Result of build is firware and vpuip2 artifacts. 
+Result of build is firmware and vpuip2 artifacts.
 
 
 ## Manual build

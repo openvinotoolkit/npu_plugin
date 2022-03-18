@@ -164,7 +164,7 @@ typedef struct __vcl_profiling_output_t {
 } vcl_profiling_output_t, *p_vcl_profiling_output_t;
 
 ///////////////////////////////////////////////////////////////////////////////
-/// @brief Creates a compiler object and returs the compiler handle
+/// @brief Creates a compiler object and returns the compiler handle
 VCL_APIEXPORT vcl_result_t VCL_APICALL vclCompilerCreate(vcl_compiler_desc_t desc, vcl_compiler_handle_t* compiler);
 
 ///////////////////////////////////////////////////////////////////////////////

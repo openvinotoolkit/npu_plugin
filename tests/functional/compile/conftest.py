@@ -6,8 +6,8 @@
 
 """ Configuration for models compilation tests.
 
-Models comilation tests run compilation for models and pass if compilation
-succeded without errors.
+Models compilation tests run compilation for models and pass if compilation
+succeeded without errors.
 
 Pre-requisite to run the tests are model packages.
 
@@ -53,7 +53,7 @@ def pytest_addoption(parser):
     parser.addoption('--models', default='', help='Models packages')
     parser.addoption('--compiler', default='compile_tool', help='Path to model compilation tool')
     parser.addoption('--benchmark_app', default='benchmark_app', help='Path to benchmark_app tool')
-    parser.addoption('--output', help='Output durectory for compiled models')
+    parser.addoption('--output', help='Output directory for compiled models')
 
 
 def pytest_generate_tests(metafunc):

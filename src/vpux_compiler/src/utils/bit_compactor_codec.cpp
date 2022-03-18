@@ -59,7 +59,7 @@ std::vector<uint8_t> vpux::BitCompactorCodec::compress(std::vector<uint8_t>& dat
     // Trim trailing bytes.
     compressedDataBuffer.resize(compressedSize);
 
-    // sometimes even if the tensor is > 4KB it might not be compressable
+    // sometimes even if the tensor is > 4KB it might not be compressible
     if (uncompressedDataSize <= compressedSize) {
         return {};
     }

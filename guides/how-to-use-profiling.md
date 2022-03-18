@@ -53,7 +53,7 @@ cd $OPENVINO_HOME/bin/intel64/Debug/
 
 * `-f` flag stands for "format" and can be either `text` or `json`.
 `json` means [Trace Event Format]
-* `-o` is an output file, will use `stdout` if ommitted.
+* `-o` is an output file, will use `stdout` if omitted.
 
 ## Using Yocto and single-image-test
 

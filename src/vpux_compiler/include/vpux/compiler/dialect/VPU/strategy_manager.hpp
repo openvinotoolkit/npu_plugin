@@ -111,7 +111,7 @@ public:
 // Higher level strategy manager class
 // Its current purpose is to globally assign strategies
 // In future it may have methods for finding sub-graphs
-// and other strategy related utilites
+// and other strategy related utilities
 class StrategyManager final {
 public:
     explicit StrategyManager(mlir::FuncOp func, Logger log);

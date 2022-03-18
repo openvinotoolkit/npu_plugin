@@ -118,7 +118,7 @@ struct PlaneTile final {
         return width.length() * height.length();
     }
 
-    // Checks if rhs located completly in this.
+    // Checks if rhs located completely in this.
     bool contains(const PlaneTile& other) const {
         return width.contains(other.width) && height.contains(other.height);
     }
@@ -154,7 +154,7 @@ struct PlaneTileSolution final {
 };
 
 // Return input tile and padding required to calculate the output tile.
-// Padding should be applied to the input tile. It could be assymetric, or doesn't meet HW requirements in terms of its
+// Padding should be applied to the input tile. It could be asymmetric, or doesn't meet HW requirements in terms of its
 // size.
 // * initialInputDims - Dims of the whole input tensor (not of specific tile).
 // * initialPad - padding which should be applied to the whole input tensor (not to specific tile).

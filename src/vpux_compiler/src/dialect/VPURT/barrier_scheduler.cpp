@@ -223,7 +223,7 @@ void BarrierScheduler::addOutGoingOperationsToCandidateList(mlir::Operation* op)
             --(deg_itr->second);
         }
     }
-    _log.trace("Finsihed adding outgoing operations to candidate list");
+    _log.trace("Finished adding outgoing operations to candidate list");
     _log = _log.unnest();
 }
 
@@ -270,7 +270,7 @@ bool BarrierScheduler::performSchedulingTaskLoop() {
 
             VPUX_THROW_UNLESS(
                     _currentTime <= topElem._time,
-                    "An error has occured the _currentScheduleTime should not be less than time poped from the heap");
+                    "An error has occurred the _currentScheduleTime should not be less than time popped from the heap");
 
             _currentTime = topElem._time;
             // since operation is now complete update the schedule
@@ -307,7 +307,7 @@ BarrierScheduler::schedulableTasksIteratorType BarrierScheduler::findSchedulable
     schedulableTasksIteratorType itr = _schedulableCandidates.end();
     std::list<schedulableTasksIteratorType> readyList;
 
-    _log.trace("There are {0} candiates", _schedulableCandidates.size());
+    _log.trace("There are {0} candidates", _schedulableCandidates.size());
 
     for (itr = _schedulableCandidates.begin(); itr != _schedulableCandidates.end(); ++itr) {
         _log.trace("The producerSlotRequirement for task {0} is {1}", getUniqueID(*itr),
@@ -355,7 +355,7 @@ bool BarrierScheduler::unScheduleTask(mlir::Operation* op) {
     auto unassignBarrierSlots =
             _barrierResourceState.unassignBarrierSlots(binfo._barrierIndex, binfo._producerSlotCount);
 
-    VPUX_THROW_UNLESS(unassignBarrierSlots == true, "Failed to dealocate slots in the barrier index {0}",
+    VPUX_THROW_UNLESS(unassignBarrierSlots == true, "Failed to deallocate slots in the barrier index {0}",
                       binfo._barrierIndex);
     _barrierMap.erase(itr);
     return true;
@@ -519,7 +519,7 @@ void BarrierScheduler::assignTaskUniqueIds() {
 }
 
 // This function returns the number of producers to a barrier.
-// On VPU H/W, a NCE task is executed across mutiple DPUs via workloads descriptors (known as variants).
+// On VPU H/W, a NCE task is executed across multiple DPUs via workloads descriptors (known as variants).
 // Each variant must update the barrier to signal that is is complete.
 // An NCE task may have up 50 workloads descriptors (which are generated in the NCE DPU workloads pass).
 // Therefore, the number of variants must be retrieved here as they will all update a barrier and
@@ -560,7 +560,7 @@ void BarrierScheduler::init() {
     _log.trace("Feasible barrier scheduler initialization");
     _log = _log.nest();
 
-    // Assing unique IDs to tasks
+    // Assign unique IDs to tasks
     _log.trace("Assigning unique IDs to tasks");
     assignTaskUniqueIds();
 
@@ -572,7 +572,7 @@ void BarrierScheduler::init() {
     saveOriginalIRDependency();
 
     // Assign task priorities
-    _log.trace("Assiging task scheduling priorities");
+    _log.trace("Assigning task scheduling priorities");
     assignTaskPriorities();
 
     // Store per-task barrier producer utilization, i.e. the number of workloads
@@ -783,7 +783,7 @@ bool BarrierScheduler::performRuntimeSimulation() {
     }
 
     if (!success) {
-        _log.trace("Barrier simualtion was not successfull removing the barriers that were inserted");
+        _log.trace("Barrier simulation was not successful removing the barriers that were inserted");
         removeVirtualBarriers();
         _configureBarrierOpWaitMap.clear();
         _configureBarrierOpUpdateMap.clear();
@@ -793,7 +793,7 @@ bool BarrierScheduler::performRuntimeSimulation() {
         _schedulingOrder.clear();
     }
 
-    _log.trace("Barrier simualtion result is {0} with upperbound {1}", success, _barrierCount);
+    _log.trace("Barrier simulation result is {0} with upperbound {1}", success, _barrierCount);
     return success;
 }
 

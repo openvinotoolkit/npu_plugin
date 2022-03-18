@@ -407,7 +407,7 @@ void ConvertVPUToVPUIPPass::safeRunOnFunc() {
     target.addLegalDialect<VPUIP::VPUIPDialect>();
     target.addLegalDialect<IERT::IERTDialect>();
     target.addIllegalDialect<VPU::VPUDialect>();
-    // NCEClusterTiling will be handled in follw up pass (convertNCEClusterTilingToVPUIP pass)
+    // NCEClusterTiling will be handled in follow up pass (convertNCEClusterTilingToVPUIP pass)
     target.addLegalOp<VPU::NCEClusterTilingOp>();
     target.addLegalOp<VPU::YieldOp>();
     target.addLegalOp<mlir::memref::AllocOp>();

@@ -49,7 +49,7 @@ Container splitStringList(StringRef str, char delim) {
 // removeCharFromString
 //
 
-// Remove all `ch` character occurences in `str` string.
+// Remove all `ch` character occurrences in `str` string.
 std::string removeCharFromString(StringRef str, char ch);
 
 //

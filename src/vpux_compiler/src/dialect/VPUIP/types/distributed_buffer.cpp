@@ -228,7 +228,7 @@ mlir::MemRefType VPUIP::DistributedBufferType::getCompactType() const {
 // Shape utils
 //
 
-// @brief Retrive the array of compute shapes.
+// @brief Retrieve the array of compute shapes.
 // @warning An important thing to consider with regards to compute shapes,
 // is that modes like SEGMENTED and OVERLAPPED take precedence over
 // DUPLICATED and MULTICASTED.
@@ -383,7 +383,7 @@ Byte VPUIP::DistributedBufferType::getCompactAllocSize() const {
     const auto distributionMode = distribution.mode();
 
     // DUPLICATED|MULTICASTED takes priority since it means that each cluster will have the entire
-    // tensor, regardless wheter it's tiled or not.
+    // tensor, regardless whether it's tiled or not.
     Shape tiledShape;
     if (VPU::bitEnumContains(distributionMode.getValue(), VPU::DistributionMode::DUPLICATED) ||
         VPU::bitEnumContains(distributionMode.getValue(), VPU::DistributionMode::MULTICASTED)) {
