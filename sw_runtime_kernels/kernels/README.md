@@ -62,7 +62,7 @@ So, you can unintentionally change the behaviour of cmake and even make it wrong
 Variables intended to be used/set in description files:
 
 - `kernel_entry`
-  a string which specifies kernel entry point name. Optional; default is `"${kernel_src}"` without path and filename suffices (extensions).
+  a string which specifies kernel entry point name. Optional; default is `"${kernel_src}"` without path and filename suffixes (extensions).
 - `kernel_src`
   a string which specifies kernel source file name, without path and relative to `"${kernel_src_dir}"` . Required.
 - `kernel_src_dir`
