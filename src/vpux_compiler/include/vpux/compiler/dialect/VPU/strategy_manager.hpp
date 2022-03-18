@@ -150,9 +150,14 @@ template <class ConcreteOp>
 double BaseLayerStrategy::computeSplitEfficiency(ConcreteOp op, StringRef strategy) const {
     const auto outputTensorDistributionMode = getOutputTensorDistributionMode(strategy);
     const auto outputTensorNumTiles =
-            getIntArrayAttr(op->getContext(), getOutputTensorNumTiles(_numClusters, strategy));
-    const auto distributedOutputTensorType =
-            createDistributedTensorType(op, op.output(), outputTensorDistributionMode, outputTensorNumTiles);
+            getIntArrayAttr(op->getContext(), getOutputTensorNumTiles(op.getOperation(), _numClusters, strategy));
+    mlir::ArrayAttr outputAlignmentAttr = nullptr;
+    const auto outputAlignment = getOutputTensorAlignment(strategy);
+    if (outputAlignment.hasValue()) {
+        outputAlignmentAttr = getIntArrayAttr(op->getContext(), outputAlignment.getValue());
+    }
+    const auto distributedOutputTensorType = createDistributedTensorType(
+            op, op.output(), outputTensorDistributionMode, outputTensorNumTiles, outputAlignmentAttr, strategy);
 
     const auto perClusterShape = distributedOutputTensorType.getLargestCompactShape();
     const auto perClusterOutputTensorVolume =
