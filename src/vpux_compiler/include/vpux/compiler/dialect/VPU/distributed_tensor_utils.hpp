@@ -41,8 +41,7 @@ constexpr StringLiteral clustering = "Clustering";
 
 int64_t getNumberOfClustersToAvoidAlignment(int64_t outputChannels, int64_t numClustersForCompilation);
 SmallVector<int64_t> getActivationTensorNumTiles(int64_t numClustersAvailableForCompilation, StringRef strategy);
-Optional<SmallVector<int64_t>> getActivationTensorAlignment(mlir::Operation* op, StringRef strategy, bool needAlignment,
-                                                            mlir::ArrayAttr numTiles);
+Optional<SmallVector<int64_t>> getActivationTensorAlignment(mlir::Operation* op, mlir::Value input, StringRef strategy);
 SmallVector<int64_t> getOutputTensorNumTiles(mlir::Operation* op, int64_t numClustersAvailableForCompilation,
                                              StringRef strategy);
 SmallVector<int64_t> getWeightsTensorNumTiles(mlir::Operation* op, int64_t numClustersAvailableForCompilation,
@@ -57,7 +56,6 @@ DistributionMode getOutputTensorDistributionMode(StringRef strategy);
 DistributionMode getActivationWindowTensorDistributionMode(StringRef strategy);
 NCEClusterTilingOp createDistributedCopyOut(mlir::Operation* origOp, NCEClusterTilingOp clusterTilingOp);
 mlir::ArrayAttr getKernelSize(mlir::Operation* origOp);
-ShapeRef getInputShape(mlir::Operation* origOp);
 int64_t getSOHPerClusterHeightAlignment(int64_t inputWidth);
 bool isSOHSupportedByDPU(ShapeRef inputShape, int64_t KY, int64_t numClusters, bool DWTypeOp);
 
@@ -83,10 +81,9 @@ inline PaddingAttr getPad<NCEEltwiseOp>(NCEEltwiseOp) {
 
 template <class ConcreteOp>
 NCEClusterTilingOp createDistributedCopyIn(ConcreteOp origOp, mlir::Value input, DistributionMode distributionMode,
-                                           mlir::ArrayAttr numTiles, mlir::ArrayAttr alignment, StringRef strategy,
-                                           bool needAlignment = false) {
+                                           mlir::ArrayAttr numTiles, mlir::ArrayAttr alignment, StringRef strategy) {
     auto inputTensorDistributedTensorType =
-            createDistributedTensorType(origOp, input, distributionMode, numTiles, alignment, strategy, needAlignment);
+            createDistributedTensorType(origOp, input, distributionMode, numTiles, alignment, strategy);
 
     mlir::OpBuilder builder(origOp);
     builder.setInsertionPoint(origOp);
@@ -106,10 +103,8 @@ NCEClusterTilingOp createDistributedCopyIn(ConcreteOp origOp, mlir::Value input,
 template <class ConcreteOp>
 DistributedTensorType createDistributedTensorType(ConcreteOp origOp, mlir::Value input,
                                                   DistributionMode distributionMode, mlir::ArrayAttr numTiles,
-                                                  mlir::ArrayAttr alignment, StringRef strategy,
-                                                  bool needAlignment = false) {
+                                                  mlir::ArrayAttr alignment, StringRef strategy) {
     DistributedTensorAttr distributedActivationTensorAttr;
-    mlir::ArrayAttr alignmentAttr = nullptr;
     auto module = origOp->template getParentOfType<mlir::ModuleOp>();
     auto nceOp = IE::getAvailableExecutor(module, ExecutorKind::NCE);
     const auto numClustersAvailableForCompilation = getIntAttr(origOp.getContext(), nceOp.count());
@@ -146,26 +141,9 @@ DistributedTensorType createDistributedTensorType(ConcreteOp origOp, mlir::Value
                 DistributedTensorAttr::get(activationTensorDistributionModeAttr, nullptr, nullptr, nullptr, nullptr,
                                            optimalNumberOfClusters, alignment, origOp.getContext());
     } else if (VPU ::bitEnumContains(distributionMode, VPU::DistributionMode::SEGMENTED)) {
-        // Add height alignment
-        // On the release branch, the alignment is created and added here.
-        // Now alignment is passed as a parameter.
-        // This could could be moved where the alignment that is passed to this fucntion is created
-        // Instead of modifying here and adding the height
-        if (alignment != nullptr) {
-            auto alignmentVector = parseIntArrayAttr<int64_t>(alignment);
-            const auto numTilesArray = parseIntArrayAttr<int64_t>(numTiles);
-            if (numTilesArray[Dims4D::Act::H.ind()] > 1 && kernel && needAlignment) {
-                const auto kernelArray = parseIntArrayAttr<int64_t>(kernel);
-                const auto KY = kernelArray[0];
-                if (KY > 1) {
-                    alignmentVector[Dims4D::Act::H.ind()] = getSOHPerClusterHeightAlignment(shape[Dims4D::Act::W]);
-                }
-            }
-            alignmentAttr = getIntArrayAttr(origOp.getContext(), alignmentVector);
-        }
         distributedActivationTensorAttr =
                 DistributedTensorAttr::get(activationTensorDistributionModeAttr, numTiles, nullptr, nullptr, nullptr,
-                                           optimalNumberOfClusters, alignmentAttr, origOp.getContext());
+                                           optimalNumberOfClusters, alignment, origOp.getContext());
 
     } else {
         VPUX_THROW("Unsupported distribution mode: {0}", VPU::stringifyDistributionMode(distributionMode));

@@ -26,11 +26,7 @@ bool MaxPoolStrategy::doesLayerFitIntoCMX(mlir::Operation* op, StringRef strateg
     auto outputTensorDistributionMode = getOutputTensorDistributionMode(strategy);
     auto outputTensorNumTiles =
             getIntArrayAttr(origOp.getContext(), getOutputTensorNumTiles(op, _numClusters, strategy));
-    auto activationAlignment = getActivationTensorAlignment(op, strategy, false, activationTensorNumTiles);
-    ;
-    if (activationAlignment.hasValue()) {
-        activationAlignmentAttr = getIntArrayAttr(origOp.getContext(), activationAlignment.getValue());
-    }
+
     auto distributedActivationTensorType =
             createDistributedTensorType(origOp, origOp.input(), activationTensorDistributionMode,
                                         activationTensorNumTiles, activationAlignmentAttr, strategy);

@@ -33,25 +33,29 @@ bool ConvolutionStrategy::doesLayerFitIntoCMX(mlir::Operation* op, StringRef str
     const auto arch = VPU::getArch(origOp.getOperation());
     const auto canUseCMajor =
             VPU::NCEInvariant::isChannelMajorCompatible(arch, origOp.input().getType().cast<vpux::NDTypeInterface>());
-    auto activationAlignment = getActivationTensorAlignment(op, strategy, !canUseCMajor, activationTensorNumTiles);
+
+    if (!canUseCMajor) {
+        auto activationAlignment = getActivationTensorAlignment(op, origOp.input(), strategy);
+        if (activationAlignment.hasValue()) {
+            activationAlignmentAttr = getIntArrayAttr(origOp.getContext(), activationAlignment.getValue());
+        }
+    }
+
     auto weightAlignment = getWeightsTensorAlignment(strategy);
 
-    if (activationAlignment.hasValue()) {
-        activationAlignmentAttr = getIntArrayAttr(origOp.getContext(), activationAlignment.getValue());
-    }
     if (weightAlignment.hasValue()) {
         weightAlignmentAttr = getIntArrayAttr(origOp.getContext(), weightAlignment.getValue());
     }
 
     auto distributedActivationTensorType =
             createDistributedTensorType(origOp, origOp.input(), activationTensorDistributionMode,
-                                        activationTensorNumTiles, activationAlignmentAttr, strategy, !canUseCMajor);
+                                        activationTensorNumTiles, activationAlignmentAttr, strategy);
     const auto distributeddWeightsTensorType =
             createDistributedTensorType(origOp, origOp.filter(), weightsTensorDistributionMode, weightsTensorNumTiles,
-                                        weightAlignmentAttr, strategy, !canUseCMajor);
+                                        weightAlignmentAttr, strategy);
     const auto distributedOutputTensorType =
             createDistributedTensorType(origOp, origOp.output(), outputTensorDistributionMode, outputTensorNumTiles,
-                                        activationAlignmentAttr, strategy, !canUseCMajor);
+                                        activationAlignmentAttr, strategy);
 
     return origOp.fitIntoCMX(distributedActivationTensorType, distributeddWeightsTensorType,
                              distributedOutputTensorType);

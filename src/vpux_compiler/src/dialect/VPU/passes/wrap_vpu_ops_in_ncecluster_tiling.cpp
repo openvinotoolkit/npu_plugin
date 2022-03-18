@@ -81,15 +81,8 @@ mlir::LogicalResult NCEConvolutionRewriter::matchAndRewrite(NCEConvolutionOp ori
     const auto canUseCMajor =
             VPU::NCEInvariant::isChannelMajorCompatible(arch, origOp.input().getType().cast<vpux::NDTypeInterface>());
 
-    if (strategy == splitOverKernel) {
-        auto activationAlignment =
-                getActivationTensorAlignment(origOp.getOperation(), strategy, false, activationTensorNumTiles);
-        if (activationAlignment.hasValue()) {
-            activationAlignmentAttr = getIntArrayAttr(origOp.getContext(), activationAlignment.getValue());
-        }
-    } else if (strategy == splitOverHeight) {
-        auto activationAlignment =
-                getActivationTensorAlignment(origOp.getOperation(), strategy, !canUseCMajor, activationTensorNumTiles);
+    if (!canUseCMajor) {
+        auto activationAlignment = getActivationTensorAlignment(origOp.getOperation(), origOp.input(), strategy);
         if (activationAlignment.hasValue()) {
             activationAlignmentAttr = getIntArrayAttr(origOp.getContext(), activationAlignment.getValue());
         }
@@ -103,19 +96,18 @@ mlir::LogicalResult NCEConvolutionRewriter::matchAndRewrite(NCEConvolutionOp ori
 
     auto distributedActivationCopyOp =
             createDistributedCopyIn(origOp, origOp.input(), activationTensorDistributionMode, activationTensorNumTiles,
-                                    activationAlignmentAttr, strategy, !canUseCMajor);
+                                    activationAlignmentAttr, strategy);
 
-    auto distributedWeightsCopyOp =
-            createDistributedCopyIn(origOp, origOp.filter(), weightsTensorDistributionMode, weightsTensorNumTiles,
-                                    weightAlignmentAttr, strategy, !canUseCMajor);
+    auto distributedWeightsCopyOp = createDistributedCopyIn(origOp, origOp.filter(), weightsTensorDistributionMode,
+                                                            weightsTensorNumTiles, weightAlignmentAttr, strategy);
 
     auto distributedWeightTableCopyOp =
             createDistributedCopyIn(origOp, origOp.weightsTable(), weightsTableTensorDistributionMode,
-                                    weightsTableTensorNumTiles, weightAlignmentAttr, strategy, !canUseCMajor);
+                                    weightsTableTensorNumTiles, weightAlignmentAttr, strategy);
 
     auto distributedOutputTensorType =
             createDistributedTensorType(origOp, origOp.output(), outputTensorDistributionMode, outputTensorNumTiles,
-                                        activationAlignmentAttr, strategy, !canUseCMajor);
+                                        activationAlignmentAttr, strategy);
 
     const auto bodyBuilder = [origOp](mlir::OpBuilder& builder, mlir::Location loc, mlir::ValueRange newOperands) {
         mlir::BlockAndValueMapping mapper;
@@ -204,13 +196,8 @@ mlir::LogicalResult NCEDepthConvolutionRewriter::matchAndRewrite(NCEDepthConvolu
     auto outputTensorNumTiles = getIntArrayAttr(origOp.getContext(),
                                                 getOutputTensorNumTiles(origOp.getOperation(), _numClusters, strategy));
 
-    auto activationAlignment =
-            getActivationTensorAlignment(origOp.getOperation(), strategy, false, activationTensorNumTiles);
     auto weightAlignment = getWeightsTensorAlignment(strategy);
 
-    if (activationAlignment.hasValue()) {
-        activationAlignmentAttr = getIntArrayAttr(origOp.getContext(), activationAlignment.getValue());
-    }
     if (weightAlignment.hasValue()) {
         weightAlignmentAttr = getIntArrayAttr(origOp.getContext(), weightAlignment.getValue());
     }
@@ -302,13 +289,8 @@ mlir::LogicalResult NCEMaxPoolRewriter::matchAndRewrite(NCEMaxPoolOp origOp, mli
     auto outputTensorNumTiles = getIntArrayAttr(origOp.getContext(),
                                                 getOutputTensorNumTiles(origOp.getOperation(), _numClusters, strategy));
 
-    auto activationAlignment =
-            getActivationTensorAlignment(origOp.getOperation(), strategy, false, activationTensorNumTiles);
     auto weightAlignment = getWeightsTensorAlignment(strategy);
 
-    if (activationAlignment.hasValue()) {
-        activationAlignmentAttr = getIntArrayAttr(origOp.getContext(), activationAlignment.getValue());
-    }
     if (weightAlignment.hasValue()) {
         weightAlignmentAttr = getIntArrayAttr(origOp.getContext(), weightAlignment.getValue());
     }
@@ -389,13 +371,6 @@ mlir::LogicalResult NCEEltwiseRewriter::matchAndRewrite(NCEEltwiseOp origOp, mli
     auto outputTensorDistributionMode = getOutputTensorDistributionMode(strategy);
     auto outputTensorNumTiles = getIntArrayAttr(origOp.getContext(),
                                                 getOutputTensorNumTiles(origOp.getOperation(), _numClusters, strategy));
-
-    auto activationAlignment =
-            getActivationTensorAlignment(origOp.getOperation(), strategy, false, activationTensorNumTiles);
-
-    if (activationAlignment.hasValue()) {
-        activationAlignmentAttr = getIntArrayAttr(origOp.getContext(), activationAlignment.getValue());
-    }
 
     auto distributedActivationCopyOp1 =
             createDistributedCopyIn(origOp, origOp.input1(), activationTensorDistributionMode, activationTensorNumTiles,
