@@ -299,6 +299,10 @@ void PrefetchTilingPass::safeRunOnFunc() {
             if (prefetchTilingConditionsViolated(op, _log)) {
                 return false;
             }
+            if (op->hasAttr("tilingStrategy") && op->getLoc().dyn_cast<mlir::FusedLoc>() == nullptr) {
+                // manual strategy overwrite
+                return false;
+            }
         }
 
         return true;
