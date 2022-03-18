@@ -110,7 +110,7 @@ set(blob_data_suffix ".data")
 set(jtag_text_suffix ".text.xdat")
 set(jtag_data_suffix ".data.xdat")
 
-set(link_script_file "${CMAKE_SOURCE_DIR}/prebuild/shave_kernel.ld")
+set(link_script_file_default "${CMAKE_SOURCE_DIR}/prebuild/shave_kernel.ld")
 
 set(link_libraries_list
   "${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}/common/moviCompile/lib/30xxxx-leon/mlibm.a"
@@ -157,6 +157,7 @@ foreach(kernel_descrip ${kernel_descrip_list})
   set(define_symbols_list "")
   set(always_inline "${always_inline_default}")
   set(extra_src_list "")
+  set(link_script_file "${link_script_file_default}")
   set(binary_subdir "")
 
   get_filename_component(kernel_descrip_path ${kernel_descrip} DIRECTORY)
