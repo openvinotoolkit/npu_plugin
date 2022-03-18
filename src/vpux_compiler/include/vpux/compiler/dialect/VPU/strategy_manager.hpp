@@ -187,10 +187,29 @@ StringRef BaseLayerStrategy::getOptimalLayerStrategy(ConcreteOp op) const {
         splitOverKernelEfficiency = computeSplitEfficiency(op, splitOverKernel);
     }
 
-    if (splitOverHeightEfficiency >= splitOverKernelEfficiency) {
+    // Compute ammount of clusters so that SOK is compatible
+    const auto module = op->template getParentOfType<mlir::ModuleOp>();
+    const auto numClustersAvailableForCompilation = IE::getAvailableExecutor(module, ExecutorKind::NCE).count();
+    const auto outputChannels = op.output().getType().template cast<vpux::NDTypeInterface>().getShape()[Dims4D::Act::C];
+    const auto sokOptimalClusters =
+            getNumberOfClustersForSOKToAvoidAlignment(outputChannels, numClustersAvailableForCompilation);
+
+    const auto optimalHeightTiling = [&](void) {
         return isChannelMajor ? splitOverHeightOverlapped : splitOverHeight;
+    };
+    if (sokOptimalClusters == numClustersAvailableForCompilation) {
+        if (splitOverHeightEfficiency >= splitOverKernelEfficiency) {
+            return optimalHeightTiling();
+        }
+        return splitOverKernel;
+    } else {
+        // SOK uses less clusters, but it would be still better than if
+        // SOH is incompatible.
+        if (splitOverHeightEfficiency > 0) {
+            return optimalHeightTiling();
+        }
+        return splitOverKernel;
     }
-    return splitOverKernel;
 }
 
 }  // namespace VPU
