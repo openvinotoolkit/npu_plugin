@@ -21,20 +21,16 @@
 
 #include "device_helpers.hpp"
 
-using namespace vpux;
-using namespace ov::intel_vpux;
-using namespace InferenceEngine::VPUXConfigParams;
-
-const std::shared_ptr<IDevice> vpux::IMD::BackendImpl::getDevice() const {
-    return std::make_shared<IMD::DeviceImpl>(VPUXPlatform::VPU3720);
+const std::shared_ptr<vpux::IDevice> vpux::IMD::BackendImpl::getDevice() const {
+    return std::make_shared<IMD::DeviceImpl>(InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3720);
 }
 
-const std::shared_ptr<IDevice> vpux::IMD::BackendImpl::getDevice(const std::string& name) const {
+const std::shared_ptr<vpux::IDevice> vpux::IMD::BackendImpl::getDevice(const std::string& name) const {
     const auto platform = utils::getPlatformByDeviceName(name);
     return std::make_shared<IMD::DeviceImpl>(platform);
 }
 
-const std::shared_ptr<IDevice> vpux::IMD::BackendImpl::getDevice(const InferenceEngine::ParamMap& params) const {
+const std::shared_ptr<vpux::IDevice> vpux::IMD::BackendImpl::getDevice(const InferenceEngine::ParamMap& params) const {
     const auto it = params.find(InferenceEngine::VPUX_PARAM_KEY(DEVICE_ID));
     VPUX_THROW_WHEN(it == params.end(), "DEVICE_ID parameter was not provided");
     return getDevice(it->second.as<std::string>());
@@ -55,5 +51,5 @@ void vpux::IMD::BackendImpl::registerOptions(OptionsDesc& options) const {
 }
 
 INFERENCE_PLUGIN_API(void) CreateVPUXEngineBackend(std::shared_ptr<vpux::IEngineBackend>& obj) {
-    obj = std::make_shared<IMD::BackendImpl>();
+    obj = std::make_shared<vpux::IMD::BackendImpl>();
 }

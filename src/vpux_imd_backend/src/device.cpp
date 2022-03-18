@@ -17,25 +17,21 @@
 
 #include "vpux/al/config/common.hpp"
 
-using namespace vpux;
-using namespace ov::intel_vpux;
-using namespace InferenceEngine::VPUXConfigParams;
-
-vpux::IMD::DeviceImpl::DeviceImpl(VPUXPlatform platform): _platform(platform) {
+vpux::IMD::DeviceImpl::DeviceImpl(InferenceEngine::VPUXConfigParams::VPUXPlatform platform): _platform(platform) {
     VPUX_THROW_UNLESS(platformSupported(platform), "Unsupported VPUX platform '{0}'", platform);
 }
 
-std::shared_ptr<Allocator> vpux::IMD::DeviceImpl::getAllocator() const {
+std::shared_ptr<vpux::Allocator> vpux::IMD::DeviceImpl::getAllocator() const {
     return nullptr;
 }
 
-std::shared_ptr<Allocator> vpux::IMD::DeviceImpl::getAllocator(const InferenceEngine::ParamMap&) const {
+std::shared_ptr<vpux::Allocator> vpux::IMD::DeviceImpl::getAllocator(const InferenceEngine::ParamMap&) const {
     return nullptr;
 }
 
-std::shared_ptr<Executor> vpux::IMD::DeviceImpl::createExecutor(const NetworkDescription::Ptr& network,
-                                                                const Config& config) {
-    return std::make_shared<IMD::ExecutorImpl>(_platform, network, config);
+std::shared_ptr<vpux::Executor> vpux::IMD::DeviceImpl::createExecutor(const NetworkDescription::Ptr& network,
+                                                                      const Config& config) {
+    return std::make_shared<vpux::IMD::ExecutorImpl>(_platform, network, config);
 }
 
 std::string vpux::IMD::DeviceImpl::getName() const {
