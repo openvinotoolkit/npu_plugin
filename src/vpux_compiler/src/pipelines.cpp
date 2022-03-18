@@ -169,7 +169,6 @@ void vpux::buildReferenceHWModePipeline(mlir::OpPassManager& pm, const Reference
     }
     pm.addPass(mlir::createCanonicalizerPass(grc));
 
-    pm.addPass(IE::createOptimizeUnalignedQDQSeqPass(log));
     if (options.enableHandleLargeStrides) {
         pm.addPass(IE::createHandleLargeStridesPass(log));
     }
@@ -180,7 +179,6 @@ void vpux::buildReferenceHWModePipeline(mlir::OpPassManager& pm, const Reference
     if (options.enableLowPrecision) {
         IE::buildLowPrecisionPipeline(pm, IE::LowPrecisionOptions(options), log);
     }
-
     pm.addPass(IE::createFusePostOpsPass(log));
     pm.addPass(IE::createResolvePWLPostOpsPass(log));
 
@@ -195,6 +193,7 @@ void vpux::buildReferenceHWModePipeline(mlir::OpPassManager& pm, const Reference
             pm.addPass(IE::createUniquifyOpsPass(log));
         }
     }
+
     pm.addPass(IE::createConvertToMemPermutePass(log));
     pm.addPass(mlir::createCanonicalizerPass(grc));
 
@@ -298,7 +297,6 @@ void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOp
     }
     pm.addPass(mlir::createCanonicalizerPass(grc));
 
-    pm.addPass(IE::createOptimizeUnalignedQDQSeqPass(log));
     if (options.enableHandleLargeStrides) {
         pm.addPass(IE::createHandleLargeStridesPass(log));
     }
@@ -328,6 +326,7 @@ void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOp
             pm.addPass(IE::createUniquifyOpsPass(log));
         }
     }
+
     pm.addPass(IE::createConvertToMemPermutePass(log));
     pm.addPass(mlir::createCanonicalizerPass(grc));
 
