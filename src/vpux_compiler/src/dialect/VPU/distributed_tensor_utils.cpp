@@ -25,7 +25,7 @@ using namespace VPU;
 // Example: For 80 output channel / 4 clusters = [20, 20, 20, 20] output channels per cluster.
 // 20 is not aligned to 16. Therefore, the compiler should only execute this layer on 3 clusters.
 // This would result in [32, 32, 16] output channels per cluster.
-int64_t vpux::VPU::getNumberOfClustersToAvoidAlignment(int64_t outputChannels, int64_t numClustersToUseForLayer) {
+int64_t vpux::VPU::getNumberOfClustersForSOKToAvoidAlignment(int64_t outputChannels, int64_t numClustersToUseForLayer) {
     for (int64_t clusters = numClustersToUseForLayer; clusters >= 1; clusters--) {
         auto alignedOutputChannels = alignVal<int64_t>(divUp(outputChannels, clusters), KMB_DPU_CHANNELS_ALIGNMENT);
         int64_t remainder = outputChannels - (clusters - 1) * alignedOutputChannels;
@@ -87,7 +87,8 @@ SmallVector<int64_t> vpux::VPU::getOutputTensorNumTiles(mlir::Operation* op, int
         return {1, 1, numClustersAvailableForCompilation, 1};
     } else if (strategy == splitOverKernel) {
         auto OC = getShape(op->getResult(0))[Dims4D::Act::C];
-        int64_t numClustersToUseForLayer = getNumberOfClustersToAvoidAlignment(OC, numClustersAvailableForCompilation);
+        int64_t numClustersToUseForLayer =
+                getNumberOfClustersForSOKToAvoidAlignment(OC, numClustersAvailableForCompilation);
         return {1, numClustersToUseForLayer, 1, 1};
     } else if (strategy == clustering) {
         return {1, 1, 1, 1};
@@ -96,6 +97,30 @@ SmallVector<int64_t> vpux::VPU::getOutputTensorNumTiles(mlir::Operation* op, int
                    "output tensor",
                    strategy);
     }
+}
+
+Optional<SmallVector<int64_t>> vpux::VPU::getOutputTensorAlignment(mlir::Operation* op, StringRef strategy) {
+    if (strategy == splitOverKernel) {
+        return SmallVector<int64_t>{1, 16, 1, 1};
+    } else if (strategy == splitOverHeight) {
+        if (auto origOp = mlir::cast<NCEConvolutionOp>(op)) {
+            auto inputShape = getShape(origOp.input());
+            auto kernel = getKernelSize(op);
+            auto alignment = SmallVector<int64_t>(inputShape.size(), 1);
+            if (kernel) {
+                const auto kernelArray = parseIntArrayAttr<int64_t>(kernel);
+                const auto KY = kernelArray[0];
+                if (KY > 1) {
+                    alignment[Dims4D::Act::H.ind()] = getSOHPerClusterHeightAlignment(inputShape[Dims4D::Act::W]);
+                    if (alignment[Dims4D::Act::H.ind()] > 1) {
+                        return alignment;
+                    }
+                }
+            }
+        }
+    }
+
+    return None;
 }
 
 SmallVector<int64_t> vpux::VPU::getWeightsTensorNumTiles(mlir::Operation* op,
@@ -107,7 +132,8 @@ SmallVector<int64_t> vpux::VPU::getWeightsTensorNumTiles(mlir::Operation* op,
         return {1, 1, 1, 1};
     } else if (strategy == splitOverKernel) {
         auto OC = getShape(op->getResult(0))[Dims4D::Act::C];
-        int64_t numClustersToUseForLayer = getNumberOfClustersToAvoidAlignment(OC, numClustersAvailableForCompilation);
+        int64_t numClustersToUseForLayer =
+                getNumberOfClustersForSOKToAvoidAlignment(OC, numClustersAvailableForCompilation);
         return {numClustersToUseForLayer, 1, 1, 1};
     } else if (strategy == clustering) {
         return {1, 1, 1, 1};
@@ -134,7 +160,8 @@ SmallVector<int64_t> vpux::VPU::getWeightsTableTensorNumTiles(mlir::Operation* o
         return {1, 1, 1, 1};
     } else if (strategy == splitOverKernel) {
         auto OC = getShape(op->getResult(0))[Dims4D::Act::C];
-        int64_t numClustersToUseForLayer = getNumberOfClustersToAvoidAlignment(OC, numClustersAvailableForCompilation);
+        int64_t numClustersToUseForLayer =
+                getNumberOfClustersForSOKToAvoidAlignment(OC, numClustersAvailableForCompilation);
         return {numClustersToUseForLayer, 1, 1, 1};
     } else if (strategy == clustering) {
         return {1, 1, 1, 1};

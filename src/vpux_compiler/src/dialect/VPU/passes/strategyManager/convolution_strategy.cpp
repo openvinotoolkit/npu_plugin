@@ -21,6 +21,7 @@ bool ConvolutionStrategy::doesLayerFitIntoCMX(mlir::Operation* op, StringRef str
     auto origOp = mlir::cast<NCEConvolutionOp>(op);
     mlir::ArrayAttr activationAlignmentAttr = nullptr;
     mlir::ArrayAttr weightAlignmentAttr = nullptr;
+    mlir::ArrayAttr outputAlignmentAttr = nullptr;
     const auto activationTensorDistributionMode = getActivationTensorDistributionMode(strategy);
     const auto activationTensorNumTiles =
             getIntArrayAttr(origOp.getContext(), getActivationTensorNumTiles(_numClusters, strategy));
@@ -39,6 +40,11 @@ bool ConvolutionStrategy::doesLayerFitIntoCMX(mlir::Operation* op, StringRef str
         if (activationAlignment.hasValue()) {
             activationAlignmentAttr = getIntArrayAttr(origOp.getContext(), activationAlignment.getValue());
         }
+
+        const auto outputAlignment = getOutputTensorAlignment(origOp.getOperation(), strategy);
+        if (outputAlignment.hasValue()) {
+            outputAlignmentAttr = getIntArrayAttr(origOp.getContext(), outputAlignment.getValue());
+        }
     }
 
     const auto weightAlignment = getWeightsTensorAlignment(strategy);
@@ -53,9 +59,8 @@ bool ConvolutionStrategy::doesLayerFitIntoCMX(mlir::Operation* op, StringRef str
     const auto distributeddWeightsTensorType =
             createDistributedTensorType(origOp, origOp.filter(), weightsTensorDistributionMode, weightsTensorNumTiles,
                                         weightAlignmentAttr, strategy);
-    const auto distributedOutputTensorType =
-            createDistributedTensorType(origOp, origOp.output(), outputTensorDistributionMode, outputTensorNumTiles,
-                                        activationAlignmentAttr, strategy);
+    const auto distributedOutputTensorType = createDistributedTensorType(
+            origOp, origOp.output(), outputTensorDistributionMode, outputTensorNumTiles, outputAlignmentAttr, strategy);
 
     return origOp.fitIntoCMX(distributedActivationTensorType, distributeddWeightsTensorType,
                              distributedOutputTensorType);

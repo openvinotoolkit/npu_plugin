@@ -39,11 +39,12 @@ constexpr StringLiteral splitOverHeight = "SplitOverHeight";
 constexpr StringLiteral splitOverKernel = "SplitOverKernel";
 constexpr StringLiteral clustering = "Clustering";
 
-int64_t getNumberOfClustersToAvoidAlignment(int64_t outputChannels, int64_t numClustersForCompilation);
+int64_t getNumberOfClustersForSOKToAvoidAlignment(int64_t outputChannels, int64_t numClustersForCompilation);
 SmallVector<int64_t> getActivationTensorNumTiles(int64_t numClustersAvailableForCompilation, StringRef strategy);
 Optional<SmallVector<int64_t>> getActivationTensorAlignment(mlir::Operation* op, StringRef strategy);
 SmallVector<int64_t> getOutputTensorNumTiles(mlir::Operation* op, int64_t numClustersAvailableForCompilation,
                                              StringRef strategy);
+Optional<SmallVector<int64_t>> getOutputTensorAlignment(mlir::Operation* op, StringRef strategy);
 SmallVector<int64_t> getWeightsTensorNumTiles(mlir::Operation* op, int64_t numClustersAvailableForCompilation,
                                               StringRef strategy);
 Optional<SmallVector<int64_t>> getWeightsTensorAlignment(StringRef strategy);
@@ -121,8 +122,8 @@ DistributedTensorType createDistributedTensorType(ConcreteOp origOp, mlir::Value
     if (strategy == splitOverKernel) {
         int64_t numClustersToUseForLayer = numClustersAvailableForCompilation.getValue().getSExtValue();
         auto OC = getShape(origOp->getResult(0))[Dims4D::Act::C];
-        numClustersToUseForLayer =
-                getNumberOfClustersToAvoidAlignment(OC, numClustersAvailableForCompilation.getValue().getSExtValue());
+        numClustersToUseForLayer = getNumberOfClustersForSOKToAvoidAlignment(
+                OC, numClustersAvailableForCompilation.getValue().getSExtValue());
         optimalNumberOfClusters = mlir::IntegerAttr::get(getInt64Type(origOp->getContext()), numClustersToUseForLayer);
     }
 
@@ -131,7 +132,7 @@ DistributedTensorType createDistributedTensorType(ConcreteOp origOp, mlir::Value
     if (distributionMode == DistributionMode::OVERLAPPED) {
         auto stride = getStride(origOp);
         auto pad = getPad(origOp);
-        auto optimalNumberOfClusters = getIntAttr(origOp.getContext(), nceOp.count());
+        optimalNumberOfClusters = getIntAttr(origOp.getContext(), nceOp.count());
 
         distributedActivationTensorAttr =
                 DistributedTensorAttr::get(activationTensorDistributionModeAttr, numTiles, kernel, pad, stride,
