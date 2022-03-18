@@ -103,8 +103,8 @@ TEST(MLIR_VPU_WorkloadCost, VPUNNCostInterface) {
             }
 
             const auto& splitCandidates = dpuTiler.getSplitPool();
-            for (size_t idx = 0; idx < splitCandidates.size(); idx++) {
-                auto hardwareExecutionCost = dpuTiler.cost(splitCandidates[idx], costParams);
+            for (auto iter = splitCandidates.begin(); iter != splitCandidates.end(); iter++) {
+                auto hardwareExecutionCost = dpuTiler.cost(*iter, costParams);
                 EXPECT_LE(hardwareExecutionCost, baseHardwareExecutionCost);
             }
         }

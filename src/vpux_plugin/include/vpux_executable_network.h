@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright 2020-2022 Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -32,8 +32,27 @@ class ExecutableNetwork : public InferenceEngine::ExecutableNetworkThreadSafeDef
 public:
     using Ptr = std::shared_ptr<ExecutableNetwork>;
 
+    /**
+     * @brief Executable network constructor
+     * @param network InferenceEngine neural network object
+     * @param device pointer to device object
+     * @param config config object connecting configuration with which network is compiled
+     * @note properties supplied through config parameter, are mutable during the creation
+     * of ExecutableNetwork (i.e. until network is compiled) and after ExecutableNetwork is created,
+     * all of the supplied properties are switched to read-only mode.
+     */
     explicit ExecutableNetwork(const InferenceEngine::CNNNetwork& network, const Device::Ptr& device,
                                const Config& config);
+
+    /**
+     * @brief Executable network constructor, imports network from file
+     * @param networkModel input stream, to import network from
+     * @param device pointer to device object
+     * @param config config object connecting configuration with which network is imported
+     * @note properties supplied through config parameter, are mutable during the creation
+     * of ExecutableNetwork (i.e. until network is compiled) and after ExecutableNetwork is created,
+     * all of the supplied properties are switched to read-only mode.
+     */
     explicit ExecutableNetwork(std::istream& networkModel, const Device::Ptr& device, const Config& config);
 
     InferenceEngine::IInferRequestInternal::Ptr CreateInferRequestImpl(
@@ -44,6 +63,11 @@ public:
     void Export(std::ostream& model) override;
     void Export(const std::string& modelFileName) override;
 
+    /**
+     * @brief Returns values of configs options and metrics.
+     * Unlike prior to ExecutableNetwork creation, options recieved via this method
+     * are read-only. Do not try to set any of the supported options.
+     */
     InferenceEngine::Parameter GetMetric(const std::string& name) const override;
 
 private:

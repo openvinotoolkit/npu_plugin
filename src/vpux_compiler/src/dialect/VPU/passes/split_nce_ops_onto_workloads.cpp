@@ -40,11 +40,18 @@ using namespace VPU;
 namespace {
 
 // up bound for workload numbers
-constexpr size_t MAX_SPLIT_NUMBER = 128;
+constexpr size_t MAX_SPLIT_NUMBER = 50;
 
-VPU::MPEMode getMpeModeForKmb(mlir::Type inElemType, mlir::Type outElemType, mlir::Operation*) {
+VPU::MPEMode getMpeModeForKmb(mlir::Type inElemType, mlir::Type outElemType, mlir::Operation*, ShapeRef shape) {
     if (inElemType.isa<mlir::quant::QuantizedType>() || outElemType.isa<mlir::quant::QuantizedType>()) {
-        return VPU::MPEMode::MATRIX;
+        const double W = static_cast<double>(shape[Dims4D::Act::W]);
+        const double H = static_cast<double>(shape[Dims4D::Act::H]);
+        // VPU::MPEMode::MATRIX process tensor using W=4 H=4 parts, calculate grid cells count for it
+        const double matrixPartsCount = std::ceil(W / 4.0) * std::ceil(H / 4.0);
+        // VPU::MPEMode::VECTOR process tensor using W=16 H=1 parts, calculate grid cells count for it
+        const double vectorPartsCount = std::ceil(W / 16.0) * H;
+        // Cells count is in direct ratio with work size, so choose smaller one
+        return (vectorPartsCount <= matrixPartsCount) ? VPU::MPEMode::VECTOR : VPU::MPEMode::MATRIX;
     }
 
     if (inElemType.isF16() || inElemType.isBF16() || outElemType.isF16() || outElemType.isBF16()) {
@@ -55,7 +62,7 @@ VPU::MPEMode getMpeModeForKmb(mlir::Type inElemType, mlir::Type outElemType, mli
     return VPU::MPEMode::VECTOR;
 }
 
-VPU::MPEMode getMpeModeForMtl(mlir::Type, mlir::Type, mlir::Operation* operation) {
+VPU::MPEMode getMpeModeForMtl(mlir::Type, mlir::Type, mlir::Operation* operation, ShapeRef) {
     if (mlir::isa<VPU::NCEConvolutionOp>(operation)) {
         return VPU::MPEMode::CUBOID_16x16;
     } else if (mlir::isa<VPU::NCEDepthConvolutionOp>(operation) || mlir::isa<VPU::NCEMaxPoolOp>(operation)) {
@@ -67,7 +74,7 @@ VPU::MPEMode getMpeModeForMtl(mlir::Type, mlir::Type, mlir::Operation* operation
     return VPU::MPEMode::CUBOID_16x16;
 }
 
-using GetMpeModeCb = VPU::MPEMode (*)(mlir::Type, mlir::Type, mlir::Operation*);
+using GetMpeModeCb = VPU::MPEMode (*)(mlir::Type, mlir::Type, mlir::Operation*, ShapeRef);
 
 const EnumMap<VPU::ArchKind, GetMpeModeCb> mpeMap = {
         {VPU::ArchKind::KMB, getMpeModeForKmb},
@@ -132,26 +139,31 @@ void addWorkload(mlir::PatternRewriter& rewriter, VPU::NCEOpInterface origOp,
     dpuTiler.tileOverH(costParams.numDPU, clusterId);
 
     const auto& splitNumPool = dpuTiler.generateSplitNumberPool(costParams.numDPU, MAX_SPLIT_NUMBER);
-    if (costParams.isZTilingSupported) {
-        for (const auto& splitNum : splitNumPool) {
+    for (const auto& splitNum : splitNumPool) {
+        // Depthwise convolution doesn't support SplitOverHW
+        if (mlir::isa<VPU::NCEDepthConvolutionOp>(origOp)) {
+            dpuTiler.tileOverHW(splitNum, VPUIP::SplitDimension::SPLIT_OVER_W);
+        } else {
+            dpuTiler.tileOverHW(splitNum, VPUIP::SplitDimension::SPLIT_OVER_HW);
+        }
+        if (costParams.isTileOverZSupported) {
             dpuTiler.tileOverZ(splitNum);
         }
     }
 
     // select workload with minimum cost
     uint32_t minimumHardwareExecutionCost = std::numeric_limits<uint32_t>::max();
-    size_t minCostIdx = 0;
-
     const auto& splitCandidates = dpuTiler.getSplitPool();
-    for (size_t idx = 0; idx < splitCandidates.size(); idx++) {
-        auto hardwareExecutionCost = dpuTiler.cost(splitCandidates[idx], costParams);
+    auto minCostIter = splitCandidates.begin();
+    for (auto iter = splitCandidates.begin(); iter != splitCandidates.end(); iter++) {
+        auto hardwareExecutionCost = dpuTiler.cost(*iter, costParams);
         if (minimumHardwareExecutionCost > hardwareExecutionCost) {
             minimumHardwareExecutionCost = hardwareExecutionCost;
-            minCostIdx = idx;
+            minCostIter = iter;
         }
     }
 
-    auto outTiles = splitCandidates[minCostIdx];
+    auto outTiles = *minCostIter;
     for (auto& outTile : outTiles) {
         const auto padsTileConf = backInferPadsTile(outTile, costParams.outputShape, costParams.padInfo);
         auto tilePad = VPU::getPaddingAttr(rewriter.getContext(), padsTileConf);
@@ -291,7 +303,7 @@ mlir::LogicalResult GenericNCERewrite<ConcreteOp>::matchAndRewrite(ConcreteOp or
     auto pads = getOpPadding(origOp);
 
     const auto mpeByType = mpeMap.at(_arch);
-    const auto mpeMode = mpeByType(inElemType, outElemType, origOp);
+    const auto mpeMode = mpeByType(inElemType, outElemType, origOp, outputShape);
 
     VPUIP::WorkloadCostParams params;
     params.mpeMode = mpeMode;
@@ -303,26 +315,24 @@ mlir::LogicalResult GenericNCERewrite<ConcreteOp>::matchAndRewrite(ConcreteOp or
     params.padInfo = VPU::toPadInfo(pads);
     params.kernelSize = getOpKernelSize(origOp);
     params.kernelStride = getOpKernelStride(origOp);
+    params.isTileOverZSupported = params.mpeMode == VPU::MPEMode::VECTOR;
 
     llvm::TypeSwitch<mlir::Operation*, void>(origOp.getOperation())
             .template Case<VPU::NCEConvolutionOp>([&params](VPU::NCEConvolutionOp origOp) {
                 const auto inOrder = DimsOrder::fromValue(origOp.input());
                 const auto isCMajor = inOrder == DimsOrder::NCHW;
                 params.nceTaskType = isCMajor ? VPUIP::NCETaskType::CMCONV : VPUIP::NCETaskType::CONV;
-                params.isZTilingSupported = !isCMajor || params.mpeMode == VPU::MPEMode::VECTOR;
+                params.isTileOverZSupported |= !isCMajor;
             })
             .template Case<VPU::NCEDepthConvolutionOp>([&params](VPU::NCEDepthConvolutionOp) {
                 params.nceTaskType = VPUIP::NCETaskType::DWCONV;
-                params.isZTilingSupported = params.mpeMode == VPU::MPEMode::VECTOR;
-                return params;
             })
             .template Case<VPU::NCEMaxPoolOp>([&params](VPU::NCEMaxPoolOp) {
                 params.nceTaskType = VPUIP::NCETaskType::MAXPOOL;
-                params.isZTilingSupported = params.mpeMode == VPU::MPEMode::VECTOR;
             })
             .template Case<VPU::NCEEltwiseOp>([&params](VPU::NCEEltwiseOp) {
                 params.nceTaskType = VPUIP::NCETaskType::ELTWISE;
-                params.isZTilingSupported = false;
+                params.isTileOverZSupported = false;
             })
             .Default([](mlir::Operation*) {
                 VPUX_THROW("Unsupported NCE type");

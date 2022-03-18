@@ -37,7 +37,7 @@ std::shared_ptr<INetworkDescription> MCMCompiler::compile(const std::shared_ptr<
     if (compiledNetwork.empty())
         throw std::runtime_error(errMsg);
 
-    if (config.get<PLATFORM>() == VPUXPlatform::EMULATOR)
+    if (config.get<PLATFORM>() == InferenceEngine::VPUXConfigParams::VPUXPlatform::EMULATOR)
         return std::make_shared<vpu::MCMAdapter::EmulatorNetworkDescription>(std::move(compiledNetwork), config,
                                                                              netName);
 

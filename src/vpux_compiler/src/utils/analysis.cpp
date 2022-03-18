@@ -44,6 +44,10 @@ mlir::Operation* vpux::getFirstUser(mlir::Value output) {
 //
 
 bool vpux::isBufAllocOp(mlir::Operation* op) {
+    if (!op) {
+        return false;
+    }
+
     if (op->getNumOperands() != 0 || op->getNumResults() != 1) {
         return false;
     }

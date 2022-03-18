@@ -37,7 +37,22 @@ OutputTiling generateTiles(IE::TilingBuilderOpInterface origOp, Logger log) {
     auto* op = origOp.getOperation();
     const auto outputType = op->getResult(0).getType().cast<vpux::NDTypeInterface>();
     const auto outputShape = outputType.getShape();
+
+    // Manual Strategy Utils
+    if (op->hasAttr("tilingStrategy")) {
+        // if manual tiling strategy use the specified number of tiles
+        auto manualTiling = Shape(parseIntArrayAttr<int64_t>(op->getAttr("tilingStrategy").cast<mlir::ArrayAttr>()));
+        log.trace("Using manual tiles for op {0} at {1}, tiles: {2}", op->getName(), op->getLoc(), manualTiling);
+        return vpux::fillDividedTiles(manualTiling, outputShape);
+    }
+
+    // create tiles for operation
     auto nTilesOnDim = IE::computeGeneralTileStrategy(op, log);
+
+    // store tiles for operations
+    const auto tilesAttr = getIntArrayAttr(op->getContext(), nTilesOnDim);
+    op->setAttr("tilingStrategy", tilesAttr);
+
     return vpux::fillDividedTiles(nTilesOnDim, outputShape);
 }
 

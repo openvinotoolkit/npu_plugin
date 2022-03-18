@@ -75,7 +75,7 @@ void vpux::buildReferenceSWModePipeline(mlir::OpPassManager& pm, const Reference
 
     IE::buildAdjustPrecisionPipeline(pm, IE::AdjustPrecisionOptions(options), log);
 
-    IE::buildAdjustForVPUPipeline(pm, log);
+    IE::buildAdjustForVPUPipeline(pm, IE::AdjustForVPUOptions(options), log);
 
     pm.addPass(IE::createSplitFakeQuantPass(log));
     pm.addPass(mlir::createCanonicalizerPass(grc));
@@ -156,7 +156,7 @@ void vpux::buildReferenceHWModePipeline(mlir::OpPassManager& pm, const Reference
         pm.addPass(IE::createConvertAvgPoolToDWConvPass(log));
     }
 
-    IE::buildAdjustForVPUPipeline(pm, log);
+    IE::buildAdjustForVPUPipeline(pm, IE::AdjustForVPUOptions(options), log);
 
     if (options.enableSwapTransposeWithFQ) {
         pm.addPass(IE::createSwapTransposeWithFQPass(log));
@@ -284,7 +284,7 @@ void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOp
         pm.addPass(IE::createConvertAvgPoolToDWConvPass(log));
     }
 
-    IE::buildAdjustForVPUPipeline(pm, log);
+    IE::buildAdjustForVPUPipeline(pm, IE::AdjustForVPUOptions(options), log);
 
     if (options.enableSwapTransposeWithFQ) {
         pm.addPass(IE::createSwapTransposeWithFQPass(log));
@@ -332,10 +332,19 @@ void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOp
 
     pm.addPass(createConvertIEToVPUNCEPass(log));
     pm.addPass(VPU::createMultiClusterStrategyAssignmentPass(log));
+
+    pm.addPass(VPU::createManualStrategyUtilsPass(
+            /*writeStrategyToJSON=*/false, /*writeStrategyFileLocation=*/"strategy_out.json",
+            /*readStrategyFromJSON=*/false, /*readStrategyFileLocation=*/"strategy_in.json", log));
+
     pm.addPass(VPU::createWrapVPUOpsInNCEClusterTilingPass(log));
 
     pm.addPass(IE::createPrefetchTilingPass(log));
     pm.addPass(mlir::createCanonicalizerPass(grc));
+
+    pm.addPass(VPU::createManualStrategyUtilsPass(
+            /*writeStrategyToJSON=*/false, /*writeStrategyFileLocation=*/"strategy_out.json",
+            /*readStrategyFromJSON=*/false, /*readStrategyFileLocation=*/"strategy_in.json", log));
 
     pm.addPass(VPU::createAdjustMemorySpacePass(log));
     pm.addPass(mlir::createCanonicalizerPass(grc));

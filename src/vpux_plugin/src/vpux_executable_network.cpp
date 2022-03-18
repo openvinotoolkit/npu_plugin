@@ -244,32 +244,28 @@ IE::Parameter ExecutableNetwork::GetMetric(const std::string& name) const {
             return ov::PropertyName(propertyName, ov::PropertyMutability::RO);
         };
 
-        const auto RW_property = [](const std::string& propertyName) {
-            return ov::PropertyName(propertyName, ov::PropertyMutability::RW);
-        };
-
         if (name == ov::supported_properties) {
+            // [Track number: E#35689]
             static const std::vector<ov::PropertyName> supportedProperties{
-                    RO_property(ov::supported_properties.name()),              //
-                    RO_property(ov::model_name.name()),                        //
-                    RO_property(ov::optimal_number_of_infer_requests.name()),  //
+                    RO_property(ov::supported_properties.name()),
+                    RO_property(ov::model_name.name()),
+                    RO_property(ov::optimal_number_of_infer_requests.name()),
                     RO_property(ov::hint::model_priority.name()),
-                    RO_property(ov::device::id.name()),                         //
-                    RW_property(ov::intel_vpux::csram_size.name()),             //
-                    RW_property(ov::intel_vpux::executor_streams.name()),       //
-                    RW_property(ov::intel_vpux::graph_color_format.name()),     //
-                    RW_property(ov::intel_vpux::inference_shaves.name()),       //
-                    RW_property(ov::intel_vpux::inference_timeout.name()),      //
-                    RW_property(ov::intel_vpux::preprocessing_lpi.name()),      //
-                    RW_property(ov::intel_vpux::preprocessing_pipes.name()),    //
-                    RW_property(ov::intel_vpux::preprocessing_shaves.name()),   //
-                    RW_property(ov::intel_vpux::print_profiling.name()),        //
-                    RW_property(ov::intel_vpux::profiling_output_file.name()),  //
-                    RW_property(ov::intel_vpux::use_m2i.name()),                //
-                    RW_property(ov::intel_vpux::use_shave_only_m2i.name()),     //
-                    RW_property(ov::intel_vpux::use_sipp.name()),               //
-                    RW_property(ov::intel_vpux::vpux_platform.name())           //
-            };
+                    RO_property(ov::device::id.name()),
+                    RO_property(ov::intel_vpux::csram_size.name()),
+                    RO_property(ov::intel_vpux::executor_streams.name()),
+                    RO_property(ov::intel_vpux::graph_color_format.name()),
+                    RO_property(ov::intel_vpux::inference_shaves.name()),
+                    RO_property(ov::intel_vpux::inference_timeout.name()),
+                    RO_property(ov::intel_vpux::preprocessing_lpi.name()),
+                    RO_property(ov::intel_vpux::preprocessing_pipes.name()),
+                    RO_property(ov::intel_vpux::preprocessing_shaves.name()),
+                    RO_property(ov::intel_vpux::print_profiling.name()),
+                    RO_property(ov::intel_vpux::profiling_output_file.name()),
+                    RO_property(ov::intel_vpux::use_m2i.name()),
+                    RO_property(ov::intel_vpux::use_shave_only_m2i.name()),
+                    RO_property(ov::intel_vpux::use_sipp.name()),
+                    RO_property(ov::intel_vpux::vpux_platform.name())};
             return supportedProperties;
         } else if (name == ov::model_name) {
             VPUX_THROW_WHEN(_networkPtr == nullptr, "GetMetric: network is not initialized");

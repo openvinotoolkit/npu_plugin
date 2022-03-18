@@ -397,8 +397,7 @@ ZeroExecutor::ZeroExecutor(ze_driver_handle_t driver_handle, ze_device_handle_t 
                                                          toZeQueuePriority(_config.get<MODEL_PRIORITY>())),
                           std::make_shared<CommandQueue>(device_handle, context,
                                                          toZeQueuePriority(_config.get<MODEL_PRIORITY>()))}},
-          _pipeline(std::make_unique<Pipeline>(driver_handle, device_handle, context, graph_ddi_table_ext, _graph,
-                                               _command_queue)) {
+          _pipeline(std::make_unique<Pipeline>(device_handle, context, graph_ddi_table_ext, _graph, _command_queue)) {
     _graph->init();
 }
 
@@ -416,33 +415,110 @@ ZeroExecutor::ZeroExecutor(ze_driver_handle_t driver_handle, ze_device_handle_t 
           _networkDesc(networkDescription),
           _graph(graph),
           _command_queue(command_queue),
-          _pipeline(std::make_unique<Pipeline>(driver_handle, device_handle, context, graph_ddi_table_ext, graph,
-                                               _command_queue)) {
+          _pipeline(std::make_unique<Pipeline>(device_handle, context, graph_ddi_table_ext, graph, _command_queue)) {
 }
 
-ZeroExecutor::HostMem::HostMem(const ze_driver_handle_t driver_handle, const ze_context_handle_t context,
-                               const size_t size)
-        : _size(size), _driver_handle(driver_handle), _context(context) {
+ZeroExecutor::HostMem::HostMem(const ze_context_handle_t context, const size_t size): _size(size), _context(context) {
     ze_host_mem_alloc_desc_t desc = {ZE_STRUCTURE_TYPE_HOST_MEM_ALLOC_DESC, nullptr, 0};
     throwOnFail("zeMemAllocHost", zeMemAllocHost(_context, &desc, _size, _alignment, &_data));
 }
-ZeroExecutor::HostMem::~HostMem() {
-    if (_data) {
+ZeroExecutor::HostMem& ZeroExecutor::HostMem::operator=(HostMem&& other) {
+    free();
+    _size = other._size;
+    _data = other._data;
+    _context = other._context;
+    other._size = 0;
+    other._data = nullptr;
+    return *this;
+}
+void ZeroExecutor::HostMem::free() {
+    if (_size) {
+        _size = 0;
         throwOnFail("zeMemFree HostMem", zeMemFree(_context, _data));
+        _data = nullptr;
     }
 }
+ZeroExecutor::HostMem::~HostMem() {
+    free();
+}
 
-ZeroExecutor::DeviceMem::DeviceMem(const ze_driver_handle_t driver_handle, const ze_device_handle_t deh_,
-                                   ze_context_handle_t context, const size_t size)
-        : _size(size), _driver_handle(driver_handle), _context(context) {
+ZeroExecutor::DeviceMem::DeviceMem(const ze_device_handle_t deh, ze_context_handle_t context, const size_t size)
+        : _size(size), _context(context) {
     ze_device_mem_alloc_desc_t desc = {ZE_STRUCTURE_TYPE_DEVICE_MEM_ALLOC_DESC, nullptr, 0, 0};
 
-    throwOnFail("zeMemAllocDevice", zeMemAllocDevice(_context, &desc, _size, _alignment, deh_, &_data));
+    throwOnFail("zeMemAllocDevice", zeMemAllocDevice(_context, &desc, _size, _alignment, deh, &_data));
+}
+ZeroExecutor::DeviceMem& ZeroExecutor::DeviceMem::operator=(DeviceMem&& other) {
+    free();
+    _size = other._size;
+    _data = other._data;
+    _context = other._context;
+    other._size = 0;
+    other._data = nullptr;
+    return *this;
+}
+void ZeroExecutor::DeviceMem::free() {
+    if (0 != _size) {
+        _size = 0;
+        throwOnFail("zeMemFree DeviceMem", zeMemFree(_context, _data));
+        _data = nullptr;
+    }
 }
 ZeroExecutor::DeviceMem::~DeviceMem() {
-    if (_data) {
-        throwOnFail("zeMemFree DeviceMem", zeMemFree(_context, _data));
-    }
+    free();
+}
+
+void ZeroExecutor::MemoryManagementUnit::appendArgument(const std::string& name,
+                                                        const ze_graph_argument_properties_t& argument) {
+    _offsets.emplace(std::make_pair(name, _size));
+
+    const std::size_t argSize = getSizeIOBytes(argument);
+    _size += argSize + alignment -
+             (argSize % alignment);  // is this really necessary? if 0==argSize%alignment -> add 1 * alignment
+}
+
+void ZeroExecutor::MemoryManagementUnit::allocate(const ze_device_handle_t device_handle,
+                                                  const ze_context_handle_t context) {
+    if (0 != _host.size())
+        IE_THROW() << "Memory already allocated";
+    if (0 == _size)
+        IE_THROW() << "Can't allocate empty buffer";
+
+    _host = HostMem(context, _size);
+    _device = DeviceMem(device_handle, context, _size);
+}
+std::size_t ZeroExecutor::MemoryManagementUnit::getSize() const {
+    return _size;
+}
+const void* ZeroExecutor::MemoryManagementUnit::getHostMemRegion() const {
+    return _host.data();
+}
+const void* ZeroExecutor::MemoryManagementUnit::getDeviceMemRegion() const {
+    return _device.data();
+}
+void* ZeroExecutor::MemoryManagementUnit::getHostMemRegion() {
+    return _host.data();
+}
+void* ZeroExecutor::MemoryManagementUnit::getDeviceMemRegion() {
+    return _device.data();
+}
+void* ZeroExecutor::MemoryManagementUnit::getHostPtr(const std::string& name) {
+    uint8_t* from = static_cast<uint8_t*>(_host.data());
+    if (!from)
+        IE_THROW() << "Host memory not allocated yet";
+
+    return mapArguments(_offsets, name) + from;
+}
+void* ZeroExecutor::MemoryManagementUnit::getDevicePtr(const std::string& name) {
+    uint8_t* from = static_cast<uint8_t*>(_device.data());
+    if (!from)
+        IE_THROW() << "Device memory not allocated yet";
+
+    return mapArguments(_offsets, name) + from;
+}
+bool ZeroExecutor::MemoryManagementUnit::checkHostPtr(const void* ptr) const {
+    const uint8_t* from = static_cast<const uint8_t*>(_host.data());
+    return (ptr >= from && (from + _size) > ptr);
 }
 
 ZeroExecutor::CommandList::CommandList(const ze_device_handle_t& device_handle, const ze_context_handle_t& context,
@@ -539,9 +615,8 @@ ZeroExecutor::CommandQueue::~CommandQueue() {
     throwOnFail("zeCommandQueueDestroy", zeCommandQueueDestroy(_handle));
 }
 
-ZeroExecutor::Pipeline::Pipeline(const ze_driver_handle_t& driver_handle, const ze_device_handle_t& device_handle,
-                                 const ze_context_handle_t context, ze_graph_dditable_ext_t* graph_ddi_table_ext,
-                                 const std::shared_ptr<Graph>& graph,
+ZeroExecutor::Pipeline::Pipeline(const ze_device_handle_t& device_handle, const ze_context_handle_t context,
+                                 ze_graph_dditable_ext_t* graph_ddi_table_ext, const std::shared_ptr<Graph>& graph,
                                  const std::array<std::shared_ptr<CommandQueue>, stage::COUNT>& command_queue)
         : _command_list{{{device_handle, context, graph_ddi_table_ext},
                          {device_handle, context, graph_ddi_table_ext},
@@ -553,31 +628,26 @@ ZeroExecutor::Pipeline::Pipeline(const ze_driver_handle_t& driver_handle, const 
                   {device_handle, context, _event_pool._handle, stage::READBACK}}} {
     OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "Executor::Pipeline::Pipeline");
     for (const auto& desc : graph->_inputs_desc_map) {
-        auto size = getSizeIOBytes(desc.second.info);
-        _inputs_host_mem_map.emplace(std::make_pair(desc.first, HostMem{driver_handle, context, size}));
-        _inputs_device_mem_map.emplace(
-                std::make_pair(desc.first, DeviceMem{driver_handle, device_handle, context, size}));
-
-        const auto& hostMem = mapArguments(_inputs_host_mem_map, desc.first);
-        auto& deviceMem = mapArguments(_inputs_device_mem_map, desc.first);
-        _command_list[stage::UPLOAD].appendMemoryCopy(deviceMem.data(), hostMem.data(), size);
-
-        graph->setArgumentValue(desc.second.idx, deviceMem.data());
+        _inputs.appendArgument(desc.first, desc.second.info);
     }
+    _inputs.allocate(device_handle, context);
+    _command_list[stage::UPLOAD].appendMemoryCopy(_inputs.getDeviceMemRegion(), _inputs.getHostMemRegion(),
+                                                  _inputs.getSize());
+    for (const auto& desc : graph->_inputs_desc_map) {
+        graph->setArgumentValue(desc.second.idx, _inputs.getDevicePtr(desc.first));
+    }
+
     _command_list[stage::UPLOAD].appendBarrier();
     _event[stage::UPLOAD].AppendSignalEvent(_command_list[stage::UPLOAD]);
 
     for (const auto& desc : graph->_outputs_desc_map) {
-        const auto size = getSizeIOBytes(desc.second.info);
-        _outputs_host_mem_map.emplace(std::make_pair(desc.first, HostMem{driver_handle, context, size}));
-        _outputs_device_mem_map.emplace(
-                std::make_pair(desc.first, DeviceMem{driver_handle, device_handle, context, size}));
-
-        auto& hostMem = mapArguments(_outputs_host_mem_map, desc.first);
-        const auto& deviceMem = mapArguments(_outputs_device_mem_map, desc.first);
-        _command_list[stage::READBACK].appendMemoryCopy(hostMem.data(), deviceMem.data(), size);
-
-        graph->setArgumentValue(desc.second.idx, deviceMem.data());
+        _outputs.appendArgument(desc.first, desc.second.info);
+    }
+    _outputs.allocate(device_handle, context);
+    _command_list[stage::READBACK].appendMemoryCopy(_outputs.getHostMemRegion(), _outputs.getDeviceMemRegion(),
+                                                    _outputs.getSize());
+    for (const auto& desc : graph->_outputs_desc_map) {
+        graph->setArgumentValue(desc.second.idx, _outputs.getDevicePtr(desc.first));
     }
 
     _event[stage::UPLOAD].AppendWaitOnEvent(_command_list[stage::EXECUTE]);
@@ -653,20 +723,19 @@ void ZeroExecutor::push(const IE::BlobMap& inputs) {
             IE_THROW() << "Parsing error: precisions are different for push blobs";
         }
 
-        auto& hostMem = mapArguments(_pipeline->_inputs_host_mem_map, name);
         if (isRepackingRequired(input->getTensorDesc(), deviceInput->getTensorDesc())) {
             if (!isRepackingPossible(input->getTensorDesc(), deviceInput->getTensorDesc())) {
                 IE_THROW() << "Push blobs: repacking is not possible";
             }
-            prepareInputForInference(input, deviceInput->getTensorDesc(), hostMem.data(), quantParams, _logger);
+            void* hostMem = _pipeline->_inputs.getHostPtr(name);
+            prepareInputForInference(input, deviceInput->getTensorDesc(), hostMem, quantParams, _logger);
         } else {
-            // set blob case
-            // TODO: multiple inputs handling
-            // TODO: same for outputs
-            if (inputs.size() == 1 && input->buffer().as<uint8_t*>() != hostMem.data()) {
-                if (0 !=
-                    ie_memcpy(hostMem.data(), input->byteSize(), input->buffer().as<uint8_t*>(), input->byteSize())) {
-                    IE_THROW() << "memcpy error for push blobs";
+            // we should check memory type: host memory or generic and copy if it's a generic
+            const uint8_t* inputPtr = input->buffer().as<const uint8_t*>();
+            if (!_pipeline->_inputs.checkHostPtr(inputPtr)) {
+                void* hostMem = _pipeline->_inputs.getHostPtr(name);
+                if (0 != ie_memcpy(hostMem, input->byteSize(), inputPtr, input->byteSize())) {
+                    IE_THROW() << "memcpy error for push blob " << name;
                 }
             }
         }
@@ -719,12 +788,21 @@ void ZeroExecutor::pull(IE::BlobMap& outputs) {
             IE_THROW() << "Parsing error: precisions are different for pull blobs";
         }
 
-        const auto& hostMem = mapArguments(_pipeline->_outputs_host_mem_map, name);
         if (isRepackingRequired(output->getTensorDesc(), deviceOutput->getTensorDesc())) {
             if (!isRepackingPossible(output->getTensorDesc(), deviceOutput->getTensorDesc())) {
                 IE_THROW() << "Pull blobs: repacking is not possible";
             }
-            getOutputAfterInference(output, deviceOutput->getTensorDesc(), hostMem.data(), _logger);
+            const void* hostMem = _pipeline->_outputs.getHostPtr(name);
+            getOutputAfterInference(output, deviceOutput->getTensorDesc(), hostMem, _logger);
+        } else {
+            // we should check memory type: host memory or generic and copy if it's a generic
+            uint8_t* outputPtr = output->buffer().as<uint8_t*>();
+            if (!_pipeline->_outputs.checkHostPtr(outputPtr)) {
+                const void* hostMem = _pipeline->_outputs.getHostPtr(name);
+                if (0 != ie_memcpy(outputPtr, output->byteSize(), hostMem, output->byteSize())) {
+                    IE_THROW() << "memcpy error for pull blob " << name;
+                }
+            }
         }
     }
 

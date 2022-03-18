@@ -283,3 +283,66 @@ func @CopiesWithSubViewOps(%act : memref<1x80x28x28xf16, #NHWC, @DDR>)
     // CHECK-SAME:      outputs(%1 : memref<1x80x28x27xf16, #NHWC, @DDR>) -> memref<1x80x28x27xf16, #NHWC, @DDR>
     // CHECK:       return %9 : memref<1x80x28x27xf16, #NHWC, @DDR>
 }
+
+// -----
+
+#NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
+!qElemType = type !quant.uniform<u8:f16, 1.000000e+00>
+
+func @CopyWithQuantizeCastOp(%arg0: memref<1x16x56x56x!qElemType, #NHWC, @CMX_NN>,
+                            %arg1: memref<1x32x56x56xui8, #NHWC>) -> memref<1x32x56x56xui8, #NHWC> {
+
+    %ddr_buf = memref.alloc() : memref<1x32x56x56x!qElemType, #NHWC, @DDR>
+    
+    %0 = IERT.SubView %ddr_buf [0, 0, 0, 0] [1, 16, 56, 56] : 
+        memref<1x32x56x56x!qElemType, #NHWC, @DDR> to 
+        memref<1x16x56x56x!qElemType, {order = #NHWC, strides = [100352, 1, 1792, 32]}, @DDR>
+    %1 = IERT.Copy 
+        inputs(%arg0 : memref<1x16x56x56x!qElemType, #NHWC, @CMX_NN>) 
+        outputs(%0 : memref<1x16x56x56x!qElemType, {order = #NHWC, strides = [100352, 1, 1792, 32]}, @DDR>) 
+        -> memref<1x16x56x56x!qElemType, {order = #NHWC, strides = [100352, 1, 1792, 32]}, @DDR>
+
+    %2 = IERT.SubView %ddr_buf [0, 16, 0, 0] [1, 16, 56, 56] : 
+        memref<1x32x56x56x!qElemType, #NHWC, @DDR> to 
+        memref<1x16x56x56x!qElemType, {order = #NHWC, strides = [100352, 1, 1792, 32]}, @DDR>
+    %3 = IERT.Copy 
+        inputs(%arg0 : memref<1x16x56x56x!qElemType, #NHWC, @CMX_NN>) 
+        outputs(%2 : memref<1x16x56x56x!qElemType, {order = #NHWC, strides = [100352, 1, 1792, 32]}, @DDR>) 
+        -> memref<1x16x56x56x!qElemType, {order = #NHWC, strides = [100352, 1, 1792, 32]}, @DDR>
+
+    %4 = IERT.ConcatView
+        inputs(%1, %3 :
+            memref<1x16x56x56x!qElemType, {order = #NHWC, strides = [100352, 1, 1792, 32]}, @DDR>,
+            memref<1x16x56x56x!qElemType, {order = #NHWC, strides = [100352, 1, 1792, 32]}, @DDR>
+        )
+        outputs(%ddr_buf : memref<1x32x56x56x!qElemType, #NHWC, @DDR>)
+        -> memref<1x32x56x56x!qElemType, #NHWC, @DDR>
+    %5 = IERT.QuantizeCast 
+        inputs(%4 : memref<1x32x56x56x!qElemType, #NHWC, @DDR>) 
+        -> memref<1x32x56x56xui8, #NHWC, @DDR>
+    %6 = IERT.Copy 
+        inputs(%5 : memref<1x32x56x56xui8, #NHWC, @DDR>) 
+        outputs(%arg1 : memref<1x32x56x56xui8, #NHWC>) 
+        -> memref<1x32x56x56xui8, #NHWC>
+    return %6 : memref<1x32x56x56xui8, #NHWC>
+
+    // verify that the SubView operation is not removed along with the copy operation
+
+    // CHECK:       [[VAL0:%.+]] = IERT.QuantizeCast  inputs(%arg1 : memref<1x32x56x56xui8, #NHWC>) -> memref<1x32x56x56x!qElemType, #NHWC, @DDR>
+
+    // CHECK:       [[VAL1:%.+]] = IERT.SubView [[VAL0]]
+    // CHECK:       IERT.Copy
+    // CHECK-SAME:      inputs(%arg0
+    // CHECK-SAME:      outputs([[VAL1]]
+    // CHECK:       [[VAL2:%.+]] = IERT.SubView [[VAL0]]
+    // CHECK:       IERT.Copy
+    // CHECK-SAME:      inputs(%arg0
+    // CHECK-SAME:      outputs([[VAL2]]
+    
+    // copy optimized
+    // CHECK-NOT:   IERT.ConcatView
+    // CHECK-NOT:   IERT.QuantizeCast
+    // CHECK-NOT:   IERT.Copy
+
+    // CHECK:       return %arg1 : memref<1x32x56x56xui8, #NHWC>
+}

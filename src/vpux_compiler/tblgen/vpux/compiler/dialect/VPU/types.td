@@ -87,6 +87,10 @@ def VPU_DistributedTensor :
         // because it does not retrieve the true allocate shape in cases
         // of broadcasting.
         vpux::Shape getCompactShape(int64_t tileInd) const;
+
+        // @brief Retrieve the array of padding for each cluster
+        // @warning This function is needed for getting padding in OVERLAPPED mode
+        SmallVector<vpux::PadInfo> getPerClusterPadding() const;
     }];
 
     let genVerifyDecl = 1;

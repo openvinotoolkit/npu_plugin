@@ -23,6 +23,226 @@ namespace ov {
 namespace intel_vpux {
 
 /**
+ * @enum ColorFormat
+ * @brief Extra information about input color format for preprocessing
+ * @note Configuration API v 2.0
+ */
+enum ColorFormat : uint32_t {
+    RAW = 0u,  ///< Plain blob (default), no extra color processing required
+    RGB,       ///< RGB color format
+    BGR,       ///< BGR color format, default in DLDT
+    RGBX,      ///< RGBX color format with X ignored during inference
+    BGRX,      ///< BGRX color format with X ignored during inference
+    NV12,      ///< NV12 color format represented as compound Y+UV blob
+    I420,      ///< I420 color format represented as compound Y+U+V blob
+};
+
+/**
+ * @brief Converts ov::intel_vpux::ColorFormat to InferenceEngine::ColorFormat
+ * @param fmt ov::intel_vpux::ColorFormat value to convert
+ * @return the corresponding analogue of fmt in InferenceEngine::ColorFormat
+ * @note Configuration API v 2.0
+ */
+inline InferenceEngine::ColorFormat cvtColorFormat(ColorFormat fmt) {
+    switch (fmt) {
+    case ColorFormat::RAW:
+        return InferenceEngine::ColorFormat::RAW;
+    case ColorFormat::RGB:
+        return InferenceEngine::ColorFormat::RGB;
+    case ColorFormat::BGR:
+        return InferenceEngine::ColorFormat::BGR;
+    case ColorFormat::RGBX:
+        return InferenceEngine::ColorFormat::RGBX;
+    case ColorFormat::BGRX:
+        return InferenceEngine::ColorFormat::BGRX;
+    case ColorFormat::NV12:
+        return InferenceEngine::ColorFormat::NV12;
+    case ColorFormat::I420:
+        return InferenceEngine::ColorFormat::I420;
+    default:
+        VPUX_THROW("Unknown ColorFormat {0} to onvert to InferenceEngine::ColorFormat", static_cast<uint32_t>(fmt));
+    }
+}
+
+/**
+ * @brief Prints a string representation of ov::intel_vpux::ColorFormat to a stream
+ * @param out An output stream to send to
+ * @param fmt A color format value to print to a stream
+ * @return A reference to the `out` stream
+ * @note Configuration API v 2.0
+ */
+inline std::ostream& operator<<(std::ostream& out, const ColorFormat& fmt) {
+    switch (fmt) {
+    case ColorFormat::RAW: {
+        out << "RAW";
+    } break;
+    case ColorFormat::RGB: {
+        out << "RGB";
+    } break;
+    case ColorFormat::BGR: {
+        out << "BGR";
+    } break;
+    case ColorFormat::RGBX: {
+        out << "RGBX";
+    } break;
+    case ColorFormat::BGRX: {
+        out << "BGRX";
+    } break;
+    case ColorFormat::NV12: {
+        out << "NV12";
+    } break;
+    case ColorFormat::I420: {
+        out << "I420";
+    } break;
+    default:
+        out << static_cast<uint32_t>(fmt);
+        break;
+    }
+    return out;
+}
+
+/**
+ * @enum VPUXPlatform
+ * @brief VPUX device
+ * @note Configuration API v 2.0
+ */
+enum class VPUXPlatform : int {
+    AUTO = 0,        // Auto detection
+    VPU3400_A0 = 1,  // Keem bay A0
+    VPU3400 = 2,     // Keem bay B0 500 MHz
+    VPU3700 = 3,     // Keem bay B0 700 MHz
+    VPU3800 = 4,     // Thunder bay harbor Prime
+    VPU3900 = 5,     // Thunder bay harbor Full
+    VPU3720 = 6,     // Meteor lake
+    EMULATOR = 7,    // Emulator
+};
+
+/**
+ * @brief Converts ov::intel_vpux::VPUXPlatform to InferenceEngine::VPUXConfigParams::VPUXPlatform
+ * @param fmt ov::intel_vpux::VPUXPlatform value to convert
+ * @return the corresponding analogue of fmt in InferenceEngine::VPUXConfigParams::VPUXPlatform
+ * @note Configuration API v 2.0
+ */
+inline InferenceEngine::VPUXConfigParams::VPUXPlatform cvtVPUXPlatform(VPUXPlatform fmt) {
+    switch (fmt) {
+    case VPUXPlatform::AUTO:
+        return InferenceEngine::VPUXConfigParams::VPUXPlatform::AUTO;
+    case VPUXPlatform::VPU3400_A0:
+        return InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3400_A0;
+    case VPUXPlatform::VPU3400:
+        return InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3400;
+    case VPUXPlatform::VPU3700:
+        return InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3700;
+    case VPUXPlatform::VPU3800:
+        return InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3800;
+    case VPUXPlatform::VPU3900:
+        return InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3900;
+    case VPUXPlatform::VPU3720:
+        return InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3720;
+    case VPUXPlatform::EMULATOR:
+        return InferenceEngine::VPUXConfigParams::VPUXPlatform::EMULATOR;
+    default:
+        VPUX_THROW("Unknown VPUXPlatform {0} to convert to InferenceEngine::VPUXConfigParams::VPUXPlatform",
+                   static_cast<uint32_t>(fmt));
+    }
+}
+
+/**
+ * @brief Prints a string representation of ov::intel_vpux::VPUXPlatform to a stream
+ * @param out An output stream to send to
+ * @param fmt A VPUX platform value to print to a stream
+ * @return A reference to the `out` stream
+ * @note Configuration API v 2.0
+ */
+inline std::ostream& operator<<(std::ostream& out, const VPUXPlatform& fmt) {
+    switch (fmt) {
+    case VPUXPlatform::AUTO: {
+        out << "AUTO";
+    } break;
+    case VPUXPlatform::VPU3400_A0: {
+        out << "VPU3400_A0";
+    } break;
+    case VPUXPlatform::VPU3400: {
+        out << "VPU3400";
+    } break;
+    case VPUXPlatform::VPU3700: {
+        out << "VPU3700";
+    } break;
+    case VPUXPlatform::VPU3800: {
+        out << "VPU3800";
+    } break;
+    case VPUXPlatform::VPU3900: {
+        out << "VPU3900";
+    } break;
+    case VPUXPlatform::VPU3720: {
+        out << "VPU3720";
+    } break;
+    case VPUXPlatform::EMULATOR: {
+        out << "EMULATOR";
+    } break;
+    default:
+        out << static_cast<uint32_t>(fmt);
+        break;
+    }
+    return out;
+}
+
+/**
+ * @brief [Only for VPUX Plugin]
+ * Type: string, default is NONE
+ * NONE - do not print profiling info
+ * TEXT, JSON - print detailed profiling info during inference in requested format
+ * @note Configuration API v 2.0
+ */
+enum class ProfilingOutputTypeArg { NONE, TEXT, JSON };
+
+/**
+ * @brief Converts ov::intel_vpux::ProfilingOutputTypeArg to InferenceEngine::VPUXConfigParams::ProfilingOutputTypeArg
+ * @param fmt ov::intel_vpux::ProfilingOutputTypeArg value to convert
+ * @return the corresponding analogue of fmt in InferenceEngine::VPUXConfigParams::ProfilingOutputTypeArg
+ * @note Configuration API v 2.0
+ */
+inline InferenceEngine::VPUXConfigParams::ProfilingOutputTypeArg cvtProfilingOutputType(ProfilingOutputTypeArg fmt) {
+    switch (fmt) {
+    case ProfilingOutputTypeArg::NONE:
+        return InferenceEngine::VPUXConfigParams::ProfilingOutputTypeArg::NONE;
+    case ProfilingOutputTypeArg::TEXT:
+        return InferenceEngine::VPUXConfigParams::ProfilingOutputTypeArg::TEXT;
+    case ProfilingOutputTypeArg::JSON:
+        return InferenceEngine::VPUXConfigParams::ProfilingOutputTypeArg::JSON;
+    default:
+        VPUX_THROW("Unknown ProfilingOutputType {0} to convert to "
+                   "InferenceEngine::VPUXConfigParams::ProfilingOutputTypeArg",
+                   static_cast<uint32_t>(fmt));
+    }
+}
+
+/**
+ * @brief Prints a string representation of ov::intel_vpux::ProfilingOutputTypeArg to a stream
+ * @param out An output stream to send to
+ * @param fmt A Profiling output type value to print to a stream
+ * @return A reference to the `out` stream
+ * @note Configuration API v 2.0
+ */
+inline std::ostream& operator<<(std::ostream& out, const ProfilingOutputTypeArg& fmt) {
+    switch (fmt) {
+    case ProfilingOutputTypeArg::NONE: {
+        out << "NONE";
+    } break;
+    case ProfilingOutputTypeArg::TEXT: {
+        out << "TEXT";
+    } break;
+    case ProfilingOutputTypeArg::JSON: {
+        out << "JSON";
+    } break;
+    default:
+        out << static_cast<uint32_t>(fmt);
+        break;
+    }
+    return out;
+}
+
+/**
  * @brief [Only for VPUX Plugin]
  * Type: Arbitrary string.
  * This option allows to specify device.
@@ -36,7 +256,7 @@ static constexpr ov::Property<InferenceEngine::VPUXConfigParams::VPUXPlatform> v
  * This option allows to specify output format of image after SIPP preprocessing.
  * Does not affect preprocessing running on CPU. If a wrong value specified an exception will be thrown
  */
-static constexpr ov::Property<InferenceEngine::ColorFormat> graph_color_format{"VPUX_GRAPH_COLOR_FORMAT"};
+static constexpr ov::Property<ColorFormat> graph_color_format{"VPUX_GRAPH_COLOR_FORMAT"};
 
 /**
  * @brief [Only for VPUX Plugin]

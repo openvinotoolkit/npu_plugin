@@ -107,6 +107,7 @@ mlir::LogicalResult verify(FuncRef<mlir::InFlightDiagnostic()> emitError, Distri
 mlir::LogicalResult areDistributionModesCompatible(DistributionMode sourceMode, DistributionMode targetMode);
 SmallVector<Shape> getPerClusterComputeShapes(ShapeRef shapeRef, DistributedTensorAttr distributionAttr);
 SmallVector<Shape> getPerClusterComputeShapeOffsets(ShapeRef shapeRef, DistributedTensorAttr distributionAttr);
+SmallVector<PadInfo> getPerClusterPadding(DistributedTensorAttr distributionAttr);
 
 }  // namespace VPU
 }  // namespace vpux

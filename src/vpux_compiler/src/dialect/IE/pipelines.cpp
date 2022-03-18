@@ -64,7 +64,7 @@ void vpux::IE::buildAdjustLayoutPipeline(mlir::OpPassManager& pm, const AdjustLa
 // AdjustForVPU
 //
 
-void vpux::IE::buildAdjustForVPUPipeline(mlir::OpPassManager& pm, Logger log) {
+void vpux::IE::buildAdjustForVPUPipeline(mlir::OpPassManager& pm, const AdjustForVPUOptions& options, Logger log) {
     const auto grc = getDefaultGreedyRewriteConfig();
 
     pm.addPass(IE::createConvertTile2PerAxisTilePass(log));
@@ -81,6 +81,9 @@ void vpux::IE::buildAdjustForVPUPipeline(mlir::OpPassManager& pm, Logger log) {
     pm.addPass(IE::createConvertDepth2SpaceLayerPass(log));
     pm.addPass(mlir::createCanonicalizerPass(grc));
 
+    if (options.enableSwapConcatWithEltwise) {
+        pm.addPass(IE::createSwapConcatWithEltwisePass(log));
+    }
     pm.addPass(IE::createSwapMaxPoolWithActivation(log));
     pm.addPass(IE::createFusePostOpsPass(log));
     pm.addPass(IE::createInsertMaxpoolToConcatLReluPass(log));
@@ -133,10 +136,11 @@ void vpux::IE::registerIEPipelines() {
                 IE::buildAdjustLayoutPipeline(pm, options);
             });
 
-    mlir::PassPipelineRegistration<>("adjust-for-vpu", "Adjust IE Dialect IR for VPU target",
-                                     [](mlir::OpPassManager& pm) {
-                                         IE::buildAdjustForVPUPipeline(pm);
-                                     });
+    mlir::PassPipelineRegistration<AdjustForVPUOptions>(
+            "adjust-for-vpu", "Adjust IE Dialect IR for VPU target",
+            [](mlir::OpPassManager& pm, const AdjustForVPUOptions& options) {
+                IE::buildAdjustForVPUPipeline(pm, options);
+            });
 
     mlir::PassPipelineRegistration<LowPrecisionOptions>(
             "low-precision", "Low precision transformations",
