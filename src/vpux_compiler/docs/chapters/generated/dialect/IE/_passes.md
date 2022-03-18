@@ -54,11 +54,13 @@ It updates both function bodies as well as Function signatures.
 The pass is a part of `AdjustForVPU` pipeline.
 This pass replaces all I64 tensors with I32.
 It updates both function bodies as well as Function signatures.
-### `-convert-quantize-ops-to-eltwise`: Converts per-tensor Quantize/Dequantize to eltwise And mixed-precision operation
+### `-convert-quantize-ops-to-eltwise`: Legalize some Quantize/Dequantize for conversion to VPU.NCE.Convert/IE.Eltwise mixed-precision operation
 The pass is a part of `LowPrecision` pipeline.
 
-Converts per-tensor Quantize/Dequantize to eltwise And mixed-precision operation
+Converts per-tensor Quantize/Dequantize to eltwise And/Add mixed-precision operation
 where input2 is input1 to perform type conversion on DPU instead of UPA.
+In case if 4D tensor with NCHW layout it can be converted to VPU.NCE.Convert operation,
+otherwise it would be converted to IE.And or IE.Add(for MTL) operation.
 ### `-convert-reduce-to-pooling`: Convert reduce to pooling ops
 The pass is to convert reduce operations (mean, max, sum) into pooling.
 ### `-convert-scale-shift-depthwise`: Convert Scale-Shift operation to Depthwise Convolution

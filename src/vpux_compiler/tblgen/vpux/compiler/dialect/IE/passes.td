@@ -773,17 +773,19 @@ def ConvertWeightsToU8 : PassBase<"convert-weights-to-u8", "vpux::FunctionPass">
 }
 
 //
-// ConvertQuantizeOpsToEltwise
+// LegalizeQuantizeOpsForEltwise
 //
 
 def ConvertQuantizeOpsToEltwise : PassBase<"convert-quantize-ops-to-eltwise", "vpux::FunctionPass"> {
-    let summary = "Converts per-tensor Quantize/Dequantize to eltwise And mixed-precision operation";
+    let summary = "Legalize some Quantize/Dequantize for conversion to VPU.NCE.Convert/IE.Eltwise mixed-precision operation";
 
     let description = [{
         The pass is a part of `LowPrecision` pipeline.
 
-        Converts per-tensor Quantize/Dequantize to eltwise And mixed-precision operation
+        Converts per-tensor Quantize/Dequantize to eltwise And/Add mixed-precision operation
         where input2 is input1 to perform type conversion on DPU instead of UPA.
+        In case if 4D tensor with NCHW layout it can be converted to VPU.NCE.Convert operation,
+        otherwise it would be converted to IE.And or IE.Add(for MTL) operation.
     }];
 
     let constructor = "vpux::IE::createConvertQuantizeOpsToEltwisePass()";

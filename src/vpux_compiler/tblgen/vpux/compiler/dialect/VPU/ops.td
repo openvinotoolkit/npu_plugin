@@ -494,7 +494,9 @@ def VPU_NCEConvertOp :
     let summary = "Hardware version of [De]Quantization operation";
 
     let arguments = (ins
-        4DTensorOf<[F16, BF16, quant_QuantizedType]>:$input
+        4DTensorOf<[F16, BF16, quant_QuantizedType]>:$input,
+
+        OptionalAttr<VPU_PPETaskAttr>:$ppe
     );
 
     let results = (outs

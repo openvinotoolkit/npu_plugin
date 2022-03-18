@@ -356,8 +356,14 @@ mlir::LogicalResult QuantToNCE<ConcreteOp>::matchAndRewrite(ConcreteOp origOp,
         return mlir::failure();
     }
 
+
+    const vpux::IE::PostOp postOpAttr;
+    auto ppeTaskAttr =
+        VPU::getNCEEltwisePPETaskAttr(origOp.input(), origOp.input(), origOp.output(), postOpAttr,
+                                        origOp.getLoc(), VPU::EltwiseType::AND, origOp.getContext(), _arch);
+
     auto nceOp =
-            rewriter.create<VPU::NCEConvertOp>(origOp->getLoc(), origOp.getType(), origOp.input());
+            rewriter.create<VPU::NCEConvertOp>(origOp->getLoc(), origOp.getType(), origOp.input(), ppeTaskAttr);
 
     rewriter.replaceOp(origOp, nceOp.output());
     _log.trace("[{0}] Replaced '{1}' to '{2}'", this->getDebugName(), origOp->getName(), nceOp->getName());

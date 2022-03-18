@@ -379,6 +379,70 @@ mlir::LogicalResult DistributedCastRewriter::matchAndRewrite(VPU::DistributedCas
 }
 
 //
+// ConvertRewriter
+//
+
+class ConvertRewriter final : public mlir::OpConversionPattern<VPU::NCEConvertOp> {
+public:
+    ConvertRewriter(mlir::TypeConverter& converter, mlir::MLIRContext* ctx, Logger log)
+            : mlir::OpConversionPattern<VPU::NCEConvertOp>(converter, ctx), _log(log) {
+    }
+
+public:
+    mlir::LogicalResult matchAndRewrite(VPU::NCEConvertOp origOp, OpAdaptor newArgs,
+                                        mlir::ConversionPatternRewriter& rewriter) const final;
+
+private:
+    Logger _log;
+};
+
+mlir::LogicalResult ConvertRewriter::matchAndRewrite(VPU::NCEConvertOp origOp, OpAdaptor newArgs,
+                                                     mlir::ConversionPatternRewriter& rewriter) const {
+    //
+    // Buffer allocation
+    //
+
+    auto* typeConverter = getTypeConverter();
+    VPUX_THROW_UNLESS(typeConverter != nullptr, "TypeConverter is not set");
+
+    //
+    // Prepare output buffer for DPU
+    //
+
+    const auto outputBuffer = allocateResult(origOp.getLoc(), rewriter, *typeConverter, origOp.output());
+
+    //
+    // Create NCE per-cluster Operation
+    //
+
+    const auto activation_window_channel_length = getIntAttr(this->getContext(), static_cast<int32_t>(0));
+
+    auto nceOp = rewriter.create<VPUIP::NCEClusterTaskOp>(origOp->getLoc(), newArgs.input(), newArgs.input(),
+                                                          /*weightsTable=*/nullptr,
+                                                          /*activation_window=*/nullptr,
+                                                          /*parent_input=*/newArgs.input(),
+                                                          /*parent_output=*/outputBuffer,
+                                                          /*output_buff=*/outputBuffer, VPUIP::NCETaskType::ELTWISE,
+                                                          /*kernel_size=*/nullptr,
+                                                          /*kernel_strides=*/nullptr,
+                                                          /*kernel_padding=*/nullptr, activation_window_channel_length);
+
+    //
+    // Create DPU sub-task
+    //
+
+    addDPUTasks(nceOp, rewriter, origOp.workloads());
+
+    VPUX_THROW_UNLESS(origOp.ppe().hasValue(), "Eltwise operation should always have PPE info");
+
+    addPPETask(rewriter, nceOp, origOp.ppeAttr());
+
+    rewriter.replaceOp(origOp, nceOp.output());
+
+    return mlir::success();
+}
+
+//
 // ConvertVPUToVPUIPPass
 //
 
@@ -417,6 +481,7 @@ void ConvertVPUToVPUIPPass::safeRunOnFunc() {
     patterns.add<ConvRewriter>(typeConverter, &ctx, _log);
     patterns.add<DepthwiseConvRewriter>(typeConverter, &ctx, _log);
     patterns.add<MaxPoolRewriter>(typeConverter, &ctx, _log);
+    patterns.add<ConvertRewriter>(typeConverter, &ctx, _log);
     patterns.add<EltwiseRewriter>(typeConverter, &ctx, _log);
     patterns.add<DistributedCastRewriter>(typeConverter, &ctx, _log);
 
