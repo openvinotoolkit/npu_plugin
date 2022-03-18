@@ -62,7 +62,6 @@ mlir::LogicalResult NCEConvolutionRewriter::matchAndRewrite(NCEConvolutionOp ori
     mlir::ArrayAttr activationAlignmentAttr = nullptr;
     mlir::ArrayAttr weightAlignmentAttr = nullptr;
     mlir::ArrayAttr outputAlignmentAttr = nullptr;
-    NCEClusterTilingOp clusterTilingOp = nullptr;
     const auto strategy = origOp->getAttr(multiClusterStrategy).cast<mlir::StringAttr>().getValue();
 
     const auto activationTensorDistributionMode = getActivationTensorDistributionMode(strategy);
@@ -134,7 +133,7 @@ mlir::LogicalResult NCEConvolutionRewriter::matchAndRewrite(NCEConvolutionOp ori
                 getIntArrayAttr(origOp.getContext(), getInstructionListTableTensorNumTiles(strategy));
         auto distributedInstructionListTableCopyOp =
                 createDistributedCopyIn(origOp, origOp.instructionListTable(), instructionListTableDistributionMode,
-                                        instructionListTableNumTiles);
+                                        instructionListTableNumTiles, nullptr, strategy);
         distributedCopyOps.push_back(distributedInstructionListTableCopyOp.getResult(0));
     }
 
@@ -144,15 +143,15 @@ mlir::LogicalResult NCEConvolutionRewriter::matchAndRewrite(NCEConvolutionOp ori
         const auto activationWindowDistributionMode = getActivationWindowTensorDistributionMode(strategy);
         const auto activationWindowNumTiles =
                 getIntArrayAttr(origOp.getContext(), getActivationWindowTensorNumTiles(strategy));
-        const auto distributedActivationWindowCopyOp =
+        auto distributedActivationWindowCopyOp =
                 createDistributedCopyIn(origOp, origOp.activationWindow(), activationWindowDistributionMode,
                                         activationWindowNumTiles, nullptr, strategy);
 
         distributedCopyOps.push_back(distributedActivationWindowCopyOp.getResult(0));
     }
 
-    auto clusterTilingOp = rewriter.create<NCEClusterTilingOp>(origOp->getLoc(), distributedOutputTensorType,
-                                                               mlir::ValueRange{distributedCopyOps}, bodyBuilder);
+    const auto clusterTilingOp = rewriter.create<NCEClusterTilingOp>(origOp->getLoc(), distributedOutputTensorType,
+                                                                     mlir::ValueRange{distributedCopyOps}, bodyBuilder);
 
     const auto outputCopyOp = createDistributedCopyOut(origOp, clusterTilingOp);
     const auto origOutput = origOp->getResult(0);
@@ -255,7 +254,7 @@ mlir::LogicalResult NCEDepthConvolutionRewriter::matchAndRewrite(NCEDepthConvolu
                 getIntArrayAttr(origOp.getContext(), getInstructionListTableTensorNumTiles(strategy));
         auto distributedInstructionListTableCopyOp =
                 createDistributedCopyIn(origOp, origOp.instructionListTable(), instructionListTableDistributionMode,
-                                        instructionListTableNumTiles);
+                                        instructionListTableNumTiles, nullptr, strategy);
         distributedCopyOps.push_back(distributedInstructionListTableCopyOp.getResult(0));
     }
     distributedCopyOps.push_back(distributedActivationWindowCopyOp->getResult(0));
@@ -273,7 +272,7 @@ mlir::LogicalResult NCEDepthConvolutionRewriter::matchAndRewrite(NCEDepthConvolu
 
     _log.trace("Wrap {0} into NCEClusterTilingOp", origOp->getName());
     const auto clusterTilingOp = rewriter.create<NCEClusterTilingOp>(origOp->getLoc(), distributedOutputTensorType,
-                                                               mlir::ValueRange{distributedCopyOps}, bodyBuilder);
+                                                                     mlir::ValueRange{distributedCopyOps}, bodyBuilder);
 
     const auto outputCopyOp = createDistributedCopyOut(origOp, clusterTilingOp);
     origOutput.replaceAllUsesWith(outputCopyOp->getResult(0));

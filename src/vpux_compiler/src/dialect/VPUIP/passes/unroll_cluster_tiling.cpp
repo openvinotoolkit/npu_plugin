@@ -331,11 +331,10 @@ mlir::LogicalResult ClusterNCERewriter::matchAndRewrite(VPUIP::NCEClusterTaskOp 
         auto newTask = VPURT::wrapIntoTaskOp<VPUIP::NCEClusterTaskOp>(
                 rewriter, vpurtTask.waitBarriers(), vpurtTask.updateBarriers(), newLoc, inputBuffs[clusterId],
                 weightsBuffs[clusterId], weightTableBuffs[clusterId], instructionListTableBuffs[clusterId],
-                activationWindowBuffs[clusterId], parentInput,
-                parentOutput, outputBuffs[clusterId], nceTask.task_type(), nceTask.kernel_sizeAttr(),
-                nceTask.kernel_stridesAttr(), padAttrForCluster[clusterId],
-                nceTask.activation_window_channel_lengthAttr(), nullptr, nullptr, isSegmented,
-                outChannelOffsets[clusterId]);
+                activationWindowBuffs[clusterId], parentInput, parentOutput, outputBuffs[clusterId],
+                nceTask.task_type(), nceTask.kernel_sizeAttr(), nceTask.kernel_stridesAttr(),
+                padAttrForCluster[clusterId], nceTask.activation_window_channel_lengthAttr(), nullptr, nullptr,
+                isSegmented, outChannelOffsets[clusterId]);
 
         {
             mlir::OpBuilder::InsertionGuard guard(rewriter);
