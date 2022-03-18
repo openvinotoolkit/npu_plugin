@@ -252,6 +252,35 @@ func @main(%arg0: tensor<1x1x30x30xf16, {order = #NHWC}>, %arg1: tensor<1x1x30x3
 #NCHW = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
+// CHECK-LABEL: @ReorderWithConcatWithConsts
+module @ReorderWithConcatWithConsts attributes {VPU.arch = "KMB", VPU.compilationMode = "ReferenceSW"} {
+
+// CHECK:       func @main(
+// CHECK-SAME:      [[ARG0:%arg[0-9]+]]: tensor<1x1x30x30xf16, {order = #NHWC}>)
+func @main(%arg0: tensor<1x1x30x30xf16, {order = #NHWC}>)
+        -> tensor<1x2x30x30xf16, {order = #NHWC}> {
+    %0 = IE.Reorder(%arg0) {dstOrder = #NCHW} : tensor<1x1x30x30xf16, {order = #NHWC}> -> tensor<1x1x30x30xf16>
+    %1 = const.Declare tensor<1x1x30x30xf16> = #const.Content<dense<1.0> : tensor<1x1x30x30xf16>>
+    %2 = IE.Concat(%0, %1) {per_axis = {axis = 1}} : tensor<1x1x30x30xf16>, tensor<1x1x30x30xf16> -> tensor<1x2x30x30xf16>
+    %3 = IE.Reorder(%2) {dstOrder = #NHWC} : tensor<1x2x30x30xf16> -> tensor<1x2x30x30xf16, {order = #NHWC}>
+    return %3 : tensor<1x2x30x30xf16, {order = #NHWC}>
+
+    // CHECK:       [[CST0:%.*]] = const.Declare
+    // CHECK-SAME:      #const.Reorder<#NHWC>
+    // CHECK:       [[VAR0:%.+]] = IE.Concat([[ARG0]], [[CST0]]) {per_axis = {axis = 1 : i64}}
+    // CHECK-SAME:      tensor<1x1x30x30xf16, {order = #NHWC}>,
+    // CHECK-SAME:      tensor<1x1x30x30xf16, {order = #NHWC}>
+    // CHECK-SAME:      -> tensor<1x2x30x30xf16, {order = #NHWC}>
+    // CHECK:       return [[VAR0]] : tensor<1x2x30x30xf16, {order = #NHWC}>
+}
+
+}
+
+// -----
+
+#NCHW = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
+#NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
+
 // CHECK-LABEL: @ReorderPropagationWithConcat
 module @ReorderPropagationWithConcat attributes {VPU.arch = "KMB", VPU.compilationMode = "ReferenceSW"} {
 

@@ -207,7 +207,13 @@ mlir::LogicalResult ReorderWithConcat::matchAndRewrite(IE::ConcatOp origConcatOp
     for (auto arg : origConcatOp.inputs()) {
         auto argReorderOp = arg.getDefiningOp<IE::ReorderOp>();
         if (argReorderOp == nullptr) {
-            return mlir::failure();
+            // Reorders can be added to Consts so they are accepted
+            auto constOp = arg.getDefiningOp<Const::DeclareOp>();
+            if (constOp == nullptr) {
+                return mlir::failure();
+            }
+            initialInputs.push_back(constOp.output());
+            continue;
         }
 
         const auto argOrder = DimsOrder::fromValue(argReorderOp.input());
@@ -224,13 +230,24 @@ mlir::LogicalResult ReorderWithConcat::matchAndRewrite(IE::ConcatOp origConcatOp
         return mlir::failure();
     }
 
-    const auto concatOrder = DimsOrder::fromValue(origConcatOp.inputs().front());
+    const auto newConcatOrder = initialOrder.getValue();
+    const auto originalConcatOrder = DimsOrder::fromValue(origConcatOp.output());
+
+    // Insert reorders for ConstOps */
+    for (size_t ind = 0; ind < initialInputs.size(); ++ind) {
+        auto op = initialInputs[ind].getDefiningOp();
+        if (!(mlir::isa_and_nonnull<Const::DeclareOp>(op))) {
+            continue;
+        }
+
+        initialInputs[ind] = insertReorderForOutput(op, op->getOpResult(0), newConcatOrder, rewriter, _log);
+    }
 
     auto newConcat = rewriter.create<IE::ConcatOp>(origConcatOp->getLoc(), initialInputs, origConcatOp.per_axisAttr(),
                                                    origConcatOp.static_offsetsAttr());
 
     rewriter.replaceOpWithNewOp<IE::ReorderOp>(origConcatOp, origConcatOp.getType(), newConcat.output(),
-                                               concatOrder.toAffineMap(origConcatOp.getContext()));
+                                               originalConcatOrder.toAffineMap(origConcatOp.getContext()));
 
     return mlir::success();
 }
