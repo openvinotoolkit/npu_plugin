@@ -39,6 +39,21 @@ vpux::NDTypeInterface changeShape(vpux::NDTypeInterface originType, ShapeRef sha
     return originType.changeShape(shape);
 }
 
+vpux::NDTypeInterface changeShapeLeaveStrides(vpux::NDTypeInterface originType, ShapeRef shape, ShapeRef offset) {
+    VPUX_THROW_UNLESS(originType.isa<mlir::MemRefType>(),
+                      "Only MemRefType is supported for 'changeShapeLeaveStrides'. Got '{0}'", originType);
+
+    auto elemType = originType.getElementType();
+    if (auto qType = elemType.dyn_cast<mlir::quant::UniformQuantizedPerAxisType>()) {
+        elemType = tileScalesAndZP(qType, shape, offset);
+    }
+
+    const auto origOrder = originType.getDimsOrder();
+    const auto newOrder = origOrder.isIdentity() ? DimsOrder::fromNumDims(shape.size()) : origOrder;
+
+    return vpux::getMemRefType(shape, elemType, newOrder, originType.getStrides(), originType.getMemSpace());
+}
+
 bool isSegmentedNCETask(VPUIP::NCEClusterTaskOp nceTask, VPUIP::DistributedBufferType inputType) {
     // Only for explicit SEGMENTED mode, not in combination with
     // DUPLICATED or MULTICASTED
@@ -294,13 +309,28 @@ mlir::LogicalResult ClusterNCERewriter::matchAndRewrite(VPUIP::NCEClusterTaskOp 
 
     const auto outChannelOffsets = getOutChannelOffsets(nceTask, parentInputType, parentOutputType);
 
+    auto padAttr = nceTask.kernel_paddingAttr();
+    SmallVector<VPU::PaddingAttr> padAttrForCluster(numClusters, padAttr);
+
+    // In case of OVERLAPPED mode padding setting in invariint needs to be calculated
+    // for each cluster based on distributed type properties
+    if (inDistribution.mode().getValue() == VPU::DistributionMode::OVERLAPPED) {
+        auto perClusterPadInfo = parentInputType.getPerClusterPadding();
+        VPUX_THROW_UNLESS(perClusterPadInfo.size() == static_cast<size_t>(numClusters),
+                          "Mismatch between number of padding settings ({0}) and number of clusters ({1})",
+                          perClusterPadInfo.size(), numClusters);
+        for (int64_t clusterId = 0; clusterId < numClusters; ++clusterId) {
+            padAttrForCluster[clusterId] = VPU::getPaddingAttr(_ctx, perClusterPadInfo[clusterId]);
+        }
+    }
+
     for (int64_t clusterId = 0; clusterId < numClusters; ++clusterId) {
         const auto newLoc = appendLoc(loc, llvm::formatv("_cluster_{0}", clusterId).str());
         auto newTask = VPURT::wrapIntoTaskOp<VPUIP::NCEClusterTaskOp>(
                 rewriter, vpurtTask.waitBarriers(), vpurtTask.updateBarriers(), newLoc, inputBuffs[clusterId],
                 weightsBuffs[clusterId], weightTableBuffs[clusterId], activationWindowBuffs[clusterId], parentInput,
                 parentOutput, outputBuffs[clusterId], nceTask.task_type(), nceTask.kernel_sizeAttr(),
-                nceTask.kernel_stridesAttr(), nceTask.kernel_paddingAttr(),
+                nceTask.kernel_stridesAttr(), padAttrForCluster[clusterId],
                 nceTask.activation_window_channel_lengthAttr(), nullptr, nullptr, isSegmented,
                 outChannelOffsets[clusterId]);
 
@@ -408,6 +438,16 @@ void ClusterDMARewriter::unrollSegmentedOrOverlapped(mlir::Location loc, VPUIP::
         return newTypes;
     };
 
+    const auto tileInnerTypeLeaveStrides = [&](vpux::NDTypeInterface innerType) {
+        SmallVector<vpux::NDTypeInterface> newTypes(numClusters);
+        for (size_t clusterId = 0; clusterId < perClusterShapes.size(); ++clusterId) {
+            newTypes[clusterId] =
+                    changeShapeLeaveStrides(innerType, perClusterShapes[clusterId], perClusterShapeOffsets[clusterId]);
+        }
+
+        return newTypes;
+    };
+
     const auto isValidTile = [](auto dim) {
         return dim > 1;
     };
@@ -416,7 +456,16 @@ void ClusterDMARewriter::unrollSegmentedOrOverlapped(mlir::Location loc, VPUIP::
     const auto axis = std::distance(tilingScheme.begin(), llvm::find_if(tilingScheme, isValidTile));
     const auto strides = distributedType.getStrides();
 
-    const auto inTypes = tileInnerType(innerInputType);
+    bool useParentTensorStrides = false;
+    // Check if per-cluster DMA input will not be a contiguous block of memory.
+    // In such case DMA input buffers should have strides according to parent input tensor
+    if ((numTiles[Dims4D::Act::H.ind()] > 1 && inputType.getDimsOrder() == DimsOrder::NCHW) ||
+        (numTiles[Dims4D::Act::C.ind()] > 1 && inputType.getDimsOrder() == DimsOrder::NHWC)) {
+        useParentTensorStrides = true;
+    }
+
+    const auto inTypes =
+            (useParentTensorStrides ? tileInnerTypeLeaveStrides(innerInputType) : tileInnerType(innerInputType));
     const auto outTypes = tileInnerType(innerOutputType);
 
     const auto getOperand = [&](int64_t clusterId, mlir::Value operand, vpux::NDTypeInterface newType) -> mlir::Value {
@@ -434,6 +483,9 @@ void ClusterDMARewriter::unrollSegmentedOrOverlapped(mlir::Location loc, VPUIP::
 
         auto declBuff = operand.getDefiningOp<VPURT::DeclareBufferOp>();
         VPUX_THROW_UNLESS(declBuff != nullptr, "Can't get buffer offset");
+
+        auto section = declBuff.section();
+        auto sectionIndex = declBuff.sectionIndex();
 
         // For example, copy of input in case of SOH
         // <1x16x33x32xf16, @DDR>  -> <1x16x17x32xf16, [@CMX, 0]>
@@ -454,7 +506,12 @@ void ClusterDMARewriter::unrollSegmentedOrOverlapped(mlir::Location loc, VPUIP::
         Byte ddrOffset{declBuff.byteOffset()};
         ddrOffset += perClusterShapeOffsets[clusterId][Dim(axis)] * static_cast<Byte>(strides[Dim(axis)]);
 
-        return rewriter.create<VPURT::DeclareBufferOp>(loc, newType, VPURT::BufferSection::DDR, ddrOffset.count());
+        if (sectionIndex.hasValue()) {
+            return rewriter.create<VPURT::DeclareBufferOp>(loc, newType, section, sectionIndex.getValue(),
+                                                           ddrOffset.count());
+        } else {
+            return rewriter.create<VPURT::DeclareBufferOp>(loc, newType, section, ddrOffset.count());
+        }
     };
 
     for (int64_t clusterId = 0; clusterId < numClusters; ++clusterId) {
