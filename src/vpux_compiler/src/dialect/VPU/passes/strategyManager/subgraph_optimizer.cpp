@@ -30,7 +30,7 @@ bool SubgraphOptimizer::addSpillsAtStrategyTransition(){
 }
 
 // Op is Kcompatible means the following op can be SOK
-bool SubgraphOptimizer::isKCompatible(mlir::Operation* op, bool allowHK){
+bool SubgraphOptimizer::isKCompatible(mlir::Operation* op, bool allowHK=true){
     const auto strategy = op->getAttr(multiClusterStrategy).cast<mlir::StringAttr>().getValue();
     if (strategy == splitOverKernel || strategy == clustering || (allowHK && strategy == HKSwitch)){
         return true;
@@ -83,11 +83,15 @@ void SubgraphOptimizer::skipSOH(mlir::Operation* op, bool allowHK){
     }
 }
 
-bool SubgraphOptimizer::isSpillingFromStrategy(mlir::Operation* op){
-    bool opKCompatible = isKCompatible(op);
+// Judge spilling if it's from SOH->SOK or SOH->Clustering
+bool SubgraphOptimizer::hasSpillingInSOHShift(mlir::Operation* op){
+    auto SOHStrategy = op->getAttr(multiClusterStrategy).cast<mlir::StringAttr>().getValue();
+    if (SOHStrategy != splitOverHeight || SOHStrategy != splitOverHeightOverlapped){
+        VPUX_THROW("Unsupported strategy");
+    }
     for (auto child : op->getResult(0).getUsers()){
         if (!child->getAttr(multiClusterStrategy)) continue;
-        if (opKCompatible != isKCompatible(child)){
+        if (isKCompatible(child, false)){
             return true;
         }
     }
@@ -129,7 +133,7 @@ bool SubgraphOptimizer::areChildrenKCompatible(mlir::Operation* op){
 }
 
 void SubgraphOptimizer::setKCompatible(mlir::Operation* op, bool allowHK=true){
-    if (allowHk){
+    if (allowHk && canBeHKSwitch(op)){
         op->setAttr(multiClusterStrategy, mlir::StringAttr::get(origOp->getContext(), "HKSwitch"));
     }else if (greedyCostOfLayer(op, splitOverHeight) < greedyCostOfLayer(op, clustering)){
         op->setAttr(multiClusterStrategy, mlir::StringAttr::get(origOp->getContext(), "SplitOverKernel"));
@@ -174,9 +178,10 @@ void SubgraphOptimizer::rollbackOnSubgraph(mlir::Operation* op){
     // @tbd forceRollback() need confirm
 
     // Only process node with greedy strategy SOH
-    if (!isSpillingFromStrategy(op) || isKCompatible(op, true)) continue;
+    if (isKCompatible(op, true) || !hasSpillingInSOHShift(op)) continue;
     
-    // SOH -> KCompatible
+    // Processing SOH -> SOK/Clus
+    bool HKHead= false;
     parents.push_back(op);    
     while(!parents.empty() || !children.empty()){
         mlir::Operation *opIt= nullptr;
@@ -209,11 +214,21 @@ void SubgraphOptimizer::rollbackOnSubgraph(mlir::Operation* op){
 
         // We stop moving up the graph when we find nodes that could be HK switch points
         // or nodes that are already in compatible strategies (SOK, Clus)
+        // Endpoint conditions:
+        // 1. opIt is HK: SOH-> HK ->SOK
+        // 2. opIt is SOK: K-> SOK ->SOK
+        // 3. opIt is Clus: K-> Clus ->SOK
         for (auto input : opIt.inputs()) {
             auto parent = input.getDefiningOp();
             if (auto parentStrategy= parent->getAttr(multiClusterStrategy)){
-                if ((canBeSOK(op) && isKCompatible(parent)) || (canBeHKSwitch(op) && !isKCompatible(parent)))
+                if ((isKCompatible(parent)) || (canBeSOK(op) && isKCompatible(parent))){
+                    HKHead= false;
                     continue;
+                }
+                if ((canBeHKSwitch(op) && !isKCompatible(parent))){
+                    HKHead= true;
+                    continue;
+                }
                 parents.push(parent);
             }
         }
@@ -221,7 +236,7 @@ void SubgraphOptimizer::rollbackOnSubgraph(mlir::Operation* op){
 
     if (rollbackCost < currentCost){
         for (auto op : parentsToChange){
-            setKCompatible(op, true);
+            setKCompatible(op, HKHead);
         }
         for (auto op : childrenToChange){
             setKCompatible(op, false);
