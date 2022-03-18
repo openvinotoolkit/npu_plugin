@@ -4923,7 +4923,7 @@
 
         {
             "name": "SOL_SISO_fp16_shape-1048576",
-            "description": "Single input - single output IR with shape {1048576} (4Mb)",
+            "description": "Single input - single output IR with shape {1048576}",
             "ir": "models/IOIR/IOIR_shape-1048576.xml",
             "category": "MLIR/precommit/SOL",
             "3720": {
