@@ -129,12 +129,12 @@ mlir::LogicalResult NCEConvolutionRewriter::matchAndRewrite(NCEConvolutionOp ori
                                                 distributedWeightsCopyOp->getResult(0),
                                                 distributedWeightTableCopyOp->getResult(0)};
     if (origOp.instructionListTable()) {
-        auto instructionListTableTensorDistributionMode = getInstructionListTableTensorDistributionMode(strategy);
-        auto instructionListTableTensorNumTiles =
+        auto instructionListTableDistributionMode = getInstructionListTableTensorDistributionMode(strategy);
+        auto instructionListTableNumTiles =
                 getIntArrayAttr(origOp.getContext(), getInstructionListTableTensorNumTiles(strategy));
         auto distributedInstructionListTableCopyOp =
                 createDistributedCopyIn(origOp, origOp.instructionListTable(),
-                                        instructionListTableTensorDistributionMode, instructionListTableTensorNumTiles);
+                                        instructionListTableDistributionMode, instructionListTableNumTiles);
         distributedCopyOps.push_back(distributedInstructionListTableCopyOp.getResult(0));
     }
 
@@ -151,7 +151,7 @@ mlir::LogicalResult NCEConvolutionRewriter::matchAndRewrite(NCEConvolutionOp ori
         distributedCopyOps.push_back(distributedActivationWindowCopyOp.getResult(0));
     }
 
-    clusterTilingOp = rewriter.create<NCEClusterTilingOp>(origOp->getLoc(), distributedOutputTensorType,
+    auto clusterTilingOp = rewriter.create<NCEClusterTilingOp>(origOp->getLoc(), distributedOutputTensorType,
                                                           mlir::ValueRange{distributedCopyOps}, bodyBuilder);
 
     const auto outputCopyOp = createDistributedCopyOut(origOp, clusterTilingOp);
@@ -247,16 +247,18 @@ mlir::LogicalResult NCEDepthConvolutionRewriter::matchAndRewrite(NCEDepthConvolu
 
     SmallVector<mlir::Value> distributedCopyOps{
             distributedActivationCopyOp->getResult(0), distributedWeightsCopyOp->getResult(0),
-            distributedWeightTableCopyOp->getResult(0), distributedActivationWindowCopyOp->getResult(0)};
+            distributedWeightTableCopyOp->getResult(0)};
+            
     if (origOp.instructionListTable()) {
-        auto instructionListTableTensorDistributionMode = getInstructionListTableTensorDistributionMode(strategy);
-        auto instructionListTableTensorNumTiles =
+        auto instructionListTableDistributionMode = getInstructionListTableTensorDistributionMode(strategy);
+        auto instructionListTableNumTiles =
                 getIntArrayAttr(origOp.getContext(), getInstructionListTableTensorNumTiles(strategy));
         auto distributedInstructionListTableCopyOp =
                 createDistributedCopyIn(origOp, origOp.instructionListTable(),
-                                        instructionListTableTensorDistributionMode, instructionListTableTensorNumTiles);
+                                        instructionListTableDistributionMode, instructionListTableNumTiles);
         distributedCopyOps.push_back(distributedInstructionListTableCopyOp.getResult(0));
     }
+    distributedCopyOps.push_back(distributedActivationWindowCopyOp->getResult(0));
 
     const auto bodyBuilder = [origOp](mlir::OpBuilder& builder, mlir::Location loc, mlir::ValueRange newOperands) {
         mlir::BlockAndValueMapping mapper;

@@ -29,11 +29,11 @@ struct PWLTableType {
 };
 
 struct PWLTableEntry {
-    SmallVector<int> range;
-    SmallVector<int> shift;
-    SmallVector<int> bias;
+    SmallVector<int64_t> range;
+    SmallVector<int64_t> shift;
+    SmallVector<int64_t> bias;
     std::pair<double, double> floatRange;
-    int postShift;
+    int64_t postShift;
 };
 
 struct PWLTableHash {

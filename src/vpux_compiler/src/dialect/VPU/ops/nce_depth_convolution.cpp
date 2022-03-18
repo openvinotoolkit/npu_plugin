@@ -142,10 +142,6 @@ bool vpux::VPU::NCEDepthConvolutionOp::isSupported(IE::GroupConvolutionOp op, NC
 // verifyOp
 //
 
-//
-// verifyOp
-//
-
 mlir::LogicalResult verifyDepthConv(mlir::Location loc, VPU::ArchKind arch, VPU::NCEDepthConvolutionOpAdaptor op,
                                     mlir::Value output) {
     const auto logCb = [loc](const llvm::formatv_object_base& msg) {
