@@ -792,7 +792,7 @@ void redirectOpInterfacesForIE(mlir::DialectRegistry& registry) {
     registry.addOpInterface<IE::AtanOp, OpModelForSW<VPUIP::AtanUPAOp>>();
     registry.addOpInterface<IE::AsinOp, OpModelForSW<VPUIP::AsinUPAOp>>();
     registry.addOpInterface<IE::AcosOp, OpModelForSW<VPUIP::AcosUPAOp>>();
-    registry.addOpInterface<IE::HardSigmoidOp, OpModelForSW<VPUIP::HardSigmoidUPAOp>>();
+    //registry.addOpInterface<IE::HardSigmoidOp, OpModelForSW<VPUIP::HardSigmoidUPAOp>>();
 }
 
 //

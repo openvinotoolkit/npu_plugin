@@ -1460,9 +1460,9 @@ operation ::= `IE.HardSigmoid` `(` operands `)` attr-dict `:` type(operands) `->
 
 | Operand | Description |
 | :-----: | ----------- |
-`input1` | ranked tensor of 16-bit float or 32-bit float values
-`input2` | ranked tensor of 16-bit float or 32-bit float values
-`input3` | ranked tensor of 16-bit float or 32-bit float values
+`input` | ranked tensor of 16-bit float or 32-bit float values
+`alpha` | 0D tensor of floating-point values
+`beta` | 0D tensor of floating-point values
 
 #### Results:
 

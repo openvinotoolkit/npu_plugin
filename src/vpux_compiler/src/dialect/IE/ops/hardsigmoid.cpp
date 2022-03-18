@@ -28,7 +28,7 @@ mlir::LogicalResult vpux::IE::HardSigmoidOp::inferReturnTypeComponents(
         return mlir::failure();
     }
 
-    const auto inType = hardsigmoid.input1().getType().cast<mlir::ShapedType>();
+    const auto inType = hardsigmoid.input().getType().cast<mlir::ShapedType>();
     inferredReturnShapes.emplace_back(inType.getShape(), inType.getElementType());
 
     return mlir::success();

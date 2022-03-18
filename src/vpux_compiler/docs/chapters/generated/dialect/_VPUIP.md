@@ -1021,7 +1021,7 @@ Syntax:
 
 ```
 operation ::= `VPUIP.HardSigmoidUPA` attr-dict
-              `inputs` `(` $input1 `:` type($input1) `,` $input2 `:` type($input2) `,` $input3 `:` type($input3) `)`
+              `inputs` `(` $input `:` type($input) `,` $alpha `:` type($alpha) `,` $beta `:` type($beta) `)`
               `outputs` `(` $output_buff `:` type($output_buff) `)`
               `->` type(results)
 ```
@@ -1031,9 +1031,9 @@ operation ::= `VPUIP.HardSigmoidUPA` attr-dict
 
 | Operand | Description |
 | :-----: | ----------- |
-`input1` | memref of 16-bit float values
-`input2` | memref of 16-bit float values
-`input3` | memref of 16-bit float values
+`input` | memref of 16-bit float values
+`alpha` | memref of 16-bit float or 32-bit float values
+`beta` | memref of 16-bit float or 32-bit float values
 `output_buff` | memref of 16-bit float values
 
 #### Results:

@@ -1125,7 +1125,7 @@ mlir::Operation* createRTLayer(IE::AcosOp origOp, ArrayRef<mlir::Value> allBufs,
 
 mlir::Operation* createRTLayer(IE::HardSigmoidOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
     IERT::HardSigmoidOp::Adaptor newOp(allBufs);
-    return b.create<IERT::HardSigmoidOp>(origOp.getLoc(), newOp.input1(), newOp.input2(), newOp.input3(),
+    return b.create<IERT::HardSigmoidOp>(origOp.getLoc(), newOp.input(), newOp.alpha(), newOp.beta(),
                                     newOp.output_buff());
 }
 

@@ -301,6 +301,43 @@ mlir::LogicalResult TopKRewrite::matchAndRewrite(IERT::TopKOp origOp, mlir::Patt
 }
 
 //
+// HardSigmoidRewrite
+//
+
+class HardSigmoidRewrite final : public mlir::OpRewritePattern<IERT::HardSigmoidOp> {
+public:
+    HardSigmoidRewrite(mlir::MLIRContext* ctx, Logger log): mlir::OpRewritePattern<IERT::HardSigmoidOp>(ctx), _log(log) {
+    }
+
+public:
+    mlir::LogicalResult matchAndRewrite(IERT::HardSigmoidOp origOp, mlir::PatternRewriter& rewriter) const final;
+
+private:
+    Logger _log;
+};
+
+mlir::LogicalResult HardSigmoidRewrite::matchAndRewrite(IERT::HardSigmoidOp origOp, mlir::PatternRewriter& rewriter) const {
+    _log.trace("Found HardSigmoid Operation '{0}'", origOp->getLoc());
+
+    // Change values alpha and beta from scalars (0D tensor) to 1D tensor
+    auto alphaType = origOp.alpha().getType().cast<vpux::NDTypeInterface>();
+    const std::array<int64_t, 1> newAlphaShape = {1};
+    ShapeRef newShape_alpha(newAlphaShape);
+    auto newShapedAlphaType = alphaType.changeShape(newShape_alpha);
+    auto alpha1DTensor = rewriter.create<IERT::GenericReshapeOp>(origOp->getLoc(), newShapedAlphaType, origOp.alpha());
+
+    auto betaType = origOp.beta().getType().cast<vpux::NDTypeInterface>();
+    const std::array<int64_t, 1> newBetaShape = {1};
+    ShapeRef newShape_beta(newBetaShape);
+    auto newShapedBetaType = betaType.changeShape(newShape_beta);
+    auto beta1DTensor = rewriter.create<IERT::GenericReshapeOp>(origOp->getLoc(), newShapedBetaType, origOp.beta());
+
+    rewriter.replaceOpWithNewOp<VPUIP::HardSigmoidUPAOp>(origOp, origOp.input(), alpha1DTensor, beta1DTensor, origOp.output_buff());
+
+    return mlir::success();
+}
+
+//
 // Generated
 //
 
@@ -348,6 +385,7 @@ void ConvertLayers2VPUIPPass::safeRunOnFunc() {
     patterns.insert<RewriteConvolution>(&ctx, _log);
     patterns.insert<TimestampRewrite>(&ctx, _log);
     patterns.insert<TopKRewrite>(&ctx, _log);
+    patterns.insert<HardSigmoidRewrite>(&ctx, _log);
     populateWithGenerated(patterns);
 
     auto func = getFunction();

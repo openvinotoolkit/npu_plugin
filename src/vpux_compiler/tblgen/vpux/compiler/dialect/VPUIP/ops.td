@@ -934,19 +934,15 @@ def VPUIP_AcoshUPAOp :
 def VPUIP_HardSigmoidUPAOp :
         VPUIP_UPATaskOp<1, "HardSigmoidUPA",
             [
-                ViewLikeOpInterface,
-                IERT_SameShape,
-                IERT_SameElementType,
-                IERT_SameInOutDimsOrder_CHW_HWC_NCHW_NHWC,
-                VPUIP_Legacy4D
+                ViewLikeOpInterface
             ]
         > {
     let summary = "HardSigmoid UPA SHAVE kernel";
 
     let arguments = (ins
-        F16MemRef:$input1,
-        F16MemRef:$input2,
-        F16MemRef:$input3,
+        F16MemRef:$input,
+        MemRefOf<[F16, F32]>:$alpha,
+        MemRefOf<[F16, F32]>:$beta,
         F16MemRef:$output_buff
     );
 
@@ -960,7 +956,7 @@ def VPUIP_HardSigmoidUPAOp :
 
     let assemblyFormat = [{
         attr-dict
-        `inputs` `(` $input1 `:` type($input1) `,` $input2 `:` type($input2) `,` $input3 `:` type($input3) `)`
+        `inputs` `(` $input `:` type($input) `,` $alpha `:` type($alpha) `,` $beta `:` type($beta) `)`
         `outputs` `(` $output_buff `:` type($output_buff) `)`
         `->` type(results)
     }];

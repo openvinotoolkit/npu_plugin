@@ -1724,9 +1724,9 @@ def IE_HardSigmoidOp :
     let summary = "InferenceEngine HardSigmoid layer";
 
     let arguments = (ins
-        RankedTensorOf<[F16, F32]>:$input1,
-        RankedTensorOf<[F16, F32]>:$input2,
-        RankedTensorOf<[F16, F32]>:$input3
+        RankedTensorOf<[F16, F32]>:$input,
+        0DTensorOf<[AnyFloat]>:$alpha,
+        0DTensorOf<[AnyFloat]>:$beta
     );
 
     let results = (outs

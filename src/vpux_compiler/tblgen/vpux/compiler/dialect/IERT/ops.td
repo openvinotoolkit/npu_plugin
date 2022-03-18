@@ -1025,9 +1025,9 @@ def IERT_HardSigmoidOp :
     let summary = "InferenceEngine run-time HardSigmoid layer";
 
     let arguments = (ins
-        MemRefOf<[F16, F32]>:$input1,
-        MemRefOf<[F16, F32]>:$input2,
-        MemRefOf<[F16, F32]>:$input3,
+        MemRefOf<[F16, F32]>:$input,
+        MemRefOf<[F16, F32]>:$alpha,
+        MemRefOf<[F16, F32]>:$beta,
         MemRefOf<[F16, F32]>:$output_buff
     );
 
@@ -1038,9 +1038,9 @@ def IERT_HardSigmoidOp :
     let assemblyFormat = [{
         attr-dict
         `inputs` `(` 
-                    $input1 `:` type($input1) `,`
-                    $input2 `:` type($input2) `,`
-                    $input3 `:` type($input3)
+                    $input `:` type($input) `,`
+                    $alpha `:` type($alpha) `,`
+                    $beta `:` type($beta)
                 `)`
 
         `outputs` `(` $output_buff `:` type($output_buff) `)`
