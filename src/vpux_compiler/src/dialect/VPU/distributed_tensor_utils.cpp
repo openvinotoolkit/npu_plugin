@@ -20,18 +20,27 @@ using namespace VPU;
 // Distributed tensor utilities
 //
 
-SmallVector<int64_t> vpux::VPU::getActivationTensorNumTiles(mlir::Operation* op, int64_t numClusters,
-                                                            StringRef strategy) {
-    if (strategy == splitOverHeightOverlapped) {
-        return {1, 1, numClusters, 1};
-    } else if (strategy == splitOverHeight) {
-        return {1, 1, numClusters, 1};
-    } else if (strategy == splitOverKernel) {
-        if (auto origOp = mlir::dyn_cast<NCEConvolutionOp>(op)) {
-            return {1, 1, 1, 1};
+// This method computes the number of clusters to be used for an individual SOK
+// layer such that additional alignment of the per cluster output channels is not required.
+// Example: For 80 output channel / 4 clusters = [20, 20, 20, 20] output channels per cluster.
+// 20 is not aligned to 16. Therefore, the compiler should only execute this layer on 3 clusters.
+// This would result in [32, 32, 16] output channels per cluster.
+int64_t vpux::VPU::getNumberOfClustersForSOKToAvoidAlignment(int64_t outputChannels, int64_t numClustersToUseForLayer) {
+    for (int64_t clusters = numClustersToUseForLayer; clusters >= 1; clusters--) {
+        auto alignedOutputChannels = alignVal<int64_t>(divUp(outputChannels, clusters), KMB_DPU_CHANNELS_ALIGNMENT);
+        int64_t remainder = outputChannels - (clusters - 1) * alignedOutputChannels;
+        if (remainder > 0) {
+            return clusters;
         }
-        return {1, numClusters, 1, 1};
-    } else if (strategy == clustering) {
+    }
+    return 1;
+}
+
+SmallVector<int64_t> vpux::VPU::getActivationTensorNumTiles(int64_t numClustersAvailableForCompilation,
+                                                            StringRef strategy) {
+    if (strategy == splitOverHeightOverlapped || strategy == splitOverHeight) {
+        return {1, 1, numClustersAvailableForCompilation, 1};
+    } else if (strategy == splitOverKernel || strategy == clustering) {
         return {1, 1, 1, 1};
     } else {
         VPUX_THROW("{0} is an invalid multi-cluster strategy, unable to determine the number of tiles for the "
@@ -40,13 +49,40 @@ SmallVector<int64_t> vpux::VPU::getActivationTensorNumTiles(mlir::Operation* op,
     }
 }
 
-SmallVector<int64_t> vpux::VPU::getOutputTensorNumTiles(int64_t numClusters, StringRef strategy) {
-    if (strategy == splitOverHeightOverlapped) {
-        return {1, 1, numClusters, 1};
+Optional<SmallVector<int64_t>> vpux::VPU::getActivationTensorAlignment(mlir::Operation* op, StringRef strategy) {
+    if (strategy == splitOverKernel) {
+        return SmallVector<int64_t>{1, 16, 1, 1};
     } else if (strategy == splitOverHeight) {
-        return {1, 1, numClusters, 1};
+        if (auto origOp = mlir::dyn_cast<NCEConvolutionOp>(op)) {
+            const auto kernel = getKernelSize(op);
+            if (kernel == nullptr) {
+                return None;
+            }
+            const auto KY = parseIntArrayAttr<int64_t>(kernel)[Dims4D::Kernel::Y.ind()];
+            if (KY <= 1) {
+                return None;
+            }
+            const auto inputShape = getShape(origOp.input());
+            const auto heightAlignment = getSOHPerClusterHeightAlignment(inputShape[Dims4D::Act::W]);
+            if (heightAlignment <= 1) {
+                return None;
+            }
+            return SmallVector<int64_t>{1, 1, heightAlignment, 1};
+        }
+    }
+
+    return None;
+}
+
+SmallVector<int64_t> vpux::VPU::getOutputTensorNumTiles(mlir::Operation* op, int64_t numClustersAvailableForCompilation,
+                                                        StringRef strategy) {
+    if (strategy == splitOverHeightOverlapped || strategy == splitOverHeight) {
+        return {1, 1, numClustersAvailableForCompilation, 1};
     } else if (strategy == splitOverKernel) {
-        return {1, numClusters, 1, 1};
+        auto OC = getShape(op->getResult(0))[Dims4D::Act::C];
+        int64_t numClustersToUseForLayer =
+                getNumberOfClustersForSOKToAvoidAlignment(OC, numClustersAvailableForCompilation);
+        return {1, numClustersToUseForLayer, 1, 1};
     } else if (strategy == clustering) {
         return {1, 1, 1, 1};
     } else {
@@ -56,15 +92,24 @@ SmallVector<int64_t> vpux::VPU::getOutputTensorNumTiles(int64_t numClusters, Str
     }
 }
 
-SmallVector<int64_t> vpux::VPU::getWeightsTensorNumTiles(int64_t numClusters, StringRef strategy) {
-    if (strategy == splitOverHeightOverlapped) {
-        return {1, 1, 1, 1};
-    } else if (strategy == splitOverHeight) {
+Optional<SmallVector<int64_t>> vpux::VPU::getOutputTensorAlignment(StringRef strategy) {
+    if (strategy == splitOverKernel) {
+        return SmallVector<int64_t>{1, 16, 1, 1};
+    }
+
+    return None;
+}
+
+SmallVector<int64_t> vpux::VPU::getWeightsTensorNumTiles(mlir::Operation* op,
+                                                         int64_t numClustersAvailableForCompilation,
+                                                         StringRef strategy) {
+    if (strategy == splitOverHeightOverlapped || strategy == splitOverHeight || strategy == clustering) {
         return {1, 1, 1, 1};
     } else if (strategy == splitOverKernel) {
-        return {numClusters, 1, 1, 1};
-    } else if (strategy == clustering) {
-        return {1, 1, 1, 1};
+        auto OC = getShape(op->getResult(0))[Dims4D::Act::C];
+        int64_t numClustersToUseForLayer =
+                getNumberOfClustersForSOKToAvoidAlignment(OC, numClustersAvailableForCompilation);
+        return {numClustersToUseForLayer, 1, 1, 1};
     } else {
         VPUX_THROW("{0} is an invalid multi-cluster strategy, unable to determine the number of tiles for the "
                    "weights tensor",
@@ -72,15 +117,23 @@ SmallVector<int64_t> vpux::VPU::getWeightsTensorNumTiles(int64_t numClusters, St
     }
 }
 
-SmallVector<int64_t> vpux::VPU::getWeightsTableTensorNumTiles(int64_t numClusters, StringRef strategy) {
-    if (strategy == splitOverHeightOverlapped) {
-        return {1, 1, 1, 1};
-    } else if (strategy == splitOverHeight) {
+Optional<SmallVector<int64_t>> vpux::VPU::getWeightsTensorAlignment(StringRef strategy) {
+    if (strategy == splitOverKernel) {
+        return SmallVector<int64_t>{16, 1, 1, 1};
+    }
+    return None;
+}
+
+SmallVector<int64_t> vpux::VPU::getWeightsTableTensorNumTiles(mlir::Operation* op,
+                                                              int64_t numClustersAvailableForCompilation,
+                                                              StringRef strategy) {
+    if (strategy == splitOverHeightOverlapped || strategy == splitOverHeight || strategy == clustering) {
         return {1, 1, 1, 1};
     } else if (strategy == splitOverKernel) {
-        return {numClusters, 1, 1, 1};
-    } else if (strategy == clustering) {
-        return {1, 1, 1, 1};
+        auto OC = getShape(op->getResult(0))[Dims4D::Act::C];
+        int64_t numClustersToUseForLayer =
+                getNumberOfClustersForSOKToAvoidAlignment(OC, numClustersAvailableForCompilation);
+        return {numClustersToUseForLayer, 1, 1, 1};
     } else {
         VPUX_THROW("{0} is an invalid multi-cluster strategy, unable to determine the number of tiles for the "
                    "weights tensor",
@@ -88,21 +141,9 @@ SmallVector<int64_t> vpux::VPU::getWeightsTableTensorNumTiles(int64_t numCluster
     }
 }
 
-SmallVector<int64_t> vpux::VPU::getActivationWindowTensorNumTiles(int64_t numClusters, StringRef strategy,
-                                                                  ArchKind arch) {
-    if (strategy == splitOverHeightOverlapped) {
-        return {1, 1, 1, 1};
-    } else if (strategy == splitOverHeight) {
-        return {1, 1, 1, 1};
-    } else if (strategy == splitOverKernel) {
-        if (arch == ArchKind::MTL) {
-            return {numClusters, 1, 1, 1};
-        } else if (arch == ArchKind::KMB) {
-            return {1, 1, 1, 1};
-        } else {
-            VPUX_THROW("Unsupported arch {0}", arch);
-        }
-    } else if (strategy == clustering) {
+SmallVector<int64_t> vpux::VPU::getActivationWindowTensorNumTiles(StringRef strategy) {
+    if (strategy == splitOverHeightOverlapped || strategy == splitOverHeight || strategy == splitOverKernel ||
+        strategy == clustering) {
         return {1, 1, 1, 1};
     } else {
         VPUX_THROW("{0} is an invalid multi-cluster strategy, unable to determine the number of tiles for the "
@@ -116,9 +157,7 @@ DistributionMode vpux::VPU::getActivationTensorDistributionMode(StringRef strate
         return DistributionMode::OVERLAPPED;
     } else if (strategy == splitOverHeight) {
         return DistributionMode::SEGMENTED;
-    } else if (strategy == splitOverKernel) {
-        return DistributionMode::DUPLICATED;
-    } else if (strategy == clustering) {
+    } else if (strategy == splitOverKernel || strategy == clustering) {
         return DistributionMode::DUPLICATED;
     } else {
         VPUX_THROW("{0} is an invalid multi-cluster strategy, unable to determine the distribution mode for the "
@@ -128,14 +167,10 @@ DistributionMode vpux::VPU::getActivationTensorDistributionMode(StringRef strate
 }
 
 DistributionMode vpux::VPU::getWeightsTensorDistributionMode(StringRef strategy) {
-    if (strategy == splitOverHeightOverlapped) {
-        return DistributionMode::DUPLICATED;
-    } else if (strategy == splitOverHeight) {
+    if (strategy == splitOverHeightOverlapped || strategy == splitOverHeight || strategy == clustering) {
         return DistributionMode::DUPLICATED;
     } else if (strategy == splitOverKernel) {
         return DistributionMode::SEGMENTED;
-    } else if (strategy == clustering) {
-        return DistributionMode::DUPLICATED;
     } else {
         VPUX_THROW("{0} is an invalid multi-cluster strategy, unable to determine the distribution mode for the "
                    "weights tensor",
@@ -144,12 +179,10 @@ DistributionMode vpux::VPU::getWeightsTensorDistributionMode(StringRef strategy)
 }
 
 DistributionMode vpux::VPU::getOutputTensorDistributionMode(StringRef strategy) {
-    if (strategy == splitOverHeightOverlapped) {
-        return DistributionMode::SEGMENTED;
-    } else if (strategy == splitOverHeight) {
+    if (strategy == splitOverHeightOverlapped || strategy == splitOverHeight) {
         return DistributionMode::SEGMENTED;
     } else if (strategy == splitOverKernel) {
-        return DistributionMode::SEGMENTED | DistributionMode::DUPLICATED;
+        return DistributionMode::DUPLICATED | DistributionMode::SEGMENTED;
     } else if (strategy == clustering) {
         return DistributionMode::DUPLICATED;
     } else {
@@ -159,20 +192,9 @@ DistributionMode vpux::VPU::getOutputTensorDistributionMode(StringRef strategy) 
     }
 }
 
-DistributionMode vpux::VPU::getActivationWindowTensorDistributionMode(StringRef strategy, ArchKind arch) {
-    if (strategy == splitOverHeightOverlapped) {
-        return DistributionMode::DUPLICATED;
-    } else if (strategy == splitOverHeight) {
-        return DistributionMode::DUPLICATED;
-    } else if (strategy == splitOverKernel) {
-        if (arch == ArchKind::MTL) {
-            return DistributionMode::SEGMENTED;
-        } else if (arch == ArchKind::KMB) {
-            return DistributionMode::DUPLICATED;
-        } else {
-            VPUX_THROW("Unsupported arch {0}", arch);
-        }
-    } else if (strategy == clustering) {
+DistributionMode vpux::VPU::getActivationWindowTensorDistributionMode(StringRef strategy) {
+    if (strategy == splitOverHeightOverlapped || strategy == splitOverHeight || strategy == splitOverKernel ||
+        strategy == clustering) {
         return DistributionMode::DUPLICATED;
     } else {
         VPUX_THROW("{0} is an invalid multi-cluster strategy, unable to determine the distribution mode for the "
