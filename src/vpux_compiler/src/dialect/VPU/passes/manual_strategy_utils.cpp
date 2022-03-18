@@ -105,7 +105,7 @@ void ManualStrategyUtilsPass::safeRunOnFunc() {
             if (operations.find(opLoc) != operations.end()) {
                 // if duplicate locations, create unique
                 opLoc = appendLoc(opLoc, llvm::formatv("unique_{0}", operations.count(opLoc)).str());
-                op.getOperation()->setLoc(opLoc);
+                // op.getOperation()->setLoc(opLoc);
             }
         }
         operations.insert({opLoc, op.getOperation()});
