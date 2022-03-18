@@ -25,20 +25,6 @@
 
 using namespace vpux;
 
-mlir::LogicalResult vpux::VPUIP::verifyOp(AdaptivePoolUPAOp op) {
-    const auto inputShape = getShape(op.input());
-    const auto pooledSpatialShape = getShape(op.pooled_spatial_shape());
-
-    if (inputShape.size() != 3 && inputShape.size() != 4 && inputShape.size() != 5) {
-        return errorAt(op, "Input shape should have 3, 4 or 5 dimensions");
-    }
-    if (pooledSpatialShape.size() != 1) {
-        return errorAt(op, "Dimension of input2 should be 1. Got {0} D tensor", pooledSpatialShape.size());
-    }
-
-    return mlir::success();
-}
-
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::AdaptivePoolUPAOp::serialize(VPUIP::BlobWriter& writer) {
     MVCNN::AdaptiveAvgPoolParamsBuilder builder(writer);
 
@@ -48,8 +34,8 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::AdaptivePoolUPAOp::serialize(VPUIP:
 }
 
 mlir::Operation* vpux::VPUIP::BlobReader::parseAdaptiveAvgPool(mlir::OpBuilder& builder, ArrayRef<mlir::Value> inputs,
-                                                            ArrayRef<mlir::Value> outputs,
-                                                            const MVCNN::UPALayerTask*) {
+                                                               ArrayRef<mlir::Value> outputs,
+                                                               const MVCNN::UPALayerTask*) {
     VPUX_THROW_UNLESS(inputs.size() == 2, "UPAAdaptivePool supports only 2 inputs, got {0}", inputs.size());
     VPUX_THROW_UNLESS(outputs.size() == 1, "UPAAdaptivePool supports only 1 output, got {0}", outputs.size());
 

@@ -343,10 +343,6 @@ def VPUIP_AdaptivePoolUPAOp :
         MemRefOf<[F16, F32]>:$output
     );
 
-    let verifier = [{
-        return vpux::VPUIP::verifyOp(*this);
-    }];
-
     let assemblyFormat = [{
         attr-dict
         `inputs` `(` $input `:` type($input) `,` $pooled_spatial_shape `:` type($pooled_spatial_shape) `)`

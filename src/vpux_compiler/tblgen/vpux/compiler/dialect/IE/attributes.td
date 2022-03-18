@@ -109,7 +109,6 @@ def IE_ROIPoolingMethod :
     let genSpecializedAttr = 1;
 }
 
-
 //
 // ROIAlignMethod
 //

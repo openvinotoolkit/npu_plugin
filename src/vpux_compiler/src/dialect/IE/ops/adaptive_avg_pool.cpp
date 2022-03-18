@@ -37,6 +37,10 @@ mlir::LogicalResult vpux::IE::AdaptiveAvgPoolOp::inferReturnTypeComponents(
     const auto inputShape = inputType.getShape();
     auto pooledSpatialShape = IE::constInputToData(loc, adaptiveAvgPool.pooled_spatial_shape()).getValue();
 
+    if (inputShape.size() != 3 && inputShape.size() != 4 && inputShape.size() != 5) {
+        return errorAt(loc, "Input shape should have 3, 4 or 5 dimensions");
+    }
+
     SmallVector<int64_t> outputShape;
     outputShape.push_back(inputShape[0]);
     outputShape.push_back(inputShape[1]);
