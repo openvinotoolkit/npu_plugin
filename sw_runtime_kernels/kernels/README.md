@@ -88,7 +88,7 @@ Variables intended to be used/set in description files:
   The list must be in the cmake form (`"src1;src2;etc"`), it is parsed automatically.
 - `link_script_file`
   a string which specifies custom link 'ldscript' file. Optional; default is `"${CMAKE_SOURCE_DIR}/prebuild/shave_kernel.ld"` .
-  For existing kernels only ManagementKernel (nnActEntry) uses different ldscript; for the rest of kernels defauls should be enough.
+  For existing kernels only ManagementKernel (nnActEntry) uses different ldscript; for the rest of kernels default ldscript should be enough.
 - `kernel_descrip_path`
   a string which specifies an absolute path to description file directory; can be used to include another (e.g. 'common') description file.
   Prepared by cmake script automatically; description file can use it.
