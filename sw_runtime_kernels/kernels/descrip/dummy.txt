@@ -12,3 +12,5 @@
 #
 
 set(kernel_src "dummy.cpp")
+
+set(always_inline "yes")

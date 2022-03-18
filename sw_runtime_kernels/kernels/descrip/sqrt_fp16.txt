@@ -14,3 +14,5 @@
 set(kernel_src "sqrt_fp16.cpp")
 
 set(kernel_cpunum "3010") # 3720 # compiled under 3010 temporarily due to old movi tools (21.12.1-internal) is used on CI
+
+set(always_inline "yes")

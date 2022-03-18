@@ -14,3 +14,5 @@
 set(kernel_src "elu_fp16.cpp")
 
 set(kernel_cpunum "3720")
+
+set(always_inline "yes")

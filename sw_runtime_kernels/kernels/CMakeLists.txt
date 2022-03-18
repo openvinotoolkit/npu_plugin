@@ -91,7 +91,7 @@ set(define_symbols_list_default
   "CONFIG_TARGET_SOC_3720"
 )
 
-set(always_inline_default "yes")
+set(always_inline_default "no")
 
 set(mv_tools_compile "${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}/linux64/bin/moviCompile")
 set(mv_tools_link "${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}/linux64/sparc-myriad-rtems-6.3.0/bin/sparc-myriad-rtems-ld")

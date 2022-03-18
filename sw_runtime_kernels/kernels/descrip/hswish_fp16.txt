@@ -13,7 +13,7 @@
 
 set(kernel_src "hswish_fp16.cpp")
 
-set(always_inline "yes") # "no"
+set(always_inline "yes")
 
 if(NOT always_inline STREQUAL "yes")
   set(extra_src_list "${CMAKE_SOURCE_DIR}/common/src/mvSubspaces.cpp")
