@@ -41,7 +41,7 @@ constexpr StringLiteral clustering = "Clustering";
 
 int64_t getNumberOfClustersToAvoidAlignment(int64_t outputChannels, int64_t numClustersForCompilation);
 SmallVector<int64_t> getActivationTensorNumTiles(int64_t numClustersAvailableForCompilation, StringRef strategy);
-Optional<SmallVector<int64_t>> getActivationTensorAlignment(mlir::Operation* op, mlir::Value input, StringRef strategy);
+Optional<SmallVector<int64_t>> getActivationTensorAlignment(mlir::Operation* op, StringRef strategy);
 SmallVector<int64_t> getOutputTensorNumTiles(mlir::Operation* op, int64_t numClustersAvailableForCompilation,
                                              StringRef strategy);
 SmallVector<int64_t> getWeightsTensorNumTiles(mlir::Operation* op, int64_t numClustersAvailableForCompilation,

@@ -82,7 +82,7 @@ mlir::LogicalResult NCEConvolutionRewriter::matchAndRewrite(NCEConvolutionOp ori
             VPU::NCEInvariant::isChannelMajorCompatible(arch, origOp.input().getType().cast<vpux::NDTypeInterface>());
 
     if (!canUseCMajor) {
-        const auto activationAlignment = getActivationTensorAlignment(origOp.getOperation(), origOp.input(), strategy);
+        const auto activationAlignment = getActivationTensorAlignment(origOp.getOperation(), strategy);
         if (activationAlignment.hasValue()) {
             activationAlignmentAttr = getIntArrayAttr(origOp.getContext(), activationAlignment.getValue());
         }
@@ -198,11 +198,9 @@ mlir::LogicalResult NCEDepthConvolutionRewriter::matchAndRewrite(NCEDepthConvolu
     const auto outputTensorNumTiles = getIntArrayAttr(
             origOp.getContext(), getOutputTensorNumTiles(origOp.getOperation(), _numClusters, strategy));
 
-    if (strategy == splitOverKernel) {
-        const auto activationAlignment = getActivationTensorAlignment(origOp.getOperation(), origOp.input(), strategy);
-        if (activationAlignment.hasValue()) {
-            activationAlignmentAttr = getIntArrayAttr(origOp.getContext(), activationAlignment.getValue());
-        }
+    const auto activationAlignment = getActivationTensorAlignment(origOp.getOperation(), strategy);
+    if (activationAlignment.hasValue()) {
+        activationAlignmentAttr = getIntArrayAttr(origOp.getContext(), activationAlignment.getValue());
     }
 
     const auto weightAlignment = getWeightsTensorAlignment(strategy);
@@ -300,11 +298,9 @@ mlir::LogicalResult NCEMaxPoolRewriter::matchAndRewrite(NCEMaxPoolOp origOp, mli
     const auto outputTensorNumTiles = getIntArrayAttr(
             origOp.getContext(), getOutputTensorNumTiles(origOp.getOperation(), _numClusters, strategy));
 
-    if (strategy == splitOverKernel) {
-        const auto activationAlignment = getActivationTensorAlignment(origOp.getOperation(), origOp.input(), strategy);
-        if (activationAlignment.hasValue()) {
-            activationAlignmentAttr = getIntArrayAttr(origOp.getContext(), activationAlignment.getValue());
-        }
+    const auto activationAlignment = getActivationTensorAlignment(origOp.getOperation(), strategy);
+    if (activationAlignment.hasValue()) {
+        activationAlignmentAttr = getIntArrayAttr(origOp.getContext(), activationAlignment.getValue());
     }
 
     const auto weightAlignment = getWeightsTensorAlignment(strategy);

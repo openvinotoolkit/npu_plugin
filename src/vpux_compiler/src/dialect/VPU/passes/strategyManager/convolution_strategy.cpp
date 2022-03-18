@@ -35,7 +35,7 @@ bool ConvolutionStrategy::doesLayerFitIntoCMX(mlir::Operation* op, StringRef str
             VPU::NCEInvariant::isChannelMajorCompatible(arch, origOp.input().getType().cast<vpux::NDTypeInterface>());
 
     if (!canUseCMajor) {
-        const auto activationAlignment = getActivationTensorAlignment(op, origOp.input(), strategy);
+        const auto activationAlignment = getActivationTensorAlignment(op, strategy);
         if (activationAlignment.hasValue()) {
             activationAlignmentAttr = getIntArrayAttr(origOp.getContext(), activationAlignment.getValue());
         }
