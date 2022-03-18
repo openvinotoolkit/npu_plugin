@@ -31,6 +31,13 @@ bool DepthConvolutionStrategy::doesLayerFitIntoCMX(mlir::Operation* op, StringRe
     const auto outputTensorNumTiles =
             getIntArrayAttr(origOp.getContext(), getOutputTensorNumTiles(op, _numClusters, strategy));
 
+    if (strategy == splitOverKernel) {
+        const auto activationAlignment = getActivationTensorAlignment(op, origOp.input(), strategy);
+        if (activationAlignment.hasValue()) {
+            activationAlignmentAttr = getIntArrayAttr(origOp.getContext(), activationAlignment.getValue());
+        }
+    }
+
     const auto weightAlignment = getWeightsTensorAlignment(strategy);
 
     if (weightAlignment.hasValue()) {

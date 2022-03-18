@@ -198,6 +198,13 @@ mlir::LogicalResult NCEDepthConvolutionRewriter::matchAndRewrite(NCEDepthConvolu
     const auto outputTensorNumTiles = getIntArrayAttr(
             origOp.getContext(), getOutputTensorNumTiles(origOp.getOperation(), _numClusters, strategy));
 
+    if (strategy == splitOverKernel) {
+        const auto activationAlignment = getActivationTensorAlignment(origOp.getOperation(), origOp.input(), strategy);
+        if (activationAlignment.hasValue()) {
+            activationAlignmentAttr = getIntArrayAttr(origOp.getContext(), activationAlignment.getValue());
+        }
+    }
+
     const auto weightAlignment = getWeightsTensorAlignment(strategy);
 
     if (weightAlignment.hasValue()) {
@@ -292,6 +299,13 @@ mlir::LogicalResult NCEMaxPoolRewriter::matchAndRewrite(NCEMaxPoolOp origOp, mli
     const auto outputTensorDistributionMode = getOutputTensorDistributionMode(strategy);
     const auto outputTensorNumTiles = getIntArrayAttr(
             origOp.getContext(), getOutputTensorNumTiles(origOp.getOperation(), _numClusters, strategy));
+
+    if (strategy == splitOverKernel) {
+        const auto activationAlignment = getActivationTensorAlignment(origOp.getOperation(), origOp.input(), strategy);
+        if (activationAlignment.hasValue()) {
+            activationAlignmentAttr = getIntArrayAttr(origOp.getContext(), activationAlignment.getValue());
+        }
+    }
 
     const auto weightAlignment = getWeightsTensorAlignment(strategy);
 

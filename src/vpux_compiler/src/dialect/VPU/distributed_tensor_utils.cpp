@@ -57,19 +57,20 @@ SmallVector<int64_t> vpux::VPU::getActivationTensorNumTiles(int64_t numClustersA
 
 Optional<SmallVector<int64_t>> vpux::VPU::getActivationTensorAlignment(mlir::Operation* op, mlir::Value input,
                                                                        StringRef strategy) {
-    if (strategy != splitOverHeight)
-        return None;
-
-    auto inputShape = getShape(input);
-    auto kernel = getKernelSize(op);
-    auto alignment = SmallVector<int64_t>(inputShape.size(), 1);
-    if (kernel) {
-        const auto kernelArray = parseIntArrayAttr<int64_t>(kernel);
-        const auto KY = kernelArray[0];
-        if (KY > 1) {
-            alignment[Dims4D::Act::H.ind()] = getSOHPerClusterHeightAlignment(inputShape[Dims4D::Act::W]);
-            if (alignment[Dims4D::Act::H.ind()] > 1) {
-                return alignment;
+    if (strategy == splitOverKernel) {
+        return SmallVector<int64_t>{1, 16, 1, 1};
+    } else if (strategy == splitOverHeight) {
+        auto inputShape = getShape(input);
+        auto kernel = getKernelSize(op);
+        auto alignment = SmallVector<int64_t>(inputShape.size(), 1);
+        if (kernel) {
+            const auto kernelArray = parseIntArrayAttr<int64_t>(kernel);
+            const auto KY = kernelArray[0];
+            if (KY > 1) {
+                alignment[Dims4D::Act::H.ind()] = getSOHPerClusterHeightAlignment(inputShape[Dims4D::Act::W]);
+                if (alignment[Dims4D::Act::H.ind()] > 1) {
+                    return alignment;
+                }
             }
         }
     }
