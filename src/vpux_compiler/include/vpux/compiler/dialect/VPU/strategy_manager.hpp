@@ -108,16 +108,23 @@ public:
 class SubgraphOptimizer final {
 public:
     SubgraphOptimizer(mlir::FuncOp func, Logger log);
-    
-    void verifySpillStrategies(bool lockClusteringStrategy)
-
-    bool addSpillsAtStrategyTransition()
-
     void rollbackOrSpill();
 
 private:
-    bool isSpillingFromStrategy(mlir::Operator* op);
     bool isKCompatible(mlir::Operator* op);
+    bool canBeSOK(mlir::Operation* op);
+    bool canBeHKSwitch(mlir::Operation* op);
+    bool getStrategy(mlir::Operation* op);
+    bool hasSpillingInSOHShift(mlir::Operation* op);
+    bool isSpillingFromStrategy(mlir::Operator* op);
+    double bestCostOfKCompatible(mlir::Operator* op, bool allowHK);
+    double bestCostOfHCompatible(mlir::Operator* op);
+    bool isKCompatibleCostLower(mlir::Operator* op);
+    bool areChildrenKCompatible(mlir::Operator* op, bool allowHK);
+    bool setKCompatible(mlir::Operator* op, bool allowHK);
+    void singleRollback(mlir::operator* op);
+    void rollbackOnSubgraph(mlir::operator* op);
+
     mlir::FuncOp _func;
     Logger _log;
     double COST_MAX = numeric_limits<double>::infinity();

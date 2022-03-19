@@ -21,13 +21,15 @@ SubgraphOptimizer::SubgraphOptimizer(mlir::FuncOp func, Logger log):
     _func(func), _log(log){
 }
 
-void SubgraphOptimizer::verifySpillStrategies(bool lockClusteringStrategy=false){
+//@tbd I think we don't need that as we have dynamic spilling judgement,
+// don't need to mark spilling and resolve mismatching
+// void SubgraphOptimizer::verifySpillStrategies(bool lockClusteringStrategy=false){
 
-}
+// }
 
-bool SubgraphOptimizer::addSpillsAtStrategyTransition(){
+// bool SubgraphOptimizer::addSpillsAtStrategyTransition(){
 
-}
+// }
 
 // Op is Kcompatible means the following op can be SOK
 bool SubgraphOptimizer::isKCompatible(mlir::Operation* op, bool allowHK=true){
@@ -89,21 +91,6 @@ StringLiteral SubgraphOptimizer::getStrategy(mlir::Operation* op){
     return op->getAttr(multiClusterStrategy).cast<mlir::StringAttr>().getValue();
 }
 
-// Judge spilling if it's from SOH->SOK or SOH->Clustering
-bool SubgraphOptimizer::hasSpillingInSOHShift(mlir::Operation* op){
-    auto SOHStrategy = getStrategy(op);
-    if (SOHStrategy != splitOverHeight || SOHStrategy != splitOverHeightOverlapped){
-        VPUX_THROW("Unsupported strategy");
-    }
-    for (auto child : op->getResult(0).getUsers()){
-        if (!child->getAttr(multiClusterStrategy)) continue;
-        if (isKCompatible(child, false)){
-            return true;
-        }
-    }
-    return false;
-}
-
 // Check and calculate spilling cost caused by strategies
 // Will be moved to cost model
 double subgraphOptimizer::spillingCost(mlir::Operation* op){
@@ -119,6 +106,33 @@ double subgraphOptimizer::spillingCost(mlir::Operation* op){
         }
     }
     return spillingCost;
+}
+
+// Judge spilling if it's from SOH->SOK or SOH->Clustering
+bool SubgraphOptimizer::hasSpillingInSOHShift(mlir::Operation* op){
+    auto SOHStrategy = getStrategy(op);
+    if (SOHStrategy != splitOverHeight || SOHStrategy != splitOverHeightOverlapped){
+        VPUX_THROW("Unsupported strategy");
+    }
+    for (auto child : op->getResult(0).getUsers()){
+        if (!child->getAttr(multiClusterStrategy)) continue;
+        if (isKCompatible(child, false)){
+            return true;
+        }
+    }
+    return false;
+}
+
+bool isSpillingFromStrategies(mlir::Operaion* op){
+    auto strategy = getStrategy(op);
+    for (auto child : op->getResult(0).getUsers()){
+        if (!child->getAttr(multiClusterStrategy)) continue;
+        auto childStrategy= getStrategy(child);
+        if (incompatibleStrategies.find({strategy, childStrategy})){
+            return true;
+        }
+    }
+    return false;
 }
 
 double SubgraphOptimizer::bestCostOfKCompatible(mlir::Operation* op, bool allowHK){
@@ -140,15 +154,15 @@ double SubgraphOptimizer::bestCostOfHCompatible(mlir::Operation* op){
 // better suited to SOH or SOK
 // @warning Currently we may not need this in vpux, as we didn't consider spilling 
 // in our simple cost model
-bool SubgraphOptimizer::hasGreedyKCompatible(mlir::Operation* op){
+bool SubgraphOptimizer::isKCompatibleCostLower(mlir::Operation* op){
     auto hCost = bestCostOfHCompatible(op);
     auto kCost = bestCostOfKCompatible(op, true);
     return kCost < hCost ? true : false;
 }
 
-bool SubgraphOptimizer::areChildrenKCompatible(mlir::Operation* op){
+bool SubgraphOptimizer::areChildrenKCompatible(mlir::Operation* op, bool allowHK){
     for (auto child : op->getResult(0).getUsers()){
-        if (child->getAttr(multiClusterStrategy) && !isKCompatible(child)){
+        if (child->getAttr(multiClusterStrategy) && !isKCompatible(child, allowHK)){
             return false;
         }
     }
@@ -284,13 +298,15 @@ void SubgraphOptimizer::rollbackOrSpill(){
     const auto callback = [](mlir::Operation* op){
         if(!op->getAttr(multiClusterStrategy)) continue;
 
-        if(isSpillingFromStrategy(op) && hasGreedyKCompatible(op) && areChildrenKCompatible(op)){
-            singleRollback(op);
-        }else{
-            rollbackOnSubgraph(op);
-        }
+        // @tbd It seem our rollbackOnSubgraph() can handle this case
+        // This case for soh -> k, replacing soh with sok is good idea if below conditions satisifed 
+        // @todo For case {soh -> sok -> soh}
+        // if(isSpillingFromStrategy(op) && isKCompatibleCostLower(op) && areChildrenKCompatible(op, false)){
+        //     singleRollback(op);
+        // }
 
-    }
+        rollbackOnSubgraph(op);
+    };
 
     _func.walk(callback);
 }
