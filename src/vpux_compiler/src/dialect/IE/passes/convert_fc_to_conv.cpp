@@ -68,6 +68,31 @@ mlir::LogicalResult ConvertFCToConvPass::FullyConnectedOpConverter::matchAndRewr
     const std::array<int64_t, 4> newInShape = {inputShape[0], inputShape[1], 1, 1};
     const auto inputShapeAttr = getIntArrayAttr(getContext(), newInShape);
     auto newInput = rewriter.create<IE::ReshapeOp>(origOp->getLoc(), origOp.input(), nullptr, false, inputShapeAttr);
+    auto actInput = newInput.getOperation();
+
+    // Hack ModelF:
+    // if softmax->FQ->Reshapes->conv
+    // convert to: soft->Reshapes->FQ->conv
+    // lastReshape = newInput
+    auto actFQ = newInput.input().getDefiningOp();
+    while (mlir::isa<IE::ReshapeOp>(actFQ) || mlir::isa<IE::AffineReshapeOp>(actFQ)) {
+        actFQ = actFQ->getOperand(0).getDefiningOp();
+    }
+    if (auto fq = mlir::dyn_cast<IE::FakeQuantizeOp>(actFQ)) {
+        auto softmax = mlir::dyn_cast<IE::SoftMaxOp>(fq.input().getDefiningOp());
+        if (softmax == nullptr) {
+            // Mismatch pattern
+            return mlir::success();
+        }
+
+        auto newFQ = rewriter.create<IE::FakeQuantizeOp>(fq->getLoc(), newInput, fq.input_low(), fq.input_high(),
+                                                         fq.output_low(), fq.output_high(), fq.levels(),
+                                                         fq.auto_broadcast());
+
+        actInput = newFQ.getOperation();
+        fq->replaceAllUsesWith(softmax);
+        fq->erase();
+    }
 
     const auto weightsShape = origOp.weights().getType().cast<vpux::NDTypeInterface>().getShape().raw();
     const std::array<int64_t, 4> newWeightsShape = {weightsShape[0], weightsShape[1], 1, 1};
@@ -87,13 +112,17 @@ mlir::LogicalResult ConvertFCToConvPass::FullyConnectedOpConverter::matchAndRewr
     auto newPadsBegin = getIntArrayAttr(getContext(), ngraph::CoordinateDiff{0, 0});
     auto newPadsEnd = getIntArrayAttr(getContext(), ngraph::CoordinateDiff{0, 0});
     auto newDilations = getIntArrayAttr(getContext(), ngraph::Strides{1, 1});
-    auto convOp = rewriter.create<IE::ConvolutionOp>(origOp->getLoc(), newInput, newFilter, newBias, newStrides,
+    auto convOp = rewriter.create<IE::ConvolutionOp>(origOp->getLoc(), actInput->getResult(0), newFilter, newBias, newStrides,
                                                      newPadsBegin, newPadsEnd, newDilations, nullptr);
 
     const auto convShape = convOp.output().getType().cast<vpux::NDTypeInterface>().getShape().raw();
     const std::array<int64_t, 2> outputShape = {convShape[0], convShape[1]};
     const auto outputShapeAttr = getIntArrayAttr(getContext(), outputShape);
-    rewriter.replaceOpWithNewOp<IE::ReshapeOp>(origOp, convOp.output(), nullptr, false, outputShapeAttr);
+    //    rewriter.replaceOpWithNewOp<IE::ReshapeOp>(origOp, convOp.output(), nullptr, false, outputShapeAttr);
+    auto outputReshape =
+            rewriter.create<IE::ReshapeOp>(origOp->getLoc(), convOp.output(), nullptr, false, outputShapeAttr);
+    origOp->replaceAllUsesWith(outputReshape);
+    origOp->erase();
 
     return mlir::success();
 }
@@ -105,16 +134,16 @@ mlir::LogicalResult ConvertFCToConvPass::FullyConnectedOpConverter::matchAndRewr
 void ConvertFCToConvPass::safeRunOnFunc() {
     auto& ctx = getContext();
 
-    mlir::ConversionTarget target(ctx);
-    target.addIllegalOp<IE::FullyConnectedOp>();
-    target.addLegalOp<IE::ConvolutionOp>();
-    target.addLegalOp<IE::ReshapeOp>();
+    //    mlir::ConversionTarget target(ctx);
+    //    target.addIllegalOp<IE::FullyConnectedOp>();
+    //    target.addLegalOp<IE::ConvolutionOp>();
+    //    target.addLegalOp<IE::ReshapeOp>();
 
     mlir::RewritePatternSet patterns(&ctx);
     patterns.insert<FullyConnectedOpConverter>(&ctx, _log);
 
     auto func = getFunction();
-    if (mlir::failed(mlir::applyPartialConversion(func, target, std::move(patterns)))) {
+    if (mlir::failed(mlir::applyPatternsAndFoldGreedily(func, std::move(patterns), getDefaultGreedyRewriteConfig()))) {
         signalPassFailure();
     }
 }
