@@ -751,6 +751,28 @@ def RemoveQuantDequantSeq : PassBase<"remove-quantdequant-seq", "vpux::FunctionP
     ];
 }
 
+//
+// OpimizeUnalignedQDQSeq
+//
+
+def OpimizeUnalignedQDQSeq : PassBase<"optimize-unaligned-qdq-seq", "vpux::FunctionPass"> {
+    let summary = "Optimizes out Expand->MemPermute->Quant->Dequant->Slice->MemPerm ops sequence";
+
+    let description = [{
+        Pass removes sequence Expand->MemPerm->Quant->Dequant->Slice->MemPerm reisiding between
+        Conv->MemPerm->AffineReshape and AffineReshape->PermuteCast->Conv. Quant->Dequant operations
+        are inserted after the first Conv.
+    }];
+
+    let constructor = "vpux::IE::createOpimizeUnalignedQDQSeqPass()";
+
+    let dependentDialects = [
+        "vpux::IE::IEDialect",
+        "mlir::quant::QuantizationDialect"
+    ];
+}
+
+
 
 //
 // ConvertWeightsToU8
