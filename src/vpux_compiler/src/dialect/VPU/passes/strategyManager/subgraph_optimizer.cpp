@@ -31,7 +31,7 @@ bool SubgraphOptimizer::addSpillsAtStrategyTransition(){
 
 // Op is Kcompatible means the following op can be SOK
 bool SubgraphOptimizer::isKCompatible(mlir::Operation* op, bool allowHK=true){
-    const auto strategy = op->getAttr(multiClusterStrategy).cast<mlir::StringAttr>().getValue();
+    const auto strategy = getStrategy(op);
     if (strategy == splitOverKernel || strategy == clustering || (allowHK && strategy == HKSwitch)){
         return true;
     }
@@ -83,9 +83,15 @@ void SubgraphOptimizer::skipSOH(mlir::Operation* op, bool allowHK){
     }
 }
 
+StringLiteral SubgraphOptimizer::getStrategy(mlir::Operation* op){
+    if (!child->getAttr(multiClusterStrategy))
+        VPUX_THROW("Current operation has no strategy!");
+    return op->getAttr(multiClusterStrategy).cast<mlir::StringAttr>().getValue();
+}
+
 // Judge spilling if it's from SOH->SOK or SOH->Clustering
 bool SubgraphOptimizer::hasSpillingInSOHShift(mlir::Operation* op){
-    auto SOHStrategy = op->getAttr(multiClusterStrategy).cast<mlir::StringAttr>().getValue();
+    auto SOHStrategy = getStrategy(op);
     if (SOHStrategy != splitOverHeight || SOHStrategy != splitOverHeightOverlapped){
         VPUX_THROW("Unsupported strategy");
     }
@@ -96,6 +102,23 @@ bool SubgraphOptimizer::hasSpillingInSOHShift(mlir::Operation* op){
         }
     }
     return false;
+}
+
+// Check and calculate spilling cost caused by strategies
+// Will be moved to cost model
+double subgraphOptimizer::spillingCost(mlir::Operation* op){
+    double spillingCost = 0.0;
+    auto strategy = getStrategy(op);
+    for (auto child : op->getResult(0).getUsers()){
+        if (!child->getAttr(multiClusterStrategy)) continue;
+        auto childStrategy= getStrategy(child);
+        if (incompatibleStrategies.find({strategy, childStrategy})){
+            // @note: different strategy shift , the cost may be different
+            // @todo: implemented in simple cost model
+            spillingCost += 1.0;
+        }
+    }
+    return spillingCost;
 }
 
 double SubgraphOptimizer::bestCostOfKCompatible(mlir::Operation* op, bool allowHK){
@@ -199,6 +222,7 @@ void SubgraphOptimizer::rollbackOnSubgraph(mlir::Operation* op){
 
         // Had better record the cost for each layer and read it
         currentCost+= greedyCostOfLayer(opIt, opIt->getAttr(multiClusterStrategy).cast<mlir::StringAttr>().getValue());
+        currentCost+= spillingCost(op);
         processedOps.insert(opIt->getName());
 
         // Add children if they are still in SOH compatible

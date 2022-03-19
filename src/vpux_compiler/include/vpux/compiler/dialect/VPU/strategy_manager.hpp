@@ -125,6 +125,20 @@ private:
     std::unordered_map<std::string, std::pair<bool, bool>> _spillingInfo;
     // format: {opname: {strategy, doesSkip}}
     std::unordered_map<std::string, std::unordered_map<StringLiteral, bool>> _strategySkip;
+    // incompatible strategies need spilling to connect
+    std::vector<std::pair<std::string, std::string>> incompatibleStrategies =
+    {
+        {"SplitOverHOverlapped", "Clustering"},
+        {"SplitOverHOverlapped", "SplitOverK"},
+        {"SplitOverH", "Clustering"},
+        {"SplitOverH", "SplitOverK"},
+        {"SplitOverK", "SplitOverH"},
+        {"SplitOverK", "HKSwitch"},
+        {"Clustering", "SplitOverH"},
+        {"Clustering", "HKSwitch"},
+        {"HKSwitch", "SplitOverH"},
+        {"HKSwitch", "HKSwitch"}
+    };
 };
 
 //
