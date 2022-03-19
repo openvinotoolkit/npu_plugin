@@ -384,6 +384,7 @@ void FeasibleMemoryScheduler::getReadyComputeList() {
 }
 
 SmallVector<mlir::Value> FeasibleMemoryScheduler::sortUsedBuffers(mlir::DenseSet<mlir::Value>& operationBuffers) {
+    // retrieve size of buffers
     SmallVector<std::pair<vpux::AddressType, mlir::Value>> buffersWithSize;
     for (auto& val : operationBuffers) {
         auto opSize = _scan.handler().getSize(val);
@@ -806,8 +807,9 @@ size_t FeasibleMemoryScheduler::evictionPriority(mlir::Value buffer) {
     }
 
     for (auto bufferUser : buffer.getUsers()) {
-        if (bufferUser->hasAttr("CMXConcat")) {
+        if (mlir::isa<IERT::ConcatViewOp>(bufferUser)) {
             cmxConcatable = true;
+            break;
         }
     }
 
