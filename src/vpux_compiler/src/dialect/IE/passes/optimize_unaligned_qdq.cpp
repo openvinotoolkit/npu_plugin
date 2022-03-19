@@ -22,6 +22,41 @@ using namespace vpux;
 
 namespace {
 
+//
+// ConvertAffineReshapeRewriter
+//
+
+class ConvertAffineReshapeRewriter final : public mlir::OpRewritePattern<IE::FakeQuantizeOp> {
+public:
+    ConvertAffineReshapeRewriter(mlir::MLIRContext* ctx, Logger log)
+            : mlir::OpRewritePattern<IE::FakeQuantizeOp>(ctx), _log(log) {
+        setDebugName("ConvertAffineReshapeRewriter");
+    }
+
+public:
+    mlir::LogicalResult matchAndRewrite(IE::FakeQuantizeOp origOp, mlir::PatternRewriter& rewriter) const final;
+
+private:
+    Logger _log;
+};
+
+mlir::LogicalResult ConvertAffineReshapeRewriter::matchAndRewrite(IE::FakeQuantizeOp oldFakeQuantize,
+                                                                  mlir::PatternRewriter& rewriter) const {
+    auto oldAffineReshape = oldFakeQuantize.input().getDefiningOp<IE::AffineReshapeOp>();
+    if (oldAffineReshape == nullptr) {
+        return matchFailed(_log.nest(), rewriter, oldAffineReshape, "No following FakeQuantize");
+    }
+    auto newFakeQuantize = rewriter.create<IE::FakeQuantizeOp>(
+            oldFakeQuantize->getLoc(), oldAffineReshape.input(), oldFakeQuantize.input_low(),
+            oldFakeQuantize.input_high(), oldFakeQuantize.output_low(), oldFakeQuantize.output_high(),
+            oldFakeQuantize.levelsAttr(), oldFakeQuantize.auto_broadcastAttr());
+
+    rewriter.replaceOpWithNewOp<IE::AffineReshapeOp>(oldFakeQuantize, newFakeQuantize.output(),
+                                                     oldAffineReshape.dim_mappingAttr(),
+                                                     oldAffineReshape.shape_valueAttr());
+    return mlir::success();
+}
+
 class OptimizeUnalignedQDQSeqPass final : public IE::OptimizeUnalignedQDQSeqBase<OptimizeUnalignedQDQSeqPass> {
 public:
     explicit OptimizeUnalignedQDQSeqPass(Logger log) {
@@ -79,42 +114,43 @@ private:
 };
 
 void OptimizeUnalignedQDQSeqPass::safeRunOnFunc() {
+    auto& ctx = getContext();
     auto func = getFunction();
+    mlir::ConversionTarget target(ctx);
 
-    func.walk([this](vpux::IE::AffineReshapeOp affineReshape) {
-        if (!affineReshape->hasOneUse()) {
-            return;
-        }
-        auto fakeQuantize = mlir::dyn_cast<vpux::IE::FakeQuantizeOp>(*affineReshape->getUsers().begin());
-        if (fakeQuantize == nullptr) {
-            return;
-        }
+    target.addDynamicallyLegalOp<IE::FakeQuantizeOp>([&](IE::FakeQuantizeOp fakeQuantize) {
         if (!fakeQuantize->hasOneUse()) {
-            return;
+            return true;
         }
         const auto axis = IE::getQuantAxisIndex(fakeQuantize);
         if (axis.hasValue()) {
-            return;
+            return true;
+        }
+        auto affineReshape = fakeQuantize.input().getDefiningOp<IE::AffineReshapeOp>();
+        if (affineReshape == nullptr) {
+            return true;
+        }
+        if (!affineReshape->hasOneUse()) {
+            return true;
         }
         const auto outType = affineReshape.getType().dyn_cast<vpux::NDTypeInterface>();
         if (outType.getRank() != 4) {
-            return;
+            return true;
         }
         if ((outType.getShape()[Dims4D::Act::C] % 16) == 0) {
-            return;
+            return true;
         }
         if (!isDPU(affineReshape.input().getDefiningOp())) {
-            return;
+            return true;
         }
-
-        mlir::OpBuilder fakeOpBuilder(affineReshape);
-        auto newFakeQuantize = fakeOpBuilder.create<IE::FakeQuantizeOp>(
-                fakeQuantize->getLoc(), affineReshape.input(), fakeQuantize.input_low(), fakeQuantize.input_high(),
-                fakeQuantize.output_low(), fakeQuantize.output_high(), fakeQuantize.levelsAttr(),
-                fakeQuantize.auto_broadcastAttr());
-        affineReshape.setOperand(newFakeQuantize);
-        fakeQuantize.replaceAllUsesWith(affineReshape.output());
+        return false;
     });
+    target.addLegalOp<IE::AffineReshapeOp>();
+    mlir::RewritePatternSet patterns(&ctx);
+    patterns.insert<ConvertAffineReshapeRewriter>(&ctx, _log);
+    if (mlir::failed(mlir::applyPartialConversion(func, target, std::move(patterns)))) {
+        signalPassFailure();
+    }
 }
 
 }  // namespace
