@@ -332,10 +332,19 @@ void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOp
 
     pm.addPass(createConvertIEToVPUNCEPass(log));
     pm.addPass(VPU::createMultiClusterStrategyAssignmentPass(log));
+
+    pm.addPass(VPU::createManualStrategyUtilsPass(
+            /*writeStrategyToJSON=*/false, /*writeStrategyFileLocation=*/"strategy_out.json",
+            /*readStrategyFromJSON=*/false, /*readStrategyFileLocation=*/"strategy_in.json", log));
+
     pm.addPass(VPU::createWrapVPUOpsInNCEClusterTilingPass(log));
 
     pm.addPass(IE::createPrefetchTilingPass(log));
     pm.addPass(mlir::createCanonicalizerPass(grc));
+
+    pm.addPass(VPU::createManualStrategyUtilsPass(
+            /*writeStrategyToJSON=*/false, /*writeStrategyFileLocation=*/"strategy_out.json",
+            /*readStrategyFromJSON=*/false, /*readStrategyFileLocation=*/"strategy_in.json", log));
 
     pm.addPass(VPU::createAdjustMemorySpacePass(log));
     pm.addPass(mlir::createCanonicalizerPass(grc));

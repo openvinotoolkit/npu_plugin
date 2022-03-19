@@ -76,6 +76,15 @@ OutputTiling generatePrefetchTiles(mlir::Operation* op, Logger log) {
     const auto outputShape = getShape(op->getResult(0));
     VPUX_THROW_UNLESS(outputShape.size() == 4, "Unsupported operation '{0}' at '{1}', it has non 4D result",
                       op->getName(), op->getLoc());
+
+    // Manual Strategy Utils
+    if (op->hasAttr("tilingStrategy")) {
+        // if manual tiling strategy use the specified number of tiles
+        auto manualTiling = Shape(parseIntArrayAttr<int64_t>(op->getAttr("tilingStrategy").cast<mlir::ArrayAttr>()));
+        log.trace("Using manual tiles for op {0} at {1}, tiles: {2}", op->getName(), op->getLoc(), manualTiling);
+        return vpux::fillDividedTiles(manualTiling, outputShape);
+    }
+
     auto getDimsToTile = [](const Shape& nTilesOnDim) -> SmallVector<Dim> {
         SmallVector<Dim> res;
         for (unsigned i = 0; i < nTilesOnDim.size(); i++) {
@@ -104,9 +113,16 @@ OutputTiling generatePrefetchTiles(mlir::Operation* op, Logger log) {
         prefetchableTilesOnDim[targetDim]++;
     }
 
-    return tilingInfo.isSupportedPrefetchTiling(prefetchableTilesOnDim, log)
-                   ? fillDividedTiles(prefetchableTilesOnDim, outputShape)
-                   : fillDividedTiles(nTilesOnDim, outputShape);
+    if (tilingInfo.isSupportedPrefetchTiling(prefetchableTilesOnDim, log)) {
+        // if prefetch tiling supported - overwrite
+        nTilesOnDim = prefetchableTilesOnDim;
+    }
+
+    // store tiles for operations
+    const auto tilesAttr = getIntArrayAttr(op->getContext(), nTilesOnDim);
+    op->setAttr("tilingStrategy", tilesAttr);
+
+    return fillDividedTiles(nTilesOnDim, outputShape);
 }
 
 SmallVector<Shape> generatePrefetchPatternTiles(mlir::Operation* op, mlir::Operation* parentOp, Logger log) {
@@ -130,6 +146,14 @@ SmallVector<Shape> generatePrefetchPatternTiles(mlir::Operation* op, mlir::Opera
 
     Shape nTilesOnDim(outputShape.size(), 1);
     Shape nTilesOnDimParent(parentOutputShape.size(), 1);
+
+    // Manual Strategy Utils
+    if (op->hasAttr("tilingStrategy")) {
+        // if manual tiling strategy use the specified number of tiles
+        auto manualTiling = Shape(parseIntArrayAttr<int64_t>(op->getAttr("tilingStrategy").cast<mlir::ArrayAttr>()));
+        log.trace("Using manual tiles for op {0} at {1}, tiles: {2}", op->getName(), op->getLoc(), manualTiling);
+        return {manualTiling, nTilesOnDimParent};
+    }
 
     // Try to tile the largest dim (C or H)
     Dim dimToTile = Dims4D::Act::C;
@@ -166,6 +190,11 @@ SmallVector<Shape> generatePrefetchPatternTiles(mlir::Operation* op, mlir::Opera
             nTilesOnDim[dimToTile]++;
         }
     }
+
+    // store tiles for operations
+    const auto tilesAttr = getIntArrayAttr(op->getContext(), nTilesOnDim);
+    op->setAttr("tilingStrategy", tilesAttr);
+
     return {nTilesOnDim, nTilesOnDimParent};
 }
 

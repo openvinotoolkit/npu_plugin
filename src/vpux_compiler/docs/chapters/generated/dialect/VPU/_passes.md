@@ -14,6 +14,18 @@ initializes **IERT Dialect** run-time resources information.
 -compilation-mode  : Set compilation mode as `ReferenceSW`, `ReferenceHW` or `DefaultHW`
 -num-of-dpu-groups : [Optional] Number of available DPU groups
 ```
+### `-manual-strategy-utils`: Utils for reading or writing a json strategy
+Utility allowing to store and write as JSON the current selected strategy from the two strategy passes
+createMultiClusterStrategyAssignmentPass() and createPrefetchTilingPass(). And also to manually 
+overwrite the strategy.
+
+#### Options
+```
+-write-strategy-to-json       : Flag to enable writing strategy to file
+-write-strategy-file-location : Location/path to write strategy file
+-read-strategy-from-json      : Flag to enable reading strategy from file
+-read-strategy-file-location  : Location/path to read strategy file
+```
 ### `-multi-cluster-strategy-assignment`: This pass compute the hardware efficiency of layer that is executed as SOH or SOK and assigns the most optimal strategy
 ### `-split-NCE-ops-onto-workloads`: Split VPU NCE operation onto workloads
 ### `-wrap-vpu-ops-in-ncecluster-tiling`: This pass wraps vpu operations that should be executed across multiple clusters in NCEClusterTiling operations
