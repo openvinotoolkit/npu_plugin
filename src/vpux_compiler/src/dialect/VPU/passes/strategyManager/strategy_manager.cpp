@@ -13,6 +13,7 @@
 
 #include "vpux/compiler/dialect/VPU/strategy_manager.hpp"
 #include <llvm/ADT/TypeSwitch.h>
+#include "vpux/compiler/utils/strings.hpp"
 
 using namespace vpux;
 using namespace VPU;
@@ -133,19 +134,76 @@ void StrategyManager::assignMultiClusterStrategy() {
     _func.walk(callback);
 }
 
+// Based on layer properties like input/output shapes set layer strategy to predefined value
+// Return true if such override has happened
+bool StrategyManager::overrideStrategyForLayer(mlir::Operation* origOp) const {
+    const auto inputShape = getShape(origOp->getOperand(0));
+    const auto outputShape = getShape(origOp->getResult(0));
+
+    // Override below layers to strategy NONE
+    if ((inputShape == ShapeRef({1, 128, 3, 256}) && outputShape == ShapeRef({1, 128, 1, 256})) ||
+        (inputShape == ShapeRef({1, 128, 3, 128}) && outputShape == ShapeRef({1, 256, 1, 128})) ||
+        (inputShape == ShapeRef({1, 128, 3, 64}) && outputShape == ShapeRef({1, 256, 1, 64})) ||
+        (inputShape == ShapeRef({1, 128, 3, 32}) && outputShape == ShapeRef({1, 256, 1, 32})) ||
+        (inputShape == ShapeRef({1, 128, 3, 16}) && outputShape == ShapeRef({1, 256, 1, 16})) ||
+        (inputShape == ShapeRef({1, 128, 3, 8}) && outputShape == ShapeRef({1, 256, 1, 8})) ||
+        (inputShape == ShapeRef({1, 16, 1, 518}) && outputShape == ShapeRef({1, 64, 1, 512})) ||
+        (inputShape == ShapeRef({1, 128, 3, 8}) && outputShape == ShapeRef({1, 128, 1, 8})) ||
+        (inputShape == ShapeRef({1, 256, 1, 8}) && outputShape == ShapeRef({1, 128, 1, 8})) ||
+        (inputShape == ShapeRef({1, 64, 40, 8}) && outputShape == ShapeRef({1, 64, 40, 8})) ||
+        (inputShape == ShapeRef({1, 128, 40, 8}) && outputShape == ShapeRef({1, 64, 40, 8})) ||
+        (inputShape == ShapeRef({1, 256, 1, 8}) && outputShape == ShapeRef({1, 128, 1, 8})) ||
+        (inputShape == ShapeRef({1, 64, 40, 8}) && outputShape == ShapeRef({1, 64, 40, 8})) ||
+        (inputShape == ShapeRef({1, 128, 40, 8}) && outputShape == ShapeRef({1, 64, 40, 8})) ||
+        (inputShape == ShapeRef({1, 128, 40, 8}) && outputShape == ShapeRef({1, 64, 40, 8})) ||
+        (inputShape == ShapeRef({1, 128, 1, 8}) && outputShape == ShapeRef({1, 64, 1, 8})) ||
+        (inputShape == ShapeRef({1, 64, 40, 8}) && outputShape == ShapeRef({1, 64, 40, 8})) ||
+        (inputShape == ShapeRef({1, 128, 40, 8}) && outputShape == ShapeRef({1, 64, 40, 8})) ||
+        (inputShape == ShapeRef({1, 256, 1, 8}) && outputShape == ShapeRef({1, 128, 1, 8})) ||
+        (inputShape == ShapeRef({1, 64, 40, 8}) && outputShape == ShapeRef({1, 64, 40, 8})) ||
+        (inputShape == ShapeRef({1, 128, 40, 8}) && outputShape == ShapeRef({1, 64, 40, 8})) ||
+        (inputShape == ShapeRef({1, 64, 1, 8}) && outputShape == ShapeRef({1, 128, 1, 8})) ||
+        (inputShape == ShapeRef({1, 128, 1, 8}) && outputShape == ShapeRef({1, 64, 1, 8})) ||
+        (inputShape == ShapeRef({1, 64, 40, 8}) && outputShape == ShapeRef({1, 64, 40, 8})) ||
+        (inputShape == ShapeRef({1, 128, 40, 8}) && outputShape == ShapeRef({1, 64, 40, 8})) ||
+        (inputShape == ShapeRef({1, 256, 1, 8}) && outputShape == ShapeRef({1, 128, 1, 8})) ||
+        (inputShape == ShapeRef({1, 64, 40, 8}) && outputShape == ShapeRef({1, 64, 40, 8})) ||
+        (inputShape == ShapeRef({1, 128, 40, 8}) && outputShape == ShapeRef({1, 64, 40, 8})) ||
+        (inputShape == ShapeRef({1, 64, 1, 8}) && outputShape == ShapeRef({1, 128, 1, 8})) ||
+        (inputShape == ShapeRef({1, 128, 1, 8}) && outputShape == ShapeRef({1, 64, 1, 8})) ||
+        (inputShape == ShapeRef({1, 64, 40, 8}) && outputShape == ShapeRef({1, 64, 40, 8})) ||
+        (inputShape == ShapeRef({1, 128, 40, 8}) && outputShape == ShapeRef({1, 64, 40, 8}))
+    ) {
+        std::cout << "Override multi-cluster strategy decision to NONE for " << stringifyLocation(origOp->getLoc()) << "\n";
+        // _log.trace("Override multi-cluster strategy decision to '{0}' for layer '{1}' - '{2}'", "NONE",
+        //            origOp->getName(), origOp->getLoc());
+        return true;
+    }
+
+    return false;
+}
+
 void StrategyManager::setLayerStrategy(StringRef strategy, mlir::Operation* origOp) const {
+    if (overrideStrategyForLayer(origOp)) {
+        return;
+    }
+
     if (strategy == splitOverHeightOverlapped) {
         origOp->setAttr(multiClusterStrategy, mlir::StringAttr::get(origOp->getContext(), "SplitOverHeightOverlapped"));
-        _log.trace("Assigning multi-cluster strategy '{0}' to layer '{1}'", strategy, origOp->getName());
+        _log.trace("Assigning multi-cluster strategy '{0}' to layer '{1}' - '{2}'", strategy, origOp->getName(),
+                   origOp->getLoc());
     } else if (strategy == splitOverHeight) {
         origOp->setAttr(multiClusterStrategy, mlir::StringAttr::get(origOp->getContext(), "SplitOverHeight"));
-        _log.trace("Assigning multi-cluster strategy '{0}' to layer '{1}'", strategy, origOp->getName());
+        _log.trace("Assigning multi-cluster strategy '{0}' to layer '{1}'- '{2}'", strategy, origOp->getName(),
+                   origOp->getLoc());
     } else if (strategy == splitOverKernel) {
         origOp->setAttr(multiClusterStrategy, mlir::StringAttr::get(origOp->getContext(), "SplitOverKernel"));
-        _log.trace("Assigning multi-cluster strategy '{0}' to layer '{1}'", strategy, origOp->getName());
+        _log.trace("Assigning multi-cluster strategy '{0}' to layer '{1}'- '{2}'", strategy, origOp->getName(),
+                   origOp->getLoc());
     } else if (strategy == clustering) {
         origOp->setAttr(multiClusterStrategy, mlir::StringAttr::get(origOp->getContext(), "Clustering"));
-        _log.trace("Assigning multi-cluster strategy '{0}' to layer '{1}'", strategy, origOp->getName());
+        _log.trace("Assigning multi-cluster strategy '{0}' to layer '{1}'- '{2}'", strategy, origOp->getName(),
+                   origOp->getLoc());
     } else {
         VPUX_THROW("Attempting to assign an invalid strategy to operation {0}", origOp->getName());
     }

@@ -134,6 +134,7 @@ public:
 
 private:
     void setLayerStrategy(const llvm::StringRef strategy, mlir::Operation* origOp) const;
+    bool overrideStrategyForLayer(mlir::Operation* origOp) const;
 
     mlir::FuncOp _func;
     Logger _log;
