@@ -30,6 +30,27 @@ namespace vpux {
 namespace VPU {
 
 //
+// LayerCostModel for layer time estimation given by different strategies
+//
+class LayerCostModel final {
+public:
+    explict LayerCostModel(mlir::FuncOp func, Logger log);
+    ~BaseLayerStrategy() = default;
+
+    template <class ConcreteOp>
+    double clusterComputeTime(ConcreteOp op, MultiClusterStrategy Strategy) const;
+    template <class ConcreteOp>
+    double dmaTime(ConcreteOp op, MultiClusterStrategy Strategy) const;
+
+privated:
+    double _CMXBandwidth;
+    double _DDRBandwidth;
+    double _CMXLatency;
+    double _DDRLatency;
+    const size_t _cmxAddressAlignment = 16;  // This one for kernel address alignment
+}
+
+//
 // BaseLayerStrategy
 //
 
@@ -60,6 +81,9 @@ protected:
     template <class ConcreteOp>
     double computeSplitEfficiency(ConcreteOp op, StringRef strategy) const;
     double calculateMPEVolume(VPU::MPEMode mpeMode, Shape shape) const;
+    // layer cost model
+    template <class ConcreteOp>
+    double getTotalCost(ConcreteOp op, StringRef strategy) const;
 
 protected:
     int64_t _numClusters;
@@ -68,6 +92,7 @@ protected:
     const int64_t _numChannelAlignment = 16;
     mlir::FuncOp _func;
     Logger _log;
+    LayerCostModel _layerCostModel;
 };
 
 //
