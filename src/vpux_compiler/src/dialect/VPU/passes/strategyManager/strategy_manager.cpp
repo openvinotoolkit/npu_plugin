@@ -136,55 +136,27 @@ void StrategyManager::assignMultiClusterStrategy() {
 
 // Based on layer properties like input/output shapes set layer strategy to predefined value
 // Return true if such override has happened
-bool StrategyManager::overrideStrategyForLayer(mlir::Operation* origOp) const {
-    const auto inputShape = getShape(origOp->getOperand(0));
-    const auto outputShape = getShape(origOp->getResult(0));
+bool StrategyManager::overrideStrategyForLayer(StringRef strategy, mlir::Operation* origOp) {
+    const auto funcType = _func.getType();
 
-    // Override below layers to strategy NONE
-    if ((inputShape == ShapeRef({1, 128, 3, 256}) && outputShape == ShapeRef({1, 128, 1, 256})) ||
-        (inputShape == ShapeRef({1, 128, 3, 128}) && outputShape == ShapeRef({1, 256, 1, 128})) ||
-        (inputShape == ShapeRef({1, 128, 3, 64}) && outputShape == ShapeRef({1, 256, 1, 64})) ||
-        (inputShape == ShapeRef({1, 128, 3, 32}) && outputShape == ShapeRef({1, 256, 1, 32})) ||
-        (inputShape == ShapeRef({1, 128, 3, 16}) && outputShape == ShapeRef({1, 256, 1, 16})) ||
-        (inputShape == ShapeRef({1, 128, 3, 8}) && outputShape == ShapeRef({1, 256, 1, 8})) ||
-        (inputShape == ShapeRef({1, 16, 1, 518}) && outputShape == ShapeRef({1, 64, 1, 512})) ||
-        (inputShape == ShapeRef({1, 128, 3, 8}) && outputShape == ShapeRef({1, 128, 1, 8})) ||
-        (inputShape == ShapeRef({1, 256, 1, 8}) && outputShape == ShapeRef({1, 128, 1, 8})) ||
-        (inputShape == ShapeRef({1, 64, 40, 8}) && outputShape == ShapeRef({1, 64, 40, 8})) ||
-        (inputShape == ShapeRef({1, 128, 40, 8}) && outputShape == ShapeRef({1, 64, 40, 8})) ||
-        (inputShape == ShapeRef({1, 256, 1, 8}) && outputShape == ShapeRef({1, 128, 1, 8})) ||
-        (inputShape == ShapeRef({1, 64, 40, 8}) && outputShape == ShapeRef({1, 64, 40, 8})) ||
-        (inputShape == ShapeRef({1, 128, 40, 8}) && outputShape == ShapeRef({1, 64, 40, 8})) ||
-        (inputShape == ShapeRef({1, 128, 40, 8}) && outputShape == ShapeRef({1, 64, 40, 8})) ||
-        (inputShape == ShapeRef({1, 128, 1, 8}) && outputShape == ShapeRef({1, 64, 1, 8})) ||
-        (inputShape == ShapeRef({1, 64, 40, 8}) && outputShape == ShapeRef({1, 64, 40, 8})) ||
-        (inputShape == ShapeRef({1, 128, 40, 8}) && outputShape == ShapeRef({1, 64, 40, 8})) ||
-        (inputShape == ShapeRef({1, 256, 1, 8}) && outputShape == ShapeRef({1, 128, 1, 8})) ||
-        (inputShape == ShapeRef({1, 64, 40, 8}) && outputShape == ShapeRef({1, 64, 40, 8})) ||
-        (inputShape == ShapeRef({1, 128, 40, 8}) && outputShape == ShapeRef({1, 64, 40, 8})) ||
-        (inputShape == ShapeRef({1, 64, 1, 8}) && outputShape == ShapeRef({1, 128, 1, 8})) ||
-        (inputShape == ShapeRef({1, 128, 1, 8}) && outputShape == ShapeRef({1, 64, 1, 8})) ||
-        (inputShape == ShapeRef({1, 64, 40, 8}) && outputShape == ShapeRef({1, 64, 40, 8})) ||
-        (inputShape == ShapeRef({1, 128, 40, 8}) && outputShape == ShapeRef({1, 64, 40, 8})) ||
-        (inputShape == ShapeRef({1, 256, 1, 8}) && outputShape == ShapeRef({1, 128, 1, 8})) ||
-        (inputShape == ShapeRef({1, 64, 40, 8}) && outputShape == ShapeRef({1, 64, 40, 8})) ||
-        (inputShape == ShapeRef({1, 128, 40, 8}) && outputShape == ShapeRef({1, 64, 40, 8})) ||
-        (inputShape == ShapeRef({1, 64, 1, 8}) && outputShape == ShapeRef({1, 128, 1, 8})) ||
-        (inputShape == ShapeRef({1, 128, 1, 8}) && outputShape == ShapeRef({1, 64, 1, 8})) ||
-        (inputShape == ShapeRef({1, 64, 40, 8}) && outputShape == ShapeRef({1, 64, 40, 8})) ||
-        (inputShape == ShapeRef({1, 128, 40, 8}) && outputShape == ShapeRef({1, 64, 40, 8}))
-    ) {
-        std::cout << "Override multi-cluster strategy decision to NONE for " << stringifyLocation(origOp->getLoc()) << "\n";
-        // _log.trace("Override multi-cluster strategy decision to '{0}' for layer '{1}' - '{2}'", "NONE",
-        //            origOp->getName(), origOp->getLoc());
-        return true;
+    if (funcType.getInputs().size() == 23 && funcType.getResults().size() == 23) {
+        // Temporary solution:
+        // For model with 23 inputs and 23 outputs disable multiclustering
+        // for layers which were initially assigned Clustering of SOH
+        if (strategy == splitOverHeight || strategy == clustering) {
+            std::cout << "Override multi-cluster strategy decision to NONE for " << stringifyLocation(origOp->getLoc())
+                      << "\n";
+            // _log.trace("Override multi-cluster strategy decision to '{0}' for layer '{1}' - '{2}'", "NONE",
+            //            origOp->getName(), origOp->getLoc());
+            return true;
+        }
     }
 
     return false;
 }
 
-void StrategyManager::setLayerStrategy(StringRef strategy, mlir::Operation* origOp) const {
-    if (overrideStrategyForLayer(origOp)) {
+void StrategyManager::setLayerStrategy(StringRef strategy, mlir::Operation* origOp) {
+    if (overrideStrategyForLayer(strategy, origOp)) {
         return;
     }
 
