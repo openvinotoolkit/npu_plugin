@@ -133,7 +133,8 @@ public:
     void assignMultiClusterStrategy();
 
 private:
-    void setLayerStrategy(const llvm::StringRef strategy, mlir::Operation* origOp) const;
+    void setLayerStrategy(const llvm::StringRef strategy, mlir::Operation* origOp);
+    bool overrideStrategyForLayer(StringRef strategy, mlir::Operation* origOp);
 
     mlir::FuncOp _func;
     Logger _log;

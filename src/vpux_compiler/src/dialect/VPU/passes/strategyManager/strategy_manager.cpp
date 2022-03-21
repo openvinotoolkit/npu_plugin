@@ -133,19 +133,47 @@ void StrategyManager::assignMultiClusterStrategy() {
     _func.walk(callback);
 }
 
-void StrategyManager::setLayerStrategy(StringRef strategy, mlir::Operation* origOp) const {
+// Based on layer properties like input/output shapes or properties of model or subgraph s
+// set layer strategy to predefined value
+// Return true if such override has happened
+bool StrategyManager::overrideStrategyForLayer(StringRef strategy, mlir::Operation* origOp) {
+    const auto funcType = _func.getType();
+
+    if (funcType.getInputs().size() == 23 && funcType.getResults().size() == 23) {
+        // Temporary solution:
+        // For model with 23 inputs and 23 outputs disable multiclustering
+        // for layers which were initially assigned Clustering or SOH
+        if (strategy == splitOverHeight || strategy == clustering) {
+            _log.trace("Override multi-cluster strategy decision to '{0}' for layer '{1}' - '{2}'", "NONE",
+                       origOp->getName(), origOp->getLoc());
+            return true;
+        }
+    }
+
+    return false;
+}
+
+void StrategyManager::setLayerStrategy(StringRef strategy, mlir::Operation* origOp) {
+    if (overrideStrategyForLayer(strategy, origOp)) {
+        return;
+    }
+
     if (strategy == splitOverHeightOverlapped) {
         origOp->setAttr(multiClusterStrategy, mlir::StringAttr::get(origOp->getContext(), "SplitOverHeightOverlapped"));
-        _log.trace("Assigning multi-cluster strategy '{0}' to layer '{1}'", strategy, origOp->getName());
+        _log.trace("Assigning multi-cluster strategy '{0}' to layer '{1}' - '{2}'", strategy, origOp->getName(),
+                   origOp->getLoc());
     } else if (strategy == splitOverHeight) {
         origOp->setAttr(multiClusterStrategy, mlir::StringAttr::get(origOp->getContext(), "SplitOverHeight"));
-        _log.trace("Assigning multi-cluster strategy '{0}' to layer '{1}'", strategy, origOp->getName());
+        _log.trace("Assigning multi-cluster strategy '{0}' to layer '{1}'- '{2}'", strategy, origOp->getName(),
+                   origOp->getLoc());
     } else if (strategy == splitOverKernel) {
         origOp->setAttr(multiClusterStrategy, mlir::StringAttr::get(origOp->getContext(), "SplitOverKernel"));
-        _log.trace("Assigning multi-cluster strategy '{0}' to layer '{1}'", strategy, origOp->getName());
+        _log.trace("Assigning multi-cluster strategy '{0}' to layer '{1}'- '{2}'", strategy, origOp->getName(),
+                   origOp->getLoc());
     } else if (strategy == clustering) {
         origOp->setAttr(multiClusterStrategy, mlir::StringAttr::get(origOp->getContext(), "Clustering"));
-        _log.trace("Assigning multi-cluster strategy '{0}' to layer '{1}'", strategy, origOp->getName());
+        _log.trace("Assigning multi-cluster strategy '{0}' to layer '{1}'- '{2}'", strategy, origOp->getName(),
+                   origOp->getLoc());
     } else {
         VPUX_THROW("Attempting to assign an invalid strategy to operation {0}", origOp->getName());
     }
