@@ -97,7 +97,7 @@ SmallVector<int64_t> vpux::VPU::getActivationWindowTensorNumTiles(int64_t numClu
     } else if (strategy == splitOverKernel) {
         if (arch == ArchKind::MTL) {
             return {numClusters, 1, 1, 1};
-        } else if (arch == ArchKind::KMB) {
+        } else if (arch == ArchKind::KMB || arch == ArchKind::TBH) {
             return {1, 1, 1, 1};
         } else {
             VPUX_THROW("Unsupported arch {0}", arch);
@@ -167,7 +167,7 @@ DistributionMode vpux::VPU::getActivationWindowTensorDistributionMode(StringRef 
     } else if (strategy == splitOverKernel) {
         if (arch == ArchKind::MTL) {
             return DistributionMode::SEGMENTED;
-        } else if (arch == ArchKind::KMB) {
+        } else if (arch == ArchKind::KMB || arch == ArchKind::TBH) {
             return DistributionMode::DUPLICATED;
         } else {
             VPUX_THROW("Unsupported arch {0}", arch);

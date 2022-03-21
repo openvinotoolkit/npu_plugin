@@ -242,14 +242,14 @@ std::tuple<MultType, uint8_t, int8_t> approximate(uint8_t bits, double target) {
 
 }  // namespace
 
-vpux::QuantizationApproximation::QuantizationApproximation(vpux::VPU::ArchKind architecture, double target)
+vpux::QuantizationApproximation::QuantizationApproximation(VPU::ArchKind architecture, double target)
         : _mult(0), _shift(0), _postShift(0) {
     std::tie(_mult, _shift, _postShift) = approximate<decltype(_mult)>(15, target);
 
-    VPUX_THROW_UNLESS(architecture == vpux::VPU::ArchKind::KMB || _postShift == 0,
-                      "Encountered an attempt to approximate {0} as mult = {1}, shift = {2}, postShift = {3} on {4}, "
-                      "but postShift is not supported",
-                      target, mult(), shift(), postShift(), architecture);
+    VPUX_THROW_WHEN(_postShift != 0 && !(architecture == VPU::ArchKind::KMB || architecture == VPU::ArchKind::TBH),
+                    "Encountered an attempt to approximate {0} as mult = {1}, shift = {2}, postShift = {3} on {4}, "
+                    "but postShift is not supported",
+                    target, mult(), shift(), postShift(), architecture);
 }
 
 int64_t vpux::QuantizationApproximation::mult() const {
@@ -264,8 +264,8 @@ int64_t vpux::QuantizationApproximation::postShift() const {
     return _postShift;
 }
 
-vpux::PReLUApproximation::PReLUApproximation(vpux::VPU::ArchKind architecture, double target): _mult(0), _shift(0) {
-    const auto bits = architecture == vpux::VPU::ArchKind::KMB ? 7 : 11;
+vpux::PReLUApproximation::PReLUApproximation(VPU::ArchKind architecture, double target): _mult(0), _shift(0) {
+    const auto bits = architecture == VPU::ArchKind::KMB || architecture == VPU::ArchKind::TBH ? 7 : 11;
     int8_t postShift = 0;
     std::tie(_mult, _shift, postShift) = approximate<decltype(_mult)>(bits, target);
 

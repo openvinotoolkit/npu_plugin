@@ -188,7 +188,7 @@ Byte vpux::VPU::NCEInvariant::getWeightsTableSize(int64_t OC) {
 //
 
 bool vpux::VPU::NCEInvariant::isChannelMajorCompatible(ArchKind arch, vpux::NDTypeInterface inputType) {
-    if (arch != ArchKind::KMB) {
+    if (arch != ArchKind::KMB && arch != ArchKind::TBH) {
         return false;
     }
 

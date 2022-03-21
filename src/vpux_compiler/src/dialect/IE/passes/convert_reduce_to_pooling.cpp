@@ -335,7 +335,7 @@ void ConvertReduceToPoolingPass::safeRunOnFunc() {
 
         auto module = getOperation();
         const auto arch = VPU::getArch(module);
-        if (arch == VPU::ArchKind::KMB) {
+        if (arch == VPU::ArchKind::KMB || arch == VPU::ArchKind::TBH) {
             // Check that axis dimensions <= 255 otherwise this conversion is not applicable
             bool upaCompatible = true;
             int64_t mergedDim = 1;
@@ -359,6 +359,7 @@ void ConvertReduceToPoolingPass::safeRunOnFunc() {
 
         return false;
     };
+
     mlir::ConversionTarget target(ctx);
     target.addLegalOp<IE::AvgPoolOp>();
     target.addLegalOp<IE::MaxPoolOp>();

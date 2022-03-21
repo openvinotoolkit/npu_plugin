@@ -32,7 +32,7 @@ private:
     void safeRunOnModule() final;
 
 private:
-    VPU::ArchKind _arch = VPU::ArchKind::KMB;
+    VPU::ArchKind _arch = VPU::ArchKind::UNKNOWN;
     VPU::CompilationMode _compilationMode = VPU::CompilationMode::DefaultHW;
     Optional<int> _numOfDPUGroups;
 };
