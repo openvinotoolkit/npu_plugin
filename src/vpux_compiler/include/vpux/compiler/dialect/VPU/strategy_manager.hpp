@@ -35,14 +35,18 @@ namespace VPU {
 class LayerCostModel final {
 public:
     explict LayerCostModel(mlir::FuncOp func, Logger log);
-    ~BaseLayerStrategy() = default;
+    ~LayerCostModel() = default;
 
+    template <class ConcreteOp>
+    double computeSplitEfficiency(ConcreteOp op, StringRef strategy) const;
     template <class ConcreteOp>
     double clusterComputeTime(ConcreteOp op, MultiClusterStrategy Strategy) const;
     template <class ConcreteOp>
     double dmaTime(ConcreteOp op, MultiClusterStrategy Strategy) const;
 
 privated:
+    double calculateMPEVolume(VPU::MPEMode mpeMode, Shape shape) const;
+    
     double _CMXBandwidth;
     double _DDRBandwidth;
     double _CMXLatency;
@@ -77,10 +81,6 @@ public:
 
 protected:
     virtual bool doesLayerFitIntoCMX(mlir::Operation* op, StringRef strategy) const = 0;
-
-    template <class ConcreteOp>
-    double computeSplitEfficiency(ConcreteOp op, StringRef strategy) const;
-    double calculateMPEVolume(VPU::MPEMode mpeMode, Shape shape) const;
     // layer cost model
     template <class ConcreteOp>
     double getTotalCost(ConcreteOp op, StringRef strategy) const;
@@ -172,7 +172,7 @@ private:
 // A ratio of the real output tensor volume to the actual computation that occurs on the
 // hardware for each MPE Mode 4x4x16 and 16x1x16 is computed and the maximum is selected.
 template <class ConcreteOp>
-double BaseLayerStrategy::computeSplitEfficiency(ConcreteOp op, StringRef strategy) const {
+double LayerCostModel::computeSplitEfficiency(ConcreteOp op, StringRef strategy) const {
     const auto outputTensorDistributionMode = getOutputTensorDistributionMode(strategy);
     const auto outputTensorNumTiles =
             getIntArrayAttr(op->getContext(), getOutputTensorNumTiles(op.getOperation(), _numClusters, strategy));
@@ -205,11 +205,11 @@ StringRef BaseLayerStrategy::getOptimalLayerStrategy(ConcreteOp op) const {
 
     if (isOperationSplitOverHeightCompatible(op) &&
         (doesLayerFitIntoCMX(op, splitOverHeightOverlapped) || doesLayerFitIntoCMX(op, splitOverHeight))) {
-        splitOverHeightEfficiency = computeSplitEfficiency(op, splitOverHeight);
+        splitOverHeightEfficiency = _layerCostModel.computeSplitEfficiency(op, splitOverHeight);
     }
 
     if (isOperationSplitOverKernelCompatible(op) && doesLayerFitIntoCMX(op, splitOverKernel)) {
-        splitOverKernelEfficiency = computeSplitEfficiency(op, splitOverKernel);
+        splitOverKernelEfficiency = _layerCostModel.computeSplitEfficiency(op, splitOverKernel);
     }
 
     // Compute ammount of clusters so that SOK is compatible

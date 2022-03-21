@@ -17,6 +17,32 @@
 using namespace vpux;
 using namespace VPU;
 
+LayerCostModel::LayerCostModel()(mlir::FuncOp func, Logger log): _func(func), _log(log) {
+    // These latency numbers inferred from KMB db v1.2
+    _CMXLatency = 5;  // Cycles, attempt to capture cost accessing CMX
+    // DDR latency also measured for kmb at ~100 cycles per dma
+    _DDRLatency = 100;        // Cycles, attempt to capture cost of setup DMA
+    _DDRBandwidth = 8 * 0.6;  // bytes per cycle times derating factor
+    const auto arch = VPU::getArch(func);
+    if (arch == VPU::ArchKind::KMB) {
+        _CMXBandwidth = 15;  // 32 * 1.0; //bytes per cycle times derating factor
+    } else if (arch == VPU::ArchKind::TBH) {
+        _DDRBandwidth = 30;  // 64 * 1.0; //bytes per cycle times derating factor
+    }
+    // @todo include params for ma3720
+}
+
+template <class ConcreteOp>
+double LayerCostModel::clusterComputeTime(ConcreteOp op, MultiClusterStrategy Strategy) const{
+
+}
+
+template <class ConcreteOp>
+double LayerCostModel::dmaTime(ConcreteOp op, MultiClusterStrategy Strategy) const{
+    
+}
+    
+
 BaseLayerStrategy::BaseLayerStrategy(mlir::FuncOp func, Logger log): _func(func), _log(log) {
     auto module = func->getParentOfType<mlir::ModuleOp>();
     auto nceOp = IE::getAvailableExecutor(module, ExecutorKind::NCE);
@@ -153,7 +179,7 @@ void StrategyManager::setLayerStrategy(StringRef strategy, mlir::Operation* orig
 
 // The function computes the actual output tensor volume (i.e. computation that is performed)
 // given the stratey and the MPE mode
-double BaseLayerStrategy::calculateMPEVolume(VPU::MPEMode mpeMode, Shape shape) const {
+double LayerCostModel::calculateMPEVolume(VPU::MPEMode mpeMode, Shape shape) const {
     int64_t mpeHeight;
     int64_t mpeWidth;
     if (mpeMode == VPU::MPEMode::VECTOR) {
