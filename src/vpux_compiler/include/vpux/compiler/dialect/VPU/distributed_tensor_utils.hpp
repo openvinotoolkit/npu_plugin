@@ -59,6 +59,8 @@ NCEClusterTilingOp createDistributedCopyOut(mlir::Operation* origOp, NCEClusterT
 mlir::ArrayAttr getKernelSize(mlir::Operation* origOp);
 int64_t getSOHPerClusterHeightAlignment(int64_t inputWidth);
 bool isSOHSupportedByDPU(ShapeRef inputShape, int64_t KY, int64_t numClusters, bool DWTypeOp);
+template <class ConcreteOp>
+Shape vpux::VPU::getLargestClusterOutputShape(ConcreteOp origOp, MultiClusterStrategy strategy, int64_t numClusters);
 
 template <class ConcreteOp>
 mlir::ArrayAttr getStride(ConcreteOp origOp) {

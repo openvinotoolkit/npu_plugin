@@ -17,7 +17,7 @@
 using namespace vpux;
 using namespace VPU;
 
-LayerCostModel::LayerCostModel()(mlir::FuncOp func, Logger log): _func(func), _log(log) {
+LayerCostModel::LayerCostModel()(mlir::FuncOp func, Logger log, int64_t numClusters): _func(func), _log(log), _numClusters(numClusters) {
     // These latency numbers inferred from KMB db v1.2
     _CMXLatency = 5;  // Cycles, attempt to capture cost accessing CMX
     // DDR latency also measured for kmb at ~100 cycles per dma
@@ -34,12 +34,30 @@ LayerCostModel::LayerCostModel()(mlir::FuncOp func, Logger log): _func(func), _l
 
 template <class ConcreteOp>
 double LayerCostModel::clusterComputeTime(ConcreteOp op, MultiClusterStrategy Strategy) const{
+    double clusterEff = computeSplitEfficiency(op, strategy);
+    auto clusterOutShape = getLargestClusterOutputShape(op, strategy, _numClusters);
+    size_t baseKernelCost = 0;
 
+    if (mlir::isa<VPU::NCEConvolutionOp, VPU::NCEDepthConvolutionOp>(op)) {
+        auto weightsShape = getShape(op->getOperand(1));
+        baseKernelCost =
+            weightsShape[Dims4D::Filter::KY] * weightsShape[Dims4D::Filter::KX] * weightsShape[Dims4D::Filter::IC];
+    } else if (mlir::isa<VPU::NCEMaxPoolOp>(op) || mlir::isa<VPU::NCEMaxPoolOp>(operation)) {
+        auto kernel = parseIntArrayAttr<int64_t>(origOp.kernel_size());
+        baseKernelCost = kernel[0] * kernel[1];
+    } else if (mlir::isa<VPU::NCEEltwiseOp>(op)) {
+        baseKernelCost = 1;
+    } else{
+        VPUX_THROW("Invalid NCE operation type");
+    }
+
+    // Actually the result is MPEVolume * baseKernelCost
+    return (static_cast<double>(clusterOutShape.totalSize() * baseKernelCost)) / clusterEff;
 }
 
 template <class ConcreteOp>
 double LayerCostModel::dmaTime(ConcreteOp op, MultiClusterStrategy Strategy) const{
-    
+
 }
     
 
@@ -50,6 +68,7 @@ BaseLayerStrategy::BaseLayerStrategy(mlir::FuncOp func, Logger log): _func(func)
     _numClusters = nceOp.count();
     _numDPUs = dpuExec.count();
     _minimumOutputHeightForSOH = _numDPUs * _numClusters;
+    _layerCostModel = LayerCostModel(func, log, _numClusters);
 }
 
 // Each DPU should compute at least one output line. Therefore in order for a layer to be SOH

@@ -274,3 +274,19 @@ bool vpux::VPU::isSOHSupportedByDPU(ShapeRef inputShape, int64_t KY, int64_t num
 
     return (hLastCluster > 0);
 }
+
+template <class ConcreteOp>
+Shape vpux::VPU::getLargestClusterOutputShape(ConcreteOp op, StringRef strategy, int64_t numClusters) {
+    auto outputTensorDistributionMode = getOutputTensorDistributionMode(strategy);
+    auto outputTensorNumTiles =
+            getIntArrayAttr(op->getContext(), getOutputTensorNumTiles(op.getOperation(), numClusters, strategy));
+    mlir::ArrayAttr outputAlignmentAttr = nullptr;
+    const auto outputAlignment = getOutputTensorAlignment(strategy);
+    if (outputAlignment.hasValue()) {
+        outputAlignmentAttr = getIntArrayAttr(op->getContext(), outputAlignment.getValue());
+    }
+    auto distributedOutputTensorType =
+            createDistributedTensorType(op, op.output(), outputTensorDistributionMode, outputTensorNumTiles, outputAlignmentAttr, strategy);
+    
+    return distributedOutputTensorType.getLargestCompactShape();
+}

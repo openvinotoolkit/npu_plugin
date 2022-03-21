@@ -47,11 +47,17 @@ public:
 privated:
     double calculateMPEVolume(VPU::MPEMode mpeMode, Shape shape) const;
     
+    // @warning Here exists a duplicated _numClusters with BaseLayerStrategy,
+    // do we have a better way to access it without redefining? 
+    // I cann't use friend class feature as BaseLayerStrategy is abstract class
+    int64_t _numClusters;
     double _CMXBandwidth;
     double _DDRBandwidth;
     double _CMXLatency;
     double _DDRLatency;
     const size_t _cmxAddressAlignment = 16;  // This one for kernel address alignment
+    mlir::FuncOp _func;
+    Logger _log;
 }
 
 //
@@ -90,9 +96,9 @@ protected:
     int64_t _numDPUs;
     int64_t _minimumOutputHeightForSOH;
     const int64_t _numChannelAlignment = 16;
+    LayerCostModel _layerCostModel;
     mlir::FuncOp _func;
     Logger _log;
-    LayerCostModel _layerCostModel;
 };
 
 //
@@ -173,18 +179,7 @@ private:
 // hardware for each MPE Mode 4x4x16 and 16x1x16 is computed and the maximum is selected.
 template <class ConcreteOp>
 double LayerCostModel::computeSplitEfficiency(ConcreteOp op, StringRef strategy) const {
-    const auto outputTensorDistributionMode = getOutputTensorDistributionMode(strategy);
-    const auto outputTensorNumTiles =
-            getIntArrayAttr(op->getContext(), getOutputTensorNumTiles(op.getOperation(), _numClusters, strategy));
-    mlir::ArrayAttr outputAlignmentAttr = nullptr;
-    const auto outputAlignment = getOutputTensorAlignment(strategy);
-    if (outputAlignment.hasValue()) {
-        outputAlignmentAttr = getIntArrayAttr(op->getContext(), outputAlignment.getValue());
-    }
-    const auto distributedOutputTensorType = createDistributedTensorType(
-            op, op.output(), outputTensorDistributionMode, outputTensorNumTiles, outputAlignmentAttr, strategy);
-
-    const auto perClusterShape = distributedOutputTensorType.getLargestCompactShape();
+    const auto perClusterShape = getLargestClusterOutputShape(op, strategy, _numClusters);
     const auto perClusterOutputTensorVolume =
             perClusterShape[Dims4D::Act::H] * perClusterShape[Dims4D::Act::W] * perClusterShape[Dims4D::Act::C];
 
