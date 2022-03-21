@@ -15,7 +15,7 @@ add_subdirectory(libs)
 
 add_subdirectory(unit)
 
-if(ENABLE_FUNCTIONAL_TESTS)
+if(ENABLE_FUNCTIONAL_TESTS AND NOT BUILD_COMPILER_FOR_DRIVER)
     add_subdirectory(functional)
 endif()
 

@@ -10,15 +10,21 @@
 # to the "third-party-programs.txt" or other similarly-named text file
 # included with the Software Package for additional details.
 #
+set(CID_COMPONENT "CiD")
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 add_subdirectory(src)
 
+set(FUNCTIONAL_TARGET vpuxCompilerL0Test)
+set(FUNCTIONAL_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/test/vpux_compiler_l0_tests_common.cpp
+            ${CMAKE_CURRENT_SOURCE_DIR}/test/vpux_compiler_l0_test.cpp
+            ${CMAKE_CURRENT_SOURCE_DIR}/test/vpux_compiler_l0_tests_thread.cpp
+            ${CMAKE_CURRENT_SOURCE_DIR}/test/vpux_compiler_l0_tests_thread2.cpp)
+add_executable(${FUNCTIONAL_TARGET} ${FUNCTIONAL_SOURCES})
+
 add_executable(compilerTest ${CMAKE_CURRENT_SOURCE_DIR}/test/compilerTest.c)
 add_executable(profilingTest ${CMAKE_CURRENT_SOURCE_DIR}/test/profilingTest.c)
-add_executable(compilerThreadTest ${CMAKE_CURRENT_SOURCE_DIR}/test/compilerThreadTest.cpp)
-add_executable(compilerThreadTest2 ${CMAKE_CURRENT_SOURCE_DIR}/test/compilerThreadTest2.cpp)
 
 target_link_libraries(compilerTest
   PUBLIC
@@ -30,37 +36,44 @@ target_link_libraries(profilingTest
   VPUXCompilerL0
 )
 
+if(ENABLE_BLOB_DUMP)
+    target_compile_definitions(${FUNCTIONAL_TARGET}
+    PUBLIC
+        BLOB_DUMP=1)
+endif()
+
+target_link_libraries(${FUNCTIONAL_TARGET}
+        PUBLIC
+            VPUXCompilerL0
+            gtest
+            gtest_main
+)
+
+target_include_directories(${FUNCTIONAL_TARGET}
+    PUBLIC
+        "${CMAKE_SOURCE_DIR}/src/core/include"
+)
+
+link_system_libraries(${FUNCTIONAL_TARGET}
+    PUBLIC
+        IE::ngraph
+)
+
 if(LINUX)
-target_link_libraries(compilerThreadTest
-  PUBLIC
-  VPUXCompilerL0
-  pthread
-)
-
-target_link_libraries(compilerThreadTest2
-  PUBLIC
-  VPUXCompilerL0
-  pthread
-)
-else()
-target_link_libraries(compilerThreadTest
-  PUBLIC
-  VPUXCompilerL0
-)
-
-target_link_libraries(compilerThreadTest2
-  PUBLIC
-  VPUXCompilerL0
-)
+  target_link_libraries(${FUNCTIONAL_TARGET}
+        PUBLIC
+            pthread
+    )
 endif()
 
 ie_add_api_validator_post_build_step(TARGET compilerTest)
 ie_add_api_validator_post_build_step(TARGET profilingTest)
-ie_add_api_validator_post_build_step(TARGET compilerThreadTest)
-ie_add_api_validator_post_build_step(TARGET compilerThreadTest2)
+ie_add_api_validator_post_build_step(TARGET vpuxCompilerL0Test)
 
-set(CID_COMPONENT "CiD")
 ie_cpack_add_component(${CID_COMPONENT})
+
+install(TARGETS vpuxCompilerL0Test
+        RUNTIME DESTINATION cid COMPONENT ${CID_COMPONENT})
 
 install(FILES "${InferenceEngineVPUXPlugin_SOURCE_DIR}/src/VPUXCompilerL0/include/VPUXCompilerL0.h"
         DESTINATION cid
@@ -81,14 +94,6 @@ if(WIN32)
             DESTINATION cid/pdb
             COMPONENT ${CID_COMPONENT})
 
-    install(FILES $<TARGET_PDB_FILE:compilerThreadTest>
-            DESTINATION cid/pdb
-            COMPONENT ${CID_COMPONENT})
-
-    install(FILES $<TARGET_PDB_FILE:compilerThreadTest2>
-            DESTINATION cid/pdb
-            COMPONENT ${CID_COMPONENT})
-
     install(FILES $<TARGET_PDB_FILE:compilerTest>
             DESTINATION cid/pdb
             COMPONENT ${CID_COMPONENT})
@@ -96,16 +101,14 @@ if(WIN32)
     install(FILES $<TARGET_PDB_FILE:profilingTest>
             DESTINATION cid/pdb
             COMPONENT ${CID_COMPONENT})
+
+    install(FILES $<TARGET_PDB_FILE:vpuxCompilerL0Test>
+            DESTINATION cid/pdb
+            COMPONENT ${CID_COMPONENT})
 else()
     install(TARGETS VPUXCompilerL0
         LIBRARY DESTINATION cid/lib COMPONENT ${CID_COMPONENT})
 endif()
-
-install(TARGETS compilerThreadTest
-        RUNTIME DESTINATION cid COMPONENT ${CID_COMPONENT})
-
-install(TARGETS compilerThreadTest2
-        RUNTIME DESTINATION cid COMPONENT ${CID_COMPONENT})
 
 install(TARGETS compilerTest
         RUNTIME DESTINATION cid COMPONENT ${CID_COMPONENT})

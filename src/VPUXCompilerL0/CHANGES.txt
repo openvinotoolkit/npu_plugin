@@ -1,5 +1,11 @@
 Change Log:
 -----------
+VPUXCompilerL0 2.1.0:
+  - Add vpuxCompilerL0Test based on gtest, including:
+    - CompilerTest
+    - CompilerTestThread
+    - CompilerTestThread2
+  - Remove the original compilerThreadTest and compilerThreadTest2, which have been already included in vpuxCompilerL0Test.
 
 VPUXCompilerL0 2.0.0:
   - API Change

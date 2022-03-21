@@ -1,5 +1,5 @@
 //
-// Copyright Intel Corporation.
+// Copyright 2022 Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -33,7 +33,7 @@
 #define str(s) #s
 
 #define COMPILER_MAJOR 2
-#define COMPILER_MINOR 0
+#define COMPILER_MINOR 1
 static const char* COMPILER_VERSION = xstr(COMPILER_MAJOR) "." xstr(COMPILER_MINOR);
 
 #define PROFILING_MAJOR 1
