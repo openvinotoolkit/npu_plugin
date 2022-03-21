@@ -13,6 +13,7 @@
 
 #include "vpux/compiler/dialect/IE/utils/resources.hpp"
 
+#include "vpux/compiler/dialect/VPU/cost_model.hpp"
 #include "vpux/compiler/dialect/VPU/ops.hpp"
 #include "vpux/compiler/dialect/VPU/ops_interfaces.hpp"
 #include "vpux/compiler/dialect/VPU/passes.hpp"
@@ -28,11 +29,9 @@
 
 #include "vpux/utils/core/enums.hpp"
 
-#include <file_utils.h>
-#include <llvm/ADT/TypeSwitch.h>
-#include <llvm/Support/FileSystem.h>
-#include <llvm/Support/Path.h>
 #include <mlir/Transforms/GreedyPatternRewriteDriver.h>
+
+#include <llvm/ADT/TypeSwitch.h>
 
 using namespace vpux;
 using namespace VPU;
@@ -81,28 +80,6 @@ const EnumMap<VPU::ArchKind, GetMpeModeCb> mpeMap = {
         {VPU::ArchKind::TBH, getMpeModeForKmb},
         {VPU::ArchKind::MTL, getMpeModeForMtl},
 };
-
-SmallString getVPUNNModelFile(VPU::ArchKind archKind) {
-    SmallString modelDir;
-    // probe for OpenVINO runtime dir
-    auto ovBuildDir = InferenceEngine::getIELibraryPath();
-
-    modelDir = ovBuildDir;
-    llvm::sys::path::append(modelDir, "vpunn");
-    switch (archKind) {
-    case VPU::ArchKind::KMB:
-    case VPU::ArchKind::TBH:
-        llvm::sys::path::append(modelDir, "vpu_2_0.vpunn");
-        break;
-    case VPU::ArchKind::MTL:
-        llvm::sys::path::append(modelDir, "vpu_2_7.vpunn");
-        break;
-    default:
-        VPUX_THROW("Unsupported VPU arch type: '{0}'", archKind);
-    }
-    VPUX_THROW_UNLESS(llvm::sys::fs::exists(modelDir), "vpunn model {0} does not exist", modelDir);
-    return modelDir;
-}
 
 // for workloads in sub tensors, offsets need to be from original full output tensor
 void addSubTensorOffset(TileInfo& tileInfo, ShapeRef tensorOffset) {
@@ -400,9 +377,9 @@ void SplitNCEOpsOntoWorkloadsPass::safeRunOnFunc() {
 
     auto dpuExec = nceCluster.getSubExecutor(VPU::ExecutorKindAttr::get(&ctx, VPU::ExecutorKind::DPU));
     VPUX_THROW_UNLESS(dpuExec != nullptr, "Failed to get DPU information");
-    auto vpunnModelFile = getVPUNNModelFile(arch);
-    auto costModel = std::make_shared<VPUNN::VPUCostModel>(vpunnModelFile.str().str());
-    VPUX_THROW_WHEN(costModel == nullptr, "Failed to create vpunn cost model");
+
+    const auto costModel = VPU::createCostModel(arch);
+
     mlir::RewritePatternSet patterns(&ctx);
     patterns.insert<GenericNCERewrite<VPU::NCEConvolutionOp>>(&ctx, dpuExec.count(), arch, costModel, _log);
     patterns.insert<GenericNCERewrite<VPU::NCEMaxPoolOp>>(&ctx, dpuExec.count(), arch, costModel, _log);
