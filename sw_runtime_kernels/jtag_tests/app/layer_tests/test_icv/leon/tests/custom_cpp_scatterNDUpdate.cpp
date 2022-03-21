@@ -119,7 +119,7 @@ protected:
 #ifdef CONFIG_TARGET_SOC_3720
         m_params.kernel = reinterpret_cast<uint64_t>(sk_singleShaveScatterNDUpdate_3010xx_text);
 #else
-    m_params.kernel = reinterpret_cast<uint64_t>(PREAMBLE_FUNC(singleShaveScatterNDUpdate));
+        m_params.kernel = reinterpret_cast<uint64_t>(PREAMBLE_FUNC(singleShaveScatterNDUpdate));
 #endif
     }
 
@@ -231,7 +231,7 @@ protected:
 
 class ScatterNDUpdateTestFP16 : public CustomCppScatterNDUpdateTest<fp16> {
     const char* suiteName() const override {
-        return ICV_TESTS_STRINGIFY(ICV_TEST_SUITE_NAME) "ScatterNDUpdate";
+        return ICV_TESTS_STRINGIFY(ICV_TEST_SUITE_NAME) "ScatterNDUpdateFP16";
     }
     void generateInputData() override {
 #if defined(USE_MANUAL_DATA)
@@ -294,16 +294,97 @@ class ScatterNDUpdateTestFP16 : public CustomCppScatterNDUpdateTest<fp16> {
         float gt_value = f16Tof32(m_referenceTensor.at(indices, true));
 #endif
             float value = f16Tof32(m_outputTensor.at(indices, true));
-            float input = f16Tof32(m_inputTensor.at(indices));
 
             bool differ = bool(!(gt_value == value));
 
-            if (differ || true) {
+            if (differ) {
                 const TensorDims ti = m_outputTensor.toTensor(indices);
                 threshold_test_failed |= differ;
-                if (GlobalData::doPrintDiffs || true)
-                    printf("DIFF CHW [%" PRId32 ":%" PRId32 ":%" PRId32 "] %f %f %f\n", ti.channels, ti.height,
-                            ti.width, input, value, gt_value);
+                if (GlobalData::doPrintDiffs)
+                    printf("DIFF CHW [%" PRId32 ":%" PRId32 ":%" PRId32 "] %f %f\n", ti.channels, ti.height,
+                            ti.width, value, gt_value);
+            }
+        });
+
+        return !threshold_test_failed;
+    }
+};
+
+class ScatterNDUpdateTestI32 : public CustomCppScatterNDUpdateTest<int32_t> {
+    const char* suiteName() const override {
+        return ICV_TESTS_STRINGIFY(ICV_TEST_SUITE_NAME) "ScatterNDUpdateI32";
+    }
+    void generateInputData() override {
+#if defined(USE_MANUAL_DATA)
+        counter_expected = 0;
+        int k = 0;
+        m_inputTensor.forEach(false, [&](const MemoryDims& indices) {
+            float val = (float)manual_input_val[k++];
+            m_inputTensor.at(indices) = (int)(val);
+        });
+        k = 0;
+        m_indicesTensor.forEach(false, [&](const MemoryDims& indices) {
+            int32_t val = manual_indices_val[k++];
+            m_indicesTensor.at(indices) = val;
+        });
+        k = 0;
+        m_updatesTensor.forEach(false, [&](const MemoryDims& indices) {
+            float val = (float)manual_updates_val[k++];
+            m_updatesTensor.at(indices) = (int)(val);
+        });
+#else
+    int i = 100;
+    m_inputTensor.forEach(false, [&](const MemoryDims& indices) {
+        if (i > 200)
+            i = 100;
+        float val = (float)(i++);
+        m_inputTensor.at(indices) = (int)(val);
+    });
+    const auto& test = m_testsLoop.value();
+    m_indicesTensor.forEach(false, [&](const MemoryDims& indices) {
+        const auto dim = test.inputDims.size() - indices.dims[Dim::W] - 1;
+        const auto maxValue = test.inputDims.begin()[dim];
+        m_indicesTensor.at(indices) = rand() % maxValue;
+    });
+
+    i = 10;
+    m_updatesTensor.forEach(false, [&](const MemoryDims& indices) {
+        if (i > 99.0)
+            i = 10;
+        float val = (float)(i++);
+        m_updatesTensor.at(indices) = (int)(val);
+    });
+#endif
+    }
+
+    bool checkResult() override {
+        m_outputTensor.confirmBufferData();
+        m_referenceTensor.confirmBufferData();
+
+        // save output data
+        if (save_to_file) {
+            saveMemoryToFile(reinterpret_cast<u32>(m_outputTensor.buffer()), m_outputTensor.bufferSize(),
+                                "outMyriad.bin");
+        }
+
+        bool threshold_test_failed = false;
+
+        m_outputTensor.forEach(true, [&](const MemoryDims& indices) {
+#if defined(USE_MANUAL_DATA)
+        int32_t gt_value = (int32_t)manual_expected_val[counter_expected++];
+#else
+        int32_t gt_value = m_referenceTensor.at(indices, true);
+#endif
+            int32_t value = m_outputTensor.at(indices, true);
+
+            bool differ = bool(!(gt_value == value));
+
+            if (differ) {
+                const TensorDims ti = m_outputTensor.toTensor(indices);
+                threshold_test_failed |= differ;
+                if (GlobalData::doPrintDiffs)
+                    printf("DIFF CHW [%d:%d:%d] %" PRId32 " %" PRId32 "\n", ti.channels, ti.height, ti.width, value,
+                            gt_value);
             }
         });
 
@@ -313,6 +394,10 @@ class ScatterNDUpdateTestFP16 : public CustomCppScatterNDUpdateTest<fp16> {
 
 }  // namespace
 
-namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, ScatterNDUpdate)) {
+namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, ScatterNDUpdateF16)) {
     ICV_TESTS_REGISTER_SUITE(ScatterNDUpdateTestFP16)
+}
+
+namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, ScatterNDUpdateI32)) {
+    ICV_TESTS_REGISTER_SUITE(ScatterNDUpdateTestI32)
 }
