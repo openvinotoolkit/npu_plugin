@@ -603,6 +603,27 @@ def SwapMaxPoolWithActivation : PassBase<"swap-maxpool-with-act", "vpux::Functio
 //=================================================================================
 
 //
+// SwapFakeQuantReshape
+//
+
+def SwapFakeQuantReshape : PassBase<"swap-fake-quant-reshape", "vpux::FunctionPass"> {
+    let summary = "Swap FakeQuantize with Reshape when required to void redundant expand and permute ops";
+
+    let description = [{
+        The pass is a part of `LowPrecision` pipeline.
+
+        It matches pattern non-channel-aligned op -> optional Reshapes -> FQ -> Reshapes -> channel-aligned op
+        Move the FQ right before the channel-aligned op to avoid redundant expand and permute ops.
+    }];
+
+    let constructor = "vpux::IE::createSwapFakeQuantReshapePass()";
+
+    let dependentDialects = [
+        "vpux::IE::IEDialect"
+    ];
+}
+
+//
 // SplitFakeQuant
 //
 

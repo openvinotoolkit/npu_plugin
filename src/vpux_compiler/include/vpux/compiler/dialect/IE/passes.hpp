@@ -161,6 +161,7 @@ struct LowPrecisionOptions : mlir::PassPipelineOptions<LowPrecisionOptions> {
 void buildLowPrecisionPipeline(mlir::OpPassManager& pm, const LowPrecisionOptions& options,
                                Logger log = Logger::global());
 
+std::unique_ptr<mlir::Pass> createSwapFakeQuantReshapePass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createSplitFakeQuantPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createPropagateQuantizeDequantizePass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createDequantizeConstPass(Logger log = Logger::global());

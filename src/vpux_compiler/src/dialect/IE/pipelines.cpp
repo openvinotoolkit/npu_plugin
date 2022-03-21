@@ -99,6 +99,7 @@ void vpux::IE::buildLowPrecisionPipeline(mlir::OpPassManager& pm, const LowPreci
     const auto grc = getDefaultGreedyRewriteConfig();
 
     pm.addPass(IE::createOptimizeUnalignedQDQSeqPass(log));
+    pm.addPass(IE::createSwapFakeQuantReshapePass(log));
     pm.addPass(IE::createSplitFakeQuantPass(log));
     pm.addPass(IE::createFuseConvertWithQuantizePass(log));
     if (options.enablePropagateQuantDequant) {
