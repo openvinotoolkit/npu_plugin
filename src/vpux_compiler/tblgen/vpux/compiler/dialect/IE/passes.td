@@ -751,6 +751,27 @@ def RemoveQuantDequantSeq : PassBase<"remove-quantdequant-seq", "vpux::FunctionP
     ];
 }
 
+//
+// OptimizeUnalignedQDQSeq
+//
+
+def OptimizeUnalignedQDQSeq : PassBase<"optimize-unaligned-qdq-seq", "vpux::FunctionPass"> {
+    let summary = "Swaps AffineReshape->FakeQuantize sequence if channels become unaligned after AffineReshape";
+
+    let description = [{
+        Pass swaps order of AffineReshape->FakeQuantize sequence if channels become unaligned after AffineReshape
+        Otherwise additionals ops are introduce in order to align channels which impacts performance.
+    }];
+
+    let constructor = "vpux::IE::createOptimizeUnalignedQDQSeqPass()";
+
+    let dependentDialects = [
+        "vpux::IE::IEDialect",
+        "mlir::quant::QuantizationDialect"
+    ];
+}
+
+
 
 //
 // ConvertWeightsToU8
