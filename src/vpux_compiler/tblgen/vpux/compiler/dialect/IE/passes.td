@@ -1004,6 +1004,9 @@ def IsolatedTiling : PassBase<"isolated-tiling", "vpux::FunctionPass"> {
     let constructor = "vpux::IE::createIsolatedTilingPass()";
 }
 
+//
+// Prefetch Tiling
+//
 
 def PrefetchTiling : PassBase<"prefetch-tiling", "vpux::FunctionPass"> {
     let summary = "Tile layers into smaller tiles to enable prefetch pipeline";
@@ -1019,6 +1022,20 @@ def PrefetchTiling : PassBase<"prefetch-tiling", "vpux::FunctionPass"> {
     }];
 
     let constructor = "vpux::IE::createPrefetchTilingPass()";
+}
+
+//
+// Manual Tiling
+//
+
+def ManualTiling : PassBase<"manual-tiling", "vpux::FunctionPass"> {
+    let summary = "Tile layers with manual strategy";
+
+    let description = [{
+        The pass performs manual tiling on layers specified by the user.
+    }];
+
+    let constructor = "vpux::IE::createManualTilingPass()";
 }
 
 //

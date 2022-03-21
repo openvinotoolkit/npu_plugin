@@ -126,19 +126,19 @@ void overwriteManualStrategy(Json& manualStrategy, llvm::DenseMap<mlir::Location
         for (Json::iterator it = currOpStrategy.begin(); it != currOpStrategy.end(); ++it) {
             // replace attributes of the operation (skip NONE) using it.value()
             if (it.value() != "NONE") {
-                mlir::Attribute manualAttribute;
                 if (it.key() == "multiClusterStrategy") {
                     auto dummyAttr = mlir::StringAttr::get(op.second->getContext(), "");
-                    manualAttribute = convertJSONToAttr(dummyAttr, it.value());
+                    auto manualAttribute = convertJSONToAttr(dummyAttr, it.value());
+                    op.second->setAttr(it.key(), manualAttribute);
                 } else if (it.key() == "tilingStrategy") {
                     // tiling case, where strategy selection and IR modification occurs in a single pass
                     // TODO: remove "else" when tiling strategy will be abstracted into strategy pass
                     auto dummyAttr = getIntArrayAttr(op.second->getContext(), Shape(4));
-                    manualAttribute = convertJSONToAttr(dummyAttr, it.value());
+                    auto manualAttribute = convertJSONToAttr(dummyAttr, it.value());
+                    op.second->setAttr("manualTilingStrategy", manualAttribute);
                 } else {
                     VPUX_THROW("Unsupported attribute '{0}'", it.key());
                 }
-                op.second->setAttr(it.key(), manualAttribute);
             } else {
                 if (op.second->hasAttr(it.key())) {
                     // currently no default value, to disable multiclustering remove the attribute

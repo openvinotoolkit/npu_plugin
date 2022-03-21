@@ -109,6 +109,10 @@ void ManualStrategyUtilsPass::safeRunOnFunc() {
             }
         }
         operations.insert({opLoc, op.getOperation()});
+        if (op->hasAttr("manualTilingStrategy")) {
+            op->setAttr("tilingStrategy", op->getAttr("manualTilingStrategy"));
+            op->removeAttr("manualTilingStrategy");
+        }
         if (!operationsWrappedInClusterTiling && op->getParentOfType<VPU::NCEClusterTilingOp>() != nullptr) {
             _log.nest(2).trace("Operations wrapped in cluster tiling exist");
             operationsWrappedInClusterTiling = true;

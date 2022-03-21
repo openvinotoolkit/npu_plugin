@@ -11,54 +11,27 @@
 // included with the Software Package for additional details.
 //
 
-#include "vpux/compiler/dialect/IE/passes.hpp"
-
-#include "vpux/compiler/core/layers.hpp"
-#include "vpux/compiler/core/tiling.hpp"
-#include "vpux/compiler/dialect/IE/utils/generate_tiling.hpp"
-#include "vpux/compiler/utils/error.hpp"
-#include "vpux/compiler/utils/rewriter.hpp"
-#include "vpux/compiler/utils/types.hpp"
-
 #include <mlir/IR/BlockAndValueMapping.h>
-#include <mlir/IR/PatternMatch.h>
-#include <mlir/Transforms/DialectConversion.h>
-
-#include <llvm/ADT/FunctionExtras.h>
-
-#include <numeric>
-#include <vpux/compiler/conversion.hpp>
+#include "vpux/compiler/core/tiling.hpp"
+#include "vpux/compiler/dialect/IE/passes.hpp"
+#include "vpux/compiler/dialect/IE/utils/generate_tiling.hpp"
+#include "vpux/compiler/dialect/VPU/ops.hpp"
+#include "vpux/compiler/utils/rewriter.hpp"
 
 using namespace vpux;
 
 namespace {
 
-OutputTiling generateTiles(IE::TilingBuilderOpInterface origOp, Logger log) {
-    auto* op = origOp.getOperation();
-    const auto outputType = op->getResult(0).getType().cast<vpux::NDTypeInterface>();
-    const auto outputShape = outputType.getShape();
-
-    // create tiles for operation
-    auto nTilesOnDim = IE::computeGeneralTileStrategy(op, log);
-
-    // store tiles for operations
-    const auto tilesAttr = getIntArrayAttr(op->getContext(), nTilesOnDim);
-    op->setAttr("tilingStrategy", tilesAttr);
-
-    return vpux::fillDividedTiles(nTilesOnDim, outputShape);
-}
-
 //
-// GenericTiling
+// ManualTiling
 //
 
-class GenericTiling final : public mlir::OpInterfaceRewritePattern<IE::TilingBuilderOpInterface> {
+class ManualTiling final : public mlir::OpInterfaceRewritePattern<IE::TilingBuilderOpInterface> {
 public:
-    GenericTiling(mlir::MLIRContext* ctx, Logger log)
+    ManualTiling(mlir::MLIRContext* ctx, Logger log)
             : mlir::OpInterfaceRewritePattern<IE::TilingBuilderOpInterface>(ctx), _log(log) {
-        this->setDebugName("GenericTiling");
+        this->setDebugName("ManualTiling");
     }
-
     mlir::LogicalResult matchAndRewrite(IE::TilingBuilderOpInterface origOp,
                                         mlir::PatternRewriter& rewriter) const final;
 
@@ -66,23 +39,33 @@ private:
     Logger _log;
 };
 
-mlir::LogicalResult GenericTiling::matchAndRewrite(IE::TilingBuilderOpInterface origOp,
-                                                   mlir::PatternRewriter& rewriter) const {
+mlir::LogicalResult ManualTiling::matchAndRewrite(IE::TilingBuilderOpInterface origOp,
+                                                  mlir::PatternRewriter& rewriter) const {
+    // Manual tiling strategy use the specified number of tiles
     _log.trace("[{0}] Got '{1}' at '{2}'", this->getDebugName(), origOp->getName(), origOp->getLoc());
 
-    const auto tiles = generateTiles(origOp, _log);
-    _log.nest(1).trace("Create {0} tiles:", tiles.size());
+    auto op = origOp.getOperation();
+    auto tilingInfo = mlir::dyn_cast<IE::TilingInfoOpInterface>(op);
+    VPUX_THROW_WHEN(tilingInfo == nullptr, "Operation '{0}' doesn't implement TilingInfoOpInterface", op->getName());
 
+    const auto outputShape = getShape(op->getResult(0));
+    VPUX_THROW_UNLESS(outputShape.size() == 4, "Unsupported operation '{0}' at '{1}', it has non 4D result",
+                      op->getName(), op->getLoc());
+
+    auto manualTiling = Shape(parseIntArrayAttr<int64_t>(op->getAttr("manualTilingStrategy").cast<mlir::ArrayAttr>()));
+    _log.nest(1).trace("Using manual tiles for op {0} at {1}, tiles: {2}", op->getName(), op->getLoc(), manualTiling);
+    const auto tiles = vpux::fillDividedTiles(manualTiling, outputShape);
+
+    _log.nest(1).trace("Create {0} tiles:", tiles.size());
     return applyTileStrategy(origOp, tiles, rewriter, _log);
 }
 
 //
-// IsolatedTilingPass
+// ManualTilingPass
 //
-
-class IsolatedTilingPass final : public IE::IsolatedTilingBase<IsolatedTilingPass> {
+class ManualTilingPass final : public IE::ManualTilingBase<ManualTilingPass> {
 public:
-    explicit IsolatedTilingPass(Logger log) {
+    explicit ManualTilingPass(Logger log) {
         Base::initLogger(log, Base::getArgumentName());
     }
 
@@ -90,7 +73,10 @@ private:
     void safeRunOnFunc() final;
 };
 
-void IsolatedTilingPass::safeRunOnFunc() {
+//
+// safeRunOnFunc
+//
+void ManualTilingPass::safeRunOnFunc() {
     auto& ctx = getContext();
 
     mlir::ConversionTarget target(ctx);
@@ -101,27 +87,24 @@ void IsolatedTilingPass::safeRunOnFunc() {
     });
     target.markUnknownOpDynamicallyLegal([this](mlir::Operation* op) {
         if (auto iface = mlir::dyn_cast<IE::TilingInfoOpInterface>(op)) {
-            const auto resShape = getShape(op->getResult(0));
-            return iface.isSupportedTiling({TileInfo(resShape)}, _log.nest());
+            if (op->hasAttr("manualTilingStrategy") && op->getLoc().dyn_cast<mlir::FusedLoc>() == nullptr) {
+                // manual strategy overwrite
+                return false;
+            }
         }
 
         return true;
     });
 
     mlir::RewritePatternSet patterns(&ctx);
-    patterns.add<GenericTiling>(&ctx, _log);
+    patterns.add<ManualTiling>(&ctx, _log);
 
     if (mlir::failed(mlir::applyPartialConversion(getFunction(), target, std::move(patterns)))) {
         signalPassFailure();
     }
 }
-
 }  // namespace
 
-//
-// createIsolatedTilingPass
-//
-
-std::unique_ptr<mlir::Pass> vpux::IE::createIsolatedTilingPass(Logger log) {
-    return std::make_unique<IsolatedTilingPass>(log);
+std::unique_ptr<mlir::Pass> vpux::IE::createManualTilingPass(Logger log) {
+    return std::make_unique<ManualTilingPass>(log);
 }

@@ -150,6 +150,8 @@ The pass is a part of `buildHardwareModePipeline` pipeline.
 
 This pass expands filter of dilated convolution so that they are able to be infered
     on dpu because of hardware limitation.
+### `-manual-tiling`: Tile layers with manual strategy
+The pass performs manual tiling on layers specified by the user.
 ### `-matmul-inputs-to-2d`: Convert MatMul inputs to 2d
 This pass converts `MatMul` inputs to 2d.
 

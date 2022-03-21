@@ -77,14 +77,6 @@ OutputTiling generatePrefetchTiles(mlir::Operation* op, Logger log) {
     VPUX_THROW_UNLESS(outputShape.size() == 4, "Unsupported operation '{0}' at '{1}', it has non 4D result",
                       op->getName(), op->getLoc());
 
-    // Manual Strategy Utils
-    if (op->hasAttr("tilingStrategy")) {
-        // if manual tiling strategy use the specified number of tiles
-        auto manualTiling = Shape(parseIntArrayAttr<int64_t>(op->getAttr("tilingStrategy").cast<mlir::ArrayAttr>()));
-        log.trace("Using manual tiles for op {0} at {1}, tiles: {2}", op->getName(), op->getLoc(), manualTiling);
-        return vpux::fillDividedTiles(manualTiling, outputShape);
-    }
-
     auto getDimsToTile = [](const Shape& nTilesOnDim) -> SmallVector<Dim> {
         SmallVector<Dim> res;
         for (unsigned i = 0; i < nTilesOnDim.size(); i++) {
@@ -146,14 +138,6 @@ SmallVector<Shape> generatePrefetchPatternTiles(mlir::Operation* op, mlir::Opera
 
     Shape nTilesOnDim(outputShape.size(), 1);
     Shape nTilesOnDimParent(parentOutputShape.size(), 1);
-
-    // Manual Strategy Utils
-    if (op->hasAttr("tilingStrategy")) {
-        // if manual tiling strategy use the specified number of tiles
-        auto manualTiling = Shape(parseIntArrayAttr<int64_t>(op->getAttr("tilingStrategy").cast<mlir::ArrayAttr>()));
-        log.trace("Using manual tiles for op {0} at {1}, tiles: {2}", op->getName(), op->getLoc(), manualTiling);
-        return {manualTiling, nTilesOnDimParent};
-    }
 
     // Try to tile the largest dim (C or H)
     Dim dimToTile = Dims4D::Act::C;
@@ -291,16 +275,15 @@ void PrefetchTilingPass::safeRunOnFunc() {
         return true;
     });
     target.markUnknownOpDynamicallyLegal([this](mlir::Operation* op) {
+        if (op->hasAttr("manualTilingStrategy")) {
+            return true;
+        }
         if (auto iface = mlir::dyn_cast<IE::TilingInfoOpInterface>(op)) {
             const auto resShape = getShape(op->getResult(0));
             if (!iface.isSupportedTiling({TileInfo(resShape)}, _log.nest())) {
                 return false;
             }
             if (prefetchTilingConditionsViolated(op, _log)) {
-                return false;
-            }
-            if (op->hasAttr("tilingStrategy") && op->getLoc().dyn_cast<mlir::FusedLoc>() == nullptr) {
-                // manual strategy overwrite
                 return false;
             }
         }
