@@ -46,6 +46,7 @@ mlir::DenseElementsAttr generateWeights(llvm::ArrayRef<int64_t> wt_shape, mlir::
                                         const char* weight_file_name);
 
 std::size_t totalTensorSize(llvm::ArrayRef<int64_t> shape, mlir::Type elementtype);
+std::size_t totalTensorSize(int64_t totalSize, mlir::Type elementType);
 
 std::vector<int64_t> convertNBPadtoNCETaskPad(const std::array<int64_t, 4>& nb_pad);
 

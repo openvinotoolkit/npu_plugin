@@ -186,6 +186,17 @@ std::size_t totalTensorSize(llvm::ArrayRef<int64_t> shape, mlir::Type elementTyp
     return static_cast<std::size_t>(totalBits / CHAR_BIT);
 }
 
+std::size_t totalTensorSize(int64_t totalSize, mlir::Type elementType) {
+    if (auto qType = elementType.dyn_cast<mlir::quant::UniformQuantizedType>()) {
+        elementType = qType.getStorageType();
+    }
+    size_t numBits = elementType.getIntOrFloatBitWidth();
+
+    const auto totalBits = totalSize * numBits;
+    VPUX_THROW_UNLESS(totalBits % CHAR_BIT == 0, "Tensors size is not allligned to Byte");
+    return static_cast<std::size_t>(totalBits / CHAR_BIT);
+}
+
 std::vector<int64_t> convertNBPadtoNCETaskPad(const std::array<int64_t, 4>& nb_pad) {
     std::vector<int64_t> ncetask_pad(nb_pad.size());
 
