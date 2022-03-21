@@ -165,6 +165,9 @@ The pass is a part of `IECommon` pipeline.
 
 This pass tries to optimize out Reorder operations for common cases
 by propagating them from inputs to outputs and merging into layers.
+### `-optimize-unaligned-qdq-seq`: Swaps AffineReshape->FakeQuantize sequence if channels become unaligned after AffineReshape
+Pass swaps order of AffineReshape->FakeQuantize sequence if channels become unaligned after AffineReshape
+Otherwise additionals ops are introduce in order to align channels which impacts performance.
 ### `-prefetch-tiling`: Tile layers into smaller tiles to enable prefetch pipeline
 The pass performs tiling on layers to enable prefetch pipeline.
 
@@ -211,6 +214,11 @@ It swaps `Concat` operation with elementwise -> FQ subgraph when possible. For e
 * `PReLU` -> per-tensor `FakeQuantize` subgraph is eligible for such swap.
 
 This transormation allows to fuse `FakeQuantize` to NCE operations.
+### `-swap-fake-quant-reshape`: Swap FakeQuantize with Reshape when required to void redundant expand and permute ops
+The pass is a part of `LowPrecision` pipeline.
+
+It matches pattern non-channel-aligned op -> optional Reshapes -> FQ -> Reshapes -> channel-aligned op
+Move the FQ right before the channel-aligned op to avoid redundant expand and permute ops.
 ### `-swap-maxpool-with-act`: Swaps the MaxPool and activation
 This pass is needed for MTL only since HW MaxPool does not support post-op operations.
 Operations are swapped only if there is an operation before MaxPool that supports post-ops.

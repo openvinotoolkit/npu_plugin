@@ -194,47 +194,73 @@ public:
             }
             return StringLiteral("UNDEFINED");
         }
-        size_t numOfResources() const {
-            return resourceInfo_.size();
+        size_t numOfOutputResources() const {
+            return outputResourceInfo_.size();
         }
-        bool hasActiveResource() const {
-            for (size_t resourceIdx = 0; resourceIdx < numOfResources(); resourceIdx++) {
-                if (isActiveResource(resourceIdx)) {
+        bool hasActiveOutputResource() const {
+            for (size_t resourceIdx = 0; resourceIdx < numOfOutputResources(); resourceIdx++) {
+                if (isActiveOutputResource(resourceIdx)) {
                     return true;
                 }
             }
             return false;
         }
-        bool isActiveResource(size_t idx) const {
-            return (resourceInfo_[idx].begin_ <= resourceInfo_[idx].end_);
+        bool isActiveOutputResource(size_t idx) const {
+            return (outputResourceInfo_[idx].begin_ <= outputResourceInfo_[idx].end_);
         }
         bool isDataOp() const {
             return isDataOp_;
         }
         size_t resourceSize() const {
             size_t size = 0;
-            for (size_t resourceIdx = 0; resourceIdx < numOfResources(); resourceIdx++) {
-                if (isActiveResource(resourceIdx)) {
-                    size += endResource(resourceIdx) - beginResource(resourceIdx);
+            for (size_t resourceIdx = 0; resourceIdx < numOfOutputResources(); resourceIdx++) {
+                if (isActiveOutputResource(resourceIdx)) {
+                    size += endOutputResource(resourceIdx) - beginOutputResource(resourceIdx);
                 }
             }
             return size;
         }
-        size_t beginResource(size_t idx) const {
-            return resourceInfo_[idx].begin_;
+        size_t beginOutputResource(size_t idx) const {
+            return outputResourceInfo_[idx].begin_;
         }
-        size_t endResource(size_t idx) const {
-            return resourceInfo_[idx].end_;
+        size_t endOutputResource(size_t idx) const {
+            return outputResourceInfo_[idx].end_;
         }
-        mlir::Value getBuffer(size_t idx) const {
-            return resourceInfo_[idx].buffer_;
+        mlir::Value getOutputBuffer(size_t idx) const {
+            return outputResourceInfo_[idx].buffer_;
         }
+
+        size_t numOfInputResources() const {
+            return inputResourceInfo_.size();
+        }
+        bool hasActiveInputResource() const {
+            for (size_t resourceIdx = 0; resourceIdx < numOfInputResources(); resourceIdx++) {
+                if (isActiveInputResource(resourceIdx)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+        bool isActiveInputResource(size_t idx) const {
+            return (inputResourceInfo_[idx].begin_ <= inputResourceInfo_[idx].end_);
+        }
+        size_t beginInputResource(size_t idx) const {
+            return inputResourceInfo_[idx].begin_;
+        }
+        size_t endInputResource(size_t idx) const {
+            return inputResourceInfo_[idx].end_;
+        }
+        mlir::Value getInputBuffer(size_t idx) const {
+            return inputResourceInfo_[idx].buffer_;
+        }
+
         operationIdxType op_;
         EOpType opType_;
         size_t time_;
         vpux::AddressType freeCmx_;
         bool isDataOp_;
-        SmallVector<IntervalInfo> resourceInfo_;
+        SmallVector<IntervalInfo> outputResourceInfo_;
+        SmallVector<IntervalInfo> inputResourceInfo_;
     };
     // Struct storing eviction policy info for buffers
     struct EvictionCandidate {

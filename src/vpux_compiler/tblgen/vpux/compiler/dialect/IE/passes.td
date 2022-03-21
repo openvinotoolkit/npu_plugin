@@ -603,6 +603,27 @@ def SwapMaxPoolWithActivation : PassBase<"swap-maxpool-with-act", "vpux::Functio
 //=================================================================================
 
 //
+// SwapFakeQuantReshape
+//
+
+def SwapFakeQuantReshape : PassBase<"swap-fake-quant-reshape", "vpux::FunctionPass"> {
+    let summary = "Swap FakeQuantize with Reshape when required to void redundant expand and permute ops";
+
+    let description = [{
+        The pass is a part of `LowPrecision` pipeline.
+
+        It matches pattern non-channel-aligned op -> optional Reshapes -> FQ -> Reshapes -> channel-aligned op
+        Move the FQ right before the channel-aligned op to avoid redundant expand and permute ops.
+    }];
+
+    let constructor = "vpux::IE::createSwapFakeQuantReshapePass()";
+
+    let dependentDialects = [
+        "vpux::IE::IEDialect"
+    ];
+}
+
+//
 // SplitFakeQuant
 //
 
@@ -750,6 +771,27 @@ def RemoveQuantDequantSeq : PassBase<"remove-quantdequant-seq", "vpux::FunctionP
         "mlir::quant::QuantizationDialect"
     ];
 }
+
+//
+// OptimizeUnalignedQDQSeq
+//
+
+def OptimizeUnalignedQDQSeq : PassBase<"optimize-unaligned-qdq-seq", "vpux::FunctionPass"> {
+    let summary = "Swaps AffineReshape->FakeQuantize sequence if channels become unaligned after AffineReshape";
+
+    let description = [{
+        Pass swaps order of AffineReshape->FakeQuantize sequence if channels become unaligned after AffineReshape
+        Otherwise additionals ops are introduce in order to align channels which impacts performance.
+    }];
+
+    let constructor = "vpux::IE::createOptimizeUnalignedQDQSeqPass()";
+
+    let dependentDialects = [
+        "vpux::IE::IEDialect",
+        "mlir::quant::QuantizationDialect"
+    ];
+}
+
 
 
 //

@@ -384,6 +384,7 @@ void FeasibleMemoryScheduler::getReadyComputeList() {
 }
 
 SmallVector<mlir::Value> FeasibleMemoryScheduler::sortUsedBuffers(mlir::DenseSet<mlir::Value>& operationBuffers) {
+    // retrieve size of buffers
     SmallVector<std::pair<vpux::AddressType, mlir::Value>> buffersWithSize;
     for (auto& val : operationBuffers) {
         auto opSize = _scan.handler().getSize(val);
@@ -806,8 +807,9 @@ size_t FeasibleMemoryScheduler::evictionPriority(mlir::Value buffer) {
     }
 
     for (auto bufferUser : buffer.getUsers()) {
-        if (bufferUser->hasAttr("CMXConcat")) {
+        if (mlir::isa<IERT::ConcatViewOp>(bufferUser)) {
             cmxConcatable = true;
+            break;
         }
     }
 
@@ -915,7 +917,8 @@ void FeasibleMemoryScheduler::forceScheduleActiveOpEviction() {
 }
 
 void FeasibleMemoryScheduler::populateScheduledOps(HeapElement& scheduledOp) {
-    SmallVector<IntervalInfo> intervals;
+    SmallVector<IntervalInfo> outputIntervals;
+    SmallVector<IntervalInfo> inputIntervals;
     // store scheduled information
     if (scheduledOp.isImplicitWriteOp()) {
         // special case for a spill write with deallocation
@@ -925,7 +928,8 @@ void FeasibleMemoryScheduler::populateScheduledOps(HeapElement& scheduledOp) {
         interval.begin_ = checked_cast<size_t>(_scan.handler().getAddress(output));
         interval.end_ = interval.begin_ + checked_cast<size_t>(_scan.handler().getSize(output));
         interval.buffer_ = output;
-        intervals.push_back(interval);
+        // SPILL WRITE has only input resource
+        inputIntervals.push_back(interval);
         // deallocate only after addresses stored
         _scan.handler().deallocate(output);
     } else {
@@ -934,6 +938,44 @@ void FeasibleMemoryScheduler::populateScheduledOps(HeapElement& scheduledOp) {
         for (auto& op : bodyBlock->getOperations()) {
             if (mlir::isa<IERT::LayerOpInterface>(op)) {
                 auto layerOp = mlir::dyn_cast<IERT::LayerOpInterface>(op);
+
+                if (scheduledOp.isOriginalOp()) {
+                    // Track input resources. SPILL READ has only output resource
+                    mlir::DenseSet<mlir::Value> inputBuffers;
+                    for (auto input : layerOp.getInputs()) {
+                        const auto type = input.getType().dyn_cast<mlir::MemRefType>();
+                        if (type == nullptr || type.getMemorySpace() != _memSpace) {
+                            continue;
+                        }
+
+                        // Find the root buffer for a given output as output of an operation
+                        // doesn't have to point directly to result of memref.alloc (e.g. might
+                        // be a result of SubView).
+                        const auto rootBuffers = _aliasInfo.getRoots(input);
+                        VPUX_THROW_UNLESS(rootBuffers.size() == 1,
+                                          "Value '{0}' expected to have only one root. Got {1}", input,
+                                          rootBuffers.size());
+                        const auto rootBuffer = *rootBuffers.begin();
+
+                        if (_opWritingToBuffer.find(rootBuffer) == _opWritingToBuffer.end()) {
+                            continue;
+                        }
+
+                        if (inputBuffers.find(rootBuffer) != inputBuffers.end()) {
+                            continue;
+                        }
+                        inputBuffers.insert(rootBuffer);
+
+                        IntervalInfo interval;
+                        // retrieve and store operation addresses
+                        interval.begin_ = checked_cast<size_t>(_scan.handler().getAddress(rootBuffer));
+                        interval.end_ = interval.begin_ + checked_cast<size_t>(_scan.handler().getSize(rootBuffer));
+                        interval.buffer_ = rootBuffer;
+                        inputIntervals.push_back(interval);
+                    }
+                }
+
+                // Track output resources
                 for (auto output : layerOp.getOutputs()) {
                     const auto type = output.getType().dyn_cast<vpux::NDTypeInterface>();
                     if (type == nullptr || type.getMemSpace() != _memSpace) {
@@ -959,7 +1001,7 @@ void FeasibleMemoryScheduler::populateScheduledOps(HeapElement& scheduledOp) {
                     interval.begin_ = checked_cast<size_t>(_scan.handler().getAddress(rootBuffer));
                     interval.end_ = interval.begin_ + checked_cast<size_t>(_scan.handler().getSize(rootBuffer));
                     interval.buffer_ = rootBuffer;
-                    intervals.push_back(interval);
+                    outputIntervals.push_back(interval);
                 }
             }
         }
@@ -969,7 +1011,8 @@ void FeasibleMemoryScheduler::populateScheduledOps(HeapElement& scheduledOp) {
     scheduled.op_ = scheduledOp.op_;
     scheduled.opType_ = scheduledOp.opType_;
     scheduled.time_ = scheduledOp.time_;
-    scheduled.resourceInfo_ = intervals;
+    scheduled.outputResourceInfo_ = outputIntervals;
+    scheduled.inputResourceInfo_ = inputIntervals;
     scheduled.isDataOp_ = isDataOp(scheduledOp.op_);
     scheduled.freeCmx_ = _scan.totalFreeSize();
     _scheduledOps.push_back(scheduled);
@@ -1068,25 +1111,43 @@ SmallVector<FeasibleMemoryScheduler::ScheduledOpInfo> FeasibleMemoryScheduler::g
     _log.trace("Generated Schedule");
     _log = _log.nest();
     for (const auto& op : _scheduledOps) {
-        std::string resourceInfo = "<none>";
-        if (op.hasActiveResource()) {
-            resourceInfo = "";
-            for (size_t resourceIdx = 0; resourceIdx < op.numOfResources(); resourceIdx++) {
-                if (op.isActiveResource(resourceIdx)) {
-                    resourceInfo += "resource = [" + std::to_string(op.beginResource(resourceIdx)) + " " +
-                                    std::to_string(op.endResource(resourceIdx)) + "] size = " +
-                                    std::to_string((op.endResource(resourceIdx) - op.beginResource(resourceIdx))) +
-                                    ", ";
+        std::string inputResourceInfo = "<none>";
+        std::string outputResourceInfo = "<none>";
+        if (op.hasActiveInputResource()) {
+            inputResourceInfo = "";
+            for (size_t resourceIdx = 0; resourceIdx < op.numOfInputResources(); resourceIdx++) {
+                if (op.isActiveInputResource(resourceIdx)) {
+                    inputResourceInfo +=
+                            "[" + std::to_string(op.beginInputResource(resourceIdx)) + " " +
+                            std::to_string(op.endInputResource(resourceIdx)) + "] size = " +
+                            std::to_string((op.endInputResource(resourceIdx) - op.beginInputResource(resourceIdx))) +
+                            ", ";
                 }
             }
         }
+
+        if (op.hasActiveOutputResource()) {
+            outputResourceInfo = "";
+            for (size_t resourceIdx = 0; resourceIdx < op.numOfOutputResources(); resourceIdx++) {
+                if (op.isActiveOutputResource(resourceIdx)) {
+                    outputResourceInfo +=
+                            "[" + std::to_string(op.beginOutputResource(resourceIdx)) + " " +
+                            std::to_string(op.endOutputResource(resourceIdx)) + "] size = " +
+                            std::to_string((op.endOutputResource(resourceIdx) - op.beginOutputResource(resourceIdx))) +
+                            ", ";
+                }
+            }
+        }
+
         if (!prefetchEdges.empty()) {
             if (_depsInfo.getExecuteOpAtIndex(op.op_)->hasAttr("exceedingNNCMX")) {
                 // remove pass specific attributes after complete allocation
                 _depsInfo.getExecuteOpAtIndex(op.op_)->removeAttr("exceedingNNCMX");
             }
         }
-        _log.trace("op = '{0}'\t type = '{1}'\t time = '{2}'\t '{3}'", op.op_, op.opTypeName(), op.time_, resourceInfo);
+
+        _log.trace("op = '{0}'\t type = '{1}'\t time = '{2}'\t inputs = '{3}' outputs = '{4}'", op.op_, op.opTypeName(),
+                   op.time_, inputResourceInfo, outputResourceInfo);
     }
     _log = _log.unnest();
 

@@ -276,6 +276,12 @@ Shape VPUIP::DistributedBufferType::getCompactShape(int64_t tileInd) const {
     return tiledComputeShapes[tileInd];
 }
 
+// @brief Retrieve the array of padding for each cluster
+// @warning This function is needed for getting padding in OVERLAPPED mode.
+SmallVector<PadInfo> VPUIP::DistributedBufferType::getPerClusterPadding() const {
+    return VPU::getPerClusterPadding(getDistribution());
+}
+
 // @brief Get largest strided compute shape
 // @warning This function should not be used for memory size calculation,
 // because it does not retrieve the true allocate shape in cases

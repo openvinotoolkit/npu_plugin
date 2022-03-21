@@ -89,6 +89,10 @@ def VPUIP_DistributedBuffer :
         // of broadcasting.
         vpux::Shape getCompactShape(int64_t tileInd) const;
 
+        // @brief Retrieve the array of padding for each cluster
+        // @warning This function is needed for getting padding in OVERLAPPED mode
+        SmallVector<vpux::PadInfo> getPerClusterPadding() const;
+
         // @brief Get largest strided compute shape
         // @warning This function should not be used for memory size calculation,
         // because it does not retrieve the true allocate shape in cases
