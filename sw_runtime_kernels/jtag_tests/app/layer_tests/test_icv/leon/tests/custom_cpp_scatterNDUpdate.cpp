@@ -252,27 +252,27 @@ class ScatterNDUpdateTestFP16 : public CustomCppScatterNDUpdateTest<fp16> {
             m_updatesTensor.at(indices) = f32Tof16(val);
         });
 #else
-    int i = 100;
-    m_inputTensor.forEach(false, [&](const MemoryDims& indices) {
-        if (i > 200.0)
-            i = 100;
-        float val = (float)(i++);
-        m_inputTensor.at(indices) = f32Tof16(val);
-    });
-    const auto& test = m_testsLoop.value();
-    m_indicesTensor.forEach(false, [&](const MemoryDims& indices) {
-        const auto dim = test.inputDims.size() - indices.dims[Dim::W] - 1;
-        const auto maxValue = test.inputDims.begin()[dim];
-        m_indicesTensor.at(indices) = rand() % maxValue;
-    });
+        int i = 100;
+        m_inputTensor.forEach(false, [&](const MemoryDims& indices) {
+            if (i > 200.0)
+                i = 100;
+            float val = (float)(i++);
+            m_inputTensor.at(indices) = f32Tof16(val);
+        });
+        const auto& test = m_testsLoop.value();
+        m_indicesTensor.forEach(false, [&](const MemoryDims& indices) {
+            const auto dim = test.inputDims.size() - indices.dims[Dim::W] - 1;
+            const auto maxValue = test.inputDims.begin()[dim];
+            m_indicesTensor.at(indices) = rand() % maxValue;
+        });
 
-    i = 10;
-    m_updatesTensor.forEach(false, [&](const MemoryDims& indices) {
-        if (i > 99.0)
-            i = 10;
-        float val = (float)(i++);
-        m_updatesTensor.at(indices) = f32Tof16(val);
-    });
+        i = 10;
+        m_updatesTensor.forEach(false, [&](const MemoryDims& indices) {
+            if (i > 99.0)
+                i = 10;
+            float val = (float)(i++);
+            m_updatesTensor.at(indices) = f32Tof16(val);
+        });
 #endif
     }
 
@@ -291,7 +291,7 @@ class ScatterNDUpdateTestFP16 : public CustomCppScatterNDUpdateTest<fp16> {
 #if defined(USE_MANUAL_DATA)
             float gt_value = manual_expected_val[counter_expected++];
 #else
-        float gt_value = f16Tof32(m_referenceTensor.at(indices, true));
+            float gt_value = f16Tof32(m_referenceTensor.at(indices, true));
 #endif
             float value = f16Tof32(m_outputTensor.at(indices, true));
 
@@ -333,27 +333,27 @@ class ScatterNDUpdateTestI32 : public CustomCppScatterNDUpdateTest<int32_t> {
             m_updatesTensor.at(indices) = (int)(val);
         });
 #else
-    int i = 100;
-    m_inputTensor.forEach(false, [&](const MemoryDims& indices) {
-        if (i > 200)
-            i = 100;
-        float val = (float)(i++);
-        m_inputTensor.at(indices) = (int)(val);
-    });
-    const auto& test = m_testsLoop.value();
-    m_indicesTensor.forEach(false, [&](const MemoryDims& indices) {
-        const auto dim = test.inputDims.size() - indices.dims[Dim::W] - 1;
-        const auto maxValue = test.inputDims.begin()[dim];
-        m_indicesTensor.at(indices) = rand() % maxValue;
-    });
+        int i = 100;
+        m_inputTensor.forEach(false, [&](const MemoryDims& indices) {
+            if (i > 200)
+                i = 100;
+            float val = (float)(i++);
+            m_inputTensor.at(indices) = (int)(val);
+        });
+        const auto& test = m_testsLoop.value();
+        m_indicesTensor.forEach(false, [&](const MemoryDims& indices) {
+            const auto dim = test.inputDims.size() - indices.dims[Dim::W] - 1;
+            const auto maxValue = test.inputDims.begin()[dim];
+            m_indicesTensor.at(indices) = rand() % maxValue;
+        });
 
-    i = 10;
-    m_updatesTensor.forEach(false, [&](const MemoryDims& indices) {
-        if (i > 99.0)
-            i = 10;
-        float val = (float)(i++);
-        m_updatesTensor.at(indices) = (int)(val);
-    });
+        i = 10;
+        m_updatesTensor.forEach(false, [&](const MemoryDims& indices) {
+            if (i > 99.0)
+                i = 10;
+            float val = (float)(i++);
+            m_updatesTensor.at(indices) = (int)(val);
+        });
 #endif
     }
 
@@ -371,9 +371,9 @@ class ScatterNDUpdateTestI32 : public CustomCppScatterNDUpdateTest<int32_t> {
 
         m_outputTensor.forEach(true, [&](const MemoryDims& indices) {
 #if defined(USE_MANUAL_DATA)
-        int32_t gt_value = (int32_t)manual_expected_val[counter_expected++];
+            int32_t gt_value = (int32_t)manual_expected_val[counter_expected++];
 #else
-        int32_t gt_value = m_referenceTensor.at(indices, true);
+            int32_t gt_value = m_referenceTensor.at(indices, true);
 #endif
             int32_t value = m_outputTensor.at(indices, true);
 
