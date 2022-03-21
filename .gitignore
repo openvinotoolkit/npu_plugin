@@ -330,3 +330,6 @@ CMakeUserPresets.json
 
 # Plugin documentation
 docs/VPUX_DG/generated
+
+# PSS Testing Framework
+rtlCases

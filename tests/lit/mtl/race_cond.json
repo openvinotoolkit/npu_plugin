@@ -1,11 +1,13 @@
 // RUN: vpux-translate --import-HWTEST %s
 
 {
+    "architecture": "MTL",
     "case_type": "RaceCondition",
     "iteration_count": 10,
     "requested_clusters": 1,
     "requested_units": 2,
     "operation": {
+        "architecture": "MTL",
         "case_type": "ActShave",
         "input": {
             "shape": [

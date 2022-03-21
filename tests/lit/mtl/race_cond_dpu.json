@@ -1,6 +1,7 @@
 // RUN: vpux-translate --import-HWTEST %s
 
 {
+    "architecture": "MTL",
     "case_type": "RaceConditionDPU",
     "input": {
         "shape": [

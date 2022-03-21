@@ -15,6 +15,7 @@
 
 #include <mlir/Dialect/Quant/QuantTypes.h>
 
+#include "vpux/compiler/dialect/IE/utils/resources.hpp"
 #include "vpux/compiler/dialect/VPU/nce_sparsity.hpp"
 #include "vpux/compiler/dialect/VPU/passes.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
@@ -229,7 +230,7 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
     const auto weightsTable = VPU::NCESparsity::getWeightsTable(
             inputType, outputType, static_cast<std::int32_t>(WEIGHTS_CMX_OFFSET),
             static_cast<std::int32_t>(weightsOutputChannelsStrideInBits.count() / CHAR_BIT),
-            static_cast<std::int32_t>(0xFFFFFF), vpux::VPU::ArchKind::MTL, output.shape[1], weightsType);
+            static_cast<std::int32_t>(0xFFFFFF), testDesc.getArchitecture(), output.shape[1], weightsType);
 
     const auto weightsTableDDRMemRef =
             getMemRefType(VPURT::BufferSection::Constant, weightsTableShape, int32, DimsOrder::NHWC);
@@ -282,10 +283,10 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
     const auto ppeConfiguration = testDesc.getActivationLayer();
     if (ppeConfiguration.activationType != nb::ActivationType::None) {
         const auto outputScale = 1.0 / output.qp.scale;
-        const auto scaleApproximation = QuantizationApproximation(VPU::ArchKind::MTL, outputScale);
+        const auto scaleApproximation = QuantizationApproximation(testDesc.getArchitecture(), outputScale);
 
         const auto preluScale = ppeConfiguration.alpha;
-        const auto alphaApproximation = PReLUApproximation(VPU::ArchKind::MTL, preluScale);
+        const auto alphaApproximation = PReLUApproximation(testDesc.getArchitecture(), preluScale);
 
         nceTask.addPPETask(functionBuilder, getPPEMode(ppeConfiguration.activationType),
                            std::numeric_limits<int32_t>::min(), std::numeric_limits<int32_t>::max(),
@@ -298,7 +299,7 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
     module.dump();
 
     mlir::PassManager pm(ctx, mlir::OpPassManager::Nesting::Implicit);
-    pm.addPass(VPU::createInitCompilerPass(VPU::ArchKind::MTL, VPU::CompilationMode::DefaultHW, None, log));
+    pm.addPass(VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::DefaultHW, None, log));
     if (conv.compress) {
         pm.addPass(VPUIP::createCompressWeightsPass(log));
     }
