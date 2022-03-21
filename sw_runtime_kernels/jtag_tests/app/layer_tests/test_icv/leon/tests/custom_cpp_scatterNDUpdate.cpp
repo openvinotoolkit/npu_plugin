@@ -46,7 +46,7 @@ const std::initializer_list<ScatterNDUpdateTestParams> scatterNDUpdate_test_list
 };
 
 template <class SrcType>
-class CustomCppScatterNDUpdateTest : public CustomCppTests<fp16> {
+class CustomCppScatterNDUpdateTest : public CustomCppTestBase<ScatterNDUpdateTestParams> {
 public:
     explicit CustomCppScatterNDUpdateTest(): m_testsLoop(scatterNDUpdate_test_list, "test") {
     }
@@ -124,7 +124,7 @@ protected:
     }
 
     void initTestCase() override {
-        // m_currentTest = &m_testsLoop.value(); // error when compile
+        m_currentTest = &m_testsLoop.value();
         m_test_threshold = 0.07f;
     }
 
@@ -162,9 +162,9 @@ protected:
         customCppOp->ops = *getParams();
     }
 
-    // void resetOutputData() override {
-    //     resetTensorBuffer(m_outputTensor);
-    // }
+    void resetOutputData() override {
+        resetTensorBuffer(m_outputTensor);
+    }
 
     void generateReferenceData() override {
         const auto& test_value = m_testsLoop.value();
@@ -218,15 +218,15 @@ protected:
     ListIterator<ScatterNDUpdateTestParams> m_testsLoop;
     sw_params::ScatterNDUpdateParams* m_scatterNDUpdateParams;
 
-    // sw_params::Location m_requiredTensorLocation = sw_params::Location::DDR;
+    sw_params::Location m_requiredTensorLocation = sw_params::Location::DDR;
 
-    // //  FIXME: Temporarily is located on CMX due to problem of ACT_SHAVE cache invalidation
-    // uint64_t* paramContainer = cmxParamContainer;
-    // float m_test_threshold = 0.0f;
+    //  FIXME: Temporarily is located on CMX due to problem of ACT_SHAVE cache invalidation
+    uint64_t* paramContainer = cmxParamContainer;
+    float m_test_threshold = 0.0f;
 
-    // // Debug-specific
-    // bool m_save_to_file = false;
-    // int m_num_of_debug_output = 0;
+    // Debug-specific
+    bool m_save_to_file = false;
+    int m_num_of_debug_output = 0;
 };
 
 class ScatterNDUpdateTestFP16 : public CustomCppScatterNDUpdateTest<fp16> {
