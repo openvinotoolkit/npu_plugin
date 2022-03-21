@@ -43,8 +43,8 @@ bool checkFactors(const Factors& factors, int64_t kernelSize = 0) {
     const auto factorLessThanKernelSize = factors.larger * factors.smaller < kernelSize;
     const auto hasUnsupportedFactors =
             factors.larger > VPU::NCEInvariant::MAX_KERNEL_SIZE || factors.smaller > VPU::NCEInvariant::MAX_KERNEL_SIZE;
-    const auto hasBadFactors = factors.larger * factors.smaller > (kernelSize + factors.smaller / 2);
-    return !(hasZeroFactors || factorLessThanKernelSize || hasUnsupportedFactors || hasBadFactors);
+    // const auto hasBadFactors = factors.larger * factors.smaller > (kernelSize + factors.smaller / 2);
+    return !(hasZeroFactors || factorLessThanKernelSize || hasUnsupportedFactors /* || hasBadFactors*/);
     // those last 2 checks have the main scope of finding the best suited factors:
     // if one of the last 2 checks fails it means that the gap between product of
     // those 2 factors and original kernel size is too big, which generates larger overlapping area
@@ -58,13 +58,14 @@ Factors getFactorsAround(int64_t kernelSize, int64_t pad) {
     return {};
 }
 
-Factors getFactors(int64_t kernelSize) {
+Factors getFactors(int64_t kernelSize, int64_t& padValue) {
+    padValue = 0;
     const auto& allFactors = getFactorsList(kernelSize);
     if (!allFactors.empty() && checkFactors(allFactors.back(), kernelSize)) {
         return allFactors.back();
     }
 
-    int64_t padValue = 1;
+    padValue = 1;
     while (padValue < kernelSize) {
         const auto& factors = getFactorsAround(kernelSize, padValue);
         if (checkFactors(factors, kernelSize)) {
@@ -78,7 +79,8 @@ Factors getFactors(int64_t kernelSize) {
 void getFactorsForSecondDimension(std::array<int64_t, 4>& padding, std::array<int64_t, 2>& firstOpKernel,
                                   std::array<int64_t, 2>& sequencedOpKernel, int32_t smallDim, Logger log,
                                   ArrayRef<int64_t> kernelSize) {
-    const auto factorsSecondDim = getFactors(kernelSize[smallDim]);  // toggling between the two kernel sizes
+    int64_t padValue = 0;
+    const auto factorsSecondDim = getFactors(kernelSize[smallDim], padValue);  // toggling between the two kernel sizes
     log.trace("Second Dimension kernel[{0}]= {1}, larger factor: {2} , smaller factor: {3}", smallDim,
               kernelSize[smallDim], factorsSecondDim.larger, factorsSecondDim.smaller);
 
@@ -90,7 +92,7 @@ void getFactorsForSecondDimension(std::array<int64_t, 4>& padding, std::array<in
     sequencedOpKernel[smallDim] = factorsSecondDim.smaller;
     auto multipliedFactors = firstOpKernel[smallDim] * sequencedOpKernel[smallDim];
 
-    padding[PADDING_BOT] = (multipliedFactors > kernelSize[smallDim]) ? 1 : 0;
+    padding[PADDING_BOT] = (multipliedFactors > kernelSize[smallDim]) ? padValue : 0;
 }
 
 void calculateKernelsAndPadding(ArrayRef<int64_t> kernelSize, std::array<int64_t, 4>& padding,
@@ -113,7 +115,8 @@ void calculateKernelsAndPadding(ArrayRef<int64_t> kernelSize, std::array<int64_t
         largeDim = Dims4D::Kernel::Y.ind();
         smallDim = Dims4D::Kernel::X.ind();
     }
-    const auto factors = getFactors(largerKernelSize);
+    int64_t padValue = 0;
+    const auto factors = getFactors(largerKernelSize, padValue);
 
     log.trace("Large Dimension kernelSize[{0}] = {1}, larger factor: {2} , smaller factor: {3}", largeDim,
               largerKernelSize, factors.larger, factors.smaller);
@@ -141,7 +144,7 @@ void calculateKernelsAndPadding(ArrayRef<int64_t> kernelSize, std::array<int64_t
             padding[PADDING_BOT] = 0;
         }
         // factors multiplied > kernel, we need padding
-        padding[PADDING_RIGHT] = (multipliedFactors > kernelSize[largeDim]) ? 1 : 0;
+        padding[PADDING_RIGHT] = (multipliedFactors > kernelSize[largeDim]) ? padValue : 0;
 
         if (largeDim != Dims4D::Kernel::X.ind()) {
             // change the padding on the other dimensions as largeDim was not on the width dimension - PADD_RIGHT
@@ -150,7 +153,7 @@ void calculateKernelsAndPadding(ArrayRef<int64_t> kernelSize, std::array<int64_t
     } else {
         firstOpKernel[smallDim] = factors.larger;  // largeDim has the same kernel size as smallDim
         sequencedOpKernel[smallDim] = factors.smaller;
-        padding[PADDING_RIGHT] = padding[PADDING_BOT] = (multipliedFactors > kernelSize[largeDim]) ? 1 : 0;
+        padding[PADDING_RIGHT] = padding[PADDING_BOT] = (multipliedFactors > kernelSize[largeDim]) ? padValue : 0;
     }
 }
 
