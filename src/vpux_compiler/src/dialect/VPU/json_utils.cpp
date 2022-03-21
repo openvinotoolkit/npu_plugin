@@ -38,7 +38,7 @@ namespace VPU {
 Json readManualStrategyJSON(StringRef fileName) {
     VPUX_THROW_WHEN(fileName.empty(), "Output file name for input strategy json was not provided");
 
-    std::ifstream i(fileName.data());
+    std::ifstream i(fileName.str());
 
     Json json;
     if (i.good()) {
@@ -51,7 +51,7 @@ Json readManualStrategyJSON(StringRef fileName) {
 void writeManualStrategyJSON(StringRef fileName, Json& json) {
     VPUX_THROW_WHEN(fileName.empty(), "Output file name for output strategy json was not provided");
 
-    std::ofstream o(fileName.data());
+    std::ofstream o(fileName.str());
     o << std::setw(4) << json << std::endl;
 
     return;
@@ -59,8 +59,7 @@ void writeManualStrategyJSON(StringRef fileName, Json& json) {
 
 Json convertAttrToString(mlir::Attribute attr) {
     if (attr.isa<mlir::StringAttr>()) {
-        Json clusteringStrategy;
-        clusteringStrategy = attr.cast<mlir::StringAttr>().getValue().data();
+        Json clusteringStrategy = attr.cast<mlir::StringAttr>().getValue().str();
         return clusteringStrategy;
     } else if (attr.isa<mlir::ArrayAttr>()) {
         auto values = Shape(parseIntArrayAttr<int64_t>(attr.cast<mlir::ArrayAttr>()));
@@ -103,13 +102,13 @@ Json createStrategyJSONFromOperations(Json& json, llvm::DenseMap<mlir::Location,
                 strategyAsJSON = convertAttrToString(op.second->getAttr(attribute));
             } else if (parentClusterOp != nullptr && parentClusterOp->hasAttr(attribute)) {
                 strategyAsJSON = convertAttrToString(parentClusterOp->getAttr(attribute));
-            } else if (json.contains(opName) && json[opName].contains(attribute.data())) {
-                strategyAsJSON = json[opName].at(attribute.data());
+            } else if (json.contains(opName) && json[opName].contains(attribute.str())) {
+                strategyAsJSON = json[opName].at(attribute.str());
             } else {
                 // currently no default strategy, set NONE
                 strategyAsJSON = "NONE";
             }
-            json[opName][attribute.data()] = strategyAsJSON;
+            json[opName][attribute.str()] = strategyAsJSON;
         }
     }
 
