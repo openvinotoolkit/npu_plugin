@@ -20,7 +20,7 @@ fi
 
 if [ $env_is_set = 0 ]; then exit 1; fi
 
-rm -f "${KERNEL_DIR}/prebuild/single_shave_scatterNDUpdate_${cpu}.o" "${KERNEL_DIR}/prebuild/mvSubspaces_${cpu}.o" "${KERNEL_DIR}/prebuild/singleShaveScatterNDUpdate_${cpu}.elf" "${KERNEL_DIR}/prebuild/act_shave_bin/sk.singleShaveScatterNDUpdate.${cpu}.text" "${KERNEL_DIR}/prebuild/act_shave_bin/sk.singleShaveScatterNDUpdate.${cpu}.data"
+rm -f "${KERNEL_DIR}/prebuild/single_shave_scatterNDUpdate_${cpu}.o" "${KERNEL_DIR}/prebuild/mvSubspaces_${cpu}.o" "${KERNEL_DIR}/prebuild/dma_shave_nn_${cpu}.o" "${KERNEL_DIR}/prebuild/singleShaveScatterNDUpdate_${cpu}.elf" "${KERNEL_DIR}/prebuild/act_shave_bin/sk.singleShaveScatterNDUpdate.${cpu}.text" "${KERNEL_DIR}/prebuild/act_shave_bin/sk.singleShaveScatterNDUpdate.${cpu}.data"
 
 "${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}/linux64/bin/moviCompile" -mcpu=${cpu} ${optimization} \
  -c "${KERNEL_DIR}/single_shave_scatterNDUpdate.cpp" -o "${KERNEL_DIR}/prebuild/single_shave_scatterNDUpdate_${cpu}.o" \
@@ -48,7 +48,18 @@ if [ -z ${alwaye_inline} ]
 
 if [ $? -ne 0 ]; then exit $?; fi
 
-obj_files="${KERNEL_DIR}/prebuild/single_shave_scatterNDUpdate_${cpu}.o ${KERNEL_DIR}/prebuild/mvSubspaces_${cpu}.o"
+"${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}/linux64/bin/moviCompile" -mcpu=${cpu} ${optimization}  \
+ -c "${KERNEL_DIR}/3720/dma_shave_nn.cpp" -o "${KERNEL_DIR}/prebuild/dma_shave_nn_${cpu}.o" \
+ -I "${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}" \
+ -I "${KERNEL_DIR}/inc" \
+ -I "${KERNEL_DIR}/common/inc" \
+ -I "${KERNEL_DIR}/inc/3720" \
+ -I "${FIRMWARE_VPU_DIR}/drivers/hardware/utils/inc" \
+ -D CONFIG_TARGET_SOC_3720 -D__shave_nn__
+
+if [ $? -ne 0 ]; then exit $?; fi
+
+obj_files="${KERNEL_DIR}/prebuild/single_shave_scatterNDUpdate_${cpu}.o ${KERNEL_DIR}/prebuild/mvSubspaces_${cpu}.o ${KERNEL_DIR}/prebuild/dma_shave_nn_${cpu}.o"
 fi
 
 "${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}/linux64/sparc-myriad-rtems-6.3.0/bin/sparc-myriad-rtems-ld" \
@@ -79,6 +90,6 @@ xxd -i sk.singleShaveScatterNDUpdate.3010xx.data ../sk.singleShaveScatterNDUpdat
 if [ $? -ne 0 ]; then echo $'\nGenerating includable binary of data segment failed $?\n'; cd -; exit $?; fi
 cd -
 
-rm "${KERNEL_DIR}/prebuild/single_shave_scatterNDUpdate_${cpu}.o" "${KERNEL_DIR}/prebuild/mvSubspaces_${cpu}.o"
+rm "${KERNEL_DIR}/prebuild/single_shave_scatterNDUpdate_${cpu}.o" "${KERNEL_DIR}/prebuild/mvSubspaces_${cpu}.o" "${KERNEL_DIR}/prebuild/dma_shave_nn_${cpu}.o"
 printf "\n \"${KERNEL_DIR}/prebuild/act_shave_bin/sk.singleShaveScatterNDUpdate.${cpu}.text\"\n \"${KERNEL_DIR}/prebuild/act_shave_bin/sk.singleShaveScatterNDUpdate.${cpu}.data\"\nhave been created successfully\n"
 exit $?

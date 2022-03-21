@@ -22,13 +22,10 @@
 #include <dma_shave.h>
 #endif
 
-#include <sw_tensor_ref.h>
+#include <mvSubspaces.h>
 #include <numeric>
 
 #include <param_scatterNDUpdate.h>
-
-using namespace sw_params;
-using namespace nn;
 
 namespace {
 
@@ -40,6 +37,34 @@ void dmaTransfer(const uint8_t *srcData_addr, uint8_t *dstData_addr, int size, D
         dmaTask.start(srcData_addr + i, dstData_addr + i, length);
         dmaTask.wait();
     }
+}
+
+// ToDo cvadim: can I move or use a utility library for this function?
+u32 getBpp(DataType type) {
+    u32 bpp = 0;
+    switch (type) {
+        case NN_INT16:
+        case NN_FP16:
+            bpp = 2;
+            break;
+
+        case NN_U8:
+        case NN_I8:
+            bpp = 1;
+            break;
+
+        case NN_INT32:
+        case NN_FP32:
+            bpp = 4;
+            break;
+
+        case NN_UNDEFINED:
+        default:
+            bpp = 0;
+            break;
+    }
+
+    return bpp;
 }
 
 }  // namespace
