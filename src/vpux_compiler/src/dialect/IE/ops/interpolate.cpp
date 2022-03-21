@@ -62,7 +62,7 @@ void applyInterpPads(MutableArrayRef<int64_t> outShape, ArrayRef<int64_t> padsBe
     if (padsBegin.size() != padsEnd.size() || padsBegin.size() != outShape.size()) {
         return;
     }
-    // TODO: naive implementation only apply pads to calculated output shape
+    // naive implementation only apply pads to calculated output shape
     for (auto d : outShape | indexed) {
         d.value() += padsBegin[d.index()] + padsEnd[d.index()];
     }
@@ -119,7 +119,7 @@ mlir::FailureOr<SmallVector<int64_t>> propagateShape(mlir::Location loc, mlir::F
         return errorAt(loc, "Doesn't support shape_calculation_mode: {0}", calcMode);
 
     // meaning pads provided in attributes
-    if (mlir::succeeded(padsBegin) && succeeded(padsEnd)) {
+    if (mlir::succeeded(padsBegin) && mlir::succeeded(padsEnd)) {
         applyInterpPads(outShape, padsBegin.getValue(), padsEnd.getValue());
     }
 
@@ -156,8 +156,7 @@ mlir::LogicalResult vpux::IE::InterpolateOp::inferReturnTypeComponents(
     }
 
     const auto inType = interpolate.input().getType().cast<mlir::ShapedType>();
-    // todo: is there better way to send log object from here
-    vpux::Logger log("none", LogLevel::None);
+    Logger log = Logger::global();
 
     auto outShape = calcOutputShapes(loc, interpolate, log);
 
@@ -250,11 +249,11 @@ InputTiling vpux::IE::InterpolateOp::backInferTileInfo(const vpux::TileInfo& out
         for (auto dim : inputShapeFromTile) {
             inputShape.push_back(dim);
         }
-        // TODO: how to deal with calc-mode = size if scales missed - recalc them somewhere: attr().shape_calc_mode()
-        auto shape_calc_mode = IE::InterpolateCalcMode::scales;
+        // TODO: E**W:36318 how to deal with calc-mode = size if scales missed - recalc them somewhere: attr().shape_calc_mode()
+        auto shapeCalcMode = IE::InterpolateCalcMode::scales;
 
         auto outputShape =
-                propagateShape(getLoc(), origAxes, inputShape, {beginPads}, {endPads}, shape_calc_mode,
+                propagateShape(getLoc(), origAxes, inputShape, {beginPads}, {endPads}, shapeCalcMode,
                                extractIntVector(getLoc(), sizes(), sizes_attr().getValueOr<mlir::ArrayAttr>({})),
                                {backwardScale}, log);
         VPUX_THROW_UNLESS(mlir::succeeded(outputShape),
@@ -262,14 +261,14 @@ InputTiling vpux::IE::InterpolateOp::backInferTileInfo(const vpux::TileInfo& out
 
         // need to run forward propagate in order to adjust pads
         auto inputShapeAfterProp =
-                propagateShape(getLoc(), origAxes, outputShape.getValue(), {beginPads}, {endPads}, shape_calc_mode,
+                propagateShape(getLoc(), origAxes, outputShape.getValue(), {beginPads}, {endPads}, shapeCalcMode,
                                extractIntVector(getLoc(), sizes(), sizes_attr().getValueOr<mlir::ArrayAttr>({})),
                                {forwardScaleOrError}, log);
 
         VPUX_THROW_UNLESS(mlir::succeeded(inputShapeAfterProp),
                           "InterpolateOp::backInferTileInfo failed to propagate Shape-forward");
 
-        // TODO: we counting only endpads - begin pad might matter for offsets not for dims
+        // TODO: E**W-36319 we counting only endpads - begin pad might matter for offsets not for dims
         if (endPads.size() == inputShape.size()) {
             for (auto shapeOrig : inputShape | indexed) {
                 endPads[shapeOrig.index()] = shapeOrig.value() - inputShapeAfterProp.getValue()[shapeOrig.index()];
@@ -342,8 +341,8 @@ bool vpux::IE::InterpolateOp::isSupportedTiling(const vpux::OutputTiling& tiles,
     const auto arch = VPU::getArch(*this);
     if (arch != VPU::ArchKind::MTL) {
         // TODO: E**W-35009 UPA shaves has no need to use tiling yet
-        // when switching to shave-nn, or another runtime implementation support might need to be added based on
-        // restrictions
+        // TODO: E**W-36317 tiling interfaces (prefetch, builder, etc) should depend on runtime cfg
+        // when switching to shave-nn, or another runtime implementation support might need to be added
         return true;
     }
 
@@ -376,20 +375,13 @@ bool vpux::IE::InterpolateOp::isSupportedTiling(const vpux::OutputTiling& tiles,
 }
 
 bool vpux::IE::InterpolateOp::isSupportedPrefetchTiling(ShapeRef /*tileAxis*/, Logger /*log*/) {
-    const auto arch = VPU::getArch(*this);
 
-    if (arch != VPU::ArchKind::MTL) {
-        // TODO: The prefetch tiling fo act Shave OP need to be investigated
-    }
+    // TODO: E**W-36317 tiling interfaces (prefetch, builder, etc) should depend on runtime cfg
     return false;
 }
 
 bool vpux::IE::InterpolateOp::isSupportedPrefetchPattern(ShapeRef /*tileAxis*/, mlir::Operation* /*parentOp*/,
                                                          ShapeRef /*parentTileAxis*/, vpux::Logger /*log*/) {
-    const auto arch = VPU::getArch(*this);
-    if (arch != VPU::ArchKind::MTL) {
-        // TODO: The prefetch tiling fo act Shave OP need to be investigated
-    }
-
+    // TODO: E**W-36317 tiling interfaces (prefetch, builder, etc) should depend on runtime cfg
     return true;
 }
