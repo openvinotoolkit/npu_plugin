@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright Intel Corporation.
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -44,6 +44,8 @@ std::set<ngraph::helpers::ActivationTypes> supportedTypesMLIR {
     ngraph::helpers::Mish,
     ngraph::helpers::Erf,
     ngraph::helpers::Tanh,
+    ngraph::helpers::Sin,
+    ngraph::helpers::Cos,
     ngraph::helpers::PReLu,
     ngraph::helpers::LeakyRelu,
     ngraph::helpers::Swish,
@@ -150,6 +152,8 @@ const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes
     {Sigmoid,  {{1.0f}}},
     {Sign,     {{1.0f}}},
     {Tanh,     {{1.0f}}},
+    {Sin,      {{1.0f}}},
+    {Cos,      {{1.0f}}},
     {Relu,     {{1.0f}}},
     {Elu,      {{1.0f}}},
     {Clamp,    {{-1.0f, 1.0f}}},
@@ -188,6 +192,8 @@ const std::map<ActivationTypes, std::vector<std::vector<float>>> activationParam
 const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypesND = {
     {Sigmoid,  {{1.0f}}},
     {Tanh,     {{1.0f}}},
+    {Sin,      {{1.0f}}},
+    {Cos,      {{1.0f}}},
     {Relu,     {{1.0f}}},
     {Elu,      {{1.0f}}},
     {Clamp,    {{-1.0f, 1.0f}}},

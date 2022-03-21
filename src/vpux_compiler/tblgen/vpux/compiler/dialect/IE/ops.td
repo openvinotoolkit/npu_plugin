@@ -1617,6 +1617,52 @@ def IE_TanhOp :
 }
 
 //
+// SinOp 
+//
+
+def IE_SinOp :
+        IE_LayerOp<
+            "Sin",
+            [
+                IE_TilingBuilderOpInterface,
+                IE_EltwiseOp
+            ]
+        > {
+    let summary = "InferenceEngine Sin layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$input
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+}
+
+//
+// CosOp 
+//
+
+def IE_CosOp :
+        IE_LayerOp<
+            "Cos",
+            [
+                IE_TilingBuilderOpInterface,
+                IE_EltwiseOp
+            ]
+        > {
+    let summary = "InferenceEngine Cos layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$input
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+}
+
+//
 // SqrtOp
 //
 

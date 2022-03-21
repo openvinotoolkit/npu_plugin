@@ -743,6 +743,80 @@ def VPUIP_TanhUPAOp :
 }
 
 //
+// SinUPAOp
+//
+
+def VPUIP_SinUPAOp :
+        VPUIP_UPATaskOp<1, "SinUPA",
+            [
+                ViewLikeOpInterface,
+                IERT_SameShape,
+                IERT_SameElementType,
+                IERT_SameInOutDimsOrder,
+                VPUIP_Legacy4D
+            ]
+        > {
+    let summary = "Sin UPA SHAVE kernel";
+
+    let arguments = (ins
+        F16MemRef:$input,
+        F16MemRef:$output_buff
+    );
+
+    let results = (outs
+        F16MemRef:$output
+    );
+
+    let verifier = [{
+        return vpux::VPUIP::verifyPostOp(*this);
+    }];
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
+//
+// CosUPAOp
+//
+
+def VPUIP_CosUPAOp :
+        VPUIP_UPATaskOp<1, "CosUPA",
+            [
+                ViewLikeOpInterface,
+                IERT_SameShape,
+                IERT_SameElementType,
+                IERT_SameInOutDimsOrder,
+                VPUIP_Legacy4D
+            ]
+        > {
+    let summary = "Cos UPA SHAVE kernel";
+
+    let arguments = (ins
+        F16MemRef:$input,
+        F16MemRef:$output_buff
+    );
+
+    let results = (outs
+        F16MemRef:$output
+    );
+
+    let verifier = [{
+        return vpux::VPUIP::verifyPostOp(*this);
+    }];
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
+//
 // SqrtUPAOp
 //
 

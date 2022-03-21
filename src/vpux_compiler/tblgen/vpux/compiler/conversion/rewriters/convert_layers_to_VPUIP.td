@@ -366,6 +366,36 @@ def RewriteTanh :
         >;
 
 //
+// IERT.Sin -> VPUIP.SinUPA
+//
+
+def createSinUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::SinUPAOp>($_loc, $0, $1)
+        }]>;
+
+def RewriteSin :
+        Pat<
+            (IERT_SinOp $input, $output),
+            (createSinUPAOp $input, $output)
+        >;
+
+//
+// IERT.Cos -> VPUIP.CosUPA
+//
+
+def createCosUPAOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPUIP::CosUPAOp>($_loc, $0, $1)
+        }]>;
+
+def RewriteCos :
+        Pat<
+            (IERT_CosOp $input, $output),
+            (createCosUPAOp $input, $output)
+        >;
+
+//
 // IERT.Sqrt -> VPUIP.SqrtUPA
 //
 

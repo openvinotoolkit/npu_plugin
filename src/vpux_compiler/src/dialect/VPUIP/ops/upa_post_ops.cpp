@@ -193,6 +193,36 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::TanhUPAOp::serialize(VPUIP::BlobWri
 }
 
 //
+// Sin
+//
+
+VPUIP::BlobWriter::SpecificTask vpux::VPUIP::SinUPAOp::serialize(VPUIP::BlobWriter& writer) {
+    const auto sine = MVCNN::CreateSinParams(writer);
+
+    MVCNN::PostOpsParamsBuilder builder(writer);
+    builder.add_nested_params_type(MVCNN::PostOpsNestedParams_SinParams);
+    builder.add_nested_params(sine.Union());
+    const auto paramsOff = builder.Finish();
+
+    return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_PostOpsParams});
+}
+
+//
+// Cos
+//
+
+VPUIP::BlobWriter::SpecificTask vpux::VPUIP::CosUPAOp::serialize(VPUIP::BlobWriter& writer) {
+    const auto cosine = MVCNN::CreateCosParams(writer);
+
+    MVCNN::PostOpsParamsBuilder builder(writer);
+    builder.add_nested_params_type(MVCNN::PostOpsNestedParams_CosParams);
+    builder.add_nested_params(cosine.Union());
+    const auto paramsOff = builder.Finish();
+
+    return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_PostOpsParams});
+}
+
+//
 // Sqrt
 //
 
@@ -590,6 +620,12 @@ mlir::Operation* vpux::VPUIP::BlobReader::parsePostOps(mlir::OpBuilder& builder,
         break;
     case MVCNN::PostOpsNestedParams_TanhParams:
         op = builder.create<VPUIP::TanhUPAOp>(mlir::UnknownLoc::get(_ctx), inputs[0], outputs[0]);
+        break;
+    case MVCNN::PostOpsNestedParams_SinParams:
+        op = builder.create<VPUIP::SinUPAOp>(mlir::UnknownLoc::get(_ctx), inputs[0], outputs[0]);
+        break;
+    case MVCNN::PostOpsNestedParams_CosParams:
+        op = builder.create<VPUIP::CosUPAOp>(mlir::UnknownLoc::get(_ctx), inputs[0], outputs[0]);
         break;
     case MVCNN::PostOpsNestedParams_SqrtParams:
         op = builder.create<VPUIP::SqrtUPAOp>(mlir::UnknownLoc::get(_ctx), inputs[0], outputs[0]);

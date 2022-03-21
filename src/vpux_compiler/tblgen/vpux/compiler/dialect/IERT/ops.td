@@ -891,6 +891,68 @@ def IERT_TanhOp :
 }
 
 //
+// SinOp
+//
+
+def IERT_SinOp :
+        IERT_LayerOp<1, "Sin",
+            [
+                ViewLikeOpInterface,
+                SameOperandsShape,
+                SameOperandsElementType
+            ]
+        > {
+    let summary = "InferenceEngine run-time Sin layer";
+
+    let arguments = (ins
+        MemRefOf<[F16, F32]>:$input,
+        MemRefOf<[F16, F32]>:$output_buff
+    );
+
+    let results = (outs
+        MemRefOf<[F16, F32]>:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
+//
+// CosOp
+//
+
+def IERT_CosOp :
+        IERT_LayerOp<1, "Cos",
+            [
+                ViewLikeOpInterface,
+                SameOperandsShape,
+                SameOperandsElementType
+            ]
+        > {
+    let summary = "InferenceEngine run-time Cos layer";
+
+    let arguments = (ins
+        MemRefOf<[F16, F32]>:$input,
+        MemRefOf<[F16, F32]>:$output_buff
+    );
+
+    let results = (outs
+        MemRefOf<[F16, F32]>:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
+//
 // SqrtOp
 //
 

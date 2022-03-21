@@ -721,6 +721,8 @@ void redirectOpInterfacesForIE(mlir::DialectRegistry& registry) {
     registry.addOpInterface<IE::FloorOp, OpModelForSW<VPUIP::FloorUPAOp>>();
     registry.addOpInterface<IE::RoundOp, OpModelForSW<VPUIP::RoundUPAOp>>();
     registry.addOpInterface<IE::TanhOp, OpModelForSW<VPUIP::TanhUPAOp>>();
+    registry.addOpInterface<IE::SinOp, OpModelForSW<VPUIP::SinUPAOp>>();
+    registry.addOpInterface<IE::CosOp, OpModelForSW<VPUIP::CosUPAOp>>();
     registry.addOpInterface<IE::SqrtOp, OpModelForSW<VPUIP::SqrtUPAOp>>();
     registry.addOpInterface<IE::SinhOp, OpModelForSW<VPUIP::SinhUPAOp>>();
     registry.addOpInterface<IE::CoshOp, OpModelForSW<VPUIP::CoshUPAOp>>();
@@ -827,6 +829,8 @@ void redirectOpInterfacesForIERT(mlir::DialectRegistry& registry) {
     registry.addOpInterface<IERT::FloorOp, OpModelForSW>();
     registry.addOpInterface<IERT::RoundOp, OpModelForSW>();
     registry.addOpInterface<IERT::TanhOp, OpModelForSW>();
+    registry.addOpInterface<IERT::SinOp, OpModelForSW>();
+    registry.addOpInterface<IERT::CosOp, OpModelForSW>();
     registry.addOpInterface<IERT::SqrtOp, OpModelForSW>();
     registry.addOpInterface<IERT::SinhOp, OpModelForSW>();
     registry.addOpInterface<IERT::CoshOp, OpModelForSW>();

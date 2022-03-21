@@ -680,6 +680,30 @@ operation ::= `IE.Copy` `(` operands `)` attr-dict `:` type(operands) `->` type(
 | :----: | ----------- |
 `output` | ranked tensor of any type values
 
+### `IE.Cos` (vpux::IE::CosOp)
+
+InferenceEngine Cos layer
+
+
+Syntax:
+
+```
+operation ::= `IE.Cos` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+
 ### `IE.Cosh` (vpux::IE::CoshOp)
 
 InferenceEngine Cosh layer
@@ -2986,6 +3010,30 @@ Syntax:
 
 ```
 operation ::= `IE.Sign` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+
+### `IE.Sin` (vpux::IE::SinOp)
+
+InferenceEngine Sin layer
+
+
+Syntax:
+
+```
+operation ::= `IE.Sin` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
 ```
 
 

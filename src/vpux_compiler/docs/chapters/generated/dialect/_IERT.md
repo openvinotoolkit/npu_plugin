@@ -663,6 +663,34 @@ operation ::= `IERT.Copy` attr-dict
 | :----: | ----------- |
 `output` | memref of any type values
 
+### `IERT.Cos` (vpux::IERT::CosOp)
+
+InferenceEngine run-time Cos layer
+
+
+Syntax:
+
+```
+operation ::= `IERT.Cos` attr-dict
+              `inputs` `(` $input `:` type($input) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of 16-bit float or 32-bit float values
+`output_buff` | memref of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float or 32-bit float values
+
 ### `IERT.Cosh` (vpux::IERT::CoshOp)
 
 InferenceEngine run-time Cosh layer
@@ -2817,6 +2845,34 @@ Syntax:
 
 ```
 operation ::= `IERT.Sign` attr-dict
+              `inputs` `(` $input `:` type($input) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of 16-bit float or 32-bit float values
+`output_buff` | memref of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float or 32-bit float values
+
+### `IERT.Sin` (vpux::IERT::SinOp)
+
+InferenceEngine run-time Sin layer
+
+
+Syntax:
+
+```
+operation ::= `IERT.Sin` attr-dict
               `inputs` `(` $input `:` type($input) `)`
               `outputs` `(` $output_buff `:` type($output_buff) `)`
               `->` type(results)
