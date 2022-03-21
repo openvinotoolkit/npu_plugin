@@ -34,8 +34,6 @@ Syntax:
 ```
 operation ::= `VPUIPRegMapped.ConfigureBarrier` attr-dict
               `<` $id `,` $next_same_id `>`
-              (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
-              (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
               `->` type(results)
 ```
 
@@ -45,16 +43,9 @@ operation ::= `VPUIPRegMapped.ConfigureBarrier` attr-dict
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
 `id` | ::mlir::IntegerAttr | 8-bit signless integer attribute
-`next_same_id` | ::mlir::IntegerAttr | 32-bit signless integer attribute
+`next_same_id` | ::mlir::IntegerAttr | 32-bit signed integer attribute
 `producer_count` | ::mlir::IntegerAttr | 8-bit unsigned integer attribute
 `consumer_count` | ::mlir::IntegerAttr | 8-bit unsigned integer attribute
-
-#### Operands:
-
-| Operand | Description |
-| :-----: | ----------- |
-`waitBarriers` | VPUIP Barrier Type
-`updateBarriers` | VPUIP Barrier Type
 
 #### Results:
 

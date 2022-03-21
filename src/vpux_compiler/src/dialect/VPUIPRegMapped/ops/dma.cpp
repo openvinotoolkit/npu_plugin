@@ -22,9 +22,8 @@ using namespace vpux;
 // NNDMAOp
 //
 
-// TODO: copy pasted from VPUIP.cpp .... TODO: find a place for these common serialization utils
-// TODO2:  this logic should be done in dedicated passes, where we transform the DmaTransaction in a form that is
-// guaranteed as-is supported by the hardware.
+// For further development, please refer to the ticket #36225.
+// Note: Copy-pasted from VPUIP.cpp.
 
 namespace {
 
@@ -50,7 +49,8 @@ llvm::SmallVector<std::pair<uint32_t, int32_t>> reduce_dims_for_dma(mlir::Value 
         finalDims.push_back({final_size, final_stride});
     }
 
-    // TODO: could there be some way to iterate over all MemDim's of a particular shape/order?
+    // TODO: Could there be some way to iterate over all MemDim's of a particular shape/order?
+    //       Please refer to the ticket #36225.
     for (size_t dim = inner_most_index - 1; dim > 0; --dim) {
         auto memDim = MemDim(dim);
 
@@ -108,9 +108,10 @@ void vpux::VPUIPRegMapped::NNDMAOp::serialize(elf::writer::BinaryDataSection<uin
 
     descriptor.length = (uint32_t)(inputType.getNumElements() * vpux::Byte(vpux::getElemTypeSize(inputType)).count());
 
-    // TODO: can we have this reduction at a pass at memref level?
-    // TODO: need to place some conditions on the DMA, and in some scenarios, may have to do 1*DMA -> n*DMA
-    //      transaction rewrites
+    // TODO: can we have this reduction at a pass at memref level? Need to place
+    // some conditions on the DMA, and in some scenarios, may have to do 1*DMA -> n*DMA
+    //      transaction rewrites.
+    // Please refer to the ticket #36225.
     auto reduced_dims_input = reduce_dims_for_dma(input());
     auto reduced_dims_output = reduce_dims_for_dma(output());
 

@@ -74,9 +74,6 @@ class VPUIPRegMapped_TaskOp<int numResult, string mnemonic, list<OpTrait> traits
 def VPUIPRegMapped_ConfigureBarrierOp :
         VPUIPRegMapped_Op<"ConfigureBarrier",
             [
-                MemoryEffectsOpInterface,
-                AttrSizedOperandSegments,
-                DeclareOpInterfaceMethods<VPUIPRegMapped_TaskOpInterface>,
                 DeclareOpInterfaceMethods<ELF_BinaryOpInterface>,
                 DeclarationOp,
                 DotInterface
@@ -86,12 +83,9 @@ def VPUIPRegMapped_ConfigureBarrierOp :
 
     let arguments = (ins
         I8Attr:$id,
-        I32Attr:$next_same_id,
+        SI32Attr:$next_same_id,
         OptionalAttr<UI8Attr>:$producer_count,
-        OptionalAttr<UI8Attr>:$consumer_count,
-
-        Variadic<VPURT_Barrier>:$waitBarriers,
-        Variadic<VPURT_Barrier>:$updateBarriers
+        OptionalAttr<UI8Attr>:$consumer_count
     );
 
     let results = (outs
@@ -121,8 +115,6 @@ def VPUIPRegMapped_ConfigureBarrierOp :
     let assemblyFormat = [{
         attr-dict
         `<` $id `,` $next_same_id `>`
-        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
-        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
         `->` type(results)
     }];
 }

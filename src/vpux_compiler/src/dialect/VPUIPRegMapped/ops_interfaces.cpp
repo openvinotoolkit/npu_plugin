@@ -33,7 +33,9 @@ void vpux::VPUIPRegMapped::getTaskEffects(mlir::Operation* op, SmallVectorImpl<M
     VPUX_UNUSED(op);
     VPUX_UNUSED(effects);
 
-    // TODO:: do VPUIPRegMapped ops have modelable effects?
+    // Note: Do VPUIPRegMapped ops have modelable effects? The question is if we leave the TaskEffects interface for RegMapped ops or not.
+    //   Currently we do not use the interface, but will we need it in the future? If yes, should we leave it here, just as a scheleton,
+    //        and extend it later or delete it alltogheter and re-add it once we will deffinitely use it?
 
     return;
 }
