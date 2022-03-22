@@ -11,7 +11,7 @@
 // included with the Software Package for additional details.
 //
 
-#include <host_parsed_inference.h>
+#include "vpux/compiler/dialect/VPUIPRegMapped/host_parsing/host_parsed_inference.h"
 #include "vpux/compiler/dialect/VPUIPRegMapped/ops.hpp"
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
 #include "vpux/utils/core/format.hpp"

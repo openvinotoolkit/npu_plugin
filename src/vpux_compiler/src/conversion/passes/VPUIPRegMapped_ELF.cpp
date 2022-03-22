@@ -14,6 +14,7 @@
 #include "vpux/compiler/conversion.hpp"
 #include "vpux/compiler/dialect/ELF/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
+#include "vpux/compiler/dialect/VPUIPRegMapped/host_parsing/host_parsed_inference.h"
 #include "vpux/compiler/dialect/VPUIPRegMapped/ops.hpp"
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
@@ -21,8 +22,6 @@
 #include <mlir/IR/BlockAndValueMapping.h>
 #include <mlir/Transforms/DialectConversion.h>
 #include <mlir/Transforms/GreedyPatternRewriteDriver.h>
-
-#include "host_parsed_inference.h"
 
 using namespace vpux;
 

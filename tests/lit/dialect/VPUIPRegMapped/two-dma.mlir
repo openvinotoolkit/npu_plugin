@@ -17,7 +17,7 @@ module @Convert attributes {VPU.arch = "KMB"}  {
   }
   func @main(%arg0: memref<1x2x3x4xf16, @DDR>, %arg1: memref<1x2x3x4xf16, @DDR>) -> memref<1x2x3x4xf16, @DDR> {
     %0 = VPURT.ConfigureBarrier<0> -> !VPURT.Barrier
-    // CHECK:       %[[VAL1:.*]] = VPUIPRegMapped.ConfigureBarrier<0, 1> -> !VPURT.Barrier
+    // CHECK:       %[[VAL1:.*]] = VPUIPRegMapped.ConfigureBarrier<0, -1> -> !VPURT.Barrier
 
     %1 = VPURT.DeclareBuffer "DDR" <0> -> memref<1x2x3x4xf16, @DDR>
     // CHECK:       %[[VAL2:.*]] = VPURT.DeclareBuffer "DDR" <0> -> memref<1x2x3x4xf16, @DDR>
