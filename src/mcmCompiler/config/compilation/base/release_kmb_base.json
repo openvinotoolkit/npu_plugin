@@ -71,8 +71,8 @@
             "AddPermuteToIOOps",
             {
                 "name" : "SimpleStrategyManager",
-                "loadStrategiesFromFile" : false,
-                "jsonInFileName" : "./output/mcmCompiler_simple_strategy_output.json"
+                "loadStrategiesFromFile" : true,
+                "jsonInFileName" : "/home/johnbrad/gitrelease/openvino_release/bin/intel64/Release/output/HKSwitchTest.json"
             },
             "StoreGraphOptimizerDecisions",
             {
@@ -146,6 +146,17 @@
             "RemoveRedundantUpdateBarriers",
             "CombineTaskInputBarriers",
             "SplitBarrier",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/op_model-in.dot",
+                "scope": "OpModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/op_model-in.dot"
+            },
             {
                 "name" : "AssignPhysicalBarrier",
                 "real_physical_barriers": 32

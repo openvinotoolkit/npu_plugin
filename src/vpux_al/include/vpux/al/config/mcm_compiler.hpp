@@ -112,7 +112,7 @@ struct MCM_LOG_LEVEL final : OptionBase<MCM_LOG_LEVEL, LogLevel> {
     }
 
     static LogLevel defaultValue() {
-        return LogLevel::None;
+        return LogLevel::Info;
     }
 
     static OptionMode mode() {
