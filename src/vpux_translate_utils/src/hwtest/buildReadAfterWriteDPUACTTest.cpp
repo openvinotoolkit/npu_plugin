@@ -145,7 +145,7 @@ void buildReadAfterWriteDPUACTTest(const nb::TestCaseJsonDescriptor& testDesc, m
     const auto weightsTable = VPU::NCESparsity::getWeightsTable(
             inputType, outputType, static_cast<std::int32_t>(WEIGHTS_CMX_OFFSET),
             static_cast<std::int32_t>(weightsOutputChannelsStrideInBits.count() / CHAR_BIT),
-            static_cast<std::int32_t>(VPU::NCESparsity::SPARSITY_PTR_WHEN_NO_SPARSITY), vpux::VPU::ArchKind::MTL,
+            static_cast<std::int32_t>(VPU::NCESparsity::SPARSITY_PTR_WHEN_NO_SPARSITY), testDesc.getArchitecture(),
             output.shape[1], weightsType);
 
     const auto weightsTableDDRMemRef =
@@ -230,7 +230,7 @@ void buildReadAfterWriteDPUACTTest(const nb::TestCaseJsonDescriptor& testDesc, m
     functionBuilder.create<mlir::ReturnOp>(loc, mlir::ValueRange{functionOutput});
 
     mlir::PassManager pm(ctx, mlir::OpPassManager::Nesting::Implicit);
-    pm.addPass(VPU::createInitCompilerPass(VPU::ArchKind::MTL, VPU::CompilationMode::ReferenceHW, 1, log));
+    pm.addPass(VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::ReferenceHW, 1, log));
     if (conv.compress) {
         pm.addPass(VPUIP::createCompressWeightsPass(log));
     }

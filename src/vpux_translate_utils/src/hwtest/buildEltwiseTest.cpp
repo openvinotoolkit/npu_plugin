@@ -130,10 +130,10 @@ void buildEltwiseAdd(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp 
     // to be part of output tensor description. Scale vector will be placed in PPE block and
     // later used during NCE task serialization
     auto quantScale = VPU::calculateQuantScaleVectorForEltwise(inputcmx_type, weightscmx_type, outputcmx_type,
-                                                               VPU::ArchKind::MTL, false);
+                                                               testDesc.getArchitecture(), false);
     if (quantScale.hasValue()) {
         const auto scale = quantScale.getValue();
-        const auto scaleApproximation = QuantizationApproximation(VPU::ArchKind::MTL, scale);
+        const auto scaleApproximation = QuantizationApproximation(testDesc.getArchitecture(), scale);
         nceTask.addPPETask(funcbuilder, VPU::PPEMode::ADD, clampLow, clampHigh, LreluMult, LreluShift,
                            scaleApproximation.mult(), scaleApproximation.shift());
     } else {
@@ -158,7 +158,7 @@ void buildEltwiseAdd(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp 
 
     // set runtime resources
     mlir::PassManager pm(ctx, mlir::OpPassManager::Nesting::Implicit);
-    pm.addPass(VPU::createInitCompilerPass(VPU::ArchKind::MTL, VPU::CompilationMode::DefaultHW, None, log));
+    pm.addPass(VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::DefaultHW, None, log));
 
     VPUX_THROW_UNLESS(mlir::succeeded(pm.run(module)), "Compilation failed");
 

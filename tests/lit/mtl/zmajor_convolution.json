@@ -1,5 +1,6 @@
 // RUN: vpux-translate --import-HWTEST %s
 {
+    "architecture": "MTL",
     "case_type": "ZMajorConvolution",
     "network": "",
     "layer_name": "conv2d_u8_to_u8_unit_test",

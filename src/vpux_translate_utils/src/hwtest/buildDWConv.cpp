@@ -225,7 +225,8 @@ void buildDWConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp modu
 
     const std::vector<int32_t> wtTbl_data_values_vec = VPU::NCESparsity::getWeightsTable(
             inputType, outputType, static_cast<int32_t>(WEIGHTS_CMX_OFFSET), static_cast<int32_t>(weights_set_nbytes),
-            static_cast<int32_t>(ACTIVATIONWINDOW_CMX_OFFSET), VPU::ArchKind::MTL, weights_outChannel, weightsType);
+            static_cast<int32_t>(ACTIVATIONWINDOW_CMX_OFFSET), testDesc.getArchitecture(), weights_outChannel,
+            weightsType);
 
     auto wtTbl_data_values = makeArrayRef<int32_t>(wtTbl_data_values_vec);
     auto wtTbl_data_vals = mlir::DenseElementsAttr::get(wtTblData_ddr_valueType, wtTbl_data_values);
@@ -283,7 +284,7 @@ void buildDWConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp modu
 
     // set runtime resources
     mlir::PassManager pm(builder.getContext(), mlir::OpPassManager::Nesting::Implicit);
-    pm.addPass(VPU::createInitCompilerPass(VPU::ArchKind::MTL, VPU::CompilationMode::DefaultHW, None, log));
+    pm.addPass(VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::DefaultHW, None, log));
 
     VPUX_THROW_UNLESS(mlir::succeeded(pm.run(module)), "Compilation failed");
 

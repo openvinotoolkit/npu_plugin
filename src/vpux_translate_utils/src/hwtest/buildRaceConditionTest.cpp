@@ -150,7 +150,7 @@ void buildRaceConditionTest(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mo
 
     //  Pass Manager
     mlir::PassManager pm(ctx, mlir::OpPassManager::Nesting::Implicit);
-    pm.addPass(VPU::createInitCompilerPass(VPU::ArchKind::MTL, VPU::CompilationMode::ReferenceHW,
+    pm.addPass(VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::ReferenceHW,
                                            static_cast<int>(raceConditionParams.requestedClusters), log));
     VPUX_THROW_UNLESS(mlir::succeeded(pm.run(module)), "Compilation failed");
 

@@ -179,7 +179,7 @@ void buildRaceConditionDPUDMAACTTest(const nb::TestCaseJsonDescriptor& testDesc,
     const auto weightsTable = VPU::NCESparsity::getWeightsTable(
             inputType, outputType, static_cast<std::int32_t>(WEIGHTS_CMX_OFFSET),
             static_cast<std::int32_t>(weightsOutputChannelsStrideInBits.count() / CHAR_BIT),
-            static_cast<std::int32_t>(VPU::NCESparsity::SPARSITY_PTR_WHEN_NO_SPARSITY), vpux::VPU::ArchKind::MTL,
+            static_cast<std::int32_t>(VPU::NCESparsity::SPARSITY_PTR_WHEN_NO_SPARSITY), testDesc.getArchitecture(),
             output.shape[1], weightsType);
 
     const auto weightsTableDDRMemRef =
@@ -255,7 +255,7 @@ void buildRaceConditionDPUDMAACTTest(const nb::TestCaseJsonDescriptor& testDesc,
     functionBuilder.create<mlir::ReturnOp>(loc, mlir::ValueRange{functionOutput_0, functionOutput_1, functionOutput_2});
 
     mlir::PassManager pm(ctx, mlir::OpPassManager::Nesting::Implicit);
-    pm.addPass(VPU::createInitCompilerPass(VPU::ArchKind::MTL, VPU::CompilationMode::ReferenceHW, 1, log));
+    pm.addPass(VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::ReferenceHW, 1, log));
     if (conv.compress) {
         pm.addPass(VPUIP::createCompressWeightsPass(log));
     }

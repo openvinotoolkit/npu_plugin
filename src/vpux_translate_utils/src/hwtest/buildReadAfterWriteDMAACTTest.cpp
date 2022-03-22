@@ -115,7 +115,7 @@ void buildReadAfterWriteDMAACTTest(const nb::TestCaseJsonDescriptor& testDesc, m
     functionBuilder.create<mlir::ReturnOp>(loc, mlir::ValueRange{functionOutput});
 
     mlir::PassManager pm(ctx, mlir::OpPassManager::Nesting::Implicit);
-    pm.addPass(VPU::createInitCompilerPass(VPU::ArchKind::MTL, VPU::CompilationMode::DefaultHW, None, log));
+    pm.addPass(VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::DefaultHW, None, log));
 
     VPUX_THROW_UNLESS(mlir::succeeded(pm.run(module)), "Compilation failed");
 

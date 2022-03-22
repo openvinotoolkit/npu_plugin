@@ -59,6 +59,8 @@ ie::QueryNetworkResult MCMCompiler::query(const ie::CNNNetwork& network, const C
 
 std::shared_ptr<INetworkDescription> MCMCompiler::parse(const std::vector<char>& compiledNetwork, const Config& config,
                                                         const std::string& graphName) {
+    if (config.get<PLATFORM>() == InferenceEngine::VPUXConfigParams::VPUXPlatform::EMULATOR)
+        return std::make_shared<vpu::MCMAdapter::EmulatorNetworkDescription>(compiledNetwork, config, graphName);
     return std::make_shared<vpu::MCMAdapter::MCMNetworkDescription>(compiledNetwork, config, graphName);
 }
 

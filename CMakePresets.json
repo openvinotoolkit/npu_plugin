@@ -84,7 +84,8 @@
                 "ENABLE_ZEROAPI_BACKEND": false,
                 "ENABLE_EMULATOR": false,
                 "ENABLE_VPUX_DOCS": false,
-                "TREAT_WARNING_AS_ERROR": false
+                "TREAT_WARNING_AS_ERROR": false,
+                "ENABLE_IMD_BACKEND": false
             }
         }
     ]

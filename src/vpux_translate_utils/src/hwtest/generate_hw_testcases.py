@@ -69,6 +69,10 @@ from operators.platform.vpu26 import PlatformVPU26
 import numpy as np
 from numpy.random import default_rng
 
+class Architecture(Enum):
+    KMB = 3700,
+    MTL = 3720,
+    LNL = 4000
 
 Orderer = Callable[[np.ndarray], np.ndarray]
 
@@ -618,6 +622,9 @@ def iduConvCustom(input: Value, weights: Value) -> "tuple[np.ndarray, np.ndarray
     return input.data.astype(np.float16), weights.data.astype(np.float16)
 
 class Operation(ABC):
+    def __init__(self, architecture: Architecture):
+        self.architecture = architecture
+
     """Abstract base class for MPE operations."""
     def json_info(self, inputs) -> dict:
         pass
@@ -655,7 +662,9 @@ def shape_to_str(shape: Sequence[int]) -> str:
     return 'x'.join([str(d) for d in shape])
 
 class PReLU:
-    def __init__(self, slope, out_type=np.float16):
+    def __init__(self, architecture, slope, out_type=np.float16):
+        self.architecture = architecture
+
         self.slope = slope
         self.out_type = out_type
         if self.out_type is np.int8:
@@ -666,15 +675,13 @@ class PReLU:
             self.out_type_desc = 'fp16'
 
     def __str__(self):
-
         return 'prelu_{}_{}'.format(self.slope, self.out_type_desc)
 
     @property
     def json_info(self):
-        return {'name': 'PReLU', 'alpha': self.slope, 'output_type': self.out_type_desc}
+        return {'architecture': self.architecture.name, 'name': 'PReLU', 'alpha': self.slope, 'output_type': self.out_type_desc}
 
     def __call__(self, values, scale=None, zero_point=None):
-        (PReLU)
         if isinstance(values, NBQuantized):
             return RequantFuseWithPRelu().inference(values, self.slope, scale, zero_point)
         else:
@@ -701,7 +708,9 @@ class ZMajorConvolution(Operation):
     ]
     NAME = 'Z-Major'
 
-    def __init__(self, settings):
+    def __init__(self, architecture: Architecture, settings):
+        super().__init__(architecture)
+
         self.settings = settings
         settings.weight_shape = [settings.kernel_channels, settings.input_shape[1]] + settings.kernel_shape
 
@@ -814,7 +823,9 @@ class DepthWiseConv(Operation):
     ]
     NAME = 'DW'
 
-    def __init__(self, settings):
+    def __init__(self, architecture: Architecture, settings):
+        super().__init__(architecture)
+
         self.settings = settings
         settings.weight_shape = [settings.kernel_channels, 1] + settings.kernel_shape
 
@@ -890,11 +901,12 @@ class DepthWiseConv(Operation):
 
 
 class EltwiseAdd(Operation):
-
+ 
     PARAMS = ['mpe_op_class', 'input_ttype', 'input_shape', 'output_ttype']
     NAME = 'Add'
 
-    def __init__(self, settings):
+    def __init__(self, architecture: Architecture, settings):
+        super().__init__(architecture)
         self.settings = settings
 
     def json_info(self, inputs, output):
@@ -959,7 +971,8 @@ class EltwiseMult(Operation):
     PARAMS = ['mpe_op_class', 'input_ttype', 'input_shape', 'output_ttype']
     NAME = 'Mult'
 
-    def __init__(self, settings):
+    def __init__(self, architecture: Architecture, settings):
+        super().__init__(architecture)
         self.settings = settings
 
     def json_info(self, inputs, output):
@@ -1020,7 +1033,8 @@ class Maxpool(Operation):
     PARAMS = ['mpe_op_class', 'input_ttype', 'input_shape', 'kernel_shape', 'output_ttype', 'kernel_strides', 'kernel_pads']
     NAME = 'MaxPool'
 
-    def __init__(self, settings):
+    def __init__(self, architecture: Architecture, settings):
+        super().__init__(architecture)
         self.settings = settings
 
     def json_info(self, inputs, output):
@@ -1095,7 +1109,8 @@ class AvgPool(Operation):
     PARAMS = ['mpe_op_class', 'input_ttype', 'input_shape', 'kernel_shape', 'output_ttype', 'kernel_strides']
     NAME = 'AvgPool'
 
-    def __init__(self, settings):
+    def __init__(self, architecture: Architecture, settings):
+        super().__init__(architecture)
         self.settings = settings
 
     def json_info(self, inputs, output):
@@ -1170,7 +1185,9 @@ class ActKernel(Operation):
     PARAMS = ['mpe_op_class', 'input_ttype', 'input_shape', 'output_ttype', 'activation_type']
     NAME = 'ActKernel'
 
-    def __init__(self, settings):
+    def __init__(self, architecture: Architecture, settings):
+        super().__init__(architecture)
+
         self.settings = settings
         self.issues = set()
         if self.settings.activation_type[0] == ActivationType.Sigmoid :
@@ -1261,17 +1278,18 @@ class ActKernel(Operation):
         return True
 
 class ReadAfterWriteACTDMA(Operation):
-    PARAMS = ['mpe_op_class', 
-              'input_ttype', 
-              'input_shape', 
-              'output_ttype', 
+    PARAMS = ['mpe_op_class',
+              'input_ttype',
+              'input_shape',
+              'output_ttype',
               'activation_type',
               'cluster_number',
               'iteration_count']
 
     NAME = 'ReadAfterWriteACTDMA'
 
-    def __init__(self, settings):
+    def __init__(self, architecture: Architecture, settings):
+        super().__init__(architecture)
         self.settings = settings
 
     @property
@@ -1333,7 +1351,7 @@ class ReadAfterWriteACTDMA(Operation):
         for i in range(0, count) :
             result = HSwish().inference(result)
             result = result.astype(self.settings.input_ttype.dtype)
-    
+
         result = ma.getdata(result)
         return result
 
@@ -1346,16 +1364,17 @@ class ReadAfterWriteACTDMA(Operation):
         return False
 
 class ReadAfterWriteDMAACT(Operation):
-    PARAMS = ['mpe_op_class', 
-              'input_ttype', 
-              'input_shape', 
-              'output_ttype', 
-              'activation_type', 
+    PARAMS = ['mpe_op_class',
+              'input_ttype',
+              'input_shape',
+              'output_ttype',
+              'activation_type',
               'cluster_number',
               'iteration_count']
     NAME = 'ReadAfterWriteDMAACT'
 
-    def __init__(self, settings):
+    def __init__(self, architecture: Architecture, settings):
+        super().__init__(architecture)
         self.settings = settings
 
     @property
@@ -1441,7 +1460,9 @@ class ReadAfterWriteDPUDMA(Operation):
         'iteration_count'
     ]
 
-    def __init__(self, settings):
+    def __init__(self, architecture: Architecture, settings):
+        super().__init__(architecture)
+
         self.settings = settings
         settings.weight_shape = [settings.kernel_channels, settings.input_shape[1]] + settings.kernel_shape
 
@@ -1552,7 +1573,9 @@ class ReadAfterWriteDMADPU(Operation):
         'iteration_count'
     ]
 
-    def __init__(self, settings):
+    def __init__(self, architecture: Architecture, settings):
+        super().__init__(architecture)
+
         self.settings = settings
         settings.weight_shape = [settings.kernel_channels, settings.input_shape[1]] + settings.kernel_shape
 
@@ -1654,7 +1677,9 @@ class ReadAfterWriteDPUACT(Operation):
         'iteration_count'
     ]
 
-    def __init__(self, settings):
+    def __init__(self, architecture: Architecture, settings):
+        super().__init__(architecture)
+
         self.settings = settings
         settings.weight_shape = [settings.kernel_channels, settings.input_shape[1]] + settings.kernel_shape
 
@@ -1772,7 +1797,9 @@ class ReadAfterWriteACTDPU(Operation):
         'iteration_count'
     ]
 
-    def __init__(self, settings):
+    def __init__(self, architecture: Architecture, settings):
+        super().__init__(architecture)
+
         self.settings = settings
         settings.weight_shape = [settings.kernel_channels, settings.input_shape[1]] + settings.kernel_shape
 
@@ -1857,7 +1884,7 @@ class ReadAfterWriteACTDPU(Operation):
         for i in range(0, count) :
             result = HSwish().inference(result)
             result = result.astype(self.settings.input_ttype.dtype)
-    
+
         result = ma.getdata(result)
         return result
 
@@ -1865,7 +1892,7 @@ class ReadAfterWriteACTDPU(Operation):
         if(self.settings.cluster_number == 1):
             # EISW-29786
             return False
-        
+
         return True
 
 class MemoryLocation(Enum):
@@ -1877,7 +1904,9 @@ class DMA(Operation):
 
     PARAMS = ['mpe_op_class', 'input_ttype', 'output_ttype', 'input_shape', 'src_memloc', 'dst_memloc', 'dma_engine']
 
-    def __init__(self, settings):
+    def __init__(self, architecture: Architecture, settings):
+        super().__init__(architecture)
+
         self.settings = settings
 
     def json_info(self, input, output):
@@ -1948,7 +1977,9 @@ class DifferentClustersDPU(Operation):
     ]
     NAME = 'DifferentClustersDPU'
 
-    def __init__(self, settings):
+    def __init__(self, architecture: Architecture, settings):
+        super().__init__(architecture)
+
         self.settings = settings
         settings.weight_shape = [settings.kernel_channels, settings.input_shape[1]] + settings.kernel_shape
 
@@ -2042,7 +2073,9 @@ class RaceConditionDMA(Operation):
     PARAMS = ['mpe_op_class', 'input_ttype', 'output_ttype', 'iteration_count']
     NAME = 'RaceConditionDMA'
 
-    def __init__(self, settings):
+    def __init__(self, architecture: Architecture, settings):
+        super().__init__(architecture)
+
         self.settings = settings
 
     def json_info(self, input, output):
@@ -2108,7 +2141,9 @@ class RaceConditionDPU(Operation):
     ]
     NAME = 'RaceConditionDMA'
 
-    def __init__(self, settings):
+    def __init__(self, architecture: Architecture, settings):
+        super().__init__(architecture)
+
         self.settings = settings
         settings.weight_shape = [settings.kernel_channels, settings.input_shape[1]] + settings.kernel_shape
 
@@ -2211,7 +2246,9 @@ class RaceConditionDPUDMA(Operation):
         'iteration_count'
     ]
 
-    def __init__(self, settings):
+    def __init__(self, architecture: Architecture, settings):
+        super().__init__(architecture)
+
         self.settings = settings
         settings.weight_shape = [settings.kernel_channels, settings.input_shape[1]] + settings.kernel_shape
 
@@ -2296,7 +2333,9 @@ class RaceConditionDPUDMAACT(Operation):
         'iteration_count'
     ]
 
-    def __init__(self, settings):
+    def __init__(self, architecture: Architecture, settings):
+        super().__init__(architecture)
+
         self.settings = settings
         settings.weight_shape = [settings.kernel_channels, settings.input_shape[1]] + settings.kernel_shape
 
@@ -2369,7 +2408,8 @@ class RaceConditionDPUDMAACT(Operation):
 class RaceCondition:
     PARAMS = ['operation', 'iteration_count', 'requested_cluster', 'requested_unit']
 
-    def __init__(self, operation, iter_count, requested_cluster, requested_unit):
+    def __init__(self, architecture: Architecture, operation, iter_count, requested_cluster, requested_unit):
+        self.architecture = architecture
         self.operation = operation
         self.mpe_op = operation.mpe_op
         self.iter_count = iter_count
@@ -2381,6 +2421,7 @@ class RaceCondition:
 
     def json_info(self):
         return {
+            'architecture': self.architecture.name,
             'case_type': 'RaceCondition',
             'iteration_count' : self.iter_count,
             'requested_clusters' : self.requested_cluster,
@@ -2486,14 +2527,14 @@ class Settings:
 
 
 class DPUPipeline:
-    def __init__(self, option_names, option_values, activation=None):
+    def __init__(self, architecture: Architecture, option_names, option_values, activation=None):
         settings = Settings()
         self.settings = settings
         self.issues = set()
         for name, value in zip(option_names, option_values):
             setattr(settings, name, value)
 
-        self.mpe_op = settings.mpe_op_class(settings)
+        self.mpe_op = settings.mpe_op_class(architecture, settings)
         self.activation = activation
 
     def compute_values(self):
@@ -2544,7 +2585,8 @@ class DPUPipeline:
         orderer(self.mpe_data).tofile(dir / 'mpe_raw.bin')
 
     def value(self):
-        value = self.mpe_op.json_info(self.inputs, self.o)
+        value = {'architecture': self.mpe_op.architecture.name}
+        value = {**value, **self.mpe_op.json_info(self.inputs, self.o)}
         if self.activation:
             value['activation'] = self.activation.json_info
         return value
@@ -2614,7 +2656,8 @@ _PPE_HAS_PERMUTATION_SUPPORT = {
 }
 
 
-def genZMConvs(input_types=[UInt8(2)],
+def genZMConvs(architecture,
+               input_types=[UInt8(2)],
                input_shapes=[[1, 32, 16, 16]],
                weight_types=None,
                kernel_channels=[64],
@@ -2646,21 +2689,22 @@ def genZMConvs(input_types=[UInt8(2)],
                 if(output_order != Order.NHWC and not _PPE_HAS_PERMUTATION_SUPPORT[output_type.__class__]) :
                     print("skip", output_order, output_type)
                     continue
-                yield DPUPipeline(ZMajorConvolution.PARAMS, (ZMajorConvolution,
-                                                             input_type,
-                                                             input_shape,
-                                                             weight_type,
-                                                             kernel_channel,
-                                                             kernel_shape,
-                                                             output_type,
-                                                             output_order,
-                                                             stride,
-                                                             pad,
-                                                             compress,
-                                                             mpe_cub), activation)
+                yield DPUPipeline(architecture, ZMajorConvolution.PARAMS, (ZMajorConvolution,
+                                                                           input_type,
+                                                                           input_shape,
+                                                                           weight_type,
+                                                                           kernel_channel,
+                                                                           kernel_shape,
+                                                                           output_type,
+                                                                           output_order,
+                                                                           stride,
+                                                                           pad,
+                                                                           compress,
+                                                                           mpe_cub), activation)
 
 
-def genEltwiseAdds(input_types=[Int8(6)],
+def genEltwiseAdds(architecture,
+                   input_types=[Int8(6)],
                    input_shapes=[[1, 256, 16, 16]],
                    output_types=None):
     for (input_type, input_shape) in itertools.product(input_types, input_shapes):
@@ -2670,14 +2714,14 @@ def genEltwiseAdds(input_types=[Int8(6)],
             current_output_types = output_types
 
         for output_type in current_output_types:
-            yield DPUPipeline(EltwiseAdd.PARAMS, (EltwiseAdd,
-                                                  input_type,
-                                                  input_shape,
-                                                  output_type
-                                                  ))
+            yield DPUPipeline(architecture, EltwiseAdd.PARAMS, (EltwiseAdd,
+                                                                input_type,
+                                                                input_shape,
+                                                                output_type))
 
 
-def genEltwiseMults(input_types=[Int8(6)],
+def genEltwiseMults(architecture,
+                    input_types=[Int8(6)],
                     input_shapes=[[1, 256, 16, 16]],
                     output_types=None):
     for (input_type, input_shape) in itertools.product(input_types, input_shapes):
@@ -2687,14 +2731,14 @@ def genEltwiseMults(input_types=[Int8(6)],
             current_output_types = output_types
 
         for output_type in current_output_types:
-            yield DPUPipeline(EltwiseMult.PARAMS, (EltwiseMult,
-                                                   input_type,
-                                                   input_shape,
-                                                   output_type
-                                                   ))
+            yield DPUPipeline(architecture, EltwiseMult.PARAMS, (EltwiseMult,
+                                                                 input_type,
+                                                                 input_shape,
+                                                                 output_type))
 
 
-def genMaxPools(input_types=[FP16(6)],
+def genMaxPools(architecture,
+                input_types=[FP16(6)],
                 input_shapes=[[1, 64, 16, 16]],
                 kernel_shapes=[[2, 2]],
                 output_types=None,
@@ -2713,17 +2757,17 @@ def genMaxPools(input_types=[FP16(6)],
             current_output_types = output_types
 
         for output_type in current_output_types:
-            yield DPUPipeline(Maxpool.PARAMS, (Maxpool,
-                                               input_type,
-                                               input_shape,
-                                               kernel_shape,
-                                               output_type,
-                                               stride,
-                                               pad
-                                               ))
+            yield DPUPipeline(architecture, Maxpool.PARAMS, (Maxpool,
+                                                             input_type,
+                                                             input_shape,
+                                                             kernel_shape,
+                                                             output_type,
+                                                             stride,
+                                                             pad))
 
 
-def genAvgPools(input_types=[FP16(6)],
+def genAvgPools(architecture,
+                input_types=[FP16(6)],
                 input_shapes=[[1, 64, 32, 32]],
                 kernel_shapes=[[2, 2]],
                 output_types=None,
@@ -2735,13 +2779,12 @@ def genAvgPools(input_types=[FP16(6)],
             current_output_types = output_types
 
         for output_type in current_output_types:
-            yield DPUPipeline(AvgPool.PARAMS, (AvgPool,
-                                               input_type,
-                                               input_shape,
-                                               kernel_shape,
-                                               output_type,
-                                               stride
-                                               ))
+            yield DPUPipeline(architecture, AvgPool.PARAMS, (AvgPool,
+                                                             input_type,
+                                                             input_shape,
+                                                             kernel_shape,
+                                                             output_type,
+                                                             stride))
 
 def getValidOutputTypes(input_type, kernel_channels) :
     aviable_output_types = _PPE_VALID_OUTPUT_TYPES[input_type.is_float]
@@ -2751,7 +2794,8 @@ def getValidOutputTypes(input_type, kernel_channels) :
             output_types.append(output_type)
     return output_types
 
-def genDepthWiseConvs(input_types=[FP16(2)],
+def genDepthWiseConvs(architecture,
+                      input_types=[FP16(2)],
                       input_shapes=[[1, 16, 32, 32]],
                       kernel_channels=[16],
                       kernel_shapes=[[4, 4]],
@@ -2765,17 +2809,17 @@ def genDepthWiseConvs(input_types=[FP16(2)],
         else:
             current_output_types = output_types
         for output_type in current_output_types:
-            yield DPUPipeline(DepthWiseConv.PARAMS, (DepthWiseConv,
-                                                     input_type,
-                                                     input_shape,
-                                                     kernel_channel,
-                                                     kernel_shape,
-                                                     output_type,
-                                                     stride,
-                                                     pad
-                                                     ))
+            yield DPUPipeline(architecture, DepthWiseConv.PARAMS, (DepthWiseConv,
+                                                                   input_type,
+                                                                   input_shape,
+                                                                   kernel_channel,
+                                                                   kernel_shape,
+                                                                   output_type,
+                                                                   stride,
+                                                                   pad))
 
-def genReadAfterWriteACTDMA(input_types=[FP16(0)],
+def genReadAfterWriteACTDMA(architecture,
+                            input_types=[FP16(0)],
                             input_shapes=[[1, 10, 2, 3]],
                             output_types=[FP16()],
                             act_shave_subtypes=[
@@ -2784,9 +2828,10 @@ def genReadAfterWriteACTDMA(input_types=[FP16(0)],
                             cluster_numbers=[0, 1],
                             iteration_count = 19):
                     for (input_type, input_shape, output_type, act_shave_subtype, cluster_number) in itertools.product(input_types, input_shapes, output_types, act_shave_subtypes, cluster_numbers):
-                        yield DPUPipeline(ReadAfterWriteACTDMA.PARAMS, (ReadAfterWriteACTDMA, input_type, input_shape, output_type, act_shave_subtype, cluster_number, iteration_count))
+                        yield DPUPipeline(architecture, ReadAfterWriteACTDMA.PARAMS, (ReadAfterWriteACTDMA, input_type, input_shape, output_type, act_shave_subtype, cluster_number, iteration_count))
 
-def genReadAfterWriteDMAACT(input_types=[FP16(0)],
+def genReadAfterWriteDMAACT(architecture,
+                            input_types=[FP16(0)],
                             input_shapes=[[1, 10, 2, 3]],
                             output_types=[FP16()],
                             act_shave_subtypes=[
@@ -2795,9 +2840,10 @@ def genReadAfterWriteDMAACT(input_types=[FP16(0)],
                             cluster_numbers=[0, 1],
                             iteration_count = 19):
                     for (input_type, input_shape, output_type, act_shave_subtype, cluster_number) in itertools.product(input_types, input_shapes, output_types, act_shave_subtypes, cluster_numbers):
-                        yield DPUPipeline(ReadAfterWriteDMAACT.PARAMS, (ReadAfterWriteDMAACT, input_type, input_shape, output_type, act_shave_subtype, cluster_number, iteration_count))
+                        yield DPUPipeline(architecture, ReadAfterWriteDMAACT.PARAMS, (ReadAfterWriteDMAACT, input_type, input_shape, output_type, act_shave_subtype, cluster_number, iteration_count))
 
-def genReadAfterWriteDPUDMA(input_types=[FP16(0)],
+def genReadAfterWriteDPUDMA(architecture,
+                            input_types=[FP16(0)],
                             input_shapes=[[1, 16, 16, 16]],
                             weight_types=[FP16(0)],
                             kernel_channels=[16],
@@ -2820,23 +2866,23 @@ def genReadAfterWriteDPUDMA(input_types=[FP16(0)],
                 if(output_order != Order.NHWC and not _PPE_HAS_PERMUTATION_SUPPORT[output_type.__class__]) :
                     print("skip", output_order, output_type)
                     continue
-                yield DPUPipeline(ReadAfterWriteDPUDMA.PARAMS, (ReadAfterWriteDPUDMA,
-                                                                input_type,
-                                                                input_shape,
-                                                                weight_type,
-                                                                kernel_channel,
-                                                                kernel_shape,
-                                                                output_type,
-                                                                output_order,
-                                                                stride,
-                                                                pad,
-                                                                compress,
-                                                                mpe_cub,
-                                                                cluster_number,
-                                                                iteration_count
-                                                                ))
+                yield DPUPipeline(architecture, ReadAfterWriteDPUDMA.PARAMS, (ReadAfterWriteDPUDMA,
+                                                                              input_type,
+                                                                              input_shape,
+                                                                              weight_type,
+                                                                              kernel_channel,
+                                                                              kernel_shape,
+                                                                              output_type,
+                                                                              output_order,
+                                                                              stride,
+                                                                              pad,
+                                                                              compress,
+                                                                              mpe_cub,
+                                                                              cluster_number,
+                                                                              iteration_count))
 
-def genReadAfterWriteDMADPU(input_types=[FP16(0)],
+def genReadAfterWriteDMADPU(architecture,
+                            input_types=[FP16(0)],
                             input_shapes=[[1, 16, 16, 16]],
                             weight_types=[FP16(0)],
                             kernel_channels=[16],
@@ -2859,23 +2905,23 @@ def genReadAfterWriteDMADPU(input_types=[FP16(0)],
                 if(output_order != Order.NHWC and not _PPE_HAS_PERMUTATION_SUPPORT[output_type.__class__]) :
                     print("skip", output_order, output_type)
                     continue
-                yield DPUPipeline(ReadAfterWriteDMADPU.PARAMS, (ReadAfterWriteDMADPU,
-                                                                input_type,
-                                                                input_shape,
-                                                                weight_type,
-                                                                kernel_channel,
-                                                                kernel_shape,
-                                                                output_type,
-                                                                output_order,
-                                                                stride,
-                                                                pad,
-                                                                compress,
-                                                                mpe_cub,
-                                                                cluster_number,
-                                                                iteration_count
-                                                                ))
+                yield DPUPipeline(architecture, ReadAfterWriteDMADPU.PARAMS, (ReadAfterWriteDMADPU,
+                                                                              input_type,
+                                                                              input_shape,
+                                                                              weight_type,
+                                                                              kernel_channel,
+                                                                              kernel_shape,
+                                                                              output_type,
+                                                                              output_order,
+                                                                              stride,
+                                                                              pad,
+                                                                              compress,
+                                                                              mpe_cub,
+                                                                              cluster_number,
+                                                                              iteration_count))
 
-def genReadAfterWriteDPUACT(input_types=[FP16(0)],
+def genReadAfterWriteDPUACT(architecture,
+                            input_types=[FP16(0)],
                             input_shapes=[[1, 16, 8, 8]],
                             weight_types=[FP16(0)],
                             kernel_channels=[16],
@@ -2900,24 +2946,24 @@ def genReadAfterWriteDPUACT(input_types=[FP16(0)],
                 if(output_order != Order.NHWC and not _PPE_HAS_PERMUTATION_SUPPORT[output_type.__class__]) :
                     print("skip", output_order, output_type)
                     continue
-                yield DPUPipeline(ReadAfterWriteDPUACT.PARAMS, (ReadAfterWriteDPUACT,
-                                                                input_type,
-                                                                input_shape,
-                                                                weight_type,
-                                                                kernel_channel,
-                                                                kernel_shape,
-                                                                output_type,
-                                                                output_order,
-                                                                stride,
-                                                                pad,
-                                                                compress,
-                                                                mpe_cub,
-                                                                act_type,
-                                                                cluster_number,
-                                                                iteration_count
-                                                                ))
+                yield DPUPipeline(architecture, ReadAfterWriteDPUACT.PARAMS, (ReadAfterWriteDPUACT,
+                                                                              input_type,
+                                                                              input_shape,
+                                                                              weight_type,
+                                                                              kernel_channel,
+                                                                              kernel_shape,
+                                                                              output_type,
+                                                                              output_order,
+                                                                              stride,
+                                                                              pad,
+                                                                              compress,
+                                                                              mpe_cub,
+                                                                              act_type,
+                                                                              cluster_number,
+                                                                              iteration_count))
 
-def genReadAfterWriteACTDPU(input_types=[FP16(0)],
+def genReadAfterWriteACTDPU(architecture,
+                            input_types=[FP16(0)],
                             input_shapes=[[1, 16, 8, 8]],
                             weight_types=[FP16(0)],
                             kernel_channels=[16],
@@ -2942,24 +2988,24 @@ def genReadAfterWriteACTDPU(input_types=[FP16(0)],
                 if(output_order != Order.NHWC and not _PPE_HAS_PERMUTATION_SUPPORT[output_type.__class__]) :
                     print("skip", output_order, output_type)
                     continue
-                yield DPUPipeline(ReadAfterWriteACTDPU.PARAMS, (ReadAfterWriteACTDPU,
-                                                                input_type,
-                                                                input_shape,
-                                                                weight_type,
-                                                                kernel_channel,
-                                                                kernel_shape,
-                                                                output_type,
-                                                                output_order,
-                                                                stride,
-                                                                pad,
-                                                                compress,
-                                                                mpe_cub,
-                                                                act_type,
-                                                                cluster_number,
-                                                                iteration_count
-                                                                ))
+                yield DPUPipeline(architecture, ReadAfterWriteACTDPU.PARAMS, (ReadAfterWriteACTDPU,
+                                                                              input_type,
+                                                                              input_shape,
+                                                                              weight_type,
+                                                                              kernel_channel,
+                                                                              kernel_shape,
+                                                                              output_type,
+                                                                              output_order,
+                                                                              stride,
+                                                                              pad,
+                                                                              compress,
+                                                                              mpe_cub,
+                                                                              act_type,
+                                                                              cluster_number,
+                                                                              iteration_count))
 
-def genDifferentClustersDPU(input_types=[FP16(4)],
+def genDifferentClustersDPU(architecture,
+                            input_types=[FP16(4)],
                             input_shapes=[[1, 32, 16, 16]],
                             weight_types=[FP16(4)],
                             kernel_channels=[64],
@@ -2988,59 +3034,61 @@ def genDifferentClustersDPU(input_types=[FP16(4)],
                 if(input_cluster == output_cluster == weights_cluster == weights_table_cluster) :
                     print("skip, DPU uses the memory of the same cluster, cluster num:", input_cluster)
                     continue
-                yield DPUPipeline(DifferentClustersDPU.PARAMS, (DifferentClustersDPU,
-                                                                input_type,
-                                                                input_shape,
-                                                                weight_type,
-                                                                kernel_channel,
-                                                                kernel_shape,
-                                                                output_type,
-                                                                output_order,
-                                                                stride,
-                                                                pad,
-                                                                compress,
-                                                                mpe_cub,
-                                                                [input_cluster, output_cluster, weights_cluster, weights_table_cluster]
-                                                                ))
+                yield DPUPipeline(architecture, DifferentClustersDPU.PARAMS, (DifferentClustersDPU,
+                                                                              input_type,
+                                                                              input_shape,
+                                                                              weight_type,
+                                                                              kernel_channel,
+                                                                              kernel_shape,
+                                                                              output_type,
+                                                                              output_order,
+                                                                              stride,
+                                                                              pad,
+                                                                              compress,
+                                                                              mpe_cub,
+                                                                              [input_cluster, output_cluster, weights_cluster, weights_table_cluster]))
 
-def genActShave(input_types,
-               input_shapes,
-               output_types,
-               act_shave_subtypes):
+def genActShave(architecture,
+                input_types,
+                input_shapes,
+                output_types,
+                act_shave_subtypes):
     for (input_type, input_shape, output_type, act_shave_subtype) in itertools.product(input_types, input_shapes, output_types, act_shave_subtypes):
-        yield DPUPipeline(ActKernel.PARAMS, (ActKernel, input_type, input_shape, output_type, act_shave_subtype))
+        yield DPUPipeline(architecture, ActKernel.PARAMS, (ActKernel, input_type, input_shape, output_type, act_shave_subtype))
 
 AVAILABLE_CMX_SIZE = 1024*1942 # size in Bytes
 HALF_OF_CMX_SIZE = int(AVAILABLE_CMX_SIZE/2)
 
-def genDMA(tensor_types=[FP16(2)], input_shapes=[[1, 16, 32, 32]], src_locations=[MemoryLocation.CMX0], dst_locations=[MemoryLocation.CMX0], dma_engines=[0]):
+def genDMA(architecture, tensor_types=[FP16(2)], input_shapes=[[1, 16, 32, 32]], src_locations=[MemoryLocation.CMX0], dst_locations=[MemoryLocation.CMX0], dma_engines=[0]):
     for (tensor_type, input_shape, src_location, dst_location, dma_engine) in itertools.product(tensor_types, input_shapes, src_locations, dst_locations, dma_engines):
-        yield DPUPipeline(DMA.PARAMS, (DMA,
-                                       tensor_type,
-                                       tensor_type,
-                                       input_shape,
-                                       src_location,
-                                       dst_location,
-                                       dma_engine
-                                       ))
+        yield DPUPipeline(architecture, DMA.PARAMS, (DMA,
+                                                     tensor_type,
+                                                     tensor_type,
+                                                     input_shape,
+                                                     src_location,
+                                                     dst_location,
+                                                     dma_engine))
 
-def genRaceConditionDMA(input_types=[FP16(2)],
+def genRaceConditionDMA(architecture,
+                        input_types=[FP16(2)],
                         output_types=[FP16(2)],
                         iteration_count=64):
     for (input_type, output_type) in itertools.product(input_types, output_types):
-        yield DPUPipeline(RaceConditionDMA.PARAMS, (RaceConditionDMA,
+        yield DPUPipeline(architecture, RaceConditionDMA.PARAMS, (RaceConditionDMA,
                                                     input_type,
                                                     output_type,
                                                     iteration_count
                                                     ))
-def genRaceCondition(ops,
-                    iteration_counts=[64],
-                    requested_clusters=[1],
-                    requested_units=[1]):
+def genRaceCondition(architecture,
+                     ops,
+                     iteration_counts=[64],
+                     requested_clusters=[1],
+                     requested_units=[1]):
     for (op, iteration_count, requested_cluster, requested_unit) in itertools.product(ops, iteration_counts, requested_clusters, requested_units):
-        yield RaceCondition(op, iteration_count, requested_cluster, requested_unit)
+        yield RaceCondition(architecture, op, iteration_count, requested_cluster, requested_unit)
 
-def genRaceConditionDPU(input_types=[FP16(4)],
+def genRaceConditionDPU(architecture,
+                        input_types=[FP16(4)],
                         input_shapes=[[1, 32, 16, 16]],
                         weight_types=[FP16(4)],
                         kernel_channels=[64],
@@ -3063,22 +3111,22 @@ def genRaceConditionDPU(input_types=[FP16(4)],
                 if(output_order != Order.NHWC and not _PPE_HAS_PERMUTATION_SUPPORT[output_type.__class__]) :
                     print("skip", output_order, output_type)
                     continue
-                yield DPUPipeline(RaceConditionDPU.PARAMS, (RaceConditionDPU,
-                                                            input_type,
-                                                            input_shape,
-                                                            weight_type,
-                                                            kernel_channel,
-                                                            kernel_shape,
-                                                            output_type,
-                                                            output_order,
-                                                            stride,
-                                                            pad,
-                                                            compress,
-                                                            mpe_cub,
-                                                            iteration_count
-                                                            ))
+                yield DPUPipeline(architecture, RaceConditionDPU.PARAMS, (RaceConditionDPU,
+                                                                          input_type,
+                                                                          input_shape,
+                                                                          weight_type,
+                                                                          kernel_channel,
+                                                                          kernel_shape,
+                                                                          output_type,
+                                                                          output_order,
+                                                                          stride,
+                                                                          pad,
+                                                                          compress,
+                                                                          mpe_cub,
+                                                                          iteration_count))
 
-def genRaceConditionDPUDMA(input_types=[FP16(4)],
+def genRaceConditionDPUDMA(architecture,
+                           input_types=[FP16(4)],
                            input_shapes=[[1, 32, 16, 16]],
                            weight_types=[FP16(4)],
                            kernel_channels=[64],
@@ -3101,22 +3149,22 @@ def genRaceConditionDPUDMA(input_types=[FP16(4)],
                 if(output_order != Order.NHWC and not _PPE_HAS_PERMUTATION_SUPPORT[output_type.__class__]) :
                     print("skip", output_order, output_type)
                     continue
-                yield DPUPipeline(RaceConditionDPUDMA.PARAMS, (RaceConditionDPUDMA,
-                                                               input_type,
-                                                               input_shape,
-                                                               weight_type,
-                                                               kernel_channel,
-                                                               kernel_shape,
-                                                               output_type,
-                                                               output_order,
-                                                               stride,
-                                                               pad,
-                                                               compress,
-                                                               mpe_cub,
-                                                               iteration_count
-                                                               ))
+                yield DPUPipeline(architecture, RaceConditionDPUDMA.PARAMS, (RaceConditionDPUDMA,
+                                                                             input_type,
+                                                                             input_shape,
+                                                                             weight_type,
+                                                                             kernel_channel,
+                                                                             kernel_shape,
+                                                                             output_type,
+                                                                             output_order,
+                                                                             stride,
+                                                                             pad,
+                                                                             compress,
+                                                                             mpe_cub,
+                                                                             iteration_count))
 
-def genRaceConditionDPUDMAACT(input_types=[FP16(0)],
+def genRaceConditionDPUDMAACT(architecture,
+                              input_types=[FP16(0)],
                               input_shapes=[[1, 32, 16, 16]],
                               weight_types=[FP16(0)],
                               kernel_channels=[64],
@@ -3140,26 +3188,26 @@ def genRaceConditionDPUDMAACT(input_types=[FP16(0)],
                 if(output_order != Order.NHWC and not _PPE_HAS_PERMUTATION_SUPPORT[output_type.__class__]) :
                     print("skip", output_order, output_type)
                     continue
-                yield DPUPipeline(RaceConditionDPUDMAACT.PARAMS, (RaceConditionDPUDMAACT,
-                                                               input_type,
-                                                               input_shape,
-                                                               weight_type,
-                                                               kernel_channel,
-                                                               kernel_shape,
-                                                               output_type,
-                                                               output_order,
-                                                               stride,
-                                                               pad,
-                                                               compress,
-                                                               mpe_cub,
-                                                               act_type,
-                                                               iteration_count
-                                                               ))
+                yield DPUPipeline(architecture, RaceConditionDPUDMAACT.PARAMS, (RaceConditionDPUDMAACT,
+                                                                                input_type,
+                                                                                input_shape,
+                                                                                weight_type,
+                                                                                kernel_channel,
+                                                                                kernel_shape,
+                                                                                output_type,
+                                                                                output_order,
+                                                                                stride,
+                                                                                pad,
+                                                                                compress,
+                                                                                mpe_cub,
+                                                                                act_type,
+                                                                                iteration_count))
 
 def generate_options(args):
     return itertools.chain(
         # ActShave
         genActShave(
+            architecture=Architecture.MTL,
             input_types=[FP16(0)],
             input_shapes=[[1, 10, 2, 3],  [1, 1000, 1, 1], [1, 1, 1000, 1], [1, 1, 1, 1000]],
             output_types=[FP16()],
@@ -3182,25 +3230,28 @@ def generate_options(args):
         #    fp16 weights.
 
         # Z-Major Convolution
-        genZMConvs(input_types=[Int8(3), Int4(3), UInt8(3), UInt4(3), FP16(4), BF16(4)]),
+        genZMConvs(architecture=Architecture.MTL, input_types=[Int8(3), Int4(3), UInt8(3), UInt4(3), FP16(4), BF16(4)]),
 
         # Z-Major Convolution, uint8 activations with extended kernel shapes
         # NB The number of bits used is turned pretty far down, to avoid issues
         # with floating point rounding.
-        genZMConvs(input_types=[UInt8(1)],
+        genZMConvs(architecture=Architecture.MTL,
+                   input_types=[UInt8(1)],
                    weight_types=[UInt8(1)],
                    kernel_shapes=[[r, c] for r in range(1, 12) for c in range(1, 12) if (r, c) != (1, 1)],
                    output_types=[FP16()]),
 
         # Z-Major Convolution with strides
-        genZMConvs(input_types=[FP16(3)],
+        genZMConvs(architecture=Architecture.MTL,
+                   input_types=[FP16(3)],
                    weight_types=[Int8(3), FP16(3)],
                    output_types=[FP16()],
                    kernel_shapes=[[2, 2]],
                    strides=[[r, c] for r in range(1, 8) for c in range(1, 8)]),
 
         # Z-Major Convolution, padding, uint8
-        genZMConvs(input_types=[UInt8(2)],
+        genZMConvs(architecture=Architecture.MTL,
+                   input_types=[UInt8(2)],
                    input_shapes=[[1, 16, 32, 32]],
                    weight_types=[UInt8(1)],
                    kernel_channels=[16],
@@ -3209,7 +3260,8 @@ def generate_options(args):
                    pads=Pad.none + Pad.all(5) + Pad.top(5) + Pad.left(5) + Pad.bottom(5) + Pad.right(5)),
 
         # Z-Major Convolution, padding, uint8
-        genZMConvs(input_types=[UInt8(2)],
+        genZMConvs(architecture=Architecture.MTL,
+                   input_types=[UInt8(2)],
                    input_shapes=[[1, 16, 32, 32]],
                    weight_types=[UInt8(1)],
                    kernel_channels=[32],
@@ -3218,7 +3270,8 @@ def generate_options(args):
                    pads=Pad.none + Pad.all(5) + Pad.top(5) + Pad.left(5) + Pad.bottom(5) + Pad.right(5)),
 
         # Z-Major Convolution, padding, int8
-        genZMConvs(input_types=[Int8(2)],
+        genZMConvs(architecture=Architecture.MTL,
+                   input_types=[Int8(2)],
                    input_shapes=[[1, 16, 32, 32]],
                    weight_types=[Int8(2)],
                    kernel_channels=[16],
@@ -3227,7 +3280,8 @@ def generate_options(args):
                    pads=Pad.none + Pad.top(5) + Pad.left(5) + Pad.bottom(5) + Pad.right(5)),
 
         # Z-Major Convolution, padding, int8
-        genZMConvs(input_types=[Int8(2)],
+        genZMConvs(architecture=Architecture.MTL,
+                   input_types=[Int8(2)],
                    input_shapes=[[1, 32, 32, 32]],
                    weight_types=[Int4(2)],
                    kernel_channels=[16],
@@ -3236,7 +3290,8 @@ def generate_options(args):
                    pads=Pad.none + Pad.top(5) + Pad.left(5) + Pad.bottom(5) + Pad.right(5)),
 
         # Z-Major Convolution, padding, int8
-        genZMConvs(input_types=[Int8(2)],
+        genZMConvs(architecture=Architecture.MTL,
+                   input_types=[Int8(2)],
                    input_shapes=[[1, 16, 32, 32]],
                    weight_types=[Int8(2)],
                    kernel_channels=[32],
@@ -3245,7 +3300,8 @@ def generate_options(args):
                    pads=Pad.none + Pad.top(5) + Pad.left(5) + Pad.bottom(5) + Pad.right(5)),
 
         # Z-Major Convolution, padding, int8
-        genZMConvs(input_types=[Int8(2)],
+        genZMConvs(architecture=Architecture.MTL,
+                   input_types=[Int8(2)],
                    input_shapes=[[1, 32, 32, 32]],
                    weight_types=[Int4(2)],
                    kernel_channels=[32],
@@ -3254,7 +3310,8 @@ def generate_options(args):
                    pads=Pad.none + Pad.top(5) + Pad.left(5) + Pad.bottom(5) + Pad.right(5)),
 
         # Z-Major Convolution, padding, fp16
-        genZMConvs(input_types=[FP16(2)],
+        genZMConvs(architecture=Architecture.MTL,
+                   input_types=[FP16(2)],
                    input_shapes=[[1, 16, 32, 32]],
                    weight_types=[FP16(2)],
                    kernel_channels=[16],
@@ -3263,7 +3320,8 @@ def generate_options(args):
                    pads=Pad.none + Pad.top(5) + Pad.left(5) + Pad.bottom(5) + Pad.right(5)),
 
         # Z-Major Convolution, padding, bf16
-        genZMConvs(input_types=[BF16(2)],
+        genZMConvs(architecture=Architecture.MTL,
+                   input_types=[BF16(2)],
                    input_shapes=[[1, 16, 32, 32]],
                    weight_types=[BF16(2)],
                    kernel_channels=[16],
@@ -3272,7 +3330,8 @@ def generate_options(args):
                    pads=Pad.none + Pad.top(5) + Pad.left(5) + Pad.bottom(5) + Pad.right(5)),
 
         # Z-Major Convolution, padding, 4x6 kernel, uint8
-        genZMConvs(input_types=[UInt8(2)],
+        genZMConvs(architecture=Architecture.MTL,
+                   input_types=[UInt8(2)],
                    input_shapes=[[1, 16, 8, 8]],
                    weight_types=[UInt8(1)],
                    kernel_channels=[16],
@@ -3281,7 +3340,8 @@ def generate_options(args):
                    pads=[[2,0,0,0],[0,3,0,0]]),
 
         # Z-Major Convolution, padding, 5x5 kernel, uint8
-        genZMConvs(input_types=[UInt8(2)],
+        genZMConvs(architecture=Architecture.MTL,
+                   input_types=[UInt8(2)],
                    input_shapes=[[1, 16, 32, 32]],
                    weight_types=[UInt8(1)],
                    kernel_channels=[16],
@@ -3290,144 +3350,177 @@ def generate_options(args):
                    pads=[[4,0,0,0],[0,5,0,0]]),
 
         # Z-Major Convolution, output order
-        genZMConvs(input_types=[Int8(3), FP16(4)],
+        genZMConvs(architecture=Architecture.MTL,
+                   input_types=[Int8(3), FP16(4)],
                    output_orders=[Order.NWHC, Order.NWCH, Order.NCWH, Order.NHCW, Order.NCHW]),
 
         # Z-Major Convolution, integer cuboid combinations
-        genZMConvs(input_types=[Int8(3)],
+        genZMConvs(architecture=Architecture.MTL,
+                   input_types=[Int8(3)],
                    input_shapes=[[1, 16, 32, 64]],
                    weight_types=[Int8(2)],
                    output_types=[Int8()],
                    mpe_cubs=[MPE_CUBES.CUBOID_16x16, MPE_CUBES.CUBOID_8x16, MPE_CUBES.CUBOID_4x16]),
 
         # Z-Major Convolution, fp cuboid combinations
-        genZMConvs(input_types=[FP16(4)],
+        genZMConvs(architecture=Architecture.MTL,
+                   input_types=[FP16(4)],
                    input_shapes=[[1, 16, 32, 64]],
                    weight_types=[FP16(2)],
                    output_types=[FP16()],
                    mpe_cubs=[MPE_CUBES.CUBOID_16x16, MPE_CUBES.CUBOID_8x16, MPE_CUBES.CUBOID_4x16]),
 
+        genZMConvs(architecture=Architecture.MTL,
+                   input_types=[FP16(2)],
+                   input_shapes=[[1, 16, 16, 16]],
+                   weight_types=[FP16(2)],
+                   output_types=[FP16()]),
+
         # Eltwise Add
-        genEltwiseAdds(input_types=[Int8(6), UInt8(6), FP16(6), BF16(6)],
+        genEltwiseAdds(architecture=Architecture.MTL,
+                       input_types=[Int8(6), UInt8(6), FP16(6), BF16(6)],
                        input_shapes=[[1, 256, 16, 16]]),
 
         # Eltwise Mult
-        genEltwiseMults(input_types=[Int8(3), UInt8(4), FP16(6), BF16(6)],
+        genEltwiseMults(architecture=Architecture.MTL,
+                        input_types=[Int8(3), UInt8(4), FP16(6), BF16(6)],
                         input_shapes=[[1, 1, 1, 64]]),
 
         # MaxPool
-        genMaxPools(input_types=[UInt8(6), Int8(6), FP16(6), BF16(6)],
+        genMaxPools(architecture=Architecture.MTL,
+                    input_types=[UInt8(6), Int8(6), FP16(6), BF16(6)],
                     input_shapes=[[1, 64, 16, 16]],
                     pads=Pad.none + Pad.all(1) + Pad.top_bottom(1) + Pad.left_right(1)),
 
-        genMaxPools(input_types=[UInt8(6)],
+        genMaxPools(architecture=Architecture.MTL,
+                    input_types=[UInt8(6)],
                     output_types=[UInt8()],
                     strides=[[r, c] for r in range(2, 8) for c in range(2, 8) if (r, c) != (2, 2)]),
 
-        genMaxPools(input_types=[UInt8(6)],
+        genMaxPools(architecture=Architecture.MTL,
+                    input_types=[UInt8(6)],
                     output_types=[UInt8()],
                     kernel_shapes=[[r, c] for r in range(2, 12) for c in range(2, 12) if (r, c) != (2, 2)]),
 
         # AvgPool
-        genAvgPools(input_types=[Int8(6), UInt8(6), FP16(6), BF16(6)],
+        genAvgPools(architecture=Architecture.MTL,
+                    input_types=[Int8(6), UInt8(6), FP16(6), BF16(6)],
                     input_shapes=[[1, 64, 32, 32]]),
 
         # DepthWiseConv
-        genDepthWiseConvs(input_types=[Int8(6), UInt8(6), FP16(6), BF16(6)],
+        genDepthWiseConvs(architecture=Architecture.MTL,
+                          input_types=[Int8(6), UInt8(6), FP16(6), BF16(6)],
                           pads=[[0, 0, 0, 0], [1, 0, 0, 0]]),
 
-        genDepthWiseConvs(input_types=[Int8(6), UInt8(6), FP16(6), BF16(6)],
+        genDepthWiseConvs(architecture=Architecture.MTL,
+                          input_types=[Int8(6), UInt8(6), FP16(6), BF16(6)],
                           input_shapes=[[1, 32, 32, 32]],
                           kernel_channels=[32]),
 
-        genDepthWiseConvs(input_types=[Int8(6), UInt8(6), FP16(6), BF16(6)],
+        genDepthWiseConvs(architecture=Architecture.MTL,
+                          input_types=[Int8(6), UInt8(6), FP16(6), BF16(6)],
                           input_shapes=[[1, 64, 32, 32]],
                           kernel_channels=[64]),
 
-        genDepthWiseConvs(input_types=[UInt8(6)],
+        genDepthWiseConvs(architecture=Architecture.MTL,
+                          input_types=[UInt8(6)],
                           output_types=[UInt8()],
                           strides=[[r, c] for r in range(1, 8) for c in range(1, 8) if (r, c) != (1, 1)]),
 
-        genDepthWiseConvs(input_types=[UInt8(6)],
+        genDepthWiseConvs(architecture=Architecture.MTL,
+                          input_types=[UInt8(6)],
                           output_types=[UInt8()],
                           kernel_shapes=[[r, c] for r in range(1, 12) for c in range(1, 12) if (r, c) != (4, 4)]),
 
         # MobileNet ELTWISE, uint8
-        genEltwiseAdds(input_types=[UInt8(2)],
+        genEltwiseAdds(architecture=Architecture.MTL,
+                       input_types=[UInt8(2)],
                        input_shapes=[[1, 32, 56, 56],
                                      [1, 32, 28, 28],
                                      [1, 64, 14, 14]],
                        output_types=[UInt8()]),
 
         # MobileNet CONV (ZMajorConv)
-        genZMConvs(input_types=[UInt8(2)],
+        genZMConvs(architecture=Architecture.MTL,
+                   input_types=[UInt8(2)],
                    input_shapes=[[1, 32, 112, 112]],
                    weight_types=[UInt8(2)],
                    kernel_channels=[16],
                    output_types=[UInt8()]),
 
-        genZMConvs(input_types=[UInt8(2)],
+        genZMConvs(architecture=Architecture.MTL,
+                   input_types=[UInt8(2)],
                    input_shapes=[[1, 16, 112, 112]],
                    weight_types=[UInt8(2)],
                    kernel_channels=[96],
                    output_types=[UInt8()]),
 
-        genZMConvs(input_types=[UInt8(2)],
+        genZMConvs(architecture=Architecture.MTL,
+                   input_types=[UInt8(2)],
                    input_shapes=[[1, 96, 56, 56]],
                    weight_types=[UInt8(2)],
                    kernel_channels=[32],
                    output_types=[UInt8()]),
 
-        genZMConvs(input_types=[UInt8(2)],
+        genZMConvs(architecture=Architecture.MTL,
+                   input_types=[UInt8(2)],
                    input_shapes=[[1, 32, 56, 56]],
                    weight_types=[UInt8(2)],
                    kernel_channels=[144],
                    output_types=[UInt8()]),
 
-        genZMConvs(input_types=[UInt8(2)],
+        genZMConvs(architecture=Architecture.MTL,
+                   input_types=[UInt8(2)],
                    input_shapes=[[1, 144, 56, 56]],
                    weight_types=[UInt8(2)],
                    kernel_channels=[32],
                    output_types=[UInt8()]),
 
-        genZMConvs(input_types=[UInt8(2)],
+        genZMConvs(architecture=Architecture.MTL,
+                   input_types=[UInt8(2)],
                    input_shapes=[[1, 144, 28, 28]],
                    weight_types=[UInt8(2)],
                    kernel_channels=[32],
                    output_types=[UInt8()]),
 
-        genZMConvs(input_types=[UInt8(2)],
+        genZMConvs(architecture=Architecture.MTL,
+                   input_types=[UInt8(2)],
                    input_shapes=[[1, 32, 28, 28]],
                    weight_types=[UInt8(2)],
                    kernel_channels=[192],
                    output_types=[UInt8()]),
 
-        genZMConvs(input_types=[UInt8(2)],
+        genZMConvs(architecture=Architecture.MTL,
+                   input_types=[UInt8(2)],
                    input_shapes=[[1, 192, 28, 28]],
                    weight_types=[UInt8(2)],
                    kernel_channels=[32],
                    output_types=[UInt8()]),
 
-        genZMConvs(input_types=[UInt8(2)],
+        genZMConvs(architecture=Architecture.MTL,
+                   input_types=[UInt8(2)],
                    input_shapes=[[1, 192, 14, 14]],
                    weight_types=[UInt8(2)],
                    kernel_channels=[64],
                    output_types=[UInt8()]),
 
-        genZMConvs(input_types=[UInt8(2)],
+        genZMConvs(architecture=Architecture.MTL,
+                   input_types=[UInt8(2)],
                    input_shapes=[[1, 64, 14, 14]],
                    weight_types=[UInt8(2)],
                    kernel_channels=[384],
                    output_types=[UInt8()]),
 
-        genZMConvs(input_types=[UInt8(2)],
+        genZMConvs(architecture=Architecture.MTL,
+                   input_types=[UInt8(2)],
                    input_shapes=[[1, 384, 14, 14]],
                    weight_types=[UInt8(2)],
                    kernel_channels=[64],
                    output_types=[UInt8()]),
 
         # Z-Major Convolution, weights swizzling_key = 1-to-5
-        genZMConvs(input_types=[FP16(3)],
+        genZMConvs(architecture=Architecture.MTL,
+                   input_types=[FP16(3)],
                    input_shapes=[[1, 16, 1, 1]],
                    weight_types=[FP16(-3)],
                    kernel_channels=[64,128,256,512,1024],
@@ -3436,7 +3529,8 @@ def generate_options(args):
                    pads=Pad.none),
 
         # Z-Major Continued Convolution, fp16
-        genZMConvs(input_types=[FP16(3)],
+        genZMConvs(architecture=Architecture.MTL,
+                   input_types=[FP16(3)],
                    input_shapes=[[1, 16*1024, 1, 1]],
                    weight_types=[FP16(-3)],
                    kernel_channels=[16],
@@ -3445,7 +3539,8 @@ def generate_options(args):
                    pads=Pad.none),
 
         # Z-major compressed Convolution, int8
-        genZMConvs(input_types=[Int8(2)],
+        genZMConvs(architecture=Architecture.MTL,
+                   input_types=[Int8(2)],
                    input_shapes=[[1, 16, 64, 64]],
                    weight_types=[Int8(2)],
                    kernel_channels=[16],
@@ -3457,6 +3552,7 @@ def generate_options(args):
 
         # Z-major first layer DPU optimization uint8
         genZMConvs(
+            architecture=Architecture.MTL,
             input_types=[UInt8(2)],
             input_shapes=[[1, 1, 16, 16]],
             weight_types=[UInt8(2)],
@@ -3467,6 +3563,7 @@ def generate_options(args):
         ),
 
         genZMConvs(
+            architecture=Architecture.MTL,
             input_types=[UInt8(2)],
             input_shapes=[[1, 2, 16, 16]],
             weight_types=[UInt8(2)],
@@ -3477,6 +3574,7 @@ def generate_options(args):
         ),
 
         genZMConvs(
+            architecture=Architecture.MTL,
             input_types=[UInt8(2)],
             input_shapes=[[1, 3, 16, 16]],
             weight_types=[UInt8(2)],
@@ -3487,6 +3585,7 @@ def generate_options(args):
         ),
 
         genZMConvs(
+            architecture=Architecture.MTL,
             input_types=[UInt8(2)],
             input_shapes=[[1, 4, 16, 16]],
             weight_types=[UInt8(2)],
@@ -3497,6 +3596,7 @@ def generate_options(args):
         ),
 
         genZMConvs(
+            architecture=Architecture.MTL,
             input_types=[UInt8(2)],
             input_shapes=[[1, 5, 16, 16]],
             weight_types=[UInt8(2)],
@@ -3507,6 +3607,7 @@ def generate_options(args):
         ),
 
         genZMConvs(
+            architecture=Architecture.MTL,
             input_types=[UInt8(2)],
             input_shapes=[[1, 6, 16, 16]],
             weight_types=[UInt8(2)],
@@ -3517,6 +3618,7 @@ def generate_options(args):
         ),
 
         genZMConvs(
+            architecture=Architecture.MTL,
             input_types=[UInt8(2)],
             input_shapes=[[1, 7, 16, 16]],
             weight_types=[UInt8(2)],
@@ -3527,6 +3629,7 @@ def generate_options(args):
         ),
 
         genZMConvs(
+            architecture=Architecture.MTL,
             input_types=[UInt8(2)],
             input_shapes=[[1, 8, 16, 16]],
             weight_types=[UInt8(2)],
@@ -3537,6 +3640,7 @@ def generate_options(args):
         ),
 
         genZMConvs(
+            architecture=Architecture.MTL,
             input_types=[UInt8(2)],
             input_shapes=[[1, 9, 16, 16]],
             weight_types=[UInt8(2)],
@@ -3547,6 +3651,7 @@ def generate_options(args):
         ),
 
         genZMConvs(
+            architecture=Architecture.MTL,
             input_types=[UInt8(2)],
             input_shapes=[[1, 10, 16, 16]],
             weight_types=[UInt8(2)],
@@ -3557,6 +3662,7 @@ def generate_options(args):
         ),
 
         genZMConvs(
+            architecture=Architecture.MTL,
             input_types=[UInt8(2)],
             input_shapes=[[1, 11, 16, 16]],
             weight_types=[UInt8(2)],
@@ -3567,6 +3673,7 @@ def generate_options(args):
         ),
 
         genZMConvs(
+            architecture=Architecture.MTL,
             input_types=[UInt8(2)],
             input_shapes=[[1, 12, 16, 16]],
             weight_types=[UInt8(2)],
@@ -3577,6 +3684,7 @@ def generate_options(args):
         ),
 
         genZMConvs(
+            architecture=Architecture.MTL,
             input_types=[UInt8(2)],
             input_shapes=[[1, 13, 16, 16]],
             weight_types=[UInt8(2)],
@@ -3587,6 +3695,7 @@ def generate_options(args):
         ),
 
         genZMConvs(
+            architecture=Architecture.MTL,
             input_types=[UInt8(2)],
             input_shapes=[[1, 14, 16, 16]],
             weight_types=[UInt8(2)],
@@ -3597,6 +3706,7 @@ def generate_options(args):
         ),
 
         genZMConvs(
+            architecture=Architecture.MTL,
             input_types=[UInt8(2)],
             input_shapes=[[1, 15, 16, 16]],
             weight_types=[UInt8(2)],
@@ -3608,6 +3718,7 @@ def generate_options(args):
 
         # Z-major first layer DPU optimization fp16
         genZMConvs(
+            architecture=Architecture.MTL,
             input_types=[FP16(2)],
             input_shapes=[[1, 1, 16, 16]],
             weight_types=[FP16(2)],
@@ -3618,6 +3729,7 @@ def generate_options(args):
         ),
 
         genZMConvs(
+            architecture=Architecture.MTL,
             input_types=[FP16(2)],
             input_shapes=[[1, 2, 16, 16]],
             weight_types=[FP16(2)],
@@ -3628,6 +3740,7 @@ def generate_options(args):
         ),
 
         genZMConvs(
+            architecture=Architecture.MTL,
             input_types=[FP16(2)],
             input_shapes=[[1, 3, 16, 16]],
             weight_types=[FP16(2)],
@@ -3638,6 +3751,7 @@ def generate_options(args):
         ),
 
         genZMConvs(
+            architecture=Architecture.MTL,
             input_types=[FP16(2)],
             input_shapes=[[1, 4, 16, 16]],
             weight_types=[FP16(2)],
@@ -3649,6 +3763,7 @@ def generate_options(args):
 
 
         genZMConvs(
+            architecture=Architecture.MTL,
             input_types=[FP16(2)],
             input_shapes=[[1, 5, 16, 16]],
             weight_types=[FP16(2)],
@@ -3659,6 +3774,7 @@ def generate_options(args):
         ),
 
         genZMConvs(
+            architecture=Architecture.MTL,
             input_types=[FP16(2)],
             input_shapes=[[1, 6, 16, 16]],
             weight_types=[FP16(2)],
@@ -3669,6 +3785,7 @@ def generate_options(args):
         ),
 
         genZMConvs(
+            architecture=Architecture.MTL,
             input_types=[FP16(2)],
             input_shapes=[[1, 7, 16, 16]],
             weight_types=[FP16(2)],
@@ -3679,6 +3796,7 @@ def generate_options(args):
         ),
 
         genZMConvs(
+            architecture=Architecture.MTL,
             input_types=[FP16(2)],
             input_shapes=[[1, 8, 16, 16]],
             weight_types=[FP16(2)],
@@ -3689,6 +3807,7 @@ def generate_options(args):
         ),
 
         genZMConvs(
+            architecture=Architecture.MTL,
             input_types=[FP16(2)],
             input_shapes=[[1, 9, 16, 16]],
             weight_types=[FP16(2)],
@@ -3699,6 +3818,7 @@ def generate_options(args):
         ),
 
         genZMConvs(
+            architecture=Architecture.MTL,
             input_types=[FP16(2)],
             input_shapes=[[1, 10, 16, 16]],
             weight_types=[FP16(2)],
@@ -3709,6 +3829,7 @@ def generate_options(args):
         ),
 
         genZMConvs(
+            architecture=Architecture.MTL,
             input_types=[FP16(2)],
             input_shapes=[[1, 11, 16, 16]],
             weight_types=[FP16(2)],
@@ -3719,6 +3840,7 @@ def generate_options(args):
         ),
 
         genZMConvs(
+            architecture=Architecture.MTL,
             input_types=[FP16(2)],
             input_shapes=[[1, 32, 2, 15]],
             weight_types=[FP16(2)],
@@ -3730,39 +3852,47 @@ def generate_options(args):
         ),
 
         genReadAfterWriteACTDMA(
+            architecture=Architecture.MTL,
             iteration_count=13
         ),
 
         genReadAfterWriteDMAACT(
+            architecture=Architecture.MTL,
             iteration_count=13
         ),
 
         genReadAfterWriteDPUACT(
+            architecture=Architecture.MTL,
             iteration_count=11
         ),
 
         genReadAfterWriteACTDPU(
+            architecture=Architecture.MTL,
             iteration_count=13
         ),
 
         genReadAfterWriteDPUDMA(
+            architecture=Architecture.MTL,
             iteration_count=13
         ),
 
         genReadAfterWriteDMADPU(
+            architecture=Architecture.MTL,
             iteration_count=13
         ),
 
-        genDifferentClustersDPU(),
+        genDifferentClustersDPU(architecture=Architecture.MTL),
 
         # # check all datatypes
         genDMA(
+            architecture=Architecture.MTL,
             tensor_types=[Int4(3), UInt4(3), Int8(3), UInt8(3), FP16(4), BF16(4)],
             input_shapes=[[1, 16, 32, 32]]
         ),
 
         # check all memory locations
         genDMA(
+            architecture=Architecture.MTL,
             tensor_types=[Int8(3)],
             input_shapes=[[1, 32, 16, 16]],
             src_locations=[MemoryLocation.CMX0, MemoryLocation.CMX1, MemoryLocation.DDR],
@@ -3771,32 +3901,40 @@ def generate_options(args):
         ),
         # check max available CMX
         genDMA(
+            architecture=Architecture.MTL,
             tensor_types=[UInt8(3)],
             input_shapes=[[1, 1, 1, HALF_OF_CMX_SIZE]],
             src_locations=[MemoryLocation.CMX0, MemoryLocation.CMX1],
             dst_locations=[MemoryLocation.CMX0, MemoryLocation.CMX1],
             dma_engines=[0, 1]
         ),
+
         genRaceConditionDMA(
+            architecture=Architecture.MTL,
             input_types=[FP16(2)],
             output_types=[FP16(2)],
             iteration_count=64
         ),
 
         genRaceConditionDPU(
+            architecture=Architecture.MTL,
             iteration_count=48
         ),
 
         genRaceConditionDPUDMA(
+            architecture=Architecture.MTL,
             iteration_count=48
         ),
 
         genRaceConditionDPUDMAACT(
+            architecture=Architecture.MTL,
             iteration_count=24
         ),
 
         genRaceCondition(
+            architecture=Architecture.MTL,
             ops = genActShave(
+                architecture=Architecture.MTL,
                 input_types=[FP16(0)],
                 input_shapes=[[1, 10, 2, 3]],
                 output_types=[FP16()],
@@ -3814,6 +3952,7 @@ def generate_options(args):
         ),
 
         genZMConvs(
+            architecture=Architecture.MTL,
             input_types=[Int8(2)],
             input_shapes=[[1, 16, 16, 16]],
             weight_types=[Int8(2)],
@@ -3822,18 +3961,19 @@ def generate_options(args):
             output_types=[Int32()],
             pads=[[0, 0, 0, 0]],
             activations=[
-                PReLU(0.1, np.int8),
-                PReLU(0.1, np.uint8),
-                PReLU(0.5, np.int8),
-                PReLU(0.5, np.uint8),
-                PReLU(1, np.int8),
-                PReLU(1, np.uint8),
-                PReLU(1.5, np.int8),
-                PReLU(1.5, np.uint8),
+                PReLU(Architecture.MTL, 0.1, np.int8),
+                PReLU(Architecture.MTL, 0.1, np.uint8),
+                PReLU(Architecture.MTL, 0.5, np.int8),
+                PReLU(Architecture.MTL, 0.5, np.uint8),
+                PReLU(Architecture.MTL, 1, np.int8),
+                PReLU(Architecture.MTL, 1, np.uint8),
+                PReLU(Architecture.MTL, 1.5, np.int8),
+                PReLU(Architecture.MTL, 1.5, np.uint8),
             ]
         ),
 
         genZMConvs(
+            architecture=Architecture.MTL,
             input_types=[FP16(2)],
             input_shapes=[[1, 16, 16, 16]],
             weight_types=[FP16(2)],
@@ -3842,14 +3982,14 @@ def generate_options(args):
             output_types=[FP16()],
             pads=[[0, 0, 0, 0]],
             activations=[
-                PReLU(0.1),
-                PReLU(0.5),
-                PReLU(1),
-                PReLU(1.5),
-                PReLU(-0.1),
-                PReLU(-0.5),
-                PReLU(-1),
-                PReLU(-1.5),
+                PReLU(Architecture.MTL, 0.1),
+                PReLU(Architecture.MTL, 0.5),
+                PReLU(Architecture.MTL, 1),
+                PReLU(Architecture.MTL, 1.5),
+                PReLU(Architecture.MTL, -0.1),
+                PReLU(Architecture.MTL, -0.5),
+                PReLU(Architecture.MTL, -1),
+                PReLU(Architecture.MTL, -1.5),
             ]
         ),
     )

@@ -1,5 +1,6 @@
 // RUN: vpux-translate --mlir-elide-elementsattrs-if-larger=16 --import-HWTEST %s | FileCheck %s
 {
+    "architecture": "MTL",
     "case_type": "ZMajorConvolution",
     "input": {
         "shape": [

@@ -596,6 +596,16 @@ nb::TestCaseJsonDescriptor::TestCaseJsonDescriptor(llvm::json::Object jsonObject
 }
 
 void nb::TestCaseJsonDescriptor::parse(llvm::json::Object json_obj) {
+    auto architecture = json_obj.getString("architecture");
+    if (!architecture) {
+        throw std::runtime_error{"Failed to get architecture"};
+    }
+    const auto architectureSymbol = vpux::VPU::symbolizeArchKind(architecture.getValue());
+    if (!architectureSymbol.hasValue()) {
+        throw std::runtime_error{"Failed to parse architecture"};
+    }
+    architecture_ = architectureSymbol.getValue();
+
     auto case_type = json_obj.getString("case_type");
     if (!case_type) {
         throw std::runtime_error{"Failed to get case type"};

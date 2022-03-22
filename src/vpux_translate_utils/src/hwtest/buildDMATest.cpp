@@ -135,7 +135,7 @@ void buildDMA(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module,
     funcbuilder.create<mlir::ReturnOp>(builder.getUnknownLoc(), funcOutput);
     // set runtime resources
     mlir::PassManager pm(ctx, mlir::OpPassManager::Nesting::Implicit);
-    pm.addPass(VPU::createInitCompilerPass(VPU::ArchKind::MTL, VPU::CompilationMode::DefaultHW, None, log));
+    pm.addPass(VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::DefaultHW, None, log));
 
     VPUX_THROW_UNLESS(mlir::succeeded(pm.run(module)), "Compilation failed");
     // IE.CNNNetwork

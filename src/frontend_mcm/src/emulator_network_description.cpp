@@ -15,9 +15,31 @@
 
 #include "vpux/al/config/common.hpp"
 
+#include "blob_parser.hpp"
+#include "mcm_adapter.hpp"
+
 #include <utility>
 
 using namespace vpux;
+
+namespace {
+DataMap inputsDataMapToDataMap(const InferenceEngine::InputsDataMap& inputs) {
+    DataMap dataMap = {};
+    for (auto&& in : inputs) {
+        dataMap.insert({in.first, in.second->getInputData()});
+    }
+
+    return dataMap;
+}
+DataMap outputsDataMapToDataMap(const InferenceEngine::OutputsDataMap& outputs) {
+    DataMap dataMap = {};
+    for (auto&& out : outputs) {
+        dataMap.insert({out.first, out.second});
+    }
+
+    return dataMap;
+}
+}  // namespace
 
 namespace vpu {
 namespace MCMAdapter {
@@ -32,26 +54,55 @@ EmulatorNetworkDescription::EmulatorNetworkDescription(const std::vector<char>& 
           _ovParameters{},
           _ovResults{} {
     IE_ASSERT(!_compiledNetwork.empty());
+
+    const auto* graphFilePtr = MVCNN::GetGraphFile(compiledNetwork.data());
+    IE_ASSERT(graphFilePtr != nullptr);
+    const auto graphHeader = graphFilePtr->header();
+    IE_ASSERT(graphHeader != nullptr);
+    const auto metaInfo = MCMAdapter::deserializeMetaData(*graphHeader, config);
+    const InferenceEngine::InputsDataMap& deserializedInputs = metaInfo._inputs;
+    const InferenceEngine::OutputsDataMap& deserializedOutputs = metaInfo._outputs;
+
+    if (deserializedInputs.empty()) {
+        IE_THROW() << "EmulatorNetworkDescription: meta-data does not contain inputs.";
+    }
+
+    if (deserializedOutputs.empty()) {
+        IE_THROW() << "EmulatorNetworkDescription: meta-data does not contain outputs.";
+    }
+
+    const auto graphInputs = graphHeader->net_input();
+    IE_ASSERT(graphInputs != nullptr);
+    const auto deviceInputs = MCMAdapter::getNetworkInputs(*graphInputs);
+    _deviceInputs = inputsDataMapToDataMap(deviceInputs);
+
+    const auto graphOutputs = graphHeader->net_output();
+    IE_ASSERT(graphOutputs != nullptr);
+    const auto deviceOutputs = MCMAdapter::getNetworkOutputs(*graphOutputs);
+    _deviceOutputs = outputsDataMapToDataMap(deviceOutputs);
+
+    _networkInputs = inputsDataMapToDataMap(deserializedInputs);
+    _networkOutputs = outputsDataMapToDataMap(deserializedOutputs);
 }
 
 const DataMap& EmulatorNetworkDescription::getInputsInfo() const {
     _logger.info("EmulatorNetworkDescription::getInputsInfo()");
-    return _dataMapPlaceholder;
+    return _networkInputs;
 }
 
 const DataMap& EmulatorNetworkDescription::getOutputsInfo() const {
     _logger.info("EmulatorNetworkDescription::getOutputsInfo()");
-    return _dataMapPlaceholder;
+    return _networkOutputs;
 }
 
 const DataMap& EmulatorNetworkDescription::getDeviceInputsInfo() const {
     _logger.info("EmulatorNetworkDescription::getDeviceInputsInfo()");
-    return _dataMapPlaceholder;
+    return _deviceInputs;
 }
 
 const DataMap& EmulatorNetworkDescription::getDeviceOutputsInfo() const {
     _logger.info("EmulatorNetworkDescription::getDeviceOutputsInfo()");
-    return _dataMapPlaceholder;
+    return _deviceOutputs;
 }
 
 const DataMap& EmulatorNetworkDescription::getDeviceProfilingOutputsInfo() const {

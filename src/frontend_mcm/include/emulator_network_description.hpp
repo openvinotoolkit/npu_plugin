@@ -60,6 +60,10 @@ private:
     std::string _name;
     vpux::Logger _logger;
     vpux::DataMap _dataMapPlaceholder;
+    vpux::DataMap _deviceInputs;
+    vpux::DataMap _deviceOutputs;
+    vpux::DataMap _networkInputs;
+    vpux::DataMap _networkOutputs;
     std::vector<char> _compiledNetwork;
     vpux::QuantizationParamMap _quantParams;
     const std::vector<vpux::OVRawNode> _ovParameters;

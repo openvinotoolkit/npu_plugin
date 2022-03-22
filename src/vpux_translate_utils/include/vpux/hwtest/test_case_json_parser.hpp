@@ -202,6 +202,10 @@ public:
         return underlyingOp_;
     }
 
+    vpux::VPU::ArchKind getArchitecture() const {
+        return architecture_;
+    }
+
 private:
     InputLayer loadInputLayer(llvm::json::Object* jsonObj);
     WeightLayer loadWeightLayer(llvm::json::Object* jsonObj);
@@ -235,6 +239,7 @@ private:
     std::shared_ptr<TestCaseJsonDescriptor> underlyingOp_;
     RaceConditionParams raceConditionParams_;
     DPUTaskParams DPUTaskParams_;
+    vpux::VPU::ArchKind architecture_;
 };
 
 }  // namespace nb

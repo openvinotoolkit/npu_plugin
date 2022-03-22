@@ -2147,7 +2147,7 @@ def IE_InterpolateOp :
     let summary = "InferenceEngine Interpolate layer";
 
     let arguments = (ins
-        RankedTensorOf<[F16, F32]>:$input,
+        RankedTensorOf<[UI8, F16, F32]>:$input,
         Optional<RankedTensorOf<[AnyInteger]>>:$sizes,
         Optional<RankedTensorOf<[F16, F32]>>:$scales,
         Optional<RankedTensorOf<[AnyInteger]>>:$axes,
@@ -2160,7 +2160,7 @@ def IE_InterpolateOp :
     );
 
     let results = (outs
-        RankedTensorOf<[F16, F32]>:$output
+        RankedTensorOf<[UI8, F16, F32]>:$output
     );
 
     let hasCanonicalizer = 1;
