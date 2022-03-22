@@ -73,12 +73,12 @@ void ManualStrategyUtilsPass::safeRunOnFunc() {
     }
 
     if (_readStrategyFromJSON && _readStrategyFileLocation.empty()) {
-        _log.trace("Invalid read location for manual strategy, skipping pass");
+        _log.error("Invalid read location for manual strategy, skipping pass");
         return;
     }
 
     if (_writeStrategyToJSON && _writeStrategyFileLocation.empty()) {
-        _log.trace("Invalid write location for manual strategy, skipping pass");
+        _log.error("Invalid write location for manual strategy, skipping pass");
         return;
     }
 
@@ -105,7 +105,6 @@ void ManualStrategyUtilsPass::safeRunOnFunc() {
             if (operations.find(opLoc) != operations.end()) {
                 // if duplicate locations, create unique
                 opLoc = appendLoc(opLoc, llvm::formatv("unique_{0}", operations.count(opLoc)).str());
-                // op.getOperation()->setLoc(opLoc);
             }
         }
         operations.insert({opLoc, op.getOperation()});
