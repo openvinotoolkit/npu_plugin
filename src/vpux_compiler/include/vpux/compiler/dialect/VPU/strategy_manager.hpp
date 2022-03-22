@@ -38,14 +38,23 @@ public:
     ~LayerCostModel() = default;
 
     template <class ConcreteOp>
+    double getLayerCost(ConcreteOp op, StringRef strategy, bool isTimeCost);
+    // The recommended cost: dpu + dma time cost,
+    // actually dpu time also includes below dpu efficiency
+    template <class ConcreteOp>
+    double getTimeCost(ConcreteOp op, StringRef strategy);
+    // A simple cost only considering dpu efficiency
+    template <class ConcreteOp>
+    double getEfficiencyCost(ConcreteOp op, StringRef strategy);
+
+privated:
+    double calculateMPEVolume(VPU::MPEMode mpeMode, Shape shape) const;
+    template <class ConcreteOp>
     double computeSplitEfficiency(ConcreteOp op, StringRef strategy) const;
     template <class ConcreteOp>
     double clusterComputeTime(ConcreteOp op, MultiClusterStrategy Strategy) const;
     template <class ConcreteOp>
     double dmaTime(ConcreteOp op, MultiClusterStrategy Strategy) const;
-
-privated:
-    double calculateMPEVolume(VPU::MPEMode mpeMode, Shape shape) const;
     
     // @warning Here exists a duplicated _numClusters with BaseLayerStrategy,
     // do we have a better way to access it without redefining? 
@@ -87,16 +96,13 @@ public:
 
 protected:
     virtual bool doesLayerFitIntoCMX(mlir::Operation* op, StringRef strategy) const = 0;
-    // layer cost model
-    template <class ConcreteOp>
-    double getTotalCost(ConcreteOp op, StringRef strategy) const;
 
 protected:
     int64_t _numClusters;
     int64_t _numDPUs;
     int64_t _minimumOutputHeightForSOH;
     const int64_t _numChannelAlignment = 16;
-    LayerCostModel _layerCostModel;
+    LayerCostModel _layerCostModel; // cost model for greedy strategy selection
     mlir::FuncOp _func;
     Logger _log;
 };
@@ -190,9 +196,9 @@ double LayerCostModel::computeSplitEfficiency(ConcreteOp op, StringRef strategy)
 }
 
 template <class ConcreteOp>
-StringRef BaseLayerStrategy::getOptimalLayerStrategy(ConcreteOp op) const {
-    double splitOverHeightEfficiency = 0.0;
-    double splitOverKernelEfficiency = 0.0;
+StringRef BaseLayerStrategy::getOptimalLayerStrategy(ConcreteOp op, bool isTimeCost = true) const {
+    double splitOverHeightCost = 0.0;
+    double splitOverKernelCost = 0.0;
     const auto arch = VPU::getArch(op.getOperation());
     const auto isChannelMajor = (DimsOrder::fromValue(op.input()) == DimsOrder::NCHW) &&
                                 VPU::NCEInvariant::isChannelMajorCompatible(
@@ -200,32 +206,30 @@ StringRef BaseLayerStrategy::getOptimalLayerStrategy(ConcreteOp op) const {
 
     if (isOperationSplitOverHeightCompatible(op) &&
         (doesLayerFitIntoCMX(op, splitOverHeightOverlapped) || doesLayerFitIntoCMX(op, splitOverHeight))) {
-        splitOverHeightEfficiency = _layerCostModel.computeSplitEfficiency(op, splitOverHeight);
+        splitOverHeightCost = _layerCostModel.getLayerCost(op, splitOverHeight, isTimeCost);
     }
 
     if (isOperationSplitOverKernelCompatible(op) && doesLayerFitIntoCMX(op, splitOverKernel)) {
-        splitOverKernelEfficiency = _layerCostModel.computeSplitEfficiency(op, splitOverKernel);
+        splitOverKernelCost = _layerCostModel.getLayerCost(op, splitOverKernel, isTimeCost);
     }
 
     // Compute ammount of clusters so that SOK is compatible
-    const auto module = op->template getParentOfType<mlir::ModuleOp>();
-    const auto numClustersAvailableForCompilation = IE::getAvailableExecutor(module, ExecutorKind::NCE).count();
     const auto outputChannels = op.output().getType().template cast<vpux::NDTypeInterface>().getShape()[Dims4D::Act::C];
     const auto sokOptimalClusters =
-            getNumberOfClustersForSOKToAvoidAlignment(outputChannels, numClustersAvailableForCompilation);
-
+            getNumberOfClustersForSOKToAvoidAlignment(outputChannels, _numClusters);
     const auto optimalHeightTiling = [&](void) {
         return isChannelMajor ? splitOverHeightOverlapped : splitOverHeight;
     };
-    if (sokOptimalClusters == numClustersAvailableForCompilation) {
-        if (splitOverHeightEfficiency >= splitOverKernelEfficiency) {
+    
+    if (sokOptimalClusters == _numClusters) {
+        if (splitOverHeightCost >= splitOverKernelCost) {
             return optimalHeightTiling();
         }
         return splitOverKernel;
     } else {
         // SOK uses less clusters, but it would be still better than if
         // SOH is incompatible.
-        if (splitOverHeightEfficiency > 0) {
+        if (splitOverHeightCost > 0) {
             return optimalHeightTiling();
         }
         return splitOverKernel;

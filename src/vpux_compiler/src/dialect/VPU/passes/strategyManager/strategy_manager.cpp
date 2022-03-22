@@ -33,6 +33,21 @@ LayerCostModel::LayerCostModel(mlir::FuncOp func, Logger log, int64_t numCluster
 }
 
 template <class ConcreteOp>
+double LayerCostModel::getLayerCost(ConcreteOp op, StringRef strategy, bool isTimeCost){
+    return isTimeCost ? getTimeCost(op, strategy) : getEfficiencyCost(op, strategy);
+}
+
+template <class ConcreteOp>
+double LayerCostModel::getTimeCost(ConcreteOp op, StringRef strategy){
+    return clusterComputeTime(op, strategy) + dmaTime(op, strategy);
+}
+
+template <class ConcreteOp>
+double LayerCostModel::getEfficiencyCost(ConcreteOp op, StringRef strategy){
+    return computeSplitEfficiency(op, strategy);
+}
+
+template <class ConcreteOp>
 double LayerCostModel::clusterComputeTime(ConcreteOp op, StringRef strategy) const{
     double clusterEff = computeSplitEfficiency(op, strategy);
     auto clusterOutShape = getLargestClusterOutputShape(op, strategy, _numClusters);
