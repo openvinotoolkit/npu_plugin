@@ -363,6 +363,7 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
         toBuild->data_dtype = convertDtype(t->getDType().toString());
         toBuild->strides = t->computeNumericStrides();
         toBuild->strides.push_back(t->getDType().getSizeInBits() / 8);
+        std::reverse(toBuild->strides.begin(), toBuild->strides.end());
 
         if (t->hasAttr("quantParams"))
         {

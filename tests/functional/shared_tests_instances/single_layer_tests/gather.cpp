@@ -14,9 +14,18 @@ namespace LayerTestsDefinitions {
 class KmbGatherLayerTest: public GatherLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
 
     void SkipBeforeLoad() override {
-        auto inputShape = std::get<3>(GetParam());
+        std::vector<size_t> inputShape;
+        std::string device;
+        std::tie(std::ignore, std::ignore, std::ignore, inputShape, std::ignore, std::ignore, std::ignore,
+                std::ignore, std::ignore, device) = GetParam();
+        
         if (inputShape.size() != 4) {
             throw LayerTestsUtils::KmbSkipTestException("Runtime only supports 4D input shape");
+        }
+
+        if (device == "EMULATOR") {
+            throw LayerTestsUtils::KmbSkipTestException(
+                "Emulator device does not support Gather with I32 second input");
         }
     }
 };

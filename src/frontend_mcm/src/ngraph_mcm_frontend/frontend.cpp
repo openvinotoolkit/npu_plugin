@@ -343,9 +343,7 @@ std::unique_ptr<mv::CompilationUnit> createCompilationUnit(
             graphFileInstance.header->identifier = netName;
         };
 
-        if (config.get<PLATFORM>() != InferenceEngine::VPUXConfigParams::VPUXPlatform::EMULATOR) {
-            mcmCompDesc.setPassArg("GenerateBlobKmb", "metaInfoSerializer", metaInfoSerializer);
-        }
+        mcmCompDesc.setPassArg("GenerateBlobKmb", "metaInfoSerializer", metaInfoSerializer);
 
         if (config.has<DPU_GROUPS>()) {
             const int clusterCount = config.get<DPU_GROUPS>();

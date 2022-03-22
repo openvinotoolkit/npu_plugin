@@ -50,6 +50,8 @@ public:
     }
 
 private:
+    ie::Blob::Ptr repackTensor(const ie::Blob::Ptr&, const ie::TensorDesc&);
+
     Logger _logger;
     vpux::NetworkDescription::Ptr _network;
     mv::emu::Manager _manager;

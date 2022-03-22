@@ -253,14 +253,6 @@ void KmbLayerTestsCommon::Run() {
             runInferSkipReason = "backend is empty (no device)";
         }
 
-        // [Track number: E#20335]
-        // Disabling inference for layer tests on emulator device due to segfault
-        const auto emulatorDevice = backendName == "EMULATOR";
-        if (runInfer && emulatorDevice) {
-            runInfer = false;
-            runInferSkipReason = "backend is EMULATOR";
-        }
-
         if (runInfer) {
             std::cout << "KmbLayerTestsCommon::Infer() with backend '" << backendName << "'" << std::endl;
             SkipBeforeInfer();
