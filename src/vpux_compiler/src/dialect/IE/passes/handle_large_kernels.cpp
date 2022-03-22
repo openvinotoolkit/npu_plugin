@@ -15,6 +15,7 @@
 
 #include "vpux/compiler/core/layers.hpp"
 #include "vpux/compiler/dialect/IE/ops.hpp"
+#include "vpux/compiler/dialect/IE/utils/handle_kernels_utils.hpp"
 #include "vpux/compiler/dialect/VPU/nce_invariant.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
@@ -38,47 +39,10 @@ namespace {
 constexpr int64_t PADDING_RIGHT = 1;
 constexpr int64_t PADDING_BOT = 3;
 
-bool checkFactors(const Factors& factors, int64_t kernelSize = 0) {
-    const auto hasZeroFactors = factors.larger == 0 || factors.smaller == 0;
-    const auto factorLessThanKernelSize = factors.larger * factors.smaller < kernelSize;
-    const auto hasUnsupportedFactors =
-            factors.larger > VPU::NCEInvariant::MAX_KERNEL_SIZE || factors.smaller > VPU::NCEInvariant::MAX_KERNEL_SIZE;
-    const auto hasBadFactors = factors.larger * factors.smaller > (kernelSize + factors.smaller / 2);
-    return !(hasZeroFactors || factorLessThanKernelSize || hasUnsupportedFactors || hasBadFactors);
-    // those last 2 checks have the main scope of finding the best suited factors:
-    // if one of the last 2 checks fails it means that the gap between product of
-    // those 2 factors and original kernel size is too big, which generates larger overlapping area
-}
-
-Factors getFactorsAround(int64_t kernelSize, int64_t pad) {
-    const auto& candidateFactors = getFactorsList(kernelSize + pad);
-    if (!candidateFactors.empty()) {
-        return candidateFactors.back();
-    }
-    return {};
-}
-
-Factors getFactors(int64_t kernelSize) {
-    const auto& allFactors = getFactorsList(kernelSize);
-    if (!allFactors.empty() && checkFactors(allFactors.back(), kernelSize)) {
-        return allFactors.back();
-    }
-
-    int64_t padValue = 1;
-    while (padValue < kernelSize) {
-        const auto& factors = getFactorsAround(kernelSize, padValue);
-        if (checkFactors(factors, kernelSize)) {
-            return factors;
-        }
-        padValue++;
-    }
-    VPUX_THROW("All factors failed check");
-}
-
 void getFactorsForSecondDimension(std::array<int64_t, 4>& padding, std::array<int64_t, 2>& firstOpKernel,
                                   std::array<int64_t, 2>& sequencedOpKernel, int32_t smallDim, Logger log,
                                   ArrayRef<int64_t> kernelSize) {
-    const auto factorsSecondDim = getFactors(kernelSize[smallDim]);  // toggling between the two kernel sizes
+    const auto factorsSecondDim = vpux::IE::getFactors(kernelSize[smallDim]);  // toggling between the two kernel sizes
     log.trace("Second Dimension kernel[{0}]= {1}, larger factor: {2} , smaller factor: {3}", smallDim,
               kernelSize[smallDim], factorsSecondDim.larger, factorsSecondDim.smaller);
 
@@ -113,7 +77,7 @@ void calculateKernelsAndPadding(ArrayRef<int64_t> kernelSize, std::array<int64_t
         largeDim = Dims4D::Kernel::Y.ind();
         smallDim = Dims4D::Kernel::X.ind();
     }
-    const auto factors = getFactors(largerKernelSize);
+    const auto factors = vpux::IE::getFactors(largerKernelSize);
 
     log.trace("Large Dimension kernelSize[{0}] = {1}, larger factor: {2} , smaller factor: {3}", largeDim,
               largerKernelSize, factors.larger, factors.smaller);

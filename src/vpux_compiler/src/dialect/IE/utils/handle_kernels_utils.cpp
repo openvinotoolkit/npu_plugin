@@ -14,7 +14,6 @@
 #include "vpux/compiler/dialect/IE/utils/handle_kernels_utils.hpp"
 #include "vpux/compiler/conversion.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
-#include "vpux/compiler/utils/factors.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
 #include "vpux/compiler/utils/types.hpp"
 
@@ -40,7 +39,24 @@ Factors getFactorsAround(int64_t kernelSize, int64_t pad) {
     return {};
 }
 
-bool factorsValid(int64_t kernelSize) {
+Factors vpux::IE::getFactors(int64_t kernelSize) {
+    const auto& allFactors = getFactorsList(kernelSize);
+    if (!allFactors.empty() && checkFactors(allFactors.back(), kernelSize)) {
+        return allFactors.back();
+    }
+
+    int64_t padValue = 1;
+    while (padValue < kernelSize) {
+        const auto& factors = getFactorsAround(kernelSize, padValue);
+        if (checkFactors(factors, kernelSize)) {
+            return factors;
+        }
+        padValue++;
+    }
+    VPUX_THROW("Failed to get valid factors when splitting kernel! Large padding value would lead to accuracy drop.");
+}
+
+bool vpux::IE::factorsValid(int64_t kernelSize) {
     const auto& allFactors = getFactorsList(kernelSize);
     if (!allFactors.empty() && checkFactors(allFactors.back(), kernelSize)) {
         return true;
