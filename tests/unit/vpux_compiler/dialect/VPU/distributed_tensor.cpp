@@ -98,9 +98,15 @@ TEST(MLIR_NDTypeInterface, SegmentedDistributedTensorType) {
     const auto changedMemSpace = ndType.changeMemSpace(newMemSpace);
     EXPECT_EQ(changedMemSpace.getMemSpace().getLeafName(), DDR_NAME);
 
+    const SmallVector<Bit> newStrides({425984_Bit, 16_Bit, 16384_Bit, 1024_Bit});
+    EXPECT_ANY_THROW(ndType.changeStrides(StridesRef(newStrides)));
+
     const SmallVector<int64_t> tileOffset({0, 0, 32, 0});
     const SmallVector<int64_t> tileShape({1, 32, 20, 8});
     EXPECT_ANY_THROW(ndType.extractDenseTile(vpux::ShapeRef(tileOffset), vpux::ShapeRef(tileShape)));
+    const SmallVector<int64_t> tileElemStrides({1, 1, 1, 1});
+    EXPECT_ANY_THROW(ndType.extractViewTile(vpux::ShapeRef(tileOffset), vpux::ShapeRef(tileShape), vpux::ShapeRef(tileElemStrides)));
+    EXPECT_EQ(ndType.eraseTiledInfo(), ndType);
     const SmallVector<int64_t> pads({0, 0, 2, 2});
     EXPECT_ANY_THROW(ndType.pad(vpux::ShapeRef(pads), vpux::ShapeRef(pads)));
 }
@@ -175,9 +181,15 @@ TEST(MLIR_NDTypeInterface, SegmentedDuplicatedDistributedTensorType) {
     const auto changedMemSpace = ndType.changeMemSpace(newMemSpace);
     EXPECT_EQ(changedMemSpace.getMemSpace().getLeafName(), DDR_NAME);
 
+    const SmallVector<Bit> newStrides({425984_Bit, 16_Bit, 16384_Bit, 1024_Bit});
+    EXPECT_ANY_THROW(ndType.changeStrides(StridesRef(newStrides)));
+
     const SmallVector<int64_t> tileOffset({0, 0, 32, 0});
     const SmallVector<int64_t> tileShape({1, 32, 20, 8});
     EXPECT_ANY_THROW(ndType.extractDenseTile(vpux::ShapeRef(tileOffset), vpux::ShapeRef(tileShape)));
+    const SmallVector<int64_t> tileElemStrides({1, 1, 1, 1});
+    EXPECT_ANY_THROW(ndType.extractViewTile(vpux::ShapeRef(tileOffset), vpux::ShapeRef(tileShape), vpux::ShapeRef(tileElemStrides)));
+    EXPECT_EQ(ndType.eraseTiledInfo(), ndType);
     const SmallVector<int64_t> pads({0, 0, 2, 2});
     EXPECT_ANY_THROW(ndType.pad(vpux::ShapeRef(pads), vpux::ShapeRef(pads)));
 }

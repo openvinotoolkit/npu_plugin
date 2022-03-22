@@ -157,12 +157,36 @@ vpux::NDTypeInterface changeMemSpace(vpux::IndexedSymbolAttr memSpace);
 Returns the type with the new memory space
 NOTE: This method *must* be implemented by the user.
 
+#### `changeStrides`
+
+```c++
+vpux::NDTypeInterface changeStrides(vpux::StridesRef strides);
+```
+Returns the type with the new strides
+NOTE: This method *must* be implemented by the user.
+
 #### `extractDenseTile`
 
 ```c++
 vpux::NDTypeInterface extractDenseTile(vpux::ShapeRef tileOffsets, vpux::ShapeRef tileShape);
 ```
 Returns a tile from the type
+NOTE: This method *must* be implemented by the user.
+
+#### `extractViewTile`
+
+```c++
+vpux::NDTypeInterface extractViewTile(vpux::ShapeRef tileOffsets, vpux::ShapeRef tileShape, vpux::ShapeRef tileElemStrides);
+```
+Returns a view tile from the type
+NOTE: This method *must* be implemented by the user.
+
+#### `eraseTiledInfo`
+
+```c++
+vpux::NDTypeInterface eraseTiledInfo();
+```
+Returns the type without strides information
 NOTE: This method *must* be implemented by the user.
 
 #### `pad`

@@ -98,11 +98,6 @@ memref_type_if<Enum> getMemRefType(ShapeRef shape, mlir::Type elemType, DimsOrde
                          IndexedSymbolAttr::get(elemType.getContext(), stringifyEnum(kind)));
 }
 
-mlir::MemRefType getViewTileType(mlir::MemRefType origType, ShapeRef tileOffsets, ShapeRef tileShape,
-                                 ShapeRef tileElemStrides = {});
-
-mlir::MemRefType eraseTiledInfo(mlir::MemRefType origType);
-
 IndexedSymbolAttr getMemorySpace(mlir::MemRefType type);
 
 //

@@ -89,9 +89,16 @@ TEST(MLIR_NDTypeInterface, SegmentedDistributedBufferType) {
     EXPECT_ANY_THROW(ndType.changeDimsOrder(DimsOrder::NCHW));
     EXPECT_ANY_THROW(ndType.changeMemSpace(vpux::IndexedSymbolAttr::get(&ctx, DDR_NAME)));
 
+    const SmallVector<Bit> newStrides({425984_Bit, 16_Bit, 16384_Bit, 1024_Bit});
+    const auto changedStrides = ndType.changeStrides(StridesRef(newStrides));
+    EXPECT_EQ(changedStrides.getStrides().raw(), newStrides);
+
     const SmallVector<int64_t> tileOffset({0, 0, 32, 0});
     const SmallVector<int64_t> tileShape({1, 32, 20, 8});
     EXPECT_ANY_THROW(ndType.extractDenseTile(vpux::ShapeRef(tileOffset), vpux::ShapeRef(tileShape)));
+    const SmallVector<int64_t> tileElemStrides({1, 1, 1, 1});
+    EXPECT_ANY_THROW(ndType.extractViewTile(vpux::ShapeRef(tileOffset), vpux::ShapeRef(tileShape), vpux::ShapeRef(tileElemStrides)));
+    EXPECT_ANY_THROW(ndType.eraseTiledInfo());
     const SmallVector<int64_t> pads({0, 0, 2, 2});
     EXPECT_ANY_THROW(ndType.pad(vpux::ShapeRef(pads), vpux::ShapeRef(pads)));
 }
@@ -154,9 +161,16 @@ TEST(MLIR_NDTypeInterface, SegmentedDuplicatedDistributedBufferType) {
     EXPECT_ANY_THROW(ndType.changeDimsOrder(DimsOrder::NCHW));
     EXPECT_ANY_THROW(ndType.changeMemSpace(vpux::IndexedSymbolAttr::get(&ctx, DDR_NAME)));
 
+    const SmallVector<Bit> newStrides({425984_Bit, 16_Bit, 16384_Bit, 1024_Bit});
+    const auto changedStrides = ndType.changeStrides(StridesRef(newStrides));
+    EXPECT_EQ(changedStrides.getStrides().raw(), newStrides);
+
     const SmallVector<int64_t> tileOffset({0, 0, 32, 0});
     const SmallVector<int64_t> tileShape({1, 32, 20, 8});
     EXPECT_ANY_THROW(ndType.extractDenseTile(vpux::ShapeRef(tileOffset), vpux::ShapeRef(tileShape)));
+    const SmallVector<int64_t> tileElemStrides({1, 1, 1, 1});
+    EXPECT_ANY_THROW(ndType.extractViewTile(vpux::ShapeRef(tileOffset), vpux::ShapeRef(tileShape), vpux::ShapeRef(tileElemStrides)));
+    EXPECT_ANY_THROW(ndType.eraseTiledInfo());
     const SmallVector<int64_t> pads({0, 0, 2, 2});
     EXPECT_ANY_THROW(ndType.pad(vpux::ShapeRef(pads), vpux::ShapeRef(pads)));
 }

@@ -422,8 +422,22 @@ NDTypeInterface VPU::DistributedTensorType::changeMemSpace(IndexedSymbolAttr mem
                                            getDistribution());
 }
 
+NDTypeInterface VPU::DistributedTensorType::changeStrides(StridesRef /*strides*/) const {
+    VPUX_THROW("DistributedTensorType only supports compact strides");
+}
+
 NDTypeInterface VPU::DistributedTensorType::extractDenseTile(ShapeRef /*tileOffsets*/, ShapeRef /*tileShape*/) const {
     VPUX_THROW("extractDenseTile method is not implemented for DistributedTensorType");
+}
+
+NDTypeInterface VPU::DistributedTensorType::extractViewTile(vpux::ShapeRef /*tileOffsets*/,
+                                                            vpux::ShapeRef /*tileShape*/,
+                                                            vpux::ShapeRef /*tileElemStrides*/) const {
+    VPUX_THROW("DistributedTensorType only supports compact strides");
+}
+
+NDTypeInterface VPU::DistributedTensorType::eraseTiledInfo() const {
+    return *this;
 }
 
 NDTypeInterface VPU::DistributedTensorType::pad(ShapeRef /*padBefore*/, ShapeRef /*padAfter*/) const {

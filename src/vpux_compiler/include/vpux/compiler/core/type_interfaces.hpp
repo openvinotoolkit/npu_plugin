@@ -53,7 +53,11 @@ public:
     vpux::NDTypeInterface changeShapeElemType(mlir::Type type, vpux::ShapeRef shape, mlir::Type elemType) const;
     vpux::NDTypeInterface changeDimsOrder(mlir::Type type, vpux::DimsOrder order) const;
     vpux::NDTypeInterface changeMemSpace(mlir::Type type, vpux::IndexedSymbolAttr memSpace) const;
+    vpux::NDTypeInterface changeStrides(mlir::Type type, vpux::StridesRef strides) const;
     vpux::NDTypeInterface extractDenseTile(mlir::Type type, vpux::ShapeRef tileOffsets, vpux::ShapeRef tileShape) const;
+    vpux::NDTypeInterface extractViewTile(mlir::Type type, vpux::ShapeRef tileOffsets, vpux::ShapeRef tileShape,
+                                          vpux::ShapeRef tileElemStrides) const;
+    vpux::NDTypeInterface eraseTiledInfo(mlir::Type type) const;
     vpux::NDTypeInterface pad(mlir::Type type, vpux::ShapeRef padBefore, vpux::ShapeRef padAfter) const;
 };
 
@@ -78,7 +82,11 @@ public:
     vpux::NDTypeInterface changeShapeElemType(mlir::Type type, vpux::ShapeRef shape, mlir::Type elemType) const;
     vpux::NDTypeInterface changeDimsOrder(mlir::Type type, vpux::DimsOrder order) const;
     vpux::NDTypeInterface changeMemSpace(mlir::Type type, vpux::IndexedSymbolAttr memSpace) const;
+    vpux::NDTypeInterface changeStrides(mlir::Type type, vpux::StridesRef strides) const;
     vpux::NDTypeInterface extractDenseTile(mlir::Type type, vpux::ShapeRef tileOffsets, vpux::ShapeRef tileShape) const;
+    vpux::NDTypeInterface extractViewTile(mlir::Type type, vpux::ShapeRef tileOffsets, vpux::ShapeRef tileShape,
+                                          vpux::ShapeRef tileElemStrides) const;
+    vpux::NDTypeInterface eraseTiledInfo(mlir::Type type) const;
     vpux::NDTypeInterface pad(mlir::Type type, vpux::ShapeRef padBefore, vpux::ShapeRef padAfter) const;
 };
 

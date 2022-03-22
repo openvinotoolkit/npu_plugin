@@ -124,8 +124,23 @@ def NDTypeInterface : TypeInterface<"NDTypeInterface"> {
         >,
 
         InterfaceMethod<
+            "Returns the type with the new strides",
+            "vpux::NDTypeInterface", "changeStrides", (ins "vpux::StridesRef":$strides)
+        >,
+
+        InterfaceMethod<
             "Returns a tile from the type",
             "vpux::NDTypeInterface", "extractDenseTile", (ins "vpux::ShapeRef":$tileOffsets, "vpux::ShapeRef":$tileShape)
+        >,
+
+        InterfaceMethod<
+            "Returns a view tile from the type",
+            "vpux::NDTypeInterface", "extractViewTile", (ins "vpux::ShapeRef":$tileOffsets, "vpux::ShapeRef":$tileShape, "vpux::ShapeRef":$tileElemStrides)
+        >,
+
+        InterfaceMethod<
+            "Returns the type without strides information",
+            "vpux::NDTypeInterface", "eraseTiledInfo", (ins)
         >,
 
         InterfaceMethod<

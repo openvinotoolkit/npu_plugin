@@ -422,30 +422,53 @@ Byte VPUIP::DistributedBufferType::getCompactAllocSize() const {
     return Byte(getElemTypeSize()) * details::calcTotalShapeSize(tiledShape.raw());
 }
 
-NDTypeInterface VPUIP::DistributedBufferType::changeShape(ShapeRef) const {
+NDTypeInterface VPUIP::DistributedBufferType::changeShape(ShapeRef /*shape*/) const {
     VPUX_THROW("changeShape method is not implemented for DistributedBufferType");
 }
 
-NDTypeInterface VPUIP::DistributedBufferType::changeElemType(mlir::Type) const {
+NDTypeInterface VPUIP::DistributedBufferType::changeElemType(mlir::Type /*elemType*/) const {
     VPUX_THROW("changeElemType method is not implemented for DistributedBufferType");
 }
 
-NDTypeInterface VPUIP::DistributedBufferType::changeShapeElemType(ShapeRef, mlir::Type) const {
+NDTypeInterface VPUIP::DistributedBufferType::changeShapeElemType(ShapeRef /*shape*/, mlir::Type /*elemType*/) const {
     VPUX_THROW("changeShapeElemType method is not implemented for DistributedBufferType");
 }
 
-NDTypeInterface VPUIP::DistributedBufferType::changeDimsOrder(DimsOrder) const {
+NDTypeInterface VPUIP::DistributedBufferType::changeDimsOrder(DimsOrder /*order*/) const {
     VPUX_THROW("changeDimsOrder method is not implemented for DistributedBufferType");
 }
 
-NDTypeInterface VPUIP::DistributedBufferType::changeMemSpace(IndexedSymbolAttr) const {
+NDTypeInterface VPUIP::DistributedBufferType::changeMemSpace(IndexedSymbolAttr /*memSpace*/) const {
     VPUX_THROW("changeMemSpace method is not implemented for DistributedBufferType");
 }
 
-NDTypeInterface VPUIP::DistributedBufferType::extractDenseTile(ShapeRef, ShapeRef) const {
+NDTypeInterface VPUIP::DistributedBufferType::changeStrides(StridesRef strides) const {
+    const auto ctx = getContext();
+    const auto elemSize = getElemTypeSize().count();
+    const auto order = mlir::AffineMapAttr::get(getDimsOrder().toAffineMap(ctx));
+    const auto newStrides = to_small_vector(strides | transformed([&](Bit stride) {
+                                                return stride.count() / elemSize;
+                                            }));
+    const auto newStridesAttr = getIntArrayAttr(ctx, newStrides);
+    const auto newDescAttr = IERT::MemRefAttr::get(order, newStridesAttr, ctx);
+    return VPUIP::DistributedBufferType::get(ctx, getShape().raw(), getElementType(), newDescAttr, getMemSpace(),
+                                             getDistribution());
+}
+
+NDTypeInterface VPUIP::DistributedBufferType::extractDenseTile(ShapeRef /*tileOffsets*/, ShapeRef /*tileShape*/) const {
     VPUX_THROW("extractDenseTile method is not implemented for DistributedBufferType");
 }
 
-NDTypeInterface VPUIP::DistributedBufferType::pad(ShapeRef, ShapeRef) const {
+NDTypeInterface VPUIP::DistributedBufferType::extractViewTile(vpux::ShapeRef /*tileOffsets*/,
+                                                              vpux::ShapeRef /*tileShape*/,
+                                                              vpux::ShapeRef /*tileElemStrides*/) const {
+    VPUX_THROW("extractViewTile method is not implemented for DistributedBufferType");
+}
+
+NDTypeInterface VPUIP::DistributedBufferType::eraseTiledInfo() const {
+    VPUX_THROW("eraseTiledInfo method is not implemented for DistributedBufferType");
+}
+
+NDTypeInterface VPUIP::DistributedBufferType::pad(ShapeRef /*padBefore*/, ShapeRef /*padAfter*/) const {
     VPUX_THROW("pad method is not implemented for DistributedBufferType");
 }

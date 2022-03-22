@@ -22,8 +22,8 @@ using namespace vpux;
 namespace {
 
 mlir::memref::AllocOp createCMXTensor(mlir::Value source, mlir::PatternRewriter& rewriter) {
-    const auto type = eraseTiledInfo(source.getType().cast<mlir::MemRefType>());
-    const auto dataTypeCMX = type.cast<vpux::NDTypeInterface>().changeMemSpace(VPU::MemoryKind::CMX_NN);
+    const auto type = source.getType().cast<vpux::NDTypeInterface>().eraseTiledInfo();
+    const auto dataTypeCMX = type.changeMemSpace(VPU::MemoryKind::CMX_NN);
 
     // TODO : how tile index should be used?
     return rewriter.create<mlir::memref::AllocOp>(source.getLoc(), dataTypeCMX.cast<mlir::MemRefType>());

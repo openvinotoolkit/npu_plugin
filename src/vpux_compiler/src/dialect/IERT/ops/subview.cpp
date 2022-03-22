@@ -76,10 +76,7 @@ mlir::LogicalResult vpux::IERT::SubViewOp::inferReturnTypes(mlir::MLIRContext* c
         return mlir::failure();
     }
 
-    const auto origType = subViewOp.source().getType().dyn_cast<mlir::MemRefType>();
-    if (origType == nullptr) {
-        return errorAt(loc, "IERT::SubViewOp operand must have MemRef type");
-    }
+    const auto origType = subViewOp.source().getType().cast<vpux::NDTypeInterface>();
 
     const auto subViewShape = parseIntArrayAttr<int64_t>(subViewOp.static_sizes());
     const auto subViewOffsets = parseIntArrayAttr<int64_t>(subViewOp.static_offsets());
@@ -98,7 +95,7 @@ mlir::LogicalResult vpux::IERT::SubViewOp::inferReturnTypes(mlir::MLIRContext* c
     }
 
     const auto subViewType =
-            getViewTileType(origType, ShapeRef(subViewOffsets), ShapeRef(subViewShape), ShapeRef(subViewStrides));
+            origType.extractViewTile(ShapeRef(subViewOffsets), ShapeRef(subViewShape), ShapeRef(subViewStrides));
     inferredTypes.push_back(subViewType);
 
     return mlir::success();

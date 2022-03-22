@@ -323,9 +323,23 @@ vpux::NDTypeInterface vpux::VPURT::SparseBufferType::changeMemSpace(vpux::Indexe
     return VPURT::SparseBufferType::get(data, sparsityMap, storageElementTable);
 }
 
+vpux::NDTypeInterface vpux::VPURT::SparseBufferType::changeStrides(StridesRef /*strides*/) const {
+    VPUX_THROW("changeStrides method is not implemented for SparseBufferType");
+}
+
 vpux::NDTypeInterface vpux::VPURT::SparseBufferType::extractDenseTile(vpux::ShapeRef /*tileOffsets*/,
                                                                       vpux::ShapeRef /*tileShape*/) const {
     VPUX_THROW("extractDenseTile method is not implemented for SparseBufferType");
+}
+
+vpux::NDTypeInterface vpux::VPURT::SparseBufferType::extractViewTile(vpux::ShapeRef /*tileOffsets*/,
+                                                                     vpux::ShapeRef /*tileShape*/,
+                                                                     vpux::ShapeRef /*tileElemStrides*/) const {
+    VPUX_THROW("extractViewTile method is not implemented for DistributedBufferType");
+}
+
+vpux::NDTypeInterface vpux::VPURT::SparseBufferType::eraseTiledInfo() const {
+    VPUX_THROW("eraseTiledInfo method is not implemented for DistributedBufferType");
 }
 
 vpux::NDTypeInterface vpux::VPURT::SparseBufferType::pad(vpux::ShapeRef /*padBefore*/,

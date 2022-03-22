@@ -124,10 +124,19 @@ TEST(MLIR_NDTypeInterface, RankedTensorType) {
     changedMemSpace = ndType.changeMemSpace(VPU::MemoryKind::CMX_NN);
     EXPECT_EQ(changedMemSpace.getMemSpace().getLeafName(), CMX_NAME);
 
+    EXPECT_ANY_THROW(ndType.changeStrides(StridesRef({})));
+
     const SmallVector<int64_t> tileOffsets({0, 8, 0, 0});
     const SmallVector<int64_t> tileShape({1, 8, 32, 32});
+    const SmallVector<Bit> tileStrides({131072_Bit, 16384_Bit, 512_Bit, 16_Bit});
     const auto outputTile = ndType.extractDenseTile(ShapeRef(tileOffsets), ShapeRef(tileShape));
     EXPECT_EQ(outputTile.getShape(), ShapeRef(tileShape));
+    EXPECT_EQ(outputTile.getStrides().raw(), tileStrides);
+
+    const SmallVector<int64_t> tileElemStrides({1, 1, 1, 1});
+    EXPECT_ANY_THROW(ndType.extractViewTile(ShapeRef(tileOffsets), ShapeRef(tileShape), ShapeRef(tileElemStrides)));
+
+    EXPECT_EQ(ndType.eraseTiledInfo(), ndType);
 
     const SmallVector<int64_t> padBefore({0, 0, 1, 1});
     const SmallVector<int64_t> padAfter({0, 0, 1, 1});
@@ -176,6 +185,8 @@ TEST(MLIR_NDTypeInterface, UnrankedTensorType) {
     const auto changedElemType = ndType.changeElemType(mlir::Float32Type::get(&ctx));
     EXPECT_TRUE(changedElemType.getElementType().isa<mlir::Float32Type>());
 
+    EXPECT_ANY_THROW(ndType.changeStrides(StridesRef({})));
+
     EXPECT_ANY_THROW(ndType.changeShapeElemType(ShapeRef(newShape), mlir::Float32Type::get(&ctx)));
     EXPECT_ANY_THROW(ndType.changeDimsOrder(DimsOrder::NHWC));
     EXPECT_ANY_THROW(ndType.changeMemSpace(IndexedSymbolAttr::get(&ctx, CMX_NAME)));
@@ -184,6 +195,11 @@ TEST(MLIR_NDTypeInterface, UnrankedTensorType) {
     const SmallVector<int64_t> tileOffsets({0, 8, 0, 0});
     const SmallVector<int64_t> tileShape({1, 8, 32, 32});
     EXPECT_ANY_THROW(ndType.extractDenseTile(ShapeRef(tileOffsets), ShapeRef(tileShape)));
+
+    const SmallVector<int64_t> tileElemStrides({1, 1, 1, 1});
+    EXPECT_ANY_THROW(ndType.extractViewTile(ShapeRef(tileOffsets), ShapeRef(tileShape), ShapeRef(tileElemStrides)));
+
+    EXPECT_EQ(ndType.eraseTiledInfo(), ndType);
 
     const SmallVector<int64_t> padBefore({0, 0, 1, 1});
     const SmallVector<int64_t> padAfter({0, 0, 1, 1});
@@ -250,10 +266,32 @@ TEST(MLIR_NDTypeInterface, MemRefType) {
     changedMemSpace = ndType.changeMemSpace(VPU::MemoryKind::CMX_NN);
     EXPECT_EQ(changedMemSpace.getMemSpace().getLeafName(), CMX_NAME);
 
+    const SmallVector<Bit> newStrides({1048576_Bit, 32768_Bit, 1024_Bit, 16_Bit});
+    const auto changedStrides = ndType.changeStrides(StridesRef(newStrides));
+    EXPECT_EQ(changedStrides.getStrides().raw(), newStrides);
+
     const SmallVector<int64_t> tileOffsets({0, 8, 0, 0});
     const SmallVector<int64_t> tileShape({1, 8, 32, 32});
+    const SmallVector<Bit> tileStrides({131072_Bit, 16384_Bit, 512_Bit, 16_Bit});
     const auto outputTile = ndType.extractDenseTile(ShapeRef(tileOffsets), ShapeRef(tileShape));
     EXPECT_EQ(outputTile.getShape(), ShapeRef(tileShape));
+    EXPECT_EQ(outputTile.getStrides().raw(), tileStrides);
+
+    const SmallVector<int64_t> tileElemStrides({1, 1, 1, 1});
+    const auto viewTile =
+            ndType.extractViewTile(ShapeRef(tileOffsets), ShapeRef(tileShape), ShapeRef(tileElemStrides));
+    EXPECT_EQ(viewTile.getShape(), ShapeRef(tileShape));
+    EXPECT_EQ(viewTile.getStrides().raw(), strides);
+
+    const SmallVector<int64_t> tileElemStrides2({2, 1, 1, 1});
+    const SmallVector<Bit> tileStrides2({524288_Bit, 16384_Bit, 512_Bit, 16_Bit});
+    const auto viewTile2 =
+            ndType.extractViewTile(ShapeRef(tileOffsets), ShapeRef(tileShape), ShapeRef(tileElemStrides2));
+    EXPECT_EQ(viewTile2.getShape(), ShapeRef(tileShape));
+    EXPECT_EQ(viewTile2.getStrides().raw(), tileStrides2);
+
+    const auto erasedTiledInfo = changedStrides.eraseTiledInfo();
+    EXPECT_EQ(erasedTiledInfo.getStrides().raw(), strides);
 
     const SmallVector<int64_t> padBefore({0, 0, 1, 1});
     const SmallVector<int64_t> padAfter({0, 0, 1, 1});
@@ -311,9 +349,16 @@ TEST(MLIR_NDTypeInterface, UnrankedMemRefType) {
     changedMemSpace = ndType.changeMemSpace(VPU::MemoryKind::CMX_NN);
     EXPECT_EQ(changedMemSpace.getMemSpace().getLeafName(), CMX_NAME);
 
+    EXPECT_ANY_THROW(ndType.changeStrides(StridesRef({})));
+
     const SmallVector<int64_t> tileOffsets({0, 8, 0, 0});
     const SmallVector<int64_t> tileShape({1, 8, 32, 32});
     EXPECT_ANY_THROW(ndType.extractDenseTile(ShapeRef(tileOffsets), ShapeRef(tileShape)));
+
+    const SmallVector<int64_t> tileElemStrides({1, 1, 1, 1});
+    EXPECT_ANY_THROW(ndType.extractViewTile(ShapeRef(tileOffsets), ShapeRef(tileShape), ShapeRef(tileElemStrides)));
+
+    EXPECT_ANY_THROW(ndType.eraseTiledInfo());
 
     const SmallVector<int64_t> padBefore({0, 0, 1, 1});
     const SmallVector<int64_t> padAfter({0, 0, 1, 1});
@@ -382,9 +427,16 @@ TEST(MLIR_NDTypeInterface, SparseBufferType) {
     changedMemSpace = ndType.changeMemSpace(VPU::MemoryKind::CMX_NN);
     EXPECT_EQ(changedMemSpace.getMemSpace().getLeafName(), CMX_NAME);
 
+    EXPECT_ANY_THROW(ndType.changeStrides(StridesRef({})));
+
     const SmallVector<int64_t> tileOffsets({0, 8, 0, 0});
     const SmallVector<int64_t> tileShape({1, 8, 32, 32});
     EXPECT_ANY_THROW(ndType.extractDenseTile(ShapeRef(tileOffsets), ShapeRef(tileShape)));
+
+    const SmallVector<int64_t> tileElemStrides({1, 1, 1, 1});
+    EXPECT_ANY_THROW(ndType.extractViewTile(ShapeRef(tileOffsets), ShapeRef(tileShape), ShapeRef(tileElemStrides)));
+
+    EXPECT_ANY_THROW(ndType.eraseTiledInfo());
 
     const SmallVector<int64_t> padBefore({0, 0, 1, 1});
     const SmallVector<int64_t> padAfter({0, 0, 1, 1});
