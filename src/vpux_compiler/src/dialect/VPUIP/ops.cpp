@@ -53,8 +53,12 @@ bool isSupportedHWPostOp(mlir::Operation* mainOp, mlir::Operation* postOp) {
     }
 
     if (auto leakyRelu = mlir::dyn_cast<IE::LeakyReluOp>(postOp)) {
+        // The reason why we used isFloatEqual() is because PRelu has only FP16 and FP32 precision for
+        // negative_slope. We need to compare them in float precision, and because we convert PRelu to LeakyRelu
+        // negative_slope is in double and it is possible the double epsilon to be smaller than the subtraction
+        // result.
         if (mlir::isa<IE::AddOp, IE::AndOp, IE::MultiplyOp>(mainOp) ||
-            !isFloatEqual(leakyRelu.negative_slopeAttr().getValueAsDouble(), 0.1f)) {
+            !isFloatEqual(static_cast<float>(leakyRelu.negative_slopeAttr().getValueAsDouble()), 0.1f)) {
             return false;
         }
     }

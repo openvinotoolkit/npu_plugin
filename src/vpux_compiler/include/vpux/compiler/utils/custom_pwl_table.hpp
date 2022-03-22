@@ -15,6 +15,7 @@
 
 #include "vpux/compiler/dialect/IE/passes.hpp"
 #include "vpux/compiler/utils/types.hpp"
+#include "vpux/utils/core/small_string.hpp"
 
 #include <mlir/Dialect/Quant/QuantTypes.h>
 
@@ -24,7 +25,7 @@
 namespace vpux {
 
 struct PWLTableType {
-    StringRef activation;
+    SmallString activation;
     mlir::Type dtype;
 };
 
@@ -38,7 +39,7 @@ struct PWLTableEntry {
 
 struct PWLTableHash {
     std::size_t operator()(const PWLTableType& key) const {
-        const auto h1 = std::hash<std::string>()(key.activation.str());
+        const auto h1 = std::hash<std::string>()(key.activation.operator std::__cxx11::string());
         const auto h2 = mlir::hash_value(key.dtype);
 
         return h1 ^ h2;

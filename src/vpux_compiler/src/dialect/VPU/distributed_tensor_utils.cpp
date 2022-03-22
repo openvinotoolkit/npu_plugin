@@ -145,11 +145,11 @@ SmallVector<int64_t> vpux::VPU::getInstructionListTableTensorNumTiles(StringRef 
     if (strategy == splitOverHeightOverlapped || strategy == splitOverHeight || strategy == splitOverKernel ||
         strategy == clustering) {
         return {1, 1, 1, 1};
-    } else {
-        VPUX_THROW("{0} is an invalid multi-cluster strategy, unable to determine the number of tiles for the "
-                   "instruction list table tensor",
-                   strategy);
     }
+
+    VPUX_THROW("{0} is an invalid multi-cluster strategy, unable to determine the number of tiles for the "
+               "instruction list table tensor",
+               strategy);
 }
 
 SmallVector<int64_t> vpux::VPU::getActivationWindowTensorNumTiles(StringRef strategy) {
@@ -218,11 +218,11 @@ DistributionMode vpux::VPU::getInstructionListTableTensorDistributionMode(String
     if (strategy == splitOverHeightOverlapped || strategy == splitOverHeight || strategy == splitOverKernel ||
         strategy == clustering) {
         return DistributionMode::DUPLICATED;
-    } else {
-        VPUX_THROW("{0} is an invalid multi-cluster strategy, unable to determine the distribution mode for the "
-                   "instruction list table tensor",
-                   strategy);
     }
+
+    VPUX_THROW("{0} is an invalid multi-cluster strategy, unable to determine the distribution mode for the "
+               "instruction list table tensor",
+               strategy);
 }
 
 NCEClusterTilingOp vpux::VPU::createDistributedCopyOut(mlir::Operation* origOp, NCEClusterTilingOp clusterTilingOp) {

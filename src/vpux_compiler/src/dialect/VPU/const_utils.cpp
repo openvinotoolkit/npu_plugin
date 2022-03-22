@@ -77,7 +77,7 @@ Optional<SmallVector<int32_t>> createInstructionListTableData(mlir::Value opOutp
 
     const size_t vectorSize = pwlTableRange.size() + pwlTableShift.size() + pwlTableBias.size();
     // We need a NOOP to terminate each chain of 16 instructions.
-    const size_t noopCount = vectorSize >> 4;
+    const size_t noopCount = vectorSize / 16;
     const size_t instructionListTableSize = alignVal<size_t>(vectorSize + noopCount, 16);
 
     return VPU::NCESparsity::getInstructionListTable(pwlTableRange, pwlTableShift, pwlTableBias,
