@@ -275,7 +275,7 @@ void PrefetchTilingPass::safeRunOnFunc() {
         return true;
     });
     target.markUnknownOpDynamicallyLegal([this](mlir::Operation* op) {
-        if (op->hasAttr("manualTilingStrategy")) {
+        if (op->hasAttr("manualTilingStrategyApplied")) {
             return true;
         }
         if (auto iface = mlir::dyn_cast<IE::TilingInfoOpInterface>(op)) {

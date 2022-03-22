@@ -56,6 +56,10 @@ mlir::LogicalResult ManualTiling::matchAndRewrite(IE::TilingBuilderOpInterface o
     _log.nest(1).trace("Using manual tiles for op {0} at {1}, tiles: {2}", op->getName(), op->getLoc(), manualTiling);
     const auto tiles = vpux::fillDividedTiles(manualTiling, outputShape);
 
+    op->setAttr("manualTilingStrategyApplied", mlir::BoolAttr::get(op->getContext(), true));
+    op->setAttr("tilingStrategy", op->getAttr("manualTilingStrategy"));
+    op->removeAttr("manualTilingStrategy");
+
     _log.nest(1).trace("Create {0} tiles:", tiles.size());
     return applyTileStrategy(origOp, tiles, rewriter, _log);
 }
@@ -87,7 +91,7 @@ void ManualTilingPass::safeRunOnFunc() {
     });
     target.markUnknownOpDynamicallyLegal([this](mlir::Operation* op) {
         if (auto iface = mlir::dyn_cast<IE::TilingInfoOpInterface>(op)) {
-            if (op->hasAttr("manualTilingStrategy") && op->getLoc().dyn_cast<mlir::FusedLoc>() == nullptr) {
+            if (op->hasAttr("manualTilingStrategy") && !op->hasAttr("manualTilingStrategyApplied")) {
                 // manual strategy overwrite
                 return false;
             }
