@@ -1493,7 +1493,7 @@ operation ::= `IE.Interpolate` `(` operands `)` attr-dict `:` type(operands) `->
 
 | Operand | Description |
 | :-----: | ----------- |
-`input` | ranked tensor of 16-bit float or 32-bit float values
+`input` | ranked tensor of 8-bit unsigned integer or 16-bit float or 32-bit float values
 `sizes` | ranked tensor of integer values
 `scales` | ranked tensor of 16-bit float or 32-bit float values
 `axes` | ranked tensor of integer values
@@ -1502,7 +1502,7 @@ operation ::= `IE.Interpolate` `(` operands `)` attr-dict `:` type(operands) `->
 
 | Result | Description |
 | :----: | ----------- |
-`output` | ranked tensor of 16-bit float or 32-bit float values
+`output` | ranked tensor of 8-bit unsigned integer or 16-bit float or 32-bit float values
 
 ### `IE.LRN` (vpux::IE::LRNOp)
 

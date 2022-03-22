@@ -186,6 +186,31 @@ mlir::LogicalResult ConvertInputsToAttr::matchAndRewrite(IE::InterpolateOp Inter
     return mlir::success();
 }
 
+class ConvertInputToFP16 final : public mlir::OpRewritePattern<IE::InterpolateOp> {
+public:
+    using mlir::OpRewritePattern<IE::InterpolateOp>::OpRewritePattern;
+
+public:
+    mlir::LogicalResult matchAndRewrite(IE::InterpolateOp Op, mlir::PatternRewriter& rewriter) const final;
+};
+
+mlir::LogicalResult ConvertInputToFP16::matchAndRewrite(IE::InterpolateOp op, mlir::PatternRewriter& rewriter) const {
+    const auto inputType = op.input().getType().cast<mlir::ShapedType>().getElementType();
+
+    if (inputType.isUnsignedInteger(8)) {
+        auto convertOpBefore =
+                rewriter.create<IE::ConvertOp>(op.getLoc(), op.input(), mlir::Float16Type::get(getContext()));
+        auto interpolateOp = rewriter.create<IE::InterpolateOp>(op.getLoc(), convertOpBefore.output(), op.sizes(),
+                                                                op.scales(), op.axes(), op.sizes_attrAttr(),
+                                                                op.scales_attrAttr(), op.axes_attrAttr(), op.attr());
+
+        rewriter.replaceOpWithNewOp<IE::ConvertOp>(op, interpolateOp.output(), inputType);
+        return mlir::success();
+    }
+
+    return mlir::failure();
+}
+
 }  // namespace
 
 //
@@ -195,4 +220,5 @@ mlir::LogicalResult ConvertInputsToAttr::matchAndRewrite(IE::InterpolateOp Inter
 void vpux::IE::InterpolateOp::getCanonicalizationPatterns(mlir::OwningRewritePatternList& patterns,
                                                           mlir::MLIRContext* context) {
     patterns.insert<ConvertInputsToAttr>(context);
+    patterns.insert<ConvertInputToFP16>(context);
 }
