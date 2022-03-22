@@ -3510,16 +3510,6 @@ def generate_options(args):
                 pads=Pad.none,
                 cluster_number=4,
                 mpe_cubs=[MPE_CUBES.VECTOR_FP16]),
-        
-        genMultiClusteringSOH(input_types=[FP16(2)],
-                input_shapes=[[1, 16, 32, 32]],
-                weight_types=[FP16(2)],
-                kernel_channels=[16],
-                kernel_shapes=[[3, 3]],
-                output_types=[FP16()],
-                pads=Pad.none,
-                cluster_number=4,
-                mpe_cubs=[MPE_CUBES.VECTOR_FP16]),
 
         genMultiClusteringSOH(input_types=[FP16(2)],
                 input_shapes=[[1, 16, 32, 32]],
@@ -3547,7 +3537,7 @@ def generate_options(args):
                 kernel_channels=[16],
                 kernel_shapes=[[3, 3]],
                 output_types=[UInt8()],
-                pads=Pad.none,
+                pads=Pad.none + Pad.left(1) + Pad.bottom(1) + Pad.right(1) + Pad.left_right(1),
                 cluster_number=4,
                 mpe_cubs=[MPE_CUBES.MATRIX]),
         
@@ -3590,16 +3580,6 @@ def generate_options(args):
                 pads=Pad.none,
                 cluster_number=3,
                 mpe_cubs=[MPE_CUBES.VECTOR_FP16]),
-
-        genMultiClusteringSOK(input_types=[UInt8(2)],
-                input_shapes=[[1, 64, 32, 32]],
-                weight_types=[UInt8(2)],
-                kernel_channels=[80],
-                kernel_shapes=[[1, 1]],
-                output_types=[UInt8()],
-                pads=Pad.none,
-                cluster_number=3,
-                mpe_cubs=[MPE_CUBES.MATRIX]),
 
         # # ActShave
         # genActShave(

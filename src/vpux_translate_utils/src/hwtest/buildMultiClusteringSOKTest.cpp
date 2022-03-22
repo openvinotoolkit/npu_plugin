@@ -58,23 +58,50 @@ void buildMultiClusteringSOKTest(const nb::TestCaseJsonDescriptor& testDesc, mli
 
     const char* weightsFileName = "weights.dat";
     const auto numCluster = testDesc.getClusterNumber();
-    VPUX_THROW_UNLESS(numCluster <= 4 && numCluster > 0, "number of clustering must (0, 4], but got ");
+    VPUX_THROW_UNLESS(numCluster <= 4 && numCluster > 1, "number of clustering must (1, 4], but got ");
+
+    // Define activation, output, weight and weightTable distribution type
+    auto NCHW = mlir::AffineMapAttr::get(DimsOrder::NCHW.toAffineMap(ctx));
+    auto NHWC = mlir::AffineMapAttr::get(DimsOrder::NHWC.toAffineMap(ctx));
+    auto locateAtCMX = IndexedSymbolAttr::get(VPU::MemoryKindAttr::get(ctx, VPU::MemoryKind::CMX_NN));
+
+    auto activationMode = VPU::DistributionModeAttr::get(ctx, VPU::DistributionMode::DUPLICATED);
+    auto parentOutputMode =
+            VPU::DistributionModeAttr::get(ctx, VPU::DistributionMode::SEGMENTED | VPU::DistributionMode::DUPLICATED);
+    auto outputMode = VPU::DistributionModeAttr::get(ctx, VPU::DistributionMode::DUPLICATED);
+    auto weightsMode = VPU::DistributionModeAttr::get(ctx, VPU::DistributionMode::SEGMENTED);
+    auto weightsTableMode = VPU::DistributionModeAttr::get(ctx, VPU::DistributionMode::SEGMENTED);
+
+    auto actNumTilesAttr = getIntArrayAttr(ctx, makeArrayRef({1, checked_cast<int32_t>(numCluster), 1, 1}));
+    auto weightNumTilesAttr = getIntArrayAttr(ctx, makeArrayRef({checked_cast<int32_t>(numCluster), 1, 1, 1}));
+    auto kernelAttr = getIntArrayAttr(
+            ctx, makeArrayRef({weightsShape[Dims4D::Filter::KY.ind()], weightsShape[Dims4D::Filter::KX.ind()]}));
+    std::vector<int64_t> paddings = convertNBPadtoNCETaskPad(conv.pad);
+    auto padAttr = VPU::getPaddingAttr(ctx, paddings[PAD_NCETASK_LEFT], paddings[PAD_NCETASK_RIGHT],
+                                       paddings[PAD_NCETASK_TOP], paddings[PAD_NCETASK_BOTTOM]);
+    auto stridesAttr = getIntArrayAttr(ctx, conv.stride);
+    auto numClusterAttr = getIntAttr(ctx, checked_cast<int32_t>(numCluster));
+    auto alignmentAttr = getIntArrayAttr(ctx, makeArrayRef({16, 1, 1, 1}));
 
     auto ParentInputDistributed = VPUIP::DistributedBufferType::get(
-            ctx, inputShape, inputType, mlir::AffineMapAttr::get(DimsOrder::NHWC.toAffineMap(ctx)),
-            IndexedSymbolAttr::get(VPU::MemoryKindAttr::get(ctx, VPU::MemoryKind::CMX_NN)),
-            VPU::DistributedTensorAttr::get(VPU::DistributionModeAttr::get(ctx, VPU::DistributionMode::DUPLICATED),
-                                            nullptr, nullptr, VPU::getPaddingAttr(ctx, 0, 0, 0, 0), nullptr,
-                                            vpux::getIntAttr(ctx, numCluster), nullptr, ctx));
+            ctx, inputShape, inputType, NHWC, locateAtCMX,
+            VPU::DistributedTensorAttr::get(activationMode, nullptr, kernelAttr, padAttr, stridesAttr, numClusterAttr,
+                                            nullptr, ctx));
 
     auto ParentOutputDistributed = VPUIP::DistributedBufferType::get(
-            ctx, outputShape, outputType, mlir::AffineMapAttr::get(DimsOrder::NHWC.toAffineMap(ctx)),
-            IndexedSymbolAttr::get(VPU::MemoryKindAttr::get(ctx, VPU::MemoryKind::CMX_NN)),
-            VPU::DistributedTensorAttr::get(
-                    VPU::DistributionModeAttr::get(
-                            ctx, VPU::DistributionMode::SEGMENTED | VPU::DistributionMode::DUPLICATED),
-                    vpux::getIntArrayAttr(ctx, makeArrayRef({1, checked_cast<int32_t>(numCluster), 1, 1})), nullptr,
-                    VPU::getPaddingAttr(ctx, 0, 0, 0, 0), nullptr, vpux::getIntAttr(ctx, numCluster), nullptr, ctx));
+            ctx, outputShape, outputType, NHWC, locateAtCMX,
+            VPU::DistributedTensorAttr::get(parentOutputMode, actNumTilesAttr, kernelAttr, padAttr, stridesAttr,
+                                            numClusterAttr, nullptr, ctx));
+
+    auto weightsDistribute = VPUIP::DistributedBufferType::get(
+            ctx, weightsShape, weightsType, NHWC, locateAtCMX,
+            VPU::DistributedTensorAttr::get(weightsMode, weightNumTilesAttr, kernelAttr, padAttr, stridesAttr,
+                                            numClusterAttr, alignmentAttr, ctx));
+
+    auto weightsTableDistribute = VPUIP::DistributedBufferType::get(
+            ctx, weightsTableShape, int32, NCHW, locateAtCMX,
+            VPU::DistributedTensorAttr::get(weightsTableMode, weightNumTilesAttr, kernelAttr, padAttr, stridesAttr,
+                                            numClusterAttr, alignmentAttr, ctx));
 
     // get suboutputs and weight CMX shape
     const auto ChannelsIndex = vpux::Dims4D::Act::C.ind();
@@ -84,31 +111,23 @@ void buildMultiClusteringSOKTest(const nb::TestCaseJsonDescriptor& testDesc, mli
     VPUX_THROW_UNLESS(inputChannels % alignmentRequirement == 0, "Input channels must be multiple of {0}, got {1}",
                       alignmentRequirement, inputChannels);
 
+    // get per cluster shape
+    auto subInputCMXShapes = ParentInputDistributed.getPerClusterComputeShapes();
+    auto subWeightsCMXShapes = weightsDistribute.getPerClusterComputeShapes();
+    auto subWeightsTableCMXShapes = weightsTableDistribute.getPerClusterComputeShapes();
+    VPUX_THROW_UNLESS(subInputCMXShapes.size() == numCluster && subWeightsCMXShapes.size() == numCluster &&
+                              subWeightsTableCMXShapes.size() == numCluster,
+                      "Sub Shape number must be same with number cluster");
+
     auto subOutputShape = outputShape;
-    auto subWeightsCMXShape = weightsShape;
-    auto subWeightsTableCMXShape = weightsTableShape;
-
-    // calculate per cluster channel number
-    auto maxChannel = divUp(outputChannels / alignmentRequirement, checked_cast<int64_t>(numCluster));
-    SmallVector<int64_t> perClusterChannelNum(numCluster, maxChannel * alignmentRequirement);
-    auto start = numCluster - ((maxChannel * numCluster) - (outputChannels / alignmentRequirement));
-    for (; start < numCluster; start++) {
-        perClusterChannelNum[start] = (maxChannel - 1) * alignmentRequirement;
-    }
-
-    SmallVector<SmallVector<int64_t>> subOutputShapes, subWeightsCMXShapes, subWeightsTableCMXShapes;
+    SmallVector<SmallVector<int64_t>> subOutputShapes;
 
     auto sumChannel = 0;
-    for (auto index = 0; checked_cast<size_t>(index) < perClusterChannelNum.size(); index++) {
-        sumChannel += perClusterChannelNum[index];
+    for (auto index = 0; checked_cast<size_t>(index) < subWeightsCMXShapes.size(); index++) {
+        sumChannel += subWeightsCMXShapes[index][Dims4D::Filter::OC];
 
-        subOutputShape[ChannelsIndex] = perClusterChannelNum[index];
-        subWeightsCMXShape[vpux::Dims4D::Filter::OC.ind()] = perClusterChannelNum[index];
-        subWeightsTableCMXShape[vpux::Dims4D::Filter::OC.ind()] = perClusterChannelNum[index];
-
+        subOutputShape[ChannelsIndex] = subWeightsCMXShapes[index][Dims4D::Filter::OC];
         subOutputShapes.push_back(subOutputShape);
-        subWeightsCMXShapes.push_back(subWeightsCMXShape);
-        subWeightsTableCMXShapes.push_back(subWeightsTableCMXShape);
 
         VPUX_THROW_UNLESS(subOutputShape[ChannelsIndex] % alignmentRequirement == 0,
                           "subOutputChannels must be multiple of {0}, got {1}", alignmentRequirement,
@@ -121,23 +140,21 @@ void buildMultiClusteringSOKTest(const nb::TestCaseJsonDescriptor& testDesc, mli
     const auto orderAttr = mlir::AffineMapAttr::get(DimsOrder::NHWC.toAffineMap(ctx));
     const auto elemStrides = SmallVector<int64_t>(
             {outputShape[1] * outputShape[2] * outputShape[3], 1, outputShape[1] * outputShape[3], outputShape[1]});
-    const auto stridesAttr = getIntArrayAttr(ctx, elemStrides);
-    const auto layout = IERT::MemRefAttr::get(orderAttr, stridesAttr, ctx);
+    const auto outputStridesAttr = getIntArrayAttr(ctx, elemStrides);
+    const auto layout = IERT::MemRefAttr::get(orderAttr, outputStridesAttr, ctx);
 
     SmallVector<vpux::VPUIP::DistributedBufferType> OutputDistributeds;
     for (auto index = 0; checked_cast<size_t>(index) < subOutputShapes.size(); index++) {
         OutputDistributeds.push_back(VPUIP::DistributedBufferType::get(
-                ctx, subOutputShapes[index], outputType, layout,
-                IndexedSymbolAttr::get(VPU::MemoryKindAttr::get(ctx, VPU::MemoryKind::CMX_NN)),
-                VPU::DistributedTensorAttr::get(VPU::DistributionModeAttr::get(ctx, VPU::DistributionMode::DUPLICATED),
-                                                nullptr, nullptr, VPU::getPaddingAttr(ctx, 0, 0, 0, 0), nullptr,
+                ctx, subOutputShapes[index], outputType, layout, locateAtCMX,
+                VPU::DistributedTensorAttr::get(outputMode, nullptr, nullptr, nullptr, nullptr,
                                                 vpux::getIntAttr(ctx, numCluster), nullptr, ctx)));
     }
 
     // get input, output, weight and weight table offset
     const auto inputCMXSize = vpux::hwtest::totalTensorSize(inputShape, inputType);
     const auto outputCMXSize = vpux::hwtest::totalTensorSize(outputShape, outputType);
-    const auto subWeightsCMXSize = vpux::hwtest::totalTensorSize(subWeightsCMXShapes.front(), weightsType);
+    const auto subWeightsCMXSize = vpux::hwtest::totalTensorSize(subWeightsCMXShapes.front().totalSize(), weightsType);
 
     const auto alignment =
             (alignmentRequirement * static_cast<vpux::Bit>(getElemTypeSize(inputType)).count()) / CHAR_BIT;
@@ -215,27 +232,27 @@ void buildMultiClusteringSOKTest(const nb::TestCaseJsonDescriptor& testDesc, mli
     for (int index = 0; checked_cast<size_t>(index) < numCluster; index++) {
         const auto shape = Shape(subWeightsCMXShapes[index]);
         const auto subWeightsAttribute = weightsAttribute.subview(offset, shape);
-        offset[vpux::Dims4D::Filter::OC] += subWeightsCMXShapes[index][vpux::Dims4D::Filter::OC.ind()];
+        offset[vpux::Dims4D::Filter::OC] += subWeightsCMXShapes[index][vpux::Dims4D::Filter::OC];
 
-        const auto weightsDDRType =
-                getMemRefType(VPURT::BufferSection::Constant, subWeightsCMXShapes[index], weightsType, DimsOrder::NHWC)
-                        .cast<vpux::NDTypeInterface>();
+        const auto weightsDDRType = getMemRefType(VPURT::BufferSection::Constant, subWeightsCMXShapes[index].raw(),
+                                                  weightsType, DimsOrder::NHWC)
+                                            .cast<vpux::NDTypeInterface>();
         weightsDDRs.push_back(functionBuilder.create<vpux::Const::DeclareOp>(builder.getUnknownLoc(), weightsDDRType,
                                                                              subWeightsAttribute));
 
         auto weightsStrides = weightsDDRType.getStrides();
         auto& weightsOutputChannelsStrideInBits = weightsStrides[vpux::Dims4D::Filter::OC];
 
-        const auto weightsTableDDRType = mlir::RankedTensorType::get(subWeightsTableCMXShapes[index], int32);
+        const auto weightsTableDDRType = mlir::RankedTensorType::get(subWeightsTableCMXShapes[index].raw(), int32);
         const auto weightsTable = VPU::NCESparsity::getWeightsTable(
                 inputType, outputType, static_cast<std::int32_t>(WEIGHTS_CMX_OFFSET),
                 static_cast<std::int32_t>(weightsOutputChannelsStrideInBits.count() / CHAR_BIT),
                 VPU::NCESparsity::SPARSITY_PTR_WHEN_NO_SPARSITY, vpux::VPU::ArchKind::KMB,
                 subOutputShapes[index][vpux::Dims4D::Act::C.ind()], weightsType);
 
-        const auto weightsTableDDRMemRef =
-                getMemRefType(VPURT::BufferSection::Constant, subWeightsTableCMXShapes[index], int32, DimsOrder::NCHW)
-                        .cast<vpux::NDTypeInterface>();
+        const auto weightsTableDDRMemRef = getMemRefType(VPURT::BufferSection::Constant,
+                                                         subWeightsTableCMXShapes[index].raw(), int32, DimsOrder::NCHW)
+                                                   .cast<vpux::NDTypeInterface>();
         const auto weightsTableValues =
                 mlir::DenseElementsAttr::get(weightsTableDDRType, llvm::makeArrayRef<std::int32_t>(weightsTable));
         weightsTableDDRs.push_back(functionBuilder.create<vpux::Const::DeclareOp>(
@@ -266,14 +283,14 @@ void buildMultiClusteringSOKTest(const nb::TestCaseJsonDescriptor& testDesc, mli
     for (size_t index = 0; index < numCluster; index++) {
         subInputCMX.push_back(createDeclareTensorOp(functionBuilder, VPURT::BufferSection::CMX_NN, inputShape,
                                                     inputType, vpux::DimsOrder::NHWC, index, INPUT_CMX_OFFSET));
-        subOutputCMX.push_back(createDeclareTensorOp(functionBuilder, OutputDistributeds[checked_cast<int32_t>(index)],
+        subOutputCMX.push_back(createDeclareTensorOp(functionBuilder, OutputDistributeds[index],
                                                      VPURT::BufferSection::CMX_NN, sectionIndex, OUTPUT_CMX_OFFSET));
         subWeightsCMX.push_back(createDeclareTensorOp(functionBuilder, VPURT::BufferSection::CMX_NN,
-                                                      subWeightsCMXShapes[checked_cast<int32_t>(index)], weightsType,
+                                                      subWeightsCMXShapes[index].raw(), weightsType,
                                                       vpux::DimsOrder::NHWC, index, WEIGHTS_CMX_OFFSET));
         subWeightsTableCMX.push_back(createDeclareTensorOp(functionBuilder, VPURT::BufferSection::CMX_NN,
-                                                           subWeightsTableCMXShapes[checked_cast<int32_t>(index)],
-                                                           int32, DimsOrder::NCHW, index, WEIGHTSTABLE_CMX_OFFSET));
+                                                           subWeightsTableCMXShapes[index].raw(), int32,
+                                                           DimsOrder::NCHW, index, WEIGHTSTABLE_CMX_OFFSET));
     }
 
     int barrierNumber = 0;
@@ -285,13 +302,6 @@ void buildMultiClusteringSOKTest(const nb::TestCaseJsonDescriptor& testDesc, mli
     // Step1: Reorder input / copy input from inputbuffer to DDR
     auto updateBarrier = createBarrier();
 
-    // Option 1: Reorder input from NCHW to NHWC
-    //     const auto inputMemPerm = vpux::getPermutationFromOrders(DimsOrder::NCHW, DimsOrder::NHWC, ctx);
-    //     VPURT::wrapIntoTaskOp<VPUIP::PermuteUPAOp>(
-    //             functionBuilder, mlir::ValueRange(), mlir::ValueRange(updateBarrier.barrier()),
-    //             builder.getUnknownLoc(), functionInput, parentInputDDR.getOperation()->getResult(0), inputMemPerm);
-
-    // Option 2: just copy input with NHWC to DDR
     VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(), updateBarrier.barrier(),
                                           builder.getUnknownLoc(), functionInput,
                                           parentInputDDR.getOperation()->getResult(0));
@@ -322,50 +332,37 @@ void buildMultiClusteringSOKTest(const nb::TestCaseJsonDescriptor& testDesc, mli
     // Step4: Sub NCE task
     updateBarrier = createBarrier();
 
-    const auto strides = getIntArrayAttr(ctx, conv.stride);
-    std::vector<std::int64_t> paddings = convertNBPadtoNCETaskPad(conv.pad);
-    const auto kernelPaddings = VPU::getPaddingAttr(ctx, paddings[PAD_NCETASK_LEFT], paddings[PAD_NCETASK_RIGHT],
-                                                    paddings[PAD_NCETASK_TOP], paddings[PAD_NCETASK_BOTTOM]);
-    llvm::SmallVector<std::int64_t> kernel = {weightsShape[2], weightsShape[3]};
-    const auto kernelSize = getIntArrayAttr(ctx, kernel);
-
     auto channelOffset = 0;
-    for (size_t index = 0; index < numCluster; index++) {
+    for (size_t clusterIndex = 0; clusterIndex < numCluster; clusterIndex++) {
         auto nceTask = VPURT::wrapIntoTaskOp<VPUIP::NCEClusterTaskOp>(
                 functionBuilder, mlir::ValueRange({waitWeightsBarrier.barrier(), waitInputToCMXBarrier.barrier()}),
-                updateBarrier.barrier(), builder.getUnknownLoc(), subInputCMX[index].getOperation()->getResult(0),
-                subWeightsCMX[index].getOperation()->getResult(0),
-                subWeightsTableCMX[index].getOperation()->getResult(0), nullptr,
+                updateBarrier.barrier(), builder.getUnknownLoc(),
+                subInputCMX[clusterIndex].getOperation()->getResult(0),
+                subWeightsCMX[clusterIndex].getOperation()->getResult(0),
+                subWeightsTableCMX[clusterIndex].getOperation()->getResult(0), nullptr,
                 parentInputCMX.getOperation()->getResult(0), parentOutputCMX.getOperation()->getResult(0),
-                subOutputCMX[index].getOperation()->getResult(0), vpux::VPUIP::NCETaskType::CONV, kernelSize, strides,
-                kernelPaddings, nullptr, nullptr);
+                subOutputCMX[clusterIndex].getOperation()->getResult(0), vpux::VPUIP::NCETaskType::CONV, kernelAttr,
+                stridesAttr, padAttr, nullptr, nullptr);
 
         // Because we have't workload cost model, Just split in H dim and split to 5 DPU
-        auto NUMBER_OF_DPU = 5;
         auto stepOffsetsOfDPUTask =
-                subOutputShapes[checked_cast<int64_t>(index)][vpux::Dims4D::Act::H.ind()] / NUMBER_OF_DPU;
+                subOutputShapes[clusterIndex][vpux::Dims4D::Act::H.ind()] / KMB_PER_CLUSTER_DPU_NUMBER;
 
-        for (auto dpuIndex = 0; dpuIndex < NUMBER_OF_DPU; dpuIndex++) {
+        for (auto dpuIndex = 0; dpuIndex < KMB_PER_CLUSTER_DPU_NUMBER; dpuIndex++) {
             const auto start =
                     getIntArrayAttr(ctx, std::vector<std::int64_t>{0, dpuIndex * stepOffsetsOfDPUTask, channelOffset});
+            auto channelValue = dpuIndex == KMB_PER_CLUSTER_DPU_NUMBER - 1
+                                        ? (outputShape[vpux::Dims4D::Act::W.ind()] - 1)
+                                        : ((dpuIndex + 1) * stepOffsetsOfDPUTask - 1);
             auto end = getIntArrayAttr(
-                    ctx, std::vector<std::int64_t>{
-                                 outputShape[vpux::Dims4D::Act::W.ind()] - 1, (dpuIndex + 1) * stepOffsetsOfDPUTask - 1,
-                                 channelOffset + perClusterChannelNum[checked_cast<int64_t>(index)] - 1});
-            if (dpuIndex == NUMBER_OF_DPU - 1) {
-                end = getIntArrayAttr(ctx,
-                                      std::vector<std::int64_t>{
-                                              outputShape[3] - 1, outputShape[2] - 1,
-                                              channelOffset + perClusterChannelNum[checked_cast<int64_t>(index)] - 1});
-            }
+                    ctx,
+                    std::vector<std::int64_t>{outputShape[vpux::Dims4D::Act::W.ind()] - 1, channelValue,
+                                              channelOffset + subOutputShapes[clusterIndex][Dims4D::Act::C.ind()] - 1});
 
-            const auto pad = VPU::getPaddingAttr(ctx, paddings[PAD_NCETASK_LEFT], paddings[PAD_NCETASK_RIGHT],
-                                                 paddings[PAD_NCETASK_TOP], paddings[PAD_NCETASK_BOTTOM]);
-
-            nceTask.addDPUTask(functionBuilder, start, end, pad, conv.cube_mode);
+            nceTask.addDPUTask(functionBuilder, start, end, padAttr, conv.cube_mode);
         }
 
-        channelOffset += perClusterChannelNum[checked_cast<int64_t>(index)];
+        channelOffset += subOutputShapes[clusterIndex][Dims4D::Act::C.ind()];
     }
 
     VPURT::ConfigureBarrierOp waitDPUTaskBarrier = updateBarrier;
@@ -379,15 +376,6 @@ void buildMultiClusteringSOKTest(const nb::TestCaseJsonDescriptor& testDesc, mli
     // Step6: Reorder output / copy output data from DDR to output buffer
     VPURT::ConfigureBarrierOp waitCMXToDDRBarrier = updateBarrier;
 
-    // Option 1: Reorder output from NHWC to NCHW
-    //     const auto outMemPerm = vpux::getPermutationFromOrders(DimsOrder::NHWC, DimsOrder::NCHW, ctx);
-    //     VPURT::wrapIntoTaskOp<VPUIP::PermuteUPAOp>(functionBuilder, waitCMXToDDRBarrier.barrier(),
-    //     mlir::ValueRange(),
-    //                                                builder.getUnknownLoc(),
-    //                                                parentOutputDDR.getOperation()->getResult(0), functionOutput,
-    //                                                outMemPerm);
-
-    // Option 2: just copy output with NHWC to output buffer
     VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, waitCMXToDDRBarrier.barrier(), mlir::ValueRange(),
                                           builder.getUnknownLoc(), parentOutputDDR.getOperation()->getResult(0),
                                           functionOutput);

@@ -97,13 +97,13 @@ void buildMultiClusteringSOHTest(const nb::TestCaseJsonDescriptor& testDesc, mli
 
     auto weightsDistribute = VPUIP::DistributedBufferType::get(
             ctx, weightsShape, weightsType, NHWC, locateAtCMX,
-            VPU::DistributedTensorAttr::get(weightsMode, numTilesAttr, kernelAttr, padAttr, stridesAttr, numClusterAttr,
-                                            alignmentAttr, ctx));
+            VPU::DistributedTensorAttr::get(weightsMode, nullptr, kernelAttr, padAttr, stridesAttr, numClusterAttr,
+                                            nullptr, ctx));
 
     auto weightsTableDistribute = VPUIP::DistributedBufferType::get(
             ctx, weightsTableShape, int32, NCHW, locateAtCMX,
-            VPU::DistributedTensorAttr::get(weightsTableMode, numTilesAttr, kernelAttr, padAttr, stridesAttr,
-                                            numClusterAttr, alignmentAttr, ctx));
+            VPU::DistributedTensorAttr::get(weightsTableMode, nullptr, kernelAttr, padAttr, stridesAttr, numClusterAttr,
+                                            nullptr, ctx));
 
     // get input, output and weight CMX shape
     const auto inputChannels = inputShape[Dims4D::Act::C.ind()];
