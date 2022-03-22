@@ -13,10 +13,12 @@
 
 #include "vpux/compiler/act_kernels/compilation.h"
 
-#include "vpux/utils/core/small_string.hpp"
+#include "vpux/compiler/dialect/VPUIP/ops.hpp"
 
-#include <algorithm>
-#include <string>
+#include "vpux/utils/core/format.hpp"
+#include "vpux/utils/core/numeric.hpp"
+
+#include <file_utils.h>
 
 #ifdef _MSC_VER
 #pragma warning(push)
@@ -24,19 +26,14 @@
 #endif
 
 #include <llvm/Support/FileSystem.h>
-#include <llvm/Support/FormatVariadic.h>
-#include <llvm/Support/MemoryBuffer.h>
-#include <llvm/Support/Path.h>
-#include <llvm/Support/Process.h>
-#include <mlir/Support/FileUtilities.h>
 
 #ifdef _MSC_VER
 #pragma warning(pop)
 #endif
 
-#include "vpux/compiler/dialect/VPUIP/ops.hpp"
-
-using namespace llvm;  // NOLINT
+#include <algorithm>
+#include <fstream>
+#include <string>
 
 namespace vpux {
 
@@ -51,61 +48,44 @@ flatbuffers::Offset<MVCNN::KernelData> buildKernelData(flatbuffers::FlatBufferBu
 
 static void getActShaveBinaries(const ActShaveCompileParams& params, const CompilationUnitDesc& unitDesc,
                                 SmallVector<uint8_t>& textBinary, SmallVector<uint8_t>& dataBinary) {
-    SmallString genDir;
-    if (sys::fs::exists(LIBRARY_OUTPUT_DIRECTORY)) {
-        genDir = sys::path::parent_path(LIBRARY_OUTPUT_DIRECTORY);
-    } else {
-        // probe for OV_BUILD_DIR
-        const auto ovBuildDir = std::getenv("OV_BUILD_DIR");
-        VPUX_THROW_UNLESS(ovBuildDir,
-                          "OV_BUILD_DIR env directory must be specified, in order to reach act-shave kernels");
-        VPUX_THROW_UNLESS(sys::fs::exists(ovBuildDir),
-                          "OpenVino build directory {0}, taken from OV_BUILD_DIR env variable is not exist", genDir);
+    const auto prebuiltKernelBinariesPath =
+            printToString("{0}/vpux/act_shave_bin", InferenceEngine::getIELibraryPath());
+    VPUX_THROW_UNLESS(llvm::sys::fs::exists(prebuiltKernelBinariesPath), "'{0}' directory is not exist",
+                      prebuiltKernelBinariesPath);
 
-        genDir = ovBuildDir;
-    }
-    sys::path::append(genDir, "act-kernels");
+    std::string prebuiltKernelText;
+    std::string prebuiltKernelData;
 
-    VPUX_THROW_UNLESS(sys::fs::exists(genDir), "{0}} directory is not exist", genDir);
+    for (const auto& cpu : params.cpu) {
+        prebuiltKernelText = printToString("{0}/sk.{1}.{2}.text", prebuiltKernelBinariesPath, unitDesc.entry, cpu);
+        prebuiltKernelData = printToString("{0}/sk.{1}.{2}.data", prebuiltKernelBinariesPath, unitDesc.entry, cpu);
 
-    std::string entryPoint = unitDesc.entry.str();
-
-    SmallString prebuiltKernelBinariesPath(genDir);
-
-    SmallString prebuiltKernelText;
-    SmallString prebuiltKernelData;
-    for (const auto cpu : params.cpu) {
-        prebuiltKernelText = SmallString(prebuiltKernelBinariesPath);
-        prebuiltKernelData = SmallString(prebuiltKernelBinariesPath);
-        sys::path::append(prebuiltKernelText, "sk." + entryPoint + "." + cpu + ".text");
-        sys::path::append(prebuiltKernelData, "sk." + entryPoint + "." + cpu + ".data");
-        if (sys::fs::exists(prebuiltKernelText) && sys::fs::exists(prebuiltKernelData)) {
+        if (llvm::sys::fs::exists(prebuiltKernelText) && llvm::sys::fs::exists(prebuiltKernelData)) {
             break;
         }
     }
 
-    auto readBinary = [](SmallString& path, SmallVector<uint8_t>& buffer, uint32_t alignment = 1) {
-        std::string err;
-        auto elfFile = mlir::openInputFile(path, &err);
-        if (!elfFile) {
-            VPUX_THROW("Could not open {0} binary, err:{1}", path.c_str(), err);
-        }
+    VPUX_THROW_UNLESS(llvm::sys::fs::exists(prebuiltKernelText), "Can't find '.text' part for kernel '{0}'",
+                      unitDesc.entry);
+    VPUX_THROW_UNLESS(llvm::sys::fs::exists(prebuiltKernelData), "Can't find '.data' part for kernel '{0}'",
+                      unitDesc.entry);
 
-        auto elfBuffer = elfFile->getBuffer();
-        std::copy(elfBuffer.begin(), elfBuffer.end(), std::back_inserter(buffer));
+    const auto readBinary = [](StringRef filePath, SmallVector<uint8_t>& buffer, uint64_t alignment = 1) {
+        uint64_t fileSize = 0;
+        const auto err = llvm::sys::fs::file_size(filePath, fileSize);
+        VPUX_THROW_WHEN(err, "Can't get file '{0}' size : {1}", filePath, err.message());
 
-        if (alignment & (alignment - 1)) {
-            VPUX_THROW("Could not align to now power of 2:{1}", alignment);
-        }
-        auto totalBytes = std::distance(elfBuffer.begin(), elfBuffer.end());
-        auto padBytes = -totalBytes & (alignment - 1);
-        if (padBytes) {
-            std::fill_n(std::back_inserter(buffer), padBytes, 0);
-        }
+        const auto bufSize = checked_cast<size_t>(alignVal(fileSize, alignment));
+
+        buffer.clear();
+        buffer.resize(bufSize, 0);
+
+        std::ifstream elfFile(filePath.data(), std::ios_base::binary);
+        VPUX_THROW_UNLESS(elfFile.is_open(), "Can't open file '{0}'", filePath);
+
+        elfFile.read(reinterpret_cast<char*>(buffer.data()), fileSize);
     };
 
-    // Use moviCompile to compile and link C source code into an ELF binary.
-    // and then using objcopy teardown elf into text and data sections
     readBinary(prebuiltKernelText, textBinary, 0x10);
     readBinary(prebuiltKernelData, dataBinary, 0x10);
 }
