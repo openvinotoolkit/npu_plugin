@@ -2473,9 +2473,9 @@ IE::PSROIPoolingModeAttr NGraphImporter::importPSROIPoolingMode(const std::strin
         return IE::PSROIPoolingModeAttr::get(_ctx, IE::PSROIPoolingMode::AVERAGE);
     } else if (mode == "bilinear") {
         return IE::PSROIPoolingModeAttr::get(_ctx, IE::PSROIPoolingMode::BILINEAR);
-    } else {
-        VPUX_THROW("Unknown PSROIPoolingMode: {0}", mode);
     }
+    
+    VPUX_THROW("Unknown PSROIPoolingMode: {0}", mode);
 }
 
 IE::ROIAlignMethodAttr NGraphImporter::importROIAlignMethod(const ngraph::op::v3::ROIAlign::PoolingMode& mode) {
