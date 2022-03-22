@@ -3521,6 +3521,16 @@ def generate_options(args):
                 cluster_number=4,
                 mpe_cubs=[MPE_CUBES.VECTOR_FP16]),
 
+        genMultiClusteringSOH(input_types=[FP16(2)],
+                input_shapes=[[1, 16, 32, 32]],
+                weight_types=[FP16(2)],
+                kernel_channels=[16],
+                kernel_shapes=[[3, 3]],
+                output_types=[FP16()],
+                pads=Pad.none + Pad.left(1) + Pad.bottom(1) + Pad.right(1) + Pad.left_right(1),
+                cluster_number=4,
+                mpe_cubs=[MPE_CUBES.VECTOR_FP16]),
+
         genMultiClusteringSOH(input_types=[UInt8(2)],
                 input_shapes=[[1, 16, 32, 32], [1, 32, 32, 32]],
                 weight_types=[UInt8(2)],

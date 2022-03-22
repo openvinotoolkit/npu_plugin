@@ -42,6 +42,8 @@ static constexpr auto PAD_NCETASK_RIGHT = 1;
 static constexpr auto PAD_NCETASK_TOP = 2;
 static constexpr auto PAD_NCETASK_BOTTOM = 3;
 
+static constexpr auto KMB_PER_CLUSTER_DPU_NUMBER = 5;
+
 mlir::DenseElementsAttr generateWeights(llvm::ArrayRef<int64_t> wt_shape, mlir::Type dtype, mlir::MLIRContext* ctx,
                                         const char* weight_file_name);
 
