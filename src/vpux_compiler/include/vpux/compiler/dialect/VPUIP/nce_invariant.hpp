@@ -50,6 +50,7 @@ public:
     static mlir::LogicalResult verifyCMX(IE::SubtractOp origOp, Logger log = Logger::global());
     static mlir::LogicalResult verifyCMX(IE::AndOp origOp, Logger log = Logger::global());
     static mlir::LogicalResult verifyCMX(VPU::NCEEltwiseOp origOp, Logger log = Logger::global());
+    static mlir::LogicalResult verifyCMX(VPU::NCEConvertOp origOp, Logger log = Logger::global());
     static mlir::LogicalResult verifyCMX(IERT::AddOp origOp, Logger log = Logger::global());
     static mlir::LogicalResult verifyCMX(IERT::MultiplyOp origOp, Logger log = Logger::global());
     static mlir::LogicalResult verifyCMX(IERT::SubtractOp origOp, Logger log = Logger::global());
@@ -79,6 +80,9 @@ public:
     static mlir::LogicalResult verifyPrefetchCMX(VPU::NCEMaxPoolOp origOp, vpux::OutputTiling tiling,
                                                  Logger log = Logger::global());
     static mlir::LogicalResult verifyPrefetchCMX(VPU::NCEDepthConvolutionOp origOp, vpux::OutputTiling tiling,
+                                                 Logger log = Logger::global());
+
+    static mlir::LogicalResult verifyPrefetchCMX(VPU::NCEConvertOp origOp, vpux::OutputTiling tiling,
                                                  Logger log = Logger::global());
 
     static mlir::LogicalResult verifyPrefetchCMX(IE::AddOp origOp, vpux::OutputTiling tiling,
@@ -124,6 +128,7 @@ public:
     static mlir::LogicalResult verifyChannels(IERT::AndOp origOp, Logger log = Logger::global());
 
     static mlir::LogicalResult verifyChannels(VPU::NCEEltwiseOp origOp, Logger log = Logger::global());
+    static mlir::LogicalResult verifyChannels(VPU::NCEConvertOp origOp, Logger log = Logger::global());
 
     static mlir::LogicalResult verifyEltwiseChannels(mlir::Location loc, vpux::NDTypeInterface firstInputType,
                                                      vpux::NDTypeInterface secondInputType,
@@ -157,6 +162,7 @@ public:
     static mlir::LogicalResult verifyKernel(IERT::AndOp origOp, Logger log = Logger::global());
 
     static mlir::LogicalResult verifyKernel(VPU::NCEEltwiseOp origOp, Logger log = Logger::global());
+    static mlir::LogicalResult verifyKernel(VPU::NCEConvertOp origOp, Logger log = Logger::global());
 
     static mlir::LogicalResult verifyKernel(IE::GroupConvolutionOp origOp, Logger log = Logger::global());
     static mlir::LogicalResult verifyKernel(VPU::NCEDepthConvolutionOp origOp, Logger log = Logger::global());

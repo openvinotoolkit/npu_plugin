@@ -103,6 +103,17 @@ public:
 };
 
 //
+// ConvertStrategy
+//
+class ConvertStrategy : public BaseLayerStrategy {
+public:
+    ConvertStrategy(mlir::FuncOp func, Logger log): BaseLayerStrategy(func, log) {
+    }
+
+    bool doesLayerFitIntoCMX(mlir::Operation* op, StringRef strategy) const override final;
+};
+
+//
 // StrategyManager
 //
 // Higher level strategy manager class
@@ -125,6 +136,7 @@ private:
     DepthConvolutionStrategy _depthConvolutionStrategy;
     MaxPoolStrategy _maxPoolStrategy;
     EltwiseStrategy _eltwiseStrategy;
+    ConvertStrategy _convertStrategy;
 };
 
 }  // namespace VPU

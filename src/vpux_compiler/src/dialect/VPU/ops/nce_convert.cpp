@@ -48,6 +48,21 @@ bool isTensorsSupported(mlir::Operation* op, VPU::NCEInvariant::LogCb logCb) {
 };
 
 //
+// fitIntoCMX
+//
+
+bool vpux::VPU::NCEConvertOp::fitIntoCMX(vpux::NDTypeInterface input,
+                                         vpux::NDTypeInterface output) {
+    Byte requiredCMX(0);
+
+    for (const auto& type : {input, input, output}) {
+        requiredCMX += type.getTotalAllocSize();
+    }
+
+    return requiredCMX <= getTotalCMXSize(getOperation());
+}
+
+//
 // isSupported
 //
 

@@ -206,7 +206,7 @@ func @QuantizeToNCE(%arg0: tensor<1x64x28x28xf16, {order = #NHWC}>)
 
     return %0 : tensor<1x64x28x28x!qElemType, {order = #NHWC}>
     // CHECK-NOT:   IE.Quantize
-    // CHECK:       [[VAL0:%.+]] = VPU.NCE.Convert(%arg0) -> tensor<1x64x28x28x!qElemType, {order = #NHWC}>
+    // CHECK:       [[VAL0:%.+]] = VPU.NCE.Convert(%arg0) {ppe = {clamp_high = 255 : i64, clamp_low = 0 : i64, lrelu_mult = 1 : i64, lrelu_shift = 0 : i64, mode = "AND", quant_mult = [16384], quant_post_shift = 0 : i64, quant_shift = [30]}} -> tensor<1x64x28x28x!qElemType, {order = #NHWC}>
     // CHECK:       return [[VAL0]] : tensor<1x64x28x28x!qElemType, {order = #NHWC}>
 }
 
@@ -222,6 +222,6 @@ func @DequantizeToNCE(%arg0: tensor<1x64x28x28x!qElemType, {order = #NHWC}>)
 
     return %0 : tensor<1x64x28x28xf16, {order = #NHWC}>
     // CHECK-NOT:   IE.Dequantize
-    // CHECK:       [[VAL0:%.+]] = VPU.NCE.Convert(%arg0) -> tensor<1x64x28x28xf16, {order = #NHWC}>
+    // CHECK:       [[VAL0:%.+]] = VPU.NCE.Convert(%arg0) {ppe = {clamp_high = 2147483647 : i64, clamp_low = -2147483648 : i64, lrelu_mult = 1 : i64, lrelu_shift = 0 : i64, mode = "AND", quant_mult = [16384], quant_post_shift = -2 : i64, quant_shift = [0]}} -> tensor<1x64x28x28xf16, {order = #NHWC}>
     // CHECK:       return [[VAL0]] : tensor<1x64x28x28xf16, {order = #NHWC}>
 }

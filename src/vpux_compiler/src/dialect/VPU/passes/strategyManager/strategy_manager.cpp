@@ -43,7 +43,8 @@ StrategyManager::StrategyManager(mlir::FuncOp func, Logger log)
           _convolutionStrategy(func, log),
           _depthConvolutionStrategy(func, log),
           _maxPoolStrategy(func, log),
-          _eltwiseStrategy(func, log) {
+          _eltwiseStrategy(func, log),
+          _convertStrategy(func, log) {
 }
 
 void StrategyManager::assignMultiClusterStrategy() {

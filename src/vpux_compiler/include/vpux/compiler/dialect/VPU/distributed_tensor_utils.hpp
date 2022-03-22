@@ -59,6 +59,12 @@ inline mlir::ArrayAttr getStride<NCEEltwiseOp>(NCEEltwiseOp) {
     return nullptr;
 }
 
+template <>
+inline mlir::ArrayAttr getStride<NCEConvertOp>(NCEConvertOp) {
+    return nullptr;
+}
+
+
 template <class ConcreteOp>
 PaddingAttr getPad(ConcreteOp origOp) {
     return origOp.padAttr();
@@ -66,6 +72,11 @@ PaddingAttr getPad(ConcreteOp origOp) {
 
 template <>
 inline PaddingAttr getPad<NCEEltwiseOp>(NCEEltwiseOp) {
+    return nullptr;
+}
+
+template <>
+inline PaddingAttr getPad<NCEConvertOp>(NCEConvertOp) {
     return nullptr;
 }
 

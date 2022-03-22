@@ -60,7 +60,7 @@ VPU::MPEMode getMpeModeForMtl(mlir::Type, mlir::Type, mlir::Operation* operation
         return VPU::MPEMode::CUBOID_16x16;
     } else if (mlir::isa<VPU::NCEDepthConvolutionOp>(operation) || mlir::isa<VPU::NCEMaxPoolOp>(operation)) {
         return VPU::MPEMode::CUBOID_4x16;
-    } else if (mlir::isa<VPU::NCEEltwiseOp>(operation)) {
+    } else if (mlir::isa<VPU::NCEEltwiseOp>(operation) || mlir::isa<VPU::NCEConvertOp>(operation)) {
         return VPU::MPEMode::CUBOID_8x16;
     }
 
@@ -232,6 +232,12 @@ VPU::PaddingAttr getOpPadding(VPU::NCEEltwiseOp origOp) {
     return VPU::PaddingAttr::get(zeroAttr, zeroAttr, zeroAttr, zeroAttr, origOp->getContext());
 }
 
+template <>
+VPU::PaddingAttr getOpPadding(VPU::NCEConvertOp origOp) {
+    auto zeroAttr = getIntAttr(origOp->getContext(), 0);
+    return VPU::PaddingAttr::get(zeroAttr, zeroAttr, zeroAttr, zeroAttr, origOp->getContext());
+}
+
 template <class ConcreteOp>
 mlir::Value getOpInput(ConcreteOp origOp) {
     return origOp.input();
@@ -266,6 +272,12 @@ SmallVector<int64_t> getOpKernelSize(VPU::NCEEltwiseOp origOp) {
     return {1, 1};
 }
 
+template <>
+SmallVector<int64_t> getOpKernelSize(VPU::NCEConvertOp origOp) {
+    VPUX_UNUSED(origOp);
+    return {1, 1};
+}
+
 template <class ConcreteOp>
 SmallVector<int64_t> getOpKernelStride(ConcreteOp origOp) {
     const auto kernelStrides = parseIntArrayAttr<int64_t>(origOp.strides());
@@ -276,6 +288,12 @@ SmallVector<int64_t> getOpKernelStride(ConcreteOp origOp) {
 
 template <>
 SmallVector<int64_t> getOpKernelStride(VPU::NCEEltwiseOp origOp) {
+    VPUX_UNUSED(origOp);
+    return {1, 1};
+}
+
+template <>
+SmallVector<int64_t> getOpKernelStride(VPU::NCEConvertOp origOp) {
     VPUX_UNUSED(origOp);
     return {1, 1};
 }
@@ -321,6 +339,10 @@ mlir::LogicalResult GenericNCERewrite<ConcreteOp>::matchAndRewrite(ConcreteOp or
                 params.isZTilingSupported = params.mpeMode == VPU::MPEMode::VECTOR;
             })
             .template Case<VPU::NCEEltwiseOp>([&params](VPU::NCEEltwiseOp) {
+                params.nceTaskType = VPUIP::NCETaskType::ELTWISE;
+                params.isZTilingSupported = false;
+            })
+            .template Case<VPU::NCEConvertOp>([&params](VPU::NCEConvertOp) {
                 params.nceTaskType = VPUIP::NCETaskType::ELTWISE;
                 params.isZTilingSupported = false;
             })
@@ -374,6 +396,7 @@ void SplitNCEOpsOntoWorkloadsPass::safeRunOnFunc() {
     patterns.insert<GenericNCERewrite<VPU::NCEMaxPoolOp>>(&ctx, dpuExec.count(), arch, costModel, _log);
     patterns.insert<GenericNCERewrite<VPU::NCEDepthConvolutionOp>>(&ctx, dpuExec.count(), arch, costModel, _log);
     patterns.insert<GenericNCERewrite<VPU::NCEEltwiseOp>>(&ctx, dpuExec.count(), arch, costModel, _log);
+    patterns.insert<GenericNCERewrite<VPU::NCEConvertOp>>(&ctx, dpuExec.count(), arch, costModel, _log);
 
     mlir::ConversionTarget target(ctx);
 

@@ -361,6 +361,73 @@ mlir::LogicalResult NCEEltwiseRewriter::matchAndRewrite(NCEEltwiseOp origOp, mli
 }
 
 //
+// NCEConvertRewriterRewrite
+//
+
+class NCEConvertRewriter final : public mlir::OpRewritePattern<NCEConvertOp> {
+public:
+    NCEConvertRewriter(mlir::MLIRContext* ctx, int64_t numClusters, Logger log)
+            : mlir::OpRewritePattern<NCEConvertOp>(ctx), _numClusters(numClusters), _log(log) {
+        setDebugName("NCEConvertRewriter");
+    }
+
+public:
+    mlir::LogicalResult matchAndRewrite(NCEConvertOp origOp, mlir::PatternRewriter& rewriter) const final;
+
+private:
+    int64_t _numClusters;
+    Logger _log;
+};
+
+mlir::LogicalResult NCEConvertRewriter::matchAndRewrite(NCEConvertOp origOp, mlir::PatternRewriter& rewriter) const {
+    _log.trace("[{0}] Got '{1}' at '{2}'", getDebugName(), origOp->getName(), origOp->getLoc());
+
+    if (origOp->getParentOfType<NCEClusterTilingOp>() != nullptr) {
+        return matchFailed(_log, rewriter, origOp, "The operation is already wrapped with NCEClusterTiling");
+    }
+
+    const auto strategy = origOp->getAttr(multiClusterStrategy).cast<mlir::StringAttr>().getValue();
+    auto activationTensorDistributionMode = getActivationTensorDistributionMode(strategy);
+    auto activationTensorNumTiles = getIntArrayAttr(
+            origOp.getContext(), getActivationTensorNumTiles(origOp.getOperation(), _numClusters, strategy));
+    auto outputTensorDistributionMode = getOutputTensorDistributionMode(strategy);
+    auto outputTensorNumTiles = getIntArrayAttr(origOp.getContext(), getOutputTensorNumTiles(_numClusters, strategy));
+
+    auto distributedActivationCopyOp1 = createDistributedCopyIn(
+            origOp, origOp.input(), activationTensorDistributionMode, activationTensorNumTiles);
+
+    auto distributedActivationCopyOp2 = createDistributedCopyIn(
+            origOp, origOp.input(), activationTensorDistributionMode, activationTensorNumTiles);
+
+    auto distributedOutputTensorType =
+            createDistributedTensorType(origOp, origOp.output(), outputTensorDistributionMode, outputTensorNumTiles);
+
+    auto origOutput = origOp->getResult(0);
+
+    const auto bodyBuilder = [origOp](mlir::OpBuilder& builder, mlir::Location loc, mlir::ValueRange newOperands) {
+        mlir::BlockAndValueMapping mapper;
+        mapper.map(origOp->getOperands(), newOperands);
+        auto* newOp = builder.clone(*origOp, mapper);
+        auto newOutput = newOp->getResult(0);
+        const auto newOutType = newOutput.getType().cast<vpux::NDTypeInterface>();
+        const auto cmxMemSpace = newOutType.changeMemSpace(MemoryKind::CMX_NN);
+        newOutput.setType(cmxMemSpace);
+        builder.create<YieldOp>(loc, newOp->getResults());
+    };
+
+    auto clusterTilingOp = rewriter.create<NCEClusterTilingOp>(
+            origOp->getLoc(), distributedOutputTensorType,
+            mlir::ValueRange{distributedActivationCopyOp1->getResult(0), distributedActivationCopyOp2->getResult(0)},
+            bodyBuilder);
+
+    const auto outputCopyOp = createDistributedCopyOut(origOp, clusterTilingOp);
+    origOutput.replaceAllUsesWith(outputCopyOp->getResult(0));
+    rewriter.replaceOp(origOp, outputCopyOp->getResult(0));
+
+    return mlir::success();
+}
+
+//
 // WrapVPUOpsInNCEClusterTilingPass
 //
 
@@ -394,6 +461,7 @@ void WrapVPUOpsInNCEClusterTilingPass::safeRunOnFunc() {
     patterns.insert<NCEDepthConvolutionRewriter>(&ctx, arch, numClusters, _log);
     patterns.insert<NCEMaxPoolRewriter>(&ctx, arch, numClusters, _log);
     patterns.insert<NCEEltwiseRewriter>(&ctx, numClusters, _log);
+    patterns.insert<NCEConvertRewriter>(&ctx, numClusters, _log);
 
     mlir::ConversionTarget target(ctx);
 

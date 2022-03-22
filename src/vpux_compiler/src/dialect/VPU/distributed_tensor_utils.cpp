@@ -210,6 +210,8 @@ mlir::ArrayAttr vpux::VPU::getKernelSize(mlir::Operation* origOp) {
         return maxPoolOp.kernel_size();
     } else if (auto eltwiseOp = mlir::dyn_cast<NCEEltwiseOp>(origOp)) {
         return nullptr;
+    } else if (auto eltwiseOp = mlir::dyn_cast<NCEConvertOp>(origOp)) {
+        return nullptr;
     } else {
         VPUX_THROW("Attempting to get kernel size for operation {0}, which is not a NCE Task", origOp->getName());
     }

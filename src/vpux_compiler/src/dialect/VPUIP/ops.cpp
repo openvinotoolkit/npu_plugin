@@ -649,6 +649,55 @@ private:
     }
 };
 
+
+//
+// NCEConvert
+//
+
+class NCEConvertTilingInfoOpModel final :
+        public IE::TilingInfoOpInterface::ExternalModel<NCEConvertTilingInfoOpModel, VPU::NCEConvertOp> {
+public:
+    bool isSupportedTiling(mlir::Operation* origOp, const OutputTiling& tiles, Logger log) const {
+        if (!isSupportedByNCE(mlir::cast<VPU::NCEConvertOp>(origOp), log)) {
+            return true;
+        }
+
+        const auto inputType = origOp->getOperand(0).getType().cast<vpux::NDTypeInterface>();
+        const auto outputType = origOp->getResult(0).getType().cast<vpux::NDTypeInterface>();
+
+        return llvm::all_of(tiles, [&](const TileInfo& tile) {
+            const auto inputTileType = inputType.extractDenseTile(tile.offsets, tile.shape);
+            const auto outputTileType = outputType.extractDenseTile(tile.offsets, tile.shape);
+
+            return mlir::succeeded(
+                    VPUIP::NCEInvariant::verifyEltwiseCMX(origOp->getLoc(), origOp->getParentOfType<mlir::ModuleOp>(),
+                                                          inputTileType, inputTileType, outputTileType, log));
+        });
+    }
+
+    bool isSupportedPrefetchTiling(mlir::Operation* /*op*/, ShapeRef /*tileAxis*/, Logger /*log*/) const {
+        // The DPU time of eltwise operations are too short to worth prefetching.
+        return false;
+    }
+
+    bool isSupportedPrefetchPattern(mlir::Operation* /*origOp*/, ShapeRef /*tileAxis*/, mlir::Operation* /*parentOp*/,
+                                    ShapeRef /*parentTileAxis*/, Logger /*log*/) const {
+        // Avoid tiling for eltwise operations
+        // the DPU time is too short compared to the DMA time.
+        return true;
+    }
+
+private:
+    static bool isSupportedByNCE(VPU::NCEConvertOp op, Logger log) {
+        if (VPU::getCompilationMode(op) == VPU::CompilationMode::ReferenceSW) {
+            return false;
+        }
+
+        return VPUIP::NCEInvariant::verifyKernel(op, log).succeeded() &&
+               VPUIP::NCEInvariant::verifyChannels(op, log).succeeded();
+    }
+};
+
 //
 // AsyncLayerOpModel
 //
@@ -936,6 +985,8 @@ void vpux::VPUIP::VPUIPDialect::setupExtraInterfaces(mlir::DialectRegistry& regi
     registry.addOpInterface<IE::SubtractOp, NCEEltwiseTilingInfoOpModel<IE::SubtractOp>>();
     registry.addOpInterface<IE::AndOp, NCEEltwiseTilingInfoOpModel<IE::AndOp>>();
     registry.addOpInterface<VPU::NCEEltwiseOp, NCEEltwiseTilingInfoOpModel<VPU::NCEEltwiseOp>>();
+
+    registry.addOpInterface<VPU::NCEConvertOp, NCEConvertTilingInfoOpModel>();
 
     registry.addOpInterface<IERT::SigmoidOp, SoftwareLayerOpModel>();
     registry.addOpInterface<IERT::SoftMaxOp, SoftwareLayerOpModel>();

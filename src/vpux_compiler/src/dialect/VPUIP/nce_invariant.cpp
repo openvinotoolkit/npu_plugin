@@ -201,6 +201,11 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyChannels(VPU::NCEEltwiseOp,
     return mlir::success();
 }
 
+mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyChannels(VPU::NCEConvertOp, Logger) {
+    // VPU.NCE operations guarantees that invariants
+    return mlir::success();
+}
+
 //
 // verifyGroupConvChannels
 //
@@ -478,6 +483,11 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyCMX(IE::AndOp origOp, Logge
 mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyCMX(VPU::NCEEltwiseOp origOp, Logger) {
     return mlir::success(origOp.fitIntoCMX(origOp.input1().getType().cast<vpux::NDTypeInterface>(),
                                            origOp.input2().getType().cast<vpux::NDTypeInterface>(),
+                                           origOp.output().getType().cast<vpux::NDTypeInterface>()));
+}
+
+mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyCMX(VPU::NCEConvertOp origOp, Logger) {
+    return mlir::success(origOp.fitIntoCMX(origOp.input().getType().cast<vpux::NDTypeInterface>(),
                                            origOp.output().getType().cast<vpux::NDTypeInterface>()));
 }
 
@@ -907,6 +917,16 @@ SmallVector<vpux::NDTypeInterface> getTileTypes(VPU::NCEDepthConvolutionOp origO
             origOp.getType().cast<vpux::NDTypeInterface>().extractDenseTile(outTile.offsets, outTile.shape)};
 }
 
+SmallVector<vpux::NDTypeInterface> getTileTypes(VPU::NCEConvertOp origOp, const TileInfo& outTile) {
+    auto tileConf = vpux::IE::backInferEltwiseTile(origOp, outTile);
+
+    return {origOp->getOperand(0).getType().cast<vpux::NDTypeInterface>().extractDenseTile(tileConf.tiles[0].offsets, 
+                                                                                        tileConf.tiles[0].shape),
+            origOp->getOperand(0).getType().cast<vpux::NDTypeInterface>().extractDenseTile(tileConf.tiles[0].offsets, 
+                                                                                        tileConf.tiles[0].shape),
+            origOp->getResult(0).getType().cast<vpux::NDTypeInterface>().extractDenseTile(outTile.offsets, outTile.shape)};
+}
+
 SmallVector<vpux::NDTypeInterface> getRequiredOperandsForPrefetch(IE::GroupConvolutionOp origOp,
                                                                   vpux::OutputTiling tiling) {
     // The tiling strategy follows last-tile-not-biggest
@@ -1058,6 +1078,9 @@ SmallVector<vpux::NDTypeInterface> getTileTypes(mlir::Operation* op, const TileI
     if (auto depthConvOp = mlir::dyn_cast<VPU::NCEDepthConvolutionOp>(op)) {
         return getTileTypes(depthConvOp, outTile);
     }
+    if (auto convertOp = mlir::dyn_cast<VPU::NCEConvertOp>(op)) {
+        return getTileTypes(convertOp, outTile);
+    }
 
     auto tileConf = vpux::IE::backInferEltwiseTile(op, outTile);
 
@@ -1133,6 +1156,12 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyPrefetchCMX(IE::AndOp origO
 
 mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyPrefetchCMX(VPU::NCEEltwiseOp origOp, vpux::OutputTiling tiling,
                                                                  Logger log) {
+    return verifyEltwisePrefetchCMX(origOp.getOperation(), tiling, log);
+}
+
+mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyPrefetchCMX(VPU::NCEConvertOp origOp, vpux::OutputTiling tiling,
+                                                                 Logger log) {
+    // VPU::NCEConvertOp has same logic as VPU::NCEEltwise
     return verifyEltwisePrefetchCMX(origOp.getOperation(), tiling, log);
 }
 
@@ -1327,6 +1356,11 @@ Byte getRequiredCMX(IE::AndOp op, const vpux::TileInfo& tiling) {
     return getEltwiseRequiredCMX(op.getOperation(), tiling);
 }
 
+Byte getRequiredCMX(VPU::NCEConvertOp op, const vpux::TileInfo& tiling) {
+    return getEltwiseRequiredCMX(op.getOperation(), tiling);
+}
+
+
 Byte getRequiredCMXForWeight(IE::AndOp /*op*/, const vpux::TileInfo& /*tiling*/) {
     return Byte(0);
 }
@@ -1336,6 +1370,10 @@ Byte getRequiredCMX(VPU::NCEEltwiseOp op, const vpux::TileInfo& tiling) {
 }
 
 Byte getRequiredCMXForWeight(VPU::NCEEltwiseOp /*op*/, const vpux::TileInfo& /*tiling*/) {
+    return Byte(0);
+}
+
+Byte getRequiredCMXForWeight(VPU::NCEConvertOp /*op*/, const vpux::TileInfo& /*tiling*/) {
     return Byte(0);
 }
 
@@ -1372,6 +1410,9 @@ Byte getRequiredCMXForWeight(mlir::Operation* op, const vpux::TileInfo& tiling) 
                 return getRequiredCMXForWeight(origOp, tiling);
             })
             .Case<VPU::NCEDepthConvolutionOp>([&](VPU::NCEDepthConvolutionOp origOp) {
+                return getRequiredCMXForWeight(origOp, tiling);
+            })
+            .Case<VPU::NCEConvertOp>([&](VPU::NCEConvertOp origOp) {
                 return getRequiredCMXForWeight(origOp, tiling);
             })
             .Default([](mlir::Operation* unknownOp) -> Byte {
@@ -1413,6 +1454,9 @@ Byte getRequiredCMX(mlir::Operation* op, const vpux::TileInfo& tiling) {
                 return getRequiredCMX(origOp, tiling);
             })
             .Case<VPU::NCEDepthConvolutionOp>([&](VPU::NCEDepthConvolutionOp origOp) {
+                return getRequiredCMX(origOp, tiling);
+            })
+            .Case<VPU::NCEConvertOp>([&](VPU::NCEConvertOp origOp) {
                 return getRequiredCMX(origOp, tiling);
             })
             .Default([](mlir::Operation* unknownOp) -> Byte {
@@ -1749,6 +1793,11 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(IERT::AndOp origOp, 
 }
 
 mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(VPU::NCEEltwiseOp, Logger) {
+    // VPU.NCE operations guarantees that invariants
+    return mlir::success();
+}
+
+mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(VPU::NCEConvertOp, Logger) {
     // VPU.NCE operations guarantees that invariants
     return mlir::success();
 }

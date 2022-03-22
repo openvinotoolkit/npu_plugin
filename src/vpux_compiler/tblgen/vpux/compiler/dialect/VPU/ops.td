@@ -516,6 +516,7 @@ def VPU_NCEConvertOp :
     }];
 
     let extraClassDeclaration = [{
+        bool fitIntoCMX(vpux::NDTypeInterface input, vpux::NDTypeInterface output);
 
         template<class ConcreteOp>
         static bool isSupported(ConcreteOp op, VPU::ArchKind arch, vpux::VPU::NCEInvariant::LogCb logCb);
