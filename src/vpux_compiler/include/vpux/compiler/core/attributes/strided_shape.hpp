@@ -13,21 +13,21 @@
 
 #pragma once
 
-#include "vpux/compiler/core/type_interfaces.hpp"
-#include "vpux/compiler/dialect/IERT/attributes/structs.hpp"
-#include "vpux/compiler/dialect/VPU/attributes.hpp"
-#include "vpux/compiler/dialect/VPU/type_interfaces.hpp"
+#include "vpux/compiler/core/attributes/shape.hpp"
+#include "vpux/compiler/core/attributes/strides.hpp"
 
-#include <mlir/Interfaces/SideEffectInterfaces.h>
-
-#include <mlir/IR/BuiltinAttributes.h>
-#include <mlir/IR/DialectImplementation.h>
-#include <mlir/IR/Types.h>
+namespace vpux {
 
 //
-// Generated
+// StridedShape
 //
 
-#define GET_TYPEDEF_CLASSES
-#include <vpux/compiler/dialect/VPUIP/generated/types.hpp.inc>
-#undef GET_TYPEDEF_CLASSES
+struct StridedShape {
+    StridedShape(ShapeRef shape, StridesRef strides): shape(shape.raw()), strides(strides.raw()) {
+    }
+
+    Shape shape;
+    Strides strides;
+};
+
+}  // namespace vpux

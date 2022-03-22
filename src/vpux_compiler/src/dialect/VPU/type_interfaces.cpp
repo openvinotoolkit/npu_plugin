@@ -11,23 +11,12 @@
 // included with the Software Package for additional details.
 //
 
-#pragma once
-
-#include "vpux/compiler/core/type_interfaces.hpp"
-#include "vpux/compiler/dialect/IERT/attributes/structs.hpp"
-#include "vpux/compiler/dialect/VPU/attributes.hpp"
 #include "vpux/compiler/dialect/VPU/type_interfaces.hpp"
 
-#include <mlir/Interfaces/SideEffectInterfaces.h>
-
-#include <mlir/IR/BuiltinAttributes.h>
-#include <mlir/IR/DialectImplementation.h>
-#include <mlir/IR/Types.h>
+using namespace vpux;
 
 //
 // Generated
 //
 
-#define GET_TYPEDEF_CLASSES
-#include <vpux/compiler/dialect/VPUIP/generated/types.hpp.inc>
-#undef GET_TYPEDEF_CLASSES
+#include <vpux/compiler/dialect/VPU/generated/type_interfaces.cpp.inc>

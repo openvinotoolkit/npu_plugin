@@ -262,6 +262,7 @@ add_rewriters("dialect/IE")
 
 add_dialect("VPU")
 add_op_interfaces("dialect/VPU")
+add_type_interfaces("dialect/VPU")
 add_enum_attrs("VPU")
 add_struct_attrs("VPU")
 add_types("VPU")

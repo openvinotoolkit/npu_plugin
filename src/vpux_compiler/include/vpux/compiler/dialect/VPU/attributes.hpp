@@ -14,6 +14,7 @@
 #pragma once
 
 #include "vpux/compiler/core/tiling.hpp"
+#include "vpux/compiler/dialect/VPU/type_interfaces.hpp"
 
 #include "vpux/utils/core/array_ref.hpp"
 #include "vpux/utils/core/format.hpp"
@@ -107,6 +108,8 @@ mlir::LogicalResult verify(FuncRef<mlir::InFlightDiagnostic()> emitError, Distri
 mlir::LogicalResult areDistributionModesCompatible(DistributionMode sourceMode, DistributionMode targetMode);
 SmallVector<Shape> getPerClusterComputeShapes(ShapeRef shapeRef, DistributedTensorAttr distributionAttr);
 SmallVector<Shape> getPerClusterComputeShapeOffsets(ShapeRef shapeRef, DistributedTensorAttr distributionAttr);
+SmallVector<StridedShape> getPerClusterStridedShapes(ShapeRef shape, StridesRef strides, DimsOrder dimsOrder,
+                                                     Bit elemSize, DistributedTensorAttr distributionAttr);
 
 }  // namespace VPU
 }  // namespace vpux

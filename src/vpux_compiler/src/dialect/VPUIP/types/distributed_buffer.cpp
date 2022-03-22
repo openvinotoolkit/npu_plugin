@@ -239,10 +239,6 @@ mlir::MemRefType VPUIP::DistributedBufferType::getCompactType() const {
 // information which is needed for scheduler and strategy manager,
 // in order to estimate memory
 SmallVector<Shape> VPUIP::DistributedBufferType::getPerClusterComputeShapes() const {
-    const auto shape = getShape();
-    const auto strideInReqs = StrideReqs::compact(shape.size());
-    VPUX_THROW_UNLESS(strideInReqs.checkStrides(*this), "Only compact strides are supported");
-
     return VPU::getPerClusterComputeShapes(getShape(), getDistribution());
 }
 
@@ -276,20 +272,41 @@ Shape VPUIP::DistributedBufferType::getCompactShape(int64_t tileInd) const {
     return tiledComputeShapes[tileInd];
 }
 
+// @brief Retrieve the array of strided compute shapes
+// @warning This function should not be used for memory size calculation,
+// because it does not retrieve the true allocate shape in cases
+// of broadcasting.
+SmallVector<StridedShape> VPUIP::DistributedBufferType::getPerClusterStridedShapes() const {
+    return VPU::getPerClusterStridedShapes(getShape(), getStrides(), getDimsOrder(), getElemTypeSize(),
+                                           getDistribution());
+}
+
 // @brief Get largest strided compute shape
 // @warning This function should not be used for memory size calculation,
 // because it does not retrieve the true allocate shape in cases
 // of broadcasting.
-Shape VPUIP::DistributedBufferType::getLargestStridedShape() const {
-    VPUX_THROW("getLargestStridedShape method is not implemented for DistributedBufferType");
+StridedShape VPUIP::DistributedBufferType::getLargestStridedShape() const {
+    const auto stridedShapeSize = [](const StridedShape& stridedShape) {
+        return stridedShape.shape.front() * stridedShape.strides.front();
+    };
+
+    const auto stridedShapes = getPerClusterStridedShapes();
+    VPUX_THROW_UNLESS(!stridedShapes.empty(), "Missing per-cluster strided shapes");
+    return *std::max_element(stridedShapes.begin(), stridedShapes.end(),
+                             [&](const StridedShape& a, const StridedShape& b) {
+                                 return stridedShapeSize(a) < stridedShapeSize(b);
+                             });
 }
 
 // @brief Get the strided compute shape for a specific cluster
 // @warning This function should not be used for memory size calculation,
 // because it does not retrieve the true allocate shape in cases
 // of broadcasting.
-Shape VPUIP::DistributedBufferType::getStridedShape(int64_t /*tileInd*/) const {
-    VPUX_THROW("getStridedShape method is not implemented for DistributedBufferType");
+StridedShape VPUIP::DistributedBufferType::getStridedShape(int64_t tileInd) const {
+    const auto stridedShapes = getPerClusterStridedShapes();
+    VPUX_THROW_UNLESS(tileInd < static_cast<int64_t>(stridedShapes.size()),
+                      "Requesting tiled shape outside of cluster pool");
+    return stridedShapes[tileInd];
 }
 
 //
