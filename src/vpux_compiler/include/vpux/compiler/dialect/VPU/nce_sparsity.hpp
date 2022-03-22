@@ -55,8 +55,8 @@ std::vector<int32_t> getWeightsTable(mlir::Type inElemType, mlir::Type outElemTy
                                      int64_t OC, mlir::Type weightsElemType = nullptr,
                                      Const::ContentAttr bias = nullptr, VPU::PPETaskAttr ppe = nullptr);
 
-SmallVector<int32_t> getInstructionListTable(const SmallVector<int> rangeAttr, const SmallVector<int> shiftAttr,
-                                             const SmallVector<int> biasAttr, const int32_t size);
+SmallVector<int32_t> getInstructionListTable(ArrayRef<int> rangeAttr, ArrayRef<int> shiftAttr, ArrayRef<int> biasAttr,
+                                             const int32_t size);
 
 Shape inferWeightsTableShape(int64_t OC);
 

@@ -52,8 +52,11 @@ bool isSupportedHWPostOp(mlir::Operation* mainOp, mlir::Operation* postOp) {
         // TODO: should be check maxVal?
     }
 
-    if (mlir::isa<IE::AddOp, IE::AndOp, IE::MultiplyOp>(mainOp) && mlir::isa<IE::LeakyReluOp>(postOp)) {
-        return false;
+    if (auto leakyRelu = mlir::dyn_cast<IE::LeakyReluOp>(postOp)) {
+        if (mlir::isa<IE::AddOp, IE::AndOp, IE::MultiplyOp>(mainOp) ||
+            !isFloatEqual(leakyRelu.negative_slopeAttr().getValueAsDouble(), 0.1f)) {
+            return false;
+        }
     }
 
     const auto module = postOp->getParentOfType<mlir::ModuleOp>();

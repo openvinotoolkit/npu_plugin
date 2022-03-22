@@ -446,10 +446,8 @@ std::vector<int32_t> vpux::VPU::NCESparsity::getWeightsTable(mlir::Type inElemTy
     return weightsTableVals;
 }
 
-SmallVector<int32_t> vpux::VPU::NCESparsity::getInstructionListTable(const SmallVector<int> rangeAttr,
-                                                                     const SmallVector<int> shiftAttr,
-                                                                     const SmallVector<int> biasAttr,
-                                                                     const int32_t size) {
+SmallVector<int32_t> vpux::VPU::NCESparsity::getInstructionListTable(ArrayRef<int> rangeAttr, ArrayRef<int> shiftAttr,
+                                                                     ArrayRef<int> biasAttr, const int32_t size) {
     // NOTE : The instruction list has 5 bits of addresses so the biggest count of instructions is 11111 = 27
     // 27 of course will be aligned to 32 and will contain NOPS inside
     const auto range = rangeAttr;
@@ -478,19 +476,19 @@ SmallVector<int32_t> vpux::VPU::NCESparsity::getInstructionListTable(const Small
         first2Bits = j & MASK_FIRST2_BITS;
         first3Bits = j >> 2;
 
-        if ((j > sizeRange + sizeShift + sizeBias + nopCount) || (j == 15))
+        if ((j > sizeRange + sizeShift + sizeBias + nopCount) || (j == 15)) {
             templateTable[j] = (ALU_HALT_OPCODE);
-        else {
+        } else {
             if (j < sizeRange) {
                 templateTable[j] =
                         ((range[j] << ADDR_OF_VALUE) | (first3Bits << ADDR_OF_REST_BITS) | (8 << ADDR_OF_ADDR_FLEX) |
                          (first2Bits << ADDR_OF_FIRST2_BITS) | (0 << ADDR_OF_RESERVED) | ALU_LOAD);
             } else if (j < sizeRange + sizeShift + 1) {
-                if (j < 16)
+                if (j < 16) {
                     templateTable[j] = ((shift[j - sizeRange] << ADDR_OF_VALUE) | (first3Bits << ADDR_OF_REST_BITS) |
                                         (8 << ADDR_OF_ADDR_FLEX) | (first2Bits << ADDR_OF_FIRST2_BITS) |
                                         (0 << ADDR_OF_RESERVED) | ALU_LOAD);
-                else {
+                } else {
                     k = j - 1;
                     first2Bits = k & MASK_FIRST2_BITS;
                     first3Bits = k >> 2;

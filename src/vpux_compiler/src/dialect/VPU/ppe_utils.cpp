@@ -305,7 +305,7 @@ llvm::Optional<VPU::PostOpParams> parsePostOp(IE::PostOp postOp, const mlir::Typ
     } else if (postOp.name().getValue() == IE::SigmoidOp::getOperationName()) {
         return VPU::getPwlPostOpParams(inElemType, outElemType, VPU::PPEMode::SIGMOID);
     } else if (postOp.name().getValue() == IE::TanhOp::getOperationName()) {
-        return getPwlPostOpParams(inElemType, outElemType, VPU::PPEMode::TANH);
+        return VPU::getPwlPostOpParams(inElemType, outElemType, VPU::PPEMode::TANH);
     }
 
     VPUX_THROW("Unsupported PostOp '{0}'", postOp.name());

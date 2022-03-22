@@ -8,8 +8,8 @@ vpux::PWLTableEntry getLeakyReluPWLEntry() {
     const SmallVector<int32_t> bias{-119, 44, -43, -31, -19, 18, 10, 0};
     const double rangeMin = -65504.0, rangeMax = 65504.0;
     const int32_t postShift = 4;
-
-    return PWLTableEntry{range, shift, bias, std::make_pair(rangeMin, rangeMax), postShift};
+    static const PWLTableEntry leakyReluEntry{range, shift, bias, std::make_pair(rangeMin, rangeMax), postShift};
+    return leakyReluEntry;
 }
 
 Optional<vpux::PWLTableEntry> findCustomPWLTable(StringRef activationName, mlir::Type outElemType) {
@@ -18,8 +18,8 @@ Optional<vpux::PWLTableEntry> findCustomPWLTable(StringRef activationName, mlir:
     // custom tables and compilation train tables to MLIR or an analysis. See:
     // https://github.com/intel-innersource/applications.ai.vpu-accelerators.vpux-plugin/pull/388
 
-    static PWLTableMap pwlTableMap{{PWLTableType{StringRef("IE.LeakyRelu"), mlir::quant::UniformQuantizedType()},
-                                    SmallVector<PWLTableEntry>{getLeakyReluPWLEntry()}}};
+    static const PWLTableMap pwlTableMap{{PWLTableType{StringRef("IE.LeakyRelu"), mlir::quant::UniformQuantizedType()},
+                                          SmallVector<PWLTableEntry>{getLeakyReluPWLEntry()}}};
 
     // find
     if (!outElemType.isa<mlir::quant::UniformQuantizedType>()) {

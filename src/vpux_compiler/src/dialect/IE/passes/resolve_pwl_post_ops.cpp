@@ -98,6 +98,7 @@ mlir::LogicalResult FusableOpRewriter::unfusePostOp(IE::LayerWithPostOpInterface
     rewriter.setInsertionPointAfter(origOp);
     auto postOp =
             rewriter.create<PostOpType>(origOp->getLoc(), origOp->getResult(0), origOp.getPostOpAttrs().getValue());
+    origOp->getResult(0).dump();
     origOp->getResult(0).replaceAllUsesExcept(postOp->getResult(0), llvm::SmallPtrSet<mlir::Operation*, 1>{postOp});
     origOp.clearPostOp();
 
@@ -145,15 +146,7 @@ mlir::LogicalResult FusableOpRewriter::matchAndRewrite(IE::LayerWithPostOpInterf
         }
     } else if (postOpName == IE::LeakyReluOp::getOperationName()) {
         if (isQuantizedPerTensor(origOp)) {
-            const auto negative_slope = static_cast<float>(
-                    origOp.getPostOpAttrs().get("negative_slope").cast<mlir::FloatAttr>().getValueAsDouble());
-            // The reason why we used isFloatEqual() is because PRelu has only FP16 and FP32 precision for
-            // negative_slope. We need to compare them in float precision, and because we convert PRelu to LeakyRelu
-            // negative_slope is in double and it is possible the double epsilon to be smaller than the subtraction
-            // result.
-            if (isFloatEqual(negative_slope, 0.1f)) {
-                return matchFailed(_log.nest(), rewriter, origOp, "QuantizeCast is not needed for custom PWL");
-            }
+            return matchFailed(_log.nest(), rewriter, origOp, "QuantizeCast is not needed for custom PWL");
         }
 
         return unfusePostOp<IE::LeakyReluOp>(origOp, postOpName, rewriter);

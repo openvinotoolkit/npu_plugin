@@ -61,7 +61,7 @@ mlir::Value createWeightsTableTensor(mlir::OpBuilder& builder, mlir::Location lo
 Optional<SmallVector<int32_t>> createInstructionListTableData(mlir::Value opOutput, vpux::IE::PostOp postOp) {
     const auto outElemType = opOutput.getType().cast<vpux::NDTypeInterface>().getElementType();
 
-    if (postOp == nullptr || outElemType == nullptr) {
+    if (postOp == nullptr) {
         return None;
     }
 
@@ -71,9 +71,9 @@ Optional<SmallVector<int32_t>> createInstructionListTableData(mlir::Value opOutp
         return None;
     }
 
-    const auto pwlTableRange = pwlTable.getValue().range;
-    const auto pwlTableShift = pwlTable.getValue().shift;
-    const auto pwlTableBias = pwlTable.getValue().bias;
+    const auto& pwlTableRange = pwlTable.getValue().range;
+    const auto& pwlTableShift = pwlTable.getValue().shift;
+    const auto& pwlTableBias = pwlTable.getValue().bias;
 
     const size_t vectorSize = pwlTableRange.size() + pwlTableShift.size() + pwlTableBias.size();
     // We need a NOOP to terminate each chain of 16 instructions.
@@ -91,9 +91,9 @@ mlir::Value createInstructionListTableTensor(mlir::OpBuilder& builder, mlir::Loc
     }
     const auto instructionListArrayRef = makeArrayRef(instructionList.getValue());
     const auto elemType = getSInt32Type(builder.getContext());
-    const auto weightTableShape = Shape{1, 1, 1, static_cast<int64_t>(instructionListArrayRef.size())};
+    const auto instructionListTableShape = Shape{1, 1, 1, static_cast<int64_t>(instructionListArrayRef.size())};
 
-    const auto dataStorageType = mlir::RankedTensorType::get(weightTableShape.raw(), elemType);
+    const auto dataStorageType = mlir::RankedTensorType::get(instructionListTableShape.raw(), elemType);
     const auto dataAttr = mlir::DenseElementsAttr::get(dataStorageType, instructionListArrayRef);
 
     auto dataConstOp = builder.create<Const::DeclareOp>(loc, dataStorageType, Const::ContentAttr::get(dataAttr));
