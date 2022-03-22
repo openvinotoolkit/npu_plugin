@@ -352,7 +352,7 @@ void ConvertReduceToPoolingPass::safeRunOnFunc() {
             const bool isHWCompilationMode = VPU::getCompilationMode(op) == VPU::CompilationMode::ReferenceHW ||
                                              VPU::getCompilationMode(op) == VPU::CompilationMode::DefaultHW;
 
-            if (!(upaCompatible || (dpuCompatible && isHWCompilationMode))) {
+            if (!((upaCompatible && !isHWCompilationMode) || (dpuCompatible && isHWCompilationMode))) {
                 return true;
             }
         }

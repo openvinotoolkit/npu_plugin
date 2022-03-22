@@ -125,3 +125,13 @@ func @ConvertReduceSumToPoolingReduceDimOne(%arg0: tensor<1x1x1x50xf16>) -> tens
   // CHECK:       %0 = IE.Reshape(%arg0) {shape_value = [1, 1, 50]} : tensor<1x1x1x50xf16> -> tensor<1x1x50xf16>
   // CHECK-NOT:   ReduceSum
 }
+
+// CHECK-LABEL: @NotConvertReduceMean
+func @NotConvertReduceMean(%arg0: tensor<1x1x112x112xf16>) -> tensor<1x1x1x1xf16> {
+  %cst = const.Declare tensor<2xsi32> = #const.Content<dense<[2, 3]> : tensor<2xsi64>, [#const.ConvertElemType<si32>]>
+  %0 = IE.ReduceMean(%arg0, %cst) {keep_dims} : tensor<1x1x112x112xf16>, tensor<2xsi32> -> tensor<1x1x1x1xf16>
+  return %0 : tensor<1x1x1x1xf16>
+
+  // CHECK:       %0 = IE.ReduceMean(%arg0, %cst) {keep_dims} : tensor<1x1x112x112xf16>, tensor<2xsi32> -> tensor<1x1x1x1xf16>
+  // CHECK-NOT:   AvgPool
+}
