@@ -17,7 +17,7 @@
 using namespace vpux;
 using namespace VPU;
 
-LayerCostModel::LayerCostModel()(mlir::FuncOp func, Logger log, int64_t numClusters): _func(func), _log(log), _numClusters(numClusters) {
+LayerCostModel::LayerCostModel(mlir::FuncOp func, Logger log, int64_t numClusters): _func(func), _log(log), _numClusters(numClusters) {
     // These latency numbers inferred from KMB db v1.2
     _CMXLatency = 5;  // Cycles, attempt to capture cost accessing CMX
     // DDR latency also measured for kmb at ~100 cycles per dma
@@ -27,13 +27,13 @@ LayerCostModel::LayerCostModel()(mlir::FuncOp func, Logger log, int64_t numClust
     if (arch == VPU::ArchKind::KMB) {
         _CMXBandwidth = 15;  // 32 * 1.0; //bytes per cycle times derating factor
     } else if (arch == VPU::ArchKind::TBH) {
-        _DDRBandwidth = 30;  // 64 * 1.0; //bytes per cycle times derating factor
+        _CMXBandwidth = 30;  // 64 * 1.0; //bytes per cycle times derating factor
     }
     // @todo include params for ma3720
 }
 
 template <class ConcreteOp>
-double LayerCostModel::clusterComputeTime(ConcreteOp op, MultiClusterStrategy Strategy) const{
+double LayerCostModel::clusterComputeTime(ConcreteOp op, StringRef strategy) const{
     double clusterEff = computeSplitEfficiency(op, strategy);
     auto clusterOutShape = getLargestClusterOutputShape(op, strategy, _numClusters);
     size_t baseKernelCost = 0;
@@ -55,11 +55,101 @@ double LayerCostModel::clusterComputeTime(ConcreteOp op, MultiClusterStrategy St
     return (static_cast<double>(clusterOutShape.totalSize() * baseKernelCost)) / clusterEff;
 }
 
+// Each layer calculates the cost to move it's weights (if they exist), and it's activations
+// Each DMA cost is modelled as latency + size*transfer_rate
+// @warning Params {op , strategy} must be matching
 template <class ConcreteOp>
-double LayerCostModel::dmaTime(ConcreteOp op, MultiClusterStrategy Strategy) const{
-
-}
+double LayerCostModel::dmaTime(ConcreteOp op, StringRef strategy) const{
+    double weightsCycles = 0;
+    double activationWindowCycles = 0;
+    double inputCycles = 0;
+    double outputCycles = 0;
+    const auto inOrder = DimsOrder::fromValue(op.input());
+    bool isCMajor = inOrder == DimsOrder::NCHW;
     
+    /// Weights cost
+    if (mlir::isa<VPU::NCEConvolutionOp, VPU::NCEDepthConvolutionOp>(op)){
+        auto clusterOutShape = getLargestClusterOutputShape(op, strategy, _numClusters);
+        size_t clusterOutChannels = clusterOutShape[Dims4D::Act::C];
+        auto weights = op->getOperand(1);
+        auto weightsShape = getShape(weights);
+        const auto weightsType = weights.getType().cast<mlir::ShapedType>();
+        const auto elementType = weightsType.getElementType();
+        const auto elemBytes = elementType.getIntOrFloatBitWidth() / CHAR_BIT;
+
+        // IC * KX * KY * BytesPerElement need to align to 16B for kernels
+        size_t weightsSize = (clusterOutChannels *
+                            alignVal<size_t>(weightsShape[Dims4D::Filter::IC] * weightsShape[Dims4D::Filter::KY] *
+                                                    weightsShape[Dims4D::Filter::KX] * elemBytes,
+                                            _cmxAddressAlignment));
+        // WeightTable has OC entries, each entries includes sparsity/weights pointer, bias and multi/shfit quantized
+        // params. The total size for those is 16 Bytes
+        size_t weightTableSize = 16 * clusterOutChannels;
+
+        // Weights and weightTable are Segmented mode under SOK,
+        // only including ddr -> cmx cost
+        if (strategy == splitOverKernel) {
+            weightsCycles =
+                    (_DDRLatency + (static_cast<double>(weightsSize + weightTableSize) * _numClusters / _DDRBandwidth));
+        } else {  
+            // Duplicated mode on other strategies, including ddr->cmx cost and cmx broadcast cost
+            // @warning _CMXBandwidth may be not a proper metric for cmx broadcast, refer to discussion:
+            // https://github.com/intel-innersource/applications.ai.vpu-accelerators.vpux-plugin/pull/682#discussion_r819458272
+            weightsCycles = (_DDRLatency + (static_cast<double>(weightsSize + weightTableSize) / _DDRBandwidth)) +
+                            (_CMXLatency +
+                            (static_cast<double>(weightsSize + weightTableSize) * (_numClusters - 1) / _CMXBandwidth));
+        }
+    }
+
+    /// ActivationWindow cost 
+    /// It's always duplicated mode and only dwconv , cmconv and maxpool own it
+    size_t activationWindowSize = 0;
+    if (mlir::isa<VPU::NCEMaxPoolOp, VPU::NCEDepthConvolutionOp>(op) || (mlir::isa<VPU::NCEConvolutionOp>(op) && isCMajor)) {
+        const auto kernelSize = Shape(parseIntArrayAttr<int64_t>(getKernelSize(op)));
+        const auto SX = Shape(parseIntArrayAttr<int64_t>(op.strides()))[Dims4D::Strides::X];
+        const auto inputDType = Op.input().getType().cast<mlir::ShapedType>().getElementType();
+        auto sparsityMode = VPU::NCESparsity::Mode::DW_CONV;
+        auto IC = 1;
+        if (mlir::isa<VPU::NCEMaxPoolOp>(op)){
+            sparsityMode = VPU::NCESparsity::Mode::POOL;
+        } else if(mlir::isa<VPU::NCEConvolutionOp>(op)){
+            sparsityMode = VPU::NCESparsity::Mode::CM_CONV;
+            IC = getShape(op.input())[Dims4D::Act::C];
+        }
+        activationWindowSize = VPU::NCESparsity::getActivationWindowSize(
+                sparsityMode, kernelSize, SX, inputDType, IC);
+    }
+    activationWindowCycles =
+            (_DDRLatency + (static_cast<double>(activationWindowSize) / _DDRBandwidth)) +
+            (_CMXLatency + (static_cast<double>(activationWindowSize) * (_numClusters - 1) / _CMXBandwidth));
+
+    // @todo Overhead for Spilled input should be considered in the future,
+    // as we can't get spilling strategy now
+    inputCycles += 0;
+
+    // @todo Overhead for spilled output for the same reason
+
+    // @brief This section captures the output cost to multicast to all clusters,
+    // ODU multicast happens in SOK and HKSwitch strategy.
+    // @warning Duplicated mode is the same with Multicast mode?
+    // @warning Currently we don't have HKSwitch Mode, We should consider it once it's added in the future
+    const auto outElemBytes =
+            output.getType().cast<mlir::ShapedType>().getElementType().getIntOrFloatBitWidth() / CHAR_BIT;
+    // Multicast_Cost = cluster_output_size[0] * (num_clusters - 1) + cluster_output_size[1] * (num_clusters - 1) +
+    //                  ... + cluster_output_size[num_clusters - 1] * (num_clusters - 1)
+    if (strategy == splitOverKernel) {
+        auto outputSize = 0;
+        auto tiledOutShapes = getPerClusterOutputShape();
+        for (auto& clusterOutShape : tiledOutShapes) {
+            outputSize += clusterOutShape.totalSize();
+        }
+        outputCycles += (_numClusters * _CMXLatency) +
+                        (static_cast<double>(outputSize * outElemBytes * (_numClusters - 1)) / _CMXBandwidth);
+    }
+
+    // Total cost for single layer without spilling consideration
+    return inputCycles + activationWindowCycles + weightsCycles + outputCycles;
+}
 
 BaseLayerStrategy::BaseLayerStrategy(mlir::FuncOp func, Logger log): _func(func), _log(log) {
     auto module = func->getParentOfType<mlir::ModuleOp>();

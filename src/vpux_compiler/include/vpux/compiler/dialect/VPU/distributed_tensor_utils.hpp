@@ -60,7 +60,11 @@ mlir::ArrayAttr getKernelSize(mlir::Operation* origOp);
 int64_t getSOHPerClusterHeightAlignment(int64_t inputWidth);
 bool isSOHSupportedByDPU(ShapeRef inputShape, int64_t KY, int64_t numClusters, bool DWTypeOp);
 template <class ConcreteOp>
+DistributedTensorType vpux::VPU::getOutputTensorDistributedType(Concrete op, StringRef strategy, int64_t numClusters);
+template <class ConcreteOp>
 Shape vpux::VPU::getLargestClusterOutputShape(ConcreteOp origOp, MultiClusterStrategy strategy, int64_t numClusters);
+template <class ConcreteOp>
+SmallVector<Shape> vpux::VPU::getPerClusterOutputShape(ConcreteOp op, StringRef strategy, int64_t numClusters);
 
 template <class ConcreteOp>
 mlir::ArrayAttr getStride(ConcreteOp origOp) {

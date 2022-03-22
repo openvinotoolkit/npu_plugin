@@ -276,7 +276,7 @@ bool vpux::VPU::isSOHSupportedByDPU(ShapeRef inputShape, int64_t KY, int64_t num
 }
 
 template <class ConcreteOp>
-Shape vpux::VPU::getLargestClusterOutputShape(ConcreteOp op, StringRef strategy, int64_t numClusters) {
+DistributedTensorType vpux::VPU::getOutputTensorDistributedType(Concrete op, StringRef strategy, int64_t numClusters) {
     auto outputTensorDistributionMode = getOutputTensorDistributionMode(strategy);
     auto outputTensorNumTiles =
             getIntArrayAttr(op->getContext(), getOutputTensorNumTiles(op.getOperation(), numClusters, strategy));
@@ -285,8 +285,17 @@ Shape vpux::VPU::getLargestClusterOutputShape(ConcreteOp op, StringRef strategy,
     if (outputAlignment.hasValue()) {
         outputAlignmentAttr = getIntArrayAttr(op->getContext(), outputAlignment.getValue());
     }
-    auto distributedOutputTensorType =
-            createDistributedTensorType(op, op.output(), outputTensorDistributionMode, outputTensorNumTiles, outputAlignmentAttr, strategy);
-    
+    return createDistributedTensorType(op, op.output(), outputTensorDistributionMode, outputTensorNumTiles, outputAlignmentAttr, strategy);
+}
+
+template <class ConcreteOp>
+Shape vpux::VPU::getLargestClusterOutputShape(ConcreteOp op, StringRef strategy, int64_t numClusters) {
+    auto distributedOutputTensorType = getOutputTensorDistributedType(op, strategy, numClusters);
     return distributedOutputTensorType.getLargestCompactShape();
+}
+
+template <class ConcreteOp>
+SmallVector<Shape> vpux::VPU::getPerClusterOutputShape(ConcreteOp op, StringRef strategy, int64_t numClusters) {
+    auto distributedOutputTensorType = getOutputTensorDistributedType(op, strategy, numClusters);
+    return distributedOutputTensorType.getPerClusterComputeShapes();
 }
