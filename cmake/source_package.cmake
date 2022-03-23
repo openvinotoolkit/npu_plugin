@@ -21,7 +21,7 @@ function(read_config_file CONFIG_FILE EXCLUDE_PATTERNS)
         foreach(IDX RANGE ${CFG_PATTERNS_LENGTH})
             if(NOT ${IDX} STREQUAL ${CFG_PATTERNS_LENGTH})
                 string(JSON PATTERN GET ${CFG_PATTERNS} ${IDX})  
-                string(REPLACE "^" "${CMAKE_SOURCE_DIR}" PATTERN ${PATTERN})
+                string(REPLACE "^" "${CMAKE_CURRENT_SOURCE_DIR}" PATTERN ${PATTERN})
                 list(APPEND RESULT_LIST ${PATTERN})
             endif()
         endforeach()
@@ -38,7 +38,7 @@ function(read_config_file CONFIG_FILE EXCLUDE_PATTERNS)
         CFG_EXCLUDE_PATTERNS_LIST
     )
     
-    list(APPEND CFG_EXCLUDE_PATTERNS_LIST "${CMAKE_BINARY_DIR}")
+    list(APPEND CFG_EXCLUDE_PATTERNS_LIST "${CMAKE_CURRENT_BINARY_DIR}")
 
     # return variables
     set(${EXCLUDE_PATTERNS} ${CFG_EXCLUDE_PATTERNS_LIST} PARENT_SCOPE)
@@ -50,5 +50,7 @@ endfunction()
 
 read_config_file("${CMAKE_CURRENT_SOURCE_DIR}/SourcePackageConfig.json" EXCLUDE_PATTERNS)
 
+set(CPACK_BUILD_SOURCE_DIRS "${CMAKE_CURRENT_SOURCE_DIR};${CMAKE_CURRENT_BINARY_DIR}")
+set(CPACK_SOURCE_INSTALLED_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR};/")
 set(CPACK_SOURCE_OUTPUT_CONFIG_FILE "CPackSourceConfigVPUX.cmake")
 set(CPACK_SOURCE_IGNORE_FILES ${EXCLUDE_PATTERNS})
