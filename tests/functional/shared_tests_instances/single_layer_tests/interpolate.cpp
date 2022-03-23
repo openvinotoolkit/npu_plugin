@@ -39,20 +39,13 @@ TEST_P(KmbInterpolate1Test, CompareWithRefs_MLIR) {
 }
 
 class KmbInterpolateLayerTest_MTL : public InterpolateLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
-    void SkipBeforeLoad() override {
-        if (std::getenv("OV_BUILD_DIR") == nullptr) {
-            throw LayerTestsUtils::KmbSkipTestException(
-                    "OV_BUILD_DIR env directory must be specified, in order to reach act-shave kernels.");
-        }
-
-#if defined(__arm__) || defined(__aarch64__) || defined(_WIN32) || defined(_WIN64)
-        throw LayerTestsUtils::KmbSkipTestException("Does not compile on ARM and Windows.");
-#endif
-    }
     void SkipBeforeInfer() override {
-        // Format of act-shave tensors serialization doesn't match with kernel expectation
         // [EISW-29786]
-        throw LayerTestsUtils::KmbSkipTestException("Runtime issue.");
+        throw LayerTestsUtils::KmbSkipTestException("Format of act-shave tensors serialization doesn't match with kernel expectation.");
+
+#ifndef ENABLE_IMD_BACKEND
+        throw LayerTestsUtils::KmbSkipTestException("MTL inference requires IMD backend.");
+#endif
     }
 };
 

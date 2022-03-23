@@ -208,46 +208,6 @@ mlir::MemRefType vpux::getMemRefType(ShapeRef shape, mlir::Type elemType, DimsOr
     return builder;
 }
 
-mlir::MemRefType vpux::getViewTileType(mlir::MemRefType origType, ShapeRef tileOffsets, ShapeRef tileShape,
-                                       ShapeRef tileElemStrides) {
-    const auto ndType = origType.cast<vpux::NDTypeInterface>();
-    const auto order = ndType.getDimsOrder();
-    const auto memSpace = ndType.getMemSpace();
-
-    auto tileElemType = origType.getElementType();
-    if (const auto perAxisQType = tileElemType.dyn_cast<mlir::quant::UniformQuantizedPerAxisType>()) {
-        tileElemType = tileScalesAndZP(perAxisQType, tileShape, tileOffsets);
-    }
-
-    auto tileStrides = ndType.getStrides();
-    if (!tileElemStrides.empty()) {
-        VPUX_THROW_UNLESS(tileElemStrides.size() == tileStrides.size(),
-                          "Tile elem strides '{0}' is not aligned with rank '{1}'", tileElemStrides,
-                          tileStrides.size());
-
-        for (auto ind : irange(tileElemStrides.size())) {
-            tileStrides[Dim(ind)] *= tileElemStrides[Dim(ind)];
-        }
-    }
-
-    const auto tileType = getMemRefType(tileShape, tileElemType, order, tileStrides, memSpace);
-
-    const auto loc = mlir::UnknownLoc::get(origType.getContext());
-    VPUX_THROW_UNLESS(validateQuantElemType(loc, tileType).succeeded(), "Got invalid ShapedType '{0}'", tileType);
-
-    return tileType;
-}
-
-mlir::MemRefType vpux::eraseTiledInfo(mlir::MemRefType origType) {
-    // Erase strides and offsets information from memory reference.
-    const auto ndType = origType.cast<vpux::NDTypeInterface>();
-    const auto shape = ndType.getShape();
-    const auto elemType = ndType.getElementType();
-    const auto order = ndType.getDimsOrder();
-    const auto memSpace = ndType.getMemSpace();
-    return getMemRefType(shape, elemType, order, memSpace);
-}
-
 //
 // RankedTensorType utilities
 //

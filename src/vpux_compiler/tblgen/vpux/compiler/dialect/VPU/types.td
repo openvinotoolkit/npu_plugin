@@ -16,6 +16,7 @@
 
 include "vpux/compiler/dialect/VPU/dialect.td"
 include "vpux/compiler/dialect/VPU/attributes.td"
+include "vpux/compiler/dialect/VPU/type_interfaces.td"
 include "vpux/compiler/core/type_interfaces.td"
 
 include "mlir/IR/BuiltinDialect.td"
@@ -36,7 +37,8 @@ def VPU_DistributedTensor :
             "DistributedTensor",
             [
                 DeclareTypeInterfaceMethods<SubElementTypeInterface>,
-                DeclareTypeInterfaceMethods<NDTypeInterface>
+                DeclareTypeInterfaceMethods<NDTypeInterface>,
+                DeclareTypeInterfaceMethods<ClusterTypeInterface>
             ]
         > {
     let summary = "VPU tensor type to describe the tensor tiling";
@@ -57,40 +59,6 @@ def VPU_DistributedTensor :
 
         mlir::AffineMapAttr getOrder() const;
         DistributedTensorAttr getDistribution() const;
-
-        // @brief Retrive the array of compute shapes.
-        // @warning An important thing to consider with regards to compute shapes,
-        // is that modes like SEGMENTED and OVERLAPPED take precedence over
-        // DUPLICATED and MULTICASTED.
-        // In an example case of a "SEGMENTED | DUPLICATED" (needed for SplitOverK)
-        // tensor with shape [1, 64, 4, 4], the compute shape in each cluster is
-        // [1, 16, 4, 4], which is needed when tiling and generating workloads,
-        // while the allocated shape is [1, 64, 4, 4] (because of duplicated)
-        // information which is needed for scheduler and strategy manager,
-        // in order to estimate memory
-        mlir::SmallVector<vpux::Shape> getPerClusterComputeShapes() const;
-
-        // @brief Retrieve the array of compute tensor offsets.
-        // @warning This function should not be used for memory size calculation,
-        // because it does not retrieve the true allocate shape in cases
-        // of broadcasting.
-        mlir::SmallVector<vpux::Shape>  getPerClusterComputeShapeOffsets() const;
-
-        // @brief Get largest compact compute shape
-        // @warning This function should not be used for memory size calculation,
-        // because it does not retrieve the true allocate shape in cases
-        // of broadcasting.
-        vpux::Shape getLargestCompactShape() const;
-
-        // @brief Get the compact compute shape for a specific cluster
-        // @warning This function should not be used for memory size calculation,
-        // because it does not retrieve the true allocate shape in cases
-        // of broadcasting.
-        vpux::Shape getCompactShape(int64_t tileInd) const;
-
-        // @brief Retrieve the array of padding for each cluster
-        // @warning This function is needed for getting padding in OVERLAPPED mode
-        SmallVector<vpux::PadInfo> getPerClusterPadding() const;
     }];
 
     let genVerifyDecl = 1;

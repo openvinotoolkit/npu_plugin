@@ -51,49 +51,35 @@ def CopyOpHoisting : PassBase<"copy-op-hoisting", "vpux::FunctionPass"> {
 
 def OptimizeParallelCopies : PassBase<"optimize-parallel-copies", "vpux::FunctionPass"> {
     let summary = "Copy the data only once for all the tiles that share the same data";
-    
+
     let description = [{
     This pass checks all the CopyOps consumed by tiles of one tiling subgraph.
     If the CopyOps operate on the same weight or activation, merge the parallel copies into one.
     }];
-    
+
     let constructor = "vpux::IERT::createOptimizeParallelCopiesPass()";
 }
 
 //
-// CopyOpLegalization
+// CopyOpTiling
 //
 
-def CopyOpLegalization : PassBase<"legalize-copies", "vpux::FunctionPass"> {
+def CopyOpTiling : PassBase<"tile-copies", "vpux::FunctionPass"> {
     let summary = "Legalizes Copy Ops which do not fit hardware capabilities";
 
     let description = [{
         This pass checks if Copy Op can be executed at target hardware and splits it into a few tiles if necessary.
-    }];
-
-    let constructor = "vpux::IERT::createCopyOpLegalizationPass()";
-}
-
-//
-// CopyOpSplitByPlanes
-//
-
-def CopyOpSplitByPlanes : PassBase<"split-by-planes", "vpux::FunctionPass"> {
-    let summary = "Legalizes Copy Ops which have more than 255 planes";
-
-    let description = [{
-        A tensor may have more than 255 planes, causing the hardware to malfunction. This pass checks if Copy Op has
-        less than 256 planes and splits it into several tiles if necessary. The number of planes is defined by the
-        outermost dimension in the tensor (except for N - batch). Depending on the order of the data in memory, there
-        may be several options for what to count as the number of planes. For example, if the dimension order (from the
-        outermost to the innermost) is NCHW, then HW (height-width) is considered a plane, and the number of planes
-        equals to the value of dimension C. The number of planes for different dimension orders:
+        To fit hardware requirements it should copy less or equal than 16MB(2**24 bytes) and have less than 256 planes.
+        The number of planes is defined by the outermost dimension in the tensor (except for N - batch).
+        Depending on the order of the data in memory, there may be several options for what to count as the number of planes.
+        For example, if the dimension order (from the outermost to the innermost) is NCHW, then HW (height-width) is considered a plane,
+        and the number of planes equals to the value of dimension C. The number of planes for different dimension orders:
         * For NHWC - H
         * For NCHW - C
         * For NWCH - W
     }];
 
-    let constructor = "vpux::IERT::createCopyOpSplitByPlanesPass()";
+    let constructor = "vpux::IERT::createCopyOpTilingPass()";
 }
 
 //

@@ -239,10 +239,6 @@ mlir::MemRefType VPUIP::DistributedBufferType::getCompactType() const {
 // information which is needed for scheduler and strategy manager,
 // in order to estimate memory
 SmallVector<Shape> VPUIP::DistributedBufferType::getPerClusterComputeShapes() const {
-    const auto shape = getShape();
-    const auto strideInReqs = StrideReqs::compact(shape.size());
-    VPUX_THROW_UNLESS(strideInReqs.checkStrides(*this), "Only compact strides are supported");
-
     return VPU::getPerClusterComputeShapes(getShape(), getDistribution());
 }
 
@@ -282,20 +278,41 @@ SmallVector<PadInfo> VPUIP::DistributedBufferType::getPerClusterPadding() const 
     return VPU::getPerClusterPadding(getDistribution());
 }
 
+// @brief Retrieve the array of strided compute shapes
+// @warning This function should not be used for memory size calculation,
+// because it does not retrieve the true allocate shape in cases
+// of broadcasting.
+SmallVector<StridedShape> VPUIP::DistributedBufferType::getPerClusterStridedShapes() const {
+    return VPU::getPerClusterStridedShapes(getShape(), getStrides(), getDimsOrder(), getElemTypeSize(),
+                                           getDistribution());
+}
+
 // @brief Get largest strided compute shape
 // @warning This function should not be used for memory size calculation,
 // because it does not retrieve the true allocate shape in cases
 // of broadcasting.
-Shape VPUIP::DistributedBufferType::getLargestStridedShape() const {
-    VPUX_THROW("getLargestStridedShape method is not implemented for DistributedBufferType");
+StridedShape VPUIP::DistributedBufferType::getLargestStridedShape() const {
+    const auto stridedShapeSize = [](const StridedShape& stridedShape) {
+        return stridedShape.shape.front() * stridedShape.strides.front();
+    };
+
+    const auto stridedShapes = getPerClusterStridedShapes();
+    VPUX_THROW_UNLESS(!stridedShapes.empty(), "Missing per-cluster strided shapes");
+    return *std::max_element(stridedShapes.begin(), stridedShapes.end(),
+                             [&](const StridedShape& a, const StridedShape& b) {
+                                 return stridedShapeSize(a) < stridedShapeSize(b);
+                             });
 }
 
 // @brief Get the strided compute shape for a specific cluster
 // @warning This function should not be used for memory size calculation,
 // because it does not retrieve the true allocate shape in cases
 // of broadcasting.
-Shape VPUIP::DistributedBufferType::getStridedShape(int64_t /*tileInd*/) const {
-    VPUX_THROW("getStridedShape method is not implemented for DistributedBufferType");
+StridedShape VPUIP::DistributedBufferType::getStridedShape(int64_t tileInd) const {
+    const auto stridedShapes = getPerClusterStridedShapes();
+    VPUX_THROW_UNLESS(tileInd < static_cast<int64_t>(stridedShapes.size()),
+                      "Requesting tiled shape outside of cluster pool");
+    return stridedShapes[tileInd];
 }
 
 //
@@ -411,30 +428,53 @@ Byte VPUIP::DistributedBufferType::getCompactAllocSize() const {
     return Byte(getElemTypeSize()) * details::calcTotalShapeSize(tiledShape.raw());
 }
 
-NDTypeInterface VPUIP::DistributedBufferType::changeShape(ShapeRef) const {
+NDTypeInterface VPUIP::DistributedBufferType::changeShape(ShapeRef /*shape*/) const {
     VPUX_THROW("changeShape method is not implemented for DistributedBufferType");
 }
 
-NDTypeInterface VPUIP::DistributedBufferType::changeElemType(mlir::Type) const {
+NDTypeInterface VPUIP::DistributedBufferType::changeElemType(mlir::Type /*elemType*/) const {
     VPUX_THROW("changeElemType method is not implemented for DistributedBufferType");
 }
 
-NDTypeInterface VPUIP::DistributedBufferType::changeShapeElemType(ShapeRef, mlir::Type) const {
+NDTypeInterface VPUIP::DistributedBufferType::changeShapeElemType(ShapeRef /*shape*/, mlir::Type /*elemType*/) const {
     VPUX_THROW("changeShapeElemType method is not implemented for DistributedBufferType");
 }
 
-NDTypeInterface VPUIP::DistributedBufferType::changeDimsOrder(DimsOrder) const {
+NDTypeInterface VPUIP::DistributedBufferType::changeDimsOrder(DimsOrder /*order*/) const {
     VPUX_THROW("changeDimsOrder method is not implemented for DistributedBufferType");
 }
 
-NDTypeInterface VPUIP::DistributedBufferType::changeMemSpace(IndexedSymbolAttr) const {
+NDTypeInterface VPUIP::DistributedBufferType::changeMemSpace(IndexedSymbolAttr /*memSpace*/) const {
     VPUX_THROW("changeMemSpace method is not implemented for DistributedBufferType");
 }
 
-NDTypeInterface VPUIP::DistributedBufferType::extractDenseTile(ShapeRef, ShapeRef) const {
+NDTypeInterface VPUIP::DistributedBufferType::changeStrides(StridesRef strides) const {
+    const auto ctx = getContext();
+    const auto elemSize = getElemTypeSize().count();
+    const auto order = mlir::AffineMapAttr::get(getDimsOrder().toAffineMap(ctx));
+    const auto newStrides = to_small_vector(strides | transformed([&](Bit stride) {
+                                                return stride.count() / elemSize;
+                                            }));
+    const auto newStridesAttr = getIntArrayAttr(ctx, newStrides);
+    const auto newDescAttr = IERT::MemRefAttr::get(order, newStridesAttr, ctx);
+    return VPUIP::DistributedBufferType::get(ctx, getShape().raw(), getElementType(), newDescAttr, getMemSpace(),
+                                             getDistribution());
+}
+
+NDTypeInterface VPUIP::DistributedBufferType::extractDenseTile(ShapeRef /*tileOffsets*/, ShapeRef /*tileShape*/) const {
     VPUX_THROW("extractDenseTile method is not implemented for DistributedBufferType");
 }
 
-NDTypeInterface VPUIP::DistributedBufferType::pad(ShapeRef, ShapeRef) const {
+NDTypeInterface VPUIP::DistributedBufferType::extractViewTile(vpux::ShapeRef /*tileOffsets*/,
+                                                              vpux::ShapeRef /*tileShape*/,
+                                                              vpux::ShapeRef /*tileElemStrides*/) const {
+    VPUX_THROW("extractViewTile method is not implemented for DistributedBufferType");
+}
+
+NDTypeInterface VPUIP::DistributedBufferType::eraseTiledInfo() const {
+    VPUX_THROW("eraseTiledInfo method is not implemented for DistributedBufferType");
+}
+
+NDTypeInterface VPUIP::DistributedBufferType::pad(ShapeRef /*padBefore*/, ShapeRef /*padAfter*/) const {
     VPUX_THROW("pad method is not implemented for DistributedBufferType");
 }

@@ -34,23 +34,13 @@ class VPUXSoftMaxLayerTest : public SoftMaxLayerTest, virtual public VPUXLayerTe
             }
         }
 
-        if (isPlatformMTL()) {
-            if (std::getenv("OV_BUILD_DIR") == nullptr) {
-                return {"OV_BUILD_DIR env directory must be specified, in order to reach act-shave kernels."};
-            }
-
-#if defined(__arm__) || defined(__aarch64__) || defined(_WIN32) || defined(_WIN64)
-            return {"Does not compile on ARM and Windows."};
-#endif
-        }
-
         return vpux::None;
     }
 
     SkipMessage SkipBeforeInfer() override {
 #ifndef ENABLE_IMD_BACKEND
         if (isPlatformMTL()) {
-            return {"Runtime issue."};
+            return {"MTL inference requires IMD backend."};
         }
 #endif
 

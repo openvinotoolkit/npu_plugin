@@ -30,20 +30,14 @@ class KmbMvnLayerTestMLIR_MTL : public Mvn1LayerTest, virtual public LayerTestsU
         inPrc = InferenceEngine::Precision::FP16;
         outPrc = InferenceEngine::Precision::FP16;
     }
-    void SkipBeforeLoad() override {
-        if (std::getenv("OV_BUILD_DIR") == nullptr) {
-            throw LayerTestsUtils::KmbSkipTestException(
-                    "OV_BUILD_DIR env directory must be specified, in order to reach act-shave kernels.");
-        }
 
-#if defined(__arm__) || defined(__aarch64__) || defined(_WIN32) || defined(_WIN64)
-        throw LayerTestsUtils::KmbSkipTestException("Does not compile on ARM and Windows.");
-#endif
-    }
     void SkipBeforeInfer() override {
-        // Format of act-shave tensors serialization doesn't match with kernel expectation
         // [EISW-29786]
-        throw LayerTestsUtils::KmbSkipTestException("Runtime issue.");
+        throw LayerTestsUtils::KmbSkipTestException("Format of act-shave tensors serialization doesn't match with kernel expectation.");
+
+#ifndef ENABLE_IMD_BACKEND
+        throw LayerTestsUtils::KmbSkipTestException("MTL inference requires IMD backend.");
+#endif
     }
 };
 
@@ -95,7 +89,7 @@ const std::vector<std::vector<size_t>> inputShapes = {
     {7, 32, 2, 8},
     {5, 8, 3, 5},
     {4, 41, 6, 9},
-// Currently input dim > 4 is not supported by KMB-plugin and mcmCompiler 
+// Currently input dim > 4 is not supported by KMB-plugin and mcmCompiler
     {1, 32, 8, 1, 6},
     {1, 9, 1, 15, 9},
     {6, 64, 6, 1, 18},
@@ -104,7 +98,7 @@ const std::vector<std::vector<size_t>> inputShapes = {
 #endif
 };
 
-// only 4d and 5d input shape is supported according to the OpenVino documentation 
+// only 4d and 5d input shape is supported according to the OpenVino documentation
 const std::vector<std::vector<size_t>> MLIRinputShapes = {
     {1, 16, 5, 8},
 #if 0

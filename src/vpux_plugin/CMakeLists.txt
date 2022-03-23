@@ -260,3 +260,24 @@ if(ENABLE_HDDL2 AND UNIX)
         add_dependencies(${VPUX_PLUGIN_TARGET} vpux_hddl2_backend hddl_unite_copy)
     endif()
 endif()
+
+add_custom_target(act_shave_kernels_copy ALL
+    COMMAND
+        ${CMAKE_COMMAND} -E remove_directory
+            "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${CMAKE_CFG_INTDIR}/vpux/act_shave_bin"
+    COMMAND
+        ${CMAKE_COMMAND} -E copy_directory
+            "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/sw_runtime_kernels/kernels/prebuild/act_shave_bin"
+            "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${CMAKE_CFG_INTDIR}/vpux/act_shave_bin"
+)
+add_dependencies(${VPUX_PLUGIN_TARGET} act_shave_kernels_copy)
+install(
+    DIRECTORY   "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/sw_runtime_kernels/kernels/prebuild/act_shave_bin/"
+    DESTINATION "${IE_CPACK_RUNTIME_PATH}/vpux/act_shave_bin"
+    COMPONENT    ${VPUX_PLUGIN_COMPONENT}
+)
+install(
+    DIRECTORY   "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/sw_runtime_kernels/kernels/prebuild/act_shave_bin/"
+    DESTINATION "${IE_CPACK_RUNTIME_PATH}/vpux/act_shave_bin"
+    COMPONENT    tests
+)

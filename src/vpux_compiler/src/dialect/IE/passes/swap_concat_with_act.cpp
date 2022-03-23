@@ -63,8 +63,43 @@ private:
     Logger _log;
 };
 
+bool isLegalFQ(IE::FakeQuantizeOp op) {
+    const auto axis = IE::getFQAxisIndex(op);
+    if (axis.hasValue()) {
+        return true;
+    }
+
+    auto fqInput = op.input();
+    auto maybeEltwiseOp = fqInput.getDefiningOp();
+    if (maybeEltwiseOp == nullptr || !maybeEltwiseOp->hasTrait<IE::EltwiseOp>()) {
+        return true;
+    }
+
+    auto eltwiseInput = maybeEltwiseOp->getOperand(0);
+    auto maybeConcatOp = eltwiseInput.getDefiningOp<IE::ConcatOp>();
+    if (maybeConcatOp == nullptr) {
+        return true;
+    }
+
+    if (!maybeConcatOp->hasOneUse()) {
+        return true;
+    }
+
+    const auto concatInputList = maybeConcatOp.inputs();
+    for (const auto& concatInput : concatInputList) {
+        if (mlir::isa_and_nonnull<IE::ConvolutionOp>(concatInput.getDefiningOp())) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 mlir::LogicalResult SwapConcatWithEltwise::FakeQuantOpConverter::matchAndRewrite(
         IE::FakeQuantizeOp origOp, mlir::PatternRewriter& rewriter) const {
+    if (isLegalFQ(origOp)) {
+        return mlir::failure();
+    }
     auto origActOp = origOp.input().getDefiningOp();
     auto origConcatOp = origActOp->getOperand(0).getDefiningOp<IE::ConcatOp>();
     const auto concatInputList = origConcatOp.inputs();
@@ -79,11 +114,8 @@ mlir::LogicalResult SwapConcatWithEltwise::FakeQuantOpConverter::matchAndRewrite
         newConcatInputs.push_back(newFqOp.output());
     }
 
-    auto concatOp = rewriter.create<IE::ConcatOp>(origOp->getLoc(), newConcatInputs, origConcatOp.per_axisAttr(),
-                                                  origConcatOp.static_offsetsAttr());
-    rewriter.eraseOp(origActOp);
-    rewriter.eraseOp(origConcatOp);
-    rewriter.replaceOp(origOp, concatOp.output());
+    rewriter.replaceOpWithNewOp<IE::ConcatOp>(origOp, newConcatInputs, origConcatOp.per_axisAttr(),
+                                              origConcatOp.static_offsetsAttr());
 
     return mlir::success();
 }
@@ -91,48 +123,11 @@ mlir::LogicalResult SwapConcatWithEltwise::FakeQuantOpConverter::matchAndRewrite
 void SwapConcatWithEltwise::safeRunOnFunc() {
     auto& ctx = getContext();
 
-    const auto isLegalFQ = [](IE::FakeQuantizeOp op) -> bool {
-        const auto axis = IE::getFQAxisIndex(op);
-        if (axis.hasValue()) {
-            return true;
-        }
-
-        auto fqInput = op.input();
-        auto maybeEltwiseOp = fqInput.getDefiningOp();
-        if (maybeEltwiseOp == nullptr || !maybeEltwiseOp->hasTrait<IE::EltwiseOp>()) {
-            return true;
-        }
-
-        auto eltwiseInput = maybeEltwiseOp->getOperand(0);
-        auto maybeConcatOp = eltwiseInput.getDefiningOp<IE::ConcatOp>();
-        if (maybeConcatOp == nullptr) {
-            return true;
-        }
-
-        if (!maybeConcatOp->hasOneUse()) {
-            return true;
-        }
-
-        const auto concatInputList = maybeConcatOp.inputs();
-        for (const auto& concatInput : concatInputList) {
-            if (mlir::isa_and_nonnull<IE::ConvolutionOp>(concatInput.getDefiningOp())) {
-                return false;
-            }
-        }
-
-        return true;
-    };
-
-    mlir::ConversionTarget target(ctx);
-    target.addDynamicallyLegalOp<IE::FakeQuantizeOp>(isLegalFQ);
-    target.addLegalOp<IE::LeakyReluOp>();
-    target.addLegalOp<IE::ConcatOp>();
-
     mlir::RewritePatternSet patterns(&ctx);
     patterns.insert<SwapConcatWithEltwise::FakeQuantOpConverter>(&ctx, _log);
 
     auto func = getFunction();
-    if (mlir::failed(mlir::applyPartialConversion(func, target, std::move(patterns)))) {
+    if (mlir::failed(mlir::applyPatternsAndFoldGreedily(func, std::move(patterns), getDefaultGreedyRewriteConfig()))) {
         signalPassFailure();
     }
 }

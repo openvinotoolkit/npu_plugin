@@ -13,6 +13,7 @@
 
 #include "vpux/compiler/dialect/VPU/attributes.hpp"
 
+#include "vpux/compiler/core/attributes/stride_reqs.hpp"
 #include "vpux/compiler/core/tiling.hpp"
 #include "vpux/compiler/dialect/IE/attributes/structs.hpp"
 #include "vpux/compiler/dialect/IE/ops.hpp"
@@ -608,6 +609,65 @@ SmallVector<PadInfo> vpux::VPU::getPerClusterPadding(DistributedTensorAttr distr
     perClusterPadInfo.push_back(PadInfo(left, right, 0, bottom));
 
     return perClusterPadInfo;
+}
+
+SmallVector<StridedShape> vpux::VPU::getPerClusterStridedShapes(ShapeRef shape, StridesRef strides, DimsOrder dimsOrder,
+                                                                Bit elemSize, DistributedTensorAttr distributionAttr) {
+    const auto distributionMode = distributionAttr.mode().getValue();
+    const auto computeShapes = getPerClusterComputeShapes(shape, distributionAttr);
+
+    SmallVector<StridedShape> stridedShapes;
+    if (VPU::bitEnumContains(distributionMode, VPU::DistributionMode::DUPLICATED)) {
+        for (const auto& computeShape : computeShapes) {
+            stridedShapes.emplace_back(computeShape, strides);
+        }
+        return stridedShapes;
+    }
+
+    if (VPU::bitEnumContains(distributionMode, VPU::DistributionMode::SEGMENTED) ||
+        VPU::bitEnumContains(distributionMode, VPU::DistributionMode::OVERLAPPED)) {
+        const auto memShape = dimsOrder.toMemoryOrder(shape);
+        const auto memStrides = dimsOrder.toMemoryOrder(strides);
+
+        // Compute the ratio between the compact and actual strides and apply it to the tiles.
+        // For example, a distributed type SEGMENTED over height into 4 tiles with:
+        //   shape              [1, 64, 16, 4]
+        //   compact strides    [64*4*16, 1, 64*4, 64]
+        //   actual strides     [128*4*16, 1, 128*4, 128]
+        //   strides multiplier [2, 1, 2, 2]
+        // will have the following strided shapes:
+        //   shape              [1, 64, 4, 4]
+        //   compact strides    [64*4*4, 1, 64*4, 64]
+        //   actual strides     [128*4*4, 1, 128*4, 128]
+        const auto compactStrideReqs = StrideReqs::compact(dimsOrder.numDims());
+        const auto compactMemStrides = compactStrideReqs.calcStrides(elemSize, memShape);
+        SmallVector<int64_t> stridesMultiplier(memStrides.size());
+        std::transform(memStrides.begin(), memStrides.end(), compactMemStrides.begin(), stridesMultiplier.begin(),
+                       [](Bit stride, Bit compactStride) {
+                           VPUX_THROW_UNLESS(stride.count() % compactStride.count() == 0,
+                                             "Stride {0} is not a multiple of the compact stride {1}", stride.count(),
+                                             compactStride.count());
+                           return stride.count() / compactStride.count();
+                       });
+
+        for (const auto& computeShape : computeShapes) {
+            const auto computeMemShape = dimsOrder.toMemoryOrder(Shape(computeShape));
+            const auto computeCompactMemStrides = compactStrideReqs.calcStrides(elemSize, computeMemShape);
+
+            SmallVector<Bit> computeMemStrides(computeCompactMemStrides.size());
+            for (auto p : zip(computeCompactMemStrides, stridesMultiplier) | indexed) {
+                const auto dim = std::get<0>(p.value());
+                const auto mul = std::get<1>(p.value());
+                computeMemStrides[p.index()] = Bit(dim.count() * mul);
+            }
+            const auto computeStrides = dimsOrder.toLogicalOrder(MemStrides(computeMemStrides));
+            stridedShapes.emplace_back(computeShape, computeStrides);
+        }
+
+        return stridedShapes;
+    }
+
+    VPUX_THROW("Unsupported mode '{0}'", VPU::stringifyEnum(distributionMode));
 }
 
 //

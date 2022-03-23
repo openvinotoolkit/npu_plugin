@@ -233,6 +233,10 @@ vpux::NDTypeInterface TensorNDTypeInterface::changeMemSpace(mlir::Type type, vpu
                                IE::isSparse(tensor));
 }
 
+vpux::NDTypeInterface TensorNDTypeInterface::changeStrides(mlir::Type /*type*/, vpux::StridesRef /*strides*/) const {
+    VPUX_THROW("Tensors only support compact strides");
+}
+
 vpux::NDTypeInterface TensorNDTypeInterface::extractDenseTile(mlir::Type type, vpux::ShapeRef tileOffsets,
                                                               vpux::ShapeRef tileShape) const {
     VPUX_THROW_UNLESS(type.isa<mlir::RankedTensorType>(),
@@ -250,6 +254,16 @@ vpux::NDTypeInterface TensorNDTypeInterface::extractDenseTile(mlir::Type type, v
     VPUX_THROW_UNLESS(vpux::validateQuantElemType(loc, newType).succeeded(), "Got invalid ShapedType '{0}'", newType);
 
     return newType;
+}
+
+vpux::NDTypeInterface TensorNDTypeInterface::extractViewTile(mlir::Type /*type*/, vpux::ShapeRef /*tileOffsets*/,
+                                                             vpux::ShapeRef /*tileShape*/,
+                                                             vpux::ShapeRef /*tileElemStrides*/) const {
+    VPUX_THROW("Tensors only support compact strides");
+}
+
+vpux::NDTypeInterface TensorNDTypeInterface::eraseTiledInfo(mlir::Type type) const {
+    return type;
 }
 
 vpux::NDTypeInterface TensorNDTypeInterface::pad(mlir::Type type, vpux::ShapeRef padBefore,
@@ -512,12 +526,59 @@ vpux::NDTypeInterface MemRefNDTypeInterface::changeMemSpace(mlir::Type type, vpu
             });
 }
 
+vpux::NDTypeInterface MemRefNDTypeInterface::changeStrides(mlir::Type type, vpux::StridesRef strides) const {
+    VPUX_THROW_UNLESS(type.isa<mlir::MemRefType>(), "Only MemRefType is supported for 'changeStrides'. Got '{0}'",
+                      type);
+    return vpux::getMemRefType(getShape(type), getElementType(type), getDimsOrder(type), strides, getMemSpace(type));
+}
+
 vpux::NDTypeInterface MemRefNDTypeInterface::extractDenseTile(mlir::Type type, vpux::ShapeRef tileOffsets,
                                                               vpux::ShapeRef tileShape) const {
     VPUX_THROW_UNLESS(type.isa<mlir::MemRefType>(), "Only MemRefType is supported for 'extractDenseTile'. Got '{0}'",
                       type);
-    const auto memref = type.cast<mlir::MemRefType>();
-    return vpux::eraseTiledInfo(vpux::getViewTileType(memref, tileOffsets, tileShape));
+    return eraseTiledInfo(extractViewTile(type, tileOffsets, tileShape, {}));
+}
+
+vpux::NDTypeInterface MemRefNDTypeInterface::extractViewTile(mlir::Type type, vpux::ShapeRef tileOffsets,
+                                                             vpux::ShapeRef tileShape,
+                                                             vpux::ShapeRef tileElemStrides) const {
+    VPUX_THROW_UNLESS(type.isa<mlir::MemRefType>(), "Only MemRefType is supported for 'extractViewTile'. Got '{0}'",
+                      type);
+    const auto order = getDimsOrder(type);
+    const auto memSpace = getMemSpace(type);
+
+    auto tileElemType = getElementType(type);
+    if (const auto perAxisQType = tileElemType.dyn_cast<mlir::quant::UniformQuantizedPerAxisType>()) {
+        tileElemType = vpux::tileScalesAndZP(perAxisQType, tileShape, tileOffsets);
+    }
+
+    auto tileStrides = getStrides(type);
+    if (!tileElemStrides.empty()) {
+        VPUX_THROW_UNLESS(tileElemStrides.size() == tileStrides.size(),
+                          "Tile elem strides '{0}' is not aligned with rank '{1}'", tileElemStrides,
+                          tileStrides.size());
+
+        for (auto ind : irange(tileElemStrides.size())) {
+            tileStrides[Dim(ind)] *= tileElemStrides[Dim(ind)];
+        }
+    }
+
+    const auto tileType = vpux::getMemRefType(tileShape, tileElemType, order, tileStrides, memSpace);
+
+    const auto loc = mlir::UnknownLoc::get(type.getContext());
+    VPUX_THROW_UNLESS(vpux::validateQuantElemType(loc, tileType).succeeded(), "Got invalid tile type '{0}'", tileType);
+
+    return tileType;
+}
+
+vpux::NDTypeInterface MemRefNDTypeInterface::eraseTiledInfo(mlir::Type type) const {
+    VPUX_THROW_UNLESS(type.isa<mlir::MemRefType>(), "Only MemRefType is supported for 'eraseTiledInfo'. Got '{0}'",
+                      type);
+    const auto shape = getShape(type);
+    const auto elemType = getElementType(type);
+    const auto order = getDimsOrder(type);
+    const auto memSpace = getMemSpace(type);
+    return vpux::getMemRefType(shape, elemType, order, memSpace);
 }
 
 vpux::NDTypeInterface MemRefNDTypeInterface::pad(mlir::Type type, vpux::ShapeRef padBefore,

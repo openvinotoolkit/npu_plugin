@@ -28,36 +28,21 @@ Therefore, it is proposed to create a new test suite:
 
 ```cpp
 class KmbActivationLayerTest_MTL : public KmbActivationLayerTest {
-    void SkipBeforeLoad() override {
-        if (std::getenv("OV_BUILD_DIR") == nullptr) {
-            throw LayerTestsUtils::KmbSkipTestException(
-                    "OV_BUILD_DIR env directory must be specified, in order to reach act-shave kernels.");
-        }
-
-#if defined(__arm__) || defined(__aarch64__) || defined(_WIN32) || defined(_WIN64)
-        throw LayerTestsUtils::KmbSkipTestException("Does not compile on ARM and Windows.");
-#endif
-    }
     void SkipBeforeInfer() override {
-        throw LayerTestsUtils::KmbSkipTestException("Runtime issue.");
+#ifndef ENABLE_IMD_BACKEND
+        throw LayerTestsUtils::KmbSkipTestException("MTL inference requires IMD backend.");
+#endif
     }
 };
 ```
 
-In case of the OV2.0 test framework:  
+In case of the OV2.0 test framework:
 ```cpp
 class VPUXActivationLayerTest_MTL : public VPUXLayerTestsCommon {
-    SkipMessage SkipBeforeLoad() override {
-        if (std::getenv("OV_BUILD_DIR") == nullptr) {
-            return {"OV_BUILD_DIR env directory must be specified, in order to reach act-shave kernels."};
-        }
-
-#if defined(__arm__) || defined(__aarch64__) || defined(_WIN32) || defined(_WIN64)
-        return {"OV_BUILD_DIR env directory must be specified, in order to reach act-shave kernels."};
-#endif
-    }
     SkipMessage SkipBeforeInfer() override {
-        return {"Runtime issue"};
+#ifndef ENABLE_IMD_BACKEND
+        return {"MTL inference requires IMD backend."};
+#endif
     }
 };
 ```
@@ -76,7 +61,7 @@ TEST_P(KmbActivationLayerTest_MTL, CompareWithRefs_MLIR) {
 The rest of the actions coincide with the testing of remaining SW/HW layers
 
 ## VPUIP Dialect
-In VPUIP dialect all MTL software layers are represented via `VPUIP::SwKernelOp` operation:  
+In VPUIP dialect all MTL software layers are represented via `VPUIP::SwKernelOp` operation:
 ```cpp
 [[SOFTMAX_OUT:%.*]] = VPUIP.SW.Kernel @VPU.SW::@builtin_SoftMax inputs([[VAR1]] : memref<1x1x1x1000xf16, "CMX_NN">) outputs([[VAR2]] : memref<1x1x1x1000xf16, "CMX_NN">) on tile 0 -> memref<1x1x1x1000xf16, "CMX_NN">  {
 ^bb0(%arg2: memref<1x1x1x1000xf16, "CMX_NN">, %arg3: memref<1x1x1x1000xf16, "CMX_NN">):
@@ -89,7 +74,7 @@ This operation differs from the others in that it contains an internal region in
 To convert operations from IERT dialect to VPUIP, follow next steps.
 
 ### Register interface for IERT
-Register `SoftwareLayerOpInterface` interface for new operation:  
+Register `SoftwareLayerOpInterface` interface for new operation:
 [src/vpux_compiler/src/dialect/VPUIP/ops.cpp](../src/dialect/VPUIP/ops.cpp)
 ```cpp
 //
@@ -114,7 +99,7 @@ struct KernelInfo final {
 };
 ```
 
-Provide the necessary information:  
+Provide the necessary information:
 [src/vpux_compiler/src/dialect/VPUIP/ops/sw_kernel.cpp](../src/dialect/VPUIP/ops/sw_kernel.cpp)
 ```cpp
 IERT::KernelInfo SwKernelOp::getKernelInfo(mlir::Operation* origOp) {
