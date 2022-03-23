@@ -1,3 +1,8 @@
+#
+# Copyright (C) 2022 Intel Corporation
+# SPDX-License-Identifier: Apache 2.0
+#
+
 # utility for extracting info from IRs
 import os
 import sys

@@ -1,3 +1,8 @@
+#
+# Copyright (C) 2022 Intel Corporation
+# SPDX-License-Identifier: Apache 2.0
+#
+
 # main script for testing output from cutted Tiny Yolo v2
 
 import tensorflow as tf

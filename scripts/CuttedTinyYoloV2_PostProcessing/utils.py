@@ -1,3 +1,8 @@
+#
+# Copyright (C) 2022 Intel Corporation
+# SPDX-License-Identifier: Apache 2.0
+#
+
 import numpy as np
 import os
 import xml.etree.ElementTree as ET

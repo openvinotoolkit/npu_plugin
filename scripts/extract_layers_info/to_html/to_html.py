@@ -1,4 +1,9 @@
-﻿import os.path
+#
+# Copyright (C) 2022 Intel Corporation
+# SPDX-License-Identifier: Apache 2.0
+#
+
+import os.path
 import sys
 from pathlib import Path
 import re

@@ -1,3 +1,8 @@
+#
+# Copyright (C) 2022 Intel Corporation
+# SPDX-License-Identifier: Apache 2.0
+#
+
 # module with functions for extract information from IR's layers
 import xml.etree.ElementTree as ET
 import os

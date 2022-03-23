@@ -1,3 +1,8 @@
+#
+# Copyright (C) 2022 Intel Corporation
+# SPDX-License-Identifier: Apache 2.0
+#
+
 import cv2
 from tensorpack.dataflow import imgaug
 import matplotlib.pyplot as plt
