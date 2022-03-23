@@ -70,6 +70,13 @@ def ClusterTypeInterface : TypeInterface<"ClusterTypeInterface"> {
             "Shape", "getCompactShape", (ins "int64_t":$tileInd)
         >,
 
+        InterfaceMethod<[{
+            @brief Retrieve the array of padding for each cluster
+            @warning This function is needed for getting padding in OVERLAPPED mode
+            }],
+            "SmallVector<vpux::PadInfo>", "getPerClusterPadding", (ins)
+        >,
+
        InterfaceMethod<[{
             @brief Retrieve the array of strided compute shapes
             @warning This function should not be used for memory size calculation,

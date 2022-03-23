@@ -59,6 +59,16 @@ Shape getCompactShape(int64_t tileInd);
 
 NOTE: This method *must* be implemented by the user.
 
+#### `getPerClusterPadding`
+
+```c++
+SmallVector<vpux::PadInfo> getPerClusterPadding();
+```
+@brief Retrieve the array of padding for each cluster
+@warning This function is needed for getting padding in OVERLAPPED mode
+
+NOTE: This method *must* be implemented by the user.
+
 #### `getPerClusterStridedShapes`
 
 ```c++

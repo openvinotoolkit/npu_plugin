@@ -13,6 +13,7 @@
 
 #include "vpux/compiler/core/tiling.hpp"
 #include "vpux/compiler/dialect/VPU/attributes.hpp"
+#include "vpux/compiler/dialect/VPU/cost_model.hpp"
 #include "vpux/compiler/dialect/VPUIP/dpu_tiler.hpp"
 #include "vpux/compiler/init.hpp"
 
@@ -40,17 +41,6 @@ struct NceOpTensorShape {
     vpux::Shape outputShape;
 };
 
-vpux::SmallString getVPUNNModelFile() {
-    vpux::SmallString modelDir;
-    // probe for OpenVINO runtime dir
-    auto ovBuildDir = InferenceEngine::getIELibraryPath();
-    modelDir = ovBuildDir;
-    llvm::sys::path::append(modelDir, "vpunn");
-    llvm::sys::path::append(modelDir, "vpu_2_0.vpunn");
-    VPUX_THROW_UNLESS(llvm::sys::fs::exists(modelDir), "vpunn model {0} does not exist", modelDir);
-    return modelDir;
-}
-
 vpux::VPUIP::WorkloadCostParams buildWorkloadCost(const NceOpTensorShape& tensorShape, vpux::VPU::MPEMode mpeMode,
                                                   mlir::MLIRContext* ctx) {
     const auto outputShape = tensorShape.outputShape;
@@ -76,8 +66,8 @@ TEST(MLIR_VPU_WorkloadCost, VPUNNCostInterface) {
     llvm::SmallVector<vpux::VPU::MPEMode> mpeModeList{vpux::VPU::MPEMode::VECTOR_FP16, vpux::VPU::MPEMode::VECTOR,
                                                       vpux::VPU::MPEMode::MATRIX, vpux::VPU::MPEMode::CUBOID_4x16};
 
-    auto modelPath = getVPUNNModelFile();
-    auto costModel = std::make_shared<VPUNN::VPUCostModel>(modelPath.str().str());
+    const auto costModel = vpux::VPU::createCostModel(vpux::VPU::ArchKind::KMB);
+
     llvm::SmallVector<NceOpTensorShape> testTensorLists;
     for (int64_t h = initDimensionValue; h < maxDimensionValue; h *= testStep) {
         for (int64_t w = initDimensionValue; w < maxDimensionValue; w *= testStep) {

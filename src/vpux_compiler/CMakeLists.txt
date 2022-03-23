@@ -345,6 +345,28 @@ if(NOT ENABLE_MLIR_COMPILER)
 endif()
 
 #
+# Embed VPUNN models
+#
+
+find_package(Git REQUIRED)
+
+execute_process(
+    COMMAND ${GIT_EXECUTABLE} lfs pull
+    WORKING_DIRECTORY "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/thirdparty/vpucostmodel"
+)
+
+vpux_embed_bin_file(
+    SOURCE_FILE "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/thirdparty/vpucostmodel/models/vpu_2_0.vpunn"
+    HEADER_FILE "${CMAKE_CURRENT_BINARY_DIR}/${gen_base_dst_include_dir}/dialect/VPU/generated/cost_model_data_2_0.hpp.inc"
+    VARIABLE_NAME "COST_MODEL_2_0"
+)
+vpux_embed_bin_file(
+    SOURCE_FILE "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/thirdparty/vpucostmodel/models/vpu_2_7.vpunn"
+    HEADER_FILE "${CMAKE_CURRENT_BINARY_DIR}/${gen_base_dst_include_dir}/dialect/VPU/generated/cost_model_data_2_7.hpp.inc"
+    VARIABLE_NAME "COST_MODEL_2_7"
+)
+
+#
 # OBJECT target
 #
 
@@ -417,15 +439,7 @@ target_include_directories(${OBJ_TARGET_NAME}
         $<BUILD_INTERFACE:${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/sw_runtime_kernels>
 )
 
-find_package(Git REQUIRED)
-add_custom_target(download_vpunn_model ALL
-        COMMAND ${GIT_EXECUTABLE} lfs pull
-        WORKING_DIRECTORY ${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/thirdparty/vpucostmodel)
-add_custom_target(copy-vpunn-model ALL
-        COMMAND ${CMAKE_COMMAND} -E copy_directory ${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/thirdparty/vpucostmodel/models ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${CMAKE_CFG_INTDIR}/vpunn
-        DEPENDS download_vpunn_model)
 
-add_dependencies(${OBJ_TARGET_NAME} inferenceStatic copy-vpunn-model)
 
 link_system_libraries(${OBJ_TARGET_NAME}
     PUBLIC
@@ -503,10 +517,9 @@ install(TARGETS ${TARGET_NAME} EXPORT OpenVINOTargets
         ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT ${VPUX_PLUGIN_COMPONENT}
         LIBRARY DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT ${VPUX_PLUGIN_COMPONENT})
 
-install(DIRECTORY   "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/thirdparty/vpucostmodel/models/"
-        DESTINATION "${IE_CPACK_RUNTIME_PATH}/vpunn"
-        COMPONENT    ${VPUX_PLUGIN_COMPONENT})
-
-install(DIRECTORY   "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/thirdparty/vpucostmodel/models/"
-        DESTINATION "${IE_CPACK_RUNTIME_PATH}/vpunn"
-        COMPONENT    tests)
+if(TARGET vpux_elf)
+    install(TARGETS vpux_elf EXPORT OpenVINOTargets
+            RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT ${VPUX_PLUGIN_COMPONENT}
+            ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT ${VPUX_PLUGIN_COMPONENT}
+            LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT ${VPUX_PLUGIN_COMPONENT})
+endif()

@@ -56,8 +56,15 @@ static void propagate_down(std::shared_ptr<ngraph::Node> fq_node, std::shared_pt
             if (all_consumers_has_fq(node_output))
                 continue;
 
+            auto consumers = node_output.get_target_inputs();
+            if (std::all_of(consumers.begin(), consumers.end(),
+                            [](const auto consumer) {
+                            return std::dynamic_pointer_cast<ngraph::op::v0::Result>(consumer.get_node()->shared_from_this()) != nullptr;})) {
+                continue;
+            }
+
             auto new_fq_node = clone_fq_node(fq_node, node_output, copy_num);
-            for (auto consumer : node_output.get_target_inputs()) {
+            for (auto consumer : consumers) {
                 // if FQ already exist - we don't need to generate a copy
                 // also we can't insert FQ before Result node to keep output layer search logic
                 const auto consumer_as_fq = std::dynamic_pointer_cast<ngraph::op::v0::FakeQuantize>(consumer.get_node()->shared_from_this());
@@ -67,6 +74,7 @@ static void propagate_down(std::shared_ptr<ngraph::Node> fq_node, std::shared_pt
                     consumer.replace_source_output(new_fq_node);
                 }
             }
+
             propogate_fq(new_fq_node, copy_num);
         }
     }

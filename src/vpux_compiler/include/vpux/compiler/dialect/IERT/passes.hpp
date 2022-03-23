@@ -40,7 +40,6 @@ std::unique_ptr<mlir::Pass> createOptimizeCopiesPass(Logger log = Logger::global
 std::unique_ptr<mlir::Pass> createCopyOpHoistingPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createOptimizeParallelCopiesPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createCopyOpTilingPass(Logger log = Logger::global());
-std::unique_ptr<mlir::Pass> createCMXConcatPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createSetInternalMemorySpacePass(AttrCreateFunc memSpaceCb, Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createStaticAllocationPass(AttrCreateFunc memSpaceCb, Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createLinearizationPass(Logger log = Logger::global());

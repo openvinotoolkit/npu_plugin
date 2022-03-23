@@ -589,6 +589,28 @@ SmallVector<Shape> vpux::VPU::getPerClusterComputeShapeOffsets(ShapeRef shapeRef
     return tiledComputeShapeOffsets;
 }
 
+SmallVector<PadInfo> vpux::VPU::getPerClusterPadding(DistributedTensorAttr distributionAttr) {
+    const auto mode = distributionAttr.mode().getValue();
+    VPUX_THROW_UNLESS(mode == VPU::DistributionMode::OVERLAPPED,
+                      "Currently getting per cluster padding is supported only for OVERLAPPED, mode - {0}",
+                      VPU::stringifyDistributionMode(mode));
+
+    SmallVector<PadInfo> perClusterPadInfo;
+    const auto pads = distributionAttr.pads();
+    const auto top = pads.top().getInt();
+    const auto bottom = pads.bottom().getInt();
+    const auto left = pads.left().getInt();
+    const auto right = pads.right().getInt();
+
+    perClusterPadInfo.push_back(PadInfo(left, right, top, 0));
+    for (auto cluster = 1; cluster < distributionAttr.num_clusters().getInt() - 1; cluster++) {
+        perClusterPadInfo.push_back(PadInfo(left, right, 0, 0));
+    }
+    perClusterPadInfo.push_back(PadInfo(left, right, 0, bottom));
+
+    return perClusterPadInfo;
+}
+
 SmallVector<StridedShape> vpux::VPU::getPerClusterStridedShapes(ShapeRef shape, StridesRef strides, DimsOrder dimsOrder,
                                                                 Bit elemSize, DistributedTensorAttr distributionAttr) {
     const auto distributionMode = distributionAttr.mode().getValue();

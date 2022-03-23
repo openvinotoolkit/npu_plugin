@@ -20,6 +20,7 @@
 #include "vpux/compiler/dialect/VPU/ops.hpp"
 #include "vpux/compiler/dialect/VPU/utils.hpp"
 #include "vpux/utils/core/checked_cast.hpp"
+#include "vpux/utils/core/numeric.hpp"
 
 #include <mlir/IR/BlockAndValueMapping.h>
 #include <mlir/IR/BuiltinTypes.h>
@@ -30,6 +31,7 @@
 namespace vpux {
 namespace VPU {
 
+constexpr int64_t KMB_DPU_CHANNELS_ALIGNMENT = 16;
 constexpr StringLiteral multiClusterStrategy = "multiClusterStrategy";
 constexpr StringLiteral splitOverHeightOverlapped =
         "SplitOverHeightOverlapped";  // Strategy is for channel major convolution
@@ -37,15 +39,22 @@ constexpr StringLiteral splitOverHeight = "SplitOverHeight";
 constexpr StringLiteral splitOverKernel = "SplitOverKernel";
 constexpr StringLiteral clustering = "Clustering";
 
-SmallVector<int64_t> getActivationTensorNumTiles(mlir::Operation* op, int64_t numClusters, StringRef strategy);
-SmallVector<int64_t> getOutputTensorNumTiles(int64_t numClusters, StringRef strategy);
-SmallVector<int64_t> getWeightsTensorNumTiles(int64_t numClusters, StringRef strategy);
-SmallVector<int64_t> getWeightsTableTensorNumTiles(int64_t numClusters, StringRef strategy);
-SmallVector<int64_t> getActivationWindowTensorNumTiles(int64_t numClusters, StringRef strategy, ArchKind arch);
+int64_t getNumberOfClustersForSOKToAvoidAlignment(int64_t outputChannels, int64_t numClustersForCompilation);
+SmallVector<int64_t> getActivationTensorNumTiles(int64_t numClustersAvailableForCompilation, StringRef strategy);
+Optional<SmallVector<int64_t>> getActivationTensorAlignment(mlir::Operation* op, StringRef strategy);
+SmallVector<int64_t> getOutputTensorNumTiles(mlir::Operation* op, int64_t numClustersAvailableForCompilation,
+                                             StringRef strategy);
+Optional<SmallVector<int64_t>> getOutputTensorAlignment(StringRef strategy);
+SmallVector<int64_t> getWeightsTensorNumTiles(mlir::Operation* op, int64_t numClustersAvailableForCompilation,
+                                              StringRef strategy);
+Optional<SmallVector<int64_t>> getWeightsTensorAlignment(StringRef strategy);
+SmallVector<int64_t> getWeightsTableTensorNumTiles(mlir::Operation* op, int64_t numClustersAvailableForCompilation,
+                                                   StringRef strategy);
+SmallVector<int64_t> getActivationWindowTensorNumTiles(StringRef strategy);
 DistributionMode getActivationTensorDistributionMode(StringRef strategy);
 DistributionMode getWeightsTensorDistributionMode(StringRef strategy);
 DistributionMode getOutputTensorDistributionMode(StringRef strategy);
-DistributionMode getActivationWindowTensorDistributionMode(StringRef strategy, ArchKind arch);
+DistributionMode getActivationWindowTensorDistributionMode(StringRef strategy);
 NCEClusterTilingOp createDistributedCopyOut(mlir::Operation* origOp, NCEClusterTilingOp clusterTilingOp);
 mlir::ArrayAttr getKernelSize(mlir::Operation* origOp);
 int64_t getSOHPerClusterHeightAlignment(int64_t inputWidth);
@@ -73,9 +82,9 @@ inline PaddingAttr getPad<NCEEltwiseOp>(NCEEltwiseOp) {
 
 template <class ConcreteOp>
 NCEClusterTilingOp createDistributedCopyIn(ConcreteOp origOp, mlir::Value input, DistributionMode distributionMode,
-                                           mlir::ArrayAttr numTiles, bool needAlignment = false) {
+                                           mlir::ArrayAttr numTiles, mlir::ArrayAttr alignment, StringRef strategy) {
     auto inputTensorDistributedTensorType =
-            createDistributedTensorType(origOp, input, distributionMode, numTiles, needAlignment);
+            createDistributedTensorType(origOp, input, distributionMode, numTiles, alignment, strategy);
 
     mlir::OpBuilder builder(origOp);
     builder.setInsertionPoint(origOp);
@@ -95,43 +104,49 @@ NCEClusterTilingOp createDistributedCopyIn(ConcreteOp origOp, mlir::Value input,
 template <class ConcreteOp>
 DistributedTensorType createDistributedTensorType(ConcreteOp origOp, mlir::Value input,
                                                   DistributionMode distributionMode, mlir::ArrayAttr numTiles,
-                                                  bool needAlignment = false) {
+                                                  mlir::ArrayAttr alignment, StringRef strategy) {
     DistributedTensorAttr distributedActivationTensorAttr;
     auto module = origOp->template getParentOfType<mlir::ModuleOp>();
     auto nceOp = IE::getAvailableExecutor(module, ExecutorKind::NCE);
-    const auto numClusters = getIntAttr(origOp.getContext(), nceOp.count());
+    const auto numClustersAvailableForCompilation = getIntAttr(origOp.getContext(), nceOp.count());
     const auto activationTensorDistributionModeAttr = DistributionModeAttr::get(origOp.getContext(), distributionMode);
+    mlir::IntegerAttr optimalNumberOfClusters = numClustersAvailableForCompilation;
+
+    // Here the number of clusters to be used for an individual SOK layer is determined
+    // such that additional alignment of the per cluster output channels is not required.
+    // For example 80 output channels, the weights should only be split on 3 clusters [32, 32, 16].
+    // Also when creating the copy-in for the activation we need to ensure that the number
+    // of clusters that the input is duplicated to is also 3 clusters in this case.
+    // Therefore we use the variable optimalNumberOfClusters for both purposes here, to detemine
+    // num_tiles and numClusters for the activations and the weights.
+    if (strategy == splitOverKernel) {
+        int64_t numClustersToUseForLayer = numClustersAvailableForCompilation.getValue().getSExtValue();
+        auto OC = getShape(origOp->getResult(0))[Dims4D::Act::C];
+        numClustersToUseForLayer = getNumberOfClustersForSOKToAvoidAlignment(OC, numClustersToUseForLayer);
+        optimalNumberOfClusters = mlir::IntegerAttr::get(getInt64Type(origOp->getContext()), numClustersToUseForLayer);
+    }
 
     auto kernel = getKernelSize(origOp);
     const auto shape = getShape(input);
     if (distributionMode == DistributionMode::OVERLAPPED) {
         auto stride = getStride(origOp);
         auto pad = getPad(origOp);
+        optimalNumberOfClusters = getIntAttr(origOp.getContext(), nceOp.count());
 
         distributedActivationTensorAttr =
                 DistributedTensorAttr::get(activationTensorDistributionModeAttr, numTiles, kernel, pad, stride,
-                                           numClusters, nullptr, origOp.getContext());
+                                           optimalNumberOfClusters, alignment, origOp.getContext());
     } else if (distributionMode == DistributionMode::DUPLICATED) {
         distributedActivationTensorAttr =
                 DistributedTensorAttr::get(activationTensorDistributionModeAttr, nullptr, nullptr, nullptr, nullptr,
-                                           numClusters, nullptr, origOp.getContext());
-    } else {
-        // Attempt to align the height
-        auto alignment = SmallVector<int64_t>(numTiles.size(), 1);
-
-        const auto numTilesArray = parseIntArrayAttr<int64_t>(numTiles);
-        if (numTilesArray[Dims4D::Act::H.ind()] > 1 && kernel && needAlignment) {
-            const auto kernelArray = parseIntArrayAttr<int64_t>(kernel);
-            const auto KY = kernelArray[0];
-            if (KY > 1) {
-                alignment[Dims4D::Act::H.ind()] = getSOHPerClusterHeightAlignment(shape[Dims4D::Act::W]);
-            }
-        }
-        const auto alignmentAttr = getIntArrayAttr(origOp.getContext(), alignment);
-
+                                           optimalNumberOfClusters, alignment, origOp.getContext());
+    } else if (VPU ::bitEnumContains(distributionMode, VPU::DistributionMode::SEGMENTED)) {
         distributedActivationTensorAttr =
                 DistributedTensorAttr::get(activationTensorDistributionModeAttr, numTiles, nullptr, nullptr, nullptr,
-                                           numClusters, alignmentAttr, origOp.getContext());
+                                           optimalNumberOfClusters, alignment, origOp.getContext());
+
+    } else {
+        VPUX_THROW("Unsupported distribution mode: {0}", VPU::stringifyDistributionMode(distributionMode));
     }
 
     const auto memSpace = vpux::IndexedSymbolAttr::get(MemoryKindAttr::get(origOp.getContext(), MemoryKind::CMX_NN));

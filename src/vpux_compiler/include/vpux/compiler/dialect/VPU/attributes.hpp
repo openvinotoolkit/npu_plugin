@@ -108,6 +108,7 @@ mlir::LogicalResult verify(FuncRef<mlir::InFlightDiagnostic()> emitError, Distri
 mlir::LogicalResult areDistributionModesCompatible(DistributionMode sourceMode, DistributionMode targetMode);
 SmallVector<Shape> getPerClusterComputeShapes(ShapeRef shapeRef, DistributedTensorAttr distributionAttr);
 SmallVector<Shape> getPerClusterComputeShapeOffsets(ShapeRef shapeRef, DistributedTensorAttr distributionAttr);
+SmallVector<PadInfo> getPerClusterPadding(DistributedTensorAttr distributionAttr);
 SmallVector<StridedShape> getPerClusterStridedShapes(ShapeRef shape, StridesRef strides, DimsOrder dimsOrder,
                                                      Bit elemSize, DistributedTensorAttr distributionAttr);
 

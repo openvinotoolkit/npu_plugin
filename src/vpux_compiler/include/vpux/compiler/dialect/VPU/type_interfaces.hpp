@@ -14,6 +14,8 @@
 #pragma once
 
 #include "vpux/compiler/core/attributes/strided_shape.hpp"
+#include "vpux/compiler/core/tiling.hpp"
+
 #include "vpux/utils/core/small_vector.hpp"
 
 //

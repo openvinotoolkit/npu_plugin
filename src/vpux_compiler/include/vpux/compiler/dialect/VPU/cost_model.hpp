@@ -1,5 +1,5 @@
 //
-// Copyright Intel Corporation.
+// Copyright 2022 Intel Corporation.
 //
 // LEGAL NOTICE: Your use of this software and any required dependent software
 // (the "Software Package") is subject to the terms and conditions of
@@ -13,30 +13,16 @@
 
 #pragma once
 
-#include "vpux/compiler/core/attributes/stride_reqs.hpp"
+#include "vpux/compiler/dialect/VPU/attributes.hpp"
 
-#include "vpux/utils/core/enums.hpp"
-#include "vpux/utils/core/preprocessing.hpp"
+#include <vpu_cost_model.h>
 
-#include <mlir/IR/Builders.h>
-#include <mlir/IR/BuiltinTypes.h>
-#include <mlir/IR/Location.h>
-#include <mlir/IR/Value.h>
+#include <memory>
 
 namespace vpux {
 namespace VPU {
 
-//
-// DW Convolution utility
-//
-
-mlir::Value alignDepthWiseWeightsTensor(mlir::OpBuilder& builder, mlir::Location loc, mlir::Value origFilter);
-
-//
-// CM Convolution utility
-//
-
-mlir::Value alignChannelMajorWeightsTensor(mlir::OpBuilder& builder, mlir::Location loc, mlir::Value origFilter);
+std::shared_ptr<VPUNN::VPUCostModel> createCostModel(ArchKind arch);
 
 }  // namespace VPU
 }  // namespace vpux

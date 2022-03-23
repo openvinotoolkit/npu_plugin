@@ -37,6 +37,7 @@ public:
                                              AliasesInfo& aliasInfo, Logger log,
                                              LinearScan<mlir::Value, LinearScanHandler>& scan);
 
+    void removeComputeOpRelocationSpills(SmallVector<FeasibleMemoryScheduler::ScheduledOpInfo>& scheduledOps);
     void optimizeDataOpsSpills(SmallVector<FeasibleMemoryScheduler::ScheduledOpInfo>& scheduledOps);
     void removeRedundantSpillWrites(SmallVector<FeasibleMemoryScheduler::ScheduledOpInfo>& scheduledOps);
     void insertSpillCopyOps(SmallVector<FeasibleMemoryScheduler::ScheduledOpInfo>& scheduledOps);
