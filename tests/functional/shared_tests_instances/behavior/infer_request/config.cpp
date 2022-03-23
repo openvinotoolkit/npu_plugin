@@ -19,7 +19,9 @@ const std::vector<std::map<std::string, std::string>> configs = {
     {},
     // Public options
     {{CONFIG_KEY(LOG_LEVEL), CONFIG_VALUE(LOG_INFO)}},
-    {{CONFIG_KEY(PERF_COUNT), CONFIG_VALUE(YES)}},
+    // TODO: profiling support is broken in LATENCY mode
+    // [Track number: E#36465]
+    {{CONFIG_KEY(PERF_COUNT), CONFIG_VALUE(YES)}, {CONFIG_KEY(PERFORMANCE_HINT), CONFIG_VALUE(THROUGHPUT)}},
     {{CONFIG_KEY(DEVICE_ID), ""}},
     {{VPUX_CONFIG_KEY(THROUGHPUT_STREAMS), "1"}},
     {{KMB_CONFIG_KEY(THROUGHPUT_STREAMS), "1"}},
