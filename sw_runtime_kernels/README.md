@@ -43,39 +43,25 @@ ActShave sw kernel is represented in the VPUNN network (blob)
 by fragments of precompiled elf file of the kernel (so called text segment and data segment).  
 Text and data segments of the kernels are delivered together with VPUX network compiler
 as separate binary files.  
-The files are prepared by special scripts in `sw_runtime_kernels/kernels/prebuild`
-([example for softmax SW kernel](kernels/prebuild/singleShaveSoftmax.3010xx.sh))
-with using moviTools utilities
+The files are prepared by build procedure which can be done using [cmake script](kernels/CMakeLists.txt)
 
 #### Compile/link the kernels to be added by VPUX compiler into the blob  
 * See [Known issues](#known-issues)  
 
-To prepare binaries of one kernel corresponding script does:
-- call of `moviCompiler` (`${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}/linux64/bin/moviCompile`)
-  for each necessary source file located in `sw_runtime_kernels/kernels` and subdirectories.
-  Necessary include directories from `sw_runtime_kernels/kernels`,
-  `firmware.vpu.iot` directory ($FIRMWARE_VPU_DIR),
-  corresponding tools directory ($MV_TOOLS_DIR/$MV_TOOLS_VERSION)
-- call of linker (`${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}/linux64/sparc-myriad-rtems-6.3.0/bin/sparc-myriad-rtems-ld`)
-  to link ActShave object files prepared on previous step and
-  all necessary libraries from moviTools amd `firmware.vpu.iot` into ActShave elf.
-  The key `-entry` pointing to entrypoint kernel function is mandatory.
-- call of `${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}/linux64/sparc-myriad-rtems-6.3.0/bin/sparc-myriad-rtems-objcopy` utility
-  to extract text segment and data segment from the elf to the kernel binary files,
-  located in [`sw_runtime_kernels/kernels/prebuild/act_shave_bin`](kernels/prebuild/act_shave_bin) directory
-  and copied to OpenVINO binary directory while `VPUX-plugin` builds.
-  - names of the data segments and text segment files representing the kernel 
-have the following structure: `sk.<entry point>.<platform>.<text or data as etension>`
-(for example: `sk.singleShaveSoftmax.text`)
-- call of `xxd` linux utility to prepare c/c++ includable files with text hexadecimal representation
-of `text` and `data` segments of the kernel in array.
+To prepare binaries the following steps should be done:
+- create a temporary 'build' directory, cd into it
+- call of cmake <path-to-kernels-dir> [options]
+- call make
+
+For detailed description of cmake options and corresponding examples, see [separate readme file](kernels/README.md)
+
 The files are located in [`sw_runtime_kernels/kernels/prebuild`](kernels/prebuild) directory
-and have names `sk.<entry point>.<platform>.<text or data as etension>.xdat`.
+and have names `sk.<entry point>.<platform>.<text or data as extension>.xdat`.
 In each file the array filled by corresponding kernel segment and its size are defined in c/c++ syntax.
 The array and size have the names
 ```
-  unsigned char sk_<entry point>_<platform>_<text or data as etension>[] = { <hex values> };
-  unsigned int sk_<entry point>_<platform>_<text or data as etension>_len = <len of array>;
+  unsigned char sk_<entry point>_<platform>_<text or data as extension>[] = { <hex values> };
+  unsigned int sk_<entry point>_<platform>_<text or data as extension>_len = <len of array>;
 ```
 
 #### Kernel creating/porting 
