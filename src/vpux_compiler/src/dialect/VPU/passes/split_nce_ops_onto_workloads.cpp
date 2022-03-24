@@ -203,25 +203,10 @@ void addDPUTasks(mlir::PatternRewriter& rewriter, VPU::NCEOpInterface origOp, VP
         VPUX_THROW_WHEN(distributedInputType == nullptr, "Wrong input type {0} for NCEClusterTilingOp",
                         input.getType());
 
-        auto inputSubTensorShapes = distributedInputType.getPerClusterComputeShapes();
+        const auto inputSubTensorShapes = distributedInputType.getPerClusterComputeShapes();
         VPUX_THROW_WHEN(outputSubTensorShapes.size() != inputSubTensorShapes.size(),
                         "output tensor size:{0} not equal to input tensor size:{1}", outputSubTensorShapes.size(),
                         inputSubTensorShapes.size());
-
-        // When NCEOp is DWConv/MaxPool/Eltwise and SOK strategy, input distribution type mode is "DUPLICATED".
-        // We need to patch the sub input shape to ensure VPUNN get the right shape and cost value.
-        // Can removed after setting "SEGMENTED" mode for the input of SOK DWConv in later optimization.
-        const auto distributionMode = distributedOutputType.getDistribution().mode().getValue();
-        const auto isSOK = distributionMode == (VPU::DistributionMode::SEGMENTED | VPU::DistributionMode::DUPLICATED);
-        if (isSOK) {
-            if (mlir::isa<VPU::NCEEltwiseOp>(origOp.getOperation())) {
-                inputSubTensorShapes = outputSubTensorShapes;
-            } else if (mlir::isa<VPU::NCEDepthConvolutionOp, VPU::NCEMaxPoolOp>(origOp.getOperation())) {
-                for (const auto ind : irange(inputSubTensorShapes.size())) {
-                    inputSubTensorShapes[ind][Dims4D::Act::C] = outputSubTensorShapes[ind][Dims4D::Act::C];
-                }
-            }
-        }
 
         const auto origFullOutputShape = costParams.outputShape;
         const auto origPad = costParams.padInfo;
