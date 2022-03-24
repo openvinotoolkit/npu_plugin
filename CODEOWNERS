@@ -10,7 +10,7 @@
 # mcmCompiler - Yao, Shaojun (@syao-2015) / Mineeva, Marina (@mmineeva)
 # mcmEmulator - Zomborat, Zoran (@ZoranZomborat)
 # Memory/Barrier scheduling - Brady, John (@bradyjohn) / Gwizdz, Michal (@MichalGwizdzIntel)
-# MTL - Gladilov, Gleb (@gladilov-gleb) / Pedus, Mikhail (@MikhailPedus) / Losev, Sergey (@briangrifiin)
+# MTL - Gladilov, Gleb (@ggladilov) / Pedus, Mikhail (@MikhailPedus) / Losev, Sergey (@briangrifiin)
 # Runtime - Skvortsov, Vladimir (@vmskv) /  Smirnov, Evgeny (esmirno)
 # Testing - Perepelkin, Alexander (@alpkn)
 #
@@ -53,7 +53,10 @@ CMakeLists.txt @vinograd47 @mmineeva @ArtemySkrebkov-intel
 /src/VPUXCompilerL0 @mznamens @sshumihi @ArtemySkrebkov-intel
 /src/vpux_ngraph_transformations @shokinal @maxim-kurin
 /src/vpux_plugin @ArtemySkrebkov-intel @mznamens
-/src/vpux_translate_utils @gladilov-gleb @MikhailPedus
+#
+# PSS Testing Framework
+/src/vpux_translate_utils @ggladilov @MikhailPedus @pvprog @akruglov18
+#
 /src/vpux_utils @vinograd47 @nikita-kud
 /src/zero_backend @ArtemySkrebkov-intel @mznamens
 #
@@ -61,7 +64,6 @@ CMakeLists.txt @vinograd47 @mmineeva @ArtemySkrebkov-intel
 /sw_runtime_kernels @vmskv @esmirno @nikita-kud
 #
 # Tests folder
-#
 /tests/functional/behavior @ArtemySkrebkov-intel @mznamens @alpkn
 /tests/functional/common @ArtemySkrebkov-intel @mznamens
 /tests/functional/compile @ArtemySkrebkov-intel @mznamens
@@ -78,22 +80,28 @@ CMakeLists.txt @vinograd47 @mmineeva @ArtemySkrebkov-intel
 /tests/libs @alpkn @alexeytarakanov
 /tests/lit @vinograd47 @nikita-kud @AndrewBakalinIntel @AlexeyPushchin @MateuszDareckiIntel @hrotuna @ZoranZomborat @bradyjohn
 #
+# PSS Testing Framework
+/tests/lit/mtl/pss @ggladilov @MikhailPedus @pvprog @akruglov18
+#
 /tests/unit/frontend_mcm @ArtemySkrebkov-intel @mmineeva
 /tests/unit/hddl2_tests @ArtemySkrebkov-intel @mznamens
 /tests/unit/kmb @ArtemySkrebkov-intel @mznamens
 /tests/unit/mcmCompiler @syao-2015 @mmineeva
-/tests/unit/mtl @gladilov-gleb @MikhailPedus @briangrifiin
+/tests/unit/mtl @ggladilov @MikhailPedus @briangrifiin
+#
+# PSS Testing Framework
+/tests/unit/mtl/pss @ggladilov @MikhailPedus @pvprog @akruglov18
+#
 /tests/unit/vpux_compiler @vinograd47 @nikita-kud @AndrewBakalinIntel @AlexeyPushchin @MateuszDareckiIntel @hrotuna @ZoranZomborat @bradyjohn
 /tests/unit/vpux_driver_compiler_adapter @sshumihi @ArtemySkrebkov-intel @mznamens
-/tests/unit/vpux_elf @AndrewBakalinIntel @szilveszteri @gladilov-gleb @PaulCarabas
+/tests/unit/vpux_elf @AndrewBakalinIntel @szilveszteri @ggladilov @PaulCarabas
 /tests/unit/vpux_utils @vinograd47 @nikita-kud
 #
 # tools folder
-/tools @shokinal @mmineeva
+/tools @shokinal @mmineeva @ggladilov
 #
 # Validation folder
 /validation @maxim-kurin @sshumihi @andrejsokolov
 #
 # OpenVINO infrastructure configs
 ./infrastructure @izvekovvadimintel @mznamens @mikhailk62 @asomsiko
-#
