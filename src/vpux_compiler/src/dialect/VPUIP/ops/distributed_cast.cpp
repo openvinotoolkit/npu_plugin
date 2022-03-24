@@ -38,8 +38,12 @@ mlir::OpFoldResult VPUIP::DistributedCastOp::fold(ArrayRef<mlir::Attribute>) {
 //
 
 mlir::LogicalResult VPUIP::verifyOp(VPUIP::DistributedCastOp op) {
+    const auto logCb = [op](const llvm::formatv_object_base& msg) {
+        std::ignore = errorAt(op, "{0}", msg.str());
+    };
+
     const auto inDistributedType = op.input().getType().cast<VPUIP::DistributedBufferType>();
     const auto outDistributedType = op.output().getType().cast<VPUIP::DistributedBufferType>();
 
-    return VPU::isDistributedCastCompatible(inDistributedType, outDistributedType);
+    return VPU::isDistributedCastCompatible(inDistributedType, outDistributedType, logCb);
 }

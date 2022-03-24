@@ -167,7 +167,7 @@ def VPU_NCEConvolutionOp :
     let extraClassDeclaration = [{
         bool fitIntoCMX(vpux::NDTypeInterface input, vpux::NDTypeInterface filter, vpux::NDTypeInterface output);
 
-        static bool isSupported(vpux::IE::ConvolutionOp origOp, vpux::VPU::NCEInvariant::LogCb logCb);
+        static bool isSupported(vpux::IE::ConvolutionOp origOp, vpux::LogCb logCb);
 
         static int64_t getInputChannelAlignmentImpl(vpux::NDTypeInterface inputType);
 
@@ -234,7 +234,7 @@ def VPU_NCEDepthConvolutionOp :
     let extraClassDeclaration = [{
         bool fitIntoCMX(vpux::NDTypeInterface input, vpux::NDTypeInterface filter, vpux::NDTypeInterface output);
 
-        static bool isSupported(vpux::IE::GroupConvolutionOp origOp, vpux::VPU::NCEInvariant::LogCb logCb);
+        static bool isSupported(vpux::IE::GroupConvolutionOp origOp, vpux::LogCb logCb);
 
         bool checkChannelRestrictions(int64_t channels);
 
@@ -299,7 +299,7 @@ def VPU_NCEMaxPoolOp :
     let extraClassDeclaration = [{
         bool fitIntoCMX(vpux::NDTypeInterface input, vpux::NDTypeInterface output);
 
-        static bool isSupported(vpux::IE::MaxPoolOp origOp, vpux::VPU::NCEInvariant::LogCb logCb);
+        static bool isSupported(vpux::IE::MaxPoolOp origOp, vpux::LogCb logCb);
 
         bool checkChannelRestrictions(int64_t channels);
     }] # baseExtraClassDeclaration;
@@ -356,7 +356,7 @@ def VPU_NCEEltwiseOp :
         bool fitIntoCMX(vpux::NDTypeInterface input1, vpux::NDTypeInterface input2, vpux::NDTypeInterface output);
 
         static bool isSupported(mlir::Operation* op, bool allowDifferentScales, bool allowDifferentZp,
-                                vpux::VPU::NCEInvariant::LogCb logCb);
+                                vpux::LogCb logCb);
     }] # baseExtraClassDeclaration;
 
     let elemComparisonModes = [IE_TypeComparisonMode_ALLOW_QUANT_MIXED_PRECISION];

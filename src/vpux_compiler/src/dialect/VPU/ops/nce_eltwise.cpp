@@ -43,7 +43,7 @@ bool vpux::VPU::NCEEltwiseOp::fitIntoCMX(vpux::NDTypeInterface input1, vpux::NDT
 //
 
 bool vpux::VPU::NCEEltwiseOp::isSupported(mlir::Operation* op, bool allowDifferentScales, bool allowDifferentZp,
-                                          NCEInvariant::LogCb logCb) {
+                                          LogCb logCb) {
     const auto input1 = op->getOperand(0).getType().cast<vpux::NDTypeInterface>();
     const auto input2 = op->getOperand(1).getType().cast<vpux::NDTypeInterface>();
     const auto output = op->getResult(0).getType().cast<vpux::NDTypeInterface>();

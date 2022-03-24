@@ -100,12 +100,12 @@ Optional<int> getNumberOfDPUGroups(const Config& config) {
     }
 
     switch (config.get<PERFORMANCE_HINT>()) {
-    case ov::hint::PerformanceMode::LATENCY:
-        return checked_cast<int>(VPU::getMaxDPUClusterNum(getArchKind(config)));
     case ov::hint::PerformanceMode::THROUGHPUT:
+        return 1;
+    case ov::hint::PerformanceMode::LATENCY:
     case ov::hint::PerformanceMode::UNDEFINED:
     default:
-        return 1;
+        return checked_cast<int>(VPU::getMaxDPUClusterNum(getArchKind(config)));
     }
 }
 

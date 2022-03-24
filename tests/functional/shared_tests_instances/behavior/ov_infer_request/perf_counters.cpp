@@ -20,12 +20,22 @@ const std::vector<ov::AnyMap> configs = {
     {}
 };
 
+// TODO: profiling support is broken in LATENCY mode
+// [Track number: E#36465]
 const std::vector<ov::AnyMap> multiConfigs = {
-    {{ MULTI_CONFIG_KEY(DEVICE_PRIORITIES) , CommonTestUtils::DEVICE_KEEMBAY}}
+    {
+        ov::device::priorities(CommonTestUtils::DEVICE_KEEMBAY),
+        ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)
+    }
 };
 
+// TODO: profiling support is broken in LATENCY mode
+// [Track number: E#36465]
 const std::vector<ov::AnyMap> autoConfigs = {
-    {{ MULTI_CONFIG_KEY(DEVICE_PRIORITIES) , CommonTestUtils::DEVICE_KEEMBAY}}
+    {
+        ov::device::priorities(CommonTestUtils::DEVICE_KEEMBAY),
+        ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)
+    }
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, OVInferRequestPerfCountersTest,
