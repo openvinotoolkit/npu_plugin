@@ -17,20 +17,22 @@
 
 using namespace vpux;
 
-mlir::LogicalResult VPU::sameOrder(mlir::Location loc, VPU::DistributedTensorType inDistributedType,
-                                   VPU::DistributedTensorType outDistributedType) {
+mlir::LogicalResult VPU::sameOrder(VPU::DistributedTensorType inDistributedType,
+                                   VPU::DistributedTensorType outDistributedType, LogCb logCb) {
     if (inDistributedType.getOrder() != outDistributedType.getOrder()) {
-        return errorAt(loc, "Mismatch between order for input ({0}) and output ({1}).", inDistributedType.getOrder(),
-                       outDistributedType.getOrder());
+        logCb(llvm::formatv("Mismatch between order for input ({0}) and output ({1}).", inDistributedType.getOrder(),
+                            outDistributedType.getOrder()));
+        return mlir::failure();
     }
     return mlir::success();
 }
 
-mlir::LogicalResult VPU::sameOrder(mlir::Location loc, VPUIP::DistributedBufferType inDistributedType,
-                                   VPUIP::DistributedBufferType outDistributedType) {
+mlir::LogicalResult VPU::sameOrder(VPUIP::DistributedBufferType inDistributedType,
+                                   VPUIP::DistributedBufferType outDistributedType, LogCb logCb) {
     if (inDistributedType.getLayout() != outDistributedType.getLayout()) {
-        return errorAt(loc, "Mismatch between order for input ({0}) and output ({1}).", inDistributedType.getLayout(),
-                       outDistributedType.getLayout());
+        logCb(llvm::formatv("Mismatch between order for input ({0}) and output ({1}).", inDistributedType.getLayout(),
+                            outDistributedType.getLayout()));
+        return mlir::failure();
     }
     return mlir::success();
 }

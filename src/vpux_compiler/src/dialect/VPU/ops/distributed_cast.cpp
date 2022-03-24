@@ -29,8 +29,12 @@ mlir::OpFoldResult VPU::DistributedCastOp::fold(ArrayRef<mlir::Attribute>) {
 //
 
 mlir::LogicalResult VPU::verifyOp(VPU::DistributedCastOp op) {
+    const auto logCb = [op](const llvm::formatv_object_base& msg) {
+        std::ignore = errorAt(op, "{0}", msg.str());
+    };
+
     const auto inDistributedType = op.input().getType().cast<VPU::DistributedTensorType>();
     const auto outDistributedType = op.output().getType().cast<VPU::DistributedTensorType>();
 
-    return isDistributedCastCompatible(inDistributedType, outDistributedType);
+    return isDistributedCastCompatible(inDistributedType, outDistributedType, logCb);
 }
