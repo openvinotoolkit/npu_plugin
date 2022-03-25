@@ -1,3 +1,7 @@
+//
+// Copyright (C) 2022 Intel Corporation
+// SPDX-License-Identifier: Apache 2.0
+//
 #include <cmath>
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"

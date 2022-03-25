@@ -1,3 +1,8 @@
+#
+# Copyright (C) 2022 Intel Corporation
+# SPDX-License-Identifier: Apache 2.0
+#
+
 import sys, argparse
 from lxml import etree as et, objectify
 from pathlib import Path
