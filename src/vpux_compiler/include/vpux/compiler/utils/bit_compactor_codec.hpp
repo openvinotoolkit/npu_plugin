@@ -7,6 +7,8 @@
 
 #pragma once
 
+#ifdef ENABLE_BITCOMPACTOR
+
 #include <vector>
 #include "bitCompactor.h"
 #include "vpux/compiler/utils/codec_factory.hpp"
@@ -30,3 +32,5 @@ private:
 };
 
 }  // namespace vpux
+
+#endif

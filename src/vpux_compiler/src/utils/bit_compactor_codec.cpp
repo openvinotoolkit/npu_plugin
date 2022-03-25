@@ -5,6 +5,8 @@
 
 //
 
+#ifdef ENABLE_BITCOMPACTOR
+
 #include "vpux/compiler/utils/bit_compactor_codec.hpp"
 #include "vpux/utils/core/error.hpp"
 
@@ -60,3 +62,5 @@ std::vector<uint8_t> vpux::BitCompactorCodec::compress(std::vector<uint8_t>& dat
 
     return compressedDataBuffer;
 }
+
+#endif

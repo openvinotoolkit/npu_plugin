@@ -98,6 +98,16 @@ if(ENABLE_IMD_BACKEND)
     add_definitions(-DENABLE_IMD_BACKEND)
 endif()
 
+ie_option(ENABLE_BITCOMPACTOR "Enable bitcompactor compression codec" OFF)
+if(ENABLE_BITCOMPACTOR)
+    if(DEFINED ENV{BITCOMPACTOR_PATH})
+        set(BITCOMPACTOR_PATH $ENV{BITCOMPACTOR_PATH})
+    else()
+        message(FATAL_ERROR "bitcompactor was enabled, but BITCOMPACTOR_PATH was not set")
+    endif()
+    add_definitions(-DENABLE_BITCOMPACTOR)
+endif()
+
 ie_option(ENABLE_VPUX_DOCS "Documentation for VPUX plugin" OFF)
 
 if(ENABLE_VPUX_DOCS)

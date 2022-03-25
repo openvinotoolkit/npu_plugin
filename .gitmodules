@@ -11,9 +11,6 @@
 	path = thirdparty/llvm-project
 	url = https://github.com/plaidml/llvm-project.git
 	shallow = true
-[submodule "thirdparty/bitcompactor"]
-	path = thirdparty/bitcompactor
-	url = https://github.com/intel-innersource/frameworks.vpu.models.vpu27.bit-compactor.git
 [submodule "thirdparty/hddlunite"]
 	path = thirdparty/hddlunite
 	url = https://github.com/intel-innersource/frameworks.ai.vpu-accelerators.hddlunite.git

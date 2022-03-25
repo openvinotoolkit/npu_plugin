@@ -17,7 +17,11 @@ std::unique_ptr<ICodec> makeCodec(const ICodec::CompressionAlgorithm algo) {
     case ICodec::CompressionAlgorithm::HUFFMAN_CODEC:
         return std::make_unique<vpux::HuffmanCodec>();
     case ICodec::CompressionAlgorithm::BITCOMPACTOR_CODEC:
+#ifdef ENABLE_BITCOMPACTOR
         return std::make_unique<vpux::BitCompactorCodec>();
+#else
+        VPUX_THROW("vpux::makeCodec: bitcompactor is disabled");
+#endif
     }
     VPUX_THROW("vpux::makeCodec: unsupported compression algorithm");
 }
