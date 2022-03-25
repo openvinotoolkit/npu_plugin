@@ -1,3 +1,7 @@
+//
+// Copyright (C) 2022 Intel Corporation
+// SPDX-License-Identifier: Apache 2.0
+//
 //backup file that saves - no duplicates of slices in nested streaming and no control flow for first layer of streaming
 #include "math.h"
 #include "include/mcm/pass/pass_registry.hpp"

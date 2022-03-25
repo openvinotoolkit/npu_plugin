@@ -1,3 +1,7 @@
+//
+// Copyright (C) 2022 Intel Corporation
+// SPDX-License-Identifier: Apache 2.0
+//
 #include "include/mcm/compiler/compilation_unit.hpp"
 #include "tests/layer/test_runner/common/custom_layer_test.hpp"
 #include <iostream>

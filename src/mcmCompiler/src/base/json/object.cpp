@@ -1,3 +1,7 @@
+//
+// Copyright (C) 2022 Intel Corporation
+// SPDX-License-Identifier: Apache 2.0
+//
 #include "include/mcm/base/json/object.hpp"
 #include "include/mcm/base/json/number_integer.hpp"
 #include "include/mcm/base/json/number_float.hpp"

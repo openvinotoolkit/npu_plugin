@@ -1,3 +1,7 @@
+//
+// Copyright (C) 2022 Intel Corporation
+// SPDX-License-Identifier: Apache 2.0
+//
 #ifndef LP_SCHEDULER_PASS_H
 #define LP_SCHEDULER_PASS_H
 

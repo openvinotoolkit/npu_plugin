@@ -1,3 +1,7 @@
+//
+// Copyright (C) 2022 Intel Corporation
+// SPDX-License-Identifier: Apache 2.0
+//
 // NOTE: Never compile this file as a standalone compiliation unit. It
 // must be included as .cpp explicity in the final target object in the
 // right order as needed.

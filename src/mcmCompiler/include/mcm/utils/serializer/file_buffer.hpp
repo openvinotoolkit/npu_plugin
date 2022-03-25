@@ -1,3 +1,7 @@
+//
+// Copyright (C) 2022 Intel Corporation
+// SPDX-License-Identifier: Apache 2.0
+//
 #ifndef WBUFFER_HPP_
 #define WBUFFER_HPP_
 

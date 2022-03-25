@@ -1,3 +1,7 @@
+//
+// Copyright (C) 2022 Intel Corporation
+// SPDX-License-Identifier: Apache 2.0
+//
 #include "mcm/utils/custom_math.hpp"
 #include "include/mcm/base/exception/argument_error.hpp"
 #include <cmath>

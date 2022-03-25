@@ -1,3 +1,7 @@
+//
+// Copyright (C) 2022 Intel Corporation
+// SPDX-License-Identifier: Apache 2.0
+//
 #include "include/mcm/target/kmb/pwl/pwl_dyn_fit.hpp"
 
 #include <limits>

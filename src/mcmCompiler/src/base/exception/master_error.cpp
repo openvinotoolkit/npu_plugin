@@ -1,3 +1,7 @@
+//
+// Copyright (C) 2022 Intel Corporation
+// SPDX-License-Identifier: Apache 2.0
+//
 #include "include/mcm/base/exception/master_error.hpp"
 
 mv::MasterError::MasterError(const LogSender& sender, const std::string& whatArg) :

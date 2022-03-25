@@ -1,3 +1,7 @@
+//
+// Copyright (C) 2022 Intel Corporation
+// SPDX-License-Identifier: Apache 2.0
+//
 #include "include/mcm/computation/model/base_op_model.hpp"
 #include "include/mcm/algorithms/lexicographical_topsort.hpp"
 #include "include/mcm/algorithms/path_exists.hpp"

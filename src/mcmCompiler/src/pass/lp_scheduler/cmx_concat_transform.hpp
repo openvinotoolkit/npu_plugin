@@ -1,3 +1,7 @@
+//
+// Copyright (C) 2022 Intel Corporation
+// SPDX-License-Identifier: Apache 2.0
+//
 #ifndef LOCATE_CMX_CONCATEABLE_OPS_HPP
 #define LOCATE_CMX_CONCATEABLE_OPS_HPP
 

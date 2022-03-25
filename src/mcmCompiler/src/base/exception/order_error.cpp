@@ -1,3 +1,7 @@
+//
+// Copyright (C) 2022 Intel Corporation
+// SPDX-License-Identifier: Apache 2.0
+//
 #include "include/mcm/base/exception/order_error.hpp"
 
 mv::OrderError::OrderError(const LogSender& sender, const std::string& whatArg)

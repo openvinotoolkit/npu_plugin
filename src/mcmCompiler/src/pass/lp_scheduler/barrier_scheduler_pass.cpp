@@ -1,3 +1,7 @@
+//
+// Copyright (C) 2022 Intel Corporation
+// SPDX-License-Identifier: Apache 2.0
+//
 #include "pass/lp_scheduler/barrier_scheduler_pass.hpp"
 
 void barrierSchedulerPass(const mv::pass::PassEntry& , mv::ComputationModel& ,

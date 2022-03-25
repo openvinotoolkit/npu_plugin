@@ -1,3 +1,7 @@
+//
+// Copyright (C) 2022 Intel Corporation
+// SPDX-License-Identifier: Apache 2.0
+//
 #ifndef LOG_SENDER_HPP_
 #define LOG_SENDER_HPP_
 

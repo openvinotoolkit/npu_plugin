@@ -1,3 +1,7 @@
+//
+// Copyright (C) 2022 Intel Corporation
+// SPDX-License-Identifier: Apache 2.0
+//
 /**
 * visualizer.hpp contains classes that promote human understanding of the graph structure.
 *

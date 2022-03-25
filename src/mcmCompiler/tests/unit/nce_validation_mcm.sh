@@ -1,4 +1,8 @@
 #!/bin/bash
+#
+# Copyright (C) 2022 Intel Corporation
+# SPDX-License-Identifier: Apache 2.0
+#
 
 # input params 
 #     no params will run all steps

@@ -1,3 +1,7 @@
+//
+// Copyright (C) 2022 Intel Corporation
+// SPDX-License-Identifier: Apache 2.0
+//
 #ifndef TRANSITIVE_REDUCTION_HPP_
 #define TRANSITIVE_REDUCTION_HPP_
 

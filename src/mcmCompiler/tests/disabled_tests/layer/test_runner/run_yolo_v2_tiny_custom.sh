@@ -1,4 +1,8 @@
 #!/bin/bash
+#
+# Copyright (C) 2022 Intel Corporation
+# SPDX-License-Identifier: Apache 2.0
+#
 
 rm -rf ./mvbuild
 echo Copying yolo_v2_tiny_custom.blob to ./blobs folder

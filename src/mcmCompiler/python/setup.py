@@ -1,3 +1,7 @@
+#
+# Copyright (C) 2022 Intel Corporation
+# SPDX-License-Identifier: Apache 2.0
+#
 '''
 TODO Write an actual setup script that will also call CMake build if necessary.
 Currently this scripy only copies libs from build/ to api/ to enable execution.

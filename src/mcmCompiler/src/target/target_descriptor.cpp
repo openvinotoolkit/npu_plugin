@@ -1,3 +1,7 @@
+//
+// Copyright (C) 2022 Intel Corporation
+// SPDX-License-Identifier: Apache 2.0
+//
 #include "include/mcm/target/target_descriptor.hpp"
 
 std::string mv::TargetDescriptor::toString(Target target)

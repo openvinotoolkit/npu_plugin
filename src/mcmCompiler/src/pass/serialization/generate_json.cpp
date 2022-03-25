@@ -1,3 +1,7 @@
+//
+// Copyright (C) 2022 Intel Corporation
+// SPDX-License-Identifier: Apache 2.0
+//
 #include "include/mcm/base/json/json.hpp"
 #include "include/mcm/pass/pass_registry.hpp"
 #include "include/mcm/computation/model/computation_model.hpp"

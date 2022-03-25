@@ -1,3 +1,7 @@
+//
+// Copyright (C) 2022 Intel Corporation
+// SPDX-License-Identifier: Apache 2.0
+//
 #ifndef FEASIBLE_SCHEDULER_HPP
 #define FEASIBLE_SCHEDULER_HPP
 #include <algorithm>

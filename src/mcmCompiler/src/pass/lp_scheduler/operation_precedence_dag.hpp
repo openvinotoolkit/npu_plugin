@@ -1,3 +1,7 @@
+//
+// Copyright (C) 2022 Intel Corporation
+// SPDX-License-Identifier: Apache 2.0
+//
 #ifndef OPERATION_PRECEDENCE_DAG_HPP
 #define OPERATION_PRECEDENCE_DAG_HPP
 

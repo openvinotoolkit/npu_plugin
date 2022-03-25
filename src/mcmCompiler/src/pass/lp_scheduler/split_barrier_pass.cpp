@@ -1,3 +1,7 @@
+//
+// Copyright (C) 2022 Intel Corporation
+// SPDX-License-Identifier: Apache 2.0
+//
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/pass/pass_registry.hpp"
 #include "lp_scheduler/barrier_scheduler_pass.hpp"

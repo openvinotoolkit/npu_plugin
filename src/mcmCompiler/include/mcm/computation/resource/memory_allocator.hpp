@@ -1,3 +1,7 @@
+//
+// Copyright (C) 2022 Intel Corporation
+// SPDX-License-Identifier: Apache 2.0
+//
 #ifndef MEMORY_ALLOCATOR_HPP_
 #define MEMORY_ALLOCATOR_HPP_
 

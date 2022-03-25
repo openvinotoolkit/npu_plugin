@@ -1,3 +1,7 @@
+//
+// Copyright (C) 2022 Intel Corporation
+// SPDX-License-Identifier: Apache 2.0
+//
 #include "include/mcm/base/json/value_content.hpp"
 
 mv::json::detail::ValueContent::~ValueContent()

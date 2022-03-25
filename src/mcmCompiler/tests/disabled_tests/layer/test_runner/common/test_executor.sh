@@ -1,3 +1,7 @@
+#
+# Copyright (C) 2022 Intel Corporation
+# SPDX-License-Identifier: Apache 2.0
+#
 KMB_IP=$1
 
 if [ -z $KMB_IP ]; then

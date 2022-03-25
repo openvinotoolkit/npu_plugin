@@ -1,4 +1,9 @@
 #! /usr/bin/env python3
+#
+# Copyright (C) 2022 Intel Corporation
+# SPDX-License-Identifier: Apache 2.0
+#
+
 from Controllers.Args import *
 from Controllers.EnumController import throw_error, throw_warning, completion_msg
 from Controllers.EnumController import *

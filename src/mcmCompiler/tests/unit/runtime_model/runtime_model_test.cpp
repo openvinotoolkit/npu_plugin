@@ -1,3 +1,7 @@
+//
+// Copyright (C) 2022 Intel Corporation
+// SPDX-License-Identifier: Apache 2.0
+//
 #include "gtest/gtest.h"
 #include "include/mcm/base/attribute.hpp"
 #include "include/mcm/base/attribute_registry.hpp"

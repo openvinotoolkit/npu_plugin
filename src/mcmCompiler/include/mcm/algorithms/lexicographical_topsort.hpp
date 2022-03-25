@@ -1,3 +1,7 @@
+//
+// Copyright (C) 2022 Intel Corporation
+// SPDX-License-Identifier: Apache 2.0
+//
 #ifndef LEXICOGRAPHICAL_TOPSORT_HPP_
 #define LEXICOGRAPHICAL_TOPSORT_HPP_
 

@@ -1,3 +1,7 @@
+//
+// Copyright (C) 2022 Intel Corporation
+// SPDX-License-Identifier: Apache 2.0
+//
 #ifndef TESTS_MCMTEST_H_
 #define TESTS_MCMTEST_H_
 

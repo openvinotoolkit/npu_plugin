@@ -1,4 +1,8 @@
 #!/usr/bin/env python
+#
+# Copyright (C) 2022 Intel Corporation
+# SPDX-License-Identifier: Apache 2.0
+#
 
 """
 Forked From https://gist.github.com/spulec/1364640#file-pre-commit

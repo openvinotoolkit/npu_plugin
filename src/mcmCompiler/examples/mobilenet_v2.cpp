@@ -1,3 +1,7 @@
+//
+// Copyright (C) 2022 Intel Corporation
+// SPDX-License-Identifier: Apache 2.0
+//
 /**
  * @file mobilenet_v2.cpp
  * @brief Example of composition and compilation of full quantized neural network topology - MobileNetV2.

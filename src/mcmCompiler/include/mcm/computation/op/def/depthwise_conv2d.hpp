@@ -1,3 +1,7 @@
+//
+// Copyright (C) 2022 Intel Corporation
+// SPDX-License-Identifier: Apache 2.0
+//
  #ifndef DEPTHWISE_CONV2D_OP_HPP_
 #define DEPTHWISE_CONV2D_OP_HPP_
 
