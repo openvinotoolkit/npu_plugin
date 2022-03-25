@@ -21,7 +21,7 @@ using namespace vpux;
  * @param size The size in bytes to allocate
  * @return Handle to the allocated resource
  */
-void* ZeroAllocator::alloc(size_t size) noexcept {
+void* ZeroAllocator::alloc(std::size_t size) noexcept {
     void* mem = new char[size];
     our_pointers.insert(mem);
     return mem;
