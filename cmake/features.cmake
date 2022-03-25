@@ -88,7 +88,7 @@ if(NOT DEFINED MV_TOOLS_PATH AND DEFINED ENV{MV_TOOLS_DIR} AND DEFINED ENV{MV_TO
     set(MV_TOOLS_PATH $ENV{MV_TOOLS_DIR}/$ENV{MV_TOOLS_VERSION})
 endif()
 
-ie_dependent_option(ENABLE_EMULATOR "Enable emulator as a plugin backend" OFF "MV_TOOLS_PATH" OFF)
+ie_dependent_option(ENABLE_EMULATOR "Enable emulator as a plugin backend" OFF "MV_TOOLS_PATH;CMAKE_VERSION VERSION_GREATER_EQUAL 3.14" OFF)
 if(ENABLE_EMULATOR)
     add_definitions(-DENABLE_EMULATOR)
 endif()

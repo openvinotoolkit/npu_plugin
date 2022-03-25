@@ -263,23 +263,37 @@ endif()
 #
 # bitcompactor
 #
-if(ENABLE_BITCOMPACTOR)
-    set(BITCOMPACTOR_TARGET_NAME "bitcompactor")
-    add_library(${BITCOMPACTOR_TARGET_NAME}
-        OBJECT
-        "${BITCOMPACTOR_PATH}/src/bitCompactor.cpp")
 
-    target_include_directories(${BITCOMPACTOR_TARGET_NAME}
-        PUBLIC
-            $<BUILD_INTERFACE:${BITCOMPACTOR_PATH}/include>
+if(ENABLE_BITCOMPACTOR)
+    FetchContent_Declare(
+        bitcompactor
+        GIT_REPOSITORY https://github.com/intel-innersource/frameworks.vpu.models.vpu27.bit-compactor.git
+        GIT_TAG        btc_models_v1p3_y21ww08_0014
     )
-    if (NOT BUILD_SHARED_LIBS)
-        install(TARGETS ${BITCOMPACTOR_TARGET_NAME} EXPORT OpenVINOTargets
-                RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT ${VPUX_PLUGIN_COMPONENT}
-                ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT ${VPUX_PLUGIN_COMPONENT}
-                LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT ${VPUX_PLUGIN_COMPONENT})
+
+    FetchContent_GetProperties(bitcompactor)
+    if(NOT bitcompactor_POPULATED)
+        FetchContent_Populate(bitcompactor)
+
+        set(BITCOMPACTOR_TARGET_NAME "bitcompactor")
+        add_library(${BITCOMPACTOR_TARGET_NAME} OBJECT "${bitcompactor_SOURCE_DIR}/src/bitCompactor.cpp")
+
+        target_include_directories(${BITCOMPACTOR_TARGET_NAME}
+            PUBLIC
+                $<BUILD_INTERFACE:"${bitcompactor_SOURCE_DIR}/include">
+        )
+        if (NOT BUILD_SHARED_LIBS)
+            install(TARGETS ${BITCOMPACTOR_TARGET_NAME} EXPORT OpenVINOTargets
+                    RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT ${VPUX_PLUGIN_COMPONENT}
+                    ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT ${VPUX_PLUGIN_COMPONENT}
+                    LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT ${VPUX_PLUGIN_COMPONENT})
+        endif()
     endif()
 endif()
+
+#
+# huffman_codec
+#
 
 set(HUFFMAN_CODEC_TARGET_NAME "huffman_codec")
 add_library(${HUFFMAN_CODEC_TARGET_NAME}
@@ -298,6 +312,7 @@ target_include_directories(${HUFFMAN_CODEC_TARGET_NAME}
 #
 # nn cost model
 #
+
 set(VPUNN_BUILD_SHARED_LIB OFF CACHE BOOL "" FORCE)
 set(VPUNN_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 set(VPUNN_BUILD_TESTS OFF CACHE BOOL "" FORCE)

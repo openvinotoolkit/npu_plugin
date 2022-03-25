@@ -17,9 +17,6 @@
 [submodule "thirdparty/level-zero"]
 	path = thirdparty/level-zero
 	url = https://github.com/oneapi-src/level-zero.git
-[submodule "mcm-emulator"]
-	path = src/vpux_emulator
-	url = https://github.com/intel-innersource/applications.ai.vpu-accelerators.vpux-emulator.git
 [submodule "thirdparty/level-zero-ext"]
 	path = thirdparty/level-zero-ext
 	url = https://github.com/intel-innersource/drivers.vpu.user-mode.applications.umd.ze-ext-headers.git
