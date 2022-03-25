@@ -39,10 +39,17 @@ add_subdirectory(vpux_ngraph_transformations)
 #endif()
 
 if(ENABLE_EMULATOR)
-    add_subdirectory(vpux_emulator)
+    FetchContent_Declare(
+        vpux_emulator
+        GIT_REPOSITORY https://github.com/intel-innersource/applications.ai.vpu-accelerators.vpux-emulator.git
+        GIT_TAG        afd7e76b9cf9ef1dfd451f3502579c1bdaf1c457
+    )
+    FetchContent_MakeAvailable(vpux_emulator)
+
     add_dependencies(vpux_emulator mcmCompilerGenSchema)
     add_subdirectory(emulator_backend)
 endif()
+
 if(ENABLE_HDDL2 AND UNIX AND LINUX_OS_NAME STREQUAL "Ubuntu 20.04")
     add_subdirectory(hddl2_backend)
 endif()

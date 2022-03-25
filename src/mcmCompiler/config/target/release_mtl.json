@@ -282,13 +282,14 @@
                 "totalNumber": 0
             }
         ],
-        "bitcompactor":
+        "huffman_decode_engine":
         [
             {
-                "name": "BTC",
-                "numCompressionModules": 1,
-                "bufferAlignment": 1,
-                "bitmapPreprocEnable": 0,
+                "name": "HDE",
+                "numberOfHDEModules": 1,
+                "bitPerSymbol": 8,
+                "blockSize": 4096,
+                "maxNumberEncodedSymbols": 16,
                 "bypassMode": false
             }
         ]

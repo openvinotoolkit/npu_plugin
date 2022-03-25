@@ -383,12 +383,22 @@ else()
     add_library(${OBJ_TARGET_NAME} STATIC ${SOURCES} ${COMPILER_FOR_DRIVER_VERSION_FILE})
 endif()
 
+if(ENABLE_BITCOMPACTOR)
+    set(BITCOMPACTOR_TARGET_OBJ $<TARGET_OBJECTS:bitcompactor>)
+    set(BITCOMPACTOR_DEP bitcompactor)
+    set(BITCOMPACTOR_INCLUDES $<TARGET_PROPERTY:bitcompactor,INTERFACE_INCLUDE_DIRECTORIES>)
+else()
+    set(BITCOMPACTOR_TARGET_OBJ "")
+    set(BITCOMPACTOR_DEP "")
+    set(BITCOMPACTOR_INCLUDES "")
+endif()
+
 # FIXME: E#30420
 # on one hand, adding bitcompactor and huffman_codec as sources
 # makes clang_format corrupt those object files
 # on the other, without them we do not have symbols defined in static build configuration
 if(NOT BUILD_SHARED_LIBS)
-    target_sources(${OBJ_TARGET_NAME} PRIVATE $<TARGET_OBJECTS:bitcompactor> $<TARGET_OBJECTS:huffman_codec>)
+    target_sources(${OBJ_TARGET_NAME} PRIVATE ${BITCOMPACTOR_TARGET_OBJ} $<TARGET_OBJECTS:huffman_codec>)
 endif()
 if(BUILD_SHARED_LIBS)
     vpux_enable_clang_format(${OBJ_TARGET_NAME})
@@ -398,7 +408,7 @@ set_target_properties(${OBJ_TARGET_NAME} PROPERTIES FOLDER "src")
 add_dependencies(${OBJ_TARGET_NAME}
     ${TBLGEN_TARGET_NAME}
     ${SCHEMA_TARGET_NAME}
-    bitcompactor
+    ${BITCOMPACTOR_DEP}
     huffman_codec
 )
 
@@ -436,7 +446,7 @@ target_include_directories(${OBJ_TARGET_NAME}
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     PRIVATE
-        $<TARGET_PROPERTY:bitcompactor,INTERFACE_INCLUDE_DIRECTORIES>
+        ${BITCOMPACTOR_INCLUDES}
         $<TARGET_PROPERTY:huffman_codec,INTERFACE_INCLUDE_DIRECTORIES>
 )
 
@@ -498,7 +508,7 @@ target_link_libraries(${OBJ_TARGET_NAME} PUBLIC $<BUILD_INTERFACE:mlir-dependenc
 #
 
 if(BUILD_SHARED_LIBS)
-    add_library(${TARGET_NAME} MODULE $<TARGET_OBJECTS:${OBJ_TARGET_NAME}> $<TARGET_OBJECTS:bitcompactor> $<TARGET_OBJECTS:huffman_codec>)
+    add_library(${TARGET_NAME} MODULE $<TARGET_OBJECTS:${OBJ_TARGET_NAME}> ${BITCOMPACTOR_TARGET_OBJ} $<TARGET_OBJECTS:huffman_codec>)
     target_link_libraries(${TARGET_NAME} PRIVATE ${OBJ_TARGET_NAME})
     if(WIN32)
         ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
@@ -510,7 +520,7 @@ endif()
 #
 
 if(BUILD_SHARED_LIBS)
-    add_library(${STATIC_TARGET_NAME} STATIC $<TARGET_OBJECTS:${OBJ_TARGET_NAME}> $<TARGET_OBJECTS:bitcompactor> $<TARGET_OBJECTS:huffman_codec>)
+    add_library(${STATIC_TARGET_NAME} STATIC $<TARGET_OBJECTS:${OBJ_TARGET_NAME}> ${BITCOMPACTOR_TARGET_OBJ} $<TARGET_OBJECTS:huffman_codec>)
     target_link_libraries(${STATIC_TARGET_NAME} PUBLIC $<BUILD_INTERFACE:${OBJ_TARGET_NAME}>)
 else()
     bundle_static_library(${OBJ_TARGET_NAME} mlir-dependencies inferenceStatic)

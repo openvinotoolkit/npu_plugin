@@ -52,14 +52,13 @@ private:
         std::string runProgram;
         SmallVector<StringRef> runArgs;
         int64_t timeoutSec;
-        std::string chipsetVersion;
-        std::string imdElf;
+        std::string chipsetArg;
+        std::string imdElfArg;
     };
 
     void parseAppConfig(InferenceEngine::VPUXConfigParams::VPUXPlatform platform, const Config& config);
 
     SmallString createTempWorkDir();
-    void copyAppFile(StringRef workDir);
     void storeNetworkBlob(StringRef workDir);
     void storeNetworkInputs(StringRef workDir, const InferenceEngine::BlobMap& inputs);
     void runApp(StringRef workDir);

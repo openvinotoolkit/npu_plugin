@@ -13,7 +13,6 @@
 #include "include/mcm/target/kmb/ppe_layer_type.hpp"
 #include "include/mcm/target/kmb/ppe_fixed_function.hpp"
 #include "include/mcm/tensor/quantization_params.hpp"
-#include "include/mcm/utils/compression/btc.hpp"
 #include "include/mcm/utils/compression/hde.hpp"
 #include "include/mcm/pass/pass_utils.hpp"
 

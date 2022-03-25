@@ -11,18 +11,12 @@
 	path = thirdparty/llvm-project
 	url = https://github.com/plaidml/llvm-project.git
 	shallow = true
-[submodule "thirdparty/bitcompactor"]
-	path = thirdparty/bitcompactor
-	url = https://github.com/intel-innersource/frameworks.vpu.models.vpu27.bit-compactor.git
 [submodule "thirdparty/hddlunite"]
 	path = thirdparty/hddlunite
 	url = https://github.com/intel-innersource/frameworks.ai.vpu-accelerators.hddlunite.git
 [submodule "thirdparty/level-zero"]
 	path = thirdparty/level-zero
 	url = https://github.com/oneapi-src/level-zero.git
-[submodule "mcm-emulator"]
-	path = src/vpux_emulator
-	url = https://github.com/intel-innersource/applications.ai.vpu-accelerators.vpux-emulator.git
 [submodule "thirdparty/level-zero-ext"]
 	path = thirdparty/level-zero-ext
 	url = https://github.com/intel-innersource/drivers.vpu.user-mode.applications.umd.ze-ext-headers.git

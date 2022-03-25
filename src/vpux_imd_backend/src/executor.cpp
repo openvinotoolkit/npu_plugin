@@ -18,6 +18,7 @@
 #include "vpux/al/config/common.hpp"
 #include "vpux/utils/IE/blob.hpp"
 #include "vpux/utils/core/checked_cast.hpp"
+#include "vpux/utils/core/format.hpp"
 #include "vpux/utils/core/range.hpp"
 #include "vpux/utils/core/scope_exit.hpp"
 
@@ -31,37 +32,30 @@
 
 using namespace vpux;
 using namespace InferenceEngine;
-using namespace ov::intel_vpux;
+using InferenceEngine::VPUXConfigParams::VPUXPlatform;
 
 //
 // parseAppConfig
 //
 
-void vpux::IMD::ExecutorImpl::parseAppConfig(VPUXConfigParams::VPUXPlatform platform, const Config& config) {
+void vpux::IMD::ExecutorImpl::parseAppConfig(VPUXPlatform platform, const Config& config) {
     // InferenceManagerDemo application ELF file
 
-    if (platformSupported(platform)) {
-        auto chipset_value = getChipsetName(platform);  // If above check has passed, platform is present
-
-        _app.elfFile =
-                llvm::formatv("{0}/vpux/IMD/{1}/InferenceManagerDemo.elf", ov::util::get_ov_lib_path(), chipset_value)
-                        .str();
-    } else {
-        VPUX_THROW("Unsupported VPU platform '{0}'", platform);
-    }
+    const auto appName = getAppName(platform);
+    _app.elfFile = printToString("{0}/vpux/{1}", ov::util::get_ov_lib_path(), appName);
 
     // Path to MOVI tools dir
 
     std::string pathToTools;
 
     if (config.has<IMD::MV_TOOLS_PATH>()) {
-        pathToTools = llvm::formatv("{0}/linux64/bin", config.get<IMD::MV_TOOLS_PATH>()).str();
+        pathToTools = printToString("{0}/linux64/bin", config.get<IMD::MV_TOOLS_PATH>());
     } else {
         const auto* rootDir = std::getenv("MV_TOOLS_DIR");
         const auto* version = std::getenv("MV_TOOLS_VERSION");
 
         if (rootDir != nullptr && version != nullptr) {
-            pathToTools = llvm::formatv("{0}/{1}/linux64/bin", rootDir, version).str();
+            pathToTools = printToString("{0}/{1}/linux64/bin", rootDir, version);
         } else {
             VPUX_THROW("Can't locate MOVI tools directory, please provide VPUX_IMD_MV_TOOLS_PATH config option or "
                        "MV_TOOLS_DIR/MV_TOOLS_VERSION env vars");
@@ -74,20 +68,19 @@ void vpux::IMD::ExecutorImpl::parseAppConfig(VPUXConfigParams::VPUXPlatform plat
 
     switch (mode) {
     case IMD::LaunchMode::MoviSim: {
-        _app.runProgram = llvm::formatv("{0}/moviSim", pathToTools).str();
+        _app.runProgram = printToString("{0}/moviSim", pathToTools);
 
         if (platformSupported(platform)) {
-            if (platform == decltype(platform)::VPU3720) {
+            if (platform == VPUXPlatform::VPU3720) {
                 // For some reason, -cv:3720xx doesn't work, while -cv:3700xx works OK for MTL
-                _app.chipsetVersion = "-cv:3700xx";
-                _app.imdElf = "-l:LRT:./InferenceManagerDemo.elf";
+                _app.chipsetArg = "-cv:3700xx";
+                _app.imdElfArg = printToString("-l:LRT:{0}", _app.elfFile);
             } else {
-                _app.chipsetVersion = "-cv:ma2490";
-                // The only of the arch ids from config, that doesn't cause exceptions
-                _app.imdElf = "-l:LRT0:./InferenceManagerDemo.elf";
+                _app.chipsetArg = "-cv:ma2490";
+                _app.imdElfArg = printToString("-l:LRT0:{0}", _app.elfFile);
             }
 
-            _app.runArgs = {_app.runProgram, _app.chipsetVersion, "-nodasm", "-q", _app.imdElf};
+            _app.runArgs = {_app.runProgram, _app.chipsetArg, "-nodasm", "-q", _app.imdElfArg};
         } else {
             VPUX_THROW("Unsupported VPU platform '{0}'", platform);
         }
@@ -118,21 +111,6 @@ SmallString vpux::IMD::ExecutorImpl::createTempWorkDir() {
 }
 
 //
-// copyAppFile
-//
-
-void vpux::IMD::ExecutorImpl::copyAppFile(StringRef workDir) {
-    _log.trace("Copy the application ELF file...");
-
-    const auto elfFilePath = llvm::formatv("{0}/InferenceManagerDemo.elf", workDir).str();
-
-    const auto errc = llvm::sys::fs::copy_file(_app.elfFile, elfFilePath);
-    VPUX_THROW_WHEN(errc, "Failed to copy the application ELF file : {0}", errc.message());
-
-    _log.nest().trace("{0}", elfFilePath);
-}
-
-//
 // storeNetworkBlob
 //
 
@@ -141,12 +119,12 @@ void vpux::IMD::ExecutorImpl::storeNetworkBlob(StringRef workDir) {
 
     const auto& compiledBlob = _network->getCompiledNetwork();
 
-    const auto modeFilePath = llvm::formatv("{0}/test.blob", workDir).str();
-    std::ofstream file(modeFilePath, std::ios::binary);
-    VPUX_THROW_UNLESS(file.is_open(), "Can't open file '{0}' for write", modeFilePath);
+    const auto modelFilePath = printToString("{0}/test.blob", workDir);
+    std::ofstream file(modelFilePath, std::ios::binary);
+    VPUX_THROW_UNLESS(file.is_open(), "Can't open file '{0}' for write", modelFilePath);
     file.write(compiledBlob.data(), compiledBlob.size());
 
-    _log.nest().trace("{0}", modeFilePath);
+    _log.nest().trace("{0}", modelFilePath);
 }
 
 //
@@ -173,7 +151,7 @@ void vpux::IMD::ExecutorImpl::storeNetworkInputs(StringRef workDir, const BlobMa
         const auto ptr = mem.as<const char*>();
         VPUX_THROW_UNLESS(ptr != nullptr, "Blob was not allocated");
 
-        const auto inputFilePath = llvm::formatv("{0}/input-{1}.bin", workDir, ind).str();
+        const auto inputFilePath = printToString("{0}/input-{1}.bin", workDir, ind);
         std::ofstream file(inputFilePath, std::ios_base::binary | std::ios_base::out);
         VPUX_THROW_UNLESS(file.is_open(), "Can't open file '{0}' for write", inputFilePath);
         file.write(ptr, devBlob->byteSize());
@@ -237,7 +215,7 @@ void vpux::IMD::ExecutorImpl::loadNetworkOutputs(StringRef workDir, const BlobMa
         const auto ptr = mem.as<char*>();
         VPUX_THROW_UNLESS(ptr != nullptr, "Blob was not allocated");
 
-        const auto outputFilePath = llvm::formatv("{0}/output-{1}.bin", workDir, ind).str();
+        const auto outputFilePath = printToString("{0}/output-{1}.bin", workDir, ind);
         std::ifstream file(outputFilePath, std::ios_base::binary | std::ios_base::ate);
         VPUX_THROW_UNLESS(file.is_open(), "Can't open file '{0}' for READ", outputFilePath);
 
@@ -262,7 +240,7 @@ void vpux::IMD::ExecutorImpl::loadNetworkOutputs(StringRef workDir, const BlobMa
 // Base interface API implementation
 //
 
-vpux::IMD::ExecutorImpl::ExecutorImpl(VPUXConfigParams::VPUXPlatform platform, const NetworkDescription::Ptr& network,
+vpux::IMD::ExecutorImpl::ExecutorImpl(VPUXPlatform platform, const NetworkDescription::Ptr& network,
                                       const Config& config)
         : _network(network), _log("InferenceManagerDemo", config.get<LOG_LEVEL>()) {
     parseAppConfig(platform, config);
@@ -301,7 +279,6 @@ void vpux::IMD::ExecutorImpl::pull(BlobMap& outputs) {
         }
     };
 
-    copyAppFile(workDir.str());
     storeNetworkBlob(workDir.str());
     storeNetworkInputs(workDir.str(), _inputs);
     runApp(workDir.str());
