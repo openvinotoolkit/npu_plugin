@@ -41,6 +41,7 @@ vpux::VPUIP::WorkloadCostParams buildWorkloadCost(const NceOpTensorShape& tensor
     const auto inputShape = tensorShape.inputShape;
     vpux::VPUIP::WorkloadCostParams costParams;
     costParams.dataType = mlir::Float16Type::get(ctx);
+    costParams.fullInputShape = tensorShape.inputShape;
     costParams.inputShape = tensorShape.inputShape;
     costParams.outputShape = tensorShape.outputShape;
     costParams.padInfo = vpux::PadInfo(0, 0, 0, 0);

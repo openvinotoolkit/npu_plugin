@@ -401,3 +401,22 @@ void vpux::VPU::NCEConvolutionOp::adjustAttrs(const TilingInfo& inputTiling, con
     VPU::adjustPaddings(this, inputTiling);
     VPU::adjustRawFilterShape(this, outputTile);
 }
+
+//
+// NCEOpInterface
+//
+
+SmallVector<int64_t> vpux::VPU::NCEConvolutionOp::getKernelSize() {
+    const auto kernelShape = Shape(parseIntArrayAttr<int64_t>(rawFilterShape()));
+    const auto KY = kernelShape[Dims4D::Filter::KY];
+    const auto KX = kernelShape[Dims4D::Filter::KX];
+    return {KY, KX};
+}
+
+SmallVector<int64_t> vpux::VPU::NCEConvolutionOp::getStrides() {
+    return parseIntArrayAttr<int64_t>(strides());
+}
+
+vpux::VPU::PaddingAttr vpux::VPU::NCEConvolutionOp::getPad() {
+    return padAttr();
+}

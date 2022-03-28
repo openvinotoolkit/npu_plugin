@@ -4,6 +4,30 @@
 
 Base interface for VPU NCE Operations
 ### Methods:
+#### `getKernelSize`
+
+```c++
+SmallVector<int64_t> getKernelSize();
+```
+Get NCE operation kernel size
+NOTE: This method *must* be implemented by the user.
+
+#### `getStrides`
+
+```c++
+SmallVector<int64_t> getStrides();
+```
+Get NCE operation kernel strides
+NOTE: This method *must* be implemented by the user.
+
+#### `getPad`
+
+```c++
+vpux::VPU::PaddingAttr getPad();
+```
+Get NCE operation padding
+NOTE: This method *must* be implemented by the user.
+
 #### `addWorkload`
 
 ```c++

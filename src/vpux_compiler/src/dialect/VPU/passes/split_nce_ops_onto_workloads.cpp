@@ -86,23 +86,6 @@ void addSubTensorOffset(TileInfo& tileInfo, ShapeRef tensorOffset) {
     }
 }
 
-vpux::PadInfo getPaddingForSubTensor(PadInfo pads, ShapeRef origOutputShape, ShapeRef subTensor,
-                                     ShapeRef subTensorOffset) {
-    if (subTensorOffset[Dims4D::Act::H] != 0) {
-        pads.top = 0;
-    }
-    if (subTensorOffset[Dims4D::Act::W] != 0) {
-        pads.left = 0;
-    }
-    if (subTensorOffset[Dims4D::Act::H] + subTensor[Dims4D::Act::H] != origOutputShape[Dims4D::Act::H]) {
-        pads.bottom = 0;
-    }
-    if (subTensorOffset[Dims4D::Act::W] + subTensor[Dims4D::Act::W] != origOutputShape[Dims4D::Act::W]) {
-        pads.right = 0;
-    }
-    return pads;
-}
-
 void addWorkload(mlir::PatternRewriter& rewriter, VPU::NCEOpInterface origOp,
                  const VPUIP::WorkloadCostParams& costParams, std::shared_ptr<VPUNN::VPUCostModel> costModel,
                  mlir::IntegerAttr clusterId = nullptr, ShapeRef subTensorOffset = {}) {
@@ -127,7 +110,13 @@ void addWorkload(mlir::PatternRewriter& rewriter, VPU::NCEOpInterface origOp,
     const auto& splitCandidates = dpuTiler.getSplitPool();
     auto minCostIter = splitCandidates.begin();
     for (auto iter = splitCandidates.begin(); iter != splitCandidates.end(); iter++) {
-        auto hardwareExecutionCost = dpuTiler.cost(*iter, costParams);
+        auto tiles = *iter;
+        if (clusterId != nullptr) {
+            for (auto& tile : tiles) {
+                addSubTensorOffset(tile, subTensorOffset);
+            }
+        }
+        auto hardwareExecutionCost = dpuTiler.cost(tiles, costParams);
         if (minimumHardwareExecutionCost > hardwareExecutionCost) {
             minimumHardwareExecutionCost = hardwareExecutionCost;
             minCostIter = iter;
@@ -135,12 +124,15 @@ void addWorkload(mlir::PatternRewriter& rewriter, VPU::NCEOpInterface origOp,
     }
 
     auto outTiles = *minCostIter;
+    auto kernel = origOp.getKernelSize();
+    auto strides = origOp.getStrides();
     for (auto& outTile : outTiles) {
-        const auto padsTileConf = backInferPadsTile(outTile, costParams.outputShape, costParams.padInfo);
-        auto tilePad = VPU::getPaddingAttr(rewriter.getContext(), padsTileConf);
         if (clusterId != nullptr) {
             addSubTensorOffset(outTile, subTensorOffset);
         }
+        const auto padsTileConf =
+                backInferPadsTile(outTile, costParams.fullInputShape, costParams.padInfo, kernel, strides);
+        auto tilePad = VPU::getPaddingAttr(rewriter.getContext(), padsTileConf);
         origOp.addWorkload(rewriter, origOp.getLoc(), outTile.offsets, outTile.shape, tilePad, costParams.mpeMode,
                            clusterId);
     }
@@ -202,17 +194,10 @@ void addDPUTasks(mlir::PatternRewriter& rewriter, VPU::NCEOpInterface origOp, VP
                         "output tensor size:{0} not equal to input tensor size:{1}", outputSubTensorShapes.size(),
                         inputSubTensorShapes.size());
 
-        const auto origFullOutputShape = costParams.outputShape;
-        const auto origPad = costParams.padInfo;
-
         for (size_t clusterId = 0; clusterId < outputSubTensorShapes.size(); clusterId++) {
             auto clusterIdAttr = getIntAttr(origOp->getContext(), clusterId);
-            auto workloadPad = getPaddingForSubTensor(origPad, origFullOutputShape, outputSubTensorShapes[clusterId],
-                                                      outputSubTensorOffsets[clusterId]);
-
             costParams.inputShape = inputSubTensorShapes[clusterId];
             costParams.outputShape = outputSubTensorShapes[clusterId];
-            costParams.padInfo = workloadPad;
 
             addWorkload(rewriter, origOp, costParams, costModel, clusterIdAttr, outputSubTensorOffsets[clusterId]);
         }
@@ -298,6 +283,7 @@ mlir::LogicalResult GenericNCERewrite<ConcreteOp>::matchAndRewrite(ConcreteOp or
     params.dataType = inElemType;
     params.numDPU = _numDPU;
     params.arch = _arch;
+    params.fullInputShape = inputShape.raw();
     params.inputShape = inputShape.raw();
     params.outputShape = outputShape.raw();
     params.padInfo = VPU::toPadInfo(pads);

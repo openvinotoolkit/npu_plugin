@@ -24,6 +24,7 @@ struct WorkloadCostParams {
     mlir::Type dataType;
     VPU::ArchKind arch;
     VPU::MPEMode mpeMode;
+    Shape fullInputShape;
     Shape inputShape;
     Shape outputShape;
     PadInfo padInfo;

@@ -6,7 +6,6 @@
 //
 
 #include "vpux/compiler/dialect/VPUIP/dpu_tiler.hpp"
-#include "vpux/compiler/core/layers.hpp"
 #include "vpux/compiler/utils/factors.hpp"
 #include "vpux/utils/core/numeric.hpp"
 
@@ -307,18 +306,19 @@ void vpux::VPUIP::DpuTiler::tileOverHW(uint32_t splitNumber, const SplitDimensio
 }
 
 uint32_t vpux::VPUIP::DpuTiler::cost(const OutputTiling& dpuTiles, const WorkloadCostParams& params) {
-    VPUX_THROW_WHEN(params.kernelSize.size() < 2, "kernel array size less than 2");
-    const auto KY = static_cast<unsigned int>(params.kernelSize[0]);
-    const auto KX = static_cast<unsigned int>(params.kernelSize[1]);
-    VPUX_THROW_WHEN(params.kernelStride.size() < 2, "kernel stride array size less than 2");
-    const auto SY = static_cast<unsigned int>(params.kernelStride[0]);
-    const auto SX = static_cast<unsigned int>(params.kernelStride[1]);
+    VPUX_THROW_WHEN(params.kernelSize.size() < 2, "Kernel array size less than 2");
+    const auto KY = params.kernelSize[Dims4D::Kernel::Y.ind()];
+    const auto KX = params.kernelSize[Dims4D::Kernel::X.ind()];
+    VPUX_THROW_WHEN(params.kernelStride.size() < 2, "Kernel stride array size less than 2");
+    const auto SY = params.kernelStride[Dims4D::Strides::Y.ind()];
+    const auto SX = params.kernelStride[Dims4D::Strides::X.ind()];
 
     const auto opType = getOperationType(params.nceTaskType);
 
     std::vector<unsigned int> workloadCost;
     for (const auto& dpuTile : dpuTiles) {
-        const auto padsTileConf = backInferPadsTile(dpuTile, params.outputShape, params.padInfo);
+        const auto padsTileConf = backInferPadsTile(dpuTile, params.fullInputShape, params.padInfo,
+                                                    makeArrayRef({KY, KX}), makeArrayRef({SY, SX}));
 
         const auto outputTensor = getVPUTensor(dpuTile.shape, params.dataType);
 
@@ -340,8 +340,8 @@ uint32_t vpux::VPUIP::DpuTiler::cost(const OutputTiling& dpuTiles, const Workloa
                  opType,
                  {inputTensor},
                  {outputTensor},
-                 {KX, KY},
-                 {SX, SY},
+                 {static_cast<unsigned int>(KX), static_cast<unsigned int>(KY)},
+                 {static_cast<unsigned int>(SX), static_cast<unsigned int>(SY)},
                  {static_cast<unsigned int>(padsTileConf.top), static_cast<unsigned int>(padsTileConf.bottom),
                   static_cast<unsigned int>(padsTileConf.left), static_cast<unsigned int>(padsTileConf.right)},
                  getExecutionMode(params.mpeMode)});

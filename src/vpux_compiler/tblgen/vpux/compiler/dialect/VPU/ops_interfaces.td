@@ -38,6 +38,21 @@ def VPU_NCEOpInterface : OpInterface<"NCEOpInterface"> {
 
     let methods = [
         InterfaceMethod<
+            "Get NCE operation kernel size",
+            "SmallVector<int64_t>", "getKernelSize", (ins)
+        >,
+
+        InterfaceMethod<
+            "Get NCE operation kernel strides",
+            "SmallVector<int64_t>", "getStrides", (ins)
+        >,
+
+        InterfaceMethod<
+            "Get NCE operation padding",
+            "vpux::VPU::PaddingAttr", "getPad", (ins)
+        >,
+
+        InterfaceMethod<
             "Add workload",
             "mlir::Operation*", "addWorkload",
             (ins "mlir::OpBuilder&":$builder, "mlir::Location":$loc,

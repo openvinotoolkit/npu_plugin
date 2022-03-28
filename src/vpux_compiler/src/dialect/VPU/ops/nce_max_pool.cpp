@@ -267,3 +267,19 @@ void vpux::VPU::NCEMaxPoolOp::adjustAttrs(const TilingInfo& inputTiling, const T
 
     activation_window_channel_lengthAttr(getIntAttr(getContext(), bitPatternSize));
 }
+
+//
+// NCEOpInterface
+//
+
+SmallVector<int64_t> vpux::VPU::NCEMaxPoolOp::getKernelSize() {
+    return parseIntArrayAttr<int64_t>(kernel_size());
+}
+
+SmallVector<int64_t> vpux::VPU::NCEMaxPoolOp::getStrides() {
+    return parseIntArrayAttr<int64_t>(strides());
+}
+
+vpux::VPU::PaddingAttr vpux::VPU::NCEMaxPoolOp::getPad() {
+    return padAttr();
+}

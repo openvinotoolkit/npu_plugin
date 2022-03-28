@@ -107,7 +107,8 @@ struct PadInfo final {
     }
 };
 
-PadInfo backInferPadsTile(const TileInfo& outputTile, ShapeRef outShape, const PadInfo& origPads);
+PadInfo backInferPadsTile(const TileInfo& outputTile, ShapeRef inShape, const PadInfo& origPads,
+                          ArrayRef<int64_t> kernel, ArrayRef<int64_t> strides);
 
 //
 // TilingInfo

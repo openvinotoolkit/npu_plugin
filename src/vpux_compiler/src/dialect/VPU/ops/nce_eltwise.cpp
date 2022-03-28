@@ -140,3 +140,19 @@ mlir::LogicalResult vpux::VPU::NCEEltwiseOp::inferReturnTypeComponents(
 void vpux::VPU::NCEEltwiseOp::inferLayoutInfo(IE::LayerLayoutInfo& info) {
     info.fill(DimsOrder::NHWC);
 }
+
+//
+// NCEOpInterface
+//
+
+SmallVector<int64_t> vpux::VPU::NCEEltwiseOp::getKernelSize() {
+    return {1, 1};
+}
+
+SmallVector<int64_t> vpux::VPU::NCEEltwiseOp::getStrides() {
+    return {1, 1};
+}
+
+vpux::VPU::PaddingAttr vpux::VPU::NCEEltwiseOp::getPad() {
+    return VPU::getPaddingAttr(getContext(), PadInfo(0, 0, 0, 0));
+}

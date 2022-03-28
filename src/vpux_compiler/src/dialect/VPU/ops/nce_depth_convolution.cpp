@@ -340,3 +340,22 @@ void vpux::VPU::NCEDepthConvolutionOp::adjustAttrs(const TilingInfo& inputTiling
 
     activation_window_channel_lengthAttr(getIntAttr(getContext(), bitPatternSize));
 }
+
+//
+// NCEOpInterface
+//
+
+SmallVector<int64_t> vpux::VPU::NCEDepthConvolutionOp::getKernelSize() {
+    const auto kernelShape = Shape(parseIntArrayAttr<int64_t>(rawFilterShape()));
+    const auto KY = kernelShape[Dims4D::Filter::KY];
+    const auto KX = kernelShape[Dims4D::Filter::KX];
+    return {KY, KX};
+}
+
+SmallVector<int64_t> vpux::VPU::NCEDepthConvolutionOp::getStrides() {
+    return parseIntArrayAttr<int64_t>(strides());
+}
+
+vpux::VPU::PaddingAttr vpux::VPU::NCEDepthConvolutionOp::getPad() {
+    return padAttr();
+}

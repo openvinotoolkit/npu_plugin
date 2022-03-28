@@ -78,9 +78,10 @@ OutputTiling vpux::fillDividedTiles(ShapeRef divisors, ShapeRef orig) {
 // PadInfo
 //
 
-PadInfo vpux::backInferPadsTile(const TileInfo& outputTile, ShapeRef outShape, const PadInfo& origPads) {
-    const std::array<int64_t, 2> origPadsBegin = {origPads.top, origPads.left};
-    const std::array<int64_t, 2> origPadsEnd = {origPads.bottom, origPads.right};
+PadInfo vpux::backInferPadsTile(const TileInfo& outputTile, ShapeRef inShape, const PadInfo& origPads,
+                                ArrayRef<int64_t> kernel, ArrayRef<int64_t> strides) {
+    const std::array<int64_t, Dims4D::Act::numSpatialDims> origPadsBegin = {origPads.top, origPads.left};
+    const std::array<int64_t, Dims4D::Act::numSpatialDims> origPadsEnd = {origPads.bottom, origPads.right};
 
     SmallVector<int64_t> tilePadsBegin(Dims4D::Act::numSpatialDims);
     SmallVector<int64_t> tilePadsEnd(Dims4D::Act::numSpatialDims);
@@ -91,8 +92,11 @@ PadInfo vpux::backInferPadsTile(const TileInfo& outputTile, ShapeRef outShape, c
         const auto outSize = outputTile.shape[spatialDim];
         const auto outOffset = outputTile.offsets[spatialDim];
 
-        tilePadsBegin[ind] = outOffset == 0 ? origPadsBegin[ind] : 0;
-        tilePadsEnd[ind] = (outOffset + outSize) == outShape[spatialDim] ? origPadsEnd[ind] : 0;
+        const DimRange inputRange(0, inShape[spatialDim]);
+        const DimRange tileRange(outOffset, outOffset + outSize);
+
+        std::tie(std::ignore, tilePadsBegin[ind], tilePadsEnd[ind]) = inputForOutputDim(
+                tileRange, kernel[ind], strides[ind], inputRange, origPadsBegin[ind], origPadsEnd[ind]);
     }
 
     return PadInfo(tilePadsBegin[1], tilePadsEnd[1], tilePadsBegin[0], tilePadsEnd[0]);
