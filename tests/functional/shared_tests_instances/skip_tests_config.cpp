@@ -65,7 +65,7 @@ public:
     bool isARM() const noexcept {
 #if defined(__arm__) || defined(__aarch64__)
     return true;
-#else 
+#else
     return false;
 #endif
     }
@@ -88,7 +88,7 @@ public:
         );
     }
 
-    void addPatterns(bool conditionFlag, 
+    void addPatterns(bool conditionFlag,
                      std::string&& comment,
                      std::vector<std::string>&& patternsToSkip) {
         if (conditionFlag) {
@@ -118,7 +118,7 @@ private:
         Entry(std::string&& comment, std::vector<std::string>&& patterns) :
               _comment{std::move(comment)}
             , _patterns{std::move(patterns)} { }
-            
+
         std::string _comment;
         std::vector<std::string> _patterns;
     };
@@ -129,7 +129,7 @@ private:
 std::string getCurrentTestName() {
     const auto* currentTestInfo = ::testing::UnitTest::GetInstance()->current_test_info();
     const auto currentTestName = currentTestInfo->test_case_name()
-                                + std::string(".") + currentTestInfo->name();    
+                                + std::string(".") + currentTestInfo->name();
     return currentTestName;
 }
 
@@ -205,6 +205,10 @@ std::vector<std::string> disabledTestPatterns() {
             // [Track number: E#30822]
             ".*OVClassNetworkTestP.*LoadNetworkCreateDefaultExecGraphResult.*",
 
+            // TODO: profiling support is broken in LATENCY mode
+            // [Track number: E#36465]
+            ".*OVClassNetworkTestP.LoadNetworkActualHeteroDeviceUsingDevicePropertiesNoThrow.*",
+
             // Async tests failed on dKMB
             // TODO: [Track number: S#14836]
             ".*ExclusiveAsyncRequests.*",
@@ -256,7 +260,7 @@ std::vector<std::string> disabledTestPatterns() {
         //
 
         _skipRegistry.addPatterns(
-            backendName.isEmpty(),  
+            backendName.isEmpty(),
             "backend is empty (no device)",
             {
                 // Cannot run InferRequest tests without a device to infer to
@@ -293,7 +297,7 @@ std::vector<std::string> disabledTestPatterns() {
         );
 
         _skipRegistry.addPatterns(
-            backendName.isZero(),  
+            backendName.isZero(),
             "CumSum layer is not supported by MTL platform",
             {
                 ".*SetBlobTest.*",
@@ -301,7 +305,7 @@ std::vector<std::string> disabledTestPatterns() {
         );
 
         _skipRegistry.addPatterns(
-            backendName.isZero(),  
+            backendName.isZero(),
             "TensorIterator layer is not supported by MTL/dKMB platform",
             {
                 ".*SetBlobTest.*",
@@ -335,7 +339,7 @@ std::vector<std::string> disabledTestPatterns() {
         );
 
         _skipRegistry.addPatterns(
-            platform.isARM(),  
+            platform.isARM(),
             "CumSum layer is not supported by ARM platform",
             {
                 ".*SetBlobTest.CompareWithRefs.*",

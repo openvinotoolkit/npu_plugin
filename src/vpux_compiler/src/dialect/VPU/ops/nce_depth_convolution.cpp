@@ -57,7 +57,7 @@ bool vpux::VPU::NCEDepthConvolutionOp::fitIntoCMX(vpux::NDTypeInterface input, v
 // isSupported
 //
 
-bool vpux::VPU::NCEDepthConvolutionOp::isSupported(IE::GroupConvolutionOp op, NCEInvariant::LogCb logCb) {
+bool vpux::VPU::NCEDepthConvolutionOp::isSupported(IE::GroupConvolutionOp op, LogCb logCb) {
     if (op.getType().getRank() != 4) {
         logCb(llvm::formatv("Only 4D tensors are supported"));
         return false;

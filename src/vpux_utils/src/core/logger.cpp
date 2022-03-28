@@ -46,6 +46,13 @@ StringLiteral vpux::stringifyEnum(LogLevel val) {
 }
 
 //
+// LogCb
+//
+
+void vpux::emptyLogCb(const llvm::formatv_object_base&) {
+}
+
+//
 // Logger
 //
 

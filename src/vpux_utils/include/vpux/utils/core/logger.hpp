@@ -50,6 +50,13 @@ enum class LogLevel {
 StringLiteral stringifyEnum(LogLevel val);
 
 //
+// Logging callback
+//
+
+using LogCb = FuncRef<void(const llvm::formatv_object_base&)>;
+void emptyLogCb(const llvm::formatv_object_base&);
+
+//
 // Logger
 //
 

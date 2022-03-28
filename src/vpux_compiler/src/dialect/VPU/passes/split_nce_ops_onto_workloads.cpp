@@ -182,8 +182,12 @@ void addDPUTasks(mlir::PatternRewriter& rewriter, VPU::NCEOpInterface origOp, VP
         auto distributedOutputType = output.getType().dyn_cast<VPU::DistributedTensorType>();
         VPUX_THROW_WHEN(distributedOutputType == nullptr, "Wrong output type {0} for NCEClusterTilingOp",
                         output.getType());
-        const auto& outputSubTensorShapes = distributedOutputType.getPerClusterComputeShapes();
-        const auto& outputSubTensorOffsets = distributedOutputType.getPerClusterComputeShapeOffsets();
+
+        const auto outputSubTensorShapes = distributedOutputType.getPerClusterComputeShapes();
+        const auto outputSubTensorOffsets = distributedOutputType.getPerClusterComputeShapeOffsets();
+        VPUX_THROW_WHEN(outputSubTensorShapes.size() != outputSubTensorOffsets.size(),
+                        "sub tensor size:{0} not equal to offset size:{1}", outputSubTensorShapes.size(),
+                        outputSubTensorOffsets.size());
 
         const auto inputs = clusterOp->getOperands();
         VPUX_THROW_UNLESS(inputs.size() >= 1, "Wrong inputs size: {0}", inputs.size());
@@ -192,31 +196,20 @@ void addDPUTasks(mlir::PatternRewriter& rewriter, VPU::NCEOpInterface origOp, VP
         auto distributedInputType = input.getType().dyn_cast<VPU::DistributedTensorType>();
         VPUX_THROW_WHEN(distributedInputType == nullptr, "Wrong input type {0} for NCEClusterTilingOp",
                         input.getType());
-        auto inputSubTensorShapes = distributedInputType.getPerClusterComputeShapes();
 
-        // When NCEOp is DWConv and SOK strategy. Input distribution type mode is "DUPLICATED"
-        // So need to change the sub input shape to ensure VPUNN get the right shape and cost value.
-        // Simplify this case, let sub input shape = sub output shape
-        // Can removed after setting "SEGMENTED" mode for the input of SOK DWConv in later optimization.
-        if (mlir::isa<VPU::NCEDepthConvolutionOp>(origOp.getOperation()) &&
-            distributedOutputType.getDistribution().mode().getValue() ==
-                    (VPU::DistributionMode::SEGMENTED | VPU::DistributionMode::DUPLICATED)) {
-            inputSubTensorShapes = outputSubTensorShapes;
-        }
-
+        const auto inputSubTensorShapes = distributedInputType.getPerClusterComputeShapes();
         VPUX_THROW_WHEN(outputSubTensorShapes.size() != inputSubTensorShapes.size(),
                         "output tensor size:{0} not equal to input tensor size:{1}", outputSubTensorShapes.size(),
                         inputSubTensorShapes.size());
 
-        VPUX_THROW_WHEN(outputSubTensorShapes.size() != outputSubTensorOffsets.size(),
-                        "sub tensor size:{0} not equal to offset size:{1}", outputSubTensorShapes.size(),
-                        outputSubTensorOffsets.size());
         const auto origFullOutputShape = costParams.outputShape;
         const auto origPad = costParams.padInfo;
+
         for (size_t clusterId = 0; clusterId < outputSubTensorShapes.size(); clusterId++) {
             auto clusterIdAttr = getIntAttr(origOp->getContext(), clusterId);
             auto workloadPad = getPaddingForSubTensor(origPad, origFullOutputShape, outputSubTensorShapes[clusterId],
                                                       outputSubTensorOffsets[clusterId]);
+
             costParams.inputShape = inputSubTensorShapes[clusterId];
             costParams.outputShape = outputSubTensorShapes[clusterId];
             costParams.padInfo = workloadPad;

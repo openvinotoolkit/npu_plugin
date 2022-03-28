@@ -61,12 +61,12 @@ int64_t vpux::getNumThroughputStreams(const Config& config, Optional<int> numNet
 
     // The values were taken from E#16060 ticket.
     switch (config.get<PERFORMANCE_HINT>()) {
-    case ov::hint::PerformanceMode::LATENCY:
-        return 3;
     case ov::hint::PerformanceMode::THROUGHPUT:
+        return 6;
+    case ov::hint::PerformanceMode::LATENCY:
     case ov::hint::PerformanceMode::UNDEFINED:
     default:
-        return 6;
+        return 3;
     }
 }
 

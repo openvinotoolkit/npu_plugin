@@ -9,8 +9,11 @@
 
 using namespace BehaviorTestsDefinitions;
 namespace {
+
+// TODO: profiling support is broken in LATENCY mode
+// [Track number: E#36465]
 const std::vector<std::map<std::string, std::string>> configs = {
-    {}
+    {{CONFIG_KEY(PERFORMANCE_HINT), CONFIG_VALUE(THROUGHPUT)}}
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, InferRequestPerfCountersTest,
@@ -18,4 +21,5 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, InferRequestPerfCountersTest,
             ::testing::Values(CommonTestUtils::DEVICE_KEEMBAY),
             ::testing::ValuesIn(configs)),
         InferRequestPerfCountersTest::getTestCaseName);
+
 }  // namespace

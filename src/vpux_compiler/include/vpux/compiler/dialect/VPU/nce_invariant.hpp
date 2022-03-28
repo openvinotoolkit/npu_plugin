@@ -11,6 +11,7 @@
 #include "vpux/compiler/dialect/VPU/attributes.hpp"
 
 #include "vpux/utils/core/func_ref.hpp"
+#include "vpux/utils/core/logger.hpp"
 #include "vpux/utils/core/mem_size.hpp"
 
 #include <llvm/Support/FormatVariadic.h>
@@ -31,13 +32,6 @@ constexpr int64_t KMB_CMCONV_CHANNELS_LIMIT = 16;
 
 constexpr int64_t SUPPORTED_BATCH_SIZE = 1;
 constexpr int64_t MAX_KERNEL_SIZE = 11;
-
-//
-// Logging callback
-//
-
-using LogCb = FuncRef<void(const llvm::formatv_object_base&)>;
-void emptyLogCb(const llvm::formatv_object_base&);
 
 //
 // Precision checks

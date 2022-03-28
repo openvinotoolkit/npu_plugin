@@ -17,13 +17,6 @@
 using namespace vpux;
 
 //
-// LogCb
-//
-
-void vpux::VPU::NCEInvariant::emptyLogCb(const llvm::formatv_object_base&) {
-}
-
-//
 // Precision checks
 //
 

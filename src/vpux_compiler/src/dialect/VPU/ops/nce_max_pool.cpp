@@ -54,7 +54,7 @@ bool vpux::VPU::NCEMaxPoolOp::fitIntoCMX(vpux::NDTypeInterface input, vpux::NDTy
 // isSupported
 //
 
-bool vpux::VPU::NCEMaxPoolOp::isSupported(IE::MaxPoolOp op, NCEInvariant::LogCb logCb) {
+bool vpux::VPU::NCEMaxPoolOp::isSupported(IE::MaxPoolOp op, LogCb logCb) {
     if (op.getType().getRank() != 4) {
         logCb(llvm::formatv("Only 4D tensors are supported"));
         return false;

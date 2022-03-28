@@ -97,11 +97,15 @@ VPUNN::VPUDevice getVPUDeviceType(VPU::ArchKind archKind) {
     }
 }
 
-VPUNN::VPUTensor getOutputTensor(const TileInfo& tileInfo, VPUNN::DataType dataType) {
-    return VPUNN::VPUTensor({static_cast<unsigned int>(tileInfo.shape[Dims4D::Act::W]),
-                             static_cast<unsigned int>(tileInfo.shape[Dims4D::Act::H]),
-                             static_cast<unsigned int>(tileInfo.shape[Dims4D::Act::C]), 1},
-                            dataType);
+VPUNN::VPUTensor getVPUTensor(ShapeRef shape, mlir::Type elemType) {
+    return VPUNN::VPUTensor(
+            {
+                    static_cast<unsigned int>(shape[Dims4D::Act::W]),  //
+                    static_cast<unsigned int>(shape[Dims4D::Act::H]),  //
+                    static_cast<unsigned int>(shape[Dims4D::Act::C]),  //
+                    static_cast<unsigned int>(shape[Dims4D::Act::N]),  //
+            },
+            getElementType(elemType));
 }
 
 SmallVector<uint32_t> getSplitsFromRange(uint32_t maxSplitRange, uint32_t maxLimit) {
@@ -311,19 +315,26 @@ uint32_t vpux::VPUIP::DpuTiler::cost(const OutputTiling& dpuTiles, const Workloa
     const auto SX = static_cast<unsigned int>(params.kernelStride[1]);
 
     const auto opType = getOperationType(params.nceTaskType);
-    const auto elemType = getElementType(params.dataType);
 
     std::vector<unsigned int> workloadCost;
     for (const auto& dpuTile : dpuTiles) {
         const auto padsTileConf = backInferPadsTile(dpuTile, params.outputShape, params.padInfo);
 
-        VPUNN::VPUTensor outputTensor = getOutputTensor(dpuTile, elemType);
-        VPUNN::VPUTensor inputTensor({(outputTensor.x() - 1) * SX + KX - static_cast<unsigned int>(padsTileConf.left) -
-                                              static_cast<unsigned int>(padsTileConf.right),
-                                      (outputTensor.y() - 1) * SY + KY - static_cast<unsigned int>(padsTileConf.top) -
-                                              static_cast<unsigned int>(padsTileConf.bottom),
-                                      static_cast<unsigned int>(params.inputShape[Dims4D::Act::C]), 1},
-                                     elemType);
+        const auto outputTensor = getVPUTensor(dpuTile.shape, params.dataType);
+
+        const auto IW = (outputTensor.width() - 1) * SX + KX - static_cast<unsigned int>(padsTileConf.left) -
+                        static_cast<unsigned int>(padsTileConf.right);
+        const auto IH = (outputTensor.height() - 1) * SY + KY - static_cast<unsigned int>(padsTileConf.top) -
+                        static_cast<unsigned int>(padsTileConf.bottom);
+        const auto IC = params.nceTaskType == VPUIP::NCETaskType::CONV ||
+                                        params.nceTaskType == VPUIP::NCETaskType::CMCONV ||
+                                        params.nceTaskType == VPUIP::NCETaskType::FCL
+                                ? static_cast<unsigned int>(params.inputShape[Dims4D::Act::C])
+                                : outputTensor.channels();
+        const auto IN = outputTensor.batches();
+
+        const auto inputTensor = getVPUTensor(ShapeRef({IN, IC, IH, IW}), params.dataType);
+
         auto result = _costModel->DPU(
                 {getVPUDeviceType(params.arch),
                  opType,

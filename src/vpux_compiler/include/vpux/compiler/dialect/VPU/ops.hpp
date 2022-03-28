@@ -112,48 +112,51 @@ void adjustRawFilterShape(ConcreteOp* op, const TileInfo& outputTile) {
 void print(mlir::OpAsmPrinter& p, VPU::NCEClusterTilingOp op);
 mlir::ParseResult parseNCEClusterTilingOp(mlir::OpAsmParser& parser, mlir::OperationState& result);
 
-mlir::LogicalResult sameOrder(mlir::Location loc, VPU::DistributedTensorType inDistributedType,
-                              VPU::DistributedTensorType outDistributedType);
-mlir::LogicalResult sameOrder(mlir::Location loc, VPUIP::DistributedBufferType inDistributedType,
-                              VPUIP::DistributedBufferType outDistributedType);
+mlir::LogicalResult sameOrder(VPU::DistributedTensorType inDistributedType,
+                              VPU::DistributedTensorType outDistributedType, LogCb logCb = emptyLogCb);
+mlir::LogicalResult sameOrder(VPUIP::DistributedBufferType inDistributedType,
+                              VPUIP::DistributedBufferType outDistributedType, LogCb logCb = emptyLogCb);
 
 template <typename T, enable_if_t<or_<std::is_same<VPU::DistributedTensorType, T>,
                                       std::is_same<VPUIP::DistributedBufferType, T>>::value,
                                   bool> = true>
-mlir::LogicalResult isDistributedCastCompatible(T inDistributedType, T outDistributedType) {
-    const auto loc = mlir::UnknownLoc::get(inDistributedType.getContext());
-
+mlir::LogicalResult isDistributedCastCompatible(T inDistributedType, T outDistributedType, LogCb logCb = emptyLogCb) {
     if (inDistributedType.getShape() != outDistributedType.getShape()) {
-        return errorAt(loc, "Mismatch between shapes for input ({0}) and output ({1}).", inDistributedType.getShape(),
-                       outDistributedType.getShape());
+        logCb(llvm::formatv("Mismatch between shapes for input ({0}) and output ({1}).", inDistributedType.getShape(),
+                            outDistributedType.getShape()));
+        return mlir::failure();
     }
 
     if (inDistributedType.getElementType() != outDistributedType.getElementType()) {
-        return errorAt(loc, "Mismatch between element types for input ({0}) and output ({1}).",
-                       inDistributedType.getElementType(), outDistributedType.getElementType());
+        logCb(llvm::formatv("Mismatch between element types for input ({0}) and output ({1}).",
+                            inDistributedType.getElementType(), outDistributedType.getElementType()));
+        return mlir::failure();
     }
 
     if (inDistributedType.getMemSpace() != outDistributedType.getMemSpace()) {
-        return errorAt(loc, "Mismatch between memspaces for input ({0}) and output ({1}).",
-                       inDistributedType.getMemSpace(), outDistributedType.getMemSpace());
+        logCb(llvm::formatv("Mismatch between memspaces for input ({0}) and output ({1}).",
+                            inDistributedType.getMemSpace(), outDistributedType.getMemSpace()));
+        return mlir::failure();
     }
 
-    const auto sameOrderCheck = sameOrder(loc, inDistributedType, outDistributedType);
+    const auto sameOrderCheck = sameOrder(inDistributedType, outDistributedType, logCb);
     if (sameOrderCheck.failed()) {
-        return sameOrderCheck;
+        return mlir::failure();
     }
 
     const auto inDistributionAttr = inDistributedType.getDistribution();
     const auto outDistributionAttr = outDistributedType.getDistribution();
 
     if (inDistributionAttr.num_clusters() != outDistributionAttr.num_clusters()) {
-        return errorAt(loc, "Mismatch between number of clusters for input ({0}) and output ({1}).",
-                       inDistributionAttr.num_clusters(), outDistributionAttr.num_clusters());
+        logCb(llvm::formatv("Mismatch between number of clusters for input ({0}) and output ({1}).",
+                            inDistributionAttr.num_clusters(), outDistributionAttr.num_clusters()));
+        return mlir::failure();
     }
 
     if (inDistributionAttr.alignment() != outDistributionAttr.alignment()) {
-        return errorAt(loc, "Mismatch between tensor alignment of clusters for input ({0}) and output ({1}).",
-                       inDistributionAttr.alignment(), outDistributionAttr.alignment());
+        logCb(llvm::formatv("Mismatch between tensor alignment of clusters for input ({0}) and output ({1}).",
+                            inDistributionAttr.alignment(), outDistributionAttr.alignment()));
+        return mlir::failure();
     }
 
     const auto inDistributionMode = inDistributionAttr.mode().getValue();
@@ -161,9 +164,10 @@ mlir::LogicalResult isDistributedCastCompatible(T inDistributedType, T outDistri
 
     if (inDistributionMode != outDistributionMode) {
         if (VPU::areDistributionModesCompatible(inDistributionMode, outDistributionMode).failed()) {
-            return errorAt(loc, "Incompatible distribution modes for input ({0}) and output ({1}).",
-                           VPU::stringifyDistributionMode(inDistributionMode),
-                           VPU::stringifyDistributionMode(outDistributionMode));
+            logCb(llvm::formatv("Incompatible distribution modes for input ({0}) and output ({1}).",
+                                VPU::stringifyDistributionMode(inDistributionMode),
+                                VPU::stringifyDistributionMode(outDistributionMode)));
+            return mlir::failure();
         }
     }
 
