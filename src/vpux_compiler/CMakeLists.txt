@@ -434,6 +434,7 @@ target_include_directories(${OBJ_TARGET_NAME}
     PRIVATE
         ${BITCOMPACTOR_INCLUDES}
         $<TARGET_PROPERTY:huffman_codec,INTERFACE_INCLUDE_DIRECTORIES>
+        $<TARGET_PROPERTY:IE::nlohmann_json,INTERFACE_INCLUDE_DIRECTORIES>
 )
 
 target_include_directories(${OBJ_TARGET_NAME}

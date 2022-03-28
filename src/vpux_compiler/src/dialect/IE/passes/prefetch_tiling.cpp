@@ -9,6 +9,7 @@
 #include "vpux/compiler/core/tiling.hpp"
 #include "vpux/compiler/dialect/IE/passes.hpp"
 #include "vpux/compiler/dialect/IE/utils/generate_tiling.hpp"
+#include "vpux/compiler/dialect/VPU/manual_strategy_utils.hpp"
 #include "vpux/compiler/dialect/VPU/ops.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
 
@@ -70,6 +71,7 @@ OutputTiling generatePrefetchTiles(mlir::Operation* op, Logger log) {
     const auto outputShape = getShape(op->getResult(0));
     VPUX_THROW_UNLESS(outputShape.size() == 4, "Unsupported operation '{0}' at '{1}', it has non 4D result",
                       op->getName(), op->getLoc());
+
     auto getDimsToTile = [](const Shape& nTilesOnDim) -> SmallVector<Dim> {
         SmallVector<Dim> res;
         for (unsigned i = 0; i < nTilesOnDim.size(); i++) {
@@ -98,9 +100,16 @@ OutputTiling generatePrefetchTiles(mlir::Operation* op, Logger log) {
         prefetchableTilesOnDim[targetDim]++;
     }
 
-    return tilingInfo.isSupportedPrefetchTiling(prefetchableTilesOnDim, log)
-                   ? fillDividedTiles(prefetchableTilesOnDim, outputShape)
-                   : fillDividedTiles(nTilesOnDim, outputShape);
+    if (tilingInfo.isSupportedPrefetchTiling(prefetchableTilesOnDim, log)) {
+        // if prefetch tiling supported - overwrite
+        nTilesOnDim = prefetchableTilesOnDim;
+    }
+
+    // store tiles for operations
+    const auto tilesAttr = getIntArrayAttr(op->getContext(), nTilesOnDim);
+    op->setAttr(tilingStrategy, tilesAttr);
+
+    return fillDividedTiles(nTilesOnDim, outputShape);
 }
 
 SmallVector<Shape> generatePrefetchPatternTiles(mlir::Operation* op, mlir::Operation* parentOp, Logger log) {
@@ -160,6 +169,11 @@ SmallVector<Shape> generatePrefetchPatternTiles(mlir::Operation* op, mlir::Opera
             nTilesOnDim[dimToTile]++;
         }
     }
+
+    // store tiles for operations
+    const auto tilesAttr = getIntArrayAttr(op->getContext(), nTilesOnDim);
+    op->setAttr(tilingStrategy, tilesAttr);
+
     return {nTilesOnDim, nTilesOnDimParent};
 }
 
@@ -256,6 +270,9 @@ void PrefetchTilingPass::safeRunOnFunc() {
         return true;
     });
     target.markUnknownOpDynamicallyLegal([this](mlir::Operation* op) {
+        if (op->hasAttr(manualTilingStrategyApplied)) {
+            return true;
+        }
         if (auto iface = mlir::dyn_cast<IE::TilingInfoOpInterface>(op)) {
             const auto resShape = getShape(op->getResult(0));
             if (!iface.isSupportedTiling({TileInfo(resShape)}, _log.nest())) {

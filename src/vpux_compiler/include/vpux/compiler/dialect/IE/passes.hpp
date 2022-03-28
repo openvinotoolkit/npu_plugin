@@ -195,6 +195,8 @@ std::unique_ptr<mlir::Pass> createIsolatedTilingPass(Logger log = Logger::global
 
 std::unique_ptr<mlir::Pass> createPrefetchTilingPass(Logger log = Logger::global());
 
+std::unique_ptr<mlir::Pass> createManualTilingPass(Logger log = Logger::global());
+
 //
 // Generic Optimizations
 //

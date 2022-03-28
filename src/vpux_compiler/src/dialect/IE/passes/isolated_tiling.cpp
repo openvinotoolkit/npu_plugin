@@ -10,15 +10,15 @@
 #include "vpux/compiler/core/layers.hpp"
 #include "vpux/compiler/core/tiling.hpp"
 #include "vpux/compiler/dialect/IE/utils/generate_tiling.hpp"
+#include "vpux/compiler/dialect/VPU/manual_strategy_utils.hpp"
 #include "vpux/compiler/utils/error.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
 #include "vpux/compiler/utils/types.hpp"
 
+#include <llvm/ADT/FunctionExtras.h>
 #include <mlir/IR/BlockAndValueMapping.h>
 #include <mlir/IR/PatternMatch.h>
 #include <mlir/Transforms/DialectConversion.h>
-
-#include <llvm/ADT/FunctionExtras.h>
 
 #include <numeric>
 #include <vpux/compiler/conversion.hpp>
@@ -31,7 +31,14 @@ OutputTiling generateTiles(IE::TilingBuilderOpInterface origOp, Logger log) {
     auto* op = origOp.getOperation();
     const auto outputType = op->getResult(0).getType().cast<vpux::NDTypeInterface>();
     const auto outputShape = outputType.getShape();
+
+    // create tiles for operation
     auto nTilesOnDim = IE::computeGeneralTileStrategy(op, log);
+
+    // store tiles for operations
+    const auto tilesAttr = getIntArrayAttr(op->getContext(), nTilesOnDim);
+    op->setAttr(tilingStrategy, tilesAttr);
+
     return vpux::fillDividedTiles(nTilesOnDim, outputShape);
 }
 
