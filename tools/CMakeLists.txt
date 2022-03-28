@@ -9,6 +9,7 @@ add_subdirectory(model-comparator)
 
 add_subdirectory(test_classification)
 add_subdirectory(single-image-test)
+add_subdirectory(sol-generator)
 
 add_subdirectory(vpux-opt)
 add_subdirectory(vpux-translate)
