@@ -2748,24 +2748,12 @@ def VPUIP_ReorgYoloUPAOp :
         AnyMemRef:$input,
         AnyMemRef:$output_buff,
 
-        IntAttr:$stride,
-
-        OptionalAttr<IntAttr>:$maxShaves
+        IntAttr:$stride
     );
 
     let results = (outs
         AnyMemRef:$output
     );
-
-    let builders = [
-        OpBuilder<
-            (ins
-                "mlir::Value":$input,
-                "mlir::Value":$output,
-                "mlir::IntegerAttr":$stride
-            )
-        >
-    ];
 
     let assemblyFormat = [{
         attr-dict

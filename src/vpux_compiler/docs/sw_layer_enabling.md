@@ -680,15 +680,7 @@ def VPUIP_CTCGreedyDecoderUPAOp :
         F16MemRef:$sequenceLengths,
         F16MemRef:$output_buff,
 
-        // Add `waitBarriers` and `updateBarriers` between inputs and attributes
-        Variadic<VPUIP_Barrier>:$waitBarriers,
-        Variadic<VPUIP_Barrier>:$updateBarriers,
- 
         UnitAttr:$mergeRepeated,
- 
-        // Add `maxShaves` and `isTrailingSWLayer` at the end
-        OptionalAttr<I32Attr>:$maxShaves,
-        UnitAttr:$isTrailingSWLayer
     );
  
     let results = (outs

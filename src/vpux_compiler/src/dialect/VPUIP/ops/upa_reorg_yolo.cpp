@@ -12,11 +12,6 @@
 
 using namespace vpux;
 
-void vpux::VPUIP::ReorgYoloUPAOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
-                                        mlir::Value output, mlir::IntegerAttr stride) {
-    build(builder, state, input, output, stride, nullptr);
-}
-
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::ReorgYoloUPAOp::serialize(VPUIP::BlobWriter& writer) {
     MVCNN::ReorgYOLOParamsBuilder builder(writer);
     builder.add_stride(checked_cast<uint32_t>(stride()));

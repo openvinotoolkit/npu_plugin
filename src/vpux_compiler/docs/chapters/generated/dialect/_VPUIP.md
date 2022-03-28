@@ -2034,7 +2034,6 @@ operation ::= `VPUIP.ReorgYoloUPA` attr-dict
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
 `stride` | mlir::IntegerAttr | Integer attribute
-`maxShaves` | mlir::IntegerAttr | Integer attribute
 
 #### Operands:
 
