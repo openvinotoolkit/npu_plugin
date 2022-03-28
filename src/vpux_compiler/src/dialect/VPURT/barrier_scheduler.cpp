@@ -793,6 +793,7 @@ bool BarrierScheduler::performRuntimeSimulation() {
 
 // If two barriers have same consumers, they can be merged
 // If a barrier has no producers, it can be removed
+// If a barrier only has DMA producers and consumers, it can be removed
 //
 // Notes: there is a limitation about the producer number of invariants and variants of a barrier
 // The limitation is not related to HW capabilities or FIFO depth, but to the fact that the runtime needs to know when a
@@ -847,6 +848,37 @@ void BarrierScheduler::removeRedundantBarriers() {
                         producers.reset();
                         consumers1.reset();
                     }
+                }
+            }
+        }
+    }
+
+    for (size_t ind = 0; ind < _configureBarrierOpWaitMap.size(); ind++) {
+        auto& producers = _configureBarrierOpWaitMap[ind];
+        auto& consumers = _configureBarrierOpUpdateMap[ind];
+        if (!(producers.set_bits().empty() || consumers.set_bits().empty())) {
+            auto prod = producers.set_bits_begin();
+            bool producersOnlyHasDMA = true;
+            for (; prod != producers.set_bits_end(); prod++) {
+                if (_orderedTasks[*prod].getExecutorKind() != VPU::ExecutorKind::DMA_NN) {
+                    producersOnlyHasDMA = false;
+                    break;
+                }
+            }
+
+            if (producersOnlyHasDMA) {
+                auto cons = consumers.set_bits_begin();
+                bool consumersOnlyHasDMA = true;
+                for (; cons != consumers.set_bits_end(); cons++) {
+                    if (_orderedTasks[*cons].getExecutorKind() != VPU::ExecutorKind::DMA_NN) {
+                        consumersOnlyHasDMA = false;
+                        break;
+                    }
+                }
+
+                if (consumersOnlyHasDMA) {
+                    producers.reset();
+                    consumers.reset();
                 }
             }
         }
@@ -916,6 +948,11 @@ bool BarrierScheduler::doesPathExist(int64_t a, int64_t b) {
     if (numa >= numb)
         return false;
     else {
+        // DMAs which are scheduled later in the schedule naturally depend on DMAs which were scheduled previously
+        if ((_orderedTasks[a].getExecutorKind() == VPU::ExecutorKind::DMA_NN) &&
+            (_orderedTasks[b].getExecutorKind() == VPU::ExecutorKind::DMA_NN)) {
+            return true;
+        }
         auto updateBarriers = _configureTaskOpUpdateMap[a];
         for (auto updateBarrier : updateBarriers.set_bits()) {
             auto barrierConsumers = _configureBarrierOpUpdateMap[updateBarrier];

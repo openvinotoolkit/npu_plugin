@@ -271,44 +271,54 @@ func @ParallelGraph(%arg0: memref<1x16x32x32xf16, #NHWC>, %arg1: memref<1x16x32x
     // CHECK: [[BAR6:%.*]] = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
     // CHECK: [[BAR7:%.*]] = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
     // CHECK: [[BAR8:%.*]] = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
-    // CHECK: [[BAR9:%.*]] = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
-    // CHECK: [[BAR10:%.*]] = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
-    // CHECK: [[BAR11:%.*]] = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
-    // CHECK: [[BAR12:%.*]] = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
-    // CHECK: [[BAR13:%.*]] = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
-    // CHECK: [[BAR14:%.*]] = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
+
     // CHECK:       VPURT.Task
-    // CHECK-SAME:       updates([[BAR0]] : !VPURT.Barrier)
+    // CHECK:       VPUIP.NNDMA
+
+    // CHECK:       VPURT.Task updates([[BAR0]] : !VPURT.Barrier)
+    // CHECK:       VPUIP.NNDMA
+
     // CHECK:       VPURT.Task
-    // CHECK-SAME:       updates([[BAR1]] : !VPURT.Barrier)
+    // CHECK:       VPUIP.NNDMA
+
     // CHECK:       VPURT.Task
-    // CHECK-SAME:       waits([[BAR0]] : !VPURT.Barrier) updates([[BAR2]] : !VPURT.Barrier)
-    // CHECK:       VPURT.Task
-    // CHECK-SAME:       waits([[BAR2]] : !VPURT.Barrier) updates([[BAR3]] : !VPURT.Barrier)
-    // CHECK:       VPURT.Task
-    // CHECK-SAME:       waits([[BAR1]], [[BAR2]] : !VPURT.Barrier, !VPURT.Barrier) updates([[BAR4]] : !VPURT.Barrier)
-    // CHECK:       VPURT.Task
-    // CHECK-SAME:       waits([[BAR3]] : !VPURT.Barrier) updates([[BAR5]] : !VPURT.Barrier)
-    // CHECK:       VPURT.Task
-    // CHECK-SAME:       waits([[BAR4]] : !VPURT.Barrier) updates([[BAR6]] : !VPURT.Barrier)
-    // CHECK:       VPURT.Task
-    // CHECK-SAME:       waits([[BAR1]], [[BAR5]] : !VPURT.Barrier, !VPURT.Barrier) updates([[BAR7]] : !VPURT.Barrier)
-    // CHECK:       VPURT.Task
-    // CHECK-SAME:       waits([[BAR6]] : !VPURT.Barrier) updates([[BAR8]] : !VPURT.Barrier)
-    // CHECK:       VPURT.Task
-    // CHECK-SAME:       waits([[BAR7]] : !VPURT.Barrier) updates([[BAR9]] : !VPURT.Barrier)
-    // CHECK:       VPURT.Task
-    // CHECK-SAME:       waits([[BAR8]] : !VPURT.Barrier) updates([[BAR10]] : !VPURT.Barrier)
-    // CHECK:       VPURT.Task
-    // CHECK-SAME:       waits([[BAR9]] : !VPURT.Barrier) updates([[BAR11]] : !VPURT.Barrier)
-    // CHECK:       VPURT.Task
-    // CHECK-SAME:       waits([[BAR10]] : !VPURT.Barrier) updates([[BAR12]] : !VPURT.Barrier)
-    // CHECK:       VPURT.Task
-    // CHECK-SAME:       waits([[BAR11]] : !VPURT.Barrier) updates([[BAR13]] : !VPURT.Barrier)
-    // CHECK:       VPURT.Task
-    // CHECK-SAME:       waits([[BAR12]] : !VPURT.Barrier) updates([[BAR14]] : !VPURT.Barrier)
-    // CHECK:       VPURT.Task
-    // CHECK-SAME:       waits([[BAR13]], [[BAR14]] : !VPURT.Barrier, !VPURT.Barrier)
+    // CHECK:       VPUIP.NNDMA
+
+    // CHECK:       VPURT.Task waits([[BAR0]] : !VPURT.Barrier)
+    // CHECK:       VPUIP.NNDMA
+
+    // CHECK:       VPURT.Task updates([[BAR1]] : !VPURT.Barrier)
+    // CHECK:       VPUIP.NNDMA
+
+    // CHECK:       VPURT.Task updates([[BAR2]] : !VPURT.Barrier)
+    // CHECK:       VPUIP.NNDMA
+
+    // CHECK:       VPURT.Task waits([[BAR0]], [[BAR1]] : !VPURT.Barrier, !VPURT.Barrier) updates([[BAR3]] : !VPURT.Barrier)
+    // CHECK:       VPUIP.NCEClusterTask
+    
+    // CHECK:       VPURT.Task waits([[BAR2]] : !VPURT.Barrier) updates([[BAR4]] : !VPURT.Barrier)
+    // CHECK:       VPUIP.NCEClusterTask
+
+    // CHECK:       VPURT.Task waits([[BAR3]] : !VPURT.Barrier) updates([[BAR5]] : !VPURT.Barrier)
+    // CHECK:       VPUIP.NCEClusterTask
+
+    // CHECK:       VPURT.Task waits([[BAR4]] : !VPURT.Barrier) updates([[BAR6]] : !VPURT.Barrier)
+    // CHECK:       VPUIP.NCEClusterTask
+
+    // CHECK:       VPURT.Task waits([[BAR5]] : !VPURT.Barrier)
+    // CHECK:       VPUIP.NNDMA
+
+    // CHECK:       VPURT.Task waits([[BAR6]] : !VPURT.Barrier)
+    // CHECK:       VPUIP.NNDMA
+
+    // CHECK:       VPURT.Task updates([[BAR7]] : !VPURT.Barrier)
+    // CHECK:       VPUIP.NNDMA
+
+    // CHECK:       VPURT.Task updates([[BAR8]] : !VPURT.Barrier)
+    // CHECK:       VPUIP.NNDMA
+
+    // CHECK:       VPURT.Task waits([[BAR7]], [[BAR8]] : !VPURT.Barrier, !VPURT.Barrier)
+    // CHECK:       VPUIP.PermuteUPA
 }
 
 // -----
@@ -674,42 +684,52 @@ func @ParallelGraphMultiCluster(%input: memref<1x16x32x32xf16, #NHWC, @DDR>, %ou
     // CHECK: [[BAR6:%.*]] = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
     // CHECK: [[BAR7:%.*]] = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
     // CHECK: [[BAR8:%.*]] = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
-    // CHECK: [[BAR9:%.*]] = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
-    // CHECK: [[BAR10:%.*]] = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
-    // CHECK: [[BAR11:%.*]] = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
-    // CHECK: [[BAR12:%.*]] = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
-    // CHECK: [[BAR13:%.*]] = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
-    // CHECK: [[BAR14:%.*]] = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
+
     // CHECK:       VPURT.Task
-    // CHECK-SAME:       updates([[BAR0]] : !VPURT.Barrier)
+    // CHECK:       VPUIP.NNDMA
+
+    // CHECK:       VPURT.Task updates([[BAR0]] : !VPURT.Barrier)
+    // CHECK:       VPUIP.NNDMA
+
     // CHECK:       VPURT.Task
-    // CHECK-SAME:       updates([[BAR1]] : !VPURT.Barrier)
+    // CHECK:       VPUIP.NNDMA
+
     // CHECK:       VPURT.Task
-    // CHECK-SAME:       waits([[BAR0]] : !VPURT.Barrier) updates([[BAR2]] : !VPURT.Barrier)
-    // CHECK:       VPURT.Task
-    // CHECK-SAME:       waits([[BAR2]] : !VPURT.Barrier) updates([[BAR3]] : !VPURT.Barrier)
-    // CHECK:       VPURT.Task
-    // CHECK-SAME:       waits([[BAR1]], [[BAR2]] : !VPURT.Barrier, !VPURT.Barrier) updates([[BAR4]] : !VPURT.Barrier)
-    // CHECK:       VPURT.Task
-    // CHECK-SAME:       waits([[BAR3]] : !VPURT.Barrier) updates([[BAR5]] : !VPURT.Barrier)
-    // CHECK:       VPURT.Task
-    // CHECK-SAME:       waits([[BAR4]] : !VPURT.Barrier) updates([[BAR6]] : !VPURT.Barrier)
-    // CHECK:       VPURT.Task
-    // CHECK-SAME:       waits([[BAR1]], [[BAR5]] : !VPURT.Barrier, !VPURT.Barrier) updates([[BAR7]] : !VPURT.Barrier)
-    // CHECK:       VPURT.Task
-    // CHECK-SAME:       waits([[BAR6]] : !VPURT.Barrier) updates([[BAR8]] : !VPURT.Barrier)
-    // CHECK:       VPURT.Task
-    // CHECK-SAME:       waits([[BAR7]] : !VPURT.Barrier) updates([[BAR9]] : !VPURT.Barrier)
-    // CHECK:       VPURT.Task
-    // CHECK-SAME:       waits([[BAR8]] : !VPURT.Barrier) updates([[BAR10]] : !VPURT.Barrier)
-    // CHECK:       VPURT.Task
-    // CHECK-SAME:       waits([[BAR9]] : !VPURT.Barrier) updates([[BAR11]] : !VPURT.Barrier)
-    // CHECK:       VPURT.Task
-    // CHECK-SAME:       waits([[BAR10]] : !VPURT.Barrier) updates([[BAR12]] : !VPURT.Barrier)
-    // CHECK:       VPURT.Task
-    // CHECK-SAME:       waits([[BAR11]] : !VPURT.Barrier) updates([[BAR13]] : !VPURT.Barrier)
-    // CHECK:       VPURT.Task
-    // CHECK-SAME:       waits([[BAR12]] : !VPURT.Barrier) updates([[BAR14]] : !VPURT.Barrier)
-    // CHECK:       VPURT.Task
-    // CHECK-SAME:       waits([[BAR13]], [[BAR14]] : !VPURT.Barrier, !VPURT.Barrier)
+    // CHECK:       VPUIP.NNDMA
+
+    // CHECK:       VPURT.Task waits([[BAR0]] : !VPURT.Barrier)
+    // CHECK:       VPUIP.NNDMA
+
+    // CHECK:       VPURT.Task updates([[BAR1]] : !VPURT.Barrier)
+    // CHECK:       VPUIP.NNDMA
+
+    // CHECK:       VPURT.Task updates([[BAR2]] : !VPURT.Barrier)
+    // CHECK:       VPUIP.NNDMA
+
+    // CHECK:       VPURT.Task waits([[BAR0]], [[BAR1]] : !VPURT.Barrier, !VPURT.Barrier) updates([[BAR3]] : !VPURT.Barrier)
+    // CHECK:       VPUIP.NCEClusterTask
+    
+    // CHECK:       VPURT.Task waits([[BAR2]] : !VPURT.Barrier) updates([[BAR4]] : !VPURT.Barrier)
+    // CHECK:       VPUIP.NCEClusterTask
+
+    // CHECK:       VPURT.Task waits([[BAR3]] : !VPURT.Barrier) updates([[BAR5]] : !VPURT.Barrier)
+    // CHECK:       VPUIP.NCEClusterTask
+
+    // CHECK:       VPURT.Task waits([[BAR4]] : !VPURT.Barrier) updates([[BAR6]] : !VPURT.Barrier)
+    // CHECK:       VPUIP.NCEClusterTask
+
+    // CHECK:       VPURT.Task waits([[BAR5]] : !VPURT.Barrier)
+    // CHECK:       VPUIP.NNDMA
+
+    // CHECK:       VPURT.Task waits([[BAR6]] : !VPURT.Barrier)
+    // CHECK:       VPUIP.NNDMA
+
+    // CHECK:       VPURT.Task updates([[BAR7]] : !VPURT.Barrier)
+    // CHECK:       VPUIP.NNDMA
+
+    // CHECK:       VPURT.Task updates([[BAR8]] : !VPURT.Barrier)
+    // CHECK:       VPUIP.NNDMA
+
+    // CHECK:       VPURT.Task waits([[BAR7]], [[BAR8]] : !VPURT.Barrier, !VPURT.Barrier)
+    // CHECK:       VPUIP.PermuteUPA
 }

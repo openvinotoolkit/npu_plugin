@@ -36,8 +36,7 @@ module @Convolution {
         // CHECK-DAG:   const.Declare memref<48x16x3x3xf16, #NHWC>
         // CHECK-DAG:   const.Declare memref<48x1x1x4xsi32>
 
-        // CHECK:       VPURT.Task
-        // CHECK-SAME:      updates([[barrier:%.*]] : !VPURT.Barrier)
+        // CHECK:       VPURT.Task waits([[barrier_0:%.*]] : !VPURT.Barrier) updates([[barrier_1:%.*]] : !VPURT.Barrier)
         // CHECK:       VPUIP.NCEClusterTask
         // CHECK-SAME:          task_type = "CONV"
         // CHECK-SAME:      [[input_0:%.*]] : memref<1x16x16x62xf16, #NHWC, [@CMX_NN, 0]>)
@@ -48,8 +47,7 @@ module @Convolution {
         // CHECK-SAME:      [[output_0:%.*]] : memref<1x48x15x60xf16, #NHWC, [@CMX_NN, 0]>)
         // CHECK:               DPUTask
 
-        // CHECK:       VPURT.Task
-        // CHECK-SAME:      updates([[barrier:%.*]] : !VPURT.Barrier)
+        // CHECK:       VPURT.Task waits([[barrier_0:%.*]] : !VPURT.Barrier) updates([[barrier_1:%.*]] : !VPURT.Barrier)
         // CHECK:       VPUIP.NCEClusterTask
         // CHECK-SAME:          task_type = "CONV"
         // CHECK-SAME:      [[input_0:%.*]] : memref<1x16x16x62xf16, #NHWC, [@CMX_NN, 1]>)
@@ -60,8 +58,7 @@ module @Convolution {
         // CHECK-SAME:      [[output_0:%.*]] : memref<1x48x15x60xf16, #NHWC, [@CMX_NN, 1]>)
         // CHECK:               DPUTask
 
-        // CHECK:       VPURT.Task
-        // CHECK-SAME:      updates([[barrier:%.*]] : !VPURT.Barrier)
+        // CHECK:       VPURT.Task waits([[barrier_0:%.*]] : !VPURT.Barrier) updates([[barrier_1:%.*]] : !VPURT.Barrier)
         // CHECK:       VPUIP.NCEClusterTask
         // CHECK-SAME:          task_type = "CONV"
         // CHECK-SAME:      [[input_0:%.*]] : memref<1x16x16x62xf16, #NHWC, [@CMX_NN, 2]>)
@@ -72,8 +69,7 @@ module @Convolution {
         // CHECK-SAME:      [[output_0:%.*]] : memref<1x48x15x60xf16, #NHWC, [@CMX_NN, 2]>)
         // CHECK:               DPUTask
 
-        // CHECK:       VPURT.Task
-        // CHECK-SAME:      updates([[barrier:%.*]] : !VPURT.Barrier)
+        // CHECK:       VPURT.Task waits([[barrier_0:%.*]] : !VPURT.Barrier) updates([[barrier_1:%.*]] : !VPURT.Barrier)
         // CHECK:       VPUIP.NCEClusterTask
         // CHECK-SAME:          task_type = "CONV"
         // CHECK-SAME:      [[input_3:%.*]] : memref<1x16x14x62xf16, #NHWC, [@CMX_NN, 3]>)
