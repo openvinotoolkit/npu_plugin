@@ -1,3 +1,7 @@
+//
+// Copyright (C) 2022 Intel Corporation
+// SPDX-License-Identifier: Apache 2.0
+//
 #ifndef _IMPLICIT_FLOW_HPP_
 #define _IMPLICIT_FLOW_HPP_
 

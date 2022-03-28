@@ -1,3 +1,7 @@
+//
+// Copyright (C) 2022 Intel Corporation
+// SPDX-License-Identifier: Apache 2.0
+//
 // First register base attributes. //
 #include    "src/base/attribute_registry.cpp"
 

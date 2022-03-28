@@ -1,3 +1,7 @@
+//
+// Copyright (C) 2022 Intel Corporation
+// SPDX-License-Identifier: Apache 2.0
+//
 #include "include/mcm/tensor/math.hpp"
 
 mv::Tensor mv::math::add(const Tensor& t1, const Tensor& t2)

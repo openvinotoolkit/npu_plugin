@@ -1,3 +1,7 @@
+#
+# Copyright (C) 2022 Intel Corporation
+# SPDX-License-Identifier: Apache 2.0
+#
 cmake_minimum_required(VERSION 3.13 FATAL_ERROR)
 
 project(mcmComplier VERSION 1.5.3)
@@ -149,14 +153,11 @@ set(base
     "${PROJECT_SOURCE_DIR}/src/utils/custom_strings.cpp"
     "${PROJECT_SOURCE_DIR}/src/utils/compression/hde.cpp"
     "${PROJECT_SOURCE_DIR}/src/utils/helpers.cpp"
-    "${PROJECT_SOURCE_DIR}/src/utils/compression/btc.cpp"
 
     "${PROJECT_SOURCE_DIR}/contrib/huffman_encoding/src/Huffman.cpp"
     "${PROJECT_SOURCE_DIR}/contrib/huffman_encoding/src/huffmanCodec.cpp"
     "${PROJECT_SOURCE_DIR}/contrib/huffman_encoding/src/logging.cpp"
     "${PROJECT_SOURCE_DIR}/contrib/huffman_encoding/src/ms_vasprintf.cpp"
-
-    "${PROJECT_SOURCE_DIR}/../../thirdparty/bitcompactor/src/bitCompactor.cpp"
 )
 
 set(model
@@ -342,14 +343,6 @@ if(WIN32)
     ie_add_api_validator_post_build_step(TARGET vpux_mcm_compiler)
 endif()
 
-if (UNIX)
-    set_source_files_properties(
-        "${PROJECT_SOURCE_DIR}/../../thirdparty/bitcompactor/src/bitCompactor.cpp"
-        PROPERTIES
-            COMPILE_FLAGS "-Wno-unused-parameter"
-    )
-endif()
-
 set_target_properties(vpux_mcm_compiler PROPERTIES
     VERSION "${PROJECT_VERSION}"
     SOVERSION "${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}"
@@ -373,7 +366,6 @@ target_include_directories(vpux_mcm_compiler
         "${PROJECT_SOURCE_DIR}/src"
         "${PROJECT_SOURCE_DIR}/src/pass"
         "${PROJECT_SOURCE_DIR}/include/huffman_encoding"
-        "${PROJECT_SOURCE_DIR}/../../thirdparty/bitcompactor/include/"
 )
 
 target_link_libraries(vpux_mcm_compiler PUBLIC vpux_al PRIVATE flatbuffers)

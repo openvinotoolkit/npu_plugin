@@ -1,3 +1,7 @@
+//
+// Copyright (C) 2022 Intel Corporation
+// SPDX-License-Identifier: Apache 2.0
+//
 #ifndef MV_BLOB_MX_BTENSOR_HPP_
 #define MV_BLOB_MX_BTENSOR_HPP_
 

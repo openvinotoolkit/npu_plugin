@@ -1,3 +1,7 @@
+//
+// Copyright (C) 2022 Intel Corporation
+// SPDX-License-Identifier: Apache 2.0
+//
 #include "include/mcm/graph/tensor_interference_graph.hpp"
 #include "include/mcm/algorithms/path_exists.hpp"
 #include "include/mcm/algorithms/edge_exists.hpp"

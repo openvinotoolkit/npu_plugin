@@ -1,3 +1,7 @@
+//
+// Copyright (C) 2022 Intel Corporation
+// SPDX-License-Identifier: Apache 2.0
+//
 #include "mcm/utils/custom_strings.hpp"
 
 std::string mv::deleteTillEndIfPatternFound(const std::string& input, const std::string& pattern)

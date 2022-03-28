@@ -1,3 +1,7 @@
+//
+// Copyright (C) 2022 Intel Corporation
+// SPDX-License-Identifier: Apache 2.0
+//
 #ifndef DROP_OUT_HPP_
 #define DROP_OUT_HPP_
 

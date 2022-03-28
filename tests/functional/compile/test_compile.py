@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copyright (C) 2020 Intel Corporation
+# Copyright (C) 2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """ Test for IR compilation.

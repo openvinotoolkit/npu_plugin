@@ -1,3 +1,7 @@
+//
+// Copyright (C) 2022 Intel Corporation
+// SPDX-License-Identifier: Apache 2.0
+//
 #ifndef DISJOINT_INTERVAL_SET_HPP
 #define DISJOINT_INTERVAL_SET_HPP
 #include <cassert>

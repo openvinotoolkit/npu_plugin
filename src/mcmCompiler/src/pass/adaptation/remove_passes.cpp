@@ -1,3 +1,7 @@
+//
+// Copyright (C) 2022 Intel Corporation
+// SPDX-License-Identifier: Apache 2.0
+//
 #include <functional>
 #include <string>
 #include "include/mcm/computation/model/data_model.hpp"

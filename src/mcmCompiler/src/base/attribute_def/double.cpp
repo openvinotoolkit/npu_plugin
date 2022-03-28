@@ -1,3 +1,7 @@
+//
+// Copyright (C) 2022 Intel Corporation
+// SPDX-License-Identifier: Apache 2.0
+//
 #include "include/mcm/base/attribute_registry.hpp"
 #include "include/mcm/base/json/number_float.hpp"
 #include "include/mcm/base/exception/attribute_error.hpp"

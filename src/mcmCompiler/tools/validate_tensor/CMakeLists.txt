@@ -1,3 +1,7 @@
+#
+# Copyright (C) 2022 Intel Corporation
+# SPDX-License-Identifier: Apache 2.0
+#
 cmake_minimum_required(VERSION 3.5.0)
 project(validateTensor VERSION 0.0.1)
 

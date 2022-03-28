@@ -4957,8 +4957,8 @@
         },
 
         {
-            "name": "SOL_ModelF",
-            "ir": "models/SOL_Models/ModelF_SOL/FP16-INT8/ModelF_SOL.xml",
+            "name": "SOL_ModelF_v3",
+            "ir": "models/SOL_Models/SoL_ModelF_v3_MIMO/FP16/SoL_ModelF_v3_MIMO.xml",
             "category": "MLIR/precommit/SOL/SKIP_LIN",
             "3720": {
                 "disabled": true
@@ -4986,9 +4986,79 @@
                 "disabled": true
             },
             "CI-options": {
-                "blob_name": "SoL_ModelF"
+                "blob_name": "SOL_ModelFv3"
             },
             "comments" : "Failed to infer on Linux stack [EISW-28863]"
+        },
+        
+        {
+            "name": "SOL_ModelF_v3_SISO",
+            "description": "Single input single output Model F v3 (sum of all inputs and sum of all outputs)",
+            "ir": "models/SOL_Models/SoL_ModelF_v3_SISO/FP16/SoL_ModelF_v3_SISO.xml",
+            "category": "MLIR/precommit/SOL/SKIP_LIN",
+            "3720": {
+                "disabled": true
+            },
+            "3900": {
+                "disabled": true
+            },
+            "Compile": {
+                "input_precision": "FP16",
+                "output_precision": "FP16"
+            },
+            "extra_config": {
+                "VPUX_COMPILER_TYPE": "MLIR",
+                "PERFORMANCE_HINT": "LATENCY",
+                "VPUX_INFERENCE_SHAVES": "16"
+            },
+            "BenchmarkApp": {},
+            "NetTest-CalcRef": {
+                "disabled": true
+            },
+            "NetTest-Validate": {
+                "disabled": true
+            },
+            "AccuracyCheck": {
+                "disabled": true
+            },
+            "CI-options": {
+                "blob_name": "SOL_ModelFv3_SISO"
+            },
+            "comments" : "Failed to infer on Linux stack [EISW-28863]"
+        },
+        
+         {
+            "name": "SOL_ModelA_v7",
+            "ir": "models/SOL_Models/SoL_ModelA_v7_224/FP16/SoL_ModelA_v7_224.xml",
+            "category": "MLIR/precommit/SOL",
+            "3720": {
+                "disabled": true
+            },
+            "3900": {
+                "disabled": true
+            },
+            "Compile": {
+                "input_precision": "FP16",
+                "output_precision": "FP16"
+            },
+            "extra_config": {
+                "VPUX_COMPILER_TYPE": "MLIR",
+                "PERFORMANCE_HINT": "LATENCY",
+                "VPUX_INFERENCE_SHAVES": "16"
+            },
+            "BenchmarkApp": {},
+            "NetTest-CalcRef": {
+                "disabled": true
+            },
+            "NetTest-Validate": {
+                "disabled": true
+            },
+            "AccuracyCheck": {
+                "disabled": true
+            },
+            "CI-options": {
+                "blob_name": "SOL_ModelA_v7"
+            }
         },
 
         {

@@ -1,3 +1,7 @@
+//
+// Copyright (C) 2022 Intel Corporation
+// SPDX-License-Identifier: Apache 2.0
+//
 #include "gtest/gtest.h"
 #include "include/mcm/base/json/json.hpp"
 #include "include/mcm/utils/parser/json_text.hpp"

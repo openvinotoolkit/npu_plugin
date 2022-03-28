@@ -1,3 +1,7 @@
+//
+// Copyright (C) 2022 Intel Corporation
+// SPDX-License-Identifier: Apache 2.0
+//
 #ifndef QUANTIZATION_PARAMS_HPP_
 #define QUANTIZATION_PARAMS_HPP_
 

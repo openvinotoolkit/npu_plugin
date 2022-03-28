@@ -27,6 +27,14 @@ class KmbGatherLayerTest: public GatherLayerTest, virtual public LayerTestsUtils
             throw LayerTestsUtils::KmbSkipTestException(
                 "Emulator device does not support Gather with I32 second input");
         }
+
+#if (defined(WINNT) || defined(_WIN32) || defined(_WIN64))
+        // Test on Gather with MCM-compiler on dKMB Windows fails with error "zeCommandQueueExecuteCommandLists result: 0x70000001"        
+        // [Track number: S#36265]
+        if (configuration["VPUX_COMPILER_TYPE"] == "MCM") {
+            throw LayerTestsUtils::KmbSkipTestException("Firmware error: Failed to parse blob");
+        }
+#endif
     }
 };
 

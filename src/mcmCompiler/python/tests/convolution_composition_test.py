@@ -1,3 +1,7 @@
+#
+# Copyright (C) 2022 Intel Corporation
+# SPDX-License-Identifier: Apache 2.0
+#
 # TODO Improve this temporary solution
 import sys
 sys.path.append('../api/')

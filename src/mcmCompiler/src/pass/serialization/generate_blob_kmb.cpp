@@ -1,3 +1,7 @@
+//
+// Copyright (C) 2022 Intel Corporation
+// SPDX-License-Identifier: Apache 2.0
+//
 #include "include/mcm/pass/pass_registry.hpp"
 #include "include/mcm/target/kmb/runtime_model/runtime_model.hpp"
 #include "include/mcm/utils/env_loader.hpp"

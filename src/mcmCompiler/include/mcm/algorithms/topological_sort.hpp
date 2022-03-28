@@ -1,3 +1,7 @@
+//
+// Copyright (C) 2022 Intel Corporation
+// SPDX-License-Identifier: Apache 2.0
+//
 #ifndef TOPOLOGICAL_SORT_HPP_
 #define TOPOLOGICAL_SORT_HPP_
 

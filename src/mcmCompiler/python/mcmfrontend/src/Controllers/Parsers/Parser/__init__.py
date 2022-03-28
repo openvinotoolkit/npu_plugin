@@ -1,3 +1,7 @@
+#
+# Copyright (C) 2022 Intel Corporation
+# SPDX-License-Identifier: Apache 2.0
+#
 
 __all__ = [
     'BatchNorm', 'Bias', 'Concat', 'Convolution2D', 'ConvolutionDepthWise2D',

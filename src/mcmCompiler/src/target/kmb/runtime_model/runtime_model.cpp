@@ -1,3 +1,7 @@
+//
+// Copyright (C) 2022 Intel Corporation
+// SPDX-License-Identifier: Apache 2.0
+//
 #include "include/mcm/target/kmb/runtime_model/runtime_model.hpp"
 #include "include/mcm/utils/ops_conversion_utils.hpp"
 #include "include/mcm/op_model.hpp"
@@ -163,19 +167,6 @@ mv::RuntimeModel::RuntimeModel(const mv::TargetDescriptor& td)
             throw std::runtime_error("Memory allocation for HDE codec failed.");
 
         codec_.reset(hde);
-    }
-    else if (td.getCodecName() == mv::CodecType::BTC)
-    {
-        auto btcDef = std::dynamic_pointer_cast<mv::BTCDescriptor>(td.codecDef());
-        if (!btcDef)
-            throw std::runtime_error("Failed to get pointer to BTC codec.");
-
-        auto btc = new BTC(btcDef->bufferAlignment, btcDef->bitmapPreprocEnable, false, btcDef->bypassMode, 0);
-
-        if (!btc)
-            throw std::runtime_error("Memory allocation for BTC codec failed.");
-
-        codec_.reset(btc);
     }
     else
     {

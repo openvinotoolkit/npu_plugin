@@ -1,3 +1,7 @@
+//
+// Copyright (C) 2022 Intel Corporation
+// SPDX-License-Identifier: Apache 2.0
+//
 // Define base tasks/OPs //
 #include    "src/computation/op/op_registry.cpp"
 

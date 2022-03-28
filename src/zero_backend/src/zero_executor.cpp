@@ -1,14 +1,8 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright (C) 2022 Intel Corporation.
+// SPDX-License-Identifier: Apache 2.0
 //
-// LEGAL NOTICE: Your use of this software and any required dependent software
-// (the "Software Package") is subject to the terms and conditions of
-// the Intel(R) OpenVINO(TM) Distribution License for the Software Package,
-// which may also include notices, disclaimers, or license terms for
-// third party or open source software included in or with the Software Package,
-// and your use indicates your acceptance of all such terms. Please refer
-// to the "third-party-programs.txt" or other similarly-named text file
-// included with the Software Package for additional details.
+
 //
 
 #include "zero_executor.h"
@@ -41,7 +35,7 @@ void throwOnFail(const std::string& step, const ze_result_t result) {
     }
 }
 
-size_t precisionToSize(const ze_graph_argument_precision_t val) {
+std::size_t precisionToSize(const ze_graph_argument_precision_t val) {
     switch (val) {
     case ZE_GRAPH_ARGUMENT_PRECISION_FP32:
         return 4;
@@ -85,7 +79,7 @@ ze_graph_argument_precision_t getZePrecision(const IE::Precision precision) {
     }
 }
 
-size_t layoutCount(const ze_graph_argument_layout_t val) {
+std::size_t layoutCount(const ze_graph_argument_layout_t val) {
     switch (val) {
     case ZE_GRAPH_ARGUMENT_LAYOUT_NCHW:
         return 4;
@@ -154,37 +148,18 @@ ze_command_queue_priority_t toZeQueuePriority(const ov::hint::Priority& val) {
     }
 }
 
-size_t getSizeIOBytes(const ze_graph_argument_properties_t& argument) {
-    size_t num_elements = 1;
-    for (size_t i = 0; i < layoutCount(argument.deviceLayout); ++i) {
+std::size_t getSizeIOBytes(const ze_graph_argument_properties_t& argument) {
+    std::size_t num_elements = 1;
+    for (std::size_t i = 0; i < layoutCount(argument.deviceLayout); ++i) {
         num_elements *= argument.dims[i];
     }
-    const size_t size_in_bytes = num_elements * precisionToSize(argument.devicePrecision);
+    const std::size_t size_in_bytes = num_elements * precisionToSize(argument.devicePrecision);
     return size_in_bytes;
 }
 
-template <typename Map>
-auto mapArguments(Map& zero, const std::string& key, const std::size_t pos) -> typename Map::mapped_type& {
-    for (auto& p : zero) {
-        if (std::string::npos != p.first.find(key)) {
-            return p.second;
-        }
-    }
-
-    std::size_t zero_pos = 0;
-    for (auto& p : zero) {
-        if ((p.first == "profilingOutput") || (zero_pos == pos)) {
-            return p.second;
-        }
-        zero_pos++;
-    }
-
-    IE_THROW() << "mapArguments: fail to map";
-}
-
 template <typename T>
-size_t getNumDims(const T& dims) {
-    return std::count_if(std::begin(dims), std::end(dims), [](const size_t& dim) -> bool {
+std::size_t getNumDims(const T& dims) {
+    return std::count_if(std::begin(dims), std::end(dims), [](const std::size_t& dim) -> bool {
         return (dim > 1);
     });
 }
@@ -255,7 +230,6 @@ void prepareInputForInference(const IE::Blob::Ptr& userInput, const IE::TensorDe
     const auto devicePrecision = deviceTensorDesc.getPrecision();
     const auto deviceLayout = deviceTensorDesc.getLayout();
 
-    IE::Blob::Ptr expectedInput = userInput;
     const bool isPrecisionMatched = userPrecision == devicePrecision;
     const bool isLayoutMatched = userLayout == deviceLayout;
     if (isPrecisionMatched && isLayoutMatched) {
@@ -266,17 +240,17 @@ void prepareInputForInference(const IE::Blob::Ptr& userInput, const IE::TensorDe
         logger.info("Different precisions of user and device input blobs. Conversion required from {0} to {1}",
                     userPrecision, devicePrecision);
         if (!isLayoutMatched) {
-            expectedInput = toPrecision(IE::as<IE::MemoryBlob>(expectedInput), devicePrecision, quantParam);
+            IE::Blob::Ptr expectedInput = toPrecision(IE::as<IE::MemoryBlob>(userInput), devicePrecision, quantParam);
             logger.info("Different layouts of user and device input blobs. Conversion required from {0} to {1}",
                         userLayout, deviceLayout);
             toLayout(IE::as<IE::MemoryBlob>(expectedInput), deviceLayout, nullptr, destData);
         } else {
-            toPrecision(IE::as<IE::MemoryBlob>(expectedInput), devicePrecision, quantParam, nullptr, destData);
+            toPrecision(IE::as<IE::MemoryBlob>(userInput), devicePrecision, quantParam, nullptr, destData);
         }
     } else if (!isLayoutMatched) {
         logger.info("Different layouts of user and device input blobs. Conversion required from {0} to {1}", userLayout,
                     deviceLayout);
-        toLayout(IE::as<IE::MemoryBlob>(expectedInput), deviceLayout, nullptr, destData);
+        toLayout(IE::as<IE::MemoryBlob>(userInput), deviceLayout, nullptr, destData);
     }
 }
 
@@ -418,11 +392,14 @@ ZeroExecutor::ZeroExecutor(ze_driver_handle_t driver_handle, ze_device_handle_t 
           _pipeline(std::make_unique<Pipeline>(device_handle, context, graph_ddi_table_ext, graph, _command_queue)) {
 }
 
-ZeroExecutor::HostMem::HostMem(const ze_context_handle_t context, const size_t size): _size(size), _context(context) {
+ZeroExecutor::HostMem::HostMem(const ze_context_handle_t context, const std::size_t size)
+        : _size(size), _context(context) {
     ze_host_mem_alloc_desc_t desc = {ZE_STRUCTURE_TYPE_HOST_MEM_ALLOC_DESC, nullptr, 0};
     throwOnFail("zeMemAllocHost", zeMemAllocHost(_context, &desc, _size, _alignment, &_data));
 }
 ZeroExecutor::HostMem& ZeroExecutor::HostMem::operator=(HostMem&& other) {
+    if (this == &other)
+        return *this;
     free();
     _size = other._size;
     _data = other._data;
@@ -432,7 +409,7 @@ ZeroExecutor::HostMem& ZeroExecutor::HostMem::operator=(HostMem&& other) {
     return *this;
 }
 void ZeroExecutor::HostMem::free() {
-    if (_size) {
+    if (0 != _size) {
         _size = 0;
         throwOnFail("zeMemFree HostMem", zeMemFree(_context, _data));
         _data = nullptr;
@@ -442,13 +419,16 @@ ZeroExecutor::HostMem::~HostMem() {
     free();
 }
 
-ZeroExecutor::DeviceMem::DeviceMem(const ze_device_handle_t deh, ze_context_handle_t context, const size_t size)
+ZeroExecutor::DeviceMem::DeviceMem(const ze_device_handle_t device_handle, ze_context_handle_t context,
+                                   const std::size_t size)
         : _size(size), _context(context) {
     ze_device_mem_alloc_desc_t desc = {ZE_STRUCTURE_TYPE_DEVICE_MEM_ALLOC_DESC, nullptr, 0, 0};
 
-    throwOnFail("zeMemAllocDevice", zeMemAllocDevice(_context, &desc, _size, _alignment, deh, &_data));
+    throwOnFail("zeMemAllocDevice", zeMemAllocDevice(_context, &desc, _size, _alignment, device_handle, &_data));
 }
 ZeroExecutor::DeviceMem& ZeroExecutor::DeviceMem::operator=(DeviceMem&& other) {
+    if (this == &other)
+        return *this;
     free();
     _size = other._size;
     _data = other._data;
@@ -504,14 +484,14 @@ void* ZeroExecutor::MemoryManagementUnit::getDeviceMemRegion() {
 }
 void* ZeroExecutor::MemoryManagementUnit::getHostPtr(const std::string& name) {
     uint8_t* from = static_cast<uint8_t*>(_host.data());
-    if (!from)
+    if (nullptr == from)
         IE_THROW() << "Host memory not allocated yet";
 
     return mapArguments(_offsets, name) + from;
 }
 void* ZeroExecutor::MemoryManagementUnit::getDevicePtr(const std::string& name) {
     uint8_t* from = static_cast<uint8_t*>(_device.data());
-    if (!from)
+    if (nullptr == from)
         IE_THROW() << "Device memory not allocated yet";
 
     return mapArguments(_offsets, name) + from;
@@ -531,7 +511,7 @@ ZeroExecutor::CommandList::CommandList(const ze_device_handle_t& device_handle, 
 void ZeroExecutor::CommandList::reset() {
     throwOnFail("zeCommandListReset", zeCommandListReset(_handle));
 }
-void ZeroExecutor::CommandList::appendMemoryCopy(void* dst, const void* src, size_t size) {
+void ZeroExecutor::CommandList::appendMemoryCopy(void* dst, const void* src, const std::size_t size) {
     throwOnFail("zeCommandListAppendMemoryCopy",
                 zeCommandListAppendMemoryCopy(_handle, dst, src, size, nullptr, 0, nullptr));
 }
@@ -701,7 +681,7 @@ void ZeroExecutor::push(const IE::BlobMap& inputs) {
     OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "Executor::push");
     _logger.info("ZeroExecutor::push started");
     const auto& deviceInputs = _networkDesc->getDeviceInputsInfo();
-    const auto quantParamsInfo = _networkDesc->getQuantParamsInfo();
+    const auto& quantParamsInfo = _networkDesc->getQuantParamsInfo();
     OV_ITT_TASK_CHAIN(ZERO_EXECUTOR_PUSH, itt::domains::LevelZeroBackend, "Executor::push", "PrepareInput");
     // Copy input data to staging buffer on Cpu (input always first argument)
     for (const auto& inferInput : inputs) {
@@ -731,7 +711,8 @@ void ZeroExecutor::push(const IE::BlobMap& inputs) {
             prepareInputForInference(input, deviceInput->getTensorDesc(), hostMem, quantParams, _logger);
         } else {
             // we should check memory type: host memory or generic and copy if it's a generic
-            const uint8_t* inputPtr = input->buffer().as<const uint8_t*>();
+            const auto inputMemLock = IE::as<IE::MemoryBlob>(input)->rmap();
+            const uint8_t* inputPtr = inputMemLock.as<const uint8_t*>();
             if (!_pipeline->_inputs.checkHostPtr(inputPtr)) {
                 void* hostMem = _pipeline->_inputs.getHostPtr(name);
                 if (0 != ie_memcpy(hostMem, input->byteSize(), inputPtr, input->byteSize())) {
@@ -796,7 +777,8 @@ void ZeroExecutor::pull(IE::BlobMap& outputs) {
             getOutputAfterInference(output, deviceOutput->getTensorDesc(), hostMem, _logger);
         } else {
             // we should check memory type: host memory or generic and copy if it's a generic
-            uint8_t* outputPtr = output->buffer().as<uint8_t*>();
+            auto outputMemLock = IE::as<IE::MemoryBlob>(output)->wmap();
+            uint8_t* outputPtr = outputMemLock.as<uint8_t*>();
             if (!_pipeline->_outputs.checkHostPtr(outputPtr)) {
                 const void* hostMem = _pipeline->_outputs.getHostPtr(name);
                 if (0 != ie_memcpy(outputPtr, output->byteSize(), hostMem, output->byteSize())) {
@@ -828,7 +810,6 @@ std::map<std::string, IE::InferenceEngineProfileInfo> ZeroExecutor::getLayerStat
 
     // [Track number: E#26528]
     // Enable profiling in L0 backend
-
     return perfCounts;
 }
 

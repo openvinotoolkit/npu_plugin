@@ -1,3 +1,7 @@
+//
+// Copyright (C) 2022 Intel Corporation
+// SPDX-License-Identifier: Apache 2.0
+//
 #include "include/mcm/computation/flow/control_flow.hpp"
 
 mv::ControlFlow::ControlFlow(ComputationModel& model, detailControlFlow::OpListIterator source, detailControlFlow::OpListIterator sink) :

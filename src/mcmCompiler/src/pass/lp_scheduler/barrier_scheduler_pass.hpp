@@ -1,3 +1,7 @@
+//
+// Copyright (C) 2022 Intel Corporation
+// SPDX-License-Identifier: Apache 2.0
+//
 #include "pass/lp_scheduler/barrier_schedule_generator.hpp"
 #include "pass/lp_scheduler/barrier_simulator.hpp"
 #include "pass/lp_scheduler/operation_precedence_dag.hpp"

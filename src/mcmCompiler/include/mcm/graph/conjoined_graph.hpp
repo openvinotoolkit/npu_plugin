@@ -1,3 +1,7 @@
+//
+// Copyright (C) 2022 Intel Corporation
+// SPDX-License-Identifier: Apache 2.0
+//
 #ifndef CONJOINED_GRAPH_CONTAINER_HPP_
 #define CONJOINED_GRAPH_CONTAINER_HPP_
 

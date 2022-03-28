@@ -1,3 +1,7 @@
+//
+// Copyright (C) 2022 Intel Corporation
+// SPDX-License-Identifier: Apache 2.0
+//
 #include "include/mcm/pass/graphOptimizations/StrategyManager.hpp"
 #include "include/mcm/algorithms/dijkstra.hpp"
 

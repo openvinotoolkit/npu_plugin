@@ -1,3 +1,7 @@
+//
+// Copyright (C) 2022 Intel Corporation
+// SPDX-License-Identifier: Apache 2.0
+//
 #include "include/mcm/base/attribute.hpp"
 #include "include/mcm/target/kmb/custom_pwl_table.hpp"
 

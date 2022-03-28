@@ -1,3 +1,7 @@
+//
+// Copyright (C) 2022 Intel Corporation
+// SPDX-License-Identifier: Apache 2.0
+//
 #pragma once
 
 #pragma comment(linker, "/include:__MCM_REGISTER__AttributeEntry__Barrier")

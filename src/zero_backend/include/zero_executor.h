@@ -1,14 +1,8 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright (C) 2022 Intel Corporation.
+// SPDX-License-Identifier: Apache 2.0
 //
-// LEGAL NOTICE: Your use of this software and any required dependent software
-// (the "Software Package") is subject to the terms and conditions of
-// the Intel(R) OpenVINO(TM) Distribution License for the Software Package,
-// which may also include notices, disclaimers, or license terms for
-// third party or open source software included in or with the Software Package,
-// and your use indicates your acceptance of all such terms. Please refer
-// to the "third-party-programs.txt" or other similarly-named text file
-// included with the Software Package for additional details.
+
 //
 
 #pragma once
@@ -82,7 +76,7 @@ public:
     // protected:
     struct HostMem {
         HostMem() = default;
-        HostMem(const ze_context_handle_t context, const size_t size);
+        HostMem(const ze_context_handle_t context, const std::size_t size);
         HostMem(const HostMem&) = delete;
         HostMem(HostMem&& other): _size(other._size), _data(other._data), _context(other._context) {
             other._size = 0;
@@ -97,7 +91,7 @@ public:
         void* data() {
             return _data;
         }
-        size_t size() const {
+        std::size_t size() const {
             return _size;
         }
         template <typename T>
@@ -121,25 +115,24 @@ public:
             InferenceEngine::MemoryBlob::Ptr mblob = InferenceEngine::as<InferenceEngine::MemoryBlob>(blob);
             if (!mblob)
                 IE_THROW() << "HostMem::copyTo failing of casting blob to MemoryBlob";
-
             if (mblob->byteSize() != _size)
                 IE_THROW() << "HostMem::copyTo sizes mismatch";
-            if (0 != ie_memcpy(mblob->buffer().as<uint8_t*>(), mblob->byteSize(), _data, _size))
+            if (0 != ie_memcpy(mblob->wmap().as<uint8_t*>(), mblob->byteSize(), _data, _size))
                 IE_THROW() << "HostMem::copyTo::ie_memcpy return != 0";
         }
         void free();
         ~HostMem();
 
     private:
-        size_t _size = 0;
+        std::size_t _size = 0;
         void* _data = nullptr;
         ze_context_handle_t _context = nullptr;
-        const static size_t _alignment = 4096;
+        const static std::size_t _alignment = 4096;
     };
 
     struct DeviceMem {
         DeviceMem() = default;
-        DeviceMem(const ze_device_handle_t device_handle, const ze_context_handle_t context, const size_t size);
+        DeviceMem(const ze_device_handle_t device_handle, const ze_context_handle_t context, const std::size_t size);
         DeviceMem(const DeviceMem&) = delete;
         DeviceMem(DeviceMem&& other): _size(other._size), _data(other._data), _context(other._context) {
             other._size = 0;
@@ -154,19 +147,23 @@ public:
         void* data() {
             return _data;
         }
-        size_t size() const {
+        std::size_t size() const {
             return _size;
         }
         void free();
         ~DeviceMem();
 
     private:
-        size_t _size = 0;
+        std::size_t _size = 0;
         void* _data = nullptr;
         ze_context_handle_t _context = nullptr;
-        const static size_t _alignment = 4096;
+        const static std::size_t _alignment = 4096;
     };
 
+    // For graph argumenst(inputs and outputs) memory should be located on a host and a device sides
+    // This class keeps two corresponding memory locations
+    // Usage: we should append graph arguments with corresponding names with `appendArgument` call
+    // to prepare size statistics and lookup table. To commit memory allocation we should call `allocate`
     struct MemoryManagementUnit {
         MemoryManagementUnit() = default;
 
@@ -191,7 +188,7 @@ public:
         DeviceMem _device;
         std::map<std::string, std::size_t> _offsets;
 
-        const static size_t alignment = 4096;
+        const static std::size_t alignment = 4096;
     };
 
     struct CommandList {
@@ -201,7 +198,7 @@ public:
         CommandList(const CommandList&) = delete;
         CommandList& operator=(const CommandList&) = delete;
         void reset();
-        void appendMemoryCopy(void* dst, const void* src, size_t size);
+        void appendMemoryCopy(void* dst, const void* src, const std::size_t size);
         void appendGraphInitialize(const ze_graph_handle_t& graph_handle);
         void appendGraphExecute(const ze_graph_handle_t& graph_handle);
         void appendBarrier();

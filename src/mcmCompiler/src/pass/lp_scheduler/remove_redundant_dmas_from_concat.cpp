@@ -1,3 +1,7 @@
+//
+// Copyright (C) 2022 Intel Corporation
+// SPDX-License-Identifier: Apache 2.0
+//
 #include "include/mcm/computation/model/computation_model.hpp"
 #include "include/mcm/computation/model/iterator/data_context.hpp"
 #include "include/mcm/computation/model/iterator/tensor.hpp"

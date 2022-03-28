@@ -1,3 +1,7 @@
+//
+// Copyright (C) 2022 Intel Corporation
+// SPDX-License-Identifier: Apache 2.0
+//
 #ifndef SCHEDULER_UNIT_TEST_UTILS_HPP
 #define SCHEDULER_UNIT_TEST_UTILS_HPP
 

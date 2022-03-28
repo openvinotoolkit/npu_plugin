@@ -1,4 +1,9 @@
 #! /bin/bash
+#
+# Copyright (C) 2022 Intel Corporation
+# SPDX-License-Identifier: Apache 2.0
+#
+
 echo "#pragma once" | unix2dos
 echo | unix2dos
 find -name "*.obj" |

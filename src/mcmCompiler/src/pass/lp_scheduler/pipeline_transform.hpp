@@ -1,3 +1,7 @@
+//
+// Copyright (C) 2022 Intel Corporation
+// SPDX-License-Identifier: Apache 2.0
+//
 #ifndef PIPELINE_SCHEDULE_TRANSFORMS_H
 #define PIPELINE_SCHEDULE_TRANSFORMS_H
 

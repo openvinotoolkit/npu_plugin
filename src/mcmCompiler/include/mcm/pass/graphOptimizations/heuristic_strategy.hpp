@@ -1,3 +1,7 @@
+//
+// Copyright (C) 2022 Intel Corporation
+// SPDX-License-Identifier: Apache 2.0
+//
 #ifndef __HEURSITIC_STRATEGY_HPP__
 #define __HEURISTIC_STRATEGY_HPP__
 

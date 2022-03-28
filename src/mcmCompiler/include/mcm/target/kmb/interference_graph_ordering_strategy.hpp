@@ -1,3 +1,7 @@
+//
+// Copyright (C) 2022 Intel Corporation
+// SPDX-License-Identifier: Apache 2.0
+//
 #ifndef MV_INTERFERENCE_GRAPH_ORDERING_STRATEGY_HPP_
 #define MV_INTERFERENCE_GRAPH_ORDERING_STRATEGY_HPP_
 

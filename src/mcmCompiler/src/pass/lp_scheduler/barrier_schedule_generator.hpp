@@ -1,3 +1,7 @@
+//
+// Copyright (C) 2022 Intel Corporation
+// SPDX-License-Identifier: Apache 2.0
+//
 #ifndef BARRIER_SCHEDULE_GENERATOR_H
 #define BARRIER_SCHEDULE_GENERATOR_H
 

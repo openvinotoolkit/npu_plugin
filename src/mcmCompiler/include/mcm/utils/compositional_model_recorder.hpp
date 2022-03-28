@@ -1,9 +1,9 @@
+//
+// Copyright (C) 2022 Intel Corporation
+// SPDX-License-Identifier: Apache 2.0
+//
 /*#ifndef INCLUDE_MCM_UTILS_COMPOSITIONAL_MODEL_RECORDER_HPP_
 #define INCLUDE_MCM_UTILS_COMPOSITIONAL_MODEL_RECORDER_HPP_
-=======
-#ifndef INCLUDE_MCM_UTILS_COMPOSITIONAL_MODEL_RECORDER_
-#define INCLUDE_MCM_UTILS_COMPOSITIONAL_MODEL_RECORDER_
->>>>>>> master
 
 #include "include/mcm/api/compositional_model.hpp"
 #include "include/mcm/computation/model/op_model.hpp"

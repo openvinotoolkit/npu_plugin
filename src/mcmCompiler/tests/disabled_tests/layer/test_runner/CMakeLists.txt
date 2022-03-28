@@ -1,3 +1,7 @@
+#
+# Copyright (C) 2022 Intel Corporation
+# SPDX-License-Identifier: Apache 2.0
+#
 if(NOT DEFINED "ENV{VPU_CLC_PATH}")
     message(WARNING "VPU_CLC_PATH variable for OpenCL compiler is not set.")
 elseif(NOT EXISTS "$ENV{VPU_CLC_PATH}/bin/clc")

@@ -1,3 +1,7 @@
+//
+// Copyright (C) 2022 Intel Corporation
+// SPDX-License-Identifier: Apache 2.0
+//
 #include "include/mcm/target/kmb/workloads.hpp"
 #include "include/mcm/base/exception/argument_error.hpp"
 #include "include/mcm/utils/data_generator.hpp"

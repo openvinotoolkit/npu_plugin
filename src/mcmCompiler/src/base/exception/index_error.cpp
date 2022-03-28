@@ -1,3 +1,7 @@
+//
+// Copyright (C) 2022 Intel Corporation
+// SPDX-License-Identifier: Apache 2.0
+//
 #include "include/mcm/base/exception/index_error.hpp"
 
 mv::IndexError::IndexError(const LogSender& sender, long long idx, const std::string& whatArg) :

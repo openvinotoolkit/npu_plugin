@@ -1,14 +1,8 @@
 //
-// Copyright 2020 Intel Corporation.
+// Copyright (C) 2022 Intel Corporation.
+// SPDX-License-Identifier: Apache 2.0
 //
-// LEGAL NOTICE: Your use of this software and any required dependent software
-// (the "Software Package") is subject to the terms and conditions of
-// the Intel(R) OpenVINO(TM) Distribution License for the Software Package,
-// which may also include notices, disclaimers, or license terms for
-// third party or open source software included in or with the Software Package,
-// and your use indicates your acceptance of all such terms. Please refer
-// to the "third-party-programs.txt" or other similarly-named text file
-// included with the Software Package for additional details.
+
 //
 #pragma once
 
@@ -21,7 +15,7 @@
 namespace vpux {
 class ZeroAllocator : public Allocator {
     ze_driver_handle_t driver_handle = nullptr;
-    const static size_t alignment = 4096;
+    const static std::size_t alignment = 4096;
 
     static std::unordered_set<const void*> our_pointers;
 
@@ -55,7 +49,7 @@ public:
      * @param size The size in bytes to allocate
      * @return Handle to the allocated resource
      */
-    void* alloc(size_t size) noexcept override;
+    void* alloc(std::size_t size) noexcept override;
     /**
      * @brief Releases the handle and all associated memory resources which invalidates the handle.
      * @param handle The handle to free
@@ -64,10 +58,10 @@ public:
     bool free(void* handle) noexcept override;
 
     // TODO: need update methods to remove Kmb from parameters
-    void* wrapRemoteMemoryHandle(const int&, const size_t, void*) noexcept override {
+    void* wrapRemoteMemoryHandle(const int&, const std::size_t, void*) noexcept override {
         return 0;
     }
-    void* wrapRemoteMemoryOffset(const int&, const size_t, const size_t&) noexcept override {
+    void* wrapRemoteMemoryOffset(const int&, const std::size_t, const std::size_t&) noexcept override {
         return 0;
     }
 

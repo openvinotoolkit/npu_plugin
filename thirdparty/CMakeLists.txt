@@ -1,14 +1,6 @@
 #
-# Copyright 2019-2020 Intel Corporation.
-#
-# LEGAL NOTICE: Your use of this software and any required dependent software
-# (the "Software Package") is subject to the terms and conditions of
-# the Intel(R) OpenVINO(TM) Distribution License for the Software Package,
-# which may also include notices, disclaimers, or license terms for
-# third party or open source software included in or with the Software Package,
-# and your use indicates your acceptance of all such terms. Please refer
-# to the "third-party-programs.txt" or other similarly-named text file
-# included with the Software Package for additional details.
+# Copyright (C) 2022 Intel Corporation.
+# SPDX-License-Identifier: Apache 2.0
 #
 
 #
@@ -271,21 +263,37 @@ endif()
 #
 # bitcompactor
 #
-set(BITCOMPACTOR_TARGET_NAME "bitcompactor")
-add_library(${BITCOMPACTOR_TARGET_NAME}
-    OBJECT
-    "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/thirdparty/bitcompactor/src/bitCompactor.cpp")
 
-target_include_directories(${BITCOMPACTOR_TARGET_NAME}
-    PUBLIC
-        $<BUILD_INTERFACE:${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/thirdparty/bitcompactor/include>
-)
-if (NOT BUILD_SHARED_LIBS)
-    install(TARGETS ${BITCOMPACTOR_TARGET_NAME} EXPORT OpenVINOTargets
-            RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT ${VPUX_PLUGIN_COMPONENT}
-            ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT ${VPUX_PLUGIN_COMPONENT}
-            LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT ${VPUX_PLUGIN_COMPONENT})
+if(ENABLE_BITCOMPACTOR)
+    FetchContent_Declare(
+        bitcompactor
+        GIT_REPOSITORY https://github.com/intel-innersource/frameworks.vpu.models.vpu27.bit-compactor.git
+        GIT_TAG        btc_models_v1p3_y21ww08_0014
+    )
+
+    FetchContent_GetProperties(bitcompactor)
+    if(NOT bitcompactor_POPULATED)
+        FetchContent_Populate(bitcompactor)
+
+        set(BITCOMPACTOR_TARGET_NAME "bitcompactor")
+        add_library(${BITCOMPACTOR_TARGET_NAME} OBJECT "${bitcompactor_SOURCE_DIR}/src/bitCompactor.cpp")
+
+        target_include_directories(${BITCOMPACTOR_TARGET_NAME}
+            PUBLIC
+                $<BUILD_INTERFACE:"${bitcompactor_SOURCE_DIR}/include">
+        )
+        if (NOT BUILD_SHARED_LIBS)
+            install(TARGETS ${BITCOMPACTOR_TARGET_NAME} EXPORT OpenVINOTargets
+                    RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT ${VPUX_PLUGIN_COMPONENT}
+                    ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT ${VPUX_PLUGIN_COMPONENT}
+                    LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT ${VPUX_PLUGIN_COMPONENT})
+        endif()
+    endif()
 endif()
+
+#
+# huffman_codec
+#
 
 set(HUFFMAN_CODEC_TARGET_NAME "huffman_codec")
 add_library(${HUFFMAN_CODEC_TARGET_NAME}
@@ -304,6 +312,7 @@ target_include_directories(${HUFFMAN_CODEC_TARGET_NAME}
 #
 # nn cost model
 #
+
 set(VPUNN_BUILD_SHARED_LIB OFF CACHE BOOL "" FORCE)
 set(VPUNN_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 set(VPUNN_BUILD_TESTS OFF CACHE BOOL "" FORCE)

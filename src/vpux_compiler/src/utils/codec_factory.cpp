@@ -1,14 +1,8 @@
 //
-// Copyright Intel Corporation.
+// Copyright (C) 2022 Intel Corporation.
+// SPDX-License-Identifier: Apache 2.0
 //
-// LEGAL NOTICE: Your use of this software and any required dependent software
-// (the "Software Package") is subject to the terms and conditions of
-// the Intel(R) OpenVINO(TM) Distribution License for the Software Package,
-// which may also include notices, disclaimers, or license terms for
-// third party or open source software included in or with the Software Package,
-// and your use indicates your acceptance of all such terms. Please refer
-// to the "third-party-programs.txt" or other similarly-named text file
-// included with the Software Package for additional details.
+
 //
 
 #include <vector>
@@ -23,7 +17,11 @@ std::unique_ptr<ICodec> makeCodec(const ICodec::CompressionAlgorithm algo) {
     case ICodec::CompressionAlgorithm::HUFFMAN_CODEC:
         return std::make_unique<vpux::HuffmanCodec>();
     case ICodec::CompressionAlgorithm::BITCOMPACTOR_CODEC:
+#ifdef ENABLE_BITCOMPACTOR
         return std::make_unique<vpux::BitCompactorCodec>();
+#else
+        VPUX_THROW("vpux::makeCodec: bitcompactor is disabled");
+#endif
     }
     VPUX_THROW("vpux::makeCodec: unsupported compression algorithm");
 }

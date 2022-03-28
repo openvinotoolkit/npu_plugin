@@ -1,4 +1,9 @@
-﻿#include "include/mcm/pass/pass_registry.hpp"
+//
+// Copyright (C) 2022 Intel Corporation
+// SPDX-License-Identifier: Apache 2.0
+//
+
+#include "include/mcm/pass/pass_registry.hpp"
 #include "include/mcm/pass/pass_quantization.hpp"
 #include "include/mcm/pass/pass_utils.hpp"
 #include "include/mcm/tensor/quantization_params.hpp"
