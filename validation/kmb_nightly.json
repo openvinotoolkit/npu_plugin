@@ -4607,7 +4607,8 @@
             "extra_config" : {
                 "VPUX_COMPILER_TYPE": "MLIR",
                 "PERFORMANCE_HINT": "THROUGHPUT",
-                "VPUX_INFERENCE_SHAVES": "16"
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_IMD_MV_RUN_TIMEOUT": "3600"
             },
             "Compile" : {
                 "input_layout" : "NHWC",
@@ -4619,12 +4620,8 @@
             "BenchmarkApp" : {
                 "input_folder" : "416x416"
             },
-            "NetTest-CalcRef": {
-                "inputs" : [["416x416/person.bmp"]],
-                "params" : [
-                    "--mode", "raw",
-                    "--raw_tolerance", "0.1"
-                ]
+            "NetTest-CalcRef" : {
+                "disabled" : true
             },
             "NetTest-Validate": {
                 "disabled" : true
@@ -4644,12 +4641,13 @@
             "category" : "MLIR",
             "disabled" : true,
             "3720": {
-                "disabled" : true
+                "disabled" : false
             },
             "extra_config" : {
                 "VPUX_COMPILER_TYPE": "MLIR",
                 "PERFORMANCE_HINT": "THROUGHPUT",
-                "VPUX_INFERENCE_SHAVES": "16"
+                "VPUX_INFERENCE_SHAVES": "16",
+                "VPUX_IMD_MV_RUN_TIMEOUT": "3600"
             },
             "Compile" : {
                 "input_layout" : "NHWC",
@@ -4659,17 +4657,18 @@
                 "old_api" : true
             },
             "BenchmarkApp" : {
-                "input_folder" : "416x416"
+                "disabled" : true
             },
-            "NetTest-CalcRef": {
+            "NetTest": {
                 "inputs" : [["416x416/person.bmp"]],
                 "params" : [
                     "--mode", "raw",
-                    "--raw_tolerance", "0.1"
-                ]
-            },
-            "NetTest-Validate": {
-                "disabled" : true
+                    "--raw_tolerance", "15",
+                    "--ol", "NHWC"
+                ],
+                "input_precision" : "FP16",
+                "output_precision" : "FP16",
+                "output_layout" : "NHWC"
             },
             "AccuracyCheck" : {
                 "disabled" : true
