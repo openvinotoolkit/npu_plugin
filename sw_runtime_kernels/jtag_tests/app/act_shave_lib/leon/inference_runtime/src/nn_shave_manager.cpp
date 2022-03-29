@@ -147,7 +147,7 @@ void ShaveManager::initActRtStacksAndDatas(const uint8_t tile, const ActKernelRu
     // TODO: Implement this when the compiler is ready to embed the ActRT into the blob
     nnLog(MVLOG_DEBUG, "Validation App Mode: Using embedded Act stacks");
 
-    // Workaround for EISW-23330 when running VPUX softmax software layer.
+    // Workaround for E#23330 when running VPUX softmax software layer.
     // The DDR stacks for the activation SHAVEs is causing instruction corruption.
     // Might be related to how the SHAVE L2 is configured. Placing actSHAVE stacks
     // back in NN CMX

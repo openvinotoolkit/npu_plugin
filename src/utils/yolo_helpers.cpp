@@ -290,7 +290,7 @@ static std::vector<utils::BoundingBox> yolov2BoxExtractor(float threshold, std::
     std::vector<utils::Box> boxes(lw * lh * num);
     std::vector<std::vector<float>> probs(lw * lh * num, std::vector<float>(classes + 1, 0.0));
 
-    // TODO refactoring ticked https://jira.devtools.intel.com/browse/CVS-37819
+    // TODO refactoring ticket S#37819
     std::vector<float> anchors;
     if (isTiny) {
         anchors = TINY_YOLOV2_ANCHORS;

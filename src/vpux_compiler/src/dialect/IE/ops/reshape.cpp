@@ -138,7 +138,7 @@ void vpux::IE::ReshapeOp::inferElemTypeInfo(vpux::IE::LayerDataInfo<mlir::Type>&
     const auto inputElemType = info.getInput(0);
 
     // Do not propagate element type down in per channel case.
-    // EISW-31030
+    // E#31030
     if (inputElemType.dyn_cast_or_null<mlir::quant::UniformQuantizedPerAxisType>() == nullptr) {
         for (size_t outputInd = 0; outputInd < info.getNumOutputs(); ++outputInd) {
             info.setOutput(outputInd, inputElemType);
@@ -150,7 +150,7 @@ void vpux::IE::ReshapeOp::inferElemTypeInfoUp(vpux::IE::LayerDataInfo<mlir::Type
     const auto outputElemType = info.getOutput(0);
 
     if (outputElemType.dyn_cast_or_null<mlir::quant::UniformQuantizedPerAxisType>() != nullptr) {
-        // EISW-31029: implement propagate type up for per channel, currently it leads to failures in later passes.
+        // E#31029: implement propagate type up for per channel, currently it leads to failures in later passes.
         return;
     }
 

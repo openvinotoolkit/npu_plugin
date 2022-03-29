@@ -35,7 +35,7 @@ namespace VPU {
 // (2) The hardware efficiency for a particular layer with a particular strategy
 //
 // Note: This will probably be replaced by operation interface for operation
-// cost model EISW-26043.
+// cost model E#26043.
 class BaseLayerStrategy {
 public:
     explicit BaseLayerStrategy(mlir::FuncOp func, Logger log);

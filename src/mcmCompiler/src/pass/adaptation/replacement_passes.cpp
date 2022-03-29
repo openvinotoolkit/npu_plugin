@@ -1389,7 +1389,7 @@ void interpAsDepthConvFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
     }
 }
 
-// Performance regression: EISW-10889
+// Performance regression: E#10889
 void interpolateAsResample(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
@@ -2197,7 +2197,7 @@ bool supportedCase(const mv::Data::OpListIterator& opIt) {
     auto sourceTensor = opIt->getInputTensor(mv::IO_TENSOR_INPUT);
     auto inputShape = sourceTensor->getShape();
 
-    // The best way for large AVG global pooling is SW layer (CVS-44261)
+    // The best way for large AVG global pooling is SW layer (S#44261)
     // Implementation in replaceLargeKernelsFcn() support kernels < 81, but more accurate then splitting to several Avg layers
     // Solution: using new implamenation only for exteme cases (kernel > 81)
     const int kernelLimitation = 81;

@@ -19,7 +19,7 @@
 
 ## Request requirements
 
-1. MR title must start with a jira ticket number in the following format: "EISW-####:Fix for this and that".
+1. MR title must start with a jira ticket number in the following format: "E#####:Fix for this and that".
     * Jira ticket must include the problem statement, acceptance criteria, links to design/architecture docs if any.
 1. MR header must be filled out according to the MR template.
     * The header must contain clear description and the target milestone.

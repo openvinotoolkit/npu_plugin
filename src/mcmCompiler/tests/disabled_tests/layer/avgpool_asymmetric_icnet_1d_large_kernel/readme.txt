@@ -24,4 +24,4 @@ AvgPool 15x11 on 30x23x2048  gave output of 4x2048, expected 256 pixels wrong ~3
 
 The difference was between reference and result pixelwise was about 6-8LSB
 Have a look as well at the test:  is the avgpool_asymmetric_1d_large_kernel
-Filed in the ticket https://jira.devtools.intel.com/browse/VPUNND-3368
+Filed in the ticket D#3368

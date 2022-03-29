@@ -59,7 +59,7 @@ if (UNIX)
             EXCLUDE_FROM_ALL
     )
 
-    # TODO: Remove duplication EISW-31024
+    # TODO: Remove duplication E#31024
     install(TARGETS ${TARGET_NAME}
             RUNTIME DESTINATION tests
             COMPONENT tests

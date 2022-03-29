@@ -19,7 +19,7 @@ TEST(ManagementKernel, Compile) {
 
     ActKernelDesc desc;
 
-#if defined(_WIN32) || defined(_WIN64)  // Skipped temporary on Windows (EISW-26870)
+#if defined(_WIN32) || defined(_WIN64)  // Skipped temporary on Windows (E#26870)
     GTEST_SKIP() << "Skip Windows validation";
 #endif
     EXPECT_NO_THROW(desc = compileManagementKernelForACTShave(params));

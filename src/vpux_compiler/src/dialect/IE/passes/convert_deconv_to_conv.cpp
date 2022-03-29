@@ -92,8 +92,7 @@ mlir::LogicalResult DeconvolutionConversion::matchAndRewrite(IE::DeconvolutionOp
 
     // Weights reverse according to ngraph implementation
     // https://github.com/openvinotoolkit/openvino/blob/745c8933bc67f0eaf7996848f5188521fdf50d14/ngraph/core/reference/include/ngraph/runtime/reference/convolution_backprop_data.hpp#L268
-    // TODO: implement this reversing via lazy constant folding mechanism (JIRA:
-    // https://jira.devtools.intel.com/browse/EISW-28339)
+    // TODO: implement this reversing via lazy constant folding mechanism (E#28339)
     SmallVector<float16> reversedVals(dwConvFilterContent.getValues<float16>());
     size_t spatialDims = filterShape[Dims4D::Filter::KX] * filterShape[Dims4D::Filter::KY];
     for (auto it = reversedVals.begin(); it < reversedVals.end(); it += spatialDims) {

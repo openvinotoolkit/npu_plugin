@@ -197,7 +197,7 @@ void setOutputBasePtrs(mv::OpModel& om, mv::DataModel& dm, const mv::Data::OpLis
     }
 }
 
-// Ticket VPUNND-3829 offers an overview on the motivation and the implementation
+// Ticket D#3829 offers an overview on the motivation and the implementation
 void assignSEBasePtrFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)

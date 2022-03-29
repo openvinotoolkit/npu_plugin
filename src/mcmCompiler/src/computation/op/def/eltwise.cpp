@@ -45,7 +45,7 @@ namespace mv
                         
             /// TODO: Currently Maximum doesn't support constant input with different layout,
             /// usually a zmajor input0 vs cmajor constant input1, will cause runtime crash
-            /// See ticket #EISW-13808
+            /// See ticket E#13808
             if(eltwiseType == "Maximum" && inputs[1]->isPopulated()){
                 const mv::Order &orderA= inputs[0]->getOrder();
                 const mv::Order &orderB= inputs[1]->getOrder();

@@ -118,7 +118,7 @@ float round_prefer_floor(float x) {
     return (frac == 0.5f) ? std::floor(x) : ROUND(x);
 }
 
-// workaround for moviSim errors described in [EISW-24996]
+// workaround for moviSim errors described in [E#24996]
 float round_floor(float x) {
     return std::floor(x);
 }

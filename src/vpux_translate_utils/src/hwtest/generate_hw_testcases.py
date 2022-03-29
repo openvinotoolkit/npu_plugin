@@ -1360,10 +1360,10 @@ class ActKernel(Operation):
         self.settings = settings
         self.issues = set()
         if self.settings.activation_type[0] == ActivationType.Sigmoid :
-            self.issues.add('EISW-29771')
+            self.issues.add('E#29771')
         if self.settings.activation_type[0] == ActivationType.Softmax :
-            self.issues.add('EISW-29771')
-            self.issues.add('EISW-29786')
+            self.issues.add('E#29771')
+            self.issues.add('E#29786')
 
 
     @property
@@ -1438,10 +1438,10 @@ class ActKernel(Operation):
         return result
 
     def filter_issues(self, args) -> bool:
-        if 'EISW-29771' in self.issues:
+        if 'E#29771' in self.issues:
             # Filter not bit-exact comparison issues
             return False
-        if 'EISW-29786' in self.issues:
+        if 'E#29786' in self.issues:
             # Filter incorrect tensor serialization issues
             return False
         return True
@@ -1526,10 +1526,10 @@ class ReadAfterWriteACTDMA(Operation):
 
     def filter_issues(self, args) -> bool:
         if(self.settings.cluster_number == 1):
-            # EISW-29786
+            # E#29786
             return False
 
-        # EISW-29771
+        # E#29771
         return False
 
 class ReadAfterWriteDMAACT(Operation):
@@ -1605,7 +1605,7 @@ class ReadAfterWriteDMAACT(Operation):
 
     def filter_issues(self, args) -> bool:
         if(self.settings.cluster_number == 1):
-            # EISW-29786
+            # E#29786
             return False
 
         return True
@@ -1942,7 +1942,7 @@ class ReadAfterWriteDPUACT(Operation):
 
     def filter_issues(self, args) -> bool:
         if(self.settings.cluster_number == 1):
-            # EISW-29786
+            # E#29786
             return False
 
         return True
@@ -2059,7 +2059,7 @@ class ReadAfterWriteACTDPU(Operation):
 
     def filter_issues(self, args) -> bool:
         if(self.settings.cluster_number == 1):
-            # EISW-29786
+            # E#29786
             return False
 
         return True
@@ -2586,7 +2586,7 @@ class RaceCondition:
         self.requested_unit = requested_unit
         self.issues = set()
         if self.operation.settings.mpe_op_class == ActKernel and self.requested_cluster == 2 :
-            self.issues.add('EISW-30347')
+            self.issues.add('E#30347')
 
     def json_info(self):
         return {
@@ -2616,7 +2616,7 @@ class RaceCondition:
         return json
 
     def filter_issues(self, args):
-        if 'EISW-30347' in self.issues:
+        if 'E#30347' in self.issues:
             # Filter unsupported cluster param
             return False
         return self.mpe_op.filter_issues(args)

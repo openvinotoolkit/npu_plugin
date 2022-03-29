@@ -765,7 +765,7 @@ IERT::LayerOpInterface FeasibleMemoryScheduler::retrieveBufferWriter(mlir::Value
 }
 
 size_t FeasibleMemoryScheduler::evictionPriority(mlir::Value buffer) {
-    // TODO: EISW-21936 add other conditions such as:
+    // TODO: E#21936 add other conditions such as:
     // pipelined, multiple outdegree (prefetch)
 
     // Eviction priority (highest evicted first):

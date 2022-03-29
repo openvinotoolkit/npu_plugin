@@ -261,7 +261,7 @@ namespace shave_lib {
 // across_channels = false
 // order = NCHW || CHW || HWC || NHWC
 //
-// [EISW-24995]
+// [E#24995]
 
 extern "C" {
 void singleShaveMVN(uint32_t lParams) {

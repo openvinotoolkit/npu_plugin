@@ -705,7 +705,7 @@ class CMX_Concatenation {
       const concat_subgraph_t& subgraph) const {
       // Eltwise compiler provided sparsity requires address information
       // to build correctly it's SE tables
-      // see ticket VPUNND-3529 detailing issue and provide proper address
+      // see ticket D#3529 detailing issue and provide proper address
       // propagation logic in the future
       for (auto itr=subgraph.dpu_out_.begin(); itr!=subgraph.dpu_out_.end(); ++itr)
         if((*itr)->hasAttr("activationSparsityCompilerSolving") &&

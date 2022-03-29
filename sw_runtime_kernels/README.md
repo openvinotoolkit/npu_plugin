@@ -146,6 +146,6 @@ the function to wrap kernel parameters structure into special common communicati
 xdat ActShave kernel representation )
 
 ### Known issues
-- [\[MOVICOMPILER\] Some code sequences are not compiled for 3720 act shave with O3](https://jira.devtools.intel.com/browse/EISW-26562) - 
+- [\[MOVICOMPILER\] Some code sequences are not compiled for 3720 act shave with O3](E#26562) - 
 in particular mvSubsoaces.cpp is not compiled for 3720 act shave with -O3
 

@@ -142,7 +142,7 @@ void vpux::IE::TransposeOp::inferElemTypeInfoUp(vpux::IE::LayerDataInfo<mlir::Ty
     const auto outputElemType = info.getOutput(0);
 
     if (outputElemType.dyn_cast_or_null<mlir::quant::UniformQuantizedPerAxisType>() != nullptr) {
-        // EISW-31029: implement propagate type up for per channel, currently it leads to failures in later passes.
+        // E#31029: implement propagate type up for per channel, currently it leads to failures in later passes.
         return;
     }
 

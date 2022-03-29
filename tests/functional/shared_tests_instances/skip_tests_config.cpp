@@ -225,10 +225,10 @@ std::vector<std::string> disabledTestPatterns() {
             ".*OVInferRequestDynamicTests.*",
             ".*OVInferenceChaining.*",
 
-            // TODO: EISW-25458
+            // TODO: E#25458
             ".*OVInferRequestPerfCountersTest.*",
 
-            // TODO: EISW-29542
+            // TODO: E#29542
             ".*smoke_Auto_BehaviorTests.*",
 
             // Current OV logic with FULL_DEVICE_NAME metric differs from VPUX Plugin

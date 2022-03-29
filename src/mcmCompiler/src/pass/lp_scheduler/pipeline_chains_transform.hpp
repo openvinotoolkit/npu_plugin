@@ -1022,7 +1022,7 @@ class Pipeline_Chains {
             if (head_op->hasAttr("subgraph_length"))
               vf_subgraph_length = head_op->get<std::size_t>("subgraph_length");
             double_tail_vf = double_tail_vf_subgraph(dpu_chain);
-            // issues with spills EISW-12020, extra vertical fusion pipelining not performant with 1 DMA controller
+            // issues with spills E#12020, extra vertical fusion pipelining not performant with 1 DMA controller
             if (double_tail_vf && target_type == mv::Target::ma2490)
               return;
           }

@@ -50,7 +50,7 @@ namespace nn
             WORK_FIFO_COUNT = 16,
 
 #endif
-// TODO: Enable second DMA engine on MTL (VPUNND-3752)
+// TODO: Enable second DMA engine on MTL (D#3752)
 #if defined(CONFIG_TARGET_SOC_MA2490) || defined(CONFIG_TARGET_SOC_3600) || defined(CONFIG_TARGET_SOC_3710) || defined(CONFIG_TARGET_SOC_3720)
             DMA_ENGINES = 1,
 #else

@@ -11,7 +11,7 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
 
-// it's a workaround for edsr3. check details on ticket EISW-16823
+// it's a workaround for edsr3. check details on ticket E#16823
 ConvertReshapeTransposeChainToDepthToSpace::ConvertReshapeTransposeChainToDepthToSpace() {
     auto input = ngraph::pattern::any_input();
     auto transpose1 =

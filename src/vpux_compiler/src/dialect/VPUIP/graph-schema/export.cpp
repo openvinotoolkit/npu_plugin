@@ -201,7 +201,7 @@ flatbuffers::Offset<MVCNN::Resources> createResources(VPUIP::BlobWriter& writer,
     double DMA_BANDWIDTH = 20.0;
     for (auto src : memoryTypes) {
         for (auto dst : memoryTypes) {
-            // TODO EISW-20897: update calculations with the below factors:
+            // TODO E#20897: update calculations with the below factors:
             // auto memoryBandwidth = VPUIP::getMemoryBandwidth(src);
             // auto memoryDerateFactor = VPUIP::getMemoryDerateFactor(src);
             if (src != dst) {

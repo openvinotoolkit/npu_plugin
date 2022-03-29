@@ -136,7 +136,7 @@ mlir::OpFoldResult vpux::IE::StridedSliceOp::fold(ArrayRef<mlir::Attribute> /*op
         return input();
     }
 
-    // TODO EISW-22568: attempt const folding but only if slice isSimplified()
+    // TODO E#22568: attempt const folding but only if slice isSimplified()
 
     return nullptr;
 }

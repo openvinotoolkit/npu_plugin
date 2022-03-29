@@ -33,7 +33,7 @@ class KmbMvnLayerTestMLIR_MTL : public Mvn1LayerTest, virtual public LayerTestsU
     }
 
     void SkipBeforeInfer() override {
-        // [EISW-29786]
+        // [E#29786]
         throw LayerTestsUtils::KmbSkipTestException("Format of act-shave tensors serialization doesn't match with kernel expectation.");
 
 #ifndef ENABLE_IMD_BACKEND
@@ -67,7 +67,7 @@ TEST_P(KmbMvn6LayerTestMLIR, CompareWithRefs_MLIR) {
 using namespace LayerTestsDefinitions;
 
 // Accuracy problem for 3-dim input tensor when acrossChannels = false
-// Traced in Jira CVS-48579
+// Traced in Jira S#48579
 const std::vector<std::vector<size_t>> inputShapes3D = {
     {1, 32, 17},
     {1, 37, 9}
@@ -82,7 +82,7 @@ const std::vector<bool> acrossChannels3D = {
 const std::vector<std::vector<size_t>> inputShapes = {
     {1, 16, 5, 8},
 #if 0
-// Test fails for accuracy when Number of channels > 1 (tracked in Jira CVS-48579)
+// Test fails for accuracy when Number of channels > 1 (tracked in Jira S#48579)
     {3, 32, 17},
     {3, 37, 9},
 // Batch size > 1 is not supported by Soft and Custom Layer MVN implementation
@@ -173,7 +173,7 @@ INSTANTIATE_TEST_CASE_P(
         ::testing::ValuesIn(MLIRinputShapes),
         ::testing::Values(InferenceEngine::Precision::FP16),
         ::testing::ValuesIn(emptyReductionAxes),
-        ::testing::Values(false), // acrossChannels (only this case is supported by the MTL runtime kernel [EISW-24995])
+        ::testing::Values(false), // acrossChannels (only this case is supported by the MTL runtime kernel [E#24995])
         ::testing::ValuesIn(normalizeVariance),
         ::testing::ValuesIn(epsilon),
         ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)

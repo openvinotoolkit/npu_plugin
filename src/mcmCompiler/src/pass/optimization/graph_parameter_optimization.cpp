@@ -298,7 +298,7 @@ namespace mv
                         // Sad hack - due to recent changes on sparse data calculation
                         // now the minimal streams for K in some cases are lower, and this
                         // bring some performance regressions, on SSD512 for example
-                        // https://jira.devtools.intel.com/browse/EISW-7241
+                        // E#7241
                         // TODO: Future taks to add heuristics that increase the amount of
                         // streaming, so we can get rid of this harcoding
                         if (op.getOpType() == "Conv" &&
@@ -902,7 +902,7 @@ namespace mv
 
                 // NOTE: This is a temporary workaround till we are able to identify the chains before graph
                 // optimizer and control the cmx percentage that we want the weigths to receive described in
-                // https://jira.devtools.intel.com/browse/CVS-43222
+                // S#43222
                 {
                     if (op.getOpType() == "Conv")
                     {

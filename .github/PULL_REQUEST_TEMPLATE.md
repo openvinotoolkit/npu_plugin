@@ -29,7 +29,7 @@ Aids the generation of release notes [Explanation of Target Platform](https://wi
 
 (Please list tickets which the PR closes if you have any)
 
-* https://jira.devtools.intel.com/browse/EISW-XXXXX
+* E#####
 
 ## CI
 

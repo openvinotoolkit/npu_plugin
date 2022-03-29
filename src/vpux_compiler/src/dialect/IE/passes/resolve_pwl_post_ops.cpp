@@ -102,7 +102,7 @@ mlir::LogicalResult FusableOpRewriter::unfusePostOp(IE::LayerWithPostOpInterface
  *
  * Additionally, PWL activation functions can provide low accuracy results for float computation, so they get unfused
  * for SHAVE execution. The cases with per-axis quantization are also unfused until proper support is added
- * (EISW-25777).
+ * (E#25777).
  */
 mlir::LogicalResult FusableOpRewriter::matchAndRewrite(IE::LayerWithPostOpInterface origOp,
                                                        mlir::PatternRewriter& rewriter) const {

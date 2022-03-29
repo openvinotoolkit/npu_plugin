@@ -52,7 +52,7 @@ enum : unsigned int{
     ACT_SHAVE_0_INDEX = 4,
     WORK_FIFO_COUNT = 16,
 
-    // TODO: Enable second DMA engine on MTL (VPUNND-3752)
+    // TODO: Enable second DMA engine on MTL (D#3752)
     // DMA_ENGINES = 2,
     DMA_ENGINES = 1,
 

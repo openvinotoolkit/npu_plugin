@@ -72,7 +72,7 @@ mlir::LogicalResult PropagateQuantize::matchAndRewrite(IE::ElemTypeInfoOpInterfa
     }
 
     // 3. Check that tensor rank is 4, otherwise compilation fails in later passes
-    // EISW-31028
+    // E#31028
     const auto hasNot4DRank = [&](mlir::Value operand) {
         return operand.getType().cast<vpux::NDTypeInterface>().getRank() != QUANT_DEQUANT_RANK;
     };
@@ -162,7 +162,7 @@ mlir::LogicalResult PropagateDequantize::matchAndRewrite(IE::ElemTypeInfoOpInter
     }
 
     // Check that tensor rank is 4, otherwise compilation fails in later passes
-    // EISW-31028
+    // E#31028
     const auto hasNot4DRank = [&](mlir::Type resultType) {
         return resultType.cast<vpux::NDTypeInterface>().getRank() != QUANT_DEQUANT_RANK;
     };

@@ -91,7 +91,7 @@ ExecutableNetwork::ExecutableNetwork(const IE::CNNNetwork& orignet, const Device
         IE_THROW() << "Failed to read NGraph network";
     }
     OV_ITT_TASK_NEXT(EXECUTABLE_NETWORK_LOAD, "createExecutor");
-    // TODO: Fix this WA for EISW-22783, EISW-25449
+    // TODO: Fix this WA for E#22783, E#25449
     bool IE_VPUX_CREATE_EXECUTOR = true;
     if (const auto var = std::getenv("IE_VPUX_CREATE_EXECUTOR")) {
         IE_VPUX_CREATE_EXECUTOR = vpux::envVarStrToBool("IE_VPUX_CREATE_EXECUTOR", var);

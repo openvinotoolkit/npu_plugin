@@ -399,7 +399,7 @@ if(ENABLE_HDDL2 AND UNIX AND LINUX_OS_NAME STREQUAL "Ubuntu 20.04")
                 COMPONENT   ${VPUX_TESTS_COMPONENT}
                 EXCLUDE_FROM_ALL)
 
-        # TODO: Remove duplication EISW-31024
+        # TODO: Remove duplication E#31024
         install(DIRECTORY   "${HDDL_UNITE}/lib/"
                 DESTINATION "${HDDL_UNITE_INSTALL_DIR}/lib"
                 COMPONENT   tests

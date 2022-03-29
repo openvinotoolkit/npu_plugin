@@ -782,7 +782,7 @@ TEST(tensor, sparsity_res3a_branch2c)
     ASSERT_TRUE((count + denseData.size() - padsize) == data_res.size());
 }
 
-//VPUNND-391
+//D#391
 TEST(tensor, testing_at)
 {
     mv::Shape tShape({1, 1, 128, 512});

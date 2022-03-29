@@ -4,8 +4,8 @@
 	- TEST_F
 	- TEST_P
 	- INSTANTIATE_TEST_SUITE_P
-	- Track number: S#xxxxx    (related jira CVS-tickets)
-	- Track number: D#xxxxx    (related jira VPUNND-tickets)
+	- Track number: S#xxxxx    (related jira S#tickets)
+	- Track number: D#xxxxx    (related jira D#tickets)
 	
 2. Define each tests enable/disable status and corresponding ticket;
 3. Generate e-table with collected info in human-readable format.
@@ -15,7 +15,7 @@
     
     - Examples:
       ```
-      python ParseTestsInfo.py /home/mpedus/git/kmb-plugin/tests/functional/ /home/mpedus/git/kmb-plugin/tests/functional/
+      python ParseTestsInfo.py /home/user/git/kmb-plugin/tests/functional/ /home/user/git/kmb-plugin/tests/functional/
       
       ```
     - Result:

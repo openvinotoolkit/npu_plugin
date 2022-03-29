@@ -192,13 +192,13 @@ static HglShaveCtrlError ShCtrlRawAddressWinToAbs(ShHandle *handle, uint32_t add
 HglShaveCtrlError ShCtrlStart(ShHandle *handle, void *entry_point, const char *fmt, ...) {
     SHAVE_FUNC("%p, %p, %s, ...", handle, entry_point, fmt);
     // This function is subject to the following tickets:
-    // EISW-1191 Shave: Add API to handle windows, like setup windows, conversion stuff, etc
-    // EISW-1256 Shave: handle BSS on leon according to moviCompile docs
-    // EISW-1277 Shave: decide if low level shave driver needs to fill in IRF for context pointer
-    // EISW-1293 Shave: investigate how to handle shave stack overflow according to moviCompile docs
-    // EISW-1186 Shave: support vector parameters on all shaves (requires some support from BS)
-    // EISW-1219 Shave: investigate if BSS clearing can be done by DMA if it's bigger than some kb
-    // EISW-1289 Shave: Investigate and implement shave stack overflow check in build system support
+    // E#1191 Shave: Add API to handle windows, like setup windows, conversion stuff, etc
+    // E#1256 Shave: handle BSS on leon according to moviCompile docs
+    // E#1277 Shave: decide if low level shave driver needs to fill in IRF for context pointer
+    // E#1293 Shave: investigate how to handle shave stack overflow according to moviCompile docs
+    // E#1186 Shave: support vector parameters on all shaves (requires some support from BS)
+    // E#1219 Shave: investigate if BSS clearing can be done by DMA if it's bigger than some kb
+    // E#1289 Shave: Investigate and implement shave stack overflow check in build system support
     if (handle == NULL) {
         SHAVE_LOG(" - Failed due to null handle");
         SHAVE_RETURN_ERR(HGL_SHAVE_CTRL_PARAMETER_ERROR);

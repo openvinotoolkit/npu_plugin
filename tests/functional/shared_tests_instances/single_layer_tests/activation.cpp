@@ -92,7 +92,7 @@ class KmbActivationLayerTest : public ActivationLayerTest, virtual public LayerT
             }
         }
 
-        // [Track number: #E20853]
+        // [Track number: E#20853]
         if (getBackendName(*getCore()) == "LEVEL0") {
                 throw LayerTestsUtils::KmbSkipTestException("Level0: sporadic failures on device");
             }
@@ -116,7 +116,7 @@ TEST_P(KmbActivationLayerTest, CompareWithRefs_MLIR) {
     Run();
 }
 
-// [Track number: EISW-26724]
+// [Track number: E#26724]
 TEST_P(KmbActivationLayerTest_MTL, MLIR_MTL) {
     useCompilerMLIR();
     setPlatformMTL();
