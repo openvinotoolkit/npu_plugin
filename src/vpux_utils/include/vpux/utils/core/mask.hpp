@@ -3,11 +3,10 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #pragma once
 
 #include "vpux/utils/core/array_ref.hpp"
+#include "vpux/utils/core/hash.hpp"
 #include "vpux/utils/core/range.hpp"
 
 #include <cstdint>
@@ -63,3 +62,18 @@ inline bool operator!=(Mask m1, Mask m2) {
 }
 
 }  // namespace vpux
+
+//
+// std::hash specialization
+//
+
+namespace std {
+
+template <>
+struct hash<vpux::Mask> final {
+    size_t operator()(vpux::Mask mask) const {
+        return static_cast<size_t>(mask.code());
+    }
+};
+
+}  // namespace std

@@ -4,28 +4,19 @@
 //
 
 //
-
-//
 // Helper functions for hash calculation.
 //
 
 #pragma once
 
-#include "vpux/utils/core/mask.hpp"
-#include "vpux/utils/core/optional.hpp"
-#include "vpux/utils/core/string_ref.hpp"
 #include "vpux/utils/core/type_traits.hpp"
+
+#include <llvm/ADT/Hashing.h>
 
 #include <functional>
 #include <tuple>
 
 namespace vpux {
-
-namespace details {
-
-size_t combineHashVals(size_t seed, size_t val);
-
-}  // namespace details
 
 template <typename T>
 size_t getHash(const T& val) {
@@ -34,50 +25,26 @@ size_t getHash(const T& val) {
 
 template <typename T, typename... Args>
 size_t getHash(const T& val, Args&&... args) {
-    return details::combineHashVals(getHash(val), getHash(std::forward<Args>(args)...));
+    return llvm::hash_combine(getHash(val), getHash(std::forward<Args>(args)...));
 }
 
 template <class Range>
 size_t getRangeHash(const Range& r) {
-    size_t seed = 0;
-    for (const auto& val : r) {
-        seed = details::combineHashVals(seed, getHash(val));
-    }
-    return seed;
+    return llvm::hash_combine_range(r.begin(), r.end());
 }
 
 }  // namespace vpux
 
+//
+// std::hash specialization
+//
+
 namespace std {
-
-template <>
-struct hash<vpux::StringRef> final {
-    size_t operator()(vpux::StringRef str) const;
-};
-
-template <>
-struct hash<vpux::StringLiteral> final {
-    size_t operator()(vpux::StringLiteral str) const;
-};
-
-template <>
-struct hash<vpux::Mask> final {
-    size_t operator()(vpux::Mask mask) const {
-        return static_cast<size_t>(mask.code());
-    }
-};
 
 template <typename T1, typename T2>
 struct hash<pair<T1, T2>> final {
     size_t operator()(const pair<T1, T2>& p) const {
         return vpux::getHash(p.first, p.second);
-    }
-};
-
-template <typename T>
-struct hash<vpux::Optional<T>> final {
-    size_t operator()(const vpux::Optional<T>& opt) const {
-        return opt.has_value() ? vpux::getHash(opt.value()) : 0;
     }
 };
 
@@ -96,7 +63,7 @@ private:
 
     template <size_t Index = 0>
             static auto hashItems(const tuple<Args...>& val, size_t& seed) -> enable_if_t < Index<sizeof...(Args)> {
-        seed = vpux::details::combineHashVals(seed, vpux::getHash(get<Index>(val)));
+        seed = vpux::getHash(seed, get<Index>(val));
         hashItems<Index + 1>(val, seed);
     }
 };
