@@ -46,6 +46,7 @@ include(cmake/cross_compilation.cmake)
 include(cmake/flatbuffers.cmake)
 include(cmake/bundle_static_library.cmake)
 include(cmake/embed_bin_file.cmake)
+include(cmake/add_tool_target.cmake)
 
 if(ENABLE_TESTS)
     enable_testing()

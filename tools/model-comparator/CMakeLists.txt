@@ -8,17 +8,12 @@ set(TARGET_NAME model-comparator)
 find_package(OpenCV QUIET COMPONENTS core imgproc imgcodecs)
 find_package(gflags QUIET)
 
-if(NOT OpenCV_FOUND OR NOT gflags_FOUND)
-    message(WARNING "${TARGET_NAME} tool is disabled due to missing dependencies")
-    return()
-endif()
-
-add_executable(${TARGET_NAME} main.cpp)
-
-target_link_libraries(${TARGET_NAME} PRIVATE
-    IE::inference_engine IE::ngraph
-    opencv_core opencv_imgproc opencv_imgcodecs
-    gflags
-    IE::inference_engine_plugin_api
-    vpux_utils
+add_tool_target(
+    NAME ${TARGET_NAME}
+    ROOT ${CMAKE_CURRENT_SOURCE_DIR}
+    LINK_LIBRARIES
+        IE::inference_engine IE::inference_engine_plugin_api IE::ngraph
+        opencv_core opencv_imgproc opencv_imgcodecs
+        gflags
+        vpux_utils
 )

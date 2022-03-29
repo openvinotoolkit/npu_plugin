@@ -3,8 +3,6 @@
 # SPDX-License-Identifier: Apache 2.0
 #
 
-#
-
 add_subdirectory(model-comparator)
 
 add_subdirectory(test_classification)
@@ -18,3 +16,27 @@ add_subdirectory(vpux-lsp-server)
 add_subdirectory(profiling_parser)
 
 add_subdirectory(vpux-binutils)
+
+
+#
+# install python tools
+#
+
+set(PYTHON_TOOLS
+    "edit-xml"
+    "ir-analyzer"
+    "model-output-comparator"
+)
+
+foreach(TOOL IN LISTS PYTHON_TOOLS)
+        install(DIRECTORY "${CMAKE_CURRENT_LIST_DIR}/${TOOL}/"
+                DESTINATION "tools/${TOOL}"
+                COMPONENT tests
+                EXCLUDE_FROM_ALL)
+
+        # TODO: Remove duplication EISW-31024
+        install(DIRECTORY "${CMAKE_CURRENT_LIST_DIR}/${TOOL}/"
+                DESTINATION "tools/${TOOL}"
+                COMPONENT ${VPUX_TESTS_COMPONENT}
+                EXCLUDE_FROM_ALL)
+endforeach()

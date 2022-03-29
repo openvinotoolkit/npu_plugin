@@ -5,16 +5,15 @@
 
 cmake_minimum_required(VERSION 3.5.0)
 project(validateTensor VERSION 0.0.1)
+set(TARGET_NAME prof_parser)
 
 find_package(gflags QUIET)
 
-add_executable(prof_parser 
-    "prof_parser.cpp"
+add_tool_target(
+    NAME ${TARGET_NAME}
+    ROOT ${CMAKE_CURRENT_SOURCE_DIR}
+    LINK_LIBRARIES
+        flatbuffers
+        gflags
+        vpux_utils
 )
-
-target_include_directories(prof_parser
-    PRIVATE
-        $<TARGET_PROPERTY:vpux_utils,INTERFACE_INCLUDE_DIRECTORIES>
-)
-
-target_link_libraries(prof_parser flatbuffers gflags vpux_utils)

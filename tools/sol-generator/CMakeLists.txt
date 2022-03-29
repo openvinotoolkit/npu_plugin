@@ -5,14 +5,12 @@ set(TARGET_NAME sol-generator)
 
 find_package(gflags QUIET)
 
-if(NOT gflags_FOUND)
-    message(WARNING "${TARGET_NAME} tool is disabled due to missing dependencies")
-    return()
-endif()
-
-add_executable(${TARGET_NAME} main.cpp)
-
-target_link_libraries(${TARGET_NAME} PRIVATE
-    openvino::runtime
-    gflags
+add_tool_target(
+    NAME ${TARGET_NAME}
+    ROOT ${CMAKE_CURRENT_SOURCE_DIR}
+    INCLUDES
+        ${CMAKE_CURRENT_SOURCE_DIR}
+    LINK_LIBRARIES
+        openvino::runtime
+        gflags
 )

@@ -7,20 +7,12 @@
 
 set(TARGET_NAME "vpux-lsp-server")
 
-file(GLOB_RECURSE SOURCES "*.cpp" "*.hpp")
-source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCES})
-
-add_executable(${TARGET_NAME} ${SOURCES})
-set_target_properties(${TARGET_NAME} PROPERTIES FOLDER "tools")
-
-enable_warnings_as_errors(${TARGET_NAME} WIN_STRICT)
-vpux_enable_clang_format(${TARGET_NAME})
-
-link_system_libraries(${TARGET_NAME}
-    PRIVATE
-        MLIRLspServerLib
-)
-target_link_libraries(${TARGET_NAME}
-    PRIVATE
-        vpux_mlir_compiler_static
+add_tool_target(
+    NAME ${TARGET_NAME}
+    ROOT ${CMAKE_CURRENT_SOURCE_DIR}
+    ADD_CLANG_FORMAT
+    ENABLE_WARNINGS_AS_ERRORS
+    LINK_LIBRARIES
+         MLIRLspServerLib
+         vpux_mlir_compiler_static
 )
