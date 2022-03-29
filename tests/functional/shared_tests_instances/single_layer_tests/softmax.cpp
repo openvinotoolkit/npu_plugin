@@ -37,16 +37,6 @@ class VPUXSoftMaxLayerTest : public SoftMaxLayerTest, virtual public VPUXLayerTe
 
         return vpux::None;
     }
-
-    SkipMessage SkipBeforeInfer() override {
-#ifndef ENABLE_IMD_BACKEND
-        if (isPlatformMTL()) {
-            return {"MTL inference requires IMD backend."};
-        }
-#endif
-
-        return vpux::None;
-    }
 };
 
 TEST_P(VPUXSoftMaxLayerTest, MCM) {

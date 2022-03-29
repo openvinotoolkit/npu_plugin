@@ -14,14 +14,12 @@
 #include "kmb_layer_test.hpp"
 #include "common/functions.h"
 
-
 class BackendName {
 public:
     BackendName() {
         const auto corePtr = PluginCache::get().ie();
         if (corePtr != nullptr) {
             _name = getBackendName(*corePtr);
-            _availableDevices = ::getAvailableDevices(*corePtr);
         } else {
             std::cout << "Failed to get IE Core!" << std::endl;
         }
@@ -51,12 +49,36 @@ public:
         return _name == "EMULATOR";
     }
 
-    std::vector<std::string> getAvailableDevices() const {
+private:
+    std::string _name;
+};
+
+class AvailableDevices {
+public:
+    AvailableDevices() {
+        const auto corePtr = PluginCache::get().ie();
+        if (corePtr != nullptr) {
+            _availableDevices = ::getAvailableDevices(*corePtr);
+        } else {
+            std::cout << "Failed to get IE Core!" << std::endl;
+        }
+    }
+
+    const auto& getAvailableDevices() const {
         return _availableDevices;
     }
 
+    auto count() const {
+        return _availableDevices.size();
+    }
+
+    bool has3720() const {
+        return std::any_of(_availableDevices.begin(), _availableDevices.end(), [](const std::string& deviceName) {
+            return deviceName.find("3720") != std::string::npos;
+        });
+    }
+
 private:
-    std::string _name;
     std::vector<std::string> _availableDevices;
 };
 
@@ -136,9 +158,11 @@ std::string getCurrentTestName() {
 std::vector<std::string> disabledTestPatterns() {
     // Initialize skip registry
     static const auto skipRegistry = []() {
-        SkipRegistry      _skipRegistry;
+        SkipRegistry _skipRegistry;
+
         const BackendName backendName;
-        const Platform    platform;
+        const AvailableDevices devices;
+        const Platform platform;
 
         //
         //  Disabled test patterns
@@ -356,12 +380,18 @@ std::vector<std::string> disabledTestPatterns() {
         );
 
         _skipRegistry.addPatterns(
-            backendName.getAvailableDevices().size() > 1,
+            devices.count() > 1,
             "Some VPUX Plugin metrics require single device to work in auto mode or set particular device",
             {
             ".*OVClassGetConfigTest.*GetConfigNoThrow.*",
             ".*OVClassGetConfigTest.*GetConfigHeteroNoThrow.*",
             }
+        );
+
+        _skipRegistry.addPatterns(
+            !devices.has3720(),
+            "Device VPUX3720 is not available",
+            {".*MTL.*"}
         );
 
         return _skipRegistry;

@@ -99,13 +99,7 @@ class KmbActivationLayerTest : public ActivationLayerTest, virtual public LayerT
     }
 };
 
-class KmbActivationLayerTest_MTL : public KmbActivationLayerTest {
-    void SkipBeforeInfer() override {
-#ifndef ENABLE_IMD_BACKEND
-        throw LayerTestsUtils::KmbSkipTestException("MTL inference requires IMD backend.");
-#endif
-    }
-};
+class KmbActivationLayerTest_MTL : public KmbActivationLayerTest {};
 
 TEST_P(KmbActivationLayerTest, CompareWithRefs) {
     Run();

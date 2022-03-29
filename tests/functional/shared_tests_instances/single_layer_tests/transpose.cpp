@@ -13,13 +13,7 @@ namespace LayerTestsDefinitions {
 
 class KmbTransposeLayerTest: public TransposeLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {};
 class KmbTransposeLayerTest_MLIR : public KmbTransposeLayerTest {};
-class KmbTransposeLayerTest_MTL : public KmbTransposeLayerTest {
-    void SkipBeforeInfer() override {
-#ifndef ENABLE_IMD_BACKEND
-        throw LayerTestsUtils::KmbSkipTestException("MTL inference requires IMD backend.");
-#endif
-    }
-};
+class KmbTransposeLayerTest_MTL : public KmbTransposeLayerTest {};
 
 TEST_P(KmbTransposeLayerTest, CompareWithRefs) {
     Run();

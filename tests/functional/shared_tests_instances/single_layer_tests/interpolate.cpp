@@ -41,11 +41,8 @@ TEST_P(KmbInterpolate1Test, CompareWithRefs_MLIR) {
 class KmbInterpolateLayerTest_MTL : public InterpolateLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
     void SkipBeforeInfer() override {
         // [E#29786]
-        throw LayerTestsUtils::KmbSkipTestException("Format of act-shave tensors serialization doesn't match with kernel expectation.");
-
-#ifndef ENABLE_IMD_BACKEND
-        throw LayerTestsUtils::KmbSkipTestException("MTL inference requires IMD backend.");
-#endif
+        throw LayerTestsUtils::KmbSkipTestException(
+                "Format of act-shave tensors serialization doesn't match with kernel expectation.");
     }
 };
 

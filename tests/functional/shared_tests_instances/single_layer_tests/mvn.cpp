@@ -34,11 +34,8 @@ class KmbMvnLayerTestMLIR_MTL : public Mvn1LayerTest, virtual public LayerTestsU
 
     void SkipBeforeInfer() override {
         // [E#29786]
-        throw LayerTestsUtils::KmbSkipTestException("Format of act-shave tensors serialization doesn't match with kernel expectation.");
-
-#ifndef ENABLE_IMD_BACKEND
-        throw LayerTestsUtils::KmbSkipTestException("MTL inference requires IMD backend.");
-#endif
+        throw LayerTestsUtils::KmbSkipTestException(
+                "Format of act-shave tensors serialization doesn't match with kernel expectation.");
     }
 };
 

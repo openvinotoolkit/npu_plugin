@@ -20,30 +20,20 @@ If not please follow this instruction: ["How to create act-shave kernel"](../../
 ## Single layer test
 
 Current restrictions:
+
 - MTL does not support many important operations, such as Convert, Reorder, etc. which significantly reduces the set of test cases
-- SW kernels are not compiled in precommit because the build system does not provide the location of precompiled kernels
-- Single-layer tests are not inferred for MTL
 
 Therefore, it is proposed to create a new test suite:
 
 ```cpp
 class KmbActivationLayerTest_MTL : public KmbActivationLayerTest {
-    void SkipBeforeInfer() override {
-#ifndef ENABLE_IMD_BACKEND
-        throw LayerTestsUtils::KmbSkipTestException("MTL inference requires IMD backend.");
-#endif
-    }
 };
 ```
 
 In case of the OV2.0 test framework:
+
 ```cpp
 class VPUXActivationLayerTest_MTL : public VPUXLayerTestsCommon {
-    SkipMessage SkipBeforeInfer() override {
-#ifndef ENABLE_IMD_BACKEND
-        return {"MTL inference requires IMD backend."};
-#endif
-    }
 };
 ```
 
