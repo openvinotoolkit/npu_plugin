@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "zero_backend.h"
 
 #include <description_buffer.hpp>

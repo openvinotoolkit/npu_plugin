@@ -1,5 +1,7 @@
+//
 // Copyright (C) 2022 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
+//
 
 #include <map>
 #include <memory>
@@ -77,7 +79,7 @@ ZeroInferRequest::ZeroInferRequest(const IE::InputsDataMap& networkInputs, const
         const std::string& inputName = networkInput.first;
         const IE::TensorDesc inputTensorDesc = networkInput.second->getTensorDesc();
 
-        if (isRepackingRequired(inputTensorDesc, mapArguments(deviceInputs, inputName)->getTensorDesc())) {
+        if (isRepackingRequired(inputTensorDesc, zeroUtils::mapArguments(deviceInputs, inputName)->getTensorDesc())) {
             _inputs[inputName] = allocateLocalBlob(inputTensorDesc, nullptr);
         } else {
             _inputs[inputName] = allocateLocalBlob(inputTensorDesc, pipeline._inputs.getHostPtr(inputName));
@@ -89,7 +91,8 @@ ZeroInferRequest::ZeroInferRequest(const IE::InputsDataMap& networkInputs, const
         const std::string& outputName = networkOutput.first;
         const IE::TensorDesc outputTensorDesc = networkOutput.second->getTensorDesc();
 
-        if (isRepackingRequired(outputTensorDesc, mapArguments(deviceOutputs, outputName)->getTensorDesc())) {
+        if (isRepackingRequired(outputTensorDesc,
+                                zeroUtils::mapArguments(deviceOutputs, outputName)->getTensorDesc())) {
             _outputs[outputName] = allocateLocalBlob(outputTensorDesc, nullptr);
         } else {
             _outputs[outputName] = allocateLocalBlob(outputTensorDesc, pipeline._outputs.getHostPtr(outputName));

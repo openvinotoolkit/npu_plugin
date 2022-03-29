@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #pragma once
 
 #include <ie_memcpy.h>
@@ -18,6 +16,8 @@
 
 #include "vpux.hpp"
 #include "vpux/utils/core/logger.hpp"
+#include "zero_memory.h"
+#include "zero_utils.h"
 
 #include <ze_api.h>
 #include <ze_graph_ext.h>
@@ -74,123 +74,6 @@ public:
     // NB: originally, it was protected as an implementation detail
     // made public for InferRequest to make accessible Pipeline and its details (HostMem)
     // protected:
-    struct HostMem {
-        HostMem() = default;
-        HostMem(const ze_context_handle_t context, const std::size_t size);
-        HostMem(const HostMem&) = delete;
-        HostMem(HostMem&& other): _size(other._size), _data(other._data), _context(other._context) {
-            other._size = 0;
-            other._data = nullptr;
-        }
-        HostMem& operator=(const HostMem&) = delete;
-        HostMem& operator=(HostMem&& other);
-
-        const void* data() const {
-            return _data;
-        }
-        void* data() {
-            return _data;
-        }
-        std::size_t size() const {
-            return _size;
-        }
-        template <typename T>
-        void copyFrom(const std::vector<T>& vec) {
-            const auto inSz = vec.size() * sizeof(T);
-            if (inSz != _size)
-                IE_THROW() << "HostMem::copyFrom sizes mismatch";
-            if (0 != ie_memcpy(_data, _size, vec.data(), inSz))
-                IE_THROW() << "HostMem::copyFrom::ie_memcpy return != 0";
-        }
-        void copyFrom(const InferenceEngine::Blob::Ptr& blob) {
-            const InferenceEngine::MemoryBlob::CPtr mblob = InferenceEngine::as<InferenceEngine::MemoryBlob>(blob);
-            if (!mblob)
-                IE_THROW() << "HostMem::copyFrom failing of casting blob to MemoryBlob";
-            if (mblob->byteSize() != _size)
-                IE_THROW() << "HostMem::copyFrom sizes mismatch";
-            if (0 != ie_memcpy(_data, _size, mblob->rmap().as<const uint8_t*>(), mblob->byteSize()))
-                IE_THROW() << "HostMem::copyFrom::ie_memcpy* return != 0";
-        }
-        void copyTo(InferenceEngine::Blob::Ptr& blob) const {
-            InferenceEngine::MemoryBlob::Ptr mblob = InferenceEngine::as<InferenceEngine::MemoryBlob>(blob);
-            if (!mblob)
-                IE_THROW() << "HostMem::copyTo failing of casting blob to MemoryBlob";
-            if (mblob->byteSize() != _size)
-                IE_THROW() << "HostMem::copyTo sizes mismatch";
-            if (0 != ie_memcpy(mblob->wmap().as<uint8_t*>(), mblob->byteSize(), _data, _size))
-                IE_THROW() << "HostMem::copyTo::ie_memcpy return != 0";
-        }
-        void free();
-        ~HostMem();
-
-    private:
-        std::size_t _size = 0;
-        void* _data = nullptr;
-        ze_context_handle_t _context = nullptr;
-        const static std::size_t _alignment = 4096;
-    };
-
-    struct DeviceMem {
-        DeviceMem() = default;
-        DeviceMem(const ze_device_handle_t device_handle, const ze_context_handle_t context, const std::size_t size);
-        DeviceMem(const DeviceMem&) = delete;
-        DeviceMem(DeviceMem&& other): _size(other._size), _data(other._data), _context(other._context) {
-            other._size = 0;
-            other._data = nullptr;
-        }
-        DeviceMem& operator=(const DeviceMem&) = delete;
-        DeviceMem& operator=(DeviceMem&& other);
-
-        const void* data() const {
-            return _data;
-        }
-        void* data() {
-            return _data;
-        }
-        std::size_t size() const {
-            return _size;
-        }
-        void free();
-        ~DeviceMem();
-
-    private:
-        std::size_t _size = 0;
-        void* _data = nullptr;
-        ze_context_handle_t _context = nullptr;
-        const static std::size_t _alignment = 4096;
-    };
-
-    // For graph argumenst(inputs and outputs) memory should be located on a host and a device sides
-    // This class keeps two corresponding memory locations
-    // Usage: we should append graph arguments with corresponding names with `appendArgument` call
-    // to prepare size statistics and lookup table. To commit memory allocation we should call `allocate`
-    struct MemoryManagementUnit {
-        MemoryManagementUnit() = default;
-
-        void appendArgument(const std::string& name, const ze_graph_argument_properties_t& argument);
-        void allocate(const ze_device_handle_t device_handle, const ze_context_handle_t context);
-
-        std::size_t getSize() const;
-        const void* getHostMemRegion() const;
-        const void* getDeviceMemRegion() const;
-        void* getHostMemRegion();
-        void* getDeviceMemRegion();
-
-        void* getHostPtr(const std::string& name);
-        void* getDevicePtr(const std::string& name);
-
-        bool checkHostPtr(const void* ptr) const;
-
-    private:
-        std::size_t _size = 0;
-
-        HostMem _host;
-        DeviceMem _device;
-        std::map<std::string, std::size_t> _offsets;
-
-        const static std::size_t alignment = 4096;
-    };
-
     struct CommandList {
         CommandList() = default;
         CommandList(const ze_device_handle_t& device_handle, const ze_context_handle_t& context,
@@ -238,12 +121,9 @@ public:
         EventPool(ze_device_handle_t device_handle, const ze_context_handle_t& context, uint32_t event_count);
         EventPool(const EventPool&) = delete;
         EventPool& operator=(const EventPool&) = delete;
-
         ~EventPool() {
             zeEventPoolDestroy(_handle);
         }
-
-        const uint32_t _event_count;
         ze_event_pool_handle_t _handle = nullptr;
     };
 
@@ -255,13 +135,11 @@ public:
         void AppendSignalEvent(CommandList& command_list);
         void AppendWaitOnEvent(CommandList& command_list);
         void AppendEventReset(CommandList& command_list);
-
         ~Event() {
             zeEventDestroy(_handle);
         }
         ze_device_handle_t _device_t = nullptr;
         ze_context_handle_t _context = nullptr;
-
         ze_event_handle_t _handle = nullptr;
     };
 
@@ -299,8 +177,8 @@ public:
         Pipeline& operator=(const Pipeline&) = delete;
         ~Pipeline() = default;
 
-        MemoryManagementUnit _inputs;
-        MemoryManagementUnit _outputs;
+        zeroMemory::MemoryManagementUnit _inputs;
+        zeroMemory::MemoryManagementUnit _outputs;
 
         std::array<CommandList, stage::COUNT> _command_list;
         std::array<Fence, stage::COUNT> _fence;
@@ -330,27 +208,4 @@ private:
 
 bool isRepackingRequired(const InferenceEngine::TensorDesc& userTensorDesc,
                          const InferenceEngine::TensorDesc& deviceTensorDesc);
-
-template <typename Map>
-auto mapArguments(Map& zero, const std::string& key) -> typename Map::mapped_type& {
-    for (auto& p : zero) {
-        if (std::string::npos != p.first.find(key)) {
-            return p.second;
-        }
-    }
-
-    IE_THROW() << "mapArguments: fail to map";
-}
-
-template <typename Map>
-auto mapArguments(const Map& zero, const std::string& key) -> const typename Map::mapped_type& {
-    for (auto& p : zero) {
-        if (std::string::npos != p.first.find(key)) {
-            return p.second;
-        }
-    }
-
-    IE_THROW() << "mapArguments: fail to map";
-}
-
 }  // namespace vpux
