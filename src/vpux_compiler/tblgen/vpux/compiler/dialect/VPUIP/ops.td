@@ -1764,7 +1764,6 @@ def VPUIP_ScaleShiftUPAOp :
                 AttrSizedOperandSegments,
                 ViewLikeOpInterface,
                 IERT_SameElementType,
-                IERT_SameInOutDimsOrder_CHW_HWC_NCHW_NHWC,
                 VPUIP_Legacy4D
             ]
         > {
@@ -1780,6 +1779,10 @@ def VPUIP_ScaleShiftUPAOp :
     let results = (outs
         F16MemRef:$output
     );
+
+    let extraClassDeclaration = [{
+        static void inferLayoutInfo(mlir::Operation* origOp, vpux::IE::LayerLayoutInfo& info);
+    }] # commonExtraClassDeclaration;
 
     let assemblyFormat = [{
         attr-dict
