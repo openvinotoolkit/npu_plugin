@@ -211,14 +211,9 @@ git commit -m "integrate new version vpualHost"
 
 ### G-API Preprocessing
 
-The VPUX plugins uses G-API based preprocessing located in [G-API-VPU project].
+The VPUX plugins uses G-API based preprocessing located in **G-API-VPU project**.
 
-For any questions regarding this component please refer to [G-API-VPU project] maintainers:
-
-* Budnikov, Dmitry <Dmitry.Budnikov@intel.com>
-* Garnov, Ruslan <Ruslan.Garnov@intel.com>
-* Matveev, Dmitry <dmitry.matveev@intel.com>
+For any questions regarding this component please refer to **G-API-VPU project** maintainers.
 
 [OpenVINO Project]: https://github.com/openvinotoolkit/openvino
-[KMB Plugin Project]: https://gitlab-icv.inn.intel.com/inference-engine/kmb-plugin
-[G-API-VPU project]: https://gitlab-icv.inn.intel.com/G-API/g-api-vpu.git
+[KMB Plugin Project]: https://github.com/openvinotoolkit/vpux-plugin

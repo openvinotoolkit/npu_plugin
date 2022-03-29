@@ -20,4 +20,4 @@ model-zoo-models-public used: 903778283b013ac485026e485fb621a6ceb2593a (master)
 
 model-zoo-models-intel used: e04bacf9ce4283d7196f03be5f8bc813aa051582 (master)
 
-kmb_plugin: f29ffb8e8269dc5baea9f6984014b14714af8af7 (kskvorts/post_training_new_2_nets)
+vpux-plugin: f29ffb8e8269dc5baea9f6984014b14714af8af7

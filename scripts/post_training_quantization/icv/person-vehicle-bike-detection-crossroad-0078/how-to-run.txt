@@ -7,7 +7,7 @@ dldt/IE + python_api built: b4a9ae3d5c97166289bd1e620ba37de6fe0ad94d (feature/lo
 dldt/MO used: 76a0c71e65db1b7a6e67f17a48adc8496e5ccfe0 (as/post_training_compression)
 post-training-compression-tool: fb04b91b71ae1182762bf3160f04a08609636e5d (develop)
 model-zoo-models-intel: e5d15089edcf58ee6224b0303d020640af143583 (master)
-kmb_plugin: 23a5627ec88c46d01294ba2758f3c8449ba85cf8 (atarakan/Script-for-person-vehicle-bike-detection-crossroad-0078)
+vpux-plugin: 23a5627ec88c46d01294ba2758f3c8449ba85cf8
 
 
 Command lines for run (edit it with your local pathes 

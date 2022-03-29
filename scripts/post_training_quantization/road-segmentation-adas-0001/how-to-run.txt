@@ -7,7 +7,7 @@ dldt/IE + python_api built: b4a9ae3d5c97166289bd1e620ba37de6fe0ad94d (feature/lo
 dldt/MO used: 76a0c71e65db1b7a6e67f17a48adc8496e5ccfe0 (as/post_training_compression)
 post-training-compression-tool: 4a18d345f7b784e1d9ec33be6004c539db31bdc9 (develop)
 model-zoo-models-intel: e5d15089edcf58ee6224b0303d020640af143583 (master)
-kmb_plugin: d55300e0b78ffbefc3fa521c19860047b2048bae (atarakan/Script_for_road-segmentation-adas-0001)
+vpux-plugin: d55300e0b78ffbefc3fa521c19860047b2048bae
 
 
 

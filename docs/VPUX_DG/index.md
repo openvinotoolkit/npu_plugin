@@ -236,12 +236,6 @@ The VPUX plugin supports the following private metrics:
 
 ## Contacts
 
-* Mikhail Znamenskiy
-* Artemy Skrebkov
-* Alexander Perepelkin
-* Mikhail Kozlov
-* Maksim Derbasov
-* Maksim Doronin
-* Andrey Chekhonin
+* VPUX plugin developers team
 
 TBD responsibilities

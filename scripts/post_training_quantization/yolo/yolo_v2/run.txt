@@ -9,7 +9,7 @@ dldt/MO used: 030ecf812ceb792b77f0eb26022c7ade6405712b (as/post_training_compres
 
 post-training-compression-tool used: 1fd58499e90601575fada95b6b1124c33652cac0 (develop)
 
-models-ir used: 58c548b43013d0f65c4d24de031422b86138c835 (kskvorts/kmb_post_trainig_irs)
+models-ir used: 58c548b43013d0f65c4d24de031422b86138c835
 
-kmb_plugin: 8650d277194d3977303e64b3d23aef72c0184314 (kskvorts/post_training)
+vpux-plugin: 8650d277194d3977303e64b3d23aef72c0184314
 

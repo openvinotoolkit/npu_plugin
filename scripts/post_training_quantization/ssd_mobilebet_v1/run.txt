@@ -9,5 +9,5 @@ post-training-compression-tool used: 8b574d13c22fb51bcba5f0188027ffdcb2aeddd3 (d
 
 open_model_zoo used: e372d4173e50741a6828cda415d55c37320f89cd (master)
 
-kmb_plugin: 5b7b093b50e9a3a49678aed6702fc81f54e5d8b3 (kskvorts/post_training_ssd_mobilenet_scripts)
+vpux-plugin: 5b7b093b50e9a3a49678aed6702fc81f54e5d8b3
 

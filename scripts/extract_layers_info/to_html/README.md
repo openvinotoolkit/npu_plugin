@@ -3,7 +3,7 @@ from several IRs xml files as tree of html formatted files
 
 Required Python 3.5 or higher
 
-Script originally was based on script info.py by @atarakan . (https://gitlab-icv.inn.intel.com/inference-engine/kmb-plugin/merge_requests/360)
+Script originally was based on script info.py.
 
 Usage:
 ```

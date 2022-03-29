@@ -7,7 +7,7 @@ dldt/MO used: 40f858654220a8409c68ff52ea958fd83570e2f1 (as/post_training_compres
 post-training-compression-tool: 1d4d8c1fda11cd27e27ef517361a53873f232248 (develop)
 annotation_converters_ext: 3f04f586a724862413c8f96270bbf9e49a99d7bb (master)
 model-zoo-models-intel: 5399a92275431288ae63a1fea868e4b8c0981081 (master)
-kmb_plugin: c5c7855e95bd39e5cfe406f80a74b7091627057d (kskvorts/post_training_face_detection_retail_004)
+vpux-plugin: c5c7855e95bd39e5cfe406f80a74b7091627057d
 
 
 Command lines for run 

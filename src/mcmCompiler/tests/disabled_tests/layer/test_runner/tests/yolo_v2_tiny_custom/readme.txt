@@ -6,7 +6,6 @@ branch master
 commit 50df3a28d3bc8b6cc64288afd28b6329b6f5a4a1
 2. KMB plugin
 link https://gitlab-icv.inn.intel.com/inference-engine/kmb-plugin
-branch mkurin/custom-layer
 commit 8540f75a63d940d875f6323ab4db2ea4423e2bd5
 (3) McmCompiler as kmb thirdparty
 branch last1k/custom-layer

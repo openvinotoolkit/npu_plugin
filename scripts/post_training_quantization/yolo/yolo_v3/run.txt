@@ -7,5 +7,5 @@ dldt/MO used: 76a0c71e65db1b7a6e67f17a48adc8496e5ccfe0 (as/post_training_compres
 
 post-training-compression-tool used: 5d56d9b60804e96ceebcf8f62ff0d6086df71401 (develop)
 
-kmb_plugin: 08a2415aa0fd8483d618fa27b45b72b585a8b800 (kskvorts/post_training_yolo_v3)
+vpux-plugin: 08a2415aa0fd8483d618fa27b45b72b585a8b800
 
