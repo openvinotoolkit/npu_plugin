@@ -133,10 +133,11 @@ void buildReadAfterWriteACTDPUTest(const nb::TestCaseJsonDescriptor& testDesc, m
     auto& weightsOutputChannelsStrideInBits = weightsStrides[vpux::Dims4D::Filter::OC];
 
     const auto weightsTableDDRType = mlir::RankedTensorType::get(weightsTableShape, int32);
+    const auto sparsityPtrStep = 0;
     const auto weightsTable = VPU::NCESparsity::getWeightsTable(
             inputType, outputType, static_cast<std::int32_t>(WEIGHTS_CMX_OFFSET),
             static_cast<std::int32_t>(weightsOutputChannelsStrideInBits.count() / CHAR_BIT),
-            static_cast<std::int32_t>(VPU::NCESparsity::SPARSITY_PTR_WHEN_NO_SPARSITY), testDesc.getArchitecture(),
+            VPU::NCESparsity::SPARSITY_PTR_WHEN_NO_SPARSITY, sparsityPtrStep, testDesc.getArchitecture(),
             output.shape[1], weightsType);
 
     const auto weightsTableDDRMemRef =

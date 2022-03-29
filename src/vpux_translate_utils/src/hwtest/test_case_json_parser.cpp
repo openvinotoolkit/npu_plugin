@@ -212,6 +212,8 @@ std::string nb::to_string(CaseType case_) {
         return "DMA";
     case CaseType::ZMajorConvolution:
         return "ZMajorConvolution";
+    case CaseType::SparseZMajorConvolution:
+        return "SparseZMajorConvolution";
     case CaseType::DepthWiseConv:
         return "DepthWiseConv";
     case CaseType::EltwiseAdd:
@@ -258,6 +260,8 @@ nb::CaseType nb::to_case(llvm::StringRef str) {
         return CaseType::DMA;
     if (isEqual(str, "ZMajorConvolution"))
         return CaseType::ZMajorConvolution;
+    if (isEqual(str, "SparseZMajorConvolution"))
+        return CaseType::SparseZMajorConvolution;
     if (isEqual(str, "DepthWiseConv"))
         return CaseType::DepthWiseConv;
     if (isEqual(str, "EltwiseAdd"))
@@ -622,7 +626,7 @@ void nb::TestCaseJsonDescriptor::parse(llvm::json::Object json_obj) {
         caseType_ == CaseType::RaceConditionDPU || caseType_ == CaseType::RaceConditionDPUDMA ||
         caseType_ == CaseType::RaceConditionDPUDMAACT || caseType_ == CaseType::ReadAfterWriteDPUDMA ||
         caseType_ == CaseType::ReadAfterWriteDMADPU || caseType_ == CaseType::ReadAfterWriteDPUACT ||
-        caseType_ == CaseType::ReadAfterWriteACTDPU) {
+        caseType_ == CaseType::ReadAfterWriteACTDPU || caseType_ == CaseType::SparseZMajorConvolution) {
         wtLayer_ = loadWeightLayer(&json_obj);
         convLayer_ = loadConvLayer(&json_obj);
 

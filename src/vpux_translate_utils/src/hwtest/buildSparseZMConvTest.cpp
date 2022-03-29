@@ -1,5 +1,4 @@
-//
-// Copyright (C) 2022 Intel Corporation.
+// Copyright (C) 2022 Intel Corporation
 // SPDX-License-Identifier: Apache 2.0
 
 #include <numeric>
@@ -23,26 +22,15 @@ namespace vpux {
 namespace hwtest {
 
 //
-//             [input]
-//                |
-//            (barrier)
-//            |       |
-//         (conv)    (DMAop)
-//            |       |
-//            (barrier)
-//            |       |
-//        ... (loop with conv ops, DMA ops and barriers)
-//            |       |
-//         (conv)    (DMAop)
-//            |       |
-//            (barrier)
-//            |       |
-//       [output0]  [output1]
+//       [input]
+//          |
+//        (conv)
+//          |
+//       [output]
 //
 
-void buildRaceConditionDPUDMATest(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module,
-                                  mlir::OpBuilder builder, Logger& log, mlir::Type inputType, mlir::Type weightsType,
-                                  mlir::Type outputType) {
+void buildSparseZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module, mlir::OpBuilder builder,
+                           Logger& log, mlir::Type inputType, mlir::Type weightsType, mlir::Type outputType) {
     auto* ctx = builder.getContext();
     auto loc = builder.getUnknownLoc();
     const auto int32 = builder.getIntegerType(32, true);
@@ -51,17 +39,16 @@ void buildRaceConditionDPUDMATest(const nb::TestCaseJsonDescriptor& testDesc, ml
     const auto weights = testDesc.getWeightLayer();
     const auto conv = testDesc.getConvLayer();
     const auto output = testDesc.getOutputLayer();
-    const auto iterationCount = testDesc.getIterationCount();
 
     const SmallVector<std::int64_t> inputShape{input.shape.begin(), input.shape.end()};
     const SmallVector<std::int64_t> outputShape{output.shape.begin(), output.shape.end()};
     const SmallVector<std::int64_t> weightsShape{weights.shape.begin(), weights.shape.end()};
     const SmallVector<std::int64_t> weightsTableShape{weightsShape[0], 1, 1, 4};
 
-    VPUX_THROW_UNLESS(!inputShape.empty(), "buildRaceConditionDPUDMATest: Got empty inputShape");
-    VPUX_THROW_UNLESS(!outputShape.empty(), "buildRaceConditionDPUDMATest: Got empty outputShape");
-    VPUX_THROW_UNLESS(!weightsShape.empty(), "buildRaceConditionDPUDMATest: Got empty weightsShape");
-    VPUX_THROW_UNLESS(!weightsTableShape.empty(), "buildRaceConditionDPUDMATest: Got empty weightsTableShape");
+    VPUX_THROW_UNLESS(!inputShape.empty(), "buildSparseZMajorConv: Got empty inputShape");
+    VPUX_THROW_UNLESS(!outputShape.empty(), "buildSparseZMajorConv: Got empty outputShape");
+    VPUX_THROW_UNLESS(!weightsShape.empty(), "buildSparseZMajorConv: Got empty weightsShape");
+    VPUX_THROW_UNLESS(!weightsTableShape.empty(), "buildSparseZMajorConv: Got empty weightsTableShape");
 
     const char* weightsFileName = "weights.dat";
 
@@ -75,6 +62,8 @@ void buildRaceConditionDPUDMATest(const nb::TestCaseJsonDescriptor& testDesc, ml
     const auto weightsCMXSize = vpux::hwtest::totalTensorSize(weightsCMXShape, weightsType);
     const auto outputCMXSize = vpux::hwtest::totalTensorSize(outputCMXShape, outputType);
     const auto inputCMXSize = vpux::hwtest::totalTensorSize(inputCMXShape, inputType);
+    const auto sparsityElementType = mlir::IntegerType::get(ctx, 1, mlir::IntegerType::Unsigned);
+    const auto weightsSMCMXSize = vpux::hwtest::totalTensorSize(weightsCMXShape, sparsityElementType);
 
     const auto alignment =
             (alignmentRequirement * static_cast<vpux::Bit>(getElemTypeSize(inputType)).count()) / CHAR_BIT;
@@ -82,18 +71,19 @@ void buildRaceConditionDPUDMATest(const nb::TestCaseJsonDescriptor& testDesc, ml
     VPUX_THROW_UNLESS(WEIGHTS_CMX_OFFSET % alignment == 0, "WEIGHTS_CMX_OFFSET must be multiple of {0}, got {1}",
                       alignment, WEIGHTS_CMX_OFFSET);
 
-    const auto OUTPUT_CMX_OFFSET_0 = WEIGHTS_CMX_OFFSET + weightsCMXSize;
-    VPUX_THROW_UNLESS(OUTPUT_CMX_OFFSET_0 % alignment == 0, "OUTPUT_CMX_OFFSET_0 must be multiple of {0}, got {1}",
-                      alignment, OUTPUT_CMX_OFFSET_0);
-    const auto OUTPUT_CMX_OFFSET_1 = OUTPUT_CMX_OFFSET_0 + outputCMXSize;
-    VPUX_THROW_UNLESS(OUTPUT_CMX_OFFSET_1 % alignment == 0, "OUTPUT_CMX_OFFSET_1 must be multiple of {0}, got {1}",
-                      alignment, OUTPUT_CMX_OFFSET_1);
+    const auto OUTPUT_CMX_OFFSET = WEIGHTS_CMX_OFFSET + weightsCMXSize;
+    VPUX_THROW_UNLESS(OUTPUT_CMX_OFFSET % alignment == 0, "OUTPUT_CMX_OFFSET must be multiple of {0}, got {1}",
+                      alignment, OUTPUT_CMX_OFFSET);
 
-    const auto INPUT_CMX_OFFSET = OUTPUT_CMX_OFFSET_1 + inputCMXSize;
+    const auto INPUT_CMX_OFFSET = OUTPUT_CMX_OFFSET + outputCMXSize;
     VPUX_THROW_UNLESS(INPUT_CMX_OFFSET % alignment == 0, "INPUT_CMX_OFFSET must be multiple of {0}, got {1}", alignment,
                       INPUT_CMX_OFFSET);
 
-    const auto WEIGHTSTABLE_CMX_OFFSET = INPUT_CMX_OFFSET + inputCMXSize;
+    const auto WEIGHTS_SM_CMX_OFFSET = INPUT_CMX_OFFSET + inputCMXSize;
+    VPUX_THROW_UNLESS(WEIGHTS_SM_CMX_OFFSET % alignment == 0, "WEIGHTS_SM_CMX_OFFSET must be multiple of {0}, got {1}",
+                      alignment, WEIGHTS_SM_CMX_OFFSET);
+
+    const auto WEIGHTSTABLE_CMX_OFFSET = WEIGHTS_SM_CMX_OFFSET + weightsSMCMXSize;
     VPUX_THROW_UNLESS(WEIGHTSTABLE_CMX_OFFSET % alignment == 0,
                       "WEIGHTSTABLE_CMX_OFFSET must be multiple of {0}, got {1}", alignment, WEIGHTSTABLE_CMX_OFFSET);
 
@@ -102,60 +92,75 @@ void buildRaceConditionDPUDMATest(const nb::TestCaseJsonDescriptor& testDesc, ml
     const auto outputParamType =
             getMemRefType(vpux::VPURT::BufferSection::NetworkOutput, outputShape, outputType, DimsOrder::NHWC);
 
-    const auto funcType =
-            builder.getFunctionType(SmallVector<mlir::Type>{inputParamType, outputParamType, inputParamType},
-                                    SmallVector<mlir::Type>{outputParamType, inputParamType});
+    const auto funcType = builder.getFunctionType(SmallVector<mlir::Type>{inputParamType, outputParamType},
+                                                  SmallVector<mlir::Type>{outputParamType});
 
     auto function = builder.create<mlir::FuncOp>(
-            loc, llvm::formatv("race_condition_dpu_dma_{0}_{1}_{2}", inputType, weightsType, outputType).str(),
-            funcType, builder.getStringAttr("private"));
+            loc, llvm::formatv("race_condition_dpu_{0}_{1}_{2}", inputType, weightsType, outputType).str(), funcType,
+            builder.getStringAttr("private"));
 
     auto functionBuilder = mlir::OpBuilder::atBlockBegin(function.addEntryBlock(), builder.getListener());
 
     auto functionInput = function.getArgument(0);
-    auto functionOutput_0 = function.getArgument(1);
-    auto functionOutput_1 = function.getArgument(2);
+    auto functionOutput = function.getArgument(1);
 
+    auto qty = weightsType.dyn_cast<mlir::quant::QuantizedType>();
+    if (qty != nullptr) {
+        VPUX_THROW_UNLESS(qty.getStorageType().getIntOrFloatBitWidth() >= CHAR_BIT,
+                          "buildSparseZMajorConv: types with sizeof less than BYTE is not supported for weights");
+    }
     const auto weightsValues = generateWeights(weightsShape, weightsType, ctx, weightsFileName);
     auto weightsAttribute = vpux::Const::ContentAttr::get(weightsValues);
     weightsAttribute = weightsAttribute.reorder(vpux::DimsOrder::OYXI);
 
-    auto qty = weightsType.dyn_cast<mlir::quant::QuantizedType>();
-
     if (qty != nullptr) {
-        if (qty.getStorageType().isInteger(4)) {
-            weightsAttribute = weightsAttribute.bitPack(4);
-        }
         weightsAttribute = weightsAttribute.quantCast(qty);
     }
 
     const auto weightsDDRType =
             getMemRefType(VPURT::BufferSection::Constant, weightsShape, weightsType, DimsOrder::NHWC);
 
+    auto weightsSparsityMap = weightsAttribute.getSparsityMap();
+
+    weightsAttribute = weightsAttribute.sparsify();
+
+    const auto weightsSMDDRType =
+            getMemRefType(VPURT::BufferSection::Constant, weightsShape, sparsityElementType, DimsOrder::NHWC);
+
     auto weightsStrides = weightsDDRType.cast<vpux::NDTypeInterface>().getStrides();
-    auto inputStrides = functionInput.getType().cast<vpux::NDTypeInterface>().getStrides();
+    auto inputStrides = vpux::getStrides(functionInput);
 
     auto weightsCMX = createDeclareTensorOp(functionBuilder, VPURT::BufferSection::CMX_NN, weightsShape, weightsType,
-                                            DimsOrder::OYXI, weightsStrides, 0, WEIGHTS_CMX_OFFSET);
+                                            vpux::DimsOrder::OYXI, weightsStrides, 0, WEIGHTS_CMX_OFFSET);
     auto inputCMX = createDeclareTensorOp(functionBuilder, VPURT::BufferSection::CMX_NN, inputShape, inputType,
-                                          DimsOrder::NHWC, inputStrides, 0, INPUT_CMX_OFFSET);
+                                          vpux::DimsOrder::NHWC, inputStrides, 0, INPUT_CMX_OFFSET);
+
+    auto weightsSMStrides = weightsSMDDRType.cast<vpux::NDTypeInterface>().getStrides();
+    auto weightsSMCMX =
+            createDeclareTensorOp(functionBuilder, VPURT::BufferSection::CMX_NN, weightsShape, sparsityElementType,
+                                  vpux::DimsOrder::OYXI, weightsSMStrides, 0, WEIGHTS_SM_CMX_OFFSET);
 
     auto weightsDDR = functionBuilder.create<vpux::Const::DeclareOp>(loc, weightsDDRType, weightsAttribute);
 
-    auto outputCMX_0 = createDeclareTensorOp(functionBuilder, VPURT::BufferSection::CMX_NN, outputShape, outputType,
-                                             DimsOrder::NHWC, 0, OUTPUT_CMX_OFFSET_0);
-    auto outputCMX_1 = createDeclareTensorOp(functionBuilder, VPURT::BufferSection::CMX_NN, inputShape, inputType,
-                                             DimsOrder::NHWC, 0, OUTPUT_CMX_OFFSET_1);
+    auto weightsSMDDR = functionBuilder.create<vpux::Const::DeclareOp>(builder.getUnknownLoc(), weightsSMDDRType,
+                                                                       weightsSparsityMap);
+    auto outputCMX = createDeclareTensorOp(functionBuilder, VPURT::BufferSection::CMX_NN, outputShape, outputType,
+                                           DimsOrder::NHWC, 0, OUTPUT_CMX_OFFSET);
 
     auto& weightsOutputChannelsStrideInBits = weightsStrides[vpux::Dims4D::Filter::OC];
 
     const auto weightsTableDDRType = mlir::RankedTensorType::get(weightsTableShape, int32);
-    const auto sparsityPtrStep = 0;
+
+    const auto IC = weightsShape[vpux::Dims4D::Filter::IC.ind()];
+    const auto KY = weightsShape[vpux::Dims4D::Filter::KY.ind()];
+    const auto KX = weightsShape[vpux::Dims4D::Filter::KX.ind()];
+    const auto workloadSize = IC * KY * KX;
+    const auto sparsityPtrStep = Bit(workloadSize).to<Byte>().count();
     const auto weightsTable = VPU::NCESparsity::getWeightsTable(
             inputType, outputType, static_cast<std::int32_t>(WEIGHTS_CMX_OFFSET),
             static_cast<std::int32_t>(weightsOutputChannelsStrideInBits.count() / CHAR_BIT),
-            VPU::NCESparsity::SPARSITY_PTR_WHEN_NO_SPARSITY, sparsityPtrStep, testDesc.getArchitecture(),
-            output.shape[1], weightsType);
+            static_cast<std::int32_t>(WEIGHTS_SM_CMX_OFFSET), sparsityPtrStep, testDesc.getArchitecture(),
+            weights.shape[vpux::Dims4D::Filter::OC.ind()], weightsType);
 
     const auto weightsTableDDRMemRef =
             getMemRefType(VPURT::BufferSection::Constant, weightsTableShape, int32, DimsOrder::NHWC);
@@ -165,8 +170,8 @@ void buildRaceConditionDPUDMATest(const nb::TestCaseJsonDescriptor& testDesc, ml
             loc, weightsTableDDRMemRef,
             vpux::Const::ContentAttr::get(weightsTableValues).reorder(vpux::DimsOrder::NHWC));
 
-    auto weightsTableCMX = createDeclareTensorOp(functionBuilder, VPURT::BufferSection::CMX_NN, weightsTableShape,
-                                                 int32, DimsOrder::NHWC, 0, WEIGHTSTABLE_CMX_OFFSET);
+    auto weightsTableCMX_0 = createDeclareTensorOp(functionBuilder, VPURT::BufferSection::CMX_NN, weightsTableShape,
+                                                   int32, DimsOrder::NHWC, 0, WEIGHTSTABLE_CMX_OFFSET);
 
     auto updateBarrier = functionBuilder.create<vpux::VPURT::ConfigureBarrierOp>(loc, 0);
     VPURT::ConfigureBarrierOp waitBarrier;
@@ -179,44 +184,41 @@ void buildRaceConditionDPUDMATest(const nb::TestCaseJsonDescriptor& testDesc, ml
             weightsDDR.getOperation()->getResult(0), weightsCMX.getOperation()->getResult(0));
     VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(
             functionBuilder, mlir::ValueRange(), mlir::ValueRange(updateBarrier.barrier()), loc,
-            weightsTableDDR.getOperation()->getResult(0), weightsTableCMX.getOperation()->getResult(0));
-
+            weightsTableDDR.getOperation()->getResult(0), weightsTableCMX_0.getOperation()->getResult(0));
+    VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(
+            functionBuilder, mlir::ValueRange(), mlir::ValueRange(updateBarrier.barrier()), builder.getUnknownLoc(),
+            weightsSMDDR.getOperation()->getResult(0), weightsSMCMX.getOperation()->getResult(0));
     waitBarrier = updateBarrier;
 
     const auto strides = getIntArrayAttr(ctx, conv.stride);
     std::vector<std::int64_t> paddings = convertNBPadtoNCETaskPad(conv.pad);
     const auto kernelPaddings = VPU::getPaddingAttr(ctx, paddings[PAD_NCETASK_LEFT], paddings[PAD_NCETASK_RIGHT],
                                                     paddings[PAD_NCETASK_TOP], paddings[PAD_NCETASK_BOTTOM]);
-    SmallVector<std::int64_t> kernel = {weightsShape[2], weightsShape[3]};
+    llvm::SmallVector<std::int64_t> kernel = {weightsShape[2], weightsShape[3]};
     const auto kernelSize = getIntArrayAttr(ctx, kernel);
 
-    for (std::size_t i = 1; i < iterationCount; ++i) {
-        updateBarrier = functionBuilder.create<vpux::VPURT::ConfigureBarrierOp>(loc, i);
-        auto nceTask_0 = VPURT::wrapIntoTaskOp<VPUIP::NCEClusterTaskOp>(
-                functionBuilder, mlir::ValueRange(waitBarrier.barrier()), mlir::ValueRange(updateBarrier.barrier()),
-                loc, inputCMX.buffer(), weightsCMX.buffer(), weightsTableCMX.buffer(), nullptr, inputCMX.buffer(),
-                outputCMX_0.buffer(), outputCMX_0.buffer(), vpux::VPUIP::NCETaskType::CONV, kernelSize, strides,
-                kernelPaddings, nullptr, nullptr);
+    auto weightsSparseCMX = createDeclareSparseTensorOp(functionBuilder, weightsCMX, weightsSMCMX);
 
-        const auto start = getIntArrayAttr(ctx, std::vector<std::int64_t>{0, 0, 0});
-        const auto end = getIntArrayAttr(
-                ctx, std::vector<std::int64_t>{outputShape[3] - 1, outputShape[2] - 1, outputShape[1] - 1});
-        const auto pad = VPU::getPaddingAttr(ctx, paddings[PAD_NCETASK_LEFT], paddings[PAD_NCETASK_RIGHT],
-                                             paddings[PAD_NCETASK_TOP], paddings[PAD_NCETASK_BOTTOM]);
-        nceTask_0.addDPUTask(functionBuilder, start, end, pad, conv.cube_mode);
+    updateBarrier = functionBuilder.create<vpux::VPURT::ConfigureBarrierOp>(loc, 1);
+    auto nceTask_0 = VPURT::wrapIntoTaskOp<VPUIP::NCEClusterTaskOp>(
+            functionBuilder, mlir::ValueRange(waitBarrier.barrier()), mlir::ValueRange(updateBarrier.barrier()), loc,
+            inputCMX.buffer(), weightsSparseCMX.sparseBuffer(), weightsTableCMX_0.buffer(), nullptr, inputCMX.buffer(),
+            outputCMX.buffer(), outputCMX.buffer(), vpux::VPUIP::NCETaskType::CONV, kernelSize, strides, kernelPaddings,
+            nullptr, nullptr);
 
-        VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(
-                functionBuilder, mlir::ValueRange(waitBarrier.barrier()), mlir::ValueRange(updateBarrier.barrier()),
-                loc, inputCMX.getOperation()->getResult(0), outputCMX_1.getOperation()->getResult(0), 0, false, false);
-        waitBarrier = updateBarrier;
-    }
+    const auto start = getIntArrayAttr(ctx, std::vector<std::int64_t>{0, 0, 0});
+    const auto end =
+            getIntArrayAttr(ctx, std::vector<std::int64_t>{outputShape[3] - 1, outputShape[2] - 1, outputShape[1] - 1});
+    const auto pad = VPU::getPaddingAttr(ctx, paddings[PAD_NCETASK_LEFT], paddings[PAD_NCETASK_RIGHT],
+                                         paddings[PAD_NCETASK_TOP], paddings[PAD_NCETASK_BOTTOM]);
+
+    nceTask_0.addDPUTask(functionBuilder, start, end, pad, conv.cube_mode);
+    waitBarrier = updateBarrier;
 
     VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(waitBarrier.barrier()), mlir::ValueRange(),
-                                          loc, outputCMX_0.getOperation()->getResult(0), functionOutput_0);
-    VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(waitBarrier.barrier()), mlir::ValueRange(),
-                                          loc, outputCMX_1.getOperation()->getResult(0), functionOutput_1);
+                                          loc, outputCMX.getOperation()->getResult(0), functionOutput);
 
-    functionBuilder.create<mlir::ReturnOp>(loc, mlir::ValueRange{functionOutput_0, functionOutput_1});
+    functionBuilder.create<mlir::ReturnOp>(loc, mlir::ValueRange{functionOutput});
 
     module.dump();
 
@@ -230,8 +232,7 @@ void buildRaceConditionDPUDMATest(const nb::TestCaseJsonDescriptor& testDesc, ml
 
     buildCNNOp(builder, function.getName(),
                {getTensorType(ShapeRef(inputShape), inputType, vpux::DimsOrder::NHWC, nullptr)},
-               {getTensorType(ShapeRef(outputShape), outputType, vpux::DimsOrder::NHWC, nullptr),
-                getTensorType(ShapeRef(inputShape), inputType, vpux::DimsOrder::NHWC, nullptr)});
+               {getTensorType(ShapeRef(outputShape), outputType, vpux::DimsOrder::NHWC, nullptr)});
 }
 
 }  // namespace hwtest

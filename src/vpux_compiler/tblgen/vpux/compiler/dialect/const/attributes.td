@@ -99,6 +99,8 @@ def Const_ContentAttr : Const_Attr<"Content", [DeclareAttrInterfaceMethods<SubEl
         vpux::Const::ContentAttr bitPack(int64_t width) const;
         vpux::Const::ContentAttr transpose(vpux::DimsOrder newOrder) const;
         vpux::Const::ContentAttr expandDilated(vpux::ShapeRef dilations) const;
+        vpux::Const::ContentAttr getSparsityMap() const;
+        vpux::Const::ContentAttr sparsify() const;
     }];
 
     let storageType = "vpux::Const::ContentAttr";
@@ -442,4 +444,21 @@ def Const_ExpandDilatedAttr : Const_Attr<"ExpandDilated",
     let skipDefaultBuilders = 1;
 }
 
+//
+// GetSparsityMapAttr
+//
+
+def Const_GetSparsityMapAttr : Const_Attr<"GetSparsityMap",
+        [DeclareAttrInterfaceMethods<Const_TransformAttrInterface>]> {
+    let summary = "Generate sparsity map";
+}
+
+//
+// Sparsify
+//
+
+def Const_SparsifyAttr : Const_Attr<"Sparsify",
+        [DeclareAttrInterfaceMethods<Const_TransformAttrInterface>]> {
+    let summary = "Prepare tensor to be ready processed as a sparse tensor";
+}
 #endif

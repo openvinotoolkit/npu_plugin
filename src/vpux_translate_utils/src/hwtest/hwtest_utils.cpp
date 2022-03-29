@@ -331,6 +331,11 @@ vpux::VPURT::DeclareBufferOp createDeclareTensorOp(mlir::OpBuilder& builder, mli
     return builder.create<VPURT::DeclareBufferOp>(builder.getUnknownLoc(), type, section, locale, offset);
 }
 
+vpux::VPURT::DeclareSparseBufferOp createDeclareSparseTensorOp(mlir::OpBuilder& builder, mlir::Value data,
+                                                               mlir::Value sparsityMap) {
+    return builder.create<VPURT::DeclareSparseBufferOp>(builder.getUnknownLoc(), data, sparsityMap);
+}
+
 mlir::OpResult getTensorResult(VPURT::DeclareBufferOp op) {
     return op.getOperation()->getResult(0);
 }

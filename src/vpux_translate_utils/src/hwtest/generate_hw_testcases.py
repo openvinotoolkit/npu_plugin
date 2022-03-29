@@ -41,7 +41,7 @@ from typing import Callable, List, Optional, Sequence, Union
 import numpy.ma as ma
 from openpyxl.styles.alignment import Alignment
 from openpyxl.utils import get_column_letter
-
+from scipy.sparse import rand as randSparse
 
 # TODO: Fix this awful hack, whose purpose in life is to point to where you've
 # checked out ssh://git@gitlab.devtools.intel.com:29418/iotgai/NumericsBench.git.
@@ -407,6 +407,26 @@ class UInt8(TType):
                       False,
                       orderer)
 
+    def generateSparse(self, filename: str, shape, rng, sparsity_factor=0.5, orderer=None) -> np.ndarray:
+        # NB For now, we restrict the number of bits in our floats in order
+        #    to ensure we're not running into rounding issues.
+        matrix = randSparse(1, np.prod(shape), density=1-sparsity_factor, format="csr", random_state=rng)
+        floatSparseData = np.around(matrix.toarray().reshape(shape) * 8.) / 8.
+        data = rng.integers(self.low, self.high, endpoint=True, size=shape, dtype=np.uint8)
+        for N in range(shape[0]):
+            for C in range(shape[1]):
+                for H in range(shape[2]):
+                    for W in range(shape[3]):
+                        if floatSparseData[N][C][H][W] == 0:
+                            data[N][C][H][W] = 0
+        return Value(self,
+                    filename,
+                    data,
+                    self.bitwidth,
+                    self.bitsize,
+                    False,
+                    orderer)
+
     def check_entropy(self, data: np.ndarray):
         self._check_entropy_eq(data, 0)
         self._check_entropy_eq(data, 255)
@@ -437,6 +457,26 @@ class Int8(TType):
                       self.bitsize,
                       True,
                       orderer)
+ 
+    def generateSparse(self, filename: str, shape, rng, sparsity_factor=0.5, orderer=None) -> np.ndarray:
+        # NB For now, we restrict the number of bits in our floats in order
+        #    to ensure we're not running into rounding issues.
+        matrix = randSparse(1, np.prod(shape), density=1-sparsity_factor, format="csr", random_state=rng)
+        floatSparseData = np.around(matrix.toarray().reshape(shape) * 8.) / 8.
+        data = rng.integers(self.low, self.high, endpoint=True, size=shape, dtype=np.int8)
+        for N in range(shape[0]):
+            for C in range(shape[1]):
+                for H in range(shape[2]):
+                    for W in range(shape[3]):
+                        if floatSparseData[N][C][H][W] == 0:
+                            data[N][C][H][W] = 0
+        return Value(self,
+                    filename,
+                    data,
+                    self.bitwidth,
+                    self.bitsize,
+                    False,
+                    orderer)
 
     def check_entropy(self, data: np.ndarray):
         self._check_entropy_eq(data, -128)
@@ -503,6 +543,20 @@ class FP16(TType):
                       True,
                       orderer)
 
+    def generateSparse(self, filename: str, shape, rng, sparsity_factor=0.5, orderer=None) -> np.ndarray:
+        # NB For now, we restrict the number of bits in our floats in order
+        #    to ensure we're not running into rounding issues.
+        matrix = randSparse(1, np.prod(shape), density=1-sparsity_factor, format="csr", random_state=rng)
+        data = np.around(matrix.toarray().reshape(shape) * 8.) / 8.
+
+        return Value(self,
+                      filename,
+                      (data * (2. ** self.bitwidth)).astype(np.float16),
+                      self.bitwidth,
+                      self.bitsize,
+                      True,
+                      orderer)
+
     def check_entropy(self, data: np.ndarray):
         self._check_entropy_inf(data)
         self._check_entropy_nan(data)
@@ -559,6 +613,20 @@ class BF16(TType):
         # NB For now, we restrict the number of bits in our floats in order
         #    to ensure we're not running into rounding issues.
         data = np.around(rng.random(size=shape, dtype=np.float32) * 8.) / 8.
+        return Value(self,
+                      filename,
+                      (data * (2. ** self.bitwidth)).astype(bfloat16),
+                      self.bitwidth,
+                      self.bitsize,
+                      True,
+                      orderer)
+
+    def generateSparse(self, filename: str, shape, rng, sparsity_factor=0.5, orderer=None) -> np.ndarray:
+        # NB For now, we restrict the number of bits in our floats in order
+        #    to ensure we're not running into rounding issues.
+        matrix = randSparse(1, np.prod(shape), density=1-sparsity_factor, format="csr", random_state=rng)
+        data = np.around(matrix.toarray().reshape(shape) * 8.) / 8.
+
         return Value(self,
                       filename,
                       (data * (2. ** self.bitwidth)).astype(bfloat16),
@@ -807,6 +875,106 @@ class ZMajorConvolution(Operation):
     def filter_issues(self, args) -> bool:
         return True
 
+class SparseConvolution(Operation):
+
+    # kernel_strides are x|y directions
+    # The padding order is top|left|bottom|right
+    PARAMS = [
+        'mpe_op_class',
+        'input_ttype',
+        'input_shape',
+        'weight_ttype',
+        'kernel_channels',
+        'kernel_shape',
+        'output_ttype',
+        'output_order',
+        'kernel_strides',
+        'kernel_pads',
+        'compress',
+        'mpe_cub',
+        'sparsity_factor'
+    ]
+    NAME = 'Sparse'
+
+    def __init__(self, architecture: Architecture, settings):
+        super().__init__(architecture)
+        self.settings = settings
+        settings.weight_shape = [settings.kernel_channels, settings.input_shape[1]] + settings.kernel_shape
+
+    def json_info(self, inputs, output):
+        return {
+            'case_type': 'SparseZMajorConvolution',
+            'input': inputs[0].json_info,
+            'weight': inputs[1].json_info,
+            'output': output.json_info,
+            'conv_op': {
+                'stride': self.settings.kernel_strides,
+                'pad': self.settings.kernel_pads,
+                'group': 1,
+                'dilation': 1,
+                'compress': self.settings.compress,
+                'mpe_cub': self.settings.mpe_cub.name
+            },
+            'output_order': self.settings.output_order.name.lower()
+        }
+
+    def validate(self):
+        ValidatePaddings(self.settings.kernel_shape, self.settings.kernel_pads)
+        # validate input tensor channels allignement
+        # ValidateHWAlignment(self.settings.input_ttype, self.settings.input_shape[1])
+        # validate weight tensor channels allignement
+        # ValidateHWAlignment(self.settings.weight_ttype, self.settings.input_shape[1])
+        # validate output tensor channels allignement
+        ValidateHWAlignment(self.settings.output_ttype, self.settings.kernel_channels)
+
+    @property
+    def ident(self) -> str:
+        name = f'sparse_conv_{shape_to_str(self.settings.input_shape)}x{self.settings.input_ttype.stype}_{shape_to_str(self.settings.weight_shape)}x{self.settings.weight_ttype.stype}_pads_{shape_to_str(self.settings.kernel_pads)}_strides_{shape_to_str(self.settings.kernel_strides)}_kern_chan_{self.settings.kernel_channels}'
+        if self.settings.output_order != Order.NHWC:
+            name += '_' + self.settings.output_order.name.lower()
+        if self.settings.compress:
+            name += '_compressed'
+        if self.settings.mpe_cub != MPE_CUBES.CUBOID_16x16:
+            name += '_' + self.settings.mpe_cub.name
+        name += f'_sparsity_{self.settings.sparsity_factor}'
+        return name
+
+    @property
+    def orderer(self) -> Orderer:
+        return OrderNHWC
+
+    @property
+    def output_orderer(self) -> Orderer:
+        return orderToOrderer(self.settings.output_order)
+
+    @property
+    def data(self) -> dict:
+        return {
+            'MPE Mode': 'ZMajorConv',
+            'Input Type': self.settings.input_ttype.stype,
+            'Input Shape': ', '.join([str(s) for s in self.settings.input_shape]),
+            'Weights Type': self.settings.weight_ttype.stype,
+            'Kernel Channels': str(self.settings.kernel_channels),
+            'Kernel Shape': ', '.join([str(s) for s in self.settings.kernel_shape]),
+            'Output Type': self.settings.output_ttype.stype
+        }
+
+    def generate_inputs(self, rng) -> List[Value]:
+        return [
+            self.settings.input_ttype.generate('input-0.bin', self.settings.input_shape, rng),
+            self.settings.weight_ttype.generateSparse('weights.dat', self.settings.weight_shape, rng, self.settings.sparsity_factor, orderer=OrderNCHW)
+        ]
+
+    def apply(self, values: List[Value]) -> np.ndarray:
+        lhs, rhs = iduConvCustom(values[0], values[1])
+        c2d = MTLConv2D(kernel_shape=self.settings.kernel_shape,
+                     pads = self.settings.kernel_pads,
+                     strides = self.settings.kernel_strides)
+        result = c2d.inference(lhs, rhs)
+        return result
+
+    def filter_issues(self, args) -> bool:
+        return True
 
 class DepthWiseConv(Operation):
 
@@ -2702,6 +2870,53 @@ def genZMConvs(architecture,
                                                                            compress,
                                                                            mpe_cub), activation)
 
+def genSparseConvs( architecture,
+                    input_types=[UInt8(2)],
+                    input_shapes=[[1, 32, 16, 16]],
+                    weight_types=None,
+                    kernel_channels=[32],
+                    kernel_shapes=[[1, 1]],
+                    output_types=None,
+                    output_orders=[Order.NHWC],
+                    strides=[[1, 1]],
+                    pads=Pad.none,
+                    compress=False,
+                    mpe_cubs=[MPE_CUBES.CUBOID_16x16],
+                    sparsity_factors=[0.5]):
+
+    print("genSparseConvs")
+    for (input_type, input_shape, kernel_channel, kernel_shape, output_order, stride, pad, mpe_cub, sparsity_factor) in itertools.product(input_types, input_shapes, kernel_channels, kernel_shapes, output_orders, strides, pads, mpe_cubs, sparsity_factors):
+
+        if weight_types is None:
+            current_weight_types = _ZMCONV_VALID_WEIGHT_TYPES[input_type.__class__]
+        else:
+            current_weight_types = weight_types
+
+        for weight_type in current_weight_types:
+
+            if output_types is None:
+                current_output_types = _PPE_VALID_OUTPUT_TYPES[input_type.is_float or weight_type.is_float]
+            else:
+                current_output_types = output_types
+
+            for output_type in current_output_types:
+                if(output_order != Order.NHWC and not _PPE_HAS_PERMUTATION_SUPPORT[output_type.__class__]) :
+                    print("skip", output_order, output_type)
+                    continue
+                yield DPUPipeline(architecture, SparseConvolution.PARAMS, (SparseConvolution,
+                                                                            input_type,
+                                                                            input_shape,
+                                                                            weight_type,
+                                                                            kernel_channel,
+                                                                            kernel_shape,
+                                                                            output_type,
+                                                                            output_order,
+                                                                            stride,
+                                                                            pad,
+                                                                            compress,
+                                                                            mpe_cub,
+                                                                            sparsity_factor
+                                                                            ))
 
 def genEltwiseAdds(architecture,
                    input_types=[Int8(6)],
@@ -3369,6 +3584,43 @@ def generate_options(args):
                    weight_types=[FP16(2)],
                    output_types=[FP16()],
                    mpe_cubs=[MPE_CUBES.CUBOID_16x16, MPE_CUBES.CUBOID_8x16, MPE_CUBES.CUBOID_4x16]),
+
+        # Z-Major Convolution, sparse
+        genSparseConvs(
+            architecture=Architecture.MTL,
+            input_types=[Int8(4)],
+            input_shapes=[[1, 128, 32, 32]],
+            kernel_shapes=[[1, 1], [5, 5]],
+            weight_types=[Int8(4)],
+            output_types=[Int8()],
+            sparsity_factors = [0.1, 0.5, 0.9]),
+
+        genSparseConvs(
+            architecture=Architecture.MTL,
+            input_types=[UInt8(4)],
+            input_shapes=[[1, 128, 32, 32]],
+            kernel_shapes=[[1, 1], [5, 5]],
+            weight_types=[UInt8(4)],
+            output_types=[UInt8()],
+            sparsity_factors = [0.1, 0.5, 0.9]),
+
+        genSparseConvs(
+            architecture=Architecture.MTL,
+            input_types=[FP16(2)],
+            input_shapes=[[1, 128, 32, 32]],
+            kernel_shapes=[[1, 1], [5, 5]],
+            weight_types=[FP16(2)],
+            output_types=[FP16()],
+            sparsity_factors = [0.1, 0.5, 0.9]),
+
+        genSparseConvs(
+            architecture=Architecture.MTL,
+            input_types=[BF16(2)],
+            input_shapes=[[1, 128, 32, 32]],
+            kernel_shapes=[[1, 1], [5, 5]],
+            weight_types=[BF16(2)],
+            output_types=[BF16()],
+            sparsity_factors = [0.1, 0.5, 0.9]),
 
         genZMConvs(architecture=Architecture.MTL,
                    input_types=[FP16(2)],

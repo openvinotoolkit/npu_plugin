@@ -29,13 +29,14 @@ std::vector<int32_t> createWeightsTableData(mlir::Value opInput, mlir::Value opO
     const auto weightPtrOffset = 0;
     const auto sparsityPtrOffset = 0;
     const auto weightPtrStep = VPU::NCESparsity::getWeightPtrStep(weights, activationWindow);
+    const auto sparsityPtrStep = 0;
 
     const auto inElemType = opInput.getType().cast<vpux::NDTypeInterface>().getElementType();
     const auto outElemType = opOutput.getType().cast<vpux::NDTypeInterface>().getElementType();
     const auto weightsElemType = weights ? weights.getType().cast<vpux::NDTypeInterface>().getElementType() : nullptr;
 
     return VPU::NCESparsity::getWeightsTable(inElemType, outElemType, weightPtrOffset, weightPtrStep, sparsityPtrOffset,
-                                             _arch, OC, weightsElemType, bias, ppeTaskAttr);
+                                             sparsityPtrStep, _arch, OC, weightsElemType, bias, ppeTaskAttr);
 }
 
 mlir::Value createWeightsTableTensor(mlir::OpBuilder& builder, mlir::Location loc, ArrayRef<int32_t> weightsTable,

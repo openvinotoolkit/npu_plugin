@@ -43,6 +43,7 @@ mlir::OwningModuleRef importHWTEST(llvm::StringRef sourceJson, mlir::MLIRContext
     bool isDMA = jsonDesc.getCaseType() == nb::CaseType::DMA;
     bool isConv = jsonDesc.getCaseType() == nb::CaseType::ZMajorConvolution;
     bool isDepthwiseConv = jsonDesc.getCaseType() == nb::CaseType::DepthWiseConv;
+    bool isSparseConv = jsonDesc.getCaseType() == nb::CaseType::SparseZMajorConvolution;
     bool isEltwiseAdd = jsonDesc.getCaseType() == nb::CaseType::EltwiseAdd;
     bool isMaxPool = jsonDesc.getCaseType() == nb::CaseType::MaxPool;
     bool isEltwiseMult = jsonDesc.getCaseType() == nb::CaseType::EltwiseMult;
@@ -87,6 +88,8 @@ mlir::OwningModuleRef importHWTEST(llvm::StringRef sourceJson, mlir::MLIRContext
         } else {
             hwtest::buildSimpleZMajorConv(jsonDesc, module, builder, log, input_type, weightType(), output_type);
         }
+    } else if (isSparseConv) {
+        hwtest::buildSparseZMajorConv(jsonDesc, module, builder, log, input_type, weightType(), output_type);
     } else if (isDepthwiseConv) {
         hwtest::buildDWConv(jsonDesc, module, builder, log, input_type, weightType(), output_type);
     } else if (isEltwiseAdd) {

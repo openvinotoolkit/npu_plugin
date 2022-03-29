@@ -179,6 +179,11 @@ Expand constant content with zeros according to dilations
 | :-------: | :-------: | ----------- |
 | dilations | `mlir::ArrayAttr` |  |
 
+### GetSparsityMapAttr
+
+Generate sparsity map
+
+
 ### PadWithZeroAttr
 
 Pad constant content with zeros
@@ -247,6 +252,11 @@ Reshape constant content
 | Parameter | C++ type | Description |
 | :-------: | :-------: | ----------- |
 | shape | `mlir::ArrayAttr` |  |
+
+### SparsifyAttr
+
+Prepare tensor to be ready processed as a sparse tensor
+
 
 ### SubViewAttr
 

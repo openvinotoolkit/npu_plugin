@@ -217,10 +217,11 @@ void buildDWConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp modu
     }
     auto weights_set_nbytes = weights_set_size * elementsize_bytes;
 
+    const auto sparsityPtrStep = 0;
     const std::vector<int32_t> wtTbl_data_values_vec = VPU::NCESparsity::getWeightsTable(
             inputType, outputType, static_cast<int32_t>(WEIGHTS_CMX_OFFSET), static_cast<int32_t>(weights_set_nbytes),
-            static_cast<int32_t>(ACTIVATIONWINDOW_CMX_OFFSET), testDesc.getArchitecture(), weights_outChannel,
-            weightsType);
+            static_cast<int32_t>(ACTIVATIONWINDOW_CMX_OFFSET), sparsityPtrStep, testDesc.getArchitecture(),
+            weights_outChannel, weightsType);
 
     auto wtTbl_data_values = makeArrayRef<int32_t>(wtTbl_data_values_vec);
     auto wtTbl_data_vals = mlir::DenseElementsAttr::get(wtTblData_ddr_valueType, wtTbl_data_values);

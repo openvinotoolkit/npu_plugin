@@ -56,6 +56,8 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
                            Logger& log, mlir::Type inputType, mlir::Type weightsType, mlir::Type outputType);
 void buildContinuedConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module, mlir::OpBuilder builder,
                         Logger& log, mlir::Type inputType, mlir::Type weightsType, mlir::Type outputType);
+void buildSparseZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module, mlir::OpBuilder builder,
+                           Logger& log, mlir::Type inputType, mlir::Type weightsType, mlir::Type outputType);
 void buildEltwiseAdd(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module, mlir::OpBuilder builder,
                      Logger& log, mlir::Type inputType, mlir::Type weightsType, mlir::Type outputType);
 void buildEltwiseMultWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module,
@@ -127,6 +129,8 @@ vpux::VPURT::DeclareBufferOp createDeclareTensorOp(mlir::OpBuilder builder, VPUR
                                                    StridesRef strides, int64_t locale, size_t offset);
 vpux::VPURT::DeclareBufferOp createDeclareTensorOp(mlir::OpBuilder& builder, mlir::MemRefType type,
                                                    VPURT::BufferSection section, int64_t locale, size_t offset);
+vpux::VPURT::DeclareSparseBufferOp createDeclareSparseTensorOp(mlir::OpBuilder& builder, mlir::Value data,
+                                                               mlir::Value sparsityMap);
 
 mlir::OpResult getTensorResult(VPURT::DeclareBufferOp op);
 

@@ -22,6 +22,7 @@ namespace nb {
 enum class CaseType {
     DMA,
     ZMajorConvolution,
+    SparseZMajorConvolution,
     DepthWiseConv,
     EltwiseAdd,
     EltwiseMult,

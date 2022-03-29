@@ -686,8 +686,8 @@ TEST_F(MLIR_ConstContentAttrTest, BitPack) {
 
     const auto content = contentAttr.fold();
     const auto ndBaseType = baseType.cast<vpux::NDTypeInterface>();
-    const auto expectedType = ndBaseType.changeElemType(mlir::IntegerType::get(
-            ndBaseType.getContext(), bitWidth, mlir::IntegerType::SignednessSemantics::Signed));
+    const auto expectedType = ndBaseType.changeElemType(
+            mlir::IntegerType::get(ndBaseType.getContext(), bitWidth, mlir::IntegerType::SignednessSemantics::Signed));
     EXPECT_EQ(content.getType(), expectedType);
 
     std::vector<int8_t> actVals(vals.size() / 2, 0);
@@ -858,4 +858,158 @@ TEST_F(MLIR_ConstContentAttrTest, ExpandDilated) {
     for (size_t i = 0; i < contentVals.size(); ++i) {
         EXPECT_EQ(contentVals[i], expectedVals[i]);
     }
+}
+
+TEST_F(MLIR_ConstContentAttrTest, GetSparsityMap) {
+    const int64_t IC = 1;
+    const int64_t IH = 2;
+    const int64_t IW = 8;
+    const auto baseType = mlir::RankedTensorType::get({IC, IH, IW}, getUInt8Type(&ctx));
+
+    const auto vals = std::vector<uint8_t>{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 11, 0, 13, 14, 15};
+    // expected result binary form:        0  1  1  1  1  1  1  1 |1  1  0   1   0  1   1   1
+    // expected result HEX form:               E            F     |     B             E
+    const auto expectedResult = std::vector<uint8_t>{0xFE, 0xEB};
+    const auto baseAttr = mlir::DenseElementsAttr::get(baseType, makeArrayRef(vals));
+
+    const auto baseContentAttr = Const::ContentAttr::get(baseAttr);
+    ASSERT_NE(baseContentAttr, nullptr);
+    EXPECT_EQ(baseContentAttr.getType(), baseType);
+
+    const auto contentAttr = baseContentAttr.getSparsityMap();
+    ASSERT_NE(contentAttr, nullptr);
+
+    const auto content = contentAttr.fold();
+    const auto ndBaseType = baseType.cast<vpux::NDTypeInterface>();
+    const auto expectedType =
+            ndBaseType.changeElemType(mlir::IntegerType::get(ndBaseType.getContext(), 1, mlir::IntegerType::Unsigned));
+    EXPECT_EQ(content.getType(), expectedType);
+
+    std::vector<uint8_t> actVals(vals.size() / 8, 0);
+    auto buf = makeMutableArrayRef(reinterpret_cast<char*>(actVals.data()), actVals.size());
+    content.copyTo(buf);
+
+    EXPECT_TRUE(std::equal(actVals.begin(), actVals.end(), expectedResult.begin()));
+}
+
+TEST_F(MLIR_ConstContentAttrTest, GetSparsityMapQuantized) {
+    ctx.loadDialect<mlir::quant::QuantizationDialect>();
+
+    const int64_t IC = 1;
+    const int64_t IH = 2;
+    const int64_t IW = 8;
+    const auto baseType = mlir::RankedTensorType::get({IC, IH, IW}, getUInt8Type(&ctx));
+
+    // source float values: {0, -7, -6, -5, -4, -3, -2, -1,  0, 1, 0, 3, 0, 5, 6, 7};
+    const double scale = 1.0;
+    const int64_t zeroPoint = 7;
+    const int64_t storageTypeMin = 0;
+    const int64_t storageTypeMax = 14;
+    // apply quantization to src values
+    const auto vals = std::vector<uint8_t>{7, 0, 1, 2, 3, 4, 5, 6, 7, 8, 7, 10, 7, 12, 13, 14};
+
+    // expected result binary form:        0  1  1  1  1  1  1  1 |0  1  0  1   0   1   1   1
+    // expected result HEX form:                E          F      |     A             E
+    const auto expectedResult = std::vector<uint8_t>{0xFE, 0xEA};
+    const auto baseAttr = mlir::DenseElementsAttr::get(baseType, makeArrayRef(vals));
+
+    const auto baseContentAttr = Const::ContentAttr::get(baseAttr);
+    ASSERT_NE(baseContentAttr, nullptr);
+    EXPECT_EQ(baseContentAttr.getType(), baseType);
+
+    const auto quantType =
+            mlir::quant::UniformQuantizedType::get(0, baseType.getElementType(), mlir::Float32Type::get(&ctx), scale,
+                                                   zeroPoint, storageTypeMin, storageTypeMax);
+    const auto quantContentAttr = baseContentAttr.quantCast(quantType);
+
+    const auto contentAttr = quantContentAttr.getSparsityMap();
+    ASSERT_NE(contentAttr, nullptr);
+
+    const auto content = contentAttr.fold();
+    const auto ndBaseType = baseType.cast<vpux::NDTypeInterface>();
+    const auto expectedType =
+            ndBaseType.changeElemType(mlir::IntegerType::get(ndBaseType.getContext(), 1, mlir::IntegerType::Unsigned));
+    EXPECT_EQ(content.getType(), expectedType);
+
+    std::vector<uint8_t> actVals(vals.size() / 8, 0);
+    auto buf = makeMutableArrayRef(reinterpret_cast<char*>(actVals.data()), actVals.size());
+    content.copyTo(buf);
+
+    EXPECT_TRUE(std::equal(actVals.begin(), actVals.end(), expectedResult.begin()));
+}
+
+TEST_F(MLIR_ConstContentAttrTest, Sparsify) {
+    const int64_t IN = 2;
+    const int64_t IC = 1;
+    const int64_t IH = 2;
+    const int64_t IW = 8;
+    const auto baseType = mlir::RankedTensorType::get({IN, IC, IH, IW}, getUInt8Type(&ctx));
+
+    const auto vals = std::vector<uint8_t>{0,  1, 2,  3,  4,  5, 6,  7,  8,  9,  0,  11, 0, 13, 14, 15,
+                                           16, 0, 18, 19, 20, 0, 22, 23, 24, 25, 26, 0,  0, 29, 30, 31};
+    const auto expectedResult = std::vector<uint8_t>{1,  2,  3,  4,  5,  6,  7,  8,  9,  11, 13, 14, 15, 0, 0, 0,
+                                                     16, 18, 19, 20, 22, 23, 24, 25, 26, 29, 30, 31, 0,  0, 0, 0};
+    const auto baseAttr = mlir::DenseElementsAttr::get(baseType, makeArrayRef(vals));
+
+    const auto baseContentAttr = Const::ContentAttr::get(baseAttr);
+    ASSERT_NE(baseContentAttr, nullptr);
+    EXPECT_EQ(baseContentAttr.getType(), baseType);
+
+    const auto contentAttr = baseContentAttr.sparsify();
+    ASSERT_NE(contentAttr, nullptr);
+
+    const auto content = contentAttr.fold();
+    const auto ndBaseType = baseType.cast<vpux::NDTypeInterface>();
+    EXPECT_EQ(content.getType(), ndBaseType);
+
+    std::vector<uint8_t> actVals(vals.size(), 0);
+    auto buf = makeMutableArrayRef(reinterpret_cast<char*>(actVals.data()), actVals.size());
+    content.copyTo(buf);
+
+    EXPECT_TRUE(std::equal(actVals.begin(), actVals.end(), expectedResult.begin()));
+}
+
+TEST_F(MLIR_ConstContentAttrTest, SparsifyQuntized) {
+    ctx.loadDialect<mlir::quant::QuantizationDialect>();
+
+    const int64_t IN = 2;
+    const int64_t IC = 1;
+    const int64_t IH = 2;
+    const int64_t IW = 8;
+
+    // source float values:{0, -15, -14,  -13,  -12,  -11, -10,  -9,  -8,  -7,  0,  -5, 0, -3, -2, -1,
+    //                      0,   0,   2,    3,    4,    5,   6,   7,   8,   9, 10,   0, 0, 13, 14, 15};
+    const double scale = 1.0;
+    const int64_t zeroPoint = 16;
+    const int64_t storageTypeMin = 0;
+    const int64_t storageTypeMax = 31;
+    // apply quantization to src values
+    const auto baseType = mlir::RankedTensorType::get({IN, IC, IH, IW}, getUInt8Type(&ctx));
+    const auto vals = std::vector<uint8_t>{16, 1,  2,  3,  4,  5,  6,  7,  8,  9,  16, 11, 16, 13, 14, 15,
+                                           16, 16, 18, 19, 20, 16, 22, 23, 24, 25, 26, 16, 16, 29, 30, 31};
+    const auto expectedResult = std::vector<uint8_t>{1,  2,  3,  4,  5,  6,  7,  8,  9,  11, 13, 14, 15, 16, 16, 16,
+                                                     18, 19, 20, 22, 23, 24, 25, 26, 29, 30, 31, 16, 16, 16, 16, 16};
+    const auto baseAttr = mlir::DenseElementsAttr::get(baseType, makeArrayRef(vals));
+
+    const auto baseContentAttr = Const::ContentAttr::get(baseAttr);
+    ASSERT_NE(baseContentAttr, nullptr);
+    EXPECT_EQ(baseContentAttr.getType(), baseType);
+
+    const auto quantType =
+            mlir::quant::UniformQuantizedType::get(0, baseType.getElementType(), mlir::Float32Type::get(&ctx), scale,
+                                                   zeroPoint, storageTypeMin, storageTypeMax);
+    const auto quantContentAttr = baseContentAttr.quantCast(quantType);
+
+    const auto contentAttr = quantContentAttr.sparsify();
+    ASSERT_NE(contentAttr, nullptr);
+
+    const auto content = contentAttr.fold();
+
+    EXPECT_EQ(content.getType(), contentAttr.getType());
+
+    std::vector<uint8_t> actVals(vals.size(), 0);
+    auto buf = makeMutableArrayRef(reinterpret_cast<char*>(actVals.data()), actVals.size());
+    content.copyTo(buf);
+
+    EXPECT_TRUE(std::equal(actVals.begin(), actVals.end(), expectedResult.begin()));
 }

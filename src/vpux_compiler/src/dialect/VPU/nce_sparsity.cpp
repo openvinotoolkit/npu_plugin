@@ -402,8 +402,8 @@ int32_t vpux::VPU::NCESparsity::getWeightPtrStep(mlir::Value weights, mlir::Valu
 
 std::vector<int32_t> vpux::VPU::NCESparsity::getWeightsTable(mlir::Type inElemType, mlir::Type outElemType,
                                                              Optional<int32_t> weightPtr, int32_t weightPtrStep,
-                                                             Optional<int32_t> sparsityPtr, VPU::ArchKind arch,
-                                                             int64_t OC, mlir::Type weightsElemType,
+                                                             Optional<int32_t> sparsityPtr, int32_t sparsityPtrStep,
+                                                             VPU::ArchKind arch, int64_t OC, mlir::Type weightsElemType,
                                                              Const::ContentAttr bias, VPU::PPETaskAttr ppe) {
     VPUX_THROW_WHEN(inElemType == nullptr || outElemType == nullptr,
                     "Can't create weights table without operation input/output types");
@@ -428,6 +428,11 @@ std::vector<int32_t> vpux::VPU::NCESparsity::getWeightsTable(mlir::Type inElemTy
             VPUX_THROW_UNLESS(weightPtrOffset % alignment == 0,
                               "weightsPtrOffset must be multiple of {0}, got {1} on oc {2}", alignment, weightPtr, oc);
         }
+        if (sparsityPtrOffset != SPARSITY_PTR_WHEN_NO_SPARSITY) {
+            VPUX_THROW_UNLESS(sparsityPtrOffset % ALIGNMENT_REQUIREMENT_IN_ELEMENTS == 0,
+                              "sparsityPtrOffset must be aligned to {0}, got {1} on oc {2}",
+                              ALIGNMENT_REQUIREMENT_IN_ELEMENTS, sparsityPtrOffset, oc);
+        }
 
         weightsTableVals[wtInd + 0] = weightPtrOffset;
         weightsTableVals[wtInd + 1] = sparsityPtrOffset;
@@ -435,6 +440,7 @@ std::vector<int32_t> vpux::VPU::NCESparsity::getWeightsTable(mlir::Type inElemTy
         weightsTableVals[wtInd + 3] = getBiasFP(oc);
 
         weightPtrOffset += weightPtrStep;
+        sparsityPtrOffset += sparsityPtrStep;
     }
 
     return weightsTableVals;

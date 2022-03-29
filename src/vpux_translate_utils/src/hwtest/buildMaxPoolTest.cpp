@@ -128,9 +128,10 @@ void buildMaxPool(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp mod
     const auto wtTblData_ddr_valueType =
             mlir::RankedTensorType::get(wtTbl_data_shape, builder.getIntegerType(32, /*isSigned=*/true));
 
-    const std::vector<int32_t> wtTbl_data_values_vec = VPU::NCESparsity::getWeightsTable(
-            inputType, outputType, static_cast<int32_t>(0), static_cast<int32_t>(0),
-            static_cast<int32_t>(ACTIVATIONWINDOW_CMX_OFFSET), testDesc.getArchitecture(), output.shape[1]);
+    const std::vector<int32_t> wtTbl_data_values_vec =
+            VPU::NCESparsity::getWeightsTable(inputType, outputType, static_cast<int32_t>(0), static_cast<int32_t>(0),
+                                              static_cast<int32_t>(ACTIVATIONWINDOW_CMX_OFFSET),
+                                              static_cast<int32_t>(0), testDesc.getArchitecture(), output.shape[1]);
 
     auto wtTbl_data_values = makeArrayRef<int32_t>(wtTbl_data_values_vec);
     auto wtTbl_data_vals = mlir::DenseElementsAttr::get(wtTblData_ddr_valueType, wtTbl_data_values);

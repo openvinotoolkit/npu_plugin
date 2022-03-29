@@ -287,11 +287,11 @@ void buildEltwiseMultWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir
         elementsize_bytes = (weights_cmx_memreftype.getElementType().getIntOrFloatBitWidth()) / CHAR_BIT;
     }
     auto weights_set_nbytes = weights_set_size * elementsize_bytes;
-
+    const auto sparsityPtrStep = 0;
     const std::vector<int32_t> weightstable_data_values_vec = VPU::NCESparsity::getWeightsTable(
             inputType, outputType, static_cast<int32_t>(WEIGHTS_PAD_CMX_OFFSET),
             static_cast<int32_t>(weights_set_nbytes), static_cast<int32_t>(ACTIVATIONWINDOW_CMX_OFFSET),
-            testDesc.getArchitecture(), output_nce_shape[1], weightsType);
+            sparsityPtrStep, testDesc.getArchitecture(), output_nce_shape[1], weightsType);
 
     auto weightstable_data_values = makeArrayRef<int32_t>(weightstable_data_values_vec);
     auto weightstable_data_vals = mlir::DenseElementsAttr::get(wtTblData_ddr_valueType, weightstable_data_values);

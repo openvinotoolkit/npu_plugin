@@ -37,12 +37,12 @@ Const::Content vpux::Const::Content::allocTempBuffer(vpux::NDTypeInterface type,
     content._storageElemType = storageElemType;
     content._isSplat = isSplat;
 
-    const size_t tempBufSize = isSplat ? 1 : checked_cast<size_t>(type.getNumElements());
-    const Byte tempElemSize = vpux::getElemTypeSize(storageElemType);
-    const size_t tempBufRawSize = tempBufSize * checked_cast<size_t>(tempElemSize.count());
+    const int64_t tempBufSize = isSplat ? 1 : type.getNumElements();
+    const Bit tempElemBitSize = vpux::getElemTypeSize(storageElemType);
+    const auto tempBufRawBitSize = tempElemBitSize * tempBufSize;
 
-    content._tempBuf.reset(new char[tempBufRawSize]);
-    content._data = makeArrayRef(content._tempBuf.get(), tempBufRawSize);
+    content._tempBuf.reset(new char[Byte(tempBufRawBitSize).count()]);
+    content._data = makeArrayRef(content._tempBuf.get(), Byte(tempBufRawBitSize).count());
 
     return content;
 }
