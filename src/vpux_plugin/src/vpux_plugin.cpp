@@ -247,6 +247,8 @@ IE::Parameter Engine::GetConfig(const std::string& name,
             return _globalConfig.get<PERF_COUNT>();
         } else if (name == ov::hint::performance_mode) {
             return _globalConfig.get<PERFORMANCE_HINT>();
+        } else if (name == ov::hint::num_requests) {
+            return getPerfHintNumRequests(_globalConfig);
         } else if (name == ov::log::level) {
             return cvtLogLevel(_globalConfig.get<LOG_LEVEL>());
         } else if (name == ov::device::id) {
@@ -322,6 +324,8 @@ IE::Parameter Engine::GetConfig(const std::string& name,
         return _globalConfig.get<DEVICE_ID>();
     } else if (name == CONFIG_KEY(PERFORMANCE_HINT)) {
         return stringifyEnum(_globalConfig.get<PERFORMANCE_HINT>()).str();
+    } else if (name == CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS)) {
+        return getPerfHintNumRequests(_globalConfig);
     } else if (name == ov::num_streams) {
         return checked_cast<int>(getNumThroughputStreams(_globalConfig, None));
     } else if (name == ov::intel_vpux::inference_shaves) {

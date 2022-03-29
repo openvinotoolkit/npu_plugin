@@ -29,6 +29,7 @@ Metrics::Metrics(const VPUXBackends::CPtr& backends): _backends(backends) {
                             ov::device::id.name(),
                             ov::hint::performance_mode.name(),
                             ov::num_streams.name(),
+                            ov::hint::num_requests.name(),
                             ov::intel_vpux::compilation_mode_params.name(),
                             ov::intel_vpux::inference_shaves.name()};
 }

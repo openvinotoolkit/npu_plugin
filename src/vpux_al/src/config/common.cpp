@@ -14,6 +14,7 @@ using namespace ov::intel_vpux;
 
 void vpux::registerCommonOptions(OptionsDesc& desc) {
     desc.add<PERFORMANCE_HINT>();
+    desc.add<PERFORMANCE_HINT_NUM_REQUESTS>();
     desc.add<PERF_COUNT>();
     desc.add<LOG_LEVEL>();
     desc.add<PLATFORM>();
@@ -47,6 +48,27 @@ ov::hint::PerformanceMode vpux::PERFORMANCE_HINT::parse(StringRef val) {
     }
 
     VPUX_THROW("Value '{0}' is not a valid PERFORMANCE_HINT option", val);
+}
+
+//
+// PERFORMANCE_HINT_NUM_REQUESTS
+//
+
+uint32_t vpux::getPerfHintNumRequests(const Config& config) {
+    if (config.has<PERFORMANCE_HINT_NUM_REQUESTS>()) {
+        return config.get<PERFORMANCE_HINT_NUM_REQUESTS>();
+    }
+
+    const uint32_t defaultNumForTPUT = 8u;
+    const uint32_t defaultNumForLatency = 2u;
+    switch (config.get<PERFORMANCE_HINT>()) {
+    case ov::hint::PerformanceMode::THROUGHPUT:
+        return defaultNumForTPUT;
+    case ov::hint::PerformanceMode::LATENCY:
+    case ov::hint::PerformanceMode::UNDEFINED:
+    default:
+        return defaultNumForLatency;
+    }
 }
 
 //

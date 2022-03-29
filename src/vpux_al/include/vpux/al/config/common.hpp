@@ -11,6 +11,7 @@
 #include "vpux_private_config.hpp"
 #include "vpux_private_properties.hpp"
 
+#include <ie_performance_hints.hpp>
 #include <ie_plugin_config.hpp>
 #include <openvino/runtime/properties.hpp>
 
@@ -37,6 +38,22 @@ struct PERFORMANCE_HINT final : OptionBase<PERFORMANCE_HINT, ov::hint::Performan
 
     static ov::hint::PerformanceMode parse(StringRef val);
 };
+
+//
+// PERFORMANCE_HINT_NUM_REQUESTS
+//
+
+struct PERFORMANCE_HINT_NUM_REQUESTS final : OptionBase<PERFORMANCE_HINT_NUM_REQUESTS, uint32_t> {
+    static StringRef key() {
+        return ov::hint::num_requests.name();
+    }
+
+    static uint32_t parse(StringRef val) {
+        return InferenceEngine::PerfHintsConfig::CheckPerformanceHintRequestValue(val.str());
+    }
+};
+
+uint32_t getPerfHintNumRequests(const Config& config);
 
 //
 // PERF_COUNT
