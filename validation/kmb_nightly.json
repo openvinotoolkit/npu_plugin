@@ -5128,6 +5128,63 @@
             "CI-options" : {
                 "blob_name" : "se-resnext-50"
             }
+        },
+        {
+            "name" : "scale_tf_FP16-INT8_efficientnet-b0",
+            "ir" : "scale/efficientnet-b0/tf/FP16-INT8/efficientnet-b0.xml",
+            "category" : "MLIR/SKIP_WIN",
+            "3720": {
+                "disabled" : true
+			},
+            "extra_config" : {
+                "VPUX_COMPILER_TYPE": "MLIR",
+                "PERFORMANCE_HINT": "THROUGHPUT",
+                "VPUX_INFERENCE_SHAVES": "16"
+            },
+            "BenchmarkApp" : {
+                "input_folder": "224x224"
+            },
+            "AccuracyCheck" : {
+                "config": "efficientnet-b0.yml",
+                "subsample_size": 100
+            },
+            "NetTest": {
+                "inputs" : [["224x224/watch.bmp"]],
+                "params" : [
+                    "--mode", "classification",
+                    "--top_k", "1",
+                    "--prob_tolerance", "0.8"
+                ]
+            },
+            "CI-options" : {
+                "blob_name" : "efficientnet-b0"
+            }
+        },
+        {
+            "name" : "scale_tf_FP16-INT8_efficientdet-d0",
+            "ir" : "scale/efficientdet-d0/tf/FP16-INT8/efficientdet-d0.xml",
+            "category" : "MLIR/SKIP_WIN",
+            "3720": {
+                "disabled" : true
+			},
+            "extra_config" : {
+                "VPUX_COMPILER_TYPE": "MLIR",
+                "PERFORMANCE_HINT": "THROUGHPUT",
+                "VPUX_INFERENCE_SHAVES": "16"
+            },
+            "BenchmarkApp" : {
+                "input_folder": "224x224"
+            },
+            "AccuracyCheck" : {
+                "config": "efficientdet-d0.yml",
+                "subsample_size": 100
+            },
+            "NetTest": {
+                "disabled": true
+            },
+            "CI-options" : {
+                "blob_name" : "efficientdet-d0"
+            }
         }
     ]
 }

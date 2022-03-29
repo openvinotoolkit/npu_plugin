@@ -337,18 +337,18 @@ void ConvertReduceToPoolingPass::safeRunOnFunc() {
                 mergedDim *= inputShape[axis];
                 if (inputShape[axis] > 255 || mergedDim > 255) {
                     upaCompatible = false;
-                    break;
                 }
             }
 
             // Check that handleLargeKernels supports this op
-            const bool dpuCompatible = IE::isGlobalPoolingKernelSupported(op);
+            const bool dpuCompatible = (axes.size() == 2) ? (vpux::IE::isPoolingKernelSizeValid(inputShape[axes[0]]) &&
+                                                             vpux::IE::isPoolingKernelSizeValid(inputShape[axes[1]]))
+                                                          : vpux::IE::isPoolingKernelSizeValid(mergedDim);
+
             const bool isHWCompilationMode = VPU::getCompilationMode(op) == VPU::CompilationMode::ReferenceHW ||
                                              VPU::getCompilationMode(op) == VPU::CompilationMode::DefaultHW;
 
-            if (!(upaCompatible || (dpuCompatible && isHWCompilationMode))) {
-                return true;
-            }
+            return !((upaCompatible && !isHWCompilationMode) || (dpuCompatible && isHWCompilationMode));
         }
 
         return false;

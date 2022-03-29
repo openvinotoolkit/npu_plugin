@@ -6,12 +6,14 @@
 #pragma once
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
+#include "vpux/compiler/utils/factors.hpp"
 
 namespace vpux {
 namespace IE {
 
 bool hasSupportedKernels(ArrayRef<int64_t> kernelSize);
-bool isGlobalPoolingKernelSupported(mlir::Operation* op);
+bool isPoolingKernelSizeValid(int64_t kernelSize);
+Optional<Factors> getFactors(int64_t kernelSize);
 
 }  // namespace IE
 }  // namespace vpux

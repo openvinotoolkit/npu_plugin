@@ -11,6 +11,44 @@
 
 using namespace vpux;
 
+bool checkFactors(const Factors& factors, int64_t kernelSize = 0) {
+    const auto hasZeroFactors = factors.larger == 0 || factors.smaller == 0;
+    const auto factorLessThanKernelSize = factors.larger * factors.smaller < kernelSize;
+    const auto hasUnsupportedFactors =
+            factors.larger > VPU::NCEInvariant::MAX_KERNEL_SIZE || factors.smaller > VPU::NCEInvariant::MAX_KERNEL_SIZE;
+    const auto hasBadFactors = factors.larger * factors.smaller > (kernelSize + factors.smaller / 2);
+    return !(hasZeroFactors || factorLessThanKernelSize || hasUnsupportedFactors || hasBadFactors);
+    // those last 2 checks have the main scope of finding the best suited factors:
+    // if one of the last 2 checks fails it means that the gap between product of
+    // those 2 factors and original kernel size is too big, which generates larger overlapping area
+}
+
+Factors getFactorsAround(int64_t kernelSize, int64_t pad) {
+    const auto& candidateFactors = getFactorsList(kernelSize + pad);
+    if (!candidateFactors.empty()) {
+        return candidateFactors.back();
+    }
+    return {};
+}
+
+Optional<Factors> vpux::IE::getFactors(int64_t kernelSize) {
+    const auto& allFactors = getFactorsList(kernelSize);
+    if (!allFactors.empty() && checkFactors(allFactors.back(), kernelSize)) {
+        return allFactors.back();
+    }
+
+    int64_t padValue = 1;
+    while (padValue < kernelSize) {
+        const auto& factors = getFactorsAround(kernelSize, padValue);
+        if (checkFactors(factors, kernelSize)) {
+            return factors;
+        }
+        padValue++;
+    }
+
+    return None;
+}
+
 bool vpux::IE::hasSupportedKernels(ArrayRef<int64_t> kernelSize) {
     const auto KY = kernelSize[Dims4D::Kernel::Y.ind()];
     const auto KX = kernelSize[Dims4D::Kernel::X.ind()];
@@ -18,29 +56,6 @@ bool vpux::IE::hasSupportedKernels(ArrayRef<int64_t> kernelSize) {
     return KY <= VPU::NCEInvariant::MAX_KERNEL_SIZE && KX <= VPU::NCEInvariant::MAX_KERNEL_SIZE;
 };
 
-bool vpux::IE::isGlobalPoolingKernelSupported(mlir::Operation* op) {
-    const auto inDataType = op->getOperand(0).getType().cast<NDTypeInterface>();
-    const auto inDataShape = inDataType.getShape().raw();
-    const llvm::SmallVector<int64_t> kernelSize = {inDataShape[Dims4D::Act::H.ind()],
-                                                   inDataShape[Dims4D::Act::W.ind()]};
-    if (IE::hasSupportedKernels(kernelSize)) {
-        return true;
-    }
-
-    const llvm::SmallVector<int64_t> strides = {1, 1};
-    const auto maxKernelSizeSupported =
-            VPU::NCEInvariant::MAX_KERNEL_SIZE *
-            VPU::NCEInvariant::MAX_KERNEL_SIZE;  // we can only get 2 factors and max kernel should be 11 * 11 = 121
-    auto unsupportedKernelCheck = [&](int32_t kernelInd, int32_t actInd, int32_t strideInd) {
-        return ((kernelSize[kernelInd] < inDataShape[actInd] && kernelSize[kernelInd] != strides[strideInd]) ||
-                kernelSize[kernelInd] > maxKernelSizeSupported);
-    };
-
-    if (unsupportedKernelCheck(Dims4D::Kernel::X.ind(), Dims4D::Act::W.ind(), Dims4D::Strides::X.ind())) {
-        return false;
-    }
-    if (unsupportedKernelCheck(Dims4D::Kernel::Y.ind(), Dims4D::Act::H.ind(), Dims4D::Strides::Y.ind())) {
-        return false;
-    }
-    return true;
+bool vpux::IE::isPoolingKernelSizeValid(int64_t kernelSize) {
+    return getFactors(kernelSize).hasValue();
 }
