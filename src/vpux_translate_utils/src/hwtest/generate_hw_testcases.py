@@ -681,6 +681,13 @@ class PReLU:
         else:
             return PRelu(output_data_type=np.float16).inference(values, self.slope)
 
+    def get_out_type(self):
+        if self.out_type is np.int8:
+            return Int8()
+        if self.out_type is np.uint8:
+            return UInt8()
+        if self.out_type is np.float16:
+            return FP16()
 
 class ZMajorConvolution(Operation):
 
@@ -2479,7 +2486,6 @@ def ppe(values: List[Value], output_ttype: TType, data: Union[np.ndarray, NBQuan
                 zero_point = np.round((-min_ * 255.) / length)
                 scale = length / 255.
 
-            output_type = Int8() if activation.out_type is np.int8 else UInt8()
             output_scale = scale
             output_zero_point = zero_point
         else:
@@ -2489,9 +2495,9 @@ def ppe(values: List[Value], output_ttype: TType, data: Union[np.ndarray, NBQuan
     if activation:
         data = activation(data, np.float32(output_scale), activation.out_type(output_zero_point))
         ndarray = getValue(data)
-    else:
-        ndarray = output_type.clip(ndarray).astype(output_type.dtype)
+        output_type = activation.get_out_type()
 
+    ndarray = output_type.clip(ndarray).astype(output_type.dtype)
     value = Value(output_type, 'output-0.bin', ndarray, output_type.bitwidth, output_type.bitsize, output_type.signed, None)
 
     if rescale:
@@ -3984,6 +3990,27 @@ def generate_options(args):
                 PReLU(Architecture.MTL, -0.5),
                 PReLU(Architecture.MTL, -1),
                 PReLU(Architecture.MTL, -1.5),
+            ]
+        ),
+
+        genZMConvs(
+            architecture=Architecture.MTL,
+            input_types=[FP16(2)],
+            input_shapes=[[1, 16, 16, 16]],
+            weight_types=[FP16(2)],
+            kernel_channels=[16],
+            kernel_shapes=[[1, 1]],
+            output_types=[FP16()],
+            pads=[[0, 0, 0, 0]],
+            activations=[
+                PReLU(Architecture.MTL, 0.1, np.int8),
+                PReLU(Architecture.MTL, 0.1, np.uint8),
+                PReLU(Architecture.MTL, 0.5, np.int8),
+                PReLU(Architecture.MTL, 0.5, np.uint8),
+                PReLU(Architecture.MTL, 1, np.int8),
+                PReLU(Architecture.MTL, 1, np.uint8),
+                PReLU(Architecture.MTL, 1.5, np.int8),
+                PReLU(Architecture.MTL, 1.5, np.uint8),
             ]
         ),
     )
