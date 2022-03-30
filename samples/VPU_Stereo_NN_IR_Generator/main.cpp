@@ -66,7 +66,7 @@ std::shared_ptr<ngraph::Function> create_advanced_function() {
     auto output_low_kernel = ngraph::opset3::Constant::create(ngraph::element::f16, ngraph::Shape{1}, {-127.});
     auto output_high_kernel = ngraph::opset3::Constant::create(ngraph::element::f16, ngraph::Shape{1}, {127.});
     auto kernel9x9_fakequantize = std::make_shared<ngraph::opset3::FakeQuantize>(
-            kernel_constant9x9, input_low_kernel, input_high_kernel, output_low_kernel, output_high_kernel, 256);
+            kernel_constant9x9, input_low_kernel, input_high_kernel, output_low_kernel, output_high_kernel, 255);
 
     Strides strides({1, 1});
     CoordinateDiff pad9x9({4, 4});
