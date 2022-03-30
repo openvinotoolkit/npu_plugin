@@ -41,18 +41,16 @@ public:
     explicit BaseLayerStrategy(mlir::FuncOp func, Logger log);
     virtual ~BaseLayerStrategy() = default;
 
-    virtual bool isOperationSplitOverHeightCompatible(mlir::Operation* op) const;
-    virtual bool isOperationSplitOverKernelCompatible(mlir::Operation* op) const;
-    virtual bool isOperationMultiClusterCompatible(mlir::Operation* op) const;
+    virtual bool isOperationSplitOverHeightCompatible(VPU::NCEOpInterface nceOp) const;
+    virtual bool isOperationSplitOverKernelCompatible(VPU::NCEOpInterface nceOp) const;
+    virtual bool isOperationMultiClusterCompatible(VPU::NCEOpInterface nceOp) const;
 
-    template <class ConcreteOp>
-    StringRef getOptimalLayerStrategy(ConcreteOp op) const;
+    StringRef getOptimalLayerStrategy(VPU::NCEOpInterface nceOp) const;
 
 protected:
-    virtual bool doesLayerFitIntoCMX(mlir::Operation* op, StringRef strategy) const = 0;
+    virtual bool doesLayerFitIntoCMX(VPU::NCEOpInterface nceOp, StringRef strategy) const = 0;
 
-    template <class ConcreteOp>
-    double computeSplitEfficiency(ConcreteOp op, StringRef strategy) const;
+    double computeSplitEfficiency(VPU::NCEOpInterface nceOp, StringRef strategy) const;
     double calculateMPEVolume(VPU::MPEMode mpeMode, Shape shape) const;
 
 protected:
@@ -72,8 +70,8 @@ public:
     ConvolutionStrategy(mlir::FuncOp func, Logger log): BaseLayerStrategy(func, log) {
     }
 
-    bool doesLayerFitIntoCMX(mlir::Operation* op, StringRef strategy) const override final;
-    bool isOperationSplitOverHeightCompatible(mlir::Operation* op) const override final;
+    bool doesLayerFitIntoCMX(VPU::NCEOpInterface nceOp, StringRef strategy) const override final;
+    bool isOperationSplitOverHeightCompatible(VPU::NCEOpInterface nceOp) const override final;
 };
 
 //
@@ -84,8 +82,8 @@ public:
     DepthConvolutionStrategy(mlir::FuncOp func, Logger log): BaseLayerStrategy(func, log) {
     }
 
-    bool doesLayerFitIntoCMX(mlir::Operation* op, StringRef strategy) const override final;
-    bool isOperationSplitOverHeightCompatible(mlir::Operation* op) const override final;
+    bool doesLayerFitIntoCMX(VPU::NCEOpInterface nceOp, StringRef strategy) const override final;
+    bool isOperationSplitOverHeightCompatible(VPU::NCEOpInterface nceOp) const override final;
 };
 
 //
@@ -96,8 +94,8 @@ public:
     MaxPoolStrategy(mlir::FuncOp func, Logger log): BaseLayerStrategy(func, log) {
     }
 
-    bool doesLayerFitIntoCMX(mlir::Operation* op, StringRef strategy) const override final;
-    bool isOperationSplitOverHeightCompatible(mlir::Operation* op) const override final;
+    bool doesLayerFitIntoCMX(VPU::NCEOpInterface nceOp, StringRef strategy) const override final;
+    bool isOperationSplitOverHeightCompatible(VPU::NCEOpInterface nceOp) const override final;
 };
 
 //
@@ -108,7 +106,7 @@ public:
     EltwiseStrategy(mlir::FuncOp func, Logger log): BaseLayerStrategy(func, log) {
     }
 
-    bool doesLayerFitIntoCMX(mlir::Operation* op, StringRef strategy) const override final;
+    bool doesLayerFitIntoCMX(VPU::NCEOpInterface nceOp, StringRef strategy) const override final;
 };
 
 //
@@ -127,8 +125,8 @@ public:
     void assignMultiClusterStrategy();
 
 private:
-    void setLayerStrategy(const llvm::StringRef strategy, mlir::Operation* origOp);
-    bool overrideStrategyForLayer(StringRef strategy, mlir::Operation* origOp);
+    void setLayerStrategy(const llvm::StringRef strategy, VPU::NCEOpInterface nceOp);
+    bool overrideStrategyForLayer(StringRef strategy, VPU::NCEOpInterface nceOp);
 
     mlir::FuncOp _func;
     Logger _log;
@@ -137,75 +135,6 @@ private:
     MaxPoolStrategy _maxPoolStrategy;
     EltwiseStrategy _eltwiseStrategy;
 };
-
-// The efficiency calculation that is being performed here can be described as follows.
-// A ratio of the real output tensor volume to the actual computation that occurs on the
-// hardware for each MPE Mode 4x4x16 and 16x1x16 is computed and the maximum is selected.
-template <class ConcreteOp>
-double BaseLayerStrategy::computeSplitEfficiency(ConcreteOp op, StringRef strategy) const {
-    const auto outputTensorDistributionMode = getOutputTensorDistributionMode(strategy);
-    const auto outputTensorNumTiles =
-            getIntArrayAttr(op->getContext(), getOutputTensorNumTiles(op.getOperation(), _numClusters, strategy));
-    mlir::ArrayAttr outputAlignmentAttr = nullptr;
-    const auto outputAlignment = getOutputTensorAlignment(strategy);
-    if (outputAlignment.hasValue()) {
-        outputAlignmentAttr = getIntArrayAttr(op->getContext(), outputAlignment.getValue());
-    }
-    const auto distributedOutputTensorType = createDistributedTensorType(
-            op, op.output(), outputTensorDistributionMode, outputTensorNumTiles, outputAlignmentAttr, strategy);
-
-    const auto perClusterShape = distributedOutputTensorType.getLargestCompactShape();
-    const auto perClusterOutputTensorVolume =
-            perClusterShape[Dims4D::Act::H] * perClusterShape[Dims4D::Act::W] * perClusterShape[Dims4D::Act::C];
-
-    return std::max(static_cast<double>(perClusterOutputTensorVolume) /
-                            calculateMPEVolume(VPU::MPEMode::MATRIX, perClusterShape),
-                    static_cast<double>(perClusterOutputTensorVolume) /
-                            calculateMPEVolume(VPU::MPEMode::VECTOR, perClusterShape));
-}
-
-template <class ConcreteOp>
-StringRef BaseLayerStrategy::getOptimalLayerStrategy(ConcreteOp op) const {
-    double splitOverHeightEfficiency = 0.0;
-    double splitOverKernelEfficiency = 0.0;
-    const auto arch = VPU::getArch(op.getOperation());
-    const auto isChannelMajor = (DimsOrder::fromValue(op.input()) == DimsOrder::NCHW) &&
-                                VPU::NCEInvariant::isChannelMajorCompatible(
-                                        arch, op.input().getType().template cast<vpux::NDTypeInterface>());
-
-    if (isOperationSplitOverHeightCompatible(op) &&
-        (doesLayerFitIntoCMX(op, splitOverHeightOverlapped) || doesLayerFitIntoCMX(op, splitOverHeight))) {
-        splitOverHeightEfficiency = computeSplitEfficiency(op, splitOverHeight);
-    }
-
-    if (isOperationSplitOverKernelCompatible(op) && doesLayerFitIntoCMX(op, splitOverKernel)) {
-        splitOverKernelEfficiency = computeSplitEfficiency(op, splitOverKernel);
-    }
-
-    // Compute ammount of clusters so that SOK is compatible
-    const auto module = op->template getParentOfType<mlir::ModuleOp>();
-    const auto numClustersAvailableForCompilation = IE::getAvailableExecutor(module, ExecutorKind::NCE).count();
-    const auto outputChannels = op.output().getType().template cast<vpux::NDTypeInterface>().getShape()[Dims4D::Act::C];
-    const auto sokOptimalClusters =
-            getNumberOfClustersForSOKToAvoidAlignment(outputChannels, numClustersAvailableForCompilation);
-
-    const auto optimalHeightTiling = [&](void) {
-        return isChannelMajor ? splitOverHeightOverlapped : splitOverHeight;
-    };
-    if (sokOptimalClusters == numClustersAvailableForCompilation) {
-        if (splitOverHeightEfficiency >= splitOverKernelEfficiency) {
-            return optimalHeightTiling();
-        }
-        return splitOverKernel;
-    } else {
-        // SOK uses less clusters, but it would be still better than if
-        // SOH is incompatible.
-        if (splitOverHeightEfficiency > 0) {
-            return optimalHeightTiling();
-        }
-        return splitOverKernel;
-    }
-}
 
 }  // namespace VPU
 }  // namespace vpux

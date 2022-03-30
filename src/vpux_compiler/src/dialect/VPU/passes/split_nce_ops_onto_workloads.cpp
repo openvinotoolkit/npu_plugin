@@ -207,17 +207,6 @@ void addDPUTasks(mlir::PatternRewriter& rewriter, VPU::NCEOpInterface origOp, VP
 }
 
 template <class ConcreteOp>
-VPU::PaddingAttr getOpPadding(ConcreteOp origOp) {
-    return origOp.pad();
-}
-
-template <>
-VPU::PaddingAttr getOpPadding(VPU::NCEEltwiseOp origOp) {
-    auto zeroAttr = getIntAttr(origOp->getContext(), 0);
-    return VPU::PaddingAttr::get(zeroAttr, zeroAttr, zeroAttr, zeroAttr, origOp->getContext());
-}
-
-template <class ConcreteOp>
 mlir::Value getOpInput(ConcreteOp origOp) {
     return origOp.input();
 }
@@ -228,52 +217,17 @@ mlir::Value getOpInput(NCEEltwiseOp origOp) {
 }
 
 template <class ConcreteOp>
-SmallVector<int64_t> getOpKernelSize(ConcreteOp origOp) {
-    const auto filterShape = origOp.rawFilterShapeAttr() != nullptr
-                                     ? Shape(parseIntArrayAttr<int64_t>(origOp.rawFilterShapeAttr()))
-                                     : getShape(origOp.filter());
-    const auto KY = filterShape[Dims4D::Filter::KY];
-    const auto KX = filterShape[Dims4D::Filter::KX];
-    return {KY, KX};
-}
-
-template <>
-SmallVector<int64_t> getOpKernelSize(VPU::NCEMaxPoolOp origOp) {
-    const auto kernelSize = parseIntArrayAttr<int64_t>(origOp.kernel_size());
-    const auto KY = kernelSize[0];
-    const auto KX = kernelSize[1];
-    return {KY, KX};
-}
-
-template <>
-SmallVector<int64_t> getOpKernelSize(VPU::NCEEltwiseOp origOp) {
-    VPUX_UNUSED(origOp);
-    return {1, 1};
-}
-
-template <class ConcreteOp>
-SmallVector<int64_t> getOpKernelStride(ConcreteOp origOp) {
-    const auto kernelStrides = parseIntArrayAttr<int64_t>(origOp.strides());
-    const auto SY = kernelStrides[0];
-    const auto SX = kernelStrides[1];
-    return {SY, SX};
-}
-
-template <>
-SmallVector<int64_t> getOpKernelStride(VPU::NCEEltwiseOp origOp) {
-    VPUX_UNUSED(origOp);
-    return {1, 1};
-}
-
-template <class ConcreteOp>
 mlir::LogicalResult GenericNCERewrite<ConcreteOp>::matchAndRewrite(ConcreteOp origOp,
                                                                    mlir::PatternRewriter& rewriter) const {
+    auto nceOp = mlir::dyn_cast<VPU::NCEOpInterface>(origOp.getOperation());
+    VPUX_THROW_UNLESS(nceOp != nullptr, "Operation '{0}' cannot be converted to VPU::NCEOpInterface", origOp);
+
     auto input = getOpInput(origOp);
     auto inElemType = input.getType().template cast<vpux::NDTypeInterface>().getElementType();
     auto outElemType = origOp.output().getType().template cast<vpux::NDTypeInterface>().getElementType();
     auto inputShape = getShape(input);
     auto outputShape = getShape(origOp.output());
-    auto pads = getOpPadding(origOp);
+    auto pads = nceOp.getPad();
 
     const auto mpeByType = mpeMap.at(_arch);
     const auto mpeMode = mpeByType(inElemType, outElemType, origOp, outputShape);
@@ -287,8 +241,8 @@ mlir::LogicalResult GenericNCERewrite<ConcreteOp>::matchAndRewrite(ConcreteOp or
     params.inputShape = inputShape.raw();
     params.outputShape = outputShape.raw();
     params.padInfo = VPU::toPadInfo(pads);
-    params.kernelSize = getOpKernelSize(origOp);
-    params.kernelStride = getOpKernelStride(origOp);
+    params.kernelSize = nceOp.getKernelSize();
+    params.kernelStride = nceOp.getStrides();
     params.isTileOverZSupported = params.mpeMode == VPU::MPEMode::VECTOR;
 
     llvm::TypeSwitch<mlir::Operation*, void>(origOp.getOperation())

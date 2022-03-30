@@ -43,16 +43,16 @@ SmallVector<int64_t> vpux::VPU::getActivationTensorNumTiles(int64_t numClustersA
     }
 }
 
-Optional<SmallVector<int64_t>> vpux::VPU::getActivationTensorAlignment(mlir::Operation* op, StringRef strategy) {
+Optional<SmallVector<int64_t>> vpux::VPU::getActivationTensorAlignment(VPU::NCEOpInterface nceOp, StringRef strategy) {
     if (strategy == splitOverKernel) {
         return SmallVector<int64_t>{1, 16, 1, 1};
     } else if (strategy == splitOverHeight) {
-        if (auto origOp = mlir::dyn_cast<NCEConvolutionOp>(op)) {
-            const auto kernel = getKernelSize(op);
-            if (kernel == nullptr) {
-                return None;
-            }
-            const auto KY = parseIntArrayAttr<int64_t>(kernel)[Dims4D::Kernel::Y.ind()];
+        if (auto origOp = mlir::dyn_cast<NCEConvolutionOp>(nceOp.getOperation())) {
+            const auto kernel = nceOp.getKernelSize();
+            VPUX_THROW_UNLESS(kernel.size() == 2, "Kernel size of operation '{0}' must be 2, but got '{1}'", origOp,
+                              kernel.size());
+
+            const auto KY = kernel[Dims4D::Kernel::Y.ind()];
             if (KY <= 1) {
                 return None;
             }
@@ -68,12 +68,13 @@ Optional<SmallVector<int64_t>> vpux::VPU::getActivationTensorAlignment(mlir::Ope
     return None;
 }
 
-SmallVector<int64_t> vpux::VPU::getOutputTensorNumTiles(mlir::Operation* op, int64_t numClustersAvailableForCompilation,
+SmallVector<int64_t> vpux::VPU::getOutputTensorNumTiles(VPU::NCEOpInterface nceOp,
+                                                        int64_t numClustersAvailableForCompilation,
                                                         StringRef strategy) {
     if (strategy == splitOverHeightOverlapped || strategy == splitOverHeight) {
         return {1, 1, numClustersAvailableForCompilation, 1};
     } else if (strategy == splitOverKernel) {
-        auto OC = getShape(op->getResult(0))[Dims4D::Act::C];
+        auto OC = getShape(nceOp->getResult(0))[Dims4D::Act::C];
         int64_t numClustersToUseForLayer =
                 getNumberOfClustersForSOKToAvoidAlignment(OC, numClustersAvailableForCompilation);
         return {1, numClustersToUseForLayer, 1, 1};
@@ -94,13 +95,13 @@ Optional<SmallVector<int64_t>> vpux::VPU::getOutputTensorAlignment(StringRef str
     return None;
 }
 
-SmallVector<int64_t> vpux::VPU::getWeightsTensorNumTiles(mlir::Operation* op,
+SmallVector<int64_t> vpux::VPU::getWeightsTensorNumTiles(VPU::NCEOpInterface nceOp,
                                                          int64_t numClustersAvailableForCompilation,
                                                          StringRef strategy) {
     if (strategy == splitOverHeightOverlapped || strategy == splitOverHeight || strategy == clustering) {
         return {1, 1, 1, 1};
     } else if (strategy == splitOverKernel) {
-        auto OC = getShape(op->getResult(0))[Dims4D::Act::C];
+        auto OC = getShape(nceOp->getResult(0))[Dims4D::Act::C];
         int64_t numClustersToUseForLayer =
                 getNumberOfClustersForSOKToAvoidAlignment(OC, numClustersAvailableForCompilation);
         return {numClustersToUseForLayer, 1, 1, 1};
@@ -118,13 +119,13 @@ Optional<SmallVector<int64_t>> vpux::VPU::getWeightsTensorAlignment(StringRef st
     return None;
 }
 
-SmallVector<int64_t> vpux::VPU::getWeightsTableTensorNumTiles(mlir::Operation* op,
+SmallVector<int64_t> vpux::VPU::getWeightsTableTensorNumTiles(VPU::NCEOpInterface nceOp,
                                                               int64_t numClustersAvailableForCompilation,
                                                               StringRef strategy) {
     if (strategy == splitOverHeightOverlapped || strategy == splitOverHeight || strategy == clustering) {
         return {1, 1, 1, 1};
     } else if (strategy == splitOverKernel) {
-        auto OC = getShape(op->getResult(0))[Dims4D::Act::C];
+        auto OC = getShape(nceOp->getResult(0))[Dims4D::Act::C];
         int64_t numClustersToUseForLayer =
                 getNumberOfClustersForSOKToAvoidAlignment(OC, numClustersAvailableForCompilation);
         return {numClustersToUseForLayer, 1, 1, 1};
@@ -197,9 +198,9 @@ DistributionMode vpux::VPU::getActivationWindowTensorDistributionMode(StringRef 
     }
 }
 
-NCEClusterTilingOp vpux::VPU::createDistributedCopyOut(mlir::Operation* origOp, NCEClusterTilingOp clusterTilingOp) {
-    mlir::OpBuilder builder(origOp);
-    auto origOutput = origOp->getResult(0);
+NCEClusterTilingOp vpux::VPU::createDistributedCopyOut(VPU::NCEOpInterface nceOp, NCEClusterTilingOp clusterTilingOp) {
+    mlir::OpBuilder builder(nceOp);
+    auto origOutput = nceOp->getResult(0);
     const auto origOutType = origOutput.getType().cast<NDTypeInterface>();
     const auto origOutMemSpace = origOutType.getMemSpace();
 
@@ -211,24 +212,6 @@ NCEClusterTilingOp vpux::VPU::createDistributedCopyOut(mlir::Operation* origOp, 
 
     return builder.create<NCEClusterTilingOp>(clusterTilingOp->getLoc(), origOutType, clusterTilingOp->getResult(0),
                                               outputTensorBodyBuilder);
-}
-
-mlir::ArrayAttr vpux::VPU::getKernelSize(mlir::Operation* origOp) {
-    if (auto depthwiseConvolutionOp = mlir::dyn_cast<NCEDepthConvolutionOp>(origOp)) {
-        const auto filterShape = Shape(parseIntArrayAttr<int64_t>(depthwiseConvolutionOp.rawFilterShape()));
-        return getIntArrayAttr(origOp->getContext(),
-                               makeArrayRef({filterShape[Dims4D::Filter::KY], filterShape[Dims4D::Filter::KX]}));
-    } else if (auto convolutionOp = mlir::dyn_cast<NCEConvolutionOp>(origOp)) {
-        const auto filterShape = Shape(parseIntArrayAttr<int64_t>(convolutionOp.rawFilterShape()));
-        return getIntArrayAttr(origOp->getContext(),
-                               makeArrayRef({filterShape[Dims4D::Filter::KY], filterShape[Dims4D::Filter::KX]}));
-    } else if (auto maxPoolOp = mlir::dyn_cast<NCEMaxPoolOp>(origOp)) {
-        return maxPoolOp.kernel_size();
-    } else if (auto eltwiseOp = mlir::dyn_cast<NCEEltwiseOp>(origOp)) {
-        return nullptr;
-    } else {
-        VPUX_THROW("Attempting to get kernel size for operation {0}, which is not a NCE Task", origOp->getName());
-    }
 }
 
 int64_t vpux::VPU::getSOHPerClusterHeightAlignment(int64_t inputWidth) {
@@ -267,4 +250,82 @@ bool vpux::VPU::isSOHSupportedByDPU(ShapeRef inputShape, int64_t KY, int64_t num
     auto hLastCluster = IH - hPerCluster * (numClusters - 1);
 
     return (hLastCluster > 0);
+}
+
+DistributedTensorType vpux::VPU::createDistributedTensorType(VPU::NCEOpInterface nceOp, mlir::Value input,
+                                                             DistributionMode distributionMode,
+                                                             mlir::ArrayAttr numTiles, mlir::ArrayAttr alignment,
+                                                             StringRef strategy) {
+    auto* ctx = nceOp->getContext();
+    DistributedTensorAttr distributedActivationTensorAttr;
+    auto module = nceOp->getParentOfType<mlir::ModuleOp>();
+    auto nceResOp = IE::getAvailableExecutor(module, ExecutorKind::NCE);
+    const auto numClustersAvailableForCompilation = getIntAttr(ctx, nceResOp.count());
+    const auto activationTensorDistributionModeAttr = DistributionModeAttr::get(ctx, distributionMode);
+    auto optimalNumberOfClusters = numClustersAvailableForCompilation;
+
+    // Here the number of clusters to be used for an individual SOK layer is determined
+    // such that additional alignment of the per cluster output channels is not required.
+    // For example 80 output channels, the weights should only be split on 3 clusters [32, 32, 16].
+    // Also when creating the copy-in for the activation we need to ensure that the number
+    // of clusters that the input is duplicated to is also 3 clusters in this case.
+    // Therefore we use the variable optimalNumberOfClusters for both purposes here, to detemine
+    // num_tiles and numClusters for the activations and the weights.
+    if (strategy == splitOverKernel) {
+        int64_t numClustersToUseForLayer = numClustersAvailableForCompilation.getValue().getSExtValue();
+        auto OC = getShape(nceOp->getResult(0))[Dims4D::Act::C];
+        numClustersToUseForLayer = getNumberOfClustersForSOKToAvoidAlignment(OC, numClustersToUseForLayer);
+        optimalNumberOfClusters = mlir::IntegerAttr::get(getInt64Type(ctx), numClustersToUseForLayer);
+    }
+
+    auto kernel = getIntArrayAttr(ctx, nceOp.getKernelSize());
+    const auto shape = getShape(input);
+    if (distributionMode == DistributionMode::OVERLAPPED) {
+        auto stride = getIntArrayAttr(ctx, nceOp.getStrides());
+        auto pad = nceOp.getPad();
+        optimalNumberOfClusters = getIntAttr(ctx, nceResOp.count());
+
+        distributedActivationTensorAttr =
+                DistributedTensorAttr::get(activationTensorDistributionModeAttr, numTiles, kernel, pad, stride,
+                                           optimalNumberOfClusters, alignment, ctx);
+    } else if (distributionMode == DistributionMode::DUPLICATED) {
+        distributedActivationTensorAttr =
+                DistributedTensorAttr::get(activationTensorDistributionModeAttr, nullptr, nullptr, nullptr, nullptr,
+                                           optimalNumberOfClusters, alignment, ctx);
+    } else if (VPU ::bitEnumContains(distributionMode, VPU::DistributionMode::SEGMENTED)) {
+        distributedActivationTensorAttr =
+                DistributedTensorAttr::get(activationTensorDistributionModeAttr, numTiles, nullptr, nullptr, nullptr,
+                                           optimalNumberOfClusters, alignment, ctx);
+
+    } else {
+        VPUX_THROW("Unsupported distribution mode: {0}", VPU::stringifyDistributionMode(distributionMode));
+    }
+
+    const auto memSpace = vpux::IndexedSymbolAttr::get(MemoryKindAttr::get(ctx, MemoryKind::CMX_NN));
+
+    const auto order = mlir::AffineMapAttr::get(DimsOrder::fromValue(input).toAffineMap(ctx));
+    auto elemType = input.getType().template cast<vpux::NDTypeInterface>().getElementType();
+
+    return DistributedTensorType::get(ctx, shape.raw(), elemType, order, memSpace, distributedActivationTensorAttr);
+}
+
+NCEClusterTilingOp vpux::VPU::createDistributedCopyIn(VPU::NCEOpInterface nceOp, mlir::Value input,
+                                                      DistributionMode distributionMode, mlir::ArrayAttr numTiles,
+                                                      mlir::ArrayAttr alignment, StringRef strategy) {
+    auto inputTensorDistributedTensorType =
+            createDistributedTensorType(nceOp, input, distributionMode, numTiles, alignment, strategy);
+
+    mlir::OpBuilder builder(nceOp);
+    builder.setInsertionPoint(nceOp);
+    const auto inputTensorBodyBuilder = [&](mlir::OpBuilder& builder, mlir::Location loc,
+                                            mlir::ValueRange newOperands) {
+        const auto memSpace = IndexedSymbolAttr::get(builder.getContext(), stringifyEnum(MemoryKind::CMX_NN));
+        auto inputTensorDistributedCopyOp = builder.create<IE::CopyOp>(nceOp->getLoc(), newOperands[0], memSpace);
+        builder.create<YieldOp>(loc, inputTensorDistributedCopyOp->getResults());
+    };
+
+    auto distributedInputCopyOp = builder.create<NCEClusterTilingOp>(nceOp->getLoc(), inputTensorDistributedTensorType,
+                                                                     input, inputTensorBodyBuilder);
+
+    return distributedInputCopyOp;
 }
