@@ -11,7 +11,7 @@
 using namespace vpux;
 using namespace VPU;
 
-bool EltwiseStrategy::doesLayerFitIntoCMX(VPU::NCEOpInterface nceOp, StringRef strategy) const {
+bool EltwiseStrategy::doesLayerFitIntoCMX(VPU::NCEOpInterface nceOp, VPU::MultiClusterStrategy strategy) const {
     auto origOp = mlir::dyn_cast<NCEEltwiseOp>(nceOp.getOperation());
     VPUX_THROW_UNLESS(origOp != nullptr, "Got non VPU::NCEEltwiseOp operation {0}", nceOp->getName());
 

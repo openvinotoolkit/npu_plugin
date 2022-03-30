@@ -62,7 +62,7 @@ mlir::LogicalResult NCEConvolutionRewriter::matchAndRewrite(NCEConvolutionOp ori
     mlir::ArrayAttr weightAlignmentAttr = nullptr;
     mlir::ArrayAttr outputAlignmentAttr = nullptr;
     NCEClusterTilingOp clusterTilingOp = nullptr;
-    const auto strategy = origOp->getAttr(multiClusterStrategy).cast<mlir::StringAttr>().getValue();
+    const auto strategy = origOp->getAttr(multiClusterStrategy).cast<VPU::MultiClusterStrategyAttr>().getValue();
 
     const auto activationTensorDistributionMode = getActivationTensorDistributionMode(strategy);
     const auto activationTensorNumTiles = getIntArrayAttr(ctx, getActivationTensorNumTiles(_numClusters, strategy));
@@ -186,7 +186,7 @@ mlir::LogicalResult NCEDepthConvolutionRewriter::matchAndRewrite(NCEDepthConvolu
     mlir::ArrayAttr activationAlignmentAttr = nullptr;
     mlir::ArrayAttr weightAlignmentAttr = nullptr;
     mlir::ArrayAttr outputAlignmentAttr = nullptr;
-    const auto strategy = origOp->getAttr(multiClusterStrategy).cast<mlir::StringAttr>().getValue();
+    const auto strategy = origOp->getAttr(multiClusterStrategy).cast<VPU::MultiClusterStrategyAttr>().getValue();
     const auto activationTensorDistributionMode = getActivationTensorDistributionMode(strategy);
     const auto activationTensorNumTiles = getIntArrayAttr(ctx, getActivationTensorNumTiles(_numClusters, strategy));
     const auto weightsTensorDistributionMode = getWeightsTensorDistributionMode(strategy);
@@ -294,7 +294,7 @@ mlir::LogicalResult NCEMaxPoolRewriter::matchAndRewrite(NCEMaxPoolOp origOp, mli
     mlir::ArrayAttr activationAlignmentAttr = nullptr;
     mlir::ArrayAttr weightAlignmentAttr = nullptr;
     mlir::ArrayAttr outputAlignmentAttr = nullptr;
-    const auto strategy = origOp->getAttr(multiClusterStrategy).cast<mlir::StringAttr>().getValue();
+    const auto strategy = origOp->getAttr(multiClusterStrategy).cast<VPU::MultiClusterStrategyAttr>().getValue();
     const auto activationTensorDistributionMode = getActivationTensorDistributionMode(strategy);
     const auto activationTensorNumTiles = getIntArrayAttr(ctx, getActivationTensorNumTiles(_numClusters, strategy));
     const auto weightsTableTensorDistributionMode = getWeightsTensorDistributionMode(strategy);
@@ -393,7 +393,7 @@ mlir::LogicalResult NCEEltwiseRewriter::matchAndRewrite(NCEEltwiseOp origOp, mli
     VPUX_THROW_UNLESS(nceOp != nullptr, "Operation '{0}' cannot be converted to VPU::NCEOpInterface", origOp);
 
     mlir::ArrayAttr activationAlignmentAttr = nullptr;
-    const auto strategy = origOp->getAttr(multiClusterStrategy).cast<mlir::StringAttr>().getValue();
+    const auto strategy = origOp->getAttr(multiClusterStrategy).cast<VPU::MultiClusterStrategyAttr>().getValue();
     const auto activationTensorDistributionMode = getActivationTensorDistributionMode(strategy);
     const auto activationTensorNumTiles = getIntArrayAttr(ctx, getActivationTensorNumTiles(_numClusters, strategy));
     const auto outputTensorDistributionMode = getOutputTensorDistributionMode(strategy);

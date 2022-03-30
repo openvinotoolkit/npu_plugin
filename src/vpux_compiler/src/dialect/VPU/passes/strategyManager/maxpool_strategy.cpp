@@ -11,7 +11,7 @@
 using namespace vpux;
 using namespace VPU;
 
-bool MaxPoolStrategy::doesLayerFitIntoCMX(VPU::NCEOpInterface nceOp, StringRef strategy) const {
+bool MaxPoolStrategy::doesLayerFitIntoCMX(VPU::NCEOpInterface nceOp, VPU::MultiClusterStrategy strategy) const {
     auto origOp = mlir::dyn_cast<NCEMaxPoolOp>(nceOp.getOperation());
     VPUX_THROW_UNLESS(origOp != nullptr, "Got non VPU::NCEMaxPoolOp operation {0}", nceOp->getName());
 

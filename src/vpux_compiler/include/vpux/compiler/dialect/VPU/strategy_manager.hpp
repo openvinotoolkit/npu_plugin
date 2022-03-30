@@ -45,12 +45,12 @@ public:
     virtual bool isOperationSplitOverKernelCompatible(VPU::NCEOpInterface nceOp) const;
     virtual bool isOperationMultiClusterCompatible(VPU::NCEOpInterface nceOp) const;
 
-    StringRef getOptimalLayerStrategy(VPU::NCEOpInterface nceOp) const;
+    VPU::MultiClusterStrategy getOptimalLayerStrategy(VPU::NCEOpInterface nceOp) const;
 
 protected:
-    virtual bool doesLayerFitIntoCMX(VPU::NCEOpInterface nceOp, StringRef strategy) const = 0;
+    virtual bool doesLayerFitIntoCMX(VPU::NCEOpInterface nceOp, VPU::MultiClusterStrategy strategy) const = 0;
 
-    double computeSplitEfficiency(VPU::NCEOpInterface nceOp, StringRef strategy) const;
+    double computeSplitEfficiency(VPU::NCEOpInterface nceOp, VPU::MultiClusterStrategy strategy) const;
     double calculateMPEVolume(VPU::MPEMode mpeMode, Shape shape) const;
 
 protected:
@@ -70,7 +70,7 @@ public:
     ConvolutionStrategy(mlir::FuncOp func, Logger log): BaseLayerStrategy(func, log) {
     }
 
-    bool doesLayerFitIntoCMX(VPU::NCEOpInterface nceOp, StringRef strategy) const override final;
+    bool doesLayerFitIntoCMX(VPU::NCEOpInterface nceOp, VPU::MultiClusterStrategy strategy) const override final;
     bool isOperationSplitOverHeightCompatible(VPU::NCEOpInterface nceOp) const override final;
 };
 
@@ -82,7 +82,7 @@ public:
     DepthConvolutionStrategy(mlir::FuncOp func, Logger log): BaseLayerStrategy(func, log) {
     }
 
-    bool doesLayerFitIntoCMX(VPU::NCEOpInterface nceOp, StringRef strategy) const override final;
+    bool doesLayerFitIntoCMX(VPU::NCEOpInterface nceOp, VPU::MultiClusterStrategy strategy) const override final;
     bool isOperationSplitOverHeightCompatible(VPU::NCEOpInterface nceOp) const override final;
 };
 
@@ -94,7 +94,7 @@ public:
     MaxPoolStrategy(mlir::FuncOp func, Logger log): BaseLayerStrategy(func, log) {
     }
 
-    bool doesLayerFitIntoCMX(VPU::NCEOpInterface nceOp, StringRef strategy) const override final;
+    bool doesLayerFitIntoCMX(VPU::NCEOpInterface nceOp, VPU::MultiClusterStrategy strategy) const override final;
     bool isOperationSplitOverHeightCompatible(VPU::NCEOpInterface nceOp) const override final;
 };
 
@@ -106,7 +106,7 @@ public:
     EltwiseStrategy(mlir::FuncOp func, Logger log): BaseLayerStrategy(func, log) {
     }
 
-    bool doesLayerFitIntoCMX(VPU::NCEOpInterface nceOp, StringRef strategy) const override final;
+    bool doesLayerFitIntoCMX(VPU::NCEOpInterface nceOp, VPU::MultiClusterStrategy strategy) const override final;
 };
 
 //
@@ -125,8 +125,8 @@ public:
     void assignMultiClusterStrategy();
 
 private:
-    void setLayerStrategy(const llvm::StringRef strategy, VPU::NCEOpInterface nceOp);
-    bool overrideStrategyForLayer(StringRef strategy, VPU::NCEOpInterface nceOp);
+    void setLayerStrategy(VPU::MultiClusterStrategy strategy, VPU::NCEOpInterface nceOp);
+    bool overrideStrategyForLayer(VPU::MultiClusterStrategy strategy, VPU::NCEOpInterface nceOp);
 
     mlir::FuncOp _func;
     Logger _log;

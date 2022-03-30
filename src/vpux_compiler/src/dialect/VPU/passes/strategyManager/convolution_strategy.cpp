@@ -11,8 +11,10 @@
 using namespace vpux;
 using namespace VPU;
 
-bool ConvolutionStrategy::doesLayerFitIntoCMX(VPU::NCEOpInterface nceOp, StringRef strategy) const {
+bool ConvolutionStrategy::doesLayerFitIntoCMX(VPU::NCEOpInterface nceOp, VPU::MultiClusterStrategy strategy) const {
     auto origOp = mlir::dyn_cast<NCEConvolutionOp>(nceOp.getOperation());
+    VPUX_THROW_UNLESS(origOp != nullptr, "Got non VPU::NCEConvolutionOp operation {0}", nceOp->getName());
+
     mlir::ArrayAttr activationAlignmentAttr = nullptr;
     mlir::ArrayAttr weightAlignmentAttr = nullptr;
     mlir::ArrayAttr outputAlignmentAttr = nullptr;
@@ -74,6 +76,7 @@ bool ConvolutionStrategy::isOperationSplitOverHeightCompatible(VPU::NCEOpInterfa
 
     auto origOp = mlir::dyn_cast<NCEConvolutionOp>(nceOp.getOperation());
     VPUX_THROW_UNLESS(origOp != nullptr, "Got non VPU::NCEConvolutionOp operation {0}", nceOp->getName());
+
     const auto inputShape = getShape(origOp.input());
     const auto filterShape = Shape(parseIntArrayAttr<int64_t>(origOp.rawFilterShapeAttr()));
     const auto KY = filterShape[Dims4D::Filter::KY];

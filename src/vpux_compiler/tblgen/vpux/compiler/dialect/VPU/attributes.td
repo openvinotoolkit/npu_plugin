@@ -249,6 +249,25 @@ def VPU_PPETaskAttr :
         >;
 
 //
+// MultiClusterStrategy
+//
+def VPU_MultiClusterStrategy :
+        StrEnumAttr<
+            "MultiClusterStrategy",
+            "MultiCluster Strategy",
+            [
+                StrEnumAttrCase<"SplitOverHeight">,
+                StrEnumAttrCase<"SplitOverKernel">,
+                StrEnumAttrCase<"Clustering">,
+                StrEnumAttrCase<"SplitOverHeightOverlapped">,
+                StrEnumAttrCase<"HKSwitch">
+            ]
+        > {
+    let cppNamespace = "vpux::VPU";
+    let genSpecializedAttr = 1;
+}
+
+//
 // DistributionMode
 //
 

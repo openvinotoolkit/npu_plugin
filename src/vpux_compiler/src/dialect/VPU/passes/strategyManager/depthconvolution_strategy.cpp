@@ -11,7 +11,8 @@
 using namespace vpux;
 using namespace VPU;
 
-bool DepthConvolutionStrategy::doesLayerFitIntoCMX(VPU::NCEOpInterface nceOp, StringRef strategy) const {
+bool DepthConvolutionStrategy::doesLayerFitIntoCMX(VPU::NCEOpInterface nceOp,
+                                                   VPU::MultiClusterStrategy strategy) const {
     auto origOp = mlir::dyn_cast<NCEDepthConvolutionOp>(nceOp.getOperation());
     VPUX_THROW_UNLESS(origOp != nullptr, "Got non VPU::NCEDepthConvolutionOp operation {0}", nceOp->getName());
 

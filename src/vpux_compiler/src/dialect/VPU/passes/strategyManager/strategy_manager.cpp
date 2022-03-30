@@ -44,11 +44,13 @@ bool BaseLayerStrategy::isOperationSplitOverKernelCompatible(VPU::NCEOpInterface
 }
 
 bool BaseLayerStrategy::isOperationMultiClusterCompatible(VPU::NCEOpInterface nceOp) const {
-    if (isOperationSplitOverHeightCompatible(nceOp) && doesLayerFitIntoCMX(nceOp, splitOverHeight)) {
+    if (isOperationSplitOverHeightCompatible(nceOp) &&
+        doesLayerFitIntoCMX(nceOp, VPU::MultiClusterStrategy::SplitOverHeight)) {
         return true;
     }
 
-    if (isOperationSplitOverKernelCompatible(nceOp) && doesLayerFitIntoCMX(nceOp, splitOverKernel)) {
+    if (isOperationSplitOverKernelCompatible(nceOp) &&
+        doesLayerFitIntoCMX(nceOp, VPU::MultiClusterStrategy::SplitOverKernel)) {
         return true;
     }
 
@@ -69,18 +71,22 @@ void StrategyManager::assignMultiClusterStrategy() {
         llvm::TypeSwitch<mlir::Operation*, void>(op)
                 .Case<NCEMaxPoolOp>([this](NCEMaxPoolOp origOp) {
                     if (_maxPoolStrategy.isOperationSplitOverHeightCompatible(origOp.getOperation()) &&
-                        _maxPoolStrategy.doesLayerFitIntoCMX(origOp.getOperation(), splitOverHeight)) {
-                        setLayerStrategy(splitOverHeight, origOp.getOperation());
-                    } else if (_maxPoolStrategy.doesLayerFitIntoCMX(origOp.getOperation(), clustering)) {
-                        setLayerStrategy(clustering, origOp.getOperation());
+                        _maxPoolStrategy.doesLayerFitIntoCMX(origOp.getOperation(),
+                                                             VPU::MultiClusterStrategy::SplitOverHeight)) {
+                        setLayerStrategy(VPU::MultiClusterStrategy::SplitOverHeight, origOp.getOperation());
+                    } else if (_maxPoolStrategy.doesLayerFitIntoCMX(origOp.getOperation(),
+                                                                    VPU::MultiClusterStrategy::Clustering)) {
+                        setLayerStrategy(VPU::MultiClusterStrategy::Clustering, origOp.getOperation());
                     }
                 })
                 .Case<NCEEltwiseOp>([this](NCEEltwiseOp origOp) {
                     if (_eltwiseStrategy.isOperationSplitOverHeightCompatible(origOp.getOperation()) &&
-                        _eltwiseStrategy.doesLayerFitIntoCMX(origOp.getOperation(), splitOverHeight)) {
-                        setLayerStrategy(splitOverHeight, origOp.getOperation());
-                    } else if (_eltwiseStrategy.doesLayerFitIntoCMX(origOp.getOperation(), clustering)) {
-                        setLayerStrategy(clustering, origOp.getOperation());
+                        _eltwiseStrategy.doesLayerFitIntoCMX(origOp.getOperation(),
+                                                             VPU::MultiClusterStrategy::SplitOverHeight)) {
+                        setLayerStrategy(VPU::MultiClusterStrategy::SplitOverHeight, origOp.getOperation());
+                    } else if (_eltwiseStrategy.doesLayerFitIntoCMX(origOp.getOperation(),
+                                                                    VPU::MultiClusterStrategy::Clustering)) {
+                        setLayerStrategy(VPU::MultiClusterStrategy::Clustering, origOp.getOperation());
                     }
                 })
                 .Case<NCEConvolutionOp>([this](NCEConvolutionOp origOp) {
@@ -88,8 +94,9 @@ void StrategyManager::assignMultiClusterStrategy() {
                         if (_convolutionStrategy.isOperationMultiClusterCompatible(origOp.getOperation())) {
                             auto bestStrategy = _convolutionStrategy.getOptimalLayerStrategy(origOp.getOperation());
                             setLayerStrategy(bestStrategy, origOp.getOperation());
-                        } else if (_convolutionStrategy.doesLayerFitIntoCMX(origOp.getOperation(), clustering)) {
-                            setLayerStrategy(clustering, origOp.getOperation());
+                        } else if (_convolutionStrategy.doesLayerFitIntoCMX(origOp.getOperation(),
+                                                                            VPU::MultiClusterStrategy::Clustering)) {
+                            setLayerStrategy(VPU::MultiClusterStrategy::Clustering, origOp.getOperation());
                         }
                     } else if (DimsOrder::fromValue(origOp.input()) == DimsOrder::NCHW) {
                         const auto arch = VPU::getArch(origOp.getOperation());
@@ -98,11 +105,13 @@ void StrategyManager::assignMultiClusterStrategy() {
 
                         if (canUseCMajor &&
                             _convolutionStrategy.isOperationSplitOverHeightCompatible(origOp.getOperation()) &&
-                            _convolutionStrategy.doesLayerFitIntoCMX(origOp.getOperation(),
-                                                                     splitOverHeightOverlapped)) {
-                            setLayerStrategy(splitOverHeightOverlapped, origOp.getOperation());
-                        } else if (_convolutionStrategy.doesLayerFitIntoCMX(origOp.getOperation(), clustering)) {
-                            setLayerStrategy(clustering, origOp.getOperation());
+                            _convolutionStrategy.doesLayerFitIntoCMX(
+                                    origOp.getOperation(), VPU::MultiClusterStrategy::SplitOverHeightOverlapped)) {
+                            setLayerStrategy(VPU::MultiClusterStrategy::SplitOverHeightOverlapped,
+                                             origOp.getOperation());
+                        } else if (_convolutionStrategy.doesLayerFitIntoCMX(origOp.getOperation(),
+                                                                            VPU::MultiClusterStrategy::Clustering)) {
+                            setLayerStrategy(VPU::MultiClusterStrategy::Clustering, origOp.getOperation());
                         }
                     } else {
                         VPUX_THROW("Unsupported input layout {0} to convolution ",
@@ -113,8 +122,9 @@ void StrategyManager::assignMultiClusterStrategy() {
                     if (_depthConvolutionStrategy.isOperationMultiClusterCompatible(origOp.getOperation())) {
                         auto bestStrategy = _depthConvolutionStrategy.getOptimalLayerStrategy(origOp.getOperation());
                         setLayerStrategy(bestStrategy, origOp.getOperation());
-                    } else if (_depthConvolutionStrategy.doesLayerFitIntoCMX(origOp.getOperation(), clustering)) {
-                        setLayerStrategy(clustering, origOp.getOperation());
+                    } else if (_depthConvolutionStrategy.doesLayerFitIntoCMX(origOp.getOperation(),
+                                                                             VPU::MultiClusterStrategy::Clustering)) {
+                        setLayerStrategy(VPU::MultiClusterStrategy::Clustering, origOp.getOperation());
                     }
                 })
                 .Default([this](mlir::Operation* unknownOp) -> void {
@@ -130,14 +140,15 @@ void StrategyManager::assignMultiClusterStrategy() {
 // Based on layer properties like input/output shapes or properties of model or subgraph s
 // set layer strategy to predefined value
 // Return true if such override has happened
-bool StrategyManager::overrideStrategyForLayer(StringRef strategy, VPU::NCEOpInterface nceOp) {
+bool StrategyManager::overrideStrategyForLayer(VPU::MultiClusterStrategy strategy, VPU::NCEOpInterface nceOp) {
     const auto funcType = _func.getType();
 
     if (funcType.getInputs().size() == 23 && funcType.getResults().size() == 23) {
         // Temporary solution:
         // For model with 23 inputs and 23 outputs disable multiclustering
         // for layers which were initially assigned Clustering or SOH
-        if (strategy == splitOverHeight || strategy == clustering) {
+        if (strategy == VPU::MultiClusterStrategy::SplitOverHeight ||
+            strategy == VPU::MultiClusterStrategy::Clustering) {
             _log.trace("Override multi-cluster strategy decision to '{0}' for layer '{1}' - '{2}'", "NONE",
                        nceOp->getName(), nceOp->getLoc());
             return true;
@@ -147,26 +158,16 @@ bool StrategyManager::overrideStrategyForLayer(StringRef strategy, VPU::NCEOpInt
     return false;
 }
 
-void StrategyManager::setLayerStrategy(StringRef strategy, VPU::NCEOpInterface nceOp) {
+void StrategyManager::setLayerStrategy(VPU::MultiClusterStrategy strategy, VPU::NCEOpInterface nceOp) {
     if (overrideStrategyForLayer(strategy, nceOp)) {
         return;
     }
 
-    if (strategy == splitOverHeightOverlapped) {
-        nceOp->setAttr(multiClusterStrategy, mlir::StringAttr::get(nceOp->getContext(), "SplitOverHeightOverlapped"));
+    if (strategy == VPU::MultiClusterStrategy::SplitOverHeight ||
+        strategy == VPU::MultiClusterStrategy::SplitOverKernel || strategy == VPU::MultiClusterStrategy::Clustering ||
+        strategy == VPU::MultiClusterStrategy::SplitOverHeightOverlapped) {
+        nceOp->setAttr(multiClusterStrategy, VPU::MultiClusterStrategyAttr::get(nceOp->getContext(), strategy));
         _log.trace("Assigning multi-cluster strategy '{0}' to layer '{1}' - '{2}'", strategy, nceOp->getName(),
-                   nceOp->getLoc());
-    } else if (strategy == splitOverHeight) {
-        nceOp->setAttr(multiClusterStrategy, mlir::StringAttr::get(nceOp->getContext(), "SplitOverHeight"));
-        _log.trace("Assigning multi-cluster strategy '{0}' to layer '{1}'- '{2}'", strategy, nceOp->getName(),
-                   nceOp->getLoc());
-    } else if (strategy == splitOverKernel) {
-        nceOp->setAttr(multiClusterStrategy, mlir::StringAttr::get(nceOp->getContext(), "SplitOverKernel"));
-        _log.trace("Assigning multi-cluster strategy '{0}' to layer '{1}'- '{2}'", strategy, nceOp->getName(),
-                   nceOp->getLoc());
-    } else if (strategy == clustering) {
-        nceOp->setAttr(multiClusterStrategy, mlir::StringAttr::get(nceOp->getContext(), "Clustering"));
-        _log.trace("Assigning multi-cluster strategy '{0}' to layer '{1}'- '{2}'", strategy, nceOp->getName(),
                    nceOp->getLoc());
     } else {
         VPUX_THROW("Attempting to assign an invalid strategy to operation {0}", nceOp->getName());
@@ -197,7 +198,7 @@ double BaseLayerStrategy::calculateMPEVolume(VPU::MPEMode mpeMode, Shape shape) 
 // The efficiency calculation that is being performed here can be described as follows.
 // A ratio of the real output tensor volume to the actual computation that occurs on the
 // hardware for each MPE Mode 4x4x16 and 16x1x16 is computed and the maximum is selected.
-double BaseLayerStrategy::computeSplitEfficiency(VPU::NCEOpInterface nceOp, StringRef strategy) const {
+double BaseLayerStrategy::computeSplitEfficiency(VPU::NCEOpInterface nceOp, VPU::MultiClusterStrategy strategy) const {
     const auto outputTensorDistributionMode = getOutputTensorDistributionMode(strategy);
     const auto outputTensorNumTiles =
             getIntArrayAttr(nceOp->getContext(), getOutputTensorNumTiles(nceOp, _numClusters, strategy));
@@ -220,7 +221,7 @@ double BaseLayerStrategy::computeSplitEfficiency(VPU::NCEOpInterface nceOp, Stri
                             calculateMPEVolume(VPU::MPEMode::VECTOR, perClusterShape));
 }
 
-StringRef BaseLayerStrategy::getOptimalLayerStrategy(VPU::NCEOpInterface nceOp) const {
+VPU::MultiClusterStrategy BaseLayerStrategy::getOptimalLayerStrategy(VPU::NCEOpInterface nceOp) const {
     double splitOverHeightEfficiency = 0.0;
     double splitOverKernelEfficiency = 0.0;
     const auto arch = VPU::getArch(nceOp);
@@ -229,12 +230,14 @@ StringRef BaseLayerStrategy::getOptimalLayerStrategy(VPU::NCEOpInterface nceOp) 
                                         arch, nceOp->getOperand(0).getType().template cast<vpux::NDTypeInterface>());
 
     if (isOperationSplitOverHeightCompatible(nceOp) &&
-        (doesLayerFitIntoCMX(nceOp, splitOverHeightOverlapped) || doesLayerFitIntoCMX(nceOp, splitOverHeight))) {
-        splitOverHeightEfficiency = computeSplitEfficiency(nceOp, splitOverHeight);
+        (doesLayerFitIntoCMX(nceOp, VPU::MultiClusterStrategy::SplitOverHeightOverlapped) ||
+         doesLayerFitIntoCMX(nceOp, VPU::MultiClusterStrategy::SplitOverHeight))) {
+        splitOverHeightEfficiency = computeSplitEfficiency(nceOp, VPU::MultiClusterStrategy::SplitOverHeight);
     }
 
-    if (isOperationSplitOverKernelCompatible(nceOp) && doesLayerFitIntoCMX(nceOp, splitOverKernel)) {
-        splitOverKernelEfficiency = computeSplitEfficiency(nceOp, splitOverKernel);
+    if (isOperationSplitOverKernelCompatible(nceOp) &&
+        doesLayerFitIntoCMX(nceOp, VPU::MultiClusterStrategy::SplitOverKernel)) {
+        splitOverKernelEfficiency = computeSplitEfficiency(nceOp, VPU::MultiClusterStrategy::SplitOverKernel);
     }
 
     // Compute ammount of clusters so that SOK is compatible
@@ -246,18 +249,19 @@ StringRef BaseLayerStrategy::getOptimalLayerStrategy(VPU::NCEOpInterface nceOp) 
             getNumberOfClustersForSOKToAvoidAlignment(outputChannels, numClustersAvailableForCompilation);
 
     const auto optimalHeightTiling = [&](void) {
-        return isChannelMajor ? splitOverHeightOverlapped : splitOverHeight;
+        return isChannelMajor ? VPU::MultiClusterStrategy::SplitOverHeightOverlapped
+                              : VPU::MultiClusterStrategy::SplitOverHeight;
     };
     if (sokOptimalClusters == numClustersAvailableForCompilation) {
         if (splitOverHeightEfficiency >= splitOverKernelEfficiency) {
             return optimalHeightTiling();
         }
-        return splitOverKernel;
+        return VPU::MultiClusterStrategy::SplitOverKernel;
     }
     // SOK uses less clusters, but it would be still better than if
     // SOH is incompatible.
     if (splitOverHeightEfficiency > 0) {
         return optimalHeightTiling();
     }
-    return splitOverKernel;
+    return VPU::MultiClusterStrategy::SplitOverKernel;
 }

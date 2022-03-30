@@ -27,39 +27,37 @@ namespace VPU {
 
 constexpr int64_t KMB_DPU_CHANNELS_ALIGNMENT = 16;
 constexpr StringLiteral multiClusterStrategy = "multiClusterStrategy";
-constexpr StringLiteral splitOverHeightOverlapped =
-        "SplitOverHeightOverlapped";  // Strategy is for channel major convolution
-constexpr StringLiteral splitOverHeight = "SplitOverHeight";
-constexpr StringLiteral splitOverKernel = "SplitOverKernel";
-constexpr StringLiteral clustering = "Clustering";
 
 int64_t getNumberOfClustersForSOKToAvoidAlignment(int64_t outputChannels, int64_t numClustersForCompilation);
-SmallVector<int64_t> getActivationTensorNumTiles(int64_t numClustersAvailableForCompilation, StringRef strategy);
-Optional<SmallVector<int64_t>> getActivationTensorAlignment(VPU::NCEOpInterface nceOp, StringRef strategy);
+SmallVector<int64_t> getActivationTensorNumTiles(int64_t numClustersAvailableForCompilation,
+                                                 VPU::MultiClusterStrategy strategy);
+Optional<SmallVector<int64_t>> getActivationTensorAlignment(VPU::NCEOpInterface nceOp,
+                                                            VPU::MultiClusterStrategy strategy);
 SmallVector<int64_t> getOutputTensorNumTiles(VPU::NCEOpInterface nceOp, int64_t numClustersAvailableForCompilation,
-                                             StringRef strategy);
-Optional<SmallVector<int64_t>> getOutputTensorAlignment(StringRef strategy);
+                                             VPU::MultiClusterStrategy strategy);
+Optional<SmallVector<int64_t>> getOutputTensorAlignment(VPU::MultiClusterStrategy strategy);
 SmallVector<int64_t> getWeightsTensorNumTiles(VPU::NCEOpInterface nceOp, int64_t numClustersAvailableForCompilation,
-                                              StringRef strategy);
-Optional<SmallVector<int64_t>> getWeightsTensorAlignment(StringRef strategy);
+                                              VPU::MultiClusterStrategy strategy);
+Optional<SmallVector<int64_t>> getWeightsTensorAlignment(VPU::MultiClusterStrategy strategy);
 SmallVector<int64_t> getWeightsTableTensorNumTiles(VPU::NCEOpInterface nceOp,
-                                                   int64_t numClustersAvailableForCompilation, StringRef strategy);
-SmallVector<int64_t> getActivationWindowTensorNumTiles(StringRef strategy);
-DistributionMode getActivationTensorDistributionMode(StringRef strategy);
-DistributionMode getWeightsTensorDistributionMode(StringRef strategy);
-DistributionMode getOutputTensorDistributionMode(StringRef strategy);
-DistributionMode getActivationWindowTensorDistributionMode(StringRef strategy);
+                                                   int64_t numClustersAvailableForCompilation,
+                                                   VPU::MultiClusterStrategy strategy);
+SmallVector<int64_t> getActivationWindowTensorNumTiles(VPU::MultiClusterStrategy strategy);
+DistributionMode getActivationTensorDistributionMode(VPU::MultiClusterStrategy strategy);
+DistributionMode getWeightsTensorDistributionMode(VPU::MultiClusterStrategy strategy);
+DistributionMode getOutputTensorDistributionMode(VPU::MultiClusterStrategy strategy);
+DistributionMode getActivationWindowTensorDistributionMode(VPU::MultiClusterStrategy strategy);
 NCEClusterTilingOp createDistributedCopyOut(VPU::NCEOpInterface nceOp, NCEClusterTilingOp clusterTilingOp);
 int64_t getSOHPerClusterHeightAlignment(int64_t inputWidth);
 bool isSOHSupportedByDPU(ShapeRef inputShape, int64_t KY, int64_t numClusters, bool DWTypeOp);
 
 NCEClusterTilingOp createDistributedCopyIn(VPU::NCEOpInterface nceOp, mlir::Value input,
                                            DistributionMode distributionMode, mlir::ArrayAttr numTiles,
-                                           mlir::ArrayAttr alignment, StringRef strategy);
+                                           mlir::ArrayAttr alignment, VPU::MultiClusterStrategy strategy);
 
 DistributedTensorType createDistributedTensorType(VPU::NCEOpInterface nceOp, mlir::Value input,
                                                   DistributionMode distributionMode, mlir::ArrayAttr numTiles,
-                                                  mlir::ArrayAttr alignment, StringRef strategy);
+                                                  mlir::ArrayAttr alignment, VPU::MultiClusterStrategy strategy);
 
 }  // namespace VPU
 }  // namespace vpux
