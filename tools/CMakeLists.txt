@@ -34,7 +34,7 @@ foreach(TOOL IN LISTS PYTHON_TOOLS)
                 COMPONENT tests
                 EXCLUDE_FROM_ALL)
 
-        # TODO: Remove duplication EISW-31024
+        # TODO: Remove duplication E#31024
         install(DIRECTORY "${CMAKE_CURRENT_LIST_DIR}/${TOOL}/"
                 DESTINATION "tools/${TOOL}"
                 COMPONENT ${VPUX_TESTS_COMPONENT}

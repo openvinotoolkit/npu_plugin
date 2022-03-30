@@ -94,14 +94,14 @@ function(add_tool_target)
                 COMPONENT ${ARG_COMPONENT}
                 EXCLUDE_FROM_ALL)
 
-        # TODO: Remove duplication EISW-31024
+        # TODO: Remove duplication E#31024
         install(FILES "${ARG_ROOT}/README.md"
                 DESTINATION ${ARG_INSTALL_DESTINATION}
                 COMPONENT ${VPUX_TESTS_COMPONENT}
                 EXCLUDE_FROM_ALL)
     endif()
 
-    # TODO: Remove duplication EISW-31024
+    # TODO: Remove duplication E#31024
     install(TARGETS ${ARG_NAME}
             RUNTIME DESTINATION ${ARG_INSTALL_DESTINATION}
             COMPONENT ${VPUX_TESTS_COMPONENT}
