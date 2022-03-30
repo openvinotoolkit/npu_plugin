@@ -14,6 +14,7 @@
 #include "vpux/compiler/dialect/VPU/passes.hpp"
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
 #include "vpux/compiler/dialect/VPURT/passes.hpp"
+#include "vpux/compiler/dialect/const/passes.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
 
 #include "vpux/utils/core/optional.hpp"
@@ -122,6 +123,7 @@ void vpux::buildReferenceSWModePipeline(mlir::OpPassManager& pm, const Reference
     pm.addPass(VPURT::createAssignPhysicalBarriersPass(log));
     pm.addPass(VPURT::createBarrierSimulationPass(log));
     pm.addPass(VPUIP::createDumpStatisticsOfTaskOpsPass(log));
+    pm.addPass(Const::createConstantFoldingPass());
 }
 
 //
@@ -250,6 +252,7 @@ void vpux::buildReferenceHWModePipeline(mlir::OpPassManager& pm, const Reference
     pm.addPass(VPURT::createAssignPhysicalBarriersPass(log));
     pm.addPass(VPURT::createBarrierSimulationPass(log));
     pm.addPass(VPUIP::createDumpStatisticsOfTaskOpsPass(log));
+    pm.addPass(Const::createConstantFoldingPass());
 }
 
 //
@@ -416,6 +419,7 @@ void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOp
     pm.addPass(VPURT::createBarrierSimulationPass(log));
     pm.addPass(VPUIP::createUnrollClusterTilingPass(log));
     pm.addPass(VPUIP::createDumpStatisticsOfTaskOpsPass(log));
+    pm.addPass(Const::createConstantFoldingPass());
 }
 
 //

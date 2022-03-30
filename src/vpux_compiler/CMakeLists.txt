@@ -246,6 +246,7 @@ add_passes("core" "Core")
 add_dialect("const")
 add_attr_interfaces("dialect/const")
 add_attributes("const")
+add_passes("dialect/const" "Const")
 
 add_dialect("IE")
 add_op_interfaces("dialect/IE")

@@ -13,6 +13,7 @@
 #include "vpux/compiler/dialect/IERT/passes.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
+#include "vpux/compiler/dialect/const/passes.hpp"
 #include "vpux/compiler/init.hpp"
 #include "vpux/compiler/pipelines.hpp"
 
@@ -30,6 +31,7 @@ int main(int argc, char* argv[]) {
         vpux::registerDialects(registry);
 
         vpux::registerCorePasses();
+        vpux::Const::registerConstPasses();
         vpux::IE::registerIEPasses();
         vpux::IE::registerIEPipelines();
         vpux::IERT::registerIERTPasses();

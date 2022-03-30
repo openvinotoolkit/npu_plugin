@@ -104,8 +104,11 @@ mlir::LogicalResult verifyOp(Const::DeclareOp op) {
                        attrType.getShape(), opType.getShape());
     }
     if (opType.getElementType() != attrType.getElementType()) {
-        return errorAt(op, "'Const.Declare' has mismatch in value element type '{0}' and result element type '{1}'",
-                       attrType.getElementType(), opType.getElementType());
+        if (!opType.getElementType().isa<mlir::quant::QuantizedType>() &&
+            !attrType.getElementType().isa<mlir::IntegerType>()) {
+            return errorAt(op, "'Const.Declare' has mismatch in value element type '{0}' and result element type '{1}'",
+                           attrType.getElementType(), opType.getElementType());
+        }
     }
 
     const auto attrOrder = attrType.getDimsOrder();
