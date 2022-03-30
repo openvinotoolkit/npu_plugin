@@ -34,7 +34,7 @@ if(ENABLE_EMULATOR)
     FetchContent_Declare(
         vpux_emulator
         GIT_REPOSITORY https://github.com/intel-innersource/applications.ai.vpu-accelerators.vpux-emulator.git
-        GIT_TAG        afd7e76b9cf9ef1dfd451f3502579c1bdaf1c457
+        GIT_TAG        da35c948f907437b951dfd2c814b9acba4aec94e
     )
     FetchContent_MakeAvailable(vpux_emulator)
 
