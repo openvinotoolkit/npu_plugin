@@ -8,6 +8,7 @@
 #include "vpux/compiler/dialect/VPUIP/nce_invariant.hpp"
 
 #include "vpux/compiler/core/layers.hpp"
+#include "vpux/compiler/dialect/IE/utils/generate_tiling.hpp"
 #include "vpux/compiler/dialect/IE/utils/resources.hpp"
 #include "vpux/compiler/dialect/VPU/attributes.hpp"
 #include "vpux/compiler/dialect/VPU/nce_invariant.hpp"
@@ -1424,7 +1425,6 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyPrefetchPatternCMX(mlir::Op
     }
     auto module = op->getParentOfType<mlir::ModuleOp>();
     const auto cmxSize = getCMXSizeForTiling(module);
-    auto ratioToAvoidFragmentation = 0.9;
 
     // Calculate the CMX memory required by the last tile of parent Op
     auto lastParentTile = parentTiling[parentTiling.size() - 1];
@@ -1434,7 +1434,7 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyPrefetchPatternCMX(mlir::Op
     auto firstPrefetchTile = tiling[tiling.size() - 1];
     auto cmxRequiredToPrefetch = getRequiredCMXForWeight(op, firstPrefetchTile);
     auto cmxWithFragmentationRatio =
-            Byte(static_cast<int64_t>(std::ceil(static_cast<double>(cmxSize.count()) * ratioToAvoidFragmentation)));
+            Byte(static_cast<int64_t>(std::ceil(static_cast<double>(cmxSize.count()) * IE::FRAGMENTATION_AVOID_RATIO)));
 
     if (cmxRequiredByParent + cmxRequiredToPrefetch > cmxWithFragmentationRatio) {
         log.trace("[{0}] CMX memory is not enough for prefetch pipeline, available '{1}', required '{2}', required by "

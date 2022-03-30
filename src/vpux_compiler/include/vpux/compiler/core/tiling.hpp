@@ -23,6 +23,29 @@
 namespace vpux {
 
 //
+// Tiling Mode
+//
+
+enum class TilingMode {
+    ISOLATED,         // (default) Split each original layer isolated with no heuristics or tweaks
+    PREFETCH,         // Create more tiles to enable prefetching between single original layer's tiles
+    PATTERN_PREFETCH  // Create more tiles to enable prefetching between two adjacent layers' tiles
+};
+
+inline StringRef getTilingModeStr(TilingMode mode) {
+    switch (mode) {
+    case TilingMode::ISOLATED:
+        return StringRef("ISOLATED");
+    case TilingMode::PREFETCH:
+        return StringRef("PREFETCH");
+    case TilingMode::PATTERN_PREFETCH:
+        return StringRef("PATTERN_PREFETCH");
+    default:
+        VPUX_THROW("Tiling mode name is not defined");
+    }
+}
+
+//
 // TileInfo
 //
 

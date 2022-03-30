@@ -9,6 +9,7 @@
 
 #include "vpux/compiler/core/attributes/indexed_symbol_attr.hpp"
 #include "vpux/compiler/dialect/IE/ops_interfaces.hpp"
+#include "vpux/compiler/dialect/IE/utils/generate_tiling.hpp"
 #include "vpux/compiler/dialect/IERT/ops_interfaces.hpp"
 #include "vpux/compiler/dialect/VPU/attributes.hpp"
 #include "vpux/compiler/dialect/VPU/nce_invariant.hpp"
@@ -220,7 +221,7 @@ private:
 // TilingInfoOpModel
 //
 
-bool isSupportedTiling(IE::ConvolutionOp origOp, const OutputTiling& tiles, Logger log) {
+bool isSupportedIsolatedTiling(IE::ConvolutionOp origOp, const OutputTiling& tiles, Logger log) {
     const auto inputType = origOp.input().getType().cast<vpux::NDTypeInterface>();
     const auto filterType = origOp.filter().getType().cast<vpux::NDTypeInterface>();
     const auto outputType = origOp.output().getType().cast<vpux::NDTypeInterface>();
@@ -256,7 +257,7 @@ bool isSupportedTiling(IE::ConvolutionOp origOp, const OutputTiling& tiles, Logg
     });
 }
 
-bool isSupportedTiling(VPU::NCEConvolutionOp origOp, const OutputTiling& tiles, Logger /*log*/) {
+bool isSupportedIsolatedTiling(VPU::NCEConvolutionOp origOp, const OutputTiling& tiles, Logger /*log*/) {
     const auto inputType = origOp.input().getType().cast<vpux::NDTypeInterface>();
     const auto filterType = origOp.filter().getType().cast<vpux::NDTypeInterface>();
     const auto outputType = origOp.output().getType().cast<vpux::NDTypeInterface>();
@@ -283,7 +284,7 @@ bool isSupportedTiling(VPU::NCEConvolutionOp origOp, const OutputTiling& tiles, 
     });
 }
 
-bool isSupportedTiling(IE::GroupConvolutionOp origOp, const OutputTiling& tiles, Logger log) {
+bool isSupportedIsolatedTiling(IE::GroupConvolutionOp origOp, const OutputTiling& tiles, Logger log) {
     const auto inputType = origOp.input().getType().cast<vpux::NDTypeInterface>();
     const auto filterType = origOp.filter().getType().cast<vpux::NDTypeInterface>();
     const auto outputType = origOp.output().getType().cast<vpux::NDTypeInterface>();
@@ -319,7 +320,7 @@ bool isSupportedTiling(IE::GroupConvolutionOp origOp, const OutputTiling& tiles,
     });
 }
 
-bool isSupportedTiling(VPU::NCEDepthConvolutionOp origOp, const OutputTiling& tiles, Logger /*log*/) {
+bool isSupportedIsolatedTiling(VPU::NCEDepthConvolutionOp origOp, const OutputTiling& tiles, Logger /*log*/) {
     const auto inputType = origOp.input().getType().cast<vpux::NDTypeInterface>();
     const auto filterType = origOp.filter().getType().cast<vpux::NDTypeInterface>();
     const auto outputType = origOp.output().getType().cast<vpux::NDTypeInterface>();
@@ -346,7 +347,7 @@ bool isSupportedTiling(VPU::NCEDepthConvolutionOp origOp, const OutputTiling& ti
     });
 }
 
-bool isSupportedTiling(IE::MaxPoolOp origOp, const OutputTiling& tiles, Logger log) {
+bool isSupportedIsolatedTiling(IE::MaxPoolOp origOp, const OutputTiling& tiles, Logger log) {
     const auto inputType = origOp.input().getType().cast<vpux::NDTypeInterface>();
     const auto outputType = origOp.output().getType().cast<vpux::NDTypeInterface>();
 
@@ -376,7 +377,7 @@ bool isSupportedTiling(IE::MaxPoolOp origOp, const OutputTiling& tiles, Logger l
     });
 }
 
-bool isSupportedTiling(VPU::NCEMaxPoolOp origOp, const OutputTiling& tiles, Logger /*log*/) {
+bool isSupportedIsolatedTiling(VPU::NCEMaxPoolOp origOp, const OutputTiling& tiles, Logger /*log*/) {
     const auto inputType = origOp.input().getType().cast<vpux::NDTypeInterface>();
     const auto outputType = origOp.output().getType().cast<vpux::NDTypeInterface>();
 
@@ -430,88 +431,156 @@ bool isDivisibleTile(mlir::Operation* op, ShapeRef tileAxis, Dim tileDim, int64_
     }
 }
 
-bool isSupportedPrefetchTiling(IE::ConvolutionOp origOp, ShapeRef tileAxis, Logger log) {
+bool checkPatternPrefetchMem(mlir::Operation* op, const OutputTiling& tiles, Logger log) {
+    auto parentOp = IE::getParentTargetOp(op);
+    const auto parentShape = getShape(parentOp->getResult(0));
+    return mlir::succeeded(
+            vpux::VPUIP::NCEInvariant::verifyPrefetchPatternCMX(op, tiles, parentOp, {TileInfo(parentShape)}, log));
+}
+
+bool isSupportedPrefetchTiling(IE::ConvolutionOp origOp, const OutputTiling& tiles, Logger log, TilingMode tilingMode) {
     auto outputShape = getShape(origOp.output());
+    auto tileAxis = tiles.begin()->axis;
     auto tileDims = getTileDims(tileAxis);
+
+    auto isMemPrefetchable = [&]() -> bool {
+        if (tilingMode == vpux::TilingMode::PREFETCH) {
+            return vpux::VPUIP::NCEInvariant::verifyPrefetchCMX(origOp, tiles, log).succeeded();
+        }
+        // Pattern prefetch
+        return checkPatternPrefetchMem(origOp.getOperation(), tiles, log);
+    };
+
+    // neutral tiling check
+    if (tileDims.size() == 0 && tilingMode == vpux::TilingMode::PATTERN_PREFETCH) {
+        return isMemPrefetchable();
+    }
+
+    // Prefetch tiling is only triggered when the isolated tiling is not nested
     if (tileDims.size() != 1) {
         return false;
     }
     auto tileDim = tileDims[0];
+    return isDivisibleTile(origOp.getOperation(), tileAxis, tileDim, getShape(origOp.filter())[tileDim]) &&
+           isMemPrefetchable() && !isLastTileBiggest(tileAxis, outputShape, tileDim);
+}
+
+bool isSupportedPrefetchTiling(VPU::NCEConvolutionOp origOp, const OutputTiling& tiles, Logger log,
+                               TilingMode tilingMode) {
+    auto outputShape = getShape(origOp.output());
+    auto tileAxis = tiles.begin()->axis;
+    auto tileDims = getTileDims(tileAxis);
+
     auto isMemPrefetchable = [&]() -> bool {
-        auto tileResult = fillDividedTiles(tileAxis, outputShape);
-        return vpux::VPUIP::NCEInvariant::verifyPrefetchCMX(origOp, tileResult, log).succeeded();
+        if (tilingMode == vpux::TilingMode::PREFETCH) {
+            return vpux::VPUIP::NCEInvariant::verifyPrefetchCMX(origOp, tiles, log).succeeded();
+        }
+        // Pattern prefetch
+        return checkPatternPrefetchMem(origOp.getOperation(), tiles, log);
     };
+
+    // neutral tiling check
+    if (tileDims.size() == 0 && tilingMode == vpux::TilingMode::PATTERN_PREFETCH) {
+        return isMemPrefetchable();
+    }
+
+    // Prefetch tiling is only triggered when the isolated tiling is not nested
+    if (tileDims.size() != 1) {
+        return false;
+    }
+    auto tileDim = tileDims[0];
+    const auto rawFilterShape = Shape(parseIntArrayAttr<int64_t>(origOp.rawFilterShape()));
+    return isDivisibleTile(origOp.getOperation(), tileAxis, tileDim, rawFilterShape[tileDim]) && isMemPrefetchable() &&
+           !isLastTileBiggest(tileAxis, outputShape, tileDim);
+}
+
+bool isSupportedPrefetchTiling(IE::GroupConvolutionOp origOp, const OutputTiling& tiles, Logger log,
+                               TilingMode tilingMode) {
+    auto outputShape = getShape(origOp.output());
+    auto tileAxis = tiles.begin()->axis;
+    auto tileDims = getTileDims(tileAxis);
+
+    auto isMemPrefetchable = [&]() -> bool {
+        if (tilingMode == vpux::TilingMode::PREFETCH) {
+            return vpux::VPUIP::NCEInvariant::verifyPrefetchCMX(origOp, tiles, log).succeeded();
+        }
+        // Pattern prefetch
+        return checkPatternPrefetchMem(origOp.getOperation(), tiles, log);
+    };
+
+    // neutral tiling check
+    if (tileDims.size() == 0 && tilingMode == vpux::TilingMode::PATTERN_PREFETCH) {
+        return isMemPrefetchable();
+    }
+
+    // Prefetch tiling is only triggered when the isolated tiling is not nested
+    if (tileDims.size() != 1) {
+        return false;
+    }
+    auto tileDim = tileDims[0];
+
+    auto channelsInfo = mlir::dyn_cast<IE::AlignedChannelsOpInterface>(origOp.getOperation());
+    if (channelsInfo != nullptr && !channelsInfo.checkChannelRestrictions(tileAxis[Dims4D::Act::C])) {
+        return false;
+    }
 
     return isDivisibleTile(origOp.getOperation(), tileAxis, tileDim, getShape(origOp.filter())[tileDim]) &&
            isMemPrefetchable() && !isLastTileBiggest(tileAxis, outputShape, tileDim);
 }
 
-bool isSupportedPrefetchTiling(VPU::NCEConvolutionOp origOp, ShapeRef tileAxis, Logger log) {
+bool isSupportedPrefetchTiling(VPU::NCEDepthConvolutionOp origOp, const OutputTiling& tiles, Logger log,
+                               TilingMode tilingMode) {
     auto outputShape = getShape(origOp.output());
+    auto tileAxis = tiles.begin()->axis;
     auto tileDims = getTileDims(tileAxis);
+
+    auto isMemPrefetchable = [&]() -> bool {
+        if (tilingMode == vpux::TilingMode::PREFETCH) {
+            return vpux::VPUIP::NCEInvariant::verifyPrefetchCMX(origOp, tiles, log).succeeded();
+        }
+        // Pattern prefetch
+        return checkPatternPrefetchMem(origOp.getOperation(), tiles, log);
+    };
+
+    // neutral tiling check
+    if (tileDims.size() == 0 && tilingMode == vpux::TilingMode::PATTERN_PREFETCH) {
+        return isMemPrefetchable();
+    }
+
+    // Prefetch tiling is only triggered when the isolated tiling is not nested
     if (tileDims.size() != 1) {
         return false;
     }
     auto tileDim = tileDims[0];
-    auto isMemPrefetchable = [&]() -> bool {
-        auto tileResult = fillDividedTiles(tileAxis, outputShape);
-        return vpux::VPUIP::NCEInvariant::verifyPrefetchCMX(origOp, tileResult, log).succeeded();
-    };
 
+    auto channelsInfo = mlir::dyn_cast<IE::AlignedChannelsOpInterface>(origOp.getOperation());
+    if (channelsInfo != nullptr && !channelsInfo.checkChannelRestrictions(tileAxis[Dims4D::Act::C])) {
+        return false;
+    }
     const auto rawFilterShape = Shape(parseIntArrayAttr<int64_t>(origOp.rawFilterShape()));
 
     return isDivisibleTile(origOp.getOperation(), tileAxis, tileDim, rawFilterShape[tileDim]) && isMemPrefetchable() &&
            !isLastTileBiggest(tileAxis, outputShape, tileDim);
 }
 
-bool isSupportedPrefetchTiling(IE::GroupConvolutionOp origOp, ShapeRef tileAxis, Logger log) {
-    auto outputShape = getShape(origOp.output());
+bool isSupportedPrefetchTiling(IE::MaxPoolOp origOp, const OutputTiling& tiles, Logger log, TilingMode tilingMode) {
+    auto tileAxis = tiles.begin()->axis;
     auto tileDims = getTileDims(tileAxis);
-    if (tileDims.size() != 1) {
-        return false;
-    }
-    auto tileDim = tileDims[0];
-
-    auto channelsInfo = mlir::dyn_cast<IE::AlignedChannelsOpInterface>(origOp.getOperation());
-    if (channelsInfo != nullptr && !channelsInfo.checkChannelRestrictions(tileAxis[Dims4D::Act::C])) {
-        return false;
-    }
 
     auto isMemPrefetchable = [&]() -> bool {
-        auto tileResult = fillDividedTiles(tileAxis, outputShape);
-        return vpux::VPUIP::NCEInvariant::verifyPrefetchCMX(origOp, tileResult, log).succeeded();
+        if (tilingMode == vpux::TilingMode::PREFETCH) {
+            return vpux::VPUIP::NCEInvariant::verifyPrefetchCMX(origOp, tiles, log).succeeded();
+        }
+        // Pattern prefetch
+        return checkPatternPrefetchMem(origOp.getOperation(), tiles, log);
     };
 
-    return isDivisibleTile(origOp.getOperation(), tileAxis, tileDim, getShape(origOp.filter())[tileDim]) &&
-           isMemPrefetchable() && !isLastTileBiggest(tileAxis, outputShape, tileDim);
-}
-
-bool isSupportedPrefetchTiling(VPU::NCEDepthConvolutionOp origOp, ShapeRef tileAxis, Logger log) {
-    auto outputShape = getShape(origOp.output());
-    auto tileDims = getTileDims(tileAxis);
-    if (tileDims.size() != 1) {
-        return false;
-    }
-    auto tileDim = tileDims[0];
-
-    auto channelsInfo = mlir::dyn_cast<IE::AlignedChannelsOpInterface>(origOp.getOperation());
-    if (channelsInfo != nullptr && !channelsInfo.checkChannelRestrictions(tileAxis[Dims4D::Act::C])) {
-        return false;
+    // neutral tiling check
+    if (tileDims.size() == 0 && tilingMode == vpux::TilingMode::PATTERN_PREFETCH) {
+        return isMemPrefetchable();
     }
 
-    auto isMemPrefetchable = [&]() -> bool {
-        auto tileResult = fillDividedTiles(tileAxis, outputShape);
-        return vpux::VPUIP::NCEInvariant::verifyPrefetchCMX(origOp, tileResult, log).succeeded();
-    };
-
-    const auto rawFilterShape = Shape(parseIntArrayAttr<int64_t>(origOp.rawFilterShape()));
-
-    return isDivisibleTile(origOp.getOperation(), tileAxis, tileDim, rawFilterShape[tileDim]) && isMemPrefetchable() &&
-           !isLastTileBiggest(tileAxis, outputShape, tileDim);
-}
-
-bool isSupportedPrefetchTiling(IE::MaxPoolOp origOp, ShapeRef tileAxis, Logger log) {
-    auto tileDims = getTileDims(tileAxis);
+    // Prefetch tiling is only triggered when the isolated tiling is not nested
     if (tileDims.size() != 1) {
         return false;
     }
@@ -522,11 +591,6 @@ bool isSupportedPrefetchTiling(IE::MaxPoolOp origOp, ShapeRef tileAxis, Logger l
     if (channelsInfo != nullptr && !channelsInfo.checkChannelRestrictions(tileAxis[Dims4D::Act::C])) {
         return false;
     }
-
-    auto isMemPrefetchable = [&]() -> bool {
-        auto tileResult = fillDividedTiles(tileAxis, outputShape);
-        return vpux::VPUIP::NCEInvariant::verifyPrefetchCMX(origOp, tileResult, log).succeeded();
-    };
 
     size_t realKernelIndex = tileDim == Dims4D::Act::H ? 0 : 1;
     return isDivisibleTile(origOp.getOperation(), tileAxis, tileDim,
@@ -534,8 +598,24 @@ bool isSupportedPrefetchTiling(IE::MaxPoolOp origOp, ShapeRef tileAxis, Logger l
            isMemPrefetchable() && !isLastTileBiggest(tileAxis, outputShape, tileDim);
 }
 
-bool isSupportedPrefetchTiling(VPU::NCEMaxPoolOp origOp, ShapeRef tileAxis, Logger log) {
+bool isSupportedPrefetchTiling(VPU::NCEMaxPoolOp origOp, const OutputTiling& tiles, Logger log, TilingMode tilingMode) {
+    auto tileAxis = tiles.begin()->axis;
     auto tileDims = getTileDims(tileAxis);
+
+    auto isMemPrefetchable = [&]() -> bool {
+        if (tilingMode == vpux::TilingMode::PREFETCH) {
+            return vpux::VPUIP::NCEInvariant::verifyPrefetchCMX(origOp, tiles, log).succeeded();
+        }
+        // Pattern prefetch
+        return checkPatternPrefetchMem(origOp.getOperation(), tiles, log);
+    };
+
+    // neutral tiling check
+    if (tileDims.size() == 0 && tilingMode == vpux::TilingMode::PATTERN_PREFETCH) {
+        return isMemPrefetchable();
+    }
+
+    // Prefetch tiling is only triggered when the isolated tiling is not nested
     if (tileDims.size() != 1) {
         return false;
     }
@@ -546,11 +626,6 @@ bool isSupportedPrefetchTiling(VPU::NCEMaxPoolOp origOp, ShapeRef tileAxis, Logg
     if (channelsInfo != nullptr && !channelsInfo.checkChannelRestrictions(tileAxis[Dims4D::Act::C])) {
         return false;
     }
-
-    auto isMemPrefetchable = [&]() -> bool {
-        auto tileResult = fillDividedTiles(tileAxis, outputShape);
-        return vpux::VPUIP::NCEInvariant::verifyPrefetchCMX(origOp, tileResult, log).succeeded();
-    };
 
     size_t realKernelIndex = tileDim == Dims4D::Act::H ? 0 : 1;
     return isDivisibleTile(origOp.getOperation(), tileAxis, tileDim,
@@ -562,26 +637,20 @@ template <class MainOpType>
 class NCETilingInfoOpModel final :
         public IE::TilingInfoOpInterface::ExternalModel<NCETilingInfoOpModel<MainOpType>, MainOpType> {
 public:
-    bool isSupportedTiling(mlir::Operation* origOp, const OutputTiling& tiles, Logger log) const {
+    bool isSupportedTiling(mlir::Operation* origOp, const OutputTiling& tiles, TilingMode tilingMode,
+                           Logger log) const {
         if (!isSupportedByNCE(mlir::cast<MainOpType>(origOp), log)) {
             return true;
         }
-
-        return ::isSupportedTiling(mlir::cast<MainOpType>(origOp), tiles, log);
-    }
-
-    bool isSupportedPrefetchTiling(mlir::Operation* origOp, ShapeRef tileAxis, Logger log) const {
-        return ::isSupportedPrefetchTiling(mlir::cast<MainOpType>(origOp), tileAxis, log);
-    }
-
-    bool isSupportedPrefetchPattern(mlir::Operation* origOp, ShapeRef tileAxis, mlir::Operation* parentOp,
-                                    ShapeRef parentTileAxis, Logger log) const {
-        auto outputShape = getShape(origOp->getResult(0));
-        auto tileResult = fillDividedTiles(tileAxis, outputShape);
-        auto parentOutputShape = getShape(parentOp->getResult(0));
-        auto parentTileResult = fillDividedTiles(parentTileAxis, parentOutputShape);
-        return mlir::succeeded(
-                VPUIP::NCEInvariant::verifyPrefetchPatternCMX(origOp, tileResult, parentOp, parentTileResult, log));
+        switch (tilingMode) {
+        case vpux::TilingMode::ISOLATED:
+            return isSupportedIsolatedTiling(mlir::cast<MainOpType>(origOp), tiles, log);
+        case vpux::TilingMode::PREFETCH:
+        case vpux::TilingMode::PATTERN_PREFETCH:
+            return isSupportedPrefetchTiling(mlir::cast<MainOpType>(origOp), tiles, log, tilingMode);
+        default:
+            VPUX_THROW("Unknown tiling mode: '{0}'.", getTilingModeStr(tilingMode));
+        }
     }
 
 private:
@@ -596,40 +665,41 @@ private:
     }
 };
 
+bool isSupportedIsolatedTiling(mlir::Operation* origOp, const OutputTiling& tiles, Logger log) {
+    const auto input1Type = origOp->getOperand(0).getType().cast<vpux::NDTypeInterface>();
+    const auto input2Type = origOp->getOperand(1).getType().cast<vpux::NDTypeInterface>();
+    const auto outputType = origOp->getResult(0).getType().cast<vpux::NDTypeInterface>();
+    return llvm::all_of(tiles, [&](const TileInfo& tile) {
+        const auto input1TileType = input1Type.extractDenseTile(tile.offsets, tile.shape);
+        const auto input2TileType = input2Type.extractDenseTile(tile.offsets, tile.shape);
+        const auto outputTileType = outputType.extractDenseTile(tile.offsets, tile.shape);
+
+        return mlir::succeeded(
+                VPUIP::NCEInvariant::verifyEltwiseCMX(origOp->getLoc(), origOp->getParentOfType<mlir::ModuleOp>(),
+                                                      input1TileType, input2TileType, outputTileType, log));
+    });
+}
+
 template <class MainOpType>
 class NCEEltwiseTilingInfoOpModel final :
         public IE::TilingInfoOpInterface::ExternalModel<NCEEltwiseTilingInfoOpModel<MainOpType>, MainOpType> {
 public:
-    bool isSupportedTiling(mlir::Operation* origOp, const OutputTiling& tiles, Logger log) const {
+    bool isSupportedTiling(mlir::Operation* origOp, const OutputTiling& tiles, TilingMode tilingMode,
+                           Logger log) const {
         if (!isSupportedByNCE(mlir::cast<MainOpType>(origOp), log)) {
             return true;
         }
 
-        const auto input1Type = origOp->getOperand(0).getType().cast<vpux::NDTypeInterface>();
-        const auto input2Type = origOp->getOperand(1).getType().cast<vpux::NDTypeInterface>();
-        const auto outputType = origOp->getResult(0).getType().cast<vpux::NDTypeInterface>();
-
-        return llvm::all_of(tiles, [&](const TileInfo& tile) {
-            const auto input1TileType = input1Type.extractDenseTile(tile.offsets, tile.shape);
-            const auto input2TileType = input2Type.extractDenseTile(tile.offsets, tile.shape);
-            const auto outputTileType = outputType.extractDenseTile(tile.offsets, tile.shape);
-
-            return mlir::succeeded(
-                    VPUIP::NCEInvariant::verifyEltwiseCMX(origOp->getLoc(), origOp->getParentOfType<mlir::ModuleOp>(),
-                                                          input1TileType, input2TileType, outputTileType, log));
-        });
-    }
-
-    bool isSupportedPrefetchTiling(mlir::Operation* /*op*/, ShapeRef /*tileAxis*/, Logger /*log*/) const {
-        // The DPU time of eltwise operations are too short to worth prefetching.
-        return false;
-    }
-
-    bool isSupportedPrefetchPattern(mlir::Operation* /*origOp*/, ShapeRef /*tileAxis*/, mlir::Operation* /*parentOp*/,
-                                    ShapeRef /*parentTileAxis*/, Logger /*log*/) const {
-        // Avoid tiling for eltwise operations
-        // the DPU time is too short compared to the DMA time.
-        return true;
+        switch (tilingMode) {
+        case TilingMode::ISOLATED:
+            return ::isSupportedIsolatedTiling(origOp, tiles, log);
+        case TilingMode::PREFETCH:
+        case TilingMode::PATTERN_PREFETCH:
+            // The DPU time of eltwise operations are too short to worth prefetching.
+            return false;
+        default:
+            VPUX_THROW("Unknown tiling mode. ISOLATED, PREFETCH and PATTERN_PREFETCH are supported.");
+        }
     }
 
 private:
