@@ -84,8 +84,8 @@ void buildAvgpoolWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mo
 
     const auto funcType = builder.getFunctionType(makeArrayRef(inputTypes), outputParamType);
 
-    auto func = builder.create<mlir::FuncOp>(loc, llvm::formatv("avgPool_{0}_{1}", inputType, outputType).str(),
-                                             funcType, builder.getStringAttr("private"));
+    auto func = builder.create<mlir::FuncOp>(loc, printToString("avgPool_{0}_{1}", inputType, outputType), funcType,
+                                             builder.getStringAttr("private"));
 
     auto funcbuilder = mlir::OpBuilder::atBlockBegin(func.addEntryBlock(), builder.getListener());
 

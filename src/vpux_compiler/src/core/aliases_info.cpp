@@ -12,6 +12,7 @@
 #include "vpux/compiler/dialect/VPURT/types.hpp"
 
 #include "vpux/utils/core/error.hpp"
+#include "vpux/utils/core/format.hpp"
 #include "vpux/utils/core/range.hpp"
 
 #include <mlir/Dialect/Async/IR/Async.h>
@@ -27,11 +28,11 @@ namespace {
 
 std::string getValueForLog(mlir::Value val) {
     if (const auto arg = val.dyn_cast<mlir::BlockArgument>()) {
-        return llvm::formatv("BlockArgument #{0} at '{0}'", arg.getArgNumber(), val.getLoc()).str();
+        return printToString("BlockArgument #{0} at '{0}'", arg.getArgNumber(), val.getLoc());
     }
 
     const auto res = val.cast<mlir::OpResult>();
-    return llvm::formatv("Operation result #{0} for '{1}' at '{2}'", res.getResultNumber(), res.getOwner()->getName(),
+    return printToString("Operation result #{0} for '{1}' at '{2}'", res.getResultNumber(), res.getOwner()->getName(),
                          val.getLoc());
 }
 

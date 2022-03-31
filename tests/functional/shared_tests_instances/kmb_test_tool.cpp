@@ -22,7 +22,7 @@ KmbTestTool::KmbTestTool(const KmbTestEnvConfig& envCfg): envConfig(envCfg),
 void KmbTestTool::exportNetwork(ExecutableNetwork& exeNet, const std::string& fsName) {
     IE_ASSERT(!envConfig.IE_KMB_TESTS_DUMP_PATH.empty());
 
-    const auto fileName = llvm::formatv("{0}/{1}", envConfig.IE_KMB_TESTS_DUMP_PATH, fsName).str();
+    const auto fileName = vpux::printToString("{0}/{1}", envConfig.IE_KMB_TESTS_DUMP_PATH, fsName);
     std::cout << "Exporting nn into " << (envConfig.IE_KMB_TESTS_RAW_EXPORT ? "" : "not ") << "raw file " << fileName
         << ", device " << DEVICE_NAME << std::endl;
 
@@ -41,7 +41,7 @@ void KmbTestTool::exportNetwork(ExecutableNetwork& exeNet, const std::string& fs
 ExecutableNetwork KmbTestTool::importNetwork(const std::shared_ptr<InferenceEngine::Core>& core, const std::string& fsName) {
     IE_ASSERT(!envConfig.IE_KMB_TESTS_DUMP_PATH.empty());
 
-    const auto fileName = llvm::formatv("{0}/{1}", envConfig.IE_KMB_TESTS_DUMP_PATH, fsName).str();
+    const auto fileName = vpux::printToString("{0}/{1}", envConfig.IE_KMB_TESTS_DUMP_PATH, fsName);
     std::cout << "Importing nn from " << (envConfig.IE_KMB_TESTS_RAW_EXPORT ? "" : "not ") << "raw file " << fileName
         << ", device " << DEVICE_NAME << std::endl;
 
@@ -59,7 +59,7 @@ ExecutableNetwork KmbTestTool::importNetwork(const std::shared_ptr<InferenceEngi
 void KmbTestTool::importBlob(InferenceEngine::Blob::Ptr blob, const std::string& fsName) {
     IE_ASSERT(!envConfig.IE_KMB_TESTS_DUMP_PATH.empty());
 
-    const auto fileName = llvm::formatv("{0}/{1}", envConfig.IE_KMB_TESTS_DUMP_PATH, fsName).str();
+    const auto fileName = vpux::printToString("{0}/{1}", envConfig.IE_KMB_TESTS_DUMP_PATH, fsName);
     std::ifstream file(fileName, std::ios_base::in | std::ios_base::binary);
     if (!file.is_open())
         IE_THROW() << "importBlob(). Can't open file " << fileName;
@@ -72,7 +72,7 @@ void KmbTestTool::importBlob(InferenceEngine::Blob::Ptr blob, const std::string&
 void KmbTestTool::exportBlob(const InferenceEngine::Blob::Ptr blob, const std::string& fsName) {
     IE_ASSERT(!envConfig.IE_KMB_TESTS_DUMP_PATH.empty());
 
-    const auto fileName = llvm::formatv("{0}/{1}", envConfig.IE_KMB_TESTS_DUMP_PATH, fsName).str();
+    const auto fileName = vpux::printToString("{0}/{1}", envConfig.IE_KMB_TESTS_DUMP_PATH, fsName);
     std::ofstream file(fileName, std::ios_base::out | std::ios_base::binary);
     if (!file.is_open())
         IE_THROW() << "exportBlob(). Can't open file " << fileName;
@@ -108,8 +108,8 @@ std::string filesysName(const testing::TestInfo* testInfo, const std::string& ex
     const size_t maxExpectedFileNameLen = 256, maxExpectedDirLen = 100, extLen = ext.size();
     const size_t maxFileNameLen = (limitAbsPathLength ? maxExpectedFileNameLen - maxExpectedDirLen : maxExpectedFileNameLen),
         maxNoExtLen = maxFileNameLen - extLen, maxNoExtShortenedLen = maxNoExtLen - 20 - 1;
-    const auto testName = llvm::formatv("{0}_{1}", testInfo->test_case_name(), testInfo->name()).str();
-    auto fnameNoExt = (testName.size() < maxNoExtLen) ? testName : llvm::formatv("{0}_{1}", testName.substr(0, maxNoExtShortenedLen), FNV_hash(testName)).str();
+    const auto testName = vpux::printToString("{0}_{1}", testInfo->test_case_name(), testInfo->name());
+    auto fnameNoExt = (testName.size() < maxNoExtLen) ? testName : vpux::printToString("{0}_{1}", testName.substr(0, maxNoExtShortenedLen), FNV_hash(testName));
 
     return cleanName(fnameNoExt.append(ext));
 }

@@ -55,7 +55,7 @@ mlir::Type convertToMLIRType(mlir::OpBuilder builder, nb::DType dtype) {
     case nb::DType::BF16:
         return builder.getBF16Type();
     default:
-        throw std::domain_error{llvm::formatv("Expected a valid data type").str()};
+        throw std::domain_error{"Expected a valid data type"};
     }
 }
 
@@ -138,12 +138,10 @@ mlir::DenseElementsAttr generateWeights(llvm::ArrayRef<int64_t> shape, mlir::Typ
             weightsUnpacked.push_back(lsn);
             weightsUnpacked.push_back(msn);
         }
-        VPUX_THROW_UNLESS(weightsUnpacked.size() == vecSize,
-                          llvm::formatv("Warning: count of elements in weights file {0} doesn't match with "
-                                        "provided weights shape {1}",
-                                        weightsUnpacked.size(), shape)
-                                  .str()
-                                  .c_str());
+        VPUX_THROW_UNLESS(
+                weightsUnpacked.size() == vecSize,
+                "Warning: count of elements in weights file {0} doesn't match with provided weights shape {1}",
+                weightsUnpacked.size(), shape);
 
         if (type.isSignedInteger(4)) {
             return mlir::DenseElementsAttr::get(
@@ -217,7 +215,7 @@ void buildCNNOp(mlir::OpBuilder& builder, llvm::StringRef mainFuncName, llvm::Ar
             inputType = inputType.clone(quantized.getStorageType());
         }
 
-        const auto inputName = llvm::formatv("input_{0}", input.index()).str();
+        const auto inputName = printToString("input_{0}", input.index());
         const auto nameAttr = builder.getStringAttr(inputName);
         const auto userTypeAttr = mlir::TypeAttr::get(inputType);
         inputsInfoBuilder.create<IE::DataInfoOp>(builder.getUnknownLoc(), nameAttr, userTypeAttr);
@@ -230,7 +228,7 @@ void buildCNNOp(mlir::OpBuilder& builder, llvm::StringRef mainFuncName, llvm::Ar
             outputType = outputType.clone(quantized.getStorageType());
         }
 
-        const auto resultName = llvm::formatv("output_{0}", output.index()).str();
+        const auto resultName = printToString("output_{0}", output.index());
         const auto nameAttr = builder.getStringAttr(resultName);
         const auto userTypeAttr = mlir::TypeAttr::get(outputType);
         outputsInfoBuilder.create<IE::DataInfoOp>(builder.getUnknownLoc(), nameAttr, userTypeAttr);
@@ -242,7 +240,7 @@ mlir::DenseElementsAttr splitWeightsOverC(mlir::DenseElementsAttr wt_vec, ArrayR
     auto qType = dtype.dyn_cast<mlir::quant::UniformQuantizedType>();
     if (!((dtype.isF16() || (qType && qType.getStorageType().isUnsignedInteger(8)))))
         throw std::domain_error{
-                llvm::formatv("splitWeightsOverC only supports weight data type fp16 or uint8; got {0}", dtype).str()};
+                printToString("splitWeightsOverC only supports weight data type fp16 or uint8; got {0}", dtype)};
 
     if (dtype.isF16()) {
         float16 elementType = 0;

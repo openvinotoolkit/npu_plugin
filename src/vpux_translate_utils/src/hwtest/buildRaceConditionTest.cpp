@@ -80,8 +80,7 @@ void buildRaceConditionTest(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mo
 
     auto func = builder.create<mlir::FuncOp>(
             builder.getUnknownLoc(),
-            llvm::formatv("race_confition_{0}_{1}_{2}", testDescUnderlyingOp->getCaseStr(), inputType, outputType)
-                    .str(),
+            printToString("race_confition_{0}_{1}_{2}", testDescUnderlyingOp->getCaseStr(), inputType, outputType),
             funcType, builder.getStringAttr("private"));
 
     auto funcBuilder = mlir::OpBuilder::atBlockBegin(func.addEntryBlock(), builder.getListener());

@@ -46,7 +46,7 @@ void buildActShave(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp mo
     const auto funcType = builder.getFunctionType(makeArrayRef(inputTypes), outputParamType);
 
     auto func = builder.create<mlir::FuncOp>(builder.getUnknownLoc(),
-                                             llvm::formatv("actshave_{0}_{1}", inputType, outputType).str(), funcType,
+                                             printToString("actshave_{0}_{1}", inputType, outputType), funcType,
                                              builder.getStringAttr("private"));
 
     auto funcbuilder = mlir::OpBuilder::atBlockBegin(func.addEntryBlock(), builder.getListener());

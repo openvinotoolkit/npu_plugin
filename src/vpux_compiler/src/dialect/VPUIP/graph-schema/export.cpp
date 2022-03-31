@@ -286,7 +286,7 @@ flatbuffers::Offset<MVCNN::ActKernelRuntime> createActKernelRuntime(VPUIP::BlobW
 
         log.trace("act-shave {0}_stack size is {1}", shvInd, shaveStackData.size());
 
-        const auto dataName = llvm::formatv("actSHAVE{0}_stack", shvInd).str();
+        const auto dataName = printToString("actSHAVE{0}_stack", shvInd);
         stacks[shvInd] = writer.createKernelDataRef(dataName, 0, shaveStackData.size(), shaveStackData);
     }
 
@@ -465,8 +465,8 @@ void serializeTensorDecls(VPUIP::BlobWriter& writer, mlir::FuncOp netFunc, mlir:
     const auto createTensorRef = [&](VPURT::DeclareBufferOp bufOp, const Optional<int64_t> sparsityMapOffset = None,
                                      const Optional<int64_t> storageElementOffset = None) {
         auto sectionIndex = bufOp.getNonEmptySectionIndex();
-        writer.createTensorRef(bufOp.buffer(), llvm::formatv("temp-{0}", tempTensorInd).str(), bufOp.section(),
-                               sectionIndex, bufOp.byteOffset(), sparsityMapOffset, storageElementOffset);
+        writer.createTensorRef(bufOp.buffer(), printToString("temp-{0}", tempTensorInd), bufOp.section(), sectionIndex,
+                               bufOp.byteOffset(), sparsityMapOffset, storageElementOffset);
         tempTensorInd++;
     };
 
@@ -533,7 +533,7 @@ SmallVector<VPUIP::BlobWriter::BinaryData> serializeBinaryData(VPUIP::BlobWriter
 
         binaryData[constTensorInd] = writer.createBinaryData(content, constOp.getType().cast<vpux::NDTypeInterface>());
 
-        writer.createTensorRef(constOp.output(), llvm::formatv("constant-{0}", constTensorInd).str(),
+        writer.createTensorRef(constOp.output(), printToString("constant-{0}", constTensorInd),
                                VPURT::BufferSection::Constant, checked_cast<uint32_t>(constTensorInd), 0);
     }
 

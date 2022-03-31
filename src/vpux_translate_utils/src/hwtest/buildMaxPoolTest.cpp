@@ -56,7 +56,7 @@ void buildMaxPool(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp mod
     const auto funcType = builder.getFunctionType(makeArrayRef(inputTypes), outputParamType);
 
     auto func = builder.create<mlir::FuncOp>(builder.getUnknownLoc(),
-                                             llvm::formatv("maxpool_{0}_{1}", inputType, outputType).str(), funcType,
+                                             printToString("maxpool_{0}_{1}", inputType, outputType), funcType,
                                              builder.getStringAttr("private"));
 
     auto funcbuilder = mlir::OpBuilder::atBlockBegin(func.addEntryBlock(), builder.getListener());

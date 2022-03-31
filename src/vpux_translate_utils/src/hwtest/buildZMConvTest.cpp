@@ -150,7 +150,7 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
     const auto funcType = builder.getFunctionType(llvm::makeArrayRef(inputTypes), outputParamType);
 
     auto function = builder.create<mlir::FuncOp>(
-            builder.getUnknownLoc(), llvm::formatv("zmajor_conv_{0}_{1}_{2}", inputType, weightsType, outputType).str(),
+            builder.getUnknownLoc(), printToString("zmajor_conv_{0}_{1}_{2}", inputType, weightsType, outputType),
             funcType, builder.getStringAttr("private"));
 
     auto functionBuilder = mlir::OpBuilder::atBlockBegin(function.addEntryBlock(), builder.getListener());

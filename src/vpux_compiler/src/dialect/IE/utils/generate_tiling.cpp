@@ -153,7 +153,7 @@ mlir::Value reifyTile(IE::TilingBuilderOpInterface origOp, const TileInfo& outpu
         auto origInput = p.value();
         auto inputIdx = p.index();
 
-        const auto valName = llvm::formatv("input {0}", inputIdx).str();
+        const auto valName = printToString("input {0}", inputIdx);
         const auto tiledInput = vpux::IE::makeTile(builder, origOp->getLoc(), origInput, inTiles[inputIdx], valName);
 
         mapper.map(origInput, tiledInput);

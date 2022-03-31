@@ -14,9 +14,14 @@
 
 #include "vpux/hwtest/test_case_json_parser.hpp"
 
+#include "vpux/utils/core/format.hpp"
+#include "vpux/utils/core/string_ref.hpp"
+
+using namespace vpux;
+
 namespace {
 
-llvm::json::Object parse2JSON(llvm::StringRef jsonString) {
+llvm::json::Object parse2JSON(StringRef jsonString) {
     // Since the string we're parsing may come from a LIT test, strip off
     // trivial '//' comments.  NB The standard regex library requires C++17 in
     // order to anchor newlines, so we use the LLVM implementation instead.
@@ -39,7 +44,7 @@ llvm::json::Object parse2JSON(llvm::StringRef jsonString) {
 
     if (!exp) {
         auto err = exp.takeError();
-        throw std::runtime_error{llvm::formatv("HWTEST JSON parsing failed: {0}", err).str()};
+        throw std::runtime_error{printToString("HWTEST JSON parsing failed: {0}", err)};
     }
 
     auto json_object = exp->getAsObject();
@@ -49,7 +54,7 @@ llvm::json::Object parse2JSON(llvm::StringRef jsonString) {
     return *json_object;
 }
 
-static bool isEqual(llvm::StringRef a, const char* b) {
+static bool isEqual(StringRef a, const char* b) {
     if (a.size() != strlen(b)) {
         return false;
     }
@@ -61,7 +66,7 @@ static bool isEqual(llvm::StringRef a, const char* b) {
 
 }  // namespace
 
-nb::DType nb::to_dtype(llvm::StringRef str) {
+nb::DType nb::to_dtype(StringRef str) {
     if (isEqual(str, "uint8"))
         return nb::DType::U8;
     if (isEqual(str, "uint4"))
@@ -109,7 +114,7 @@ std::string nb::to_string(nb::DType dtype) {
     }
 }
 
-MVCNN::Permutation nb::to_odu_permutation(llvm::StringRef str) {
+MVCNN::Permutation nb::to_odu_permutation(StringRef str) {
     if (isEqual(str, "NHWC"))
         return MVCNN::Permutation::Permutation_ZXY;
     if (isEqual(str, "NWHC"))
@@ -127,7 +132,7 @@ MVCNN::Permutation nb::to_odu_permutation(llvm::StringRef str) {
     return MVCNN::Permutation::Permutation_MIN;
 }
 
-nb::MemoryLocation nb::to_memory_location(llvm::StringRef str) {
+nb::MemoryLocation nb::to_memory_location(StringRef str) {
     if (isEqual(str, "CMX0")) {
         return nb::MemoryLocation::CMX0;
     }
@@ -154,7 +159,7 @@ std::string nb::to_string(nb::MemoryLocation memoryLocation) {
     }
 }
 
-nb::ActivationType nb::to_activation_type(llvm::StringRef str) {
+nb::ActivationType nb::to_activation_type(StringRef str) {
     if (!str.size() || isEqual(str, "None")) {
         return nb::ActivationType::None;
     }
@@ -255,7 +260,7 @@ std::string nb::to_string(CaseType case_) {
     }
 }
 
-nb::CaseType nb::to_case(llvm::StringRef str) {
+nb::CaseType nb::to_case(StringRef str) {
     if (isEqual(str, "DMA"))
         return CaseType::DMA;
     if (isEqual(str, "ZMajorConvolution"))
@@ -583,7 +588,7 @@ std::size_t nb::TestCaseJsonDescriptor::loadClusterNumber(llvm::json::Object* js
     return jsonObj->getInteger("cluster_number").getValue();
 }
 
-nb::TestCaseJsonDescriptor::TestCaseJsonDescriptor(llvm::StringRef jsonString) {
+nb::TestCaseJsonDescriptor::TestCaseJsonDescriptor(StringRef jsonString) {
     if (!jsonString.empty()) {
         parse(parse2JSON(jsonString));
     }
@@ -691,7 +696,7 @@ void nb::TestCaseJsonDescriptor::parse(llvm::json::Object json_obj) {
         }
     }
 
-    throw std::runtime_error{llvm::formatv("Unsupported case type: {0}", caseTypeStr_).str()};
+    throw std::runtime_error{printToString("Unsupported case type: {0}", caseTypeStr_)};
 }
 
 nb::CaseType nb::TestCaseJsonDescriptor::loadCaseType(llvm::json::Object* jsonObj) {

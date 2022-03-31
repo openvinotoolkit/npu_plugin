@@ -52,9 +52,8 @@ void buildDMA(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module,
 
     auto func = builder.create<mlir::FuncOp>(
             builder.getUnknownLoc(),
-            llvm::formatv("dma_from_{0}_{1}_to_{2}_{3}", nb::to_string(dmaParams.srcLocation), inputType,
-                          nb::to_string(dmaParams.dstLocation), outputType)
-                    .str(),
+            printToString("dma_from_{0}_{1}_to_{2}_{3}", nb::to_string(dmaParams.srcLocation), inputType,
+                          nb::to_string(dmaParams.dstLocation), outputType),
             funcType, builder.getStringAttr("private"));
 
     auto funcbuilder = mlir::OpBuilder::atBlockBegin(func.addEntryBlock(), builder.getListener());

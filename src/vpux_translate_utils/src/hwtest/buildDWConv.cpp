@@ -98,9 +98,9 @@ void buildDWConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp modu
     const auto funcType = builder.getFunctionType(makeArrayRef(inputTypes), outputParamType);
 
     // TODO: Func should not return
-    auto func = builder.create<mlir::FuncOp>(
-            builder.getUnknownLoc(), llvm::formatv("dw_conv_{0}_{1}_{2}", inputType, weightsType, outputType).str(),
-            funcType, builder.getStringAttr("private"));
+    auto func = builder.create<mlir::FuncOp>(builder.getUnknownLoc(),
+                                             printToString("dw_conv_{0}_{1}_{2}", inputType, weightsType, outputType),
+                                             funcType, builder.getStringAttr("private"));
 
     auto funcbuilder = mlir::OpBuilder::atBlockBegin(func.addEntryBlock(), builder.getListener());
 

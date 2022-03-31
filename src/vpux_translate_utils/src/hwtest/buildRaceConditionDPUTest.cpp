@@ -104,7 +104,7 @@ void buildRaceConditionDPUTest(const nb::TestCaseJsonDescriptor& testDesc, mlir:
                                     SmallVector<mlir::Type>{outputParamType, outputParamType});
 
     auto function = builder.create<mlir::FuncOp>(
-            loc, llvm::formatv("race_condition_dpu_{0}_{1}_{2}", inputType, weightsType, outputType).str(), funcType,
+            loc, printToString("race_condition_dpu_{0}_{1}_{2}", inputType, weightsType, outputType), funcType,
             builder.getStringAttr("private"));
 
     auto functionBuilder = mlir::OpBuilder::atBlockBegin(function.addEntryBlock(), builder.getListener());

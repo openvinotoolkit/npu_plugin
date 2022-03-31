@@ -25,11 +25,11 @@ namespace vpux {
 
 namespace details {
 
-[[noreturn]] void throwFormat(StringRef file, int line, std::string message);
+[[noreturn]] void throwFormat(StringRef file, int line, const std::string& message);
 
 }  // namespace details
 
-#define VPUX_THROW(...) vpux::details::throwFormat(__FILE__, __LINE__, llvm::formatv(__VA_ARGS__).str())
+#define VPUX_THROW(...) vpux::details::throwFormat(__FILE__, __LINE__, vpux::printToString(__VA_ARGS__))
 
 #define VPUX_THROW_UNLESS(_condition_, ...) \
     if (LLVM_UNLIKELY(!(_condition_)))      \

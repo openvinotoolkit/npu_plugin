@@ -29,6 +29,6 @@ vpux::StringLiteral stringifyEnum(TestEnum val) {
 }
 
 TEST(MLIR_PlainEnumTest, Format) {
-    EXPECT_EQ(llvm::formatv("{0}", TestEnum::A).str(), "A");
-    EXPECT_EQ(llvm::formatv("{0}", TestEnum::B).str(), "B");
+    EXPECT_EQ(vpux::printToString("{0}", TestEnum::A), "A");
+    EXPECT_EQ(vpux::printToString("{0}", TestEnum::B), "B");
 }

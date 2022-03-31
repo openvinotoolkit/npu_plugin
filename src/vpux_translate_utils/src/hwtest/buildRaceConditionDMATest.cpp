@@ -49,9 +49,8 @@ void buildRaceConditionDMATest(const nb::TestCaseJsonDescriptor& testDesc, mlir:
     const auto funcType = builder.getFunctionType(makeArrayRef(std::vector<mlir::Type>{inType, outType, outType}),
                                                   makeArrayRef(std::vector<mlir::Type>{outType, outType}));
 
-    auto func =
-            builder.create<mlir::FuncOp>(loc, llvm::formatv("race_condition_dma_{0}_{1}", inputType, outputType).str(),
-                                         funcType, builder.getStringAttr("private"));
+    auto func = builder.create<mlir::FuncOp>(loc, printToString("race_condition_dma_{0}_{1}", inputType, outputType),
+                                             funcType, builder.getStringAttr("private"));
 
     auto funcBuilder = mlir::OpBuilder::atBlockBegin(func.addEntryBlock(), builder.getListener());
 

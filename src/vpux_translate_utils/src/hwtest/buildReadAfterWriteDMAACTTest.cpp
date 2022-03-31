@@ -51,9 +51,9 @@ void buildReadAfterWriteDMAACTTest(const nb::TestCaseJsonDescriptor& testDesc, m
 
     const auto funcType = builder.getFunctionType(makeArrayRef(inputTypes), outputParamType);
 
-    auto function = builder.create<mlir::FuncOp>(
-            loc, llvm::formatv("read_after_write_dma_act_{0}_{1}", inputType, outputType).str(), funcType,
-            builder.getStringAttr("private"));
+    auto function =
+            builder.create<mlir::FuncOp>(loc, printToString("read_after_write_dma_act_{0}_{1}", inputType, outputType),
+                                         funcType, builder.getStringAttr("private"));
 
     auto functionBuilder = mlir::OpBuilder::atBlockBegin(function.addEntryBlock(), builder.getListener());
 

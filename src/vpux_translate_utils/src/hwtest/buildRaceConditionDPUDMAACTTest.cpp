@@ -123,8 +123,8 @@ void buildRaceConditionDPUDMAACTTest(const nb::TestCaseJsonDescriptor& testDesc,
             SmallVector<mlir::Type>{outputParamType0, outputParamType1, outputParamType2});
 
     auto function = builder.create<mlir::FuncOp>(
-            loc, llvm::formatv("race_condition_dpu_dma_act_{0}_{1}_{2}", inputType, weightsType, outputType).str(),
-            funcType, builder.getStringAttr("private"));
+            loc, printToString("race_condition_dpu_dma_act_{0}_{1}_{2}", inputType, weightsType, outputType), funcType,
+            builder.getStringAttr("private"));
 
     auto functionBuilder = mlir::OpBuilder::atBlockBegin(function.addEntryBlock(), builder.getListener());
 

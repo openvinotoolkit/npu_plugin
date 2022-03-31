@@ -166,9 +166,8 @@ void buildEltwiseMultWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir
     const auto funcType = builder.getFunctionType(makeArrayRef(inputTypes), outputParamType);
 
     auto func = builder.create<mlir::FuncOp>(
-            builder.getUnknownLoc(),
-            llvm::formatv("eltwise_mult_{0}_{1}_{2}", inputType, weightsType, outputType).str(), funcType,
-            builder.getStringAttr("private"));
+            builder.getUnknownLoc(), printToString("eltwise_mult_{0}_{1}_{2}", inputType, weightsType, outputType),
+            funcType, builder.getStringAttr("private"));
 
     auto funcbuilder = mlir::OpBuilder::atBlockBegin(func.addEntryBlock(), builder.getListener());
 

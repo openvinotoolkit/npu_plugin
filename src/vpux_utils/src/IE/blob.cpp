@@ -723,7 +723,7 @@ void vpux::dumpBlobs(const BlobMap& blobMap, StringRef dstPath, StringRef blobTy
         const auto& blob = as<MemoryBlob>(p.value());
         VPUX_THROW_UNLESS(blob != nullptr, "Got non MemoryBlob");
 
-        const auto filePath = llvm::formatv("{0}/{1}-dump{2}.bin", dstPath, blobType, ind).str();
+        const auto filePath = printToString("{0}/{1}-dump{2}.bin", dstPath, blobType, ind);
         std::ofstream file(filePath, std::ios_base::binary);
 
         if (!file.is_open()) {

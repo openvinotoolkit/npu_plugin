@@ -87,8 +87,8 @@ void buildReadAfterWriteDMADPUTest(const nb::TestCaseJsonDescriptor& testDesc, m
                                                   SmallVector<mlir::Type>{outputParamType});
 
     auto function = builder.create<mlir::FuncOp>(
-            loc, llvm::formatv("read_after_write_dpu_dma_{0}_{1}_{2}", inputType, weightsType, outputType).str(),
-            funcType, builder.getStringAttr("private"));
+            loc, printToString("read_after_write_dpu_dma_{0}_{1}_{2}", inputType, weightsType, outputType), funcType,
+            builder.getStringAttr("private"));
 
     auto functionBuilder = mlir::OpBuilder::atBlockBegin(function.addEntryBlock(), builder.getListener());
 

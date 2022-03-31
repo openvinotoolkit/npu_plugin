@@ -86,9 +86,8 @@ void buildContinuedConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Module
     const auto funcType = builder.getFunctionType(llvm::makeArrayRef(inputTypes), outputParamType);
 
     auto function = builder.create<mlir::FuncOp>(
-            builder.getUnknownLoc(),
-            llvm::formatv("continued_conv_{0}_{1}_{2}", inputType, weightsType, outputType).str(), funcType,
-            builder.getStringAttr("private"));
+            builder.getUnknownLoc(), printToString("continued_conv_{0}_{1}_{2}", inputType, weightsType, outputType),
+            funcType, builder.getStringAttr("private"));
 
     auto functionBuilder = mlir::OpBuilder::atBlockBegin(function.addEntryBlock(), builder.getListener());
 

@@ -487,8 +487,7 @@ TEST_F(MLIR_DimsOrderTest, isCompatibleLayoutTest) {
                                                       layout.cast<mlir::MemRefLayoutAttrInterface>());
 
         EXPECT_EQ(expOrder.isCompatibleLayout(memRefType), isCompatible)
-                << llvm::formatv("expOrder = {0} memRefType = {1} isCompatible = {2}", expOrder, memRefType,
-                                 isCompatible)
-                           .str();
+                << printToString("expOrder = {0} memRefType = {1} isCompatible = {2}", expOrder, memRefType,
+                                 isCompatible);
     }
 }
