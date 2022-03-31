@@ -7,9 +7,10 @@
 
 replace_noerror()
 
-if(ENABLE_LTO)
-    ie_enable_lto()
-endif()
+# FIXME: LTO usage breaks vpux-translate for VPUIP blob generation in some cases (E#37558)
+# if(ENABLE_LTO)
+#     ie_enable_lto()
+# endif()
 
 set(TARGET_NAME "vpux_mlir_compiler")
 set(TBLGEN_TARGET_NAME "${TARGET_NAME}_tblgen")
