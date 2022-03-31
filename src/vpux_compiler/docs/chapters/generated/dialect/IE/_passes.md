@@ -85,7 +85,7 @@ This pass replaces all `Reorder` and `Transpose` operations with `MemPermute` op
 The pass is a part of `LowPrecision` pipeline.
 
 Pass detects quantized convolution and shifts weights data from a signed range to an unsigned one
-### `-delete-peraxis-quantization`: Delete PerAxis Quantize Dequantize for MTL
+### `-delete-peraxis-quantization`: Delete PerAxis Quantize Dequantize for VPUX37XX
 The pass is a part of `LowPrecision` pipeline.
 
 It deletes per axis quantization which left after LPT.
@@ -222,7 +222,7 @@ The pass is a part of `LowPrecision` pipeline.
 It matches pattern non-channel-aligned op -> optional Reshapes -> FQ -> Reshapes -> channel-aligned op
 Move the FQ right before the channel-aligned op to avoid redundant expand and permute ops.
 ### `-swap-maxpool-with-act`: Swaps the MaxPool and activation
-This pass is needed for MTL only since HW MaxPool does not support post-op operations.
+This pass is needed for VPUX37XX only since HW MaxPool does not support post-op operations.
 Operations are swapped only if there is an operation before MaxPool that supports post-ops.
 ### `-swap-transpose-with-fq`: Swaps Transpose operation with FakeQuantize
 The pass is a part of `HardwareMode` pipeline.

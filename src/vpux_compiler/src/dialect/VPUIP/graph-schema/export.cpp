@@ -88,11 +88,11 @@ void setActivityFactor(VPU::ExecutorKind execKind, MVCNN::ProcessorMappingBuilde
     // TODO: calc this value during compilation
     static const float activityFactor = 90.0;
     const auto arch = VPU::getArch(module);
-    if (arch == VPU::ArchKind::KMB || arch == VPU::ArchKind::TBH) {
+    if (arch == VPU::ArchKind::VPUX30XX || arch == VPU::ArchKind::VPUX311X) {
         if (execKind == VPU::ExecutorKind::NCE || execKind == VPU::ExecutorKind::SHAVE_UPA) {
             builder.add_activity_factor(activityFactor);
         }
-    } else if (arch == VPU::ArchKind::MTL) {
+    } else if (arch == VPU::ArchKind::VPUX37XX) {
         if (execKind == VPU::ExecutorKind::NCE || execKind == VPU::ExecutorKind::SHAVE_NN) {
             builder.add_activity_factor(activityFactor);
         }

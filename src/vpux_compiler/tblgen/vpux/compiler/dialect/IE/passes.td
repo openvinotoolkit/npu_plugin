@@ -581,7 +581,7 @@ def SwapMaxPoolWithActivation : PassBase<"swap-maxpool-with-act", "vpux::Functio
     let summary = "Swaps the MaxPool and activation";
 
     let description = [{
-        This pass is needed for MTL only since HW MaxPool does not support post-op operations.
+        This pass is needed for VPUX37XX only since HW MaxPool does not support post-op operations.
         Operations are swapped only if there is an operation before MaxPool that supports post-ops.
     }];
 
@@ -685,7 +685,7 @@ def MergeFakeQuant : PassBase<"merge-fake-quant", "vpux::FunctionPass"> {
 //
 
 def DeletePerAxisQuantization : PassBase<"delete-peraxis-quantization", "vpux::FunctionPass"> {
-    let summary = "Delete PerAxis Quantize Dequantize for MTL";
+    let summary = "Delete PerAxis Quantize Dequantize for VPUX37XX";
 
     let description = [{
         The pass is a part of `LowPrecision` pipeline.

@@ -31,7 +31,7 @@ struct ReferenceSWOptions : mlir::PassPipelineOptions<ReferenceSWOptions> {
     BoolOption enableSWProfiling{*this, "sw-profiling", llvm::cl::desc("Enable SW task profiling"),
                                  llvm::cl::init(true)};
 
-    StrOption arch{*this, "vpu-arch", llvm::cl::desc("VPU architecture to compile for"), llvm::cl::init("KMB")};
+    StrOption arch{*this, "vpu-arch", llvm::cl::desc("VPU architecture to compile for"), llvm::cl::init("VPUX30XX")};
 
     BoolOption enableUseUserPrecision{*this, "use-user-precision", llvm::cl::desc("Enable use-user-precision pass"),
                                       llvm::cl::init(true)};
@@ -64,7 +64,7 @@ struct ReferenceHWOptions : mlir::PassPipelineOptions<ReferenceHWOptions> {
     BoolOption enableSWProfiling{*this, "sw-profiling", llvm::cl::desc("Enable SW task profiling"),
                                  llvm::cl::init(true)};
 
-    StrOption arch{*this, "vpu-arch", llvm::cl::desc("VPU architecture to compile for"), llvm::cl::init("KMB")};
+    StrOption arch{*this, "vpu-arch", llvm::cl::desc("VPU architecture to compile for"), llvm::cl::init("VPUX30XX")};
 
     IntOption numberOfDPUGroups{*this, "num-of-dpu-groups", llvm::cl::desc("Number of DPU groups")};
 
@@ -135,7 +135,7 @@ struct DefaultHWOptions : mlir::PassPipelineOptions<DefaultHWOptions> {
     BoolOption enableSWProfiling{*this, "sw-profiling", llvm::cl::desc("Enable SW task profiling"),
                                  llvm::cl::init(true)};
 
-    StrOption arch{*this, "vpu-arch", llvm::cl::desc("VPU architecture to compile for"), llvm::cl::init("KMB")};
+    StrOption arch{*this, "vpu-arch", llvm::cl::desc("VPU architecture to compile for"), llvm::cl::init("VPUX30XX")};
 
     IntOption numberOfDPUGroups{*this, "num-of-dpu-groups", llvm::cl::desc("Number of DPU groups")};
 

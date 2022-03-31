@@ -2,7 +2,7 @@
 
 !qElemType = type !quant.uniform<u8:f16, 1.0000000000000000E-1>
 
-module @HuffmanCodec attributes {VPU.arch = "KMB", VPU.compilationMode = "DefaultHW"}  {
+module @HuffmanCodec attributes {VPU.arch = "VPUX30XX", VPU.compilationMode = "DefaultHW"}  {
 
 // CHECK-LABEL: func @CompressQuantConstantKMB
 func @CompressQuantConstantKMB() -> memref<256x512x3x3x!qElemType, @CMX_NN> {

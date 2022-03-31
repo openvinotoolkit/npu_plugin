@@ -59,12 +59,12 @@ VPU::ArchKind getArchKind(const Config& config) {
         return VPU::ArchKind::UNKNOWN;
     case InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3400:
     case InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3700:
-        return VPU::ArchKind::KMB;
+        return VPU::ArchKind::VPUX30XX;
     case InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3800:
     case InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3900:
-        return VPU::ArchKind::TBH;
+        return VPU::ArchKind::VPUX311X;
     case InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3720:
-        return VPU::ArchKind::MTL;
+        return VPU::ArchKind::VPUX37XX;
     default:
         VPUX_THROW("Unsupported VPUX platform");
     }
@@ -321,7 +321,7 @@ void buildPipeline(mlir::PassManager& pm, const Config& config, mlir::TimingScop
         VPUX_THROW_UNLESS(options != nullptr, "buildPipeline failed to parse COMPILATION_MODE_PARAMS");
         options->enableProfiling = enableProfiling;
 #if defined(_WIN32)
-        if (archKind == VPU::ArchKind::KMB) {
+        if (archKind == VPU::ArchKind::VPUX30XX) {
             options->enableUseUserPrecision = false;
             options->enableUseUserLayout = false;
         }

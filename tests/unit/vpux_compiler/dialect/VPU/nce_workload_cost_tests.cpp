@@ -48,7 +48,7 @@ vpux::VPUIP::WorkloadCostParams buildWorkloadCost(const NceOpTensorShape& tensor
     costParams.kernelSize = {1, 1};
     costParams.kernelStride = {1, 1};
     costParams.nceTaskType = vpux::VPUIP::NCETaskType::CONV;
-    costParams.arch = vpux::VPU::ArchKind::KMB;
+    costParams.arch = vpux::VPU::ArchKind::VPUX30XX;
     costParams.mpeMode = mpeMode;
     costParams.numDPU = numDPU;
     return costParams;
@@ -61,7 +61,7 @@ TEST(MLIR_VPU_WorkloadCost, VPUNNCostInterface) {
     llvm::SmallVector<vpux::VPU::MPEMode> mpeModeList{vpux::VPU::MPEMode::VECTOR_FP16, vpux::VPU::MPEMode::VECTOR,
                                                       vpux::VPU::MPEMode::MATRIX, vpux::VPU::MPEMode::CUBOID_4x16};
 
-    const auto costModel = vpux::VPU::createCostModel(vpux::VPU::ArchKind::KMB);
+    const auto costModel = vpux::VPU::createCostModel(vpux::VPU::ArchKind::VPUX30XX);
 
     llvm::SmallVector<NceOpTensorShape> testTensorLists;
     for (int64_t h = initDimensionValue; h < maxDimensionValue; h *= testStep) {

@@ -1,5 +1,5 @@
 // RUN: vpux-opt --split-input-file --canonicalize %s | FileCheck %s
-module @SingleLayer attributes {VPU.arch = "KMB", VPU.compilationMode = "ReferenceSW"}  {
+module @SingleLayer attributes {VPU.arch = "VPUX30XX", VPU.compilationMode = "ReferenceSW"}  {
   module @UsedMemory  {
     IE.MemoryResource 2048 bytes of @DDR
   }

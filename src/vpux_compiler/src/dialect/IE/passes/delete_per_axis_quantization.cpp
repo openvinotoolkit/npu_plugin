@@ -82,8 +82,8 @@ void DeletePerAxisQuantizationPass::safeRunOnFunc() {
     auto module = func->getParentOfType<mlir::ModuleOp>();
     const auto arch = VPU::getArch(module);
 
-    if (arch != VPU::ArchKind::MTL) {
-        _log.trace("Deleting unused per axis quantization is for MTL only");
+    if (arch != VPU::ArchKind::VPUX37XX) {
+        _log.trace("Deleting unused per axis quantization is for VPUX37XX only");
         return;
     }
 

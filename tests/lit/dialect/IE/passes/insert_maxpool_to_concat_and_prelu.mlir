@@ -1,4 +1,4 @@
-// RUN: vpux-opt --split-input-file --init-compiler="vpu-arch=KMB compilation-mode=DefaultHW" --insert-maxpool-to-concat-lrelu %s | FileCheck %s
+// RUN: vpux-opt --split-input-file --init-compiler="vpu-arch=VPUX30XX compilation-mode=DefaultHW" --insert-maxpool-to-concat-lrelu %s | FileCheck %s
 
 // CHECK-LABEL: @InsertMaxPoolToConcatAntLRelu
 func @InsertMaxPoolToConcatAntLRelu(%arg0: tensor<1x128x2x32xf16>, %arg1: tensor<1x128x1x32xf16>) -> tensor<1x128x3x32xf16> {

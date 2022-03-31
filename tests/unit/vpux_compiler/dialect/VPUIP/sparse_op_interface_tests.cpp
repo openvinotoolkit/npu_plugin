@@ -57,7 +57,7 @@ TEST(MLIR_VPUIP_Sparsity, SparseOpInterface) {
     ASSERT_TRUE(func != nullptr);
 
     mlir::PassManager pm(&ctx, mlir::OpPassManager::Nesting::Implicit);
-    pm.addPass(vpux::VPU::createInitCompilerPass(vpux::VPU::ArchKind::KMB, vpux::VPU::CompilationMode::DefaultHW,
+    pm.addPass(vpux::VPU::createInitCompilerPass(vpux::VPU::ArchKind::VPUX30XX, vpux::VPU::CompilationMode::DefaultHW,
                                                  vpux::None, vpux::Logger::global()));
 
     ASSERT_TRUE(mlir::succeeded(pm.run(module.get())));

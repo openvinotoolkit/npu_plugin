@@ -41,7 +41,7 @@ llvm::Optional<double> calculateQuantScaleVectorForEltwise(mlir::ShapedType inpu
     // floats in the compute pipeline are represented as S16.16 values
     // In order to convert from I32 to S16.16 and back, we need to multiply/divide by 1<<16
     // Depends on target hardware
-    const double fp16_scale = (VPU::ArchKind::MTL == arch) ? (1.0) : (1.0 / 65536);
+    const double fp16_scale = (VPU::ArchKind::VPUX37XX == arch) ? (1.0) : (1.0 / 65536);
 
     if (!input1ElementType.isa<mlir::quant::QuantizedType>() && !input2ElementType.isa<mlir::quant::QuantizedType>()) {
         scaleOutput = extractScalesAndZeroPoints(outputElementType).first.front();
@@ -88,7 +88,7 @@ llvm::Optional<double> calculateQuantScaleVectorForAvgPool(mlir::ShapedType inpu
     // floats in the compute pipeline are represented as S16.16 values
     // In order to convert from I32 to S16.16 and back, we need to multiply/divide by 1<<16
     // Depends on target hardware
-    const double fp16_scale = (VPU::ArchKind::MTL == arch) ? (1.0) : (1.0 / 65536);
+    const double fp16_scale = (VPU::ArchKind::VPUX37XX == arch) ? (1.0) : (1.0 / 65536);
 
     auto scaleInput = fp16_scale;
     auto scaleOutput = fp16_scale;
@@ -246,8 +246,8 @@ llvm::Optional<VPU::PostOpParams> parsePostOp(IE::PostOp postOp, const mlir::Typ
         const auto alpha = leakyRelu.negative_slope().getValueAsDouble();
         int32_t clampLow = static_cast<int32_t>(std::numeric_limits<int32_t>::min() / alpha);
         if (outElemQType != nullptr) {
-            clampLow = (arch == VPU::ArchKind::MTL) ? static_cast<int32_t>(clampLowQuantized)
-                                                    : static_cast<int32_t>(clampLowQuantized / alpha);
+            clampLow = (arch == VPU::ArchKind::VPUX37XX) ? static_cast<int32_t>(clampLowQuantized)
+                                                         : static_cast<int32_t>(clampLowQuantized / alpha);
         }
 
         int64_t clampHigh = (outElemQType != nullptr) ? clampHighQuantized : std::numeric_limits<int32_t>::max();

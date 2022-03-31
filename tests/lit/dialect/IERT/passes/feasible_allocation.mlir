@@ -1,4 +1,4 @@
-// RUN: vpux-opt --split-input-file --init-compiler="vpu-arch=KMB" --feasible-allocation="memory-space=CMX_NN second-level-memory-space=DDR" %s | FileCheck %s
+// RUN: vpux-opt --split-input-file --init-compiler="vpu-arch=VPUX30XX" --feasible-allocation="memory-space=CMX_NN second-level-memory-space=DDR" %s | FileCheck %s
 
 // CHECK-LABEL: @SimpleGraph
 module @SimpleGraph {

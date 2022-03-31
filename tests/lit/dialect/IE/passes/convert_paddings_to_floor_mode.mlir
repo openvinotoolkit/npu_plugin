@@ -1,4 +1,4 @@
-// RUN: vpux-opt --split-input-file --init-compiler="vpu-arch=KMB" --convert-paddings-to-floor-mode %s | FileCheck %s
+// RUN: vpux-opt --split-input-file --init-compiler="vpu-arch=VPUX30XX" --convert-paddings-to-floor-mode %s | FileCheck %s
 
 // CHECK-LABEL: @MaxPool
 func @MaxPool(%arg0: tensor<1x512x38x38xf32>) -> tensor<1x512x19x19xf32> {

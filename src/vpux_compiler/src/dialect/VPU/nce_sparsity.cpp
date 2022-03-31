@@ -20,7 +20,7 @@ using namespace vpux;
 namespace {
 
 bool isMixedPrecisionSupported(VPU::ArchKind arch) {
-    return arch == VPU::ArchKind::MTL;
+    return arch == VPU::ArchKind::VPUX37XX;
 }
 
 template <class T>
@@ -129,7 +129,7 @@ int32_t toHex(double realVal) {
     return biasVal.m_i32;
 }
 
-constexpr int32_t getKMBScale(uint8_t shift, uint16_t mult, double, mlir::Type) {
+constexpr int32_t getVPUX30XX_Scale(uint8_t shift, uint16_t mult, double, mlir::Type) {
     // FIXME: set value when PPE is LPRELU in quant mode
     int32_t PRELU_SCALE_OFFSET = 0;
     int32_t PRELU_SCALE_VALUE = 1;
@@ -148,8 +148,8 @@ constexpr int32_t getKMBScale(uint8_t shift, uint16_t mult, double, mlir::Type) 
            (ROUND_MODE_VALUE << ROUND_MODE_OFFSET) | (PPE_MULT_VALUE << PPE_MULT_OFFSET);
 }
 
-int32_t getMTLScale(uint8_t shift, uint16_t mult, double rescale, mlir::Type inputType) {
-    // MTL expects scale in IEEE754 format in NCE_DPU_PPE_FP_SCALE register in case input has FP16/BF16 type
+int32_t getVPUX37XX_Scale(uint8_t shift, uint16_t mult, double rescale, mlir::Type inputType) {
+    // VPUX37XX expects scale in IEEE754 format in NCE_DPU_PPE_FP_SCALE register in case input has FP16/BF16 type
     if (inputType.isF16() || inputType.isBF16() || inputType.isF32()) {
         return toHex(rescale);
     }
@@ -270,15 +270,15 @@ llvm::unique_function<int32_t(size_t)> getMultShiftFunc(mlir::Type inElemType, m
 }  // namespace
 
 const EnumMap<VPU::ArchKind, VPU::NCESparsity::PPEConverterCb> vpux::VPU::NCESparsity::ppeConvertersMap = {
-        {VPU::ArchKind::KMB, getKMBScale},
-        {VPU::ArchKind::TBH, getKMBScale},
-        {VPU::ArchKind::MTL, getMTLScale},
+        {VPU::ArchKind::VPUX30XX, getVPUX30XX_Scale},
+        {VPU::ArchKind::VPUX311X, getVPUX30XX_Scale},
+        {VPU::ArchKind::VPUX37XX, getVPUX37XX_Scale},
 };
 
 const EnumMap<VPU::ArchKind, VPU::NCESparsity::BiasConverterCb> vpux::VPU::NCESparsity::biasConvertersMap = {
-        {VPU::ArchKind::KMB, toFixedPoint},
-        {VPU::ArchKind::TBH, toFixedPoint},
-        {VPU::ArchKind::MTL, toHex},
+        {VPU::ArchKind::VPUX30XX, toFixedPoint},
+        {VPU::ArchKind::VPUX311X, toFixedPoint},
+        {VPU::ArchKind::VPUX37XX, toHex},
 };
 
 int64_t vpux::VPU::NCESparsity::getBitPatternSize(Mode mode, ShapeRef kernelSize, int64_t SX, mlir::Type elemType,

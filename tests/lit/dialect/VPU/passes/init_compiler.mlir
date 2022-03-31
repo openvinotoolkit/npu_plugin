@@ -1,6 +1,6 @@
-// RUN: vpux-opt --init-compiler="vpu-arch=KMB compilation-mode=ReferenceSW" %s | FileCheck %s
+// RUN: vpux-opt --init-compiler="vpu-arch=VPUX30XX compilation-mode=ReferenceSW" %s | FileCheck %s
 
-// CHECK: module @test attributes {VPU.arch = "KMB", VPU.compilationMode = "ReferenceSW"}
+// CHECK: module @test attributes {VPU.arch = "VPUX30XX", VPU.compilationMode = "ReferenceSW"}
 module @test {
 
 // CHECK-DAG:    IE.ExecutorResource 1 of @DMA_NN

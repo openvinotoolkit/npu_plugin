@@ -67,7 +67,7 @@ public:
     int64_t shift() const;
 
 private:
-    // KMB mult is int8_t, MTL mult is uint16_t - using int32_t as common storage
+    // VPUX30XX mult is int8_t, VPUX37XX mult is uint16_t - using int32_t as common storage
     int32_t _mult;
     uint8_t _shift;
 };

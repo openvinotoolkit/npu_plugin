@@ -148,8 +148,8 @@ void ConvertSWLayers2VPUIPPass::safeRunOnModule() {
     auto& ctx = getContext();
     auto module = getOperation();
     const auto arch = VPU::getArch(module);
-    if (arch != VPU::ArchKind::MTL) {
-        _log.trace("ConvertSWLayers2VPUIPPass enabled only for MTL device. Got: {0}", arch);
+    if (arch != VPU::ArchKind::VPUX37XX) {
+        _log.trace("ConvertSWLayers2VPUIPPass enabled only for VPUX37XX device. Got: {0}", arch);
         return;
     }
 

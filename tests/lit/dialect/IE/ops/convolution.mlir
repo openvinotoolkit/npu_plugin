@@ -1,4 +1,4 @@
-// RUN: vpux-opt --init-compiler="vpu-arch=KMB compilation-mode=DefaultHW" --canonicalize %s | FileCheck %s
+// RUN: vpux-opt --init-compiler="vpu-arch=VPUX30XX compilation-mode=DefaultHW" --canonicalize %s | FileCheck %s
 
 // CHECK-LABEL: @FuseConvAndBias
 func @FuseConvAndBias(%arg0: tensor<1x3x300x300xf32>) -> tensor<1x16x300x300xf32> {

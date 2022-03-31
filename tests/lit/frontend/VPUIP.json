@@ -423,7 +423,7 @@
   ]
 }
 
-// CHECK:   module @Test attributes {VPU.arch = "KMB"} {
+// CHECK:   module @Test attributes {VPU.arch = "VPUX30XX"} {
 
 // CHECK-DAG:   IE.MemoryResource 917504 bytes of @CMX_NN
 // CHECK-DAG:   IE.MemoryResource 2048 bytes of @DDR

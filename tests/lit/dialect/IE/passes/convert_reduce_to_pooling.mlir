@@ -1,4 +1,4 @@
-// RUN: vpux-opt --split-input-file --init-compiler="vpu-arch=KMB compilation-mode=DefaultHW" --convert-reduce-to-pooling %s | FileCheck %s
+// RUN: vpux-opt --split-input-file --init-compiler="vpu-arch=VPUX30XX compilation-mode=DefaultHW" --convert-reduce-to-pooling %s | FileCheck %s
 
 // CHECK-LABEL: @ConvertReduceMeanToPooling4D
 func @ConvertReduceMeanToPooling4D(%arg0: tensor<1x1x1x50xf16>) -> tensor<1x1x1x1xf16> {

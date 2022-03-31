@@ -189,7 +189,7 @@ void ConvertQuantizeOpsToEltwisePass::safeRunOnFunc() {
     target.addLegalOp<IE::QuantizeCastOp>();
 
     mlir::RewritePatternSet patterns(&ctx);
-    if (arch == VPU::ArchKind::MTL) {
+    if (arch == VPU::ArchKind::VPUX37XX) {
         patterns.insert<DequantizeToAddRewriter>(&ctx, _log);
         patterns.insert<QuantizeToAddRewriter>(&ctx, _log);
     } else {

@@ -64,9 +64,9 @@ import numpy as np
 from numpy.random import default_rng
 
 class Architecture(Enum):
-    KMB = 3700,
-    MTL = 3720,
-    LNL = 4000
+    VPUX30XX = 3700,
+    VPUX37XX = 3720,
+    VPUX4000 = 4000
 
 Orderer = Callable[[np.ndarray], np.ndarray]
 
@@ -670,7 +670,7 @@ def iduConvCustom(input: Value, weights: Value) -> "tuple[np.ndarray, np.ndarray
     if input.data.dtype == weights.data.dtype :
         return input.data, weights.data
 
-    # NumericBench requires activations and weights types are equal meanwhile MTL hardware supports different data types
+    # NumericBench requires activations and weights types are equal meanwhile VPUX37XX hardware supports different data types
 
     if (input.data.dtype == bfloat16) or (weights.data.dtype == bfloat16) :
         # docs link https://docs.intel.com/documents/MovidiusInternal/vpu27/common/SW/HLD/internal/02_04_NN_LayerMappingHLD.html#input-data-type-support
@@ -3422,7 +3422,7 @@ def generate_options(args):
     return itertools.chain(
         # ActShave
         genActShave(
-            architecture=Architecture.MTL,
+            architecture=Architecture.VPUX37XX,
             input_types=[FP16(0)],
             input_shapes=[[1, 10, 2, 3],  [1, 1000, 1, 1], [1, 1, 1000, 1], [1, 1, 1, 1000]],
             output_types=[FP16()],
@@ -3445,19 +3445,19 @@ def generate_options(args):
         #    fp16 weights.
 
         # Z-Major Convolution
-        genZMConvs(architecture=Architecture.MTL, input_types=[Int8(3), Int4(3), UInt8(3), UInt4(3), FP16(4), BF16(4)]),
+        genZMConvs(architecture=Architecture.VPUX37XX, input_types=[Int8(3), Int4(3), UInt8(3), UInt4(3), FP16(4), BF16(4)]),
 
         # Z-Major Convolution, uint8 activations with extended kernel shapes
         # NB The number of bits used is turned pretty far down, to avoid issues
         # with floating point rounding.
-        genZMConvs(architecture=Architecture.MTL,
+        genZMConvs(architecture=Architecture.VPUX37XX,
                    input_types=[UInt8(1)],
                    weight_types=[UInt8(1)],
                    kernel_shapes=[[r, c] for r in range(1, 12) for c in range(1, 12) if (r, c) != (1, 1)],
                    output_types=[FP16()]),
 
         # Z-Major Convolution with strides
-        genZMConvs(architecture=Architecture.MTL,
+        genZMConvs(architecture=Architecture.VPUX37XX,
                    input_types=[FP16(3)],
                    weight_types=[Int8(3), FP16(3)],
                    output_types=[FP16()],
@@ -3465,7 +3465,7 @@ def generate_options(args):
                    strides=[[r, c] for r in range(1, 8) for c in range(1, 8)]),
 
         # Z-Major Convolution, padding, uint8
-        genZMConvs(architecture=Architecture.MTL,
+        genZMConvs(architecture=Architecture.VPUX37XX,
                    input_types=[UInt8(2)],
                    input_shapes=[[1, 16, 32, 32]],
                    weight_types=[UInt8(1)],
@@ -3475,7 +3475,7 @@ def generate_options(args):
                    pads=Pad.none + Pad.all(5) + Pad.top(5) + Pad.left(5) + Pad.bottom(5) + Pad.right(5)),
 
         # Z-Major Convolution, padding, uint8
-        genZMConvs(architecture=Architecture.MTL,
+        genZMConvs(architecture=Architecture.VPUX37XX,
                    input_types=[UInt8(2)],
                    input_shapes=[[1, 16, 32, 32]],
                    weight_types=[UInt8(1)],
@@ -3485,7 +3485,7 @@ def generate_options(args):
                    pads=Pad.none + Pad.all(5) + Pad.top(5) + Pad.left(5) + Pad.bottom(5) + Pad.right(5)),
 
         # Z-Major Convolution, padding, int8
-        genZMConvs(architecture=Architecture.MTL,
+        genZMConvs(architecture=Architecture.VPUX37XX,
                    input_types=[Int8(2)],
                    input_shapes=[[1, 16, 32, 32]],
                    weight_types=[Int8(2)],
@@ -3495,7 +3495,7 @@ def generate_options(args):
                    pads=Pad.none + Pad.top(5) + Pad.left(5) + Pad.bottom(5) + Pad.right(5)),
 
         # Z-Major Convolution, padding, int8
-        genZMConvs(architecture=Architecture.MTL,
+        genZMConvs(architecture=Architecture.VPUX37XX,
                    input_types=[Int8(2)],
                    input_shapes=[[1, 32, 32, 32]],
                    weight_types=[Int4(2)],
@@ -3505,7 +3505,7 @@ def generate_options(args):
                    pads=Pad.none + Pad.top(5) + Pad.left(5) + Pad.bottom(5) + Pad.right(5)),
 
         # Z-Major Convolution, padding, int8
-        genZMConvs(architecture=Architecture.MTL,
+        genZMConvs(architecture=Architecture.VPUX37XX,
                    input_types=[Int8(2)],
                    input_shapes=[[1, 16, 32, 32]],
                    weight_types=[Int8(2)],
@@ -3515,7 +3515,7 @@ def generate_options(args):
                    pads=Pad.none + Pad.top(5) + Pad.left(5) + Pad.bottom(5) + Pad.right(5)),
 
         # Z-Major Convolution, padding, int8
-        genZMConvs(architecture=Architecture.MTL,
+        genZMConvs(architecture=Architecture.VPUX37XX,
                    input_types=[Int8(2)],
                    input_shapes=[[1, 32, 32, 32]],
                    weight_types=[Int4(2)],
@@ -3525,7 +3525,7 @@ def generate_options(args):
                    pads=Pad.none + Pad.top(5) + Pad.left(5) + Pad.bottom(5) + Pad.right(5)),
 
         # Z-Major Convolution, padding, fp16
-        genZMConvs(architecture=Architecture.MTL,
+        genZMConvs(architecture=Architecture.VPUX37XX,
                    input_types=[FP16(2)],
                    input_shapes=[[1, 16, 32, 32]],
                    weight_types=[FP16(2)],
@@ -3535,7 +3535,7 @@ def generate_options(args):
                    pads=Pad.none + Pad.top(5) + Pad.left(5) + Pad.bottom(5) + Pad.right(5)),
 
         # Z-Major Convolution, padding, bf16
-        genZMConvs(architecture=Architecture.MTL,
+        genZMConvs(architecture=Architecture.VPUX37XX,
                    input_types=[BF16(2)],
                    input_shapes=[[1, 16, 32, 32]],
                    weight_types=[BF16(2)],
@@ -3545,7 +3545,7 @@ def generate_options(args):
                    pads=Pad.none + Pad.top(5) + Pad.left(5) + Pad.bottom(5) + Pad.right(5)),
 
         # Z-Major Convolution, padding, 4x6 kernel, uint8
-        genZMConvs(architecture=Architecture.MTL,
+        genZMConvs(architecture=Architecture.VPUX37XX,
                    input_types=[UInt8(2)],
                    input_shapes=[[1, 16, 8, 8]],
                    weight_types=[UInt8(1)],
@@ -3555,7 +3555,7 @@ def generate_options(args):
                    pads=[[2,0,0,0],[0,3,0,0]]),
 
         # Z-Major Convolution, padding, 5x5 kernel, uint8
-        genZMConvs(architecture=Architecture.MTL,
+        genZMConvs(architecture=Architecture.VPUX37XX,
                    input_types=[UInt8(2)],
                    input_shapes=[[1, 16, 32, 32]],
                    weight_types=[UInt8(1)],
@@ -3565,12 +3565,12 @@ def generate_options(args):
                    pads=[[4,0,0,0],[0,5,0,0]]),
 
         # Z-Major Convolution, output order
-        genZMConvs(architecture=Architecture.MTL,
+        genZMConvs(architecture=Architecture.VPUX37XX,
                    input_types=[Int8(3), FP16(4)],
                    output_orders=[Order.NWHC, Order.NWCH, Order.NCWH, Order.NHCW, Order.NCHW]),
 
         # Z-Major Convolution, integer cuboid combinations
-        genZMConvs(architecture=Architecture.MTL,
+        genZMConvs(architecture=Architecture.VPUX37XX,
                    input_types=[Int8(3)],
                    input_shapes=[[1, 16, 32, 64]],
                    weight_types=[Int8(2)],
@@ -3578,7 +3578,7 @@ def generate_options(args):
                    mpe_cubs=[MPE_CUBES.CUBOID_16x16, MPE_CUBES.CUBOID_8x16, MPE_CUBES.CUBOID_4x16]),
 
         # Z-Major Convolution, fp cuboid combinations
-        genZMConvs(architecture=Architecture.MTL,
+        genZMConvs(architecture=Architecture.VPUX37XX,
                    input_types=[FP16(4)],
                    input_shapes=[[1, 16, 32, 64]],
                    weight_types=[FP16(2)],
@@ -3587,7 +3587,7 @@ def generate_options(args):
 
         # Z-Major Convolution, sparse
         genSparseConvs(
-            architecture=Architecture.MTL,
+            architecture=Architecture.VPUX37XX,
             input_types=[Int8(4)],
             input_shapes=[[1, 128, 32, 32]],
             kernel_shapes=[[1, 1], [5, 5]],
@@ -3596,7 +3596,7 @@ def generate_options(args):
             sparsity_factors = [0.1, 0.5, 0.9]),
 
         genSparseConvs(
-            architecture=Architecture.MTL,
+            architecture=Architecture.VPUX37XX,
             input_types=[UInt8(4)],
             input_shapes=[[1, 128, 32, 32]],
             kernel_shapes=[[1, 1], [5, 5]],
@@ -3605,7 +3605,7 @@ def generate_options(args):
             sparsity_factors = [0.1, 0.5, 0.9]),
 
         genSparseConvs(
-            architecture=Architecture.MTL,
+            architecture=Architecture.VPUX37XX,
             input_types=[FP16(2)],
             input_shapes=[[1, 128, 32, 32]],
             kernel_shapes=[[1, 1], [5, 5]],
@@ -3614,7 +3614,7 @@ def generate_options(args):
             sparsity_factors = [0.1, 0.5, 0.9]),
 
         genSparseConvs(
-            architecture=Architecture.MTL,
+            architecture=Architecture.VPUX37XX,
             input_types=[BF16(2)],
             input_shapes=[[1, 128, 32, 32]],
             kernel_shapes=[[1, 1], [5, 5]],
@@ -3622,70 +3622,70 @@ def generate_options(args):
             output_types=[BF16()],
             sparsity_factors = [0.1, 0.5, 0.9]),
 
-        genZMConvs(architecture=Architecture.MTL,
+        genZMConvs(architecture=Architecture.VPUX37XX,
                    input_types=[FP16(2)],
                    input_shapes=[[1, 16, 16, 16]],
                    weight_types=[FP16(2)],
                    output_types=[FP16()]),
 
         # Eltwise Add
-        genEltwiseAdds(architecture=Architecture.MTL,
+        genEltwiseAdds(architecture=Architecture.VPUX37XX,
                        input_types=[Int8(6), UInt8(6), FP16(6), BF16(6)],
                        input_shapes=[[1, 256, 16, 16]]),
 
         # Eltwise Mult
-        genEltwiseMults(architecture=Architecture.MTL,
+        genEltwiseMults(architecture=Architecture.VPUX37XX,
                         input_types=[Int8(3), UInt8(4), FP16(6), BF16(6)],
                         input_shapes=[[1, 1, 1, 64]]),
 
         # MaxPool
-        genMaxPools(architecture=Architecture.MTL,
+        genMaxPools(architecture=Architecture.VPUX37XX,
                     input_types=[UInt8(6), Int8(6), FP16(6), BF16(6)],
                     input_shapes=[[1, 64, 16, 16]],
                     pads=Pad.none + Pad.all(1) + Pad.top_bottom(1) + Pad.left_right(1)),
 
-        genMaxPools(architecture=Architecture.MTL,
+        genMaxPools(architecture=Architecture.VPUX37XX,
                     input_types=[UInt8(6)],
                     output_types=[UInt8()],
                     strides=[[r, c] for r in range(2, 8) for c in range(2, 8) if (r, c) != (2, 2)]),
 
-        genMaxPools(architecture=Architecture.MTL,
+        genMaxPools(architecture=Architecture.VPUX37XX,
                     input_types=[UInt8(6)],
                     output_types=[UInt8()],
                     kernel_shapes=[[r, c] for r in range(2, 12) for c in range(2, 12) if (r, c) != (2, 2)]),
 
         # AvgPool
-        genAvgPools(architecture=Architecture.MTL,
+        genAvgPools(architecture=Architecture.VPUX37XX,
                     input_types=[Int8(6), UInt8(6), FP16(6), BF16(6)],
                     input_shapes=[[1, 64, 32, 32]]),
 
         # DepthWiseConv
-        genDepthWiseConvs(architecture=Architecture.MTL,
+        genDepthWiseConvs(architecture=Architecture.VPUX37XX,
                           input_types=[Int8(6), UInt8(6), FP16(6), BF16(6)],
                           pads=[[0, 0, 0, 0], [1, 0, 0, 0]]),
 
-        genDepthWiseConvs(architecture=Architecture.MTL,
+        genDepthWiseConvs(architecture=Architecture.VPUX37XX,
                           input_types=[Int8(6), UInt8(6), FP16(6), BF16(6)],
                           input_shapes=[[1, 32, 32, 32]],
                           kernel_channels=[32]),
 
-        genDepthWiseConvs(architecture=Architecture.MTL,
+        genDepthWiseConvs(architecture=Architecture.VPUX37XX,
                           input_types=[Int8(6), UInt8(6), FP16(6), BF16(6)],
                           input_shapes=[[1, 64, 32, 32]],
                           kernel_channels=[64]),
 
-        genDepthWiseConvs(architecture=Architecture.MTL,
+        genDepthWiseConvs(architecture=Architecture.VPUX37XX,
                           input_types=[UInt8(6)],
                           output_types=[UInt8()],
                           strides=[[r, c] for r in range(1, 8) for c in range(1, 8) if (r, c) != (1, 1)]),
 
-        genDepthWiseConvs(architecture=Architecture.MTL,
+        genDepthWiseConvs(architecture=Architecture.VPUX37XX,
                           input_types=[UInt8(6)],
                           output_types=[UInt8()],
                           kernel_shapes=[[r, c] for r in range(1, 12) for c in range(1, 12) if (r, c) != (4, 4)]),
 
         # MobileNet ELTWISE, uint8
-        genEltwiseAdds(architecture=Architecture.MTL,
+        genEltwiseAdds(architecture=Architecture.VPUX37XX,
                        input_types=[UInt8(2)],
                        input_shapes=[[1, 32, 56, 56],
                                      [1, 32, 28, 28],
@@ -3693,77 +3693,77 @@ def generate_options(args):
                        output_types=[UInt8()]),
 
         # MobileNet CONV (ZMajorConv)
-        genZMConvs(architecture=Architecture.MTL,
+        genZMConvs(architecture=Architecture.VPUX37XX,
                    input_types=[UInt8(2)],
                    input_shapes=[[1, 32, 112, 112]],
                    weight_types=[UInt8(2)],
                    kernel_channels=[16],
                    output_types=[UInt8()]),
 
-        genZMConvs(architecture=Architecture.MTL,
+        genZMConvs(architecture=Architecture.VPUX37XX,
                    input_types=[UInt8(2)],
                    input_shapes=[[1, 16, 112, 112]],
                    weight_types=[UInt8(2)],
                    kernel_channels=[96],
                    output_types=[UInt8()]),
 
-        genZMConvs(architecture=Architecture.MTL,
+        genZMConvs(architecture=Architecture.VPUX37XX,
                    input_types=[UInt8(2)],
                    input_shapes=[[1, 96, 56, 56]],
                    weight_types=[UInt8(2)],
                    kernel_channels=[32],
                    output_types=[UInt8()]),
 
-        genZMConvs(architecture=Architecture.MTL,
+        genZMConvs(architecture=Architecture.VPUX37XX,
                    input_types=[UInt8(2)],
                    input_shapes=[[1, 32, 56, 56]],
                    weight_types=[UInt8(2)],
                    kernel_channels=[144],
                    output_types=[UInt8()]),
 
-        genZMConvs(architecture=Architecture.MTL,
+        genZMConvs(architecture=Architecture.VPUX37XX,
                    input_types=[UInt8(2)],
                    input_shapes=[[1, 144, 56, 56]],
                    weight_types=[UInt8(2)],
                    kernel_channels=[32],
                    output_types=[UInt8()]),
 
-        genZMConvs(architecture=Architecture.MTL,
+        genZMConvs(architecture=Architecture.VPUX37XX,
                    input_types=[UInt8(2)],
                    input_shapes=[[1, 144, 28, 28]],
                    weight_types=[UInt8(2)],
                    kernel_channels=[32],
                    output_types=[UInt8()]),
 
-        genZMConvs(architecture=Architecture.MTL,
+        genZMConvs(architecture=Architecture.VPUX37XX,
                    input_types=[UInt8(2)],
                    input_shapes=[[1, 32, 28, 28]],
                    weight_types=[UInt8(2)],
                    kernel_channels=[192],
                    output_types=[UInt8()]),
 
-        genZMConvs(architecture=Architecture.MTL,
+        genZMConvs(architecture=Architecture.VPUX37XX,
                    input_types=[UInt8(2)],
                    input_shapes=[[1, 192, 28, 28]],
                    weight_types=[UInt8(2)],
                    kernel_channels=[32],
                    output_types=[UInt8()]),
 
-        genZMConvs(architecture=Architecture.MTL,
+        genZMConvs(architecture=Architecture.VPUX37XX,
                    input_types=[UInt8(2)],
                    input_shapes=[[1, 192, 14, 14]],
                    weight_types=[UInt8(2)],
                    kernel_channels=[64],
                    output_types=[UInt8()]),
 
-        genZMConvs(architecture=Architecture.MTL,
+        genZMConvs(architecture=Architecture.VPUX37XX,
                    input_types=[UInt8(2)],
                    input_shapes=[[1, 64, 14, 14]],
                    weight_types=[UInt8(2)],
                    kernel_channels=[384],
                    output_types=[UInt8()]),
 
-        genZMConvs(architecture=Architecture.MTL,
+        genZMConvs(architecture=Architecture.VPUX37XX,
                    input_types=[UInt8(2)],
                    input_shapes=[[1, 384, 14, 14]],
                    weight_types=[UInt8(2)],
@@ -3771,7 +3771,7 @@ def generate_options(args):
                    output_types=[UInt8()]),
 
         # Z-Major Convolution, weights swizzling_key = 1-to-5
-        genZMConvs(architecture=Architecture.MTL,
+        genZMConvs(architecture=Architecture.VPUX37XX,
                    input_types=[FP16(3)],
                    input_shapes=[[1, 16, 1, 1]],
                    weight_types=[FP16(-3)],
@@ -3781,7 +3781,7 @@ def generate_options(args):
                    pads=Pad.none),
 
         # Z-Major Continued Convolution, fp16
-        genZMConvs(architecture=Architecture.MTL,
+        genZMConvs(architecture=Architecture.VPUX37XX,
                    input_types=[FP16(3)],
                    input_shapes=[[1, 16*1024, 1, 1]],
                    weight_types=[FP16(-3)],
@@ -3791,7 +3791,7 @@ def generate_options(args):
                    pads=Pad.none),
 
         # Z-major compressed Convolution, int8
-        genZMConvs(architecture=Architecture.MTL,
+        genZMConvs(architecture=Architecture.VPUX37XX,
                    input_types=[Int8(2)],
                    input_shapes=[[1, 16, 64, 64]],
                    weight_types=[Int8(2)],
@@ -3804,7 +3804,7 @@ def generate_options(args):
 
         # Z-major first layer DPU optimization uint8
         genZMConvs(
-            architecture=Architecture.MTL,
+            architecture=Architecture.VPUX37XX,
             input_types=[UInt8(2)],
             input_shapes=[[1, 1, 16, 16]],
             weight_types=[UInt8(2)],
@@ -3815,7 +3815,7 @@ def generate_options(args):
         ),
 
         genZMConvs(
-            architecture=Architecture.MTL,
+            architecture=Architecture.VPUX37XX,
             input_types=[UInt8(2)],
             input_shapes=[[1, 2, 16, 16]],
             weight_types=[UInt8(2)],
@@ -3826,7 +3826,7 @@ def generate_options(args):
         ),
 
         genZMConvs(
-            architecture=Architecture.MTL,
+            architecture=Architecture.VPUX37XX,
             input_types=[UInt8(2)],
             input_shapes=[[1, 3, 16, 16]],
             weight_types=[UInt8(2)],
@@ -3837,7 +3837,7 @@ def generate_options(args):
         ),
 
         genZMConvs(
-            architecture=Architecture.MTL,
+            architecture=Architecture.VPUX37XX,
             input_types=[UInt8(2)],
             input_shapes=[[1, 4, 16, 16]],
             weight_types=[UInt8(2)],
@@ -3848,7 +3848,7 @@ def generate_options(args):
         ),
 
         genZMConvs(
-            architecture=Architecture.MTL,
+            architecture=Architecture.VPUX37XX,
             input_types=[UInt8(2)],
             input_shapes=[[1, 5, 16, 16]],
             weight_types=[UInt8(2)],
@@ -3859,7 +3859,7 @@ def generate_options(args):
         ),
 
         genZMConvs(
-            architecture=Architecture.MTL,
+            architecture=Architecture.VPUX37XX,
             input_types=[UInt8(2)],
             input_shapes=[[1, 6, 16, 16]],
             weight_types=[UInt8(2)],
@@ -3870,7 +3870,7 @@ def generate_options(args):
         ),
 
         genZMConvs(
-            architecture=Architecture.MTL,
+            architecture=Architecture.VPUX37XX,
             input_types=[UInt8(2)],
             input_shapes=[[1, 7, 16, 16]],
             weight_types=[UInt8(2)],
@@ -3881,7 +3881,7 @@ def generate_options(args):
         ),
 
         genZMConvs(
-            architecture=Architecture.MTL,
+            architecture=Architecture.VPUX37XX,
             input_types=[UInt8(2)],
             input_shapes=[[1, 8, 16, 16]],
             weight_types=[UInt8(2)],
@@ -3892,7 +3892,7 @@ def generate_options(args):
         ),
 
         genZMConvs(
-            architecture=Architecture.MTL,
+            architecture=Architecture.VPUX37XX,
             input_types=[UInt8(2)],
             input_shapes=[[1, 9, 16, 16]],
             weight_types=[UInt8(2)],
@@ -3903,7 +3903,7 @@ def generate_options(args):
         ),
 
         genZMConvs(
-            architecture=Architecture.MTL,
+            architecture=Architecture.VPUX37XX,
             input_types=[UInt8(2)],
             input_shapes=[[1, 10, 16, 16]],
             weight_types=[UInt8(2)],
@@ -3914,7 +3914,7 @@ def generate_options(args):
         ),
 
         genZMConvs(
-            architecture=Architecture.MTL,
+            architecture=Architecture.VPUX37XX,
             input_types=[UInt8(2)],
             input_shapes=[[1, 11, 16, 16]],
             weight_types=[UInt8(2)],
@@ -3925,7 +3925,7 @@ def generate_options(args):
         ),
 
         genZMConvs(
-            architecture=Architecture.MTL,
+            architecture=Architecture.VPUX37XX,
             input_types=[UInt8(2)],
             input_shapes=[[1, 12, 16, 16]],
             weight_types=[UInt8(2)],
@@ -3936,7 +3936,7 @@ def generate_options(args):
         ),
 
         genZMConvs(
-            architecture=Architecture.MTL,
+            architecture=Architecture.VPUX37XX,
             input_types=[UInt8(2)],
             input_shapes=[[1, 13, 16, 16]],
             weight_types=[UInt8(2)],
@@ -3947,7 +3947,7 @@ def generate_options(args):
         ),
 
         genZMConvs(
-            architecture=Architecture.MTL,
+            architecture=Architecture.VPUX37XX,
             input_types=[UInt8(2)],
             input_shapes=[[1, 14, 16, 16]],
             weight_types=[UInt8(2)],
@@ -3958,7 +3958,7 @@ def generate_options(args):
         ),
 
         genZMConvs(
-            architecture=Architecture.MTL,
+            architecture=Architecture.VPUX37XX,
             input_types=[UInt8(2)],
             input_shapes=[[1, 15, 16, 16]],
             weight_types=[UInt8(2)],
@@ -3970,7 +3970,7 @@ def generate_options(args):
 
         # Z-major first layer DPU optimization fp16
         genZMConvs(
-            architecture=Architecture.MTL,
+            architecture=Architecture.VPUX37XX,
             input_types=[FP16(2)],
             input_shapes=[[1, 1, 16, 16]],
             weight_types=[FP16(2)],
@@ -3981,7 +3981,7 @@ def generate_options(args):
         ),
 
         genZMConvs(
-            architecture=Architecture.MTL,
+            architecture=Architecture.VPUX37XX,
             input_types=[FP16(2)],
             input_shapes=[[1, 2, 16, 16]],
             weight_types=[FP16(2)],
@@ -3992,7 +3992,7 @@ def generate_options(args):
         ),
 
         genZMConvs(
-            architecture=Architecture.MTL,
+            architecture=Architecture.VPUX37XX,
             input_types=[FP16(2)],
             input_shapes=[[1, 3, 16, 16]],
             weight_types=[FP16(2)],
@@ -4003,7 +4003,7 @@ def generate_options(args):
         ),
 
         genZMConvs(
-            architecture=Architecture.MTL,
+            architecture=Architecture.VPUX37XX,
             input_types=[FP16(2)],
             input_shapes=[[1, 4, 16, 16]],
             weight_types=[FP16(2)],
@@ -4015,7 +4015,7 @@ def generate_options(args):
 
 
         genZMConvs(
-            architecture=Architecture.MTL,
+            architecture=Architecture.VPUX37XX,
             input_types=[FP16(2)],
             input_shapes=[[1, 5, 16, 16]],
             weight_types=[FP16(2)],
@@ -4026,7 +4026,7 @@ def generate_options(args):
         ),
 
         genZMConvs(
-            architecture=Architecture.MTL,
+            architecture=Architecture.VPUX37XX,
             input_types=[FP16(2)],
             input_shapes=[[1, 6, 16, 16]],
             weight_types=[FP16(2)],
@@ -4037,7 +4037,7 @@ def generate_options(args):
         ),
 
         genZMConvs(
-            architecture=Architecture.MTL,
+            architecture=Architecture.VPUX37XX,
             input_types=[FP16(2)],
             input_shapes=[[1, 7, 16, 16]],
             weight_types=[FP16(2)],
@@ -4048,7 +4048,7 @@ def generate_options(args):
         ),
 
         genZMConvs(
-            architecture=Architecture.MTL,
+            architecture=Architecture.VPUX37XX,
             input_types=[FP16(2)],
             input_shapes=[[1, 8, 16, 16]],
             weight_types=[FP16(2)],
@@ -4059,7 +4059,7 @@ def generate_options(args):
         ),
 
         genZMConvs(
-            architecture=Architecture.MTL,
+            architecture=Architecture.VPUX37XX,
             input_types=[FP16(2)],
             input_shapes=[[1, 9, 16, 16]],
             weight_types=[FP16(2)],
@@ -4070,7 +4070,7 @@ def generate_options(args):
         ),
 
         genZMConvs(
-            architecture=Architecture.MTL,
+            architecture=Architecture.VPUX37XX,
             input_types=[FP16(2)],
             input_shapes=[[1, 10, 16, 16]],
             weight_types=[FP16(2)],
@@ -4081,7 +4081,7 @@ def generate_options(args):
         ),
 
         genZMConvs(
-            architecture=Architecture.MTL,
+            architecture=Architecture.VPUX37XX,
             input_types=[FP16(2)],
             input_shapes=[[1, 11, 16, 16]],
             weight_types=[FP16(2)],
@@ -4092,7 +4092,7 @@ def generate_options(args):
         ),
 
         genZMConvs(
-            architecture=Architecture.MTL,
+            architecture=Architecture.VPUX37XX,
             input_types=[FP16(2)],
             input_shapes=[[1, 32, 2, 15]],
             weight_types=[FP16(2)],
@@ -4104,47 +4104,47 @@ def generate_options(args):
         ),
 
         genReadAfterWriteACTDMA(
-            architecture=Architecture.MTL,
+            architecture=Architecture.VPUX37XX,
             iteration_count=13
         ),
 
         genReadAfterWriteDMAACT(
-            architecture=Architecture.MTL,
+            architecture=Architecture.VPUX37XX,
             iteration_count=13
         ),
 
         genReadAfterWriteDPUACT(
-            architecture=Architecture.MTL,
+            architecture=Architecture.VPUX37XX,
             iteration_count=11
         ),
 
         genReadAfterWriteACTDPU(
-            architecture=Architecture.MTL,
+            architecture=Architecture.VPUX37XX,
             iteration_count=13
         ),
 
         genReadAfterWriteDPUDMA(
-            architecture=Architecture.MTL,
+            architecture=Architecture.VPUX37XX,
             iteration_count=13
         ),
 
         genReadAfterWriteDMADPU(
-            architecture=Architecture.MTL,
+            architecture=Architecture.VPUX37XX,
             iteration_count=13
         ),
 
-        genDifferentClustersDPU(architecture=Architecture.MTL),
+        genDifferentClustersDPU(architecture=Architecture.VPUX37XX),
 
         # # check all datatypes
         genDMA(
-            architecture=Architecture.MTL,
+            architecture=Architecture.VPUX37XX,
             tensor_types=[Int4(3), UInt4(3), Int8(3), UInt8(3), FP16(4), BF16(4)],
             input_shapes=[[1, 16, 32, 32]]
         ),
 
         # check all memory locations
         genDMA(
-            architecture=Architecture.MTL,
+            architecture=Architecture.VPUX37XX,
             tensor_types=[Int8(3)],
             input_shapes=[[1, 32, 16, 16]],
             src_locations=[MemoryLocation.CMX0, MemoryLocation.CMX1, MemoryLocation.DDR],
@@ -4153,7 +4153,7 @@ def generate_options(args):
         ),
         # check max available CMX
         genDMA(
-            architecture=Architecture.MTL,
+            architecture=Architecture.VPUX37XX,
             tensor_types=[UInt8(3)],
             input_shapes=[[1, 1, 1, HALF_OF_CMX_SIZE]],
             src_locations=[MemoryLocation.CMX0, MemoryLocation.CMX1],
@@ -4162,31 +4162,31 @@ def generate_options(args):
         ),
 
         genRaceConditionDMA(
-            architecture=Architecture.MTL,
+            architecture=Architecture.VPUX37XX,
             input_types=[FP16(2)],
             output_types=[FP16(2)],
             iteration_count=64
         ),
 
         genRaceConditionDPU(
-            architecture=Architecture.MTL,
+            architecture=Architecture.VPUX37XX,
             iteration_count=48
         ),
 
         genRaceConditionDPUDMA(
-            architecture=Architecture.MTL,
+            architecture=Architecture.VPUX37XX,
             iteration_count=48
         ),
 
         genRaceConditionDPUDMAACT(
-            architecture=Architecture.MTL,
+            architecture=Architecture.VPUX37XX,
             iteration_count=24
         ),
 
         genRaceCondition(
-            architecture=Architecture.MTL,
+            architecture=Architecture.VPUX37XX,
             ops = genActShave(
-                architecture=Architecture.MTL,
+                architecture=Architecture.VPUX37XX,
                 input_types=[FP16(0)],
                 input_shapes=[[1, 10, 2, 3]],
                 output_types=[FP16()],
@@ -4204,7 +4204,7 @@ def generate_options(args):
         ),
 
         genZMConvs(
-            architecture=Architecture.MTL,
+            architecture=Architecture.VPUX37XX,
             input_types=[Int8(2)],
             input_shapes=[[1, 16, 16, 16]],
             weight_types=[Int8(2)],
@@ -4213,19 +4213,19 @@ def generate_options(args):
             output_types=[Int32()],
             pads=[[0, 0, 0, 0]],
             activations=[
-                PReLU(Architecture.MTL, 0.1, np.int8),
-                PReLU(Architecture.MTL, 0.1, np.uint8),
-                PReLU(Architecture.MTL, 0.5, np.int8),
-                PReLU(Architecture.MTL, 0.5, np.uint8),
-                PReLU(Architecture.MTL, 1, np.int8),
-                PReLU(Architecture.MTL, 1, np.uint8),
-                PReLU(Architecture.MTL, 1.5, np.int8),
-                PReLU(Architecture.MTL, 1.5, np.uint8),
+                PReLU(Architecture.VPUX37XX, 0.1, np.int8),
+                PReLU(Architecture.VPUX37XX, 0.1, np.uint8),
+                PReLU(Architecture.VPUX37XX, 0.5, np.int8),
+                PReLU(Architecture.VPUX37XX, 0.5, np.uint8),
+                PReLU(Architecture.VPUX37XX, 1, np.int8),
+                PReLU(Architecture.VPUX37XX, 1, np.uint8),
+                PReLU(Architecture.VPUX37XX, 1.5, np.int8),
+                PReLU(Architecture.VPUX37XX, 1.5, np.uint8),
             ]
         ),
 
         genZMConvs(
-            architecture=Architecture.MTL,
+            architecture=Architecture.VPUX37XX,
             input_types=[FP16(2)],
             input_shapes=[[1, 16, 16, 16]],
             weight_types=[FP16(2)],
@@ -4234,19 +4234,19 @@ def generate_options(args):
             output_types=[FP16()],
             pads=[[0, 0, 0, 0]],
             activations=[
-                PReLU(Architecture.MTL, 0.1),
-                PReLU(Architecture.MTL, 0.5),
-                PReLU(Architecture.MTL, 1),
-                PReLU(Architecture.MTL, 1.5),
-                PReLU(Architecture.MTL, -0.1),
-                PReLU(Architecture.MTL, -0.5),
-                PReLU(Architecture.MTL, -1),
-                PReLU(Architecture.MTL, -1.5),
+                PReLU(Architecture.VPUX37XX, 0.1),
+                PReLU(Architecture.VPUX37XX, 0.5),
+                PReLU(Architecture.VPUX37XX, 1),
+                PReLU(Architecture.VPUX37XX, 1.5),
+                PReLU(Architecture.VPUX37XX, -0.1),
+                PReLU(Architecture.VPUX37XX, -0.5),
+                PReLU(Architecture.VPUX37XX, -1),
+                PReLU(Architecture.VPUX37XX, -1.5),
             ]
         ),
 
         genZMConvs(
-            architecture=Architecture.MTL,
+            architecture=Architecture.VPUX37XX,
             input_types=[FP16(2)],
             input_shapes=[[1, 16, 16, 16]],
             weight_types=[FP16(2)],
@@ -4255,14 +4255,14 @@ def generate_options(args):
             output_types=[FP16()],
             pads=[[0, 0, 0, 0]],
             activations=[
-                PReLU(Architecture.MTL, 0.1, np.int8),
-                PReLU(Architecture.MTL, 0.1, np.uint8),
-                PReLU(Architecture.MTL, 0.5, np.int8),
-                PReLU(Architecture.MTL, 0.5, np.uint8),
-                PReLU(Architecture.MTL, 1, np.int8),
-                PReLU(Architecture.MTL, 1, np.uint8),
-                PReLU(Architecture.MTL, 1.5, np.int8),
-                PReLU(Architecture.MTL, 1.5, np.uint8),
+                PReLU(Architecture.VPUX37XX, 0.1, np.int8),
+                PReLU(Architecture.VPUX37XX, 0.1, np.uint8),
+                PReLU(Architecture.VPUX37XX, 0.5, np.int8),
+                PReLU(Architecture.VPUX37XX, 0.5, np.uint8),
+                PReLU(Architecture.VPUX37XX, 1, np.int8),
+                PReLU(Architecture.VPUX37XX, 1, np.uint8),
+                PReLU(Architecture.VPUX37XX, 1.5, np.int8),
+                PReLU(Architecture.VPUX37XX, 1.5, np.uint8),
             ]
         ),
     )

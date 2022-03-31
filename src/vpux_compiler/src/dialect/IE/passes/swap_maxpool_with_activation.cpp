@@ -90,8 +90,8 @@ void SwapMaxPoolWithActivation::safeRunOnFunc() {
 
     auto module = func->getParentOfType<mlir::ModuleOp>();
     const auto arch = VPU::getArch(module);
-    if (arch != VPU::ArchKind::MTL) {
-        _log.trace("SwapMaxPoolWithActivation enabled only for MTL device. Got: {0}", arch);
+    if (arch != VPU::ArchKind::VPUX37XX) {
+        _log.trace("SwapMaxPoolWithActivation enabled only for VPUX37XX device. Got: {0}", arch);
         return;
     }
 

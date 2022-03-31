@@ -1,4 +1,4 @@
-// RUN: vpux-opt --split-input-file --init-compiler="vpu-arch=KMB" --set-internal-memory-space="memory-space=DDR" %s | FileCheck %s
+// RUN: vpux-opt --split-input-file --init-compiler="vpu-arch=VPUX30XX" --set-internal-memory-space="memory-space=DDR" %s | FileCheck %s
 
 func @MultipleAllocs(%arg0: memref<1x1000xf16>, %arg1: memref<1x1000xf16>) -> memref<1x1000xf16> {
     %0 = memref.alloc() : memref<1x1000xf16>

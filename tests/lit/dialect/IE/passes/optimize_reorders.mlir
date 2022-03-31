@@ -4,7 +4,7 @@
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
 // CHECK-LABEL: @ReorderWithSubView
-module @ReorderWithSubView attributes {VPU.arch = "KMB", VPU.compilationMode = "ReferenceSW"} {
+module @ReorderWithSubView attributes {VPU.arch = "VPUX30XX", VPU.compilationMode = "ReferenceSW"} {
 
 // CHECK: func @main([[ARG0:%arg[0-9]+]]: tensor<1x8x4x2xf16>)
 func @main(%arg0: tensor<1x8x4x2xf16>) -> tensor<1x4x4x2xf16> {
@@ -26,7 +26,7 @@ func @main(%arg0: tensor<1x8x4x2xf16>) -> tensor<1x4x4x2xf16> {
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
 // CHECK-LABEL: @ReorderWithTwoUsersSubView
-module @ReorderWithTwoUsersSubView attributes {VPU.arch = "KMB", VPU.compilationMode = "DefaultHW"} {
+module @ReorderWithTwoUsersSubView attributes {VPU.arch = "VPUX30XX", VPU.compilationMode = "DefaultHW"} {
 
 // CHECK: func @main([[ARG0:%arg[0-9]+]]: tensor<1x8x4x2xf16, {order = #NHWC}>)
 func @main(%arg0: tensor<1x8x4x2xf16, {order = #NHWC}>) -> (tensor<1x4x4x2xf16, {order = #NHWC}>, tensor<1x5x4x2xf16, {order = #NHWC}>) {
@@ -52,7 +52,7 @@ func @main(%arg0: tensor<1x8x4x2xf16, {order = #NHWC}>) -> (tensor<1x4x4x2xf16, 
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
 // CHECK-LABEL: @ReorderWithExpand
-module @ReorderWithExpand attributes {VPU.arch = "KMB", VPU.compilationMode = "ReferenceSW"} {
+module @ReorderWithExpand attributes {VPU.arch = "VPUX30XX", VPU.compilationMode = "ReferenceSW"} {
 
 // CHECK: func @main([[ARG0:%arg[0-9]+]]: tensor<1x3x30x30xf16, {order = #NHWC}>)
 func @main(%arg0: tensor<1x3x30x30xf16, {order = #NHWC}>) -> tensor<1x3x15x13xf16, {order = #NHWC}> {
@@ -101,7 +101,7 @@ func @main(%arg0: tensor<1x3x30x30xf16, {order = #NHWC}>) -> tensor<1x3x15x13xf1
 !qElemType2 = type !quant.uniform<u8<0:254>:f16:1, {8.7179349163385824E-4:127,5.2096149114173233E-4:127,0.0013264333169291339:127,0.0013264333169291339:127,0.0013264333169291339:127,0.0013264333169291339:127,0.0013264333169291339:127,0.0013264333169291339:127,0.0013264333169291339:127,0.0013264333169291339:127,0.0013264333169291339:127,0.0013264333169291339:127,0.0013264333169291339:127,0.0013264333169291339:127,0.0013264333169291339:127,0.0013264333169291339:127}>
 !qElemType3 = type !quant.uniform<u8<0:254>:f16:1, {5.0750492125984249E-4:127, 0.0013264333169291339:127,9.8713551919291337E-4:127,9.8713551919291337E-4:127,9.8713551919291337E-4:127,9.8713551919291337E-4:127,9.8713551919291337E-4:127,9.8713551919291337E-4:127,9.8713551919291337E-4:127,9.8713551919291337E-4:127,9.8713551919291337E-4:127,9.8713551919291337E-4:127,9.8713551919291337E-4:127,9.8713551919291337E-4:127,9.8713551919291337E-4:127,9.8713551919291337E-4:127}>
 
-module @ReorderWithQuantExpandAndSlice attributes {VPU.arch = "KMB", VPU.compilationMode = "DefaultHW"} {
+module @ReorderWithQuantExpandAndSlice attributes {VPU.arch = "VPUX30XX", VPU.compilationMode = "DefaultHW"} {
 
 // CHECK: func @main([[ARG0:%arg[0-9]+]]: tensor<1x3x30x30x!qElemType0>)
 func @main(%arg0: tensor<1x3x30x30x!qElemType0>) -> tensor<1x3x15x13x!qElemType1> {
@@ -155,7 +155,7 @@ func @main(%arg0: tensor<1x3x30x30x!qElemType0>) -> tensor<1x3x15x13x!qElemType1
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
 // CHECK-LABEL: @ReorderWithSplit
-module @ReorderWithSplit attributes {VPU.arch = "KMB", VPU.compilationMode = "ReferenceSW"} {
+module @ReorderWithSplit attributes {VPU.arch = "VPUX30XX", VPU.compilationMode = "ReferenceSW"} {
 
 // CHECK: func @main([[ARG0:%arg[0-9]+]]: tensor<1x3x30x30xf16, {order = #NHWC}>)
 func @main(%arg0: tensor<1x3x30x30xf16, {order = #NHWC}>) ->
@@ -191,7 +191,7 @@ func @main(%arg0: tensor<1x3x30x30xf16, {order = #NHWC}>) ->
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
 // CHECK-LABEL: @ReorderWithSplitMultipleUses
-module @ReorderWithSplitMultipleUses attributes {VPUIP.arch = "KMB", VPUIP.compilationMode = "ReferenceSW"} {
+module @ReorderWithSplitMultipleUses attributes {VPUIP.arch = "VPUX30XX", VPUIP.compilationMode = "ReferenceSW"} {
 
 // CHECK: func @main([[ARG0:%arg[0-9]+]]: tensor<1x3x30x30xf16, {order = #NHWC}>)
 func @main(%arg0: tensor<1x3x30x30xf16, {order = #NHWC}>) ->
@@ -225,7 +225,7 @@ func @main(%arg0: tensor<1x3x30x30xf16, {order = #NHWC}>) ->
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
 // CHECK-LABEL: @ReorderWithConcat
-module @ReorderWithConcat attributes {VPU.arch = "KMB", VPU.compilationMode = "ReferenceSW"} {
+module @ReorderWithConcat attributes {VPU.arch = "VPUX30XX", VPU.compilationMode = "ReferenceSW"} {
 
 // CHECK:       func @main(
 // CHECK-SAME:      [[ARG0:%arg[0-9]+]]: tensor<1x1x30x30xf16, {order = #NHWC}>,
@@ -253,7 +253,7 @@ func @main(%arg0: tensor<1x1x30x30xf16, {order = #NHWC}>, %arg1: tensor<1x1x30x3
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
 // CHECK-LABEL: @ReorderWithConcatWithConsts
-module @ReorderWithConcatWithConsts attributes {VPU.arch = "KMB", VPU.compilationMode = "ReferenceSW"} {
+module @ReorderWithConcatWithConsts attributes {VPU.arch = "VPUX30XX", VPU.compilationMode = "ReferenceSW"} {
 
 // CHECK:       func @main(
 // CHECK-SAME:      [[ARG0:%arg[0-9]+]]: tensor<1x1x30x30xf16, {order = #NHWC}>)
@@ -282,7 +282,7 @@ func @main(%arg0: tensor<1x1x30x30xf16, {order = #NHWC}>)
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
 // CHECK-LABEL: @ReorderPropagationWithConcat
-module @ReorderPropagationWithConcat attributes {VPU.arch = "KMB", VPU.compilationMode = "ReferenceSW"} {
+module @ReorderPropagationWithConcat attributes {VPU.arch = "VPUX30XX", VPU.compilationMode = "ReferenceSW"} {
 
 // CHECK:       func @main(
 // CHECK-SAME:      [[ARG0:%arg[0-9]+]]: tensor<1x1x30x30xf16, {order = #NHWC}>,
@@ -313,7 +313,7 @@ func @main(%arg0: tensor<1x1x30x30xf16, {order = #NHWC}>, %arg1: tensor<1x1x30x3
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
 // CHECK-LABEL: @ReorderWithExpandTwoBranches
-module @ReorderWithExpandTwoBranches attributes {VPU.arch = "KMB", VPU.compilationMode = "ReferenceSW"} {
+module @ReorderWithExpandTwoBranches attributes {VPU.arch = "VPUX30XX", VPU.compilationMode = "ReferenceSW"} {
 
 // CHECK:       func @main([[ARG0:%arg[0-9]+]]: tensor<1x24x56x56xf16, {order = #NHWC}>)
 func @main(%arg0: tensor<1x24x56x56xf16, {order = #NHWC}>) -> tensor<1x32x56x56xf16, {order = #NHWC}> {
@@ -367,7 +367,7 @@ func @main(%arg0: tensor<1x24x56x56xf16, {order = #NHWC}>) -> tensor<1x32x56x56x
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
 // CHECK-LABEL: @ReorderWithLayer
-module @ReorderWithLayer attributes {VPU.arch = "KMB", VPU.compilationMode = "ReferenceSW"} {
+module @ReorderWithLayer attributes {VPU.arch = "VPUX30XX", VPU.compilationMode = "ReferenceSW"} {
 
 // CHECK: func @main([[ARG0:%arg[0-9]+]]: tensor<1x3x30x30xf16, {order = #NHWC}>)
 func @main(%arg0: tensor<1x3x30x30xf16, {order = #NHWC}>) -> tensor<1x3x30x30xf16, {order = #NHWC}> {
@@ -392,7 +392,7 @@ func @main(%arg0: tensor<1x3x30x30xf16, {order = #NHWC}>) -> tensor<1x3x30x30xf1
 !qElemType = type !quant.uniform<u8:f16, 1.1534313725490195:128>
 
 // CHECK-LABEL: @ReorderWithQuantizeCast
-module @ReorderWithQuantizeCast attributes {VPU.arch = "KMB", VPU.compilationMode = "DefaultHW"} {
+module @ReorderWithQuantizeCast attributes {VPU.arch = "VPUX30XX", VPU.compilationMode = "DefaultHW"} {
 
 // CHECK: func @main([[ARG0:%.+]]: tensor<1x3x30x30xui8, {order = #NHWC}>)
 func @main(%arg0: tensor<1x3x30x30xui8, {order = #NHWC}>) -> tensor<1x3x30x30x!qElemType, {order = #NHWC}> {
@@ -430,7 +430,7 @@ func @main(%arg0: tensor<1x3x30x30xui8, {order = #NHWC}>) -> tensor<1x3x30x30x!q
 !qElemType1 = type !quant.uniform<u8:f16, 0.25661763209922639:128>
 !qElemType2 = type !quant.uniform<u8:f16, 0.12830881604961319:128>
 
-module @ReorderWithQuantizeCastTwoBranches attributes {VPU.arch = "KMB", VPU.compilationMode = "DefaultHW"} {
+module @ReorderWithQuantizeCastTwoBranches attributes {VPU.arch = "VPUX30XX", VPU.compilationMode = "DefaultHW"} {
 
 func @main(%arg0: tensor<1x48x14x14x!qElemType0, {order = #NHWC}>) -> (tensor<1x48x14x14x!qElemType2, {order = #NHWC}>, tensor<1x14x14x40x!qElemType1>) {
     %0 = IE.Reorder(%arg0) {dstOrder = #NCHW} : tensor<1x48x14x14x!qElemType0, {order = #NHWC}> -> tensor<1x48x14x14x!qElemType0>
@@ -467,7 +467,7 @@ func @main(%arg0: tensor<1x48x14x14x!qElemType0, {order = #NHWC}>) -> (tensor<1x
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
 // CHECK-LABEL: @CMajorToZMajorConv
-module @CMajorToZMajorConv attributes {VPU.arch = "KMB", VPU.compilationMode = "DefaultHW"} {
+module @CMajorToZMajorConv attributes {VPU.arch = "VPUX30XX", VPU.compilationMode = "DefaultHW"} {
 
 // CHECK: func @main([[ARG0:%arg[0-9]+]]: tensor<1x3x32x32xf16, {order = #NHWC}>) -> tensor<1x16x32x32xf16, {order = #NHWC}> {
 func @main(%arg0: tensor<1x3x32x32xf16, {order = #NHWC}>) -> tensor<1x16x32x32xf16, {order = #NHWC}> {

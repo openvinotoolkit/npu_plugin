@@ -62,10 +62,10 @@ double vpux::VPUIP::getProcessorFrequency(IE::ExecutorResourceOp res) {
 
 int64_t vpux::VPUIP::getNumAvailableBarriers(mlir::Operation* parentOp) {
     const EnumMap<VPU::ArchKind, int64_t> MAX_BARRIERS_PER_INFERENCE = {
-            {VPU::ArchKind::KMB, 64 / 2},  // half barries are used (runtime limitation)
-            {VPU::ArchKind::TBH, 64 / 2},  // half barries are used (runtime limitation)
-            {VPU::ArchKind::MTL, 64},      //
-            {VPU::ArchKind::LNL, 64},      //
+            {VPU::ArchKind::VPUX30XX, 64 / 2},  // half barries are used (runtime limitation)
+            {VPU::ArchKind::VPUX311X, 64 / 2},  // half barries are used (runtime limitation)
+            {VPU::ArchKind::VPUX37XX, 64},      //
+            {VPU::ArchKind::VPUX4000, 64},      //
     };
 
     const auto arch = VPU::getArch(parentOp);

@@ -29,7 +29,7 @@
     num_clusters = 2
 }>
 
-module @TestMultiClusterSOH attributes {VPU.arch = "KMB"} {
+module @TestMultiClusterSOH attributes {VPU.arch = "VPUX30XX"} {
 
 IE.MemoryResource 31457280 bytes of @DDR {VPU.bandwidth = 8, VPU.derateFactor = 6.000000e-01}
 IE.MemoryResource 4194304 bytes of @CMX_UPA {VPU.bandwidth = 16, VPU.derateFactor = 8.500000e-01}

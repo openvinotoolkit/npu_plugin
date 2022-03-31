@@ -21,10 +21,10 @@ def VPU_ArchKind :
             "Represents VPU architecture generation",
             [
                 StrEnumAttrCase<"UNKNOWN">,
-                StrEnumAttrCase<"KMB">,
-                StrEnumAttrCase<"TBH">,
-                StrEnumAttrCase<"MTL">,
-                StrEnumAttrCase<"LNL">,
+                StrEnumAttrCase<"VPUX30XX">,
+                StrEnumAttrCase<"VPUX311X">,
+                StrEnumAttrCase<"VPUX37XX">,
+                StrEnumAttrCase<"VPUX4000">,
             ]
         > {
     let cppNamespace = "vpux::VPU";

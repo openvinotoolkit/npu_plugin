@@ -1,4 +1,4 @@
-// RUN: vpux-opt --init-compiler=vpu-arch=KMB --upa-profiling %s | FileCheck %s
+// RUN: vpux-opt --init-compiler=vpu-arch=VPUX30XX --upa-profiling %s | FileCheck %s
 
 // CHECK-LABEL: @UpaProfiling
 #map = affine_map<(d0, d1, d2, d3) -> (d0, d3, d1, d2)>

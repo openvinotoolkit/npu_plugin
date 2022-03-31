@@ -238,7 +238,7 @@ mlir::LogicalResult verifyNCEConv(VPUIP::NCEClusterTaskOp op, VPU::ArchKind arch
     if (weightsOrder != DimsOrder::OYXI) {
         return errorAt(op, "For NCE convolution weights must have OYXI layout, got '{0}'", weightsOrder);
     }
-    if (arch != VPU::ArchKind::MTL && outOrder != DimsOrder::NHWC) {
+    if (arch != VPU::ArchKind::VPUX37XX && outOrder != DimsOrder::NHWC) {
         return errorAt(op, "For NCE convolution output must have NHWC layout, got '{0}'", outOrder);
     }
 
@@ -250,8 +250,8 @@ mlir::LogicalResult verifyNCEPool(VPUIP::NCEClusterTaskOp op, VPU::ArchKind arch
                       "Expected task type '{0}' or '{1}', but got '{2}'", VPUIP::NCETaskType::AVEPOOL,
                       VPUIP::NCETaskType::MAXPOOL, op.task_type());
 
-    // MTL hw doesn't require weights table and activation window for max/average pool ops
-    if (arch != VPU::ArchKind::MTL) {
+    // VPUX37XX hw doesn't require weights table and activation window for max/average pool ops
+    if (arch != VPU::ArchKind::VPUX37XX) {
         if (op.weight_table() == nullptr) {
             return errorAt(op, "weight_table is required for NCETaskType : '{0}'", op.task_type());
         }
@@ -411,8 +411,8 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(VPUIP::NCEClusterTaskOp op) {
         const auto val = VPURT::SparseBufferType::getData(operand.get());
         const auto type = val.getType().cast<vpux::NDTypeInterface>().getElementType();
 
-        if (arch != VPU::ArchKind::MTL && type.isBF16()) {
-            return errorAt(op, "BF16 is only supported by MTL");
+        if (arch != VPU::ArchKind::VPUX37XX && type.isBF16()) {
+            return errorAt(op, "BF16 is only supported by VPUX37XX");
         }
     }
 

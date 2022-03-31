@@ -2,7 +2,7 @@
 
 #NCHW = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
 
-module @Test attributes {VPU.arch = "MTL", VPU.compilationMode = "ReferenceHW"} {
+module @Test attributes {VPU.arch = "VPUX37XX", VPU.compilationMode = "ReferenceHW"} {
 
 // CHECK: VPURT.SW.Runtime entryPoint : @VPU.SW::@runtime stack_configuration : [4096, 4096, 4096, 4096]
 
@@ -34,7 +34,7 @@ func @SingleSWLayer(%arg0: memref<1x1x1x1000xf16>, %arg1: memref<1x1x1x1000xf16>
 
 // -----
 
-module @Test attributes {VPU.arch = "MTL", VPU.compilationMode = "ReferenceHW"} {
+module @Test attributes {VPU.arch = "VPUX37XX", VPU.compilationMode = "ReferenceHW"} {
 
 // CHECK: VPURT.SW.Runtime entryPoint : @VPU.SW::@runtime stack_configuration : [4096, 4096, 4096, 4096]
 
@@ -71,7 +71,7 @@ func @MemPermuteSWLayer(%arg0: memref<1x2x3x4xf16>, %arg1: memref<1x3x4x2xf16>) 
 #NCHW = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
-module @Test attributes {VPU.arch = "MTL", VPU.compilationMode = "ReferenceHW"} {
+module @Test attributes {VPU.arch = "VPUX37XX", VPU.compilationMode = "ReferenceHW"} {
 
 // CHECK: VPURT.SW.Runtime entryPoint : @VPU.SW::@runtime stack_configuration : [4096, 4096, 4096, 4096]
 
@@ -107,7 +107,7 @@ func @ReorderSWLayer(%arg0: memref<1x2x3x4xf16>, %arg1: memref<1x2x3x4xf16, #NHW
 
 #NCHW = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
 
-module @Test attributes {VPU.arch = "MTL", VPU.compilationMode = "ReferenceHW"} {
+module @Test attributes {VPU.arch = "VPUX37XX", VPU.compilationMode = "ReferenceHW"} {
 // CHECK: VPURT.SW.Runtime entryPoint : @VPU.SW::@runtime stack_configuration : [4096, 4096, 4096, 4096]
 // CHECK: module @VPU.SW  {
 // CHECK-NEXT: func private @builtin_Sigmoid(memref<*xf16>, memref<*xf16>) attributes {VPU.kernel_code = "sigmoid_fp16.c", VPU.kernel_entry = "sigmoid_fp16"}

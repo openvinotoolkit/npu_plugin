@@ -122,7 +122,7 @@ def IERT_AsyncLayerOpInterface : OpInterface<"AsyncLayerOpInterface"> {
 //
 
 def IERT_SoftwareLayerOpInterface : OpInterface<"SoftwareLayerOpInterface"> {
-    let description = "Interface for layers that will be executed on SHAVEs. (For MTL only)";
+    let description = "Interface for layers that will be executed on SHAVEs. (For VPUX37XX only)";
 
     let cppNamespace = "vpux::IERT";
 

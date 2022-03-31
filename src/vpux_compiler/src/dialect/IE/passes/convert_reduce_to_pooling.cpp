@@ -329,7 +329,7 @@ void ConvertReduceToPoolingPass::safeRunOnFunc() {
 
         auto module = getOperation();
         const auto arch = VPU::getArch(module);
-        if (arch == VPU::ArchKind::KMB || arch == VPU::ArchKind::TBH) {
+        if (arch == VPU::ArchKind::VPUX30XX || arch == VPU::ArchKind::VPUX311X) {
             // Check that axis dimensions <= 255 otherwise this conversion is not applicable
             bool upaCompatible = true;
             int64_t mergedDim = 1;

@@ -58,7 +58,7 @@ NOTE: This method *must* be implemented by the user.
 
 ## SoftwareLayerOpInterface (`IERT_SoftwareLayerOpInterface`)
 
-Interface for layers that will be executed on SHAVEs. (For MTL only)
+Interface for layers that will be executed on SHAVEs. (For VPUX37XX only)
 ### Methods:
 #### `getKernelInfo`
 

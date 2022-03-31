@@ -3,7 +3,7 @@
 #NHCW = affine_map<(d0, d1, d2, d3) -> (d0, d2, d1, d3)>
 
 // CHECK-LABEL: @InOutNHCW
-module @InOutNHCW attributes {VPU.arch = "KMB", VPU.compilationMode = "ReferenceSW"} {
+module @InOutNHCW attributes {VPU.arch = "VPUX30XX", VPU.compilationMode = "ReferenceSW"} {
 
 IE.CNNNetwork
     entryPoint : @main
@@ -41,7 +41,7 @@ func @main(%arg0: tensor<1x8x4x2xf16, {order = #NHCW}>) -> tensor<1x8x4x2xf16, {
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
 // CHECK-LABEL: @DifferentOrders
-module @DifferentOrders attributes {VPU.arch = "KMB", VPU.compilationMode = "ReferenceSW"} {
+module @DifferentOrders attributes {VPU.arch = "VPUX30XX", VPU.compilationMode = "ReferenceSW"} {
 
 IE.CNNNetwork
     entryPoint : @main
@@ -67,7 +67,7 @@ func @main(%arg0: tensor<1x8x4x2xf16>) -> tensor<1x8x4x2xf16, {order = #NHWC}> {
 // -----
 
 // CHECK-LABEL: @HwOp
-module @HwOp attributes {VPU.arch = "KMB", VPU.compilationMode = "DefaultHW"} {
+module @HwOp attributes {VPU.arch = "VPUX30XX", VPU.compilationMode = "DefaultHW"} {
 
 IE.MemoryResource 201326592 bytes of @DDR {VPU.bandwidth = 8, VPU.derateFactor = 6.000000e-01}
 IE.MemoryResource 917504 bytes of @CMX_NN {VPU.bandwidth = 32, VPU.derateFactor = 1.000000e+00}
@@ -104,7 +104,7 @@ func @main(%arg0: tensor<1x16x30x30xf16>) -> tensor<1x16x15x13xf16> {
 // -----
 
 // CHECK-LABEL: @HwOpSameInputs
-module @HwOpSameInputs attributes {VPU.arch = "KMB", VPU.compilationMode = "DefaultHW"} {
+module @HwOpSameInputs attributes {VPU.arch = "VPUX30XX", VPU.compilationMode = "DefaultHW"} {
 
 IE.MemoryResource 201326592 bytes of @DDR {VPU.bandwidth = 8, VPU.derateFactor = 6.000000e-01}
 IE.MemoryResource 917504 bytes of @CMX_NN {VPU.bandwidth = 32, VPU.derateFactor = 1.000000e+00}
@@ -145,7 +145,7 @@ func @main(%arg0: tensor<1x16x30x25xf16>) -> tensor<1x16x30x25xf16> {
 #NHCW = affine_map<(d0, d1, d2, d3) -> (d0, d2, d1, d3)>
 
 // CHECK-LABEL: @HwOpDifferentDstOrder
-module @HwOpDifferentDstOrder attributes {VPU.arch = "KMB", VPU.compilationMode = "DefaultHW"} {
+module @HwOpDifferentDstOrder attributes {VPU.arch = "VPUX30XX", VPU.compilationMode = "DefaultHW"} {
 
 IE.MemoryResource 201326592 bytes of @DDR {VPU.bandwidth = 8, VPU.derateFactor = 6.000000e-01}
 IE.MemoryResource 917504 bytes of @CMX_NN {VPU.bandwidth = 32, VPU.derateFactor = 1.000000e+00}
@@ -184,7 +184,7 @@ func @main(%arg0: tensor<1x16x30x25xf16, {order = #NHCW}>) -> (tensor<1x16x30x25
 // -----
 
 // CHECK-LABEL: @ZMajorConv
-module @ZMajorConv attributes {VPU.arch = "KMB", VPU.compilationMode = "DefaultHW"} {
+module @ZMajorConv attributes {VPU.arch = "VPUX30XX", VPU.compilationMode = "DefaultHW"} {
 
 // CHECK: func @main([[ARG0:%arg[0-9]+]]: tensor<1x16x30x30xf16>) -> tensor<1x16x30x30xf16> {
 func @main(%arg0: tensor<1x16x30x30xf16>) -> tensor<1x16x30x30xf16> {
@@ -209,7 +209,7 @@ func @main(%arg0: tensor<1x16x30x30xf16>) -> tensor<1x16x30x30xf16> {
 // -----
 
 // CHECK-LABEL: @CMajorConv
-module @CMajorConv attributes {VPU.arch = "KMB", VPU.compilationMode = "DefaultHW"} {
+module @CMajorConv attributes {VPU.arch = "VPUX30XX", VPU.compilationMode = "DefaultHW"} {
 
 // CHECK: func @main([[ARG0:%arg[0-9]+]]: tensor<1x3x32x32xf16>) -> tensor<1x16x32x32xf16> {
 func @main(%arg0: tensor<1x3x32x32xf16>) -> tensor<1x16x32x32xf16> {
@@ -236,7 +236,7 @@ func @main(%arg0: tensor<1x3x32x32xf16>) -> tensor<1x16x32x32xf16> {
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
 // CHECK-LABEL: @CMajorConvCase2
-module @CMajorConvCase2 attributes {VPU.arch = "KMB", VPU.compilationMode = "DefaultHW"} {
+module @CMajorConvCase2 attributes {VPU.arch = "VPUX30XX", VPU.compilationMode = "DefaultHW"} {
 
 func @main(%arg0: tensor<1x3x62x62xf16, {order = #NHWC}>) -> tensor<1x48x60x60xf16, {order = #NHWC}> {
     %cst = const.Declare tensor<48x3x3x3xf16> = #const.Content<dense<1.0> : tensor<48x3x3x3xf16>>

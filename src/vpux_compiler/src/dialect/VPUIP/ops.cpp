@@ -49,7 +49,7 @@ bool isSupportedHWPostOp(mlir::Operation* postOp) {
 
     const auto module = postOp->getParentOfType<mlir::ModuleOp>();
     const auto arch = VPU::getArch(module);
-    if (arch == VPU::ArchKind::MTL && mlir::isa<IE::MaxPoolOp>(postOp)) {
+    if (arch == VPU::ArchKind::VPUX37XX && mlir::isa<IE::MaxPoolOp>(postOp)) {
         return false;
     }
 
@@ -192,7 +192,8 @@ public:
         const auto module = op->getParentOfType<mlir::ModuleOp>();
         const auto arch = VPU::getArch(module);
 
-        if (arch == VPU::ArchKind::MTL && (mlir::isa<IE::MaxPoolOp>(op) || mlir::isa<IE::GroupConvolutionOp>(op))) {
+        if (arch == VPU::ArchKind::VPUX37XX &&
+            (mlir::isa<IE::MaxPoolOp>(op) || mlir::isa<IE::GroupConvolutionOp>(op))) {
             // HW restrictions for channel number
             static const SmallVector<int64_t> availableChannels = {16, 32, 64};
             return std::find(availableChannels.begin(), availableChannels.end(), channels) != availableChannels.end();

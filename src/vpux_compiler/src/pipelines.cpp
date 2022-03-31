@@ -40,7 +40,7 @@ IndexedSymbolAttr getMemSpace(mlir::MLIRContext* ctx, StringRef) {
 }
 
 VPU::ArchKind getArchKind(const StrOption& archKind) {
-    VPUX_THROW_UNLESS(archKind.hasValue(), "Platform architecture is not provided. Please try 'vpu-arch=KMB'");
+    VPUX_THROW_UNLESS(archKind.hasValue(), "Platform architecture is not provided. Please try 'vpu-arch=VPUX30XX'");
     const auto archKindStr = archKind.getValue();
     const auto parsed = VPU::symbolizeArchKind(archKindStr);
     VPUX_THROW_UNLESS(parsed.hasValue(), "Unsupported platform architecture '{0}'", archKindStr);

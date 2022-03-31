@@ -546,9 +546,9 @@ VPUIP::BlobWriter::BarrierReference vpux::VPUIP::BlobWriter::createBarrierRefere
     // FIXME: BarrierReference structure specification requires to fill it as:
     //   * wait_barriers / update_barriers - physical IDs
     //   * virtual_wait_barriers / virtual_update_barriers - virtual IDs
-    // But right now MTL POR runtime parses and interprets wait_barriers / update_barriers as virtual IDs.
+    // But right now VPUX37XX POR runtime parses and interprets wait_barriers / update_barriers as virtual IDs.
     // KMB POR runtime uses only virtual_wait_barriers / virtual_update_barriers as expected (virtual IDs).
-    // So, until MTL POR runtime is fixed we have to serialize virtual IDs to both lists.
+    // So, until VPUX37XX POR runtime is fixed we have to serialize virtual IDs to both lists.
 
 #if 0
     return MVCNN::CreateBarrierReferenceDirect(_impl, /*wait_barriers=*/&waitPhysIds,

@@ -32,7 +32,7 @@ bool vpux::VPU::NCEMaxPoolOp::fitIntoCMX(vpux::NDTypeInterface input, vpux::NDTy
         requiredCMX += type.getTotalAllocSize();
     }
 
-    // TODO: MTL hw doesn't require weights table and activation window for max/average pool ops
+    // TODO: VPUX37XX hw doesn't require weights table and activation window for max/average pool ops
     const auto outputShape = output.getShape();
     const auto outputChannels = outputShape[Dims4D::Act::C];
 
@@ -226,7 +226,7 @@ void vpux::VPU::NCEMaxPoolOp::inferLayoutInfo(IE::LayerLayoutInfo& info) {
 bool vpux::VPU::NCEMaxPoolOp::checkChannelRestrictions(int64_t channels) {
     const auto arch = getArch(*this);
 
-    if (arch == VPU::ArchKind::MTL) {
+    if (arch == VPU::ArchKind::VPUX37XX) {
         // HW restrictions for channel number
         static const std::unordered_set<int64_t> availableChannels{16, 32, 64};
         return availableChannels.count(channels) != 0;

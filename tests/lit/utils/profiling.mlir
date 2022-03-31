@@ -3,7 +3,7 @@
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 #loc0 = loc(unknown)
 #map = affine_map<(d0, d1, d2, d3) -> (d0, d3, d1, d2)>
-module @age_gender attributes {VPU.arch = "KMB", VPU.compilationMode = "DefaultHW"}  {
+module @age_gender attributes {VPU.arch = "VPUX30XX", VPU.compilationMode = "DefaultHW"}  {
   IE.MemoryResource 524288000 bytes of @DDR {VPU.bandwidth = 8 : i64, VPU.derateFactor = 6.000000e-01 : f64} loc(#loc0)
   IE.MemoryResource 917504 bytes of @CMX_NN {VPU.bandwidth = 32 : i64, VPU.derateFactor = 1.000000e+00 : f64} loc(#loc0)
   module @UsedMemory {

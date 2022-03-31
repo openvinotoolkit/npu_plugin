@@ -1,4 +1,4 @@
-// RUN: vpux-opt --split-input-file --init-compiler="vpu-arch=KMB" --lower-IE-to-IERT %s | FileCheck %s
+// RUN: vpux-opt --split-input-file --init-compiler="vpu-arch=VPUX30XX" --lower-IE-to-IERT %s | FileCheck %s
 
 //
 // The 'lower-IE-to-IERT' pass:

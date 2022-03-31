@@ -4,7 +4,7 @@
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
 // CHECK-LABEL: @CaseWithoutChildTiling
-module @CaseWithoutChildTiling attributes {VPU.arch = "KMB"} {
+module @CaseWithoutChildTiling attributes {VPU.arch = "VPUX30XX"} {
     
 IE.MemoryResource 31457280 bytes of @DDR {VPU.bandwidth = 8, VPU.derateFactor = 6.000000e-01}
 IE.MemoryResource 4194304 bytes of @CMX_UPA {VPU.bandwidth = 16, VPU.derateFactor = 8.500000e-01}
@@ -148,7 +148,7 @@ func @main(%input: tensor<1x144x64x64xf16, {order = #NHWC}>,
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
 // CHECK-LABEL: @CaseWithChildTiling
-module @CaseWithChildTiling attributes {VPU.arch = "KMB"} {
+module @CaseWithChildTiling attributes {VPU.arch = "VPUX30XX"} {
     
 IE.MemoryResource 31457280 bytes of @DDR {VPU.bandwidth = 8, VPU.derateFactor = 6.000000e-01}
 IE.MemoryResource 4194304 bytes of @CMX_UPA {VPU.bandwidth = 16, VPU.derateFactor = 8.500000e-01}

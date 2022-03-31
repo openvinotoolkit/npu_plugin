@@ -283,7 +283,7 @@ void vpux::VPU::NCEDepthConvolutionOp::inferLayoutInfo(IE::LayerLayoutInfo& info
 bool vpux::VPU::NCEDepthConvolutionOp::checkChannelRestrictions(int64_t channels) {
     const auto arch = getArch(*this);
 
-    if (arch == VPU::ArchKind::MTL) {
+    if (arch == VPU::ArchKind::VPUX37XX) {
         // HW restrictions for channel number
         static const std::unordered_set<int64_t> availableChannels{16, 32, 64};
         return availableChannels.count(channels) != 0;

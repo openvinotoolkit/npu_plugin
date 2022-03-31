@@ -1470,7 +1470,7 @@ mlir::LogicalResult vpux::VPUIP::NCEInvariant::verifyKernel(mlir::Location loc, 
         return mlir::failure();
     }
 
-    if (SX != SY && arch != VPU::ArchKind::MTL) {
+    if (SX != SY && arch != VPU::ArchKind::VPUX37XX) {
         log.trace("[{0}] Asymmetric strides are not supported", loc);
         return mlir::failure();
     }

@@ -1,4 +1,4 @@
-// RUN: vpux-opt --split-input-file --init-compiler="vpu-arch=KMB" --assign-physical-barriers="num-barriers=4" %s | FileCheck %s
+// RUN: vpux-opt --split-input-file --init-compiler="vpu-arch=VPUX30XX" --assign-physical-barriers="num-barriers=4" %s | FileCheck %s
 
 // CHECK-LABEL: @LinearDMA
 func @LinearDMA(%arg0: memref<10xf16>, %arg1: memref<10xf16>) -> memref<10xf16> {

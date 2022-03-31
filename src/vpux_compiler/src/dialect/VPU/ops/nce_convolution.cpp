@@ -117,7 +117,7 @@ bool vpux::VPU::NCEConvolutionOp::isSupported(IE::ConvolutionOp op, LogCb logCb)
         logCb(formatv("Unsupported filter layout '{0}'", filterOrder));
         return false;
     }
-    if (arch != VPU::ArchKind::MTL && outputOrder != DimsOrder::NHWC) {
+    if (arch != VPU::ArchKind::VPUX37XX && outputOrder != DimsOrder::NHWC) {
         logCb(formatv("Unsupported output layout '{0}'", outputOrder));
         return false;
     }
@@ -177,7 +177,7 @@ mlir::LogicalResult vpux::VPU::verifyOp(NCEConvolutionOp op) {
     const auto filterOrder = DimsOrder::fromValue(op.filter());
     const auto outputOrder = DimsOrder::fromValue(op.output());
 
-    if (arch == VPU::ArchKind::MTL) {
+    if (arch == VPU::ArchKind::VPUX37XX) {
         if (inputOrder != DimsOrder::NHWC) {
             return errorAt(op, "Unsupported 'input' layout '{0}', expected NHWC", inputOrder);
         }
@@ -189,7 +189,7 @@ mlir::LogicalResult vpux::VPU::verifyOp(NCEConvolutionOp op) {
     if (filterOrder != DimsOrder::OYXI) {
         return errorAt(op, "Unsupported 'filter' layout '{0}', expected OYXI", filterOrder);
     }
-    if (arch != VPU::ArchKind::MTL && outputOrder != DimsOrder::NHWC) {
+    if (arch != VPU::ArchKind::VPUX37XX && outputOrder != DimsOrder::NHWC) {
         return errorAt(op, "Unsupported 'output' layout '{0}', expected NHWC", outputOrder);
     }
 
@@ -345,10 +345,10 @@ void vpux::VPU::NCEConvolutionOp::inferLayoutInfo(IE::LayerLayoutInfo& info) {
 
     info.setInput(1, DimsOrder::OYXI);
 
-    // FIXME: MTL ODU supports reordering of the output tensor, so we could use any layout here. But right now current
-    // behavior of AdjustLayouts and OptimizeReorder passes might introduce extra Reorders in that case. We need to
-    // update the passes to properly handle various Reorder propagation and fusing cases prior enabling ODU permutation
-    // feature in MTL.
+    // FIXME: VPUX37XX ODU supports reordering of the output tensor, so we could use any layout here. But right now
+    // current behavior of AdjustLayouts and OptimizeReorder passes might introduce extra Reorders in that case. We need
+    // to update the passes to properly handle various Reorder propagation and fusing cases prior enabling ODU
+    // permutation feature in VPUX37XX.
     info.setOutput(0, DimsOrder::NHWC);
 }
 

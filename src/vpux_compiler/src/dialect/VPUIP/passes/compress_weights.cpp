@@ -116,8 +116,8 @@ void CompressWeightsPass::safeRunOnFunc() {
     auto module = func->getParentOfType<mlir::ModuleOp>();
     const auto arch = VPU::getArch(module);
     // FIXME enable compression via attribute
-    const auto algo = (arch == VPU::ArchKind::MTL) ? ICodec::CompressionAlgorithm::BITCOMPACTOR_CODEC
-                                                   : ICodec::CompressionAlgorithm::HUFFMAN_CODEC;
+    const auto algo = (arch == VPU::ArchKind::VPUX37XX) ? ICodec::CompressionAlgorithm::BITCOMPACTOR_CODEC
+                                                        : ICodec::CompressionAlgorithm::HUFFMAN_CODEC;
 
     _log.trace("VPUIP CompressWeightsPass");
     auto& ctx = getContext();

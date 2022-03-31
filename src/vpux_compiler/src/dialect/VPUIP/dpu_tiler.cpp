@@ -86,10 +86,10 @@ VPUNN::DataType getElementType(mlir::Type type) {
 
 VPUNN::VPUDevice getVPUDeviceType(VPU::ArchKind archKind) {
     switch (archKind) {
-    case VPU::ArchKind::KMB:
-    case VPU::ArchKind::TBH:
+    case VPU::ArchKind::VPUX30XX:
+    case VPU::ArchKind::VPUX311X:
         return VPUNN::VPUDevice::VPU_2_0;
-    case VPU::ArchKind::MTL:
+    case VPU::ArchKind::VPUX37XX:
         return VPUNN::VPUDevice::VPU_2_7;
     default:
         VPUX_THROW("Unsupported VPU arch type: '{0}'", archKind);

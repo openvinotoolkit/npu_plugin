@@ -1,4 +1,4 @@
-// RUN: vpux-opt --split-input-file --init-compiler="vpu-arch=KMB" --group-async-execute-ops %s | FileCheck %s
+// RUN: vpux-opt --split-input-file --init-compiler="vpu-arch=VPUX30XX" --group-async-execute-ops %s | FileCheck %s
 
 // CHECK-LABEL: @NoMergeUPAAndDMA
 // Do not merge 2 UPA task or 2 DMAs task due to exclusie users or different dependencies

@@ -249,16 +249,16 @@ VPU::ArchKind vpux::VPUIP::BlobReader::parseDeviceRevision(const MVCNN::SummaryH
     case MVCNN::TargetDevice_KMB:
         switch (header->device_revision()) {
         case MVCNN::TargetDeviceRevision::TargetDeviceRevision_B0:
-            return VPU::ArchKind::KMB;
+            return VPU::ArchKind::VPUX30XX;
         default:
-            VPUX_THROW("Unsupported KMB Revision '{0}'", header->device_revision());
+            VPUX_THROW("Unsupported VPUX30XX Revision '{0}'", header->device_revision());
         }
     case MVCNN::TargetDevice_TBH:
-        return VPU::ArchKind::TBH;
+        return VPU::ArchKind::VPUX311X;
     case MVCNN::TargetDevice::TargetDevice_MTL:
-        return VPU::ArchKind::MTL;
+        return VPU::ArchKind::VPUX37XX;
     case MVCNN::TargetDevice::TargetDevice_LNL:
-        return VPU::ArchKind::LNL;
+        return VPU::ArchKind::VPUX4000;
     default:
         VPUX_THROW("Unsupported TargetDevice '{0}'", header->device());
     }

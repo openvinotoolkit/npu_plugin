@@ -26,8 +26,8 @@ ShHandle ShConfig[LOCAL_SH_COUNT];
 // No other file should be changed depending on VPU version
 
 // Reason on HW dependency:
-//  on VPU2.7 RST register exists
-//  on VPU4   RST register does not - CPR needs to be used
+//  on VPUX37XX RST register exists
+//  on VPUX4000   RST register does not - CPR needs to be used
 static void ShCtrlResetShaveHw(ShHandle *handle) {
     SHAVE_FUNC("%p", handle);
     // we blindly release the handle since we reset the hardware

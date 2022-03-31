@@ -54,19 +54,19 @@ StringLiteral vpux::VPU::getProcessorFrequencyAttrName() {
 
 namespace {
 
-constexpr int KMB_MAX_DPU_GROUPS = 4;
-constexpr int MTL_MAX_DPU_GROUPS = 2;
+constexpr int VPUX30XX_MAX_DPU_GROUPS = 4;
+constexpr int VPUX37XX_MAX_DPU_GROUPS = 2;
 
 }  // namespace
 
 uint32_t vpux::VPU::getMaxDPUClusterNum(ArchKind arch) {
     switch (arch) {
-    case VPU::ArchKind::KMB:
-        return KMB_MAX_DPU_GROUPS;
-    case VPU::ArchKind::TBH:
-        return KMB_MAX_DPU_GROUPS;
-    case VPU::ArchKind::MTL:
-        return MTL_MAX_DPU_GROUPS;
+    case VPU::ArchKind::VPUX30XX:
+        return VPUX30XX_MAX_DPU_GROUPS;
+    case VPU::ArchKind::VPUX311X:
+        return VPUX30XX_MAX_DPU_GROUPS;
+    case VPU::ArchKind::VPUX37XX:
+        return VPUX37XX_MAX_DPU_GROUPS;
     default:
         VPUX_THROW("Unsupported architecture '{0}'", arch);
     }
@@ -96,11 +96,9 @@ constexpr StringLiteral archAttrName = "VPU.arch";
 constexpr Byte DDR_HEAP_SIZE = 500_MB;
 constexpr Byte CSRAM_SIZE = 24_MB;
 
-// See https://github.com/movidius/vpuip_2/blob/develop/system/nn/inference_runtime_common/inc/nn_cmx_memory_map.h
 constexpr Byte KMB_CMX_WORKSPACE_SIZE = Byte(896_KB);
 
-// See https://github.com/movidius/vpuip_2/blob/develop/system/nn_mtl/common_runtime/inc/nn_cmx_memory_map.h
-constexpr Byte MTL_CMX_WORKSPACE_SIZE = Byte(1936_KB);
+constexpr Byte VPUX37XX_CMX_WORKSPACE_SIZE = Byte(1936_KB);
 
 }  // namespace
 
@@ -130,32 +128,32 @@ void vpux::VPU::setArch(mlir::ModuleOp module, ArchKind kind, Optional<int> numO
     IE::ExecutorResourceOp nceCluster;
 
     switch (kind) {
-    case ArchKind::KMB: {
+    case ArchKind::VPUX30XX: {
         addMem(MemoryKind::DDR, DDR_HEAP_SIZE, 0.6, 8);
         addMem(MemoryKind::CMX_NN, KMB_CMX_WORKSPACE_SIZE, 1.0, 32);
 
         addExecutor(ExecutorKind::DMA_NN, 1);
         addExecutor(ExecutorKind::SHAVE_UPA, 16);
-        nceCluster = IE::addAvailableExecutor(module, ExecutorKind::NCE, getNumOfDPUGroupsVal(KMB_MAX_DPU_GROUPS));
+        nceCluster = IE::addAvailableExecutor(module, ExecutorKind::NCE, getNumOfDPUGroupsVal(VPUX30XX_MAX_DPU_GROUPS));
         nceCluster.addSubExecutor(ExecutorKind::DPU, 5);
 
         break;
     }
-    case ArchKind::TBH: {
+    case ArchKind::VPUX311X: {
         addMem(MemoryKind::DDR, DDR_HEAP_SIZE, 0.6, 8);
         addMem(MemoryKind::CSRAM, CSRAM_SIZE, 0.85, 64);
         addMem(MemoryKind::CMX_NN, KMB_CMX_WORKSPACE_SIZE, 1.0, 32);
 
         addExecutor(ExecutorKind::DMA_NN, 2);
         addExecutor(ExecutorKind::SHAVE_UPA, 16);
-        nceCluster = IE::addAvailableExecutor(module, ExecutorKind::NCE, getNumOfDPUGroupsVal(KMB_MAX_DPU_GROUPS));
+        nceCluster = IE::addAvailableExecutor(module, ExecutorKind::NCE, getNumOfDPUGroupsVal(VPUX30XX_MAX_DPU_GROUPS));
         nceCluster.addSubExecutor(ExecutorKind::DPU, 5);
 
         break;
     }
-    case ArchKind::MTL: {
+    case ArchKind::VPUX37XX: {
         addMem(MemoryKind::DDR, DDR_HEAP_SIZE, 0.6, 8);
-        addMem(MemoryKind::CMX_NN, MTL_CMX_WORKSPACE_SIZE, 1.0, 32);
+        addMem(MemoryKind::CMX_NN, VPUX37XX_CMX_WORKSPACE_SIZE, 1.0, 32);
 
         addExecutor(ExecutorKind::DMA_NN, 2);
         // TODO: SHAVE_NN shouldn't be used here
@@ -163,7 +161,7 @@ void vpux::VPU::setArch(mlir::ModuleOp module, ArchKind kind, Optional<int> numO
         // TODO: move SHAVE_ACT as a sub-executor for NCE
         // TODO: use actual number of ACT SHAVES
         addExecutor(ExecutorKind::SHAVE_ACT, 1);
-        nceCluster = IE::addAvailableExecutor(module, ExecutorKind::NCE, getNumOfDPUGroupsVal(MTL_MAX_DPU_GROUPS));
+        nceCluster = IE::addAvailableExecutor(module, ExecutorKind::NCE, getNumOfDPUGroupsVal(VPUX37XX_MAX_DPU_GROUPS));
         nceCluster.addSubExecutor(ExecutorKind::DPU, 1);
 
         break;

@@ -1,4 +1,4 @@
-// RUN: vpux-opt --split-input-file --init-compiler="vpu-arch=KMB compilation-mode=DefaultHW" --resolve-pwl-post-ops %s | FileCheck %s
+// RUN: vpux-opt --split-input-file --init-compiler="vpu-arch=VPUX30XX compilation-mode=DefaultHW" --resolve-pwl-post-ops %s | FileCheck %s
 
 // CHECK-LABEL: @UnfuseConvSigmoid
 func @UnfuseConvSigmoid(%arg0: tensor<1x16x4x4xf16>) -> tensor<1x16x3x3xf16> {

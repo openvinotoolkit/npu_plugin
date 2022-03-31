@@ -2,7 +2,7 @@
 
 !qElemType = type !quant.uniform<u8:f32:1, {1.000000e-01:128,2.000000e-01:128,3.000000e-01:128}>
 
-module @DeleteQuantizationPerAxis attributes {VPU.arch = "MTL"} {
+module @DeleteQuantizationPerAxis attributes {VPU.arch = "VPUX37XX"} {
 
 func @main(%arg0 : tensor<1x3x7x7xf32>) -> tensor<1x3x7x7xf32> {
     %0 = IE.HSwish(%arg0) : tensor<1x3x7x7xf32> -> tensor<1x3x7x7xf32>
@@ -24,7 +24,7 @@ func @main(%arg0 : tensor<1x3x7x7xf32>) -> tensor<1x3x7x7xf32> {
 
 !qElemType = type !quant.uniform<u8:f32:1, {1.000000e-01:128,2.000000e-01:128,3.000000e-01:128}>
 
-module @NoDeleteQuantizationPerAxisFusedPostOp attributes {VPU.arch = "MTL"} {
+module @NoDeleteQuantizationPerAxisFusedPostOp attributes {VPU.arch = "VPUX37XX"} {
 
 func @main(%arg0 : tensor<1x3x7x7xf16>) -> tensor<1x3x7x7xf16> {
     %filter = const.Declare tensor<3x3x1x1xf16> = #const.Content<dense<1.0> : tensor<3x3x1x1xf16>>

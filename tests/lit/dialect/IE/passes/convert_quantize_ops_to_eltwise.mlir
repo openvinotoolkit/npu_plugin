@@ -4,7 +4,7 @@
 !qElemType1 = type !quant.uniform<u8:f32, 1.000000e+00>
 !qElemType2 = type !quant.uniform<u8:f32, 5.000000e-01>
 
-module @ConvertQuantizeToEltwiseMTL attributes {VPU.arch = "MTL"} {
+module @ConvertQuantizeToEltwiseVPUX37XX attributes {VPU.arch = "VPUX37XX"} {
 
 func @PerTensor(%arg0 : tensor<1x4xf32>) -> tensor<1x4xf32> {
     %0 = IE.Quantize(%arg0) {dstElemType = !qElemType1} : tensor<1x4xf32> -> tensor<1x4x!qElemType1>
@@ -26,7 +26,7 @@ func @PerTensor(%arg0 : tensor<1x4xf32>) -> tensor<1x4xf32> {
 
 !qElemType = type !quant.uniform<u8:f32, 1.000000e+00>
 
-module @ConvertQuantizeToEltwiseKMB attributes {VPU.arch = "KMB"} {
+module @ConvertQuantizeToEltwiseKMB attributes {VPU.arch = "VPUX30XX"} {
 
 func @PerTensor(%arg0 : tensor<1x4xf32>) -> tensor<1x4xf32> {
     %0 = IE.Quantize(%arg0) {dstElemType = !qElemType} : tensor<1x4xf32> -> tensor<1x4x!qElemType>
@@ -62,7 +62,7 @@ func @PerChannelNoChanges(%arg0 : tensor<1x4xf32>) -> tensor<1x4xf32> {
 
 !qElemType = type !quant.uniform<u8:f32, 1.000000e+00>
 
-module @NoConvertQuantizeToEltwiseKMB attributes {VPU.arch = "KMB"} {
+module @NoConvertQuantizeToEltwiseKMB attributes {VPU.arch = "VPUX30XX"} {
 
 func @EnabelCMcovNoChanges(%arg0 : tensor<1x3x352x352xf32>) -> tensor<1x32x175x175x!qElemType> {
     %0 = IE.Quantize(%arg0) {dstElemType = !qElemType} : tensor<1x3x352x352xf32> -> tensor<1x3x352x352x!qElemType>

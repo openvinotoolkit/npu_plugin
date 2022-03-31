@@ -27,7 +27,7 @@ def InitCompiler : PassBase<"init-compiler", "vpux::ModulePass"> {
     let options = [
         Option<
             "archOpt", "vpu-arch",
-            "std::string", [{"KMB"}],
+            "std::string", [{"VPUX30XX"}],
             "VPU architecture to compile for"
         >,
         Option<

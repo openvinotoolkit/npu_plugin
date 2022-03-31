@@ -35,7 +35,7 @@ namespace {
 // up bound for workload numbers
 constexpr size_t MAX_SPLIT_NUMBER = 50;
 
-VPU::MPEMode getMpeModeForKmb(mlir::Type inElemType, mlir::Type outElemType, mlir::Operation*, ShapeRef shape) {
+VPU::MPEMode getMpeModeForVPUX30XX(mlir::Type inElemType, mlir::Type outElemType, mlir::Operation*, ShapeRef shape) {
     if (inElemType.isa<mlir::quant::QuantizedType>() || outElemType.isa<mlir::quant::QuantizedType>()) {
         const double W = static_cast<double>(shape[Dims4D::Act::W]);
         const double H = static_cast<double>(shape[Dims4D::Act::H]);
@@ -55,7 +55,7 @@ VPU::MPEMode getMpeModeForKmb(mlir::Type inElemType, mlir::Type outElemType, mli
     return VPU::MPEMode::VECTOR;
 }
 
-VPU::MPEMode getMpeModeForMtl(mlir::Type, mlir::Type, mlir::Operation* operation, ShapeRef) {
+VPU::MPEMode getMpeModeForVPUX37XX(mlir::Type, mlir::Type, mlir::Operation* operation, ShapeRef) {
     if (mlir::isa<VPU::NCEConvolutionOp>(operation)) {
         return VPU::MPEMode::CUBOID_16x16;
     } else if (mlir::isa<VPU::NCEDepthConvolutionOp>(operation) || mlir::isa<VPU::NCEMaxPoolOp>(operation)) {
@@ -70,9 +70,9 @@ VPU::MPEMode getMpeModeForMtl(mlir::Type, mlir::Type, mlir::Operation* operation
 using GetMpeModeCb = VPU::MPEMode (*)(mlir::Type, mlir::Type, mlir::Operation*, ShapeRef);
 
 const EnumMap<VPU::ArchKind, GetMpeModeCb> mpeMap = {
-        {VPU::ArchKind::KMB, getMpeModeForKmb},
-        {VPU::ArchKind::TBH, getMpeModeForKmb},
-        {VPU::ArchKind::MTL, getMpeModeForMtl},
+        {VPU::ArchKind::VPUX30XX, getMpeModeForVPUX30XX},
+        {VPU::ArchKind::VPUX311X, getMpeModeForVPUX30XX},
+        {VPU::ArchKind::VPUX37XX, getMpeModeForVPUX37XX},
 };
 
 // for workloads in sub tensors, offsets need to be from original full output tensor

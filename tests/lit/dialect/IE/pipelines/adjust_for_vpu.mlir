@@ -1,4 +1,4 @@
-// RUN: vpux-opt --init-compiler="vpu-arch=KMB compilation-mode=DefaultHW" --adjust-for-vpu %s | FileCheck %s
+// RUN: vpux-opt --init-compiler="vpu-arch=VPUX30XX compilation-mode=DefaultHW" --adjust-for-vpu %s | FileCheck %s
 
 module @Test {
 

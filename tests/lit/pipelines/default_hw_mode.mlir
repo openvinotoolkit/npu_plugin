@@ -1,4 +1,4 @@
-// RUN: vpux-opt --split-input-file --default-hw-mode="vpu-arch=KMB" %s | FileCheck %s
+// RUN: vpux-opt --split-input-file --default-hw-mode="vpu-arch=VPUX30XX" %s | FileCheck %s
 
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 

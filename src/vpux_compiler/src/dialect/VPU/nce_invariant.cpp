@@ -24,8 +24,8 @@ bool vpux::VPU::NCEInvariant::isPrecisionSupported(ArchKind arch, mlir::ValueRan
     for (const auto& val : vals) {
         const auto elemType = val.getType().cast<vpux::NDTypeInterface>().getElementType();
 
-        if (elemType.isBF16() && arch != ArchKind::MTL) {
-            logCb(formatv("BF16 is only supported by MTL"));
+        if (elemType.isBF16() && arch != ArchKind::VPUX37XX) {
+            logCb(formatv("BF16 is only supported by VPUX37XX"));
             return false;
         }
     }
@@ -93,7 +93,7 @@ bool vpux::VPU::NCEInvariant::isAttrsSupported(ArchKind arch, int64_t KY, int64_
         return false;
     }
 
-    if (SX != SY && arch != VPU::ArchKind::MTL) {
+    if (SX != SY && arch != VPU::ArchKind::VPUX37XX) {
         logCb(formatv("Asymmetric strides are not supported"));
         return false;
     }
@@ -171,7 +171,7 @@ Byte vpux::VPU::NCEInvariant::getWeightsTableSize(int64_t OC) {
 //
 
 bool vpux::VPU::NCEInvariant::isChannelMajorCompatible(ArchKind arch, vpux::NDTypeInterface inputType) {
-    if (arch != ArchKind::KMB && arch != ArchKind::TBH) {
+    if (arch != ArchKind::VPUX30XX && arch != ArchKind::VPUX311X) {
         return false;
     }
 

@@ -53,7 +53,7 @@ By default printing of profiling information is done only using standard openvin
 but using special flag `"VPUX_PRINT_PROFILING":"YES"` in the benchmark_app config you can enable printing of internal full report of profiling data.
 Also running InferenceManagerDemo with profiling enabled blob you will get additional file `profiling-0.bin` which could be parsed to the same full report using the next command: `./prof_parser test.blob profiling-0.bin`
 In order to enable profiling using vpux-opt/vpux-translate engine use option `--vpux-profiling` for `vpux-translate` and after run `vpux-opt` with profiling enabled:
-  `--default-hw-mode="vpu-arch=KMB profiling=true" ...`
+  `--default-hw-mode="vpu-arch=VPUX30XX profiling=true" ...`
 
 ## Generating MLIR without big constants
 
