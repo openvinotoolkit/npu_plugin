@@ -68,13 +68,13 @@ bool vpux::VPU::NCEConvolutionOp::fitIntoCMX(vpux::NDTypeInterface input, vpux::
 
 bool vpux::VPU::NCEConvolutionOp::isSupported(IE::ConvolutionOp op, LogCb logCb) {
     if (op.getType().getRank() != 4) {
-        logCb(llvm::formatv("Only 4D tensors are supported"));
+        logCb(formatv("Only 4D tensors are supported"));
         return false;
     }
 
     const auto dilations = parseIntArrayAttr<int64_t>(op.dilations());
     if (dilations[0] != 1 || dilations[1] != 1) {
-        logCb(llvm::formatv("Dilated convolution is not supported"));
+        logCb(formatv("Dilated convolution is not supported"));
         return false;
     }
 
@@ -99,7 +99,7 @@ bool vpux::VPU::NCEConvolutionOp::isSupported(IE::ConvolutionOp op, LogCb logCb)
 
     if (!NCEInvariant::isActTypeSupported(inputType, getInputChannelAlignmentImpl(inputType)) ||
         !NCEInvariant::isActTypeSupported(outputType, getOutputChannelAlignmentImpl(outputType))) {
-        logCb(llvm::formatv("Misaligned tensor shape"));
+        logCb(formatv("Misaligned tensor shape"));
         return false;
     }
 
@@ -110,15 +110,15 @@ bool vpux::VPU::NCEConvolutionOp::isSupported(IE::ConvolutionOp op, LogCb logCb)
     const auto outputOrder = outputType.getDimsOrder();
 
     if (inputOrder != DimsOrder::NHWC && inputOrder != DimsOrder::NCHW) {
-        logCb(llvm::formatv("Unsupported input layout '{0}'", inputOrder));
+        logCb(formatv("Unsupported input layout '{0}'", inputOrder));
         return false;
     }
     if (filterOrder != DimsOrder::OYXI) {
-        logCb(llvm::formatv("Unsupported filter layout '{0}'", filterOrder));
+        logCb(formatv("Unsupported filter layout '{0}'", filterOrder));
         return false;
     }
     if (arch != VPU::ArchKind::MTL && outputOrder != DimsOrder::NHWC) {
-        logCb(llvm::formatv("Unsupported output layout '{0}'", outputOrder));
+        logCb(formatv("Unsupported output layout '{0}'", outputOrder));
         return false;
     }
 
@@ -131,7 +131,7 @@ bool vpux::VPU::NCEConvolutionOp::isSupported(IE::ConvolutionOp op, LogCb logCb)
 
 mlir::LogicalResult vpux::VPU::verifyConv(mlir::Location loc, ArchKind arch, NCEConvolutionOpAdaptor op,
                                           mlir::Value output) {
-    const auto logCb = [loc](const llvm::formatv_object_base& msg) {
+    const auto logCb = [loc](const formatv_object_base& msg) {
         std::ignore = errorAt(loc, "{0}", msg.str());
     };
 

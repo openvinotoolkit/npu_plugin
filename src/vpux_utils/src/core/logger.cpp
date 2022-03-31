@@ -49,7 +49,7 @@ StringLiteral vpux::stringifyEnum(LogLevel val) {
 // LogCb
 //
 
-void vpux::emptyLogCb(const llvm::formatv_object_base&) {
+void vpux::emptyLogCb(const formatv_object_base&) {
 }
 
 //
@@ -147,7 +147,7 @@ llvm::WithColor vpux::Logger::getLevelStream(LogLevel msgLevel) {
     return llvm::WithColor(getBaseStream(), color, true, false, llvm::ColorMode::Auto);
 }
 
-void vpux::Logger::addEntryPacked(LogLevel msgLevel, const llvm::formatv_object_base& msg) const {
+void vpux::Logger::addEntryPacked(LogLevel msgLevel, const formatv_object_base& msg) const {
     if (!isActive(msgLevel)) {
         return;
     }

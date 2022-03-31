@@ -416,7 +416,7 @@ INetworkDescription::Ptr LevelZeroCompilerInDriver::compileIR(
     build_flags += " ";
     build_flags += serializeConfig(config);
 
-    _logger.debug(build_flags);
+    _logger.debug("Build flags : {0}", build_flags);
 
     ze_graph_desc_t desc{ZE_STRUCTURE_TYPE_GRAPH_DESC_PROPERTIES,
                          nullptr,

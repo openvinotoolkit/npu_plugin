@@ -59,17 +59,17 @@ bool vpux::VPU::NCEDepthConvolutionOp::fitIntoCMX(vpux::NDTypeInterface input, v
 
 bool vpux::VPU::NCEDepthConvolutionOp::isSupported(IE::GroupConvolutionOp op, LogCb logCb) {
     if (op.getType().getRank() != 4) {
-        logCb(llvm::formatv("Only 4D tensors are supported"));
+        logCb(formatv("Only 4D tensors are supported"));
         return false;
     }
     if (getShape(op.filter()).size() != 4) {
-        logCb(llvm::formatv("Only 4D tensors are supported"));
+        logCb(formatv("Only 4D tensors are supported"));
         return false;
     }
 
     const auto dilations = parseIntArrayAttr<int64_t>(op.dilations());
     if (dilations[0] != 1 || dilations[1] != 1) {
-        logCb(llvm::formatv("Dilated convolution is not supported"));
+        logCb(formatv("Dilated convolution is not supported"));
         return false;
     }
 
@@ -83,19 +83,19 @@ bool vpux::VPU::NCEDepthConvolutionOp::isSupported(IE::GroupConvolutionOp op, Lo
     const auto KX = filterShape[Dims4D::Filter::KX];
 
     if (!op.groups().hasValue()) {
-        logCb(llvm::formatv("Grouped convolution does not have groups attribute"));
+        logCb(formatv("Grouped convolution does not have groups attribute"));
         return false;
     }
     if (op.groups().getValue() != OC) {
-        logCb(llvm::formatv("Unsupported group size: '{0}' expected '{1}'", op.groups(), OC));
+        logCb(formatv("Unsupported group size: '{0}' expected '{1}'", op.groups(), OC));
         return false;
     }
     if (fIC != 1) {
-        logCb(llvm::formatv("Group Convolution with more than one filter per input channel is not supported"));
+        logCb(formatv("Group Convolution with more than one filter per input channel is not supported"));
         return false;
     }
     if (OC != IC) {
-        logCb(llvm::formatv("Group Convolution has '{0}' groups, expected '{1}'", OC, IC));
+        logCb(formatv("Group Convolution has '{0}' groups, expected '{1}'", OC, IC));
         return false;
     }
 
@@ -116,7 +116,7 @@ bool vpux::VPU::NCEDepthConvolutionOp::isSupported(IE::GroupConvolutionOp op, Lo
 
     if (!NCEInvariant::isActTypeSupported(inputType, getInputChannelAlignmentImpl(inputType)) ||
         !NCEInvariant::isActTypeSupported(outputType, getOutputChannelAlignmentImpl(outputType))) {
-        logCb(llvm::formatv("Misaligned tensor shape"));
+        logCb(formatv("Misaligned tensor shape"));
         return false;
     }
 
@@ -125,7 +125,7 @@ bool vpux::VPU::NCEDepthConvolutionOp::isSupported(IE::GroupConvolutionOp op, Lo
     const auto outputOrder = outputType.getDimsOrder();
 
     if (inputOrder != DimsOrder::NHWC || filterOrder != DimsOrder::OYXI || outputOrder != DimsOrder::NHWC) {
-        logCb(llvm::formatv("Unsupported layout"));
+        logCb(formatv("Unsupported layout"));
         return false;
     }
 

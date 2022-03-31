@@ -30,7 +30,7 @@ mlir::OpFoldResult VPUIP::DistributedCastOp::fold(ArrayRef<mlir::Attribute>) {
 //
 
 mlir::LogicalResult VPUIP::verifyOp(VPUIP::DistributedCastOp op) {
-    const auto logCb = [op](const llvm::formatv_object_base& msg) {
+    const auto logCb = [op](const formatv_object_base& msg) {
         std::ignore = errorAt(op, "{0}", msg.str());
     };
 

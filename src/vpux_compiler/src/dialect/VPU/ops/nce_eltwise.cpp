@@ -43,12 +43,12 @@ bool vpux::VPU::NCEEltwiseOp::isSupported(mlir::Operation* op, bool allowDiffere
     const auto output = op->getResult(0).getType().cast<vpux::NDTypeInterface>();
 
     if (input1.getRank() != 4 || input2.getRank() != 4 || output.getRank() != 4) {
-        logCb(llvm::formatv("Only 4D tensors are supported"));
+        logCb(formatv("Only 4D tensors are supported"));
         return false;
     }
 
     if (input1.getShape() != input2.getShape()) {
-        logCb(llvm::formatv("Broadcasting is not supported"));
+        logCb(formatv("Broadcasting is not supported"));
         return false;
     }
 
@@ -68,28 +68,28 @@ bool vpux::VPU::NCEEltwiseOp::isSupported(mlir::Operation* op, bool allowDiffere
 
         if (qInput1.getExpressedType() != qInput2.getExpressedType() ||
             qInput1.getStorageType() != qInput2.getStorageType() || qInput1.isSigned() != qInput2.isSigned()) {
-            logCb(llvm::formatv("Mismatch in inputs quantization parameters"));
+            logCb(formatv("Mismatch in inputs quantization parameters"));
             return false;
         }
 
         if (!allowDifferentZp && qInput1.getZeroPoint() != qInput2.getZeroPoint()) {
-            logCb(llvm::formatv("Mismatch in inputs zero points"));
+            logCb(formatv("Mismatch in inputs zero points"));
             return false;
         }
 
         if (!allowDifferentScales && qInput1.getScale() != qInput2.getScale()) {
-            logCb(llvm::formatv("Mismatch in inputs quantization scales"));
+            logCb(formatv("Mismatch in inputs quantization scales"));
             return false;
         }
     } else {
-        logCb(llvm::formatv("Unsupported inputs element types"));
+        logCb(formatv("Unsupported inputs element types"));
         return false;
     }
 
     if (!NCEInvariant::isActTypeSupported(input1, getInputChannelAlignmentImpl(input1)) ||
         !NCEInvariant::isActTypeSupported(input2, getInputChannelAlignmentImpl(input2)) ||
         !NCEInvariant::isActTypeSupported(output, getOutputChannelAlignmentImpl(output))) {
-        logCb(llvm::formatv("Misaligned tensor shape"));
+        logCb(formatv("Misaligned tensor shape"));
         return false;
     }
 
@@ -98,7 +98,7 @@ bool vpux::VPU::NCEEltwiseOp::isSupported(mlir::Operation* op, bool allowDiffere
     const auto outputOrder = output.getDimsOrder();
 
     if (inputOrder1 != DimsOrder::NHWC || inputOrder2 != DimsOrder::NHWC || outputOrder != DimsOrder::NHWC) {
-        logCb(llvm::formatv("Unsupported layout"));
+        logCb(formatv("Unsupported layout"));
         return false;
     }
 

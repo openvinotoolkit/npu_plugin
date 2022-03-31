@@ -52,8 +52,8 @@ StringLiteral stringifyEnum(LogLevel val);
 // Logging callback
 //
 
-using LogCb = FuncRef<void(const llvm::formatv_object_base&)>;
-void emptyLogCb(const llvm::formatv_object_base&);
+using LogCb = FuncRef<void(const formatv_object_base&)>;
+void emptyLogCb(const formatv_object_base&);
 
 //
 // Logger
@@ -97,43 +97,43 @@ public:
 
 public:
     template <typename... Args>
-    void fatal(StringRef format, Args&&... args) const {
-        addEntryPacked(LogLevel::Fatal, llvm::formatv(format.data(), std::forward<Args>(args)...));
+    void fatal(StringLiteral format, Args&&... args) const {
+        addEntryPacked(LogLevel::Fatal, formatv(format.data(), std::forward<Args>(args)...));
     }
 
     template <typename... Args>
-    void error(StringRef format, Args&&... args) const {
-        addEntryPacked(LogLevel::Error, llvm::formatv(format.data(), std::forward<Args>(args)...));
+    void error(StringLiteral format, Args&&... args) const {
+        addEntryPacked(LogLevel::Error, formatv(format.data(), std::forward<Args>(args)...));
     }
 
     template <typename... Args>
-    void warning(StringRef format, Args&&... args) const {
-        addEntryPacked(LogLevel::Warning, llvm::formatv(format.data(), std::forward<Args>(args)...));
+    void warning(StringLiteral format, Args&&... args) const {
+        addEntryPacked(LogLevel::Warning, formatv(format.data(), std::forward<Args>(args)...));
     }
 
     template <typename... Args>
-    void info(StringRef format, Args&&... args) const {
-        addEntryPacked(LogLevel::Info, llvm::formatv(format.data(), std::forward<Args>(args)...));
+    void info(StringLiteral format, Args&&... args) const {
+        addEntryPacked(LogLevel::Info, formatv(format.data(), std::forward<Args>(args)...));
     }
 
     template <typename... Args>
-    void debug(StringRef format, Args&&... args) const {
-        addEntryPacked(LogLevel::Debug, llvm::formatv(format.data(), std::forward<Args>(args)...));
+    void debug(StringLiteral format, Args&&... args) const {
+        addEntryPacked(LogLevel::Debug, formatv(format.data(), std::forward<Args>(args)...));
     }
 
     template <typename... Args>
-    void trace(StringRef format, Args&&... args) const {
-        addEntryPacked(LogLevel::Trace, llvm::formatv(format.data(), std::forward<Args>(args)...));
+    void trace(StringLiteral format, Args&&... args) const {
+        addEntryPacked(LogLevel::Trace, formatv(format.data(), std::forward<Args>(args)...));
     }
 
 public:
     template <typename... Args>
-    void addEntry(LogLevel msgLevel, StringRef format, Args&&... args) const {
-        addEntryPacked(msgLevel, llvm::formatv(format.data(), std::forward<Args>(args)...));
+    void addEntry(LogLevel msgLevel, StringLiteral format, Args&&... args) const {
+        addEntryPacked(msgLevel, formatv(format.data(), std::forward<Args>(args)...));
     }
 
 private:
-    void addEntryPacked(LogLevel msgLevel, const llvm::formatv_object_base& msg) const;
+    void addEntryPacked(LogLevel msgLevel, const formatv_object_base& msg) const;
 
 private:
     StringLiteral _name;

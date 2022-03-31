@@ -25,7 +25,7 @@ bool vpux::VPU::NCEInvariant::isPrecisionSupported(ArchKind arch, mlir::ValueRan
         const auto elemType = val.getType().cast<vpux::NDTypeInterface>().getElementType();
 
         if (elemType.isBF16() && arch != ArchKind::MTL) {
-            logCb(llvm::formatv("BF16 is only supported by MTL"));
+            logCb(formatv("BF16 is only supported by MTL"));
             return false;
         }
     }
@@ -40,19 +40,19 @@ bool vpux::VPU::NCEInvariant::isPrecisionSupported(ArchKind arch, mlir::ValueRan
 bool vpux::VPU::NCEInvariant::verifyPads(int64_t KY, int64_t KX, int64_t padTop, int64_t padBottom, int64_t padLeft,
                                          int64_t padRight, LogCb logCb) {
     if (padTop < 0 || (padTop > 1 && padTop > KY / 2)) {
-        logCb(llvm::formatv("Unsupported padding '{0}', must be in range [0, {1}]", padTop, KY / 2));
+        logCb(formatv("Unsupported padding '{0}', must be in range [0, {1}]", padTop, KY / 2));
         return false;
     }
     if (padBottom < 0 || (padBottom > 1 && padBottom > KY / 2)) {
-        logCb(llvm::formatv("Unsupported padding '{0}', must be in range [0, {1}]", padBottom, KY / 2));
+        logCb(formatv("Unsupported padding '{0}', must be in range [0, {1}]", padBottom, KY / 2));
         return false;
     }
     if (padLeft < 0 || (padLeft > 1 && padLeft > KX / 2)) {
-        logCb(llvm::formatv("Unsupported padding '{0}', must be in range [0, {1}]", padLeft, KX / 2));
+        logCb(formatv("Unsupported padding '{0}', must be in range [0, {1}]", padLeft, KX / 2));
         return false;
     }
     if (padRight < 0 || (padRight > 1 && padRight > KX / 2)) {
-        logCb(llvm::formatv("Unsupported padding '{0}', must be in range [0, {1}]", padRight, KX / 2));
+        logCb(formatv("Unsupported padding '{0}', must be in range [0, {1}]", padRight, KX / 2));
         return false;
     }
 
@@ -85,28 +85,24 @@ bool vpux::VPU::NCEInvariant::isAttrsSupported(ArchKind arch, int64_t KY, int64_
     static const int64_t NCE_MAX_STRIDE_SIZE = 8;
 
     if (KY > MAX_KERNEL_SIZE || KY <= 0) {
-        logCb(llvm::formatv("Unsupported kernel height dimension '{0}', must be in range [1, {1}]", KY,
-                            MAX_KERNEL_SIZE));
+        logCb(formatv("Unsupported kernel height dimension '{0}', must be in range [1, {1}]", KY, MAX_KERNEL_SIZE));
         return false;
     }
     if (KX > MAX_KERNEL_SIZE || KX <= 0) {
-        logCb(llvm::formatv("Unsupported kernel width dimension '{0}', must be in range [1, {1}]", KX,
-                            MAX_KERNEL_SIZE));
+        logCb(formatv("Unsupported kernel width dimension '{0}', must be in range [1, {1}]", KX, MAX_KERNEL_SIZE));
         return false;
     }
 
     if (SX != SY && arch != VPU::ArchKind::MTL) {
-        logCb(llvm::formatv("Asymmetric strides are not supported"));
+        logCb(formatv("Asymmetric strides are not supported"));
         return false;
     }
     if (SY > NCE_MAX_STRIDE_SIZE || SY <= 0) {
-        logCb(llvm::formatv("Unsupported stride height dimension '{0}', must be in range [1, {1}]", SY,
-                            NCE_MAX_STRIDE_SIZE));
+        logCb(formatv("Unsupported stride height dimension '{0}', must be in range [1, {1}]", SY, NCE_MAX_STRIDE_SIZE));
         return false;
     }
     if (SX > NCE_MAX_STRIDE_SIZE || SX <= 0) {
-        logCb(llvm::formatv("Unsupported stride width dimension '{0}', must be in range [1, {1}]", SX,
-                            NCE_MAX_STRIDE_SIZE));
+        logCb(formatv("Unsupported stride width dimension '{0}', must be in range [1, {1}]", SX, NCE_MAX_STRIDE_SIZE));
         return false;
     }
 
@@ -124,7 +120,7 @@ int64_t vpux::VPU::NCEInvariant::getAlignment(mlir::Type elemType) {
 
 bool vpux::VPU::NCEInvariant::isActTypeSupported(vpux::NDTypeInterface type, int64_t alignment, LogCb logCb) {
     if (type.getRank() != 4) {
-        logCb(llvm::formatv("Activation has unsupported rank: {0}", type.getRank()));
+        logCb(formatv("Activation has unsupported rank: {0}", type.getRank()));
         return false;
     }
 
@@ -134,7 +130,7 @@ bool vpux::VPU::NCEInvariant::isActTypeSupported(vpux::NDTypeInterface type, int
 
     const auto innerDim = memShape.back();
     if (innerDim % alignment != 0) {
-        logCb(llvm::formatv("Activation inner dimension '{0}' is not aligned to '{1}'", innerDim, alignment));
+        logCb(formatv("Activation inner dimension '{0}' is not aligned to '{1}'", innerDim, alignment));
         return false;
     }
 

@@ -18,23 +18,23 @@
 namespace vpux {
 
 template <typename... Args>
-mlir::LogicalResult errorAt(mlir::Location loc, StringRef format, Args&&... args) {
-    return printTo(mlir::emitError(loc), format.data(), std::forward<Args>(args)...);
+mlir::LogicalResult errorAt(mlir::Location loc, StringLiteral format, Args&&... args) {
+    return printTo(mlir::emitError(loc), format, std::forward<Args>(args)...);
 }
 
 template <typename... Args>
-mlir::LogicalResult errorAt(mlir::Operation* op, StringRef format, Args&&... args) {
-    return printTo(op->emitError(), format.data(), std::forward<Args>(args)...);
+mlir::LogicalResult errorAt(mlir::Operation* op, StringLiteral format, Args&&... args) {
+    return printTo(op->emitError(), format, std::forward<Args>(args)...);
 }
 
 template <typename... Args>
-mlir::LogicalResult matchFailed(mlir::RewriterBase& rewriter, mlir::Operation* op, StringRef format, Args&&... args) {
-    const auto msg = llvm::formatv(format.data(), std::forward<Args>(args)...);
-    return rewriter.notifyMatchFailure(op, msg.str());
+mlir::LogicalResult matchFailed(mlir::RewriterBase& rewriter, mlir::Operation* op, StringLiteral format,
+                                Args&&... args) {
+    return rewriter.notifyMatchFailure(op, formatv(format.data(), std::forward<Args>(args)...));
 }
 
 template <typename... Args>
-mlir::LogicalResult matchFailed(Logger log, mlir::RewriterBase& rewriter, mlir::Operation* op, StringRef format,
+mlir::LogicalResult matchFailed(Logger log, mlir::RewriterBase& rewriter, mlir::Operation* op, StringLiteral format,
                                 Args&&... args) {
     log.trace(format, std::forward<Args>(args)...);
     return matchFailed(rewriter, op, format, std::forward<Args>(args)...);

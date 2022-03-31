@@ -35,28 +35,39 @@
 namespace vpux {
 
 //
+// formatv
+//
+
+using llvm::formatv;
+using llvm::formatv_object_base;
+
+//
+// printToString
+//
+
+template <typename... Args>
+std::string printToString(StringLiteral format, Args&&... args) {
+    return formatv(format.data(), std::forward<Args>(args)...);
+}
+
+//
 // printTo
 //
 
 template <typename... Args>
-auto& printTo(llvm::raw_ostream& stream, StringRef format, Args&&... args) {
-    return stream << llvm::formatv(format.data(), std::forward<Args>(args)...);
+auto& printTo(llvm::raw_ostream& stream, StringLiteral format, Args&&... args) {
+    return stream << formatv(format.data(), std::forward<Args>(args)...);
 }
 
 template <typename... Args>
-auto& printTo(std::ostream& stream, StringRef format, Args&&... args) {
-    llvm::raw_os_ostream(stream) << llvm::formatv(format.data(), std::forward<Args>(args)...);
+auto& printTo(std::ostream& stream, StringLiteral format, Args&&... args) {
+    llvm::raw_os_ostream(stream) << formatv(format.data(), std::forward<Args>(args)...);
     return stream;
 }
 
 template <class Stream, typename... Args>
-auto&& printTo(Stream&& stream, StringRef format, Args&&... args) {
-    return stream << llvm::formatv(format.data(), std::forward<Args>(args)...).str();
-}
-
-template <typename... Args>
-std::string printToString(StringLiteral format, Args&&... args) {
-    return llvm::formatv(format.data(), std::forward<Args>(args)...).str();
+auto&& printTo(Stream&& stream, StringLiteral format, Args&&... args) {
+    return stream << printToString(format, std::forward<Args>(args)...);
 }
 
 //

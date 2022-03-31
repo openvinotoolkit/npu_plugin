@@ -44,7 +44,7 @@ bool vpux::VPU::supportsSparseData(mlir::Operation* op) {
 mlir::LogicalResult vpux::VPU::details::validatePrecisionForNCE(mlir::Operation* op) {
     const auto arch = getArch(op);
 
-    const auto logCb = [op](const llvm::formatv_object_base& msg) {
+    const auto logCb = [op](const formatv_object_base& msg) {
         std::ignore = errorAt(op, "{0}", msg.str());
     };
 

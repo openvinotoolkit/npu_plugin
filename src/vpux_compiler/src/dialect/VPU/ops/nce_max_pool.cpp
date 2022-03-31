@@ -56,12 +56,12 @@ bool vpux::VPU::NCEMaxPoolOp::fitIntoCMX(vpux::NDTypeInterface input, vpux::NDTy
 
 bool vpux::VPU::NCEMaxPoolOp::isSupported(IE::MaxPoolOp op, LogCb logCb) {
     if (op.getType().getRank() != 4) {
-        logCb(llvm::formatv("Only 4D tensors are supported"));
+        logCb(formatv("Only 4D tensors are supported"));
         return false;
     }
 
     if (op.rounding_type() != IE::RoundingType::FLOOR) {
-        logCb(llvm::formatv("Unsupported rounding mode '{0}'", op.rounding_type()));
+        logCb(formatv("Unsupported rounding mode '{0}'", op.rounding_type()));
         return false;
     }
 
@@ -70,7 +70,7 @@ bool vpux::VPU::NCEMaxPoolOp::isSupported(IE::MaxPoolOp op, LogCb logCb) {
     const auto KX = kernelSize[Dims4D::Kernel::X];
 
     if (KY != KX) {
-        logCb(llvm::formatv("Asymmetric kernel is not supported"));
+        logCb(formatv("Asymmetric kernel is not supported"));
         return false;
     }
 
@@ -90,7 +90,7 @@ bool vpux::VPU::NCEMaxPoolOp::isSupported(IE::MaxPoolOp op, LogCb logCb) {
 
     if (!NCEInvariant::isActTypeSupported(inputType, getInputChannelAlignmentImpl(inputType)) ||
         !NCEInvariant::isActTypeSupported(outputType, getOutputChannelAlignmentImpl(outputType))) {
-        logCb(llvm::formatv("Misaligned tensor shape"));
+        logCb(formatv("Misaligned tensor shape"));
         return false;
     }
 
@@ -98,7 +98,7 @@ bool vpux::VPU::NCEMaxPoolOp::isSupported(IE::MaxPoolOp op, LogCb logCb) {
     const auto outputOrder = outputType.getDimsOrder();
 
     if (inputOrder != DimsOrder::NHWC || outputOrder != DimsOrder::NHWC) {
-        logCb(llvm::formatv("Unsupported layout"));
+        logCb(formatv("Unsupported layout"));
         return false;
     }
 
@@ -112,7 +112,7 @@ bool vpux::VPU::NCEMaxPoolOp::isSupported(IE::MaxPoolOp op, LogCb logCb) {
 mlir::LogicalResult vpux::VPU::verifyOp(NCEMaxPoolOp op) {
     const auto arch = getArch(op);
 
-    const auto logCb = [op](const llvm::formatv_object_base& msg) {
+    const auto logCb = [op](const formatv_object_base& msg) {
         (void)errorAt(op, "{0}", msg.str());
     };
 
