@@ -97,6 +97,7 @@ void vpux::IE::buildLowPrecisionPipeline(mlir::OpPassManager& pm, const LowPreci
     pm.addPass(IE::createSplitFakeQuantPass(log));
     pm.addPass(IE::createFuseConvertWithQuantizePass(log));
     if (options.enablePropagateQuantDequant) {
+        pm.addPass(mlir::createCanonicalizerPass(grc));
         pm.addPass(IE::createPropagateQuantizeDequantizePass(log));
     }
     if (options.enableSwapTransposeWithFQ) {

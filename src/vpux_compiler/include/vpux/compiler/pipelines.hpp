@@ -201,7 +201,7 @@ struct DefaultHWOptions : mlir::PassPipelineOptions<DefaultHWOptions> {
 
     BoolOption enablePropagateQuantDequant{*this, "propagate-quant-dequant",
                                            llvm::cl::desc("Enable Propagate Quantize Dequantize pass"),
-                                           llvm::cl::init(false)};
+                                           llvm::cl::init(true)};
 
     BoolOption enableSwapConcatWithEltwise{*this, "swap-concat-with-eltwise",
                                            ::llvm::cl::desc("Enable SwapConcatWithEltwise pass"),

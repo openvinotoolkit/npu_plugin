@@ -52,6 +52,13 @@ mlir::LogicalResult PropagateQuantize::matchAndRewrite(IE::ElemTypeInfoOpInterfa
                                                        mlir::PatternRewriter& rewriter) const {
     auto layer = mlir::cast<IE::LayerOpInterface>(origOp.getOperation());
 
+    // 0. Check if there is input above
+    if (llvm::any_of(layer->getOperands(), [](mlir::Value operand) {
+            return operand.isa<mlir::BlockArgument>();
+        })) {
+        return mlir::failure();
+    }
+
     // 1. Get the first quantizeOp.
     auto quantizeOp = mlir::dyn_cast<IE::QuantizeOp>(*(layer->getUsers().begin()));
     if (quantizeOp == nullptr) {
@@ -73,11 +80,12 @@ mlir::LogicalResult PropagateQuantize::matchAndRewrite(IE::ElemTypeInfoOpInterfa
 
     // 3. Check that tensor rank is 4, otherwise compilation fails in later passes
     // E#31028
-    const auto hasNot4DRank = [&](mlir::Value operand) {
-        return operand.getType().cast<vpux::NDTypeInterface>().getRank() != QUANT_DEQUANT_RANK;
+    const auto hasNot4DRankNotElemType = [&](mlir::Value operand) {
+        return operand.getType().cast<vpux::NDTypeInterface>().getRank() != QUANT_DEQUANT_RANK &&
+               operand.getDefiningOp<IE::ElemTypeInfoOpInterface>() == nullptr;
     };
 
-    if (llvm::any_of(layer->getOperands(), hasNot4DRank)) {
+    if (llvm::any_of(layer->getOperands(), hasNot4DRankNotElemType)) {
         return mlir::failure();
     }
 
@@ -127,6 +135,28 @@ mlir::LogicalResult PropagateQuantize::matchAndRewrite(IE::ElemTypeInfoOpInterfa
     return mlir::success();
 }
 
+bool checkPropagationChain(IE::LayerOpInterface layer) {
+    mlir::Operation* operation = layer;
+    while (operation && !operation->getUsers().empty()) {
+        auto user = *(operation->getUsers().begin());
+
+        // TODO delete layers from the list as soon as it's moved to this pass
+        // for now MultiplyOp is not converted to ScaleShift
+        if (mlir::isa<IE::AlignedChannelsOpInterface, IE::ConcatOp, IE::SliceOp, IE::ConvertOp>(user) &&
+            !mlir::isa<IE::MultiplyOp>(user)) {
+            return true;
+        }
+
+        if (!mlir::isa<IE::ElemTypeInfoOpInterface>(user)) {
+            return false;
+        }
+
+        operation = user;
+    }
+
+    return false;
+}
+
 //
 // PropagateDequantize
 //
@@ -156,18 +186,33 @@ mlir::LogicalResult PropagateDequantize::matchAndRewrite(IE::ElemTypeInfoOpInter
         return mlir::failure();
     }
 
+    // 0. Check if there is output below
+    if (llvm::any_of(layer->getUsers(), [](auto user) {
+            return mlir::isa<mlir::ReturnOp>(user);
+        })) {
+        return mlir::failure();
+    }
+
     auto dequantOp = layer.getInputs()[0].getDefiningOp<IE::DequantizeOp>();
     if (dequantOp == nullptr) {
         return mlir::failure();
     }
 
     // Check that tensor rank is 4, otherwise compilation fails in later passes
-    // E#31028
-    const auto hasNot4DRank = [&](mlir::Type resultType) {
-        return resultType.cast<vpux::NDTypeInterface>().getRank() != QUANT_DEQUANT_RANK;
+    // // E#31028
+    const auto isElemType = [&](auto user) {
+        return mlir::dyn_cast_or_null<IE::ElemTypeInfoOpInterface>(user) == nullptr;
     };
 
-    if (llvm::any_of(layer->getResultTypes(), hasNot4DRank)) {
+    if (layer->getResult(0).getType().cast<vpux::NDTypeInterface>().getRank() != QUANT_DEQUANT_RANK &&
+        llvm::any_of(layer->getUsers(), isElemType)) {
+        return mlir::failure();
+    }
+
+    // Check the chain of propagation
+    // in case at the end of the chain we don't have dpu task or the layer
+    // which might be quantized in the following pass - skip propagation
+    if (!checkPropagationChain(layer)) {
         return mlir::failure();
     }
 
