@@ -4,14 +4,13 @@
 //
 
 //
-
-//
 // Class for pretty-logging.
 //
 
 #pragma once
 
 #include "vpux/utils/core/format.hpp"
+#include "vpux/utils/core/func_ref.hpp"
 #include "vpux/utils/core/helper_macros.hpp"
 #include "vpux/utils/core/optional.hpp"
 #include "vpux/utils/core/string_ref.hpp"

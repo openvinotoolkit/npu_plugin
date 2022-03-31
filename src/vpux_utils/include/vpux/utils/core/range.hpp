@@ -4,14 +4,13 @@
 //
 
 //
-
-//
 // Range concept from C++20.
 //
 
 #pragma once
 
 #include "vpux/utils/core/containers.hpp"
+#include "vpux/utils/core/format.hpp"
 #include "vpux/utils/core/small_vector.hpp"
 #include "vpux/utils/core/type_traits.hpp"
 
@@ -238,3 +237,17 @@ auto to_container(Range&& range) {
 }
 
 }  // namespace vpux
+
+//
+// llvm::format_provider specialization
+//
+
+namespace llvm {
+
+template <class Range>
+struct format_provider<detail::enumerator<Range>> final : vpux::ListFormatProvider {};
+
+template <typename T>
+struct format_provider<vpux::details::IntegerValuesRange<T>> final : vpux::ListFormatProvider {};
+
+}  // namespace llvm

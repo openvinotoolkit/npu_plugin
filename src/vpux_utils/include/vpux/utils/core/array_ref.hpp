@@ -9,6 +9,7 @@
 
 #pragma once
 
+#include "vpux/utils/core/format.hpp"
 #include "vpux/utils/core/hash.hpp"
 
 #include <llvm/ADT/ArrayRef.h>
@@ -44,3 +45,17 @@ struct hash<vpux::MutableArrayRef<T>> final {
 };
 
 }  // namespace std
+
+//
+// llvm::format_provider specialization
+//
+
+namespace llvm {
+
+template <typename T>
+struct format_provider<ArrayRef<T>> final : vpux::ListFormatProvider {};
+
+template <typename T>
+struct format_provider<MutableArrayRef<T>> final : vpux::ListFormatProvider {};
+
+}  // namespace llvm

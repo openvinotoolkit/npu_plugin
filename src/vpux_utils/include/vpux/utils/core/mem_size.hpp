@@ -11,6 +11,7 @@
 
 #pragma once
 
+#include "vpux/utils/core/enums.hpp"
 #include "vpux/utils/core/error.hpp"
 #include "vpux/utils/core/string_ref.hpp"
 #include "vpux/utils/core/type_traits.hpp"

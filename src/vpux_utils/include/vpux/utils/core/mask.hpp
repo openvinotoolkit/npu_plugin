@@ -6,6 +6,7 @@
 #pragma once
 
 #include "vpux/utils/core/array_ref.hpp"
+#include "vpux/utils/core/format.hpp"
 #include "vpux/utils/core/hash.hpp"
 #include "vpux/utils/core/range.hpp"
 
@@ -77,3 +78,18 @@ struct hash<vpux::Mask> final {
 };
 
 }  // namespace std
+
+//
+// llvm::format_provider specialization
+//
+
+namespace llvm {
+
+template <>
+struct format_provider<vpux::Mask> final {
+    static void format(const vpux::Mask& mask, llvm::raw_ostream& stream, StringRef style) {
+        llvm::detail::build_format_adapter(mask.asRange()).format(stream, style);
+    }
+};
+
+}  // namespace llvm

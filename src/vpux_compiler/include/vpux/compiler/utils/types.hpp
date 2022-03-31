@@ -11,6 +11,7 @@
 #include "vpux/compiler/core/attributes/indexed_symbol_attr.hpp"
 #include "vpux/compiler/core/attributes/shape.hpp"
 
+#include "vpux/utils/core/enums.hpp"
 #include "vpux/utils/core/mem_size.hpp"
 
 #include <mlir/IR/BuiltinAttributes.h>

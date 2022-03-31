@@ -8,7 +8,9 @@
 #include "vpux/compiler/core/aliases_info.hpp"
 #include "vpux/compiler/core/ops_interfaces.hpp"
 
+#include "vpux/utils/core/array_ref.hpp"
 #include "vpux/utils/core/logger.hpp"
+#include "vpux/utils/core/string_ref.hpp"
 
 #include <mlir/Dialect/Async/IR/Async.h>
 #include <mlir/Dialect/MemRef/IR/MemRef.h>
@@ -29,11 +31,11 @@ class TestMultiViewOp : public mlir::Op<TestMultiViewOp, vpux::MultiViewOpInterf
 public:
     using Op::Op;
 
-    static constexpr llvm::StringLiteral getOperationName() {
-        return llvm::StringLiteral("test.multiview");
+    static constexpr StringLiteral getOperationName() {
+        return StringLiteral("test.multiview");
     }
 
-    static ArrayRef<llvm::StringRef> getAttributeNames() {
+    static ArrayRef<StringRef> getAttributeNames() {
         return {};
     }
 
@@ -53,11 +55,11 @@ class TestGroupedViewOp : public mlir::Op<TestGroupedViewOp, vpux::GroupedViewOp
 public:
     using Op::Op;
 
-    static constexpr llvm::StringLiteral getOperationName() {
-        return llvm::StringLiteral("test.groupedview");
+    static constexpr StringLiteral getOperationName() {
+        return StringLiteral("test.groupedview");
     }
 
-    static ArrayRef<llvm::StringRef> getAttributeNames() {
+    static ArrayRef<StringRef> getAttributeNames() {
         return {};
     }
 
@@ -81,8 +83,8 @@ public:
         addOperations<TestGroupedViewOp>();
     }
 
-    static constexpr llvm::StringLiteral getDialectNamespace() {
-        return llvm::StringLiteral("test");
+    static constexpr StringLiteral getDialectNamespace() {
+        return StringLiteral("test");
     }
 };
 
@@ -96,7 +98,7 @@ TEST(MLIR_AliasesInfo, TestMultiViewOp) {
 
     mlir::MLIRContext ctx(registry);
 
-    constexpr llvm::StringLiteral inputIR = R"(
+    constexpr StringLiteral inputIR = R"(
         module @test {
             func @main(%arg: memref<100xf32>) -> memref<100xf32> {
                 %0 = memref.alloc(): memref<100xf32>
@@ -204,7 +206,7 @@ TEST(MLIR_AliasesInfo, TestGroupedViewOp) {
 
     mlir::MLIRContext ctx(registry);
 
-    constexpr llvm::StringLiteral inputIR = R"(
+    constexpr StringLiteral inputIR = R"(
         module @test {
             func @main(%arg: memref<100xf32>) -> memref<100xf32> {
                 %0 = memref.alloc(): memref<50xf32>
@@ -289,7 +291,7 @@ TEST(MLIR_AliasesInfo, AsyncRegions) {
 
     mlir::MLIRContext ctx(registry);
 
-    constexpr llvm::StringLiteral inputIR = R"(
+    constexpr StringLiteral inputIR = R"(
         module @test {
             func @main(%arg: memref<100xf32>) -> memref<70xf32> {
                 %0 = memref.subview %arg[0][90][1] : memref<100xf32> to memref<90xf32>

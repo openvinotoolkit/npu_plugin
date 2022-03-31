@@ -9,6 +9,7 @@
 
 #pragma once
 
+#include "vpux/utils/core/format.hpp"
 #include "vpux/utils/core/hash.hpp"
 
 #include <llvm/ADT/SmallVector.h>
@@ -34,3 +35,17 @@ struct hash<vpux::SmallVector<T, N>> final {
 };
 
 }  // namespace std
+
+//
+// llvm::format_provider specialization
+//
+
+namespace llvm {
+
+template <typename T>
+struct format_provider<SmallVectorImpl<T>> final : vpux::ListFormatProvider {};
+
+template <typename T, unsigned N>
+struct format_provider<SmallVector<T, N>> final : vpux::ListFormatProvider {};
+
+}  // namespace llvm

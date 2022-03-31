@@ -9,8 +9,10 @@
 
 #include "nce2p7.h"
 
+#include "vpux/utils/core/array_ref.hpp"
 #include "vpux/utils/core/checked_cast.hpp"
 #include "vpux/utils/core/logger.hpp"
+#include "vpux/utils/core/small_vector.hpp"
 
 #include "vpux/compiler/dialect/VPUIP/graph-schema/schema.hpp"
 

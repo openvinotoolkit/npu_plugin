@@ -15,6 +15,7 @@
 #include "vpux/utils/core/error.hpp"
 #include "vpux/utils/core/format.hpp"
 #include "vpux/utils/core/mem_size.hpp"
+#include "vpux/utils/core/optional.hpp"
 #include "vpux/utils/core/range.hpp"
 
 #include <mlir/IR/AffineMap.h>

@@ -9,6 +9,7 @@
 
 #pragma once
 
+#include "vpux/utils/core/format.hpp"
 #include "vpux/utils/core/hash.hpp"
 
 #include <llvm/ADT/None.h>
@@ -35,3 +36,22 @@ struct hash<vpux::Optional<T>> final {
 };
 
 }  // namespace std
+
+//
+// llvm::format_provider specialization
+//
+
+namespace llvm {
+
+template <typename T>
+struct format_provider<Optional<T>> final {
+    static void format(const Optional<T>& opt, llvm::raw_ostream& stream, StringRef style) {
+        if (opt.hasValue()) {
+            llvm::detail::build_format_adapter(opt.getValue()).format(stream, style);
+        } else {
+            stream << "<NONE>";
+        }
+    }
+};
+
+}  // namespace llvm

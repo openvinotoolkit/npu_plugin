@@ -12,6 +12,7 @@
 
 #include "vpux/utils/core/array_ref.hpp"
 #include "vpux/utils/core/format.hpp"
+#include "vpux/utils/core/func_ref.hpp"
 #include "vpux/utils/core/mem_size.hpp"
 #include "vpux/utils/core/optional.hpp"
 #include "vpux/utils/core/string_ref.hpp"
