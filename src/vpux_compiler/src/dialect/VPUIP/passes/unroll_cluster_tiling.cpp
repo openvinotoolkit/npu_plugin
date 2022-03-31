@@ -95,6 +95,8 @@ public:
 
 private:
     mlir::Value getClusterOperand(VPUIP::NCEClusterTilingOp clusterOp, mlir::Value innerOperand) const;
+    mlir::Type getElementType(VPUIP::DistributedBufferType distributedType, ShapeRef perClusterShape,
+                              ShapeRef perClusterShapeOffset) const;
     SmallVector<mlir::IntegerAttr> getOutChannelOffsets(VPUIP::NCEClusterTaskOp nceTask,
                                                         VPUIP::DistributedBufferType inType,
                                                         VPUIP::DistributedBufferType outType) const;
@@ -119,6 +121,15 @@ mlir::Value ClusterNCERewriter::getClusterOperand(VPUIP::NCEClusterTilingOp clus
                     "Cannot match the origin operand with the inner one '{0}'", innerOperand);
 
     return clusterOp->getOperand(blockArg.getArgNumber());
+}
+
+mlir::Type ClusterNCERewriter::getElementType(VPUIP::DistributedBufferType distributedType, ShapeRef perClusterShape,
+                                              ShapeRef perClusterShapeOffset) const {
+    const auto elemType = distributedType.getElementType();
+    if (const auto qType = elemType.dyn_cast<mlir::quant::UniformQuantizedPerAxisType>()) {
+        return tileScalesAndZP(qType, perClusterShape, perClusterShapeOffset);
+    }
+    return elemType;
 }
 
 SmallVector<mlir::IntegerAttr> ClusterNCERewriter::getOutChannelOffsets(VPUIP::NCEClusterTaskOp nceTask,
@@ -222,11 +233,8 @@ SmallVector<mlir::Value> ClusterNCERewriter::getPerClusterBuffers(mlir::Location
         auto layout = IERT::MemRefAttr::get(orderAttr, stridesAttr, _ctx);
 
         for (int64_t clusterId = 0; clusterId < numClusters; ++clusterId) {
-            auto elemType = distributedType.getElementType();
-            if (const auto qType = elemType.dyn_cast<mlir::quant::UniformQuantizedPerAxisType>()) {
-                elemType = tileScalesAndZP(qType, perClusterShapes[clusterId], perClusterShapeOffsets[clusterId]);
-            }
-
+            const auto elemType =
+                    getElementType(distributedType, perClusterShapes[clusterId], perClusterShapeOffsets[clusterId]);
             const auto newDistributedType =
                     VPUIP::DistributedBufferType::get(_ctx, perClusterShapes[clusterId].raw(), elemType, layout,
                                                       distributedType.getMemSpace(), distributedType.getDistribution());
@@ -234,6 +242,48 @@ SmallVector<mlir::Value> ClusterNCERewriter::getPerClusterBuffers(mlir::Location
             const auto newLoc = appendLoc(loc, llvm::formatv("_{0}_cluster_{1}", bufferName, clusterId).str());
             auto newCmxBuffer = rewriter.create<VPURT::DeclareBufferOp>(
                     newLoc, newDistributedType, VPURT::BufferSection::CMX_NN, clusters, declBuff.byteOffset());
+            _log.trace("Insert new CMX buffer: '{0}'", newCmxBuffer);
+
+            perClusterBuffers[clusterId] = newCmxBuffer;
+        }
+
+        return perClusterBuffers;
+    }
+
+    //      Task1(HKSwitch)
+    // CMX0 |-out part1-|-out part2-|
+    // CMX1 |-out part1-|-out part2-|
+    //                  Task2(HKSwitch)
+    if (distributionMode == (VPU::DistributionMode::SEGMENTED | VPU::DistributionMode::MULTICASTED)) {
+        SmallVector<int64_t> clusters(numClusters);
+        std::iota(clusters.begin(), clusters.end(), 0);
+
+        const auto elemSize = innerOperandType.getElemTypeSize();
+        const auto elemStrides = to_small_vector(innerOperandType.getStrides() | transformed([&](Bit stride) {
+                                                     return stride.count() / elemSize.count();
+                                                 }));
+
+        for (int64_t clusterId = 0; clusterId < numClusters; ++clusterId) {
+            const auto elemType =
+                    getElementType(distributedType, perClusterShapes[clusterId], perClusterShapeOffsets[clusterId]);
+            const auto newDistributedType = VPUIP::DistributedBufferType::get(
+                    _ctx, perClusterShapes[clusterId].raw(), elemType, distributedType.getLayout(),
+                    distributedType.getMemSpace(), distributedType.getDistribution());
+
+            // It's a specific workaround for HK switch strategy.
+            // HK switch computes output offsets both by variants start/end_x/y/z AND ODU base address.
+            // So we need to provide different ODU base address for each cluster.
+            // There's a tickt EISW#29671 describing the work to remove such special handling for HK switch.
+            // This workaround can be removed after it's done.
+            const auto strides = distributedType.getStrides();
+            Byte cmxOffset{declBuff.byteOffset()};
+            for (size_t axis = 0; axis < strides.size(); axis++) {
+                cmxOffset += perClusterShapeOffsets[clusterId][Dim(axis)] * static_cast<Byte>(strides[Dim(axis)]);
+            }
+
+            const auto newLoc = appendLoc(loc, llvm::formatv("_{0}_cluster_{1}", bufferName, clusterId).str());
+            auto newCmxBuffer = rewriter.create<VPURT::DeclareBufferOp>(
+                    newLoc, newDistributedType, VPURT::BufferSection::CMX_NN, clusters, cmxOffset.count());
             _log.trace("Insert new CMX buffer: '{0}'", newCmxBuffer);
 
             perClusterBuffers[clusterId] = newCmxBuffer;
@@ -591,9 +641,11 @@ mlir::LogicalResult ClusterDMARewriter::matchAndRewrite(VPUIP::NNDMAOp nndmaOp, 
                 rewriter, vpurtTask.waitBarriers(), vpurtTask.updateBarriers(), newLoc, input, cmxBuffer);
         _log.trace("Insert new NNDMA op: '{0}'", newNNDMA);
     } else if (inputType.isa<VPUIP::DistributedBufferType>() &&
-               VPU::bitEnumContains(mode, VPU::DistributionMode::DUPLICATED)) {
+               (VPU::bitEnumContains(mode, VPU::DistributionMode::DUPLICATED) ||
+                VPU::bitEnumContains(mode, VPU::DistributionMode::MULTICASTED))) {
         // For example, copy back of output of NCE task in case of SOK (input type is DUPLICATED|SEGMENTED)
         // Or copy output of NCE task in case of Clustering strategy (input type is DUPLICATED)
+        // Or copy output of NCE task in case of HKSwitch strategy (input type is MULTICASTED|SEGMENTED)
         // <1x32x32x32xf16, [@CMX, 0]> -> <1x32x32x32xf16, @DDR>
         // <1x32x32x32xf16, [@CMX, 1]>
 

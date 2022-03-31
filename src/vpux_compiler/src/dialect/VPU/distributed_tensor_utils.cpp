@@ -33,7 +33,7 @@ int64_t vpux::VPU::getNumberOfClustersForSOKToAvoidAlignment(int64_t outputChann
 SmallVector<int64_t> vpux::VPU::getActivationTensorNumTiles(int64_t numClustersAvailableForCompilation,
                                                             VPU::MultiClusterStrategy strategy) {
     if (strategy == VPU::MultiClusterStrategy::SplitOverHeightOverlapped ||
-        strategy == VPU::MultiClusterStrategy::SplitOverHeight) {
+        strategy == VPU::MultiClusterStrategy::SplitOverHeight || strategy == VPU::MultiClusterStrategy::HKSwitch) {
         return {1, 1, numClustersAvailableForCompilation, 1};
     } else if (strategy == VPU::MultiClusterStrategy::SplitOverKernel ||
                strategy == VPU::MultiClusterStrategy::Clustering) {
@@ -49,7 +49,8 @@ Optional<SmallVector<int64_t>> vpux::VPU::getActivationTensorAlignment(VPU::NCEO
                                                                        VPU::MultiClusterStrategy strategy) {
     if (strategy == VPU::MultiClusterStrategy::SplitOverKernel) {
         return SmallVector<int64_t>{1, 16, 1, 1};
-    } else if (strategy == VPU::MultiClusterStrategy::SplitOverHeight) {
+    } else if (strategy == VPU::MultiClusterStrategy::SplitOverHeight ||
+               strategy == VPU::MultiClusterStrategy::HKSwitch) {
         if (auto origOp = mlir::dyn_cast<NCEConvolutionOp>(nceOp.getOperation())) {
             const auto kernel = nceOp.getKernelSize();
             VPUX_THROW_UNLESS(kernel.size() == 2, "Kernel size of operation '{0}' must be 2, but got '{1}'", origOp,
@@ -75,7 +76,7 @@ SmallVector<int64_t> vpux::VPU::getOutputTensorNumTiles(VPU::NCEOpInterface nceO
                                                         int64_t numClustersAvailableForCompilation,
                                                         VPU::MultiClusterStrategy strategy) {
     if (strategy == VPU::MultiClusterStrategy::SplitOverHeightOverlapped ||
-        strategy == VPU::MultiClusterStrategy::SplitOverHeight) {
+        strategy == VPU::MultiClusterStrategy::SplitOverHeight || strategy == VPU::MultiClusterStrategy::HKSwitch) {
         return {1, 1, numClustersAvailableForCompilation, 1};
     } else if (strategy == VPU::MultiClusterStrategy::SplitOverKernel) {
         auto OC = getShape(nceOp->getResult(0))[Dims4D::Act::C];
@@ -92,7 +93,7 @@ SmallVector<int64_t> vpux::VPU::getOutputTensorNumTiles(VPU::NCEOpInterface nceO
 }
 
 Optional<SmallVector<int64_t>> vpux::VPU::getOutputTensorAlignment(VPU::MultiClusterStrategy strategy) {
-    if (strategy == VPU::MultiClusterStrategy::SplitOverKernel) {
+    if (strategy == VPU::MultiClusterStrategy::SplitOverKernel || strategy == VPU::MultiClusterStrategy::HKSwitch) {
         return SmallVector<int64_t>{1, 16, 1, 1};
     }
 
@@ -103,7 +104,8 @@ SmallVector<int64_t> vpux::VPU::getWeightsTensorNumTiles(VPU::NCEOpInterface nce
                                                          int64_t numClustersAvailableForCompilation,
                                                          VPU::MultiClusterStrategy strategy) {
     if (strategy == VPU::MultiClusterStrategy::SplitOverHeightOverlapped ||
-        strategy == VPU::MultiClusterStrategy::SplitOverHeight || strategy == VPU::MultiClusterStrategy::Clustering) {
+        strategy == VPU::MultiClusterStrategy::SplitOverHeight || strategy == VPU::MultiClusterStrategy::Clustering ||
+        strategy == VPU::MultiClusterStrategy::HKSwitch) {
         return {1, 1, 1, 1};
     } else if (strategy == VPU::MultiClusterStrategy::SplitOverKernel) {
         auto OC = getShape(nceOp->getResult(0))[Dims4D::Act::C];
@@ -128,7 +130,8 @@ SmallVector<int64_t> vpux::VPU::getWeightsTableTensorNumTiles(VPU::NCEOpInterfac
                                                               int64_t numClustersAvailableForCompilation,
                                                               VPU::MultiClusterStrategy strategy) {
     if (strategy == VPU::MultiClusterStrategy::SplitOverHeightOverlapped ||
-        strategy == VPU::MultiClusterStrategy::SplitOverHeight || strategy == VPU::MultiClusterStrategy::Clustering) {
+        strategy == VPU::MultiClusterStrategy::SplitOverHeight || strategy == VPU::MultiClusterStrategy::Clustering ||
+        strategy == VPU::MultiClusterStrategy::HKSwitch) {
         return {1, 1, 1, 1};
     } else if (strategy == VPU::MultiClusterStrategy::SplitOverKernel) {
         auto OC = getShape(nceOp->getResult(0))[Dims4D::Act::C];
@@ -145,7 +148,8 @@ SmallVector<int64_t> vpux::VPU::getWeightsTableTensorNumTiles(VPU::NCEOpInterfac
 SmallVector<int64_t> vpux::VPU::getActivationWindowTensorNumTiles(VPU::MultiClusterStrategy strategy) {
     if (strategy == VPU::MultiClusterStrategy::SplitOverHeightOverlapped ||
         strategy == VPU::MultiClusterStrategy::SplitOverHeight ||
-        strategy == VPU::MultiClusterStrategy::SplitOverKernel || strategy == VPU::MultiClusterStrategy::Clustering) {
+        strategy == VPU::MultiClusterStrategy::SplitOverKernel || strategy == VPU::MultiClusterStrategy::Clustering ||
+        strategy == VPU::MultiClusterStrategy::HKSwitch) {
         return {1, 1, 1, 1};
     } else {
         VPUX_THROW("{0} is an invalid multi-cluster strategy, unable to determine the number of tiles for the "
@@ -157,7 +161,8 @@ SmallVector<int64_t> vpux::VPU::getActivationWindowTensorNumTiles(VPU::MultiClus
 DistributionMode vpux::VPU::getActivationTensorDistributionMode(VPU::MultiClusterStrategy strategy) {
     if (strategy == VPU::MultiClusterStrategy::SplitOverHeightOverlapped) {
         return DistributionMode::OVERLAPPED;
-    } else if (strategy == VPU::MultiClusterStrategy::SplitOverHeight) {
+    } else if (strategy == VPU::MultiClusterStrategy::SplitOverHeight ||
+               strategy == VPU::MultiClusterStrategy::HKSwitch) {
         return DistributionMode::SEGMENTED;
     } else if (strategy == VPU::MultiClusterStrategy::SplitOverKernel ||
                strategy == VPU::MultiClusterStrategy::Clustering) {
@@ -171,7 +176,8 @@ DistributionMode vpux::VPU::getActivationTensorDistributionMode(VPU::MultiCluste
 
 DistributionMode vpux::VPU::getWeightsTensorDistributionMode(VPU::MultiClusterStrategy strategy) {
     if (strategy == VPU::MultiClusterStrategy::SplitOverHeightOverlapped ||
-        strategy == VPU::MultiClusterStrategy::SplitOverHeight || strategy == VPU::MultiClusterStrategy::Clustering) {
+        strategy == VPU::MultiClusterStrategy::SplitOverHeight || strategy == VPU::MultiClusterStrategy::Clustering ||
+        strategy == VPU::MultiClusterStrategy::HKSwitch) {
         return DistributionMode::DUPLICATED;
     } else if (strategy == VPU::MultiClusterStrategy::SplitOverKernel) {
         return DistributionMode::SEGMENTED;
@@ -188,6 +194,8 @@ DistributionMode vpux::VPU::getOutputTensorDistributionMode(VPU::MultiClusterStr
         return DistributionMode::SEGMENTED;
     } else if (strategy == VPU::MultiClusterStrategy::SplitOverKernel) {
         return DistributionMode::DUPLICATED | DistributionMode::SEGMENTED;
+    } else if (strategy == VPU::MultiClusterStrategy::HKSwitch) {
+        return DistributionMode::MULTICASTED | DistributionMode::SEGMENTED;
     } else if (strategy == VPU::MultiClusterStrategy::Clustering) {
         return DistributionMode::DUPLICATED;
     } else {
@@ -200,7 +208,8 @@ DistributionMode vpux::VPU::getOutputTensorDistributionMode(VPU::MultiClusterStr
 DistributionMode vpux::VPU::getActivationWindowTensorDistributionMode(VPU::MultiClusterStrategy strategy) {
     if (strategy == VPU::MultiClusterStrategy::SplitOverHeightOverlapped ||
         strategy == VPU::MultiClusterStrategy::SplitOverHeight ||
-        strategy == VPU::MultiClusterStrategy::SplitOverKernel || strategy == VPU::MultiClusterStrategy::Clustering) {
+        strategy == VPU::MultiClusterStrategy::SplitOverKernel || strategy == VPU::MultiClusterStrategy::Clustering ||
+        strategy == VPU::MultiClusterStrategy::HKSwitch) {
         return DistributionMode::DUPLICATED;
     } else {
         VPUX_THROW("{0} is an invalid multi-cluster strategy, unable to determine the distribution mode for the "

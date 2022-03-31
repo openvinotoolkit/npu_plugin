@@ -428,8 +428,9 @@ mlir::LogicalResult vpux::VPU::verify(FuncRef<mlir::InFlightDiagnostic()> emitEr
 
 mlir::LogicalResult vpux::VPU::areDistributionModesCompatible(DistributionMode sourceMode,
                                                               DistributionMode targetMode) {
-    // Consecutive distribution modes for a SOK chain
-    if (sourceMode == (DistributionMode::DUPLICATED | DistributionMode::SEGMENTED) &&
+    // Consecutive distribution modes for a SOK chain or from HKSwitch to SOK
+    if ((sourceMode == (DistributionMode::DUPLICATED | DistributionMode::SEGMENTED) ||
+         sourceMode == (DistributionMode::MULTICASTED | DistributionMode::SEGMENTED)) &&
         targetMode == DistributionMode::DUPLICATED) {
         return mlir::success();
     }
