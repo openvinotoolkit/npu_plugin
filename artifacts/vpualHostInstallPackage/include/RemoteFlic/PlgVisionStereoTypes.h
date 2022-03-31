@@ -33,7 +33,7 @@
 #define STEREO_TG161B_HFOV_DEG (69.0)
 
 // Macros for the default configs of the stereo plugin
-#define WARP_NR_POOL_BUFFS (4)
+#define WARP_NR_POOL_BUFFS (8)
 #define DESC_NR_POOL_BUFFS (2)
 #define BYPASS_STAGE (true)
 
@@ -103,19 +103,24 @@ struct StereoPrm2 {
     uint8_t outDiffThr{OUT_DIFF_THR};     // Kernel radius difference threshold
 };
 
+/// @brief Expose the possible depth output types
+enum class DepthOutFmt : uint8_t {
+    FP32 = 1,
+    FP16,
+    U16,
+};
+
 /// @brief Structure for Disp to depth configuration
 struct StereoDispToDepth {
     uint8_t enabled{0};
+    DepthOutFmt outFmt{DepthOutFmt::FP32};
     float baseline{STEREO_MV250_BASELINE_M};
     float fov{STEREO_TG161B_HFOV_DEG};
-};
-
-/// @brief Structure of the penalties LUT access
-struct LutItem {
-    uint8_t horzP1;
-    uint8_t horzP2;
-    uint8_t vertP1;
-    uint8_t vertP2;
+    union {
+        float invalidDepthFp32{0};
+        uint16_t invalidDepthFp16;
+        uint16_t invalidDepthU16;
+    };
 };
 
 /// @brief Structure of the address to the penalties LUT access structure
