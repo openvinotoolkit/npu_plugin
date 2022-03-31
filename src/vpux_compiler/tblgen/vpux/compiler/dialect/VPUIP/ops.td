@@ -1989,6 +1989,44 @@ def VPUIP_ROIPoolingUPAOp :
 }
 
 //
+// PSROIPoolingUPAOp
+//
+
+def VPUIP_PSROIPoolingUPAOp :
+        VPUIP_UPATaskOp<1, "PSROIPoolingUPA",
+            [
+                ViewLikeOpInterface,
+                IERT_SameInOutDimsOrder_CHW_HWC_NCHW_NHWC
+            ]
+        > {
+    let summary = "PSROIPooling UPA SHAVE kernel";
+
+    let arguments = (ins
+        F16MemRef:$input,
+        F16MemRef:$coords,
+        F16MemRef:$output_buff,
+
+        IntAttr:$output_dim,
+        F64Attr:$spatial_scale,
+        IntAttr:$group_size,
+        OptionalAttr<IntAttr>:$spatial_bins_x,
+        OptionalAttr<IntAttr>:$spatial_bins_y,
+        OptionalAttr<IE_PSROIPoolingMode>:$mode
+    );
+
+    let results = (outs
+        F16MemRef:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `,` $coords `:` type($coords) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
+//
 // ROIAlignUPAOp
 //
 

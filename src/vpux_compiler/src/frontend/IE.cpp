@@ -233,6 +233,7 @@ private:
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset4::MVN>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Concat>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::ROIPooling>& origNode);
+    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::PSROIPooling>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::ROIAlign>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::StridedSlice>& origNode);
     void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::PRelu>& origNode);
@@ -283,6 +284,7 @@ private:
     IE::InterpolateAttr importInterpolateAttrs(const opset_latest::Interpolate::InterpolateAttrs& val);
     IE::DetectionOutputAttr importDetectionOutputAttrs(const ngraph::op::DetectionOutputAttrs& val);
     IE::ROIPoolingMethodAttr importROIPoolingMethod(const std::string& method);
+    IE::PSROIPoolingModeAttr importPSROIPoolingMode(const std::string& mode);
     IE::ROIAlignMethodAttr importROIAlignMethod(const ngraph::op::v3::ROIAlign::PoolingMode& mode);
     IE::PadModeAttr importPadMode(const ngraph::op::PadMode val);
     IE::RoundModeAttr importRoundMode(const ngraph::op::v5::Round::RoundMode val);
@@ -384,6 +386,7 @@ NGraphImporter::Callback NGraphImporter::getParser(const std::shared_ptr<ngraph:
             MAP_ENTRY(ngraph::opset4::MVN),
             MAP_ENTRY(opset_latest::Concat),
             MAP_ENTRY(opset_latest::ROIPooling),
+            MAP_ENTRY(opset_latest::PSROIPooling),
             MAP_ENTRY(opset_latest::ROIAlign),
             MAP_ENTRY(opset_latest::StridedSlice),
             MAP_ENTRY(opset_latest::PRelu),
@@ -2131,6 +2134,25 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
     auto op = builder.create<IE::AcosOp>(createLocation(origNode), inputs[0]);
     addOutputs(origNode, op);
 }
+void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::PSROIPooling>& origNode) {
+    static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v0::PSROIPooling>::value,
+                  "opset operation mismatch");
+
+    const auto inputs = getInputs(origNode);
+    VPUX_THROW_UNLESS(inputs.size() == 2, "nGraph PSROIPooling node '{0}' has unsupported number of inputs '{1}'",
+                      origNode->get_friendly_name(), inputs.size());
+
+    const auto outputDim = getIntAttr(_ctx, origNode->get_output_dim());
+    const auto spatialScale = getFPAttr(_ctx, origNode->get_spatial_scale());
+    const auto groupSize = getIntAttr(_ctx, origNode->get_group_size());
+    const auto spatialBinsX = getIntAttr(_ctx, origNode->get_spatial_bins_x());
+    const auto spatialBinsY = getIntAttr(_ctx, origNode->get_spatial_bins_y());
+    const auto mode = importPSROIPoolingMode(origNode->get_mode());
+
+    auto op = builder.create<IE::PSROIPoolingOp>(createLocation(origNode), inputs[0], inputs[1], outputDim,
+                                                 spatialScale, groupSize, spatialBinsX, spatialBinsY, mode);
+    addOutputs(origNode, op);
+}
 
 //
 // IR builder helpers
@@ -2438,6 +2460,16 @@ IE::ROIPoolingMethodAttr NGraphImporter::importROIPoolingMethod(const std::strin
         VPUX_THROW("Unknown ROIPoolingMethod");
     }
     return attr;
+}
+
+IE::PSROIPoolingModeAttr NGraphImporter::importPSROIPoolingMode(const std::string& mode) {
+    if (mode == "average") {
+        return IE::PSROIPoolingModeAttr::get(_ctx, IE::PSROIPoolingMode::AVERAGE);
+    } else if (mode == "bilinear") {
+        return IE::PSROIPoolingModeAttr::get(_ctx, IE::PSROIPoolingMode::BILINEAR);
+    }
+
+    VPUX_THROW("Unknown PSROIPoolingMode: {0}", mode);
 }
 
 IE::ROIAlignMethodAttr NGraphImporter::importROIAlignMethod(const ngraph::op::v3::ROIAlign::PoolingMode& mode) {

@@ -2100,6 +2100,46 @@ operation ::= `IERT.PRelu` attr-dict
 | :----: | ----------- |
 `output` | memref of 16-bit float or 32-bit float values
 
+### `IERT.PSROIPooling` (vpux::IERT::PSROIPoolingOp)
+
+InferenceEngine run-time PSROIPooling layer
+
+
+Syntax:
+
+```
+operation ::= `IERT.PSROIPooling` attr-dict
+              `inputs` `(` $input `:` type($input) `,` $coords `:` type($coords) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`outputDim` | ::mlir::IntegerAttr | 64-bit signless integer attribute
+`spatialScale` | ::mlir::FloatAttr | 64-bit float attribute
+`groupSize` | mlir::IntegerAttr | Integer attribute
+`spatialBinsX` | mlir::IntegerAttr | Integer attribute
+`spatialBinsY` | mlir::IntegerAttr | Integer attribute
+`mode` | vpux::IE::PSROIPoolingModeAttr | PSROIPoolingMode that the InferenceEngine supports
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of 16-bit float or 32-bit float values
+`coords` | memref of 16-bit float or 32-bit float values
+`output_buff` | memref of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float or 32-bit float values
+
 ### `IERT.Pad` (vpux::IERT::PadOp)
 
 InferenceEngine run-time Pad layer
