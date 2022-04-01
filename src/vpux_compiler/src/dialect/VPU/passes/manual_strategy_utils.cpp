@@ -134,7 +134,7 @@ void ManualStrategyUtilsPass::safeRunOnFunc() {
     _log.nest(1).trace("Strategy read file location: '{0}'", _readStrategyFileLocation);
 
     // store operations with Location as key to enable Location based mapping
-    llvm::DenseMap<mlir::Location, mlir::Operation*> operations;
+    llvm::MapVector<mlir::Location, mlir::Operation*> operations;
 
     bool operationsWrappedInClusterTiling = false;
     bool operationsHaveTilingAttr = false;

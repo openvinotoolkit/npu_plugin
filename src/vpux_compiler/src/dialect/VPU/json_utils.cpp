@@ -67,7 +67,7 @@ mlir::Attribute convertJSONToAttr(mlir::Attribute oldAttr, const Json& newAttrVa
     VPUX_THROW("Conversion from this attribute '{0}' to string not implemented", oldAttr);
 }
 
-void createStrategyJSONFromOperations(Json& json, llvm::DenseMap<mlir::Location, mlir::Operation*>& operations,
+void createStrategyJSONFromOperations(Json& json, llvm::MapVector<mlir::Location, mlir::Operation*>& operations,
                                       ArrayRef<StringRef> strategyAttributes) {
     for (auto& op : operations) {
         const auto opName = vpux::stringifyLocation(op.first);
@@ -90,7 +90,7 @@ void createStrategyJSONFromOperations(Json& json, llvm::DenseMap<mlir::Location,
     }
 }
 
-void overwriteManualStrategy(Json& manualStrategy, llvm::DenseMap<mlir::Location, mlir::Operation*>& operations) {
+void overwriteManualStrategy(Json& manualStrategy, llvm::MapVector<mlir::Location, mlir::Operation*>& operations) {
     for (auto& op : operations) {
         const auto opName = vpux::stringifyLocation(op.first);
         // check if manual strategy for layer exists
