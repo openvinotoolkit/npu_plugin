@@ -10,10 +10,10 @@
 #include "vpux/utils/core/error.hpp"
 #include "vpux/utils/core/range.hpp"
 
+#include <ie_common.h>
 #include <ie_plugin_config.hpp>
 
 using namespace vpux;
-using namespace InferenceEngine;
 
 //
 // OptionParser
@@ -63,16 +63,32 @@ LogLevel vpux::OptionParser<LogLevel>::parse(StringRef val) {
     VPUX_THROW("Value '{0}' is not a valid LOG_LEVEL option", val);
 }
 
-ov::hint::Priority vpux::OptionParser<ov::hint::Priority>::parse(StringRef val) {
-    if (val == CONFIG_VALUE(MODEL_PRIORITY_LOW)) {
-        return ov::hint::Priority::LOW;
-    } else if (val == CONFIG_VALUE(MODEL_PRIORITY_MED)) {
-        return ov::hint::Priority::MEDIUM;
-    } else if (val == CONFIG_VALUE(MODEL_PRIORITY_HIGH)) {
-        return ov::hint::Priority::HIGH;
-    }
+//
+// OptionPrinter
+//
 
-    VPUX_THROW("Value '{0}' is not a valid MODEL_PRIORITY option", val);
+std::string vpux::OptionPrinter<bool>::toString(bool val) {
+    return val ? CONFIG_VALUE(YES) : CONFIG_VALUE(NO);
+}
+
+std::string vpux::OptionPrinter<LogLevel>::toString(LogLevel val) {
+    switch (val) {
+    case LogLevel::None:
+        return "LOG_NONE";
+    case LogLevel::Fatal:
+    case LogLevel::Error:
+        return "LOG_ERROR";
+    case LogLevel::Warning:
+        return "LOG_WARNING";
+    case LogLevel::Info:
+        return "LOG_INFO";
+    case LogLevel::Debug:
+        return "LOG_DEBUG";
+    case LogLevel::Trace:
+        return "LOG_TRACE";
+    default:
+        return "LOG_NONE";
+    }
 }
 
 //
@@ -181,18 +197,6 @@ void vpux::Config::update(const ConfigMap& options, OptionMode mode) {
     }
 }
 
-bool vpux::envVarStrToBool(const char* varName, const char* varValue) {
-    try {
-        const auto intVal = std::stoi(varValue);
-        if (intVal != 0 && intVal != 1) {
-            throw std::invalid_argument("Only 0 and 1 values are supported");
-        }
-        return (intVal != 0);
-    } catch (const std::exception& e) {
-        IE_THROW() << "Environment variable " << varName << " has wrong value : " << e.what();
-    }
-}
-
 std::string vpux::Config::toString() const {
     std::stringstream resultStream;
     for (auto it = _impl.cbegin(); it != _impl.cend(); ++it) {
@@ -205,4 +209,20 @@ std::string vpux::Config::toString() const {
     }
 
     return resultStream.str();
+}
+
+//
+// envVarStrToBool
+//
+
+bool vpux::envVarStrToBool(const char* varName, const char* varValue) {
+    try {
+        const auto intVal = std::stoi(varValue);
+        if (intVal != 0 && intVal != 1) {
+            throw std::invalid_argument("Only 0 and 1 values are supported");
+        }
+        return (intVal != 0);
+    } catch (const std::exception& e) {
+        IE_THROW() << "Environment variable " << varName << " has wrong value : " << e.what();
+    }
 }

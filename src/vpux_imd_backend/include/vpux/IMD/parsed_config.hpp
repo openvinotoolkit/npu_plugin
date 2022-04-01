@@ -79,8 +79,6 @@ struct MV_RUN_TIMEOUT final : OptionBase<MV_RUN_TIMEOUT, std::chrono::seconds> {
         return "IE_MV_RUN_TIMEOUT";
     }
 
-    static std::chrono::seconds parse(StringRef val);
-
     static std::chrono::seconds defaultValue();
 
     static bool isPublic() {

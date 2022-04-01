@@ -121,3 +121,25 @@ InferenceEngine::VPUXConfigParams::ProfilingOutputTypeArg vpux::PRINT_PROFILING:
 
     VPUX_THROW("Value '{0}' is not a valid PRINT_PROFILING option", val);
 }
+
+//
+// MODEL_PRIORITY
+//
+
+ov::hint::Priority vpux::MODEL_PRIORITY::parse(StringRef val) {
+    if (val == CONFIG_VALUE(MODEL_PRIORITY_LOW)) {
+        return ov::hint::Priority::LOW;
+    } else if (val == CONFIG_VALUE(MODEL_PRIORITY_MED)) {
+        return ov::hint::Priority::MEDIUM;
+    } else if (val == CONFIG_VALUE(MODEL_PRIORITY_HIGH)) {
+        return ov::hint::Priority::HIGH;
+    }
+
+    VPUX_THROW("Value '{0}' is not a valid MODEL_PRIORITY option", val);
+}
+
+std::string vpux::MODEL_PRIORITY::toString(const ov::hint::Priority& val) {
+    std::stringstream strStream;
+    strStream << val;
+    return strStream.str();
+}

@@ -415,6 +415,14 @@ struct MODEL_PRIORITY final : OptionBase<MODEL_PRIORITY, ov::hint::Priority> {
     static ov::hint::Priority defaultValue() {
         return ov::hint::Priority::MEDIUM;
     }
+
+    static ov::hint::Priority parse(StringRef val);
+
+    static std::string toString(const ov::hint::Priority& val);
+
+    static OptionMode mode() {
+        return OptionMode::RunTime;
+    }
 };
 
 }  // namespace vpux

@@ -37,12 +37,3 @@ std::chrono::seconds vpux::IMD::MV_RUN_TIMEOUT::defaultValue() {
     static const auto RUN_TIMEOUT = std::chrono::duration_cast<std::chrono::seconds>(20min);
     return RUN_TIMEOUT;
 }
-
-std::chrono::seconds vpux::IMD::MV_RUN_TIMEOUT::parse(StringRef val) {
-    int64_t durationSec = 0;
-    std::istringstream str2int(val.str());
-    str2int >> durationSec;
-    VPUX_THROW_UNLESS(durationSec >= 0, "Value '{0}' is not a valid timeout option. Non-negative values expected",
-                      durationSec);
-    return std::chrono::seconds(durationSec);
-}

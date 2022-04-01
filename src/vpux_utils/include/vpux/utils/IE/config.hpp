@@ -17,9 +17,6 @@
 #include "vpux/utils/core/string_ref.hpp"
 #include "vpux/utils/core/string_utils.hpp"
 
-#include <ie_parameter.hpp>
-#include <openvino/runtime/properties.hpp>
-
 #include <llvm/ADT/FunctionExtras.h>
 #include <llvm/Support/TypeName.h>
 
@@ -28,6 +25,7 @@
 #include <functional>
 #include <map>
 #include <memory>
+#include <sstream>
 #include <string>
 #include <type_traits>
 #include <unordered_map>
@@ -69,11 +67,6 @@ struct OptionParser<LogLevel> final {
     static LogLevel parse(StringRef val);
 };
 
-template <>
-struct OptionParser<ov::hint::Priority> final {
-    static ov::hint::Priority parse(StringRef val);
-};
-
 template <typename T>
 struct OptionParser<std::vector<T>> final {
     static std::vector<T> parse(StringRef val) {
@@ -82,6 +75,23 @@ struct OptionParser<std::vector<T>> final {
             res.push_back(OptionParser<T>::parse(item));
         });
         return res;
+    }
+};
+
+template <typename Rep, typename Period>
+struct OptionParser<std::chrono::duration<Rep, Period>> final {
+    static std::chrono::duration<Rep, Period> parse(StringRef val) {
+        std::istringstream stream(val.str());
+
+        Rep count{};
+        if (stream >> count) {
+            VPUX_THROW_UNLESS(count >= 0, "Value '{0}' is not a valid time duration, non-negative values expected",
+                              count);
+
+            return std::chrono::duration<Rep, Period>(count);
+        }
+
+        VPUX_THROW("Can't parse '{0}' as time duration", val);
     }
 };
 
@@ -99,48 +109,19 @@ struct OptionPrinter final {
 // NB: boolean config option has values YES for true, NO for false
 template <>
 struct OptionPrinter<bool> final {
-    static std::string toString(bool val) {
-        return val ? "YES" : "NO";
-    }
+    static std::string toString(bool val);
 };
 
-template <>
-struct OptionPrinter<std::chrono::duration<long int>> final {
-    static std::string toString(const std::chrono::duration<long int>& val) {
+template <typename Rep, typename Period>
+struct OptionPrinter<std::chrono::duration<Rep, Period>> final {
+    static std::string toString(const std::chrono::duration<Rep, Period>& val) {
         return std::to_string(val.count());
     }
 };
 
 template <>
 struct OptionPrinter<LogLevel> final {
-    static std::string toString(LogLevel val) {
-        switch (val) {
-        case LogLevel::None:
-            return "LOG_NONE";
-        case LogLevel::Fatal:
-        case LogLevel::Error:
-            return "LOG_ERROR";
-        case LogLevel::Warning:
-            return "LOG_WARNING";
-        case LogLevel::Info:
-            return "LOG_INFO";
-        case LogLevel::Debug:
-            return "LOG_DEBUG";
-        case LogLevel::Trace:
-            return "LOG_TRACE";
-        default:
-            return "LOG_NONE";
-        }
-    }
-};
-
-template <>
-struct OptionPrinter<ov::hint::Priority> final {
-    static std::string toString(ov::hint::Priority val) {
-        std::stringstream strStream;
-        strStream << val;
-        return strStream.str();
-    }
+    static std::string toString(LogLevel val);
 };
 
 //
@@ -394,6 +375,10 @@ typename Opt::ValueType Config::get() const {
 
     return optVal->getValue();
 }
+
+//
+// envVarStrToBool
+//
 
 bool envVarStrToBool(const char* varName, const char* varValue);
 
