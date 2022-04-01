@@ -118,8 +118,12 @@ mlir::DenseElementsAttr splitWeightsOverCLoop(mlir::DenseElementsAttr wt_vec, Ar
 
 mlir::MemRefType getMemRefType(VPURT::BufferSection section, ArrayRef<int64_t> shape, mlir::Type elemType,
                                DimsOrder order);
+mlir::MemRefType getMemRefType(VPURT::BufferSection section, size_t sectionIdx, ArrayRef<int64_t> shape,
+                               mlir::Type elemType, DimsOrder order);
 mlir::MemRefType getMemRefType(VPURT::BufferSection section, ArrayRef<int64_t> shape, mlir::Type elemType,
                                DimsOrder order, StridesRef strides);
+mlir::MemRefType getMemRefType(VPURT::BufferSection section, size_t sectionIdx, ArrayRef<int64_t> shape,
+                               mlir::Type elemType, DimsOrder order, StridesRef strides);
 
 vpux::VPURT::DeclareBufferOp createDeclareTensorOp(mlir::OpBuilder& builder, VPURT::BufferSection section,
                                                    ArrayRef<int64_t> shape, mlir::Type elemType, DimsOrder order,

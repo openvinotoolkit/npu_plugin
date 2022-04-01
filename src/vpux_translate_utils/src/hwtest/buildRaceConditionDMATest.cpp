@@ -58,12 +58,12 @@ void buildRaceConditionDMATest(const nb::TestCaseJsonDescriptor& testDesc, mlir:
     const auto funcOutput_0 = func.getArgument(1);
     const auto funcOutput_1 = func.getArgument(2);
 
-    const auto outputCMXType = getMemRefType(VPURT::BufferSection::CMX_NN, outShape, outputType, DimsOrder::NHWC);
-
-    auto output_0 = funcBuilder.create<VPURT::DeclareBufferOp>(loc, outputCMXType, VPURT::BufferSection::CMX_NN, 0,
+    const auto outputCMXType0 = getMemRefType(VPURT::BufferSection::CMX_NN, 0, outShape, outputType, DimsOrder::NHWC);
+    auto output_0 = funcBuilder.create<VPURT::DeclareBufferOp>(loc, outputCMXType0, VPURT::BufferSection::CMX_NN, 0,
                                                                OUTPUT_0_CMX_OFFSET);
 
-    auto output_1 = funcBuilder.create<VPURT::DeclareBufferOp>(loc, outputCMXType, VPURT::BufferSection::CMX_NN, 1,
+    const auto outputCMXType1 = getMemRefType(VPURT::BufferSection::CMX_NN, 1, outShape, outputType, DimsOrder::NHWC);
+    auto output_1 = funcBuilder.create<VPURT::DeclareBufferOp>(loc, outputCMXType1, VPURT::BufferSection::CMX_NN, 1,
                                                                OUTPUT_1_CMX_OFFSET);
 
     VPURT::ConfigureBarrierOp lastBarrier;

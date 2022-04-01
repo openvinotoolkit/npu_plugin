@@ -69,18 +69,17 @@ func @main(%arg0: memref<1x16x32x32xf16>, %arg1: memref<1x32x32x32xf16>) -> memr
     %bar10 = VPURT.ConfigureBarrier<4> -> !VPURT.Barrier
 
     // DDR input buffer
-    %zmajor_in = VPURT.DeclareBuffer "DDR" <0> -> memref<1x16x32x32xf16, #NHWC>
+    %zmajor_in = VPURT.DeclareBuffer "DDR" <0> -> memref<1x16x32x32xf16, #NHWC, @DDR>
 
     // DDR output buffers for SOK tiling
     %parent_out_ddr = VPURT.DeclareBuffer "DDR" <32768> -> memref<1x32x32x32xf16, #NHWC, @DDR>
 
     // CMX buffers
-    %parent_input_cmx = VPURT.DeclareBuffer "CMX_NN" <0> -> !ParentInputDistributed
-    %parent_input_cmx_copy = VPURT.DeclareBuffer "CMX_NN" [0, 1] <0> -> !ParentInputDistributed
+    %parent_input_cmx = VPURT.DeclareBuffer "CMX_NN" [0, 1] <0> -> !ParentInputDistributed
     %input_1 = VPURT.DeclareBuffer "CMX_NN" [0] <0> -> memref<1x16x32x32xf16, #NHWC, [@CMX_NN, 0]>
     %input_2 = VPURT.DeclareBuffer "CMX_NN" [1] <0> -> memref<1x16x32x32xf16, #NHWC, [@CMX_NN, 1]>
 
-    %parent_out_cmx = VPURT.DeclareBuffer "CMX_NN" <32768> -> !ParentOutputDistributed
+    %parent_out_cmx = VPURT.DeclareBuffer "CMX_NN" [0, 1] <32768> -> !ParentOutputDistributed
     %parent_out_cmx_compact = VPURT.DeclareBuffer "CMX_NN" [0] <32768> -> memref<1x32x32x32xf16, #NHWC, [@CMX_NN, 0]>
     %output1 = VPURT.DeclareBuffer "CMX_NN" [0, 1] <32768> -> !OutputDistributed
     %output2 = VPURT.DeclareBuffer "CMX_NN" [0, 1] <32768> -> !OutputDistributed
@@ -126,16 +125,16 @@ func @main(%arg0: memref<1x16x32x32xf16>, %arg1: memref<1x32x32x32xf16>) -> memr
     VPURT.Task updates(%bar0: !VPURT.Barrier) {
         VPUIP.PermuteUPA {order_value = #NHWC}
             inputs(%arg0: memref<1x16x32x32xf16>)
-            outputs(%zmajor_in: memref<1x16x32x32xf16, #NHWC>)
-            -> memref<1x16x32x32xf16, #NHWC>
+            outputs(%zmajor_in: memref<1x16x32x32xf16, #NHWC, @DDR>)
+            -> memref<1x16x32x32xf16, #NHWC, @DDR>
     }
 
     // Broadcast input
 
     VPURT.Task waits(%bar0: !VPURT.Barrier) updates(%bar1: !VPURT.Barrier) {
          VPUIP.NNDMA
-            inputs(%zmajor_in: memref<1x16x32x32xf16, #NHWC>)
-            outputs(%parent_input_cmx_copy: !ParentInputDistributed)
+            inputs(%zmajor_in: memref<1x16x32x32xf16, #NHWC, @DDR>)
+            outputs(%parent_input_cmx: !ParentInputDistributed)
             -> !ParentInputDistributed
     }
 

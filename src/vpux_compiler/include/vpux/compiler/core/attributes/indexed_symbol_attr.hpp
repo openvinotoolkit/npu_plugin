@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #pragma once
 
 #include "vpux/utils/core/array_ref.hpp"
@@ -26,7 +24,9 @@ public:
 public:
     static IndexedSymbolAttr get(mlir::MLIRContext* context, ArrayRef<mlir::Attribute> array);
     static IndexedSymbolAttr get(mlir::MLIRContext* context, StringRef name);
+    static IndexedSymbolAttr get(mlir::MLIRContext* context, StringRef name, size_t id);
     static IndexedSymbolAttr get(mlir::StringAttr name);
+    static IndexedSymbolAttr get(mlir::StringAttr name, size_t id);
 
 public:
     Optional<IndexedSymbolAttr> getNestedReference() const;

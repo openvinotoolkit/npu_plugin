@@ -40,7 +40,79 @@ mlir::LogicalResult vpux::VPURT::verifyOp(DeclareBufferOp op) {
                        type.getMemSpace());
     }
 
-    // TODO: check sectionIndex and byteOffset [track: E#21111]
+    const auto maybeSectionIndex = op.sectionIndex();
+    if (maybeSectionIndex.hasValue()) {
+        if (maybeSectionIndex.getValue().empty()) {
+            return errorAt(op, "Empty section index is not supported");
+        }
+    }
+
+    if (op.section() == VPURT::BufferSection::CMX_NN) {
+        const auto checkSectionIndex = [&op, &type](ArrayRef<int64_t> sectionIdx) {
+            if (auto distributedType = type.dyn_cast<VPUIP::DistributedBufferType>()) {
+                const auto distribution = distributedType.getDistribution();
+                const auto numClusters = checked_cast<size_t>(distribution.num_clusters().getInt());
+                if (numClusters != sectionIdx.size()) {
+                    return errorAt(op, "Number of clusters '{0}' and section indexes '{1}' mismatch", numClusters,
+                                   sectionIdx.size());
+                }
+            }
+
+            if (sectionIdx.size() == 1) {
+                const auto memSpace = type.getMemSpace();
+                if (memSpace == nullptr) {
+                    return errorAt(op, "Output type must have CMX_NN memory space");
+                }
+
+                const auto maybeIdx = memSpace.getIndex();
+                if (!maybeIdx.hasValue()) {
+                    return errorAt(op, "Output type must have memory space index equal to '{0}', but it doesn't",
+                                   sectionIdx[0]);
+                }
+
+                const auto memSpaceIdx = maybeIdx.getValue();
+                if (memSpaceIdx != sectionIdx[0]) {
+                    return errorAt(op, "Section index '{0}' and memory space index '{1}' mismatch", sectionIdx[0],
+                                   memSpaceIdx);
+                }
+            }
+
+            if (sectionIdx.size() > 1) {
+                const auto distributedType = type.dyn_cast<VPUIP::DistributedBufferType>();
+                if (distributedType == nullptr) {
+                    return errorAt(op, "Array of section indexes is supported only for distributed buffer type");
+                }
+            }
+
+            return mlir::success();
+        };
+
+        if (!maybeSectionIndex.hasValue()) {
+            if (!type.isa<VPUIP::DistributedBufferType>()) {
+                return errorAt(op, "Section index is missing");
+            }
+        } else {
+            const auto sectionIdx = parseIntArrayAttr<int64_t>(maybeSectionIndex.getValue());
+            if (checkSectionIndex(sectionIdx).failed()) {
+                return mlir::failure();
+            }
+        }
+    } else if (op.section() == VPURT::BufferSection::DDR) {
+        if (type.getMemSpace() == nullptr) {
+            return errorAt(op, "Output type must have DDR memory space");
+        }
+
+        if (maybeSectionIndex.hasValue()) {
+            const auto sectionIndex = parseIntArrayAttr<int64_t>(maybeSectionIndex.getValue());
+            if (sectionIndex.size() == 1 && sectionIndex[0] != 0) {
+                return errorAt(op, "Wrong section index value for DDR memory space: '{0}'", sectionIndex[0]);
+            }
+
+            if (sectionIndex.size() > 1) {
+                return errorAt(op, "Array of section indexes is supported for DDR memory space");
+            }
+        }
+    }
 
     return mlir::success();
 }

@@ -28,19 +28,19 @@ IE.CNNNetwork
         DataInfo "output" : tensor<1x16x32x32xf16>
     }
 
-func @main(%arg0: memref<1x16x32x32xf16, #NHWC>, %arg1: memref<1x16x32x32xf16, #NHWC, @CMX_NN>) -> memref<1x16x32x32xf16, #NHWC, @CMX_NN> {
-    %cst_wt = VPURT.DeclareBuffer "CMX_NN" <0> -> memref<16x16x1x1xf16, #NHWC, @CMX_NN>
-    %cst_wt_table = VPURT.DeclareBuffer "CMX_NN" <512> -> memref<16x1x1x4xsi32, @CMX_NN>
-    %0 = VPURT.DeclareBuffer "CMX_NN" <768> -> memref<1x16x32x32xf16, #NHWC, @CMX_NN>
-    %cst_sm = VPURT.DeclareBuffer "CMX_NN" <33536> -> memref<1x16x32x32xi1, #NHWC, @CMX_NN>
-    %cst_se = VPURT.DeclareBuffer "CMX_NN" <49920> -> memref<1x1x32x32xi32, #NHWC, @CMX_NN>
-    %1 = VPURT.DeclareSparseBuffer %0 : memref<1x16x32x32xf16, #NHWC, @CMX_NN>, %cst_sm : memref<1x16x32x32xi1, #NHWC, @CMX_NN>, %cst_se : memref<1x1x32x32xi32, #NHWC, @CMX_NN> -> !VPURT.SparseBuffer<data=memref<1x16x32x32xf16, #NHWC, @CMX_NN>, sparsity_map=memref<1x16x32x32xi1, #NHWC, @CMX_NN>, storage_element_table=memref<1x1x32x32xi32, #NHWC, @CMX_NN>>
+func @main(%arg0: memref<1x16x32x32xf16, #NHWC>, %arg1: memref<1x16x32x32xf16, #NHWC, [@CMX_NN, 0]>) -> memref<1x16x32x32xf16, #NHWC, [@CMX_NN, 0]> {
+    %cst_wt = VPURT.DeclareBuffer "CMX_NN" [0] <0> -> memref<16x16x1x1xf16, #NHWC, [@CMX_NN, 0]>
+    %cst_wt_table = VPURT.DeclareBuffer "CMX_NN" [0] <512> -> memref<16x1x1x4xsi32, [@CMX_NN, 0]>
+    %0 = VPURT.DeclareBuffer "CMX_NN" [0] <768> -> memref<1x16x32x32xf16, #NHWC, [@CMX_NN, 0]>
+    %cst_sm = VPURT.DeclareBuffer "CMX_NN" [0] <33536> -> memref<1x16x32x32xi1, #NHWC, [@CMX_NN, 0]>
+    %cst_se = VPURT.DeclareBuffer "CMX_NN" [0] <49920> -> memref<1x1x32x32xi32, #NHWC, [@CMX_NN, 0]>
+    %1 = VPURT.DeclareSparseBuffer %0 : memref<1x16x32x32xf16, #NHWC, [@CMX_NN, 0]>, %cst_sm : memref<1x16x32x32xi1, #NHWC, [@CMX_NN, 0]>, %cst_se : memref<1x1x32x32xi32, #NHWC, [@CMX_NN, 0]> -> !VPURT.SparseBuffer<data=memref<1x16x32x32xf16, #NHWC, [@CMX_NN, 0]>, sparsity_map=memref<1x16x32x32xi1, #NHWC, [@CMX_NN, 0]>, storage_element_table=memref<1x1x32x32xi32, #NHWC, [@CMX_NN, 0]>>
     %2 = VPURT.ConfigureBarrier<0> -> !VPURT.Barrier
     VPURT.Task updates(%2 : !VPURT.Barrier) {
-        %3 = VPUIP.NNDMA inputs(%arg0 : memref<1x16x32x32xf16, #NHWC>) outputs(%0 : memref<1x16x32x32xf16, #NHWC, @CMX_NN>) -> memref<1x16x32x32xf16, #NHWC, @CMX_NN>
+        %3 = VPUIP.NNDMA inputs(%arg0 : memref<1x16x32x32xf16, #NHWC>) outputs(%0 : memref<1x16x32x32xf16, #NHWC, [@CMX_NN, 0]>) -> memref<1x16x32x32xf16, #NHWC, [@CMX_NN, 0]>
     }
     VPURT.Task waits(%2 : !VPURT.Barrier) attributes {isTrailingSWLayer = false}  {
-        %3 = VPUIP.NCEClusterTask {kernel_padding = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}, kernel_size = [1, 1], kernel_strides = [1, 1], task_type = "CONV"} input(%1 : !VPURT.SparseBuffer<data=memref<1x16x32x32xf16, #NHWC, @CMX_NN>, sparsity_map=memref<1x16x32x32xi1, #NHWC, @CMX_NN>, storage_element_table=memref<1x1x32x32xi32, #NHWC, @CMX_NN>>) weights(%cst_wt : memref<16x16x1x1xf16, #NHWC, @CMX_NN>) weight_table(%cst_wt_table : memref<16x1x1x4xsi32, @CMX_NN>) parent_input(%1 : !VPURT.SparseBuffer<data=memref<1x16x32x32xf16, #NHWC, @CMX_NN>, sparsity_map=memref<1x16x32x32xi1, #NHWC, @CMX_NN>, storage_element_table=memref<1x1x32x32xi32, #NHWC, @CMX_NN>>) parent_output(%arg1 : memref<1x16x32x32xf16, #NHWC, @CMX_NN>) outputs(%arg1 : memref<1x16x32x32xf16, #NHWC, @CMX_NN>) -> memref<1x16x32x32xf16, #NHWC, @CMX_NN> variants : {
+        %3 = VPUIP.NCEClusterTask {kernel_padding = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}, kernel_size = [1, 1], kernel_strides = [1, 1], task_type = "CONV"} input(%1 : !VPURT.SparseBuffer<data=memref<1x16x32x32xf16, #NHWC, [@CMX_NN, 0]>, sparsity_map=memref<1x16x32x32xi1, #NHWC, [@CMX_NN, 0]>, storage_element_table=memref<1x1x32x32xi32, #NHWC, [@CMX_NN, 0]>>) weights(%cst_wt : memref<16x16x1x1xf16, #NHWC, [@CMX_NN, 0]>) weight_table(%cst_wt_table : memref<16x1x1x4xsi32, [@CMX_NN, 0]>) parent_input(%1 : !VPURT.SparseBuffer<data=memref<1x16x32x32xf16, #NHWC, [@CMX_NN, 0]>, sparsity_map=memref<1x16x32x32xi1, #NHWC, [@CMX_NN, 0]>, storage_element_table=memref<1x1x32x32xi32, #NHWC, [@CMX_NN, 0]>>) parent_output(%arg1 : memref<1x16x32x32xf16, #NHWC, [@CMX_NN, 0]>) outputs(%arg1 : memref<1x16x32x32xf16, #NHWC, [@CMX_NN, 0]>) -> memref<1x16x32x32xf16, #NHWC, [@CMX_NN, 0]> variants : {
         DPUTask {end = [31, 5, 15], mpe_mode = "VECTOR_FP16", pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}, start = [0, 0, 0]}
         DPUTask {end = [31, 11, 15], mpe_mode = "VECTOR_FP16", pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}, start = [0, 6, 0]}
         DPUTask {end = [31, 17, 15], mpe_mode = "VECTOR_FP16", pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}, start = [0, 12, 0]}
@@ -49,7 +49,7 @@ func @main(%arg0: memref<1x16x32x32xf16, #NHWC>, %arg1: memref<1x16x32x32xf16, #
         } PPE :  {
         }
     }
-    return %arg1: memref<1x16x32x32xf16, #NHWC, @CMX_NN>
+    return %arg1: memref<1x16x32x32xf16, #NHWC, [@CMX_NN, 0]>
 }
 
 }

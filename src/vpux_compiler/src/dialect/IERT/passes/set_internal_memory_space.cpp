@@ -19,7 +19,7 @@ namespace {
 
 class SetInternalMemorySpacePass final : public IERT::SetInternalMemorySpaceBase<SetInternalMemorySpacePass> {
 public:
-    SetInternalMemorySpacePass(IERT::AttrCreateFunc memSpaceCb, Logger log);
+    SetInternalMemorySpacePass(IERT::MemKindCreateFunc memKindCb, Logger log);
 
 public:
     mlir::LogicalResult initialize(mlir::MLIRContext* ctx) final;
@@ -28,13 +28,13 @@ private:
     void safeRunOnFunc() final;
 
 private:
-    IERT::AttrCreateFunc _memSpaceCb;
-    IndexedSymbolAttr _memSpace;
+    IERT::MemKindCreateFunc _memKindCb;
+    VPU::MemoryKind _memKind;
 };
 
-SetInternalMemorySpacePass::SetInternalMemorySpacePass(IERT::AttrCreateFunc memSpaceCb, Logger log)
-        : _memSpaceCb(std::move(memSpaceCb)) {
-    VPUX_THROW_UNLESS(_memSpaceCb != nullptr, "Missing memSpaceCb");
+SetInternalMemorySpacePass::SetInternalMemorySpacePass(IERT::MemKindCreateFunc memKindCb, Logger log)
+        : _memKindCb(std::move(memKindCb)) {
+    VPUX_THROW_UNLESS(_memKindCb != nullptr, "Missing memKindCb");
     Base::initLogger(log, Base::getArgumentName());
 }
 
@@ -43,12 +43,12 @@ mlir::LogicalResult SetInternalMemorySpacePass::initialize(mlir::MLIRContext* ct
         return mlir::failure();
     }
 
-    _memSpace = _memSpaceCb(ctx, memSpaceName.getValue());
-
-    if (_memSpace == nullptr) {
+    const auto maybeMemKind = _memKindCb(memSpaceName.getValue());
+    if (!maybeMemKind.hasValue()) {
         return mlir::failure();
     }
 
+    _memKind = maybeMemKind.getValue();
     return mlir::success();
 }
 
@@ -72,7 +72,7 @@ void SetInternalMemorySpacePass::safeRunOnFunc() {
                 const auto origType = futureType.getValueType().dyn_cast<vpux::NDTypeInterface>();
                 VPUX_THROW_UNLESS(origType != nullptr, "Got non vpux::NDTypeInterface Type '{0}'", var.getType());
 
-                const auto newType = origType.changeMemSpace(_memSpace);
+                const auto newType = origType.changeMemSpace(_memKind);
                 const auto newFutureType = mlir::async::ValueType::get(newType);
 
                 var.setType(newFutureType);
@@ -80,7 +80,7 @@ void SetInternalMemorySpacePass::safeRunOnFunc() {
                 const auto origType = var.getType().dyn_cast<vpux::NDTypeInterface>();
                 VPUX_THROW_UNLESS(origType != nullptr, "Got non vpux::NDTypeInterface Type '{0}'", var.getType());
 
-                const auto newType = origType.changeMemSpace(_memSpace);
+                const auto newType = origType.changeMemSpace(_memKind);
                 var.setType(newType);
             }
         }
@@ -91,6 +91,6 @@ void SetInternalMemorySpacePass::safeRunOnFunc() {
 
 }  // namespace
 
-std::unique_ptr<mlir::Pass> vpux::IERT::createSetInternalMemorySpacePass(AttrCreateFunc memSpaceCb, Logger log) {
-    return std::make_unique<SetInternalMemorySpacePass>(std::move(memSpaceCb), log);
+std::unique_ptr<mlir::Pass> vpux::IERT::createSetInternalMemorySpacePass(MemKindCreateFunc memKindCb, Logger log) {
+    return std::make_unique<SetInternalMemorySpacePass>(std::move(memKindCb), log);
 }

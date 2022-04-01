@@ -73,7 +73,7 @@ void buildContinuedConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Module
     const auto INPUT_CONV_0_CMX_OFFSET = INPUT_CMX_OFFSET;
     const auto INPUT_CONV_1_CMX_OFFSET = INPUT_CONV_0_CMX_OFFSET + totalTensorSize(inputShape, inputType) / 2;
 
-    const auto getMemRef = [&builder](ArrayRef<std::int64_t> shape, mlir::Type elemType, VPU::MemoryKind memKind) {
+    const auto getMemRef = [](ArrayRef<std::int64_t> shape, mlir::Type elemType, VPU::MemoryKind memKind) {
         return vpux::getMemRefType(ShapeRef(shape), elemType, DimsOrder::NHWC, memKind);
     };
 
@@ -91,9 +91,9 @@ void buildContinuedConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Module
 
     auto functionBuilder = mlir::OpBuilder::atBlockBegin(function.addEntryBlock(), builder.getListener());
 
-    const auto getCMXTensor = [&builder, &functionBuilder, getMemRef](const llvm::SmallVector<std::int64_t>& shape,
-                                                                      mlir::Type type, std::size_t offset) {
-        const auto CMXType = getMemRef(shape, type, vpux::VPU::MemoryKind::CMX_NN);
+    const auto getCMXTensor = [&builder, &functionBuilder](ArrayRef<int64_t> shape, mlir::Type elemType,
+                                                           std::size_t offset) {
+        const auto CMXType = hwtest::getMemRefType(VPURT::BufferSection::CMX_NN, 0, shape, elemType, DimsOrder::NHWC);
         return functionBuilder.create<vpux::VPURT::DeclareBufferOp>(builder.getUnknownLoc(), CMXType,
                                                                     VPURT::BufferSection::CMX_NN, 0, offset);
     };

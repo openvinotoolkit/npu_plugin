@@ -41,28 +41,28 @@ module @DmaProfiling {
     //CHECK:        profilingOutputsInfo
     //CHECK-NEXT:   DataInfo "dma" : tensor<4xui32>
     //CHECK:        func @main(%arg0: memref<1x16x62x62xf16>, %arg1: memref<1x16x62x62xf16>, %arg2: memref<4xui32>) -> (memref<1x16x62x62xf16>, memref<4xui32>) {
-    //CHECK:        [[VAR0:%.+]] = memref.alloc() : memref<4xui32, @CMX_NN>
+    //CHECK:        [[VAR0:%.+]] = memref.alloc() : memref<4xui32, [@CMX_NN, 0]>
 
     //CHECK:        async.execute
-    //CHECK-NEXT:   [[VAR1:%.+]] = IERT.SubView [[VAR0]] [0] [1] : memref<4xui32, @CMX_NN> to memref<1xui32, @CMX_NN>
-    //CHECK-NEXT:   [[VAR2:%.+]] = IERT.Timestamp([[VAR1]] : memref<1xui32, @CMX_NN>) -> memref<1xui32, @CMX_NN>
+    //CHECK-NEXT:   [[VAR1:%.+]] = IERT.SubView [[VAR0]] [0] [1] : memref<4xui32, [@CMX_NN, 0]> to memref<1xui32, [@CMX_NN, 0]>
+    //CHECK-NEXT:   [[VAR2:%.+]] = IERT.Timestamp([[VAR1]] : memref<1xui32, [@CMX_NN, 0]>) -> memref<1xui32, [@CMX_NN, 0]>
     //CHECK-NEXT:   [[VAR3:%.+]] = IERT.Copy
-    //CHECK-NEXT:   [[VAR4:%.+]] = IERT.SubView [[VAR0]] [1] [1] : memref<4xui32, @CMX_NN> to memref<1xui32, @CMX_NN>
-    //CHECK-NEXT:   [[VAR5:%.+]] = IERT.Timestamp([[VAR4]] : memref<1xui32, @CMX_NN>) -> memref<1xui32, @CMX_NN>
-    //CHECK-NEXT:   async.yield [[VAR3]], [[VAR2]], [[VAR5]] : memref<1x16x62x62xf16, @DDR>, memref<1xui32, @CMX_NN>, memref<1xui32, @CMX_NN>
+    //CHECK-NEXT:   [[VAR4:%.+]] = IERT.SubView [[VAR0]] [1] [1] : memref<4xui32, [@CMX_NN, 0]> to memref<1xui32, [@CMX_NN, 0]>
+    //CHECK-NEXT:   [[VAR5:%.+]] = IERT.Timestamp([[VAR4]] : memref<1xui32, [@CMX_NN, 0]>) -> memref<1xui32, [@CMX_NN, 0]>
+    //CHECK-NEXT:   async.yield [[VAR3]], [[VAR2]], [[VAR5]] : memref<1x16x62x62xf16, @DDR>, memref<1xui32, [@CMX_NN, 0]>, memref<1xui32, [@CMX_NN, 0]>
 
     //CHECK:        async.execute
-    //CHECK-NEXT:   [[VAR6:%.+]] = IERT.SubView [[VAR0]] [2] [1] : memref<4xui32, @CMX_NN> to memref<1xui32, @CMX_NN>
-    //CHECK-NEXT:   [[VAR7:%.+]] = IERT.Timestamp([[VAR6]] : memref<1xui32, @CMX_NN>) -> memref<1xui32, @CMX_NN>
+    //CHECK-NEXT:   [[VAR6:%.+]] = IERT.SubView [[VAR0]] [2] [1] : memref<4xui32, [@CMX_NN, 0]> to memref<1xui32, [@CMX_NN, 0]>
+    //CHECK-NEXT:   [[VAR7:%.+]] = IERT.Timestamp([[VAR6]] : memref<1xui32, [@CMX_NN, 0]>) -> memref<1xui32, [@CMX_NN, 0]>
     //CHECK-NEXT:   [[VAR8:%.+]] = IERT.Copy
-    //CHECK-NEXT:   [[VAR9:%.+]] = IERT.SubView [[VAR0]] [3] [1] : memref<4xui32, @CMX_NN> to memref<1xui32, @CMX_NN>
-    //CHECK-NEXT:   [[VAR10:%.+]] = IERT.Timestamp([[VAR9]] : memref<1xui32, @CMX_NN>) -> memref<1xui32, @CMX_NN>
-    //CHECK-NEXT:   async.yield [[VAR8]], [[VAR7]], [[VAR10]] : memref<1x16x62x62xf16>, memref<1xui32, @CMX_NN>, memref<1xui32, @CMX_NN>
+    //CHECK-NEXT:   [[VAR9:%.+]] = IERT.SubView [[VAR0]] [3] [1] : memref<4xui32, [@CMX_NN, 0]> to memref<1xui32, [@CMX_NN, 0]>
+    //CHECK-NEXT:   [[VAR10:%.+]] = IERT.Timestamp([[VAR9]] : memref<1xui32, [@CMX_NN, 0]>) -> memref<1xui32, [@CMX_NN, 0]>
+    //CHECK-NEXT:   async.yield [[VAR8]], [[VAR7]], [[VAR10]] : memref<1x16x62x62xf16>, memref<1xui32, [@CMX_NN, 0]>, memref<1xui32, [@CMX_NN, 0]>
 
     //CHECK:        [[token_0:%.*]], [[result_0:%.*]] = async.execute
     //CHECK-NEXT:   [[VAR16:%.+]] = IERT.SubView %arg2 [0] [4] : memref<4xui32> to memref<4xui32>
     //CHECK-NEXT:   [[VAR13:%.+]] = IERT.ConcatView
-    //CHECK-NEXT:   [[VAR14:%.+]] = IERT.Copy inputs([[VAR13]] : memref<4xui32, @CMX_NN>) outputs([[VAR16]] : memref<4xui32>) -> memref<4xui32>
+    //CHECK-NEXT:   [[VAR14:%.+]] = IERT.Copy inputs([[VAR13]] : memref<4xui32, [@CMX_NN, 0]>) outputs([[VAR16]] : memref<4xui32>) -> memref<4xui32>
     //CHECK-NEXT:   async.yield [[VAR14]] : memref<4xui32>
     //CHECK:        [[VAR15:%.+]] = async.await [[result_0]] : !async.value<memref<4xui32>>
     //CHECK:        [[VAR12:%.+]] = async.await

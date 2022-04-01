@@ -214,8 +214,8 @@ func @UnrollNNDMA(%input: memref<1x16x33x32xf16>, %output: memref<1x16x33x32xf16
     num_clusters = 2
 }>
 
-!Input_DDR = type memref<1x16x33x32xf16, #NHWC>
-!Output_DDR = type memref<1x16x33x32xf16, #NHWC>
+!Input_DDR = type memref<1x16x33x32xf16, #NHWC, @DDR>
+!Output_DDR = type memref<1x16x33x32xf16, #NHWC, @DDR>
 !Weights_DDR = type memref<16x16x1x1xf16, #NHWC>
 !WeightsTable_DDR = type memref<16x1x1x4xsi32>
 
@@ -326,19 +326,19 @@ func @UnrollNCE(%input: !Input_DDR, %output: !Output_DDR) -> !Output_DDR {
 
     // Upload 1st part of input
     //CHECK-DAG:    [[IN1_CMX_COPY:%.*]] = VPURT.DeclareBuffer "CMX_NN" [0] <0> -> memref<1x16x17x32xf16, #NHWC, [@CMX_NN, 0]>
-    //CHECK-DAG:    [[IN1_DDR:%.*]] = VPURT.DeclareBuffer "NetworkInput" [0] <0> -> memref<1x16x17x32xf16, #NHWC>
+    //CHECK-DAG:    [[IN1_DDR:%.*]] = VPURT.DeclareBuffer "NetworkInput" [0] <0> -> memref<1x16x17x32xf16, #NHWC, @DDR>
     //CHECK:        VPURT.Task updates([[BAR0]] : !VPURT.Barrier) attributes {isTrailingSWLayer = false}  {
     //CHECK:          VPUIP.NNDMA {port = 0 : i64}
-    //CHECK-SAME:       inputs([[IN1_DDR]] : memref<1x16x17x32xf16, #NHWC>)
+    //CHECK-SAME:       inputs([[IN1_DDR]] : memref<1x16x17x32xf16, #NHWC, @DDR>)
     //CHECK-SAME:       outputs([[IN1_CMX_COPY]] : memref<1x16x17x32xf16, #NHWC, [@CMX_NN, 0]>)
     //CHECK:        }
 
     // Upload 2st part of input
     //CHECK-DAG:    [[IN2_CMX_COPY:%.*]] = VPURT.DeclareBuffer "CMX_NN" [1] <0> -> memref<1x16x16x32xf16, #NHWC, [@CMX_NN, 1]>
-    //CHECK-DAG:    [[IN2_DDR:%.*]] = VPURT.DeclareBuffer "NetworkInput" [0] <17408> -> memref<1x16x16x32xf16, #NHWC>
+    //CHECK-DAG:    [[IN2_DDR:%.*]] = VPURT.DeclareBuffer "NetworkInput" [0] <17408> -> memref<1x16x16x32xf16, #NHWC, @DDR>
     //CHECK:        VPURT.Task updates([[BAR0]] : !VPURT.Barrier) attributes {isTrailingSWLayer = false}  {
     //CHECK:          VPUIP.NNDMA {port = 0 : i64}
-    //CHECK-SAME:       inputs([[IN2_DDR]] : memref<1x16x16x32xf16, #NHWC>)
+    //CHECK-SAME:       inputs([[IN2_DDR]] : memref<1x16x16x32xf16, #NHWC, @DDR>)
     //CHECK-SAME:       outputs([[IN2_CMX_COPY]] : memref<1x16x16x32xf16, #NHWC, [@CMX_NN, 1]>)
     //CHECK:        }
 
@@ -405,22 +405,22 @@ func @UnrollNCE(%input: !Input_DDR, %output: !Output_DDR) -> !Output_DDR {
     //CHECK:        }
 
     //CHECK-DAG:    [[OUT1_CMX_COPY:%.*]] = VPURT.DeclareBuffer "CMX_NN" [0] <17408> -> memref<1x16x17x32xf16, #NHWC, [@CMX_NN, 0]>
-    //CHECK-DAG:    [[OUT1_DDR:%.*]] = VPURT.DeclareBuffer "NetworkOutput" [0] <0> -> memref<1x16x17x32xf16, #NHWC>
+    //CHECK-DAG:    [[OUT1_DDR:%.*]] = VPURT.DeclareBuffer "NetworkOutput" [0] <0> -> memref<1x16x17x32xf16, #NHWC, @DDR>
     //CHECK:        VPURT.Task waits([[BAR1]] : !VPURT.Barrier) attributes {isTrailingSWLayer = false}  {
     //CHECK:          VPUIP.NNDMA {port = 0 : i64}
     //CHECK-SAME:       inputs([[OUT1_CMX_COPY]] : memref<1x16x17x32xf16, #NHWC, [@CMX_NN, 0]>)
-    //CHECK-SAME:       outputs([[OUT1_DDR]] : memref<1x16x17x32xf16, #NHWC>)
+    //CHECK-SAME:       outputs([[OUT1_DDR]] : memref<1x16x17x32xf16, #NHWC, @DDR>)
     //CHECK:        }
 
     //CHECK-DAG:    [[OUT2_CMX_COPY:%.*]] = VPURT.DeclareBuffer "CMX_NN" [1] <17408> -> memref<1x16x16x32xf16, #NHWC, [@CMX_NN, 1]>
-    //CHECK-DAG:    [[OUT2_DDR:%.*]] = VPURT.DeclareBuffer "NetworkOutput" [0] <17408> -> memref<1x16x16x32xf16, #NHWC>
+    //CHECK-DAG:    [[OUT2_DDR:%.*]] = VPURT.DeclareBuffer "NetworkOutput" [0] <17408> -> memref<1x16x16x32xf16, #NHWC, @DDR>
     //CHECK:        VPURT.Task waits([[BAR1]] : !VPURT.Barrier) attributes {isTrailingSWLayer = false}  {
     //CHECK:          VPUIP.NNDMA {port = 0 : i64}
     //CHECK-SAME:       inputs([[OUT2_CMX_COPY]] : memref<1x16x16x32xf16, #NHWC, [@CMX_NN, 1]>)
-    //CHECK-SAME:       outputs([[OUT2_DDR]] : memref<1x16x16x32xf16, #NHWC>)
+    //CHECK-SAME:       outputs([[OUT2_DDR]] : memref<1x16x16x32xf16, #NHWC, @DDR>)
     //CHECK:        }
 
-    //CHECK:    return %arg1 : memref<1x16x33x32xf16, #NHWC>
+    //CHECK:    return %arg1 : memref<1x16x33x32xf16, #NHWC, @DDR>
 }
 
 // -----
@@ -454,8 +454,8 @@ func @UnrollNCE(%input: !Input_DDR, %output: !Output_DDR) -> !Output_DDR {
     num_clusters = 2
 }>
 
-!Input_DDR = type memref<1x16x33x32xf16, #NHWC>
-!Output_DDR = type memref<1x16x33x32xf16, #NHWC>
+!Input_DDR = type memref<1x16x33x32xf16, #NHWC, @DDR>
+!Output_DDR = type memref<1x16x33x32xf16, #NHWC, @DDR>
 !Weights_DDR = type memref<16x16x3x3xf16, #NHWC>
 !WeightsTable_DDR = type memref<16x1x1x4xsi32>
 
@@ -566,19 +566,19 @@ func @UnrollNCESegmentedConv(%input: !Input_DDR, %output: !Output_DDR) -> !Outpu
 
     // Upload 1st part of input
     //CHECK-DAG:    [[IN1_CMX_COPY:%.*]] = VPURT.DeclareBuffer "CMX_NN" [0] <0> -> memref<1x16x17x32xf16, #NHWC, [@CMX_NN, 0]>
-    //CHECK-DAG:    [[IN1_DDR:%.*]] = VPURT.DeclareBuffer "NetworkInput" [0] <0> -> memref<1x16x17x32xf16, #NHWC>
+    //CHECK-DAG:    [[IN1_DDR:%.*]] = VPURT.DeclareBuffer "NetworkInput" [0] <0> -> memref<1x16x17x32xf16, #NHWC, @DDR>
     //CHECK:        VPURT.Task updates([[BAR0]] : !VPURT.Barrier) attributes {isTrailingSWLayer = false}  {
     //CHECK:          VPUIP.NNDMA {port = 0 : i64}
-    //CHECK-SAME:       inputs([[IN1_DDR]] : memref<1x16x17x32xf16, #NHWC>)
+    //CHECK-SAME:       inputs([[IN1_DDR]] : memref<1x16x17x32xf16, #NHWC, @DDR>)
     //CHECK-SAME:       outputs([[IN1_CMX_COPY]] : memref<1x16x17x32xf16, #NHWC, [@CMX_NN, 0]>)
     //CHECK:        }
 
     // Upload 2st part of input
     //CHECK-DAG:    [[IN2_CMX_COPY:%.*]] = VPURT.DeclareBuffer "CMX_NN" [1] <0> -> memref<1x16x16x32xf16, #NHWC, [@CMX_NN, 1]>
-    //CHECK-DAG:    [[IN2_DDR:%.*]] = VPURT.DeclareBuffer "NetworkInput" [0] <17408> -> memref<1x16x16x32xf16, #NHWC>
+    //CHECK-DAG:    [[IN2_DDR:%.*]] = VPURT.DeclareBuffer "NetworkInput" [0] <17408> -> memref<1x16x16x32xf16, #NHWC, @DDR>
     //CHECK:        VPURT.Task updates([[BAR0]] : !VPURT.Barrier) attributes {isTrailingSWLayer = false}  {
     //CHECK:          VPUIP.NNDMA {port = 0 : i64}
-    //CHECK-SAME:       inputs([[IN2_DDR]] : memref<1x16x16x32xf16, #NHWC>)
+    //CHECK-SAME:       inputs([[IN2_DDR]] : memref<1x16x16x32xf16, #NHWC, @DDR>)
     //CHECK-SAME:       outputs([[IN2_CMX_COPY]] : memref<1x16x16x32xf16, #NHWC, [@CMX_NN, 1]>)
     //CHECK:        }
 
@@ -645,22 +645,22 @@ func @UnrollNCESegmentedConv(%input: !Input_DDR, %output: !Output_DDR) -> !Outpu
     //CHECK:        }
 
     //CHECK-DAG:    [[OUT1_CMX_COPY:%.*]] = VPURT.DeclareBuffer "CMX_NN" [0] <17408> -> memref<1x16x17x32xf16, #NHWC, [@CMX_NN, 0]>
-    //CHECK-DAG:    [[OUT1_DDR:%.*]] = VPURT.DeclareBuffer "NetworkOutput" [0] <0> -> memref<1x16x17x32xf16, #NHWC>
+    //CHECK-DAG:    [[OUT1_DDR:%.*]] = VPURT.DeclareBuffer "NetworkOutput" [0] <0> -> memref<1x16x17x32xf16, #NHWC, @DDR>
     //CHECK:        VPURT.Task waits([[BAR1]] : !VPURT.Barrier) attributes {isTrailingSWLayer = false}  {
     //CHECK:          VPUIP.NNDMA {port = 0 : i64}
     //CHECK-SAME:       inputs([[OUT1_CMX_COPY]] : memref<1x16x17x32xf16, #NHWC, [@CMX_NN, 0]>)
-    //CHECK-SAME:       outputs([[OUT1_DDR]] : memref<1x16x17x32xf16, #NHWC>)
+    //CHECK-SAME:       outputs([[OUT1_DDR]] : memref<1x16x17x32xf16, #NHWC, @DDR>)
     //CHECK:        }
 
     //CHECK-DAG:    [[OUT2_CMX_COPY:%.*]] = VPURT.DeclareBuffer "CMX_NN" [1] <17408> -> memref<1x16x16x32xf16, #NHWC, [@CMX_NN, 1]>
-    //CHECK-DAG:    [[OUT2_DDR:%.*]] = VPURT.DeclareBuffer "NetworkOutput" [0] <17408> -> memref<1x16x16x32xf16, #NHWC>
+    //CHECK-DAG:    [[OUT2_DDR:%.*]] = VPURT.DeclareBuffer "NetworkOutput" [0] <17408> -> memref<1x16x16x32xf16, #NHWC, @DDR>
     //CHECK:        VPURT.Task waits([[BAR1]] : !VPURT.Barrier) attributes {isTrailingSWLayer = false}  {
     //CHECK:          VPUIP.NNDMA {port = 0 : i64}
     //CHECK-SAME:       inputs([[OUT2_CMX_COPY]] : memref<1x16x16x32xf16, #NHWC, [@CMX_NN, 1]>)
-    //CHECK-SAME:       outputs([[OUT2_DDR]] : memref<1x16x16x32xf16, #NHWC>)
+    //CHECK-SAME:       outputs([[OUT2_DDR]] : memref<1x16x16x32xf16, #NHWC, @DDR>)
     //CHECK:        }
 
-    //CHECK:    return %arg1 : memref<1x16x33x32xf16, #NHWC>
+    //CHECK:    return %arg1 : memref<1x16x33x32xf16, #NHWC, @DDR>
 }
 
 // -----
@@ -694,8 +694,8 @@ func @UnrollNCESegmentedConv(%input: !Input_DDR, %output: !Output_DDR) -> !Outpu
     num_clusters = 2
 }>
 
-!Input_DDR = type memref<1x16x33x32xf16, #NHWC>
-!Output_DDR = type memref<1x16x33x32xf16, #NHWC>
+!Input_DDR = type memref<1x16x33x32xf16, #NHWC, @DDR>
+!Output_DDR = type memref<1x16x33x32xf16, #NHWC, @DDR>
 !Weights_DDR = type memref<16x16x1x1xf16, #NHWC>
 !WeightsTable_DDR = type memref<16x1x1x4xsi32>
 
@@ -852,19 +852,19 @@ func @UnrollNCESequence(%input: !Input_DDR, %output: !Output_DDR) -> !Output_DDR
 
     // Upload 1st part of input
     //CHECK-DAG:    [[IN1_CMX_COPY:%.*]] = VPURT.DeclareBuffer "CMX_NN" [0] <0> -> memref<1x16x17x32xf16, #NHWC, [@CMX_NN, 0]>
-    //CHECK-DAG:    [[IN1_DDR:%.*]] = VPURT.DeclareBuffer "NetworkInput" [0] <0> -> memref<1x16x17x32xf16, #NHWC>
+    //CHECK-DAG:    [[IN1_DDR:%.*]] = VPURT.DeclareBuffer "NetworkInput" [0] <0> -> memref<1x16x17x32xf16, #NHWC, @DDR>
     //CHECK:        VPURT.Task updates([[BAR0]] : !VPURT.Barrier) attributes {isTrailingSWLayer = false}  {
     //CHECK:          VPUIP.NNDMA {port = 0 : i64}
-    //CHECK-SAME:       inputs([[IN1_DDR]] : memref<1x16x17x32xf16, #NHWC>)
+    //CHECK-SAME:       inputs([[IN1_DDR]] : memref<1x16x17x32xf16, #NHWC, @DDR>)
     //CHECK-SAME:       outputs([[IN1_CMX_COPY]] : memref<1x16x17x32xf16, #NHWC, [@CMX_NN, 0]>)
     //CHECK:        }
 
     // Upload 2st part of input
     //CHECK-DAG:    [[IN2_CMX_COPY:%.*]] = VPURT.DeclareBuffer "CMX_NN" [1] <0> -> memref<1x16x16x32xf16, #NHWC, [@CMX_NN, 1]>
-    //CHECK-DAG:    [[IN2_DDR:%.*]] = VPURT.DeclareBuffer "NetworkInput" [0] <17408> -> memref<1x16x16x32xf16, #NHWC>
+    //CHECK-DAG:    [[IN2_DDR:%.*]] = VPURT.DeclareBuffer "NetworkInput" [0] <17408> -> memref<1x16x16x32xf16, #NHWC, @DDR>
     //CHECK:        VPURT.Task updates([[BAR0]] : !VPURT.Barrier) attributes {isTrailingSWLayer = false}  {
     //CHECK:          VPUIP.NNDMA {port = 0 : i64}
-    //CHECK-SAME:       inputs([[IN2_DDR]] : memref<1x16x16x32xf16, #NHWC>)
+    //CHECK-SAME:       inputs([[IN2_DDR]] : memref<1x16x16x32xf16, #NHWC, @DDR>)
     //CHECK-SAME:       outputs([[IN2_CMX_COPY]] : memref<1x16x16x32xf16, #NHWC, [@CMX_NN, 1]>)
     //CHECK:        }
 
@@ -977,20 +977,20 @@ func @UnrollNCESequence(%input: !Input_DDR, %output: !Output_DDR) -> !Output_DDR
     //CHECK:        }
 
     //CHECK-DAG:    [[OUT1_CMX_COPY:%.*]] = VPURT.DeclareBuffer "CMX_NN" [0] <0> -> memref<1x16x17x32xf16, #NHWC, [@CMX_NN, 0]>
-    //CHECK-DAG:    [[OUT1_DDR:%.*]] = VPURT.DeclareBuffer "NetworkOutput" [0] <0> -> memref<1x16x17x32xf16, #NHWC>
+    //CHECK-DAG:    [[OUT1_DDR:%.*]] = VPURT.DeclareBuffer "NetworkOutput" [0] <0> -> memref<1x16x17x32xf16, #NHWC, @DDR>
     //CHECK:        VPURT.Task waits([[BAR2]] : !VPURT.Barrier) attributes {isTrailingSWLayer = false}  {
     //CHECK:          VPUIP.NNDMA {port = 0 : i64}
     //CHECK-SAME:       inputs([[OUT1_CMX_COPY]] : memref<1x16x17x32xf16, #NHWC, [@CMX_NN, 0]>)
-    //CHECK-SAME:       outputs([[OUT1_DDR]] : memref<1x16x17x32xf16, #NHWC>)
+    //CHECK-SAME:       outputs([[OUT1_DDR]] : memref<1x16x17x32xf16, #NHWC, @DDR>)
     //CHECK:        }
 
     //CHECK-DAG:    [[OUT2_CMX_COPY:%.*]] = VPURT.DeclareBuffer "CMX_NN" [1] <0> -> memref<1x16x16x32xf16, #NHWC, [@CMX_NN, 1]>
-    //CHECK-DAG:    [[OUT2_DDR:%.*]] = VPURT.DeclareBuffer "NetworkOutput" [0] <17408> -> memref<1x16x16x32xf16, #NHWC>
+    //CHECK-DAG:    [[OUT2_DDR:%.*]] = VPURT.DeclareBuffer "NetworkOutput" [0] <17408> -> memref<1x16x16x32xf16, #NHWC, @DDR>
     //CHECK:        VPURT.Task waits([[BAR2]] : !VPURT.Barrier) attributes {isTrailingSWLayer = false}  {
     //CHECK:          VPUIP.NNDMA {port = 0 : i64}
     //CHECK-SAME:       inputs([[OUT2_CMX_COPY]] : memref<1x16x16x32xf16, #NHWC, [@CMX_NN, 1]>)
-    //CHECK-SAME:       outputs([[OUT2_DDR]] : memref<1x16x16x32xf16, #NHWC>)
+    //CHECK-SAME:       outputs([[OUT2_DDR]] : memref<1x16x16x32xf16, #NHWC, @DDR>)
     //CHECK:        }
 
-    //CHECK:    return %arg1 : memref<1x16x33x32xf16, #NHWC>
+    //CHECK:    return %arg1 : memref<1x16x33x32xf16, #NHWC, @DDR>
 }

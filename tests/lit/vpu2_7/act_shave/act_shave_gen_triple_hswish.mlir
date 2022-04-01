@@ -56,96 +56,96 @@ module @VPU.SW {
 
 func @main(%in0: memref<1x1x1x1000xf16>, %in1: memref<1x1x1x1000xf16>) -> memref<1x1x1x1000xf16> {
 
-    %in_tile0_cmx  = VPURT.DeclareBuffer "CMX_NN" [0] <0> -> memref<1x1x1x1000xf16, @CMX_NN>
-    %out_tile0_cmx = VPURT.DeclareBuffer "CMX_NN" [0] <2000> -> memref<1x1x1x1000xf16, @CMX_NN>
+    %in_tile0_cmx  = VPURT.DeclareBuffer "CMX_NN" [0] <0> -> memref<1x1x1x1000xf16, [@CMX_NN, 0]>
+    %out_tile0_cmx = VPURT.DeclareBuffer "CMX_NN" [0] <2000> -> memref<1x1x1x1000xf16, [@CMX_NN, 0]>
 
     %b0 = VPURT.ConfigureBarrier<0> -> !VPURT.Barrier
     %b1 = VPURT.ConfigureBarrier<1> -> !VPURT.Barrier
 
     VPURT.Task updates(%b0 : !VPURT.Barrier) {
-        VPUIP.NNDMA inputs(%in0 : memref<1x1x1x1000xf16>) outputs(%in_tile0_cmx : memref<1x1x1x1000xf16, @CMX_NN>) -> memref<1x1x1x1000xf16, @CMX_NN>
+        VPUIP.NNDMA inputs(%in0 : memref<1x1x1x1000xf16>) outputs(%in_tile0_cmx : memref<1x1x1x1000xf16, [@CMX_NN, 0]>) -> memref<1x1x1x1000xf16, [@CMX_NN, 0]>
     }
 
     VPURT.Task waits(%b0  : !VPURT.Barrier) updates(%b1  : !VPURT.Barrier) {
         VPUIP.SW.Kernel
                     @VPU.SW::@builtin_hswish
-                    inputs(%in_tile0_cmx : memref<1x1x1x1000xf16, @CMX_NN>)
-                    outputs(%out_tile0_cmx : memref<1x1x1x1000xf16, @CMX_NN>)
+                    inputs(%in_tile0_cmx : memref<1x1x1x1000xf16, [@CMX_NN, 0]>)
+                    outputs(%out_tile0_cmx : memref<1x1x1x1000xf16, [@CMX_NN, 0]>)
                     on tile 0
 
-        -> memref<1x1x1x1000xf16, @CMX_NN> {
+        -> memref<1x1x1x1000xf16, [@CMX_NN, 0]> {
 
-            ^bb0(%arg0 : memref<1x1x1x1000xf16, @CMX_NN>, %arg1 : memref<1x1x1x1000xf16, @CMX_NN>):
+            ^bb0(%arg0 : memref<1x1x1x1000xf16, [@CMX_NN, 0]>, %arg1 : memref<1x1x1x1000xf16, [@CMX_NN, 0]>):
                 VPUIP.SW.Kernel.run {attrs = []}(%arg0, %arg1)
-                    : memref<1x1x1x1000xf16, @CMX_NN>
-                    , memref<1x1x1x1000xf16, @CMX_NN>
+                    : memref<1x1x1x1000xf16, [@CMX_NN, 0]>
+                    , memref<1x1x1x1000xf16, [@CMX_NN, 0]>
         }
     }
 
     VPURT.Task waits(%b1 : !VPURT.Barrier) {
-        %0 = VPUIP.NNDMA inputs(%out_tile0_cmx : memref<1x1x1x1000xf16, @CMX_NN>) outputs(%in1 : memref<1x1x1x1000xf16>) -> memref<1x1x1x1000xf16>
+        %0 = VPUIP.NNDMA inputs(%out_tile0_cmx : memref<1x1x1x1000xf16, [@CMX_NN, 0]>) outputs(%in1 : memref<1x1x1x1000xf16>) -> memref<1x1x1x1000xf16>
     }
 
     // The second HSwish
-    %in_tile1_cmx  = VPURT.DeclareBuffer "CMX_NN" [0] <2000> -> memref<1x1x1x1000xf16, @CMX_NN>
-    %out_tile1_cmx = VPURT.DeclareBuffer "CMX_NN" [0] <4000> -> memref<1x1x1x1000xf16, @CMX_NN>
+    %in_tile1_cmx  = VPURT.DeclareBuffer "CMX_NN" [0] <2000> -> memref<1x1x1x1000xf16, [@CMX_NN, 0]>
+    %out_tile1_cmx = VPURT.DeclareBuffer "CMX_NN" [0] <4000> -> memref<1x1x1x1000xf16, [@CMX_NN, 0]>
 
     %b2 = VPURT.ConfigureBarrier<0> -> !VPURT.Barrier
     %b3 = VPURT.ConfigureBarrier<1> -> !VPURT.Barrier
 
     VPURT.Task updates(%b2 : !VPURT.Barrier) {
-        VPUIP.NNDMA inputs(%in1 : memref<1x1x1x1000xf16>) outputs(%in_tile1_cmx : memref<1x1x1x1000xf16, @CMX_NN>) -> memref<1x1x1x1000xf16, @CMX_NN>
+        VPUIP.NNDMA inputs(%in1 : memref<1x1x1x1000xf16>) outputs(%in_tile1_cmx : memref<1x1x1x1000xf16, [@CMX_NN, 0]>) -> memref<1x1x1x1000xf16, [@CMX_NN, 0]>
     }
 
     VPURT.Task waits(%b2  : !VPURT.Barrier) updates(%b3  : !VPURT.Barrier) {
         VPUIP.SW.Kernel
                     @VPU.SW::@builtin_hswish
-                    inputs(%in_tile1_cmx : memref<1x1x1x1000xf16, @CMX_NN>)
-                    outputs(%out_tile1_cmx : memref<1x1x1x1000xf16, @CMX_NN>)
+                    inputs(%in_tile1_cmx : memref<1x1x1x1000xf16, [@CMX_NN, 0]>)
+                    outputs(%out_tile1_cmx : memref<1x1x1x1000xf16, [@CMX_NN, 0]>)
                     on tile 0
 
-        -> memref<1x1x1x1000xf16, @CMX_NN> {
+        -> memref<1x1x1x1000xf16, [@CMX_NN, 0]> {
 
-            ^bb0(%arg0 : memref<1x1x1x1000xf16, @CMX_NN>, %arg1 : memref<1x1x1x1000xf16, @CMX_NN>):
+            ^bb0(%arg0 : memref<1x1x1x1000xf16, [@CMX_NN, 0]>, %arg1 : memref<1x1x1x1000xf16, [@CMX_NN, 0]>):
                 VPUIP.SW.Kernel.run {attrs = []}(%arg0, %arg1)
-                    : memref<1x1x1x1000xf16, @CMX_NN>
-                    , memref<1x1x1x1000xf16, @CMX_NN>
+                    : memref<1x1x1x1000xf16, [@CMX_NN, 0]>
+                    , memref<1x1x1x1000xf16, [@CMX_NN, 0]>
         }
     }
 
     VPURT.Task waits(%b3 : !VPURT.Barrier) {
-        %0 = VPUIP.NNDMA inputs(%out_tile1_cmx : memref<1x1x1x1000xf16, @CMX_NN>) outputs(%in1 : memref<1x1x1x1000xf16>) -> memref<1x1x1x1000xf16>
+        %0 = VPUIP.NNDMA inputs(%out_tile1_cmx : memref<1x1x1x1000xf16, [@CMX_NN, 0]>) outputs(%in1 : memref<1x1x1x1000xf16>) -> memref<1x1x1x1000xf16>
     }
 
     // The third HSwish
-    %in_tile2_cmx  = VPURT.DeclareBuffer "CMX_NN" [0] <6000> -> memref<1x1x1x1000xf16, @CMX_NN>
-    %out_tile2_cmx = VPURT.DeclareBuffer "CMX_NN" [0] <8000> -> memref<1x1x1x1000xf16, @CMX_NN>
+    %in_tile2_cmx  = VPURT.DeclareBuffer "CMX_NN" [0] <6000> -> memref<1x1x1x1000xf16, [@CMX_NN, 0]>
+    %out_tile2_cmx = VPURT.DeclareBuffer "CMX_NN" [0] <8000> -> memref<1x1x1x1000xf16, [@CMX_NN, 0]>
 
     %b4 = VPURT.ConfigureBarrier<0> -> !VPURT.Barrier
     %b5 = VPURT.ConfigureBarrier<1> -> !VPURT.Barrier
 
     VPURT.Task updates(%b4 : !VPURT.Barrier) {
-        VPUIP.NNDMA inputs(%in1 : memref<1x1x1x1000xf16>) outputs(%in_tile2_cmx : memref<1x1x1x1000xf16, @CMX_NN>) -> memref<1x1x1x1000xf16, @CMX_NN>
+        VPUIP.NNDMA inputs(%in1 : memref<1x1x1x1000xf16>) outputs(%in_tile2_cmx : memref<1x1x1x1000xf16, [@CMX_NN, 0]>) -> memref<1x1x1x1000xf16, [@CMX_NN, 0]>
     }
 
     VPURT.Task waits(%b4  : !VPURT.Barrier) updates(%b5  : !VPURT.Barrier) {
         VPUIP.SW.Kernel
                     @VPU.SW::@builtin_hswish
-                    inputs(%in_tile2_cmx : memref<1x1x1x1000xf16, @CMX_NN>)
-                    outputs(%out_tile2_cmx : memref<1x1x1x1000xf16, @CMX_NN>)
+                    inputs(%in_tile2_cmx : memref<1x1x1x1000xf16, [@CMX_NN, 0]>)
+                    outputs(%out_tile2_cmx : memref<1x1x1x1000xf16, [@CMX_NN, 0]>)
                     on tile 0
 
-        -> memref<1x1x1x1000xf16, @CMX_NN> {
+        -> memref<1x1x1x1000xf16, [@CMX_NN, 0]> {
 
-            ^bb0(%arg0 : memref<1x1x1x1000xf16, @CMX_NN>, %arg1 : memref<1x1x1x1000xf16, @CMX_NN>):
+            ^bb0(%arg0 : memref<1x1x1x1000xf16, [@CMX_NN, 0]>, %arg1 : memref<1x1x1x1000xf16, [@CMX_NN, 0]>):
                 VPUIP.SW.Kernel.run {attrs = []}(%arg0, %arg1)
-                    : memref<1x1x1x1000xf16, @CMX_NN>
-                    , memref<1x1x1x1000xf16, @CMX_NN>
+                    : memref<1x1x1x1000xf16, [@CMX_NN, 0]>
+                    , memref<1x1x1x1000xf16, [@CMX_NN, 0]>
         }
     }
 
     VPURT.Task waits(%b5 : !VPURT.Barrier) {
-        %0 = VPUIP.NNDMA inputs(%out_tile2_cmx : memref<1x1x1x1000xf16, @CMX_NN>) outputs(%in1 : memref<1x1x1x1000xf16>) -> memref<1x1x1x1000xf16>
+        %0 = VPUIP.NNDMA inputs(%out_tile2_cmx : memref<1x1x1x1000xf16, [@CMX_NN, 0]>) outputs(%in1 : memref<1x1x1x1000xf16>) -> memref<1x1x1x1000xf16>
     }
     return %in1: memref<1x1x1x1000xf16>
 

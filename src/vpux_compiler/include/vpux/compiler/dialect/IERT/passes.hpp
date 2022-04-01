@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #pragma once
 
 #include "vpux/compiler/dialect/IERT/ops.hpp"
@@ -28,22 +26,23 @@ namespace IERT {
 // Passes
 //
 
-using AttrCreateFunc = std::function<IndexedSymbolAttr(mlir::MLIRContext*, StringRef)>;
+using MemKindCreateFunc = std::function<Optional<VPU::MemoryKind>(StringRef)>;
 
 std::unique_ptr<mlir::Pass> createOptimizeCopiesPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createCopyOpHoistingPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createOptimizeParallelCopiesPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createCopyOpTilingPass(Logger log = Logger::global());
-std::unique_ptr<mlir::Pass> createSetInternalMemorySpacePass(AttrCreateFunc memSpaceCb, Logger log = Logger::global());
-std::unique_ptr<mlir::Pass> createStaticAllocationPass(AttrCreateFunc memSpaceCb, Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createSetInternalMemorySpacePass(MemKindCreateFunc memKindCb,
+                                                             Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createStaticAllocationPass(MemKindCreateFunc memKindCb, Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createLinearizationPass(Logger log = Logger::global());
-std::unique_ptr<mlir::Pass> createFeasibleAllocationPass(AttrCreateFunc memSpaceCb,
-                                                         AttrCreateFunc secondLvlMemSpaceCb = nullptr,
+std::unique_ptr<mlir::Pass> createFeasibleAllocationPass(MemKindCreateFunc memKindCb,
+                                                         MemKindCreateFunc secondLvlMemKindCb = nullptr,
                                                          Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createBreakDataFlowPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createPatchWeightsTablePass(Logger log = Logger::global());
-std::unique_ptr<mlir::Pass> createDMATaskProfilingPass(AttrCreateFunc memSpaceCb, Logger log = Logger::global());
-std::unique_ptr<mlir::Pass> createDPUProfilingPass(AttrCreateFunc memSpaceCb, Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createDMATaskProfilingPass(MemKindCreateFunc memKindCb, Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createDPUProfilingPass(MemKindCreateFunc memKindCb, Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createConvertScalarToTensorPass(Logger log = Logger::global());
 //
 // Asynchronous Scheduling pipeline

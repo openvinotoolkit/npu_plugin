@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/core/attributes/indexed_symbol_attr.hpp"
 
 #include "vpux/compiler/utils/attributes.hpp"
@@ -63,8 +61,17 @@ IndexedSymbolAttr vpux::IndexedSymbolAttr::get(mlir::MLIRContext* context, Strin
     return get(context, {mlir::FlatSymbolRefAttr::get(context, name)});
 }
 
+IndexedSymbolAttr vpux::IndexedSymbolAttr::get(mlir::MLIRContext* context, StringRef name, size_t id) {
+    return get(context, {mlir::FlatSymbolRefAttr::get(context, name), getIntAttr(context, checked_cast<int64_t>(id))});
+}
+
 IndexedSymbolAttr vpux::IndexedSymbolAttr::get(mlir::StringAttr name) {
     return get(name.getContext(), {mlir::FlatSymbolRefAttr::get(name)});
+}
+
+IndexedSymbolAttr vpux::IndexedSymbolAttr::get(mlir::StringAttr name, size_t id) {
+    auto* context = name.getContext();
+    return get(context, {mlir::FlatSymbolRefAttr::get(name), getIntAttr(context, checked_cast<int64_t>(id))});
 }
 
 Optional<IndexedSymbolAttr> vpux::IndexedSymbolAttr::getNestedReference() const {

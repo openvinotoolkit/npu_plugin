@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/core/feasible_memory_scheduler_control_edges.hpp"
 
 #include "vpux/compiler/utils/analysis.hpp"
@@ -22,9 +20,9 @@ using namespace vpux;
 //
 
 FeasibleMemorySchedulerControlEdges::FeasibleMemorySchedulerControlEdges(
-        mlir::Attribute memSpace, AsyncDepsInfo& depsInfo, AliasesInfo& aliasInfo, Logger log,
+        VPU::MemoryKind memKind, AsyncDepsInfo& depsInfo, AliasesInfo& aliasInfo, Logger log,
         LinearScan<mlir::Value, LinearScanHandler>& scan)
-        : _log(log), _memSpace(memSpace), _depsInfo(depsInfo), _aliasInfo(aliasInfo), _scan(scan) {
+        : _log(log), _memKind(memKind), _depsInfo(depsInfo), _aliasInfo(aliasInfo), _scan(scan) {
     _log.setName("feasible-memory-scheduler-control-edges");
 }
 
@@ -162,7 +160,7 @@ void FeasibleMemorySchedulerControlEdges::insertMemoryControlEdges(
             auto inputs = mlir::dyn_cast<IERT::LayerOpInterface>(innerOp).getInputs();
             for (const auto& input : inputs) {
                 const auto type = input.getType().dyn_cast<vpux::NDTypeInterface>();
-                if (type == nullptr || type.getMemSpace() != _memSpace) {
+                if (type == nullptr || type.getMemoryKind() != _memKind) {
                     continue;
                 }
                 auto rootBuffers = _aliasInfo.getRoots(input);
@@ -175,7 +173,7 @@ void FeasibleMemorySchedulerControlEdges::insertMemoryControlEdges(
             auto outputs = mlir::dyn_cast<IERT::LayerOpInterface>(innerOp).getOutputs();
             for (const auto& output : outputs) {
                 const auto type = output.getType().dyn_cast<vpux::NDTypeInterface>();
-                if (type == nullptr || type.getMemSpace() != _memSpace) {
+                if (type == nullptr || type.getMemoryKind() != _memKind) {
                     continue;
                 }
                 auto rootBuffers = _aliasInfo.getRoots(output);

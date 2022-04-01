@@ -27,13 +27,13 @@ IE.CNNNetwork
     }
 
 func @main(%arg0: memref<1x1x1x1000xf16>, %arg1: memref<1x1x1x1000xf16>) -> memref<1x1x1x1000xf16> {
-    %0 = VPURT.DeclareBuffer "DDR" <0> -> memref<1x1x1x1000xf16>
+    %0 = VPURT.DeclareBuffer "DDR" <0> -> memref<1x1x1x1000xf16, @DDR>
     %1 = VPURT.ConfigureBarrier<0> -> !VPURT.Barrier
     VPURT.Task updates(%1 : !VPURT.Barrier) {
-        %2 = VPUIP.SoftMaxUPA {axisInd = 3} inputs(%arg0 : memref<1x1x1x1000xf16>) outputs(%0 : memref<1x1x1x1000xf16>) -> memref<1x1x1x1000xf16>
+        %2 = VPUIP.SoftMaxUPA {axisInd = 3} inputs(%arg0 : memref<1x1x1x1000xf16>) outputs(%0 : memref<1x1x1x1000xf16, @DDR>) -> memref<1x1x1x1000xf16, @DDR>
     }
     VPURT.Task waits(%1 : !VPURT.Barrier) {
-        %2 = VPUIP.NNDMA inputs(%2 : memref<1x1x1x1000xf16>) outputs(%arg1 : memref<1x1x1x1000xf16>) -> memref<1x1x1x1000xf16>
+        %2 = VPUIP.NNDMA inputs(%0 : memref<1x1x1x1000xf16, @DDR>) outputs(%arg1 : memref<1x1x1x1000xf16>) -> memref<1x1x1x1000xf16>
     }
     return %arg1: memref<1x1x1x1000xf16>
 }

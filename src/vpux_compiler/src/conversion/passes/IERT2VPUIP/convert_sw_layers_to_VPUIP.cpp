@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/conversion.hpp"
 #include "vpux/compiler/dialect/VPUIP/sw_utils.hpp"
 #include "vpux/compiler/utils/logging.hpp"
@@ -17,7 +15,9 @@ namespace {
 
 mlir::memref::AllocOp createCMXTensor(mlir::Value source, mlir::PatternRewriter& rewriter) {
     const auto type = source.getType().cast<vpux::NDTypeInterface>().eraseTiledInfo();
-    const auto dataTypeCMX = type.changeMemSpace(VPU::MemoryKind::CMX_NN);
+    const auto cmxSymbolAttr =
+            vpux::IndexedSymbolAttr::get(rewriter.getContext(), stringifyEnum(VPU::MemoryKind::CMX_NN), 0);
+    const auto dataTypeCMX = type.changeMemSpace(cmxSymbolAttr);
 
     // TODO : how tile index should be used?
     return rewriter.create<mlir::memref::AllocOp>(source.getLoc(), dataTypeCMX.cast<mlir::MemRefType>());

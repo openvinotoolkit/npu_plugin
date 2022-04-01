@@ -34,6 +34,8 @@
 !Weights_DDR = type memref<32x16x1x1xf16, #NHWC, @DDR>
 
 !InputStub_CMX = type memref<1x16x32x32xf16, #NHWC, @CMX_NN>
+!InputStub_CMX0 = type memref<1x16x32x32xf16, #NHWC, [@CMX_NN, 0]>
+!InputStub_CMX1 = type memref<1x16x32x32xf16, #NHWC, [@CMX_NN, 1]>
 !OutputStub_CMX = type memref<1x32x32x32xf16, #NHWC, @CMX_NN>
 !WeightsStub_CMX = type memref<32x16x1x1xf16, #NHWC, @CMX_NN>
 
@@ -51,8 +53,8 @@ func @UnrollNNDMA(%input: !Input_DDR, %output: !Output_DDR) -> !Output_DDR {
 
     // CMX buffers
     %parent_input_cmx = VPURT.DeclareBuffer "CMX_NN" <0> -> !ParentInputDistributed
-    %input1 = VPURT.DeclareBuffer "CMX_NN" [0] <0> -> !InputStub_CMX
-    %input2 = VPURT.DeclareBuffer "CMX_NN" [1] <0> -> !InputStub_CMX
+    %input1 = VPURT.DeclareBuffer "CMX_NN" [0] <0> -> !InputStub_CMX0
+    %input2 = VPURT.DeclareBuffer "CMX_NN" [1] <0> -> !InputStub_CMX1
 
     %weights = VPURT.DeclareBuffer "CMX_NN" <32768> -> !WeightsDistributed
 
@@ -78,12 +80,12 @@ func @UnrollNNDMA(%input: !Input_DDR, %output: !Output_DDR) -> !Output_DDR {
 
     // Simulate 1st task
     VPURT.Task waits(%bar0: !VPURT.Barrier) updates(%bar1: !VPURT.Barrier) attributes {isTrailingSWLayer = false}  {
-        VPUIP.NNDMA {port = 0 : i64} inputs(%input1: memref<1x16x32x32xf16, #NHWC, @CMX_NN>) outputs(%out_cmx1 : !OutputDistributed) -> !OutputDistributed
+        VPUIP.NNDMA {port = 0 : i64} inputs(%input1: !InputStub_CMX0) outputs(%out_cmx1 : !OutputDistributed) -> !OutputDistributed
     }
 
     // Simulate 2st task
     VPURT.Task waits(%bar0: !VPURT.Barrier) updates(%bar1: !VPURT.Barrier) attributes {isTrailingSWLayer = false}  {
-        VPUIP.NNDMA {port = 0 : i64} inputs(%input2: memref<1x16x32x32xf16, #NHWC, @CMX_NN>) outputs(%out_cmx2 : !OutputDistributed) -> !OutputDistributed
+        VPUIP.NNDMA {port = 0 : i64} inputs(%input2: !InputStub_CMX1) outputs(%out_cmx2 : !OutputDistributed) -> !OutputDistributed
     }
 
     // Copyback output
@@ -107,8 +109,8 @@ func @UnrollNNDMA(%input: !Input_DDR, %output: !Output_DDR) -> !Output_DDR {
     //CHECK:        [[IN_DDR:%.*]] = VPURT.DeclareBuffer "NetworkInput" <0> -> memref<1x16x32x32xf16, #NHWC, @DDR>
     //CHECK:        [[OUT_DDR:%.*]] = VPURT.DeclareBuffer "NetworkOutput" <0> -> memref<1x32x32x32xf16, #NHWC, @DDR>
 
-    //CHECK:        [[IN1_CMX:%.*]] = VPURT.DeclareBuffer "CMX_NN" [0] <0> -> memref<1x16x32x32xf16, #NHWC, @CMX_NN>
-    //CHECK:        [[IN2_CMX:%.*]] = VPURT.DeclareBuffer "CMX_NN" [1] <0> -> memref<1x16x32x32xf16, #NHWC, @CMX_NN>
+    //CHECK:        [[IN1_CMX:%.*]] = VPURT.DeclareBuffer "CMX_NN" [0] <0> -> memref<1x16x32x32xf16, #NHWC, [@CMX_NN, 0]>
+    //CHECK:        [[IN2_CMX:%.*]] = VPURT.DeclareBuffer "CMX_NN" [1] <0> -> memref<1x16x32x32xf16, #NHWC, [@CMX_NN, 1]>
 
     // Upload input
     //CHECK:        [[IN_CMX:%.*]] = VPURT.DeclareBuffer "CMX_NN" [0, 1] <0> -> !VPUIP.DistributedBuffer<1x16x32x32xf16, #NHWC, @CMX_NN, {mode = DUPLICATED, num_clusters = 2 : i64}>

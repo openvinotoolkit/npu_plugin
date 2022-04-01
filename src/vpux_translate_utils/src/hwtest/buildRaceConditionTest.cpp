@@ -90,9 +90,9 @@ void buildRaceConditionTest(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mo
     const auto inputCMXOffset = 0;
     const auto outputCMXOffset = inputCMXOffset + totalTensorSize(inShape, inputType);
 
-    auto inputCMXType = getMemRefType(VPURT::BufferSection::CMX_NN, inShape, inputType, DimsOrder::NHWC);
+    auto inputCMXType = getMemRefType(VPURT::BufferSection::CMX_NN, 0, inShape, inputType, DimsOrder::NHWC);
 
-    auto outputCMXType = getMemRefType(VPURT::BufferSection::CMX_NN, outShape, outputType, DimsOrder::NHWC);
+    auto outputCMXType = getMemRefType(VPURT::BufferSection::CMX_NN, 0, outShape, outputType, DimsOrder::NHWC);
 
     VPURT::ConfigureBarrierOp waitBarrier;
     size_t barrierNumber = 0;

@@ -31,8 +31,8 @@ namespace {
 
 class DMATaskProfilingPass final : public IERT::DMATaskProfilingBase<DMATaskProfilingPass> {
 public:
-    explicit DMATaskProfilingPass(IERT::AttrCreateFunc memSpaceCb, Logger log): _memSpaceCb(std::move(memSpaceCb)) {
-        VPUX_THROW_UNLESS(_memSpaceCb != nullptr, "Missing memSpaceCb");
+    explicit DMATaskProfilingPass(IERT::MemKindCreateFunc memKindCb, Logger log): _memKindCb(std::move(memKindCb)) {
+        VPUX_THROW_UNLESS(_memKindCb != nullptr, "Missing memKindCb");
         Base::initLogger(log, Base::getArgumentName());
     }
 
@@ -40,7 +40,7 @@ private:
     void safeRunOnModule() final;
 
 private:
-    IERT::AttrCreateFunc _memSpaceCb;
+    IERT::MemKindCreateFunc _memKindCb;
 };
 
 //
@@ -49,8 +49,8 @@ private:
 
 class DPUProfilingPass final : public IERT::DPUProfilingBase<DPUProfilingPass> {
 public:
-    explicit DPUProfilingPass(IERT::AttrCreateFunc memSpaceCb, Logger log): _memSpaceCb(std::move(memSpaceCb)) {
-        VPUX_THROW_UNLESS(_memSpaceCb != nullptr, "Missing memSpaceCb");
+    explicit DPUProfilingPass(IERT::MemKindCreateFunc memKindCb, Logger log): _memKindCb(std::move(memKindCb)) {
+        VPUX_THROW_UNLESS(_memKindCb != nullptr, "Missing memKindCb");
         Base::initLogger(log, Base::getArgumentName());
     }
 
@@ -58,7 +58,7 @@ private:
     void safeRunOnModule() final;
 
 private:
-    IERT::AttrCreateFunc _memSpaceCb;
+    IERT::MemKindCreateFunc _memKindCb;
 };
 
 mlir::Value AddCMX2DDRExecuteOp(mlir::OpBuilder& builder, mlir::MLIRContext* ctx, mlir::BlockArgument& profilingResult,
@@ -139,10 +139,18 @@ void DMATaskProfilingPass::safeRunOnModule() {
     auto module = getOperation();
     auto* ctx = module->getContext();
 
-    auto memSpace = _memSpaceCb(ctx, "");
-    if (memSpace == nullptr) {
+    auto maybeMemKind = _memKindCb("");
+    if (!maybeMemKind.hasValue()) {
         _log.trace("Memory Space is not defined");
         return;
+    }
+
+    auto memKind = maybeMemKind.getValue();
+    vpux::IndexedSymbolAttr memKindAttr = nullptr;
+    if (memKind == VPU::MemoryKind::CMX_NN) {
+        memKindAttr = IndexedSymbolAttr::get(ctx, stringifyEnum(memKind), 0);
+    } else {
+        memKindAttr = IndexedSymbolAttr::get(ctx, stringifyEnum(memKind));
     }
 
     IE::CNNNetworkOp netOp;
@@ -152,7 +160,7 @@ void DMATaskProfilingPass::safeRunOnModule() {
     mlir::OpBuilder builder(&netFunc.getBody().front().front(), &builderLog);
 
     SmallVector<mlir::async::ExecuteOp> executeOps;
-    auto timestampType = getMemRefType(ShapeRef({1}), getUInt32Type(ctx), DimsOrder::C, memSpace);
+    auto timestampType = getMemRefType(ShapeRef({1}), getUInt32Type(ctx), DimsOrder::C, memKindAttr);
 
     // Find all execOp which contains CopyOps
     netFunc.walk([&](mlir::async::ExecuteOp execOp) {
@@ -187,9 +195,9 @@ void DMATaskProfilingPass::safeRunOnModule() {
             vpux::ChunkWalker(totalSizeBytes, VPUIP::HW_DMA_PROFILING_MAX_BUFFER_SIZE, sizeof(uint32_t), _log);
 
     const auto cmxMemType =
-            getMemRefType(ShapeRef({chunkWalker.getOpsInChunk()}), getUInt32Type(ctx), DimsOrder::C, memSpace);
+            getMemRefType(ShapeRef({chunkWalker.getOpsInChunk()}), getUInt32Type(ctx), DimsOrder::C, memKindAttr);
     const auto cmxMemTypeLast =
-            getMemRefType(ShapeRef({chunkWalker.getOpsInLastChunk()}), getUInt32Type(ctx), DimsOrder::C, memSpace);
+            getMemRefType(ShapeRef({chunkWalker.getOpsInLastChunk()}), getUInt32Type(ctx), DimsOrder::C, memKindAttr);
     const auto outputResult = mlir::MemRefType::get({output_size}, getUInt32Type(ctx));
 
     // Declare and create additional output from network
@@ -330,10 +338,18 @@ void DPUProfilingPass::safeRunOnModule() {
     auto module = getOperation();
     auto* ctx = module->getContext();
 
-    auto memSpace = _memSpaceCb(ctx, "");
-    if (memSpace == nullptr) {
+    auto maybeMemKind = _memKindCb("");
+    if (!maybeMemKind.hasValue()) {
         _log.trace("Memory Space is not defined");
         return;
+    }
+
+    auto memKind = maybeMemKind.getValue();
+    vpux::IndexedSymbolAttr memKindAttr = nullptr;
+    if (memKind == VPU::MemoryKind::CMX_NN) {
+        memKindAttr = IndexedSymbolAttr::get(ctx, stringifyEnum(memKind), 0);
+    } else {
+        memKindAttr = IndexedSymbolAttr::get(ctx, stringifyEnum(memKind));
     }
 
     IE::CNNNetworkOp netOp;
@@ -368,9 +384,9 @@ void DPUProfilingPass::safeRunOnModule() {
                                          VPUIP::HW_DPU_PROFILING_SIZE_BYTES, _log);
 
     const auto cmxMemType = getMemRefType(ShapeRef({chunkWalker.getOpsInChunk() * elementSize}), getUInt64Type(ctx),
-                                          DimsOrder::C, memSpace);
+                                          DimsOrder::C, memKindAttr);
     const auto cmxMemTypeLast = getMemRefType(ShapeRef({chunkWalker.getOpsInLastChunk() * elementSize}),
-                                              getUInt64Type(ctx), DimsOrder::C, memSpace);
+                                              getUInt64Type(ctx), DimsOrder::C, memKindAttr);
     const auto outputResult = mlir::MemRefType::get({output_size}, getUInt64Type(ctx));
 
     // Declare and create additional output from network
@@ -398,7 +414,7 @@ void DPUProfilingPass::safeRunOnModule() {
     auto chunkItemCallback = [&](std::pair<VPUIP::NCEClusterTaskOp, int64_t> dpuTask, const unsigned& chunkDpuId) {
         auto cluster = dpuTask.first;
         builder.setInsertionPointAfter(cluster);
-        auto timestampType = getMemRefType({elementSize}, getUInt64Type(ctx), DimsOrder::C, memSpace);
+        auto timestampType = getMemRefType({elementSize}, getUInt64Type(ctx), DimsOrder::C, memKindAttr);
         auto sub = builder.create<IERT::SubViewOp>(
                 mlir::NameLoc::get(mlir::Identifier::get("dpuProfilingSubview", ctx)), memOp,
                 SmallVector<int64_t>({static_cast<int>(chunkDpuId * elementSize)}), timestampType.getShape());
@@ -446,14 +462,14 @@ void DPUProfilingPass::safeRunOnModule() {
 // createDMATaskProfilingPass
 //
 
-std::unique_ptr<mlir::Pass> vpux::IERT::createDMATaskProfilingPass(AttrCreateFunc memSpaceCb, Logger log) {
-    return std::make_unique<DMATaskProfilingPass>(std::move(memSpaceCb), log);
+std::unique_ptr<mlir::Pass> vpux::IERT::createDMATaskProfilingPass(MemKindCreateFunc memKindCb, Logger log) {
+    return std::make_unique<DMATaskProfilingPass>(std::move(memKindCb), log);
 }
 
 //
 // createDPUProfilingPass
 //
 
-std::unique_ptr<mlir::Pass> vpux::IERT::createDPUProfilingPass(AttrCreateFunc memSpaceCb, Logger log) {
-    return std::make_unique<DPUProfilingPass>(std::move(memSpaceCb), log);
+std::unique_ptr<mlir::Pass> vpux::IERT::createDPUProfilingPass(MemKindCreateFunc memKindCb, Logger log) {
+    return std::make_unique<DPUProfilingPass>(std::move(memKindCb), log);
 }

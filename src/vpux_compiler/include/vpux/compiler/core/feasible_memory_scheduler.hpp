@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #pragma once
 
 #include "vpux/compiler/core/async_deps_info.hpp"
@@ -298,7 +296,7 @@ public:
             std::unordered_map<operationIdxType, std::set<std::pair<operationIdxType, vpux::AddressType>, TimeSort>>;
 
 public:
-    FeasibleMemoryScheduler(mlir::Attribute& memSpace, MemLiveRangeInfo& liveRangeInfo, AsyncDepsInfo& depsInfo,
+    FeasibleMemoryScheduler(VPU::MemoryKind memSpace, MemLiveRangeInfo& liveRangeInfo, AsyncDepsInfo& depsInfo,
                             AliasesInfo& aliasInfo, Logger log, LinearScan<mlir::Value, LinearScanHandler>& scan);
 
 public:
@@ -348,7 +346,7 @@ private:
 private:
     Logger _log;
     // memory space, which will be allocated
-    mlir::Attribute& _memSpace;
+    VPU::MemoryKind _memKind;
     // information about op buffers
     MemLiveRangeInfo& _liveRangeInfo;
     // dependencies of ops

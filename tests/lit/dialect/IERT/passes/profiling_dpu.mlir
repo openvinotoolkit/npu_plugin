@@ -31,15 +31,15 @@ func @main(%arg0: tensor<1x3x62x62xf16, {order = #NHWC}>) -> tensor<1x48x60x60xf
     //CHECK:        profilingOutputsInfo
     //CHECK-NEXT:   DataInfo "dpu" : tensor<2xui64>
     //CHECK:        func @main(%arg0: memref<1x3x62x62xf16, #NHWC>, %arg1: memref<1x48x60x60xf16, #NHWC>, %arg2: memref<2xui64>) -> (memref<1x48x60x60xf16, #NHWC>, memref<2xui64>)
-    //CHECK:        [[VAR0:%.+]] = memref.alloc() : memref<2xui64, @CMX_NN>
+    //CHECK:        [[VAR0:%.+]] = memref.alloc() : memref<2xui64, [@CMX_NN, 0]>
 
-    //CHECK:        [[VAR1:%.+]] = IERT.SubView [[VAR0]] [0] [2] : memref<2xui64, @CMX_NN>
+    //CHECK:        [[VAR1:%.+]] = IERT.SubView [[VAR0]] [0] [2] : memref<2xui64, [@CMX_NN, 0]>
     //CHECK:        [[VAR2:%[0-9]+]]:2 = VPUIP.NCEClusterTask
-    //CHECK-SAME:   profiling_data([[VAR1]] : memref<2xui64, @CMX_NN>)
+    //CHECK-SAME:   profiling_data([[VAR1]] : memref<2xui64, [@CMX_NN, 0]>)
 
     //CHECK:        [[VAR3:%.*]] = IERT.SubView %arg2 [0] [2] : memref<2xui64>
-    //CHECK:        [[VAR4:%.*]] = IERT.ConcatView inputs([[VAR2]]#1 : memref<2xui64, @CMX_NN>) outputs([[VAR0]] : memref<2xui64, @CMX_NN>)
-    //CHECK:        [[VAR5:%.*]] = IERT.Copy inputs([[VAR4]] : memref<2xui64, @CMX_NN>) outputs([[VAR3]] : memref<2xui64>)
+    //CHECK:        [[VAR4:%.*]] = IERT.ConcatView inputs([[VAR2]]#1 : memref<2xui64, [@CMX_NN, 0]>) outputs([[VAR0]] : memref<2xui64, [@CMX_NN, 0]>)
+    //CHECK:        [[VAR5:%.*]] = IERT.Copy inputs([[VAR4]] : memref<2xui64, [@CMX_NN, 0]>) outputs([[VAR3]] : memref<2xui64>)
     //CHECK:        [[VAR6:%.*]] = IERT.ConcatView inputs([[VAR5]] : memref<2xui64>) outputs(%arg2 : memref<2xui64>)
     //CHECK:        return
     //CHECK-SAME:   [[VAR6]]

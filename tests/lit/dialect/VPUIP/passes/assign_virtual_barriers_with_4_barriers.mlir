@@ -10,26 +10,26 @@ func @ParallelGraph(%arg0: memref<1x16x32x32xf16, #NHWC>, %arg1: memref<1x16x32x
     %cst1 = const.Declare memref<16x1x1x4xsi32> = #const.Content<dense<1> : tensor<16x1x1x4xsi32>>
 
     // input buffers for SOH tiling
-    %buf0 = VPURT.DeclareBuffer "DDR" <0> -> memref<1x16x32x32xf16, #NHWC>
-    %buf1 = VPURT.DeclareBuffer "DDR" <0> -> memref<1x16x8x32xf16, #NHWC>
-    %buf2 = VPURT.DeclareBuffer "DDR" <8192> -> memref<1x16x8x32xf16, #NHWC>
-    %buf3 = VPURT.DeclareBuffer "DDR" <16384> -> memref<1x16x8x32xf16, #NHWC>
-    %buf4 = VPURT.DeclareBuffer "DDR" <24576> -> memref<1x16x8x32xf16, #NHWC>
+    %buf0 = VPURT.DeclareBuffer "DDR" <0> -> memref<1x16x32x32xf16, #NHWC, @DDR>
+    %buf1 = VPURT.DeclareBuffer "DDR" <0> -> memref<1x16x8x32xf16, #NHWC, @DDR>
+    %buf2 = VPURT.DeclareBuffer "DDR" <8192> -> memref<1x16x8x32xf16, #NHWC, @DDR>
+    %buf3 = VPURT.DeclareBuffer "DDR" <16384> -> memref<1x16x8x32xf16, #NHWC, @DDR>
+    %buf4 = VPURT.DeclareBuffer "DDR" <24576> -> memref<1x16x8x32xf16, #NHWC, @DDR>
 
     // output buffers for SOH tiling
-    %buf5 = VPURT.DeclareBuffer "DDR" <32768> -> memref<1x16x32x32xf16, #NHWC>
-    %buf6 = VPURT.DeclareBuffer "DDR" <32768> -> memref<1x16x8x32xf16, #NHWC>
-    %buf7 = VPURT.DeclareBuffer "DDR" <40960> -> memref<1x16x8x32xf16, #NHWC>
-    %buf8 = VPURT.DeclareBuffer "DDR" <49152> -> memref<1x16x8x32xf16, #NHWC>
-    %buf9 = VPURT.DeclareBuffer "DDR" <57344> -> memref<1x16x8x32xf16, #NHWC>
+    %buf5 = VPURT.DeclareBuffer "DDR" <32768> -> memref<1x16x32x32xf16, #NHWC, @DDR>
+    %buf6 = VPURT.DeclareBuffer "DDR" <32768> -> memref<1x16x8x32xf16, #NHWC, @DDR>
+    %buf7 = VPURT.DeclareBuffer "DDR" <40960> -> memref<1x16x8x32xf16, #NHWC, @DDR>
+    %buf8 = VPURT.DeclareBuffer "DDR" <49152> -> memref<1x16x8x32xf16, #NHWC, @DDR>
+    %buf9 = VPURT.DeclareBuffer "DDR" <57344> -> memref<1x16x8x32xf16, #NHWC, @DDR>
 
     // CMX buffers
-    %buf10 = VPURT.DeclareBuffer "CMX_NN" <0> -> memref<1x16x8x32xf16, #NHWC, @CMX_NN>
-    %buf11 = VPURT.DeclareBuffer "CMX_NN" <8192> -> memref<1x16x8x32xf16, #NHWC, @CMX_NN>
-    %buf12 = VPURT.DeclareBuffer "CMX_NN" <16384> -> memref<1x16x8x32xf16, #NHWC, @CMX_NN>
-    %buf13 = VPURT.DeclareBuffer "CMX_NN" <24576> -> memref<1x16x8x32xf16, #NHWC, @CMX_NN>
-    %buf14 = VPURT.DeclareBuffer "CMX_NN" <32768> -> memref<16x16x1x1xf16, #NHWC, @CMX_NN>
-    %buf15 = VPURT.DeclareBuffer "CMX_NN" <33280> -> memref<16x1x1x4xsi32, @CMX_NN>
+    %buf10 = VPURT.DeclareBuffer "CMX_NN"  [0] <0> -> memref<1x16x8x32xf16, #NHWC, [@CMX_NN, 0]>
+    %buf11 = VPURT.DeclareBuffer "CMX_NN"  [0] <8192> -> memref<1x16x8x32xf16, #NHWC, [@CMX_NN, 0]>
+    %buf12 = VPURT.DeclareBuffer "CMX_NN"  [0] <16384> -> memref<1x16x8x32xf16, #NHWC, [@CMX_NN, 0]>
+    %buf13 = VPURT.DeclareBuffer "CMX_NN"  [0] <24576> -> memref<1x16x8x32xf16, #NHWC, [@CMX_NN, 0]>
+    %buf14 = VPURT.DeclareBuffer "CMX_NN"  [0] <32768> -> memref<16x16x1x1xf16, #NHWC, [@CMX_NN, 0]>
+    %buf15 = VPURT.DeclareBuffer "CMX_NN"  [0] <33280> -> memref<16x1x1x4xsi32, [@CMX_NN, 0]>
 
     %bar0 = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
     %bar1 = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
@@ -51,15 +51,15 @@ func @ParallelGraph(%arg0: memref<1x16x32x32xf16, #NHWC>, %arg1: memref<1x16x32x
     VPURT.Task updates(%bar0: !VPURT.Barrier) {
          VPUIP.NNDMA
             inputs(%cst0: memref<16x16x1x1xf16, #NHWC>)
-            outputs(%buf14: memref<16x16x1x1xf16, #NHWC, @CMX_NN>)
-            -> memref<16x16x1x1xf16, #NHWC, @CMX_NN>
+            outputs(%buf14: memref<16x16x1x1xf16, #NHWC, [@CMX_NN, 0]>)
+            -> memref<16x16x1x1xf16, #NHWC, [@CMX_NN, 0]>
     }
 
     VPURT.Task updates(%bar0: !VPURT.Barrier) {
          VPUIP.NNDMA
             inputs(%cst1: memref<16x1x1x4xsi32>)
-            outputs(%buf15: memref<16x1x1x4xsi32, @CMX_NN>)
-            -> memref<16x1x1x4xsi32, @CMX_NN>
+            outputs(%buf15: memref<16x1x1x4xsi32, [@CMX_NN, 0]>)
+            -> memref<16x1x1x4xsi32, [@CMX_NN, 0]>
     }
 
     // Copy input
@@ -67,17 +67,17 @@ func @ParallelGraph(%arg0: memref<1x16x32x32xf16, #NHWC>, %arg1: memref<1x16x32x
     VPURT.Task updates(%bar1: !VPURT.Barrier) {
         VPUIP.NNDMA
             inputs(%arg0: memref<1x16x32x32xf16, #NHWC>)
-            outputs(%buf0: memref<1x16x32x32xf16, #NHWC>)
-            -> memref<1x16x32x32xf16, #NHWC>
+            outputs(%buf0: memref<1x16x32x32xf16, #NHWC, @DDR>)
+            -> memref<1x16x32x32xf16, #NHWC, @DDR>
     }
 
     // Upload 1st input tile
 
     VPURT.Task waits(%bar1: !VPURT.Barrier) updates(%bar2: !VPURT.Barrier) {
          VPUIP.NNDMA
-            inputs(%buf1: memref<1x16x8x32xf16, #NHWC>)
-            outputs(%buf10: memref<1x16x8x32xf16, #NHWC, @CMX_NN>)
-            -> memref<1x16x8x32xf16, #NHWC, @CMX_NN>
+            inputs(%buf1: memref<1x16x8x32xf16, #NHWC, @DDR>)
+            outputs(%buf10: memref<1x16x8x32xf16, #NHWC, [@CMX_NN, 0]>)
+            -> memref<1x16x8x32xf16, #NHWC, [@CMX_NN, 0]>
     }
 
     // 1st tile
@@ -89,13 +89,13 @@ func @ParallelGraph(%arg0: memref<1x16x32x32xf16, #NHWC>, %arg1: memref<1x16x32x
                 kernel_strides = [1, 1],
                 task_type = "CONV"
             }
-            input(%buf10: memref<1x16x8x32xf16, #NHWC, @CMX_NN>)
-            weights(%buf14: memref<16x16x1x1xf16, #NHWC, @CMX_NN>)
-            weight_table(%buf15: memref<16x1x1x4xsi32, @CMX_NN>)
-            parent_input(%buf10: memref<1x16x8x32xf16, #NHWC, @CMX_NN>)
-            parent_output(%buf11: memref<1x16x8x32xf16, #NHWC, @CMX_NN>)
-            outputs(%buf11: memref<1x16x8x32xf16, #NHWC, @CMX_NN>)
-            -> memref<1x16x8x32xf16, #NHWC, @CMX_NN>
+            input(%buf10: memref<1x16x8x32xf16, #NHWC, [@CMX_NN, 0]>)
+            weights(%buf14: memref<16x16x1x1xf16, #NHWC, [@CMX_NN, 0]>)
+            weight_table(%buf15: memref<16x1x1x4xsi32, [@CMX_NN, 0]>)
+            parent_input(%buf10: memref<1x16x8x32xf16, #NHWC, [@CMX_NN, 0]>)
+            parent_output(%buf11: memref<1x16x8x32xf16, #NHWC, [@CMX_NN, 0]>)
+            outputs(%buf11: memref<1x16x8x32xf16, #NHWC, [@CMX_NN, 0]>)
+            -> memref<1x16x8x32xf16, #NHWC, [@CMX_NN, 0]>
             variants : {
                 DPUTask {
                     start = [0, 0, 0],
@@ -111,18 +111,18 @@ func @ParallelGraph(%arg0: memref<1x16x32x32xf16, #NHWC>, %arg1: memref<1x16x32x
 
     VPURT.Task waits(%bar3: !VPURT.Barrier) updates(%bar4: !VPURT.Barrier) {
          VPUIP.NNDMA
-            inputs(%buf11: memref<1x16x8x32xf16, #NHWC, @CMX_NN>)
-            outputs(%buf6: memref<1x16x8x32xf16, #NHWC>)
-            -> memref<1x16x8x32xf16, #NHWC>
+            inputs(%buf11: memref<1x16x8x32xf16, #NHWC, [@CMX_NN, 0]>)
+            outputs(%buf6: memref<1x16x8x32xf16, #NHWC, @DDR>)
+            -> memref<1x16x8x32xf16, #NHWC, @DDR>
     }
 
     // Upload 2st input tile
 
     VPURT.Task waits(%bar1: !VPURT.Barrier) updates(%bar5: !VPURT.Barrier) {
          VPUIP.NNDMA
-            inputs(%buf2: memref<1x16x8x32xf16, #NHWC>)
-            outputs(%buf12: memref<1x16x8x32xf16, #NHWC, @CMX_NN>)
-            -> memref<1x16x8x32xf16, #NHWC, @CMX_NN>
+            inputs(%buf2: memref<1x16x8x32xf16, #NHWC, @DDR>)
+            outputs(%buf12: memref<1x16x8x32xf16, #NHWC, [@CMX_NN, 0]>)
+            -> memref<1x16x8x32xf16, #NHWC, [@CMX_NN, 0]>
     }
 
     // 2nd tile
@@ -134,13 +134,13 @@ func @ParallelGraph(%arg0: memref<1x16x32x32xf16, #NHWC>, %arg1: memref<1x16x32x
                 kernel_strides = [1, 1],
                 task_type = "CONV"
             }
-            input(%buf12: memref<1x16x8x32xf16, #NHWC, @CMX_NN>)
-            weights(%buf14: memref<16x16x1x1xf16, #NHWC, @CMX_NN>)
-            weight_table(%buf15: memref<16x1x1x4xsi32, @CMX_NN>)
-            parent_input(%buf12: memref<1x16x8x32xf16, #NHWC, @CMX_NN>)
-            parent_output(%buf13: memref<1x16x8x32xf16, #NHWC, @CMX_NN>)
-            outputs(%buf13: memref<1x16x8x32xf16, #NHWC, @CMX_NN>)
-            -> memref<1x16x8x32xf16, #NHWC, @CMX_NN>
+            input(%buf12: memref<1x16x8x32xf16, #NHWC, [@CMX_NN, 0]>)
+            weights(%buf14: memref<16x16x1x1xf16, #NHWC, [@CMX_NN, 0]>)
+            weight_table(%buf15: memref<16x1x1x4xsi32, [@CMX_NN, 0]>)
+            parent_input(%buf12: memref<1x16x8x32xf16, #NHWC, [@CMX_NN, 0]>)
+            parent_output(%buf13: memref<1x16x8x32xf16, #NHWC, [@CMX_NN, 0]>)
+            outputs(%buf13: memref<1x16x8x32xf16, #NHWC, [@CMX_NN, 0]>)
+            -> memref<1x16x8x32xf16, #NHWC, [@CMX_NN, 0]>
             variants : {
                 DPUTask {
                     start = [0, 0, 0],
@@ -156,18 +156,18 @@ func @ParallelGraph(%arg0: memref<1x16x32x32xf16, #NHWC>, %arg1: memref<1x16x32x
 
     VPURT.Task waits(%bar6: !VPURT.Barrier) updates(%bar7: !VPURT.Barrier) {
          VPUIP.NNDMA
-            inputs(%buf13: memref<1x16x8x32xf16, #NHWC, @CMX_NN>)
-            outputs(%buf7: memref<1x16x8x32xf16, #NHWC>)
-            -> memref<1x16x8x32xf16, #NHWC>
+            inputs(%buf13: memref<1x16x8x32xf16, #NHWC, [@CMX_NN, 0]>)
+            outputs(%buf7: memref<1x16x8x32xf16, #NHWC, @DDR>)
+            -> memref<1x16x8x32xf16, #NHWC, @DDR>
     }
 
     // Upload 3st input tile
 
     VPURT.Task waits(%bar1: !VPURT.Barrier) updates(%bar8: !VPURT.Barrier) {
          VPUIP.NNDMA
-            inputs(%buf3: memref<1x16x8x32xf16, #NHWC>)
-            outputs(%buf10: memref<1x16x8x32xf16, #NHWC, @CMX_NN>)
-            -> memref<1x16x8x32xf16, #NHWC, @CMX_NN>
+            inputs(%buf3: memref<1x16x8x32xf16, #NHWC, @DDR>)
+            outputs(%buf10: memref<1x16x8x32xf16, #NHWC, [@CMX_NN, 0]>)
+            -> memref<1x16x8x32xf16, #NHWC, [@CMX_NN, 0]>
     }
 
     // 3rd tile
@@ -179,13 +179,13 @@ func @ParallelGraph(%arg0: memref<1x16x32x32xf16, #NHWC>, %arg1: memref<1x16x32x
                 kernel_strides = [1, 1],
                 task_type = "CONV"
             }
-            input(%buf10: memref<1x16x8x32xf16, #NHWC, @CMX_NN>)
-            weights(%buf14: memref<16x16x1x1xf16, #NHWC, @CMX_NN>)
-            weight_table(%buf15: memref<16x1x1x4xsi32, @CMX_NN>)
-            parent_input(%buf10: memref<1x16x8x32xf16, #NHWC, @CMX_NN>)
-            parent_output(%buf11: memref<1x16x8x32xf16, #NHWC, @CMX_NN>)
-            outputs(%buf11: memref<1x16x8x32xf16, #NHWC, @CMX_NN>)
-            -> memref<1x16x8x32xf16, #NHWC, @CMX_NN>
+            input(%buf10: memref<1x16x8x32xf16, #NHWC, [@CMX_NN, 0]>)
+            weights(%buf14: memref<16x16x1x1xf16, #NHWC, [@CMX_NN, 0]>)
+            weight_table(%buf15: memref<16x1x1x4xsi32, [@CMX_NN, 0]>)
+            parent_input(%buf10: memref<1x16x8x32xf16, #NHWC, [@CMX_NN, 0]>)
+            parent_output(%buf11: memref<1x16x8x32xf16, #NHWC, [@CMX_NN, 0]>)
+            outputs(%buf11: memref<1x16x8x32xf16, #NHWC, [@CMX_NN, 0]>)
+            -> memref<1x16x8x32xf16, #NHWC, [@CMX_NN, 0]>
             variants : {
                 DPUTask {
                     start = [0, 0, 0],
@@ -201,18 +201,18 @@ func @ParallelGraph(%arg0: memref<1x16x32x32xf16, #NHWC>, %arg1: memref<1x16x32x
 
     VPURT.Task waits(%bar9: !VPURT.Barrier) updates(%bar10: !VPURT.Barrier) {
          VPUIP.NNDMA
-            inputs(%buf11: memref<1x16x8x32xf16, #NHWC, @CMX_NN>)
-            outputs(%buf8: memref<1x16x8x32xf16, #NHWC>)
-            -> memref<1x16x8x32xf16, #NHWC>
+            inputs(%buf11: memref<1x16x8x32xf16, #NHWC, [@CMX_NN, 0]>)
+            outputs(%buf8: memref<1x16x8x32xf16, #NHWC, @DDR>)
+            -> memref<1x16x8x32xf16, #NHWC, @DDR>
     }
 
     // Upload 4st input tile
 
     VPURT.Task waits(%bar1: !VPURT.Barrier) updates(%bar11: !VPURT.Barrier) {
          VPUIP.NNDMA
-            inputs(%buf4: memref<1x16x8x32xf16, #NHWC>)
-            outputs(%buf12: memref<1x16x8x32xf16, #NHWC, @CMX_NN>)
-            -> memref<1x16x8x32xf16, #NHWC, @CMX_NN>
+            inputs(%buf4: memref<1x16x8x32xf16, #NHWC, @DDR>)
+            outputs(%buf12: memref<1x16x8x32xf16, #NHWC, [@CMX_NN, 0]>)
+            -> memref<1x16x8x32xf16, #NHWC, [@CMX_NN, 0]>
     }
 
     // 4th tile
@@ -224,13 +224,13 @@ func @ParallelGraph(%arg0: memref<1x16x32x32xf16, #NHWC>, %arg1: memref<1x16x32x
                 kernel_strides = [1, 1],
                 task_type = "CONV"
             }
-            input(%buf12: memref<1x16x8x32xf16, #NHWC, @CMX_NN>)
-            weights(%buf14: memref<16x16x1x1xf16, #NHWC, @CMX_NN>)
-            weight_table(%buf15: memref<16x1x1x4xsi32, @CMX_NN>)
-            parent_input(%buf12: memref<1x16x8x32xf16, #NHWC, @CMX_NN>)
-            parent_output(%buf13: memref<1x16x8x32xf16, #NHWC, @CMX_NN>)
-            outputs(%buf13: memref<1x16x8x32xf16, #NHWC, @CMX_NN>)
-            -> memref<1x16x8x32xf16, #NHWC, @CMX_NN>
+            input(%buf12: memref<1x16x8x32xf16, #NHWC, [@CMX_NN, 0]>)
+            weights(%buf14: memref<16x16x1x1xf16, #NHWC, [@CMX_NN, 0]>)
+            weight_table(%buf15: memref<16x1x1x4xsi32, [@CMX_NN, 0]>)
+            parent_input(%buf12: memref<1x16x8x32xf16, #NHWC, [@CMX_NN, 0]>)
+            parent_output(%buf13: memref<1x16x8x32xf16, #NHWC, [@CMX_NN, 0]>)
+            outputs(%buf13: memref<1x16x8x32xf16, #NHWC, [@CMX_NN, 0]>)
+            -> memref<1x16x8x32xf16, #NHWC, [@CMX_NN, 0]>
             variants : {
                 DPUTask {
                     start = [0, 0, 0],
@@ -246,16 +246,16 @@ func @ParallelGraph(%arg0: memref<1x16x32x32xf16, #NHWC>, %arg1: memref<1x16x32x
 
     VPURT.Task waits(%bar12: !VPURT.Barrier) updates(%bar13: !VPURT.Barrier) {
          VPUIP.NNDMA
-            inputs(%buf13: memref<1x16x8x32xf16, #NHWC, @CMX_NN>)
-            outputs(%buf9: memref<1x16x8x32xf16, #NHWC>)
-            -> memref<1x16x8x32xf16, #NHWC>
+            inputs(%buf13: memref<1x16x8x32xf16, #NHWC, [@CMX_NN, 0]>)
+            outputs(%buf9: memref<1x16x8x32xf16, #NHWC, @DDR>)
+            -> memref<1x16x8x32xf16, #NHWC, @DDR>
     }
 
     // Reorder output
 
     VPURT.Task waits(%bar4, %bar7, %bar10, %bar13: !VPURT.Barrier, !VPURT.Barrier, !VPURT.Barrier, !VPURT.Barrier) {
         VPUIP.PermuteUPA {order_value = #NCHW}
-            inputs(%buf5: memref<1x16x32x32xf16, #NHWC>)
+            inputs(%buf5: memref<1x16x32x32xf16, #NHWC, @DDR>)
             outputs(%arg1: memref<1x16x32x32xf16>)
             -> memref<1x16x32x32xf16>
     }

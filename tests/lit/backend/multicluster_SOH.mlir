@@ -69,14 +69,14 @@ func @main(%arg0: memref<1x16x32x32xf16>, %arg1: memref<1x16x32x32xf16>) -> memr
     %bar10 = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
 
     // DDR input buffers for SOH tiling
-    %parent_in = VPURT.DeclareBuffer "DDR" <0> -> memref<1x16x32x32xf16, #NHWC>
-    %input1_ddr = VPURT.DeclareBuffer "DDR" <0> -> memref<1x16x16x32xf16, #NHWC>
-    %input2_ddr = VPURT.DeclareBuffer "DDR" <16384> -> memref<1x16x16x32xf16, #NHWC>
+    %parent_in = VPURT.DeclareBuffer "DDR" <0> -> memref<1x16x32x32xf16, #NHWC, @DDR>
+    %input1_ddr = VPURT.DeclareBuffer "DDR" <0> -> memref<1x16x16x32xf16, #NHWC, @DDR>
+    %input2_ddr = VPURT.DeclareBuffer "DDR" <16384> -> memref<1x16x16x32xf16, #NHWC, @DDR>
 
     // DDR output buffers for SOH tiling
-    %parent_out = VPURT.DeclareBuffer "DDR" <32768> -> memref<1x16x32x32xf16, #NHWC>
-    %output1_ddr = VPURT.DeclareBuffer "DDR" <32768> -> memref<1x16x16x32xf16, #NHWC>
-    %output2_ddr = VPURT.DeclareBuffer "DDR" <49152> -> memref<1x16x16x32xf16, #NHWC>
+    %parent_out = VPURT.DeclareBuffer "DDR" <32768> -> memref<1x16x32x32xf16, #NHWC, @DDR>
+    %output1_ddr = VPURT.DeclareBuffer "DDR" <32768> -> memref<1x16x16x32xf16, #NHWC, @DDR>
+    %output2_ddr = VPURT.DeclareBuffer "DDR" <49152> -> memref<1x16x16x32xf16, #NHWC, @DDR>
 
     // CMX buffers
     %parent_input_cmx = VPURT.DeclareBuffer "CMX_NN" <0> -> !InputDistributed
@@ -117,15 +117,15 @@ func @main(%arg0: memref<1x16x32x32xf16>, %arg1: memref<1x16x32x32xf16>) -> memr
     VPURT.Task updates(%bar0: !VPURT.Barrier) {
         VPUIP.PermuteUPA {order_value = #NHWC}
             inputs(%arg0: memref<1x16x32x32xf16>)
-            outputs(%parent_in: memref<1x16x32x32xf16, #NHWC>)
-            -> memref<1x16x32x32xf16, #NHWC>
+            outputs(%parent_in: memref<1x16x32x32xf16, #NHWC, @DDR>)
+            -> memref<1x16x32x32xf16, #NHWC, @DDR>
     }
 
     // Upload 1st input tile
 
     VPURT.Task waits(%bar0: !VPURT.Barrier) updates(%bar1: !VPURT.Barrier) {
          VPUIP.NNDMA
-            inputs(%input1_ddr: memref<1x16x16x32xf16, #NHWC>)
+            inputs(%input1_ddr: memref<1x16x16x32xf16, #NHWC, @DDR>)
             outputs(%input1: memref<1x16x16x32xf16, #NHWC, [@CMX_NN, 0]>)
             -> memref<1x16x16x32xf16, #NHWC, [@CMX_NN, 0]>
     }
@@ -134,7 +134,7 @@ func @main(%arg0: memref<1x16x32x32xf16>, %arg1: memref<1x16x32x32xf16>) -> memr
 
     VPURT.Task waits(%bar0: !VPURT.Barrier) updates(%bar1: !VPURT.Barrier) {
          VPUIP.NNDMA
-            inputs(%input2_ddr: memref<1x16x16x32xf16, #NHWC>)
+            inputs(%input2_ddr: memref<1x16x16x32xf16, #NHWC, @DDR>)
             outputs(%input2: memref<1x16x16x32xf16, #NHWC, [@CMX_NN, 1]>)
             -> memref<1x16x16x32xf16, #NHWC, [@CMX_NN, 1]>
     }
@@ -200,8 +200,8 @@ func @main(%arg0: memref<1x16x32x32xf16>, %arg1: memref<1x16x32x32xf16>) -> memr
     VPURT.Task waits(%bar2: !VPURT.Barrier) updates(%bar3: !VPURT.Barrier) {
          VPUIP.NNDMA
             inputs(%output1: memref<1x16x16x32xf16, #NHWC, [@CMX_NN, 0]>)
-            outputs(%output1_ddr: memref<1x16x16x32xf16, #NHWC>)
-            -> memref<1x16x16x32xf16, #NHWC>
+            outputs(%output1_ddr: memref<1x16x16x32xf16, #NHWC, @DDR>)
+            -> memref<1x16x16x32xf16, #NHWC, @DDR>
     }
 
     // Copyback 2nd result tile
@@ -209,15 +209,15 @@ func @main(%arg0: memref<1x16x32x32xf16>, %arg1: memref<1x16x32x32xf16>) -> memr
     VPURT.Task waits(%bar2: !VPURT.Barrier) updates(%bar3: !VPURT.Barrier) {
          VPUIP.NNDMA
             inputs(%output2: memref<1x16x16x32xf16, #NHWC, [@CMX_NN, 1]>)
-            outputs(%output2_ddr: memref<1x16x16x32xf16, #NHWC>)
-            -> memref<1x16x16x32xf16, #NHWC>
+            outputs(%output2_ddr: memref<1x16x16x32xf16, #NHWC, @DDR>)
+            -> memref<1x16x16x32xf16, #NHWC, @DDR>
     }
 
     // Reorder output
 
     VPURT.Task waits(%bar3: !VPURT.Barrier) {
         VPUIP.PermuteUPA {order_value = #NCHW}
-            inputs(%parent_out: memref<1x16x32x32xf16, #NHWC>)
+            inputs(%parent_out: memref<1x16x32x32xf16, #NHWC, @DDR>)
             outputs(%arg1: memref<1x16x32x32xf16>)
             -> memref<1x16x32x32xf16>
     }

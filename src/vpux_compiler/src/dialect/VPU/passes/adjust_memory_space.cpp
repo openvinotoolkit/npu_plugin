@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/VPU/ops.hpp"
 #include "vpux/compiler/dialect/VPU/passes.hpp"
 
@@ -49,7 +47,7 @@ private:
 mlir::LogicalResult CopiesForNCEOp::matchAndRewrite(VPU::NCEOpInterface origOp, mlir::PatternRewriter& rewriter) const {
     _log.trace("[{0}] Got '{1}' at '{2}'", getDebugName(), origOp->getName(), origOp->getLoc());
 
-    const auto memSpaceCMX = IndexedSymbolAttr::get(rewriter.getContext(), stringifyEnum(MemoryKind::CMX_NN));
+    const auto memSpaceCMX = IndexedSymbolAttr::get(rewriter.getContext(), stringifyEnum(MemoryKind::CMX_NN), 0);
 
     llvm::DenseMap<mlir::Value, mlir::Value> copiedInputs;
     for (auto& inputOperand : origOp->getOpOperands()) {
@@ -84,7 +82,7 @@ mlir::LogicalResult CopiesForNCEOp::matchAndRewrite(VPU::NCEOpInterface origOp, 
         // Leave the original operation but change it in-place and add a Copy after it
         mlir::OpBuilder::InsertionGuard guard(rewriter);
         rewriter.setInsertionPointAfter(origOp);
-        const auto newOutType = origOutType.changeMemSpace(VPU::MemoryKind::CMX_NN);
+        const auto newOutType = origOutType.changeMemSpace(memSpaceCMX);
         rewriter.updateRootInPlace(origOp, [&]() {
             origOutput.setType(newOutType);
             const auto copiedOutput =

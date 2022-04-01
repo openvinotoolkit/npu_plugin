@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/core/feasible_memory_scheduler_spilling.hpp"
 
 #include "vpux/compiler/utils/rewriter.hpp"
@@ -15,14 +13,14 @@ using namespace vpux;
 // Feasible Memory Scheduler Spilling support
 //
 
-FeasibleMemorySchedulerSpilling::FeasibleMemorySchedulerSpilling(mlir::FuncOp netFunc, IndexedSymbolAttr memSpace,
-                                                                 IndexedSymbolAttr secondLvlMemSpace,
+FeasibleMemorySchedulerSpilling::FeasibleMemorySchedulerSpilling(mlir::FuncOp netFunc, VPU::MemoryKind memKind,
+                                                                 Optional<VPU::MemoryKind> secondLvlMemKind,
                                                                  AsyncDepsInfo& depsInfo, AliasesInfo& aliasInfo,
                                                                  Logger log,
                                                                  LinearScan<mlir::Value, LinearScanHandler>& scan)
         : _log(log),
-          _memSpace(memSpace),
-          _secondLvlMemSpace(secondLvlMemSpace),
+          _memKind(memKind),
+          _secondLvlMemKind(secondLvlMemKind),
           _depsInfo(depsInfo),
           _aliasInfo(aliasInfo),
           _scan(scan) {
@@ -192,8 +190,8 @@ void FeasibleMemorySchedulerSpilling::removeComputeOpRelocationSpills(
                     auto layerOp = mlir::dyn_cast<IERT::LayerOpInterface>(op);
 
                     for (auto output : layerOp.getOutputs()) {
-                        const auto type = output.getType().dyn_cast<mlir::MemRefType>();
-                        if (type == nullptr || type.getMemorySpace() != _memSpace) {
+                        const auto type = output.getType().dyn_cast<vpux::NDTypeInterface>();
+                        if (type == nullptr || type.getMemoryKind() != _memKind) {
                             continue;
                         }
 
@@ -543,7 +541,12 @@ mlir::async::ExecuteOp FeasibleMemorySchedulerSpilling::insertSpillWriteCopyOp(m
         const auto shape = type.getShape();
         const auto elemType = type.getElementType();
         const auto order = type.getDimsOrder();
-        return getMemRefType(shape, elemType, order, _secondLvlMemSpace);
+
+        if (_secondLvlMemKind.hasValue()) {
+            return getMemRefType(shape, elemType, order, _secondLvlMemKind.getValue());
+        }
+
+        return getMemRefType(shape, elemType, order, nullptr);
     };
     auto spillBufferType = getSpillBufferType(bufferToSpill.getType());
 

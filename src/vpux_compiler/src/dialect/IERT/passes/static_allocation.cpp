@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/IE/utils/resources.hpp"
 #include "vpux/compiler/dialect/IERT/passes.hpp"
 
@@ -24,10 +22,8 @@
 #include "vpux/utils/core/checked_cast.hpp"
 #include "vpux/utils/core/error.hpp"
 #include "vpux/utils/core/format.hpp"
-#include "vpux/utils/core/numeric.hpp"
 
 #include <mlir/Dialect/MemRef/IR/MemRef.h>
-#include <mlir/Dialect/StandardOps/IR/Ops.h>
 #include <mlir/IR/Value.h>
 #include <mlir/Transforms/DialectConversion.h>
 
@@ -84,7 +80,7 @@ mlir::LogicalResult AllocRewrite::matchAndRewrite(mlir::memref::AllocOp origOp, 
 
 class StaticAllocationPass final : public IERT::StaticAllocationBase<StaticAllocationPass> {
 public:
-    StaticAllocationPass(IERT::AttrCreateFunc memSpaceCb, Logger log);
+    StaticAllocationPass(IERT::MemKindCreateFunc memSpaceCb, Logger log);
 
 public:
     mlir::LogicalResult initialize(mlir::MLIRContext* ctx) final;
@@ -95,12 +91,13 @@ private:
     LinearScanHandler runLinearScan(mlir::FuncOp netFunc);
 
 private:
-    IERT::AttrCreateFunc _memSpaceCb;
-    IndexedSymbolAttr _memSpace;
+    IERT::MemKindCreateFunc _memKindCb;
+    VPU::MemoryKind _memKind;
+    mlir::SymbolRefAttr _memKindAttr;
 };
 
-StaticAllocationPass::StaticAllocationPass(IERT::AttrCreateFunc memSpaceCb, Logger log)
-        : _memSpaceCb(std::move(memSpaceCb)) {
+StaticAllocationPass::StaticAllocationPass(IERT::MemKindCreateFunc memKindCb, Logger log)
+        : _memKindCb(std::move(memKindCb)) {
     Base::initLogger(log, Base::getArgumentName());
 }
 
@@ -109,11 +106,13 @@ mlir::LogicalResult StaticAllocationPass::initialize(mlir::MLIRContext* ctx) {
         return mlir::failure();
     }
 
-    _memSpace = _memSpaceCb(ctx, memSpaceName.getValue());
-
-    if (_memSpace == nullptr) {
+    auto maybeMemKind = _memKindCb(memSpaceName.getValue());
+    if (!maybeMemKind.hasValue()) {
         return mlir::failure();
     }
+
+    _memKind = maybeMemKind.getValue();
+    _memKindAttr = mlir::SymbolRefAttr::get(ctx, stringifyEnum(_memKind));
 
     return mlir::success();
 }
@@ -124,8 +123,8 @@ LinearScanHandler StaticAllocationPass::runLinearScan(mlir::FuncOp netFunc) {
     auto& depsInfo = getChildAnalysis<AsyncDepsInfo>(netFunc);
 
     auto module = netFunc->getParentOfType<mlir::ModuleOp>();
-    auto availableMem = IE::getAvailableMemory(module, _memSpace.getFullReference());
-    VPUX_THROW_WHEN(availableMem == nullptr, "The memory space '{0}' is not available", _memSpace);
+    auto availableMem = IE::getAvailableMemory(module, _memKindAttr);
+    VPUX_THROW_WHEN(availableMem == nullptr, "The memory space '{0}' is not available", _memKind);
 
     const Byte maxMemSize = availableMem.size();
     const uint64_t memDefaultAlignment = 64;  // TODO: extract from run-time resources information?
@@ -140,7 +139,7 @@ LinearScanHandler StaticAllocationPass::runLinearScan(mlir::FuncOp netFunc) {
 
         for (auto val : usedBufs) {
             const auto type = val.getType().cast<vpux::NDTypeInterface>();
-            if (type.getMemSpace() != _memSpace) {
+            if (type.getMemoryKind() != _memKind) {
                 continue;
             }
 
@@ -158,7 +157,7 @@ LinearScanHandler StaticAllocationPass::runLinearScan(mlir::FuncOp netFunc) {
 
         _log.trace("Allocate memory for the new buffers");
         VPUX_THROW_UNLESS(scan.alloc(newBufs, /*allowSpills*/ false), "Failed to statically allocate '{0}' memory",
-                          _memSpace);
+                          _memKind);
 
         _log = _log.unnest();
     };
@@ -169,7 +168,7 @@ LinearScanHandler StaticAllocationPass::runLinearScan(mlir::FuncOp netFunc) {
 
         for (auto val : usedBufs) {
             const auto type = val.getType().cast<vpux::NDTypeInterface>();
-            if (type.getMemSpace() != _memSpace) {
+            if (type.getMemoryKind() != _memKind) {
                 continue;
             }
 
@@ -214,7 +213,7 @@ LinearScanHandler StaticAllocationPass::runLinearScan(mlir::FuncOp netFunc) {
             auto inputs = mlir::dyn_cast<IERT::LayerOpInterface>(innerOp).getInputs();
             for (const auto& input : inputs) {
                 const auto type = input.getType().cast<vpux::NDTypeInterface>();
-                if (type == nullptr || type.getMemSpace() != _memSpace) {
+                if (type == nullptr || type.getMemoryKind() != _memKind) {
                     continue;
                 }
                 auto rootBuffers = aliasInfo.getRoots(input);
@@ -227,7 +226,7 @@ LinearScanHandler StaticAllocationPass::runLinearScan(mlir::FuncOp netFunc) {
             auto outputs = mlir::dyn_cast<IERT::LayerOpInterface>(innerOp).getOutputs();
             for (const auto& output : outputs) {
                 const auto type = output.getType().cast<vpux::NDTypeInterface>();
-                if (type == nullptr || type.getMemSpace() != _memSpace) {
+                if (type == nullptr || type.getMemoryKind() != _memKind) {
                     continue;
                 }
                 auto rootBuffers = aliasInfo.getRoots(output);
@@ -300,13 +299,13 @@ void StaticAllocationPass::safeRunOnModule() {
     IE::CNNNetworkOp::getFromModule(module, netOp, netFunc);
 
     const auto allocInfo = runLinearScan(netFunc);
-    IE::setUsedMemory(module, _memSpace.getFullReference(), allocInfo.maxAllocatedSize());
+    IE::setUsedMemory(module, _memKindAttr, allocInfo.maxAllocatedSize());
 
     mlir::ConversionTarget target(ctx);
     target.addLegalDialect<IERT::IERTDialect>();
     target.addDynamicallyLegalOp<mlir::memref::AllocOp>([&](mlir::memref::AllocOp op) {
         const auto type = op.memref().getType().dyn_cast<vpux::NDTypeInterface>();
-        return type == nullptr || type.getMemSpace() != _memSpace;
+        return type == nullptr || type.getMemoryKind() != _memKind;
     });
 
     mlir::RewritePatternSet patterns(&ctx);
@@ -320,6 +319,6 @@ void StaticAllocationPass::safeRunOnModule() {
 
 }  // namespace
 
-std::unique_ptr<mlir::Pass> vpux::IERT::createStaticAllocationPass(AttrCreateFunc memSpaceCb, Logger log) {
-    return std::make_unique<StaticAllocationPass>(std::move(memSpaceCb), log);
+std::unique_ptr<mlir::Pass> vpux::IERT::createStaticAllocationPass(MemKindCreateFunc memKindCb, Logger log) {
+    return std::make_unique<StaticAllocationPass>(std::move(memKindCb), log);
 }

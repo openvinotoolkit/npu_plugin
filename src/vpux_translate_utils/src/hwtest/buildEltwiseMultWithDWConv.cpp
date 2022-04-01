@@ -181,7 +181,7 @@ void buildEltwiseMultWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir
                                            DimsOrder::NHWC, 0, INPUT0_CMX_OFFSET);
 
     auto padded_weights_type =
-            getMemRefType(VPURT::BufferSection::CMX_NN, weights_pad_shape, weightsType, DimsOrder::NHWC);
+            getMemRefType(VPURT::BufferSection::CMX_NN, 0, weights_pad_shape, weightsType, DimsOrder::NHWC);
     auto padded_weights_strides = padded_weights_type.cast<vpux::NDTypeInterface>().getStrides();
     // Tensors - concat input/output
     auto weights_cmx = createDeclareTensorOp(funcbuilder, VPURT::BufferSection::CMX_NN, weights_shape, weightsType,
@@ -271,10 +271,10 @@ void buildEltwiseMultWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir
     const auto wtTblData_ddr_valueType =
             mlir::RankedTensorType::get(weightstable_data_shape, builder.getIntegerType(32, /*isSigned=*/true));
 
-    auto weights_cmx_memreftype = getMemRefType(VPURT::BufferSection::CMX_NN, weights_nce_shape, weightsType,
+    auto weights_cmx_memreftype = getMemRefType(VPURT::BufferSection::CMX_NN, 0, weights_nce_shape, weightsType,
                                                 DimsOrder::NHWC, padded_weights_strides);
     auto output_cmx_memreftype =
-            getMemRefType(VPURT::BufferSection::CMX_NN, output_nce_shape, outputType, DimsOrder::NHWC);
+            getMemRefType(VPURT::BufferSection::CMX_NN, 0, output_nce_shape, outputType, DimsOrder::NHWC);
 
     auto weights_set_size = weights_cmx_memreftype.getShape()[1] * weights_cmx_memreftype.getShape()[2] *
                             weights_cmx_memreftype.getShape()[3];

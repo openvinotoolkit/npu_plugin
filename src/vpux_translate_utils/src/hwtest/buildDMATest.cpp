@@ -72,10 +72,11 @@ void buildDMA(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module,
     if (dmaParams.srcLocation == nb::MemoryLocation::DDR) {
         DMAinput = funcInput0;
     } else if (dmaParams.srcLocation == nb::MemoryLocation::CMX0 || dmaParams.srcLocation == nb::MemoryLocation::CMX1) {
-        auto inputCMXtype = getMemRefType(VPURT::BufferSection::CMX_NN, inShape, inputType, DimsOrder::NHWC);
+        const auto sectionIdx = dmaParams.dstLocation == nb::MemoryLocation::CMX0 ? 0 : 1;
+        auto inputCMXtype =
+                getMemRefType(VPURT::BufferSection::CMX_NN, sectionIdx, inShape, inputType, DimsOrder::NHWC);
         auto inputCMX = createDeclareTensorOp(
-                funcbuilder, inputCMXtype, VPURT::BufferSection::CMX_NN,
-                dmaParams.srcLocation == nb::MemoryLocation::CMX0 ? 0 : 1,
+                funcbuilder, inputCMXtype, VPURT::BufferSection::CMX_NN, sectionIdx,
                 dmaParams.srcLocation == nb::MemoryLocation::CMX0 ? CMX0_AVIABLE_OFFSET : CMX1_AVIABLE_OFFSET);
         if (dmaParams.srcLocation == nb::MemoryLocation::CMX0) {
             CMX0_AVIABLE_OFFSET += inputTotalSize;
@@ -95,10 +96,11 @@ void buildDMA(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module,
     if (dmaParams.dstLocation == nb::MemoryLocation::DDR) {
         DMAoutput = funcOutput;
     } else if (dmaParams.dstLocation == nb::MemoryLocation::CMX0 || dmaParams.dstLocation == nb::MemoryLocation::CMX1) {
-        auto outputCMXtype = getMemRefType(VPURT::BufferSection::CMX_NN, outShape, outputType, DimsOrder::NHWC);
+        const auto sectionIdx = dmaParams.dstLocation == nb::MemoryLocation::CMX0 ? 0 : 1;
+        auto outputCMXtype =
+                getMemRefType(VPURT::BufferSection::CMX_NN, sectionIdx, outShape, outputType, DimsOrder::NHWC);
         auto outputCMX = createDeclareTensorOp(
-                funcbuilder, outputCMXtype, VPURT::BufferSection::CMX_NN,
-                dmaParams.dstLocation == nb::MemoryLocation::CMX0 ? 0 : 1,
+                funcbuilder, outputCMXtype, VPURT::BufferSection::CMX_NN, sectionIdx,
                 dmaParams.dstLocation == nb::MemoryLocation::CMX0 ? CMX0_AVIABLE_OFFSET : CMX1_AVIABLE_OFFSET);
         if (dmaParams.dstLocation == nb::MemoryLocation::CMX0) {
             CMX0_AVIABLE_OFFSET += outputTotalSize;

@@ -215,7 +215,7 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
     auto weightsDDR =
             functionBuilder.create<vpux::Const::DeclareOp>(builder.getUnknownLoc(), weightsDDRType, weightsAttribute);
 
-    auto outputCMXpadded = getMemRefType(VPURT::BufferSection::CMX_NN, outputCMXShape, outputType, outputLayout);
+    auto outputCMXpadded = getMemRefType(VPURT::BufferSection::CMX_NN, 0, outputCMXShape, outputType, outputLayout);
     auto ndOutputCMXpadded = outputCMXpadded.cast<vpux::NDTypeInterface>();
     auto outputCMX = createDeclareTensorOp(functionBuilder, VPURT::BufferSection::CMX_NN, outputShape, outputType,
                                            outputLayout, ndOutputCMXpadded.getStrides(), 0, OUTPUT_CMX_OFFSET);

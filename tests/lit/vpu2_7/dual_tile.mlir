@@ -38,30 +38,32 @@ module @dual_tile attributes {VPU.arch = "VPUX37XX", VPU.compilationMode = "Defa
       ) -> memref<2x16x16x16xf16, #NHWC, @DDR> {
     %weights_constant = const.Declare memref<16x1x1x16x!qtype, #NHWC, @DDR> =
       #const.Content<dense<1> : tensor<16x1x1x16xui8>, [#const.QuantCast<!qtype>, #const.Reorder<#NHWC>]>
-    %weights = VPURT.DeclareBuffer "CMX_NN" [0] <12544>
-      -> memref<16x1x1x16x!qtype, #NHWC, @CMX_NN>
+    %weights0 = VPURT.DeclareBuffer "CMX_NN" [0] <12544>
+      -> memref<16x1x1x16x!qtype, #NHWC, [@CMX_NN, 0]>
+    %weights1 = VPURT.DeclareBuffer "CMX_NN" [1] <12544>
+      -> memref<16x1x1x16x!qtype, #NHWC, [@CMX_NN, 1]>
 
     %input_0 = VPURT.DeclareBuffer "CMX_NN" [0] <8192>
-      -> memref<1x16x16x16x!qtype, #NHWC, @CMX_NN>
+      -> memref<1x16x16x16x!qtype, #NHWC, [@CMX_NN, 0]>
     %output_0 = VPURT.DeclareBuffer "CMX_NN" [0] <0>
-      -> memref<1x16x16x16xf16, #NHWC, @CMX_NN>
+      -> memref<1x16x16x16xf16, #NHWC, [@CMX_NN, 0]>
     %output_ddr_0 = VPURT.DeclareBuffer "DDR" <0>
       -> memref<1x16x16x16xf16, #NHWC, @DDR>
     %parent_input_0 = VPURT.DeclareBuffer "CMX_NN" [0] <8192>
-      -> memref<1x16x16x16x!qtype, #NHWC, @CMX_NN>
+      -> memref<1x16x16x16x!qtype, #NHWC, [@CMX_NN, 0]>
     %parent_output_0 = VPURT.DeclareBuffer "CMX_NN" [0] <0>
-      -> memref<1x16x16x16xf16, #NHWC, @CMX_NN>
+      -> memref<1x16x16x16xf16, #NHWC, [@CMX_NN, 0]>
 
     %input_1 = VPURT.DeclareBuffer "CMX_NN" [1] <8192>
-      -> memref<1x16x16x16x!qtype, #NHWC, @CMX_NN>
+      -> memref<1x16x16x16x!qtype, #NHWC, [@CMX_NN, 1]>
     %output_1 = VPURT.DeclareBuffer "CMX_NN" [1] <0>
-      -> memref<1x16x16x16xf16, #NHWC, @CMX_NN>
+      -> memref<1x16x16x16xf16, #NHWC, [@CMX_NN, 1]>
     %output_ddr_1 = VPURT.DeclareBuffer "DDR" <8192>
       -> memref<1x16x16x16xf16, #NHWC, @DDR>
     %parent_input_1 = VPURT.DeclareBuffer "CMX_NN" [1] <8192>
-      -> memref<1x16x16x16x!qtype, #NHWC, @CMX_NN>
+      -> memref<1x16x16x16x!qtype, #NHWC, [@CMX_NN, 1]>
     %parent_output_1 = VPURT.DeclareBuffer "CMX_NN" [1] <0>
-      -> memref<1x16x16x16xf16, #NHWC, @CMX_NN>
+      -> memref<1x16x16x16xf16, #NHWC, [@CMX_NN, 1]>
 
     %output_ddr = VPURT.DeclareBuffer "DDR" <0>
       -> memref<2x16x16x16xf16, #NHWC, @DDR>
@@ -69,8 +71,10 @@ module @dual_tile attributes {VPU.arch = "VPUX37XX", VPU.compilationMode = "Defa
     %weight_table_constant = const.Declare memref<16x1x1x4xsi32, #NHWC, @DDR> =
       #const.Content<dense<[[[[12544, 16777215, 1073761792, 0]]], [[[12560, 16777215, 1073761792, 0]]], [[[12576, 16777215, 1073761792, 0]]], [[[12592, 16777215, 1073761792, 0]]], [[[12608, 16777215, 1073761792, 0]]], [[[12624, 16777215, 1073761792, 0]]], [[[12640, 16777215, 1073761792, 0]]], [[[12656, 16777215, 1073761792, 0]]], [[[12672, 16777215, 1073761792, 0]]], [[[12688, 16777215, 1073761792, 0]]], [[[12704, 16777215, 1073761792, 0]]], [[[12720, 16777215, 1073761792, 0]]], [[[12736, 16777215, 1073761792, 0]]], [[[12752, 16777215, 1073761792, 0]]], [[[12768, 16777215, 1073761792, 0]]], [[[12784, 16777215, 1073761792, 0]]]]> : tensor<16x1x1x4xsi32>, [#const.Reorder<#NHWC>]>
 
-    %weight_table = VPURT.DeclareBuffer "CMX_NN" [0] <12288>
-      -> memref<16x1x1x4xsi32, #NHWC, @CMX_NN>
+    %weight_table0 = VPURT.DeclareBuffer "CMX_NN" [0] <12288>
+      -> memref<16x1x1x4xsi32, #NHWC, [@CMX_NN, 0]>
+    %weight_table1 = VPURT.DeclareBuffer "CMX_NN" [1] <12288>
+      -> memref<16x1x1x4xsi32, #NHWC, [@CMX_NN, 1]>
 
     %inputs_ready = VPURT.ConfigureBarrier<0> -> !VPURT.Barrier
     %conv_complete = VPURT.ConfigureBarrier<1> -> !VPURT.Barrier
@@ -79,28 +83,42 @@ module @dual_tile attributes {VPU.arch = "VPUX37XX", VPU.compilationMode = "Defa
     VPURT.Task updates(%inputs_ready : !VPURT.Barrier) {
       VPUIP.NNDMA {port = 0}
         inputs(%input_arg : memref<1x16x16x16x!qtype, #NHWC, @DDR>)
-        outputs(%input_0 : memref<1x16x16x16x!qtype, #NHWC, @CMX_NN>)
-        -> memref<1x16x16x16x!qtype, #NHWC, @CMX_NN>
+        outputs(%input_0 : memref<1x16x16x16x!qtype, #NHWC, [@CMX_NN, 0]>)
+        -> memref<1x16x16x16x!qtype, #NHWC, [@CMX_NN, 0]>
     }
     VPURT.Task updates(%inputs_ready : !VPURT.Barrier) {
       VPUIP.NNDMA {port = 0}
         inputs(%input_arg : memref<1x16x16x16x!qtype, #NHWC, @DDR>)
-        outputs(%input_1 : memref<1x16x16x16x!qtype, #NHWC, @CMX_NN>)
-        -> memref<1x16x16x16x!qtype, #NHWC, @CMX_NN>
+        outputs(%input_1 : memref<1x16x16x16x!qtype, #NHWC, [@CMX_NN, 1]>)
+        -> memref<1x16x16x16x!qtype, #NHWC, [@CMX_NN, 1]>
     }
 
     VPURT.Task updates(%inputs_ready : !VPURT.Barrier) {
       VPUIP.NNDMA {port = 0}
         inputs(%weights_constant : memref<16x1x1x16x!qtype, #NHWC, @DDR>)
-        outputs(%weights : memref<16x1x1x16x!qtype, #NHWC, @CMX_NN>)
-        -> memref<16x1x1x16x!qtype, #NHWC, @CMX_NN>
+        outputs(%weights0 : memref<16x1x1x16x!qtype, #NHWC, [@CMX_NN, 0]>)
+        -> memref<16x1x1x16x!qtype, #NHWC, [@CMX_NN, 0]>
+    }
+
+    VPURT.Task updates(%inputs_ready : !VPURT.Barrier) {
+      VPUIP.NNDMA {port = 0}
+        inputs(%weights_constant : memref<16x1x1x16x!qtype, #NHWC, @DDR>)
+        outputs(%weights1 : memref<16x1x1x16x!qtype, #NHWC, [@CMX_NN, 1]>)
+        -> memref<16x1x1x16x!qtype, #NHWC, [@CMX_NN, 1]>
     }
 
     VPURT.Task updates(%inputs_ready : !VPURT.Barrier) {
       VPUIP.NNDMA {port = 0}
         inputs(%weight_table_constant : memref<16x1x1x4xsi32, #NHWC, @DDR>)
-        outputs(%weight_table : memref<16x1x1x4xsi32, #NHWC, @CMX_NN>)
-        -> memref<16x1x1x4xsi32, #NHWC, @CMX_NN>
+        outputs(%weight_table0 : memref<16x1x1x4xsi32, #NHWC, [@CMX_NN, 0]>)
+        -> memref<16x1x1x4xsi32, #NHWC, [@CMX_NN, 0]>
+    }
+
+    VPURT.Task updates(%inputs_ready : !VPURT.Barrier) {
+      VPUIP.NNDMA {port = 0}
+        inputs(%weight_table_constant : memref<16x1x1x4xsi32, #NHWC, @DDR>)
+        outputs(%weight_table1 : memref<16x1x1x4xsi32, #NHWC, [@CMX_NN, 1]>)
+        -> memref<16x1x1x4xsi32, #NHWC, [@CMX_NN, 1]>
     }
 
     VPURT.Task waits(%inputs_ready : !VPURT.Barrier) updates(%conv_complete : !VPURT.Barrier) {
@@ -110,13 +128,13 @@ module @dual_tile attributes {VPU.arch = "VPUX37XX", VPU.compilationMode = "Defa
           kernel_strides = [1, 1],
           task_type = "CONV"
         }
-        input(%input_0 : memref<1x16x16x16x!qtype, #NHWC, @CMX_NN>)
-        weights(%weights : memref<16x1x1x16x!qtype, #NHWC, @CMX_NN>)
-        weight_table(%weight_table : memref<16x1x1x4xsi32, #NHWC, @CMX_NN>)
-        parent_input(%parent_input_0 : memref<1x16x16x16x!qtype, #NHWC, @CMX_NN>)
-        parent_output(%parent_output_0 : memref<1x16x16x16xf16, #NHWC, @CMX_NN>)
-        outputs(%output_0 : memref<1x16x16x16xf16, #NHWC, @CMX_NN>)
-        -> memref<1x16x16x16xf16, #NHWC, @CMX_NN>
+        input(%input_0 : memref<1x16x16x16x!qtype, #NHWC, [@CMX_NN, 0]>)
+        weights(%weights0 : memref<16x1x1x16x!qtype, #NHWC, [@CMX_NN, 0]>)
+        weight_table(%weight_table0 : memref<16x1x1x4xsi32, #NHWC, [@CMX_NN, 0]>)
+        parent_input(%parent_input_0 : memref<1x16x16x16x!qtype, #NHWC, [@CMX_NN, 0]>)
+        parent_output(%parent_output_0 : memref<1x16x16x16xf16, #NHWC, [@CMX_NN, 0]>)
+        outputs(%output_0 : memref<1x16x16x16xf16, #NHWC, [@CMX_NN, 0]>)
+        -> memref<1x16x16x16xf16, #NHWC, [@CMX_NN, 0]>
         variants : {
           DPUTask {
             end = [15, 15, 15],
@@ -136,13 +154,13 @@ module @dual_tile attributes {VPU.arch = "VPUX37XX", VPU.compilationMode = "Defa
           kernel_strides = [1, 1],
           task_type = "CONV"
         }
-        input(%input_1 : memref<1x16x16x16x!qtype, #NHWC, @CMX_NN>)
-        weights(%weights : memref<16x1x1x16x!qtype, #NHWC, @CMX_NN>)
-        weight_table(%weight_table : memref<16x1x1x4xsi32, #NHWC, @CMX_NN>)
-        parent_input(%parent_input_1 : memref<1x16x16x16x!qtype, #NHWC, @CMX_NN>)
-        parent_output(%parent_output_1 : memref<1x16x16x16xf16, #NHWC, @CMX_NN>)
-        outputs(%output_1 : memref<1x16x16x16xf16, #NHWC, @CMX_NN>)
-        -> memref<1x16x16x16xf16, #NHWC, @CMX_NN>
+        input(%input_1 : memref<1x16x16x16x!qtype, #NHWC, [@CMX_NN, 1]>)
+        weights(%weights1 : memref<16x1x1x16x!qtype, #NHWC, [@CMX_NN, 1]>)
+        weight_table(%weight_table1 : memref<16x1x1x4xsi32, #NHWC, [@CMX_NN, 1]>)
+        parent_input(%parent_input_1 : memref<1x16x16x16x!qtype, #NHWC, [@CMX_NN, 1]>)
+        parent_output(%parent_output_1 : memref<1x16x16x16xf16, #NHWC, [@CMX_NN, 1]>)
+        outputs(%output_1 : memref<1x16x16x16xf16, #NHWC, [@CMX_NN, 1]>)
+        -> memref<1x16x16x16xf16, #NHWC, [@CMX_NN, 1]>
         variants : {
           DPUTask {
             end = [15, 15, 15],
@@ -157,14 +175,14 @@ module @dual_tile attributes {VPU.arch = "VPUX37XX", VPU.compilationMode = "Defa
 
     VPURT.Task waits(%conv_complete : !VPURT.Barrier) updates(%output_ready : !VPURT.Barrier) {
       VPUIP.NNDMA {port = 0}
-        inputs(%output_0 : memref<1x16x16x16xf16, #NHWC, @CMX_NN>)
+        inputs(%output_0 : memref<1x16x16x16xf16, #NHWC, [@CMX_NN, 0]>)
         outputs(%output_ddr_0 : memref<1x16x16x16xf16, #NHWC, @DDR>)
         -> memref<1x16x16x16xf16, #NHWC, @DDR>
     }
 
     VPURT.Task waits(%conv_complete : !VPURT.Barrier) updates(%output_ready : !VPURT.Barrier) {
       VPUIP.NNDMA {port = 0}
-        inputs(%output_1 : memref<1x16x16x16xf16, #NHWC, @CMX_NN>)
+        inputs(%output_1 : memref<1x16x16x16xf16, #NHWC, [@CMX_NN, 1]>)
         outputs(%output_ddr_1 : memref<1x16x16x16xf16, #NHWC, @DDR>)
         -> memref<1x16x16x16xf16, #NHWC, @DDR>
     }

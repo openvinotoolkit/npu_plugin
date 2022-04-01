@@ -124,7 +124,7 @@ void buildDWConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp modu
 
     // weights cmx tensor
     auto wtData_cmx_type =
-            getMemRefType(VPURT::BufferSection::CMX_NN, wt_data_shape_padded, weightsType, DimsOrder::NHWC);
+            getMemRefType(VPURT::BufferSection::CMX_NN, 0, wt_data_shape_padded, weightsType, DimsOrder::NHWC);
     auto wtData_cmx = createDeclareTensorOp(funcbuilder, wtData_cmx_type, VPURT::BufferSection::CMX_NN,
                                             /*locale index=*/0,
                                             /*data idx=*/WEIGHTS_CMX_OFFSET);
@@ -133,11 +133,11 @@ void buildDWConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp modu
     const auto ACTIVATIONWINDOW_CMX_OFFSET = WEIGHTS_CMX_OFFSET + weight_padded_totalsize;
 
     // input - output cmx tensors
-    auto inputcmx_type = getMemRefType(VPURT::BufferSection::CMX_NN, in_shape, inputType, DimsOrder::NHWC);
+    auto inputcmx_type = getMemRefType(VPURT::BufferSection::CMX_NN, 0, in_shape, inputType, DimsOrder::NHWC);
     auto inputcmx =
             createDeclareTensorOp(funcbuilder, inputcmx_type, VPURT::BufferSection::CMX_NN, 0, INPUT_CMX_OFFSET);
 
-    auto outputcmx_type = getMemRefType(VPURT::BufferSection::CMX_NN, out_shape, outputType, DimsOrder::NHWC);
+    auto outputcmx_type = getMemRefType(VPURT::BufferSection::CMX_NN, 0, out_shape, outputType, DimsOrder::NHWC);
     auto outputcmx =
             createDeclareTensorOp(funcbuilder, outputcmx_type, VPURT::BufferSection::CMX_NN, 0, OUTPUT_CMX_OFFSET);
 
@@ -188,7 +188,7 @@ void buildDWConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp modu
 
     // Activation Window cmx
     auto actWindow_cmx_type =
-            getMemRefType(VPURT::BufferSection::CMX_NN, sparsity_shape, sparsity_type, DimsOrder::NHWC);
+            getMemRefType(VPURT::BufferSection::CMX_NN, 0, sparsity_shape, sparsity_type, DimsOrder::NHWC);
     auto actWindow_cmx =
             createDeclareTensorOp(funcbuilder, actWindow_cmx_type, VPURT::BufferSection::CMX_NN, /*locale index=*/0,
                                   /*data idx=*/ACTIVATIONWINDOW_CMX_OFFSET);
@@ -230,7 +230,7 @@ void buildDWConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp modu
                                                  Const::ContentAttr::get(wtTbl_data_vals).reorder(DimsOrder::NHWC));
 
     // weights table cmx tensor
-    auto wtTbl_cmx_type = getMemRefType(VPURT::BufferSection::CMX_NN, wtTbl_data_shape,
+    auto wtTbl_cmx_type = getMemRefType(VPURT::BufferSection::CMX_NN, 0, wtTbl_data_shape,
                                         builder.getIntegerType(32, /*isSigned=*/true), DimsOrder::NHWC);
     const auto WEIGHTSTABLE_CMX_OFFSET = ACTIVATIONWINDOW_CMX_OFFSET + activationwindow_totalsize_bytes;
 

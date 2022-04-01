@@ -550,10 +550,14 @@ void ClusterDMARewriter::unrollSegmentedOrOverlapped(mlir::Location loc, VPUIP::
         auto section = declBuff.section();
         auto sectionIndex = declBuff.sectionIndex();
 
+        const auto symbolAttr = vpux::IndexedSymbolAttr::get(_ctx, stringifyEnum(VPURT::getMemoryKind(section)));
+        newType = newType.changeMemSpace(symbolAttr);
+
         if (sectionIndex.hasValue()) {
             return rewriter.create<VPURT::DeclareBufferOp>(loc, newType, section, sectionIndex.getValue(),
                                                            ddrOffset.count());
         }
+
         return rewriter.create<VPURT::DeclareBufferOp>(loc, newType, section, ddrOffset.count());
     };
 

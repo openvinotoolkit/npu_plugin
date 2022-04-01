@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/core/feasible_memory_scheduler.hpp"
 
 #include "vpux/compiler/core/profiling.hpp"
@@ -32,11 +30,11 @@ using operationIdxType = FeasibleMemoryScheduler::operationIdxType;
 // 2. Unscheduling operations: freeing CMX space and updating dependencies, creating new ready
 //      operations which will be allocated at the next time slot.
 
-FeasibleMemoryScheduler::FeasibleMemoryScheduler(mlir::Attribute& memSpace, MemLiveRangeInfo& liveRangeInfo,
+FeasibleMemoryScheduler::FeasibleMemoryScheduler(VPU::MemoryKind memKind, MemLiveRangeInfo& liveRangeInfo,
                                                  AsyncDepsInfo& depsInfo, AliasesInfo& aliasInfo, Logger log,
                                                  LinearScan<mlir::Value, LinearScanHandler>& scan)
         : _log(log),
-          _memSpace(memSpace),
+          _memKind(memKind),
           _liveRangeInfo(liveRangeInfo),
           _depsInfo(depsInfo),
           _aliasInfo(aliasInfo),
@@ -115,9 +113,9 @@ bool FeasibleMemoryScheduler::isDataOp(operationIdxType opIdx) {
 
         if (copyOp) {
             // DMA from DDR to NN_CMX
-            auto srcMemSpace = copyOp.input().getType().cast<vpux::NDTypeInterface>().getMemSpace();
-            auto dstMemSpace = copyOp.output().getType().cast<vpux::NDTypeInterface>().getMemSpace();
-            return (_memSpace == dstMemSpace && _memSpace != srcMemSpace);
+            auto srcMemSpace = copyOp.input().getType().cast<vpux::NDTypeInterface>().getMemoryKind();
+            auto dstMemSpace = copyOp.output().getType().cast<vpux::NDTypeInterface>().getMemoryKind();
+            return (_memKind == dstMemSpace && _memKind != srcMemSpace);
         }
     }
 
@@ -153,8 +151,8 @@ bool FeasibleMemoryScheduler::isCopyOutOp(operationIdxType opIdx) {
         }
 
         if (copyOp) {
-            auto dstMemSpace = copyOp.output().getType().cast<vpux::NDTypeInterface>().getMemSpace();
-            return _memSpace != dstMemSpace;
+            auto dstMemSpace = copyOp.output().getType().cast<vpux::NDTypeInterface>().getMemoryKind();
+            return _memKind != dstMemSpace;
         }
     }
 
@@ -224,7 +222,7 @@ bool FeasibleMemoryScheduler::isComputeOpWithSomeActiveInputs(operationIdxType o
                           rootBuffers.size());
         const auto rootBuffer = *rootBuffers.begin();
         const auto type = rootBuffer.getType().cast<vpux::NDTypeInterface>();
-        if (type.getMemSpace() != _memSpace) {
+        if (type.getMemoryKind() != _memKind) {
             continue;
         }
         if (_scan.handler().isAlive(rootBuffer)) {
@@ -244,7 +242,7 @@ vpux::AddressType FeasibleMemoryScheduler::calculateOpSize(operationIdxType opId
             auto outputs = mlir::dyn_cast<IERT::LayerOpInterface>(op).getOutputs();
             for (const auto& output : outputs) {
                 const auto type = output.getType().dyn_cast<vpux::NDTypeInterface>();
-                if (type == nullptr || type.getMemSpace() != _memSpace) {
+                if (type == nullptr || type.getMemoryKind() != _memKind) {
                     continue;
                 }
                 opSize += _scan.handler().getSize(output);
@@ -252,7 +250,7 @@ vpux::AddressType FeasibleMemoryScheduler::calculateOpSize(operationIdxType opId
             auto inputs = mlir::dyn_cast<IERT::LayerOpInterface>(op).getInputs();
             for (const auto& input : inputs) {
                 const auto type = input.getType().dyn_cast<vpux::NDTypeInterface>();
-                if (type == nullptr || type.getMemSpace() != _memSpace) {
+                if (type == nullptr || type.getMemoryKind() != _memKind) {
                     continue;
                 }
                 opSize += _scan.handler().getSize(input);
@@ -425,7 +423,7 @@ SmallVector<mlir::Value> FeasibleMemoryScheduler::getNonAliveBuffersUsedByOperat
         const auto rootBuffer = *rootBuffers.begin();
 
         const auto type = rootBuffer.getType().cast<vpux::NDTypeInterface>();
-        if (type.getMemSpace() != _memSpace || _scan.handler().isAlive(rootBuffer)) {
+        if (type.getMemoryKind() != _memKind || _scan.handler().isAlive(rootBuffer)) {
             continue;
         }
         operationBuffers.push_back(rootBuffer);
@@ -557,7 +555,7 @@ size_t FeasibleMemoryScheduler::allocateBuffersAndInputOps(operationIdxType opId
     // allocate buffers using LinearScan
     _log.nest().trace("Allocate memory for the alive buffers");
     VPUX_THROW_UNLESS(_scan.alloc(sortedBuffers, false, allocDir), "Failed to statically allocate '{0}' memory",
-                      _memSpace);
+                      _memKind);
 
     // Check if any of operation input dependencies have been scheduled
     // in the same scheduler iteration. In such case delay might need to be adjusted
@@ -937,8 +935,8 @@ void FeasibleMemoryScheduler::populateScheduledOps(HeapElement& scheduledOp) {
                     // Track input resources. SPILL READ has only output resource
                     mlir::DenseSet<mlir::Value> inputBuffers;
                     for (auto input : layerOp.getInputs()) {
-                        const auto type = input.getType().dyn_cast<mlir::MemRefType>();
-                        if (type == nullptr || type.getMemorySpace() != _memSpace) {
+                        const auto type = input.getType().dyn_cast<vpux::NDTypeInterface>();
+                        if (type == nullptr || type.getMemoryKind() != _memKind) {
                             continue;
                         }
 
@@ -972,7 +970,7 @@ void FeasibleMemoryScheduler::populateScheduledOps(HeapElement& scheduledOp) {
                 // Track output resources
                 for (auto output : layerOp.getOutputs()) {
                     const auto type = output.getType().dyn_cast<vpux::NDTypeInterface>();
-                    if (type == nullptr || type.getMemSpace() != _memSpace) {
+                    if (type == nullptr || type.getMemoryKind() != _memKind) {
                         continue;
                     }
 

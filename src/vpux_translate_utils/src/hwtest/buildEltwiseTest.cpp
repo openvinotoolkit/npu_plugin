@@ -68,15 +68,15 @@ void buildEltwiseAdd(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp 
     auto funcoutput = func.getArgument(2);
 
     // input - output cmx tensors
-    auto inputcmx_type = getMemRefType(VPURT::BufferSection::CMX_NN, in_shape, inputType, DimsOrder::NHWC);
+    auto inputcmx_type = getMemRefType(VPURT::BufferSection::CMX_NN, 0, in_shape, inputType, DimsOrder::NHWC);
     auto inputcmx =
             createDeclareTensorOp(funcbuilder, inputcmx_type, VPURT::BufferSection::CMX_NN, 0, INPUT0_CMX_OFFSET);
 
-    auto weightscmx_type = getMemRefType(VPURT::BufferSection::CMX_NN, weights_shape, weightsType, DimsOrder::NHWC);
+    auto weightscmx_type = getMemRefType(VPURT::BufferSection::CMX_NN, 0, weights_shape, weightsType, DimsOrder::NHWC);
     auto weightscmx =
             createDeclareTensorOp(funcbuilder, weightscmx_type, VPURT::BufferSection::CMX_NN, 0, INPUT1_CMX_OFFSET);
 
-    auto outputcmx_type = getMemRefType(VPURT::BufferSection::CMX_NN, out_shape, outputType, DimsOrder::NHWC);
+    auto outputcmx_type = getMemRefType(VPURT::BufferSection::CMX_NN, 0, out_shape, outputType, DimsOrder::NHWC);
     auto outputcmx =
             createDeclareTensorOp(funcbuilder, outputcmx_type, VPURT::BufferSection::CMX_NN, 0, OUTPUT_CMX_OFFSET);
 

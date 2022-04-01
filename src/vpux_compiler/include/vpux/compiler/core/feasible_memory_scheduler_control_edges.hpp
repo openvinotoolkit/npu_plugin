@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #pragma once
 
 #include "vpux/compiler/core/async_deps_info.hpp"
@@ -24,7 +22,7 @@ namespace vpux {
 //
 class FeasibleMemorySchedulerControlEdges final {
 public:
-    explicit FeasibleMemorySchedulerControlEdges(mlir::Attribute memSpace, AsyncDepsInfo& depsInfo,
+    explicit FeasibleMemorySchedulerControlEdges(VPU::MemoryKind memKind, AsyncDepsInfo& depsInfo,
                                                  AliasesInfo& aliasInfo, Logger log,
                                                  LinearScan<mlir::Value, LinearScanHandler>& scan);
 
@@ -48,7 +46,7 @@ public:
 private:
     Logger _log;
     // first level mem space
-    mlir::Attribute _memSpace;
+    VPU::MemoryKind _memKind;
     // dependencies of ops
     AsyncDepsInfo& _depsInfo;
     // aliases information for buffers

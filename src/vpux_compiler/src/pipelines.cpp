@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/pipelines.hpp"
 
 #include "vpux/compiler/conversion.hpp"
@@ -35,8 +33,8 @@ namespace {
 //
 
 template <VPU::MemoryKind KIND>
-IndexedSymbolAttr getMemSpace(mlir::MLIRContext* ctx, StringRef) {
-    return IndexedSymbolAttr::get(VPU::MemoryKindAttr::get(ctx, KIND));
+mlir::Optional<VPU::MemoryKind> getMemKind(StringRef) {
+    return KIND;
 }
 
 VPU::ArchKind getArchKind(const StrOption& archKind) {
@@ -92,14 +90,14 @@ void vpux::buildReferenceSWModePipeline(mlir::OpPassManager& pm, const Reference
 
     // Level 2 : Abstract RunTime
 
-    pm.addPass(IERT::createSetInternalMemorySpacePass(getMemSpace<VPU::MemoryKind::DDR>, log));
+    pm.addPass(IERT::createSetInternalMemorySpacePass(getMemKind<VPU::MemoryKind::DDR>, log));
 
     pm.addPass(IERT::createCopyOpTilingPass(log));
     pm.addPass(mlir::createCanonicalizerPass(grc));
 
     IERT::buildAsyncSchedulingPipeline(pm, log);
 
-    pm.addPass(IERT::createStaticAllocationPass(getMemSpace<VPU::MemoryKind::DDR>, log));
+    pm.addPass(IERT::createStaticAllocationPass(getMemKind<VPU::MemoryKind::DDR>, log));
     pm.addPass(IERT::createLinearizationPass(log));
     pm.addPass(IERT::createOptimizeAsyncDepsPass(log));
 
@@ -213,23 +211,23 @@ void vpux::buildReferenceHWModePipeline(mlir::OpPassManager& pm, const Reference
 
     // Level 2 : Abstract RunTime
 
-    pm.addPass(IERT::createSetInternalMemorySpacePass(getMemSpace<VPU::MemoryKind::DDR>, log));
+    pm.addPass(IERT::createSetInternalMemorySpacePass(getMemKind<VPU::MemoryKind::DDR>, log));
 
     pm.addPass(IERT::createCopyOpTilingPass(log));
     pm.addPass(mlir::createCanonicalizerPass(grc));
 
     if (options.enableProfiling && options.enableDPUProfiling) {
-        pm.addPass(IERT::createDPUProfilingPass(getMemSpace<VPU::MemoryKind::CMX_NN>, log));
+        pm.addPass(IERT::createDPUProfilingPass(getMemKind<VPU::MemoryKind::CMX_NN>, log));
     }
 
     IERT::buildAsyncSchedulingPipeline(pm, log);
 
     if (options.enableProfiling && options.enableDMAProfiling) {
-        pm.addPass(IERT::createDMATaskProfilingPass(getMemSpace<VPU::MemoryKind::CMX_NN>, log));
+        pm.addPass(IERT::createDMATaskProfilingPass(getMemKind<VPU::MemoryKind::CMX_NN>, log));
     }
 
-    pm.addPass(IERT::createStaticAllocationPass(getMemSpace<VPU::MemoryKind::CMX_NN>, log));
-    pm.addPass(IERT::createStaticAllocationPass(getMemSpace<VPU::MemoryKind::DDR>, log));
+    pm.addPass(IERT::createStaticAllocationPass(getMemKind<VPU::MemoryKind::CMX_NN>, log));
+    pm.addPass(IERT::createStaticAllocationPass(getMemKind<VPU::MemoryKind::DDR>, log));
     pm.addPass(IERT::createLinearizationPass(log));
     pm.addPass(IERT::createOptimizeAsyncDepsPass(log));
 
@@ -366,7 +364,7 @@ void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOp
 
     // Level 2 : Abstract RunTime
 
-    pm.addPass(IERT::createSetInternalMemorySpacePass(getMemSpace<VPU::MemoryKind::DDR>, log));
+    pm.addPass(IERT::createSetInternalMemorySpacePass(getMemKind<VPU::MemoryKind::DDR>, log));
 
     if (options.enableOptimizeCopies) {
         pm.addPass(IERT::createOptimizeCopiesPass(log));
@@ -378,23 +376,23 @@ void vpux::buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOp
     pm.addPass(mlir::createCanonicalizerPass(grc));
 
     if (options.enableProfiling && options.enableDPUProfiling) {
-        pm.addPass(IERT::createDPUProfilingPass(getMemSpace<VPU::MemoryKind::CMX_NN>, log));
+        pm.addPass(IERT::createDPUProfilingPass(getMemKind<VPU::MemoryKind::CMX_NN>, log));
     }
 
     IERT::buildAsyncSchedulingPipeline(pm, log);
 
     if (options.enableProfiling && options.enableDMAProfiling) {
-        pm.addPass(IERT::createDMATaskProfilingPass(getMemSpace<VPU::MemoryKind::CMX_NN>, log));
+        pm.addPass(IERT::createDMATaskProfilingPass(getMemKind<VPU::MemoryKind::CMX_NN>, log));
     }
 
-    pm.addPass(IERT::createFeasibleAllocationPass(getMemSpace<VPU::MemoryKind::CMX_NN>,
-                                                  getMemSpace<VPU::MemoryKind::DDR>, log));
+    pm.addPass(IERT::createFeasibleAllocationPass(getMemKind<VPU::MemoryKind::CMX_NN>, getMemKind<VPU::MemoryKind::DDR>,
+                                                  log));
 
     if (options.enableGroupAsyncExecuteOps) {
         pm.addPass(IERT::createGroupAsyncExecuteOpsPass(log));
     }
 
-    pm.addPass(IERT::createStaticAllocationPass(getMemSpace<VPU::MemoryKind::DDR>, log));
+    pm.addPass(IERT::createStaticAllocationPass(getMemKind<VPU::MemoryKind::DDR>, log));
     pm.addPass(IERT::createOptimizeAsyncDepsPass(log));
 
     pm.addPass(IERT::createBreakDataFlowPass(log));

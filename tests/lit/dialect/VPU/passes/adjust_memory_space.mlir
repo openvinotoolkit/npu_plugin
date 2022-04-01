@@ -17,17 +17,17 @@ func @ConvNCEtoCMX(%arg0: tensor<1x16x16x16xf16, {order = #NHWC}>) -> tensor<1x1
     // CHECK:       [[WEIGHTS_DDR:%.+]] = const.Declare tensor<16x16x1x1xf16, {order = #NHWC}>
     // CHECK:       [[WEIGHTS_TABLE_DDR:%.+]] = const.Declare tensor<16x1x1x4xsi32, {order = #NHWC}>
 
-    // CHECK:       [[IN_CMX:%.+]] = IE.Copy(%arg0) {out_mem_space = @CMX_NN}
-    // CHECK-SAME:      -> tensor<1x16x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>
-    // CHECK:       [[WEIGHTS_CMX:%.+]] = IE.Copy([[WEIGHTS_DDR]]) {out_mem_space = @CMX_NN}
-    // CHECK-SAME:      -> tensor<16x16x1x1xf16, {mem_space = @CMX_NN, order = #NHWC}>
-    // CHECK:       [[WEIGHTS_TABLE_CMX:%.+]] = IE.Copy([[WEIGHTS_TABLE_DDR]]) {out_mem_space = @CMX_NN}
-    // CHECK-SAME:      -> tensor<16x1x1x4xsi32, {mem_space = @CMX_NN, order = #NHWC}>
+    // CHECK:       [[IN_CMX:%.+]] = IE.Copy(%arg0) {out_mem_space = [@CMX_NN, 0]}
+    // CHECK-SAME:      -> tensor<1x16x16x16xf16, {mem_space = [@CMX_NN, 0], order = #NHWC}>
+    // CHECK:       [[WEIGHTS_CMX:%.+]] = IE.Copy([[WEIGHTS_DDR]]) {out_mem_space = [@CMX_NN, 0]}
+    // CHECK-SAME:      -> tensor<16x16x1x1xf16, {mem_space = [@CMX_NN, 0], order = #NHWC}>
+    // CHECK:       [[WEIGHTS_TABLE_CMX:%.+]] = IE.Copy([[WEIGHTS_TABLE_DDR]]) {out_mem_space = [@CMX_NN, 0]}
+    // CHECK-SAME:      -> tensor<16x1x1x4xsi32, {mem_space = [@CMX_NN, 0], order = #NHWC}>
 
     // CHECK:       [[OUT_CMX:%.+]] = VPU.NCE.Convolution([[IN_CMX]], [[WEIGHTS_CMX]], [[WEIGHTS_TABLE_CMX]])
     // CHECK-SAME:      pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}
     // CHECK-SAME:      strides = [1, 1]
-    // CHECK-SAME:      -> tensor<1x16x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>
+    // CHECK-SAME:      -> tensor<1x16x16x16xf16, {mem_space = [@CMX_NN, 0], order = #NHWC}>
 
     // CHECK:       [[OUT_DDR:%.+]] = IE.Copy([[OUT_CMX]])
     // CHECK-SAME:      -> tensor<1x16x16x16xf16, {order = #NHWC}>
@@ -57,20 +57,20 @@ func @DepthConvNCEtoCMX(%arg0: tensor<1x16x40x80xf16, {order = #NHWC}>) -> tenso
     // CHECK:       [[WEIGHTS_TABLE_DDR:%.+]] = const.Declare tensor<16x1x1x4xsi32, {order = #NHWC}>
     // CHECK:       [[ACTIVATION_WINDOW_DDR:%.+]] = const.Declare tensor<1x1x1x16xui8, {order = #NHWC}>
 
-    // CHECK:       [[IN_CMX:%.+]] = IE.Copy(%arg0) {out_mem_space = @CMX_NN}
-    // CHECK-SAME:      -> tensor<1x16x40x80xf16, {mem_space = @CMX_NN, order = #NHWC}>
-    // CHECK:       [[WEIGHTS_CMX:%.+]] = IE.Copy([[WEIGHTS_DDR]]) {out_mem_space = @CMX_NN}
-    // CHECK-SAME:      -> tensor<16x1x4x8xf16, {mem_space = @CMX_NN, order = #NHWC}>
-    // CHECK:       [[WEIGHTS_TABLE_CMX:%.+]] = IE.Copy([[WEIGHTS_TABLE_DDR]]) {out_mem_space = @CMX_NN}
-    // CHECK-SAME:      -> tensor<16x1x1x4xsi32, {mem_space = @CMX_NN, order = #NHWC}>
-    // CHECK:       [[ACTIVATION_WINDOW_CMX:%.+]] = IE.Copy([[ACTIVATION_WINDOW_DDR]]) {out_mem_space = @CMX_NN}
-    // CHECK-SAME:      -> tensor<1x1x1x16xui8, {mem_space = @CMX_NN, order = #NHWC}>
+    // CHECK:       [[IN_CMX:%.+]] = IE.Copy(%arg0) {out_mem_space = [@CMX_NN, 0]}
+    // CHECK-SAME:      -> tensor<1x16x40x80xf16, {mem_space = [@CMX_NN, 0], order = #NHWC}>
+    // CHECK:       [[WEIGHTS_CMX:%.+]] = IE.Copy([[WEIGHTS_DDR]]) {out_mem_space = [@CMX_NN, 0]}
+    // CHECK-SAME:      -> tensor<16x1x4x8xf16, {mem_space = [@CMX_NN, 0], order = #NHWC}>
+    // CHECK:       [[WEIGHTS_TABLE_CMX:%.+]] = IE.Copy([[WEIGHTS_TABLE_DDR]]) {out_mem_space = [@CMX_NN, 0]}
+    // CHECK-SAME:      -> tensor<16x1x1x4xsi32, {mem_space = [@CMX_NN, 0], order = #NHWC}>
+    // CHECK:       [[ACTIVATION_WINDOW_CMX:%.+]] = IE.Copy([[ACTIVATION_WINDOW_DDR]]) {out_mem_space = [@CMX_NN, 0]}
+    // CHECK-SAME:      -> tensor<1x1x1x16xui8, {mem_space = [@CMX_NN, 0], order = #NHWC}>
 
     // CHECK:       [[OUT_CMX:%.+]] = VPU.NCE.DepthConvolution([[IN_CMX]], [[WEIGHTS_CMX]], [[WEIGHTS_TABLE_CMX]], [[ACTIVATION_WINDOW_CMX]])
     // CHECK-SAME:      activation_window_channel_length = 44 : i64,
     // CHECK-SAME:      pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}
     // CHECK-SAME:      strides = [1, 1]
-    // CHECK-SAME:      -> tensor<1x16x37x73xf16, {mem_space = @CMX_NN, order = #NHWC}>
+    // CHECK-SAME:      -> tensor<1x16x37x73xf16, {mem_space = [@CMX_NN, 0], order = #NHWC}>
 
     // CHECK:       [[OUT_DDR:%.+]] = IE.Copy([[OUT_CMX]])
     // CHECK-SAME:      -> tensor<1x16x37x73xf16, {order = #NHWC}>
@@ -98,17 +98,17 @@ func @MaxPoolNCEtoCMX(%arg0: tensor<1x16x1x4xf16, {order = #NHWC}>) -> tensor<1x
     // CHECK:       [[WEIGHTS_DDR:%.+]] = const.Declare tensor<16x1x1x4xsi32, {order = #NHWC}>
     // CHECK:       [[WEIGHTS_TABLE_DDR:%.+]] = const.Declare tensor<1x1x1x16xui8, {order = #NHWC}>
 
-    // CHECK:       [[IN_CMX:%.+]] = IE.Copy(%arg0) {out_mem_space = @CMX_NN}
-    // CHECK-SAME:      -> tensor<1x16x1x4xf16, {mem_space = @CMX_NN, order = #NHWC}>
-    // CHECK:       [[WEIGHTS_CMX:%.+]] = IE.Copy([[WEIGHTS_DDR]]) {out_mem_space = @CMX_NN}
-    // CHECK-SAME:      -> tensor<16x1x1x4xsi32, {mem_space = @CMX_NN, order = #NHWC}>
-    // CHECK:       [[WEIGHTS_TABLE_CMX:%.+]] = IE.Copy([[WEIGHTS_TABLE_DDR]]) {out_mem_space = @CMX_NN}
-    // CHECK-SAME:      -> tensor<1x1x1x16xui8, {mem_space = @CMX_NN, order = #NHWC}>
+    // CHECK:       [[IN_CMX:%.+]] = IE.Copy(%arg0) {out_mem_space = [@CMX_NN, 0]}
+    // CHECK-SAME:      -> tensor<1x16x1x4xf16, {mem_space = [@CMX_NN, 0], order = #NHWC}>
+    // CHECK:       [[WEIGHTS_CMX:%.+]] = IE.Copy([[WEIGHTS_DDR]]) {out_mem_space = [@CMX_NN, 0]}
+    // CHECK-SAME:      -> tensor<16x1x1x4xsi32, {mem_space = [@CMX_NN, 0], order = #NHWC}>
+    // CHECK:       [[WEIGHTS_TABLE_CMX:%.+]] = IE.Copy([[WEIGHTS_TABLE_DDR]]) {out_mem_space = [@CMX_NN, 0]}
+    // CHECK-SAME:      -> tensor<1x1x1x16xui8, {mem_space = [@CMX_NN, 0], order = #NHWC}>
 
     // CHECK:       [[OUT_CMX:%.+]] = VPU.NCE.MaxPool([[IN_CMX]], [[WEIGHTS_CMX]], [[WEIGHTS_TABLE_CMX]])
     // CHECK-SAME:      pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}
     // CHECK-SAME:      strides = [1, 1]
-    // CHECK-SAME:      -> tensor<1x16x1x4xf16, {mem_space = @CMX_NN, order = #NHWC}>
+    // CHECK-SAME:      -> tensor<1x16x1x4xf16, {mem_space = [@CMX_NN, 0], order = #NHWC}>
 
     // CHECK:       [[OUT_DDR:%.+]] = IE.Copy([[OUT_CMX]])
     // CHECK-SAME:      -> tensor<1x16x1x4xf16, {order = #NHWC}>
@@ -129,14 +129,14 @@ func @EltwiseAddNCEtoCMX(%arg0: tensor<1x64x28x28xf16, {order = #NHWC}>,
 
     return %0 : tensor<1x64x28x28xf16, {order = #NHWC}>
 
-    // CHECK:       [[IN1_CMX:%.+]] = IE.Copy(%arg0) {out_mem_space = @CMX_NN}
-    // CHECK-SAME:      -> tensor<1x64x28x28xf16, {mem_space = @CMX_NN, order = #NHWC}>
-    // CHECK:       [[IN2_CMX:%.+]] = IE.Copy(%arg1) {out_mem_space = @CMX_NN}
-    // CHECK-SAME:      -> tensor<1x64x28x28xf16, {mem_space = @CMX_NN, order = #NHWC}>
+    // CHECK:       [[IN1_CMX:%.+]] = IE.Copy(%arg0) {out_mem_space = [@CMX_NN, 0]}
+    // CHECK-SAME:      -> tensor<1x64x28x28xf16, {mem_space = [@CMX_NN, 0], order = #NHWC}>
+    // CHECK:       [[IN2_CMX:%.+]] = IE.Copy(%arg1) {out_mem_space = [@CMX_NN, 0]}
+    // CHECK-SAME:      -> tensor<1x64x28x28xf16, {mem_space = [@CMX_NN, 0], order = #NHWC}>
 
     // CHECK:       [[OUT_CMX:%.+]] = VPU.NCE.Eltwise([[IN1_CMX]], [[IN2_CMX]])
     // CHECK-SAME:      op_type = "ADD"
-    // CHECK-SAME:      -> tensor<1x64x28x28xf16, {mem_space = @CMX_NN, order = #NHWC}>
+    // CHECK-SAME:      -> tensor<1x64x28x28xf16, {mem_space = [@CMX_NN, 0], order = #NHWC}>
 
     // CHECK:       [[OUT_DDR:%.+]] = IE.Copy([[OUT_CMX]])
     // CHECK-SAME:      -> tensor<1x64x28x28xf16, {order = #NHWC}>
@@ -156,12 +156,12 @@ func @EltwiseAndSameInputsNCEtoCMX(%arg0: tensor<1x64x28x28xf16, {order = #NHWC}
 
     return %0 : tensor<1x64x28x28xf16, {order = #NHWC}>
 
-    // CHECK:       [[IN_CMX:%.+]] = IE.Copy(%arg0) {out_mem_space = @CMX_NN}
-    // CHECK-SAME:      -> tensor<1x64x28x28xf16, {mem_space = @CMX_NN, order = #NHWC}>
+    // CHECK:       [[IN_CMX:%.+]] = IE.Copy(%arg0) {out_mem_space = [@CMX_NN, 0]}
+    // CHECK-SAME:      -> tensor<1x64x28x28xf16, {mem_space = [@CMX_NN, 0], order = #NHWC}>
 
     // CHECK:       [[OUT_CMX:%.+]] = VPU.NCE.Eltwise([[IN_CMX]], [[IN_CMX]])
     // CHECK-SAME:      op_type = "AND"
-    // CHECK-SAME:      -> tensor<1x64x28x28xf16, {mem_space = @CMX_NN, order = #NHWC}>
+    // CHECK-SAME:      -> tensor<1x64x28x28xf16, {mem_space = [@CMX_NN, 0], order = #NHWC}>
 
     // CHECK:       [[OUT_DDR:%.+]] = IE.Copy([[OUT_CMX]])
     // CHECK-SAME:      -> tensor<1x64x28x28xf16, {order = #NHWC}>

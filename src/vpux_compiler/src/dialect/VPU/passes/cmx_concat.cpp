@@ -96,7 +96,7 @@ private:
     ConcatPattern getOutputPattern(IE::ConcatOp concat);
     IE::SliceOp convertCopyToSlice(IE::CopyOp copyOp);
     void rewriteInputPattern(ConcatPattern& concatPattern);
-    void rewriteOutputPattern(ConcatPattern& concatPattern);
+    void rewriteOutputPattern(mlir::MLIRContext* ctx, ConcatPattern& concatPattern);
 };
 
 size_t CMXConcatPass::ConcatPattern::getSize(mlir::Value val) const {
@@ -394,7 +394,7 @@ void CMXConcatPass::rewriteInputPattern(ConcatPattern& concatPattern) {
     }
 }
 
-void CMXConcatPass::rewriteOutputPattern(ConcatPattern& concatPattern) {
+void CMXConcatPass::rewriteOutputPattern(mlir::MLIRContext* ctx, ConcatPattern& concatPattern) {
     /*
                             From DDR IR
 
@@ -413,18 +413,19 @@ void CMXConcatPass::rewriteOutputPattern(ConcatPattern& concatPattern) {
          |        |
         NCE      NCE
     */
+    const auto memSpaceCMX = IndexedSymbolAttr::get(ctx, stringifyEnum(MemoryKind::CMX_NN), 0);
     for (auto concatPart : concatPattern.concatParts) {
         log.nest(1).trace("Removing output Copy from DDR to NNCMX '{0}' at '{1}'", concatPart.copyOp->getName(),
                           concatPart.copyOp->getLoc());
         // change memory space for concat output
         const auto origType = concatPattern.concat.output().getType().cast<vpux::NDTypeInterface>();
-        const auto newType = origType.changeMemSpace(VPU::MemoryKind::CMX_NN);
+        const auto newType = origType.changeMemSpace(memSpaceCMX);
         concatPattern.concat.output().setType(newType);
         // and for slice op
         if (concatPart.hasSliceOp()) {
             concatPart.sliceOp.source().setType(newType);
             const auto sliceOrigType = concatPart.sliceOp.result().getType().cast<vpux::NDTypeInterface>();
-            const auto sliceNewType = sliceOrigType.changeMemSpace(VPU::MemoryKind::CMX_NN);
+            const auto sliceNewType = sliceOrigType.changeMemSpace(memSpaceCMX);
             concatPart.sliceOp.result().setType(sliceNewType);
         }
         // remove the copy out op
@@ -433,6 +434,7 @@ void CMXConcatPass::rewriteOutputPattern(ConcatPattern& concatPattern) {
 }
 
 void CMXConcatPass::safeRunOnFunc() {
+    auto& ctx = getContext();
     auto func = getFunction();
     auto module = func->getParentOfType<mlir::ModuleOp>();
 
@@ -463,7 +465,7 @@ void CMXConcatPass::safeRunOnFunc() {
         }
         // rewrite from DDR to NNCMX
         rewriteInputPattern(inputPattern);
-        rewriteOutputPattern(outputPattern);
+        rewriteOutputPattern(&ctx, outputPattern);
         log.trace("Concat '{0}' at '{1}' was cmx-ed", concat->getName(), concat->getLoc());
     });
 }

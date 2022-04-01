@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #pragma once
 
 #include "vpux/compiler/core/async_deps_info.hpp"
@@ -26,8 +24,8 @@ namespace vpux {
 //
 class FeasibleMemorySchedulerSpilling final {
 public:
-    explicit FeasibleMemorySchedulerSpilling(mlir::FuncOp netFunc, IndexedSymbolAttr memSpace,
-                                             IndexedSymbolAttr secondLvlMemSpace, AsyncDepsInfo& depsInfo,
+    explicit FeasibleMemorySchedulerSpilling(mlir::FuncOp netFunc, VPU::MemoryKind memKind,
+                                             Optional<VPU::MemoryKind> secondLvlMemKind, AsyncDepsInfo& depsInfo,
                                              AliasesInfo& aliasInfo, Logger log,
                                              LinearScan<mlir::Value, LinearScanHandler>& scan);
 
@@ -81,9 +79,9 @@ private:
 private:
     Logger _log;
     // first level mem space
-    IndexedSymbolAttr _memSpace;
+    VPU::MemoryKind _memKind;
     // second level mem space which is used for spilling
-    IndexedSymbolAttr _secondLvlMemSpace;
+    mlir::Optional<VPU::MemoryKind> _secondLvlMemKind;
     // dependencies of ops
     AsyncDepsInfo& _depsInfo;
     // aliases information for buffers

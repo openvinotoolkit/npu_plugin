@@ -66,11 +66,11 @@ void buildMaxPool(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp mod
     auto funcoutput = func.getArgument(1);
 
     // input - output cmx tensors
-    auto input0cmx_type = getMemRefType(VPURT::BufferSection::CMX_NN, in_shape, inputType, DimsOrder::NHWC);
+    auto input0cmx_type = getMemRefType(VPURT::BufferSection::CMX_NN, 0, in_shape, inputType, DimsOrder::NHWC);
     auto input0cmx =
             createDeclareTensorOp(funcbuilder, input0cmx_type, VPURT::BufferSection::CMX_NN, 0, INPUT0_CMX_OFFSET);
 
-    auto outputcmx_type = getMemRefType(VPURT::BufferSection::CMX_NN, out_shape, outputType, DimsOrder::NHWC);
+    auto outputcmx_type = getMemRefType(VPURT::BufferSection::CMX_NN, 0, out_shape, outputType, DimsOrder::NHWC);
     auto outputcmx =
             createDeclareTensorOp(funcbuilder, outputcmx_type, VPURT::BufferSection::CMX_NN, 0, OUTPUT_CMX_OFFSET);
 
@@ -114,7 +114,7 @@ void buildMaxPool(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp mod
     auto activationwindow_totalsize_bytes = activationwindow_totalsize * elemType.getIntOrFloatBitWidth() / CHAR_BIT;
 
     // Activation Window cmx
-    auto actWindow_cmx_type = getMemRefType(VPURT::BufferSection::CMX_NN, sparsity_shape, elemType, DimsOrder::NHWC);
+    auto actWindow_cmx_type = getMemRefType(VPURT::BufferSection::CMX_NN, 0, sparsity_shape, elemType, DimsOrder::NHWC);
     auto actWindow_cmx = createDeclareTensorOp(funcbuilder, actWindow_cmx_type, VPURT::BufferSection::CMX_NN, 0,
                                                ACTIVATIONWINDOW_CMX_OFFSET);
 
@@ -142,7 +142,7 @@ void buildMaxPool(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp mod
     // weights table cmx tensor
 
     const auto WEIGHTSTABLE_CMX_OFFSET = ACTIVATIONWINDOW_CMX_OFFSET + activationwindow_totalsize_bytes;
-    auto wtTbl_cmx_type = getMemRefType(VPURT::BufferSection::CMX_NN, wtTbl_data_shape,
+    auto wtTbl_cmx_type = getMemRefType(VPURT::BufferSection::CMX_NN, 0, wtTbl_data_shape,
                                         builder.getIntegerType(32, true), DimsOrder::NHWC);
     auto wtTbl_cmx = createDeclareTensorOp(funcbuilder, wtTbl_cmx_type, VPURT::BufferSection::CMX_NN, 0,
                                            WEIGHTSTABLE_CMX_OFFSET);

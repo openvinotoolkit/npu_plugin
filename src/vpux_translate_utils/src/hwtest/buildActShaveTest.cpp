@@ -58,12 +58,12 @@ void buildActShave(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp mo
     const auto inputcmx_offset = 0;
     const auto outputcmx_offset = inputcmx_offset + totalTensorSize(inShape, inputType);
 
-    auto inputcmx_type = getMemRefType(VPURT::BufferSection::CMX_NN, inShape, inputType, DimsOrder::NHWC);
+    auto inputcmx_type = getMemRefType(VPURT::BufferSection::CMX_NN, 0, inShape, inputType, DimsOrder::NHWC);
 
     vpux::VPURT::DeclareBufferOp inputcmx =
             createDeclareTensorOp(funcbuilder, inputcmx_type, VPURT::BufferSection::CMX_NN, 0, inputcmx_offset);
 
-    auto outputcmx_type = getMemRefType(VPURT::BufferSection::CMX_NN, outShape, outputType, DimsOrder::NHWC);
+    auto outputcmx_type = getMemRefType(VPURT::BufferSection::CMX_NN, 0, outShape, outputType, DimsOrder::NHWC);
     vpux::VPURT::DeclareBufferOp outputcmx =
             createDeclareTensorOp(funcbuilder, outputcmx_type, VPURT::BufferSection::CMX_NN, 0, outputcmx_offset);
 
