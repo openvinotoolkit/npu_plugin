@@ -107,7 +107,7 @@ typedef struct __vcl_profiling_properties_t {
 typedef enum __vcl_paltform_t {
     VCL_PLATFORM_UNKNOWN = -1,
 
-    VCL_PLATFORM_VPU3400,  ///< KMB B0 400 MHz
+    VCL_PLATFORM_VPU3400,  ///< KMB B0 500 MHz
     VCL_PLATFORM_VPU3700,  ///< KMB B0 700 MHz
     VCL_PLATFORM_VPU3720,  ///< VPUX37XX
 
