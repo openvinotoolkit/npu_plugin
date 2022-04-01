@@ -1067,7 +1067,7 @@ int8_t StrategyManagerSimple::checkHWUnsupportedOp(mv::Op& op)
 
 void StrategyManagerSimple::generateStrategySetForLayer(mv::Op& op,std::vector<StrategySet>& strategyVec)
 {
-    auto findStrategy = [](std::vector<Attribute>& vec,const std::string& str) ->bool { for(const auto elem : vec) if(str==elem.get<std::string>()) return true; return false;};
+    auto findStrategy = [](std::vector<Attribute>& vec,const std::string& str) ->bool { for(const auto& elem : vec) if(str==elem.get<std::string>()) return true; return false;};
     int8_t success = checkHWUnsupportedOp(op);
     if (success != 0)
     {

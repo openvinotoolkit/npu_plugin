@@ -1890,7 +1890,7 @@ namespace mv
 }
 
 template <class T_size>
-mv::detail::unique_element_class<T_size>::~unique_element_class()
+mv::detail::unique_element_class<T_size>::~unique_element_class<T_size>()
 {
 
 }

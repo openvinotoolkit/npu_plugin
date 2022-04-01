@@ -167,8 +167,8 @@ void MetaGraph::addNewLevel(Op& op,
             latestLevel.level.push_back(internalGraph_.node_insert(newSet[strategyCtr]));
         }
 
-        for(const auto oldNode : lastLevel.level){
-            for(const auto newNode : latestLevel.level)
+        for(const auto& oldNode : lastLevel.level){
+            for(const auto& newNode : latestLevel.level)
             {
                 double edgeCost = cost(*lastLevel.op,*latestLevel.op, *oldNode, *newNode);
                 if (edgeCost == numeric_limits<double>::infinity())
@@ -403,7 +403,7 @@ void MetaGraph::solve()
                 foundPath = true;
 
             //todo:: do we really need to always copy this? but indeed we need to inherit existing edges
-            for(const auto edge : criticalEdges)
+            for(const auto& edge : criticalEdges)
             {
                 const auto& edgeCriPath = (*edge).criticalPaths();
                 criticalNodes->insert(criticalNodes->end(),edgeCriPath.begin(),edgeCriPath.end());
@@ -522,7 +522,7 @@ void MetaGraph::write(string dotFileLocation,bool skipInf)
                     + nodeName + "_" + to_string(nodeId)
                     + "</B></FONT></TD></TR>";
 
-        for(const auto strategy : (*node))
+        for(const auto& strategy : (*node))
         {
             nodeDef += "<TR><TD ALIGN=\"LEFT\"><FONT POINT-SIZE=\"11.0\">"
                         + strategy.first

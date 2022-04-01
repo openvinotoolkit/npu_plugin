@@ -146,7 +146,7 @@ void fuseConstantsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, m
                     for (auto dt_idx = 0UL; dt_idx < inputTensor->getDType().getSizeInBits()/8; ++dt_idx)
                     {
                         populatedU8Data.at(dt_idx + i * inputTensor->getDType().getSizeInBits()/8) = 
-                            (populatedData.at(i) >> shiftForU8Conversion(dt_idx));
+                            (static_cast<int64_t>(populatedData.at(i)) >> shiftForU8Conversion(dt_idx));
                     }
                 }
                 fusedData.insert(fusedData.end(), populatedU8Data.begin(), populatedU8Data.end());
@@ -272,7 +272,7 @@ void populateAsU8ConstantSubTensors(mv::Data::TensorIterator& populatedTensor, m
             for (auto d_t_indx = 0UL; d_t_indx < populatedTensor->getDType().getSizeInBits()/8; ++d_t_indx)
             {
                 fusedConstantData->getSubTensor(sub_idx).at(d_t_indx + p_t_idx * populatedTensor->getDType().getSizeInBits()/8 + fusedClusterOffsets.at(sub_idx)) =
-                    (populatedTensor->getSubTensor(sub_idx).at(p_t_idx) >> shiftForU8Conversion(d_t_indx));
+                    (static_cast<int64_t>(populatedTensor->getSubTensor(sub_idx).at(p_t_idx)) >> shiftForU8Conversion(d_t_indx));
             }
         }
     }
@@ -312,7 +312,7 @@ void repopulateFusedConstantsFcn(const mv::pass::PassEntry&, mv::ComputationMode
                                 //NOTE: the idea is that i shift so many times in order to go the useful field of weights
                                 //table in the last 8 significant bits and then keep them
                                 fusedConstantData->at(i * weightsTable->getDType().getSizeInBits()/8 + dt_idx) =
-                                        (weightsTable->at(i) >> shiftForU8Conversion(dt_idx));
+                                        (static_cast<int64_t>(weightsTable->at(i)) >> shiftForU8Conversion(dt_idx));
                             }
                         }
                     }
@@ -344,7 +344,7 @@ void repopulateFusedConstantsFcn(const mv::pass::PassEntry&, mv::ComputationMode
                                 for (auto dt_idx = 0UL; dt_idx < weightTensor->getDType().getSizeInBits()/8; ++dt_idx)
                                 {
                                     fusedConstantData->getSubTensor(sub_idx).at(dt_idx + weight_idx * weightTensor->getDType().getSizeInBits()/8 + fusedClusterOffsets.at(sub_idx)) = 
-                                        (populatedData.at(weight_idx) >> shiftForU8Conversion(dt_idx));
+                                        (static_cast<int64_t>(populatedData.at(weight_idx)) >> shiftForU8Conversion(dt_idx));
                                 }
                             }
                         }

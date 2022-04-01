@@ -143,9 +143,7 @@ protected:
     std::vector<int> genReferenceIntFunction() const;
     std::vector<std::vector<PWLFunction::CostlySegment>> genCostFunction(const std::vector<int> & refIntFunction) const;
 };
-// float->float functions supported
-template class PWLFit<float>;
-template class PWLFit<double>;
 
 using PWLFloatFit = PWLFit<float>;
 using PWLDoubleFit = PWLFit<double>;
+

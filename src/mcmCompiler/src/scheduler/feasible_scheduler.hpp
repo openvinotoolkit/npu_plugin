@@ -1133,6 +1133,7 @@ class Feasible_Memory_Schedule_Generator {
         is_relocated_ = o.is_relocated_;
         return *this;
       }
+      active_result_info_t(const active_result_info_t&) = default;
 
       operation_t op_;
       operation_t parent_op_;
@@ -1235,7 +1236,7 @@ class Feasible_Memory_Schedule_Generator {
     //TODO(vamsikku): the purpose of a eviction policy is to choose the
     //minimum active operation for eviction.
     struct default_eviction_policy_t {
-      bool operator()(const operation_t& a, const operation_t& b) const {
+      bool operator()(const operation_t&, const operation_t&) const {
         return false;
       }
     }; // struct default_eviction_policy_t //
@@ -2134,7 +2135,7 @@ class Feasible_Memory_Schedule_Generator {
     // Try to make space for this operation by evicting all active inputs which
     // don't belong to this op.
     // TODO(vamsikku):
-    bool force_schedule_op(const operation_t& op) { return false; }
+    bool force_schedule_op(const operation_t&) { return false; }
 
     bool is_compute_op(const operation_t& op) const {
       return traits::is_compute_operation(*input_ptr_, op);

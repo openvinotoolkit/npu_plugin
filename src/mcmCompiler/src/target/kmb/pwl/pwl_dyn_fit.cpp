@@ -354,3 +354,8 @@ std::vector<int>  PWLFit<Tx, Ty> :: genReferenceIntFunction() const {
 
     return ref;
 }
+
+// float->float functions supported
+template class PWLFit<float>;
+template class PWLFit<double>;
+

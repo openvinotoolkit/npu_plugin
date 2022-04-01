@@ -65,7 +65,7 @@ struct Symbol
         std::ostringstream name;
         for (unsigned int i=0; i<symbol.size(); ++i)
         {
-            name << std::setfill('0') << std::setw(2) << std::hex << ((int) symbol[i] && 0xFF);
+            name << std::setfill('0') << std::setw(2) << std::hex << ((int) symbol[i] & 0xFF);
         }
         return name.str();
     }

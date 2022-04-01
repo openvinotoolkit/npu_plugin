@@ -223,7 +223,6 @@ namespace mv
             edge_iterator;
 
         MV_PROFILED_FUNCTION(MV_PROFILE_ALGO)
-        size_t input_edges = graphEdgeCount(g);
         std::map<typename graph<T_node, T_edge>::node_list_iterator, size_t, 
             NodeItComparator> nodeLevels;
         std::map<size_t, std::list<edge_iterator> > ordered_edges;

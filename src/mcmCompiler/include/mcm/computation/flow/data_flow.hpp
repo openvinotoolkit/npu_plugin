@@ -34,7 +34,7 @@ namespace mv
         /*DataFlow(mv::json::Value& value);
         DataFlow(mv::json::Value& value, const Data::TensorIterator& data);*/
         Data::TensorIterator getTensor();
-        std::string toString() const;
+        std::string toString() const override;
         //json::Value toJsonValue() const;
         std::string getLogID() const override;
 

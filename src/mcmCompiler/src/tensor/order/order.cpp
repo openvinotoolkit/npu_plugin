@@ -73,7 +73,7 @@ const std::unordered_map<std::size_t, std::string> mv::Order::ZMajorID_ =
 };
 
 mv::Order::Order(const std::string& value)
-   :Order([this, value]()->Order
+   :Order([value]()->Order
     {
 
         if(!OrderRegistry::checkOrder(value))

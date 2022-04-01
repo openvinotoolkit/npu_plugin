@@ -30,7 +30,7 @@ namespace mv
         ControlFlow(ComputationModel& model, detailControlFlow::OpListIterator source, detailControlFlow::OpListIterator sink);
          ~ControlFlow();
         //ControlFlow(mv::json::Value& value);
-        std::string toString() const;
+        std::string toString() const override;
         //json::Value toJsonValue() const;
         std::string getLogID() const override;
     };

@@ -151,13 +151,13 @@ static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& p
                 std::vector<std::size_t> ndims(4);
                 if (isPooling || isDepthWiseConv)
                 {
-                    bitpattern = std::move(createBitPattern(kernelW, kernelH, windowsSize, 1));
+                    bitpattern = createBitPattern(kernelW, kernelH, windowsSize, 1);
                     perChannelSparsity.resize(static_cast<std::size_t>(std::ceil(bitpattern.size() / 128.0)) * 16);//allocate once
                     ndims = {16 * static_cast<std::size_t>(std::ceil(bitpattern.size() / 128.0)), 1, 1, inputChannels};
                 }
                 else //isChannelMajorConvolution
                 {
-                    bitpattern = std::move(createBitPattern(kernelW, kernelH, windowsSize, inputChannels));
+                    bitpattern = createBitPattern(kernelW, kernelH, windowsSize, inputChannels);
                     auto windowSparsitySize = static_cast<std::size_t>(std::ceil(windowsSize/8.0)); //how many bytes we need per window
                     auto NumberOfRowsSparistyBytes = static_cast<std::size_t>(std::ceil((kernelH * inputChannels * windowSparsitySize) / 16.0 ));
                     perChannelSparsity.resize(NumberOfRowsSparistyBytes * 16);//allocate once
@@ -258,9 +258,9 @@ static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& p
 
                     //every element of sparsity map describes 8 elements of normal tensor
                     auto mapShape = mv::Shape({w,
-                                            {inputTensor->getShape()[mv::IO_HEIGHT_DIMENSION]},
-                                            {inputTensor->getShape()[mv::IO_CHANNEL_DIMENSION]/8},
-                                            {1}});
+                                            inputTensor->getShape()[mv::IO_HEIGHT_DIMENSION],
+                                            inputTensor->getShape()[mv::IO_CHANNEL_DIMENSION]/8,
+                                            1});
                     std::vector<int64_t> unpopulatedSparsityMapData(mapShape.totalSize(), 255);
                     std::string unpopulatedSparsityMapName = dpuTask->getName() +
                         "activation_map_" + std::to_string(tidx);
@@ -278,10 +278,10 @@ static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& p
                     dpuTask->set<std::vector<size_t>>("unpopulatedSparsityMapIndex", smTensorIdx);
 
                     mv::Shape storageElementShape =
-                        mv::Shape({{inputTensor->getShape()[mv::IO_WIDTH_DIMENSION]},
-                            {inputTensor->getShape()[mv::IO_HEIGHT_DIMENSION]},
-                            {1},
-                            {1}});
+                        mv::Shape({inputTensor->getShape()[mv::IO_WIDTH_DIMENSION],
+                            inputTensor->getShape()[mv::IO_HEIGHT_DIMENSION],
+                            1,
+                            1});
                     std::vector<int64_t> storageElementData(storageElementShape.totalSize(), 0);
                     std::string storageElementName = dpuTask->getName() +
                         "storage_element_map" + std::to_string(tidx);
@@ -308,10 +308,10 @@ static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& p
                 //every element of sparsity map describes 8 elements of normal tensor
                 //TODO re-use sparsity map if possible?
                 // if the sparsity map should only be the size of the "sub conv input tensor" then change this in future
-                auto mapShape = mv::Shape({{inputTensorShape[mv::IO_WIDTH_DIMENSION]},
-                                           {inputTensorShape[mv::IO_HEIGHT_DIMENSION]},
-                                           {inputTensorShape[mv::IO_CHANNEL_DIMENSION]/8},
-                                           {1}});
+                auto mapShape = mv::Shape({inputTensorShape[mv::IO_WIDTH_DIMENSION],
+                                           inputTensorShape[mv::IO_HEIGHT_DIMENSION],
+                                           inputTensorShape[mv::IO_CHANNEL_DIMENSION]/8,
+                                           1});
 
                 std::vector<int64_t> unpopulatedSparsityMapData(mapShape.totalSize(), 255); // 255 converts to all 1's in SM
                 std::string unpopulatedSparsityMapName = dpuTask->getName() + "activation_map";
@@ -329,10 +329,10 @@ static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& p
                 // Here we generate a storage element pointer table of all 0's for the dilated conv case
                 // The logic to generate SEPs for dilated conv should be added in weight_tables.cpp - function populateActivationStorageElementMapForDilatedConvolution()
 
-                mv::Shape storageElementShape = mv::Shape({{inputTensorShape[mv::IO_WIDTH_DIMENSION]},
-                                                           {inputTensorShape[mv::IO_HEIGHT_DIMENSION]},
-                                                           {1},
-                                                           {1}});
+                mv::Shape storageElementShape = mv::Shape({inputTensorShape[mv::IO_WIDTH_DIMENSION],
+                                                           inputTensorShape[mv::IO_HEIGHT_DIMENSION],
+                                                           1,
+                                                           1});
                 std::vector<int64_t> storageElementData(storageElementShape.totalSize(), 0);
                 std::string storageElementName = dpuTask->getName() + "storage_element_map";
                 auto storageElement = om.constantInt(storageElementName, storageElementData, storageElementShape, mv::DType("Int32"), mv::Order("NHWC"));
@@ -363,10 +363,10 @@ static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& p
                 //every element of sparsity map describes 8 elements of normal tensor
                 //TODO re-use sparsity map if possible?
                 // if the sparsity map should only be the size of the "sub conv input tensor" then change this in future
-                auto mapShape = mv::Shape({{inputTensorShape[mv::IO_WIDTH_DIMENSION]},
-                                           {inputTensorShape[mv::IO_HEIGHT_DIMENSION]},
-                                           {inputTensorShape[mv::IO_CHANNEL_DIMENSION]/8},
-                                           {1}});
+                auto mapShape = mv::Shape({inputTensorShape[mv::IO_WIDTH_DIMENSION],
+                                           inputTensorShape[mv::IO_HEIGHT_DIMENSION],
+                                           inputTensorShape[mv::IO_CHANNEL_DIMENSION]/8,
+                                           1});
 
                 std::vector<int64_t> unpopulatedSparsityMapData(mapShape.totalSize(), 255); // 255 converts to all 1's in SM
                 std::string unpopulatedSparsityMapName = dpuTask->getName() + "activation_map";
@@ -384,10 +384,10 @@ static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& p
                 // Here we generate a storage element pointer table of all 0's for the InterpNN case
                 // The logic to generate SEPs for InterpNN should be added in weight_tables.cpp - function populateActivationStorageElementMapForInterpNN()
 
-                mv::Shape storageElementShape = mv::Shape({{inputTensorShape[mv::IO_WIDTH_DIMENSION]},
-                                                           {inputTensorShape[mv::IO_HEIGHT_DIMENSION]},
-                                                           {1},
-                                                           {1}});
+                mv::Shape storageElementShape = mv::Shape({inputTensorShape[mv::IO_WIDTH_DIMENSION],
+                                                           inputTensorShape[mv::IO_HEIGHT_DIMENSION],
+                                                           1,
+                                                           1});
                 std::vector<int64_t> storageElementData(storageElementShape.totalSize(), 0);
                 std::string storageElementName = dpuTask->getName() + "storage_element_map";
                 auto storageElement = om.constantInt(storageElementName, storageElementData, storageElementShape, mv::DType("Int32"), mv::Order("NHWC"));

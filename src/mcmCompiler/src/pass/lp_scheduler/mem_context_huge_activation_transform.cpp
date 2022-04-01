@@ -35,13 +35,10 @@ class Find_Mem_Contextable_Sequence {
 
     ////////////////////////////////////////////////////////////////////////////
     Find_Mem_Contextable_Sequence(mv::OpModel& model,
-        size_t peak_threshold, size_t valley_threshold, size_t upper_bound,
-        bool enable_cmx_concat_in_dag=false,
-        bool enable_inplace_eltwise_in_dag=false)
+        size_t peak_threshold, size_t valley_threshold, size_t upper_bound)
       : model_(model), peak_threshold_(peak_threshold),
         valley_threshold_(valley_threshold), upper_bound_(upper_bound),
-        edge_set_(), enable_cmx_concat_in_dag_(enable_cmx_concat_in_dag),
-        enable_inplace_eltwise_in_dag_(enable_inplace_eltwise_in_dag)
+        edge_set_()
     {}
 
     struct peak_valley_chain_subgraph_t {
@@ -351,8 +348,6 @@ class Find_Mem_Contextable_Sequence {
     size_t valley_threshold_; // min //
     size_t upper_bound_;
     edge_set_t edge_set_;
-    bool enable_cmx_concat_in_dag_;
-    bool enable_inplace_eltwise_in_dag_;
     ////////////////////////////////////////////////////////////////////////////
 };  // class Find_Mem_Contextable_Sequence //
 
@@ -370,7 +365,6 @@ void MemContextForHugeActivations(const mv::pass::PassEntry&,
   double peak_percent = 0.5;
   double valley_percent = 0.25;
   size_t max_context_chain_size = 3UL;
-  bool enable_cmx_concat_in_dag=false, enable_inplace_eltwise_in_dag=false;
 
   if (passDesc.hasAttr("max_context_chain_size")) {
     max_context_chain_size =
@@ -401,8 +395,7 @@ void MemContextForHugeActivations(const mv::pass::PassEntry&,
       size_t( std::ceil(valley_percent*double(cmx_upper_bound)) );
 
   Find_Mem_Contextable_Sequence ctx_finder(omodel, peak_size, valley_size,
-        cmx_upper_bound, enable_cmx_concat_in_dag,
-        enable_inplace_eltwise_in_dag);
+        cmx_upper_bound);
 
   // precondition check //
   if (!ctx_finder.is_model_precondition_valid()) {

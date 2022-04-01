@@ -47,8 +47,8 @@ class Control_Model_Barrier_Scheduler {
     struct noop_output_iterator_t {
       noop_output_iterator_t() {}
       template<typename T>
-      void operator=(const T& o) {}
-      void operator++(void) {}
+      void operator=(const T&) {}
+      void operator++() {}
     }; // struct noop_output_iterator_t //
 
     // One transition structure for each physical barrier //

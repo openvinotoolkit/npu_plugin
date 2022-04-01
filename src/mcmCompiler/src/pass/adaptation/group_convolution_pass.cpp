@@ -63,8 +63,8 @@ void handleGroupConvolutionFcn(const mv::pass::PassEntry&, mv::ComputationModel&
             mv::Shape weightsGroupShape = {weightTensor->getShape()[mv::KERNEL_WIDTH],
                                    weightTensor->getShape()[mv::KERNEL_HEIGHT],
                                    weightTensor->getShape()[mv::KERNEL_INPUT_CHANNELS], weightsGroupSize};
-            mv::Shape groupBegin = {{0},{0},{0},{0}};
-            mv::Shape weightsGroupBegin = {{0},{0},{0},{0}};
+            mv::Shape groupBegin = {0,0,0,0};
+            mv::Shape weightsGroupBegin = {0,0,0,0};
             std::vector< mv::Data::TensorIterator> convOutputs = {};
             mv::Data::TensorIterator biasTensor;
             mv::QuantizationParams inputQuantParams  = inputTensor->getQuantParams();
@@ -78,7 +78,7 @@ void handleGroupConvolutionFcn(const mv::pass::PassEntry&, mv::ComputationModel&
                 std::string weightSliceName = convOp->getName() + "weightSlice" + std::to_string(branchId);
                 std::string convName = convOp->getName() + "_" + sliceName;
                 std::string biasName = mv::createBiasName(convName + "bias");
-                groupBegin = {{0},{0},{branchId * inputGroupSize},{0}};
+                groupBegin = {0,0,branchId * inputGroupSize,0};
                 auto slice = om.slice(sliceName,
                                       inputTensor,
                                       groupBegin,
@@ -87,7 +87,7 @@ void handleGroupConvolutionFcn(const mv::pass::PassEntry&, mv::ComputationModel&
 
                 om.getSourceOp(slice)->set<unsigned>("opId", convOp->get<unsigned>("opId"));
 
-                weightsGroupBegin = {{0},{0},{0},{branchId * weightsGroupSize}};
+                weightsGroupBegin = {0,0,0,branchId * weightsGroupSize};
 
                 // weight quant params need to be divided if they are per channel
                 // same as weight tensor is divided along channel axis

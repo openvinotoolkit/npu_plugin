@@ -2295,8 +2295,9 @@ void ConvertNode(const std::shared_ptr<ngraph::Node> op, mv::OpModel& mcmModel, 
             IE_THROW() << "Convertor not found for operation: " << op->get_friendly_name();
         }
     } else {
+        const auto& r = *op.get();
         IE_THROW() << "Unsupported operation: " << op->get_friendly_name() << " with name " << op->get_name()
-                   << " with type " << op->get_type_name() << " with C++ type " << typeid(*op.get()).name();
+                   << " with type " << op->get_type_name() << " with C++ type " << typeid(r).name();
     }
 }
 

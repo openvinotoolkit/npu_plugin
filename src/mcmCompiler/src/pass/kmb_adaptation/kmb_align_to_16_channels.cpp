@@ -180,8 +180,8 @@ static void alignBiasTensor(mv::Data::OpListIterator &opIt, const mv::Data::Tens
         auto newBiasTensor = dm.defineTensor(mv::createAlignConstantName(biasTensorName), {biasTensorSizePadded}, biasTensorDType, mv::Order("W"), newData);
         newBiasTensor->setQuantParams(biasTensorQuantizationParams);
 
-        for(unsigned i = 0; i < biasTensorSize; ++i)
-            newBiasTensor->at({i}) = biasTensor->at({i});
+        for(std::size_t i = 0; i < biasTensorSize; ++i)
+            newBiasTensor->at(i) = biasTensor->at(i);
 
         dm.undefineTensor(biasTensorName);
         opIt->erase("bias");

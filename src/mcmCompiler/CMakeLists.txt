@@ -27,8 +27,10 @@ if(MSVC)
 else()
     add_compile_options("-Wall" "-Wextra" "-Wshadow" "-Wnon-virtual-dtor" "-pedantic" "-fstack-protector-all")
 
-    # TODO: check if we really need this.
-    add_compile_options(--no-gnu-unique)
+    if(CMAKE_GNU_COMPILER_ID)
+        # TODO: check if we really need this.
+        add_compile_options(--no-gnu-unique)
+    endif()
     # FIXME: this flag is forced while building in a single tree with OV
     # but code cannot be compiled with the flag
     add_compile_options("-Wno-error=suggest-override")

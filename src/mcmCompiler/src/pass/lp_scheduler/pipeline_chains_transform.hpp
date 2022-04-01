@@ -823,7 +823,7 @@ class Pipeline_Chains {
     }
 
     template<typename ControlEdgeOutput, typename SubGraphContainer>
-    void transform_op_model_old(ControlEdgeOutput output,
+    void transform_op_model_old(ControlEdgeOutput,
         SubGraphContainer& chain_subgraphs, FILE *fptr=stdout) {
 
       static_assert( std::is_same<chain_subgraph_t,
@@ -906,7 +906,7 @@ class Pipeline_Chains {
         }
 
         auto prev_dpu_itr = curr_dpu_itr;
-        operation_t pseudo_tail = chain_head, curr_pseudo_op;
+        operation_t pseudo_tail = chain_head;
         for (++curr_dpu_itr, ++curr_weights_itr; curr_dpu_itr!=dpu_chain.end();
              ++curr_dpu_itr, ++curr_weights_itr, ++prev_dpu_itr) {
           mv::Data::TensorIterator tail_output_tensor_itr =

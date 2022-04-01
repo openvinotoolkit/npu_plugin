@@ -1430,7 +1430,7 @@ std::vector<std::unique_ptr<MVCNN::TaskListT>> mv::RuntimeModel::buildTaskListT(
     if (targetEmulator_(compilationDescriptor))
     {
         const auto ops = om.topologicalSort();
-        for (const auto op : ops){
+        for (const auto& op : ops){
             if (op->getOpType() != "ImplicitOutput" &&
                 op->getOpType() != "ImplicitInput" &&
                 op->getOpType() != "ImplicitInputSlice" &&
@@ -2039,7 +2039,7 @@ void mv::RuntimeModel::adaptFakeSparsityIndex(
     {
         {
             "Conv",
-            [seTensorIdx, smTensorIdx, clusterId](
+            [seTensorIdx, smTensorIdx](
                     std::unique_ptr<MVCNN::NCEInvariantFieldsT>& inv1,
                     Control::OpListIterator opIt1) {
                 inv1->input_data->data->storage_element_index =
@@ -2832,9 +2832,9 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPASoftmaxTask(ComputationModel& c
 
     toBuild->softLayerParams.value = softLayerParamsValue;
 
-    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input)));
+    toBuild->inputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, input));
 
-    toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
+    toBuild->outputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, output));
 
     return toBuild;
 }
@@ -2856,9 +2856,9 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPALeakyReluTask(ComputationModel&
     softLayerParamsValue->nested_params.value = leakyReluParams;
      toBuild->softLayerParams.value = softLayerParamsValue;
 
-    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input)));
+    toBuild->inputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, input));
 
-    toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
+    toBuild->outputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, output));
 
     return toBuild;
 }
@@ -2873,8 +2873,8 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPASigmoidTask(ComputationModel& c
     softLayerParamsValue->nested_params.type = MVCNN::PostOpsNestedParams_SigmoidParams;
     toBuild->softLayerParams.value = softLayerParamsValue;
 
-    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input)));
-    toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
+    toBuild->inputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, input));
+    toBuild->outputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, output));
 
     return toBuild;
 }
@@ -2896,8 +2896,8 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAClampTask(ComputationModel &cm,
 
     toBuild->softLayerParams.value = softLayerParamsValue;
 
-    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input)));
-    toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
+    toBuild->inputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, input));
+    toBuild->outputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, output));
 
     return toBuild;
 }
@@ -2916,10 +2916,10 @@ MVCNN::UPALayerTaskT *mv::RuntimeModel::buildUPANormalizeTask(ComputationModel &
     softLayerParamsValue->channel_shared = static_cast<int32_t>(opIt->get<unsigned>("channel_shared"));
 
     toBuild->softLayerParams.value = softLayerParamsValue;
-    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input)));
+    toBuild->inputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, input));
 
-    toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
-    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(1))));
+    toBuild->outputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, output));
+    toBuild->inputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(1)));
 
     return toBuild;
 }
@@ -2951,11 +2951,11 @@ MVCNN::UPALayerTaskT *mv::RuntimeModel::buildUPAProposalTask(ComputationModel &c
     auto ratio_vector = opIt->get<std::vector<float>>("ratio");
 
     // Fill in tensors
-    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, cls_pred)));
-    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, bbox_pred)));
-    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, im_info)));
+    toBuild->inputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, cls_pred));
+    toBuild->inputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, bbox_pred));
+    toBuild->inputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, im_info));
 
-    toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
+    toBuild->outputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, output));
 
     // Fill in required params
     softLayerParamsValue->ratio = std::move(ratio_vector);
@@ -2996,10 +2996,10 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAROIPoolingTask(ComputationModel
     auto output = opIt->getOutputTensor(0);
 
     // Fill in tensors
-    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input)));
-    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, coords)));
+    toBuild->inputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, input));
+    toBuild->inputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, coords));
 
-    toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
+    toBuild->outputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, output));
 
     // Fill in required params
     softLayerParamsValue->pooled_w = opIt->get<unsigned>("pooled_w");
@@ -3024,10 +3024,10 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAPSROIPoolingTask(ComputationMod
     auto coords = opIt->getInputTensor(1);
     auto output = opIt->getOutputTensor(0);
 
-    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input)));
-    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, coords)));
+    toBuild->inputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, input));
+    toBuild->inputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, coords));
 
-    toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
+    toBuild->outputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, output));
 
     softLayerParamsValue->output_dim    = opIt->get<std::size_t>("output_dim");
     softLayerParamsValue->group_size    = opIt->get<std::size_t>("group_size");
@@ -3067,8 +3067,8 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAInterpTask(ComputationModel& cm
     auto output = opIt->getOutputTensor(0);
 
     // Fill in tensors
-    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input)));
-    toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
+    toBuild->inputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, input));
+    toBuild->outputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, output));
 
     // Fill in required params
     softLayerParamsValue->pad_beg = opIt->get<unsigned>("pad_beg");
@@ -3114,8 +3114,8 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAInterpolateTask(ComputationMode
     softLayerParamsValue->align_corners = softLayerParamsValue->coordTransformMode == coordTransformModeMap.find("align_corners")->second;
 
     // Fill in tensors
-    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input)));
-    toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
+    toBuild->inputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, input));
+    toBuild->outputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, output));
     toBuild->softLayerParams.value = softLayerParamsValue.release();
 
     return toBuild.release();
@@ -3139,9 +3139,9 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAReverseSequenceTask(Computation
     toBuild->softLayerParams.value = softLayerParamsValue.release();
 
     // Fill in tensors
-    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input)));
-    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, length)));
-    toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
+    toBuild->inputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, input));
+    toBuild->inputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, length));
+    toBuild->outputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, output));
 
     return toBuild.release();
 }
@@ -3158,8 +3158,8 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPANormTask(ComputationModel& cm, 
     auto output = opIt->getOutputTensor(0);
 
     // Fill in tensors
-    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input)));
-    toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
+    toBuild->inputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, input));
+    toBuild->outputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, output));
 
     // Fill in required params
     softLayerParamsValue->alpha = opIt->get<double>("alpha");
@@ -3200,9 +3200,9 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAQuantizeTask(ComputationModel& 
     toBuild->input_data = buildTensorReferenceT(cm, compilationDescriptor, input);
     toBuild->output_data = buildTensorReferenceT(cm, compilationDescriptor, output);
 
-    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input)));
+    toBuild->inputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, input));
 
-    toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
+    toBuild->outputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, output));
 
     return toBuild;
 }
@@ -3230,9 +3230,9 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAResampleTask(ComputationModel& 
     toBuild->input_data = buildTensorReferenceT(cm, compilationDescriptor, input);
     toBuild->output_data = buildTensorReferenceT(cm, compilationDescriptor, output);
 
-    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input)));
+    toBuild->inputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, input));
 
-    toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
+    toBuild->outputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, output));
 
     return toBuild;
 }
@@ -3252,9 +3252,9 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAReshapeTask(ComputationModel& c
     toBuild->input_data = buildTensorReferenceT(cm, compilationDescriptor, input);
     toBuild->output_data = buildTensorReferenceT(cm, compilationDescriptor, output);
 
-    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input)));
+    toBuild->inputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, input));
 
-    toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
+    toBuild->outputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, output));
 
     return toBuild;
 }
@@ -3268,9 +3268,9 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPARegionYoloTask(ComputationModel
     toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_RegionYOLOParams;
     auto softLayerParamsValue = new MVCNN::RegionYOLOParamsT();
 
-    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input)));
+    toBuild->inputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, input));
 
-    toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
+    toBuild->outputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, output));
 
     softLayerParamsValue->coords = opIt->get<unsigned>("coords");
     softLayerParamsValue->classes = opIt->get<unsigned>("classes");
@@ -3294,9 +3294,9 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAReorgYoloTask(ComputationModel&
     toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_ReorgYOLOParams;
     auto softLayerParamsValue = new MVCNN::ReorgYOLOParamsT();
 
-    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input)));
+    toBuild->inputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, input));
 
-    toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
+    toBuild->outputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, output));
 
     softLayerParamsValue->stride = static_cast<int>(opIt->get<unsigned>("stride"));
 
@@ -3325,9 +3325,9 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAPermuteTask(ComputationModel& c
     toBuild->input_data = buildTensorReferenceT(cm, compilationDescriptor, input);
     toBuild->output_data = buildTensorReferenceT(cm, compilationDescriptor, output);
 
-    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input)));
+    toBuild->inputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, input));
 
-    toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
+    toBuild->outputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, output));
 
     return toBuild;
 }
@@ -3351,9 +3351,9 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAPermuteNDTask(ComputationModel&
     toBuild->input_data = buildTensorReferenceT(cm, compilationDescriptor, input);
     toBuild->output_data = buildTensorReferenceT(cm, compilationDescriptor, output);
 
-    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input)));
+    toBuild->inputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, input));
 
-    toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
+    toBuild->outputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, output));
 
     return toBuild;
 }
@@ -3373,11 +3373,11 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPADetectionOutputTask(Computation
     auto output = opIt->getOutputTensor(0);
 
     // Fill in tensors
-    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, box_logits)));
-    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, class_preds)));
-    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, proposals)));
+    toBuild->inputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, box_logits));
+    toBuild->inputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, class_preds));
+    toBuild->inputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, proposals));
 
-    toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
+    toBuild->outputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, output));
 
     // Parse code_type
     std::string code_type = "CORNER";
@@ -3444,10 +3444,10 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAPriorboxTask(ComputationModel& 
         variances_vector.push_back(mv::fp16_to_fp32(static_cast<uint16_t>(variances->getIntData().at(i))));
 
     // Fill in tensors
-    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, image)));
-    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, priorbox)));
+    toBuild->inputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, image));
+    toBuild->inputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, priorbox));
 
-    toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
+    toBuild->outputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, output));
 
     // Fill in required params
     softLayerParamsValue->min_sizes = std::vector<float>(min_sizes_vector.begin(), min_sizes_vector.end());
@@ -3487,9 +3487,9 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAArgmaxTask(ComputationModel& cm
     toBuild->input_data = buildTensorReferenceT(cm, compilationDescriptor, input);
     toBuild->output_data = buildTensorReferenceT(cm, compilationDescriptor, output);
 
-    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input)));
+    toBuild->inputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, input));
 
-    toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
+    toBuild->outputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, output));
 
     return toBuild;
 }
@@ -3514,9 +3514,9 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAPassthroughTask(ComputationMode
     //softLayerParamsValue->min_delay_us = 1000;
     toBuild->softLayerParams.value = softLayerParamsValue;
 
-    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input)));
+    toBuild->inputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, input));
 
-    toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
+    toBuild->outputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, output));
 
     return toBuild;
 }
@@ -3556,10 +3556,10 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAEltwiseFP16Task(ComputationMode
     else
         throw std::runtime_error("buildUPAEltwiseFP16Task: unsupported SW Eltwise Operation, check implementation.");
 
-    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input0)));
-    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input1)));
+    toBuild->inputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, input0));
+    toBuild->inputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, input1));
 
-    toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
+    toBuild->outputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, output));
 
     return toBuild;
 }
@@ -3583,9 +3583,9 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPATileTask(ComputationModel& cm, 
     toBuild->input_data = buildTensorReferenceT(cm, compilationDescriptor, input);
     toBuild->output_data = buildTensorReferenceT(cm, compilationDescriptor, output);
 
-    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input)));
+    toBuild->inputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, input));
 
-    toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
+    toBuild->outputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, output));
 
     return toBuild;
 }
@@ -3605,10 +3605,10 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPACTCDecoderTask(ComputationModel
 
     toBuild->softLayerParams.value = softLayerParamsValue;
 
-    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input0)));
-    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input1)));
+    toBuild->inputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, input0));
+    toBuild->inputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, input1));
 
-    toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
+    toBuild->outputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, output));
 
     return toBuild;
 }
@@ -3722,9 +3722,9 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPADeconvTask(ComputationModel& cm
     // auto biases = opIt->getInputTensor(2);  biases
     auto output = opIt->getOutputTensor(0);
 
-    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input)));
-    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, weights)));
-    toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
+    toBuild->inputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, input));
+    toBuild->inputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, weights));
+    toBuild->outputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, output));
 
     // Kernel
     auto kernel =
@@ -3784,14 +3784,14 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPARefConvTask(ComputationModel& c
     const auto weights = opIt->getInputTensor(1);
     const auto output = opIt->getOutputTensor(0);
 
-    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input)));
-    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, weights)));
+    toBuild->inputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, input));
+    toBuild->inputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, weights));
     if (numInputs == 3)
     {
         const auto biases = opIt->getInputTensor(2);
-        toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, biases)));
+        toBuild->inputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, biases));
     }
-    toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
+    toBuild->outputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, output));
 
     const auto softLayerParamsValue = new MVCNN::ConvolutionParamsT();
 
@@ -3851,8 +3851,8 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAFakeQuantizeTask(ComputationMod
     const auto input = opIt->getInputTensor(0);
     const auto output = opIt->getOutputTensor(0);
 
-    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input)));
-    toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
+    toBuild->inputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, input));
+    toBuild->outputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, output));
 
     const auto input_low = opIt->getInputTensor(1)->getIntData();
     const auto input_high = opIt->getInputTensor(2)->getIntData();
@@ -3895,9 +3895,9 @@ MVCNN::UPALayerTaskT *mv::RuntimeModel::buildUPAGatherTask(mv::ComputationModel 
 
     softLayerParamsValue->axis = opIt->get<unsigned>("axis");
 
-    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input0)));
-    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input1)));
-    toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
+    toBuild->inputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, input0));
+    toBuild->inputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, input1));
+    toBuild->outputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, output));
 
     toBuild->softLayerParams.value = softLayerParamsValue;
 
@@ -3916,8 +3916,8 @@ MVCNN::UPALayerTaskT *mv::RuntimeModel::buildUPAHSwishTask(mv::ComputationModel 
     softLayerParamsValue->nested_params.type = MVCNN::PostOpsNestedParams_HSwishParams;
     toBuild->softLayerParams.value = softLayerParamsValue;
 
-    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input)));
-    toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
+    toBuild->inputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, input));
+    toBuild->outputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, output));
 
     return toBuild;
 }
@@ -3938,8 +3938,8 @@ MVCNN::UPALayerTaskT *mv::RuntimeModel::buildUPASwishTask(mv::ComputationModel &
     toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_PostOpsParams;
     toBuild->softLayerParams.value = softLayerParamsValue;
 
-    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input)));
-    toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
+    toBuild->inputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, input));
+    toBuild->outputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, output));
 
     return toBuild;
 }
@@ -3956,8 +3956,8 @@ MVCNN::UPALayerTaskT *mv::RuntimeModel::buildUPAMishTask(mv::ComputationModel &c
     softLayerParamsValue->nested_params.type = MVCNN::PostOpsNestedParams_MishParams;
     toBuild->softLayerParams.value = softLayerParamsValue;
 
-    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input)));
-    toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
+    toBuild->inputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, input));
+    toBuild->outputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, output));
 
     return toBuild;
 }
@@ -3976,8 +3976,8 @@ MVCNN::UPALayerTaskT *mv::RuntimeModel::buildUPAFloorTask(mv::ComputationModel &
     softLayerParamsValue->nested_params.type = MVCNN::PostOpsNestedParams_FloorParams;
     toBuild->softLayerParams.value = softLayerParamsValue;
 
-    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input)));
-    toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
+    toBuild->inputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, input));
+    toBuild->outputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, output));
 
     return toBuild;
 }
@@ -4012,8 +4012,8 @@ MVCNN::UPALayerTaskT *mv::RuntimeModel::buildUPARoundTask(mv::ComputationModel &
     toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_PostOpsParams;
     toBuild->softLayerParams.value = softLayerParamsValue;
 
-    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input)));
-    toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
+    toBuild->inputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, input));
+    toBuild->outputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, output));
 
     return toBuild;
 }
@@ -4032,8 +4032,8 @@ MVCNN::UPALayerTaskT *mv::RuntimeModel::buildUPACeilingTask(mv::ComputationModel
     softLayerParamsValue->nested_params.type = MVCNN::PostOpsNestedParams_CeilingParams;
     toBuild->softLayerParams.value = softLayerParamsValue;
 
-    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input)));
-    toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
+    toBuild->inputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, input));
+    toBuild->outputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, output));
 
     return toBuild;
 }
@@ -4052,8 +4052,8 @@ MVCNN::UPALayerTaskT *mv::RuntimeModel::buildUPAErfTask(mv::ComputationModel &cm
     softLayerParamsValue->nested_params.type = MVCNN::PostOpsNestedParams_ErfParams;
     toBuild->softLayerParams.value = softLayerParamsValue;
 
-    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input)));
-    toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
+    toBuild->inputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, input));
+    toBuild->outputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, output));
 
     return toBuild;
 }
@@ -4072,8 +4072,8 @@ MVCNN::UPALayerTaskT *mv::RuntimeModel::buildUPAGeluTask(mv::ComputationModel &c
     softLayerParamsValue->nested_params.type = MVCNN::PostOpsNestedParams_GeluParams;
     toBuild->softLayerParams.value = softLayerParamsValue;
 
-    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input)));
-    toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
+    toBuild->inputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, input));
+    toBuild->outputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, output));
 
     return toBuild;
 }
@@ -4092,8 +4092,8 @@ MVCNN::UPALayerTaskT *mv::RuntimeModel::buildUPAExpTask(mv::ComputationModel &cm
     softLayerParamsValue->nested_params.type = MVCNN::PostOpsNestedParams_ExpParams;
     toBuild->softLayerParams.value = softLayerParamsValue;
 
-    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input)));
-    toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
+    toBuild->inputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, input));
+    toBuild->outputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, output));
 
     return toBuild;
 }
@@ -4112,8 +4112,8 @@ MVCNN::UPALayerTaskT *mv::RuntimeModel::buildUPALogTask(mv::ComputationModel &cm
     softLayerParamsValue->nested_params.type = MVCNN::PostOpsNestedParams_LogParams;
     toBuild->softLayerParams.value = softLayerParamsValue;
 
-    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input)));
-    toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
+    toBuild->inputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, input));
+    toBuild->outputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, output));
 
     return toBuild;
 }
@@ -4155,8 +4155,8 @@ MVCNN::UPALayerTaskT *mv::RuntimeModel::buildUPAConversionTask(mv::ComputationMo
 
     toBuild->softLayerParams.value = softLayerParamsValue;
 
-    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input)));
-    toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
+    toBuild->inputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, input));
+    toBuild->outputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, output));
 
     return toBuild;
 }
@@ -4171,8 +4171,8 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAReluTask(ComputationModel& cm, 
     softLayerParamsValue->nested_params.type = MVCNN::PostOpsNestedParams_ReluParams;
     toBuild->softLayerParams.value = softLayerParamsValue;
 
-    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input)));
-    toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
+    toBuild->inputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, input));
+    toBuild->outputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, output));
 
     return toBuild;
 }
@@ -4191,9 +4191,9 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAPreluTask(ComputationModel& cm,
     softLayerParamsValue->nested_params.type = MVCNN::PostOpsNestedParams_PReluParams;
     toBuild->softLayerParams.value = softLayerParamsValue;
 
-    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input)));
-    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, weights)));
-    toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
+    toBuild->inputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, input));
+    toBuild->inputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, weights));
+    toBuild->outputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, output));
 
     return toBuild;
 }
@@ -4216,8 +4216,8 @@ MVCNN::UPALayerTaskT *mv::RuntimeModel::buildUPAEluTask(mv::ComputationModel &cm
 
     toBuild->softLayerParams.value = softLayerParamsValue;
 
-    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input)));
-    toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
+    toBuild->inputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, input));
+    toBuild->outputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, output));
 
     return toBuild;
 }
@@ -4234,8 +4234,8 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPATanhTask(ComputationModel& cm, 
     softLayerParamsValue->nested_params.type = MVCNN::PostOpsNestedParams_TanhParams;
     toBuild->softLayerParams.value = softLayerParamsValue;
 
-    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input)));
-    toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
+    toBuild->inputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, input));
+    toBuild->outputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, output));
 
     return toBuild;
 }
@@ -4252,8 +4252,8 @@ MVCNN::UPALayerTaskT *mv::RuntimeModel::buildUPASoftPlusTask(mv::ComputationMode
     softLayerParamsValue->nested_params.type = MVCNN::PostOpsNestedParams_SoftPlusParams;
     toBuild->softLayerParams.value = softLayerParamsValue;
 
-    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input)));
-    toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
+    toBuild->inputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, input));
+    toBuild->outputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, output));
 
     return toBuild;
 }
@@ -4304,8 +4304,8 @@ MVCNN::UPALayerTaskT *mv::RuntimeModel::buildUPAPadTask(mv::ComputationModel &cm
     softLayerParamsValue->padValue = static_cast<float>(opIt->get<double>("pad_value"));
 
     toBuild->softLayerParams.value = softLayerParamsValue;
-    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input)));
-    toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
+    toBuild->inputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, input));
+    toBuild->outputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, output));
 
     return toBuild;
 }

@@ -186,7 +186,7 @@ std::string mv::MemoryAllocator::MemoryBuffer::toString(bool printValues) const
 
             if (blockIdx < blockNum)
                 for (std::size_t i = 0; i < blockSize / dataTypeSize; ++i)
-                    res += data->at(dataIdx++) + " ";
+                    res += std::to_string(int64_t(data->at(dataIdx++))) + " ";
 
             ++blockIdx;
 

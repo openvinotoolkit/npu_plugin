@@ -12,9 +12,6 @@
 #include <cmath>
 
 const size_t MAX_LIMIT_KERNEL = 11;
-const size_t MID_LIMIT_KERNEL_H = 5;
-const size_t MID_LIMIT_KERNEL_W = 5;
-const size_t NUMBER_OF_PARTITIONS = 9;
 const size_t GROUP_DILATION = 1;
 
 static void tileOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);

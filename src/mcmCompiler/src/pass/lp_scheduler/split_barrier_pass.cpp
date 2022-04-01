@@ -113,7 +113,7 @@ static void SplitBarrierFcn(
           sprintf(barrier_name, "new_Barrier_%d", barrier_task_id);
 
           std::set<std::string> empty_set;
-          struct mv::Barrier new_barrier(empty_set, empty_set);
+          mv::Barrier new_barrier(empty_set, empty_set);
 
           om.barrierTask(barrier_name, new_barrier);
           auto barrier_new = om.getOp(barrier_name);
@@ -135,7 +135,7 @@ static void SplitBarrierFcn(
           sprintf(barrier_name, "new_Barrier_%d", barrier_task_id);
 
           std::set<std::string> empty_set;
-          struct mv::Barrier new_barrier(empty_set, empty_set);
+          mv::Barrier new_barrier(empty_set, empty_set);
 
           om.barrierTask(barrier_name, new_barrier);
           auto barrier_new = om.getOp(barrier_name);

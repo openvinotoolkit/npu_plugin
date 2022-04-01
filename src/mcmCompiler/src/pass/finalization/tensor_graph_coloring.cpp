@@ -281,7 +281,7 @@ std::vector<std::pair<size_t, size_t>> calculateGaps(std::list<std::string>& col
         });
 
     //merge intervals
-    intervals = std::move(mergeIntervals(intervals));
+    intervals = mergeIntervals(intervals);
 
     size_t currentAddress = 0;
     size_t gap;
@@ -453,7 +453,7 @@ std::size_t bestFitSelect(std::string& name, mv::TensorInterferenceGraph& g, siz
     mv::graph<std::string, int>& directedGraph, std::size_t& directedGraphMaxEdgeId)
 {
     auto ni = g.node_find(name);
-    auto coloredNeighbors = std::move(getColoredNeighbors(g, ni));
+    auto coloredNeighbors = getColoredNeighbors(g, ni);
     coloredNeighbors.sort();
 
     auto gaps = calculateGaps(coloredNeighbors, g, memorySize);

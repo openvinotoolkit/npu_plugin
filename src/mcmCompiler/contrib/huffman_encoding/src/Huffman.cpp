@@ -634,7 +634,7 @@ found_solution: ;
                     //{// this means we should have one extra lookahead byte/symbol available
                         //assert((byte_count + 1) < length);// let's double-check to be sure
 
-                        if (flipped[num_syms_in_window] && 1) 
+                        if (flipped[num_syms_in_window] & 1)
                         {
                             coded.nrOfBits = 0;
                         }
@@ -1008,7 +1008,7 @@ found_solution_again: ;
                 //if(k != inbuf_size[j]-1 || ((j != inbuf_size.size() - 1) && inbuf_size[j+1] != 0))
                 //{// this means we should have one extra lookahead byte/symbol available
                     //assert((byte_count + 1) < length);// let's double-check to be sure
-                    if (flipped[num_syms_in_window] && 1) 
+                    if (flipped[num_syms_in_window] & 1)
                     {
                         code.nrOfBits = 0;
                     }
@@ -1110,7 +1110,7 @@ void Huffman::constructOneSidedTree(vector<int> &leaves, HuffmanTuple_t &node, i
     if (level >= (int) leaves.size())
         return;
 
-    auto insertLeaf = [this, &leaves, &node, &level, &value]()
+    auto insertLeaf = [this, &leaves, &level, &value]()
     {
         decodingTree.push_back(HuffmanTuple_t());
         leaves[level]--;

@@ -28,13 +28,12 @@
 #include <stdexcept>
 
 namespace vpu {
-
 namespace KmbPlugin {
-
 namespace utils {
 
 uint32_t VPUSMMAllocator::_pageSize = getpagesize();
 
+#if defined(__arm__) || defined(__aarch64__)
 static uint32_t calculateRequiredSize(uint32_t blobSize, uint32_t pageSize) {
     uint32_t blobSizeRem = blobSize % pageSize;
     uint32_t requiredSize = (blobSize / pageSize) * pageSize;
@@ -48,13 +47,14 @@ static uint32_t calculateRequiredSize(uint32_t blobSize, uint32_t pageSize) {
     }
     return requiredSize;
 }
+#endif
 
 VPUSMMAllocator::VPUSMMAllocator(const int deviceId): _deviceId(deviceId) {
 }
 
 void* VPUSMMAllocator::allocate(size_t requestedSize) {
-    const uint32_t requiredBlobSize = calculateRequiredSize(requestedSize, _pageSize);
 #if defined(__arm__) || defined(__aarch64__)
+    const uint32_t requiredBlobSize = calculateRequiredSize(requestedSize, _pageSize);
     int fileDesc = vpurm_alloc_dmabuf(requiredBlobSize, VPUSMMTYPE_COHERENT, _deviceId);
     if (fileDesc < 0) {
         throw std::runtime_error("VPUSMMAllocator::allocate: vpurm_alloc_dmabuf failed");
@@ -74,8 +74,8 @@ void* VPUSMMAllocator::allocate(size_t requestedSize) {
 
     return virtAddr;
 #else
+    VPUX_UNUSED(_deviceId);  // workaround for unused private field warning
     VPUX_UNUSED(requestedSize);
-    VPUX_UNUSED(requiredBlobSize);
     return nullptr;
 #endif
 }
@@ -222,7 +222,5 @@ NativeAllocator::~NativeAllocator() {
 }
 
 }  // namespace utils
-
 }  // namespace KmbPlugin
-
 }  // namespace vpu

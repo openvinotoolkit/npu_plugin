@@ -76,6 +76,7 @@ public:
         StrategySet* child;
         StrategySetPair(StrategySet* first,StrategySet* second) : parent(first) , child(second) {} ;
         StrategySetPair() : parent(nullptr) , child(nullptr) {};
+        StrategySetPair(const StrategySetPair&) = default;
         void operator=(const StrategySetPair& other);
         void print() const;
     };

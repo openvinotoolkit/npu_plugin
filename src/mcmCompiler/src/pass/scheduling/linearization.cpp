@@ -30,7 +30,7 @@ struct OpInfo
 static void linearizeFcn(const mv::pass::PassEntry& pass,
                          mv::ComputationModel& model,
                          mv::TargetDescriptor&,
-                         mv::Element& passDesc,
+                         mv::Element&,
                          mv::Element&);
 namespace mv
 {
@@ -356,7 +356,7 @@ static bool addOpInfoToList(
 void linearizeFcn(const mv::pass::PassEntry& pass,
                   mv::ComputationModel& model,
                   mv::TargetDescriptor&,
-                  [[maybe_unused]]mv::Element& passDesc,
+                  mv::Element&,
                   mv::Element&)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)

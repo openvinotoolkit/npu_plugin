@@ -98,7 +98,7 @@ void loadPWLQuantParams(const mv::pass::PassEntry& pass, mv::ComputationModel& m
         {
             "UInt8",
             {
-            mv::QuantizationParams({0}, {1.0 / 1015.6875}, {-4.0}, {4.0}, {0}, {1}, {4}),
+            mv::QuantizationParams({0}, {1.0 / 1015.6875}, {-4.0}, {4.0}, {0}, {1}, 4),
             // fine tuning showed that 1/1015.6875 had the best sigmoid avg precision
             // in quantization case, better than the theoretical 1 / 1024
             mv::QuantizationParams({3}, {1.0 / 249}, {0}, {1.0})
@@ -109,7 +109,7 @@ void loadPWLQuantParams(const mv::pass::PassEntry& pass, mv::ComputationModel& m
         {
             "Float16",
             {
-            mv::QuantizationParams({0}, {64}, {-4.0}, {4.0}, {0}, {1}, {-4}),
+            mv::QuantizationParams({0}, {64}, {-4.0}, {4.0}, {0}, {1}, -4),
             mv::QuantizationParams({0}, {1.0}, {0}, {1.0})
             }
         }
@@ -121,14 +121,14 @@ void loadPWLQuantParams(const mv::pass::PassEntry& pass, mv::ComputationModel& m
         {
             "UInt8",
             {
-            mv::QuantizationParams({0}, {1.0 / 1024}, {-4.0}, {4.0}, {0}, {1}, {5}),
+            mv::QuantizationParams({0}, {1.0 / 1024}, {-4.0}, {4.0}, {0}, {1}, 5),
             mv::QuantizationParams({128}, {1.0 / 127}, {-1.0}, {1.0})
             }
         },
         {
             "Float16",
             {
-            mv::QuantizationParams({0}, {64}, {-4.0}, {4.0}, {0}, {1}, {-4}),
+            mv::QuantizationParams({0}, {64}, {-4.0}, {4.0}, {0}, {1}, -4),
             mv::QuantizationParams({0}, {1.0}, {-1.0}, {1.0})
             }
         }

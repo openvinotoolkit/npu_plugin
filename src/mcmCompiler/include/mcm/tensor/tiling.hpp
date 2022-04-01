@@ -88,6 +88,8 @@ namespace mv
             return *this;
         }
 
+        Tiling(const Tiling&) = default;
+
         const std::string& getAxis() const { return axis_; }
         void setAxis(const std::string& axis) { axis_ = axis; }
 
