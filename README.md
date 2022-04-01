@@ -2,8 +2,7 @@
 
 ## Components in this repository
 
-* [MCM Compiler](https://docs.intel.com/documents/MovidiusInternal/vpu2/Common/SW/MCM/internal/MCM_compiler_description.html)
-* [VPUX NN Compiler](https://docs.intel.com/documents/MovidiusInternal/vpu2/Common/SW/VPUX_NN_Compiler_SAS/VPUX_NN_Compiler_SAS.html)
+* VPUX NN Compiler
   * [Build and Test Instructions](src/vpux_compiler/docs/build_and_test.md)
   * [Debugging Techniques](src/vpux_compiler/docs/debugging.md)
   * [Software layer enabling steps](/src/vpux_compiler/docs/sw_layer_enabling.md)
@@ -12,7 +11,7 @@
   * Zero Backend
   * HDDL2 Backend
 * [Software Kernels Implementation](./sw_runtime_kernels/README.md)
-  
+
 ## Documentation
 
 ### Prerequisites
@@ -71,20 +70,10 @@ The following environment variables should be set:
 * The `KMB_BOARD_HOST` environment variable to the hostname or ip address of the KMB board.
 * The `KMB_WORK_DIR` environment variable to the working directory on the KMB board.
 
-## = Setup =
-
-How to prepare device for work (flash FIP/BKC)
-
-* [Configuration to use](https://wiki.ith.intel.com/pages/viewpage.action?pageId=1503167654#KMBEVM-Configuration)
-* [Update FIP/BKC remotely (ssh)](https://wiki.ith.intel.com/display/VPUWIKI/How+to+update+KMB+EVM+remotely)
-* [Update FIP with fastboot](https://wiki.ith.intel.com/display/VPUWIKI/How+to+flash+FIP+via+fastboot)
-* [Update BKC with fastboot](https://wiki.ith.intel.com/display/VPUWIKI/How+to+flash+Yocto+Image+to+EMMC+via+fastboot)
-
 ## = Build =
 
 * [How to build VPUX Plugin](guides/how-to-build.md)
 * [How to build and use custom vpualHost](guides/how-to-build-vpualHost.md)
-* You can build custom VPUIP2 firmware using this job: [Link to CI job](https://dsp-ci-icv.inn.intel.com/job/IE-Packages/job/BuildKmbArtifacts/)
 
 ## = Run =
 
@@ -99,7 +88,7 @@ Bypass related preparations
 * [How to setup KMB bypass](guides/how-to-use-kmb-bypass.md)
 * [How to setup TBH bypass](guides/how-to-use-tbh-bypass.md)
 
-### [MCM Emulator](https://gitlab-icv.inn.intel.com/kmb-emulator/mcm-emulator#mcm-emulator)
+### [MCM Emulator]
 
 ## = Development =
 

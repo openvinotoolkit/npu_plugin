@@ -12,10 +12,6 @@
     ls /lib/modules/`uname -r`/build || sudo apt install linux-headers-$(uname -r)
     ```
 
-#### Common ARM
-
-* [BKC Configuration KMB] (use instructions from [VPU Wiki Install FIP KMB] and [VPU Wiki Install Yocto KMB])
-
 ### VPUX plugin - KMB bypass Manual build
 
 1. Move to [OpenVINO Project] base directory and build it with the following commands:
@@ -46,13 +42,13 @@
 
 ### Set up PCIe for HDDLUnite KMB
 
-1. Configure board (use instructions from [VPU Wiki Board Configure KMB])
+1. Configure board.
 
-2. Install PCIe XLink and HDDL drivers (use instructions from [VPU Wiki PCIe drivers KMB])
+2. Install PCIe XLink and HDDL drivers.
 
 ### Set up VPUX plugin - KMB bypass on ARM
 
-1. Download last version of HDDLUnite package from [BKC configuration KMB] (`hddlunite-kmb_*.tar.gz`) with the following commands:
+1. Download last version of HDDLUnite package:
 
     ```bash
     mkdir -p ~/Downloads
@@ -134,8 +130,3 @@
 
 # Links
 [ukuu kernel manager]: https://github.com/teejee2008/ukuu
-[VPU Wiki Board Configure KMB]: https://wiki.ith.intel.com/pages/viewpage.action?pageId=1503496133#HowtosetupPCIeforHDDLUnite-Configureboard
-[VPU Wiki Install FIP KMB]: https://wiki.ith.intel.com/display/VPUWIKI/How+to+flash+FIP+via+fastboot
-[VPU Wiki Install Yocto KMB]: https://wiki.ith.intel.com/display/VPUWIKI/How+to+flash+Yocto+Image+to+EMMC+via+fastboot
-[VPU Wiki PCIe drivers KMB]: https://wiki.ith.intel.com/pages/viewpage.action?pageId=1503496133#HowtosetupPCIeforHDDLUnite-InstallPCIeXLinkdriver
-[BKC Configuration KMB]: https://wiki.ith.intel.com/display/VPUWIKI/HDDL2#HDDL2-Configuration

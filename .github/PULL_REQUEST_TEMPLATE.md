@@ -4,7 +4,7 @@
 
 ## Target Platform For Release Notes (Mandatory)
 
-Aids the generation of release notes [Explanation of Target Platform](https://wiki.ith.intel.com/display/Movidius/Explanation+of+Target+Platform+for+VPU+PR+Template)
+Aids the generation of release notes
 
 - [ ] VPU2.0 (KMB)
 - [ ] VPU2.0 (dKMB)
@@ -63,7 +63,6 @@ Aids the generation of release notes [Explanation of Target Platform](https://wi
 * [ ] https://vpux-ci-vpuip.inn.intel.com/job/Nets-Validation/job/manual/job/MoviSim/build?delay=0sec
 
 ## Code Review Survey (Copy and Complete in your code review)
-[Explanation of P1/P2/P3/P4 Defects](https://wiki.ith.intel.com/pages/viewpage.action?pageId=1684473024)
 
 - number_minutes_spent_on_review[0]
 - number_p1_defects_found[0]

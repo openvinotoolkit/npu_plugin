@@ -43,28 +43,3 @@
         ..
     make -j${nproc}
     ```
-
-### Set up PCIe for HDDLUnite TBH
-
-Install XLink and Secure XLink packages (use instructions from [VPU Wiki PCIe drivers TBH])
-
-### Set up VPUX plugin - TBH bypass on ARM
-
-Use instructions from [VPU Wiki Bypass TBH]
-
-### Set up VPUX plugin - TBH bypass on x86_64
-
-Use instructions from [VPU Wiki Bypass TBH]
-
-### Final check
-
-Use instructions from [VPU Wiki Bypass TBH Check]
-
-
-# Links
-[BKC Configuration TBH]: https://wiki.ith.intel.com/pages/viewpage.action?pageId=1700643473#ThunderBayHarbor-Configuration
-[VPU Wiki Boot TBH]: https://wiki.ith.intel.com/display/VPUWIKI/How+to+boot+up+Thunder+Bay+Harbor+board
-[VPU Wiki Install Yocto TBH]: https://wiki.ith.intel.com/display/VPUWIKI/How+to+flash+Yocto+to+Thunder+Bay+Board
-[VPU Wiki PCIe drivers TBH]: https://wiki.ith.intel.com/pages/viewpage.action?pageId=1710893290#Howtosetupby-passmodeforThunderBayHarbor-Pre-requisites
-[VPU Wiki Bypass TBH]: https://wiki.ith.intel.com/display/VPUWIKI/How+to+set+up+by-pass+mode+for+Thunder+Bay+Harbor
-[VPU Wiki Bypass TBH Check]: https://wiki.ith.intel.com/display/VPUWIKI/How+to+run+benchmark_app+in+by-pass+mode+for+TBH

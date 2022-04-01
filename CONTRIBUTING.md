@@ -25,8 +25,8 @@
     * The header must contain clear description and the target milestone.
     * Links to connected\depended MRs and PRs if any.
     * Links to passed [validation](how-to-run-ci-jobs) reports:
-        * IE-MDK functional tests [IE MDK](https://wiki.ith.intel.com/display/VPUWIKI/Functional+validation+CI).
-        * Nets-validation performance and accuracy check [Nets-validation](https://wiki.ith.intel.com/display/VPUWIKI/Nets-validation+CI).
+        * IE-MDK functional tests.
+        * Nets-validation performance and accuracy check.
         * If validation is failed due to infrastructure issues it should be reported to CI-master\Maintainer\Teams-channel.
 1. The MR does only one thing (Feature / Bug Fix / Optimization / Refactoring).
 1. All the changes are accompanied with clear comments incorporated into the source code.
@@ -92,8 +92,4 @@
 * Make sure there is no potential conflicts with other changes merged recently.
 
 ### Maintainers List
-https://github.com/orgs/intel-innersource/teams/kmb-plugin-maintainers/members 
-
-## How to run CI jobs
-1. [IE MDK](https://wiki.ith.intel.com/display/VPUWIKI/Functional+validation+CI)
-2. [Nets-validation](https://wiki.ith.intel.com/display/VPUWIKI/Nets-validation+CI)
+https://github.com/orgs/openvinotoolkit/teams/vpux-plugin-admins/members

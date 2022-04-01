@@ -64,7 +64,7 @@ $KMB_WORK_DIR/Release/vpuxFuncTests
 
 #### OMZ accuracy validation
 
-Use instructions from [VPU Wiki Accuracy Checker].
+Use instructions from **VPU Wiki Accuracy Checker**.
 
 ### Miscellaneous
 
@@ -75,6 +75,3 @@ All input blobs will be written to `$IE_VPU_KMB_DUMP_INPUT_PATH/input-dump%d.bin
 `IE_VPU_KMB_DUMP_OUTPUT_PATH` environment variable can be used to dump output files for debugging purposes.
 The variable must contain path to any writable directory.
 All output blobs will be written to `$IE_VPU_KMB_DUMP_OUTPUT_PATH/output-dump%d.bin`.
-
-# Links
-[VPU Wiki Accuracy Checker]: https://wiki.ith.intel.com/display/VPUWIKI/Set+up+and+Run+Accuracy+checker+on+ARM
