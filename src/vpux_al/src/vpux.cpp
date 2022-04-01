@@ -8,11 +8,8 @@
 #include "vpux.hpp"
 
 #include <file_utils.h>
-#include <openvino/util/shared_object.hpp>
-
 #include <memory>
-
-#include <cstdlib>
+#include <openvino/util/shared_object.hpp>
 
 // TODO: the creation of backend is not scalable,
 // it needs to be refactored in order to simplify
@@ -43,10 +40,25 @@ EngineBackend::EngineBackend(const std::string& pathToLib) {
     using CreateFuncT = void (*)(std::shared_ptr<IEngineBackend>&);
     static constexpr auto CreateFuncName = "CreateVPUXEngineBackend";
 
-    _so = ov::util::load_shared_object(pathToLib.c_str());
+    // Due to exception is an object, we have to destroy it properly. Library could be unloaded before we handle
+    // the exception. To avoid such case we have to catch and handle this exception and only after that unload the
+    // library.
+    bool successLoaded = false;
+    std::string errorMessage = "Unexpected exception from backend library: " + pathToLib;
+    try {
+        _so = ov::util::load_shared_object(pathToLib.c_str());
 
-    const auto createFunc = reinterpret_cast<CreateFuncT>(ov::util::get_symbol(_so, CreateFuncName));
-    createFunc(_impl);
+        const auto createFunc = reinterpret_cast<CreateFuncT>(ov::util::get_symbol(_so, CreateFuncName));
+        createFunc(_impl);
+        successLoaded = true;
+    } catch (const std::exception& ex) {
+        errorMessage = ex.what();
+    } catch (...) {
+    }
+
+    if (!successLoaded) {
+        IE_THROW() << errorMessage;
+    }
 }
 #endif
 

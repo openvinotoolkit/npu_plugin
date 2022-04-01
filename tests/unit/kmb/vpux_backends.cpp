@@ -13,9 +13,8 @@ namespace ie = InferenceEngine;
 
 using VPUXBackendsUnitTests = ::testing::Test;
 
-// [Track number: E#9567]
-TEST_F(VPUXBackendsUnitTests, DISABLED_notStopSearchingIfBackendThrow) {
-    const std::vector<std::string> dummyBackendRegistry = {"throw_test_backend", "one_device_test_backend"};
+TEST_F(VPUXBackendsUnitTests, notStopSearchingIfBackendThrow) {
+    const std::vector<std::string> dummyBackendRegistry = {"throw_test_backend", "vpu3700_test_backend"};
     vpux::VPUXBackends backends(dummyBackendRegistry);
 
     auto options = std::make_shared<vpux::OptionsDesc>();
@@ -29,17 +28,34 @@ TEST_F(VPUXBackendsUnitTests, DISABLED_notStopSearchingIfBackendThrow) {
 
     auto device = backends.getDevice();
     ASSERT_NE(nullptr, device);
-    ASSERT_EQ("DummyDevice", device->getName());
+    ASSERT_EQ("DummyVPU3700Device", device->getName());
 }
 
-// [Track number: E#9567]
-TEST_F(VPUXBackendsUnitTests, DISABLED_canFindDeviceIfAtLeastOneBackendHasDevicesAvailable) {
-    const std::vector<std::string> dummyBackendRegistry = {"no_devices_test_backend", "one_device_test_backend"};
+TEST_F(VPUXBackendsUnitTests, notStopSearchingIfBackendNotExists) {
+    const std::vector<std::string> dummyBackendRegistry = {"not_exists_backend", "vpu3700_test_backend"};
+    vpux::VPUXBackends backends(dummyBackendRegistry);
+
+    auto options = std::make_shared<vpux::OptionsDesc>();
+    vpux::registerCommonOptions(*options);
+    vpux::registerRunTimeOptions(*options);
+
+    vpux::Config config(options);
+    config.update({{"LOG_LEVEL", "LOG_DEBUG"}});
+
+    backends.setup(config);
+
+    auto device = backends.getDevice();
+    ASSERT_NE(nullptr, device);
+    ASSERT_EQ("DummyVPU3700Device", device->getName());
+}
+
+TEST_F(VPUXBackendsUnitTests, canFindDeviceIfAtLeastOneBackendHasDevicesAvailable) {
+    const std::vector<std::string> dummyBackendRegistry = {"no_devices_test_backend", "vpu3700_test_backend"};
     vpux::VPUXBackends backends(dummyBackendRegistry);
 
     auto device = backends.getDevice();
     ASSERT_NE(nullptr, device);
-    ASSERT_EQ("DummyDevice", device->getName());
+    ASSERT_EQ("DummyVPU3700Device", device->getName());
 }
 
 TEST_F(VPUXBackendsUnitTests, deviceReturnsNullptrIfNoBackends) {
