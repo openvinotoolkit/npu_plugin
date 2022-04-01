@@ -7,6 +7,7 @@
 
 #include <vpux_elf/writer.hpp>
 #include <vpux_elf/reader.hpp>
+#include <vpux_elf/types/vpu_extensions.hpp>
 
 #include <gtest/gtest.h>
 
@@ -229,6 +230,59 @@ TEST(ELFWriter, RelocationSection) {
     ASSERT_EQ(getSymbolName(reader, symbolTable, symbol), testSymbolName);
     ASSERT_EQ(elf::elf64STType(symbol.st_info), testSymbolType);
     ASSERT_EQ(symbol.st_size, testSymbolSize);
+}
+
+TEST(ELFWriter, SpecialSymReloc) {
+    const auto testBinaryDataName = std::string(".test.BinaryData");
+    const auto testRelocationName = std::string(".test.Relocation");
+    constexpr auto testSpecialSymbolSectionIndex = elf::VPU_RT_SYMTAB;
+    constexpr auto testSpecialSymbolIndex = elf::VPU_NNRD_SYM_RTM_DMA0;
+    constexpr auto testSpecialRelocationType = elf::R_VPU_64;
+    
+    struct TestObject {
+        uint32_t a = 0;
+        uint64_t b = 0;
+    };
+
+    elf::Writer writer;
+    auto refBinaryDataSection = writer.addBinaryDataSection<TestObject>(testBinaryDataName);
+    refBinaryDataSection->appendData(TestObject{});
+
+    auto refRelocationSection = writer.addRelocationSection(testRelocationName);
+    refRelocationSection->setSectionToPatch(refBinaryDataSection);
+    refRelocationSection->setSpecialSymbolTable(testSpecialSymbolSectionIndex);
+
+    auto refRelocation = refRelocationSection->addRelocationEntry();
+    refRelocation->setType(testSpecialRelocationType);
+    refRelocation->setSpecialSymbol(testSpecialSymbolIndex);
+    refRelocation->setOffset(0);
+    refRelocation->setAddend(0);
+
+    std::vector<uint8_t> blob;
+    ASSERT_NO_THROW(blob = writer.generateELF());
+
+    elf::Reader reader(blob.data(), blob.size());
+    const auto relocationSections = getSectionsByType(reader, elf::SHT_RELA);
+    ASSERT_EQ(relocationSections.size(), 1);
+    ASSERT_EQ(reader.getSegmentsNum(), 0);
+
+    const auto& relocationSection = relocationSections.front();
+    ASSERT_EQ(getSectionName(reader, relocationSection), testRelocationName);
+    ASSERT_EQ(relocationSection.getHeader()->sh_entsize, sizeof(elf::RelocationAEntry));
+    ASSERT_EQ(relocationSection.getHeader()->sh_size, sizeof(elf::RelocationAEntry));
+
+    const auto relocationToPatch = reader.getSection(relocationSection.getHeader()->sh_info);
+    ASSERT_EQ(getSectionName(reader, relocationToPatch), testBinaryDataName);
+    ASSERT_EQ(relocationToPatch.getHeader()->sh_type, elf::SHT_PROGBITS);
+    ASSERT_EQ(relocationSection.getHeader()->sh_link, testSpecialSymbolSectionIndex);
+
+    const auto relocation = relocationSection.getData<elf::RelocationAEntry>()[0];
+    ASSERT_EQ(relocation.r_addend, 0);
+    ASSERT_EQ(relocation.r_offset, 0);
+    ASSERT_EQ(elf::elf64RSym(relocation.r_info), testSpecialSymbolIndex);
+    ASSERT_EQ(elf::elf64RType(relocation.r_info), testSpecialRelocationType);
+
+
 }
 
 TEST(ELFWriter, Segment) {

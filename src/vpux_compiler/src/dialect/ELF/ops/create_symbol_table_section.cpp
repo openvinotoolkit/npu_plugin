@@ -8,8 +8,12 @@
 
 void vpux::ELF::CreateSymbolTableSectionOp::serialize(elf::Writer& writer, vpux::ELF::SectionMapType& sectionMap,
                                                       vpux::ELF::SymbolMapType& symbolMap) {
+    if (isBuiltin())
+        return;
+
     const auto name = secName().str();
     auto section = writer.addSymbolSection(name);
+
     section->maskFlags(static_cast<elf::Elf_Xword>(secFlags()));
 
     auto block = getBody();

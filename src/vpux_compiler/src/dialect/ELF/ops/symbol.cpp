@@ -33,6 +33,9 @@ mlir::Operation* getParentSectionOp(mlir::Value val) {
 }  // namespace
 
 void vpux::ELF::SymbolOp::serialize(elf::writer::Symbol* symbol, vpux::ELF::SectionMapType& sectionMap) {
+    if (isBuiltin())
+        return;
+
     auto symName = name().getValueOr("");
     auto symType = type().getValueOr(vpux::ELF::SymbolTypeAttr::STT_NOTYPE);
     auto symSize = size().getValueOr(0);
