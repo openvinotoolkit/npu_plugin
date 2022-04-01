@@ -85,12 +85,17 @@
         "^/sw_runtime_kernels/kernels/3720/.*",
         "^/sw_runtime_kernels/kernels/act_runtime/.*",
         "^/sw_runtime_kernels/kernels/common/.*",
-        "^/sw_runtime_kernels/kernels/prebuild/.*",
+        "^/sw_runtime_kernels/kernels/prebuild/.*\\.ld",
+        "^/sw_runtime_kernels/kernels/prebuild/.*\\.xdat",
         "^/sw_runtime_kernels/kernels/.*\\.cpp",
         "^/sw_runtime_kernels/kernels/.*\\.c",
         "^/sw_runtime_kernels/kernels/.*\\.mk",
         "^/sw_runtime_kernels/.*\\.md",
         "^/sw_runtime_kernels/kernels/inc/3720/.*",
-        "^/sw_runtime_kernels/kernels/inc/param_.*"
+        "^/sw_runtime_kernels/kernels/inc/pss/.*",
+        "^/sw_runtime_kernels/kernels/inc/param_.*",
+        "^/sw_runtime_kernels/kernels/descrip/.*",
+        "^/sw_runtime_kernels/kernels/src/.*",
+        "^/sw_runtime_kernels/kernels/CMakeLists.txt"
     ]
 }
