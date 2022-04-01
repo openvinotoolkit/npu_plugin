@@ -239,10 +239,18 @@ void DMATaskProfilingPass::safeRunOnModule() {
         // Insertion of Timestamp Ops to the current execOp
         //
         auto insertDma = [&](mlir::Operation* op, bool after) {
+            auto* insertionPoint = op;
+            VPUIP::NCEClusterTilingOp nceClusterTilingOp = mlir::dyn_cast<VPUIP::NCEClusterTilingOp>(op->getParentOp());
+            // In case CopyOp is wrapped with NCEClusterTiling then new TimestampOps
+            // should be added around NCEClusterTiling
+            if (nceClusterTilingOp) {
+                insertionPoint = nceClusterTilingOp.getOperation();
+            }
+
             if (after) {
-                builder.setInsertionPointAfter(op);
+                builder.setInsertionPointAfter(insertionPoint);
             } else {
-                builder.setInsertionPoint(op);
+                builder.setInsertionPoint(insertionPoint);
             }
             auto sub = builder.create<IERT::SubViewOp>(
                     mlir::NameLoc::get(mlir::Identifier::get("dmaProfilingSubview", ctx)), memOp,
@@ -413,7 +421,14 @@ void DPUProfilingPass::safeRunOnModule() {
 
     auto chunkItemCallback = [&](std::pair<VPUIP::NCEClusterTaskOp, int64_t> dpuTask, const unsigned& chunkDpuId) {
         auto cluster = dpuTask.first;
-        builder.setInsertionPointAfter(cluster);
+        auto* insertionPoint = cluster.getOperation();
+        auto nceClusterTilingOp = mlir::dyn_cast<VPUIP::NCEClusterTilingOp>(cluster->getParentOp());
+        // In case NCE task is wrapped with NCEClusterTiling then inserting should be done
+        // at NCEClusterTiling op level and not inside it where NCEClusterTask op is
+        if (nceClusterTilingOp) {
+            insertionPoint = nceClusterTilingOp.getOperation();
+        }
+        builder.setInsertionPoint(insertionPoint);
         auto timestampType = getMemRefType({elementSize}, getUInt64Type(ctx), DimsOrder::C, memKindAttr);
         auto sub = builder.create<IERT::SubViewOp>(
                 mlir::NameLoc::get(mlir::Identifier::get("dpuProfilingSubview", ctx)), memOp,
@@ -423,6 +438,8 @@ void DPUProfilingPass::safeRunOnModule() {
         newResultTypes.push_back(timestampType);
         const auto profilingMeta = llvm::formatv("_PROF_{0}", dpuId).str();
         const auto loc = appendLoc(cluster->getLoc(), profilingMeta);
+
+        builder.setInsertionPointAfter(cluster);
         auto newCluster = builder.create<VPUIP::NCEClusterTaskOp>(loc, newResultTypes, cluster->getOperands(),
                                                                   cluster->getAttrs());
 
@@ -430,12 +447,64 @@ void DPUProfilingPass::safeRunOnModule() {
             newCluster.getRegion(static_cast<unsigned>(region.index())).takeBody(*region.value());
         }
         newCluster.profiling_dataMutable().assign(sub);
-        dpuProfilingOutputs.push_back(newCluster.profiling_output());
 
         cluster->replaceAllUsesWith(mlir::ValueRange(newCluster.output()));
         cluster->erase();
         chunkWalker.increment();
         dpuId++;
+
+        // In case original NCEClusterTask was wrapped with NCEClusterTiling then new NCEClusterTask
+        // with additional profiling output should also be wrapped with NCEClusterTiling op whose
+        // list of operands and results were extended for profiling buffer
+        if (nceClusterTilingOp) {
+            builder.setInsertionPoint(insertionPoint);
+
+            // Operands of new NCEClusterTilingOp will be extended with profiling buffer
+            SmallVector<mlir::Value> newNceClusterTilingOperands(nceClusterTilingOp->getOperands());
+            newNceClusterTilingOperands.push_back(newCluster.profiling_data());
+
+            // Reesult of new NCEClusterTilingOp will be extended with profiling result
+            SmallVector<mlir::Type> newNceClusterTilingResultTypes(nceClusterTilingOp->getResultTypes());
+            newNceClusterTilingResultTypes.push_back(timestampType);
+
+            const auto bodyBuilder = [&](mlir::OpBuilder& builder, mlir::Location loc, mlir::ValueRange newOperands) {
+                std::ignore = loc;
+
+                mlir::BlockAndValueMapping mapper;
+
+                auto origArguments = nceClusterTilingOp.body().front().getArguments();
+
+                // Map original NCEClusterTiling argument to new corresponding operands and map
+                // profiling buffer to last operand
+                mapper.map(origArguments, newOperands.take_front(nceClusterTilingOp->getOperands().size()));
+                mapper.map(newCluster.profiling_data(), newOperands.take_back(1).front());
+
+                builder.clone(*newCluster.getOperation(), mapper);
+            };
+
+            auto newNceClusterTilingOp = builder.create<VPUIP::NCEClusterTilingOp>(
+                    nceClusterTilingOp->getLoc(), newNceClusterTilingResultTypes, newNceClusterTilingOperands,
+                    bodyBuilder);
+
+            // Replace all uses of old NCEClusterTiling op with new one
+            // except newly added profiling output
+            auto newResults = newNceClusterTilingOp->getResults().drop_back(1);
+            nceClusterTilingOp->replaceAllUsesWith(newResults);
+
+            // Remove old NCEClusterTiling inner task and task itself
+            nceClusterTilingOp.getInnerTaskOp()->erase();
+            nceClusterTilingOp->erase();
+
+            // Set new insertion point back at new NCEClusterTiling level
+            insertionPoint = newNceClusterTilingOp.getOperation();
+            builder.setInsertionPointAfter(insertionPoint);
+
+            // Store information about profiling result which later is concatenated with rest of profiling data
+            // and copied from buffer in CMX to DDR
+            dpuProfilingOutputs.push_back(newNceClusterTilingOp.getResult(newNceClusterTilingOp->getNumResults() - 1));
+        } else {
+            dpuProfilingOutputs.push_back(newCluster.profiling_output());
+        }
     };
     chunkWalker.run<SmallVector<std::pair<VPUIP::NCEClusterTaskOp, int64_t>>>(dpuTasks, chunkSwitchCallback,
                                                                               chunkItemCallback);

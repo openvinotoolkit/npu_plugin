@@ -53,6 +53,12 @@ void FeasibleMemorySchedulerSpilling::removeComputeOpRelocationSpills(
     SmallVector<size_t> operationIndexesToRemove;
     for (size_t opIndex = 0; opIndex < scheduledOps.size(); opIndex++) {
         if (scheduledOps[opIndex].isSpillWrite() && !scheduledOps[opIndex].isDataOp()) {
+            // Check if related computeOp has single output. If not
+            // then skip this optimization
+            if (_depsInfo.getExecuteOpAtIndex(scheduledOps[opIndex].op_).results().size() > 1) {
+                continue;
+            }
+
             // Located SPILL_WRITE for compute op
             size_t spillWriteIndex = opIndex;
             mlir::Optional<size_t> origOpIndex;

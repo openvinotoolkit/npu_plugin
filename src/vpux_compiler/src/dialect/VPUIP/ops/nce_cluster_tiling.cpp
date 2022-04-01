@@ -235,8 +235,8 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(vpux::VPUIP::NCEClusterTilingOp op) {
             auto operandType = operand.getType();
             if (auto ndType = operand.getType().dyn_cast<vpux::NDTypeInterface>()) {
                 auto rank = ndType.getRank();
-                if (rank != 4) {
-                    return errorAt(op->getLoc(), "Only 4D tensors are supported. Got {0}", rank);
+                if (rank != 4 && rank != 1) {
+                    return errorAt(op->getLoc(), "Only 4D/1D tensors are supported. Got {0}", rank);
                 }
 
                 continue;

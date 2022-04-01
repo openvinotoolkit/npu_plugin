@@ -308,7 +308,12 @@ mlir::LogicalResult ClusterNCERewriter::matchAndRewrite(VPUIP::NCEClusterTaskOp 
     rewriter.setInsertionPointAfter(vpurtTask);
 
     VPUX_THROW_UNLESS(!clusterOp.getInputs().empty(), "Wrong inputs size: {0}", clusterOp.getInputs().size());
-    VPUX_THROW_UNLESS(clusterOp.getOutputs().size() == 1, "Wrong outputs size: {0}", clusterOp.getOutputs().size());
+
+    const auto hasOnlyDefaultOutput = clusterOp.getOutputs().size() == 1 && !nceTask.profiling_data();
+    const auto hasOutputWithProfiling = clusterOp.getOutputs().size() == 2 && nceTask.profiling_data();
+
+    VPUX_THROW_UNLESS(hasOnlyDefaultOutput || hasOutputWithProfiling, "Wrong outputs size: {0}",
+                      clusterOp.getOutputs().size());
 
     auto parentInput = *clusterOp.getInputs().begin();
     auto parentOutput = *clusterOp.getOutputs().begin();
@@ -370,13 +375,28 @@ mlir::LogicalResult ClusterNCERewriter::matchAndRewrite(VPUIP::NCEClusterTaskOp 
 
     for (int64_t clusterId = 0; clusterId < numClusters; ++clusterId) {
         const auto newLoc = appendLoc(loc, llvm::formatv("_cluster_{0}", clusterId).str());
+        mlir::Value profilingData = nullptr;
+        SmallVector<mlir::Type> newResultTypes = {outputBuffs[clusterId].getType()};
+
+        if (clusterId == 0 && nceTask.profiling_data()) {
+            newResultTypes.push_back(nceTask.profiling_data().getType());
+            // Last output of NCEClusterTiling corresponds to profiling result in case
+            // it was enabled
+            profilingData = clusterOp.getOutputs().back();
+        }
+
         auto newTask = VPURT::wrapIntoTaskOp<VPUIP::NCEClusterTaskOp>(
-                rewriter, vpurtTask.waitBarriers(), vpurtTask.updateBarriers(), newLoc, inputBuffs[clusterId],
-                weightsBuffs[clusterId], weightTableBuffs[clusterId], activationWindowBuffs[clusterId], parentInput,
-                parentOutput, outputBuffs[clusterId], nceTask.task_type(), nceTask.kernel_sizeAttr(),
+                rewriter, vpurtTask.waitBarriers(), vpurtTask.updateBarriers(), newLoc, mlir::TypeRange(newResultTypes),
+                inputBuffs[clusterId], weightsBuffs[clusterId], weightTableBuffs[clusterId],
+                activationWindowBuffs[clusterId], parentInput, parentOutput, outputBuffs[clusterId], profilingData,
+                VPUIP::NCETaskTypeAttr::get(nceTask.getContext(), nceTask.task_type()), nceTask.kernel_sizeAttr(),
                 nceTask.kernel_stridesAttr(), padAttrForCluster[clusterId],
                 nceTask.activation_window_channel_lengthAttr(), nullptr, nullptr, isSegmented,
                 outChannelOffsets[clusterId]);
+
+        for (auto& region : newTask->getRegions()) {
+            region.emplaceBlock();
+        }
 
         {
             mlir::OpBuilder::InsertionGuard guard(rewriter);
