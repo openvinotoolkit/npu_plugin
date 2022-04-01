@@ -57,13 +57,13 @@ const EnumMap<vpux::PreProcessResizeAlgorithm, MVCNN::PreProcessResizeAlgorithm>
 MVCNN::TargetDevice vpux::VPUIP::mapTargetDevice(VPU::ArchKind kind) {
     switch (kind) {
     case VPU::ArchKind::VPUX30XX:
-        return MVCNN::TargetDevice::TargetDevice_KMB;
+        return MVCNN::TargetDevice::TargetDevice_VPUX30XX;
     case VPU::ArchKind::VPUX311X:
-        return MVCNN::TargetDevice::TargetDevice_TBH;
+        return MVCNN::TargetDevice::TargetDevice_VPUX311X;
     case VPU::ArchKind::VPUX37XX:
-        return MVCNN::TargetDevice::TargetDevice_MTL;
+        return MVCNN::TargetDevice::TargetDevice_VPUX37XX;
     case VPU::ArchKind::VPUX4000:
-        return MVCNN::TargetDevice::TargetDevice_LNL;
+        return MVCNN::TargetDevice::TargetDevice_VPUX4000;
     default:
         VPUX_THROW("Unsupported architecture '{0}'", kind);
     }

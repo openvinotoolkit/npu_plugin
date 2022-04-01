@@ -105,7 +105,7 @@ enum class VPUXPlatform : int {
     VPU3700 = 3,     // Keem bay B0 700 MHz
     VPU3800 = 4,     // Thunder bay harbor Prime
     VPU3900 = 5,     // Thunder bay harbor Full
-    VPU3720 = 6,     // Meteor lake
+    VPU3720 = 6,     // VPUX37XX
     EMULATOR = 7,    // Emulator
 };
 

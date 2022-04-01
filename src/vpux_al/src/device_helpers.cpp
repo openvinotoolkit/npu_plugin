@@ -12,7 +12,7 @@ const static std::map<uint32_t, InferenceEngine::VPUXConfigParams::VPUXPlatform>
         {0, InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3700},  // KMB A0 / B0
         {1, InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3800},  // TBH prime
         {2, InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3900},  // TBH full
-        {3, InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3720},  // MTL
+        {3, InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3720},  // VPUX37XX
 };
 
 const static std::map<InferenceEngine::VPUXConfigParams::VPUXPlatform, std::string> platformNameMap = {
@@ -22,7 +22,7 @@ const static std::map<InferenceEngine::VPUXConfigParams::VPUXPlatform, std::stri
         {InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3700, "3700"},        // KMB B0 700 MHz
         {InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3800, "3800"},        // TBH Prime
         {InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3900, "3900"},        // TBH Full
-        {InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3720, "3720"},        // MTL
+        {InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3720, "3720"},        // VPUX37XX
 };
 
 const static std::map<std::string, InferenceEngine::VPUXConfigParams::VPUXPlatform> platformNameInverseMap = {
@@ -32,16 +32,16 @@ const static std::map<std::string, InferenceEngine::VPUXConfigParams::VPUXPlatfo
         {"3700", InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3700},          // KMB B0 700 MHz
         {"3800", InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3800},          // TBH Prime
         {"3900", InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3900},          // TBH Full
-        {"3720", InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3720},          // MTL
+        {"3720", InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3720},          // VPUX37XX
         {"3400_A0_EMU", InferenceEngine::VPUXConfigParams::VPUXPlatform::EMULATOR},  // Emulator KMB A0
         {"3400_EMU", InferenceEngine::VPUXConfigParams::VPUXPlatform::EMULATOR},     // Emulator KMB B0 500 MHz
         {"3700_EMU", InferenceEngine::VPUXConfigParams::VPUXPlatform::EMULATOR},     // Emulator KMB B0 700 MHz
         {"3800_EMU", InferenceEngine::VPUXConfigParams::VPUXPlatform::EMULATOR},     // Emulator TBH Prime
         {"3900_EMU", InferenceEngine::VPUXConfigParams::VPUXPlatform::EMULATOR},     // Emulator TBH Full
-        {"3720_EMU", InferenceEngine::VPUXConfigParams::VPUXPlatform::EMULATOR},     // Emulator MTL
+        {"3720_EMU", InferenceEngine::VPUXConfigParams::VPUXPlatform::EMULATOR},     // Emulator VPUX37XX
 };
 
-// TODO Need to clarify the full names of devices. Definitely for MTL, possibly for others
+// TODO Need to clarify the full names of devices. Definitely for VPUX37XX, possibly for others
 const static std::map<InferenceEngine::VPUXConfigParams::VPUXPlatform, std::string> platformToFullDeviceNameMap = {
         {InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3400_A0,
          "Gen3 Intel(R) Movidius(TM) VPU 3400VE"},  // KMB A0
@@ -52,9 +52,9 @@ const static std::map<InferenceEngine::VPUXConfigParams::VPUXPlatform, std::stri
         {InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3800,
          "Gen3 Intel(R) Movidius(TM) S VPU 3800V"},  // TBH Prime
         {InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3900,
-         "Gen3 Intel(R) Movidius(TM) S VPU 3900V"},  // TBH Full
-        {InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3720, "Gen4 Intel(R) Movidius(TM) VPU 3720VE"},  // MTL
-        {InferenceEngine::VPUXConfigParams::VPUXPlatform::EMULATOR, "Emulator"},  // Emulator
+         "Gen3 Intel(R) Movidius(TM) S VPU 3900V"},                                                      // TBH Full
+        {InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3720, "Intel(R) Movidius(TM) VPU 3720VE"},  // VPUX37XX
+        {InferenceEngine::VPUXConfigParams::VPUXPlatform::EMULATOR, "Emulator"},                         // Emulator
 };
 
 bool utils::isVPUDevice(const uint32_t deviceId) {

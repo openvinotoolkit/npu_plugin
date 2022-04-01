@@ -222,11 +222,11 @@ MVCNN::TargetDevice mv::RuntimeModel::mapTargetDevice(const mv::Target& target)
     switch (target)
     {
     case mv::Target::ma2490:
-        return MVCNN::TargetDevice::TargetDevice_KMB;
+        return MVCNN::TargetDevice::TargetDevice_VPUX30XX;
     case mv::Target::ma3100:
-        return MVCNN::TargetDevice::TargetDevice_TBH;
+        return MVCNN::TargetDevice::TargetDevice_VPUX311X;
     case mv::Target::ma3720:
-        return MVCNN::TargetDevice::TargetDevice_MTL;
+        return MVCNN::TargetDevice::TargetDevice_VPUX37XX;
     default:
         return MVCNN::TargetDevice::TargetDevice_NONE;
     }
@@ -946,8 +946,8 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
           //NOTE: the division is going to extinguish the data type offset!!!
           if(numericStrides[4] != tensorStrides[4])
               byte_index = index * (double(numericStrides[4])/double(tensorStrides[4])) * t->getDType().getSizeInBits() / 8;
-        
-        // If SOH subtensors have one size but master buffer has different dims in C or W 
+
+        // If SOH subtensors have one size but master buffer has different dims in C or W
         // need to multiply to find correct index in DDR
         if( t->get<std::string>("splitStrategy") == "SplitOverH" &&
             numericStrides[3] != tensorStrides[3]) // W
@@ -2633,7 +2633,7 @@ void mv::RuntimeModel::getWorkloadPadding(Control::OpListIterator opIt, Workload
         auto outputWidth = opIt->getOutputTensor(0)->getShape()[mv::IO_WIDTH_DIMENSION];
         auto outputHeight = opIt->getOutputTensor(0)->getShape()[mv::IO_HEIGHT_DIMENSION];
 
-       
+
         long long  pad_left = padding[mv::PADDING_LEFT] - workload.MinX;
         workload.padLeft = (pad_left > 0) ? pad_left : 0;
         long long  pad_top = padding[mv::PADDING_TOP] -  workload.MinY;

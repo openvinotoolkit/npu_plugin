@@ -137,8 +137,8 @@ namespace {
 
     int getDPUPerCluster(const InferenceEngine::VPUXConfigParams::VPUXPlatform& platform) {
         if (platform == InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3720) {
-            constexpr int MTL_DPU_PER_CLUSTER = 1;
-            return MTL_DPU_PER_CLUSTER;
+            constexpr int VPUX37XX_DPU_PER_CLUSTER = 1;
+            return VPUX37XX_DPU_PER_CLUSTER;
         }
 
         constexpr int KMB_DPU_PER_CLUSTER = 5;
@@ -181,11 +181,11 @@ std::unique_ptr<mv::CompilationUnit> createCompilationUnit(
             switch (platform) {
                 case InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3800:
                 case InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3900: {
-                    targetDescName = "release_thb";
+                    targetDescName = "release_tbh";
                     break;
                 }
                 case InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3720: {
-                    targetDescName = "release_mtl";
+                    targetDescName = "release_VPUX37XX";
                     break;
                 }
                 case InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3400_A0:
@@ -213,7 +213,7 @@ std::unique_ptr<mv::CompilationUnit> createCompilationUnit(
                     break;
                 }
                 case InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3720: {
-                    compDescName = "release_mtl";
+                    compDescName = "release_VPUX37XX";
                     break;
                 }
                 case InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3400_A0: {
@@ -242,7 +242,7 @@ std::unique_ptr<mv::CompilationUnit> createCompilationUnit(
         mcmCompDesc.setPassArg("GlobalConfigParams", "verbose", cvtLogLevelToMCM(config.get<MCM_LOG_LEVEL>()));
         mcmCompDesc.setPassArg("GlobalConfigParams", "RemovePermuteNoOp", config.get<MCM_REMOVE_PERMUTE_NOOP>());
 
-        /* Enable channel major conv by default, may be overridden in compilation descriptor (ie for MTL platform) */
+        /* Enable channel major conv by default, may be overridden in compilation descriptor (ie for VPUX37XX platform) */
         mcmCompDesc.setPassArg("GlobalConfigParams", "enable_channel_major_conv", true);
 
         mcmCompDesc.setPassArg("GlobalConfigParams", "DeviceRevision",

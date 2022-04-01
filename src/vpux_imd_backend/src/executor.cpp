@@ -64,7 +64,7 @@ void vpux::IMD::ExecutorImpl::parseAppConfig(VPUXPlatform platform, const Config
 
         if (platformSupported(platform)) {
             if (platform == VPUXPlatform::VPU3720) {
-                // For some reason, -cv:3720xx doesn't work, while -cv:3700xx works OK for MTL
+                // For some reason, -cv:3720xx doesn't work, while -cv:3700xx works OK for VPUX37XX
                 _app.chipsetArg = "-cv:3700xx";
                 _app.imdElfArg = printToString("-l:LRT:{0}", _app.elfFile);
             } else {

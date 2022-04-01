@@ -216,7 +216,7 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                 /* This should be moved to a target descriptor*/
                 if(subTensor.isSparse())
                 {
-                    //TODO : is this still true for MTL??
+                    //TODO : is this still true for VPUX37XX??
                     algorithms = {"Rectangle"};
                 }
                 else

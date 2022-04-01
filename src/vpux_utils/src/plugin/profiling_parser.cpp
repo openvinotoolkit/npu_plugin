@@ -35,7 +35,7 @@ static double get_frc_speed(const MVCNN::GraphFile* graphFile) {
 
     if (!frc_speed_mhz) {
         switch (graphFile->header()->device()) {
-        case MVCNN::TargetDevice::TargetDevice_KMB:
+        case MVCNN::TargetDevice::TargetDevice_VPUX30XX:
             switch (graphFile->header()->device_revision()) {
             case MVCNN::TargetDeviceRevision::TargetDeviceRevision_A0:
                 frc_speed_mhz = 500;
@@ -48,7 +48,7 @@ static double get_frc_speed(const MVCNN::GraphFile* graphFile) {
                            EnumNameTargetDeviceRevision(graphFile->header()->device_revision()));
             }
             break;
-        case MVCNN::TargetDevice::TargetDevice_TBH:
+        case MVCNN::TargetDevice::TargetDevice_VPUX311X:
             frc_speed_mhz = 700;
             break;
         default:

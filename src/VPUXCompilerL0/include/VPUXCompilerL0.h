@@ -109,7 +109,7 @@ typedef enum __vcl_paltform_t {
 
     VCL_PLATFORM_VPU3400,  ///< KMB B0 400 MHz
     VCL_PLATFORM_VPU3700,  ///< KMB B0 700 MHz
-    VCL_PLATFORM_VPU3720,  ///< MTL
+    VCL_PLATFORM_VPU3720,  ///< VPUX37XX
 
 } vcl_paltform_t;
 

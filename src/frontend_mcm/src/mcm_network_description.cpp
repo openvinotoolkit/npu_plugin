@@ -67,11 +67,11 @@ void adjustNumStreams(const MVCNN::SummaryHeader* header, int& numStreams) {
 
     int maxNumClusters = 0;
     switch (header->device()) {
-    case MVCNN::TargetDevice_KMB:
-    case MVCNN::TargetDevice_TBH:
+    case MVCNN::TargetDevice_VPUX30XX:
+    case MVCNN::TargetDevice_VPUX311X:
         maxNumClusters = 4;
         break;
-    case MVCNN::TargetDevice_MTL:
+    case MVCNN::TargetDevice_VPUX37XX:
         maxNumClusters = 2;
         break;
     default:

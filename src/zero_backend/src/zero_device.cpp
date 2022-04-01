@@ -34,10 +34,10 @@ std::string ZeroDevice::getName() const {
     }
 
 //    KMD is setting usDeviceID from VpuFamilyID.h
-#define IVPU_MYRIADX_DEVICE_ID 0x6200     // MyriadX device
-#define IVPU_KEEMBAY_DEVICE_ID 0x6240     // KeemBay device
-#define IVPU_METEORLAKE_DEVICE_ID 0x7D1D  // MeteorLake device
-#define IVPU_LUNARLAKE_DEVICE_ID 0x643E   // LunarLake device
+#define IVPU_MYRIADX_DEVICE_ID 0x6200   // MyriadX device
+#define IVPU_KEEMBAY_DEVICE_ID 0x6240   // KeemBay device
+#define IVPU_VPUX37XX_DEVICE_ID 0x7D1D  // VPUX37XX device
+#define IVPU_VPUX4000_DEVICE_ID 0x643E  // VPUX4000 device
 
     std::string name;
     switch (properties.deviceId) {
@@ -47,10 +47,10 @@ std::string ZeroDevice::getName() const {
     case IVPU_KEEMBAY_DEVICE_ID:
         name = "3700";
         break;
-    case IVPU_METEORLAKE_DEVICE_ID:
+    case IVPU_VPUX37XX_DEVICE_ID:
         name = "3720";
         break;
-    case IVPU_LUNARLAKE_DEVICE_ID:
+    case IVPU_VPUX4000_DEVICE_ID:
         // TODO to be changed
         name = "3720";
         break;
