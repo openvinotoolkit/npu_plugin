@@ -170,6 +170,25 @@ by propagating them from inputs to outputs and merging into layers.
 ### `-optimize-unaligned-qdq-seq`: Swaps AffineReshape->FakeQuantize sequence if channels become unaligned after AffineReshape
 Pass swaps order of AffineReshape->FakeQuantize sequence if channels become unaligned after AffineReshape
 Otherwise additionals ops are introduce in order to align channels which impacts performance.
+### `-per-axis-fq-concat`: Supports Concat operation with per-axis FQ inputs
+The pass is a part of `HardwareMode` pipeline.
+
+It creates `FakeQuantize` operation, which combines per-channel quantization from `Concat` inputs,
+and places it after the `Concat` operation. For example:
+The following `Concat`:
+```
+    FQ 1x256x128x128 -> Concat <- FQ 1x48x128x128
+                          |
+                        GroupConv 1x304x128x128
+```
+will be transformed into:
+```
+    FQ 1x256x128x128 -> Concat <- FQ 1x48x128x128
+                          |
+                         FQ 1x304x128x128
+                          |
+                        GroupConv 1x304x128x128
+```
 ### `-prefetch-tiling`: Tile layers into smaller tiles to enable prefetch pipeline
 The pass performs tiling on layers to enable prefetch pipeline.
 

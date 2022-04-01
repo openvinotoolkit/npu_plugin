@@ -123,6 +123,7 @@ std::unique_ptr<mlir::Pass> createInsertReorderBetweenTransposeAndConcatPass(Log
 std::unique_ptr<mlir::Pass> createSwapTransposeWithFQPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createPropagateFqThroughPadPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createSwapConcatWithEltwisePass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createPerAxisFQConcatPass(Logger log = Logger::global());
 
 //
 // LowPrecision

@@ -42,6 +42,16 @@ static bool all_consumers_has_fq(const ngraph::Output<ngraph::Node> &node_output
     return true;
 }
 
+static bool is_per_axis(const std::shared_ptr<ngraph::Node>& fq_node) {
+    const auto fq_shape = fq_node->input_value(1).get_node_shared_ptr()->get_shape();
+    if (fq_shape.size() == 0) {
+        return false;
+    }
+
+    const size_t totalSize = std::accumulate(fq_shape.cbegin(), fq_shape.cend(), 1, std::multiplies<size_t>());
+    return totalSize > 1;
+}
+
 static void propagate_down(std::shared_ptr<ngraph::Node> fq_node, std::shared_ptr<ngraph::Node> node, int &copy_num) {
     if (is_fq_agnostic(node)) {
         for (const auto &node_output : node->outputs()) {
@@ -52,6 +62,14 @@ static void propagate_down(std::shared_ptr<ngraph::Node> fq_node, std::shared_pt
             if (std::all_of(consumers.begin(), consumers.end(),
                             [](const auto consumer) {
                             return std::dynamic_pointer_cast<ngraph::op::v0::Result>(consumer.get_node()->shared_from_this()) != nullptr;})) {
+                continue;
+            }
+
+            auto concat_node = std::dynamic_pointer_cast<ngraph::op::v0::Concat>(node);
+            bool is_per_axis_fq = is_per_axis(fq_node);
+            bool is_concat = (concat_node != nullptr);
+            // Skip per-axis concatenation. It will be processed via MLIR pass.
+            if (is_concat && is_per_axis_fq) {
                 continue;
             }
 

@@ -26,9 +26,9 @@ func @SwapConcatWithLayer(%arg0: tensor<1x64x8x512xf16>, %arg1: tensor<1x64x1x51
 
     return %OUT_FQ : tensor<1x64x9x512xf16>
 
-    // CHECK:   [[CONV_WEIGHTS:%.*]] = const.Declare tensor<64x64x1x1xf16> = #const.Content<dense<1.000000e+00> : tensor<64x64x1x1xf16>>
-    // CHECK:   [[CST_FQ_HI:%.*]] = const.Declare tensor<1x1x1x1xf16> = #const.Content<dense<1.970210e-01> : tensor<1x1x1x1xf16>>
     // CHECK:   [[CST_FQ_LO:%.*]] = const.Declare tensor<1x1x1x1xf16> = #const.Content<dense<0.000000e+00> : tensor<1x1x1x1xf16>>
+    // CHECK:   [[CST_FQ_HI:%.*]] = const.Declare tensor<1x1x1x1xf16> = #const.Content<dense<1.970210e-01> : tensor<1x1x1x1xf16>>
+    // CHECK:   [[CONV_WEIGHTS:%.*]] = const.Declare tensor<64x64x1x1xf16> = #const.Content<dense<1.000000e+00> : tensor<64x64x1x1xf16>>
 
     // CHECK:   [[CONV:%.*]] = IE.Convolution(%arg0, [[CONV_WEIGHTS]]) {
     // CHECK-SAME:      dilations = [1, 1],

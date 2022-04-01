@@ -317,12 +317,34 @@ static void broadcast_changes(const std::shared_ptr<ngraph::Node>& node) {
     }
 }
 
+static bool can_broadcast(const std::set<std::shared_ptr<ngraph::Node>>& fqs_to_align) {
+    std::vector<size_t> channels;
+    for (const auto fq : fqs_to_align) {
+        const auto shape = fq->input_value(1).get_node_shared_ptr()->get_shape();
+        if (shape.size() > 1) {
+            channels.push_back(shape.at(1));
+        }
+    }
+
+    if (channels.empty()) {
+        return true;
+    }
+
+    return std::all_of(channels.cbegin(), channels.cend(), [channels](const size_t& chan) -> bool {
+        return chan == channels.at(0);
+    });
+}
+
 bool AlignScales::run_on_node(std::shared_ptr<ngraph::Node> node) {
     if (!node_is_add_or_concat(node))
         return false;
 
     std::set<std::shared_ptr<ngraph::Node>> fqs_to_align;
     gather_fqs(node, fqs_to_align);
+    if (!can_broadcast(fqs_to_align)) {
+        return false;
+    }
+
     if (fqs_to_align.size() < 2) {
         return false;
     }

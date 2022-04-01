@@ -1190,4 +1190,39 @@ def SwapConcatWithEltwise : PassBase<"swap-concat-with-eltwise", "vpux::Function
     ];
 }
 
+//
+// PerAxisFQConcat
+//
+
+def PerAxisFQConcat : PassBase<"per-axis-fq-concat", "vpux::FunctionPass"> {
+    let summary = "Supports Concat operation with per-axis FQ inputs";
+
+    let description = [{
+        The pass is a part of `HardwareMode` pipeline.
+
+        It creates `FakeQuantize` operation, which combines per-channel quantization from `Concat` inputs,
+        and places it after the `Concat` operation. For example:
+        The following `Concat`:
+        ```
+            FQ 1x256x128x128 -> Concat <- FQ 1x48x128x128
+                                  |
+                                GroupConv 1x304x128x128
+        ```
+        will be transformed into:
+        ```
+            FQ 1x256x128x128 -> Concat <- FQ 1x48x128x128
+                                  |
+                                 FQ 1x304x128x128
+                                  |
+                                GroupConv 1x304x128x128
+        ```
+    }];
+
+    let constructor = "vpux::IE::createPerAxisFQConcatPass()";
+
+    let dependentDialects = [
+        "vpux::IE::IEDialect"
+    ];
+}
+
 #endif
