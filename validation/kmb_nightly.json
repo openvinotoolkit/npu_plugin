@@ -675,7 +675,7 @@
         {
             "name" : "BDK_FP16-INT8_openpose-pose",
             "ir" : "models/clientmodels/BDK4/openpose-pose/caffe/FP16-INT8/openpose-pose.xml",
-            "category" : "MLIR/weekly_private",
+            "category" : "MLIR",
             "3720": {
                 "disabled" : true
             },
@@ -2958,7 +2958,7 @@
         {
             "name" : "BDK_FP16-INT8_unet-camvid-onnx-0001",
             "ir" : "models/clientmodels/BDK4/UnetAutoencoder/Surface/FP16-INT8/unet-camvid-onnx-0001.xml",
-            "category" : "MLIR/weekly_private",
+            "category" : "MLIR",
             "disabled" :  true,
             "3720": {
                 "disabled" : true
@@ -4405,7 +4405,7 @@
         {
             "name" : "BDK_onnx_FP16_modnet_custom",
             "ir" : "models/clientmodels/BDK4/modnet_custom/onnx/FP16/modnet_custom.xml",
-            "category" : "MLIR/weekly_private",
+            "category" : "MLIR",
             "disabled" :  true,
             "3720": {
                 "disabled" : true
@@ -4436,7 +4436,7 @@
         {
             "name" : "BDK_onnx_FP16_INT8_modnet_custom",
             "ir" : "models/clientmodels/BDK4/modnet_custom/onnx/FP16-INT8/modnet_custom.xml",
-            "category" : "MLIR/weekly_private",
+            "category" : "MLIR",
             "3720": {
                 "disabled" : true
             },
