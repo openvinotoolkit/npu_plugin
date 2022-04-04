@@ -1547,11 +1547,12 @@
             "AccuracyCheck" : {
                 "config" : "icnet-camvid-ava-0001.yml"
             },
-            "NetTest-CalcRef" : {
-                "disabled" : true
-            },
-            "NetTest-Validate" : {
-                "disabled" : true
+            "NetTest": {
+                "inputs" : [["1024x1024/frankfurt_001016.png"]],
+                "params" : [
+                    "--mode", "raw",
+                    "--raw_tolerance", "1000"
+                ]
             },
             "CI-options" : {
                 "blob_name" : "icnet-camvid-ava-0001_tf"
