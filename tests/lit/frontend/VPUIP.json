@@ -187,7 +187,7 @@
         order: 18
       }
     ],
-    device: "KMB",
+    device: "VPUX30XX",
     device_revision: "B0"
   },
   task_lists: [
