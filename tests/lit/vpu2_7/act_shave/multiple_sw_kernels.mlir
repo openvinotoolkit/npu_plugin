@@ -1,4 +1,7 @@
-// RUN: vpux-translate --export-VPUIP -o %t %s && flatc --raw-binary --json %vpuip_schema_file% -- %t && FileCheck %s --input-file %basename_t.json
+// RUN: vpux-translate --export-VPUIP -o %t %s
+// RUN: flatc --raw-binary --json %vpuip_schema_file% -- %t
+// RUN: FileCheck %s --input-file %basename_t.json
+// RUN: rm %basename_t.json
 //
 // This file generates a blob with 3 activation shaves-kernels sigmoid + softmax + sigmoid
 // demonstrate that the runtime and compiler cannot handle this.  It's also a lit test to help

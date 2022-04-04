@@ -1,4 +1,7 @@
-// RUN: vpux-translate --export-VPUIP -o %t %s && flatc --raw-binary --json %vpuip_schema_file% -- %t && FileCheck %s --input-file %basename_t.json
+// RUN: vpux-translate --export-VPUIP -o %t %s
+// RUN: flatc --raw-binary --json %vpuip_schema_file% -- %t
+// RUN: FileCheck %s --input-file %basename_t.json
+// RUN: rm %basename_t.json
 
 #NHWC = affine_map<(n, c, h, w) -> (n, h, w, c)>
 

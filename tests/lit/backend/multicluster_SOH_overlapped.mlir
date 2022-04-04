@@ -1,5 +1,7 @@
-
-// RUN: vpux-translate --split-input-file --export-VPUIP -o %t %s && flatc --raw-binary --json %vpuip_schema_file% -- %t && FileCheck %s --input-file %basename_t.json
+// RUN: vpux-translate --export-VPUIP -o %t %s
+// RUN: flatc --raw-binary --json %vpuip_schema_file% -- %t
+// RUN: FileCheck %s --input-file %basename_t.json
+// RUN: rm %basename_t.json
 
 #NCHW = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
@@ -128,7 +130,7 @@ IE.CNNNetwork
 // CHECK:              kernelW: 3,
 // CHECK:              kernel_strideH: 1,
 // CHECK:              kernel_strideW: 1,
-// CHECK:             parent_input_tensor: {   
+// CHECK:             parent_input_tensor: {
 // CHECK:               dimensions: [
 // CHECK:                 1,
 // CHECK:                 16,
@@ -263,7 +265,7 @@ IE.CNNNetwork
 // CHECK:              kernelW: 3,
 // CHECK:              kernel_strideH: 1,
 // CHECK:              kernel_strideW: 1,
-// CHECK:             parent_input_tensor: {   
+// CHECK:             parent_input_tensor: {
 // CHECK:               dimensions: [
 // CHECK:                 1,
 // CHECK:                 16,
