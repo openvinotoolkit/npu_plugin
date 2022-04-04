@@ -54,7 +54,7 @@ else:
     sys.path.append(numericBenchPath)
 
 from operators.compute_core import bfloat16
-from operators.vpu26 import Add, Mult, MTLConv2D, MaxPool, AveragePool, PRelu, RequantFuseWithPRelu
+from operators.vpu26 import Add, Mult, Conv2DVPUX37XX, MaxPool, AveragePool, PRelu, RequantFuseWithPRelu
 from operators.vpu26 import HSwish, Sigmoid, Softmax
 from operators.platform.quantize_info import QuantizationInfo
 from operators.platform.quantized_tensor import NBQuantized
@@ -457,7 +457,7 @@ class Int8(TType):
                       self.bitsize,
                       True,
                       orderer)
- 
+
     def generateSparse(self, filename: str, shape, rng, sparsity_factor=0.5, orderer=None) -> np.ndarray:
         # NB For now, we restrict the number of bits in our floats in order
         #    to ensure we're not running into rounding issues.
@@ -866,7 +866,7 @@ class ZMajorConvolution(Operation):
 
     def apply(self, values: List[Value]) -> np.ndarray:
         lhs, rhs = iduConvCustom(values[0], values[1])
-        c2d = MTLConv2D(kernel_shape=self.settings.kernel_shape,
+        c2d = Conv2DVPUX37XX(kernel_shape=self.settings.kernel_shape,
                         pads = self.settings.kernel_pads,
                         strides = self.settings.kernel_strides)
         result = c2d.inference(lhs, rhs)
@@ -967,7 +967,7 @@ class SparseConvolution(Operation):
 
     def apply(self, values: List[Value]) -> np.ndarray:
         lhs, rhs = iduConvCustom(values[0], values[1])
-        c2d = MTLConv2D(kernel_shape=self.settings.kernel_shape,
+        c2d = Conv2DVPUX37XX(kernel_shape=self.settings.kernel_shape,
                      pads = self.settings.kernel_pads,
                      strides = self.settings.kernel_strides)
         result = c2d.inference(lhs, rhs)
@@ -1059,7 +1059,7 @@ class DepthWiseConv(Operation):
 
     def apply(self, values: List[Value]) -> np.ndarray:
         lhs, rhs = iduConvCustom(values[0], values[1])
-        c2d = MTLConv2D(kernel_shape=self.settings.kernel_shape,
+        c2d = Conv2DVPUX37XX(kernel_shape=self.settings.kernel_shape,
                         pads = self.settings.kernel_pads,
                         strides = self.settings.kernel_strides,
                         group = self.settings.weight_shape[0])
@@ -1070,7 +1070,7 @@ class DepthWiseConv(Operation):
 
 
 class EltwiseAdd(Operation):
- 
+
     PARAMS = ['mpe_op_class', 'input_ttype', 'input_shape', 'output_ttype']
     NAME = 'Add'
 
@@ -1708,7 +1708,7 @@ class ReadAfterWriteDPUDMA(Operation):
         ]
 
     def apply(self, values: List[Value]) -> np.ndarray:
-        c2d = MTLConv2D(kernel_shape=self.settings.kernel_shape,
+        c2d = Conv2DVPUX37XX(kernel_shape=self.settings.kernel_shape,
                         pads = self.settings.kernel_pads,
                         strides = self.settings.kernel_strides)
         count = (self.settings.iteration_count - 1) // 2
@@ -1928,7 +1928,7 @@ class ReadAfterWriteDPUACT(Operation):
         ]
 
     def apply(self, values: List[Value]) -> np.ndarray:
-        c2d = MTLConv2D(kernel_shape=self.settings.kernel_shape,
+        c2d = Conv2DVPUX37XX(kernel_shape=self.settings.kernel_shape,
                         pads = self.settings.kernel_pads,
                         strides = self.settings.kernel_strides)
         count = (self.settings.iteration_count - 1) // 2
@@ -2228,7 +2228,7 @@ class DifferentClustersDPU(Operation):
 
     def apply(self, values: List[Value]) -> np.ndarray:
         lhs, rhs = iduConvCustom(values[0], values[1])
-        c2d = MTLConv2D(kernel_shape=self.settings.kernel_shape,
+        c2d = Conv2DVPUX37XX(kernel_shape=self.settings.kernel_shape,
                         pads = self.settings.kernel_pads,
                         strides = self.settings.kernel_strides)
         result = c2d.inference(lhs, rhs)
@@ -2388,7 +2388,7 @@ class RaceConditionDPU(Operation):
 
     def apply(self, values: List[Value]) -> np.ndarray:
         lhs, rhs = iduConvCustom(values[0], values[1])
-        c2d = MTLConv2D(kernel_shape=self.settings.kernel_shape,
+        c2d = Conv2DVPUX37XX(kernel_shape=self.settings.kernel_shape,
                         pads = self.settings.kernel_pads,
                         strides = self.settings.kernel_strides)
         result = c2d.inference(lhs, rhs)
@@ -2475,7 +2475,7 @@ class RaceConditionDPUDMA(Operation):
 
     def apply(self, values: List[Value]) -> np.ndarray:
         lhs, rhs = iduConvCustom(values[0], values[1])
-        c2d = MTLConv2D(kernel_shape=self.settings.kernel_shape,
+        c2d = Conv2DVPUX37XX(kernel_shape=self.settings.kernel_shape,
                         pads = self.settings.kernel_pads,
                         strides = self.settings.kernel_strides)
         result = c2d.inference(lhs, rhs)
@@ -2565,7 +2565,7 @@ class RaceConditionDPUDMAACT(Operation):
 
     def apply(self, values: List[Value]) -> np.ndarray:
         lhs, rhs = iduConvCustom(values[0], values[1])
-        c2d = MTLConv2D(kernel_shape=self.settings.kernel_shape,
+        c2d = Conv2DVPUX37XX(kernel_shape=self.settings.kernel_shape,
                         pads = self.settings.kernel_pads,
                         strides = self.settings.kernel_strides)
         result = c2d.inference(lhs, rhs)

@@ -206,6 +206,6 @@ void createAndRunConvTest() {
     ASSERT_EQ(weight.qp.scale, 0.01);
 }
 
-TEST(MTL_JSON_Parser, conv_test) {
+TEST(VPUX37XX_JSON_Parser, conv_test) {
     createAndRunConvTest();
 }
