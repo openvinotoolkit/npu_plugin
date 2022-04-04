@@ -250,7 +250,7 @@ func @main(%in0: memref<1x1x1x1000xf16>, %in1: memref<1x1x1x1000xf16>) -> memref
 // CHECK:   ]
 
 
-// CHECK:    device: "MTL",
+// CHECK:    device: "VPUX37XX",
 // CHECK:    act_kernel_runtime: {
 // CHECK:        shaveStacks: [
 // CHECK:          {
