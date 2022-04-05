@@ -333,3 +333,5 @@ docs/VPUX_DG/generated
 
 # PSS Testing Framework
 rtlCases
+!builders
+*.egg-info
