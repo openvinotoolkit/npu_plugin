@@ -14,6 +14,8 @@
 #include "vpux/compiler/utils/rewriter.hpp"
 #include "vpux/compiler/utils/types.hpp"
 
+#include "vpux/utils/core/dense_map.hpp"
+
 #include <mlir/Transforms/GreedyPatternRewriteDriver.h>
 
 namespace vpux {
@@ -49,7 +51,7 @@ mlir::LogicalResult CopiesForNCEOp::matchAndRewrite(VPU::NCEOpInterface origOp, 
 
     const auto memSpaceCMX = IndexedSymbolAttr::get(rewriter.getContext(), stringifyEnum(MemoryKind::CMX_NN), 0);
 
-    llvm::DenseMap<mlir::Value, mlir::Value> copiedInputs;
+    DenseMap<mlir::Value, mlir::Value> copiedInputs;
     for (auto& inputOperand : origOp->getOpOperands()) {
         auto origInputValue = inputOperand.get();
         // No need to copy the data if due to some reason it's in CMX already

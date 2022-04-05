@@ -7,6 +7,7 @@
 
 #include "vpux/compiler/core/prefetch_edge_generator.hpp"
 
+#include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 
 #include "vpux/utils/core/range.hpp"

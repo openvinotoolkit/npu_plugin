@@ -9,7 +9,7 @@
 
 #include "vpux/compiler/dialect/VPU/attributes.hpp"
 
-#include <llvm/ADT/DenseMap.h>
+#include "vpux/utils/core/dense_map.hpp"
 
 using namespace vpux;
 
@@ -40,7 +40,7 @@ void DumpStatisticsOfTaskOpsPass::safeRunOnFunc() {
             mlir::OperationName(VPUIP::PoolingUPAOp::getOperationName(), &ctx),
             mlir::OperationName(VPUIP::EltwiseUPAOp::getOperationName(), &ctx)};
 
-    llvm::DenseMap<mlir::OperationName, size_t> taskMap;
+    DenseMap<mlir::OperationName, size_t> taskMap;
     func->walk([&](VPUIP::TaskOpInterface op) {
         taskMap[op->getName()]++;
     });

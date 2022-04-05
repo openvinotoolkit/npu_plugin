@@ -24,8 +24,8 @@ def ELF_SectionInterface : OpInterface<"ElfSectionInterface"> {
             "Serialize the Section into an ELF entity",
             "void",
             "serialize", (ins "elf::Writer&":$writer,
-                              "llvm::DenseMap<mlir::Operation*, elf::writer::Section*>&":$sectionMap,
-                              "llvm::DenseMap<mlir::Operation*, elf::writer::Symbol*>&":$symbolMap)
+                              "vpux::DenseMap<mlir::Operation*, elf::writer::Section*>&":$sectionMap,
+                              "vpux::DenseMap<mlir::Operation*, elf::writer::Symbol*>&":$symbolMap)
         >,
     ];
 }
@@ -40,7 +40,7 @@ def ELF_SymbolObjectInterface : OpInterface<"ElfSymbolObjectInterface"> {
             "Serialize an object as an ELF symbol",
             "void",
             "serialize", (ins "elf::writer::Symbol*":$symbol,
-                              "llvm::DenseMap<mlir::Operation*, elf::writer::Section*>&":$sectionMap)
+                              "vpux::DenseMap<mlir::Operation*, elf::writer::Section*>&":$sectionMap)
         >,
     ];
 }
@@ -55,7 +55,7 @@ def ELF_RelocationObjectInterface : OpInterface<"ElfRelocationObjectInterface"> 
             "Serialize an object as an ELF relocation object",
             "void",
             "serialize", (ins "elf::writer::Relocation*":$relocation,
-                              "llvm::DenseMap<mlir::Operation*, elf::writer::Symbol*>&":$symbolMap)
+                              "vpux::DenseMap<mlir::Operation*, elf::writer::Symbol*>&":$symbolMap)
         >,
     ];
 }

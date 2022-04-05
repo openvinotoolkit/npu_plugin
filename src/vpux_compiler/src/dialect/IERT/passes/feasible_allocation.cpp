@@ -14,6 +14,7 @@
 #include "vpux/compiler/core/prefetch_edge_generator.hpp"
 #include "vpux/compiler/dialect/IERT/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
+#include "vpux/compiler/dialect/VPURT/ops.hpp"
 #include "vpux/compiler/utils/error.hpp"
 #include "vpux/compiler/utils/linear_scan.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"

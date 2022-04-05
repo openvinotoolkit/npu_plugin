@@ -7,9 +7,16 @@
 
 #pragma once
 
+#include "vpux/compiler/dialect/IERT/ops.hpp"
 #include "vpux/compiler/utils/linear_scan.hpp"
 
-#include "vpux/compiler/conversion.hpp"
+#include "vpux/utils/core/array_ref.hpp"
+#include "vpux/utils/core/dense_map.hpp"
+#include "vpux/utils/core/string_ref.hpp"
+
+#include <mlir/IR/Value.h>
+
+#include <llvm/ADT/DenseSet.h>
 
 namespace vpux {
 
@@ -26,7 +33,7 @@ public:
     void markAllBuffersAsDead();
     void markAsAlive(mlir::Value val);
     Byte maxAllocatedSize() const;
-    bool checkInvariantExceedingNNCMX(mlir::Value val, vpux::AddressType baseOffset, vpux::AddressType cmxSize) const;
+    bool checkInvariantExceedingNNCMX(mlir::Value val, AddressType baseOffset, AddressType cmxSize) const;
 
 public:
     bool isAlive(mlir::Value val) const;
@@ -45,14 +52,14 @@ public:
 private:
     IERT::SubViewOp getSubViewUserOp(mlir::Value val) const;
     bool hasEltwiseUser(mlir::Value val) const;
-    vpux::AddressType calculateStaticOffsetWithStrides(ArrayRef<vpux::AddressType> subViewStaticOffsets,
-                                                       StridesRef subViewStrides) const;
-    bool addressWithStridesExceedsNNCMX(vpux::AddressType baseOffset, vpux::AddressType staticOffsetWithStrides,
-                                        StridesRef subViewStrides, vpux::AddressType cmxSize) const;
+    AddressType calculateStaticOffsetWithStrides(ArrayRef<AddressType> subViewStaticOffsets,
+                                                 StridesRef subViewStrides) const;
+    bool addressWithStridesExceedsNNCMX(AddressType baseOffset, AddressType staticOffsetWithStrides,
+                                        StridesRef subViewStrides, AddressType cmxSize) const;
 
 private:
-    mlir::DenseMap<mlir::Value, AddressType> _valOffsets;
-    mlir::DenseSet<mlir::Value> _aliveValues;
+    DenseMap<mlir::Value, AddressType> _valOffsets;
+    llvm::DenseSet<mlir::Value> _aliveValues;
     AddressType _defaultAlignment = 1;
     Byte _maxAllocatedSize;
 };

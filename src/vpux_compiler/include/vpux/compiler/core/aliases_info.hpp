@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include "vpux/utils/core/dense_map.hpp"
 #include "vpux/utils/core/logger.hpp"
 
 #include <mlir/IR/BuiltinOps.h>
@@ -19,7 +20,7 @@ namespace vpux {
 class AliasesInfo {
 public:
     using ValuesSet = llvm::SmallPtrSet<mlir::Value, 16>;
-    using ValuesMap = llvm::DenseMap<mlir::Value, ValuesSet>;
+    using ValuesMap = DenseMap<mlir::Value, ValuesSet>;
     using OpRange = llvm::iterator_range<mlir::Region::OpIterator>;
 
 public:

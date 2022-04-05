@@ -9,6 +9,7 @@
 #include "vpux/compiler/core/feasible_memory_scheduler.hpp"
 #include "vpux/compiler/core/linear_scan_handler.hpp"
 
+#include "vpux/utils/core/dense_map.hpp"
 #include "vpux/utils/core/logger.hpp"
 
 #include <mlir/IR/Operation.h>
@@ -95,7 +96,7 @@ private:
     SmallVector<std::pair<mlir::Value, mlir::async::ExecuteOp>> _opIdAndSpillWritePairs;
     // Map storing new buffers replacing spilled buffers: key - original spilled buffer, value - new allocated buffer
     // after spill-read
-    llvm::DenseMap<mlir::Value, mlir::Value> _bufferReplacementAfterSpillRead;
+    DenseMap<mlir::Value, mlir::Value> _bufferReplacementAfterSpillRead;
 };
 
 }  // namespace vpux

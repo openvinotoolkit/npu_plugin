@@ -11,9 +11,8 @@
 #include "vpux/compiler/utils/analysis.hpp"
 #include "vpux/compiler/utils/logging.hpp"
 
+#include "vpux/utils/core/dense_map.hpp"
 #include "vpux/utils/core/small_vector.hpp"
-
-#include <llvm/ADT/DenseMap.h>
 
 using namespace vpux;
 
@@ -30,7 +29,7 @@ void moveWaitResults(mlir::async::AwaitOp waitOp, Logger log) {
 
     log.trace("Collect all uses inside 'async.execute' regions");
 
-    using ExecutorToAsyncUsesMap = llvm::DenseMap<mlir::Operation*, SmallVector<mlir::OpOperand*>>;
+    using ExecutorToAsyncUsesMap = DenseMap<mlir::Operation*, SmallVector<mlir::OpOperand*>>;
     ExecutorToAsyncUsesMap allAsyncUses;
 
     for (auto& use : waitOp.result().getUses()) {

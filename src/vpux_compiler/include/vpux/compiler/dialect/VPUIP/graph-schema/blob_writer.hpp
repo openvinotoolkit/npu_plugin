@@ -18,6 +18,7 @@
 #include "vpux/compiler/dialect/const/attributes/content.hpp"
 
 #include "vpux/utils/core/array_ref.hpp"
+#include "vpux/utils/core/dense_map.hpp"
 #include "vpux/utils/core/logger.hpp"
 #include "vpux/utils/core/optional.hpp"
 #include "vpux/utils/core/range.hpp"
@@ -176,8 +177,8 @@ public:
 
 private:
     using TaskMap = std::unordered_map<mlir::Operation*, Task>;
-    using TensorReferenceMap = mlir::DenseMap<mlir::Value, TensorReference>;
-    using BarrierMap = mlir::DenseMap<mlir::Value, uint32_t>;
+    using TensorReferenceMap = DenseMap<mlir::Value, TensorReference>;
+    using BarrierMap = DenseMap<mlir::Value, uint32_t>;
 
     template <class UnderlyingType>
     auto arrayCast(ArrayRef<int64_t> source) {

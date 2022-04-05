@@ -5,6 +5,8 @@
 
 #include "vpux/compiler/core/feasible_memory_scheduler_spilling.hpp"
 
+#include "vpux/compiler/dialect/VPUIP/ops.hpp"
+#include "vpux/compiler/dialect/VPURT/ops.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
 
 #include "vpux/utils/core/format.hpp"

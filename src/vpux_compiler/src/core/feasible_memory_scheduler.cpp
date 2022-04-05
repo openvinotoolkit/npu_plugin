@@ -6,6 +6,7 @@
 #include "vpux/compiler/core/feasible_memory_scheduler.hpp"
 
 #include "vpux/compiler/core/profiling.hpp"
+#include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/strings.hpp"
 

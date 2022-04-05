@@ -10,11 +10,10 @@
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
 
 #include "vpux/utils/core/array_ref.hpp"
+#include "vpux/utils/core/dense_map.hpp"
 #include "vpux/utils/core/logger.hpp"
 #include "vpux/utils/core/ring_buffer.hpp"
 #include "vpux/utils/core/small_vector.hpp"
-
-#include <llvm/ADT/DenseMap.h>
 
 #include <array>
 #include <cassert>
@@ -145,7 +144,7 @@ private:
     int64_t _availableBarriers = 0;
     int64_t _usedBarriers = 0;
 
-    llvm::DenseMap<mlir::Operation*, size_t> _barriersMap;
+    DenseMap<mlir::Operation*, size_t> _barriersMap;
     SmallVector<BarrierConfig> _barriers;
     bool _isDynamicBarriers = false;
 

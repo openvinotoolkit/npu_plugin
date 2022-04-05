@@ -7,6 +7,7 @@
 
 #include "vpux/compiler/core/linear_scan_handler.hpp"
 
+#include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 
 #include "vpux/utils/core/numeric.hpp"
@@ -125,8 +126,8 @@ bool LinearScanHandler::hasEltwiseUser(mlir::Value val) const {
     return false;
 }
 
-vpux::AddressType LinearScanHandler::calculateStaticOffsetWithStrides(ArrayRef<vpux::AddressType> subViewStaticOffsets,
-                                                                      StridesRef subViewStrides) const {
+AddressType LinearScanHandler::calculateStaticOffsetWithStrides(ArrayRef<AddressType> subViewStaticOffsets,
+                                                                StridesRef subViewStrides) const {
     Byte offset(0);
 
     for (auto p : zip(subViewStaticOffsets, subViewStrides)) {
@@ -136,9 +137,8 @@ vpux::AddressType LinearScanHandler::calculateStaticOffsetWithStrides(ArrayRef<v
     return offset.count();
 }
 
-bool LinearScanHandler::addressWithStridesExceedsNNCMX(vpux::AddressType baseOffset,
-                                                       vpux::AddressType staticOffsetWithStrides,
-                                                       StridesRef subViewStrides, vpux::AddressType cmxSize) const {
+bool LinearScanHandler::addressWithStridesExceedsNNCMX(AddressType baseOffset, AddressType staticOffsetWithStrides,
+                                                       StridesRef subViewStrides, AddressType cmxSize) const {
     Byte cmxLeft(cmxSize - (baseOffset + staticOffsetWithStrides));
 
     for (auto stride : subViewStrides) {
@@ -150,8 +150,8 @@ bool LinearScanHandler::addressWithStridesExceedsNNCMX(vpux::AddressType baseOff
     return false;
 }
 
-bool LinearScanHandler::checkInvariantExceedingNNCMX(mlir::Value val, vpux::AddressType baseOffset,
-                                                     vpux::AddressType cmxSize) const {
+bool LinearScanHandler::checkInvariantExceedingNNCMX(mlir::Value val, AddressType baseOffset,
+                                                     AddressType cmxSize) const {
     // for concatenation in NNCMX with non contigious block memory write
     // prevent a scenario where tensor strides exceed NNCMX size
 
@@ -165,7 +165,7 @@ bool LinearScanHandler::checkInvariantExceedingNNCMX(mlir::Value val, vpux::Addr
         return false;
     }
 
-    const auto subViewStaticOffsets = parseIntArrayAttr<vpux::AddressType>(subView.static_offsets());
+    const auto subViewStaticOffsets = parseIntArrayAttr<AddressType>(subView.static_offsets());
     const auto subViewStrides = getStrides(subView.source());
     VPUX_THROW_UNLESS(subViewStrides.size() == subViewStaticOffsets.size(),
                       "SubView offsets '{0}' doesn't match strides '{1}'", subViewStaticOffsets, subViewStrides);

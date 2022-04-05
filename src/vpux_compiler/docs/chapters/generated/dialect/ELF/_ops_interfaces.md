@@ -39,7 +39,7 @@ Interface for the ELF relocation objects
 #### `serialize`
 
 ```c++
-void serialize(elf::writer::Relocation*relocation, llvm::DenseMap<mlir::Operation*, elf::writer::Symbol*>&symbolMap);
+void serialize(elf::writer::Relocation*relocation, vpux::DenseMap<mlir::Operation*, elf::writer::Symbol*>&symbolMap);
 ```
 Serialize an object as an ELF relocation object
 NOTE: This method *must* be implemented by the user.
@@ -51,7 +51,7 @@ Interface for the ELF section
 #### `serialize`
 
 ```c++
-void serialize(elf::Writer&writer, llvm::DenseMap<mlir::Operation*, elf::writer::Section*>&sectionMap, llvm::DenseMap<mlir::Operation*, elf::writer::Symbol*>&symbolMap);
+void serialize(elf::Writer&writer, vpux::DenseMap<mlir::Operation*, elf::writer::Section*>&sectionMap, vpux::DenseMap<mlir::Operation*, elf::writer::Symbol*>&symbolMap);
 ```
 Serialize the Section into an ELF entity
 NOTE: This method *must* be implemented by the user.
@@ -63,7 +63,7 @@ Interface for the ELF symbol objects
 #### `serialize`
 
 ```c++
-void serialize(elf::writer::Symbol*symbol, llvm::DenseMap<mlir::Operation*, elf::writer::Section*>&sectionMap);
+void serialize(elf::writer::Symbol*symbol, vpux::DenseMap<mlir::Operation*, elf::writer::Section*>&sectionMap);
 ```
 Serialize an object as an ELF symbol
 NOTE: This method *must* be implemented by the user.

@@ -7,24 +7,24 @@
 
 #pragma once
 
-#include "vpux/compiler/dialect/ELF/attributes.hpp"
-
 #include "vpux/compiler/core/attributes/dims_order.hpp"
 #include "vpux/compiler/core/attributes/shape.hpp"
 #include "vpux/compiler/core/attributes/strides.hpp"
+#include "vpux/compiler/dialect/ELF/attributes.hpp"
 #include "vpux/compiler/dialect/const/attributes/content.hpp"
-
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/stl_extras.hpp"
+
+#include "vpux/utils/core/dense_map.hpp"
 
 #include <vpux_elf/writer.hpp>
 
 namespace vpux {
 namespace ELF {
 
-typedef llvm::DenseMap<mlir::Operation*, elf::writer::Section*> SectionMapType;
+typedef DenseMap<mlir::Operation*, elf::writer::Section*> SectionMapType;
 // Note that this works since in our case the IR is immutable troughout the life-time of the map.
-typedef llvm::DenseMap<mlir::Operation*, elf::writer::Symbol*> SymbolMapType;
+typedef DenseMap<mlir::Operation*, elf::writer::Symbol*> SymbolMapType;
 
 }  // namespace ELF
 }  // namespace vpux

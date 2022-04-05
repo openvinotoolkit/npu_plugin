@@ -11,13 +11,15 @@
 #include "vpux/compiler/utils/logging.hpp"
 #include "vpux/compiler/utils/types.hpp"
 
+#include "vpux/utils/core/dense_map.hpp"
+
 #include <mlir/Transforms/DialectConversion.h>
 
 using namespace vpux;
 
 namespace {
 
-using InputToReordersMap = mlir::DenseMap<mlir::Value, std::unordered_map<DimsOrder, IE::ReorderOp>>;
+using InputToReordersMap = DenseMap<mlir::Value, std::unordered_map<DimsOrder, IE::ReorderOp>>;
 
 //
 // LayerRewriter
