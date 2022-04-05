@@ -704,14 +704,14 @@ void vpuLayersTests::ReferenceGraph(const CNNNetwork& net) {
 
 template <typename T>
 T vpuLayersTests::generate_val(float min_val, float max_val) {
-    float scale = (max_val - min_val) / RAND_MAX;
+    float scale = (max_val - min_val) / float(RAND_MAX);
     float val = rand() * scale + min_val;
     return static_cast<T>(val);
 }
 
 template <>
 uint16_t vpuLayersTests::generate_val<uint16_t>(float min_val, float max_val) {
-    float scale = (max_val - min_val) / RAND_MAX;
+    float scale = (max_val - min_val) / float(RAND_MAX);
     float val = rand() * scale + min_val;
     return InferenceEngine::PrecisionUtils::f32tof16(val);
 }

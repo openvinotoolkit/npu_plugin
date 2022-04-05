@@ -91,7 +91,7 @@ std::vector<T_data> generateSequence(std::size_t dataSize, const std::string& dt
         result[i] = (T_data)i;
     } else if (dtype == "FP32") {
         float LO = -10, HI = 10;
-        float nummax = RAND_MAX;
+        float nummax = static_cast<float>(RAND_MAX);
         for (std::size_t i = 0; i < result.size(); ++i)
              result[i] = LO + (static_cast <float> (std::rand()) /(nummax/(HI-LO)));
     }

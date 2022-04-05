@@ -45,12 +45,13 @@ public:
         return _blobColorFormat;
     }
 
-public:
     /** @brief Override current parameters with new options, not specified keep the same */
     virtual void update(const InferenceEngine::ParamMap& updateParams);
 
     /** @brief Override current parameters with new or existing options, not specified keep the same */
     virtual void updateFull(const InferenceEngine::ParamMap& updateParams);
+
+    virtual ~ParsedRemoteBlobParams() = default;
 
 protected:
     virtual void parse();

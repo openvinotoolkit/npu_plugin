@@ -13,13 +13,12 @@
 
 namespace vpux {
 class ZeroAllocator : public Allocator {
-    ze_driver_handle_t driver_handle = nullptr;
     const static std::size_t alignment = 4096;
 
     static std::unordered_set<const void*> our_pointers;
 
 public:
-    explicit ZeroAllocator(ze_driver_handle_t driver): driver_handle(driver) {
+    explicit ZeroAllocator(ze_driver_handle_t) {
     }
 
     /**

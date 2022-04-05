@@ -301,7 +301,7 @@ public:
                                                  const std::shared_ptr<InferenceEngine::IAllocator>& allocator) = 0;
 
 protected:
-    ~IDevice() = default;
+    virtual ~IDevice() = default;
 };
 
 class Device final {

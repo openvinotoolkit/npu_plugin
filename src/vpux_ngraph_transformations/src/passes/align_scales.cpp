@@ -218,7 +218,7 @@ static void align_fq(std::set<std::shared_ptr<ngraph::Node>>& fqs, const float m
     }
 
     i = 0;
-    for (auto fq_node : fqs) {
+    for (const auto& fq_node : fqs) {
         if (changed[i]) {
             broadcast_changes(fq_node);
         }
@@ -319,7 +319,7 @@ static void broadcast_changes(const std::shared_ptr<ngraph::Node>& node) {
 
 static bool can_broadcast(const std::set<std::shared_ptr<ngraph::Node>>& fqs_to_align) {
     std::vector<size_t> channels;
-    for (const auto fq : fqs_to_align) {
+    for (const auto& fq : fqs_to_align) {
         const auto shape = fq->input_value(1).get_node_shared_ptr()->get_shape();
         if (shape.size() > 1) {
             channels.push_back(shape.at(1));

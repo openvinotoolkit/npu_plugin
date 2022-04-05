@@ -97,7 +97,7 @@ public:
         delete[] m_buffer;
     }
 
-    size_t copy(elf::DeviceBuffer& to, const uint8_t* from, size_t count) {
+    size_t copy(elf::DeviceBuffer& to, const uint8_t* from, size_t count) override {
         memcpy(to.cpu_addr(), from, count);
         return count;
     }
