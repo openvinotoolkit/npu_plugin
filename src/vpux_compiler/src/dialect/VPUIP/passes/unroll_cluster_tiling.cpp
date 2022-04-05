@@ -203,7 +203,7 @@ SmallVector<mlir::Value> ClusterNCERewriter::getPerClusterBuffers(mlir::Location
                     vpux::IndexedSymbolAttr::get(_ctx, {_cmxNameAttr, vpux::getIntAttr(_ctx, clusterId)});
             cmxBuffType = cmxBuffType.changeMemSpace(symbolAttr);
 
-            const auto newLoc = appendLoc(loc, llvm::formatv("_{0}_cluster_{1}", bufferName, clusterId).str());
+            const auto newLoc = appendLoc(loc, "_{0}_cluster_{1}", bufferName, clusterId);
             auto newCmxBuffer = rewriter.create<VPURT::DeclareBufferOp>(
                     newLoc, cmxBuffType, VPURT::BufferSection::CMX_NN, clusterId, declBuff.byteOffset());
             _log.trace("Insert new CMX buffer: '{0}'", newCmxBuffer);
@@ -239,7 +239,7 @@ SmallVector<mlir::Value> ClusterNCERewriter::getPerClusterBuffers(mlir::Location
                     VPUIP::DistributedBufferType::get(_ctx, perClusterShapes[clusterId].raw(), elemType, layout,
                                                       distributedType.getMemSpace(), distributedType.getDistribution());
 
-            const auto newLoc = appendLoc(loc, llvm::formatv("_{0}_cluster_{1}", bufferName, clusterId).str());
+            const auto newLoc = appendLoc(loc, "_{0}_cluster_{1}", bufferName, clusterId);
             auto newCmxBuffer = rewriter.create<VPURT::DeclareBufferOp>(
                     newLoc, newDistributedType, VPURT::BufferSection::CMX_NN, clusters, declBuff.byteOffset());
             _log.trace("Insert new CMX buffer: '{0}'", newCmxBuffer);
@@ -281,7 +281,7 @@ SmallVector<mlir::Value> ClusterNCERewriter::getPerClusterBuffers(mlir::Location
                 cmxOffset += perClusterShapeOffsets[clusterId][Dim(axis)] * static_cast<Byte>(strides[Dim(axis)]);
             }
 
-            const auto newLoc = appendLoc(loc, llvm::formatv("_{0}_cluster_{1}", bufferName, clusterId).str());
+            const auto newLoc = appendLoc(loc, "_{0}_cluster_{1}", bufferName, clusterId);
             auto newCmxBuffer = rewriter.create<VPURT::DeclareBufferOp>(
                     newLoc, newDistributedType, VPURT::BufferSection::CMX_NN, clusters, cmxOffset.count());
             _log.trace("Insert new CMX buffer: '{0}'", newCmxBuffer);
@@ -374,7 +374,8 @@ mlir::LogicalResult ClusterNCERewriter::matchAndRewrite(VPUIP::NCEClusterTaskOp 
     }
 
     for (int64_t clusterId = 0; clusterId < numClusters; ++clusterId) {
-        const auto newLoc = appendLoc(loc, llvm::formatv("_cluster_{0}", clusterId).str());
+        const auto newLoc = appendLoc(loc, "_cluster_{0}", clusterId);
+
         mlir::Value profilingData = nullptr;
         SmallVector<mlir::Type> newResultTypes = {outputBuffs[clusterId].getType()};
 
@@ -591,7 +592,7 @@ void ClusterDMARewriter::unrollSegmentedOrOverlapped(mlir::Location loc, VPUIP::
         const auto outBuffer = getOperand(clusterId, output, newOutType);
         _log.trace("Insert new output buffer declaration: '{0}'", outBuffer);
 
-        const auto newLoc = appendLoc(loc, llvm::formatv("_cluster_{0}", clusterId).str());
+        const auto newLoc = appendLoc(loc, "_cluster_{0}", clusterId);
         const auto newNNDMA = VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(
                 rewriter, vpurtTask.waitBarriers(), vpurtTask.updateBarriers(), newLoc, inputBuffer, outBuffer);
         _log.trace("Insert new NNDMA op: '{0}'", newNNDMA);
@@ -659,8 +660,7 @@ mlir::LogicalResult ClusterDMARewriter::matchAndRewrite(VPUIP::NNDMAOp nndmaOp, 
                 loc, outDeclBuff.getType(), VPURT::BufferSection::CMX_NN, clusters, outDeclBuff.byteOffset());
         _log.trace("Insert new CMX buffer declaration: '{0}'", cmxBuffer);
 
-        const auto newLoc = appendLoc(
-                loc, llvm::formatv("_broadcast_copy_to_CMX[{0},{1}]", clusters.front(), clusters.back()).str());
+        const auto newLoc = appendLoc(loc, "_broadcast_copy_to_CMX[{0},{1}]", clusters.front(), clusters.back());
         const auto newNNDMA = VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(
                 rewriter, vpurtTask.waitBarriers(), vpurtTask.updateBarriers(), newLoc, input, cmxBuffer);
         _log.trace("Insert new NNDMA op: '{0}'", newNNDMA);

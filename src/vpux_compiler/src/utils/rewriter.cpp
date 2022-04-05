@@ -165,7 +165,16 @@ mlir::GreedyRewriteConfig vpux::getDefaultGreedyRewriteConfig() {
 
 mlir::Location vpux::appendLoc(mlir::Location baseLoc, StringRef suffix) {
     const auto suffixIdentifier = mlir::Identifier::get(suffix, baseLoc.getContext());
-    const mlir::Location suffixLoc = mlir::NameLoc::get(suffixIdentifier);
+    return appendLoc(baseLoc, suffixIdentifier);
+}
+
+mlir::Location vpux::appendLoc(mlir::Location baseLoc, const formatv_object_base& suffix) {
+    const auto suffixIdentifier = mlir::Identifier::get(suffix, baseLoc.getContext());
+    return appendLoc(baseLoc, suffixIdentifier);
+}
+
+mlir::Location vpux::appendLoc(mlir::Location baseLoc, mlir::Identifier suffix) {
+    const mlir::Location suffixLoc = mlir::NameLoc::get(suffix);
     return mlir::FusedLoc::get(baseLoc.getContext(), {baseLoc, suffixLoc});
 }
 

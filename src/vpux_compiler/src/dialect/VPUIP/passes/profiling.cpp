@@ -82,8 +82,7 @@ void UPAProfilingPass::safeRunOnModule() {
                 mlir::NameLoc::get(mlir::Identifier::get("declareProfilingBuffer", ctx)), timestampType,
                 VPURT::BufferSection::ProfilingOutput, profilingId, offset);
 
-        const auto profilingMeta = llvm::formatv("_PROF_{0}", upaId).str();
-        const auto loc = appendLoc(upaTask->getLoc(), profilingMeta);
+        const auto loc = appendLoc(upaTask->getLoc(), "_PROF_{0}", upaId);
         upaTask->setLoc(loc);
         upaTask.profiling_dataMutable().assign(declareOp);
         upaId++;

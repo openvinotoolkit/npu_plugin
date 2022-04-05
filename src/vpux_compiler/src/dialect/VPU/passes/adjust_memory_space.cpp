@@ -67,9 +67,9 @@ mlir::LogicalResult CopiesForNCEOp::matchAndRewrite(VPU::NCEOpInterface origOp, 
         ///   Input -> Copy -> NCEEltwise(Abs)
         ///                \--/
         if (copiedInputs.count(origInputValue) == 0) {
-            const auto locationSuffix = llvm::formatv("input-{0}-CMX", inputOperand.getOperandNumber()).str();
-            const auto inputCMX = copyIntoMemSpace(rewriter, appendLoc(origOp->getLoc(), locationSuffix),
-                                                   origInputValue, memSpaceCMX);
+            const auto inputCMX = copyIntoMemSpace(
+                    rewriter, appendLoc(origOp->getLoc(), "input-{0}-CMX", inputOperand.getOperandNumber()),
+                    origInputValue, memSpaceCMX);
             copiedInputs[origInputValue] = inputCMX;
         }
         inputOperand.set(copiedInputs[origInputValue]);

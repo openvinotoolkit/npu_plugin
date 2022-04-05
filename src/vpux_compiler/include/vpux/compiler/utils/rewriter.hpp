@@ -10,6 +10,7 @@
 #include "vpux/compiler/core/type_interfaces.hpp"
 
 #include "vpux/utils/core/array_ref.hpp"
+#include "vpux/utils/core/format.hpp"
 #include "vpux/utils/core/func_ref.hpp"
 #include "vpux/utils/core/logger.hpp"
 #include "vpux/utils/core/small_vector.hpp"
@@ -42,6 +43,13 @@ mlir::GreedyRewriteConfig getDefaultGreedyRewriteConfig();
 //
 
 mlir::Location appendLoc(mlir::Location baseLoc, StringRef suffix);
+mlir::Location appendLoc(mlir::Location baseLoc, const formatv_object_base& suffix);
+mlir::Location appendLoc(mlir::Location baseLoc, mlir::Identifier suffix);
+
+template <typename Arg0, typename... Args>
+mlir::Location appendLoc(mlir::Location baseLoc, StringLiteral format, Arg0&& arg0, Args&&... args) {
+    return appendLoc(baseLoc, formatv(format.data(), std::forward<Arg0>(arg0), std::forward<Args>(args)...));
+}
 
 //
 // dummyConverter

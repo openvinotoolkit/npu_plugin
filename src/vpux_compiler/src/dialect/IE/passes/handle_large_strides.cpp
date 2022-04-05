@@ -97,8 +97,7 @@ mlir::LogicalResult generalSplitter(mlir::Operation* origOp, mlir::PatternRewrit
             const SmallVector<int64_t> sliceShape{inputShape[Dims4D::Act::N], inputShape[Dims4D::Act::C],
                                                   KY - padTop - padBottom, KX - padLeft - padRight};
 
-            const auto sliceName = llvm::formatv("slice {0}, {1}", i, j).str();
-            const auto loc = appendLoc(origOp->getLoc(), sliceName);
+            const auto loc = appendLoc(origOp->getLoc(), "slice {0}, {1}", i, j);
 
             mlir::Operation* slicedInput = rewriter.create<IE::SliceOp>(
                     loc, origOp->getOperand(0), getIntArrayAttr(ctx, offsets.raw()), getIntArrayAttr(ctx, sliceShape));

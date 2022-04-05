@@ -217,8 +217,7 @@ mlir::Value vpux::IE::makeTile(mlir::OpBuilder& builder, mlir::Location baseLoc,
         return origVal;
     }
 
-    const auto tileName = llvm::formatv("{0} tile {1}", valName, tile.offsets).str();
-    const auto loc = appendLoc(baseLoc, tileName);
+    const auto loc = appendLoc(baseLoc, "{0} tile {1}", valName, tile.offsets);
 
     auto sliceOp = builder.create<IE::SliceOp>(loc, origVal, tile.offsets, tile.shape);
     return sliceOp.result();

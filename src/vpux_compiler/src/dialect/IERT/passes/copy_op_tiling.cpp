@@ -137,7 +137,7 @@ SmallVector<mlir::Value> CopyOpTiling::createTiles(IERT::CopyOp origOp, mlir::Pa
     auto planesLeftToCopy = numPlanesOfFullShape;
     for (int64_t tileIdx = 0; planesLeftToCopy > 0; ++tileIdx) {
         // Get the proper shape and a new location for the tile
-        const auto tileLoc = appendLoc(origOp->getLoc(), llvm::formatv("tile {0}", tileIdx).str());
+        const auto tileLoc = appendLoc(origOp->getLoc(), "tile {0}", tileIdx);
         currentTileShapeVector[tileDim.ind()] = std::min(numPlanesPerTile, planesLeftToCopy);
 
         // Create the operations for it

@@ -243,8 +243,7 @@ mlir::FailureOr<mlir::Value> AveragePoolRewriter::splitAvgOperationSlicing(IE::A
                                             inputShape[Dims4D::Act::H] - offsets[Dims4D::Act::H],
                                             inputShape[Dims4D::Act::W] - offsets[Dims4D::Act::W]};
 
-            const auto sliceName = llvm::formatv("slice {0}, {1}", i, j).str();
-            const auto loc = appendLoc(origOp->getLoc(), sliceName);
+            const auto loc = appendLoc(origOp->getLoc(), "slice {0}, {1}", i, j);
 
             auto slicedInput = rewriter.create<IE::SliceOp>(
                     loc, origOp->getOperand(0), getIntArrayAttr(ctx, offsets.raw()), getIntArrayAttr(ctx, sliceShape));

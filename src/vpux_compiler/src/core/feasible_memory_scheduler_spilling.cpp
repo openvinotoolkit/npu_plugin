@@ -7,6 +7,8 @@
 
 #include "vpux/compiler/utils/rewriter.hpp"
 
+#include "vpux/utils/core/format.hpp"
+
 using namespace vpux;
 
 //
@@ -537,8 +539,8 @@ mlir::async::ExecuteOp FeasibleMemorySchedulerSpilling::insertSpillWriteCopyOp(m
                                                                                mlir::async::ExecuteOp insertAfterExecOp,
                                                                                mlir::Value bufferToSpill,
                                                                                size_t allocatedAddress) {
-    auto spillWriteNameLoc = appendLoc(opThatWasSpilled->getLoc(),
-                                       llvm::formatv("spill_write_{0}", _depsInfo.getIndex(opThatWasSpilled)).str());
+    auto spillWriteNameLoc =
+            appendLoc(opThatWasSpilled->getLoc(), "spill_write_{0}", _depsInfo.getIndex(opThatWasSpilled));
     _log.trace("Insert Spill Write copyOp - '{0}'", spillWriteNameLoc);
 
     // Get spill destination buffer type (memref) from the provided
@@ -622,8 +624,8 @@ mlir::async::ExecuteOp FeasibleMemorySchedulerSpilling::insertSpillReadCopyOp(ml
                                                                               mlir::async::ExecuteOp spillWriteExecOp,
                                                                               mlir::async::ExecuteOp insertAfterExecOp,
                                                                               size_t allocatedAddress) {
-    auto spillReadNameLoc = appendLoc(opThatWasSpilled->getLoc(),
-                                      llvm::formatv("spill_read_{0}", _depsInfo.getIndex(opThatWasSpilled)).str());
+    auto spillReadNameLoc =
+            appendLoc(opThatWasSpilled->getLoc(), "spill_read_{0}", _depsInfo.getIndex(opThatWasSpilled));
     _log.trace("Insert Spill Read copyOp - '{0}'", spillReadNameLoc);
 
     // Get information about spill write returned memref type and prepare new one with proper memory location

@@ -436,8 +436,8 @@ void DPUProfilingPass::safeRunOnModule() {
 
         SmallVector<mlir::Type> newResultTypes(cluster.getResultTypes());
         newResultTypes.push_back(timestampType);
-        const auto profilingMeta = llvm::formatv("_PROF_{0}", dpuId).str();
-        const auto loc = appendLoc(cluster->getLoc(), profilingMeta);
+
+        const auto loc = appendLoc(cluster->getLoc(), "_PROF_{0}", dpuId);
 
         builder.setInsertionPointAfter(cluster);
         auto newCluster = builder.create<VPUIP::NCEClusterTaskOp>(loc, newResultTypes, cluster->getOperands(),

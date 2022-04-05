@@ -159,8 +159,7 @@ mlir::Value reifyTile(IE::TilingBuilderOpInterface origOp, const TileInfo& outpu
         mapper.map(origInput, tiledInput);
     }
 
-    const auto tileName = llvm::formatv("output tile {0}", outputTile.offsets).str();
-    const auto tileLoc = appendLoc(origOp->getLoc(), tileName);
+    const auto tileLoc = appendLoc(origOp->getLoc(), "output tile {0}", outputTile.offsets);
 
     auto* tiledOp = builder.clone(*origOp, mapper);
     tiledOp->setLoc(tileLoc);
