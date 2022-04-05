@@ -42,19 +42,19 @@ const std::vector<std::map<std::string, std::string>> configs = {
         {{VPUX_CONFIG_KEY(PLATFORM), "3700"}},
         {{VPUX_CONFIG_KEY(PLATFORM), "3800"}},
         {{VPUX_CONFIG_KEY(PLATFORM), "3900"}},
-        {{VPUX_CONFIG_KEY(PLATFORM), "37XX"}},
+        {{VPUX_CONFIG_KEY(PLATFORM), "3720"}},
         {{VPUX_CONFIG_KEY(PLATFORM), "VPU3400_A0"}},
         {{VPUX_CONFIG_KEY(PLATFORM), "VPU3400"}},
         {{VPUX_CONFIG_KEY(PLATFORM), "VPU3700"}},
         {{VPUX_CONFIG_KEY(PLATFORM), "VPU3800"}},
         {{VPUX_CONFIG_KEY(PLATFORM), "VPU3900"}},
-        {{VPUX_CONFIG_KEY(PLATFORM), "VPUX37XX"}},
+        {{VPUX_CONFIG_KEY(PLATFORM), "VPU3720"}},
         {{CONFIG_KEY(DEVICE_ID), "3400_A0"}},
         {{CONFIG_KEY(DEVICE_ID), "3400"}},
         {{CONFIG_KEY(DEVICE_ID), "3700"}},
         {{CONFIG_KEY(DEVICE_ID), "3800"}},
         {{CONFIG_KEY(DEVICE_ID), "3900"}},
-        {{CONFIG_KEY(DEVICE_ID), "37XX"}}};
+        {{CONFIG_KEY(DEVICE_ID), "3720"}}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest, CompileForDifferentPlatformsTests,
                         ::testing::Combine(
