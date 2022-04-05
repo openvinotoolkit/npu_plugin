@@ -35,10 +35,7 @@ struct NceOpTensorShape {
     vpux::Shape outputShape;
 };
 
-vpux::VPUIP::WorkloadCostParams buildWorkloadCost(const NceOpTensorShape& tensorShape, vpux::VPU::MPEMode mpeMode,
-                                                  mlir::MLIRContext* ctx) {
-    const auto outputShape = tensorShape.outputShape;
-    const auto inputShape = tensorShape.inputShape;
+vpux::VPUIP::WorkloadCostParams buildWorkloadCost(const NceOpTensorShape& tensorShape, mlir::MLIRContext* ctx) {
     vpux::VPUIP::WorkloadCostParams costParams;
     costParams.dataType = mlir::Float16Type::get(ctx);
     costParams.fullInputShape = tensorShape.inputShape;
@@ -49,7 +46,6 @@ vpux::VPUIP::WorkloadCostParams buildWorkloadCost(const NceOpTensorShape& tensor
     costParams.kernelStride = {1, 1};
     costParams.nceTaskType = vpux::VPUIP::NCETaskType::CONV;
     costParams.arch = vpux::VPU::ArchKind::VPUX30XX;
-    costParams.mpeMode = mpeMode;
     costParams.numDPU = numDPU;
     return costParams;
 }
@@ -74,22 +70,31 @@ TEST(MLIR_VPU_WorkloadCost, VPUNNCostInterface) {
     }
     for (auto& testTensor : testTensorLists) {
         for (auto& mpeMode : mpeModeList) {
-            auto costParams = buildWorkloadCost(testTensor, mpeMode, &ctx);
-            vpux::VPUIP::DpuTiler dpuTiler(costParams.outputShape, mpeMode, costModel);
-            const auto& splitPool = dpuTiler.generateSplitNumberPool(numDPU, maxSplitNum);
+            auto costParams = buildWorkloadCost(testTensor, &ctx);
+
+            vpux::VPUIP::DpuTiler dpuTiler(costParams.outputShape, mpeMode);
+
+            const auto splitNumPool = dpuTiler.generateSplitNumberPool(numDPU, maxSplitNum);
 
             vpux::Shape nTilesOnDim(costParams.outputShape.size(), 1);
-            const auto& outTilesWithSingleSplit = vpux::fillDividedTiles(nTilesOnDim, costParams.outputShape);
-            auto baseHardwareExecutionCost = dpuTiler.cost(outTilesWithSingleSplit, costParams);
+            auto outTilesWithSingleSplit = vpux::fillDividedTiles(nTilesOnDim, costParams.outputShape);
 
-            dpuTiler.tileOverH(numDPU);
-            for (auto& splitNum : splitPool) {
-                dpuTiler.tileOverZ(splitNum);
+            vpux::VPUIP::WorkloadSplit singleSplit;
+            for (auto& outTile : outTilesWithSingleSplit) {
+                singleSplit.emplace_back(std::move(outTile), mpeMode);
             }
 
-            const auto& splitCandidates = dpuTiler.getSplitPool();
-            for (auto iter = splitCandidates.begin(); iter != splitCandidates.end(); iter++) {
-                auto hardwareExecutionCost = dpuTiler.cost(*iter, costParams);
+            auto baseHardwareExecutionCost = vpux::VPUIP::computeSplitCost(singleSplit, costParams, costModel);
+
+            vpux::VPUIP::WorkloadSplitPool splitPool;
+
+            dpuTiler.tileOverH(numDPU, splitPool);
+            for (auto& splitNum : splitNumPool) {
+                dpuTiler.tileOverZ(splitNum, splitPool);
+            }
+
+            for (auto iter = splitPool.begin(); iter != splitPool.end(); iter++) {
+                auto hardwareExecutionCost = vpux::VPUIP::computeSplitCost(*iter, costParams, costModel);
                 EXPECT_LE(hardwareExecutionCost, baseHardwareExecutionCost);
             }
         }

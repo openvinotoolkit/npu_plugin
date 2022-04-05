@@ -6,7 +6,10 @@
 //
 
 #include "vpux/compiler/dialect/VPUIP/dpu_tiler.hpp"
+
+#include "vpux/compiler/core/layers.hpp"
 #include "vpux/compiler/utils/factors.hpp"
+
 #include "vpux/utils/core/numeric.hpp"
 
 #include <numeric>
@@ -16,14 +19,14 @@ using namespace vpux;
 
 namespace {
 
-constexpr uint32_t DEFAULT_ZTILE_VALUE = 16;
-constexpr size_t MIN_VALID_ZTILE_EXPONENT = 4;
-constexpr size_t MAX_VALID_ZTILE_EXPONENT = 8;
+constexpr int64_t DEFAULT_ZTILE_VALUE = 16;
+constexpr int64_t MIN_VALID_ZTILE_EXPONENT = 4;
+constexpr int64_t MAX_VALID_ZTILE_EXPONENT = 8;
 
 // FIXME: POR runtime currently doesn't enable management tasks feature which will leads to a big overhead for large
 // number of workloads. Estimate runtime overhead by this value. For further development, please refer comments in
 // E#24298
-constexpr size_t RUNTIME_OVERHEAD_PER_WORKLOAD = 105;
+constexpr int64_t RUNTIME_OVERHEAD_PER_WORKLOAD = 105;
 
 VPUNN::ExecutionMode getExecutionMode(VPU::MPEMode mpeMode) {
     switch (mpeMode) {
@@ -107,16 +110,37 @@ VPUNN::VPUTensor getVPUTensor(ShapeRef shape, mlir::Type elemType) {
             getElementType(elemType));
 }
 
-SmallVector<uint32_t> getSplitsFromRange(uint32_t maxSplitRange, uint32_t maxLimit) {
-    SmallVector<uint32_t> splits;
-    for (uint32_t idx = 0; idx < std::log2(maxSplitRange); idx++) {
-        auto powIdx = static_cast<uint32_t>(std::pow(2, idx));
+SmallVector<int64_t> getSplitsFromRange(int64_t maxSplitRange, int64_t maxLimit) {
+    SmallVector<int64_t> splits;
+    for (int64_t idx = 0; idx < std::log2(maxSplitRange); idx++) {
+        auto powIdx = static_cast<int64_t>(std::pow(2, idx));
         auto splitCandidate = maxSplitRange / powIdx;
         if (maxSplitRange % powIdx == 0 && splitCandidate <= maxLimit) {
             splits.push_back(splitCandidate);
         }
     }
     return splits;
+}
+
+using MpeModeSize = std::pair<int64_t, int64_t>;
+
+MpeModeSize getMpeModeSize(VPU::MPEMode mpeMode) {
+    switch (mpeMode) {
+    case VPU::MPEMode::MATRIX:
+        return {4, 4};
+    case VPU::MPEMode::VECTOR:
+        return {1, 16};
+    case VPU::MPEMode::VECTOR_FP16:
+        return {1, 4};
+    case VPU::MPEMode::CUBOID_16x16:
+        return {16, 16};
+    case VPU::MPEMode::CUBOID_8x16:
+        return {8, 16};
+    case VPU::MPEMode::CUBOID_4x16:
+        return {4, 16};
+    default:
+        VPUX_THROW("Unsupported MPE mode {0}", mpeMode);
+    }
 }
 
 /*
@@ -142,70 +166,85 @@ SmallVector<uint32_t> getSplitsFromRange(uint32_t maxSplitRange, uint32_t maxLim
  *   [0 1 2 ...  11]|         | [0 - 3] | [4 - 7] | [8 - 11]|
  */
 
-OutputTiling createDpuTilesOverHW(ShapeRef shape, int64_t widthFactor, int64_t heightFactor,
-                                  const std::pair<uint8_t, uint8_t>& mpeMode) {
+VPUIP::WorkloadSplit createWorkloadSplitOverHW(ShapeRef shape, int64_t widthFactor, int64_t heightFactor,
+                                               VPU::MPEMode mpeMode) {
+    const auto mpeModeSize = getMpeModeSize(mpeMode);
+
     auto width = shape[Dims4D::Act::W];
     auto height = shape[Dims4D::Act::H];
 
     auto maxWidth = divUp(width, widthFactor);
-    maxWidth = alignVal(maxWidth, static_cast<int64_t>(mpeMode.second));
+    maxWidth = alignVal(maxWidth, mpeModeSize.second);
     auto actualWidthSplitsNum = divUp(width, maxWidth);
     auto maxHeight = divUp(height, heightFactor);
-    maxHeight = alignVal(maxHeight, static_cast<int64_t>(mpeMode.first));
+    maxHeight = alignVal(maxHeight, mpeModeSize.first);
     auto actualHeightSplitsNum = divUp(height, maxHeight);
 
-    OutputTiling outputTiles;
+    VPUIP::WorkloadSplit split;
+
     auto remainedHeight = height;
     for (int64_t idx = 0; idx < actualHeightSplitsNum; idx++) {
         auto currentHeightStep = remainedHeight > maxHeight ? maxHeight : remainedHeight;
+
         auto remainedWidth = width;
         for (int64_t idy = 0; idy < actualWidthSplitsNum; idy++) {
             TileInfo outTile(shape);
             outTile.shape[Dims4D::Act::C] = shape[Dims4D::Act::C];
             outTile.shape[Dims4D::Act::H] = currentHeightStep;
             outTile.shape[Dims4D::Act::W] = remainedWidth > maxWidth ? maxWidth : remainedWidth;
-            remainedWidth -= outTile.shape[Dims4D::Act::W];
             outTile.offsets[Dims4D::Act::H] = idx * maxHeight;
             outTile.offsets[Dims4D::Act::W] = idy * maxWidth;
             outTile.offsets[Dims4D::Act::C] = 0;
             outTile.axis[Dims4D::Act::H] = actualHeightSplitsNum;
             outTile.axis[Dims4D::Act::W] = actualWidthSplitsNum;
-            outputTiles.push_back(std::move(outTile));
+
+            remainedWidth -= outTile.shape[Dims4D::Act::W];
+
+            split.emplace_back(std::move(outTile), mpeMode);
         }
+
         remainedHeight -= currentHeightStep;
     }
-    return outputTiles;
+
+    return split;
 }
+
 }  // namespace
 
-SmallVector<uint32_t> vpux::VPUIP::DpuTiler::generateSplitNumberPool(int64_t numDPU, uint32_t maxSplits) {
-    SmallVector<uint32_t> validZTiles;
+vpux::VPUIP::DpuTiler::DpuTiler(ShapeRef outShape, VPU::MPEMode mpeMode): _outShape(outShape.raw()), _mpeMode(mpeMode) {
+    VPUX_THROW_WHEN(outShape.size() != 4, "Only 4D shape is supported, got '{0}'", outShape);
+}
+
+SmallVector<int64_t> vpux::VPUIP::DpuTiler::generateSplitNumberPool(int64_t numDPU, int64_t maxSplits) const {
+    SmallVector<int64_t> validZTiles;
 
     // Note: refer the values from workload number pool implementation at
     // https://github.com/intel-innersource/frameworks.ai.vpu.presilicon.fathom/blob/main/src/Controllers/WorkloadGen.py#L84
     // 2^4 equals to the CMX word size in bytes,  2^8 is an up bound to limit the number of splits
-    for (size_t i = MIN_VALID_ZTILE_EXPONENT; i < MAX_VALID_ZTILE_EXPONENT; ++i) {
-        validZTiles.push_back(static_cast<uint32_t>(std::pow(2, i)));
+    for (int64_t i = MIN_VALID_ZTILE_EXPONENT; i < MAX_VALID_ZTILE_EXPONENT; ++i) {
+        validZTiles.push_back(static_cast<int64_t>(std::pow(2, i)));
         validZTiles.push_back(validZTiles.back() + DEFAULT_ZTILE_VALUE);
     }
 
-    SmallVector<uint32_t> maxSplitsInZ;
-    SmallVector<uint32_t> maxSplitsInXY;
-    auto mode = getMode();
+    SmallVector<int64_t> maxSplitsInZ;
+    SmallVector<int64_t> maxSplitsInXY;
+    const auto mpeModeSize = getMpeModeSize(_mpeMode);
+
     for (const auto& zTile : validZTiles) {
-        maxSplitsInZ.push_back(
-                static_cast<uint32_t>(std::ceil(_outShape[Dims4D::Act::C] / static_cast<double>(zTile))));
+        maxSplitsInZ.push_back(static_cast<int64_t>(std::ceil(_outShape[Dims4D::Act::C] / static_cast<double>(zTile))));
     }
+
     maxSplitsInXY.push_back(
-            static_cast<uint32_t>(std::ceil(_outShape[Dims4D::Act::H] / static_cast<double>(mode.first)) *
-                                  std::ceil(_outShape[Dims4D::Act::W] / static_cast<double>(mode.second))));
+            static_cast<int64_t>(std::ceil(_outShape[Dims4D::Act::H] / static_cast<double>(mpeModeSize.first)) *
+                                 std::ceil(_outShape[Dims4D::Act::W] / static_cast<double>(mpeModeSize.second))));
 
     auto maxZ = *std::max_element(maxSplitsInZ.begin(), maxSplitsInZ.end());
     auto maxXY = *std::max_element(maxSplitsInXY.begin(), maxSplitsInXY.end());
-    maxSplits = std::min<uint32_t>(maxSplits, std::max(maxZ, maxXY));
+
+    maxSplits = std::min(maxSplits, std::max(maxZ, maxXY));
     VPUX_THROW_WHEN(maxSplits == 0, "Invalid max split number: {0}", maxSplits);
 
-    std::set<uint32_t> dpuMulSplits;
+    std::set<int64_t> dpuMulSplits;
     for (auto i = numDPU; i < maxSplits + 1; i = i + numDPU) {
         dpuMulSplits.insert(static_cast<uint32_t>(i));
     }
@@ -218,10 +257,10 @@ SmallVector<uint32_t> vpux::VPUIP::DpuTiler::generateSplitNumberPool(int64_t num
         dpuMulSplits.insert(xyRanges.begin(), xyRanges.end());
     }
     dpuMulSplits.insert(1);
-    return SmallVector<uint32_t>(dpuMulSplits.begin(), dpuMulSplits.end());
+    return to_small_vector(dpuMulSplits);
 }
 
-void vpux::VPUIP::DpuTiler::tileOverH(int64_t numDPU) {
+void vpux::VPUIP::DpuTiler::tileOverH(int64_t numDPU, WorkloadSplitPool& splitPool) {
     const int64_t minTileSize = 1;
 
     const int64_t minTilesCount = 1;
@@ -234,108 +273,123 @@ void vpux::VPUIP::DpuTiler::tileOverH(int64_t numDPU) {
     nTilesOnDim[Dims4D::Act::H] = tilesCount;
 
     auto outTiles = fillDividedTiles(nTilesOnDim, _outShape);
-    _splitPool.insert(std::move(outTiles));
+
+    VPUIP::WorkloadSplit split;
+    for (auto& outTile : outTiles) {
+        split.emplace_back(std::move(outTile), _mpeMode);
+    }
+
+    splitPool.insert(std::move(split));
 }
 
-void vpux::VPUIP::DpuTiler::tileOverZ(uint32_t splitNumber) {
-    VPUX_THROW_WHEN(_outShape.size() < 2, "Invalid output shape size: {0}", _outShape.size());
+void vpux::VPUIP::DpuTiler::tileOverZ(int64_t splitNumber, WorkloadSplitPool& splitPool) {
     VPUX_THROW_WHEN(splitNumber == 0, "Invalid split number: {0}", splitNumber);
 
-    auto C = _outShape.size() >= 3 ? _outShape[Dims4D::Act::C] : 0;
-    auto maxChannelPerWL = divUp(static_cast<uint32_t>(C), splitNumber);
+    const auto C = _outShape[Dims4D::Act::C];
+    auto maxChannelPerWL = divUp(C, splitNumber);
     maxChannelPerWL = alignVal(maxChannelPerWL, DEFAULT_ZTILE_VALUE);
     if (maxChannelPerWL < DEFAULT_ZTILE_VALUE) {
         return;
     }
-    OutputTiling outputTiles;
-    auto actualSplitNumber = divUp(static_cast<uint32_t>(C), maxChannelPerWL);
-    auto remainedChannel = static_cast<uint32_t>(C);
-    for (uint32_t idx = 0; idx < actualSplitNumber; idx++) {
+
+    VPUIP::WorkloadSplit split;
+
+    auto actualSplitNumber = divUp(C, maxChannelPerWL);
+    auto remainedChannels = C;
+
+    for (int64_t idx = 0; idx < actualSplitNumber; idx++) {
         TileInfo outTile(_outShape);
-        outTile.shape[Dims4D::Act::C] = remainedChannel > maxChannelPerWL ? maxChannelPerWL : remainedChannel;
-        remainedChannel -= static_cast<uint32_t>(outTile.shape[Dims4D::Act::C]);
+        outTile.shape[Dims4D::Act::C] = remainedChannels > maxChannelPerWL ? maxChannelPerWL : remainedChannels;
         outTile.offsets[Dims4D::Act::W] = 0;
         outTile.offsets[Dims4D::Act::H] = 0;
         outTile.offsets[Dims4D::Act::C] = idx * maxChannelPerWL;
         outTile.axis[Dims4D::Act::C] = actualSplitNumber;
+
         if (outTile.shape[Dims4D::Act::C] % DEFAULT_ZTILE_VALUE != 0) {
             return;
         }
-        outputTiles.push_back(std::move(outTile));
+
+        remainedChannels -= outTile.shape[Dims4D::Act::C];
+
+        split.emplace_back(std::move(outTile), _mpeMode);
     }
-    _splitPool.insert(std::move(outputTiles));
+
+    splitPool.insert(std::move(split));
 }
 
-void vpux::VPUIP::DpuTiler::tileOverHW(uint32_t splitNumber, const SplitDimension splitDimension) {
-    VPUX_THROW_WHEN(_outShape.size() < 2, "Invalid output shape size: {0}", _outShape.size());
+void vpux::VPUIP::DpuTiler::tileOverHW(int64_t splitNumber, SplitDimension splitDimension,
+                                       WorkloadSplitPool& splitPool) {
     VPUX_THROW_WHEN(splitNumber == 0, "Invalid split number: {0}", splitNumber);
+
     auto width = _outShape[Dims4D::Act::W];
     auto height = _outShape[Dims4D::Act::H];
-    auto mpeMode = getMode();
 
     switch (splitDimension) {
     case SplitDimension::SPLIT_OVER_H: {
-        auto outputTiles = createDpuTilesOverHW(_outShape, 1, splitNumber, mpeMode);
-        _splitPool.insert(std::move(outputTiles));
+        splitPool.emplace(createWorkloadSplitOverHW(_outShape, 1, splitNumber, _mpeMode));
         break;
     }
     case SplitDimension::SPLIT_OVER_W: {
-        auto outputTiles = createDpuTilesOverHW(_outShape, splitNumber, 1, mpeMode);
-        _splitPool.insert(std::move(outputTiles));
+        splitPool.emplace(createWorkloadSplitOverHW(_outShape, splitNumber, 1, _mpeMode));
         break;
     }
     case SplitDimension::SPLIT_OVER_HW: {
-        auto factorList = getFactorsList(splitNumber);
-        for (const auto& factor : factorList) {
+        const auto factorList = getFactorsList(splitNumber);
+
+        for (const auto factor : factorList) {
             // Map factor.larger , factor.smaller -> width, height
             if (factor.larger <= width && factor.smaller <= height) {
-                auto outputTiles = createDpuTilesOverHW(_outShape, factor.larger, factor.smaller, mpeMode);
-                _splitPool.insert(std::move(outputTiles));
+                splitPool.emplace(createWorkloadSplitOverHW(_outShape, factor.larger, factor.smaller, _mpeMode));
             }
+
             // Map factor.smaller, factor.larger -> width, height
             if (factor.smaller <= width && factor.larger <= height) {
-                auto outputTiles = createDpuTilesOverHW(_outShape, factor.smaller, factor.larger, mpeMode);
-                _splitPool.insert(std::move(outputTiles));
+                splitPool.emplace(createWorkloadSplitOverHW(_outShape, factor.smaller, factor.larger, _mpeMode));
             }
         }
         break;
     }
     default:
-        VPUX_THROW("Unsupported split dimension {0}", stringifySplitDimension(splitDimension));
+        VPUX_THROW("Unsupported split dimension {0}", splitDimension);
     }
 }
 
-uint32_t vpux::VPUIP::DpuTiler::cost(const OutputTiling& dpuTiles, const WorkloadCostParams& params) {
+int64_t vpux::VPUIP::computeSplitCost(const WorkloadSplit& split, const WorkloadCostParams& params,
+                                      const std::shared_ptr<VPUNN::VPUCostModel>& costModel) {
     VPUX_THROW_WHEN(params.kernelSize.size() < 2, "Kernel array size less than 2");
     const auto KY = params.kernelSize[Dims4D::Kernel::Y.ind()];
     const auto KX = params.kernelSize[Dims4D::Kernel::X.ind()];
+
     VPUX_THROW_WHEN(params.kernelStride.size() < 2, "Kernel stride array size less than 2");
     const auto SY = params.kernelStride[Dims4D::Strides::Y.ind()];
     const auto SX = params.kernelStride[Dims4D::Strides::X.ind()];
 
     const auto opType = getOperationType(params.nceTaskType);
 
-    std::vector<unsigned int> workloadCost;
-    for (const auto& dpuTile : dpuTiles) {
-        const auto padsTileConf = backInferPadsTile(dpuTile, params.fullInputShape, params.padInfo,
+    std::vector<int64_t> workloadCost;
+    workloadCost.reserve(split.size());
+
+    for (const auto& wl : split) {
+        const auto& outputTile = std::get<0>(wl);
+        const auto mpeMode = std::get<1>(wl);
+
+        const auto padsTileConf = backInferPadsTile(outputTile, params.fullInputShape, params.padInfo,
                                                     makeArrayRef({KY, KX}), makeArrayRef({SY, SX}));
 
-        const auto outputTensor = getVPUTensor(dpuTile.shape, params.dataType);
+        const auto outputTensor = getVPUTensor(outputTile.shape, params.dataType);
 
-        const auto IW = (outputTensor.width() - 1) * SX + KX - static_cast<unsigned int>(padsTileConf.left) -
-                        static_cast<unsigned int>(padsTileConf.right);
-        const auto IH = (outputTensor.height() - 1) * SY + KY - static_cast<unsigned int>(padsTileConf.top) -
-                        static_cast<unsigned int>(padsTileConf.bottom);
+        const auto IW = (outputTile.shape[Dims4D::Act::W] - 1) * SX + KX - padsTileConf.left - padsTileConf.right;
+        const auto IH = (outputTile.shape[Dims4D::Act::H] - 1) * SY + KY - padsTileConf.top - padsTileConf.bottom;
         const auto IC = params.nceTaskType == VPUIP::NCETaskType::CONV ||
                                         params.nceTaskType == VPUIP::NCETaskType::CMCONV ||
                                         params.nceTaskType == VPUIP::NCETaskType::FCL
-                                ? static_cast<unsigned int>(params.inputShape[Dims4D::Act::C])
-                                : outputTensor.channels();
-        const auto IN = outputTensor.batches();
+                                ? params.inputShape[Dims4D::Act::C]
+                                : outputTile.shape[Dims4D::Act::C];
+        const auto IN = outputTile.shape[Dims4D::Act::N];
 
         const auto inputTensor = getVPUTensor(ShapeRef({IN, IC, IH, IW}), params.dataType);
 
-        auto result = _costModel->DPU(
+        const auto wlCost = costModel->DPU(
                 {getVPUDeviceType(params.arch),
                  opType,
                  {inputTensor},
@@ -344,55 +398,15 @@ uint32_t vpux::VPUIP::DpuTiler::cost(const OutputTiling& dpuTiles, const Workloa
                  {static_cast<unsigned int>(SX), static_cast<unsigned int>(SY)},
                  {static_cast<unsigned int>(padsTileConf.top), static_cast<unsigned int>(padsTileConf.bottom),
                   static_cast<unsigned int>(padsTileConf.left), static_cast<unsigned int>(padsTileConf.right)},
-                 getExecutionMode(params.mpeMode)});
-        workloadCost.push_back(result);
+                 getExecutionMode(mpeMode)});
+
+        workloadCost.push_back(static_cast<int64_t>(wlCost));
     }
-    return VPUNN::dpu_schedule(static_cast<unsigned int>(params.numDPU), workloadCost,
-                               static_cast<unsigned int>(RUNTIME_OVERHEAD_PER_WORKLOAD));
+
+    return VPUNN::dpu_schedule(params.numDPU, workloadCost, RUNTIME_OVERHEAD_PER_WORKLOAD);
 }
 
-double vpux::VPUIP::DpuTiler::simpleCost(const OutputTiling& dpuTiles, const WorkloadCostParams& params) {
-    VPUX_THROW_WHEN(params.kernelSize.size() < 2, "kernel array size less than 2");
-    VPUX_THROW_WHEN(params.kernelStride.size() < 2, "kernel stride array size less than 2");
-
-    auto mpeMode = getMode();
-    double max_cost = 0;
-
-    for (const auto& dpuTile : dpuTiles) {
-        const auto W = dpuTile.shape[Dims4D::Act::W];
-        const auto H = dpuTile.shape[Dims4D::Act::H];
-        const auto C = dpuTile.shape[Dims4D::Act::C];
-        double cost = ceil(W / mpeMode.second) * ceil(H / mpeMode.first) * ceil(C / 16.0);
-
-        max_cost = std::max(max_cost, cost);
-    }
-    return max_cost;
-}
-
-std::set<OutputTiling> vpux::VPUIP::DpuTiler::getSplitPool() {
-    return _splitPool;
-}
-
-std::pair<uint8_t, uint8_t> vpux::VPUIP::DpuTiler::getMode() {
-    switch (_mpeMode) {
-    case VPU::MPEMode::MATRIX:
-        return {4, 4};
-    case VPU::MPEMode::VECTOR:
-        return {1, 16};
-    case VPU::MPEMode::VECTOR_FP16:
-        return {1, 4};
-    case VPU::MPEMode::CUBOID_16x16:
-        return {16, 16};
-    case VPU::MPEMode::CUBOID_8x16:
-        return {8, 16};
-    case VPU::MPEMode::CUBOID_4x16:
-        return {4, 16};
-    default:
-        VPUX_THROW("Unsupported MPE mode {0}", _mpeMode);
-    }
-}
-
-StringLiteral vpux::VPUIP::stringifySplitDimension(SplitDimension splitDimension) {
+StringLiteral vpux::VPUIP::stringifyEnum(SplitDimension splitDimension) {
     switch (splitDimension) {
     case SplitDimension::SPLIT_OVER_HW:
         return "SPLIT_OVER_HW";

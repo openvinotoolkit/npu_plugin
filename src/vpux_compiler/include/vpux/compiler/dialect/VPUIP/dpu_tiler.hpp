@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
+#pragma once
 
 #include "vpux/compiler/core/attributes/shape.hpp"
 #include "vpux/compiler/core/tiling.hpp"
@@ -12,18 +12,17 @@
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 
 #include <vpu_cost_model.h>
+
 #include <set>
-#pragma once
+#include <tuple>
 
 namespace vpux {
 namespace VPUIP {
 
 struct WorkloadCostParams {
-    bool isTileOverZSupported;
     VPUIP::NCETaskType nceTaskType;
     mlir::Type dataType;
     VPU::ArchKind arch;
-    VPU::MPEMode mpeMode;
     Shape fullInputShape;
     Shape inputShape;
     Shape outputShape;
@@ -33,33 +32,32 @@ struct WorkloadCostParams {
     SmallVector<int64_t> kernelStride;
 };
 
-enum class SplitDimension : int32_t { SPLIT_OVER_H = 0, SPLIT_OVER_W = 1, SPLIT_OVER_HW = 2 };
+enum class SplitDimension { SPLIT_OVER_H = 0, SPLIT_OVER_W = 1, SPLIT_OVER_HW = 2 };
+
+StringLiteral stringifyEnum(SplitDimension splitDimension);
+
+using WorkloadTile = std::tuple<TileInfo, VPU::MPEMode>;
+using WorkloadSplit = SmallVector<WorkloadTile>;
+using WorkloadSplitPool = std::set<WorkloadSplit>;
 
 class DpuTiler final {
 public:
-    DpuTiler(ShapeRef outShape, VPU::MPEMode mpeMode, std::shared_ptr<VPUNN::VPUCostModel> costModel)
-            : _outShape(outShape.raw()), _mpeMode(mpeMode), _costModel(costModel) {
-    }
+    DpuTiler(ShapeRef outShape, VPU::MPEMode mpeMode);
 
-    SmallVector<uint32_t> generateSplitNumberPool(int64_t numDPU, uint32_t maxSplits);
-    void tileOverH(int64_t numDPU);
-    void tileOverZ(uint32_t splitNumber);
-    void tileOverHW(uint32_t splitNumber, const SplitDimension splitDimension);
-    std::set<OutputTiling> getSplitPool();
+public:
+    SmallVector<int64_t> generateSplitNumberPool(int64_t numDPU, int64_t maxSplits) const;
 
-    uint32_t cost(const OutputTiling& dpuTiles, const WorkloadCostParams& params);
-    double simpleCost(const OutputTiling& dpuTiles, const WorkloadCostParams& params);
+    void tileOverH(int64_t numDPU, WorkloadSplitPool& splitPool);
+    void tileOverZ(int64_t splitNumber, WorkloadSplitPool& splitPool);
+    void tileOverHW(int64_t splitNumber, SplitDimension splitDimension, WorkloadSplitPool& splitPool);
 
 private:
-    std::pair<uint8_t, uint8_t> getMode();
-
     Shape _outShape;
     VPU::MPEMode _mpeMode;
-    std::shared_ptr<VPUNN::VPUCostModel> _costModel;
-    std::set<OutputTiling> _splitPool;
 };
 
-StringLiteral stringifySplitDimension(SplitDimension splitDimension);
+int64_t computeSplitCost(const WorkloadSplit& split, const WorkloadCostParams& params,
+                         const std::shared_ptr<VPUNN::VPUCostModel>& costModel);
 
 }  // namespace VPUIP
 }  // namespace vpux
