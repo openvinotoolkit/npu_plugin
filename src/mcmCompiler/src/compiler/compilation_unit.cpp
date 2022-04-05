@@ -11,7 +11,7 @@
 #endif
 
 const std::string mv::CompilationUnit::ma2490DefTargetDescPath_ = "/config/target/release_kmb.json";
-const std::string mv::CompilationUnit::ma3100DefTargetDescPath_ = "/config/target/release_thb.json";
+const std::string mv::CompilationUnit::ma3100DefTargetDescPath_ = "/config/target/release_tbh.json";
 const std::string mv::CompilationUnit::ma3720DefTargetDescPath_ = "/config/target/release_VPUX37XX.json";
 const std::string mv::CompilationUnit::compositionalModelRecordingsPath_ = "/recordings/";
 const std::string mv::CompilationUnit::ma2490DefCompDescPath_ = "/config/compilation/release_kmb.json";
