@@ -47,7 +47,7 @@ SmallVector<int64_t> vpux::VPU::getActivationTensorNumTiles(int64_t numClustersA
 
 Optional<SmallVector<int64_t>> vpux::VPU::getActivationTensorAlignment(VPU::NCEOpInterface nceOp,
                                                                        VPU::MultiClusterStrategy strategy) {
-    if (strategy == VPU::MultiClusterStrategy::SplitOverKernel) {
+    if (strategy == VPU::MultiClusterStrategy::SplitOverKernel || strategy == VPU::MultiClusterStrategy::Clustering) {
         return SmallVector<int64_t>{1, 16, 1, 1};
     } else if (strategy == VPU::MultiClusterStrategy::SplitOverHeight ||
                strategy == VPU::MultiClusterStrategy::HKSwitch) {
@@ -93,7 +93,8 @@ SmallVector<int64_t> vpux::VPU::getOutputTensorNumTiles(VPU::NCEOpInterface nceO
 }
 
 Optional<SmallVector<int64_t>> vpux::VPU::getOutputTensorAlignment(VPU::MultiClusterStrategy strategy) {
-    if (strategy == VPU::MultiClusterStrategy::SplitOverKernel || strategy == VPU::MultiClusterStrategy::HKSwitch) {
+    if (strategy == VPU::MultiClusterStrategy::SplitOverKernel || strategy == VPU::MultiClusterStrategy::Clustering ||
+        strategy == VPU::MultiClusterStrategy::HKSwitch) {
         return SmallVector<int64_t>{1, 16, 1, 1};
     }
 
@@ -120,7 +121,7 @@ SmallVector<int64_t> vpux::VPU::getWeightsTensorNumTiles(VPU::NCEOpInterface nce
 }
 
 Optional<SmallVector<int64_t>> vpux::VPU::getWeightsTensorAlignment(VPU::MultiClusterStrategy strategy) {
-    if (strategy == VPU::MultiClusterStrategy::SplitOverKernel) {
+    if (strategy == VPU::MultiClusterStrategy::SplitOverKernel || strategy == VPU::MultiClusterStrategy::Clustering) {
         return SmallVector<int64_t>{16, 1, 1, 1};
     }
     return None;

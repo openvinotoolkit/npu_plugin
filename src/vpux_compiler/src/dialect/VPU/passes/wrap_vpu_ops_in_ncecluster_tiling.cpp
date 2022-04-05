@@ -393,11 +393,22 @@ mlir::LogicalResult NCEEltwiseRewriter::matchAndRewrite(NCEEltwiseOp origOp, mli
     VPUX_THROW_UNLESS(nceOp != nullptr, "Operation '{0}' cannot be converted to VPU::NCEOpInterface", origOp);
 
     mlir::ArrayAttr activationAlignmentAttr = nullptr;
+    mlir::ArrayAttr outputAlignmentAttr = nullptr;
     const auto strategy = origOp->getAttr(multiClusterStrategy).cast<VPU::MultiClusterStrategyAttr>().getValue();
     const auto activationTensorDistributionMode = getActivationTensorDistributionMode(strategy);
     const auto activationTensorNumTiles = getIntArrayAttr(ctx, getActivationTensorNumTiles(_numClusters, strategy));
     const auto outputTensorDistributionMode = getOutputTensorDistributionMode(strategy);
     const auto outputTensorNumTiles = getIntArrayAttr(ctx, getOutputTensorNumTiles(nceOp, _numClusters, strategy));
+
+    const auto activationAlignment = getActivationTensorAlignment(origOp.getOperation(), strategy);
+    if (activationAlignment.hasValue()) {
+        activationAlignmentAttr = getIntArrayAttr(origOp.getContext(), activationAlignment.getValue());
+    }
+
+    const auto outputAlignment = getOutputTensorAlignment(strategy);
+    if (outputAlignment.hasValue()) {
+        outputAlignmentAttr = getIntArrayAttr(origOp.getContext(), outputAlignment.getValue());
+    }
 
     const auto distributedActivationCopyOp1 =
             createDistributedCopyIn(nceOp, origOp.input1(), activationTensorDistributionMode, activationTensorNumTiles,
@@ -407,9 +418,8 @@ mlir::LogicalResult NCEEltwiseRewriter::matchAndRewrite(NCEEltwiseOp origOp, mli
             createDistributedCopyIn(nceOp, origOp.input2(), activationTensorDistributionMode, activationTensorNumTiles,
                                     activationAlignmentAttr, strategy);
 
-    const auto distributedOutputTensorType =
-            createDistributedTensorType(nceOp, origOp.output(), outputTensorDistributionMode, outputTensorNumTiles,
-                                        activationAlignmentAttr, strategy);
+    const auto distributedOutputTensorType = createDistributedTensorType(
+            nceOp, origOp.output(), outputTensorDistributionMode, outputTensorNumTiles, outputAlignmentAttr, strategy);
 
     const auto origOutput = origOp->getResult(0);
 

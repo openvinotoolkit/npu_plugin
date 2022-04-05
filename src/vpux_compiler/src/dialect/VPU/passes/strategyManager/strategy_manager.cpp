@@ -137,32 +137,7 @@ void StrategyManager::assignMultiClusterStrategy() {
     _func.walk(callback);
 }
 
-// Based on layer properties like input/output shapes or properties of model or subgraph s
-// set layer strategy to predefined value
-// Return true if such override has happened
-bool StrategyManager::overrideStrategyForLayer(VPU::MultiClusterStrategy strategy, VPU::NCEOpInterface nceOp) {
-    const auto funcType = _func.getType();
-
-    if (funcType.getInputs().size() == 23 && funcType.getResults().size() == 23) {
-        // Temporary solution:
-        // For model with 23 inputs and 23 outputs disable multiclustering
-        // for layers which were initially assigned Clustering or SOH
-        if (strategy == VPU::MultiClusterStrategy::SplitOverHeight ||
-            strategy == VPU::MultiClusterStrategy::Clustering) {
-            _log.trace("Override multi-cluster strategy decision to '{0}' for layer '{1}' - '{2}'", "NONE",
-                       nceOp->getName(), nceOp->getLoc());
-            return true;
-        }
-    }
-
-    return false;
-}
-
 void StrategyManager::setLayerStrategy(VPU::MultiClusterStrategy strategy, VPU::NCEOpInterface nceOp) {
-    if (overrideStrategyForLayer(strategy, nceOp)) {
-        return;
-    }
-
     if (strategy == VPU::MultiClusterStrategy::SplitOverHeight ||
         strategy == VPU::MultiClusterStrategy::SplitOverKernel || strategy == VPU::MultiClusterStrategy::Clustering ||
         strategy == VPU::MultiClusterStrategy::SplitOverHeightOverlapped) {

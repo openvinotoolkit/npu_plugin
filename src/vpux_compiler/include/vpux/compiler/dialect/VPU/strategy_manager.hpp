@@ -126,7 +126,6 @@ public:
 
 private:
     void setLayerStrategy(VPU::MultiClusterStrategy strategy, VPU::NCEOpInterface nceOp);
-    bool overrideStrategyForLayer(VPU::MultiClusterStrategy strategy, VPU::NCEOpInterface nceOp);
 
     mlir::FuncOp _func;
     Logger _log;
