@@ -17,6 +17,7 @@
 #include "vpux.hpp"
 #include "vpux/utils/core/logger.hpp"
 #include "zero_memory.h"
+#include "zero_profiling.h"
 #include "zero_utils.h"
 
 #include <ze_api.h>
@@ -40,11 +41,14 @@ public:
     };
 
     ZeroExecutor(ze_driver_handle_t driver_handle, ze_device_handle_t device_handle, ze_context_handle_t context,
-                 ze_graph_dditable_ext_t* graph_ddi_table_ext, const vpux::NetworkDescription::Ptr& networkDescription,
-                 const Config& config);
+                 ze_graph_dditable_ext_t* graph_ddi_table_ext,
+                 ze_graph_profiling_dditable_ext_t* graph_profiling_ddi_table_ext,
+                 const vpux::NetworkDescription::Ptr& networkDescription, const Config& config);
 
     ZeroExecutor(ze_driver_handle_t driver_handle, ze_device_handle_t device_handle, ze_context_handle_t context,
-                 ze_graph_dditable_ext_t* graph_ddi_table_ext, const vpux::NetworkDescription::Ptr& networkDescription,
+                 ze_graph_dditable_ext_t* graph_ddi_table_ext,
+                 ze_graph_profiling_dditable_ext_t* graph_profiling_ddi_table_ext,
+                 const vpux::NetworkDescription::Ptr& networkDescription,
                  const std::array<std::shared_ptr<CommandQueue>, stage::COUNT>& command_queue,
                  const std::shared_ptr<Graph>& graph, const Config& config);
 
@@ -83,7 +87,8 @@ public:
         void reset();
         void appendMemoryCopy(void* dst, const void* src, const std::size_t size);
         void appendGraphInitialize(const ze_graph_handle_t& graph_handle);
-        void appendGraphExecute(const ze_graph_handle_t& graph_handle);
+        void appendGraphExecute(const ze_graph_handle_t& graph_handle,
+                                const ze_graph_profiling_query_handle_t& profiling_query_handle);
         void appendBarrier();
         void close();
         ~CommandList();
@@ -171,7 +176,8 @@ public:
 
     struct Pipeline {
         Pipeline(const ze_device_handle_t& device_handle, const ze_context_handle_t context,
-                 ze_graph_dditable_ext_t* graph_ddi_table_ext, const std::shared_ptr<Graph>& graph,
+                 ze_graph_dditable_ext_t* graph_ddi_table_ext,
+                 ze_graph_profiling_dditable_ext_t* graph_profiling_ddi_table_ext, const std::shared_ptr<Graph>& graph,
                  const std::array<std::shared_ptr<CommandQueue>, stage::COUNT>& command_queue);
         Pipeline(const Pipeline&) = delete;
         Pipeline& operator=(const Pipeline&) = delete;
@@ -185,6 +191,10 @@ public:
 
         EventPool _event_pool;
         std::array<Event, stage::COUNT> _event;
+
+        bool _profiling_enabled = false;
+        zeroProfiling::ProfilingPool _profiling_pool;
+        std::array<zeroProfiling::Profiling, zeroProfiling::POOL_SIZE> _profiling;
     };
 
 private:
@@ -196,6 +206,7 @@ private:
     ze_context_handle_t _context = nullptr;
 
     ze_graph_dditable_ext_t* _graph_ddi_table_ext = nullptr;
+    ze_graph_profiling_dditable_ext_t* _graph_profiling_ddi_table_ext = nullptr;
 
     NetworkDescription::Ptr _networkDesc;
 

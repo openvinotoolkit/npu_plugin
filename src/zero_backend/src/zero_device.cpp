@@ -23,7 +23,7 @@ std::shared_ptr<Executor> ZeroDevice::createExecutor(const NetworkDescription::P
                                                      const Config& config) {
     OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "Device::createExecutor");
     return std::make_shared<ZeroExecutor>(_driver_handle, _device_handle, _context, _graph_ddi_table_ext,
-                                          networkDescription, config);
+                                          _graph_profiling_ddi_table_ext, networkDescription, config);
 }
 
 std::string ZeroDevice::getName() const {

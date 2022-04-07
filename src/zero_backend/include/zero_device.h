@@ -22,14 +22,17 @@ class ZeroDevice : public IDevice {
     ze_context_handle_t _context = nullptr;
 
     ze_graph_dditable_ext_t* _graph_ddi_table_ext = nullptr;
+    ze_graph_profiling_dditable_ext_t* _graph_profiling_ddi_table_ext = nullptr;
 
 public:
     ZeroDevice(ze_driver_handle_t driver, ze_device_handle_t device, ze_context_handle_t context,
-               ze_graph_dditable_ext_t* graph_ddi_table_ext)
+               ze_graph_dditable_ext_t* graph_ddi_table_ext,
+               ze_graph_profiling_dditable_ext_t* graph_profiling_ddi_table_ext)
             : _driver_handle(driver),
               _device_handle(device),
               _context(context),
-              _graph_ddi_table_ext(graph_ddi_table_ext) {
+              _graph_ddi_table_ext(graph_ddi_table_ext),
+              _graph_profiling_ddi_table_ext(graph_profiling_ddi_table_ext) {
     }
 
     std::shared_ptr<Allocator> getAllocator() const override;

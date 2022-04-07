@@ -10,6 +10,7 @@
 #include "zero_utils.h"
 
 #include "vpux/al/config/common.hpp"
+#include "vpux/al/config/compiler.hpp"
 #include "vpux/al/config/runtime.hpp"
 
 #include "vpux/utils/IE/blob.hpp"
@@ -17,6 +18,7 @@
 #include <blob_factory.hpp>
 
 #include "vpux/utils/IE/itt.hpp"
+#include "vpux/utils/IE/profiling.hpp"
 #include "vpux/utils/plugin/profiling_parser.hpp"
 
 #include <functional>
@@ -255,6 +257,7 @@ bool isRepackingRequired(const IE::TensorDesc& userTensorDesc, const IE::TensorD
 
 ZeroExecutor::ZeroExecutor(ze_driver_handle_t driver_handle, ze_device_handle_t device_handle,
                            ze_context_handle_t context, ze_graph_dditable_ext_t* graph_ddi_table_ext,
+                           ze_graph_profiling_dditable_ext_t* graph_profiling_ddi_table_ext,
                            const vpux::NetworkDescription::Ptr& networkDescription, const Config& config)
         : _config(config),
           _logger("ZeroExecutor", _config.get<LOG_LEVEL>()),
@@ -262,6 +265,7 @@ ZeroExecutor::ZeroExecutor(ze_driver_handle_t driver_handle, ze_device_handle_t 
           _device_handle(device_handle),
           _context(context),
           _graph_ddi_table_ext(graph_ddi_table_ext),
+          _graph_profiling_ddi_table_ext(graph_profiling_ddi_table_ext),
           _networkDesc(networkDescription),
           _graph(std::make_shared<Graph>(_device_handle, _context, _networkDesc, _graph_ddi_table_ext)),
           _command_queue{{std::make_shared<CommandQueue>(device_handle, context,
@@ -270,12 +274,14 @@ ZeroExecutor::ZeroExecutor(ze_driver_handle_t driver_handle, ze_device_handle_t 
                                                          zeroUtils::toZeQueuePriority(_config.get<MODEL_PRIORITY>())),
                           std::make_shared<CommandQueue>(device_handle, context,
                                                          zeroUtils::toZeQueuePriority(_config.get<MODEL_PRIORITY>()))}},
-          _pipeline(std::make_unique<Pipeline>(device_handle, context, graph_ddi_table_ext, _graph, _command_queue)) {
+          _pipeline(std::make_unique<Pipeline>(device_handle, context, graph_ddi_table_ext,
+                                               graph_profiling_ddi_table_ext, _graph, _command_queue)) {
     _graph->init();
 }
 
 ZeroExecutor::ZeroExecutor(ze_driver_handle_t driver_handle, ze_device_handle_t device_handle,
                            ze_context_handle_t context, ze_graph_dditable_ext_t* graph_ddi_table_ext,
+                           ze_graph_profiling_dditable_ext_t* graph_profiling_ddi_table_ext,
                            const vpux::NetworkDescription::Ptr& networkDescription,
                            const std::array<std::shared_ptr<CommandQueue>, stage::COUNT>& command_queue,
                            const std::shared_ptr<Graph>& graph, const Config& config)
@@ -285,10 +291,12 @@ ZeroExecutor::ZeroExecutor(ze_driver_handle_t driver_handle, ze_device_handle_t 
           _device_handle(device_handle),
           _context(context),
           _graph_ddi_table_ext(graph_ddi_table_ext),
+          _graph_profiling_ddi_table_ext(graph_profiling_ddi_table_ext),
           _networkDesc(networkDescription),
           _graph(graph),
           _command_queue(command_queue),
-          _pipeline(std::make_unique<Pipeline>(device_handle, context, graph_ddi_table_ext, graph, _command_queue)) {
+          _pipeline(std::make_unique<Pipeline>(device_handle, context, graph_ddi_table_ext,
+                                               graph_profiling_ddi_table_ext, graph, _command_queue)) {
 }
 
 ZeroExecutor::CommandList::CommandList(const ze_device_handle_t& device_handle, const ze_context_handle_t& context,
@@ -309,9 +317,11 @@ void ZeroExecutor::CommandList::appendGraphInitialize(const ze_graph_handle_t& g
     zeroUtils::throwOnFail("pfnAppendGraphInitialize",
                            _graph_ddi_table_ext->pfnAppendGraphInitialize(_handle, graph_handle, nullptr, 0, nullptr));
 }
-void ZeroExecutor::CommandList::appendGraphExecute(const ze_graph_handle_t& graph_handle) {
-    zeroUtils::throwOnFail("pfnAppendGraphExecute", _graph_ddi_table_ext->pfnAppendGraphExecute(
-                                                            _handle, graph_handle, nullptr, nullptr, 0, nullptr));
+void ZeroExecutor::CommandList::appendGraphExecute(const ze_graph_handle_t& graph_handle,
+                                                   const ze_graph_profiling_query_handle_t& profiling_query_handle) {
+    zeroUtils::throwOnFail("pfnAppendGraphExecute",
+                           _graph_ddi_table_ext->pfnAppendGraphExecute(_handle, graph_handle, profiling_query_handle,
+                                                                       nullptr, 0, nullptr));
 }
 // TODO This is a work-around due to bug on ARM side
 // ARM sends signal before all necessary copying operations are completed
@@ -388,7 +398,9 @@ ZeroExecutor::CommandQueue::~CommandQueue() {
 }
 
 ZeroExecutor::Pipeline::Pipeline(const ze_device_handle_t& device_handle, const ze_context_handle_t context,
-                                 ze_graph_dditable_ext_t* graph_ddi_table_ext, const std::shared_ptr<Graph>& graph,
+                                 ze_graph_dditable_ext_t* graph_ddi_table_ext,
+                                 ze_graph_profiling_dditable_ext_t* graph_profiling_ddi_table_ext,
+                                 const std::shared_ptr<Graph>& graph,
                                  const std::array<std::shared_ptr<CommandQueue>, stage::COUNT>& command_queue)
         : _command_list{{{device_handle, context, graph_ddi_table_ext},
                          {device_handle, context, graph_ddi_table_ext},
@@ -397,7 +409,9 @@ ZeroExecutor::Pipeline::Pipeline(const ze_device_handle_t& device_handle, const 
           _event_pool(device_handle, context, stage::COUNT),
           _event{{{device_handle, context, _event_pool._handle, stage::UPLOAD},
                   {device_handle, context, _event_pool._handle, stage::EXECUTE},
-                  {device_handle, context, _event_pool._handle, stage::READBACK}}} {
+                  {device_handle, context, _event_pool._handle, stage::READBACK}}},
+          _profiling_pool(graph->_handle, zeroProfiling::POOL_SIZE, graph_profiling_ddi_table_ext),
+          _profiling{{{0, device_handle, graph_profiling_ddi_table_ext}}} {
     OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "Executor::Pipeline::Pipeline");
     for (const auto& desc : graph->_inputs_desc_map) {
         _inputs.appendArgument(desc.first, desc.second.info);
@@ -423,7 +437,15 @@ ZeroExecutor::Pipeline::Pipeline(const ze_device_handle_t& device_handle, const 
     }
 
     _event[stage::UPLOAD].AppendWaitOnEvent(_command_list[stage::EXECUTE]);
-    _command_list[stage::EXECUTE].appendGraphExecute(graph->_handle);
+
+    if (_profiling_pool.create()) {
+        _profiling[0].create(_profiling_pool._handle);
+        _command_list[stage::EXECUTE].appendGraphExecute(graph->_handle, _profiling[0]._handle);
+        _profiling_enabled = true;
+    } else {
+        // No profiling in the blob
+        _command_list[stage::EXECUTE].appendGraphExecute(graph->_handle, nullptr);
+    }
 
     _event[stage::UPLOAD].AppendEventReset(_command_list[stage::READBACK]);
 
@@ -529,8 +551,9 @@ void ZeroExecutor::push(const IE::BlobMap& inputs) {
 
 Executor::Ptr ZeroExecutor::clone() const {
     OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "Executor::clone");
-    return std::make_shared<ZeroExecutor>(_driver_handle, _device_handle, _context, _graph_ddi_table_ext, _networkDesc,
-                                          _command_queue, _graph, _config);
+    return std::make_shared<ZeroExecutor>(_driver_handle, _device_handle, _context, _graph_ddi_table_ext,
+                                          _graph_profiling_ddi_table_ext, _networkDesc, _command_queue, _graph,
+                                          _config);
 }
 
 void ZeroExecutor::pull(IE::BlobMap& outputs) {
@@ -600,12 +623,86 @@ bool ZeroExecutor::isPreProcessingSupported(const PreprocMap&) const {
     return false;
 }
 
-std::map<std::string, IE::InferenceEngineProfileInfo> ZeroExecutor::getLayerStatistics() {
-    std::map<std::string, IE::InferenceEngineProfileInfo> perfCounts;
+static std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> convertZeProfilingLayersToIEInfo(
+        const std::vector<ze_profiling_layer_info>& layerInfo) {
+    std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> perfCounts;
 
-    // [Track number: E#26528]
-    // Enable profiling in L0 backend
+    int execution_index = 0;
+    std::map<std::string, int> layerNames;
+    for (const auto& layer : layerInfo) {
+        InferenceEngine::InferenceEngineProfileInfo info;
+        auto name = std::string(layer.name);
+
+        // Prevent existence of the same layer names
+        auto layerNameIt = layerNames.find(name);
+        if (layerNameIt != layerNames.end()) {
+            layerNames[name]++;
+            name += "/" + std::to_string(layerNames[name]);
+        } else {
+            layerNames[name] = 0;
+        }
+
+        info.status = InferenceEngine::InferenceEngineProfileInfo::EXECUTED;
+        info.realTime_uSec = layer.duration_ns / 1000;
+        info.execution_index = execution_index++;
+        auto typeLen = sizeof(info.exec_type) - 1;
+        if (layer.sw_ns > 0) {
+            strncpy(info.exec_type, "SW", typeLen);
+        } else if (layer.dpu_ns > 0) {
+            strncpy(info.exec_type, "DPU", typeLen);
+        } else {
+            strncpy(info.exec_type, "DMA", typeLen);
+        }
+        info.exec_type[typeLen] = '\0';
+        info.cpu_uSec = (layer.dma_ns + layer.sw_ns + layer.dpu_ns) / 1000;
+        typeLen = sizeof(info.layer_type) - 1;
+        strncpy(info.layer_type, layer.layer_type, typeLen);
+        info.layer_type[typeLen] = '\0';
+        perfCounts[name] = info;
+    }
+
     return perfCounts;
+}
+
+std::map<std::string, IE::InferenceEngineProfileInfo> ZeroExecutor::getLayerStatistics() {
+    if (!(_pipeline->_profiling_enabled)) {
+        IE_THROW() << "Can't get profiling statistics because profiling is disabled.";
+    }
+
+    const auto supportedProfilingVersion = ZE_MAKE_VERSION(1, 0);
+    ze_device_profiling_data_properties_t profProp;
+    _pipeline->_profiling[0].getProfilingProperties(&profProp);
+    if (profProp.extensionVersion != supportedProfilingVersion) {
+        IE_THROW() << "Profiling version mismatch. Probably you need to update the application.";
+    }
+
+    uint32_t size = 0;
+    if (_config.get<COMPILER_TYPE>() == InferenceEngine::VPUXConfigParams::CompilerType::DRIVER) {
+        // Obtain the size of the buffer
+        _pipeline->_profiling[0].queryGetData(ZE_GRAPH_PROFILING_LAYER_LEVEL, &size, nullptr);
+
+        if (size % sizeof(ze_profiling_layer_info) != 0) {
+            IE_THROW() << "Profiling structure size mismatch.";
+        }
+
+        // Allocate enough memory and copy the buffer
+        std::vector<ze_profiling_layer_info> zeLayerProfiling(size / sizeof(ze_profiling_layer_info));
+        _pipeline->_profiling[0].queryGetData(ZE_GRAPH_PROFILING_LAYER_LEVEL, &size,
+                                              reinterpret_cast<uint8_t*>(zeLayerProfiling.data()));
+
+        // Convert LevelZero profiling structures into InferenceEngineProfileInfo
+        return convertZeProfilingLayersToIEInfo(zeLayerProfiling);
+    } else {
+        _pipeline->_profiling[0].queryGetData(ZE_GRAPH_PROFILING_RAW, &size, nullptr);
+
+        std::unique_ptr<uint8_t[]> rawBytes(new uint8_t[size]);
+        _pipeline->_profiling[0].queryGetData(ZE_GRAPH_PROFILING_RAW, &size, rawBytes.get());
+
+        // Process raw profiling data on application side
+        std::vector<vpux::profiling::LayerInfo> layerProfiling = vpux::profiling::getLayerInfo(
+                reinterpret_cast<const uint8_t*>(_graph->_blob.data()), _graph->_blob.size(), rawBytes.get(), size);
+        return vpux::profiling::convertProfilingLayersToIEInfo(layerProfiling);
+    }
 }
 
 void ZeroExecutor::push(const IE::BlobMap& /*inputs*/, const vpux::PreprocMap& /*preProcMap*/) {

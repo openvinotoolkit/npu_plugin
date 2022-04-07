@@ -29,6 +29,7 @@ class ZeroDevicesSingleton {
         ze_device_handle_t device_handle = nullptr;
 
         ze_graph_dditable_ext_t* _graph_ddi_table_ext = nullptr;
+        ze_graph_profiling_dditable_ext_t* _graph_profiling_ddi_table_ext = nullptr;
 
         uint32_t drivers = 0;
         result = zeDriverGet(&drivers, nullptr);
@@ -58,6 +59,13 @@ class ZeroDevicesSingleton {
             return;
         }
 
+        result = zeDriverGetExtensionFunctionAddress(driver_handle, "ZE_extension_profiling_data",
+                                                     reinterpret_cast<void**>(&_graph_profiling_ddi_table_ext));
+        if (ZE_RESULT_SUCCESS != result) {
+            log.warning("zeDriverGetExtensionFunctionAddress failed {0:X+}", uint64_t(result));
+            return;
+        }
+
         uint32_t device_count = 1;
         // Get our target device
         result = zeDeviceGet(driver_handle, &device_count, &device_handle);
@@ -73,7 +81,8 @@ class ZeroDevicesSingleton {
             return;
         }
 
-        auto device = std::make_shared<ZeroDevice>(driver_handle, device_handle, context, _graph_ddi_table_ext);
+        auto device = std::make_shared<ZeroDevice>(driver_handle, device_handle, context, _graph_ddi_table_ext,
+                                                   _graph_profiling_ddi_table_ext);
         devices.emplace(std::make_pair(device->getName(), device));
     }
 
