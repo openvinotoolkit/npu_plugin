@@ -1,0 +1,79 @@
+default_config:
+  view_filter: &default_view_filter "\
+    -file:/CMakeFiles/,/_deps/,/thirdparty/,/pybind11/,/dependencies/,/opencv/,/boost/\
+    ,/bindings/,/inference_engine/*.cxx,/offline_transformations/*.cxx,/tests/,/test/,/build/kmb_plugin/src/"
+projects:
+  openvino-kmb-release-linux:
+    sync:
+      - openvino-release-linux
+      - openvino-release-windows
+      - openvino-kmb-release-windows
+      - openvino-kmb-release-linux
+    view_filter:
+      - *default_view_filter
+      - " -file:/onednn-plugin/"
+    condition:
+      source_branch: releases/2022/1_vpux_bdk4
+      os_type: linux
+  openvino-kmb-release-windows:
+    sync:
+      - openvino-release-linux
+      - openvino-release-windows
+      - openvino-kmb-release-windows
+      - openvino-kmb-release-linux
+    view_filter:
+      - *default_view_filter
+      - " -file:/onednn-plugin/"
+    condition:
+      source_branch: releases/2022/1_vpux_bdk4
+      os_type: windows
+
+  openvino-kmb-linux:
+    sync:
+      - openvino-release-linux
+      - openvino-release-windows
+      - openvino-kmb-windows
+      - openvino-kmb-linux
+    view_filter:
+      - *default_view_filter
+      - " -file:/onednn-plugin/"
+    condition:
+      source_branch: releases/2022/1
+      os_type: linux
+  openvino-kmb-windows:
+    sync:
+      - openvino-release-linux
+      - openvino-release-windows
+      - openvino-kmb-windows
+      - openvino-kmb-linux
+    view_filter:
+      - *default_view_filter
+      - " -file:/onednn-plugin/"
+    condition:
+      source_branch: releases/2022/1
+      os_type: windows
+
+  openvino-tbh-linux:
+    sync:
+      - openvino-release-linux
+      - openvino-release-windows
+      - openvino-tbh-windows
+      - openvino-tbh-linux
+    view_filter:
+      - *default_view_filter
+      - " -file:/onednn-plugin/"
+    condition:
+      source_branch: releases/vpux_4/.*
+      os_type: linux
+  openvino-tbh-windows:
+    sync:
+      - openvino-release-linux
+      - openvino-release-windows
+      - openvino-tbh-windows
+      - openvino-tbh-linux
+    view_filter:
+      - *default_view_filter
+      - " -file:/onednn-plugin/"
+    condition:
+      source_branch: releases/vpux_4/.*
+      os_type: windows

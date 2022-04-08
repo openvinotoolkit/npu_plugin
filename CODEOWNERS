@@ -1,0 +1,95 @@
+# See help here: https://help.github.com/en/github/creating-cloning-and-archiving-repositories/about-code-owners
+#
+# Rules:
+# 1. Each directory should have a minimum of 2 code owners.
+# 2. Order is important as the last matching pattern takes the most precedence.
+# Keep folders below sorted in folder hierarchy order (alphabetically).
+
+#
+# Repo default owners
+#
+* @openvinotoolkit/vpux-compiler-owners @openvinotoolkit/vpux-plugin-owners
+
+##################################################################
+
+#
+# custom kernels folders
+#
+/src/custom_cpp_kernels @openvinotoolkit/vpux-custom-kernels-maintainers
+/src/custom_extension_library @openvinotoolkit/vpux-custom-kernels-maintainers
+/src/custom_ocl_kernels @openvinotoolkit/vpux-custom-kernels-maintainers
+
+#
+# plugin folders
+#
+/src/emulator_backend @openvinotoolkit/vpux-plugin-emulator-backend-maintainers
+/src/vpux_al @openvinotoolkit/vpux-vpux_al-maintainers
+/src/vpux_imd_backend @openvinotoolkit/vpux-plugin-imd-backend-maintainers
+/src/vpux_plugin @openvinotoolkit/vpux-plugin-owners
+/src/zero_backend @openvinotoolkit/vpux-plugin-zero-backend-maintainers
+
+#
+# compiler folders
+#
+/src/vpux_compiler @openvinotoolkit/vpux-mlir-compiler-maintainers
+/src/vpux_ngraph_transformations @openvinotoolkit/vpux-mlir-compiler-maintainers
+/src/utils @openvinotoolkit/vpux-mlir-compiler-maintainers
+/src/vpux_translate_utils @openvinotoolkit/vpux-pss-framework-maintainers
+/src/vpux_utils @openvinotoolkit/vpux-mlir-compiler-maintainers
+
+#
+# compiler in driver folders
+#
+/src/vpux_driver_compiler_adapter @openvinotoolkit/vpux-cid-maintainers
+/src/VPUXCompilerL0 @openvinotoolkit/vpux-cid-maintainers
+
+#
+# SW Runtime kernels folder
+#
+/sw_runtime_kernels @openvinotoolkit/vpux-runtime-kernels-maintainers
+
+#
+# ELF
+#
+*ELF* @openvinotoolkit/vpux-elf-maintainers
+/src/vpux_elf @openvinotoolkit/vpux-elf-maintainers
+
+#
+# Tests folder
+#
+/tests/functional/behavior @openvinotoolkit/vpux-tests-behavior-maintainers
+/tests/functional/common @openvinotoolkit/vpux-tests-behavior-maintainers
+/tests/functional/compile @openvinotoolkit/vpux-tests-behavior-maintainers
+/tests/functional/internal @openvinotoolkit/vpux-tests-behavior-maintainers
+/tests/functional/shared_tests_classes @openvinotoolkit/vpux-tests-infra-maintainers
+/tests/functional/shared_tests_instances @openvinotoolkit/vpux-tests-infra-maintainers
+/tests/functional/shared_tests_instances/behavior @openvinotoolkit/vpux-tests-behavior-maintainers
+/tests/functional/shared_tests_instances/blob_tests @openvinotoolkit/vpux-tests-behavior-maintainers
+/tests/functional/shared_tests_instances/single_layer_tests @openvinotoolkit/vpux-tests-layer-maintainers
+/tests/functional/shared_tests_instances/subgraph_tests @openvinotoolkit/vpux-tests-subgraph-maintainers
+/tests/functional/single_layer_tests @openvinotoolkit/vpux-tests-layer-maintainers
+/tests/functional/subgraph_tests @openvinotoolkit/vpux-tests-subgraph-maintainers
+#
+/tests/libs @openvinotoolkit/vpux-tests-infra-maintainers
+/tests/lit @openvinotoolkit/vpux-mlir-compiler-maintainers
+#
+/tests/unit/vpux37xx @openvinotoolkit/vpux-tests-unit-37xx-maintainers
+/tests/unit/vpux_compiler @openvinotoolkit/vpux-mlir-compiler-maintainers
+/tests/unit/vpux_driver_compiler_adapter @openvinotoolkit/vpux-cid-maintainers
+/tests/unit/vpux_elf @openvinotoolkit/vpux-tests-unit-elf-maintainers
+/tests/unit/vpux_utils @openvinotoolkit/vpux-mlir-compiler-maintainers
+
+#
+# tools folder
+#
+/tools @openvinotoolkit/vpux-tools-maintainers
+
+#
+# Validation folder
+#
+/validation @openvinotoolkit/vpux-validation-maintainers
+
+#
+# OpenVINO infrastructure configs
+#
+./infrastructure @openvinotoolkit/vpux-infrastructure-maintainers

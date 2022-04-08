@@ -1,0 +1,9 @@
+# Copyright (C) 2022 Intel Corporation
+# SPDX-License-Identifier: Apache 2.0
+
+set(kernel_src "single_shave_pad.cpp")
+
+set(kernel_cpunum "3720")
+
+set(optimization_opts "") # -3
+set(always_inline "yes")
