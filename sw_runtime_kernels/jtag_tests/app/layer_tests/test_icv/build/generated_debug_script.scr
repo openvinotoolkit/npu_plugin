@@ -1,0 +1,169 @@
+# -*- mode: tcl -*-
+
+# {% copyright %}
+
+proc setStr {strVal} {
+    mdbg::mset -sym str_from_deb_global -binary "$strVal"
+}
+
+proc setIntBase {val} {
+    mdbg::mset -sym var_from_deb_global $val
+}
+
+proc setInt {name val} {
+    puts "$name $val"
+    setIntBase $val
+}
+
+try {
+
+puts breset
+mdbg::breset
+#mdbg::uart on
+puts "startupcore $default_target"
+mdbg::startupcore $default_target
+puts "target $default_target"
+mdbg::target $default_target
+puts "loadfile $elf"
+mdbg::loadfile $elf
+
+set los_exists [mdbg::sym addr -nocomplain mvConsoleTxQueue]
+if { $los_exists ne "" } {
+    mdbg::pipe create LOS
+    mdbg::pipe configure LOS -stdout
+    mdbg::pipe configure LOS -readsym mvConsoleTxQueue
+}
+
+set lrt_exists [mdbg::sym addr -nocomplain lrt_mvConsoleTxQueue]
+if { "$lrt_exists" ne "" } {
+    mdbg::pipe create LRT
+    mdbg::pipe configure LRT -stdout
+    mdbg::pipe configure LRT -readsym lrt_mvConsoleTxQueue
+}
+
+set shave_exists [mdbg::sym addr -nocomplain mvConsoleShaveTxQueue]
+if { $shave_exists ne "" } {
+    mdbg::pipe create SHV
+    mdbg::pipe configure SHV -stdout
+    mdbg::pipe configure SHV -readsym mvConsoleShaveTxQueue
+}
+
+
+puts "set breakpoint into get_from_debug"
+mdbg::breakpoint add -type auto -location get_from_debug_int
+
+mdbg::breakpoint add -type auto -location get_from_debug_str
+set exit_code 0;
+set main_status 1;
+mdbg::breakpoint add -type auto -location beforeReturn
+mdbg::breakpoint add -type auto -location Fatal_extension
+
+mdbg::runw
+
+if {[info exists START_SHAVE]} {
+    setInt "START_SHAVE" $START_SHAVE
+}
+mdbg::contw
+
+if {[info exists MIN_SHAVES]} {
+    setInt "MIN_SHAVES" $MIN_SHAVES
+}
+mdbg::contw
+
+if {[info exists MAX_SHAVES]} {
+    setInt "MAX_SHAVES" $MAX_SHAVES
+}
+mdbg::contw
+
+if {[info exists REPEAT_COUNT]} {
+    setInt "REPEAT_COUNT" $REPEAT_COUNT
+}
+mdbg::contw
+
+if {[info exists PRINT_DIFFS]} {
+    setInt "PRINT_DIFFS" $PRINT_DIFFS
+}
+mdbg::contw
+
+if {[info exists PRINT_DIFFRANGE]} {
+    setInt "PRINT_DIFFRANGE" $PRINT_DIFFRANGE
+}
+mdbg::contw
+
+if {[info exists PRINT_DIFFMAX]} {
+    setInt "PRINT_PERF_COUNTERS" $PRINT_PERF_COUNTERS
+}
+mdbg::contw
+
+if {[info exists RUN_MODE]} {
+    setInt "RUN_MODE" $RUN_MODE
+}
+mdbg::contw
+
+if {[info exists PRINT_NAME]} {
+    setInt "PRINT_NAME" $PRINT_NAME
+}
+mdbg::contw
+
+if {[info exists PRINT_TIME]} {
+    setInt "PRINT_TIME" $PRINT_TIME
+}
+mdbg::contw
+
+if {[info exists PRINT_PARAMS]} {
+    setInt "PRINT_PARAMS" $PRINT_PARAMS
+}
+mdbg::contw
+
+if {[info exists CHECK_RESULT]} {
+    setInt "CHECK_RESULT" $CHECK_RESULT
+}
+mdbg::contw
+
+if {[info exists CALL_ONCE]} {
+    setInt "CALL_ONCE" $CALL_ONCE
+}
+mdbg::contw
+
+if {[info exists PRINT_PERF_COUNTERS]} {
+    setInt "PRINT_PERF_COUNTERS" $PRINT_PERF_COUNTERS
+}
+mdbg::contw
+
+if {[info exists TEST_FILTER]} {
+    puts "TEST_FILTER [string length $TEST_FILTER] : '$TEST_FILTER'"
+    setIntBase [string length $TEST_FILTER]
+}
+mdbg::contw
+
+if {[info exists TEST_FILTER]} {
+    setStr $TEST_FILTER
+}
+mdbg::contw
+
+# go out of beforeReturn() function
+#mdbg::step out -q
+
+# looks variable on stack might be not visible from within function entrypoint
+set main_status [mdbg::mget -type int -sym -value status]
+mdbg::contw
+
+mdbg::contw
+
+#mdbg::uart flush
+
+foreach i [mdbg::pipe list] {
+    mdbg::pipe flush $i
+}
+
+# lets bind to MDK configured run_opt command to run in interactive mode
+if {$run_opt eq "runw" || $run_opt eq "run"} {
+    puts "exit_status $main_status"
+    exit $main_status
+}
+
+} on error {msg} {
+    puts "Debug script error : $msg"
+    mdbg::callstack
+    exit 1
+}

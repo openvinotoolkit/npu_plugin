@@ -1,0 +1,59 @@
+{
+    "model": {
+        "name": "ssd_mobilenet_v1_coco_fp32_original",
+        "model": "<ORIGINAL_MODEL>/frozen_inference_graph.pb",
+        "framework": "tf",
+        "tensorflow_object_detection_api_pipeline_config": "<ORIGINAL_MODEL>/pipeline.config",
+        "tensorflow_use_custom_operations_config": "../../../../dldt/model-optimizer/extensions/front/tf/ssd_v2_support.json",
+        "generate_deprecated_IR_V7": true,
+        "reverse_input_channels": true,
+        "inputs": [
+            {
+                "input_shape": [1,300,300,3],
+                "name": "image_tensor"
+            }
+        ],
+        "output": "detection_scores,detection_boxes,num_detections"
+    },
+    "engine": {
+        "launchers": [
+            {
+                "framework": "dlsdk",
+                "device": "CPU",
+                "adapter": {
+                    "type":"ssd"
+                }
+            }
+        ],
+        "datasets": [
+            {
+                "name": "ms_coco_detection_91_classes",
+                "data_source": "<DATASET_PATH>/MSCOCO/val2017",
+                "annotation_conversion": {
+                    "converter": "mscoco_detection",
+                    "annotation_file": "<DATASET_PATH>/MSCOCO/annotations/instances_val2017.json",
+                    "has_background": true,
+                    "use_full_label_map": true
+                },
+                "preprocessing":[
+                    {
+                        "type": "resize",
+                        "size": 300
+                    }
+                ],
+                "postprocessing":[
+                    {
+                        "type": "resize_prediction_boxes"
+                    }
+                ],
+                "metrics": [
+                    {
+                        "type": "coco_orig_precision"
+                    }
+                ]
+            }
+        ]
+    },
+    "compression": {
+    }
+}

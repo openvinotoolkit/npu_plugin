@@ -1,0 +1,88 @@
+{
+    "model": {
+        "name": "tiny_yolo_v1_caffe_fp32",
+        "framework": "caffe",
+        "model": "<ORIGINAL_MODEL>/tiny_yolo_v1.caffemodel",
+        "proto": "<ORIGINAL_MODEL>/tiny_yolo_v1.prototxt",
+        "reverse_input_channels": true,
+        "inputs": [{
+                "name": "data",
+                "format": "BGR",
+                "input_shape": [1,3,448,448]
+        }],
+        "outputs": [
+            {
+                "name": "fc9"
+            }
+        ]
+    },
+    "engine": {
+        "launchers": [
+            {
+                "framework": "dlsdk",
+                "device": "CPU",
+                "adapter": {
+                    "type":"tiny_yolo_v1",
+                    "anchors": "tiny_yolo_v1"
+                }
+            }
+        ],
+        "datasets": [
+            {
+                "name": "VOC2007",
+                "data_source": "<DATASET_PATH>/JPEGImages",
+                "annotation_conversion": {
+                    "converter": "voc_detection",
+                    "has_background": false,
+                    "annotations_dir": "<DATASET_PATH>/Annotations",
+                    "images_dir": "<DATASET_PATH>/JPEGImages",
+                    "imageset_file": "<DATASET_PATH>/ImageSets/Main/test.txt"
+                },
+                "preprocessing": [
+                    {
+                      "type": "resize",
+                      "size": 448
+                    },
+                    {
+                      "type": "normalization",
+                      "std": 255
+                    }
+                ],
+                "postprocessing": [
+                    {
+                        "type": "resize_prediction_boxes"
+                    },
+                    {
+                        "type": "filter",
+                        "apply_to": "prediction",
+                        "min_confidence": 0.001,
+                        "remove_filtered": true
+                    },
+                    {
+                        "type": "nms",
+                        "overlap": 0.5
+                    },
+                    {
+                        "type": "clip_boxes",
+                        "apply_to": "prediction"
+                    }
+                ],
+                "metrics": [
+                     {
+                         "type": "map",
+                         "integral": "11point",
+                         "ignore_difficult": true,
+                         "presenter": "print_scalar"
+                     },
+                     {
+                         "type": "coco_precision",
+                         "max_detections": 100,
+                         "threshold": 0.5
+                     }
+                ]
+            }
+        ]
+    },
+    "compression": {
+    }
+}

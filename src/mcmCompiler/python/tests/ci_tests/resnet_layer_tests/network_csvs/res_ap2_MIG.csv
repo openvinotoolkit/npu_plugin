@@ -1,0 +1,2 @@
+Network,Name,Op,Input Tensor,Output Tensor,Kernels,Stride,Dtype,ReLU,Sparsity
+ResNet50,ap2,AvgPooling,7x7x2048,1x1x2048,7x7,1,UINT8,No,0

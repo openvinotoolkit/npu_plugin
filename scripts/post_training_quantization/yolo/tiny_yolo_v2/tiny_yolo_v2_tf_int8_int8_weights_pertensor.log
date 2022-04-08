@@ -1,0 +1,9 @@
+Output log dir: ./results/tiny_yolo_v2_int8_int8_weights_pertensor_NaiveQuantization/2019-11-14_08-27-43
+Creating pipeline:
+Algorithm: NaiveQuantization
+Parameters:
+	weights                    : {'type': 'symmetric', 'bits': 8, 'scale_type': 'pertensor'}
+	target_device              : CPU
+	stat_subset_size           : 1000
+	activations                : {'type': 'symmetric', 'bits': 8, 'scale_type': 'pertensor'}
+===========================================================================

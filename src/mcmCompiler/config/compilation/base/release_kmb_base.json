@@ -1,0 +1,176 @@
+{
+    "initialize": {
+        "Singular": [
+            {
+                "name" : "GlobalConfigParams",
+                "_comment" : "Stores common params accross multiple passes. Access through the Computation Model.",
+                "verbose": "Error",
+                "barrier_index_assignment" : "Dynamic",
+                "enableStaticBarriers": true,
+                "default_tensor_placement" : "NNCMX",
+                "PerformanceCounting" : false
+            },
+            "AssignInputNode",
+            "AssignOutputNode",
+            "AssignUniqueOpId",
+            {
+                "name": "ApplyTargetVars",
+                "Vars": [
+                    {
+                        "name": "dmaControllers",
+                        "block": "nce",
+                        "var": "DMAControllers",
+                        "default": 1
+                    },
+                    {
+                        "name": "csramLimit",
+                        "block": "nce",
+                        "var": "CSRAM",
+                        "default": 0
+                    }
+                ]
+            },
+            {
+                "name": "CreateSourceStructure",
+                "VersionMajor": 3,
+                "VersionMinor": 25,
+                "VersionPatch": 0,
+                "VersionHash": "638ff0dac752ff91070dcebbe9b34ff58b06f59b"
+            },
+            "UseReferenceOps",
+	    "CollapseBranchedScale"
+        ]
+    },
+    "quantization" : {
+        "Singular" : [
+            "ResolveFQAfterBranchingSlices",
+            "FakeQuantize"
+        ]
+    },
+    "adapt": {
+        "Singular": [
+            "RemoveOps",
+            "ReplacementOps",
+            "TensorsToU8",
+            "TensorsToFP16",
+            "FusePostOps",
+            "CheckPWLForRequantize",
+            "ConvDilationUsingStorageElement",
+            "ConvDilationUsingWeights",
+            "TileOps",
+            "HandleGroupConvolution",
+            "StreamBinaryDataWeights",
+            "EltwiseToSWEltwise",
+            "DecideOutputDataType",
+            "PlaceNeutralMaxPoolBefore",
+            "PlacementOfOps",
+            "PostTrainingQuantize",
+            "MarkEltWiseUpaInputs",
+            "MarkCMCompatibleConvs",
+            "MarkSOHnonCompatibleConcats",
+            "AddPermuteToIOOps",
+            {
+                "name" : "SimpleStrategyManager",
+                "loadStrategiesFromFile" : false,
+                "jsonInFileName" : "./output/mcmCompiler_simple_strategy_output.json"
+            },
+            "StoreGraphOptimizerDecisions",
+            {
+                "name" : "AddActivationStreaming",
+                "max_streams" : 1000,
+                "vertical_fusion" : true
+            },
+            {
+                "name" : "RecognizeVerticalFusionPatterns",
+                "min_subgraph_depth" : 2,
+                "vertical_fusion": true
+            },
+            "ComputeSparsitySolution",
+            {
+                "name": "StreamingOperations",
+                "vertical_fusion" : true
+            },
+            {
+                "name":"VerticalFusionTransformation",
+                "vertical_fusion" : true
+            },
+            "StreamBinaryDataWeights",
+            "StreamCopyOperations"
+        ]
+    },
+  "dma": {
+        "Singular" : [
+            "SetDpuTasksMemoryLocation",
+            "SetUPATasksMemoryLocation",
+            "UpdateImplicitLayersLocation",
+            "ResolveImplicitOperations",
+            "ConsecutiveDMATaskWorkaround",
+            "AddDPUTasksWeightsDMATasks",
+            "AddUPATasksExtraInputsDMATasks",
+            "CleanRedundantDMAs",
+            "EnsureSplitStrategiesForSpilling"
+        ]
+    },
+    "control_flows":{
+        "Singular" : [
+            "TaskControlFlows",
+            "NNCMX2DDRControlFlows"
+        ]
+    },
+    "scheduling": {
+        "Singular": [
+            "Linearization",
+            {
+              "name" : "BarrierSchedulerPass",
+              "real_physical_barriers": 32,
+              "barrier_bound": 16,
+              "producer_bound" : 256,
+              "remove_barriers_in_upa_tail" : true,
+              "remove_redundant_wait_barriers" : true
+            },
+            {
+                "name" : "AddDPUTasksProfilingDMA",
+                "enable_cmx" : false,
+                "use_profiling_buffer" : true
+            },
+            "LayoutDMA"
+        ]
+    },
+    "validate": {
+        "Singular": [
+            "CheckTensors"
+        ]
+    },
+    "serialize": {
+        "Singular": [
+            "RemoveRedundantUpdateBarriers",
+            "CombineTaskInputBarriers",
+            "SplitBarrier",
+            {
+                "name" : "AssignPhysicalBarrier",
+                "real_physical_barriers": 32
+            },
+            "VerifyDMASchedulingOrder",
+            "BuildGraphFileKmb",
+            "UpdatePhysicalIDinGraphFile",
+            {
+                "name": "GenerateBlobKmb",
+                "output": "output/mcm.blob"
+            }
+        ]
+    },
+    "root": {
+        "Singular": [
+            "config",
+            "initialize",
+            "quantization",
+            "adapt",
+            "kmb_adapt",
+            "dma",
+            "control_flows",
+            "finalize",
+            "scheduling",
+            "serialize"
+        ]
+    }
+}

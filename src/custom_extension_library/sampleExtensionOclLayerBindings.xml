@@ -1,0 +1,15 @@
+<CustomLayer name="add_with_offset" type="MVCL" version="1" max-shaves="1">
+    <Kernel entry="add_w_offset">
+        <Source filename="add_with_offset.bin"/>
+        <Parameters>
+            <Tensor arg-name="inp1" type="input" port-index="0" format="BFYX"/>
+            <Tensor arg-name="inp2" type="input" port-index="1" format="BFYX"/>
+            <Tensor arg-name="outp" type="output" port-index="0" format="BFYX"/>
+            <Scalar arg-name="width" type="int" port-index="0" source="I.X"/>
+            <Scalar arg-name="height" type="int" port-index="0" source="I.Y"/>
+            <Scalar arg-name="channels" type="int" port-index="0" source="I.F"/>
+            <Scalar arg-name="offset" type="float" source="offset"/>
+        </Parameters>
+        <WorkSizes dim="output,0" global="1,1,1" local="1,1,1"/>
+    </Kernel>
+</CustomLayer>

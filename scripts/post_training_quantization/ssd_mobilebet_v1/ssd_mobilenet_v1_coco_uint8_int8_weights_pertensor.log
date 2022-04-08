@@ -1,0 +1,110 @@
+Output log dir: ./results/ssd_mobilenet_v1_coco_uint8_int8_weights_pertensor_DefaultQuantization/2019-11-27_18-10-13
+Creating pipeline:
+Algorithm: DefaultQuantization
+Parameters:
+	activations                : {'scale_type': 'pertensor', 'type': 'asymmetric', 'bits': 8}
+	weights                    : {'scale_type': 'pertensor', 'type': 'symmetric', 'bits': 8}
+	target_device              : CPU
+	stat_subset_size           : 300
+	metric_name                : coco_orig_precision
+	preset                     : accuracy
+===========================================================================
+INFO:compression.statistics.collector:Start computing statistics for algorithms : DefaultQuantization
+INFO:compression.statistics.collector:Computing statistics finished
+INFO:compression.pipeline.pipeline:Start algorithm: DefaultQuantization
+INFO:compression.statistics.collector:Start computing statistics for algorithms : ActivationChannelAlignment
+loading annotations into memory...
+Done (t=0.57s)
+creating index...
+index created!
+Loading and preparing results...
+DONE (t=0.01s)
+creating index...
+index created!
+Running per image evaluation...
+Evaluate annotation type *bbox*
+DONE (t=6.19s).
+Accumulating evaluation results...
+DONE (t=1.09s).
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.017
+ Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.025
+ Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.019
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.002
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.013
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.037
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=  1 ] = 0.012
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets= 10 ] = 0.015
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.015
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.002
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.012
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.037
+MSCOCOorigBaseMetric.compute_precision_recall: returning [[0.01736261055014271, 0.025119580020866863, 0.018764032871876644, 0.0023559988117537616, 0.013465100001340562, 0.037125067427036446], [0.012027046881949548, 0.015448793397061306, 0.015463608541028968, 0.0018411404454162605, 0.012071804243560658, 0.036727235177510774]]
+INFO:compression.statistics.collector:Computing statistics finished
+INFO:compression.statistics.collector:Start computing statistics for algorithms : MinMaxQuantization,BiasCorrection
+loading annotations into memory...
+Done (t=0.60s)
+creating index...
+index created!
+Loading and preparing results...
+DONE (t=0.01s)
+creating index...
+index created!
+Running per image evaluation...
+Evaluate annotation type *bbox*
+DONE (t=6.94s).
+Accumulating evaluation results...
+DONE (t=1.34s).
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.017
+ Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.025
+ Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.019
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.002
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.013
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.037
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=  1 ] = 0.012
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets= 10 ] = 0.015
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.015
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.002
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.012
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.037
+MSCOCOorigBaseMetric.compute_precision_recall: returning [[0.01736261055014271, 0.025119580020866863, 0.018764032871876644, 0.0023559988117537616, 0.013465100001340562, 0.037125067427036446], [0.012027046881949548, 0.015448793397061306, 0.015463608541028968, 0.0018411404454162605, 0.012071804243560658, 0.036727235177510774]]
+INFO:compression.statistics.collector:Computing statistics finished
+INFO:compression.pipeline.pipeline:Finished: DefaultQuantization
+ ===========================================================================
+INFO:compression.pipeline.pipeline:Evaluation of generated model
+INFO:compression.engines.ac_engine:Start inference on the whole dataset
+Total dataset size: 5000
+1000 / 5000 processed in 14.260s
+2000 / 5000 processed in 14.509s
+3000 / 5000 processed in 13.363s
+4000 / 5000 processed in 13.194s
+5000 / 5000 processed in 11.818s
+5000 objects processed in 67.154 seconds
+INFO:compression.engines.ac_engine:Inference finished
+loading annotations into memory...
+Done (t=0.58s)
+creating index...
+index created!
+Loading and preparing results...
+DONE (t=0.24s)
+creating index...
+index created!
+Running per image evaluation...
+Evaluate annotation type *bbox*
+DONE (t=10.35s).
+Accumulating evaluation results...
+DONE (t=1.51s).
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.232
+ Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.353
+ Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.255
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.018
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.166
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.531
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=  1 ] = 0.210
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets= 10 ] = 0.264
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.265
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.022
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.190
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.605
+MSCOCOorigBaseMetric.compute_precision_recall: returning [[0.2317238170529979, 0.35259221650780953, 0.25472279093509304, 0.018147755308852473, 0.16566728222185373, 0.5308316738249406], [0.2095416961775353, 0.26408568032276336, 0.2648011310815717, 0.02215538500130862, 0.19024753433773853, 0.6053776593507799]]
+coco_orig_precision        : 0.2317238170529979
+

@@ -1,0 +1,2 @@
+Network,Name,Op,Input Tensor,Output Tensor,Kernels,Stride,Dtype,ReLU,Sparsity
+Resnet 50, res_pool4, MaxPool, 14x14x1024, 7x7x1024, 3x3,2,UINT8,No,0.5

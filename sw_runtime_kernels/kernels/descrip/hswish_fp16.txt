@@ -1,0 +1,10 @@
+# Copyright (C) 2022 Intel Corporation
+# SPDX-License-Identifier: Apache 2.0
+
+set(kernel_src "hswish_fp16.cpp")
+
+set(always_inline "yes")
+
+if(NOT always_inline STREQUAL "yes")
+  set(extra_src_list "${CMAKE_SOURCE_DIR}/common/src/mvSubspaces.cpp")
+endif()

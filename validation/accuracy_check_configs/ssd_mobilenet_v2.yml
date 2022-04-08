@@ -1,0 +1,28 @@
+models:
+  - name:  ssd_mobilenet_v2
+    launchers:
+      - framework: dlsdk
+        model: @MODEL_PATH@
+        adapter: ssd
+
+    datasets:
+      - name: ms_coco_detection_91_classes
+
+        data_source: val2017
+
+        annotation_conversion:
+           converter: mscoco_detection
+           annotation_file: instances_val2017.json
+           images_dir: val2017
+           has_background: True
+           sort_annotations: True
+           use_full_label_map: True
+
+        preprocessing:
+          - type: resize
+            dst_width: 256
+            dst_height: 256
+        postprocessing:
+          - type: resize_prediction_boxes
+        metrics:
+          - type: coco_precision

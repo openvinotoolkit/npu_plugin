@@ -1,0 +1,114 @@
+{
+    "model": {
+        "name": "yolo_v3_uint8_int8_weights_pertensor",
+        "model": "<ORIGINAL_MODEL>",
+        "tensorflow_use_custom_operations_config": "../../../../../dldt/model-optimizer/extensions/front/tf/yolo_v3.json",
+        "framework": "tf",
+        "generate_deprecated_IR_V7": true,
+        "reverse_input_channels": true,
+        "inputs": [{
+                "name": "inputs",
+                "format": "BGR",
+                "save_aspect_ratio": true,
+                "input_shape": [1,416,416,3]
+        }],
+        "outputs": [
+            {
+                "name": "output_boxes"
+            }
+        ]
+    },
+    "engine": {
+        "launchers": [
+            {
+                "framework": "dlsdk",
+                "device": "CPU",
+                "adapter": {
+                    "type":"yolo_v3",
+                    "anchors": "yolo_v3",
+                    "num": 3,
+                    "classes": 80,
+                    "threshold": 0.001,
+                    "outputs": [
+                        "detector/yolo-v3/Conv_14/BiasAdd/YoloRegion",
+                        "detector/yolo-v3/Conv_6/BiasAdd/YoloRegion",
+                        "detector/yolo-v3/Conv_22/BiasAdd/YoloRegion"
+                    ]
+                }
+            }
+        ],
+        "datasets": [
+            {
+                "name": "COCO2017_80cl",
+                "data_source": "<DATASET_PATH>/val2017",
+                "annotation_conversion": {
+                    "converter": "mscoco_detection",
+                    "has_background": false,
+                    "annotation_file": "<DATASET_PATH>/annotations/instances_val2017.json",
+                    "use_full_label_map": false
+                },
+                "preprocessing":[
+                    {
+                        "type": "resize",
+                        "size": 416
+                    }
+                ],
+                "postprocessing":[
+                    {
+                        "type": "resize_prediction_boxes"
+                    },
+                    {
+                        "type": "filter",
+                        "apply_to": "prediction",
+                        "min_confidence": 0.001,
+                        "remove_filtered": true
+                    },
+                    {
+                        "type": "nms",
+                        "overlap": 0.5
+                    },
+                    {
+                        "type": "clip_boxes",
+                        "apply_to": "prediction"
+                    }
+                ],
+                "metrics": [
+                    {
+                        "type": "map",
+                        "integral": "11point",
+                        "ignore_difficult": true,
+                        "presenter": "print_scalar"
+                    },
+                    {
+                        "type": "coco_precision",
+                        "max_detections": 100,
+                        "threshold": 0.5
+                    }
+                ]
+            }
+        ]
+    },
+    "compression": {
+        "algorithms": [
+            {
+                "name": "DefaultQuantization",
+                "params": {
+                    "activations": {
+                        "bits": 8,
+                        "scale_type": "pertensor",
+                        "type": "asymmetric"
+                    },
+                    "metric_name": "coco_precision",
+                    "preset": "accuracy",
+                    "stat_subset_size": 300,
+                    "target_device": "CPU",
+                    "weights": {
+                        "bits": 8,
+                        "scale_type": "pertensor",
+                        "type": "symmetric"
+                    }
+                }
+            }
+        ]
+    }
+}

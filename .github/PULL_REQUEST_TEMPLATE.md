@@ -1,0 +1,65 @@
+## Summary
+
+(Please add a short summary why your pull request is useful)
+
+## Target Platform For Release Notes (Mandatory)
+
+Aids the generation of release notes
+
+- [ ] VPUX3011
+- [ ] VPUX3011
+- [ ] VPUX3110
+- [ ] VPUX37XX
+- [ ] VPUX40XX
+- [ ] NONE (Not included in release notes)
+
+## Classification of this Pull Request
+
+- [ ] Maintenance
+- [ ] BUG
+- [ ] Feature
+
+## Related PRs
+
+(Please add links to related PRs (if you have such PRs) and a small note why you depend on it)
+
+* <pr-link> (<description>)
+
+## Related tickets
+
+(Please list tickets which the PR closes if you have any)
+
+* E#####
+
+## CI
+
+(Please replace the links below with your own)
+
+#### Mandatory validation
+
+(Default filter: `*precommit*:*smoke*`. Empty functional_tests filter for any major changes.)
+
+* [ ] https://vpux-ci-vpuip.inn.intel.com/job/IE-MDK/job/manual/job/Ubuntu-Yocto/build?delay=0sec
+* [ ] https://vpux-ci-vpuip.inn.intel.com/job/IE-MDK/job/manual/job/Windows_dKMB/build?delay=0sec
+* [ ] https://vpux-ci-vpuip.inn.intel.com/job/IE-Packages/job/try/job/OpenVINO-Windows10/build?delay=0sec (with build_static enabled)
+* [ ] https://vpux-ci-vpuip.inn.intel.com/job/IE-Packages/job/try/job/OpenVINO-Ubuntu20/build?delay=0sec (with build_static enabled)
+
+#### Validation for compiler changes / performance affected
+
+(`*MLIR/precommit*` nets_included filter for VPUX compiler, `*MCM/precommit*` for MCM compiler.)
+
+* [ ] https://vpux-ci-vpuip.inn.intel.com/job/Nets-Validation/job/manual/job/Yocto/build?delay=0sec
+
+#### Validation for dKMB focused changes in compiler or major changes
+
+(Filters are the same as for Yocto.)
+
+* [ ] https://vpux-ci-vpuip.inn.intel.com/job/Nets-Validation/job/manual/job/Windows/build?delay=0sec
+
+## Code Review Survey (Copy and Complete in your code review)
+
+- number_minutes_spent_on_review[0]
+- number_p1_defects_found[0]
+- number_p2_defects_found[0]
+- number_p3_defects_found[0]
+- number_p4_defects_found[0]

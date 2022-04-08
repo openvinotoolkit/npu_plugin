@@ -1,0 +1,40 @@
+Output log dir: ./results/ssd_mobilenet_v1_coco_fp32_original/2019-11-27_16-34-37
+Creating pipeline:
+===========================================================================
+INFO:compression.pipeline.pipeline:Evaluation of generated model
+INFO:compression.engines.ac_engine:Start inference on the whole dataset
+Total dataset size: 5000
+1000 / 5000 processed in 11.475s
+2000 / 5000 processed in 11.106s
+3000 / 5000 processed in 11.105s
+4000 / 5000 processed in 11.375s
+5000 / 5000 processed in 11.493s
+5000 objects processed in 56.564 seconds
+INFO:compression.engines.ac_engine:Inference finished
+loading annotations into memory...
+Done (t=0.56s)
+creating index...
+index created!
+Loading and preparing results...
+DONE (t=0.23s)
+creating index...
+index created!
+Running per image evaluation...
+Evaluate annotation type *bbox*
+DONE (t=10.38s).
+Accumulating evaluation results...
+DONE (t=1.53s).
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.232
+ Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.351
+ Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.254
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.018
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.166
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.530
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=  1 ] = 0.209
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets= 10 ] = 0.264
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.264
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.023
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.191
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.606
+MSCOCOorigBaseMetric.compute_precision_recall: returning [[0.23166449528078617, 0.3505637214789006, 0.25420285633605194, 0.018424740919886645, 0.16609168398570265, 0.5297423350402307], [0.20931620906672158, 0.2636850350567159, 0.26425061918082254, 0.02262112683237024, 0.19085504822207822, 0.606350133920364]]
+coco_orig_precision        : 0.23166449528078617

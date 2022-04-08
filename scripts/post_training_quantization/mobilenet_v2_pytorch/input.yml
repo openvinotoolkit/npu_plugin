@@ -1,0 +1,12 @@
+%YAML:1.0
+inputs:
+  - name: "data"
+    type: "image"
+    format: "RGB"
+    path: "voc2012/2008_0000*.jpg"
+    shape: [1, 3, 224, 224]
+    layout: [N, C, H, W]
+    means: [123.675, 116.28, 103.53] 
+    scales: [0.017057860262008732,0.01750700280112045,0.017429193899782137] 
+outputs:
+  - name: "prob"

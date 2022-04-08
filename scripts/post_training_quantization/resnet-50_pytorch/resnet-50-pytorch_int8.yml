@@ -1,0 +1,39 @@
+models:
+  - name: resnet-50-pytorch_int8
+
+    launchers:
+      - framework: dlsdk
+        device: CPU
+        adapter: classification
+
+    datasets:
+      - name: imagenet_1000_classes
+        reader: pillow_imread
+
+        data_source: <DATASET_PATH>
+        annotation_conversion:
+          converter: imagenet
+          annotation_file: <DATASET_ANNOTATION_FILE>
+
+        # Image channels must be swapped, because "pillow_imread" reads in RGB, but converted model expect BGR
+        preprocessing:
+          - type: bgr_to_rgb
+
+          - type: resize
+            size: 256
+            aspect_ratio_scale: greater
+            use_pillow: True
+            interpolation: BILINEAR
+          - type: crop
+            size: 224
+            use_pillow: True
+
+        metrics:
+          - name: accuracy@top1
+            type: accuracy
+            top_k: 1
+
+          - name: accuracy@top5
+            type: accuracy
+            top_k: 5
+        # Reference metric from PyTorch (pytorch v1.0.1, torchvision v0.2.2) top-1 76.13% top-5 92.862%

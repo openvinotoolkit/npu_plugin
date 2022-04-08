@@ -1,0 +1,98 @@
+{
+    "model": {
+        "blobs_as_inputs": true,
+        "name": "vehicle-license-plate-detection-barrier-0106-uint8_int8_weights_pertensor",
+        "model": "<ORIGINAL_MODEL>/MobileNetSSD.pb.frozen",
+        "framework": "tf",
+        "tensorflow_use_custom_operations_config": "<ORIGINAL_MODEL>/MobileNetSSD.tfmo.json",
+        "reverse_input_channels": true,
+        "inputs": [
+            {
+                "input_shape": [1,300,300,3],
+                "name": "Placeholder",
+                "mean_values": "[127.5,127.5,127.5]",
+                "scale_values": "[127.5]",
+                "format": "BGR"
+            }
+        ],
+        "output": "SSD/concat_reshape_softmax/mbox_loc_final,SSD/concat_reshape_softmax/mbox_conf_final,SSD/concat_reshape_softmax/mbox_priorbox"
+    },
+    "engine": {
+        "launchers": [
+            {
+                "framework": "dlsdk",
+                "device": "CPU",
+                "adapter": {
+                    "type":"ssd"
+                }
+            }
+        ],
+        "datasets": [
+            {
+                "name": "vehicle_license_plate_detection",
+                "annotation": "q.pickle",
+                "dataset_meta": "q.json",
+                "preprocessing": [
+                    {
+                        "type": "resize",
+                        "dst_width": 300,
+                        "dst_height": 300
+                    }
+                ],
+                "postprocessing": [
+                    {
+                        "type": "clip_boxes",
+                        "apply_to": "prediction",
+                        "dst_width": 1,
+                        "dst_height": 1
+                    },
+                    {
+                        "type": "resize_prediction_boxes"
+                    },
+                    {
+                        "type": "filter",
+                        "apply_to": "prediction",
+                        "min_confidence": 0.005,
+                        "is_empty": true
+                    },
+                    {
+                        "type": "filter",
+                        "apply_to": "annotation",
+                        "area_ratio": 0.034722222222222224
+                    }
+                ],
+                "metrics": [
+                    {
+                        "type": "map",
+                        "ignore_difficult": true,
+                        "include_boundaries": false,
+                        "allow_multiple_matches_per_ignored": true,
+                        "distinct_conf": false,
+                        "presenter": "print_vector"
+                    }
+                ]
+            }
+        ]
+    },
+    "compression": {
+        "target_device": "CPU",
+        "algorithms": [
+            {
+                "name": "DefaultQuantization",
+                "params": {
+                    "stat_subset_size": 500,
+                    "weights": {
+                        "bits": 8,
+                        "mode": "symmetric",
+                        "granularity": "pertensor"
+                    },
+                    "activations": {
+                        "bits": 8,
+                        "mode": "asymmetric",
+                        "granularity": "pertensor"
+                    }
+                }
+            }
+        ]
+    }
+}

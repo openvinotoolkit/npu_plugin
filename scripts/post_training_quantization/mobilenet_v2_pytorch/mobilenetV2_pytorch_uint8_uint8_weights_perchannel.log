@@ -1,0 +1,76 @@
+Output log dir: ./results/mobilenet_v2_uint8_uint8_weights_perchannel_DefaultQuantization/2019-11-01_08-53-14
+Creating pipeline:
+Algorithm: DefaultQuantization
+Parameters:
+	weights                    : {'type': 'asymmetric', 'bits': 8, 'scale_type': 'perchannel'}
+	preset                     : accuracy
+	target_device              : CPU
+	activations                : {'type': 'asymmetric', 'bits': 8, 'scale_type': 'pertensor'}
+	stat_subset_size           : 1000
+===========================================================================
+INFO:compression.pipeline.pipeline:Start algorithm: DefaultQuantization
+INFO:compression.engines.ac_engine:Start inference of 1000 images
+INFO:compression.engines.ac_engine:Inference finished
+INFO:compression.engines.ac_engine:Start inference of 1000 images
+INFO:compression.engines.ac_engine:Inference finished
+INFO:compression.engines.ac_engine:Start inference of 1000 images
+INFO:compression.engines.ac_engine:Inference finished
+INFO:compression.pipeline.pipeline:Finished: DefaultQuantization
+ ===========================================================================
+INFO:compression.pipeline.pipeline:Evaluation of generated model
+INFO:compression.engines.ac_engine:Start inference on the whole dataset
+Total dataset size: 50000
+1000 / 50000 processed in 9.844s
+2000 / 50000 processed in 9.568s
+3000 / 50000 processed in 9.505s
+4000 / 50000 processed in 9.006s
+5000 / 50000 processed in 9.355s
+6000 / 50000 processed in 9.227s
+7000 / 50000 processed in 9.497s
+8000 / 50000 processed in 8.969s
+9000 / 50000 processed in 9.470s
+10000 / 50000 processed in 9.572s
+11000 / 50000 processed in 9.531s
+12000 / 50000 processed in 9.034s
+13000 / 50000 processed in 10.108s
+14000 / 50000 processed in 9.514s
+15000 / 50000 processed in 9.580s
+16000 / 50000 processed in 9.173s
+17000 / 50000 processed in 9.415s
+18000 / 50000 processed in 9.757s
+19000 / 50000 processed in 9.994s
+20000 / 50000 processed in 9.598s
+21000 / 50000 processed in 9.512s
+22000 / 50000 processed in 9.439s
+23000 / 50000 processed in 10.164s
+24000 / 50000 processed in 9.753s
+25000 / 50000 processed in 9.653s
+26000 / 50000 processed in 9.693s
+27000 / 50000 processed in 9.448s
+28000 / 50000 processed in 9.713s
+29000 / 50000 processed in 10.093s
+30000 / 50000 processed in 9.599s
+31000 / 50000 processed in 9.712s
+32000 / 50000 processed in 9.408s
+33000 / 50000 processed in 9.623s
+34000 / 50000 processed in 9.868s
+35000 / 50000 processed in 10.293s
+36000 / 50000 processed in 9.986s
+37000 / 50000 processed in 9.563s
+38000 / 50000 processed in 10.748s
+39000 / 50000 processed in 9.688s
+40000 / 50000 processed in 9.823s
+41000 / 50000 processed in 9.422s
+42000 / 50000 processed in 10.009s
+43000 / 50000 processed in 9.299s
+44000 / 50000 processed in 9.688s
+45000 / 50000 processed in 9.622s
+46000 / 50000 processed in 9.610s
+47000 / 50000 processed in 10.064s
+48000 / 50000 processed in 9.425s
+49000 / 50000 processed in 10.337s
+50000 / 50000 processed in 9.527s
+50000 objects processed in 482.512 seconds
+INFO:compression.engines.ac_engine:Inference finished
+accuracy@top1              : 0.71224
+accuracy@top5              : 0.90054

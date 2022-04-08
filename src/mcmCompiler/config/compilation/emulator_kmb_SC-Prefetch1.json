@@ -1,0 +1,148 @@
+{
+    "initialize": {
+        "Singular": [
+            {
+                "name": "GlobalConfigParams",
+                "_comment": "Stores common params accross multiple passes. Access through the Computation Model.",
+                "recorded_model": false,
+                "referenceDevice": "A0",
+                "verbose": "Info",
+                "weights_form": "None",
+                "Number_of_DPUs": 5,
+                "Number_of_Clusters": 1,
+                "WorkloadCost": 300,
+                "DDRScratch": 16777216,
+                "cmx": 917504,
+                "enable_channel_major_conv": true,
+                "HuffmanCompression": false,
+                "DPUTasksinFloat": false,
+                "RemovePermuteNoOp": true,
+                "PredictionOfQuantizationOutput": false,
+                "FloatOutput": true,
+                "Int32Output": false,
+                "PPEAccuracy": false,
+                "ScaleFuseInput": false,
+                "PWLUsage": true,
+                "ReferenceMode": false
+            },
+            "AssignInputNode",
+            "AssignOutputNode",
+            "AssignUniqueOpId",
+            {
+                "name": "ApplyTargetVars",
+                "Vars": [
+                    {
+                        "name": "dmaControllers",
+                        "block": "nce",
+                        "var": "DMAControllers",
+                        "default": 1
+                    },
+                    {
+                        "name": "csramLimit",
+                        "block": "nce",
+                        "var": "CSRAM",
+                        "default": 0
+                    }
+                ]
+            },
+            {
+                "name": "CreateSourceStructure",
+                "VersionMajor": 3,
+                "VersionMinor": 11,
+                "VersionPatch": 0,
+                "VersionHash": "9aa43159420c77d8cf765393954ac2fbb372ab02"
+            },
+            "UseReferenceOps",
+            "CollapseBranchedScale"
+        ]
+    },
+    "quantization": {
+        "Singular": [
+            "ResolveFQAfterBranchingSlices",
+            "FakeQuantize"
+        ]
+    },
+    "adapt": {
+        "Singular": [
+            "RemoveOps",
+            "ReplacementOps",
+            "TensorsToU8",
+            "TensorsToFP16",
+            "FusePostOps",
+            "CheckPWLForRequantize",
+            "ConvDilationUsingWeights",
+            "TileOps",
+            "HandleGroupConvolution",
+            "StreamBinaryDataWeights",
+            "DecideOutputDataType",
+            "PlaceNeutralMaxPoolBefore",
+            "PlacementOfOps",
+            "PostTrainingQuantize",
+            "EltwiseToSWEltwise",
+            "HwConvertToEltwise",
+            "MarkEltWiseUpaInputs",
+            "MarkCMCompatibleConvs",
+            "AddPermuteToIOOps"
+        ]
+    },
+    "kmb_adapt": {
+        "Singular": [
+            "ConvertToImplicitOps",
+            "LoadPWLQuantParams",
+            "ConvertOpsToTasks",
+            "GenerateAndPopulateInstructionListTables",
+            "KMBQuantizeConversion",
+            "SetUpPPETasks",
+            "TaskMultiplePostOps",
+            "ForceSerialize",
+            "ImplicitOutputDTypeUpdate",
+            "AdaptFixedPointCompute",
+            "ConfigureIOPrecision",
+            "EnsureDTypeCompatibility",
+            "DeQuantizeU8ConstToFP16Const",
+            "GenerateWeightsTables",
+            "ComputeTensorsQuantParams",
+            "UpdateImplicitLayersQuantizationParams",
+            "PopulateWeightsTablesQuantization"
+        ]
+    },
+    "finalize": {
+        "Singular": [
+            "ArrangeKmbExecution",
+            "AllocateGraphfileTensorsKmb"
+        ]
+    },
+    "serialize": {
+        "Singular": [
+            {
+                "name": "BuildGraphFileKmb",
+                "target_emulator": true
+            },
+            {
+                "name": "GenerateBlobKmb",
+                "output": "output/mcm.blob"
+            },
+            {
+                "name": "GenerateDot",
+                "output": "output/opmodel.dot",
+                "scope": "OpModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/opmodel.dot"
+            }
+        ]
+    },
+    "root": {
+        "Singular": [
+            "initialize",
+            "quantization",
+            "adapt",
+            "kmb_adapt",
+            "finalize",
+            "serialize"
+        ]
+    }
+}

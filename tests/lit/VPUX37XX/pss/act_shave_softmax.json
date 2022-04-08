@@ -1,0 +1,42 @@
+// RUN: vpux-translate --mlir-elide-elementsattrs-if-larger=16 --import-HWTEST %s | FileCheck %s
+
+{
+    "architecture": "VPUX37XX",
+    "case_type": "ActShave",
+    "input": {
+        "shape": [
+            1,
+            10,
+            2,
+            3
+        ],
+        "dtype": "fp16",
+        "quantization": {
+            "scale": 1.0,
+            "zeropoint": 0,
+            "low_range": 0,
+            "high_range": 1
+        }
+    },
+    "output": {
+        "shape": [
+            1,
+            10,
+            2,
+            3
+        ],
+        "dtype": "fp16",
+        "quantization": {
+            "scale": 1.0,
+            "zeropoint": 0,
+            "low_range": 0,
+            "high_range": 1
+        }
+    },
+    "activation": {
+        "name": "Softmax",
+        "axis": "1"
+    }
+}
+
+// CHECK-LABEL: module @mainModule

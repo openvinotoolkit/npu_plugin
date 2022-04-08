@@ -1,0 +1,14 @@
+Output log dir: ./results/tiny_yolo_v1_caffe_fp32/2019-12-09_11-46-38
+Creating pipeline:
+===========================================================================
+INFO:compression.pipeline.pipeline:Evaluation of generated model
+INFO:compression.engines.ac_engine:Start inference on the whole dataset
+Total dataset size: 4952
+1000 / 4952 processed in 32.580s
+2000 / 4952 processed in 34.559s
+3000 / 4952 processed in 31.873s
+4000 / 4952 processed in 34.653s
+4952 objects processed in 166.907 seconds
+INFO:compression.engines.ac_engine:Inference finished
+map                        : 0.5006278989441374
+coco_precision             : 0.5431782062495526

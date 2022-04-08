@@ -1,0 +1,76 @@
+{
+    "kmb_adapt": {
+        "Singular": [
+            "ConcatAsImplicit",
+            "ConvertToImplicitOps",
+            "StoreWorkloadStrategy",
+            "LoadPWLQuantParams",
+            "ConvertOpsToTasks",
+            "GenerateAndPopulateInstructionListTables",
+            "SetUpPPETasks",
+            "TaskMultiplePostOps",
+            "ForceSerialize",
+            "KMBOrderConversion",
+            "AlignUnpopulatedTensors",
+            "AddAlignOpForInputTensors",
+            "AlignPopulatedTensors",
+            "RemoveCropAlignInCMX",
+            "CropOrPadFinalOutput",
+            "AlignTaskWeights",
+            "ImplicitOutputDTypeUpdate",
+            "KMBQuantizeConversion",
+            "AdaptFixedPointCompute",
+            "ConfigureIOPrecision",
+            "EnsureDTypeCompatibility",
+            "GenerateSparsityMapsPopulatedTensors",
+            "GenerateWeightsTables",
+            "ComputeTensorsQuantParams",
+            "UpdateImplicitLayersQuantizationParams",
+            "PopulateWeightsTablesQuantization",
+            "RemoveBiasTensors",
+            "StrategyLayersToTensors",
+            "SetSparsityAttrForUnpopulatedTensors",
+            "SplittingTensorsAcrossClusters",
+            "DeQuantizeU8ConstToFP16Const",
+            "FuseImplicits"
+        ]
+    },
+    "finalize": {
+        "Singular": [
+            "GenerateSparsityMapsUnpopulatedTensors",
+            "GenerateSparsityMapsEltwise",
+            { "name": "LpScheduler",
+              "output" : "lp_scheduler_output.txt",
+              "ddr_address_generation" : true,
+              "no_temporal_edges" : true
+            },
+            "AssignSEBasePtr",
+            {
+                "name": "TransitiveReduction",
+                "filter": "MemoryRequirement"
+            },
+            {
+                "name": "GenerateWorkloads",
+                "costfunction": "greedy",
+                "TensorSplitAlgorithms": "Rectangle, Z-Tiling",
+                "_comment": "Supported CostFunctions are: balanced | criticalpath | minmax | greedy. Supported TensorSplitAlgorithms are Rectangle, Z-Tiling"
+            },
+            "ArrangeKmbExecution",
+            "AllocateInputOutputTensorsKmb",
+            "AllocateGraphfileTensorsKmb",
+            "ReAllocateImplicitOperationsKmb",
+            "AllocateCMXTensorsKmb",
+            {
+              "name": "LpScheduler",
+              "output" : "lp_scheduler_output.txt",
+              "allocator_mode": true,
+              "ddr_control_edges" : true
+            },
+            "LayerNumbering",
+            "PopulateWeightsTablesPointers",
+            "PopulateStorageElementPointers"
+        ]
+    },
+
+    "@MERGE@": "@FILE@/release_kmb_base.json"
+}

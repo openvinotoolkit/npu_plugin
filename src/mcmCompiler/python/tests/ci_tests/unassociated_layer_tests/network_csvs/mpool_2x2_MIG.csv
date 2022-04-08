@@ -1,0 +1,2 @@
+Network,Name,Op,Input Tensor,Output Tensor,Kernels,Stride,Dtype,ReLU,Sparsity
+None,james2x2pool,MaxPooling,56x56x64,28x28x64,2x2,2,UINT8,No,0
