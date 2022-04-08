@@ -1,0 +1,8 @@
+# Copyright (C) 2022 Intel Corporation
+# SPDX-License-Identifier: Apache 2.0
+
+set(kernel_src "eltwise_sub_fp16.cpp")
+
+set(kernel_cpunum "3720")
+
+set(always_inline "yes")

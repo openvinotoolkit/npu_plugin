@@ -1,0 +1,10 @@
+# Copyright (C) 2022 Intel Corporation
+# SPDX-License-Identifier: Apache 2.0
+
+set(kernel_src "reorder_fp16.cpp")
+
+set(kernel_cpunum "3720")
+
+if(NOT always_inline STREQUAL "yes")
+  set(extra_src_list "${CMAKE_CURRENT_SOURCE_DIR}/src/mvSubspaces.cpp")
+endif()

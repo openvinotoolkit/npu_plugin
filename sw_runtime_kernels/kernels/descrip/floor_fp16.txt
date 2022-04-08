@@ -1,0 +1,10 @@
+# Copyright (C) 2022 Intel Corporation
+# SPDX-License-Identifier: Apache 2.0
+
+set(kernel_src "floor_fp16.cpp")
+
+set(kernel_cpunum "3720")
+
+set(always_inline "yes")
+# Currently removed due to moviCompile failing to opt floor function
+set(optimization_opts "-O0")

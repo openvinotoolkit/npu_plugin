@@ -1,0 +1,21 @@
+[submodule "thirdparty/flatbuffers"]
+	path = thirdparty/flatbuffers
+	url = https://github.com/google/flatbuffers.git
+[submodule "thirdparty/elf"]
+	path = thirdparty/elf
+	url = https://github.com/openvinotoolkit/vpux_plugin_elf.git
+[submodule "thirdparty/llvm-project"]
+	path = thirdparty/llvm-project
+	url = https://github.com/intel/vpux-plugin-llvm.git
+[submodule "thirdparty/level-zero"]
+	path = thirdparty/level-zero
+	url = https://github.com/oneapi-src/level-zero.git
+[submodule "thirdparty/level-zero-ext"]
+	path = thirdparty/level-zero-ext
+	url = https://github.com/intel/level-zero-vpu-extensions.git
+[submodule "thirdparty/vpucostmodel"]
+	path = thirdparty/vpucostmodel
+	url = https://github.com/intel/vpu-nn-cost-model.git
+[submodule "thirdparty/bitcompactor"]
+	path = thirdparty/bitcompactor
+	url = https://github.com/openvinotoolkit/vpux_plugin_btc.git

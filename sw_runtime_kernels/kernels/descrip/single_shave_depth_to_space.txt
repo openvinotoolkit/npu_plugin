@@ -1,0 +1,13 @@
+# Copyright (C) 2022 Intel Corporation
+# SPDX-License-Identifier: Apache 2.0
+
+set(kernel_src "single_shave_depth_to_space.cpp")
+
+set(kernel_cpunum "3720")
+
+set(optimization_opts "") # -O3
+set(always_inline "yes")
+
+if(NOT always_inline STREQUAL "yes")
+  set(extra_src_list "${CMAKE_SOURCE_DIR}/src/mvSubspaces.cpp")
+endif()

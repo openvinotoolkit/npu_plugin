@@ -1,0 +1,411 @@
+source ../../../kcnf
+
+config USE_COMPONENT_NN_ICV_TEST
+  bool "Use mdk component NeuralNet"
+  default n
+  # Required shave_lib dependencies for builtin kernels
+  select USE_KERNELS
+  select USE_MVCV_KERNEL
+  select USE_MVCV_KERNEL_ACCUMULATEFP16
+  select USE_MVCV_KERNEL_ADDV2FP16
+  select USE_MVCV_KERNEL_AVERAGEV3
+  # For UPA L2C configuration and usage
+  select OS_DRV_SVU_ENABLE_CLOCK_CONTROL
+  select OS_DRV_SVU_CONTROL_SHAVE_CACHE
+  help
+    Check this if you intend to use neural networks in your MDK-based application
+
+menu "NeuralNetwork options"
+  depends on USE_COMPONENT_NN_ICV_TEST
+
+  menu "Applicable workarounds"
+  endmenu
+
+  menu "Fathom workarounds"
+    config NN_FATHOM_WORKAROUND_OUT_CHANNEL_OFFSET
+      bool "Workaround for Fathom incorrect out_channel_offset"
+      default y if TARGET_SOC_3710 || TARGET_SOC_3720
+
+    config NN_FATHOM_WORKAROUND_ODU_OFFSET
+      bool "Workaround for Fathom's way of using odu_offset"
+      default y if TARGET_SOC_3710 || TARGET_SOC_3720
+
+  endmenu
+
+  menu "Log verbosity level"
+
+    choice NN_LOG_VERBOSITY_LRT
+      prompt "On Leon RT"
+      depends on HAS_LRT_SRCS
+      default NN_LOG_VERBOSITY_LRT_WARN
+
+      config NN_LOG_VERBOSITY_LRT_NONE
+        bool "No logs"
+
+      config NN_LOG_VERBOSITY_LRT_FATAL
+        bool "Fatal and above"
+
+      config NN_LOG_VERBOSITY_LRT_ERROR
+        bool "Error and above"
+
+      config NN_LOG_VERBOSITY_LRT_WARN
+        bool "Warning and above"
+
+      config NN_LOG_VERBOSITY_LRT_PERF
+        bool "Performance and above"
+
+      config NN_LOG_VERBOSITY_LRT_INFO
+        bool "Info and above"
+
+      config NN_LOG_VERBOSITY_LRT_DEBUG
+        bool "Debug and above"
+
+      config NN_LOG_VERBOSITY_LRT_ALL
+        bool "All logs enabled"
+
+    endchoice
+
+    choice NN_LOG_VERBOSITY_LNN
+      prompt "On Leon NN"
+      depends on HAS_LNN_SRCS
+      default NN_LOG_VERBOSITY_LNN_WARN
+
+      config NN_LOG_VERBOSITY_LNN_NONE
+        bool "No logs"
+
+      config NN_LOG_VERBOSITY_LNN_FATAL
+        bool "Fatal and above"
+
+      config NN_LOG_VERBOSITY_LNN_ERROR
+        bool "Error and above"
+
+      config NN_LOG_VERBOSITY_LNN_WARN
+        bool "Warning and above"
+
+      config NN_LOG_VERBOSITY_LNN_PERF
+        bool "Performance and above"
+
+      config NN_LOG_VERBOSITY_LNN_INFO
+        bool "Info and above"
+
+      config NN_LOG_VERBOSITY_LNN_DEBUG
+        bool "Debug and above"
+
+      config NN_LOG_VERBOSITY_LNN_ALL
+        bool "All logs enabled"
+
+    endchoice
+
+    choice NN_LOG_VERBOSITY_SNN
+      prompt "On Shave NN"
+      depends on HAS_SHAVE_NN_SRCS
+      default NN_LOG_VERBOSITY_SNN_WARN
+
+      config NN_LOG_VERBOSITY_SNN_NONE
+        bool "No logs"
+
+      config NN_LOG_VERBOSITY_SNN_FATAL
+        bool "Fatal and above"
+
+      config NN_LOG_VERBOSITY_SNN_ERROR
+        bool "Error and above"
+
+      config NN_LOG_VERBOSITY_SNN_WARN
+        bool "Warning and above"
+
+      config NN_LOG_VERBOSITY_SNN_PERF
+        bool "Performance and above"
+
+      config NN_LOG_VERBOSITY_SNN_INFO
+        bool "Info and above"
+
+      config NN_LOG_VERBOSITY_SNN_DEBUG
+        bool "Debug and above"
+
+      config NN_LOG_VERBOSITY_SNN_ALL
+        bool "All logs enabled"
+
+    endchoice
+
+    choice NN_LOG_VERBOSITY_SVU
+      prompt "On Shave UPA"
+      depends on HAS_SHAVE_SRCS
+      default NN_LOG_VERBOSITY_SVU_WARN
+
+      config NN_LOG_VERBOSITY_SVU_NONE
+        bool "No logs"
+
+      config NN_LOG_VERBOSITY_SVU_FATAL
+        bool "Fatal and above"
+
+      config NN_LOG_VERBOSITY_SVU_ERROR
+        bool "Error and above"
+
+      config NN_LOG_VERBOSITY_SVU_WARN
+        bool "Warning and above"
+
+      config NN_LOG_VERBOSITY_SVU_PERF
+        bool "Performance and above"
+
+      config NN_LOG_VERBOSITY_SVU_INFO
+        bool "Info and above"
+
+      config NN_LOG_VERBOSITY_SVU_DEBUG
+        bool "Debug and above"
+
+      config NN_LOG_VERBOSITY_SVU_ALL
+        bool "All logs enabled"
+
+    endchoice
+
+  endmenu
+
+  menu "InferenceManager options"
+
+    config NN_SPECIFY_DPU_MASK
+      bool "Select the available DPUs"
+      default n
+      help
+        Check this to manually select the physically available DPUs
+
+    config NN_DPU_MASK
+      depends on NN_SPECIFY_DPU_MASK
+      string "Bitmask of physically available DPUs"
+      default "0x1"
+
+    config NN_USE_MEMORY_MANAGER
+      bool "Use the MDK memory manager instead of global heap"
+      default n
+
+    config NN_MAX_UPA_SHAVE_POOL_SIZE
+      int "Sets the maximum number of UPA shaves the runtime will request at initialization"
+      default 1
+      help
+        This maximum value may not be used depending on system usage and limits from the blob
+
+    config NN_L2C_PAGE_TABLE
+      hex "Page table for UPA L2 cache"
+      default 0x1
+      help
+        Address extension applied to DRAM addresses going out of UPA L2 cache
+
+  endmenu
+
+  menu "InferenceRuntime options"
+
+    config NN_ENABLE_CONTEXT_SUPPORT
+      depends on TARGET_SOC_3710 || TARGET_SOC_3720
+      bool "Enable user-context support"
+      default n
+
+    config NN_ENABLE_SCALABILITY_REPORTING
+      depends on TARGET_SOC_3710 || TARGET_SOC_3720
+      bool "Enable reporting of inference scalabililty"
+      default n
+
+    config NN_SCALABILITY_REPORTING_PERIOD_MS
+      depends on (TARGET_SOC_3710 || TARGET_SOC_3720) && NN_ENABLE_SCALABILITY_REPORTING
+      int "Sets the interval at which scalabililty will be updated (ms)"
+      default 1
+
+    menu "Performance"
+
+      config NN_ENABLE_SHADOWING
+        bool "Enable shadowing of DPU workloads"
+        default y
+
+      config NN_ENABLE_SPARSE_IDU_SHADOWING
+        bool "Allow IDU shadowing of sparse workloads"
+        default y
+
+      config NN_PROFILING
+        bool "Generate profiling data"
+        default n
+
+      config NN_PROFILING_ALL
+        depends on NN_PROFILING
+        bool "Generate all traces (besides HW stats)"
+        default n
+
+      config NN_BARECTF_BUFFER_SIZE
+        depends on NN_PROFILING
+        int "Buffer size (in bytes) for barectf logs"
+        default 262144
+
+      config NN_BARECTF_OUTPUT_DIR
+        depends on NN_PROFILING
+        string "Output directory for the CTF logs"
+        default "."
+
+      config NN_HW_STATS_PROF
+        depends on NN_PROFILING
+        bool "Generate DPU statistics"
+        default n
+
+    endmenu
+
+    menu "Debug"
+
+      config NN_IR_VERBOSE_STALLS
+        bool "Detect stalling inferences and show tracking information"
+        default n
+
+      config NN_ENABLE_STACK_CHECKER
+        bool "Enable stack checker reports"
+        default n
+
+      config NN_DUMP_INTERMEDIATE_BUFFERS
+        depends on !NN_ENABLE_SHADOWING
+        bool "Dump intermediate buffers"
+        default n
+
+      config NN_DESPARSIFY_RESULTS
+        depends on NN_DUMP_INTERMEDIATE_BUFFERS
+        bool "Desparsify (densify) intermediate buffers"
+        default y
+
+      config NN_DPU_DISABLE_PPE_ILIST
+        bool "Disable PPE instruction lists"
+        default n
+
+      config NN_PRINT_DPU_REGISTERS
+        bool "Print all NCE DPU registers from NN Inference Player"
+        default n
+
+      config NN_SAVE_DPU_REGISTERS
+        bool "Save all mapped invariants & variants to user disk"
+        default n
+
+      config NN_DPU_DRY_RUN
+        bool "Enable DPU dry run"
+        default n
+
+      config NN_DMA_DRY_RUN
+        depends on NN_DPU_DRY_RUN
+        bool "Enable DMA dry run"
+        default n
+
+      config DEBUG_NN_SVU_RUNTIME
+        bool "Enable debug and state tracing for SVU NN Runtime"
+        default n
+        help
+          Uses stdio to enable prints and records runtime state bit to shared UPACMX space
+
+        config SVU_STACK_USAGE_INSTRUMENTATION
+          depends on DEBUG_NN_SVU_RUNTIME
+          bool "Enable stack usage instrumentation SVU NN Runtime"
+          default n
+
+        config NN_SVU_RUNTIME_DUMP_TENSORS
+          bool "Dump input and output tensors for each soft layer"
+          default n
+          depends on DEBUG_NN_SVU_RUNTIME
+
+      config NN_HW_DEBUG
+        bool "Enable HW diagnostics: IDU MPE PPE ODU interrupts and stats"
+        default n
+
+      config ENABLE_CUSTOM_KERNEL_PERF_COUNTERS
+        bool "Enable performance counter for custom kernel"
+        default n
+
+      config NN_CHECK_ADDRESSES
+        bool "Check conversion to 32 bit addresses for truncation"
+        default n
+
+      config NN_ENABLE_CONTEXT_DEBUGGING
+        bool "Enable debug prints and debug routines for context operations"
+        default n
+        depends on NN_ENABLE_CONTEXT_SUPPORT
+
+    endmenu
+
+  endmenu
+
+  menu "DPURuntime options"
+
+    config NN_CM_CONV_MAX_CHANNELS
+    int "Maximum number of channel supported for channel-major convolution"
+    default 16
+    help
+      This value has to be a power of 2
+
+  endmenu
+
+  config NN_USE_APPCONFIG_LRT
+    bool "Use default application configuration for LRT"
+    default n
+    help
+      Check this if you intend to build an app using the default NN configuration for LRT
+
+  config NN_LRT_SINGLE_CORE
+    depends on NN_USE_APPCONFIG_LRT
+    bool "Force single-core config on LRT"
+    default y
+
+  config NN_USE_APPCONFIG_LNN
+    bool "Use default application configuration for LNN"
+    default n
+    help
+      Check this if you intend to build an app using the default NN configuration for LNN
+
+endmenu
+
+config APP_SHAVE_SRCS_DIR
+  string "APP_SHAVE_SRCS_DIR"
+  default "shave"
+
+config TEST_FILTER
+  string "TEST_FILTER"
+  default "*"
+
+config MIN_SHAVES
+  int "MIN_SHAVES"
+  default 1
+
+config MAX_SHAVES
+  int "MAX_SHAVES"
+  default 1
+
+config ALL_TESTS
+  bool "ALL_TESTS"
+  default n
+
+config SOFT_ASSERT
+  bool "SOFT_ASSERT"
+  default n
+
+config CALL_ONCE
+  bool "CALL_ONCE"
+  default y
+
+config REPEAT_COUNT
+  int "REPEAT_COUNT"
+  default 1
+
+config PRINT_DIFFS
+  bool "PRINT_DIFFS"
+  default n
+
+config PRINT_PERF_COUNTERS
+  bool "PRINT_PERF_COUNTERS"
+  default n
+
+choice
+  prompt "Test mode"
+
+  config TEST_MODE_QUIET
+    bool "TEST_MODE_QUIET"
+
+  config TEST_MODE_BRIEF
+    bool "TEST_MODE_BRIEF"
+
+  config TEST_MODE_FULL
+    bool "TEST_MODE_FULL"
+
+  config TEST_MODE_LISTSUITES
+    bool "TEST_MODE_LISTSUITES"
+
+  config TEST_MODE_LISTTESTS
+    bool "TEST_MODE_LISTTESTS"
+endchoice

@@ -1,0 +1,205 @@
+{
+    "version": 2,
+    "configurePresets": [
+        {
+            "name": "BuildOptimization",
+            "hidden": true,
+            "generator": "Ninja",
+            "cacheVariables": {
+                "CMAKE_C_COMPILER_LAUNCHER": {
+                    "type": "STRING",
+                    "value": "ccache"
+                },
+                "CMAKE_CXX_COMPILER_LAUNCHER": {
+                    "type": "STRING",
+                    "value": "ccache"
+                },
+                "ENABLE_FASTER_BUILD": true
+            }
+        },
+        {
+            "name": "LinkerOptimization",
+            "hidden": true,
+            "cacheVariables": {
+                "CMAKE_EXE_LINKER_FLAGS": {
+                    "type": "STRING",
+                    "value": "-B /usr/libexec/mold -Wl,--fork -Wl,--quick-exit -Wl,--thread-count=32"
+                },
+                "CMAKE_MODULE_LINKER_FLAGS": {
+                    "type": "STRING",
+                    "value": "-B /usr/libexec/mold -Wl,--fork -Wl,--quick-exit -Wl,--thread-count=32"
+                },
+                "CMAKE_SHARED_LINKER_FLAGS": {
+                    "type": "STRING",
+                    "value": "-B /usr/libexec/mold -Wl,--fork -Wl,--quick-exit -Wl,--thread-count=32"
+                }
+            }
+        },
+        {
+            "name": "EnableTests",
+            "hidden": true,
+            "cacheVariables": {
+                "ENABLE_TESTS": true,
+                "ENABLE_FUNCTIONAL_TESTS": true
+            }
+        },
+        {
+            "name": "EnableModelsAndValidationSet",
+            "hidden": true,
+            "cacheVariables": {
+                "ENABLE_MODELS": true,
+                "ENABLE_VALIDATION_SET": true
+            }
+        },
+        {
+            "name": "Disabler",
+            "hidden": true,
+            "description": "Disables all options. It is used as a base for configuration where is only needed option are enabled to speed-up build. Should be used as the first argument to inherits.",
+            "cacheVariables": {
+                "ENABLE_TESTS": false,
+                "ENABLE_FUNCTIONAL_TESTS": false,
+                "ENABLE_DEVELOPER_BUILD": false,
+                "ENABLE_KMB_SAMPLES": false,
+                "ENABLE_MODELS": false,
+                "ENABLE_VALIDATION_SET": false,
+                "ENABLE_LTO": false,
+                "ENABLE_FASTER_BUILD": false,
+                "ENABLE_CPPLINT": false,
+                "ENABLE_CLANG_FORMAT": false,
+                "ENABLE_ZEROAPI_BACKEND": false,
+                "BUILD_COMPILER_FOR_DRIVER": false,
+                "ENABLE_DRIVER_COMPILER_ADAPTER": false,
+                "ENABLE_EMULATOR": false,
+                "ENABLE_VPUX_DOCS": false,
+                "TREAT_WARNING_AS_ERROR": false,
+                "ENABLE_IMD_BACKEND": false
+            }
+        },
+
+        {
+            "name": "vpuxDeveloper",
+            "description": "Default configuration preset for VPUX Compiler development. Enables VPUX compiler and generic OV tests, and disables plugin specific builds. Also, enables IMD backend",
+            "binaryDir": "${sourceDir}/build-x86_64/Debug",
+            "displayName": "vpuxDeveloper",
+            "inherits": ["BuildOptimization", "EnableTests"],
+
+            "cacheVariables": {
+                "InferenceEngineDeveloperPackage_DIR": {
+                    "type": "FILEPATH",
+                    "value": "$env{OPENVINO_HOME}/build-x86_64/Debug"
+                },
+
+                "CMAKE_BUILD_TYPE": {
+                    "type": "STRING",
+                    "value": "Debug"
+                },
+
+                "CMAKE_EXPORT_COMPILE_COMMANDS" : true,
+
+                "ENABLE_DEVELOPER_BUILD": true,
+                "ENABLE_CLANG_FORMAT": true,
+                "ENABLE_IMD_BACKEND": true,
+
+                "ENABLE_CPPLINT": false,
+                "ENABLE_KMB_SAMPLES": false,
+
+                "ENABLE_MODELS": false,
+                "ENABLE_VALIDATION_SET": false,
+                "ENABLE_LTO": false,
+                "ENABLE_ZEROAPI_BACKEND": true,
+                "ENABLE_EMULATOR": false,
+                "ENABLE_VPUX_DOCS": false
+            }
+        },
+        {
+            "name": "vpuxRelease",
+            "description": "Default configuration preset for VPUX Compiler development. Enables VPUX compiler and generic OV tests, and disables plugin specific builds. Also, enables IMD backend",
+            "binaryDir": "${sourceDir}/build-x86_64/Release",
+            "displayName": "vpuxRelease",
+            "inherits": ["BuildOptimization"],
+
+            "cacheVariables": {
+                "InferenceEngineDeveloperPackage_DIR": {
+                    "type": "FILEPATH",
+                    "value": "$env{OPENVINO_HOME}/build-x86_64/Release"
+                },
+                "CMAKE_BUILD_TYPE": {
+                    "type": "STRING",
+                    "value": "Release"
+                },
+
+                "CMAKE_EXPORT_COMPILE_COMMANDS" : true,
+
+                "ENABLE_ZEROAPI_BACKEND": true,
+                "ENABLE_VPUX_DOCS": true,
+                "ENABLE_CLANG_FORMAT": true,
+
+                "ENABLE_CPPLINT": false,
+                "ENABLE_KMB_SAMPLES": false,
+
+                "ENABLE_IMD_BACKEND": false,
+                "ENABLE_DEVELOPER_BUILD": false,
+                "ENABLE_TESTS": false,
+                "ENABLE_FUNCTIONAL_TESTS": false,
+                "ENABLE_MODELS": false,
+                "ENABLE_VALIDATION_SET": false,
+                "ENABLE_LTO": false,
+                "ENABLE_EMULATOR": false
+            }
+        },
+
+        {
+            "name": "OpenVINOWithVPUX",
+            "hidden": true,
+            "cacheVariables": {
+                "CMAKE_EXPORT_COMPILE_COMMANDS" : true,
+
+                "ENABLE_HETERO": true,
+                "ENABLE_INTEL_CPU": true,
+                "ENABLE_INTEL_GNA": false,
+                "ENABLE_INTEL_GPU": false,
+                "ENABLE_TEMPLATE": true,
+                "ENABLE_INTEL_MYRIAD": false,
+                "ENABLE_INTEL_MYRIAD_COMMON": false,
+
+                "ENABLE_IR_V7_READER": false,
+                "ENABLE_OV_ONNX_FRONTEND": false,
+                "ENABLE_OV_PADDLE_FRONTEND": false,
+                "ENABLE_OV_TF_FRONTEND": false,
+
+                "THREADING": {
+                    "type": "STRING",
+                    "value": "TBB"
+                },
+                "ENABLE_DATA": false,
+                "ENABLE_GAPI_PREPROCESSING": false,
+                "ENABLE_LTO": false,
+                "ENABLE_OPENCV": true,
+
+                "ENABLE_SAMPLES": true,
+                "ENABLE_TESTS": true,
+                "ENABLE_FUNCTIONAL_TESTS": true,
+
+                "IE_EXTRA_MODULES": {
+                    "type": "FILEPATH",
+                    "value": "./modules/vpux"
+                }
+            }
+        },
+
+        {
+            "name": "ovVpuxDeveloper",
+            "description": "Same as vpuxDeveloper, but it builds VPUX plugin in OpenVINO project tree. Please make sure that VPUX plugin is located inside OpenVINO repo in modules/vpux folder.",
+            "binaryDir": "${sourceDir}/build-x86_64/Debug",
+            "displayName": "ovVpuxDeveloper",
+            "inherits": ["OpenVINOWithVPUX", "vpuxDeveloper"]
+        },
+        {
+            "name": "ovVpuxRelease",
+            "description": "Same as vpuxRelease, but it builds VPUX plugin in OpenVINO project tree. Please make sure that VPUX plugin is located inside OpenVINO repo in modules/vpux folder.",
+            "binaryDir": "${sourceDir}/build-x86_64/Release",
+            "displayName": "ovVpuxRelease",
+            "inherits": ["OpenVINOWithVPUX", "vpuxRelease"]
+        }
+    ]
+}

@@ -1,0 +1,28 @@
+
+!tensorType = type tensor<1x3x224x224xf16>
+
+#loc0 = loc(unknown)
+module @"torch-jit-export" {
+  IE.CNNNetwork entryPoint : @main inputsInfo : {
+    DataInfo "result.1" : !tensorType loc(#loc0)
+  } outputsInfo : {
+    DataInfo "495" : !tensorType loc(#loc0)
+  } profilingOutputsInfo : {
+  } loc(#loc0)
+  func @main(%arg0: !tensorType loc(unknown)) -> !tensorType {
+    %0 = IE.Add(%arg0, %arg0) {auto_broadcast = "NUMPY"} : !tensorType, !tensorType -> !tensorType loc(#loc1)
+    %1 = IE.Swish(%0) : !tensorType -> !tensorType loc(#loc2)
+    %2 = IE.Add(%1, %1) {auto_broadcast = "NUMPY"} : !tensorType, !tensorType -> !tensorType loc(#loc3)
+    %3 = IE.Swish(%2) : !tensorType -> !tensorType loc(#loc4)
+    %4 = IE.Add(%3, %3) {auto_broadcast = "NUMPY"} : !tensorType, !tensorType -> !tensorType loc(#loc5)
+    %5 = IE.Swish(%4) : !tensorType -> !tensorType loc(#loc6)
+    return %5 : !tensorType loc(#loc7)
+  } loc(#loc0)
+} loc(#loc0)
+#loc1 = loc("Add_0?")
+#loc2 = loc("Swish_0?")
+#loc3 = loc("Add_1?")
+#loc4 = loc("Swish_1?")
+#loc5 = loc("Add_2?")
+#loc6 = loc("Swish_2?")
+#loc7 = loc("output")

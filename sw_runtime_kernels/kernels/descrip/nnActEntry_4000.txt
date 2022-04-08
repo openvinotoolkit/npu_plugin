@@ -1,0 +1,32 @@
+# Copyright (C) 2022 Intel Corporation
+# SPDX-License-Identifier: Apache 2.0
+
+set(rt_kernel "yes")
+set(kernel_src "nnActEntry_4000.cpp")
+set(kernel_src_dir "${FIRMWARE_VPU_DIR}/system/nn_vpu4/nn_runtime/mvnci/act_runtime")
+set(link_script_file "${CMAKE_CURRENT_SOURCE_DIR}/prebuild/shave_rt_kernel.ld")
+set(kernel_cpunum "4000")
+
+set(include_dirs_list
+  "${FIRMWARE_VPU_DIR}/drivers/hardware/registerMap/inc"
+  "${FIRMWARE_VPU_DIR}/include"
+  "${FIRMWARE_VPU_DIR}/include/nn"
+  "${FIRMWARE_VPU_DIR}/include/vpu_c_header"
+  "${FIRMWARE_VPU_DIR}/drivers/barriers"
+  "${FIRMWARE_VPU_DIR}/nn_vpu4/system/nn/include"
+  "${FIRMWARE_VPU_DIR}/nn_vpu4/drivers/nn/inc"
+  "${FIRMWARE_VPU_DIR}/nn_vpu4/system/nn/common_runtime/inc/3720/"
+  "${FIRMWARE_VPU_DIR}/nn_vpu4/system/nn/common/inc/3720/"
+   #system nn vpu4
+  "${FIRMWARE_VPU_DIR}/system/nn_vpu4/nn_runtime/inc"
+)
+set(extra_src_list
+   "${FIRMWARE_VPU_DIR}/system/nn_vpu4/nn_runtime/src/nn_fifo_manager_4000.cpp"
+   "${FIRMWARE_VPU_DIR}/nn_vpu4/system/nn/common_runtime/src/3720/nn_fifo_manager.cpp"
+   "${FIRMWARE_VPU_DIR}/nn_vpu4/drivers/nn/src/nn_fifo.cpp"
+   "${FIRMWARE_VPU_DIR}/nn_vpu4/system/nn/common_runtime/src/3720/nn_perf_manager.cpp"
+)
+
+list(APPEND define_symbols_list
+  "LOW_LEVEL_TESTS_PERF"
+)
