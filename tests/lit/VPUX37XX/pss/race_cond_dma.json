@@ -1,0 +1,36 @@
+// RUN: vpux-translate --import-HWTEST %s
+{
+    "architecture": "VPUX37XX",
+    "case_type": "RaceConditionDMA",
+    "input": {
+        "shape": [
+            1,
+            16,
+            16,
+            16
+        ],
+        "dtype": "fp16",
+        "quantization": {
+            "scale": 1.0,
+            "zeropoint": 0,
+            "low_range": 0,
+            "high_range": 1
+        }
+    },
+    "output": {
+        "shape": [
+            1,
+            16,
+            16,
+            16
+        ],
+        "dtype": "fp16",
+        "quantization": {
+            "scale": 1.0,
+            "zeropoint": 0,
+            "low_range": 0,
+            "high_range": 1
+        }
+    },
+    "iteration_count": 64
+}

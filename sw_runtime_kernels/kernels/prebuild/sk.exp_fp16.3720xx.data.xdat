@@ -1,0 +1,3 @@
+unsigned char sk_exp_fp16_3720xx_data[] = {
+};
+unsigned int sk_exp_fp16_3720xx_data_len = 0;

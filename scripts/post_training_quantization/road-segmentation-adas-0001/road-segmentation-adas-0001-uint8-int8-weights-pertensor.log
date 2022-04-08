@@ -1,0 +1,33 @@
+Output log dir: /home/tan/projects/kmb-plugin/scripts/post_training_quantization/road-segmentation-adas-0001/results/road-segmentation-adas-0001-uint8-int8-weights-pertensor_DefaultQuantization/2019-11-29_12-21-19
+Creating pipeline:
+Algorithm: DefaultQuantization
+Parameters:
+	target_device              : CPU
+	stat_subset_size           : 500
+	weights                    : {'bits': 8, 'type': 'symmetric', 'scale_type': 'pertensor'}
+	activations                : {'bits': 8, 'type': 'asymmetric', 'scale_type': 'pertensor'}
+===========================================================================
+[ WARNING ]  
+Detected not satisfied dependencies:
+	protobuf: installed: 3.10.0, required: 3.6.1
+
+Please install required versions of components or use install_prerequisites script
+/home/tan/projects/dldt/model-optimizer/install_prerequisites/install_prerequisites_caffe.sh
+Note that install_prerequisites scripts may install additional components.
+INFO:compression.statistics.collector:Start computing statistics for algorithms : DefaultQuantization
+INFO:compression.statistics.collector:Computing statistics finished
+INFO:compression.pipeline.pipeline:Start algorithm: DefaultQuantization
+INFO:compression.statistics.collector:Start computing statistics for algorithms : ActivationChannelAlignment
+INFO:compression.statistics.collector:Computing statistics finished
+INFO:compression.statistics.collector:Start computing statistics for algorithms : MinMaxQuantization,BiasCorrection
+INFO:compression.statistics.collector:Computing statistics finished
+INFO:compression.pipeline.pipeline:Finished: DefaultQuantization
+ ===========================================================================
+INFO:compression.pipeline.pipeline:Evaluation of generated model
+INFO:compression.engines.ac_engine:Start inference on the whole dataset
+Total dataset size: 500
+500 objects processed in 54.510 seconds
+INFO:compression.engines.ac_engine:Inference finished
+mean_iou                   : 0.8436773789535386
+mean_accuracy              : 0.8994595849721206
+

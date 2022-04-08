@@ -1,0 +1,223 @@
+{
+
+    "target": "ma2490",
+    "general":
+    {
+        "leakyAccuracyBits": 7,
+        "pwlEnabled": true,
+        "customPWLTable": [
+            {
+                "activation": "LeakyRelu",
+                "dtype": "UInt8",
+                "float_min": -65504.0,
+                "float_max": 65504.0,
+                "range": [-128, -109, -90, -72, -54, -36, -18, 0, 128],
+                "shift": [1, -1, 0, 0, 0, -1, -1, -4],
+                "bias": [-119, 44, -43, -31, -19, 18, 10, 0],
+                "post_shift": 4
+            }
+        ]
+
+    },
+    "dtype":
+    {
+        "global": "Float16",
+        "hwCompatibilityCases": [
+            {
+                "failCase":
+                [
+                    {
+                        "tensor": "input_0",
+                        "dtype": "UInt8"
+                    },
+                    {
+                        "tensor": "weights",
+                        "dtype": "Float16"
+                    }
+                ],
+                "mitigation":
+                [
+                    {
+                        "tensor": "input_0",
+                        "dtype": "UInt8"
+                    },
+                    {
+                        "tensor": "weights",
+                        "dtype": "UInt8"
+                    }
+                ]
+            },
+            {
+                "failCase":
+                [
+                    {
+                        "tensor": "input_0",
+                        "dtype": "Float16"
+                    },
+                    {
+                        "tensor": "weights",
+                        "dtype": "UInt8"
+                    }
+                ],
+                "mitigation":
+                [
+                    {
+                        "tensor": "input_0",
+                        "dtype": "Float16"
+                    },
+                    {
+                        "tensor": "weights",
+                        "dtype": "Int8"
+                    }
+                ]
+            },
+            {
+                "failCase":
+                [
+                    {
+                        "tensor": "input_0",
+                        "dtype": "Float16"
+                    },
+                    {
+                        "tensor": "input_1",
+                        "dtype": "UInt8"
+                    }
+                ],
+                "mitigation":
+                [
+                    {
+                        "tensor": "input_0",
+                        "dtype": "Float16"
+                    },
+                    {
+                        "tensor": "input_1",
+                        "dtype": "Float16"
+                    }
+                ]
+            },
+            {
+                "failCase":
+                [
+                    {
+                        "tensor": "input_0",
+                        "dtype": "UInt8"
+                    },
+                    {
+                        "tensor": "input_1",
+                        "dtype": "Float16"
+                    }
+                ],
+                "mitigation":
+                [
+                    {
+                        "tensor": "input_0",
+                        "dtype": "Float16"
+                    },
+                    {
+                        "tensor": "input_1",
+                        "dtype": "Float16"
+                    }
+                ]
+            }
+        ]
+    },
+
+    "resources":
+    {
+        "memory":
+        [
+
+            {
+                "name": "GraphFile",
+                "alignment": 64,
+                "size": 1024000000
+            },
+
+            {
+                "name": "VPU_DDR_Heap",
+                "alignment": 64,
+                "size": 31457280
+            },
+
+            {
+                "name": "VPU_CMX_NN",
+                "alignment": 64,
+                "size": 3686400
+            },
+
+            {
+                "name": "VPU_CMX_UPA",
+                "alignment": 64,
+                "size": 1024000000
+            },
+
+            {
+                "name": "VPU_DDR_BSS",
+                "alignment": 64,
+                "size": 1024000000
+            },
+
+            {
+                "name": "ProgrammableInput",
+                "alignment": 64,
+                "size": 1024000000
+            },
+            {
+                "name": "ProgrammableOutput",
+                "alignment": 64,
+                "size": 1024000000
+            },
+            {
+                "name": "ProfilingOutput",
+                "alignment": 64,
+                "size": 1024000000
+            }
+        ],
+        "nce_block":
+        [
+            {
+                "name": "DPUs",
+                "totalNumber": 20
+            },
+
+            {
+                "name": "Clusters",
+                "totalNumber": 4
+            }
+        ],
+        "processors":
+        [
+            {
+                "name": "LeonRT",
+                "totalNumber": 1
+            },
+            {
+                "name": "LeonNN",
+                "totalNumber": 1
+            },
+            {
+                "name": "UPAShaves",
+                "totalNumber": 1
+            },
+            {
+                "name": "NNShaves",
+                "totalNumber": 0
+            },
+            {
+                "name": "ARM",
+                "totalNumber": 2
+            }
+        ],
+        "huffman_decode_engine":
+        [
+            {
+                "name": "HDE",
+                "numberOfHDEModules": 1,
+                "bitPerSymbol": 8,
+                "blockSize": 4096,
+                "maxNumberEncodedSymbols": 16,
+                "bypassMode": false
+            }
+        ]
+    }
+}

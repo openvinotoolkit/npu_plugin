@@ -1,0 +1,3 @@
+Network,Name,Op,Input Tensor,Output Tensor,Kernels,Stride,Dtype,ReLU,Sparsity
+Resnet 50, pool1_A,MaxPooling, 112x112x32, 56x56x32, 3x3,2,UINT8,No,0.5
+Resnet 50, pool1_B,Convolution, 56x56x32, 56x56x32, 1x1,1,UINT8,No,0.5

@@ -1,0 +1,37 @@
+models:
+  - name: openpose-pose
+
+    launchers:
+      - framework: dlsdk
+        allow_reshape_input: True
+        model: @MODEL_PATH@
+        adapter: human_pose_estimation
+
+    datasets:
+      - name: ms_coco_keypoints
+
+        data_source: val2017
+        annotation_conversion:
+           converter: mscoco_keypoints
+           annotation_file: person_keypoints_val2017.json
+           sort_key: image_size
+        dataset_meta: mscoco_keypoints.json
+
+        preprocessing:
+          - type: resize
+            dst_height: 368
+            dst_width: 656
+            interpolation: CUBIC
+
+        postprocessing:
+          - type: filter
+            apply_to: annotation
+            area_range: 1, 10000000000
+          - type: filter
+            apply_to: prediction
+            area_range: 1, 10000000000
+
+        metrics:
+          - name: AP
+            type: coco_keypoints_precision
+            max_detections: 20

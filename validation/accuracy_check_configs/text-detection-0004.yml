@@ -1,0 +1,31 @@
+models:
+  - name: text-detection-0004
+
+    launchers:
+      - framework: dlsdk
+        model: @MODEL_PATH@
+        adapter:
+          type: pixel_link_text_detection
+          pixel_link_out: model/link_logits_/add
+          pixel_class_out: model/segm_logits/add
+          pixel_class_confidence_threshold: 0.8
+          pixel_link_confidence_threshold: 0.8
+          min_area: 300
+          min_height: 10
+
+    datasets:
+      - name: ICDAR2015
+        data_source: ICDAR15_DET/ch4_test_images
+        annotation_conversion:
+          converter: icdar_detection
+          data_dir: ICDAR15_DET/gt
+
+        preprocessing:
+          - type: resize
+            dst_width: 1280
+            dst_height: 768
+
+        metrics:
+          - type: incidental_text_hmean
+            name: f-measure
+            ignore_difficult: True

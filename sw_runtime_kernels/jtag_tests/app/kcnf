@@ -1,0 +1,19 @@
+menu "MvTensor component settings"
+  config MVTENSOR_CMX_BUFFER
+    int "MVTENSOR_CMX_BUFFER"
+    default 100
+    help
+      Size for per-SHAVE CMX heap buffer
+
+  config MVTENSOR_FAST_SVU
+    bool "MVTENSOR_FAST_SVU"
+    default y
+    help
+      Check to use internal fast version of SHAVE driver
+
+  config MVTENSOR_L2C_COPY_BACK
+    bool "MVTENSOR_L2C_COPY_BACK"
+    default y
+    help
+      Check to use COPY_BACK mode for Leon cache
+endmenu

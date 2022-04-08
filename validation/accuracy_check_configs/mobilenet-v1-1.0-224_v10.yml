@@ -1,0 +1,31 @@
+models:
+  - name: mobilenet-v1-1.0-224-cf
+    launchers:
+      - framework: dlsdk
+        tags:
+          - FP32
+        model: @MODEL_PATH@
+        adapter: classification
+
+    datasets:
+      - name: imagenet_10_00_classes
+
+        data_source: ILSVRC2012_img_val
+
+        annotation_conversion:
+          converter: imagenet
+          annotation_file: ILSVRC2012_img_val/ILSVRC2012_val.txt
+
+        metrics:
+          - name: accuracy@top1
+            type: accuracy
+            top_k: 1
+          - name: accuracy@top5
+            type: accuracy
+            top_k: 5
+
+        preprocessing:
+          - type: resize
+            size: 256
+          - type: crop
+            size: 224

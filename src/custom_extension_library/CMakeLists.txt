@@ -1,0 +1,41 @@
+# Copyright (C) 2022 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+#
+
+set(CMAKE_CXX_STANDARD 11)
+set(TARGET_NAME "custom_extension_library")
+set(SRC sample_ext.cpp add_with_offset_op.cpp)
+
+# SHARED or STATIC depending on BUILD_SHARED_LIBS
+add_library(${TARGET_NAME} ${SRC})
+
+target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_INFERENCE_EXTENSION_API)
+
+link_system_libraries(${TARGET_NAME} PUBLIC IE::ngraph IE::inference_engine)
+
+#
+# targets install
+#
+
+install(TARGETS ${TARGET_NAME}
+        RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH}
+        COMPONENT ${VPUX_TESTS_COMPONENT} EXCLUDE_FROM_ALL
+
+        ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH}
+        COMPONENT ${VPUX_TESTS_COMPONENT} EXCLUDE_FROM_ALL
+
+        LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH}
+        COMPONENT ${VPUX_TESTS_COMPONENT} EXCLUDE_FROM_ALL
+)
+
+# TODO: Remove duplication E#31024
+install(TARGETS ${TARGET_NAME}
+        RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH}
+        COMPONENT tests EXCLUDE_FROM_ALL
+
+        ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH}
+        COMPONENT tests EXCLUDE_FROM_ALL
+
+        LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH}
+        COMPONENT tests EXCLUDE_FROM_ALL
+)

@@ -1,0 +1,85 @@
+{
+    "model": {
+        "name": "inception-v1_tf_uint8_int8_weights_pertensor",
+        "model": "<ORIGINAL_MODEL>",
+        "inputs": [
+            {
+                "input_shape": [1,224,224,3],
+                "mean_values": [127.5, 127.5, 127.5],
+                "scale_values": [127.5,127.5,127.5],
+                "name": "input",
+                "format": "BGR"
+            }
+        ],
+        "outputs": [
+            {
+                "name": "InceptionV1/Logits/Predictions/Reshape_1"
+            }
+        ]
+    },
+    "engine": {
+        "launchers": [
+            {
+                "device": "CPU",
+                "framework": "dlsdk",
+                "adapter": "classification"
+            }
+        ],
+        "datasets": [
+            {
+                "name": "imagenet_1001_classes",
+                "data_source": "<DATASET_PATH>",
+                "annotation_conversion": {
+                    "annotation_file": "<DATASET_PATH>/val.txt",
+                    "converter": "imagenet",
+                    "has_background": true
+                },
+                "preprocessing": [
+                    {
+                        "type": "crop",
+                        "central_fraction": 0.875
+                    },
+                    {
+                        "type": "resize",
+                        "size": 224
+                    }
+                ],
+                "metrics": [
+                    {
+                        "type": "accuracy",
+                        "top_k": 1,
+                        "name": "accuracy@top1"
+                    },
+                    {
+                        "type": "accuracy",
+                        "top_k": 5,
+                        "name": "accuracy@top5"
+                    }
+                ]
+            }
+        ]
+    },
+    "compression": {
+        "target_device": "CPU",
+        "algorithms": [
+            {
+                "name": "DefaultQuantization",
+                "params": {
+                    "target_device": "CPU",
+                    "preset": "accuracy",
+                    "stat_subset_size": 1000,
+                    "weights": {
+                        "bits": 8,
+                        "type": "symmetric",
+                        "scale_type": "pertensor"
+                    },
+                    "activations": {
+                        "bits": 8,
+                        "type": "asymmetric",
+                        "scale_type": "pertensor"
+                    }
+                }
+            }
+        ]
+    }
+}

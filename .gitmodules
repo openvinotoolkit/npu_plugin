@@ -1,0 +1,10 @@
+[submodule "thirdparty/flatbuffers"]
+	path = thirdparty/flatbuffers
+	url = https://github.com/google/flatbuffers.git
+[submodule "thirdparty/llvm-project"]
+	path = thirdparty/llvm-project
+	url = https://github.com/plaidml/llvm-project.git
+	shallow = true
+[submodule "thirdparty/level-zero"]
+	path = thirdparty/level-zero
+	url = https://github.com/oneapi-src/level-zero.git

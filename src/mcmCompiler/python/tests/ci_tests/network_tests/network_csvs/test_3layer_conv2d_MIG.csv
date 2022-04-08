@@ -1,0 +1,4 @@
+Network,Name,Op,Input Tensor,Output Tensor,Kernels,Stride,Dtype,ReLU,Sparsity
+Resnet 50, res2a_branch2a,Convolution, 56x56x64, 56x56x64, 1x1,1,UINT8,No,0.5
+Resnet 50, res2a_branch2b,Convolution, 56x56x64, 56x56x64, 3x3,1,UINT8,No,0.5
+Resnet 50, res2a_branch2a,Convolution, 56x56x64, 56x56x64, 1x1,1,UINT8,No,0.5

@@ -1,0 +1,79 @@
+{
+    "model": {
+        "name": "road-segmentation-adas-0001-uint8-int8-weights-pertensor",
+	"model": "../../kmb-plugin/scripts/post_training_quantization/road-segmentation-adas-0001/model/model.caffemodel",
+        "proto": "../../kmb-plugin/scripts/post_training_quantization/road-segmentation-adas-0001/model/model.prototxt",
+        "inputs": [{
+            "input_shape": [1,3,512,896],
+            "format": "BGR"
+        }],
+        "outputs": [
+            {
+                "name": "L0317_ReWeight_SoftMax"
+            }
+        ]
+    },
+    "engine": {
+        "launchers": [
+            {
+                "framework": "dlsdk",
+                "device": "CPU",
+                "adapter": "segmentation"
+            }
+        ],
+        "datasets": [
+            {
+                "name": "mighty",
+                "data_source": "mighty",
+                "annotation_conversion": {
+                    "converter": "mighty",
+                    "annotation_file": "mighty/val.txt"
+                },
+                "preprocessing":[
+                    {
+                        "type": "resize",
+                        "dst_width": 896,
+                        "dst_height": 512
+                    }
+                ],
+              "postprocessing":[
+                {
+                  "type": "resize_segmentation_mask",
+                  "apply_to": "annotation",
+                  "dst_height": 512,
+                  "dst_width": 896}],
+              "metrics": [
+                 {
+                   "type": "mean_iou",
+                   "presenter": "print_vector"
+                 },
+                 {
+                   "type": "mean_accuracy",
+                   "presenter": "print_vector"
+                 }
+              ]
+            }
+        ]},
+    "compression": {
+        "target_device": "CPU",
+        "algorithms": [
+            {
+                "name": "DefaultQuantization",
+                "params": {
+                    "target_device": "CPU",
+                    "stat_subset_size": 500,
+                    "weights": {
+                        "bits": 8,
+                        "type": "symmetric",
+                        "scale_type": "pertensor"
+                    },
+                    "activations": {
+                        "bits": 8,
+                        "type": "asymmetric",
+                        "scale_type": "pertensor"
+                    }
+                }
+            }
+        ]
+    }
+}

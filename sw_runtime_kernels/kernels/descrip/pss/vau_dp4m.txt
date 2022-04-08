@@ -1,0 +1,6 @@
+# Copyright (C) 2022 Intel Corporation
+# SPDX-License-Identifier: Apache 2.0
+
+include("${kernel_descrip_path}/common.inc")
+
+set(kernel_src "vau_dp4m.cpp")

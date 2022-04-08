@@ -1,0 +1,49 @@
+models:
+  - name: yolo-v2-tiny-ava-0001
+
+    launchers:
+      - framework: dlsdk
+        model: @MODEL_PATH@
+        adapter:
+          type: yolo_v2
+          anchors: tiny_yolo_v2
+
+    datasets:
+      - name: VOC2012
+
+        data_source: VOCdevkit/VOC2012/JPEGImages
+
+        annotation_conversion:
+            converter: voc_detection
+            annotations_dir: VOCdevkit/VOC2012/Annotations
+            images_dir: VOCdevkit/VOC2012/JPEGImages
+            imageset_file: VOCdevkit/VOC2012/ImageSets/Main/val.txt
+            has_background: False
+
+        metrics:
+          - type: map
+            integral: 11point
+            ignore_difficult: True
+            include_boundaries: True
+            presenter: print_scalar
+            allow_multiple_matches_per_ignored: True
+
+        preprocessing:
+          - type: resize
+            size: 416
+            interpolation: LINEAR
+
+        postprocessing:
+          - type: filter
+            apply_to: prediction
+            min_confidence: 0.01
+            remove_filtered: True
+
+          - type: nms
+            overlap: 0.5
+            include_boundaries: False
+
+          - type: resize_prediction_boxes
+
+          - type: clip_boxes
+            apply_to: prediction

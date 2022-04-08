@@ -1,0 +1,2 @@
+subdirs-shave-y += ../../../..
+

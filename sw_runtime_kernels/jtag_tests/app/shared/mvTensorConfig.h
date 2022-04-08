@@ -1,0 +1,47 @@
+// {% copyright %}
+#ifndef MVTENSOR_CONFIG_H
+#define MVTENSOR_CONFIG_H
+
+// System resources configuration
+
+static const int MVTENSOR_CACHE_LINE_LENGTH = 64;
+static const int MVTENSOR_PARAM_SIZE = 512;
+static const int MVTENSOR_HEAP_DATA_SIZE = MVTENSOR_CMX_BUFFER * 1024;
+static const int MVTENSOR_STACK_SIZE = 1024;
+
+#if defined(MA2490)
+#define MVTENSOR_MAX_SHAVES 16
+#define MVTENSOR_MAX_NCES 20
+#define MVTENSOR_MAX_CMX_SLICES 16
+#elif defined(MA2480)
+#define MVTENSOR_MAX_SHAVES 16
+#define MVTENSOR_MAX_NCES 2
+#define MVTENSOR_MAX_CMX_SLICES 19
+#else
+#define MVTENSOR_MAX_SHAVES 12
+#define MVTENSOR_MAX_NCES 0
+#define MVTENSOR_MAX_CMX_SLICES 15
+#endif
+
+#ifdef MA2150
+#define DDR_UNCACHED_ACCESS
+#endif
+
+#define MVTENSOR_MUTEX 5
+#define MV_TENSOR_DBG_MSG_SIZE 120
+
+#ifndef __MOVICOMPILE__
+#	ifndef DDR_DATA
+#		define DDR_DATA  __attribute__((section(".ddr.data"), aligned(MVTENSOR_CACHE_LINE_LENGTH)))
+#	endif
+#       ifndef DDR_BSS
+#       	define DDR_BSS __attribute__((section(".ddr.bss"), aligned(MVTENSOR_CACHE_LINE_LENGTH)))
+#       endif
+#	define NOCACHE __attribute__((section(".cmx.data"), aligned(MVTENSOR_CACHE_LINE_LENGTH)))
+#else
+#	ifndef SLICE_BSS
+#		define SLICE_BSS __attribute__((section(".bss"), aligned(MVTENSOR_CACHE_LINE_LENGTH)))
+#	endif
+#endif
+
+#endif

@@ -1,0 +1,92 @@
+{
+    "version": 2,
+    "configurePresets": [
+        {
+            "name": "BuildOptimization",
+            "hidden": true,
+            "generator": "Ninja",
+            "cacheVariables": {
+                "CMAKE_C_COMPILER_LAUNCHER": {
+                    "type": "FILEPATH",
+                    "value": "/usr/bin/ccache"
+                },
+                "CMAKE_CXX_COMPILER_LAUNCHER": {
+                    "type": "FILEPATH",
+                    "value": "/usr/bin/ccache"
+                }
+            }
+        },
+        {
+            "name": "LinkerOptimization",
+            "hidden": true,
+            "cacheVariables": {
+                "CMAKE_EXE_LINKER_FLAGS": {
+                    "type": "STRING",
+                    "value": "-fuse-ld=gold -Wl,--threads -Wl,--thread-count,14"
+                },
+                "CMAKE_MODULE_LINKER_FLAGS": {
+                    "type": "STRING",
+                    "value": "-fuse-ld=gold -Wl,--threads -Wl,--thread-count,14"
+                },
+                "CMAKE_SHARED_LINKER_FLAGS": {
+                    "type": "STRING",
+                    "value": "-fuse-ld=gold -Wl,--threads -Wl,--thread-count,14"
+                }
+            }
+        },
+        {
+            "name": "aarch64",
+            "hidden": true,
+            "cacheVariables": {
+                "CMAKE_TOOLCHAIN_FILE": {
+                    "type": "FILEPATH",
+                    "value": "${sourceDir}/cmake/oecore.arm64.toolchain.cmake"
+                }
+            }
+        },
+        {
+            "name": "EnableTests",
+            "hidden": true,
+            "cacheVariables": {
+                "ENABLE_TESTS": true,
+                "ENABLE_FUNCTIONAL_TESTS": true,
+                "ENABLE_HDDL2_TESTS": true
+            }
+        },
+        {
+            "name": "EnableModelsAndValidationSet",
+            "hidden": true,
+            "cacheVariables": {
+                "ENABLE_MODELS": true,
+                "ENABLE_VALIDATION_SET": true
+            }
+        },
+        {
+            "name": "Disabler",
+            "hidden": true,
+            "description": "Disables all options. It is used as a base for configuration where is only needed option are enabled to speed-up build. Should be used as the first argument to inherits.",
+            "cacheVariables": {
+                "ENABLE_TESTS": false,
+                "ENABLE_FUNCTIONAL_TESTS": false,
+                "ENABLE_HDDL2_TESTS": false,
+                "ENABLE_DEVELOPER_BUILD": false,
+                "ENABLE_KMB_SAMPLES": false,
+                "ENABLE_MCM_COMPILER_PACKAGE": false,
+                "ENABLE_MCM_COMPILER_PYTHON": false,
+                "ENABLE_MODELS": false,
+                "ENABLE_VALIDATION_SET": false,
+                "ENABLE_HDDL2": false,
+                "ENABLE_CUSTOM_HDDLUNITE": false,
+                "ENABLE_LTO": false,
+                "ENABLE_FASTER_BUILD": false,
+                "ENABLE_CPPLINT": false,
+                "ENABLE_CLANG_FORMAT": false,
+                "ENABLE_ZEROAPI_BACKEND": false,
+                "ENABLE_EMULATOR": false,
+                "ENABLE_VPUX_DOCS": false,
+                "TREAT_WARNING_AS_ERROR": false,
+                "ENABLE_IMD_BACKEND": false
+            }
+        }
+    ]
+}

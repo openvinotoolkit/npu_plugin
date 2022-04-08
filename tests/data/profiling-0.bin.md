@@ -1,0 +1,2 @@
+To generate `profiling-0.bin` run InferenceManagerDemo with blob from lit/utils/profiling.mlir and copy generated profiling-0.bin form inference results
+Most likely the LIT test have to be updated with new values as the realtime measurements are vary from run to run.

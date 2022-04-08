@@ -1,0 +1,19 @@
+running install_as_extension
+Output log dir: ./results/vehicle-license-plate-detection-barrier-0106-fp32/2019-12-11_19-10-21
+Creating pipeline:
+===========================================================================
+INFO:compression.pipeline.pipeline:Evaluation of generated model
+INFO:compression.engines.ac_engine:Start inference on the whole dataset
+Total dataset size: 9850
+1000 / 9850 processed in 22.627s
+2000 / 9850 processed in 22.504s
+3000 / 9850 processed in 20.181s
+4000 / 9850 processed in 19.690s
+5000 / 9850 processed in 19.422s
+6000 / 9850 processed in 19.853s
+7000 / 9850 processed in 19.623s
+8000 / 9850 processed in 19.301s
+9000 / 9850 processed in 19.319s
+9850 objects processed in 199.032 seconds
+INFO:compression.engines.ac_engine:Inference finished
+map                        : 0.9961130635698721

@@ -1,0 +1,72 @@
+{
+    "model": {
+        "name": "face-detection-retail-0004-fp32",
+        "model": "<ORIGINAL_MODEL>/cnn_fd_004_sq_light_ssd.caffemodel",
+        "proto": "<ORIGINAL_MODEL>/cnn_fd_004_sq_light_ssd.prototxt",
+        "framework": "caffe",
+        "extensions": "<DLDT_DIR>/model-optimizer/extensions",
+        "blobs_as_inputs": true,
+        "inputs": [{
+            "input_shape": [1,3,300,300],
+            "name": "data",
+            "format": "BGR"
+        }],
+        "outputs": [
+            {
+                "name": "detection_out"
+            }
+        ]
+    },
+    "engine": {
+        "launchers": [
+            {
+                "framework": "dlsdk",
+                "device": "CPU",
+                "adapter": "ssd"
+            }
+        ],
+        "datasets": [
+            {
+                "name": "wider",
+                "annotation": "fp32.pickle",
+                "dataset_meta": "fp32.json",
+                "preprocessing": [
+                    {
+                        "type": "resize",
+                        "size": 300
+                    }
+                ],
+                "postprocessing": [
+                    {
+                        "type": "resize_prediction_boxes"
+                    },
+                    {
+                        "type": "cast_to_int"
+                    },
+                    {
+                        "type": "filter",
+                        "apply_to": "annotation",
+                        "height_range": 60,
+                        "is_empty": true
+                    },
+                    {
+                        "type": "filter",
+                        "min_confidence": 0,
+                        "apply_to": "prediction"
+                    }
+                ],
+                "metrics": [
+                    {
+                        "type": "map",
+                        "ignore_difficult": true,
+                        "include_boundaries": false,
+                        "allow_multiple_matches_per_ignored": false,
+                        "distinct_conf": false
+                    }
+                ]
+            }
+        ]
+    },
+    "compression": {
+    }
+}
