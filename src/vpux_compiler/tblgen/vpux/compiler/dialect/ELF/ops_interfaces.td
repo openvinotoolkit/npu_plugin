@@ -27,6 +27,13 @@ def ELF_SectionInterface : OpInterface<"ElfSectionInterface"> {
                               "vpux::DenseMap<mlir::Operation*, elf::writer::Section*>&":$sectionMap,
                               "vpux::DenseMap<mlir::Operation*, elf::writer::Symbol*>&":$symbolMap)
         >,
+        InterfaceMethod<
+            "Get the block of the region",
+            "mlir::Block*",
+            "getBlock", (ins), [{
+                return vpux::ELF::getSectionBlock($_op);
+            }]
+        >,
     ];
 }
 
@@ -61,7 +68,7 @@ def ELF_RelocationObjectInterface : OpInterface<"ElfRelocationObjectInterface"> 
 }
 
 //
-// ELFObjectInterface
+// OpInterface
 //
 
 def ELF_OpInterface : OpInterface<"ElfObjectInterface"> {
@@ -100,6 +107,21 @@ def ELF_BinaryOpInterface : OpInterface<"BinaryOpInterface"> {
         >,
     ];
 }
+
+
+def ELF_GetOffsetOfOpInterface : OpInterface<"GetOffsetOfOpInterface"> {
+    let description = "Interface for the offset computation of different fields of inside serializable operations";
+    let cppNamespace = "vpux::ELF";
+
+    let methods = [
+        InterfaceMethod<
+            "Returns the offset of a field (specified by the 'val' parameter) inside a serializable op",
+            "mlir::FailureOr<uint64_t>",
+            "getOffsetOfWithinOperation", (ins "mlir::Value":$val)
+        >,
+    ];
+}
+
 
 
 #endif

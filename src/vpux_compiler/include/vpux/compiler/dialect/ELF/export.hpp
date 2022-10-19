@@ -16,10 +16,20 @@
 #include <mlir/IR/BuiltinOps.h>
 #include <mlir/Support/Timing.h>
 
+#include <transformations/utils/utils.hpp>
+
+#include "vpux/compiler/dialect/ELF/ops.hpp"
+#include "vpux/compiler/dialect/IE/ops.hpp"
+
 namespace vpux {
 namespace ELF {
 
-std::vector<uint8_t> exportToELF(mlir::ModuleOp module, Logger log = Logger::global());
+std::vector<uint8_t> exportToELF(
+        mlir::ModuleOp module,
+        const std::vector<vpux::PreProcessInfo>& preprocessInfo = std::vector<vpux::PreProcessInfo>(),
+        const std::vector<std::shared_ptr<const ov::Node>>& parameters = std::vector<std::shared_ptr<const ov::Node>>(),
+        const std::vector<std::shared_ptr<const ov::Node>>& results = std::vector<std::shared_ptr<const ov::Node>>(),
+        Logger log = Logger::global());
 
 }  // namespace ELF
 }  // namespace vpux

@@ -7,9 +7,11 @@
 
 #include <cpp/ie_cnn_network.h>
 #include <ie_core.hpp>
+#include <openvino/openvino.hpp>
 
 #include "vpux/al/config/common.hpp"
 #include "vpux/al/config/compiler.hpp"
+#include "vpux/al/config/runtime.hpp"
 #include "vpux/utils/plugin/profiling_parser.hpp"
 #include "vpux/vpux_plugin_config.hpp"
 #include "vpux_compiler.hpp"
@@ -33,9 +35,12 @@ static const char* COMPILER_VERSION = xstr(COMPILER_MAJOR) "." xstr(COMPILER_MIN
 
 #define KEY_INPUTS_PRECISIONS "--inputs_precisions"
 #define KEY_INPUTS_LAYOUTS "--inputs_layouts"
+#define KEY_INPUTS_MODEL_LAYOUTS "--inputs_model_layouts"
 #define KEY_OUTPUTS_PRECISIONS "--outputs_precisions"
 #define KEY_OUTPUTS_LAYOUTS "--outputs_layouts"
+#define KEY_OUTPUTS_MODEL_LAYOUTS "--outputs_model_layouts"
 #define KEY_CONFIGS "--config"
+#define KEY_VCL_OV_API_2 "VCL_OV_API_2"
 
 const uint32_t maxNumberOfElements = 10;
 const uint64_t maxSizeOfXML = std::numeric_limits<uint64_t>::max() / 3;
@@ -45,8 +50,63 @@ using namespace vpux;
 
 namespace VPUXCompilerL0 {
 
-struct IOInfo {
-    InferenceEngine::Precision getPrecision(std::string value, bool& matched) {
+template <typename T>
+vcl_result_t parseSingleOption(std::string& option, uint32_t debugLevel, std::unordered_map<std::string, T>& arrays,
+                               T (*function)(std::string, bool&)) {
+    // The ioInfo may like --inputs_precisions="A:fp16", the stream shall be A:fp16
+    std::size_t firstDelimPos = option.find_first_of('"');
+    std::size_t lastDelimPos = option.find_last_of('"');
+    std::istringstream stream(option.substr(firstDelimPos + 1, lastDelimPos - (firstDelimPos + 1)));
+    std::string elem;
+    bool matched;
+    while (stream >> elem) {
+        // The stream may like A:fp16
+        std::size_t lastDelimPos = elem.find_last_of(':');
+        if (lastDelimPos == std::string::npos) {
+            return VCL_RESULT_ERROR_INVALID_ARGUMENT;
+        }
+        std::string key = elem.substr(0, lastDelimPos);
+        std::string val = elem.substr(lastDelimPos + 1);
+        if (debugLevel > 3) {
+            std::cout << "ioInfo options - key: " << key << " value: " << val << std::endl;
+        }
+        arrays[key] = function(val, matched);
+        if (!matched) {
+            // Return error if the setting is not in list.
+            // Support "ANY" layout and "UNSPECIFIED" precision can increase robustness.
+            if (debugLevel > 3)
+                std::cout << "Failed to find " << val << " for " << key << std::endl;
+            return VCL_RESULT_ERROR_INVALID_ARGUMENT;
+        }
+    }
+    return VCL_RESULT_SUCCESS;
+}
+
+template <typename T>
+inline void myTransform(T& value) {
+}
+
+template <>
+inline void myTransform<std::string>(std::string& value) {
+    std::transform(value.begin(), value.end(), value.begin(), toupper);
+}
+
+template <typename KEY, typename VAL>
+VAL getElementFromCon(KEY key, bool& matched, const std::unordered_map<KEY, VAL>& con, VAL defaultValue) {
+    myTransform<KEY>(key);
+    const auto elem = con.find(key);
+    if (elem == con.end()) {
+        // For unknown value, use default value.
+        matched = false;
+        return defaultValue;
+    } else {
+        matched = true;
+        return elem->second;
+    }
+}
+
+struct IOInfoV1 {
+    static InferenceEngine::Precision getPrecisionIE(std::string value, bool& matched) {
         // Remove some IE precisions to follow checkNetworkPrecision().
         // Removed U64, I64, BF16, U16, I16, BOOL.
         static const std::unordered_map<std::string, InferenceEngine::Precision> supported_precisions = {
@@ -55,101 +115,128 @@ struct IOInfo {
                 {"U8", InferenceEngine::Precision::U8},     {"I8", InferenceEngine::Precision::I8},
         };
 
-        std::transform(value.begin(), value.end(), value.begin(), toupper);
-        const auto precision = supported_precisions.find(value);
-        if (precision == supported_precisions.end()) {
-            // For unknown precision, use default value.
-            matched = false;
-            return InferenceEngine::Precision::UNSPECIFIED;
-        } else {
-            matched = true;
-            return precision->second;
-        }
+        return getElementFromCon<std::string, InferenceEngine::Precision>(value, matched, supported_precisions,
+                                                                          InferenceEngine::Precision::UNSPECIFIED);
     }
 
-    InferenceEngine::Layout getLayout(std::string value, bool& matched) {
+    static InferenceEngine::Layout getLayoutIE(std::string value, bool& matched) {
         static const std::unordered_map<std::string, InferenceEngine::Layout> supported_layouts = {
                 {"NCDHW", InferenceEngine::Layout::NCDHW}, {"NDHWC", InferenceEngine::Layout::NDHWC},
                 {"NCHW", InferenceEngine::Layout::NCHW},   {"NHWC", InferenceEngine::Layout::NHWC},
                 {"CHW", InferenceEngine::Layout::CHW},     {"HWC", InferenceEngine::Layout::HWC},
                 {"NC", InferenceEngine::Layout::NC},       {"C", InferenceEngine::Layout::C},
         };
-        std::transform(value.begin(), value.end(), value.begin(), toupper);
-        const auto layout = supported_layouts.find(value);
-        if (layout == supported_layouts.end()) {
-            // For unknown layout, use default value.
-            matched = false;
-            return InferenceEngine::Layout::ANY;
-        } else {
-            matched = true;
-            return layout->second;
-        }
+
+        return getElementFromCon<std::string, InferenceEngine::Layout>(value, matched, supported_layouts,
+                                                                       InferenceEngine::Layout::ANY);
     }
 
     vcl_result_t parse(std::vector<std::string>& ioInfoOptions, uint32_t debugLevel) {
-        bool ip = false;
-        bool il = false;
-        bool op = false;
-        bool ol = false;
+        vcl_result_t ret = VCL_RESULT_SUCCESS;
         for (auto& option : ioInfoOptions) {
-            // The ioInfo may like --inputs_precisions="A:fp16", the stream shall be A:fp16
-            std::size_t firstDelimPos = option.find_first_of('"');
-            std::size_t lastDelimPos = option.find_last_of('"');
-            std::istringstream stream(option.substr(firstDelimPos + 1, lastDelimPos - (firstDelimPos + 1)));
             if (option.find(KEY_INPUTS_PRECISIONS) != std::string::npos) {
-                ip = true;
+                ret = parseSingleOption(option, debugLevel, inPrcsIE, getPrecisionIE);
             } else if (option.find(KEY_INPUTS_LAYOUTS) != std::string::npos) {
-                ip = false;
-                il = true;
+                ret = parseSingleOption(option, debugLevel, inLayoutsIE, getLayoutIE);
             } else if (option.find(KEY_OUTPUTS_PRECISIONS) != std::string::npos) {
-                ip = false;
-                il = false;
-                op = true;
+                ret = parseSingleOption(option, debugLevel, outPrcsIE, getPrecisionIE);
             } else if (option.find(KEY_OUTPUTS_LAYOUTS) != std::string::npos) {
-                ip = false;
-                il = false;
-                op = false;
-                ol = true;
+                ret = parseSingleOption(option, debugLevel, outLayoutsIE, getLayoutIE);
             } else {
                 return VCL_RESULT_ERROR_INVALID_ARGUMENT;
             }
-            std::string elem;
-            bool matched;
-            while (stream >> elem) {
-                // The stream may like A:fp16
-                std::size_t lastDelimPos = elem.find_last_of(':');
-                if (lastDelimPos == std::string::npos) {
-                    return VCL_RESULT_ERROR_INVALID_ARGUMENT;
-                }
-                std::string key = elem.substr(0, lastDelimPos);
-                std::string val = elem.substr(lastDelimPos + 1);
-                if (debugLevel > 3) {
-                    std::cout << "ioInfo options - key: " << key << " value: " << val << std::endl;
-                }
-                if (ip) {
-                    inPrcs[key] = getPrecision(val, matched);
-                } else if (il) {
-                    inLayouts[key] = getLayout(val, matched);
-                } else if (op) {
-                    outPrcs[key] = getPrecision(val, matched);
-                } else if (ol) {
-                    outLayouts[key] = getLayout(val, matched);
-                } else {
-                    return VCL_RESULT_ERROR_INVALID_ARGUMENT;
-                }
-                if (debugLevel > 3 && !matched) {
-                    std::cout << "Failed to find " << val << " for " << key << ", use default value!" << std::endl;
-                }
-            }
+            if (ret != VCL_RESULT_SUCCESS)
+                return ret;
         }
         return VCL_RESULT_SUCCESS;
     }
 
-    std::unordered_map<std::string, InferenceEngine::Precision> inPrcs;
-    std::unordered_map<std::string, InferenceEngine::Layout> inLayouts;
-    std::unordered_map<std::string, InferenceEngine::Precision> outPrcs;
-    std::unordered_map<std::string, InferenceEngine::Layout> outLayouts;
-};
+    // OV 1.0
+    std::unordered_map<std::string, InferenceEngine::Precision> inPrcsIE;
+    std::unordered_map<std::string, InferenceEngine::Layout> inLayoutsIE;
+    std::unordered_map<std::string, InferenceEngine::Precision> outPrcsIE;
+    std::unordered_map<std::string, InferenceEngine::Layout> outLayoutsIE;
+};  // IOInfoV1
+
+struct IOInfoV2 {
+    static ov::element::Type getPrecisionOV(std::string value, bool& matched) {
+        // Remove some IE precisions to follow checkNetworkPrecision().
+        // Removed U64, I64, BF16, U16, I16, BOOL.
+        static const std::unordered_map<std::string, ov::element::Type> supported_precisions = {
+                {"FP32", ov::element::f32}, {"FP16", ov::element::f16}, {"U32", ov::element::u32},
+                {"I32", ov::element::i32},  {"U8", ov::element::u8},    {"I8", ov::element::i8},
+        };
+
+        return getElementFromCon<std::string, ov::element::Type>(value, matched, supported_precisions,
+                                                                 ov::element::undefined);
+    }
+
+    static ov::Layout getLayoutOV(std::string value, bool& matched) {
+        static const std::unordered_map<std::string, ov::Layout> supported_layouts = {
+                {"NCDHW", ov::Layout("NCDHW")}, {"NDHWC", ov::Layout("NDHWC")}, {"NCHW", ov::Layout("NCHW")},
+                {"NHWC", ov::Layout("NHWC")},   {"CHW", ov::Layout("CHW")},     {"HWC", ov::Layout("HWC")},
+                {"NC", ov::Layout("NC")},       {"C", ov::Layout("C")},
+        };
+        return getElementFromCon<std::string, ov::Layout>(value, matched, supported_layouts, ov::Layout());
+    }
+
+    static InferenceEngine::Precision convertOVPrecisionToIEPrecision(const ov::element::Type value, bool& matched) {
+        static const std::unordered_map<ov::element::Type_t, InferenceEngine::Precision> supported_precisions = {
+                {ov::element::Type_t::f32, InferenceEngine::Precision::FP32},
+                {ov::element::Type_t::f16, InferenceEngine::Precision::FP16},
+                {ov::element::Type_t::u32, InferenceEngine::Precision::U32},
+                {ov::element::Type_t::i32, InferenceEngine::Precision::I32},
+                {ov::element::Type_t::u8, InferenceEngine::Precision::U8},
+                {ov::element::Type_t::i8, InferenceEngine::Precision::I8},
+        };
+
+        return getElementFromCon<ov::element::Type_t, InferenceEngine::Precision>(
+                ov::element::Type_t(value), matched, supported_precisions, InferenceEngine::Precision::UNSPECIFIED);
+    }
+
+    static InferenceEngine::Layout convertOVLayoutToIELayout(std::string value, bool& matched) {
+        static const std::unordered_map<std::string, InferenceEngine::Layout> supported_layouts = {
+                {"[N,C,D,H,W]", InferenceEngine::Layout::NCDHW}, {"[N,D,H,W,C]", InferenceEngine::Layout::NDHWC},
+                {"[N,C,H,W]", InferenceEngine::Layout::NCHW},    {"[N,H,W,C]", InferenceEngine::Layout::NHWC},
+                {"[C,H,W]", InferenceEngine::Layout::CHW},       {"[H,W,C]", InferenceEngine::Layout::HWC},
+                {"[N,C]", InferenceEngine::Layout::NC},          {"[C]", InferenceEngine::Layout::C},
+        };
+        return getElementFromCon<std::string, InferenceEngine::Layout>(value, matched, supported_layouts,
+                                                                       InferenceEngine::Layout::ANY);
+    }
+
+    vcl_result_t parse(std::vector<std::string>& ioInfoOptions, uint32_t debugLevel) {
+        vcl_result_t ret = VCL_RESULT_SUCCESS;
+        for (auto& option : ioInfoOptions) {
+            if (option.find(KEY_INPUTS_PRECISIONS) != std::string::npos) {
+                ret = parseSingleOption(option, debugLevel, inPrcsOV, getPrecisionOV);
+            } else if (option.find(KEY_INPUTS_LAYOUTS) != std::string::npos) {
+                ret = parseSingleOption(option, debugLevel, inLayoutsOV, getLayoutOV);
+            } else if (option.find(KEY_INPUTS_MODEL_LAYOUTS) != std::string::npos) {
+                ret = parseSingleOption(option, debugLevel, inMLayoutsOV, getLayoutOV);
+            } else if (option.find(KEY_OUTPUTS_PRECISIONS) != std::string::npos) {
+                ret = parseSingleOption(option, debugLevel, outPrcsOV, getPrecisionOV);
+            } else if (option.find(KEY_OUTPUTS_LAYOUTS) != std::string::npos) {
+                ret = parseSingleOption(option, debugLevel, outLayoutsOV, getLayoutOV);
+            } else if (option.find(KEY_OUTPUTS_MODEL_LAYOUTS) != std::string::npos) {
+                ret = parseSingleOption(option, debugLevel, outMLayoutsOV, getLayoutOV);
+            } else {
+                return VCL_RESULT_ERROR_INVALID_ARGUMENT;
+            }
+            if (ret != VCL_RESULT_SUCCESS)
+                return ret;
+        }
+        return VCL_RESULT_SUCCESS;
+    }
+
+    // OV 2.0
+    std::unordered_map<std::string, ov::element::Type> inPrcsOV;
+    std::unordered_map<std::string, ov::Layout> inLayoutsOV;
+    std::unordered_map<std::string, ov::Layout> inMLayoutsOV;
+    std::unordered_map<std::string, ov::element::Type> outPrcsOV;
+    std::unordered_map<std::string, ov::Layout> outLayoutsOV;
+    std::unordered_map<std::string, ov::Layout> outMLayoutsOV;
+};  // IOInfoV2
 
 struct StopWatch {
     using fp_milliseconds = std::chrono::duration<double, std::chrono::milliseconds::period>;
@@ -248,10 +335,15 @@ public:
         return _options;
     }
 
-    std::pair<VPUXExecutableL0*, vcl_result_t> importNetwork(const uint8_t* buffer, uint64_t bufferSize,
-                                                             const uint8_t* weights, uint64_t weightsSize,
-                                                             Config& vpuxConfig, const IOInfo& ioInfo,
-                                                             bool enableProfiling);
+    std::pair<VPUXExecutableL0*, vcl_result_t> importNetworkV1(const uint8_t* buffer, uint64_t bufferSize,
+                                                               const uint8_t* weights, uint64_t weightsSize,
+                                                               Config& vpuxConfig, const IOInfoV1& ioInfo,
+                                                               bool enableProfiling);
+
+    std::pair<VPUXExecutableL0*, vcl_result_t> importNetworkV2(const uint8_t* buffer, uint64_t bufferSize,
+                                                               const uint8_t* weights, uint64_t weightsSize,
+                                                               Config& vpuxConfig, const IOInfoV2& ioInfo,
+                                                               bool enableProfiling);
 
 private:
     std::shared_ptr<OptionsDesc> _options;
@@ -265,6 +357,7 @@ VPUXCompilerL0::VPUXCompilerL0(vcl_compiler_desc_t desc, std::map<std::string, s
         : _options(std::make_shared<OptionsDesc>()) {
     registerCommonOptions(*_options);
     registerCompilerOptions(*_options);
+    registerRunTimeOptions(*_options);
 
     Config parsedConfig(_options);
     parsedConfig.update(config, OptionMode::CompileTime);
@@ -277,10 +370,10 @@ VPUXCompilerL0::VPUXCompilerL0(vcl_compiler_desc_t desc, std::map<std::string, s
     _compilerProp.supportedOpsets = 7;
 }
 
-std::pair<VPUXExecutableL0*, vcl_result_t> VPUXCompilerL0::importNetwork(const uint8_t* buffer, uint64_t bufferSize,
-                                                                         const uint8_t* weights, uint64_t weightsSize,
-                                                                         Config& config, const IOInfo& ioInfo,
-                                                                         bool enableProfiling) {
+std::pair<VPUXExecutableL0*, vcl_result_t> VPUXCompilerL0::importNetworkV1(const uint8_t* buffer, uint64_t bufferSize,
+                                                                           const uint8_t* weights, uint64_t weightsSize,
+                                                                           Config& config, const IOInfoV1& ioInfo,
+                                                                           bool enableProfiling) {
     if (buffer == nullptr || weights == nullptr) {
         return std::pair<VPUXExecutableL0*, vcl_result_t>(nullptr, VCL_RESULT_ERROR_INVALID_ARGUMENT);
     }
@@ -289,9 +382,7 @@ std::pair<VPUXExecutableL0*, vcl_result_t> VPUXCompilerL0::importNetwork(const u
     if (weightsSize != 0) {
         InferenceEngine::TensorDesc tensorDesc(InferenceEngine::Precision::U8, {weightsSize},
                                                InferenceEngine::Layout::C);
-        weightsBlob = InferenceEngine::make_shared_blob<uint8_t>(tensorDesc);
-        weightsBlob->allocate();
-        memcpy(weightsBlob->rwmap().as<uint8_t*>(), weights, weightsSize);
+        weightsBlob = InferenceEngine::make_shared_blob<uint8_t>(tensorDesc, const_cast<uint8_t*>(weights));
     }
 
     InferenceEngine::Core ieCore;
@@ -311,7 +402,7 @@ std::pair<VPUXExecutableL0*, vcl_result_t> VPUXCompilerL0::importNetwork(const u
         auto inputs = cnnNet.getInputsInfo();
         auto outputs = cnnNet.getOutputsInfo();
 
-        for (const auto& item : ioInfo.inPrcs) {
+        for (const auto& item : ioInfo.inPrcsIE) {
             const auto& name = item.first;
             const auto input = inputs.find(name);
             if (input != inputs.end()) {
@@ -321,7 +412,7 @@ std::pair<VPUXExecutableL0*, vcl_result_t> VPUXCompilerL0::importNetwork(const u
             }
         }
 
-        for (const auto& item : ioInfo.inLayouts) {
+        for (const auto& item : ioInfo.inLayoutsIE) {
             const auto& name = item.first;
             const auto input = inputs.find(name);
             if (input != inputs.end()) {
@@ -331,7 +422,7 @@ std::pair<VPUXExecutableL0*, vcl_result_t> VPUXCompilerL0::importNetwork(const u
             }
         }
 
-        for (const auto& item : ioInfo.outPrcs) {
+        for (const auto& item : ioInfo.outPrcsIE) {
             const auto& name = item.first;
             const auto output = outputs.find(name);
             if (output != outputs.end()) {
@@ -341,7 +432,7 @@ std::pair<VPUXExecutableL0*, vcl_result_t> VPUXCompilerL0::importNetwork(const u
             }
         }
 
-        for (const auto& item : ioInfo.outLayouts) {
+        for (const auto& item : ioInfo.outLayoutsIE) {
             const auto& name = item.first;
             const auto output = outputs.find(name);
             if (output != outputs.end()) {
@@ -359,6 +450,201 @@ std::pair<VPUXExecutableL0*, vcl_result_t> VPUXCompilerL0::importNetwork(const u
     } catch (...) {
         if (_compilerDesc.debug_level > 0)
             std::cerr << "Internal exception!" << std::endl;
+        return std::pair<VPUXExecutableL0*, vcl_result_t>(nullptr, VCL_RESULT_ERROR_INVALID_ARGUMENT);
+    }
+    if (enableProfiling) {
+        stopWatch.stop();
+        std::cout << "Compile net time: " << stopWatch.delta_ms() << "ms" << std::endl;
+    }
+    VPUXExecutableL0* exe = new VPUXExecutableL0(networkDesc, enableProfiling);
+    return std::pair<VPUXExecutableL0*, vcl_result_t>(exe, VCL_RESULT_SUCCESS);
+}
+
+std::pair<VPUXExecutableL0*, vcl_result_t> VPUXCompilerL0::importNetworkV2(const uint8_t* buffer, uint64_t bufferSize,
+                                                                           const uint8_t* weights, uint64_t weightsSize,
+                                                                           Config& config, const IOInfoV2& ioInfo,
+                                                                           bool enableProfiling) {
+    if (buffer == nullptr || weights == nullptr) {
+        return std::pair<VPUXExecutableL0*, vcl_result_t>(nullptr, VCL_RESULT_ERROR_INVALID_ARGUMENT);
+    }
+
+    std::string modelData(buffer, buffer + bufferSize);
+    ov::runtime::Tensor weightsTensor;
+    if (weightsSize > 0)
+        weightsTensor = ov::runtime::Tensor(ov::element::u8, {weightsSize}, const_cast<uint8_t*>(weights));
+    ov::Core core;
+    StopWatch stopWatch;
+    if (enableProfiling)
+        stopWatch.start();
+    auto model = core.read_model(modelData, weightsTensor);
+    if (enableProfiling) {
+        stopWatch.stop();
+        std::cout << "ReadNetwork time: " << stopWatch.delta_ms() << "ms" << std::endl;
+        stopWatch.start();
+    }
+
+    NetworkDescription::Ptr networkDesc = NULL;
+    try {
+        auto preprocessor = ov::preprocess::PrePostProcessor(model);
+        const auto inputs = model->inputs();
+        const auto outputs = model->outputs();
+
+        // Update input and output info
+        for (auto&& item : ioInfo.inPrcsOV) {
+            const auto& name = item.first;
+            bool found = false;
+            for (size_t i = 0; i < inputs.size(); i++) {
+                if (!inputs[i].get_node()->get_friendly_name().compare(name)) {
+                    preprocessor.input(i).tensor().set_element_type(item.second);
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                if (_compilerDesc.debug_level > 0)
+                    std::cerr << "Failed to find " << name << " in inputs to set precision!" << std::endl;
+                return std::pair<VPUXExecutableL0*, vcl_result_t>(nullptr, VCL_RESULT_ERROR_INVALID_ARGUMENT);
+            }
+        }
+
+        for (auto&& item : ioInfo.inLayoutsOV) {
+            const auto& name = item.first;
+            bool found = false;
+            for (size_t i = 0; i < inputs.size(); i++) {
+                if (!inputs[i].get_node()->get_friendly_name().compare(name)) {
+                    preprocessor.input(i).tensor().set_layout(item.second);
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                if (_compilerDesc.debug_level > 0)
+                    std::cerr << "Failed to find " << name << " in inputs to set layout!" << std::endl;
+                return std::pair<VPUXExecutableL0*, vcl_result_t>(nullptr, VCL_RESULT_ERROR_INVALID_ARGUMENT);
+            }
+        }
+
+        for (auto&& item : ioInfo.inMLayoutsOV) {
+            const auto& name = item.first;
+            bool found = false;
+            for (size_t i = 0; i < inputs.size(); i++) {
+                if (!inputs[i].get_node()->get_friendly_name().compare(name)) {
+                    preprocessor.input(i).model().set_layout(item.second);
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                if (_compilerDesc.debug_level > 0)
+                    std::cerr << "Failed to find " << name << " in inputs to set model layout!" << std::endl;
+                return std::pair<VPUXExecutableL0*, vcl_result_t>(nullptr, VCL_RESULT_ERROR_INVALID_ARGUMENT);
+            }
+        }
+
+        for (auto&& item : ioInfo.outPrcsOV) {
+            const auto& name = item.first;
+            bool found = false;
+            for (size_t i = 0; i < outputs.size(); i++) {
+                if (!outputs[i].get_node()->get_input_node_ptr(0)->get_friendly_name().compare(name)) {
+                    preprocessor.output(i).tensor().set_element_type(item.second);
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                if (_compilerDesc.debug_level > 0)
+                    std::cerr << "Failed to find " << name << " in outputs to set precision!" << std::endl;
+                return std::pair<VPUXExecutableL0*, vcl_result_t>(nullptr, VCL_RESULT_ERROR_INVALID_ARGUMENT);
+            }
+        }
+
+        for (auto&& item : ioInfo.outLayoutsOV) {
+            const auto& name = item.first;
+            bool found = false;
+            for (size_t i = 0; i < outputs.size(); i++) {
+                if (!outputs[i].get_node()->get_input_node_ptr(0)->get_friendly_name().compare(name)) {
+                    preprocessor.output(i).tensor().set_layout(item.second);
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                if (_compilerDesc.debug_level > 0)
+                    std::cerr << "Failed to find " << name << " in outputs to set layout!" << std::endl;
+                return std::pair<VPUXExecutableL0*, vcl_result_t>(nullptr, VCL_RESULT_ERROR_INVALID_ARGUMENT);
+            }
+        }
+
+        for (auto&& item : ioInfo.outMLayoutsOV) {
+            const auto& name = item.first;
+            bool found = false;
+            for (size_t i = 0; i < outputs.size(); i++) {
+                if (!outputs[i].get_node()->get_input_node_ptr(0)->get_friendly_name().compare(name)) {
+                    preprocessor.output(i).model().set_layout(item.second);
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                if (_compilerDesc.debug_level > 0)
+                    std::cerr << "Failed to find " << name << " in outputs to set model layout!" << std::endl;
+                return std::pair<VPUXExecutableL0*, vcl_result_t>(nullptr, VCL_RESULT_ERROR_INVALID_ARGUMENT);
+            }
+        }
+
+        model = preprocessor.build();
+        // Create inputsInfo
+        // As model layout can impact the info, need the read from processed model.
+        bool matched = false;
+        InferenceEngine::InputsDataMap inputsInfo;
+        for (auto&& input : model->inputs()) {
+            std::string name = input.get_node()->get_friendly_name();
+            InferenceEngine::InputInfo::Ptr ieInfo = std::make_shared<InferenceEngine::InputInfo>();
+            InferenceEngine::Layout layout =
+                    IOInfoV2::convertOVLayoutToIELayout(ov::layout::get_layout(input).to_string(), matched);
+            if (!matched) {
+                if (_compilerDesc.debug_level > 0)
+                    std::cerr << "Failed to convert ov layout " << ov::layout::get_layout(input).to_string()
+                              << " to IE layout!" << std::endl;
+                return std::pair<VPUXExecutableL0*, vcl_result_t>(nullptr, VCL_RESULT_ERROR_INVALID_ARGUMENT);
+            }
+            auto precision = IOInfoV2::convertOVPrecisionToIEPrecision(input.get_element_type(), matched);
+            if (!matched) {
+                if (_compilerDesc.debug_level > 0)
+                    std::cerr << "Failed to convert ov precision to IE precision!" << std::endl;
+                return std::pair<VPUXExecutableL0*, vcl_result_t>(nullptr, VCL_RESULT_ERROR_INVALID_ARGUMENT);
+            }
+            InferenceEngine::DataPtr data = std::make_shared<InferenceEngine::Data>(name, precision, layout);
+            ieInfo->setInputData(data);
+            inputsInfo[name] = ieInfo;
+        }
+        // Create outputsInfo
+        InferenceEngine::OutputsDataMap outputsInfo;
+        for (auto&& output : model->outputs()) {
+            std::string name = output.get_node()->get_input_node_ptr(0)->get_friendly_name();
+            InferenceEngine::Layout layout =
+                    IOInfoV2::convertOVLayoutToIELayout(ov::layout::get_layout(output).to_string(), matched);
+            if (!matched) {
+                if (_compilerDesc.debug_level > 0)
+                    std::cerr << "Failed to convert ov layout " << ov::layout::get_layout(output).to_string()
+                              << " to IE layout!" << std::endl;
+                return std::pair<VPUXExecutableL0*, vcl_result_t>(nullptr, VCL_RESULT_ERROR_INVALID_ARGUMENT);
+            }
+            auto precision = IOInfoV2::convertOVPrecisionToIEPrecision(output.get_element_type(), matched);
+            if (!matched) {
+                if (_compilerDesc.debug_level > 0)
+                    std::cerr << "Failed to convert ov precision to IE precision!" << std::endl;
+                return std::pair<VPUXExecutableL0*, vcl_result_t>(nullptr, VCL_RESULT_ERROR_INVALID_ARGUMENT);
+            }
+            InferenceEngine::DataPtr data = std::make_shared<InferenceEngine::Data>(name, precision, layout);
+            outputsInfo[name] = data;
+        }
+        networkDesc = _compiler->compile(model, model->get_friendly_name(), inputsInfo, outputsInfo, config);
+    } catch (const std::exception& error) {
+        std::cerr << error.what() << std::endl;
+        return std::pair<VPUXExecutableL0*, vcl_result_t>(nullptr, VCL_RESULT_ERROR_INVALID_ARGUMENT);
+    } catch (...) {
+        std::cerr << "Internal exception!" << std::endl;
         return std::pair<VPUXExecutableL0*, vcl_result_t>(nullptr, VCL_RESULT_ERROR_INVALID_ARGUMENT);
     }
     if (enableProfiling) {
@@ -396,7 +682,8 @@ private:
 vcl_result_t VPUXProfilingL0::preprocess() {
     auto result = VCL_RESULT_SUCCESS;
     try {
-        _taskInfo = profiling::getTaskInfo(_blobData, _blobSize, _profData, _profSize, profiling::TaskType::ALL);
+        _taskInfo = profiling::getTaskInfo(_blobData, _blobSize, _profData, _profSize, profiling::TaskType::ALL,
+                                           profiling::VerbosityLevel::HIGH);
         _layerInfo = profiling::getLayerInfo(_taskInfo);
     } catch (const std::exception& error) {
         std::cerr << error.what() << std::endl;
@@ -470,8 +757,8 @@ extern "C" {
 #endif
 
 DLLEXPORT vcl_result_t vclCompilerCreate(vcl_compiler_desc_t desc, vcl_compiler_handle_t* compiler) {
-    // Check desc here
-    if (desc.platform != VCL_PLATFORM_VPU3400 && desc.platform != VCL_PLATFORM_VPU3700 || compiler == nullptr) {
+    // TODO: Check desc here once we limit the platform scope
+    if (compiler == nullptr) {
         return VCL_RESULT_ERROR_INVALID_ARGUMENT;
     }
     // Set all default configs here
@@ -548,19 +835,37 @@ DLLEXPORT vcl_result_t vclExecutableCreate(vcl_compiler_handle_t compiler, vcl_e
     }
     std::size_t ips = descOptions.find(KEY_INPUTS_PRECISIONS);
     std::size_t ils = descOptions.find(KEY_INPUTS_LAYOUTS);
+    std::size_t imls = descOptions.find(KEY_INPUTS_MODEL_LAYOUTS);
     std::size_t ops = descOptions.find(KEY_OUTPUTS_PRECISIONS);
     std::size_t ols = descOptions.find(KEY_OUTPUTS_LAYOUTS);
+    std::size_t omls = descOptions.find(KEY_OUTPUTS_MODEL_LAYOUTS);
     std::size_t cs = descOptions.find(KEY_CONFIGS);
     std::vector<std::string> ioInfoOptions;
     if (ips != std::string::npos && ils != std::string::npos && ops != std::string::npos && ols != std::string::npos) {
         // Separate ioInfo to different section
         ioInfoOptions.push_back(descOptions.substr(ips, ils));
-        ioInfoOptions.push_back(descOptions.substr(ils, ops - ils));
+        if (imls != std::string::npos) {
+            ioInfoOptions.push_back(descOptions.substr(ils, imls - ils));
+            ioInfoOptions.push_back(descOptions.substr(imls, ops - imls));
+        } else {
+            ioInfoOptions.push_back(descOptions.substr(ils, ops - ils));
+        }
         ioInfoOptions.push_back(descOptions.substr(ops, ols - ops));
-        if (cs != std::string::npos)
-            ioInfoOptions.push_back(descOptions.substr(ols, cs - ols));
-        else
-            ioInfoOptions.push_back(descOptions.substr(ols));
+        if (cs != std::string::npos) {
+            if (omls != std::string::npos) {
+                ioInfoOptions.push_back(descOptions.substr(ols, omls - ols));
+                ioInfoOptions.push_back(descOptions.substr(omls, cs - omls));
+            } else {
+                ioInfoOptions.push_back(descOptions.substr(ols, cs - ols));
+            }
+        } else {
+            if (omls != std::string::npos) {
+                ioInfoOptions.push_back(descOptions.substr(ols, omls - ols));
+                ioInfoOptions.push_back(descOptions.substr(omls));
+            } else {
+                ioInfoOptions.push_back(descOptions.substr(ols));
+            }
+        }
     } else {
         // Return error if the mandatory ioInfo options are not passed
         // Comment to skip ioInfo missing.
@@ -650,8 +955,27 @@ DLLEXPORT vcl_result_t vclExecutableCreate(vcl_compiler_handle_t compiler, vcl_e
             enableProfiling = true;
     }
 
+    bool useOVAPI2 = false;
+    std::map<std::string, std::string>::iterator iterAPI = config.find(KEY_VCL_OV_API_2);
+    if (iterAPI != config.end()) {
+        if (iterAPI->second == "YES") {
+            useOVAPI2 = true;
+        }
+        config.erase(KEY_VCL_OV_API_2);
+    }
+
     Config parsedConfig(pvc->getOptions());
-    parsedConfig.update(config, OptionMode::CompileTime);
+    try {
+        parsedConfig.update(config, OptionMode::CompileTime);
+    } catch (const std::exception& error) {
+        if (debug_level > 0)
+            std::cerr << error.what() << std::endl;
+        return VCL_RESULT_ERROR_INVALID_ARGUMENT;
+    } catch (...) {
+        if (debug_level > 0)
+            std::cerr << "Internal exception!" << std::endl;
+        return VCL_RESULT_ERROR_INVALID_ARGUMENT;
+    }
 
     uint32_t offset = 0;
     vcl_version_info_t APIVersion;
@@ -696,9 +1020,14 @@ DLLEXPORT vcl_result_t vclExecutableCreate(vcl_compiler_handle_t compiler, vcl_e
         return VCL_RESULT_ERROR_INVALID_IR;
     }
 
-    VPUXCompilerL0::IOInfo ioInfo;
+    VPUXCompilerL0::IOInfoV1 ioInfoV1;
+    VPUXCompilerL0::IOInfoV2 ioInfoV2;
     try {
-        ret = ioInfo.parse(ioInfoOptions, debug_level);
+        if (!useOVAPI2) {
+            ret = ioInfoV1.parse(ioInfoOptions, debug_level);
+        } else {
+            ret = ioInfoV2.parse(ioInfoOptions, debug_level);
+        }
     } catch (const std::exception& error) {
         if (debug_level > 0)
             std::cerr << error.what() << std::endl;
@@ -712,7 +1041,14 @@ DLLEXPORT vcl_result_t vclExecutableCreate(vcl_compiler_handle_t compiler, vcl_e
         return ret;
 
     // Create blob and set blob size.
-    auto status = pvc->importNetwork(buffer, bufferSize, weights, weightsSize, parsedConfig, ioInfo, enableProfiling);
+    std::pair<VPUXCompilerL0::VPUXExecutableL0*, vcl_result_t> status;
+    if (!useOVAPI2) {
+        status =
+                pvc->importNetworkV1(buffer, bufferSize, weights, weightsSize, parsedConfig, ioInfoV1, enableProfiling);
+    } else {
+        status =
+                pvc->importNetworkV2(buffer, bufferSize, weights, weightsSize, parsedConfig, ioInfoV2, enableProfiling);
+    }
     if (status.second != VCL_RESULT_SUCCESS) {
         *executable = NULL;
         return status.second;

@@ -18,8 +18,8 @@ namespace {
 class InitCompilerPass final : public VPU::InitCompilerBase<InitCompilerPass> {
 public:
     InitCompilerPass() = default;
-    InitCompilerPass(VPU::ArchKind arch, VPU::CompilationMode compilationMode, Optional<int> numOfDPUGroups,
-                     Logger log);
+    InitCompilerPass(VPU::ArchKind arch, Optional<VPU::CompilationMode> compilationMode, Optional<int> numOfDPUGroups,
+                     Optional<int> numOfDMAPorts, Logger log);
 
 private:
     mlir::LogicalResult initializeOptions(StringRef options) final;
@@ -27,13 +27,17 @@ private:
 
 private:
     VPU::ArchKind _arch = VPU::ArchKind::UNKNOWN;
-    VPU::CompilationMode _compilationMode = VPU::CompilationMode::DefaultHW;
+    Optional<VPU::CompilationMode> _compilationMode;
     Optional<int> _numOfDPUGroups;
+    Optional<int> _numOfDMAPorts;
 };
 
-InitCompilerPass::InitCompilerPass(VPU::ArchKind arch, VPU::CompilationMode compilationMode,
-                                   Optional<int> numOfDPUGroups, Logger log)
-        : _arch(arch), _compilationMode(compilationMode), _numOfDPUGroups(numOfDPUGroups) {
+InitCompilerPass::InitCompilerPass(VPU::ArchKind arch, Optional<VPU::CompilationMode> compilationMode,
+                                   Optional<int> numOfDPUGroups, Optional<int> numOfDMAPorts, Logger log)
+        : _arch(arch),
+          _compilationMode(compilationMode),
+          _numOfDPUGroups(numOfDPUGroups),
+          _numOfDMAPorts(numOfDMAPorts) {
     Base::initLogger(log, Base::getArgumentName());
 }
 
@@ -46,9 +50,12 @@ mlir::LogicalResult InitCompilerPass::initializeOptions(StringRef options) {
     VPUX_THROW_UNLESS(archStr.hasValue(), "Unknown VPU architecture : '{0}'", archOpt.getValue());
     _arch = archStr.getValue();
 
-    auto compilationModeStr = VPU::symbolizeEnum<VPU::CompilationMode>(compilationModeOpt.getValue());
-    VPUX_THROW_UNLESS(compilationModeStr.hasValue(), "Unknown compilation mode: '{0}'", compilationModeOpt.getValue());
-    _compilationMode = compilationModeStr.getValue();
+    if (compilationModeOpt.hasValue()) {
+        auto compilationModeStr = VPU::symbolizeEnum<VPU::CompilationMode>(compilationModeOpt.getValue());
+        VPUX_THROW_UNLESS(compilationModeStr.hasValue(), "Unknown compilation mode: '{0}'",
+                          compilationModeOpt.getValue());
+        _compilationMode = compilationModeStr.getValue();
+    }
 
     if (numberOfDPUGroupsOpt.hasValue()) {
         _numOfDPUGroups = numberOfDPUGroupsOpt.getValue();
@@ -61,10 +68,12 @@ void InitCompilerPass::safeRunOnModule() {
     auto module = getOperation();
 
     _log.trace("Set VPU architecture to {0}", _arch);
-    VPU::setArch(module, _arch, _numOfDPUGroups);
+    VPU::setArch(module, _arch, _numOfDPUGroups, _numOfDMAPorts);
 
-    _log.trace("Set compilation mode to {0}", _compilationMode);
-    VPU::setCompilationMode(module, _compilationMode);
+    if (_compilationMode.hasValue()) {
+        _log.trace("Set compilation mode to {0}", _compilationMode.getValue());
+        VPU::setCompilationMode(module, _compilationMode.getValue());
+    }
 }
 
 }  // namespace
@@ -77,7 +86,8 @@ std::unique_ptr<mlir::Pass> vpux::VPU::createInitCompilerPass() {
     return std::make_unique<InitCompilerPass>();
 }
 
-std::unique_ptr<mlir::Pass> vpux::VPU::createInitCompilerPass(ArchKind arch, CompilationMode compilationMode,
-                                                              Optional<int> numOfDPUGroups, Logger log) {
-    return std::make_unique<InitCompilerPass>(arch, compilationMode, numOfDPUGroups, log);
+std::unique_ptr<mlir::Pass> vpux::VPU::createInitCompilerPass(ArchKind arch, Optional<CompilationMode> compilationMode,
+                                                              Optional<int> numOfDPUGroups, Optional<int> numOfDMAPorts,
+                                                              Logger log) {
+    return std::make_unique<InitCompilerPass>(arch, compilationMode, numOfDPUGroups, numOfDMAPorts, log);
 }

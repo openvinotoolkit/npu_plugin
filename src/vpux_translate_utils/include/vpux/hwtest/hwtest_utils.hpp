@@ -72,10 +72,15 @@ void buildAvgpool(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp mod
 void buildDifferentClustersDPUTest(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module,
                                    mlir::OpBuilder builder, Logger& log, mlir::Type inputType, mlir::Type weightsType,
                                    mlir::Type outputType);
+void buildMultiClustersDPUTest(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module,
+                               mlir::OpBuilder builder, Logger& log, mlir::Type inputType, mlir::Type weightsType,
+                               mlir::Type outputType);
 void buildDWConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module, mlir::OpBuilder builder,
                  Logger& log, mlir::Type inputType, mlir::Type weightsType, mlir::Type outputType);
 void buildActShave(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module, mlir::OpBuilder builder,
-                   Logger& log, mlir::Type inputType, mlir::Type outputType);
+                   Logger& log, const SmallVector<mlir::Type>& inputType, mlir::Type outputType);
+void buildM2iTest(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module, mlir::OpBuilder builder,
+                  Logger& log, mlir::Type inputType, mlir::Type outputType);
 void buildReadAfterWriteDPUDMATest(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module,
                                    mlir::OpBuilder builder, Logger& log, mlir::Type inputType, mlir::Type weightsType,
                                    mlir::Type outputType);
@@ -120,6 +125,8 @@ mlir::MemRefType getMemRefType(VPURT::BufferSection section, ArrayRef<int64_t> s
                                DimsOrder order);
 mlir::MemRefType getMemRefType(VPURT::BufferSection section, size_t sectionIdx, ArrayRef<int64_t> shape,
                                mlir::Type elemType, DimsOrder order);
+mlir::MemRefType getMemRefType(VPURT::BufferSection section, size_t sectionIdx, ShapeRef shape, mlir::Type elemType,
+                               DimsOrder order);
 mlir::MemRefType getMemRefType(VPURT::BufferSection section, ArrayRef<int64_t> shape, mlir::Type elemType,
                                DimsOrder order, StridesRef strides);
 mlir::MemRefType getMemRefType(VPURT::BufferSection section, size_t sectionIdx, ArrayRef<int64_t> shape,
@@ -128,13 +135,20 @@ mlir::MemRefType getMemRefType(VPURT::BufferSection section, size_t sectionIdx, 
 vpux::VPURT::DeclareBufferOp createDeclareTensorOp(mlir::OpBuilder& builder, VPURT::BufferSection section,
                                                    ArrayRef<int64_t> shape, mlir::Type elemType, DimsOrder order,
                                                    int64_t locale, size_t offset);
+vpux::VPURT::DeclareBufferOp createDeclareTensorOp(mlir::OpBuilder& builder, mlir::Type type,
+                                                   VPURT::BufferSection section, ArrayRef<int64_t> locale,
+                                                   size_t offset);
+vpux::VPURT::DeclareBufferOp createDeclareTensorOp(mlir::OpBuilder& builder, VPURT::BufferSection section,
+                                                   ShapeRef shape, mlir::Type elemType, DimsOrder order, int64_t locale,
+                                                   size_t offset);
 vpux::VPURT::DeclareBufferOp createDeclareTensorOp(mlir::OpBuilder builder, VPURT::BufferSection section,
                                                    ArrayRef<int64_t> shape, mlir::Type elemType, DimsOrder order,
                                                    StridesRef strides, int64_t locale, size_t offset);
 vpux::VPURT::DeclareBufferOp createDeclareTensorOp(mlir::OpBuilder& builder, mlir::MemRefType type,
                                                    VPURT::BufferSection section, int64_t locale, size_t offset);
-vpux::VPURT::DeclareSparseBufferOp createDeclareSparseTensorOp(mlir::OpBuilder& builder, mlir::Value data,
-                                                               mlir::Value sparsityMap);
+vpux::VPURT::DeclareBufferOp createDeclareTensorOp(mlir::OpBuilder& builder, mlir::Type type,
+                                                   VPURT::BufferSection section, ArrayRef<int64_t> locale,
+                                                   size_t offset);
 
 mlir::OpResult getTensorResult(VPURT::DeclareBufferOp op);
 

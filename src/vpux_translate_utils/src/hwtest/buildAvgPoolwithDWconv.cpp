@@ -34,9 +34,9 @@ void buildAvgpoolWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mo
     auto* ctx = builder.getContext();
     auto loc = builder.getUnknownLoc();
 
-    auto input = testDesc.getInputLayer();
+    auto input = testDesc.getInputLayerList().front();
     auto pool_op = testDesc.getPoolLayer();
-    auto output = testDesc.getOutputLayer();
+    auto output = testDesc.getOutputLayers().front();
 
     SmallVector<int64_t> in_shape(input.shape.begin(), input.shape.end());
     SmallVector<int64_t> out_shape(output.shape.begin(), output.shape.end());
@@ -263,10 +263,11 @@ void buildAvgpoolWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mo
     auto nceTask = VPURT::wrapIntoTaskOp<VPUIP::NCEClusterTaskOp>(
             funcbuilder, mlir::ValueRange(barrier0.barrier()), mlir::ValueRange(barrier1.barrier()), loc,
             outputcmx_type, inputcmx.getOperation()->getResult(0), wtData_cmx.getOperation()->getResult(0),
-            wtTbl_cmx.getOperation()->getResult(0), actWindow_cmx.getOperation()->getResult(0),
-            parent_inputcmx.getOperation()->getResult(0), parent_outputcmx.getOperation()->getResult(0),
-            outputcmx.getOperation()->getResult(0), VPUIP::NCETaskType::DWCONV, filtersize, strides, kernel_padding,
-            actChannelLength, nullptr, /*sp_pattern*/ nullptr);
+            wtTbl_cmx.getOperation()->getResult(0), /*instruction_table_list*/ nullptr,
+            actWindow_cmx.getOperation()->getResult(0), parent_inputcmx.getOperation()->getResult(0),
+            parent_outputcmx.getOperation()->getResult(0), outputcmx.getOperation()->getResult(0),
+            VPUIP::NCETaskType::DWCONV, filtersize, strides, kernel_padding, actChannelLength, nullptr,
+            /*sp_pattern*/ nullptr);
 
     nceTask.addPPETask(funcbuilder);
 
@@ -290,7 +291,8 @@ void buildAvgpoolWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mo
 
     // set runtime resources
     mlir::PassManager pm(ctx, mlir::OpPassManager::Nesting::Implicit);
-    pm.addPass(VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::DefaultHW, None, log));
+    pm.addPass(
+            VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::DefaultHW, None, None, log));
 
     VPUX_THROW_UNLESS(mlir::succeeded(pm.run(module)), "Compilation failed");
 

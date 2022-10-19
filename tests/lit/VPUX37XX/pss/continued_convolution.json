@@ -2,21 +2,23 @@
 {
     "architecture": "VPUX37XX",
     "case_type": "ZMajorConvolution",
-    "input": {
-        "shape": [
-            1,
-            16384,
-            1,
-            1
-        ],
-        "dtype": "fp16",
-        "quantization": {
-            "scale": 1.0,
-            "zeropoint": 0,
-            "low_range": -8,
-            "high_range": 7
+    "input": [
+        {
+            "shape": [
+                1,
+                16384,
+                1,
+                1
+            ],
+            "dtype": "fp16",
+            "quantization": {
+                "scale": 1.0,
+                "zeropoint": 0,
+                "low_range": -8,
+                "high_range": 7
+            }
         }
-    },
+    ],
     "weight": {
         "shape": [
             16,
@@ -46,21 +48,23 @@
         "group": 1,
         "dilation": 1
     },
-    "output": {
-        "shape": [
-            1,
-            16,
-            1,
-            1
-        ],
-        "dtype": "fp16",
-        "quantization": {
-            "scale": 1.0,
-            "zeropoint": 0,
-            "low_range": -65536,
-            "high_range": 65535
+    "output": [
+        {
+            "shape": [
+                1,
+                16,
+                1,
+                1
+            ],
+            "dtype": "fp16",
+            "quantization": {
+                "scale": 1.0,
+                "zeropoint": 0,
+                "low_range": -65536,
+                "high_range": 65535
+            }
         }
-    },
+    ],
     "output_order": "nhwc"
 }
 // CHECK-LABEL: module @mainModule

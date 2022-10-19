@@ -7,16 +7,15 @@
 
 #include "sw_tensor_ref.h"
 #include <stdint.h>
+#include <sw_shave_lib_common.h>
 
-#ifdef CONFIG_TARGET_SOC_3720
-extern unsigned char actShaveData[];
-extern unsigned int actShaveDataReserved;
+unsigned char __attribute__((section(".nncmx0.shared.data"), aligned(64))) actShaveData[SHAVE_LIB_DATA_SIZE];
+unsigned int actShaveDataReserved = 0;
 #include "nn_math.h"
 #include "nn_memory.h"
 #include "sw_shave_lib_common.h"
 #include <dma_shave_nn.h>
 #include <nn_cache.h>
-#endif
 
 namespace {
 

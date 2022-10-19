@@ -29,7 +29,12 @@ mlir::LogicalResult vpux::IE::ReduceMaxOp::inferReturnTypeComponents(
 
     const auto input = reduceMax.input();
     const auto keepDims = reduceMax.keep_dims() != nullptr;
-    auto axes = IE::constInputToData(loc, reduceMax.axes()).getValue();
+    auto axes = IE::constInputToData(loc, reduceMax.axes());
+    if (mlir::failed(axes)) {
+        return mlir::failure();
+    }
 
-    return IE::inferReduceReturnTypeComponents(loc, input, keepDims, axes, inferredReturnShapes);
+    auto axesValue = axes.getValue();
+
+    return IE::inferReduceReturnTypeComponents(loc, input, keepDims, axesValue, inferredReturnShapes);
 }

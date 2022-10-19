@@ -152,6 +152,7 @@ private:
     SmallVector<BarrierUserConfig> _nceTasks;
     SmallVector<BarrierUserConfig> _actTasks;
     SmallVector<BarrierUserConfig> _upaTasks;
+    SmallVector<BarrierUserConfig> _m2iTasks;
 
     VirtualDependencyTracker _vdt;
 };

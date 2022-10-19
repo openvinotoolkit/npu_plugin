@@ -49,18 +49,7 @@ def Const_ContentAttr : Const_Attr<"Content", [DeclareAttrInterfaceMethods<SubEl
 
         AttrBuilderWithInferredContext<
             (ins "vpux::Const::ContentAttr":$input, "vpux::Const::TransformAttrInterface":$transformation), [{
-                auto transformations = input.getTransformations();
-                transformations.push_back(transformation);
-
-                const auto transformationsRaw = to_small_vector(
-                    transformations | transformed([](vpux::Const::TransformAttrInterface attr) -> mlir::Attribute {
-                        return attr;
-                    }));
-
-                const auto transformationsAttr = mlir::ArrayAttr::get(input.getContext(), transformationsRaw);
-
-                return $_get(input.getContext(), input.getBaseContent(), transformationsAttr,
-                             transformation.inferOutputType(input.getType()));
+                return vpux::Const::ContentAttr::addTransformation(input, transformation);
             }]
         >,
 
@@ -91,8 +80,10 @@ def Const_ContentAttr : Const_Attr<"Content", [DeclareAttrInterfaceMethods<SubEl
         vpux::Const::ContentAttr dequantize() const;
         vpux::Const::ContentAttr rescale(double scale) const;
         vpux::Const::ContentAttr relocateWeightsTablePointers(uint64_t weightsPtr, uint64_t sparsityPtr, vpux::ShapeRef offsets) const;
+        vpux::Const::ContentAttr swizzleConstant(uint64_t swizzleKey, uint64_t arch) const;
         vpux::Const::ContentAttr add(double bias) const;
         vpux::Const::ContentAttr reshape(vpux::ShapeRef newShape) const;
+        vpux::Const::ContentAttr reverse(Dim axis) const;
         vpux::Const::ContentAttr reorder(vpux::DimsOrder newOrder) const;
         vpux::Const::ContentAttr padWithZero(vpux::ShapeRef padBefore, vpux::ShapeRef padAfter) const;
         vpux::Const::ContentAttr subview(vpux::ShapeRef offset, vpux::ShapeRef shape) const;
@@ -101,6 +92,8 @@ def Const_ContentAttr : Const_Attr<"Content", [DeclareAttrInterfaceMethods<SubEl
         vpux::Const::ContentAttr expandDilated(vpux::ShapeRef dilations) const;
         vpux::Const::ContentAttr getSparsityMap() const;
         vpux::Const::ContentAttr sparsify() const;
+
+        static vpux::Const::ContentAttr addTransformation(vpux::Const::ContentAttr input, vpux::Const::TransformAttrInterface transformation);
     }];
 
     let storageType = "vpux::Const::ContentAttr";
@@ -267,6 +260,38 @@ def Const_ReorderAttr : Const_Attr<"Reorder",
 }
 
 //
+// ReverseAttr
+//
+
+def Const_ReverseAttr : Const_Attr<"Reverse",
+        [DeclareAttrInterfaceMethods<Const_TransformAttrInterface>, DeclareAttrInterfaceMethods<SubElementAttrInterface>]> {
+    let summary = "Reverse constant content on specified axis";
+
+    let description = [{
+        This transformation reverses content on a specified axis.
+        For example, considering an input with dimensions (d0, d1, d2, d3),
+        reversing on axis d1 will result in the data of every subpart (d2, d3)
+        being reversed.
+    }];
+
+    let parameters = (ins
+        "mlir::IntegerAttr":$axis
+    );
+
+    let builders = [
+        AttrBuilderWithInferredContext<
+            (ins "mlir::IntegerAttr":$axis), [{
+                return $_get(axis.getContext(), axis);
+            }]
+        >
+    ];
+
+    let storageNamespace = "details";
+    let skipDefaultBuilders = 1;
+}
+
+
+//
 // PadWithZeroAttr
 //
 
@@ -348,7 +373,8 @@ def Const_BroadcastAttr : Const_Attr<"Broadcast",
 //
 
 def Const_BitPackAttr : Const_Attr<"BitPack",
-        [DeclareAttrInterfaceMethods<Const_TransformAttrInterface>, DeclareAttrInterfaceMethods<SubElementAttrInterface>]> {
+        [DeclareAttrInterfaceMethods<Const_TransformAttrInterface, ["getPositionRequirement"]>,
+         DeclareAttrInterfaceMethods<SubElementAttrInterface>]> {
     let summary = "Pack sub-byte constant content";
 
     let parameters = (ins
@@ -420,6 +446,31 @@ def Const_RelocateWeightsTableAttr : Const_Attr<"RelocateWeightsTable",
 }
 
 //
+// SwizzleConstant
+//
+
+def Const_SwizzleConstantAttr : Const_Attr<"SwizzleConstant",
+        [DeclareAttrInterfaceMethods<Const_TransformAttrInterface>, DeclareAttrInterfaceMethods<SubElementAttrInterface>]> {
+    let summary = "Swizzles the constant based on swizzle key";
+
+    let parameters = (ins
+        "mlir::IntegerAttr":$swizzleKey,
+        "mlir::IntegerAttr":$arch
+    );
+
+    let builders = [
+        AttrBuilderWithInferredContext<
+            (ins "mlir::IntegerAttr":$swizzleKey, "mlir::IntegerAttr": $arch), [{
+                return $_get(swizzleKey.getContext(), swizzleKey, arch);
+            }]
+        >
+    ];
+
+    let storageNamespace = "details";
+    let skipDefaultBuilders = 1;
+}
+
+//
 // ExpandDilatedAttr
 //
 
@@ -449,7 +500,8 @@ def Const_ExpandDilatedAttr : Const_Attr<"ExpandDilated",
 //
 
 def Const_GetSparsityMapAttr : Const_Attr<"GetSparsityMap",
-        [DeclareAttrInterfaceMethods<Const_TransformAttrInterface>]> {
+        [DeclareAttrInterfaceMethods<Const_TransformAttrInterface, ["getPositionRequirement"]>
+    ]> {
     let summary = "Generate sparsity map";
 }
 
@@ -457,8 +509,9 @@ def Const_GetSparsityMapAttr : Const_Attr<"GetSparsityMap",
 // Sparsify
 //
 
-def Const_SparsifyAttr : Const_Attr<"Sparsify",
-        [DeclareAttrInterfaceMethods<Const_TransformAttrInterface>]> {
+def Const_SparsifyAttr : Const_Attr<"Sparsify", [
+        DeclareAttrInterfaceMethods<Const_TransformAttrInterface, ["getPositionRequirement"]>
+    ]> {
     let summary = "Prepare tensor to be ready processed as a sparse tensor";
 }
 #endif

@@ -158,7 +158,7 @@ Const::Content vpux::Const::PadWithZeroAttr::transform(vpux::Const::Content& inp
                             outBuf.data() + checked_cast<size_t>(out0 * elemSize.count()));
             });
         } else {
-            std::copy_n(inBuf.data(), checked_cast<size_t>(input.getNumElements() * elemSize.count()),
+            std::copy_n(inBuf.data(), checked_cast<size_t>(input.getType().getNumElements() * elemSize.count()),
                         outBuf.data() + memPadBefore.front() * elemSize.count());
         }
     } else if (memPadBefore.size() == 2) {
@@ -254,7 +254,7 @@ Const::Content vpux::Const::PadWithZeroAttr::transform(vpux::Const::Content& inp
     } else {
         // Generic case
 
-        loop_1d(LoopExecPolicy::Parallel, input.getNumElements(), [&](int64_t inMemInd1D) {
+        loop_1d(LoopExecPolicy::Parallel, input.getType().getNumElements(), [&](int64_t inMemInd1D) {
             const auto inMemIndND = getMemIndexND(inMemInd1D, inMemShape);
 
             MemShape outMemIndND(inMemIndND.size());

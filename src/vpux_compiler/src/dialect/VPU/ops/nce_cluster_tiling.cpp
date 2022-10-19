@@ -223,7 +223,7 @@ public:
 mlir::LogicalResult EliminateCopyPairs::matchAndRewrite(VPU::NCEClusterTilingOp origOp,
                                                         mlir::PatternRewriter& rewriter) const {
     // This particular ClusterTilingOp should contain a single Copy operation
-    auto copyOps = origOp.body().getOps<vpux::IE::CopyOp>();
+    auto copyOps = origOp.body().getOps<vpux::VPU::CopyOp>();
     if (std::distance(copyOps.begin(), copyOps.end()) != 1) {
         return mlir::failure();
     }
@@ -233,7 +233,7 @@ mlir::LogicalResult EliminateCopyPairs::matchAndRewrite(VPU::NCEClusterTilingOp 
     if (producerClusterTilingOp == nullptr) {
         return mlir::failure();
     }
-    auto producerCopyOps = producerClusterTilingOp.body().getOps<vpux::IE::CopyOp>();
+    auto producerCopyOps = producerClusterTilingOp.body().getOps<vpux::VPU::CopyOp>();
     if (std::distance(producerCopyOps.begin(), producerCopyOps.end()) != 1) {
         return mlir::failure();
     }
@@ -265,6 +265,41 @@ mlir::LogicalResult EliminateCopyPairs::matchAndRewrite(VPU::NCEClusterTilingOp 
     return mlir::success();
 }
 
+class RemoveIfEmptyBody final : public mlir::OpRewritePattern<VPU::NCEClusterTilingOp> {
+public:
+    using OpRewritePattern::OpRewritePattern;
+
+    mlir::LogicalResult matchAndRewrite(VPU::NCEClusterTilingOp origOp, mlir::PatternRewriter& rewriter) const final;
+};
+
+mlir::LogicalResult RemoveIfEmptyBody::matchAndRewrite(VPU::NCEClusterTilingOp origOp,
+                                                       mlir::PatternRewriter& rewriter) const {
+    if (origOp.operands().size() != 1 || origOp.results().size() != 1) {
+        return mlir::failure();
+    }
+
+    auto input = origOp.getOperand(0);
+    auto output = origOp.getResult(0);
+
+    if (input.getType() != output.getType()) {
+        return mlir::failure();
+    }
+
+    auto& bodyBlock = origOp.body().front();
+
+    // Check if body does not have any operation besides YieldOp which is
+    // integral part of NCEClusterTiling
+    for (auto& op : bodyBlock.getOperations()) {
+        if (!mlir::isa<VPU::YieldOp>(op)) {
+            return mlir::failure();
+        }
+    }
+
+    rewriter.replaceOp(origOp, input);
+
+    return mlir::success();
+}
+
 }  // namespace
 
 //
@@ -274,4 +309,5 @@ mlir::LogicalResult EliminateCopyPairs::matchAndRewrite(VPU::NCEClusterTilingOp 
 void vpux::VPU::NCEClusterTilingOp::getCanonicalizationPatterns(mlir::RewritePatternSet& patterns,
                                                                 mlir::MLIRContext* ctx) {
     patterns.add<EliminateCopyPairs>(ctx);
+    patterns.add<RemoveIfEmptyBody>(ctx);
 }

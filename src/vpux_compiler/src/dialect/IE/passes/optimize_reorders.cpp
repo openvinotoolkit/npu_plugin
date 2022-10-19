@@ -45,10 +45,16 @@ mlir::LogicalResult ReorderWithSubView::matchAndRewrite(IE::SliceOp origSubViewO
         return mlir::failure();
     }
 
+    // Maintain the Reorder -> PermuteCast -> Reorder chain as it can later be reduced to a single operation
+    if (auto prevPermuteCastOp = origReorderOp.input().getDefiningOp<IE::PermuteCastOp>()) {
+        if (auto prevReorderOp = prevPermuteCastOp.input().getDefiningOp<IE::ReorderOp>())
+            return mlir::failure();
+    }
+
     _log.trace("Got reorder at '{0}' -> subview at '{1}' pair", origReorderOp->getLoc(), origSubViewOp->getLoc());
 
     const auto isSubView = [](mlir::Operation* reorderUser) -> bool {
-        return mlir::isa<IE::SliceOp>(reorderUser);
+        return mlir::isa<IE::SliceOp, IE::ConcatOp>(reorderUser);
     };
 
     if (!llvm::all_of(origReorderOp->getUsers(), isSubView)) {

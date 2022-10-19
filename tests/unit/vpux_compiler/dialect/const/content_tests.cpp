@@ -351,6 +351,82 @@ TEST_F(MLIR_ConstContentAttrTest, Reshape) {
     }
 }
 
+TEST_F(MLIR_ConstContentAttrTest, ReverseCWise) {
+    const int64_t N = 2;
+    const int64_t C = 3;
+    const int64_t H = 4;
+    const int64_t W = 5;
+    const auto baseType = mlir::RankedTensorType::get({N, C, H, W}, mlir::Float32Type::get(&ctx));
+
+    const auto vals = generateValues<float>(baseType.getNumElements());
+    const auto baseAttr = mlir::DenseElementsAttr::get(baseType, makeArrayRef(vals));
+
+    const auto baseContentAttr = Const::ContentAttr::get(baseAttr);
+    ASSERT_NE(baseContentAttr, nullptr);
+    EXPECT_EQ(baseContentAttr.getType(), baseType);
+
+    const auto contentAttr = baseContentAttr.reverse(Dim(1));
+    ASSERT_NE(contentAttr, nullptr);
+    EXPECT_EQ(contentAttr.getType(), baseType);
+
+    const auto content = contentAttr.fold();
+    EXPECT_EQ(content.getType(), baseType);
+    EXPECT_FALSE(content.isSplat());
+
+    const auto contentVals = content.getValues<float>();
+    EXPECT_EQ(contentVals.size(), vals.size());
+
+    for (int64_t n = 0; n < N; ++n) {
+        for (int64_t c = 0; c < C; ++c) {
+            for (int64_t h = 0; h < H; ++h) {
+                for (int64_t w = 0; w < W; ++w) {
+                    const auto origIndex = w + h * W + c * W * H + n * W * H * C;
+                    const auto newIndex = (W - w - 1) + (H - h - 1) * W + c * W * H + n * W * H * C;
+                    EXPECT_EQ(contentVals[newIndex], vals[origIndex]) << n << " " << c << " " << h << " " << w;
+                }
+            }
+        }
+    }
+}
+
+TEST_F(MLIR_ConstContentAttrTest, ReverseNWise) {
+    const int64_t N = 2;
+    const int64_t C = 3;
+    const int64_t H = 4;
+    const int64_t W = 5;
+    const auto baseType = mlir::RankedTensorType::get({N, C, H, W}, mlir::Float32Type::get(&ctx));
+
+    const auto vals = generateValues<float>(baseType.getNumElements());
+    const auto baseAttr = mlir::DenseElementsAttr::get(baseType, makeArrayRef(vals));
+
+    const auto baseContentAttr = Const::ContentAttr::get(baseAttr);
+    ASSERT_NE(baseContentAttr, nullptr);
+    EXPECT_EQ(baseContentAttr.getType(), baseType);
+
+    const auto contentAttr = baseContentAttr.reverse(Dim(0));
+    ASSERT_NE(contentAttr, nullptr);
+    EXPECT_EQ(contentAttr.getType(), baseType);
+
+    const auto content = contentAttr.fold();
+    EXPECT_EQ(content.getType(), baseType);
+    EXPECT_FALSE(content.isSplat());
+
+    const auto contentVals = content.getValues<float>();
+    EXPECT_EQ(contentVals.size(), vals.size());
+
+    for (int64_t n = 0; n < N; ++n) {
+        for (int64_t c = 0; c < C; ++c) {
+            for (int64_t h = 0; h < H; ++h) {
+                for (int64_t w = 0; w < W; ++w) {
+                    const auto origIndex = w + h * W + c * W * H + n * W * H * C;
+                    const auto newIndex = (W - w - 1) + (H - h - 1) * W + (C - c - 1) * W * H + n * W * H * C;
+                    EXPECT_EQ(contentVals[newIndex], vals[origIndex]) << n << " " << c << " " << h << " " << w;
+                }
+            }
+        }
+    }
+}
+
 TEST_F(MLIR_ConstContentAttrTest, Reorder) {
     const int64_t N = 1;
     const int64_t C = 2;
@@ -791,22 +867,40 @@ TEST_F(MLIR_ConstContentAttrTest, BitPackIsLast) {
     const auto bitWidth = 4;
     const auto contentAttr = baseContentAttr.bitPack(bitWidth);
     ASSERT_NE(contentAttr, nullptr);
-    ASSERT_ANY_THROW(contentAttr.add(17.f));
-    ASSERT_ANY_THROW(contentAttr.broadcast(Dim(1), 42));
-    ASSERT_ANY_THROW(contentAttr.convertElemType(getSInt32Type(&ctx)));
-    ASSERT_ANY_THROW(contentAttr.dequantize());
-    ASSERT_ANY_THROW(contentAttr.padWithZero({0, 1, 2, 3}, {0, 3, 2, 1}));
-    ASSERT_ANY_THROW(contentAttr.reorder(DimsOrder::NHWC));
-    ASSERT_ANY_THROW(contentAttr.rescale(19.f));
-    ASSERT_ANY_THROW(contentAttr.reshape(Shape({IN * IC, IH, IW})));
-    ASSERT_ANY_THROW(contentAttr.subview({0, 0, 0, 0}, {IN, IC, IH, IW}));
-    ASSERT_ANY_THROW(contentAttr.transpose(DimsOrder::NHWC));
+
+    const auto addBitPackAttr = contentAttr.add(17.f);
+    const auto addBitPackTransformations = addBitPackAttr.getTransformations();
+    ASSERT_EQ(addBitPackTransformations.size(), 2);
+    EXPECT_NE(addBitPackTransformations[0].dyn_cast<Const::AddAttr>(), nullptr);
+    EXPECT_NE(addBitPackTransformations[1].dyn_cast<Const::BitPackAttr>(), nullptr);
+
+    const auto addBroadcastBitPackAttr = addBitPackAttr.broadcast(Dim(1), 42);
+    const auto addBroadcastBitPackTransformations = addBroadcastBitPackAttr.getTransformations();
+    ASSERT_EQ(addBroadcastBitPackTransformations.size(), 3);
+    EXPECT_NE(addBroadcastBitPackTransformations[0].dyn_cast<Const::AddAttr>(), nullptr);
+    EXPECT_NE(addBroadcastBitPackTransformations[1].dyn_cast<Const::BroadcastAttr>(), nullptr);
+    EXPECT_NE(addBroadcastBitPackTransformations[2].dyn_cast<Const::BitPackAttr>(), nullptr);
+
+    // Expects input type to be quantized, while the input type will be SI8
+    EXPECT_ANY_THROW(contentAttr.dequantize());
+
+    EXPECT_NO_THROW(contentAttr.convertElemType(getSInt32Type(&ctx)));
+    EXPECT_NO_THROW(contentAttr.padWithZero({0, 1, 2, 3}, {0, 3, 2, 1}));
+    EXPECT_NO_THROW(contentAttr.reorder(DimsOrder::NHWC));
+    EXPECT_NO_THROW(contentAttr.rescale(19.f));
+    EXPECT_NO_THROW(contentAttr.reshape(Shape({IN * IC, IH, IW})));
+    EXPECT_NO_THROW(contentAttr.subview({0, 0, 0, 0}, {IN, IC, IH, IW}));
+    EXPECT_NO_THROW(contentAttr.transpose(DimsOrder::NHWC));
+
+    // Inserting another transformation that has the LAST position requirement
+    EXPECT_ANY_THROW(contentAttr.sparsify());
+    EXPECT_ANY_THROW(contentAttr.getSparsityMap());
 
     const auto quantType =
-            mlir::quant::UniformQuantizedType::get(mlir::quant::QuantizationFlags::Signed, getSInt4Type(&ctx),
+            mlir::quant::UniformQuantizedType::get(mlir::quant::QuantizationFlags::Signed, getSInt8Type(&ctx),
                                                    mlir::Float32Type::get(&ctx), 0.078431372549019607, 0, -4, 3);
     const auto quantContentAttr = contentAttr.quantCast(quantType);
-    ASSERT_NE(quantContentAttr, nullptr);
+    EXPECT_NE(quantContentAttr, nullptr);
 }
 
 TEST_F(MLIR_ConstContentAttrTest, ExpandDilated) {

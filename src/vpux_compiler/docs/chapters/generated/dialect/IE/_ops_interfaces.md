@@ -40,14 +40,6 @@ int64_t getOutputChannelAlignment();
 Get output channels alignment factor in elements
 NOTE: This method *must* be implemented by the user.
 
-#### `checkChannelRestrictions`
-
-```c++
-bool checkChannelRestrictions(int64_t channels);
-```
-Check HW channel number restrictions
-NOTE: This method *must* be implemented by the user.
-
 ## ElemTypeInfoOpInterface (`IE_ElemTypeInfoOpInterface`)
 
 
@@ -158,45 +150,5 @@ NOTE: This method *must* be implemented by the user.
 vpux::IE::LayerLayoutInfo getLayoutInfo();
 ```
 Get information about current layout for Layer inputs and outputs
-NOTE: This method *must* be implemented by the user.
-
-## TilingBuilderOpInterface (`IE_TilingBuilderOpInterface`)
-
-Interface for operations to reify the provided tiling configuration
-### Methods:
-#### `getMaxNumTiles`
-
-```c++
-SmallVector<int64_t> getMaxNumTiles();
-```
-Return the maximum number of tiles for each dimension
-NOTE: This method *must* be implemented by the user.
-
-#### `backInferTileInfo`
-
-```c++
-vpux::TilingInfo backInferTileInfo(const vpux::TileInfo&outputTile);
-```
-Infer input tiles information from the output tile
-NOTE: This method *must* be implemented by the user.
-
-#### `adjustAttrs`
-
-```c++
-void adjustAttrs(const vpux::TilingInfo&inputTiling, const TileInfo&outputTile);
-```
-Adjust the operation attributes to the current tile properties
-NOTE: This method *must* be implemented by the user.
-
-## TilingInfoOpInterface (`IE_TilingInfoOpInterface`)
-
-Interface for operations to provide information about required/supported tiling configurations
-### Methods:
-#### `isSupportedTiling`
-
-```c++
-bool isSupportedTiling(const vpux::OutputTiling&tiles, vpux::TilingMode tilingMode, vpux::Logger log);
-```
-Check, if the provided tiling configuration is supported by the operation implementation
 NOTE: This method *must* be implemented by the user.
 

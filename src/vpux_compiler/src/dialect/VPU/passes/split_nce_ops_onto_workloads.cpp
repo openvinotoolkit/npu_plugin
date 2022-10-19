@@ -7,6 +7,7 @@
 
 #include "vpux/compiler/dialect/IE/utils/resources.hpp"
 
+#include "vpux/compiler/core/cost_model_utils.hpp"
 #include "vpux/compiler/core/layers.hpp"
 #include "vpux/compiler/core/tiling.hpp"
 #include "vpux/compiler/dialect/VPU/cost_model.hpp"
@@ -39,7 +40,17 @@ constexpr int64_t MAX_SPLIT_NUMBER = 50;
 // MPE mode utilities
 //
 
-VPU::MPEMode getMpeModeForVPUX30XX(mlir::Type inElemType, mlir::Type outElemType, mlir::Operation*, ShapeRef shape) {
+bool isMixedPrecisionSupportedForVPUX30XX(mlir::Type inElemType, mlir::Type outElemType, mlir::Operation* operation) {
+    return inElemType.isa<mlir::quant::QuantizedType>() && !outElemType.isa<mlir::quant::QuantizedType>() &&
+           mlir::isa<VPU::NCEConvolutionOp, VPU::NCEDepthConvolutionOp, VPU::NCEMaxPoolOp, VPU::NCEAveragePoolOp>(
+                   operation);
+}
+
+VPU::MPEMode getMpeModeForVPUX30XX(mlir::Type inElemType, mlir::Type outElemType, mlir::Operation* operation,
+                                   ShapeRef shape) {
+    if (isMixedPrecisionSupportedForVPUX30XX(inElemType, outElemType, operation)) {
+        return VPU::MPEMode::VECTOR_FP16;
+    }
     if (inElemType.isa<mlir::quant::QuantizedType>() || outElemType.isa<mlir::quant::QuantizedType>()) {
         const double W = static_cast<double>(shape[Dims4D::Act::W]);
         const double H = static_cast<double>(shape[Dims4D::Act::H]);
@@ -62,7 +73,8 @@ VPU::MPEMode getMpeModeForVPUX30XX(mlir::Type inElemType, mlir::Type outElemType
 VPU::MPEMode getMpeModeForVPUX37XX(mlir::Type, mlir::Type, mlir::Operation* operation, ShapeRef) {
     if (mlir::isa<VPU::NCEConvolutionOp>(operation)) {
         return VPU::MPEMode::CUBOID_16x16;
-    } else if (mlir::isa<VPU::NCEDepthConvolutionOp>(operation) || mlir::isa<VPU::NCEMaxPoolOp>(operation)) {
+    } else if (mlir::isa<VPU::NCEDepthConvolutionOp>(operation) || mlir::isa<VPU::NCEMaxPoolOp>(operation) ||
+               mlir::isa<VPU::NCEAveragePoolOp>(operation)) {
         return VPU::MPEMode::CUBOID_4x16;
     } else if (mlir::isa<VPU::NCEEltwiseOp>(operation)) {
         return VPU::MPEMode::CUBOID_8x16;
@@ -77,6 +89,7 @@ const EnumMap<VPU::ArchKind, GetMpeModeCb> mpeMap = {
         {VPU::ArchKind::VPUX30XX, getMpeModeForVPUX30XX},
         {VPU::ArchKind::VPUX311X, getMpeModeForVPUX30XX},
         {VPU::ArchKind::VPUX37XX, getMpeModeForVPUX37XX},
+        {VPU::ArchKind::VPUX40XX, getMpeModeForVPUX37XX},
 };
 
 //
@@ -102,19 +115,22 @@ void generateWorkloads(mlir::OpBuilder& builder, VPU::NCEOpInterface origOp,
     VPUIP::DpuTiler dpuTiler(costParams.outputShape, mpeMode);
 
     VPUIP::WorkloadSplitPool splitPoolSet;
-    dpuTiler.tileOverH(costParams.numDPU, splitPoolSet);
 
-    const auto splitNumPool = dpuTiler.generateSplitNumberPool(costParams.numDPU, MAX_SPLIT_NUMBER);
+    auto inElemType = origOp->getOperand(0).getType().cast<vpux::NDTypeInterface>().getElementType();
+    auto outElemType = origOp->getResult(0).getType().cast<vpux::NDTypeInterface>().getElementType();
+    if (costParams.arch == VPU::ArchKind::VPUX30XX &&
+        isMixedPrecisionSupportedForVPUX30XX(inElemType, outElemType, origOp.getOperation())) {
+        dpuTiler.tileOverHWMixedPrecision(splitPoolSet);
+    } else {
+        dpuTiler.tileOverH(costParams.numDPU, splitPoolSet);
 
-    for (const auto& splitNum : splitNumPool) {
-        // Depthwise convolution doesn't support SplitOverHW
-        if (mlir::isa<VPU::NCEDepthConvolutionOp>(origOp)) {
-            dpuTiler.tileOverHW(splitNum, VPUIP::SplitDimension::SPLIT_OVER_W, splitPoolSet);
-        } else {
+        const auto splitNumPool = dpuTiler.generateSplitNumberPool(costParams.numDPU, MAX_SPLIT_NUMBER);
+
+        for (const auto& splitNum : splitNumPool) {
             dpuTiler.tileOverHW(splitNum, VPUIP::SplitDimension::SPLIT_OVER_HW, splitPoolSet);
-        }
-        if (isTileOverZSupported) {
-            dpuTiler.tileOverZ(splitNum, splitPoolSet);
+            if (isTileOverZSupported) {
+                dpuTiler.tileOverZ(splitNum, splitPoolSet);
+            }
         }
     }
 
@@ -138,6 +154,8 @@ void generateWorkloads(mlir::OpBuilder& builder, VPU::NCEOpInterface origOp,
 
     const auto bestSplitInd = std::min_element(splitPoolCosts.begin(), splitPoolCosts.end()) - splitPoolCosts.begin();
     const auto& bestSplit = splitPool[bestSplitInd];
+
+    origOp->setAttr(DPUCost, getIntAttr(origOp->getContext(), splitPoolCosts[bestSplitInd]));
 
     const auto kernel = origOp.getKernelSize();
     const auto strides = origOp.getStrides();
@@ -269,6 +287,9 @@ mlir::LogicalResult GenericNCERewrite::matchAndRewrite(VPU::NCEOpInterface nceOp
             })
             .Case<VPU::NCEMaxPoolOp>([&](VPU::NCEMaxPoolOp) {
                 params.nceTaskType = VPUIP::NCETaskType::MAXPOOL;
+            })
+            .Case<VPU::NCEAveragePoolOp>([&](VPU::NCEAveragePoolOp) {
+                params.nceTaskType = VPUIP::NCETaskType::AVEPOOL;
             })
             .Case<VPU::NCEEltwiseOp>([&](VPU::NCEEltwiseOp) {
                 params.nceTaskType = VPUIP::NCETaskType::ELTWISE;

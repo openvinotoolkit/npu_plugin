@@ -23,7 +23,7 @@ constexpr llvm::StringLiteral inputIR = R"(
             func @main(%arg0: memref<1x512xf32>, %arg1: memref<1x512xf32>) -> memref<1x512xf32> {
                 %0 = memref.alloc() : memref<1x512xf32>
                 %1 = IERT.SoftMax {axisInd = 1 : i32, test = 2 : i8} inputs(%arg0 : memref<1x512xf32>) outputs(%0 : memref<1x512xf32>) -> memref<1x512xf32>
-                %2 = IERT.Copy inputs(%1 : memref<1x512xf32>) outputs(%arg1 : memref<1x512xf32>) -> memref<1x512xf32>
+                %2 = VPUIP.Copy inputs(%1 : memref<1x512xf32>) outputs(%arg1 : memref<1x512xf32>) -> memref<1x512xf32>
                 memref.dealloc %0 : memref<1x512xf32>
                 return %2 : memref<1x512xf32>
             }

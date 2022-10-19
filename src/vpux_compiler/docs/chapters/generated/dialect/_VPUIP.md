@@ -23,6 +23,8 @@ It handles such VPU-specifics as:
 ### VPUIP buffer type to describe the buffer tiling
 This type of buffer is used together with the ClusterTiling operation
                            to describe a tile operation between clusters
+### VPUIP Sparse Buffer Type
+This object represents a set of memory references that compose sparse data
 ## Operation definition
 
 ### `VPUIP.AbsUPA` (vpux::VPUIP::AbsUPAOp)
@@ -108,6 +110,72 @@ operation ::= `VPUIP.AcoshUPA` attr-dict
 | Result | Description |
 | :----: | ----------- |
 `output` | memref of 16-bit float values
+
+### `VPUIP.AdaptiveAvgPoolUPA` (vpux::VPUIP::AdaptiveAvgPoolUPAOp)
+
+Adaptive AVG UPA SHAVE kernel
+
+
+Syntax:
+
+```
+operation ::= `VPUIP.AdaptiveAvgPoolUPA` attr-dict
+              `inputs` `(` $input `:` type($input) `,` $pooled_spatial_shape `:` type($pooled_spatial_shape) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of 16-bit float or 32-bit float values
+`pooled_spatial_shape` | memref of 32-bit signed integer values
+`output_buff` | memref of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float or 32-bit float values
+
+### `VPUIP.AdaptiveMaxPoolUPA` (vpux::VPUIP::AdaptiveMaxPoolUPAOp)
+
+Adaptive Max UPA SHAVE kernel
+
+
+Syntax:
+
+```
+operation ::= `VPUIP.AdaptiveMaxPoolUPA` attr-dict
+              `inputs` `(` $input `:` type($input) `,` $pooled_spatial_shape `:` type($pooled_spatial_shape) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `,` $output_index_buff `:` type($output_index_buff) `)`
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`index_element_type` | ::mlir::TypeAttr | any type attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of 16-bit float or 32-bit float values
+`pooled_spatial_shape` | memref of 32-bit signed integer values
+`output_buff` | memref of 16-bit float or 32-bit float values
+`output_index_buff` | memref of 32-bit signed integer values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float or 32-bit float values
+`output_index` | memref of 32-bit signed integer values
 
 ### `VPUIP.AsinUPA` (vpux::VPUIP::AsinUPAOp)
 
@@ -257,6 +325,42 @@ operation ::= `VPUIP.BroadcastUPA` attr-dict
 | :----: | ----------- |
 `output` | memref of 16-bit float values
 
+### `VPUIP.BucketizeUPA` (vpux::VPUIP::BucketizeUPAOp)
+
+Bucketize UPA SHAVE kernel
+
+
+Syntax:
+
+```
+operation ::= `VPUIP.BucketizeUPA` attr-dict
+              `inputs` `(` $data `:` type($data) `,` $buckets `:` type($buckets) `)`
+              `ouputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`output_type` | ::mlir::TypeAttr | any type attribute
+`with_right_bound` | ::mlir::UnitAttr | unit attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`data` | memref of 32-bit signed integer or 64-bit signed integer or 16-bit float or 32-bit float values
+`buckets` | memref of 32-bit signed integer or 64-bit signed integer or 16-bit float or 32-bit float values
+`output_buff` | memref of 32-bit signed integer or 64-bit signed integer values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 32-bit signed integer or 64-bit signed integer values
+
 ### `VPUIP.CTCGreedyDecoderSeqLenUPA` (vpux::VPUIP::CTCGreedyDecoderSeqLenUPAOp)
 
 CTCGreedyDecoderSeqLen UPA SHAVE kernel
@@ -395,7 +499,7 @@ operation ::= `VPUIP.ClampUPA` attr-dict
 
 ### `VPUIP.CompressedDMAOp` (vpux::VPUIP::CompressedDMAOp)
 
-NN DMA task with enabled compression. Omits IERT_SameShape trait.
+NN DMA task with enabled compression. Omits VPUIP_SameShape trait.
 
 
 Syntax:
@@ -428,6 +532,34 @@ operation ::= `VPUIP.CompressedDMAOp` attr-dict
 | Result | Description |
 | :----: | ----------- |
 `output` | memref of any type values
+
+### `VPUIP.ConcatView` (vpux::VPUIP::ConcatViewOp)
+
+VPUIP ConcatView layer. Dummy operation to maintain use-def chains.
+
+
+Syntax:
+
+```
+operation ::= `VPUIP.ConcatView` attr-dict
+              `inputs` `(` $inputs `:` type($inputs) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`inputs` | memref of any type values or VPUIP buffer type to describe the buffer tiling or VPUIP Sparse Buffer Type
+`output_buff` | memref of any type values or VPUIP buffer type to describe the buffer tiling or VPUIP Sparse Buffer Type
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of any type values or VPUIP buffer type to describe the buffer tiling or VPUIP Sparse Buffer Type
 
 ### `VPUIP.ConvertUPA` (vpux::VPUIP::ConvertUPAOp)
 
@@ -507,6 +639,34 @@ operation ::= `VPUIP.ConvolutionUPA` attr-dict
 | :----: | ----------- |
 `output` | memref of 16-bit float values
 
+### `VPUIP.Copy` (vpux::VPUIP::CopyOp)
+
+Copy layer
+
+
+Syntax:
+
+```
+operation ::= `VPUIP.Copy` attr-dict
+              `inputs` `(` $input `:` type($input) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of any type values or VPUIP Sparse Buffer Type
+`output_buff` | memref of any type values or VPUIP Sparse Buffer Type
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of any type values or VPUIP Sparse Buffer Type
+
 ### `VPUIP.CosUPA` (vpux::VPUIP::CosUPAOp)
 
 Cos UPA SHAVE kernel
@@ -584,6 +744,44 @@ operation ::= `VPUIP.DPUTask` attr-dict
 `pad` | vpux::VPU::PaddingAttr | DictionaryAttr with field(s): 'left', 'right', 'top', 'bottom' (each field having its own constraints)
 `mpe_mode` | vpux::VPU::MPEModeAttr | MPE Mode
 `cluster_id` | mlir::IntegerAttr | Integer attribute
+
+### `VPUIP.DepthToSpaceDMA` (vpux::VPUIP::DepthToSpaceDMAOp)
+
+A NNDMA task which performs a functionality equivalent DMA transfer to a UPA DepthToSpace task
+
+
+Syntax:
+
+```
+operation ::= `VPUIP.DepthToSpaceDMA` attr-dict
+              `inputs` `(` $input `:` type($input) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`port` | mlir::IntegerAttr | Integer attribute
+`block_size` | mlir::IntegerAttr | Integer attribute
+`mode` | vpux::IE::DepthToSpaceModeAttr | DepthToSpaceMode that the InferenceEngine supports
+`output_channel` | mlir::IntegerAttr | Integer attribute
+`output_width` | mlir::IntegerAttr | Integer attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of 16-bit float values
+`output_buff` | memref of 16-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float values
 
 ### `VPUIP.DepthToSpaceUPA` (vpux::VPUIP::DepthToSpaceUPAOp)
 
@@ -808,6 +1006,43 @@ operation ::= `VPUIP.ExpUPA` attr-dict
 | Result | Description |
 | :----: | ----------- |
 `output` | memref of 16-bit float values
+
+### `VPUIP.ExtractImagePatchesUPA` (vpux::VPUIP::ExtractImagePatchesUPAOp)
+
+ExtractImagePatches UPA SHAVE kernel
+
+
+Syntax:
+
+```
+operation ::= `VPUIP.ExtractImagePatchesUPA` attr-dict
+              `inputs` `(` $data `:` type($data) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`sizes` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`strides` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`rates` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`autoPad` | vpux::IE::PadTypeAttr | PadType that the InferenceEngine supports
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`data` | memref of any type values
+`output_buff` | memref of any type values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of any type values
 
 ### `VPUIP.FakeQuantizeUPA` (vpux::VPUIP::FakeQuantizeUPAOp)
 
@@ -1038,6 +1273,87 @@ operation ::= `VPUIP.GeluUPA` attr-dict
 | :----: | ----------- |
 `output` | memref of 16-bit float values
 
+### `VPUIP.GenericReshape` (vpux::VPUIP::GenericReshapeOp)
+
+Generic Reshape layer
+
+
+Syntax:
+
+```
+operation ::= `VPUIP.GenericReshape` attr-dict
+              `inputs` `(` $input `:` type($input) `)`
+              `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of any type values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of any type values
+
+### `VPUIP.GroupSparseBuffer` (vpux::VPUIP::GroupSparseBufferOp)
+
+Group sparsity data and metadata into a value
+
+
+Syntax:
+
+```
+operation ::= `VPUIP.GroupSparseBuffer` `(` $data `:` type($data) (`,` $sparsityMap^ `:` type($sparsityMap))? (`,` $storageElementTable^ `:` type($storageElementTable))? `)`
+              attr-dict `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`data` | memref of any type values
+`sparsityMap` | memref of any type values
+`storageElementTable` | memref of any type values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | VPUIP Sparse Buffer Type
+
+### `VPUIP.HSigmoidUPA` (vpux::VPUIP::HSigmoidUPAOp)
+
+HSigmoid UPA SHAVE kernel
+
+
+Syntax:
+
+```
+operation ::= `VPUIP.HSigmoidUPA` attr-dict
+              `inputs` `(` $input `:` type($input) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of 16-bit float values
+`output_buff` | memref of 16-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float values
+
 ### `VPUIP.HSwishUPA` (vpux::VPUIP::HSwishUPAOp)
 
 HSwish UPA SHAVE kernel
@@ -1052,6 +1368,41 @@ operation ::= `VPUIP.HSwishUPA` attr-dict
               `->` type(results)
 ```
 
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of 16-bit float values
+`output_buff` | memref of 16-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float values
+
+### `VPUIP.HardSigmoidUPA` (vpux::VPUIP::HardSigmoidUPAOp)
+
+HardSigmoid UPA SHAVE kernel
+
+
+Syntax:
+
+```
+operation ::= `VPUIP.HardSigmoidUPA` attr-dict
+              `inputs` `(` $input `:` type($input) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`alpha_value` | ::mlir::FloatAttr | 64-bit float attribute
+`beta_value` | ::mlir::FloatAttr | 64-bit float attribute
 
 #### Operands:
 
@@ -1281,6 +1632,44 @@ operation ::= `VPUIP.LogicalNotUPA` attr-dict
 | :----: | ----------- |
 `output` | memref of 16-bit float values
 
+### `VPUIP.M2ITask` (vpux::VPUIP::M2ITaskOp)
+
+M2I task op
+
+
+Syntax:
+
+```
+operation ::= `VPUIP.M2ITask` attr-dict
+              `inputs` `(` $input `:` type($input) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`do_csc` | ::mlir::BoolAttr | bool attribute
+`do_norm` | ::mlir::BoolAttr | bool attribute
+`inFmt` | vpux::VPU::M2iColorFmtAttr | M2I color formats
+`outFmt` | vpux::VPU::M2iColorFmtAttr | M2I color formats
+`norm` | ::mlir::ArrayAttr | 64-bit float array attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of 8-bit unsigned integer or 16-bit float values
+`output_buff` | memref of 8-bit unsigned integer or 16-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 8-bit unsigned integer or 16-bit float values
+
 ### `VPUIP.MVNUPA` (vpux::VPUIP::MVNUPAOp)
 
 MVN UPA SHAVE kernel
@@ -1355,14 +1744,22 @@ Syntax:
 ```
 operation ::= `VPUIP.NCEClusterTask` attr-dict
               `input` `(` $input  `:` type($input) `)`
+              (`input_sparsity_map` `(` $input_sparsity_map^  `:` type($input_sparsity_map) `)`)?
+              (`input_storage_element_table` `(` $input_storage_element_table^  `:` type($input_storage_element_table) `)`)?
               (`weights` `(` $weights^  `:` type($weights) `)`)?
+              (`weights_sparsity_map` `(` $weights_sparsity_map^  `:` type($weights_sparsity_map) `)`)?
               (`weight_table` `(` $weight_table^  `:` type($weight_table) `)`)?
+              (`instruction_list_table` `(` $instruction_list_table^  `:` type($instruction_list_table) `)`)?
               (`activation_window` `(` $activation_window^  `:` type($activation_window) `)`)?
               `parent_input` `(` $parent_input `:` type($parent_input) `)`
+              (`parent_input_sparsity_map` `(` $parent_input_sparsity_map^  `:` type($parent_input_sparsity_map) `)`)?
+              (`parent_input_storage_element_table` `(` $parent_input_storage_element_table^  `:` type($parent_input_storage_element_table) `)`)?
               `parent_output` `(` $parent_output `:` type($parent_output) `)`
+              (`parent_output_sparsity_map` `(` $parent_output_sparsity_map^  `:` type($parent_output_sparsity_map) `)`)?
               `outputs` `(` $output_buff `:` type($output_buff) `)`
+              (`output_sparsity_map_buff` `(` $output_sparsity_map_buff^  `:` type($output_sparsity_map_buff) `)`)?
               (`profiling_data` `(` $profiling_data^  `:` type($profiling_data) `)`)?
-              `->` type(results)
+              `->` type($output) custom<OptionalResultTypes>(type($output_sparsity_map), type($profiling_output))
               `variants` `:` $variants
               `PPE` `:` $ppe
 ```
@@ -1399,20 +1796,29 @@ mutually exclusive.
 
 | Operand | Description |
 | :-----: | ----------- |
-`input` | memref of 16-bit float or bfloat16 type or QuantizedType values or VPURT Sparse Buffer Type
-`weights` | memref of 16-bit float or bfloat16 type or QuantizedType values or VPURT Sparse Buffer Type
+`input` | memref of 16-bit float or bfloat16 type or QuantizedType values
+`input_sparsity_map` | memref of 1-bit signless integer values
+`input_storage_element_table` | memref of 32-bit signed integer values
+`weights` | memref of 16-bit float or bfloat16 type or QuantizedType values
+`weights_sparsity_map` | memref of 1-bit signless integer values
 `weight_table` | memref of 32-bit signed integer values
+`instruction_list_table` | memref of 32-bit signed integer values
 `activation_window` | memref of 8-bit unsigned integer values
-`parent_input` | memref of any type values or VPURT Sparse Buffer Type or VPUIP buffer type to describe the buffer tiling
-`parent_output` | memref of any type values or VPURT Sparse Buffer Type or VPUIP buffer type to describe the buffer tiling
-`output_buff` | memref of 16-bit float or 32-bit float or bfloat16 type or QuantizedType values or VPURT Sparse Buffer Type or VPUIP buffer type to describe the buffer tiling
-`profiling_data` | memref of 64-bit unsigned integer values
+`parent_input` | memref of any type values or VPUIP buffer type to describe the buffer tiling
+`parent_input_sparsity_map` | memref of 1-bit signless integer values
+`parent_input_storage_element_table` | memref of 32-bit signed integer values
+`parent_output` | memref of any type values or VPUIP buffer type to describe the buffer tiling
+`parent_output_sparsity_map` | memref of 1-bit signless integer values
+`output_buff` | memref of 16-bit float or 32-bit float or bfloat16 type or QuantizedType values or VPUIP buffer type to describe the buffer tiling
+`output_sparsity_map_buff` | memref of 1-bit signless integer values or VPUIP buffer type to describe the buffer tiling
+`profiling_data` | memref of 64-bit unsigned integer values or VPUIP buffer type to describe the buffer tiling
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-`output` | memref of 16-bit float or 32-bit float or bfloat16 type or QuantizedType values or VPURT Sparse Buffer Type or VPUIP buffer type to describe the buffer tiling
+`output` | memref of 16-bit float or 32-bit float or bfloat16 type or QuantizedType values or VPUIP buffer type to describe the buffer tiling
+`output_sparsity_map` | memref of 1-bit signless integer values or VPUIP buffer type to describe the buffer tiling
 `profiling_output` | memref of 64-bit unsigned integer values
 
 ### `VPUIP.NCEClusterTiling` (vpux::VPUIP::NCEClusterTilingOp)
@@ -1596,6 +2002,9 @@ operation ::= `VPUIP.PPETask` $ppe_layer_type attr-dict
 `quant_mult` | ::mlir::ArrayAttr | 64-bit integer array attribute
 `quant_shift` | ::mlir::ArrayAttr | 64-bit integer array attribute
 `quant_post_shift` | mlir::IntegerAttr | Integer attribute
+`quant_scale` | ::mlir::ArrayAttr | 64-bit float array attribute
+`in1_quant_mult` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`in2_quant_mult` | ::mlir::ArrayAttr | 64-bit integer array attribute
 
 ### `VPUIP.PReluUPA` (vpux::VPUIP::PReluUPAOp)
 
@@ -1738,6 +2147,77 @@ operation ::= `VPUIP.PerAxisTileUPA` attr-dict
 | :----: | ----------- |
 `output` | memref of 16-bit float values
 
+### `VPUIP.PermuteCast` (vpux::VPUIP::PermuteCastOp)
+
+Operation that changes the layout information of a buffer
+
+
+Syntax:
+
+```
+operation ::= `VPUIP.PermuteCast` attr-dict
+              `inputs` `(` $source `:` type($source) `)`
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`dst_order` | ::mlir::AffineMapAttr | AffineMap attribute
+`mem_perm` | ::mlir::AffineMapAttr | AffineMap attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`source` | memref of any type values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`result` | memref of any type values
+
+### `VPUIP.PermuteDMA` (vpux::VPUIP::PermuteDMAOp)
+
+NN DMA task which enables permutation
+
+
+Syntax:
+
+```
+operation ::= `VPUIP.PermuteDMA` attr-dict
+              `inputs` `(` $input `:` type($input) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`dst_stride` | mlir::IntegerAttr | Integer attribute
+`port` | mlir::IntegerAttr | Integer attribute
+`is_out_of_order` | ::mlir::UnitAttr | unit attribute
+`is_critical` | ::mlir::UnitAttr | unit attribute
+`mem_perm` | ::mlir::AffineMapAttr | AffineMap attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of any type values
+`output_buff` | memref of any type values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of any type values
+
 ### `VPUIP.PermuteUPA` (vpux::VPUIP::PermuteUPAOp)
 
 Permute UPA SHAVE kernel
@@ -1821,7 +2301,7 @@ Syntax:
 ```
 operation ::= `VPUIP.ProposalUPA` attr-dict
               `inputs` `(` $class_probs `:` type($class_probs) `,` $bbox_deltas `:` type($bbox_deltas) `,` $image_shape `:` type($image_shape) `)`
-              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `,` $probs_buff `:` type($probs_buff) `)`
               `->` type(results)
 ```
 
@@ -1840,16 +2320,18 @@ operation ::= `VPUIP.ProposalUPA` attr-dict
 `bbox_deltas` | memref of 16-bit float values
 `image_shape` | memref of 16-bit float values
 `output_buff` | memref of 16-bit float values
+`probs_buff` | memref of 16-bit float values
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
 `output` | memref of 16-bit float values
+`probs` | memref of 16-bit float values
 
 ### `VPUIP.QuantCastUPA` (vpux::VPUIP::QuantCastUPAOp)
 
-FakeQuantize UPA SHAVE kernel
+QuantCast UPA SHAVE kernel
 
 
 Syntax:
@@ -1874,6 +2356,32 @@ operation ::= `VPUIP.QuantCastUPA` attr-dict
 | Result | Description |
 | :----: | ----------- |
 `output` | memref of 16-bit float or QuantizedType values
+
+### `VPUIP.QuantizeCast` (vpux::VPUIP::QuantizeCastOp)
+
+Operation that changes the quantization information of a buffer
+
+
+Syntax:
+
+```
+operation ::= `VPUIP.QuantizeCast` attr-dict
+              `inputs` `(` $input `:` type($input) `)`
+              `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of 8-bit signed integer or 8-bit unsigned integer or QuantizedType values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 8-bit signed integer or 8-bit unsigned integer or QuantizedType values
 
 ### `VPUIP.ROIAlignUPA` (vpux::VPUIP::ROIAlignUPAOp)
 
@@ -2248,6 +2756,73 @@ operation ::= `VPUIP.SelectUPA` attr-dict
 | :----: | ----------- |
 `output` | memref of 32-bit signed integer or 16-bit float values
 
+### `VPUIP.SeluUPA` (vpux::VPUIP::SeluUPAOp)
+
+Selu UPA SHAVE kernel
+
+
+Syntax:
+
+```
+operation ::= `VPUIP.SeluUPA` attr-dict
+              `inputs` `(` $data `:` type($data) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`alphaValue` | ::mlir::FloatAttr | 64-bit float attribute
+`lambdaValue` | ::mlir::FloatAttr | 64-bit float attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`data` | memref of 16-bit float values
+`output_buff` | memref of 16-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float values
+
+### `VPUIP.ShapeCast` (vpux::VPUIP::ShapeCastOp)
+
+Operation that changes the shape information of a buffer
+
+
+Syntax:
+
+```
+operation ::= `VPUIP.ShapeCast` attr-dict
+              `inputs` `(` $source `:` type($source) `)`
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`shape` | ::mlir::ArrayAttr | 64-bit integer array attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`source` | memref of any type values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`result` | memref of any type values
+
 ### `VPUIP.SigmoidUPA` (vpux::VPUIP::SigmoidUPAOp)
 
 Sigmoid UPA SHAVE kernel
@@ -2485,6 +3060,62 @@ operation ::= `VPUIP.SqrtUPA` attr-dict
 | :----: | ----------- |
 `output` | memref of 16-bit float values
 
+### `VPUIP.StaticAlloc` (vpux::VPUIP::StaticAllocOp)
+
+Static buffer allocation
+
+
+Syntax:
+
+```
+operation ::= `VPUIP.StaticAlloc` `<` $offset `>` attr-dict `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`offset` | mlir::IntegerAttr | Integer attribute
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`memory` | memref of any type values
+
+### `VPUIP.StorageElementTable` (vpux::VPUIP::StorageElementTableOp)
+
+Declares Storage Element Pointers table
+
+
+Syntax:
+
+```
+operation ::= `VPUIP.StorageElementTable` attr-dict `->` type(results)
+```
+
+Declares Storage Element Pointers table with defined width, 
+height, number of output pixels each SE contains(seSize), amount of SE 
+per tensor depth(seDepth) and not empty list of base pointers for each 
+element.
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`seDepth` | mlir::IntegerAttr | Integer attribute
+`seSize` | mlir::IntegerAttr | Integer attribute
+`height` | mlir::IntegerAttr | Integer attribute
+`width` | mlir::IntegerAttr | Integer attribute
+`base_ptrs` | ::mlir::ArrayAttr | 32-bit integer array attribute
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 32-bit unsigned integer values
+
 ### `VPUIP.StridedSlice` (vpux::VPUIP::StridedSliceUPAOp)
 
 StridedSlice UPA SHAVE kernel
@@ -2521,6 +3152,39 @@ operation ::= `VPUIP.StridedSlice` attr-dict
 | :----: | ----------- |
 `output` | memref of 16-bit float values
 
+### `VPUIP.SubView` (vpux::VPUIP::SubViewOp)
+
+Extract single subview from buffer
+
+
+Syntax:
+
+```
+operation ::= `VPUIP.SubView` $source $static_offsets $static_sizes ($static_strides^)?
+              attr-dict `:` type($source) `to` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`static_offsets` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`static_sizes` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`static_strides` | ::mlir::ArrayAttr | 64-bit integer array attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`source` | memref of any type values or VPUIP buffer type to describe the buffer tiling or VPUIP Sparse Buffer Type
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`result` | memref of any type values or VPUIP buffer type to describe the buffer tiling or VPUIP Sparse Buffer Type
+
 ### `VPUIP.SW.Kernel` (vpux::VPUIP::SwKernelOp)
 
 Software Layer Task
@@ -2533,6 +3197,7 @@ operation ::= `VPUIP.SW.Kernel` attr-dict
               $kernelFunction
               `inputs` `(`$inputs `:` type($inputs)`)`
               `outputs` `(`$output_buffs `:` type($output_buffs)`)`
+              (`profiling_data` `(` $profiling_data^  `:` type($profiling_data) `)`)?
               (`on` `tile` $tileIndex^)?
               `->` type(results)
               $body
@@ -2553,12 +3218,14 @@ This operation defines Activation shave task
 | :-----: | ----------- |
 `inputs` | memref of any type values
 `output_buffs` | memref of any type values
+`profiling_data` | memref of 32-bit unsigned integer values
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
 `results` | memref of any type values
+`profiling_output` | memref of 32-bit unsigned integer values
 
 ### `VPUIP.SW.Kernel.run` (vpux::VPUIP::SwKernelRun)
 
@@ -2583,7 +3250,7 @@ operation ::= `VPUIP.SW.Kernel.run` attr-dict
 
 | Operand | Description |
 | :-----: | ----------- |
-`args` | any type
+`args` | memref of any type values
 
 ### `VPUIP.SwishUPA` (vpux::VPUIP::SwishUPAOp)
 
@@ -2646,6 +3313,33 @@ operation ::= `VPUIP.TanhUPA` attr-dict
 | Result | Description |
 | :----: | ----------- |
 `output` | memref of 16-bit float values
+
+### `VPUIP.Timestamp` (vpux::VPUIP::TimestampOp)
+
+Get timer timestamp operation
+
+
+Syntax:
+
+```
+operation ::= `VPUIP.Timestamp` attr-dict
+              `(` $output_buff `:` type($output_buff) `)`
+              `->` type($output)
+```
+
+Get timer timestamp operation
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`output_buff` | memref of 32-bit unsigned integer or 64-bit unsigned integer values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 32-bit unsigned integer or 64-bit unsigned integer values
 
 ### `VPUIP.TopK` (vpux::VPUIP::TopKUPAOp)
 
@@ -2739,16 +3433,16 @@ operation ::= `VPUIP.YuvToRgbUPA` attr-dict
 
 | Operand | Description |
 | :-----: | ----------- |
-`input1` | memref of 8-bit signless integer or 16-bit float or 32-bit float values
-`input2` | memref of 8-bit signless integer or 16-bit float or 32-bit float values
-`input3` | memref of 8-bit signless integer or 16-bit float or 32-bit float values
-`output_buff` | memref of 8-bit signless integer or 16-bit float or 32-bit float values
+`input1` | memref of 8-bit unsigned integer or 16-bit float or 32-bit float values
+`input2` | memref of 8-bit unsigned integer or 16-bit float or 32-bit float values
+`input3` | memref of 8-bit unsigned integer or 16-bit float or 32-bit float values
+`output_buff` | memref of 8-bit unsigned integer or 16-bit float or 32-bit float values
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-`output` | memref of 8-bit signless integer or 16-bit float or 32-bit float values
+`output` | memref of 8-bit unsigned integer or 16-bit float or 32-bit float values
 
 ## Type definition
 
@@ -2767,4 +3461,17 @@ This type of buffer is used together with the ClusterTiling operation
 | layout | `mlir::MemRefLayoutAttrInterface` |  |
 | memSpace | `vpux::IndexedSymbolAttr` |  |
 | distribution | `VPU::DistributedTensorAttr` |  |
+
+### SparseBufferType
+
+VPUIP Sparse Buffer Type
+
+This object represents a set of memory references that compose sparse data
+#### Parameters:
+
+| Parameter | C++ type | Description |
+| :-------: | :-------: | ----------- |
+| data | `mlir::MemRefType` |  |
+| sparsityMap | `mlir::MemRefType` |  |
+| storageElementTable | `mlir::MemRefType` |  |
 

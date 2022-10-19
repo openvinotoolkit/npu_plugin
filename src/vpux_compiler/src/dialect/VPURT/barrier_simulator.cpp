@@ -192,6 +192,10 @@ void vpux::VPURT::BarrierSimulator::parseTasks(mlir::Operation* parentOp) {
                 port = dmaOp.port();
             } else if (auto compressedDmaOp = mlir::dyn_cast<VPUIP::CompressedDMAOp>(wrappedTaskOp)) {
                 port = compressedDmaOp.port();
+            } else if (auto depthToSpaceDMAOp = mlir::dyn_cast<VPUIP::DepthToSpaceDMAOp>(wrappedTaskOp)) {
+                port = depthToSpaceDMAOp.port();
+            } else if (auto permuteDMAOp = mlir::dyn_cast<VPUIP::PermuteDMAOp>(wrappedTaskOp)) {
+                port = permuteDMAOp.port();
             } else {
                 VPUX_THROW("Could not cast to DMA task");
             }
@@ -222,6 +226,12 @@ void vpux::VPURT::BarrierSimulator::parseTasks(mlir::Operation* parentOp) {
 
         case VPU::ExecutorKind::SHAVE_UPA: {
             _upaTasks.emplace_back(virtualDep);
+            updateBarrierConfigs(taskOp);
+            break;
+        }
+
+        case VPU::ExecutorKind::M2I: {
+            _m2iTasks.emplace_back(virtualDep);
             updateBarrierConfigs(taskOp);
             break;
         }
@@ -292,17 +302,19 @@ mlir::LogicalResult vpux::VPURT::BarrierSimulator::simulateBarriers(Logger log, 
     size_t dpu = 0;
     size_t act = 0;
     size_t upa = 0;
+    size_t m2i = 0;
     bool progressed = false;
 
     log.trace("Simulating barrier flow ({0}) with {1} barries", _isDynamicBarriers ? "assignment" : "validation",
               toVirtual.size());
 
     for (; bar < _barriers.size() || dma[0] < _dmaTasks[0].size() || dma[1] < _dmaTasks[1].size() ||
-           dpu < _nceTasks.size() || act < _actTasks.size() || upa < _upaTasks.size();
+           dpu < _nceTasks.size() || act < _actTasks.size() || upa < _upaTasks.size() || m2i < _m2iTasks.size();
          progressed = false) {
-        log.nest(1).trace("DMA: {0} / {1}, {2} / {3}; DPU: {4} / {5}; ACT: {6} / {7}; UPA: {8} / {9}; BAR: {10} / {11}",
+        log.nest(1).trace("DMA: {0} / {1}, {2} / {3}; DPU: {4} / {5}; ACT: {6} / {7}; UPA: {8} / {9}; M2I: {10} / "
+                          "{11}; BAR: {12} / {13}",
                           dma[0], _dmaTasks[0].size(), dma[1], _dmaTasks[1].size(), dpu, _nceTasks.size(), act,
-                          _actTasks.size(), upa, _upaTasks.size(), bar, _barriers.size());
+                          _actTasks.size(), upa, _upaTasks.size(), m2i, _m2iTasks.size(), bar, _barriers.size());
 
         // Static vs dynamic barriers need a different loop exit condition
         const auto hasBarriersToMap = [&]() {
@@ -407,11 +419,29 @@ mlir::LogicalResult vpux::VPURT::BarrierSimulator::simulateBarriers(Logger log, 
             log.nest(3).trace("UPA[{0}]: waits: {1}, posts: {2}", upa, dt.waits, dt.posts);
         }
 
+        // Process M2I tasks
+        log.nest(2).trace("Process M2I tasks");
+        for (; m2i < _m2iTasks.size(); ++m2i, progressed = true) {
+            auto& dt = _m2iTasks[m2i];
+
+            const auto status =
+                    processSim(_vdt.dep(dt.virtualDep), dt, dt.count, "M2I", m2i, toVirtual, nextReal, log.nest(3));
+
+            if (status == Status::Fail) {
+                return mlir::failure();
+            }
+            if (status == Status::Skip) {
+                break;
+            }
+
+            log.nest(3).trace("M2I[{0}]: waits: {1}, posts: {2}", m2i, dt.waits, dt.posts);
+        }
+
         if (!progressed) {
             log.error("Barrier simulation blocked at DMA: {0} / {1}, {2} / {3}; DPU: {4} / {5}; ACT: {6} / {7}; UPA: "
-                      "{8} / {9}; BAR: {10} / {11}",
+                      "{8} / {9}; M2I: {10} / {11}; BAR: {12} / {13}",
                       dma[0], _dmaTasks[0].size(), dma[1], _dmaTasks[1].size(), dpu, _nceTasks.size(), act,
-                      _actTasks.size(), upa, _upaTasks.size(), bar, _barriers.size());
+                      _actTasks.size(), upa, _upaTasks.size(), m2i, _m2iTasks.size(), bar, _barriers.size());
 
             for (size_t b = 0; b < bar; ++b) {
                 if (_barriers[b].producerCount != 0 || _barriers[b].consumerCount != 0)

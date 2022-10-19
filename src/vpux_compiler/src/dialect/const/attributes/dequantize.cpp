@@ -49,7 +49,7 @@ Const::Content vpux::Const::DequantizeAttr::transform(vpux::Const::Content& inpu
     auto output = Const::Content::allocTempBuffer(inferOutputType(input.getType()),
                                                   mlir::Float32Type::get(getContext()), input.isSplat());
 
-    const auto qElemType = input.getElementType().dyn_cast<mlir::quant::QuantizedType>();
+    const auto qElemType = input.getType().getElementType().dyn_cast<mlir::quant::QuantizedType>();
     VPUX_THROW_UNLESS(qElemType != nullptr, "Got non quantized type '{0}' in 'DequantizeAttr'");
 
     const auto qVals = input.getValues<int64_t>();

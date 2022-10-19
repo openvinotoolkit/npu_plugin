@@ -32,6 +32,25 @@ mlir::LogicalResult VPU::sameOrder(VPUIP::DistributedBufferType inDistributedTyp
 }
 
 //
+// materializeConstant
+//
+
+mlir::Operation* vpux::VPU::VPUDialect::materializeConstant(mlir::OpBuilder& builder, mlir::Attribute value,
+                                                            mlir::Type type, mlir::Location loc) {
+    if (!value.isa<Const::ContentAttr>()) {
+        (void)errorAt(loc, "Can't materialize VPU Constant from Attribute '{0}'", value);
+        return nullptr;
+    }
+
+    if (!type.isa<mlir::RankedTensorType>()) {
+        (void)errorAt(loc, "Can't materialize VPU Constant for Type '{0}'", type);
+        return nullptr;
+    }
+
+    return builder.create<Const::DeclareOp>(loc, type, value.cast<Const::ContentAttr>());
+}
+
+//
 // Generated
 //
 

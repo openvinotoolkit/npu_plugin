@@ -13,8 +13,9 @@ and that the number of producers to a barrier is less than 256.
 
 #### Options
 ```
--num-barriers          : Number of physical barriers, available for use
--num-slots-per-barrier : Number of producer slots per barrier, available for use
+-use-cycle-based-barrier-scheduler : Flag to use cycle based barrier scheduler
+-num-barriers                      : Number of physical barriers, available for use
+-num-slots-per-barrier             : Number of producer slots per barrier, available for use
 ```
 ### `-barrier-simulation`: Simulate barriers
 Simulates the physical barrier execution and stops compilation on fail.

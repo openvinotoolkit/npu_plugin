@@ -8,8 +8,8 @@
 #pragma once
 
 #include "vpux/compiler/core/attributes/shape.hpp"
-#include "vpux/compiler/core/ops_interfaces.hpp"
 #include "vpux/compiler/core/type_interfaces.hpp"
+#include "vpux/compiler/dialect/EMU/graph-schema/blob_writer.hpp"
 #include "vpux/compiler/dialect/IE/attributes/enums.hpp"
 
 #include <mlir/Dialect/Quant/QuantTypes.h>
@@ -24,7 +24,7 @@ namespace vpux {
 // Utilities for quantized types
 //
 
-mlir::LogicalResult validateQuantElemType(mlir::Location loc, mlir::ShapedType mainType);
+mlir::LogicalResult validateQuantElemType(mlir::Location loc, vpux::NDTypeInterface mainType);
 
 mlir::Type normalizeQuantStorageType(mlir::quant::QuantizedType qType);
 
@@ -36,6 +36,8 @@ mlir::quant::UniformQuantizedPerAxisType tileScalesAndZP(mlir::quant::UniformQua
 
 mlir::quant::UniformQuantizedPerAxisType changeAxis(mlir::quant::UniformQuantizedPerAxisType perAxisQType,
                                                     int32_t axis);
+
+mlir::quant::QuantizedType changeStorageType(mlir::quant::QuantizedType qType, mlir::Type storageType);
 
 bool canBeMerged(mlir::quant::UniformQuantizedPerAxisType type1, mlir::quant::UniformQuantizedPerAxisType type2);
 mlir::quant::UniformQuantizedPerAxisType concatScalesAndZP(ArrayRef<mlir::quant::UniformQuantizedPerAxisType> types);
@@ -52,11 +54,28 @@ public:
     int64_t mult() const;
     int64_t shift() const;
     int64_t postShift() const;
+    void setMult(uint16_t mult);
+    void setShift(uint8_t shift);
 
 private:
     uint16_t _mult;
     uint8_t _shift;
     int8_t _postShift;
+};
+
+class EltwiseQuantizationApproximation {
+public:
+    EltwiseQuantizationApproximation(vpux::VPU::ArchKind architecture, double input1Target, double input2Target,
+                                     double outputTarget);
+
+    QuantizationApproximation input1() const;
+    QuantizationApproximation input2() const;
+    QuantizationApproximation output() const;
+
+private:
+    QuantizationApproximation _input1;
+    QuantizationApproximation _input2;
+    QuantizationApproximation _output;
 };
 
 class PReLUApproximation {
@@ -104,6 +123,13 @@ float dequantize(int64_t qVal, double scale, int64_t zeroPoint);
 //
 
 int32_t toFixedPoint(const double realVal);
+
+//
+//  Serialize Scales And ZeroPoints for Emulator serializer
+//
+
+std::pair<EMU::BlobWriter::Vector<uint16_t>, EMU::BlobWriter::Vector<uint16_t>> serializeScalesAndZeroPointsEmu(
+        mlir::Value input, mlir::Value output, EMU::BlobWriter& writer);
 
 // Broadcasting
 

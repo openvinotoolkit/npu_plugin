@@ -8,7 +8,6 @@
 #pragma once
 
 #include "vpux/compiler/core/type_interfaces.hpp"
-#include "vpux/compiler/dialect/IERT/attributes/structs.hpp"
 #include "vpux/compiler/dialect/VPU/attributes.hpp"
 #include "vpux/compiler/dialect/VPU/type_interfaces.hpp"
 

@@ -4,8 +4,9 @@
 //
 
 #include "vpux/compiler/core/feasible_memory_scheduler_spilling.hpp"
-
+#include "vpux/compiler/core/cost_model_utils.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
+#include "vpux/compiler/dialect/VPUIP/utils.hpp"
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
 
@@ -74,13 +75,13 @@ void FeasibleMemorySchedulerSpilling::removeComputeOpRelocationSpills(
             // Search for corresponding ORIGINAL op and check
             // if it is at closest previous time
             for (size_t i = opIndex - 1; i < scheduledOps.size(); i--) {
-                if (!prevTime.hasValue() && scheduledOps[i].time_ < scheduledOps[spillWriteIndex].time_) {
+                if (!prevTime.hasValue() && scheduledOps[i].cycleBegin_ < scheduledOps[spillWriteIndex].cycleBegin_) {
                     // Identified previous time value
-                    prevTime = scheduledOps[i].time_;
+                    prevTime = scheduledOps[i].cycleBegin_;
                 }
 
                 if (prevTime.hasValue()) {
-                    if (scheduledOps[i].time_ < prevTime) {
+                    if (scheduledOps[i].cycleBegin_ < prevTime) {
                         // Time of op in given iteration is smaller than closest previous time
                         // In such case break early as that means that COMPUTEOP -> SPILL_WRITE
                         // sequence does not appear immediately one after the other
@@ -103,12 +104,12 @@ void FeasibleMemorySchedulerSpilling::removeComputeOpRelocationSpills(
             // Search for matching SPILL_READ op and check
             // if it is at closest next time
             for (size_t i = opIndex + 1; i < scheduledOps.size(); i++) {
-                if (!nextTime.hasValue() && scheduledOps[i].time_ > scheduledOps[spillWriteIndex].time_) {
-                    nextTime = scheduledOps[i].time_;
+                if (!nextTime.hasValue() && scheduledOps[i].cycleBegin_ > scheduledOps[spillWriteIndex].cycleBegin_) {
+                    nextTime = scheduledOps[i].cycleBegin_;
                 }
 
                 if (nextTime.hasValue()) {
-                    if (scheduledOps[i].time_ > nextTime) {
+                    if (scheduledOps[i].cycleBegin_ > nextTime) {
                         // Time of op in given iteration is larger than closest next time
                         // In such case break early as that means that SPILL_WRITE -> SPILL_READ
                         // sequence does not appear immediately one after the other
@@ -196,8 +197,8 @@ void FeasibleMemorySchedulerSpilling::removeComputeOpRelocationSpills(
             bool operationOwnsBuffer = true;
             auto* bodyBlock = &_depsInfo.getExecuteOpAtIndex(origOp.op_).body().front();
             for (auto& op : bodyBlock->getOperations()) {
-                if (mlir::isa<IERT::LayerOpInterface>(op)) {
-                    auto layerOp = mlir::dyn_cast<IERT::LayerOpInterface>(op);
+                if (mlir::isa<VPUIP::LayerOpInterface>(op)) {
+                    auto layerOp = mlir::dyn_cast<VPUIP::LayerOpInterface>(op);
 
                     for (auto output : layerOp.getOutputs()) {
                         const auto type = output.getType().dyn_cast<vpux::NDTypeInterface>();
@@ -239,11 +240,11 @@ void FeasibleMemorySchedulerSpilling::removeComputeOpRelocationSpills(
             _log.trace("Identified COMPUTEOP -> SPILL_WRITE -> SPILL_READ sequence that can be optimized");
 
             _log.nest().trace("op = '{0}'\t type = '{1}'\t time = '{2}'", origOp.op_, origOp.opTypeName(),
-                              origOp.time_);
+                              origOp.cycleBegin_);
             _log.nest().trace("op = '{0}'\t type = '{1}'\t time = '{2}'", spillWriteOp.op_, spillWriteOp.opTypeName(),
-                              spillWriteOp.time_);
+                              spillWriteOp.cycleBegin_);
             _log.nest().trace("op = '{0}'\t type = '{1}'\t time = '{2}'", spillReadOp.op_, spillReadOp.opTypeName(),
-                              spillReadOp.time_);
+                              spillReadOp.cycleBegin_);
 
             // ComputeOp output buffer range can be assigned resulting range of SPILL_READ
             // First find matching buffer that was spilled
@@ -346,7 +347,7 @@ void FeasibleMemorySchedulerSpilling::optimizeDataOpsSpills(
         for (auto& i : dataOp.second) {
             auto& op = scheduledOps[i];
             _log.nest(2).trace("['{0}']: op = '{1}'\t type = '{2}'\t time = '{3}'", i, op.op_, op.opTypeName(),
-                               op.time_);
+                               op.cycleBegin_);
         }
     }
 
@@ -577,7 +578,7 @@ mlir::async::ExecuteOp FeasibleMemorySchedulerSpilling::insertSpillWriteCopyOp(m
     auto spillWriteExecOp =
             builder.create<mlir::async::ExecuteOp>(spillWriteNameLoc, spillBuffer->getResultTypes(), None, None);
 
-    IERT::CopyOp spillWriteCopyOp;
+    VPUIP::CopyOp spillWriteCopyOp;
 
     auto bodyBlock = &spillWriteExecOp.body().front();
     builder.setInsertionPointToStart(bodyBlock);
@@ -588,7 +589,7 @@ mlir::async::ExecuteOp FeasibleMemorySchedulerSpilling::insertSpillWriteCopyOp(m
         SmallVector<mlir::Value> inputsOutputOperands = {bufferToSpill, spillBuffer.memref()};
 
         const auto bodyBuilder = [&](mlir::OpBuilder& builder, mlir::Location loc, mlir::ValueRange newOperands) {
-            spillWriteCopyOp = builder.create<IERT::CopyOp>(loc, newOperands[0], newOperands[1]);
+            spillWriteCopyOp = builder.create<VPUIP::CopyOp>(loc, newOperands[0], newOperands[1]);
         };
 
         auto clusterTilingOp = builder.create<VPUIP::NCEClusterTilingOp>(spillWriteNameLoc, spillBufferType,
@@ -597,7 +598,7 @@ mlir::async::ExecuteOp FeasibleMemorySchedulerSpilling::insertSpillWriteCopyOp(m
         _aliasInfo.addAlias(spillBuffer.memref(), clusterTilingOp.results()[0]);
     } else {
         // Create CopyOp in the body of new AsyncExecOp
-        spillWriteCopyOp = builder.create<IERT::CopyOp>(spillWriteNameLoc, bufferToSpill, spillBuffer.memref());
+        spillWriteCopyOp = builder.create<VPUIP::CopyOp>(spillWriteNameLoc, bufferToSpill, spillBuffer.memref());
         builder.create<mlir::async::YieldOp>(spillWriteNameLoc, spillWriteCopyOp->getResults());
     }
 
@@ -606,10 +607,10 @@ mlir::async::ExecuteOp FeasibleMemorySchedulerSpilling::insertSpillWriteCopyOp(m
     _aliasInfo.addAlias(spillBuffer.memref(), spillWriteExecOp.results()[0]);
 
     // Update executor attributes of new AsyncExecOp
-    auto copyOpExecutor = mlir::dyn_cast_or_null<IERT::AsyncLayerOpInterface>(spillWriteCopyOp.getOperation());
+    auto copyOpExecutor = mlir::dyn_cast_or_null<VPUIP::AsyncLayerOpInterface>(spillWriteCopyOp.getOperation());
     auto executor = copyOpExecutor.getExecutor();
     if (executor != nullptr) {
-        IERT::IERTDialect::setExecutor(spillWriteExecOp, executor);
+        VPUIP::VPUIPDialect::setExecutor(spillWriteExecOp, executor);
     }
 
     // Update dependencies map and get new operation index
@@ -638,8 +639,13 @@ mlir::async::ExecuteOp FeasibleMemorySchedulerSpilling::insertSpillReadCopyOp(ml
     mlir::OpBuilder builder(_allocOpInsertionPoint);
     builder.setInsertionPoint(_allocOpInsertionPoint);
     mlir::Operation* newBufferOp;
-    if (bufferToSpill.getType().isa<VPUIP::DistributedBufferType>()) {
-        newBufferOp = builder.create<VPURT::AllocDistributed>(spillReadNameLoc, bufferToSpill.getType());
+    if (auto distAllocOp = bufferToSpill.getDefiningOp<VPURT::AllocDistributed>()) {
+        newBufferOp = builder.create<VPURT::AllocDistributed>(
+                spillReadNameLoc, bufferToSpill.getType(), distAllocOp.alignmentAttr(), distAllocOp.swizzlingKeyAttr());
+    } else if (auto allocOp = bufferToSpill.getDefiningOp<VPURT::Alloc>()) {
+        // In case original spilled buffer had swizzling attribute, populate it to newly allocated buffer
+        newBufferOp = builder.create<VPURT::Alloc>(spillReadNameLoc, bufferToSpill.getType().cast<mlir::MemRefType>(),
+                                                   allocOp.alignmentAttr(), allocOp.swizzlingKeyAttr());
     } else {
         newBufferOp = builder.create<mlir::memref::AllocOp>(spillReadNameLoc,
                                                             bufferToSpill.getType().cast<mlir::MemRefType>());
@@ -677,7 +683,7 @@ mlir::async::ExecuteOp FeasibleMemorySchedulerSpilling::insertSpillReadCopyOp(ml
     spillReadExecOp.operandsMutable().append(spillWriteResult);
     auto innerAsyncArgForSpill = spillReadExecOp.getBody()->addArgument(spillWriteAsyncType.getValueType());
 
-    IERT::CopyOp spillReadCopyOp;
+    VPUIP::CopyOp spillReadCopyOp;
 
     auto bodyBlock = &spillReadExecOp.body().front();
     builder.setInsertionPointToStart(bodyBlock);
@@ -688,7 +694,7 @@ mlir::async::ExecuteOp FeasibleMemorySchedulerSpilling::insertSpillReadCopyOp(ml
         SmallVector<mlir::Value> inputsOutputOperands = {innerAsyncArgForSpill, newBufferResult};
 
         const auto bodyBuilder = [&](mlir::OpBuilder& builder, mlir::Location loc, mlir::ValueRange newOperands) {
-            spillReadCopyOp = builder.create<IERT::CopyOp>(loc, newOperands[0], newOperands[1]);
+            spillReadCopyOp = builder.create<VPUIP::CopyOp>(loc, newOperands[0], newOperands[1]);
         };
 
         auto clusterTilingOp = builder.create<VPUIP::NCEClusterTilingOp>(spillReadNameLoc, bufferToSpill.getType(),
@@ -697,7 +703,7 @@ mlir::async::ExecuteOp FeasibleMemorySchedulerSpilling::insertSpillReadCopyOp(ml
         _aliasInfo.addAlias(newBufferResult, clusterTilingOp.results()[0]);
     } else {
         // Create CopyOp in the body of new AsyncExecOp
-        spillReadCopyOp = builder.create<IERT::CopyOp>(spillReadNameLoc, innerAsyncArgForSpill, newBufferResult);
+        spillReadCopyOp = builder.create<VPUIP::CopyOp>(spillReadNameLoc, innerAsyncArgForSpill, newBufferResult);
         builder.create<mlir::async::YieldOp>(spillReadNameLoc, spillReadCopyOp->getResults());
     }
 
@@ -706,10 +712,10 @@ mlir::async::ExecuteOp FeasibleMemorySchedulerSpilling::insertSpillReadCopyOp(ml
     _aliasInfo.addAlias(newBufferResult, spillReadExecOp.results()[0]);
 
     // Update executor attributes of new AsyncExecOp
-    auto copyOpExecutor = mlir::dyn_cast_or_null<IERT::AsyncLayerOpInterface>(spillReadCopyOp.getOperation());
+    auto copyOpExecutor = mlir::dyn_cast_or_null<VPUIP::AsyncLayerOpInterface>(spillReadCopyOp.getOperation());
     auto executor = copyOpExecutor.getExecutor();
     if (executor != nullptr) {
-        IERT::IERTDialect::setExecutor(spillReadExecOp, executor);
+        VPUIP::VPUIPDialect::setExecutor(spillReadExecOp, executor);
     }
 
     // Update dependencies map and get new operation index
@@ -729,7 +735,7 @@ mlir::Operation* FeasibleMemorySchedulerSpilling::SpillUsersUpdate::getViewOpFor
     mlir::Value sourceAlias = asyncResult;
     while ((sourceAlias = _spillingParentClass._aliasInfo.getSource(sourceAlias))) {
         auto sourceOp = sourceAlias.getDefiningOp();
-        if (IERT::isPureViewOp(sourceOp)) {
+        if (VPUIP::isPureViewOp(sourceOp)) {
             if (auto viewOp = mlir::dyn_cast<mlir::ViewLikeOpInterface>(sourceOp)) {
                 if (viewOp.getViewSource() == _bufferToSpill) {
                     VPUX_THROW_UNLESS(
@@ -904,6 +910,16 @@ void FeasibleMemorySchedulerSpilling::createSpillWrite(
     _log = _log.nest();
     _log.trace("Create Spill Write for buffer - '{0}'", schedOpBuffer);
 
+    // TODO: Swizzling for spilled buffers of size not multiple of 512 is not yet supported- E#48022
+    if (auto allocOp = schedOpBuffer.getDefiningOp<VPURT::Alloc>()) {
+        auto allocSize = schedOpBuffer.getType().cast<NDTypeInterface>().getTotalAllocSize().count();
+        // For swizzled buffers check if size is not a multiple of 512. In such case
+        // CopyOp used for spilling would need to copy adjusted size what is not yet
+        // supported
+        VPUX_THROW_WHEN(allocOp.swizzlingKey().hasValue() && (allocSize % VPUIP::SWIZZLING_SIZE_ALIGNMENT),
+                        "Spilling of swizzled buffer with size '{0}' is not yet supported", allocSize);
+    }
+
     // Get the insertion point. Pick first non-implicit previous op
     // SpillWrite operation will be inserted just after it
     mlir::async::ExecuteOp spillWriteInsertionPoint = nullptr;
@@ -931,12 +947,16 @@ void FeasibleMemorySchedulerSpilling::createSpillWrite(
                                                    schedOp.beginInputResource(0));
     _opIdAndSpillWritePairs.push_back({schedOpBuffer, spillWriteExecOp});
 
+    // store cycles for barrier scheduler
+    spillWriteExecOp->setAttr(cycleBegin, getIntAttr(spillWriteExecOp->getContext(), schedOp.cycleBegin_));
+    spillWriteExecOp->setAttr(cycleEnd, getIntAttr(spillWriteExecOp->getContext(), schedOp.cycleEnd_));
+
     size_t spillWriteIndex = _depsInfo.getIndex(spillWriteExecOp);
     _log.trace("Spill Write new opId - '{0}'", spillWriteIndex);
 
     // After implicit spill write operation has been replaced with a proper copy op task then update
     // scheduled ops structure
-    schedOp.opType_ = FeasibleMemoryScheduler::EOpType::ORIGINAL_OP;
+    schedOp.opType_ = FeasibleMemoryScheduler::EOpType::ORIGINAL_SPILL_WRITE_OP;
     schedOp.op_ = spillWriteIndex;
     _log = _log.unnest();
 }
@@ -984,6 +1004,10 @@ void FeasibleMemorySchedulerSpilling::createSpillRead(
     auto spillReadExecOp = insertSpillReadCopyOp(opThatWasSpilled, spillBuffer, spillWriteExecOp,
                                                  spillReadInsertionPoint, schedOp.beginOutputResource(0));
 
+    // store cycles for barrier scheduler
+    spillReadExecOp->setAttr(cycleBegin, getIntAttr(spillReadExecOp->getContext(), schedOp.cycleBegin_));
+    spillReadExecOp->setAttr(cycleEnd, getIntAttr(spillReadExecOp->getContext(), schedOp.cycleEnd_));
+
     // After both SpillWrite and SpillRead are inserted update connections
     updateSpillWriteReadUsers(spillBuffer, spillWriteExecOp, spillReadExecOp);
 
@@ -1002,7 +1026,7 @@ void FeasibleMemorySchedulerSpilling::createSpillRead(
     }
     // After implicit spillRead operation has been replaced with a proper copy op task then update
     // scheduled ops structure
-    schedOp.opType_ = FeasibleMemoryScheduler::EOpType::ORIGINAL_OP;
+    schedOp.opType_ = FeasibleMemoryScheduler::EOpType::ORIGINAL_SPILL_READ_OP;
     schedOp.op_ = spillReadIndex;
     _log = _log.unnest();
 }

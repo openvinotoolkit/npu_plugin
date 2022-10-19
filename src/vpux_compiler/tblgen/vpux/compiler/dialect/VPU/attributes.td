@@ -24,7 +24,7 @@ def VPU_ArchKind :
                 StrEnumAttrCase<"VPUX30XX">,
                 StrEnumAttrCase<"VPUX311X">,
                 StrEnumAttrCase<"VPUX37XX">,
-                StrEnumAttrCase<"VPUX4000">,
+                StrEnumAttrCase<"VPUX40XX">,
             ]
         > {
     let cppNamespace = "vpux::VPU";
@@ -66,6 +66,7 @@ def VPU_ExecutorKind :
                 StrEnumAttrCase<"SHAVE_UPA">,
                 StrEnumAttrCase<"SHAVE_NN">,
                 StrEnumAttrCase<"SHAVE_ACT">,
+                StrEnumAttrCase<"M2I">,
             ]
         > {
     let cppNamespace = "vpux::VPU";
@@ -106,6 +107,24 @@ def VPU_SparsitySupport :
         > {
     let cppNamespace = "vpux::VPU";
     let genSpecializedAttr = 1;
+}
+
+//
+// ActivationSparsityProfile
+//
+
+def VPU_ActivationSparsityProfile :
+        StrEnumAttr<
+            "ActivationSparsityProfile",
+            "Represents desired activation sparsity profile",
+            [
+                StrEnumAttrCase<"NONE">,    // No activation sparsity
+                StrEnumAttrCase<"S0">,      // Only for ops where runtime sparsity is possible
+                StrEnumAttrCase<"S1">,      // As much as possible
+            ]
+        > {
+    let cppNamespace = "vpux::VPU";
+    let genSpecializedAttr = 0;
 }
 
 //
@@ -242,9 +261,12 @@ def VPU_PPETaskAttr :
                 StructFieldAttr<"clamp_high",       OptionalAttr<IntAttr>>,
                 StructFieldAttr<"lrelu_mult",       OptionalAttr<IntAttr>>,
                 StructFieldAttr<"lrelu_shift",      OptionalAttr<IntAttr>>,
+                StructFieldAttr<"quant_scale",      OptionalAttr<F64ArrayAttr>>,
                 StructFieldAttr<"quant_mult",       OptionalAttr<I64ArrayAttr>>,
                 StructFieldAttr<"quant_shift",      OptionalAttr<I64ArrayAttr>>,
                 StructFieldAttr<"quant_post_shift", OptionalAttr<IntAttr>>,
+                StructFieldAttr<"in1_quant_mult",       OptionalAttr<I64ArrayAttr>>,
+                StructFieldAttr<"in2_quant_mult",       OptionalAttr<I64ArrayAttr>>,
             ]
         >;
 
@@ -305,5 +327,31 @@ def VPU_DistributedTensorAttr :
                 StructFieldAttr<"alignment", OptionalAttr<I64ArrayAttr>>
             ]
         >;
+
+//
+// M2I Color Formats
+//  PL_ = planar
+//  SP_ = semi-planar
+//  IL_ = interleaved
+//
+
+def VPU_M2iColorFmt :
+        StrEnumAttr<
+            "M2iColorFmt",
+            "M2I color formats",
+            [
+                StrEnumAttrCase<"PL_YUV420_8">,
+                StrEnumAttrCase<"PL_RGB24">,
+                StrEnumAttrCase<"PL_BGR24">,
+                StrEnumAttrCase<"SP_NV12_8">,
+                StrEnumAttrCase<"PL_FP16_RGB">,
+                StrEnumAttrCase<"PL_FP16_BGR">,
+                StrEnumAttrCase<"IL_RGB888">,
+                StrEnumAttrCase<"IL_BGR888">
+            ]
+        > {
+    let cppNamespace = "vpux::VPU";
+    let genSpecializedAttr = 1;
+}
 
 #endif

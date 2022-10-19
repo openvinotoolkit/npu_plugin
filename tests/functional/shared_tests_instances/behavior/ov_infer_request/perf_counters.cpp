@@ -12,21 +12,25 @@ const std::vector<ov::AnyMap> configs = {
     {}
 };
 
-// TODO: profiling support is broken in LATENCY mode
-// [Track number: E#36465]
 const std::vector<ov::AnyMap> multiConfigs = {
     {
         ov::device::priorities(CommonTestUtils::DEVICE_KEEMBAY),
         ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)
+    },
+    {
+        ov::device::priorities(CommonTestUtils::DEVICE_KEEMBAY),
+        ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)
     }
 };
 
-// TODO: profiling support is broken in LATENCY mode
-// [Track number: E#36465]
 const std::vector<ov::AnyMap> autoConfigs = {
     {
         ov::device::priorities(CommonTestUtils::DEVICE_KEEMBAY),
         ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)
+    },
+    {
+        ov::device::priorities(CommonTestUtils::DEVICE_KEEMBAY),
+        ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)
     }
 };
 

@@ -7,9 +7,12 @@
 
 #pragma once
 
+#include "vpux/compiler/dialect/ELF/ops.hpp"
+#include "vpux/compiler/dialect/EMU/ops.hpp"
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/IERT/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
+#include "vpux/compiler/dialect/VPUIPRegMapped/ops.hpp"
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
 #include "vpux/compiler/utils/passes.hpp"
 
@@ -30,6 +33,8 @@ namespace vpux {
 //
 
 std::unique_ptr<mlir::Pass> createConvertIEToVPUNCEPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createConvertIEToVPUM2IPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createConvertLayers2VPUPass(Logger log = Logger::global());
 
 //
 // LowerIE2IERT
@@ -45,50 +50,32 @@ std::unique_ptr<mlir::Pass> createConvertIEToVPUNCEPass(Logger log = Logger::glo
 void buildLowerIE2IERTPipeline(mlir::OpPassManager& pm, Logger log = Logger::global());
 
 std::unique_ptr<mlir::Pass> createBufferizeIEPass(Logger log = Logger::global());
-std::unique_ptr<mlir::Pass> createBufferizeFuncAndReturnPass(Logger log = Logger::global());
-std::unique_ptr<mlir::Pass> createAddBuffersForNetResults(Logger log = Logger::global());
-
-//
-// Performs partial lowering from the IERT Dialect to VPUIP Dialect.
-//
-// Converts VPU Operations to VPUIP NCE Operations, where possible.
-//
-
-std::unique_ptr<mlir::Pass> createConvertVPUToVPUIPPass(Logger log = Logger::global());
-std::unique_ptr<mlir::Pass> createConvertNCEClusterTilingToVPUIPPass(Logger log = Logger::global());
 
 //
 // LowerIERT2VPUIP
 //
 
 //
-// Performs full lowering from the IERT Dialect to VPUIP Dialect.
+// Performs full lowering from the VPU Dialect to VPUIP Dialect.
 //
-// Replaces Layers with VPUIP UPA/DMA tasks counterparts and declarations with VPUIP analogues.
+// This pipeline performs full IR lowering from VPU Dialect to VPUIP Dialect,
+// including Function types, call graph and return operations.
 //
 
-struct LowerIERT2VPUIPOptions : mlir::PassPipelineOptions<LowerIERT2VPUIPOptions> {
-    BoolOption enableCompressWeights{*this, "compress-weights", llvm::cl::desc("Enable compress-weights pass"),
-                                     llvm::cl::init(false)};
+void buildLowerIERT2VPUIPPipeline(mlir::OpPassManager& pm, Logger log = Logger::global());
 
-    LowerIERT2VPUIPOptions() = default;
+std::unique_ptr<mlir::Pass> createBufferizeFuncAndReturnPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createAddBuffersForNetResults(Logger log = Logger::global());
 
-    template <
-            class OtherOptions,
-            typename = std::enable_if_t<std::is_base_of<mlir::PassPipelineOptions<OtherOptions>, OtherOptions>::value>>
-    explicit LowerIERT2VPUIPOptions(const OtherOptions& options) {
-        enableCompressWeights = options.enableCompressWeights;
-    }
-};
-
-void buildLowerIERT2VPUIPPipeline(mlir::OpPassManager& pm, const LowerIERT2VPUIPOptions& options,
-                                  Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createConvertVPUNCEToVPUIPPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createConvertNCEClusterTilingToVPUIPPass(Logger log = Logger::global());
 
 std::unique_ptr<mlir::Pass> createConvertSWLayers2VPUIPPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createConvertLayers2VPUIPPass(Logger log = Logger::global());
-std::unique_ptr<mlir::Pass> createConvertDeclarations2VPUIPPass(Logger log = Logger::global());
-std::unique_ptr<mlir::Pass> createConvertViewOps2VPUIPPass(Logger log = Logger::global());
-std::unique_ptr<mlir::Pass> createConvertAsyncOps2VPUIPPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createConvertVPUIP2VPUIPRegMappedPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createConvert2VPUIPRegMappedAndELFPass(Logger log = Logger::global());
+
+void buildLowerVPUIP2VPUIPRegMappedAndELFPipeline(mlir::OpPassManager& pm, Logger log = Logger::global());
 
 //
 // registerConversionPipelines

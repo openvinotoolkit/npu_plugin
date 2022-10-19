@@ -56,11 +56,16 @@ public:
     void Export(const std::string& modelFileName) override;
 
     /**
-     * @brief Returns values of configs options and metrics.
-     * Unlike prior to ExecutableNetwork creation, options recieved via this method
-     * are read-only. Do not try to set any of the supported options.
+     * @brief Returns values of metrics. Metrics are read-only by design.
      */
     InferenceEngine::Parameter GetMetric(const std::string& name) const override;
+
+    /**
+     * @brief Returns values of configs options
+     * Unlike prior to ExecutableNetwork creation, options received via this method
+     * are read-only because the network is already compiled with this options.
+     */
+    InferenceEngine::Parameter GetConfig(const std::string& name) const override;
 
 private:
     explicit ExecutableNetwork(const Config& config, const Device::Ptr& device);
@@ -70,6 +75,7 @@ private:
 private:
     void ConfigureStreamsExecutor(const std::string& networkName);
     InferenceEngine::ITaskExecutor::Ptr getNextTaskExecutor();
+    InferenceEngine::Parameter GetConfigValue(const std::string& name) const;
 
     const Config _config;
     Logger _logger;

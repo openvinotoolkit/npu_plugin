@@ -16,16 +16,19 @@
 
 #include <stdint.h>
 #include <stdlib.h>
+#include <fstream>
 #include <iostream>
+#include <regex>
 #include <string>
 #include <tuple>
 #include <vector>
-#include <fstream>
-#include <regex>
 
 using compilerTestParams = std::tuple<std::vector<std::string>>;
 
-class CompilerTest :public VpuxCompilerL0TestsUtils::VpuxCompilerL0TestsCommon, public testing::WithParamInterface<compilerTestParams>, public testing::Test{
+class CompilerTest :
+        public VpuxCompilerL0TestsUtils::VpuxCompilerL0TestsCommon,
+        public testing::WithParamInterface<compilerTestParams>,
+        public testing::Test {
 public:
     CompilerTest(): modelIR(), modelIRSize(0) {
     }
@@ -40,6 +43,7 @@ public:
         const std::string testCaseName = netInfo[0];
         return testCaseName;
     }
+
 private:
     std::vector<uint8_t> modelIR;
     size_t modelIRSize;
@@ -230,14 +234,14 @@ TEST_P(CompilerTest, compilerTest) {
         std::string weightName = PATH + "/" + interPath + "/" + net + ".bin";
         std::cout << "netName:" << netName << " weightName:" << weightName << std::endl;
 
-    #if defined(_WIN32)
+#if defined(_WIN32)
         bool netExist = PathFileExists(netName.c_str());
         EXPECT_EQ(netExist, true) << "The network " << netName.c_str() << " does not exist!" << std::endl;
-    #else
+#else
         struct stat buffer;
         int netExist = stat(netName.c_str(), &buffer);
         EXPECT_EQ(netExist, 0) << "The network " << netName.c_str() << " does not exist!" << std::endl;
-    #endif
+#endif
 
         EXPECT_EQ(test.init(netName.c_str(), weightName.c_str()), VCL_RESULT_SUCCESS);
     } else {
@@ -248,7 +252,8 @@ TEST_P(CompilerTest, compilerTest) {
         auto outputs = cnnSimpleNet.getOutputsInfo();
 
         // Get input/output names dynamically.
-        // In VpuxCompilerL0TestsCommon::create_simple_function, the created simple network only has one input/output, so no need to iterate through iterators.
+        // In VpuxCompilerL0TestsCommon::create_simple_function, the created simple network only has one input/output,
+        // so no need to iterate through iterators.
         std::string inputName = inputs.begin()->first;
         std::string outputName = outputs.begin()->first;
 
@@ -268,34 +273,49 @@ TEST_P(CompilerTest, compilerTest) {
         int xmlStatus = std::remove(m_out_xml_path.c_str());
         int binStatus = std::remove(m_out_bin_path.c_str());
         if (xmlStatus == 0 && binStatus == 0) {
-            std::cout << "Temp IRs" << m_out_xml_path << " and " << m_out_bin_path << " deleting succeeded!" << std::endl;;
+            std::cout << "Temp IRs" << m_out_xml_path << " and " << m_out_bin_path << " deleting succeeded!"
+                      << std::endl;
         } else {
-            std::cerr << "Temp IRs" << m_out_xml_path << " and " << m_out_bin_path << " deleting failed!" << std::endl;;
+            std::cerr << "Temp IRs" << m_out_xml_path << " and " << m_out_bin_path << " deleting failed!" << std::endl;
         }
     }
     EXPECT_EQ(test.run(netOptions), VCL_RESULT_SUCCESS);
 }
 
 // You need to export POR_PATH manually. E.g. export POR_PATH=/path/to/om-vpu-models-por-ww46
-const std::vector<std::vector<std::string>> smoke_ir_names = {{"googlenet-v1", "--inputs_precisions=\"input:U8\" --inputs_layouts=\"input:NCHW\" "
-                                                                "--outputs_precisions=\"InceptionV1/Logits/Predictions/Softmax:FP32\" --outputs_layouts=\"InceptionV1/Logits/Predictions/Softmax:NC\" "
-                                                                "--config LOG_LEVEL=\"LOG_INFO\" VPUX_COMPILATION_MODE_PARAMS=\"use-user-precision=false propagate-quant-dequant=0\"", "googlenet-v1/tf/FP16"},
-                                                               {"mobilenet-v2", "--inputs_precisions=\"result.1:fp16\" --inputs_layouts=\"result.1:NCHW\" "
-                                                                "--outputs_precisions=\"473:fp16\" --outputs_layouts=\"473:NC\" "
-                                                                "--config VPUX_PLATFORM=\"3700\" DEVICE_ID=\"VPUX.3700\" VPUX_COMPILATION_MODE=\"DefaultHW\"", "mobilenet-v2/onnx/FP16"},
-                                                               {"simple_function", "--inputs_precisions=\"SIMPLE_IN_PLACEHOLDER:fp16\" --inputs_layouts=\"SIMPLE_IN_PLACEHOLDER:NC\" "
-                                                                "--outputs_precisions=\"SIMPLE_OUT_PLACEHOLDER:fp16\" --outputs_layouts=\"SIMPLE_OUT_PLACEHOLDER:NC\" "
-                                                                "--config LOG_LEVEL=\"LOG_INFO\" VPUX_PLATFORM=\"3700\" DEVICE_ID=\"VPUX.3700\" VPUX_COMPILATION_MODE=\"DefaultHW\"", ""},
-                                                                };
+const std::vector<std::vector<std::string>> smoke_ir_names = {
+        {"googlenet-v1",
+        R"(--inputs_precisions="input:U8" --inputs_layouts="input:NCHW" )"
+        R"(--outputs_precisions="InceptionV1/Logits/Predictions/Softmax:FP32" )"
+        R"(--outputs_layouts="InceptionV1/Logits/Predictions/Softmax:NC" )"
+        R"(--config LOG_LEVEL="LOG_INFO" VPUX_COMPILATION_MODE_PARAMS="use-user-precision=false propagate-quant-dequant=0")",
+         "googlenet-v1/tf/FP16"},
+        {"mobilenet-v2",
+        R"(--inputs_precisions="result.1:fp16" --inputs_layouts="result.1:NCHW" )"
+        R"(--outputs_precisions="473:fp16" --outputs_layouts="473:NC" )"
+        R"(--config VPUX_PLATFORM="3700" DEVICE_ID="VPUX.3700" VPUX_COMPILATION_MODE="DefaultHW")",
+         "mobilenet-v2/onnx/FP16"},
+        {"simple_function",
+        R"(--inputs_precisions="SIMPLE_IN_PLACEHOLDER:fp16" --inputs_layouts="SIMPLE_IN_PLACEHOLDER:NC" )"
+        R"(--outputs_precisions="SIMPLE_OUT_PLACEHOLDER:fp16" --outputs_layouts="SIMPLE_OUT_PLACEHOLDER:NC" )"
+        R"(--config LOG_LEVEL="LOG_NONE" VPUX_PLATFORM="3700" DEVICE_ID="VPUX.3700" )"
+        R"(VPUX_COMPILATION_MODE="DefaultHW")",
+         ""},
+};
 
-const std::vector<std::vector<std::string>> ir_names = {{"resnet-50-pytorch", "--inputs_precisions=\"result.1:fp16\" --inputs_layouts=\"result.1:NCHW\" "
-                                                        "--outputs_precisions=\"495:fp16\" --outputs_layouts=\"495:NC\" "
-                                                        "--config VPUX_PLATFORM=\"3700\" DEVICE_ID=\"VPUX.3700\" VPUX_COMPILATION_MODE=\"DefaultHW\"", "resnet-50-pytorch/onnx/FP16"},
-                                                        {"yolo_v4", "--inputs_precisions=\"image_input:fp16\" --inputs_layouts=\"image_input:NCHW\" "
-                                                        "--outputs_precisions=\"conv2d_93/BiasAdd/Add:fp16 conv2d_101/BiasAdd/Add:fp16 conv2d_109/BiasAdd/Add:fp16\" "
-                                                        "--outputs_layouts=\"conv2d_93/BiasAdd/Add:NCHW conv2d_101/BiasAdd/Add:NCHW conv2d_109/BiasAdd/Add:NCHW\" "
-                                                        "--config VPUX_PLATFORM=\"3700\" DEVICE_ID=\"VPUX.3700\" VPUX_COMPILATION_MODE=\"DefaultHW\"", "yolo_v4/tf/FP16-INT8"},
-                                                        };
+const std::vector<std::vector<std::string>> ir_names = {
+        {"resnet-50-pytorch",
+        R"(--inputs_precisions="result.1:fp16" --inputs_layouts="result.1:NCHW" )"
+        R"(--outputs_precisions="495:fp16" --outputs_layouts="495:NC" )"
+        R"(--config VPUX_PLATFORM="3700" DEVICE_ID="VPUX.3700" VPUX_COMPILATION_MODE="DefaultHW")",
+         "resnet-50-pytorch/onnx/FP16"},
+        {"yolo_v4",
+        R"(--inputs_precisions="image_input:fp16" --inputs_layouts="image_input:NCHW" )"
+        R"(--outputs_precisions="conv2d_93/BiasAdd/Add:fp16 conv2d_101/BiasAdd/Add:fp16 conv2d_109/BiasAdd/Add:fp16" )"
+        R"(--outputs_layouts="conv2d_93/BiasAdd/Add:NCHW conv2d_101/BiasAdd/Add:NCHW conv2d_109/BiasAdd/Add:NCHW" )"
+        R"(--config VPUX_PLATFORM="3700" DEVICE_ID="VPUX.3700" VPUX_COMPILATION_MODE="DefaultHW")",
+         "yolo_v4/tf/FP16-INT8"},
+};
 
 const auto smoke_params = testing::Combine(testing::ValuesIn(smoke_ir_names));
 

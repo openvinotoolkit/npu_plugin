@@ -31,8 +31,17 @@ public:
     }
 
 private:
+    mlir::LogicalResult initializeOptions(StringRef options) final;
     void safeRunOnFunc() final;
 };
+
+mlir::LogicalResult MultiClusterStrategyAssignmentPass::initializeOptions(StringRef options) {
+    if (mlir::failed(Base::initializeOptions(options))) {
+        return mlir::failure();
+    }
+
+    return mlir::success();
+}
 
 //
 // safeRunOnFunc
@@ -47,8 +56,13 @@ void MultiClusterStrategyAssignmentPass::safeRunOnFunc() {
     VPUX_THROW_UNLESS(nceCluster != nullptr, "Failed to get NCE_Cluster information");
 
     if (nceCluster.count() > 1) {
+        LayerStrategyCheckerFactory::instance().registerNCEOpStrategy(func, _log);
+
         StrategyManager strategyManager(func, _log);
+        _log.trace("Greedy Strategy Assignment");
         strategyManager.assignMultiClusterStrategy();
+        _log.trace("Execute Subgraph Optimization");
+        strategyManager.optimizeMulticlusterStrategy();
     }
 }
 

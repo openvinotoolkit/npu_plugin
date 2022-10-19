@@ -1,0 +1,18 @@
+// RUN: vpux-opt --split-input-file --init-compiler="vpu-arch=%arch%" --convert-transfer-ops-to-DMAs %s | FileCheck %s
+// REQUIRES: arch-VPUX30XX || arch-VPUX37XX
+
+// CHECK-LABEL: @CopyToDMA
+func @CopyToDMA(%arg0: memref<1x2x2x2xf16>) -> memref<1x2x2x2xf16> {
+    %0 = const.Declare memref<1x2x2x2xf16> = #const.Content<dense<1.0> : tensor<1x2x2x2xf16>>
+    %1 = VPUIP.Copy inputs(%0 : memref<1x2x2x2xf16>) outputs(%arg0 : memref<1x2x2x2xf16>) -> memref<1x2x2x2xf16>
+    return %1: memref<1x2x2x2xf16>
+
+    // CHECK:       [[VAR0:%.*]] = const.Declare memref<1x2x2x2xf16>
+    // CHECK-SAME:      = #const.Content<dense<1.000000e+00> : tensor<1x2x2x2xf16>>
+
+    // CHECK:       [[VAR1:%.*]] = VPUIP.NNDMA
+    // CHECK-SAME:      inputs([[VAR0]] : memref<1x2x2x2xf16>)
+    // CHECK-SAME:      outputs(%arg0 : memref<1x2x2x2xf16>) -> memref<1x2x2x2xf16>
+
+    // CHECK: return [[VAR1]] : memref<1x2x2x2xf16>
+}

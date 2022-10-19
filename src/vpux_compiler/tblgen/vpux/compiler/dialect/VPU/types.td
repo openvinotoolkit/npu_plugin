@@ -8,12 +8,12 @@
 #ifndef VPUX_COMPILER_DIALECT_VPU_TYPES
 #define VPUX_COMPILER_DIALECT_VPU_TYPES
 
+include "vpux/compiler/core/type_interfaces.td"
 include "vpux/compiler/dialect/VPU/dialect.td"
 include "vpux/compiler/dialect/VPU/attributes.td"
 include "vpux/compiler/dialect/VPU/type_interfaces.td"
 include "vpux/compiler/core/type_interfaces.td"
 
-include "mlir/IR/BuiltinDialect.td"
 include "mlir/IR/SubElementInterfaces.td"
 
 // Base class for VPU dialect types.
@@ -56,6 +56,41 @@ def VPU_DistributedTensor :
     }];
 
     let genVerifyDecl = 1;
+}
+
+//
+// SparseTensor
+//
+
+def VPU_SparseTensor :
+        VPU_Type<
+            "SparseTensor",
+            [
+                DeclareTypeInterfaceMethods<NDTypeInterface>
+            ]
+        > {
+    let summary = "VPU SparseTensor Type";
+
+    let description = "This object represents a sparse tensor as a group of data and metadata";
+
+    let parameters = (ins
+        "mlir::TensorType":$data,
+        "mlir::TensorType":$sparsityMap,
+        "mlir::TensorType":$storageElementTable
+    );
+
+    let builders = [
+        TypeBuilderWithInferredContext<
+            (ins
+                "mlir::TensorType":$data,
+                CArg<"mlir::TensorType", "{}">:$sparsityMap,
+                CArg<"mlir::TensorType", "{}">:$storageElementTable
+            ), [{
+            return $_get(data.getContext(), data, sparsityMap, storageElementTable);
+        }]>
+    ];
+
+    let skipDefaultBuilders = 1;
 }
 
 #endif

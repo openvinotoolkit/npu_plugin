@@ -8,8 +8,8 @@
 #include "vpux/compiler/core/attributes/dims_order.hpp"
 
 #include "vpux/compiler/core/attributes/stride_reqs.hpp"
-#include "vpux/compiler/dialect/IERT/attributes/structs.hpp"
-#include "vpux/compiler/dialect/IERT/ops.hpp"
+#include "vpux/compiler/dialect/VPUIP/attributes.hpp"
+#include "vpux/compiler/dialect/VPUIP/dialect.hpp"
 #include "vpux/compiler/init.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/types.hpp"
@@ -126,7 +126,7 @@ public:
 
         ctx.appendDialectRegistry(registry);
         ctx.loadDialect<Const::ConstDialect>();
-        ctx.loadDialect<IERT::IERTDialect>();
+        ctx.loadDialect<VPUIP::VPUIPDialect>();
     }
 };
 
@@ -480,7 +480,7 @@ TEST_F(MLIR_DimsOrderTest, isCompatibleLayoutTest) {
             elemStrides[i] = memStrides[checked_cast<size_t>(originOrder.toMemDim(Dim(i)).ind())];
         }
 
-        const auto layout = IERT::MemRefAttr::get(mlir::AffineMapAttr::get(originOrder.toAffineMap(&ctx)),
+        const auto layout = VPUIP::MemRefAttr::get(mlir::AffineMapAttr::get(originOrder.toAffineMap(&ctx)),
                                                   getIntArrayAttr(&ctx, elemStrides), &ctx);
 
         const auto memRefType = mlir::MemRefType::get(shape, mlir::Float16Type::get(&ctx),

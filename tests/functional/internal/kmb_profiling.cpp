@@ -8,15 +8,23 @@
 #include "test_model/kmb_test_base.hpp"
 #include "vpux_private_config.hpp"
 
-class KmbProfilingTest : public KmbLayerTestBase {
-public:
-    void runTest(const std::string output_name, bool mlir=false, bool profiling=true);
+enum class CompilerType {DRIVER, MCM, MLIR};
+
+struct RunProfilingParams final {
+    const std::string outputName;
+    CompilerType compiler;
+    bool profiling;
 };
 
-void KmbProfilingTest::runTest(const std::string output_name, bool mlir, bool profiling) {
-    // [Track number: E#20716]
-    SKIP_ON("LEVEL0", "Not supported");
+class KmbProfilingTest : public KmbLayerTestBase, public testing::WithParamInterface<RunProfilingParams> {};
+
+
+TEST_P(KmbProfilingTest, RunsProfiling) {
     SKIP_ON("HDDL2", "EMULATOR", "Not supported");
+    const auto& p = GetParam();
+    const std::string outputName = p.outputName;
+    const bool profiling = p.profiling;
+
     const SizeVector inDims = {1, 3, 64, 64};
     const TensorDesc userInDesc = TensorDesc(Precision::U8, inDims, Layout::NHWC);
     const TensorDesc userOutDesc = TensorDesc(Precision::FP16, Layout::NHWC);
@@ -27,10 +35,16 @@ void KmbProfilingTest::runTest(const std::string output_name, bool mlir, bool pr
     if (profiling) {
         netConfig[CONFIG_KEY(PERF_COUNT)] = CONFIG_VALUE(YES);
     }
-    if (mlir) {
-        netConfig[VPUX_CONFIG_KEY(COMPILER_TYPE)] = VPUX_CONFIG_VALUE(MLIR);
-    } else {
+    switch (p.compiler) {
+    case CompilerType::DRIVER:
+        netConfig[VPUX_CONFIG_KEY(COMPILER_TYPE)] = VPUX_CONFIG_VALUE(DRIVER);
+        break;
+    case CompilerType::MCM:
         netConfig[VPUX_CONFIG_KEY(COMPILER_TYPE)] = VPUX_CONFIG_VALUE(MCM);
+        break;
+    case CompilerType::MLIR:
+        netConfig[VPUX_CONFIG_KEY(COMPILER_TYPE)] = VPUX_CONFIG_VALUE(MLIR);
+        break;
     }
 
     registerBlobGenerator("input", userInDesc, [&](const TensorDesc& desc) {
@@ -47,12 +61,12 @@ void KmbProfilingTest::runTest(const std::string output_name, bool mlir, bool pr
         testNet
             .setUserInput("input", userInDesc.getPrecision(), userInDesc.getLayout())
             .addNetInput("input", userInDesc.getDims(), netPresicion)
-                .addLayer<PowerLayerDef>(output_name)
+                .addLayer<PowerLayerDef>(outputName)
                 .input1("input")
                 .input2(getBlobByName("scale"))
                 .build()
-            .addNetOutput(PortInfo(output_name))
-            .setUserOutput(PortInfo(output_name), userOutDesc.getPrecision(), userOutDesc.getLayout())
+            .addNetOutput(PortInfo(outputName))
+            .setUserOutput(PortInfo(outputName), userOutDesc.getPrecision(), userOutDesc.getLayout())
             .setCompileConfig(netConfig)
             .finalize();
 
@@ -90,14 +104,23 @@ void KmbProfilingTest::runTest(const std::string output_name, bool mlir, bool pr
     }
 }
 
-TEST_F(KmbProfilingTest, precommit_profilingMatchedName) {
-    runTest("Result", true);
-}
+#if defined(_WIN32) || defined(_WIN64)
+// Compiler is located in driver by default
+INSTANTIATE_TEST_SUITE_P(precommit_profilingMatchedName, KmbProfilingTest,
+                         testing::Values(RunProfilingParams{"Result", CompilerType::DRIVER, true}));
 
-TEST_F(KmbProfilingTest, precommit_profilingNonMatchedName) {
-    runTest("conv", true);
-}
+INSTANTIATE_TEST_SUITE_P(precommit_profilingNonMatchedName, KmbProfilingTest,
+                         testing::Values(RunProfilingParams{"conv", CompilerType::DRIVER, true}));
 
-TEST_F(KmbProfilingTest, precommit_profilingDisabled) {
-    runTest("conv", true, false);
-}
+INSTANTIATE_TEST_SUITE_P(precommit_profilingDisabled, KmbProfilingTest,
+                         testing::Values(RunProfilingParams{"conv", CompilerType::DRIVER, false}));
+#else
+INSTANTIATE_TEST_SUITE_P(precommit_profilingMatchedName, KmbProfilingTest,
+                         testing::Values(RunProfilingParams{"Result", CompilerType::MLIR, true}));
+
+INSTANTIATE_TEST_SUITE_P(precommit_profilingNonMatchedName, KmbProfilingTest,
+                         testing::Values(RunProfilingParams{"conv", CompilerType::MLIR, true}));
+
+INSTANTIATE_TEST_SUITE_P(precommit_profilingDisabled, KmbProfilingTest,
+                         testing::Values(RunProfilingParams{"conv", CompilerType::MLIR, false}));
+#endif

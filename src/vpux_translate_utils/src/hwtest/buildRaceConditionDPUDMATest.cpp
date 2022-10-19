@@ -47,10 +47,10 @@ void buildRaceConditionDPUDMATest(const nb::TestCaseJsonDescriptor& testDesc, ml
     auto loc = builder.getUnknownLoc();
     const auto int32 = builder.getIntegerType(32, true);
 
-    const auto input = testDesc.getInputLayer();
+    const auto input = testDesc.getInputLayerList().front();
     const auto weights = testDesc.getWeightLayer();
     const auto conv = testDesc.getConvLayer();
-    const auto output = testDesc.getOutputLayer();
+    const auto output = testDesc.getOutputLayers().front();
     const auto iterationCount = testDesc.getIterationCount();
 
     const SmallVector<std::int64_t> inputShape{input.shape.begin(), input.shape.end()};
@@ -120,13 +120,12 @@ void buildRaceConditionDPUDMATest(const nb::TestCaseJsonDescriptor& testDesc, ml
     auto weightsAttribute = vpux::Const::ContentAttr::get(weightsValues);
     weightsAttribute = weightsAttribute.reorder(vpux::DimsOrder::OYXI);
 
-    auto qty = weightsType.dyn_cast<mlir::quant::QuantizedType>();
-
-    if (qty != nullptr) {
+    if (auto qty = weightsType.dyn_cast<mlir::quant::QuantizedType>()) {
+        const auto quantizedType = vpux::changeStorageType(qty, weightsAttribute.getType().getElementType());
+        weightsAttribute = weightsAttribute.quantCast(quantizedType);
         if (qty.getStorageType().isInteger(4)) {
             weightsAttribute = weightsAttribute.bitPack(4);
         }
-        weightsAttribute = weightsAttribute.quantCast(qty);
     }
 
     const auto weightsDDRType =
@@ -194,9 +193,9 @@ void buildRaceConditionDPUDMATest(const nb::TestCaseJsonDescriptor& testDesc, ml
         updateBarrier = functionBuilder.create<vpux::VPURT::ConfigureBarrierOp>(loc, i);
         auto nceTask_0 = VPURT::wrapIntoTaskOp<VPUIP::NCEClusterTaskOp>(
                 functionBuilder, mlir::ValueRange(waitBarrier.barrier()), mlir::ValueRange(updateBarrier.barrier()),
-                loc, inputCMX.buffer(), weightsCMX.buffer(), weightsTableCMX.buffer(), nullptr, inputCMX.buffer(),
-                outputCMX_0.buffer(), outputCMX_0.buffer(), vpux::VPUIP::NCETaskType::CONV, kernelSize, strides,
-                kernelPaddings, nullptr, nullptr);
+                loc, inputCMX.buffer(), weightsCMX.buffer(), weightsTableCMX.buffer(), nullptr, nullptr,
+                inputCMX.buffer(), outputCMX_0.buffer(), outputCMX_0.buffer(), vpux::VPUIP::NCETaskType::CONV,
+                kernelSize, strides, kernelPaddings, nullptr, nullptr);
 
         const auto start = getIntArrayAttr(ctx, std::vector<std::int64_t>{0, 0, 0});
         const auto end = getIntArrayAttr(
@@ -221,7 +220,8 @@ void buildRaceConditionDPUDMATest(const nb::TestCaseJsonDescriptor& testDesc, ml
     module.dump();
 
     mlir::PassManager pm(ctx, mlir::OpPassManager::Nesting::Implicit);
-    pm.addPass(VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::DefaultHW, None, log));
+    pm.addPass(
+            VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::DefaultHW, None, None, log));
     if (conv.compress) {
         pm.addPass(VPUIP::createCompressWeightsPass(log));
     }

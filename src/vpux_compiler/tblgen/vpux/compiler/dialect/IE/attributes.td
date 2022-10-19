@@ -46,8 +46,7 @@ def IE_TensorAttr :
             IE_Dialect,
             [
                 StructFieldAttr<"order", OptionalAttr<AffineMapAttr>>,
-                StructFieldAttr<"mem_space", OptionalAttr<IndexedSymbolAttr>>,
-                StructFieldAttr<"sparse", OptionalAttr<UnitAttr>>,
+                StructFieldAttr<"mem_space", OptionalAttr<IndexedSymbolAttr>>
             ]
         >;
 
@@ -78,8 +77,8 @@ def IE_TopKSortType :
             "TopKSortType that the InferenceEngine supports",
             [
                 StrEnumAttrCase<"NONE">,
-                StrEnumAttrCase<"SORT_INDICES">,
                 StrEnumAttrCase<"SORT_VALUES">,
+                StrEnumAttrCase<"SORT_INDICES">,
             ]
         > {
     let cppNamespace = "vpux::IE";
@@ -95,8 +94,8 @@ def IE_ROIPoolingMethod :
             "ROIPoolingMethod",
             "ROIPoolingMethod that the InferenceEngine supports",
             [
-                StrEnumAttrCase<"max">,
-                StrEnumAttrCase<"bilinear">,
+                StrEnumAttrCase<"MAX">,
+                StrEnumAttrCase<"BILINEAR">,
             ]
         > {
     let cppNamespace = "vpux::IE";
@@ -112,8 +111,8 @@ def IE_ROIAlignMethod :
             "ROIAlignMethod",
             "ROIAlignMethod that the InferenceEngine supports",
             [
-                StrEnumAttrCase<"avg">,
-                StrEnumAttrCase<"max">,
+                StrEnumAttrCase<"AVG">,
+                StrEnumAttrCase<"MAX">,
             ]
         > {
     let cppNamespace = "vpux::IE";
@@ -182,8 +181,8 @@ def IE_LRN_IERegion :
             "LRN_IERegion",
             "LRN_IE region that operations support",
             [
-                StrEnumAttrCase<"same">,
-                StrEnumAttrCase<"across">
+                StrEnumAttrCase<"SAME">,
+                StrEnumAttrCase<"ACROSS">
             ]
         > {
     let cppNamespace = "vpux::IE";
@@ -226,10 +225,10 @@ def IE_InterpolateMode :
             "InterpolateMode",
             "Specifies type of interpolation",
             [
-                StrEnumAttrCase<"nearest">,
-                StrEnumAttrCase<"linear">,
-                StrEnumAttrCase<"linear_onnx">,
-                StrEnumAttrCase<"cubic">,
+                StrEnumAttrCase<"NEAREST">,
+                StrEnumAttrCase<"LINEAR">,
+                StrEnumAttrCase<"LINEAR_ONNX">,
+                StrEnumAttrCase<"CUBIC">,
             ]
         > {
     let cppNamespace = "vpux::IE";
@@ -241,8 +240,8 @@ def IE_InterpolateCalcMode :
             "InterpolateCalcMode",
             "Specifies which input, sizes or scales, is used to calculate an output shape.",
             [
-                StrEnumAttrCase<"sizes">,
-                StrEnumAttrCase<"scales">,
+                StrEnumAttrCase<"SIZES">,
+                StrEnumAttrCase<"SCALES">,
             ]
         > {
     let cppNamespace = "vpux::IE";
@@ -254,11 +253,11 @@ def IE_InterpolateCoordMode :
             "InterpolateCoordMode",
             "coordinate_transformation_mode specifies how to transform the coordinate.",
             [
-                StrEnumAttrCase<"half_pixel">,
-                StrEnumAttrCase<"pytorch_half_pixel">,
-                StrEnumAttrCase<"asymmetric">,
-                StrEnumAttrCase<"tf_half_pixel_for_nn">,
-                StrEnumAttrCase<"align_corners">,
+                StrEnumAttrCase<"HALF_PIXEL">,
+                StrEnumAttrCase<"PYTORCH_HALF_PIXEL">,
+                StrEnumAttrCase<"ASYMMETRIC">,
+                StrEnumAttrCase<"TF_HALF_PIXEL_FOR_NN">,
+                StrEnumAttrCase<"ALIGN_CORNERS">,
             ]
         > {
     let cppNamespace = "vpux::IE";
@@ -270,11 +269,11 @@ def IE_InterpolateNearestMode :
             "InterpolateNearestMode",
             "specifies round mode when mode == nearest",
             [
-                StrEnumAttrCase<"round_prefer_floor">,
-                StrEnumAttrCase<"round_prefer_ceil">,
-                StrEnumAttrCase<"floor">,
-                StrEnumAttrCase<"ceil">,
-                StrEnumAttrCase<"simple">,
+                StrEnumAttrCase<"ROUND_PREFER_FLOOR">,
+                StrEnumAttrCase<"ROUND_PREFER_CEIL">,
+                StrEnumAttrCase<"FLOOR">,
+                StrEnumAttrCase<"CEIL">,
+                StrEnumAttrCase<"SIMPLE">,
             ]
         > {
     let cppNamespace = "vpux::IE";
@@ -472,6 +471,24 @@ def IE_PSROIPoolingMode :
             [
                 StrEnumAttrCase<"AVERAGE">,
                 StrEnumAttrCase<"BILINEAR">,
+            ]
+        > {
+    let cppNamespace = "vpux::IE";
+    let genSpecializedAttr = 1;
+}
+
+//
+// PadType
+//
+
+def IE_PadType :
+        StrEnumAttr<
+            "PadType",
+            "PadType that the InferenceEngine supports",
+            [
+                StrEnumAttrCase<"SAME_LOWER">,
+                StrEnumAttrCase<"SAME_UPPER">,
+                StrEnumAttrCase<"VALID">,
             ]
         > {
     let cppNamespace = "vpux::IE";

@@ -3,6 +3,8 @@
 
 set(kernel_src "singleShaveMVN.cpp")
 
+set(kernel_cpunum "3720")
+
 set(optimization_opts "") # -O3
 set(always_inline "yes")
 

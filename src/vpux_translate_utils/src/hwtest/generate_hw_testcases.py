@@ -43,8 +43,6 @@ from openpyxl.styles.alignment import Alignment
 from openpyxl.utils import get_column_letter
 from scipy.sparse import rand as randSparse
 
-# TODO: Fix this awful hack, whose purpose in life is to point to where you've
-# checked out ssh://git@gitlab.devtools.intel.com:29418/iotgai/NumericsBench.git.
 import os
 numericBenchPath = os.getenv('NUMERICSBENCH_PATH')
 if numericBenchPath == None:
@@ -66,10 +64,12 @@ from numpy.random import default_rng
 class Architecture(Enum):
     VPUX30XX = 3700,
     VPUX37XX = 3720,
-    VPUX4000 = 4000
+    VPUX40XX = 4000
 
 Orderer = Callable[[np.ndarray], np.ndarray]
 
+def tohex(val, nbits):
+  return hex((val + (1 << nbits)) % (1 << nbits))
 
 def OrderNHWC(data: np.ndarray) -> np.ndarray:
     return np.concatenate([a.transpose(1, 2, 0).flatten() for a in data])
@@ -106,6 +106,16 @@ SW2HWOrder = {
     Order.NCHW: 'XYZ',
 }
 
+class M2I_FMT(Enum):
+    PL_YUV420_8 = auto()
+    SP_NV12_8   = auto()
+    PL_FP16_RGB = auto()
+    PL_FP16_BGR = auto()
+    PL_RGB24    = auto()
+    PL_BGR24    = auto()
+    IL_RGB888   = auto()
+    IL_BGR888   = auto()
+
 class MPE_CUBES(Enum):
     CUBOID_16x16 = auto()
     CUBOID_8x16 = auto()
@@ -116,6 +126,10 @@ mpeCube2NTHW_NTK = {
     MPE_CUBES.CUBOID_4x16: '4x16',
     MPE_CUBES.CUBOID_8x16: '8x8'
 }
+
+class SEGMENTATION(Enum):
+    SOK = 1
+    SOH = 2
 
 def orderToOrderer(order: Order) -> np.ndarray:
     if order == Order.NHWC:
@@ -168,7 +182,7 @@ class AlignmentError(Error):
 def ValidatePaddings(kernel, paddings):
     # kernel size are width|height
     # The padding order is top|left|bottom|right
-    # Regarding documentation (http://dub30.ir.intel.com/svn/TRUNK/keembay/docs/specification/pdf/Gen3_Intel_Movidius_VPU_3400VE-A0_Databook_v1.4.pdf KB databook (page 5558))
+    # Regarding documentation
     # we have next paddings constraints:
     # When the kernel x dimension is odd, the PAD amount is [KERNEL_X-1]/2 on left and right
     # When the kernel y dimension is odd, the PAD amount is [KERNEL_Y-1]/2 on top and bottom
@@ -658,7 +672,6 @@ def idu(input: Value, weights: Value) -> "tuple[np.ndarray, np.ndarray]":
 def iduConvCustom(input: Value, weights: Value) -> "tuple[np.ndarray, np.ndarray]":
     """Custom Model the hardware IDU that feet the NumericBench requirements for convolution operation"""
     if (input.data.dtype == np.float32) or (weights.data.dtype == np.float32) :
-        # Issue link: https://gitlab.devtools.intel.com/iotgai/NumericsBench/-/issues/247
         raise Error(f'NumericBench\'s convolution operation doesn\'t support float32 datatype for inputs/weights')
 
     def to_qint32(value: Value) -> Union[np.ndarray, NBQuantized]:
@@ -711,16 +724,85 @@ class Operation(ABC):
         pass
 
     @abstractmethod
-    def apply(self, lhs: np.ndarray, rhs: np.ndarray) -> np.ndarray:
+    def apply_mpe(self, lhs: np.ndarray, rhs: np.ndarray) -> np.ndarray:
         pass
 
     @abstractmethod
     def filter_issues(self, args) -> bool:
         pass
 
+    def ppe(self, values: List[Value], output_ttype: TType, data: Union[np.ndarray, NBQuantized], activation=None) -> Value:
+        """Models the hardware PPE"""
+        def getValue(collection):
+            return collection.value if isinstance(collection, NBQuantized) else collection
+
+        ndarray = getValue(data)
+        rescale = not output_ttype.is_float
+        output_type = output_ttype
+        output_scale = 1.
+        output_zero_point = 0
+
+        result_bitwidth = math.ceil(np.log2(np.amax(abs(ndarray))))
+        bitshift = max(result_bitwidth - output_type.bitwidth, 0)
+
+        if rescale:
+            if np.issubdtype(ndarray.dtype, np.integer):
+                ndarray = ndarray.astype(np.float64)
+
+            if isinstance(activation, PReLU):
+                activated = np.where(ndarray < 0, ndarray * activation.slope, ndarray)
+                max_ = max(np.amax(activated), 0)
+                min_ = min(np.amin(activated), 0)
+
+                if activation.out_type is np.int8:
+                    distance = max(-min_, max_)
+                    zero_point = 0
+                    scale = distance / 127.
+
+                if activation.out_type is np.uint8:
+                    length = max_ - min_
+                    zero_point = np.round((-min_ * 255.) / length)
+                    scale = length / 255.
+
+                output_scale = scale
+                output_zero_point = zero_point
+            else:
+                # replace with quantization (#-29828)
+                ndarray /= (1. * (1 << bitshift))
+
+        if activation:
+            data = activation(data, np.float32(output_scale), activation.out_type(output_zero_point))
+            ndarray = getValue(data)
+            output_type = activation.get_out_type()
+
+        ndarray = output_type.clip(ndarray).astype(output_type.dtype)
+        value = Value(output_type, 'output-0.bin', ndarray, output_type.bitwidth, output_type.bitsize, output_type.signed, None)
+
+        if rescale:
+            if isinstance(data, NBQuantized):
+                if isinstance(activation, PReLU):
+                    value.zero = output_zero_point
+                    value.scale = output_scale
+                else:
+                    # replace with quantization (#-29828)
+                    value.zero = int(data.zero_point)
+                    value.scale = (1 << bitshift)
+            else:
+                # replace with quantization (#-29828)
+                value.scale = (1 << bitshift)
+
+        return value
+
+    def odu(self, output: Value) -> List[Value]:
+        """Models the hardware ODU"""
+        return [output]
+
 
 def shape_to_str(shape: Sequence[int]) -> str:
     return 'x'.join([str(d) for d in shape])
+
+def get_values_json_info(values):
+    return [val.json_info for val in values]
 
 class PReLU:
     def __init__(self, architecture, slope, out_type=np.float16):
@@ -761,7 +843,7 @@ class ZMajorConvolution(Operation):
     # kernel_strides are x|y directions
     # The padding order is top|left|bottom|right
     PARAMS = [
-        'mpe_op_class',
+        'op_class',
         'input_ttype',
         'input_shape',
         'weight_ttype',
@@ -782,12 +864,12 @@ class ZMajorConvolution(Operation):
         self.settings = settings
         settings.weight_shape = [settings.kernel_channels, settings.input_shape[1]] + settings.kernel_shape
 
-    def json_info(self, inputs, output):
+    def json_info(self, inputs, outputs):
         return {
             'case_type': 'ZMajorConvolution',
-            'input': inputs[0].json_info,
+            'input': [inputs[0].json_info],
             'weight': inputs[1].json_info,
-            'output': output.json_info,
+            'output': get_values_json_info(outputs),
             'conv_op': {
                 'stride': self.settings.kernel_strides,
                 'pad': self.settings.kernel_pads,
@@ -863,7 +945,7 @@ class ZMajorConvolution(Operation):
             self.settings.weight_ttype.generate('weights.dat', self.settings.weight_shape, rng, orderer=OrderNCHW)
         ]
 
-    def apply(self, values: List[Value]) -> np.ndarray:
+    def apply_mpe(self, values: List[Value]) -> np.ndarray:
         lhs, rhs = iduConvCustom(values[0], values[1])
         c2d = Conv2DVPUX37XX(kernel_shape=self.settings.kernel_shape,
                         pads = self.settings.kernel_pads,
@@ -879,7 +961,7 @@ class SparseConvolution(Operation):
     # kernel_strides are x|y directions
     # The padding order is top|left|bottom|right
     PARAMS = [
-        'mpe_op_class',
+        'op_class',
         'input_ttype',
         'input_shape',
         'weight_ttype',
@@ -900,12 +982,12 @@ class SparseConvolution(Operation):
         self.settings = settings
         settings.weight_shape = [settings.kernel_channels, settings.input_shape[1]] + settings.kernel_shape
 
-    def json_info(self, inputs, output):
+    def json_info(self, inputs, outputs):
         return {
             'case_type': 'SparseZMajorConvolution',
-            'input': inputs[0].json_info,
+            'input': [inputs[0].json_info],
             'weight': inputs[1].json_info,
-            'output': output.json_info,
+            'output': get_values_json_info(outputs),
             'conv_op': {
                 'stride': self.settings.kernel_strides,
                 'pad': self.settings.kernel_pads,
@@ -964,7 +1046,7 @@ class SparseConvolution(Operation):
             self.settings.weight_ttype.generateSparse('weights.dat', self.settings.weight_shape, rng, self.settings.sparsity_factor, orderer=OrderNCHW)
         ]
 
-    def apply(self, values: List[Value]) -> np.ndarray:
+    def apply_mpe(self, values: List[Value]) -> np.ndarray:
         lhs, rhs = iduConvCustom(values[0], values[1])
         c2d = Conv2DVPUX37XX(kernel_shape=self.settings.kernel_shape,
                      pads = self.settings.kernel_pads,
@@ -980,7 +1062,7 @@ class DepthWiseConv(Operation):
     # kernel_strides are x|y directions
     # The padding order is top|left|bottom|right
     PARAMS = [
-        'mpe_op_class',
+        'op_class',
         'input_ttype',
         'input_shape',
         'kernel_channels',
@@ -997,12 +1079,12 @@ class DepthWiseConv(Operation):
         self.settings = settings
         settings.weight_shape = [settings.kernel_channels, 1] + settings.kernel_shape
 
-    def json_info(self, inputs, output):
+    def json_info(self, inputs, outputs):
         return {
             'case_type': 'DepthWiseConv',
-            'input': inputs[0].json_info,
+            'input': [inputs[0].json_info],
             'weight': inputs[1].json_info,
-            'output': output.json_info,
+            'output': get_values_json_info(outputs),
             'conv_op': {
                 'stride': self.settings.kernel_strides,
                 'pad': self.settings.kernel_pads,
@@ -1056,7 +1138,7 @@ class DepthWiseConv(Operation):
             self.settings.input_ttype.generate('weights.dat', self.settings.weight_shape, rng, orderer=PadNCHWChannels)
         ]
 
-    def apply(self, values: List[Value]) -> np.ndarray:
+    def apply_mpe(self, values: List[Value]) -> np.ndarray:
         lhs, rhs = iduConvCustom(values[0], values[1])
         c2d = Conv2DVPUX37XX(kernel_shape=self.settings.kernel_shape,
                         pads = self.settings.kernel_pads,
@@ -1070,19 +1152,19 @@ class DepthWiseConv(Operation):
 
 class EltwiseAdd(Operation):
 
-    PARAMS = ['mpe_op_class', 'input_ttype', 'input_shape', 'output_ttype']
+    PARAMS = ['op_class', 'input_ttype', 'input_shape', 'output_ttype']
     NAME = 'Add'
 
     def __init__(self, architecture: Architecture, settings):
         super().__init__(architecture)
         self.settings = settings
 
-    def json_info(self, inputs, output):
+    def json_info(self, inputs, outputs):
         return {
             'case_type': 'EltwiseAdd',
-            'input': inputs[0].json_info,
+            'input': [inputs[0].json_info],
             'weight': inputs[1].json_info,
-            'output': output.json_info
+            'output': get_values_json_info(outputs)
         }
 
     def validate(self):
@@ -1117,7 +1199,7 @@ class EltwiseAdd(Operation):
             self.settings.input_ttype.generate('input-1.bin', self.settings.input_shape, rng)
         ]
 
-    def apply(self, values: List[Value]) -> np.ndarray:
+    def apply_mpe(self, values: List[Value]) -> np.ndarray:
         adder = Add()
         lhs, rhs = idu(values[0], values[1])
         if isinstance(lhs, NBQuantized) and isinstance(lhs, NBQuantized):
@@ -1136,19 +1218,19 @@ class EltwiseAdd(Operation):
 
 class EltwiseMult(Operation):
 
-    PARAMS = ['mpe_op_class', 'input_ttype', 'input_shape', 'output_ttype']
+    PARAMS = ['op_class', 'input_ttype', 'input_shape', 'output_ttype']
     NAME = 'Mult'
 
     def __init__(self, architecture: Architecture, settings):
         super().__init__(architecture)
         self.settings = settings
 
-    def json_info(self, inputs, output):
+    def json_info(self, inputs, outputs):
         return {
             'case_type': 'EltwiseMult',
-            'input': inputs[0].json_info,
+            'input': [inputs[0].json_info],
             'weight': inputs[1].json_info,
-            'output': output.json_info
+            'output': get_values_json_info(outputs)
         }
 
     def validate(self):
@@ -1183,11 +1265,11 @@ class EltwiseMult(Operation):
             self.settings.input_ttype.generate('input-1.bin', self.settings.input_shape, rng)
         ]
 
-    def apply(self, values: List[Value]) -> np.ndarray:
+    def apply_mpe(self, values: List[Value]) -> np.ndarray:
         multer = Mult()
         lhs, rhs = idu(values[0], values[1])
         if isinstance(lhs, NBQuantized) and isinstance(lhs, NBQuantized):
-            # Workaround for NumericsBench's Mult operation: see EltwiseMult.apply()
+            # Workaround for NumericsBench's Mult operation: see EltwiseMult.apply_mpe()
             return multer.inference(lhs, rhs)
         return multer.functor(lhs, rhs)
 
@@ -1198,18 +1280,18 @@ class Maxpool(Operation):
 
     # kernel_strides are x|y directions
     # The padding order is top|left|bottom|right
-    PARAMS = ['mpe_op_class', 'input_ttype', 'input_shape', 'kernel_shape', 'output_ttype', 'kernel_strides', 'kernel_pads']
+    PARAMS = ['op_class', 'input_ttype', 'input_shape', 'kernel_shape', 'output_ttype', 'kernel_strides', 'kernel_pads']
     NAME = 'MaxPool'
 
     def __init__(self, architecture: Architecture, settings):
         super().__init__(architecture)
         self.settings = settings
 
-    def json_info(self, inputs, output):
+    def json_info(self, inputs, outputs):
         return {
             'case_type': 'MaxPool',
-            'input': inputs[0].json_info,
-            'output': output.json_info,
+            'input': get_values_json_info(inputs),
+            'output': get_values_json_info(outputs),
             'pool_op': {
                 'sub_type': 'max',
                 'kernel_shape': self.settings.kernel_shape,
@@ -1261,7 +1343,7 @@ class Maxpool(Operation):
             self.settings.input_ttype.generate('input-0.bin', self.settings.input_shape, rng)
         ]
 
-    def apply(self, values: List[Value]) -> np.ndarray:
+    def apply_mpe(self, values: List[Value]) -> np.ndarray:
         lhs, rhs = idu(values[0], values[0])
         maxpool = MaxPool(kernel_shape=self.settings.kernel_shape, strides=self.settings.kernel_strides, pads=self.settings.kernel_pads)
         return maxpool.inference(lhs)
@@ -1274,21 +1356,21 @@ class AvgPool(Operation):
 
     # kernel_strides are x|y directions
     # The padding order is top|left|bottom|right
-    PARAMS = ['mpe_op_class', 'input_ttype', 'input_shape', 'kernel_shape', 'output_ttype', 'kernel_strides']
+    PARAMS = ['op_class', 'input_ttype', 'input_shape', 'kernel_shape', 'output_ttype', 'kernel_strides']
     NAME = 'AvgPool'
 
     def __init__(self, architecture: Architecture, settings):
         super().__init__(architecture)
         self.settings = settings
 
-    def json_info(self, inputs, output):
+    def json_info(self, inputs, outputs):
         # NB We need to rescale the output if it's quantized, since this is how the system implements the
         # division for quantized pool outputs.
 
         return {
             'case_type': 'AvgPool',
-            'input': inputs[0].json_info,
-            'output': output.json_info,
+            'input': get_values_json_info(inputs),
+            'output': get_values_json_info(outputs),
             'pool_op': {
                 'sub_type': 'avg',
                 'kernel_shape': self.settings.kernel_shape,
@@ -1335,7 +1417,7 @@ class AvgPool(Operation):
             self.settings.input_ttype.generate('input-0.bin', self.settings.input_shape, rng)
         ]
 
-    def apply(self, values: List[Value]) -> np.ndarray:
+    def apply_mpe(self, values: List[Value]) -> np.ndarray:
         lhs, rhs = idu(values[0], values[0])
         avgpool = AveragePool(kernel_shape=self.settings.kernel_shape, strides=self.settings.kernel_strides, pads=[0, 0, 0, 0])
         return avgpool.inference(lhs)
@@ -1343,14 +1425,26 @@ class AvgPool(Operation):
     def filter_issues(self, args) -> bool:
         return True
 
-
 class ActivationType(Enum):
     HSwish = auto()
     Sigmoid = auto()
     Softmax = auto()
+    vau_sigm = auto()
+    vau_sqrt = auto()
+    vau_tanh = auto()
+    vau_log = auto()
+    vau_exp = auto()
+    vau_dp4 = auto()
+    vau_dp4a = auto()
+    vau_dp4m = auto()
+    sau_dp4 = auto()
+    sau_dp4a = auto()
+    sau_dp4m = auto()
+    lsu_b16 = auto()
+    lsu_b16_vec = auto()
 
 class ActKernel(Operation):
-    PARAMS = ['mpe_op_class', 'input_ttype', 'input_shape', 'output_ttype', 'activation_type']
+    PARAMS = ['op_class', 'input_ttype', 'input_shape', 'output_ttype', 'activation_type']
     NAME = 'ActKernel'
 
     def __init__(self, architecture: Architecture, settings):
@@ -1387,6 +1481,19 @@ class ActKernel(Operation):
             ActivationType.HSwish: 'HSwish',
             ActivationType.Sigmoid: 'Sigmoid',
             ActivationType.Softmax: 'Softmax',
+            ActivationType.vau_sigm: 'vau_sigm',
+            ActivationType.vau_sqrt: 'vau_sqrt',
+            ActivationType.vau_tanh: 'vau_tanh',
+            ActivationType.vau_log: 'vau_log',
+            ActivationType.vau_exp: 'vau_exp',
+            ActivationType.vau_dp4: 'vau_dp4',
+            ActivationType.vau_dp4a: 'vau_dp4a',
+            ActivationType.vau_dp4m: 'vau_dp4m',
+            ActivationType.sau_dp4: 'sau_dp4',
+            ActivationType.sau_dp4a: 'sau_dp4a',
+            ActivationType.sau_dp4m: 'sau_dp4m',
+            ActivationType.lsu_b16: 'lsu_b16',
+            ActivationType.lsu_b16_vec: 'lsu_b16_vec',
         }
 
         return {
@@ -1402,33 +1509,163 @@ class ActKernel(Operation):
         return True
 
     def generate_inputs(self, rng) -> List[Value]:
-        return [
-            self.settings.input_ttype.generate('input-0.bin', self.settings.input_shape, rng)
-        ]
+        inputs_list = []
+        inputs_list.append(self.settings.input_ttype.generate('input-0.bin', self.settings.input_shape, rng))
+        if self.settings.activation_type[0] in {ActivationType.vau_dp4, ActivationType.vau_dp4a, ActivationType.vau_dp4m, \
+                                                ActivationType.sau_dp4, ActivationType.sau_dp4a, ActivationType.sau_dp4m}:
+            inputs_list.append(self.settings.input_ttype.generate('input-1.bin', self.settings.input_shape, rng))
+        return inputs_list
 
-    def json_info(self, inputs, output):
-        assert(output.is_float)
+    def json_info(self, inputs, outputs):
+        if self.settings.activation_type[0] in {ActivationType.vau_dp4, ActivationType.vau_dp4a, ActivationType.vau_dp4m, \
+                                                ActivationType.sau_dp4, ActivationType.sau_dp4a, ActivationType.sau_dp4m}:
+            assert(not(inputs[0].is_float))
+            assert(not(inputs[1].is_float))
+            assert(not(outputs[0].is_float))
+        else:
+            assert(outputs[0].is_float)
 
-        json = {
-            'case_type': 'ActShave',
-            'input': inputs[0].json_info,
-            'output': output.json_info,
-            'activation': {
-                'name' : self.settings.activation_type[0].name
-            }
-        }
+        json = {}
+        json['case_type'] = 'ActShave'
+        json['input'] = get_values_json_info(inputs)
+        json['output'] = get_values_json_info(outputs)
+        json['activation'] = {}
+        json['activation']['name'] = self.settings.activation_type[0].name
+
         if self.settings.activation_type[0] == ActivationType.Softmax :
             json['activation']['axis']=self.settings.activation_type[1]
 
         return json
 
-    def apply(self, values: List[Value]) -> np.ndarray:
+    # unsigned = False: 8-bit signed integer multiplication with sum to 32-bit signed integer per four element sub-vector and optional accumulate
+    # unsigned = True: 8-bit signed integer by 8-bit unsigned integer multiplication with sum to 32-bit signed integer per four element sub-vector
+    # input_types=[Int8()]
+    # output_types=[Int32()]
+    def golden_reference_vau_dp4(self, values: List[Value], acc=False, unsigned=False) -> np.ndarray:
+        N = self.settings.input_shape[0]
+        C = self.settings.input_shape[1] // 4
+        H = self.settings.input_shape[2]
+        W = self.settings.input_shape[3]
+
+        accIdx = 0
+        accum = [0, 0, 0, 0]
+        output_shape = [N, C, H, W]
+        result = np.zeros(output_shape, dtype = self.settings.output_ttype.dtype)
+
+        assert(not(values[0].data.size % 16))
+        assert(not(C % 4))
+
+        for n in range(0, N):
+            for h in range(0, H):
+                for w in range(0, W):
+                    for c in range(0, C):
+                        if unsigned == True:
+                            b1 = np.int32(np.uint8(values[1].data[n][c * 4 + 0][h][w]))
+                            b2 = np.int32(np.uint8(values[1].data[n][c * 4 + 1][h][w]))
+                            b3 = np.int32(np.uint8(values[1].data[n][c * 4 + 2][h][w]))
+                            b4 = np.int32(np.uint8(values[1].data[n][c * 4 + 3][h][w]))
+                        else:
+                            b1 = np.int32(values[1].data[n][c * 4 + 0][h][w])
+                            b2 = np.int32(values[1].data[n][c * 4 + 1][h][w])
+                            b3 = np.int32(values[1].data[n][c * 4 + 2][h][w])
+                            b4 = np.int32(values[1].data[n][c * 4 + 3][h][w])
+
+                        a1 = np.int32(values[0].data[n][c * 4 + 0][h][w])
+                        a2 = np.int32(values[0].data[n][c * 4 + 1][h][w])
+                        a3 = np.int32(values[0].data[n][c * 4 + 2][h][w])
+                        a4 = np.int32(values[0].data[n][c * 4 + 3][h][w])
+
+                        if acc == True:
+                            val = accum[accIdx % 4] + a1 * b1 + a2 * b2 + a3 * b3 + a4 * b4
+                            accum[accIdx % 4] = val
+                            accIdx+=1
+                        else:
+                            val = a1*b1 + a2*b2 + a3*b3 + a4*b4
+
+                        result[n][c][h][w] = val
+
+        return result
+
+    # unsigned = False: 8-bit signed integer multiplication with sum to 32-bit signed integer and optional accumulate
+    # unsigned = True: 8-bit signed integer by 8-bit unsigned integer multiplication with sum to 32-bit signed integer
+    # input_types=[Int32()]
+    # output_types=[Int32()]
+    def golden_reference_sau_dp4(self, values: List[Value], acc=False, unsigned=False) -> np.ndarray:
+        result = np.zeros(self.settings.input_shape, dtype = self.settings.output_ttype.dtype)
+        val = 0
+
+        N = self.settings.input_shape[0]
+        C = self.settings.input_shape[1]
+        H = self.settings.input_shape[2]
+        W = self.settings.input_shape[3]
+
+        for n in range(0, N):
+            for h in range(0, H):
+                for w in range(0, W):
+                    for c in range(0, C):
+                        if unsigned == True:
+                            b1 = np.int32(np.uint8((values[1].data[n][c][h][w] >> 24) & 0xff))
+                            b2 = np.int32(np.uint8((values[1].data[n][c][h][w] >> 16) & 0xff))
+                            b3 = np.int32(np.uint8((values[1].data[n][c][h][w] >> 8) & 0xff))
+                            b4 = np.int32(np.uint8((values[1].data[n][c][h][w] >> 0) & 0xff))
+                        else:
+                            b1 = np.int32(np.int8((values[1].data[n][c][h][w] >> 24) & 0xff))
+                            b2 = np.int32(np.int8((values[1].data[n][c][h][w] >> 16) & 0xff))
+                            b3 = np.int32(np.int8((values[1].data[n][c][h][w] >> 8) & 0xff))
+                            b4 = np.int32(np.int8((values[1].data[n][c][h][w] >> 0) & 0xff))
+
+                        a1 = np.int32(np.int8((values[0].data[n][c][h][w] >> 24) & 0xff))                    
+                        a2 = np.int32(np.int8((values[0].data[n][c][h][w] >> 16) & 0xff))
+                        a3 = np.int32(np.int8((values[0].data[n][c][h][w] >> 8) & 0xff))
+                        a4 = np.int32(np.int8((values[0].data[n][c][h][w] >> 0) & 0xff))
+                        
+                        if acc == True:
+                            val += a1*b1 + a2*b2 + a3*b3 + a4*b4
+                        else:
+                            val = a1*b1 + a2*b2 + a3*b3 + a4*b4
+                            
+                        result[n][c][h][w] = val
+
+        return result
+
+    def apply_mpe(self, values: List[Value]) -> np.ndarray:
         if self.settings.activation_type[0] == ActivationType.HSwish :
             result = HSwish().inference(values[0].data.astype(np.float32))
         elif self.settings.activation_type[0] == ActivationType.Sigmoid :
             result = Sigmoid().inference(values[0].data.astype(np.float32))
         elif self.settings.activation_type[0] == ActivationType.Softmax :
             result = Softmax(axis=self.settings.activation_type[1]).inference(values[0].data.astype(np.float32))
+        elif self.settings.activation_type[0] == ActivationType.vau_sigm :
+            result = Sigmoid().inference(values[0].data.astype(np.float32))
+        elif self.settings.activation_type[0] == ActivationType.vau_sqrt :
+            result = np.sqrt(values[0].data.astype(np.float32))
+        elif self.settings.activation_type[0] == ActivationType.vau_tanh :
+            result = np.tanh(values[0].data.astype(np.float32))
+        elif self.settings.activation_type[0] == ActivationType.vau_log :
+            np.seterr(divide = 'ignore')
+            result = np.log(values[0].data.astype(np.float32))
+            result = np.nan_to_num(result)
+            np.seterr(divide = 'warn')
+        elif self.settings.activation_type[0] == ActivationType.vau_exp :
+            result = np.exp(values[0].data.astype(np.float32))
+        elif self.settings.activation_type[0] == ActivationType.vau_dp4 :
+            result = self.golden_reference_vau_dp4(values, acc=False, unsigned=False)
+        elif self.settings.activation_type[0] == ActivationType.vau_dp4a :
+            result = self.golden_reference_vau_dp4(values, acc=True, unsigned=False)
+        elif self.settings.activation_type[0] == ActivationType.vau_dp4m :
+            result = self.golden_reference_vau_dp4(values, acc=False, unsigned=True)
+        elif self.settings.activation_type[0] == ActivationType.sau_dp4 :
+            result = self.golden_reference_sau_dp4(values, acc=False, unsigned=False)
+        elif self.settings.activation_type[0] == ActivationType.sau_dp4a :
+            result = self.golden_reference_sau_dp4(values, acc=True, unsigned=False)
+        elif self.settings.activation_type[0] == ActivationType.sau_dp4m :
+            result = self.golden_reference_sau_dp4(values, acc=False, unsigned=True)
+        elif self.settings.activation_type[0] == ActivationType.lsu_b16 :
+            result = values[0].data.astype(np.float32)
+            result = result.astype(bfloat16)
+        elif self.settings.activation_type[0] == ActivationType.lsu_b16_vec :
+            result = values[0].data.astype(np.float32)
+            result = result.astype(bfloat16)
         else :
             raise Error(f'Unsupported Act-shave sub-type: {self.settings.activation_type[0].name}')
 
@@ -1445,8 +1682,147 @@ class ActKernel(Operation):
             return False
         return True
 
+# dummy placeholder for NumericsBench-M2I-model, required to get output shape
+def toyM2iReference(input_fmt, input_shape, out_fmt, out_type, out_sizes):
+    N  = input_shape[0]
+
+    if ((input_fmt == M2I_FMT.PL_FP16_RGB) or (input_fmt == M2I_FMT.PL_FP16_BGR) or
+        (input_fmt == M2I_FMT.PL_RGB24)    or (input_fmt == M2I_FMT.PL_BGR24)):
+        iC = input_shape[1] # Planar formats
+        iH = input_shape[2]
+        iW = input_shape[3]
+    else: # includes I420, NV12 (see Openvino defs)
+        iH = input_shape[1] # Interleaved
+        iW = input_shape[2]
+        iC = input_shape[3]
+
+    # default output size
+    oH = iH
+    oW = iW
+
+    # adjust output height for YUV-input, RGB-output
+    if ((input_fmt == M2I_FMT.SP_NV12_8) or (input_fmt == M2I_FMT.PL_YUV420_8)):
+        if ((out_fmt != M2I_FMT.SP_NV12_8) and (out_fmt != M2I_FMT.PL_YUV420_8)):
+            oH = int(oH * 2 / 3)
+
+    # custom resize for H,W dims
+    if out_sizes:
+        assert len(out_sizes)==2, 'Sizes must contain values H,W'
+        oH = out_sizes[0]
+        oW = out_sizes[1]
+
+    if ((out_fmt == M2I_FMT.IL_RGB888) or (out_fmt == M2I_FMT.IL_BGR888)):
+        out_shape = [N,oH,oW,3]
+    else: # all other output formats are PLANAR
+        out_shape = [N,3,oH,oW]
+
+    # generate dummy data, not using input-data
+    out = out_type.generate('fake_out_0.bin', out_shape, default_rng(1))
+    return out
+
+
+class M2iTask(Operation):
+
+    def __init__(self, descr, architecture, input_fmt, input_shape, output_fmt, out_sizes, do_norm, norm_coefs):
+        super().__init__(architecture)
+        settings = Settings()
+        self.settings = settings
+        self.settings.input_fmt = input_fmt
+        self.settings.output_fmt = output_fmt
+        self.settings.output_sizes = out_sizes
+        self.settings.input_shape = input_shape
+        self.settings.do_norm = do_norm
+        self.settings.norm_coefs = norm_coefs
+        self.settings.input_type = self.get_elem_type(input_fmt)
+        self.settings.output_type = self.get_elem_type(output_fmt)
+        self.settings.descr = descr # just a string prefix (SG:single, F1:fuse_with_scale, F2:fuse_w/o_scale)
+
+        # TBD in future cases: IL_RGB888 -> PL_RGB24 requires csc-flag ?
+        self.settings.do_csc = True if (input_fmt != output_fmt) else False
+
+        if do_norm and (len(norm_coefs) == 0):
+            assert 0, 'TBD: generate coefs randomly if not provided'
+
+    def get_elem_type(self, fmt):
+        if ((fmt == M2I_FMT.SP_NV12_8) or (fmt == M2I_FMT.PL_YUV420_8) or
+            (fmt == M2I_FMT.IL_RGB888) or (fmt == M2I_FMT.IL_BGR888)   or
+            (fmt == M2I_FMT.PL_RGB24)  or (fmt == M2I_FMT.PL_BGR24)):
+            return UInt8()
+        elif ((fmt == M2I_FMT.PL_FP16_RGB) or (fmt == M2I_FMT.PL_FP16_BGR)):
+            return FP16()
+        else:
+            assert 0, 'Unsupported M2iTask input format !'
+
+    @property
+    def ident(self) -> str:
+        # 'output_shape' is implicity derived from 'input_shape' and 'output_format'
+        ss = self.settings
+        return f'm2i_{ss.descr}_in_{shape_to_str(ss.input_shape)}_{ss.input_fmt.name}_out_{ss.output_fmt.name}_outSz_{ss.output_sizes}_norm_{ss.do_norm}'
+
+    @property
+    def orderer(self) -> Orderer:
+        return OrderNHWC
+
+    @property
+    def output_orderer(self) -> Orderer:
+        return OrderNHWC
+
+    def validate(self):
+        return True
+
+    def generate_inputs(self, rng) -> List[Value]:
+        return [
+            self.settings.input_type.generate('input-0.bin', self.settings.input_shape, rng)
+        ]
+
+    def json_info(self, inputs, outputs):
+        json = {
+            'case_type': 'M2iTask',
+            'input': get_values_json_info(inputs),
+            'output': get_values_json_info([outputs]),
+            'm2i_params': {
+                'input_fmt'    : self.settings.input_fmt.name,
+                'output_fmt'   : self.settings.output_fmt.name,
+                'output_sizes' : self.settings.output_sizes,
+                'do_csc'       : self.settings.do_csc,
+                'do_norm'      : self.settings.do_norm,
+                'norm_coefs'   : self.settings.norm_coefs
+            }
+        }
+        return json
+
+    @property
+    def data(self) -> dict:
+        return {
+            'Name': self.ident
+        }
+
+    def value(self):
+        value = {'architecture': self.architecture.name}
+        value = {**value, **self.json_info(self.inputs, self.o)}
+        return value
+
+    def apply_mpe(self, values: List[Value]) -> np.ndarray:
+        # TBD: should be generated by NUMERIC_BENCH model !!!
+        result = toyM2iReference(self.settings.input_fmt, self.settings.input_shape, \
+                                 self.settings.output_fmt, self.settings.output_type, self.settings.output_sizes)
+        return result
+
+    def compute_values(self):
+        self.inputs = self.generate_inputs(default_rng(1))
+        self.o = self.apply_mpe(self.inputs)
+
+    def write_data(self, dir: Path):
+        orderer = OrderNCHW # write data as is
+        for input in self.inputs:
+            input.write_data(dir, orderer)
+        self.o.write_data(dir, orderer)
+
+    def filter_issues(self, args) -> bool:
+        return True
+
 class ReadAfterWriteACTDMA(Operation):
-    PARAMS = ['mpe_op_class',
+    PARAMS = ['op_class',
               'input_ttype',
               'input_shape',
               'output_ttype',
@@ -1497,13 +1873,13 @@ class ReadAfterWriteACTDMA(Operation):
             self.settings.input_ttype.generate('input-0.bin', self.settings.input_shape, rng)
         ]
 
-    def json_info(self, inputs, output):
-        assert(output.is_float)
+    def json_info(self, inputs, outputs):
+        assert(outputs[0].is_float)
 
         json = {
             'case_type': 'ReadAfterWriteACTDMA',
-            'input': inputs[0].json_info,
-            'output': output.json_info,
+            'input': get_values_json_info(inputs),
+            'output': get_values_json_info(outputs),
             'activation': {
                 'name' : self.settings.activation_type[0].name
             },
@@ -1513,7 +1889,7 @@ class ReadAfterWriteACTDMA(Operation):
 
         return json
 
-    def apply(self, values: List[Value]) -> np.ndarray:
+    def apply_mpe(self, values: List[Value]) -> np.ndarray:
         count = (self.settings.iteration_count - 1) // 2
         result = values[0].data.astype(self.settings.input_ttype.dtype)
         for i in range(0, count) :
@@ -1532,7 +1908,7 @@ class ReadAfterWriteACTDMA(Operation):
         return False
 
 class ReadAfterWriteDMAACT(Operation):
-    PARAMS = ['mpe_op_class',
+    PARAMS = ['op_class',
               'input_ttype',
               'input_shape',
               'output_ttype',
@@ -1582,13 +1958,13 @@ class ReadAfterWriteDMAACT(Operation):
             self.settings.input_ttype.generate('input-0.bin', self.settings.input_shape, rng)
         ]
 
-    def json_info(self, inputs, output):
-        assert(output.is_float)
+    def json_info(self, inputs, outputs):
+        assert(outputs[0].is_float)
 
         json = {
             'case_type': 'ReadAfterWriteDMAACT',
-            'input': inputs[0].json_info,
-            'output': output.json_info,
+            'input': get_values_json_info(inputs),
+            'output': get_values_json_info(outputs),
             'activation': {
                 'name' : self.settings.activation_type[0].name
             },
@@ -1598,7 +1974,7 @@ class ReadAfterWriteDMAACT(Operation):
 
         return json
 
-    def apply(self, values: List[Value]) -> np.ndarray:
+    def apply_mpe(self, values: List[Value]) -> np.ndarray:
         lhs, _ = idu(values[0], values[0])
         return lhs
 
@@ -1612,7 +1988,7 @@ class ReadAfterWriteDMAACT(Operation):
 class ReadAfterWriteDPUDMA(Operation):
 
     PARAMS = [
-        'mpe_op_class',
+        'op_class',
         'input_ttype',
         'input_shape',
         'weight_ttype',
@@ -1634,12 +2010,12 @@ class ReadAfterWriteDPUDMA(Operation):
         self.settings = settings
         settings.weight_shape = [settings.kernel_channels, settings.input_shape[1]] + settings.kernel_shape
 
-    def json_info(self, inputs, output):
+    def json_info(self, inputs, outputs):
         return {
             'case_type': 'ReadAfterWriteDPUDMA',
-            'input': inputs[0].json_info,
+            'input': [inputs[0].json_info],
             'weight': inputs[1].json_info,
-            'output': output.json_info,
+            'output': get_values_json_info(outputs),
             'conv_op': {
                 'stride': self.settings.kernel_strides,
                 'pad': self.settings.kernel_pads,
@@ -1706,7 +2082,7 @@ class ReadAfterWriteDPUDMA(Operation):
             self.settings.weight_ttype.generate('weights.dat', self.settings.weight_shape, rng, orderer=OrderNCHW)
         ]
 
-    def apply(self, values: List[Value]) -> np.ndarray:
+    def apply_mpe(self, values: List[Value]) -> np.ndarray:
         c2d = Conv2DVPUX37XX(kernel_shape=self.settings.kernel_shape,
                         pads = self.settings.kernel_pads,
                         strides = self.settings.kernel_strides)
@@ -1725,7 +2101,7 @@ class ReadAfterWriteDPUDMA(Operation):
 class ReadAfterWriteDMADPU(Operation):
 
     PARAMS = [
-        'mpe_op_class',
+        'op_class',
         'input_ttype',
         'input_shape',
         'weight_ttype',
@@ -1747,12 +2123,12 @@ class ReadAfterWriteDMADPU(Operation):
         self.settings = settings
         settings.weight_shape = [settings.kernel_channels, settings.input_shape[1]] + settings.kernel_shape
 
-    def json_info(self, inputs, output):
+    def json_info(self, inputs, outputs):
         return {
             'case_type': 'ReadAfterWriteDMADPU',
-            'input': inputs[0].json_info,
+            'input': [inputs[0].json_info],
             'weight': inputs[1].json_info,
-            'output': output.json_info,
+            'output': get_values_json_info(outputs),
             'conv_op': {
                 'stride': self.settings.kernel_strides,
                 'pad': self.settings.kernel_pads,
@@ -1819,7 +2195,7 @@ class ReadAfterWriteDMADPU(Operation):
             self.settings.weight_ttype.generate('weights.dat', self.settings.weight_shape, rng, orderer=OrderNCHW)
         ]
 
-    def apply(self, values: List[Value]) -> np.ndarray:
+    def apply_mpe(self, values: List[Value]) -> np.ndarray:
         lhs, _ = idu(values[0], values[0])
         return lhs
 
@@ -1828,7 +2204,7 @@ class ReadAfterWriteDMADPU(Operation):
 
 class ReadAfterWriteDPUACT(Operation):
     PARAMS = [
-        'mpe_op_class',
+        'op_class',
         'input_ttype',
         'input_shape',
         'weight_ttype',
@@ -1851,12 +2227,12 @@ class ReadAfterWriteDPUACT(Operation):
         self.settings = settings
         settings.weight_shape = [settings.kernel_channels, settings.input_shape[1]] + settings.kernel_shape
 
-    def json_info(self, inputs, output):
+    def json_info(self, inputs, outputs):
         return {
             'case_type': 'ReadAfterWriteDPUACT',
-            'input': inputs[0].json_info,
+            'input': [inputs[0].json_info],
             'weight': inputs[1].json_info,
-            'output': output.json_info,
+            'output': get_values_json_info(outputs),
             'conv_op': {
                 'stride': self.settings.kernel_strides,
                 'pad': self.settings.kernel_pads,
@@ -1926,7 +2302,7 @@ class ReadAfterWriteDPUACT(Operation):
             self.settings.weight_ttype.generate('weights.dat', self.settings.weight_shape, rng, orderer=OrderNCHW)
         ]
 
-    def apply(self, values: List[Value]) -> np.ndarray:
+    def apply_mpe(self, values: List[Value]) -> np.ndarray:
         c2d = Conv2DVPUX37XX(kernel_shape=self.settings.kernel_shape,
                         pads = self.settings.kernel_pads,
                         strides = self.settings.kernel_strides)
@@ -1948,7 +2324,7 @@ class ReadAfterWriteDPUACT(Operation):
 
 class ReadAfterWriteACTDPU(Operation):
     PARAMS = [
-        'mpe_op_class',
+        'op_class',
         'input_ttype',
         'input_shape',
         'weight_ttype',
@@ -1971,12 +2347,12 @@ class ReadAfterWriteACTDPU(Operation):
         self.settings = settings
         settings.weight_shape = [settings.kernel_channels, settings.input_shape[1]] + settings.kernel_shape
 
-    def json_info(self, inputs, output):
+    def json_info(self, inputs, outputs):
         return {
             'case_type': 'ReadAfterWriteACTDPU',
-            'input': inputs[0].json_info,
+            'input': [inputs[0].json_info],
             'weight': inputs[1].json_info,
-            'output': output.json_info,
+            'output': get_values_json_info(outputs),
             'conv_op': {
                 'stride': self.settings.kernel_strides,
                 'pad': self.settings.kernel_pads,
@@ -2046,7 +2422,7 @@ class ReadAfterWriteACTDPU(Operation):
             self.settings.weight_ttype.generate('weights.dat', self.settings.weight_shape, rng, orderer=OrderNCHW)
         ]
 
-    def apply(self, values: List[Value]) -> np.ndarray:
+    def apply_mpe(self, values: List[Value]) -> np.ndarray:
         count = (self.settings.iteration_count - 1) // 2
         result = values[0].data.astype(self.settings.input_ttype.dtype)
         for i in range(0, count) :
@@ -2070,18 +2446,18 @@ class MemoryLocation(Enum):
 
 class DMA(Operation):
 
-    PARAMS = ['mpe_op_class', 'input_ttype', 'output_ttype', 'input_shape', 'src_memloc', 'dst_memloc', 'dma_engine']
+    PARAMS = ['op_class', 'input_ttype', 'output_ttype', 'input_shape', 'src_memloc', 'dst_memloc', 'dma_engine']
 
     def __init__(self, architecture: Architecture, settings):
         super().__init__(architecture)
 
         self.settings = settings
 
-    def json_info(self, input, output):
+    def json_info(self, input, outputs):
         return {
             'case_type': 'DMA',
-            'input': input[0].json_info,
-            'output': output.json_info,
+            'input': get_values_json_info(input),
+            'output': get_values_json_info(outputs),
             'DMA_params': {
                 'src_memory_location' : self.settings.src_memloc.name,
                 'dst_memory_location' : self.settings.dst_memloc.name,
@@ -2120,7 +2496,7 @@ class DMA(Operation):
             self.settings.input_ttype.generate('input-0.bin', self.settings.input_shape, rng)
         ]
 
-    def apply(self, values: List[Value]) -> np.ndarray:
+    def apply_mpe(self, values: List[Value]) -> np.ndarray:
         return values[0].data
 
     def filter_issues(self, args) -> bool:
@@ -2129,7 +2505,7 @@ class DMA(Operation):
 class DifferentClustersDPU(Operation):
 
     PARAMS = [
-        'mpe_op_class',
+        'op_class',
         'input_ttype',
         'input_shape',
         'weight_ttype',
@@ -2151,12 +2527,12 @@ class DifferentClustersDPU(Operation):
         self.settings = settings
         settings.weight_shape = [settings.kernel_channels, settings.input_shape[1]] + settings.kernel_shape
 
-    def json_info(self, inputs, output):
+    def json_info(self, inputs, outputs):
         return {
             'case_type': 'DifferentClustersDPU',
-            'input': inputs[0].json_info,
+            'input': [inputs[0].json_info],
             'weight': inputs[1].json_info,
-            'output': output.json_info,
+            'output': get_values_json_info(outputs),
             'conv_op': {
                 'stride': self.settings.kernel_strides,
                 'pad': self.settings.kernel_pads,
@@ -2179,7 +2555,8 @@ class DifferentClustersDPU(Operation):
 
     @property
     def ident(self) -> str:
-        return f'DifferentClustersDPU_{self.settings.input_ttype.stype}_input_cluster_{self.settings.DPU_task_params[0]}_output_cluster_{self.settings.DPU_task_params[1]}_weights_cluster_{self.settings.DPU_task_params[2]}_weights_table_cluster_{self.settings.DPU_task_params[3]}'
+        out_clusters_str = '_'.join([str(cluster) for cluster in self.settings.DPU_task_params[1]])
+        return f'DifferentClustersDPU_{self.settings.input_ttype.stype}_input_cluster_{self.settings.DPU_task_params[0]}_output_cluster_{out_clusters_str}_weights_cluster_{self.settings.DPU_task_params[2]}_weights_table_cluster_{self.settings.DPU_task_params[3]}'
 
     @property
     def orderer(self) -> Orderer:
@@ -2225,7 +2602,7 @@ class DifferentClustersDPU(Operation):
             self.settings.weight_ttype.generate('weights.dat', self.settings.weight_shape, rng, orderer=OrderNCHW)
         ]
 
-    def apply(self, values: List[Value]) -> np.ndarray:
+    def apply_mpe(self, values: List[Value]) -> np.ndarray:
         lhs, rhs = iduConvCustom(values[0], values[1])
         c2d = Conv2DVPUX37XX(kernel_shape=self.settings.kernel_shape,
                         pads = self.settings.kernel_pads,
@@ -2236,9 +2613,170 @@ class DifferentClustersDPU(Operation):
     def filter_issues(self, args) -> bool:
         return True
 
+    def odu(self, output: Value) -> List[Value]:
+        """Models the hardware ODU"""
+        outputs = list()
+
+        # make a copy of the output for each cluster specified in params
+        for idx, _ in enumerate(self.settings.DPU_task_params[1]):
+            value = Value(
+                output.ttype, "output-{}.bin".format(idx), output.data, output.bitwidth,
+                output.bitsize, output.signed, output.orderer)
+            outputs.append(value)
+
+        return outputs
+
+class MultiClustersDPU(Operation):
+
+    PARAMS = [
+        'op_class',
+        'input_ttype',
+        'input_shape',
+        'weight_ttype',
+        'kernel_channels',
+        'kernel_shape',
+        'output_ttype',
+        'output_order',
+        'kernel_strides',
+        'kernel_pads',
+        'compress',
+        'mpe_cub',
+        'MultiClustersDPU_params'
+    ]
+    NAME = 'MultiClustersDPU'
+
+    def __init__(self, architecture: Architecture, settings):
+        super().__init__(architecture)
+
+        self.settings = settings
+        settings.weight_shape = [settings.kernel_channels, settings.input_shape[1]] + settings.kernel_shape
+
+    def json_info(self, inputs, outputs):
+        return {
+            'case_type': 'MultiClustersDPU',
+            'input': [inputs[0].json_info],
+            'weight': inputs[1].json_info,
+            'output': get_values_json_info(outputs),
+            'conv_op': {
+                'stride': self.settings.kernel_strides,
+                'pad': self.settings.kernel_pads,
+                'group': 1,
+                'dilation': 1,
+                'compress': self.settings.compress,
+                'mpe_cub': self.settings.mpe_cub.name
+            },
+            'output_order': self.settings.output_order.name.lower(),
+            'DPUTaskParams': {
+                'task_clusters' : self.settings.MultiClustersDPU_params[0],
+                'segmentation': self.settings.MultiClustersDPU_params[1].name,
+                'broadcast': self.settings.MultiClustersDPU_params[2]
+            }
+        }
+
+    def validate(self):
+        pass
+
+    @property
+    def ident(self) -> str:
+        task_clusters_str = '_'.join([str(cluster) for cluster in self.settings.MultiClustersDPU_params[0]])
+        kernel_size_str = 'x'.join([str(dim) for dim in self.settings.kernel_shape])
+        kernel_stride_str = 'x'.join([str(dim) for dim in self.settings.kernel_strides])
+        return f'MultiClustersDPU_{self.settings.input_ttype.stype}_task_cluster_{task_clusters_str}_{self.settings.MultiClustersDPU_params[1]}_broadcast_{self.settings.MultiClustersDPU_params[2]}_kern_chan_{self.settings.kernel_channels}_kern_sz_{kernel_size_str}_kern_stride_{kernel_stride_str}_in_shape_{shape_to_str(self.settings.input_shape)}'
+
+    @property
+    def orderer(self) -> Orderer:
+        return OrderNHWC
+
+    @property
+    def output_orderer(self) -> Orderer:
+        return orderToOrderer(self.settings.output_order)
+
+    @property
+    def data(self) -> dict:
+        return {
+            'Name': self.ident,
+            'Input Type': np.dtype(self.settings.input_ttype),
+            'Input Scale': self.settings.input_ttype.scale if hasattr(self.settings.input_ttype, 'scale') else 1,
+            'Input Zero Point': self.settings.input_ttype.zero if hasattr(self.settings.input_ttype, 'zero') else 0,
+            'Weights Type': np.dtype(self.settings.weight_ttype),
+            'Weights Scale': self.settings.weight_ttype.scale if hasattr(self.settings.weight_ttype, 'scale') else 1,
+            'Weights Zero Point': self.settings.weight_ttype.zero if hasattr(self.settings.weight_ttype, 'zero') else 0,
+            'Output Type': np.dtype(self.settings.output_ttype),
+            'Output Scale': self.settings.output_ttype.scale if hasattr(self.settings.output_ttype, 'scale') else 1,
+            'Output Zero Point': self.settings.output_ttype.zero if hasattr(self.settings.output_ttype, 'zero') else 0,
+            'IC': self.settings.input_shape[1],
+            'IH': self.settings.input_shape[2],
+            'IW': self.settings.input_shape[3],
+            'IK': self.settings.kernel_channels,
+            'KH': self.settings.kernel_shape[0],
+            'KW': self.settings.kernel_shape[1],
+            'SH': self.settings.kernel_strides[1],
+            'SW': self.settings.kernel_strides[0],
+            'PT': self.settings.kernel_pads[0],
+            'PB': self.settings.kernel_pads[2],
+            'PL': self.settings.kernel_pads[1],
+            'PR': self.settings.kernel_pads[3],
+            'NTHW_NTK': mpeCube2NTHW_NTK[self.settings.mpe_cub],
+            'Output Permute': SW2HWOrder[self.settings.output_order],
+            'Compression': int(self.settings.compress),
+        }
+
+    def generate_inputs(self, rng) -> List[Value]:
+        return [
+            self.settings.input_ttype.generate('input-0.bin', self.settings.input_shape, rng),
+            self.settings.weight_ttype.generate('weights.dat', self.settings.weight_shape, rng, orderer=OrderNCHW)
+        ]
+
+    def apply_mpe(self, values: List[Value]) -> np.ndarray:
+        lhs, rhs = iduConvCustom(values[0], values[1])
+        c2d = Conv2DVPUX37XX(kernel_shape=self.settings.kernel_shape,
+                        pads = self.settings.kernel_pads,
+                        strides = self.settings.kernel_strides)
+        result = c2d.inference(lhs, rhs)
+        return result
+
+    def filter_issues(self, args) -> bool:
+        return True
+
+    def get_out_cluster_data(self, orig_data, start, end, axis, step_per_cluster) -> np.ndarray:
+        broadcast = self.settings.MultiClustersDPU_params[2]
+        if (broadcast == True):
+            return orig_data
+
+        start[axis] = end[axis]
+        remainder = orig_data.shape[axis] - end[axis]
+        step = remainder if (remainder < step_per_cluster) else step_per_cluster
+        end[axis] = start[axis] + step
+
+        return orig_data[start[0]:end[0], start[1]:end[1], start[2]:end[2], start[3]:end[3]]
+
+    def odu(self, output: Value) -> List[Value]:
+        """Models the hardware ODU"""
+        outputs = list()
+
+        task_clusters = self.settings.MultiClustersDPU_params[0]
+        num_clusters = len(task_clusters)
+        tile_start = [0, 0, 0, 0]
+        tile_end = list(output.data.shape)
+        axis = self.settings.MultiClustersDPU_params[1].value
+        tile_end[axis] = 0
+        step_per_cluster = (output.data.shape[axis] + num_clusters - 1) // num_clusters
+
+        # generate a reference for each output:
+        #  1. for output broadcasting in multiple clusters, make a copy of the ref for each cluster
+        #  2. for segmentation (K or H) without broadcast, slice the output from NB as follows - all slices are equal, except possibly the last one
+        for idx, _ in enumerate(task_clusters):
+            data = self.get_out_cluster_data(output.data, tile_start, tile_end, axis, step_per_cluster)
+            value = Value(
+                output.ttype, "output-{}.bin".format(idx), data, output.bitwidth,
+                output.bitsize, output.signed, output.orderer)
+            outputs.append(value)
+
+        return outputs
+
 class RaceConditionDMA(Operation):
 
-    PARAMS = ['mpe_op_class', 'input_ttype', 'output_ttype', 'iteration_count']
+    PARAMS = ['op_class', 'input_ttype', 'output_ttype', 'iteration_count']
     NAME = 'RaceConditionDMA'
 
     def __init__(self, architecture: Architecture, settings):
@@ -2246,11 +2784,11 @@ class RaceConditionDMA(Operation):
 
         self.settings = settings
 
-    def json_info(self, input, output):
+    def json_info(self, input, outputs):
         return {
             'case_type': 'RaceConditionDMA',
-            'input': input[0].json_info,
-            'output': output.json_info,
+            'input': get_values_json_info(input),
+            'output': get_values_json_info(outputs),
             'iteration_count' : self.settings.iteration_count
         }
 
@@ -2283,7 +2821,7 @@ class RaceConditionDMA(Operation):
             self.settings.input_ttype.generate('input-0.bin', [1, 16, 16, 16], rng)
         ]
 
-    def apply(self, values: List[Value]) -> np.ndarray:
+    def apply_mpe(self, values: List[Value]) -> np.ndarray:
         lhs, _ = idu(values[0], values[0])
         return lhs
 
@@ -2293,7 +2831,7 @@ class RaceConditionDMA(Operation):
 class RaceConditionDPU(Operation):
 
     PARAMS = [
-        'mpe_op_class',
+        'op_class',
         'input_ttype',
         'input_shape',
         'weight_ttype',
@@ -2315,12 +2853,12 @@ class RaceConditionDPU(Operation):
         self.settings = settings
         settings.weight_shape = [settings.kernel_channels, settings.input_shape[1]] + settings.kernel_shape
 
-    def json_info(self, inputs, output):
+    def json_info(self, inputs, outputs):
         return {
             'case_type': 'RaceConditionDPU',
-            'input': inputs[0].json_info,
+            'input': [inputs[0].json_info],
             'weight': inputs[1].json_info,
-            'output': output.json_info,
+            'output': get_values_json_info(outputs),
             'conv_op': {
                 'stride': self.settings.kernel_strides,
                 'pad': self.settings.kernel_pads,
@@ -2385,7 +2923,7 @@ class RaceConditionDPU(Operation):
             self.settings.weight_ttype.generate('weights.dat', self.settings.weight_shape, rng, orderer=OrderNCHW)
         ]
 
-    def apply(self, values: List[Value]) -> np.ndarray:
+    def apply_mpe(self, values: List[Value]) -> np.ndarray:
         lhs, rhs = iduConvCustom(values[0], values[1])
         c2d = Conv2DVPUX37XX(kernel_shape=self.settings.kernel_shape,
                         pads = self.settings.kernel_pads,
@@ -2399,7 +2937,7 @@ class RaceConditionDPU(Operation):
 class RaceConditionDPUDMA(Operation):
 
     PARAMS = [
-        'mpe_op_class',
+        'op_class',
         'input_ttype',
         'input_shape',
         'weight_ttype',
@@ -2420,12 +2958,12 @@ class RaceConditionDPUDMA(Operation):
         self.settings = settings
         settings.weight_shape = [settings.kernel_channels, settings.input_shape[1]] + settings.kernel_shape
 
-    def json_info(self, inputs, output):
+    def json_info(self, inputs, outputs):
         return {
             'case_type': 'RaceConditionDPUDMA',
-            'input': inputs[0].json_info,
+            'input': [inputs[0].json_info],
             'weight': inputs[1].json_info,
-            'output': output.json_info,
+            'output': get_values_json_info(outputs),
             'conv_op': {
                 'stride': self.settings.kernel_strides,
                 'pad': self.settings.kernel_pads,
@@ -2472,7 +3010,7 @@ class RaceConditionDPUDMA(Operation):
             self.settings.weight_ttype.generate('weights.dat', self.settings.weight_shape, rng, orderer=OrderNCHW)
         ]
 
-    def apply(self, values: List[Value]) -> np.ndarray:
+    def apply_mpe(self, values: List[Value]) -> np.ndarray:
         lhs, rhs = iduConvCustom(values[0], values[1])
         c2d = Conv2DVPUX37XX(kernel_shape=self.settings.kernel_shape,
                         pads = self.settings.kernel_pads,
@@ -2485,7 +3023,7 @@ class RaceConditionDPUDMA(Operation):
 
 class RaceConditionDPUDMAACT(Operation):
     PARAMS = [
-        'mpe_op_class',
+        'op_class',
         'input_ttype',
         'input_shape',
         'weight_ttype',
@@ -2507,12 +3045,12 @@ class RaceConditionDPUDMAACT(Operation):
         self.settings = settings
         settings.weight_shape = [settings.kernel_channels, settings.input_shape[1]] + settings.kernel_shape
 
-    def json_info(self, inputs, output):
+    def json_info(self, inputs, outputs):
         return {
             'case_type': 'RaceConditionDPUDMAACT',
-            'input': inputs[0].json_info,
+            'input': [inputs[0].json_info],
             'weight': inputs[1].json_info,
-            'output': output.json_info,
+            'output': get_values_json_info(outputs),
             'conv_op': {
                 'stride': self.settings.kernel_strides,
                 'pad': self.settings.kernel_pads,
@@ -2562,7 +3100,7 @@ class RaceConditionDPUDMAACT(Operation):
             self.settings.weight_ttype.generate('weights.dat', self.settings.weight_shape, rng, orderer=OrderNCHW)
         ]
 
-    def apply(self, values: List[Value]) -> np.ndarray:
+    def apply_mpe(self, values: List[Value]) -> np.ndarray:
         lhs, rhs = iduConvCustom(values[0], values[1])
         c2d = Conv2DVPUX37XX(kernel_shape=self.settings.kernel_shape,
                         pads = self.settings.kernel_pads,
@@ -2579,12 +3117,12 @@ class RaceCondition:
     def __init__(self, architecture: Architecture, operation, iter_count, requested_cluster, requested_unit):
         self.architecture = architecture
         self.operation = operation
-        self.mpe_op = operation.mpe_op
+        self.op = operation.op
         self.iter_count = iter_count
         self.requested_cluster = requested_cluster
         self.requested_unit = requested_unit
         self.issues = set()
-        if self.operation.settings.mpe_op_class == ActKernel and self.requested_cluster == 2 :
+        if self.operation.settings.op_class == ActKernel and self.requested_cluster == 2 :
             self.issues.add('E#30347')
 
     def json_info(self):
@@ -2618,74 +3156,7 @@ class RaceCondition:
         if 'E#30347' in self.issues:
             # Filter unsupported cluster param
             return False
-        return self.mpe_op.filter_issues(args)
-
-def ppe(values: List[Value], output_ttype: TType, data: Union[np.ndarray, NBQuantized], activation=None) -> Value:
-    """Models the hardware PPE"""
-    def getValue(collection):
-        return collection.value if isinstance(collection, NBQuantized) else collection
-
-    ndarray = getValue(data)
-    rescale = not output_ttype.is_float
-    output_type = output_ttype
-    output_scale = 1.
-    output_zero_point = 0
-
-    result_bitwidth = math.ceil(np.log2(np.amax(abs(ndarray))))
-    bitshift = max(result_bitwidth - output_type.bitwidth, 0)
-
-    if rescale:
-        if np.issubdtype(ndarray.dtype, np.integer):
-            ndarray = ndarray.astype(np.float64)
-
-        if isinstance(activation, PReLU):
-            activated = np.where(ndarray < 0, ndarray * activation.slope, ndarray)
-            max_ = max(np.amax(activated), 0)
-            min_ = min(np.amin(activated), 0)
-
-            if activation.out_type is np.int8:
-                distance = max(-min_, max_)
-                zero_point = 0
-                scale = distance / 127.
-
-            if activation.out_type is np.uint8:
-                length = max_ - min_
-                zero_point = np.round((-min_ * 255.) / length)
-                scale = length / 255.
-
-            output_scale = scale
-            output_zero_point = zero_point
-        else:
-            # replace with quantization (#-29828)
-            ndarray /= (1. * (1 << bitshift))
-
-    if activation:
-        data = activation(data, np.float32(output_scale), activation.out_type(output_zero_point))
-        ndarray = getValue(data)
-        output_type = activation.get_out_type()
-
-    ndarray = output_type.clip(ndarray).astype(output_type.dtype)
-    value = Value(output_type, 'output-0.bin', ndarray, output_type.bitwidth, output_type.bitsize, output_type.signed, None)
-
-    if rescale:
-        if isinstance(data, NBQuantized):
-            if isinstance(activation, PReLU):
-                value.zero = output_zero_point
-                value.scale = output_scale
-            else:
-                # replace with quantization (#-29828)
-                value.zero = int(data.zero_point)
-                value.scale = (1 << bitshift)
-        else:
-            # replace with quantization (#-29828)
-            value.scale = (1 << bitshift)
-
-    return value
-
-
-def odu(output: Value):
-    """Models the hardware ODU"""
-    return output
+        return self.op.filter_issues(args)
 
 
 class Settings:
@@ -2701,40 +3172,41 @@ class DPUPipeline:
         for name, value in zip(option_names, option_values):
             setattr(settings, name, value)
 
-        self.mpe_op = settings.mpe_op_class(architecture, settings)
+        self.op = settings.op_class(architecture, settings)
         self.activation = activation
 
     def compute_values(self):
         try:
-            self.inputs = self.mpe_op.generate_inputs(default_rng(1))
-            mpe_data = self.mpe_op.apply(self.inputs)
+            self.inputs = self.op.generate_inputs(default_rng(1))
+            mpe_data = self.op.apply_mpe(self.inputs)
             self.mpe_data = mpe_data.value if isinstance(mpe_data, NBQuantized) else mpe_data
-            ppe_value = ppe(self.inputs, self.settings.output_ttype, mpe_data, self.activation)
-            self.o = odu(ppe_value)
-            self.o.check_entropy()
+            ppe_value = self.op.ppe(self.inputs, self.settings.output_ttype, mpe_data, self.activation)
+            self.outputs = self.op.odu(ppe_value)
+            for output in self.outputs:
+                output.check_entropy()
         except Exception as ex:
             raise ComputationError(f'computing {self.ident}') from ex
 
     def validate(self):
         try:
-            self.mpe_op.validate()
+            self.op.validate()
         except Exception as ex:
             raise ValidationError(f'validating {self.ident}') from ex
 
     @property
     def name(self):
-        return self.mpe_op.NAME
+        return self.op.NAME
 
     @property
     def ident(self):
         activation_ident = str(self.activation or self.settings.output_ttype.stype)
-        return f'{self.mpe_op.ident}_{activation_ident}'
+        return f'{self.op.ident}_{activation_ident}'
 
     @property
     def data(self):
         data = {
-            **self.mpe_op.data,
-            'Type': self.mpe_op.NAME,
+            **self.op.data,
+            'Type': self.op.NAME,
             'Content Creation': 0,
             'ActSpBitsIC': '',
             'WtSpBitsIC': '',
@@ -2745,24 +3217,25 @@ class DPUPipeline:
         return data
 
     def write_data(self, dir: Path):
-        orderer = self.mpe_op.orderer
+        orderer = self.op.orderer
         for input in self.inputs:
             input.write_data(dir, orderer)
-        self.o.write_data(dir, self.mpe_op.output_orderer)
+        for output in self.outputs:
+            output.write_data(dir, self.op.output_orderer)
         orderer(self.mpe_data).tofile(dir / 'mpe_raw.bin')
 
     def value(self):
-        value = {'architecture': self.mpe_op.architecture.name}
-        value = {**value, **self.mpe_op.json_info(self.inputs, self.o)}
+        value = {'architecture': self.op.architecture.name}
+        value = {**value, **self.op.json_info(self.inputs, self.outputs)}
         if self.activation:
             value['activation'] = self.activation.json_info
         return value
 
     def filter_issues(self, args) -> bool:
-        return not self.issues and self.mpe_op.filter_issues(args)
+        return not self.issues and self.op.filter_issues(args)
 
     def filter_issues(self, args):
-        return self.mpe_op.filter_issues(args)
+        return self.op.filter_issues(args)
 
 
 class Pad:
@@ -3231,11 +3704,12 @@ def genDifferentClustersDPU(architecture,
                             compress=False,
                             mpe_cubs=[MPE_CUBES.CUBOID_16x16],
                             input_clusters = [0, 1],
-                            output_clusters = [0, 1],
+                            output_clusters = [[0], [1], [0, 1]],
                             weights_clusters = [0, 1],
                             weights_table_clusters = [0, 1]):
 
-    for (input_type, input_shape, kernel_channel, kernel_shape, output_order, stride, pad, mpe_cub, input_cluster, output_cluster, weights_cluster, weights_table_cluster) in itertools.product(input_types, input_shapes, kernel_channels, kernel_shapes, output_orders, strides, pads, mpe_cubs, input_clusters, output_clusters, weights_clusters, weights_table_clusters):
+    for (input_type, input_shape, kernel_channel, kernel_shape, output_order, stride, pad, mpe_cub, input_cluster, output_cluster, weights_cluster, weights_table_cluster) \
+            in itertools.product(input_types, input_shapes, kernel_channels, kernel_shapes, output_orders, strides, pads, mpe_cubs, input_clusters, output_clusters, weights_clusters, weights_table_clusters):
 
         current_weight_types = weight_types
         for weight_type in current_weight_types:
@@ -3245,9 +3719,10 @@ def genDifferentClustersDPU(architecture,
                 if(output_order != Order.NHWC and not _PPE_HAS_PERMUTATION_SUPPORT[output_type.__class__]) :
                     print("skip", output_order, output_type)
                     continue
-                if(input_cluster == output_cluster == weights_cluster == weights_table_cluster) :
+                if(len(output_cluster) == 1 and input_cluster == output_cluster[0] == weights_cluster == weights_table_cluster):
                     print("skip, DPU uses the memory of the same cluster, cluster num:", input_cluster)
                     continue
+
                 yield DPUPipeline(architecture, DifferentClustersDPU.PARAMS, (DifferentClustersDPU,
                                                                               input_type,
                                                                               input_shape,
@@ -3262,6 +3737,50 @@ def genDifferentClustersDPU(architecture,
                                                                               mpe_cub,
                                                                               [input_cluster, output_cluster, weights_cluster, weights_table_cluster]))
 
+def genMultiClustersDPU(architecture,
+                        input_types=[FP16(4)],
+                        input_shapes=[[1, 32, 16, 16]],
+                        weight_types=[FP16(4)],
+                        kernel_channels=[64],
+                        kernel_shapes=[[1, 1]],
+                        output_types=[FP16(4)],
+                        output_orders=[Order.NHWC],
+                        strides=[[1, 1]],
+                        pads=Pad.none,
+                        compress=False,
+                        mpe_cubs=[MPE_CUBES.CUBOID_16x16],
+                        task_clusters=[[0, 1]],
+                        segmentation=SEGMENTATION.SOK,
+                        is_out_broadcasted=[True]):
+
+    for (input_type, input_shape, kernel_channel, kernel_shape, output_order, stride, pad, mpe_cub, task_cluster, broadcast) \
+            in itertools.product(input_types, input_shapes, kernel_channels, kernel_shapes, output_orders, strides, pads, mpe_cubs, task_clusters, is_out_broadcasted):
+
+        current_weight_types = weight_types
+        for weight_type in current_weight_types:
+
+            current_output_types = output_types
+            for output_type in current_output_types:
+                if(output_order != Order.NHWC and not _PPE_HAS_PERMUTATION_SUPPORT[output_type.__class__]) :
+                    print("skip", output_order, output_type)
+                    continue
+
+                yield DPUPipeline(architecture, MultiClustersDPU.PARAMS, (MultiClustersDPU,
+                                                                          input_type,
+                                                                          input_shape,
+                                                                          weight_type,
+                                                                          kernel_channel,
+                                                                          kernel_shape,
+                                                                          output_type,
+                                                                          output_order,
+                                                                          stride,
+                                                                          pad,
+                                                                          compress,
+                                                                          mpe_cub,
+                                                                          [task_cluster, segmentation, broadcast]))
+
+
+
 def genActShave(architecture,
                 input_types,
                 input_shapes,
@@ -3269,6 +3788,22 @@ def genActShave(architecture,
                 act_shave_subtypes):
     for (input_type, input_shape, output_type, act_shave_subtype) in itertools.product(input_types, input_shapes, output_types, act_shave_subtypes):
         yield DPUPipeline(architecture, ActKernel.PARAMS, (ActKernel, input_type, input_shape, output_type, act_shave_subtype))
+
+def genM2iTask(descr,
+               architecture,
+               input_fmts,
+               input_shapes,
+               do_norm, norm_coefs,
+               output_fmts,
+               output_sizes):
+    for (in_fmt, in_shape, out_fmt) in itertools.product(input_fmts, input_shapes, output_fmts):
+        # OpenVINO defines SINGLE_PLANE buffs for NV12 and I420 as having H = Luma_H * 3/2
+        # in order to include chroma buffs
+        in_shp = in_shape[:] # a copy
+        if ((in_fmt == M2I_FMT.SP_NV12_8) or (in_fmt == M2I_FMT.PL_YUV420_8)):
+            assert ((in_shape[1] % 2) == 0), 'YUV input height must be EVEN number'
+            in_shp[1] = int(in_shp[1] * 3 / 2)
+        yield M2iTask(descr, architecture, in_fmt, in_shp, out_fmt, output_sizes, do_norm, norm_coefs)
 
 AVAILABLE_CMX_SIZE = 1024*1942 # size in Bytes
 HALF_OF_CMX_SIZE = int(AVAILABLE_CMX_SIZE/2)
@@ -3419,6 +3954,73 @@ def genRaceConditionDPUDMAACT(architecture,
 
 def generate_options(args):
     return itertools.chain(
+
+        # M2I
+        genM2iTask('SG',  # CSC only
+            architecture=Architecture.VPUX40XX,
+            input_fmts=[M2I_FMT.SP_NV12_8, M2I_FMT.PL_YUV420_8],
+            input_shapes=[[1, 240, 320, 1]], # N,H,W,C
+            do_norm=False,
+            norm_coefs = [],
+            output_fmts=[M2I_FMT.IL_RGB888, M2I_FMT.IL_BGR888],
+            output_sizes = []),
+
+        genM2iTask('SG',  # Normalization only
+            architecture=Architecture.VPUX40XX,
+            input_fmts=[M2I_FMT.PL_FP16_RGB],
+            input_shapes=[[1, 3, 256, 256]], # N,C,H,W
+            do_norm=True,
+            # A,B,C,D coefs for each of R,G,B channels
+            norm_coefs = [10.0, 11.0, 12.0, 13.0, \
+                          20.0, 21.0, 22.0, 23.0, \
+                          30.0, 31.0, 32.0, 33.0],
+            output_fmts=[M2I_FMT.PL_FP16_RGB],
+            output_sizes = []),
+
+        genM2iTask('SG',  # Resize only - PLANAR
+            architecture=Architecture.VPUX40XX,
+            input_fmts=[M2I_FMT.PL_FP16_RGB],
+            input_shapes=[[1, 3, 256, 256]], # N,C,H,W
+            do_norm=False, norm_coefs = [],
+            output_fmts=[M2I_FMT.PL_FP16_RGB],
+            output_sizes = [224,224]),
+
+        genM2iTask('SG',  # Resize only - Interleaved
+            architecture=Architecture.VPUX40XX,
+            input_fmts=[M2I_FMT.IL_RGB888],
+            input_shapes=[[1, 256, 256, 3]], # N,H,W,C
+            do_norm=False, norm_coefs = [],
+            output_fmts=[M2I_FMT.IL_RGB888],
+            output_sizes = [224,224]),
+
+        # Fuses types (with resize)
+        #   [csc->convertU8toF16->resize->permute]
+        #   [csc->resize->permute]
+        #   [csc->resize]
+        genM2iTask('F1',
+            architecture=Architecture.VPUX40XX,
+            input_fmts=[M2I_FMT.SP_NV12_8, M2I_FMT.PL_YUV420_8],
+            input_shapes=[[1, 192, 256, 1]], # N,H,W,C
+            do_norm=False,
+            norm_coefs = [],
+            output_fmts=[M2I_FMT.IL_RGB888,   M2I_FMT.IL_BGR888, \
+                         M2I_FMT.PL_RGB24,    M2I_FMT.PL_BGR24,  \
+                         M2I_FMT.PL_FP16_RGB, M2I_FMT.PL_FP16_BGR],
+            output_sizes = [168, 224]),
+
+        # Fuses types (no resize)
+        #   [csc->permute]
+        #   [csc->convertU8toF16->permute]
+        genM2iTask('F2',
+            architecture=Architecture.VPUX40XX,
+            input_fmts=[M2I_FMT.SP_NV12_8, M2I_FMT.PL_YUV420_8],
+            input_shapes=[[1, 168, 224, 1]], # N,H,W,C
+            do_norm=False,
+            norm_coefs = [],
+            output_fmts=[M2I_FMT.PL_RGB24,    M2I_FMT.PL_BGR24,  \
+                         M2I_FMT.PL_FP16_RGB, M2I_FMT.PL_FP16_BGR],
+            output_sizes = []),
+
         # ActShave
         genActShave(
             architecture=Architecture.VPUX37XX,
@@ -3431,6 +4033,52 @@ def generate_options(args):
                 [ActivationType.Softmax, 1],  # axis C
                 [ActivationType.Softmax, 2],  # axis H
                 [ActivationType.Softmax, 3],  # axis W
+            ]),
+
+        # NOTE: test must align tensor size according to vector size
+        genActShave(
+            architecture=Architecture.VPUX37XX,
+            input_types=[FP16(0)],
+            input_shapes=[[1, 16, 2, 3],  [1, 1000, 1, 1], [1, 1, 1000, 1], [1, 1, 1, 1000]],
+            output_types=[FP16()],
+            act_shave_subtypes=[
+                [ActivationType.vau_sigm],
+                [ActivationType.vau_sqrt],
+                [ActivationType.vau_tanh],
+                [ActivationType.vau_log],
+                [ActivationType.vau_exp],
+            ]),
+
+        genActShave(
+            architecture=Architecture.VPUX37XX,
+            input_types=[BF16(0)],
+            input_shapes=[[1, 16, 2, 3],  [1, 1000, 1, 1], [1, 1, 1000, 1], [1, 1, 1, 1000]],
+            output_types=[BF16()],
+            act_shave_subtypes=[
+                [ActivationType.lsu_b16],
+                [ActivationType.lsu_b16_vec],
+            ]),
+
+        genActShave(
+            architecture=Architecture.VPUX37XX,
+            input_types=[Int32()],
+            input_shapes=[[1, 16, 2, 3],  [1, 1000, 1, 1], [1, 1, 1000, 1], [1, 1, 1, 1000]],
+            output_types=[Int32()],
+            act_shave_subtypes=[
+                [ActivationType.sau_dp4],
+                [ActivationType.sau_dp4a],
+                [ActivationType.sau_dp4m],
+            ]),
+
+        genActShave(
+            architecture=Architecture.VPUX37XX,
+            input_types=[Int8()],
+            input_shapes=[[1, 16, 2, 3], [1, 1008, 1, 1]],
+            output_types=[Int32()],
+            act_shave_subtypes=[
+                [ActivationType.vau_dp4],
+                [ActivationType.vau_dp4a],
+                [ActivationType.vau_dp4m],
             ]),
 
         # Z-Major Convolution
@@ -4133,6 +4781,23 @@ def generate_options(args):
         ),
 
         genDifferentClustersDPU(architecture=Architecture.VPUX37XX),
+        genMultiClustersDPU(architecture=Architecture.VPUX37XX,
+                            kernel_channels=[64],
+                            segmentation=SEGMENTATION.SOK,
+                            is_out_broadcasted=[True, False]),
+        genMultiClustersDPU(architecture=Architecture.VPUX37XX,
+                            input_shapes=[[1, 32, 32, 32]],
+                            kernel_channels=[64],
+                            strides=[[3, 3], [1, 1]],
+                            segmentation=SEGMENTATION.SOH,
+                            is_out_broadcasted=[True, False]),
+        genMultiClustersDPU(architecture=Architecture.VPUX37XX,
+                            input_shapes=[[1, 32, 32, 32]],
+                            kernel_channels=[64],
+                            kernel_shapes=[[3, 3]],
+                            strides=[[2, 2], [1, 1]],
+                            segmentation=SEGMENTATION.SOH,
+                            is_out_broadcasted=[True, False]),
 
         # # check all datatypes
         genDMA(
@@ -4164,22 +4829,44 @@ def generate_options(args):
             architecture=Architecture.VPUX37XX,
             input_types=[FP16(2)],
             output_types=[FP16(2)],
-            iteration_count=64
+            iteration_count=64 # 64 (max) barriers = 2 tiles x 32 barriers per tile
+        ),
+
+        genRaceConditionDMA(
+            architecture=Architecture.VPUX40XX,
+            input_types=[FP16(2)],
+            output_types=[FP16(2)],
+            iteration_count=96 # 96 (max) barriers = 6 tiles x 16 barriers per tile
         ),
 
         genRaceConditionDPU(
             architecture=Architecture.VPUX37XX,
-            iteration_count=48
+            iteration_count=48 # 48 barriers = 2 tiles x 24 barriers per tile
+        ),
+
+        genRaceConditionDPU(
+            architecture=Architecture.VPUX40XX,
+            iteration_count=72 # 72 barriers = 6 tiles x 12 barriers per tile
         ),
 
         genRaceConditionDPUDMA(
             architecture=Architecture.VPUX37XX,
-            iteration_count=48
+            iteration_count=48 # 48 barriers = 2 tiles x 24 barriers per tile
+        ),
+
+        genRaceConditionDPUDMA(
+            architecture=Architecture.VPUX40XX,
+            iteration_count=72 # 72 barriers = 6 tiles x 12 barriers per tile
         ),
 
         genRaceConditionDPUDMAACT(
             architecture=Architecture.VPUX37XX,
-            iteration_count=24
+            iteration_count=24 # single tile test, max 32 barriers per tile, test configures iteration_count+1=25 barriers
+        ),
+
+        genRaceConditionDPUDMAACT(
+            architecture=Architecture.VPUX40XX,
+            iteration_count=12 # single tile test, max 16 barriers per tile, test configures iteration_count+1=13 barriers
         ),
 
         genRaceCondition(
@@ -4195,6 +4882,29 @@ def generate_options(args):
                     [ActivationType.Softmax, 1],  # axis C
                     [ActivationType.Softmax, 2],  # axis H
                     [ActivationType.Softmax, 3],  # axis W
+                ]
+            ),
+            iteration_counts=[10],
+            requested_clusters=[1, 2],
+            requested_units=[1, 2]
+        ),
+
+        # NOTE: test must align tensor size according to vector size
+        genRaceCondition(
+            architecture=Architecture.VPUX37XX,
+            ops = genActShave(
+                architecture=Architecture.VPUX37XX,
+                input_types=[FP16(0)],
+                input_shapes=[[1, 16, 2, 3]],
+                output_types=[FP16()],
+                act_shave_subtypes=[
+                    [ActivationType.vau_sigm],
+                    [ActivationType.vau_sqrt],
+                    [ActivationType.vau_tanh],
+                    [ActivationType.vau_log],
+                    [ActivationType.vau_exp],
+                    [ActivationType.lsu_b16],
+                    [ActivationType.lsu_b16_vec],
                 ]
             ),
             iteration_counts=[10],

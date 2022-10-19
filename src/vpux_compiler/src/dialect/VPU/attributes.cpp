@@ -12,6 +12,7 @@
 #include "vpux/compiler/dialect/IE/attributes/structs.hpp"
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/IE/utils/resources.hpp"
+#include "vpux/compiler/dialect/VPUIP/utils.hpp"
 #include "vpux/compiler/utils/analysis.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 
@@ -56,6 +57,12 @@ namespace {
 
 constexpr int VPUX30XX_MAX_DPU_GROUPS = 4;
 constexpr int VPUX37XX_MAX_DPU_GROUPS = 2;
+constexpr int VPUX40XX_MAX_DPU_GROUPS = 6;
+
+constexpr int VPUX30XX_MAX_DMA_PORTS = 1;
+constexpr int VPUX311X_MAX_DMA_PORTS = 2;
+constexpr int VPUX37XX_MAX_DMA_PORTS = 2;
+constexpr int VPUX40XX_MAX_DMA_PORTS = 2;
 
 }  // namespace
 
@@ -67,6 +74,8 @@ uint32_t vpux::VPU::getMaxDPUClusterNum(ArchKind arch) {
         return VPUX30XX_MAX_DPU_GROUPS;
     case VPU::ArchKind::VPUX37XX:
         return VPUX37XX_MAX_DPU_GROUPS;
+    case VPU::ArchKind::VPUX40XX:
+        return VPUX40XX_MAX_DPU_GROUPS;
     default:
         VPUX_THROW("Unsupported architecture '{0}'", arch);
     }
@@ -76,13 +85,43 @@ uint32_t vpux::VPU::getMaxDPUClusterNum(mlir::Operation* op) {
     return VPU::getMaxDPUClusterNum(VPU::getArch(op));
 }
 
-Byte vpux::VPU::getTotalCMXSize(mlir::Operation* op) {
-    auto module = getTopLevelModule(op);
+uint32_t vpux::VPU::getMaxDMAPorts(ArchKind arch) {
+    switch (arch) {
+    case VPU::ArchKind::VPUX30XX:
+        return VPUX30XX_MAX_DMA_PORTS;
+    case VPU::ArchKind::VPUX311X:
+        return VPUX311X_MAX_DMA_PORTS;
+    case VPU::ArchKind::VPUX37XX:
+        return VPUX37XX_MAX_DMA_PORTS;
+    case VPU::ArchKind::VPUX40XX:
+        return VPUX40XX_MAX_DMA_PORTS;
+    default:
+        VPUX_THROW("Unsupported architecture '{0}'", arch);
+    }
+}
 
+Byte vpux::VPU::getTotalCMXSize(mlir::ModuleOp module) {
     auto cmxRes = IE::getAvailableMemory(module, VPU::MemoryKind::CMX_NN);
     VPUX_THROW_UNLESS(cmxRes != nullptr, "Can't get information about {0} memory", VPU::MemoryKind::CMX_NN);
 
-    return cmxRes.size();
+    const ArchKind arch = getArch(module);
+
+    // This function is used to determine the best tile size. It tries to put maximum data in CMX.
+    // Available CMX memory is decreased by two profilingBufferSize even if profiling is disabled
+    // because we want to get exactly same compiled networks with profiling enabled and disabled.
+    // Two buffer sizes are required in case when profiling allocates new buffer and old buffer
+    // is still not disposed. Second buffer can be treated as an optimisation that prevents spilling.
+    const int64_t profilingBufferSize =
+            vpux::VPUIP::HW_DMA_PROFILING_MAX_BUFFER_SIZE + vpux::VPUIP::HW_DPU_PROFILING_MAX_BUFFER_SIZE +
+            ((arch == ArchKind::VPUX37XX) ? vpux::VPUIP::HW_ACT_SHAVE_PROFILING_MAX_BUFFER_SIZE : 0);
+
+    return cmxRes.size() - Byte(2 * profilingBufferSize);
+}
+
+Byte vpux::VPU::getTotalCMXSize(mlir::Operation* op) {
+    auto module = getTopLevelModule(op);
+
+    return getTotalCMXSize(module);
 }
 
 //
@@ -99,10 +138,11 @@ constexpr Byte CSRAM_SIZE = 24_MB;
 constexpr Byte KMB_CMX_WORKSPACE_SIZE = Byte(896_KB);
 
 constexpr Byte VPUX37XX_CMX_WORKSPACE_SIZE = Byte(1936_KB);
-
+constexpr Byte VPUX40XX_CMX_WORKSPACE_SIZE = Byte(1536_KB);
 }  // namespace
 
-void vpux::VPU::setArch(mlir::ModuleOp module, ArchKind kind, Optional<int> numOfDPUGroups) {
+void vpux::VPU::setArch(mlir::ModuleOp module, ArchKind kind, Optional<int> numOfDPUGroups,
+                        Optional<int> numOfDMAPorts) {
     VPUX_THROW_WHEN(module->hasAttr(archAttrName),
                     "Architecture is already defined, probably you run '--init-compiler' twice");
 
@@ -125,6 +165,13 @@ void vpux::VPU::setArch(mlir::ModuleOp module, ArchKind kind, Optional<int> numO
         return numOfDPUGroupsVal;
     };
 
+    const auto getNumOfDMAPortsVal = [&](int maxDmaPorts) {
+        int numOfDMAPortsVal = numOfDMAPorts.hasValue() ? numOfDMAPorts.getValue() : maxDmaPorts;
+        VPUX_THROW_UNLESS(1 <= numOfDMAPortsVal && numOfDMAPortsVal <= maxDmaPorts,
+                          "Invalid number of DMA ports: '{0}'", numOfDMAPortsVal);
+        return numOfDMAPortsVal;
+    };
+
     IE::ExecutorResourceOp nceCluster;
 
     switch (kind) {
@@ -132,7 +179,7 @@ void vpux::VPU::setArch(mlir::ModuleOp module, ArchKind kind, Optional<int> numO
         addMem(MemoryKind::DDR, DDR_HEAP_SIZE, 0.6, 8);
         addMem(MemoryKind::CMX_NN, KMB_CMX_WORKSPACE_SIZE, 1.0, 32);
 
-        addExecutor(ExecutorKind::DMA_NN, 1);
+        addExecutor(ExecutorKind::DMA_NN, getNumOfDMAPortsVal(VPUX30XX_MAX_DMA_PORTS));
         addExecutor(ExecutorKind::SHAVE_UPA, 16);
         nceCluster = IE::addAvailableExecutor(module, ExecutorKind::NCE, getNumOfDPUGroupsVal(VPUX30XX_MAX_DPU_GROUPS));
         nceCluster.addSubExecutor(ExecutorKind::DPU, 5);
@@ -144,7 +191,7 @@ void vpux::VPU::setArch(mlir::ModuleOp module, ArchKind kind, Optional<int> numO
         addMem(MemoryKind::CSRAM, CSRAM_SIZE, 0.85, 64);
         addMem(MemoryKind::CMX_NN, KMB_CMX_WORKSPACE_SIZE, 1.0, 32);
 
-        addExecutor(ExecutorKind::DMA_NN, 2);
+        addExecutor(ExecutorKind::DMA_NN, getNumOfDMAPortsVal(VPUX311X_MAX_DMA_PORTS));
         addExecutor(ExecutorKind::SHAVE_UPA, 16);
         nceCluster = IE::addAvailableExecutor(module, ExecutorKind::NCE, getNumOfDPUGroupsVal(VPUX30XX_MAX_DPU_GROUPS));
         nceCluster.addSubExecutor(ExecutorKind::DPU, 5);
@@ -155,7 +202,7 @@ void vpux::VPU::setArch(mlir::ModuleOp module, ArchKind kind, Optional<int> numO
         addMem(MemoryKind::DDR, DDR_HEAP_SIZE, 0.6, 8);
         addMem(MemoryKind::CMX_NN, VPUX37XX_CMX_WORKSPACE_SIZE, 1.0, 32);
 
-        addExecutor(ExecutorKind::DMA_NN, 2);
+        addExecutor(ExecutorKind::DMA_NN, getNumOfDMAPortsVal(VPUX37XX_MAX_DMA_PORTS));
         // TODO: SHAVE_NN shouldn't be used here
         addExecutor(ExecutorKind::SHAVE_NN, 1);
         // TODO: move SHAVE_ACT as a sub-executor for NCE
@@ -164,6 +211,21 @@ void vpux::VPU::setArch(mlir::ModuleOp module, ArchKind kind, Optional<int> numO
         nceCluster = IE::addAvailableExecutor(module, ExecutorKind::NCE, getNumOfDPUGroupsVal(VPUX37XX_MAX_DPU_GROUPS));
         nceCluster.addSubExecutor(ExecutorKind::DPU, 1);
 
+        break;
+    }
+    case ArchKind::VPUX40XX: {
+        addMem(MemoryKind::DDR, DDR_HEAP_SIZE, 0.6, 64);
+        addMem(MemoryKind::CMX_NN, VPUX40XX_CMX_WORKSPACE_SIZE, 1.0, 64);
+
+        addExecutor(ExecutorKind::DMA_NN, 1);
+        addExecutor(ExecutorKind::M2I, 1);
+        addExecutor(ExecutorKind::SHAVE_ACT, 2);
+        nceCluster = IE::addAvailableExecutor(module, ExecutorKind::NCE, getNumOfDPUGroupsVal(VPUX40XX_MAX_DPU_GROUPS));
+        nceCluster.addSubExecutor(ExecutorKind::DPU, 1);
+
+        // For VPUX40XX in general voltage & frequency can be scale by OS
+        // Nominal frequency is 1700
+        // nceCluster->setAttr(processorFrequencyAttrName, getFPAttr(module.getContext(), 1700.0));
         break;
     }
     default:
@@ -251,14 +313,14 @@ PadInfo vpux::VPU::toPadInfo(PaddingAttr attr) {
 
 VPU::PPETaskAttr vpux::VPU::getPPETaskAttr(mlir::MLIRContext* ctx, VPU::PPEMode mode) {
     return VPU::PPETaskAttr::get(VPU::PPEModeAttr::get(ctx, mode), nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
-                                 nullptr, ctx);
+                                 nullptr, nullptr, nullptr, nullptr, ctx);
 }
 
 VPU::PPETaskAttr vpux::VPU::getPPETaskAttr(mlir::MLIRContext* ctx, VPU::PPEMode mode, int64_t clampLow,
                                            int64_t clampHigh, int64_t lreluMult, int64_t lreluShift) {
     return VPU::PPETaskAttr::get(VPU::PPEModeAttr::get(ctx, mode), getIntAttr(ctx, clampLow),
                                  getIntAttr(ctx, clampHigh), getIntAttr(ctx, lreluMult), getIntAttr(ctx, lreluShift),
-                                 nullptr, nullptr, nullptr, ctx);
+                                 nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, ctx);
 }
 
 VPU::PPETaskAttr vpux::VPU::getPPETaskAttr(mlir::MLIRContext* ctx, VPU::PPEMode mode, int64_t clampLow,
@@ -267,8 +329,28 @@ VPU::PPETaskAttr vpux::VPU::getPPETaskAttr(mlir::MLIRContext* ctx, VPU::PPEMode 
                                            int64_t quantPostShift) {
     return VPU::PPETaskAttr::get(VPU::PPEModeAttr::get(ctx, mode), getIntAttr(ctx, clampLow),
                                  getIntAttr(ctx, clampHigh), getIntAttr(ctx, lreluMult), getIntAttr(ctx, lreluShift),
-                                 getIntArrayAttr(ctx, quantMult), getIntArrayAttr(ctx, quantShift),
-                                 getIntAttr(ctx, quantPostShift), ctx);
+                                 nullptr, getIntArrayAttr(ctx, quantMult), getIntArrayAttr(ctx, quantShift),
+                                 getIntAttr(ctx, quantPostShift), nullptr, nullptr, ctx);
+}
+
+VPU::PPETaskAttr vpux::VPU::getPPETaskAttr(mlir::MLIRContext* ctx, VPU::PPEMode mode, int64_t clampLow,
+                                           int64_t clampHigh, int64_t lreluMult, int64_t lreluShift,
+                                           ArrayRef<double> quantScale) {
+    return VPU::PPETaskAttr::get(VPU::PPEModeAttr::get(ctx, mode), getIntAttr(ctx, clampLow),
+                                 getIntAttr(ctx, clampHigh), getIntAttr(ctx, lreluMult), getIntAttr(ctx, lreluShift),
+                                 getFPArrayAttr(ctx, quantScale), nullptr, nullptr, nullptr, nullptr, nullptr, ctx);
+}
+
+VPU::PPETaskAttr vpux::VPU::getPPETaskAttr(mlir::MLIRContext* ctx, VPU::PPEMode mode, int64_t clampLow,
+                                           int64_t clampHigh, int64_t lreluMult, int64_t lreluShift,
+                                           ArrayRef<int64_t> quantMult, ArrayRef<int64_t> quantShift,
+                                           int64_t quantPostShift, ArrayRef<int64_t> in1QuantMult,
+                                           ArrayRef<int64_t> in2QuantMult) {
+    return VPU::PPETaskAttr::get(VPU::PPEModeAttr::get(ctx, mode), getIntAttr(ctx, clampLow),
+                                 getIntAttr(ctx, clampHigh), getIntAttr(ctx, lreluMult), getIntAttr(ctx, lreluShift),
+                                 nullptr, getIntArrayAttr(ctx, quantMult), getIntArrayAttr(ctx, quantShift),
+                                 getIntAttr(ctx, quantPostShift), getIntArrayAttr(ctx, in1QuantMult),
+                                 getIntArrayAttr(ctx, in2QuantMult), ctx);
 }
 
 VPU::PPEMode vpux::VPU::getPPEMode(VPU::EltwiseType type) {
@@ -436,6 +518,36 @@ mlir::LogicalResult vpux::VPU::areDistributionModesCompatible(DistributionMode s
     return mlir::failure();
 }
 
+mlir::LogicalResult vpux::VPU::areDistributionNumClustersCompatible(mlir::IntegerAttr sourceNumClusters,
+                                                                    mlir::IntegerAttr targetNumClusters) {
+    return mlir::success(sourceNumClusters.getInt() >= targetNumClusters.getInt());
+}
+
+mlir::LogicalResult vpux::VPU::areDistributionAttrsCompatible(DistributedTensorAttr sourceAttr,
+                                                              DistributedTensorAttr targetAttr) {
+    if (sourceAttr.alignment() != targetAttr.alignment()) {
+        return mlir::failure();
+    }
+
+    const auto inDistributionMode = sourceAttr.mode().getValue();
+    const auto outDistributionMode = targetAttr.mode().getValue();
+
+    if (inDistributionMode != outDistributionMode) {
+        if (VPU::areDistributionModesCompatible(inDistributionMode, outDistributionMode).failed()) {
+            return mlir::failure();
+        }
+    }
+
+    const auto inDistributionNumClusters = sourceAttr.num_clusters();
+    const auto outDistributionNumClusters = targetAttr.num_clusters();
+
+    if (VPU::areDistributionNumClustersCompatible(inDistributionNumClusters, outDistributionNumClusters).failed()) {
+        return mlir::failure();
+    }
+
+    return mlir::success();
+}
+
 //
 // Tiling utils
 //
@@ -445,6 +557,12 @@ mlir::LogicalResult vpux::VPU::areDistributionModesCompatible(DistributionMode s
 SmallVector<Shape> splitSegmentedShape(ArrayRef<int64_t> shape, ArrayRef<int64_t> tilingScheme,
                                        const int64_t numClusters, const int64_t axis,
                                        Optional<ArrayRef<int64_t>> alignment) {
+    VPUX_THROW_UNLESS(axis < int64_t(shape.size()),
+                      "An invalid split axis {0} specified, the shape tensor is {1} dimensional", axis, shape.size());
+    VPUX_THROW_UNLESS(tilingScheme[axis] == numClusters,
+                      "The number of tiles on axis {0} must be equal to the number of clusters specified for "
+                      "compilation {1} but got {2}",
+                      axis, tilingScheme[axis], numClusters);
     auto tiledShape = to_small_vector(shape);
     tiledShape[axis] = divUp(tiledShape[axis], tilingScheme[axis]);
     tiledShape = alignShape(tiledShape, alignment);
@@ -525,7 +643,8 @@ SmallVector<Shape> vpux::VPU::getPerClusterComputeShapes(ShapeRef shapeRef, Dist
     if (VPU::bitEnumContains(distributionMode, VPU::DistributionMode::SEGMENTED)) {
         const auto tilingScheme = parseIntArrayAttr<int64_t>(distributionAttr.num_tiles());
         const auto axis = std::distance(tilingScheme.begin(), llvm::find_if(tilingScheme, isValidTile));
-
+        VPUX_THROW_UNLESS(axis < int64_t(tilingScheme.size()), "Segmented tiling scheme requires at least 1 dimension "
+                                                               "to be segmented but the tiling schema is [1, 1, 1, 1]");
         tiledComputeShapes = splitSegmentedShape(shape, tilingScheme, numClusters, axis, optionalAlignment);
     } else if (VPU::bitEnumContains(distributionMode, VPU::DistributionMode::OVERLAPPED)) {
         const auto tilingScheme = parseIntArrayAttr<int64_t>(distributionAttr.num_tiles());
@@ -605,7 +724,7 @@ SmallVector<PadInfo> vpux::VPU::getPerClusterPadding(DistributedTensorAttr distr
 }
 
 SmallVector<StridedShape> vpux::VPU::getPerClusterStridedShapes(ShapeRef shape, StridesRef strides, DimsOrder dimsOrder,
-                                                                Bit elemSize, DistributedTensorAttr distributionAttr) {
+                                                                DistributedTensorAttr distributionAttr) {
     const auto distributionMode = distributionAttr.mode().getValue();
     const auto computeShapes = getPerClusterComputeShapes(shape, distributionAttr);
 
@@ -619,44 +738,10 @@ SmallVector<StridedShape> vpux::VPU::getPerClusterStridedShapes(ShapeRef shape, 
 
     if (VPU::bitEnumContains(distributionMode, VPU::DistributionMode::SEGMENTED) ||
         VPU::bitEnumContains(distributionMode, VPU::DistributionMode::OVERLAPPED)) {
-        const auto memShape = dimsOrder.toMemoryOrder(shape);
-        const auto memStrides = dimsOrder.toMemoryOrder(strides);
-
-        // Compute the ratio between the compact and actual strides and apply it to the tiles.
-        // For example, a distributed type SEGMENTED over height into 4 tiles with:
-        //   shape              [1, 64, 16, 4]
-        //   compact strides    [64*4*16, 1, 64*4, 64]
-        //   actual strides     [128*4*16, 1, 128*4, 128]
-        //   strides multiplier [2, 1, 2, 2]
-        // will have the following strided shapes:
-        //   shape              [1, 64, 4, 4]
-        //   compact strides    [64*4*4, 1, 64*4, 64]
-        //   actual strides     [128*4*4, 1, 128*4, 128]
-        const auto compactStrideReqs = StrideReqs::compact(dimsOrder.numDims());
-        const auto compactMemStrides = compactStrideReqs.calcStrides(elemSize, memShape);
-        SmallVector<int64_t> stridesMultiplier(memStrides.size());
-        std::transform(memStrides.begin(), memStrides.end(), compactMemStrides.begin(), stridesMultiplier.begin(),
-                       [](Bit stride, Bit compactStride) {
-                           VPUX_THROW_UNLESS(stride.count() % compactStride.count() == 0,
-                                             "Stride {0} is not a multiple of the compact stride {1}", stride.count(),
-                                             compactStride.count());
-                           return stride.count() / compactStride.count();
-                       });
-
-        for (const auto& computeShape : computeShapes) {
-            const auto computeMemShape = dimsOrder.toMemoryOrder(Shape(computeShape));
-            const auto computeCompactMemStrides = compactStrideReqs.calcStrides(elemSize, computeMemShape);
-
-            SmallVector<Bit> computeMemStrides(computeCompactMemStrides.size());
-            for (auto p : zip(computeCompactMemStrides, stridesMultiplier) | indexed) {
-                const auto dim = std::get<0>(p.value());
-                const auto mul = std::get<1>(p.value());
-                computeMemStrides[p.index()] = Bit(dim.count() * mul);
-            }
-            const auto computeStrides = dimsOrder.toLogicalOrder(MemStrides(computeMemStrides));
-            stridedShapes.emplace_back(computeShape, computeStrides);
+        const auto adaptedStrides = adaptStrides(shape, strides, computeShapes, dimsOrder);
+        for (auto p : zip(computeShapes, adaptedStrides)) {
+            stridedShapes.emplace_back(std::get<0>(p), std::get<1>(p));
         }
-
         return stridedShapes;
     }
 

@@ -99,11 +99,11 @@ private:
     enum class TokenType { Value, Operator, Function };
 
     struct Token final {
-        TokenType type;
-        IntOrFloat value;
-        std::string opName;
+        TokenType _type;
+        IntOrFloat _value;
+        std::string _opName;
 
-        Token(TokenType type, IntOrFloat value, StringRef opName): type(type), value(value), opName(opName.str()) {
+        Token(TokenType type, IntOrFloat value, StringRef opName): _type(type), _value(value), _opName(opName.str()) {
         }
     };
 

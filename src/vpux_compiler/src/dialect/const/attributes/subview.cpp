@@ -21,7 +21,7 @@
 using namespace vpux;
 
 //
-// ReshapeAttr::walkImmediateSubElements
+// SubViewAttr::walkImmediateSubElements
 //
 
 void vpux::Const::SubViewAttr::walkImmediateSubElements(llvm::function_ref<void(Attribute)> walkAttrsFn,
@@ -145,10 +145,10 @@ Const::Content vpux::Const::SubViewAttr::transform(vpux::Const::Content& input) 
         const Byte elemSize = getElemTypeSize(input.getStorageElemType());
         const auto order = input.getType().getDimsOrder();
 
-        const auto inShape = input.getShape();
+        const auto inShape = input.getType().getShape();
         const auto inMemShape = order.toMemoryOrder(inShape);
 
-        const auto outShape = output.getShape();
+        const auto outShape = output.getType().getShape();
         const auto outMemShape = order.toMemoryOrder(outShape);
 
         const auto offset = Shape(parseIntArrayAttr<int64_t>(getOffset()));
@@ -158,7 +158,7 @@ Const::Content vpux::Const::SubViewAttr::transform(vpux::Const::Content& input) 
             // Opitimized 1D case
 
             std::copy_n(inBuf.data() + memOffset.front() * elemSize.count(),
-                        checked_cast<size_t>(output.getNumElements() * elemSize.count()), outBuf.data());
+                        checked_cast<size_t>(output.getType().getNumElements() * elemSize.count()), outBuf.data());
         } else if (memOffset.size() == 2) {
             // Opitimized 2D case
 
@@ -253,7 +253,7 @@ Const::Content vpux::Const::SubViewAttr::transform(vpux::Const::Content& input) 
         } else {
             // Generic case
 
-            loop_1d(LoopExecPolicy::Parallel, output.getNumElements(), [&](int64_t outMemInd1D) {
+            loop_1d(LoopExecPolicy::Parallel, output.getType().getNumElements(), [&](int64_t outMemInd1D) {
                 const auto outMemIndND = getMemIndexND(outMemInd1D, outMemShape);
 
                 MemShape inMemIndND(outMemIndND.size());

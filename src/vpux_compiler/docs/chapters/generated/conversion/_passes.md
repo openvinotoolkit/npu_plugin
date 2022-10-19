@@ -14,18 +14,20 @@ This pass bufferizes **IE Dialect** into **IERT Dialect**:
 A bufferize pass that bufferizes std.func ops.
 In contrast to MLIR standard analogue pass, this pass uses vpux::BufferizeTypeConverter
 to process encoding attribute in mlir::RankedTensorType
+### `-convert-IE-to-VPU-M2I`: Convert supported IE layers to VPU M2I operations
 ### `-convert-IE-to-VPU-NCE`: Convert supported IE layers to VPU NCE operations
 The pass converts VPUNCE-friendly operations (such as Conv, Pool, Eltwise)
 
 It doesn't change the memory spaces or add any new operations such as Copy
-### `-convert-async-ops-to-VPUIP`: Convert Async Dialect Operations to VPUIP Dialect
-This pass inlines 'async.execute' body to parent Block and replaces '!async.token' based dependencies with
-VPUIP virtual barriers.
-### `-convert-declarations-to-VPUIP`: Convert declarations (constants and memory buffers) to VPUIP Dialect
-### `-convert-layers-to-VPUIP`: Convert Layers Operations to VPUIP Dialect (UPA and DMA tasks)
+### `-convert-VPUIP-to-VPUIPRegMapped`: Convert VPUIP Dialect to VPUIPRegMapped Dialect
+### `-convert-layers-to-VPU`: Convert Layers Operations to VPU Dialect (SW and View layers)
+### `-convert-layers-to-VPUIP`: Convert VPU Operations to VPUIP Dialect
+Convert software and view-like operations from VPU to VPUIP dialect.
+Software operations are converted to UPA tasks, supported by VPUX30XX.
 ### `-convert-nce-cluster-tiling-to-vpuip`: Convert VPU NCEClusterTiling ops to VPUIP
 Convert VPU::NCEClusterTiling ops to VPUIP::NCEClusterTiling.
-### `-convert-sw-layers-to-VPUIP`: Convert Software Layers Operations to VPUIP SW_kernel
-### `-convert-view-ops-to-VPUIP`: Convert view-like Operations to VPUIP Dialect
-### `-convert-vpu-to-vpuip`: Convert NCE ops from VPU to VPUIP
-Convert ops which can be executed on NCE to explicit NCE ops.
+### `-convert-sw-layers-to-VPUIP`: Convert Software Operations to VPUIP SWKernel
+Convert software operations from VPU to VPUIP::SWKernel operations for VPU37XX.
+### `-convert-to-VPUIPRegMapped-and-ELF`: Convert to VPUIPRegMapped Dialect and ELF Dialect
+### `-convert-vpu-nce-to-vpuip`: Convert NCE ops from VPU to VPUIP
+Convert ops which can be executed on NCE to VPUIP::NCEClusterTask ops.

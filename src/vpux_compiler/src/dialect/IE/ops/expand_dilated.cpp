@@ -9,7 +9,7 @@
 
 #include "vpux/compiler/core/layers.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
-#include "vpux/compiler/utils/types.hpp"
+#include "vpux/compiler/utils/dilated_utils.hpp"
 
 using namespace vpux;
 
@@ -28,13 +28,13 @@ mlir::LogicalResult vpux::IE::ExpandDilatedOp::inferReturnTypeComponents(
         return mlir::failure();
     }
 
-    const auto inType = expandDilated.input().getType().dyn_cast<mlir::RankedTensorType>();
+    const auto inType = expandDilated.input().getType().dyn_cast<vpux::NDTypeInterface>();
     if (!inType) {
         return mlir::failure();
     }
 
     const auto dilations = parseIntArrayAttr<int64_t>(expandDilated.dilations());
-    const auto newType = getDilatedType(inType, ShapeRef(dilations));
+    const auto newType = getDilatedType(inType, ShapeRef(dilations)).cast<mlir::RankedTensorType>();
     inferredReturnShapes.emplace_back(newType.getShape(), newType.getElementType(), newType.getEncoding());
 
     return mlir::success();

@@ -24,6 +24,7 @@ class KmbSplitLayerTest : public SplitLayerTest, virtual public LayerTestsUtils:
         throw LayerTestsUtils::KmbSkipTestException("Issues with Runtime. Outputs is empty because runtime doesn't wait while dma is finished");
     }
 };
+class KmbSplitLayerTest_MLIR_VPU3720 : public SplitLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {};
 
 TEST_P(KmbSplitLayerTest, CompareWithRefs_MLIR) {
     useCompilerMLIR();
@@ -31,6 +32,13 @@ TEST_P(KmbSplitLayerTest, CompareWithRefs_MLIR) {
 }
 
 TEST_P(KmbSplitLayerTest, CompareWithRefs_MCM) {
+    Run();
+}
+
+TEST_P(KmbSplitLayerTest_MLIR_VPU3720, CompareWithRefs_MLIR_VPU3720) {
+    useCompilerMLIR();
+    setPlatformVPU3720();
+    setDefaultHardwareModeMLIR();
     Run();
 }
 
@@ -55,4 +63,17 @@ INSTANTIATE_TEST_SUITE_P(smoke_Split, KmbSplitLayerTest,
                                            ::testing::Values(InferenceEngine::SizeVector({})),
                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
                         SplitLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_precommit_Split, KmbSplitLayerTest_MLIR_VPU3720,
+                         ::testing::Combine(::testing::Values(2), ::testing::Values(1),
+                                            ::testing::ValuesIn(netPrecisions),
+                                            ::testing::Values(InferenceEngine::Precision::FP16),
+                                            ::testing::Values(InferenceEngine::Precision::FP32),
+                                            ::testing::Values(InferenceEngine::Layout::NHWC),
+                                            ::testing::Values(InferenceEngine::Layout::NCHW),
+                                            ::testing::Values(InferenceEngine::SizeVector({6, 6, 12, 24})),
+                                            ::testing::Values(InferenceEngine::SizeVector({})),
+                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                         SplitLayerTest::getTestCaseName);
+
 }  // namespace

@@ -3,17 +3,8 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-#ifdef CONFIG_HAS_LRT_SRCS
-#include <nn_log.h>
-#else
-#define nnLog(level, ...)
-#endif
 #include <param_hswish.h>
-#ifdef CONFIG_TARGET_SOC_3720
 #include <dma_shave_nn.h>
-#else
-#include <dma_shave.h>
-#endif
 
 #define VECTOR_SIZE 8  // Changes to this should be reflected in the code as well.
 

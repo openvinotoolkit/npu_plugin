@@ -34,8 +34,10 @@ enum class VPUXPlatform : int {
     VPU3700 = 3,     // Keem bay B0
     VPU3800 = 4,     // Thunder bay harbor Prime
     VPU3900 = 5,     // Thunder bay harbor A0
-    VPU3720 = 6,     // VPUX37XX
+    VPU3720 = 6,     // VPU3720
     EMULATOR = 7,    // emulator
+    VPU3720ELF = 8,  // VPU3720 ELF
+    VPU4000 = 9,     // VPU4000
 };
 
 /**

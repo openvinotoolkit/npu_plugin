@@ -7,7 +7,7 @@
 
 #pragma once
 
-#include "vpux/compiler/dialect/IERT/ops.hpp"
+#include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/utils/linear_scan.hpp"
 
 #include "vpux/utils/core/array_ref.hpp"
@@ -50,7 +50,7 @@ public:
     void setAddress(mlir::Value val, AddressType address);
 
 private:
-    IERT::SubViewOp getSubViewUserOp(mlir::Value val) const;
+    VPUIP::SubViewOp getSubViewUserOp(mlir::Value val) const;
     bool hasEltwiseUser(mlir::Value val) const;
     AddressType calculateStaticOffsetWithStrides(ArrayRef<AddressType> subViewStaticOffsets,
                                                  StridesRef subViewStrides) const;

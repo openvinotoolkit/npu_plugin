@@ -15,10 +15,6 @@ namespace
 
 #define ICV_TEST_SUITE_NAME Permute
 
-#ifndef CONFIG_TARGET_SOC_3720
-#define ALL_STRIDES_SET
-#endif
-
 //#define ALL_TESTS
 
 const bool save_to_file = false;
@@ -41,50 +37,11 @@ struct Permutation
 const std::initializer_list<Permutation> test_list =
 {
     {{ 3,  4,  5,    1}, { 1, 0,  2, 3}, 0x4321, 0x4321, true, ""},
-#ifndef CONFIG_TARGET_SOC_3720
-    {{ 16,  1,    1000, 1}, { 0, 1, 2, 3}, 0x4321, 0x4213, true, "Convert order NCHW to NHWC"},
-    {{ 1,   2000, 32,   1}, { 0, 1, 2, 3}, 0x4213, 0x4321, true, "Convert order  NHWC to NCHW"},
-
-    {{ 64,  128,  3,    1}, { 1, 0,  2, 3}, 0x4213, 0x4213, true, ""},
-    {{ 64,  128,  3,    1}, { 1, 0,  2, 3}, 0x4231, 0x4231, true, ""},
-
-    {{ 64,  128,  3,    1}, { 1, 0,  2, 3}, 0x4321, 0x4321, false, ""},
-    {{ 64,  128,  3,    1}, { 1, 0,  2, 3}, 0x4321, 0x4321, false, ""},
-
-    {{ 64,  128,  3,    1}, { 1, 0,  2, 3}, 0x4321, 0x4321, true, ""},
-    {{ 256, 64,   3,    1}, { 0, 1,  2, 3}, 0x4321, 0x4321, true, ""},
-    {{ 256, 128,  3,    1}, { 2, 0,  1, 3}, 0x4321, 0x4321, true, ""},
-    {{ 16,  1,    1000, 1}, { 2, 0,  1, 3}, 0x4321, 0x4321, true, "NCHW -> NHWC"},
-    {{ 1,   2000, 32,   1}, { 1, 2,  0, 3}, 0x4213, 0x4213, true, "NHWC -> NCHW"},
-
-    {{ 1,   2000, 32,   1}, { 1, 2,  0, 3}, 0x4213, 0x4213, false, ""},
-    {{ 64,  128,  3,    1}, { 1, 0,  2, 3}, 0x4321, 0x4321, false, ""},
-    {{ 256, 64,   3,    1}, { 0, 1,  2, 3}, 0x4321, 0x4321, false, ""},
-    {{ 256, 128,  3,    1}, { 2, 0,  1, 3}, 0x4321, 0x4321, false, ""},
-    {{ 16,  1,    1000, 1}, { 2, 0,  1, 3}, 0x4321, 0x4321, false, "NCHW -> NHWC"},
-
-#ifdef ALL_TESTS
-    {{ 256, 1,    512,  1},  { 1, 0,  3, 2}, 0x4321, 0x4321, true,   ""},
-    {{ 7,  7,    153600, 1}, { 2, 0,  1, 3}, 0x4321, 0x4321, true,  "NCHW -> NHWC Rfcn"},
-    {{ 153600,  7,   7, 1},  { 2, 0,  1, 3}, 0x4321, 0x4321, true,  "NCHW -> NHWC Rfcn"},
-    {{ 7,  7,    153601, 1}, { 2, 0,  1, 3}, 0x4321, 0x4321, true,  "NCHW -> NHWC Rfcn"},
-    {{ 153601,  7, 7, 1},    { 0, 2,  1, 3}, 0x4321, 0x4321, true,  "NCHW -> NHWC Rfcn"},
-
-    {{ 7,  7,    26000, 1},  { 2, 0,  1, 3}, 0x4321, 0x4321, true,  "NCHW -> NHWC Rfcn"},
-
-// To enable after Nd tensors will be enabled
-//    {{ 33,  45,  20,  27, 10},  { 1, 0,  3, 4, 2}, 0x54213, 0x54213, true, "5D"},
-//    {{ 33,  45,  20,  27, 10},  { 4, 2,  1, 0, 3}, 0x54213, 0x54213, true, "5D"},
-#endif
-#endif
 };
 
 const std::initializer_list<Strides> strides_list =
 {
     {0, 0, 0, 0, 0, 0, 0, 0},
-#ifdef ALL_STRIDES_SET
-    {1, 2, 3, 2, 1, 3, 2, 1},
-#endif  //ALL_STRIDES_SET
 };
 
 template<class T>
@@ -220,10 +177,9 @@ protected:
             PermOp->ops.order[i] = m_logicalPermutation[i];
         }
         PermOp->ops.allow_permute_nd = m_allowPermuteND;
-#ifdef CONFIG_TARGET_SOC_3720
         PermOp->executeInTestingSystem = true;
-#endif
     }
+
     void generateData() override
     {
         int i = 0;
@@ -232,10 +188,12 @@ protected:
             m_inputTensor.at(indices) = write<T>(i++);
         });
     }
+
     void resetOutputData() override
     {
         resetTensorBuffer(m_outputTensor);
     }
+    
     bool checkResult() override
     {
         m_outputTensor.confirmBufferData();

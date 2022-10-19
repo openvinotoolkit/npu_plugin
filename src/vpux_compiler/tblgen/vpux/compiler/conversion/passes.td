@@ -34,6 +34,35 @@ def ConvertIEToVPUNCE : PassBase<"convert-IE-to-VPU-NCE", "vpux::FunctionPass"> 
     ];
 }
 
+//
+// ConvertIEToVPUM2I
+//
+
+def ConvertIEToVPUM2I : PassBase<"convert-IE-to-VPU-M2I", "vpux::FunctionPass"> {
+    let summary = "Convert supported IE layers to VPU M2I operations";
+
+    let constructor = "vpux::createConvertIEToVPUM2IPass()";
+
+    let dependentDialects = [
+        "vpux::VPU::VPUDialect"
+    ];
+}
+
+//
+// ConvertLayers2VPU
+//
+
+def ConvertLayers2VPU : PassBase<"convert-layers-to-VPU", "vpux::FunctionPass"> {
+    let summary = "Convert Layers Operations to VPU Dialect (SW and View layers)";
+
+    let constructor = "vpux::createConvertLayers2VPUPass()";
+
+    let dependentDialects = [
+        "vpux::VPU::VPUDialect",
+        "vpux::IE::IEDialect"
+    ];
+}
+
 //=================================================================================
 // LowerIE2IERT
 //=================================================================================
@@ -57,7 +86,7 @@ def BufferizeIE : PassBase<"bufferize-IE", "vpux::FunctionPass"> {
     let constructor = "vpux::createBufferizeIEPass()";
 
     let dependentDialects = [
-        "vpux::IERT::IERTDialect",
+        "vpux::VPUIP::VPUIPDialect",
         "mlir::StandardOpsDialect",
         "mlir::memref::MemRefDialect"
     ];
@@ -95,7 +124,7 @@ def AddBuffersForNetResults : PassBase<"add-buffers-for-net-results", "vpux::Mod
     let constructor = "vpux::createAddBuffersForNetResults()";
 
     let dependentDialects = [
-        "vpux::IERT::IERTDialect",
+        "vpux::VPUIP::VPUIPDialect",
         "mlir::StandardOpsDialect",
         "mlir::memref::MemRefDialect"
     ];
@@ -106,22 +135,22 @@ def AddBuffersForNetResults : PassBase<"add-buffers-for-net-results", "vpux::Mod
 //=================================================================================
 
 //
-// ConvertVPUToVPUIP
+// ConvertVPUNCEToVPUIP
 //
 
-def ConvertVPUToVPUIP : PassBase<"convert-vpu-to-vpuip", "vpux::FunctionPass"> {
+def ConvertVPUNCEToVPUIP : PassBase<"convert-vpu-nce-to-vpuip", "vpux::FunctionPass"> {
     let summary = "Convert NCE ops from VPU to VPUIP";
 
     let description = [{
-        Convert ops which can be executed on NCE to explicit NCE ops.
+        Convert ops which can be executed on NCE to VPUIP::NCEClusterTask ops.
     }];
 
-    let constructor = "vpux::createConvertVPUToVPUIPPass()";
+    let constructor = "vpux::createConvertVPUNCEToVPUIPPass()";
 
     let dependentDialects = [
         "vpux::VPU::VPUDialect",
-        "vpux::IERT::IERTDialect",
-        "vpux::VPUIP::VPUIPDialect"
+        "vpux::VPUIP::VPUIPDialect",
+        "vpux::VPURT::VPURTDialect"
     ];
 }
 
@@ -140,22 +169,22 @@ def ConvertNCEClusterTilingToVPUIP : PassBase<"convert-nce-cluster-tiling-to-vpu
 
     let dependentDialects = [
         "vpux::VPU::VPUDialect",
-        "vpux::IERT::IERTDialect",
         "vpux::VPUIP::VPUIPDialect",
         "vpux::VPURT::VPURTDialect"
     ];
 }
-
-//=================================================================================
-// LowerIERT2VPUIP
-//=================================================================================
 
 //
 // ConvertLayers2VPUIP
 //
 
 def ConvertLayers2VPUIP : PassBase<"convert-layers-to-VPUIP", "vpux::FunctionPass"> {
-    let summary = "Convert Layers Operations to VPUIP Dialect (UPA and DMA tasks)";
+    let summary = "Convert VPU Operations to VPUIP Dialect";
+
+    let description = [{
+        Convert software and view-like operations from VPU to VPUIP dialect.
+        Software operations are converted to UPA tasks, supported by VPUX30XX.
+    }];
 
     let constructor = "vpux::createConvertLayers2VPUIPPass()";
 
@@ -170,7 +199,11 @@ def ConvertLayers2VPUIP : PassBase<"convert-layers-to-VPUIP", "vpux::FunctionPas
 //
 
 def ConvertSWLayers2VPUIP : PassBase<"convert-sw-layers-to-VPUIP", "vpux::ModulePass"> {
-    let summary = "Convert Software Layers Operations to VPUIP SW_kernel";
+    let summary = "Convert Software Operations to VPUIP SWKernel";
+
+    let description = [{
+        Convert software operations from VPU to VPUIP::SWKernel operations for VPU37XX.
+    }];
 
     let constructor = "vpux::createConvertSWLayers2VPUIPPass()";
 
@@ -181,53 +214,39 @@ def ConvertSWLayers2VPUIP : PassBase<"convert-sw-layers-to-VPUIP", "vpux::Module
     ];
 
 }
+
+
 //
-// ConvertDeclarations2VPUIP
+// ConvertVPUIP2VPUIPRegMapped
 //
 
-def ConvertDeclarations2VPUIP : PassBase<"convert-declarations-to-VPUIP", "vpux::FunctionPass"> {
-    let summary = "Convert declarations (constants and memory buffers) to VPUIP Dialect";
+def ConvertVPUIP2VPUIPRegMapped : PassBase<"convert-VPUIP-to-VPUIPRegMapped", "vpux::ModulePass"> {
+    let summary = "Convert VPUIP Dialect to VPUIPRegMapped Dialect";
 
-    let constructor = "vpux::createConvertDeclarations2VPUIPPass()";
+    let constructor = "vpux::createConvertVPUIP2VPUIPRegMappedPass()";
 
     let dependentDialects = [
         "vpux::VPUIP::VPUIPDialect",
-        "vpux::VPURT::VPURTDialect"
+        "vpux::VPURT::VPURTDialect",
+        "vpux::VPUIPRegMapped::VPUIPRegMappedDialect",
+        "vpux::ELF::ELFDialect"
     ];
 }
 
+
 //
-// ConvertViewOps2VPUIP
+// Convert2VPUIPRegMappedAndELF
 //
 
-def ConvertViewOps2VPUIP : PassBase<"convert-view-ops-to-VPUIP", "vpux::FunctionPass"> {
-    let summary = "Convert view-like Operations to VPUIP Dialect";
+def Convert2VPUIPRegMappedAndELF : PassBase<"convert-to-VPUIPRegMapped-and-ELF", "vpux::ModulePass"> {
+    let summary = "Convert to VPUIPRegMapped Dialect and ELF Dialect";
 
-    let constructor = "vpux::createConvertViewOps2VPUIPPass()";
+    let constructor = "vpux::createConvert2VPUIPRegMappedAndELFPass()";
 
     let dependentDialects = [
-        "vpux::VPUIP::VPUIPDialect",
-        "vpux::VPURT::VPURTDialect"
-    ];
-}
-
-//
-// ConvertAsyncOps2VPUIP
-//
-
-def ConvertAsyncOps2VPUIP : PassBase<"convert-async-ops-to-VPUIP", "vpux::FunctionPass"> {
-    let summary = "Convert Async Dialect Operations to VPUIP Dialect";
-
-    let description = [{
-        This pass inlines 'async.execute' body to parent Block and replaces '!async.token' based dependencies with
-        VPUIP virtual barriers.
-    }];
-
-    let constructor = "vpux::createConvertAsyncOps2VPUIPPass()";
-
-    let dependentDialects = [
-        "vpux::VPUIP::VPUIPDialect",
-        "vpux::VPURT::VPURTDialect"
+        "vpux::VPURT::VPURTDialect", // E#47129
+        "vpux::VPUIPRegMapped::VPUIPRegMappedDialect",
+        "vpux::ELF::ELFDialect"
     ];
 }
 

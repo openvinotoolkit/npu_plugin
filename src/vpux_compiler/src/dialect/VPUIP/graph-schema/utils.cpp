@@ -6,6 +6,7 @@
 //
 
 #include "vpux/compiler/dialect/VPUIP/graph-schema/utils.hpp"
+#include "vpux/compiler/dialect/VPUIP/utils.hpp"
 
 #include "vpux/compiler/core/attributes/shape.hpp"
 #include "vpux/compiler/core/layers.hpp"
@@ -36,25 +37,23 @@ const EnumMap<ov::element::Type_t, MVCNN::OVNodeType> VPUIP::mapElementType = {
         {ov::element::Type_t::u64, MVCNN::OVNodeType::OVNodeType_U64},
 };
 
-const EnumMap<vpux::PreProcessColorSpace, MVCNN::PreProcessColorSpace> vpux::VPUIP::mapPreProcessColorFormat = {
-        {vpux::PreProcessColorSpace::BGR, MVCNN::PreProcessColorSpace::PreProcessColorSpace_BGR},
-        {vpux::PreProcessColorSpace::RGB, MVCNN::PreProcessColorSpace::PreProcessColorSpace_RGB},
-        {vpux::PreProcessColorSpace::NV12, MVCNN::PreProcessColorSpace::PreProcessColorSpace_NV12},
-        {vpux::PreProcessColorSpace::I420, MVCNN::PreProcessColorSpace::PreProcessColorSpace_I420},
-        {vpux::PreProcessColorSpace::NONE, MVCNN::PreProcessColorSpace::PreProcessColorSpace_DEFAULT},
+const EnumMap<PreProcessColorSpace, MVCNN::PreProcessColorSpace> VPUIP::mapPreProcessColorFormat = {
+        {PreProcessColorSpace::BGR, MVCNN::PreProcessColorSpace::PreProcessColorSpace_BGR},
+        {PreProcessColorSpace::RGB, MVCNN::PreProcessColorSpace::PreProcessColorSpace_RGB},
+        {PreProcessColorSpace::NV12, MVCNN::PreProcessColorSpace::PreProcessColorSpace_NV12},
+        {PreProcessColorSpace::I420, MVCNN::PreProcessColorSpace::PreProcessColorSpace_I420},
+        {PreProcessColorSpace::NONE, MVCNN::PreProcessColorSpace::PreProcessColorSpace_DEFAULT},
 };
 
-const EnumMap<vpux::PreProcessResizeAlgorithm, MVCNN::PreProcessResizeAlgorithm>
-        vpux::VPUIP::mapPreProcessResizeAlgorithm = {
-                {vpux::PreProcessResizeAlgorithm::RESIZE_BILINEAR,
-                 MVCNN::PreProcessResizeAlgorithm::PreProcessResizeAlgorithm_RESIZE_BILINEAR},
-                {vpux::PreProcessResizeAlgorithm::RESIZE_AREA,
-                 MVCNN::PreProcessResizeAlgorithm::PreProcessResizeAlgorithm_RESIZE_AREA},
-                {vpux::PreProcessResizeAlgorithm::NO_RESIZE,
-                 MVCNN::PreProcessResizeAlgorithm::PreProcessResizeAlgorithm_NO_RESIZE},
+const EnumMap<PreProcessResizeAlgorithm, MVCNN::PreProcessResizeAlgorithm> VPUIP::mapPreProcessResizeAlgorithm = {
+        {PreProcessResizeAlgorithm::RESIZE_BILINEAR,
+         MVCNN::PreProcessResizeAlgorithm::PreProcessResizeAlgorithm_RESIZE_BILINEAR},
+        {PreProcessResizeAlgorithm::RESIZE_AREA,
+         MVCNN::PreProcessResizeAlgorithm::PreProcessResizeAlgorithm_RESIZE_AREA},
+        {PreProcessResizeAlgorithm::NO_RESIZE, MVCNN::PreProcessResizeAlgorithm::PreProcessResizeAlgorithm_NO_RESIZE},
 };
 
-MVCNN::TargetDevice vpux::VPUIP::mapTargetDevice(VPU::ArchKind kind) {
+MVCNN::TargetDevice VPUIP::mapTargetDevice(VPU::ArchKind kind) {
     switch (kind) {
     case VPU::ArchKind::VPUX30XX:
         return MVCNN::TargetDevice::TargetDevice_VPUX30XX;
@@ -62,14 +61,14 @@ MVCNN::TargetDevice vpux::VPUIP::mapTargetDevice(VPU::ArchKind kind) {
         return MVCNN::TargetDevice::TargetDevice_VPUX311X;
     case VPU::ArchKind::VPUX37XX:
         return MVCNN::TargetDevice::TargetDevice_VPUX37XX;
-    case VPU::ArchKind::VPUX4000:
-        return MVCNN::TargetDevice::TargetDevice_VPUX4000;
+    case VPU::ArchKind::VPUX40XX:
+        return MVCNN::TargetDevice::TargetDevice_VPUX40XX
     default:
         VPUX_THROW("Unsupported architecture '{0}'", kind);
     }
 }
 
-MVCNN::TargetDeviceRevision vpux::VPUIP::mapTargetDeviceRevision(VPU::ArchKind kind) {
+MVCNN::TargetDeviceRevision VPUIP::mapTargetDeviceRevision(VPU::ArchKind kind) {
     switch (kind) {
     case VPU::ArchKind::VPUX30XX:
         return MVCNN::TargetDeviceRevision::TargetDeviceRevision_B0;
@@ -78,7 +77,7 @@ MVCNN::TargetDeviceRevision vpux::VPUIP::mapTargetDeviceRevision(VPU::ArchKind k
     }
 }
 
-MVCNN::DType vpux::VPUIP::createDType(mlir::Type type) {
+MVCNN::DType VPUIP::createDType(mlir::Type type) {
     if (type.isF64()) {
         return MVCNN::DType_FP64;
     } else if (type.isF32()) {
@@ -118,7 +117,7 @@ MVCNN::DType vpux::VPUIP::createDType(mlir::Type type) {
     }
 }
 
-MVCNN::MemoryLocation vpux::VPUIP::createMemoryLocation(VPURT::BufferSection section) {
+MVCNN::MemoryLocation VPUIP::createMemoryLocation(VPURT::BufferSection section) {
     switch (section) {
     case VPURT::BufferSection::NetworkInput:
         return MVCNN::MemoryLocation_ProgrammableInput;
@@ -147,7 +146,7 @@ MVCNN::MemoryLocation vpux::VPUIP::createMemoryLocation(VPURT::BufferSection sec
     }
 }
 
-MVCNN::order3 vpux::VPUIP::createOrder3(mlir::ArrayAttr attr) {
+MVCNN::order3 VPUIP::createOrder3(mlir::ArrayAttr attr) {
     auto vec = parseIntArrayAttr<int64_t>(attr);
     std::reverse(vec.begin(), vec.end());
 
@@ -165,4 +164,257 @@ MVCNN::order3 vpux::VPUIP::createOrder3(mlir::ArrayAttr attr) {
     }
 
     return MVCNN::order3(x, y, z);
+}
+
+MVCNN::DepthToSpaceMode VPUIP::convertVPUXDepthToSpaceMode2MVCNN(IE::DepthToSpaceMode mode) {
+    MVCNN::DepthToSpaceMode out_code = MVCNN::DepthToSpaceMode_BLOCKS_FIRST;
+    switch (mode) {
+    case IE::DepthToSpaceMode::BLOCKS_FIRST:
+        out_code = MVCNN::DepthToSpaceMode_BLOCKS_FIRST;
+        break;
+    case IE::DepthToSpaceMode::DEPTH_FIRST:
+        out_code = MVCNN::DepthToSpaceMode_DEPTH_FIRST;
+        break;
+    default:
+        VPUX_THROW("Unknown DepthToSpaceMode. Blocks_FIRST and DEPTH_FIRST methods are supported only");
+    }
+    return out_code;
+}
+
+MVCNN::ROIAlignMethod VPUIP::convertVPUXROIAlignMethod2MVCNN(IE::ROIAlignMethod method) {
+    MVCNN::ROIAlignMethod mvcnn_method;
+    switch (method) {
+    case IE::ROIAlignMethod::AVG:
+        mvcnn_method = MVCNN::ROIAlignMethod_roi_align_avg;
+        break;
+    case IE::ROIAlignMethod::MAX:
+        mvcnn_method = MVCNN::ROIAlignMethod_roi_align_max;
+        break;
+    default:
+        VPUX_THROW("Unknown ROIAlignMethod. avg and max methods are supported only");
+    }
+    return mvcnn_method;
+}
+
+MVCNN::SpaceToDepthMode VPUIP::convertVPUXSpaceToDepthMode2MVCNN(IE::SpaceToDepthMode vpux_mode) {
+    MVCNN::SpaceToDepthMode mvcnn_mode;
+    switch (vpux_mode) {
+    case IE::SpaceToDepthMode::BLOCKS_FIRST:
+        mvcnn_mode = MVCNN::SpaceToDepthMode::SpaceToDepthMode_BLOCKS_FIRST;
+        break;
+    case IE::SpaceToDepthMode::DEPTH_FIRST:
+        mvcnn_mode = MVCNN::SpaceToDepthMode::SpaceToDepthMode_DEPTH_FIRST;
+        break;
+    default:
+        VPUX_THROW("Unsupported SpaceToDepthMode {0}", vpux_mode);
+    }
+    return mvcnn_mode;
+}
+
+MVCNN::PadMode VPUIP::convertVPUXPadMode2MVCNN(IE::PadMode vpux_mode) {
+    MVCNN::PadMode mvcnn_mode;
+    switch (vpux_mode) {
+    case IE::PadMode::EDGE:
+        mvcnn_mode = MVCNN::PadMode::PadMode_Edge;
+        break;
+    case IE::PadMode::REFLECT:
+        mvcnn_mode = MVCNN::PadMode::PadMode_Reflect;
+        break;
+    case IE::PadMode::CONSTANT:
+        mvcnn_mode = MVCNN::PadMode::PadMode_Constant;
+        break;
+    case IE::PadMode::SYMMETRIC:
+        mvcnn_mode = MVCNN::PadMode::PadMode_Symmetric;
+        break;
+    default:
+        VPUX_THROW("Unsupported PadMode {0}", vpux_mode);
+    }
+    return mvcnn_mode;
+}
+
+MVCNN::RoundMode VPUIP::convertVPUXRoundMode2MVCNN(IE::RoundMode vpux_mode) {
+    MVCNN::RoundMode mvcnn_mode;
+    switch (vpux_mode) {
+    case IE::RoundMode::HALF_TO_EVEN:
+        mvcnn_mode = MVCNN::RoundMode::RoundMode_HALF_TO_EVEN;
+        break;
+    case IE::RoundMode::HALF_AWAY_FROM_ZERO:
+        mvcnn_mode = MVCNN::RoundMode::RoundMode_HALF_AWAY_FROM_ZERO;
+        break;
+    default:
+        VPUX_THROW("Unsupported RoundMode {0}", vpux_mode);
+    }
+    return mvcnn_mode;
+}
+
+MVCNN::PSROIPoolingMode VPUIP::convertVPUXPSROIPoolingModeToMVNCNN(IE::PSROIPoolingMode mode) {
+    switch (mode) {
+    case IE::PSROIPoolingMode::AVERAGE:
+        return MVCNN::PSROIPoolingMode::PSROIPoolingMode_AVERAGE;
+    case IE::PSROIPoolingMode::BILINEAR:
+        return MVCNN::PSROIPoolingMode::PSROIPoolingMode_BILINEAR;
+    default:
+        VPUX_THROW("Unknown PSROIPoolingMode. Got {0} mode", mode);
+    }
+}
+
+MVCNN::M2IFormat VPUIP::convertM2iColor2MVCNN(VPU::M2iColorFmt fmt) {
+    switch (fmt) {
+    case VPU::M2iColorFmt::PL_YUV420_8:
+        return MVCNN::M2IFormat::M2IFormat_PL_YUV420_8;
+    case VPU::M2iColorFmt::PL_FP16_RGB:
+        return MVCNN::M2IFormat::M2IFormat_PL_FP16_RGB;
+    case VPU::M2iColorFmt::PL_FP16_BGR:
+        return MVCNN::M2IFormat::M2IFormat_PL_FP16_BGR;
+    case VPU::M2iColorFmt::PL_RGB24:
+        return MVCNN::M2IFormat::M2IFormat_PL_RGB24;
+    case VPU::M2iColorFmt::PL_BGR24:
+        return MVCNN::M2IFormat::M2IFormat_PL_BGR24;
+    case VPU::M2iColorFmt::SP_NV12_8:
+        return MVCNN::M2IFormat::M2IFormat_SP_NV12_8;
+    case VPU::M2iColorFmt::IL_RGB888:
+        return MVCNN::M2IFormat::M2IFormat_IL_RGB888;
+    case VPU::M2iColorFmt::IL_BGR888:
+        return MVCNN::M2IFormat::M2IFormat_IL_BGR888;
+    default:
+        VPUX_THROW("Unsupported M2I {0} format", fmt);
+    }
+}
+
+// This method converts value from ROIPoolingMethod view to corresponds t_ROIPooling_method view from runtime
+uint32_t VPUIP::convertVPUXROIPoolingMethod2Int32(IE::ROIPoolingMethod method) {
+    uint32_t out_code = 0;
+    switch (method) {
+    case IE::ROIPoolingMethod::MAX:
+        out_code = 0;
+        break;
+    case IE::ROIPoolingMethod::BILINEAR:
+        out_code = 1;
+        break;
+    default:
+        VPUX_THROW("Unknown ROIPoolingMethod. max and bilinear methods are supported only");
+    }
+    return out_code;
+}
+
+const EnumMap<IE::InterpolateMode, MVCNN::InterpolationMethod> VPUIP::supportedInterpModeMap = {
+        {IE::InterpolateMode::NEAREST, MVCNN::InterpolationMethod_NEAREST},         //
+        {IE::InterpolateMode::LINEAR, MVCNN::InterpolationMethod_BILINEAR},         //
+        {IE::InterpolateMode::LINEAR_ONNX, MVCNN::InterpolationMethod_LINEARONNX},  //
+};
+
+const EnumMap<IE::InterpolateNearestMode, MVCNN::InterpolationNearestMode> VPUIP::nearestModeMap = {
+        {IE::InterpolateNearestMode::ROUND_PREFER_FLOOR, MVCNN::InterpolationNearestMode_ROUND_PREFER_FLOOR},  //
+        {IE::InterpolateNearestMode::ROUND_PREFER_CEIL, MVCNN::InterpolationNearestMode_ROUND_PREFER_CEIL},    //
+        {IE::InterpolateNearestMode::FLOOR, MVCNN::InterpolationNearestMode_FLOOR},                            //
+        {IE::InterpolateNearestMode::CEIL, MVCNN::InterpolationNearestMode_CEIL},                              //
+        {IE::InterpolateNearestMode::SIMPLE, MVCNN::InterpolationNearestMode_SIMPLE},                          //
+};
+
+const EnumMap<IE::InterpolateCoordMode, MVCNN::InterpolationCoordTransMode> VPUIP::coordTransformModeMap = {
+        {IE::InterpolateCoordMode::HALF_PIXEL, MVCNN::InterpolationCoordTransMode_HALF_PIXEL},                      //
+        {IE::InterpolateCoordMode::PYTORCH_HALF_PIXEL, MVCNN::InterpolationCoordTransMode_PYTORCH_HALF_PIXEL},      //
+        {IE::InterpolateCoordMode::ASYMMETRIC, MVCNN::InterpolationCoordTransMode_ASYMMETRIC},                      //
+        {IE::InterpolateCoordMode::TF_HALF_PIXEL_FOR_NN, MVCNN::InterpolationCoordTransMode_TF_HALF_PIXEL_FOR_NN},  //
+        {IE::InterpolateCoordMode::ALIGN_CORNERS, MVCNN::InterpolationCoordTransMode_ALIGN_CORNERS},                //
+};
+
+MVCNN::PhysicalProcessor VPUIP::createPhysicalProcessor(VPU::ExecutorKind execKind) {
+    switch (execKind) {
+    case VPU::ExecutorKind::SHAVE_UPA:
+        return MVCNN::PhysicalProcessor_UPA_SHV;
+    case VPU::ExecutorKind::SHAVE_NN:
+        return MVCNN::PhysicalProcessor_NN_SHV;
+    case VPU::ExecutorKind::NCE:
+        return MVCNN::PhysicalProcessor_NCE_Cluster;
+    case VPU::ExecutorKind::DPU:
+        return MVCNN::PhysicalProcessor_NCE_PerClusterDPU;
+    default:
+        VPUX_THROW("Unsupported ExecutorKind '{0}'", execKind);
+    }
+}
+
+namespace {
+
+void setActivityFactor(VPU::ExecutorKind execKind, MVCNN::ProcessorMappingBuilder& builder, mlir::ModuleOp module) {
+    // TODO: calc this value during compilation
+    static const float activityFactor = 0.9f;
+    const auto arch = VPU::getArch(module);
+    if (arch == VPU::ArchKind::VPUX30XX || arch == VPU::ArchKind::VPUX311X) {
+        if (execKind == VPU::ExecutorKind::NCE || execKind == VPU::ExecutorKind::SHAVE_UPA) {
+            builder.add_activity_factor(activityFactor);
+        }
+    } else if (arch == VPU::ArchKind::VPUX37XX) {
+        if (execKind == VPU::ExecutorKind::NCE || execKind == VPU::ExecutorKind::SHAVE_NN) {
+            builder.add_activity_factor(activityFactor);
+        }
+    }
+}
+
+}  // namespace
+
+flatbuffers::Offset<MVCNN::ProcessorMapping> VPUIP::createProcessorMapping(flatbuffers::FlatBufferBuilder& fbb,
+                                                                           IE::ExecutorResourceOp res,
+                                                                           mlir::ModuleOp module) {
+    const auto execKindAttr = res.getKindAs<VPU::ExecutorKindAttr>();
+    VPUX_THROW_UNLESS(execKindAttr != nullptr, "Got unknown executor kind '{0}'", res.getKind());
+
+    const auto execKind = execKindAttr.getValue();
+    MVCNN::ProcessorMappingBuilder builder(fbb);
+    builder.add_item(createPhysicalProcessor(execKind));
+    builder.add_number(checked_cast<double>(res.count()));
+    builder.add_is_bitmask(false);
+    setActivityFactor(execKind, builder, module);
+    return builder.Finish();
+}
+
+flatbuffers::Offset<MVCNN::ProcessorMapping> VPUIP::createProcessorFreqMapping(flatbuffers::FlatBufferBuilder& fbb,
+                                                                               IE::ExecutorResourceOp res) {
+    const auto execKindAttr = res.getKindAs<VPU::ExecutorKindAttr>();
+    VPUX_THROW_UNLESS(execKindAttr != nullptr, "Got unknown executor kind '{0}'", res.getKind());
+
+    MVCNN::ProcessorMappingBuilder builder(fbb);
+    builder.add_item(createPhysicalProcessor(execKindAttr.getValue()));
+    builder.add_number(VPUIP::getProcessorFrequency(res));
+    builder.add_is_bitmask(false);
+    return builder.Finish();
+}
+
+MVCNN::PhysicalMem VPUIP::createPhysicalMem(VPU::MemoryKind mem) {
+    switch (mem) {
+    case VPU::MemoryKind::DDR:
+        return MVCNN::PhysicalMem_DDR;
+    case VPU::MemoryKind::CSRAM:
+        return MVCNN::PhysicalMem_CSRAM;
+    case VPU::MemoryKind::CMX_UPA:
+        return MVCNN::PhysicalMem_UPA_CMX;
+    case VPU::MemoryKind::CMX_NN:
+        return MVCNN::PhysicalMem_NN_CMX;
+    default:
+        VPUX_THROW("Unsupported MemoryKind '{0}'", mem);
+    }
+}
+
+flatbuffers::Offset<MVCNN::MemoryRelationshipMapping> VPUIP::createBandwidthMapping(flatbuffers::FlatBufferBuilder& fbb,
+                                                                                    IE::MemoryResourceOp src,
+                                                                                    IE::MemoryResourceOp dst,
+                                                                                    double bandwidth) {
+    MVCNN::MemoryRelationshipMappingBuilder builder(fbb);
+    const auto srcKind = src.getKindAs<VPU::MemoryKindAttr>();
+    const auto dstKind = dst.getKindAs<VPU::MemoryKindAttr>();
+
+    builder.add_from_item(createPhysicalMem(srcKind.getValue()));
+    builder.add_to_item(createPhysicalMem(dstKind.getValue()));
+    builder.add_number(bandwidth);
+    return builder.Finish();
+}
+
+flatbuffers::Offset<MVCNN::MemoryMapping> VPUIP::createMemoryMapping(flatbuffers::FlatBufferBuilder& fbb,
+                                                                     IE::MemoryResourceOp res) {
+    const auto memKindAttr = res.getKindAs<VPU::MemoryKindAttr>();
+
+    MVCNN::MemoryMappingBuilder builder(fbb);
+    builder.add_item(createPhysicalMem(memKindAttr.getValue()));
+    builder.add_number(checked_cast<double>(res.byteSize()));
+    return builder.Finish();
 }

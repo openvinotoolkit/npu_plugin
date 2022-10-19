@@ -134,8 +134,8 @@ mlir::LogicalResult inferTensorTypes(InferTypeComponentsCb componentsCb, mlir::M
                                      mlir::DictionaryAttr attrs, mlir::RegionRange regions,
                                      SmallVectorImpl<mlir::Type>& inferredTypes);
 
-bool isCompatibleTensorTypes(mlir::TypeRange lhs, mlir::TypeRange rhs, IE::TypeComparisonMode elemComparisonMode,
-                             bool checkDimsOrder, bool checkMemSpace, bool checkSparsity);
+bool areTypesCompatible(mlir::TypeRange lhs, mlir::TypeRange rhs, IE::TypeComparisonMode elemComparisonMode,
+                        bool checkDimsOrder, bool checkMemSpace);
 
 //
 // LayerWithPostOpInterface
@@ -195,39 +195,16 @@ void fillDefaultLayoutInfo(LayerLayoutInfo& info, FuncRef<bool(size_t)> inputFil
                            FuncRef<bool(size_t)> outputFilter);
 
 //
-// TilingBuilderOpInterface
-//
-
-mlir::Value makeTile(mlir::OpBuilder& builder, mlir::Location baseLoc, mlir::Value origVal, const TileInfo& tile,
-                     StringRef valName);
-
-//
-// TilingInfoOpInterface
-//
-
-mlir::LogicalResult verifyTilingInfo(mlir::Operation* op);
-
-//
 // EltwiseOp
 //
 
 mlir::LogicalResult verifyEltwiseOp(mlir::Operation* op);
-SmallVector<int64_t> getMaxNumTiles(mlir::Operation* op);
-InputTiling backInferEltwiseTile(mlir::Operation* op, const vpux::TileInfo& outputTile);
 
 template <typename ConcreteOp>
 class EltwiseOp : public mlir::OpTrait::TraitBase<ConcreteOp, EltwiseOp> {
 public:
     static mlir::LogicalResult verifyTrait(mlir::Operation* op) {
         return IE::verifyEltwiseOp(op);
-    }
-
-    InputTiling backInferTileInfo(const vpux::TileInfo& outputTile) {
-        return IE::backInferEltwiseTile(this->getOperation(), outputTile);
-    }
-
-    void adjustAttrs(const TilingInfo&, const TileInfo&) {
-        // Do nothing
     }
 };
 

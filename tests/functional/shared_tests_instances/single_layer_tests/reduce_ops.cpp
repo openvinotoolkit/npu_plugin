@@ -13,6 +13,52 @@
 
 namespace LayerTestsDefinitions {
     class KmbReduceOpsLayerTest : public ReduceOpsLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
+        void SetUp() override {
+            InferenceEngine::Precision netPrecision;
+            CommonTestUtils::OpType opType;
+            ngraph::helpers::ReductionType reductionType;
+            ngraph::NodeVector convertedInputs;
+            ngraph::OutputVector paramOuts;
+            std::shared_ptr<ngraph::Node> reduceNode;
+            std::vector<size_t> inputShape, shapeAxes;
+            std::vector<int> axes;
+            bool keepDims;
+
+            std::tie(axes, opType, keepDims, reductionType, netPrecision, inPrc, outPrc, inLayout, inputShape,
+                    targetDevice) = GetParam();
+
+            if ((reductionType == ngraph::helpers::ReductionType::LogicalOr)||(reductionType == ngraph::helpers::ReductionType::LogicalAnd)) {
+                auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+                auto inputs = ngraph::builder::makeParams(ngPrc, {inputShape});
+
+                switch (opType) {
+                case CommonTestUtils::OpType::SCALAR: {
+                    if (axes.size() > 1)
+                        FAIL() << "In reduce op if op type is scalar, 'axis' input's must contain 1 element";
+                    break;
+                }
+                case CommonTestUtils::OpType::VECTOR: {
+                    shapeAxes.push_back(axes.size());
+                    break;
+                }
+                default:
+                    FAIL() << "Reduce op doesn't support operation type: " << opType;
+                }
+                auto reductionAxesNode = std::dynamic_pointer_cast<ngraph::Node>(std::make_shared<ngraph::opset3::Constant>(
+                        ngraph::element::Type_t::i64, ngraph::Shape(shapeAxes), axes));
+
+                // Boolean type is unsupported in vpux-plugin, this is why the Convert layers are used to convert the input type into ngraph::element::boolean.
+                for (const auto& input : inputs) {
+                    convertedInputs.push_back(std::make_shared<ngraph::opset5::Convert>(input, ngraph::element::boolean));
+                }
+                paramOuts = ngraph::helpers::convert2OutputVector(convertedInputs);
+                reduceNode = ngraph::builder::makeReduce(paramOuts[0], reductionAxesNode, keepDims, reductionType);
+                const ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(reduceNode)};
+                function = std::make_shared<ngraph::Function>(results, inputs, "Reduce");
+            } else {
+                ReduceOpsLayerTest::SetUp();
+            }
+        }
         void SkipBeforeLoad() override {
             const auto testName =
                     std::string{::testing::UnitTest::GetInstance()->current_test_info()->test_case_name()};
@@ -137,13 +183,13 @@ namespace {
     };
 
     const std::vector<InferenceEngine::Layout> layouts3D = {
-			InferenceEngine::Layout::CHW,
-			InferenceEngine::Layout::HWC,
+            InferenceEngine::Layout::CHW,
+            InferenceEngine::Layout::HWC,
     };
 
     const std::vector<InferenceEngine::Layout> layouts4D = {
-			InferenceEngine::Layout::NCHW,
-			InferenceEngine::Layout::NHWC,
+            InferenceEngine::Layout::NCHW,
+            InferenceEngine::Layout::NHWC,
     };
 
     // [Track number: S#43428]
@@ -173,7 +219,12 @@ namespace {
                 testing::Values(CommonTestUtils::OpType::VECTOR),
                 testing::ValuesIn(keepDims),
                 testing::Values(ngraph::helpers::ReductionType::Sum,
-                                ngraph::helpers::ReductionType::Min),
+                                ngraph::helpers::ReductionType::Min,
+                                ngraph::helpers::ReductionType::L1,
+                                ngraph::helpers::ReductionType::LogicalOr,
+                                ngraph::helpers::ReductionType::LogicalAnd,
+                                ngraph::helpers::ReductionType::Prod,
+                                ngraph::helpers::ReductionType::L2),
                 testing::ValuesIn(netPrecisions),
                 testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                 testing::Values(InferenceEngine::Precision::UNSPECIFIED),
@@ -192,7 +243,12 @@ namespace {
                 testing::Values(true, false),
                 testing::Values(ngraph::helpers::ReductionType::Max,
                                 ngraph::helpers::ReductionType::Sum,
-                                ngraph::helpers::ReductionType::Min),
+                                ngraph::helpers::ReductionType::Min,
+                                ngraph::helpers::ReductionType::L1,
+                                ngraph::helpers::ReductionType::LogicalOr,
+                                ngraph::helpers::ReductionType::LogicalAnd,
+                                ngraph::helpers::ReductionType::Prod,
+                                ngraph::helpers::ReductionType::L2),
                 testing::ValuesIn(netPrecisions),
                 testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                 testing::Values(InferenceEngine::Precision::UNSPECIFIED),
@@ -211,7 +267,12 @@ namespace {
                 testing::Values(CommonTestUtils::OpType::VECTOR),
                 testing::Values(true),
                 testing::Values(ngraph::helpers::ReductionType::Mean,
-                                ngraph::helpers::ReductionType::Min),
+                                ngraph::helpers::ReductionType::Min,
+                                ngraph::helpers::ReductionType::L1,
+                                ngraph::helpers::ReductionType::LogicalOr,
+                                ngraph::helpers::ReductionType::LogicalAnd,
+                                ngraph::helpers::ReductionType::Prod,
+                                ngraph::helpers::ReductionType::L2),
                 testing::ValuesIn(netPrecisions),
                 testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                 testing::Values(InferenceEngine::Precision::UNSPECIFIED),
@@ -229,7 +290,11 @@ namespace {
                 testing::Values(CommonTestUtils::OpType::VECTOR),
                 testing::Values(true),
                 testing::Values(ngraph::helpers::ReductionType::Mean,
-                                ngraph::helpers::ReductionType::Min),
+                                ngraph::helpers::ReductionType::Min,
+                                ngraph::helpers::ReductionType::L1,
+                                ngraph::helpers::ReductionType::LogicalOr,
+                                ngraph::helpers::ReductionType::LogicalAnd,
+                                ngraph::helpers::ReductionType::L2),
                 testing::ValuesIn(netPrecisions),
                 testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                 testing::Values(InferenceEngine::Precision::UNSPECIFIED),

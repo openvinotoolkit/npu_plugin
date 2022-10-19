@@ -10,15 +10,11 @@
 namespace sw_params {
 #endif
 
-#pragma pack(push, 1)
-
 struct ReorderParams {
     struct MemRefData input;
     struct MemRefData output;
     int64_t perm[MAX_ND_DIMS];
 };
-
-#pragma pack (pop)
 
 inline struct BaseKernelParams ToBaseKernelParams(struct ReorderParams* params) {
     struct BaseKernelParams result;

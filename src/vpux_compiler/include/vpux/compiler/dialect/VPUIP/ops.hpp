@@ -10,7 +10,6 @@
 #include "vpux/compiler/core/ops_interfaces.hpp"
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/IERT/ops.hpp"
-#include "vpux/compiler/dialect/IERT/ops_interfaces.hpp"
 #include "vpux/compiler/dialect/VPU/attributes.hpp"
 #include "vpux/compiler/dialect/VPU/dialect.hpp"
 #include "vpux/compiler/dialect/VPU/ops.hpp"
@@ -67,6 +66,7 @@ mlir::LogicalResult verifyOp(PadUPAOp op);
 mlir::LogicalResult verifyOp(GatherUPAOp op);
 mlir::LogicalResult verifyOp(YuvToRgbUPAOp op);
 mlir::LogicalResult verifyOp(ConvolutionUPAOp op);
+mlir::LogicalResult verifyOp(BucketizeUPAOp op);
 mlir::LogicalResult verifyOp(ReduceUPAOp op);
 mlir::LogicalResult verifyOp(NCEClusterTaskOp op);
 mlir::LogicalResult verifyOp(DepthToSpaceUPAOp op);
@@ -77,9 +77,14 @@ mlir::LogicalResult verifyOp(ReverseSequenceUPAOp op);
 mlir::LogicalResult verifyOp(TopKUPAOp op);
 mlir::LogicalResult verifyPostOp(mlir::Operation* op);
 mlir::LogicalResult verifyOp(NNDMAOp op);
+mlir::LogicalResult verifyOp(DepthToSpaceDMAOp op);
+mlir::LogicalResult verifyOp(PermuteDMAOp op);
 mlir::LogicalResult verifyOp(SelectUPAOp op);
 mlir::LogicalResult verifyOp(NCEClusterTilingOp op);
 mlir::LogicalResult verifyOp(DistributedCastOp op);
+mlir::LogicalResult verifyOp(GenericReshapeOp op);
+mlir::LogicalResult verifyOp(ShapeCastOp op);
+mlir::LogicalResult verifyOp(StorageElementTableOp op);
 
 void print(mlir::OpAsmPrinter& p, NCEClusterTilingOp op);
 mlir::ParseResult parseNCEClusterTilingOp(mlir::OpAsmParser& parser, mlir::OperationState& result);
@@ -106,5 +111,9 @@ VPUIP::PPETaskOp NCEClusterTaskOp::addPPETask(mlir::OpBuilder& builder, Args&&..
     return builder.create<VPUIP::PPETaskOp>(getLoc(), std::forward<Args>(args)...);
 }
 
+template <typename T>
+T vpux::VPUIP::NCEClusterTilingOp::getInnerTaskOpOfType() {
+    return mlir::cast<T>(&body().front().front());
+}
 }  // namespace VPUIP
 }  // namespace vpux

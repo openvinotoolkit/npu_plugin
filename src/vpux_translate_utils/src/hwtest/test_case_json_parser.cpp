@@ -184,7 +184,45 @@ nb::ActivationType nb::to_activation_type(StringRef str) {
     if (isEqual(str, "Softmax")) {
         return nb::ActivationType::Softmax;
     }
-
+    if (isEqual(str, "vau_sigm")) {
+        return nb::ActivationType::vau_sigm;
+    }
+    if (isEqual(str, "vau_sqrt")) {
+        return nb::ActivationType::vau_sqrt;
+    }
+    if (isEqual(str, "vau_tanh")) {
+        return nb::ActivationType::vau_tanh;
+    }
+    if (isEqual(str, "vau_log")) {
+        return nb::ActivationType::vau_log;
+    }
+    if (isEqual(str, "vau_exp")) {
+        return nb::ActivationType::vau_exp;
+    }
+    if (isEqual(str, "lsu_b16")) {
+        return nb::ActivationType::lsu_b16;
+    }
+    if (isEqual(str, "lsu_b16_vec")) {
+        return nb::ActivationType::lsu_b16_vec;
+    }
+    if (isEqual(str, "sau_dp4")) {
+        return nb::ActivationType::sau_dp4;
+    }
+    if (isEqual(str, "sau_dp4a")) {
+        return nb::ActivationType::sau_dp4a;
+    }
+    if (isEqual(str, "sau_dp4m")) {
+        return nb::ActivationType::sau_dp4m;
+    }
+    if (isEqual(str, "vau_dp4")) {
+        return nb::ActivationType::vau_dp4;
+    }
+    if (isEqual(str, "vau_dp4a")) {
+        return nb::ActivationType::vau_dp4a;
+    }
+    if (isEqual(str, "vau_dp4m")) {
+        return nb::ActivationType::vau_dp4m;
+    }
     return nb::ActivationType::Unknown;
 }
 
@@ -206,6 +244,32 @@ std::string nb::to_string(nb::ActivationType activationType) {
         return "Sigmoid";
     case ActivationType::Softmax:
         return "Softmax";
+    case ActivationType::vau_sigm:
+        return "vau_sigm";
+    case ActivationType::vau_sqrt:
+        return "vau_sqrt";
+    case ActivationType::vau_tanh:
+        return "vau_tanh";
+    case ActivationType::vau_log:
+        return "vau_log";
+    case ActivationType::vau_exp:
+        return "vau_exp";
+    case ActivationType::lsu_b16:
+        return "lsu_b16";
+    case ActivationType::lsu_b16_vec:
+        return "lsu_b16_vec";
+    case ActivationType::sau_dp4:
+        return "sau_dp4";
+    case ActivationType::sau_dp4a:
+        return "sau_dp4a";
+    case ActivationType::sau_dp4m:
+        return "sau_dp4m";
+    case ActivationType::vau_dp4:
+        return "vau_dp4";
+    case ActivationType::vau_dp4a:
+        return "vau_dp4a";
+    case ActivationType::vau_dp4m:
+        return "vau_dp4m";
     default:
         return "Unknown";
     }
@@ -233,6 +297,8 @@ std::string nb::to_string(CaseType case_) {
         return "DifferentClustersDPU";
     case CaseType::ActShave:
         return "ActShave";
+    case CaseType::M2iTask:
+        return "M2iTask";
     case CaseType::ReadAfterWriteDPUDMA:
         return "ReadAfterWriteDPUDMA";
     case CaseType::ReadAfterWriteDMADPU:
@@ -279,8 +345,12 @@ nb::CaseType nb::to_case(StringRef str) {
         return CaseType::AvgPool;
     if (isEqual(str, "DifferentClustersDPU"))
         return CaseType::DifferentClustersDPU;
+    if (isEqual(str, "MultiClustersDPU"))
+        return CaseType::MultiClustersDPU;
     if (isEqual(str, "ActShave"))
         return CaseType::ActShave;
+    if (isEqual(str, "M2iTask"))
+        return CaseType::M2iTask;
     if (isEqual(str, "ReadAfterWriteDPUDMA"))
         return CaseType::ReadAfterWriteDPUDMA;
     if (isEqual(str, "ReadAfterWriteDMADPU"))
@@ -306,6 +376,26 @@ nb::CaseType nb::to_case(StringRef str) {
     return CaseType::Unknown;
 };
 
+nb::M2iFmt nb::to_m2i_fmt(StringRef str) {
+    if (isEqual(str, "SP_NV12_8"))
+        return nb::M2iFmt::SP_NV12_8;
+    if (isEqual(str, "PL_YUV420_8"))
+        return nb::M2iFmt::PL_YUV420_8;
+    if (isEqual(str, "IL_RGB888"))
+        return nb::M2iFmt::IL_RGB888;
+    if (isEqual(str, "IL_BGR888"))
+        return nb::M2iFmt::IL_BGR888;
+    if (isEqual(str, "PL_RGB24"))
+        return nb::M2iFmt::PL_RGB24;
+    if (isEqual(str, "PL_BGR24"))
+        return nb::M2iFmt::PL_BGR24;
+    if (isEqual(str, "PL_FP16_RGB"))
+        return nb::M2iFmt::PL_FP16_RGB;
+    if (isEqual(str, "PL_FP16_BGR"))
+        return nb::M2iFmt::PL_FP16_BGR;
+    return M2iFmt::Unknown;
+}
+
 nb::QuantParams nb::TestCaseJsonDescriptor::loadQuantizationParams(llvm::json::Object* obj) {
     nb::QuantParams result;
     auto* qp = obj->getObject("quantization");
@@ -330,38 +420,69 @@ nb::RaceConditionParams nb::TestCaseJsonDescriptor::loadRaceConditionParams(llvm
 
 nb::DPUTaskParams nb::TestCaseJsonDescriptor::loadDPUTaskParams(llvm::json::Object* jsonObj) {
     nb::DPUTaskParams params;
-    auto* task_params = jsonObj->getObject("DPUTaskParams");
+    auto* taskParams = jsonObj->getObject("DPUTaskParams");
+    const auto* jsonOutClusters = taskParams->getArray("output_cluster");
 
-    params.inputCluster = task_params->getInteger("input_cluster").getValue();
-    params.outputCluster = task_params->getInteger("output_cluster").getValue();
-    params.weightsCluster = task_params->getInteger("weights_cluster").getValue();
-    params.weightsTableCluster = task_params->getInteger("weights_table_cluster").getValue();
+    VPUX_THROW_UNLESS(jsonOutClusters != nullptr, "loadDPUTaskParams: cannot find output_cluster config param");
+
+    params.outputClusters.resize(jsonOutClusters->size());
+    for (size_t i = 0; i < jsonOutClusters->size(); i++) {
+        params.outputClusters[i] = (*jsonOutClusters)[i].getAsInteger().getValue();
+    }
+
+    params.inputCluster = taskParams->getInteger("input_cluster").getValue();
+    params.weightsCluster = taskParams->getInteger("weights_cluster").getValue();
+    params.weightsTableCluster = taskParams->getInteger("weights_table_cluster").getValue();
+
     return params;
 }
 
-nb::InputLayer nb::TestCaseJsonDescriptor::loadInputLayer(llvm::json::Object* jsonObj) {
-    nb::InputLayer result;
+nb::MultiClusterDPUParams nb::TestCaseJsonDescriptor::loadMultiClusterDPUParams(llvm::json::Object* jsonObj) {
+    nb::MultiClusterDPUParams params;
+    auto* taskParams = jsonObj->getObject("DPUTaskParams");
 
-    std::string layerType = "input";
+    const auto* jsonTaskClusters = taskParams->getArray("task_clusters");
+    VPUX_THROW_UNLESS(jsonTaskClusters != nullptr, "loadMultiClusterDPUParams: cannot find task_clusters config param");
 
-    auto* input = jsonObj->getObject(layerType);
-    if (!input) {
-        // TODO: Add exception/error
+    params.taskClusters.resize(jsonTaskClusters->size());
+    for (size_t i = 0; i < jsonTaskClusters->size(); i++) {
+        params.taskClusters[i] = (*jsonTaskClusters)[i].getAsInteger().getValue();
+    }
+
+    const std::unordered_map<llvm::StringRef, SegmentationType> segmentOptions = {{"SOK", SegmentationType::SOK},
+                                                                                  {"SOH", SegmentationType::SOH}};
+
+    auto segmentation = taskParams->getString("segmentation");
+    VPUX_THROW_UNLESS(segmentation.hasValue() && segmentOptions.find(segmentation.getValue()) != segmentOptions.end(),
+                      "loadMultiClusterDPUParams: failed to get valid segmentation type");
+
+    params.segmentation = segmentOptions.at(segmentation.getValue().str());
+    params.broadcast = taskParams->getBoolean("broadcast").getValue();
+
+    return params;
+}
+
+SmallVector<nb::InputLayer> nb::TestCaseJsonDescriptor::loadInputLayer(llvm::json::Object* jsonObj) {
+    SmallVector<nb::InputLayer> result;
+
+    auto* inputArray = jsonObj->getArray("input");
+    if (!inputArray) {
         return result;
     }
 
-    auto* shape = input->getArray("shape");
-    if (!shape) {
-        // TODO: add exception/error log
-        return result;
-    }
+    result.resize(inputArray->size());
+    for (size_t inIdx = 0; inIdx < inputArray->size(); inIdx++) {
+        auto inputObj = (*inputArray)[inIdx].getAsObject();
+        auto* shape = inputObj->getArray("shape");
+        VPUX_THROW_UNLESS(shape != nullptr, "loadInputLayer: missing shape");
 
-    for (size_t i = 0; i < shape->size(); i++) {
-        result.shape[i] = (*shape)[i].getAsInteger().getValue();
-    }
+        for (size_t i = 0; i < shape->size(); i++) {
+            result[inIdx].shape[i] = (*shape)[i].getAsInteger().getValue();
+        }
 
-    result.qp = loadQuantizationParams(input);
-    result.dtype = to_dtype(input->getString("dtype").getValue().str());
+        result[inIdx].qp = loadQuantizationParams(inputObj);
+        result[inIdx].dtype = to_dtype(inputObj->getString("dtype").getValue().str());
+    }
 
     return result;
 }
@@ -373,15 +494,11 @@ nb::WeightLayer nb::TestCaseJsonDescriptor::loadWeightLayer(llvm::json::Object* 
 
     auto* weight = jsonObj->getObject(layerType);
     if (!weight) {
-        // TODO: Add exception/error
         return result;
     }
 
     auto* shape = weight->getArray("shape");
-    if (!shape) {
-        // TODO: add exception/error log
-        return result;
-    }
+    VPUX_THROW_UNLESS(shape != nullptr, "loadWeightLayer: missing shape");
 
     for (size_t i = 0; i < shape->size(); i++) {
         result.shape[i] = (*shape)[i].getAsInteger().getValue();
@@ -398,26 +515,27 @@ nb::WeightLayer nb::TestCaseJsonDescriptor::loadWeightLayer(llvm::json::Object* 
     return result;
 }
 
-nb::OutputLayer nb::TestCaseJsonDescriptor::loadOutputLayer(llvm::json::Object* jsonObj) {
-    nb::OutputLayer result;
+SmallVector<nb::OutputLayer> nb::TestCaseJsonDescriptor::loadOutputLayer(llvm::json::Object* jsonObj) {
+    SmallVector<nb::OutputLayer> result;
 
-    auto* output = jsonObj->getObject("output");
-    if (!output) {
-        // TODO: add exception/error log
+    auto* outputArray = jsonObj->getArray("output");
+    if (!outputArray) {
         return result;
     }
 
-    auto* shape = output->getArray("shape");
-    if (!shape) {
-        // TODO: Add exception/error
-        return result;
-    }
-    for (size_t i = 0; i < shape->size(); i++) {
-        result.shape[i] = (*shape)[i].getAsInteger().getValue();
-    }
+    result.resize(outputArray->size());
+    for (size_t outIdx = 0; outIdx < outputArray->size(); outIdx++) {
+        auto outputObj = (*outputArray)[outIdx].getAsObject();
+        auto* shape = outputObj->getArray("shape");
+        VPUX_THROW_UNLESS(shape != nullptr, "loadOutputLayer: missing shape");
 
-    result.qp = loadQuantizationParams(output);
-    result.dtype = to_dtype(output->getString("dtype").getValue().str());
+        for (size_t i = 0; i < shape->size(); i++) {
+            result[outIdx].shape[i] = (*shape)[i].getAsInteger().getValue();
+        }
+
+        result[outIdx].qp = loadQuantizationParams(outputObj);
+        result[outIdx].dtype = to_dtype(outputObj->getString("dtype").getValue().str());
+    }
 
     return result;
 }
@@ -445,22 +563,62 @@ nb::DMAparams nb::TestCaseJsonDescriptor::loadDMAParams(llvm::json::Object* json
     return result;
 }
 
+nb::M2iLayer nb::TestCaseJsonDescriptor::loadM2iLayer(llvm::json::Object* jsonObj) {
+    nb::M2iLayer result;
+
+    auto* params = jsonObj->getObject("m2i_params");
+    if (!params) {
+        VPUX_THROW("M2I params not provided");
+    }
+    const auto inputFmt = params->getString("input_fmt");
+    const auto outputFmt = params->getString("output_fmt");
+    const auto cscFlag = params->getBoolean("do_csc");
+    const auto normFlag = params->getBoolean("do_norm");
+
+    VPUX_THROW_UNLESS(inputFmt.hasValue(), "input_fmt not provided !");
+    VPUX_THROW_UNLESS(outputFmt.hasValue(), "output_fmt not provided !");
+    VPUX_THROW_UNLESS(cscFlag.hasValue(), "do_csc not provided !");
+    VPUX_THROW_UNLESS(normFlag.hasValue(), "do_norm not provided !");
+
+    result.iFmt = to_m2i_fmt(inputFmt.getValue());  // str to enum
+    result.oFmt = to_m2i_fmt(outputFmt.getValue());
+    result.doCsc = cscFlag.getValue();
+    result.doNorm = normFlag.getValue();
+
+    // Optional params for RESIZE and NORM
+    const auto* sizesVec = params->getArray("output_sizes");
+    const auto* coefsVec = params->getArray("norm_coefs");
+    VPUX_THROW_UNLESS(sizesVec != nullptr, "loadM2iLayer: missing sizesVec");
+    VPUX_THROW_UNLESS(coefsVec != nullptr, "loadM2iLayer: missing coefsVec");
+
+    for (size_t i = 0; i < sizesVec->size(); i++) {
+        auto elem = (*sizesVec)[i].getAsInteger();
+        if (elem.hasValue()) {
+            result.outSizes.push_back(static_cast<int>(elem.getValue()));
+        }
+    }
+
+    for (size_t i = 0; i < coefsVec->size(); i++) {
+        auto elem = (*coefsVec)[i].getAsNumber();  // double
+        if (elem.hasValue()) {
+            result.normCoefs.push_back(static_cast<float>(elem.getValue()));
+        }
+    }
+
+    return result;
+}
+
 nb::ConvLayer nb::TestCaseJsonDescriptor::loadConvLayer(llvm::json::Object* jsonObj) {
     std::string layerType = "conv_op";
 
     nb::ConvLayer result;
 
     auto* op = jsonObj->getObject("conv_op");
-    if (!op) {
-        // TODO: add exception/error log
-        return result;
-    }
+    VPUX_THROW_UNLESS(op != nullptr, "loadConvLayer: missing conv_op config");
 
     auto* strides = op->getArray("stride");
-    if (!strides) {
-        // TODO: add exception/error log
-        return result;
-    }
+    VPUX_THROW_UNLESS(strides != nullptr, "loadConvLayer: missing strides");
+
     for (size_t i = 0; i < strides->size(); i++) {
         auto stride = (*strides)[i].getAsInteger();
         if (stride.hasValue()) {
@@ -469,10 +627,8 @@ nb::ConvLayer nb::TestCaseJsonDescriptor::loadConvLayer(llvm::json::Object* json
     }
 
     auto* pads = op->getArray("pad");
-    if (!pads) {
-        // TODO: add exception/error log
-        return result;
-    }
+    VPUX_THROW_UNLESS(pads != nullptr, "loadConvLayer: missing pads");
+
     for (size_t i = 0; i < pads->size(); i++) {
         auto pad = (*pads)[i].getAsInteger();
         if (pad.hasValue()) {
@@ -508,16 +664,11 @@ nb::PoolLayer nb::TestCaseJsonDescriptor::loadPoolLayer(llvm::json::Object* json
     nb::PoolLayer result;
 
     auto* op = jsonObj->getObject("pool_op");
-    if (!op) {
-        // TODO: add exception/error log
-        return result;
-    }
+    VPUX_THROW_UNLESS(op != nullptr, "loadPoolLayer: missing pool_op config");
 
     auto* kernel_shape = op->getArray("kernel_shape");
-    if (!kernel_shape) {
-        // TODO: add exception/error log
-        return result;
-    }
+    VPUX_THROW_UNLESS(kernel_shape != nullptr, "loadPoolLayer: missing kernel_shape");
+
     for (size_t i = 0; i < kernel_shape->size(); i++) {
         auto kernelsize = (*kernel_shape)[i].getAsInteger();
         if (kernelsize.hasValue()) {
@@ -525,10 +676,8 @@ nb::PoolLayer nb::TestCaseJsonDescriptor::loadPoolLayer(llvm::json::Object* json
         }
     }
     auto* strides = op->getArray("stride");
-    if (!strides) {
-        // TODO: add exception/error log
-        return result;
-    }
+    VPUX_THROW_UNLESS(strides != nullptr, "loadPoolLayer: missing stride");
+
     for (size_t i = 0; i < strides->size(); i++) {
         auto stride = (*strides)[i].getAsInteger();
         if (stride.hasValue()) {
@@ -538,7 +687,6 @@ nb::PoolLayer nb::TestCaseJsonDescriptor::loadPoolLayer(llvm::json::Object* json
 
     auto* pads = op->getArray("pad");
     if (!pads) {
-        // TODO: add exception/error log
         return result;
     }
     for (size_t i = 0; i < pads->size(); i++) {
@@ -616,8 +764,8 @@ void nb::TestCaseJsonDescriptor::parse(llvm::json::Object json_obj) {
 
     caseType_ = nb::to_case(case_type.getValue());
     caseTypeStr_ = case_type.getValue().str();
-    inLayer_ = loadInputLayer(&json_obj);
-    outLayer_ = loadOutputLayer(&json_obj);
+    inLayers_ = loadInputLayer(&json_obj);
+    outLayers_ = loadOutputLayer(&json_obj);
     activationLayer_ = loadActivationLayer(&json_obj);
 
     // Load conv json attribute values. Similar implementation for ALL HW layers (DW, group conv, Av/Max pooling and
@@ -662,6 +810,13 @@ void nb::TestCaseJsonDescriptor::parse(llvm::json::Object json_obj) {
         return;
     }
 
+    if (caseType_ == CaseType::MultiClustersDPU) {
+        wtLayer_ = loadWeightLayer(&json_obj);
+        convLayer_ = loadConvLayer(&json_obj);
+        multiClusterDPUParams_ = loadMultiClusterDPUParams(&json_obj);
+        return;
+    }
+
     if (caseType_ == CaseType::EltwiseAdd || caseType_ == CaseType::EltwiseMult) {
         wtLayer_ = loadWeightLayer(&json_obj);
         return;
@@ -694,6 +849,11 @@ void nb::TestCaseJsonDescriptor::parse(llvm::json::Object json_obj) {
             raceConditionParams_ = loadRaceConditionParams(&json_obj);
             return;
         }
+    }
+
+    if (caseType_ == CaseType::M2iTask) {
+        m2iLayer_ = loadM2iLayer(&json_obj);
+        return;
     }
 
     throw std::runtime_error{printToString("Unsupported case type: {0}", caseTypeStr_)};

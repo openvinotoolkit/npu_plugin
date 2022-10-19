@@ -32,6 +32,17 @@ macro(replace_noerror)
     endforeach()
 endmacro()
 
+# use flag /zi as workaround to solve debug size issue in debug variant on MSVC
+if(MSVC)
+    foreach(flag_var CMAKE_C_FLAGS_DEBUG CMAKE_CXX_FLAGS_DEBUG)
+        if(${flag_var} MATCHES "/Z7")
+            string(REPLACE "/Z7" "/Zi /FS" ${flag_var} "${${flag_var}}")
+        else()
+            set(${flag_var} "${${flag_var}} /Zi /FS")
+        endif()
+    endforeach()
+endif()
+
 function(enable_warnings_as_errors TARGET_NAME)
     if(NOT TREAT_WARNING_AS_ERROR)
         return()

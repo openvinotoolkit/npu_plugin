@@ -6,18 +6,17 @@
 //
 
 #include "vpux/compiler/dialect/ELF/export.hpp"
-#include "vpux/compiler/dialect/ELF/ops.hpp"
-#include "vpux/compiler/dialect/IE/ops.hpp"
+#include "vpux/compiler/dialect/ELF/metadata.hpp"
 
 using namespace vpux;
 
-std::vector<uint8_t> vpux::ELF::exportToELF(mlir::ModuleOp module, Logger log) {
+std::vector<uint8_t> vpux::ELF::exportToELF(mlir::ModuleOp module,
+                                            const std::vector<vpux::PreProcessInfo>& preprocessInfo,
+                                            const std::vector<std::shared_ptr<const ov::Node>>& parameters,
+                                            const std::vector<std::shared_ptr<const ov::Node>>& results, Logger log) {
     log.setName("ELF BackEnd");
 
     log.trace("Extract '{0}' from Module (ELF File)", IE::CNNNetworkOp::getOperationName());
-    IE::CNNNetworkOp netOp;
-    mlir::FuncOp netFunc;
-    IE::CNNNetworkOp::getFromModule(module, netOp, netFunc);
 
     elf::Writer elfWriter;
     // Associate the respective mlir::Operation* of
@@ -33,6 +32,17 @@ std::vector<uint8_t> vpux::ELF::exportToELF(mlir::ModuleOp module, Logger log) {
     // However ticket #29166 plans to introduce ordering constraints on IR validity,
     // which would allow us to serialize all data in one function and just use
     // a SectionInterface rather than ops themselves.
+
+    IE::CNNNetworkOp netOp;
+    mlir::FuncOp netFunc;
+    IE::CNNNetworkOp::getFromModule(module, netOp, netFunc);
+
+    log.trace("Serializing '{0}' ops", ELF::CreateMetadataSectionOp::getOperationName());
+    auto createMetadataSectionOps = netFunc.getOps<ELF::CreateMetadataSectionOp>();
+    for (auto createMetadataSectionOp : createMetadataSectionOps) {
+        auto metadata = vpux::ELF::constructMetadata(module, netOp, netFunc, preprocessInfo, parameters, results);
+        createMetadataSectionOp.serialize(elfWriter, sectionMap, symbolMap, metadata);
+    }
 
     log.trace("Serializing '{0}' ops", ELF::CreateSectionOp::getOperationName());
     auto createSectionOps = netFunc.getOps<ELF::CreateSectionOp>();

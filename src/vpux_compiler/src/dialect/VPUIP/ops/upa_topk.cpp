@@ -17,7 +17,7 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::TopKUPAOp::serialize(vpux::VPUIP::B
     if (axis < 0) {
         axis = axis + inputDimension;
     }
-    int32_t axis32 = (int32_t)axis;
+    int32_t axis32 = checked_cast<int32_t>(axis);
 
     IE::TopKMode modeValue = mode();
     MVCNN::TopKMode modeCode = MVCNN::TopKMode::TopKMode_min;

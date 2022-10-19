@@ -33,7 +33,6 @@ common/components/kernelLib/MvCV/kernels/*/unittest/run
 *.o
 *.ko
 *.obj
-*.elf
 
 # Libraries
 *.lib

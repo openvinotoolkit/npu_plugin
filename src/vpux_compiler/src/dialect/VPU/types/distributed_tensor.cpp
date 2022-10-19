@@ -42,7 +42,7 @@ void VPU::DistributedTensorType::print(mlir::DialectAsmPrinter& printer) const {
     printer << ", {";
 
     auto distribution = getDistribution();
-    printer << "mode = " << VPU::stringifyDistributionMode(distribution.mode().getValue());
+    printer << "mode = \"" << VPU::stringifyDistributionMode(distribution.mode().getValue()) << "\"";
     if (distribution.num_tiles() != nullptr) {
         printer << ", num_tiles = " << distribution.num_tiles();
     }
@@ -198,7 +198,7 @@ mlir::LogicalResult VPU::DistributedTensorType::verify(FuncRef<mlir::InFlightDia
 
 mlir::RankedTensorType VPU::DistributedTensorType::getCompactType() const {
     return mlir::RankedTensorType::get(getShape().raw(), getElementType(),
-                                       IE::TensorAttr::get(getOrder(), getMemSpace(), nullptr, getContext()));
+                                       IE::TensorAttr::get(getOrder(), getMemSpace(), getContext()));
 }
 
 //
@@ -262,8 +262,7 @@ SmallVector<PadInfo> VPU::DistributedTensorType::getPerClusterPadding() const {
 SmallVector<StridedShape> VPU::DistributedTensorType::getPerClusterStridedShapes() const {
     const auto strideInReqs = StrideReqs::compact(getShape().size());
     VPUX_THROW_UNLESS(strideInReqs.checkStrides(*this), "Only compact strides are supported");
-    return VPU::getPerClusterStridedShapes(getShape(), getStrides(), getDimsOrder(), getElemTypeSize(),
-                                           getDistribution());
+    return VPU::getPerClusterStridedShapes(getShape(), getStrides(), getDimsOrder(), getDistribution());
 }
 
 // @brief Get largest strided compute shape
@@ -424,8 +423,18 @@ NDTypeInterface VPU::DistributedTensorType::changeStrides(StridesRef /*strides*/
     VPUX_THROW("DistributedTensorType only supports compact strides");
 }
 
-NDTypeInterface VPU::DistributedTensorType::extractDenseTile(ShapeRef /*tileOffsets*/, ShapeRef /*tileShape*/) const {
-    VPUX_THROW("extractDenseTile method is not implemented for DistributedTensorType");
+NDTypeInterface VPU::DistributedTensorType::changeTypeComponents(TypeComponents /*memSpace*/) const {
+    VPUX_THROW("changeTypeComponents method is not implemented for DistributedTensorType");
+}
+
+NDTypeInterface VPU::DistributedTensorType::extractDenseTile(ShapeRef tileOffsets, ShapeRef tileShape) const {
+    auto elemType = getElementType();
+    if (const auto perAxisQType = elemType.dyn_cast<mlir::quant::UniformQuantizedPerAxisType>()) {
+        elemType = tileScalesAndZP(perAxisQType, tileShape, tileOffsets);
+    }
+
+    return VPU::DistributedTensorType::get(getContext(), tileShape.raw(), elemType, getOrder(), getMemSpace(),
+                                           getDistribution());
 }
 
 NDTypeInterface VPU::DistributedTensorType::extractViewTile(vpux::ShapeRef /*tileOffsets*/,

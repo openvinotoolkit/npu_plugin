@@ -41,7 +41,7 @@ void vpux::IE::buildAdjustLayoutPipeline(mlir::OpPassManager& pm, const AdjustLa
     }
 
     if (options.enableForceZMajorConcat) {
-        pm.addPass(IE::createInsertReorderBetweenTransposeAndConcatPass(log));
+        pm.addPass(IE::createInsertReorderBetweenLayerAndConcatPass(log));
     }
 
     pm.addPass(IE::createTransposeToPermuteCastPass(log));
@@ -69,11 +69,14 @@ void vpux::IE::buildAdjustForVPUPipeline(mlir::OpPassManager& pm, const AdjustFo
     pm.addPass(IE::createConvertPaddingsToFloorModePass(log));
     pm.addPass(IE::createConvertShuffleChannelsPass(log));
     pm.addPass(IE::createConvertNearestToStridedConcatPass(log));
+    // TODO: [E-52404] Causes accuracy degradations.
+    // pm.addPass(IE::createConvertBilinearToStridedConcatAndConvPass(log));
     pm.addPass(IE::createResolveStridedSlicePass(log));
     pm.addPass(IE::createFusePadOpsPass(log));
     pm.addPass(IE::createConvertPadToConcatPass(log));
     pm.addPass(IE::createPropagateFqThroughPadPass(log));
     pm.addPass(IE::createConvertDepth2SpaceLayerPass(log));
+    pm.addPass(IE::createConvertGatherToSlicePass(log));
     pm.addPass(mlir::createCanonicalizerPass(grc));
 
     if (options.enableSwapConcatWithEltwise) {
@@ -105,13 +108,14 @@ void vpux::IE::buildLowPrecisionPipeline(mlir::OpPassManager& pm, const LowPreci
         pm.addPass(IE::createSwapTransposeWithFQPass(log));
     }
     pm.addPass(IE::createFuseQuantizedOpsPass(log));
+    pm.addPass(IE::createConvertToMixedPrecision(log));
     if (options.enableQuantDequantRemoval) {
         pm.addPass(IE::createRemoveQuantDequantSeqPass(log));
     }
     pm.addPass(IE::createConvertWeightsToU8Pass(log));
     pm.addPass(mlir::createCanonicalizerPass(grc));
     pm.addPass(IE::createDequantizeConstPass(log));
-    pm.addPass(IE::createConvertQuantizeOpsToEltwisePass(log));
+    pm.addPass(IE::createConvertQuantizeOpsToNceOpsPass(log));
     pm.addPass(IE::createDeletePerAxisQuantizationPass(log));
     pm.addPass(IE::createMergeFakeQuantPass(log));
     pm.addPass(mlir::createCanonicalizerPass(grc));

@@ -6,12 +6,8 @@
 
 #include "param_softmax.h"
 
-#ifdef CONFIG_TARGET_SOC_3720
 __attribute__((aligned(1024)))
-#include "sk.singleShaveSoftmax.3010xx.text.xdat"
-#else
-#include "svuSLKernels_EP.h"
-#endif
+#include "sk.singleShaveSoftmax.3720xx.text.xdat"
 
 namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Softmax))
 {
@@ -44,16 +40,8 @@ protected:
     }
 
     void initData() override {
-
-        m_params = {
-            0xFFFFFFFF,
-            m_elfBuffer,
-            0,
-            nullptr,
-            MAX_LOCAL_PARAMS,
-            0,
-            0
-        };
+        sw_params::BaseKernelParams emptyParamData;
+        m_params = {0xFFFFFFFF, m_elfBuffer, 0, nullptr, emptyParamData, MAX_LOCAL_PARAMS, 0};
 
         CustomCppTests<fp16>::initData();
         const SingleTest* test = m_currentTest;
@@ -84,11 +72,7 @@ protected:
     void generateInputData() override {
         const auto customData = false;//m_testLoop.value().customData;
 
-#ifdef CONFIG_TARGET_SOC_3720
-        m_params.kernel  = reinterpret_cast<uint64_t>(sk_singleShaveSoftmax_3010xx_text);
-#else
-        m_params.kernel  = reinterpret_cast<uint64_t>(PREAMBLE_FUNC(singleShaveSoftmax));
-#endif
+        m_params.kernel  = reinterpret_cast<uint64_t>(sk_singleShaveSoftmax_3720xx_text);
 
         rand_seed();
 

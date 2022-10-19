@@ -159,9 +159,9 @@ mlir::LogicalResult AveragePoolRewriter::matchAndRewrite(IE::AvgPoolOp origOp, m
     const auto firstOpKernelAttr = getIntArrayAttr(ctx, makeArrayRef(firstOpKernel));
     const auto sequencedOpKernelAttr = getIntArrayAttr(ctx, makeArrayRef(sequencedOpKernel));
 
-    auto firstOp = rewriter.create<IE::AvgPoolOp>(origOp->getLoc(), origOp.input(), firstOpKernelAttr,
-                                                  firstOpKernelAttr, firstOpPadBegin, firstOpPadEnd,
-                                                  origOp.rounding_typeAttr(), origOp.exclude_padsAttr());
+    auto firstOp = rewriter.create<IE::AvgPoolOp>(
+            origOp->getLoc(), origOp.input(), firstOpKernelAttr, firstOpKernelAttr, firstOpPadBegin, firstOpPadEnd,
+            origOp.rounding_typeAttr(), origOp.exclude_padsAttr(), origOp.post_opAttr());
 
     const auto firstOpOutputShapeType = firstOp.output().getType().cast<vpux::NDTypeInterface>();
     const auto firstOpOutputShape = firstOpOutputShapeType.getShape().raw();
@@ -198,7 +198,8 @@ mlir::LogicalResult AveragePoolRewriter::matchAndRewrite(IE::AvgPoolOp origOp, m
     const auto sequencedOpPadEnd = getIntArrayAttr(ctx, makeArrayRef({calculatedPadding[3], calculatedPadding[1]}));
     rewriter.replaceOpWithNewOp<IE::AvgPoolOp>(origOp, origOp.getType(), firstAvgPoolOutput, sequencedOpKernelAttr,
                                                sequencedOpStridesAttr, sequencedOpPadBegin, sequencedOpPadEnd,
-                                               origOp.rounding_typeAttr(), origOp.exclude_padsAttr());
+                                               origOp.rounding_typeAttr(), origOp.exclude_padsAttr(),
+                                               origOp.post_opAttr());
 
     return mlir::success();
 }
@@ -249,15 +250,16 @@ mlir::FailureOr<mlir::Value> AveragePoolRewriter::splitAvgOperationSlicing(IE::A
                     loc, origOp->getOperand(0), getIntArrayAttr(ctx, offsets.raw()), getIntArrayAttr(ctx, sliceShape));
 
             // create avg pooling for this slice with new symmetric stride
+            auto roundingTypeAttr = IE::RoundingTypeAttr::get(ctx, IE::RoundingType::FLOOR);
             auto newOp = rewriter.create<IE::AvgPoolOp>(loc, slicedInput.result(), origOp.kernel_size(), newStrides,
-                                                        origOp.pads_begin(), origOp.pads_end(),
-                                                        origOp.rounding_typeAttr(), origOp.exclude_padsAttr());
+                                                        origOp.pads_begin(), origOp.pads_end(), roundingTypeAttr,
+                                                        origOp.exclude_padsAttr(), origOp.post_opAttr());
             hSliced.push_back(newOp->getResult(0));
         }
         if (!hSliced.empty()) {
             // concatenate the slices if there are more than one slice on vertical axis, and store it in wSliced
             wSliced.push_back(hSliced.size() != 1 ? rewriter.create<IE::ConcatOp>(origOp->getLoc(), hSliced,
-                                                                                  Dims4D::Act::H, minStride, maxStride)
+                                                                                  Dims4D::Act::H, 1, stepsH)
                                                   : hSliced.front());
         }
     }
@@ -266,9 +268,9 @@ mlir::FailureOr<mlir::Value> AveragePoolRewriter::splitAvgOperationSlicing(IE::A
     }
 
     // concatenate the slices if there are more than one slice on horizontal axis
-    const auto concatOp = wSliced.size() != 1 ? rewriter.create<IE::ConcatOp>(origOp->getLoc(), wSliced, Dims4D::Act::W,
-                                                                              minStride, maxStride)
-                                              : wSliced.front();
+    const auto concatOp = wSliced.size() != 1
+                                  ? rewriter.create<IE::ConcatOp>(origOp->getLoc(), wSliced, Dims4D::Act::W, 1, stepsW)
+                                  : wSliced.front();
     rewriter.replaceOp(origOp, concatOp);
     return concatOp;
 }
@@ -297,7 +299,6 @@ mlir::LogicalResult MaxPoolRewriter::matchAndRewrite(IE::MaxPoolOp origOp, mlir:
 
     const auto kernelSize = parseIntArrayAttr<int64_t>(origOp.kernel_size());
     calculateKernelsAndPadding(kernelSize, calculatedPadding, firstOpKernel, sequencedOpKernel, _log.nest(2));
-
     mlir::MLIRContext* ctx = origOp->getContext();
 
     const auto origStridesAttr = origOp.strides();
@@ -309,8 +310,11 @@ mlir::LogicalResult MaxPoolRewriter::matchAndRewrite(IE::MaxPoolOp origOp, mlir:
     auto stridesAttr = getIntArrayAttr(ctx, makeArrayRef(firstOpKernel));
     const auto origStrides = parseIntArrayAttr<int64_t>(origStridesAttr);
 
-    if (origStrides[Dims4D::Strides::X.ind()] != kernelSize[Dims4D::Kernel::X.ind()] ||
-        origStrides[Dims4D::Strides::Y.ind()] != kernelSize[Dims4D::Kernel::Y.ind()]) {
+    auto outShape = getShape(origOp.output());
+
+    if ((origStrides[Dims4D::Strides::X.ind()] != kernelSize[Dims4D::Kernel::X.ind()] ||
+         origStrides[Dims4D::Strides::Y.ind()] != kernelSize[Dims4D::Kernel::Y.ind()]) &&
+        !(outShape[Dims4D::Act::H] == 1 && outShape[Dims4D::Act::W] == 1)) {
         inputPadding = origPadding;
         stridesAttr = origStridesAttr;
     }
@@ -339,11 +343,11 @@ mlir::LogicalResult MaxPoolRewriter::matchAndRewrite(IE::MaxPoolOp origOp, mlir:
     auto firstOp = rewriter.create<IE::MaxPoolOp>(origOp.getLoc(), origOp.input(), firstOpKernelAttr, stridesAttr,
                                                   firstOpPadBegin, firstOpPadEnd, origOp.rounding_type(),
                                                   origOp.post_opAttr());
-
     stridesAttr = sequencedOpKernelAttr;
 
-    if (origStrides[Dims4D::Strides::X.ind()] != kernelSize[Dims4D::Kernel::X.ind()] ||
-        origStrides[Dims4D::Strides::Y.ind()] != kernelSize[Dims4D::Kernel::Y.ind()]) {
+    if ((origStrides[Dims4D::Strides::X.ind()] != kernelSize[Dims4D::Kernel::X.ind()] ||
+         origStrides[Dims4D::Strides::Y.ind()] != kernelSize[Dims4D::Kernel::Y.ind()]) &&
+        !(outShape[Dims4D::Act::H] == 1 && outShape[Dims4D::Act::W] == 1)) {
         // in this case stride shall be taken into account and pyramid cascading does not work
         // use expression orig_kernel = sum (k1, k2, ..., ki)
         sequencedOpKernel[Dims4D::Kernel::X.ind()] =
@@ -418,6 +422,18 @@ void HandleLargeKernelsPass::safeRunOnFunc() {
         }
         if (unsupportedKernelCheck(Dims4D::Kernel::Y.ind(), Dims4D::Act::H.ind(), Dims4D::Strides::Y.ind())) {
             _log.trace("AvgPool operation unsupported by HandleLargeKernel pass");
+            return true;
+        }
+        // In these cases, more performant to execute this AvgPool on shave
+        if (kernelSize[Dims4D::Kernel::X.ind()] == 1 || kernelSize[Dims4D::Kernel::Y.ind()] == 1) {
+            _log.trace("AvgPool operation ignored by HandleLargeKernel pass for performance");
+            return true;
+        }
+
+        const auto padsBegin = parseIntArrayAttr<int64_t>(op.pads_begin());
+        const auto padsEnd = parseIntArrayAttr<int64_t>(op.pads_end());
+        const auto zeros = SmallVector<int64_t>{0, 0};
+        if ((padsBegin != zeros || padsEnd != zeros) && op.exclude_pads()) {
             return true;
         }
         return false;

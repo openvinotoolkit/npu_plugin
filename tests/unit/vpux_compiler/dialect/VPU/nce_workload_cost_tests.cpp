@@ -6,13 +6,18 @@
 //
 
 #include "vpux/compiler/core/tiling.hpp"
+#include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/VPU/attributes.hpp"
 #include "vpux/compiler/dialect/VPU/cost_model.hpp"
+#include "vpux/compiler/dialect/VPU/nce_invariant.hpp"
 #include "vpux/compiler/dialect/VPUIP/dpu_tiler.hpp"
 #include "vpux/compiler/init.hpp"
+#include "vpux/utils/core/optional.hpp"
+#include "vpux/utils/core/array_ref.hpp"
 
 #include <file_utils.h>
 #include <llvm/ADT/SmallString.h>
+#include <llvm/ADT/SmallVector.h>
 #include <llvm/Support/FileSystem.h>
 #include <llvm/Support/Path.h>
 #include <mlir/IR/MLIRContext.h>
@@ -77,7 +82,10 @@ TEST(MLIR_VPU_WorkloadCost, VPUNNCostInterface) {
             const auto splitNumPool = dpuTiler.generateSplitNumberPool(numDPU, maxSplitNum);
 
             vpux::Shape nTilesOnDim(costParams.outputShape.size(), 1);
-            auto outTilesWithSingleSplit = vpux::fillDividedTiles(nTilesOnDim, costParams.outputShape);
+            auto alignment = llvm::SmallVector<int64_t>(costParams.outputShape.size(), 1);
+            alignment[vpux::Dims4D::Act::C.ind()] = vpux::VPU::NCEInvariant::VPU_CHANNEL_ALIGNMENT;
+            const auto optionalAlignment = vpux::Optional<llvm::ArrayRef<int64_t>>(alignment);
+            auto outTilesWithSingleSplit = vpux::fillDividedTiles(nTilesOnDim, costParams.outputShape, optionalAlignment);
 
             vpux::VPUIP::WorkloadSplit singleSplit;
             for (auto& outTile : outTilesWithSingleSplit) {

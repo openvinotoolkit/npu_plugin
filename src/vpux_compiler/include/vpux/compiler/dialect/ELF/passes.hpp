@@ -26,6 +26,8 @@ namespace ELF {
 // Passes
 //
 
+std::unique_ptr<mlir::Pass> createRemoveEmptyELFSectionsPass(Logger log = Logger::global());
+
 //
 // Generated
 //

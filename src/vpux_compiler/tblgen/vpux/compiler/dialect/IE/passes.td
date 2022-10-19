@@ -124,6 +124,26 @@ def ConvertNearestToStridedConcat : PassBase<"convert-nearest-to-strided-concat"
 }
 
 //
+// ConvertBilinearToStridedConcatAndConv
+//
+
+def ConvertBilinearToStridedConcatAndConv : PassBase<"convert-bilinear-to-strided-concat-and-conv", "vpux::FunctionPass"> {
+    let summary = "Convert bilinear interpolate op to strided concat and depthwise convolution Ops";
+
+    let description = [{
+        The pass is a part of `AdjustForVPU` pipeline.
+
+        This pass replaces `Bilinear Interpolate` operations with `Concat` operations with strides and `depthwise` convolution.
+    }];
+
+    let constructor = "vpux::IE::createConvertBilinearToStridedConcatAndConvPass()";
+
+    let dependentDialects = [
+        "vpux::IE::IEDialect"
+    ];
+}
+
+//
 // ConvertPrecisionToFP16
 //
 
@@ -178,6 +198,26 @@ def ConvertDepth2SpaceLayer : PassBase<"convert-depthToSpace", "vpux::FunctionPa
     }];
 
     let constructor = "vpux::IE::createConvertDepth2SpaceLayerPass()";
+
+    let dependentDialects = [
+        "vpux::IE::IEDialect"
+    ];
+}
+
+//
+// ConvertGatherToSlice
+//
+
+def ConvertGatherToSlice : PassBase<"convert-gather-to-slice", "vpux::FunctionPass"> {
+    let summary = "Convert Gather operation to Slice operation";
+
+    let description = [{
+        The pass is a part of `AdjustForVPU` pipeline.
+
+        This pass replaces legal `Gather` operations with `Slice` operations.
+    }];
+
+    let constructor = "vpux::IE::createConvertGatherToSlicePass()";
 
     let dependentDialects = [
         "vpux::IE::IEDialect"
@@ -325,6 +365,42 @@ def MatMulInputsTo2d : PassBase<"matmul-inputs-to-2d", "vpux::FunctionPass"> {
 }
 
 //
+// ConvertToScaleShift
+//
+
+def ConvertToScaleShift : PassBase<"convert-to-scale-shift", "vpux::FunctionPass"> {
+    let summary = "Convert Add and Multiply operations to ScaleShift operations";
+
+    let description = [{
+        This pass replaces suitable `Add` and `Multiply` operations with `ScaleShift` operations.
+    }];
+
+    let constructor = "vpux::IE::createConvertToScaleShiftPass()";
+
+    let dependentDialects = [
+        "vpux::IE::IEDialect"
+    ];
+}
+
+//
+// ConvertSubtractToNegativeAdd
+//
+
+def ConvertSubtractToNegativeAdd : PassBase<"convert-subtract-to-negative-add", "vpux::FunctionPass"> {
+    let summary = "Convert Subtract operation to Add with Negative operations";
+
+    let description = [{
+        This pass replaces `Subtract` operation with `Add` with `Negative` operations.
+    }];
+
+    let constructor = "vpux::IE::createConvertSubtractToNegativeAddPass()";
+
+    let dependentDialects = [
+        "vpux::IE::IEDialect"
+    ];
+}
+
+//
 // ConvertScaleShiftToDW
 //
 
@@ -359,25 +435,6 @@ def FusePostOps : PassBase<"fuse-post-ops", "vpux::FunctionPass"> {
     }];
 
     let constructor = "vpux::IE::createFusePostOpsPass()";
-
-    let dependentDialects = [
-        "vpux::IE::IEDialect"
-    ];
-}
-
-//
-// ResolvePWLPostOps
-//
-
-def ResolvePWLPostOps : PassBase<"resolve-pwl-post-ops", "vpux::FunctionPass"> {
-    let summary = "Resolve requirements for fused PWL post-ops";
-
-    let description = [{
-        Ensures the correct quantization ranges are used for fused PWL activation functions or
-        unfuses them if surrounding tensors are not quantized per-tensor.
-    }];
-
-    let constructor = "vpux::IE::createResolvePWLPostOpsPass()";
 
     let dependentDialects = [
         "vpux::IE::IEDialect"
@@ -809,10 +866,30 @@ def ConvertWeightsToU8 : PassBase<"convert-weights-to-u8", "vpux::FunctionPass">
 }
 
 //
-// ConvertQuantizeOpsToEltwise
+// ConvertToMixPrecision
 //
 
-def ConvertQuantizeOpsToEltwise : PassBase<"convert-quantize-ops-to-eltwise", "vpux::FunctionPass"> {
+def ConvertToMixedPrecision: PassBase<"convert-to-mixed-precision", "vpux::FunctionPass"> {
+    let summary = "Convert DPU task without fake quantize behind to mixed-precision operation";
+
+    let description = [{
+        The pass is a part of `LowPrecision` pipeline.
+        Converts DPU task to mixed-precision operation where there is no quantize operation for the output of a DPU task
+    }];
+
+    let constructor = "vpux::IE::createConvertToMixedPrecision()";
+
+    let dependentDialects = [
+        "vpux::IE::IEDialect"
+    ];
+}
+
+
+//
+// ConvertQuantizeOpsToNceOps
+//
+
+def ConvertQuantizeOpsToNceOps : PassBase<"convert-quantize-ops-to-nce-ops", "vpux::FunctionPass"> {
     let summary = "Converts per-tensor Quantize/Dequantize to eltwise And mixed-precision operation";
 
     let description = [{
@@ -822,7 +899,7 @@ def ConvertQuantizeOpsToEltwise : PassBase<"convert-quantize-ops-to-eltwise", "v
         where input2 is input1 to perform type conversion on DPU instead of UPA.
     }];
 
-    let constructor = "vpux::IE::createConvertQuantizeOpsToEltwisePass()";
+    let constructor = "vpux::IE::createConvertQuantizeOpsToNceOpsPass()";
 
     let dependentDialects = [
         "vpux::IE::IEDialect"
@@ -1015,80 +1092,40 @@ def InsertMaxpoolToConcatLRelu : PassBase<"insert-maxpool-to-concat-lrelu", "vpu
     ];
 }
 
-//=================================================================================
-// Tiling
-//=================================================================================
-
 //
-// Isolated Tiling
+// HandleExcludePadForAvgPool
 //
 
-def IsolatedTiling : PassBase<"isolated-tiling", "vpux::FunctionPass"> {
-    let summary = "Tile layers in isolation so that all their I/O meet the memory capacity";
+def HandleExcludePadForAvgPool : PassBase<"handle-exclude-pad-for-avg-pool", "vpux::FunctionPass"> {
+    let summary = "Handle exclude-pad attribute for AvgPool operations";
 
     let description = [{
-        The pass applies tiling to the layers whose memory requirements exceed the capacity available.
-
-        The pass tries to split each single layer in isolation, with no smarter heuristics
-        such as "allow running in parallel" or "allow continious computation in tiles" or any else.
-
-        The pass does not use any cost model to optimize the entire layer's processing time. It just
-        iteratively increases the number of tiles until the the largest tile's memory requirements  meet
-        the device capacity, and stops there.
+        This pass introduces exclude pad atribute handling for AvgPool operations, that have pad = stride = 1,
+        by splitting operation in multiple AvgPool operations in order to handle this particular case.
     }];
 
-    let constructor = "vpux::IE::createIsolatedTilingPass()";
+    let constructor = "vpux::IE::createHandleExcludePadForAvgPoolPass()";
+
+    let dependentDialects = [
+        "vpux::IE::IEDialect"
+    ];
 }
 
 //
-// Prefetch Tiling
+// InsertReorderBetweenConcatAndLayers
 //
 
-def PrefetchTiling : PassBase<"prefetch-tiling", "vpux::FunctionPass"> {
-    let summary = "Tile layers into smaller tiles to enable prefetch pipeline";
-
-    let description = [{
-        The pass performs tiling on layers to enable prefetch pipeline.
-
-        The pass tries run tiles in parallel.
-        The 'prefetch' means that the next tile could be loaded in advance when the current tile is computing.
-
-        The pass does not consider cost models,
-        only tiles layers to make at least two tiles could be loaded in CMX memory at the same time.
-    }];
-
-    let constructor = "vpux::IE::createPrefetchTilingPass()";
-}
-
-//
-// Manual Tiling
-//
-
-def ManualTiling : PassBase<"manual-tiling", "vpux::FunctionPass"> {
-    let summary = "Tile layers with manual strategy";
-
-    let description = [{
-        The pass performs manual tiling on layers specified by the user.
-    }];
-
-    let constructor = "vpux::IE::createManualTilingPass()";
-}
-
-//
-// InsertReorderBetweenConcatAndTranspose
-//
-
-def InsertReorderBetweenTransposeAndConcat : PassBase<"transpose-reorder-concat-pass", "vpux::FunctionPass"> {
+def InsertReorderBetweenLayerAndConcat : PassBase<"layer-reorder-concat-pass", "vpux::FunctionPass"> {
     let summary = "Inserts Reorder operation between Transpose and Concat";
 
     let description = [{
         The pass is a part of `HardwareMode` pipeline.
 
-        It inserts `Reorder` operation between `Transpose` and `Concat` operation when possible.
+        It inserts `Reorder` operation between layers `Transpose`, `AffineReshape` and `Concat` operation when possible.
         This transormation reduces the number of `MemPermute` operations in resulting graph.
     }];
 
-    let constructor = "vpux::IE::createInsertReorderBetweenTransposeAndConcatPass()";
+    let constructor = "vpux::IE::createInsertReorderBetweenLayerAndConcatPass()";
 
     let dependentDialects = [
         "vpux::IE::IEDialect"
@@ -1219,6 +1256,24 @@ def PerAxisFQConcat : PassBase<"per-axis-fq-concat", "vpux::FunctionPass"> {
     }];
 
     let constructor = "vpux::IE::createPerAxisFQConcatPass()";
+
+    let dependentDialects = [
+        "vpux::IE::IEDialect"
+    ];
+}
+
+//
+// ConvertPowerToMult
+//
+
+def ConvertPowerToMult : PassBase<"convert-power-to-mult", "vpux::FunctionPass"> {
+    let summary = "Convert power to multiply operation";
+
+    let description = [{
+        The pass converts power with single constant exponent value to multiplication.
+    }];
+
+    let constructor = "vpux::IE::createConvertPowerToMultPass()";
 
     let dependentDialects = [
         "vpux::IE::IEDialect"

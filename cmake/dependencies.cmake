@@ -30,14 +30,17 @@ debug_message(STATUS "MODELS_PATH=${MODELS_PATH}")
 set(DATA_PATH "${TEMP}/validation_set/src/validation_set")
 debug_message(STATUS "DATA_PATH=${DATA_PATH}")
 
-add_models_repo(${ENABLE_MODELS} "models:git@gitlab-icv.inn.intel.com:inference-engine/models-ir.git")
+if (MODELS_REPO)
+    debug_message(STATUS "MODELS_REPO=${MODELS_REPO}")
+    add_models_repo(${ENABLE_MODELS} ${MODELS_REPO})
+endif()
 
 if (ENABLE_VALIDATION_SET)
     add_lfs_repo(
-        "validation_set"
-        "${TEMP}/validation_set"
-        "git@gitlab-icv.inn.intel.com:inference-engine/validation-set.git"
-        "master"
+        ${VALIDATION_SET_NAME}
+        "${TEMP}/${VALIDATION_SET_NAME}"
+        ${VALIDATION_SET_REPO}
+        ${VALIDATION_SET_BRANCH}
     )
 endif()
 

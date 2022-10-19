@@ -259,3 +259,50 @@ mlir::Attribute vpux::Const::ContentAttr::parse(mlir::DialectAsmParser& parser, 
 
     return parser.getChecked<Const::ContentAttr>(baseContent, transformations, finalType);
 }
+
+//
+// ContentAttr::addTransformation
+//
+
+Const::ContentAttr Const::ContentAttr::addTransformation(Const::ContentAttr input,
+                                                         Const::TransformAttrInterface transformation) {
+    auto transformations = input.getTransformations();
+    auto insertionPosition = std::end(transformations);
+    mlir::Type newOutputType;
+
+    if (!transformations.empty()) {
+        const auto lastTransformation = transformations.back();
+
+        const auto transformationHasReq =
+                transformation.getPositionRequirement() == vpux::Const::details::PositionRequirement::LAST;
+        const auto lastTransformationHasReq =
+                lastTransformation.getPositionRequirement() == vpux::Const::details::PositionRequirement::LAST;
+        VPUX_THROW_WHEN(transformationHasReq && lastTransformationHasReq,
+                        "Existing transformation with LAST position requirement");
+
+        if (!transformationHasReq && lastTransformationHasReq) {
+            --insertionPosition;
+
+            auto inputType = input.getBaseContent().getType().cast<vpux::NDTypeInterface>();
+            for (auto it = transformations.begin(); it != insertionPosition; ++it) {
+                inputType = it->inferOutputType(inputType);
+            }
+            inputType = transformation.inferOutputType(inputType);
+            newOutputType = lastTransformation.inferOutputType(inputType);
+        }
+    }
+    transformations.insert(insertionPosition, transformation);
+
+    if (newOutputType == nullptr) {
+        newOutputType = transformation.inferOutputType(input.getType());
+    }
+
+    const auto transformationsRaw = to_small_vector(
+            transformations | transformed([](vpux::Const::TransformAttrInterface attr) -> mlir::Attribute {
+                return attr;
+            }));
+
+    const auto transformationsAttr = mlir::ArrayAttr::get(input.getContext(), transformationsRaw);
+
+    return Base::get(input.getContext(), input.getBaseContent(), transformationsAttr, newOutputType);
+}

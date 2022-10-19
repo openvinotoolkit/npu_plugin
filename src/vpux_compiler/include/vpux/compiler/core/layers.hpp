@@ -64,6 +64,13 @@ struct Dims4D final {
         static const Dim X;
     };
 
+    // Convolution2D dilations
+
+    struct Dilation final {
+        static const Dim Y;
+        static const Dim X;
+    };
+
     // Convolution2D/Pooling2D paddings
 
     struct PadsBegin final {

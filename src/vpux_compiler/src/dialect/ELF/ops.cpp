@@ -22,6 +22,7 @@ void vpux::ELF::ELFDialect::initialize() {
     addTypes<
 #define GET_TYPEDEF_LIST
 #include <vpux/compiler/dialect/ELF/generated/types.cpp.inc>
+#include <vpux/compiler/dialect/VPUIPRegMapped/generated/types.cpp.inc>
             >();
 }
 

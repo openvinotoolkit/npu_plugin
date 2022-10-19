@@ -7,6 +7,8 @@
 
 #pragma once
 
+#include "vpux/compiler/dialect/EMU/graph-schema/blob_writer.hpp"
+
 #include <mlir/IR/OpDefinition.h>
 #include <mlir/IR/OpImplementation.h>
 #include <mlir/IR/Operation.h>

@@ -45,7 +45,7 @@ TEST(MLIR_NDTypeInterface, SegmentedDistributedBufferType) {
     const auto orderAttr = mlir::AffineMapAttr::get(DimsOrder::NHWC.toAffineMap(&ctx));
     const auto elemStrides = SmallVector<int64_t>({64 * 16 * 13, 1, 64 * 16, 64});
     const auto stridesAttr = getIntArrayAttr(&ctx, elemStrides);
-    const auto layout = IERT::MemRefAttr::get(orderAttr, stridesAttr, &ctx);
+    const auto layout = VPUIP::MemRefAttr::get(orderAttr, stridesAttr, &ctx);
 
     const auto dimsSpace = vpux::IndexedSymbolAttr::get(&ctx, CMX_NAME);
 
@@ -82,6 +82,7 @@ TEST(MLIR_NDTypeInterface, SegmentedDistributedBufferType) {
     EXPECT_ANY_THROW(ndType.changeShapeElemType(vpux::ShapeRef(newShape), mlir::Float32Type::get(&ctx)));
     EXPECT_ANY_THROW(ndType.changeDimsOrder(DimsOrder::NCHW));
     EXPECT_ANY_THROW(ndType.changeMemSpace(vpux::IndexedSymbolAttr::get(&ctx, DDR_NAME)));
+    EXPECT_ANY_THROW(ndType.changeTypeComponents(TypeComponents().setShape(ShapeRef(newShape))));
 
     const SmallVector<Bit> newStrides({425984_Bit, 16_Bit, 16384_Bit, 1024_Bit});
     const auto changedStrides = ndType.changeStrides(StridesRef(newStrides));
@@ -89,9 +90,31 @@ TEST(MLIR_NDTypeInterface, SegmentedDistributedBufferType) {
 
     const SmallVector<int64_t> tileOffset({0, 0, 32, 0});
     const SmallVector<int64_t> tileShape({1, 32, 20, 8});
-    EXPECT_ANY_THROW(ndType.extractDenseTile(vpux::ShapeRef(tileOffset), vpux::ShapeRef(tileShape)));
+    const SmallVector<Bit> tileStrides({81920_Bit, 16_Bit, 4096_Bit, 512_Bit});
+    const auto denseTile = ndType.extractDenseTile(ShapeRef(tileOffset), ShapeRef(tileShape));
+    EXPECT_EQ(denseTile.getShape(), ShapeRef(tileShape));
+    EXPECT_EQ(denseTile.getStrides().raw(), tileStrides);
+
     const SmallVector<int64_t> tileElemStrides({1, 1, 1, 1});
-    EXPECT_ANY_THROW(ndType.extractViewTile(vpux::ShapeRef(tileOffset), vpux::ShapeRef(tileShape), vpux::ShapeRef(tileElemStrides)));
+    const auto viewTile =
+            ndType.extractViewTile(ShapeRef(tileOffset), ShapeRef(tileShape), ShapeRef(tileElemStrides));
+    EXPECT_EQ(viewTile.getShape(), ShapeRef(tileShape));
+    EXPECT_EQ(viewTile.getStrides().raw(), strides);
+
+    const SmallVector<int64_t> tileElemStrides2({2, 1, 1, 1});
+    const SmallVector<Bit> newStrides2({425984_Bit, 16_Bit, 16384_Bit, 1024_Bit});
+    const auto viewTile2 =
+            ndType.extractViewTile(ShapeRef(tileOffset), ShapeRef(tileShape), ShapeRef(tileElemStrides2));
+    EXPECT_EQ(viewTile2.getShape(), ShapeRef(tileShape));
+    EXPECT_EQ(viewTile2.getStrides().raw(), newStrides2);
+
+    const SmallVector<int64_t> tileElemStrides3({3, 1, 2, 1});
+    const SmallVector<Bit> newStrides3({638976_Bit, 16_Bit, 32768_Bit, 1024_Bit});
+    const auto viewTile3 =
+            ndType.extractViewTile(ShapeRef(tileOffset), ShapeRef(tileShape), ShapeRef(tileElemStrides3));
+    EXPECT_EQ(viewTile3.getShape(), ShapeRef(tileShape));
+    EXPECT_EQ(viewTile3.getStrides().raw(), newStrides3);
+
     EXPECT_ANY_THROW(ndType.eraseTiledInfo());
     const SmallVector<int64_t> pads({0, 0, 2, 2});
     EXPECT_ANY_THROW(ndType.pad(vpux::ShapeRef(pads), vpux::ShapeRef(pads)));
@@ -117,7 +140,7 @@ TEST(MLIR_NDTypeInterface, SegmentedDuplicatedDistributedBufferType) {
     const auto orderAttr = mlir::AffineMapAttr::get(DimsOrder::NHWC.toAffineMap(&ctx));
     const auto elemStrides = SmallVector<int64_t>({64 * 16 * 13, 1, 64 * 16, 64});
     const auto stridesAttr = getIntArrayAttr(&ctx, elemStrides);
-    const auto layout = IERT::MemRefAttr::get(orderAttr, stridesAttr, &ctx);
+    const auto layout = VPUIP::MemRefAttr::get(orderAttr, stridesAttr, &ctx);
 
     const auto dimsSpace = vpux::IndexedSymbolAttr::get(&ctx, CMX_NAME);
 
@@ -154,6 +177,7 @@ TEST(MLIR_NDTypeInterface, SegmentedDuplicatedDistributedBufferType) {
     EXPECT_ANY_THROW(ndType.changeShapeElemType(vpux::ShapeRef(newShape), mlir::Float32Type::get(&ctx)));
     EXPECT_ANY_THROW(ndType.changeDimsOrder(DimsOrder::NCHW));
     EXPECT_ANY_THROW(ndType.changeMemSpace(vpux::IndexedSymbolAttr::get(&ctx, DDR_NAME)));
+    EXPECT_ANY_THROW(ndType.changeTypeComponents(TypeComponents().setShape(ShapeRef(newShape))));
 
     const SmallVector<Bit> newStrides({425984_Bit, 16_Bit, 16384_Bit, 1024_Bit});
     const auto changedStrides = ndType.changeStrides(StridesRef(newStrides));
@@ -161,9 +185,31 @@ TEST(MLIR_NDTypeInterface, SegmentedDuplicatedDistributedBufferType) {
 
     const SmallVector<int64_t> tileOffset({0, 0, 32, 0});
     const SmallVector<int64_t> tileShape({1, 32, 20, 8});
-    EXPECT_ANY_THROW(ndType.extractDenseTile(vpux::ShapeRef(tileOffset), vpux::ShapeRef(tileShape)));
+    const SmallVector<Bit> tileStrides({81920_Bit, 16_Bit, 4096_Bit, 512_Bit});
+    const auto denseTile = ndType.extractDenseTile(ShapeRef(tileOffset), ShapeRef(tileShape));
+    EXPECT_EQ(denseTile.getShape(), ShapeRef(tileShape));
+    EXPECT_EQ(denseTile.getStrides().raw(), tileStrides);
+
     const SmallVector<int64_t> tileElemStrides({1, 1, 1, 1});
-    EXPECT_ANY_THROW(ndType.extractViewTile(vpux::ShapeRef(tileOffset), vpux::ShapeRef(tileShape), vpux::ShapeRef(tileElemStrides)));
+    const auto viewTile =
+            ndType.extractViewTile(ShapeRef(tileOffset), ShapeRef(tileShape), ShapeRef(tileElemStrides));
+    EXPECT_EQ(viewTile.getShape(), ShapeRef(tileShape));
+    EXPECT_EQ(viewTile.getStrides().raw(), strides);
+
+    const SmallVector<int64_t> tileElemStrides2({2, 1, 1, 1});
+    const SmallVector<Bit> newStrides2({425984_Bit, 16_Bit, 16384_Bit, 1024_Bit});
+    const auto viewTile2 =
+            ndType.extractViewTile(ShapeRef(tileOffset), ShapeRef(tileShape), ShapeRef(tileElemStrides2));
+    EXPECT_EQ(viewTile2.getShape(), ShapeRef(tileShape));
+    EXPECT_EQ(viewTile2.getStrides().raw(), newStrides2);
+
+    const SmallVector<int64_t> tileElemStrides3({3, 1, 2, 1});
+    const SmallVector<Bit> newStrides3({638976_Bit, 16_Bit, 32768_Bit, 1024_Bit});
+    const auto viewTile3 =
+            ndType.extractViewTile(ShapeRef(tileOffset), ShapeRef(tileShape), ShapeRef(tileElemStrides3));
+    EXPECT_EQ(viewTile3.getShape(), ShapeRef(tileShape));
+    EXPECT_EQ(viewTile3.getStrides().raw(), newStrides3);
+
     EXPECT_ANY_THROW(ndType.eraseTiledInfo());
     const SmallVector<int64_t> pads({0, 0, 2, 2});
     EXPECT_ANY_THROW(ndType.pad(vpux::ShapeRef(pads), vpux::ShapeRef(pads)));
@@ -183,17 +229,19 @@ TEST(MLIR_ClusterShapeUtils, SegmentedBufferDistribution) {
                                                                  nullptr, numClustersAttr, nullptr, &ctx);
 
     {
+        // SOH
         const auto shape = SmallVector<int64_t>({1, 64, 13, 16});
         const auto elemType = mlir::Float16Type::get(&ctx);
 
         const auto orderAttr = mlir::AffineMapAttr::get(DimsOrder::NHWC.toAffineMap(&ctx));
         const auto elemStrides = SmallVector<int64_t>({64 * 16 * 13, 1, 64 * 16, 64});
         const auto stridesAttr = getIntArrayAttr(&ctx, elemStrides);
-        const auto layout = IERT::MemRefAttr::get(orderAttr, stridesAttr, &ctx);
+        const auto layout = VPUIP::MemRefAttr::get(orderAttr, stridesAttr, &ctx);
 
         const auto dimsSpace = vpux::IndexedSymbolAttr::get(&ctx, CMX_NAME);
 
-        const auto distributedBufferType = VPUIP::DistributedBufferType::get(&ctx, shape, elemType, layout, dimsSpace, distributedAttr);
+        const auto distributedBufferType =
+                VPUIP::DistributedBufferType::get(&ctx, shape, elemType, layout, dimsSpace, distributedAttr);
 
         const auto perClusterShapes = distributedBufferType.getPerClusterComputeShapes();
         const SmallVector<Shape> expectedShapes(
@@ -233,16 +281,20 @@ TEST(MLIR_ClusterShapeUtils, SegmentedBufferDistribution) {
             EXPECT_EQ(stridedShape.shape, expectedShapes[clusterIdx]);
             EXPECT_EQ(stridedShape.strides, expectedStrides[clusterIdx]);
         }
+
+        EXPECT_EQ(distributedBufferType.getTotalAllocSize().count(), 64 * 4 * 16 * 2);
+        EXPECT_EQ(distributedBufferType.getCompactAllocSize().count(), 64 * 4 * 16 * 2);
     }
 
     {
+        // SOH, W strided
         const auto shape = SmallVector<int64_t>({1, 64, 16, 4});
         const auto elemType = mlir::Float16Type::get(&ctx);
 
         const auto orderAttr = mlir::AffineMapAttr::get(DimsOrder::NHWC.toAffineMap(&ctx));
-        const auto elemStrides = SmallVector<int64_t>({64 * 4 * 16 * 2, 1, 64 * 4, 64});
+        const auto elemStrides = SmallVector<int64_t>({64 * 4 * 2 * 16, 1, 64 * 4 * 2, 64});
         const auto stridesAttr = getIntArrayAttr(&ctx, elemStrides);
-        const auto layout = IERT::MemRefAttr::get(orderAttr, stridesAttr, &ctx);
+        const auto layout = VPUIP::MemRefAttr::get(orderAttr, stridesAttr, &ctx);
 
         const auto dimsSpace = vpux::IndexedSymbolAttr::get(&ctx, CMX_NAME);
 
@@ -269,7 +321,7 @@ TEST(MLIR_ClusterShapeUtils, SegmentedBufferDistribution) {
         }
 
         const Shape expectedShape({1, 64, 4, 4});
-        const Strides expectedStrides({32768_Bit, 16_Bit, 4096_Bit, 1024_Bit});
+        const Strides expectedStrides({32768_Bit, 16_Bit, 8192_Bit, 1024_Bit});
         const auto perClusterStridedShapes = distributedBufferType.getPerClusterStridedShapes();
         for (const auto stridedShape : perClusterStridedShapes) {
             EXPECT_EQ(stridedShape.shape, expectedShape);
@@ -283,6 +335,9 @@ TEST(MLIR_ClusterShapeUtils, SegmentedBufferDistribution) {
             EXPECT_EQ(stridedShape.shape, expectedShape);
             EXPECT_EQ(stridedShape.strides, expectedStrides);
         }
+
+        EXPECT_EQ(distributedBufferType.getTotalAllocSize().count(), 64 * 8 * 4 * 2);
+        EXPECT_EQ(distributedBufferType.getCompactAllocSize().count(), 64 * 4 * 4 * 2);
     }
 }
 
@@ -293,6 +348,7 @@ TEST(MLIR_ClusterShapeUtils, SegmentedDuplicatedBufferDistribution) {
     mlir::MLIRContext ctx(registry);
     ctx.loadDialect<VPUIP::VPUIPDialect>();
 
+    // SOH duplicated
     const auto distributionModeAttr =
             VPU::DistributionModeAttr::get(&ctx, VPU::DistributionMode::SEGMENTED | VPU::DistributionMode::DUPLICATED);
     const auto numTilesAttr = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 1, 4, 1}));
@@ -306,7 +362,7 @@ TEST(MLIR_ClusterShapeUtils, SegmentedDuplicatedBufferDistribution) {
     const auto orderAttr = mlir::AffineMapAttr::get(DimsOrder::NHWC.toAffineMap(&ctx));
     const auto elemStrides = SmallVector<int64_t>({64 * 16 * 13, 1, 64 * 16, 64});
     const auto stridesAttr = getIntArrayAttr(&ctx, elemStrides);
-    const auto layout = IERT::MemRefAttr::get(orderAttr, stridesAttr, &ctx);
+    const auto layout = VPUIP::MemRefAttr::get(orderAttr, stridesAttr, &ctx);
 
     const auto dimsSpace = vpux::IndexedSymbolAttr::get(&ctx, CMX_NAME);
 
@@ -348,6 +404,9 @@ TEST(MLIR_ClusterShapeUtils, SegmentedDuplicatedBufferDistribution) {
         EXPECT_EQ(stridedShape.shape, expectedShapes[clusterIdx]);
         EXPECT_EQ(stridedShape.strides, expectedStrides);
     }
+
+    EXPECT_EQ(distributedBufferType.getTotalAllocSize().count(), 64 * 13 * 16 * 2);
+    EXPECT_EQ(distributedBufferType.getCompactAllocSize().count(), 64 * 13 * 16 * 2);
 }
 
 TEST(MLIR_ClusterShapeUtils, OverlappedBufferDistribution) {
@@ -367,11 +426,12 @@ TEST(MLIR_ClusterShapeUtils, OverlappedBufferDistribution) {
     const auto orderAttr = mlir::AffineMapAttr::get(DimsOrder::NHWC.toAffineMap(&ctx));
     const auto elemStrides = SmallVector<int64_t>({64 * 16 * 13, 1, 64 * 16, 64});
     const auto stridesAttr = getIntArrayAttr(&ctx, elemStrides);
-    const auto layout = IERT::MemRefAttr::get(orderAttr, stridesAttr, &ctx);
+    const auto layout = VPUIP::MemRefAttr::get(orderAttr, stridesAttr, &ctx);
 
     const auto dimsSpace = vpux::IndexedSymbolAttr::get(&ctx, CMX_NAME);
 
     {
+        // SOH overlapped, 1x1s1p0
         const auto kernel = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 1}));
         const auto pads = VPU::PaddingAttr::get(getIntAttr(&ctx, 0), getIntAttr(&ctx, 0), getIntAttr(&ctx, 0),
                                                 getIntAttr(&ctx, 0), &ctx);
@@ -419,9 +479,13 @@ TEST(MLIR_ClusterShapeUtils, OverlappedBufferDistribution) {
             EXPECT_EQ(stridedShape.shape, expectedShapes[clusterIdx]);
             EXPECT_EQ(stridedShape.strides, expectedStrides[clusterIdx]);
         }
+
+        EXPECT_EQ(distributedBufferType.getTotalAllocSize().count(), 64 * 4 * 16 * 2);
+        EXPECT_EQ(distributedBufferType.getCompactAllocSize().count(), 64 * 4 * 16 * 2);
     }
 
     {
+        // SOH overlapped, 3x3s1p1
         const auto kernel = getIntArrayAttr(&ctx, SmallVector<int64_t>({3, 3}));
         const auto pads = VPU::PaddingAttr::get(getIntAttr(&ctx, 1), getIntAttr(&ctx, 1), getIntAttr(&ctx, 1),
                                                 getIntAttr(&ctx, 1), &ctx);
@@ -469,9 +533,13 @@ TEST(MLIR_ClusterShapeUtils, OverlappedBufferDistribution) {
             EXPECT_EQ(stridedShape.shape, expectedShapes[clusterIdx]);
             EXPECT_EQ(stridedShape.strides, expectedStrides[clusterIdx]);
         }
+
+        EXPECT_EQ(distributedBufferType.getTotalAllocSize().count(), 64 * 6 * 16 * 2);
+        EXPECT_EQ(distributedBufferType.getCompactAllocSize().count(), 64 * 6 * 16 * 2);
     }
 
     {
+        // SOH overlapped, 3x3s2p1
         const auto kernel = getIntArrayAttr(&ctx, SmallVector<int64_t>({3, 3}));
         const auto pads = VPU::PaddingAttr::get(getIntAttr(&ctx, 1), getIntAttr(&ctx, 1), getIntAttr(&ctx, 1),
                                                 getIntAttr(&ctx, 1), &ctx);
@@ -519,6 +587,9 @@ TEST(MLIR_ClusterShapeUtils, OverlappedBufferDistribution) {
             EXPECT_EQ(stridedShape.shape, expectedShapes[clusterIdx]);
             EXPECT_EQ(stridedShape.strides, expectedStrides[clusterIdx]);
         }
+
+        EXPECT_EQ(distributedBufferType.getTotalAllocSize().count(), 64 * 5 * 16 * 2);
+        EXPECT_EQ(distributedBufferType.getCompactAllocSize().count(), 64 * 5 * 16 * 2);
     }
 }
 
@@ -540,7 +611,7 @@ TEST(MLIR_ClusterShapeUtils, DISABLED_AlignedBufferDistribution) {
         const auto shape = SmallVector<int64_t>({1, 60, 59, 16});
         const auto elemStrides = SmallVector<int64_t>({60 * 16 * 59, 1, 60 * 16, 60});
         const auto stridesAttr = getIntArrayAttr(&ctx, elemStrides);
-        const auto layout = IERT::MemRefAttr::get(dimsOrder, stridesAttr, &ctx);
+        const auto layout = VPUIP::MemRefAttr::get(dimsOrder, stridesAttr, &ctx);
         const auto distributionModeAttr = VPU::DistributionModeAttr::get(&ctx, VPU::DistributionMode::SEGMENTED);
         const auto numTilesAttr = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 1, 4, 1}));
         const auto alignment = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 1, 9, 1}));
@@ -580,7 +651,7 @@ TEST(MLIR_ClusterShapeUtils, DISABLED_AlignedBufferDistribution) {
         const auto shape = SmallVector<int64_t>({1, 60, 59, 16});
         const auto elemStrides = SmallVector<int64_t>({60 * 16 * 59, 1, 60 * 16, 60});
         const auto stridesAttr = getIntArrayAttr(&ctx, elemStrides);
-        const auto layout = IERT::MemRefAttr::get(dimsOrder, stridesAttr, &ctx);
+        const auto layout = VPUIP::MemRefAttr::get(dimsOrder, stridesAttr, &ctx);
         const auto distributionModeAttr = VPU::DistributionModeAttr::get(&ctx, VPU::DistributionMode::SEGMENTED);
         const auto numTilesAttr = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 1, 4, 1}));
         const auto alignment = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 16, 9, 1}));
@@ -620,7 +691,7 @@ TEST(MLIR_ClusterShapeUtils, DISABLED_AlignedBufferDistribution) {
         const auto shape = SmallVector<int64_t>({1, 60, 59, 16});
         const auto elemStrides = SmallVector<int64_t>({60 * 16 * 59, 1, 60 * 16, 60});
         const auto stridesAttr = getIntArrayAttr(&ctx, elemStrides);
-        const auto layout = IERT::MemRefAttr::get(dimsOrder, stridesAttr, &ctx);
+        const auto layout = VPUIP::MemRefAttr::get(dimsOrder, stridesAttr, &ctx);
         const auto distributionModeAttr = VPU::DistributionModeAttr::get(&ctx, VPU::DistributionMode::DUPLICATED);
         const auto numTilesAttr = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 1, 4, 1}));
         const auto alignment = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 1, 9, 1}));
@@ -660,7 +731,7 @@ TEST(MLIR_ClusterShapeUtils, DISABLED_AlignedBufferDistribution) {
         const auto shape = SmallVector<int64_t>({1, 60, 59, 16});
         const auto elemStrides = SmallVector<int64_t>({60 * 16 * 59, 1, 60 * 16, 60});
         const auto stridesAttr = getIntArrayAttr(&ctx, elemStrides);
-        const auto layout = IERT::MemRefAttr::get(dimsOrder, stridesAttr, &ctx);
+        const auto layout = VPUIP::MemRefAttr::get(dimsOrder, stridesAttr, &ctx);
         const auto distributionModeAttr = VPU::DistributionModeAttr::get(
                 &ctx, VPU::DistributionMode::DUPLICATED | VPU::DistributionMode::SEGMENTED);
         const auto numTilesAttr = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 1, 4, 1}));
@@ -701,7 +772,7 @@ TEST(MLIR_ClusterShapeUtils, DISABLED_AlignedBufferDistribution) {
         const auto shape = SmallVector<int64_t>({1, 60, 59, 16});
         const auto elemStrides = SmallVector<int64_t>({60 * 16 * 59, 1, 60 * 16, 60});
         const auto stridesAttr = getIntArrayAttr(&ctx, elemStrides);
-        const auto layout = IERT::MemRefAttr::get(dimsOrder, stridesAttr, &ctx);
+        const auto layout = VPUIP::MemRefAttr::get(dimsOrder, stridesAttr, &ctx);
         const auto distributionModeAttr = VPU::DistributionModeAttr::get(
                 &ctx, VPU::DistributionMode::DUPLICATED | VPU::DistributionMode::SEGMENTED);
         const auto numTilesAttr = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 1, 4, 1}));
@@ -742,7 +813,7 @@ TEST(MLIR_ClusterShapeUtils, DISABLED_AlignedBufferDistribution) {
         const auto shape = SmallVector<int64_t>({1, 110, 59, 16});
         const auto elemStrides = SmallVector<int64_t>({110 * 16 * 59, 1, 110 * 16, 110});
         const auto stridesAttr = getIntArrayAttr(&ctx, elemStrides);
-        const auto layout = IERT::MemRefAttr::get(dimsOrder, stridesAttr, &ctx);
+        const auto layout = VPUIP::MemRefAttr::get(dimsOrder, stridesAttr, &ctx);
         const auto distributionModeAttr = VPU::DistributionModeAttr::get(&ctx, VPU::DistributionMode::SEGMENTED);
         const auto numTilesAttr = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 4, 1, 1}));
         const auto alignment = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 16, 1, 1}));
@@ -782,7 +853,7 @@ TEST(MLIR_ClusterShapeUtils, DISABLED_AlignedBufferDistribution) {
         const auto shape = SmallVector<int64_t>({1, 96, 59, 16});
         const auto elemStrides = SmallVector<int64_t>({96 * 16 * 59, 1, 96 * 16, 96});
         const auto stridesAttr = getIntArrayAttr(&ctx, elemStrides);
-        const auto layout = IERT::MemRefAttr::get(dimsOrder, stridesAttr, &ctx);
+        const auto layout = VPUIP::MemRefAttr::get(dimsOrder, stridesAttr, &ctx);
         const auto distributionModeAttr = VPU::DistributionModeAttr::get(&ctx, VPU::DistributionMode::SEGMENTED);
         const auto numTilesAttr = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 4, 1, 1}));
         const auto alignment = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 16, 1, 1}));
@@ -812,7 +883,7 @@ TEST(MLIR_ClusterShapeUtils, DISABLED_AlignedBufferDistribution) {
         const auto shape = SmallVector<int64_t>({1, 96, 59, 16});
         const auto elemStrides = SmallVector<int64_t>({96 * 16 * 59, 1, 96 * 16, 96});
         const auto stridesAttr = getIntArrayAttr(&ctx, elemStrides);
-        const auto layout = IERT::MemRefAttr::get(dimsOrder, stridesAttr, &ctx);
+        const auto layout = VPUIP::MemRefAttr::get(dimsOrder, stridesAttr, &ctx);
         const auto distributionModeAttr = VPU::DistributionModeAttr::get(&ctx, VPU::DistributionMode::SEGMENTED);
         const auto numTilesAttr = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 3, 1, 1}));
         const auto alignment = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 16, 1, 1}));
@@ -852,7 +923,7 @@ TEST(MLIR_ClusterShapeUtils, DISABLED_AlignedBufferDistribution) {
         const auto shape = SmallVector<int64_t>({1, 96, 59, 16});
         const auto elemStrides = SmallVector<int64_t>({96 * 16 * 59, 1, 96 * 16, 96});
         const auto stridesAttr = getIntArrayAttr(&ctx, elemStrides);
-        const auto layout = IERT::MemRefAttr::get(dimsOrder, stridesAttr, &ctx);
+        const auto layout = VPUIP::MemRefAttr::get(dimsOrder, stridesAttr, &ctx);
         const auto distributionModeAttr = VPU::DistributionModeAttr::get(
                 &ctx, VPU::DistributionMode::SEGMENTED | VPU::DistributionMode::DUPLICATED);
         const auto numTilesAttr = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 3, 1, 1}));
@@ -896,7 +967,7 @@ TEST(MLIR_ClusterShapeUtils, DISABLED_AlignedBufferDistribution) {
         const auto shape = SmallVector<int64_t>({1, 60, 13, 15});
         const auto elemStrides = SmallVector<int64_t>({60 * 15 * 13, 1, 60 * 15, 60});
         const auto stridesAttr = getIntArrayAttr(&ctx, elemStrides);
-        const auto layout = IERT::MemRefAttr::get(dimsOrder, stridesAttr, &ctx);
+        const auto layout = VPUIP::MemRefAttr::get(dimsOrder, stridesAttr, &ctx);
         const auto distributionModeAttr = VPU::DistributionModeAttr::get(&ctx, VPU::DistributionMode::OVERLAPPED);
         const auto numTilesAttr = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 1, 4, 1}));
         const auto alignment = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 16, 1, 1}));
@@ -940,7 +1011,7 @@ TEST(MLIR_ClusterShapeUtils, DISABLED_AlignedBufferDistribution) {
         const auto shape = SmallVector<int64_t>({1, 60, 13, 15});
         const auto elemStrides = SmallVector<int64_t>({60 * 15 * 13, 1, 60 * 15, 60});
         const auto stridesAttr = getIntArrayAttr(&ctx, elemStrides);
-        const auto layout = IERT::MemRefAttr::get(dimsOrder, stridesAttr, &ctx);
+        const auto layout = VPUIP::MemRefAttr::get(dimsOrder, stridesAttr, &ctx);
         const auto distributionModeAttr = VPU::DistributionModeAttr::get(&ctx, VPU::DistributionMode::OVERLAPPED);
         const auto numTilesAttr = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 1, 4, 1}));
         const auto alignment = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 1, 1, 16}));
@@ -999,7 +1070,7 @@ TEST(MLIR_ClusterShapeUtilsDeathTest, AlignedBufferDistribution) {
         const auto shape = SmallVector<int64_t>({1, 60, 59, 15});
         const auto elemStrides = SmallVector<int64_t>({60 * 15 * 59, 1, 60 * 15, 60});
         const auto stridesAttr = getIntArrayAttr(&ctx, elemStrides);
-        const auto layout = IERT::MemRefAttr::get(dimsOrder, stridesAttr, &ctx);
+        const auto layout = VPUIP::MemRefAttr::get(dimsOrder, stridesAttr, &ctx);
         const auto distributionModeAttr = VPU::DistributionModeAttr::get(&ctx, VPU::DistributionMode::OVERLAPPED);
         const auto numTilesAttr = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 1, 4, 1}));
         const auto alignment = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 1, 9, 1}));
@@ -1016,5 +1087,567 @@ TEST(MLIR_ClusterShapeUtilsDeathTest, AlignedBufferDistribution) {
                                 distributedType.getShape().raw())
                             .failed());
 #endif
+    }
+}
+
+TEST(MLIR_ClusterShapeUtils, StridedBufferDistribution) {
+    mlir::DialectRegistry registry;
+    vpux::registerDialects(registry);
+
+    mlir::MLIRContext ctx(registry);
+    ctx.loadDialect<VPUIP::VPUIPDialect>();
+
+    const auto numClustersAttr = getIntAttr(&ctx, 4);
+
+    const auto shape = SmallVector<int64_t>({1, 64, 13, 16});
+    const auto elemType = mlir::Float16Type::get(&ctx);
+
+    const auto orderAttr = mlir::AffineMapAttr::get(DimsOrder::NHWC.toAffineMap(&ctx));
+    const auto dimsSpace = vpux::IndexedSymbolAttr::get(&ctx, CMX_NAME);
+
+    // SOH, K striding
+    {
+        const auto elemStrides = SmallVector<int64_t>({64 * 2 * 16 * 13, 1, 64 * 2 * 16, 64 * 2});
+        const auto stridesAttr = getIntArrayAttr(&ctx, elemStrides);
+        const auto layout = VPUIP::MemRefAttr::get(orderAttr, stridesAttr, &ctx);
+
+        const auto distributionModeAttr = VPU::DistributionModeAttr::get(&ctx, VPU::DistributionMode::SEGMENTED);
+        const auto numTilesAttr = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 1, 4, 1}));
+        const auto distributedAttr = VPU::DistributedTensorAttr::get(distributionModeAttr, numTilesAttr, nullptr,
+                                                                     nullptr, nullptr, numClustersAttr, nullptr, &ctx);
+        const auto distributedBufferType =
+                VPUIP::DistributedBufferType::get(&ctx, shape, elemType, layout, dimsSpace, distributedAttr);
+
+        const auto perClusterShapes = distributedBufferType.getPerClusterComputeShapes();
+        const SmallVector<Shape> expectedShapes(
+                {Shape({1, 64, 4, 16}), Shape({1, 64, 4, 16}), Shape({1, 64, 4, 16}), Shape({1, 64, 1, 16})});
+        for (const auto shapePair : zip(perClusterShapes, expectedShapes)) {
+            EXPECT_EQ(std::get<0>(shapePair), std::get<1>(shapePair));
+        }
+        const auto perClusterTensorOffsets = distributedBufferType.getPerClusterComputeShapeOffsets();
+        const SmallVector<Shape> expectedOffsets(
+                {Shape({0, 0, 0, 0}), Shape({0, 0, 4, 0}), Shape({0, 0, 8, 0}), Shape({0, 0, 12, 0})});
+        for (const auto shapePair : zip(perClusterTensorOffsets, expectedOffsets)) {
+            EXPECT_EQ(std::get<0>(shapePair), std::get<1>(shapePair));
+        }
+        const auto largestComputeShape = distributedBufferType.getLargestCompactShape();
+        EXPECT_EQ(largestComputeShape, Shape({1, 64, 4, 16}));
+        const auto numClusters = distributedBufferType.getDistribution().num_clusters().getInt();
+        for (auto clusterIdx = 0; clusterIdx < numClusters; clusterIdx++) {
+            EXPECT_EQ(expectedShapes[clusterIdx], distributedBufferType.getCompactShape(clusterIdx));
+        }
+
+        const SmallVector<Strides> expectedStrides({{131072_Bit, 16_Bit, 32768_Bit, 2048_Bit},
+                                                    {131072_Bit, 16_Bit, 32768_Bit, 2048_Bit},
+                                                    {131072_Bit, 16_Bit, 32768_Bit, 2048_Bit},
+                                                    {32768_Bit, 16_Bit, 32768_Bit, 2048_Bit}});
+        const auto perClusterStridedShapes = distributedBufferType.getPerClusterStridedShapes();
+        for (const auto p : perClusterStridedShapes | indexed) {
+            const auto cluster = p.index();
+            const auto stridedShape = p.value();
+            EXPECT_EQ(stridedShape.shape, expectedShapes[cluster]);
+            EXPECT_EQ(stridedShape.strides, expectedStrides[cluster]);
+        }
+        const auto largestStridedShape = distributedBufferType.getLargestStridedShape();
+        EXPECT_EQ(largestStridedShape.shape, expectedShapes[1]);
+        EXPECT_EQ(largestStridedShape.strides, expectedStrides[1]);
+        for (auto clusterIdx = 0; clusterIdx < numClusters; clusterIdx++) {
+            const auto stridedShape = distributedBufferType.getStridedShape(clusterIdx);
+            EXPECT_EQ(stridedShape.shape, expectedShapes[clusterIdx]);
+            EXPECT_EQ(stridedShape.strides, expectedStrides[clusterIdx]);
+        }
+
+        EXPECT_EQ(distributedBufferType.getTotalAllocSize().count(), (64 * 2) * 4 * 16 * 2);
+        EXPECT_EQ(distributedBufferType.getCompactAllocSize().count(), 64 * 4 * 16 * 2);
+    }
+
+    // Overlapped, K striding
+    {
+        const auto kernel = getIntArrayAttr(&ctx, SmallVector<int64_t>({3, 3}));
+        const auto pads = VPU::PaddingAttr::get(getIntAttr(&ctx, 1), getIntAttr(&ctx, 1), getIntAttr(&ctx, 1),
+                                                getIntAttr(&ctx, 1), &ctx);
+        const auto strides = getIntArrayAttr(&ctx, SmallVector<int64_t>({2, 2}));
+
+        const auto elemStrides = SmallVector<int64_t>({64 * 2 * 16 * 13, 1, 64 * 2 * 16, 64 * 2});
+        const auto stridesAttr = getIntArrayAttr(&ctx, elemStrides);
+        const auto layout = VPUIP::MemRefAttr::get(orderAttr, stridesAttr, &ctx);
+
+        const auto distributionModeAttr = VPU::DistributionModeAttr::get(&ctx, VPU::DistributionMode::OVERLAPPED);
+        const auto numTilesAttr = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 1, 4, 1}));
+        const auto distributedAttr = VPU::DistributedTensorAttr::get(distributionModeAttr, numTilesAttr, kernel, pads,
+                                                                     strides, numClustersAttr, nullptr, &ctx);
+        const auto distributedBufferType =
+                VPUIP::DistributedBufferType::get(&ctx, shape, elemType, layout, dimsSpace, distributedAttr);
+
+        const auto perClusterShapes = distributedBufferType.getPerClusterComputeShapes();
+        const SmallVector<Shape> expectedShapes(
+                {Shape({1, 64, 4, 16}), Shape({1, 64, 5, 16}), Shape({1, 64, 5, 16}), Shape({1, 64, 2, 16})});
+        for (const auto shapePair : zip(perClusterShapes, expectedShapes)) {
+            EXPECT_EQ(std::get<0>(shapePair), std::get<1>(shapePair));
+        }
+        const auto perClusterTensorOffsets = distributedBufferType.getPerClusterComputeShapeOffsets();
+        const SmallVector<Shape> expectedOffsets(
+                {Shape({0, 0, 0, 0}), Shape({0, 0, 3, 0}), Shape({0, 0, 7, 0}), Shape({0, 0, 11, 0})});
+        for (const auto shapePair : zip(perClusterTensorOffsets, expectedOffsets)) {
+            EXPECT_EQ(std::get<0>(shapePair), std::get<1>(shapePair));
+        }
+        const auto largestComputeShape = distributedBufferType.getLargestCompactShape();
+        EXPECT_EQ(largestComputeShape, Shape({1, 64, 5, 16}));
+
+        const auto numClusters = distributedBufferType.getDistribution().num_clusters().getInt();
+        for (auto clusterIdx = 0; clusterIdx < numClusters; clusterIdx++) {
+            EXPECT_EQ(expectedShapes[clusterIdx], distributedBufferType.getCompactShape(clusterIdx));
+        }
+
+        const SmallVector<Strides> expectedStrides({{131072_Bit, 16_Bit, 32768_Bit, 2048_Bit},
+                                                    {163840_Bit, 16_Bit, 32768_Bit, 2048_Bit},
+                                                    {163840_Bit, 16_Bit, 32768_Bit, 2048_Bit},
+                                                    {65536_Bit, 16_Bit, 32768_Bit, 2048_Bit}});
+        const auto perClusterStridedShapes = distributedBufferType.getPerClusterStridedShapes();
+        for (const auto p : perClusterStridedShapes | indexed) {
+            const auto cluster = p.index();
+            const auto stridedShape = p.value();
+            EXPECT_EQ(stridedShape.shape, expectedShapes[cluster]);
+            EXPECT_EQ(stridedShape.strides, expectedStrides[cluster]);
+        }
+        const auto largestStridedShape = distributedBufferType.getLargestStridedShape();
+        EXPECT_EQ(largestStridedShape.shape, expectedShapes[1]);
+        EXPECT_EQ(largestStridedShape.strides, expectedStrides[1]);
+        for (auto clusterIdx = 0; clusterIdx < numClusters; clusterIdx++) {
+            const auto stridedShape = distributedBufferType.getStridedShape(clusterIdx);
+            EXPECT_EQ(stridedShape.shape, expectedShapes[clusterIdx]);
+            EXPECT_EQ(stridedShape.strides, expectedStrides[clusterIdx]);
+        }
+
+        EXPECT_EQ(distributedBufferType.getTotalAllocSize().count(), (64 * 2) * 5 * 16 * 2);
+        EXPECT_EQ(distributedBufferType.getCompactAllocSize().count(), 64 * 5 * 16 * 2);
+    }
+
+    // SOK, H striding
+    {
+        const auto elemStrides = SmallVector<int64_t>({64 * 16 * 13 * 2, 1, 64 * 16, 64});
+        const auto stridesAttr = getIntArrayAttr(&ctx, elemStrides);
+        const auto layout = VPUIP::MemRefAttr::get(orderAttr, stridesAttr, &ctx);
+
+        const auto distributionModeAttr = VPU::DistributionModeAttr::get(
+                &ctx, VPU::DistributionMode::SEGMENTED | VPU::DistributionMode::DUPLICATED);
+        const auto numTilesAttr = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 4, 1, 1}));
+        const auto distributedAttr = VPU::DistributedTensorAttr::get(distributionModeAttr, numTilesAttr, nullptr,
+                                                                     nullptr, nullptr, numClustersAttr, nullptr, &ctx);
+        const auto distributedBufferType =
+                VPUIP::DistributedBufferType::get(&ctx, shape, elemType, layout, dimsSpace, distributedAttr);
+
+        const auto perClusterShapes = distributedBufferType.getPerClusterComputeShapes();
+        const SmallVector<Shape> expectedShapes(
+                {Shape({1, 16, 13, 16}), Shape({1, 16, 13, 16}), Shape({1, 16, 13, 16}), Shape({1, 16, 13, 16})});
+        for (const auto shapePair : zip(perClusterShapes, expectedShapes)) {
+            EXPECT_EQ(std::get<0>(shapePair), std::get<1>(shapePair));
+        }
+        const auto perClusterTensorOffsets = distributedBufferType.getPerClusterComputeShapeOffsets();
+        const SmallVector<Shape> expectedOffsets(
+                {Shape({0, 0, 0, 0}), Shape({0, 16, 0, 0}), Shape({0, 32, 0, 0}), Shape({0, 48, 0, 0})});
+        for (const auto shapePair : zip(perClusterTensorOffsets, expectedOffsets)) {
+            EXPECT_EQ(std::get<0>(shapePair), std::get<1>(shapePair));
+        }
+        const auto largestComputeShape = distributedBufferType.getLargestCompactShape();
+        EXPECT_EQ(largestComputeShape, Shape({1, 16, 13, 16}));
+        const auto numClusters = distributedBufferType.getDistribution().num_clusters().getInt();
+        for (auto clusterIdx = 0; clusterIdx < numClusters; clusterIdx++) {
+            EXPECT_EQ(expectedShapes[clusterIdx], distributedBufferType.getCompactShape(clusterIdx));
+        }
+
+        const SmallVector<Strides> expectedStrides({{425984_Bit, 16_Bit, 16384_Bit, 1024_Bit},
+                                                    {425984_Bit, 16_Bit, 16384_Bit, 1024_Bit},
+                                                    {425984_Bit, 16_Bit, 16384_Bit, 1024_Bit},
+                                                    {425984_Bit, 16_Bit, 16384_Bit, 1024_Bit}});
+        const auto perClusterStridedShapes = distributedBufferType.getPerClusterStridedShapes();
+        for (const auto p : perClusterStridedShapes | indexed) {
+            const auto cluster = p.index();
+            const auto stridedShape = p.value();
+            EXPECT_EQ(stridedShape.shape, expectedShapes[cluster]);
+            EXPECT_EQ(stridedShape.strides, expectedStrides[cluster]);
+        }
+        const auto largestStridedShape = distributedBufferType.getLargestStridedShape();
+        EXPECT_EQ(largestStridedShape.shape, expectedShapes[1]);
+        EXPECT_EQ(largestStridedShape.strides, expectedStrides[1]);
+        for (auto clusterIdx = 0; clusterIdx < numClusters; clusterIdx++) {
+            const auto stridedShape = distributedBufferType.getStridedShape(clusterIdx);
+            EXPECT_EQ(stridedShape.shape, expectedShapes[clusterIdx]);
+            EXPECT_EQ(stridedShape.strides, expectedStrides[clusterIdx]);
+        }
+
+        EXPECT_EQ(distributedBufferType.getTotalAllocSize().count(), 64 * (13 * 2) * 16 * 2);
+        EXPECT_EQ(distributedBufferType.getCompactAllocSize().count(), 64 * 13 * 16 * 2);
+    }
+
+    // SOK, no duplication, H striding
+    {
+        const auto elemStrides = SmallVector<int64_t>({64 * 16 * 13 * 2, 1, 64 * 16, 64});
+        const auto stridesAttr = getIntArrayAttr(&ctx, elemStrides);
+        const auto layout = VPUIP::MemRefAttr::get(orderAttr, stridesAttr, &ctx);
+
+        const auto distributionModeAttr = VPU::DistributionModeAttr::get(&ctx, VPU::DistributionMode::SEGMENTED);
+        const auto numTilesAttr = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 4, 1, 1}));
+        const auto distributedAttr = VPU::DistributedTensorAttr::get(distributionModeAttr, numTilesAttr, nullptr,
+                                                                     nullptr, nullptr, numClustersAttr, nullptr, &ctx);
+        const auto distributedBufferType =
+                VPUIP::DistributedBufferType::get(&ctx, shape, elemType, layout, dimsSpace, distributedAttr);
+
+        const auto perClusterShapes = distributedBufferType.getPerClusterComputeShapes();
+        const SmallVector<Shape> expectedShapes(
+                {Shape({1, 16, 13, 16}), Shape({1, 16, 13, 16}), Shape({1, 16, 13, 16}), Shape({1, 16, 13, 16})});
+        for (const auto shapePair : zip(perClusterShapes, expectedShapes)) {
+            EXPECT_EQ(std::get<0>(shapePair), std::get<1>(shapePair));
+        }
+        const auto perClusterTensorOffsets = distributedBufferType.getPerClusterComputeShapeOffsets();
+        const SmallVector<Shape> expectedOffsets(
+                {Shape({0, 0, 0, 0}), Shape({0, 16, 0, 0}), Shape({0, 32, 0, 0}), Shape({0, 48, 0, 0})});
+        for (const auto shapePair : zip(perClusterTensorOffsets, expectedOffsets)) {
+            EXPECT_EQ(std::get<0>(shapePair), std::get<1>(shapePair));
+        }
+        const auto largestComputeShape = distributedBufferType.getLargestCompactShape();
+        EXPECT_EQ(largestComputeShape, Shape({1, 16, 13, 16}));
+        const auto numClusters = distributedBufferType.getDistribution().num_clusters().getInt();
+        for (auto clusterIdx = 0; clusterIdx < numClusters; clusterIdx++) {
+            EXPECT_EQ(expectedShapes[clusterIdx], distributedBufferType.getCompactShape(clusterIdx));
+        }
+
+        const SmallVector<Strides> expectedStrides({{106496_Bit, 16_Bit, 4096_Bit, 256_Bit},
+                                                    {106496_Bit, 16_Bit, 4096_Bit, 256_Bit},
+                                                    {106496_Bit, 16_Bit, 4096_Bit, 256_Bit},
+                                                    {106496_Bit, 16_Bit, 4096_Bit, 256_Bit}});
+        const auto perClusterStridedShapes = distributedBufferType.getPerClusterStridedShapes();
+        for (const auto p : perClusterStridedShapes | indexed) {
+            const auto cluster = p.index();
+            const auto stridedShape = p.value();
+            EXPECT_EQ(stridedShape.shape, expectedShapes[cluster]);
+            EXPECT_EQ(stridedShape.strides, expectedStrides[cluster]);
+        }
+        const auto largestStridedShape = distributedBufferType.getLargestStridedShape();
+        EXPECT_EQ(largestStridedShape.shape, expectedShapes[1]);
+        EXPECT_EQ(largestStridedShape.strides, expectedStrides[1]);
+        for (auto clusterIdx = 0; clusterIdx < numClusters; clusterIdx++) {
+            const auto stridedShape = distributedBufferType.getStridedShape(clusterIdx);
+            EXPECT_EQ(stridedShape.shape, expectedShapes[clusterIdx]);
+            EXPECT_EQ(stridedShape.strides, expectedStrides[clusterIdx]);
+        }
+
+        EXPECT_EQ(distributedBufferType.getTotalAllocSize().count(), 16 * (13 * 2) * 16 * 2);
+        EXPECT_EQ(distributedBufferType.getCompactAllocSize().count(), 16 * 13 * 16 * 2);
+    }
+
+    // SOK, weights set (IC*Kw*Kh) striding
+    {
+        // Original size is {64, 3, 3, 3} but all values are packed and
+        // aligned to 16 bytes so their memory access is aligned to 16 bytes.
+        const auto shape = SmallVector<int64_t>({64, 1, 1, 27});
+        const auto orderAttr = mlir::AffineMapAttr::get(DimsOrder::OYXI.toAffineMap(&ctx));
+
+        const auto elemStrides = SmallVector<int64_t>({32, 1, 32, 32});
+        const auto stridesAttr = getIntArrayAttr(&ctx, elemStrides);
+        const auto layout = VPUIP::MemRefAttr::get(orderAttr, stridesAttr, &ctx);
+
+        const auto distributionModeAttr = VPU::DistributionModeAttr::get(&ctx, VPU::DistributionMode::SEGMENTED);
+        const auto numTilesAttr = getIntArrayAttr(&ctx, SmallVector<int64_t>({4, 1, 1, 1}));
+        const auto distributedAttr = VPU::DistributedTensorAttr::get(distributionModeAttr, numTilesAttr, nullptr,
+                                                                     nullptr, nullptr, numClustersAttr, nullptr, &ctx);
+        const auto distributedBufferType =
+                VPUIP::DistributedBufferType::get(&ctx, shape, elemType, layout, dimsSpace, distributedAttr);
+
+        const auto perClusterShapes = distributedBufferType.getPerClusterComputeShapes();
+        const SmallVector<Shape> expectedShapes(
+                {Shape({16, 1, 1, 27}), Shape({16, 1, 1, 27}), Shape({16, 1, 1, 27}), Shape({16, 1, 1, 27})});
+        for (const auto shapePair : zip(perClusterShapes, expectedShapes)) {
+            EXPECT_EQ(std::get<0>(shapePair), std::get<1>(shapePair));
+        }
+        const auto perClusterTensorOffsets = distributedBufferType.getPerClusterComputeShapeOffsets();
+        const SmallVector<Shape> expectedOffsets(
+                {Shape({0, 0, 0, 0}), Shape({16, 0, 0, 0}), Shape({32, 0, 0, 0}), Shape({48, 0, 0, 0})});
+        for (const auto shapePair : zip(perClusterTensorOffsets, expectedOffsets)) {
+            EXPECT_EQ(std::get<0>(shapePair), std::get<1>(shapePair));
+        }
+        const auto largestComputeShape = distributedBufferType.getLargestCompactShape();
+        EXPECT_EQ(largestComputeShape, Shape({16, 1, 1, 27}));
+        const auto numClusters = distributedBufferType.getDistribution().num_clusters().getInt();
+        for (auto clusterIdx = 0; clusterIdx < numClusters; clusterIdx++) {
+            EXPECT_EQ(expectedShapes[clusterIdx], distributedBufferType.getCompactShape(clusterIdx));
+        }
+
+        const SmallVector<Strides> expectedStrides({{512_Bit, 16_Bit, 512_Bit, 512_Bit},
+                                                    {512_Bit, 16_Bit, 512_Bit, 512_Bit},
+                                                    {512_Bit, 16_Bit, 512_Bit, 512_Bit},
+                                                    {512_Bit, 16_Bit, 512_Bit, 512_Bit}});
+        const auto perClusterStridedShapes = distributedBufferType.getPerClusterStridedShapes();
+        for (const auto p : perClusterStridedShapes | indexed) {
+            const auto cluster = p.index();
+            const auto stridedShape = p.value();
+            EXPECT_EQ(stridedShape.shape, expectedShapes[cluster]);
+            EXPECT_EQ(stridedShape.strides, expectedStrides[cluster]);
+        }
+        const auto largestStridedShape = distributedBufferType.getLargestStridedShape();
+        EXPECT_EQ(largestStridedShape.shape, expectedShapes[1]);
+        EXPECT_EQ(largestStridedShape.strides, expectedStrides[1]);
+        for (auto clusterIdx = 0; clusterIdx < numClusters; clusterIdx++) {
+            const auto stridedShape = distributedBufferType.getStridedShape(clusterIdx);
+            EXPECT_EQ(stridedShape.shape, expectedShapes[clusterIdx]);
+            EXPECT_EQ(stridedShape.strides, expectedStrides[clusterIdx]);
+        }
+
+        EXPECT_EQ(distributedBufferType.getTotalAllocSize().count(), 16 * 32 * 2);
+        EXPECT_EQ(distributedBufferType.getCompactAllocSize().count(), 16 * 27 * 2);
+    }
+
+    // SOK, K striding
+    {
+        const auto elemStrides = SmallVector<int64_t>({64 * 16 * 13 * 2, 1, 64 * 2 * 16, 64 * 2});
+        const auto stridesAttr = getIntArrayAttr(&ctx, elemStrides);
+        const auto layout = VPUIP::MemRefAttr::get(orderAttr, stridesAttr, &ctx);
+
+        const auto distributionModeAttr = VPU::DistributionModeAttr::get(
+                &ctx, VPU::DistributionMode::SEGMENTED | VPU::DistributionMode::DUPLICATED);
+        const auto numTilesAttr = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 4, 1, 1}));
+        const auto distributedAttr = VPU::DistributedTensorAttr::get(distributionModeAttr, numTilesAttr, nullptr,
+                                                                     nullptr, nullptr, numClustersAttr, nullptr, &ctx);
+        const auto distributedBufferType =
+                VPUIP::DistributedBufferType::get(&ctx, shape, elemType, layout, dimsSpace, distributedAttr);
+
+        const auto perClusterShapes = distributedBufferType.getPerClusterComputeShapes();
+        const SmallVector<Shape> expectedShapes(
+                {Shape({1, 16, 13, 16}), Shape({1, 16, 13, 16}), Shape({1, 16, 13, 16}), Shape({1, 16, 13, 16})});
+        for (const auto shapePair : zip(perClusterShapes, expectedShapes)) {
+            EXPECT_EQ(std::get<0>(shapePair), std::get<1>(shapePair));
+        }
+        const auto perClusterTensorOffsets = distributedBufferType.getPerClusterComputeShapeOffsets();
+        const SmallVector<Shape> expectedOffsets(
+                {Shape({0, 0, 0, 0}), Shape({0, 16, 0, 0}), Shape({0, 32, 0, 0}), Shape({0, 48, 0, 0})});
+        for (const auto shapePair : zip(perClusterTensorOffsets, expectedOffsets)) {
+            EXPECT_EQ(std::get<0>(shapePair), std::get<1>(shapePair));
+        }
+        const auto largestComputeShape = distributedBufferType.getLargestCompactShape();
+        EXPECT_EQ(largestComputeShape, Shape({1, 16, 13, 16}));
+        const auto numClusters = distributedBufferType.getDistribution().num_clusters().getInt();
+        for (auto clusterIdx = 0; clusterIdx < numClusters; clusterIdx++) {
+            EXPECT_EQ(expectedShapes[clusterIdx], distributedBufferType.getCompactShape(clusterIdx));
+        }
+
+        const SmallVector<Strides> expectedStrides({{425984_Bit, 16_Bit, 32768_Bit, 2048_Bit},
+                                                    {425984_Bit, 16_Bit, 32768_Bit, 2048_Bit},
+                                                    {425984_Bit, 16_Bit, 32768_Bit, 2048_Bit},
+                                                    {425984_Bit, 16_Bit, 32768_Bit, 2048_Bit}});
+        const auto perClusterStridedShapes = distributedBufferType.getPerClusterStridedShapes();
+        for (const auto p : perClusterStridedShapes | indexed) {
+            const auto cluster = p.index();
+            const auto stridedShape = p.value();
+            EXPECT_EQ(stridedShape.shape, expectedShapes[cluster]);
+            EXPECT_EQ(stridedShape.strides, expectedStrides[cluster]);
+        }
+        const auto largestStridedShape = distributedBufferType.getLargestStridedShape();
+        EXPECT_EQ(largestStridedShape.shape, expectedShapes[1]);
+        EXPECT_EQ(largestStridedShape.strides, expectedStrides[1]);
+        for (auto clusterIdx = 0; clusterIdx < numClusters; clusterIdx++) {
+            const auto stridedShape = distributedBufferType.getStridedShape(clusterIdx);
+            EXPECT_EQ(stridedShape.shape, expectedShapes[clusterIdx]);
+            EXPECT_EQ(stridedShape.strides, expectedStrides[clusterIdx]);
+        }
+
+        EXPECT_EQ(distributedBufferType.getTotalAllocSize().count(), (64 * 2) * 13 * 16 * 2);
+        EXPECT_EQ(distributedBufferType.getCompactAllocSize().count(), 64 * 13 * 16 * 2);
+    }
+
+    // SOK, H + K striding
+    {
+        const auto elemStrides = SmallVector<int64_t>({64 * 2 * 16 * 13 * 2, 1, 64 * 2 * 16, 64 * 2});
+        const auto stridesAttr = getIntArrayAttr(&ctx, elemStrides);
+        const auto layout = VPUIP::MemRefAttr::get(orderAttr, stridesAttr, &ctx);
+
+        const auto distributionModeAttr = VPU::DistributionModeAttr::get(
+                &ctx, VPU::DistributionMode::SEGMENTED | VPU::DistributionMode::DUPLICATED);
+        const auto numTilesAttr = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 4, 1, 1}));
+        const auto distributedAttr = VPU::DistributedTensorAttr::get(distributionModeAttr, numTilesAttr, nullptr,
+                                                                     nullptr, nullptr, numClustersAttr, nullptr, &ctx);
+        const auto distributedBufferType =
+                VPUIP::DistributedBufferType::get(&ctx, shape, elemType, layout, dimsSpace, distributedAttr);
+
+        const auto perClusterShapes = distributedBufferType.getPerClusterComputeShapes();
+        const SmallVector<Shape> expectedShapes(
+                {Shape({1, 16, 13, 16}), Shape({1, 16, 13, 16}), Shape({1, 16, 13, 16}), Shape({1, 16, 13, 16})});
+        for (const auto shapePair : zip(perClusterShapes, expectedShapes)) {
+            EXPECT_EQ(std::get<0>(shapePair), std::get<1>(shapePair));
+        }
+        const auto perClusterTensorOffsets = distributedBufferType.getPerClusterComputeShapeOffsets();
+        const SmallVector<Shape> expectedOffsets(
+                {Shape({0, 0, 0, 0}), Shape({0, 16, 0, 0}), Shape({0, 32, 0, 0}), Shape({0, 48, 0, 0})});
+        for (const auto shapePair : zip(perClusterTensorOffsets, expectedOffsets)) {
+            EXPECT_EQ(std::get<0>(shapePair), std::get<1>(shapePair));
+        }
+        const auto largestComputeShape = distributedBufferType.getLargestCompactShape();
+        EXPECT_EQ(largestComputeShape, Shape({1, 16, 13, 16}));
+        const auto numClusters = distributedBufferType.getDistribution().num_clusters().getInt();
+        for (auto clusterIdx = 0; clusterIdx < numClusters; clusterIdx++) {
+            EXPECT_EQ(expectedShapes[clusterIdx], distributedBufferType.getCompactShape(clusterIdx));
+        }
+
+        const SmallVector<Strides> expectedStrides({{851968_Bit, 16_Bit, 32768_Bit, 2048_Bit},
+                                                    {851968_Bit, 16_Bit, 32768_Bit, 2048_Bit},
+                                                    {851968_Bit, 16_Bit, 32768_Bit, 2048_Bit},
+                                                    {851968_Bit, 16_Bit, 32768_Bit, 2048_Bit}});
+        const auto perClusterStridedShapes = distributedBufferType.getPerClusterStridedShapes();
+        for (const auto p : perClusterStridedShapes | indexed) {
+            const auto cluster = p.index();
+            const auto stridedShape = p.value();
+            EXPECT_EQ(stridedShape.shape, expectedShapes[cluster]);
+            EXPECT_EQ(stridedShape.strides, expectedStrides[cluster]);
+        }
+        const auto largestStridedShape = distributedBufferType.getLargestStridedShape();
+        EXPECT_EQ(largestStridedShape.shape, expectedShapes[1]);
+        EXPECT_EQ(largestStridedShape.strides, expectedStrides[1]);
+        for (auto clusterIdx = 0; clusterIdx < numClusters; clusterIdx++) {
+            const auto stridedShape = distributedBufferType.getStridedShape(clusterIdx);
+            EXPECT_EQ(stridedShape.shape, expectedShapes[clusterIdx]);
+            EXPECT_EQ(stridedShape.strides, expectedStrides[clusterIdx]);
+        }
+
+        EXPECT_EQ(distributedBufferType.getTotalAllocSize().count(), (64 * 2) * (13 * 2) * 16 * 2);
+        EXPECT_EQ(distributedBufferType.getCompactAllocSize().count(), 64 * 13 * 16 * 2);
+    }
+
+    // SOH, W + K striding
+    {
+        const auto elemStrides = SmallVector<int64_t>({64 * 2 * 16 * 2 * 13, 1, 64 * 2 * 16 * 2, 64 * 2});
+        const auto stridesAttr = getIntArrayAttr(&ctx, elemStrides);
+        const auto layout = VPUIP::MemRefAttr::get(orderAttr, stridesAttr, &ctx);
+
+        const auto distributionModeAttr = VPU::DistributionModeAttr::get(&ctx, VPU::DistributionMode::SEGMENTED);
+        const auto numTilesAttr = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 1, 4, 1}));
+        const auto distributedAttr = VPU::DistributedTensorAttr::get(distributionModeAttr, numTilesAttr, nullptr,
+                                                                     nullptr, nullptr, numClustersAttr, nullptr, &ctx);
+        const auto distributedBufferType =
+                VPUIP::DistributedBufferType::get(&ctx, shape, elemType, layout, dimsSpace, distributedAttr);
+
+        const auto perClusterShapes = distributedBufferType.getPerClusterComputeShapes();
+        const SmallVector<Shape> expectedShapes(
+                {Shape({1, 64, 4, 16}), Shape({1, 64, 4, 16}), Shape({1, 64, 4, 16}), Shape({1, 64, 1, 16})});
+        for (const auto shapePair : zip(perClusterShapes, expectedShapes)) {
+            EXPECT_EQ(std::get<0>(shapePair), std::get<1>(shapePair));
+        }
+        const auto perClusterTensorOffsets = distributedBufferType.getPerClusterComputeShapeOffsets();
+        const SmallVector<Shape> expectedOffsets(
+                {Shape({0, 0, 0, 0}), Shape({0, 0, 4, 0}), Shape({0, 0, 8, 0}), Shape({0, 0, 12, 0})});
+        for (const auto shapePair : zip(perClusterTensorOffsets, expectedOffsets)) {
+            EXPECT_EQ(std::get<0>(shapePair), std::get<1>(shapePair));
+        }
+        const auto largestComputeShape = distributedBufferType.getLargestCompactShape();
+        EXPECT_EQ(largestComputeShape, Shape({1, 64, 4, 16}));
+        const auto numClusters = distributedBufferType.getDistribution().num_clusters().getInt();
+        for (auto clusterIdx = 0; clusterIdx < numClusters; clusterIdx++) {
+            EXPECT_EQ(expectedShapes[clusterIdx], distributedBufferType.getCompactShape(clusterIdx));
+        }
+
+        const SmallVector<Strides> expectedStrides({{262144_Bit, 16_Bit, 65536_Bit, 2048_Bit},
+                                                    {262144_Bit, 16_Bit, 65536_Bit, 2048_Bit},
+                                                    {262144_Bit, 16_Bit, 65536_Bit, 2048_Bit},
+                                                    {65536_Bit, 16_Bit, 65536_Bit, 2048_Bit}});
+        const auto perClusterStridedShapes = distributedBufferType.getPerClusterStridedShapes();
+        for (const auto p : perClusterStridedShapes | indexed) {
+            const auto cluster = p.index();
+            const auto stridedShape = p.value();
+            EXPECT_EQ(stridedShape.shape, expectedShapes[cluster]);
+            EXPECT_EQ(stridedShape.strides, expectedStrides[cluster]);
+        }
+        const auto largestStridedShape = distributedBufferType.getLargestStridedShape();
+        EXPECT_EQ(largestStridedShape.shape, expectedShapes[1]);
+        EXPECT_EQ(largestStridedShape.strides, expectedStrides[1]);
+        for (auto clusterIdx = 0; clusterIdx < numClusters; clusterIdx++) {
+            const auto stridedShape = distributedBufferType.getStridedShape(clusterIdx);
+            EXPECT_EQ(stridedShape.shape, expectedShapes[clusterIdx]);
+            EXPECT_EQ(stridedShape.strides, expectedStrides[clusterIdx]);
+        }
+
+        EXPECT_EQ(distributedBufferType.getTotalAllocSize().count(), (64 * 2) * (4 * 2) * 16 * 2);
+        EXPECT_EQ(distributedBufferType.getCompactAllocSize().count(), 64 * 4 * 16 * 2);
+    }
+
+    // SOH, H striding - unsupported
+    {
+        const auto elemStrides = SmallVector<int64_t>({64 * 16 * 13 * 2, 1, 64 * 16, 64});
+        const auto stridesAttr = getIntArrayAttr(&ctx, elemStrides);
+        const auto layout = VPUIP::MemRefAttr::get(orderAttr, stridesAttr, &ctx);
+
+        const auto distributionModeAttr = VPU::DistributionModeAttr::get(&ctx, VPU::DistributionMode::SEGMENTED);
+        const auto numTilesAttr = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 1, 4, 1}));
+        const auto distributedAttr = VPU::DistributedTensorAttr::get(distributionModeAttr, numTilesAttr, nullptr,
+                                                                     nullptr, nullptr, numClustersAttr, nullptr, &ctx);
+        const auto distributedBufferType =
+                VPUIP::DistributedBufferType::get(&ctx, shape, elemType, layout, dimsSpace, distributedAttr);
+
+        const auto perClusterShapes = distributedBufferType.getPerClusterComputeShapes();
+        const SmallVector<Shape> expectedShapes(
+                {Shape({1, 64, 4, 16}), Shape({1, 64, 4, 16}), Shape({1, 64, 4, 16}), Shape({1, 64, 1, 16})});
+        for (const auto shapePair : zip(perClusterShapes, expectedShapes)) {
+            EXPECT_EQ(std::get<0>(shapePair), std::get<1>(shapePair));
+        }
+        const auto perClusterTensorOffsets = distributedBufferType.getPerClusterComputeShapeOffsets();
+        const SmallVector<Shape> expectedOffsets(
+                {Shape({0, 0, 0, 0}), Shape({0, 0, 4, 0}), Shape({0, 0, 8, 0}), Shape({0, 0, 12, 0})});
+        for (const auto shapePair : zip(perClusterTensorOffsets, expectedOffsets)) {
+            EXPECT_EQ(std::get<0>(shapePair), std::get<1>(shapePair));
+        }
+        const auto largestComputeShape = distributedBufferType.getLargestCompactShape();
+        EXPECT_EQ(largestComputeShape, Shape({1, 64, 4, 16}));
+        const auto numClusters = distributedBufferType.getDistribution().num_clusters().getInt();
+        for (auto clusterIdx = 0; clusterIdx < numClusters; clusterIdx++) {
+            EXPECT_EQ(expectedShapes[clusterIdx], distributedBufferType.getCompactShape(clusterIdx));
+        }
+
+        // const SmallVector<Strides> expectedStrides({{131072_Bit, 16_Bit, 16384_Bit, 1024_Bit},
+        //                                             {131072_Bit, 16_Bit, 16384_Bit, 1024_Bit},
+        //                                             {131072_Bit, 16_Bit, 16384_Bit, 1024_Bit},
+        //                                             { 32768_Bit, 16_Bit, 16384_Bit, 1024_Bit}});
+        EXPECT_ANY_THROW(distributedBufferType.getPerClusterStridedShapes());
+        // 64 * 16 * (4 * 2) * 2
+        EXPECT_ANY_THROW(distributedBufferType.getTotalAllocSize().count());
+        EXPECT_EQ(distributedBufferType.getCompactAllocSize().count(), 64 * 16 * 4 * 2);
+    }
+
+    // SOK, no duplication, K striding - unsupported
+    {
+        const auto elemStrides = SmallVector<int64_t>({64 * 2 * 16 * 13, 1, 64 * 2 * 16, 64 * 2});
+        const auto stridesAttr = getIntArrayAttr(&ctx, elemStrides);
+        const auto layout = VPUIP::MemRefAttr::get(orderAttr, stridesAttr, &ctx);
+
+        const auto distributionModeAttr = VPU::DistributionModeAttr::get(&ctx, VPU::DistributionMode::SEGMENTED);
+        const auto numTilesAttr = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 4, 1, 1}));
+        const auto distributedAttr = VPU::DistributedTensorAttr::get(distributionModeAttr, numTilesAttr, nullptr,
+                                                                     nullptr, nullptr, numClustersAttr, nullptr, &ctx);
+        const auto distributedBufferType =
+                VPUIP::DistributedBufferType::get(&ctx, shape, elemType, layout, dimsSpace, distributedAttr);
+
+        const auto perClusterShapes = distributedBufferType.getPerClusterComputeShapes();
+        const SmallVector<Shape> expectedShapes(
+                {Shape({1, 16, 13, 16}), Shape({1, 16, 13, 16}), Shape({1, 16, 13, 16}), Shape({1, 16, 13, 16})});
+        for (const auto shapePair : zip(perClusterShapes, expectedShapes)) {
+            EXPECT_EQ(std::get<0>(shapePair), std::get<1>(shapePair));
+        }
+        const auto perClusterTensorOffsets = distributedBufferType.getPerClusterComputeShapeOffsets();
+        const SmallVector<Shape> expectedOffsets(
+                {Shape({0, 0, 0, 0}), Shape({0, 16, 0, 0}), Shape({0, 32, 0, 0}), Shape({0, 48, 0, 0})});
+        for (const auto shapePair : zip(perClusterTensorOffsets, expectedOffsets)) {
+            EXPECT_EQ(std::get<0>(shapePair), std::get<1>(shapePair));
+        }
+        const auto largestComputeShape = distributedBufferType.getLargestCompactShape();
+        EXPECT_EQ(largestComputeShape, Shape({1, 16, 13, 16}));
+        const auto numClusters = distributedBufferType.getDistribution().num_clusters().getInt();
+        for (auto clusterIdx = 0; clusterIdx < numClusters; clusterIdx++) {
+            EXPECT_EQ(expectedShapes[clusterIdx], distributedBufferType.getCompactShape(clusterIdx));
+        }
+
+        // const SmallVector<Strides> expectedStrides({{106496_Bit, 16_Bit, 8192_Bit, 512_Bit},
+        //                                             {106496_Bit, 16_Bit, 8192_Bit, 512_Bit},
+        //                                             {106496_Bit, 16_Bit, 8192_Bit, 512_Bit},
+        //                                             {106496_Bit, 16_Bit, 8192_Bit, 512_Bit}});
+        EXPECT_ANY_THROW(distributedBufferType.getPerClusterStridedShapes());
+        // (16 * 2) * 16 * 13 * 2
+        EXPECT_ANY_THROW(distributedBufferType.getTotalAllocSize().count());
+        EXPECT_EQ(distributedBufferType.getCompactAllocSize().count(), 16 * 13 * 16 * 2);
     }
 }

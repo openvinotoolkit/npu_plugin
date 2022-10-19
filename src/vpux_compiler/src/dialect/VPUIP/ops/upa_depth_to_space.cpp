@@ -8,26 +8,12 @@
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 
 #include "vpux/compiler/dialect/VPUIP/graph-schema/blob_reader.hpp"
+#include "vpux/compiler/dialect/VPUIP/graph-schema/utils.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/error.hpp"
 #include "vpux/compiler/utils/types.hpp"
 
 using namespace vpux;
-
-MVCNN::DepthToSpaceMode DepthToSpaceMode2MVCNN(IE::DepthToSpaceMode mode) {
-    MVCNN::DepthToSpaceMode out_code = MVCNN::DepthToSpaceMode_BLOCKS_FIRST;
-    switch (mode) {
-    case IE::DepthToSpaceMode::BLOCKS_FIRST:
-        out_code = MVCNN::DepthToSpaceMode_BLOCKS_FIRST;
-        break;
-    case IE::DepthToSpaceMode::DEPTH_FIRST:
-        out_code = MVCNN::DepthToSpaceMode_DEPTH_FIRST;
-        break;
-    default:
-        VPUX_THROW("Unknown DepthToSpaceMode. Blocks_FIRST and DEPTH_FIRST methods are supported only");
-    }
-    return out_code;
-}
 
 mlir::LogicalResult vpux::VPUIP::verifyOp(DepthToSpaceUPAOp op) {
     if (op.block_size() <= 0) {
@@ -47,7 +33,7 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::DepthToSpaceUPAOp::serialize(VPUIP:
     const auto blockSize = checked_cast<int32_t>(block_size());
     builder.add_blockSize(blockSize);
 
-    builder.add_mode(DepthToSpaceMode2MVCNN(mode()));
+    builder.add_mode(vpux::VPUIP::convertVPUXDepthToSpaceMode2MVCNN(mode()));
 
     const auto paramsOff = builder.Finish();
 

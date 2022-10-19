@@ -61,12 +61,15 @@ std::set<ngraph::helpers::ActivationTypes> supportedTypesMLIR {
     ngraph::helpers::Acosh,
     ngraph::helpers::Atanh,
     ngraph::helpers::Log,
+    ngraph::helpers::Selu,
     ngraph::helpers::Ceiling,
     ngraph::helpers::Gelu,
     ngraph::helpers::Abs,
     ngraph::helpers::Atan,
     ngraph::helpers::Asin,
     ngraph::helpers::Acos,
+    ngraph::helpers::HSigmoid,
+    ngraph::helpers::HardSigmoid,
 };
 
 } // namespace
@@ -99,7 +102,7 @@ class KmbActivationLayerTest : public ActivationLayerTest, virtual public LayerT
     }
 };
 
-class KmbActivationLayerTest_VPUX3700 : public KmbActivationLayerTest {};
+class KmbActivationLayerTest_VPU3720 : public KmbActivationLayerTest {};
 
 TEST_P(KmbActivationLayerTest, CompareWithRefs) {
     Run();
@@ -111,10 +114,10 @@ TEST_P(KmbActivationLayerTest, CompareWithRefs_MLIR) {
 }
 
 // [Track number: E#26724]
-TEST_P(KmbActivationLayerTest_VPUX3700, MLIR_VPUX37XX) {
+TEST_P(KmbActivationLayerTest_VPU3720, MLIR_VPU3720) {
     useCompilerMLIR();
-    setPlatformVPUX37XX();
-    setDefaultHardwareModeMLIR();
+    setPlatformVPU3720();
+    setReferenceSoftwareModeMLIR();
     Run();
 }
 
@@ -155,12 +158,15 @@ const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes
     {Gelu,     {{1.0f}}},
     {Exp,      {{1.0f}}},
     {Log,      {{1.0f}}},
+    {Selu,     {{1.0f}}},
     {Swish,    {{1.0f}}},
     {Negative, {{1.0f}}},
     {Abs,      {{1.0f}}},
     {Atan,     {{1.0f}}},
     {Asin,     {{1.0f}}},
     {Acos,     {{1.0f}}},
+    {HSigmoid, {{1.0f}}},
+    {HardSigmoid,     {{1.0f}}},
     {RoundHalfToEven,       {}},
     {RoundHalfAwayFromZero, {}},
 #if 0 // Unsupported layers
@@ -253,19 +259,23 @@ INSTANTIATE_TEST_SUITE_P(smoke_Activation_Test_ND, KmbActivationLayerTest, basic
 
 INSTANTIATE_TEST_SUITE_P(smoke_Activation_Test_FP16Only, KmbActivationLayerTest, basicFP16OnlyCases, ActivationLayerTest::getTestCaseName);
 
-// ------ VPUX37XX ------
+// ------ VPU3720 ------
 
-const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypesVPUX37XX = {
+const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypesVPU3720 = {
         {Sigmoid,  {{1.0f}}},
+        {HardSigmoid,  {{1.0f}}},
         {HSwish,   {{1.0f}}},
         {Elu,      {{1.0f}}},
         {Sqrt,     {{1.0f}}},
         {Exp,      {{1.0f}}},
+        {Mish,     {{1.0f}}},
         {Tanh,     {{1.0f}}},
+        {Selu,     {{1.0f}}},
+        {Relu,     {{1.0f}}},
 };
 
-const auto basicCasesVPUX37XX = ::testing::Combine(
-        ::testing::ValuesIn(CommonTestUtils::combineParams(activationTypesVPUX37XX)),
+const auto basicCasesVPU3720 = ::testing::Combine(
+        ::testing::ValuesIn(CommonTestUtils::combineParams(activationTypesVPU3720)),
         ::testing::Values(InferenceEngine::Precision::FP16),
         ::testing::Values(InferenceEngine::Precision::FP16),
         ::testing::Values(InferenceEngine::Precision::FP16),
@@ -274,6 +284,6 @@ const auto basicCasesVPUX37XX = ::testing::Combine(
         ::testing::ValuesIn(CommonTestUtils::combineParams(basic)),
         ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));
 
-INSTANTIATE_TEST_SUITE_P(smoke_Activation_Test, KmbActivationLayerTest_VPUX3700, basicCasesVPUX37XX, ActivationLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_precommit_Activation_Test, KmbActivationLayerTest_VPU3720, basicCasesVPU3720, ActivationLayerTest::getTestCaseName);
 
 }  // namespace

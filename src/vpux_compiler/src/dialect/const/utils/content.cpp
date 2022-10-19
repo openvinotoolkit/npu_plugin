@@ -105,8 +105,9 @@ void fillBuf(const Range& range, MutableArrayRef<char> buf) {
 }  // namespace
 
 void vpux::Const::Content::copyTo(MutableArrayRef<char> buf) const {
-    const Bit elemSize = vpux::getElemTypeSize(getElementType());
-    const bool isTrivialStorage = (getElementType() == _storageElemType);
+    const auto elemType = getType().getElementType();
+    const Bit elemSize = vpux::getElemTypeSize(elemType);
+    const bool isTrivialStorage = (elemType == _storageElemType);
     const bool isSubByte = elemSize.count() < CHAR_BIT;
     // Dispatch is required when:
     // 1. The buffer is splat and expressed type doesn't match stored type (non-trivial).
@@ -118,7 +119,7 @@ void vpux::Const::Content::copyTo(MutableArrayRef<char> buf) const {
                           _data.size());
         std::memcpy(buf.data(), _data.data(), buf.size());
     } else {
-        dispatchByElemType<void>(getElementType(), [this, buf](auto dummy) {
+        dispatchByElemType<void>(elemType, [this, buf](auto dummy) {
             using ElemT = std::decay_t<decltype(dummy)>;
             fillBuf(this->getValues<ElemT>(), buf);
         });
@@ -130,7 +131,7 @@ void vpux::Const::Content::copyTo(MutableArrayRef<char> buf) const {
 //
 
 void vpux::Const::Content::fillWithZero() {
-    if (auto perAxisQType = getElementType().dyn_cast_or_null<mlir::quant::UniformQuantizedPerAxisType>()) {
+    if (auto perAxisQType = getType().getElementType().dyn_cast_or_null<mlir::quant::UniformQuantizedPerAxisType>()) {
         const auto outShape = getType().getShape();
         const auto order = getType().getDimsOrder();
         const auto outMemShape = order.toMemoryOrder(outShape);
@@ -162,7 +163,7 @@ void vpux::Const::Content::fillWithZero() {
             mutate(fillChannel);
         }
 
-    } else if (auto qType = getElementType().dyn_cast_or_null<mlir::quant::UniformQuantizedType>()) {
+    } else if (auto qType = getType().getElementType().dyn_cast_or_null<mlir::quant::UniformQuantizedType>()) {
         const auto zp = qType.getZeroPoint();
 
         const auto fillBuffer = [&](auto buffer) {

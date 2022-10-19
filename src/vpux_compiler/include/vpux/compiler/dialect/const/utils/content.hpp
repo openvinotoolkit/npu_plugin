@@ -153,26 +153,6 @@ public:
         return _type;
     }
 
-    int64_t getRank() const {
-        return getType().getRank();
-    }
-
-    ShapeRef getShape() const {
-        return getType().getShape();
-    }
-
-    int64_t getNumElements() const {
-        return getType().getNumElements();
-    }
-
-    mlir::Type getElementType() const {
-        return getType().getElementType();
-    }
-
-    Bit getElemTypeSize() const {
-        return getType().getElemTypeSize();
-    }
-
 public:
     template <typename OutT>
     details::ContentRange<OutT> getValues() const& {
@@ -182,7 +162,8 @@ public:
         });
 
         const auto storageElemTypeSize = vpux::getElemTypeSize(_storageElemType);
-        return details::ContentRange<OutT>(_data, _isSplat, storageElemTypeSize, getNumElements(), std::move(cvtOp));
+        return details::ContentRange<OutT>(_data, _isSplat, storageElemTypeSize, getType().getNumElements(),
+                                           std::move(cvtOp));
     }
 
     template <typename OutT>

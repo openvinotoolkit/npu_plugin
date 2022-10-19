@@ -8,6 +8,7 @@
 #include "vpux/compiler/core/layers.hpp"
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/IE/utils/shape_infer.hpp"
+#include "vpux/compiler/dialect/VPUIP/graph-schema/utils.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/error.hpp"
@@ -58,6 +59,17 @@ mlir::LogicalResult vpux::IE::DepthToSpaceOp::inferReturnTypeComponents(
 
     inferredReturnShapes.emplace_back(outShape, inType);
     return mlir::success();
+}
+
+//
+// inferLayoutInfo
+//
+
+// After support layout with NCHW convert to DMA, can remove this function
+// This is ticket E#41656 to support NCHW layout
+void vpux::IE::DepthToSpaceOp::inferLayoutInfo(vpux::IE::LayerLayoutInfo& info) {
+    info.setInput(0, DimsOrder::NHWC);
+    info.setOutput(0, DimsOrder::NHWC);
 }
 
 namespace {

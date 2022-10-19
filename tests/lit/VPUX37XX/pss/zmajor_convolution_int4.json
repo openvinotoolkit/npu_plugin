@@ -2,21 +2,23 @@
 {
     "architecture": "VPUX37XX",
     "case_type": "ZMajorConvolution",
-    "input": {
-        "shape": [
-            1,
-            32,
-            16,
-            16
-        ],
-        "dtype": "int4",
-        "quantization": {
-            "scale": 1.0,
-            "zeropoint": 0,
-            "low_range": -8,
-            "high_range": 7
+    "input": [
+        {
+            "shape": [
+                1,
+                32,
+                16,
+                16
+            ],
+            "dtype": "int4",
+            "quantization": {
+                "scale": 1.0,
+                "zeropoint": 0,
+                "low_range": -8,
+                "high_range": 7
+            }
         }
-    },
+    ],
     "weight": {
         "shape": [
             64,
@@ -32,21 +34,23 @@
             "high_range": 7
         }
     },
-    "output": {
-        "shape": [
-            1,
-            64,
-            16,
-            16
-        ],
-        "dtype": "int4",
-        "quantization": {
-            "scale": 64,
-            "zeropoint": 0,
-            "low_range": -8,
-            "high_range": 7
+    "output": [
+        {
+            "shape": [
+                1,
+                64,
+                16,
+                16
+            ],
+            "dtype": "int4",
+            "quantization": {
+                "scale": 64,
+                "zeropoint": 0,
+                "low_range": -8,
+                "high_range": 7
+            }
         }
-    },
+    ],
     "conv_op": {
         "stride": [
             1,

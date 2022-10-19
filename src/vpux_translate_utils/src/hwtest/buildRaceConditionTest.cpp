@@ -11,7 +11,7 @@
 #include "vpux/compiler/dialect/VPURT/task.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
 #include "vpux/hwtest/hwtest_utils.hpp"
-#include "vpux/hwtest/ops/hwtests_ops.hpp"
+#include "vpux/hwtest/ops/act_shave_op.hpp"
 
 using namespace vpux;
 
@@ -22,8 +22,8 @@ namespace {
 
 using opBuilderCallback =
         std::function<void(const nb::TestCaseJsonDescriptor&, mlir::ModuleOp, mlir::OpBuilder, Logger&,
-                           SmallVector<mlir::Type>, vpux::VPURT::DeclareBufferOp, vpux::VPURT::DeclareBufferOp,
-                           mlir::ValueRange, mlir::ValueRange, size_t, size_t)>;
+                           ArrayRef<mlir::Type>, SmallVector<vpux::VPURT::DeclareBufferOp>&,
+                           vpux::VPURT::DeclareBufferOp, mlir::ValueRange, mlir::ValueRange, size_t, size_t)>;
 opBuilderCallback getOpBuilder(nb::CaseType caseType) {
     switch (caseType) {
     case nb::CaseType::ActShave:
@@ -61,8 +61,8 @@ void buildRaceConditionTest(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mo
 
     auto underlyingOpBuilder = getOpBuilder(testDescUnderlyingOp->getCaseType());
 
-    auto input = testDescUnderlyingOp->getInputLayer();
-    auto output = testDescUnderlyingOp->getOutputLayer();
+    auto input = testDescUnderlyingOp->getInputLayerList().front();
+    auto output = testDescUnderlyingOp->getOutputLayers().front();
     SmallVector<int64_t> inShape(input.shape.begin(), input.shape.end());
     SmallVector<int64_t> outShape(output.shape.begin(), output.shape.end());
 
@@ -102,12 +102,13 @@ void buildRaceConditionTest(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mo
     for (size_t cluster = 0; cluster < raceConditionParams.requestedClusters; ++cluster) {
         auto inputDataDMA = funcBuilder.create<VPURT::ConfigureBarrierOp>(builder.getUnknownLoc(), barrierNumber++);
 
-        auto inputCMX = createDeclareTensorOp(funcBuilder, inputCMXType, VPURT::BufferSection::CMX_NN,
-                                              static_cast<int>(cluster), inputCMXOffset);
+        SmallVector<vpux::VPURT::DeclareBufferOp> inputCMXVec;
+        inputCMXVec.push_back(createDeclareTensorOp(funcBuilder, inputCMXType, VPURT::BufferSection::CMX_NN,
+                                                    static_cast<int>(cluster), inputCMXOffset));
 
         vpux::VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcBuilder, mlir::ValueRange(),
                                                     mlir::ValueRange(inputDataDMA.barrier()), builder.getUnknownLoc(),
-                                                    funcInput, getTensorResult(inputCMX), cluster, false, false);
+                                                    funcInput, getTensorResult(inputCMXVec[0]), cluster, false, false);
 
         auto localOutputCMXOffset = outputCMXOffset;
         for (size_t unit = 0; unit < raceConditionParams.requestedUnits; ++unit) {
@@ -120,7 +121,7 @@ void buildRaceConditionTest(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mo
                 auto updateBarrier =
                         funcBuilder.create<VPURT::ConfigureBarrierOp>(funcBuilder.getUnknownLoc(), barrierNumber++);
                 underlyingOpBuilder(
-                        *testDescUnderlyingOp, module, funcBuilder, log, inputTypes, inputCMX, outputCMX,
+                        *testDescUnderlyingOp, module, funcBuilder, log, inputTypes, inputCMXVec, outputCMX,
                         iter == 0 ? mlir::ValueRange(inputDataDMA.barrier()) : mlir::ValueRange(waitBarrier.barrier()),
                         mlir::ValueRange(updateBarrier.barrier()), cluster, unit);
                 waitBarrier = updateBarrier;
@@ -144,7 +145,7 @@ void buildRaceConditionTest(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mo
     //  Pass Manager
     mlir::PassManager pm(ctx, mlir::OpPassManager::Nesting::Implicit);
     pm.addPass(VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::ReferenceHW,
-                                           static_cast<int>(raceConditionParams.requestedClusters), log));
+                                           static_cast<int>(raceConditionParams.requestedClusters), 1, log));
     VPUX_THROW_UNLESS(mlir::succeeded(pm.run(module)), "Compilation failed");
 
     //  CNN Operation

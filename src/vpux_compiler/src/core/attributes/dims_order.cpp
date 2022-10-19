@@ -9,8 +9,8 @@
 #include "vpux/compiler/core/attributes/stride_reqs.hpp"
 #include "vpux/compiler/core/attributes/strides.hpp"
 #include "vpux/compiler/dialect/IE/attributes/structs.hpp"
-#include "vpux/compiler/dialect/IERT/attributes/structs.hpp"
-#include "vpux/compiler/dialect/VPURT/types.hpp"
+#include "vpux/compiler/dialect/VPUIP/attributes.hpp"
+#include "vpux/compiler/dialect/VPUIP/types.hpp"
 #include "vpux/compiler/utils/types.hpp"
 
 #include "vpux/utils/IE/format.hpp"
@@ -314,7 +314,7 @@ bool vpux::DimsOrder::isCompatibleLayout(mlir::MemRefType type) const {
 }
 
 bool vpux::DimsOrder::isCompatibleLayout(mlir::Value val) const {
-    const auto type = VPURT::SparseBufferType::getDataType(val).dyn_cast<mlir::MemRefType>();
+    const auto type = val.getType().dyn_cast<mlir::MemRefType>();
     VPUX_THROW_UNLESS(type != nullptr, "Can't get DimsOrder from Type '{0}'", val.getType());
     return isCompatibleLayout(type);
 }

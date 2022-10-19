@@ -33,6 +33,8 @@ constexpr int64_t KMB_CMCONV_CHANNELS_LIMIT = 16;
 constexpr int64_t SUPPORTED_BATCH_SIZE = 1;
 constexpr int64_t MAX_KERNEL_SIZE = 11;
 
+constexpr int64_t VPU_CHANNEL_ALIGNMENT = 16;
+
 //
 // Precision checks
 //

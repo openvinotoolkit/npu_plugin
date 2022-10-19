@@ -1,0 +1,3 @@
+unsigned char sk_eltwise_min_fp16_3720xx_data[] = {
+};
+unsigned int sk_eltwise_min_fp16_3720xx_data_len = 0;

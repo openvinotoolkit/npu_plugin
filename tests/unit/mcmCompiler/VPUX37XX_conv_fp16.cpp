@@ -41,8 +41,8 @@ TEST (mcmCompiler, VPUX37XX_conv_fp16)
     mv::OpModel& om = unit.model();
     build_Function_0(om);
 
-    std::string compDescPath = InferenceEngine::getIELibraryPath() + "/mcm_config/compilation/release_VPUX37XX-sc.json";
-    std::string targetDescPath = InferenceEngine::getIELibraryPath() + "/mcm_config/target/release_VPUX37XX.json";
+    std::string compDescPath = InferenceEngine::getIELibraryPath() + "/mcm_config/compilation/release_VPUX37XX-sc-sc.json";
+    std::string targetDescPath = InferenceEngine::getIELibraryPath() + "/mcm_config/target/release_VPUX37XX-sc.json";
 
     unit.loadCompilationDescriptor(compDescPath);
     unit.loadTargetDescriptor(targetDescPath);

@@ -218,6 +218,120 @@ void getOutputAfterInference(IE::Blob::Ptr& userOutput, const IE::TensorDesc& de
         IE_THROW() << "memcpy error for pull blobs";
     }
 }
+
+std::string getEnvVar(const std::string& varName, bool capitalize, const std::string& defaultValue = "") {
+    const char* rawValue = std::getenv(varName.c_str());
+    std::string value = rawValue == nullptr ? defaultValue : rawValue;
+
+    if (capitalize) {
+        std::transform(value.begin(), value.end(), value.begin(), ::toupper);
+    }
+    return value;
+}
+
+template <class ProfilingInfo, class ZeProfilingInfo>
+ProfilingInfo castZeData(const ZeProfilingInfo& zeData) {
+    ProfilingInfo info{};
+    memcpy(info.name, zeData.name, sizeof(ProfilingInfo::name));
+    memcpy(info.layer_type, zeData.layer_type, sizeof(ProfilingInfo::layer_type));
+
+    info.start_time_ns = zeData.start_time_ns;
+    info.duration_ns = zeData.duration_ns;
+
+    return info;
+}
+
+void saveProfilingDataToFile(const std::vector<ze_profiling_task_info>& taskProfiling,
+                             const std::vector<ze_profiling_layer_info>& layerProfiling) {
+    using namespace vpux::profiling;
+
+    const auto JSON_FORMAT_VALUE = "JSON";
+    const auto TEXT_FORMAT_VALUE = "TEXT";
+    const auto DEFAULT_VERBOSE_VALUE = "LOW";
+    std::map<std::string, size_t> VERBOSITY_TO_NUM_FILTERS = {
+            {DEFAULT_VERBOSE_VALUE, 2},
+            {"MEDIUM", 1},
+            {"HIGH", 0},
+    };
+
+    const auto printProfiling = getEnvVar("VPUX_PRINT_PROFILING", true);
+    if (printProfiling != JSON_FORMAT_VALUE && printProfiling != TEXT_FORMAT_VALUE) {
+        return;
+    }
+
+    const auto outFileName = getEnvVar("VPUX_PROFILING_OUTPUT_FILE", false);
+    auto verbosityValue = getEnvVar("VPUX_PROFILING_VERBOSITY", true, DEFAULT_VERBOSE_VALUE);
+    if (VERBOSITY_TO_NUM_FILTERS.count(verbosityValue) == 0) {
+        verbosityValue = DEFAULT_VERBOSE_VALUE;
+    }
+    std::vector<decltype(&isVariantLevelProfilingTask)> verbosityFilters = {&isVariantLevelProfilingTask,
+                                                                            &isClusterLevelProfilingTask};
+
+    std::ofstream outfile;
+    outfile.open(outFileName, std::ios::out | std::ios::trunc);
+    if (outfile.is_open()) {
+        std::vector<TaskInfo> castedTaskProfiling;
+        std::transform(taskProfiling.begin(), taskProfiling.end(), std::back_inserter(castedTaskProfiling),
+                       [](const auto& zeData) {
+                           auto info = castZeData<TaskInfo>(zeData);
+
+                           info.exec_type = static_cast<TaskInfo::ExecType>(zeData.exec_type);
+                           info.active_cycles = zeData.active_cycles;
+                           info.stall_cycles = zeData.stall_cycles;
+                           info.task_id = zeData.task_id;
+                           return info;
+                       });
+
+        std::vector<LayerInfo> castedLayerProfiling;
+        std::transform(layerProfiling.begin(), layerProfiling.end(), std::back_inserter(castedLayerProfiling),
+                       [](const auto& zeData) {
+                           auto info = castZeData<LayerInfo>(zeData);
+
+                           info.status = static_cast<LayerInfo::layer_status_t>(zeData.status);
+                           info.dpu_ns = zeData.dpu_ns;
+                           info.sw_ns = zeData.sw_ns;
+                           info.dma_ns = zeData.dma_ns;
+                           return info;
+                       });
+
+        std::vector<TaskInfo> filteredTasks;
+        // Driver return tasks at maximum verbosity, so filter them to needed level
+        std::copy_if(castedTaskProfiling.begin(), castedTaskProfiling.end(), std::back_inserter(filteredTasks),
+                     [&](const TaskInfo& task) {
+                         bool toKeep = true;
+                         for (size_t filterId = 0; filterId < VERBOSITY_TO_NUM_FILTERS[verbosityValue]; ++filterId) {
+                             toKeep &= !verbosityFilters[filterId](task);
+                         }
+                         return toKeep;
+                     });
+
+        if (printProfiling == JSON_FORMAT_VALUE) {
+            printProfilingAsTraceEvent(filteredTasks, castedLayerProfiling, outfile, TimeUnitFormat::MS);
+        } else {
+            printProfilingAsText(filteredTasks, castedLayerProfiling, outfile);
+        }
+        outfile.close();
+    } else {
+        std::cerr << "Can't write result into " << outFileName << std::endl;
+    }
+}
+
+template <class ProfilingData, ze_graph_profiling_type_t ZE_PROFILING_TYPE>
+std::vector<ProfilingData> queryProfilingData(zeroProfiling::Profiling* profilingHandle) {
+    uint32_t size = 0;
+    // Obtain the size of the buffer
+    profilingHandle->queryGetData(ZE_PROFILING_TYPE, &size, nullptr);
+
+    if (size % sizeof(ProfilingData) != 0) {
+        IE_THROW() << "Profiling structure size mismatch.";
+    }
+
+    // Allocate enough memory and copy the buffer
+    std::vector<ProfilingData> profilingData(size / sizeof(ProfilingData));
+    profilingHandle->queryGetData(ZE_PROFILING_TYPE, &size, reinterpret_cast<uint8_t*>(profilingData.data()));
+    return profilingData;
+}
+
 }  // namespace
 
 namespace vpux {
@@ -670,33 +784,30 @@ std::map<std::string, IE::InferenceEngineProfileInfo> ZeroExecutor::getLayerStat
     }
 
     const auto supportedProfilingVersion = ZE_MAKE_VERSION(1, 0);
+    auto* profilingHandle = &_pipeline->_profiling[0];
+
     ze_device_profiling_data_properties_t profProp;
-    _pipeline->_profiling[0].getProfilingProperties(&profProp);
+    profilingHandle->getProfilingProperties(&profProp);
     if (profProp.extensionVersion != supportedProfilingVersion) {
         IE_THROW() << "Profiling version mismatch. Probably you need to update the application.";
     }
 
-    uint32_t size = 0;
     if (_config.get<COMPILER_TYPE>() == InferenceEngine::VPUXConfigParams::CompilerType::DRIVER) {
-        // Obtain the size of the buffer
-        _pipeline->_profiling[0].queryGetData(ZE_GRAPH_PROFILING_LAYER_LEVEL, &size, nullptr);
+        const auto zeLayerProfiling =
+                queryProfilingData<ze_profiling_layer_info, ZE_GRAPH_PROFILING_LAYER_LEVEL>(profilingHandle);
+        const auto zeTaskProfiling =
+                queryProfilingData<ze_profiling_task_info, ZE_GRAPH_PROFILING_TASK_LEVEL>(profilingHandle);
 
-        if (size % sizeof(ze_profiling_layer_info) != 0) {
-            IE_THROW() << "Profiling structure size mismatch.";
-        }
-
-        // Allocate enough memory and copy the buffer
-        std::vector<ze_profiling_layer_info> zeLayerProfiling(size / sizeof(ze_profiling_layer_info));
-        _pipeline->_profiling[0].queryGetData(ZE_GRAPH_PROFILING_LAYER_LEVEL, &size,
-                                              reinterpret_cast<uint8_t*>(zeLayerProfiling.data()));
+        saveProfilingDataToFile(zeTaskProfiling, zeLayerProfiling);
 
         // Convert LevelZero profiling structures into InferenceEngineProfileInfo
         return convertZeProfilingLayersToIEInfo(zeLayerProfiling);
     } else {
-        _pipeline->_profiling[0].queryGetData(ZE_GRAPH_PROFILING_RAW, &size, nullptr);
+        uint32_t size = 0;
+        profilingHandle->queryGetData(ZE_GRAPH_PROFILING_RAW, &size, nullptr);
 
         std::unique_ptr<uint8_t[]> rawBytes(new uint8_t[size]);
-        _pipeline->_profiling[0].queryGetData(ZE_GRAPH_PROFILING_RAW, &size, rawBytes.get());
+        profilingHandle->queryGetData(ZE_GRAPH_PROFILING_RAW, &size, rawBytes.get());
 
         // Process raw profiling data on application side
         std::vector<vpux::profiling::LayerInfo> layerProfiling = vpux::profiling::getLayerInfo(

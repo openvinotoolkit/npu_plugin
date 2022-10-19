@@ -53,6 +53,7 @@ DEFINE_uint32(top_k, 1, "Top K parameter for 'classification' mode");
 DEFINE_double(prob_tolerance, 1e-4, "Probability tolerance for 'classification/ssd/yolo' mode");
 
 DEFINE_double(raw_tolerance, 1e-4, "Tolerance for 'raw' mode (absolute diff)");
+DEFINE_double(cosim_threshold, 0.90, "Threshold for 'cosim' mode");
 DEFINE_double(confidence_threshold, 1e-4, "Confidence threshold for Detection mode");
 DEFINE_double(box_tolerance, 1e-4, "Box tolerance for 'detection' mode");
 
@@ -116,6 +117,8 @@ void parseCommandLine(int argc, char* argv[]) {
             std::cout << "    Tolerance:        " << FLAGS_prob_tolerance << std::endl;
         } else if (strEq(FLAGS_mode, "raw")) {
             std::cout << "    Tolerance:        " << FLAGS_raw_tolerance << std::endl;
+        } else if (strEq(FLAGS_mode, "cosim")) {
+            std::cout << "    Threshold:        " << FLAGS_cosim_threshold << std::endl;
         }
     }
     std::cout << "    Log level:        " << FLAGS_log_level << std::endl;
@@ -741,6 +744,76 @@ bool testRAW(const ie::BlobMap& outputs, const ie::BlobMap& refOutputs) {
 }
 
 //
+// Cosine-Similarity mode
+// (using 'cosim_threshold' flag, with expected value in range [0.0 -> 1.0])
+// e.g. '--mode cosim --cosim_threshold 0.98'
+//
+
+bool compareCoSim(
+        const ie::MemoryBlob::Ptr actOutput,
+        const ie::MemoryBlob::Ptr refOutput) {
+    const auto& actDesc = actOutput->getTensorDesc();
+    const auto& refDesc = refOutput->getTensorDesc();
+
+    if (actDesc.getDims() != refDesc.getDims()) {
+        std::cout << "Actual and reference blobs has different shape" << std::endl;
+        return false;
+    }
+
+    const auto actFP32 = vpux::toFP32(vpux::toDefLayout(actOutput));
+    const auto refFP32 = vpux::toFP32(vpux::toDefLayout(refOutput));
+
+    const auto actMem = actFP32->rmap();
+    const auto refMem = refFP32->rmap();
+
+    const auto act = actMem.as<const float*>();
+    const auto ref = refMem.as<const float*>();
+
+    const auto size = refOutput->size();
+
+    double numr=0.0, denA=0.0, denB=0.0;
+    for (size_t i = 0; i < size; ++i) {
+        numr += act[i] * ref[i];
+        denA += act[i] * act[i];
+        denB += ref[i] * ref[i];
+    }
+
+    if(denA==0 || denB==0){
+        std::cout << "Div by ZERO. Cannot compute CoSim metric" << std::endl;
+        return false;
+    }
+
+    const auto similarity = numr / (sqrt(denA) * sqrt(denB));
+
+    if(similarity > 1.0 || similarity < -1.0){
+        std::cout << "Invalid result " << similarity << " (valid range [-1 : +1])" << std::endl;
+        return false;
+    }
+
+    std::cout << "Cosine similarity : " << similarity*100 << "%" << std::endl;
+    return similarity > FLAGS_cosim_threshold;
+}
+
+bool testCoSim(const ie::BlobMap& outputs, const ie::BlobMap& refOutputs) {
+    if (outputs.size() != refOutputs.size()) {
+        std::cout << "Actual and reference has different number of output blobs" << std::endl;
+        return false;
+    }
+
+    for (const auto& actualBlob : outputs) {
+        auto ref_it = refOutputs.find(actualBlob.first);
+        IE_ASSERT(ref_it != refOutputs.end());
+
+        std::cout << "Compare " << actualBlob.first << " with reference" << std::endl;
+        if (!compareCoSim(ie::as<ie::MemoryBlob>(actualBlob.second), ie::as<ie::MemoryBlob>(ref_it->second))) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+//
 // Yolo V2 mode
 //
 bool testYoloV2 (const ie::BlobMap& actualBlobs,
@@ -1002,6 +1075,13 @@ int main(int argc, char* argv[]) {
                     }
                 } else if (strEq(FLAGS_mode, "raw")) {
                     if (testRAW(outputs, refOutputs)) {
+                        std::cout << "PASSED" << std::endl;
+                    } else {
+                        std::cout << "FAILED" << std::endl;
+                        return EXIT_FAILURE;
+                    }
+                } else if (strEq(FLAGS_mode, "cosim")) {
+                    if (testCoSim(outputs, refOutputs)) {
                         std::cout << "PASSED" << std::endl;
                     } else {
                         std::cout << "FAILED" << std::endl;

@@ -20,15 +20,11 @@ typedef fp16 half;
 namespace sw_params {
 #endif
 
-#pragma pack(push, 1)
-
 struct DummyParams {
     uint64_t numIns;
     uint64_t numOuts;
     struct MemRefData tensors[MAX_KERNEL_INPUTS + MAX_KERNEL_OUTPUTS];
 };
-
-#pragma pack (pop)
 
 inline struct BaseKernelParams dummyParamsToBaseKernelParams(struct DummyParams * dummyParams) {
     struct BaseKernelParams rezult;

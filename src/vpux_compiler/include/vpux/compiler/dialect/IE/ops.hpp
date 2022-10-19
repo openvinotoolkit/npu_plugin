@@ -43,6 +43,7 @@ namespace vpux {
 namespace IE {
 
 mlir::LogicalResult verifyOp(CNNNetworkOp op);
+mlir::LogicalResult verifyOp(BucketizeOp op);
 mlir::LogicalResult verifyOp(DataInfoOp op);
 
 //

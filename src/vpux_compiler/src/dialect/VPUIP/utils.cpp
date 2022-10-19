@@ -13,8 +13,29 @@
 #include "vpux/compiler/dialect/IE/utils/resources.hpp"
 #include "vpux/compiler/dialect/VPU/nce_invariant.hpp"
 #include "vpux/compiler/dialect/VPUIP/nce_invariant.hpp"
+#include "vpux/compiler/dialect/VPURT/attributes.hpp"
 
 using namespace vpux;
+
+uint16_t vpux::VPUIP::getProfWorkloadSize(mlir::ModuleOp module) {
+    uint16_t profilingWorkloadSize;
+    switch (VPU::getArch(module)) {
+    case VPU::ArchKind::VPUX30XX:
+    case VPU::ArchKind::VPUX311X:
+        profilingWorkloadSize = VPUIP::HW_DPU_PROFILING_SIZE_BYTES_30XX;
+        break;
+    case VPU::ArchKind::VPUX37XX:
+        profilingWorkloadSize = VPUIP::HW_DPU_PROFILING_SIZE_BYTES_37XX;
+        break;
+    case VPU::ArchKind::VPUX40XX:
+        profilingWorkloadSize = VPUIP::HW_DPU_PROFILING_SIZE_BYTES_40XX;
+        break;
+    default:
+        VPUX_THROW("Not supported architecture");
+    }
+    VPUX_THROW_WHEN(profilingWorkloadSize % sizeof(uint64_t) != 0, "Not supported size of workload");
+    return profilingWorkloadSize;
+}
 
 //
 // Run-time info
@@ -65,7 +86,7 @@ int64_t vpux::VPUIP::getNumAvailableBarriers(mlir::Operation* parentOp) {
             {VPU::ArchKind::VPUX30XX, 64 / 2},  // half barries are used (runtime limitation)
             {VPU::ArchKind::VPUX311X, 64 / 2},  // half barries are used (runtime limitation)
             {VPU::ArchKind::VPUX37XX, 64},      //
-            {VPU::ArchKind::VPUX4000, 64},      //
+            {VPU::ArchKind::VPUX40XX, 64},      //
     };
 
     const auto arch = VPU::getArch(parentOp);
@@ -124,15 +145,15 @@ mlir::Value getAlignedNonConstWeights(mlir::OpBuilder& builder, mlir::Location l
     const auto origFilterType = origFilter.getType().cast<vpux::NDTypeInterface>();
     const auto flatWeightType =
             origFilterType.changeShape(flatWeightShape).changeDimsOrder(DimsOrder::fromValue(origFilter));
-    auto flatWeightsOp = builder.create<IERT::GenericReshapeOp>(loc, flatWeightType, origFilter);
+    auto flatWeightsOp = builder.create<VPUIP::GenericReshapeOp>(loc, flatWeightType, origFilter);
 
     // Step 2: Permute flat input to NCHW.
     auto flatWeightTypeNCHWType = flatWeightType.changeDimsOrder(DimsOrder::NCHW);
     const auto nchwAttr = mlir::AffineMapAttr::get(DimsOrder::NCHW.toAffineMap(ctx));
     const auto flatWeightsDimsAttr =
             mlir::AffineMapAttr::get(DimsOrder::fromValue(flatWeightsOp.output()).toAffineMap(ctx));
-    auto flatWeightsNCHW = builder.create<IERT::PermuteCastOp>(loc, flatWeightTypeNCHWType, flatWeightsOp.output(),
-                                                               nchwAttr, flatWeightsDimsAttr);
+    auto flatWeightsNCHW = builder.create<VPUIP::PermuteCastOp>(loc, flatWeightTypeNCHWType, flatWeightsOp.output(),
+                                                                nchwAttr, flatWeightsDimsAttr);
 
     // Step 3: Create padding for flat NCHW input. IC must be a multiple of 16.
     const auto OC = flatWeightShape[Dims4D::Filter::OC];
@@ -166,20 +187,20 @@ mlir::Value getAlignedNonConstWeights(mlir::OpBuilder& builder, mlir::Location l
     const auto paddingOffsetsAttr = getIntArrayAttr(ctx, paddingOffsets);
     const auto padShapeAttr = getIntArrayAttr(ctx, padShape);
 
-    auto subViewFilter = builder.create<IERT::SubViewOp>(loc, subViewAlloc, filterOffsetsAttr, flatWeightShapeAttr);
-    auto subViewPadding = builder.create<IERT::SubViewOp>(loc, subViewAlloc, paddingOffsetsAttr, padShapeAttr);
+    auto subViewFilter = builder.create<VPUIP::SubViewOp>(loc, subViewAlloc, filterOffsetsAttr, flatWeightShapeAttr);
+    auto subViewPadding = builder.create<VPUIP::SubViewOp>(loc, subViewAlloc, paddingOffsetsAttr, padShapeAttr);
 
-    auto subViewFilterCopy = builder.create<IERT::CopyOp>(loc, flatWeightsNCHW.result(), subViewFilter);
-    auto subViewPaddingCopy = builder.create<IERT::CopyOp>(loc, paddedTensor.output(), subViewPadding);
+    auto subViewFilterCopy = builder.create<VPUIP::CopyOp>(loc, flatWeightsNCHW.result(), subViewFilter);
+    auto subViewPaddingCopy = builder.create<VPUIP::CopyOp>(loc, paddedTensor.output(), subViewPadding);
 
-    auto concatViewOp = builder.create<IERT::ConcatViewOp>(
+    auto concatViewOp = builder.create<VPUIP::ConcatViewOp>(
             loc, SmallVector<mlir::Value>{subViewFilterCopy.output(), subViewPaddingCopy.output()}, subViewAlloc);
 
     // Step 5: Permute the result to NHWC.
     auto outNHWCType = outAllocType.changeDimsOrder(DimsOrder::NHWC);
     const auto nhwcAttr = mlir::AffineMapAttr::get(DimsOrder::NHWC.toAffineMap(ctx));
 
-    auto outOpNCHW = builder.create<IERT::PermuteCastOp>(loc, outNHWCType, concatViewOp.output(), nhwcAttr, nchwAttr);
+    auto outOpNCHW = builder.create<VPUIP::PermuteCastOp>(loc, outNHWCType, concatViewOp.output(), nhwcAttr, nchwAttr);
 
     return outOpNCHW.result();
 }
@@ -214,4 +235,23 @@ mlir::Value vpux::VPUIP::alignDepthWiseWeightsTensor(mlir::OpBuilder& builder, m
     } else {
         return getAlignedNonConstWeights(builder, loc, origFilter, flatWeightShape, padding);
     }
+}
+
+// In case operation is wrapped in NCEClusterTiling this method will return mlir::Value at parent level
+// corresponding to mlir::Value used by wrapped operation
+// In case operation is not wrapped in NCEClusterTiling then just return same mlir::Value
+mlir::Value vpux::VPUIP::getTopBufferOfNCEClusterTiling(mlir::Operation* innerOp, mlir::Value buffer) {
+    if (buffer == nullptr) {
+        return buffer;
+    }
+
+    if (auto nceClustOp = mlir::dyn_cast<VPUIP::NCEClusterTilingOp>(innerOp->getParentOp())) {
+        auto* bodyBlock = &nceClustOp.body().front();
+        const auto blockArg = buffer.dyn_cast<mlir::BlockArgument>();
+        VPUX_THROW_WHEN(blockArg == nullptr || blockArg.getOwner() != bodyBlock,
+                        "Matching argument was not identified");
+
+        return nceClustOp->getOperand(blockArg.getArgNumber());
+    }
+    return buffer;
 }

@@ -30,10 +30,10 @@ void buildReadAfterWriteDPUACTTest(const nb::TestCaseJsonDescriptor& testDesc, m
     auto loc = builder.getUnknownLoc();
     const auto int32 = builder.getIntegerType(32, true);
 
-    const auto input = testDesc.getInputLayer();
+    const auto input = testDesc.getInputLayerList().front();
     const auto weights = testDesc.getWeightLayer();
     const auto conv = testDesc.getConvLayer();
-    const auto output = testDesc.getOutputLayer();
+    const auto output = testDesc.getOutputLayers().front();
     const auto iterationCount = testDesc.getIterationCount();
     const auto cluster = testDesc.getClusterNumber();
 
@@ -105,13 +105,12 @@ void buildReadAfterWriteDPUACTTest(const nb::TestCaseJsonDescriptor& testDesc, m
     auto weightsAttribute = vpux::Const::ContentAttr::get(weightsValues);
     weightsAttribute = weightsAttribute.reorder(vpux::DimsOrder::OYXI);
 
-    auto qty = weightsType.dyn_cast<mlir::quant::QuantizedType>();
-
-    if (qty != nullptr) {
+    if (auto qty = weightsType.dyn_cast<mlir::quant::QuantizedType>()) {
+        const auto quantizedType = vpux::changeStorageType(qty, weightsAttribute.getType().getElementType());
+        weightsAttribute = weightsAttribute.quantCast(quantizedType);
         if (qty.getStorageType().isInteger(4)) {
             weightsAttribute = weightsAttribute.bitPack(4);
         }
-        weightsAttribute = weightsAttribute.quantCast(qty);
     }
 
     const auto weightsDDRType =
@@ -119,8 +118,6 @@ void buildReadAfterWriteDPUACTTest(const nb::TestCaseJsonDescriptor& testDesc, m
 
     auto weightsCMX = createDeclareTensorOp(functionBuilder, VPURT::BufferSection::CMX_NN, weightsShape, weightsType,
                                             vpux::DimsOrder::OYXI, cluster, WEIGHTS_CMX_OFFSET);
-    auto inputCMX = createDeclareTensorOp(functionBuilder, VPURT::BufferSection::CMX_NN, inputShape, inputType,
-                                          vpux::DimsOrder::NHWC, cluster, INPUT_CMX_OFFSET);
 
     auto weightsDDR = functionBuilder.create<vpux::Const::DeclareOp>(loc, weightsDDRType, weightsAttribute);
 
@@ -153,9 +150,12 @@ void buildReadAfterWriteDPUACTTest(const nb::TestCaseJsonDescriptor& testDesc, m
 
     auto updateBarrier = functionBuilder.create<vpux::VPURT::ConfigureBarrierOp>(loc, 0);
 
+    SmallVector<vpux::VPURT::DeclareBufferOp> inputCMXVec;
+    inputCMXVec.push_back(createDeclareTensorOp(functionBuilder, VPURT::BufferSection::CMX_NN, inputShape, inputType,
+                                                vpux::DimsOrder::NHWC, cluster, INPUT_CMX_OFFSET));
     VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(),
                                           mlir::ValueRange(updateBarrier.barrier()), loc, functionInput,
-                                          inputCMX.getOperation()->getResult(0));
+                                          inputCMXVec[0].getOperation()->getResult(0));
     VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(
             functionBuilder, mlir::ValueRange(), mlir::ValueRange(updateBarrier.barrier()), loc,
             weightsDDR.getOperation()->getResult(0), weightsCMX.getOperation()->getResult(0));
@@ -178,7 +178,7 @@ void buildReadAfterWriteDPUACTTest(const nb::TestCaseJsonDescriptor& testDesc, m
 
     for (std::size_t i = 1; i + 1 < iterationCount; i += 2) {
         if (i != 1) {
-            inputCMX = outputDPUCMX;
+            inputCMXVec[0] = outputDPUCMX;
             OUTPUT_ACT_CMX_OFFSET = OUTPUT_DPU_CMX_OFFSET + outputDPUCMXSize - rewritable_bytes;
             outputACTCMX = createDeclareTensorOp(functionBuilder, VPURT::BufferSection::CMX_NN, outputShape, outputType,
                                                  DimsOrder::NHWC, cluster, OUTPUT_ACT_CMX_OFFSET);
@@ -196,9 +196,9 @@ void buildReadAfterWriteDPUACTTest(const nb::TestCaseJsonDescriptor& testDesc, m
         updateBarrier = functionBuilder.create<vpux::VPURT::ConfigureBarrierOp>(loc, i);
         auto nceTask = VPURT::wrapIntoTaskOp<VPUIP::NCEClusterTaskOp>(
                 functionBuilder, mlir::ValueRange(waitBarrier.barrier()), mlir::ValueRange(updateBarrier.barrier()),
-                loc, inputCMX.buffer(), weightsCMX.buffer(), weightsTableCMX.buffer(), nullptr, inputCMX.buffer(),
-                outputDPUCMX.buffer(), outputDPUCMX.buffer(), vpux::VPUIP::NCETaskType::CONV, kernelSize, strides,
-                kernelPaddings, nullptr, nullptr);
+                loc, inputCMXVec[0].buffer(), weightsCMX.buffer(), weightsTableCMX.buffer(), nullptr, nullptr,
+                inputCMXVec[0].buffer(), outputDPUCMX.buffer(), outputDPUCMX.buffer(), vpux::VPUIP::NCETaskType::CONV,
+                kernelSize, strides, kernelPaddings, nullptr, nullptr);
 
         const auto start = getIntArrayAttr(ctx, std::vector<std::int64_t>{0, 0, 0});
         const auto end = getIntArrayAttr(
@@ -210,7 +210,7 @@ void buildReadAfterWriteDPUACTTest(const nb::TestCaseJsonDescriptor& testDesc, m
         waitBarrier = updateBarrier;
         updateBarrier = functionBuilder.create<vpux::VPURT::ConfigureBarrierOp>(loc, i + 1);
 
-        buildActShaveTask(testDesc, module, functionBuilder, log, inputTypes, inputCMX, outputACTCMX,
+        buildActShaveTask(testDesc, module, functionBuilder, log, makeArrayRef(inputTypes), inputCMXVec, outputACTCMX,
                           mlir::ValueRange(waitBarrier.barrier()), mlir::ValueRange(updateBarrier.barrier()), cluster);
 
         waitBarrier = updateBarrier;
@@ -222,7 +222,7 @@ void buildReadAfterWriteDPUACTTest(const nb::TestCaseJsonDescriptor& testDesc, m
     functionBuilder.create<mlir::ReturnOp>(loc, mlir::ValueRange{functionOutput});
 
     mlir::PassManager pm(ctx, mlir::OpPassManager::Nesting::Implicit);
-    pm.addPass(VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::ReferenceHW, 1, log));
+    pm.addPass(VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::ReferenceHW, 1, 1, log));
     if (conv.compress) {
         pm.addPass(VPUIP::createCompressWeightsPass(log));
     }

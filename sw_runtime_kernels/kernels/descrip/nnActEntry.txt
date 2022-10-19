@@ -1,9 +1,11 @@
 # Copyright (C) 2022 Intel Corporation
 # SPDX-License-Identifier: Apache 2.0
 
+set(rt_kernel "yes")
 set(kernel_src "nnActEntry.cpp")
-set(kernel_src_dir "act_runtime/src")
+set(kernel_src_dir "${FIRMWARE_VPU_DIR}/system/nn/act_runtime/src")
 
+set(kernel_cpunum "3720")
 set(optimization_opts "") # -O3
 
 set(link_script_file "${CMAKE_SOURCE_DIR}/prebuild/shave_rt_kernel.ld")
@@ -17,14 +19,20 @@ set(include_dirs_list
   "${FIRMWARE_VPU_DIR}/drivers/shave/svuL1c/inc"
   "${FIRMWARE_VPU_DIR}/drivers/shave/svuShared_3600/inc"
   "${FIRMWARE_VPU_DIR}/drivers/vcpr/perf_timer/inc"
-  "${FIRMWARE_VPU_DIR}/system/nn_VPUX37XX/act_runtime/inc"
   "${FIRMWARE_VPU_DIR}/system/shave/svuCtrl_3600/inc"
-  "${CMAKE_SOURCE_DIR}/../jtag_tests/app/act_shave_lib/leon/common_runtime/inc"
-  "${CMAKE_SOURCE_DIR}/../jtag_tests/app/nn/common/inc"
+  "${FIRMWARE_VPU_DIR}/system/nn/act_runtime/inc"
+  "${FIRMWARE_VPU_DIR}/system/nn/common_runtime/inc/3720"
+  "${FIRMWARE_VPU_DIR}/system/nn/common/inc"
+  "${FIRMWARE_VPU_DIR}/system/nn/common/inc/3720"
+  "${FIRMWARE_VPU_DIR}/system/nn/include/"
+  "${FIRMWARE_VPU_DIR}/drivers/memory/dma/inc/"
 )
 
+
 set(extra_src_list
-  "${CMAKE_SOURCE_DIR}/../jtag_tests/app/act_shave_lib/leon/common_runtime/src/nn_fifo_manager.cpp"
+   "${FIRMWARE_VPU_DIR}/system/nn/common_runtime/src/3720/nn_fifo_manager.cpp"
+   "${FIRMWARE_VPU_DIR}/drivers/nn/src/nn_fifo.cpp"
+   "${FIRMWARE_VPU_DIR}/drivers/shave/svuShared_3600/src/HglShaveId.c"	
 )
 
 # performance measurement support
@@ -34,7 +42,5 @@ list(APPEND define_symbols_list
 )
 
 list(APPEND extra_src_list
-  "${CMAKE_SOURCE_DIR}/../jtag_tests/app/act_shave_lib/leon/common_runtime/src/nn_perf_manager.cpp"
+ "${FIRMWARE_VPU_DIR}/system/nn/common_runtime/src/3720/nn_perf_manager.cpp"
 )
-
-#"${FIRMWARE_VPU_DIR}/drivers/shave/svuShared_3600/src/HglShaveId.c"

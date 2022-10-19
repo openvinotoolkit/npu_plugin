@@ -168,13 +168,14 @@ mlir::LogicalResult vpux::VPU::verifyOp(NCEMaxPoolOp op) {
 }
 
 //
-// InferShapedTypeOpInterface
+// InferTypeOpInterface
 //
 
-mlir::LogicalResult vpux::VPU::NCEMaxPoolOp::inferReturnTypeComponents(
-        mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
-        mlir::DictionaryAttr attrs, mlir::RegionRange,
-        SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
+mlir::LogicalResult vpux::VPU::NCEMaxPoolOp::inferReturnTypes(mlir::MLIRContext* ctx,
+                                                              mlir::Optional<mlir::Location> optLoc,
+                                                              mlir::ValueRange operands, mlir::DictionaryAttr attrs,
+                                                              mlir::RegionRange /*regions*/,
+                                                              mlir::SmallVectorImpl<mlir::Type>& inferredReturnTypes) {
     const auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
 
     NCEMaxPoolOpAdaptor op(operands, attrs);
@@ -205,9 +206,10 @@ mlir::LogicalResult vpux::VPU::NCEMaxPoolOp::inferReturnTypeComponents(
                                                  return checked_cast<int64_t>(val);
                                              }));
 
-    const auto elemType = op.input().getType().cast<vpux::NDTypeInterface>().getElementType();
+    const auto inputType = op.input().getType().cast<vpux::NDTypeInterface>();
+    const auto outputType = inputType.changeShape(Shape(outputShape));
 
-    inferredReturnShapes.emplace_back(outputShape, elemType);
+    inferredReturnTypes.push_back(outputType);
     return mlir::success();
 }
 
@@ -220,26 +222,10 @@ void vpux::VPU::NCEMaxPoolOp::inferLayoutInfo(IE::LayerLayoutInfo& info) {
 }
 
 //
-// AlignedChannelsOpInterface
-//
-
-bool vpux::VPU::NCEMaxPoolOp::checkChannelRestrictions(int64_t channels) {
-    const auto arch = getArch(*this);
-
-    if (arch == VPU::ArchKind::VPUX37XX) {
-        // HW restrictions for channel number
-        static const std::unordered_set<int64_t> availableChannels{16, 32, 64};
-        return availableChannels.count(channels) != 0;
-    }
-
-    return true;
-}
-
-//
 // TilingBuilderOpInterface
 //
 
-vpux::InputTiling vpux::VPU::NCEMaxPoolOp::backInferTileInfo(const vpux::TileInfo& outputTile) {
+vpux::InputTiling vpux::VPU::NCEMaxPoolOp::backInferTileInfo(const vpux::TileInfo& outputTile, vpux::Logger) {
     const auto origInputShape = getShape(input());
     const auto origPadding = toPadInfo(pad());
 
@@ -282,4 +268,17 @@ SmallVector<int64_t> vpux::VPU::NCEMaxPoolOp::getStrides() {
 
 vpux::VPU::PaddingAttr vpux::VPU::NCEMaxPoolOp::getPad() {
     return padAttr();
+}
+
+bool vpux::VPU::NCEMaxPoolOp::checkStrategyCompatibility(VPU::MultiClusterStrategy strategy) {
+    return strategy == VPU::MultiClusterStrategy::Clustering ||
+           strategy == VPU::MultiClusterStrategy::SplitOverHeight || strategy == VPU::MultiClusterStrategy::HKSwitch;
+}
+
+//
+// serialize
+//
+
+EMU::BlobWriter::SpecificTask vpux::VPU::NCEMaxPoolOp::serialize(EMU::BlobWriter& /*writer*/) {
+    VPUX_THROW("NCEMaxPoolOp shouldn't have a serializer");
 }

@@ -16,22 +16,22 @@
 using namespace vpux;
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::UpsamplingUPAOp::serialize(VPUIP::BlobWriter& writer) {
-    SmallVector<int32_t> pad_x = {(int32_t)pad_l()[0].cast<mlir::IntegerAttr>().getInt(),
-                                  (int32_t)pad_r()[0].cast<mlir::IntegerAttr>().getInt()};
+    SmallVector<int32_t> pad_x = {checked_cast<int32_t>(pad_l()[0].cast<mlir::IntegerAttr>().getInt()),
+                                  checked_cast<int32_t>(pad_r()[0].cast<mlir::IntegerAttr>().getInt())};
     auto pad_x_vector = writer.createVector(pad_x);
 
-    SmallVector<int32_t> pad_y = {(int32_t)pad_l()[1].cast<mlir::IntegerAttr>().getInt(),
-                                  (int32_t)pad_r()[1].cast<mlir::IntegerAttr>().getInt()};
+    SmallVector<int32_t> pad_y = {checked_cast<int32_t>(pad_l()[1].cast<mlir::IntegerAttr>().getInt()),
+                                  checked_cast<int32_t>(pad_r()[1].cast<mlir::IntegerAttr>().getInt())};
     auto pad_y_vector = writer.createVector(pad_y);
 
-    SmallVector<int32_t> pad_z = {(int32_t)pad_l()[2].cast<mlir::IntegerAttr>().getInt(),
-                                  (int32_t)pad_r()[2].cast<mlir::IntegerAttr>().getInt()};
+    SmallVector<int32_t> pad_z = {checked_cast<int32_t>(pad_l()[2].cast<mlir::IntegerAttr>().getInt()),
+                                  checked_cast<int32_t>(pad_r()[2].cast<mlir::IntegerAttr>().getInt())};
     auto pad_z_vector = writer.createVector(pad_z);
 
     MVCNN::UpsamplingParamsBuilder builder(writer);
-    builder.add_upsampling_factor_x((int32_t)upsampling_factor()[0].cast<mlir::IntegerAttr>().getInt());
-    builder.add_upsampling_factor_y((int32_t)upsampling_factor()[1].cast<mlir::IntegerAttr>().getInt());
-    builder.add_upsampling_factor_z((int32_t)upsampling_factor()[2].cast<mlir::IntegerAttr>().getInt());
+    builder.add_upsampling_factor_x(checked_cast<int32_t>(upsampling_factor()[0].cast<mlir::IntegerAttr>().getInt()));
+    builder.add_upsampling_factor_y(checked_cast<int32_t>(upsampling_factor()[1].cast<mlir::IntegerAttr>().getInt()));
+    builder.add_upsampling_factor_z(checked_cast<int32_t>(upsampling_factor()[2].cast<mlir::IntegerAttr>().getInt()));
     builder.add_pad_x(pad_x_vector);
     builder.add_pad_y(pad_y_vector);
     builder.add_pad_z(pad_z_vector);

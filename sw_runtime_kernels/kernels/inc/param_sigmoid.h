@@ -10,14 +10,10 @@
 namespace sw_params {
 #endif
 
-#pragma pack(push, 1)
-
 struct SigmoidParams {
     struct MemRefData input;
     struct MemRefData output;
 };
-
-#pragma pack (pop)
 
 inline struct BaseKernelParams ToBaseKernelParams(struct SigmoidParams * params) {
     struct BaseKernelParams result;

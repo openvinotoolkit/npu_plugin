@@ -370,6 +370,14 @@ typename Opt::ValueType Config::get() const {
     VPUX_THROW_WHEN(it->second == nullptr, "Got NULL OptionValue for '{0}'", Opt::key());
 
     const auto optVal = std::dynamic_pointer_cast<details::OptionValueImpl<ValueType>>(it->second);
+#if defined(__CHROMIUMOS__)
+    if (optVal == nullptr) {
+        if (llvm::getTypeName<ValueType>().equals(it->second->getTypeName())) {
+            const auto val = std::static_pointer_cast<details::OptionValueImpl<ValueType>>(it->second);
+            return val->getValue();
+        }
+    }
+#endif
     VPUX_THROW_WHEN(optVal == nullptr, "Option '{0}' has wrong parsed type: expected '{1}', got '{2}'", Opt::key(),
                     llvm::getTypeName<ValueType>(), it->second->getTypeName());
 

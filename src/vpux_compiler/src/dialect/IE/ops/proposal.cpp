@@ -27,7 +27,9 @@ mlir::LogicalResult vpux::IE::ProposalOp::inferReturnTypeComponents(
     // out shape must be [batch_size * post_nms_topn, 5]
     const SmallVector<int64_t> outShape{inType.getShape().front() * proposal.proposal_attrs().postNmsTopN().getInt(),
                                         5};
+    const SmallVector<int64_t> probsShape{inType.getShape().front() * proposal.proposal_attrs().postNmsTopN().getInt()};
     inferredReturnShapes.emplace_back(outShape, inType.getElementType());
+    inferredReturnShapes.emplace_back(probsShape, inType.getElementType());
 
     return mlir::success();
 }

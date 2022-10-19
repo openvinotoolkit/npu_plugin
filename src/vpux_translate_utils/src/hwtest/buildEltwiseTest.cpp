@@ -10,7 +10,7 @@
 #include <mlir/Dialect/Quant/QuantTypes.h>
 
 #include "vpux/compiler/dialect/VPU/passes.hpp"
-#include "vpux/compiler/dialect/VPU/ppe_utils.hpp"
+#include "vpux/compiler/dialect/VPU/utils/ppe_utils.hpp"
 #include "vpux/compiler/dialect/VPUIP/attributes.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
@@ -24,10 +24,11 @@ namespace hwtest {
 void buildEltwiseAdd(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module, mlir::OpBuilder builder,
                      Logger& log, mlir::Type inputType, mlir::Type weightsType, mlir::Type outputType) {
     auto* ctx = builder.getContext();
+    auto arch = testDesc.getArchitecture();
 
-    auto input = testDesc.getInputLayer();
+    auto input = testDesc.getInputLayerList().front();
     auto weight = testDesc.getWeightLayer();
-    auto output = testDesc.getOutputLayer();
+    auto output = testDesc.getOutputLayers().front();
 
     SmallVector<int64_t> in_shape(input.shape.begin(), input.shape.end());
     SmallVector<int64_t> weights_shape(weight.shape.begin(), weight.shape.end());
@@ -103,15 +104,16 @@ void buildEltwiseAdd(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp 
     auto nceTask = VPURT::wrapIntoTaskOp<VPUIP::NCEClusterTaskOp>(
             funcbuilder, mlir::ValueRange(barrier0.barrier()), mlir::ValueRange(barrier1.barrier()),
             builder.getUnknownLoc(), outputcmx_type, inputcmx.getOperation()->getResult(0),
-            weightscmx.getOperation()->getResult(0), mlir::Value(), nullptr,
-            parent_inputcmx.getOperation()->getResult(0), parent_outputcmx.getOperation()->getResult(0),
-            outputcmx.getOperation()->getResult(0), VPUIP::NCETaskType::ELTWISE, mlir::ArrayAttr(), mlir::ArrayAttr(),
-            VPU::PaddingAttr(), actChannelLength, /*is_continued*/ nullptr, /*sp_pattern*/ nullptr);
+            weightscmx.getOperation()->getResult(0), mlir::Value(), /*instruction_table_list=*/nullptr,
+            /*activation_window=*/nullptr, parent_inputcmx.getOperation()->getResult(0),
+            parent_outputcmx.getOperation()->getResult(0), outputcmx.getOperation()->getResult(0),
+            VPUIP::NCETaskType::ELTWISE, mlir::ArrayAttr(), mlir::ArrayAttr(), VPU::PaddingAttr(), actChannelLength,
+            /*is_continued*/ nullptr, /*sp_pattern*/ nullptr);
 
     int64_t clampLow = std::numeric_limits<int32_t>::min();
     int64_t clampHigh = std::numeric_limits<int32_t>::max();
-    int64_t LreluMult = 1;
-    int64_t LreluShift = 0;
+    int64_t bypassMult = 1;
+    int64_t bypassShift = 0;
 
     if (auto outElemQType = outputType.template dyn_cast<mlir::quant::QuantizedType>()) {
         const auto zps = extractScalesAndZeroPoints(outputType).second;
@@ -123,15 +125,18 @@ void buildEltwiseAdd(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp 
     // Since Eltwise operation doesn't have weights table it requires final quantization scaling
     // to be part of output tensor description. Scale vector will be placed in PPE block and
     // later used during NCE task serialization
-    auto quantScale = VPU::calculateQuantScaleVectorForEltwise(inputcmx_type, weightscmx_type, outputcmx_type,
-                                                               testDesc.getArchitecture(), false);
-    if (quantScale.hasValue()) {
-        const auto scale = quantScale.getValue();
-        const auto scaleApproximation = QuantizationApproximation(testDesc.getArchitecture(), scale);
-        nceTask.addPPETask(funcbuilder, VPU::PPEMode::ADD, clampLow, clampHigh, LreluMult, LreluShift,
-                           scaleApproximation.mult(), scaleApproximation.shift());
+    auto eltwiseQuantScale =
+            VPU::calculateQuantScaleVectorForEltwise(inputcmx_type, weightscmx_type, outputcmx_type, arch, false);
+    if (inputcmx_type.getElementType().isa<mlir::FloatType>()) {
+        auto fpClampLow = std::numeric_limits<float>::min();
+        auto fpClampHigh = std::numeric_limits<float>::max();
+        nceTask.addPPETask(funcbuilder, VPU::PPEMode::ADD, VPU::NCESparsity::toHex(fpClampLow),
+                           VPU::NCESparsity::toHex(fpClampHigh), bypassMult, bypassShift, bypassMult, bypassShift,
+                           bypassShift, eltwiseQuantScale);
     } else {
-        nceTask.addPPETask(funcbuilder, VPU::PPEMode::ADD, clampLow, clampHigh, LreluMult, LreluShift);
+        const auto scaleApproximation = QuantizationApproximation(arch, eltwiseQuantScale);
+        nceTask.addPPETask(funcbuilder, VPU::PPEMode::ADD, clampLow, clampHigh, bypassMult, bypassShift,
+                           scaleApproximation.mult(), scaleApproximation.shift());
     }
 
     // Create DPU task for NCE task
@@ -152,7 +157,7 @@ void buildEltwiseAdd(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp 
 
     // set runtime resources
     mlir::PassManager pm(ctx, mlir::OpPassManager::Nesting::Implicit);
-    pm.addPass(VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::DefaultHW, None, log));
+    pm.addPass(VPU::createInitCompilerPass(arch, VPU::CompilationMode::DefaultHW, None, None, log));
 
     VPUX_THROW_UNLESS(mlir::succeeded(pm.run(module)), "Compilation failed");
 

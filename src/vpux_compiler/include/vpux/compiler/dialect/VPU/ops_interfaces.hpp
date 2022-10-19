@@ -19,6 +19,12 @@ namespace vpux {
 namespace VPU {
 
 //
+// LayerOpInterface
+//
+
+mlir::LogicalResult verifyLayer(mlir::Operation* op);
+
+//
 // SparseOpInterface
 //
 
@@ -39,6 +45,41 @@ mlir::Operation* addWorkload(mlir::Region& workloads, mlir::OpBuilder& builder, 
                              ShapeRef sizes, PaddingAttr pad, MPEMode mpeMode, mlir::IntegerAttr clusterId);
 
 }  // namespace details
+
+//
+// TilingBuilderOpInterface
+//
+
+mlir::Value makeTile(mlir::OpBuilder& builder, mlir::Location baseLoc, mlir::Value origVal, const TileInfo& tile,
+                     StringRef valName);
+
+//
+// TilingInfoOpInterface
+//
+
+mlir::LogicalResult verifyTilingInfo(mlir::Operation* op);
+
+//
+// EltwiseOp
+//
+
+mlir::LogicalResult verifyEltwiseOp(mlir::Operation* op);
+
+template <typename ConcreteOp>
+class EltwiseOp : public mlir::OpTrait::TraitBase<ConcreteOp, EltwiseOp> {
+public:
+    static mlir::LogicalResult verifyTrait(mlir::Operation* op) {
+        return VPU::verifyEltwiseOp(op);
+    }
+
+    InputTiling backInferTileInfo(const vpux::TileInfo& outputTile, vpux::Logger) {
+        return backInferEltwiseTile(this->getOperation(), outputTile);
+    }
+
+    void adjustAttrs(const TilingInfo&, const TileInfo&) {
+        // Do nothing
+    }
+};
 
 }  // namespace VPU
 }  // namespace vpux

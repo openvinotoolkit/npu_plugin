@@ -33,6 +33,14 @@ def Const_TransformAttrInterface : AttrInterface<"TransformAttrInterface"> {
             "vpux::Const::Content", "transform",
             // HACK: it should be rvalue-reference, but can't use it due to auto-generated code limitation
             (ins "vpux::Const::Content&":$input)
+        >,
+
+        InterfaceMethod<
+            "Get transformation location requirement",
+            "vpux::Const::details::PositionRequirement", "getPositionRequirement",
+            (ins), [{}], [{
+                return vpux::Const::details::PositionRequirement::NONE;
+            }]
         >
     ];
 }

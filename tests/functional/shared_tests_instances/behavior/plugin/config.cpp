@@ -16,7 +16,8 @@ const std::vector<std::map<std::string, std::string>> Configs = {
     {{CONFIG_KEY(DEVICE_ID), ""}},
     {{VPUX_CONFIG_KEY(THROUGHPUT_STREAMS), "1"}},
     {{KMB_CONFIG_KEY(THROUGHPUT_STREAMS), "1"}},
-    {{CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS), "1"}}
+    {{CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS), "1"}},
+    {{CONFIG_KEY(PERFORMANCE_HINT), CONFIG_VALUE(LATENCY)}}
 };
 
 const std::vector<std::map<std::string, std::string>> InConfigs = {
@@ -25,7 +26,8 @@ const std::vector<std::map<std::string, std::string>> InConfigs = {
     {{CONFIG_KEY(DEVICE_ID), "SOME_DEVICE_ID"}},
     {{VPUX_CONFIG_KEY(THROUGHPUT_STREAMS), "TWENTY"}},
     {{KMB_CONFIG_KEY(THROUGHPUT_STREAMS), "TWENTY"}},
-    {{CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS), "TWENTY"}}
+    {{CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS), "TWENTY"}},
+    {{CONFIG_KEY(PERFORMANCE_HINT), "IMPRESS_ME"}}
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, CorrectConfigTests,

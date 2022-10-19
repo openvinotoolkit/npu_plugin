@@ -71,6 +71,18 @@ int64_t vpux::getNumThroughputStreams(const Config& config, Optional<int> numNet
 }
 
 //
+// EXECUTOR_STREAMS
+//
+
+int64_t vpux::getNumOptimalInferRequests(const Config& config) {
+    if (config.get<PERFORMANCE_HINT>() == ov::hint::PerformanceMode::LATENCY) {
+        return config.get<EXECUTOR_STREAMS>();
+    } else {
+        return 2 * config.get<EXECUTOR_STREAMS>();
+    }
+}
+
+//
 // GRAPH_COLOR_FORMAT
 //
 
@@ -140,6 +152,15 @@ ov::hint::Priority vpux::MODEL_PRIORITY::parse(StringRef val) {
 
 std::string vpux::MODEL_PRIORITY::toString(const ov::hint::Priority& val) {
     std::stringstream strStream;
-    strStream << val;
+    if (val == ov::hint::Priority::LOW) {
+        strStream << "MODEL_PRIORITY_LOW";
+    } else if (val == ov::hint::Priority::MEDIUM) {
+        strStream << "MODEL_PRIORITY_MED";
+    } else if (val == ov::hint::Priority::HIGH) {
+        strStream << "MODEL_PRIORITY_HIGH";
+    } else {
+        VPUX_THROW("No valid string for current MODEL_PRIORITY option");
+    }
+
     return strStream.str();
 }

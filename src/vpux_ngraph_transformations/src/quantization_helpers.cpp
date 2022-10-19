@@ -6,6 +6,7 @@
 // clang-format off
 
 #include "vpux/quantization_helpers.hpp"
+#include "vpux/utils/core/numeric.hpp"
 #include <ie_common.h>
 #include <ngraph/runtime/reference/autobroadcast_binop.hpp>
 #include <ngraph/node.hpp>
@@ -16,6 +17,8 @@
 #include <algorithm>
 #include <vector>
 #include <ngraph/ops.hpp>
+
+using namespace vpux;
 
 int64_t calculateZeroPoint(float low, float high, int levels, const ngraph::element::Type& elemType) {
     IE_ASSERT((low <= 0.f) && (high >= 0.f) && (low != high));
@@ -79,10 +82,6 @@ double clamp(double val, double low, double high) {
     return std::min(high, std::max(low, val));
 }
 
-bool different(double v1, double v2) {
-    return std::abs(v1 - v2) > std::max(std::max(std::abs(v1), std::abs(v2)) * 0.000001, 0.000001);
-}
-
 void align_zp(float &min, float &max, const int max_levels) {
     double zp = calculateZeroPoint(min, max, max_levels, ngraph::element::u8);
     double scale = calculateScale(min, max, max_levels);
@@ -134,7 +133,7 @@ void replace_node_if_changed(const std::shared_ptr<ngraph::op::v0::Constant>& no
     auto node_vals = node->cast_vector<double>();
     auto new_node_vals = new_node->cast_vector<double>();
     for (size_t i = 0; i < node_vals.size(); i++) {
-        changed |= different(node_vals[i], new_node_vals[i]);
+        changed |= !isDoubleEqual(node_vals[i], new_node_vals[i]);
     }
 
     if (changed)
@@ -152,7 +151,7 @@ bool replace_node_if_changed(const std::shared_ptr<ngraph::op::v0::Constant>& no
     auto node_vals = node->cast_vector<double>();
     auto new_node_vals = new_node->cast_vector<double>();
     for (size_t i = 0; i < node_vals.size(); i++) {
-        changed |= different(node_vals[i], new_node_vals[i]);
+        changed |= !isDoubleEqual(node_vals[i], new_node_vals[i]);
     }
 
     if (changed)
@@ -172,7 +171,7 @@ void replace_node_if_changed(const std::shared_ptr<ngraph::op::v0::Constant>& no
     auto node_vals = node->cast_vector<double>();
     auto new_node_vals = new_node->cast_vector<double>();
     for (size_t i = 0; i < node_vals.size(); i++) {
-        changed |= different(node_vals[i], new_node_vals[i]);
+        changed |= !isDoubleEqual(node_vals[i], new_node_vals[i]);
     }
 
     if (changed)

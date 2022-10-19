@@ -8,6 +8,8 @@
 #include "vpux/compiler/dialect/IE/passes.hpp"
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
+#include "vpux/compiler/dialect/VPU/attributes.hpp"
+#include "vpux/compiler/dialect/VPU/utils/ppe_utils.hpp"
 #include "vpux/compiler/dialect/VPUIP/nce_invariant.hpp"
 #include "vpux/compiler/utils/error.hpp"
 #include "vpux/compiler/utils/quantization.hpp"
@@ -222,6 +224,74 @@ mlir::LogicalResult FuseWithMaxPool::matchAndRewrite(IE::QuantizeOp quantizeOp, 
 }
 
 //
+// FuseWithAveragePool
+//
+
+//
+//       [input]
+//          |
+//     (dequantize)
+//          |
+//        (pool)
+//          |
+//       [output]
+//          |
+//      (quantize)
+//
+
+class FuseWithAveragePool final : public mlir::OpRewritePattern<IE::QuantizeOp> {
+public:
+    FuseWithAveragePool(mlir::MLIRContext* ctx, Logger log): mlir::OpRewritePattern<IE::QuantizeOp>(ctx), _log(log) {
+        setDebugName("FuseWithAveragePool");
+    }
+
+public:
+    mlir::LogicalResult matchAndRewrite(IE::QuantizeOp origOp, mlir::PatternRewriter& rewriter) const final;
+
+private:
+    Logger _log;
+};
+
+mlir::LogicalResult FuseWithAveragePool::matchAndRewrite(IE::QuantizeOp quantizeOp,
+                                                         mlir::PatternRewriter& rewriter) const {
+    auto avgPoolOp = quantizeOp.input().getDefiningOp<IE::AvgPoolOp>();
+    if (avgPoolOp == nullptr) {
+        return mlir::failure();
+    }
+
+    if (!areAllUsersQuantized(avgPoolOp)) {
+        return mlir::failure();
+    }
+
+    if (VPUIP::NCEInvariant::verifyKernel(avgPoolOp, _log).failed()) {
+        return mlir::failure();
+    }
+
+    // AveragePool IDU does not support zero-point subtraction, so it compensates by ignoring output zero-point as well.
+    // Since we are not subtracting the input zero-point, the non-linear post-op will operate on improper data.
+    // Only zero-centered values would be supported. Currently, quantized AveragePool is disabled for all post-ops.
+    auto mainOp = mlir::dyn_cast<IE::LayerWithPostOpInterface>(avgPoolOp.getOperation());
+    if (mainOp != nullptr) {
+        if (mainOp.getPostOp().hasValue()) {
+            return mlir::failure();
+        }
+    }
+
+    auto inputDequantizeOp = avgPoolOp.input().getDefiningOp<IE::DequantizeOp>();
+    if (inputDequantizeOp == nullptr) {
+        return mlir::failure();
+    }
+
+    rewriter.replaceOpWithNewOp<IE::AvgPoolOp>(quantizeOp, quantizeOp.getType(), inputDequantizeOp.input(),
+                                               avgPoolOp.kernel_size(), avgPoolOp.strides(), avgPoolOp.pads_begin(),
+                                               avgPoolOp.pads_end(), avgPoolOp.rounding_typeAttr(),
+                                               avgPoolOp.exclude_padsAttr(), avgPoolOp.post_opAttr())
+            ->setLoc(avgPoolOp->getLoc());
+
+    return mlir::success();
+}
+
+//
 // FuseWithSlice
 //
 
@@ -263,6 +333,17 @@ mlir::LogicalResult FuseWithSlice::matchAndRewrite(IE::QuantizeOp quantizeOp, ml
     auto inputDequantizeOp = sliceOp.source().getDefiningOp<IE::DequantizeOp>();
     if (inputDequantizeOp == nullptr) {
         return mlir::failure();
+    }
+
+    auto origOutput = quantizeOp.output();
+    auto origInput = inputDequantizeOp.input();
+    auto sliceOpInputElementType = origInput.getType().cast<vpux::NDTypeInterface>().getElementType();
+    auto sliceOpOutputElementType = origOutput.getType().cast<vpux::NDTypeInterface>().getElementType();
+
+    if (sliceOpInputElementType != sliceOpOutputElementType) {
+        return matchFailed(_log, rewriter, sliceOp,
+                           "Slice input ElementType:'{0}' and output ElementType:'{1}' mismatch.",
+                           sliceOpInputElementType, sliceOpOutputElementType);
     }
 
     rewriter.replaceOpWithNewOp<IE::SliceOp>(quantizeOp, quantizeOp.getType(), inputDequantizeOp.input(),
@@ -533,16 +614,21 @@ private:
 
 void FuseQuantizedOpsPass::safeRunOnFunc() {
     auto& ctx = getContext();
+    auto func = getFunction();
+    const auto arch = VPU::getArch(func->getParentOfType<mlir::ModuleOp>());
 
-    const auto checkAddInputTypes = [](mlir::Type input1Type, mlir::Type input2Type) -> mlir::LogicalResult {
+    const auto checkAddInputTypes = [&](mlir::Type input1Type, mlir::Type input2Type) -> mlir::LogicalResult {
         auto dequantElemIn1Type = input1Type.cast<mlir::quant::UniformQuantizedType>();
         auto dequantElemIn2Type = input2Type.cast<mlir::quant::UniformQuantizedType>();
 
         // Perform check for input types. AddOp supports quantization with different zp, but not different scales.
         if (dequantElemIn1Type.getExpressedType() != dequantElemIn2Type.getExpressedType() ||
             dequantElemIn1Type.getStorageType() != dequantElemIn2Type.getStorageType() ||
-            dequantElemIn1Type.isSigned() != dequantElemIn2Type.isSigned() ||
-            dequantElemIn1Type.getScale() != dequantElemIn2Type.getScale()) {
+            dequantElemIn1Type.isSigned() != dequantElemIn2Type.isSigned()) {
+            return mlir::failure();
+        }
+
+        if (!supportsPerInputEltwiseScale(arch) && dequantElemIn1Type.getScale() != dequantElemIn2Type.getScale()) {
             return mlir::failure();
         }
 
@@ -569,11 +655,13 @@ void FuseQuantizedOpsPass::safeRunOnFunc() {
     patterns.add<FuseWithEltwiseConverter<IE::AddOp>>(&ctx, checkAddInputTypes, _log);
     patterns.add<FuseWithSlice>(&ctx, _log);
     patterns.add<FuseWithMaxPool>(&ctx, _log);
+    if (arch == VPU::ArchKind::VPUX37XX) {
+        patterns.add<FuseWithAveragePool>(&ctx, _log);
+    }
     patterns.add<FuseWithConcat>(&ctx, _log);
     patterns.add<FuseWithSplit>(&ctx, _log);
     patterns.add<FuseWithEltwiseConverter<IE::MultiplyOp>>(&ctx, checkMulInputTypes, _log);
 
-    auto func = getFunction();
     if (mlir::failed(applyPatternsAndFoldGreedily(func, std::move(patterns), getDefaultGreedyRewriteConfig()))) {
         signalPassFailure();
     }

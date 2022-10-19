@@ -46,12 +46,21 @@ class KmbConversionLayerTest: public ConversionLayerTest, virtual public LayerTe
     }
 };
 
+class KmbConversionLayerTest_VPU3720 : public KmbConversionLayerTest {};
+
 TEST_P(KmbConversionLayerTest, CompareWithRefs) {
     Run();
 }
 
 TEST_P(KmbConversionLayerTest, CompareWithRefs_MLIR) {
     useCompilerMLIR();
+    Run();
+}
+
+TEST_P(KmbConversionLayerTest_VPU3720, CompareWithRefs_MLIR_VPU3720) {
+    useCompilerMLIR();
+    setPlatformVPU3720();
+    setDefaultHardwareModeMLIR();
     Run();
 }
 
@@ -74,6 +83,14 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
     InferenceEngine::Precision::U8
 };
 
+const std::vector<InferenceEngine::Precision> netPrecisions_VPU3720 = {
+    InferenceEngine::Precision::FP32,
+    InferenceEngine::Precision::FP16,
+    InferenceEngine::Precision::U8,
+    InferenceEngine::Precision::I8,
+    InferenceEngine::Precision::I32
+};
+
 INSTANTIATE_TEST_SUITE_P(smoke_NoReshape, KmbConversionLayerTest,
                         ::testing::Combine(
                             ::testing::ValuesIn(conversionOpTypes),
@@ -84,5 +101,15 @@ INSTANTIATE_TEST_SUITE_P(smoke_NoReshape, KmbConversionLayerTest,
                             ::testing::Values(InferenceEngine::Layout::NHWC),
                             ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
                         ConversionLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_precommit_NoReshape, KmbConversionLayerTest_VPU3720,
+                         ::testing::Combine(::testing::Values(ngraph::helpers::ConversionTypes::CONVERT),
+                                            ::testing::Values(inShape),
+                                            ::testing::ValuesIn(netPrecisions_VPU3720),
+                                            ::testing::ValuesIn(netPrecisions_VPU3720),
+                                            ::testing::Values(InferenceEngine::Layout::NHWC),
+                                            ::testing::Values(InferenceEngine::Layout::NHWC),
+                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                         ConversionLayerTest::getTestCaseName);
 
 }  // namespace

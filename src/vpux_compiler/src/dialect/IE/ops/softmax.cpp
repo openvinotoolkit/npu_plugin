@@ -31,9 +31,15 @@ mlir::LogicalResult vpux::IE::SoftMaxOp::inferReturnTypeComponents(
 mlir::OpFoldResult vpux::IE::SoftMaxOp::fold(ArrayRef<mlir::Attribute>) {
     const auto inType = input().getType().cast<mlir::ShapedType>();
     const auto inShape = inType.getShape();
+    const auto inRank = inType.getRank();
 
-    const auto axis = checked_cast<size_t>(axisInd());
-    VPUX_THROW_UNLESS(axis < inShape.size(), "Wrong axis idx {0} for {1} dim tensor", axis, inShape.size());
+    auto axis = checked_cast<int64_t>(axisInd());
+
+    if (axis < 0) {
+        axis += inRank;
+    }
+
+    VPUX_THROW_UNLESS(axis >= 0 && axis < inRank, "Wrong SoftMax axis {0}", axis);
 
     if (inShape[axis] > 1) {
         return nullptr;

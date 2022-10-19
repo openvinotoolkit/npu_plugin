@@ -33,6 +33,7 @@ enum DataType : uint32_t {
     NN_I4,
     NN_I2,
     NN_BIN,
+    NN_BF16,
     NN_UNDEFINED,
 };
 

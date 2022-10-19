@@ -39,11 +39,18 @@ It handles such VPU-specifics as:
         "vpux::VPU::VPUDialect",
         "vpux::IERT::IERTDialect",
         "mlir::StandardOpsDialect",
-        "mlir::quant::QuantizationDialect"
+        "mlir::quant::QuantizationDialect",
+        "mlir::async::AsyncDialect"
     ];
+
+    let hasConstantMaterializer = 1;
 
     let extraClassDeclaration = [{
         void registerTypes();
+
+        static void setExecutor(mlir::async::ExecuteOp execOp, vpux::IndexedSymbolAttr executor);
+        static llvm::StringLiteral getExecutorAttrName();
+        static vpux::IndexedSymbolAttr getExecutor(mlir::async::ExecuteOp execOp);
 
         static void setupExtraInterfaces(mlir::DialectRegistry& registry);
     }];

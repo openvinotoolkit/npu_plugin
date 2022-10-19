@@ -148,6 +148,63 @@ operation ::= `IE.Acosh` `(` operands `)` attr-dict `:` type(operands) `->` type
 | :----: | ----------- |
 `output` | ranked tensor of 16-bit float or 32-bit float values
 
+### `IE.AdaptiveAvgPool` (vpux::IE::AdaptiveAvgPoolOp)
+
+InferenceEngine AdaptiveAvgPool layer
+
+
+Syntax:
+
+```
+operation ::= `IE.AdaptiveAvgPool` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of 16-bit float or 32-bit float values
+`pooled_spatial_shape` | 1D tensor of 32-bit signed integer or 64-bit signed integer values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+
+### `IE.AdaptiveMaxPool` (vpux::IE::AdaptiveMaxPoolOp)
+
+InferenceEngine AdaptiveMaxPool layer
+
+
+Syntax:
+
+```
+operation ::= `IE.AdaptiveMaxPool` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`index_element_type` | ::mlir::TypeAttr | any type attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of 16-bit float or 32-bit float values
+`pooled_spatial_shape` | 1D tensor of 32-bit signed integer or 64-bit signed integer values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+`output_index` | ranked tensor of 32-bit signed integer or 64-bit signed integer values
+
 ### `IE.Add` (vpux::IE::AddOp)
 
 InferenceEngine Add layer
@@ -361,12 +418,51 @@ operation ::= `IE.AvgPool` `(` operands `)` attr-dict `:` type(operands) `->` ty
 `pads_end` | ::mlir::ArrayAttr | 64-bit integer array attribute
 `rounding_type` | vpux::IE::RoundingTypeAttr | Rounding type that operations support
 `exclude_pads` | ::mlir::UnitAttr | unit attribute
+`post_op` | vpux::IE::PostOp | DictionaryAttr with field(s): 'name', 'attrs' (each field having its own constraints)
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of 16-bit float or 32-bit float or QuantizedType values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float or QuantizedType values
+
+### `IE.BatchNormInference` (vpux::IE::BatchNormInferenceOp)
+
+InferenceEngine BatchNormInference layer
+
+
+Syntax:
+
+```
+operation ::= `IE.BatchNormInference` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`gamma_value` | ::mlir::ArrayAttr | 64-bit float array attribute
+`beta_value` | ::mlir::ArrayAttr | 64-bit float array attribute
+`mean_value` | ::mlir::ArrayAttr | 64-bit float array attribute
+`variance_value` | ::mlir::ArrayAttr | 64-bit float array attribute
+`eps` | ::mlir::FloatAttr | 64-bit float attribute
 
 #### Operands:
 
 | Operand | Description |
 | :-----: | ----------- |
 `input` | ranked tensor of 16-bit float or 32-bit float values
+`gamma` | ranked tensor of 16-bit float or 32-bit float values
+`beta` | ranked tensor of 16-bit float or 32-bit float values
+`mean` | ranked tensor of 16-bit float or 32-bit float values
+`variance` | ranked tensor of 16-bit float or 32-bit float values
 
 #### Results:
 
@@ -405,6 +501,38 @@ operation ::= `IE.Broadcast` `(` operands `)` attr-dict `:` type(operands) `->` 
 | Result | Description |
 | :----: | ----------- |
 `output` | ranked tensor of any type values
+
+### `IE.Bucketize` (vpux::IE::BucketizeOp)
+
+InferenceEngine Bucketize layer
+
+
+Syntax:
+
+```
+operation ::= `IE.Bucketize` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`output_type` | ::mlir::TypeAttr | any type attribute
+`with_right_bound` | ::mlir::UnitAttr | unit attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`data` | ranked tensor of any type values
+`buckets` | 1D tensor of integer or floating-point values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 32-bit signed integer or 64-bit signed integer values
 
 ### `IE.CNNNetwork` (vpux::IE::CNNNetworkOp)
 
@@ -1111,6 +1239,39 @@ operation ::= `IE.Expand` `(` operands `)` attr-dict `:` type(operands) `->` typ
 | :----: | ----------- |
 `output` | ranked tensor of any type values
 
+### `IE.ExtractImagePatches` (vpux::IE::ExtractImagePatchesOp)
+
+InferenceEngine ExtractImagePatches layer
+
+
+Syntax:
+
+```
+operation ::= `IE.ExtractImagePatches` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`sizes` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`strides` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`rates` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`autoPad` | vpux::IE::PadTypeAttr | PadType that the InferenceEngine supports
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`data` | 4D tensor of any type values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | 4D tensor of any type values
+
 ### `IE.FakeQuantize` (vpux::IE::FakeQuantizeOp)
 
 InferenceEngine FakeQuantize layer
@@ -1444,6 +1605,30 @@ operation ::= `IE.GroupConvolution` `(` operands `)` attr-dict `:` type(operands
 | :----: | ----------- |
 `output` | ranked tensor of 16-bit float or 32-bit float or QuantizedType values
 
+### `IE.HSigmoid` (vpux::IE::HSigmoidOp)
+
+InferenceEngine HSigmoid layer
+
+
+Syntax:
+
+```
+operation ::= `IE.HSigmoid` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+
 ### `IE.HSwish` (vpux::IE::HSwishOp)
 
 InferenceEngine HSwish layer
@@ -1461,6 +1646,39 @@ operation ::= `IE.HSwish` `(` operands `)` attr-dict `:` type(operands) `->` typ
 | Operand | Description |
 | :-----: | ----------- |
 `input` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+
+### `IE.HardSigmoid` (vpux::IE::HardSigmoidOp)
+
+InferenceEngine HardSigmoid layer
+
+
+Syntax:
+
+```
+operation ::= `IE.HardSigmoid` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`alpha_value` | ::mlir::FloatAttr | 64-bit float attribute
+`beta_value` | ::mlir::FloatAttr | 64-bit float attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of 16-bit float or 32-bit float values
+`alpha` | 0D tensor of 16-bit float or 32-bit float values
+`beta` | 0D tensor of 16-bit float or 32-bit float values
 
 #### Results:
 
@@ -2429,6 +2647,7 @@ operation ::= `IE.Proposal` `(` operands `)` attr-dict `:` type(operands) `->` t
 | Result | Description |
 | :----: | ----------- |
 `output` | ranked tensor of 16-bit float or 32-bit float values
+`probs` | ranked tensor of 16-bit float or 32-bit float values
 
 ### `IE.QuantizeCast` (vpux::IE::QuantizeCastOp)
 
@@ -2583,6 +2802,130 @@ operation ::= `IE.ReLU` `(` operands `)` attr-dict `:` type(operands) `->` type(
 | :----: | ----------- |
 `output` | ranked tensor of 16-bit float or 32-bit float values
 
+### `IE.ReduceL1` (vpux::IE::ReduceL1Op)
+
+InferenceEngine ReduceL1 layer
+
+
+Syntax:
+
+```
+operation ::= `IE.ReduceL1` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`keep_dims` | ::mlir::UnitAttr | unit attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of any type values
+`axes` | 1D tensor of integer values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of any type values
+
+### `IE.ReduceL2` (vpux::IE::ReduceL2Op)
+
+InferenceEngine ReduceL2 layer
+
+
+Syntax:
+
+```
+operation ::= `IE.ReduceL2` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`keep_dims` | ::mlir::UnitAttr | unit attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of any type values
+`axes` | 1D tensor of integer values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of any type values
+
+### `IE.ReduceLogicalAnd` (vpux::IE::ReduceLogicalAndOp)
+
+InferenceEngine  ReduceLogicalAnd layer
+
+
+Syntax:
+
+```
+operation ::= `IE.ReduceLogicalAnd` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`keep_dims` | ::mlir::UnitAttr | unit attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of any type values
+`axes` | 1D tensor of integer values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of any type values
+
+### `IE.ReduceLogicalOr` (vpux::IE::ReduceLogicalOrOp)
+
+InferenceEngine ReduceLogicalOr layer
+
+
+Syntax:
+
+```
+operation ::= `IE.ReduceLogicalOr` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`keep_dims` | ::mlir::UnitAttr | unit attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of any type values
+`axes` | 1D tensor of integer values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of any type values
+
 ### `IE.ReduceMax` (vpux::IE::ReduceMaxOp)
 
 InferenceEngine ReduceMax layer
@@ -2654,6 +2997,37 @@ Syntax:
 
 ```
 operation ::= `IE.ReduceMin` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`keep_dims` | ::mlir::UnitAttr | unit attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of any type values
+`axes` | 1D tensor of integer values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of any type values
+
+### `IE.ReduceProd` (vpux::IE::ReduceProdOp)
+
+InferenceEngine ReduceProd layer
+
+
+Syntax:
+
+```
+operation ::= `IE.ReduceProd` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
 ```
 
 
@@ -2981,6 +3355,39 @@ operation ::= `IE.Select` `(` operands `)` attr-dict `:` type(operands) `->` typ
 | Result | Description |
 | :----: | ----------- |
 `output` | ranked tensor of 32-bit signed integer or 16-bit float values
+
+### `IE.Selu` (vpux::IE::SeluOp)
+
+InferenceEngine Selu layer
+
+
+Syntax:
+
+```
+operation ::= `IE.Selu` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`alphaValue` | ::mlir::FloatAttr | 64-bit float attribute
+`lambdaValue` | ::mlir::FloatAttr | 64-bit float attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`data` | ranked tensor of 16-bit float or 32-bit float values
+`alpha` | ranked tensor of 16-bit float or 32-bit float values
+`lambda` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
 
 ### `IE.ShuffleChannels` (vpux::IE::ShuffleChannelsOp)
 
@@ -3648,13 +4055,13 @@ operation ::= `IE.YuvToRgb` `(` operands `)` attr-dict `:` type(operands) `->` t
 
 | Operand | Description |
 | :-----: | ----------- |
-`input1` | 4D tensor of 8-bit signed integer or 16-bit float or 32-bit float values
-`input2` | 4D tensor of 8-bit signed integer or 16-bit float or 32-bit float values
-`input3` | 4D tensor of 8-bit signed integer or 16-bit float or 32-bit float values
+`input1` | 4D tensor of 8-bit unsigned integer or 16-bit float or 32-bit float values
+`input2` | 4D tensor of 8-bit unsigned integer or 16-bit float or 32-bit float values
+`input3` | 4D tensor of 8-bit unsigned integer or 16-bit float or 32-bit float values
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-`output` | 4D tensor of 8-bit signed integer or 16-bit float or 32-bit float values
+`output` | 4D tensor of 8-bit unsigned integer or 16-bit float or 32-bit float values
 

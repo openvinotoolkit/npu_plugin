@@ -8,6 +8,7 @@
 #pragma once
 
 #include "vpux/compiler/core/ops_interfaces.hpp"
+#include "vpux/compiler/dialect/ELF/ops_interfaces.hpp"
 #include "vpux/compiler/dialect/const/attributes/content.hpp"
 
 #include "vpux/utils/core/logger.hpp"

@@ -328,11 +328,12 @@ bool mv::RuntimeModel::targetEmulator_(mv::Element& compilationDescriptor)
 }
 
 static std::uint64_t schemaOrder(const mv::Order& order) {
+    constexpr uint64_t BITS_PER_DIM = 4;
     const std::string str = order.toString();
+    const auto numDims = str.size();
     return std::accumulate(str.cbegin(), str.cend(), static_cast<std::uint64_t>(0),
-                           [](const std::uint64_t result, const char d) {
-                               // start from 1 to avoid ambiguous leading zeros
-                               return result * 10 + mv::Shape::getAxis(std::string(1, d)) + 1;
+                           [&](const std::uint64_t result, const char d) {
+                               return result << BITS_PER_DIM | (numDims - mv::Shape::getAxis(std::string(1, d)));
                            });
 }
 
@@ -947,15 +948,15 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
           if(numericStrides[4] != tensorStrides[4])
               byte_index = index * (double(numericStrides[4])/double(tensorStrides[4])) * t->getDType().getSizeInBits() / 8;
 
-        // If SOH subtensors have one size but master buffer has different dims in C or W
-        // need to multiply to find correct index in DDR
-        if( t->get<std::string>("splitStrategy") == "SplitOverH" &&
-            numericStrides[3] != tensorStrides[3]) // W
-            byte_index = index * (double(numericStrides[3])/double(tensorStrides[3])) * t->getDType().getSizeInBits() / 8;
+          // If SOH subtensors have one size but master buffer has different dims in C or W
+          // need to multiply to find correct index in DDR
+          if (t->get<std::string>("splitStrategy") == "SplitOverH" && numericStrides[3] != tensorStrides[3])  // W
+              byte_index = index * (double(numericStrides[3]) / double(tensorStrides[3])) *
+                           t->getDType().getSizeInBits() / 8;
 
-        if( t->get<std::string>("splitStrategy") == "SplitOverH" &&
-            numericStrides[2] != tensorStrides[2]) // C
-            byte_index = index * (double(numericStrides[2])/double(tensorStrides[2])) * t->getDType().getSizeInBits() / 8;
+          if (t->get<std::string>("splitStrategy") == "SplitOverH" && numericStrides[2] != tensorStrides[2])  // C
+              byte_index = index * (double(numericStrides[2]) / double(tensorStrides[2])) *
+                           t->getDType().getSizeInBits() / 8;
 
         }
 
@@ -1993,8 +1994,6 @@ std::unique_ptr<MVCNN::PPETaskT> mv::RuntimeModel::buildPPETaskT(ComputationMode
 {
     std::unique_ptr<MVCNN::PPETaskT> toBuild = std::unique_ptr<MVCNN::PPETaskT>(new MVCNN::PPETaskT());
     const mv::PPETask& ppeTask = opIt->get<PPETask>("PPETask");
-    if(ppeTask.hasAttr("scaleData"))
-        toBuild->scale_data = buildTensorReferenceT(cm, compilationDescriptor, ppeTask.getScaleData());
     toBuild->fixed_function = buildPPEFixedFunctionT(cm, compilationDescriptor, ppeTask.getFixedFunction());
     if (opIt->hasAttr("PWLType"))
     {
@@ -2632,7 +2631,6 @@ void mv::RuntimeModel::getWorkloadPadding(Control::OpListIterator opIt, Workload
 
         auto outputWidth = opIt->getOutputTensor(0)->getShape()[mv::IO_WIDTH_DIMENSION];
         auto outputHeight = opIt->getOutputTensor(0)->getShape()[mv::IO_HEIGHT_DIMENSION];
-
 
         long long  pad_left = padding[mv::PADDING_LEFT] - workload.MinX;
         workload.padLeft = (pad_left > 0) ? pad_left : 0;
@@ -4584,8 +4582,11 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAConcatTask(ComputationModel& cm
 
     auto params = new MVCNN::ConcatParamsT;
     auto axisToConcat = opIt->get<std::string>("axis");
-    auto numericAxisToConcat = mv::Shape::getAxis(axisToConcat);
-    params->axis = numericAxisToConcat;
+    const auto numDims = toBuild->inputs.at(0)->dimensions.size();
+    const auto numericAxisToConcat =
+            numDims - mv::Shape::getAxis(axisToConcat) - 1;  // axis for NCHW dims order, not WHCN
+
+    params->per_axis = std::unique_ptr<MVCNN::ConcatAttrs>(new MVCNN::ConcatAttrs(numericAxisToConcat, 0, 1));
 
     toBuild->softLayerParams.value = params;
 

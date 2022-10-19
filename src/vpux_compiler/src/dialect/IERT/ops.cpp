@@ -7,7 +7,7 @@
 
 #include "vpux/compiler/dialect/IERT/ops.hpp"
 
-#include "vpux/compiler/dialect/IERT/attributes/structs.hpp"
+#include "vpux/compiler/dialect/VPUIP/attributes.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/error.hpp"
@@ -54,36 +54,7 @@ mlir::Operation* vpux::IERT::IERTDialect::materializeConstant(mlir::OpBuilder& b
 //
 
 void IERT::IERTDialect::setupExtraInterfaces(mlir::DialectRegistry& registry) {
-    registry.addAttrInterface<mlir::BuiltinDialect, IERT::MemRefAttr, MemRefAttrLayout>();
-}
-
-//
-// Operation executor attributes
-//
-
-namespace {
-
-constexpr StringLiteral executorAttrName = "IERT.executor";
-
-}  // namespace
-
-void vpux::IERT::IERTDialect::setExecutor(mlir::async::ExecuteOp execOp, IndexedSymbolAttr executor) {
-    VPUX_THROW_UNLESS(executor != nullptr, "Got an empty executor");
-    execOp->setAttr(executorAttrName, executor);
-}
-
-llvm::StringLiteral vpux::IERT::IERTDialect::getExecutorAttrName() {
-    return executorAttrName;
-}
-
-IndexedSymbolAttr vpux::IERT::IERTDialect::getExecutor(mlir::async::ExecuteOp execOp) {
-    const auto executor = execOp->getAttr(executorAttrName);
-    VPUX_THROW_UNLESS(executor != nullptr, "Can't find Executor attributes for Operation at '{0}'", execOp->getLoc());
-
-    const auto executorSymbol = executor.dyn_cast<IndexedSymbolAttr>();
-    VPUX_THROW_UNLESS(executorSymbol != nullptr, "Unsupported Executor attribute '{0}'", executorSymbol);
-
-    return executorSymbol;
+    registry.addAttrInterface<mlir::BuiltinDialect, VPUIP::MemRefAttr, VPUIP::MemRefAttrLayout>();
 }
 
 //

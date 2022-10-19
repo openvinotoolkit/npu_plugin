@@ -27,7 +27,12 @@ mlir::LogicalResult vpux::IE::ReduceMinOp::inferReturnTypeComponents(
 
     const auto input = reduceMin.input();
     const auto keepDims = reduceMin.keep_dims() != nullptr;
-    auto axes = IE::constInputToData(loc, reduceMin.axes()).getValue();
+    auto axes = IE::constInputToData(loc, reduceMin.axes());
+    if (mlir::failed(axes)) {
+        return mlir::failure();
+    }
 
-    return IE::inferReduceReturnTypeComponents(loc, input, keepDims, axes, inferredReturnShapes);
+    auto axesValue = axes.getValue();
+
+    return IE::inferReduceReturnTypeComponents(loc, input, keepDims, axesValue, inferredReturnShapes);
 }

@@ -3,6 +3,8 @@
 
 set(kernel_src "hswish_fp16.cpp")
 
+set(kernel_cpunum "3720")
+
 set(always_inline "yes")
 
 if(NOT always_inline STREQUAL "yes")

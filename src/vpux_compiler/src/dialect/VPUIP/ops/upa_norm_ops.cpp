@@ -30,10 +30,10 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(NormUPAOp op) {
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NormUPAOp::serialize(VPUIP::BlobWriter& writer) {
     VPUIP::BlobWriter::String region;
     switch (this->region()) {
-    case IE::LRN_IERegion::across:
+    case IE::LRN_IERegion::ACROSS:
         region = writer.createString("across");
         break;
-    case IE::LRN_IERegion::same:
+    case IE::LRN_IERegion::SAME:
         region = writer.createString("same");
         break;
     default:
@@ -59,9 +59,9 @@ mlir::Operation* vpux::VPUIP::BlobReader::parseNorm(mlir::OpBuilder& builder, Ar
 
     IE::LRN_IERegion region;
     if (regionStr == std::string("across")) {
-        region = IE::LRN_IERegion::across;
+        region = IE::LRN_IERegion::ACROSS;
     } else if (regionStr == std::string("same")) {
-        region = IE::LRN_IERegion::same;
+        region = IE::LRN_IERegion::SAME;
     } else {
         VPUX_THROW("Unsupported LRN_IERegion {0}", regionStr);
     }

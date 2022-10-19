@@ -11,6 +11,41 @@
 include "mlir/IR/OpBase.td"
 
 //
+// LayerOpInterface
+//
+
+def VPU_LayerOpInterface : OpInterface<"LayerOpInterface"> {
+    let description = "Base interface for VPU Layer Operation";
+
+    let cppNamespace = "vpux::VPU";
+
+    let methods = [
+        InterfaceMethod<
+            "Get all layer input tensors",
+            "mlir::OperandRange", "getInputs", (ins),
+            [{}],
+            [{
+                return $_op->getOperands();
+            }]
+        >,
+
+        InterfaceMethod<
+            "Get all layer output tensors",
+            "mlir::ResultRange", "getOutputs", (ins),
+            [{}],
+            [{
+                return $_op->getResults();
+            }]
+        >
+    ];
+
+    let verify = [{
+        return vpux::VPU::verifyLayer($_op);
+    }];
+}
+
+
+//
 // SparseOpInterface
 //
 
@@ -38,6 +73,12 @@ def VPU_NCEOpInterface : OpInterface<"NCEOpInterface"> {
 
     let methods = [
         InterfaceMethod<
+            "Check layer strategy compatibility",
+            "bool", "checkStrategyCompatibility",
+            (ins "VPU::MultiClusterStrategy":$strategy)
+        >,
+
+        InterfaceMethod<
             "Get NCE operation kernel size",
             "SmallVector<int64_t>", "getKernelSize", (ins)
         >,
@@ -50,6 +91,22 @@ def VPU_NCEOpInterface : OpInterface<"NCEOpInterface"> {
         InterfaceMethod<
             "Get NCE operation padding",
             "vpux::VPU::PaddingAttr", "getPad", (ins)
+        >,
+
+        InterfaceMethod<
+            "Get NCE operation PPE",
+            "llvm::Optional<vpux::VPU::PPETaskAttr>", "getPPE", (ins),
+            [{
+                return $_op.ppe();
+            }]
+        >,
+
+        InterfaceMethod<
+            "Set NCE operation PPE",
+            "void", "setPPE", (ins "vpux::VPU::PPETaskAttr":$ppe_task_attr),
+            [{
+                $_op->setAttr($_op.ppeAttrName(), ppe_task_attr);
+            }]
         >,
 
         InterfaceMethod<
@@ -115,6 +172,87 @@ def VPU_NCEOpInterface : OpInterface<"NCEOpInterface"> {
         }
 
         return mlir::cast<ConcreteOp>($_op).verifyChannels();
+    }];
+}
+
+//
+// TilingBuilderOpInterface
+//
+
+def VPU_TilingBuilderOpInterface : OpInterface<"TilingBuilderOpInterface"> {
+    let description = "Interface for operations to reify the provided tiling configuration";
+
+    let cppNamespace = "vpux::VPU";
+
+    let methods = [
+        InterfaceMethod<
+            "Return the maximum number of tiles for each dimension",
+            "SmallVector<int64_t>", "getMaxNumTiles", (ins),
+            [{}],
+            [{
+                return vpux::getMaxNumTiles($_op);
+            }]
+        >,
+
+        InterfaceMethod<
+            "Infer input tiles information from the output tile",
+            "vpux::TilingInfo", "backInferTileInfo",
+            (ins "const vpux::TileInfo&":$outputTile, "vpux::Logger":$log)
+        >,
+
+        InterfaceMethod<
+            "Adjust the operation attributes to the current tile properties",
+            "void", "adjustAttrs",
+            (ins "const vpux::TilingInfo&":$inputTiling, "const TileInfo&":$outputTile)
+        >,
+    ];
+}
+
+//
+// TilingInfoOpInterface
+//
+
+def VPU_TilingInfoOpInterface : OpInterface<"TilingInfoOpInterface"> {
+    let description = "Interface for operations to provide information about required/supported tiling configurations";
+
+    let cppNamespace = "vpux::VPU";
+
+    let methods = [
+        InterfaceMethod<
+            "Check, if the provided tiling configuration is supported by the operation implementation",
+            "bool", "isSupportedTiling",
+            (ins "const vpux::OutputTiling&":$tiles, "vpux::TilingMode":$tilingMode, "vpux::Logger":$log)
+        >,
+    ];
+
+    let verify = [{
+        return vpux::VPU::verifyTilingInfo($_op);
+    }];
+}
+
+//
+// EltwiseOp
+//
+
+// Single output element depends only on single input element.
+// In other words - the iteration space is fully parallel across all indexes.
+def VPU_EltwiseOp : NativeOpTrait<"EltwiseOp"> {
+    let cppNamespace = "vpux::VPU";
+}
+
+//
+// EMUUPAOpInterface
+//
+
+def VPU_EMUUPAOpInterface : OpInterface<"EMUUPAOpInterface"> {
+    let description = "Interface for VPU ops that are serialized to UPA EMU Task";
+
+    let cppNamespace = "vpux::VPU";
+
+    let extraTraitClassDeclaration = [{
+        static vpux::VPU::ExecutorKind getExecutorKind() {
+            return vpux::VPU::ExecutorKind::SHAVE_UPA;
+        }
     }];
 }
 

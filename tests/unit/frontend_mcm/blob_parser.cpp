@@ -57,12 +57,14 @@ void BlobParser_Tests::SetUp() {
     ASSERT_NE(graphOutputs, nullptr);
 }
 
-TEST_F(BlobParser_Tests, CanParseBlob) {
+// [Track number: E#48051]
+TEST_F(BlobParser_Tests, DISABLED_CanParseBlob) {
     ASSERT_NO_THROW(networkInputs = MCMAdapter::getNetworkInputs(*graphInputs));
     ASSERT_NO_THROW(networkOutputs = MCMAdapter::getNetworkOutputs(*graphOutputs));
 }
 
-TEST_F(BlobParser_Tests, CanGetInputsOutputsDimensions) {
+// [Track number: E#48051]
+TEST_F(BlobParser_Tests, DISABLED_CanGetInputsOutputsDimensions) {
     const auto expectedInput = _dims;
     const auto expectedOutput = _dims;
 
@@ -79,7 +81,8 @@ TEST_F(BlobParser_Tests, CanGetInputsOutputsDimensions) {
     }
 }
 
-TEST_F(BlobParser_Tests, CanGetInputsOutputsNames) {
+// [Track number: E#48051]
+TEST_F(BlobParser_Tests, DISABLED_CanGetInputsOutputsNames) {
     const auto expectedInputName = _inputName;
     const auto expectedOutputName = _outputDevName;
 

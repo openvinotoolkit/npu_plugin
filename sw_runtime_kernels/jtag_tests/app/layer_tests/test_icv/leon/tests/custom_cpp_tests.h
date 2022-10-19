@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #pragma once
 
 #include "custom_cpp_test_base.h"
@@ -23,19 +21,10 @@ namespace
 #define F_TWO      0x40000000
 #define F_FOUR     0x40800000
 
-//template<int WD>
-struct SingleTest {
-    Dimensions inDim;
-    Dimensions outDim;
-    StorageOrder storageOrder;
-    const char* kernelName;
-    CustomParams customLayerParams;
-};
-
 // Derived class for OpenCL tests, that use single input tensor and single output tensor.
 // Parametrized by input type for "Convert u8->fp16" layer.
-template <class InType>
-class CustomCppTests: public CustomCppTestBase<SingleTest>
+template <class InType, class TestType = SingleTest>
+class CustomCppTests: public CustomCppTestBase
 {
 public:
     explicit CustomCppTests() = default;
@@ -54,12 +43,12 @@ protected:
         };
         initElfBuffer();
         initTestCase();
-        const Dimensions& dimIn = m_currentTest->inDim;
-        const Dimensions& dimOut = m_currentTest->outDim;
+        const Dims& inputDims = m_currentTest->inputDims;
+        const Dims& outputDims = m_currentTest->outputDims;
         const StorageOrder& storageOrder = m_currentTest->storageOrder;
 
-        const TensorDims dims3In(dimIn.width,   dimIn.height,  dimIn.channels,  1);
-        const TensorDims dims3Out(dimOut.width, dimOut.height, dimOut.channels, 1);
+        const TensorDims dims3In(inputDims.begin()[0], inputDims.begin()[1], inputDims.begin()[2], 1);
+        const TensorDims dims3Out(outputDims.begin()[0], outputDims.begin()[1], outputDims.begin()[2], 1);
 
         m_inputTensor.init(storageOrder, dims3In);
         m_outputTensor.init(storageOrder, dims3Out);
@@ -130,6 +119,10 @@ protected:
         return result;
     }
 protected:
+    // A pointer to current test case. It is set by initTestCase() in derived class.
+    // Whole set of tests is stored in derived class.
+    const TestType* m_currentTest;
+
     Tensor<InType> m_inputTensor;
     Tensor<fp16> m_outputTensor;
     Tensor<fp16> m_referenceOutputTensor;
@@ -145,4 +138,3 @@ protected:
 };
 
 } // anonymous namespace
-

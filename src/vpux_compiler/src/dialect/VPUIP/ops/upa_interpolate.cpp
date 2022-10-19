@@ -8,37 +8,12 @@
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/utils/subspaces.hpp"
 
+#include "vpux/compiler/dialect/VPUIP/graph-schema/utils.hpp"
 #include "vpux/utils/core/enums.hpp"
 
 #include <mlir/IR/BuiltinTypes.h>
 
 using namespace vpux;
-
-namespace {
-
-const EnumMap<IE::InterpolateMode, int> supportedInterpModeMap = {
-        {IE::InterpolateMode::nearest, 0},      //
-        {IE::InterpolateMode::linear, 1},       //
-        {IE::InterpolateMode::linear_onnx, 3},  //
-};
-
-const EnumMap<IE::InterpolateNearestMode, int> nearestModeMap = {
-        {IE::InterpolateNearestMode::round_prefer_floor, 0},  //
-        {IE::InterpolateNearestMode::round_prefer_ceil, 1},   //
-        {IE::InterpolateNearestMode::floor, 2},               //
-        {IE::InterpolateNearestMode::ceil, 3},                //
-        {IE::InterpolateNearestMode::simple, 4},              //
-};
-
-const EnumMap<IE::InterpolateCoordMode, int> coordTransformModeMap = {
-        {IE::InterpolateCoordMode::half_pixel, 0},            //
-        {IE::InterpolateCoordMode::pytorch_half_pixel, 1},    //
-        {IE::InterpolateCoordMode::asymmetric, 2},            //
-        {IE::InterpolateCoordMode::tf_half_pixel_for_nn, 3},  //
-        {IE::InterpolateCoordMode::align_corners, 4},         //
-};
-
-}  // namespace
 
 void vpux::VPUIP::InterpolateUPAOp::inferLayoutInfo(mlir::Operation* op, IE::LayerLayoutInfo& info) {
     auto inputShape = op->getOperand(0).getType().cast<vpux::NDTypeInterface>().getShape().raw();
@@ -50,29 +25,30 @@ void vpux::VPUIP::InterpolateUPAOp::inferLayoutInfo(mlir::Operation* op, IE::Lay
     auto channels = inputShape[1];
     const auto antialias = mlir::cast<IE::InterpolateOp>(op).attr().antialias().getValue();
     if (channels == 1 || antialias) {
-        IERT::inferLayoutInfoSameInOutSpecificDimsOrder(info, {DimsOrder::NCHW});
+        VPUIP::inferLayoutInfoSameInOutSpecificDimsOrder(info, {DimsOrder::NCHW});
     } else {
-        IERT::inferLayoutInfoSameInOutSpecificDimsOrder(info, {DimsOrder::NCHW, DimsOrder::NHWC});
+        VPUIP::inferLayoutInfoSameInOutSpecificDimsOrder(info, {DimsOrder::NCHW, DimsOrder::NHWC});
     }
 }
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::InterpolateUPAOp::serialize(VPUIP::BlobWriter& writer) {
     MVCNN::InterpolateParamsBuilder builder(writer);
 
-    const auto interpolateModeIter = supportedInterpModeMap.find(mode());
-    VPUX_THROW_UNLESS(interpolateModeIter != supportedInterpModeMap.end(), "Unsupported interpolate mode {0}", mode());
-    builder.add_interpolationMode(MVCNN::InterpolationMethod(interpolateModeIter->second));
+    const auto interpolateModeIter = VPUIP::supportedInterpModeMap.find(mode());
+    VPUX_THROW_UNLESS(interpolateModeIter != VPUIP::supportedInterpModeMap.end(), "Unsupported interpolate mode {0}",
+                      mode());
+    builder.add_interpolationMode(interpolateModeIter->second);
 
-    const auto coordModeIter = coordTransformModeMap.find(coord_mode());
-    VPUX_THROW_UNLESS(coordModeIter != coordTransformModeMap.end(), "Unsupported coordinate transformation mode {0}",
-                      coord_mode());
-    builder.add_coordTransformMode(MVCNN::InterpolationCoordTransMode(coordModeIter->second));
+    const auto coordModeIter = VPUIP::coordTransformModeMap.find(coord_mode());
+    VPUX_THROW_UNLESS(coordModeIter != VPUIP::coordTransformModeMap.end(),
+                      "Unsupported coordinate transformation mode {0}", coord_mode());
+    builder.add_coordTransformMode(coordModeIter->second);
 
-    const auto nearestModeIter = nearestModeMap.find(nearest_mode());
-    VPUX_THROW_UNLESS(nearestModeIter != nearestModeMap.end(), "Unsupported nearest mode {0}", nearest_mode());
-    builder.add_nearestMode(MVCNN::InterpolationNearestMode(nearestModeIter->second));
+    const auto nearestModeIter = VPUIP::nearestModeMap.find(nearest_mode());
+    VPUX_THROW_UNLESS(nearestModeIter != VPUIP::nearestModeMap.end(), "Unsupported nearest mode {0}", nearest_mode());
+    builder.add_nearestMode(nearestModeIter->second);
 
-    builder.add_align_corners(coord_mode() == IE::InterpolateCoordMode::align_corners);
+    builder.add_align_corners(coord_mode() == IE::InterpolateCoordMode::ALIGN_CORNERS);
     builder.add_antialias(antialias());
 
     const auto paramsOff = builder.Finish();

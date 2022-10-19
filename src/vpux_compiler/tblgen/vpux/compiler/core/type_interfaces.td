@@ -123,6 +123,12 @@ def NDTypeInterface : TypeInterface<"NDTypeInterface"> {
         >,
 
         InterfaceMethod<
+            "Returns the type with the new values for the given components",
+            "vpux::NDTypeInterface", "changeTypeComponents", (ins "vpux::TypeComponents":$typeComponents)
+        >,
+
+
+        InterfaceMethod<
             "Returns a tile from the type",
             "vpux::NDTypeInterface", "extractDenseTile", (ins "vpux::ShapeRef":$tileOffsets, "vpux::ShapeRef":$tileShape)
         >,

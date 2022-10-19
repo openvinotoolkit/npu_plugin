@@ -479,3 +479,15 @@ void vpux::IE::ConcatOp::getCanonicalizationPatterns(mlir::RewritePatternSet& re
     results.add<ConvertPerAxisToOffsets>(ctx);
     results.add<FuseConcat>(ctx);
 }
+
+//
+// fold
+//
+
+mlir::OpFoldResult vpux::IE::ConcatOp::fold(ArrayRef<mlir::Attribute>) {
+    if (inputs().size() == 1) {
+        return inputs().front();
+    }
+
+    return nullptr;
+}

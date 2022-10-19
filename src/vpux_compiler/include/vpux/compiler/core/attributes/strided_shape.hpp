@@ -17,6 +17,7 @@ namespace vpux {
 struct StridedShape {
     StridedShape(ShapeRef shape, StridesRef strides): shape(shape.raw()), strides(strides.raw()) {
     }
+    StridedShape() = default;
 
     Shape shape;
     Strides strides;

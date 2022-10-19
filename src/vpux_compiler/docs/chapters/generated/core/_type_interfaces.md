@@ -165,6 +165,14 @@ vpux::NDTypeInterface changeStrides(vpux::StridesRef strides);
 Returns the type with the new strides
 NOTE: This method *must* be implemented by the user.
 
+#### `changeTypeComponents`
+
+```c++
+vpux::NDTypeInterface changeTypeComponents(vpux::TypeComponents typeComponents);
+```
+Returns the type with the new values for the given components
+NOTE: This method *must* be implemented by the user.
+
 #### `extractDenseTile`
 
 ```c++

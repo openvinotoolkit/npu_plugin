@@ -50,19 +50,19 @@ ELFHeader createTemplateFileHeader() {
 // #-22043
 TEST(DISABLED_ELFReaderTests, ELFReaderThrowsOnIncorrectMagic) {
     std::vector<uint8_t> elf = {0x7f, 'E', 'L', 'D'};
-    ASSERT_ANY_THROW(Reader(elf.data(), elf.size()));
+    ASSERT_ANY_THROW(Reader<ELF_Bitness::Elf64>(elf.data(), elf.size()));
 }
 
 TEST(ELFReaderTests, ReadingTheCorrectELFHeaderDoesntThrow) {
     auto fileHeader = createTemplateFileHeader();
 
-    ASSERT_NO_THROW(Reader(reinterpret_cast<uint8_t*>(&fileHeader), sizeof(fileHeader)));
+    ASSERT_NO_THROW(Reader<ELF_Bitness::Elf64>(reinterpret_cast<uint8_t*>(&fileHeader), sizeof(fileHeader)));
 }
 
 TEST(ELFReaderTests, PointerToELFHeaderIsResolvedCorrectly) {
     auto fileHeader = createTemplateFileHeader();
 
-    const auto reader = Reader(reinterpret_cast<uint8_t*>(&fileHeader), sizeof(fileHeader));
+    const auto reader = Reader<ELF_Bitness::Elf64>(reinterpret_cast<uint8_t*>(&fileHeader), sizeof(fileHeader));
     const auto parsedFileHeader = reader.getHeader();
 
     ASSERT_EQ(parsedFileHeader, &fileHeader);
@@ -86,7 +86,7 @@ TEST(ELFReaderTests, PointerToSectionHeaderIsResolvedCorrectly) {
                   reinterpret_cast<uint8_t*>(sectionHeaders.data()),
                   reinterpret_cast<uint8_t*>(sectionHeaders.data()) + sizeof(SectionHeader) * headerTableSize);
 
-    auto reader = Reader(buffer.data(), buffer.size());
+    auto reader = Reader<ELF_Bitness::Elf64>(buffer.data(), buffer.size());
     ASSERT_EQ(reinterpret_cast<const uint8_t*>(reader.getSection(indexToCheck).getHeader()),
               buffer.data() + sizeof(fileHeader) + sizeof(SectionHeader) * indexToCheck);
 }
@@ -107,7 +107,7 @@ TEST(ELFReaderTests, PointerToSectionDataIsResolvedCorrectly) {
                   reinterpret_cast<uint8_t*>(sectionHeaders.data()),
                   reinterpret_cast<uint8_t*>(sectionHeaders.data()) + sizeof(SectionHeader) * headerTableSize);
 
-    auto reader = Reader(buffer.data(), buffer.size());
+    auto reader = Reader<ELF_Bitness::Elf64>(buffer.data(), buffer.size());
     ASSERT_EQ(reinterpret_cast<const uint8_t*>(reader.getSection(indexToCheck).getData<uint8_t>()),
               buffer.data() + sizeof(fileHeader));
 }
@@ -127,7 +127,7 @@ TEST(ELFReaderTests, PointerToProgramHeaderIsResolvedCorrectly) {
                   reinterpret_cast<uint8_t*>(programHeaders.data()),
                   reinterpret_cast<uint8_t*>(programHeaders.data()) + sizeof(ProgramHeader) * headerTableSize);
 
-    auto reader = Reader(buffer.data(), buffer.size());
+    auto reader = Reader<ELF_Bitness::Elf64>(buffer.data(), buffer.size());
     ASSERT_EQ(reinterpret_cast<const uint8_t*>(reader.getSegment(indexToCheck).getHeader()),
               buffer.data() + sizeof(fileHeader) + sizeof(ProgramHeader) * indexToCheck);
 }
@@ -148,7 +148,7 @@ TEST(ELFReaderTests, PointerToProgramDataIsResolvedCorrectly) {
                   reinterpret_cast<uint8_t*>(programHeaders.data()),
                   reinterpret_cast<uint8_t*>(programHeaders.data()) + sizeof(ProgramHeader) * headerTableSize);
 
-    auto reader = Reader(buffer.data(), buffer.size());
+    auto reader = Reader<ELF_Bitness::Elf64>(buffer.data(), buffer.size());
     ASSERT_EQ(reinterpret_cast<const uint8_t*>(reader.getSegment(indexToCheck).getData()),
               buffer.data() + sizeof(fileHeader));
 }

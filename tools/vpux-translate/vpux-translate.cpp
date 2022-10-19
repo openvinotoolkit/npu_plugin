@@ -6,6 +6,7 @@
 //
 
 #include "vpux/compiler/dialect/ELF/export.hpp"
+#include "vpux/compiler/dialect/EMU/graph-schema/export.hpp"
 #include "vpux/compiler/dialect/VPUIP/graph-schema/export.hpp"
 #include "vpux/compiler/dialect/VPUIP/graph-schema/import.hpp"
 #include "vpux/compiler/frontend/IE.hpp"
@@ -74,7 +75,9 @@ mlir::OwningModuleRef importIE(llvm::SourceMgr& sourceMgr, mlir::MLIRContext* ct
         mlir::DefaultTimingManager tm;
         auto rootTiming = tm.getRootScope();
         std::vector<vpux::PreProcessInfo> preProcInfo;
-        module = IE::importNetwork(ctx, cnnNet, preProcInfo, false, rootTiming, vpuxProfiling);
+        // for VPUX37XX and VPUX40XX the ngraph is different because scales are not needed to be align. 
+        // Running with VPU::ArchKind::UNKNOWN will align scales, this can drop accuracy a bit for VPUX37XX and VPUX40XX.
+        module = IE::importNetwork(ctx, cnnNet, preProcInfo, false, rootTiming, vpuxProfiling, VPU::ArchKind::UNKNOWN);
     } catch (const std::exception& ex) {
         printTo(llvm::errs(), "Failed to translate IE IR {0} to MLIR : {1}", netFileName, ex.what());
         return nullptr;
@@ -142,6 +145,21 @@ mlir::LogicalResult exportELF(mlir::ModuleOp module, llvm::raw_ostream& output, 
     return mlir::success();
 }
 
+//
+// export-EMU
+//
+
+mlir::LogicalResult exportEMU(mlir::ModuleOp module, llvm::raw_ostream& output, StringRef /*outputFileName*/) {
+    mlir::DefaultTimingManager tm;
+    auto rootTiming = tm.getRootScope();
+    const std::vector<std::shared_ptr<const ov::Node>> params;
+    const std::vector<std::shared_ptr<const ov::Node>> results;
+    std::vector<vpux::PreProcessInfo> preProcInfo;
+    const auto buf = EMU::exportToBlob(module, rootTiming, preProcInfo, params, results);
+    output.write(reinterpret_cast<const char*>(buf.data()), buf.size());
+    return mlir::success();
+}
+
 }  // namespace
 
 int main(int argc, char* argv[]) {
@@ -151,6 +169,7 @@ int main(int argc, char* argv[]) {
         mlir::TranslateToMLIRRegistration("import-VPUIP", importVPUIP);
         mlir::TranslateFromMLIRRegistration("export-VPUIP", exportVPUIP, registerDialects);
         mlir::TranslateFromMLIRRegistration("export-ELF", exportELF, registerDialects);
+        mlir::TranslateFromMLIRRegistration("export-EMU", exportEMU, registerDialects);
 
         return mlir::asMainReturnCode(mlir::mlirTranslateMain(argc, argv, "VPUX Translation Testing Tool"));
     } catch (const std::exception& e) {

@@ -22,57 +22,54 @@ include "vpux/compiler/dialect/ELF/dialect.td"
 //   for the detailed description of the case values.
 
 // I64EnumAttr has uint64_t as the underlying type, which is OK for all cases.
-def ELF_SectionTypeAttr2 :
-        I64EnumAttr<
-            "SectionTypeAttr2",
-            "Enum for describing ELF section header types",
+def ELF_CMXMappingSymbolAttr :
+        StrEnumAttr<
+            "CMXMappingSymbolAttr",
+            "Enum for describing VPU special CMX Mapping names and values",
             [
-                I64EnumAttrCase<"SHT_NULL",     0>,
-                I64EnumAttrCase<"SHT_PROGBITS", 1>,
-                I64EnumAttrCase<"SHT_SYMTAB",   2>,
-                I64EnumAttrCase<"SHT_STRTAB",   3>,
-                I64EnumAttrCase<"SHT_RELA",     4>,
-                I64EnumAttrCase<"SHT_HASH",     5>,
-                I64EnumAttrCase<"SHT_DYNAMIC",  6>,
-                I64EnumAttrCase<"SHT_NOTE",     7>,
-                I64EnumAttrCase<"SHT_NOBITS",   8>,
-                I64EnumAttrCase<"SHT_REL",      9>,
-                I64EnumAttrCase<"SHT_SHLIB",    10>,
-                I64EnumAttrCase<"SHT_DYNSYM",   11>,
-                I64EnumAttrCase<"SHT_LOPROC",   0x70000000>,
-                I64EnumAttrCase<"SHT_HIPROC",   0x7FFFFFFF>,
-                I64EnumAttrCase<"SHT_LOUSER",   0x80000000>,
-                I64EnumAttrCase<"SHT_HIUSER",   0xFFFFFFFF>
+                StrEnumAttrCase<"VPU_NNRD_SYM_NNCXM_SLICE_BASE_ADDR",  0>,
+                StrEnumAttrCase<"VPU_NNRD_SYM_RTM_IVAR",               1>,
+                StrEnumAttrCase<"VPU_NNRD_SYM_RTM_ACT",                2>,
+                StrEnumAttrCase<"VPU_NNRD_SYM_RTM_DMA0",               3>,
+                StrEnumAttrCase<"VPU_NNRD_SYM_RTM_DMA1",               4>,
+                StrEnumAttrCase<"VPU_NNRD_SYM_FIFO_BASE",              5>,
+                StrEnumAttrCase<"VPU_NNRD_SYM_BARRIERS_START",         6>
             ]
         > {
     let cppNamespace = "vpux::ELF";
-    // Don't generate a C++ class! We want to use the AttrDef
-    //let genSpecializedAttr = 0;
     let genSpecializedAttr = 1;
 }
 
-// StrEnumAttr has signed int as underlying type, which is not OK for all cases.
+
+//
+// SectionTypeAttr
+//
+// Refer to https://docs.oracle.com/cd/E19455-01/806-3773/elf-2/index.html
+//   for the detailed description of the case values.
+
+// I64EnumAttr has uint64_t as the underlying type, which is OK for all cases.
 def ELF_SectionTypeAttr :
-        StrEnumAttr<
+        I64EnumAttr<
             "SectionTypeAttr",
             "Enum for describing ELF section header types",
             [
-                StrEnumAttrCase<"SHT_NULL",           0>,
-                StrEnumAttrCase<"SHT_PROGBITS",       1>,
-                StrEnumAttrCase<"SHT_SYMTAB",         2>,
-                StrEnumAttrCase<"SHT_STRTAB",         3>,
-                StrEnumAttrCase<"SHT_RELA",           4>,
-                StrEnumAttrCase<"SHT_HASH",           5>,
-                StrEnumAttrCase<"SHT_DYNAMIC",        6>,
-                StrEnumAttrCase<"SHT_NOTE",           7>,
-                StrEnumAttrCase<"SHT_NOBITS",         8>,
-                StrEnumAttrCase<"SHT_REL",            9>,
-                StrEnumAttrCase<"SHT_SHLIB",          10>,
-                StrEnumAttrCase<"SHT_DYNSYM",         11>,
-                StrEnumAttrCase<"SHT_LOPROC",         0x70000000>,
-                StrEnumAttrCase<"SHT_HIPROC",         0x7FFFFFFF>,
-                // error: enumerator value ‘2147483648’ is outside the range of underlying type ‘int’: StrEnumAttrCase<"SHT_LOUSER",         0x80000000>, // NEW
-                //StrEnumAttrCase<"SHT_HIUSER",         0xFFFFFFFF>, // NEW
+                I64EnumAttrCase<"SHT_NULL",         0>,
+                I64EnumAttrCase<"SHT_PROGBITS",     1>,
+                I64EnumAttrCase<"SHT_SYMTAB",       2>,
+                I64EnumAttrCase<"SHT_STRTAB",       3>,
+                I64EnumAttrCase<"SHT_RELA",         4>,
+                I64EnumAttrCase<"SHT_HASH",         5>,
+                I64EnumAttrCase<"SHT_DYNAMIC",      6>,
+                I64EnumAttrCase<"SHT_NOTE",         7>,
+                I64EnumAttrCase<"SHT_NOBITS",       8>,
+                I64EnumAttrCase<"SHT_REL",          9>,
+                I64EnumAttrCase<"SHT_SHLIB",        10>,
+                I64EnumAttrCase<"SHT_DYNSYM",       11>,
+                I64EnumAttrCase<"SHT_LOPROC",       0x70000000>,
+                I64EnumAttrCase<"SHT_HIPROC",       0x7FFFFFFF>,
+                I64EnumAttrCase<"SHT_LOUSER",       0x80000000>,
+                I64EnumAttrCase<"VPU_SHT_NETDESC",  0x8AAAAAAA>,
+                I64EnumAttrCase<"SHT_HIUSER",       0xFFFFFFFF>
             ]
         > {
     let cppNamespace = "vpux::ELF";
@@ -130,11 +127,14 @@ def ELF_SectionFlagsAttr :
                 BitEnumAttrCase<"SHF_ALLOC",               0x2>,
                 BitEnumAttrCase<"SHF_EXECINSTR",           0x4>,
                 BitEnumAttrCase<"SHF_INFO_LINK",           0x40>,
-                BitEnumAttrCase<"VPU_SHF_JIT",             0x10000000>,
-                BitEnumAttrCase<"VPU_SHF_USERINPUT",       0x20000000>,
-                BitEnumAttrCase<"VPU_SHF_USEROUTPUT",      0x40000000>,
+                BitEnumAttrCase<"VPU_SHF_JIT",             0x100000>,
+                BitEnumAttrCase<"VPU_SHF_USERINPUT",       0x200000>,
+                BitEnumAttrCase<"VPU_SHF_USEROUTPUT",      0x400000>,
+                BitEnumAttrCase<"SHF_MASKOS",              0xFF00000>,
+                BitEnumAttrCase<"VPU_SHF_PROC_DPU",        0x10000000>,
+                BitEnumAttrCase<"VPU_SHF_PROC_DMA",        0x20000000>,
+                BitEnumAttrCase<"VPU_SHF_PROC_SHAVE",      0x40000000>,
                 BitEnumAttrCase<"SHF_MASKPROC",            0xF0000000>,
-                BitEnumAttrCase<"SHF_MASKPROC2",           0xF0000001>,
             ]
         > {
     let cppNamespace = "vpux::ELF";
@@ -151,15 +151,15 @@ def ELF_RelocationTypeAttr :
             [
                 StrEnumAttrCase<"R_VPU_64",                                  0>,
                 StrEnumAttrCase<"R_VPU_64_OR",                               1>,
-                StrEnumAttrCase<"R_VPU_64_OR_RTM",                           2>,
+                StrEnumAttrCase<"R_VPU_DISP40_RTM",                          2>,
                 StrEnumAttrCase<"R_VPU_64_LSHIFT",                           3>,
                 StrEnumAttrCase<"R_VPU_32",                                  4>,
-                StrEnumAttrCase<"R_VPU_32_OR_RTM",                           5>,
+                StrEnumAttrCase<"R_VPU_32_RTM",                              5>,
                 StrEnumAttrCase<"R_VPU_32_SUM",                              6>,
                 StrEnumAttrCase<"R_VPU_32_MULTICAST_BASE",                   7>,
                 StrEnumAttrCase<"R_VPU_32_MULTICAST_BASE_SUB",               8>,
-                StrEnumAttrCase<"R_VPU_32_MULTICAST_OFFSET_4_BIT_SHIFT_OR",  9>,
-                StrEnumAttrCase<"R_VPU_32_MULTICAST_OFFSET_CMP_OR",         10>,
+                StrEnumAttrCase<"R_VPU_DISP28_MULTICAST_OFFSET",             9>,
+                StrEnumAttrCase<"R_VPU_DISP4_MULTICAST_OFFSET_CMP",         10>,
             ]
         > {
     let cppNamespace = "vpux::ELF";

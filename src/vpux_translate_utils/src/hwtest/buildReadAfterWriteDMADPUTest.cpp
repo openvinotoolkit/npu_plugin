@@ -29,10 +29,10 @@ void buildReadAfterWriteDMADPUTest(const nb::TestCaseJsonDescriptor& testDesc, m
     auto loc = builder.getUnknownLoc();
     const auto int32 = builder.getIntegerType(32, true);
 
-    const auto input = testDesc.getInputLayer();
+    const auto input = testDesc.getInputLayerList().front();
     const auto weights = testDesc.getWeightLayer();
     const auto conv = testDesc.getConvLayer();
-    const auto output = testDesc.getOutputLayer();
+    const auto output = testDesc.getOutputLayers().front();
     const auto iterationCount = testDesc.getIterationCount();
     const auto cluster = testDesc.getClusterNumber();
 
@@ -99,13 +99,12 @@ void buildReadAfterWriteDMADPUTest(const nb::TestCaseJsonDescriptor& testDesc, m
     auto weightsAttribute = vpux::Const::ContentAttr::get(weightsValues);
     weightsAttribute = weightsAttribute.reorder(vpux::DimsOrder::OYXI);
 
-    auto qty = weightsType.dyn_cast<mlir::quant::QuantizedType>();
-
-    if (qty != nullptr) {
+    if (auto qty = weightsType.dyn_cast<mlir::quant::QuantizedType>()) {
+        const auto quantizedType = vpux::changeStorageType(qty, weightsAttribute.getType().getElementType());
+        weightsAttribute = weightsAttribute.quantCast(quantizedType);
         if (qty.getStorageType().isInteger(4)) {
             weightsAttribute = weightsAttribute.bitPack(4);
         }
-        weightsAttribute = weightsAttribute.quantCast(qty);
     }
 
     const auto weightsDDRType =
@@ -196,9 +195,9 @@ void buildReadAfterWriteDMADPUTest(const nb::TestCaseJsonDescriptor& testDesc, m
 
         auto nceTask = VPURT::wrapIntoTaskOp<VPUIP::NCEClusterTaskOp>(
                 functionBuilder, mlir::ValueRange(waitBarrier.barrier()), mlir::ValueRange(updateBarrier.barrier()),
-                loc, inputCMX.buffer(), weightsCMX.buffer(), weightsTableCMX.buffer(), nullptr, inputCMX.buffer(),
-                outputDPUCMX.buffer(), outputDPUCMX.buffer(), vpux::VPUIP::NCETaskType::CONV, kernelSize, strides,
-                kernelPaddings, nullptr, nullptr);
+                loc, inputCMX.buffer(), weightsCMX.buffer(), weightsTableCMX.buffer(), nullptr, nullptr,
+                inputCMX.buffer(), outputDPUCMX.buffer(), outputDPUCMX.buffer(), vpux::VPUIP::NCETaskType::CONV,
+                kernelSize, strides, kernelPaddings, nullptr, nullptr);
 
         const auto start = getIntArrayAttr(ctx, std::vector<std::int64_t>{0, 0, 0});
         const auto end = getIntArrayAttr(
@@ -215,7 +214,8 @@ void buildReadAfterWriteDMADPUTest(const nb::TestCaseJsonDescriptor& testDesc, m
     functionBuilder.create<mlir::ReturnOp>(loc, mlir::ValueRange{functionOutput});
 
     mlir::PassManager pm(ctx, mlir::OpPassManager::Nesting::Implicit);
-    pm.addPass(VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::DefaultHW, None, log));
+    pm.addPass(
+            VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::DefaultHW, None, None, log));
     if (conv.compress) {
         pm.addPass(VPUIP::createCompressWeightsPass(log));
     }

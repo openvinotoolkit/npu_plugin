@@ -340,6 +340,7 @@ struct EXECUTOR_STREAMS final : OptionBase<EXECUTOR_STREAMS, int64_t> {
     }
 };
 
+int64_t getNumOptimalInferRequests(const Config& config);
 //
 // INFERENCE_TIMEOUT_MS
 //

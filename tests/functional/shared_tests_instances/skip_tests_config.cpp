@@ -213,25 +213,17 @@ std::vector<std::string> disabledTestPatterns() {
             ".*checkInferTime.*",
             ".*OVExecGraphImportExportTest.*",
 
-            // TODO: GetMetric function is not fully implemented for ExecutableNetwork interface (implemented only for vpux plugin)
+            // This test uses legacy OpenVINO 1.0 API, no need to support it
             ".*ExecutableNetworkBaseTest.checkGetMetric.*",
-            ".*OVHoldersTest.*LoadedAny.*",
-            ".*OVClassExecutableNetworkGetMetricTest.*",
 
             // TODO: SetConfig function is not implemented for ExecutableNetwork interface (implemented only for vpux plugin)
             ".*ExecutableNetworkBaseTest.canSetConfigToExecNet.*",
             ".*ExecutableNetworkBaseTest.canSetConfigToExecNetAndCheckConfigAndCheck.*",
             ".*CanSetConfigToExecNet.*",
-            ".*OVClassExecutableNetworkGetMetricTest.*",
-            ".*OVClassExecutableNetworkGetConfigTest.*",
 
             // TODO Exception "Not implemented"
             // [Track number: E#30822]
             ".*OVClassNetworkTestP.*LoadNetworkCreateDefaultExecGraphResult.*",
-
-            // TODO: profiling support is broken in LATENCY mode
-            // [Track number: E#36465]
-            ".*OVClassNetworkTestP.LoadNetworkActualHeteroDeviceUsingDevicePropertiesNoThrow.*",
 
             // Async tests failed on dKMB
             // TODO: [Track number: S#14836]
@@ -248,12 +240,6 @@ std::vector<std::string> disabledTestPatterns() {
             ".*ReturnResultNotReadyFromWaitInAsyncModeForTooSmallTimeout.*",
             ".*OVInferRequestDynamicTests.*",
             ".*OVInferenceChaining.*",
-
-            // TODO: E#25458
-            ".*OVInferRequestPerfCountersTest.*",
-
-            // TODO: E#29542
-            ".*smoke_Auto_BehaviorTests.*",
 
             // Current OV logic with FULL_DEVICE_NAME metric differs from VPUX Plugin
             // Plugin throws an exception in case of absence VPUX devices in system
@@ -276,6 +262,30 @@ std::vector<std::string> disabledTestPatterns() {
             // [Track number: E#32075]
             ".*OVClassLoadNetworkTest.*LoadNetworkHETEROwithMULTINoThrow.*",
             ".*OVClassLoadNetworkTest.*LoadNetworkMULTIwithHETERONoThrow.*",
+
+            // [Track number: E#48480]
+            ".*OVExecutableNetworkBaseTest.*",
+            ".*OVInferRequestCheckTensorPrecision.*",
+
+            // [Track number: E#50215]
+            ".*smoke_AvgPool_NCHW_NoPadding_VPU3720.*",
+            ".*smoke_precommit_AvgPool_NHWC_NoPadding_VPU3720.*",
+            }
+        );
+
+        _skipRegistry.addPatterns(
+            devices.count() && !devices.has3720(),
+            "Disable tests but not for VPUX37XX",
+            {
+                // [Track number: E#49620]
+                ".*CompareWithRefs.*",
+                ".*CompareWithRefImpl.*",
+                ".*CompareWithRefs_MLIR.*",
+                ".*KmbMvn6LayerTest.*",
+                ".*SoftMax4D.*",
+                ".*smoke_StridedSlice.*",
+                ".*LayerTest.*",
+                ".*MCM.*",
             }
         );
 
@@ -322,7 +332,7 @@ std::vector<std::string> disabledTestPatterns() {
 
         _skipRegistry.addPatterns(
             backendName.isZero(),
-            "CumSum layer is not supported by VPUX37XX platform",
+            "CumSum layer is not supported by VPU3720 platform",
             {
                 ".*SetBlobTest.*",
             }
@@ -330,7 +340,7 @@ std::vector<std::string> disabledTestPatterns() {
 
         _skipRegistry.addPatterns(
             backendName.isZero(),
-            "TensorIterator layer is not supported by VPUX37XX/dKMB platform",
+            "TensorIterator layer is not supported by VPU3720/dKMB platform",
             {
                 ".*SetBlobTest.*",
             }
@@ -338,7 +348,7 @@ std::vector<std::string> disabledTestPatterns() {
 
         _skipRegistry.addPatterns(
             backendName.isZero(),
-            "Abs layer is not supported by VPUX37XX/dKMB platform",
+            "Abs layer is not supported by VPU3720/dKMB platform",
             {
                 ".*PrePostProcessTest.*"
             }
@@ -346,19 +356,10 @@ std::vector<std::string> disabledTestPatterns() {
 
         _skipRegistry.addPatterns(
                 backendName.isZero(),
-                "Convert layer is not supported by VPUX37XX/dKMB platform",
+                "Convert layer is not supported by VPU3720/dKMB platform",
                 {
                         ".*PreprocessingPrecisionConvertTest.*",
                         ".*InferRequestPreprocess.*"
-                }
-        );
-
-        // [Track number: E#32244]
-        _skipRegistry.addPatterns(
-                backendName.isZero(),
-                "Device failure with 0x700000001",
-                {
-                        "smoke_BehaviorTests.InferRequestPerfCountersTest.*",
                 }
         );
 
@@ -391,7 +392,7 @@ std::vector<std::string> disabledTestPatterns() {
         _skipRegistry.addPatterns(
             !devices.has3720(),
             "Device VPUX3720 is not available",
-            {".*VPUX37XX.*"}
+            {".*VPU3720.*"}
         );
 
         return _skipRegistry;

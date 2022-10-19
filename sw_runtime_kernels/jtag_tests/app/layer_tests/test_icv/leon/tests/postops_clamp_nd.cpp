@@ -37,93 +37,8 @@ struct Geometry
 
 const std::initializer_list<Geometry> geometries_list =
 {
-#ifdef CONFIG_TARGET_SOC_3720
-
     { 0x00004321, { 5, 2, 3, 4 }},
     { 0x00054321, { 2, 3, 4, 5, 6 }},
-
-#else // CONFIG_TARGET_SOC_3720
-
-    { 0x1, { 500000 }},
-  #if defined(ALL_DIMENSIONS_SET)
-    { 0x21, { 500000, 1 }},
-    { 0x321, { 100000, 3, 5 }},
-  #endif
-    { 0x4321, { 50000, 3, 5, 2 }},
-
-    { 0x00654321, { 6, 7, 2, 3, 4, 5 }},
-  #if defined(ALL_DIMENSIONS_SET)
-    { 0x00654321, { 2, 3, 4, 5, 6, 7 }},
-    { 0x00654321, { 3, 4, 5, 6, 7, 2 }},
-    { 0x00654321, { 4, 5, 6, 7, 2, 3 }},
-    { 0x00654321, { 5, 6, 7, 2, 3, 4 }},
-    { 0x00654321, { 7, 2, 3, 4, 5, 6 }},
-    { 0x00654321, { 7, 6, 2, 3, 4, 5 }},
-    { 0x00654321, { 7, 6, 5, 2, 3, 4 }},
-    { 0x00654321, { 7, 6, 5, 4, 2, 3 }},
-    { 0x00654321, { 7, 6, 5, 4, 3, 2 }},
-  #endif
-
-    { 0x00054321, { 4, 5, 6, 3, 2 }},
-  #if defined(ALL_DIMENSIONS_SET)
-    { 0x00054321, { 2, 3, 4, 5, 6 }},
-    { 0x00054321, { 3, 4, 5, 6, 2 }},
-    { 0x00054321, { 5, 6, 4, 3, 2 }},
-    { 0x00054321, { 6, 5, 4, 3, 2 }},
-  #endif
-
-    { 0x00004321, { 2, 3, 4, 5 }},
-  #if defined(ALL_DIMENSIONS_SET)
-    { 0x00004321, { 3, 4, 5, 2 }},
-    { 0x00004321, { 4, 5, 2, 3 }},
-    { 0x00004321, { 5, 2, 3, 4 }},
-  #endif
-
-  #if defined(ALL_DIMENSIONS_SET)
-    { 0x00000321, {  16,  15, 4200 }},
-  #endif
-    { 0x00000321, {  16,  39, 1680 }},
-  #if defined(ALL_DIMENSIONS_SET)
-    { 0x00000321, {  48,  28,  768 }},
-  #endif
-    { 0x00000321, {  40,  83,  320 }},
-  #if defined(ALL_DIMENSIONS_SET)
-    { 0x00000321, { 136,  88,   88 }},
-    { 0x00000321, { 192, 346,   16 }},
-  #endif
-    { 0x00000321, { 464, 286,    8 }},
-
-#if defined(ALL_ORDERS_SET)
-  #if defined(ALL_DIMENSIONS_SET)
-    { 0x00000231, {  16,  15, 4200 }},
-  #endif
-    { 0x00000231, {  16,  39, 1680 }},
-  #if defined(ALL_DIMENSIONS_SET)
-    { 0x00000231, {  48,  28,  768 }},
-  #endif
-    { 0x00000231, {  40,  83,  320 }},
-  #if defined(ALL_DIMENSIONS_SET)
-    { 0x00000231, { 136,  88,   88 }},
-    { 0x00000231, { 192, 346,   16 }},
-  #endif
-    { 0x00000231, { 464, 286,    8 }},
-
-  #if defined(ALL_DIMENSIONS_SET)
-    { 0x00000213, {  16,  15, 4200 }},
-  #endif
-    { 0x00000213, {  16,  39, 1680 }},
-  #if defined(ALL_DIMENSIONS_SET)
-    { 0x00000213, {  48,  28,  768 }},
-  #endif
-    { 0x00000213, {  40,  83,  320 }},
-  #if defined(ALL_DIMENSIONS_SET)
-    { 0x00000213, { 136,  88,   88 }},
-    { 0x00000213, { 192, 346,   16 }},
-  #endif
-    { 0x00000213, { 464, 286,    8 }},
-#endif // ALL_ORDERS_SET
-
-#endif // CONFIG_TARGET_SOC_3720
 };
 
 const std::initializer_list<Gaps> gaps_list =
@@ -217,9 +132,7 @@ protected:
 
             postOp->forceKernel = PostOps::ForceND;
 
-#ifdef CONFIG_TARGET_SOC_3720
             postOp->executeInTestingSystem = true;
-#endif // CONFIG_TARGET_SOC_3720
         }
     void generateData() override
         {
@@ -245,8 +158,10 @@ protected:
             // reference output
             calcReferenceOutput();
         }
+
     void resetOutputData() override
         { resetTensorBuffer(m_outputTensor); }
+
     bool checkResult() override
         {
             m_outputTensor.confirmBufferData();
@@ -284,6 +199,7 @@ protected:
 
             return !threshold_test_failed;
         }
+        
     void calcReferenceOutput()
         {
             // no need to remap memory indices between tensors

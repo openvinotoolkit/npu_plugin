@@ -5,8 +5,9 @@
 
 //
 
-#include "vpux/compiler/dialect/VPU/distributed_tensor_utils.hpp"
 #include "vpux/compiler/dialect/VPU/passes.hpp"
+#include "vpux/compiler/dialect/VPU/utils/distributed_tensor_utils.hpp"
+#include "vpux/compiler/dialect/VPU/utils/multi_cluster_strategy_utils.hpp"
 #include "vpux/compiler/utils/logging.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
 
@@ -15,7 +16,6 @@
 #include <mlir/Transforms/DialectConversion.h>
 
 #include "vpux/compiler/utils/types.hpp"
-#include "vpux/utils/IE/loop.hpp"
 
 #include "vpux/utils/core/func_ref.hpp"
 #include "vpux/utils/core/numeric.hpp"
@@ -60,19 +60,30 @@ mlir::LogicalResult NCEConvolutionRewriter::matchAndRewrite(NCEConvolutionOp ori
 
     mlir::ArrayAttr activationAlignmentAttr = nullptr;
     mlir::ArrayAttr weightAlignmentAttr = nullptr;
-    mlir::ArrayAttr outputAlignmentAttr = nullptr;
-    NCEClusterTilingOp clusterTilingOp = nullptr;
     const auto strategy = origOp->getAttr(multiClusterStrategy).cast<VPU::MultiClusterStrategyAttr>().getValue();
 
+    auto outputTensorType = origOp.output().getType().cast<vpux::NDTypeInterface>();
+    auto numClusters = VPU::getOptimalNumClusters(nceOp, outputTensorType.getShape()[Dims4D::Act::C], strategy);
+    auto distributedOutputTensorType = getDistributedOutputTypeFromOp(nceOp, outputTensorType, numClusters);
+    if (strategy == VPU::MultiClusterStrategy::SplitOverHeight) {
+        const auto newDistributedOutputTensorType = adjustOutputAlignmentForSOH(nceOp, distributedOutputTensorType);
+
+        if (newDistributedOutputTensorType.hasValue()) {
+            distributedOutputTensorType = newDistributedOutputTensorType.getValue();
+        }
+    }
+
+    auto filterType = origOp.filter().getType().cast<vpux::NDTypeInterface>();
+    auto outputType = origOp.output().getType().cast<vpux::NDTypeInterface>();
     const auto activationTensorDistributionMode = getActivationTensorDistributionMode(strategy);
-    const auto activationTensorNumTiles = getIntArrayAttr(ctx, getActivationTensorNumTiles(_numClusters, strategy));
+    const auto activationTensorNumTiles =
+            getIntArrayAttr(ctx, getActivationTensorNumTiles(numClusters.getInt(), strategy));
     const auto weightsTensorDistributionMode = getWeightsTensorDistributionMode(strategy);
-    const auto weightsTensorNumTiles = getIntArrayAttr(ctx, getWeightsTensorNumTiles(nceOp, _numClusters, strategy));
+    const auto weightsTensorNumTiles =
+            getIntArrayAttr(ctx, getWeightsTensorNumTiles(filterType, numClusters.getInt(), strategy));
     const auto weightsTableTensorDistributionMode = getWeightsTensorDistributionMode(strategy);
     const auto weightsTableTensorNumTiles =
-            getIntArrayAttr(ctx, getWeightsTableTensorNumTiles(nceOp, _numClusters, strategy));
-    const auto outputTensorDistributionMode = getOutputTensorDistributionMode(strategy);
-    const auto outputTensorNumTiles = getIntArrayAttr(ctx, getOutputTensorNumTiles(nceOp, _numClusters, strategy));
+            getIntArrayAttr(ctx, getWeightsTableTensorNumTiles(outputType, numClusters.getInt(), strategy));
 
     const auto arch = VPU::getArch(origOp.getOperation());
     const auto canUseCMajor =
@@ -80,13 +91,9 @@ mlir::LogicalResult NCEConvolutionRewriter::matchAndRewrite(NCEConvolutionOp ori
 
     if (!canUseCMajor) {
         const auto activationAlignment = getActivationTensorAlignment(nceOp, strategy);
+
         if (activationAlignment.hasValue()) {
             activationAlignmentAttr = getIntArrayAttr(ctx, activationAlignment.getValue());
-        }
-
-        const auto outputAlignment = getOutputTensorAlignment(strategy);
-        if (outputAlignment.hasValue()) {
-            outputAlignmentAttr = getIntArrayAttr(ctx, outputAlignment.getValue());
         }
     }
 
@@ -107,9 +114,6 @@ mlir::LogicalResult NCEConvolutionRewriter::matchAndRewrite(NCEConvolutionOp ori
             createDistributedCopyIn(nceOp, origOp.weightsTable(), weightsTableTensorDistributionMode,
                                     weightsTableTensorNumTiles, weightAlignmentAttr, strategy);
 
-    const auto distributedOutputTensorType = createDistributedTensorType(
-            nceOp, origOp.output(), outputTensorDistributionMode, outputTensorNumTiles, outputAlignmentAttr, strategy);
-
     const auto bodyBuilder = [origOp](mlir::OpBuilder& builder, mlir::Location loc, mlir::ValueRange newOperands) {
         mlir::BlockAndValueMapping mapper;
         mapper.map(origOp->getOperands(), newOperands);
@@ -120,31 +124,35 @@ mlir::LogicalResult NCEConvolutionRewriter::matchAndRewrite(NCEConvolutionOp ori
         newOutput.setType(cmxMemSpace);
         builder.create<YieldOp>(loc, newOp->getResults());
     };
-
-    _log.trace("Wrap {0} into NCEClusterTilingOp", origOp->getName());
-
+    SmallVector<mlir::Value> distributedCopyOps{distributedActivationCopyOp->getResult(0),
+                                                distributedWeightsCopyOp->getResult(0),
+                                                distributedWeightTableCopyOp->getResult(0)};
     if (canUseCMajor) {
         const auto activationWindowDistributionMode = getActivationWindowTensorDistributionMode(strategy);
         const auto activationWindowNumTiles = getIntArrayAttr(ctx, getActivationWindowTensorNumTiles(strategy));
-        const auto distributedActivationWindowCopyOp =
+        auto distributedActivationWindowCopyOp =
                 createDistributedCopyIn(nceOp, origOp.activationWindow(), activationWindowDistributionMode,
                                         activationWindowNumTiles, nullptr, strategy);
 
-        clusterTilingOp = rewriter.create<NCEClusterTilingOp>(
-                origOp->getLoc(), distributedOutputTensorType,
-                mlir::ValueRange{distributedActivationCopyOp->getResult(0), distributedWeightsCopyOp->getResult(0),
-                                 distributedWeightTableCopyOp->getResult(0),
-                                 distributedActivationWindowCopyOp->getResult(0)},
-                bodyBuilder);
-    } else {
-        clusterTilingOp = rewriter.create<NCEClusterTilingOp>(
-                origOp->getLoc(), distributedOutputTensorType,
-                mlir::ValueRange{distributedActivationCopyOp->getResult(0), distributedWeightsCopyOp->getResult(0),
-                                 distributedWeightTableCopyOp->getResult(0)},
-                bodyBuilder);
+        distributedCopyOps.push_back(distributedActivationWindowCopyOp.getResult(0));
     }
 
-    const auto outputCopyOp = createDistributedCopyOut(nceOp, clusterTilingOp);
+    if (origOp.instructionListTable()) {
+        auto instructionListTableDistributionMode = getInstructionListTableTensorDistributionMode(strategy);
+        auto instructionListTableNumTiles =
+                getIntArrayAttr(origOp.getContext(), getInstructionListTableTensorNumTiles(strategy));
+        auto distributedInstructionListTableCopyOp =
+                createDistributedCopyIn(origOp, origOp.instructionListTable(), instructionListTableDistributionMode,
+                                        instructionListTableNumTiles, nullptr, strategy);
+        distributedCopyOps.push_back(distributedInstructionListTableCopyOp.getResult(0));
+    }
+
+    _log.trace("Wrap {0} into NCEClusterTilingOp", origOp->getName());
+
+    const auto clusterTilingOp = rewriter.create<NCEClusterTilingOp>(origOp->getLoc(), distributedOutputTensorType,
+                                                                     mlir::ValueRange{distributedCopyOps}, bodyBuilder);
+
+    const auto outputCopyOp = createDistributedCopyOut(origOp, clusterTilingOp);
     const auto origOutput = origOp->getResult(0);
     origOutput.replaceAllUsesWith(outputCopyOp->getResult(0));
     rewriter.replaceOp(origOp, outputCopyOp->getResult(0));
@@ -183,30 +191,38 @@ mlir::LogicalResult NCEDepthConvolutionRewriter::matchAndRewrite(NCEDepthConvolu
     auto nceOp = mlir::dyn_cast<VPU::NCEOpInterface>(origOp.getOperation());
     VPUX_THROW_UNLESS(nceOp != nullptr, "Operation '{0}' cannot be converted to VPU::NCEOpInterface", origOp);
 
+    auto filterType = origOp.filter().getType().cast<vpux::NDTypeInterface>();
+    auto outputType = origOp.output().getType().cast<vpux::NDTypeInterface>();
     mlir::ArrayAttr activationAlignmentAttr = nullptr;
     mlir::ArrayAttr weightAlignmentAttr = nullptr;
-    mlir::ArrayAttr outputAlignmentAttr = nullptr;
     const auto strategy = origOp->getAttr(multiClusterStrategy).cast<VPU::MultiClusterStrategyAttr>().getValue();
+
+    auto outputTensorType = origOp.output().getType().cast<vpux::NDTypeInterface>();
+    auto numClusters = VPU::getOptimalNumClusters(nceOp, outputTensorType.getShape()[Dims4D::Act::C], strategy);
+    auto distributedOutputTensorType = getDistributedOutputTypeFromOp(nceOp, outputTensorType, numClusters);
+    if (strategy == VPU::MultiClusterStrategy::SplitOverHeight) {
+        const auto newDistributedOutputTensorType = adjustOutputAlignmentForSOH(nceOp, distributedOutputTensorType);
+
+        if (newDistributedOutputTensorType.hasValue()) {
+            distributedOutputTensorType = newDistributedOutputTensorType.getValue();
+        }
+    }
+
     const auto activationTensorDistributionMode = getActivationTensorDistributionMode(strategy);
-    const auto activationTensorNumTiles = getIntArrayAttr(ctx, getActivationTensorNumTiles(_numClusters, strategy));
+    const auto activationTensorNumTiles =
+            getIntArrayAttr(ctx, getActivationTensorNumTiles(numClusters.getInt(), strategy));
     const auto weightsTensorDistributionMode = getWeightsTensorDistributionMode(strategy);
-    const auto weightsTensorNumTiles = getIntArrayAttr(ctx, getWeightsTensorNumTiles(nceOp, _numClusters, strategy));
+    const auto weightsTensorNumTiles =
+            getIntArrayAttr(ctx, getWeightsTensorNumTiles(filterType, numClusters.getInt(), strategy));
     const auto weightsTableTensorDistributionMode = getWeightsTensorDistributionMode(strategy);
     const auto weightsTableTensorNumTiles =
-            getIntArrayAttr(ctx, getWeightsTableTensorNumTiles(nceOp, _numClusters, strategy));
+            getIntArrayAttr(ctx, getWeightsTableTensorNumTiles(outputType, numClusters.getInt(), strategy));
     const auto activationWindowDistributionMode = getActivationWindowTensorDistributionMode(strategy);
     const auto activationWindowNumTiles = getIntArrayAttr(ctx, getActivationWindowTensorNumTiles(strategy));
-    const auto outputTensorDistributionMode = getOutputTensorDistributionMode(strategy);
-    const auto outputTensorNumTiles = getIntArrayAttr(ctx, getOutputTensorNumTiles(nceOp, _numClusters, strategy));
 
     const auto activationAlignment = getActivationTensorAlignment(nceOp, strategy);
     if (activationAlignment.hasValue()) {
         activationAlignmentAttr = getIntArrayAttr(ctx, activationAlignment.getValue());
-    }
-
-    const auto outputAlignment = getOutputTensorAlignment(strategy);
-    if (outputAlignment.hasValue()) {
-        outputAlignmentAttr = getIntArrayAttr(ctx, outputAlignment.getValue());
     }
 
     const auto weightAlignment = getWeightsTensorAlignment(strategy);
@@ -230,10 +246,22 @@ mlir::LogicalResult NCEDepthConvolutionRewriter::matchAndRewrite(NCEDepthConvolu
             createDistributedCopyIn(nceOp, origOp.activationWindow(), activationWindowDistributionMode,
                                     activationWindowNumTiles, nullptr, strategy);
 
-    const auto distributedOutputTensorType = createDistributedTensorType(
-            nceOp, origOp.output(), outputTensorDistributionMode, outputTensorNumTiles, outputAlignmentAttr, strategy);
-
     const auto origOutput = origOp->getResult(0);
+
+    SmallVector<mlir::Value> distributedCopyOps{distributedActivationCopyOp->getResult(0),
+                                                distributedWeightsCopyOp->getResult(0),
+                                                distributedWeightTableCopyOp->getResult(0)};
+
+    if (origOp.instructionListTable()) {
+        auto instructionListTableDistributionMode = getInstructionListTableTensorDistributionMode(strategy);
+        auto instructionListTableNumTiles =
+                getIntArrayAttr(origOp.getContext(), getInstructionListTableTensorNumTiles(strategy));
+        auto distributedInstructionListTableCopyOp =
+                createDistributedCopyIn(origOp, origOp.instructionListTable(), instructionListTableDistributionMode,
+                                        instructionListTableNumTiles, nullptr, strategy);
+        distributedCopyOps.push_back(distributedInstructionListTableCopyOp.getResult(0));
+    }
+    distributedCopyOps.push_back(distributedActivationWindowCopyOp->getResult(0));
 
     const auto bodyBuilder = [origOp](mlir::OpBuilder& builder, mlir::Location loc, mlir::ValueRange newOperands) {
         mlir::BlockAndValueMapping mapper;
@@ -247,12 +275,8 @@ mlir::LogicalResult NCEDepthConvolutionRewriter::matchAndRewrite(NCEDepthConvolu
     };
 
     _log.trace("Wrap {0} into NCEClusterTilingOp", origOp->getName());
-    const auto clusterTilingOp = rewriter.create<NCEClusterTilingOp>(
-            origOp->getLoc(), distributedOutputTensorType,
-            mlir::ValueRange{distributedActivationCopyOp->getResult(0), distributedWeightsCopyOp->getResult(0),
-                             distributedWeightTableCopyOp->getResult(0),
-                             distributedActivationWindowCopyOp->getResult(0)},
-            bodyBuilder);
+    const auto clusterTilingOp = rewriter.create<NCEClusterTilingOp>(origOp->getLoc(), distributedOutputTensorType,
+                                                                     mlir::ValueRange{distributedCopyOps}, bodyBuilder);
 
     const auto outputCopyOp = createDistributedCopyOut(nceOp, clusterTilingOp);
     origOutput.replaceAllUsesWith(outputCopyOp->getResult(0));
@@ -291,28 +315,34 @@ mlir::LogicalResult NCEMaxPoolRewriter::matchAndRewrite(NCEMaxPoolOp origOp, mli
     auto nceOp = mlir::dyn_cast<VPU::NCEOpInterface>(origOp.getOperation());
     VPUX_THROW_UNLESS(nceOp != nullptr, "Operation '{0}' cannot be converted to VPU::NCEOpInterface", origOp);
 
+    auto outputType = origOp.output().getType().cast<vpux::NDTypeInterface>();
     mlir::ArrayAttr activationAlignmentAttr = nullptr;
     mlir::ArrayAttr weightAlignmentAttr = nullptr;
-    mlir::ArrayAttr outputAlignmentAttr = nullptr;
     const auto strategy = origOp->getAttr(multiClusterStrategy).cast<VPU::MultiClusterStrategyAttr>().getValue();
+
+    auto outputTensorType = origOp.output().getType().cast<vpux::NDTypeInterface>();
+    auto numClusters = VPU::getOptimalNumClusters(nceOp, outputTensorType.getShape()[Dims4D::Act::C], strategy);
+    auto distributedOutputTensorType = getDistributedOutputTypeFromOp(nceOp, outputTensorType, numClusters);
+    if (strategy == VPU::MultiClusterStrategy::SplitOverHeight) {
+        const auto newDistributedOutputTensorType = adjustOutputAlignmentForSOH(nceOp, distributedOutputTensorType);
+
+        if (newDistributedOutputTensorType.hasValue()) {
+            distributedOutputTensorType = newDistributedOutputTensorType.getValue();
+        }
+    }
+
     const auto activationTensorDistributionMode = getActivationTensorDistributionMode(strategy);
-    const auto activationTensorNumTiles = getIntArrayAttr(ctx, getActivationTensorNumTiles(_numClusters, strategy));
+    const auto activationTensorNumTiles =
+            getIntArrayAttr(ctx, getActivationTensorNumTiles(numClusters.getInt(), strategy));
     const auto weightsTableTensorDistributionMode = getWeightsTensorDistributionMode(strategy);
     const auto weightsTableTensorNumTiles =
-            getIntArrayAttr(ctx, getWeightsTableTensorNumTiles(nceOp, _numClusters, strategy));
+            getIntArrayAttr(ctx, getWeightsTableTensorNumTiles(outputType, numClusters.getInt(), strategy));
     const auto activationWindowDistributionMode = getActivationWindowTensorDistributionMode(strategy);
     const auto activationWindowNumTiles = getIntArrayAttr(ctx, getActivationWindowTensorNumTiles(strategy));
-    const auto outputTensorDistributionMode = getOutputTensorDistributionMode(strategy);
-    const auto outputTensorNumTiles = getIntArrayAttr(ctx, getOutputTensorNumTiles(nceOp, _numClusters, strategy));
 
     const auto activationAlignment = getActivationTensorAlignment(nceOp, strategy);
     if (activationAlignment.hasValue()) {
         activationAlignmentAttr = getIntArrayAttr(ctx, activationAlignment.getValue());
-    }
-
-    const auto outputAlignment = getOutputTensorAlignment(strategy);
-    if (outputAlignment.hasValue()) {
-        outputAlignmentAttr = getIntArrayAttr(ctx, outputAlignment.getValue());
     }
 
     const auto weightAlignment = getWeightsTensorAlignment(strategy);
@@ -333,9 +363,6 @@ mlir::LogicalResult NCEMaxPoolRewriter::matchAndRewrite(NCEMaxPoolOp origOp, mli
             createDistributedCopyIn(nceOp, origOp.activationWindow(), activationWindowDistributionMode,
                                     activationWindowNumTiles, nullptr, strategy);
 
-    const auto distributedOutputTensorType = createDistributedTensorType(
-            nceOp, origOp.output(), outputTensorDistributionMode, outputTensorNumTiles, outputAlignmentAttr, strategy);
-
     const auto origOutput = origOp->getResult(0);
 
     const auto bodyBuilder = [origOp](mlir::OpBuilder& builder, mlir::Location loc, mlir::ValueRange newOperands) {
@@ -353,6 +380,88 @@ mlir::LogicalResult NCEMaxPoolRewriter::matchAndRewrite(NCEMaxPoolOp origOp, mli
             origOp->getLoc(), distributedOutputTensorType,
             mlir::ValueRange{distributedActivationCopyOp->getResult(0), distributedWeightTableCopyOp->getResult(0),
                              distributedActivationWindowCopyOp->getResult(0)},
+            bodyBuilder);
+
+    const auto outputCopyOp = createDistributedCopyOut(nceOp, clusterTilingOp);
+    origOutput.replaceAllUsesWith(outputCopyOp->getResult(0));
+    rewriter.replaceOp(origOp, outputCopyOp->getResult(0));
+
+    return mlir::success();
+}
+
+//
+// NCEAveragePoolRewriterRewrite
+//
+
+class NCEAveragePoolRewriter final : public mlir::OpRewritePattern<NCEAveragePoolOp> {
+public:
+    NCEAveragePoolRewriter(mlir::MLIRContext* ctx, int64_t numClusters, Logger log)
+            : mlir::OpRewritePattern<NCEAveragePoolOp>(ctx), _numClusters(numClusters), _log(log) {
+        setDebugName("NCEAveragePoolRewriter");
+    }
+
+public:
+    mlir::LogicalResult matchAndRewrite(NCEAveragePoolOp origOp, mlir::PatternRewriter& rewriter) const final;
+
+private:
+    int64_t _numClusters;
+    Logger _log;
+};
+
+mlir::LogicalResult NCEAveragePoolRewriter::matchAndRewrite(NCEAveragePoolOp origOp,
+                                                            mlir::PatternRewriter& rewriter) const {
+    _log.trace("[{0}] Got '{1}' at '{2}'", getDebugName(), origOp->getName(), origOp->getLoc());
+
+    if (origOp->getParentOfType<NCEClusterTilingOp>() != nullptr) {
+        return matchFailed(_log, rewriter, origOp, "The operation is already wrapped with NCEClusterTiling");
+    }
+
+    auto* ctx = origOp->getContext();
+    auto nceOp = mlir::dyn_cast<VPU::NCEOpInterface>(origOp.getOperation());
+    VPUX_THROW_UNLESS(nceOp != nullptr, "Operation '{0}' cannot be converted to VPU::NCEOpInterface", origOp);
+
+    mlir::ArrayAttr activationAlignmentAttr = nullptr;
+    const auto strategy = origOp->getAttr(multiClusterStrategy).cast<VPU::MultiClusterStrategyAttr>().getValue();
+
+    auto outputTensorType = origOp.output().getType().cast<vpux::NDTypeInterface>();
+    auto numClusters = VPU::getOptimalNumClusters(nceOp, outputTensorType.getShape()[Dims4D::Act::C], strategy);
+    auto distributedOutputTensorType = getDistributedOutputTypeFromOp(nceOp, outputTensorType, numClusters);
+    if (strategy == VPU::MultiClusterStrategy::SplitOverHeight) {
+        const auto newDistributedOutputTensorType = adjustOutputAlignmentForSOH(nceOp, distributedOutputTensorType);
+
+        if (newDistributedOutputTensorType.hasValue()) {
+            distributedOutputTensorType = newDistributedOutputTensorType.getValue();
+        }
+    }
+
+    const auto activationTensorDistributionMode = getActivationTensorDistributionMode(strategy);
+    const auto activationTensorNumTiles =
+            getIntArrayAttr(ctx, getActivationTensorNumTiles(numClusters.getInt(), strategy));
+
+    const auto activationAlignment = getActivationTensorAlignment(nceOp, strategy);
+    if (activationAlignment.hasValue()) {
+        activationAlignmentAttr = getIntArrayAttr(ctx, activationAlignment.getValue());
+    }
+
+    const auto distributedActivationCopyOp =
+            createDistributedCopyIn(nceOp, origOp.input(), activationTensorDistributionMode, activationTensorNumTiles,
+                                    activationAlignmentAttr, strategy);
+
+    const auto origOutput = origOp->getResult(0);
+
+    const auto bodyBuilder = [origOp](mlir::OpBuilder& builder, mlir::Location loc, mlir::ValueRange newOperands) {
+        mlir::BlockAndValueMapping mapper;
+        mapper.map(origOp->getOperands(), newOperands);
+        auto* newOp = builder.clone(*origOp, mapper);
+        auto newOutput = newOp->getResult(0);
+        const auto newOutType = newOutput.getType().cast<vpux::NDTypeInterface>();
+        const auto cmxMemSpace = newOutType.changeMemSpace(MemoryKind::CMX_NN);
+        newOutput.setType(cmxMemSpace);
+        builder.create<YieldOp>(loc, newOp->getResults());
+    };
+
+    const auto clusterTilingOp = rewriter.create<NCEClusterTilingOp>(
+            origOp->getLoc(), distributedOutputTensorType, mlir::ValueRange{distributedActivationCopyOp->getResult(0)},
             bodyBuilder);
 
     const auto outputCopyOp = createDistributedCopyOut(nceOp, clusterTilingOp);
@@ -393,21 +502,18 @@ mlir::LogicalResult NCEEltwiseRewriter::matchAndRewrite(NCEEltwiseOp origOp, mli
     VPUX_THROW_UNLESS(nceOp != nullptr, "Operation '{0}' cannot be converted to VPU::NCEOpInterface", origOp);
 
     mlir::ArrayAttr activationAlignmentAttr = nullptr;
-    mlir::ArrayAttr outputAlignmentAttr = nullptr;
     const auto strategy = origOp->getAttr(multiClusterStrategy).cast<VPU::MultiClusterStrategyAttr>().getValue();
+    auto outputTensorType = origOp.output().getType().cast<vpux::NDTypeInterface>();
+    auto numClusters = VPU::getOptimalNumClusters(nceOp, outputTensorType.getShape()[Dims4D::Act::C], strategy);
+    const auto distributedOutputTensorType = getDistributedOutputTypeFromOp(nceOp, outputTensorType, numClusters);
+
     const auto activationTensorDistributionMode = getActivationTensorDistributionMode(strategy);
-    const auto activationTensorNumTiles = getIntArrayAttr(ctx, getActivationTensorNumTiles(_numClusters, strategy));
-    const auto outputTensorDistributionMode = getOutputTensorDistributionMode(strategy);
-    const auto outputTensorNumTiles = getIntArrayAttr(ctx, getOutputTensorNumTiles(nceOp, _numClusters, strategy));
+    const auto activationTensorNumTiles =
+            getIntArrayAttr(ctx, getActivationTensorNumTiles(numClusters.getInt(), strategy));
 
     const auto activationAlignment = getActivationTensorAlignment(origOp.getOperation(), strategy);
     if (activationAlignment.hasValue()) {
         activationAlignmentAttr = getIntArrayAttr(origOp.getContext(), activationAlignment.getValue());
-    }
-
-    const auto outputAlignment = getOutputTensorAlignment(strategy);
-    if (outputAlignment.hasValue()) {
-        outputAlignmentAttr = getIntArrayAttr(origOp.getContext(), outputAlignment.getValue());
     }
 
     const auto distributedActivationCopyOp1 =
@@ -417,9 +523,6 @@ mlir::LogicalResult NCEEltwiseRewriter::matchAndRewrite(NCEEltwiseOp origOp, mli
     const auto distributedActivationCopyOp2 =
             createDistributedCopyIn(nceOp, origOp.input2(), activationTensorDistributionMode, activationTensorNumTiles,
                                     activationAlignmentAttr, strategy);
-
-    const auto distributedOutputTensorType = createDistributedTensorType(
-            nceOp, origOp.output(), outputTensorDistributionMode, outputTensorNumTiles, outputAlignmentAttr, strategy);
 
     const auto origOutput = origOp->getResult(0);
 
@@ -473,11 +576,13 @@ void WrapVPUOpsInNCEClusterTilingPass::safeRunOnFunc() {
     auto nceOp = IE::getAvailableExecutor(module, ExecutorKind::NCE);
     const auto numClusters = nceOp.count();
 
+    LayerStrategyCheckerFactory::instance().registerNCEOpStrategy(func, _log);
     mlir::RewritePatternSet patterns(&ctx);
 
     patterns.insert<NCEConvolutionRewriter>(&ctx, numClusters, _log);
     patterns.insert<NCEDepthConvolutionRewriter>(&ctx, numClusters, _log);
     patterns.insert<NCEMaxPoolRewriter>(&ctx, numClusters, _log);
+    patterns.insert<NCEAveragePoolRewriter>(&ctx, numClusters, _log);
     patterns.insert<NCEEltwiseRewriter>(&ctx, numClusters, _log);
 
     mlir::ConversionTarget target(ctx);

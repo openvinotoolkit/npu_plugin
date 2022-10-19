@@ -3,7 +3,7 @@
 ### Components
 - [`kernels`](kernels) - source code of (SHAVE) cpp kernels  
 - [`jtag_tests`](jtag_tests) - testing system for developing, optimization, debug and validation of kernels on board or symulator through JTAG  
-- **firmware.vpu.iot** repository is necessary (should be available locally)  
+- [firmware.vpu.iot] repository is necessary (should be available locally)  
 
 to build/execute the tests and to compile the kernels for VPUX compiler.
 [`firmware_vpu_revision.txt`](firmware_vpu_revision.txt) - file must contain:
@@ -23,10 +23,10 @@ firmware.vpu.iot repo should be checkouted on branch (or hash) pointed in `firmw
 (submodules presilicon and schema should be updated)
 
 #### Build/execute the tests
-build/execute for VPUX37XX:  
+build/execute for VPU3720:  
 in `sw_runtime_kernels/jtag_tests/app/layer_tests/test_icv/build` run:  
 `make -j8 all CONFIG_FILE=.config_sim_3720xx_release` to build  
-`make start_simulator CONFIG_FILE=.config_sim_3720xx_release srvPort=30002 &` to start VPUX37XX debug simulator  
+`make start_simulator CONFIG_FILE=.config_sim_3720xx_release srvPort=30002 &` to start VPU3720 debug simulator  
 `make CONFIG_FILE=.config_sim_3720xx_release run srvIP=127.0.0.1 srvPort=30002 CONFIG_TEST_FILTER="*" CONFIG_TEST_MODE_FULL=y` to run tests
 
 
@@ -35,8 +35,6 @@ in `sw_runtime_kernels/jtag_tests/app/layer_tests/test_icv/build` run:
 `make -j8 all CONFIG_FILE=.config` to build  
 `make start_server CONFIG_FILE=.config &` to start jtag moviDebugServer  
 `make -j8 CONFIG_FILE=.config run CONFIG_TEST_FILTER="*" CONFIG_TEST_MODE_FULL=y` to run tests
-
-### **Software layers agreements/description from VPUX NN compiler's point of view**
 
 ### Kernel's arrangements
 ActShave sw kernel is represented in the VPUNN network (blob)
@@ -71,7 +69,7 @@ into independent portion of output located in NN CMX.
 The kernel gets all input parameters as a one void pointer represented as uint32_t value  
 example: [`void singleShaveSoftmax(uint32_t lParams)`](kernels/single_shave_softmax.cpp#L402)  
 The content of the parameters pointed by [`lParams`](kernels/inc/param_softmax.h#L17) is a [contract between
-vpux-compiler and particular sw kernel implementation](https://docs.intel.com/documents/MovidiusInternal/vpu2/Common/SW/VPUX_NN_Compiler_SAS/VPUX_NN_Compiler_SAS.html#software-layers)
+vpux-compiler and particular sw kernel implementation]
 The parameter structure can be any, but usually it includes:
 - one or several input tensor descriptions,
 - one or several output tensor descriptions,
@@ -103,7 +101,7 @@ parsing, compilation and serialization through the compiler's dialects
 
 #### JTAG test creating/porting 
 Low level sw-kernel JTAG testing system in vpux-plugin is being developed on the base of
-ICV tests in firmware.vpu.iot repo for UPA shave SW layers.
+[ICV tests in firmware.vpu.iot repo for UPA shave SW layers].
 Vpux-plugin JTAG testing system uses some elements from firmware.vpu.iot repo
 including building system.
 Low-level vpux-plugin JTAG tests builds and executes for two platforms KMB and VPUX37XX (on EVM KMB board and VPUX37XX moviSim correspondingly).

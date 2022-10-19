@@ -2,21 +2,23 @@
 {
     "architecture": "VPUX37XX",
     "case_type": "ZMajorConvolution",
-    "input": {
-        "shape": [
-            1,
-            16,
-            16,
-            16
-        ],
-        "dtype": "fp16",
-        "quantization": {
-            "scale": 1.0,
-            "zeropoint": 0,
-            "low_range": 0,
-            "high_range": 1
+    "input": [
+        {
+            "shape": [
+                1,
+                16,
+                16,
+                16
+            ],
+            "dtype": "fp16",
+            "quantization": {
+                "scale": 1.0,
+                "zeropoint": 0,
+                "low_range": 0,
+                "high_range": 1
+            }
         }
-    },
+    ],
     "weight": {
         "shape": [
             16,
@@ -32,21 +34,23 @@
             "high_range": 1
         }
     },
-    "output": {
-        "shape": [
-            1,
-            16,
-            16,
-            16
-        ],
-        "dtype": "fp16",
-        "quantization": {
-            "scale": 1.0,
-            "zeropoint": 0,
-            "low_range": 0,
-            "high_range": 1
+    "output": [
+        {
+            "shape": [
+                1,
+                16,
+                16,
+                16
+            ],
+            "dtype": "fp16",
+            "quantization": {
+                "scale": 1.0,
+                "zeropoint": 0,
+                "low_range": 0,
+                "high_range": 1
+            }
         }
-    },
+    ],
     "conv_op": {
         "stride": [
             1,
@@ -67,7 +71,7 @@
     "activation": {
         "architecture": "VPUX37XX",
         "name": "PReLU",
-        "alpha": -1.5,
+        "alpha": 1.5,
         "output_type": "fp16"
     }
 }

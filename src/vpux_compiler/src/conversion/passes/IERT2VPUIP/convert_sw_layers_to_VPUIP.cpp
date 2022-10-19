@@ -6,6 +6,7 @@
 #include "vpux/compiler/conversion.hpp"
 #include "vpux/compiler/dialect/VPUIP/sw_utils.hpp"
 #include "vpux/compiler/utils/logging.hpp"
+#include "vpux/compiler/utils/rewriter.hpp"
 #include "vpux/utils/core/logger.hpp"
 #include "vpux/utils/core/small_string.hpp"
 
@@ -13,18 +14,17 @@ using namespace vpux;
 
 namespace {
 
-mlir::memref::AllocOp createCMXTensor(mlir::Value source, mlir::PatternRewriter& rewriter) {
-    const auto type = source.getType().cast<vpux::NDTypeInterface>().eraseTiledInfo();
-    const auto cmxSymbolAttr =
-            vpux::IndexedSymbolAttr::get(rewriter.getContext(), stringifyEnum(VPU::MemoryKind::CMX_NN), 0);
-    const auto dataTypeCMX = type.changeMemSpace(cmxSymbolAttr);
-
-    // TODO : how tile index should be used?
-    return rewriter.create<mlir::memref::AllocOp>(source.getLoc(), dataTypeCMX.cast<mlir::MemRefType>());
+mlir::Value allocateResult(mlir::Location loc, mlir::PatternRewriter& rewriter, mlir::TypeConverter& typeConverter,
+                           mlir::Type type, vpux::IndexedSymbolAttr memSpace) {
+    auto bufferType = typeConverter.convertType(type).cast<vpux::NDTypeInterface>();
+    auto resultBufferType = bufferType.changeMemSpace(memSpace);
+    auto allocOp = rewriter.create<mlir::memref::AllocOp>(loc, resultBufferType.cast<mlir::MemRefType>());
+    return allocOp.memref();
 }
 
-mlir::SymbolRefAttr createBuiltInFunction(mlir::ModuleOp module, IERT::LayerOpInterface origOp,
-                                          const IERT::KernelInfo& kernelInfo, const Logger& log) {
+mlir::SymbolRefAttr createBuiltInFunction(mlir::ModuleOp module, VPU::LayerOpInterface origOp,
+                                          ArrayRef<mlir::Value> operands, ArrayRef<mlir::Value> results,
+                                          const VPUIP::KernelInfo& kernelInfo, const Logger& log) {
     OpBuilderLogger builderLog(log);
 
     SmallString builtInFunctionName{"builtin_"};
@@ -40,12 +40,10 @@ mlir::SymbolRefAttr createBuiltInFunction(mlir::ModuleOp module, IERT::LayerOpIn
     };
 
     auto& args = kernelInfo.args;
-    auto opInputs = origOp.getInputs();
-    auto opResults = origOp->getResults();
 
     SmallVector<mlir::Type> inputTypes;
-    std::transform(opInputs.begin(), opInputs.end(), std::back_inserter(inputTypes), convertToUnrankedType);
-    std::transform(opResults.begin(), opResults.end(), std::back_inserter(inputTypes), convertToUnrankedType);
+    std::transform(operands.begin(), operands.end(), std::back_inserter(inputTypes), convertToUnrankedType);
+    std::transform(results.begin(), results.end(), std::back_inserter(inputTypes), convertToUnrankedType);
     std::transform(args.begin(), args.end(), std::back_inserter(inputTypes), [](mlir::Attribute arg) {
         return arg.getType();
     });
@@ -58,16 +56,18 @@ mlir::SymbolRefAttr createBuiltInFunction(mlir::ModuleOp module, IERT::LayerOpIn
 // SoftwareLayerRewriter
 //
 
-class SoftwareLayerRewriter final : public mlir::OpInterfaceRewritePattern<IERT::SoftwareLayerOpInterface> {
+class SoftwareLayerRewriter final : public mlir::OpInterfaceConversionPattern<VPUIP::SoftwareLayerOpInterface> {
 public:
-    SoftwareLayerRewriter(mlir::MLIRContext* ctx, mlir::ModuleOp module, Logger log)
-            : mlir::OpInterfaceRewritePattern<IERT::SoftwareLayerOpInterface>(ctx), _module(module), _log(log) {
+    SoftwareLayerRewriter(mlir::TypeConverter& typeConverter, mlir::MLIRContext* ctx, mlir::ModuleOp module, Logger log)
+            : mlir::OpInterfaceConversionPattern<VPUIP::SoftwareLayerOpInterface>(typeConverter, ctx),
+              _module(module),
+              _log(log) {
         setDebugName("SoftwareLayerRewriter");
     }
 
 public:
-    mlir::LogicalResult matchAndRewrite(IERT::SoftwareLayerOpInterface origOp,
-                                        mlir::PatternRewriter& rewriter) const final;
+    mlir::LogicalResult matchAndRewrite(VPUIP::SoftwareLayerOpInterface origOp, ArrayRef<mlir::Value> newOperands,
+                                        mlir::ConversionPatternRewriter& rewriter) const final;
 
 private:
     mlir::ModuleOp _module;
@@ -76,54 +76,64 @@ private:
 private:
 };
 
-mlir::LogicalResult SoftwareLayerRewriter::matchAndRewrite(IERT::SoftwareLayerOpInterface origOp,
-                                                           mlir::PatternRewriter& rewriter) const {
-    auto layerOp = mlir::dyn_cast<IERT::LayerOpInterface>(origOp.getOperation());
+mlir::LogicalResult SoftwareLayerRewriter::matchAndRewrite(VPUIP::SoftwareLayerOpInterface origOp,
+                                                           ArrayRef<mlir::Value> newOperands,
+                                                           mlir::ConversionPatternRewriter& rewriter) const {
+    _log.trace("Got operation {0} at {1}", origOp->getName(), origOp->getLoc());
+
+    auto layerOp = mlir::dyn_cast<VPU::LayerOpInterface>(origOp.getOperation());
     VPUX_THROW_UNLESS(layerOp != nullptr, "Operation {0} is not a layer.", origOp);
 
-    _log.trace("Got operation {0}", origOp->getName());
+    auto* typeConverter = getTypeConverter();
+    VPUX_THROW_UNLESS(typeConverter != nullptr, "TypeConverter is not set");
+
     auto* ctx = getContext();
 
-    //  creating input dma
-    SmallVector<mlir::Value> inputCMXTensors;
-    for (auto&& source : layerOp.getInputs()) {
-        _log.trace("Create CMX buffer for input: {0}", source.getLoc());
-        auto cmxTensor = createCMXTensor(source, rewriter);
-        auto copyOp = rewriter.create<IERT::CopyOp>(origOp->getLoc(), source, cmxTensor.memref());
-        inputCMXTensors.push_back(copyOp.output());
+    const auto memSpaceCMX = vpux::IndexedSymbolAttr::get(ctx, stringifyEnum(VPU::MemoryKind::CMX_NN), 0);
+
+    SmallVector<mlir::Value> cmxOperands;
+    for (auto&& operand : newOperands) {
+        _log.trace("Create CMX buffer and copy operation for input: {0}", operand.getLoc());
+        const auto type = operand.getType().cast<vpux::NDTypeInterface>().changeMemSpace(memSpaceCMX);
+        auto cmxAllocOp = rewriter.create<mlir::memref::AllocOp>(operand.getLoc(), type.cast<mlir::MemRefType>());
+        auto copyOp = rewriter.create<VPUIP::CopyOp>(origOp->getLoc(), operand, cmxAllocOp.memref());
+        cmxOperands.push_back(copyOp.output());
     }
 
-    // allocating output tensors
-    SmallVector<mlir::Value> outputCMXTensors;
-    for (auto&& output : layerOp.getOutputs()) {
-        _log.trace("Create CMX buffer for output: {0}", output.getLoc());
-        auto allocOp = createCMXTensor(output, rewriter);
-        outputCMXTensors.push_back(allocOp.memref());
+    SmallVector<mlir::Value> cmxResults;
+    for (auto&& result : origOp->getResults()) {
+        _log.trace("Create CMX buffer for output: {0}", result.getLoc());
+        const auto outputBuffer =
+                allocateResult(origOp.getLoc(), rewriter, *typeConverter, result.getType(), memSpaceCMX);
+        cmxResults.push_back(outputBuffer);
     }
 
-    // first creating management kernel definition
     VPUIP::createRuntimeKernelDefinition(_module, _log.nest());
 
     // TODO : tile 0
     const int64_t tileIndex = 0;
-    auto builtInFunction = createBuiltInFunction(_module, layerOp, origOp.getKernelInfo(), _log.nest());
+    auto builtInFunction =
+            createBuiltInFunction(_module, layerOp, cmxOperands, cmxResults, origOp.getKernelInfo(), _log.nest());
 
-    auto swKernelOp = rewriter.create<VPUIP::SwKernelOp>(origOp->getLoc(), inputCMXTensors, outputCMXTensors,
-                                                         builtInFunction, getIntAttr(ctx, tileIndex));
+    auto swKernelOp = rewriter.create<VPUIP::SwKernelOp>(origOp->getLoc(), cmxOperands, cmxResults, builtInFunction,
+                                                         getIntAttr(ctx, tileIndex));
 
     _log.trace("Added kernel operation: {0}", swKernelOp);
-    initSwKernel(swKernelOp, inputCMXTensors, outputCMXTensors, origOp.getKernelInfo().args, _log.nest());
+    initSwKernel(swKernelOp, cmxOperands, cmxResults, origOp.getKernelInfo().args, _log.nest());
 
     SmallVector<mlir::Value> outputDmaResults;
-    auto opOutputs = layerOp.getOutputs();
-    //  creating post-dma
-    std::transform(opOutputs.begin(), opOutputs.end(), swKernelOp.results().begin(),
+    SmallVector<mlir::Value> ddrResults;
+    for (auto&& result : swKernelOp.results()) {
+        _log.trace("Create DDR buffer for output: {0}", result.getLoc());
+        const auto outputBuffer = allocateResult(origOp.getLoc(), rewriter, *typeConverter, result.getType(), nullptr);
+        ddrResults.push_back(outputBuffer);
+    }
+    std::transform(ddrResults.begin(), ddrResults.end(), swKernelOp.results().begin(),
                    std::back_inserter(outputDmaResults), [&](const auto& outputBuff, const auto& swKernelResult) {
-                       auto copyOp = rewriter.create<IERT::CopyOp>(origOp->getLoc(), swKernelResult, outputBuff);
+                       auto copyOp = rewriter.create<VPUIP::CopyOp>(origOp->getLoc(), swKernelResult, outputBuff);
                        return copyOp.output();
                    });
 
-    // setting output to be from DMA
     _log.trace("Replace origin op {0} with new outputs from SW Kernel {1}", origOp.getLoc(), outputDmaResults);
     rewriter.replaceOp(origOp, outputDmaResults);
 
@@ -153,19 +163,31 @@ void ConvertSWLayers2VPUIPPass::safeRunOnModule() {
         return;
     }
 
+    vpux::BufferizeTypeConverter typeConverter;
+
     mlir::ConversionTarget target(ctx);
     target.markUnknownOpDynamicallyLegal([&](mlir::Operation* op) {
-        return !mlir::isa<IERT::SoftwareLayerOpInterface>(op);
+        if (auto convertOp = mlir::dyn_cast<VPU::ConvertOp>(op)) {
+            const auto checkElementType = [](mlir::Type elemType) {
+                return elemType.isF16() || elemType.isF32() || elemType.isSignedInteger(8) ||
+                       elemType.isSignedInteger(32) || elemType.isSignedInteger(64) || elemType.isUnsignedInteger(8);
+            };
+            auto inputElemType = convertOp.input().getType().cast<vpux::NDTypeInterface>().getElementType();
+            auto outputElemType = convertOp.output().getType().cast<vpux::NDTypeInterface>().getElementType();
+            return !checkElementType(inputElemType) || !checkElementType(outputElemType);
+        }
+        return !mlir::isa<VPUIP::SoftwareLayerOpInterface>(op);
     });
     target.addLegalOp<mlir::memref::AllocOp>();
-    target.addLegalOp<IERT::CopyOp>();
+    target.addLegalOp<VPUIP::CopyOp>();
     target.addLegalOp<VPUIP::SwKernelOp>();
     target.markOpRecursivelyLegal<VPUIP::SwKernelOp>([&](mlir::Operation*) {
         return true;
     });
+    vpux::populateBufferizeMaterializationLegality(target);
 
     mlir::RewritePatternSet patterns(&ctx);
-    patterns.insert<SoftwareLayerRewriter>(&ctx, module, _log);
+    patterns.insert<SoftwareLayerRewriter>(typeConverter, &ctx, module, _log);
 
     if (mlir::failed(mlir::applyPartialConversion(module, target, std::move(patterns)))) {
         signalPassFailure();

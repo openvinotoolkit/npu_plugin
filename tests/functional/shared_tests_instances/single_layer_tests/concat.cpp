@@ -34,6 +34,9 @@ class KmbConcatLayerTest : public ConcatLayerTest, virtual public LayerTestsUtil
     }
 };
 
+class KmbConcatLayerTest_VPU3720 : public ConcatLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {};
+
+
 TEST_P(KmbConcatLayerTest, CompareWithRefs) {
     Run();
 }
@@ -41,6 +44,13 @@ TEST_P(KmbConcatLayerTest, CompareWithRefs) {
 TEST_P(KmbConcatLayerTest, CompareWithRefs_SW_MLIR) {
     useCompilerMLIR();
     setReferenceSoftwareModeMLIR();
+    Run();
+}
+
+TEST_P(KmbConcatLayerTest_VPU3720, CompareWithRefs_SW_MLIR_VPU3720){
+    useCompilerMLIR();
+    setPlatformVPU3720();
+    setDefaultHardwareModeMLIR();
     Run();
 }
 
@@ -74,6 +84,17 @@ INSTANTIATE_TEST_SUITE_P(smoke_Concat, KmbConcatLayerTest,
                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
                         KmbConcatLayerTest::getTestCaseName);
 
+INSTANTIATE_TEST_SUITE_P(smoke_precommit_Concat, KmbConcatLayerTest_VPU3720,
+                         ::testing::Combine(::testing::ValuesIn(axes),
+                                            ::testing::Values(std::vector<std::vector<size_t>>({{1, 16, 10, 10}, {1, 16, 10, 10}})),
+                                            ::testing::Values(InferenceEngine::Precision::U8),
+                                            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                            ::testing::Values(InferenceEngine::Layout::ANY),
+                                            ::testing::Values(InferenceEngine::Layout::ANY),
+                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                         KmbConcatLayerTest_VPU3720::getTestCaseName);
+
 // Check parameters from InceptionV3
 // This test is just attempt to use parameters other than in CPU-plugin.
 // Note: KMB-plugin does not support batch-size > 1.
@@ -92,4 +113,5 @@ INSTANTIATE_TEST_SUITE_P(smoke_Concat_InceptionV3, KmbConcatLayerTest,
                                            ::testing::Values(InferenceEngine::Layout::ANY),
                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
                         KmbConcatLayerTest::getTestCaseName);
+
 }  // namespace

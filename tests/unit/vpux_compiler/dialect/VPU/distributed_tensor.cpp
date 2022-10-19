@@ -93,9 +93,15 @@ TEST(MLIR_NDTypeInterface, SegmentedDistributedTensorType) {
     const SmallVector<Bit> newStrides({425984_Bit, 16_Bit, 16384_Bit, 1024_Bit});
     EXPECT_ANY_THROW(ndType.changeStrides(StridesRef(newStrides)));
 
+    EXPECT_ANY_THROW(ndType.changeTypeComponents(TypeComponents().setShape(ShapeRef(newShape))));
+
     const SmallVector<int64_t> tileOffset({0, 0, 32, 0});
     const SmallVector<int64_t> tileShape({1, 32, 20, 8});
-    EXPECT_ANY_THROW(ndType.extractDenseTile(vpux::ShapeRef(tileOffset), vpux::ShapeRef(tileShape)));
+    const SmallVector<Bit> tileStrides({81920_Bit, 16_Bit, 4096_Bit, 512_Bit});
+    const auto denseTile = ndType.extractDenseTile(ShapeRef(tileOffset), ShapeRef(tileShape));
+    EXPECT_EQ(denseTile.getShape(), ShapeRef(tileShape));
+    EXPECT_EQ(denseTile.getStrides().raw(), tileStrides);
+
     const SmallVector<int64_t> tileElemStrides({1, 1, 1, 1});
     EXPECT_ANY_THROW(ndType.extractViewTile(vpux::ShapeRef(tileOffset), vpux::ShapeRef(tileShape), vpux::ShapeRef(tileElemStrides)));
     EXPECT_EQ(ndType.eraseTiledInfo(), ndType);
@@ -176,9 +182,15 @@ TEST(MLIR_NDTypeInterface, SegmentedDuplicatedDistributedTensorType) {
     const SmallVector<Bit> newStrides({425984_Bit, 16_Bit, 16384_Bit, 1024_Bit});
     EXPECT_ANY_THROW(ndType.changeStrides(StridesRef(newStrides)));
 
+    EXPECT_ANY_THROW(ndType.changeTypeComponents(TypeComponents().setShape(ShapeRef(newShape))));
+
     const SmallVector<int64_t> tileOffset({0, 0, 32, 0});
     const SmallVector<int64_t> tileShape({1, 32, 20, 8});
-    EXPECT_ANY_THROW(ndType.extractDenseTile(vpux::ShapeRef(tileOffset), vpux::ShapeRef(tileShape)));
+    const SmallVector<Bit> tileStrides({81920_Bit, 16_Bit, 4096_Bit, 512_Bit});
+    const auto denseTile = ndType.extractDenseTile(ShapeRef(tileOffset), ShapeRef(tileShape));
+    EXPECT_EQ(denseTile.getShape(), ShapeRef(tileShape));
+    EXPECT_EQ(denseTile.getStrides().raw(), tileStrides);
+
     const SmallVector<int64_t> tileElemStrides({1, 1, 1, 1});
     EXPECT_ANY_THROW(ndType.extractViewTile(vpux::ShapeRef(tileOffset), vpux::ShapeRef(tileShape), vpux::ShapeRef(tileElemStrides)));
     EXPECT_EQ(ndType.eraseTiledInfo(), ndType);

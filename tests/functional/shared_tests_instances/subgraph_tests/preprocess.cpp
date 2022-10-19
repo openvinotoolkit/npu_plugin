@@ -22,6 +22,20 @@ inline std::shared_ptr<ov::Model> create_preprocess_1input(ov::element::Type typ
     return std::make_shared<ov::Model>(ov::ResultVector{res}, ov::ParameterVector{data1});
 }
 
+inline std::shared_ptr<ov::Model> create_dummy_model_1input(ov::element::Type type,
+                                                            const ov::PartialShape& shape) {
+    auto data1 = std::make_shared<ov::op::v0::Parameter>(type, shape);
+    data1->set_friendly_name("input1");
+    data1->output(0).get_tensor().set_names({"input1"});
+    std::shared_ptr<ov::op::v0::Result> res;
+    // (inType == outType) => will be optimized out
+    auto op1 = std::make_shared<ov::op::v0::Convert>(data1, type);
+    res = std::make_shared<ov::op::v0::Result>(op1);
+    res->set_friendly_name("Result1");
+    res->output(0).get_tensor().set_names({"Result1"});
+    return std::make_shared<ov::Model>(ov::ResultVector{res}, ov::ParameterVector{data1});
+}
+
 inline std::shared_ptr<ov::Model> create_preprocess_2inputs(ov::element::Type type,
                                                         const ov::PartialShape& shape) {
     auto data1 = std::make_shared<ov::op::v0::Parameter>(type, shape);
@@ -243,6 +257,140 @@ inline std::shared_ptr<ov::Model> cvt_color_i420_to_bgr_three_planes() {
     return p.build();
 }
 
+inline std::shared_ptr<ov::Model> m2i_single_plane_test(ColorFormat iFmt, ColorFormat oFmt, ov::element::Type modelInType, bool normalize, bool planarOut) {
+   ov::Dimension::value_type inW = 256, inH = 192;
+   ov::Dimension::value_type netW = 224, netH = 168;
+
+   // the consuming 'model'
+    ov::PartialShape modelInShape;
+    if(planarOut) {
+        modelInShape = {1, 3, netH, netW}; // NCHW
+    } else {
+        modelInShape = {1, netH, netW, 3}; // NHWC
+    }
+    auto function = create_dummy_model_1input(modelInType, modelInShape);
+    auto p = PrePostProcessor(function);
+
+    p.input().tensor()
+              .set_color_format(iFmt)
+              .set_element_type(ov::element::u8) // U8-only NV12/I420 for M2I
+              .set_layout("NHWC") // not mandatory
+              .set_spatial_static_shape(inH, inW);
+
+    p.input().preprocess()
+              .convert_color(oFmt)
+              .convert_element_type(modelInType)
+              .resize(ResizeAlgorithm::RESIZE_NEAREST);
+
+    if(normalize){
+        p.input().preprocess()
+                  .mean({1.0 ,2.0 ,3.0})
+                  .scale({4.0 ,5.0 ,6.0});
+    }
+
+    if(planarOut){
+        p.input().model().set_layout("NCHW");
+    } else {
+        p.input().model().set_layout("NHWC");
+    }
+
+    function = p.build();
+    return function;
+}
+
+inline std::shared_ptr<ov::Model> m2i_basic_test(ColorFormat iFmt, ColorFormat oFmt, ov::element::Type modelInType) {
+    ov::Dimension::value_type netW = 224, netH = 168;
+
+   // the consuming 'model'
+    auto function = create_dummy_model_1input(modelInType, {1, 3, netH, netW}); // NCHW
+    auto p = PrePostProcessor(function);
+
+    p.input().tensor()
+              .set_color_format(iFmt)
+              .set_element_type(ov::element::u8) // U8-only NV12/I420 for M2I
+              .set_layout("NHWC") // not mandatory
+              .set_spatial_static_shape(netH, netW);
+
+    p.input().preprocess()
+              .convert_color(oFmt)
+              .convert_element_type(modelInType);
+
+    p.input().model().set_layout("NCHW");
+
+    function = p.build();
+    return function;
+}
+
+// csc, [convert], resize, RGB-PLANAR (u8/fp16) output:
+inline std::shared_ptr<ov::Model> m2i_csc_scl_NV12_to_PL_RGB_f16() {
+   return m2i_single_plane_test(ColorFormat::NV12_SINGLE_PLANE, ColorFormat::RGB, ov::element::f16, false, true);
+}
+inline std::shared_ptr<ov::Model> m2i_csc_scl_NV12_to_PL_BGR_f16() {
+   return m2i_single_plane_test(ColorFormat::NV12_SINGLE_PLANE, ColorFormat::BGR, ov::element::f16, false, true);
+}
+
+inline std::shared_ptr<ov::Model> m2i_csc_scl_I420_to_PL_RGB_f16() {
+   return m2i_single_plane_test(ColorFormat::I420_SINGLE_PLANE, ColorFormat::RGB, ov::element::f16, false, true);
+}
+inline std::shared_ptr<ov::Model> m2i_csc_scl_I420_to_PL_BGR_f16() {
+   return m2i_single_plane_test(ColorFormat::I420_SINGLE_PLANE, ColorFormat::BGR, ov::element::f16, false, true);
+}
+
+inline std::shared_ptr<ov::Model> m2i_csc_scl_NV12_to_PL_RGB_ui8() {
+   return m2i_single_plane_test(ColorFormat::NV12_SINGLE_PLANE, ColorFormat::RGB, ov::element::u8, false, true);
+}
+inline std::shared_ptr<ov::Model> m2i_csc_scl_NV12_to_PL_BGR_ui8() {
+   return m2i_single_plane_test(ColorFormat::NV12_SINGLE_PLANE, ColorFormat::BGR, ov::element::u8, false, true);
+}
+
+inline std::shared_ptr<ov::Model> m2i_csc_scl_I420_to_PL_RGB_ui8() {
+   return m2i_single_plane_test(ColorFormat::I420_SINGLE_PLANE, ColorFormat::RGB, ov::element::u8, false, true);
+}
+inline std::shared_ptr<ov::Model> m2i_csc_scl_I420_to_PL_BGR_ui8() {
+   return m2i_single_plane_test(ColorFormat::I420_SINGLE_PLANE, ColorFormat::BGR, ov::element::u8, false, true);
+}
+
+// csc, resize, RGB-INTERLEAVED (u8) output
+inline std::shared_ptr<ov::Model> m2i_csc_scl_I420_to_IL_RGB_ui8() {
+   return m2i_single_plane_test(ColorFormat::I420_SINGLE_PLANE, ColorFormat::RGB, ov::element::u8, false, false);
+}
+inline std::shared_ptr<ov::Model> m2i_csc_scl_I420_to_IL_BGR_ui8() {
+   return m2i_single_plane_test(ColorFormat::I420_SINGLE_PLANE, ColorFormat::BGR, ov::element::u8, false, false);
+}
+inline std::shared_ptr<ov::Model> m2i_csc_scl_NV12_to_IL_RGB_ui8() {
+   return m2i_single_plane_test(ColorFormat::NV12_SINGLE_PLANE, ColorFormat::RGB, ov::element::u8, false, false);
+}
+inline std::shared_ptr<ov::Model> m2i_csc_scl_NV12_to_IL_BGR_ui8() {
+   return m2i_single_plane_test(ColorFormat::NV12_SINGLE_PLANE, ColorFormat::BGR, ov::element::u8, false, false);
+}
+
+// Basic CSC tests (no Resize)
+inline std::shared_ptr<ov::Model> m2i_csc_NV12_to_PL_RGB_ui8() {
+   return m2i_basic_test(ColorFormat::NV12_SINGLE_PLANE, ColorFormat::RGB, ov::element::u8);
+}
+inline std::shared_ptr<ov::Model> m2i_csc_NV12_to_PL_BGR_ui8() {
+   return m2i_basic_test(ColorFormat::NV12_SINGLE_PLANE, ColorFormat::BGR, ov::element::u8);
+}
+inline std::shared_ptr<ov::Model> m2i_csc_I420_to_PL_RGB_ui8() {
+   return m2i_basic_test(ColorFormat::I420_SINGLE_PLANE, ColorFormat::RGB, ov::element::u8);
+}
+inline std::shared_ptr<ov::Model> m2i_csc_I420_to_PL_BGR_ui8() {
+   return m2i_basic_test(ColorFormat::I420_SINGLE_PLANE, ColorFormat::BGR, ov::element::u8);
+}
+
+inline std::shared_ptr<ov::Model> m2i_csc_NV12_to_PL_RGB_f16() {
+   return m2i_basic_test(ColorFormat::NV12_SINGLE_PLANE, ColorFormat::RGB, ov::element::f16);
+}
+inline std::shared_ptr<ov::Model> m2i_csc_NV12_to_PL_BGR_f16() {
+   return m2i_basic_test(ColorFormat::NV12_SINGLE_PLANE, ColorFormat::BGR, ov::element::f16);
+}
+inline std::shared_ptr<ov::Model> m2i_csc_I420_to_PL_RGB_f16() {
+   return m2i_basic_test(ColorFormat::I420_SINGLE_PLANE, ColorFormat::RGB, ov::element::f16);
+}
+inline std::shared_ptr<ov::Model> m2i_csc_I420_to_PL_BGR_f16() {
+   return m2i_basic_test(ColorFormat::I420_SINGLE_PLANE, ColorFormat::BGR, ov::element::f16);
+}
+
 inline std::vector<ov::builder::preprocess::preprocess_func> preprocess_functions() {
     return std::vector<ov::builder::preprocess::preprocess_func> {
             ov::builder::preprocess::preprocess_func(scale_only, "scale_only", 0.01f),
@@ -262,6 +410,37 @@ inline std::vector<ov::builder::preprocess::preprocess_func> preprocess_function
     };
 }
 
+inline std::vector<ov::builder::preprocess::preprocess_func> preprocess_functions_m2i() {
+    return std::vector<ov::builder::preprocess::preprocess_func> {
+
+           // csc, [convert], resize, RGB-PLANAR (u8/fp16) output
+            ov::builder::preprocess::preprocess_func(m2i_csc_scl_NV12_to_PL_RGB_f16, "m2i_csc_scl_NV12_to_PL_RGB_f16", 1.f),
+            ov::builder::preprocess::preprocess_func(m2i_csc_scl_NV12_to_PL_BGR_f16, "m2i_csc_scl_NV12_to_PL_BGR_f16", 1.f),
+            ov::builder::preprocess::preprocess_func(m2i_csc_scl_I420_to_PL_RGB_f16, "m2i_csc_scl_I420_to_PL_RGB_f16", 1.f),
+            ov::builder::preprocess::preprocess_func(m2i_csc_scl_I420_to_PL_BGR_f16, "m2i_csc_scl_I420_to_PL_BGR_f16", 1.f),
+            ov::builder::preprocess::preprocess_func(m2i_csc_scl_NV12_to_PL_RGB_ui8, "m2i_csc_scl_NV12_to_PL_RGB_ui8", 1.f),
+            ov::builder::preprocess::preprocess_func(m2i_csc_scl_NV12_to_PL_BGR_ui8, "m2i_csc_scl_NV12_to_PL_BGR_ui8", 1.f),
+            ov::builder::preprocess::preprocess_func(m2i_csc_scl_I420_to_PL_RGB_ui8, "m2i_csc_scl_I420_to_PL_RGB_ui8", 1.f),
+            ov::builder::preprocess::preprocess_func(m2i_csc_scl_I420_to_PL_BGR_ui8, "m2i_csc_scl_I420_to_PL_BGR_ui8", 1.f),
+
+           // csc, resize, RGB-INTERLEAVED (u8) output
+            ov::builder::preprocess::preprocess_func(m2i_csc_scl_NV12_to_IL_RGB_ui8, "m2i_csc_scl_NV12_to_IL_RGB_ui8", 1.f),
+            ov::builder::preprocess::preprocess_func(m2i_csc_scl_NV12_to_IL_BGR_ui8, "m2i_csc_scl_NV12_to_IL_BGR_ui8", 1.f),
+            ov::builder::preprocess::preprocess_func(m2i_csc_scl_I420_to_IL_RGB_ui8, "m2i_csc_scl_I420_to_IL_RGB_ui8", 1.f),
+            ov::builder::preprocess::preprocess_func(m2i_csc_scl_I420_to_IL_BGR_ui8, "m2i_csc_scl_I420_to_IL_BGR_ui8", 1.f),
+
+           // csc-only (no resize)
+            ov::builder::preprocess::preprocess_func(m2i_csc_NV12_to_PL_RGB_ui8, "m2i_csc_NV12_to_PL_RGB_ui8", 1.f),
+            ov::builder::preprocess::preprocess_func(m2i_csc_NV12_to_PL_BGR_ui8, "m2i_csc_NV12_to_PL_BGR_ui8", 1.f),
+            ov::builder::preprocess::preprocess_func(m2i_csc_I420_to_PL_RGB_ui8, "m2i_csc_I420_to_PL_RGB_ui8", 1.f),
+            ov::builder::preprocess::preprocess_func(m2i_csc_I420_to_PL_BGR_ui8, "m2i_csc_I420_to_PL_BGR_ui8", 1.f),
+
+            ov::builder::preprocess::preprocess_func(m2i_csc_NV12_to_PL_RGB_f16, "m2i_csc_NV12_to_PL_RGB_f16", 1.f),
+            ov::builder::preprocess::preprocess_func(m2i_csc_NV12_to_PL_BGR_f16, "m2i_csc_NV12_to_PL_BGR_f16", 1.f),
+            ov::builder::preprocess::preprocess_func(m2i_csc_I420_to_PL_RGB_f16, "m2i_csc_I420_to_PL_RGB_f16", 1.f),
+            ov::builder::preprocess::preprocess_func(m2i_csc_I420_to_PL_BGR_f16, "m2i_csc_I420_to_PL_BGR_f16", 1.f),
+    };
+}
 
 using namespace SubgraphTestsDefinitions;
 
@@ -281,9 +460,27 @@ TEST_P(VPUXPreProcessTest, CompareWithRefs) {
     run();
 }
 
+class VPUXPreProcessTest_VPUX4000 : public VPUXPreProcessTest {
+    VPUXLayerTestsUtils::SkipMessage SkipBeforeInfer() override {
+         return {"Missing M2I runtime support"};
+    }
+};
+
+TEST_P(VPUXPreProcessTest_VPUX4000, CompareWithRefs_MLIR_VPU4000) {
+    useCompilerMLIR();
+    setPlatformVPU4000();
+    setDefaultHardwareModeMLIR();
+    run();
+}
 
 INSTANTIATE_TEST_SUITE_P(smoke_PrePostProcess, VPUXPreProcessTest,
                          ::testing::Combine(
                                  ::testing::ValuesIn(preprocess_functions()),
                                  ::testing::Values(CommonTestUtils::DEVICE_KEEMBAY)),
                          VPUXPreProcessTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_PrePostProcessM2I, VPUXPreProcessTest_VPUX4000,
+                         ::testing::Combine(
+                                 ::testing::ValuesIn(preprocess_functions_m2i()),
+                                 ::testing::Values(CommonTestUtils::DEVICE_KEEMBAY)),
+                         VPUXPreProcessTest_VPUX4000::getTestCaseName);

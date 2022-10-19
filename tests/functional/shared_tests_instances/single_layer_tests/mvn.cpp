@@ -24,7 +24,7 @@ TEST_P(KmbMvnLayerTestMLIR, CompareWithRefs_MLIR) {
     Run();
 }
 
-class KmbMvnLayerTestMLIR_VPUX37XX : public Mvn1LayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
+class KmbMvnLayerTestMLIR_VPU3720 : public Mvn1LayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
     void SetUp() override {
         Mvn1LayerTest::SetUp();
 
@@ -39,9 +39,9 @@ class KmbMvnLayerTestMLIR_VPUX37XX : public Mvn1LayerTest, virtual public LayerT
     }
 };
 
-TEST_P(KmbMvnLayerTestMLIR_VPUX37XX, CompareWithRefs_MLIR_VPUX37XX) {
+TEST_P(KmbMvnLayerTestMLIR_VPU3720, CompareWithRefs_MLIR_VPU3720) {
     useCompilerMLIR();
-    setPlatformVPUX37XX();
+    setPlatformVPU3720();
     setDefaultHardwareModeMLIR();
     Run();
 }
@@ -163,18 +163,18 @@ INSTANTIATE_TEST_CASE_P(
         ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)
     ), KmbMvnLayerTestMLIR::getTestCaseName);
 
-//Test MVN MLIR VPUX37XX
+//Test MVN MLIR VPU3720
 
 INSTANTIATE_TEST_CASE_P(
-    smoke_TestsMVN_MLIR_VPUX37XX, KmbMvnLayerTestMLIR_VPUX37XX, ::testing::Combine(
+    smoke_precommit_TestsMVN_MLIR_VPU3720, KmbMvnLayerTestMLIR_VPU3720, ::testing::Combine(
         ::testing::ValuesIn(MLIRinputShapes),
         ::testing::Values(InferenceEngine::Precision::FP16),
         ::testing::ValuesIn(emptyReductionAxes),
-        ::testing::Values(false), // acrossChannels (only this case is supported by the VPUX37XX runtime kernel [E#24995])
+        ::testing::Values(false), // acrossChannels (only this case is supported by the VPU3720 runtime kernel [E#24995])
         ::testing::ValuesIn(normalizeVariance),
         ::testing::ValuesIn(epsilon),
         ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)
-    ), KmbMvnLayerTestMLIR_VPUX37XX::getTestCaseName);
+    ), KmbMvnLayerTestMLIR_VPU3720::getTestCaseName);
 
 //Test MVN-6
 

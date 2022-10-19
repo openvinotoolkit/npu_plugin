@@ -16,15 +16,11 @@ typedef fp16 half;
 namespace sw_params {
 #endif
 
-#pragma pack(push, 1)
-
 struct __attribute__ ((packed)) EluParams {
     struct MemRefData input;
     struct MemRefData output;
     float alpha;
 };
-
-#pragma pack (pop)
 
 inline struct BaseKernelParams ToBaseKernelParams(struct EluParams * params) {
     struct BaseKernelParams result;

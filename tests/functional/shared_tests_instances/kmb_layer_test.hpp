@@ -51,7 +51,8 @@ protected:
     void useCompilerMLIR();
     void setReferenceSoftwareModeMLIR();
     void setDefaultHardwareModeMLIR();
-    void setPlatformVPUX37XX();
+    void setPlatformVPU3720();
+    void setPlatformVPU4000();
     bool isCompilerMCM() const;
     bool isCompilerMLIR() const;
 

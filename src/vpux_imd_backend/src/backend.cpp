@@ -14,7 +14,13 @@
 #include "device_helpers.hpp"
 
 const std::shared_ptr<vpux::IDevice> vpux::IMD::BackendImpl::getDevice() const {
-    return std::make_shared<IMD::DeviceImpl>(InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3720);
+    InferenceEngine::VPUXConfigParams::VPUXPlatform platform;
+    if (std::getenv("MLIR_EXPORT_ELF") != NULL) {
+        platform = InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3720ELF;
+    } else {
+        platform = InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3720;
+    }
+    return std::make_shared<IMD::DeviceImpl>(platform);
 }
 
 const std::shared_ptr<vpux::IDevice> vpux::IMD::BackendImpl::getDevice(const std::string& name) const {

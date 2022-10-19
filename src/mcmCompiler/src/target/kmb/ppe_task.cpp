@@ -21,9 +21,6 @@ std::string mv::PPETask::toString() const
 {
     std::string output = "";
 
-    if(hasAttr("scaleData"))
-        output += getScaleData()->toString();
-
     output += getFixedFunction().toString();
     
     return output;

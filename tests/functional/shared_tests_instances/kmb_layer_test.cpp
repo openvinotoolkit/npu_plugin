@@ -312,8 +312,12 @@ void KmbLayerTestsCommon::setDefaultHardwareModeMLIR() {
     configuration[VPUX_CONFIG_KEY(COMPILATION_MODE)] = "DefaultHW";
 }
 
-void KmbLayerTestsCommon::setPlatformVPUX37XX() {
+void KmbLayerTestsCommon::setPlatformVPU3720() {
     configuration[VPUX_CONFIG_KEY(PLATFORM)] = "VPU3720";
+}
+
+void KmbLayerTestsCommon::setPlatformVPU4000() {
+    configuration[VPUX_CONFIG_KEY(PLATFORM)] = "VPU4000";
 }
 
 bool KmbLayerTestsCommon::isCompilerMCM() const {

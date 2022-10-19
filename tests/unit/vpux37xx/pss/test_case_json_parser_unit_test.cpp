@@ -32,6 +32,7 @@ void createCaseGeneratorInputJson(llvm::json::OStream& j) {
 
     j.attributeBegin("input");
     {
+        j.arrayBegin();
         j.objectBegin();
         j.attributeBegin("shape");
         {
@@ -54,6 +55,7 @@ void createCaseGeneratorInputJson(llvm::json::OStream& j) {
         }
         j.attributeEnd();
         j.objectEnd();
+        j.arrayEnd();
     }
     j.attributeEnd();
 }
@@ -199,7 +201,7 @@ void createAndRunConvTest() {
 
     nb::TestCaseJsonDescriptor desc(in_file_buffer.str());
 
-    nb::InputLayer input = desc.getInputLayer();
+    nb::InputLayer input = desc.getInputLayerList().front();
     ASSERT_EQ(nb::to_string(input.dtype), "uint8");
 
     nb::WeightLayer weight = desc.getWeightLayer();

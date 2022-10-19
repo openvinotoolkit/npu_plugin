@@ -8,6 +8,7 @@
 #pragma once
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
+#include "vpux/compiler/dialect/VPU/ops.hpp"
 #include "vpux/compiler/utils/passes.hpp"
 
 #include "vpux/utils/core/logger.hpp"
@@ -119,11 +120,14 @@ std::unique_ptr<mlir::Pass> createSwapMaxPoolWithActivation(Logger log = Logger:
 std::unique_ptr<mlir::Pass> createConvertDeconv2DToConv2DPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createConvertDepth2SpaceLayerPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createInsertMaxpoolToConcatLReluPass(Logger log = Logger::global());
-std::unique_ptr<mlir::Pass> createInsertReorderBetweenTransposeAndConcatPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createInsertReorderBetweenLayerAndConcatPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createSwapTransposeWithFQPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createPropagateFqThroughPadPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createSwapConcatWithEltwisePass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createPerAxisFQConcatPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createConvertGatherToSlicePass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createConvertToScaleShiftPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createConvertSubtractToNegativeAddPass(Logger log = Logger::global());
 
 //
 // LowPrecision
@@ -166,10 +170,9 @@ std::unique_ptr<mlir::Pass> createRemoveQuantDequantSeqPass(Logger log = Logger:
 std::unique_ptr<mlir::Pass> createOptimizeUnalignedQDQSeqPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createConvertWeightsToU8Pass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createFuseConvertWithQuantizePass(Logger log = Logger::global());
-std::unique_ptr<mlir::Pass> createConvertQuantizeOpsToEltwisePass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createConvertToMixedPrecision(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createConvertQuantizeOpsToNceOpsPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createDeletePerAxisQuantizationPass(Logger log = Logger::global());
-
-std::unique_ptr<mlir::Pass> createResolvePWLPostOpsPass(Logger log = Logger::global());
 
 //
 // Legalization for NCE
@@ -181,22 +184,15 @@ std::unique_ptr<mlir::Pass> createConvertFCToConvPass(Logger log = Logger::globa
 std::unique_ptr<mlir::Pass> createConvertAvgPoolToDWConvPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createConvertScaleShiftToDWPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createConvertNearestToStridedConcatPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createConvertBilinearToStridedConcatAndConvPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createSplitConvWithMultipleFQPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createHandleLargeStridesPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createHandleAsymmetricStridesPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createExpandActivationChannelsPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createHandleLargeKernelsPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createConvertReduceToPoolingPass(Logger log = Logger::global());
-
-//
-// Tiling
-//
-
-std::unique_ptr<mlir::Pass> createIsolatedTilingPass(Logger log = Logger::global());
-
-std::unique_ptr<mlir::Pass> createPrefetchTilingPass(Logger log = Logger::global());
-
-std::unique_ptr<mlir::Pass> createManualTilingPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createHandleExcludePadForAvgPoolPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createConvertPowerToMultPass(Logger log = Logger::global());
 
 //
 // Generic Optimizations

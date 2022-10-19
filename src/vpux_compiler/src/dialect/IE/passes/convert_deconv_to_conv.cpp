@@ -10,6 +10,7 @@
 #include "vpux/compiler/core/layers.hpp"
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
+#include "vpux/compiler/utils/logging.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
 #include "vpux/compiler/utils/types.hpp"
 
@@ -19,6 +20,31 @@
 using namespace vpux;
 
 namespace {
+
+mlir::Value reshapeFQParams(mlir::Value input, DimsOrder dimsOrder, mlir::PatternRewriter& rewriter) {
+    auto shape = getShape(input).toValues();
+    auto constOp = input.getDefiningOp<Const::DeclareOp>();
+    const auto elemType = constOp.getType().cast<vpux::NDTypeInterface>().getElementType();
+
+    std::swap(shape[Dims4D::Filter::OC], shape[Dims4D::Filter::IC]);
+    const auto newConstType =
+            mlir::RankedTensorType::get(to_small_vector(shape), elemType).cast<vpux::NDTypeInterface>();
+    const auto contentAttr = constOp.contentAttr();
+    const auto content = contentAttr.convertElemType(elemType).transpose(dimsOrder);
+    return rewriter.create<Const::DeclareOp>(constOp.getLoc(), newConstType, content);
+}
+
+// Checks whether the Deconvolution filter is a constant or a FakeQuantize with a constant input
+mlir::FailureOr<Const::DeclareOp> getConstFilter(IE::DeconvolutionOp deconv) {
+    if (auto filterFq = deconv.filter().getDefiningOp<IE::FakeQuantizeOp>()) {
+        if (auto filterConst = filterFq.input().getDefiningOp<Const::DeclareOp>()) {
+            return filterConst;
+        }
+    } else if (auto filterConst = deconv.filter().getDefiningOp<Const::DeclareOp>()) {
+        return filterConst;
+    }
+    return mlir::failure();
+}
 
 //
 // DeconvolutionConversion
@@ -83,35 +109,38 @@ mlir::LogicalResult DeconvolutionConversion::matchAndRewrite(IE::DeconvolutionOp
     auto dilations = getIntArrayAttr(getContext(), SmallVector<int64_t>{1, 1});
 
     const auto elemType = origOp.feature().getType().cast<vpux::NDTypeInterface>().getElementType();
-    const auto dataStorageType =
-            mlir::RankedTensorType::get(to_small_vector(filterShape), elemType).cast<vpux::NDTypeInterface>();
 
-    VPUX_THROW_UNLESS(origOp.filter().getDefiningOp<Const::DeclareOp>() != nullptr,
-                      "Non constant filter is not supported");
-    const auto dwConvFilterContent = origOp.filter().getDefiningOp<Const::DeclareOp>().content();
+    auto dwConvFilter = getConstFilter(origOp).getValue();
+    const auto filterContentAttr = dwConvFilter.contentAttr();
 
-    // Weights reverse according to ngraph implementation
-    // https://github.com/openvinotoolkit/openvino/blob/745c8933bc67f0eaf7996848f5188521fdf50d14/ngraph/core/reference/include/ngraph/runtime/reference/convolution_backprop_data.hpp#L268
-    // TODO: implement this reversing via lazy constant folding mechanism (E#28339)
-    SmallVector<float16> reversedVals(dwConvFilterContent.getValues<float16>());
-    size_t spatialDims = filterShape[Dims4D::Filter::KX] * filterShape[Dims4D::Filter::KY];
-    for (auto it = reversedVals.begin(); it < reversedVals.end(); it += spatialDims) {
-        std::reverse(it, it + spatialDims);
+    std::swap(filterShape[Dims4D::Filter::OC], filterShape[Dims4D::Filter::IC]);
+
+    const auto dataStorageType = mlir::RankedTensorType::get(to_small_vector(filterShape), elemType);
+
+    const auto content =
+            filterContentAttr.reverse(Dims4D::Filter::IC).convertElemType(elemType).transpose(DimsOrder::IOYX);
+    auto reshapedFilter = rewriter.create<Const::DeclareOp>(dwConvFilter.getLoc(), dataStorageType, content);
+
+    auto fakeQuantizeOp = origOp.filter().getDefiningOp<IE::FakeQuantizeOp>();
+    IE::FakeQuantizeOp newFakeQuantizeOp = nullptr;
+    if (fakeQuantizeOp != nullptr) {
+        auto newInputLow = reshapeFQParams(fakeQuantizeOp.input_low(), DimsOrder::IOYX, rewriter);
+        auto newOutputLow = (fakeQuantizeOp.input_low() == fakeQuantizeOp.output_low())
+                                    ? newInputLow
+                                    : reshapeFQParams(fakeQuantizeOp.output_low(), DimsOrder::IOYX, rewriter);
+        auto newInputHigh = reshapeFQParams(fakeQuantizeOp.input_high(), DimsOrder::IOYX, rewriter);
+        auto newOutputHigh = (fakeQuantizeOp.input_high() == fakeQuantizeOp.output_high())
+                                     ? newInputHigh
+                                     : reshapeFQParams(fakeQuantizeOp.output_high(), DimsOrder::IOYX, rewriter);
+        newFakeQuantizeOp = rewriter.create<IE::FakeQuantizeOp>(
+                fakeQuantizeOp.getLoc(), reshapedFilter.output(), newInputLow, newInputHigh, newOutputLow,
+                newOutputHigh, fakeQuantizeOp.levels(), fakeQuantizeOp.auto_broadcast());
     }
 
-    auto C_IN = filterShape[Dims4D::Filter::OC];
-    filterShape[Dims4D::Filter::OC] = filterShape[Dims4D::Filter::IC];
-    filterShape[Dims4D::Filter::IC] = C_IN;
-
-    const auto newConstType = dataStorageType.changeShape(ShapeRef(filterShape));
-    const auto newDataStorageType =
-            dataStorageType.changeElemType(mlir::Float16Type::get(getContext())).cast<mlir::RankedTensorType>();
-    const auto dataAttr = mlir::DenseElementsAttr::get(newDataStorageType, makeArrayRef(reversedVals));
-    const auto content = Const::ContentAttr::get(dataAttr).convertElemType(elemType).transpose(DimsOrder::IOYX);
-    auto reshapedFilter = rewriter.create<Const::DeclareOp>(origOp.getLoc(), newConstType, content);
-
-    rewriter.replaceOpWithNewOp<IE::ConvolutionOp>(origOp, newUpsamplingOp.output(), reshapedFilter.output(), nullptr,
-                                                   strides, padsBegin, padsEnd, dilations, nullptr);
+    rewriter.replaceOpWithNewOp<IE::ConvolutionOp>(
+            origOp, newUpsamplingOp.output(),
+            fakeQuantizeOp != nullptr ? newFakeQuantizeOp.output() : reshapedFilter.output(), nullptr, strides,
+            padsBegin, padsEnd, dilations, nullptr);
 
     _log.trace("Replaced with 'IE::Convolution' (2D)");
 
@@ -135,17 +164,26 @@ private:
 void ConvertDeconv2DToConv2DPass::safeRunOnFunc() {
     auto& ctx = getContext();
 
-    const auto isLegalConvOp = [&](IE::DeconvolutionOp conv) {
-        const auto inputShape = getShape(conv.feature());
+    const auto isLegalDeconvOp = [&](IE::DeconvolutionOp deconv) {
+        // Check filter
+        _log.trace("Got '{0}' at '{1}'", deconv->getName(), deconv->getLoc());
+        if (mlir::failed(getConstFilter(deconv))) {
+            _log.nest(1).trace("Deconv cannot be converted. Filter must be constant");
+            return true;
+        }
+
+        // Check input shape
+        const auto inputShape = getShape(deconv.feature());
         return inputShape.size() != 4;
     };
 
     mlir::ConversionTarget target(ctx);
-    target.addDynamicallyLegalOp<IE::DeconvolutionOp>(isLegalConvOp);
+    target.addDynamicallyLegalOp<IE::DeconvolutionOp>(isLegalDeconvOp);
     target.addLegalOp<IE::ConvolutionOp>();
     target.addLegalOp<IE::UpsamplingOp>();
     target.addLegalOp<Const::DeclareOp>();
     target.addLegalOp<IE::ReshapeOp>();
+    target.addLegalOp<IE::FakeQuantizeOp>();
 
     mlir::RewritePatternSet patterns(&ctx);
     patterns.insert<DeconvolutionConversion>(&ctx, _log);

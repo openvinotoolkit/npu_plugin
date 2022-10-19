@@ -14,6 +14,11 @@
 namespace vpux {
 namespace profiling {
 
+// Suffix used to create cluster name from task name
+const std::string CLUSTER_LEVEL_PROFILING_SUFFIX = "/cluster_";
+// Suffix used to create variant name from cluster name
+const std::string VARIANT_LEVEL_PROFILING_SUFFIX = "/variant_";
+
 /**
  * @enum TaskType
  * @brief Declares which task types are required in profiling output.
@@ -22,6 +27,16 @@ enum TaskType {
     ALL,     ///< Report all tasks for profiling
     DPU_SW,  ///< Only execution tasks profiling
     DMA,     ///< Only DMA tasks profiling
+};
+
+/**
+ * @enum VerbosityLevel
+ * @brief Declares verbosity level of printing information
+ */
+enum VerbosityLevel {
+    LOW = 0,     ///< Default, only DMA/SW/Aggregated DPU info
+    MEDIUM = 1,  ///< Extend by cluster level information
+    HIGH = 5,    ///< Full information including individual variants timings
 };
 
 struct LayerInfo {
@@ -67,10 +82,11 @@ struct TaskInfo {
  * @param prof_size raw profiling data size
  * @param type type of tasks to be profiled
  * @see TaskType
+ * @see VerbosityLevel
  * @return std::vector of TaskInfo structures
  */
 std::vector<TaskInfo> getTaskInfo(const uint8_t* blobData, size_t blobSize, const uint8_t* profData, size_t profSize,
-                                  TaskType type);
+                                  TaskType type, VerbosityLevel verbosity);
 
 /**
  * @fn getLayerInfo

@@ -33,13 +33,13 @@ int64_t deduceAxis(const mlir::Value in, const mlir::Value out) {
 }
 
 //
-// InsertReorderBetweenTransposeAndConcat
+// InsertReorderBetweenLayerAndConcat
 //
 
-class InsertReorderBetweenTransposeAndConcat final :
-        public IE::InsertReorderBetweenTransposeAndConcatBase<InsertReorderBetweenTransposeAndConcat> {
+class InsertReorderBetweenLayerAndConcat final :
+        public IE::InsertReorderBetweenLayerAndConcatBase<InsertReorderBetweenLayerAndConcat> {
 public:
-    explicit InsertReorderBetweenTransposeAndConcat(Logger log): _log(log) {
+    explicit InsertReorderBetweenLayerAndConcat(Logger log): _log(log) {
         _log.setName(Base::getArgumentName());
     }
 
@@ -57,7 +57,7 @@ private:
 // ConcatOpConverter
 //
 
-class InsertReorderBetweenTransposeAndConcat::ConcatOpConverter final : public mlir::OpRewritePattern<IE::ConcatOp> {
+class InsertReorderBetweenLayerAndConcat::ConcatOpConverter final : public mlir::OpRewritePattern<IE::ConcatOp> {
 public:
     ConcatOpConverter(mlir::MLIRContext* ctx, Logger log): mlir::OpRewritePattern<IE::ConcatOp>(ctx), _log(log) {
     }
@@ -69,7 +69,7 @@ private:
     Logger _log;
 };
 
-mlir::LogicalResult InsertReorderBetweenTransposeAndConcat::ConcatOpConverter::matchAndRewrite(
+mlir::LogicalResult InsertReorderBetweenLayerAndConcat::ConcatOpConverter::matchAndRewrite(
         IE::ConcatOp origOp, mlir::PatternRewriter& rewriter) const {
     const auto concatInputList = origOp.inputs();
     VPUX_THROW_UNLESS(concatInputList.size() == 2, "ConcatOpConverter: must have two inputs");
@@ -92,10 +92,10 @@ mlir::LogicalResult InsertReorderBetweenTransposeAndConcat::ConcatOpConverter::m
     return mlir::success();
 }
 
-void InsertReorderBetweenTransposeAndConcat::safeRunOnFunc() {
+void InsertReorderBetweenLayerAndConcat::safeRunOnFunc() {
     auto& ctx = getContext();
 
-    const auto hasTransposeInput = [](IE::ConcatOp op) -> bool {
+    const auto checkPatternInput = [](IE::ConcatOp op) -> bool {
         const auto concatInputList = op.inputs();
         if (concatInputList.size() != 2) {
             return true;
@@ -109,32 +109,30 @@ void InsertReorderBetweenTransposeAndConcat::safeRunOnFunc() {
             return true;
         }
 
-        for (const auto& concatInput : concatInputList) {
-            const auto maybeTransposeOp = concatInput.getDefiningOp<IE::TransposeOp>();
-            if (maybeTransposeOp != nullptr) {
-                return false;
-            }
+        const auto hasRequiredParent = llvm::any_of(concatInputList, [&](auto input) {
+            return mlir::isa_and_nonnull<IE::TransposeOp, IE::AffineReshapeOp>(input.getDefiningOp());
+        });
+        if (!hasRequiredParent) {
+            return true;
+        }
 
-            // FIXME: find out whether the following two cases are necessary
-            const auto maybeFqOp = concatInput.getDefiningOp<IE::FakeQuantizeOp>();
-            if (maybeFqOp != nullptr) {
-                return false;
-            }
-            const auto maybeAndOp = concatInput.getDefiningOp<IE::AndOp>();
-            if (maybeAndOp != nullptr) {
-                return false;
-            }
+        const auto hasApprovedParent = llvm::any_of(concatInputList, [&](auto input) {
+            return mlir::isa_and_nonnull<IE::FakeQuantizeOp, IE::AlignedChannelsOpInterface>(input.getDefiningOp());
+        });
+
+        if (hasApprovedParent) {
+            return false;
         }
 
         return true;
     };
 
     mlir::ConversionTarget target(ctx);
-    target.addDynamicallyLegalOp<IE::ConcatOp>(hasTransposeInput);
+    target.addDynamicallyLegalOp<IE::ConcatOp>(checkPatternInput);
     target.addLegalOp<IE::ReorderOp>();
 
     mlir::RewritePatternSet patterns(&ctx);
-    patterns.insert<InsertReorderBetweenTransposeAndConcat::ConcatOpConverter>(&ctx, _log);
+    patterns.insert<InsertReorderBetweenLayerAndConcat::ConcatOpConverter>(&ctx, _log);
 
     auto func = getFunction();
     if (mlir::failed(mlir::applyPartialConversion(func, target, std::move(patterns)))) {
@@ -144,6 +142,6 @@ void InsertReorderBetweenTransposeAndConcat::safeRunOnFunc() {
 
 }  // namespace
 
-std::unique_ptr<mlir::Pass> vpux::IE::createInsertReorderBetweenTransposeAndConcatPass(Logger log) {
-    return std::make_unique<InsertReorderBetweenTransposeAndConcat>(log);
+std::unique_ptr<mlir::Pass> vpux::IE::createInsertReorderBetweenLayerAndConcatPass(Logger log) {
+    return std::make_unique<InsertReorderBetweenLayerAndConcat>(log);
 }

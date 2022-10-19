@@ -11,12 +11,7 @@
 #include <mvTensorDebug.h>
 
 #include <math.h>
-
-#include "shave_task_runner.hpp"
-
-//#ifdef CONFIG_TARGET_SOC_3720
 # include <Fp16Convert.h>
-//#endif // CONFIG_TARGET_SOC_3720
 
 #define DEBUG_KERNEL 0
 #if DEBUG_KERNEL
@@ -49,6 +44,7 @@ void PostOps::run(mv::tensor::Processor&,
             t_MvTensorMyriadResources& myriadRes,
             t_MvTensorDebugInfo& /*debugInfo*/)
 {
+        (void)myriadRes;
 //    std::unique_ptr<MVCNN::UPALayerTaskT> upaTask (new MVCNN::UPALayerTaskT());
 //    upaTask->softLayerParams.type = MVCNN::SoftwareLayerParams_PostOpsParams;
 //    MVCNN::PostOpsParamsT *softLayerParamsValue = new MVCNN::PostOpsParamsT();

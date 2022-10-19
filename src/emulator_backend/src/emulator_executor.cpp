@@ -93,8 +93,10 @@ bool needsLayoutChange(const ie::Layout& origLayout, const ie::Layout& targetLay
 
 EmulatorExecutor::EmulatorExecutor(const vpux::NetworkDescription::Ptr& network, const Config& config)
         : _logger("EmulatorBackend", LogLevel::Debug /*_config.logLevel()*/),
+          _config(config),
           _network(network),
-          _manager(ie::getIELibraryPath() + "/vpux_emulator", config.get<LOG_LEVEL>()) {
+          _manager(ie::getIELibraryPath() + "/vpux_emulator", vpux::stringifyEnum(config.get<LOG_LEVEL>()).data(),
+                   config.get<DEVICE_ID>()) {
 }
 
 ie::Blob::Ptr EmulatorExecutor::repackTensor(const ie::Blob::Ptr& tensor, const ie::TensorDesc& targetDesc) {
@@ -143,7 +145,7 @@ void EmulatorExecutor::push(const ie::BlobMap& inputs) {
         const ie::Blob::Ptr& blob = inputIt->second;
         const auto& deviceInputDesc = deviceInputs.at(inputName)->getTensorDesc();
         const auto updatedInput = repackTensor(blob, deviceInputDesc);
-    
+
         _manager.populate(inputName, updatedInput->cbuffer().as<const void*>());
         ++inputIt;
     }
@@ -170,6 +172,10 @@ void EmulatorExecutor::pull(ie::BlobMap& outputs) {
         ++outputIt;
     }
     _logger.debug("EmulatorExecutor::pull() finished");
+}
+
+Executor::Ptr EmulatorExecutor::clone() const {
+    return std::make_shared<EmulatorExecutor>(this->_network, this->_config);
 }
 
 }  // namespace vpux

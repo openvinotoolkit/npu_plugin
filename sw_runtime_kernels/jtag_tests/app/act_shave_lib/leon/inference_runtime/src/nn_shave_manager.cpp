@@ -52,7 +52,7 @@ using namespace common_runtime::fifo;
 ShaveManager::ShaveManager(const StaticMapping &sMapping)
     : cmxMapping(sMapping) {
     // ShaveNN uses SHVNN0 for Tile 0, SHVNN2 for Tile 1.
-    const uint32_t nnShaveId[] = {0, 2};
+    // const uint32_t nnShaveId[] = {0, 2};
 
     // One-time init (semaphores, handles, ...)
     auto rc = ShCtrlInit();
@@ -68,20 +68,10 @@ ShaveManager::ShaveManager(const StaticMapping &sMapping)
             nnLog(MVLOG_ERROR, "ShaveCtrlOpen: rc = %x", (int)rc);
         }
 
-        // Set the monitor bit for each ACTSHV
-        nn::util::fifoMonitorDynamicSelect(shave, unpackSHVConfig(acts_cfgs[shave]).work.fifo,
-                                           unpackSHVConfig(acts_cfgs[shave]).work.index);
+        auto fifoCfg = unpackSHVConfig(acts_cfgs[shave]);
+        nn::util::fifoMonitorDynamicSelect(shave, fifoCfg.work.fifo, fifoCfg.work.index);
+        nn::util::fifoMonitorDynamicSelect(shave + 2, fifoCfg.ctrx.fifo, fifoCfg.ctrx.index);
     }
-
-    // For STD FW apps: L2C_PAGE_TABLE is set in OsDrvInitShave.c
-#if (!(defined(CONFIG_STD_FW_APP_CLIENT)) && defined(CONFIG_NN_NCE_L2C_PAGE_TABLE))
-    // Apply L2C page table setting
-    uint32_t l2c_page_table = CONFIG_NN_NCE_L2C_PAGE_TABLE;
-    nnLog(MVLOG_INFO, "Setting L2C_PAGE_TABLE = %x", l2c_page_table);
-    auto rc3 = ShaveL2CacheSetPage(l2c_page_table);
-    if (rc3 != SHAVE_L2_SUCCESS)
-        nnLog(MVLOG_ERROR, "ShaveL2CacheSetPage: rc = %x", (int)rc3);
-#endif
 }
 
 ShaveManager::~ShaveManager(void) {
@@ -138,12 +128,15 @@ bool ShaveManager::processConfigChanges(const uint8_t tile, const ActKernelRunti
 }
 
 void ShaveManager::initActRtCodeBuffer(const uint8_t tile) {
+    (void)tile;
     nnLog(MVLOG_WARN, "Non-userspace resident act-shave instructions are unsupported in std_FW_img with MMU context "
                       "isolation enabled. Act kernels will not work!");
 }
 
 #ifdef CONFIG_VALIDATION_APP_ENABLED
 void ShaveManager::initActRtStacksAndDatas(const uint8_t tile, const ActKernelRuntimeConfigs &cfgs) {
+    (void)tile;
+    (void)cfgs;
     // TODO: Implement this when the compiler is ready to embed the ActRT into the blob
     nnLog(MVLOG_DEBUG, "Validation App Mode: Using embedded Act stacks");
 
@@ -179,7 +172,7 @@ void ShaveManager::startActShaves(const uint8_t tile, const ActKernelRuntimeConf
 
     // Shave IDs, depending on the tile
     const uint32_t startShvId = tile * AS_PER_TILE;
-    const uint32_t maxShvId = startShvId + AS_PER_TILE;
+    // const uint32_t maxShvId = startShvId + AS_PER_TILE;
 
     // Set stack location, set the stack size, then start the Shave
     for (uint32_t i = startShvId; i < startShvId + 1; i++) {
@@ -246,7 +239,7 @@ void ShaveManager::startActShavesForTiles(const ActKernelRuntimeConfigs &cfgs, b
 
 void ShaveManager::stopActShavesForTile(uint32_t tile) {
     const unsigned int startAct = tile ? AS0_TILE1_GLOBAL_SHAVE_INDEX : AS0_TILE0_GLOBAL_SHAVE_INDEX;
-    const unsigned int finalAct = startAct + AS_PER_TILE;
+    // const unsigned int finalAct = startAct + AS_PER_TILE;
 
     for (unsigned int i = startAct; i < startAct + 1; i++) {
         nnLog(MVLOG_DEBUG, "Stopping Act Shave");

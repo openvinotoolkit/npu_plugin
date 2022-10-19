@@ -10,6 +10,7 @@
 #include <vpux/compiler/utils/quantization.hpp>
 #include "vpux/compiler/core/layers.hpp"
 #include "vpux/compiler/dialect/IE/ops.hpp"
+#include "vpux/compiler/dialect/VPU/ops.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/error.hpp"
@@ -139,6 +140,42 @@ mlir::LogicalResult MaxPoolRewriter::matchAndRewrite(IE::MaxPoolOp origOp, mlir:
         return rewriter.create<IE::MaxPoolOp>(origOp.getLoc(), newOutputType, expandedInput, origOp.kernel_size(),
                                               origOp.strides(), origOp.pads_begin(), origOp.pads_end(),
                                               origOp.rounding_type(), origOp.post_opAttr());
+    };
+
+    return generalRewrite(origOp, rewriter, opCreator, _log.nest());
+}
+
+//
+// AveragePoolRewriter
+//
+
+class AveragePoolRewriter final : public mlir::OpRewritePattern<IE::AvgPoolOp> {
+public:
+    AveragePoolRewriter(mlir::MLIRContext* ctx, Logger log): mlir::OpRewritePattern<IE::AvgPoolOp>(ctx), _log(log) {
+        setDebugName("AveragePoolRewriter");
+    }
+
+    mlir::LogicalResult matchAndRewrite(IE::AvgPoolOp origOp, mlir::PatternRewriter& rewriter) const final;
+
+private:
+    Logger _log;
+};
+
+mlir::LogicalResult AveragePoolRewriter::matchAndRewrite(IE::AvgPoolOp origOp, mlir::PatternRewriter& rewriter) const {
+    _log.trace("[{0}] Got AveragePool layer at '{1}'", getDebugName(), origOp->getLoc());
+
+    const auto opCreator = [&](mlir::Value expandedInput, int64_t outChanPadsEnd) -> mlir::Operation* {
+        const Shape outPadBefore(checked_cast<size_t>(origOp.getType().getRank()), 0);
+
+        Shape outPadAfter(checked_cast<size_t>(origOp.getType().getRank()), 0);
+        outPadAfter[Dims4D::Act::C] = outChanPadsEnd;
+
+        const auto ndType = origOp.getType().cast<vpux::NDTypeInterface>();
+        const auto newOutputType = ndType.pad(outPadBefore, outPadAfter);
+
+        return rewriter.create<IE::AvgPoolOp>(origOp.getLoc(), newOutputType, expandedInput, origOp.kernel_size(),
+                                              origOp.strides(), origOp.pads_begin(), origOp.pads_end(),
+                                              origOp.rounding_type(), origOp.exclude_pads(), origOp.post_opAttr());
     };
 
     return generalRewrite(origOp, rewriter, opCreator, _log.nest());
@@ -358,6 +395,8 @@ private:
 
 void ExpandActivationChannelsPass::safeRunOnFunc() {
     auto& ctx = getContext();
+    auto func = getFunction();
+    const auto arch = VPU::getArch(func->getParentOfType<mlir::ModuleOp>());
 
     const auto isLegal = [&](mlir::Operation* op) {
         if (auto iface = mlir::dyn_cast<IE::AlignedChannelsOpInterface>(op)) {
@@ -374,6 +413,9 @@ void ExpandActivationChannelsPass::safeRunOnFunc() {
 
     mlir::RewritePatternSet patterns(&ctx);
     patterns.insert<MaxPoolRewriter>(&ctx, _log);
+    if (arch == VPU::ArchKind::VPUX37XX) {
+        patterns.insert<AveragePoolRewriter>(&ctx, _log);
+    }
     patterns.insert<ConvolutionRewriter>(&ctx, _log);
     patterns.insert<EltwiseRewriter<IE::AddOp>>(&ctx, _log);
     patterns.insert<EltwiseRewriter<IE::MultiplyOp>>(&ctx, _log);
@@ -381,7 +423,6 @@ void ExpandActivationChannelsPass::safeRunOnFunc() {
     patterns.insert<EltwiseRewriter<IE::AndOp>>(&ctx, _log);
     patterns.insert<GroupConvolutionRewriter>(&ctx, _log);
 
-    auto func = getFunction();
     if (mlir::failed(mlir::applyFullConversion(func, target, std::move(patterns)))) {
         signalPassFailure();
     }

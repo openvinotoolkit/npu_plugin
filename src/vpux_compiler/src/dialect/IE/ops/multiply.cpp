@@ -12,74 +12,7 @@
 #include "vpux/utils/core/checked_cast.hpp"
 #include "vpux/utils/core/numeric.hpp"
 
-#include <mlir/IR/PatternMatch.h>
-
 using namespace vpux;
-
-namespace {
-
-//
-// ConvertMultiplyToScale
-//
-
-class ConvertMultiplyToScale final : public mlir::OpRewritePattern<IE::MultiplyOp> {
-public:
-    using mlir::OpRewritePattern<IE::MultiplyOp>::OpRewritePattern;
-
-public:
-    mlir::LogicalResult matchAndRewrite(IE::MultiplyOp mulOp, mlir::PatternRewriter& rewriter) const final;
-};
-
-mlir::LogicalResult ConvertMultiplyToScale::matchAndRewrite(IE::MultiplyOp mulOp,
-                                                            mlir::PatternRewriter& rewriter) const {
-    static const auto N = Dim(0);
-    static const auto C = Dim(1);
-    static const auto H = Dim(2);
-    static const auto W = Dim(3);
-
-    const auto lhsType = mulOp.input1().getType().cast<mlir::ShapedType>();
-    const auto outShapeRes = mulOp.output().getType().cast<mlir::ShapedType>();
-
-    bool lhsIsActivation = (lhsType == outShapeRes);
-    auto activationInput = lhsIsActivation ? mulOp.input1() : mulOp.input2();
-    auto weightsInput = lhsIsActivation ? mulOp.input2() : mulOp.input1();
-
-    auto mulOutShape = getShape(mulOp.output());
-    auto weightsShape = getShape(weightsInput);
-
-    if (mulOutShape.size() != 4 || weightsShape.size() != 4) {
-        return mlir::failure();
-    }
-    if (weightsShape[N] != 1 || weightsShape[H] != 1 || weightsShape[W] != 1) {
-        return mlir::failure();
-    }
-
-    if (weightsShape[C] != mulOutShape[C] && weightsShape[C] != 1) {
-        return mlir::failure();
-    }
-
-    // Broadcast scalar for all channels
-    if (weightsShape[C] != mulOutShape[C] && weightsShape[C] == 1) {
-        auto input2Const = weightsInput.getDefiningOp<Const::DeclareOp>();
-        if (input2Const == nullptr) {
-            return mlir::failure();
-        }
-        Const::ContentAttr dataAttr = input2Const.contentAttr().broadcast(C, mulOutShape[C]);
-
-        if (dataAttr == nullptr) {
-            return mlir::failure();
-        }
-
-        auto dataConstOp = rewriter.create<Const::DeclareOp>(mulOp.getLoc(), dataAttr.getType(), dataAttr);
-
-        weightsInput = dataConstOp.output();
-    }
-
-    rewriter.replaceOpWithNewOp<IE::ScaleShiftOp>(mulOp, mulOp.getType(), activationInput, weightsInput, nullptr);
-    return mlir::success();
-}
-
-}  // namespace
 
 mlir::LogicalResult vpux::IE::MultiplyOp::inferReturnTypeComponents(
         mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
@@ -103,10 +36,6 @@ mlir::LogicalResult vpux::IE::MultiplyOp::inferReturnTypeComponents(
     }
 
     return mlir::success();
-}
-
-void vpux::IE::MultiplyOp::getCanonicalizationPatterns(mlir::RewritePatternSet& patterns, mlir::MLIRContext* context) {
-    patterns.insert<ConvertMultiplyToScale>(context);
 }
 
 mlir::OpFoldResult vpux::IE::MultiplyOp::fold(ArrayRef<mlir::Attribute> operands) {

@@ -21,3 +21,11 @@ vpux::Const::Content transform(vpux::Const::Content&input);
 Transform the constant content
 NOTE: This method *must* be implemented by the user.
 
+#### `getPositionRequirement`
+
+```c++
+vpux::Const::details::PositionRequirement getPositionRequirement();
+```
+Get transformation location requirement
+NOTE: This method *must* be implemented by the user.
+

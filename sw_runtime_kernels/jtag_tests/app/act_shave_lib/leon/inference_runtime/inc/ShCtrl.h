@@ -12,10 +12,10 @@
 #if defined(SHAVE_PROCESSOR_MAIN)
 
 #include <HglShaveCtrl.h>
+#include <HglShaveCtrlRegs.h>
 #include <HglShaveCtrlErrors.h>
 #include <ShCtrlInternal.h>
 #include <HglShaveValidityCheck.h>
-#include <HglShaveLogging.h>
 
 #endif
 
@@ -28,9 +28,9 @@ extern "C" {
 HglShaveCtrlError ShCtrlInit(void);
 HglShaveCtrlError ShCtrlOpen(HglShaveType type, uint32_t id, ShHandle **handle);
 HglShaveCtrlError ShCtrlClose(ShHandle **handle);
-HglShaveCtrlError ShCtrlSetStackAddr(ShHandle *handle, uint32_t stack);
-HglShaveCtrlError ShCtrlSetStackSize(ShHandle *handle, uint32_t size);
-HglShaveCtrlError ShCtrlSetWindowAddr(ShHandle *handle, HglShaveWindow win, uint32_t winAddr);
+HglShaveCtrlError ShCtrlSetStackAddr(ShHandle *handle, uintptr_t addr);
+HglShaveCtrlError ShCtrlSetStackSize(ShHandle *handle, uint32_t nbytes);
+HglShaveCtrlError ShCtrlSetWindowAddr(ShHandle *handle, int winIdx, uintptr_t winAddr);
 HglShaveCtrlError ShCtrlStop(ShHandle *handle);
 HglShaveCtrlError ShCtrlStart(ShHandle *handle, void *entry_point, const char *fmt, ...);
 uint32_t ShCtrlGetCurrentProcessor(void);

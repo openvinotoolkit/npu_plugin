@@ -9,7 +9,7 @@
 #include "vpux/compiler/dialect/const/ops.hpp"
 #include "vpux/compiler/utils/types.hpp"
 #include "vpux/hwtest/hwtest_utils.hpp"
-#include "vpux/hwtest/ops/hwtests_ops.hpp"
+#include "vpux/hwtest/ops/act_shave_op.hpp"
 #include "vpux/utils/core/error.hpp"
 #include "vpux/utils/core/small_string.hpp"
 
@@ -21,8 +21,8 @@ void buildReadAfterWriteDMAACTTest(const nb::TestCaseJsonDescriptor& testDesc, m
     auto* ctx = builder.getContext();
     auto loc = builder.getUnknownLoc();
 
-    const auto input = testDesc.getInputLayer();
-    const auto output = testDesc.getOutputLayer();
+    const auto input = testDesc.getInputLayerList().front();
+    const auto output = testDesc.getOutputLayers().front();
     const auto iterationCount = testDesc.getIterationCount();
     const auto cluster = testDesc.getClusterNumber();
 
@@ -60,8 +60,9 @@ void buildReadAfterWriteDMAACTTest(const nb::TestCaseJsonDescriptor& testDesc, m
     auto functionInput = function.getArgument(0);
     auto functionOutput = function.getArgument(1);
 
-    auto inputCMX = createDeclareTensorOp(functionBuilder, VPURT::BufferSection::CMX_NN, inputShape, inputType,
-                                          DimsOrder::NHWC, cluster, INPUT_CMX_OFFSET);
+    SmallVector<vpux::VPURT::DeclareBufferOp> inputCMXVec;
+    inputCMXVec.push_back(createDeclareTensorOp(functionBuilder, VPURT::BufferSection::CMX_NN, inputShape, inputType,
+                                                DimsOrder::NHWC, cluster, INPUT_CMX_OFFSET));
     auto outputDMACMX = createDeclareTensorOp(functionBuilder, VPURT::BufferSection::CMX_NN, inputShape, inputType,
                                               DimsOrder::NHWC, cluster, OUTPUT_DMA_CMX_OFFSET);
     auto outputACTCMX = createDeclareTensorOp(functionBuilder, VPURT::BufferSection::CMX_NN, outputShape, outputType,
@@ -71,12 +72,12 @@ void buildReadAfterWriteDMAACTTest(const nb::TestCaseJsonDescriptor& testDesc, m
 
     VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(),
                                           mlir::ValueRange(updateBarrier.barrier()), loc, functionInput,
-                                          inputCMX.getOperation()->getResult(0));
+                                          inputCMXVec[0].getOperation()->getResult(0));
 
     auto waitBarrier = updateBarrier;
     for (std::size_t i = 1; i + 1 < iterationCount; i += 2) {
         if (i != 1) {
-            inputCMX = outputDMACMX;
+            inputCMXVec[0] = outputDMACMX;
             OUTPUT_ACT_CMX_OFFSET = OUTPUT_DMA_CMX_OFFSET + outputDMACMXSize - rewritable_bytes;
             outputACTCMX = createDeclareTensorOp(functionBuilder, VPURT::BufferSection::CMX_NN, outputShape, outputType,
                                                  DimsOrder::NHWC, cluster, OUTPUT_ACT_CMX_OFFSET);
@@ -88,13 +89,13 @@ void buildReadAfterWriteDMAACTTest(const nb::TestCaseJsonDescriptor& testDesc, m
         updateBarrier = functionBuilder.create<vpux::VPURT::ConfigureBarrierOp>(loc, i);
         VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(waitBarrier.barrier()),
                                               mlir::ValueRange(updateBarrier.barrier()), loc,
-                                              inputCMX.getOperation()->getResult(0),
+                                              inputCMXVec[0].getOperation()->getResult(0),
                                               outputDMACMX.getOperation()->getResult(0), cluster, false, false);
 
         waitBarrier = updateBarrier;
         updateBarrier = functionBuilder.create<vpux::VPURT::ConfigureBarrierOp>(loc, i + 1);
 
-        buildActShaveTask(testDesc, module, functionBuilder, log, inputTypes, inputCMX, outputACTCMX,
+        buildActShaveTask(testDesc, module, functionBuilder, log, makeArrayRef(inputTypes), inputCMXVec, outputACTCMX,
                           mlir::ValueRange(waitBarrier.barrier()), mlir::ValueRange(updateBarrier.barrier()), cluster);
 
         waitBarrier = updateBarrier;
@@ -106,7 +107,8 @@ void buildReadAfterWriteDMAACTTest(const nb::TestCaseJsonDescriptor& testDesc, m
     functionBuilder.create<mlir::ReturnOp>(loc, mlir::ValueRange{functionOutput});
 
     mlir::PassManager pm(ctx, mlir::OpPassManager::Nesting::Implicit);
-    pm.addPass(VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::DefaultHW, None, log));
+    pm.addPass(
+            VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::DefaultHW, None, None, log));
 
     VPUX_THROW_UNLESS(mlir::succeeded(pm.run(module)), "Compilation failed");
 

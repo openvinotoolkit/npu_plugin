@@ -19,11 +19,6 @@ namespace mv
             PPETask(const json::Value& content);
             PPETask(const PPEFixedFunction &fixedFunction);
 
-            inline mv::Data::TensorIterator getScaleData() const
-            {
-                return get<Data::TensorIterator>("scaleData");
-            }
-
             inline PPEFixedFunction getFixedFunction() const
             {
                 return get<PPEFixedFunction>("fixedFunction");

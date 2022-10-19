@@ -8,8 +8,6 @@
 sys-nn-common-components-inc += inc
 sys-nn-common-components-srcs-y += $(wildcard src/*.c*)
 sys-nn-common-components-lrt-srcs-y += $(wildcard src/common_lrt/*.c*)
-sys-nn-common-components-srcs-$(CONFIG_TARGET_SOC_MA2490) += $(wildcard src/2490/*.c*)
-sys-nn-common-components-srcs-$(CONFIG_TARGET_SOC_3100) += $(wildcard src/2490/*.c*)
 
 # CONFIG_TARGET_SOC_* options are mutually exclusive. Only one can be enabled at a time
 target-soc-37xx = $(CONFIG_TARGET_SOC_3600)$(CONFIG_TARGET_SOC_3710)$(CONFIG_TARGET_SOC_3720)

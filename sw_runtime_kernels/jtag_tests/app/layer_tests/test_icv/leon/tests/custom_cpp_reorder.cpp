@@ -5,12 +5,8 @@
 #include "layers/param_custom_cpp.h"
 #include "mvSubspaces.h"
 
-#ifdef CONFIG_TARGET_SOC_3720
 __attribute__((aligned(1024)))
-#include "sk.reorder_fp16.3010xx.text.xdat"
-#else
-#include "svuSLKernels_EP.h"
-#endif
+#include "sk.reorder_fp16.3720xx.text.xdat"
 
 #include "param_reorder.h"
 
@@ -45,7 +41,8 @@ protected:
         { addLoop(m_testsLoop); }
     void initData() override
         {
-            m_params = {0xFFFFFFFF, m_elfBuffer, 0, nullptr, MAX_LOCAL_PARAMS, 0, 0};
+            sw_params::BaseKernelParams emptyParamData;
+            m_params = {0xFFFFFFFF, m_elfBuffer, 0, nullptr, emptyParamData, MAX_LOCAL_PARAMS, 0};
 
             Parent::initData();
             const SingleTest* test = m_currentTest;
@@ -89,11 +86,7 @@ protected:
         }
     void generateInputData() override
         {
-        #ifdef CONFIG_TARGET_SOC_3720
-            m_params.kernel = reinterpret_cast<uint64_t>(sk_reorder_fp16_3010xx_text);
-        #else
-            m_params.kernel = reinterpret_cast<uint64_t>(PREAMBLE_FUNC(reorder_fp16));
-        #endif
+            m_params.kernel = reinterpret_cast<uint64_t>(sk_reorder_fp16_3720xx_text);
 
             rand_seed();
 

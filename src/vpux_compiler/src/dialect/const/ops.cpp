@@ -90,6 +90,33 @@ mlir::OpFoldResult vpux::Const::DeclareOp::fold(ArrayRef<mlir::Attribute> operan
 }
 
 //
+// DeclareOp::serialize
+//
+
+void vpux::Const::DeclareOp::serialize(elf::writer::BinaryDataSection<uint8_t>& binDataSection) {
+    vpux::Const::Content cnt = content();
+    // int64_t typeTotalSize = cnt.getRawStorageBuf().size();
+
+    auto tmpBuf = std::make_unique<char[]>(cnt.getType().getTotalAllocSize().count());
+
+    MutableArrayRef<char> buf(tmpBuf.get(), cnt.getType().getTotalAllocSize().count());
+    cnt.copyTo(buf);
+
+    auto ptrCharTmp = reinterpret_cast<uint8_t*>(tmpBuf.get());
+    binDataSection.appendData(ptrCharTmp, getBinarySize());
+}
+
+//
+// DeclareOp::getBinarySize
+//
+
+size_t vpux::Const::DeclareOp::getBinarySize() {
+    vpux::Const::Content cnt = content();
+
+    return cnt.getType().getTotalAllocSize().count();
+}
+
+//
 // verifyOp
 //
 

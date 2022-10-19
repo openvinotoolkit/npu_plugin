@@ -27,6 +27,8 @@ class KmbMaxMinLayerTest_MCM: public KmbMaxMinLayerTest {
 
 class KmbMaxMinLayerTest_MLIR: public KmbMaxMinLayerTest { };
 
+class KmbMaxMinLayerTest_MLIR_VPU3720: public KmbMaxMinLayerTest { };
+
 // MCM and MLIR tests use different parameters. See below.
 
 TEST_P(KmbMaxMinLayerTest_MCM, CompareWithRefs) {
@@ -35,6 +37,13 @@ TEST_P(KmbMaxMinLayerTest_MCM, CompareWithRefs) {
 
 TEST_P(KmbMaxMinLayerTest_MLIR, CompareWithRefs) {
     useCompilerMLIR();
+    Run();
+}
+
+TEST_P(KmbMaxMinLayerTest_MLIR_VPU3720, CompareWithRefs) {
+    useCompilerMLIR();
+    setPlatformVPU3720();
+    setReferenceSoftwareModeMLIR();
     Run();
 }
 
@@ -109,6 +118,41 @@ const std::vector<std::vector<std::vector<size_t>>> inShapesScalar = {
 INSTANTIATE_TEST_SUITE_P(smoke_maximum_scalar, KmbMaxMinLayerTest_MCM,
                         ::testing::Combine(
                                 ::testing::ValuesIn(inShapesScalar),
+                                ::testing::ValuesIn(opType),
+                                ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::ValuesIn(inputType),
+                                ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                        KmbMaxMinLayerTest::getTestCaseName);
+
+//
+// VPU3720 Instantiation
+//
+
+const std::vector<std::vector<std::vector<size_t>>> inShapesVPU3720 = {
+        {{1, 1, 16, 32}, {1, 1, 16, 32}},
+        {{32}, {1}}
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_maximum_VPU3720, KmbMaxMinLayerTest_MLIR_VPU3720,
+                        ::testing::Combine(
+                                ::testing::ValuesIn(inShapesVPU3720),
+                                ::testing::ValuesIn(opType),
+                                ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::ValuesIn(inputType),
+                                ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                        KmbMaxMinLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_precommit_maximum_VPU3720, KmbMaxMinLayerTest_MLIR_VPU3720,
+                        ::testing::Combine(
+                                ::testing::Values(std::vector<std::vector<size_t>>({{1, 1, 1, 3}, {1}})),
                                 ::testing::ValuesIn(opType),
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),

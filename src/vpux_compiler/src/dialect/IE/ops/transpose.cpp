@@ -120,7 +120,7 @@ mlir::LogicalResult vpux::IE::TransposeOp::inferReturnTypeComponents(
     const auto permutationMap = mlir::AffineMap::getPermutationMap(makeArrayRef(uorder), ctx);
     const auto outputElemType = inferElemType(permutationMap, inDataType.getElementType());
 
-    const auto outDesc = IE::getTensorAttr(IE::getOrder(inDataType), nullptr, false);
+    const auto outDesc = IE::getTensorAttr(IE::getOrder(inDataType), nullptr);
 
     inferredReturnShapes.emplace_back(makeArrayRef(outShapeVec), outputElemType, outDesc);
     return mlir::success();

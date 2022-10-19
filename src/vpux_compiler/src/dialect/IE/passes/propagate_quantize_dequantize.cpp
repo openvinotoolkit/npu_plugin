@@ -125,7 +125,7 @@ mlir::LogicalResult PropagateQuantize::matchAndRewrite(IE::ElemTypeInfoOpInterfa
     }
 
     // 3. remove old Quantize ops.
-    for (auto* user : origOp->getUsers()) {
+    for (auto* user : llvm::make_early_inc_range(origOp->getUsers())) {
         rewriter.replaceOp(user, origOp->getResults());
     }
 

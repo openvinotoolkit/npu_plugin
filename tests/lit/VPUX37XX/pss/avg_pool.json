@@ -2,21 +2,23 @@
 {
     "architecture": "VPUX37XX",
     "case_type": "AvgPool",
-    "input": {
-        "shape": [
-            1,
-            64,
-            32,
-            32
-        ],
-        "dtype": "fp16",
-        "quantization": {
-            "scale": 1.0,
-            "zeropoint": 0,
-            "low_range": -64,
-            "high_range": 63
+    "input": [
+        {
+            "shape": [
+                1,
+                64,
+                32,
+                32
+            ],
+            "dtype": "fp16",
+            "quantization": {
+                "scale": 1.0,
+                "zeropoint": 0,
+                "low_range": -64,
+                "high_range": 63
+            }
         }
-    },
+    ],
     "pool_op": {
         "sub_type": "avg",
         "kernel_shape": [
@@ -34,20 +36,22 @@
             0
         ]
     },
-    "output": {
-        "shape": [
-            1,
-            64,
-            16,
-            16
-        ],
-        "dtype": "fp16",
-        "quantization": {
-            "scale": 1.0,
-            "zeropoint": 0,
-            "low_range": -65536,
-            "high_range": 65535
+    "output": [
+        {
+            "shape": [
+                1,
+                64,
+                16,
+                16
+            ],
+            "dtype": "fp16",
+            "quantization": {
+                "scale": 1.0,
+                "zeropoint": 0,
+                "low_range": -65536,
+                "high_range": 65535
+            }
         }
-    }
+    ]
 }
 // CHECK-LABEL: module @mainModule

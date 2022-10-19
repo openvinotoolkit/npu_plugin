@@ -36,12 +36,24 @@ if(ENABLE_BLOB_DUMP)
         BLOB_DUMP=1)
 endif()
 
-target_link_libraries(${FUNCTIONAL_TARGET}
-        PUBLIC
-            VPUXCompilerL0
-            gtest
-            gtest_main
-)
+# Shlwapi.lib is to check file existence.
+if(WIN32)
+ target_link_libraries(${FUNCTIONAL_TARGET}
+         PUBLIC
+             VPUXCompilerL0
+             gtest
+             gtest_main
+             Shlwapi.lib
+ )
+else()
+ target_link_libraries(${FUNCTIONAL_TARGET}
+         PUBLIC
+             VPUXCompilerL0
+             gtest
+             gtest_main
+             pthread
+ )
+endif()
 
 target_include_directories(${FUNCTIONAL_TARGET}
     PUBLIC
@@ -52,13 +64,6 @@ link_system_libraries(${FUNCTIONAL_TARGET}
     PUBLIC
         IE::ngraph
 )
-
-if(LINUX)
-  target_link_libraries(${FUNCTIONAL_TARGET}
-        PUBLIC
-            pthread
-    )
-endif()
 
 ie_add_api_validator_post_build_step(TARGET compilerTest)
 ie_add_api_validator_post_build_step(TARGET profilingTest)

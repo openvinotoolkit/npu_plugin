@@ -101,8 +101,3 @@ The VPUX plugin accepts the following parameters:
 | `REMOTE_MEMORY`    | `HDDL2_PARAM_KEY` | HddlUnite::RemoteMemory::Ptr | **[Deprecated]** HDDLUnite remote memory object |
 | `WORKLOAD_CONTEXT_ID`    | `VPUX_PARAM_KEY` | uint64_t |  HDDLUnite workload context ID |
 | `WORKLOAD_CONTEXT_ID`    | `HDDL2_PARAM_KEY` | uint64_t | **[Deprecated]** HDDLUnite workload context ID |
-
-
-# See Also
-
-* [Inference Engine introduction](https://gitlab-icv.inn.intel.com/inference-engine/dldt/blob/master/docs/IE_DG/inference_engine_intro.md)

@@ -20,6 +20,18 @@ size_t getBinarySize();
 Get the size in bytes of the serialized form of this object
 NOTE: This method *must* be implemented by the user.
 
+## GetOffsetOfOpInterface (`ELF_GetOffsetOfOpInterface`)
+
+Interface for the offset computation of different fields of inside serializable operations
+### Methods:
+#### `getOffsetOfWithinOperation`
+
+```c++
+mlir::FailureOr<uint64_t> getOffsetOfWithinOperation(mlir::Value val);
+```
+Returns the offset of a field (specified by the 'val' parameter) inside a serializable op
+NOTE: This method *must* be implemented by the user.
+
 ## ElfObjectInterface (`ELF_OpInterface`)
 
 Interface for the ELF object
@@ -56,7 +68,12 @@ void serialize(elf::Writer&writer, vpux::DenseMap<mlir::Operation*, elf::writer:
 Serialize the Section into an ELF entity
 NOTE: This method *must* be implemented by the user.
 
-## ElfSymbolObjectInterface (`ELF_SymbolObjectInterface`)
+#### `getBlock`
+
+```c++
+mlir::Block*getBlock();
+```
+Get the block of the region## ElfSymbolObjectInterface (`ELF_SymbolObjectInterface`)
 
 Interface for the ELF symbol objects
 ### Methods:

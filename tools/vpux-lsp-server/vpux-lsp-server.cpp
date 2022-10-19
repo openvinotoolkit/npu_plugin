@@ -10,7 +10,6 @@
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/IE/passes.hpp"
 #include "vpux/compiler/dialect/IERT/ops.hpp"
-#include "vpux/compiler/dialect/IERT/passes.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
 #include "vpux/compiler/dialect/const/passes.hpp"
@@ -34,9 +33,8 @@ int main(int argc, char* argv[]) {
         vpux::Const::registerConstPasses();
         vpux::IE::registerIEPasses();
         vpux::IE::registerIEPipelines();
-        vpux::IERT::registerIERTPasses();
-        vpux::IERT::registerIERTPipelines();
         vpux::VPUIP::registerVPUIPPasses();
+        vpux::VPUIP::registerVPUIPPipelines();
         vpux::registerConversionPasses();
         vpux::registerConversionPipelines();
         vpux::registerPipelines();

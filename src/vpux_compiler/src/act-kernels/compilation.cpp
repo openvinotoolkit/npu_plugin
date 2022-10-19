@@ -56,6 +56,15 @@ static void getActShaveBinaries(const ActShaveCompileParams& params, const Compi
 
         if (llvm::sys::fs::exists(prebuiltKernelText) && llvm::sys::fs::exists(prebuiltKernelData)) {
             break;
+        } else {
+            prebuiltKernelText =
+                    printToString("{0}/pss/sk.{1}.{2}.text", prebuiltKernelBinariesPath, unitDesc.entry, cpu);
+            prebuiltKernelData =
+                    printToString("{0}/pss/sk.{1}.{2}.data", prebuiltKernelBinariesPath, unitDesc.entry, cpu);
+
+            if (llvm::sys::fs::exists(prebuiltKernelText) && llvm::sys::fs::exists(prebuiltKernelData)) {
+                break;
+            }
         }
     }
 

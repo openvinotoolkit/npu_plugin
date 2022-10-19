@@ -78,21 +78,6 @@ public:
 void populateBufferizeMaterializationLegality(mlir::ConversionTarget& target);
 
 //
-// BufferizeWithDistributedTypeConverter
-//
-
-class BufferizeWithDistributedTypeConverter : public BufferizeTypeConverter {
-public:
-    BufferizeWithDistributedTypeConverter();
-};
-
-//
-// populateBufferizeWithDistributedMaterializationLegality
-//
-
-void populateBufferizeWithDistributedMaterializationLegality(mlir::ConversionTarget& target);
-
-//
 // inferReturnTypes
 //
 
@@ -101,7 +86,6 @@ enum class InferShapedTypeMode : uint32_t {
     ELEM_TYPE = 1 << 1,
     LAYOUT = 1 << 2,
     MEM_SPACE = 1 << 3,
-    SPARSITY = 1 << 4,
 
     ALL = std::numeric_limits<uint32_t>::max()
 };

@@ -13,18 +13,26 @@
   - [Optional: IE Attribute parser](#optional-ie-attribute-parser)
   - [Optional: Canonicalizer](#optional-canonicalizer)
   - [Optional: Transformation pass](#optional-transformation-pass)
-  - [You're half way there.](#youre-half-way-there)
-- [IERT Dialect](#iert-dialect)
-  - [IERT Table gen](#iert-table-gen)
-  - [IE → IERT lowering](#ie--iert-lowering)
+- [VPU Dialect](#vpu-dialect)
+  - [VPU Operation table gen](#vpu-operation-table-gen)
+  - [VPU Output shape resolver](#vpu-output-shape-resolver)
+  - [Optional: Attributes, canonicalization, transformations](#optional-attributes-canonicalization-transformations)
+- [IE → VPU lowering](#ie--vpu-lowering)
+  - [IE → VPU lowering lit-test](#ie--vpu-lowering-lit-test)
+- [You're half way there.](#youre-half-way-there)
 - [GraphFile-schema](#graphfile-schema)
+- [Emulator serialization](#emulator-serialization)
 - [VPUIP Dialect](#vpuip-dialect)
   - [VPUIP table gen](#vpuip-table-gen)
   - [VPUIP UPATask builder](#vpuip-upatask-builder)
-  - [IERT → VPUIP lowering](#iert--vpuip-lowering)
-    - [Only for cases where layer have more than 1 output:](#only-for-cases-where-layer-have-more-than-1-output)
-  - [Redirect interfaces for IE and IERT](#redirect-interfaces-for-ie-and-iert)
+  - [Redirect interfaces for IE and VPUIP](#redirect-interfaces-for-ie-and-vpuip)
   - [VPUIP verifier](#vpuip-verifier)
+- [VPU → VPUIP lowering](#vpu--vpuip-lowering)
+  - [VPU → VPUIP lowering lit-test](#vpu--vpuip-lowering-lit-test)
+- [IERT Dialect](#iert-dialect)
+  - [IERT Table gen](#iert-table-gen)
+- [IE → IERT lowering](#ie--iert-lowering)
+  - [IE → IERT lowering lit-test](#ie--iert-lowering-lit-test)
 # Introduction
 This instruction will guide you through steps of adding a new software layer to the MLIR compiler. It has step-by-step plan of actions using `CTCGreedyDecoder` layer as an example.
 > Be aware, that MLIR compiler is in a rapid development and code snippets might be out of date.
@@ -152,7 +160,7 @@ Let's create a table-gen representation of our layer.
 * let arguments – input parameters for the layer. Possible types can be found here: https://github.com/llvm/llvm-project/blob/main/mlir/include/mlir/IR/OpBase.td
 * let results – outputs of the operation
 
-[src/vpux_compiler/tblgen/vpux/compiler/dialect/IE/ops.td#L1658](../tblgen/vpux/compiler/dialect/IE/ops.td#L1658)
+[src/vpux_compiler/tblgen/vpux/compiler/dialect/IE/ops.td#L2752](../tblgen/vpux/compiler/dialect/IE/ops.td#L2752)
 ```swift
 //
 // CTCGreedyDecoderOp
@@ -230,7 +238,7 @@ mlir::FuncOp NGraphImporter::buildMainFunc(mlir::OpBuilder& moduleBuilder, Strin
 ```
 
 ## IE Output shape resolver
-Create a new file, that defines vpux::IE::<OpName>::inferReturnTypeComponents function.
+Create a new file that defines the `vpux::IE::<OpName>::inferReturnTypeComponents` function.
 Given input tensors and layer parameters, this function computes output shapes and types of the operation.
 [(new) src/vpux_compiler/src/dialect/IE/ops/ctc_greedy_decoder.cpp](../src/dialect/IE/ops/ctc_greedy_decoder.cpp)
 ```cpp
@@ -536,89 +544,193 @@ Add pass to the pipeline. Most of the transormations should be added to `buildAd
 
 ```
 
-## You're half way there.
-You should be able to compile code now. Run single layer test and look for "Unable to legalize IE::OperationName" message. That means that MLIR compiler was not able to convert IE::OperationName to IERT::OperationName. This will be the next step.
-# IERT Dialect
-InferenceEngine RunTime Dialect The IERT Dialect represents bufferized version of IE Dialect.
+# VPU Dialect
+The VPU Dialect represents an extension over the IE dialect that brings hardware-specific information to the IR.
 
-It has the following properties:
+Documentation
 
-Works with fixed operation set (like IE Dialect).
-Represents execution scheduling and memory allocation.
-Works with MemRefType.
-Includes transformations and optimizations closer to HW level (memory re-usage, parallel resources' usage, etc.).
+* [chapters/generated/dialect/_VPU.md](chapters/generated/dialect/_VPU.md)
 
-Documentation:
+## VPU Operation table gen
+Let's create a table-gen representation of our layer.
 
-* IERT dialect: [chapters/generated/dialect/_IERT.md](chapters/generated/dialect/_IERT.md)
-* Passes: [chapters/generated/dialect/IERT/_passes.md](chapters/generated/dialect/IERT/_passes.md)
-* About assembly format: https://mlir.llvm.org/docs/OpDefinitions/#declarative-assembly-format
+* let summary – one line description of op
+* let arguments – input parameters for the layer. Possible types can be found here: https://github.com/llvm/llvm-project/blob/main/mlir/include/mlir/IR/OpBase.td
+* let results – outputs of the operation
 
-## IERT Table gen
-[src/vpux_compiler/tblgen/vpux/compiler/dialect/IERT/ops.td#L1696](../tblgen/vpux/compiler/dialect/IERT/ops.td#L1696)
+[src/vpux_compiler/tblgen/vpux/compiler/dialect/VPU/ops.td#L1992](../tblgen/vpux/compiler/dialect/VPU/ops.td#L1992)
 ```swift
 //
-// CTCGreedyDecoderOp
+// CTCGreedyDecoder
 //
 
-def IERT_CTCGreedyDecoderOp :
-        // the `1` indicates number of outputs
-        IERT_LayerOp<1, "CTCGreedyDecoder",
-            [
-                // Use MultiViewOpInterface instead for operations with many outputs
-                ViewLikeOpInterface
-            ]
+def VPU_CTCGreedyDecoderOp :
+        VPU_LayerOp<
+            "CTCGreedyDecoder"
         > {
-    let summary = "InferenceEngine run-time CTCGreedyDecoder layer";
+    let summary = "CTCGreedyDecoder VPU layer";
 
     let arguments = (ins
-        MemRefOf<[F16, F32]>:$input,
-        MemRefOf<[F16, F32]>:$sequenceLengths,
-
-        // Output memory buffer is an input argument of the operation
-        // It acts as an in/out parameter
-        // Please follow a naming convension and add _buff postfix to the output name
-        MemRefOf<[F16, F32]>:$output_buff,
+        RankedTensorOf<[F16, F32]>:$input,
+        RankedTensorOf<[F16, F32]>:$sequenceLengths,
 
         UnitAttr:$mergeRepeated
     );
 
     let results = (outs
-        MemRefOf<[F16, F32]>:$output
+        RankedTensorOf<[F16, F32]>:$output
     );
-
-    let assemblyFormat = [{
-        attr-dict
-        `inputs` `(` $input `:` type($input) `,` $sequenceLengths `:` type($sequenceLengths) `)`
-        `outputs` `(` $output_buff `:` type($output_buff) `)`
-        `->` type(results)
-    }];
 }
 ```
-## IE → IERT lowering
-Convert previous representation of a layer in IE dialect down to the IERT dialect.
 
-[src/vpux_compiler/src/conversion/passes/IE2IERT/bufferize_IE.cpp#L576](../src/conversion/passes/IE2IERT/bufferize_IE.cpp#L576)
+## VPU Output shape resolver
+Create a new file that defines the `vpux::VPU::<OpName>::inferReturnTypes` function.
+Compared to the IE dialect, this function will return the output types of the operation, not their shape components. This allows the operations in the dialect to work with any type, without begin restricted to `mlir::ShapedType`.
+
+It is recommended to opt for `vpux::NDTypeInterface` while working with tensor types in this dialect, since this interface is compatible with all MLIR and custom types.
+
+[(new) src/vpux_compiler/src/dialect/VPU/ops/ctc_greedy_decoder.cpp](../src/dialect/VPU/ops/ctc_greedy_decoder.cpp)
 ```cpp
-mlir::Operation* createRTLayer(IE::CTCGreedyDecoderOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
-    IERT::CTCGreedyDecoderOp::Adaptor newOp(allBufs);
-    return b.create<IERT::CTCGreedyDecoderOp>(origOp.getLoc(), newOp.input(), newOp.sequenceLengths(),
-                                              newOp.output_buff(), origOp.mergeRepeatedAttr());
+mlir::LogicalResult vpux::VPU::CTCGreedyDecoderOp::inferReturnTypes(
+        mlir::MLIRContext* ctx, mlir::Optional<mlir::Location> optLoc, mlir::ValueRange operands,
+        mlir::DictionaryAttr attrs, mlir::RegionRange /*regions*/,
+        mlir::SmallVectorImpl<mlir::Type>& inferredReturnTypes) {
+    const auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
+
+    VPU::CTCGreedyDecoderOpAdaptor ctc(operands, attrs);
+    if (mlir::failed(ctc.verify(loc))) {
+        return mlir::failure();
+    }
+
+    const auto inType = ctc.input().getType().cast<vpux::NDTypeInterface>();
+    const auto inShape = inType.getShape().raw();
+
+    if (inShape.size() != 3) {
+        return errorAt(loc, "First input tensor should have 3 dimensions");
+    }
+
+    SmallVector<int64_t> outputShape{inShape[1], inShape[0], 1, 1};
+
+    const auto outType = inType.changeShape(Shape(outputShape));
+    inferredReturnTypes.push_back(outType);
+
+    return mlir::success();
 }
 ```
-Verifiers are used to validate state of the operation. It is common to check input size, layout and strides for correctness. Add checks for kernel limitations if present.
 
-[src/vpux_compiler/src/conversion/passes/IE2IERT/bufferize_IE.cpp#L717](../src/conversion/passes/IE2IERT/bufferize_IE.cpp#L717)
+## VPU serializer method
+Operations in VPU dialect also need to define a `serialize` method that is used for integration with the vpux-emulator. More information can be found in the [Emulator serialization](#emulator-serialization) section.
+
+[(new) src/vpux_compiler/src/dialect/VPU/ops/ctc_greedy_decoder.cpp](../src/dialect/VPU/ops/ctc_greedy_decoder.cpp)
+
 ```cpp
-mlir::LogicalResult LayerRewrite::matchAndRewrite(mlir::Operation* origOp, ArrayRef<mlir::Value> newOperands,
-                                                  mlir::ConversionPatternRewriter& rewriter) const {
- const CreateFunc createFunc =
-            llvm::TypeSwitch<mlir::Operation*, CreateFunc>(origOp) CASE(mlir::quant::QuantizeCastOp)
-    // Add new case for the new operation
-    CASE(IE::CTCGreedyDecoderOp)
+//
+// serialize
+//
 
+EMU::BlobWriter::SpecificTask vpux::VPU::CTCGreedyDecoderOp::serialize(EMU::BlobWriter& writer) {
+    MVCNN::CTCDecoderParamsBuilder builder(writer);
+    builder.add_ctc_merge_repeated(mergeRepeated());
+    const auto paramsOff = builder.Finish();
+
+    return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_CTCDecoderParams});
 }
 ```
+
+## Optional: Attributes, canonicalization, transformations
+
+The same information from the IE dialect with regards to attributes, canonicalization and transformations applies to the VPU dialect, with some mentions:
+
+- canonicalization logic to convert inputs (e.g. parameters from weights) into attributes shouldn't generally be necessary if it is present in IE dialect;
+- if operands are converted to attributes in IE dialect, there should be no need to add the operands in VPU dialect as well - the attributes should suffice; the operands might be included in cases where the conversion from operands to attributes in IE is done conditionally.
+
+## IE → VPU lowering
+Now that the IE and VPU definitions of the operation are created, the logic that performs the IE->VPU lowering for it should follow.
+
+Generally, it will be enough to add the lowering logic in [convert_layers_to_VPU.td](../tblgen/vpux/compiler/conversion/rewriters/convert_layers_to_VPU.td):
+
+```swift
+//
+// IE.CTCGreedyDecoder -> VPU.CTCGreedyDecoder
+//
+
+def createCTCGreedyDecoderOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPU::CTCGreedyDecoderOp>(
+                $_loc, $0, $1, $2)
+        }]>;
+
+def RewriteCTCGreedyDecoder :
+        Pat<
+            (IE_CTCGreedyDecoderOp $input, $sequenceLengths, $mergeRepeated),
+            (createCTCGreedyDecoderOp $input, $sequenceLengths, $mergeRepeated)
+        >;
+```
+
+This tablegen declaration will automatically generate the C++ code that does the lowering. Sometimes, using the tablegen is not possible since the generated code cannot cover the operands/results properly. Example of relevant cases:
+- operation has a variadic number of results;
+- operation has multiple results and at least one optional/variadic operand.
+
+For such cases, it will be necessary to manually create the lowering logic in [convert_layers_to_VPU.cpp](../src/conversion/passes/IE2VPU/convert_layers_to_VPU.cpp). Although this is not applicable for CTCGreedyDecoder used as example, its manual lowering logic would have looked like:
+
+```cpp
+//
+// CTCGreedyDecoderRewrite
+//
+
+class CTCGreedyDecoderRewrite final : public mlir::OpRewritePattern<IE::CTCGreedyDecoderOp> {
+public:
+    CTCGreedyDecoderRewrite(mlir::MLIRContext* ctx, Logger log)
+            : mlir::OpRewritePattern<IE::CTCGreedyDecoderOp>(ctx), _log(log) {
+    }
+
+public:
+    mlir::LogicalResult matchAndRewrite(IE::CTCGreedyDecoderOp origOp, mlir::PatternRewriter& rewriter) const final;
+
+private:
+    Logger _log;
+};
+
+mlir::LogicalResult CTCGreedyDecoderRewrite::matchAndRewrite(IE::CTCGreedyDecoderOp origOp,
+                                                             mlir::PatternRewriter& rewriter) const {
+    _log.trace("Found CTCGreedyDecoder Operation '{0}'", origOp->getLoc());
+
+    rewriter.replaceOpWithNewOp<VPU::CTCGreedyDecoderOp>(origOp, origOp.input(), origOp.sequenceLengths(),
+                                                         origOp.mergeRepeatedAttr());
+
+    return mlir::success();
+}
+```
+
+The rewritter would also have to be registered:
+
+```cpp
+void ConvertLayers2VPUPass::safeRunOnFunc() {
+    // ...
+    mlir::RewritePatternSet patterns(&ctx);
+    // ...
+    patterns.insert<CTCGreedyDecoderRewrite>(&ctx, _log);
+    // ...
+```
+
+### IE → VPU lowering lit-test
+
+The lowering logic should also be tested. For this, create a dedicated lit-test in [convert_layers_to_VPU.mlir](../../../tests/lit/VPUX/conversion/passes/IE2VPU/convert_layers_to_VPU.mlir) containing the IE operation as input and checks for the resulting VPU operation. If needed, other operations such as constants can be included.
+
+```cpp
+// CHECK-LABEL: @CTCGreedyDecoder
+func @CTCGreedyDecoder(%arg0: tensor<20x8x128xf16>, %arg1: tensor<20x8xf16>) -> tensor<8x20x1x1xf16> {
+    %0 = IE.CTCGreedyDecoder(%arg0, %arg1) {mergeRepeated} : tensor<20x8x128xf16>, tensor<20x8xf16> -> tensor<8x20x1x1xf16>
+    return %0 : tensor<8x20x1x1xf16>
+
+    // CHECK:       [[VAR0:%.+]] = VPU.CTCGreedyDecoder(%arg0, %arg1) {mergeRepeated}
+    // CHECK-SAME:    : tensor<20x8x128xf16>, tensor<20x8xf16> -> tensor<8x20x1x1xf16>
+    // CHECK:       return [[VAR0]] : tensor<8x20x1x1xf16>
+}
+```
+
+## You're half way there.
+You should be able to compile code now. Run single layer test and look for "Unable to legalize VPU::OperationName" message. That means that MLIR compiler was not able to convert VPU::OperationName to VPUIP::OperationName. This will be the next step.
 
 # GraphFile-schema
 GraphFile-schema is a common layer between compiler and runtime. It is a tool for serializing data to the blob.
@@ -631,17 +743,15 @@ git checkout custom_branch
 ```
 or you can manually add your layer to the existing schema
 
-> graphFile-schema is a submodule that we can't link with a relative path. "Online links" are provided for the browser view convinience.
+> graphFile-schema is a submodule that we can't link with a relative path. Please find files below after thirdparty initialization.
 
-Online link: https://gitlab-icv.inn.intel.com/movidius/graphFile-schema/-/blob/master/src/schema/software.fbs#L446
-[thirdparty/graphFile-schema/src/schema/software.fbs#L446](../../../thirdparty/graphFile-schema/src/schema/software.fbs#L446)
+In relative file path is `thirdparty/graphFile-schema/src/schema/software.fbs` from line `446`
 ```cpp
 table CTCDecoderParams {
   ctc_merge_repeated: bool;
 }
 ```
-Online link: https://gitlab-icv.inn.intel.com/movidius/graphFile-schema/-/blob/master/src/schema/software.fbs#L885
-[thirdparty/graphFile-schema/src/schema/software.fbs#L885](../../../thirdparty/graphFile-schema/src/schema/software.fbs#L885)
+and in the same file from line `885`
 ```cpp
 union SoftwareLayerParams{
 // ...
@@ -649,14 +759,30 @@ union SoftwareLayerParams{
 }
 ```
 
+# Emulator serialization
+Emulator tool at [src/vpux_emulator](../src/vpux_emulator) is executing on blobs compiled and serialized at VPU dialect stage.
+
+For that we define an interface for serialization ```EMUSerializeInterface```, out of which methods ```serialize``` and ```getExecutorKind``` have to be implemented on a per layer or dialect basis.
+
+```getExecutorKind``` decides the type of executor with which the layer will be emulated. In most scenarios, for a new layer enabling on shaves, the executor will be ```SHAVE_UPA``` or ```SHAVE_ACT``` depending on the HW platform, KMB or VPUX37XX.
+
+```serialize``` needs to be defined on a per operation basis and offers the lowering logic from high level VPUX dialects, to graphfile schema representation. Most of the time, the routines for serializing at VPU stage and serializing at VPUIP/VPURT stage are the same because the op definition does not change drastically throughout the VPUX dialects.
+
 # VPUIP Dialect
+
+The VPUIP Dialect represents bufferized version of the VPU Dialect, with platform-specific variants of some operations. For example, hardware operations are all represented as `VPUIP::NCEClusterTaskOp`. Software operations for VPUX30XX have UPA tasks representing the SHAVE kernels, while the software operations for VPUX37XX use `VPUIP::SWKernelOp`. We will be creating the UPA operation for the new layer. It is worth mentioning that in some cases, multiple VPU operations can be lowered to the same UPA task; e.g. `VPU.AddOp` & `VPU.MultiplyOp` both get lowered to `VPUIP.EltwiseUPAOp`.
+
+This dialect no longer works with tensor data. Instead, buffers are utilized by making use of `MemRefType`.
+
 Documentation
-* [chapters/generated/dialect/VPUIP/_ops_interfaces.md](chapters/generated/dialect/VPUIP/_ops_interfaces.md#L1)
+* VPUIP dialect: [chapters/generated/dialect/_VPUIP.md](chapters/generated/dialect/_VPUIP.md#L1)
+* Passes: [chapters/generated/dialect/VPUIP/_passes.md](chapters/generated/dialect/VPUIP/_passes.md#L1)
+* Op interfaces: [chapters/generated/dialect/VPUIP/_ops_interfaces.md](chapters/generated/dialect/VPUIP/_ops_interfaces.md#L1)
+* About assembly format: [https://mlir.llvm.org/docs/OpDefinitions/#declarative-assembly-format](https://mlir.llvm.org/docs/OpDefinitions/#declarative-assembly-format)
 
 ## VPUIP table gen
-Table gen is similar to the IERT dialect, only difference will be pointed out
 
-[src/vpux_compiler/tblgen/vpux/compiler/dialect/VPUIP/ops.td#L2078](../tblgen/vpux/compiler/dialect/VPUIP/ops.td#L2078)
+[src/vpux_compiler/tblgen/vpux/compiler/dialect/VPUIP/ops.td#L2078](../tblgen/vpux/compiler/dialect/VPUIP/ops.td#L2419)
 ```swift
 //
 // CTCGreedyDecoderUPAOp
@@ -724,73 +850,10 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::CTCGreedyDecoderUPAOp::serialize(VP
     return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_CTCDecoderParams});
 }
 ```
-## IERT → VPUIP lowering
-[src/vpux_compiler/tblgen/vpux/compiler/conversion/rewriters/convert_layers_to_VPUIP.td#L588](../tblgen/vpux/compiler/conversion/rewriters/convert_layers_to_VPUIP.td#L588)
-```swift
-//
-// IERT.CTCGreedyDecoder -> VPUIP.CTCGreedyDecoderUPA
-//
-
-def createCTCGreedyDecoderUPAOp :
-        NativeCodeCall<[{
-            $_builder.create<vpux::VPUIP::CTCGreedyDecoderUPAOp>(
-                $_loc, $0, $1, $2, $3)
-        }]>;
-
-def RewriteCTCGreedyDecoder :
-        Pat<
-            (IERT_CTCGreedyDecoderOp $input, $sequenceLengths, $output, $mergeRepeated),
-            (createCTCGreedyDecoderUPAOp $input, $sequenceLengths, $output, $mergeRepeated)
-        >;
-```
-### Only for cases where layer have more than 1 output:
-
-For layers that have more than 1 output need to implement rewriter manually.
-For example CTCGreedyDecoderSeqLen-6 operation has two outputs.
-[src/vpux_compiler/src/conversion/passes/IERT2VPUIP/convert_layers_to_VPUIP.cpp#L30](../src/conversion/passes/IERT2VPUIP/convert_layers_to_VPUIP.cpp#L30)
-```cpp
-class CTCGreedyDecoderSeqLenRewrite final : public mlir::OpRewritePattern<IERT::CTCGreedyDecoderSeqLenOp> {
-public:
-    CTCGreedyDecoderSeqLenRewrite(mlir::MLIRContext* ctx, Logger log)
-            : mlir::OpRewritePattern<IERT::CTCGreedyDecoderSeqLenOp>(ctx), _log(log) {
-    }
-
-public:
-    mlir::LogicalResult matchAndRewrite(IERT::CTCGreedyDecoderSeqLenOp origOp,
-                                        mlir::PatternRewriter& rewriter) const final;
-
-private:
-    Logger _log;
-};
-
-mlir::LogicalResult CTCGreedyDecoderSeqLenRewrite::matchAndRewrite(IERT::CTCGreedyDecoderSeqLenOp origOp,
-                                                                   mlir::PatternRewriter& rewriter) const {
-    _log.trace("Found CTCGreedyDecoderSeqLen Operation '{0}'", origOp->getLoc());
-
-    rewriter.replaceOpWithNewOp<VPUIP::CTCGreedyDecoderSeqLenUPAOp>(
-            origOp, origOp.input(), origOp.sequenceLength(), origOp.blankIndex(), origOp.output_buff(),
-            origOp.outputLength_buff(), origOp.mergeRepeatedAttr());
-    _log.trace("Replaced with 'VPUIP.CTCGreedyDecoderSeqLenOp'");
-
-    return mlir::success();
-}
-```
-And then register this rewriter.
-
-[src/vpux_compiler/src/conversion/passes/IERT2VPUIP/convert_layers_to_VPUIP.cpp#L238](../src/conversion/passes/IERT2VPUIP/convert_layers_to_VPUIP.cpp#L238)
-```cpp
-void ConvertLayers2VPUIPPass::safeRunOnFunc() {
-    auto& ctx = getContext();
-
-    // ...
-    patterns.insert<CTCGreedyDecoderSeqLenRewrite>(&ctx, _log);
-    // ...
-}
-```
-## Redirect interfaces for IE and IERT
+## Redirect interfaces for IE and VPUIP
 Add two lines of code to register interfaces that resolves dependencies between dialects.
 
-[src/vpux_compiler/src/dialect/VPUIP/ops.cpp#L252](../src/dialect/VPUIP/ops.cpp#L252)
+[src/vpux_compiler/src/dialect/VPUIP/ops.cpp](../src/dialect/VPUIP/ops.cpp)
 ```cpp
 //
 // redirectOpInterfacesForIE
@@ -803,16 +866,16 @@ void redirectOpInterfacesForIE(mlir::DialectRegistry& registry) {
 }
 ```
 
-[src/vpux_compiler/src/dialect/VPUIP/ops.cpp#L313](../src/dialect/VPUIP/ops.cpp#L313)
+[src/vpux_compiler/src/dialect/VPUIP/ops.cpp](../src/dialect/VPUIP/ops.cpp)
 ```cpp
 //
-// redirectOpInterfacesForIERT
+// redirectOpInterfacesForVPUIP
 //
 
 template <class OpModelForHW, class OpModelForDMA, class OpModelForSW>
-void redirectOpInterfacesForIERT(mlir::DialectRegistry& registry) {
+void redirectOpInterfacesForVPUIP(mlir::DialectRegistry& registry) {
     // ...
-    registry.addOpInterface<IERT::CTCGreedyDecoderOp, OpModelForSW>();
+    registry.addOpInterface<VPUIP::CTCGreedyDecoderUPAOp, OpModelForSW>();
 }
 ```
 
@@ -821,7 +884,7 @@ Verifiers are used to validate state of the operation. It is common to check inp
 
 Add verifier to the VPUIP table gen.
 
-[src/vpux_compiler/tblgen/vpux/compiler/dialect/VPUIP/ops.td#L2114](../tblgen/vpux/compiler/dialect/VPUIP/ops.td#L2114)
+[src/vpux_compiler/tblgen/vpux/compiler/dialect/VPUIP/ops.td](../tblgen/vpux/compiler/dialect/VPUIP/ops.td)
 ```swift
 let verifier = [{
     return vpux::VPUIP::verifyOp(*this);
@@ -829,11 +892,11 @@ let verifier = [{
 ```
 Declare and implement verifyOp function.
 
-[src/vpux_compiler/include/vpux/compiler/dialect/VPUIP/ops.hpp#L67](../include/vpux/compiler/dialect/VPUIP/ops.hpp#L67)
+[src/vpux_compiler/include/vpux/compiler/dialect/VPUIP/ops.hpp](../include/vpux/compiler/dialect/VPUIP/ops.hpp)
 ```cpp
 mlir::LogicalResult verifyOp(CTCGreedyDecoderUPAOp op);
 ```
-[src/vpux_compiler/src/dialect/VPUIP/ops/upa_ctc_greedy_decoder.cpp#L24](../src/dialect/VPUIP/ops/upa_ctc_greedy_decoder.cpp#L24)
+[src/vpux_compiler/src/dialect/VPUIP/ops/upa_ctc_greedy_decoder.cpp](../src/dialect/VPUIP/ops/upa_ctc_greedy_decoder.cpp)
 ```cpp
 mlir::LogicalResult vpux::VPUIP::verifyOp(CTCGreedyDecoderUPAOp op) {
     const auto inShape = getShape(op.input());
@@ -851,4 +914,155 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(CTCGreedyDecoderUPAOp op) {
 }
 ```
 
+## VPU → VPUIP lowering
+Convert previous representation of a layer in VPU dialect down to the VPUIP dialect.
+
+Create a `createRTLayer` method for your VPU operation:
+
+[src/vpux_compiler/src/conversion/passes/VPU2VPUIP/convert_layers_to_VPUIP.cpp#L389](../src/conversion/passes/VPU2VPUIP/convert_layers_to_VPUIP.cpp#L389)
+```cpp
+mlir::Operation* createRTLayer(VPU::CTCGreedyDecoderOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
+    VPUIP::CTCGreedyDecoderUPAOp::Adaptor newOp(allBufs);
+    return b.create<VPUIP::CTCGreedyDecoderUPAOp>(origOp.getLoc(), newOp.input(), newOp.sequenceLengths(),
+                                                  newOp.output_buff(), origOp.mergeRepeatedAttr());
+}
+```
+
+Then register it in the `LayerRewriter` so that it is utilized:
+
+```cpp
+mlir::LogicalResult LayerRewrite::matchAndRewrite(mlir::Operation* origOp, ArrayRef<mlir::Value> newOperands,
+                                                  mlir::ConversionPatternRewriter& rewriter) const {
+    using CreateFunc =
+            mlir::Operation* (*)(mlir::Operation * origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder & b);
+    // ...
+    // Add new case for the new operation
+    CASE(VPU::CTCGreedyDecoderOp)
+```
+
+Some operations can end up lowered to more than a single UPA task at this step. For such cases, a dedicated rewriter should be created instead. An example can be found with `VPU.LSTMCellOp` which has the `LSTMCellRewrite` class in the same pass.
+
+### VPU → VPUIP lowering lit-test
+Similar to IE->VPU, the lowering logic will be tested by creating a lit-test in [convert_layers_to_VPUIP.mlir](../../../tests/lit/VPUX30XX/conversion/passes/VPU2VPUIP/convert_layers_to_VPUIP.mlir). If there are instances where the lowering logic behaves differently for various configurations of the operation, please make sure to cover them all with different tests.
+
+```cpp
+// CHECK-LABEL: @CTCGreedyDecoder
+func @CTCGreedyDecoder(%arg0: memref<20x1x128xf16>, %arg1: memref<20x1xf16>) -> memref<1x20x1x1xf16> {
+    %0 = builtin.unrealized_conversion_cast %arg0 : memref<20x1x128xf16> to tensor<20x1x128xf16>
+    %1 = builtin.unrealized_conversion_cast %arg1 : memref<20x1xf16> to tensor<20x1xf16>
+    %2 = VPU.CTCGreedyDecoder(%0, %1) {mergeRepeated} : tensor<20x1x128xf16>, tensor<20x1xf16> -> tensor<1x20x1x1xf16>
+    %3 = builtin.unrealized_conversion_cast %2 : tensor<1x20x1x1xf16> to memref<1x20x1x1xf16>
+    return %3 : memref<1x20x1x1xf16>
+
+    // CHECK:       [[VAR0:%.*]] = memref.alloc() : memref<1x20x1x1xf16>
+    // CHECK:       [[VAR1:%.*]] = VPUIP.CTCGreedyDecoderUPA {mergeRepeated}
+    // CHECK-SAME:      inputs(%arg0 : memref<20x1x128xf16>, %arg1 : memref<20x1xf16>) outputs([[VAR0]] : memref<1x20x1x1xf16>) -> memref<1x20x1x1xf16>
+    // CHECK:       return [[VAR1]] : memref<1x20x1x1xf16>
+}
+```
+
+This test has the function arguments as `memrefs` (buffers), while the VPU operation works with `tensors`. Therefore, a dummy cast layer is present to interpret `memrefs` as `tensors`. When the operation is lowered to VPUIP, the UPA task will also work with buffer data so these casts are no longer necessary - the canonicalizer handles the removal of these operations. That is why the resulting IR of the test has no casts.
+
+# IERT Dialect
+InferenceEngine RunTime Dialect The IERT Dialect represents bufferized version of IE Dialect.
+
+Currently, it is not utilized in the compilation pipelines. Instead, it is kept into maintenance mode, so it is necessary to create the IE equivalent of the operation in IERT dialect, logic for bufferization and an associated lit-test.
+
+The dialect has the following properties:
+
+Works with fixed operation set (like IE Dialect).
+Represents execution scheduling and memory allocation.
+Works with MemRefType.
+Includes transformations and optimizations closer to HW level (memory re-usage, parallel resources' usage, etc.).
+
+Documentation:
+
+* IERT dialect: [chapters/generated/dialect/_IERT.md](chapters/generated/dialect/_IERT.md)
+* Passes: [chapters/generated/dialect/IERT/_passes.md](chapters/generated/dialect/IERT/_passes.md)
+* About assembly format: https://mlir.llvm.org/docs/OpDefinitions/#declarative-assembly-format
+
+## IERT Table gen
+[src/vpux_compiler/tblgen/vpux/compiler/dialect/IERT/ops.td](../tblgen/vpux/compiler/dialect/IERT/ops.td)
+```swift
+//
+// CTCGreedyDecoderOp
+//
+
+def IERT_CTCGreedyDecoderOp :
+        // the `1` indicates number of outputs
+        IERT_LayerOp<1, "CTCGreedyDecoder",
+            [
+                // Use MultiViewOpInterface instead for operations with many outputs
+                ViewLikeOpInterface
+            ]
+        > {
+    let summary = "InferenceEngine run-time CTCGreedyDecoder layer";
+
+    let arguments = (ins
+        MemRefOf<[F16, F32]>:$input,
+        MemRefOf<[F16, F32]>:$sequenceLengths,
+
+        // Output memory buffer is an input argument of the operation
+        // It acts as an in/out parameter
+        // Please follow a naming convension and add _buff postfix to the output name
+        MemRefOf<[F16, F32]>:$output_buff,
+
+        UnitAttr:$mergeRepeated
+    );
+
+    let results = (outs
+        MemRefOf<[F16, F32]>:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `,` $sequenceLengths `:` type($sequenceLengths) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+```
+## IE → IERT lowering
+Convert previous representation of a layer in IE dialect down to the IERT dialect.
+
+[src/vpux_compiler/src/conversion/passes/IE2IERT/bufferize_IE.cpp](../src/conversion/passes/IE2IERT/bufferize_IE.cpp)
+```cpp
+mlir::Operation* createRTLayer(IE::CTCGreedyDecoderOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
+    IERT::CTCGreedyDecoderOp::Adaptor newOp(allBufs);
+    return b.create<IERT::CTCGreedyDecoderOp>(origOp.getLoc(), newOp.input(), newOp.sequenceLengths(),
+                                              newOp.output_buff(), origOp.mergeRepeatedAttr());
+}
+```
+Verifiers are used to validate state of the operation. It is common to check input size, layout and strides for correctness. Add checks for kernel limitations if present.
+
+[src/vpux_compiler/src/conversion/passes/IE2IERT/bufferize_IE.cpp](../src/conversion/passes/IE2IERT/bufferize_IE.cpp)
+```cpp
+mlir::LogicalResult LayerRewrite::matchAndRewrite(mlir::Operation* origOp, ArrayRef<mlir::Value> newOperands,
+                                                  mlir::ConversionPatternRewriter& rewriter) const {
+ const CreateFunc createFunc =
+            llvm::TypeSwitch<mlir::Operation*, CreateFunc>(origOp) CASE(mlir::quant::QuantizeCastOp)
+    // Add new case for the new operation
+    CASE(IE::CTCGreedyDecoderOp)
+
+}
+```
+### IE → IERT lowering lit-test
+
+The bufferization logic will be tested by creating a lit-test in [bufferize_IE.mlir](../../../tests/lit/VPUX/conversion/passes/IE2IERT/bufferize_IE.mlir):
+
+```cpp
+// CHECK-LABEL: @CTCGreedyDecoder
+func @CTCGreedyDecoder(%arg0: tensor<20x8x128xf16>, %arg1: tensor<20x8xf16>) -> tensor<8x20x1x1xf16> {
+    %0 = IE.CTCGreedyDecoder(%arg0, %arg1) {mergeRepeated} : tensor<20x8x128xf16>, tensor<20x8xf16> -> tensor<8x20x1x1xf16>
+    return %0 : tensor<8x20x1x1xf16>
+
+    // CHECK:       [[VAR0:%.*]] = builtin.unrealized_conversion_cast %arg0 : tensor<20x8x128xf16> to memref<20x8x128xf16>
+    // CHECK:       [[VAR1:%.*]] = builtin.unrealized_conversion_cast %arg1 : tensor<20x8xf16> to memref<20x8xf16>
+    // CHECK:       [[VAR2:%.*]] = memref.alloc() : memref<8x20x1x1xf16>
+    // CHECK:       [[VAR3:%.*]] = IERT.CTCGreedyDecoder {mergeRepeated}
+    // CHECK-SAME:      inputs([[VAR0]] : memref<20x8x128xf16>, [[VAR1]] : memref<20x8xf16>) outputs([[VAR2]] : memref<8x20x1x1xf16>) -> memref<8x20x1x1xf16>
+    // CHECK:       [[VAR4:%.*]] = builtin.unrealized_conversion_cast [[VAR3]] : memref<8x20x1x1xf16> to tensor<8x20x1x1xf16>
+    //CHECK:        return [[VAR4]] : tensor<8x20x1x1xf16>
+}
+```
 

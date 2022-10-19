@@ -1,2 +1,2 @@
-firmware.vpu.iot branch: develop 453f77fd6dcbaf11197b5a5bb88a0a849e79d98b
-mv_tools_version:	22.01.1-internal
+firmware.vpu.iot branch: develop cb71f0d03fd061f4727bbf90a3dd2c11c0660955
+mv_tools_version:	22.07.1-internal

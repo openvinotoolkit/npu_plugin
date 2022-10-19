@@ -36,6 +36,10 @@ bool FuseScaleShift::run_on_node(std::shared_ptr<ngraph::Node> node) {
     if (input_fq_node == nullptr)
         return false;
 
+    auto consumers_size = input_fq_node->outputs().front().get_target_inputs().size();
+    if (consumers_size > 1)
+        return false;
+
     std::vector<double> scaleshift_bias_data;
     std::vector<double> scaleshift_scale_data;
 
@@ -54,11 +58,13 @@ bool FuseScaleShift::run_on_node(std::shared_ptr<ngraph::Node> node) {
     int scaleshift_bias_to_scale_node_id = 0;
     auto scaleshift_scale_node = std::dynamic_pointer_cast<ngraph::op::v1::Multiply>(scaleshift_bias_node->input_value(0).get_node_shared_ptr());
     auto scaleshift_parameter_node = std::dynamic_pointer_cast<ngraph::op::v0::Parameter>(scaleshift_bias_node->input_value(0).get_node_shared_ptr());
-    if (!scaleshift_scale_node && !scaleshift_parameter_node) {
+    auto scaleshift_convert_node = std::dynamic_pointer_cast<ngraph::op::v0::Convert>(scaleshift_bias_node->input_value(0).get_node_shared_ptr());
+    if (!scaleshift_scale_node && !scaleshift_parameter_node && !scaleshift_convert_node) {
         scaleshift_bias_to_scale_node_id = 1;
         scaleshift_scale_node = std::dynamic_pointer_cast<ngraph::op::v1::Multiply>(scaleshift_bias_node->input_value(1).get_node_shared_ptr());
         scaleshift_parameter_node = std::dynamic_pointer_cast<ngraph::op::v0::Parameter>(scaleshift_bias_node->input_value(1).get_node_shared_ptr());
-        if (!scaleshift_scale_node && !scaleshift_parameter_node)
+        scaleshift_convert_node = std::dynamic_pointer_cast<ngraph::op::v0::Convert>(scaleshift_bias_node->input_value(1).get_node_shared_ptr());
+        if (!scaleshift_scale_node && !scaleshift_parameter_node && !scaleshift_convert_node)
             return false;
     }
 
@@ -136,7 +142,8 @@ bool FuseScaleShift::run_on_node(std::shared_ptr<ngraph::Node> node) {
 
     if (scaleshift_scale_data.size() != IC) {
         if (scaleshift_scale_data.size() == 1) {
-            scaleshift_scale_data.assign(IC, scaleshift_scale_data[0]);
+            double first_scale_data = scaleshift_scale_data[0];
+            scaleshift_scale_data.assign(IC, first_scale_data);
         }
         else {
             return false;
@@ -145,7 +152,8 @@ bool FuseScaleShift::run_on_node(std::shared_ptr<ngraph::Node> node) {
 
     if (scaleshift_bias_data.size() != IC) {
         if (scaleshift_bias_data.size() == 1) {
-            scaleshift_bias_data.assign(IC, scaleshift_bias_data[0]);
+            double first_bias_data = scaleshift_bias_data[0];
+            scaleshift_bias_data.assign(IC, first_bias_data);
         }
         else {
             return false;

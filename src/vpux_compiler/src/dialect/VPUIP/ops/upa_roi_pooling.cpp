@@ -5,6 +5,7 @@
 
 //
 
+#include "vpux/compiler/dialect/VPUIP/graph-schema/utils.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 
 #include "vpux/compiler/core/attributes/shape.hpp"
@@ -18,26 +19,6 @@
 #include <mlir/IR/BuiltinTypes.h>
 
 using namespace vpux;
-
-namespace {
-
-// This method converts value from ROIPoolingMethod view to corresponds t_ROIPooling_method view from runtime
-uint32_t ROIPoolingMethod2Int32(IE::ROIPoolingMethod method) {
-    uint32_t out_code = 0;
-    switch (method) {
-    case IE::ROIPoolingMethod::max:
-        out_code = 0;
-        break;
-    case IE::ROIPoolingMethod::bilinear:
-        out_code = 1;
-        break;
-    default:
-        VPUX_THROW("Unknown ROIPoolingMethod. max and bilinear methods are supported only");
-    }
-    return out_code;
-}
-
-}  // namespace
 
 mlir::LogicalResult vpux::VPUIP::verifyOp(ROIPoolingUPAOp op) {
     const auto inShapeFeatureMap = getShape(op.input());
@@ -72,7 +53,7 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::ROIPoolingUPAOp::serialize(VPUIP::B
 
     MVCNN::ROIPoolingParamsBuilder builder(writer);
     builder.add_spatial_scale(spatial_scale_val);
-    builder.add_roi_pooling_method(ROIPoolingMethod2Int32(method()));
+    builder.add_roi_pooling_method(convertVPUXROIPoolingMethod2Int32(method()));
     builder.add_num_rois(num_rois);
     builder.add_pooled_h(checked_cast<uint32_t>(output_size[0]));
     builder.add_pooled_w(checked_cast<uint32_t>(output_size[1]));
@@ -93,13 +74,13 @@ mlir::Operation* vpux::VPUIP::BlobReader::parseROIPooling(mlir::OpBuilder& build
     IE::ROIPoolingMethod method;
     switch (params->roi_pooling_method()) {
     case 0:
-        method = IE::ROIPoolingMethod::max;
+        method = IE::ROIPoolingMethod::MAX;
         break;
     case 1:
-        method = IE::ROIPoolingMethod::bilinear;
+        method = IE::ROIPoolingMethod::BILINEAR;
         break;
     default:
-        VPUX_THROW("Unknown ROIPoolingMethod. max and bilinear methods are supported only");
+        VPUX_THROW("Unknown ROIPoolingMethod. MAX and BILINEAR methods are supported only");
     }
 
     return builder.create<VPUIP::ROIPoolingUPAOp>(mlir::UnknownLoc::get(_ctx), inputs[0], inputs[1], outputs[0],

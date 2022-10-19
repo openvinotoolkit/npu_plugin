@@ -26,7 +26,6 @@ TEST_P(CompileForDifferentPlatformsTests, CompilationForSpecificPlatform) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     {
         InferenceEngine::CNNNetwork cnnNet = buildSingleLayerSoftMaxNetwork();
-        configuration[VPUX_CONFIG_KEY(COMPILER_TYPE)] = VPUX_CONFIG_VALUE(MCM);
         ASSERT_NO_THROW(ie->LoadNetwork(cnnNet, targetDevice, configuration));
     }
 }

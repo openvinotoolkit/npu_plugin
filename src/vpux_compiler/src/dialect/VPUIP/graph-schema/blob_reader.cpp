@@ -8,7 +8,6 @@
 #include "vpux/compiler/dialect/VPUIP/graph-schema/blob_reader.hpp"
 
 #include "vpux/compiler/dialect/IE/utils/resources.hpp"
-#include "vpux/compiler/dialect/IERT/attributes/structs.hpp"
 #include "vpux/compiler/dialect/VPUIP/graph-schema/import.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/utils.hpp"
@@ -257,8 +256,8 @@ VPU::ArchKind vpux::VPUIP::BlobReader::parseDeviceRevision(const MVCNN::SummaryH
         return VPU::ArchKind::VPUX311X;
     case MVCNN::TargetDevice::TargetDevice_VPUX37XX:
         return VPU::ArchKind::VPUX37XX;
-    case MVCNN::TargetDevice::TargetDevice_VPUX4000:
-        return VPU::ArchKind::VPUX4000;
+    case MVCNN::TargetDevice::TargetDevice_VPUX40XX:
+        return VPU::ArchKind::VPUX40XX;
     default:
         VPUX_THROW("Unsupported TargetDevice '{0}'", header->device());
     }
@@ -446,7 +445,9 @@ void vpux::VPUIP::BlobReader::buildMainFunc() {
             {MVCNN::SoftwareLayerParams::SoftwareLayerParams_ReversesequenceParams, &BlobReader::parseReverseSequence},
             {MVCNN::SoftwareLayerParams::SoftwareLayerParams_ConvertColorNV12ToRGBParams, &BlobReader::parseYuvToRgb},
             {MVCNN::SoftwareLayerParams::SoftwareLayerParams_ConvertColorI420ToRGBParams, &BlobReader::parseYuvToRgb},
-            {MVCNN::SoftwareLayerParams::SoftwareLayerParams_UpsamplingParams, &BlobReader::parseUpsampling}};
+            {MVCNN::SoftwareLayerParams::SoftwareLayerParams_UpsamplingParams, &BlobReader::parseUpsampling},
+            {MVCNN::SoftwareLayerParams::SoftwareLayerParams_ExtractImagePatchesParams,
+             &BlobReader::parseExtractImagePatches}};
 
     VPUX_THROW_UNLESS(_graphFile->task_lists(), "Blob contains no task lists");
     TaskIterator taskIterator(_graphFile->task_lists());

@@ -8,6 +8,7 @@
 #include "vpux/compiler/core/linear_scan_handler.hpp"
 
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
+#include "vpux/compiler/dialect/VPURT/ops.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 
 #include "vpux/utils/core/numeric.hpp"
@@ -43,7 +44,7 @@ bool LinearScanHandler::isAlive(mlir::Value val) const {
 }
 
 bool LinearScanHandler::isFixedAlloc(mlir::Value val) {
-    return val.getDefiningOp<IERT::StaticAllocOp>() != nullptr;
+    return val.getDefiningOp<VPUIP::StaticAllocOp>() != nullptr;
 }
 
 AddressType LinearScanHandler::getSize(mlir::Value val) {
@@ -56,13 +57,21 @@ AddressType LinearScanHandler::getAlignment(mlir::Value val) const {
         if (auto alignment = allocOp.alignment()) {
             return checked_cast<AddressType>(alignment.getValue());
         }
+    } else if (auto allocOp = val.getDefiningOp<VPURT::Alloc>()) {
+        if (auto alignment = allocOp.alignment()) {
+            return checked_cast<AddressType>(alignment.getValue());
+        }
+    } else if (auto allocOp = val.getDefiningOp<VPURT::AllocDistributed>()) {
+        if (auto alignment = allocOp.alignment()) {
+            return checked_cast<AddressType>(alignment.getValue());
+        }
     }
 
     return _defaultAlignment;
 }
 
 AddressType LinearScanHandler::getAddress(mlir::Value val) const {
-    if (auto staticAllocOp = val.getDefiningOp<IERT::StaticAllocOp>()) {
+    if (auto staticAllocOp = val.getDefiningOp<VPUIP::StaticAllocOp>()) {
         return checked_cast<AddressType>(staticAllocOp.offset());
     }
 
@@ -105,10 +114,10 @@ void LinearScanHandler::freed(mlir::Value val) {
     markAsDead(val);
 }
 
-IERT::SubViewOp LinearScanHandler::getSubViewUserOp(mlir::Value val) const {
+VPUIP::SubViewOp LinearScanHandler::getSubViewUserOp(mlir::Value val) const {
     for (auto use : val.getUsers()) {
-        if (mlir::isa<IERT::SubViewOp>(use)) {
-            return mlir::cast<IERT::SubViewOp>(use);
+        if (mlir::isa<VPUIP::SubViewOp>(use)) {
+            return mlir::cast<VPUIP::SubViewOp>(use);
         }
     }
 

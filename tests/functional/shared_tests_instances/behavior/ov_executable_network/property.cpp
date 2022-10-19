@@ -31,7 +31,10 @@ std::vector<std::pair<std::string, ov::Any>> expected_supported_properties_exe_n
     {ov::intel_vpux::use_shave_only_m2i.name(), ov::Any(true)},
     {ov::intel_vpux::use_sipp.name(), ov::Any(false)},
     {ov::intel_vpux::vpux_platform.name(), ov::Any(ov::intel_vpux::VPUXPlatform::EMULATOR)},
-    {ov::hint::model_priority.name(), ov::Any(ov::hint::Priority::HIGH)}
+    {ov::hint::model_priority.name(), ov::Any(ov::hint::Priority::HIGH)},
+    {ov::hint::num_requests.name(), ov::Any(8)},
+    {ov::hint::performance_mode.name(), ov::Any(ov::hint::PerformanceMode::THROUGHPUT)},
+    {ov::enable_profiling.name(), ov::Any(true)}
 };
 
 std::vector<ov::AnyMap> expected_supported_properties_plugin = {
@@ -118,7 +121,7 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::ValuesIn(expected_supported_properties_exe_network)));
 
 TEST_P(VPUXClassPluginTryGetSetPropertyTest, GetSetPropertyPlugin) {
-    ASSERT_EQ(configMap.size(), 1); 
+    ASSERT_EQ(configMap.size(), 1);
     std::vector<ov::PropertyName> properties;
 
     ASSERT_NO_THROW(properties = ie.get_property(deviceName, ov::supported_properties));

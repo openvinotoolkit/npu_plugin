@@ -55,8 +55,12 @@ void VPUXLayerTestsCommon::setDefaultHardwareModeMLIR() {
     configuration[VPUX_CONFIG_KEY(COMPILATION_MODE)] = "DefaultHW";
 }
 
-void VPUXLayerTestsCommon::setPlatformVPUX37XX() {
+void VPUXLayerTestsCommon::setPlatformVPU3720() {
     configuration[VPUX_CONFIG_KEY(PLATFORM)] = "VPU3720";
+}
+
+void VPUXLayerTestsCommon::setPlatformVPU4000() {
+    configuration[VPUX_CONFIG_KEY(PLATFORM)] = "VPU4000";
 }
 
 bool VPUXLayerTestsCommon::isCompilerMCM() const {
@@ -77,7 +81,7 @@ bool VPUXLayerTestsCommon::isCompilerMLIR() const {
     return it->second.as<std::string>() == VPUX_CONFIG_VALUE(MLIR);
 }
 
-bool VPUXLayerTestsCommon::isPlatformVPUX37XX() const {
+bool VPUXLayerTestsCommon::isPlatformVPU3720() const {
     const auto it = configuration.find(VPUX_CONFIG_KEY(PLATFORM));
     if (it == configuration.end()) {
         return false;

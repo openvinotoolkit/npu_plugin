@@ -13,15 +13,12 @@ include "vpux/compiler/core/ops_interfaces.td"
 include "vpux/compiler/dialect/IE/attributes.td"
 include "vpux/compiler/dialect/IE/ops_interfaces.td"
 include "vpux/compiler/dialect/IERT/dialect.td"
-include "vpux/compiler/dialect/IERT/ops_interfaces.td"
-include "vpux/compiler/dialect/IE/attributes.td"
+include "vpux/compiler/dialect/VPUIP/ops_interfaces.td"
 
 include "mlir/Dialect/Quant/QuantOpsBase.td"
 include "mlir/Interfaces/InferTypeOpInterface.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
 include "mlir/Interfaces/ViewLikeInterface.td"
-include "mlir/IR/OpAsmInterface.td"
-include "mlir/IR/RegionKindInterface.td"
 
 //
 // Base classes
@@ -41,12 +38,12 @@ class IERT_LayerOp<int numResult, string mnemonic, list<OpTrait> traits = []> :
                 traits,
                 [
                     InferTypeOpInterface,
-                    DeclareOpInterfaceMethods<IERT_LayerOpInterface>,
+                    DeclareOpInterfaceMethods<VPUIP_LayerOpInterface>,
                     MemoryEffectsOpInterface
                 ]
             )
         > {
-    let extraClassDeclaration = IERT_InferLayerReturnTypes<numResult>.impl;
+    let extraClassDeclaration = VPUIP_InferLayerReturnTypes<numResult>.impl;
 }
 
 //
@@ -113,7 +110,7 @@ def IERT_TimestampOp :
         vpux::DotNodeColor getNodeColor() {
             return vpux::DotNodeColor::BLUE;
         }
-    }] # IERT_InferLayerReturnTypes<1>.impl;
+    }] # VPUIP_InferLayerReturnTypes<1>.impl;
 
     let assemblyFormat = [{
         attr-dict
@@ -185,7 +182,7 @@ def IERT_CopyOp :
         vpux::DotNodeColor getNodeColor() {
             return vpux::DotNodeColor::GREEN;
         }
-    }] # IERT_InferLayerReturnTypes<1>.impl;
+    }] # VPUIP_InferLayerReturnTypes<1>.impl;
 }
 
 //
@@ -289,6 +286,72 @@ def IERT_MaxPoolOp :
         attr-dict
         `inputs` `(` $input `:` type($input) `)`
         `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
+//
+// AdaptivePoolOp
+//
+
+def IERT_AdaptiveAvgPoolOp :
+        IERT_LayerOp<1, "AdaptiveAvgPool",
+            [
+                ViewLikeOpInterface,
+            ]
+        > {
+    let summary = "InferenceEngine run-time AdaptiveAvgPool layer";
+
+    let arguments = (ins
+        MemRefOf<[F16, F32]>:$input,
+        MemRefOf<[SI32]>:$pooled_spatial_shape,
+        MemRefOf<[F16, F32]>:$output_buff
+    );
+
+    let results = (outs
+        MemRefOf<[F16, F32]>:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `,` $pooled_spatial_shape `:` type($pooled_spatial_shape) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
+//
+// AdaptiveMaxPoolOp
+//
+
+def IERT_AdaptiveMaxPoolOp :
+        IERT_LayerOp<2, "AdaptiveMaxPool",
+            [
+                MultiViewOpInterface,
+            ]
+        > {
+    let summary = "InferenceEngine run-time AdaptiveMaxPool layer";
+
+    let arguments = (ins
+        MemRefOf<[F16, F32]>:$input,
+        MemRefOf<[SI32]>:$pooled_spatial_shape,
+        MemRefOf<[F16, F32]>:$output_buff,
+        MemRefOf<[SI32]>:$output_index_buff,
+        
+        TypeAttr:$index_element_type
+
+    );
+
+    let results = (outs
+        MemRefOf<[F16, F32]>:$output,
+        MemRefOf<[SI32]>:$output_index
+
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `,` $pooled_spatial_shape `:` type($pooled_spatial_shape) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `,` $output_index_buff `:` type($output_index_buff) `)`
         `->` type(results)
     }];
 }
@@ -429,6 +492,42 @@ def IERT_SigmoidOp :
 }
 
 //
+// LRNOp
+//
+
+def IERT_LRNOp :
+        IERT_LayerOp<1, "LRN",
+            [
+                ViewLikeOpInterface
+            ]
+        > {
+    let summary = "InferenceEngine run-time LRN layer";
+
+    let arguments = (ins
+        MemRefOf<[F16, F32]>:$input,
+        AnyMemRef:$axis,
+
+        MemRefOf<[F16, F32]>:$output_buff,
+
+        F64Attr:$alpha,
+        F64Attr:$beta,
+        F64Attr:$bias,
+        IntAttr:$size
+    );
+
+    let results = (outs
+        MemRefOf<[F16, F32]>:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `,` $axis `:` type($axis) `)`
+        `ouputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
+//
 // LRN_IEOp
 //
 
@@ -459,7 +558,7 @@ def IERT_LRN_IEOp :
     let assemblyFormat = [{
         attr-dict
         `inputs` `(` $input `:` type($input) `)`
-        `ouputs` `(` $output_buff `:` type($output_buff) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
         `->` type(results)
     }];
 }
@@ -492,7 +591,7 @@ def IERT_ReduceMaxOp :
     let assemblyFormat = [{
         attr-dict
         `inputs` `(` $input `:` type($input) `,` $axes `:` type($axes) `)`
-        `ouputs` `(` $output_buff `:` type($output_buff) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
         `->` type(results)
     }];
 }
@@ -512,6 +611,105 @@ def IERT_ReduceMeanOp :
     let arguments = (ins
         AnyMemRef:$input,
         MemRefOf<[SI32, SI64]>:$axes,
+        AnyMemRef:$output_buff,
+
+        UnitAttr:$keep_dims
+    );
+
+    let results = (outs
+        AnyMemRef:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `,` $axes `:` type($axes) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
+//
+// ReduceLogicalOrOp
+//
+
+def IERT_ReduceLogicalOrOp :
+        IERT_LayerOp<1, "ReduceLogicalOr",
+            [
+                ViewLikeOpInterface
+            ]
+        > {
+    let summary = "InferenceEngine run-time ReduceLogicalOr layer";
+
+    let arguments = (ins
+        AnyMemRef:$input,
+        MemRefOf<[SI64, SI32]>:$axes,
+
+        AnyMemRef:$output_buff,
+
+        UnitAttr:$keep_dims
+    );
+
+    let results = (outs
+        AnyMemRef:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `,` $axes `:` type($axes) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
+//
+// ReduceLogicalAndOp
+//
+
+def IERT_ReduceLogicalAndOp :
+        IERT_LayerOp<1, "ReduceLogicalAnd",
+            [
+                ViewLikeOpInterface
+            ]
+        > {
+    let summary = "InferenceEngine run-time ReduceLogicalAnd layer";
+
+    let arguments = (ins
+        AnyMemRef:$input,
+        MemRefOf<[SI64, SI32]>:$axes,
+
+        AnyMemRef:$output_buff,
+
+        UnitAttr:$keep_dims
+    );
+
+    let results = (outs
+        AnyMemRef:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `,` $axes `:` type($axes) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
+//
+// ReduceProdOp
+//
+
+def IERT_ReduceProdOp :
+        IERT_LayerOp<1, "ReduceProd",
+            [
+                ViewLikeOpInterface
+            ]
+        > {
+    let summary = "InferenceEngine run-time ReduceProd layer";
+
+    let arguments = (ins
+        AnyMemRef:$input,
+        MemRefOf<[SI64, SI32]>:$axes,
+
         AnyMemRef:$output_buff,
 
         UnitAttr:$keep_dims
@@ -557,7 +755,7 @@ def IERT_ReduceSumOp :
     let assemblyFormat = [{
         attr-dict
         `inputs` `(` $input `:` type($input) `,` $axes `:` type($axes) `)`
-        `ouputs` `(` $output_buff `:` type($output_buff) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
         `->` type(results)
     }];
 }
@@ -590,7 +788,73 @@ def IERT_ReduceMinOp :
     let assemblyFormat = [{
         attr-dict
         `inputs` `(` $input `:` type($input) `,` $axes `:` type($axes) `)`
-        `ouputs` `(` $output_buff `:` type($output_buff) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
+//
+// ReduceL1Op
+//
+
+def IERT_ReduceL1Op :
+        IERT_LayerOp<1, "ReduceL1",
+            [
+                ViewLikeOpInterface
+            ]
+        > {
+    let summary = "InferenceEngine run-time ReduceL1 layer";
+
+    let arguments = (ins
+        AnyMemRef:$input,
+        MemRefOf<[SI64, SI32]>:$axes,
+
+        AnyMemRef:$output_buff,
+
+        UnitAttr:$keep_dims
+    );
+
+    let results = (outs
+        AnyMemRef:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `,` $axes `:` type($axes) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
+//
+// ReduceL2Op
+//
+
+def IERT_ReduceL2Op :
+        IERT_LayerOp<1, "ReduceL2",
+            [
+                ViewLikeOpInterface
+            ]
+        > {
+    let summary = "InferenceEngine run-time ReduceL2 layer";
+
+    let arguments = (ins
+        AnyMemRef:$input,
+        MemRefOf<[SI64, SI32]>:$axes,
+
+        AnyMemRef:$output_buff,
+
+        UnitAttr:$keep_dims
+    );
+
+    let results = (outs
+        AnyMemRef:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `,` $axes `:` type($axes) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
         `->` type(results)
     }];
 }
@@ -848,7 +1112,41 @@ def IERT_BroadcastOp :
     let assemblyFormat = [{
         attr-dict
         `inputs` `(` $input `:` type($input) `,` $target_shape `:` type($target_shape) (`,` $axes_mapping^ `:` type($axes_mapping))? `)`
-        `ouputs` `(` $output_buff `:` type($output_buff) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
+//
+// BucketizeOp
+//
+
+def IERT_BucketizeOp :
+        IERT_LayerOp<1, "Bucketize",
+            [
+                ViewLikeOpInterface
+            ]
+        > {
+    let summary = "InferenceEngine run-time Bucketize layer";
+
+    let arguments = (ins
+        AnyMemRef:$data,
+        MemRefOf<[AnyInteger, AnyFloat]>:$buckets,
+
+        MemRefOf<[SI32, SI64]>:$output_buff,
+ 
+        TypeAttr:$output_type, 
+        UnitAttr:$with_right_bound
+    );
+
+    let results = (outs
+        MemRefOf<[SI32, SI64]>:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $data `:` type($data) `,` $buckets `:` type($buckets) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
         `->` type(results)
     }];
 }
@@ -1102,6 +1400,38 @@ def IERT_AcoshOp :
 }
 
 //
+// HardSigmoidOp
+//
+
+def IERT_HardSigmoidOp :
+        IERT_LayerOp<1, "HardSigmoid",
+            [
+                ViewLikeOpInterface
+            ]
+        > {
+    let summary = "InferenceEngine run-time HardSigmoid layer";
+
+    let arguments = (ins
+        MemRefOf<[F16, F32]>:$input,
+        MemRefOf<[F16, F32]>:$output_buff,
+
+        OptionalAttr<F64Attr>:$alpha_value,
+        OptionalAttr<F64Attr>:$beta_value
+    );
+
+    let results = (outs
+        MemRefOf<[F16, F32]>:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
+//
 // AbsOp
 //
 
@@ -1114,6 +1444,37 @@ def IERT_AbsOp :
             ]
         > {
     let summary = "InferenceEngine run-time Abs layer";
+
+    let arguments = (ins
+        MemRefOf<[F16, F32]>:$input,
+        MemRefOf<[F16, F32]>:$output_buff
+    );
+
+    let results = (outs
+        MemRefOf<[F16, F32]>:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
+//
+// HSigmoidOp
+//
+
+def IERT_HSigmoidOp :
+        IERT_LayerOp<1, "HSigmoid",
+            [
+                ViewLikeOpInterface,
+                SameOperandsShape,
+                SameOperandsElementType
+            ]
+        > {
+    let summary = "InferenceEngine run-time HSigmoid layer";
 
     let arguments = (ins
         MemRefOf<[F16, F32]>:$input,
@@ -1282,6 +1643,39 @@ def IERT_LogOp :
     let assemblyFormat = [{
         attr-dict
         `inputs` `(` $input `:` type($input) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
+//
+// SeluOp
+//
+
+def IERT_SeluOp :
+        IERT_LayerOp<1, "Selu",
+            [
+                ViewLikeOpInterface,
+                SameOperandsElementType
+            ]
+        > {
+    let summary = "InferenceEngine run-time Selu layer";
+
+    let arguments = (ins
+        MemRefOf<[F16, F32]>:$data,
+        MemRefOf<[F16, F32]>:$output_buff,
+
+        F64Attr:$alphaValue,
+        F64Attr:$lambdaValue
+    );
+
+    let results = (outs
+        MemRefOf<[F16, F32]>:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $data `:` type($data) `)`
         `outputs` `(` $output_buff `:` type($output_buff) `)`
         `->` type(results)
     }];
@@ -2365,9 +2759,9 @@ def IERT_SignOp :
 //
 
 def IERT_ProposalOp :
-        IERT_LayerOp<1, "Proposal",
+        IERT_LayerOp<2, "Proposal",
             [
-                ViewLikeOpInterface
+                MultiViewOpInterface
             ]
         > {
     let summary = "InferenceEngine run-time Proposal layer";
@@ -2377,18 +2771,20 @@ def IERT_ProposalOp :
         MemRefOf<[F16, F32]>:$bbox_deltas,
         MemRefOf<[F16, F32]>:$image_shape,
         MemRefOf<[F16, F32]>:$output_buff,
+        MemRefOf<[F16, F32]>:$probs_buff,
 
         IE_ProposalAttrs:$proposal_attrs
     );
 
     let results = (outs
-        MemRefOf<[F16, F32]>:$output
+        MemRefOf<[F16, F32]>:$output,
+        MemRefOf<[F16, F32]>:$probs
     );
 
     let assemblyFormat = [{
         attr-dict
         `inputs` `(` $class_probs `:` type($class_probs) `,` $bbox_deltas `:` type($bbox_deltas) `,` $image_shape `:` type($image_shape) `)`
-        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `,` $probs_buff `:` type($probs_buff) `)`
         `->` type(results)
     }];
 }
@@ -2566,7 +2962,7 @@ def IERT_ConcatViewOp :
         mlir::Value getViewSource() {
             return output_buff();
         }
-    }] # IERT_InferLayerReturnTypes<1>.impl;
+    }] # VPUIP_InferLayerReturnTypes<1>.impl;
 }
 
 //
@@ -3350,7 +3746,7 @@ def IERT_DepthToSpaceOp :
         IERT_LayerOp<1, "DepthToSpace",
             [
                 ViewLikeOpInterface,
-                IERT_SameDimsOrder
+                VPUIP_SameDimsOrder
             ]
         > {
     let summary = "InferenceEngine run-time DepthToSpace layer";
@@ -3514,22 +3910,56 @@ def IERT_YuvToRgbOp :
     let summary = "InferenceEngine run-time YUV-to-RGB layer";
 
     let arguments = (ins
-                 MemRefOf<[I8, F16, F32]> :$input1,
-        Optional<MemRefOf<[I8, F16, F32]>>:$input2,
-        Optional<MemRefOf<[I8, F16, F32]>>:$input3,
-                 MemRefOf<[I8, F16, F32]> :$output_buff,
+                 MemRefOf<[UI8, F16, F32]> :$input1,
+        Optional<MemRefOf<[UI8, F16, F32]>>:$input2,
+        Optional<MemRefOf<[UI8, F16, F32]>>:$input3,
+                 MemRefOf<[UI8, F16, F32]> :$output_buff,
 
         IE_ColorFmt:$inFmt,
         IE_ColorFmt:$outFmt
     );
 
     let results = (outs
-        MemRefOf<[I8, F16, F32]>:$output
+        MemRefOf<[UI8, F16, F32]>:$output
     );
 
     let assemblyFormat = [{
         attr-dict
         `inputs` `(` $input1 `:` type($input1) (`,` $input2^ `:` type($input2))? (`,` $input3^ `:` type($input3))? `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
+//
+// ExtractImagePatchesOp
+//
+
+def IERT_ExtractImagePatchesOp :
+        IERT_LayerOp<1, "ExtractImagePatches",
+            [
+                ViewLikeOpInterface
+            ]
+        > {
+    let summary = "InferenceEngine run-time ExtractImagePatches layer";
+
+    let arguments = (ins
+        AnyMemRef:$data,
+        AnyMemRef:$output_buff,
+
+        I64ArrayAttr:$sizes,
+        I64ArrayAttr:$strides,
+        I64ArrayAttr:$rates,
+        IE_PadType:$autoPad
+    );
+
+    let results = (outs
+        AnyMemRef:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $data `:` type($data) `)`
         `outputs` `(` $output_buff `:` type($output_buff) `)`
         `->` type(results)
     }];

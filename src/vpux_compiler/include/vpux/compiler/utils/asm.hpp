@@ -38,6 +38,42 @@ mlir::ParseResult parseOptionalTypes(mlir::OpAsmParser& parser, mlir::Type& type
 }
 
 //
+// OptionalResultTypes
+//
+
+void printOptionalResultTypes(mlir::OpAsmPrinter& printer, mlir::Operation* op, mlir::TypeRange types);
+mlir::ParseResult parseOptionalResultTypes(mlir::OpAsmParser& parser, SmallVectorImpl<mlir::Type>& types);
+
+template <typename... Args>
+void printOptionalResultTypes(mlir::OpAsmPrinter& printer, mlir::Operation* op, mlir::Type type, Args... types) {
+    if (type != nullptr) {
+        printOptionalResultTypes(printer, op, mlir::TypeRange(makeArrayRef({type, types...})));
+    } else if (sizeof...(types) != 0) {
+        SmallVector<mlir::Type> nonNullTypes;
+        for (auto type : {types...}) {
+            if (type != nullptr) {
+                nonNullTypes.push_back(type);
+            }
+        }
+        if (nonNullTypes.empty()) {
+            return;
+        }
+        printOptionalResultTypes(printer, op, mlir::TypeRange(makeArrayRef(nonNullTypes)));
+    }
+}
+
+namespace details {
+
+mlir::ParseResult parseOptionalResultTypes(mlir::OpAsmParser& parser, ArrayRef<mlir::Type*> types);
+
+}  // namespace details
+
+template <typename... Args>
+mlir::ParseResult parseOptionalResultTypes(mlir::OpAsmParser& parser, mlir::Type& type, Args&... types) {
+    return details::parseOptionalResultTypes(parser, makeArrayRef({&type, &types...}));
+}
+
+//
 // OptionalRegion
 //
 

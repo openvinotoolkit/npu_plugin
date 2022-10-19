@@ -8,6 +8,10 @@ depending on the layer specification from underlying Dialect.
 The pass is a part of `AdjustForVPU` pipeline.
 
 This pass replaces suitable `AvgPool` operations with `GroupConvolution` operation.
+### `-convert-bilinear-to-strided-concat-and-conv`: Convert bilinear interpolate op to strided concat and depthwise convolution Ops
+The pass is a part of `AdjustForVPU` pipeline.
+
+This pass replaces `Bilinear Interpolate` operations with `Concat` operations with strides and `depthwise` convolution.
 ### `-convert-conv1d-to-conv2d`: Convert Convolution1D and GroupConvolution1D to its 2D variance
 The pass is a part of `AdjustForVPU` pipeline.
 
@@ -30,6 +34,10 @@ The pass is a part of `AdjustForVPU` pipeline.
 
 This pass replaces all `FullyConnected` operations with `Convolution` operation.
 It inserts extra `Reshape` operations to satisfy `Convolution` specification.
+### `-convert-gather-to-slice`: Convert Gather operation to Slice operation
+The pass is a part of `AdjustForVPU` pipeline.
+
+This pass replaces legal `Gather` operations with `Slice` operations.
 ### `-convert-nearest-to-strided-concat`: Convert nearest interpolate op to strided concat ops
 The pass is a part of `AdjustForVPU` pipeline.
 
@@ -45,6 +53,8 @@ The pass is a part of `AdjustForVPU` pipeline.
 
 This pass updates padding attributes for Convolution and Pooling layers.
 It switches layer rounding mode to FLOOR and updates paddings to satisfy output shape.
+### `-convert-power-to-mult`: Convert power to multiply operation
+The pass converts power with single constant exponent value to multiplication.
 ### `-convert-precision-to-fp16`: Convert tensors precision from FP32 to FP16
 The pass is a part of `AdjustForVPU` pipeline.
 
@@ -54,7 +64,7 @@ It updates both function bodies as well as Function signatures.
 The pass is a part of `AdjustForVPU` pipeline.
 This pass replaces all I64 tensors with I32.
 It updates both function bodies as well as Function signatures.
-### `-convert-quantize-ops-to-eltwise`: Converts per-tensor Quantize/Dequantize to eltwise And mixed-precision operation
+### `-convert-quantize-ops-to-nce-ops`: Converts per-tensor Quantize/Dequantize to eltwise And mixed-precision operation
 The pass is a part of `LowPrecision` pipeline.
 
 Converts per-tensor Quantize/Dequantize to eltwise And mixed-precision operation
@@ -73,6 +83,8 @@ Also this pass replaces ND network inputs and outputs with 4D analogues to overc
 ### `-convert-shuffle-channels`: Convert ShuffleChannels to Reshape->Transpose->Reshape
 The pass is a part of `AdjustForVPU` pipeline.
 Converts ShuffleChannels to Reshape->Transpose->Reshape.
+### `-convert-subtract-to-negative-add`: Convert Subtract operation to Add with Negative operations
+This pass replaces `Subtract` operation with `Add` with `Negative` operations.
 ### `-convert-tile-to-per-axis-tiles`: Convert tile op by multiple axes to multiple PerAxisTile operations
 The pass is a part of `AdjustForVPU` pipeline.
 
@@ -81,6 +93,11 @@ This pass replaces all `Tile` op with a set of `PerAxisTile` operations.
 The pass is a part of `AdjustForVPU` pipeline.
 
 This pass replaces all `Reorder` and `Transpose` operations with `MemPermute` operation.
+### `-convert-to-mixed-precision`: Convert DPU task without fake quantize behind to mixed-precision operation
+The pass is a part of `LowPrecision` pipeline.
+Converts DPU task to mixed-precision operation where there is no quantize operation for the output of a DPU task
+### `-convert-to-scale-shift`: Convert Add and Multiply operations to ScaleShift operations
+This pass replaces suitable `Add` and `Multiply` operations with `ScaleShift` operations.
 ### `-convert-weights-to-u8`: Shift data from a signed range to an unsigned one
 The pass is a part of `LowPrecision` pipeline.
 
@@ -125,6 +142,9 @@ The pass is a part of `AdjustForVPU` pipeline.
 
 This pass splits operations so that they are able to be infered with symmetric strides
     on dpu because of hardware limitation.
+### `-handle-exclude-pad-for-avg-pool`: Handle exclude-pad attribute for AvgPool operations
+This pass introduces exclude pad atribute handling for AvgPool operations, that have pad = stride = 1,
+by splitting operation in multiple AvgPool operations in order to handle this particular case.
 ### `-handle-large-kernels`: Handle large kernels ops
 The pass is a part of `AdjustForVPU` pipeline.
 
@@ -136,22 +156,16 @@ This pass splits operations with strides larger than supported on hardware.
 The pass is a part of `AdjustForVPU` pipeline.
 
 Pass converts Concat->LeakyRelu to Concat->Maxpool->LeakyRelu.
-### `-isolated-tiling`: Tile layers in isolation so that all their I/O meet the memory capacity
-The pass applies tiling to the layers whose memory requirements exceed the capacity available.
+### `-layer-reorder-concat-pass`: Inserts Reorder operation between Transpose and Concat
+The pass is a part of `HardwareMode` pipeline.
 
-The pass tries to split each single layer in isolation, with no smarter heuristics
-such as "allow running in parallel" or "allow continious computation in tiles" or any else.
-
-The pass does not use any cost model to optimize the entire layer's processing time. It just
-iteratively increases the number of tiles until the the largest tile's memory requirements  meet
-the device capacity, and stops there.
+It inserts `Reorder` operation between layers `Transpose`, `AffineReshape` and `Concat` operation when possible.
+This transormation reduces the number of `MemPermute` operations in resulting graph.
 ### `-legalize-dilated-conv`: Handle dilated convolutions
 The pass is a part of `buildHardwareModePipeline` pipeline.
 
 This pass expands filter of dilated convolution so that they are able to be infered
     on dpu because of hardware limitation.
-### `-manual-tiling`: Tile layers with manual strategy
-The pass performs manual tiling on layers specified by the user.
 ### `-matmul-inputs-to-2d`: Convert MatMul inputs to 2d
 This pass converts `MatMul` inputs to 2d.
 
@@ -189,14 +203,6 @@ will be transformed into:
                           |
                         GroupConv 1x304x128x128
 ```
-### `-prefetch-tiling`: Tile layers into smaller tiles to enable prefetch pipeline
-The pass performs tiling on layers to enable prefetch pipeline.
-
-The pass tries run tiles in parallel.
-The 'prefetch' means that the next tile could be loaded in advance when the current tile is computing.
-
-The pass does not consider cost models,
-only tiles layers to make at least two tiles could be loaded in CMX memory at the same time.
 ### `-propagate-fq-through-pad`: Propagate FakeQuantize operation after Pad is replaced with Concat
 `ConvertPadToConcat` adds a `Concat` operation which does not propagate `FakeQuantize` operation.
 
@@ -211,9 +217,6 @@ Quantize/Dequantize are propagated through operations
 The optional pass in the `LowPrecision` pipeline.
 
 Pass detects pattern quantize -> dequantize and removes it
-### `-resolve-pwl-post-ops`: Resolve requirements for fused PWL post-ops
-Ensures the correct quantization ranges are used for fused PWL activation functions or
-unfuses them if surrounding tensors are not quantized per-tensor.
 ### `-resolve-strided-slice`: Decouple strided slice to slice + reshape
 The pass is a part of `AdjustForVPU` pipeline.
 It replaces IE::StridedSlice with non zero masks to a simpler IE::StridedSlice with zero masks + IE::Reshape
@@ -247,11 +250,6 @@ Operations are swapped only if there is an operation before MaxPool that support
 The pass is a part of `HardwareMode` pipeline.
 
 It swaps `Transpose` operation with per-tensor `FakeQuantize` operation when possible.
-This transormation reduces the number of `MemPermute` operations in resulting graph.
-### `-transpose-reorder-concat-pass`: Inserts Reorder operation between Transpose and Concat
-The pass is a part of `HardwareMode` pipeline.
-
-It inserts `Reorder` operation between `Transpose` and `Concat` operation when possible.
 This transormation reduces the number of `MemPermute` operations in resulting graph.
 ### `-transpose-to-permute-cast`: Converts Transpose operation to PermuteCast with Reorder
 It is possible to replace a `Transpose` operation with a combination of `PermuteCast` and `Reorder`.

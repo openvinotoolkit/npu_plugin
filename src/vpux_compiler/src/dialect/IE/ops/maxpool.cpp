@@ -6,7 +6,7 @@
 //
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
-
+#include "vpux/compiler/dialect/VPUIP/graph-schema/utils.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 
 #include "vpux/utils/core/checked_cast.hpp"
@@ -53,15 +53,4 @@ mlir::LogicalResult vpux::IE::MaxPoolOp::inferReturnTypeComponents(
     inferredReturnShapes.emplace_back(shapeI64, inType);
 
     return mlir::success();
-}
-
-InputTiling vpux::IE::MaxPoolOp::backInferTileInfo(const vpux::TileInfo& outputTile) {
-    const auto origInputShape = getShape(input());
-    const auto origPadding = PadInfo(pads_begin(), pads_end());
-
-    return backInferPoolTile(outputTile, origInputShape, kernel_size(), strides(), origPadding);
-}
-
-void vpux::IE::MaxPoolOp::adjustAttrs(const TilingInfo& inputTiling, const TileInfo& /*outputTile*/) {
-    IE::adjustPaddings(this, inputTiling);
 }

@@ -33,16 +33,23 @@ struct GroupParams {
     uint32_t kernelId;
 };
 
-//template<int WD>
 struct CustomParams {
-//    GroupParams<WD> groupParams;
     int32_t layerParams[MAX_LOCAL_PARAMS];
+};
+
+typedef std::initializer_list<int32_t> Dims;
+
+struct SingleTest {
+    Dims inputDims;
+    Dims outputDims;
+    StorageOrder storageOrder;
+    const char* kernelName;
+    CustomParams customLayerParams;
 };
 
 // A base class for OpenCL tests.
 // It is aware of test type (structure, that contains all the test input).
 // Test input is used to load ELF and pass layer params into layer.
-template <class TestType>
 class CustomCppTestBase : public TestSuite {
 public:
     explicit CustomCppTestBase() = default;
@@ -78,9 +85,6 @@ protected:
     }
 
 protected:
-    // A pointer to current test case. It is set by initTestCase() in derived class.
-    // Whole set of tests is stored in derived class.
-    const TestType* m_currentTest;
     CustomCppLayerParams m_params;
     u8* m_elfBuffer;
 };

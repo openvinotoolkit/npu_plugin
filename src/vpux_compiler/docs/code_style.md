@@ -124,7 +124,7 @@ The readability of this principle is debatable. But this allows us to achieve th
 
 ```cpp
 void someFunction(mlir::Operation* op) { // OK
-    auto layer = mlir::dyn_cast<IERT::LayerOpInterface>(op);
+    auto layer = mlir::dyn_cast<VPUIP::LayerOpInterface>(op);
     if (layer == nullptr) { // OK
         return;
     }
@@ -134,7 +134,7 @@ void someFunction(mlir::Operation* op) { // OK
 
 void someFunction(mlir::Operation* op)  // BAD: the opening bracket is at the next line but it should be here
 {
-    auto layer = mlir::dyn_cast<IERT::LayerOpInterface>(op);
+    auto layer = mlir::dyn_cast<VPUIP::LayerOpInterface>(op);
     if (layer == nullptr) // BAD: even single-line constructions must have brackets
         return;
 }
@@ -159,7 +159,7 @@ To check the validity of a pointer, prefer the most explicit notation i.e. `null
 
 ```cpp
 void someFunction(mlir::Operation* op) {
-    auto layer = mlir::dyn_cast<IERT::LayerOpInterface>(op);
+    auto layer = mlir::dyn_cast<VPUIP::LayerOpInterface>(op);
     if (layer == nullptr) { // OK
         // <...>
     }
@@ -197,7 +197,7 @@ These tips may help:
 /// @details Currently, only C-wise tiling is implemented for 4D shapes // OK: "Why it does what it does?"
 /// @return Outputs of the smaller Copy operations created              // OK: "What should I expect from it?"
 /// @todo Replace this with a re-use of the generic tiling utilities
-SmallVector<mlir::Value> CopyOpTiling::createChannelWiseTiles(IERT::CopyOp origOp,
+SmallVector<mlir::Value> CopyOpTiling::createChannelWiseTiles(VPUIP::CopyOp origOp,
                                                               mlir::PatternRewriter& rewriter) const {
     // <...>
 
@@ -236,8 +236,8 @@ Open-Closed Principle from SOLID [(OCP)](https://en.wikipedia.org/wiki/Open%E2%8
 
 ```cpp
 // OK: it's easy to manage fail-cases, therefore OCP is preserved
-mlir::LogicalResult goodExample(IERT::SubViewOp origOp) {
-    auto producerSubViewOp = origOp.source().getDefiningOp<IERT::SubViewOp>();
+mlir::LogicalResult goodExample(VPUIP::SubViewOp origOp) {
+    auto producerSubViewOp = origOp.source().getDefiningOp<VPUIP::SubViewOp>();
     if (producerSubViewOp == nullptr) {
         return mlir::failure();
     }
@@ -252,8 +252,8 @@ mlir::LogicalResult goodExample(IERT::SubViewOp origOp) {
 }
 
 // BAD: to manage conditions, we have to move lots of code and introduce excess code nesting
-mlir::LogicalResult badExample(IERT::SubViewOp origOp) {
-    auto producerSubViewOp = origOp.source().getDefiningOp<IERT::SubViewOp>();
+mlir::LogicalResult badExample(VPUIP::SubViewOp origOp) {
+    auto producerSubViewOp = origOp.source().getDefiningOp<VPUIP::SubViewOp>();
     if (producerSubViewOp != nullptr) {
         if (!origOp.static_strides().hasValue() && !producerSubViewOp.static_strides().hasValue()) {
             // <...>
@@ -265,6 +265,29 @@ mlir::LogicalResult badExample(IERT::SubViewOp origOp) {
     return mlir::failure();
 }
 ```
+
+### Using checked casts
+
+[checked_cast](../../vpux_utils/include/vpux/utils/core/checked_cast.hpp) is a helper which encapsulates run-time check
+for `static_cast`. It is advisable to use it where applicable in order to avoid some unforeseen consequences during
+casts. Otherwise, it maybe quite hard to investigate that class of problems. Consider the following code snippet:
+
+```cpp
+    int32_t i32 = -100;
+    uint32_t u32 = (uint32_t)i32;
+    assert((i32 / 10) == (u32 / 10));  // Assertion `(i32 / 10) == (u32 / 10)' failed.
+```
+
+It might be a bit syntetic, but it serves the purpose of illustration for unexpected execution flow quite obviously.
+End-user may get unexpected accuracy regression without any notice. The problem would become more obvious with
+`checked_cast`:
+
+```cpp
+    int32_t i32 = -100;
+    uint32_t u32 = checked_cast<uint32_t>(i32); // Can not safely cast -100 from int32_t to uint32_t
+    assert((i32 / 10) == (u32 / 10));
+```
+
 
 ## Using AliasesInfo
 
@@ -296,7 +319,7 @@ Do not use `AliasesInfo` in the patterns controlled with `GreedyPatternRewriteDr
 void OptimizeCopiesPass::safeRunOnFunc() {
     auto func = getFunction();
     auto& aliasInfo = getAnalysis<AliasesInfo>();
-    func->walk([&](IERT::CopyOp op) {
+    func->walk([&](VPUIP::CopyOp op) {
         fuseLastCopy(op, aliasInfo, _log);
     });
 }

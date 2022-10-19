@@ -7,12 +7,13 @@
 
 #include "vpux/compiler/conversion.hpp"
 #include "vpux/compiler/core/passes.hpp"
+#include "vpux/compiler/dialect/EMU/passes.hpp"
 #include "vpux/compiler/dialect/IE/passes.hpp"
-#include "vpux/compiler/dialect/IERT/passes.hpp"
 #include "vpux/compiler/dialect/VPU/passes.hpp"
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
 #include "vpux/compiler/dialect/VPURT/passes.hpp"
+#include "vpux/compiler/dialect/ELF/passes.hpp"
 #include "vpux/compiler/dialect/const/passes.hpp"
 #include "vpux/compiler/init.hpp"
 #include "vpux/compiler/pipelines.hpp"
@@ -31,13 +32,15 @@ int main(int argc, char* argv[]) {
 
         vpux::registerCorePasses();
         vpux::Const::registerConstPasses();
+        vpux::EMU::registerEMUPasses();
+        vpux::EMU::registerEMUPipelines();
         vpux::IE::registerIEPasses();
         vpux::IE::registerIEPipelines();
         vpux::VPU::registerVPUPasses();
-        vpux::IERT::registerIERTPasses();
-        vpux::IERT::registerIERTPipelines();
         vpux::VPUIP::registerVPUIPPasses();
+        vpux::VPUIP::registerVPUIPPipelines();
         vpux::VPURT::registerVPURTPasses();
+        vpux::ELF::registerELFPasses();
         vpux::registerConversionPasses();
         vpux::registerConversionPipelines();
         vpux::registerPipelines();

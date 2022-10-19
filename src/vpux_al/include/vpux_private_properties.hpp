@@ -105,8 +105,10 @@ enum class VPUXPlatform : int {
     VPU3700 = 3,     // Keem bay B0 700 MHz
     VPU3800 = 4,     // Thunder bay harbor Prime
     VPU3900 = 5,     // Thunder bay harbor Full
-    VPU3720 = 6,     // VPUX37XX
+    VPU3720 = 6,     // VPU3720
     EMULATOR = 7,    // Emulator
+    VPU3720ELF = 8,  // VPU3720 ELF
+    VPU4000 = 9,     // VPU4000
 };
 
 /**
@@ -131,6 +133,10 @@ inline InferenceEngine::VPUXConfigParams::VPUXPlatform cvtVPUXPlatform(VPUXPlatf
         return InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3900;
     case VPUXPlatform::VPU3720:
         return InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3720;
+    case VPUXPlatform::VPU3720ELF:
+        return InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3720ELF;
+    case VPUXPlatform::VPU4000:
+        return InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU4000;
     case VPUXPlatform::EMULATOR:
         return InferenceEngine::VPUXConfigParams::VPUXPlatform::EMULATOR;
     default:
@@ -168,6 +174,12 @@ inline std::ostream& operator<<(std::ostream& out, const VPUXPlatform& fmt) {
     } break;
     case VPUXPlatform::VPU3720: {
         out << "VPU3720";
+    } break;
+    case VPUXPlatform::VPU3720ELF: {
+        out << "VPU3720ELF";
+    } break;
+    case VPUXPlatform::VPU4000: {
+        out << "VPU4000";
     } break;
     case VPUXPlatform::EMULATOR: {
         out << "EMULATOR";

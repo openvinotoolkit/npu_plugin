@@ -9,11 +9,11 @@
 
 #include "vpux/compiler/core/layers.hpp"
 #include "vpux/compiler/dialect/VPU/attributes.hpp"
-#include "vpux/compiler/dialect/VPU/const_utils.hpp"
 #include "vpux/compiler/dialect/VPU/nce_sparsity.hpp"
 #include "vpux/compiler/dialect/VPU/ops.hpp"
-#include "vpux/compiler/dialect/VPU/ppe_utils.hpp"
 #include "vpux/compiler/dialect/VPU/utils.hpp"
+#include "vpux/compiler/dialect/VPU/utils/const_utils.hpp"
+#include "vpux/compiler/dialect/VPU/utils/ppe_utils.hpp"
 #include "vpux/compiler/dialect/VPUIP/nce_invariant.hpp"
 #include "vpux/compiler/dialect/const/attributes/content.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
@@ -104,16 +104,23 @@ mlir::LogicalResult ConvToNCE::matchAndRewrite(IE::ConvolutionOp origOp, mlir::P
     // Generate weights table
     const auto ppeTaskAttr = VPU::getPPETaskAttrFromPostOpsParams(origOp.input(), origOp.output(), origOp.post_opAttr(),
                                                                   origOp.getLoc(), origOp.getContext(), _arch);
-    const auto weightsTableVec = VPU::createWeightsTableData(origOp.input(), origOp.output(), alignedFilter,
-                                                             activationWindow, bias, OC, ppeTaskAttr, _arch);
+    const auto weightsTableVec =
+            VPU::createWeightsTableData(origOp.input(), origOp.output(), alignedFilter, activationWindow, bias, OC,
+                                        ppeTaskAttr, _arch, origOp.post_opAttr());
     const auto weightsTable = VPU::createWeightsTableTensor(rewriter, origOp->getLoc(), weightsTableVec, OC);
+
+    const auto instructionListTableVec =
+            VPU::createInstructionListTableData(origOp.output(), origOp.post_opAttr(), _arch);
+    const auto instructionListTable =
+            VPU::createInstructionListTableTensor(rewriter, origOp->getLoc(), instructionListTableVec);
 
     const auto padAttr = VPU::getPaddingAttr(getContext(), PadInfo(origOp.pads_begin(), origOp.pads_end()));
     const auto rawFilterShape = getIntArrayAttr(rewriter, filterShape);
 
-    auto nceOp = rewriter.create<VPU::NCEConvolutionOp>(
-            origOp->getLoc(), origOp.getType(), origOp.input(), alignedFilter, weightsTable, activationWindow,
-            origOp.stridesAttr(), padAttr, ppeTaskAttr, rawFilterShape, activationWindowChannelLength);
+    auto nceOp = rewriter.create<VPU::NCEConvolutionOp>(origOp->getLoc(), origOp.getType(), origOp.input(),
+                                                        alignedFilter, weightsTable, activationWindow,
+                                                        instructionListTable, origOp.stridesAttr(), padAttr,
+                                                        ppeTaskAttr, rawFilterShape, activationWindowChannelLength);
 
     rewriter.replaceOp(origOp, nceOp.output());
     return mlir::success();
@@ -190,15 +197,21 @@ mlir::LogicalResult DepthConvToNCE::matchAndRewrite(IE::GroupConvolutionOp origO
     auto ppeTaskAttr = VPU::getPPETaskAttrFromPostOpsParams(origOp.input(), origOp.output(), origOp.post_opAttr(),
                                                             origOp.getLoc(), origOp.getContext(), _arch);
     auto weightsTableVec = VPU::createWeightsTableData(origOp.input(), origOp.output(), alignedFilter, activationWindow,
-                                                       bias, OC, ppeTaskAttr, _arch);
+                                                       bias, OC, ppeTaskAttr, _arch, origOp.post_opAttr());
     auto weightsTable = VPU::createWeightsTableTensor(rewriter, origOp->getLoc(), weightsTableVec, OC);
+
+    const auto instructionListTableVec =
+            VPU::createInstructionListTableData(origOp.output(), origOp.post_opAttr(), _arch);
+    const auto instructionListTable =
+            VPU::createInstructionListTableTensor(rewriter, origOp->getLoc(), instructionListTableVec);
 
     const auto padAttr = VPU::getPaddingAttr(getContext(), PadInfo(origOp.pads_begin(), origOp.pads_end()));
     const auto rawFilterShape = getIntArrayAttr(rewriter, filterShape);
 
     auto nceOp = rewriter.create<VPU::NCEDepthConvolutionOp>(
             origOp->getLoc(), origOp.getType(), origOp.input(), alignedFilter, weightsTable, activationWindow,
-            origOp.stridesAttr(), padAttr, ppeTaskAttr, rawFilterShape, activationWindowChannelLength);
+            instructionListTable, origOp.stridesAttr(), padAttr, ppeTaskAttr, rawFilterShape,
+            activationWindowChannelLength);
 
     rewriter.replaceOp(origOp, nceOp.output());
     return mlir::success();
@@ -257,7 +270,7 @@ mlir::LogicalResult MaxPoolToNCE::matchAndRewrite(IE::MaxPoolOp origOp, mlir::Pa
     auto ppeTaskAttr = VPU::getPPETaskAttrFromPostOpsParams(origOp.input(), origOp.output(), origOp.post_opAttr(),
                                                             origOp.getLoc(), origOp.getContext(), _arch);
     auto weightsTableVec = VPU::createWeightsTableData(origOp.input(), origOp.output(), nullptr, activationWindow,
-                                                       nullptr, IC, ppeTaskAttr, _arch);
+                                                       nullptr, IC, ppeTaskAttr, _arch, origOp.post_opAttr());
     auto weightsTable = VPU::createWeightsTableTensor(rewriter, origOp->getLoc(), weightsTableVec, IC);
 
     const auto padAttr = VPU::getPaddingAttr(getContext(), PadInfo(origOp.pads_begin(), origOp.pads_end()));
@@ -265,6 +278,49 @@ mlir::LogicalResult MaxPoolToNCE::matchAndRewrite(IE::MaxPoolOp origOp, mlir::Pa
     auto nceOp = rewriter.create<VPU::NCEMaxPoolOp>(origOp->getLoc(), origOp.getType(), origOp.input(), weightsTable,
                                                     activationWindow, origOp.kernel_sizeAttr(), origOp.stridesAttr(),
                                                     padAttr, ppeTaskAttr, activationWindowChannelLength);
+
+    rewriter.replaceOp(origOp, nceOp.output());
+    return mlir::success();
+}
+
+//
+// AveragePoolToNCE
+//
+
+class AveragePoolToNCE final : public mlir::OpRewritePattern<IE::AvgPoolOp> {
+public:
+    AveragePoolToNCE(mlir::MLIRContext* ctx, VPU::ArchKind arch, Logger log)
+            : mlir::OpRewritePattern<IE::AvgPoolOp>(ctx), _arch(arch), _log(log) {
+    }
+
+public:
+    mlir::LogicalResult matchAndRewrite(IE::AvgPoolOp origOp, mlir::PatternRewriter& rewriter) const final;
+
+private:
+    VPU::ArchKind _arch;
+    Logger _log;
+};
+
+mlir::LogicalResult AveragePoolToNCE::matchAndRewrite(IE::AvgPoolOp origOp, mlir::PatternRewriter& rewriter) const {
+    _log.trace("[{0}] Got '{1}' at '{2}'", getDebugName(), origOp->getName(), origOp->getLoc());
+
+    const auto logCb = [&](const formatv_object_base& msg) {
+        std::ignore = matchFailed(_log, rewriter, origOp, "[{0}] {1}", getDebugName(), msg.str());
+    };
+
+    if (!VPU::NCEAveragePoolOp::isSupported(origOp, logCb)) {
+        return mlir::failure();
+    }
+
+    auto ppeTaskAttr = VPU::getNCEAveragePoolPPETaskAttr(origOp.input().getType(), origOp.kernel_sizeAttr(),
+                                                         origOp.output().getType(), origOp.post_opAttr(),
+                                                         origOp.getLoc(), origOp.getContext(), _arch);
+
+    const auto padAttr = VPU::getPaddingAttr(getContext(), PadInfo(origOp.pads_begin(), origOp.pads_end()));
+
+    auto nceOp = rewriter.create<VPU::NCEAveragePoolOp>(origOp->getLoc(), origOp.getType(), origOp.input(),
+                                                        origOp.kernel_sizeAttr(), origOp.stridesAttr(), padAttr,
+                                                        ppeTaskAttr);
 
     rewriter.replaceOp(origOp, nceOp.output());
     return mlir::success();
@@ -299,16 +355,19 @@ mlir::LogicalResult EltwiseToNCE<ConcreteOp>::matchAndRewrite(ConcreteOp origOp,
         std::ignore = matchFailed(_log, rewriter, origOp, "[{0}] {1}", this->getDebugName(), msg.str());
     };
 
-    const bool allowDifferentScales = _opType == VPU::EltwiseType::MULTIPLY;
+    // Multiply scales can be "compress" as one. You can make the same scale for each input.
+    // in1 * in1_scale * in2 *in2_scale => in1 * in2 * (in1_scale * in2_scale).
+    const bool allowDifferentScales =
+            supportsPerInputEltwiseScale(_arch) ? true : _opType == VPU::EltwiseType::MULTIPLY;
     const bool allowDifferentZp = true;
 
     if (!VPU::NCEEltwiseOp::isSupported(origOp, allowDifferentScales, allowDifferentZp, logCb)) {
         return mlir::failure();
     }
 
-    auto ppeTaskAttr =
-            VPU::getNCEEltwisePPETaskAttr(origOp.input1(), origOp.input2(), origOp.output(), origOp.post_opAttr(),
-                                          origOp.getLoc(), _opType, origOp.getContext(), _arch);
+    auto ppeTaskAttr = VPU::getNCEEltwisePPETaskAttr(origOp.input1().getType(), origOp.input2().getType(),
+                                                     origOp.output().getType(), origOp.post_opAttr(), origOp.getLoc(),
+                                                     _opType, origOp.getContext(), _arch);
 
     auto nceOp =
             rewriter.create<VPU::NCEEltwiseOp>(origOp->getLoc(), origOp.getType(), origOp.input1(), origOp.input2(),
@@ -345,6 +404,9 @@ void ConvertIEToVPUNCEPass::safeRunOnFunc() {
     patterns.add<ConvToNCE>(&ctx, arch, _log);
     patterns.add<DepthConvToNCE>(&ctx, arch, _log);
     patterns.add<MaxPoolToNCE>(&ctx, arch, _log);
+    if (arch == VPU::ArchKind::VPUX37XX) {
+        patterns.add<AveragePoolToNCE>(&ctx, arch, _log);
+    }
     patterns.add<EltwiseToNCE<IE::AddOp>>(&ctx, VPU::EltwiseType::ADD, arch, _log);
     patterns.add<EltwiseToNCE<IE::MultiplyOp>>(&ctx, VPU::EltwiseType::MULTIPLY, arch, _log);
     patterns.add<EltwiseToNCE<IE::SubtractOp>>(&ctx, VPU::EltwiseType::SUBTRACT, arch, _log);

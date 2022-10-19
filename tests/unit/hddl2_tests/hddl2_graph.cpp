@@ -64,28 +64,32 @@ std::string Graph_Common_UnitTests::PrintToStringParamName::operator()(
 }
 
 //------------------------------------------------------------------------------
-TEST_P(Graph_Common_UnitTests, getDeviceName_ReturnNotNull) {
+// [Track number: E#48051]
+TEST_P(Graph_Common_UnitTests, DISABLED_getDeviceName_ReturnNotNull) {
     if (isEmulatorDevice())
         GTEST_SKIP() << "Test not intended for emulator run.";
     const std::string name = networkPtr->getName();
     ASSERT_GT(name.size(), 0);
 }
 
-TEST_P(Graph_Common_UnitTests, getInputsInfo_ReturnNotEmpty) {
+// [Track number: E#48051]
+TEST_P(Graph_Common_UnitTests, DISABLED_getInputsInfo_ReturnNotEmpty) {
     if (isEmulatorDevice())
         GTEST_SKIP() << "Test not intended for emulator run.";
     auto inputsInfo = networkPtr->getInputsInfo();
     ASSERT_GT(inputsInfo.size(), 0);
 }
 
-TEST_P(Graph_Common_UnitTests, getOutputsInfo_ReturnNotEmpty) {
+// [Track number: E#48051]
+TEST_P(Graph_Common_UnitTests, DISABLED_getOutputsInfo_ReturnNotEmpty) {
     if (isEmulatorDevice())
         GTEST_SKIP() << "Test not intended for emulator run.";
     auto inputsInfo = networkPtr->getOutputsInfo();
     ASSERT_GT(inputsInfo.size(), 0);
 }
 
-TEST_P(Graph_Common_UnitTests, getGraphBlob_ReturnNotEmpty) {
+// [Track number: E#48051]
+TEST_P(Graph_Common_UnitTests, DISABLED_getGraphBlob_ReturnNotEmpty) {
     if (isEmulatorDevice())
         GTEST_SKIP() << "Test not intended for emulator run.";
     auto graphBlob = networkPtr->getCompiledNetwork();

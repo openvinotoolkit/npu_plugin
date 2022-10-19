@@ -67,6 +67,7 @@ else()
         target_link_libraries(${TARGET_NAME}
             PUBLIC
                 vpux_mlir_compiler
+                vpux_mlir_dependencies
         )
     endif()
 

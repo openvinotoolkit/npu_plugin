@@ -17,15 +17,6 @@
 using namespace nn::act_runtime;
 using namespace nn::util;
 
-inline void waitBarrier(const BarrierUserConfig &bar, const BarrierGpioConfig &gpio, unsigned int shave_index) {
-    // TODO: enable GPIO monitor when shave_index is confirmed working
-    if (false && gpio.group_ > 0) {
-        HglBarrierMonitorSelect(shave_index, gpio.group_ - 1);
-        waitBarrierGpio(gpio.mask_);
-    } else
-        HglBarrierWait(bar.wait_mask_);
-}
-
 // Set the window address by writing to the local address space of the current SHAVE
 inline void setShaveWindow(uint32_t windowNumber, void *targetWindowBaseAddr) {
     switch (windowNumber) {

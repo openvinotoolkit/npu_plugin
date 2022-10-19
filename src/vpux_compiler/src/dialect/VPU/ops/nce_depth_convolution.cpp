@@ -136,11 +136,48 @@ bool vpux::VPU::NCEDepthConvolutionOp::isSupported(IE::GroupConvolutionOp op, Lo
 // verifyOp
 //
 
+mlir::LogicalResult verifyDepthConv(mlir::Location loc, VPU::ArchKind arch, VPU::NCEDepthConvolutionOpAdaptor op,
+                                    mlir::Value output) {
+    const auto logCb = [loc](const llvm::formatv_object_base& msg) {
+        std::ignore = errorAt(loc, "{0}", msg.str());
+    };
+
+    const auto outputShape = getShape(output);
+    const auto OC = outputShape[Dims4D::Act::C];
+
+    const auto filterShape = Shape(parseIntArrayAttr<int64_t>(op.rawFilterShape()));
+    const auto KY = filterShape[Dims4D::Filter::KY];
+    const auto KX = filterShape[Dims4D::Filter::KX];
+
+    const auto kernelStrides = Shape(parseIntArrayAttr<int64_t>(op.strides()));
+    const auto SY = kernelStrides[Dims4D::Strides::Y];
+    const auto SX = kernelStrides[Dims4D::Strides::X];
+
+    const auto padTop = op.pad().top().getValue().getSExtValue();
+    const auto padBottom = op.pad().bottom().getValue().getSExtValue();
+    const auto padLeft = op.pad().left().getValue().getSExtValue();
+    const auto padRight = op.pad().right().getValue().getSExtValue();
+
+    if (!VPU::NCEInvariant::isAttrsSupported(arch, KY, KX, SY, SX, padTop, padBottom, padLeft, padRight, logCb)) {
+        return mlir::failure();
+    }
+
+    const auto weightsTableShape = getShape(op.weightsTable());
+    const auto expectedWeightsTableShape = VPU::NCESparsity::inferWeightsTableShape(OC);
+
+    if (weightsTableShape != expectedWeightsTableShape) {
+        return errorAt(loc, "Got wrong shape for 'weightsTable' '{0}', expected '{1}'", weightsTableShape,
+                       expectedWeightsTableShape);
+    }
+
+    return mlir::success();
+}
+
 mlir::LogicalResult vpux::VPU::verifyOp(NCEDepthConvolutionOp op) {
     const auto arch = getArch(op);
 
-    const NCEConvolutionOpAdaptor convAdaptor(op->getOperands(), op->getAttrDictionary(), op->getRegions());
-    if (mlir::failed(verifyConv(op->getLoc(), arch, convAdaptor, op.output()))) {
+    const NCEDepthConvolutionOpAdaptor convAdaptor(op->getOperands(), op->getAttrDictionary(), op->getRegions());
+    if (mlir::failed(verifyDepthConv(op->getLoc(), arch, convAdaptor, op.output()))) {
         return mlir::failure();
     }
 
@@ -214,13 +251,13 @@ Shape vpux::VPU::NCEDepthConvolutionOp::inferAlignedFilterShape(NDTypeInterface 
 }
 
 //
-// InferShapedTypeOpInterface
+// InferTypeOpInterface
 //
 
-mlir::LogicalResult vpux::VPU::NCEDepthConvolutionOp::inferReturnTypeComponents(
-        mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
-        mlir::DictionaryAttr attrs, mlir::RegionRange,
-        SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
+mlir::LogicalResult vpux::VPU::NCEDepthConvolutionOp::inferReturnTypes(
+        mlir::MLIRContext* ctx, mlir::Optional<mlir::Location> optLoc, mlir::ValueRange operands,
+        mlir::DictionaryAttr attrs, mlir::RegionRange /*regions*/,
+        mlir::SmallVectorImpl<mlir::Type>& inferredReturnTypes) {
     const auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
 
     NCEDepthConvolutionOpAdaptor op(operands, attrs);
@@ -260,9 +297,10 @@ mlir::LogicalResult vpux::VPU::NCEDepthConvolutionOp::inferReturnTypeComponents(
                                                  return checked_cast<int64_t>(val);
                                              }));
 
-    const auto elemType = op.input().getType().cast<vpux::NDTypeInterface>().getElementType();
+    const auto inputType = op.input().getType().cast<vpux::NDTypeInterface>();
+    const auto outputType = inputType.changeShape(Shape(outputShape));
 
-    inferredReturnShapes.emplace_back(outputShape, elemType);
+    inferredReturnTypes.push_back(outputType);
     return mlir::success();
 }
 
@@ -277,26 +315,10 @@ void vpux::VPU::NCEDepthConvolutionOp::inferLayoutInfo(IE::LayerLayoutInfo& info
 }
 
 //
-// AlignedChannelsOpInterface
-//
-
-bool vpux::VPU::NCEDepthConvolutionOp::checkChannelRestrictions(int64_t channels) {
-    const auto arch = getArch(*this);
-
-    if (arch == VPU::ArchKind::VPUX37XX) {
-        // HW restrictions for channel number
-        static const std::unordered_set<int64_t> availableChannels{16, 32, 64};
-        return availableChannels.count(channels) != 0;
-    }
-
-    return true;
-}
-
-//
 // TilingBuilderOpInterface
 //
 
-vpux::InputTiling vpux::VPU::NCEDepthConvolutionOp::backInferTileInfo(const vpux::TileInfo& outputTile) {
+vpux::InputTiling vpux::VPU::NCEDepthConvolutionOp::backInferTileInfo(const vpux::TileInfo& outputTile, vpux::Logger) {
     const auto origInputShape = getShape(input());
     const auto origPadding = toPadInfo(pad());
     const auto origFilterShape = Shape(parseIntArrayAttr<int64_t>(rawFilterShape()));
@@ -358,4 +380,18 @@ SmallVector<int64_t> vpux::VPU::NCEDepthConvolutionOp::getStrides() {
 
 vpux::VPU::PaddingAttr vpux::VPU::NCEDepthConvolutionOp::getPad() {
     return padAttr();
+}
+
+bool vpux::VPU::NCEDepthConvolutionOp::checkStrategyCompatibility(VPU::MultiClusterStrategy strategy) {
+    return strategy == VPU::MultiClusterStrategy::Clustering ||
+           strategy == VPU::MultiClusterStrategy::SplitOverHeight ||
+           strategy == VPU::MultiClusterStrategy::SplitOverKernel || strategy == VPU::MultiClusterStrategy::HKSwitch;
+}
+
+//
+// serialize
+//
+
+EMU::BlobWriter::SpecificTask vpux::VPU::NCEDepthConvolutionOp::serialize(EMU::BlobWriter& /*writer*/) {
+    VPUX_THROW("NCEDepthConvolutionOp shouldn't have a serializer");
 }

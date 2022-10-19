@@ -7,6 +7,7 @@
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/VPU/attributes.hpp"
+#include "vpux/compiler/dialect/VPUIP/graph-schema/utils.hpp"
 
 #include "vpux/compiler/core/attributes/shape.hpp"
 #include "vpux/compiler/core/layers.hpp"
@@ -140,19 +141,6 @@ void vpux::IE::ConvolutionOp::getCanonicalizationPatterns(mlir::RewritePatternSe
     patterns.insert<FuseConvAndBias>(context);
 }
 
-InputTiling vpux::IE::ConvolutionOp::backInferTileInfo(const vpux::TileInfo& outputTile) {
-    const auto origInputShape = getShape(input());
-    const auto origFilterShape = getShape(filter());
-    const auto origBiasShape = bias() != nullptr ? getShape(bias()) : ShapeRef();
-    const auto origPadding = PadInfo(pads_begin(), pads_end());
-
-    return backInferConvTile(outputTile, origInputShape, origFilterShape, origBiasShape, strides(), origPadding);
-}
-
-void vpux::IE::ConvolutionOp::adjustAttrs(const TilingInfo& inputTiling, const TileInfo& /*outputTile*/) {
-    IE::adjustPaddings(this, inputTiling);
-}
-
 //
 // GroupConvolution
 //
@@ -258,27 +246,4 @@ void vpux::IE::GroupConvolutionOp::getCanonicalizationPatterns(mlir::RewritePatt
                                                                mlir::MLIRContext* context) {
     patterns.insert<FuseConvAndBias>(context);
     patterns.insert<GroupsToAttr>(context);
-}
-
-InputTiling vpux::IE::GroupConvolutionOp::backInferTileInfo(const vpux::TileInfo& outputTile) {
-    const auto origInputShape = getShape(input());
-    const auto origFilterShape = getShape(filter());
-    const auto origBiasShape = bias() != nullptr ? getShape(bias()) : ShapeRef();
-    const auto origPadding = PadInfo(pads_begin(), pads_end());
-
-    return backInferGroupConvTile(outputTile, origInputShape, origFilterShape, origBiasShape, strides(), origPadding);
-}
-
-void vpux::IE::GroupConvolutionOp::adjustAttrs(const TilingInfo& inputTiling, const TileInfo& /*outputTile*/) {
-    const auto& inputTiles = inputTiling.tiles;
-    VPUX_THROW_UNLESS(inputTiles.size() > 1, "Missed tile information. Got {0} tiles info, must be at least 2",
-                      inputTiles.size());
-
-    IE::adjustPaddings(this, inputTiling);
-
-    const auto& filterTile = inputTiles[1];
-    const auto groups = filterTile.shape[Dims4D::Filter::OC];
-    const auto groupsNewAttr = getIntAttr(getContext(), groups);
-
-    groupsAttr(groupsNewAttr);
 }

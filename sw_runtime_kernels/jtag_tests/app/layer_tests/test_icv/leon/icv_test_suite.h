@@ -8,8 +8,6 @@
 #if !defined(_ICV_TEST_SUITE_H_)
 #define _ICV_TEST_SUITE_H_
 
-//#include <DrvLeonL2C.h>
-
 #include <sw_tensor_ref.h>
 #include <mvTensorUtil.h>
 
@@ -21,17 +19,9 @@ using namespace nn::shave_lib;
  *
  * So, to get these includes compiled successfully, app_config.h MUST be included first.
  */
-
-#if defined(MA2480)
-//# include <OsDrvShaveL2c.h>
-#else
-//# include <OsDrvShaveL2Cache.h>
-#endif
-
 // #include <DrvTimer.h>
 
 #include <Fp16Convert.h>
-//#include <UnitTestApi.h>
 #include <VcsHooksApi.h>
 
 # ifdef __cplusplus
@@ -1185,8 +1175,11 @@ public:
 
 template<> inline t_MvTensorDataType TensorBase::type2code<u8>(const u8*) { return t_u8f; }
 template<> inline t_MvTensorDataType TensorBase::type2code<int32_t>(const int32_t*) { return t_int; }
+template<> inline t_MvTensorDataType TensorBase::type2code<uint32_t>(const uint32_t*) { return t_uint; }
 template<> inline t_MvTensorDataType TensorBase::type2code<half>(const half*) { return t_fp16; }
 template<> inline t_MvTensorDataType TensorBase::type2code<float>(const float*) { return t_fp32; }
+template<> inline t_MvTensorDataType TensorBase::type2code<s8>(const s8*) { return t_i8; }
+template<> inline t_MvTensorDataType TensorBase::type2code<int64_t>(const int64_t*) { return t_i64; }
 template<> inline t_MvTensorDataType TensorBase::type2code<TensorBase::Unused>(const TensorBase::Unused*) { return t_MvTensorDataType(-1); }
 
 template<class DataType>
@@ -2565,6 +2558,34 @@ REGISTER_TYPE(uint8_t, uint8);
 REGISTER_TYPE(int32_t, int32);
 REGISTER_TYPE(float, float);
 REGISTER_TYPE(int8_t, int8);
+
+//==============================================================================
+// 'ulp' is just an abbreviation for the Unit in the Last Place
+// (a term which is widely used in numerical analysis).
+// Here: ulp::absdiff_fp16(a,b) is the function which provides metric for |a-b|
+// value measured in units of ulps of the 'a' FP format.
+namespace ulp {
+
+union fp32_union {
+    float f;
+    unsigned int u;
+};
+
+// fp16 ulp difference for two values both >= fp16_min (regular ulp definition)
+// required: fmin <= fmax
+float bigdiff_fp32(float fmin, float fmax);
+
+// fp16 ulp difference for two values both <= fp16_min (no denormals: [0..fp16_min] treated as 1 ulp)
+// required: fmin <= fmax
+float smalldiff_fp32(float fmin, float fmax);
+
+float absdiff_fp32(float a, float b);
+
+// fp16 ulp difference
+// 'b' is the approximation for exact mathematical value, so it's provided in wide format
+float absdiff_fp16(fp16 a16, float b);
+
+} // namespace ulp
 
 //==============================================================================
 

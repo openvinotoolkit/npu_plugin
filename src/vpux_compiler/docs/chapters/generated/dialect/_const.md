@@ -14,13 +14,22 @@ when accessing the data.
 
 The **Const Dialect** supports the following transformations:
 
+* Broadcast
 * Precision conversion
 * Quantization types casting from raw storage
 * Dequantization
+* Rescale
+* Add
 * Reshape
+* Reverse
 * Reorder
 * Padding
 * SubView
+* BitPack
+* Transpose
+* ExpandDilated
+* GetSparsityMap
+* Sparsify
 
 The transformations are stored as separate attributes, which implemented specific Attribute Interface.
 The interface allows to extend the set of transformations outside of the **Const Dialect** implementation.
@@ -95,6 +104,31 @@ to quantized type with quantization parameters:
             #const.QuantCast<!quant.uniform<u8:f16, ...>>
         ]
     >
+```
+
+Some transformations have a requirement to be the last transformation applied to the data (e.g. BitPacking). To ensure this requirement
+is met, each transformation has a `PositionRequirement` attached; by default it is set to `NONE`. When introducing a new transformation
+to the list, if the last transformation has the requirement set to `LAST`, the new transformation will be introduced before the last one.
+If the new transformation also has the `LAST` requirement, an error is thrown.
+
+To set the requirement for a transformation to `LAST`, override the default implementation for the `getPositionRequirement` method for
+`Const_TransformAttrInterface`:
+
+```
+def Const_BitPackAttr : Const_Attr<"BitPack",
+        [DeclareAttrInterfaceMethods<Const_TransformAttrInterface, ["getPositionRequirement"]>
+```
+
+In the source file for your transformation, implement the `getPositionRequirement` method:
+
+```C++
+//
+// BitPackAttr::getPositionRequirement
+//
+
+Const::details::PositionRequirement Const::BitPackAttr::getPositionRequirement() const {
+    return Const::details::PositionRequirement::LAST;
+}
 ```
 
 [./const/_attr_interfaces.md]
@@ -253,6 +287,21 @@ Reshape constant content
 | :-------: | :-------: | ----------- |
 | shape | `mlir::ArrayAttr` |  |
 
+### ReverseAttr
+
+Reverse constant content on specified axis
+
+This transformation reverses content on a specified axis.
+For example, considering an input with dimensions (d0, d1, d2, d3),
+reversing on axis d1 will result in the data of every subpart (d2, d3)
+being reversed.
+
+#### Parameters:
+
+| Parameter | C++ type | Description |
+| :-------: | :-------: | ----------- |
+| axis | `mlir::IntegerAttr` |  |
+
 ### SparsifyAttr
 
 Prepare tensor to be ready processed as a sparse tensor
@@ -269,6 +318,18 @@ Extract subview from constant content
 | :-------: | :-------: | ----------- |
 | offset | `mlir::ArrayAttr` |  |
 | shape | `mlir::ArrayAttr` |  |
+
+### SwizzleConstantAttr
+
+Swizzles the constant based on swizzle key
+
+
+#### Parameters:
+
+| Parameter | C++ type | Description |
+| :-------: | :-------: | ----------- |
+| swizzleKey | `mlir::IntegerAttr` |  |
+| arch | `mlir::IntegerAttr` |  |
 
 ### TransposeAttr
 

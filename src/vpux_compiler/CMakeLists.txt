@@ -18,6 +18,7 @@ set(SCHEMA_TARGET_NAME "${TARGET_NAME}_schema")
 set(DOCS_TARGET_NAME "${TARGET_NAME}_docs")
 set(OBJ_TARGET_NAME "${TARGET_NAME}_obj")
 set(STATIC_TARGET_NAME "${TARGET_NAME}_static")
+set(MLIR_DEPS_NAME "vpux_mlir_dependencies")
 
 #
 # TBLGEN target
@@ -264,17 +265,20 @@ add_struct_attrs("VPU")
 add_types("VPU")
 add_passes("dialect/VPU" "VPU")
 
+add_dialect("EMU")
+add_op_interfaces("dialect/EMU")
+add_passes("dialect/EMU" "EMU")
+
 add_dialect("IERT")
-add_op_interfaces("dialect/IERT")
-add_struct_attrs("IERT")
-add_passes("dialect/IERT" "IERT")
 add_rewriters("dialect/IERT")
 
 add_dialect("VPUIP")
 add_op_interfaces("dialect/VPUIP")
 add_types("VPUIP")
 add_enum_attrs("VPUIP")
+add_struct_attrs("VPUIP")
 add_passes("dialect/VPUIP" "VPUIP")
+add_rewriters("dialect/VPUIP")
 
 add_dialect("VPURT")
 add_op_interfaces("dialect/VPURT")
@@ -287,6 +291,13 @@ add_op_interfaces("dialect/ELF")
 add_enum_attrs("ELF")
 add_types("ELF")
 add_passes("dialect/ELF" "ELF")
+
+add_dialect("VPUIPRegMapped")
+add_op_interfaces("dialect/VPUIPRegMapped")
+add_attributes("VPUIPRegMapped")
+add_enum_attrs("VPUIPRegMapped")
+add_struct_attrs("VPUIPRegMapped")
+add_types("VPUIPRegMapped")
 
 add_passes("conversion" "Conversion")
 add_rewriters("conversion")
@@ -378,6 +389,7 @@ if(BUILD_SHARED_LIBS)
 else()
     set(OBJ_TARGET_NAME ${TARGET_NAME})
     add_library(${OBJ_TARGET_NAME} STATIC ${SOURCES} ${COMPILER_FOR_DRIVER_VERSION_FILE})
+    add_library(${MLIR_DEPS_NAME} STATIC ${CMAKE_CURRENT_SOURCE_DIR}/src/compiler_version.cpp)
 endif()
 
 if(ENABLE_BITCOMPACTOR)
@@ -512,7 +524,9 @@ if(BUILD_SHARED_LIBS)
     add_library(${STATIC_TARGET_NAME} STATIC $<TARGET_OBJECTS:${OBJ_TARGET_NAME}> ${BITCOMPACTOR_TARGET_OBJ} $<TARGET_OBJECTS:huffman_codec>)
     target_link_libraries(${STATIC_TARGET_NAME} PUBLIC $<BUILD_INTERFACE:${OBJ_TARGET_NAME}>)
 else()
-    bundle_static_library(${OBJ_TARGET_NAME} mlir-dependencies inferenceStatic)
+    bundle_static_library(${OBJ_TARGET_NAME} inferenceStatic)
+    bundle_static_library(${MLIR_DEPS_NAME} mlir-dependencies)
+    add_dependencies(${MLIR_DEPS_NAME} ${OBJ_TARGET_NAME})
     add_library(${STATIC_TARGET_NAME} ALIAS ${OBJ_TARGET_NAME})
 endif()
 
@@ -523,6 +537,13 @@ endif()
 install(TARGETS ${TARGET_NAME} EXPORT OpenVINOTargets
         ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT ${VPUX_PLUGIN_COMPONENT}
         LIBRARY DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT ${VPUX_PLUGIN_COMPONENT})
+
+if(NOT BUILD_SHARED_LIBS)
+	install(TARGETS ${MLIR_DEPS_NAME} EXPORT OpenVINOTargets
+		ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT ${VPUX_PLUGIN_COMPONENT}
+		LIBRARY DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT ${VPUX_PLUGIN_COMPONENT})
+endif()
+
 
 if(TARGET vpux_elf)
     install(TARGETS vpux_elf EXPORT OpenVINOTargets

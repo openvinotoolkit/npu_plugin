@@ -12,6 +12,23 @@
 #include <mlir/IR/Attributes.h>
 #include <mlir/IR/BuiltinTypes.h>
 
+namespace vpux {
+namespace Const {
+namespace details {
+
+//
+// PositionRequirement
+//
+// Determines whether a constant transformation has a requirement on where to be placed in the
+// list of transformations (e.g. if it should be the last transformation)
+//
+
+enum class PositionRequirement { NONE, LAST };
+
+}  // namespace details
+}  // namespace Const
+}  // namespace vpux
+
 //
 // Generated
 //

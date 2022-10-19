@@ -21,23 +21,22 @@ set_target_properties(copy_vpuip_schema_tests PROPERTIES FOLDER "tests")
 
 set(vpuip_schema_file "path('../schema/graphfile.fbs')")
 
-add_custom_target(copy_tests_data ALL
+add_custom_target(copy_lit_tests_script ALL
     COMMAND
-        ${CMAKE_COMMAND} -E remove_directory
-            "$<TARGET_FILE_DIR:vpuxUnitTests>/lit-tests/data"
-    COMMAND
-        ${CMAKE_COMMAND} -E copy_directory
-            "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/tests/data"
-            "$<TARGET_FILE_DIR:vpuxUnitTests>/lit-tests/data"
-    COMMENT "[LIT] Copy tests data"
+        ${CMAKE_COMMAND} -E copy
+            "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/scripts/run_all_lit_tests.sh"
+            "$<TARGET_FILE_DIR:vpuxUnitTests>/lit-tests/run_all_lit_tests.sh"
+        COMMENT "[LIT] Copy runner script"
 )
-set_target_properties(copy_tests_data PROPERTIES FOLDER "tests")
 
-set(profiling_0_bin "path('../data/profiling-0.bin')")
+set(profiling_0_30XX_bin "path('VPUX30XX/data/profiling-0-30XX.bin')")
+set(profiling_0_37XX_bin "path('VPUX37XX/data/profiling-0-37XX.bin')")
 
 vpux_setup_lit_tests(VPUX
-    PATTERNS "*.mlir" "*.json"
+    PATTERNS "*.mlir" "*.json" "profiling*.bin"
     EXTRA_SOURCES "lit.local.cfg"
-    VARS "vpuip_schema_file" "profiling_0_bin"
-    SUBSTITUTIONS "vpuip_schema_file" "profiling_0_bin"
+    VARS "vpuip_schema_file" "profiling_0_30XX_bin" "profiling_0_37XX_bin"
+    PARAMS "arch"
+    PARAMS_DEFAULT_VALUES "VPUX30XX"
+    SUBSTITUTIONS "vpuip_schema_file" "profiling_0_30XX_bin" "profiling_0_37XX_bin"
 )

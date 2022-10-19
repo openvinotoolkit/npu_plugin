@@ -190,7 +190,8 @@ mlir::LogicalResult ReduceMeanRewriter::matchAndRewrite(IE::ReduceMeanOp origOp,
     return generalReduceRewrite(
             origOp, rewriter, [&](mlir::Location loc, mlir::Value input, PoolingAttr attr) -> mlir::Operation* {
                 return rewriter.create<IE::AvgPoolOp>(loc, input, attr.kernelAttr, attr.stridesAttr, attr.padBeginAttr,
-                                                      attr.padEndAttr, attr.roundingAttr, attr.excludePadsAttr);
+                                                      attr.padEndAttr, attr.roundingAttr, attr.excludePadsAttr,
+                                                      nullptr);
             });
 }
 
@@ -240,7 +241,8 @@ mlir::LogicalResult ReduceSumRewriter::matchAndRewrite(IE::ReduceSumOp origOp, m
     return generalReduceRewrite(
             origOp, rewriter, [&](mlir::Location loc, mlir::Value input, PoolingAttr attr) -> mlir::Operation* {
                 input = rewriter.create<IE::AvgPoolOp>(loc, input, attr.kernelAttr, attr.stridesAttr, attr.padBeginAttr,
-                                                       attr.padEndAttr, attr.roundingAttr, attr.excludePadsAttr);
+                                                       attr.padEndAttr, attr.roundingAttr, attr.excludePadsAttr,
+                                                       nullptr);
 
                 mlir::MLIRContext* ctx = origOp->getContext();
                 const auto dataStorageTensor = mlir::RankedTensorType::get({1}, mlir::Float16Type::get(ctx));

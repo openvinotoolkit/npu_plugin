@@ -312,6 +312,13 @@ mlir::MemRefType getMemRefType(VPURT::BufferSection section, size_t sectionIdx, 
     return vpux::getMemRefType(ShapeRef(shape), elemType, order, symbolAttr);
 }
 
+mlir::MemRefType getMemRefType(VPURT::BufferSection section, size_t sectionIdx, ShapeRef shape, mlir::Type elemType,
+                               DimsOrder order) {
+    auto symbolAttr =
+            IndexedSymbolAttr::get(elemType.getContext(), stringifyEnum(VPURT::getMemoryKind(section)), sectionIdx);
+    return vpux::getMemRefType(shape, elemType, order, symbolAttr);
+}
+
 mlir::MemRefType getMemRefType(VPURT::BufferSection section, ArrayRef<int64_t> shape, mlir::Type elemType,
                                DimsOrder order, StridesRef strides) {
     return vpux::getMemRefType(ShapeRef(shape), elemType, order, strides, VPURT::getMemoryKind(section));
@@ -330,20 +337,30 @@ vpux::VPURT::DeclareBufferOp createDeclareTensorOp(mlir::OpBuilder& builder, VPU
     const auto type = getMemRefType(section, locale, shape, elemType, order);
     return builder.create<VPURT::DeclareBufferOp>(builder.getUnknownLoc(), type, section, locale, offset);
 }
+
+vpux::VPURT::DeclareBufferOp createDeclareTensorOp(mlir::OpBuilder& builder, VPURT::BufferSection section,
+                                                   ShapeRef shape, mlir::Type elemType, DimsOrder order, int64_t locale,
+                                                   size_t offset) {
+    const auto type = getMemRefType(section, locale, shape, elemType, order);
+    return builder.create<VPURT::DeclareBufferOp>(builder.getUnknownLoc(), type, section, locale, offset);
+}
+
 vpux::VPURT::DeclareBufferOp createDeclareTensorOp(mlir::OpBuilder builder, VPURT::BufferSection section,
                                                    ArrayRef<int64_t> shape, mlir::Type elemType, DimsOrder order,
                                                    StridesRef strides, int64_t locale, size_t offset) {
     const auto type = getMemRefType(section, locale, shape, elemType, order, strides);
     return builder.create<VPURT::DeclareBufferOp>(builder.getUnknownLoc(), type, section, locale, offset);
 }
+
 vpux::VPURT::DeclareBufferOp createDeclareTensorOp(mlir::OpBuilder& builder, mlir::MemRefType type,
                                                    VPURT::BufferSection section, int64_t locale, size_t offset) {
     return builder.create<VPURT::DeclareBufferOp>(builder.getUnknownLoc(), type, section, locale, offset);
 }
 
-vpux::VPURT::DeclareSparseBufferOp createDeclareSparseTensorOp(mlir::OpBuilder& builder, mlir::Value data,
-                                                               mlir::Value sparsityMap) {
-    return builder.create<VPURT::DeclareSparseBufferOp>(builder.getUnknownLoc(), data, sparsityMap);
+vpux::VPURT::DeclareBufferOp createDeclareTensorOp(mlir::OpBuilder& builder, mlir::Type type,
+                                                   VPURT::BufferSection section, ArrayRef<int64_t> locale,
+                                                   size_t offset) {
+    return builder.create<VPURT::DeclareBufferOp>(builder.getUnknownLoc(), type, section, locale, offset);
 }
 
 mlir::OpResult getTensorResult(VPURT::DeclareBufferOp op) {

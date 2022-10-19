@@ -6,6 +6,7 @@
 //
 
 #include "vpux/compiler/dialect/VPUIP/graph-schema/blob_writer.hpp"
+#include "vpux/compiler/dialect/VPUIP/permute_as_nndma_utils.hpp"
 
 #include "vpux/compiler/core/attributes/dims_order.hpp"
 #include "vpux/compiler/core/attributes/stride_reqs.hpp"
@@ -167,6 +168,22 @@ vpux::VPUIP::BlobWriter::KernelDataRef vpux::VPUIP::BlobWriter::createKernelData
     return kernelData.Finish();
 }
 
+VPUIP::BlobWriter::KernelDataRef vpux::VPUIP::BlobWriter::createActKernelPerfDataRef(
+        StringRef name, mlir::ShapedType type, VPURT::BufferSection section, int64_t sectionIndex, int64_t byteOffset) {
+    const auto serializedName = createString(name);
+    const auto serializedLocale = createMemoryLocation(section);
+
+    _log.trace("Store profiling data in kernelData array: {0}\n", name);
+
+    MVCNN::KernelDataReferenceBuilder builder(_impl);
+    builder.add_name(serializedName);
+    builder.add_data_offset(checked_cast<uint32_t>(byteOffset));
+    builder.add_referenced_data_size(checked_cast<uint32_t>(type.getSizeInBits() / CHAR_BIT));
+    builder.add_locale(serializedLocale);
+    builder.add_locale_offset(checked_cast<uint32_t>(sectionIndex));
+    return builder.Finish();
+}
+
 vpux::VPUIP::BlobWriter::ActKernel vpux::VPUIP::BlobWriter::createRuntimeKernelTask(mlir::ModuleOp module,
                                                                                     mlir::Operation* op) {
     auto swRuntimeOp = mlir::dyn_cast<VPURT::SWRunTimeOp>(op);
@@ -276,11 +293,28 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BlobWriter::createSW_KernelTask(mli
     auto invocationSection =
             createKernelDataRef(uniqueInvocationName, nonEmptyOffset, invocationArgs.size(), invocationArgsAndData);
 
+    auto profilingData = swKernelTask.profiling_data();
+    VPUIP::BlobWriter::KernelDataRef perfDataRef;
+    if (profilingData != nullptr) {
+        if (auto bufOp = mlir::dyn_cast<VPURT::DeclareBufferOp>(profilingData.getDefiningOp())) {
+            const ::llvm::Optional<mlir::ArrayAttr> sectionIndexOpt = bufOp.sectionIndex();
+            if (sectionIndexOpt.hasValue()) {
+                const int64_t sectionIndex =
+                        (sectionIndexOpt.getValue())[0].cast<mlir::IntegerAttr>().getValue().getSExtValue();
+                perfDataRef = vpux::VPUIP::BlobWriter::createActKernelPerfDataRef(
+                        llvm::StringRef("perfBuffer"), bufOp.getType().cast<mlir::ShapedType>(), bufOp.section(),
+                        sectionIndex, bufOp.byteOffset());
+            }
+        }
+    }
+
     MVCNN::ActKernelInvocationBuilder invocationBuilder(_impl);
     invocationBuilder.add_dataSection(dataSection);
     invocationBuilder.add_associatedBarriers(barrierReference);
     invocationBuilder.add_invocationArgs(invocationSection);
-
+    if (!perfDataRef.IsNull()) {
+        invocationBuilder.add_perfPayload(perfDataRef);
+    }
     std::vector<flatbuffers::Offset<MVCNN::ActKernelInvocation>> invocations_v1 = {invocationBuilder.Finish()};
 
     auto invocations_v2 = _impl.CreateVector(invocations_v1);
@@ -296,7 +330,7 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BlobWriter::createUPALayerTask(mlir
                                                                             const SoftwareLayerParams& params) {
     VPUX_THROW_UNLESS(op != nullptr, "Got NULL pointer in createUPALayerTask");
 
-    auto layer = mlir::dyn_cast<IERT::LayerOpInterface>(op);
+    auto layer = mlir::dyn_cast<VPUIP::LayerOpInterface>(op);
     VPUX_THROW_UNLESS(layer != nullptr, "Operation '{0}' is not a RT Layer", op->getName());
 
     auto taskOp = op->getParentOfType<VPURT::TaskOp>();
@@ -332,10 +366,88 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BlobWriter::createUPALayerTask(mlir
     return {builder.Finish().Union(), MVCNN::SpecificTask_UPALayerTask};
 }
 
+const VPUIP::BlobWriter::DMADescriptorReference vpux::VPUIP::BlobWriter::getDepthToSpaceNNDMADescriptorReference(
+        mlir::Operation* op) const {
+    auto dmaTask = mlir::dyn_cast<VPUIP::DepthToSpaceDMAOp>(op);
+    VPUX_THROW_UNLESS(dmaTask, "Only DepthToSpaceDMAOp and PermuteDMAOp supported DMADescriptorReference.");
+
+    const auto inOrder = DimsOrder::fromValue(dmaTask.input());
+    const auto outOrder = DimsOrder::fromValue(dmaTask.output_buff());
+    auto islegalType = (inOrder == DimsOrder::NHWC && outOrder == DimsOrder::NHWC);
+    VPUX_THROW_UNLESS(islegalType, "DepthToSpaceDMAOp just support NHWC (NCHW TODO), but got {0}.", inOrder);
+
+    auto inType = dmaTask.input().getType().cast<vpux::NDTypeInterface>();
+    auto elemTypeSize = Byte(inType.getElemTypeSize()).count();
+    uint32_t len(0), srcWidth(0), srcStride(0), srcPlaneStride(0);
+    uint32_t dstWidth(0), dstStride(0), dstPlaneStride(0), numPlanes(0);
+
+    const auto blockSize = dmaTask.block_size();
+    const auto model = dmaTask.mode();
+    const auto OW = dmaTask.output_width();
+    const auto OC = dmaTask.output_channel();
+    const auto IH = inType.getShape()[Dims4D::Act::H];
+
+    if (inOrder == DimsOrder::NHWC && model == IE::DepthToSpaceMode::BLOCKS_FIRST) {
+        len = checked_cast<uint32_t>(OC * OW * elemTypeSize);
+        srcWidth = checked_cast<uint32_t>(OC * blockSize * elemTypeSize);
+        srcStride = checked_cast<uint32_t>(OC * blockSize * blockSize * elemTypeSize);
+        srcPlaneStride = checked_cast<uint32_t>(OC * OW * blockSize * elemTypeSize);
+        dstWidth = checked_cast<uint32_t>(OC * OW * elemTypeSize);
+        dstStride = checked_cast<uint32_t>(elemTypeSize);
+        dstPlaneStride = checked_cast<uint32_t>(OC * OW * blockSize * elemTypeSize);
+        numPlanes = checked_cast<uint32_t>(IH);
+    }
+
+    if (inOrder == DimsOrder::NHWC && model == IE::DepthToSpaceMode::DEPTH_FIRST) {
+        len = checked_cast<uint32_t>(OC * elemTypeSize);
+        srcWidth = checked_cast<uint32_t>(elemTypeSize);
+        srcStride = checked_cast<uint32_t>(blockSize * blockSize * elemTypeSize);
+        srcPlaneStride = checked_cast<uint32_t>(blockSize * elemTypeSize);
+        dstWidth = checked_cast<uint32_t>(OC * elemTypeSize);
+        dstStride = checked_cast<uint32_t>(elemTypeSize);
+        dstPlaneStride = checked_cast<uint32_t>(OC * OW * elemTypeSize);
+        numPlanes = checked_cast<uint32_t>(blockSize);
+    }
+
+    _log.trace("Create DMADestribution type for Task {0}", op->getLoc());
+    return VPUIP::BlobWriter::DMADescriptorReference{len,      srcWidth,  srcStride,      srcPlaneStride,
+                                                     dstWidth, dstStride, dstPlaneStride, numPlanes};
+}
+
+const VPUIP::BlobWriter::DMADescriptorReference vpux::VPUIP::BlobWriter::getPermuteNNDMADescriptorReference(
+        mlir::Operation* op) const {
+    auto dmaTask = mlir::dyn_cast<VPUIP::PermuteDMAOp>(op);
+    VPUX_THROW_UNLESS(dmaTask, "Only PermuteDMAOp supported DMADescriptorReference.");
+
+    const auto dataShape = getShape(dmaTask.input());
+    VPUX_THROW_UNLESS(dataShape.size() == 2, "PermuteDMAOp shape size should be 2. but got {0}", dataShape.size());
+    auto N = dataShape[Dims4D::Act::N];
+    auto C = dataShape[Dims4D::Act::C];
+
+    auto inType = dmaTask.input().getType().cast<vpux::NDTypeInterface>();
+    auto elemTypeSize = Byte(inType.getElemTypeSize()).count();
+
+    VPUX_THROW_UNLESS(N <= DMA_MAX_NUMBER_PLANES, "NUM PLANES should less than or equal to {0}, but got {1}.",
+                      DMA_MAX_NUMBER_PLANES, N);
+    auto len = checked_cast<uint32_t>(C * elemTypeSize);
+    auto srcWidth = checked_cast<uint32_t>(C * elemTypeSize);
+    auto srcStride = checked_cast<uint32_t>(elemTypeSize);
+    auto srcPlaneStride = checked_cast<uint32_t>(C * elemTypeSize);
+    auto dstWidth = checked_cast<uint32_t>(elemTypeSize);
+    auto dstStride = checked_cast<uint32_t>(dmaTask.dst_stride() * elemTypeSize);
+    auto dstPlaneStride = checked_cast<uint32_t>(elemTypeSize);
+    auto numPlanes = checked_cast<uint32_t>(N);
+
+    _log.trace("Create DMA distribution type for Task '{0}' at '{1}'", op->getName(), op->getLoc());
+    return VPUIP::BlobWriter::DMADescriptorReference{len,      srcWidth,  srcStride,      srcPlaneStride,
+                                                     dstWidth, dstStride, dstPlaneStride, numPlanes};
+}
+
 VPUIP::BlobWriter::TensorReference vpux::VPUIP::BlobWriter::createTensorRef(
         StringRef name, vpux::NDTypeInterface type, VPURT::BufferSection section, ArrayRef<int64_t> sectionIndex,
         int64_t byteOffset, ArrayRef<int64_t> mult, ArrayRef<int64_t> shift, int64_t postShift,
-        ArrayRef<uint8_t> zeroPoints, Optional<int64_t> sparsityMapOffset, Optional<int64_t> storageElementOffset) {
+        ArrayRef<uint8_t> zeroPoints, Optional<int64_t> sparsityMapOffset, Optional<int64_t> storageElementOffset,
+        Optional<int64_t> swizzlingKey) {
     const auto serializedName = createString(name);
 
     const auto serializedDataType = VPUIP::createDType(type.getElementType());
@@ -370,12 +482,16 @@ VPUIP::BlobWriter::TensorReference vpux::VPUIP::BlobWriter::createTensorRef(
     builder.add_quant_post_shift_right(checked_cast<int8_t>(postShift));
     builder.add_order(dimsOrder.code());
     builder.add_base_ptrs(basePtrs);
+    if (swizzlingKey.hasValue()) {
+        builder.add_swizzling_key(checked_cast<uint8_t>(swizzlingKey.getValue()));
+    }
     return builder.Finish();
 }
 
 VPUIP::BlobWriter::TensorReference vpux::VPUIP::BlobWriter::createTensorRef(
         StringRef name, vpux::NDTypeInterface type, VPURT::BufferSection section, ArrayRef<int64_t> sectionIndex,
-        int64_t byteOffset, Optional<int64_t> sparsityMapOffset, Optional<int64_t> storageElementOffset) {
+        int64_t byteOffset, Optional<int64_t> sparsityMapOffset, Optional<int64_t> storageElementOffset,
+        Optional<int64_t> swizzlingKey) {
     SmallVector<uint8_t> zeroPoints;
     SmallVector<int64_t> mults;
     SmallVector<int64_t> shifts;
@@ -408,35 +524,35 @@ VPUIP::BlobWriter::TensorReference vpux::VPUIP::BlobWriter::createTensorRef(
     }
 
     return createTensorRef(name, type, section, sectionIndex, byteOffset, mults, shifts, 0, zeroPoints,
-                           sparsityMapOffset, storageElementOffset);
+                           sparsityMapOffset, storageElementOffset, swizzlingKey);
 }
 
 VPUIP::BlobWriter::TensorReference vpux::VPUIP::BlobWriter::createTensorRef(StringRef name, vpux::NDTypeInterface type,
                                                                             VPURT::BufferSection section,
                                                                             int64_t sectionIndex, int64_t byteOffset,
                                                                             Optional<int64_t> sparsityMapOffset,
-                                                                            Optional<int64_t> storageElementOffset) {
+                                                                            Optional<int64_t> storageElementOffset,
+                                                                            Optional<int64_t> swizzlingKey) {
     return createTensorRef(name, type, section, makeArrayRef({sectionIndex}), byteOffset, sparsityMapOffset,
-                           storageElementOffset);
+                           storageElementOffset, swizzlingKey);
 }
 
 VPUIP::BlobWriter::TensorReference vpux::VPUIP::BlobWriter::createTensorRef(
         mlir::Value val, StringRef name, VPURT::BufferSection section, ArrayRef<int64_t> sectionIndex,
-        int64_t byteOffset, Optional<int64_t> sparsityMapOffset, Optional<int64_t> storageElementOffset) {
+        int64_t byteOffset, Optional<int64_t> sparsityMapOffset, Optional<int64_t> storageElementOffset,
+        Optional<int64_t> swizzlingKey) {
     VPUX_THROW_UNLESS(_tensors.count(val) == 0, "Value '{0}' was already serialized", val.getLoc());
     const auto ref = createTensorRef(name, val.getType().cast<vpux::NDTypeInterface>(), section, sectionIndex,
-                                     byteOffset, sparsityMapOffset, storageElementOffset);
+                                     byteOffset, sparsityMapOffset, storageElementOffset, swizzlingKey);
     _tensors.insert({val, ref});
     return ref;
 }
 
-VPUIP::BlobWriter::TensorReference vpux::VPUIP::BlobWriter::createTensorRef(mlir::Value val, StringRef name,
-                                                                            VPURT::BufferSection section,
-                                                                            int64_t sectionIndex, int64_t byteOffset,
-                                                                            Optional<int64_t> sparsityMapOffset,
-                                                                            Optional<int64_t> storageElementOffset) {
+VPUIP::BlobWriter::TensorReference vpux::VPUIP::BlobWriter::createTensorRef(
+        mlir::Value val, StringRef name, VPURT::BufferSection section, int64_t sectionIndex, int64_t byteOffset,
+        Optional<int64_t> sparsityMapOffset, Optional<int64_t> storageElementOffset, Optional<int64_t> swizzlingKey) {
     return createTensorRef(val, name, section, makeArrayRef({sectionIndex}), byteOffset, sparsityMapOffset,
-                           storageElementOffset);
+                           storageElementOffset, swizzlingKey);
 }
 
 VPUIP::BlobWriter::TensorReference vpux::VPUIP::BlobWriter::getTensorRef(mlir::Value val) const {

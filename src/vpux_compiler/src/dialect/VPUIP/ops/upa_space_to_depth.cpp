@@ -7,25 +7,11 @@
 
 #include <mlir/IR/BuiltinTypes.h>
 #include "vpux/compiler/dialect/VPUIP/graph-schema/blob_reader.hpp"
+#include "vpux/compiler/dialect/VPUIP/graph-schema/utils.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/utils/error.hpp"
 
 using namespace vpux;
-
-MVCNN::SpaceToDepthMode convertVPUXSpaceToDepthModeToMVCNN(vpux::IE::SpaceToDepthMode vpux_mode) {
-    MVCNN::SpaceToDepthMode mvcnn_mode;
-    switch (vpux_mode) {
-    case IE::SpaceToDepthMode::BLOCKS_FIRST:
-        mvcnn_mode = MVCNN::SpaceToDepthMode::SpaceToDepthMode_BLOCKS_FIRST;
-        break;
-    case IE::SpaceToDepthMode::DEPTH_FIRST:
-        mvcnn_mode = MVCNN::SpaceToDepthMode::SpaceToDepthMode_DEPTH_FIRST;
-        break;
-    default:
-        VPUX_THROW("Unsupported SpaceToDepthMode {0}", vpux_mode);
-    }
-    return mvcnn_mode;
-}
 
 mlir::LogicalResult vpux::VPUIP::verifyOp(SpaceToDepthUPAOp op) {
     if (op.block_size() <= 0) {
@@ -41,7 +27,7 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::SpaceToDepthUPAOp::serialize(VPUIP:
     const auto blockSize = checked_cast<int32_t>(block_size());
     builder.add_blockSize(blockSize);
 
-    const auto spdMode = convertVPUXSpaceToDepthModeToMVCNN(mode());
+    const auto spdMode = VPUIP::convertVPUXSpaceToDepthMode2MVCNN(mode());
     builder.add_mode(spdMode);
 
     const auto paramsOff = builder.Finish();

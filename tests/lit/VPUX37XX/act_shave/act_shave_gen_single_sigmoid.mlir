@@ -71,7 +71,7 @@ func @main(%1: memref<1x1x1x1000xf16>, %2: memref<1x1x1x1000xf16>) -> memref<1x1
 
     // Genetic Kernel information for the scheduler.
     VPURT.Task waits(%b0  : !VPURT.Barrier) updates(%b1  : !VPURT.Barrier) {
-        VPUIP.SW.Kernel
+        VPUIP.SW.Kernel {result_segment_sizes = dense<[1, 0]> : vector<2xi32>}
                     @VPU.SW::@builtin_sigmoid            // The reference to the Kernel function.
                     inputs(%in_tile0_cmx : memref<1x1x1x1000xf16, [@CMX_NN, 0]>)     // Inputs/outputs buffers for generic operation interface
                     outputs(%out_tile0_cmx : memref<1x1x1x1000xf16, [@CMX_NN, 0]>)   // and their mapping to inner region.
@@ -276,7 +276,8 @@ func @main(%1: memref<1x1x1x1000xf16>, %2: memref<1x1x1x1000xf16>) -> memref<1x1
 // CHECK:            }
 // CHECK:          }
 // CHECK:        ]
-// CHECK:      },
+// CHECK:      }
+// CHECK:   ],
 
 
 // CHECK:   kernel_data: [

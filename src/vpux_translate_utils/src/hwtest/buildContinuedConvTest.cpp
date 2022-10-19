@@ -37,10 +37,10 @@ void buildContinuedConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Module
     auto* ctx = builder.getContext();
     const auto int32 = builder.getIntegerType(32, true);
 
-    const auto input = testDesc.getInputLayer();
+    const auto input = testDesc.getInputLayerList().front();
     const auto weights = testDesc.getWeightLayer();
     const auto conv = testDesc.getConvLayer();
-    const auto output = testDesc.getOutputLayer();
+    const auto output = testDesc.getOutputLayers().front();
 
     const llvm::SmallVector<std::int64_t> inputShape(input.shape.begin(), input.shape.end());
     const llvm::SmallVector<std::int64_t> outputShape(output.shape.begin(), output.shape.end());
@@ -215,7 +215,7 @@ void buildContinuedConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Module
     // NCE Task 0
     auto nceTask_0 = VPURT::wrapIntoTaskOp<NCEClusterTaskOp>(
             functionBuilder, barriers[0], barriers[1], builder.getUnknownLoc(), inputPartial0CMX.buffer(),
-            weightsPartial0CMX.buffer(), weightsTable0CMX.buffer(),
+            weightsPartial0CMX.buffer(), weightsTable0CMX.buffer(), /*instruction_table_list=*/nullptr,
             /*activation_window=*/nullptr, inputPartial0CMX.buffer(), output0CMX.buffer(), output0CMX.buffer(),
             VPUIP::NCETaskType::CONV, kernelSize, strides, kernelPaddings,
             /*activation_window_channel_length=*/nullptr, isContinued, /*sp_pattern*/ nullptr);
@@ -231,7 +231,7 @@ void buildContinuedConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Module
     // NCE Task 1
     auto nceTask_1 = VPURT::wrapIntoTaskOp<NCEClusterTaskOp>(
             functionBuilder, barriers[1], barriers[2], builder.getUnknownLoc(), inputPartial1CMX.buffer(),
-            weightsPartial1CMX.buffer(), weightsTable1CMX.buffer(),
+            weightsPartial1CMX.buffer(), weightsTable1CMX.buffer(), /*instruction_table_list=*/nullptr,
             /*activation_window=*/nullptr, inputPartial1CMX.buffer(), output1CMX.buffer(), output1CMX.buffer(),
             VPUIP::NCETaskType::CONV, kernelSize, strides, kernelPaddings,
             /*activation_window_channel_length=*/nullptr,
@@ -245,7 +245,8 @@ void buildContinuedConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Module
     functionBuilder.create<mlir::ReturnOp>(builder.getUnknownLoc(), functionOutput);
 
     mlir::PassManager pm(builder.getContext(), mlir::OpPassManager::Nesting::Implicit);
-    pm.addPass(VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::DefaultHW, None, log));
+    pm.addPass(
+            VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::DefaultHW, None, None, log));
 
     VPUX_THROW_UNLESS(mlir::succeeded(pm.run(module)), "Compilation failed");
 

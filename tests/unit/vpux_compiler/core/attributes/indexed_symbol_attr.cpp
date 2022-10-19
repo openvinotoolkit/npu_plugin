@@ -9,6 +9,7 @@
 #include "vpux/compiler/dialect/IE/utils/resources.hpp"
 #include "vpux/compiler/dialect/VPU/attributes.hpp"
 #include "vpux/compiler/dialect/VPU/passes.hpp"
+#include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/init.hpp"
 
 #include <mlir/IR/MLIRContext.h>
@@ -84,8 +85,8 @@ TEST(MLIR_IndexedSymbolAttr, CheckMemoryResourceAttr) {
         module @test {
             func @main(%arg0: memref<1x8x20x20xf16, @DDR>, %arg1: memref<1x8x20x20xf16, @DDR>) -> memref<1x8x20x20xf16, @DDR> {
                 %0 = memref.alloc(): memref<1x8x20x20xf16, [@CMX_NN, 0]>
-                %1 = IERT.Copy inputs(%arg0 : memref<1x8x20x20xf16, @DDR>) outputs(%0 : memref<1x8x20x20xf16, [@CMX_NN, 0]>) -> memref<1x8x20x20xf16, [@CMX_NN, 0]>
-                %2 = IERT.Copy inputs(%0 : memref<1x8x20x20xf16, [@CMX_NN, 0]>) outputs(%arg1 : memref<1x8x20x20xf16, @DDR>) -> memref<1x8x20x20xf16, @DDR>
+                %1 = VPUIP.Copy inputs(%arg0 : memref<1x8x20x20xf16, @DDR>) outputs(%0 : memref<1x8x20x20xf16, [@CMX_NN, 0]>) -> memref<1x8x20x20xf16, [@CMX_NN, 0]>
+                %2 = VPUIP.Copy inputs(%0 : memref<1x8x20x20xf16, [@CMX_NN, 0]>) outputs(%arg1 : memref<1x8x20x20xf16, @DDR>) -> memref<1x8x20x20xf16, @DDR>
 
                 return %2 : memref<1x8x20x20xf16, @DDR>
             }
@@ -112,7 +113,7 @@ TEST(MLIR_IndexedSymbolAttr, CheckMemoryResourceAttr) {
             auto memSpace = type.getMemSpace();
 
             checkCMXSpace(memSpace, 0);
-        } else if (auto copyOp = mlir::dyn_cast<vpux::IERT::CopyOp>(op)) {
+        } else if (auto copyOp = mlir::dyn_cast<vpux::VPUIP::CopyOp>(op)) {
             auto inMemSpace = copyOp.input().getType().cast<vpux::NDTypeInterface>().getMemSpace();
             auto outMemSpace = copyOp.output().getType().cast<vpux::NDTypeInterface>().getMemSpace();
 
@@ -144,23 +145,23 @@ TEST(MLIR_IndexedSymbolAttr, CheckExecutorResourceAttr) {
             func @main(%arg0: memref<1x16x62x62xf16, #NHWC>,
                         %arg1: memref<1x48x60x60xf16, #NHWC>) -> memref<1x48x60x60xf16, #NHWC> {
                 %cst = const.Declare memref<48x16x3x3xf16, #NHWC> = #const.Content<dense<1.000000e+00> : tensor<48x16x3x3xf32>, [#const.ConvertElemType<f16>, #const.Reorder<#NHWC>]>
-                %0 = IERT.StaticAlloc<0> -> memref<1x16x62x62xf16, #NHWC, @CMX_NN>
-                %1 = IERT.StaticAlloc<468608> -> memref<48x16x3x3xf16, #NHWC, @CMX_NN>
-                %2 = IERT.StaticAlloc<123008> -> memref<1x48x60x60xf16, #NHWC, @CMX_NN>
-                %3 = IERT.StaticAlloc<482432> -> memref<48x1x1x4xsi32, @CMX_NN>
+                %0 = VPUIP.StaticAlloc<0> -> memref<1x16x62x62xf16, #NHWC, @CMX_NN>
+                %1 = VPUIP.StaticAlloc<468608> -> memref<48x16x3x3xf16, #NHWC, @CMX_NN>
+                %2 = VPUIP.StaticAlloc<123008> -> memref<1x48x60x60xf16, #NHWC, @CMX_NN>
+                %3 = VPUIP.StaticAlloc<482432> -> memref<48x1x1x4xsi32, @CMX_NN>
                 %token, %results = async.execute ->
                                     !async.value<memref<1x16x62x62xf16, #NHWC, @CMX_NN>>
-                                        attributes { IERT.executor = @DMA_NN } {
-                    %5 = IERT.Copy inputs(%arg0 : memref<1x16x62x62xf16, #NHWC>)
+                                        attributes { VPUIP.executor = @DMA_NN } {
+                    %5 = VPUIP.Copy inputs(%arg0 : memref<1x16x62x62xf16, #NHWC>)
                                    outputs(%0 : memref<1x16x62x62xf16, #NHWC, @CMX_NN>) -> memref<1x16x62x62xf16, #NHWC, @CMX_NN>
                     async.yield %0 : memref<1x16x62x62xf16, #NHWC, @CMX_NN>
                 }
                 %token_0, %results_1:2 = async.execute [%token] ->
                                             (!async.value<memref<48x1x1x4xsi32, @CMX_NN>>, !async.value<memref<48x16x3x3xf16, #NHWC, @CMX_NN>>)
-                                                attributes { IERT.executor = @DMA_NN } {
+                                                attributes { VPUIP.executor = @DMA_NN } {
                   %cst_6 = const.Declare memref<48x1x1x4xsi32> = #const.Content<dense<1> : tensor<48x1x1x4xsi32>>
-                  %5 = IERT.Copy inputs(%cst_6 : memref<48x1x1x4xsi32>) outputs(%3 : memref<48x1x1x4xsi32, @CMX_NN>) -> memref<48x1x1x4xsi32, @CMX_NN>
-                  %6 = IERT.Copy inputs(%cst : memref<48x16x3x3xf16, #NHWC>) outputs(%1 : memref<48x16x3x3xf16, #NHWC, @CMX_NN>) -> memref<48x16x3x3xf16, #NHWC, @CMX_NN>
+                  %5 = VPUIP.Copy inputs(%cst_6 : memref<48x1x1x4xsi32>) outputs(%3 : memref<48x1x1x4xsi32, @CMX_NN>) -> memref<48x1x1x4xsi32, @CMX_NN>
+                  %6 = VPUIP.Copy inputs(%cst : memref<48x16x3x3xf16, #NHWC>) outputs(%1 : memref<48x16x3x3xf16, #NHWC, @CMX_NN>) -> memref<48x16x3x3xf16, #NHWC, @CMX_NN>
                   async.yield %3, %1 : memref<48x1x1x4xsi32, @CMX_NN>, memref<48x16x3x3xf16, #NHWC, @CMX_NN>
                 }
                 %token_2, %results_3 = async.execute [%token_0] (
@@ -168,7 +169,7 @@ TEST(MLIR_IndexedSymbolAttr, CheckExecutorResourceAttr) {
                                         %results_1#1 as %arg3: !async.value<memref<48x16x3x3xf16, #NHWC, @CMX_NN>>,
                                         %results_1#0 as %arg4: !async.value<memref<48x1x1x4xsi32, @CMX_NN>>) ->
                                             !async.value<memref<1x48x60x60xf16, #NHWC, @CMX_NN>>
-                                                attributes { IERT.executor = [@NCE, 1, [@DPU]] } {
+                                                attributes { VPUIP.executor = [@NCE, 1, [@DPU]] } {
                   %5 = VPUIP.NCEClusterTask {kernel_padding = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}, kernel_size = [3, 3], kernel_strides = [1, 1], task_type = "CONV"}
                                                 input(%arg2 : memref<1x16x62x62xf16, #NHWC, @CMX_NN>)
                                                 weights(%arg3 : memref<48x16x3x3xf16, #NHWC, @CMX_NN>)
@@ -188,8 +189,8 @@ TEST(MLIR_IndexedSymbolAttr, CheckExecutorResourceAttr) {
                 }
                 %token_4, %results_5 = async.execute [%token_2] (%results_3 as %arg2: !async.value<memref<1x48x60x60xf16, #NHWC, @CMX_NN>>) ->
                                         !async.value<memref<1x48x60x60xf16, #NHWC>>
-                                            attributes { IERT.executor = @DMA_NN } {
-                  %5 = IERT.Copy inputs(%arg2 : memref<1x48x60x60xf16, #NHWC, @CMX_NN>) outputs(%arg1 : memref<1x48x60x60xf16, #NHWC>) -> memref<1x48x60x60xf16, #NHWC>
+                                            attributes { VPUIP.executor = @DMA_NN } {
+                  %5 = VPUIP.Copy inputs(%arg2 : memref<1x48x60x60xf16, #NHWC, @CMX_NN>) outputs(%arg1 : memref<1x48x60x60xf16, #NHWC>) -> memref<1x48x60x60xf16, #NHWC>
                   async.yield %arg1 : memref<1x48x60x60xf16, #NHWC>
                 }
                 %4 = async.await %results_5 : !async.value<memref<1x48x60x60xf16, #NHWC>>
@@ -206,7 +207,7 @@ TEST(MLIR_IndexedSymbolAttr, CheckExecutorResourceAttr) {
 
     for (auto& op : func.getOps()) {
         if(auto executeOp = mlir::dyn_cast<mlir::async::ExecuteOp>(op)) {
-            const auto executor = vpux::IERT::IERTDialect::getExecutor(executeOp);
+            const auto executor = vpux::VPUIP::VPUIPDialect::getExecutor(executeOp);
             ASSERT_TRUE(executor != nullptr);
 
             auto execRes = vpux::IE::getAvailableExecutor(module.get(), executor.getRootReference());

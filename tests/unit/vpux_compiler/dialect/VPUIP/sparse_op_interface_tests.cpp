@@ -31,7 +31,7 @@ TEST(MLIR_VPUIP_Sparsity, SparseOpInterface) {
                 %0 = const.Declare memref<16x8x2x2xf16, #NHWC, @CMX_NN> = #const.Content<dense<2.0> : tensor<16x8x2x2xf16>, [#const.Reorder<#NHWC>]>
                 %1 = const.Declare memref<16x1x1x4xsi32> = #const.Content<dense<10> : tensor<16x1x1x4xsi32>>
                 %2 = memref.alloc() : memref<16x1x1x4xsi32, @CMX_NN>
-                %3 = IERT.Copy inputs(%1 : memref<16x1x1x4xsi32>) outputs(%2 : memref<16x1x1x4xsi32, @CMX_NN>) -> memref<16x1x1x4xsi32, @CMX_NN>
+                %3 = VPUIP.Copy inputs(%1 : memref<16x1x1x4xsi32>) outputs(%2 : memref<16x1x1x4xsi32, @CMX_NN>) -> memref<16x1x1x4xsi32, @CMX_NN>
 
                 %4 = VPUIP.NCEClusterTask { kernel_padding = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}, kernel_size = [2, 2], kernel_strides = [1, 1], task_type = "CONV" }
                     input(%arg0 : memref<1x8x20x20xf16, #NHWC, @CMX_NN>) weights(%0 : memref<16x8x2x2xf16, #NHWC, @CMX_NN>) weight_table(%3 : memref<16x1x1x4xsi32, @CMX_NN>)
@@ -58,7 +58,7 @@ TEST(MLIR_VPUIP_Sparsity, SparseOpInterface) {
 
     mlir::PassManager pm(&ctx, mlir::OpPassManager::Nesting::Implicit);
     pm.addPass(vpux::VPU::createInitCompilerPass(vpux::VPU::ArchKind::VPUX30XX, vpux::VPU::CompilationMode::DefaultHW,
-                                                 vpux::None, vpux::Logger::global()));
+                                                 vpux::None, vpux::None, vpux::Logger::global()));
 
     ASSERT_TRUE(mlir::succeeded(pm.run(module.get())));
 

@@ -369,13 +369,13 @@ typedef struct {
         } ppe_prelu_bf;
     } ppe_prelu;
 
-    unsigned int vpux30xxp0_rsvd_1; // new
-    unsigned int vpux30xxp0_rsvd_2; // new
+    unsigned int vpu2p0_rsvd_1; // new
+    unsigned int vpu2p0_rsvd_2; // new
 
     unsigned int ppe_scale_hclamp;
     unsigned int ppe_scale_lclamp;
 
-    unsigned int vpux30xxp0_rsvd_3; // new
+    unsigned int vpu2p0_rsvd_3; // new
 
     union // added new fields
     {

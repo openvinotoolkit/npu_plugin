@@ -12,10 +12,13 @@ include "vpux/compiler/core/attributes.td"
 include "vpux/compiler/dialect/ELF/attributes.td"
 include "vpux/compiler/dialect/ELF/dialect.td"
 include "vpux/compiler/dialect/ELF/types.td"
+include "vpux/compiler/dialect/VPUIPRegMapped/dialect.td"
+include "vpux/compiler/dialect/VPUIPRegMapped/types.td"
 include "mlir/IR/RegionKindInterface.td"
 include "vpux/compiler/dialect/VPUIP/dialect.td"
 include "vpux/compiler/dialect/VPURT/types.td"
 include "vpux/compiler/dialect/ELF/ops_interfaces.td"
+
 
 include "mlir/Interfaces/SideEffectInterfaces.td"
 
@@ -47,7 +50,7 @@ def CreateSectionOp :
 
     let arguments = (ins
         StrAttr:$secName,
-        ELF_SectionTypeAttr2:$secType,
+        ELF_SectionTypeAttr:$secType,
         ELF_SectionFlagsAttr:$secFlags,
         IntAttr:$secInfo,
         IntAttr:$secAddrAlign
@@ -98,10 +101,50 @@ def CreateLogicalSectionOp :
     );
 
     let assemblyFormat = [{
+        `secType` `(` $secType `)`
         `secFlags` `(` $secFlags `)`
         attr-dict
         `->` type(results)
         $declaredOps
+    }];
+}
+
+//
+// CreateMetadataSectionOp
+//
+
+def CreateMetadataSectionOp :
+        ELF_Op<"CreateMetadataSection",
+            [
+                NoRegionArguments,
+                DeclareOpInterfaceMethods<ELF_SectionInterface>
+            ]
+            # GraphRegionNoTerminator.traits
+        > {
+    let summary = "Create ELF Metadata Section";
+
+    let arguments = (ins
+        StrAttr:$secName,
+        ELF_SectionFlagsAttr:$secFlags,
+        IntAttr:$secInfo,
+        IntAttr:$secAddrAlign
+        );
+
+    let results = (outs ELF_Section:$section);
+
+    let regions = (region
+        SizedRegion<1>:$aRegion
+    );
+
+    let extraClassDeclaration = [{
+        void serialize(elf::Writer& writer, vpux::DenseMap<mlir::Operation*, elf::writer::Section*>& sectionMap, vpux::DenseMap<mlir::Operation*, elf::writer::Symbol*>& symbolMap, ELF::NetworkMetadata& metadata);
+    }];
+
+    let assemblyFormat = [{
+        `secFlags` `(` $secFlags `)`
+        attr-dict
+        `->` type(results)
+        $aRegion
     }];
 }
 
@@ -225,7 +268,8 @@ def RelocOp :
     let summary = "Reloc Op";
 
     let arguments = (ins
-          IntAttr:$offsetTargetField,
+          AnyType:$baseOp,
+          AnyType:$offsetOf,
           ELF_RelocationTypeAttr:$relocationType,
           ELF_Symbol:$sourceSymbol,
           IntAttr:$addend
@@ -233,8 +277,42 @@ def RelocOp :
 
     let results = (outs);
 
-    let assemblyFormat = "$offsetTargetField $relocationType $sourceSymbol $addend attr-dict";
+    let assemblyFormat = [{
+        `baseOp` `(` $baseOp `:` type($baseOp) `)`
+        `offsetOf` `(` $offsetOf `:` type($offsetOf) `)`
+        $relocationType $sourceSymbol $addend attr-dict}];
 }
+
+def RelocImmOffsetOp :
+    ELF_Op<"RelocImmOffset",
+        [
+            DeclareOpInterfaceMethods<ELF_RelocationObjectInterface>
+        ]
+    > {
+    let summary = "Immediate Value Reloc Op";
+
+    let arguments = (ins
+          Optional<VPUIPRegMapped_IndexType>:$baseOp,
+          IntAttr:$offset,
+          ELF_RelocationTypeAttr:$relocationType,
+          ELF_Symbol:$sourceSymbol,
+          IntAttr:$addend
+        );
+
+    let results = (outs);
+
+    let assemblyFormat = [{
+        (`baseOp` `(` $baseOp^ `:` type($baseOp) `)`)?
+        `offset` `(` $offset `)`
+        $relocationType $sourceSymbol $addend attr-dict}];
+
+    let extraClassDeclaration = [{
+        uint32_t getKernelEntry();
+        void serialize(elf::writer::Relocation* relocation, vpux::DenseMap<mlir::Operation*, elf::writer::Symbol*>& symbolMap, mlir::Operation* targetSection);
+    }];
+
+
+    }
 
 //
 // PutOpInSectionOp

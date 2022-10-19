@@ -168,6 +168,7 @@ MVCNN::TargetDeviceRevision getDeviceRevision(const InferenceEngine::VPUXConfigP
     case InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3800:
     case InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3900:
     case InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3720:
+    case InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3720ELF:
     default:
         return MVCNN::TargetDeviceRevision::TargetDeviceRevision_NONE;
     }

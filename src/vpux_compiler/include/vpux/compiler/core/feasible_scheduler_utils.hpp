@@ -11,14 +11,15 @@
 #include <unordered_map>
 #include <unordered_set>
 
+#include <vpu_cost_model.h>
+
 namespace vpux {
 
 struct ScheduledOpOneResource {
     enum class EResRelation { PRODUCER = 0, CONSUMER = 1 };
 
     using OperationType = size_t;
-    ScheduledOpOneResource(): _op(), _addressStart(), _addressEnd() {
-    }
+    ScheduledOpOneResource() = default;
 
     ScheduledOpOneResource(OperationType op, size_t start, size_t end,
                            EResRelation resRelation = EResRelation::PRODUCER)
@@ -47,10 +48,10 @@ struct ScheduledOpOneResource {
         return (_addressStart != o._addressStart) ? (_addressStart < o._addressStart) : (_addressEnd < o._addressEnd);
     }
 
-    OperationType _op;
-    size_t _addressStart;
-    size_t _addressEnd;
-    EResRelation _resRelation;
+    OperationType _op{};
+    size_t _addressStart{};
+    size_t _addressEnd{};
+    EResRelation _resRelation{EResRelation::PRODUCER};
 };  // struct ScheduledOpOneResource //
 
 }  // namespace vpux

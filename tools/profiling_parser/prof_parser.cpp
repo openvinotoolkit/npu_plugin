@@ -17,11 +17,16 @@
 #include "vpux/utils/plugin/profiling_parser.hpp"
 
 using vpux::profiling::OutputType;
+using vpux::profiling::TimeUnitFormat;
+using vpux::profiling::VerbosityLevel;
 
 DEFINE_string(b, "", "Precompiled blob that was profiled.");
 DEFINE_string(p, "", "Profiling result binary");
 DEFINE_string(f, "json", "Format to use (text or json)");
 DEFINE_string(o, "", "Output file, stdout by default");
+DEFINE_string(u, "ms", "Precision format for TraceEventFormat(ns or ms), ms by default");
+DEFINE_bool(v, false, "Medium verbosity of DPU tasks parsing");
+DEFINE_bool(vv, false, "High verbosity of DPU tasks parsing");
 
 static bool validateFile(const char* flagName, const std::string& pathToFile) {
     if (pathToFile.empty()) {
@@ -40,6 +45,11 @@ static bool validateFile(const char* flagName, const std::string& pathToFile) {
     return isValid;
 }
 
+static VerbosityLevel getVerbosity() {
+    VerbosityLevel verbosity = FLAGS_v == true ? VerbosityLevel::MEDIUM : VerbosityLevel::LOW;
+    return FLAGS_vv == true ? VerbosityLevel::HIGH : verbosity;
+}
+
 static void parseCommandLine(int argc, char* argv[], const std::string& usage) {
     gflags::SetUsageMessage(usage);
     gflags::RegisterFlagValidator(&FLAGS_b, &validateFile);
@@ -50,19 +60,26 @@ static void parseCommandLine(int argc, char* argv[], const std::string& usage) {
     gflags::SetVersionString(version.str());
 
     gflags::ParseCommandLineFlags(&argc, &argv, true);
+    std::map<VerbosityLevel, std::string> verbosityToStr = {
+            {VerbosityLevel::LOW, "Low"},
+            {VerbosityLevel::MEDIUM, "Medium"},
+            {VerbosityLevel::HIGH, "High"},
+    };
 
     std::cout << "Parameters:" << std::endl;
     std::cout << "    Network blob file:     " << FLAGS_b << std::endl;
     std::cout << "    Profiling result file: " << FLAGS_p << std::endl;
     std::cout << "    Format (text/json):    " << FLAGS_f << std::endl;
     std::cout << "    Output file:           " << FLAGS_o << std::endl;
+    std::cout << "    Time unit:             " << FLAGS_u << std::endl;
+    std::cout << "    Verbosity:             " << verbosityToStr[getVerbosity()] << std::endl;
 
     std::cout << std::endl;
 }
 
 int main(int argc, char** argv) {
-    const std::string usage =
-            "Usage: prof_parser -b <blob path> -p <output.bin path> [-f json|text] [-o <output.file>]\n";
+    const std::string usage = "Usage: prof_parser -b <blob path> -p <output.bin path> [-f json|text] [-o "
+                              "<output.file>] [-u ns|ms] [-v|vv]\n";
     if (argc < 5) {
         std::cout << usage << std::endl;
         return 0;
@@ -73,6 +90,8 @@ int main(int argc, char** argv) {
     const std::string profResult(FLAGS_p);
     std::transform(FLAGS_f.begin(), FLAGS_f.end(), FLAGS_f.begin(), ::tolower);
     const OutputType format = (FLAGS_f == "text") ? OutputType::TEXT : OutputType::JSON;
+    std::transform(FLAGS_u.begin(), FLAGS_u.end(), FLAGS_u.begin(), ::tolower);
+    const TimeUnitFormat timeFormat = (FLAGS_u == "ns") ? TimeUnitFormat::NS : TimeUnitFormat::MS;
 
     std::ifstream blob_file;
     blob_file.open(blobPath, std::ios::in | std::ios::binary);
@@ -95,7 +114,7 @@ int main(int argc, char** argv) {
     const auto blobData = std::make_pair(reinterpret_cast<uint8_t*>(blob_bin.data()), blob_length);
     const auto profilingData = std::make_pair(reinterpret_cast<uint8_t*>(output_bin.data()), profiling_length);
 
-    vpux::profiling::outputWriter(format, blobData, profilingData, FLAGS_o);
+    vpux::profiling::outputWriter(format, blobData, profilingData, FLAGS_o, timeFormat, getVerbosity());
 
     return 0;
 }

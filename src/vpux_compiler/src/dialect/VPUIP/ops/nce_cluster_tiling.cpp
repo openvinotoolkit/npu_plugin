@@ -59,7 +59,7 @@ mlir::MutableArrayRef<mlir::BlockArgument> vpux::VPUIP::NCEClusterTilingOp::getI
 
 IndexedSymbolAttr vpux::VPUIP::NCEClusterTilingOp::getExecutor() {
     // For NCEClusterTiling retrieve executer of inner operation
-    auto op = mlir::dyn_cast<IERT::AsyncLayerOpInterface>(getInnerTaskOp());
+    auto op = mlir::dyn_cast<VPUIP::AsyncLayerOpInterface>(getInnerTaskOp());
     VPUX_THROW_UNLESS(op != nullptr, "Inner operation does not support interface for executors");
     return op.getExecutor();
 }

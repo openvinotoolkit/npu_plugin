@@ -5,6 +5,8 @@
 
 //
 
+#pragma once
+
 #include "vpux/compiler/core/attributes/shape.hpp"
 #include "vpux/compiler/core/layers.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
@@ -18,8 +20,6 @@
 
 #include <functional>
 
-#pragma once
-
 namespace vpux {
 
 //
@@ -27,19 +27,19 @@ namespace vpux {
 //
 
 enum class TilingMode {
-    ISOLATED,         // (default) Split each original layer isolated with no heuristics or tweaks
-    PREFETCH,         // Create more tiles to enable prefetching between single original layer's tiles
-    PATTERN_PREFETCH  // Create more tiles to enable prefetching between two adjacent layers' tiles
+    ISOLATED,    // (default) Split each original layer isolated with no heuristics or tweaks
+    PIPELINING,  // Create more tiles to enable DMA/DPU overlapping between sub-tiles of one operation
+    PREFETCHING  // Create more tiles to enable DMA/DPU overlapping between child and parent operations
 };
 
 inline StringRef getTilingModeStr(TilingMode mode) {
     switch (mode) {
     case TilingMode::ISOLATED:
         return StringRef("ISOLATED");
-    case TilingMode::PREFETCH:
-        return StringRef("PREFETCH");
-    case TilingMode::PATTERN_PREFETCH:
-        return StringRef("PATTERN_PREFETCH");
+    case TilingMode::PIPELINING:
+        return StringRef("PIPELINING");
+    case TilingMode::PREFETCHING:
+        return StringRef("PREFETCHING");
     default:
         VPUX_THROW("Tiling mode name is not defined");
     }
@@ -60,6 +60,10 @@ struct TileInfo final {
     }
 
     explicit TileInfo(ShapeRef shape): shape(shape.raw()), offsets(shape.size(), 0), axis(shape.size(), 1) {
+    }
+
+    explicit TileInfo(ShapeRef shape, ShapeRef offsets, ShapeRef axis)
+            : shape(shape.raw()), offsets(offsets.raw()), axis(axis.raw()) {
     }
 
     void printFormat(llvm::raw_ostream& stream) const {
@@ -87,9 +91,11 @@ struct TileInfo final {
 // Operation output tiles information
 using OutputTiling = SmallVector<TileInfo>;
 
-// helper function to generate a set of tiles from dividing a shape. A shape divided across multiple dimensions will
-// generate a set of tiles, each having its own size and offsets
-OutputTiling fillDividedTiles(ShapeRef divisors, ShapeRef orig);
+// helper function to generate a set of tiles from dividing a shape. A shape divided across multiple
+// dimensions will generate a set of tiles, each having its own size and offsets. Additionally an alignment
+// can be specified per each dimension.
+OutputTiling fillDividedTiles(ShapeRef divisors, ShapeRef orig, Optional<ArrayRef<int64_t>> alignment = None);
+OutputTiling fillDividedTiles(mlir::Operation* op, ShapeRef divisors, ShapeRef shape);
 
 //
 // PadInfo
@@ -220,5 +226,14 @@ std::tuple<DimRange, int64_t, int64_t> inputForOutputDim(const DimRange& output,
                                                          int64_t padAfter);
 
 SmallVector<int64_t> alignShape(ArrayRef<int64_t> shape, Optional<ArrayRef<int64_t>> alignment);
+SmallVector<Strides> adaptStrides(ShapeRef origShape, StridesRef origStrides, ArrayRef<Shape> adaptedShapes,
+                                  DimsOrder dimsOrder);
+
+//
+// EltwiseOp
+//
+
+SmallVector<int64_t> getMaxNumTiles(mlir::Operation* op);
+InputTiling backInferEltwiseTile(mlir::Operation* op, const vpux::TileInfo& outputTile);
 
 }  // namespace vpux

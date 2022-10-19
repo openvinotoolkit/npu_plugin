@@ -106,13 +106,14 @@ bool vpux::VPU::NCEEltwiseOp::isSupported(mlir::Operation* op, bool allowDiffere
 }
 
 //
-// InferShapedTypeOpInterface
+// InferTypeOpInterface
 //
 
-mlir::LogicalResult vpux::VPU::NCEEltwiseOp::inferReturnTypeComponents(
-        mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
-        mlir::DictionaryAttr attrs, mlir::RegionRange,
-        SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
+mlir::LogicalResult vpux::VPU::NCEEltwiseOp::inferReturnTypes(mlir::MLIRContext* ctx,
+                                                              mlir::Optional<mlir::Location> optLoc,
+                                                              mlir::ValueRange operands, mlir::DictionaryAttr attrs,
+                                                              mlir::RegionRange /*regions*/,
+                                                              mlir::SmallVectorImpl<mlir::Type>& inferredReturnTypes) {
     const auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
 
     NCEEltwiseOpAdaptor op(operands, attrs);
@@ -127,9 +128,9 @@ mlir::LogicalResult vpux::VPU::NCEEltwiseOp::inferReturnTypeComponents(
         return errorAt(loc, "Broadcasting is not supported for {0} operation", NCEEltwiseOp::getOperationName());
     }
 
-    const auto elemType1 = op.input1().getType().cast<vpux::NDTypeInterface>().getElementType();
+    const auto inputType = op.input1().getType();
 
-    inferredReturnShapes.emplace_back(shape1.raw(), elemType1);
+    inferredReturnTypes.push_back(inputType);
     return mlir::success();
 }
 
@@ -155,4 +156,17 @@ SmallVector<int64_t> vpux::VPU::NCEEltwiseOp::getStrides() {
 
 vpux::VPU::PaddingAttr vpux::VPU::NCEEltwiseOp::getPad() {
     return VPU::getPaddingAttr(getContext(), PadInfo(0, 0, 0, 0));
+}
+
+bool vpux::VPU::NCEEltwiseOp::checkStrategyCompatibility(VPU::MultiClusterStrategy strategy) {
+    return strategy == VPU::MultiClusterStrategy::Clustering ||
+           strategy == VPU::MultiClusterStrategy::SplitOverHeight || strategy == VPU::MultiClusterStrategy::HKSwitch;
+}
+
+//
+// serialize
+//
+
+EMU::BlobWriter::SpecificTask vpux::VPU::NCEEltwiseOp::serialize(EMU::BlobWriter& /*writer*/) {
+    VPUX_THROW("NCEEltwiseOp shouldn't have a serializer");
 }

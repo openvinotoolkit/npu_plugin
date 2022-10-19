@@ -14,7 +14,722 @@ The operations in the **VPU Dialect** are pure functional and works on tensor le
 ### VPU tensor type to describe the tensor tiling
 This type of tensor is used together with the ClusterTiling operation
                            to describe a tile operation between clusters
+### VPU SparseTensor Type
+This object represents a sparse tensor as a group of data and metadata
 ## Operation definition
+
+### `VPU.Abs` (vpux::VPU::AbsOp)
+
+Abs VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.Abs` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+
+### `VPU.Acos` (vpux::VPU::AcosOp)
+
+Acos VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.Acos` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+
+### `VPU.Acosh` (vpux::VPU::AcoshOp)
+
+Acosh VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.Acosh` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+
+### `VPU.AdaptiveAvgPool` (vpux::VPU::AdaptiveAvgPoolOp)
+
+AdaptiveAvgPool VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.AdaptiveAvgPool` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of 16-bit float or 32-bit float values
+`pooled_spatial_shape` | 1D tensor of 32-bit signed integer or 64-bit signed integer values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+
+### `VPU.AdaptiveMaxPool` (vpux::VPU::AdaptiveMaxPoolOp)
+
+AdaptiveMaxPool VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.AdaptiveMaxPool` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`index_element_type` | ::mlir::TypeAttr | any type attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of 16-bit float or 32-bit float values
+`pooled_spatial_shape` | 1D tensor of 32-bit signed integer or 64-bit signed integer values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+`output_index` | ranked tensor of 32-bit signed integer or 64-bit signed integer values
+
+### `VPU.Add` (vpux::VPU::AddOp)
+
+Add VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.Add` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`auto_broadcast` | vpux::IE::AutoBroadcastTypeAttr | Specifies rules used for auto-broadcasting of input tensors
+`post_op` | vpux::IE::PostOp | DictionaryAttr with field(s): 'name', 'attrs' (each field having its own constraints)
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input1` | ranked tensor of 16-bit float or 32-bit float values
+`input2` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+
+### `VPU.AffineReshape` (vpux::VPU::AffineReshapeOp)
+
+AffineReshape VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.AffineReshape` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`dim_mapping` | ::mlir::ArrayAttr | array of 64-bit integer arrays
+`shape_value` | ::mlir::ArrayAttr | 64-bit integer array attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of any type values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of any type values
+
+### `VPU.And` (vpux::VPU::AndOp)
+
+And VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.And` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`auto_broadcast` | vpux::IE::AutoBroadcastTypeAttr | Specifies rules used for auto-broadcasting of input tensors
+`post_op` | vpux::IE::PostOp | DictionaryAttr with field(s): 'name', 'attrs' (each field having its own constraints)
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input1` | ranked tensor of 8-bit signless integer or 16-bit float or 32-bit float values
+`input2` | ranked tensor of 8-bit signless integer or 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 8-bit signless integer or 16-bit float or 32-bit float values
+
+### `VPU.Asin` (vpux::VPU::AsinOp)
+
+Asin VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.Asin` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+
+### `VPU.Asinh` (vpux::VPU::AsinhOp)
+
+Asinh VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.Asinh` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+
+### `VPU.Atan` (vpux::VPU::AtanOp)
+
+Atan VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.Atan` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+
+### `VPU.Atanh` (vpux::VPU::AtanhOp)
+
+Atanh VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.Atanh` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+
+### `VPU.AvgPool` (vpux::VPU::AvgPoolOp)
+
+AvgPool VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.AvgPool` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`kernel_size` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`strides` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`pads_begin` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`pads_end` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`rounding_type` | vpux::IE::RoundingTypeAttr | Rounding type that operations support
+`exclude_pads` | ::mlir::UnitAttr | unit attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+
+### `VPU.Broadcast` (vpux::VPU::BroadcastOp)
+
+Broadcast VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.Broadcast` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`mode` | vpux::IE::BroadcastTypeAttr | Broadcast type that operations support
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of any type values
+`target_shape` | 1D tensor of integer values
+`axes_mapping` | 1D tensor of integer values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of any type values
+
+### `VPU.Bucketize` (vpux::VPU::BucketizeOp)
+
+Bucketize VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.Bucketize` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`output_type` | ::mlir::TypeAttr | any type attribute
+`with_right_bound` | ::mlir::UnitAttr | unit attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`data` | ranked tensor of any type values
+`buckets` | 1D tensor of integer or floating-point values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 32-bit signed integer or 64-bit signed integer values
+
+### `VPU.CTCGreedyDecoder` (vpux::VPU::CTCGreedyDecoderOp)
+
+CTCGreedyDecoder VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.CTCGreedyDecoder` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`mergeRepeated` | ::mlir::UnitAttr | unit attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of 16-bit float or 32-bit float values
+`sequenceLengths` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+
+### `VPU.CTCGreedyDecoderSeqLen` (vpux::VPU::CTCGreedyDecoderSeqLenOp)
+
+CTCGreedyDecoderSeqLen VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.CTCGreedyDecoderSeqLen` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`mergeRepeated` | ::mlir::UnitAttr | unit attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of 16-bit float or 32-bit float values
+`sequenceLength` | ranked tensor of 32-bit signed integer values
+`blankIndex` | ranked tensor of 32-bit signed integer values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 32-bit signed integer values
+`outputLength` | ranked tensor of 32-bit signed integer values
+
+### `VPU.Ceiling` (vpux::VPU::CeilingOp)
+
+Ceiling VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.Ceiling` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+
+### `VPU.Clamp` (vpux::VPU::ClampOp)
+
+Clamp VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.Clamp` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`min` | ::mlir::FloatAttr | 64-bit float attribute
+`max` | ::mlir::FloatAttr | 64-bit float attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+
+### `VPU.Concat` (vpux::VPU::ConcatOp)
+
+VPU Concat layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.Concat` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`per_axis` | vpux::IE::ConcatAttrs | DictionaryAttr with field(s): 'axis', 'offset', 'stride' (each field having its own constraints)
+`static_offsets` | ::mlir::ArrayAttr | array of 64-bit integer arrays
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`inputs` | ranked tensor of any type values or VPU tensor type to describe the tensor tiling
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of any type values or VPU tensor type to describe the tensor tiling
+
+### `VPU.Convert` (vpux::VPU::ConvertOp)
+
+Convert VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.Convert` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`dstElemType` | ::mlir::TypeAttr | any type attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of any type values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of any type values
+
+### `VPU.Convolution` (vpux::VPU::ConvolutionOp)
+
+Convolution VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.Convolution` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`strides` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`pads_begin` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`pads_end` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`dilations` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`post_op` | vpux::IE::PostOp | DictionaryAttr with field(s): 'name', 'attrs' (each field having its own constraints)
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of 16-bit float or 32-bit float values
+`filter` | ranked tensor of 16-bit float or 32-bit float values
+`bias` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+
+### `VPU.Copy` (vpux::VPU::CopyOp)
+
+Copy VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.Copy` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`out_mem_space` | vpux::IndexedSymbolAttr | Symbol name with optional index
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of any type values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of any type values
+
+### `VPU.Cos` (vpux::VPU::CosOp)
+
+Cos VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.Cos` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+
+### `VPU.Cosh` (vpux::VPU::CoshOp)
+
+Cosh VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.Cosh` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
 
 ### `VPU.DPU.Workload` (vpux::VPU::DPUWorkloadOp)
 
@@ -37,6 +752,137 @@ operation ::= `VPU.DPU.Workload` $offsets $sizes $pad $mpe_mode attr-dict-with-k
 `pad` | vpux::VPU::PaddingAttr | DictionaryAttr with field(s): 'left', 'right', 'top', 'bottom' (each field having its own constraints)
 `mpe_mode` | vpux::VPU::MPEModeAttr | MPE Mode
 `cluster_id` | mlir::IntegerAttr | Integer attribute
+
+### `VPU.Deconvolution` (vpux::VPU::DeconvolutionOp)
+
+Deconvolution VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.Deconvolution` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`strides` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`pads_begin` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`pads_end` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`dilations` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`output_padding` | ::mlir::ArrayAttr | 64-bit integer array attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`feature` | ranked tensor of any type values
+`filter` | ranked tensor of any type values
+`output_shape` | 1D tensor of integer values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of any type values
+
+### `VPU.DepthToSpace` (vpux::VPU::DepthToSpaceOp)
+
+DepthToSpace VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.DepthToSpace` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`block_size` | mlir::IntegerAttr | Integer attribute
+`mode` | vpux::IE::DepthToSpaceModeAttr | DepthToSpaceMode that the InferenceEngine supports
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of any type values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of any type values
+
+### `VPU.Dequantize` (vpux::VPU::DequantizeOp)
+
+Dequantize VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.Dequantize` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`dstElemType` | ::mlir::TypeAttr | any type attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of QuantizedType values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+
+### `VPU.DetectionOutput` (vpux::VPU::DetectionOutputOp)
+
+DetectionOutput VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.DetectionOutput` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`attr` | vpux::IE::DetectionOutputAttr | DictionaryAttr with field(s): 'num_classes', 'background_label_id', 'top_k', 'variance_encoded_in_target', 'keep_top_k', 'code_type', 'share_location', 'nms_threshold', 'confidence_threshold', 'clip_after_nms', 'clip_before_nms', 'decrease_label_id', 'normalized', 'input_height', 'input_width', 'objectness_score' (each field having its own constraints)
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`in_box_logits` | 2D tensor of floating-point values
+`in_class_preds` | 2D tensor of floating-point values
+`in_proposals` | 3D tensor of floating-point values
+`in_additional_preds` | 2D tensor of floating-point values
+`in_additional_proposals` | 2D tensor of floating-point values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of any type values
 
 ### `VPU.DistributedCast` (vpux::VPU::DistributedCastOp)
 
@@ -70,6 +916,1456 @@ DUPLICATED|SEGMENTED -> DUPLICATED ## needed for K cluster tiling
 | :----: | ----------- |
 `output` | VPU tensor type to describe the tensor tiling
 
+### `VPU.Divide` (vpux::VPU::DivideOp)
+
+Divide VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.Divide` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`auto_broadcast` | vpux::IE::AutoBroadcastTypeAttr | Specifies rules used for auto-broadcasting of input tensors
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input1` | ranked tensor of 16-bit float or 32-bit float values
+`input2` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+
+### `VPU.Elu` (vpux::VPU::EluOp)
+
+Elu VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.Elu` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`x` | ::mlir::FloatAttr | 64-bit float attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+
+### `VPU.Equal` (vpux::VPU::EqualOp)
+
+Equal VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.Equal` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`auto_broadcast` | vpux::IE::AutoBroadcastTypeAttr | Specifies rules used for auto-broadcasting of input tensors
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input1` | ranked tensor of 16-bit float or 32-bit float values
+`input2` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+
+### `VPU.Erf` (vpux::VPU::ErfOp)
+
+Erf VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.Erf` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+
+### `VPU.Exp` (vpux::VPU::ExpOp)
+
+Exp VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.Exp` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+
+### `VPU.ExpandDilated` (vpux::VPU::ExpandDilatedOp)
+
+Expand tensor with uninitialized values according to dilations
+
+
+Syntax:
+
+```
+operation ::= `VPU.ExpandDilated` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`dilations` | ::mlir::ArrayAttr | 64-bit integer array attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of any type values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of any type values
+
+### `VPU.Expand` (vpux::VPU::ExpandOp)
+
+Expand tensor with uninitialized values
+
+
+Syntax:
+
+```
+operation ::= `VPU.Expand` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`pads_begin` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`pads_end` | ::mlir::ArrayAttr | 64-bit integer array attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of any type values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of any type values
+
+### `VPU.ExtractImagePatches` (vpux::VPU::ExtractImagePatchesOp)
+
+InferenceEngine ExtractImagePatches layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.ExtractImagePatches` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`sizes` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`strides` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`rates` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`autoPad` | vpux::IE::PadTypeAttr | PadType that the InferenceEngine supports
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`data` | 4D tensor of any type values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | 4D tensor of any type values
+
+### `VPU.FakeQuantize` (vpux::VPU::FakeQuantizeOp)
+
+FakeQuantize VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.FakeQuantize` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`levels` | mlir::IntegerAttr | Integer attribute
+`auto_broadcast` | vpux::IE::AutoBroadcastTypeAttr | Specifies rules used for auto-broadcasting of input tensors
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of 16-bit float or 32-bit float values
+`input_low` | ranked tensor of 16-bit float or 32-bit float values
+`input_high` | ranked tensor of 16-bit float or 32-bit float values
+`output_low` | ranked tensor of 16-bit float or 32-bit float values
+`output_high` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+
+### `VPU.FloorMod` (vpux::VPU::FloorModOp)
+
+FloorMod VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.FloorMod` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`auto_broadcast` | vpux::IE::AutoBroadcastTypeAttr | Specifies rules used for auto-broadcasting of input tensors
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input1` | ranked tensor of 16-bit float or 32-bit float values
+`input2` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+
+### `VPU.Floor` (vpux::VPU::FloorOp)
+
+Floor VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.Floor` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+
+### `VPU.FullyConnected` (vpux::VPU::FullyConnectedOp)
+
+FullyConnected VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.FullyConnected` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of 16-bit float or 32-bit float values
+`weights` | ranked tensor of 16-bit float or 32-bit float values
+`bias` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+
+### `VPU.GRN` (vpux::VPU::GRNOp)
+
+GRN VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.GRN` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`bias` | ::mlir::FloatAttr | 64-bit float attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+
+### `VPU.GatherElements` (vpux::VPU::GatherElementsOp)
+
+GatherElements VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.GatherElements` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`axis` | mlir::IntegerAttr | Integer attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of any type values
+`indices` | ranked tensor of integer values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of any type values
+
+### `VPU.Gather` (vpux::VPU::GatherOp)
+
+Gather VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.Gather` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`axis_value` | mlir::IntegerAttr | Integer attribute
+`batch_dims` | mlir::IntegerAttr | Integer attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of any type values
+`indices` | ranked tensor of integer values
+`axis` | ranked tensor of any type values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of any type values
+
+### `VPU.Gelu` (vpux::VPU::GeluOp)
+
+Gelu VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.Gelu` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+
+### `VPU.GreaterEqual` (vpux::VPU::GreaterEqualOp)
+
+GreaterEqual VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.GreaterEqual` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`auto_broadcast` | vpux::IE::AutoBroadcastTypeAttr | Specifies rules used for auto-broadcasting of input tensors
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input1` | ranked tensor of 16-bit float or 32-bit float values
+`input2` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+
+### `VPU.Greater` (vpux::VPU::GreaterOp)
+
+Greater VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.Greater` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`auto_broadcast` | vpux::IE::AutoBroadcastTypeAttr | Specifies rules used for auto-broadcasting of input tensors
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input1` | ranked tensor of 16-bit float or 32-bit float values
+`input2` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+
+### `VPU.GroupConvolution` (vpux::VPU::GroupConvolutionOp)
+
+GroupConvolution VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.GroupConvolution` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`strides` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`pads_begin` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`pads_end` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`dilations` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`groups` | mlir::IntegerAttr | Integer attribute
+`post_op` | vpux::IE::PostOp | DictionaryAttr with field(s): 'name', 'attrs' (each field having its own constraints)
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of 16-bit float or 32-bit float values
+`filter` | ranked tensor of 16-bit float or 32-bit float values
+`bias` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+
+### `VPU.GroupSparseTensor` (vpux::VPU::GroupSparseTensorOp)
+
+Groups sparse data and metadata into a single value
+
+
+Syntax:
+
+```
+operation ::= `VPU.GroupSparseTensor` `(` $data `:` type($data) (`,` $sparsityMap^ `:` type($sparsityMap))? (`,` $storageElementTable^ `:` type($storageElementTable))? `)`
+              attr-dict `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`data` | 4D tensor of 16-bit float or bfloat16 type or QuantizedType values
+`sparsityMap` | tensor of 1-bit signless integer values
+`storageElementTable` | tensor of 32-bit signless integer values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | VPU SparseTensor Type
+
+### `VPU.HSigmoid` (vpux::VPU::HSigmoidOp)
+
+HSigmoid VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.HSigmoid` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+
+### `VPU.HSwish` (vpux::VPU::HSwishOp)
+
+HSwish VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.HSwish` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+
+### `VPU.HardSigmoid` (vpux::VPU::HardSigmoidOp)
+
+HardSigmoid VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.HardSigmoid` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`alpha_value` | ::mlir::FloatAttr | 64-bit float attribute
+`beta_value` | ::mlir::FloatAttr | 64-bit float attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+
+### `VPU.Interpolate` (vpux::VPU::InterpolateOp)
+
+Interpolate VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.Interpolate` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`sizes_attr` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`scales_attr` | ::mlir::ArrayAttr | 64-bit float array attribute
+`axes_attr` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`attr` | vpux::IE::InterpolateAttr | DictionaryAttr with field(s): 'mode', 'shape_calc_mode', 'coord_mode', 'nearest_mode', 'antialias', 'pads_begin', 'pads_end', 'cube_coeff' (each field having its own constraints)
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of 8-bit unsigned integer or 16-bit float or 32-bit float values
+`sizes` | ranked tensor of integer values
+`scales` | ranked tensor of 16-bit float or 32-bit float values
+`axes` | ranked tensor of integer values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 8-bit unsigned integer or 16-bit float or 32-bit float values
+
+### `VPU.LRN` (vpux::VPU::LRNOp)
+
+LRN VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.LRN` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`alpha` | ::mlir::FloatAttr | 64-bit float attribute
+`beta` | ::mlir::FloatAttr | 64-bit float attribute
+`bias` | ::mlir::FloatAttr | 64-bit float attribute
+`size` | mlir::IntegerAttr | Integer attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of 16-bit float or 32-bit float values
+`axis` | ranked tensor of any type values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+
+### `VPU.LRN_IE` (vpux::VPU::LRN_IEOp)
+
+LRN_IE VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.LRN_IE` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`alpha` | ::mlir::FloatAttr | 64-bit float attribute
+`beta` | ::mlir::FloatAttr | 64-bit float attribute
+`bias` | ::mlir::FloatAttr | 64-bit float attribute
+`size` | mlir::IntegerAttr | Integer attribute
+`region` | vpux::IE::LRN_IERegionAttr | LRN_IE region that operations support
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+
+### `VPU.LSTMCell` (vpux::VPU::LSTMCellOp)
+
+LSTMCell VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.LSTMCell` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`hiddenSize` | mlir::IntegerAttr | Integer attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`inputData` | 2D tensor of 16-bit float or 32-bit float values
+`initialHiddenState` | 2D tensor of 16-bit float or 32-bit float values
+`initialCellState` | 2D tensor of 16-bit float or 32-bit float values
+`weights` | 2D tensor of 16-bit float or 32-bit float values
+`recurrenceWeights` | 2D tensor of 16-bit float or 32-bit float values
+`biases` | 1D tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`outputHiddenState` | 2D tensor of 16-bit float or 32-bit float values
+`outputCellState` | 2D tensor of 16-bit float or 32-bit float values
+
+### `VPU.LSTMSequence` (vpux::VPU::LSTMSequenceOp)
+
+LSTMSequence VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.LSTMSequence` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`sequenceLength` | mlir::IntegerAttr | Integer attribute
+`direction` | vpux::IE::RNNSequenceDirectionAttr | RNNSequenceDirection that the InferenceEngine supports
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`inputData` | 3D tensor of 16-bit float or 32-bit float values
+`initialHiddenState` | 3D tensor of 16-bit float or 32-bit float values
+`initialCellState` | 3D tensor of 16-bit float or 32-bit float values
+`weights` | 3D tensor of 16-bit float or 32-bit float values
+`reccurenceWeights` | 3D tensor of 16-bit float or 32-bit float values
+`biases` | 2D tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`outputHiddenValues` | 4D tensor of 16-bit float or 32-bit float values
+`outputHiddenState` | 3D tensor of 16-bit float or 32-bit float values
+`outputCellState` | 3D tensor of 16-bit float or 32-bit float values
+
+### `VPU.LeakyRelu` (vpux::VPU::LeakyReluOp)
+
+LeakyRelu VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.LeakyRelu` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`negative_slope` | ::mlir::FloatAttr | 64-bit float attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+
+### `VPU.LessEqual` (vpux::VPU::LessEqualOp)
+
+LessEqual VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.LessEqual` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`auto_broadcast` | vpux::IE::AutoBroadcastTypeAttr | Specifies rules used for auto-broadcasting of input tensors
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input1` | ranked tensor of 16-bit float or 32-bit float values
+`input2` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+
+### `VPU.Less` (vpux::VPU::LessOp)
+
+Less VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.Less` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`auto_broadcast` | vpux::IE::AutoBroadcastTypeAttr | Specifies rules used for auto-broadcasting of input tensors
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input1` | ranked tensor of 16-bit float or 32-bit float values
+`input2` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+
+### `VPU.Log` (vpux::VPU::LogOp)
+
+Log VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.Log` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+
+### `VPU.LogicalNot` (vpux::VPU::LogicalNotOp)
+
+Logical Not VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.LogicalNot` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input1` | ranked tensor of 8-bit signless integer or 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 8-bit signless integer or 16-bit float or 32-bit float values
+
+### `VPU.LogicalOr` (vpux::VPU::LogicalOrOp)
+
+LogicalOr VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.LogicalOr` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`auto_broadcast` | vpux::IE::AutoBroadcastTypeAttr | Specifies rules used for auto-broadcasting of input tensors
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input1` | ranked tensor of 8-bit signless integer or 16-bit float or 32-bit float values
+`input2` | ranked tensor of 8-bit signless integer or 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 8-bit signless integer or 16-bit float or 32-bit float values
+
+### `VPU.LogicalXor` (vpux::VPU::LogicalXorOp)
+
+LogicalXor VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.LogicalXor` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`auto_broadcast` | vpux::IE::AutoBroadcastTypeAttr | Specifies rules used for auto-broadcasting of input tensors
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input1` | ranked tensor of 8-bit signless integer or 16-bit float or 32-bit float values
+`input2` | ranked tensor of 8-bit signless integer or 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 8-bit signless integer or 16-bit float or 32-bit float values
+
+### `VPU.M2I.ColorConvert` (vpux::VPU::M2IColorConvertOp)
+
+M2I version for color-convert operations
+
+
+Syntax:
+
+```
+operation ::= `VPU.M2I.ColorConvert` `(` $input `)`
+              attr-dict
+              custom<OptionalTypes>(type($input)) ``
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`inFmt` | vpux::IE::ColorFmtAttr | YUV, RGB color formats
+`outFmt` | vpux::IE::ColorFmtAttr | YUV, RGB color formats
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | 4D tensor of 8-bit unsigned integer or 16-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | 4D tensor of 8-bit unsigned integer or 16-bit float values
+
+### `VPU.M2I.Norm` (vpux::VPU::M2INormOp)
+
+M2I version for BatchNormInference
+
+
+Syntax:
+
+```
+operation ::= `VPU.M2I.Norm` `(` $input `)`
+              attr-dict
+              custom<OptionalTypes>(type($input)) ``
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`gamma_value` | ::mlir::ArrayAttr | 64-bit float array attribute
+`beta_value` | ::mlir::ArrayAttr | 64-bit float array attribute
+`mean_value` | ::mlir::ArrayAttr | 64-bit float array attribute
+`variance_value` | ::mlir::ArrayAttr | 64-bit float array attribute
+`eps` | ::mlir::FloatAttr | 64-bit float attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | 4D tensor of 16-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | 4D tensor of 16-bit float values
+
+### `VPU.M2I.Resize` (vpux::VPU::M2IResizeOp)
+
+M2I version for resize operations
+
+
+Syntax:
+
+```
+operation ::= `VPU.M2I.Resize` `(` $input `)`
+              attr-dict
+              custom<OptionalTypes>(type($input)) ``
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`sizes` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`axes` | ::mlir::ArrayAttr | 64-bit integer array attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | 4D tensor of 8-bit unsigned integer or 16-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | 4D tensor of 8-bit unsigned integer or 16-bit float values
+
+### `VPU.M2I.Task` (vpux::VPU::M2ITaskOp)
+
+M2I full task op
+
+
+Syntax:
+
+```
+operation ::= `VPU.M2I.Task` `(` $input `)`
+              attr-dict
+              custom<OptionalTypes>(type($input)) ``
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`do_csc` | ::mlir::BoolAttr | bool attribute
+`do_norm` | ::mlir::BoolAttr | bool attribute
+`inFmt` | vpux::VPU::M2iColorFmtAttr | M2I color formats
+`outFmt` | vpux::VPU::M2iColorFmtAttr | M2I color formats
+`sizes` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`axes` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`norm` | ::mlir::ArrayAttr | 64-bit float array attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | 4D tensor of 8-bit unsigned integer or 16-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | 4D tensor of 8-bit unsigned integer or 16-bit float values
+
+### `VPU.MVN` (vpux::VPU::MVNOp)
+
+MVN VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.MVN` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`across_channels` | ::mlir::BoolAttr | bool attribute
+`normalize_variance` | ::mlir::BoolAttr | bool attribute
+`eps` | ::mlir::FloatAttr | 64-bit float attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of any type values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of any type values
+
+### `VPU.MaxPool` (vpux::VPU::MaxPoolOp)
+
+MaxPool VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.MaxPool` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`kernel_size` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`strides` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`pads_begin` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`pads_end` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`rounding_type` | vpux::IE::RoundingTypeAttr | Rounding type that operations support
+`post_op` | vpux::IE::PostOp | DictionaryAttr with field(s): 'name', 'attrs' (each field having its own constraints)
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+
+### `VPU.Maximum` (vpux::VPU::MaximumOp)
+
+Maximum VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.Maximum` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`auto_broadcast` | vpux::IE::AutoBroadcastTypeAttr | Specifies rules used for auto-broadcasting of input tensors
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input1` | ranked tensor of any type values
+`input2` | ranked tensor of any type values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of any type values
+
+### `VPU.MemPermute` (vpux::VPU::MemPermuteOp)
+
+MemPermute VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.MemPermute` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`dst_order` | ::mlir::AffineMapAttr | AffineMap attribute
+`mem_perm` | ::mlir::AffineMapAttr | AffineMap attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of any type values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of any type values
+
+### `VPU.Minimum` (vpux::VPU::MinimumOp)
+
+InferenceEngine Minimum layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.Minimum` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`auto_broadcast` | vpux::IE::AutoBroadcastTypeAttr | Specifies rules used for auto-broadcasting of input tensors
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input1` | ranked tensor of any type values
+`input2` | ranked tensor of any type values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of any type values
+
+### `VPU.Mish` (vpux::VPU::MishOp)
+
+Mish VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.Mish` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+
+### `VPU.Multiply` (vpux::VPU::MultiplyOp)
+
+Multiply VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.Multiply` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`auto_broadcast` | vpux::IE::AutoBroadcastTypeAttr | Specifies rules used for auto-broadcasting of input tensors
+`post_op` | vpux::IE::PostOp | DictionaryAttr with field(s): 'name', 'attrs' (each field having its own constraints)
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input1` | ranked tensor of 16-bit float or 32-bit float values
+`input2` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+
+### `VPU.NCE.AveragePool` (vpux::VPU::NCEAveragePoolOp)
+
+NCE version of AveragePool layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.NCE.AveragePool` `(` $input `)`
+              attr-dict
+              custom<OptionalTypes>(type($input)) ``
+              `->` type(results)
+              custom<OptionalRegion>($workloads)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`kernel_size` | ::mlir::ArrayAttr | 64-bit integer array attribute with exactly 2 elements
+`strides` | ::mlir::ArrayAttr | 64-bit integer array attribute with exactly 2 elements
+`pad` | vpux::VPU::PaddingAttr | DictionaryAttr with field(s): 'left', 'right', 'top', 'bottom' (each field having its own constraints)
+`ppe` | vpux::VPU::PPETaskAttr | DictionaryAttr with field(s): 'mode', 'clamp_low', 'clamp_high', 'lrelu_mult', 'lrelu_shift', 'quant_scale', 'quant_mult', 'quant_shift', 'quant_post_shift', 'in1_quant_mult', 'in2_quant_mult' (each field having its own constraints)
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | 4D tensor of 16-bit float or bfloat16 type or QuantizedType values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | 4D tensor of 16-bit float or bfloat16 type or QuantizedType values
+
 ### `VPU.NCE.ClusterTiling` (vpux::VPU::NCEClusterTilingOp)
 
 Operation that encapsulates details of tiling operation between clusters
@@ -95,7 +2391,8 @@ NCE version of Convolution layer
 Syntax:
 
 ```
-operation ::= `VPU.NCE.Convolution` `(` $input `,` $filter `,` $weightsTable (`,` $activationWindow^ custom<OptionalTypes>(type($activationWindow)) ``)? `)`
+operation ::= `VPU.NCE.Convolution` `(` $input `,` $filter `,` $weightsTable (`,` $activationWindow^ custom<OptionalTypes>(type($activationWindow)) ``)?
+              (`,` $instructionListTable^ custom<OptionalTypes>(type($instructionListTable)) ``)? `)`
               attr-dict
               custom<OptionalTypes>(type($input), type($filter), type($weightsTable)) ``
               `->` type(results)
@@ -109,7 +2406,7 @@ operation ::= `VPU.NCE.Convolution` `(` $input `,` $filter `,` $weightsTable (`,
 | :-------: | :-------: | ----------- |
 `strides` | ::mlir::ArrayAttr | 64-bit integer array attribute with exactly 2 elements
 `pad` | vpux::VPU::PaddingAttr | DictionaryAttr with field(s): 'left', 'right', 'top', 'bottom' (each field having its own constraints)
-`ppe` | vpux::VPU::PPETaskAttr | DictionaryAttr with field(s): 'mode', 'clamp_low', 'clamp_high', 'lrelu_mult', 'lrelu_shift', 'quant_mult', 'quant_shift', 'quant_post_shift' (each field having its own constraints)
+`ppe` | vpux::VPU::PPETaskAttr | DictionaryAttr with field(s): 'mode', 'clamp_low', 'clamp_high', 'lrelu_mult', 'lrelu_shift', 'quant_scale', 'quant_mult', 'quant_shift', 'quant_post_shift', 'in1_quant_mult', 'in2_quant_mult' (each field having its own constraints)
 `rawFilterShape` | ::mlir::ArrayAttr | 64-bit integer array attribute with exactly 4 elements
 `activation_window_channel_length` | mlir::IntegerAttr | Integer attribute
 
@@ -121,6 +2418,7 @@ operation ::= `VPU.NCE.Convolution` `(` $input `,` $filter `,` $weightsTable (`,
 `filter` | 4D tensor of 16-bit float or bfloat16 type or QuantizedType values
 `weightsTable` | 4D tensor of 32-bit signed integer values
 `activationWindow` | 4D tensor of 8-bit unsigned integer values
+`instructionListTable` | 4D tensor of 32-bit signed integer values
 
 #### Results:
 
@@ -136,7 +2434,8 @@ NCE version of Depthwise Convolution layer
 Syntax:
 
 ```
-operation ::= `VPU.NCE.DepthConvolution` `(` $input `,` $filter `,` $weightsTable `,` $activationWindow `)`
+operation ::= `VPU.NCE.DepthConvolution` `(` $input `,` $filter `,` $weightsTable `,` $activationWindow
+              (`,` $instructionListTable^ custom<OptionalTypes>(type($instructionListTable)) ``)? `)`
               attr-dict
               custom<OptionalTypes>(type($input), type($filter), type($weightsTable), type($activationWindow)) ``
               `->` type(results)
@@ -150,7 +2449,7 @@ operation ::= `VPU.NCE.DepthConvolution` `(` $input `,` $filter `,` $weightsTabl
 | :-------: | :-------: | ----------- |
 `strides` | ::mlir::ArrayAttr | 64-bit integer array attribute with exactly 2 elements
 `pad` | vpux::VPU::PaddingAttr | DictionaryAttr with field(s): 'left', 'right', 'top', 'bottom' (each field having its own constraints)
-`ppe` | vpux::VPU::PPETaskAttr | DictionaryAttr with field(s): 'mode', 'clamp_low', 'clamp_high', 'lrelu_mult', 'lrelu_shift', 'quant_mult', 'quant_shift', 'quant_post_shift' (each field having its own constraints)
+`ppe` | vpux::VPU::PPETaskAttr | DictionaryAttr with field(s): 'mode', 'clamp_low', 'clamp_high', 'lrelu_mult', 'lrelu_shift', 'quant_scale', 'quant_mult', 'quant_shift', 'quant_post_shift', 'in1_quant_mult', 'in2_quant_mult' (each field having its own constraints)
 `rawFilterShape` | ::mlir::ArrayAttr | 64-bit integer array attribute with exactly 4 elements
 `activation_window_channel_length` | mlir::IntegerAttr | Integer attribute
 
@@ -162,6 +2461,7 @@ operation ::= `VPU.NCE.DepthConvolution` `(` $input `,` $filter `,` $weightsTabl
 `filter` | 4D tensor of 16-bit float or bfloat16 type or QuantizedType values
 `weightsTable` | 4D tensor of 32-bit signed integer values
 `activationWindow` | 4D tensor of 8-bit unsigned integer values
+`instructionListTable` | 4D tensor of 32-bit signed integer values
 
 #### Results:
 
@@ -190,7 +2490,7 @@ operation ::= `VPU.NCE.Eltwise` `(` $input1 `,` $input2 `)`
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
 `op_type` | vpux::VPU::EltwiseTypeAttr | Type of Eltwise operation
-`ppe` | vpux::VPU::PPETaskAttr | DictionaryAttr with field(s): 'mode', 'clamp_low', 'clamp_high', 'lrelu_mult', 'lrelu_shift', 'quant_mult', 'quant_shift', 'quant_post_shift' (each field having its own constraints)
+`ppe` | vpux::VPU::PPETaskAttr | DictionaryAttr with field(s): 'mode', 'clamp_low', 'clamp_high', 'lrelu_mult', 'lrelu_shift', 'quant_scale', 'quant_mult', 'quant_shift', 'quant_post_shift', 'in1_quant_mult', 'in2_quant_mult' (each field having its own constraints)
 
 #### Operands:
 
@@ -228,7 +2528,7 @@ operation ::= `VPU.NCE.MaxPool` `(` $input `,` $weightsTable `,` $activationWind
 `kernel_size` | ::mlir::ArrayAttr | 64-bit integer array attribute with exactly 2 elements
 `strides` | ::mlir::ArrayAttr | 64-bit integer array attribute with exactly 2 elements
 `pad` | vpux::VPU::PaddingAttr | DictionaryAttr with field(s): 'left', 'right', 'top', 'bottom' (each field having its own constraints)
-`ppe` | vpux::VPU::PPETaskAttr | DictionaryAttr with field(s): 'mode', 'clamp_low', 'clamp_high', 'lrelu_mult', 'lrelu_shift', 'quant_mult', 'quant_shift', 'quant_post_shift' (each field having its own constraints)
+`ppe` | vpux::VPU::PPETaskAttr | DictionaryAttr with field(s): 'mode', 'clamp_low', 'clamp_high', 'lrelu_mult', 'lrelu_shift', 'quant_scale', 'quant_mult', 'quant_shift', 'quant_post_shift', 'in1_quant_mult', 'in2_quant_mult' (each field having its own constraints)
 `activation_window_channel_length` | mlir::IntegerAttr | Integer attribute
 
 #### Operands:
@@ -244,6 +2544,1638 @@ operation ::= `VPU.NCE.MaxPool` `(` $input `,` $weightsTable `,` $activationWind
 | Result | Description |
 | :----: | ----------- |
 `output` | 4D tensor of 16-bit float or bfloat16 type or QuantizedType values
+
+### `VPU.Negative` (vpux::VPU::NegativeOp)
+
+Negative VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.Negative` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+
+### `VPU.NormalizeIE` (vpux::VPU::NormalizeIEOp)
+
+NormalizeIE VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.NormalizeIE` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`eps` | ::mlir::FloatAttr | 64-bit float attribute
+`across_spatial` | ::mlir::BoolAttr | bool attribute
+`channel_shared` | ::mlir::BoolAttr | bool attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`data` | ranked tensor of any type values
+`weights` | ranked tensor of any type values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of any type values
+
+### `VPU.NotEqual` (vpux::VPU::NotEqualOp)
+
+NotEqual VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.NotEqual` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`auto_broadcast` | vpux::IE::AutoBroadcastTypeAttr | Specifies rules used for auto-broadcasting of input tensors
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input1` | ranked tensor of 16-bit float or 32-bit float values
+`input2` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+
+### `VPU.PRelu` (vpux::VPU::PReluOp)
+
+PRelu VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.PRelu` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of 16-bit float or 32-bit float values
+`negative_slope` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+
+### `VPU.PSROIPooling` (vpux::VPU::PSROIPoolingOp)
+
+PSROIPooling VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.PSROIPooling` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`output_dim` | mlir::IntegerAttr | Integer attribute
+`spatial_scale` | ::mlir::FloatAttr | 64-bit float attribute
+`group_size` | mlir::IntegerAttr | Integer attribute
+`spatial_bins_x` | mlir::IntegerAttr | Integer attribute
+`spatial_bins_y` | mlir::IntegerAttr | Integer attribute
+`mode` | vpux::IE::PSROIPoolingModeAttr | PSROIPoolingMode that the InferenceEngine supports
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | 4D tensor of 16-bit float or 32-bit float values
+`coords` | 2D tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+
+### `VPU.Pad` (vpux::VPU::PadOp)
+
+Pad VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.Pad` `(` $input `)` (`[` $pads_begin^ `,` $pads_end (`,` $pad_value^)? `]`)? attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`pads_begin_attr` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`pads_end_attr` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`pad_value_attr` | ::mlir::FloatAttr | 64-bit float attribute
+`mode` | vpux::IE::PadModeAttr | TPadMode that the InferenceEngine supports
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of any type values
+`pads_begin` | ranked tensor of integer values
+`pads_end` | ranked tensor of integer values
+`pad_value` | ranked tensor of integer or floating-point values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of any type values
+
+### `VPU.PerAxisTile` (vpux::VPU::PerAxisTileOp)
+
+Per axis Tile VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.PerAxisTile` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`axis` | mlir::IntegerAttr | Integer attribute
+`tiles` | mlir::IntegerAttr | Integer attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of any type values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of any type values
+
+### `VPU.PermuteCast` (vpux::VPU::PermuteCastOp)
+
+PermuteCast VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.PermuteCast` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`dst_order` | ::mlir::AffineMapAttr | AffineMap attribute
+`mem_perm` | ::mlir::AffineMapAttr | AffineMap attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of any type values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of any type values
+
+### `VPU.Power` (vpux::VPU::PowerOp)
+
+Power VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.Power` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`auto_broadcast` | vpux::IE::AutoBroadcastTypeAttr | Specifies rules used for auto-broadcasting of input tensors
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input1` | ranked tensor of 16-bit float or 32-bit float values
+`input2` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+
+### `VPU.Proposal` (vpux::VPU::ProposalOp)
+
+Proposal VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.Proposal` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`proposal_attrs` | vpux::IE::ProposalAttr | DictionaryAttr with field(s): 'baseSize', 'preNmsTopN', 'postNmsTopN', 'nmsThresh', 'featStride', 'minSize', 'ratio', 'scale', 'clipBeforeNms', 'clipAfterNms', 'normalize', 'boxSizeScale', 'boxCoordinateScale', 'framework', 'inferProbs' (each field having its own constraints)
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`class_probs` | ranked tensor of 16-bit float or 32-bit float values
+`bbox_deltas` | ranked tensor of 16-bit float or 32-bit float values
+`image_shape` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+`probs` | ranked tensor of 16-bit float or 32-bit float values
+
+### `VPU.QuantizeCast` (vpux::VPU::QuantizeCastOp)
+
+Quantize Cast VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.QuantizeCast` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`dstElemType` | ::mlir::TypeAttr | any type attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of 8-bit signed integer or 8-bit unsigned integer or QuantizedType values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 8-bit signed integer or 8-bit unsigned integer or QuantizedType values
+
+### `VPU.Quantize` (vpux::VPU::QuantizeOp)
+
+Quantize VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.Quantize` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`dstElemType` | ::mlir::TypeAttr | any type attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of QuantizedType values
+
+### `VPU.ROIAlign` (vpux::VPU::ROIAlignOp)
+
+ROIAlign VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.ROIAlign` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`pooled_h` | mlir::IntegerAttr | Integer attribute
+`pooled_w` | mlir::IntegerAttr | Integer attribute
+`sampling_ratio` | mlir::IntegerAttr | Integer attribute
+`spatial_scale` | ::mlir::FloatAttr | 64-bit float attribute
+`poolingMode` | vpux::IE::ROIAlignMethodAttr | ROIAlignMethod that the InferenceEngine supports
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of 16-bit float or 32-bit float values
+`coords` | ranked tensor of 16-bit float or 32-bit float values
+`roisIdx` | 1D tensor of integer values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+
+### `VPU.ROIPooling` (vpux::VPU::ROIPoolingOp)
+
+ROIPooling VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.ROIPooling` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`output_size` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`spatial_scale` | ::mlir::FloatAttr | 64-bit float attribute
+`method` | vpux::IE::ROIPoolingMethodAttr | ROIPoolingMethod that the InferenceEngine supports
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of 16-bit float or 32-bit float values
+`coords` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+
+### `VPU.ReLU` (vpux::VPU::ReLUOp)
+
+ReLU VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.ReLU` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+
+### `VPU.ReduceL1` (vpux::VPU::ReduceL1Op)
+
+ReduceL1 VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.ReduceL1` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`keep_dims` | ::mlir::UnitAttr | unit attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of any type values
+`axes` | 1D tensor of integer values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of any type values
+
+### `VPU.ReduceL2` (vpux::VPU::ReduceL2Op)
+
+ReduceL2 VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.ReduceL2` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`keep_dims` | ::mlir::UnitAttr | unit attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of any type values
+`axes` | 1D tensor of integer values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of any type values
+
+### `VPU.ReduceLogicalAnd` (vpux::VPU::ReduceLogicalAndOp)
+
+ReduceLogicalAnd VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.ReduceLogicalAnd` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`keep_dims` | ::mlir::UnitAttr | unit attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of any type values
+`axes` | 1D tensor of integer values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of any type values
+
+### `VPU.ReduceLogicalOr` (vpux::VPU::ReduceLogicalOrOp)
+
+ReduceLogicalOr VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.ReduceLogicalOr` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`keep_dims` | ::mlir::UnitAttr | unit attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of any type values
+`axes` | 1D tensor of integer values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of any type values
+
+### `VPU.ReduceMax` (vpux::VPU::ReduceMaxOp)
+
+ReduceMax VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.ReduceMax` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`keep_dims` | ::mlir::UnitAttr | unit attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of any type values
+`axes` | 1D tensor of integer values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of any type values
+
+### `VPU.ReduceMean` (vpux::VPU::ReduceMeanOp)
+
+ReduceMean VPU Layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.ReduceMean` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`keep_dims` | ::mlir::UnitAttr | unit attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of any type values
+`axes` | 1D tensor of integer values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of any type values
+
+### `VPU.ReduceMin` (vpux::VPU::ReduceMinOp)
+
+ReduceMin VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.ReduceMin` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`keep_dims` | ::mlir::UnitAttr | unit attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of any type values
+`axes` | 1D tensor of integer values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of any type values
+
+### `VPU.ReduceProd` (vpux::VPU::ReduceProdOp)
+
+ReduceProd VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.ReduceProd` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`keep_dims` | ::mlir::UnitAttr | unit attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of any type values
+`axes` | 1D tensor of integer values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of any type values
+
+### `VPU.ReduceSum` (vpux::VPU::ReduceSumOp)
+
+ReduceSum VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.ReduceSum` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`keep_dims` | ::mlir::UnitAttr | unit attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of any type values
+`axes` | 1D tensor of integer values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of any type values
+
+### `VPU.RegionYolo` (vpux::VPU::RegionYoloOp)
+
+RegionYolo VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.RegionYolo` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`coords` | mlir::IntegerAttr | Integer attribute
+`classes` | mlir::IntegerAttr | Integer attribute
+`regions` | mlir::IntegerAttr | Integer attribute
+`do_softmax` | ::mlir::BoolAttr | bool attribute
+`mask` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`axis` | mlir::IntegerAttr | Integer attribute
+`end_axis` | mlir::IntegerAttr | Integer attribute
+`anchors` | ::mlir::ArrayAttr | 64-bit float array attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | 4D tensor of floating-point values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of any type values
+
+### `VPU.ReorgYolo` (vpux::VPU::ReorgYoloOp)
+
+ReorgYolo VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.ReorgYolo` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`stride` | mlir::IntegerAttr | Integer attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | 4D tensor of integer or floating-point values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of any type values
+
+### `VPU.Reshape` (vpux::VPU::ReshapeOp)
+
+Reshape VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.Reshape` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`special_zero` | ::mlir::UnitAttr | unit attribute
+`shape_value` | ::mlir::ArrayAttr | 64-bit integer array attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of any type values
+`shape` | ranked tensor of integer values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of any type values
+
+### `VPU.ReverseSequence` (vpux::VPU::ReverseSequenceOp)
+
+Reverse variable length sequence  VPU operation
+
+
+Syntax:
+
+```
+operation ::= `VPU.ReverseSequence` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`seq_axis` | mlir::IntegerAttr | Integer attribute
+`batch_axis` | mlir::IntegerAttr | Integer attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`data` | ranked tensor of any type values
+`seq_length` | 1D tensor of integer values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of any type values
+
+### `VPU.Round` (vpux::VPU::RoundOp)
+
+Round VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.Round` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`mode` | vpux::IE::RoundModeAttr | RoundMode that the InferenceEngine supports
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+
+### `VPU.ScaleShift` (vpux::VPU::ScaleShiftOp)
+
+ScaleShift VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.ScaleShift` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of 16-bit float or 32-bit float values
+`weights` | ranked tensor of 16-bit float or 32-bit float values
+`biases` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+
+### `VPU.ScatterNDUpdate` (vpux::VPU::ScatterNDUpdateOp)
+
+ScatterNDUpdate VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.ScatterNDUpdate` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of any type values
+`indices` | ranked tensor of integer values
+`updates` | ranked tensor of any type values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of any type values
+
+### `VPU.Select` (vpux::VPU::SelectOp)
+
+Select VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.Select` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`auto_broadcast` | vpux::IE::AutoBroadcastTypeAttr | Specifies rules used for auto-broadcasting of input tensors
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input1` | ranked tensor of 8-bit signless integer or 32-bit signed integer or 16-bit float values
+`input2` | ranked tensor of 32-bit signed integer or 16-bit float values
+`input3` | ranked tensor of 32-bit signed integer or 16-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 32-bit signed integer or 16-bit float values
+
+### `VPU.Selu` (vpux::VPU::SeluOp)
+
+Selu VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.Selu` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`alpha_value` | ::mlir::FloatAttr | 64-bit float attribute
+`lambda_value` | ::mlir::FloatAttr | 64-bit float attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+
+### `VPU.Sigmoid` (vpux::VPU::SigmoidOp)
+
+Sigmoid VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.Sigmoid` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+
+### `VPU.Sign` (vpux::VPU::SignOp)
+
+Sign VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.Sign` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+
+### `VPU.Sin` (vpux::VPU::SinOp)
+
+Sin VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.Sin` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+
+### `VPU.Sinh` (vpux::VPU::SinhOp)
+
+Sinh VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.Sinh` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+
+### `VPU.Slice` (vpux::VPU::SliceOp)
+
+Extract single slice from ranked tensor or distributed tensor
+
+
+Syntax:
+
+```
+operation ::= `VPU.Slice` $source $static_offsets $static_sizes
+              attr-dict `:` type($source) `to` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`static_offsets` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`static_sizes` | ::mlir::ArrayAttr | 64-bit integer array attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`source` | ranked tensor of any type values or VPU tensor type to describe the tensor tiling
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`result` | ranked tensor of any type values or VPU tensor type to describe the tensor tiling
+
+### `VPU.SoftMax` (vpux::VPU::SoftMaxOp)
+
+SoftMax VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.SoftMax` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`axisInd` | mlir::IntegerAttr | Integer attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+
+### `VPU.SoftPlus` (vpux::VPU::SoftPlusOp)
+
+SoftPlus VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.SoftPlus` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+
+### `VPU.SpaceToDepthOp` (vpux::VPU::SpaceToDepthOp)
+
+SpaceToDepthOp VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.SpaceToDepthOp` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`block_size` | mlir::IntegerAttr | Integer attribute
+`mode` | vpux::IE::SpaceToDepthModeAttr | SpaceToDepthMode that the InferenceEngine supports
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of any type values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of any type values
+
+### `VPU.Split` (vpux::VPU::SplitOp)
+
+Split VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.Split` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`num_splits` | mlir::IntegerAttr | Integer attribute
+`axis_value` | mlir::IntegerAttr | Integer attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of any type values
+`axis` | ranked tensor of any type values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`outputs` | ranked tensor of any type values
+
+### `VPU.Sqrt` (vpux::VPU::SqrtOp)
+
+Sqrt VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.Sqrt` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+
+### `VPU.SquaredDiff` (vpux::VPU::SquaredDifferenceOp)
+
+SquaredDiff VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.SquaredDiff` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`auto_broadcast` | vpux::IE::AutoBroadcastTypeAttr | Specifies rules used for auto-broadcasting of input tensors
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input1` | ranked tensor of 16-bit float or 32-bit float values
+`input2` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+
+### `VPU.Squeeze` (vpux::VPU::SqueezeOp)
+
+Squeeze VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.Squeeze` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`axes_value` | ::mlir::ArrayAttr | 64-bit integer array attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of any type values
+`axes` | ranked tensor of integer values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of any type values
+
+### `VPU.StorageElementTable` (vpux::VPU::StorageElementTableOp)
+
+Declares Storage Element Pointers table
+
+
+Syntax:
+
+```
+operation ::= `VPU.StorageElementTable` attr-dict `->` type(results)
+```
+
+Declares Storage Element Pointers table with defined width, 
+height, number of output pixels each SE contains(seSize), amount of SE 
+per tensor depth(seDepth) and not empty list of base pointers for each 
+element.
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`seDepth` | mlir::IntegerAttr | Integer attribute
+`seSize` | mlir::IntegerAttr | Integer attribute
+`height` | mlir::IntegerAttr | Integer attribute
+`width` | mlir::IntegerAttr | Integer attribute
+`base_ptrs` | ::mlir::ArrayAttr | 32-bit integer array attribute
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 32-bit unsigned integer values
+
+### `VPU.StridedSlice` (vpux::VPU::StridedSliceOp)
+
+StridedSlice VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.StridedSlice` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`begins_attr` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`ends_attr` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`strides_attr` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`begin_mask` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`end_mask` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`new_axis_mask` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`shrink_axis_mask` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`ellipsis_mask` | ::mlir::ArrayAttr | 64-bit integer array attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of any type values
+`begins` | 1D tensor of integer values
+`ends` | 1D tensor of integer values
+`strides` | 1D tensor of integer values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of any type values
+
+### `VPU.Subtract` (vpux::VPU::SubtractOp)
+
+Subtract VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.Subtract` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`auto_broadcast` | vpux::IE::AutoBroadcastTypeAttr | Specifies rules used for auto-broadcasting of input tensors
+`post_op` | vpux::IE::PostOp | DictionaryAttr with field(s): 'name', 'attrs' (each field having its own constraints)
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input1` | ranked tensor of 16-bit float or 32-bit float values
+`input2` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+
+### `VPU.Swish` (vpux::VPU::SwishOp)
+
+Swish VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.Swish` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`beta_value` | ::mlir::FloatAttr | 64-bit float attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of 16-bit float or 32-bit float values
+`beta` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+
+### `VPU.Tanh` (vpux::VPU::TanhOp)
+
+Tanh VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.Tanh` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
+
+### `VPU.Tile` (vpux::VPU::TileOp)
+
+Tile VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.Tile` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of any type values
+`repeats` | ranked tensor of integer values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of any type values
+
+### `VPU.TopK` (vpux::VPU::TopKOp)
+
+TopK VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.TopK` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`axis` | mlir::IntegerAttr | Integer attribute
+`mode` | vpux::IE::TopKModeAttr | TopKMode that the InferenceEngine supports
+`sort` | vpux::IE::TopKSortTypeAttr | TopKSortType that the InferenceEngine supports
+`element_type` | ::mlir::TypeAttr | any type attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of any type values
+`k` | ranked tensor of integer values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output_values` | ranked tensor of any type values
+`target_shape` | ranked tensor of any type values
+
+### `VPU.Unsqueeze` (vpux::VPU::UnsqueezeOp)
+
+Unsqueeze VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.Unsqueeze` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`axes_value` | ::mlir::ArrayAttr | 64-bit integer array attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of any type values
+`axes` | ranked tensor of integer values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of any type values
+
+### `VPU.Upsampling` (vpux::VPU::UpsamplingOp)
+
+Upsampling VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.Upsampling` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`upsampling_factor` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`pad_l` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`pad_r` | ::mlir::ArrayAttr | 64-bit integer array attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | ranked tensor of 16-bit float or 32-bit float values
 
 ### `VPU.Yield` (vpux::VPU::YieldOp)
 
@@ -265,6 +4197,39 @@ operation ::= `VPU.Yield` $operands
 | :-----: | ----------- |
 `operands` | 4D tensor of 16-bit float or bfloat16 type or 32-bit signed integer or 8-bit unsigned integer or QuantizedType values
 
+### `VPU.YuvToRgb` (vpux::VPU::YuvToRgbOp)
+
+InferenceEngine NV12/I420 to RGB/BGR layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.YuvToRgb` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`inFmt` | vpux::IE::ColorFmtAttr | YUV, RGB color formats
+`outFmt` | vpux::IE::ColorFmtAttr | YUV, RGB color formats
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input1` | 4D tensor of 8-bit signed integer or 16-bit float or 32-bit float values
+`input2` | 4D tensor of 8-bit signed integer or 16-bit float or 32-bit float values
+`input3` | 4D tensor of 8-bit signed integer or 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | 4D tensor of 8-bit signed integer or 16-bit float or 32-bit float values
+
 ## Type definition
 
 ### DistributedTensorType
@@ -282,4 +4247,17 @@ This type of tensor is used together with the ClusterTiling operation
 | order | `mlir::AffineMapAttr` |  |
 | memSpace | `vpux::IndexedSymbolAttr` |  |
 | distribution | `DistributedTensorAttr` |  |
+
+### SparseTensorType
+
+VPU SparseTensor Type
+
+This object represents a sparse tensor as a group of data and metadata
+#### Parameters:
+
+| Parameter | C++ type | Description |
+| :-------: | :-------: | ----------- |
+| data | `mlir::TensorType` |  |
+| sparsityMap | `mlir::TensorType` |  |
+| storageElementTable | `mlir::TensorType` |  |
 

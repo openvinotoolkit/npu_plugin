@@ -3,21 +3,23 @@
 {
     "architecture": "VPUX37XX",
     "case_type": "RaceConditionDPUDMA",
-    "input": {
-        "shape": [
-            1,
-            32,
-            16,
-            16
-        ],
-        "dtype": "int8",
-        "quantization": {
-            "scale": 1.0,
-            "zeropoint": 0,
-            "low_range": -16,
-            "high_range": 15
+    "input": [
+        {
+            "shape": [
+                1,
+                32,
+                16,
+                16
+            ],
+            "dtype": "int8",
+            "quantization": {
+                "scale": 1.0,
+                "zeropoint": 0,
+                "low_range": -16,
+                "high_range": 15
+            }
         }
-    },
+    ],
     "weight": {
         "shape": [
             64,
@@ -33,21 +35,23 @@
             "high_range": 15
         }
     },
-    "output": {
-        "shape": [
-            1,
-            64,
-            16,
-            16
-        ],
-        "dtype": "int8",
-        "quantization": {
-            "scale": 128,
-            "zeropoint": 0,
-            "low_range": -16,
-            "high_range": 15
+    "output": [
+        {
+            "shape": [
+                1,
+                64,
+                16,
+                16
+            ],
+            "dtype": "int8",
+            "quantization": {
+                "scale": 128,
+                "zeropoint": 0,
+                "low_range": -16,
+                "high_range": 15
+            }
         }
-    },
+    ],
     "conv_op": {
         "stride": [
             1,

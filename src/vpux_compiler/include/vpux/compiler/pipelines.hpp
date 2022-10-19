@@ -50,6 +50,8 @@ struct ReferenceSWOptions : mlir::PassPipelineOptions<ReferenceSWOptions> {
 
 void buildReferenceSWModePipeline(mlir::OpPassManager& pm, const ReferenceSWOptions& options,
                                   Logger log = Logger::global());
+void buildEMUReferenceSWModePipeline(mlir::OpPassManager& pm, const ReferenceSWOptions& options,
+                                     Logger log = Logger::global());
 
 //
 // ReferenceHWMode
@@ -67,6 +69,8 @@ struct ReferenceHWOptions : mlir::PassPipelineOptions<ReferenceHWOptions> {
     StrOption arch{*this, "vpu-arch", llvm::cl::desc("VPU architecture to compile for"), llvm::cl::init("VPUX30XX")};
 
     IntOption numberOfDPUGroups{*this, "num-of-dpu-groups", llvm::cl::desc("Number of DPU groups")};
+
+    IntOption numberOfDMAPorts{*this, "num-of-dma-ports", llvm::cl::desc("Number of DMA ports")};
 
     BoolOption enableUseUserPrecision{*this, "use-user-precision", llvm::cl::desc("Enable use-user-precision pass"),
                                       llvm::cl::init(true)};
@@ -122,6 +126,9 @@ struct ReferenceHWOptions : mlir::PassPipelineOptions<ReferenceHWOptions> {
 void buildReferenceHWModePipeline(mlir::OpPassManager& pm, const ReferenceHWOptions& options,
                                   Logger log = Logger::global());
 
+void buildEMUReferenceHWModePipeline(mlir::OpPassManager& pm, const ReferenceHWOptions& options,
+                                     Logger log = Logger::global());
+
 //
 // DefaultHWMode
 //
@@ -137,7 +144,12 @@ struct DefaultHWOptions : mlir::PassPipelineOptions<DefaultHWOptions> {
 
     StrOption arch{*this, "vpu-arch", llvm::cl::desc("VPU architecture to compile for"), llvm::cl::init("VPUX30XX")};
 
+    StrOption actSparsityProfile{*this, "act-sparsity-profile", llvm::cl::desc("Activation sparsity profile"),
+                                 llvm::cl::init("NONE")};
+
     IntOption numberOfDPUGroups{*this, "num-of-dpu-groups", llvm::cl::desc("Number of DPU groups")};
+
+    IntOption numberOfDMAPorts{*this, "num-of-dma-ports", llvm::cl::desc("Number of DMA ports")};
 
     BoolOption enableUseUserPrecision{*this, "use-user-precision", llvm::cl::desc("Enable use-user-precision pass"),
                                       llvm::cl::init(true)};
@@ -156,6 +168,9 @@ struct DefaultHWOptions : mlir::PassPipelineOptions<DefaultHWOptions> {
     BoolOption enableSplitConvWithMultipleFQ{*this, "split-conv-with-multiple-fq",
                                              llvm::cl::desc("Enable split-conv-with-multiple-fq pass"),
                                              llvm::cl::init(true)};
+
+    BoolOption enableHandleLargeKernel{*this, "handle-large-kernel", llvm::cl::desc("Enable handle-large-kernel pass"),
+                                       llvm::cl::init(true)};
 
     BoolOption enableHandleLargeStrides{*this, "handle-large-strides",
                                         llvm::cl::desc("Enable handle-large-strides pass"), llvm::cl::init(true)};
@@ -206,9 +221,20 @@ struct DefaultHWOptions : mlir::PassPipelineOptions<DefaultHWOptions> {
     BoolOption enableSwapConcatWithEltwise{*this, "swap-concat-with-eltwise",
                                            ::llvm::cl::desc("Enable SwapConcatWithEltwise pass"),
                                            ::llvm::cl::init(true)};
+
+    BoolOption enableWeightsSwizzling{*this, "enable-weights-swizzling", ::llvm::cl::desc("Enable weights swizzling"),
+                                      ::llvm::cl::init(true)};
+    BoolOption enablePrefetchTiling{*this, "prefetch-tiling", llvm::cl::desc("Enable prefetch tiling pass"),
+                                    llvm::cl::init(true)};
+
+    BoolOption enableActivationSwizzling{*this, "enable-activation-swizzling",
+                                         ::llvm::cl::desc("Enable activation swizzling"), ::llvm::cl::init(true)};
 };
 
 void buildDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOptions& options,
                                 Logger log = Logger::global());
+
+void buildEMUDefaultHWModePipeline(mlir::OpPassManager& pm, const DefaultHWOptions& options,
+                                   Logger log = Logger::global());
 
 }  // namespace vpux

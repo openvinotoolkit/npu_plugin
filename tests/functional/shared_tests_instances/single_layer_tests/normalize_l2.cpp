@@ -74,6 +74,8 @@ namespace {
 //[Track number: E#21695]
 //
     std::vector<std::vector<size_t>> shapes = {
+            {1, 128},
+            {1, 512},
             {1, 8, 24, 64},
             //{1, 3, 10, 5},
 

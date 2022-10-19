@@ -35,10 +35,10 @@ void buildSparseZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
     auto loc = builder.getUnknownLoc();
     const auto int32 = builder.getIntegerType(32, true);
 
-    const auto input = testDesc.getInputLayer();
+    const auto input = testDesc.getInputLayerList().front();
     const auto weights = testDesc.getWeightLayer();
     const auto conv = testDesc.getConvLayer();
-    const auto output = testDesc.getOutputLayer();
+    const auto output = testDesc.getOutputLayers().front();
 
     const SmallVector<std::int64_t> inputShape{input.shape.begin(), input.shape.end()};
     const SmallVector<std::int64_t> outputShape{output.shape.begin(), output.shape.end()};
@@ -62,7 +62,7 @@ void buildSparseZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
     const auto weightsCMXSize = vpux::hwtest::totalTensorSize(weightsCMXShape, weightsType);
     const auto outputCMXSize = vpux::hwtest::totalTensorSize(outputCMXShape, outputType);
     const auto inputCMXSize = vpux::hwtest::totalTensorSize(inputCMXShape, inputType);
-    const auto sparsityElementType = mlir::IntegerType::get(ctx, 1, mlir::IntegerType::Unsigned);
+    const auto sparsityElementType = mlir::IntegerType::get(ctx, 1, mlir::IntegerType::Signless);
     const auto weightsSMCMXSize = vpux::hwtest::totalTensorSize(weightsCMXShape, sparsityElementType);
 
     const auto alignment =
@@ -197,14 +197,15 @@ void buildSparseZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
     llvm::SmallVector<std::int64_t> kernel = {weightsShape[2], weightsShape[3]};
     const auto kernelSize = getIntArrayAttr(ctx, kernel);
 
-    auto weightsSparseCMX = createDeclareSparseTensorOp(functionBuilder, weightsCMX, weightsSMCMX);
-
     updateBarrier = functionBuilder.create<vpux::VPURT::ConfigureBarrierOp>(loc, 1);
     auto nceTask_0 = VPURT::wrapIntoTaskOp<VPUIP::NCEClusterTaskOp>(
             functionBuilder, mlir::ValueRange(waitBarrier.barrier()), mlir::ValueRange(updateBarrier.barrier()), loc,
-            inputCMX.buffer(), weightsSparseCMX.sparseBuffer(), weightsTableCMX_0.buffer(), nullptr, inputCMX.buffer(),
-            outputCMX.buffer(), outputCMX.buffer(), vpux::VPUIP::NCETaskType::CONV, kernelSize, strides, kernelPaddings,
-            nullptr, nullptr);
+            inputCMX.buffer(), /*input_sparsity_map=*/nullptr,
+            /*input_storage_element_table=*/nullptr, weightsCMX.buffer(), weightsSMCMX.buffer(),
+            weightsTableCMX_0.buffer(), nullptr, nullptr, inputCMX.buffer(), /*parent_input_sparsity_map=*/nullptr,
+            /*parent_input_storage_element_table=*/nullptr, outputCMX.buffer(), /*parent_output_sparsity_map=*/nullptr,
+            outputCMX.buffer(), /*output_sparsity_map_buff=*/nullptr, /*profiling_data=*/nullptr,
+            vpux::VPUIP::NCETaskType::CONV, kernelSize, strides, kernelPaddings, nullptr, nullptr);
 
     const auto start = getIntArrayAttr(ctx, std::vector<std::int64_t>{0, 0, 0});
     const auto end =
@@ -223,7 +224,8 @@ void buildSparseZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
     module.dump();
 
     mlir::PassManager pm(ctx, mlir::OpPassManager::Nesting::Implicit);
-    pm.addPass(VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::DefaultHW, None, log));
+    pm.addPass(
+            VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::DefaultHW, None, None, log));
     if (conv.compress) {
         pm.addPass(VPUIP::createCompressWeightsPass(log));
     }

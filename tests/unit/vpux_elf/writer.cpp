@@ -13,21 +13,21 @@
 
 namespace {
 
-std::string getSectionName(elf::Reader& reader, const elf::Reader::Section& section) {
+std::string getSectionName(elf::Reader<elf::ELF_Bitness::Elf64>& reader, const elf::Reader<elf::ELF_Bitness::Elf64>::Section& section) {
     const auto elfHeader = reader.getHeader();
     const auto testNames = reader.getSection(elfHeader->e_shstrndx);
     const auto strings = testNames.getData<char>();
     return std::string(strings + section.getHeader()->sh_name);
 }
 
-std::string getSymbolName(elf::Reader& reader, const elf::Reader::Section& symbolSection, const elf::SymbolEntry& symbol) {
+std::string getSymbolName(elf::Reader<elf::ELF_Bitness::Elf64>& reader, const elf::Reader<elf::ELF_Bitness::Elf64>::Section& symbolSection, const elf::SymbolEntry& symbol) {
     const auto symStrTab = reader.getSection(symbolSection.getHeader()->sh_link);
     const auto strings = symStrTab.getData<char>();
     return std::string(strings + symbol.st_name);
 }
 
-std::vector<elf::Reader::Section> getSectionsByType(elf::Reader& reader, elf::Elf_Word type) {
-    std::vector<elf::Reader::Section> res;
+std::vector<elf::Reader<elf::ELF_Bitness::Elf64>::Section> getSectionsByType(elf::Reader<elf::ELF_Bitness::Elf64>& reader, elf::Elf_Word type) {
+    std::vector<elf::Reader<elf::ELF_Bitness::Elf64>::Section> res;
 
     for (size_t i = 0; i < reader.getSectionsNum(); ++i) {
         const auto& section = reader.getSection(i);
@@ -50,7 +50,7 @@ TEST(ELFWriter, ELFHeaderForEmptyELFIsCorrect) {
     std::vector<uint8_t> blob;
     ASSERT_NO_THROW(blob = writer.generateELF());
 
-    elf::Reader reader(blob.data(), blob.size());
+    elf::Reader<elf::ELF_Bitness::Elf64> reader(blob.data(), blob.size());
     const auto elfHeader = reader.getHeader();
     ASSERT_EQ(elfHeader->e_ident[elf::EI_MAG0], elf::ELFMAG0);
     ASSERT_EQ(elfHeader->e_ident[elf::EI_MAG1], elf::ELFMAG1);
@@ -91,7 +91,7 @@ TEST(ELFWriter, BinaryDataSection) {
     std::vector<uint8_t> blob;
     ASSERT_NO_THROW(blob = writer.generateELF());
 
-    elf::Reader reader(blob.data(), blob.size());
+    elf::Reader<elf::ELF_Bitness::Elf64> reader(blob.data(), blob.size());
     const auto binarySections = getSectionsByType(reader, elf::SHT_PROGBITS);
     ASSERT_EQ(binarySections.size(), 1);
     ASSERT_EQ(reader.getSegmentsNum(), 0);
@@ -120,7 +120,7 @@ TEST(ELFWriter, EmptySection) {
     std::vector<uint8_t> blob;
     ASSERT_NO_THROW(blob = writer.generateELF());
 
-    elf::Reader reader(blob.data(), blob.size());
+    elf::Reader<elf::ELF_Bitness::Elf64> reader(blob.data(), blob.size());
     const auto emptySections = getSectionsByType(reader, elf::SHT_NOBITS);
     ASSERT_EQ(emptySections.size(), 1);
     ASSERT_EQ(reader.getSegmentsNum(), 0);
@@ -151,7 +151,7 @@ TEST(ELFWriter, SymbolSection) {
     std::vector<uint8_t> blob;
     ASSERT_NO_THROW(blob = writer.generateELF());
 
-    elf::Reader reader(blob.data(), blob.size());
+    elf::Reader<elf::ELF_Bitness::Elf64> reader(blob.data(), blob.size());
     const auto symbolSections = getSectionsByType(reader, elf::SHT_SYMTAB);
     ASSERT_EQ(symbolSections.size(), 1);
     ASSERT_EQ(reader.getSegmentsNum(), 0);
@@ -204,7 +204,7 @@ TEST(ELFWriter, RelocationSection) {
     std::vector<uint8_t> blob;
     ASSERT_NO_THROW(blob = writer.generateELF());
 
-    elf::Reader reader(blob.data(), blob.size());
+    elf::Reader<elf::ELF_Bitness::Elf64> reader(blob.data(), blob.size());
     const auto relocationSections = getSectionsByType(reader, elf::SHT_RELA);
     ASSERT_EQ(relocationSections.size(), 1);
     ASSERT_EQ(reader.getSegmentsNum(), 0);
@@ -261,7 +261,7 @@ TEST(ELFWriter, SpecialSymReloc) {
     std::vector<uint8_t> blob;
     ASSERT_NO_THROW(blob = writer.generateELF());
 
-    elf::Reader reader(blob.data(), blob.size());
+    elf::Reader<elf::ELF_Bitness::Elf64> reader(blob.data(), blob.size());
     const auto relocationSections = getSectionsByType(reader, elf::SHT_RELA);
     ASSERT_EQ(relocationSections.size(), 1);
     ASSERT_EQ(reader.getSegmentsNum(), 0);
@@ -301,7 +301,7 @@ TEST(ELFWriter, Segment) {
 
     std::vector<uint8_t> blob;
     ASSERT_NO_THROW(blob = writer.generateELF());
-    elf::Reader reader(blob.data(), blob.size());
+    elf::Reader<elf::ELF_Bitness::Elf64> reader(blob.data(), blob.size());
     ASSERT_EQ(reader.getSegmentsNum(), 1);
 
     const auto segment = reader.getSegment(0);

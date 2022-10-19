@@ -36,8 +36,6 @@ ccopt-shave-y += -DCONFIG_USE_COMPONENT_NN
 ccopt-shave_nn-y += -DCONFIG_USE_COMPONENT_NN
 
 subdirs-lrt-y += nn/common nn/shave_lib nn/inference_runtime_common ../../kernels
-subdirs-lrt-$(CONFIG_TARGET_SOC_MA2490) += $(VSYSTEM)/nn/platform_abstraction
-
 subdirs-lnn-y += nn/common nn/inference_runtime_common
 subdirs-shave-y += nn/common
 subdirs-shave-y += nn/shave_lib

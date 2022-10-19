@@ -6,6 +6,7 @@
 //
 
 #include "vpux/compiler/dialect/VPU/nce_sparsity.hpp"
+#include "vpux/compiler/dialect/IE/ops.hpp"
 
 #include "vpux/compiler/core/layers.hpp"
 #include "vpux/compiler/dialect/VPU/nce_invariant.hpp"
@@ -14,6 +15,7 @@
 #include "vpux/compiler/utils/types.hpp"
 
 #include "vpux/utils/core/enums.hpp"
+#include "vpux/utils/core/numeric.hpp"
 
 using namespace vpux;
 
@@ -118,17 +120,6 @@ std::vector<uint8_t> getBitPattern(VPU::NCESparsity::Mode mode, ShapeRef kernelS
 
 constexpr std::int32_t ALIGNMENT_REQUIREMENT_IN_ELEMENTS = 16;
 
-int32_t toHex(double realVal) {
-    union f32toint32 {
-        int32_t m_i32;
-        float m_f32;
-    };
-
-    f32toint32 biasVal;
-    biasVal.m_f32 = checked_cast<float>(realVal);
-    return biasVal.m_i32;
-}
-
 constexpr int32_t getVPUX30XX_Scale(uint8_t shift, uint16_t mult, double, mlir::Type) {
     // FIXME: set value when PPE is LPRELU in quant mode
     int32_t PRELU_SCALE_OFFSET = 0;
@@ -150,8 +141,8 @@ constexpr int32_t getVPUX30XX_Scale(uint8_t shift, uint16_t mult, double, mlir::
 
 int32_t getVPUX37XX_Scale(uint8_t shift, uint16_t mult, double rescale, mlir::Type inputType) {
     // VPUX37XX expects scale in IEEE754 format in NCE_DPU_PPE_FP_SCALE register in case input has FP16/BF16 type
-    if (inputType.isF16() || inputType.isBF16() || inputType.isF32()) {
-        return toHex(rescale);
+    if (inputType.isa<mlir::FloatType>()) {
+        return VPU::NCESparsity::toHex(rescale);
     }
 
     int32_t PRELU_SCALE_OFFSET = 0;
@@ -182,27 +173,20 @@ llvm::unique_function<int32_t(size_t)> getBiasFunc(mlir::Type inElemType, mlir::
 
     auto biasContent = bias.fold();
 
-    if (inElemType.isa<mlir::quant::QuantizedType>() && outElemType.isa<mlir::quant::QuantizedType>()) {
-        auto inQuantScale = extractScalesAndZeroPoints(inElemType).first;
-        auto weightsQuantScales = exractWeightsScales(weightsElemType);
+    const auto isInQuantized = inElemType.isa<mlir::quant::QuantizedType>();
+    const auto isOutQuantized = outElemType.isa<mlir::quant::QuantizedType>();
+    const auto isQuant = isInQuantized && isOutQuantized;
+    const auto isFloat = !isInQuantized && !isOutQuantized;
+    const auto isMixedModeSupported = isMixedPrecisionSupported(arch);
+    const auto isMixed = !isQuant && !isFloat && isMixedModeSupported;
+    if (isQuant || isMixed) {
+        auto rescaledBias = VPU::NCESparsity::getRescaledBias(bias, inElemType, weightsElemType, OC);
+        VPUX_THROW_WHEN(mlir::failed(rescaledBias), "Rescaled bias value is out of Range");
 
-        broadcast(inQuantScale, OC);
-        broadcast(weightsQuantScales, OC);
-
-        std::vector<double> rescale(OC, 1.0);
-        std::transform(weightsQuantScales.begin(), weightsQuantScales.end(), inQuantScale.begin(), rescale.begin(),
-                       std::multiplies<>());
-
-        return [biasContent = std::move(biasContent), rescale = std::move(rescale)](size_t oc) -> int32_t {
-            const auto newBiasData =
-                    checked_cast<int64_t>(std::round(biasContent.getValues<double>()[oc] / rescale[oc]));
-            VPUX_THROW_UNLESS(newBiasData > std::numeric_limits<int32_t>::min() &&
-                                      newBiasData < std::numeric_limits<int32_t>::max(),
-                              "Bias value is out of range {0}", newBiasData);
-
-            return static_cast<int32_t>(newBiasData);
+        return [rescaledBiasValue = std::move(rescaledBias.getValue())](size_t oc) -> int32_t {
+            return checked_cast<int32_t>(std::round(rescaledBiasValue[oc]));
         };
-    } else if (!inElemType.isa<mlir::quant::QuantizedType>() && !outElemType.isa<mlir::quant::QuantizedType>()) {
+    } else if (isFloat) {
         return [biasContent = std::move(biasContent), arch](int64_t oc) -> int32_t {
             const auto biasVal = biasContent.getValues<float>()[oc];
             const auto biasConverter = VPU::NCESparsity::biasConvertersMap.at(arch);
@@ -210,14 +194,20 @@ llvm::unique_function<int32_t(size_t)> getBiasFunc(mlir::Type inElemType, mlir::
         };
     }
 
-    VPUX_THROW("In/Out element type of NCE op mismatch. Both types must be quantized or not quantized. Got: in type "
-               "{0}, out type {1}",
-               inElemType, outElemType);
+    if (isMixedModeSupported) {
+        VPUX_THROW("In/Out element type of NCE op mismatch. quant-quant, quant-float, float-quant or float-float type "
+                   "pairs required. Got: in type {0}, out type {1}",
+                   inElemType, outElemType);
+    } else {
+        VPUX_THROW("In/Out element type of NCE op mismatch. Both types must be quantized or not quantized. Got: in "
+                   "type {0}, out type {1}",
+                   inElemType, outElemType);
+    }
 }
 
 llvm::unique_function<int32_t(size_t)> getMultShiftFunc(mlir::Type inElemType, mlir::Type outElemType,
                                                         mlir::Type weightsType, VPU::PPETaskAttr ppe,
-                                                        VPU::ArchKind arch, size_t OC) {
+                                                        VPU::ArchKind arch, size_t OC, bool isSpecialRelu) {
     auto updateMultForPPE = [](int32_t& mult, VPU::PPETaskAttr ppe) {
         if (ppe && ppe.mode().getValue() == VPU::PPEMode::LPRELU) {
             mult &= 0xFFFFFF00;
@@ -250,12 +240,18 @@ llvm::unique_function<int32_t(size_t)> getMultShiftFunc(mlir::Type inElemType, m
         }
 
         const auto ppeConverter = VPU::NCESparsity::ppeConvertersMap.at(arch);
-        return [rescale = std::move(rescale), ppeConverter, inElemType, ppe, updateMultForPPE, arch](size_t oc) {
+        return [rescale = std::move(rescale), ppeConverter, inElemType, ppe, updateMultForPPE, arch,
+                isSpecialRelu](size_t oc) {
             const auto quantScale = rescale[oc];
 
             const auto scaleApproximation = QuantizationApproximation(arch, quantScale);
+            VPUX_THROW_WHEN(isSpecialRelu && (scaleApproximation.shift() < 3),
+                            "The curernt PWL solution for leakyRelu with alpha 0.25 requires shift >= 3, but the "
+                            "actual shift is {0}",
+                            scaleApproximation.shift());
+            const auto shift = isSpecialRelu ? scaleApproximation.shift() - 3 : scaleApproximation.shift();
 
-            auto multShift = ppeConverter(checked_cast<uint8_t>(scaleApproximation.shift()),
+            auto multShift = ppeConverter(checked_cast<uint8_t>(shift),
                                           checked_cast<uint16_t>(scaleApproximation.mult()), rescale[oc], inElemType);
             updateMultForPPE(multShift, ppe);
             return multShift;
@@ -269,16 +265,32 @@ llvm::unique_function<int32_t(size_t)> getMultShiftFunc(mlir::Type inElemType, m
 
 }  // namespace
 
+int32_t vpux::VPU::NCESparsity::toHex(double realVal) {
+    union f32toint32 {
+        int32_t m_i32;
+        float m_f32;
+    };
+
+    // Conversion from double to float leads to precision loss with the order of magnitude 1e-07.
+    // It doesn't have any impact on accuracy validation, however checked_cast cannot be used here.
+    // See E#49853 for details.
+    f32toint32 biasVal;
+    biasVal.m_f32 = static_cast<float>(realVal);
+    return biasVal.m_i32;
+}
+
 const EnumMap<VPU::ArchKind, VPU::NCESparsity::PPEConverterCb> vpux::VPU::NCESparsity::ppeConvertersMap = {
         {VPU::ArchKind::VPUX30XX, getVPUX30XX_Scale},
         {VPU::ArchKind::VPUX311X, getVPUX30XX_Scale},
         {VPU::ArchKind::VPUX37XX, getVPUX37XX_Scale},
+        {VPU::ArchKind::VPUX40XX, getVPUX37XX_Scale},
 };
 
 const EnumMap<VPU::ArchKind, VPU::NCESparsity::BiasConverterCb> vpux::VPU::NCESparsity::biasConvertersMap = {
         {VPU::ArchKind::VPUX30XX, toFixedPoint},
         {VPU::ArchKind::VPUX311X, toFixedPoint},
-        {VPU::ArchKind::VPUX37XX, toHex},
+        {VPU::ArchKind::VPUX37XX, VPU::NCESparsity::toHex},
+        {VPU::ArchKind::VPUX40XX, VPU::NCESparsity::toHex},
 };
 
 int64_t vpux::VPU::NCESparsity::getBitPatternSize(Mode mode, ShapeRef kernelSize, int64_t SX, mlir::Type elemType,
@@ -400,15 +412,60 @@ int32_t vpux::VPU::NCESparsity::getWeightPtrStep(mlir::Value weights, mlir::Valu
     return checked_cast<int32_t>(IC * KY * KX * eltSize.count());
 }
 
+bool isQuantLeakyRelu025(VPU::ArchKind arch, mlir::Type inElemType, mlir::Type outElemType,
+                         vpux::IE::PostOp postOpAttr) {
+    if (arch == VPU::ArchKind::VPUX37XX) {
+        return false;
+    }
+
+    if (postOpAttr == nullptr) {
+        return false;
+    }
+
+    bool isQuantized =
+            inElemType.isa<mlir::quant::UniformQuantizedType>() && outElemType.isa<mlir::quant::UniformQuantizedType>();
+    if (!isQuantized) {
+        return false;
+    }
+
+    if (postOpAttr.name().getValue() != IE::LeakyReluOp::getOperationName()) {
+        return false;
+    }
+
+    IE::LeakyReluOp::Adaptor leakyRelu(None, postOpAttr.attrs());
+    auto dummyLocation = mlir::UnknownLoc::get(inElemType.getContext());
+    if (leakyRelu.verify(dummyLocation).failed()) {
+        return false;
+    }
+
+    const auto reluSlope = leakyRelu.negative_slope().getValueAsDouble();
+    return isFloatEqual(static_cast<float>(reluSlope), 0.25);
+}
+
 std::vector<int32_t> vpux::VPU::NCESparsity::getWeightsTable(mlir::Type inElemType, mlir::Type outElemType,
                                                              Optional<int32_t> weightPtr, int32_t weightPtrStep,
                                                              Optional<int32_t> sparsityPtr, int32_t sparsityPtrStep,
                                                              VPU::ArchKind arch, int64_t OC, mlir::Type weightsElemType,
-                                                             Const::ContentAttr bias, VPU::PPETaskAttr ppe) {
+                                                             Const::ContentAttr bias, VPU::PPETaskAttr ppe,
+                                                             vpux::IE::PostOp postOpAttr) {
     VPUX_THROW_WHEN(inElemType == nullptr || outElemType == nullptr,
                     "Can't create weights table without operation input/output types");
 
-    auto getMultShift = getMultShiftFunc(inElemType, outElemType, weightsElemType, ppe, arch, checked_cast<size_t>(OC));
+    // mixed precision for VPUX30XX
+    if (inElemType.isa<mlir::quant::QuantizedType>() && !outElemType.isa<mlir::quant::QuantizedType>() &&
+        arch == ArchKind::VPUX30XX) {
+        const auto newScale = static_cast<double>(std::pow(2, -16));
+        const int64_t zeroPoint = 0;
+
+        auto qType = inElemType.cast<mlir::quant::QuantizedType>();
+        outElemType = mlir::quant::UniformQuantizedType::get(qType.getFlags(), qType.getStorageType(),
+                                                             qType.getExpressedType(), newScale, zeroPoint,
+                                                             qType.getStorageTypeMin(), qType.getStorageTypeMax());
+    }
+
+    const auto isSpecialRelu = isQuantLeakyRelu025(arch, inElemType, outElemType, postOpAttr);
+    auto getMultShift = getMultShiftFunc(inElemType, outElemType, weightsElemType, ppe, arch, checked_cast<size_t>(OC),
+                                         isSpecialRelu);
     auto getBiasFP = getBiasFunc(inElemType, outElemType, weightsElemType, bias, arch, checked_cast<size_t>(OC));
 
     auto weightPtrOffset = weightPtr.hasValue() ? weightPtr.getValue() : 0;
@@ -446,6 +503,99 @@ std::vector<int32_t> vpux::VPU::NCESparsity::getWeightsTable(mlir::Type inElemTy
     return weightsTableVals;
 }
 
+SmallVector<int32_t> vpux::VPU::NCESparsity::getInstructionListTable(ArrayRef<int> rangeAttr, ArrayRef<int> shiftAttr,
+                                                                     ArrayRef<int> biasAttr, const int32_t size) {
+    // NOTE : The instruction list has 5 bits of addresses so the biggest count of instructions is 11111 = 27
+    // 27 of course will be aligned to 32 and will contain NOPS inside
+    const auto range = rangeAttr;
+    const auto shift = shiftAttr;
+    const auto bias = biasAttr;
+    SmallVector<int32_t> templateTable(size, 0);
+
+    // NOTE: first 2 are hardware reserved areas
+    int32_t ADDR_OF_RESERVED = 6;
+    int32_t ADDR_OF_ADDR_FLEX = 11;
+    int32_t ADDR_OF_FIRST2_BITS = 9;
+    int32_t ADDR_OF_REST_BITS = 16;
+    int32_t ADDR_OF_VALUE = 19;
+    int32_t MASK_FIRST2_BITS = 3;
+    int32_t ALU_HALT_OPCODE = 6;
+    int32_t ALU_LOAD = 2;
+    int32_t first2Bits, first3Bits;
+    int32_t sizeRange = static_cast<int32_t>(range.size());
+    int32_t sizeShift = static_cast<int32_t>(shift.size());
+    int32_t sizeBias = static_cast<int32_t>(bias.size());
+    int32_t nopCount = (sizeRange + sizeShift + sizeBias) >> 4;
+
+    // Populate the instruction list from the table
+    int32_t k = 0;
+    for (int32_t j = 0; j < size; j++) {
+        first2Bits = j & MASK_FIRST2_BITS;
+        first3Bits = j >> 2;
+
+        if ((j > sizeRange + sizeShift + sizeBias + nopCount) || (j == 15)) {
+            templateTable[j] = (ALU_HALT_OPCODE);
+        } else {
+            if (j < sizeRange) {
+                templateTable[j] =
+                        ((range[j] << ADDR_OF_VALUE) | (first3Bits << ADDR_OF_REST_BITS) | (8 << ADDR_OF_ADDR_FLEX) |
+                         (first2Bits << ADDR_OF_FIRST2_BITS) | (0 << ADDR_OF_RESERVED) | ALU_LOAD);
+            } else if (j < sizeRange + sizeShift + 1) {
+                if (j < 16) {
+                    templateTable[j] = ((shift[j - sizeRange] << ADDR_OF_VALUE) | (first3Bits << ADDR_OF_REST_BITS) |
+                                        (8 << ADDR_OF_ADDR_FLEX) | (first2Bits << ADDR_OF_FIRST2_BITS) |
+                                        (0 << ADDR_OF_RESERVED) | ALU_LOAD);
+                } else {
+                    k = j - 1;
+                    first2Bits = k & MASK_FIRST2_BITS;
+                    first3Bits = k >> 2;
+                    templateTable[j] = ((shift[k - sizeRange] << ADDR_OF_VALUE) | (first3Bits << ADDR_OF_REST_BITS) |
+                                        (8 << ADDR_OF_ADDR_FLEX) | (first2Bits << ADDR_OF_FIRST2_BITS) |
+                                        (0 << ADDR_OF_RESERVED) | ALU_LOAD);
+                }
+            } else if (j < sizeRange + sizeShift + sizeBias + 1) {
+                k = j - 1;
+                first2Bits = k & MASK_FIRST2_BITS;
+                first3Bits = k >> 2;
+                templateTable[j] = ((bias[k - sizeRange - sizeShift] << ADDR_OF_VALUE) |
+                                    (first3Bits << ADDR_OF_REST_BITS) | (8 << ADDR_OF_ADDR_FLEX) |
+                                    (first2Bits << ADDR_OF_FIRST2_BITS) | (0 << ADDR_OF_RESERVED) | ALU_LOAD);
+            }
+        }
+    }
+
+    return templateTable;
+}
+
 Shape vpux::VPU::NCESparsity::inferWeightsTableShape(int64_t OC) {
     return Shape{OC, 1, 1, VPU::NCEInvariant::WEIGHT_TABLE_NUM_ELEMENTS_PER_OC};
+}
+
+mlir::FailureOr<SmallVector<double>> vpux::VPU::NCESparsity::getRescaledBias(Const::ContentAttr biasAttr,
+                                                                             mlir::Type inElemType,
+                                                                             mlir::Type filterElemType, int64_t OC) {
+    auto inQuantScale = extractScalesAndZeroPoints(inElemType).first;
+    auto filterQuantScales = extractScalesAndZeroPoints(filterElemType).first;
+    broadcast(inQuantScale, OC);
+    broadcast(filterQuantScales, OC);
+
+    SmallVector<double> rescaledBias(OC, 1.0);
+    std::transform(filterQuantScales.begin(), filterQuantScales.end(), inQuantScale.begin(), rescaledBias.begin(),
+                   std::multiplies<>());
+
+    auto biasContent = biasAttr.fold();
+    auto biasValueRange = biasContent.getValues<double>();
+    VPUX_THROW_UNLESS(biasValueRange.size() >= static_cast<size_t>(OC), "bias size {} is less than OC {}",
+                      biasValueRange.size(), OC);
+
+    std::transform(biasValueRange.begin(), biasValueRange.begin() + OC, rescaledBias.begin(), rescaledBias.begin(),
+                   std::divides<>());
+
+    const auto isValueOutOfRange = llvm::any_of(rescaledBias, [](double newBiasData) {
+        return newBiasData <= std::numeric_limits<int32_t>::min() || newBiasData >= std::numeric_limits<int32_t>::max();
+    });
+    if (isValueOutOfRange) {
+        return mlir::failure();
+    }
+    return rescaledBias;
 }

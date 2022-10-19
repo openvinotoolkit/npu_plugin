@@ -90,6 +90,75 @@ mlir::ParseResult vpux::details::parseOptionalTypes(mlir::OpAsmParser& parser, A
 }
 
 //
+// OptionalResultTypes
+//
+
+void vpux::printOptionalResultTypes(mlir::OpAsmPrinter& printer, mlir::Operation* /*op*/, mlir::TypeRange types) {
+    printer << ", ";
+    llvm::interleaveComma(types, printer);
+}
+
+mlir::ParseResult vpux::parseOptionalResultTypes(mlir::OpAsmParser& parser, SmallVectorImpl<mlir::Type>& types) {
+    if (mlir::failed(parser.parseOptionalComma())) {
+        return mlir::success();
+    }
+
+    if (parser.parseTypeList(types)) {
+        return mlir::success();
+    }
+
+    return mlir::success();
+}
+
+mlir::ParseResult vpux::details::parseOptionalResultTypes(mlir::OpAsmParser& parser, ArrayRef<mlir::Type*> dst) {
+    if (mlir::failed(parser.parseOptionalComma())) {
+        return mlir::success();
+    }
+
+    SmallVector<mlir::Type> types;
+    if (parser.parseTypeList(types)) {
+        return mlir::success();
+    }
+
+    if (types.empty()) {
+        return mlir::success();
+    }
+
+    if (types.size() < dst.size()) {
+        // TODO: remove hardcoded support for results of VPUIP.NCEClusterTask
+        // VPUIP.NCEClusterTask has two optional results:
+        //   - first, expecting MemRefOf<I1> or VPUIP_DistributedBuffer
+        //   - second, expecting MemRefOf<UI64>
+        // The output containers are currently populated based on the parsed type
+        if (types.size() == 1 && dst.size() == 2) {
+            auto type = types.front();
+            if (auto memref = type.dyn_cast<mlir::MemRefType>()) {
+                if (memref.getElementType().isUnsignedInteger(64)) {
+                    *dst[1] = type;
+                } else {
+                    *dst[0] = type;
+                }
+            } else {
+                *dst[0] = type;
+            }
+            return mlir::success();
+        }
+        VPUX_THROW("Currently unsupported case: '{0}' types and '{1}' expected", types.size(), dst.size());
+    }
+
+    if (types.size() != dst.size()) {
+        return printTo(parser.emitError(parser.getCurrentLocation()),
+                       "Got unexpected number of types '{0}', expected '{1}'", types.size(), dst.size());
+    }
+
+    for (auto ind : irange(dst.size())) {
+        *dst[ind] = types[ind];
+    }
+
+    return mlir::success();
+}
+
+//
 // OptionalRegion
 //
 

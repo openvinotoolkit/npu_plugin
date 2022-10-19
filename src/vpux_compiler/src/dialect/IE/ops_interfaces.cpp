@@ -8,6 +8,7 @@
 #include "vpux/compiler/dialect/IE/ops_interfaces.hpp"
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
+#include "vpux/compiler/dialect/VPU/ops.hpp"
 #include "vpux/compiler/utils/error.hpp"
 #include "vpux/compiler/utils/quantization.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
@@ -17,6 +18,7 @@
 
 #include <mlir/IR/BlockAndValueMapping.h>
 #include <mlir/IR/BuiltinTypes.h>
+#include <vpux/compiler/dialect/VPU/utils/distributed_tensor_utils.hpp>
 
 using namespace vpux;
 
@@ -79,25 +81,25 @@ mlir::LogicalResult vpux::IE::inferTensorTypes(InferTypeComponentsCb componentsC
     return mlir::success();
 }
 
-bool vpux::IE::isCompatibleTensorTypes(mlir::TypeRange lhs, mlir::TypeRange rhs,
-                                       IE::TypeComparisonMode elemComparisonModes, bool checkDimsOrder,
-                                       bool checkMemSpace, bool checkSparsity) {
+bool vpux::IE::areTypesCompatible(mlir::TypeRange lhs, mlir::TypeRange rhs, IE::TypeComparisonMode elemComparisonModes,
+                                  bool checkDimsOrder, bool checkMemSpace) {
     if (lhs.size() != rhs.size()) {
         return false;
     }
 
     for (const auto p : zip(lhs, rhs)) {
-        const auto lhsType = std::get<0>(p).dyn_cast<mlir::RankedTensorType>();
-        const auto rhsType = std::get<1>(p).dyn_cast<mlir::RankedTensorType>();
+        auto lhsOrigType = std::get<0>(p);
+        auto rhsOrigType = std::get<1>(p);
 
-        if (lhsType == nullptr || rhsType == nullptr) {
+        if (lhsOrigType.getTypeID() != rhsOrigType.getTypeID()) {
             return false;
         }
 
-        if (checkSparsity) {
-            if (IE::isSparse(lhsType) != IE::isSparse(rhsType)) {
-                return false;
-            }
+        auto lhsType = lhsOrigType.dyn_cast<NDTypeInterface>();
+        auto rhsType = lhsOrigType.dyn_cast<NDTypeInterface>();
+
+        if (lhsType == nullptr || rhsType == nullptr) {
+            return false;
         }
 
         if (lhsType.getShape() != rhsType.getShape()) {
@@ -129,8 +131,8 @@ bool vpux::IE::isCompatibleTensorTypes(mlir::TypeRange lhs, mlir::TypeRange rhs,
         }
 
         if (checkDimsOrder) {
-            const auto order1 = IE::getOrder(lhsType);
-            const auto order2 = IE::getOrder(rhsType);
+            const auto order1 = lhsType.getDimsOrder();
+            const auto order2 = rhsType.getDimsOrder();
 
             if (order1 != order2) {
                 return false;
@@ -138,8 +140,8 @@ bool vpux::IE::isCompatibleTensorTypes(mlir::TypeRange lhs, mlir::TypeRange rhs,
         }
 
         if (checkMemSpace) {
-            const auto memSpace1 = IE::getMemorySpace(lhsType);
-            const auto memSpace2 = IE::getMemorySpace(rhsType);
+            const auto memSpace1 = lhsType.getMemSpace();
+            const auto memSpace2 = rhsType.getMemSpace();
 
             if (memSpace1 != memSpace2) {
                 return false;
@@ -208,39 +210,6 @@ void vpux::IE::fillDefaultLayoutInfo(LayerLayoutInfo& info, FuncRef<bool(size_t)
 }
 
 //
-// TilingBuilderOpInterface
-//
-
-mlir::Value vpux::IE::makeTile(mlir::OpBuilder& builder, mlir::Location baseLoc, mlir::Value origVal,
-                               const TileInfo& tile, StringRef valName) {
-    if (tile.shape == getShape(origVal)) {
-        return origVal;
-    }
-
-    const auto loc = appendLoc(baseLoc, "{0} tile {1}", valName, tile.offsets);
-
-    auto sliceOp = builder.create<IE::SliceOp>(loc, origVal, tile.offsets, tile.shape);
-    return sliceOp.result();
-}
-
-//
-// TilingInfoOpInterface
-//
-
-mlir::LogicalResult vpux::IE::verifyTilingInfo(mlir::Operation* op) {
-    if (!mlir::isa<IE::TilingBuilderOpInterface>(op)) {
-        return errorAt(op, "Operation '{0}' provides TilingInfoOpInterface, but not TilingBuilderOpInterface",
-                       op->getName());
-    }
-
-    if (op->getNumResults() != 1) {
-        return errorAt(op, "Unsupported operation '{0}', it must have one and only one result", op->getName());
-    }
-
-    return mlir::success();
-}
-
-//
 // EltwiseOp
 //
 
@@ -253,49 +222,14 @@ mlir::LogicalResult vpux::IE::verifyEltwiseOp(mlir::Operation* op) {
         return errorAt(op, "Operation with multiple results can't be EltwiseOp");
     }
 
+    const auto outputShape = op->getResult(0).getType().cast<vpux::NDTypeInterface>().getShape();
+    if (llvm::none_of(op->getOperands(), [&](mlir::Value operand) {
+            return operand.getType().cast<vpux::NDTypeInterface>().getShape() == outputShape;
+        })) {
+        return errorAt(op, "EltwiseOp must have at least one input shape equal to the output shape");
+    }
+
     return mlir::success();
-}
-
-SmallVector<int64_t> vpux::IE::getMaxNumTiles(mlir::Operation* op) {
-    const auto& outputShape = getShape(op->getResult(0));
-
-    VPUX_THROW_UNLESS(outputShape.size() == 4, "Unsupported shape rank: {0}", outputShape.size());
-
-    int64_t minChannelSize = 1;
-    if (auto channelsInfo = mlir::dyn_cast<IE::AlignedChannelsOpInterface>(op)) {
-        minChannelSize = channelsInfo.getOutputChannelAlignment();
-    }
-
-    const auto maxChannelTiles = outputShape[Dims4D::Act::C] / minChannelSize;
-
-    SmallVector<int64_t> maxNumTiles(outputShape.begin(), outputShape.end());
-    maxNumTiles[Dims4D::Act::C.ind()] = maxChannelTiles;
-
-    return maxNumTiles;
-}
-
-InputTiling vpux::IE::backInferEltwiseTile(mlir::Operation* op, const vpux::TileInfo& outputTile) {
-    SmallVector<TileInfo> inputTiles;
-    for (auto& origInput : op->getOpOperands()) {
-        const auto curShape = getShape(origInput.get());
-        VPUX_THROW_UNLESS(curShape.size() == outputTile.shape.size(),
-                          "Can't tile eltwise operation '{0}' at '{1}', which has operands with different rank",
-                          op->getName(), op->getLoc());
-
-        // Handle broadcasted inputs
-        auto curTile = outputTile;
-        for (auto ind : irange(curShape.size())) {
-            const auto d = Dim(ind);
-            if (curShape[d] == 1) {
-                curTile.shape[d] = 1;
-                curTile.offsets[d] = 0;
-            }
-        }
-
-        inputTiles.push_back(curTile);
-    }
-
-    return TilingInfo{inputTiles};
 }
 
 vpux::IE::LayerDataInfo<mlir::Type> vpux::IE::getElemTypeInfo(mlir::Operation* op) {

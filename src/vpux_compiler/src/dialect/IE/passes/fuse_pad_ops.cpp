@@ -77,9 +77,9 @@ mlir::LogicalResult generalFusion(mlir::Operation* origOp, mlir::ArrayAttr kerne
         return mlir::failure();
     }
 
-    opRewriter(origPadOp.input(), newPadsBegin, newPadsEnd);
-
     log.trace("Fuse PadOp {0} into {1}", origPadOp.getLoc(), origOp->getLoc());
+
+    opRewriter(origPadOp.input(), newPadsBegin, newPadsEnd);
 
     return mlir::success();
 }

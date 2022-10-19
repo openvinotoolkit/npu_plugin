@@ -13,34 +13,6 @@
 
 using namespace vpux;
 
-namespace {
-
-//
-// ConvertSubtractToAddWithNegative
-//
-
-class ConvertSubtractToAddWithNegative final : public mlir::OpRewritePattern<IE::SubtractOp> {
-public:
-    using mlir::OpRewritePattern<IE::SubtractOp>::OpRewritePattern;
-
-public:
-    mlir::LogicalResult matchAndRewrite(IE::SubtractOp subOp, mlir::PatternRewriter& rewriter) const final;
-};
-
-mlir::LogicalResult ConvertSubtractToAddWithNegative::matchAndRewrite(IE::SubtractOp subOp,
-                                                                      mlir::PatternRewriter& rewriter) const {
-    auto input1 = subOp.input1();
-    auto input2 = subOp.input2();
-
-    auto negativeOp = rewriter.create<IE::NegativeOp>(subOp.getLoc(), input2.getType(), input2);
-
-    rewriter.replaceOpWithNewOp<IE::AddOp>(subOp, input1, negativeOp.output(), subOp.auto_broadcastAttr(),
-                                           /*post_op=*/nullptr);
-    return mlir::success();
-}
-
-}  // namespace
-
 mlir::LogicalResult vpux::IE::SubtractOp::inferReturnTypeComponents(
         mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
         mlir::DictionaryAttr attrs, mlir::RegionRange,
@@ -62,10 +34,6 @@ mlir::LogicalResult vpux::IE::SubtractOp::inferReturnTypeComponents(
     }
 
     return outShapeRes;
-}
-
-void vpux::IE::SubtractOp::getCanonicalizationPatterns(mlir::RewritePatternSet& patterns, mlir::MLIRContext* context) {
-    patterns.insert<ConvertSubtractToAddWithNegative>(context);
 }
 
 mlir::OpFoldResult vpux::IE::SubtractOp::fold(ArrayRef<mlir::Attribute> operands) {

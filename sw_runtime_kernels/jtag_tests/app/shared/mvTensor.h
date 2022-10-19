@@ -528,9 +528,11 @@ typedef enum {
     t_fp16 = NN_FP16, ///< Half precision floating point
     t_u8f = NN_U8,    ///< Unsigned byte
     t_int = NN_INT32, ///< Signed integer (4 byte)
+    t_i64 = NN_I64,   ///< Signed integer (8 byte)
+    t_uint = NN_U32,  ///< Unsigned integer (4 byte)
     t_fp32 = NN_FP32, ///< Single precision floating point
     t_i8 = NN_I8,     ///< Signed byte
-    t_i16 = NN_INT16,
+    t_i16 = NN_INT16, ///< Signed integer (2 byte)
 } t_MvTensorDataType;
 
 typedef t_D8StorageOrder t_MvTensorStorageOrder;

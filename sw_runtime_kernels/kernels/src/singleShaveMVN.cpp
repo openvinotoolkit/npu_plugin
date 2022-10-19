@@ -3,11 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-#ifdef CONFIG_HAS_LRT_SRCS
-#include <nn_log.h>
-#else
-#define nnLog(level, ...)
-#endif
 #include <moviVectorConvert.h>
 #include <mvSubspaces.h>
 
@@ -287,7 +282,6 @@ void singleShaveMVN(uint32_t lParams) {
     sp->eps = layerParams->eps;
 
     if (layerParams->acrossChannels != false) {
-        nnLog(MVLOG_ERROR, "Unsuported case, expected across_channels = false");
         return;
     }
 
@@ -303,8 +297,6 @@ void singleShaveMVN(uint32_t lParams) {
     unsigned int shaves_no = 1;
     int32_t firstShave = 0;
     int32_t lastShave = firstShave + static_cast<int>(shaves_no) - 1;
-    nnLog(MVLOG_DEBUG, "singleShaveMVN: run on %d SHAVEs\n", shaves_no);
-    nnLog(MVLOG_DEBUG, "MVNParamNClasses %d\n", __LINE__);
 
     t_MvMVNParamNClasses* mvnParamNClasses = &mvnParamsCMX;
     mvnParamNClasses->input = reinterpret_cast<half*>(p_act_data);

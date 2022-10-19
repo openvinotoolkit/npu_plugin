@@ -691,6 +691,12 @@ mlir::Operation* createRTLayer(IE::LogOp origOp, ArrayRef<mlir::Value> allBufs, 
     return b.create<IERT::LogOp>(origOp.getLoc(), newOp.input(), newOp.output_buff());
 }
 
+mlir::Operation* createRTLayer(IE::SeluOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
+    IERT::SeluOp::Adaptor newOp(allBufs);
+    return b.create<IERT::SeluOp>(origOp.getLoc(), newOp.data(), newOp.output_buff(), origOp.alphaValueAttr(),
+                                  origOp.lambdaValueAttr());
+}
+
 mlir::Operation* createRTLayer(IE::GeluOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
     IERT::GeluOp::Adaptor newOp(allBufs);
     return b.create<IERT::GeluOp>(origOp.getLoc(), newOp.input(), newOp.output_buff());
@@ -803,6 +809,19 @@ mlir::Operation* createRTLayer(IE::MaxPoolOp origOp, ArrayRef<mlir::Value> allBu
                                      origOp.post_opAttr());
 }
 
+mlir::Operation* createRTLayer(IE::AdaptiveAvgPoolOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
+    IERT::AdaptiveAvgPoolOp::Adaptor newOp(allBufs);
+    return b.create<IERT::AdaptiveAvgPoolOp>(origOp.getLoc(), newOp.input(), newOp.pooled_spatial_shape(),
+                                             newOp.output_buff());
+}
+
+mlir::Operation* createRTLayer(IE::AdaptiveMaxPoolOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
+    IERT::AdaptiveMaxPoolOp::Adaptor newOp(allBufs);
+    return b.create<IERT::AdaptiveMaxPoolOp>(origOp.getLoc(), newOp.input(), newOp.pooled_spatial_shape(),
+                                             newOp.output_buff(), newOp.output_index_buff(),
+                                             origOp.index_element_typeAttr());
+}
+
 mlir::Operation* createRTLayer(IE::ClampOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
     IERT::ClampOp::Adaptor newOp(allBufs);
     return b.create<IERT::ClampOp>(origOp.getLoc(), newOp.input(), newOp.output_buff(), origOp.minAttr(),
@@ -837,6 +856,12 @@ mlir::Operation* createRTLayer(IE::BroadcastOp origOp, ArrayRef<mlir::Value> all
                                        newOp.output_buff(), origOp.modeAttr());
 }
 
+mlir::Operation* createRTLayer(IE::BucketizeOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
+    IERT::BucketizeOp::Adaptor newOp(allBufs);
+    return b.create<IERT::BucketizeOp>(origOp.getLoc(), newOp.data(), newOp.buckets(), newOp.output_buff(),
+                                       origOp.output_typeAttr(), origOp.with_right_boundAttr());
+}
+
 mlir::Operation* createRTLayer(IE::ReduceMaxOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
     IERT::ReduceMaxOp::Adaptor newOp(allBufs);
     return b.create<IERT::ReduceMaxOp>(origOp.getLoc(), newOp.input(), newOp.axes(), newOp.output_buff(),
@@ -846,6 +871,24 @@ mlir::Operation* createRTLayer(IE::ReduceMaxOp origOp, ArrayRef<mlir::Value> all
 mlir::Operation* createRTLayer(IE::ReduceMeanOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
     IERT::ReduceMeanOp::Adaptor newOp(allBufs);
     return b.create<IERT::ReduceMeanOp>(origOp.getLoc(), newOp.input(), newOp.axes(), newOp.output_buff(),
+                                        origOp.keep_dimsAttr());
+}
+
+mlir::Operation* createRTLayer(IE::ReduceLogicalOrOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
+    IERT::ReduceLogicalOrOp::Adaptor newOp(allBufs);
+    return b.create<IERT::ReduceLogicalOrOp>(origOp.getLoc(), newOp.input(), newOp.axes(), newOp.output_buff(),
+                                             origOp.keep_dimsAttr());
+}
+
+mlir::Operation* createRTLayer(IE::ReduceLogicalAndOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
+    IERT::ReduceLogicalAndOp::Adaptor newOp(allBufs);
+    return b.create<IERT::ReduceLogicalAndOp>(origOp.getLoc(), newOp.input(), newOp.axes(), newOp.output_buff(),
+                                              origOp.keep_dimsAttr());
+}
+
+mlir::Operation* createRTLayer(IE::ReduceProdOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
+    IERT::ReduceProdOp::Adaptor newOp(allBufs);
+    return b.create<IERT::ReduceProdOp>(origOp.getLoc(), newOp.input(), newOp.axes(), newOp.output_buff(),
                                         origOp.keep_dimsAttr());
 }
 
@@ -859,6 +902,18 @@ mlir::Operation* createRTLayer(IE::ReduceMinOp origOp, ArrayRef<mlir::Value> all
     IERT::ReduceMinOp::Adaptor newOp(allBufs);
     return b.create<IERT::ReduceMinOp>(origOp.getLoc(), newOp.input(), newOp.axes(), newOp.output_buff(),
                                        origOp.keep_dimsAttr());
+}
+
+mlir::Operation* createRTLayer(IE::ReduceL1Op origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
+    IERT::ReduceL1Op::Adaptor newOp(allBufs);
+    return b.create<IERT::ReduceL1Op>(origOp.getLoc(), newOp.input(), newOp.axes(), newOp.output_buff(),
+                                      origOp.keep_dimsAttr());
+}
+
+mlir::Operation* createRTLayer(IE::ReduceL2Op origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
+    IERT::ReduceL2Op::Adaptor newOp(allBufs);
+    return b.create<IERT::ReduceL2Op>(origOp.getLoc(), newOp.input(), newOp.axes(), newOp.output_buff(),
+                                      origOp.keep_dimsAttr());
 }
 
 mlir::Operation* createRTLayer(IE::PerAxisTileOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
@@ -955,6 +1010,12 @@ mlir::Operation* createRTLayer(IE::CTCGreedyDecoderSeqLenOp origOp, ArrayRef<mli
     return b.create<IERT::CTCGreedyDecoderSeqLenOp>(origOp.getLoc(), newOp.input(), newOp.sequenceLength(),
                                                     newOp.blankIndex(), newOp.output_buff(), newOp.outputLength_buff(),
                                                     origOp.mergeRepeatedAttr());
+}
+
+mlir::Operation* createRTLayer(IE::ProposalOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
+    IERT::ProposalOp::Adaptor newOp(allBufs);
+    return b.create<IERT::ProposalOp>(origOp.getLoc(), newOp.class_probs(), newOp.bbox_deltas(), newOp.image_shape(),
+                                      newOp.output_buff(), newOp.probs_buff(), origOp.proposal_attrs());
 }
 
 mlir::Operation* createRTLayer(IE::PadOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
@@ -1084,6 +1145,12 @@ mlir::Operation* createRTLayer(IE::NotEqualOp origOp, ArrayRef<mlir::Value> allB
     return b.create<IERT::NotEqualOp>(origOp.getLoc(), newOp.input1(), newOp.input2(), newOp.output_buff());
 }
 
+mlir::Operation* createRTLayer(IE::LRNOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
+    IERT::LRNOp::Adaptor newOp(allBufs);
+    return b.create<IERT::LRNOp>(origOp.getLoc(), newOp.input(), newOp.axis(), newOp.output_buff(), origOp.alphaAttr(),
+                                 origOp.betaAttr(), origOp.biasAttr(), origOp.sizeAttr());
+}
+
 mlir::Operation* createRTLayer(IE::GreaterOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
     IERT::GreaterOp::Adaptor newOp(allBufs);
     return b.create<IERT::GreaterOp>(origOp.getLoc(), newOp.input1(), newOp.input2(), newOp.output_buff());
@@ -1115,6 +1182,12 @@ mlir::Operation* createRTLayer(IE::SpaceToDepthOp origOp, ArrayRef<mlir::Value> 
                                           origOp.mode());
 }
 
+mlir::Operation* createRTLayer(IE::ExtractImagePatchesOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
+    IERT::ExtractImagePatchesOp::Adaptor newOp(allBufs);
+    return b.create<IERT::ExtractImagePatchesOp>(origOp.getLoc(), newOp.data(), newOp.output_buff(), origOp.sizesAttr(),
+                                                 origOp.stridesAttr(), origOp.ratesAttr(), origOp.autoPadAttr());
+}
+
 mlir::Operation* createRTLayer(IE::CopyOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
     IERT::CopyOp::Adaptor newOp(allBufs);
     return b.create<IERT::CopyOp>(origOp.getLoc(), newOp.input(), newOp.output_buff());
@@ -1138,6 +1211,17 @@ mlir::Operation* createRTLayer(IE::AsinOp origOp, ArrayRef<mlir::Value> allBufs,
 mlir::Operation* createRTLayer(IE::AcosOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
     IERT::AcosOp::Adaptor newOp(allBufs);
     return b.create<IERT::AcosOp>(origOp.getLoc(), newOp.input(), newOp.output_buff());
+}
+
+mlir::Operation* createRTLayer(IE::HSigmoidOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
+    IERT::HSigmoidOp::Adaptor newOp(allBufs);
+    return b.create<IERT::HSigmoidOp>(origOp.getLoc(), newOp.input(), newOp.output_buff());
+}
+
+mlir::Operation* createRTLayer(IE::HardSigmoidOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
+    IERT::HardSigmoidOp::Adaptor newOp(allBufs);
+    return b.create<IERT::HardSigmoidOp>(origOp.getLoc(), newOp.input(), newOp.output_buff(), origOp.alpha_valueAttr(),
+                                         origOp.beta_valueAttr());
 }
 
 class LayerRewrite final : public mlir::ConversionPattern {
@@ -1181,6 +1265,8 @@ mlir::LogicalResult LayerRewrite::matchAndRewrite(mlir::Operation* origOp, Array
     CASE(IE::SoftMaxOp)
     CASE(IE::AvgPoolOp)
     CASE(IE::MaxPoolOp)
+    CASE(IE::AdaptiveAvgPoolOp)
+    CASE(IE::AdaptiveMaxPoolOp)
     CASE(IE::ConvolutionOp)
     CASE(IE::GroupConvolutionOp)
     CASE(IE::ReLUOp)
@@ -1194,10 +1280,16 @@ mlir::LogicalResult LayerRewrite::matchAndRewrite(mlir::Operation* origOp, Array
     CASE(IE::MishOp)
     CASE(IE::ErfOp)
     CASE(IE::BroadcastOp)
+    CASE(IE::BucketizeOp)
     CASE(IE::ReduceMaxOp)
     CASE(IE::ReduceMeanOp)
+    CASE(IE::ReduceLogicalOrOp)
+    CASE(IE::ReduceLogicalAndOp)
+    CASE(IE::ReduceProdOp)
     CASE(IE::ReduceSumOp)
     CASE(IE::ReduceMinOp)
+    CASE(IE::ReduceL1Op)
+    CASE(IE::ReduceL2Op)
     CASE(IE::TanhOp)
     CASE(IE::SinOp)
     CASE(IE::CosOp)
@@ -1208,6 +1300,7 @@ mlir::LogicalResult LayerRewrite::matchAndRewrite(mlir::Operation* origOp, Array
     CASE(IE::AcoshOp)
     CASE(IE::AtanhOp)
     CASE(IE::LogOp)
+    CASE(IE::SeluOp)
     CASE(IE::GeluOp)
     CASE(IE::FakeQuantizeOp)
     CASE(IE::PReluOp)
@@ -1258,9 +1351,11 @@ mlir::LogicalResult LayerRewrite::matchAndRewrite(mlir::Operation* origOp, Array
     CASE(IE::LessOp)
     CASE(IE::LessEqualOp)
     CASE(IE::NotEqualOp)
+    CASE(IE::LRNOp)
     CASE(IE::GreaterOp)
     CASE(IE::GreaterEqualOp)
     CASE(IE::SpaceToDepthOp)
+    CASE(IE::ExtractImagePatchesOp)
     CASE(IE::TopKOp)
     CASE(IE::LogicalNotOp)
     CASE(IE::LogicalOrOp)
@@ -1270,6 +1365,9 @@ mlir::LogicalResult LayerRewrite::matchAndRewrite(mlir::Operation* origOp, Array
     CASE(IE::AtanOp)
     CASE(IE::AsinOp)
     CASE(IE::AcosOp)
+    CASE(IE::HSigmoidOp)
+    CASE(IE::HardSigmoidOp)
+    CASE(IE::ProposalOp)
     .Default([](mlir::Operation*) {
         return nullptr;
     });

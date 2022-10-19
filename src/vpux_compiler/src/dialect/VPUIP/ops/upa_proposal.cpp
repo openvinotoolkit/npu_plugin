@@ -24,16 +24,16 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(ProposalUPAOp op) {
 }
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::ProposalUPAOp::serialize(VPUIP::BlobWriter& writer) {
-    MVCNN::ProposalParamsBuilder builder(writer);
-
     IE::ProposalAttr attr = proposal_attrs();
     VPUIP::BlobWriter::String framework = writer.createString(attr.framework().getValue());
 
     auto ratio_fb = writer.createVector(parseFPArrayAttr<float>(attr.ratio()));
     auto scale_fb = writer.createVector(parseFPArrayAttr<float>(attr.scale()));
 
+    MVCNN::ProposalParamsBuilder builder(writer);
     builder.add_ratio(ratio_fb);
     builder.add_scale(scale_fb);
+
     builder.add_min_size(checked_cast<uint32_t>(attr.minSize().getValue().getSExtValue()));
     builder.add_base_size(checked_cast<uint32_t>(attr.baseSize().getValue().getSExtValue()));
     builder.add_framework(framework);

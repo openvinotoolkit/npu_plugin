@@ -50,10 +50,10 @@ TEST_P(VPUXSoftMaxLayerTest, MLIR) {
     run();
 }
 
-TEST_P(VPUXSoftMaxLayerTest, MLIR_VPUX37XX) {
+TEST_P(VPUXSoftMaxLayerTest, MLIR_VPU3720) {
     abs_threshold = 1e-3;
     useCompilerMLIR();
-    setPlatformVPUX37XX();
+    setPlatformVPU3720();
     setDefaultHardwareModeMLIR();
     run();
 }
@@ -89,8 +89,8 @@ const auto params2D = testing::Combine(
 
 INSTANTIATE_TEST_CASE_P(smoke_SoftMax2D, VPUXSoftMaxLayerTest, params2D, SoftMaxLayerTest::getTestCaseName);
 
-const std::vector<ov::Shape> inShapes4D = {{1, 2, 204, 62}, {1, 12, 2, 1444}, {1, 2, 72, 10},
-                                           {1, 4, 1, 1},    {1, 1000, 1, 1},  {300, 21, 1, 1}};
+const std::vector<ov::Shape> inShapes4D = {
+        {1, 2, 204, 62}, {1, 12, 2, 1444}, {1, 4, 1, 1}, {1, 1000, 1, 1}, {300, 21, 1, 1}};
 
 const std::vector<size_t> axis4D = {0, 1, 2, 3};
 
@@ -100,6 +100,14 @@ const auto params4D = testing::Combine(
         testing::Values(testPlatformTargetDevice), testing::Values(ov::AnyMap()));
 
 INSTANTIATE_TEST_CASE_P(smoke_SoftMax4D, VPUXSoftMaxLayerTest, params4D, SoftMaxLayerTest::getTestCaseName);
+
+const auto precommit_params4D = testing::Combine(
+        testing::ValuesIn(netPrecisions), testing::ValuesIn(inputPrecisions), testing::ValuesIn(outputPrecisions),
+        testing::ValuesIn(ov::test::static_shapes_to_test_representation({{1, 2, 72, 10}})), testing::ValuesIn(axis4D),
+        testing::Values(testPlatformTargetDevice), testing::Values(ov::AnyMap()));
+
+INSTANTIATE_TEST_CASE_P(smoke_precommit_SoftMax4D, VPUXSoftMaxLayerTest, precommit_params4D,
+                        SoftMaxLayerTest::getTestCaseName);
 
 }  // namespace subgraph
 }  // namespace test

@@ -42,7 +42,7 @@ else()
 endif()
 
 set(kernel_src_dir_default "src")
-set(kernel_cpunum_default "3010")
+set(kernel_cpunum_default "3720")
 set(optimization_opts_default "-O3")
 
 set(include_dirs_list_default
@@ -53,11 +53,12 @@ set(include_dirs_list_default
 )
 
 set(define_symbols_list_default
-  "__shave_nn__"
+  "__act_shave__"
   "CONFIG_TARGET_SOC_3720"
 )
 
 set(always_inline_default "no")
+set(rt_kernel_default "no")
 
 set(mv_tools_compile "${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}/linux64/bin/moviCompile")
 set(mv_tools_link "${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}/linux64/sparc-myriad-rtems-6.3.0/bin/sparc-myriad-rtems-ld")
@@ -79,10 +80,11 @@ set(jtag_data_suffix ".data.xdat")
 set(link_script_file_default "${CMAKE_SOURCE_DIR}/prebuild/shave_kernel.ld")
 
 set(link_libraries_list
-  "${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}/common/moviCompile/lib/30xxxx-leon/mlibm.a"
-  "${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}/common/moviCompile/lib/30xxxx-leon/mlibcxx.a"
-  "${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}/common/moviCompile/lib/30xxxx-leon/mlibc.a"
-  "${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}/common/moviCompile/lib/30xxxx-leon/mlibcrt.a"
+  "${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}/common/moviCompile/lib/37xxxx/mlibc_lgpl.a"
+  "${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}/common/moviCompile/lib/37xxxx/mlibm.a"
+  "${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}/common/moviCompile/lib/37xxxx/mlibcxx.a"
+  "${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}/common/moviCompile/lib/37xxxx/mlibc.a"
+  "${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}/common/moviCompile/lib/37xxxx/mlibcrt.a"
 )
 
 set(kernel_descrip_dir "${CUSTOM_KERNELS_DIR}")
@@ -144,6 +146,7 @@ foreach(kernel_descrip ${kernel_descrip_list})
   set(include_dirs_list "")
   set(define_symbols_list "")
   set(always_inline "${always_inline_default}")
+  set(rt_kernel "${rt_kernel_default}")
   set(extra_src_list "")
   set(link_script_file "${link_script_file_default}")
   set(binary_subdir "")
@@ -171,8 +174,14 @@ foreach(kernel_descrip ${kernel_descrip_list})
   set(kernel_cpu "${kernel_cpunum}xx")
   set(kernel_cpu_suffix ".${kernel_cpunum}xx")
 
+
   set(kernel_src_file "${kernel_src_dir}/${kernel_src}")
-  set(kernel_src_path "${CMAKE_SOURCE_DIR}/${kernel_src_file}")
+  
+  if (rt_kernel STREQUAL "yes")
+	set(kernel_src_path "${kernel_src_file}")
+  else()
+	set(kernel_src_path "${CMAKE_SOURCE_DIR}/${kernel_src_file}")
+  endif()
 
   list(TRANSFORM include_dirs_list PREPEND "-I")
   list(TRANSFORM define_symbols_list PREPEND "-D")

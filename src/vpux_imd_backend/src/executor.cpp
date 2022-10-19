@@ -31,13 +31,10 @@ using InferenceEngine::VPUXConfigParams::VPUXPlatform;
 //
 
 void vpux::IMD::ExecutorImpl::parseAppConfig(VPUXPlatform platform, const Config& config) {
-    // InferenceManagerDemo application ELF file
-
+    // Check if platform is supported and get elf file name
     const auto appName = getAppName(platform);
-    _app.elfFile = printToString("{0}/vpux/{1}", ov::util::get_ov_lib_path(), appName);
 
     // Path to MOVI tools dir
-
     std::string pathToTools;
 
     if (config.has<IMD::MV_TOOLS_PATH>()) {
@@ -61,21 +58,88 @@ void vpux::IMD::ExecutorImpl::parseAppConfig(VPUXPlatform platform, const Config
     switch (mode) {
     case IMD::LaunchMode::MoviSim: {
         _app.runProgram = printToString("{0}/moviSim", pathToTools);
+        _app.elfFile = printToString("{0}/vpux/simulator/{1}", ov::util::get_ov_lib_path(), appName);
 
-        if (platformSupported(platform)) {
-            if (platform == VPUXPlatform::VPU3720) {
-                // For some reason, -cv:3720xx doesn't work, while -cv:3700xx works OK for VPUX37XX
-                _app.chipsetArg = "-cv:3700xx";
-                _app.imdElfArg = printToString("-l:LRT:{0}", _app.elfFile);
-            } else {
-                _app.chipsetArg = "-cv:ma2490";
-                _app.imdElfArg = printToString("-l:LRT0:{0}", _app.elfFile);
-            }
-
-            _app.runArgs = {_app.runProgram, _app.chipsetArg, "-nodasm", "-q", _app.imdElfArg};
+        if (platform == VPUXPlatform::VPU3720 || platform == VPUXPlatform::VPU3720ELF) {
+            // For some reason, -cv:3720xx doesn't work, while -cv:3700xx works OK for VPU3720
+            _app.chipsetArg = "-cv:3700xx";
+            _app.imdElfArg = printToString("-l:LRT:{0}", _app.elfFile);
         } else {
-            VPUX_THROW("Unsupported VPU platform '{0}'", platform);
+            _app.chipsetArg = "-cv:ma2490";
+            _app.imdElfArg = printToString("-l:LRT0:{0}", _app.elfFile);
         }
+
+        _app.runArgs = {_app.runProgram, _app.chipsetArg, "-nodasm", "-q", _app.imdElfArg, "-simLevel:fast"};
+
+        break;
+    }
+    case IMD::LaunchMode::MoviDebug: {
+        const auto* vpuElfPlatform = std::getenv("VPU_ELF_PLATFORM");
+        const auto* vpuFirmwareDir = std::getenv("VPU_FIRMWARE_SOURCES_PATH");
+        const auto* srvIP = std::getenv("VPU_SRV_IP");
+        const auto* srvPort = std::getenv("VPU_SRV_PORT");
+
+        if (vpuFirmwareDir == nullptr) {
+            VPUX_THROW("Can't locate vpu firmware directory, please provide VPU_FIRMWARE_SOURCES_PATH env var");
+        }
+        if (vpuElfPlatform == nullptr) {
+            vpuElfPlatform = "silicon";
+            _log.warning("'VPU_ELF_PLATFORM' env variable is unset, using the default value: 'silicon'");
+        } else {
+            auto vpuElfPlatformStr = std::string(vpuElfPlatform);
+            if (vpuElfPlatformStr != "silicon" && vpuElfPlatformStr != "fpga")
+                VPUX_THROW("Unsupported value for VPU_ELF_PLATFORM env var, expected: 'silicon' or 'fpga', got '{0}'",
+                           vpuElfPlatformStr);
+        }
+
+        _app.runProgram = printToString("{0}/moviDebug2", pathToTools);
+        _app.elfFile = printToString("{0}/vpux/{1}/{2}", ov::util::get_ov_lib_path(), vpuElfPlatform, appName);
+        _app.imdElfArg = printToString("-D:elf={0}", _app.elfFile);
+
+        static auto default_mdbg2Arg =
+                printToString("{0}/build/buildSupport/scripts/debug/default_mdbg2.scr", vpuFirmwareDir);
+        static auto default_pipe_mdbg2Arg =
+                printToString("{0}/build/buildSupport/scripts/debug/default_pipe_mdbg2.scr", vpuFirmwareDir);
+        static auto default_run_mdbg2Arg =
+                printToString("{0}/build/buildSupport/scripts/debug/default_run_mdbg2.scr", vpuFirmwareDir);
+        static std::string default_targetArg;
+
+        if (platform == VPUXPlatform::VPU3720) {
+            _app.chipsetArg = "-cv:3700xx";
+            default_targetArg = "-D:default_target=LRT";
+        } else {
+            _app.chipsetArg = "-cv:ma2490";
+            default_targetArg = "-D:default_target=LRT0";
+        }
+
+        _app.runArgs = {_app.runProgram, _app.imdElfArg, _app.chipsetArg, default_targetArg, "--no-uart"};
+
+        if (srvIP != nullptr) {
+            static auto srvIPArg = printToString("-srvIP:{0}", srvIP);
+            _app.runArgs.append({srvIPArg});
+        } else {
+            _log.warning("'VPU_SRV_IP' env variable is unset, moviDebug2 will try to connect to localhost");
+        }
+
+        if (srvPort != nullptr) {
+            static auto srvPortArg = printToString("-serverPort:{0}", srvPort);
+            _app.runArgs.append({srvPortArg});
+        } else {
+            _log.warning("'VPU_SRV_PORT' env variable is unset, moviDebug2 will try to connect to 30000 or 30001 port");
+        }
+
+        // Additional script needed for VPU3720 silicon
+        if (std::string(vpuElfPlatform) == "silicon" && platform == VPUXPlatform::VPU3720) {
+            static auto vpux37XX_resetArg = printToString(
+                    "{0}/build/buildSupport/scripts/debug/mdkTcl/commands/SoC/372x/mtl_reset.tcl", vpuFirmwareDir);
+            _app.runArgs.append({"--init", vpux37XX_resetArg});
+        }
+
+        // Common debug scripts
+        _app.runArgs.append({"--init", default_mdbg2Arg});
+        _app.runArgs.append({"--init", default_pipe_mdbg2Arg});
+        _app.runArgs.append({"--script", default_run_mdbg2Arg});
+        _app.runArgs.append({"-D:run_opt=runw", "-D:exit_opt=exit"});
 
         break;
     }

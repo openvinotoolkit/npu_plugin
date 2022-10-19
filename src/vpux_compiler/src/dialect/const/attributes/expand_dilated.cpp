@@ -9,8 +9,8 @@
 #include "vpux/compiler/core/layers.hpp"
 #include "vpux/compiler/dialect/const/attributes/content.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
+#include "vpux/compiler/utils/dilated_utils.hpp"
 #include "vpux/compiler/utils/subspaces.hpp"
-#include "vpux/compiler/utils/types.hpp"
 
 #include "vpux/utils/IE/loop.hpp"
 #include "vpux/utils/core/format.hpp"
@@ -89,7 +89,7 @@ mlir::Attribute vpux::Const::ExpandDilatedAttr::parse(mlir::DialectAsmParser& pa
 
 vpux::NDTypeInterface vpux::Const::ExpandDilatedAttr::inferOutputType(vpux::NDTypeInterface input) const {
     const auto dilations = parseIntArrayAttr<int64_t>(getDilations());
-    auto tensor = input.cast<mlir::RankedTensorType>();
+    auto tensor = input.cast<vpux::NDTypeInterface>();
     return getDilatedType(tensor, ShapeRef(dilations));
 }
 

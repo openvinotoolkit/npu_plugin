@@ -18,12 +18,10 @@ include "vpux/compiler/dialect/IE/attributes.td"
 include "mlir/Interfaces/CastInterfaces.td"
 include "mlir/Interfaces/InferTypeOpInterface.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
-include "mlir/Interfaces/ViewLikeInterface.td"
 include "mlir/IR/OpAsmInterface.td"
 include "mlir/IR/RegionKindInterface.td"
 include "mlir/IR/SymbolInterfaces.td"
 include "mlir/Dialect/Quant/QuantOpsBase.td"
-include "mlir/IR/SymbolInterfaces.td"
 
 //
 // Base classes
@@ -49,15 +47,13 @@ class IE_LayerOp<string mnemonic, list<OpTrait> traits = []> :
     list<string> elemComparisonModes = [IE_TypeComparisonMode_STRICT_EQUAL];
     bit checkInferredDimsOrder = 0;
     bit checkInferredMemSpace = 0;
-    bit checkInferredSparsity = 0;
 
     let extraClassDeclaration = [{
         static bool isCompatibleReturnTypes(mlir::TypeRange lhs, mlir::TypeRange rhs) {
-            return vpux::IE::isCompatibleTensorTypes(lhs, rhs,
+            return vpux::IE::areTypesCompatible(lhs, rhs,
                 }] # !interleave(elemComparisonModes, "|") # [{,
                 static_cast<bool>(}] # checkInferredDimsOrder # [{),
-                static_cast<bool>(}] # checkInferredMemSpace # [{),
-                static_cast<bool>(}] # checkInferredSparsity # [{)
+                static_cast<bool>(}] # checkInferredMemSpace # [{)
             );
         }
     }];
@@ -295,7 +291,6 @@ def IE_ConvertOp :
             "Convert",
             [
                 DeclareOpInterfaceMethods<CastOpInterface>,
-                IE_TilingBuilderOpInterface,
                 IE_EltwiseOp
             ]
         > {
@@ -422,7 +417,6 @@ def IE_ReLUOp :
         IE_LayerOp<
             "ReLU",
             [
-                IE_TilingBuilderOpInterface,
                 IE_EltwiseOp
             ]
         > {
@@ -474,7 +468,6 @@ def IE_PowerOp :
         IE_LayerOp<
             "Power",
             [
-                IE_TilingBuilderOpInterface,
                 IE_EltwiseOp
             ]
         > {
@@ -500,7 +493,6 @@ def IE_AddOp :
         IE_LayerOp<
             "Add",
             [
-                IE_TilingBuilderOpInterface,
                 Commutative,
                 IE_EltwiseOp
             ]
@@ -519,7 +511,6 @@ def IE_AddOp :
         RankedTensorOf<[F16, F32, quant_QuantizedType]>:$output
     );
 
-    let hasCanonicalizer = 1;
     let hasFolder = 1;
 
     let elemComparisonModes = [IE_TypeComparisonMode_ALLOW_QUANT_MIXED_PRECISION];
@@ -533,7 +524,6 @@ def IE_DivideOp :
         IE_LayerOp<
             "Divide",
             [
-                IE_TilingBuilderOpInterface,
                 IE_EltwiseOp
             ]
         > {
@@ -559,7 +549,6 @@ def IE_SquaredDifferenceOp :
         IE_LayerOp<
             "SquaredDiff",
             [
-                IE_TilingBuilderOpInterface,
                 IE_EltwiseOp
             ]
         > {
@@ -585,7 +574,6 @@ def IE_FloorModOp :
         IE_LayerOp<
             "FloorMod",
             [
-                IE_TilingBuilderOpInterface,
                 IE_EltwiseOp
             ]
         > {
@@ -611,7 +599,6 @@ def IE_LessOp :
         IE_LayerOp<
             "Less",
             [
-                IE_TilingBuilderOpInterface,
                 IE_EltwiseOp
             ]
         > {
@@ -637,7 +624,6 @@ def IE_LessEqualOp :
         IE_LayerOp<
             "LessEqual",
             [
-                IE_TilingBuilderOpInterface,
                 IE_EltwiseOp
             ]
         > {
@@ -663,7 +649,6 @@ def IE_GreaterOp :
         IE_LayerOp<
             "Greater",
             [
-                IE_TilingBuilderOpInterface,
                 IE_EltwiseOp
             ]
         > {
@@ -689,7 +674,6 @@ def IE_GreaterEqualOp :
         IE_LayerOp<
             "GreaterEqual",
             [
-                IE_TilingBuilderOpInterface,
                 IE_EltwiseOp
             ]
         > {
@@ -715,7 +699,6 @@ def IE_LogicalOrOp :
         IE_LayerOp<
             "LogicalOr",
             [
-                IE_TilingBuilderOpInterface,
                 Commutative,
                 IE_EltwiseOp
             ]
@@ -764,7 +747,6 @@ def IE_LogicalXorOp :
         IE_LayerOp<
             "LogicalXor",
             [
-                IE_TilingBuilderOpInterface,
                 Commutative,
                 IE_EltwiseOp
             ]
@@ -791,7 +773,6 @@ def IE_MultiplyOp :
         IE_LayerOp<
             "Multiply",
             [
-                IE_TilingBuilderOpInterface,
                 Commutative,
                 IE_EltwiseOp
             ]
@@ -810,7 +791,6 @@ def IE_MultiplyOp :
         RankedTensorOf<[F16, F32, quant_QuantizedType]>:$output
     );
 
-    let hasCanonicalizer = 1;
     let hasFolder = 1;
 
     let elemComparisonModes = [IE_TypeComparisonMode_ALLOW_QUANT_MIXED_PRECISION];
@@ -824,7 +804,6 @@ def IE_AndOp :
         IE_LayerOp<
             "And",
             [
-                IE_TilingBuilderOpInterface,
                 Commutative,
                 IE_EltwiseOp
             ]
@@ -852,10 +831,7 @@ def IE_AndOp :
 
 def IE_ConvolutionOp :
         IE_LayerOp<
-            "Convolution",
-            [
-                DeclareOpInterfaceMethods<IE_TilingBuilderOpInterface>
-            ]
+            "Convolution"
         > {
     let summary = "InferenceEngine Convolution layer";
 
@@ -887,10 +863,7 @@ def IE_ConvolutionOp :
 
 def IE_GroupConvolutionOp :
         IE_LayerOp<
-            "GroupConvolution",
-            [
-                DeclareOpInterfaceMethods<IE_TilingBuilderOpInterface>
-            ]
+            "GroupConvolution"
         > {
     let summary = "InferenceEngine GroupConvolution layer";
 
@@ -923,24 +896,32 @@ def IE_GroupConvolutionOp :
 
 def IE_AvgPoolOp :
         IE_LayerOp<
-            "AvgPool"
+            "AvgPool",
+            [
+                DeclareOpInterfaceMethods<IE_LayoutInfoOpInterface>,
+                DeclareOpInterfaceMethods<IE_AlignedChannelsOpInterface>,
+            ]
         > {
     let summary = "InferenceEngine AvgPool layer";
 
     let arguments = (ins
-        RankedTensorOf<[F16, F32]>:$input,
+        RankedTensorOf<[F16, F32, quant_QuantizedType]>:$input,
 
         I64ArrayAttr:$kernel_size,
         I64ArrayAttr:$strides,
         I64ArrayAttr:$pads_begin,
         I64ArrayAttr:$pads_end,
         IE_RoundingType:$rounding_type,
-        UnitAttr:$exclude_pads
+        UnitAttr:$exclude_pads,
+
+        OptionalAttr<IE_PostOp>:$post_op
     );
 
     let results = (outs
-        RankedTensorOf<[F16, F32]>:$output
+        RankedTensorOf<[F16, F32, quant_QuantizedType]>:$output
     );
+
+    let elemComparisonModes = [IE_TypeComparisonMode_ALLOW_QUANT_MIXED_PRECISION, IE_TypeComparisonMode_ALLOW_DIFFERENT_QUANT];
 }
 
 //
@@ -949,10 +930,7 @@ def IE_AvgPoolOp :
 
 def IE_MaxPoolOp :
         IE_LayerOp<
-            "MaxPool",
-            [
-                DeclareOpInterfaceMethods<IE_TilingBuilderOpInterface>
-            ]
+            "MaxPool"
         > {
     let summary = "InferenceEngine MaxPool layer";
 
@@ -973,6 +951,50 @@ def IE_MaxPoolOp :
     );
 
     let elemComparisonModes = [IE_TypeComparisonMode_ALLOW_QUANT_MIXED_PRECISION, IE_TypeComparisonMode_ALLOW_DIFFERENT_QUANT];
+}
+
+
+//
+// AdaptiveAvgPoolOp
+//
+
+def IE_AdaptiveAvgPoolOp :
+        IE_LayerOp<
+            "AdaptiveAvgPool"
+        > {
+    let summary = "InferenceEngine AdaptiveAvgPool layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$input,
+        1DTensorOf<[SI32, SI64]>:$pooled_spatial_shape
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+}
+
+//
+// AdaptiveMaxPoolOp
+//
+
+def IE_AdaptiveMaxPoolOp :
+        IE_LayerOp<
+            "AdaptiveMaxPool"
+        > {
+    let summary = "InferenceEngine AdaptiveMaxPool layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$input,
+        1DTensorOf<[SI32, SI64]>:$pooled_spatial_shape,
+        TypeAttr:$index_element_type
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output,
+        RankedTensorOf<[SI32, SI64]>:$output_index
+
+    );
 }
 
 //
@@ -1079,7 +1101,6 @@ def IE_ClampOp :
         IE_LayerOp<
             "Clamp",
             [
-                IE_TilingBuilderOpInterface,
                 IE_EltwiseOp
             ]
         > {
@@ -1105,7 +1126,6 @@ def IE_EluOp :
         IE_LayerOp<
             "Elu",
             [
-                IE_TilingBuilderOpInterface,
                 IE_EltwiseOp
             ]
         > {
@@ -1153,7 +1173,6 @@ def IE_ReshapeOp :
     let elemComparisonModes = [IE_TypeComparisonMode_STRICT_EQUAL];
     let checkInferredDimsOrder = 1;
     let checkInferredMemSpace = 1;
-    let checkInferredSparsity = 1;
 }
 
 //
@@ -1186,7 +1205,6 @@ def IE_SqueezeOp :
     let elemComparisonModes = [IE_TypeComparisonMode_STRICT_EQUAL];
     let checkInferredDimsOrder = 1;
     let checkInferredMemSpace = 1;
-    let checkInferredSparsity = 1;
 }
 
 //
@@ -1220,7 +1238,6 @@ def IE_UnsqueezeOp :
     let elemComparisonModes = [IE_TypeComparisonMode_STRICT_EQUAL];
     let checkInferredDimsOrder = 1;
     let checkInferredMemSpace = 1;
-    let checkInferredSparsity = 1;
 }
 
 //
@@ -1231,7 +1248,6 @@ def IE_SigmoidOp :
         IE_LayerOp<
             "Sigmoid",
             [
-                IE_TilingBuilderOpInterface,
                 IE_EltwiseOp
             ]
         > {
@@ -1320,6 +1336,33 @@ def IE_BroadcastOp :
 }
 
 //
+// BucketizeOp
+//
+
+def IE_BucketizeOp :
+        IE_LayerOp<
+            "Bucketize"
+        > {
+    let summary = "InferenceEngine Bucketize layer";
+
+    let arguments = (ins
+        AnyRankedTensor:$data,
+        1DTensorOf<[AnyInteger, AnyFloat]>:$buckets, 
+
+        TypeAttr:$output_type, 
+        UnitAttr:$with_right_bound
+    );
+
+    let results = (outs
+        RankedTensorOf<[SI32, SI64]>:$output
+    );
+
+    let verifier = [{
+        return vpux::IE::verifyOp(*this);
+    }];
+}
+
+//
 // ReduceMaxOp
 //
 
@@ -1350,6 +1393,72 @@ def IE_ReduceMeanOp :
             "ReduceMean"
         > {
     let summary = "InferenceEngine ReduceMean Layer";
+
+    let arguments = (ins
+        AnyRankedTensor:$input,
+        1DTensorOf<[AnyInteger]>:$axes,
+
+        UnitAttr:$keep_dims
+    );
+
+    let results = (outs
+        AnyRankedTensor:$output
+    );
+}
+
+//
+// ReduceLogicalOrOp
+//
+
+def IE_ReduceLogicalOrOp :
+        IE_LayerOp<
+            "ReduceLogicalOr"
+        > {
+    let summary = "InferenceEngine ReduceLogicalOr layer";
+
+    let arguments = (ins
+        AnyRankedTensor:$input,
+        1DTensorOf<[AnyInteger]>:$axes,
+
+        UnitAttr:$keep_dims
+    );
+
+    let results = (outs
+        AnyRankedTensor:$output
+    );
+}
+
+//
+// ReduceLogicalAndOp
+//
+
+def IE_ReduceLogicalAndOp :
+        IE_LayerOp<
+            "ReduceLogicalAnd"
+        > {
+    let summary = "InferenceEngine  ReduceLogicalAnd layer";
+
+    let arguments = (ins
+        AnyRankedTensor:$input,
+        1DTensorOf<[AnyInteger]>:$axes,
+
+        UnitAttr:$keep_dims
+    );
+
+    let results = (outs
+        AnyRankedTensor:$output
+    );
+}
+
+//
+// ReduceProdOp
+//
+
+def IE_ReduceProdOp :
+        IE_LayerOp<
+            "ReduceProd"
+        > {
+    let summary = "InferenceEngine ReduceProd layer";
 
     let arguments = (ins
         AnyRankedTensor:$input,
@@ -1408,6 +1517,50 @@ def IE_ReduceMinOp :
 }
 
 //
+// ReduceL1Op
+//
+
+def IE_ReduceL1Op :
+        IE_LayerOp<
+            "ReduceL1"
+        > {
+    let summary = "InferenceEngine ReduceL1 layer";
+
+    let arguments = (ins
+        AnyRankedTensor:$input,
+        1DTensorOf<[AnyInteger]>:$axes,
+
+        UnitAttr:$keep_dims
+    );
+
+    let results = (outs
+        AnyRankedTensor:$output
+    );
+}
+
+//
+// ReduceL2Op
+//
+
+def IE_ReduceL2Op :
+        IE_LayerOp<
+            "ReduceL2"
+        > {
+    let summary = "InferenceEngine ReduceL2 layer";
+
+    let arguments = (ins
+        AnyRankedTensor:$input,
+        1DTensorOf<[AnyInteger]>:$axes,
+
+        UnitAttr:$keep_dims
+    );
+
+    let results = (outs
+        AnyRankedTensor:$output
+    );
+}
+
+//
 // MinimumOp
 //
 
@@ -1415,7 +1568,6 @@ def IE_MinimumOp :
         IE_LayerOp<
             "Minimum",
             [
-                IE_TilingBuilderOpInterface,
                 IE_EltwiseOp
             ]
         > {
@@ -1441,7 +1593,6 @@ def IE_MaximumOp :
         IE_LayerOp<
             "Maximum",
             [
-                IE_TilingBuilderOpInterface,
                 IE_EltwiseOp
             ]
         > {
@@ -1467,7 +1618,6 @@ def IE_FakeQuantizeOp :
         IE_LayerOp<
             "FakeQuantize",
             [
-                IE_TilingBuilderOpInterface,
                 IE_EltwiseOp
             ]
         > {
@@ -1496,7 +1646,6 @@ def IE_FakeQuantizeOp :
 def IE_QuantizeOp :
         IE_LayerOp<"Quantize",
             [
-                IE_TilingBuilderOpInterface,
                 IE_EltwiseOp
             ]
         > {
@@ -1522,7 +1671,6 @@ def IE_QuantizeOp :
 def IE_DequantizeOp :
         IE_LayerOp<"Dequantize",
             [
-                IE_TilingBuilderOpInterface,
                 IE_EltwiseOp
             ]
         > {
@@ -1595,7 +1743,6 @@ def IE_TanhOp :
         IE_LayerOp<
             "Tanh",
             [
-                IE_TilingBuilderOpInterface,
                 IE_EltwiseOp
             ]
         > {
@@ -1618,7 +1765,6 @@ def IE_SinOp :
         IE_LayerOp<
             "Sin",
             [
-                IE_TilingBuilderOpInterface,
                 IE_EltwiseOp
             ]
         > {
@@ -1641,7 +1787,6 @@ def IE_CosOp :
         IE_LayerOp<
             "Cos",
             [
-                IE_TilingBuilderOpInterface,
                 IE_EltwiseOp
             ]
         > {
@@ -1664,7 +1809,6 @@ def IE_SqrtOp :
         IE_LayerOp<
             "Sqrt",
             [
-                IE_TilingBuilderOpInterface,
                 IE_EltwiseOp
             ]
         > {
@@ -1687,7 +1831,6 @@ def IE_SinhOp :
         IE_LayerOp<
             "Sinh",
             [
-                IE_TilingBuilderOpInterface,
                 IE_EltwiseOp
             ]
         > {
@@ -1710,7 +1853,6 @@ def IE_CoshOp :
         IE_LayerOp<
             "Cosh",
             [
-                IE_TilingBuilderOpInterface,
                 IE_EltwiseOp
             ]
         > {
@@ -1733,7 +1875,6 @@ def IE_AsinhOp :
         IE_LayerOp<
             "Asinh",
             [
-                IE_TilingBuilderOpInterface,
                 IE_EltwiseOp
             ]
         > {
@@ -1756,7 +1897,6 @@ def IE_AcoshOp :
         IE_LayerOp<
             "Acosh",
             [
-                IE_TilingBuilderOpInterface,
                 IE_EltwiseOp
             ]
         > {
@@ -1772,6 +1912,35 @@ def IE_AcoshOp :
 }
 
 //
+// HardSigmoidOp
+//
+
+def IE_HardSigmoidOp :
+        IE_LayerOp<
+            "HardSigmoid",
+            [
+                AttrSizedOperandSegments
+            ]
+        > {
+    let summary = "InferenceEngine HardSigmoid layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$input,
+        Optional<0DTensorOf<[F16, F32]>>:$alpha,
+        Optional<0DTensorOf<[F16, F32]>>:$beta,
+
+        OptionalAttr<F64Attr>:$alpha_value,
+        OptionalAttr<F64Attr>:$beta_value
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+
+    let hasCanonicalizer = 1;
+}
+
+//
 // AbsOp
 //
 
@@ -1779,7 +1948,6 @@ def IE_AbsOp :
         IE_LayerOp<
             "Abs",
             [
-                IE_TilingBuilderOpInterface,
                 IE_EltwiseOp
             ]
         > {
@@ -1802,7 +1970,6 @@ def IE_AtanOp :
         IE_LayerOp<
             "Atan",
             [
-                IE_TilingBuilderOpInterface,
                 IE_EltwiseOp
             ]
         > {
@@ -1825,7 +1992,6 @@ def IE_AsinOp :
         IE_LayerOp<
             "Asin",
             [
-                IE_TilingBuilderOpInterface,
                 IE_EltwiseOp
             ]
         > {
@@ -1848,7 +2014,6 @@ def IE_AcosOp :
         IE_LayerOp<
             "Acos",
             [
-                IE_TilingBuilderOpInterface,
                 IE_EltwiseOp
             ]
         > {
@@ -1871,11 +2036,32 @@ def IE_AtanhOp :
         IE_LayerOp<
             "Atanh",
             [
-                IE_TilingBuilderOpInterface,
                 IE_EltwiseOp
             ]
         > {
     let summary = "InferenceEngine Atanh layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$input
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+}
+
+//
+// HSigmoidOp
+//
+
+def IE_HSigmoidOp :
+        IE_LayerOp<
+            "HSigmoid",
+            [
+                IE_EltwiseOp
+            ]
+        > {
+    let summary = "InferenceEngine HSigmoid layer";
 
     let arguments = (ins
         RankedTensorOf<[F16, F32]>:$input
@@ -1894,7 +2080,6 @@ def IE_LogOp :
         IE_LayerOp<
             "Log",
             [
-                IE_TilingBuilderOpInterface,
                 IE_EltwiseOp
             ]
         > {
@@ -1910,6 +2095,37 @@ def IE_LogOp :
 }
 
 //
+// SeluOp
+//
+
+def IE_SeluOp :
+        IE_LayerOp<
+            "Selu",
+            [
+                IE_EltwiseOp,
+                AttrSizedOperandSegments
+            ]
+        > {
+    let summary = "InferenceEngine Selu layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$data,
+        Optional<RankedTensorOf<[F16, F32]>>:$alpha,
+        Optional<RankedTensorOf<[F16, F32]>>:$lambda,
+
+        OptionalAttr<F64Attr>:$alphaValue,
+        OptionalAttr<F64Attr>:$lambdaValue
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+
+    let hasCanonicalizer = 1;
+}
+
+
+//
 // GeluOp
 //
 
@@ -1917,7 +2133,6 @@ def IE_GeluOp :
         IE_LayerOp<
             "Gelu",
             [
-                IE_TilingBuilderOpInterface,
                 IE_EltwiseOp
             ]
         > {
@@ -1940,7 +2155,6 @@ def IE_ExpOp :
         IE_LayerOp<
             "Exp",
             [
-                IE_TilingBuilderOpInterface,
                 IE_EltwiseOp
             ]
         > {
@@ -1963,7 +2177,6 @@ def IE_HSwishOp :
         IE_LayerOp<
             "HSwish",
             [
-                IE_TilingBuilderOpInterface,
                 IE_EltwiseOp
             ]
         > {
@@ -1986,7 +2199,6 @@ def IE_FloorOp :
         IE_LayerOp<
             "Floor",
             [
-                IE_TilingBuilderOpInterface,
                 IE_EltwiseOp
             ]
         > {
@@ -2009,7 +2221,6 @@ def IE_RoundOp :
         IE_LayerOp<
             "Round",
             [
-                IE_TilingBuilderOpInterface,
                 IE_EltwiseOp
             ]
         > {
@@ -2034,7 +2245,6 @@ def IE_MishOp :
         IE_LayerOp<
             "Mish",
             [
-                IE_TilingBuilderOpInterface,
                 IE_EltwiseOp
             ]
         > {
@@ -2057,7 +2267,6 @@ def IE_ErfOp :
         IE_LayerOp<
             "Erf",
             [
-                IE_TilingBuilderOpInterface,
                 IE_EltwiseOp
             ]
         > {
@@ -2123,7 +2332,8 @@ def IE_ProposalOp :
     );
 
     let results = (outs
-        RankedTensorOf<[F16, F32]>:$output
+        RankedTensorOf<[F16, F32]>:$output,
+        RankedTensorOf<[F16, F32]>:$probs
     );
 }
 
@@ -2156,7 +2366,7 @@ def IE_InterpolateOp :
     let results = (outs
         RankedTensorOf<[UI8, F16, F32]>:$output
     );
-
+    let hasFolder = 1;
     let hasCanonicalizer = 1;
 }
 
@@ -2166,7 +2376,10 @@ def IE_InterpolateOp :
 
 def IE_TopKOp :
         IE_LayerOp<
-            "TopK"
+            "TopK",
+            [
+                DeclareOpInterfaceMethods<IE_LayoutInfoOpInterface>
+            ]
         > {
     let summary = "InferenceEngine TopK layer";
 
@@ -2358,6 +2571,7 @@ def IE_ConcatOp :
     ];
 
     let hasCanonicalizer = 1;
+    let hasFolder = 1;
 
     let elemComparisonModes = [IE_TypeComparisonMode_STRICT_EQUAL];
     let checkInferredDimsOrder = 1;
@@ -2522,7 +2736,6 @@ def IE_PReluOp :
         IE_LayerOp<
             "PRelu",
             [
-                IE_TilingBuilderOpInterface,
                 IE_EltwiseOp
             ]
         > {
@@ -2548,7 +2761,6 @@ def IE_LeakyReluOp :
         IE_LayerOp<
             "LeakyRelu",
             [
-                IE_TilingBuilderOpInterface,
                 IE_EltwiseOp
             ]
         > {
@@ -2573,7 +2785,6 @@ def IE_SwishOp :
         IE_LayerOp<
             "Swish",
             [
-                IE_TilingBuilderOpInterface,
                 IE_EltwiseOp
             ]
         > {
@@ -2601,7 +2812,6 @@ def IE_ScaleShiftOp :
         IE_LayerOp<
             "ScaleShift",
             [
-                IE_TilingBuilderOpInterface,
                 AttrSizedOperandSegments,
                 IE_EltwiseOp
             ]
@@ -2673,7 +2883,6 @@ def IE_NegativeOp :
         IE_LayerOp<
             "Negative",
             [
-                IE_TilingBuilderOpInterface,
                 IE_EltwiseOp
             ]
         > {
@@ -2929,7 +3138,6 @@ def IE_SubtractOp :
         IE_LayerOp<
             "Subtract",
             [
-                IE_TilingBuilderOpInterface,
                 IE_EltwiseOp
             ]
         > {
@@ -2947,7 +3155,6 @@ def IE_SubtractOp :
         RankedTensorOf<[F16, F32]>:$output
     );
 
-    let hasCanonicalizer = 1;
     let hasFolder = 1;
 }
 
@@ -3034,7 +3241,6 @@ def IE_PermuteCastOp :
 
     let checkInferredDimsOrder = 1;
     let checkInferredMemSpace = 1;
-    let checkInferredSparsity = 1;
 }
 
 //
@@ -3045,7 +3251,6 @@ def IE_CeilingOp :
         IE_LayerOp<
             "Ceiling",
             [
-                IE_TilingBuilderOpInterface,
                 IE_EltwiseOp
             ]
         > {
@@ -3068,7 +3273,6 @@ def IE_EqualOp :
         IE_LayerOp<
             "Equal",
             [
-                IE_TilingBuilderOpInterface,
                 Commutative,
                 IE_EltwiseOp
             ]
@@ -3095,7 +3299,6 @@ def IE_SelectOp :
         IE_LayerOp<
             "Select",
             [
-                IE_TilingBuilderOpInterface,
                 IE_EltwiseOp
             ]
         > {
@@ -3169,7 +3372,6 @@ def IE_AffineReshapeOp :
     let elemComparisonModes = [IE_TypeComparisonMode_STRICT_EQUAL];
     let checkInferredDimsOrder = 1;
     let checkInferredMemSpace = 1;
-    let checkInferredSparsity = 1;
 }
 
 //
@@ -3180,7 +3382,6 @@ def IE_NotEqualOp :
         IE_LayerOp<
             "NotEqual",
             [
-                IE_TilingBuilderOpInterface,
                 Commutative,
                 IE_EltwiseOp
             ]
@@ -3231,7 +3432,10 @@ def IE_ReverseSequenceOp :
 
 def IE_DepthToSpaceOp :
         IE_LayerOp<
-            "DepthToSpace"
+            "DepthToSpace",
+        [
+            DeclareOpInterfaceMethods<IE_LayoutInfoOpInterface>
+        ]
         > {
     let summary = "InferenceEngine DepthToSpace layer";
 
@@ -3257,8 +3461,7 @@ def IE_SoftPlusOp :
         IE_LayerOp<
             "SoftPlus",
             [
-                IE_EltwiseOp,
-                IE_TilingBuilderOpInterface
+                IE_EltwiseOp
             ]
         > {
     let summary = "InferenceEngine SoftPlus layer";
@@ -3298,7 +3501,30 @@ def IE_CopyOp :
     let elemComparisonModes = [IE_TypeComparisonMode_STRICT_EQUAL];
     let checkInferredDimsOrder = 1;
     let checkInferredMemSpace = 1;
-    let checkInferredSparsity = 1;
+}
+
+//
+// ExtractImagePatchesOp
+//
+
+def IE_ExtractImagePatchesOp :
+        IE_LayerOp<
+            "ExtractImagePatches"
+        > {
+    let summary = "InferenceEngine ExtractImagePatches layer";
+
+    let arguments = (ins
+        4DTensorOf<[AnyType]>:$data,
+
+        I64ArrayAttr:$sizes,
+        I64ArrayAttr:$strides,
+        I64ArrayAttr:$rates,
+        IE_PadType:$autoPad
+    );
+
+    let results = (outs
+        4DTensorOf<[AnyType]>:$output
+    );
 }
 
 // YuvToRgbOp
@@ -3317,17 +3543,53 @@ def IE_YuvToRgbOp :
     let summary = "InferenceEngine NV12/I420 to RGB/BGR layer";
 
     let arguments = (ins
-                 4DTensorOf<[SI8, F16, F32]> :$input1,
-        Optional<4DTensorOf<[SI8, F16, F32]>>:$input2,
-        Optional<4DTensorOf<[SI8, F16, F32]>>:$input3,
+                 4DTensorOf<[UI8, F16, F32]> :$input1,
+        Optional<4DTensorOf<[UI8, F16, F32]>>:$input2,
+        Optional<4DTensorOf<[UI8, F16, F32]>>:$input3,
 
         IE_ColorFmt:$inFmt,
         IE_ColorFmt:$outFmt
     );
 
     let results = (outs
-        4DTensorOf<[SI8, F16, F32]>:$output
+        4DTensorOf<[UI8, F16, F32]>:$output
     );
+}
+
+//
+// BatchNormInferenceOp
+//
+
+def IE_BatchNormInferenceOp :
+        IE_LayerOp<
+            "BatchNormInference",
+            [
+                AttrSizedOperandSegments
+            ]
+        > {
+    let summary = "InferenceEngine BatchNormInference layer";
+
+    let arguments = (ins
+        RankedTensorOf<[F16, F32]>:$input,
+
+        Optional<RankedTensorOf<[F16, F32]>>:$gamma,
+        Optional<RankedTensorOf<[F16, F32]>>:$beta,
+        Optional<RankedTensorOf<[F16, F32]>>:$mean,
+        Optional<RankedTensorOf<[F16, F32]>>:$variance,
+
+        OptionalAttr<F64ArrayAttr>:$gamma_value,
+        OptionalAttr<F64ArrayAttr>:$beta_value,
+        OptionalAttr<F64ArrayAttr>:$mean_value,
+        OptionalAttr<F64ArrayAttr>:$variance_value,
+
+        F64Attr:$eps
+    );
+
+    let results = (outs
+        RankedTensorOf<[F16, F32]>:$output
+    );
+
+    let hasCanonicalizer = 1;
 }
 
 //

@@ -8,37 +8,13 @@
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 
 #include "vpux/compiler/dialect/VPUIP/graph-schema/blob_reader.hpp"
+#include "vpux/compiler/dialect/VPUIP/graph-schema/utils.hpp"
 #include "vpux/compiler/utils/error.hpp"
 #include "vpux/compiler/utils/subspaces.hpp"
 
 #include <mlir/IR/BuiltinTypes.h>
 
 using namespace vpux;
-
-namespace {
-
-MVCNN::PadMode converVPUXPadModeToMVCNN(vpux::IE::PadMode vpux_mode) {
-    MVCNN::PadMode mvcnn_mode;
-    switch (vpux_mode) {
-    case IE::PadMode::EDGE:
-        mvcnn_mode = MVCNN::PadMode::PadMode_Edge;
-        break;
-    case IE::PadMode::REFLECT:
-        mvcnn_mode = MVCNN::PadMode::PadMode_Reflect;
-        break;
-    case IE::PadMode::CONSTANT:
-        mvcnn_mode = MVCNN::PadMode::PadMode_Constant;
-        break;
-    case IE::PadMode::SYMMETRIC:
-        mvcnn_mode = MVCNN::PadMode::PadMode_Symmetric;
-        break;
-    default:
-        VPUX_THROW("Unsupported PadMode {0}", vpux_mode);
-    }
-    return mvcnn_mode;
-}
-
-}  // namespace
 
 mlir::LogicalResult vpux::VPUIP::verifyOp(PadUPAOp op) {
     const auto inShape = getShape(op.input());
@@ -71,7 +47,7 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::PadUPAOp::serialize(VPUIP::BlobWrit
     const auto padsEnd = writer.createVector(parseIntArrayAttr<uint32_t>(pads_end()));
 
     MVCNN::PadParamsBuilder builder(writer);
-    const auto padMode = converVPUXPadModeToMVCNN(mode());
+    const auto padMode = VPUIP::convertVPUXPadMode2MVCNN(mode());
     builder.add_pad_mode(padMode);
     if (padMode == MVCNN::PadMode::PadMode_Constant) {
         builder.add_padValue(static_cast<float>(pad_value()->convertToDouble()));

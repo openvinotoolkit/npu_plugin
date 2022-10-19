@@ -5,8 +5,10 @@
 
 //
 
-#include "vpux/compiler/core/layers.hpp"
 #include "vpux/compiler/dialect/IE/ops.hpp"
+
+#include "vpux/compiler/dialect/VPUIP/graph-schema/utils.hpp"
+
 #include "vpux/compiler/utils/error.hpp"
 
 using namespace vpux;

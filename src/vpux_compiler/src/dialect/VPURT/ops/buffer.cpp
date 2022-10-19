@@ -15,20 +15,36 @@ using namespace vpux;
 void vpux::VPURT::DeclareBufferOp::build(mlir::OpBuilder& builder, ::mlir::OperationState& state, mlir::Type type,
                                          VPURT::BufferSection section, int64_t byteOffset) {
     build(builder, state, type, VPURT::BufferSectionAttr::get(builder.getContext(), section), /*sectionIndex=*/nullptr,
-          getIntAttr(builder, byteOffset));
+          getIntAttr(builder, byteOffset), /*swizzlingKey=*/nullptr);
 }
 
 void vpux::VPURT::DeclareBufferOp::build(mlir::OpBuilder& builder, ::mlir::OperationState& state, mlir::Type type,
                                          VPURT::BufferSection section, ArrayRef<int64_t> sectionIndex,
                                          int64_t byteOffset) {
     build(builder, state, type, VPURT::BufferSectionAttr::get(builder.getContext(), section),
-          getIntArrayAttr(builder, sectionIndex), getIntAttr(builder, byteOffset));
+          getIntArrayAttr(builder, sectionIndex), getIntAttr(builder, byteOffset), /*swizzlingKey=*/nullptr);
 }
 
 void vpux::VPURT::DeclareBufferOp::build(mlir::OpBuilder& builder, ::mlir::OperationState& state, mlir::Type type,
                                          VPURT::BufferSection section, int64_t sectionIndex, int64_t byteOffset) {
     build(builder, state, type, VPURT::BufferSectionAttr::get(builder.getContext(), section),
-          getIntArrayAttr(builder, makeArrayRef({sectionIndex})), getIntAttr(builder, byteOffset));
+          getIntArrayAttr(builder, makeArrayRef({sectionIndex})), getIntAttr(builder, byteOffset),
+          /*swizzlingKey=*/nullptr);
+}
+
+void vpux::VPURT::DeclareBufferOp::build(mlir::OpBuilder& builder, ::mlir::OperationState& state, mlir::Type type,
+                                         VPURT::BufferSection section, ArrayRef<int64_t> sectionIndex,
+                                         int64_t byteOffset, int64_t swizzlingKey) {
+    build(builder, state, type, VPURT::BufferSectionAttr::get(builder.getContext(), section),
+          getIntArrayAttr(builder, sectionIndex), getIntAttr(builder, byteOffset), getIntAttr(builder, swizzlingKey));
+}
+
+void vpux::VPURT::DeclareBufferOp::build(mlir::OpBuilder& builder, ::mlir::OperationState& state, mlir::Type type,
+                                         VPURT::BufferSection section, int64_t sectionIndex, int64_t byteOffset,
+                                         int64_t swizzlingKey) {
+    build(builder, state, type, VPURT::BufferSectionAttr::get(builder.getContext(), section),
+          getIntArrayAttr(builder, makeArrayRef({sectionIndex})), getIntAttr(builder, byteOffset),
+          getIntAttr(builder, swizzlingKey));
 }
 
 mlir::LogicalResult vpux::VPURT::verifyOp(DeclareBufferOp op) {
@@ -122,37 +138,4 @@ SmallVector<int64_t> vpux::VPURT::DeclareBufferOp::getNonEmptySectionIndex() {
         return parseIntArrayAttr<int64_t>(sectionIndex().getValue());
     }
     return SmallVector<int64_t>({0});
-}
-
-//
-// DeclareSparseBufferOp
-//
-
-mlir::ValueRange vpux::VPURT::DeclareSparseBufferOp::getViewSources() {
-    return getOperands();
-}
-
-void vpux::VPURT::DeclareSparseBufferOp::build(::mlir::OpBuilder& odsBuilder, ::mlir::OperationState& odsState,
-                                               mlir::Value data) {
-    const auto inputType = data.getType().cast<mlir::MemRefType>();
-    const auto sparseBuffer = VPURT::SparseBufferType::get(inputType);
-    build(odsBuilder, odsState, sparseBuffer, data, nullptr, nullptr);
-}
-
-void vpux::VPURT::DeclareSparseBufferOp::build(::mlir::OpBuilder& odsBuilder, ::mlir::OperationState& odsState,
-                                               mlir::Value data, mlir::Value sparsityMap) {
-    const auto inputType = data.getType().cast<mlir::MemRefType>();
-    const auto sparsityMapType = sparsityMap.getType().cast<mlir::MemRefType>();
-    const auto sparseBuffer = VPURT::SparseBufferType::get(inputType, sparsityMapType);
-    build(odsBuilder, odsState, sparseBuffer, data, sparsityMap, nullptr);
-}
-
-void vpux::VPURT::DeclareSparseBufferOp::build(::mlir::OpBuilder& odsBuilder, ::mlir::OperationState& odsState,
-                                               mlir::Value data, mlir::Value sparsityMap,
-                                               mlir::Value storageElementTable) {
-    const auto inputType = data.getType().cast<mlir::MemRefType>();
-    const auto sparsityMapType = sparsityMap.getType().cast<mlir::MemRefType>();
-    const auto storageElementTableType = storageElementTable.getType().cast<mlir::MemRefType>();
-    const auto sparseBuffer = VPURT::SparseBufferType::get(inputType, sparsityMapType, storageElementTableType);
-    build(odsBuilder, odsState, sparseBuffer, data, sparsityMap, storageElementTable);
 }

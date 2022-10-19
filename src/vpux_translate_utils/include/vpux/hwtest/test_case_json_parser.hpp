@@ -29,6 +29,7 @@ enum class CaseType {
     MaxPool,
     AvgPool,
     DifferentClustersDPU,
+    MultiClustersDPU,
     ActShave,
     ReadAfterWriteDPUDMA,
     ReadAfterWriteDMADPU,
@@ -41,6 +42,7 @@ enum class CaseType {
     RaceConditionDPUDMA,
     RaceConditionDPUDMAACT,
     RaceCondition,
+    M2iTask,
     Unknown
 };
 
@@ -63,6 +65,8 @@ struct QuantParams {
     std::int64_t low_range = 0;
     std::int64_t high_range = 0;
 };
+
+enum class SegmentationType { SOK = 1, SOH = 2 };
 
 struct Shape {};
 
@@ -116,9 +120,15 @@ struct RaceConditionParams {
 
 struct DPUTaskParams {
     std::size_t inputCluster;
-    std::size_t outputCluster;
+    std::vector<std::size_t> outputClusters;
     std::size_t weightsCluster;
     std::size_t weightsTableCluster;
+};
+
+struct MultiClusterDPUParams {
+    std::vector<std::size_t> taskClusters;
+    SegmentationType segmentation;
+    bool broadcast;
 };
 
 struct OutputLayer {
@@ -127,7 +137,31 @@ struct OutputLayer {
     QuantParams qp;
 };
 
-enum class ActivationType { None, ReLU, ReLUX, LeakyReLU, Mish, HSwish, Sigmoid, Softmax, Unknown };
+enum class ActivationType {
+    None,
+    ReLU,
+    ReLUX,
+    LeakyReLU,
+    Mish,
+    HSwish,
+    Sigmoid,
+    Softmax,
+    vau_sigm,
+    vau_sqrt,
+    vau_tanh,
+    vau_log,
+    vau_exp,
+    lsu_b16,
+    lsu_b16_vec,
+    vau_dp4,
+    vau_dp4a,
+    vau_dp4m,
+    sau_dp4,
+    sau_dp4a,
+    sau_dp4m,
+
+    Unknown
+};
 
 ActivationType to_activation_type(llvm::StringRef str);
 std::string to_string(ActivationType activationType);
@@ -140,19 +174,43 @@ struct ActivationLayer {
     // TODO: add support for activation functions that take parameters
 };
 
+// M2I i/o color formats
+enum class M2iFmt {
+    PL_YUV420_8,
+    SP_NV12_8,
+    PL_FP16_RGB,
+    PL_FP16_BGR,
+    PL_RGB24,
+    PL_BGR24,
+    IL_RGB888,
+    IL_BGR888,
+    Unknown
+    // Note: other less common formats exist
+};
+M2iFmt to_m2i_fmt(llvm::StringRef str);
+
+struct M2iLayer {
+    bool doCsc;   // do color-space-conversion
+    bool doNorm;  // do normalization
+    M2iFmt iFmt;
+    M2iFmt oFmt;
+    std::vector<int> outSizes;     // output sizes (optional)
+    std::vector<float> normCoefs;  // normalization coefs (optional)
+};
+
 class TestCaseJsonDescriptor {
 public:
     TestCaseJsonDescriptor(llvm::StringRef jsonString = "");
     TestCaseJsonDescriptor(llvm::json::Object jsonObject);
     void parse(llvm::json::Object jsonObject);
-    InputLayer getInputLayer() const {
-        return inLayer_;
+    llvm::SmallVector<InputLayer> getInputLayerList() const {
+        return inLayers_;
     }
     WeightLayer getWeightLayer() const {
         return wtLayer_;
     }
-    OutputLayer getOutputLayer() const {
-        return outLayer_;
+    llvm::SmallVector<OutputLayer> getOutputLayers() const {
+        return outLayers_;
     }
     DMAparams getDMAparams() const {
         return DMAparams_;
@@ -166,11 +224,17 @@ public:
     ActivationLayer getActivationLayer() const {
         return activationLayer_;
     }
+    M2iLayer getM2iLayer() const {
+        return m2iLayer_;
+    }
     RaceConditionParams getRaceConditionParams() const {
         return raceConditionParams_;
     }
     DPUTaskParams getDPUTaskParams() const {
         return DPUTaskParams_;
+    }
+    MultiClusterDPUParams getMultiClusterDPUParams() const {
+        return multiClusterDPUParams_;
     }
     CaseType getCaseType() const {
         return caseType_;
@@ -202,17 +266,19 @@ public:
     }
 
 private:
-    InputLayer loadInputLayer(llvm::json::Object* jsonObj);
+    llvm::SmallVector<InputLayer> loadInputLayer(llvm::json::Object* jsonObj);
     WeightLayer loadWeightLayer(llvm::json::Object* jsonObj);
-    OutputLayer loadOutputLayer(llvm::json::Object* jsonObj);
+    llvm::SmallVector<OutputLayer> loadOutputLayer(llvm::json::Object* jsonObj);
     DMAparams loadDMAParams(llvm::json::Object* jsonObj);
     ConvLayer loadConvLayer(llvm::json::Object* jsonObj);
     PoolLayer loadPoolLayer(llvm::json::Object* jsonObj);
     ActivationLayer loadActivationLayer(llvm::json::Object* jsonObj);
+    M2iLayer loadM2iLayer(llvm::json::Object* jsonObj);
     CaseType loadCaseType(llvm::json::Object* jsonObj);
     QuantParams loadQuantizationParams(llvm::json::Object* obj);
     RaceConditionParams loadRaceConditionParams(llvm::json::Object* obj);
     DPUTaskParams loadDPUTaskParams(llvm::json::Object* obj);
+    MultiClusterDPUParams loadMultiClusterDPUParams(llvm::json::Object* obj);
     std::size_t loadIterationCount(llvm::json::Object* obj);
     std::size_t loadClusterNumber(llvm::json::Object* obj);
 
@@ -220,10 +286,11 @@ private:
     DMAparams DMAparams_;
     ConvLayer convLayer_;
     PoolLayer poolLayer_;
-    InputLayer inLayer_;
+    llvm::SmallVector<InputLayer> inLayers_;
     WeightLayer wtLayer_;
-    OutputLayer outLayer_;
+    llvm::SmallVector<OutputLayer> outLayers_;
     ActivationLayer activationLayer_;
+    M2iLayer m2iLayer_;
     bool hasActivationLayer_;
     std::string kernelFilename_;
     std::string caseTypeStr_;
@@ -234,6 +301,7 @@ private:
     std::shared_ptr<TestCaseJsonDescriptor> underlyingOp_;
     RaceConditionParams raceConditionParams_;
     DPUTaskParams DPUTaskParams_;
+    MultiClusterDPUParams multiClusterDPUParams_;
     vpux::VPU::ArchKind architecture_;
 };
 

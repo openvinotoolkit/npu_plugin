@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
+#include "vpux/compiler/dialect/VPUIP/graph-schema/utils.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 
 #include "vpux/compiler/core/attributes/shape.hpp"
@@ -17,17 +18,6 @@
 using namespace vpux;
 
 namespace {
-
-MVCNN::PSROIPoolingMode convertPSROIPoolingModeToMVNCNN(IE::PSROIPoolingMode mode) {
-    switch (mode) {
-    case IE::PSROIPoolingMode::AVERAGE:
-        return MVCNN::PSROIPoolingMode::PSROIPoolingMode_AVERAGE;
-    case IE::PSROIPoolingMode::BILINEAR:
-        return MVCNN::PSROIPoolingMode::PSROIPoolingMode_BILINEAR;
-    default:
-        VPUX_THROW("Unknown PSROIPoolingMode. Got {0} mode", mode);
-    }
-}
 
 IE::PSROIPoolingMode convertPSROIPoolingModeToIE(MVCNN::PSROIPoolingMode mode) {
     switch (mode) {
@@ -66,7 +56,7 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::PSROIPoolingUPAOp::serialize(VPUIP:
     builder.add_pooled_h(checked_cast<uint32_t>(group_size()));
     builder.add_spatial_bin_x(checked_cast<uint32_t>(spatialBinsX));
     builder.add_spatial_bin_y(checked_cast<uint32_t>(spatialBinsY));
-    builder.add_mode(convertPSROIPoolingModeToMVNCNN(psROIPoolingMode));
+    builder.add_mode(convertVPUXPSROIPoolingModeToMVNCNN(psROIPoolingMode));
 
     const auto paramsOff = builder.Finish();
 

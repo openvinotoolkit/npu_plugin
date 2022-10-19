@@ -4,7 +4,14 @@
 # SPDX-License-Identifier: Apache 2.0
 #
 
-# set -e
+# Configuration constants
+INFER_MOVISIM_TIMEOUT=30m
+INFER_MOVISIM_RETRIES=2
+INFER_MOVISIM_PROCS=$(nproc --all --ignore=1)
+PORT_MIN=3001
+PORT_LIMIT=$((PORT_MIN + INFER_MOVISIM_PROCS))
+
+# Setting up default variables
 generate=false
 compile=false
 infer=false
@@ -12,7 +19,17 @@ print=false
 arrange=false
 device="Undef"
 
-echo "Run HWTests: got $# args.."
+# Setting up environment variables
+generateScript=$GENERATE_HW_TESTS_SCRIPT
+vpuxTranslateBin=$VPUX_TRANSLATE_BIN
+mvToolsPath=$MV_TOOLS_PATH
+mvToolsVersion=$MV_TOOLS_VERSION
+moviSimBin="${MV_TOOLS_PATH}/${mvToolsVersion}/linux64/bin/moviSim"
+firmwareSourcesPath=$VPU_FIRMWARE_SOURCES_PATH
+FPGAhostName=$FPGA_HOST_NAME
+
+# Parsing arguments
+echo "[LOG_INIT] Started at $(date)"
 
 if [ "$1" = "generate" ]; then
   generate=true
@@ -21,7 +38,7 @@ else
     compile=true
   else
     if [ "$1" = "infer" ]; then
-        infer=true
+      infer=true
     else
       if [ "$1" = "arrange" ]; then
         arrange=true
@@ -50,214 +67,292 @@ else
   fi
 fi
 
-echo "*************** generate: $generate | compile: $compile | infer: $infer | device: $device | check: $check***********"
-
-hwtests=$2 # path to folder
-
-logicalCpuCount=$(nproc --all)
-port_min=3001
-port_limit=$((port_min + logicalCpuCount))
-
-generateScript=$GENERATE_HW_TESTS_SCRIPT
-vpuxTranslateBin=$VPUX_TRANSLATE_BIN
-mvToolsPath=$MV_TOOLS_PATH
-mvToolsVersion=$MV_TOOLS_VERSION
-moviSimBin="${MV_TOOLS_PATH}/${mvToolsVersion}/linux64/bin/moviSim"
-firmwareSourcesPath=$VPU_FIRMWARE_SOURCES_PATH
-FPGAhostName=$FPGA_HOST_NAME
-
-if [ $generate = true ]; then
-  if [ -z "${generateScript}" ]; then 
-    echo "Path to generate hw tests scripts wasn't provided. Please check your environment"
-    exit -1
-  else 
-    python ${generateScript} write-configs ${hwtests}
-  fi
+if [ -n "$2" ]; then
+  hwtests=$2
+  echo "[LOG_INIT] Path to HW blob folder $hwtests"
+else
+  echo "[LOG_INIT] HW blob folder path not specified please provide the HW blobs path"
+  exit 1
 fi
 
-if [ $infer = true ]; then
-  if [ -z "${firmwareSourcesPath}" ]; then 
-    echo "Path to firmware sources wasn't provided. Please check your environment"
-    exit -1
-  else 
-    inferenceManagerDemoFolder="${VPU_FIRMWARE_SOURCES_PATH}/application/demo/InferenceManagerDemo"
-    cd ${inferenceManagerDemoFolder}
+# Functions
+
+function check_background_processes_status() {
+  background_process_name=$1
+  wait -n
+  echo "[LOG_PRE] 1st process from $background_process_name finished"
+  wait
+  echo "[LOG_PRE] All process from $background_process_name finished"
+}
+
+function compile_hwblob() {
+  if [ -z "${vpuxTranslateBin}" ]; then
+    echo "[LOG_TRANS] Path to vpux-translate bin wasn't provided. Please check your environment"
+    exit 1
+  else
+    config=$1
+    cd "$config" || exit 2
+    $vpuxTranslateBin --import-HWTEST -o=vpuip.mlir config.json 2>&1 | tee vpux-translate.log
   fi
-  if [ -z "${mvToolsPath}" ]; then 
-    echo "MV_TOOLS_PATH wasn't provided. Please check your environment"
-    exit -1
+}
+
+function prepare_environment_imd() {
+  if [ -z "${firmwareSourcesPath}" ]; then
+    echo "[LOG_INFER] Path to firmware sources wasn't provided. Please check your environment"
+    exit 1
   fi
-  if [ -z "${mvToolsVersion}" ]; then 
-    echo "MV_TOOLS_VERSION wasn't provided. Please check your environment"
-    exit -1
+  if [ -z "${mvToolsPath}" ]; then
+    echo "[LOG_INFER] MV_TOOLS_PATH wasn't provided. Please check your environment"
+    exit 1
+  fi
+  if [ -z "${mvToolsVersion}" ]; then
+    echo "[LOG_INFER] MV_TOOLS_VERSION wasn't provided. Please check your environment"
+    exit 1
   fi
 
   inferenceManagerDemoFolder="${VPU_FIRMWARE_SOURCES_PATH}/application/demo/InferenceManagerDemo"
-  cd ${inferenceManagerDemoFolder}
-  
+  cd "${inferenceManagerDemoFolder}" || exit 2
+
   rm -rf mvbuild
   make prepare-kconfig
-  make getTools MV_TOOLS_VERSION=${mvToolsVersion}
+  make getTools MV_TOOLS_VERSION="${mvToolsVersion}"
   cd ..
-  rm -rf ${inferenceManagerDemoFolder}-*
+  rm -rf "${inferenceManagerDemoFolder}"-*
 
   if [ $device = "movisim" ]; then
-    for (( p=$port_min; p < $port_limit; p++ )) do
-        cp -r ${inferenceManagerDemoFolder} ${inferenceManagerDemoFolder}-${p}
-        cd ${inferenceManagerDemoFolder}-${p}
-        make -j8 CONFIG_FILE=.config_sim_3720xx MV_TOOLS_VERSION=${mvToolsVersion} &
+    for ((p = PORT_MIN; p < PORT_LIMIT; p++)); do
+      cp -r "${inferenceManagerDemoFolder}" "${inferenceManagerDemoFolder}-${p}"
+      cd "${inferenceManagerDemoFolder}-${p}" || exit 2
+      make -j CONFIG_FILE=.config_sim_3720xx MV_TOOLS_VERSION="${mvToolsVersion}"
     done
   else
-    if [ -z "${FPGAhostName}" ]; then 
-      echo "FPGA_HOST_NAME wasn't provided. Please check your environment"
-      exit -1
+    if [ -z "${FPGAhostName}" ]; then
+      echo "[LOG_INFER] FPGA_HOST_NAME wasn't provided. Please check your environment"
+      exit 1
     fi
-    cp -r ${inferenceManagerDemoFolder} ${inferenceManagerDemoFolder}-fpga
+    cp -r "${inferenceManagerDemoFolder}" "${inferenceManagerDemoFolder}-fpga"
   fi
-fi
+}
 
-cd ${hwtests}
-# ls -al
-
-function run_imd () {
-  base_dir=$(pwd)
+function run_imd() {
   config=$1
   port=$2
 
-  # echo Running ${config}
-  cd ${config}
+  cd "${config}" || exit 2
   config_dir=$(pwd)
 
-  if [ $compile = true ]; then
-    if [ -z "${vpuxTranslateBin}" ]; then 
-      echo "Path to vpux-translate bin wasn't provided. Please check your environment"
-      exit -1
-    else 
-      $vpuxTranslateBin --import-HWTEST -o=vpuip.mlir config.json 2>&1 | tee vpux-translate.log
-    fi
-  fi
-
-  if [ $infer = true ]; then
-    touch bad_${device}
-    if [ -e "${hwtests}/${config}/vpuip.blob" ]; then
-      if [ $device = "movisim" ]; then
-        IMDemoFolder="${inferenceManagerDemoFolder}-${port}"
-      else
-        IMDemoFolder="${inferenceManagerDemoFolder}-fpga"
-      fi
-      cp vpuip.blob ${IMDemoFolder}/test.blob
-      cp input-*.bin ${IMDemoFolder}
-      for x in output-*.bin; do
-        dd if=/dev/zero of=${IMDemoFolder}/${x} bs=1 count=$(ls -l ${x} | awk '{print $5}')
-      done
-
-      cd ${IMDemoFolder}
-      start_time="$(date -u +%s)"
-      
-      if [ $device = "movisim" ]; then
-        echo "kill all process on port ${port}"
-        kill -9 $(lsof -i:${port})
-        echo start movisim on ${port} port
-        sleep 5
-        timeout 10m ${moviSimBin} -cv:3700xx -nodasm -q -tcpip:${port} > ${config_dir}/movisim.log &
-        sleep 10
-        movisim_pid=$!
-        timeout 9m make CONFIG_FILE=.config_sim_3720xx run srvPort=${port} MV_TOOLS_VERSION=${mvToolsVersion} > ${config_dir}/imd.log 2>&1
-        echo wait movisim on ${port}
-        wait ${movisim_pid}
-        echo wait-done movisim on ${port}
-      else
-        if [ $device = "fpga" ]; then
-          timeout 100 make -j CONFIG_FILE=.config_fpga_3720xx run srvIP=${FPGAhostName} srvPort=30001 > ${config_dir}/fpga.log
-        fi
-      fi
-
-      end_time="$(date -u +%s)"
-      elapsed="$(($end_time-$start_time))"
-
-      echo $elapsed > ${config_dir}/${device}_elapsed_time
+  if [ -e "${hwtests}/${config}/vpuip.blob" ]; then
+    # clean-up artifacts test case folder of previous run data
+    rm -f bad_* good_* imd.log fpga.log ./*_elapsed_time output-*.bin.* check_* output.diff
+    if [ $device = "movisim" ]; then
+      IMDemoFolder="${inferenceManagerDemoFolder}-${port}"
     else
-      echo "vpuip.blob not found. Please make sure that you compiled test cases correctly"
+      IMDemoFolder="${inferenceManagerDemoFolder}-fpga"
     fi
-
+    cp vpuip.blob "${IMDemoFolder}/test.blob"
+    rm -f "${IMDemoFolder}"/input-*.bin
+    cp input-*.bin "${IMDemoFolder}"
+    rm -f "${IMDemoFolder}"/output-*.bin
     for x in output-*.bin; do
-      mv ${x} ${config_dir}/${x}.${device}
+      dd if=/dev/zero of="${IMDemoFolder}/${x}" bs=1 count="$(stat --printf="%s" "${x}")"
     done
-    
-    cd ${config_dir}
 
-    if diff output-0.bin output-0.bin.${device} > output.diff; then
-      mv ${hwtests}/${config}/bad_${device} ${hwtests}/${config}/good_${device}
-    fi
-  fi
+    touch good_${device}
 
-  if [[ $print = true || $arrange = true ]]; then
-    elapsed=`cat ${device}_elapsed_time`
-    
-    if [ -e "${hwtests}/${config}/vpuip.mlir" ]; then
-      status='failed'
-      if [ -e "${hwtests}/${config}/good_${device}" ]; then
-        status='passed'
-      else
-        if [[ "${elapsed}" -eq 100 ]]; then
-          status='hangs'
+    cd "${IMDemoFolder}" || exit 2
+    start_time="$(date -u +%s)"
+
+    if [ $device = "movisim" ]; then
+      # retry inference in case of a failed invalid result
+      retries=$((INFER_MOVISIM_RETRIES + 1))
+      while ((retries > 0)); do
+        echo "[LOG_INFER] Start movisim for ${config}"
+        sleep 5
+        if ((retries <= INFER_MOVISIM_RETRIES)); then
+          echo "[LOG_INFER] Retry#$((INFER_MOVISIM_RETRIES - retries + 1)) infer for $config"
         fi
-      fi
 
-      check='undef'
-      touch check_passed
-      for x in output-*.bin.${device}; do
-        if cmp -n $(ls -l ${x} | awk '{print $5}') ${x} /dev/zero > ${x}.check; then
-          mv ${hwtests}/${config}/check_passed ${hwtests}/${config}/check_failed
+        InferenceManagerDemoElf="${IMDemoFolder}/mvbuild/3720/InferenceManagerDemo.elf"
+        timeout "$INFER_MOVISIM_TIMEOUT" "${moviSimBin}" -cv:3700xx -nodasm -q -simLevel:fast -l:LRT:"${InferenceManagerDemoElf}" > "${config_dir}/imd.log" 2>&1
+        sleep 5
+        status=$?
+        # timeout returns status == 124, if the command exits due to timeout
+        if [ "$status" == "124" ]; then
+          # movisim timeout
+          invalid=0
+          for x in output-*.bin; do
+            if cmp -n "$(stat --printf="%s" "${x}")" "${x}" /dev/zero >/dev/null; then
+              invalid=1
+              break
+            fi
+          done
+          if ((invalid == 0)); then
+            retries=0
+          else
+            retries=$((retries - 1))
+          fi
+        else
+          retries=0
         fi
       done
-      if [ -e "${hwtests}/${config}/check_passed" ]; then
-        check='valid'
-      fi
-      if [ -e "${hwtests}/${config}/check_failed" ]; then
-        check='invalid'
-      fi
-      echo ${config} ${elapsed} ${status} ${check}
     else
-      echo ${config} "wasn't compiled sucsessfully"
-      status='compile_issue'
+      if [ $device = "fpga" ]; then
+        timeout 100 make -j CONFIG_FILE=.config_fpga_3720xx run srvIP="${FPGAhostName}" srvPort=30001 >"${config_dir}/fpga.log"
+      fi
     fi
 
-    if [ $arrange = true ]; then
-      cd ${base_dir}
-      if [ ! -d ${hwtests}/${status} ]; then
-        mkdir ${hwtests}/${status}
-      fi
-      mv ${hwtests}/${config} ${hwtests}/${status}/${config} 
-    fi 
+    end_time=$(date -u +%s)
+    elapsed=$((end_time - start_time))
+    elapsed_min=$(echo "scale=1; $elapsed/60" | bc)
+    echo "[LOG_INFER] infer done for $config in $elapsed_min min"
+
+    echo "$elapsed" >"${config_dir}/${device}_elapsed_time"
+  else
+    echo "[LOG_INFER] vpuip.blob not found. Please make sure that you compiled test cases correctly."
   fi
 
-  cd ${base_dir}
+  for x in output-*.bin; do
+    mv "${x}" "${config_dir}/${x}.${device}"
+  done
+
+  cd "${config_dir}" || exit 2
+
+  for x in output-*.bin; do
+    if ! diff "${x}" "${x}".${device} >"${x}.diff"; then
+      if [ -e "good_${device}" ]; then
+        mv "good_${device}" "bad_${device}"
+      fi
+      echo "${x}" >>"bad_${device}"
+    fi
+  done
 }
 
-port=${port_min}
-declare -A procs
+function gather_results_generate_report() {
+  config=$1
+  device=$2
+  cd "${config}" || exit 2
+  elapsed=$(<"${device}_elapsed_time")
 
-if [[ $compile = true || $infer = true || $print = true || $arrange = true ]]; then
+  if [ -e "vpuip.mlir" ]; then
+    status='failed'
+    if [ -e "good_${device}" ]; then
+      status='passed'
+    elif [ "${elapsed}" -gt 720 ]; then
+      status='hangs'
+    fi
+
+    check='undef'
+    rm -f check_* #WA for reruns
+    touch check_passed
+    for x in output-*.bin."${device}"; do
+      if cmp -n "$(stat --printf="%s" "${x}")" "${x}" /dev/zero >"${x}.check"; then
+        mv check_passed check_failed
+        break
+      fi
+    done
+
+    if [ -e check_passed ]; then
+      check='valid'
+    fi
+
+    if [ -e check_failed ]; then
+      check='invalid'
+    fi
+
+  else
+    status='compile_issue'
+    echo "[LOG_RES] ${config} compiled HW blob not generated"
+  fi
+  echo "${config} ${elapsed} ${status} ${check}"
+
+  if [ $arrange = true ]; then
+    cd "${hwtests}" || exit 2
+    if [ ! -d "${hwtests}/${status}" ]; then
+      mkdir "${hwtests}/${status}"
+    fi
+    mv "${hwtests}/${config}" "${hwtests}/${status}/${config}"
+  fi
+}
+
+function incrRollover() {
+  local -n x=$1
+  x_min=$2
+  x_max=$3
+  x=$((x + 1))
+  if ((x == x_max)); then
+    x=$x_min
+  fi
+}
+
+# Main
+
+if [ $generate = true ]; then
+  if [ -z "${generateScript}" ]; then
+    echo "[LOG_GEN] Path to generate hw tests scripts wasn't provided. Please check your environment"
+    exit 1
+  else
+    python "${generateScript}" write-configs "${hwtests}"
+  fi
+fi
+
+if [ $compile = true ]; then
+  cd "${hwtests}" || exit 2
   for config in *; do
     if [ -d "${hwtests}/${config}" ]; then
-      if [[ $infer = true && $device = "movisim" ]]; then
-        if [ ${port_limit} -le ${port} ]; then
-          port=${port_min}
+      compile_hwblob "${config}" &
+    fi
+  done
+  check_background_processes_status "VPUX-translate"
+fi
+
+declare -A procs
+
+if [ $infer = true ]; then
+  prepare_environment_imd
+  cd "${hwtests}" || exit 2
+
+  port=${PORT_MIN}
+  tests_num=$(find ./* -maxdepth 1 -type d | wc -l)
+  tests_cnt=0
+
+  for config in *; do
+    tests_cnt=$((tests_cnt + 1))
+    if [ -d "${hwtests}/${config}" ]; then
+      if [[ $device = "movisim" ]]; then
+        freeport=0
+        if [ "${procs[$port]}" == "" ]; then
+          freeport=$port
+          incrRollover port $PORT_MIN $PORT_LIMIT
         fi
-        pid=${procs[${port}]}
-        if [[ "${pid}" -ne "" ]]; then
-          wait ${pid}
-        fi
-        run_imd ${config} ${port} & procs[${port}]=$!
-        port=$((${port} + 1))
+        # keep pooling until a port is set free
+        while ((freeport == 0)); do
+          sleep 1
+          if [ "$(ps -p "${procs[$port]}" | sed '1d')" == "" ]; then
+            freeport=$port
+          fi
+          incrRollover port $PORT_MIN $PORT_LIMIT
+        done
+        echo "[LOG_INFER] Running test $tests_cnt of $tests_num for $config using port $freeport..."
+        run_imd "${config}" "${freeport}" &
+        procs[${freeport}]=$!
       else
-        run_imd ${config} ${port}
+        run_imd "${config}" "${port}"
       fi
     fi
   done
-else
-  echo "Nothing to process"
+  check_background_processes_status "inference processing"
 fi
 
-wait
+if [[ $print = true || $arrange = true ]]; then
+  cd "${hwtests}" || exit 2
+  for config in *; do
+    if [[ -d "${hwtests}/${config}" && "${config}" != "passed" && "${config}" != "failed" && "${config}" != "hangs" ]]; then
+      gather_results_generate_report "${config}" "${device}" &
+    fi
+  done
+  check_background_processes_status "results gathering"
+fi
+
+echo "[LOG_END] Framework finalize execution. Exit."
+echo "[LOG_END] Finished at $(date)"
+exit 0

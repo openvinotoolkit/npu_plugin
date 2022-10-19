@@ -7,6 +7,8 @@
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
 
+#include "vpux/compiler/core/attributes/stride_reqs.hpp"
+
 using namespace vpux;
 
 mlir::LogicalResult vpux::IE::HSwishOp::inferReturnTypeComponents(

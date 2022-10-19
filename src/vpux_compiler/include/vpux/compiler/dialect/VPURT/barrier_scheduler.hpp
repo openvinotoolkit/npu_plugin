@@ -6,10 +6,10 @@
 //
 #pragma once
 
+#include "vpux/compiler/core/cost_model_utils.hpp"
+#include "vpux/compiler/dialect/IE/utils/resources.hpp"
 #include "vpux/compiler/dialect/VPURT/barrier_resource_state.hpp"
 #include "vpux/compiler/dialect/VPURT/barrier_simulator.hpp"
-
-#include "vpux/compiler/dialect/IE/utils/resources.hpp"
 
 #include <llvm/ADT/BitVector.h>
 
@@ -151,10 +151,12 @@ private:
     static mlir::IntegerAttr getUniqueID(mlir::Operation* op);
     const barrierInfo& getBarrierInfo(mlir::Operation* op) const;
 
+    // Enable DMA related barrier optimization
+    bool _enableDMAOptimization{false};
     // The number of available barriers
-    size_t _barrierCount;
+    size_t _barrierCount{};
     // The number of available producers slots per barrier
-    size_t _slotsPerBarrier;
+    size_t _slotsPerBarrier{};
     // The current barrier resource utilization by the schedule i.e active barriers and the number of producers
     BarrierResourceState _barrierResourceState;
     // The in-degree per task
@@ -164,7 +166,7 @@ private:
     // Heap with operation end time
     scheduleHeapType _heap;
     // The current time of the list schedule
-    size_t _currentTime;
+    size_t _currentTime{};
     // Tasks that can be scheduled i.e. task with in-degree zero
     schedulableOpsType _schedulableCandidates;
     // Tasks that have been scheduled
@@ -194,13 +196,19 @@ private:
     Logger _log;
     mlir::FuncOp _func;
     // The number of execute tasks
-    size_t _taskCount;
+    size_t _taskCount{};
     // The vector of ordered barriers
     SmallVector<VPURT::DeclareVirtualBarrierOp> _orderedBarrier;
     // The vector of ordered execute tasks by uniqueID
     SmallVector<VPURT::TaskOp> _orderedTasks;
     // The vector of ordered execute tasks by scheduling number
     SmallVector<size_t> _schedulingOrder;
+    // The cycle at which operation starts executing
+    mlir::DenseMap<int64_t, size_t> _operationBeginCycle;
+    // The cycle at which operation ends executing
+    mlir::DenseMap<int64_t, size_t> _operationEndCycle;
+    // The look up table for path existing
+    std::map<std::pair<int64_t, int64_t>, bool> _pathLookUpTable;
 };
 
 }  // namespace VPURT

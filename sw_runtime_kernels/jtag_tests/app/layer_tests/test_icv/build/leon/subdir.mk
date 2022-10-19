@@ -45,7 +45,6 @@ printf-diffs-value-$(CONFIG_PRINT_DIFFS) = 1
 print-perf-counters-value-y = 0
 print-perf-counters-value-$(CONFIG_PRINT_PERF_COUNTERS) = 1
 
-#mvdbg-opt-y += --no-uart
 mvdbg-opt-y += -D:MDK_ROOT_PATH=$(MDK_ROOT_PATH)
 mvdbg-opt-y += -D:RUN_MODE=$(run-mode-value-y)
 mvdbg-opt-y += -D:PRINT_NAME=$(print-name-value-y)

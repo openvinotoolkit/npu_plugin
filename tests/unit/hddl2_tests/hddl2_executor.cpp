@@ -45,7 +45,8 @@ void Executor_UnitTests::SetUp() {
 
 //------------------------------------------------------------------------------
 using Executor_NoDevice = Executor_UnitTests;
-TEST_F(Executor_NoDevice, createExecutor_NoDevice_ReturnNull) {
+// [Track number: E#48051]
+TEST_F(Executor_NoDevice, DISABLED_createExecutor_NoDevice_ReturnNull) {
     SKIP_IF_DEVICE();
     if (isEmulatorDevice())
         GTEST_SKIP() << "Test not intended for emulator run.";
@@ -56,7 +57,8 @@ TEST_F(Executor_NoDevice, createExecutor_NoDevice_ReturnNull) {
 
 //------------------------------------------------------------------------------
 using Executor_WithDevice = Executor_UnitTests;
-TEST_F(Executor_WithDevice, createExecutor_WithDevice_ReturnNotNull) {
+// [Track number: E#48051]
+TEST_F(Executor_WithDevice, DISABLED_createExecutor_WithDevice_ReturnNotNull) {
     SKIP_IF_NO_DEVICE();
     if (isEmulatorDevice())
         GTEST_SKIP() << "Test not intended for emulator run.";

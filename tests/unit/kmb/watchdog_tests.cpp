@@ -92,7 +92,9 @@ TEST_F(WatchDogTests, skip_spawning_thread_if_no_interval) {
     wd1.Pause();
 }
 
-TEST_F(WatchDogTests, can_stop_thread_faster_than_30_ms) {
+// [Track number: E#49576]
+// Unstable, failing from time to time
+TEST_F(WatchDogTests, DISABLED_can_stop_thread_faster_than_30_ms) {
     for (size_t i = 0; i != 1000; i++) {
         std::shared_ptr<vpux::WatchDog> wd1 = std::make_shared<vpux::WatchDog>(1000, test_logger, mock_callback);
 

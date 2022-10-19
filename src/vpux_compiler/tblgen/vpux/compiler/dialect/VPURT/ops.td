@@ -79,7 +79,8 @@ def VPURT_DeclareBufferOp :
     let arguments = (ins
         VPURT_BufferSection:$section,
         OptionalAttr<I64ArrayAttr>:$sectionIndex,
-        IntAttr:$byteOffset
+        IntAttr:$byteOffset,
+        OptionalAttr<IntAttr>:$swizzlingKey
     );
 
     let results = (outs
@@ -95,6 +96,12 @@ def VPURT_DeclareBufferOp :
         >,
         OpBuilder<
             (ins "mlir::Type":$type, "vpux::VPURT::BufferSection":$section, "int64_t":$sectionIndex, "int64_t":$byteOffset)
+        >,
+        OpBuilder<
+            (ins "mlir::Type":$type, "vpux::VPURT::BufferSection":$section, "ArrayRef<int64_t>":$sectionIndex, "int64_t":$byteOffset, "int64_t":$swizzlingKey)
+        >,
+        OpBuilder<
+            (ins "mlir::Type":$type, "vpux::VPURT::BufferSection":$section, "int64_t":$sectionIndex, "int64_t":$byteOffset, "int64_t":$swizzlingKey)
         >
     ];
 
@@ -111,57 +118,6 @@ def VPURT_DeclareBufferOp :
             return vpux::DotNodeColor::ORANGE;
         }
         SmallVector<int64_t> getNonEmptySectionIndex();
-    }];
-}
-
-//
-// DeclareSparseBufferOp
-//
-
-def VPURT_DeclareSparseBufferOp :
-        VPURT_Op<
-            "DeclareSparseBuffer",
-            [
-                NoSideEffect,
-                DeclarationOp,
-                DotInterface,
-                AttrSizedOperandSegments,
-                DeclareOpInterfaceMethods<GroupedViewOpInterface>
-            ]
-        > {
-    let summary = "Declare sparse VPU run-time buffer";
-
-    let arguments = (ins
-        AnyMemRef:$data,
-        Optional<AnyMemRef>:$sparsityMap,
-        Optional<AnyMemRef>:$storageElementTable
-    );
-
-    let results = (outs
-        VPURT_SparseBuffer:$sparseBuffer
-    );
-
-    let builders = [
-        OpBuilder<
-            (ins "mlir::Value":$data)
-        >,
-        OpBuilder<
-            (ins "mlir::Value":$data, "mlir::Value":$sparsityMap)
-        >,
-        OpBuilder<
-            (ins "mlir::Value":$data, "mlir::Value":$sparsityMap, "mlir::Value":$storageElementTable)
-        >
-    ];
-
-    let assemblyFormat = [{
-        $data `:` type($data) (`,` $sparsityMap^ `:` type($sparsityMap))? (`,` $storageElementTable^ `:` type($storageElementTable))?
-        attr-dict `->` type(results)
-    }];
-
-    let extraClassDeclaration = [{
-        vpux::DotNodeColor getNodeColor() {
-            return vpux::DotNodeColor::ORANGE;
-        }
     }];
 }
 
@@ -286,6 +242,34 @@ def VPURT_TaskOp :
 }
 
 //
+// Alloc
+//
+
+def VPURT_Alloc :
+        VPURT_Op<
+            "Alloc",
+            [
+                DeclarationOp,
+                DeclareOpInterfaceMethods<MemoryEffectsOpInterface>
+            ]
+        > {
+    let summary = "Alloc VPUIP buffer";
+
+    let arguments = (ins
+        OptionalAttr<IntAttr>:$alignment,
+        OptionalAttr<IntAttr>:$swizzlingKey
+    );
+
+    let results = (outs
+        AnyMemRef:$buffer
+    );
+
+    let assemblyFormat = [{
+        attr-dict `->` type(results)
+    }];
+}
+
+//
 // AllocDistributed
 //
 
@@ -298,6 +282,11 @@ def VPURT_AllocDistributed :
             ]
         > {
     let summary = "Alloc VPUIP distributed buffer";
+
+    let arguments = (ins
+        OptionalAttr<IntAttr>:$alignment,
+        OptionalAttr<IntAttr>:$swizzlingKey
+    );
 
     let results = (outs
         VPUIP_DistributedBuffer:$buffer

@@ -7,6 +7,8 @@
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
 
+#include "vpux/compiler/dialect/VPUIP/graph-schema/utils.hpp"
+
 using namespace vpux;
 
 mlir::LogicalResult vpux::IE::RoundOp::inferReturnTypeComponents(

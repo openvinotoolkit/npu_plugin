@@ -97,7 +97,11 @@ bool vpux::VPU::NCEConvolutionOp::isSupported(IE::ConvolutionOp op, LogCb logCb)
     const auto filterType = op.filter().getType().cast<vpux::NDTypeInterface>();
     const auto outputType = op.output().getType().cast<vpux::NDTypeInterface>();
 
-    if (!NCEInvariant::isActTypeSupported(inputType, getInputChannelAlignmentImpl(inputType)) ||
+    const auto inputOrder = inputType.getDimsOrder();
+    const auto isChannelMajor = inputOrder == DimsOrder::NCHW;
+    const auto inputChannelAligment = !isChannelMajor ? getInputChannelAlignmentImpl(inputType) : 1;
+
+    if (!NCEInvariant::isActTypeSupported(inputType, inputChannelAligment) ||
         !NCEInvariant::isActTypeSupported(outputType, getOutputChannelAlignmentImpl(outputType))) {
         logCb(formatv("Misaligned tensor shape"));
         return false;
@@ -105,7 +109,6 @@ bool vpux::VPU::NCEConvolutionOp::isSupported(IE::ConvolutionOp op, LogCb logCb)
 
     const auto arch = getArch(op);
 
-    const auto inputOrder = inputType.getDimsOrder();
     const auto filterOrder = filterType.getDimsOrder();
     const auto outputOrder = outputType.getDimsOrder();
 
@@ -279,13 +282,13 @@ Shape vpux::VPU::NCEConvolutionOp::inferAlignedFilterShape(NDTypeInterface input
 }
 
 //
-// InferShapedTypeOpInterface
+// InferTypeOpInterface
 //
 
-mlir::LogicalResult vpux::VPU::NCEConvolutionOp::inferReturnTypeComponents(
-        mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
-        mlir::DictionaryAttr attrs, mlir::RegionRange,
-        SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
+mlir::LogicalResult vpux::VPU::NCEConvolutionOp::inferReturnTypes(
+        mlir::MLIRContext* ctx, mlir::Optional<mlir::Location> optLoc, mlir::ValueRange operands,
+        mlir::DictionaryAttr attrs, mlir::RegionRange /*regions*/,
+        mlir::SmallVectorImpl<mlir::Type>& inferredReturnTypes) {
     const auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
 
     NCEConvolutionOpAdaptor op(operands, attrs);
@@ -321,9 +324,10 @@ mlir::LogicalResult vpux::VPU::NCEConvolutionOp::inferReturnTypeComponents(
                                                  return checked_cast<int64_t>(val);
                                              }));
 
-    const auto elemType = op.input().getType().cast<vpux::NDTypeInterface>().getElementType();
+    const auto inputType = op.input().getType().cast<vpux::NDTypeInterface>();
+    const auto outputType = inputType.changeShape(Shape(outputShape));
 
-    inferredReturnShapes.emplace_back(outputShape, elemType);
+    inferredReturnTypes.push_back(outputType);
     return mlir::success();
 }
 
@@ -353,24 +357,10 @@ void vpux::VPU::NCEConvolutionOp::inferLayoutInfo(IE::LayerLayoutInfo& info) {
 }
 
 //
-// AlignedChannelsOpInterface
-//
-
-int64_t vpux::VPU::NCEConvolutionOp::getInputChannelAlignmentImpl(vpux::NDTypeInterface inputType) {
-    const auto inOrder = inputType.getDimsOrder();
-    if (inOrder == DimsOrder::NCHW) {
-        // C-major convolution has no specific requirements
-        return 1;
-    }
-
-    return NCEInvariant::getAlignment(inputType.getElementType());
-}
-
-//
 // TilingBuilderOpInterface
 //
 
-vpux::InputTiling vpux::VPU::NCEConvolutionOp::backInferTileInfo(const vpux::TileInfo& outputTile) {
+vpux::InputTiling vpux::VPU::NCEConvolutionOp::backInferTileInfo(const vpux::TileInfo& outputTile, vpux::Logger) {
     const auto origInputShape = getShape(input());
     const auto origFilterShape = Shape(parseIntArrayAttr<int64_t>(rawFilterShape()));
     const auto origPadding = toPadInfo(pad());
@@ -389,6 +379,10 @@ vpux::InputTiling vpux::VPU::NCEConvolutionOp::backInferTileInfo(const vpux::Til
     inputTiling.tiles[1].shape[Dims4D::Filter::OC] = outputTile.shape[Dims4D::Act::C];
 
     inputTiling.tiles.push_back(VPU::getWeightsTableTile(this, outputTile));
+
+    if (instructionListTable() != nullptr) {
+        inputTiling.tiles.push_back(VPU::getInstructionListTableTile(this, outputTile));
+    }
 
     if (activationWindow() != nullptr) {
         inputTiling.tiles.push_back(VPU::getActivationWindowTile(this, outputTile));
@@ -419,4 +413,23 @@ SmallVector<int64_t> vpux::VPU::NCEConvolutionOp::getStrides() {
 
 vpux::VPU::PaddingAttr vpux::VPU::NCEConvolutionOp::getPad() {
     return padAttr();
+}
+
+bool vpux::VPU::NCEConvolutionOp::checkStrategyCompatibility(VPU::MultiClusterStrategy strategy) {
+    const bool isCMajor = (DimsOrder::fromValue(input()) == DimsOrder::NCHW);
+    if (isCMajor) {
+        return strategy == VPU::MultiClusterStrategy::SplitOverHeightOverlapped ||
+               strategy == VPU::MultiClusterStrategy::Clustering;
+    }
+    return strategy == VPU::MultiClusterStrategy::Clustering ||
+           strategy == VPU::MultiClusterStrategy::SplitOverHeight ||
+           strategy == VPU::MultiClusterStrategy::SplitOverKernel || strategy == VPU::MultiClusterStrategy::HKSwitch;
+}
+
+//
+// serialize
+//
+
+EMU::BlobWriter::SpecificTask vpux::VPU::NCEConvolutionOp::serialize(EMU::BlobWriter& /*writer*/) {
+    VPUX_THROW("NCEConvolutionOp shouldn't have a serializer");
 }

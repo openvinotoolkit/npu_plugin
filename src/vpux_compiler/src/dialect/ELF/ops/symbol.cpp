@@ -3,6 +3,8 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
+//
+
 #include <vpux_elf/writer.hpp>
 #include "vpux/compiler/dialect/ELF/ops.hpp"
 
@@ -18,9 +20,13 @@ mlir::Operation* getParentSectionOp(mlir::Value val) {
             break;
         }
     }
-    // This is for the case BlockArgument (e.g., arg0 value)
+
+    // This happens normally in case val is a BlockArgument (e.g., "arg0" in the .mlir file).
+    //  OR in the case of a value assigned in the FuncOp scope.
     if (op == nullptr) {
         op = val.getDefiningOp();
+
+        return val.getParentRegion()->getParentOp();
     }
     VPUX_THROW_UNLESS(op != nullptr, "Both user and producer operation can't be found.");
 
@@ -41,24 +47,32 @@ void vpux::ELF::SymbolOp::serialize(elf::writer::Symbol* symbol, vpux::ELF::Sect
     auto symSize = size().getValueOr(0);
     auto symVal = value().getValueOr(0);
 
-    /* From serialization perspective symbols can be of 5 types:
-        - SECTION symbols : in this case the parentSection is the defining op itself;
-        - Generic symbols : Symbols representing an OP inside the IR. In this case we need the parent section of either
-       the OP or it's placeholder;
-        - I/O symbols : symbols that represent function arguments. In this case we will not have a parentSection, and no
+    /* From the serialization perspective the symbols can be of 5 types:
+        - Section symbols: in this case the parentSection is the defining op itself;
+        - Generic symbols: Symbols representing an OP inside the IR. In this case we need the parent section of either
+       the OP or its placeholder;
+        - I/O symbols: symbols that represent function arguments. In this case we will not have a parentSection, and no
        relatedSection;
         - Symbols referring to the "Special Symbol Table";
-        - Standalone symbols : symbols that do not relate to any entity inside the IR (nor the ELF itself).
-      The ticket #29144 plans to handle these last 2 types of sections.
+        - Standalone symbols: symbols that do not relate to any entity inside the IR (nor the ELF itself).
+      The ticket E#29144 plans to handle these last 2 types of sections.
     */
 
+    // We initialize parentSection to nullptr, since inputArg() can be a BlockArgument,
+    //   which has getDefiningOp() equal to nullptr.
     mlir::Operation* parentSection = nullptr;
+
     if (auto inputArgDefOp = inputArg().getDefiningOp()) {
         if (mlir::isa<ELF::ElfSectionInterface>(inputArgDefOp)) {
             parentSection = inputArgDefOp;
         } else {
             parentSection = getParentSectionOp(inputArg());
-            VPUX_THROW_UNLESS(parentSection != nullptr, "Could not find valid parent section for op");
+
+            if (mlir::isa<mlir::FuncOp>(parentSection)) {
+                parentSection = nullptr;
+            } else {
+                VPUX_THROW_UNLESS(parentSection != nullptr, "Could not find valid parent section for op");
+            }
         }
     }
 

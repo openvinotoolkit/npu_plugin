@@ -90,9 +90,9 @@ mlir::LogicalResult NNDMAOpConverter::matchAndRewrite(VPUIP::NNDMAOp origOp, mli
     const auto outBuffType = outBufferOp.getType().cast<vpux::NDTypeInterface>();
     const auto newDstType = getMemRefType(flatDstShape, elemTypeU8, DimsOrder::NCHW, outBuffType.getMemSpace());
 
-    auto newDstBufferOp =
-            rewriter.create<VPURT::DeclareBufferOp>(origOp->getLoc(), newDstType, outBufferOp.sectionAttr(),
-                                                    outBufferOp.sectionIndexAttr(), outBufferOp.byteOffsetAttr());
+    auto newDstBufferOp = rewriter.create<VPURT::DeclareBufferOp>(
+            origOp->getLoc(), newDstType, outBufferOp.sectionAttr(), outBufferOp.sectionIndexAttr(),
+            outBufferOp.byteOffsetAttr(), nullptr);
 
     const Shape flatSrcShape{checked_cast<int64_t>(compressedData.size()), 1, 1, 1};
     const auto newSrcStorageType = mlir::RankedTensorType::get(flatSrcShape.raw(), elemTypeU8);

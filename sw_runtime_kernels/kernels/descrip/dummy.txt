@@ -3,4 +3,6 @@
 
 set(kernel_src "dummy.cpp")
 
+set(kernel_cpunum "3720")
+
 set(always_inline "yes")

@@ -47,10 +47,23 @@ mlir::LogicalResult vpux::IE::TopKOp::inferReturnTypeComponents(
     if (axis < 0) {
         axis += inRank;
     }
+
     outShape[axis] = kContent.getSplatValue<int64_t>();
 
     inferredReturnShapes.emplace_back(outShape, inType.getElementType());
     inferredReturnShapes.emplace_back(outShape, topK.element_type().getValue());
 
     return mlir::success();
+}
+
+//
+// inferLayoutInfo
+//
+
+void vpux::IE::TopKOp::inferLayoutInfo(vpux::IE::LayerLayoutInfo& info) {
+    const auto inOrder = info.getInput(0);
+
+    info.setInput(0, inOrder);
+    info.setOutput(0, inOrder);
+    info.setOutput(1, inOrder);
 }

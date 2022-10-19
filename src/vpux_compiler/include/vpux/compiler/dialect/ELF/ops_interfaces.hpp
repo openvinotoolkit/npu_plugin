@@ -26,6 +26,22 @@ typedef DenseMap<mlir::Operation*, elf::writer::Section*> SectionMapType;
 // Note that this works since in our case the IR is immutable troughout the life-time of the map.
 typedef DenseMap<mlir::Operation*, elf::writer::Symbol*> SymbolMapType;
 
+//
+// ElfSectionInterface
+//
+
+template <typename ConcreteOp>
+mlir::Block* getSectionBlock(ConcreteOp op) {
+    mlir::Operation* operation = op.getOperation();
+    auto& region = operation->getRegion(0);
+
+    if (region.empty()) {
+        region.emplaceBlock();
+    }
+
+    return &region.front();
+}
+
 }  // namespace ELF
 }  // namespace vpux
 

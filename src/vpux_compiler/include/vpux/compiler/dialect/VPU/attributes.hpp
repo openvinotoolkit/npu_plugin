@@ -52,14 +52,17 @@ StringLiteral getProcessorFrequencyAttrName();
 
 uint32_t getMaxDPUClusterNum(ArchKind arch);
 uint32_t getMaxDPUClusterNum(mlir::Operation* op);
+uint32_t getMaxDMAPorts(ArchKind arch);
 
 Byte getTotalCMXSize(mlir::Operation* op);
+Byte getTotalCMXSize(mlir::ModuleOp module);
 
 //
 // ArchKind
 //
 
-void setArch(mlir::ModuleOp module, ArchKind kind, Optional<int> numOfDPUGroups = None);
+void setArch(mlir::ModuleOp module, ArchKind kind, Optional<int> numOfDPUGroups = None,
+             Optional<int> numOfDMAPorts = None);
 ArchKind getArch(mlir::Operation* op);
 
 //
@@ -92,6 +95,14 @@ PPETaskAttr getPPETaskAttr(mlir::MLIRContext* ctx, VPU::PPEMode mode, int64_t cl
                            int64_t lreluMult, int64_t lreluShift, ArrayRef<int64_t> quantMult,
                            ArrayRef<int64_t> quantShift, int64_t quantPostShift);
 
+PPETaskAttr getPPETaskAttr(mlir::MLIRContext* ctx, VPU::PPEMode mode, int64_t clampLow, int64_t clampHigh,
+                           int64_t lreluMult, int64_t lreluShift, ArrayRef<double> quantScale);
+
+PPETaskAttr getPPETaskAttr(mlir::MLIRContext* ctx, VPU::PPEMode mode, int64_t clampLow, int64_t clampHigh,
+                           int64_t lreluMult, int64_t lreluShift, ArrayRef<int64_t> quantMult,
+                           ArrayRef<int64_t> quantShift, int64_t quantPostShift, ArrayRef<int64_t> in1QuantMult,
+                           ArrayRef<int64_t> in2QuantMult);
+
 VPU::PPEMode getPPEMode(VPU::EltwiseType type);
 
 //
@@ -101,11 +112,14 @@ VPU::PPEMode getPPEMode(VPU::EltwiseType type);
 mlir::LogicalResult verify(FuncRef<mlir::InFlightDiagnostic()> emitError, DistributedTensorAttr distributedAttr,
                            ArrayRef<int64_t> shape);
 mlir::LogicalResult areDistributionModesCompatible(DistributionMode sourceMode, DistributionMode targetMode);
+mlir::LogicalResult areDistributionNumClustersCompatible(mlir::IntegerAttr sourceNumClusters,
+                                                         mlir::IntegerAttr targetNumClusters);
+mlir::LogicalResult areDistributionAttrsCompatible(DistributedTensorAttr sourceAttr, DistributedTensorAttr targetAttr);
 SmallVector<Shape> getPerClusterComputeShapes(ShapeRef shapeRef, DistributedTensorAttr distributionAttr);
 SmallVector<Shape> getPerClusterComputeShapeOffsets(ShapeRef shapeRef, DistributedTensorAttr distributionAttr);
 SmallVector<PadInfo> getPerClusterPadding(DistributedTensorAttr distributionAttr);
 SmallVector<StridedShape> getPerClusterStridedShapes(ShapeRef shape, StridesRef strides, DimsOrder dimsOrder,
-                                                     Bit elemSize, DistributedTensorAttr distributionAttr);
+                                                     DistributedTensorAttr distributionAttr);
 
 }  // namespace VPU
 }  // namespace vpux

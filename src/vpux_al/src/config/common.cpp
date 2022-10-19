@@ -115,6 +115,10 @@ StringLiteral InferenceEngine::VPUXConfigParams::stringifyEnum(VPUXPlatform val)
         return "VPU3900";
     case VPUXPlatform::VPU3720:
         return "VPU3720";
+    case VPUXPlatform::VPU3720ELF:
+        return "VPU3720ELF";
+    case VPUXPlatform::VPU4000:
+        return "VPU4000";
     case VPUXPlatform::EMULATOR:
         return "EMULATOR";
     default:
@@ -139,6 +143,10 @@ InferenceEngine::VPUXConfigParams::VPUXPlatform vpux::PLATFORM::parse(StringRef 
         return ov::intel_vpux::cvtVPUXPlatform(ov::intel_vpux::VPUXPlatform::VPU3900);
     } else if (val == "3720" || val == "VPU3720") {
         return ov::intel_vpux::cvtVPUXPlatform(ov::intel_vpux::VPUXPlatform::VPU3720);
+    } else if (val == "3720ELF" || val == "VPU3720ELF") {
+        return ov::intel_vpux::cvtVPUXPlatform(ov::intel_vpux::VPUXPlatform::VPU3720ELF);
+    } else if (val == "4000" || val == "VPU4000") {
+        return ov::intel_vpux::cvtVPUXPlatform(ov::intel_vpux::VPUXPlatform::VPU4000);
     } else if (val == "3400_A0_EMU" || val == "3400_EMU" || val == "3700_EMU" || val == "3800_EMU" ||
                val == "3900_EMU" || val == "3720_EMU") {
         return ov::intel_vpux::cvtVPUXPlatform(ov::intel_vpux::VPUXPlatform::EMULATOR);

@@ -6,6 +6,7 @@
 //
 
 #include "vpux/compiler/dialect/VPURT/barrier_scheduler.hpp"
+#include "vpux/compiler/dialect/VPURT/task.hpp"
 
 using namespace vpux::VPURT;
 
@@ -35,31 +36,7 @@ using namespace vpux::VPURT;
 // In the context of VPU hardware the number of slots for a DPU tasks are the DPU worklaods
 // and for a DMA/UPA tasks it is 1.
 
-BarrierScheduler::BarrierScheduler(mlir::FuncOp func, Logger log)
-        : _barrierCount(),
-          _slotsPerBarrier(),
-          _barrierResourceState(),
-          _inDegree(),
-          _originalInDegree(),
-          _heap(),
-          _currentTime(0),
-          _schedulableCandidates(),
-          _processedTasks(),
-          _priority(),
-          _scheduledTasks(),
-          _barrierAssociationTable(),
-          _barrierResourceUtilizationMap(),
-          _outputTasks(),
-          _originalOutputOps(),
-          _barrierMap(),
-          _configureBarrierOpWaitMap(),
-          _configureBarrierOpUpdateMap(),
-          _configureTaskOpWaitMap(),
-          _configureTaskOpUpdateMap(),
-          _taskConsumerMapOriginal(),
-          _log(log),
-          _func(func),
-          _taskCount(){};
+BarrierScheduler::BarrierScheduler(mlir::FuncOp func, Logger log): _log(log), _func(func){};
 
 void BarrierScheduler::populateTasksUpdateWaitBarrierMap(barrierWaitMapType& barrierOpWaitMap,
                                                          barrierUpdateMapType& barrierOpUpdateMap,
@@ -225,6 +202,8 @@ bool BarrierScheduler::performSchedulingTaskLoop() {
     _log.trace("Performing main scheduling task loop");
     _log = _log.nest();
 
+    // TODO: IR ordered cycle-based loop
+
     // Scheduling loop, loop until all output tasks are scheduled
     while (!_outputTasks.empty()) {
         schedulableTasksIteratorType taskItr = findSchedulableTask();
@@ -234,7 +213,12 @@ bool BarrierScheduler::performSchedulingTaskLoop() {
             mlir::Operation* task = (*taskItr);
             _log.trace("Found a schedulable task ID {0}", getUniqueID(task));
 
-            const size_t opDelay = 1;
+            const size_t uniqueID = getUniqueID(task).getInt();
+            size_t opDelay = 1;
+            if (_operationEndCycle.find(uniqueID) != _operationEndCycle.end()) {
+                opDelay = _operationEndCycle[uniqueID] - _operationBeginCycle[uniqueID];
+            }
+
             size_t taskBarrierResourceRequirement = _barrierResourceUtilizationMap[task];
             size_t taskEndTime = _currentTime + opDelay;
 
@@ -394,106 +378,27 @@ void BarrierScheduler::assignTaskPriorities() {
     _log.trace("Assigning task priorities");
     _log = _log.nest();
 
-    operationInDegreeType inDegree = _originalInDegree;
-
-    // Assign topological sort level as priority
-    std::list<mlir::Operation*> zeroInDegreeNodes[2];
+    // Assign IR order as priority
     _priority.clear();
-
-    size_t currentPriority = 0;
-
-    auto itr = _inDegree.begin();
-    while (itr != _inDegree.end()) {
-        auto op = itr->first;
-        auto opDegreeIt = _inDegree.find(op);
-        if (opDegreeIt != _inDegree.end() && opDegreeIt->second == 0) {
-            _log.trace("Adding task {0} to zeroInDegreeNodes ", getUniqueID(op));
-            zeroInDegreeNodes[currentPriority % 2].push_back(op);
-            _log.trace("The priority for  op {0}  is {1}", getUniqueID(op), currentPriority);
-            _priority[op] = currentPriority;
-        }
-        ++itr;
-    }
-
-    while (!zeroInDegreeNodes[currentPriority % 2].empty()) {
-        // decrement the in-degree
-        for (auto op = zeroInDegreeNodes[currentPriority % 2].begin();
-             op != zeroInDegreeNodes[currentPriority % 2].end(); ++op) {
-            auto opConsumers = getConsumerOps(*op);
-
-            SmallVector<mlir::Operation*>::iterator jtr = opConsumers.begin();
-            while (jtr != opConsumers.end()) {
-                _log.trace("Looking up task {0} in the inDegree table ", getUniqueID(*jtr));
-                typename operationInDegreeType::iterator deg_itr = inDegree.find(*jtr);
-
-                VPUX_THROW_UNLESS((deg_itr != inDegree.end()) && (deg_itr->second > 0), "Invalid indegree");
-
-                (deg_itr->second)--;
-
-                if (!(deg_itr->second)) {
-                    // in-degree of this node has become zero//
-                    _log.trace("The in-degree of op task {0}  has become zero ", getUniqueID(deg_itr->first));
-
-                    _log.trace("The priority of task {0}  has become  {1} ", getUniqueID(deg_itr->first),
-                               (currentPriority + 1));
-
-                    _priority[deg_itr->first] = (currentPriority + 1);
-                    zeroInDegreeNodes[(currentPriority + 1) % 2].push_back(deg_itr->first);
-
-                    _log.trace("Erasing task {0} from the in-degree table ", getUniqueID(deg_itr->first));
-                    inDegree.erase(deg_itr);
-                }
-                ++jtr;
-            }
-        }
-        zeroInDegreeNodes[currentPriority % 2].clear();
-        ++currentPriority;
-    }
-
-    for (typename priorityMapType::iterator pitr = _priority.begin(); pitr != _priority.end(); ++pitr) {
-        _log.trace("Checking priority of {0} ", getUniqueID(pitr->first));
-        auto opConsumers = getConsumerOps((pitr->first));
-
-        // set priority to max of all out going priorities //
-        SmallVector<mlir::Operation*>::iterator jtr = opConsumers.begin();
-
-        if (!(pitr->second)) {
-            size_t max = pitr->second;
-            while (jtr != opConsumers.end()) {
-                max = std::max(_priority[*jtr], max);
-                ++jtr;
-            }
-            pitr->second = max;
-        }
-    }
-
-    struct custom_compare final {
-        bool operator()(const std::pair<size_t, mlir::Operation*>& left,
-                        const std::pair<size_t, mlir::Operation*>& right) const {
-            size_t priorityLeft = left.first;
-            size_t priorityRight = right.first;
-            auto opIDLeft = getUniqueID(left.second).getInt();
-            auto opIDright = getUniqueID(right.second).getInt();
-
-            if (priorityLeft < priorityRight)
-                return true;
-
-            if (priorityLeft > priorityRight)
-                return false;
-
-            return opIDLeft < opIDright;
-        }
-    };
-
-    // reassign the priority
-    std::set<std::pair<size_t, mlir::Operation*>, custom_compare> s;  // The new (temporary) container.
-    for (auto const& pair : _priority)
-        s.emplace(pair.second, pair.first);  // Flip the pairs.
-
     size_t newPriority = 1;
-    for (auto const& pair : s) {
-        _priority[pair.second] = newPriority++;
-    }
+
+    _func->walk([&](VPURT::TaskOp taskOp) {
+        mlir::Operation* op = taskOp.getOperation();
+        auto opId = getUniqueID(op).getInt();
+
+        _log.trace("The priority for  op {0}  is {1}", opId, newPriority);
+        _priority[op] = newPriority++;
+
+        // retrieve operation cycles
+        if (taskOp->hasAttr(cycleBegin)) {
+            auto currCycle = op->getAttr(cycleBegin).cast<mlir::IntegerAttr>().getValue().getSExtValue();
+            _operationBeginCycle[opId] = checked_cast<size_t>(currCycle);
+        }
+        if (taskOp->hasAttr(cycleEnd)) {
+            auto currCycle = op->getAttr(cycleEnd).cast<mlir::IntegerAttr>().getValue().getSExtValue();
+            _operationEndCycle[opId] = checked_cast<size_t>(currCycle);
+        }
+    });
 
     _log = _log.unnest();
 }
@@ -532,6 +437,7 @@ size_t BarrierScheduler::countProducerTasksToBarrier(mlir::Operation* op) {
     }
     if (mlir::dyn_cast<VPURT::TaskOp>(op).getExecutorKind() == VPU::ExecutorKind::DMA_NN ||
         mlir::dyn_cast<VPURT::TaskOp>(op).getExecutorKind() == VPU::ExecutorKind::SHAVE_UPA ||
+        mlir::dyn_cast<VPURT::TaskOp>(op).getExecutorKind() == VPU::ExecutorKind::M2I ||
         mlir::dyn_cast<VPURT::TaskOp>(op).getExecutorKind() == VPU::ExecutorKind::SHAVE_ACT) {
         return 1;
     } else {
@@ -553,6 +459,14 @@ void BarrierScheduler::createTaskBarrierResourceUtilityTable() {
 void BarrierScheduler::init() {
     _log.trace("Feasible barrier scheduler initialization");
     _log = _log.nest();
+
+    // As the background, DMA ops are pushed as a list to firmware, they are scheduled in that order and also finish in
+    // that same exact order. This is true when we use the same DMA engine, but no longer when multiple engines are
+    // enabled. In that case, DMA ops will be pushed into different lists according to their port values, and there's no
+    // clear way to ensure execution serialization between DMA ops which used different engines. So the DMA related
+    // optimization is enabled only when device has one DMA port.
+    const auto module = _func->getParentOfType<mlir::ModuleOp>();
+    _enableDMAOptimization = IE::getAvailableExecutor(module, VPU::ExecutorKind::DMA_NN).count() == 1;
 
     // Assign unique IDs to tasks
     _log.trace("Assigning unique IDs to tasks");
@@ -785,6 +699,7 @@ bool BarrierScheduler::performRuntimeSimulation() {
         _configureTaskOpUpdateMap.clear();
         _orderedBarrier.clear();
         _schedulingOrder.clear();
+        _pathLookUpTable.clear();
     }
 
     _log.trace("Barrier simulation result is {0} with upperbound {1}", success, _barrierCount);
@@ -853,32 +768,46 @@ void BarrierScheduler::removeRedundantBarriers() {
         }
     }
 
-    for (size_t ind = 0; ind < _configureBarrierOpWaitMap.size(); ind++) {
-        auto& producers = _configureBarrierOpWaitMap[ind];
-        auto& consumers = _configureBarrierOpUpdateMap[ind];
-        if (!(producers.set_bits().empty() || consumers.set_bits().empty())) {
-            auto prod = producers.set_bits_begin();
-            bool producersOnlyHasDMA = true;
-            for (; prod != producers.set_bits_end(); prod++) {
-                if (_orderedTasks[*prod].getExecutorKind() != VPU::ExecutorKind::DMA_NN) {
-                    producersOnlyHasDMA = false;
-                    break;
-                }
-            }
-
-            if (producersOnlyHasDMA) {
-                auto cons = consumers.set_bits_begin();
-                bool consumersOnlyHasDMA = true;
-                for (; cons != consumers.set_bits_end(); cons++) {
-                    if (_orderedTasks[*cons].getExecutorKind() != VPU::ExecutorKind::DMA_NN) {
-                        consumersOnlyHasDMA = false;
+    if (_enableDMAOptimization) {
+        for (size_t ind = 0; ind < _configureBarrierOpWaitMap.size(); ind++) {
+            auto& producers = _configureBarrierOpWaitMap[ind];
+            auto& consumers = _configureBarrierOpUpdateMap[ind];
+            if (!(producers.set_bits().empty() || consumers.set_bits().empty())) {
+                auto prod = producers.set_bits_begin();
+                bool producersOnlyHasDMA = true;
+                for (; prod != producers.set_bits_end(); prod++) {
+                    if (_orderedTasks[*prod].getExecutorKind() != VPU::ExecutorKind::DMA_NN) {
+                        producersOnlyHasDMA = false;
                         break;
                     }
                 }
 
-                if (consumersOnlyHasDMA) {
-                    producers.reset();
-                    consumers.reset();
+                if (producersOnlyHasDMA) {
+                    auto cons = consumers.set_bits_begin();
+                    for (; cons != consumers.set_bits_end(); cons++) {
+                        if (_orderedTasks[*cons].getExecutorKind() == VPU::ExecutorKind::DMA_NN) {
+                            consumers.reset(*cons);
+                        }
+                    }
+
+                } else {
+                    bool consumersOnlyHasDMA = true;
+                    auto cons = consumers.set_bits_begin();
+                    for (; cons != consumers.set_bits_end(); cons++) {
+                        if (_orderedTasks[*cons].getExecutorKind() != VPU::ExecutorKind::DMA_NN) {
+                            consumersOnlyHasDMA = false;
+                            break;
+                        }
+                    }
+
+                    if (consumersOnlyHasDMA) {
+                        auto prod = producers.set_bits_begin();
+                        for (; prod != producers.set_bits_end(); prod++) {
+                            if (_orderedTasks[*prod].getExecutorKind() == VPU::ExecutorKind::DMA_NN) {
+                                producers.reset(*prod);
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -943,28 +872,38 @@ void BarrierScheduler::initializeBarrierAssociationTable() {
 
 // detect if op b depends on a
 bool BarrierScheduler::doesPathExist(int64_t a, int64_t b) {
-    auto numa = _orderedTasks[a]->getAttr("SchedulingNumber").cast<mlir::IntegerAttr>().getInt();
-    auto numb = _orderedTasks[b]->getAttr("SchedulingNumber").cast<mlir::IntegerAttr>().getInt();
-    if (numa >= numb)
-        return false;
-    else {
-        // DMAs which are scheduled later in the schedule naturally depend on DMAs which were scheduled previously
-        if ((_orderedTasks[a].getExecutorKind() == VPU::ExecutorKind::DMA_NN) &&
-            (_orderedTasks[b].getExecutorKind() == VPU::ExecutorKind::DMA_NN)) {
-            return true;
-        }
-        auto updateBarriers = _configureTaskOpUpdateMap[a];
-        for (auto updateBarrier : updateBarriers.set_bits()) {
-            auto barrierConsumers = _configureBarrierOpUpdateMap[updateBarrier];
-            for (auto consumer : barrierConsumers.set_bits()) {
-                if (consumer == b)
-                    return true;
-                if (doesPathExist(consumer, b))
-                    return true;
+    auto findPath = [&](int64_t task1, int64_t task2) {
+        auto numa = _orderedTasks[task1]->getAttr("SchedulingNumber").cast<mlir::IntegerAttr>().getInt();
+        auto numb = _orderedTasks[task2]->getAttr("SchedulingNumber").cast<mlir::IntegerAttr>().getInt();
+        if (numa >= numb) {
+            return false;
+        } else {
+            if (_enableDMAOptimization && (_orderedTasks[task1].getExecutorKind() == VPU::ExecutorKind::DMA_NN) &&
+                (_orderedTasks[task2].getExecutorKind() == VPU::ExecutorKind::DMA_NN)) {
+                return true;
             }
+            auto updateBarriers = _configureTaskOpUpdateMap[task1];
+            for (auto updateBarrier : updateBarriers.set_bits()) {
+                auto barrierConsumers = _configureBarrierOpUpdateMap[updateBarrier];
+                for (auto consumer : barrierConsumers.set_bits()) {
+                    if (consumer == task2)
+                        return true;
+                }
+                for (auto consumer : barrierConsumers.set_bits()) {
+                    if (doesPathExist(consumer, task2))
+                        return true;
+                }
+            }
+
+            return false;
         }
-        return false;
+    };
+
+    auto path = std::make_pair(a, b);
+    if (_pathLookUpTable.find(path) == _pathLookUpTable.end()) {
+        _pathLookUpTable[path] = findPath(a, b);
     }
+    return _pathLookUpTable[path];
 }
 
 void BarrierScheduler::populateScheduledTasks(mlir::Operation* task) {

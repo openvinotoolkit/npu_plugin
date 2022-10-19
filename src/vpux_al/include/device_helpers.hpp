@@ -22,6 +22,7 @@ std::string getFullDeviceNameByDeviceName(const std::string& deviceName);
 bool isPlatformNameSupported(const std::string& platformName);
 std::string getDeviceNameBySwDeviceId(const uint32_t swDevId);
 InferenceEngine::VPUXConfigParams::VPUXPlatform getPlatformByDeviceName(const std::string& deviceName);
+InferenceEngine::VPUXConfigParams::VPUXPlatform getPlatformByEMUDeviceName(const std::string& deviceName);
 // TODO Remove after removing deprecated device names from VPUAL backend
 bool isDeviceNameVpualDeprecated(const std::string& deviceName);
 }  // namespace utils

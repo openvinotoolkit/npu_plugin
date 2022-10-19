@@ -42,7 +42,7 @@ void parseCommandLine(int argc, char* argv[]) {
 std::vector<size_t> parseShapes(const std::string& shapesStr) {
     std::vector<size_t> shapes;
     std::stringstream shapesSS(shapesStr);
-    size_t shape;
+    size_t shape{};
     while (shapesSS >> shape){
         shapes.push_back(shape);
     }

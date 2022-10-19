@@ -213,7 +213,13 @@ void ConvertShapeTo4DPass::safeRunOnFunc() {
         if (type.getRank() == TARGET_TENSOR_DIM) {
             return type;
         } else if (type.getRank() > TARGET_TENSOR_DIM) {
-            VPUX_THROW("Tensors with rank > 4 are not supported");
+            if (type.getRank() == 5 && type.getShape()[Dim(0)] == 1) {
+                SmallVector<int64_t> newShape = {type.getShape()[Dim(1)], type.getShape()[Dim(2)],
+                                                 type.getShape()[Dim(3)], type.getShape()[Dim(4)]};
+                return type.changeShape(ShapeRef(newShape));
+            } else {
+                VPUX_THROW("Tensors with rank > 4 are not supported");
+            }
         } else if (type.getRank() == 3) {
             SmallVector<int64_t> newShape = {type.getShape()[Dim(0)], type.getShape()[Dim(1)], 1,
                                              type.getShape()[Dim(2)]};
@@ -242,7 +248,9 @@ void ConvertShapeTo4DPass::safeRunOnFunc() {
         VPUX_THROW_WHEN(inShape != outShape,
                         "FakeQuantize must have the same shape for input and output. Got: {0} != {1}", inShape,
                         outShape);
-        VPUX_THROW_WHEN(inShape.size() > TARGET_TENSOR_DIM, "Tensors with rank > 4 are not supported");
+        VPUX_THROW_WHEN(inShape.size() > TARGET_TENSOR_DIM &&
+                                !(inShape.size() == (TARGET_TENSOR_DIM + 1) && inShape[Dim(0)] == 1),
+                        "Tensors with rank > 4 are not supported");
 
         return inShape.size() == TARGET_TENSOR_DIM;
     };
@@ -270,6 +278,10 @@ void ConvertShapeTo4DPass::safeRunOnFunc() {
     target.addDynamicallyLegalOp<IE::ExpOp>(isLegalOp);
     target.addDynamicallyLegalOp<IE::AddOp>(isLegalOp);
     target.addDynamicallyLegalOp<IE::MultiplyOp>(isLegalOp);
+    target.addDynamicallyLegalOp<IE::DivideOp>(isLegalOp);
+    target.addDynamicallyLegalOp<IE::MinimumOp>(isLegalOp);
+    target.addDynamicallyLegalOp<IE::MaximumOp>(isLegalOp);
+    target.addDynamicallyLegalOp<IE::PowerOp>(isLegalOp);
     target.addDynamicallyLegalOp<IE::SubtractOp>(isLegalOp);
     target.addDynamicallyLegalOp<IE::AndOp>(isLegalOp);
     target.addDynamicallyLegalOp<IE::ScaleShiftOp>(isLegalOp);
@@ -306,6 +318,10 @@ void ConvertShapeTo4DPass::safeRunOnFunc() {
     patterns.add<GenericConverter<IE::ExpOp>>(typeConverter, &ctx, _log);
     patterns.add<GenericConverter<IE::AddOp>>(typeConverter, &ctx, _log);
     patterns.add<GenericConverter<IE::MultiplyOp>>(typeConverter, &ctx, _log);
+    patterns.add<GenericConverter<IE::DivideOp>>(typeConverter, &ctx, _log);
+    patterns.add<GenericConverter<IE::MinimumOp>>(typeConverter, &ctx, _log);
+    patterns.add<GenericConverter<IE::MaximumOp>>(typeConverter, &ctx, _log);
+    patterns.add<GenericConverter<IE::PowerOp>>(typeConverter, &ctx, _log);
     patterns.add<GenericConverter<IE::SubtractOp>>(typeConverter, &ctx, _log);
     patterns.add<GenericConverter<IE::AndOp>>(typeConverter, &ctx, _log);
     patterns.add<GenericConverter<IE::ScaleShiftOp>>(typeConverter, &ctx, _log);

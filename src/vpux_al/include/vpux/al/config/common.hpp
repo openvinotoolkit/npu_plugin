@@ -51,6 +51,12 @@ struct PERFORMANCE_HINT_NUM_REQUESTS final : OptionBase<PERFORMANCE_HINT_NUM_REQ
     static uint32_t parse(StringRef val) {
         return InferenceEngine::PerfHintsConfig::CheckPerformanceHintRequestValue(val.str());
     }
+
+    static uint32_t defaultValue() {
+        // Default value depends on PERFORMANCE_HINT, see getPerfHintNumRequests
+        // 2 corresponds to LATENCY, UNDEFINED and default mode (hints not specified)
+        return 2u;
+    }
 };
 
 uint32_t getPerfHintNumRequests(const Config& config);

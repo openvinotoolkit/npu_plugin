@@ -16,7 +16,7 @@ const std::string mv::CompilationUnit::ma3720DefTargetDescPath_ = "/config/targe
 const std::string mv::CompilationUnit::compositionalModelRecordingsPath_ = "/recordings/";
 const std::string mv::CompilationUnit::ma2490DefCompDescPath_ = "/config/compilation/release_kmb.json";
 const std::string mv::CompilationUnit::ma3100DefCompDescPath_ = "/config/compilation/release_kmb.json";
-const std::string mv::CompilationUnit::ma3720DefCompDescPath_ = "/config/compilation/release_VPUX37XX-sc.json";
+const std::string mv::CompilationUnit::ma3720DefCompDescPath_ = "/config/compilation/release_VPUX37XX-s.json";
 
 mv::CompilationUnit::CompilationUnit(const std::string& modelName) :
 model_(new OpModel(modelName)),
@@ -103,7 +103,7 @@ bool mv::CompilationUnit::loadCompilationDescriptor(const std::string& filePath)
     mv::Element globalParams = passList[0];
     if (globalParams.hasAttr("recorded_model") && globalParams.get<bool>("recorded_model"))
     {
-        bool recordWeightsAsText =
+        bool recordWeightsAsText = 
             globalParams.hasAttr("recordWeightsAsText") ? globalParams.get<bool>("recordWeightsAsText") : false;
         model_->initRecordingFile("templateExampleNew.cpp", recordWeightsAsText);
     }

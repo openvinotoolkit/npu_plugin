@@ -39,8 +39,13 @@ def VPUIP_ReduceLayerType :
             [
                 StrEnumAttrCase<"MAX">,
                 StrEnumAttrCase<"MEAN">,
+                StrEnumAttrCase<"LOGICAL_OR">,
+                StrEnumAttrCase<"LOGICAL_AND">,
+                StrEnumAttrCase<"PROD">,
                 StrEnumAttrCase<"SUM">,
                 StrEnumAttrCase<"MIN">,
+                StrEnumAttrCase<"L1">,
+                StrEnumAttrCase<"L2">,
             ]
         > {
     let cppNamespace = "vpux::VPUIP";
@@ -69,5 +74,19 @@ def VPUIP_NCETaskType :
     let cppNamespace = "vpux::VPUIP";
     let genSpecializedAttr = 1;
 }
+
+//
+// MemRefAttr
+//
+
+def VPUIP_MemRefAttr :
+        StructAttr<
+            "MemRefAttr",
+            VPUIP_Dialect,
+            [
+                StructFieldAttr<"order", AffineMapAttr>,
+                StructFieldAttr<"strides", I64ArrayAttr>,
+            ]
+        >;
 
 #endif

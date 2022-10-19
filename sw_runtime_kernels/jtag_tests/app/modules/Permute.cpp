@@ -12,8 +12,6 @@
 #include <mv_types.h>
 #include <nn_log.h>
 
-#include "shave_task_runner.hpp"
-
 using namespace mv::tensor;
 
 Permute::~Permute()
@@ -58,7 +56,7 @@ using FpCopyElement = void (*)(void*, void*);
 void Permute::run(mv::tensor::Processor& ,
                   t_MvTensorMyriadResources& myriadRes,
                   t_MvTensorDebugInfo&) {
-
+    (void)myriadRes;
     nnLog(MVLOG_DEBUG, "ndims  = %ld\n", input.ndims);
     nnLog(MVLOG_DEBUG, "order  = 0x%x\n", input.order);
     nnLog(MVLOG_DEBUG, "dims.0 = %ld(%ld)\n", input.dims[0], input.strides[0]);

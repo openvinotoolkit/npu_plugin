@@ -29,7 +29,6 @@ string(TOLOWER "${VPUX_DEVICE_NAME}" VPUX_PLUGIN_COMPONENT)
 set(VPUX_TESTS_COMPONENT "${VPUX_PLUGIN_COMPONENT}_tests")
 
 set(IE_MAIN_VPUX_PLUGIN_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
-set(THIRDPARTY_SERVER_PATH "https://af01p-ir.devtools.intel.com/artifactory/vpu_openvino-ir-local/dl_score_engine/")
 
 include(FetchContent)
 

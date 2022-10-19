@@ -39,6 +39,8 @@ class VPUXEltwiseLayerTest_MCM : public VPUXEltwiseLayerTest {
 };
 class VPUXEltwiseLayerTest_MLIR : public VPUXEltwiseLayerTest {};
 
+class VPUXEltwiseLayerTest_MLIR_VPU3720 : public VPUXEltwiseLayerTest {};
+
 //
 //[Track number: E#15146]
 //
@@ -60,6 +62,13 @@ TEST_P(VPUXEltwiseLayerTest_MLIR, DISABLED_MLIR_HW) {
     abs_threshold = 0.005;
     useCompilerMLIR();
     setDefaultHardwareModeMLIR();
+    run();
+}
+
+TEST_P(VPUXEltwiseLayerTest_MLIR_VPU3720, MLIR_VPU3720) {
+    useCompilerMLIR();
+    setPlatformVPU3720();
+    setReferenceSoftwareModeMLIR();
     run();
 }
 
@@ -197,5 +206,51 @@ const auto subtract_params_mlir = ::testing::Combine(
 
 INSTANTIATE_TEST_CASE_P(smoke_CompareWithRefs_Specific_subtract, VPUXEltwiseLayerTest_MLIR, subtract_params_mlir,
                         VPUXEltwiseLayerTest::getTestCaseName);
+
+//
+// VPU3720 Instantiation
+//
+
+std::set<ngraph::helpers::EltwiseTypes> supportedTypesVPU3720{
+        ngraph::helpers::EltwiseTypes::POWER,
+        ngraph::helpers::EltwiseTypes::ADD,
+        ngraph::helpers::EltwiseTypes::SUBTRACT,
+        ngraph::helpers::EltwiseTypes::MULTIPLY,
+        ngraph::helpers::EltwiseTypes::DIVIDE,
+};
+
+std::vector<std::vector<ov::Shape>> inShapesVPU3720 = {
+        {{1, 16, 32}},                   // CHW
+        {{1, 16, 32}, {1, 16, 1}},       // CHW, input1 != input2, broadcast over W
+};
+
+const auto eltwise_params_VPU3720 = ::testing::Combine(
+        ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(inShapesVPU3720)),
+        ::testing::ValuesIn(supportedTypesVPU3720),
+        ::testing::ValuesIn(secondaryInputTypes),
+        ::testing::ValuesIn(opTypes),
+        ::testing::Values(ov::element::f16),
+        ::testing::Values(ov::element::f16),
+        ::testing::Values(ov::element::f16),
+        ::testing::Values(testPlatformTargetDevice),
+        ::testing::Values(ov::test::Config{}));
+
+INSTANTIATE_TEST_CASE_P(smoke_CompareWithRefs_VPU3720, VPUXEltwiseLayerTest_MLIR_VPU3720, eltwise_params_VPU3720,
+                        VPUXEltwiseLayerTest::getTestCaseName);
+
+const auto precommit_eltwise_params_VPU3720 = ::testing::Combine(
+        ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(
+                std::vector<std::vector<ov::Shape>>({{{1, 16, 32}, {1, 1, 32}}}))),
+        ::testing::ValuesIn(supportedTypesVPU3720),
+        ::testing::ValuesIn(secondaryInputTypes),
+        ::testing::ValuesIn(opTypes),
+        ::testing::Values(ov::element::f16),
+        ::testing::Values(ov::element::f16),
+        ::testing::Values(ov::element::f16),
+        ::testing::Values(testPlatformTargetDevice),
+        ::testing::Values(ov::test::Config{}));
+
+INSTANTIATE_TEST_CASE_P(smoke_precommit_CompareWithRefs_VPU3720, VPUXEltwiseLayerTest_MLIR_VPU3720,
+                        precommit_eltwise_params_VPU3720, VPUXEltwiseLayerTest::getTestCaseName);
 
 }  // namespace

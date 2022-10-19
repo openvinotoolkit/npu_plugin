@@ -40,11 +40,13 @@ public:
     InferenceEngine::Parameter getParameter(const std::string&) const final {
         return {};
     }
+    Executor::Ptr clone() const override;
 
 private:
     ie::Blob::Ptr repackTensor(const ie::Blob::Ptr&, const ie::TensorDesc&);
 
     Logger _logger;
+    Config _config;
     vpux::NetworkDescription::Ptr _network;
     mv::emu::Manager _manager;
 };

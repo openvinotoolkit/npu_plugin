@@ -32,17 +32,14 @@ bool hasNegativeValues(const Const::Content& low) {
     });
 }
 
-bool containsValueZero(Const::ContentAttr lowConst, Const::ContentAttr highConst, IE::AutoBroadcastType broadcast) {
-    auto containsZero = [](const double low, const double high) {
-        return low <= 0 && high >= 0;
-    };
-
+bool checkRange(Const::ContentAttr lowConst, Const::ContentAttr highConst, IE::AutoBroadcastType broadcast,
+                bool (*predicate)(const double low, const double high)) {
     const auto lowAttr = lowConst.fold();
     const auto highAttr = highConst.fold();
     if (lowAttr.isSplat() && highAttr.isSplat()) {
         const auto low = lowAttr.getSplatValue<double>();
         const auto high = highAttr.getSplatValue<double>();
-        return containsZero(low, high);
+        return predicate(low, high);
     }
 
     const auto lowVals = lowAttr.getValues<double>();
@@ -55,11 +52,19 @@ bool containsValueZero(Const::ContentAttr lowConst, Const::ContentAttr highConst
     for (auto p : zip(lows, highs)) {
         const auto lowVal = std::get<0>(p);
         const auto highVal = std::get<1>(p);
-        if (!containsZero(lowVal, highVal))
+        if (!predicate(lowVal, highVal))
             return false;
     }
 
     return true;
+}
+
+bool containsValueZero(Const::ContentAttr lowConst, Const::ContentAttr highConst, IE::AutoBroadcastType broadcast) {
+    auto containsZero = [](const double low, const double high) {
+        return low <= 0 && high >= 0;
+    };
+
+    return checkRange(lowConst, highConst, broadcast, containsZero);
 }
 
 // Ranges without value zero lead to a negative zero-point which is not supported in the DPU PPE
@@ -75,6 +80,19 @@ bool hasRangeWithoutZero(IE::FakeQuantizeOp fqOp) {
     }
 
     return false;
+}
+
+// Scalar like [7, 7] is handled separately and zero value is not required.
+// In this case ZP=0, scale=scalar.
+bool isScalar(IE::FakeQuantizeOp fqOp) {
+    auto inLowConst = fqOp.input_low().getDefiningOp<Const::DeclareOp>();
+    auto inHighConst = fqOp.input_high().getDefiningOp<Const::DeclareOp>();
+
+    auto isScalarLambda = [](const double low, const double high) {
+        return std::fabs(high - low) < std::numeric_limits<double>::epsilon();
+    };
+
+    return checkRange(inLowConst.contentAttr(), inHighConst.contentAttr(), fqOp.auto_broadcast(), isScalarLambda);
 }
 
 //
@@ -296,7 +314,7 @@ void SplitFakeQuantPass::safeRunOnFunc() {
 
     mlir::ConversionTarget target(ctx);
     target.addDynamicallyLegalOp<IE::FakeQuantizeOp>([](IE::FakeQuantizeOp fqOp) {
-        return hasRangeWithoutZero(fqOp);
+        return hasRangeWithoutZero(fqOp) && !isScalar(fqOp);
     });
     target.addLegalOp<Const::DeclareOp>();
     target.addLegalOp<IE::QuantizeOp>();

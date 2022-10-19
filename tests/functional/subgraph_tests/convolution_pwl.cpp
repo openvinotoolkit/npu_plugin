@@ -12,7 +12,8 @@ namespace {
 
 enum class PostOp {
     SIGMOID,
-    TANH
+    TANH,
+    PRELU
 };
 
 class KmbConvPwlSubGraphTest :
@@ -43,6 +44,9 @@ class KmbConvPwlSubGraphTest :
             postOp = std::make_shared<ngraph::opset7::Sigmoid>(conv);
         } else if (postOpType == PostOp::TANH) {
             postOp = std::make_shared<ngraph::opset7::Tanh>(conv);
+        } else if (postOpType == PostOp::PRELU) {
+            const auto negativeSlope = ngraph::builder::makeConstant<float>(ngraph::element::f32, {1}, {0.1}, false);
+            postOp = std::make_shared<ngraph::opset7::PRelu>(conv, negativeSlope);
         }
 
         const ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(postOp)};
@@ -103,6 +107,11 @@ class KmbConvPwlQuantizedSubGraphTest :
             const auto postOp = std::make_shared<ngraph::opset7::Tanh>(conv);
             outputFq = ngraph::builder::makeFakeQuantize(postOp, ngraph::element::f32, outLevels, {},
                                                          {-1.0}, {1.0}, {-1.0}, {1.0});
+        } else if (postOpType == PostOp::PRELU) {
+            const auto negativeSlope = ngraph::builder::makeConstant<float>(ngraph::element::f32, {1}, {0.1}, false);
+            const auto postOp = std::make_shared<ngraph::op::v0::PRelu>(conv, negativeSlope);
+            outputFq = ngraph::builder::makeFakeQuantize(postOp, ngraph::element::f32, outLevels, {},
+                                                         {-128.0}, {127.0}, {-128.0}, {127.0});
         }
 
         const ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(outputFq)};
@@ -138,7 +147,15 @@ TEST_P(KmbConvPwlQuantizedSubGraphTest, CompareWithRefs_MLIR_HW) {
 }
 
 std::vector<PostOp> postOps = {
+    PostOp::SIGMOID, PostOp::TANH, PostOp::PRELU
+};
+
+
+// TODO: investigate bad accuracy for both SW and HW
+// prelu quantized test
+std::vector<PostOp> quantPostOps = {
     PostOp::SIGMOID, PostOp::TANH
+    //, PostOp::PRELU
 };
 
 INSTANTIATE_TEST_CASE_P(smoke, KmbConvPwlSubGraphTest,
@@ -149,6 +166,6 @@ INSTANTIATE_TEST_CASE_P(smoke, KmbConvPwlSubGraphTest,
 INSTANTIATE_TEST_CASE_P(smoke, KmbConvPwlQuantizedSubGraphTest,
                         ::testing::Combine(
                             ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
-                            ::testing::ValuesIn(postOps)));
+                            ::testing::ValuesIn(quantPostOps)));
 
 }  // namespace

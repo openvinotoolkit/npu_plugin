@@ -10,6 +10,7 @@
 
 #include "vpux/compiler/core/control_edge_generator.hpp"
 #include "vpux/compiler/core/feasible_scheduler_utils.hpp"
+#include "vpux/compiler/dialect/VPUIP/dialect.hpp"
 
 #include <iostream>
 
@@ -43,12 +44,12 @@ void FeasibleMemorySchedulerControlEdges::insertDependenciesBasic(
         for (auto nextTimeOpIt = opIt; nextTimeOpIt != scheduledOps.end(); nextTimeOpIt++) {
             if (!nextTimeOpIt->isOriginalOp()) {
                 continue;
-            } else if (nextTimeDiff == 0 && nextTimeOpIt->time_ > opIt->time_) {
-                nextTimeDiff = nextTimeOpIt->time_ - opIt->time_;
+            } else if (nextTimeDiff == 0 && nextTimeOpIt->cycleBegin_ > opIt->cycleBegin_) {
+                nextTimeDiff = nextTimeOpIt->cycleBegin_ - opIt->cycleBegin_;
             }
 
             if (nextTimeDiff != 0) {
-                if (nextTimeOpIt->time_ == opIt->time_ + nextTimeDiff) {
+                if (nextTimeOpIt->cycleBegin_ == opIt->cycleBegin_ + nextTimeDiff) {
                     // Insert dependency between op at time t to op at
                     // time t+1
                     auto srcAsyncOp = _depsInfo.getExecuteOpAtIndex(opIt->op_);
@@ -57,7 +58,7 @@ void FeasibleMemorySchedulerControlEdges::insertDependenciesBasic(
                     VPUX_THROW_UNLESS((srcAsyncOp != nullptr) && (dstAsyncOp != nullptr),
                                       "srcAsyncOp/dstAsyncOp not located based on index");
                     _depsInfo.addDependency(srcAsyncOp, dstAsyncOp);
-                } else if (nextTimeOpIt->time_ > (opIt->time_ + nextTimeDiff)) {
+                } else if (nextTimeOpIt->cycleBegin_ > (opIt->cycleBegin_ + nextTimeDiff)) {
                     break;
                 }
             }
@@ -74,11 +75,11 @@ void FeasibleMemorySchedulerControlEdges::insertScheduleOrderDepsForExecutor(
     _log.trace("Insert control edges aligned with schedule order for provided executor");
 
     auto isRightExecutor = [executorKind](mlir::async::ExecuteOp execOp) {
-        if (!execOp->hasAttr(IERT::IERTDialect::getExecutorAttrName())) {
+        if (!execOp->hasAttr(VPUIP::VPUIPDialect::getExecutorAttrName())) {
             return false;
         }
 
-        const auto executor = IERT::IERTDialect::getExecutor(execOp);
+        const auto executor = VPUIP::VPUIPDialect::getExecutor(execOp);
         if (executor.getLeafNameAttr() != VPU::ExecutorKindAttr::get(execOp->getContext(), executorKind)) {
             return false;
         }
@@ -109,20 +110,26 @@ void FeasibleMemorySchedulerControlEdges::insertScheduleOrderDepsForExecutor(
                 continue;
             }
 
-            if (nextTimeDiff == 0 && nextTimeOpIt->time_ > opIt->time_) {
-                nextTimeDiff = nextTimeOpIt->time_ - opIt->time_;
+            if (nextTimeDiff == 0 && nextTimeOpIt->cycleBegin_ > opIt->cycleBegin_) {
+                nextTimeDiff = nextTimeOpIt->cycleBegin_ - opIt->cycleBegin_;
             }
 
             if (nextTimeDiff != 0) {
-                if (nextTimeOpIt->time_ == opIt->time_ + nextTimeDiff) {
+                if (nextTimeOpIt->cycleBegin_ == opIt->cycleBegin_ + nextTimeDiff) {
                     // Insert dependency between op at time t to op at
                     // time t+1
                     auto dstAsyncOp = _depsInfo.getExecuteOpAtIndex(nextTimeOpIt->op_);
                     _log.trace("Dep: {0} -> {1}", opIt->op_, nextTimeOpIt->op_);
                     VPUX_THROW_UNLESS((srcAsyncOp != nullptr) && (dstAsyncOp != nullptr),
                                       "srcAsyncOp/dstAsyncOp not located based on index");
+                    auto srcCycleEnd = getAsyncExecuteCycleEnd(srcAsyncOp);
+                    auto dstCycleBegin = getAsyncExecuteCycleBegin(dstAsyncOp);
+                    VPUX_THROW_UNLESS(srcCycleEnd <= dstCycleBegin,
+                                      "Order of execution not preserved from {0} with cycleEnd = {1} to {2} with "
+                                      "cycleBegin = {3}",
+                                      opIt->op_, srcCycleEnd, nextTimeOpIt->op_, dstCycleBegin);
                     _depsInfo.addDependency(srcAsyncOp, dstAsyncOp);
-                } else if (nextTimeOpIt->time_ > (opIt->time_ + nextTimeDiff)) {
+                } else if (nextTimeOpIt->cycleBegin_ > (opIt->cycleBegin_ + nextTimeDiff)) {
                     break;
                 }
             }
@@ -153,11 +160,11 @@ void FeasibleMemorySchedulerControlEdges::insertMemoryControlEdges(
         auto execOp = _depsInfo.getExecuteOpAtIndex(scheduledOp.op_);
         auto* bodyBlock = &execOp.body().front();
         for (auto& innerOp : bodyBlock->getOperations()) {
-            if (!mlir::isa<IERT::LayerOpInterface>(innerOp)) {
+            if (!mlir::isa<VPUIP::LayerOpInterface>(innerOp)) {
                 continue;
             }
 
-            auto inputs = mlir::dyn_cast<IERT::LayerOpInterface>(innerOp).getInputs();
+            auto inputs = mlir::dyn_cast<VPUIP::LayerOpInterface>(innerOp).getInputs();
             for (const auto& input : inputs) {
                 const auto type = input.getType().dyn_cast<vpux::NDTypeInterface>();
                 if (type == nullptr || type.getMemoryKind() != _memKind) {
@@ -170,7 +177,7 @@ void FeasibleMemorySchedulerControlEdges::insertMemoryControlEdges(
                 inputBuffers.insert(rootBuffer);
             }
 
-            auto outputs = mlir::dyn_cast<IERT::LayerOpInterface>(innerOp).getOutputs();
+            auto outputs = mlir::dyn_cast<VPUIP::LayerOpInterface>(innerOp).getOutputs();
             for (const auto& output : outputs) {
                 const auto type = output.getType().dyn_cast<vpux::NDTypeInterface>();
                 if (type == nullptr || type.getMemoryKind() != _memKind) {
@@ -196,7 +203,7 @@ void FeasibleMemorySchedulerControlEdges::insertMemoryControlEdges(
                 continue;
             }
             auto addressEnd = addressStart + bufSize - 1;
-            _log.trace("op = '{0}'\t time = '{1}'\t input = [{2} - {3}]", scheduledOp.op_, scheduledOp.time_,
+            _log.trace("op = '{0}'\t time = '{1}'\t input = [{2} - {3}]", scheduledOp.op_, scheduledOp.cycleBegin_,
                        addressStart, addressEnd);
             scheduledOpsResources.push_back(ScheduledOpOneResource(scheduledOp.op_, addressStart, addressEnd,
                                                                    ScheduledOpOneResource::EResRelation::CONSUMER));
@@ -211,7 +218,7 @@ void FeasibleMemorySchedulerControlEdges::insertMemoryControlEdges(
                 continue;
             }
             auto addressEnd = addressStart + bufSize - 1;
-            _log.trace("op = '{0}'\t time = '{1}'\t output = [{2} - {3}]", scheduledOp.op_, scheduledOp.time_,
+            _log.trace("op = '{0}'\t time = '{1}'\t output = [{2} - {3}]", scheduledOp.op_, scheduledOp.cycleBegin_,
                        addressStart, addressEnd);
             scheduledOpsResources.push_back(ScheduledOpOneResource(scheduledOp.op_, addressStart, addressEnd,
                                                                    ScheduledOpOneResource::EResRelation::PRODUCER));

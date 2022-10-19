@@ -12,10 +12,7 @@
 #include <Op.h>
 
 #include <nn_perf_measurement.h>
-
-#ifdef CONFIG_TARGET_SOC_3720
 #include <nn_shave_manager.h>
-#endif
 
 /**
  * @brief wrapper over UPA runner, svu runtime, etc
@@ -33,7 +30,5 @@ class ShaveTaskRunner {
                    int numSHAVEs,
                    PerformanceData *perfData);
     bool dequeResult();
-#ifdef CONFIG_TARGET_SOC_3720
     std::shared_ptr<nn::inference_runtime::shaves::ShaveManager> _shaveManager;
-#endif
 };

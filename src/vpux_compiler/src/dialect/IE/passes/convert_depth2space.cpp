@@ -63,10 +63,24 @@ private:
 mlir::LogicalResult ConvertDepth2SpaceLayerPass::Depth2SpaceLayerConverter::matchAndRewrite(
         IE::DepthToSpaceOp origOp, mlir::PatternRewriter& rewriter) const {
     const auto ctx = rewriter.getContext();
-    const auto inputShape = getShape(origOp.input());
-    const auto spatialDims = inputShape.size() - 2;  // Exclude two dims: N & C
+
+    // Testing on E#37479 showed that if the DepthToSpace tensors fit in CMX and the number planes <= 256
+    // Then it is always more efficient than performing it on UPA
+    const auto inputType = origOp.input().getType().cast<vpux::NDTypeInterface>();
+    const auto inputShape = inputType.getShape();
+    const auto outputType = origOp.output().getType().cast<vpux::NDTypeInterface>();
     const auto blockSize = origOp.block_size();
     const auto mode = origOp.mode();
+
+    Byte requiredCMX(0);
+    requiredCMX += inputType.getTotalAllocSize();
+    requiredCMX += outputType.getTotalAllocSize();
+    bool illegalConvertToDMA = (requiredCMX > VPU::getTotalCMXSize(origOp.getOperation())) ||
+                               (mode == IE::DepthToSpaceMode::BLOCKS_FIRST && inputShape[Dims4D::Act::H] > 256);
+    if (!illegalConvertToDMA) {
+        _log.trace("DepthToSpaceOp Op {0} can convert to DMA tasks.", origOp.getLoc());
+        return mlir::failure();
+    }
 
     // Check input shape must be 4d out of caution
     // TODO: Can I make sure INPUT format is [N, C, D1, D2, ..., DK] for me ?
@@ -75,6 +89,7 @@ mlir::LogicalResult ConvertDepth2SpaceLayerPass::Depth2SpaceLayerConverter::matc
                       "Input shape must be 4d (Maybe it's the chance to unlock the restriction)");
 
     // Calculate Reshape shapeBegin
+    const auto spatialDims = inputShape.size() - 2;  // Exclude two dims: N & C
     mlir::SmallVector<int64_t> shapeBegin{inputShape[Dims4D::Act::N]};
     auto C = inputShape[Dims4D::Act::C];
     for (size_t i = 0; i < spatialDims; ++i) {
@@ -141,16 +156,14 @@ mlir::LogicalResult ConvertDepth2SpaceLayerPass::Depth2SpaceLayerConverter::matc
 
 void ConvertDepth2SpaceLayerPass::safeRunOnFunc() {
     auto& ctx = getContext();
-    mlir::ConversionTarget target(ctx);
-    target.addIllegalOp<IE::DepthToSpaceOp>();
-    target.addLegalOp<IE::ReshapeOp>();
-    target.addLegalOp<IE::TransposeOp>();
+
+    auto func = getFunction();
 
     mlir::RewritePatternSet patterns(&ctx);
     patterns.insert<Depth2SpaceLayerConverter>(&ctx, _log);
 
-    auto func = getFunction();
-    if (mlir::failed(mlir::applyPartialConversion(func, target, std::move(patterns)))) {
+    if (mlir::failed(
+                mlir::applyPatternsAndFoldGreedily(func, std::move(patterns), vpux::getDefaultGreedyRewriteConfig()))) {
         signalPassFailure();
     }
 }

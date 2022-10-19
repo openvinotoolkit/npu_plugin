@@ -218,8 +218,6 @@ vpux::VPUIP::DpuTiler::DpuTiler(ShapeRef outShape, VPU::MPEMode mpeMode): _outSh
 SmallVector<int64_t> vpux::VPUIP::DpuTiler::generateSplitNumberPool(int64_t numDPU, int64_t maxSplits) const {
     SmallVector<int64_t> validZTiles;
 
-    // Note: refer the values from workload number pool implementation at
-    // 2^4 equals to the CMX word size in bytes,  2^8 is an up bound to limit the number of splits
     for (int64_t i = MIN_VALID_ZTILE_EXPONENT; i < MAX_VALID_ZTILE_EXPONENT; ++i) {
         validZTiles.push_back(static_cast<int64_t>(std::pow(2, i)));
         validZTiles.push_back(validZTiles.back() + DEFAULT_ZTILE_VALUE);
@@ -351,6 +349,14 @@ void vpux::VPUIP::DpuTiler::tileOverHW(int64_t splitNumber, SplitDimension split
     default:
         VPUX_THROW("Unsupported split dimension {0}", splitDimension);
     }
+}
+
+void vpux::VPUIP::DpuTiler::tileOverHWMixedPrecision(WorkloadSplitPool& splitPool) {
+    VPUX_THROW_WHEN(_mpeMode != VPU::MPEMode::VECTOR_FP16, "Invalid MPE mode, actual: {0}, expected: {1}", _mpeMode,
+                    VPU::MPEMode::VECTOR_FP16);
+    VPUIP::WorkloadSplit split;
+    split.emplace_back(TileInfo(_outShape), _mpeMode);
+    splitPool.insert(std::move(split));
 }
 
 int64_t vpux::VPUIP::computeSplitCost(const WorkloadSplit& split, const WorkloadCostParams& params,

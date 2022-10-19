@@ -3,9 +3,9 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-#include "vpux/compiler/dialect/VPU/json_utils.hpp"
 #include "vpux/compiler/dialect/VPU/ops.hpp"
 #include "vpux/compiler/dialect/VPU/passes.hpp"
+#include "vpux/compiler/dialect/VPU/utils/json_utils.hpp"
 #include "vpux/compiler/utils/logging.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
 #include "vpux/utils/core/string_ref.hpp"
@@ -15,6 +15,12 @@
 #include <mlir/IR/BlockAndValueMapping.h>
 #include <mlir/IR/BuiltinTypes.h>
 #include <mlir/Transforms/DialectConversion.h>
+
+#if defined(VPUX_DEVELOPER_BUILD) || !defined(NDEBUG)
+
+#include "vpux/compiler/core/developer_build_utils.hpp"
+
+#endif  // defined(VPUX_DEVELOPER_BUILD) || !defined(NDEBUG)
 
 using namespace vpux;
 using namespace VPU;
@@ -37,9 +43,9 @@ private:
 
 private:
     bool _writeStrategyToJSON;
-    StringRef _writeStrategyFileLocation;
+    std::string _writeStrategyFileLocation;
     bool _readStrategyFromJSON;
-    StringRef _readStrategyFileLocation;
+    std::string _readStrategyFileLocation;
 };
 
 ManualStrategyUtilsPass::ManualStrategyUtilsPass(bool writeStrategyToJSON, StringRef writeStrategyFileLocation,
@@ -47,9 +53,9 @@ ManualStrategyUtilsPass::ManualStrategyUtilsPass(bool writeStrategyToJSON, Strin
                                                  Logger log)
         // NOTE: currently called after two strategy passes, flags in both must match.
         : _writeStrategyToJSON(writeStrategyToJSON),
-          _writeStrategyFileLocation(writeStrategyFileLocation),
+          _writeStrategyFileLocation(writeStrategyFileLocation.str()),
           _readStrategyFromJSON(readStrategyFromJSON),
-          _readStrategyFileLocation(readStrategyFileLocation) {
+          _readStrategyFileLocation(readStrategyFileLocation.str()) {
     Base::initLogger(log, Base::getArgumentName());
 }
 
@@ -77,25 +83,6 @@ mlir::LogicalResult ManualStrategyUtilsPass::initializeOptions(StringRef options
     return mlir::success();
 }
 
-#if defined(VPUX_DEVELOPER_BUILD) || !defined(NDEBUG)
-
-StringRef parseEnv(StringRef envVarName, StringRef var) {
-    if (const auto env = std::getenv(envVarName.data())) {
-        // update if new location specified
-        return StringRef(env);
-    } else {
-        return var;
-    }
-}
-
-void parseEnv(StringRef envVarName, bool& var) {
-    if (const auto env = std::getenv(envVarName.data())) {
-        var = std::stoi(env);
-    }
-}
-
-#endif  // defined(VPUX_DEVELOPER_BUILD) || !defined(NDEBUG)
-
 //
 // safeRunOnFunc
 //
@@ -103,9 +90,9 @@ void parseEnv(StringRef envVarName, bool& var) {
 void ManualStrategyUtilsPass::safeRunOnFunc() {
 #if defined(VPUX_DEVELOPER_BUILD) || !defined(NDEBUG)
     parseEnv("IE_VPUX_WRITE_STRATEGY_JSON", _writeStrategyToJSON);
-    _writeStrategyFileLocation = parseEnv("IE_VPUX_WRITE_STRATEGY_JSON_LOC", _writeStrategyFileLocation);
+    parseEnv("IE_VPUX_WRITE_STRATEGY_JSON_LOC", _writeStrategyFileLocation);
     parseEnv("IE_VPUX_READ_STRATEGY_JSON", _readStrategyFromJSON);
-    _readStrategyFileLocation = parseEnv("IE_VPUX_READ_STRATEGY_JSON_LOC", _readStrategyFileLocation);
+    parseEnv("IE_VPUX_READ_STRATEGY_JSON_LOC", _readStrategyFileLocation);
 #endif  // defined(VPUX_DEVELOPER_BUILD) || !defined(NDEBUG)
 
     auto func = getFunction();
@@ -141,14 +128,13 @@ void ManualStrategyUtilsPass::safeRunOnFunc() {
 
     func->walk([&](VPU::NCEOpInterface op) {
         // store unique operations (tiled operations are merged)
-        mlir::Location opLoc = nullptr;
+        mlir::Location opLoc = op.getLoc();
         if (op->hasAttr(tilingStrategy)) {
-            const auto fused = op.getLoc().dyn_cast<mlir::FusedLoc>();
+            const auto fused = opLoc.dyn_cast<mlir::FusedLoc>();
             VPUX_THROW_UNLESS(fused, "Tiled operation has location not fused");
             // store only 1 tile
             opLoc = fused.getLocations().front();
         } else {
-            opLoc = op.getLoc();
             if (operations.find(opLoc) != operations.end()) {
                 // if duplicate locations, create unique
                 opLoc = appendLoc(opLoc, "unique_{0}", operations.count(opLoc));

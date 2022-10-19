@@ -28,5 +28,12 @@ OpTy wrapIntoTaskOp(mlir::OpBuilder& builder, mlir::ValueRange waitBarriers, mli
 
 mlir::LogicalResult verifyTaskOp(TaskOp task);
 
+template <typename OpTy, typename... Args>
+OpTy createOp(mlir::PatternRewriter& rewriter, mlir::Operation* insertionPoint, Args&&... args) {
+    VPUX_THROW_WHEN(insertionPoint == nullptr, "Insertion point is empty");
+    mlir::OpBuilder::InsertionGuard guard(rewriter);
+    rewriter.setInsertionPointAfter(insertionPoint);
+    return rewriter.create<OpTy>(std::forward<Args>(args)...);
+}
 }  // namespace VPURT
 }  // namespace vpux

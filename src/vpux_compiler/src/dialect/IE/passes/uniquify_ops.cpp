@@ -40,7 +40,7 @@ private:
 
 mlir::LogicalResult RemoveDuplicatingReorders::matchAndRewrite(IE::ReorderOp origOp,
                                                                mlir::PatternRewriter& rewriter) const {
-    for (auto user : origOp.input().getUsers()) {
+    for (auto user : llvm::make_early_inc_range(origOp.input().getUsers())) {
         if (user == origOp) {
             continue;
         }

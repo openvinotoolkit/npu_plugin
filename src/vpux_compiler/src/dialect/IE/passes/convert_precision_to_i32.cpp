@@ -53,21 +53,29 @@ void ConvertPrecisionToI32Pass::safeRunOnModule() {
     target.addDynamicallyLegalOp<IE::ReduceMaxOp>(isLegalOp);
     target.addDynamicallyLegalOp<IE::ReduceMeanOp>(isLegalOp);
     target.addDynamicallyLegalOp<IE::ReduceSumOp>(isLegalOp);
+    target.addDynamicallyLegalOp<IE::ReduceProdOp>(isLegalOp);
     target.addDynamicallyLegalOp<IE::ReduceMinOp>(isLegalOp);
+    target.addDynamicallyLegalOp<IE::ReduceL1Op>(isLegalOp);
+    target.addDynamicallyLegalOp<IE::ReduceL2Op>(isLegalOp);
     target.addDynamicallyLegalOp<IE::TopKOp>(isLegalOp);
+    target.addDynamicallyLegalOp<IE::AdaptiveAvgPoolOp>(isLegalOp);
+    target.addDynamicallyLegalOp<IE::AdaptiveMaxPoolOp>(isLegalOp);
     target.addDynamicallyLegalOp<mlir::ReturnOp>(isLegalOp);
     target.addLegalOp<mlir::ModuleOp>();
     target.addDynamicallyLegalOp<mlir::FuncOp>([&](mlir::FuncOp funcOp) {
         return typeConverter.isSignatureLegal(funcOp.getType());
     });
 
-    // Convert TopK element type attribute to avoid failures in infer return type checking.
+    // Convert TopK and AdaptiveMaxPool element type attribute to avoid failures in infer return type checking.
     auto module = getOperation();
     module.walk([&](IE::TopKOp op) {
         mlir::Type sInt32Type = mlir::IntegerType::get(&ctx, 32, mlir::IntegerType::Signed);
         op->setAttr("element_type", mlir::TypeAttr::get(sInt32Type));
     });
-
+    module.walk([&](IE::AdaptiveMaxPoolOp op) {
+        mlir::Type sInt32Type = mlir::IntegerType::get(&ctx, 32, mlir::IntegerType::Signed);
+        op->setAttr("index_element_type", mlir::TypeAttr::get(sInt32Type));
+    });
     if (mlir::failed(runConvertPrecision(module, typeConverter, target, _log))) {
         signalPassFailure();
     }

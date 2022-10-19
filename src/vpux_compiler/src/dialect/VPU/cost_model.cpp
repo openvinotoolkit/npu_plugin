@@ -16,6 +16,7 @@ ArrayRef<char> getCostModelData(VPU::ArchKind archKind) {
     case VPU::ArchKind::VPUX311X:
         return makeArrayRef(VPU::COST_MODEL_2_0, VPU::COST_MODEL_2_0_SIZE);
     case VPU::ArchKind::VPUX37XX:
+    case VPU::ArchKind::VPUX40XX:
         return makeArrayRef(VPU::COST_MODEL_2_7, VPU::COST_MODEL_2_7_SIZE);
     default:
         VPUX_THROW("Unsupported VPU arch type: '{0}'", archKind);

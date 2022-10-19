@@ -13,6 +13,7 @@
 #include "vpux/compiler/core/layers.hpp"
 #include "vpux/compiler/dialect/VPU/nce_invariant.hpp"
 #include "vpux/compiler/dialect/VPUIP/nce_invariant.hpp"
+#include "vpux/compiler/dialect/VPUIP/utils.hpp"
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
 #include "vpux/compiler/dialect/VPURT/types.hpp"
 #include "vpux/compiler/utils/analysis.hpp"
@@ -26,37 +27,202 @@ using namespace vpux;
 // NCEClusterTaskOp::build
 //
 
+void vpux::VPUIP::NCEClusterTaskOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type output,
+                                          mlir::Type output_sparsity_map, mlir::Type profiling_output,
+                                          mlir::ValueRange operands, ArrayRef<mlir::NamedAttribute> attributes) {
+    assert(operands.size() >= 4u && "mismatched number of parameters");
+    state.addOperands(operands);
+
+    // Compute value for result_segment_sizes attribute and add it to the attributes dictionary
+    auto resultSegmentSizesAttr =
+            builder.getI32VectorAttr({1, (output_sparsity_map ? 1 : 0), (profiling_output ? 1 : 0)});
+
+    bool foundAttr = false;
+    auto newAttributes = SmallVector<mlir::NamedAttribute>(attributes.begin(), attributes.end());
+    for (auto& attribute : newAttributes) {
+        if (attribute.first != result_segment_sizesAttrName(state.name)) {
+            continue;
+        }
+        attribute.second = resultSegmentSizesAttr;
+        foundAttr = true;
+        break;
+    }
+    if (!foundAttr) {
+        newAttributes.emplace_back(result_segment_sizesAttrName(state.name), resultSegmentSizesAttr);
+    }
+
+    state.addAttributes(newAttributes);
+    for (unsigned i = 0; i != 2; ++i)
+        (void)state.addRegion();
+    state.addTypes(output);
+    if (output_sparsity_map)
+        state.addTypes(output_sparsity_map);
+    if (profiling_output)
+        state.addTypes(profiling_output);
+}
+
 void vpux::VPUIP::NCEClusterTaskOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
-                                          mlir::Value weights, mlir::Value weight_table, mlir::Value activation_window,
+                                          mlir::Value weights, mlir::Value weight_table,
+                                          mlir::Value instruction_list_table, mlir::Value activation_window,
                                           mlir::Value parent_input, mlir::Value parent_output, mlir::Value output_buff,
-                                          VPUIP::NCETaskType task_type, mlir::ArrayAttr kernel_size,
-                                          mlir::ArrayAttr kernel_strides, VPU::PaddingAttr kernel_padding,
+                                          vpux::VPUIP::NCETaskType task_type, mlir::ArrayAttr kernel_size,
+                                          mlir::ArrayAttr kernel_strides, vpux::VPU::PaddingAttr kernel_padding,
                                           mlir::IntegerAttr activation_window_channel_length,
                                           mlir::UnitAttr is_continued, mlir::IntegerAttr cm_sp_pattern,
                                           mlir::UnitAttr is_segmented, mlir::IntegerAttr out_channel_offset) {
-    build(builder, state, output_buff.getType(), input, weights, weight_table, activation_window, parent_input,
-          parent_output, output_buff, nullptr, vpux::VPUIP::NCETaskTypeAttr::get(builder.getContext(), task_type),
-          kernel_size, kernel_strides, kernel_padding, activation_window_channel_length, is_continued, cm_sp_pattern,
-          is_segmented, out_channel_offset);
-
-    for (auto& region : state.regions) {
-        region->emplaceBlock();
-    }
+    build(builder, state, output_buff.getType(), nullptr, nullptr, input, nullptr, nullptr, weights, nullptr,
+          weight_table, instruction_list_table, activation_window, parent_input, nullptr, nullptr, parent_output,
+          nullptr, output_buff, nullptr, nullptr, task_type, kernel_size, kernel_strides, kernel_padding,
+          activation_window_channel_length, is_continued, cm_sp_pattern, is_segmented, out_channel_offset);
 }
 
 void vpux::VPUIP::NCEClusterTaskOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type output,
                                           mlir::Value input, mlir::Value weights, mlir::Value weight_table,
-                                          mlir::Value activation_window, mlir::Value parent_input,
-                                          mlir::Value parent_output, mlir::Value output_buff,
-                                          VPUIP::NCETaskType task_type, mlir::ArrayAttr kernel_size,
-                                          mlir::ArrayAttr kernel_strides, VPU::PaddingAttr kernel_padding,
+                                          mlir::Value instruction_list_table, mlir::Value activation_window,
+                                          mlir::Value parent_input, mlir::Value parent_output, mlir::Value output_buff,
+                                          vpux::VPUIP::NCETaskType task_type, mlir::ArrayAttr kernel_size,
+                                          mlir::ArrayAttr kernel_strides, vpux::VPU::PaddingAttr kernel_padding,
                                           mlir::IntegerAttr activation_window_channel_length,
                                           mlir::UnitAttr is_continued, mlir::IntegerAttr cm_sp_pattern,
                                           mlir::UnitAttr is_segmented, mlir::IntegerAttr out_channel_offset) {
-    build(builder, state, output, input, weights, weight_table, activation_window, parent_input, parent_output,
-          output_buff, nullptr, vpux::VPUIP::NCETaskTypeAttr::get(builder.getContext(), task_type), kernel_size,
+    build(builder, state, output, nullptr, nullptr, input, nullptr, nullptr, weights, nullptr, weight_table,
+          instruction_list_table, activation_window, parent_input, nullptr, nullptr, parent_output, nullptr,
+          output_buff, nullptr, nullptr, task_type, kernel_size, kernel_strides, kernel_padding,
+          activation_window_channel_length, is_continued, cm_sp_pattern, is_segmented, out_channel_offset);
+}
+
+void vpux::VPUIP::NCEClusterTaskOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
+                                          mlir::Value weights, mlir::Value weight_table,
+                                          mlir::Value instruction_list_table, mlir::Value activation_window,
+                                          mlir::Value parent_input, mlir::Value parent_output, mlir::Value output_buff,
+                                          mlir::Value profiling_data, vpux::VPUIP::NCETaskType task_type,
+                                          mlir::ArrayAttr kernel_size, mlir::ArrayAttr kernel_strides,
+                                          vpux::VPU::PaddingAttr kernel_padding,
+                                          mlir::IntegerAttr activation_window_channel_length,
+                                          mlir::UnitAttr is_continued, mlir::IntegerAttr cm_sp_pattern,
+                                          mlir::UnitAttr is_segmented, mlir::IntegerAttr out_channel_offset) {
+    build(builder, state, output_buff.getType(), nullptr, profiling_data ? profiling_data.getType() : nullptr, input,
+          nullptr, nullptr, weights, nullptr, weight_table, instruction_list_table, activation_window, parent_input,
+          nullptr, nullptr, parent_output, nullptr, output_buff, nullptr, profiling_data, task_type, kernel_size,
           kernel_strides, kernel_padding, activation_window_channel_length, is_continued, cm_sp_pattern, is_segmented,
           out_channel_offset);
+}
+
+void vpux::VPUIP::NCEClusterTaskOp::build(
+        mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type output, mlir::Type profiling_output,
+        mlir::Value input, mlir::Value weights, mlir::Value weight_table, mlir::Value instruction_list_table,
+        mlir::Value activation_window, mlir::Value parent_input, mlir::Value parent_output, mlir::Value output_buff,
+        mlir::Value profiling_data, vpux::VPUIP::NCETaskType task_type, mlir::ArrayAttr kernel_size,
+        mlir::ArrayAttr kernel_strides, vpux::VPU::PaddingAttr kernel_padding,
+        mlir::IntegerAttr activation_window_channel_length, mlir::UnitAttr is_continued,
+        mlir::IntegerAttr cm_sp_pattern, mlir::UnitAttr is_segmented, mlir::IntegerAttr out_channel_offset) {
+    build(builder, state, output, nullptr, profiling_output, input, nullptr, nullptr, weights, nullptr, weight_table,
+          instruction_list_table, activation_window, parent_input, nullptr, nullptr, parent_output, nullptr,
+          output_buff, nullptr, profiling_data, task_type, kernel_size, kernel_strides, kernel_padding,
+          activation_window_channel_length, is_continued, cm_sp_pattern, is_segmented, out_channel_offset);
+}
+
+void vpux::VPUIP::NCEClusterTaskOp::build(
+        mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input, mlir::Value input_sparsity_map,
+        mlir::Value input_storage_element_table, mlir::Value weights, mlir::Value weights_sparsity_map,
+        mlir::Value weight_table, mlir::Value instruction_list_table, mlir::Value activation_window,
+        mlir::Value parent_input, mlir::Value parent_input_sparsity_map, mlir::Value parent_input_storage_element_table,
+        mlir::Value parent_output, mlir::Value parent_output_sparsity_map, mlir::Value output_buff,
+        mlir::Value output_sparsity_map_buff, mlir::Value profiling_data, vpux::VPUIP::NCETaskType task_type,
+        mlir::ArrayAttr kernel_size, mlir::ArrayAttr kernel_strides, vpux::VPU::PaddingAttr kernel_padding,
+        mlir::IntegerAttr activation_window_channel_length, mlir::UnitAttr is_continued,
+        mlir::IntegerAttr cm_sp_pattern, mlir::UnitAttr is_segmented, mlir::IntegerAttr out_channel_offset) {
+    build(builder, state, output_buff.getType(),
+          output_sparsity_map_buff ? output_sparsity_map_buff.getType() : nullptr,
+          profiling_data ? profiling_data.getType() : nullptr, input, input_sparsity_map, input_storage_element_table,
+          weights, weights_sparsity_map, weight_table, instruction_list_table, activation_window, parent_input,
+          parent_input_sparsity_map, parent_input_storage_element_table, parent_output, parent_output_sparsity_map,
+          output_buff, output_sparsity_map_buff, profiling_data, task_type, kernel_size, kernel_strides, kernel_padding,
+          activation_window_channel_length, is_continued, cm_sp_pattern, is_segmented, out_channel_offset);
+}
+
+void vpux::VPUIP::NCEClusterTaskOp::build(
+        mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type output, mlir::Type output_sparsity_map,
+        mlir::Type profiling_output, mlir::Value input, mlir::Value input_sparsity_map,
+        mlir::Value input_storage_element_table, mlir::Value weights, mlir::Value weights_sparsity_map,
+        mlir::Value weight_table, mlir::Value instruction_list_table, mlir::Value activation_window,
+        mlir::Value parent_input, mlir::Value parent_input_sparsity_map, mlir::Value parent_input_storage_element_table,
+        mlir::Value parent_output, mlir::Value parent_output_sparsity_map, mlir::Value output_buff,
+        mlir::Value output_sparsity_map_buff, mlir::Value profiling_data, vpux::VPUIP::NCETaskType task_type,
+        mlir::ArrayAttr kernel_size, mlir::ArrayAttr kernel_strides, vpux::VPU::PaddingAttr kernel_padding,
+        mlir::IntegerAttr activation_window_channel_length, mlir::UnitAttr is_continued,
+        mlir::IntegerAttr cm_sp_pattern, mlir::UnitAttr is_segmented, mlir::IntegerAttr out_channel_offset) {
+    state.addOperands(input);
+    if (input_sparsity_map)
+        state.addOperands(input_sparsity_map);
+    if (input_storage_element_table)
+        state.addOperands(input_storage_element_table);
+    if (weights)
+        state.addOperands(weights);
+    if (weights_sparsity_map)
+        state.addOperands(weights_sparsity_map);
+    if (weight_table)
+        state.addOperands(weight_table);
+    if (instruction_list_table)
+        state.addOperands(instruction_list_table);
+    if (activation_window)
+        state.addOperands(activation_window);
+    state.addOperands(parent_input);
+    if (parent_input_sparsity_map)
+        state.addOperands(parent_input_sparsity_map);
+    if (parent_input_storage_element_table)
+        state.addOperands(parent_input_storage_element_table);
+    state.addOperands(parent_output);
+    if (parent_output_sparsity_map)
+        state.addOperands(parent_output_sparsity_map);
+    state.addOperands(output_buff);
+    if (output_sparsity_map_buff)
+        state.addOperands(output_sparsity_map_buff);
+    if (profiling_data)
+        state.addOperands(profiling_data);
+    state.addAttribute(
+            operand_segment_sizesAttrName(state.name),
+            builder.getI32VectorAttr({1, (input_sparsity_map ? 1 : 0), (input_storage_element_table ? 1 : 0),
+                                      (weights ? 1 : 0), (weights_sparsity_map ? 1 : 0), (weight_table ? 1 : 0),
+                                      (instruction_list_table ? 1 : 0), (activation_window ? 1 : 0), 1,
+                                      (parent_input_sparsity_map ? 1 : 0), (parent_input_storage_element_table ? 1 : 0),
+                                      1, (parent_output_sparsity_map ? 1 : 0), 1, (output_sparsity_map_buff ? 1 : 0),
+                                      (profiling_data ? 1 : 0)}));
+    state.addAttribute(result_segment_sizesAttrName(state.name),
+                       builder.getI32VectorAttr({1, (output_sparsity_map ? 1 : 0), (profiling_output ? 1 : 0)}));
+    state.addAttribute(task_typeAttrName(state.name),
+                       vpux::VPUIP::NCETaskTypeAttr::get(builder.getContext(), task_type));
+    if (kernel_size) {
+        state.addAttribute(kernel_sizeAttrName(state.name), kernel_size);
+    }
+    if (kernel_strides) {
+        state.addAttribute(kernel_stridesAttrName(state.name), kernel_strides);
+    }
+    if (kernel_padding) {
+        state.addAttribute(kernel_paddingAttrName(state.name), kernel_padding);
+    }
+    if (activation_window_channel_length) {
+        state.addAttribute(activation_window_channel_lengthAttrName(state.name), activation_window_channel_length);
+    }
+    if (is_continued) {
+        state.addAttribute(is_continuedAttrName(state.name), is_continued);
+    }
+    if (cm_sp_pattern) {
+        state.addAttribute(cm_sp_patternAttrName(state.name), cm_sp_pattern);
+    }
+    if (is_segmented) {
+        state.addAttribute(is_segmentedAttrName(state.name), is_segmented);
+    }
+    if (out_channel_offset) {
+        state.addAttribute(out_channel_offsetAttrName(state.name), out_channel_offset);
+    }
+    (void)state.addRegion();
+    (void)state.addRegion();
+    state.addTypes(output);
+    if (output_sparsity_map)
+        state.addTypes(output_sparsity_map);
+    if (profiling_output)
+        state.addTypes(profiling_output);
 
     for (auto& region : state.regions) {
         region->emplaceBlock();
@@ -116,6 +282,9 @@ void vpux::VPUIP::NCEClusterTaskOp::inferLayoutInfo(mlir::Operation* origOp, IE:
                 info.setOutput(0, DimsOrder::NHWC);
             })
             .Case<IE::MaxPoolOp>([&](IE::MaxPoolOp) {
+                info.fill(DimsOrder::NHWC);
+            })
+            .Case<IE::AvgPoolOp>([&](IE::AvgPoolOp) {
                 info.fill(DimsOrder::NHWC);
             })
             .Case<IE::AddOp>([&](IE::AddOp) {
@@ -220,8 +389,8 @@ mlir::LogicalResult verifyNCEConv(VPUIP::NCEClusterTaskOp op, VPU::ArchKind arch
     const auto weightTableShape = getShape(op.weight_table());
     const auto weightTableNumElements = weightTableShape.totalSize();
 
-    if (OC * VPUIP::NCEInvariant::WEIGHT_TABLE_NUM_ELEMENTS_PER_OC != weightTableNumElements) {
-        return errorAt(op, "Weight table must have '{0}' elements, got '{1}'",
+    if (OC * VPUIP::NCEInvariant::WEIGHT_TABLE_NUM_ELEMENTS_PER_OC > weightTableNumElements) {
+        return errorAt(op, "Weight table must have elements greater than or equal to '{0}', got '{1}'",
                        OC * VPUIP::NCEInvariant::WEIGHT_TABLE_NUM_ELEMENTS_PER_OC, weightTableNumElements);
     }
 
@@ -372,8 +541,8 @@ mlir::LogicalResult verifyNCEDWConv(VPUIP::NCEClusterTaskOp op, VPU::ArchKind ar
     const auto weightTableShape = getShape(op.weight_table());
     const auto weightTableNumElements = weightTableShape.totalSize();
 
-    if (OC * VPUIP::NCEInvariant::WEIGHT_TABLE_NUM_ELEMENTS_PER_OC != weightTableNumElements) {
-        return errorAt(op, "Weight table must have '{0}' elements, got '{1}'",
+    if (OC * VPUIP::NCEInvariant::WEIGHT_TABLE_NUM_ELEMENTS_PER_OC > weightTableNumElements) {
+        return errorAt(op, "Weight table must have elements greater than or equal to '{0}' elements, got '{1}'",
                        OC * VPUIP::NCEInvariant::WEIGHT_TABLE_NUM_ELEMENTS_PER_OC, weightTableNumElements);
     }
 
@@ -408,7 +577,7 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(VPUIP::NCEClusterTaskOp op) {
     const auto arch = VPU::getArch(op.getOperation()->getParentOfType<mlir::ModuleOp>());
 
     for (const auto& operand : op.getOpOperands()) {
-        const auto val = VPURT::SparseBufferType::getData(operand.get());
+        const auto val = operand.get();
         const auto type = val.getType().cast<vpux::NDTypeInterface>().getElementType();
 
         if (arch != VPU::ArchKind::VPUX37XX && type.isBF16()) {
@@ -647,25 +816,25 @@ VPU::MPEMode getMPEFrequentModeFromDPUTasks(mlir::Region& dpuTaskOps) {
     return umap.begin()->first;
 }
 
-// This is a helper routine to build new TensorReference out of NCE task output with provided
+// This is a helper routine to build new TensorReference out of NCE task for input, weights and output with provided
 // quantization scale parameters
-vpux::VPUIP::BlobWriter::TensorReference getTensorReferenceWithUpdatedQuantParams(VPUIP::NCEClusterTaskOp nceTask,
-                                                                                  VPUIP::BlobWriter& writer,
+vpux::VPUIP::BlobWriter::TensorReference getTensorReferenceWithUpdatedQuantParams(VPUIP::BlobWriter& writer,
                                                                                   ArrayRef<int64_t> ppeQuantMult,
                                                                                   ArrayRef<int64_t> ppeQuantShift,
-                                                                                  int64_t ppeQuantPostShift) {
-    // Get also ZP from output
+                                                                                  int64_t ppeQuantPostShift,
+                                                                                  mlir::Value tensor) {
+    // Get also ZP
     SmallVector<uint8_t> quantZeroPoints;
 
-    auto outputType = VPURT::SparseBufferType::getDataType(nceTask.output()).cast<vpux::NDTypeInterface>();
-    auto outputElementType = outputType.getElementType();
-    if (const auto uniformQuantType = outputElementType.dyn_cast<mlir::quant::UniformQuantizedType>()) {
+    auto type = tensor.getType().cast<vpux::NDTypeInterface>();
+
+    auto elementType = type.getElementType();
+    if (const auto uniformQuantType = elementType.dyn_cast<mlir::quant::UniformQuantizedType>()) {
         quantZeroPoints.push_back(checked_cast<uint8_t>(uniformQuantType.getZeroPoint()));
-    } else if (const auto uniformQuantPerAxisType =
-                       outputElementType.dyn_cast<mlir::quant::UniformQuantizedPerAxisType>()) {
-        auto zp_output = uniformQuantPerAxisType.getZeroPoints();
-        quantZeroPoints.resize(zp_output.size());
-        std::transform(zp_output.begin(), zp_output.end(), quantZeroPoints.begin(), [](int64_t a) {
+    } else if (const auto uniformQuantPerAxisType = elementType.dyn_cast<mlir::quant::UniformQuantizedPerAxisType>()) {
+        auto zp = uniformQuantPerAxisType.getZeroPoints();
+        quantZeroPoints.resize(zp.size());
+        std::transform(zp.begin(), zp.end(), quantZeroPoints.begin(), [](int64_t a) {
             return checked_cast<uint8_t>(a);
         });
     } else {
@@ -677,26 +846,123 @@ vpux::VPUIP::BlobWriter::TensorReference getTensorReferenceWithUpdatedQuantParam
                       ppeQuantShift.size(), quantZeroPoints.size());
 
     // Find corresponding DeclareBufferOp to get all the data needed to build new TensorReference
-    auto bufferOp = VPURT::SparseBufferType::getData(nceTask.output_buff()).getDefiningOp<VPURT::DeclareBufferOp>();
+    auto bufferOp = tensor.getDefiningOp<VPURT::DeclareBufferOp>();
     VPUX_THROW_UNLESS(bufferOp != nullptr, "Unable to find parent DeclareBufferOp to build new TensorReference");
 
     auto sectionIndex = bufferOp.getNonEmptySectionIndex();
 
-    return writer.createTensorRef("output_tensor_scale_updated", outputType, bufferOp.section(), sectionIndex,
-                                  bufferOp.byteOffset(), ppeQuantMult, ppeQuantShift, ppeQuantPostShift,
-                                  quantZeroPoints);
+    // TODO: Update below in case of sparsity
+    return writer.createTensorRef("tensor_scale_updated", type, bufferOp.section(), sectionIndex, bufferOp.byteOffset(),
+                                  ppeQuantMult, ppeQuantShift, ppeQuantPostShift, quantZeroPoints, None, None,
+                                  bufferOp.swizzlingKey());
+}
+
+// This is a helper routine to build new TensorReference of individual variant with profiling data
+vpux::VPUIP::BlobWriter::TensorReference getTensorReferenceForVariantProfiling(VPUIP::NCEClusterTaskOp nceTask,
+                                                                               VPUIP::BlobWriter& writer,
+                                                                               size_t variantId,
+                                                                               uint16_t workloadSize) {
+    static size_t tempTensorId = 0;
+
+    auto outputType = nceTask.profiling_data().getType().cast<vpux::NDTypeInterface>();
+    // Find corresponding DeclareBufferOp to get all the data needed to build new TensorReference
+    auto bufferOp = nceTask.profiling_data().getDefiningOp<VPURT::DeclareBufferOp>();
+    VPUX_THROW_UNLESS(bufferOp != nullptr, "Unable to find parent DeclareBufferOp to build new TensorReference");
+
+    auto sectionIndex = bufferOp.getNonEmptySectionIndex();
+    const auto refMeta = llvm::formatv("_{0}_dpu_{1}", tempTensorId, variantId).str();
+    tempTensorId++;
+
+    return writer.createTensorRef(refMeta, outputType, bufferOp.section(), sectionIndex,
+                                  bufferOp.byteOffset() + workloadSize * variantId);
+}
+
+std::pair<int32_t, int32_t> getHwpBaseAndWid(const mlir::Value profiling_data) {
+    int32_t workload_id = -1;
+    int32_t cmx_local_slice_base = 0;
+    auto bufferOp = profiling_data.getDefiningOp<VPURT::DeclareBufferOp>();
+    const auto byteOffset = bufferOp.byteOffset();
+
+    // workload_id in hardware is 16 bits wide. It is used to address 16-bytes chunks of memory.
+    // In total workload_id can address 1 Mb of memory whereas CMX has 2 Mb.
+    // That is when CMX local slice base comes into play. It sets the base of addressable 1 Mb.
+    // And byte offset is divided by 16 because this is an addressable minimum in our case.
+    if (byteOffset < vpux::VPUIP::HW_MIDDLE_OF_AVAILABLE_CMX_MEMORY_3720) {
+        cmx_local_slice_base = 0;
+        workload_id = static_cast<int32_t>(byteOffset / 16);
+    } else {
+        cmx_local_slice_base = vpux::VPUIP::HW_MIDDLE_OF_AVAILABLE_CMX_MEMORY_3720;
+        workload_id = static_cast<int32_t>((byteOffset - cmx_local_slice_base) / 16);
+    }
+    return {cmx_local_slice_base, workload_id};
+}
+
+float readReluMult(const int32_t Lrelu_Mult) {
+    const int32_t LRELU_MULT_MASK = 0x7FF;
+    VPUX_THROW_WHEN(Lrelu_Mult & ~LRELU_MULT_MASK, "ReLU multiplier does not match the expected format");
+    return static_cast<float>(Lrelu_Mult);
+}
+
+int32_t readReluShift(const int32_t Lrelu_Shift) {
+    const int32_t LRELU_SHIFT_MASK = 0x1F;
+    VPUX_THROW_WHEN(Lrelu_Shift & ~LRELU_SHIFT_MASK, "ReLU shift does not match the expected format");
+    return Lrelu_Shift;
+}
+
+float calculateFpPReluAlpha(const VPU::ArchKind& arch, const ArrayRef<uint8_t> ppeList, const int32_t LreluMult,
+                            const int32_t LreluShift) {
+    if (ppeList.empty()) {
+        return 1.f;
+    }
+    const uint8_t ppeType = ppeList[0];
+    // Only applicable for LPRELU mode on VPU37XX and VPUX40XX
+    const std::set<VPU::ArchKind> compatibleTargets = {
+            VPU::ArchKind::VPUX37XX,
+            VPU::ArchKind::VPUX40XX,
+    };
+    if (compatibleTargets.count(arch) == 0 || ppeType != MVCNN::PPELayerType_LPRELU) {
+        return 1.f;
+    }
+
+    const auto lReluMult = readReluMult(LreluMult);
+    const auto lReluShift = readReluShift(LreluShift);
+    return std::ldexp(lReluMult, -lReluShift);
 }
 
 }  // namespace
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NCEClusterTaskOp::serialize(VPUIP::BlobWriter& writer) {
+    const auto module = getOperation()->getParentOfType<mlir::ModuleOp>();
+    const auto arch = VPU::getArch(module);
+
+    const bool isSwProfiling = (arch != VPU::ArchKind::VPUX37XX);
+    const bool isProfEnabled = profiling_data() != nullptr;
+
+    const uint16_t wlSize = VPUIP::getProfWorkloadSize(module);
+    const std::pair<int32_t, int32_t> hwpBaseAndWid = (!isSwProfiling && isProfEnabled)
+                                                              ? getHwpBaseAndWid(profiling_data())
+                                                              : std::make_pair<int32_t, int32_t>(0, -1);
+
     SmallVector<flatbuffers::Offset<MVCNN::NCEVariantFields>> variantList;
+    size_t profiledDpuTasksCount = 0;
     for (auto dpuTaskOp : variants().getOps<VPUIP::DPUTaskOp>()) {
         const auto start = parseIntArrayAttr<int64_t>(dpuTaskOp.start());
         const auto end = parseIntArrayAttr<int64_t>(dpuTaskOp.end());
         const auto pad = dpuTaskOp.pad();
-        const auto profilingData =
-                (profiling_data() != nullptr && !variantList.size()) ? writer.getTensorRef(profiling_data()) : 0;
+
+        flatbuffers::Offset<MVCNN::TensorReference> profilingData = {0};
+        int32_t current_workload_id = hwpBaseAndWid.second;
+        if (isProfEnabled) {
+            if (isSwProfiling) {
+                // For software DPU profiling we don't care about workload_id, it may be -1.
+                // Calculating here correct tensor reference with a shift for particular variant.
+                profilingData = getTensorReferenceForVariantProfiling(*this, writer, profiledDpuTasksCount, wlSize);
+            } else {
+                // Hardware profiling used. Invariant uses CMX base address and variant needs a workload_id
+                // calculated as wid per NCE cluster task + shift per variant.
+                current_workload_id += static_cast<int32_t>(profiledDpuTasksCount);
+            }
+        }
 
         const auto variant = MVCNN::CreateNCEVariantFields(writer,
                                                            0,                                            // Barriers
@@ -716,8 +982,11 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NCEClusterTaskOp::serialize(VPUIP::
                                                            0,                               // flex_inner
                                                            0,                               // flex_outer
                                                            0,                               // flex_outer_order
-                                                           profilingData                    // profiling_data
+                                                           profilingData,                   // profiling_data
+                                                           0,                               // halo_regions
+                                                           current_workload_id              // workload_id
         );
+        ++profiledDpuTasksCount;
         variantList.push_back(variant);
     }
     const auto variant = writer.createVector(variantList);
@@ -730,6 +999,9 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NCEClusterTaskOp::serialize(VPUIP::
     ::llvm::Optional<SmallVector<int64_t>> ppeQuantMult;
     ::llvm::Optional<SmallVector<int64_t>> ppeQuantShift;
     ::llvm::Optional<int64_t> ppeQuantPostShift;
+    ::llvm::Optional<float> ppeQuantScale;
+    ::llvm::Optional<SmallVector<int64_t>> in1QuantMult;
+    ::llvm::Optional<SmallVector<int64_t>> in2QuantMult;
 
     for (auto ppeOp : ppe().getOps<VPUIP::PPETaskOp>()) {
         const auto type = getPPELayerType(ppeOp.ppe_layer_type());
@@ -757,6 +1029,16 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NCEClusterTaskOp::serialize(VPUIP::
         if (ppeOp.quant_post_shift().hasValue()) {
             ppeQuantPostShift = checked_cast<int64_t>(ppeOp.quant_post_shift().getValue());
         }
+        if (ppeOp.quant_scale().hasValue()) {
+            auto floatScaleAttr = ppeOp.quant_scaleAttr().getValue()[0];
+            ppeQuantScale = static_cast<float>(floatScaleAttr.dyn_cast_or_null<mlir::FloatAttr>().getValueAsDouble());
+        }
+        if (ppeOp.in1_quant_mult().hasValue()) {
+            in1QuantMult = parseIntArrayAttr<int64_t>(ppeOp.in1_quant_mult().getValue());
+        }
+        if (ppeOp.in2_quant_mult().hasValue()) {
+            in2QuantMult = parseIntArrayAttr<int64_t>(ppeOp.in2_quant_mult().getValue());
+        }
     }
     VPUX_THROW_UNLESS(ppeList.size() <= 1, "Cannot set more than one PPE task");
 
@@ -764,8 +1046,13 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NCEClusterTaskOp::serialize(VPUIP::
     // TODO: Lrelu_Mult, Lrelu_Shift
     auto ppeFixedFunction =
             MVCNN::CreatePPEFixedFunction(writer, ppeLayerTypes, clampLow, clampHigh, LreluMult, LreluShift);
-    // TODO: scale_data, rounding, instruction_list_data
-    auto ppeTask = MVCNN::CreatePPETask(writer, 0, ppeFixedFunction);
+    // TODO: scale_data, rounding
+    const auto instructionListTable =
+            instruction_list_table() != nullptr ? writer.getTensorRef(instruction_list_table()) : 0;
+
+    const float fpPReluAlpha = calculateFpPReluAlpha(arch, ppeList, LreluMult, LreluShift);
+    auto ppeTask = MVCNN::CreatePPETask(writer, 0, ppeFixedFunction, MVCNN::PPERoundingMode_RNE, instructionListTable,
+                                        ppeQuantScale.getValueOr(1.0), fpPReluAlpha);
 
     int16_t kernelSizeH = 1, kernelSizeW = 1;
     int16_t kernelStridesH = 1, kernelStridesW = 1;
@@ -801,8 +1088,7 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NCEClusterTaskOp::serialize(VPUIP::
     is_segmented = (is_segmentedAttr() != nullptr);
 
     // Extract output permutation from output layout
-    MVCNN::Permutation oduPermutation =
-            getODUPermutationType(DimsOrder::fromValue(VPURT::SparseBufferType::getData(output())));
+    MVCNN::Permutation oduPermutation = getODUPermutationType(DimsOrder::fromValue(output()));
 
     if (cm_sp_patternAttr() != nullptr) {
         cm_sp_pattern = checked_cast<uint16_t>(cm_sp_patternAttr().getValue().getSExtValue());
@@ -812,14 +1098,13 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NCEClusterTaskOp::serialize(VPUIP::
         out_channel_offset = checked_cast<int32_t>(out_channel_offsetAttr().getValue().getSExtValue());
     }
 
-    const auto inputData = writer.getTensorRef(VPURT::SparseBufferType::getData(input()));
-    const auto weightsData =
-            weights() != nullptr ? writer.getTensorRef(VPURT::SparseBufferType::getData(weights())) : 0;
+    auto inputData = writer.getTensorRef(input());
+    auto weightsData = weights() != nullptr ? writer.getTensorRef(weights()) : 0;
     const auto weightsTable = weight_table() != nullptr ? writer.getTensorRef(weight_table()) : 0;
     const auto activationWindow = activation_window() != nullptr ? writer.getTensorRef(activation_window()) : 0;
     const auto activationWindowChannelLength = checked_cast<int32_t>(activation_window_channel_length().getValueOr(0));
 
-    auto outputData = writer.getTensorRef(VPURT::SparseBufferType::getData(output()));
+    auto outputData = writer.getTensorRef(output());
 
     // If quant scale (mult, shift) settings were provided as part of PPE block then use it to build new
     // output TensorReference. This is required for Eltwise operation which doesn't have weights table
@@ -828,15 +1113,23 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NCEClusterTaskOp::serialize(VPUIP::
             ppeQuantMult.hasValue() && ppeQuantShift.hasValue() && ppeQuantPostShift.hasValue();
     const auto isQuantizationNotProvided =
             !ppeQuantMult.hasValue() && !ppeQuantShift.hasValue() && !ppeQuantPostShift.hasValue();
+    const auto isInputQuantizationProvided = in1QuantMult.hasValue() && in2QuantMult.hasValue();
     VPUX_THROW_WHEN(!isQuantizationProvided && !isQuantizationNotProvided, "Missing quantization scale settings.");
 
     if (isQuantizationProvided) {
-        outputData = getTensorReferenceWithUpdatedQuantParams(*this, writer, ppeQuantMult.getValue(),
-                                                              ppeQuantShift.getValue(), ppeQuantPostShift.getValue());
+        outputData = getTensorReferenceWithUpdatedQuantParams(writer, ppeQuantMult.getValue(), ppeQuantShift.getValue(),
+                                                              ppeQuantPostShift.getValue(), this->output_buff());
+    }
+    if (isInputQuantizationProvided) {
+        // Shifts must be set 0 for VPUX37XX and VPUX40XX runtime to be considered, otherwise runtime will ignore inputs
+        // MULT.
+        inputData = getTensorReferenceWithUpdatedQuantParams(writer, in1QuantMult.getValue(), {0}, 0, this->input());
+        weightsData =
+                getTensorReferenceWithUpdatedQuantParams(writer, in2QuantMult.getValue(), {0}, 0, this->weights());
     }
 
-    const auto parentInputTensor = writer.getTensorRef(VPURT::SparseBufferType::getData(parent_input()));
-    const auto parentOutputTensor = writer.getTensorRef(VPURT::SparseBufferType::getData(parent_output()));
+    const auto parentInputTensor = writer.getTensorRef(parent_input());
+    const auto parentOutputTensor = writer.getTensorRef(parent_output());
 
     const auto invariantMPEMode = getMPEFrequentModeFromDPUTasks(variants());
 
@@ -870,7 +1163,8 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NCEClusterTaskOp::serialize(VPUIP::
                                             false,                          // is_superdense
                                             0,                              // segment_height
                                             oduPermutation,                 // odu_permutation
-                                            cm_sp_pattern);                 // cm_sp_pattern
+                                            cm_sp_pattern,                  // cm_sp_pattern
+                                            hwpBaseAndWid.first);           // cmx_local_slice_base
 
     MVCNN::NCE2TaskBuilder builder(writer);
     builder.add_variant(variant);

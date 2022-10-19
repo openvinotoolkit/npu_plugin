@@ -50,6 +50,7 @@ public:
     void tileOverH(int64_t numDPU, WorkloadSplitPool& splitPool);
     void tileOverZ(int64_t splitNumber, WorkloadSplitPool& splitPool);
     void tileOverHW(int64_t splitNumber, SplitDimension splitDimension, WorkloadSplitPool& splitPool);
+    void tileOverHWMixedPrecision(WorkloadSplitPool& splitPool);
 
 private:
     Shape _outShape;

@@ -99,17 +99,6 @@ IndexedSymbolAttr getMemorySpace(mlir::MemRefType type);
 // RankedTensorType utilities
 //
 
-mlir::RankedTensorType getTensorType(ShapeRef shape, mlir::Type elemType, DimsOrder order, IndexedSymbolAttr memSpace,
-                                     bool sparse = false);
-
-mlir::RankedTensorType changeSparse(mlir::RankedTensorType origType, bool sparse);
-
-mlir::RankedTensorType getDilatedType(mlir::RankedTensorType origType, ShapeRef dilations);
-
-//
-// ShapedType utilities
-//
-
-mlir::ShapedType changeSparse(mlir::ShapedType origType, bool sparse);
+mlir::RankedTensorType getTensorType(ShapeRef shape, mlir::Type elemType, DimsOrder order, IndexedSymbolAttr memSpace);
 
 }  // namespace vpux

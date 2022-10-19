@@ -24,7 +24,7 @@ private:
 
 public:
     ChunkWalker(unsigned totalSizeBytes, unsigned chunkSize, unsigned elemSize, Logger _log)
-            : chunks(static_cast<unsigned>(ceil((double)totalSizeBytes / chunkSize))),
+            : chunks(static_cast<unsigned>(ceil(static_cast<double>(totalSizeBytes) / chunkSize))),
               opsInChunk(chunkSize / elemSize),
               lastChunk((totalSizeBytes % chunkSize) / elemSize) {
         _log.trace("totalSizeBytes='{0}'\nchunks='{1}'\nops_in_chunk='{2}'\nlast_chunk='{3}'\n", totalSizeBytes, chunks,
@@ -35,7 +35,7 @@ public:
     void run(T items, FuncRef<void(unsigned, unsigned, bool)> chunkSwitchCallback,
              FuncRef<void(std::remove_reference_t<decltype(*std::begin(std::declval<T&>()))>, unsigned&)>
                      chunkItemCallback) {
-        for (auto& item : items) {
+        for (auto& item : llvm::make_early_inc_range(items)) {
             // Start new chunk once we reached the end of the previous one
             if (chunkItemId && ((chunkItemId % opsInChunk) == 0)) {
                 chunkItemId = 0;

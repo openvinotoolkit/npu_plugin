@@ -2,7 +2,11 @@
 
 ## Prerequisites
 
-- **firmware.vpu.iot** repository is required
+- [firmware.vpu.iot] repository is required
+By default, it is not included into the build. To enable it, please use the following CMake options:
+
+* `ENABLE_IMD_BACKEND=ON` to enable its build.
+* `VPU_FIRMWARE_SOURCES_PATH=<path to firmware.vpu.iot repository>`
 
 ## Environment variables
 

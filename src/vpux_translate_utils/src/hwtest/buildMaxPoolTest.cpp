@@ -26,9 +26,9 @@ void buildMaxPool(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp mod
                   Logger& log, mlir::Type inputType, mlir::Type outputType) {
     auto* ctx = builder.getContext();
 
-    auto input = testDesc.getInputLayer();
+    auto input = testDesc.getInputLayerList().front();
     auto pool_op = testDesc.getPoolLayer();
-    auto output = testDesc.getOutputLayer();
+    auto output = testDesc.getOutputLayers().front();
 
     SmallVector<int64_t> in_shape(input.shape.begin(), input.shape.end());
     SmallVector<int64_t> out_shape(output.shape.begin(), output.shape.end());
@@ -161,10 +161,11 @@ void buildMaxPool(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp mod
     auto nceTask = VPURT::wrapIntoTaskOp<VPUIP::NCEClusterTaskOp>(
             funcbuilder, mlir::ValueRange(barrier0.barrier()), mlir::ValueRange(barrier1.barrier()),
             builder.getUnknownLoc(), outputcmx_type, input0cmx.getOperation()->getResult(0), mlir::Value(),
-            wtTbl_cmx.getOperation()->getResult(0), actWindow_cmx.getOperation()->getResult(0),
-            parent_input0cmx.getOperation()->getResult(0), parent_outputcmx.getOperation()->getResult(0),
-            outputcmx.getOperation()->getResult(0), VPUIP::NCETaskType::MAXPOOL, filtersize, strides, kernel_padding,
-            actChannelLength, nullptr, /*sp_pattern*/ nullptr);
+            wtTbl_cmx.getOperation()->getResult(0), /*instruction_table_list*/ nullptr,
+            actWindow_cmx.getOperation()->getResult(0), parent_input0cmx.getOperation()->getResult(0),
+            parent_outputcmx.getOperation()->getResult(0), outputcmx.getOperation()->getResult(0),
+            VPUIP::NCETaskType::MAXPOOL, filtersize, strides, kernel_padding, actChannelLength, nullptr,
+            /*sp_pattern*/ nullptr);
 
     nceTask.addPPETask(funcbuilder);
 
@@ -186,7 +187,8 @@ void buildMaxPool(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp mod
     funcbuilder.create<mlir::ReturnOp>(builder.getUnknownLoc(), funcoutput);
     // set runtime resources
     mlir::PassManager pm(ctx, mlir::OpPassManager::Nesting::Implicit);
-    pm.addPass(VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::DefaultHW, None, log));
+    pm.addPass(
+            VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::DefaultHW, None, None, log));
 
     VPUX_THROW_UNLESS(mlir::succeeded(pm.run(module)), "Compilation failed");
     // IE.CNNNetwork

@@ -70,7 +70,7 @@ func @main(%in0: memref<1x1x1x1000xf16>, %in1: memref<1x1x1x1000xf16>) -> memref
     }
 
     VPURT.Task waits(%b0  : !VPURT.Barrier) updates(%b1  : !VPURT.Barrier) {
-        VPUIP.SW.Kernel
+        VPUIP.SW.Kernel {result_segment_sizes = dense<[1, 0]> : vector<2xi32>}
                     @VPU.SW::@builtin_hswish
                     inputs(%in_tile0_cmx : memref<1x1x1x1000xf16, [@CMX_NN, 0]>)
                     outputs(%out_tile0_cmx : memref<1x1x1x1000xf16, [@CMX_NN, 0]>)
@@ -101,7 +101,7 @@ func @main(%in0: memref<1x1x1x1000xf16>, %in1: memref<1x1x1x1000xf16>) -> memref
     }
 
     VPURT.Task waits(%b2  : !VPURT.Barrier) updates(%b3  : !VPURT.Barrier) {
-        VPUIP.SW.Kernel
+        VPUIP.SW.Kernel {result_segment_sizes = dense<[1, 0]> : vector<2xi32>}
                     @VPU.SW::@builtin_hswish
                     inputs(%in_tile1_cmx : memref<1x1x1x1000xf16, [@CMX_NN, 0]>)
                     outputs(%out_tile1_cmx : memref<1x1x1x1000xf16, [@CMX_NN, 0]>)
@@ -132,7 +132,7 @@ func @main(%in0: memref<1x1x1x1000xf16>, %in1: memref<1x1x1x1000xf16>) -> memref
     }
 
     VPURT.Task waits(%b4  : !VPURT.Barrier) updates(%b5  : !VPURT.Barrier) {
-        VPUIP.SW.Kernel
+        VPUIP.SW.Kernel {result_segment_sizes = dense<[1, 0]> : vector<2xi32>}
                     @VPU.SW::@builtin_hswish
                     inputs(%in_tile2_cmx : memref<1x1x1x1000xf16, [@CMX_NN, 0]>)
                     outputs(%out_tile2_cmx : memref<1x1x1x1000xf16, [@CMX_NN, 0]>)

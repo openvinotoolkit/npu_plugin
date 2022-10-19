@@ -14,7 +14,6 @@ IE.MemoryResource 31457280 bytes of @DDR {VPU.bandwidth = 8 : i64, VPU.derateFac
 IE.MemoryResource 2097152 bytes of @CMX_NN {VPU.bandwidth = 32 : i64, VPU.derateFactor = 1.000000e+00 : f64}
 
 IE.ExecutorResource 1 of @DMA_NN
-IE.ExecutorResource 1 of @SHAVE_UPA
 IE.ExecutorResource 1 of @SHAVE_ACT
 IE.ExecutorResource 1 of @NCE {
     IE.ExecutorResource 1 of @DPU
@@ -65,7 +64,7 @@ func @main(%1: memref<1x1x1x1000xf16>, %2: memref<1x1x1x1000xf16>) -> memref<1x1
 
     // Genetic Kernel information for the scheduler.
     VPURT.Task waits(%b0 : !VPURT.Barrier) updates(%b1 : !VPURT.Barrier) {
-        VPUIP.SW.Kernel
+        VPUIP.SW.Kernel {result_segment_sizes = dense<[1, 0]> : vector<2xi32>}
                     @VPU.SW::@builtin_sigmoid            // The reference to the Kernel function.
                     inputs(%in_tile0_cmx : memref<1x1x1x1000xf16, [@CMX_NN, 0]>)     // Inputs/outputs buffers for generic operation interface
                     outputs(%buf0_tile0_cmx : memref<1x1x1x1000xf16, [@CMX_NN, 0]>)   // and their mapping to inner region.
@@ -83,7 +82,7 @@ func @main(%1: memref<1x1x1x1000xf16>, %2: memref<1x1x1x1000xf16>) -> memref<1x1
 
     // Genetic Kernel information for the scheduler.
     VPURT.Task waits(%b1 : !VPURT.Barrier) updates(%b2 : !VPURT.Barrier) {
-        VPUIP.SW.Kernel
+        VPUIP.SW.Kernel {result_segment_sizes = dense<[1, 0]> : vector<2xi32>}
                     @VPU.SW::@builtin_softmax            // The reference to the Kernel function.
                     inputs(%buf0_tile0_cmx : memref<1x1x1x1000xf16, [@CMX_NN, 0]>)     // Inputs/outputs buffers for generic operation interface
                     outputs(%buf1_tile0_cmx : memref<1x1x1x1000xf16, [@CMX_NN, 0]>)   // and their mapping to inner region.
@@ -102,7 +101,7 @@ func @main(%1: memref<1x1x1x1000xf16>, %2: memref<1x1x1x1000xf16>) -> memref<1x1
 
     // Genetic Kernel information for the scheduler.
     VPURT.Task waits(%b2 : !VPURT.Barrier) updates(%b3 : !VPURT.Barrier) {
-        VPUIP.SW.Kernel
+        VPUIP.SW.Kernel {result_segment_sizes = dense<[1, 0]> : vector<2xi32>}
                     @VPU.SW::@builtin_sigmoid            // The reference to the Kernel function.
                     inputs(%buf1_tile0_cmx : memref<1x1x1x1000xf16, [@CMX_NN, 0]>)     // Inputs/outputs buffers for generic operation interface
                     outputs(%out_tile0_cmx : memref<1x1x1x1000xf16, [@CMX_NN, 0]>)   // and their mapping to inner region.
@@ -159,144 +158,6 @@ func @main(%1: memref<1x1x1x1000xf16>, %2: memref<1x1x1x1000xf16>) -> memref<1x1
 // CHECK:        referenced_data_size: 65536
 // CHECK:      }
 // CHECK:  task_lists: [
-// CHECK:    {
-// CHECK:      content: [
-// CHECK:          task_type: "ActKernelTask",
-// CHECK:          task: {
-// CHECK:            kernel: {
-// CHECK:              kernelText: {
-// CHECK:                name: "builtin_sigmoid",
-// CHECK:                locale: "GFEmbeddedKernel",
-// CHECK:                referenced_data_size: {{[1-9][0-9]+}}
-// CHECK:              }
-// CHECK:            },
-// CHECK:            invocations: [
-// CHECK:              {
-// CHECK:                associatedBarriers: {
-// CHECK:                  wait_barriers: [
-// CHECK:                    0
-// CHECK:                  ],
-// CHECK:                  update_barriers: [
-// CHECK:                    1
-// CHECK:                  ],
-// CHECK:                  virtual_wait_barriers: [
-// CHECK:                    0
-// CHECK:                  ],
-// CHECK:                  virtual_update_barriers: [
-// CHECK:                    1
-// CHECK:                  ]
-// CHECK:                },
-// CHECK:                dataSection: {
-// CHECK:                  name: "builtin_sigmoid_invo",
-// CHECK:                  locale: "GFEmbeddedKernel",
-// CHECK:                },
-// CHECK:                invocationArgs: {
-// CHECK:                  name: "builtin_sigmoid_invo",
-// CHECK:                  locale: "GFEmbeddedKernel",
-// CHECK:                  referenced_data_size: 168
-// CHECK:                }
-
-// CHECK:          name: "",
-// CHECK:          nodeID: 6,
-// CHECK:          associated_barriers: {
-// CHECK:            wait_barriers: [
-// CHECK:              1
-// CHECK:            ],
-// CHECK:            update_barriers: [
-// CHECK:              2
-// CHECK:            ],
-// CHECK:            virtual_wait_barriers: [
-// CHECK:              1
-// CHECK:            ],
-// CHECK:            virtual_update_barriers: [
-// CHECK:              2
-// CHECK:            ]
-// CHECK:          },
-// CHECK:          task_type: "ActKernelTask",
-// CHECK:          task: {
-// CHECK:            kernel: {
-// CHECK:              kernelText: {
-// CHECK:                name: "builtin_softmax",
-// CHECK:                locale: "GFEmbeddedKernel",
-// CHECK:                referenced_data_size: {{[1-9][0-9]+}}
-// CHECK:              }
-// CHECK:            },
-// CHECK:            invocations: [
-// CHECK:              {
-// CHECK:                associatedBarriers: {
-// CHECK:                  wait_barriers: [
-// CHECK:                    1
-// CHECK:                  ],
-// CHECK:                  update_barriers: [
-// CHECK:                    2
-// CHECK:                  ],
-// CHECK:                  virtual_wait_barriers: [
-// CHECK:                    1
-// CHECK:                  ],
-// CHECK:                  virtual_update_barriers: [
-// CHECK:                    2
-// CHECK:                  ]
-// CHECK:                },
-// CHECK:                dataSection: {
-// CHECK:                  name: "builtin_softmax_invo",
-// CHECK:                  locale: "GFEmbeddedKernel",
-// CHECK:                },
-// CHECK:                invocationArgs: {
-// CHECK:                  name: "builtin_softmax_invo",
-// CHECK:                  locale: "GFEmbeddedKernel",
-// CHECK:                  referenced_data_size: {{[1-9][0-9]+}}
-// CHECK:                }
-
-// CHECK:          nodeID: 7,
-// CHECK:          associated_barriers: {
-// CHECK:            wait_barriers: [
-// CHECK:              2
-// CHECK:            ],
-// CHECK:            update_barriers: [
-// CHECK:              3
-// CHECK:            ],
-// CHECK:            virtual_wait_barriers: [
-// CHECK:              2
-// CHECK:            ],
-// CHECK:            virtual_update_barriers: [
-// CHECK:              3
-// CHECK:            ]
-// CHECK:          },
-// CHECK:          task_type: "ActKernelTask",
-// CHECK:          task: {
-// CHECK:            kernel: {
-// CHECK:              kernelText: {
-// CHECK:                name: "builtin_sigmoid",
-// CHECK:                locale: "GFEmbeddedKernel",
-// CHECK:                referenced_data_size: {{[1-9][0-9]+}}
-// CHECK:              }
-// CHECK:            },
-// CHECK:            invocations: [
-// CHECK:              {
-// CHECK:                associatedBarriers: {
-// CHECK:                  wait_barriers: [
-// CHECK:                    2
-// CHECK:                  ],
-// CHECK:                  update_barriers: [
-// CHECK:                    3
-// CHECK:                  ],
-// CHECK:                  virtual_wait_barriers: [
-// CHECK:                    2
-// CHECK:                  ],
-// CHECK:                  virtual_update_barriers: [
-// CHECK:                    3
-// CHECK:                  ]
-// CHECK:                },
-// CHECK:                dataSection: {
-// CHECK:                  name: "builtin_sigmoid_invo_1",
-// CHECK:                  locale: "GFEmbeddedKernel",
-// CHECK:                },
-// CHECK:                invocationArgs: {
-// CHECK:                  name: "builtin_sigmoid_invo_1",
-// CHECK:                  locale: "GFEmbeddedKernel",
-// CHECK:                  referenced_data_size: 168
-// CHECK:                }
-
 // CHECK:          task_type: "NNDMATask",
 // CHECK:          task: {
 // CHECK:            src: {
@@ -452,3 +313,141 @@ func @main(%1: memref<1x1x1x1000xf16>, %2: memref<1x1x1x1000xf16>) -> memref<1x1
 // CHECK:              order: 4660,
 // CHECK:              base_ptrs: [
 // CHECK:              ]
+// CHECK:    {
+// CHECK:      content: [
+// CHECK:          task_type: "ActKernelTask",
+// CHECK:          task: {
+// CHECK:            kernel: {
+// CHECK:              kernelText: {
+// CHECK:                name: "builtin_sigmoid",
+// CHECK:                locale: "GFEmbeddedKernel",
+// CHECK:                referenced_data_size: {{[1-9][0-9]+}}
+// CHECK:              }
+// CHECK:            },
+// CHECK:            invocations: [
+// CHECK:              {
+// CHECK:                associatedBarriers: {
+// CHECK:                  wait_barriers: [
+// CHECK:                    0
+// CHECK:                  ],
+// CHECK:                  update_barriers: [
+// CHECK:                    1
+// CHECK:                  ],
+// CHECK:                  virtual_wait_barriers: [
+// CHECK:                    0
+// CHECK:                  ],
+// CHECK:                  virtual_update_barriers: [
+// CHECK:                    1
+// CHECK:                  ]
+// CHECK:                },
+// CHECK:                dataSection: {
+// CHECK:                  name: "builtin_sigmoid_invo",
+// CHECK:                  locale: "GFEmbeddedKernel",
+// CHECK:                },
+// CHECK:                invocationArgs: {
+// CHECK:                  name: "builtin_sigmoid_invo",
+// CHECK:                  locale: "GFEmbeddedKernel",
+// CHECK:                  referenced_data_size: 168
+// CHECK:                }
+
+// CHECK:          name: "",
+// CHECK:          nodeID: 6,
+// CHECK:          associated_barriers: {
+// CHECK:            wait_barriers: [
+// CHECK:              1
+// CHECK:            ],
+// CHECK:            update_barriers: [
+// CHECK:              2
+// CHECK:            ],
+// CHECK:            virtual_wait_barriers: [
+// CHECK:              1
+// CHECK:            ],
+// CHECK:            virtual_update_barriers: [
+// CHECK:              2
+// CHECK:            ]
+// CHECK:          },
+// CHECK:          task_type: "ActKernelTask",
+// CHECK:          task: {
+// CHECK:            kernel: {
+// CHECK:              kernelText: {
+// CHECK:                name: "builtin_softmax",
+// CHECK:                locale: "GFEmbeddedKernel",
+// CHECK:                referenced_data_size: {{[1-9][0-9]+}}
+// CHECK:              }
+// CHECK:            },
+// CHECK:            invocations: [
+// CHECK:              {
+// CHECK:                associatedBarriers: {
+// CHECK:                  wait_barriers: [
+// CHECK:                    1
+// CHECK:                  ],
+// CHECK:                  update_barriers: [
+// CHECK:                    2
+// CHECK:                  ],
+// CHECK:                  virtual_wait_barriers: [
+// CHECK:                    1
+// CHECK:                  ],
+// CHECK:                  virtual_update_barriers: [
+// CHECK:                    2
+// CHECK:                  ]
+// CHECK:                },
+// CHECK:                dataSection: {
+// CHECK:                  name: "builtin_softmax_invo",
+// CHECK:                  locale: "GFEmbeddedKernel",
+// CHECK:                },
+// CHECK:                invocationArgs: {
+// CHECK:                  name: "builtin_softmax_invo",
+// CHECK:                  locale: "GFEmbeddedKernel",
+// CHECK:                  referenced_data_size: {{[1-9][0-9]+}}
+// CHECK:                }
+
+// CHECK:          nodeID: 7,
+// CHECK:          associated_barriers: {
+// CHECK:            wait_barriers: [
+// CHECK:              2
+// CHECK:            ],
+// CHECK:            update_barriers: [
+// CHECK:              3
+// CHECK:            ],
+// CHECK:            virtual_wait_barriers: [
+// CHECK:              2
+// CHECK:            ],
+// CHECK:            virtual_update_barriers: [
+// CHECK:              3
+// CHECK:            ]
+// CHECK:          },
+// CHECK:          task_type: "ActKernelTask",
+// CHECK:          task: {
+// CHECK:            kernel: {
+// CHECK:              kernelText: {
+// CHECK:                name: "builtin_sigmoid",
+// CHECK:                locale: "GFEmbeddedKernel",
+// CHECK:                referenced_data_size: {{[1-9][0-9]+}}
+// CHECK:              }
+// CHECK:            },
+// CHECK:            invocations: [
+// CHECK:              {
+// CHECK:                associatedBarriers: {
+// CHECK:                  wait_barriers: [
+// CHECK:                    2
+// CHECK:                  ],
+// CHECK:                  update_barriers: [
+// CHECK:                    3
+// CHECK:                  ],
+// CHECK:                  virtual_wait_barriers: [
+// CHECK:                    2
+// CHECK:                  ],
+// CHECK:                  virtual_update_barriers: [
+// CHECK:                    3
+// CHECK:                  ]
+// CHECK:                },
+// CHECK:                dataSection: {
+// CHECK:                  name: "builtin_sigmoid_invo_1",
+// CHECK:                  locale: "GFEmbeddedKernel",
+// CHECK:                },
+// CHECK:                invocationArgs: {
+// CHECK:                  name: "builtin_sigmoid_invo_1",
+// CHECK:                  locale: "GFEmbeddedKernel",
+// CHECK:                  referenced_data_size: 168
+// CHECK:                }
+

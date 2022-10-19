@@ -136,7 +136,7 @@ namespace {
     }
 
     int getDPUPerCluster(const InferenceEngine::VPUXConfigParams::VPUXPlatform& platform) {
-        if (platform == InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3720) {
+        if (platform == InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3720 || platform == InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3720ELF) {
             constexpr int VPUX37XX_DPU_PER_CLUSTER = 1;
             return VPUX37XX_DPU_PER_CLUSTER;
         }
@@ -168,14 +168,7 @@ std::unique_ptr<mv::CompilationUnit> createCompilationUnit(
         else {
             auto platform = config.get<PLATFORM>();
             if (platform == InferenceEngine::VPUXConfigParams::VPUXPlatform::EMULATOR) {
-                const auto platformName = utils::getPlatformNameByDeviceName(config.get<DEVICE_ID>());
-                const auto targetPos = platformName.rfind("_EMU");
-                if (targetPos == std::string::npos) {
-                    errMsg = "Error: Emulator target platform is not defined.";
-                    return nullptr;
-                }
-                const auto targetName = platformName.substr(0, targetPos);
-                platform = utils::getPlatformByDeviceName(targetName);
+                platform = utils::getPlatformByEMUDeviceName(config.get<DEVICE_ID>());
             }
 
             switch (platform) {
@@ -185,6 +178,10 @@ std::unique_ptr<mv::CompilationUnit> createCompilationUnit(
                     break;
                 }
                 case InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3720: {
+                    targetDescName = "release_VPUX37XX";
+                    break;
+                }
+                case InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3720ELF: {
                     targetDescName = "release_VPUX37XX";
                     break;
                 }
@@ -213,6 +210,10 @@ std::unique_ptr<mv::CompilationUnit> createCompilationUnit(
                     break;
                 }
                 case InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3720: {
+                    compDescName = "release_VPUX37XX";
+                    break;
+                }
+                case InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3720ELF: {
                     compDescName = "release_VPUX37XX";
                     break;
                 }

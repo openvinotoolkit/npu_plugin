@@ -899,7 +899,8 @@ void VpualCoreNNExecutor::handleProfiling() {
                                       _networkDescription->getNetworkModelSize());
     const auto& profilingData =
             std::make_pair(profilingMemoryBlob->rmap().as<const uint8_t*>(), profilingMemoryBlob->byteSize());
-    profiling::outputWriter(_profilingType, blob, profilingData, _profilingOutputFile);
+    profiling::outputWriter(_profilingType, blob, profilingData, _profilingOutputFile, profiling::TimeUnitFormat::NS,
+                            profiling::VerbosityLevel::LOW);
 }
 
 ie::BlobMap VpualCoreNNExecutor::extractOutputsFromPhysAddr(uint32_t physAddr) {

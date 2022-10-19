@@ -18,13 +18,13 @@ Const::Content sparsify(const Const::Content& content, int64_t sparsifyValue, ND
 
     auto inputValues = content.getValues<StorageType>();
 
-    auto shape = content.getShape();
+    auto shape = content.getType().getShape();
     VPUX_THROW_UNLESS(shape.size() == 4, "Const::Content::sparsify: got unxpected content shape {0}", shape.size());
 
-    const auto OC = shape[vpux::Dims4D::Filter::OC];
-    const auto IC = shape[vpux::Dims4D::Filter::IC];
-    const auto KY = shape[vpux::Dims4D::Filter::KY];
-    const auto KX = shape[vpux::Dims4D::Filter::KX];
+    const auto OC = shape[Dims4D::Filter::OC];
+    const auto IC = shape[Dims4D::Filter::IC];
+    const auto KY = shape[Dims4D::Filter::KY];
+    const auto KX = shape[Dims4D::Filter::KX];
     const auto workloadSize = IC * KY * KX;
     for (int64_t oc = 0; oc < OC; ++oc) {
         auto begin = oc * workloadSize;
@@ -60,7 +60,7 @@ vpux::NDTypeInterface vpux::Const::SparsifyAttr::inferOutputType(vpux::NDTypeInt
 // SparsifyAttr::transform
 //
 
-Const::Content vpux::Const::SparsifyAttr::transform(vpux::Const::Content& input) const {
+Const::Content Const::SparsifyAttr::transform(Const::Content& input) const {
     auto outputType = inferOutputType(input.getType());
 
     int64_t sparsifyValue = 0;
@@ -81,6 +81,14 @@ Const::Content vpux::Const::SparsifyAttr::transform(vpux::Const::Content& input)
         return sparsify<float>(input, sparsifyValue, outputType);
     }
     VPUX_THROW("Unexpected weights data type: {0}", inputElementType);
+}
+
+//
+// SparsifyAttr::getPositionRequirement
+//
+
+Const::details::PositionRequirement Const::SparsifyAttr::getPositionRequirement() const {
+    return Const::details::PositionRequirement::LAST;
 }
 
 //

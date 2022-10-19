@@ -69,100 +69,6 @@ flatbuffers::Offset<MVCNN::Version> createVersion(VPUIP::BlobWriter& writer, Log
     return builder.Finish();
 }
 
-MVCNN::PhysicalProcessor createPhysicalProcessor(VPU::ExecutorKind execKind) {
-    switch (execKind) {
-    case VPU::ExecutorKind::SHAVE_UPA:
-        return MVCNN::PhysicalProcessor_UPA_SHV;
-    case VPU::ExecutorKind::SHAVE_NN:
-        return MVCNN::PhysicalProcessor_NN_SHV;
-    case VPU::ExecutorKind::NCE:
-        return MVCNN::PhysicalProcessor_NCE_Cluster;
-    case VPU::ExecutorKind::DPU:
-        return MVCNN::PhysicalProcessor_NCE_PerClusterDPU;
-    default:
-        VPUX_THROW("Unsupported ExecutorKind '{0}'", execKind);
-    }
-}
-
-void setActivityFactor(VPU::ExecutorKind execKind, MVCNN::ProcessorMappingBuilder& builder, mlir::ModuleOp module) {
-    // TODO: calc this value during compilation
-    static const float activityFactor = 90.0;
-    const auto arch = VPU::getArch(module);
-    if (arch == VPU::ArchKind::VPUX30XX || arch == VPU::ArchKind::VPUX311X) {
-        if (execKind == VPU::ExecutorKind::NCE || execKind == VPU::ExecutorKind::SHAVE_UPA) {
-            builder.add_activity_factor(activityFactor);
-        }
-    } else if (arch == VPU::ArchKind::VPUX37XX) {
-        if (execKind == VPU::ExecutorKind::NCE || execKind == VPU::ExecutorKind::SHAVE_NN) {
-            builder.add_activity_factor(activityFactor);
-        }
-    }
-}
-
-flatbuffers::Offset<MVCNN::ProcessorMapping> createProcessorMapping(VPUIP::BlobWriter& writer,
-                                                                    IE::ExecutorResourceOp res, mlir::ModuleOp module) {
-    const auto execKindAttr = res.getKindAs<VPU::ExecutorKindAttr>();
-    VPUX_THROW_UNLESS(execKindAttr != nullptr, "Got unknown executor kind '{0}'", res.getKind());
-
-    const auto execKind = execKindAttr.getValue();
-    MVCNN::ProcessorMappingBuilder builder(writer);
-    builder.add_item(createPhysicalProcessor(execKind));
-    builder.add_number(checked_cast<double>(res.count()));
-    builder.add_is_bitmask(false);
-    setActivityFactor(execKind, builder, module);
-    return builder.Finish();
-}
-
-flatbuffers::Offset<MVCNN::ProcessorMapping> createProcessorFreqMapping(VPUIP::BlobWriter& writer,
-                                                                        IE::ExecutorResourceOp res) {
-    const auto execKindAttr = res.getKindAs<VPU::ExecutorKindAttr>();
-    VPUX_THROW_UNLESS(execKindAttr != nullptr, "Got unknown executor kind '{0}'", res.getKind());
-
-    MVCNN::ProcessorMappingBuilder builder(writer);
-    builder.add_item(createPhysicalProcessor(execKindAttr.getValue()));
-    builder.add_number(VPUIP::getProcessorFrequency(res));
-    builder.add_is_bitmask(false);
-    return builder.Finish();
-}
-
-MVCNN::PhysicalMem createPhysicalMem(VPU::MemoryKind mem) {
-    switch (mem) {
-    case VPU::MemoryKind::DDR:
-        return MVCNN::PhysicalMem_DDR;
-    case VPU::MemoryKind::CSRAM:
-        return MVCNN::PhysicalMem_CSRAM;
-    case VPU::MemoryKind::CMX_UPA:
-        return MVCNN::PhysicalMem_UPA_CMX;
-    case VPU::MemoryKind::CMX_NN:
-        return MVCNN::PhysicalMem_NN_CMX;
-    default:
-        VPUX_THROW("Unsupported MemoryKind '{0}'", mem);
-    }
-}
-
-flatbuffers::Offset<MVCNN::MemoryMapping> createMemoryMapping(VPUIP::BlobWriter& writer, IE::MemoryResourceOp res) {
-    const auto memKindAttr = res.getKindAs<VPU::MemoryKindAttr>();
-
-    MVCNN::MemoryMappingBuilder builder(writer);
-    builder.add_item(createPhysicalMem(memKindAttr.getValue()));
-    builder.add_number(checked_cast<double>(res.byteSize()));
-    return builder.Finish();
-}
-
-flatbuffers::Offset<MVCNN::MemoryRelationshipMapping> createBandwidthMapping(VPUIP::BlobWriter& writer,
-                                                                             IE::MemoryResourceOp src,
-                                                                             IE::MemoryResourceOp dst,
-                                                                             double bandwidth) {
-    MVCNN::MemoryRelationshipMappingBuilder builder(writer);
-    const auto srcKind = src.getKindAs<VPU::MemoryKindAttr>();
-    const auto dstKind = dst.getKindAs<VPU::MemoryKindAttr>();
-
-    builder.add_from_item(createPhysicalMem(srcKind.getValue()));
-    builder.add_to_item(createPhysicalMem(dstKind.getValue()));
-    builder.add_number(bandwidth);
-    return builder.Finish();
-}
-
 flatbuffers::Offset<MVCNN::Resources> createResources(VPUIP::BlobWriter& writer, mlir::ModuleOp module) {
     const EnumSet<VPU::ExecutorKind> supportedProcessors{
             VPU::ExecutorKind::SHAVE_UPA,  //
@@ -303,6 +209,20 @@ flatbuffers::Offset<MVCNN::ActKernelRuntime> createActKernelRuntime(VPUIP::BlobW
                 writer.createKernelDataRef("scratch_buffer", reservedOffset, scratchBufferSize, scratchBufferData);
     }
 
+    SmallVector<int8_t> counters = {MVCNN::ActKernelPerfCounter_STALL_CYCLE_CNT_EN};
+    SmallVector<int8_t> stallFilters = {
+            MVCNN::ActKernelPerfStallFilter_LSU0_DATA_WAIT, MVCNN::ActKernelPerfStallFilter_LSU1_DATA_WAIT,
+            MVCNN::ActKernelPerfStallFilter_LSU0_ACCESS, MVCNN::ActKernelPerfStallFilter_LSU1_ACCESS};
+
+    const auto flatCounters = writer.createVector(counters);
+    const auto flatStallFilters = writer.createVector(stallFilters);
+    MVCNN::PerfPayloadConfigBuilder perfConfigBuilder(writer);
+    perfConfigBuilder.add_counters(flatCounters);
+    perfConfigBuilder.add_stallFilters(flatStallFilters);
+    perfConfigBuilder.add_frcDuration(true);
+    perfConfigBuilder.add_frcTimestamp(true);
+    auto perfConfig = perfConfigBuilder.Finish();
+
     MVCNN::ActKernelRuntimeBuilder builder(writer);
     builder.add_shaveStacks(stackBuffers);
     if (runtimeKernelDeclared) {
@@ -310,6 +230,7 @@ flatbuffers::Offset<MVCNN::ActKernelRuntime> createActKernelRuntime(VPUIP::BlobW
     } else {
         builder.add_codeScratchBuffer(scratchBuffer);
     }
+    builder.add_perfConfig(perfConfig);
 
     return builder.Finish();
 }
@@ -455,48 +376,69 @@ flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(
     builder.add_device_revision(VPUIP::mapTargetDeviceRevision(VPU::getArch(module)));
     builder.add_act_kernel_runtime(serializedActKernelsRuntime);
     builder.add_performance_metrics(serializedPerformanceMetrics);
+    builder.add_profiling_data_mode(MVCNN::PerfDataMode_MODE0);
     return builder.Finish();
 }
 
 void serializeTensorDecls(VPUIP::BlobWriter& writer, mlir::FuncOp netFunc, mlir::TimingScope& rootTiming) {
     auto scopeTiming = rootTiming.nest("Serialize tensor declarations");
 
+    llvm::DenseSet<mlir::Operation*> sparsityMetadataBuffers;
+    llvm::DenseMap<mlir::Operation*, std::pair<Optional<int64_t>, Optional<int64_t>>> sparsityOffsets;
+    const auto findSparsityOffsets = [&](mlir::Value data, mlir::Value sparsityMap, mlir::Value storageElementTable) {
+        if (data == nullptr) {
+            return;
+        }
+        auto dataBuffer = data.getDefiningOp<VPURT::DeclareBufferOp>();
+
+        Optional<int64_t> sparsityMapOffset = None;
+        Optional<int64_t> storageElementOffset = None;
+        if (sparsityMap != nullptr) {
+            auto buffer = sparsityMap.getDefiningOp<VPURT::DeclareBufferOp>();
+            sparsityMapOffset = buffer.byteOffset();
+            sparsityMetadataBuffers.insert(buffer.getOperation());
+        }
+        if (storageElementTable != nullptr) {
+            auto buffer = storageElementTable.getDefiningOp<VPURT::DeclareBufferOp>();
+            storageElementOffset = buffer.byteOffset();
+            sparsityMetadataBuffers.insert(buffer.getOperation());
+        }
+
+        if (sparsityMapOffset.hasValue() || storageElementOffset.hasValue()) {
+            if (sparsityOffsets.find(dataBuffer) != sparsityOffsets.end()) {
+                return;
+            }
+            const auto offsets = std::make_pair(sparsityMapOffset, storageElementOffset);
+            sparsityOffsets.insert(std::make_pair(dataBuffer.getOperation(), offsets));
+        }
+    };
+
+    netFunc.walk([&](VPUIP::NCEClusterTaskOp nceTask) {
+        findSparsityOffsets(nceTask.input(), nceTask.input_sparsity_map(), nceTask.input_storage_element_table());
+        findSparsityOffsets(nceTask.weights(), nceTask.weights_sparsity_map(), nullptr);
+        findSparsityOffsets(nceTask.parent_input(), nceTask.parent_input_sparsity_map(),
+                            nceTask.parent_input_storage_element_table());
+        findSparsityOffsets(nceTask.parent_output(), nceTask.parent_output_sparsity_map(), nullptr);
+        findSparsityOffsets(nceTask.output_buff(), nceTask.output_sparsity_map_buff(), nullptr);
+    });
+
     size_t tempTensorInd = 0;
     const auto createTensorRef = [&](VPURT::DeclareBufferOp bufOp, const Optional<int64_t> sparsityMapOffset = None,
                                      const Optional<int64_t> storageElementOffset = None) {
         auto sectionIndex = bufOp.getNonEmptySectionIndex();
         writer.createTensorRef(bufOp.buffer(), printToString("temp-{0}", tempTensorInd), bufOp.section(), sectionIndex,
-                               bufOp.byteOffset(), sparsityMapOffset, storageElementOffset);
+                               bufOp.byteOffset(), sparsityMapOffset, storageElementOffset, bufOp.swizzlingKey());
         tempTensorInd++;
     };
 
-    llvm::DenseSet<mlir::Operation*> sparseBuffers;
-    netFunc.walk([&](VPURT::DeclareSparseBufferOp sparseBufOp) {
+    netFunc.walk([&](VPURT::DeclareBufferOp bufOp) {
         Optional<int64_t> sparsityMapOffset = None;
         Optional<int64_t> storageElementOffset = None;
-        if (sparseBufOp.sparsityMap()) {
-            auto sparsityMapBufOp = sparseBufOp.sparsityMap().getDefiningOp<VPURT::DeclareBufferOp>();
-            sparsityMapOffset = sparsityMapBufOp.byteOffset();
-            createTensorRef(sparsityMapBufOp);
-            sparseBuffers.insert(sparsityMapBufOp.getOperation());
-        }
-        if (sparseBufOp.storageElementTable()) {
-            auto storageElementBufOp = sparseBufOp.storageElementTable().getDefiningOp<VPURT::DeclareBufferOp>();
-            storageElementOffset = storageElementBufOp.byteOffset();
-            createTensorRef(storageElementBufOp);
-            sparseBuffers.insert(storageElementBufOp.getOperation());
+        if (sparsityOffsets.find(bufOp.getOperation()) != sparsityOffsets.end()) {
+            std::tie(sparsityMapOffset, storageElementOffset) = sparsityOffsets[bufOp.getOperation()];
         }
 
-        auto bufOp = sparseBufOp.data().getDefiningOp<VPURT::DeclareBufferOp>();
         createTensorRef(bufOp, sparsityMapOffset, storageElementOffset);
-        sparseBuffers.insert(bufOp.getOperation());
-    });
-
-    netFunc.walk([&](VPURT::DeclareBufferOp bufOp) {
-        if (sparseBuffers.contains(bufOp.getOperation())) {
-            return;
-        }
-        createTensorRef(bufOp);
     });
 }
 
@@ -573,7 +515,7 @@ SmallVector<VPUIP::BlobWriter::TaskList> serializeTaskLists(VPUIP::BlobWriter& w
     auto scopeTiming = rootTiming.nest("Serialize task lists");
 
     using TaskList = SmallVector<VPUIP::BlobWriter::Task>;
-    using TaskListMap = EnumMap<VPU::ExecutorKind, TaskList>;
+    using TaskListMap = std::map<VPU::ExecutorKind, TaskList>;
 
     TaskList barriersList;
     netFunc.walk([&](VPURT::ConfigureBarrierOp barrierOp) {

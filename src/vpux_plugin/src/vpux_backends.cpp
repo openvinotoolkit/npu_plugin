@@ -153,6 +153,8 @@ static std::map<IE::VPUXConfigParams::VPUXPlatform, std::string> compilationPlat
         {IE::VPUXConfigParams::VPUXPlatform::VPU3800, "3900"},
         {IE::VPUXConfigParams::VPUXPlatform::VPU3900, "3900"},
         {IE::VPUXConfigParams::VPUXPlatform::VPU3720, "3720"},
+        {IE::VPUXConfigParams::VPUXPlatform::VPU3720ELF, "3720ELF"},
+        {IE::VPUXConfigParams::VPUXPlatform::VPU4000, "4000"},
 };
 
 std::string VPUXBackends::getCompilationPlatform(const IE::VPUXConfigParams::VPUXPlatform platform,

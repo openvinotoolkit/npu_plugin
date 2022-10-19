@@ -140,6 +140,14 @@ Const::Content vpux::Const::BitPackAttr::transform(vpux::Const::Content& input) 
     return output;
 }
 
+//
+// BitPackAttr::getPositionRequirement
+//
+
+Const::details::PositionRequirement vpux::Const::BitPackAttr::getPositionRequirement() const {
+    return Const::details::PositionRequirement::LAST;
+}
+
 Const::ContentAttr vpux::Const::ContentAttr::bitPack(int64_t width) const {
     return get(*this, Const::BitPackAttr::get(getIntAttr(getContext(), width)).cast<Const::TransformAttrInterface>());
 }

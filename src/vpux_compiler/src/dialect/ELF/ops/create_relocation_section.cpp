@@ -3,6 +3,8 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
+//
+
 #include <vpux_elf/types/vpu_extensions.hpp>
 #include <vpux_elf/writer.hpp>
 #include "vpux/compiler/dialect/ELF/ops.hpp"
@@ -39,22 +41,35 @@ void vpux::ELF::CreateRelocationSectionOp::serialize(elf::Writer& writer, vpux::
         section->setSymbolTable(dynamic_cast<elf::writer::SymbolSection*>(symTabSection));
     }
 
+    auto targetSectionOp = this->targetSection().getDefiningOp();
+
     auto block = getBody();
     for (auto& op : block->getOperations()) {
         auto relocation = section->addRelocationEntry();
 
         if (auto relocOp = llvm::dyn_cast<vpux::ELF::RelocOp>(op)) {
             relocOp.serialize(relocation, symbolMap);
+        } else if (auto relocOp = llvm::dyn_cast<vpux::ELF::RelocImmOffsetOp>(op)) {
+            if (relocOp.baseOp()) {
+                relocOp.serialize(relocation, symbolMap, targetSectionOp);
+            } else {
+                relocOp.serialize(relocation, symbolMap);
+            }
         } else if (auto placeholder = llvm::dyn_cast<vpux::ELF::PutOpInSectionOp>(op)) {
             auto actualOp = placeholder.inputArg().getDefiningOp();
-            auto relocOp = llvm::dyn_cast<vpux::ELF::RelocOp>(actualOp);
 
-            VPUX_THROW_UNLESS(relocOp != nullptr,
-                              "CreateRelocationSection is expected to have PutOpInSectionOp that refer to RelocOps "
-                              "only. Got *actualOp {0}.",
-                              *actualOp);
+            if (auto relocOp = llvm::dyn_cast<vpux::ELF::RelocOp>(actualOp)) {
+                relocOp.serialize(relocation, symbolMap);
+            }
 
-            relocOp.serialize(relocation, symbolMap);
+            if (auto relocOp = llvm::dyn_cast<vpux::ELF::RelocImmOffsetOp>(actualOp)) {
+                if (relocOp.baseOp()) {
+                    relocOp.serialize(relocation, symbolMap, targetSectionOp);
+                } else {
+                    relocOp.serialize(relocation, symbolMap);
+                }
+            }
+
         } else {
             VPUX_THROW(
                     "CreateRelocationSection op is expected to have either RelocOps or PutOpInSectionOp that refer to "

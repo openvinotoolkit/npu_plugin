@@ -135,8 +135,7 @@ ExecutableNetwork::ExecutableNetwork(std::istream& networkModel, const Device::P
 void ExecutableNetwork::ConfigureStreamsExecutor(const std::string& networkName) {
     size_t maxTaskExecutorGetResultCount = 1;
     if (_config.get<EXCLUSIVE_ASYNC_REQUESTS>()) {
-        IE::ExecutorManager* executorManager = IE::ExecutorManager::getInstance();
-        _taskExecutor = executorManager->getExecutor("VPUX");
+        _taskExecutor = IE::executorManager()->getExecutor("VPUX");
         maxTaskExecutorGetResultCount = 1;
     } else {
         _taskExecutor = std::make_shared<IE::CPUStreamsExecutor>(IE::IStreamsExecutor::Config{
@@ -157,8 +156,7 @@ IE::ITaskExecutor::Ptr ExecutableNetwork::getNextTaskExecutor() {
     _taskExecutorGetResultIds.pop();
     _taskExecutorGetResultIds.push(id);
 
-    IE::ExecutorManager* executorManager = IE::ExecutorManager::getInstance();
-    IE::ITaskExecutor::Ptr taskExecutor = executorManager->getExecutor(id);
+    IE::ITaskExecutor::Ptr taskExecutor = IE::executorManager()->getExecutor(id);
 
     return taskExecutor;
 }
@@ -230,6 +228,50 @@ void ExecutableNetwork::Export(const std::string& modelFileName) {
 //      Config and Metrics
 //------------------------------------------------------------------------------
 
+IE::Parameter ExecutableNetwork::GetConfigValue(const std::string& name) const {
+    if (name == ov::device::id) {
+        return _config.get<DEVICE_ID>();
+    } else if (name == ov::intel_vpux::csram_size) {
+        return _config.get<CSRAM_SIZE>();
+    } else if (name == ov::intel_vpux::executor_streams) {
+        return _config.get<EXECUTOR_STREAMS>();
+    } else if (name == ov::intel_vpux::graph_color_format) {
+        return _config.get<GRAPH_COLOR_FORMAT>();
+    } else if (name == ov::intel_vpux::inference_shaves) {
+        return _config.get<INFERENCE_SHAVES>();
+    } else if (name == ov::intel_vpux::inference_timeout) {
+        return _config.get<INFERENCE_TIMEOUT_MS>();
+    } else if (name == ov::intel_vpux::preprocessing_lpi) {
+        return _config.get<PREPROCESSING_LPI>();
+    } else if (name == ov::intel_vpux::preprocessing_pipes) {
+        return _config.get<PREPROCESSING_PIPES>();
+    } else if (name == ov::intel_vpux::preprocessing_shaves) {
+        return _config.get<PREPROCESSING_SHAVES>();
+    } else if (name == ov::intel_vpux::print_profiling) {
+        return _config.get<PRINT_PROFILING>();
+    } else if (name == ov::intel_vpux::profiling_output_file) {
+        return _config.get<PROFILING_OUTPUT_FILE>();
+    } else if (name == ov::intel_vpux::use_m2i) {
+        return _config.get<USE_M2I>();
+    } else if (name == ov::intel_vpux::use_shave_only_m2i) {
+        return _config.get<USE_SHAVE_ONLY_M2I>();
+    } else if (name == ov::intel_vpux::use_sipp) {
+        return _config.get<USE_SIPP>();
+    } else if (name == ov::intel_vpux::vpux_platform) {
+        return _config.get<PLATFORM>();
+    } else if (name == ov::hint::model_priority) {
+        return _config.get<MODEL_PRIORITY>();
+    } else if (name == ov::enable_profiling) {
+        return _config.get<PERF_COUNT>();
+    } else if (name == ov::hint::performance_mode) {
+        return _config.get<PERFORMANCE_HINT>();
+    } else if (name == ov::hint::num_requests) {
+        return _config.get<PERFORMANCE_HINT_NUM_REQUESTS>();
+    }
+
+    return IE::Parameter(nullptr);
+}
+
 IE::Parameter ExecutableNetwork::GetMetric(const std::string& name) const {
     if (_plugin->GetCore()->isNewAPI()) {
         const auto RO_property = [](const std::string& propertyName) {
@@ -242,7 +284,10 @@ IE::Parameter ExecutableNetwork::GetMetric(const std::string& name) const {
                     RO_property(ov::supported_properties.name()),
                     RO_property(ov::model_name.name()),
                     RO_property(ov::optimal_number_of_infer_requests.name()),
+                    RO_property(ov::enable_profiling.name()),
                     RO_property(ov::hint::model_priority.name()),
+                    RO_property(ov::hint::num_requests.name()),
+                    RO_property(ov::hint::performance_mode.name()),
                     RO_property(ov::device::id.name()),
                     RO_property(ov::intel_vpux::csram_size.name()),
                     RO_property(ov::intel_vpux::executor_streams.name()),
@@ -264,39 +309,12 @@ IE::Parameter ExecutableNetwork::GetMetric(const std::string& name) const {
             return _networkPtr->getName();
         } else if (name == ov::optimal_number_of_infer_requests) {
             VPUX_THROW_WHEN(_networkPtr == nullptr, "GetMetric: network is not initialized");
-            return static_cast<uint32_t>(2 * _networkPtr->getNumStreams());
-        } else if (name == ov::device::id) {
-            return _config.get<DEVICE_ID>();
-        } else if (name == ov::intel_vpux::csram_size) {
-            return _config.get<CSRAM_SIZE>();
-        } else if (name == ov::intel_vpux::executor_streams) {
-            return _config.get<EXECUTOR_STREAMS>();
-        } else if (name == ov::intel_vpux::graph_color_format) {
-            return _config.get<GRAPH_COLOR_FORMAT>();
-        } else if (name == ov::intel_vpux::inference_shaves) {
-            return _config.get<INFERENCE_SHAVES>();
-        } else if (name == ov::intel_vpux::inference_timeout) {
-            return _config.get<INFERENCE_TIMEOUT_MS>();
-        } else if (name == ov::intel_vpux::preprocessing_lpi) {
-            return _config.get<PREPROCESSING_LPI>();
-        } else if (name == ov::intel_vpux::preprocessing_pipes) {
-            return _config.get<PREPROCESSING_PIPES>();
-        } else if (name == ov::intel_vpux::preprocessing_shaves) {
-            return _config.get<PREPROCESSING_SHAVES>();
-        } else if (name == ov::intel_vpux::print_profiling) {
-            return _config.get<PRINT_PROFILING>();
-        } else if (name == ov::intel_vpux::profiling_output_file) {
-            return _config.get<PROFILING_OUTPUT_FILE>();
-        } else if (name == ov::intel_vpux::use_m2i) {
-            return _config.get<USE_M2I>();
-        } else if (name == ov::intel_vpux::use_shave_only_m2i) {
-            return _config.get<USE_SHAVE_ONLY_M2I>();
-        } else if (name == ov::intel_vpux::use_sipp) {
-            return _config.get<USE_SIPP>();
-        } else if (name == ov::intel_vpux::vpux_platform) {
-            return _config.get<PLATFORM>();
-        } else if (name == ov::hint::model_priority) {
-            return _config.get<MODEL_PRIORITY>();
+            return static_cast<uint32_t>(getNumOptimalInferRequests(_config) * _networkPtr->getNumStreams());
+        } else {
+            const IE::Parameter param = GetConfigValue(name);
+            if (!param.empty()) {
+                return param;
+            }
         }
     }
 
@@ -305,13 +323,19 @@ IE::Parameter ExecutableNetwork::GetMetric(const std::string& name) const {
         IE_SET_METRIC_RETURN(NETWORK_NAME, _networkPtr->getName());
     } else if (name == METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)) {
         VPUX_THROW_WHEN(_networkPtr == nullptr, "GetMetric: network is not initialized");
-        IE_SET_METRIC_RETURN(OPTIMAL_NUMBER_OF_INFER_REQUESTS,
-                             static_cast<unsigned int>(2 * _networkPtr->getNumStreams()));
+        IE_SET_METRIC_RETURN(
+                OPTIMAL_NUMBER_OF_INFER_REQUESTS,
+                static_cast<unsigned int>(getNumOptimalInferRequests(_config) * _networkPtr->getNumStreams()));
     }
 
     VPUX_THROW("Unsupported metric {0}", name);
 }
 
+IE::Parameter ExecutableNetwork::GetConfig(const std::string& name) const {
+    const IE::Parameter param = GetConfigValue(name);
+    VPUX_THROW_WHEN(param.empty(), "Unsupported parameter {0}", name);
+    return param;
+}
 //------------------------------------------------------------------------------
 std::atomic<int> ExecutableNetwork::loadBlobCounter{1};
 

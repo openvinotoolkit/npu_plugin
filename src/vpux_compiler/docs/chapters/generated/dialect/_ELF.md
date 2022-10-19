@@ -19,7 +19,8 @@ Create an ELF Logical Section, with no actual binary content in the ELF file
 Syntax:
 
 ```
-operation ::= `ELF.CreateLogicalSection` `secFlags` `(` $secFlags `)`
+operation ::= `ELF.CreateLogicalSection` `secType` `(` $secType `)`
+              `secFlags` `(` $secFlags `)`
               attr-dict
               `->` type(results)
               $declaredOps
@@ -32,6 +33,36 @@ operation ::= `ELF.CreateLogicalSection` `secFlags` `(` $secFlags `)`
 | :-------: | :-------: | ----------- |
 `secName` | ::mlir::StringAttr | string attribute
 `secType` | vpux::ELF::SectionTypeAttrAttr | Enum for describing ELF section header types
+`secFlags` | vpux::ELF::SectionFlagsAttrAttr | Enum for describing ELF section header flags (we can use also the | operator)
+`secInfo` | mlir::IntegerAttr | Integer attribute
+`secAddrAlign` | mlir::IntegerAttr | Integer attribute
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`section` | ELF Section Type
+
+### `ELF.CreateMetadataSection` (::vpux::ELF::CreateMetadataSectionOp)
+
+Create ELF Metadata Section
+
+
+Syntax:
+
+```
+operation ::= `ELF.CreateMetadataSection` `secFlags` `(` $secFlags `)`
+              attr-dict
+              `->` type(results)
+              $aRegion
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`secName` | ::mlir::StringAttr | string attribute
 `secFlags` | vpux::ELF::SectionFlagsAttrAttr | Enum for describing ELF section header flags (we can use also the | operator)
 `secInfo` | mlir::IntegerAttr | Integer attribute
 `secAddrAlign` | mlir::IntegerAttr | Integer attribute
@@ -101,7 +132,7 @@ operation ::= `ELF.CreateSection` `secType` `(` $secType `)`
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
 `secName` | ::mlir::StringAttr | string attribute
-`secType` | vpux::ELF::SectionTypeAttr2Attr | Enum for describing ELF section header types
+`secType` | vpux::ELF::SectionTypeAttrAttr | Enum for describing ELF section header types
 `secFlags` | vpux::ELF::SectionFlagsAttrAttr | Enum for describing ELF section header flags (we can use also the | operator)
 `secInfo` | mlir::IntegerAttr | Integer attribute
 `secAddrAlign` | mlir::IntegerAttr | Integer attribute
@@ -160,6 +191,35 @@ operation ::= `ELF.PutOpInSection` $inputArg attr-dict `:` type($inputArg)
 | :-----: | ----------- |
 `inputArg` | any type
 
+### `ELF.RelocImmOffset` (::vpux::ELF::RelocImmOffsetOp)
+
+Immediate Value Reloc Op
+
+
+Syntax:
+
+```
+operation ::= `ELF.RelocImmOffset` (`baseOp` `(` $baseOp^ `:` type($baseOp) `)`)?
+              `offset` `(` $offset `)`
+              $relocationType $sourceSymbol $addend attr-dict
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`offset` | mlir::IntegerAttr | Integer attribute
+`relocationType` | vpux::ELF::RelocationTypeAttrAttr | Enum for describing ELF relocation types
+`addend` | mlir::IntegerAttr | Integer attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`baseOp` | VPUIPRegMapped Index type
+`sourceSymbol` | ELF Symbol Type
+
 ### `ELF.Reloc` (::vpux::ELF::RelocOp)
 
 Reloc Op
@@ -168,7 +228,9 @@ Reloc Op
 Syntax:
 
 ```
-operation ::= `ELF.Reloc` $offsetTargetField $relocationType $sourceSymbol $addend attr-dict
+operation ::= `ELF.Reloc` `baseOp` `(` $baseOp `:` type($baseOp) `)`
+              `offsetOf` `(` $offsetOf `:` type($offsetOf) `)`
+              $relocationType $sourceSymbol $addend attr-dict
 ```
 
 
@@ -176,7 +238,6 @@ operation ::= `ELF.Reloc` $offsetTargetField $relocationType $sourceSymbol $adde
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-`offsetTargetField` | mlir::IntegerAttr | Integer attribute
 `relocationType` | vpux::ELF::RelocationTypeAttrAttr | Enum for describing ELF relocation types
 `addend` | mlir::IntegerAttr | Integer attribute
 
@@ -184,6 +245,8 @@ operation ::= `ELF.Reloc` $offsetTargetField $relocationType $sourceSymbol $adde
 
 | Operand | Description |
 | :-----: | ----------- |
+`baseOp` | any type
+`offsetOf` | any type
 `sourceSymbol` | ELF Symbol Type
 
 ### `ELF.Symbol` (::vpux::ELF::SymbolOp)

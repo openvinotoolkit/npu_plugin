@@ -2,3 +2,5 @@
 # SPDX-License-Identifier: Apache 2.0
 
 set(kernel_src "sigmoid_fp16.c")
+
+set(kernel_cpunum "3720")

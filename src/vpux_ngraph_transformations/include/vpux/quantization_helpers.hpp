@@ -30,8 +30,6 @@ std::vector<double> calculateScales(
 
 double clamp(double val, double low, double high);
 
-bool different(double v1, double v2);
-
 void align_zp(float &min, float &max, const int max_levels);
 
 bool is_fq_agnostic(const std::shared_ptr<ngraph::Node>& node);

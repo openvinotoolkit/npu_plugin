@@ -10,12 +10,8 @@
 #include "layers/param_custom_cpp.h"
 #include "mvSubspaces.h"
 
-#ifdef CONFIG_TARGET_SOC_3720
 __attribute__((aligned(1024)))
-#include "sk.singleShaveInterpolate.3010xx.text.xdat"
-#else
-#include "svuSLKernels_EP.h"
-#endif
+#include "sk.singleShaveInterpolate.3720xx.text.xdat"
 
 #include "param_interpolate.h"
 
@@ -277,7 +273,8 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Interpolate)
         }
 
         void initData() override {
-            m_params = {0xFFFFFFFF, m_elfBuffer, 0, nullptr, MAX_LOCAL_PARAMS, 0, 0};
+            sw_params::BaseKernelParams emptyParamData;
+            m_params = {0xFFFFFFFF, m_elfBuffer, 0, nullptr, emptyParamData, MAX_LOCAL_PARAMS, 0};
 
             CustomCppTests<fp16>::initData();
             const SingleTest* test = m_currentTest;
@@ -296,11 +293,7 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Interpolate)
             m_interpolateParams->nearest_mode = static_cast<InterpolationNearestMode>(test->customLayerParams.layerParams[2]);
             m_interpolateParams->antialias = static_cast<int64_t>(test->customLayerParams.layerParams[3]);
 
-#ifdef CONFIG_TARGET_SOC_3720
-            m_params.kernel = reinterpret_cast<uint64_t>(sk_singleShaveInterpolate_3010xx_text);
-#else
-            m_params.kernel = reinterpret_cast<uint64_t>(PREAMBLE_FUNC(singleShaveInterpolate));
-#endif
+            m_params.kernel = reinterpret_cast<uint64_t>(sk_singleShaveInterpolate_3720xx_text);
         }
 
         void initTestCase() override {

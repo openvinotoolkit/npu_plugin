@@ -9,30 +9,12 @@
 
 #include "vpux/compiler/core/attributes/stride_reqs.hpp"
 #include "vpux/compiler/dialect/VPUIP/graph-schema/blob_reader.hpp"
+#include "vpux/compiler/dialect/VPUIP/graph-schema/utils.hpp"
 #include "vpux/compiler/utils/error.hpp"
 
 #include <mlir/IR/BuiltinTypes.h>
 
 using namespace vpux;
-
-namespace {
-
-MVCNN::RoundMode converVPUXRoundModeToMVCNN(vpux::IE::RoundMode vpux_mode) {
-    MVCNN::RoundMode mvcnn_mode;
-    switch (vpux_mode) {
-    case IE::RoundMode::HALF_TO_EVEN:
-        mvcnn_mode = MVCNN::RoundMode::RoundMode_HALF_TO_EVEN;
-        break;
-    case IE::RoundMode::HALF_AWAY_FROM_ZERO:
-        mvcnn_mode = MVCNN::RoundMode::RoundMode_HALF_AWAY_FROM_ZERO;
-        break;
-    default:
-        VPUX_THROW("Unsupported RoundMode {0}", vpux_mode);
-    }
-    return mvcnn_mode;
-}
-
-}  // namespace
 
 //
 // verifyPostOp
@@ -41,7 +23,7 @@ MVCNN::RoundMode converVPUXRoundModeToMVCNN(vpux::IE::RoundMode vpux_mode) {
 mlir::LogicalResult vpux::VPUIP::verifyPostOp(mlir::Operation* op) {
     VPUX_THROW_UNLESS(op != nullptr, "Got NULL pointer in verifyPostOp");
 
-    auto layer = mlir::dyn_cast<IERT::LayerOpInterface>(op);
+    auto layer = mlir::dyn_cast<VPUIP::LayerOpInterface>(op);
     if (layer == nullptr) {
         return errorAt(op, "Operation '{0}' doesn't implement RT Layer interface", op->getName());
     }
@@ -130,7 +112,7 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::FloorUPAOp::serialize(VPUIP::BlobWr
 //
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::RoundUPAOp::serialize(VPUIP::BlobWriter& writer) {
-    const auto roundMode = converVPUXRoundModeToMVCNN(mode());
+    const auto roundMode = VPUIP::convertVPUXRoundMode2MVCNN(mode());
     const auto round = MVCNN::CreateRoundParams(writer, roundMode);
 
     MVCNN::PostOpsParamsBuilder builder(writer);
@@ -307,6 +289,21 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::AbsUPAOp::serialize(VPUIP::BlobWrit
 }
 
 //
+// HSigmoidUPAOp
+//
+
+VPUIP::BlobWriter::SpecificTask vpux::VPUIP::HSigmoidUPAOp::serialize(VPUIP::BlobWriter& writer) {
+    const auto hsigmoid = MVCNN::CreateHSigmoidParams(writer);
+
+    MVCNN::PostOpsParamsBuilder builder(writer);
+    builder.add_nested_params_type(MVCNN::PostOpsNestedParams_HSigmoidParams);
+    builder.add_nested_params(hsigmoid.Union());
+    const auto paramsOff = builder.Finish();
+
+    return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_PostOpsParams});
+}
+
+//
 // AtanUPAOp
 //
 
@@ -376,6 +373,24 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::LogUPAOp::serialize(VPUIP::BlobWrit
     MVCNN::PostOpsParamsBuilder builder(writer);
     builder.add_nested_params_type(MVCNN::PostOpsNestedParams_LogParams);
     builder.add_nested_params(log.Union());
+    const auto paramsOff = builder.Finish();
+
+    return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_PostOpsParams});
+}
+
+//
+// Selu
+//
+
+VPUIP::BlobWriter::SpecificTask vpux::VPUIP::SeluUPAOp::serialize(VPUIP::BlobWriter& writer) {
+    const auto alpha = alphaValueAttr().getValueAsDouble();
+    const auto lambda = lambdaValueAttr().getValueAsDouble();
+
+    const auto selu = MVCNN::CreateSeluParams(writer, checked_cast<float>(alpha), checked_cast<float>(lambda));
+
+    MVCNN::PostOpsParamsBuilder builder(writer);
+    builder.add_nested_params_type(MVCNN::PostOpsNestedParams_SeluParams);
+    builder.add_nested_params(selu.Union());
     const auto paramsOff = builder.Finish();
 
     return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_PostOpsParams});
@@ -512,7 +527,7 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::SwishUPAOp::serialize(VPUIP::BlobWr
 void vpux::VPUIP::ScaleShiftUPAOp::inferLayoutInfo(mlir::Operation*, IE::LayerLayoutInfo& info) {
     // Investigate performance degradation for NHWC layout
     // [Track number: E#25601]
-    IERT::inferLayoutInfoSameInOutSpecificDimsOrder(info, {DimsOrder::NCHW, DimsOrder::CHW});
+    VPUIP::inferLayoutInfoSameInOutSpecificDimsOrder(info, {DimsOrder::NCHW, DimsOrder::CHW});
 }
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::ScaleShiftUPAOp::serialize(VPUIP::BlobWriter& writer) {
@@ -562,6 +577,24 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::SoftPlusUPAOp::serialize(VPUIP::Blo
     MVCNN::PostOpsParamsBuilder builder(writer);
     builder.add_nested_params_type(MVCNN::PostOpsNestedParams_SoftPlusParams);
     builder.add_nested_params(softPlus.Union());
+    const auto paramsOff = builder.Finish();
+
+    return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_PostOpsParams});
+}
+
+//
+// HardSigmoidUPAOp
+//
+
+VPUIP::BlobWriter::SpecificTask vpux::VPUIP::HardSigmoidUPAOp::serialize(VPUIP::BlobWriter& writer) {
+    const auto alpha = alpha_valueAttr().getValueAsDouble();
+    const auto beta = beta_valueAttr().getValueAsDouble();
+    const auto hardSigmoid =
+            MVCNN::CreateHardSigmoidParams(writer, checked_cast<float>(alpha), checked_cast<float>(beta));
+
+    MVCNN::PostOpsParamsBuilder builder(writer);
+    builder.add_nested_params_type(MVCNN::PostOpsNestedParams_HardSigmoidParams);
+    builder.add_nested_params(hardSigmoid.Union());
     const auto paramsOff = builder.Finish();
 
     return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_PostOpsParams});
@@ -648,6 +681,13 @@ mlir::Operation* vpux::VPUIP::BlobReader::parsePostOps(mlir::OpBuilder& builder,
     case MVCNN::PostOpsNestedParams_LogParams:
         op = builder.create<VPUIP::LogUPAOp>(mlir::UnknownLoc::get(_ctx), inputs[0], outputs[0]);
         break;
+    case MVCNN::PostOpsNestedParams_SeluParams: {
+        const auto seluParams = params->nested_params_as_SeluParams();
+        op = builder.create<VPUIP::SeluUPAOp>(mlir::UnknownLoc::get(_ctx), inputs[0], outputs[0],
+                                              getFPAttr(_ctx, seluParams->alpha()),
+                                              getFPAttr(_ctx, seluParams->lambda()));
+        break;
+    }
     case MVCNN::PostOpsNestedParams_GeluParams:
         op = builder.create<VPUIP::GeluUPAOp>(mlir::UnknownLoc::get(_ctx), inputs[0], outputs[0]);
         break;
@@ -696,6 +736,9 @@ mlir::Operation* vpux::VPUIP::BlobReader::parsePostOps(mlir::OpBuilder& builder,
     case MVCNN::PostOpsNestedParams_AbsParams:
         op = builder.create<VPUIP::AbsUPAOp>(mlir::UnknownLoc::get(_ctx), inputs[0], outputs[0]);
         break;
+    case MVCNN::PostOpsNestedParams_HSigmoidParams:
+        op = builder.create<VPUIP::HSigmoidUPAOp>(mlir::UnknownLoc::get(_ctx), inputs[0], outputs[0]);
+        break;
     case MVCNN::PostOpsNestedParams_AtanParams:
         op = builder.create<VPUIP::AtanUPAOp>(mlir::UnknownLoc::get(_ctx), inputs[0], outputs[0]);
         break;
@@ -705,6 +748,13 @@ mlir::Operation* vpux::VPUIP::BlobReader::parsePostOps(mlir::OpBuilder& builder,
     case MVCNN::PostOpsNestedParams_AcosParams:
         op = builder.create<VPUIP::AcosUPAOp>(mlir::UnknownLoc::get(_ctx), inputs[0], outputs[0]);
         break;
+    case MVCNN::PostOpsNestedParams_HardSigmoidParams: {
+        const auto hardSigmoidParams = params->nested_params_as_HardSigmoidParams();
+        op = builder.create<VPUIP::HardSigmoidUPAOp>(mlir::UnknownLoc::get(_ctx), inputs[0], outputs[0],
+                                                     getFPAttr(_ctx, hardSigmoidParams->alpha()),
+                                                     getFPAttr(_ctx, hardSigmoidParams->beta()));
+        break;
+    }
     default:
         VPUX_THROW("Unsupported PostOps operation type {0}", params->nested_params_type());
     }

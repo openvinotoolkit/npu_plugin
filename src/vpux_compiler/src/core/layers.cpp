@@ -26,6 +26,9 @@ const Dim vpux::Dims4D::Filter::KX(3);
 const Dim vpux::Dims4D::Kernel::Y(0);
 const Dim vpux::Dims4D::Kernel::X(1);
 
+const Dim vpux::Dims4D::Dilation::Y(0);
+const Dim vpux::Dims4D::Dilation::X(1);
+
 const Dim vpux::Dims4D::Strides::Y(0);
 const Dim vpux::Dims4D::Strides::X(1);
 

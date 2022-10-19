@@ -6,3 +6,6 @@ srcs-lrt-y += $(wildcard *.cpp)
 # compile MvTensor testing support code (and do not compile upon firmware build)
 ccopt-los-y += -DICV_TESTS_SUPPORT
 ccopt-lrt-y += -DICV_TESTS_SUPPORT
+
+subdirs-los-y += pss
+subdirs-lrt-y += pss

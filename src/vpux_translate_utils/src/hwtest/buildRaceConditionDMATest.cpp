@@ -9,7 +9,7 @@
 
 #include <functional>
 #include "vpux/compiler/dialect/VPU/passes.hpp"
-#include "vpux/compiler/dialect/VPU/ppe_utils.hpp"
+#include "vpux/compiler/dialect/VPU/utils/ppe_utils.hpp"
 #include "vpux/compiler/dialect/VPUIP/attributes.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
@@ -30,8 +30,8 @@ void buildRaceConditionDMATest(const nb::TestCaseJsonDescriptor& testDesc, mlir:
     auto* ctx = builder.getContext();
     auto loc = builder.getUnknownLoc();
 
-    auto input = testDesc.getInputLayer();
-    auto output = testDesc.getOutputLayer();
+    auto input = testDesc.getInputLayerList().front();
+    auto output = testDesc.getOutputLayers().front();
     auto iterationCount = testDesc.getIterationCount();
 
     SmallVector<int64_t> inShape(input.shape.begin(), input.shape.end());
@@ -94,7 +94,8 @@ void buildRaceConditionDMATest(const nb::TestCaseJsonDescriptor& testDesc, mlir:
 
     // set runtime resources
     mlir::PassManager pm(ctx, mlir::OpPassManager::Nesting::Implicit);
-    pm.addPass(VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::DefaultHW, None, log));
+    pm.addPass(
+            VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::DefaultHW, None, None, log));
 
     VPUX_THROW_UNLESS(mlir::succeeded(pm.run(module)), "Compilation failed");
 

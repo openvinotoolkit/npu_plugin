@@ -26,8 +26,8 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::LogicalNotUPAOp::serialize(VPUIP::B
 
 void vpux::VPUIP::LogicalNotUPAOp::inferLayoutInfo(mlir::Operation*, IE::LayerLayoutInfo& info) {
     // [Track number: E#25740]
-    IERT::inferLayoutInfoSameInOutSpecificDimsOrder(info,
-                                                    {DimsOrder::NCHW, DimsOrder::CHW, DimsOrder::NC, DimsOrder::C});
+    VPUIP::inferLayoutInfoSameInOutSpecificDimsOrder(info,
+                                                     {DimsOrder::NCHW, DimsOrder::CHW, DimsOrder::NC, DimsOrder::C});
 }
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::EltwiseUPAOp::serialize(VPUIP::BlobWriter& writer) {
@@ -97,8 +97,8 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::EltwiseUPAOp::serialize(VPUIP::Blob
 
 void vpux::VPUIP::EltwiseUPAOp::inferLayoutInfo(mlir::Operation*, IE::LayerLayoutInfo& info) {
     // [Track number: E#25740]
-    IERT::inferLayoutInfoSameInOutSpecificDimsOrder(info,
-                                                    {DimsOrder::NCHW, DimsOrder::CHW, DimsOrder::NC, DimsOrder::C});
+    VPUIP::inferLayoutInfoSameInOutSpecificDimsOrder(info,
+                                                     {DimsOrder::NCHW, DimsOrder::CHW, DimsOrder::NC, DimsOrder::C});
 }
 
 mlir::Operation* vpux::VPUIP::BlobReader::parseEltwise(mlir::OpBuilder& builder, ArrayRef<mlir::Value> inputs,

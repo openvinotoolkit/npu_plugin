@@ -22,6 +22,30 @@ TEST_P(KmbInterpolateLayerTest, CompareWithRefs_MLIR) {
     Run();
 }
 
+class KmbInterpolateLayerTest_VPU4000: public InterpolateLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
+    void ConfigureNetwork() override {
+        // default f32 network precision attempts to insert IE.Convert ops to/from u8/f16, but these are not available yet
+        if(cnnNetwork.getInputsInfo().begin()->second->getPrecision() == InferenceEngine::Precision::U8){
+          cnnNetwork.getOutputsInfo().begin()->second->setPrecision(InferenceEngine::Precision::U8);
+        }
+        else if(cnnNetwork.getInputsInfo().begin()->second->getPrecision() == InferenceEngine::Precision::FP32){
+          cnnNetwork.getInputsInfo().begin()->second->setPrecision(InferenceEngine::Precision::FP16);
+          cnnNetwork.getOutputsInfo().begin()->second->setPrecision(InferenceEngine::Precision::FP16);
+        }
+    }
+
+    void SkipBeforeInfer() override {
+        throw LayerTestsUtils::KmbSkipTestException("Missing M2I runtime support");
+    }
+};
+
+TEST_P(KmbInterpolateLayerTest_VPU4000, CompareWithRefs_MLIR_VPU4000) {
+    useCompilerMLIR();
+    setPlatformVPU4000();
+    setDefaultHardwareModeMLIR();
+    Run();
+}
+
 class KmbInterpolate1Test: public Interpolate1LayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
 
 public:
@@ -38,17 +62,11 @@ TEST_P(KmbInterpolate1Test, CompareWithRefs_MLIR) {
     Run();
 }
 
-class KmbInterpolateLayerTest_VPUX37XX : public InterpolateLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
-    void SkipBeforeInfer() override {
-        // [E#29786]
-        throw LayerTestsUtils::KmbSkipTestException(
-                "Format of act-shave tensors serialization doesn't match with kernel expectation.");
-    }
-};
+class KmbInterpolateLayerTest_VPU3720 : public InterpolateLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {};
 
-TEST_P(KmbInterpolateLayerTest_VPUX37XX, CompareWithRefs_MLIR_VPUX37XX) {
+TEST_P(KmbInterpolateLayerTest_VPU3720, CompareWithRefs_MLIR_VPU3720) {
     useCompilerMLIR();
-    setPlatformVPUX37XX();
+    setPlatformVPU3720();
     setDefaultHardwareModeMLIR();
     Run();
 }
@@ -146,7 +164,8 @@ const std::vector<ngraph::op::v4::Interpolate::ShapeCalcMode> shapeCalculationMo
 
 std::map<std::string, std::string> additional_config = {};
 
-const auto interpolateCasesNearestMode = ::testing::Combine(
+auto interpolateCasesNearestMode = [] (auto scales) {
+    return ::testing::Combine(
         ::testing::ValuesIn(nearestMode),
         ::testing::ValuesIn(shapeCalculationMode),
         ::testing::ValuesIn(coordinateTransformModesNearest),
@@ -156,22 +175,44 @@ const auto interpolateCasesNearestMode = ::testing::Combine(
         ::testing::ValuesIn(pads),
         ::testing::ValuesIn(cubeCoefs),
         ::testing::ValuesIn(defaultAxes),
-        ::testing::ValuesIn(defaultScales));
+        ::testing::ValuesIn(scales));
+};
 
-const auto interpolateCasesWithoutNearestMode = ::testing::Combine(
-        ::testing::ValuesIn(modesWithoutNearest),
-        ::testing::ValuesIn(shapeCalculationMode),
-        ::testing::ValuesIn(coordinateTransformModesWithoutNearest),
-        ::testing::ValuesIn(defaultNearestMode),
-        ::testing::ValuesIn(antialias),
-        ::testing::ValuesIn(pads),
-        ::testing::ValuesIn(pads),
-        ::testing::ValuesIn(cubeCoefs),
-        ::testing::ValuesIn(defaultAxes),
-        ::testing::ValuesIn(defaultScales));
+auto interpolateCasesWithoutNearestMode = [] (auto scales) {
+    return ::testing::Combine(
+            ::testing::ValuesIn(modesWithoutNearest), ::testing::ValuesIn(shapeCalculationMode),
+            ::testing::ValuesIn(coordinateTransformModesWithoutNearest),
+            ::testing::ValuesIn(defaultNearestMode), ::testing::ValuesIn(antialias), ::testing::ValuesIn(pads),
+            ::testing::ValuesIn(pads), ::testing::ValuesIn(cubeCoefs), ::testing::ValuesIn(defaultAxes),
+            ::testing::ValuesIn(scales));
+};
+
+const auto interpolateM2IMode = ::testing::Combine(
+        ::testing::Values(nearestMode[0]),
+        ::testing::Values(ngraph::op::v4::Interpolate::ShapeCalcMode::sizes),
+        ::testing::Values(coordinateTransformModesWithoutNearest[0]),
+        ::testing::Values(defaultNearestMode[0]),
+        ::testing::Values(false),                           //antialias
+        ::testing::Values(std::vector<size_t>{0, 0, 0, 0}), //pads_begin
+        ::testing::Values(std::vector<size_t>{0, 0, 0, 0}), //pads_end
+        ::testing::Values(0.0),                             //cube_coeff
+        ::testing::Values(std::vector<int64_t>{2, 3}),      //axes
+        ::testing::Values(std::vector<float>{0.0f, 0.0f})); //scales
+
+const auto interpCminorM2IMode = ::testing::Combine(
+        ::testing::Values(nearestMode[0]),
+        ::testing::Values(ngraph::op::v4::Interpolate::ShapeCalcMode::sizes),
+        ::testing::Values(coordinateTransformModesWithoutNearest[0]),
+        ::testing::Values(defaultNearestMode[0]),
+        ::testing::Values(false),                           //antialias
+        ::testing::Values(std::vector<size_t>{0, 0, 0, 0}), //pads_begin
+        ::testing::Values(std::vector<size_t>{0, 0, 0, 0}), //pads_end
+        ::testing::Values(0.0),                             //cube_coeff
+        ::testing::Values(std::vector<int64_t>{1, 2}),      //axes
+        ::testing::Values(std::vector<float>{0.0f, 0.0f})); //scales
 
 INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_nearest_mode, KmbInterpolateLayerTest, ::testing::Combine(
-        interpolateCasesNearestMode,
+        interpolateCasesNearestMode(defaultScales),
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
@@ -184,7 +225,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_nearest_mode, KmbInterpolateLayerTest
                             KmbInterpolateLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_without_nearest, KmbInterpolateLayerTest, ::testing::Combine(
-        interpolateCasesWithoutNearestMode,
+        interpolateCasesWithoutNearestMode(defaultScales),
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
@@ -196,8 +237,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_without_nearest, KmbInterpolateLayerT
         ::testing::Values(additional_config)),
                             KmbInterpolateLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_nearest_mode_VPUX37XX, KmbInterpolateLayerTest_VPUX37XX, ::testing::Combine(
-        interpolateCasesNearestMode,
+INSTANTIATE_TEST_SUITE_P(smoke_precommit_Interpolate_nearest_mode_VPU3720, KmbInterpolateLayerTest_VPU3720, ::testing::Combine(
+        interpolateCasesNearestMode(defaultScales),
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(InferenceEngine::Precision::FP16),
         ::testing::Values(InferenceEngine::Precision::FP16),
@@ -207,10 +248,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_nearest_mode_VPUX37XX, KmbInterpolate
         ::testing::ValuesIn(targetShapes),
         ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
         ::testing::Values(additional_config)),
-                            KmbInterpolateLayerTest_VPUX37XX::getTestCaseName);
+                            KmbInterpolateLayerTest_VPU3720::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_without_nearest_VPUX37XX, KmbInterpolateLayerTest_VPUX37XX, ::testing::Combine(
-        interpolateCasesWithoutNearestMode,
+INSTANTIATE_TEST_SUITE_P(smoke_precommit_Interpolate_without_nearest_VPU3720, KmbInterpolateLayerTest_VPU3720, ::testing::Combine(
+        interpolateCasesWithoutNearestMode(defaultScales),
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(InferenceEngine::Precision::FP16),
         ::testing::Values(InferenceEngine::Precision::FP16),
@@ -220,8 +261,37 @@ INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_without_nearest_VPUX37XX, KmbInterpol
         ::testing::ValuesIn(targetShapes),
         ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
         ::testing::Values(additional_config)),
-                            KmbInterpolateLayerTest_VPUX37XX::getTestCaseName);
+                            KmbInterpolateLayerTest_VPU3720::getTestCaseName);
 
+const std::vector<std::vector<size_t>> inShapesForTiling = {
+        {1, 32, 32, 64},
+};
+
+const std::vector<std::vector<size_t>> targetShapesForTiling = {
+           { 32,  64}, // x1.00
+           {128, 256}, // x4.00
+        // {136, 272}, // x4.25
+        // {144, 288}, // x4.50
+        // {152, 304}, // x4.75
+};
+
+auto makeScales = [] (float uniformScale) {
+        const std::vector<std::vector<float>> scales = {{uniformScale, uniformScale}};
+        return scales;
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_with_tiling_VPU3720, KmbInterpolateLayerTest_VPU3720, ::testing::Combine(
+        interpolateCasesNearestMode(makeScales(1.f)),
+        ::testing::ValuesIn(netPrecisions),
+        ::testing::Values(InferenceEngine::Precision::FP16),
+        ::testing::Values(InferenceEngine::Precision::FP16),
+        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::ValuesIn(inShapesForTiling),
+        ::testing::ValuesIn(targetShapesForTiling),
+        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
+        ::testing::Values(additional_config)),
+                         KmbInterpolateLayerTest_VPU3720::getTestCaseName);
 
 const std::vector<std::string> mode = {"nearest", "linear"};
 const std::vector<ngraph::AxisSet> axes ={{2, 3}};
@@ -238,5 +308,55 @@ INSTANTIATE_TEST_CASE_P(smoke_Interpolate_1, KmbInterpolate1Test, ::testing::Com
         ::testing::ValuesIn(pads),
         ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
                             KmbInterpolate1Test::getTestCaseName);
+
+//VPU4000
+INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_M2I_u8,
+       KmbInterpolateLayerTest_VPU4000,
+       ::testing::Combine(
+          interpolateM2IMode,
+          ::testing::Values(InferenceEngine::Precision::U8),
+          ::testing::Values(InferenceEngine::Precision::U8),
+          ::testing::Values(InferenceEngine::Precision::U8),
+          ::testing::Values(InferenceEngine::Layout::NCHW),
+          ::testing::Values(InferenceEngine::Layout::NCHW),
+          ::testing::Values(std::vector<size_t>{1, 3, 256, 256}), //in-Shape
+          ::testing::Values(std::vector<size_t>{224, 224}),       //out-Shape for given axes
+          ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
+          ::testing::Values(additional_config)
+       ),
+       KmbInterpolateLayerTest_VPU4000::getTestCaseName);
+
+
+INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_M2I_fp16,
+       KmbInterpolateLayerTest_VPU4000,
+       ::testing::Combine(
+          interpolateM2IMode,
+          ::testing::Values(InferenceEngine::Precision::FP16),
+          ::testing::Values(InferenceEngine::Precision::FP16),
+          ::testing::Values(InferenceEngine::Precision::FP16),
+          ::testing::Values(InferenceEngine::Layout::NCHW),
+          ::testing::Values(InferenceEngine::Layout::NCHW),
+          ::testing::Values(std::vector<size_t>{1, 3, 256, 256}),
+          ::testing::Values(std::vector<size_t>{224, 224}),
+          ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
+          ::testing::Values(additional_config)
+       ),
+       KmbInterpolateLayerTest_VPU4000::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_M2I_u8_Cminor,
+       KmbInterpolateLayerTest_VPU4000,
+       ::testing::Combine(
+          interpCminorM2IMode,
+          ::testing::Values(InferenceEngine::Precision::U8),
+          ::testing::Values(InferenceEngine::Precision::U8),
+          ::testing::Values(InferenceEngine::Precision::U8),
+          ::testing::Values(InferenceEngine::Layout::NCHW),
+          ::testing::Values(InferenceEngine::Layout::NCHW),
+          ::testing::Values(std::vector<size_t>{1, 256, 256, 3}), //in-Shape
+          ::testing::Values(std::vector<size_t>{224, 224}),       //out-Shape for given axes
+          ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
+          ::testing::Values(additional_config)
+       ),
+       KmbInterpolateLayerTest_VPU4000::getTestCaseName);
 
 } // namespace

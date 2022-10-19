@@ -5,37 +5,20 @@
 
 //
 
+#include "vpux/compiler/dialect/VPUIP/graph-schema/utils.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 
 #include "vpux/compiler/dialect/VPUIP/graph-schema/blob_reader.hpp"
+#include "vpux/compiler/dialect/VPUIP/graph-schema/utils.hpp"
 
 using namespace vpux;
-
-namespace {
-
-MVCNN::ROIAlignMethod ROIAlignMethod2MVCNN(IE::ROIAlignMethod method) {
-    MVCNN::ROIAlignMethod mvcnn_method;
-    switch (method) {
-    case IE::ROIAlignMethod::avg:
-        mvcnn_method = MVCNN::ROIAlignMethod_roi_align_avg;
-        break;
-    case IE::ROIAlignMethod::max:
-        mvcnn_method = MVCNN::ROIAlignMethod_roi_align_max;
-        break;
-    default:
-        VPUX_THROW("Unknown ROIAlignMethod. avg and max methods are supported only");
-    }
-    return mvcnn_method;
-}
-
-}  // namespace
 
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::ROIAlignUPAOp::serialize(VPUIP::BlobWriter& writer) {
     const float spatial_scale_val = static_cast<float>(spatial_scale().convertToDouble());
 
     MVCNN::ROIAlignParamsBuilder builder(writer);
     builder.add_spatial_scale(spatial_scale_val);
-    builder.add_method(ROIAlignMethod2MVCNN(poolingMode()));
+    builder.add_method(convertVPUXROIAlignMethod2MVCNN(poolingMode()));
     builder.add_sampling_ratio(checked_cast<uint32_t>(sampling_ratio()));
     builder.add_pooled_h(checked_cast<uint32_t>(pooled_h()));
     builder.add_pooled_w(checked_cast<uint32_t>(pooled_w()));
@@ -51,13 +34,13 @@ IE::ROIAlignMethod softLayerParam2IEMethod(size_t method) {
     IE::ROIAlignMethod ieMethod;
     switch (method) {
     case 0:
-        ieMethod = IE::ROIAlignMethod::avg;
+        ieMethod = IE::ROIAlignMethod::AVG;
         break;
     case 1:
-        ieMethod = IE::ROIAlignMethod::max;
+        ieMethod = IE::ROIAlignMethod::MAX;
         break;
     default:
-        VPUX_THROW("Unknown ROIAlignMethod. avg and max methods are supported only");
+        VPUX_THROW("Unknown ROIAlignMethod. AVG and MAX methods are supported only");
     }
 
     return ieMethod;

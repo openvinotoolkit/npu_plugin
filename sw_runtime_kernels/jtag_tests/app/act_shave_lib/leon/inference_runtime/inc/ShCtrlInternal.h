@@ -16,23 +16,23 @@
 #include <stdbool.h>
 #include <rtems.h>
 
+#define ShaveType HglShaveType
+
 typedef struct ShHandle {
-    HglShaveType type;
+    // Persistent members
+    uint8_t *base; // base address of shave: _must_ be first element
+    ShaveType type;
     uint32_t id;
-    uint8_t *base;         // base address of shave
-    rtems_id waitSema;     // sema to be used in wait functions
-    uint8_t resetBegin[0]; // label from where to zero in case of reset
-    // From here, all members are subjected to reset
-    uint8_t *bss;          // start of bss
-    uint32_t bssSize;      // size in bytes of bss
-    uint32_t reason;       // reason for completion of payload
-    uint32_t *paramSP;     // current stack pointer
-    uint32_t availableIrf; // current available IRF count for parameters
-    uint32_t availableVrf; // current available VRF count for parameters
-    bool opened;           // true if we have openend the handle
-    bool hasStack;         // true if we have defined stack
-    bool hasStackSize;     // true if we have defined stack size
-    bool collected;        // true if we did the post-run collect stage
+    rtems_id waitSema; // sema to be used in wait functions
+
+    // Non-persistent members
+    uint32_t reason;        // reason for completion of payload
+    uintptr_t stackAddr;    // Stack pointer address (8 byte aligned down)
+    uint32_t stackSize;     // Stack size limit in bytes (8 byte aligned down)
+    uintptr_t winOffset[4]; // Shave Window Offsets (1024 byte aligned)
+    bool opened;            // true if we have openend the handle
+    bool usingPoll;         // true if ShaveCtrlWait polls for completion
+    bool collected;         // true if we did the post-run collect stage
 
     union {
         union {
@@ -46,7 +46,6 @@ typedef struct ShHandle {
             uint32_t irfReturnData[4];
         };
     };
-    uint8_t resetEnd[0]; // label to end of reset to zero zone
 } ShHandle;
 
 #define SHAVE_PARAMS_FIRST_IRF 18
@@ -59,6 +58,8 @@ typedef struct ShHandle {
 
 #define SHAVE_RETURN_FIRST_IRF 18
 #define SHAVE_RETURN_DOWNWARDS_IRF
+
+#define SH_ADDR_WINDOW_ALIGN_MASK (0x3FF)
 
 #endif
 

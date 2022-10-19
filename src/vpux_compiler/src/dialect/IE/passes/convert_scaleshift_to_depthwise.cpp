@@ -7,6 +7,7 @@
 
 #include "vpux/compiler/core/layers.hpp"
 #include "vpux/compiler/dialect/IE/ops.hpp"
+#include "vpux/compiler/dialect/IE/ops_interfaces.hpp"
 #include "vpux/compiler/dialect/IE/passes.hpp"
 #include "vpux/compiler/dialect/const/attributes/content.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
@@ -62,6 +63,30 @@ mlir::LogicalResult ConvertScaleShiftToDWPass::ScaleShiftOpConverter::matchAndRe
         IE::ScaleShiftOp origOp, mlir::PatternRewriter& rewriter) const {
     if (origOp.weights() == nullptr)
         return matchFailed(_log, rewriter, origOp, "Failed to convert ScaleShift to DW, since there are no weights");
+
+    // If ScaleShift after input and first conv can use C-major, It is better not convert to DWConv.
+    // More general, if sub-graph like: input -> UPAs -> ScaleShift -> Conv. It is better not convert to DWConv.
+    // If layer before ScaleShift is NCE op or with NHWC layout. It should convert to DWConv.
+    auto onlySupportNHWCLayout = [&](mlir::Operation* op) -> bool {
+        if (auto iface = mlir::dyn_cast<IE::LayoutInfoOpInterface>(op)) {
+            auto orderInfo = iface.getLayoutInfo();
+            iface.inferLayoutInfo(orderInfo);
+            return orderInfo.hasChanges();
+        }
+        return false;
+    };
+
+    auto prevOp = origOp.input().getDefiningOp();
+    if (prevOp == nullptr || !onlySupportNHWCLayout(prevOp)) {
+        for (auto user : origOp.getResult().getUsers()) {
+            auto convOp = mlir::dyn_cast<IE::ConvolutionOp>(user);
+            if (convOp != nullptr &&
+                VPU::NCEInvariant::isChannelMajorCompatible(VPU::getArch(convOp),
+                                                            convOp.input().getType().cast<vpux::NDTypeInterface>())) {
+                return mlir::failure();
+            }
+        }
+    }
 
     const SmallVector<int32_t> strides = {1, 1};
     const SmallVector<int32_t> padBegin = {0, 0};

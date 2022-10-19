@@ -64,9 +64,9 @@ void buildEltwiseMultWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir
 
     const size_t num_func_args = 3;
 
-    auto input = testDesc.getInputLayer();
+    auto input = testDesc.getInputLayerList().front();
     auto weight = testDesc.getWeightLayer();
-    auto output = testDesc.getOutputLayer();
+    auto output = testDesc.getOutputLayers().front();
 
     SmallVector<int64_t> in_shape(input.shape.begin(), input.shape.end());
     SmallVector<int64_t> weights_shape(weight.shape.begin(), weight.shape.end());
@@ -318,7 +318,7 @@ void buildEltwiseMultWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir
     auto nceTask = VPURT::wrapIntoTaskOp<VPUIP::NCEClusterTaskOp>(
             funcbuilder, BARRIER_0, BARRIER_1, builder.getUnknownLoc(), output_cmx_memreftype,
             getTensorResult(input_nce_cmx), getTensorResult(weights_nce_cmx), getTensorResult(weightstable_cmx),
-            getTensorResult(act_window_cmx), getTensorResult(parent_input_nce_cmx),
+            /*instruction_table_list=*/nullptr, getTensorResult(act_window_cmx), getTensorResult(parent_input_nce_cmx),
             getTensorResult(parent_output_nce_cmx), getTensorResult(output_nce_cmx), NCETaskType::DWCONV, filtersize,
             strides, kernel_padding, actChannelLength, /*is_continued*/ nullptr, /*sp_pattern*/ nullptr);
 
@@ -337,7 +337,8 @@ void buildEltwiseMultWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir
 
     // Runtime resources
     mlir::PassManager pm(ctx, mlir::OpPassManager::Nesting::Implicit);
-    pm.addPass(VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::DefaultHW, None, log));
+    pm.addPass(
+            VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::DefaultHW, None, None, log));
 
     // Compile
     VPUX_THROW_UNLESS(mlir::succeeded(pm.run(module)), "Compilation failed");

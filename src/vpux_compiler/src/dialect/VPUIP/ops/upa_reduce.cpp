@@ -22,11 +22,26 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::ReduceUPAOp::serialize(VPUIP::BlobW
     case VPUIP::ReduceLayerType::MEAN:
         type = writer.createString("mean");
         break;
+    case VPUIP::ReduceLayerType::LOGICAL_OR:
+        type = writer.createString("logicalor");
+        break;
+    case VPUIP::ReduceLayerType::LOGICAL_AND:
+        type = writer.createString("logicaland");
+        break;
+    case VPUIP::ReduceLayerType::PROD:
+        type = writer.createString("prod");
+        break;
     case VPUIP::ReduceLayerType::SUM:
         type = writer.createString("sum");
         break;
     case VPUIP::ReduceLayerType::MIN:
         type = writer.createString("min");
+        break;
+    case VPUIP::ReduceLayerType::L1:
+        type = writer.createString("l1");
+        break;
+    case VPUIP::ReduceLayerType::L2:
+        type = writer.createString("l2");
         break;
     default:
         VPUX_THROW("Unsupported ReduceLayerType {0}", this->type());
@@ -53,10 +68,20 @@ mlir::Operation* vpux::VPUIP::BlobReader::parseReduce(mlir::OpBuilder& builder, 
         type = VPUIP::ReduceLayerType::MAX;
     } else if (typeStr == std::string("mean")) {
         type = VPUIP::ReduceLayerType::MEAN;
+    } else if (typeStr == std::string("logicalor")) {
+        type = VPUIP::ReduceLayerType::LOGICAL_OR;
+    } else if (typeStr == std::string("logicaland")) {
+        type = VPUIP::ReduceLayerType::LOGICAL_AND;
+    } else if (typeStr == std::string("prod")) {
+        type = VPUIP::ReduceLayerType::PROD;
     } else if (typeStr == std::string("sum")) {
         type = VPUIP::ReduceLayerType::SUM;
     } else if (typeStr == std::string("min")) {
         type = VPUIP::ReduceLayerType::MIN;
+    } else if (typeStr == std::string("l1")) {
+        type = VPUIP::ReduceLayerType::L1;
+    } else if (typeStr == std::string("l2")) {
+        type = VPUIP::ReduceLayerType::L2;
     } else {
         VPUX_THROW("Unsupported ReduceLayerType {0}", typeStr);
     }

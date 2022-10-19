@@ -16,9 +16,32 @@ It handles such VPU-specifics as:
 
 ### VPUIP Barrier Type
 This object represents closely a Barrier in the device
-### VPURT Sparse Buffer Type
-This object represents a set of memory references that compose sparse data
 ## Operation definition
+
+### `VPURT.Alloc` (vpux::VPURT::Alloc)
+
+Alloc VPUIP buffer
+
+
+Syntax:
+
+```
+operation ::= `VPURT.Alloc` attr-dict `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`alignment` | mlir::IntegerAttr | Integer attribute
+`swizzlingKey` | mlir::IntegerAttr | Integer attribute
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`buffer` | memref of any type values
 
 ### `VPURT.AllocDistributed` (vpux::VPURT::AllocDistributed)
 
@@ -31,6 +54,13 @@ Syntax:
 operation ::= `VPURT.AllocDistributed` attr-dict `->` type(results)
 ```
 
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`alignment` | mlir::IntegerAttr | Integer attribute
+`swizzlingKey` | mlir::IntegerAttr | Integer attribute
 
 #### Results:
 
@@ -81,39 +111,13 @@ operation ::= `VPURT.DeclareBuffer` $section ($sectionIndex^)? ` ``<` $byteOffse
 `section` | vpux::VPURT::BufferSectionAttr | Values indicating which section of BLOB the buffer resides in
 `sectionIndex` | ::mlir::ArrayAttr | 64-bit integer array attribute
 `byteOffset` | mlir::IntegerAttr | Integer attribute
+`swizzlingKey` | mlir::IntegerAttr | Integer attribute
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
 `buffer` | memref of any type values or VPUIP buffer type to describe the buffer tiling
-
-### `VPURT.DeclareSparseBuffer` (vpux::VPURT::DeclareSparseBufferOp)
-
-Declare sparse VPU run-time buffer
-
-
-Syntax:
-
-```
-operation ::= `VPURT.DeclareSparseBuffer` $data `:` type($data) (`,` $sparsityMap^ `:` type($sparsityMap))? (`,` $storageElementTable^ `:` type($storageElementTable))?
-              attr-dict `->` type(results)
-```
-
-
-#### Operands:
-
-| Operand | Description |
-| :-----: | ----------- |
-`data` | memref of any type values
-`sparsityMap` | memref of any type values
-`storageElementTable` | memref of any type values
-
-#### Results:
-
-| Result | Description |
-| :----: | ----------- |
-`sparseBuffer` | VPURT Sparse Buffer Type
 
 ### `VPURT.DeclareVirtualBarrier` (vpux::VPURT::DeclareVirtualBarrierOp)
 
@@ -195,16 +199,3 @@ operation ::= `VPURT.Task` (`profiling_data` `(` $profiling_data^  `:` type($pro
 VPUIP Barrier Type
 
 This object represents closely a Barrier in the device
-### SparseBufferType
-
-VPURT Sparse Buffer Type
-
-This object represents a set of memory references that compose sparse data
-#### Parameters:
-
-| Parameter | C++ type | Description |
-| :-------: | :-------: | ----------- |
-| data | `mlir::MemRefType` |  |
-| sparsity_map | `mlir::MemRefType` |  |
-| storage_element_table | `mlir::MemRefType` |  |
-

@@ -6,7 +6,7 @@
 //
 
 __attribute__((aligned(1024)))
-#include "sk.nnActEntry.3010xx.text.xdat"
+#include "sk.nnActEntry.3720xx.text.xdat"
 #include <sw_nn_runtime_types.h>
 #include <sw_shave_lib_common.h>
 #include <HglShaveCommon.h>
@@ -24,28 +24,13 @@ __attribute__((aligned(1024)))
 
 #include <nn_perf_manager.h>
 
-unsigned char __attribute__((section(".nncmx0.shared.data"), aligned(64))) actShaveData[SHAVE_LIB_DATA_SIZE];
-unsigned int actShaveDataReserved = 0;
-
 namespace {
 using namespace nn::inference_runtime;
 using namespace nn::common_runtime;
 
-const unsigned int IR_EVENT = RTEMS_EVENT_17;
-const unsigned int WORK_QUEUE_LENGTH = IR_WORKER_COUNT * 2;
-
-#if !defined(CONFIG_TARGET_SOC_3600) && !defined(CONFIG_TARGET_SOC_3710) && !defined(CONFIG_TARGET_SOC_3720)
-const uint32_t NN_CMX_BASE = 0x3e000000;
-#else
 const uint32_t NN_CMX_BASE = 0x2e000000;
-#endif
-#if defined(NN_ENABLE_SCALABILITY_REPORTING)
-const uint32_t NN_LOG_BUFFER_SIZE = 0x800;
-#endif /* NN_ENABLE_SCALABILITY_REPORTING */
-constexpr uint32_t MAX_WAIT_ITERATIONS=1000000;
 } // namespace
 
-static SoftLayerExec __attribute__((section(".nncmx0.shared.data"))) sl;
 static Layer __attribute__((section(".nncmx0.shared.data"))) layer;
 
 using namespace nn;
@@ -73,7 +58,7 @@ const int ProducerNum = 1;
 const int ConsumerMask = (1 << ConsumerNum);
 const int ProducerMask = (1 << ProducerNum);
 
-perf::ActPerfReport __attribute__((section(".nncmx0.shared.data"), aligned(64))) actPerfReport{0, 0};
+perf::ActPerfReport __attribute__((section(".nncmx0.shared.data"), aligned(64))) actPerfReport{0, 0, 0, 0, 0, 0};
 
 PerformanceData* perfData = nullptr;
 
@@ -82,8 +67,8 @@ bool ShaveTaskRunner::enqueTask(Op * operation,
                               const std::vector<OpTensor> &outputs,
                               int /*numSHAVEs*/,
                               PerformanceData *_perfData) {
-
-    actShaveDataReserved = 0;
+    (void)inputs;
+    (void)outputs;
 
     HglShaveAccessAllowed[1] = false;
     HglShaveAccessAllowed[2] = true;
@@ -95,8 +80,8 @@ bool ShaveTaskRunner::enqueTask(Op * operation,
 
     CustomCpp * customOp = static_cast<CustomCpp*>(operation);
 
-    actRtConfigs.runtimeEntry_ = reinterpret_cast<nn::act_runtime::actRuntimeEntry>(sk_nnActEntry_3010xx_text);
-    actRtConfigs.actRtWindowBase_ = reinterpret_cast<unsigned char*>(sk_nnActEntry_3010xx_text);
+    actRtConfigs.runtimeEntry_ = reinterpret_cast<nn::act_runtime::actRuntimeEntry>(sk_nnActEntry_3720xx_text);
+    actRtConfigs.actRtWindowBase_ = reinterpret_cast<unsigned char*>(sk_nnActEntry_3720xx_text);
 
     operation->parse(&layer);
 
@@ -132,8 +117,8 @@ bool ShaveTaskRunner::enqueTask(Op * operation,
 //    };
     cache::flush(gpioBarriers);
 
-    HglBarrierReset(ConsumerMask);
-    HglBarrierReset(ProducerMask);
+    HglBarrierReset64(ConsumerMask);
+    HglBarrierReset64(ProducerMask);
     HglBarrierSetProdConsCounts(ConsumerNum, 1, 1);
     HglBarrierSetProdConsCounts(ProducerNum, 1, 0);
 
@@ -149,7 +134,7 @@ bool ShaveTaskRunner::enqueTask(Op * operation,
     leonDataCacheFlush();
     fifo::sendWorkToASs(0/*local_aki.tile_*/, &kInvo);
 
-    HglBarrierProduce(ConsumerMask);
+    HglBarrierProduce64(ConsumerMask);
 
     _enqued = true;
     return true;
@@ -157,7 +142,7 @@ bool ShaveTaskRunner::enqueTask(Op * operation,
 
 bool ShaveTaskRunner::dequeResult() {
     if (_enqued) {
-        HglBarrierWait(ProducerMask);
+        HglBarrierWait64(ProducerMask);
 
         nnLog(MVLOG_DEBUG, "After send waiting is done");
 

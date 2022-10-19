@@ -139,7 +139,7 @@ mlir::LogicalResult vpux::IE::AffineReshapeOp::inferReturnTypeComponents(
         return mlir::failure();
     }
 
-    const auto outDesc = IE::getTensorAttr(ctx, outputLayout.getValue(), ndInType.getMemSpace(), IE::isSparse(inType));
+    const auto outDesc = IE::getTensorAttr(ctx, outputLayout.getValue(), ndInType.getMemSpace());
 
     const auto elemTypeInferResult = inferElemType(affineReshape, ndInType.getElementType());
     if (mlir::failed(elemTypeInferResult)) {

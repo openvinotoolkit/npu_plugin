@@ -49,7 +49,7 @@ public:
     mlir::LogicalResult matchAndRewrite(ConcreteOp origOp, mlir::PatternRewriter& rewriter) const final;
 
     SmallVector<mlir::Value> sliceInputs(mlir::PatternRewriter& rewriter, ConcreteOp origOp, int64_t sliceIdx) const {
-        const auto operands = origOp.getOperands();
+        const auto operands = origOp->getOperands();
         SmallVector<mlir::Value> slices;
         for (const auto inputIdx : irange(_numInputs)) {
             const auto input = operands[inputIdx];
@@ -161,6 +161,15 @@ void UnrollBatchPass::safeRunOnFunc() {
     target.addDynamicallyLegalOp<IE::ConvolutionOp>([&](IE::ConvolutionOp op) -> bool {
         return shapeRankEq0(op.input()) || isBatchEq1(op.input());
     });
+    target.addDynamicallyLegalOp<IE::GroupConvolutionOp>([&](IE::GroupConvolutionOp op) -> bool {
+        return shapeRankEq0(op.input()) || isBatchEq1(op.input());
+    });
+    target.addDynamicallyLegalOp<IE::ExpOp>([&](IE::ExpOp op) -> bool {
+        return shapeRankEq0(op.input()) || isBatchEq1(op.input());
+    });
+    target.addDynamicallyLegalOp<IE::SigmoidOp>([&](IE::SigmoidOp op) -> bool {
+        return shapeRankEq0(op.input()) || isBatchEq1(op.input());
+    });
     target.addDynamicallyLegalOp<IE::AndOp>([&](IE::AndOp op) -> bool {
         return (shapeRankEq0(op.input1()) || shapeRankEq0(op.input2())) || !isShapeRankEq(op.input1(), op.input2()) ||
                (isBatchEq1(op.input1()) || isBatchEq1(op.input2()));
@@ -177,6 +186,9 @@ void UnrollBatchPass::safeRunOnFunc() {
     mlir::RewritePatternSet patterns(&ctx);
     patterns.insert<OpConverter<IE::ConvolutionOp>>(&ctx, _log, 1);
     patterns.insert<OpConverter<IE::FullyConnectedOp>>(&ctx, _log, 1);
+    patterns.insert<OpConverter<IE::GroupConvolutionOp>>(&ctx, _log, 1);
+    patterns.insert<OpConverter<IE::ExpOp>>(&ctx, _log, 1);
+    patterns.insert<OpConverter<IE::SigmoidOp>>(&ctx, _log, 1);
     patterns.insert<OpConverter<IE::AndOp>>(&ctx, _log, 2);
     patterns.insert<OpConverter<IE::AddOp>>(&ctx, _log, 2);
 

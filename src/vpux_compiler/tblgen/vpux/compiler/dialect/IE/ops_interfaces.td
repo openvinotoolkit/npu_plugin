@@ -85,7 +85,7 @@ def IE_LayerWithPostOpInterface : OpInterface<"LayerWithPostOpInterface"> {
             "void", "setPostOp", (ins "mlir::Operation*":$postOp),
             [{}],
             [{
-                return vpux::IE::setLayerPostOp($_op, postOp);
+                vpux::IE::setLayerPostOp($_op, postOp);
             }]
         >,
 
@@ -94,7 +94,7 @@ def IE_LayerWithPostOpInterface : OpInterface<"LayerWithPostOpInterface"> {
             "void", "clearPostOp", (ins),
             [{}],
             [{
-                return vpux::IE::clearLayerPostOp($_op);
+                vpux::IE::clearLayerPostOp($_op);
             }]
         >,
 
@@ -127,11 +127,6 @@ def IE_AlignedChannelsOpInterface : OpInterface<"AlignedChannelsOpInterface"> {
         InterfaceMethod<
             "Get output channels alignment factor in elements",
             "int64_t", "getOutputChannelAlignment", (ins)
-        >,
-
-        InterfaceMethod<
-            "Check HW channel number restrictions",
-            "bool", "checkChannelRestrictions", (ins "int64_t":$channels)
         >
     ];
 }
@@ -161,61 +156,6 @@ def IE_LayoutInfoOpInterface : OpInterface<"LayoutInfoOpInterface"> {
             }]
         >
     ];
-}
-
-//
-// TilingBuilderOpInterface
-//
-
-def IE_TilingBuilderOpInterface : OpInterface<"TilingBuilderOpInterface"> {
-    let description = "Interface for operations to reify the provided tiling configuration";
-
-    let cppNamespace = "vpux::IE";
-
-    let methods = [
-        InterfaceMethod<
-            "Return the maximum number of tiles for each dimension",
-            "SmallVector<int64_t>", "getMaxNumTiles", (ins),
-            [{}],
-            [{
-                return vpux::IE::getMaxNumTiles($_op);
-            }]
-        >,
-
-        InterfaceMethod<
-            "Infer input tiles information from the output tile",
-            "vpux::TilingInfo", "backInferTileInfo",
-            (ins "const vpux::TileInfo&":$outputTile)
-        >,
-
-        InterfaceMethod<
-            "Adjust the operation attributes to the current tile properties",
-            "void", "adjustAttrs",
-            (ins "const vpux::TilingInfo&":$inputTiling, "const TileInfo&":$outputTile)
-        >,
-    ];
-}
-
-//
-// TilingInfoOpInterface
-//
-
-def IE_TilingInfoOpInterface : OpInterface<"TilingInfoOpInterface"> {
-    let description = "Interface for operations to provide information about required/supported tiling configurations";
-
-    let cppNamespace = "vpux::IE";
-
-    let methods = [
-        InterfaceMethod<
-            "Check, if the provided tiling configuration is supported by the operation implementation",
-            "bool", "isSupportedTiling",
-            (ins "const vpux::OutputTiling&":$tiles, "vpux::TilingMode":$tilingMode, "vpux::Logger":$log)
-        >,
-    ];
-
-    let verify = [{
-        return vpux::IE::verifyTilingInfo($_op);
-    }];
 }
 
 //

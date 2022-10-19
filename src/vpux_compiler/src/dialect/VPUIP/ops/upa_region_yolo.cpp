@@ -41,6 +41,6 @@ void vpux::VPUIP::RegionYoloUPAOp::inferLayoutInfo(mlir::Operation* origOp, IE::
     if (regionYoloOp.do_softmax()) {
         IE::fillDefaultLayoutInfo(info);
     } else {
-        IERT::inferLayoutInfoSameInOutSpecificDimsOrder(info, {DimsOrder::NCHW});
+        VPUIP::inferLayoutInfoSameInOutSpecificDimsOrder(info, {DimsOrder::NCHW});
     }
 }

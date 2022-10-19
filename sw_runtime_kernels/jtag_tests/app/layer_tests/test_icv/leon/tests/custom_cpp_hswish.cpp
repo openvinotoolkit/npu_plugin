@@ -6,12 +6,8 @@
 #include "layers/param_custom_cpp.h"
 #include "mvSubspaces.h"
 
-#ifdef CONFIG_TARGET_SOC_3720
 __attribute__((aligned(1024)))
-#include "sk.hswish_fp16.3010xx.text.xdat"
-#else
-#include "svuSLKernels_EP.h"
-#endif
+#include "sk.hswish_fp16.3720xx.text.xdat"
 
 #include "param_hswish.h"
 
@@ -39,7 +35,8 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, HSwish)) {
         }
 
         void initData() override {
-            m_params = {0xFFFFFFFF, m_elfBuffer, 0, nullptr, MAX_LOCAL_PARAMS, 0, 0};
+            sw_params::BaseKernelParams emptyParamData;
+            m_params = {0xFFFFFFFF, m_elfBuffer, 0, nullptr, emptyParamData, MAX_LOCAL_PARAMS, 0};
 
             CustomCppTests<fp16>::initData();
             const SingleTest* test = m_currentTest;
@@ -52,11 +49,7 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, HSwish)) {
             m_requiredTensorLocation = static_cast<sw_params::Location>(test->customLayerParams.layerParams[0]);
             m_params.baseParamData = sw_params::ToBaseKernelParams(m_hswishParams);
 
-#ifdef CONFIG_TARGET_SOC_3720
-            m_params.kernel = reinterpret_cast<uint64_t>(sk_hswish_fp16_3010xx_text);
-#else
-            m_params.kernel = reinterpret_cast<uint64_t>(PREAMBLE_FUNC(hswish_fp16));
-#endif
+            m_params.kernel = reinterpret_cast<uint64_t>(sk_hswish_fp16_3720xx_text);
         }
 
         void initTestCase() override {
@@ -65,13 +58,8 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, HSwish)) {
         }
 
         void generateInputData() override {
-#if defined(USE_SEED_VALUE)
             auto seedValue = USE_SEED_VALUE;
-#else
-            u64 systemTicks;
-            DrvTimerGetSystemTicks64(&systemTicks);
-            auto seedValue = static_cast<unsigned int>(systemTicks);
-#endif
+
             std::mt19937 generator(seedValue);
             m_inputTensor.forEach(false, [this, &generator](const MemoryDims& indices) {
                 // We generate the random value between -8.f and 8f and the kernel do x * relu6(x+3) / 6

@@ -49,7 +49,9 @@ mlir::OwningModuleRef importHWTEST(llvm::StringRef sourceJson, mlir::MLIRContext
     bool isEltwiseMult = jsonDesc.getCaseType() == nb::CaseType::EltwiseMult;
     bool isAvgPool = jsonDesc.getCaseType() == nb::CaseType::AvgPool;
     bool isDifferentClustersDPU = jsonDesc.getCaseType() == nb::CaseType::DifferentClustersDPU;
+    bool isMultiClustersDPU = jsonDesc.getCaseType() == nb::CaseType::MultiClustersDPU;
     bool isActShave = jsonDesc.getCaseType() == nb::CaseType::ActShave;
+    bool isM2iTask = jsonDesc.getCaseType() == nb::CaseType::M2iTask;
     bool isReadAfterWriteDPUDMA = jsonDesc.getCaseType() == nb::CaseType::ReadAfterWriteDPUDMA;
     bool isReadAfterWriteDMADPU = jsonDesc.getCaseType() == nb::CaseType::ReadAfterWriteDMADPU;
     bool isReadAfterWriteACTDMA = jsonDesc.getCaseType() == nb::CaseType::ReadAfterWriteACTDMA;
@@ -64,11 +66,15 @@ mlir::OwningModuleRef importHWTEST(llvm::StringRef sourceJson, mlir::MLIRContext
 
     auto mainOpJsonDesc = isRaceCondition ? *jsonDesc.getUnderlyingOp() : jsonDesc;
 
-    nb::InputLayer input = mainOpJsonDesc.getInputLayer();
-    nb::OutputLayer output = mainOpJsonDesc.getOutputLayer();
+    const SmallVector<nb::InputLayer> inputList = mainOpJsonDesc.getInputLayerList();
+    auto outputs = mainOpJsonDesc.getOutputLayers();
 
-    mlir::Type input_type = hwtest::parseInputType(builder, input);
-    mlir::Type output_type = hwtest::parseOutputType(builder, output);
+    SmallVector<mlir::Type> input_types;
+    for (std::size_t idx = 0; idx < inputList.size(); idx++) {
+        input_types.push_back(hwtest::parseInputType(builder, inputList[idx]));
+    }
+
+    mlir::Type output_type = hwtest::parseOutputType(builder, outputs.front());
 
     auto weightType = [&]() {
         nb::WeightLayer weight = mainOpJsonDesc.getWeightLayer();
@@ -81,52 +87,67 @@ mlir::OwningModuleRef importHWTEST(llvm::StringRef sourceJson, mlir::MLIRContext
     };
 
     if (isDMA) {
-        hwtest::buildDMA(jsonDesc, module, builder, log, input_type, output_type);
+        hwtest::buildDMA(jsonDesc, module, builder, log, input_types.front(), output_type);
     } else if (isConv) {
         if (weightInChannels() > 8 * 1024) {
-            hwtest::buildContinuedConv(jsonDesc, module, builder, log, input_type, weightType(), output_type);
+            hwtest::buildContinuedConv(jsonDesc, module, builder, log, input_types.front(), weightType(), output_type);
         } else {
-            hwtest::buildSimpleZMajorConv(jsonDesc, module, builder, log, input_type, weightType(), output_type);
+            hwtest::buildSimpleZMajorConv(jsonDesc, module, builder, log, input_types.front(), weightType(),
+                                          output_type);
         }
     } else if (isSparseConv) {
-        hwtest::buildSparseZMajorConv(jsonDesc, module, builder, log, input_type, weightType(), output_type);
+        hwtest::buildSparseZMajorConv(jsonDesc, module, builder, log, input_types.front(), weightType(), output_type);
     } else if (isDepthwiseConv) {
-        hwtest::buildDWConv(jsonDesc, module, builder, log, input_type, weightType(), output_type);
+        hwtest::buildDWConv(jsonDesc, module, builder, log, input_types.front(), weightType(), output_type);
     } else if (isEltwiseAdd) {
-        hwtest::buildEltwiseAdd(jsonDesc, module, builder, log, input_type, weightType(), output_type);
+        hwtest::buildEltwiseAdd(jsonDesc, module, builder, log, input_types.front(), weightType(), output_type);
     } else if (isEltwiseMult) {
-        hwtest::buildEltwiseMultWithDwConv(jsonDesc, module, builder, log, input_type, weightType(), output_type);
+        hwtest::buildEltwiseMultWithDwConv(jsonDesc, module, builder, log, input_types.front(), weightType(),
+                                           output_type);
     } else if (isMaxPool) {
-        hwtest::buildMaxPool(jsonDesc, module, builder, log, input_type, output_type);
+        hwtest::buildMaxPool(jsonDesc, module, builder, log, input_types.front(), output_type);
     } else if (isAvgPool) {
-        // hwtest::buildAvgpoolWithDwConv(jsonDesc, module, builder, log, input_type, output_type);
-        hwtest::buildAvgpool(jsonDesc, module, builder, log, input_type, output_type);
+        // hwtest::buildAvgpoolWithDwConv(jsonDesc, module, builder, log, input_types.front(), output_type);
+        hwtest::buildAvgpool(jsonDesc, module, builder, log, input_types.front(), output_type);
     } else if (isDifferentClustersDPU) {
-        hwtest::buildDifferentClustersDPUTest(jsonDesc, module, builder, log, input_type, weightType(), output_type);
+        hwtest::buildDifferentClustersDPUTest(jsonDesc, module, builder, log, input_types.front(), weightType(),
+                                              output_type);
+    } else if (isMultiClustersDPU) {
+        hwtest::buildMultiClustersDPUTest(jsonDesc, module, builder, log, input_types.front(), weightType(),
+                                          output_type);
     } else if (isActShave) {
-        hwtest::buildActShave(jsonDesc, module, builder, log, input_type, output_type);
+        hwtest::buildActShave(jsonDesc, module, builder, log, input_types, output_type);
     } else if (isReadAfterWriteDPUDMA) {
-        hwtest::buildReadAfterWriteDPUDMATest(jsonDesc, module, builder, log, input_type, weightType(), output_type);
+        hwtest::buildReadAfterWriteDPUDMATest(jsonDesc, module, builder, log, input_types.front(), weightType(),
+                                              output_type);
     } else if (isReadAfterWriteDMADPU) {
-        hwtest::buildReadAfterWriteDMADPUTest(jsonDesc, module, builder, log, input_type, weightType(), output_type);
+        hwtest::buildReadAfterWriteDMADPUTest(jsonDesc, module, builder, log, input_types.front(), weightType(),
+                                              output_type);
     } else if (isReadAfterWriteACTDMA) {
-        hwtest::buildReadAfterWriteACTDMATest(jsonDesc, module, builder, log, input_type, output_type);
+        hwtest::buildReadAfterWriteACTDMATest(jsonDesc, module, builder, log, input_types.front(), output_type);
     } else if (isReadAfterWriteDMAACT) {
-        hwtest::buildReadAfterWriteDMAACTTest(jsonDesc, module, builder, log, input_type, output_type);
+        hwtest::buildReadAfterWriteDMAACTTest(jsonDesc, module, builder, log, input_types.front(), output_type);
     } else if (isReadAfterWriteDPUACT) {
-        hwtest::buildReadAfterWriteDPUACTTest(jsonDesc, module, builder, log, input_type, weightType(), output_type);
+        hwtest::buildReadAfterWriteDPUACTTest(jsonDesc, module, builder, log, input_types.front(), weightType(),
+                                              output_type);
     } else if (isReadAfterWriteACTDPU) {
-        hwtest::buildReadAfterWriteACTDPUTest(jsonDesc, module, builder, log, input_type, weightType(), output_type);
+        hwtest::buildReadAfterWriteACTDPUTest(jsonDesc, module, builder, log, input_types.front(), weightType(),
+                                              output_type);
     } else if (isRaceConditionDMA) {
-        hwtest::buildRaceConditionDMATest(jsonDesc, module, builder, log, input_type, output_type);
+        hwtest::buildRaceConditionDMATest(jsonDesc, module, builder, log, input_types.front(), output_type);
     } else if (isRaceConditionDPU) {
-        hwtest::buildRaceConditionDPUTest(jsonDesc, module, builder, log, input_type, weightType(), output_type);
+        hwtest::buildRaceConditionDPUTest(jsonDesc, module, builder, log, input_types.front(), weightType(),
+                                          output_type);
     } else if (isRaceConditionDPUDMA) {
-        hwtest::buildRaceConditionDPUDMATest(jsonDesc, module, builder, log, input_type, weightType(), output_type);
+        hwtest::buildRaceConditionDPUDMATest(jsonDesc, module, builder, log, input_types.front(), weightType(),
+                                             output_type);
     } else if (isRaceConditionDPUDMAACT) {
-        hwtest::buildRaceConditionDPUDMAACTTest(jsonDesc, module, builder, log, input_type, weightType(), output_type);
+        hwtest::buildRaceConditionDPUDMAACTTest(jsonDesc, module, builder, log, input_types.front(), weightType(),
+                                                output_type);
     } else if (isRaceCondition) {
-        hwtest::buildRaceConditionTest(jsonDesc, module, builder, log, input_type, output_type);
+        hwtest::buildRaceConditionTest(jsonDesc, module, builder, log, input_types.front(), output_type);
+    } else if (isM2iTask) {
+        hwtest::buildM2iTest(jsonDesc, module, builder, log, input_types.front(), output_type);
     } else {
         VPUX_THROW("Unknown type: {0}", opType);
     }

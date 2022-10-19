@@ -31,14 +31,10 @@ using namespace nn;
 using namespace nn::shave_lib;
 
 #include "ShaveElfMetadata/ShaveElfMetadataParser.h"
-#ifdef CONFIG_TARGET_SOC_3720
 #include <sw_nn_runtime_types_3600.h>
 #include <dma_shave_nn.h>
 void preCustomLayerCpp(const LayerParams *params, ShaveResourceManager *resMgr);
-#else
-#include <sw_nn_runtime_types_2490.h>
-#include "svuSLKernels_EP.h"
-#endif
+
 
 namespace {
 //  FIXME: Temporarily are located on CMX due to problem of ACT_SHAVE cache invalidation
@@ -66,16 +62,6 @@ static bool parseCustomElf(const uint8_t* ElfBuffer, KernelCppDescriptor& descri
     }
 
     return true;
-}
-
-static void layerCleanupCustomCppLayer(const LayerParams *params) {
-    auto custom_params = static_cast<const CustomLayerCppParams *>(params);
-
-//    nn::memory::shared_free(custom_params->argBuffer);
-    auto kernelBuffer = reinterpret_cast<void *>(custom_params->kernelBuffer);
-    if (kernelBuffer != nullptr) {
-        nn::memory::shared_free(kernelBuffer);
-    }
 }
 }
 
@@ -161,11 +147,6 @@ bool CustomCpp::parse(Layer * layer) {
     layer->setParams(id,
                      static_cast<LayerParams *>(params));
 
-#ifdef CONFIG_TARGET_SOC_MA2490
-    layer->setPreamble(PREAMBLE_FUNC(preCustomLayerCpp));
-//    layer->setKernelEntry(KERNEL_FUNC(custom_cpp));
-#endif
-
     return true;
 }
 
@@ -192,7 +173,6 @@ void CustomCpp::run(mv::tensor::Processor& ,
     mvTensorAssert(runner.enqueTask(this, std::move(inputVec), std::move(outputVec), myriadRes.lastShave - myriadRes.firstShave + 1, &perfData), "custom OpenCPP layer run failed");
     mvTensorAssert(runner.dequeResult(), "custom Cpp layer run failed");
 
-#ifdef CONFIG_TARGET_SOC_3720
     sw_params::BaseKernelParams * kernelParams = &(ops.baseParamData);
     sw_params::MemRefData* outTensors =
             reinterpret_cast<sw_params::MemRefData*>(reinterpret_cast<uint8_t*>(ops.paramData) + kernelParams->outputsOffset);
@@ -205,5 +185,4 @@ void CustomCpp::run(mv::tensor::Processor& ,
             dmaTask.wait();
         }
     }
-#endif
 }

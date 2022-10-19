@@ -196,28 +196,14 @@ vpux::BufferizeTypeConverter::BufferizeTypeConverter() {
         return getMemRefType(shape, elemType, order, memSpace);
     });
 
-    addTargetMaterialization(dummyConverter<mlir::BaseMemRefType>);
-    addArgumentMaterialization(dummyConverter<mlir::BaseMemRefType>);
-    addSourceMaterialization(dummyConverter<mlir::TensorType>);
-}
-
-//
-// populateBufferizeMaterializationLegality
-//
-
-void vpux::populateBufferizeMaterializationLegality(mlir::ConversionTarget& target) {
-    target.addLegalOp<mlir::UnrealizedConversionCastOp>();
-}
-
-//
-// BufferizeTypeConverter
-//
-
-vpux::BufferizeWithDistributedTypeConverter::BufferizeWithDistributedTypeConverter() {
     addConversion([](VPU::DistributedTensorType type) {
         return VPUIP::DistributedBufferType::get(type.getContext(), type.getShape().raw(), type.getElementType(),
                                                  type.getOrder(), type.getMemSpace(), type.getDistribution());
     });
+
+    addTargetMaterialization(dummyConverter<mlir::BaseMemRefType>);
+    addArgumentMaterialization(dummyConverter<mlir::BaseMemRefType>);
+    addSourceMaterialization(dummyConverter<mlir::TensorType>);
 
     addTargetMaterialization(dummyConverter<VPUIP::DistributedBufferType>);
     addArgumentMaterialization(dummyConverter<VPUIP::DistributedBufferType>);
@@ -225,10 +211,10 @@ vpux::BufferizeWithDistributedTypeConverter::BufferizeWithDistributedTypeConvert
 }
 
 //
-// populateBufferizeWithDistributedMaterializationLegality
+// populateBufferizeMaterializationLegality
 //
 
-void vpux::populateBufferizeWithDistributedMaterializationLegality(mlir::ConversionTarget& target) {
+void vpux::populateBufferizeMaterializationLegality(mlir::ConversionTarget& target) {
     target.addLegalOp<mlir::UnrealizedConversionCastOp>();
 }
 
@@ -269,11 +255,6 @@ void vpux::inferReturnTypes(mlir::Operation* op, InferShapedTypeMode mode) {
         if (!bitEnumContains(mode, InferShapedTypeMode::MEM_SPACE)) {
             if (const auto oldType = val.getType().dyn_cast<vpux::NDTypeInterface>()) {
                 newType = newType.changeMemSpace(oldType.getMemSpace());
-            }
-        }
-        if (!bitEnumContains(mode, InferShapedTypeMode::SPARSITY)) {
-            if (const auto oldType = val.getType().dyn_cast<mlir::RankedTensorType>()) {
-                newType = changeSparse(newType.cast<mlir::RankedTensorType>(), IE::isSparse(oldType));
             }
         }
 

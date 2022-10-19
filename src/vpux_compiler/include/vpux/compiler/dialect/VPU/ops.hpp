@@ -8,6 +8,7 @@
 #pragma once
 
 #include "vpux/compiler/core/attributes/shape.hpp"
+#include "vpux/compiler/dialect/EMU/ops_interfaces.hpp"
 #include "vpux/compiler/dialect/VPU/attributes.hpp"
 #include "vpux/compiler/dialect/VPU/dialect.hpp"
 #include "vpux/compiler/dialect/VPU/ops_interfaces.hpp"
@@ -37,11 +38,14 @@ mlir::LogicalResult verifyConv(mlir::Location loc, ArchKind arch, NCEConvolution
 mlir::LogicalResult verifyOp(NCEConvolutionOp op);
 mlir::LogicalResult verifyOp(NCEDepthConvolutionOp op);
 mlir::LogicalResult verifyOp(NCEMaxPoolOp op);
+mlir::LogicalResult verifyOp(NCEAveragePoolOp op);
+mlir::LogicalResult verifyOp(BucketizeOp op);
 
 mlir::LogicalResult verifyOp(NCEClusterTilingOp op);
 mlir::LogicalResult verifyOp(YieldOp op);
 
 mlir::LogicalResult verifyOp(DistributedCastOp op);
+mlir::LogicalResult verifyOp(StorageElementTableOp op);
 
 //
 // Tiling
@@ -83,6 +87,24 @@ TileInfo getActivationWindowTile(ConcreteOp* origOp, const vpux::TileInfo& /*out
 
     // All output channels use the same only-one string in the table, so we just copy the whole thing
     return TileInfo(origActivationWindowShape);
+}
+
+// Returns an getInstructionListTableTile tile required to produce the specific output tile
+template <typename ConcreteOp>
+TileInfo getInstructionListTableTile(ConcreteOp* origOp, const vpux::TileInfo& /*outputTile*/) {
+    const auto origInstructionListTable = origOp->instructionListTable();
+    VPUX_THROW_UNLESS(origInstructionListTable != nullptr, "The operation {0} doesn't have an InstructionListTable",
+                      *origOp);
+
+    const auto origInstructionListTableShape = getShape(origInstructionListTable);
+    VPUX_THROW_UNLESS(origInstructionListTableShape[Dim(0)] == 1 && origInstructionListTableShape[Dim(1)] == 1 &&
+                              origInstructionListTableShape[Dim(2)] == 1,
+                      "Unexpected InstructionListTable shape type or order: {0} with output shape of {1}"
+                      "\nProbably, we need to update this logic",
+                      origInstructionListTableShape, getShape(origOp->output()));
+
+    // All output channels use the same only-one string in the table, so we just copy the whole thing
+    return TileInfo(origInstructionListTableShape);
 }
 
 // Adjust paddings attributes for tiled input
@@ -147,32 +169,18 @@ mlir::LogicalResult isDistributedCastCompatible(T inDistributedType, T outDistri
     const auto inDistributionAttr = inDistributedType.getDistribution();
     const auto outDistributionAttr = outDistributedType.getDistribution();
 
-    if (inDistributionAttr.num_clusters() != outDistributionAttr.num_clusters()) {
-        logCb(formatv("Mismatch between number of clusters for input ({0}) and output ({1}).",
-                      inDistributionAttr.num_clusters(), outDistributionAttr.num_clusters()));
+    if (areDistributionAttrsCompatible(inDistributionAttr, outDistributionAttr).failed()) {
+        logCb(formatv("Mismatch between distributionAttr for input ({0}) and output ({1}).", inDistributionAttr,
+                      outDistributionAttr));
         return mlir::failure();
-    }
-
-    if (inDistributionAttr.alignment() != outDistributionAttr.alignment()) {
-        logCb(formatv("Mismatch between tensor alignment of clusters for input ({0}) and output ({1}).",
-                      inDistributionAttr.alignment(), outDistributionAttr.alignment()));
-        return mlir::failure();
-    }
-
-    const auto inDistributionMode = inDistributionAttr.mode().getValue();
-    const auto outDistributionMode = outDistributionAttr.mode().getValue();
-
-    if (inDistributionMode != outDistributionMode) {
-        if (VPU::areDistributionModesCompatible(inDistributionMode, outDistributionMode).failed()) {
-            logCb(formatv("Incompatible distribution modes for input ({0}) and output ({1}).",
-                          VPU::stringifyDistributionMode(inDistributionMode),
-                          VPU::stringifyDistributionMode(outDistributionMode)));
-            return mlir::failure();
-        }
     }
 
     return mlir::success();
 }
 
+template <typename T>
+T vpux::VPU::NCEClusterTilingOp::getInnerTaskOpOfType() {
+    return mlir::cast<T>(&body().front().front());
+}
 }  // namespace VPU
 }  // namespace vpux

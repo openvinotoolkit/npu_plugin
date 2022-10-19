@@ -10,12 +10,8 @@
 #include "layers/param_custom_cpp.h"
 #include "mvSubspaces.h"
 
-#ifdef CONFIG_TARGET_SOC_3720
 __attribute__((aligned(1024)))
-#include "sk.singleShaveMVN.3010xx.text.xdat"
-#else
-#include "svuSLKernels_EP.h"
-#endif
+#include "sk.singleShaveMVN.3720xx.text.xdat"
 
 #include "param_mvn.h"
 
@@ -65,7 +61,8 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, MVN)) {
         }
 
         void initData() override {
-            m_params = {0xFFFFFFFF, m_elfBuffer, 0, nullptr, MAX_LOCAL_PARAMS, 0, 0};
+            sw_params::BaseKernelParams emptyParamData;
+            m_params = {0xFFFFFFFF, m_elfBuffer, 0, nullptr, emptyParamData, MAX_LOCAL_PARAMS, 0};
 
             CustomCppTests<fp16>::initData();
             const SingleTest* test = m_currentTest;
@@ -78,17 +75,13 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, MVN)) {
 
             uint32_t acrossChannels = test->customLayerParams.layerParams[0];
             uint32_t normalize = test->customLayerParams.layerParams[1];
-            float eps = *(float*)(&test->customLayerParams.layerParams[2]);
+            float *eps = (float*)(&test->customLayerParams.layerParams[2]);
 
             m_mvnParams->acrossChannels = (uint64_t)acrossChannels;
             m_mvnParams->normalize = (uint64_t)normalize;
-            m_mvnParams->eps = eps;
+            m_mvnParams->eps = *eps;
 
-#ifdef CONFIG_TARGET_SOC_3720
-            m_params.kernel = reinterpret_cast<uint64_t>(sk_singleShaveMVN_3010xx_text);
-#else
-            m_params.kernel = reinterpret_cast<uint64_t>(PREAMBLE_FUNC(singleShaveMVN));
-#endif
+            m_params.kernel = reinterpret_cast<uint64_t>(sk_singleShaveMVN_3720xx_text);
         }
 
         void initTestCase() override {

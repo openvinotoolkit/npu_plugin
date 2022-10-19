@@ -7,6 +7,11 @@ that they consume/produce must reside in CMX
 ### `-cmx-concat`: Move Concat operations from DDR to NNCMX
 This pass will try to check if a Concat operation can fit in NNCMX
 with few restrictions and if so move the concat from DDR to NNCMX.
+### `-convert-m2i-ops`: Convert individual M2I ops to VPU::M2ITask
+### `-convert-scalar-to-tensor`: Convert a scalar input to tensor
+Some operations (e.g. Gather) do not support scalar data. This pass converts scalar operands to tensors with one element.
+### `-correct-NCE-workloads`: Correct NCE workloads if they do not fit requirements
+### `-fuse-m2i-ops`: Fuse M2I ops to VPU::M2ITask
 ### `-init-compiler`: Initializes compiler for VPU platforms
 This pass attaches VPU related compilation parameters to Module attributes and
 initializes **IERT Dialect** run-time resources information.
@@ -14,9 +19,19 @@ initializes **IERT Dialect** run-time resources information.
 #### Options
 ```
 -vpu-arch          : VPU architecture to compile for
--compilation-mode  : Set compilation mode as `ReferenceSW`, `ReferenceHW` or `DefaultHW`
+-compilation-mode  : [Optional] Set compilation mode as `ReferenceSW`, `ReferenceHW` or `DefaultHW`
 -num-of-dpu-groups : [Optional] Number of available DPU groups
+-num-of-dma-ports  : [Optional] Number of available DMA ports
 ```
+### `-isolated-tiling`: Tile layers in isolation so that all their I/O meet the memory capacity
+The pass applies tiling to the layers whose memory requirements exceed the capacity available.
+
+The pass tries to split each single layer in isolation, with no smarter heuristics
+such as "allow running in parallel" or "allow continious computation in tiles" or any else.
+
+The pass does not use any cost model to optimize the entire layer's processing time. It just
+iteratively increases the number of tiles until the the largest tile's memory requirements  meet
+the device capacity, and stops there.
 ### `-manual-strategy-utils`: Utils for reading or writing a json strategy
 Utility allowing to store and write as JSON the current selected strategy from the two strategy passes
 createMultiClusterStrategyAssignmentPass() and createPrefetchTilingPass(). And also to manually 
@@ -29,7 +44,27 @@ overwrite the strategy.
 -read-strategy-from-json      : Flag to enable reading strategy from file
 -read-strategy-file-location  : Location/path to read strategy file
 ```
+### `-manual-tiling`: Tile layers with manual strategy
+The pass performs manual tiling on layers specified by the user.
 ### `-multi-cluster-strategy-assignment`: This pass compute the hardware efficiency of layer that is executed as SOH or SOK and assigns the most optimal strategy
+### `-optimize-concate-slice-to-slice-concat`: Optimize concate-slice to slice-concat
+This pass optimize concat-slice to slice-concat to reduce data copy.
+### `-prefetch-tiling`: Tile layers into smaller tiles to enable prefetch pipeline
+The pass performs tiling on layers to enable prefetch pipeline.
+
+The pass tries run tiles in parallel.
+The 'prefetch' means that the next tile could be loaded in advance when the current tile is computing.
+
+The pass does not consider cost models,
+only tiles layers to make at least two tiles could be loaded in CMX memory at the same time.
+### `-resolve-pwl-post-ops`: Resolve requirements for fused PWL post-ops
+Ensures the correct quantization ranges are used for fused PWL activation functions.
+### `-setup-ppe`: Sets activation function for VPU37XX and VPUX40XX PPE based on clamp range
+Ensures the correct activation function and clamping is used for PPE.
+Namely:
+* When ReLU shift value is non-zero, set leaky ReLU.
+* Otherwise, set NOOP.
+* Deduce clamping via output element type.
 ### `-split-NCE-ops-onto-workloads`: Split VPU NCE operation onto workloads
 ### `-wrap-vpu-ops-in-ncecluster-tiling`: This pass wraps vpu operations that should be executed across multiple clusters in NCEClusterTiling operations
 This pass builds an IR in order to represent multi-cluster compilation. It performs a number of functions.

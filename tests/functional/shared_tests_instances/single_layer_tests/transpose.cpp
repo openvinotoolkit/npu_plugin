@@ -13,7 +13,7 @@ namespace LayerTestsDefinitions {
 
 class KmbTransposeLayerTest: public TransposeLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {};
 class KmbTransposeLayerTest_MLIR : public KmbTransposeLayerTest {};
-class KmbTransposeLayerTest_VPUX37XX : public KmbTransposeLayerTest {};
+class KmbTransposeLayerTest_VPU3720 : public KmbTransposeLayerTest {};
 
 TEST_P(KmbTransposeLayerTest, CompareWithRefs) {
     Run();
@@ -24,9 +24,9 @@ TEST_P(KmbTransposeLayerTest_MLIR, CompareWithRefs_MLIR) {
     Run();
 }
 
-TEST_P(KmbTransposeLayerTest_VPUX37XX, MLIR_VPUX37XX) {
+TEST_P(KmbTransposeLayerTest_VPU3720, MLIR_VPU3720) {
     useCompilerMLIR();
-    setPlatformVPUX37XX();
+    setPlatformVPU3720();
     setDefaultHardwareModeMLIR();
     Run();
 }
@@ -178,14 +178,14 @@ INSTANTIATE_TEST_CASE_P(
         paramsMemPermInNHWC,
         KmbTransposeLayerTest::getTestCaseName);
 
-// ------ VPUX37XX ------
+// ------ VPU3720 ------
 
-const std::vector<std::vector<size_t>> inputOrderVPUX37XX = {
+const std::vector<std::vector<size_t>> inputOrderVPU3720 = {
         std::vector<size_t>{0, 2, 3, 1},
 };
 
-const auto paramsVPUX37XX = testing::Combine(
-    testing::ValuesIn(inputOrderVPUX37XX),
+const auto paramsVPU3720 = testing::Combine(
+    testing::ValuesIn(inputOrderVPU3720),
     testing::ValuesIn(netPrecisions),
     testing::Values(InferenceEngine::Precision::FP16),
     testing::Values(InferenceEngine::Precision::FP16),
@@ -196,9 +196,9 @@ const auto paramsVPUX37XX = testing::Combine(
 );
 
 INSTANTIATE_TEST_CASE_P(
-        smoke_TransposeVPUX37XX,
-        KmbTransposeLayerTest_VPUX37XX,
-        paramsVPUX37XX,
+        smoke_precommit_TransposeVPU3720,
+        KmbTransposeLayerTest_VPU3720,
+        paramsVPU3720,
         KmbTransposeLayerTest::getTestCaseName);
 
 }  // namespace

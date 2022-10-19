@@ -28,9 +28,9 @@ void buildDMA(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module,
               mlir::Type inputType, mlir::Type outputType) {
     auto* ctx = builder.getContext();
 
-    auto input = testDesc.getInputLayer();
+    auto input = testDesc.getInputLayerList().front();
     auto dmaParams = testDesc.getDMAparams();
-    auto output = testDesc.getOutputLayer();
+    auto output = testDesc.getOutputLayers().front();
 
     SmallVector<int64_t> inShape(input.shape.begin(), input.shape.end());
     SmallVector<int64_t> outShape(output.shape.begin(), output.shape.end());
@@ -130,7 +130,8 @@ void buildDMA(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module,
     funcbuilder.create<mlir::ReturnOp>(builder.getUnknownLoc(), funcOutput);
     // set runtime resources
     mlir::PassManager pm(ctx, mlir::OpPassManager::Nesting::Implicit);
-    pm.addPass(VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::DefaultHW, None, log));
+    pm.addPass(
+            VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::DefaultHW, None, None, log));
 
     VPUX_THROW_UNLESS(mlir::succeeded(pm.run(module)), "Compilation failed");
     // IE.CNNNetwork

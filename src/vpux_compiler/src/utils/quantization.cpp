@@ -23,7 +23,7 @@ using namespace vpux;
 // Utilities for quantized types
 //
 
-mlir::LogicalResult vpux::validateQuantElemType(mlir::Location loc, mlir::ShapedType mainType) {
+mlir::LogicalResult vpux::validateQuantElemType(mlir::Location loc, vpux::NDTypeInterface mainType) {
     if (auto perAxisQType = mainType.getElementType().dyn_cast<mlir::quant::UniformQuantizedPerAxisType>()) {
         const auto qDim = perAxisQType.getQuantizedDimension();
 
@@ -31,7 +31,7 @@ mlir::LogicalResult vpux::validateQuantElemType(mlir::Location loc, mlir::Shaped
             return errorAt(loc, "Quantized axis '{0}' is out of main type rank '{1}'", qDim, mainType.getRank());
         }
 
-        const auto qDimSize = mainType.getDimSize(static_cast<uint32_t>(qDim));
+        const auto qDimSize = mainType.getShape()[Dim(static_cast<uint32_t>(qDim))];
         const auto numScales = perAxisQType.getScales().size();
 
         if (qDimSize != mlir::ShapedType::kDynamicSize) {
@@ -147,6 +147,26 @@ mlir::quant::UniformQuantizedPerAxisType vpux::changeAxis(mlir::quant::UniformQu
             perAxisQType.getStorageTypeMax());
 }
 
+mlir::quant::QuantizedType vpux::changeStorageType(mlir::quant::QuantizedType qType, mlir::Type storageType) {
+    VPUX_THROW_UNLESS(storageType.isa<mlir::IntegerType>(), "Cannot change storage type to non-integer type");
+
+    if (qType.getStorageType() == storageType) {
+        return qType;
+    }
+
+    if (auto perTensor = qType.dyn_cast<mlir::quant::UniformQuantizedType>()) {
+        return mlir::quant::UniformQuantizedType::get(perTensor.getFlags(), storageType, perTensor.getExpressedType(),
+                                                      perTensor.getScale(), perTensor.getZeroPoint(),
+                                                      perTensor.getStorageTypeMin(), perTensor.getStorageTypeMax());
+    } else if (auto perAxis = qType.dyn_cast<mlir::quant::UniformQuantizedPerAxisType>()) {
+        return mlir::quant::UniformQuantizedPerAxisType::get(perAxis.getFlags(), storageType,
+                                                             perAxis.getExpressedType(), perAxis.getScales(),
+                                                             perAxis.getZeroPoints(), perAxis.getQuantizedDimension(),
+                                                             perAxis.getStorageTypeMin(), perAxis.getStorageTypeMax());
+    }
+    VPUX_THROW("Unsupported original type: {0}", qType);
+}
+
 bool vpux::canBeMerged(mlir::quant::UniformQuantizedPerAxisType type1, mlir::quant::UniformQuantizedPerAxisType type2) {
     const auto flags1 = type1.getFlags();
     const auto storageType1 = type1.getStorageType();
@@ -259,6 +279,72 @@ int64_t vpux::QuantizationApproximation::postShift() const {
     return _postShift;
 }
 
+void vpux::QuantizationApproximation::setMult(uint16_t mult) {
+    _mult = mult;
+}
+
+void vpux::QuantizationApproximation::setShift(uint8_t shift) {
+    _shift = shift;
+}
+
+vpux::EltwiseQuantizationApproximation::EltwiseQuantizationApproximation(VPU::ArchKind architecture,
+                                                                         double input1Target, double input2Target,
+                                                                         double outputTarget)
+        : _input1(architecture, input1Target),
+          _input2(architecture, input2Target),
+          _output(architecture, 1 / outputTarget) {
+    // We align shifts to the smaller one by dividing input MULT with 2^diff, inputs shift will be set to 0 in
+    // nce_cluster_task.cpp and added to the output shift .
+    //
+    // what we actually do is input1 * MULT1 i32 --> + --> * MULT_OUT >> (SHIFT_OUT + SHIFT_IN) --> u8
+    //                       input2 * MULT2 i32 ----^
+
+    const auto minShift = std::min(_input1.shift(), _input2.shift());
+    const auto maxShift = std::max(_input1.shift(), _input2.shift());
+    // shift register is using 6 bits, so the maximum shift value is 2^6 - 1
+    const int64_t maxRegisterShift = pow(2, 6) - 1;
+    // mult register is using 16 bits, so the maximum mult value is 2^16 - 1
+    const int64_t maxRegisterMult = pow(2, 16) - 1;
+
+    const auto supportsShiftToMaximum = [&]() -> bool {
+        if (maxShift + _output.shift() > maxRegisterShift) {
+            return false;
+        }
+        if (_input1.mult() > maxRegisterMult >> (maxShift - _input1.shift())) {
+            return false;
+        }
+        if (_input2.mult() > maxRegisterMult >> (maxShift - _input2.shift())) {
+            return false;
+        }
+
+        return true;
+    };
+
+    if (supportsShiftToMaximum()) {
+        _input1.setMult(static_cast<uint16_t>(_input1.mult() << (maxShift - _input1.shift())));
+        _input2.setMult(static_cast<uint16_t>(_input2.mult() << (maxShift - _input2.shift())));
+        _output.setShift(_output.shift() + maxShift);
+    } else if (minShift + _output.shift() < maxRegisterShift) {
+        _input1.setMult(static_cast<uint16_t>(_input1.mult() >> (_input1.shift() - minShift)));
+        _input2.setMult(static_cast<uint16_t>(_input2.mult() >> (_input2.shift() - minShift)));
+        _output.setShift(_output.shift() + minShift);
+    } else {
+        VPUX_THROW("Elwise add input1_MULT/input2_MULT/output_SHIFT out of register range");
+    }
+}
+
+QuantizationApproximation vpux::EltwiseQuantizationApproximation::input1() const {
+    return _input1;
+}
+
+QuantizationApproximation vpux::EltwiseQuantizationApproximation::input2() const {
+    return _input2;
+}
+
+QuantizationApproximation vpux::EltwiseQuantizationApproximation::output() const {
+    return _output;
+}
+
 vpux::PReLUApproximation::PReLUApproximation(VPU::ArchKind architecture, double target): _mult(0), _shift(0) {
     const auto bits = architecture == VPU::ArchKind::VPUX30XX || architecture == VPU::ArchKind::VPUX311X ? 7 : 11;
     int8_t postShift = 0;
@@ -292,8 +378,36 @@ std::pair<int64_t, int64_t> vpux::getClampValuesForQuantizedOps(mlir::quant::Qua
 
 std::tuple<double, int64_t> vpux::calcScaleAndZeroPoint(int64_t qMin, int64_t qMax, double rMin, double rMax,
                                                         bool isSigned) {
-    VPUX_THROW_UNLESS(qMax > qMin, "Wrong quantized storage values range ['{0}', '{1}']", qMin, qMax);
-    VPUX_THROW_UNLESS(rMax > rMin, "Wrong real values range ['{0}', '{1}']", rMin, rMax);
+    VPUX_THROW_UNLESS(qMax >= qMin, "Wrong quantized storage values range ['{0}', '{1}']", qMin, qMax);
+    VPUX_THROW_UNLESS(rMax >= rMin, "Wrong real values range ['{0}', '{1}']", rMin, rMax);
+
+    // Is the given range actually a range or a single scalar like [-0.00, 0.00] or [3, 3]?
+    if (std::fabs(rMax - rMin) < std::numeric_limits<double>::epsilon()) {
+        const double scale = rMin;
+        // (-inf, -eps] => scale = rMin, zp = 2
+        // (-eps, eps) => scale = 1.0, zp = 0
+        // [eps, inf) => scale = rMin, zp = 0
+
+        if (std::fabs(scale) < std::numeric_limits<double>::epsilon()) {
+            // "-epsilon < scale < epsilon" means that scale should be zero  ===>  scale = 1.0
+            // to avoid division by zero in formula Q = R/scale + zp
+            return std::make_tuple(1.0, 0);
+        }
+        if (scale >= std::numeric_limits<double>::epsilon()) {
+            return std::make_tuple(scale, 0);
+        }
+        if (scale <= -std::numeric_limits<double>::epsilon()) {
+            // Due to LLVM limitation scale must be >=0
+            // thirdparty/llvm-project/mlir/lib/Dialect/Quant/IR/QuantTypes.cpp lines 278-280
+            // quantized_value = real_value / scale + zero_point
+            // real_value = (quantized_value - zero_point) * scale
+            // As a workaround for a negative real value scalar -R
+            // 1. apply positive scale as usual: -R/scale = -1
+            // 2. set zero point to 2, which gives us Q = (-R/scale) + 2 = -1 + 2 = 1
+            return std::make_tuple(scale * (-1), 2);
+        }
+        VPUX_THROW("Unhandled scale value.");
+    }
 
     // Ranges that do not contain zero will generate negative zero-point which is not supported in DPU PPE pipeline
     VPUX_THROW_UNLESS(rMin <= 0 && rMax >= 0, "Real values range does not contain value zero ['{0}', '{1}']", rMin,
@@ -402,8 +516,8 @@ mlir::quant::QuantizedType vpux::getQuantizedType(mlir::Attribute lowConstAttr, 
                                                              storageType, realType, scale, zeroPoint, qMin, qMax);
     }
 
-    const auto lowShape = lowAttr.getShape();
-    const auto highShape = highAttr.getShape();
+    const auto lowShape = lowAttr.getType().getShape();
+    const auto highShape = highAttr.getType().getShape();
 
     const auto broadcastShapeRes = IE::broadcastEltwiseShape(lowShape.raw(), highShape.raw(), broadcast, loc);
     if (mlir::failed(broadcastShapeRes)) {
@@ -526,4 +640,38 @@ float vpux::dequantize(int64_t qVal, double scale, int64_t zeroPoint) {
 int32_t vpux::toFixedPoint(const double realVal) {
     const double mult = 1 << 16;
     return std::lround(realVal * mult);
+}
+
+std::pair<EMU::BlobWriter::Vector<uint16_t>, EMU::BlobWriter::Vector<uint16_t>> vpux::serializeScalesAndZeroPointsEmu(
+        mlir::Value input, mlir::Value output, EMU::BlobWriter& writer) {
+    const auto inType = input.getType().cast<mlir::RankedTensorType>().getElementType();
+    const auto outType = output.getType().cast<mlir::RankedTensorType>().getElementType();
+
+    const auto qType = inType.isa<mlir::quant::QuantizedType>() ? inType.cast<mlir::quant::QuantizedType>()
+                                                                : outType.cast<mlir::quant::QuantizedType>();
+
+    const auto getRawFP16 = [](auto val) {
+        const auto valFP16 = float16(val);
+        return valFP16.to_bits();
+    };
+
+    const auto getVecFP16 = [&](auto range) {
+        return writer.createVector(range | transformed(getRawFP16));
+    };
+
+    SmallVector<double> scales;
+    SmallVector<int64_t> zeroPoints;
+    if (qType.isa<mlir::quant::UniformQuantizedType>()) {
+        auto quantParams = qType.cast<mlir::quant::UniformQuantizedType>();
+        scales = {quantParams.getScale()};
+        zeroPoints = {quantParams.getZeroPoint()};
+    } else if (qType.isa<mlir::quant::UniformQuantizedPerAxisType>()) {
+        auto quantParams = qType.cast<mlir::quant::UniformQuantizedPerAxisType>();
+        scales = {quantParams.getScales().begin(), quantParams.getScales().end()};
+        zeroPoints = {quantParams.getZeroPoints().begin(), quantParams.getZeroPoints().end()};
+    } else {
+        VPUX_THROW("Unsupported quantized type {0}", qType);
+    }
+
+    return {getVecFP16(scales), getVecFP16(zeroPoints)};
 }

@@ -7,6 +7,8 @@
 
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
 
+#include "vpux/compiler/core/cost_model_utils.hpp"
+#include "vpux/compiler/dialect/IE/utils/resources.hpp"
 #include "vpux/compiler/dialect/VPU/attributes.hpp"
 #include "vpux/compiler/dialect/VPURT/attributes.hpp"
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
@@ -48,7 +50,7 @@ vpux::NDTypeInterface changeShapeLeaveStrides(vpux::NDTypeInterface originType, 
     return vpux::getMemRefType(shape, elemType, newOrder, originType.getStrides(), originType.getMemSpace());
 }
 
-bool isSegmentedNCETask(VPUIP::NCEClusterTaskOp nceTask, VPUIP::DistributedBufferType inputType) {
+bool isSegmentedNCETask(VPUIP::DistributedBufferType inputType) {
     // Only for explicit SEGMENTED mode, not in combination with
     // DUPLICATED or MULTICASTED
     if (inputType.getDistribution().mode().getValue() != VPU::DistributionMode::SEGMENTED) {
@@ -64,15 +66,6 @@ bool isSegmentedNCETask(VPUIP::NCEClusterTaskOp nceTask, VPUIP::DistributedBuffe
     // Segmentation not supported with non NHWC input such as CM Conv
     if (inputType.getDimsOrder() != DimsOrder::NHWC) {
         return false;
-    }
-
-    // Only for valid segmentation cases, when need to read lines from
-    // other clusters
-    if (nceTask.kernel_sizeAttr() != nullptr) {
-        const auto kernels = parseIntArrayAttr<int64_t>(nceTask.kernel_sizeAttr());
-        if (kernels[Dims4D::Kernel::Y.ind()] <= 1) {
-            return false;
-        }
     }
 
     return true;
@@ -196,6 +189,7 @@ SmallVector<mlir::Value> ClusterNCERewriter::getPerClusterBuffers(mlir::Location
     SmallVector<mlir::Value> perClusterBuffers(numClusters);
     if (distributionMode == VPU::DistributionMode::SEGMENTED || distributionMode == VPU::DistributionMode::DUPLICATED ||
         distributionMode == VPU::DistributionMode::OVERLAPPED) {
+        auto insertionPoint = declBuff.getOperation();
         for (int64_t clusterId = 0; clusterId < numClusters; ++clusterId) {
             auto cmxBuffType =
                     changeShape(innerOperandType, perClusterShapes[clusterId], perClusterShapeOffsets[clusterId]);
@@ -204,8 +198,13 @@ SmallVector<mlir::Value> ClusterNCERewriter::getPerClusterBuffers(mlir::Location
             cmxBuffType = cmxBuffType.changeMemSpace(symbolAttr);
 
             const auto newLoc = appendLoc(loc, "_{0}_cluster_{1}", bufferName, clusterId);
-            auto newCmxBuffer = rewriter.create<VPURT::DeclareBufferOp>(
-                    newLoc, cmxBuffType, VPURT::BufferSection::CMX_NN, clusterId, declBuff.byteOffset());
+
+            auto newCmxBuffer = VPURT::createOp<VPURT::DeclareBufferOp>(
+                    rewriter, insertionPoint, newLoc, cmxBuffType, VPURT::BufferSection::CMX_NN,
+                    getIntArrayAttr(_ctx, makeArrayRef({clusterId})), declBuff.byteOffset(),
+                    declBuff.swizzlingKeyAttr());
+
+            insertionPoint = newCmxBuffer.getOperation();
             _log.trace("Insert new CMX buffer: '{0}'", newCmxBuffer);
 
             perClusterBuffers[clusterId] = newCmxBuffer;
@@ -222,16 +221,16 @@ SmallVector<mlir::Value> ClusterNCERewriter::getPerClusterBuffers(mlir::Location
         SmallVector<int64_t> clusters(numClusters);
         std::iota(clusters.begin(), clusters.end(), 0);
 
-        const auto elemSize = innerOperandType.getElemTypeSize();
-        const auto elemStrides = to_small_vector(innerOperandType.getStrides() | transformed([&](Bit stride) {
+        const auto elemSize = distributedType.getElemTypeSize();
+        const auto elemStrides = to_small_vector(distributedType.getStrides() | transformed([&](Bit stride) {
                                                      return stride.count() / elemSize.count();
                                                  }));
-
-        const auto order = innerOperandType.getDimsOrder();
+        const auto order = distributedType.getDimsOrder();
         const auto orderAttr = mlir::AffineMapAttr::get(order.toAffineMap(_ctx));
         const auto stridesAttr = getIntArrayAttr(_ctx, elemStrides);
-        auto layout = IERT::MemRefAttr::get(orderAttr, stridesAttr, _ctx);
+        auto layout = VPUIP::MemRefAttr::get(orderAttr, stridesAttr, _ctx);
 
+        auto insertionPoint = declBuff.getOperation();
         for (int64_t clusterId = 0; clusterId < numClusters; ++clusterId) {
             const auto elemType =
                     getElementType(distributedType, perClusterShapes[clusterId], perClusterShapeOffsets[clusterId]);
@@ -240,9 +239,13 @@ SmallVector<mlir::Value> ClusterNCERewriter::getPerClusterBuffers(mlir::Location
                                                       distributedType.getMemSpace(), distributedType.getDistribution());
 
             const auto newLoc = appendLoc(loc, "_{0}_cluster_{1}", bufferName, clusterId);
-            auto newCmxBuffer = rewriter.create<VPURT::DeclareBufferOp>(
-                    newLoc, newDistributedType, VPURT::BufferSection::CMX_NN, clusters, declBuff.byteOffset());
+
+            auto newCmxBuffer = VPURT::createOp<VPURT::DeclareBufferOp>(
+                    rewriter, insertionPoint, newLoc, newDistributedType, VPURT::BufferSection::CMX_NN,
+                    getIntArrayAttr(_ctx, clusters), declBuff.byteOffset(), declBuff.swizzlingKeyAttr());
+
             _log.trace("Insert new CMX buffer: '{0}'", newCmxBuffer);
+            insertionPoint = newCmxBuffer.getOperation();
 
             perClusterBuffers[clusterId] = newCmxBuffer;
         }
@@ -258,11 +261,7 @@ SmallVector<mlir::Value> ClusterNCERewriter::getPerClusterBuffers(mlir::Location
         SmallVector<int64_t> clusters(numClusters);
         std::iota(clusters.begin(), clusters.end(), 0);
 
-        const auto elemSize = innerOperandType.getElemTypeSize();
-        const auto elemStrides = to_small_vector(innerOperandType.getStrides() | transformed([&](Bit stride) {
-                                                     return stride.count() / elemSize.count();
-                                                 }));
-
+        auto insertionPoint = declBuff.getOperation();
         for (int64_t clusterId = 0; clusterId < numClusters; ++clusterId) {
             const auto elemType =
                     getElementType(distributedType, perClusterShapes[clusterId], perClusterShapeOffsets[clusterId]);
@@ -270,10 +269,9 @@ SmallVector<mlir::Value> ClusterNCERewriter::getPerClusterBuffers(mlir::Location
                     _ctx, perClusterShapes[clusterId].raw(), elemType, distributedType.getLayout(),
                     distributedType.getMemSpace(), distributedType.getDistribution());
 
-            // It's a specific workaround for HK switch strategy.
-            // HK switch computes output offsets both by variants start/end_x/y/z AND ODU base address.
-            // So we need to provide different ODU base address for each cluster.
-            // There's a tickt E#29671 describing the work to remove such special handling for HK switch.
+            // It's a specific workaround for HK switch strategy. HK switch computes output offsets both by variants
+            // start/end_x/y/z AND ODU base address. So we need to provide different ODU base address for each cluster.
+            // There's a ticket E#29671 describing the work to remove such special handling for HK switch.
             // This workaround can be removed after it's done.
             const auto strides = distributedType.getStrides();
             Byte cmxOffset{declBuff.byteOffset()};
@@ -282,8 +280,12 @@ SmallVector<mlir::Value> ClusterNCERewriter::getPerClusterBuffers(mlir::Location
             }
 
             const auto newLoc = appendLoc(loc, "_{0}_cluster_{1}", bufferName, clusterId);
-            auto newCmxBuffer = rewriter.create<VPURT::DeclareBufferOp>(
-                    newLoc, newDistributedType, VPURT::BufferSection::CMX_NN, clusters, cmxOffset.count());
+
+            auto newCmxBuffer = VPURT::createOp<VPURT::DeclareBufferOp>(
+                    rewriter, insertionPoint, newLoc, newDistributedType, VPURT::BufferSection::CMX_NN,
+                    getIntArrayAttr(_ctx, clusters), cmxOffset.count(), declBuff.swizzlingKeyAttr());
+
+            insertionPoint = newCmxBuffer.getOperation();
             _log.trace("Insert new CMX buffer: '{0}'", newCmxBuffer);
 
             perClusterBuffers[clusterId] = newCmxBuffer;
@@ -305,6 +307,8 @@ mlir::LogicalResult ClusterNCERewriter::matchAndRewrite(VPUIP::NCEClusterTaskOp 
 
     auto vpurtTask = clusterOp->getParentOfType<VPURT::TaskOp>();
     VPUX_THROW_UNLESS(vpurtTask != nullptr, "Can't get VPURT task operation");
+    auto cycleBeginAttr = vpurtTask->getAttr(cycleBegin);
+    auto cycleEndAttr = vpurtTask->getAttr(cycleEnd);
     rewriter.setInsertionPointAfter(vpurtTask);
 
     VPUX_THROW_UNLESS(!clusterOp.getInputs().empty(), "Wrong inputs size: {0}", clusterOp.getInputs().size());
@@ -349,10 +353,14 @@ mlir::LogicalResult ClusterNCERewriter::matchAndRewrite(VPUIP::NCEClusterTaskOp 
             getPerClusterBuffers(loc, "weightTable", clusterOp, nceTask.weight_table(), numClusters, rewriter);
     auto activationWindowBuffs = getPerClusterBuffers(loc, "activationWindow", clusterOp, nceTask.activation_window(),
                                                       numClusters, rewriter);
+    auto instructionListTableBuffs = getPerClusterBuffers(loc, "instructionListTable", clusterOp,
+                                                          nceTask.instruction_list_table(), numClusters, rewriter);
     auto outputBuffs = getPerClusterBuffers(loc, "outputBuff", clusterOp, nceTask.output_buff(), numClusters, rewriter);
+    auto profilingBuffs =
+            getPerClusterBuffers(loc, "profilingBuff", clusterOp, nceTask.profiling_data(), numClusters, rewriter);
 
     mlir::UnitAttr isSegmented = nullptr;
-    if (isSegmentedNCETask(nceTask, parentInputType)) {
+    if (isSegmentedNCETask(parentInputType)) {
         isSegmented = mlir::UnitAttr::get(nceTask.getContext());
     }
 
@@ -377,20 +385,19 @@ mlir::LogicalResult ClusterNCERewriter::matchAndRewrite(VPUIP::NCEClusterTaskOp 
         const auto newLoc = appendLoc(loc, "_cluster_{0}", clusterId);
 
         mlir::Value profilingData = nullptr;
-        SmallVector<mlir::Type> newResultTypes = {outputBuffs[clusterId].getType()};
+        mlir::Type profilingOutputType = nullptr;
+        mlir::Type outputType = outputBuffs[clusterId].getType();
 
-        if (clusterId == 0 && nceTask.profiling_data()) {
-            newResultTypes.push_back(nceTask.profiling_data().getType());
-            // Last output of NCEClusterTiling corresponds to profiling result in case
-            // it was enabled
-            profilingData = clusterOp.getOutputs().back();
+        if (nceTask.profiling_data()) {
+            profilingOutputType = profilingBuffs[clusterId].getType();
+            profilingData = profilingBuffs[clusterId];
         }
 
         auto newTask = VPURT::wrapIntoTaskOp<VPUIP::NCEClusterTaskOp>(
-                rewriter, vpurtTask.waitBarriers(), vpurtTask.updateBarriers(), newLoc, mlir::TypeRange(newResultTypes),
+                rewriter, vpurtTask.waitBarriers(), vpurtTask.updateBarriers(), newLoc, outputType, profilingOutputType,
                 inputBuffs[clusterId], weightsBuffs[clusterId], weightTableBuffs[clusterId],
-                activationWindowBuffs[clusterId], parentInput, parentOutput, outputBuffs[clusterId], profilingData,
-                VPUIP::NCETaskTypeAttr::get(nceTask.getContext(), nceTask.task_type()), nceTask.kernel_sizeAttr(),
+                instructionListTableBuffs[clusterId], activationWindowBuffs[clusterId], parentInput, parentOutput,
+                outputBuffs[clusterId], profilingData, nceTask.task_type(), nceTask.kernel_sizeAttr(),
                 nceTask.kernel_stridesAttr(), padAttrForCluster[clusterId],
                 nceTask.activation_window_channel_lengthAttr(), nullptr, nullptr, isSegmented,
                 outChannelOffsets[clusterId]);
@@ -420,6 +427,14 @@ mlir::LogicalResult ClusterNCERewriter::matchAndRewrite(VPUIP::NCEClusterTaskOp 
             }
         }
 
+        auto newVpurtTask = newTask->getParentOfType<VPURT::TaskOp>();
+        if (cycleBeginAttr) {
+            newVpurtTask->setAttr(cycleBegin, cycleBeginAttr);
+        }
+        if (cycleEndAttr) {
+            newVpurtTask->setAttr(cycleEnd, cycleEndAttr);
+        }
+
         _log.trace("Insert new NCE task: '{0}'", newTask);
     }
 
@@ -433,8 +448,8 @@ mlir::LogicalResult ClusterNCERewriter::matchAndRewrite(VPUIP::NCEClusterTaskOp 
 
 class ClusterDMARewriter final : public mlir::OpRewritePattern<VPUIP::NNDMAOp> {
 public:
-    ClusterDMARewriter(mlir::MLIRContext* ctx, Logger log)
-            : mlir::OpRewritePattern<VPUIP::NNDMAOp>(ctx), _log(log), _ctx(ctx) {
+    ClusterDMARewriter(mlir::MLIRContext* ctx, int64_t dmaPortCount, Logger log)
+            : mlir::OpRewritePattern<VPUIP::NNDMAOp>(ctx), _log(log), _ctx(ctx), _dmaPortCount(dmaPortCount) {
         setDebugName("ClusterDMARewriter");
 
         _cmxNameAttr = mlir::FlatSymbolRefAttr::get(ctx, stringifyEnum(VPU::MemoryKind::CMX_NN));
@@ -450,6 +465,7 @@ private:
 private:
     Logger _log;
     mlir::MLIRContext* _ctx;
+    int64_t _dmaPortCount;
     mlir::FlatSymbolRefAttr _cmxNameAttr;
 };
 
@@ -475,10 +491,20 @@ void ClusterDMARewriter::unrollSegmentedOrOverlapped(mlir::Location loc, VPUIP::
     const auto originInShape = inputType.getShape().raw();
     const auto originOutShape = outputType.getShape().raw();
 
+    auto cycleBeginAttr = vpurtTask->getAttr(cycleBegin);
+    auto cycleEndAttr = vpurtTask->getAttr(cycleEnd);
+
     const auto strideInReqs = StrideReqs::compact(originInShape.size());
-    VPUX_THROW_UNLESS(strideInReqs.checkStrides(input), "Only compact strides are supported");
     const auto strideOutReqs = StrideReqs::compact(originOutShape.size());
-    VPUX_THROW_UNLESS(strideOutReqs.checkStrides(output), "Only compact strides are supported");
+
+    if (!strideInReqs.checkStrides(input)) {
+        _log.trace("DMA at {0} is not compact for the input, strides = {1}, shape = {2}", loc, inputType.getStrides(),
+                   originInShape);
+    }
+    if (!strideOutReqs.checkStrides(output)) {
+        _log.trace("DMA at {0} is not compact for the output, strides = {1}, shape = {2}", loc, outputType.getStrides(),
+                   originOutShape);
+    }
 
     const auto numTiles = parseIntArrayAttr<int64_t>(distributionAttr.num_tiles());
     VPUX_THROW_UNLESS(originInShape.size() == numTiles.size(),
@@ -521,19 +547,23 @@ void ClusterDMARewriter::unrollSegmentedOrOverlapped(mlir::Location loc, VPUIP::
     const auto axis = std::distance(tilingScheme.begin(), llvm::find_if(tilingScheme, isValidTile));
     const auto strides = distributedType.getStrides();
 
-    bool useParentTensorStrides = false;
+    bool useParentTensorStridesForInput = false;
     // Check if per-cluster DMA input will not be a contiguous block of memory.
     // In such case DMA input buffers should have strides according to parent input tensor
-    if ((numTiles[Dims4D::Act::H.ind()] > 1 && inputType.getDimsOrder() == DimsOrder::NCHW) ||
-        (numTiles[Dims4D::Act::C.ind()] > 1 && inputType.getDimsOrder() == DimsOrder::NHWC)) {
-        useParentTensorStrides = true;
+    if (numTiles.size() == 4 && ((numTiles[Dims4D::Act::H.ind()] > 1 && inputType.getDimsOrder() == DimsOrder::NCHW) ||
+                                 (numTiles[Dims4D::Act::C.ind()] > 1 && inputType.getDimsOrder() == DimsOrder::NHWC) ||
+                                 !strideInReqs.checkStrides(input))) {
+        useParentTensorStridesForInput = true;
     }
+    bool useParentTensorStridesForOutput = !strideOutReqs.checkStrides(output);
 
     const auto inTypes =
-            (useParentTensorStrides ? tileInnerTypeLeaveStrides(innerInputType) : tileInnerType(innerInputType));
-    const auto outTypes = tileInnerType(innerOutputType);
+            (useParentTensorStridesForInput ? tileInnerTypeLeaveStrides(inputType) : tileInnerType(innerInputType));
+    const auto outTypes =
+            (useParentTensorStridesForOutput ? tileInnerTypeLeaveStrides(outputType) : tileInnerType(innerOutputType));
 
-    const auto getOperand = [&](int64_t clusterId, mlir::Value operand, vpux::NDTypeInterface newType) -> mlir::Value {
+    const auto getOperand = [&](int64_t clusterId, mlir::Value operand, vpux::NDTypeInterface newType,
+                                mlir::Operation* insertionPoint) -> mlir::Value {
         // For example, copy of weights in case of SOK
         // <32x16x1x1xfp16, @DDR>  -> <16x16x1x1xfp16, [@CMX, 0]>
         //                         -> <16x16x1x1xfp16, [@CMX, 1]>
@@ -542,8 +572,8 @@ void ClusterDMARewriter::unrollSegmentedOrOverlapped(mlir::Location loc, VPUIP::
                               "Output operand type must have NN_CMX memory space. Got: {0}",
                               outputType.getMemoryKind());
 
-            return rewriter.create<IERT::SubViewOp>(loc, cst, perClusterShapeOffsets[clusterId].raw(),
-                                                    perClusterShapes[clusterId].raw());
+            return rewriter.create<VPUIP::SubViewOp>(loc, cst, perClusterShapeOffsets[clusterId].raw(),
+                                                     perClusterShapes[clusterId].raw());
         }
 
         auto declBuff = operand.getDefiningOp<VPURT::DeclareBufferOp>();
@@ -561,12 +591,15 @@ void ClusterDMARewriter::unrollSegmentedOrOverlapped(mlir::Location loc, VPUIP::
             const auto symbolAttr =
                     vpux::IndexedSymbolAttr::get(_ctx, {_cmxNameAttr, vpux::getIntAttr(_ctx, clusterId)});
             auto newCMXType = newType.changeMemSpace(symbolAttr);
-            return rewriter.create<VPURT::DeclareBufferOp>(loc, newCMXType, VPURT::BufferSection::CMX_NN, clusterId,
-                                                           declBuff.byteOffset());
+
+            return VPURT::createOp<VPURT::DeclareBufferOp>(rewriter, insertionPoint, loc, newCMXType,
+                                                           VPURT::BufferSection::CMX_NN,
+                                                           getIntArrayAttr(_ctx, makeArrayRef({clusterId})),
+                                                           declBuff.byteOffset(), declBuff.swizzlingKeyAttr());
         }
 
         Byte ddrOffset{declBuff.byteOffset()};
-        ddrOffset += perClusterShapeOffsets[clusterId][Dim(axis)] * static_cast<Byte>(strides[Dim(axis)]);
+        ddrOffset += perClusterShapeOffsets[clusterId][Dim(axis)] * static_cast<Byte>(newType.getStrides()[Dim(axis)]);
 
         auto section = declBuff.section();
         auto sectionIndex = declBuff.sectionIndex();
@@ -575,27 +608,64 @@ void ClusterDMARewriter::unrollSegmentedOrOverlapped(mlir::Location loc, VPUIP::
         newType = newType.changeMemSpace(symbolAttr);
 
         if (sectionIndex.hasValue()) {
-            return rewriter.create<VPURT::DeclareBufferOp>(loc, newType, section, sectionIndex.getValue(),
-                                                           ddrOffset.count());
+            return VPURT::createOp<VPURT::DeclareBufferOp>(rewriter, insertionPoint, loc, newType, section,
+                                                           sectionIndex.getValue(), ddrOffset.count(), nullptr);
         }
 
-        return rewriter.create<VPURT::DeclareBufferOp>(loc, newType, section, ddrOffset.count());
+        return VPURT::createOp<VPURT::DeclareBufferOp>(rewriter, insertionPoint, loc, newType, section,
+                                                       ddrOffset.count());
     };
 
+    double origCycleCost = 0.0;
+    auto runInParallel = _dmaPortCount > 1;
+    int64_t unrolledDMACycleBegin = 0;
+    if (cycleBeginAttr && cycleEndAttr) {
+        unrolledDMACycleBegin = cycleBeginAttr.cast<mlir::IntegerAttr>().getInt();
+        origCycleCost = static_cast<double>(cycleEndAttr.cast<mlir::IntegerAttr>().getInt() -
+                                            cycleBeginAttr.cast<mlir::IntegerAttr>().getInt());
+    }
+
+    auto inputInsertionPoint = input.getDefiningOp();
+    auto outputInsertionPoint = output.getDefiningOp();
     for (int64_t clusterId = 0; clusterId < numClusters; ++clusterId) {
         const auto newInputType = inTypes[clusterId];
         const auto newOutType = outTypes[clusterId];
 
-        const auto inputBuffer = getOperand(clusterId, input, newInputType);
+        const auto inputBuffer = getOperand(clusterId, input, newInputType, inputInsertionPoint);
+        inputInsertionPoint = inputBuffer.getDefiningOp();
         _log.trace("Insert new input buffer declaration: '{0}'", inputBuffer);
 
-        const auto outBuffer = getOperand(clusterId, output, newOutType);
+        const auto outBuffer = getOperand(clusterId, output, newOutType, outputInsertionPoint);
+        outputInsertionPoint = outBuffer.getDefiningOp();
         _log.trace("Insert new output buffer declaration: '{0}'", outBuffer);
 
         const auto newLoc = appendLoc(loc, "_cluster_{0}", clusterId);
-        const auto newNNDMA = VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(
-                rewriter, vpurtTask.waitBarriers(), vpurtTask.updateBarriers(), newLoc, inputBuffer, outBuffer);
+        auto newDMAPort = clusterId % _dmaPortCount;
+        const auto newNNDMA =
+                VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(rewriter, vpurtTask.waitBarriers(), vpurtTask.updateBarriers(),
+                                                      newLoc, inputBuffer, outBuffer, newDMAPort);
         _log.trace("Insert new NNDMA op: '{0}'", newNNDMA);
+
+        auto newVpurtTask = newNNDMA->getParentOfType<VPURT::TaskOp>();
+        // Calculate the cycle info for the unrolled DMA op.
+        // [Track number: E#48048]
+        // 1. For multi dma ports, the original cycle is expected to take multi ports into consideration that the
+        // unrolled tasks will execute in parallel. So the new cycle info is same as the original one.
+        // 2. For single dma port, the task is expected to run in sequence. So the new cycle should be updated according
+        // to the unrolled dma data size.
+        if (cycleBeginAttr && cycleEndAttr) {
+            if (runInParallel) {
+                newVpurtTask->setAttr(cycleBegin, cycleBeginAttr);
+                newVpurtTask->setAttr(cycleEnd, cycleEndAttr);
+            } else {
+                auto newCycleCost = static_cast<double>(newInputType.getTotalAllocSize().count()) /
+                                    innerInputType.getTotalAllocSize().count() * origCycleCost;
+                newVpurtTask->setAttr(cycleBegin, vpux::getIntAttr(rewriter, unrolledDMACycleBegin));
+                unrolledDMACycleBegin = std::min(static_cast<int64_t>(unrolledDMACycleBegin + newCycleCost),
+                                                 cycleEndAttr.cast<mlir::IntegerAttr>().getInt());
+                newVpurtTask->setAttr(cycleEnd, vpux::getIntAttr(rewriter, unrolledDMACycleBegin));
+            }
+        }
     }
 }
 
@@ -624,6 +694,8 @@ mlir::LogicalResult ClusterDMARewriter::matchAndRewrite(VPUIP::NNDMAOp nndmaOp, 
 
     auto vpurtTask = clusterOp->getParentOfType<VPURT::TaskOp>();
     VPUX_THROW_UNLESS(vpurtTask != nullptr, "Can't get VPURT task operation");
+    auto cycleBeginAttr = vpurtTask->getAttr(cycleBegin);
+    auto cycleEndAttr = vpurtTask->getAttr(cycleEnd);
     rewriter.setInsertionPointAfter(vpurtTask);
 
     const auto distributedType = inputType.isa<VPUIP::DistributedBufferType>()
@@ -641,11 +713,14 @@ mlir::LogicalResult ClusterDMARewriter::matchAndRewrite(VPUIP::NNDMAOp nndmaOp, 
         _log.trace("Process {0} mode", VPU::stringifyDistributionMode(mode));
         unrollSegmentedOrOverlapped(loc, clusterOp, vpurtTask, distributedType, rewriter);
     } else if (outputType.isa<VPUIP::DistributedBufferType>() &&
-               VPU::bitEnumContains(mode, VPU::DistributionMode::DUPLICATED)) {
+               (VPU::bitEnumContains(mode, VPU::DistributionMode::DUPLICATED) ||
+                mode == (VPU::DistributionMode::SEGMENTED | VPU::DistributionMode::MULTICASTED))) {
         // For example, copy of weights in case of SOH (output type is DUPLICATED)
         // Or copy spilled input of NCE task in case of SOK (output type is DUPLICATED|SEGMENTED)
         // <16x16x1x1xf16, @DDR> -> <16x16x1x1xf16, [@CMX, 0]>
         //                       -> <16x16x1x1xf16, [@CMX, 1]>
+        // SEGMENTED|MULTICASTED which can be a result of spilling of NCE output in SEGMENTED|MULTICASTED mode should be
+        // treated as a DUPLICATED mode
 
         _log.trace("Process DUPLICATED output");
 
@@ -656,14 +731,24 @@ mlir::LogicalResult ClusterDMARewriter::matchAndRewrite(VPUIP::NNDMAOp nndmaOp, 
         SmallVector<int64_t> clusters(numClusters);
         std::iota(clusters.begin(), clusters.end(), 0);
 
-        auto cmxBuffer = rewriter.create<VPURT::DeclareBufferOp>(
-                loc, outDeclBuff.getType(), VPURT::BufferSection::CMX_NN, clusters, outDeclBuff.byteOffset());
+        auto cmxBuffer = VPURT::createOp<VPURT::DeclareBufferOp>(
+                rewriter, outDeclBuff, loc, outDeclBuff.getType(), VPURT::BufferSection::CMX_NN,
+                getIntArrayAttr(_ctx, clusters), outDeclBuff.byteOffset(), outDeclBuff.swizzlingKeyAttr());
+
         _log.trace("Insert new CMX buffer declaration: '{0}'", cmxBuffer);
 
         const auto newLoc = appendLoc(loc, "_broadcast_copy_to_CMX[{0},{1}]", clusters.front(), clusters.back());
         const auto newNNDMA = VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(
                 rewriter, vpurtTask.waitBarriers(), vpurtTask.updateBarriers(), newLoc, input, cmxBuffer);
         _log.trace("Insert new NNDMA op: '{0}'", newNNDMA);
+
+        auto newVpurtTask = newNNDMA->getParentOfType<VPURT::TaskOp>();
+        if (cycleBeginAttr) {
+            newVpurtTask->setAttr(cycleBegin, cycleBeginAttr);
+        }
+        if (cycleEndAttr) {
+            newVpurtTask->setAttr(cycleEnd, cycleEndAttr);
+        }
     } else if (inputType.isa<VPUIP::DistributedBufferType>() &&
                (VPU::bitEnumContains(mode, VPU::DistributionMode::DUPLICATED) ||
                 VPU::bitEnumContains(mode, VPU::DistributionMode::MULTICASTED))) {
@@ -684,13 +769,22 @@ mlir::LogicalResult ClusterDMARewriter::matchAndRewrite(VPUIP::NNDMAOp nndmaOp, 
         const auto innerInputType = innerInput.getType().cast<vpux::NDTypeInterface>();
         const auto newInType = innerInputType.changeMemSpace(symbolAttr);
 
-        auto cmxBuffer = rewriter.create<VPURT::DeclareBufferOp>(loc, newInType, VPURT::BufferSection::CMX_NN, 0,
-                                                                 inDeclBuff.byteOffset());
+        auto cmxBuffer = VPURT::createOp<VPURT::DeclareBufferOp>(
+                rewriter, inDeclBuff, loc, newInType, VPURT::BufferSection::CMX_NN,
+                getIntArrayAttr(_ctx, makeArrayRef({0})), inDeclBuff.byteOffset(), inDeclBuff.swizzlingKeyAttr());
+
         _log.trace("Insert new CMX buffer declaration: '{0}'", cmxBuffer);
 
         const auto newNNDMA = VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(rewriter, vpurtTask.waitBarriers(),
                                                                     vpurtTask.updateBarriers(), loc, cmxBuffer, output);
         _log.trace("Insert new NNDMA op: '{0}'", newNNDMA);
+        auto newVpurtTask = newNNDMA->getParentOfType<VPURT::TaskOp>();
+        if (cycleBeginAttr) {
+            newVpurtTask->setAttr(cycleBegin, cycleBeginAttr);
+        }
+        if (cycleEndAttr) {
+            newVpurtTask->setAttr(cycleEnd, cycleEndAttr);
+        }
     } else {
         VPUX_THROW("Unsupported distribution mode: {0}", VPU::stringifyDistributionMode(mode));
     }
@@ -716,12 +810,15 @@ private:
 
 void UnrollClusterTilingPass::safeRunOnFunc() {
     auto& ctx = getContext();
+    auto func = getFunction();
+    auto module = func->getParentOfType<mlir::ModuleOp>();
+    auto dmaOp = IE::getAvailableExecutor(module, VPU::ExecutorKind::DMA_NN);
+    auto dmaPortCount = dmaOp.count();
 
     mlir::RewritePatternSet patterns(&ctx);
-    patterns.insert<ClusterDMARewriter>(&ctx, _log);
+    patterns.insert<ClusterDMARewriter>(&ctx, dmaPortCount, _log);
     patterns.insert<ClusterNCERewriter>(&ctx, _log);
 
-    auto func = getFunction();
     if (mlir::failed(
                 mlir::applyPatternsAndFoldGreedily(func, std::move(patterns), vpux::getDefaultGreedyRewriteConfig()))) {
         signalPassFailure();

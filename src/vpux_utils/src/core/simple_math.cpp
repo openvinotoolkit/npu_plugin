@@ -256,9 +256,9 @@ IntOrFloat MathExpression::evaluate() const {
     std::stack<IntOrFloat> values;
 
     for (const auto& token : _tokens) {
-        switch (token.type) {
+        switch (token._type) {
         case TokenType::Value:
-            values.push(token.value);
+            values.push(token._value);
             break;
 
         case TokenType::Operator: {
@@ -270,7 +270,7 @@ IntOrFloat MathExpression::evaluate() const {
             const auto val1 = values.top();
             values.pop();
 
-            values.push(operators.at(token.opName[0]).op(val1, val2));
+            values.push(operators.at(token._opName[0]).op(val1, val2));
             break;
         }
 
@@ -280,7 +280,7 @@ IntOrFloat MathExpression::evaluate() const {
             const auto val1 = values.top();
             values.pop();
 
-            values.push(functions.at(token.opName)(val1));
+            values.push(functions.at(token._opName)(val1));
             break;
         }
 

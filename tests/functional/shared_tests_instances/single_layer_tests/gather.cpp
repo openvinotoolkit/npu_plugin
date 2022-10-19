@@ -11,8 +11,20 @@
 
 namespace LayerTestsDefinitions {
 
-class KmbGatherLayerTest: public GatherLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
+void checkInOutRank(int inputRank, int indexRank, int batchDims) {
+    if (inputRank != 4) {
+        throw LayerTestsUtils::KmbSkipTestException("Gather only supports 4D input shape, inRank = " +
+                                                    std::to_string(inputRank));
+    }
 
+    auto outRank = inputRank + indexRank - 1 - batchDims;
+    if (outRank != 4) {
+        throw LayerTestsUtils::KmbSkipTestException("Gather only supports 4D output shape, outRank = " +
+                                                    std::to_string(outRank));
+    }
+}
+
+class KmbGatherLayerTest: public GatherLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
     void SkipBeforeLoad() override {
         std::vector<size_t> inputShape;
         std::string device;
@@ -38,21 +50,41 @@ class KmbGatherLayerTest: public GatherLayerTest, virtual public LayerTestsUtils
     }
 };
 
-class KmbGather7LayerTest: public Gather7LayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
+class KmbGatherLayerTest_VPU3720: public GatherLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {};
 
+class KmbGather7LayerTest: public Gather7LayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
     void SkipBeforeLoad() override {
         auto inputRank = std::get<0>(GetParam()).size();
         auto indexRank = std::get<1>(GetParam()).size();
         auto batchDims = std::get<1>(std::get<2>(GetParam()));
+        checkInOutRank(inputRank, indexRank, batchDims);
+    }
+};
 
-        if (inputRank != 4) {
-            throw LayerTestsUtils::KmbSkipTestException("Gather7 only supports 4D input shape, inRank = " + std::to_string(inputRank));
-        }
+class KmbGather7LayerTest_VPU3720: public Gather7LayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
+    void SkipBeforeLoad() override {
+        auto inputRank = std::get<0>(GetParam()).size();
+        auto indexRank = std::get<1>(GetParam()).size();
+        auto batchDims = std::get<1>(std::get<2>(GetParam()));
+        checkInOutRank(inputRank, indexRank, batchDims);
+    }
+};
 
-        auto outRank = inputRank + indexRank - 1 - batchDims;
-        if (outRank != 4){
-            throw LayerTestsUtils::KmbSkipTestException("Gather7 only supports 4D output shape, outRank = " + std::to_string(outRank));
-        }
+class KmbGather8LayerTest : public Gather8LayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
+    void SkipBeforeLoad() override {
+        auto inputRank = std::get<0>(GetParam()).size();
+        auto indexRank = std::get<1>(GetParam()).size();
+        auto batchDims = std::get<1>(std::get<2>(GetParam()));
+        checkInOutRank(inputRank, indexRank, batchDims);
+    }
+};
+
+class KmbGather8LayerTest_VPU3720: public Gather8LayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
+    void SkipBeforeLoad() override {
+        auto inputRank = std::get<0>(GetParam()).size();
+        auto indexRank = std::get<1>(GetParam()).size();
+        auto batchDims = std::get<1>(std::get<2>(GetParam()));
+        checkInOutRank(inputRank, indexRank, batchDims);
     }
 };
 
@@ -68,8 +100,34 @@ TEST_P(KmbGatherLayerTest, CompareWithRefs_MLIR) {
     Run();
 }
 
+TEST_P(KmbGatherLayerTest_VPU3720, CompareWithRefs_MLIR_VPU3720) {
+    useCompilerMLIR();
+    setPlatformVPU3720();
+    setDefaultHardwareModeMLIR();
+    Run();
+}
+
 TEST_P(KmbGather7LayerTest, CompareWithRefs_MLIR) {
     useCompilerMLIR();
+    Run();
+}
+
+TEST_P(KmbGather7LayerTest_VPU3720, CompareWithRefs_MLIR_VPU3720) {
+    useCompilerMLIR();
+    setPlatformVPU3720();
+    setDefaultHardwareModeMLIR();
+    Run();
+}
+
+TEST_P(KmbGather8LayerTest, CompareWithRefs_MLIR) {
+    useCompilerMLIR();
+    Run();
+}
+
+TEST_P(KmbGather8LayerTest_VPU3720, CompareWithRefs_MLIR_VPU3720) {
+    useCompilerMLIR();
+    setPlatformVPU3720();
+    setDefaultHardwareModeMLIR();
     Run();
 }
 
@@ -120,6 +178,13 @@ INSTANTIATE_TEST_SUITE_P(
         KmbGatherLayerTest::getTestCaseName
 );
 
+INSTANTIATE_TEST_CASE_P(
+        smoke_Gather1_VPU3720,
+        KmbGatherLayerTest_VPU3720,
+        params,
+        KmbGatherLayerTest_VPU3720::getTestCaseName
+);
+
 }  // namespace
 
 
@@ -162,8 +227,19 @@ INSTANTIATE_TEST_CASE_P( \
         conform_Gather1_ ## no, \
         KmbGatherLayerTest, \
         genParams(inputShape,axis,numIndices),\
-        KmbGatherLayerTest::getTestCaseName)
+        KmbGatherLayerTest::getTestCaseName); \
+INSTANTIATE_TEST_CASE_P( \
+        conform_Gather1_VPU3720_ ## no, \
+        KmbGatherLayerTest_VPU3720, \
+        genParams(inputShape,axis,numIndices),\
+        KmbGatherLayerTest_VPU3720::getTestCaseName)
 
+#define GEN_PRECOMMIT_VPU3720_TEST(no,inputShape,axis,numIndices)\
+INSTANTIATE_TEST_CASE_P( \
+        conform_precommit_Gather1_VPU3720_ ## no, \
+        KmbGatherLayerTest_VPU3720, \
+        genParams(inputShape,axis,numIndices),\
+        KmbGatherLayerTest_VPU3720::getTestCaseName)
 
 GEN_TEST( 0,(std::vector<size_t>{ 10, 20, 30, 40}), 2,   4); //=> {10,20,4,40}
 GEN_TEST( 1,(std::vector<size_t>{ 32,  3,  3,  3}), 0,  27); //=> {27,3,3,3}
@@ -183,6 +259,8 @@ GEN_TEST(14,(std::vector<size_t>{960,  1,  3,  3}), 0, 954); //=> {954,1,3,3}
 GEN_TEST(15,(std::vector<size_t>{960,  1,  3,  3}), 0, 959); //=> {959,1,3,3}
 GEN_TEST(16,(std::vector<size_t>{  2,  64,  1, 1}), 0, 128); //=> {128,64,1,1}
 GEN_TEST(17,(std::vector<size_t>{  2,  64,  1, 1}), 1, 128); //=> {2,128,1,1}
+GEN_PRECOMMIT_VPU3720_TEST( 1,(std::vector<size_t>{ 16,  3,  3,  3}), 0,  27); //=> {27,3,3,3}
+GEN_PRECOMMIT_VPU3720_TEST( 2,(std::vector<size_t>{ 16,  1,  3,  3}), 0,  27); //=> {27,1,3,3}
 
 }  // namespace
 
@@ -202,7 +280,37 @@ INSTANTIATE_TEST_CASE_P( \
           testing::Values(InferenceEngine::Layout::ANY), \
           testing::Values(InferenceEngine::Layout::ANY), \
           testing::Values(LayerTestsUtils::testPlatformTargetDevice)), \
-        KmbGather7LayerTest::getTestCaseName )
+        KmbGather7LayerTest::getTestCaseName); \
+INSTANTIATE_TEST_CASE_P( \
+        smoke_Gather7_VPU3720_ ## no, \
+        KmbGather7LayerTest_VPU3720, \
+        testing::Combine( \
+          testing::Values(std::vector<size_t>inputShape), \
+          testing::Values(std::vector<size_t>indicesShape), \
+          testing::Values(std::tuple<int,int>{axis,batch_dims}), \
+          testing::Values(InferenceEngine::Precision::FP16), \
+          testing::Values(InferenceEngine::Precision::FP16), \
+          testing::Values(InferenceEngine::Precision::FP16), \
+          testing::Values(InferenceEngine::Layout::ANY), \
+          testing::Values(InferenceEngine::Layout::ANY), \
+          testing::Values(LayerTestsUtils::testPlatformTargetDevice)), \
+        KmbGather7LayerTest_VPU3720::getTestCaseName)
+
+#define GEN7_PRECOMMIT_VPU3720_TEST(no,inputShape,indicesShape,axis,batch_dims) \
+INSTANTIATE_TEST_CASE_P( \
+        smoke_precommit_Gather7_VPU3720_ ## no, \
+        KmbGather7LayerTest_VPU3720, \
+        testing::Combine( \
+          testing::Values(std::vector<size_t>inputShape), \
+          testing::Values(std::vector<size_t>indicesShape), \
+          testing::Values(std::tuple<int,int>{axis,batch_dims}), \
+          testing::Values(InferenceEngine::Precision::FP16), \
+          testing::Values(InferenceEngine::Precision::FP16), \
+          testing::Values(InferenceEngine::Precision::FP16), \
+          testing::Values(InferenceEngine::Layout::ANY), \
+          testing::Values(InferenceEngine::Layout::ANY), \
+          testing::Values(LayerTestsUtils::testPlatformTargetDevice)), \
+        KmbGather7LayerTest_VPU3720::getTestCaseName)
 
 GEN7_TEST(0, ({3,5,1,1}),     ({3,2}), 1, 1);
 GEN7_TEST(1, ({4,3,5,1}),     ({4,4}), 2, 1);
@@ -211,5 +319,64 @@ GEN7_TEST(3, ({2,2,5,1}),   ({2,2,3}), 2, 2);
 GEN7_TEST(4, ({2,1,5,4}),     ({2,3}), 2, 1);
 GEN7_TEST(5, ({2,5,2,1}),   ({2,2,3}), 1, 1);
 GEN7_TEST(6, ({2,5,1,1}),     ({2,3}), 1, 1);
+GEN7_PRECOMMIT_VPU3720_TEST(0, ({3,4,1,1}), ({3,1}), 1, 1);
+GEN7_PRECOMMIT_VPU3720_TEST(1, ({3,2,4,1}), ({3,3}), 2, 1);
+
+}  // namespace
+
+namespace {  // opset8::Gather tests
+
+#define GEN8_TEST(no, inputShape, indicesShape, axis, batch_dims) \
+INSTANTIATE_TEST_CASE_P( \
+        smoke_Gather8_##no, \
+        KmbGather8LayerTest, \
+        testing::Combine(testing::Values(std::vector<size_t> inputShape), \
+            testing::Values(std::vector<size_t> indicesShape), \
+            testing::Values(std::tuple<int, int>{axis, batch_dims}), \
+            testing::Values(InferenceEngine::Precision::FP16), \
+            testing::Values(InferenceEngine::Precision::FP16), \
+            testing::Values(InferenceEngine::Precision::FP16), \
+            testing::Values(InferenceEngine::Layout::ANY), \
+            testing::Values(InferenceEngine::Layout::ANY), \
+            testing::Values(LayerTestsUtils::testPlatformTargetDevice)), \
+        KmbGather8LayerTest::getTestCaseName); \
+INSTANTIATE_TEST_CASE_P( \
+        smoke_Gather8_VPU3720_##no, \
+        KmbGather8LayerTest_VPU3720, \
+        testing::Combine(testing::Values(std::vector<size_t> inputShape), \
+            testing::Values(std::vector<size_t> indicesShape), \
+            testing::Values(std::tuple<int, int>{axis, batch_dims}), \
+            testing::Values(InferenceEngine::Precision::FP16), \
+            testing::Values(InferenceEngine::Precision::FP16), \
+            testing::Values(InferenceEngine::Precision::FP16), \
+            testing::Values(InferenceEngine::Layout::ANY), \
+            testing::Values(InferenceEngine::Layout::ANY), \
+            testing::Values(LayerTestsUtils::testPlatformTargetDevice)), \
+        KmbGather8LayerTest::getTestCaseName)
+
+#define GEN8_PRECOMMIT_VPU3720_TEST(no, inputShape, indicesShape, axis, batch_dims) \
+INSTANTIATE_TEST_CASE_P( \
+        smoke_precommit_Gather8_VPU3720_##no, \
+        KmbGather8LayerTest_VPU3720, \
+        testing::Combine(testing::Values(std::vector<size_t> inputShape), \
+            testing::Values(std::vector<size_t> indicesShape), \
+            testing::Values(std::tuple<int, int>{axis, batch_dims}), \
+            testing::Values(InferenceEngine::Precision::FP16), \
+            testing::Values(InferenceEngine::Precision::FP16), \
+            testing::Values(InferenceEngine::Precision::FP16), \
+            testing::Values(InferenceEngine::Layout::ANY), \
+            testing::Values(InferenceEngine::Layout::ANY), \
+            testing::Values(LayerTestsUtils::testPlatformTargetDevice)), \
+        KmbGather8LayerTest::getTestCaseName)
+
+GEN8_TEST(0, ({3, 5, 1, 1}), ({3, 2}), 1, 1);
+GEN8_TEST(1, ({4, 3, 5, 1}), ({4, 4}), 2, 1);
+GEN8_TEST(2, ({3, 2, 1, 1}), ({3, 2}), 1, 1);
+GEN8_TEST(3, ({2, 2, 5, 1}), ({2, 2, 3}), 2, 2);
+GEN8_TEST(4, ({2, 1, 5, 4}), ({2, 3}), 2, 1);
+GEN8_TEST(5, ({2, 5, 2, 1}), ({2, 2, 3}), 1, 1);
+GEN8_TEST(6, ({2, 5, 1, 1}), ({2, 3}), 1, 1);
+GEN8_PRECOMMIT_VPU3720_TEST(0, ({2, 3, 1, 1}), ({2, 1}), 1, 1);
+GEN8_PRECOMMIT_VPU3720_TEST(1, ({3, 2, 4, 1}), ({3, 3}), 2, 1);
 
 }  // namespace

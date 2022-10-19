@@ -69,24 +69,27 @@ public:
             : m_startAddr(startAddr), m_totalSize(size), m_buffer(new uint8_t[m_totalSize]), m_tracker(m_buffer) {
     }
 
-    DeviceBuffer allocate(size_t alignment, size_t size) override {
+    DeviceBuffer allocate(const BufferSpecs& buffSpecs) override {
+        loaderLog.debug("Allocation request --> size {0} | alignment {1} | procFlags {2}", buffSpecs.size,
+                        buffSpecs.alignment, buffSpecs.procFlags);
+
         if (!m_buffer) {
-            loaderLog.error("Failed to allocate overall buffer of size {0}", size);
+            loaderLog.error("Failed to allocate overall buffer of size {0}", buffSpecs.size);
             return elf::DeviceBuffer(nullptr, 0, 0);
         }
 
-        m_tracker = align_up<uint8_t>(m_tracker, alignment);
+        m_tracker = align_up<uint8_t>(m_tracker, buffSpecs.alignment);
         uint8_t* start = m_tracker;
-        m_tracker += size;
+        m_tracker += buffSpecs.size;
 
         if (m_tracker >= m_buffer + m_totalSize) {
             loaderLog.error(
                     "Failed to allocate required buff of size {0} alignment {1} . Exceeding total device buffer space",
-                    size, alignment);
+                    buffSpecs.size, buffSpecs.alignment);
             return elf::DeviceBuffer(nullptr, 0, 0);
         }
 
-        return elf::DeviceBuffer(start, vpuWindow(start), size);
+        return elf::DeviceBuffer(start, vpuWindow(start), buffSpecs.size);
     }
 
     void deallocate(elf::DeviceBuffer& devBuffer) override {
@@ -183,8 +186,8 @@ public:
 
 void allocIO(BufferManager* mngr, std::vector<elf::DeviceBuffer>& ioVec, details::ArrayRef<DeviceBuffer> sizes,
              uint32_t* ioPtrs, uint32_t* ioSizesP, uint32_t* ioSize) {
-    auto ioPtrBuf = mngr->allocate(1, sizes.size() * sizeof(uint32_t));
-    auto ioSizesBuf = mngr->allocate(1, sizes.size() * sizeof(uint32_t));
+    auto ioPtrBuf = mngr->allocate(BufferSpecs(1, sizes.size() * sizeof(uint32_t), SHF_NONE));
+    auto ioSizesBuf = mngr->allocate(BufferSpecs(1, sizes.size() * sizeof(uint32_t), SHF_NONE));
 
     *ioPtrs = static_cast<uint32_t>(ioPtrBuf.vpu_addr());
     *ioSizesP = static_cast<uint32_t>(ioSizesBuf.vpu_addr());
@@ -192,7 +195,7 @@ void allocIO(BufferManager* mngr, std::vector<elf::DeviceBuffer>& ioVec, details
 
     for (size_t i = 0; i < sizes.size(); ++i) {
         size_t size = sizes[i].size();
-        auto buffer = mngr->allocate(1, size);
+        auto buffer = mngr->allocate(BufferSpecs(1, size, SHF_NONE));
 
         ioVec.push_back(buffer);
 
@@ -285,7 +288,7 @@ int main(int argc, char* argv[]) {
     FlatHexBufferManager bufferManager(baseAddr, memSize);
 
     HexMappedInferenceEntry* hexEntry = reinterpret_cast<HexMappedInferenceEntry*>(
-            bufferManager.allocate(1, sizeof(HexMappedInferenceEntry)).cpu_addr());
+            bufferManager.allocate(BufferSpecs(1, sizeof(HexMappedInferenceEntry), SHF_NONE)).cpu_addr());
 
     elf::VPUXLoader loader(reinterpret_cast<void*>(elfFile.data()), elfFile.size(), singleClusterSymTab.symTab(),
                            &bufferManager);

@@ -6,12 +6,8 @@
 #include "mvSubspaces.h"
 #include <nn_cache.h>
 
-#ifdef CONFIG_TARGET_SOC_3720
 __attribute__((aligned(1024)))
-#include "sk.sigmoid_fp16.3010xx.text.xdat"
-#else
-#include "svuSLKernels_EP.h"
-#endif
+#include "sk.sigmoid_fp16.3720xx.text.xdat"
 
 #include "param_sigmoid.h"
 
@@ -39,7 +35,8 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Sigmoid)) {
         }
 
         void initData() override {
-            m_params = {0xFFFFFFFF, m_elfBuffer, 0, nullptr, MAX_LOCAL_PARAMS, 0, 0};
+            sw_params::BaseKernelParams emptyParamData;
+            m_params = {0xFFFFFFFF, m_elfBuffer, 0, nullptr, emptyParamData, MAX_LOCAL_PARAMS, 0};
 
             CustomCppTests<fp16>::initData();
             const SingleTest* test = m_currentTest;
@@ -67,13 +64,7 @@ namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Sigmoid)) {
         }
 
         void generateInputData() override {
-            const auto customData = false;  // m_testLoop.value().customData;
-
-#ifdef CONFIG_TARGET_SOC_3720
-            m_params.kernel = reinterpret_cast<uint64_t>(sk_sigmoid_fp16_3010xx_text);
-#else
-            m_params.kernel = reinterpret_cast<uint64_t>(PREAMBLE_FUNC(sigmoid_fp16));
-#endif
+            m_params.kernel = reinterpret_cast<uint64_t>(sk_sigmoid_fp16_3720xx_text);
 
             rand_seed();
 

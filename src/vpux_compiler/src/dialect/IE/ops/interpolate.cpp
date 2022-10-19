@@ -7,10 +7,13 @@
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
 
+#include "vpux/compiler/dialect/VPUIP/graph-schema/utils.hpp"
+
 #include "vpux/compiler/dialect/const/ops.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/error.hpp"
 
+#include "vpux/compiler/dialect/IE/utils/resources.hpp"
 #include "vpux/utils/core/checked_cast.hpp"
 
 using namespace vpux;
@@ -50,23 +53,29 @@ mlir::FailureOr<SmallVector<double>> extractFPVector(mlir::Location loc, const m
     return errorAt(loc, "Parameter were not provided");
 }
 
-mlir::FailureOr<SmallVector<int64_t>> calcOutputShapes(mlir::Location loc, IE::InterpolateOpAdaptor interpolate) {
-    const auto axes = extractIntVector(loc, interpolate.axes(), interpolate.axes_attr());
-    const auto axes_val = axes.getValue();
-
-    const auto inType = interpolate.input().getType().cast<mlir::ShapedType>();
-    const auto inputShape = inType.getShape();
-
-    SmallVector<int64_t> outShape;
-
-    for (size_t i = 0; i < inputShape.size(); ++i) {
-        outShape.emplace_back(inputShape[i]);
+void applyInterpPads(MutableArrayRef<int64_t> outShape, ArrayRef<int64_t> padsBegin, ArrayRef<int64_t> padsEnd) {
+    // pads might be zero initialized
+    if (padsBegin.size() != padsEnd.size() || padsBegin.size() != outShape.size()) {
+        return;
     }
+    // naive implementation only apply pads to calculated output shape
+    for (auto d : outShape | indexed) {
+        d.value() += padsBegin[d.index()] + padsEnd[d.index()];
+    }
+}
 
-    auto calcMode = interpolate.attr().shape_calc_mode().getValue();
+mlir::FailureOr<SmallVector<int64_t>> propagateShape(mlir::Location loc, mlir::FailureOr<SmallVector<int64_t>> axes,
+                                                     ArrayRef<int64_t> origShape,
+                                                     mlir::FailureOr<ArrayRef<int64_t>> padsBegin,
+                                                     mlir::FailureOr<ArrayRef<int64_t>> padsEnd,
+                                                     vpux::IE::InterpolateCalcMode calcMode,
+                                                     mlir::FailureOr<ArrayRef<int64_t>> sizes,
+                                                     mlir::FailureOr<ArrayRef<double>> scales, vpux::Logger log) {
+    log.trace("Interp propagate shape: input = {0}", origShape);
+    const auto axes_val = axes.getValue();
+    auto inferedShape = to_small_vector(origShape);
 
-    if (calcMode == IE::InterpolateCalcMode::sizes) {
-        const auto sizes = extractIntVector(loc, interpolate.sizes(), interpolate.sizes_attr());
+    if (calcMode == IE::InterpolateCalcMode::SIZES) {
         const auto sizes_val = sizes.getValue();
 
         if (sizes_val.size() != axes_val.size()) {
@@ -76,13 +85,11 @@ mlir::FailureOr<SmallVector<int64_t>> calcOutputShapes(mlir::Location loc, IE::I
         }
         auto sizesIter = sizes_val.begin();
 
-        for (const auto& i : axes_val)
-            outShape[i] = *sizesIter++;
-
-        return outShape;
-
-    } else if (calcMode == IE::InterpolateCalcMode::scales) {
-        const auto scales = extractFPVector(loc, interpolate.scales(), interpolate.scales_attr());
+        for (const auto& i : axes_val) {
+            log.trace("Interp sizes - axis: {0}", i);
+            inferedShape[i] = *sizesIter++;
+        }
+    } else if (calcMode == IE::InterpolateCalcMode::SCALES) {
         const auto scales_val = scales.getValue();
 
         if (scales_val.size() != axes_val.size()) {
@@ -94,13 +101,35 @@ mlir::FailureOr<SmallVector<int64_t>> calcOutputShapes(mlir::Location loc, IE::I
         auto scalesIter = scales_val.begin();
 
         for (const auto& i : axes_val) {
-            outShape[i] = static_cast<int64_t>(floor((*scalesIter++) * inputShape[i]));
+            log.trace("Interp scales - axis: {0}", i);
+            inferedShape[i] = static_cast<int64_t>(floor((*scalesIter++) * origShape[i]));
         }
-
-        return outShape;
 
     } else
         return errorAt(loc, "Doesn't support shape_calculation_mode: {0}", calcMode);
+
+    // meaning pads provided in attributes
+    if (mlir::succeeded(padsBegin) && mlir::succeeded(padsEnd)) {
+        applyInterpPads(inferedShape, padsBegin.getValue(), padsEnd.getValue());
+    }
+
+    log.trace("Interp propagate shape: output = {0}", inferedShape);
+
+    return inferedShape;
+}
+
+mlir::FailureOr<SmallVector<int64_t>> calcOutputShapes(mlir::Location loc, IE::InterpolateOpAdaptor interpolate,
+                                                       vpux::Logger log) {
+    const auto axes = extractIntVector(loc, interpolate.axes(), interpolate.axes_attr());
+    const auto beginPads = extractIntVector(loc, {}, interpolate.attr().pads_begin());
+    const auto endPads = extractIntVector(loc, {}, interpolate.attr().pads_end());
+
+    const auto inType = interpolate.input().getType().cast<mlir::ShapedType>();
+    const auto inputShape = inType.getShape();
+
+    return propagateShape(loc, axes, inputShape, beginPads, endPads, interpolate.attr().shape_calc_mode().getValue(),
+                          extractIntVector(loc, interpolate.sizes(), interpolate.sizes_attr()),
+                          extractFPVector(loc, interpolate.scales(), interpolate.scales_attr()), log);
 }
 
 }  // namespace
@@ -118,7 +147,7 @@ mlir::LogicalResult vpux::IE::InterpolateOp::inferReturnTypeComponents(
 
     const auto inType = interpolate.input().getType().cast<mlir::ShapedType>();
 
-    auto outShape = calcOutputShapes(loc, interpolate);
+    auto outShape = calcOutputShapes(loc, interpolate, Logger::global());
 
     if (mlir::failed(outShape)) {
         return mlir::failure();
@@ -191,6 +220,12 @@ public:
 mlir::LogicalResult ConvertInputToFP16::matchAndRewrite(IE::InterpolateOp op, mlir::PatternRewriter& rewriter) const {
     const auto inputType = op.input().getType().cast<mlir::ShapedType>().getElementType();
 
+    // VPU4000-M2I does not support C-minor FP16
+    if ((VPU::getArch(op) == VPU::ArchKind::VPUX40XX) &&
+        (VPU::getCompilationMode(op) != VPU::CompilationMode::ReferenceSW)) {
+        return mlir::failure();
+    }
+
     if (inputType.isUnsignedInteger(8)) {
         auto convertOpBefore =
                 rewriter.create<IE::ConvertOp>(op.getLoc(), op.input(), mlir::Float16Type::get(getContext()));
@@ -206,6 +241,18 @@ mlir::LogicalResult ConvertInputToFP16::matchAndRewrite(IE::InterpolateOp op, ml
 }
 
 }  // namespace
+
+//
+// fold
+//
+
+mlir::OpFoldResult vpux::IE::InterpolateOp::fold(ArrayRef<mlir::Attribute>) {
+    if (input().getType() == output().getType()) {
+        return input();
+    }
+
+    return nullptr;
+}
 
 //
 // getCanonicalizationPatterns

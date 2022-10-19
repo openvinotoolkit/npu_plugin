@@ -13,6 +13,5 @@ subdirs-lrt-y += common
 subdirs-lnn-y += common
 subdirs-shave-y += common
 subdirs-shave_nn-y += common
-srcs-shave-$(CONFIG_TARGET_SOC_MA2490) += $(wildcard ./2490/*.c*) $(wildcard ./2490*.asm)
-srcs-shave-$(CONFIG_TARGET_SOC_MA2490) += $(wildcard ./*.c*) $(wildcard ./*.asm)
+
 srcs-lrt-$(CONFIG_TARGET_SOC_3720) += 3720/dma_shave_nn.cpp

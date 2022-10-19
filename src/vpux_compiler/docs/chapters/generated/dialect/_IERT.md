@@ -147,6 +147,72 @@ operation ::= `IERT.Acosh` attr-dict
 | :----: | ----------- |
 `output` | memref of 16-bit float or 32-bit float values
 
+### `IERT.AdaptiveAvgPool` (vpux::IERT::AdaptiveAvgPoolOp)
+
+InferenceEngine run-time AdaptiveAvgPool layer
+
+
+Syntax:
+
+```
+operation ::= `IERT.AdaptiveAvgPool` attr-dict
+              `inputs` `(` $input `:` type($input) `,` $pooled_spatial_shape `:` type($pooled_spatial_shape) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of 16-bit float or 32-bit float values
+`pooled_spatial_shape` | memref of 32-bit signed integer values
+`output_buff` | memref of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float or 32-bit float values
+
+### `IERT.AdaptiveMaxPool` (vpux::IERT::AdaptiveMaxPoolOp)
+
+InferenceEngine run-time AdaptiveMaxPool layer
+
+
+Syntax:
+
+```
+operation ::= `IERT.AdaptiveMaxPool` attr-dict
+              `inputs` `(` $input `:` type($input) `,` $pooled_spatial_shape `:` type($pooled_spatial_shape) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `,` $output_index_buff `:` type($output_index_buff) `)`
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`index_element_type` | ::mlir::TypeAttr | any type attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of 16-bit float or 32-bit float values
+`pooled_spatial_shape` | memref of 32-bit signed integer values
+`output_buff` | memref of 16-bit float or 32-bit float values
+`output_index_buff` | memref of 32-bit signed integer values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float or 32-bit float values
+`output_index` | memref of 32-bit signed integer values
+
 ### `IERT.Add` (vpux::IERT::AddOp)
 
 InferenceEngine run-time Add layer
@@ -377,7 +443,7 @@ Syntax:
 ```
 operation ::= `IERT.Broadcast` attr-dict
               `inputs` `(` $input `:` type($input) `,` $target_shape `:` type($target_shape) (`,` $axes_mapping^ `:` type($axes_mapping))? `)`
-              `ouputs` `(` $output_buff `:` type($output_buff) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
               `->` type(results)
 ```
 
@@ -402,6 +468,42 @@ operation ::= `IERT.Broadcast` attr-dict
 | Result | Description |
 | :----: | ----------- |
 `output` | memref of any type values
+
+### `IERT.Bucketize` (vpux::IERT::BucketizeOp)
+
+InferenceEngine run-time Bucketize layer
+
+
+Syntax:
+
+```
+operation ::= `IERT.Bucketize` attr-dict
+              `inputs` `(` $data `:` type($data) `,` $buckets `:` type($buckets) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`output_type` | ::mlir::TypeAttr | any type attribute
+`with_right_bound` | ::mlir::UnitAttr | unit attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`data` | memref of any type values
+`buckets` | memref of integer or floating-point values
+`output_buff` | memref of 32-bit signed integer or 64-bit signed integer values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 32-bit signed integer or 64-bit signed integer values
 
 ### `IERT.CTCGreedyDecoder` (vpux::IERT::CTCGreedyDecoderOp)
 
@@ -968,6 +1070,43 @@ operation ::= `IERT.Exp` attr-dict
 | :----: | ----------- |
 `output` | memref of 16-bit float or 32-bit float values
 
+### `IERT.ExtractImagePatches` (vpux::IERT::ExtractImagePatchesOp)
+
+InferenceEngine run-time Convolution layer
+
+
+Syntax:
+
+```
+operation ::= `IERT.ExtractImagePatches` attr-dict
+              `inputs` `(` $data `:` type($data) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`sizes` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`strides` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`rates` | ::mlir::ArrayAttr | 64-bit integer array attribute
+`autoPad` | vpux::IE::PadTypeAttr | PadType that the InferenceEngine supports
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`data` | memref of any type values
+`output_buff` | memref of any type values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of any type values
+
 ### `IERT.FakeQuantize` (vpux::IERT::FakeQuantizeOp)
 
 InferenceEngine FakeQuantize layer
@@ -1352,6 +1491,34 @@ operation ::= `IERT.GroupConvolution` attr-dict
 | :----: | ----------- |
 `output` | memref of 16-bit float or 32-bit float or QuantizedType values
 
+### `IERT.HSigmoid` (vpux::IERT::HSigmoidOp)
+
+InferenceEngine run-time HSigmoid layer
+
+
+Syntax:
+
+```
+operation ::= `IERT.HSigmoid` attr-dict
+              `inputs` `(` $input `:` type($input) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of 16-bit float or 32-bit float values
+`output_buff` | memref of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float or 32-bit float values
+
 ### `IERT.HSwish` (vpux::IERT::HSwishOp)
 
 InferenceEngine run-time HSwish layer
@@ -1366,6 +1533,41 @@ operation ::= `IERT.HSwish` attr-dict
               `->` type(results)
 ```
 
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of 16-bit float or 32-bit float values
+`output_buff` | memref of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float or 32-bit float values
+
+### `IERT.HardSigmoid` (vpux::IERT::HardSigmoidOp)
+
+InferenceEngine run-time HardSigmoid layer
+
+
+Syntax:
+
+```
+operation ::= `IERT.HardSigmoid` attr-dict
+              `inputs` `(` $input `:` type($input) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`alpha_value` | ::mlir::FloatAttr | 64-bit float attribute
+`beta_value` | ::mlir::FloatAttr | 64-bit float attribute
 
 #### Operands:
 
@@ -1417,6 +1619,44 @@ operation ::= `IERT.Interpolate` attr-dict
 | :----: | ----------- |
 `output` | memref of 16-bit float or 32-bit float values
 
+### `IERT.LRN` (vpux::IERT::LRNOp)
+
+InferenceEngine run-time LRN layer
+
+
+Syntax:
+
+```
+operation ::= `IERT.LRN` attr-dict
+              `inputs` `(` $input `:` type($input) `,` $axis `:` type($axis) `)`
+              `ouputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`alpha` | ::mlir::FloatAttr | 64-bit float attribute
+`beta` | ::mlir::FloatAttr | 64-bit float attribute
+`bias` | ::mlir::FloatAttr | 64-bit float attribute
+`size` | mlir::IntegerAttr | Integer attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of 16-bit float or 32-bit float values
+`axis` | memref of any type values
+`output_buff` | memref of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float or 32-bit float values
+
 ### `IERT.LRN_IE` (vpux::IERT::LRN_IEOp)
 
 InferenceEngine run-time LRN_IE layer
@@ -1427,7 +1667,7 @@ Syntax:
 ```
 operation ::= `IERT.LRN_IE` attr-dict
               `inputs` `(` $input `:` type($input) `)`
-              `ouputs` `(` $output_buff `:` type($output_buff) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
               `->` type(results)
 ```
 
@@ -2284,7 +2524,7 @@ Syntax:
 ```
 operation ::= `IERT.Proposal` attr-dict
               `inputs` `(` $class_probs `:` type($class_probs) `,` $bbox_deltas `:` type($bbox_deltas) `,` $image_shape `:` type($image_shape) `)`
-              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `,` $probs_buff `:` type($probs_buff) `)`
               `->` type(results)
 ```
 
@@ -2303,12 +2543,14 @@ operation ::= `IERT.Proposal` attr-dict
 `bbox_deltas` | memref of 16-bit float or 32-bit float values
 `image_shape` | memref of 16-bit float or 32-bit float values
 `output_buff` | memref of 16-bit float or 32-bit float values
+`probs_buff` | memref of 16-bit float or 32-bit float values
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
 `output` | memref of 16-bit float or 32-bit float values
+`probs` | memref of 16-bit float or 32-bit float values
 
 ### `IERT.QuantizeCast` (vpux::IERT::QuantizeCastOp)
 
@@ -2469,6 +2711,146 @@ operation ::= `IERT.ReLU` attr-dict
 | :----: | ----------- |
 `output` | memref of 16-bit float or 32-bit float values
 
+### `IERT.ReduceL1` (vpux::IERT::ReduceL1Op)
+
+InferenceEngine run-time ReduceL1 layer
+
+
+Syntax:
+
+```
+operation ::= `IERT.ReduceL1` attr-dict
+              `inputs` `(` $input `:` type($input) `,` $axes `:` type($axes) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`keep_dims` | ::mlir::UnitAttr | unit attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of any type values
+`axes` | memref of 64-bit signed integer or 32-bit signed integer values
+`output_buff` | memref of any type values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of any type values
+
+### `IERT.ReduceL2` (vpux::IERT::ReduceL2Op)
+
+InferenceEngine run-time ReduceL2 layer
+
+
+Syntax:
+
+```
+operation ::= `IERT.ReduceL2` attr-dict
+              `inputs` `(` $input `:` type($input) `,` $axes `:` type($axes) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`keep_dims` | ::mlir::UnitAttr | unit attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of any type values
+`axes` | memref of 64-bit signed integer or 32-bit signed integer values
+`output_buff` | memref of any type values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of any type values
+
+### `IERT.ReduceLogicalAnd` (vpux::IERT::ReduceLogicalAndOp)
+
+InferenceEngine run-time ReduceLogicalAnd layer
+
+
+Syntax:
+
+```
+operation ::= `IERT.ReduceLogicalAnd` attr-dict
+              `inputs` `(` $input `:` type($input) `,` $axes `:` type($axes) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`keep_dims` | ::mlir::UnitAttr | unit attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of any type values
+`axes` | memref of 64-bit signed integer or 32-bit signed integer values
+`output_buff` | memref of any type values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of any type values
+
+### `IERT.ReduceLogicalOr` (vpux::IERT::ReduceLogicalOrOp)
+
+InferenceEngine run-time ReduceLogicalOr layer
+
+
+Syntax:
+
+```
+operation ::= `IERT.ReduceLogicalOr` attr-dict
+              `inputs` `(` $input `:` type($input) `,` $axes `:` type($axes) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`keep_dims` | ::mlir::UnitAttr | unit attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of any type values
+`axes` | memref of 64-bit signed integer or 32-bit signed integer values
+`output_buff` | memref of any type values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of any type values
+
 ### `IERT.ReduceMax` (vpux::IERT::ReduceMaxOp)
 
 InferenceEngine run-time reduceMax layer
@@ -2479,7 +2861,7 @@ Syntax:
 ```
 operation ::= `IERT.ReduceMax` attr-dict
               `inputs` `(` $input `:` type($input) `,` $axes `:` type($axes) `)`
-              `ouputs` `(` $output_buff `:` type($output_buff) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
               `->` type(results)
 ```
 
@@ -2549,7 +2931,42 @@ Syntax:
 ```
 operation ::= `IERT.ReduceMin` attr-dict
               `inputs` `(` $input `:` type($input) `,` $axes `:` type($axes) `)`
-              `ouputs` `(` $output_buff `:` type($output_buff) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`keep_dims` | ::mlir::UnitAttr | unit attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`input` | memref of any type values
+`axes` | memref of 64-bit signed integer or 32-bit signed integer values
+`output_buff` | memref of any type values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of any type values
+
+### `IERT.ReduceProd` (vpux::IERT::ReduceProdOp)
+
+InferenceEngine run-time ReduceProd layer
+
+
+Syntax:
+
+```
+operation ::= `IERT.ReduceProd` attr-dict
+              `inputs` `(` $input `:` type($input) `,` $axes `:` type($axes) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
               `->` type(results)
 ```
 
@@ -2584,7 +3001,7 @@ Syntax:
 ```
 operation ::= `IERT.ReduceSum` attr-dict
               `inputs` `(` $input `:` type($input) `,` $axes `:` type($axes) `)`
-              `ouputs` `(` $output_buff `:` type($output_buff) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
               `->` type(results)
 ```
 
@@ -2847,6 +3264,41 @@ operation ::= `IERT.Select` attr-dict
 | Result | Description |
 | :----: | ----------- |
 `output` | memref of 32-bit signed integer or 16-bit float values
+
+### `IERT.Selu` (vpux::IERT::SeluOp)
+
+InferenceEngine run-time Selu layer
+
+
+Syntax:
+
+```
+operation ::= `IERT.Selu` attr-dict
+              `inputs` `(` $data `:` type($data) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+`alphaValue` | ::mlir::FloatAttr | 64-bit float attribute
+`lambdaValue` | ::mlir::FloatAttr | 64-bit float attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+`data` | memref of 16-bit float or 32-bit float values
+`output_buff` | memref of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+`output` | memref of 16-bit float or 32-bit float values
 
 ### `IERT.Sigmoid` (vpux::IERT::SigmoidOp)
 
@@ -3453,14 +3905,14 @@ operation ::= `IERT.YuvToRgb` attr-dict
 
 | Operand | Description |
 | :-----: | ----------- |
-`input1` | memref of 8-bit signless integer or 16-bit float or 32-bit float values
-`input2` | memref of 8-bit signless integer or 16-bit float or 32-bit float values
-`input3` | memref of 8-bit signless integer or 16-bit float or 32-bit float values
-`output_buff` | memref of 8-bit signless integer or 16-bit float or 32-bit float values
+`input1` | memref of 8-bit unsigned integer or 16-bit float or 32-bit float values
+`input2` | memref of 8-bit unsigned integer or 16-bit float or 32-bit float values
+`input3` | memref of 8-bit unsigned integer or 16-bit float or 32-bit float values
+`output_buff` | memref of 8-bit unsigned integer or 16-bit float or 32-bit float values
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-`output` | memref of 8-bit signless integer or 16-bit float or 32-bit float values
+`output` | memref of 8-bit unsigned integer or 16-bit float or 32-bit float values
 

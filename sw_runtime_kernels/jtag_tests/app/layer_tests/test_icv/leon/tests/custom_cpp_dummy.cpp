@@ -12,12 +12,8 @@
 
 #include "param_dummy.h"
 
-#ifdef CONFIG_TARGET_SOC_3720
 __attribute__((aligned(1024)))
-#include "sk.dummy.3010xx.text.xdat"
-#else
-#include "svuSLKernels_EP.h"
-#endif
+#include "sk.dummy.3720xx.text.xdat"
 
 namespace ICV_TESTS_NAMESPACE(ICV_TESTS_PASTE2(ICV_TEST_SUITE_NAME, Dummy))
 {
@@ -46,12 +42,12 @@ protected:
         CustomCppTests<fp16>::initData();
         const SingleTest* test = m_currentTest;
         initTestCase();
-        const Dimensions& dimIn = m_currentTest->inDim;
-        const Dimensions& dimOut = m_currentTest->outDim;
+        const Dims& inputDims = m_currentTest->inputDims;
+        const Dims& outputDims = m_currentTest->outputDims;
         const StorageOrder& storageOrder = m_currentTest->storageOrder;
 
-        const TensorDims dims3In(dimIn.width,   dimIn.height,  dimIn.channels,  1);
-        const TensorDims dims3Out(dimOut.width, dimOut.height, dimOut.channels, 1);
+        const TensorDims dims3In(inputDims.begin()[0], inputDims.begin()[1], inputDims.begin()[2], 1);
+        const TensorDims dims3Out(outputDims.begin()[0], outputDims.begin()[1], outputDims.begin()[2], 1);
 
         m_ins = std::min<int>(test->customLayerParams.layerParams[0], MAX_KERNEL_INPUTS);
         m_outs = std::min<int>(test->customLayerParams.layerParams[1], MAX_KERNEL_OUTPUTS);
@@ -112,11 +108,7 @@ protected:
     }
 
     void generateInputData() override {
-#ifdef CONFIG_TARGET_SOC_3720
-        m_params.kernel  = reinterpret_cast<uint64_t>(sk_dummy_3010xx_text);
-#else
-        m_params.kernel  = reinterpret_cast<uint64_t>(PREAMBLE_FUNC(dummy));
-#endif
+        m_params.kernel  = reinterpret_cast<uint64_t>(sk_dummy_3720xx_text);
 
         // set random seed
         u64 ticks_for_seed = rtems_clock_get_uptime_nanoseconds();

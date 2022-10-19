@@ -107,7 +107,7 @@ void vpux::AliasesInfo::traverse(OpRange ops) {
             return isBufferizedType(asyncType.getValueType());
         }
 
-        return type.isa<mlir::MemRefType, VPUIP::DistributedBufferType, VPURT::SparseBufferType>();
+        return type.isa<mlir::MemRefType, VPUIP::DistributedBufferType, VPUIP::SparseBufferType>();
     };
 
     for (auto& op : ops) {

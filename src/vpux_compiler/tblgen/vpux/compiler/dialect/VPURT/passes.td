@@ -49,6 +49,11 @@ def AssignVirtualBarriers : PassBase<"assign-virtual-barriers", "vpux::FunctionP
 
     let options = [
         Option<
+            "useCycleBasedBarrierScheduler", "use-cycle-based-barrier-scheduler",
+            "bool", "true",
+            "Flag to use cycle based barrier scheduler"
+        >,
+        Option<
             "numBarriers", "num-barriers",
             "int", "",
             "Number of physical barriers, available for use"
