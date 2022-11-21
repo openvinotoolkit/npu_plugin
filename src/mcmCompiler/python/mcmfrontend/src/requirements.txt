@@ -1,7 +1,7 @@
 networkx
 numpy==1.16.4
 protobuf==3.9.1
-tensorflow==1.13.1
+tensorflow==2.9.3
 graphviz-dev
 pygraphviz
 flatbuffers
