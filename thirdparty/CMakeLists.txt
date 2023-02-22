@@ -10,7 +10,19 @@
 foreach(flag IN ITEMS "-Werror" "-fvisibility=hidden" "-fvisibility-inlines-hidden")
     string(REPLACE ${flag} "" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
     string(REPLACE ${flag} "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+    string(REPLACE ${flag} "" CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE}")
+    string(REPLACE ${flag} "" CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE}")
 endforeach()
+
+
+# TODO: Remove once the thirdparties respect these flags
+if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    set(ie_c_cxx_deprecated_no_errors "${ie_c_cxx_deprecated_no_errors} /wd4146 /wd4703")
+    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} ${ie_c_cxx_deprecated_no_errors}")
+    set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} ${ie_c_cxx_deprecated_no_errors}")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${ie_c_cxx_deprecated_no_errors}")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${ie_c_cxx_deprecated_no_errors}")
+endif()
 
 set(BUILD_SHARED_LIBS OFF)
 
@@ -35,6 +47,10 @@ set(LLVM_TARGETS_TO_BUILD "host" CACHE STRING "" FORCE)
 set(CROSS_TOOLCHAIN_FLAGS_ "" CACHE STRING "" FORCE)
 set(CROSS_TOOLCHAIN_FLAGS_NATIVE "" CACHE STRING "" FORCE)
 set(LLVM_ENABLE_TERMINFO OFF CACHE BOOL "" FORCE)
+# we do not use examples and having it enabled
+# makes cmake complains about long path on Windows
+set(LLVM_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+set(LLVM_INCLUDE_EXAMPLES OFF CACHE BOOL "" FORCE)
 
 add_subdirectory(llvm-project/llvm EXCLUDE_FROM_ALL)
 
@@ -87,7 +103,11 @@ vpux_add_native_tool(flatc "${CMAKE_CURRENT_SOURCE_DIR}/flatbuffers"
 # vpux_elf
 #
 
-add_subdirectory(graphFile-schema/vpux_elf)
+set(VPUX_ELF_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/elf")
+set(VPUX_ELF_SOURCE_DIR "${VPUX_ELF_SOURCE_DIR}" PARENT_SCOPE)
+message("VPUX_ELF_SOURCE_DIR : ${VPUX_ELF_SOURCE_DIR}")
+
+add_subdirectory(${VPUX_ELF_SOURCE_DIR}/vpux_elf)
 
 #
 # zeroApi
@@ -107,7 +127,22 @@ endif()
 #
 
 if(ENABLE_BITCOMPACTOR)
-    message( FATAL_ERROR "Bitcompactor is not currently supported! Aborting..." )
+    set(BITCOMPACTOR_TARGET_NAME "bitcompactor")
+
+    add_library(${BITCOMPACTOR_TARGET_NAME}
+        OBJECT
+        "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/thirdparty/bitcompactor/src/bitCompactor.cpp")
+
+    target_include_directories(${BITCOMPACTOR_TARGET_NAME}
+        PUBLIC
+            $<BUILD_INTERFACE:${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/thirdparty/bitcompactor/include>
+    )
+    if (NOT BUILD_SHARED_LIBS)
+        install(TARGETS ${BITCOMPACTOR_TARGET_NAME} EXPORT OpenVINOTargets
+                RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT ${VPUX_PLUGIN_COMPONENT}
+                ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT ${VPUX_PLUGIN_COMPONENT}
+                LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT ${VPUX_PLUGIN_COMPONENT})
+    endif()
 endif()
 
 #
