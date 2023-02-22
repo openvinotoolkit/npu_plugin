@@ -1,0 +1,123 @@
+Change Log:
+-----------
+VPUXCompilerL0 2.1.1:
+  - Add VPUXLoader module with loaderTest.
+
+VPUXCompilerL0 2.1.0:
+  - Add vpuxCompilerL0Test based on gtest, including:
+    - CompilerTest
+    - CompilerTestThread
+    - CompilerTestThread2
+  - Remove the original compilerThreadTest and compilerThreadTest2, which have been already included in vpuxCompilerL0Test.
+
+VPUXCompilerL0 2.0.0:
+  - API Change
+    - Use options to set all configs(include i/o precision and layout).
+      - Set one precision(layout) to all inputs(outputs) is not supported now.
+    - Update API version to 2.0.0, need to change the version in modelIRData.
+  - Use debug_level to control package local log.
+
+VPUXCompilerL0 1.3.0:
+  - Add profiling API
+
+VPUXCompilerL0 1.2.2:
+  - Use OpenVINO static frontend.
+  - API Change:
+    - Move compilation mode to options.
+    - Move compile log level to options.
+    - Add optionsSize.
+
+VPUXCompilerL0 1.2.1:
+  - Add more config options.
+  - Code refactor.
+  - Work on master branch.
+  - Use static OpenVINO runtime.
+
+VPUXCompilerL0 1.1.2145:
+  - Add profiling and change default debug level to info.
+
+VPUXCompilerL0 1.1.2142:
+  - Add compilerThreadTest2 to compile concurrently
+
+VPUXCompilerL0 1.1.2141:
+  - Use new VPUXCompilerL0.h to replace vpux_compiler_l0.h.
+    - Change api.
+    - Change example.
+
+VPUXCompilerL0 1.1.2140:.
+  - Add multiple compilers and multiple blobs features.
+  - Rename the names of some structures.
+  - API Change:
+    - Add new strutures and change api arguments.
+      - Change vpux_compiler_l0 to vcl.
+      - Add compiler handle.
+      - Add executable handle.
+      - Add vcl_log_level_t.
+      - Add vcl_platform_t.
+      - Add vcl_compilation_mode.
+    - Add createCompiler().
+    - Remove updateCompilerProperties().
+    - Change generateSerializableBlob() arguments.
+    - Change getSeriablizableBlob() arguments.
+    - Add destoryExecutable().
+    - Change deinitCompiler() to destroyCompiler().
+  - Change test example to follow new API.
+  - Add compilerThreadTest.
+  - Fix the error of reading models.
+
+VPUXCompilerL0 1.1.2139:
+  - Change parameter type of generateSerializableBlob function.
+    - Change modelIR structure and type.
+
+VPUXCompilerL0 1.1.2138:
+  - Update VPUx-plugin to releases/2021/4_vpux_ww37.
+
+VPUXCompilerL0 1.1.2137:
+  - Remove gc_api.
+  - Have both Release and Debug version built with OneCore compliance.
+
+VPUXCompilerL0 1.1.2136:
+  - Fix the crash issue of reusing library.
+  - API Change:
+    - split old generateSerializableBlob to two functions.
+      - add model_ir type.
+      - gc_result_t generateSerializableBlob(void* modelIR, uint32_t* blobSize).
+      - gc_result_t getSerializableBlob(uint8_t* blob, uint32_t blobSize).
+  - Workaround for fixing heap leaking issue.
+  - Remove unnecessary fucSharedTests dependency.
+  - Remove tbb library dependency.
+  - Scroll VPUx-plugin back to releases/2021/4_vpux_ww34 as WW36 dKMB Release indicates.
+
+VPUXCompilerL0 1.1.2135:
+  - Update VPUx-plugin to releases/2021/4_vpux_ww35
+  - Remove accidentally included MCM compiler components.
+
+VPUXCompilerL0 1.1.2134:
+  - Add new branch VPUXCompilerL0.
+    - Rename library to VPUXCompilerL0.dll.
+    - Rename convertTest to compilerTest.
+    - Rename converter.h to vpux_compiler_l0.h.
+    - Rename getConverter to getVPUXCompilerL0.
+    - Rename vpux_converter_t to vpux_compiler_l0_t.
+    - Rename vpux_converter_methods_t to vpux_compiler_l0_methods_t.
+
+umdConverter 1.1.2134:
+  - API change:
+    - Add converter.h to show umdConverter interface.
+      - Use getConverter as umd_converter.dll entrance, use vpux_converter_t to
+        represent umdConverter.
+      - Move methods to vpux_converter_methods_t.
+      - Add getCompilerProperties, updateCompilerConfig, deinitCompiler and keep
+        getSerializableBlob in vpux_converter_methods_t.
+    - Change getSerializableBlob usage, shall call it twice, the first time to
+      get blob size, and the second time to fill the blob data.
+  - Remove MCM compiler support, only use vpux compiler now.
+    - The fronend_mcm and mcmCompiler lib are removed.
+  - Remove inference_engine_ir_reader library.
+    - Use ir_parser utilities inside the converter instead of loading another reader
+      library.
+
+umdConverter 1.1:
+  - Use getSerializableBlob as entrance to umd_converter.dll, can convert xml
+    and bin file from OPENVINO to blob file.
+  - Use convertTest as demo of umd_converter.dll demo.
