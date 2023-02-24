@@ -7,6 +7,8 @@
 
 #include "vpux/compiler/dialect/ELF/export.hpp"
 #include "vpux/compiler/dialect/ELF/import.hpp"
+#include "vpux/compiler/dialect/EMU/graph-schema/export.hpp"
+#include "vpux/compiler/dialect/VPUIP/graph-schema/export.hpp"
 #include "vpux/compiler/dialect/VPUIP/graph-schema/import.hpp"
 #include "vpux/compiler/frontend/IE.hpp"
 #include "vpux/compiler/init.hpp"
@@ -184,6 +186,17 @@ mlir::OwningOpRef<mlir::ModuleOp> importELF(llvm::SourceMgr& sourceMgr, mlir::ML
 // export-VPUIP
 //
 
+mlir::LogicalResult exportVPUIP(mlir::ModuleOp module, llvm::raw_ostream& output, StringRef /*outputFileName*/) {
+    mlir::DefaultTimingManager tm;
+    auto rootTiming = tm.getRootScope();
+    const std::vector<std::shared_ptr<const ov::Node>> params;
+    const std::vector<std::shared_ptr<const ov::Node>> results;
+    std::vector<vpux::PreProcessInfo> preProcInfo;
+    const auto buf = VPUIP::exportToBlob(module, rootTiming, preProcInfo, params, results);
+    output.write(reinterpret_cast<const char*>(buf.data()), buf.size());
+    return mlir::success();
+}
+
 mlir::LogicalResult exportELF(mlir::ModuleOp module, llvm::raw_ostream& output, StringRef /*outputFileName*/) {
     mlir::DefaultTimingManager tm;
     const auto buf = ELF::exportToELF(module);
@@ -239,6 +252,17 @@ mlir::LogicalResult exportLLVMIR(mlir::ModuleOp module, llvm::raw_ostream& outpu
 // export-EMU
 //
 
+mlir::LogicalResult exportEMU(mlir::ModuleOp module, llvm::raw_ostream& output, StringRef /*outputFileName*/) {
+    mlir::DefaultTimingManager tm;
+    auto rootTiming = tm.getRootScope();
+    const std::vector<std::shared_ptr<const ov::Node>> params;
+    const std::vector<std::shared_ptr<const ov::Node>> results;
+    std::vector<vpux::PreProcessInfo> preProcInfo;
+    const auto buf = EMU::exportToBlob(module, rootTiming, preProcInfo, params, results);
+    output.write(reinterpret_cast<const char*>(buf.data()), buf.size());
+    return mlir::success();
+}
+
 }  // namespace
 
 int main(int argc, char* argv[]) {
@@ -247,7 +271,9 @@ int main(int argc, char* argv[]) {
         mlir::TranslateToMLIRRegistration("import-HWTEST", importHWTEST);
         mlir::TranslateToMLIRRegistration("import-VPUIP", importVPUIP);
         mlir::TranslateToMLIRRegistration("import-ELF", importELF);
+        mlir::TranslateFromMLIRRegistration("export-VPUIP", exportVPUIP, registerDialects);
         mlir::TranslateFromMLIRRegistration("export-ELF", exportELF, registerDialects);
+        mlir::TranslateFromMLIRRegistration("export-EMU", exportEMU, registerDialects);
         mlir::TranslateFromMLIRRegistration("export-LLVMIR", exportLLVMIR, registerDialects);
 
         return mlir::asMainReturnCode(mlir::mlirTranslateMain(argc, argv, "VPUX Translation Testing Tool"));
