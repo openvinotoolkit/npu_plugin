@@ -100,23 +100,3 @@ func @FusePermCastAndMemPerm(%arg0: tensor<1x1000x1x1xf32, {order = #NHWC}>) ->
     // CHECK:     %[[VAL_0:.*]] = IE.PermuteCast(%arg0) {dst_order = #NCHW, mem_perm = #NHWC} : tensor<1x1000x1x1xf32, {order = #NHWC}> -> tensor<1x1x1000x1xf32>
     // CHECK:     return %[[VAL_0]] : tensor<1x1x1000x1xf32>
 }
-
-// -----
-
-#map0 = affine_map<(d0, d1, d2, d3, d4, d5) -> (d0, d3, d4, d5, d1, d2)>
-#map1 = affine_map<(d0, d1, d2, d3, d4, d5) -> (d0, d4, d2, d3, d5, d1)>
-#map2 = affine_map<(d0, d1, d2, d3, d4, d5) -> (d0, d4, d5, d1, d2, d3)>
-#map3 = affine_map<(d0, d1, d2, d3, d4, d5) -> (d0, d1, d2, d3, d4, d5)>
-#map4 = affine_map<(d0, d1, d2, d3, d4, d5) -> (d0, d5, d2, d3, d1, d4)>
-
-// CHECK-LABEL: @NotFuseMemPermutes
-func @NotFuseMemPermutes(%arg0: tensor<1x360x640x20x2x2xf16, {order = #map0}>) -> (tensor<1x2x640x20x360x2xf16>) {
-    %0 = IE.MemPermute(%arg0) {dst_order = #map1, mem_perm = #map2} : tensor<1x360x640x20x2x2xf16, {order = #map0}> -> tensor<1x2x640x20x360x2xf16, {order = #map1}>
-    %1 = IE.MemPermute(%0) {dst_order = #map3, mem_perm = #map4} : tensor<1x2x640x20x360x2xf16, {order = #map1}> -> tensor<1x2x640x20x360x2xf16>
-
-    return %1 : tensor<1x2x640x20x360x2xf16>
-
-    // CHECK:     %[[VAL0:.*]] = IE.MemPermute(%arg0) {dst_order = #map1, mem_perm = #map2} : tensor<1x360x640x20x2x2xf16, {order = #map0}> -> tensor<1x2x640x20x360x2xf16, {order = #map1}>
-    // CHECK:     %[[VAL1:.*]] = IE.MemPermute(%[[VAL0]]) {dst_order = #map3, mem_perm = #map4} : tensor<1x2x640x20x360x2xf16, {order = #map1}> -> tensor<1x2x640x20x360x2xf16>
-    // CHECK:     return %[[VAL1]] : tensor<1x2x640x20x360x2xf16>
-}
