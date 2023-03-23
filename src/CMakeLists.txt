@@ -34,7 +34,7 @@ add_subdirectory(vpux_utils)
 
 add_subdirectory(vpux_compiler)
 
-if(BUILD_SHARED_LIBS)
+if(BUILD_SHARED_LIBS AND ENABLE_MLIR_COMPILER)
     add_subdirectory(vpux_translate_utils)
 endif()
 
