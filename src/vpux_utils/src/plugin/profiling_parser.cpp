@@ -1204,7 +1204,7 @@ ClusterTaskArray groupClusterTasks(const RawProfilingRecords& rawTasks) {
 
     // Grouping of variants into one invariant
     std::multimap<std::pair<std::string, size_t>, RawProfilingRecordPtr> groupedClustersInfo;
-    for (const auto task : rawTasks) {
+    for (const auto &task : rawTasks) {
         const auto clusterId = std::dynamic_pointer_cast<ClusteredAndTiledMixin>(task)->getClusterId();
         const auto key = std::make_pair(task->getRawName(), clusterId);
         groupedClustersInfo.insert(std::make_pair(key, task));
@@ -1233,7 +1233,7 @@ RawProfilingRecords groupTasks(const ClusterTaskArray& clusterInfoTasks) {
 
     // Grouping of invariants to one NCE Task
     std::multimap<std::string, std::shared_ptr<ArrayRecord>> groupedDPUTasksInfo;
-    for (const auto task : clusterInfoTasks) {
+    for (const auto &task : clusterInfoTasks) {
         groupedDPUTasksInfo.insert(std::make_pair(task->getRawName(), task));
     }
     auto it = groupedDPUTasksInfo.cbegin();
