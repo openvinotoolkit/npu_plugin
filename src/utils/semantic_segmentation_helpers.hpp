@@ -6,6 +6,7 @@
 //
 
 #pragma once
+#include <limits>
 
 #include <ie_blob.h>
 
