@@ -428,8 +428,6 @@ Into the following subgraphs respectively:
 The optional pass in the `LowPrecision` pipeline.
 
 Pass detects pattern quantize -> dequantize and removes it
-### `-replace-inf-fq`: Replace infinite range FQ to Clamp
-Replaces FakeQuantize ops with infinite ranges to Clamp in order to avoid compilation fail.
 ### `-resolve-scatter-update-by-transpose`: Resovle ScatterUpdate operation by Transpose Operation
 The pass is a part of `AdjustForVPU` pipeline.
 Only axis == 0 is supported in SWkernel.
