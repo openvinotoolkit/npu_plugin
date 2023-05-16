@@ -11,6 +11,18 @@ set(TARGET_NAME "vpuxUnitTests")
 set(EXCLUDED_UNIT_TESTS_DIR "")
 set(OPTIONAL_UNIT_TESTS_INCLUDES "")
 set(OPTIONAL_UNIT_TESTS_LIBS "")
+set(MANDATORY_UNIT_TESTS_LIBS
+    "vpux_elf"
+    "IE::commonTestUtils"
+    "IE::ngraph"
+    "IE::ngraphFunctions"
+    "IE::gmock"
+    "common_tests_helpers"
+    "${VPUX_PLUGIN_STATIC_TARGET}"
+    "kmb_utils"
+    "vpux_al"
+    "vpux_utils"
+)
 
 if(ENABLE_DRIVER_COMPILER_ADAPTER)
     list(APPEND OPTIONAL_UNIT_TESTS_INCLUDES
@@ -23,6 +35,18 @@ if(ENABLE_DRIVER_COMPILER_ADAPTER)
 else()
     list(APPEND EXCLUDED_UNIT_TESTS_DIR
         "${CMAKE_CURRENT_SOURCE_DIR}/vpux_driver_compiler_adapter"
+    )
+endif()
+
+if(NOT ENABLE_MLIR_COMPILER)
+    list(APPEND EXCLUDED_UNIT_TESTS_DIR
+        "${CMAKE_CURRENT_SOURCE_DIR}/vpux_compiler"
+        "${CMAKE_CURRENT_SOURCE_DIR}/vpux_translate_utils/hwtest/vpux37xx/pss"
+    )
+else()
+    list(APPEND MANDATORY_UNIT_TESTS_LIBS
+        "vpux_mlir_compiler_static"
+        "vpux_translate_utils_static"
     )
 endif()
 
@@ -58,18 +82,7 @@ addIeTargetTest(
         "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/artifacts/vpuip_2"
     LINK_LIBRARIES
         ${OPTIONAL_UNIT_TESTS_LIBS}
-        vpux_elf
-        IE::commonTestUtils
-        IE::ngraph
-        IE::ngraphFunctions
-        IE::gmock
-        common_tests_helpers
-        ${VPUX_PLUGIN_STATIC_TARGET}
-        kmb_utils
-        vpux_al
-        vpux_utils
-        vpux_mlir_compiler_static
-        vpux_translate_utils_static
+        ${MANDATORY_UNIT_TESTS_LIBS}
     LINK_LIBRARIES_WHOLE_ARCHIVE
         kmbTestData
     DEFINES
@@ -90,4 +103,3 @@ install(TARGETS ${TARGET_NAME}
         COMPONENT ${VPUX_TESTS_COMPONENT}
         EXCLUDE_FROM_ALL
 )
-
