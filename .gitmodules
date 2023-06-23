@@ -19,3 +19,6 @@
 [submodule "thirdparty/bitcompactor"]
 	path = thirdparty/bitcompactor
 	url = https://github.com/openvinotoolkit/vpux_plugin_btc.git
+[submodule "thirdparty/yaml-cpp"]
+	path = thirdparty/yaml-cpp
+	url = https://github.com/jbeder/yaml-cpp

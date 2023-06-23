@@ -172,3 +172,9 @@ set(VPUNN_BUILD_SHARED_LIB OFF CACHE BOOL "" FORCE)
 set(VPUNN_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 set(VPUNN_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 add_subdirectory(vpucostmodel)
+
+add_subdirectory(yaml-cpp)
+# NB: Suppress warnings in yaml-cpp
+if(NOT MSVC)
+    target_compile_options(yaml-cpp PRIVATE -Wno-suggest-override)
+endif()
