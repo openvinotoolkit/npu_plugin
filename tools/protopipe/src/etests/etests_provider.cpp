@@ -32,75 +32,108 @@ ETestsProvider::ETestsProvider(const std::string& filepath, const bool use_ov_ol
         : m_use_ov_old_api(use_ov_old_api), m_config(ETestsConfig::parseFromYAML(filepath)) {
 }
 
-cv::gapi::GNetPackage ETestsProvider::createIEParams(const std::string& tag, const Network& network) {
+template <typename Params>
+Params createParams(const std::string& tag, const Path& path, const std::string& device) {
     // NB: No default ctor;
-    using P = cv::gapi::ie::Params<cv::gapi::Generic>;
-    std::unique_ptr<P> params;
-
-    if (cv::util::holds_alternative<Network::ModelPath>(network.path)) {
-        const auto& model_path = cv::util::get<Network::ModelPath>(network.path);
-        params = std::make_unique<P>(tag, model_path.model, model_path.bin, m_config.device);
+    std::unique_ptr<Params> params;
+    if (cv::util::holds_alternative<ModelPath>(path)) {
+        const auto& model_path = cv::util::get<ModelPath>(path);
+        params = std::make_unique<Params>(tag, model_path.model, model_path.bin, device);
     } else {
-        GAPI_Assert(cv::util::holds_alternative<Network::BlobPath>(network.path));
-        const auto& blob = cv::util::get<Network::BlobPath>(network.path);
-        params = std::make_unique<P>(tag, blob.path, m_config.device);
+        GAPI_Assert(cv::util::holds_alternative<BlobPath>(path));
+        const auto& blob = cv::util::get<BlobPath>(path);
+        params = std::make_unique<Params>(tag, blob.path, device);
     }
+    return *params;
+}
+
+cv::gapi::GNetPackage ETestsProvider::createIEParams(const std::string& tag, const Network& network) {
+    using P = cv::gapi::ie::Params<cv::gapi::Generic>;
+    auto params = createParams<P>(tag, network.path, m_config.device);
 
     auto plugin_config = network.config;
-    if (m_config.device == "VPUX") {
+    if (m_config.device == "VPU") {
         plugin_config["MODEL_PRIORITY"] = toPriority(network.priority);
         plugin_config["VPUX_COMPILER_TYPE"] = m_config.compiler_type;
     }
-    params->pluginConfig(plugin_config);
+    params.pluginConfig(plugin_config);
     // NB: For model in blob format ip/op have been already specified.
-    params->cfgInferMode(cv::gapi::ie::InferMode::Sync);
-    params->cfgNumRequests(1);
-    // NB: Output precision can be configured only for Model case.
-    if (network.op != -1 && cv::util::holds_alternative<Network::ModelPath>(network.path)) {
-        params->cfgOutputPrecision(network.op);
+    params.cfgInferMode(cv::gapi::ie::InferMode::Sync);
+    params.cfgNumRequests(1);
+    // NB: Pre/Post processing can be configured only for Model case.
+    if (cv::util::holds_alternative<ModelPath>(network.path)) {
+        if (cv::util::holds_alternative<int>(network.output_precision)) {
+            params.cfgOutputPrecision(cv::util::get<int>(network.output_precision));
+        } else if (cv::util::holds_alternative<AttrMap<int>>(network.output_precision)) {
+            const auto& map = cv::util::get<AttrMap<int>>(network.output_precision);
+            params.cfgOutputPrecision({map.begin(), map.end()});
+        }
+
+        if (cv::util::holds_alternative<std::string>(network.input_layout)) {
+            params.cfgInputLayout(cv::util::get<std::string>(network.input_layout));
+        } else if (cv::util::holds_alternative<AttrMap<std::string>>(network.input_layout)) {
+            params.cfgInputLayout(cv::util::get<AttrMap<std::string>>(network.input_layout));
+        }
+
+        if (cv::util::holds_alternative<std::string>(network.output_layout)) {
+            params.cfgOutputLayout(cv::util::get<std::string>(network.output_layout));
+        } else if (cv::util::holds_alternative<AttrMap<std::string>>(network.output_layout)) {
+            params.cfgOutputLayout(cv::util::get<AttrMap<std::string>>(network.output_layout));
+        }
     }
-    return cv::gapi::networks(*params);
+    return cv::gapi::networks(params);
 }
 
 cv::gapi::GNetPackage ETestsProvider::createOVParams(const std::string& tag, const Network& network) {
-    // NB: No default ctor;
     using P = cv::gapi::ov::Params<cv::gapi::Generic>;
-    std::unique_ptr<P> params;
-
-    if (cv::util::holds_alternative<Network::ModelPath>(network.path)) {
-        const auto& model_path = cv::util::get<Network::ModelPath>(network.path);
-        params = std::make_unique<P>(tag, model_path.model, model_path.bin, m_config.device);
-    } else {
-        GAPI_Assert(cv::util::holds_alternative<Network::BlobPath>(network.path));
-        const auto& blob = cv::util::get<Network::BlobPath>(network.path);
-        params = std::make_unique<P>(tag, blob.path, m_config.device);
-    }
+    auto params = createParams<P>(tag, network.path, m_config.device);
 
     auto plugin_config = network.config;
-    if (m_config.device == "VPUX") {
+    if (m_config.device == "VPU") {
         plugin_config["MODEL_PRIORITY"] = toPriority(network.priority);
         plugin_config["VPUX_COMPILER_TYPE"] = m_config.compiler_type;
     }
-    params->cfgPluginConfig(plugin_config);
+    params.cfgPluginConfig(plugin_config);
     // NB: For model in blob format ip/op have been already specified.
-    params->cfgNumRequests(1);
-    // NB: Output precision can be configured only for Model case.
-    if (network.op != -1 && cv::util::holds_alternative<Network::ModelPath>(network.path)) {
-        params->cfgOutputTensorPrecision(network.op);
+    params.cfgNumRequests(1);
+
+    // NB: Pre/Post processing can be configured only for Model case.
+    if (cv::util::holds_alternative<ModelPath>(network.path)) {
+        if (cv::util::holds_alternative<int>(network.output_precision)) {
+            params.cfgOutputTensorPrecision(cv::util::get<int>(network.output_precision));
+        } else if (cv::util::holds_alternative<AttrMap<int>>(network.output_precision)) {
+            params.cfgOutputTensorPrecision(cv::util::get<AttrMap<int>>(network.output_precision));
+        }
+
+        if (cv::util::holds_alternative<std::string>(network.input_layout)) {
+            params.cfgInputTensorLayout(cv::util::get<std::string>(network.input_layout));
+        } else if (cv::util::holds_alternative<AttrMap<std::string>>(network.input_layout)) {
+            params.cfgInputTensorLayout(cv::util::get<AttrMap<std::string>>(network.input_layout));
+        }
+
+        if (cv::util::holds_alternative<std::string>(network.output_layout)) {
+            params.cfgOutputTensorLayout(cv::util::get<std::string>(network.output_layout));
+        } else if (cv::util::holds_alternative<AttrMap<std::string>>(network.output_layout)) {
+            params.cfgOutputTensorLayout(cv::util::get<AttrMap<std::string>>(network.output_layout));
+        }
+
+        if (cv::util::holds_alternative<std::string>(network.input_model_layout)) {
+            params.cfgInputModelLayout(cv::util::get<std::string>(network.input_model_layout));
+        } else if (cv::util::holds_alternative<AttrMap<std::string>>(network.input_model_layout)) {
+            params.cfgInputModelLayout(cv::util::get<AttrMap<std::string>>(network.input_model_layout));
+        }
+
+        if (cv::util::holds_alternative<std::string>(network.output_model_layout)) {
+            params.cfgOutputModelLayout(cv::util::get<std::string>(network.output_model_layout));
+        } else if (cv::util::holds_alternative<AttrMap<std::string>>(network.output_model_layout)) {
+            params.cfgOutputModelLayout(cv::util::get<AttrMap<std::string>>(network.output_model_layout));
+        }
     }
-    return cv::gapi::networks(*params);
+    return cv::gapi::networks(params);
 }
 
 cv::gapi::GNetPackage ETestsProvider::createInferenceParams(const std::string& tag, const Network& network) {
     return m_use_ov_old_api ? createIEParams(tag, network) : createOVParams(tag, network);
-}
-
-std::vector<std::string> extractLayerNames(const std::vector<LayerInfo>& layers) {
-    std::vector<std::string> names;
-    std::transform(layers.begin(), layers.end(), std::back_inserter(names), [](const auto& layer) {
-        return layer.name;
-    });
-    return names;
 }
 
 static cv::Mat createFromBinFile(const std::string& filename, const std::vector<int>& dims, const int prec) {
@@ -110,72 +143,41 @@ static cv::Mat createFromBinFile(const std::string& filename, const std::vector<
     return mat;
 }
 
-static InOutLayers readInOutLayers(ILayersReader::Ptr reader, const Network::Path& path, const std::string& device) {
+static PrePostProccesingInfo extractPrePostProcessingInfo(const Network& network) {
+    return {network.input_precision, network.output_precision,   network.input_layout,
+            network.output_layout,   network.input_model_layout, network.output_model_layout};
+}
+
+static InOutLayers readInOutLayers(ILayersReader::Ptr reader, const Network& network, const std::string& device) {
     InOutLayers layers;
-    if (cv::util::holds_alternative<Network::ModelPath>(path)) {
-        const auto& model_path = cv::util::get<Network::ModelPath>(path);
-        layers = reader->readFromModel(model_path.model, model_path.bin);
+    if (cv::util::holds_alternative<ModelPath>(network.path)) {
+        const auto& model_path = cv::util::get<ModelPath>(network.path);
+        layers = reader->readFromModel(model_path.model, model_path.bin, extractPrePostProcessingInfo(network));
     } else {
-        GAPI_Assert(cv::util::holds_alternative<Network::BlobPath>(path));
-        const auto& blob = cv::util::get<Network::BlobPath>(path);
-        layers = reader->readFromBlob(blob.path, device);
+        GAPI_Assert(cv::util::holds_alternative<BlobPath>(network.path));
+        const auto& blob = cv::util::get<BlobPath>(network.path);
+        layers = reader->readFromBlob(blob.path, device, network.config);
     }
     return layers;
 }
 
-static std::map<std::string, std::string> mapLayerToFileNames(const Network::FileNameT& filename,
-                                                              const std::vector<std::string>& layer_names) {
-    using M = std::map<std::string, std::string>;
-    switch (filename.index()) {
-    case Network::FileNameT::index_of<cv::util::monostate>(): {
-        return {};
-    }
-    case Network::FileNameT::index_of<std::string>(): {
-        GAPI_Assert(layer_names.size() == 1u);
-        return {{layer_names.front(), cv::util::get<std::string>(filename)}};
-    }
-    case Network::FileNameT::index_of<M>(): {
-        // TODO: Check that all layers exist.
-        std::unordered_map<std::string, bool> checked_names;
-        for (const auto& layer_name : layer_names) {
-            checked_names.emplace(layer_name, false);
-        }
-        const auto& filename_map = cv::util::get<M>(filename);
-        for (const auto& [layer_name, filename] : filename_map) {
-            const auto it = checked_names.find(layer_name);
-            if (it == checked_names.end()) {
-                throw std::logic_error("Layer: " + layer_name + " for file: " + filename + " is not found!");
-            } else if (it->second) {
-                throw std::logic_error("Layer: " + layer_name + " for file: " + filename + " is set twice!");
-            } else {
-                it->second = true;
-            }
-        }
-        return filename_map;
-    }
-    default:
-        GAPI_Assert(false);
-    }
-    // Unreachable code...
-    GAPI_Assert(false);
-}
-
-static std::map<std::string, cv::Mat> collectLayersData(const Network::FileNameT& filename,
-                                                        const std::vector<LayerInfo>& layers) {
+static std::map<std::string, cv::Mat> collectLayersData(const LayerVariantAttr<std::string>& filename,
+                                                        const std::vector<LayerInfo>& layers,
+                                                        const std::string& attrname) {
     std::map<std::string, cv::Mat> layers_data;
-    auto mapping = mapLayerToFileNames(filename, extractLayerNames(layers));
+    auto filename_map = unpackLayerAttr(filename, extractLayerNames(layers), attrname);
     for (const auto& layer : layers) {
-        const auto it = mapping.find(layer.name);
-        if (it != mapping.end()) {
+        const auto it = filename_map.find(layer.name);
+        if (it != filename_map.end()) {
             layers_data.emplace(layer.name, createFromBinFile(it->second, layer.dims, layer.prec));
         }
     }
     return layers_data;
 }
 
-static std::map<std::string, cv::Mat> collectInputLayersData(const Network::FileNameT& filename,
+static std::map<std::string, cv::Mat> collectInputLayersData(const LayerVariantAttr<std::string>& filename,
                                                              const std::vector<LayerInfo>& layers) {
-    auto inputs_data = collectLayersData(filename, layers);
+    auto inputs_data = collectLayersData(filename, layers, "input data");
     for (const auto& layer : layers) {
         const auto it = inputs_data.find(layer.name);
         if (it == inputs_data.end()) {
@@ -188,10 +190,10 @@ static std::map<std::string, cv::Mat> collectInputLayersData(const Network::File
     return inputs_data;
 }
 
-static std::map<std::string, cv::optional<cv::Mat>> collectReferenceData(const Network::FileNameT& filename,
+static std::map<std::string, cv::optional<cv::Mat>> collectReferenceData(const LayerVariantAttr<std::string>& filename,
                                                                          const std::vector<LayerInfo>& layers) {
     std::map<std::string, cv::optional<cv::Mat>> ref_data;
-    const auto outputs_data = collectLayersData(filename, layers);
+    const auto outputs_data = collectLayersData(filename, layers, "output data");
     for (const auto& layer : layers) {
         const auto it = outputs_data.find(layer.name);
         cv::optional<cv::Mat> opt_mat;
@@ -228,24 +230,12 @@ std::vector<Scenario> ETestsProvider::createScenarios() {
             size_t num_outputs = 0;
             ValidationMap validation_map;
             for (auto&& network : stream.networks) {
-                auto [in_layers, out_layers] = readInOutLayers(reader, network.path, m_config.device);
-                if (network.ip != -1) {
-                    for (auto& layer : in_layers) {
-                        layer.prec = network.ip;
-                    }
-                }
-
-                if (network.op != -1) {
-                    for (auto& layer : out_layers) {
-                        layer.prec = network.op;
-                    }
-                }
-
+                auto [in_layers, out_layers] = readInOutLayers(reader, network, m_config.device);
                 // NB: Use stem as network unique "tag".
                 std::string tag = tg_mngr.add(network.stem);
                 builder.addInference(tag, extractLayerNames(in_layers), extractLayerNames(out_layers));
 
-                auto inputs_data = collectInputLayersData(network.input_filename, in_layers);
+                auto inputs_data = collectInputLayersData(network.input_data, in_layers);
                 for (int layer_idx = 0; layer_idx < in_layers.size(); ++layer_idx) {
                     const auto& layer = in_layers[layer_idx];
                     auto layer_data = inputs_data.at(layer.name);
@@ -277,7 +267,7 @@ std::vector<Scenario> ETestsProvider::createScenarios() {
                 // NB: Update prev_id.
                 prev_id = LayerID{tag, out_layers.front().name};
 
-                auto ref_data = collectReferenceData(network.output_filename, out_layers);
+                auto ref_data = collectReferenceData(network.output_data, out_layers);
                 for (int layer_idx = 0; layer_idx < out_layers.size(); ++layer_idx) {
                     const auto& layer = out_layers[layer_idx];
                     // NB: Map output idx to its reference.

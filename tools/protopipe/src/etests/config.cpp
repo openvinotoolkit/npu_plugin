@@ -22,6 +22,24 @@ static int toDepth(const std::string& prec) {
     throw std::logic_error("Unsupported precision type: " + prec);
 }
 
+static AttrMap<int> toDepth(const AttrMap<std::string>& attrmap) {
+    AttrMap<int> depthmap;
+    for (const auto& [name, str_depth] : attrmap) {
+        depthmap.emplace(name, toDepth(str_depth));
+    }
+    return depthmap;
+}
+
+static LayerVariantAttr<int> toDepth(const LayerVariantAttr<std::string>& attr) {
+    LayerVariantAttr<int> depthattr;
+    if (cv::util::holds_alternative<std::string>(attr)) {
+        depthattr = toDepth(cv::util::get<std::string>(attr));
+    } else {
+        depthattr = toDepth(cv::util::get<AttrMap<std::string>>(attr));
+    }
+    return depthattr;
+}
+
 namespace YAML {
 
 template <typename K, typename V>
@@ -30,7 +48,6 @@ struct convert<std::map<K, V>> {
         if (!node.IsMap()) {
             return false;
         }
-
         for (const auto& itr : node) {
             map.emplace(itr.first.as<K>(), itr.second.as<V>());
         }
@@ -38,13 +55,13 @@ struct convert<std::map<K, V>> {
     }
 };
 
-template <>
-struct convert<Network::FileNameT> {
-    static bool decode(const Node& node, Network::FileNameT& filename) {
+template <typename T>
+struct convert<LayerVariantAttr<T>> {
+    static bool decode(const Node& node, LayerVariantAttr<T>& layer_attr) {
         if (node.IsMap()) {
-            filename = node.as<std::map<std::string, std::string>>();
+            layer_attr = node.as<std::map<std::string, T>>();
         } else {
-            filename = node.as<std::string>();
+            layer_attr = node.as<T>();
         }
         return true;
     }
@@ -60,13 +77,37 @@ struct convert<Network> {
         if (path.extension() == ".xml") {
             auto bin_path{path};
             bin_path.replace_extension(".bin");
-            network.path = Network::ModelPath{path.string(), bin_path.string()};
+            network.path = ModelPath{path.string(), bin_path.string()};
         } else if (path.extension() == ".blob") {
-            network.path = Network::BlobPath{path.string()};
+            network.path = BlobPath{path.string()};
         } else if (path.extension() == ".onnx" || path.extension() == ".pdpd") {
-            network.path = Network::ModelPath{path.string(), ""};
+            network.path = ModelPath{path.string(), ""};
         } else {
             throw std::logic_error("Unsupported model format: " + name);
+        }
+
+        if (node["ip"]) {
+            network.input_precision = toDepth(node["ip"].as<LayerVariantAttr<std::string>>());
+        }
+
+        if (node["op"]) {
+            network.output_precision = toDepth(node["op"].as<LayerVariantAttr<std::string>>());
+        }
+
+        if (node["il"]) {
+            network.input_layout = node["il"].as<LayerVariantAttr<std::string>>();
+        }
+
+        if (node["ol"]) {
+            network.output_layout = node["ol"].as<LayerVariantAttr<std::string>>();
+        }
+
+        if (node["iml"]) {
+            network.input_model_layout = node["iml"].as<LayerVariantAttr<std::string>>();
+        }
+
+        if (node["oml"]) {
+            network.output_model_layout = node["oml"].as<LayerVariantAttr<std::string>>();
         }
 
         if (node["priority"]) {
@@ -77,20 +118,12 @@ struct convert<Network> {
             network.config = node["config"].as<std::map<std::string, std::string>>();
         }
 
-        if (node["ip"]) {
-            network.ip = toDepth(node["ip"].as<std::string>());
-        }
-
-        if (node["op"]) {
-            network.op = toDepth(node["op"].as<std::string>());
-        }
-
         if (node["input_data"]) {
-            network.input_filename = node["input_data"].as<Network::FileNameT>();
+            network.input_data = node["input_data"].as<LayerVariantAttr<std::string>>();
         }
 
         if (node["output_data"]) {
-            network.output_filename = node["output_data"].as<Network::FileNameT>();
+            network.output_data = node["output_data"].as<LayerVariantAttr<std::string>>();
         }
 
         return true;
@@ -134,9 +167,9 @@ struct convert<std::vector<T>> {
 
 }  // namespace YAML
 
-static void clarifyNetworkPath(Network::Path& path, const std::string& blob_dir, const std::string& model_dir) {
-    if (cv::util::holds_alternative<Network::ModelPath>(path)) {
-        auto& model_path = cv::util::get<Network::ModelPath>(path);
+static void clarifyNetworkPath(Path& path, const std::string& blob_dir, const std::string& model_dir) {
+    if (cv::util::holds_alternative<ModelPath>(path)) {
+        auto& model_path = cv::util::get<ModelPath>(path);
         fs::path model_file_path{model_path.model};
         fs::path bin_file_path{model_path.bin};
 
@@ -147,8 +180,8 @@ static void clarifyNetworkPath(Network::Path& path, const std::string& blob_dir,
             model_path.bin = (model_dir / bin_file_path).string();
         }
     } else {
-        GAPI_Assert(cv::util::holds_alternative<Network::BlobPath>(path));
-        auto& blob = cv::util::get<Network::BlobPath>(path);
+        GAPI_Assert(cv::util::holds_alternative<BlobPath>(path));
+        auto& blob = cv::util::get<BlobPath>(path);
         fs::path blob_path{blob.path};
 
         if (blob_path.is_relative()) {
@@ -173,9 +206,6 @@ ETestsConfig ETestsConfig::parseFromYAML(const std::string& filepath) {
     ETestsConfig cfg;
     if (node["device_name"]) {
         cfg.device = node["device_name"].as<std::string>();
-    }
-    if (cfg.device == "VPU") {
-        cfg.device = "VPUX";
     }
 
     if (node["vpux_compiler_type"]) {

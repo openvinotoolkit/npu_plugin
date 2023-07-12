@@ -1,5 +1,7 @@
 #pragma once
 
+#include "ovhelper.hpp"
+
 #include <map>
 #include <string>
 #include <vector>
@@ -7,27 +9,20 @@
 #include <opencv2/gapi/util/variant.hpp>  // variant
 
 struct Network {
-    // NB: *.xml & *.bin, *.onnx, *.pdpd
-    struct ModelPath {
-        std::string model;
-        std::string bin;
-    };
-    struct BlobPath {
-        std::string path;
-    };
-
-    using Path = cv::util::variant<ModelPath, BlobPath>;
     Path path;
 
     std::string stem;
     std::map<std::string, std::string> config;
     std::string priority = "NORMAL";
-    int ip = -1;
-    int op = -1;
 
-    using FileNameT = cv::util::variant<cv::util::monostate, std::map<std::string, std::string>, std::string>;
-    FileNameT input_filename;
-    FileNameT output_filename;
+    LayerVariantAttr<int> input_precision;
+    LayerVariantAttr<int> output_precision;
+    LayerVariantAttr<std::string> input_layout;
+    LayerVariantAttr<std::string> output_layout;
+    LayerVariantAttr<std::string> input_model_layout;
+    LayerVariantAttr<std::string> output_model_layout;
+    LayerVariantAttr<std::string> input_data;
+    LayerVariantAttr<std::string> output_data;
 };
 
 struct Stream {
