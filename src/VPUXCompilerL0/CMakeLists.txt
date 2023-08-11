@@ -8,12 +8,12 @@ set(CID_COMPONENT "CiD")
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
 
-set(ELF_DIR "${InferenceEngineVPUXPlugin_SOURCE_DIR}/thirdparty/graphFile-schema/vpux_elf/")
-set(LOADER_DIR_INC "${InferenceEngineVPUXPlugin_SOURCE_DIR}/thirdparty/graphFile-schema/vpux_elf/loader/include/")
-set(LOADER_DIR_HPI_INC "${InferenceEngineVPUXPlugin_SOURCE_DIR}/thirdparty/graphFile-schema/vpux_elf/hpi_component/include/")
-set(LOADER_DIR_HPI_SRC "${InferenceEngineVPUXPlugin_SOURCE_DIR}/thirdparty/graphFile-schema/vpux_elf/hpi_component/src")
-set(LOADER_DIR_SRC "${InferenceEngineVPUXPlugin_SOURCE_DIR}/thirdparty/graphFile-schema/vpux_elf/loader/src")
-set(LOADER_DIR "${InferenceEngineVPUXPlugin_SOURCE_DIR}/thirdparty/graphFile-schema/vpux_elf/loader/")
+set(ELF_DIR "${VPUX_ELF_SOURCE_DIR}/vpux_elf/")
+set(LOADER_DIR_INC "${VPUX_ELF_SOURCE_DIR}/vpux_elf/loader/include/")
+set(LOADER_DIR_HPI_INC "${VPUX_ELF_SOURCE_DIR}/vpux_elf/hpi_component/include/")
+set(LOADER_DIR_HPI_SRC "${VPUX_ELF_SOURCE_DIR}/vpux_elf/hpi_component/src")
+set(LOADER_DIR_SRC "${VPUX_ELF_SOURCE_DIR}/vpux_elf/loader/src")
+set(LOADER_DIR "${VPUX_ELF_SOURCE_DIR}/vpux_elf/loader/")
 
 add_subdirectory(src)
 add_subdirectory(loader)

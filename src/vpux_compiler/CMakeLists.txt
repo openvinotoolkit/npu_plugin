@@ -383,7 +383,7 @@ add_dependencies(${DOCS_TARGET_NAME}
 #
 
 vpux_add_flatc_target(${SCHEMA_TARGET_NAME}
-    SRC_DIR "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/thirdparty/graphFile-schema/src/schema"
+    SRC_DIR "${VPUX_ELF_SOURCE_DIR}/src/schema"
     DST_DIR "${CMAKE_CURRENT_BINARY_DIR}/${gen_base_dst_include_dir}/dialect/VPUIP/generated/schema"
     ARGS "--gen-name-strings"
 )
