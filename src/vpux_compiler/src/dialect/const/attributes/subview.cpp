@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/const/attributes/content.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/quantization.hpp"
@@ -28,6 +26,16 @@ void vpux::Const::SubViewAttr::walkImmediateSubElements(llvm::function_ref<void(
                                                         llvm::function_ref<void(mlir::Type)>) const {
     walkAttrsFn(getOffset());
     walkAttrsFn(getShape());
+}
+
+//
+// SubViewAttr::replaceImmediateSubElements
+//
+
+mlir::Attribute vpux::Const::SubViewAttr::replaceImmediateSubElements(ArrayRef<mlir::Attribute> replAttrs,
+                                                                      ArrayRef<mlir::Type>) const {
+    VPUX_THROW_WHEN(replAttrs.size() < 2, "Replace attrs array is too short: '{0}'", replAttrs.size());
+    return get(replAttrs[0].dyn_cast_or_null<mlir::ArrayAttr>(), replAttrs[1].dyn_cast_or_null<mlir::ArrayAttr>());
 }
 
 //
@@ -115,9 +123,9 @@ mlir::Attribute vpux::Const::SubViewAttr::parse(mlir::AsmParser& parser, mlir::T
 //
 
 vpux::NDTypeInterface vpux::Const::SubViewAttr::inferOutputType(vpux::NDTypeInterface input) const {
-    const Bit typeSizeInBits = input.getElemTypeSize();
-    VPUX_THROW_UNLESS(typeSizeInBits.count() >= CHAR_BIT, "Got sub-byte input '{0}' in SubViewAttr",
-                      input.getElementType());
+    const auto typeSizeInBits = input.getElemTypeSize().count();
+    VPUX_THROW_UNLESS(typeSizeInBits >= CHAR_BIT || typeSizeInBits == 1,
+                      "SubViewAttr does not support sub-byte element types except i1, got {0}", input.getElementType());
 
     const auto shape = parseIntArrayAttr<int64_t>(getShape());
     const auto offset = parseIntArrayAttr<int64_t>(getOffset());
@@ -142,7 +150,6 @@ Const::Content vpux::Const::SubViewAttr::transform(vpux::Const::Content& input) 
     if (input.isSplat()) {
         std::copy_n(inBuf.data(), inBuf.size(), outBuf.data());
     } else {
-        const Byte elemSize = getElemTypeSize(input.getStorageElemType());
         const auto order = input.getType().getDimsOrder();
 
         const auto inShape = input.getType().getShape();
@@ -153,6 +160,35 @@ Const::Content vpux::Const::SubViewAttr::transform(vpux::Const::Content& input) 
 
         const auto offset = Shape(parseIntArrayAttr<int64_t>(getOffset()));
         const auto memOffset = order.toMemoryOrder(offset);
+
+        // Type specific implementation: i1
+        if (getElemTypeSize(input.getStorageElemType()).count() == 1) {
+            const auto sizeInBytes = output.getType().getTotalAllocSize().count();
+            auto outBufData = outBuf.data();
+            std::memset(outBufData, 0x00, sizeInBytes);
+            loop_1d(LoopExecPolicy::Parallel, output.getType().getNumElements(), [&](int64_t outMemInd1D) {
+                const auto outMemIndND = getMemIndexND(outMemInd1D, outMemShape);
+                MemShape inMemIndND(outMemIndND.size());
+                for (auto ind : irange(inMemIndND.size())) {
+                    const auto md = MemDim(ind);
+                    inMemIndND[md] = outMemIndND[md] + memOffset[md];
+                }
+                const auto inMemInd1D = getMemIndex1D(inMemIndND, inMemShape);
+                // Extract bit value
+                const auto inputCoord = std::div(inMemInd1D, checked_cast<int64_t>(CHAR_BIT));
+                const auto bitValue = static_cast<bool>(inBuf.data()[inputCoord.quot] & (1 << inputCoord.rem));
+                if (!bitValue) {
+                    return;
+                }
+                // If non zero then set corresponding bit in output
+                const auto outputCoord = std::div(outMemInd1D, checked_cast<int64_t>(CHAR_BIT));
+                outBufData[outputCoord.quot] = static_cast<char>(outBufData[outputCoord.quot] | (1 << outputCoord.rem));
+            });
+
+            return output;
+        }
+
+        const Byte elemSize = getElemTypeSize(input.getStorageElemType());
 
         if (memOffset.size() == 1) {
             // Opitimized 1D case

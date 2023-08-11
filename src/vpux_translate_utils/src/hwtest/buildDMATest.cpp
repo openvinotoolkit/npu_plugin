@@ -37,7 +37,9 @@ void buildDMA(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module,
 
     VPUX_THROW_UNLESS(!inShape.empty(), "buildDMA: Input rank is 0");
     VPUX_THROW_UNLESS(inShape == outShape, "buildDMA: in_shape and out_shape don't match");
-    VPUX_THROW_UNLESS(inputType == outputType, "buildDMA: outputType and outputType don't match");
+    if (!dmaParams.doConvert) {
+        VPUX_THROW_UNLESS(inputType == outputType, "buildDMA: inputType and outputType don't match");
+    }
 
     auto inputTotalSize = totalTensorSize(inShape, inputType);
     auto outputTotalSize = totalTensorSize(outShape, outputType);
@@ -50,7 +52,7 @@ void buildDMA(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module,
 
     const auto funcType = builder.getFunctionType(makeArrayRef(inputTypes), outputParamType);
 
-    auto func = builder.create<mlir::FuncOp>(
+    auto func = builder.create<mlir::func::FuncOp>(
             builder.getUnknownLoc(),
             printToString("dma_from_{0}_{1}_to_{2}_{3}", nb::to_string(dmaParams.srcLocation), inputType,
                           nb::to_string(dmaParams.dstLocation), outputType),
@@ -84,9 +86,11 @@ void buildDMA(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module,
             CMX1_AVIABLE_OFFSET += inputTotalSize;
         }
         auto barrier = funcbuilder.create<VPURT::ConfigureBarrierOp>(builder.getUnknownLoc(), barrierNumber++);
+
         VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(), mlir::ValueRange(barrier.barrier()),
                                               builder.getUnknownLoc(), funcInput0,
                                               inputCMX.getOperation()->getResult(0));
+
         waitBarriers.emplace_back(barrier.barrier());
         DMAinput = inputCMX.getOperation()->getResult(0);
     } else {
@@ -116,21 +120,32 @@ void buildDMA(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module,
     if (dmaParams.dstLocation == nb::MemoryLocation::CMX0 || dmaParams.dstLocation == nb::MemoryLocation::CMX1) {
         DMAtaskBarrier = funcbuilder.create<VPURT::ConfigureBarrierOp>(builder.getUnknownLoc(), barrierNumber++);
     }
-    VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(llvm::ArrayRef<mlir::Value>(waitBarriers)),
-                                          dmaParams.dstLocation == nb::MemoryLocation::DDR
-                                                  ? mlir::ValueRange()
-                                                  : mlir::ValueRange(DMAtaskBarrier.barrier()),
-                                          builder.getUnknownLoc(), DMAinput, DMAoutput, dmaParams.engine, false, false);
+
+    if (!dmaParams.doConvert) {
+        VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(llvm::ArrayRef<mlir::Value>(waitBarriers)),
+                                              dmaParams.dstLocation == nb::MemoryLocation::DDR
+                                                      ? mlir::ValueRange()
+                                                      : mlir::ValueRange(DMAtaskBarrier.barrier()),
+                                              builder.getUnknownLoc(), DMAinput, DMAoutput, dmaParams.engine);
+    } else {
+        VPURT::wrapIntoTaskOp<VPUIP::ConvertDMAOp>(
+                funcbuilder, mlir::ValueRange(llvm::ArrayRef<mlir::Value>(waitBarriers)),
+                dmaParams.dstLocation == nb::MemoryLocation::DDR ? mlir::ValueRange()
+                                                                 : mlir::ValueRange(DMAtaskBarrier.barrier()),
+                builder.getUnknownLoc(), DMAinput, DMAoutput, dmaParams.engine);
+    }
 
     if (dmaParams.dstLocation == nb::MemoryLocation::CMX0 || dmaParams.dstLocation == nb::MemoryLocation::CMX1) {
         VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(DMAtaskBarrier.barrier()),
                                               mlir::ValueRange(), builder.getUnknownLoc(), DMAoutput, funcOutput);
     }
 
-    funcbuilder.create<mlir::ReturnOp>(builder.getUnknownLoc(), funcOutput);
+    funcbuilder.create<mlir::func::ReturnOp>(builder.getUnknownLoc(), funcOutput);
     // set runtime resources
     mlir::PassManager pm(ctx, mlir::OpPassManager::Nesting::Implicit);
-    pm.addPass(VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::DefaultHW, None, None,
+    Optional<int> numTiles = None;
+
+    pm.addPass(VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::DefaultHW, numTiles, None,
                                            None, log));
 
     VPUX_THROW_UNLESS(mlir::succeeded(pm.run(module)), "Compilation failed");

@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/VPU/ops.hpp"
 #include "vpux/compiler/dialect/VPU/utils/const_utils.hpp"
 
@@ -15,6 +13,7 @@
 #include "vpux/compiler/dialect/VPU/nce_sparsity.hpp"
 #include "vpux/compiler/dialect/VPU/utils/generate_tiling.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
+#include "vpux/compiler/utils/empty_node.hpp"
 #include "vpux/compiler/utils/error.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
 
@@ -28,7 +27,7 @@ using namespace vpux;
 // fitIntoCMX
 //
 
-bool vpux::VPU::NCEMaxPoolOp::fitIntoCMX(vpux::NDTypeInterface input, vpux::NDTypeInterface output) {
+bool vpux::VPU::NCEMaxPoolOp::fitIntoCMX(vpux::NDTypeInterface input, vpux::NDTypeInterface output, Byte reservedMem) {
     // TODO: VPUX37XX hw doesn't require weights table and activation window for max/average pool ops
     const auto outputShape = output.getShape();
     const auto outputChannels = outputShape[Dims4D::Act::C];
@@ -48,14 +47,22 @@ bool vpux::VPU::NCEMaxPoolOp::fitIntoCMX(vpux::NDTypeInterface input, vpux::NDTy
         buffers.push_back(activationWindowSize * 1_Byte);
     }
 
-    return vpux::VPU::calculateAlignedBuffersMemoryRequirement(arch, buffers) <= getTotalCMXSize(getOperation());
+    auto totalAvailableCMXSize = reservedMem.count() == 0 ? getTotalCMXSize(getOperation()).count()
+                                                          : getTotalCMXFragmentationAwareSize(getOperation()).count();
+
+    return vpux::VPU::calculateAlignedBuffersMemoryRequirement(arch, buffers).count() + reservedMem.count() <=
+           totalAvailableCMXSize;
+}
+
+bool vpux::VPU::NCEMaxPoolOp::fitIntoCMX(vpux::NDTypeInterface input, vpux::NDTypeInterface output) {
+    return fitIntoCMX(input, output, Byte(0));
 }
 
 //
 // isSupported
 //
 
-bool vpux::VPU::NCEMaxPoolOp::isSupported(IE::MaxPoolOp op, LogCb logCb) {
+bool vpux::VPU::NCEMaxPoolOp::isSupported(IE::MaxPoolOp op, LogCb logCb, bool checkLayout, bool checkChannelAlignment) {
     auto arch = VPU::getArch(op);
 
     if (op.getType().getRank() != 4) {
@@ -72,7 +79,7 @@ bool vpux::VPU::NCEMaxPoolOp::isSupported(IE::MaxPoolOp op, LogCb logCb) {
     const auto KY = kernelSize[Dims4D::Kernel::Y];
     const auto KX = kernelSize[Dims4D::Kernel::X];
 
-    if (KY != KX && (arch == VPU::ArchKind::VPUX30XX || arch == VPU::ArchKind::VPUX311X)) {
+    if (KY != KX && arch != VPU::ArchKind::VPUX37XX) {
         logCb(formatv("Asymmetric kernel is not supported"));
         return false;
     }
@@ -90,50 +97,59 @@ bool vpux::VPU::NCEMaxPoolOp::isSupported(IE::MaxPoolOp op, LogCb logCb) {
     const auto inputType = op.input().getType().cast<vpux::NDTypeInterface>();
     const auto outputType = op.output().getType().cast<vpux::NDTypeInterface>();
 
-    if (!NCEInvariant::isInputActTypeSupported(arch, inputType, getInputChannelAlignmentImpl(inputType), false) ||
-        !NCEInvariant::isOutputActTypeSupported(outputType, getOutputChannelAlignmentImpl(outputType))) {
-        logCb(formatv("Misaligned tensor shape"));
-        return false;
+    if (checkChannelAlignment) {
+        if (!NCEInvariant::isInputActTypeSupported(arch, inputType, getInputChannelAlignmentImpl(inputType), false) ||
+            !NCEInvariant::isOutputActTypeSupported(outputType, getOutputChannelAlignmentImpl(outputType))) {
+            logCb(formatv("Misaligned tensor shape"));
+            return false;
+        }
     }
 
-    return NCEInvariant::checkLayouts(op->getOperands(), op->getResult(0), arch, 1, logCb);
+    if (checkLayout) {
+        if (!NCEInvariant::checkLayouts(op->getOperandTypes(), op->getResultTypes(), arch, 1, logCb)) {
+            return false;
+        }
+    }
+
+    return true;
 }
 
 //
-// verifyOp
+// verify
 //
 
-mlir::LogicalResult vpux::VPU::verifyOp(NCEMaxPoolOp op) {
+mlir::LogicalResult vpux::VPU::NCEMaxPoolOp::verify() {
+    const auto op = getOperation();
     const auto arch = getArch(op);
 
     const auto logCb = [op](const formatv_object_base& msg) {
         (void)errorAt(op, "{0}", msg.str());
     };
 
-    const auto kernelSize = Shape(parseIntArrayAttr<int64_t>(op.kernel_size()));
+    const auto kernelSize = Shape(parseIntArrayAttr<int64_t>(kernel_size()));
     const auto KY = kernelSize[Dims4D::Kernel::Y];
     const auto KX = kernelSize[Dims4D::Kernel::X];
 
-    const auto kernelStrides = Shape(parseIntArrayAttr<int64_t>(op.strides()));
+    const auto kernelStrides = Shape(parseIntArrayAttr<int64_t>(strides()));
     const auto SY = kernelStrides[Dims4D::Strides::Y];
     const auto SX = kernelStrides[Dims4D::Strides::X];
 
-    const auto padTop = op.pad().top().getValue().getSExtValue();
-    const auto padBottom = op.pad().bottom().getValue().getSExtValue();
-    const auto padLeft = op.pad().left().getValue().getSExtValue();
-    const auto padRight = op.pad().right().getValue().getSExtValue();
+    const auto padTop = pad().top().getValue().getSExtValue();
+    const auto padBottom = pad().bottom().getValue().getSExtValue();
+    const auto padLeft = pad().left().getValue().getSExtValue();
+    const auto padRight = pad().right().getValue().getSExtValue();
 
     if (!NCEInvariant::isAttrsSupported(arch, KY, KX, SY, SX, padTop, padBottom, padLeft, padRight, logCb)) {
         return mlir::failure();
     }
 
-    const auto inputType = op.input().getType().cast<NDTypeInterface>();
+    const auto inputType = input().getType().cast<NDTypeInterface>();
     const auto IC = inputType.getShape()[Dims4D::Act::C];
 
-    const auto outputType = op.output().getType().cast<NDTypeInterface>();
+    const auto outputType = output().getType().cast<NDTypeInterface>();
     const auto OC = outputType.getShape()[Dims4D::Act::C];
 
-    const auto weightsTableShape = getShape(op.weightsTable());
+    const auto weightsTableShape = getShape(weightsTable());
     const auto expectedWeightsTableShape = NCESparsity::inferWeightsTableShape(OC);
 
     if (weightsTableShape != expectedWeightsTableShape) {
@@ -141,7 +157,7 @@ mlir::LogicalResult vpux::VPU::verifyOp(NCEMaxPoolOp op) {
                        expectedWeightsTableShape);
     }
 
-    const auto activationWindowShape = getShape(op.activationWindow());
+    const auto activationWindowShape = getShape(activationWindow());
     const auto expectedActivationWindowShape = NCESparsity::inferActivationWindowShape(
             NCESparsity::Mode::POOL, kernelSize, SX, inputType.getElementType(), 1);
 
@@ -153,9 +169,9 @@ mlir::LogicalResult vpux::VPU::verifyOp(NCEMaxPoolOp op) {
     const auto bitPatternSize = VPU::NCESparsity::getBitPatternSize(VPU::NCESparsity::Mode::POOL, kernelSize, SX,
                                                                     inputType.getElementType(), IC);
 
-    if (op.activation_window_channel_length() != bitPatternSize) {
+    if (activation_window_channel_length() != bitPatternSize) {
         return errorAt(op, "Got wrong value for 'activation_window_channel_length' '{0}', expected '{1}'",
-                       op.activation_window_channel_length(), bitPatternSize);
+                       activation_window_channel_length(), bitPatternSize);
     }
 
     return mlir::success();
@@ -170,7 +186,7 @@ mlir::LogicalResult vpux::VPU::NCEMaxPoolOp::inferReturnTypes(mlir::MLIRContext*
                                                               mlir::ValueRange operands, mlir::DictionaryAttr attrs,
                                                               mlir::RegionRange /*regions*/,
                                                               mlir::SmallVectorImpl<mlir::Type>& inferredReturnTypes) {
-    const auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
+    const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
     NCEMaxPoolOpAdaptor op(operands, attrs);
     if (mlir::failed(op.verify(loc))) {
@@ -191,7 +207,7 @@ mlir::LogicalResult vpux::VPU::NCEMaxPoolOp::inferReturnTypes(mlir::MLIRContext*
     const auto dataPaddingAbove = ngraph::CoordinateDiff({padBottom, padRight});
 
     const auto outputShapeNG = ngraph::infer_batched_pooling_forward(
-            nullptr, ngraph::Shape(inShape.begin(), inShape.end()), dataPaddingBelow, dataPaddingAbove,
+            EmptyNode::instance(), ngraph::Shape(inShape.begin(), inShape.end()), dataPaddingBelow, dataPaddingAbove,
             ngraph::Shape(windowShape.begin(), windowShape.end()),
             ngraph::Strides(windowStrides.begin(), windowStrides.end()), /*is_window_all_in_padding_allowed=*/true,
             /*ceil_mode=*/false);
@@ -292,18 +308,30 @@ EMU::BlobWriter::SpecificTask vpux::VPU::NCEMaxPoolOp::serialize(EMU::BlobWriter
     VPUX_THROW("NCEMaxPoolOp shouldn't have a serializer");
 }
 
+bool vpux::VPU::NCEMaxPoolOp::isVFSupported() {
+    return vpux::VPU::isVFNCESupported(*this);
+}
+
 //
 // sparsitySupport
 //
 
 vpux::VPU::SparsitySupport vpux::VPU::NCEMaxPoolOp::sparsitySupport() {
-    using vpux::VPU::SparsitySupport;
-    const auto arch = getArch(this->getOperation());
+    // Super-dense mode does not support ODU sparsity
+    const auto arch = getArch(getOperation());
+    const auto outputType = output().getType().cast<vpux::NDTypeInterface>();
+    auto excludeMode = VPU::NCESparsity::bitwiseNot(VPU::SparsitySupport::NONE);
+    if (VPU::NCESparsity::isSuperdenseRequired(arch, outputType.getDimsOrder(), outputType.getShape(),
+                                               outputType.getElementType())) {
+        excludeMode = VPU::NCESparsity::bitwiseNot(VPU::SparsitySupport::SPARSE_OUTPUTS);
+    }
+
     switch (arch) {
     case VPU::ArchKind::VPUX30XX:
     case VPU::ArchKind::VPUX311X:
+        return VPU::SparsitySupport::NONE;
     case VPU::ArchKind::VPUX37XX:
-        return SparsitySupport::SPARSE_OUTPUTS;
+        return VPU::SparsitySupport::SPARSE_OUTPUTS & excludeMode;
     default:
         VPUX_THROW("Unknown sparsity support mode for {0}", arch);
     }

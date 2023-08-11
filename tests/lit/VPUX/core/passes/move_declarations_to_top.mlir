@@ -1,11 +1,12 @@
 //
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
+
 // RUN: vpux-opt --init-compiler="vpu-arch=%arch%" --move-declarations-to-top %s | FileCheck %s
 // REQUIRES: arch-VPUX30XX || arch-VPUX37XX
 
-func @MoveToTopOfBlock(%arg0: memref<16xf16>, %arg1: memref<8xf16>) -> memref<8xf16> {
+func.func @MoveToTopOfBlock(%arg0: memref<16xf16>, %arg1: memref<8xf16>) -> memref<8xf16> {
     %0 = VPUIP.SubView %arg0 [0] [8] : memref<16xf16> to memref<8xf16>
     %decl0 = VPUIP.StaticAlloc<0> -> memref<8xf16>
     %cst2 = const.Declare memref<8xf16> = dense<2.000000e+00> : tensor<8xf16>

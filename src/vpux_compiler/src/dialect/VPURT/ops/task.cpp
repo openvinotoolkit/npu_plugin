@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/VPURT/task.hpp"
 
 #include "vpux/compiler/dialect/IE/utils/resources.hpp"
@@ -44,23 +42,24 @@ VPU::ExecutorKind vpux::VPURT::TaskOp::getExecutorKind() {
     return task.getExecutorKind();
 }
 
-mlir::LogicalResult vpux::VPURT::verifyTaskOp(TaskOp task) {
-    if (task.body().getBlocks().size() != 1) {
+mlir::LogicalResult vpux::VPURT::TaskOp::verify() {
+    const auto task = getOperation();
+    if (body().getBlocks().size() != 1) {
         return errorAt(task, "The task body should contain exactly one block");
     }
 
-    auto numOps = task.body().front().getOperations().size();
+    auto numOps = body().front().getOperations().size();
     if (numOps != 1) {
         return errorAt(task, "The task body should contain exactly one operation. Got: {0}", numOps);
     }
 
-    auto& innerOp = task.body().front().front();
+    auto& innerOp = body().front().front();
     if (!mlir::isa<mlir::MemoryEffectOpInterface>(innerOp)) {
         return errorAt(task, "The task body should contain operation with memory effects");
     }
 
-    if (task.isTrailingSWLayer()) {
-        for (auto updateBarrier : task.updateBarriers()) {
+    if (isTrailingSWLayer()) {
+        for (auto updateBarrier : updateBarriers()) {
             for (auto* depOp : updateBarrier.getUsers()) {
                 auto depTask = mlir::dyn_cast<VPURT::TaskOp>(depOp);
 
@@ -109,7 +108,7 @@ SmallVector<int64_t> vpux::VPURT::getDMATaskPorts(TaskOp task) {
                                              ? inputType.dyn_cast<VPUIP::DistributedBufferType>()
                                              : outputType.dyn_cast<VPUIP::DistributedBufferType>();
 
-        VPUX_THROW_UNLESS(distributedType != nullptr, "One of operands must have DistributedBuffer type");
+        VPUX_THROW_UNLESS(distributedType != nullptr, "At least one of operands must have DistributedBuffer type");
 
         int64_t numClusters = 0;
         const auto checkSegmentedOrOverlapped = [&](vpux::NDTypeInterface type) {
@@ -166,7 +165,7 @@ VPURT::TaskQueueType vpux::VPURT::getTaskQueueType(TaskOp taskOp, bool ignoreInd
         VPUX_THROW_WHEN(nceTask == nullptr || nceTask.variants().getOps<VPUIP::DPUTaskOp>().empty(),
                         "Could not get DPU task");
         auto dpuTask = *(nceTask.variants().getOps<VPUIP::DPUTaskOp>().begin());
-        queueType.index = dpuTask.cluster_id().getValueOr(0);
+        queueType.index = dpuTask.cluster_id().value_or(0);
     } else if (queueType.type == VPU::ExecutorKind::DMA_NN) {
         auto* wrappedTaskOp = taskOp.getInnerTaskOp();
         if (auto clusterTilingOp = mlir::dyn_cast<VPUIP::NCEClusterTilingOp>(wrappedTaskOp)) {

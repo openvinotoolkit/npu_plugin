@@ -1,8 +1,6 @@
 //
-// Copyright (C) 2022 Intel Corporation.
+// Copyright (C) 2022-2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
-//
-
 //
 
 #include "vpux/compiler/core/dpu_profiling.hpp"
@@ -18,6 +16,8 @@
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
 #include "vpux/compiler/dialect/VPUIP/utils.hpp"
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
+
+#include "vpux/utils/core/profiling.hpp"
 
 #include <mlir/IR/Attributes.h>
 #include <mlir/IR/BlockAndValueMapping.h>
@@ -35,7 +35,7 @@ using namespace vpux;
 unsigned getClustersNumber(VPUIP::NCEClusterTaskOp nceClusterTaskOp) {
     std::set<uint64_t> clusterIds;
     for (auto dpuTask : nceClusterTaskOp.variants().getOps<VPUIP::DPUTaskOp>()) {
-        const auto clusterId = dpuTask.cluster_id().getValueOr(0);
+        const auto clusterId = dpuTask.cluster_id().value_or(0);
         clusterIds.insert(clusterId);
     }
     return static_cast<unsigned>(clusterIds.size());
@@ -49,14 +49,15 @@ unsigned countDpuTasks(SmallVector<std::pair<T, unsigned>> vector) {
 }
 
 mlir::Type BaseClusterBufferScheduler::getTimestampType(unsigned dpuTasksAmount) {
-    return getMemRefType({_profilingElementSize * dpuTasksAmount}, getUInt64Type(_ctx), DimsOrder::C, _memKindAttr);
+    return getMemRefType({static_cast<int64_t>(_profilingElementSize) * dpuTasksAmount}, getUInt64Type(_ctx),
+                         DimsOrder::C, _memKindAttr);
 }
 
-BaseClusterBufferScheduler::BaseClusterBufferScheduler(unsigned clustersAmount, unsigned profilingWorkloadSize,
+BaseClusterBufferScheduler::BaseClusterBufferScheduler(unsigned clustersNum, unsigned profilingWorkloadSize,
                                                        mlir::OpBuilder& builder, mlir::MLIRContext* ctx,
-                                                       vpux::VPU::MemoryKind memKind, mlir::FuncOp netFunc,
+                                                       vpux::VPU::MemoryKind memKind, mlir::func::FuncOp netFunc,
                                                        std::shared_ptr<NameUniqifier> uniqifier)
-        : _clustersAmount(clustersAmount),
+        : _clustersNum(clustersNum),
           _profilingWorkloadSize(profilingWorkloadSize),
           _profilingElementSize(profilingWorkloadSize /
                                 sizeof(uint64_t)),  // How many words are need to store one workload
@@ -73,7 +74,7 @@ unsigned BaseClusterBufferScheduler::getRequiredDdrMemory() const {
             std::accumulate(_nceTaskSignatures.begin(), _nceTaskSignatures.end(), 0, [](const auto& a, const auto& b) {
                 return a + b._maxSubTasks;
             });
-    return dpuTasksAmount * _clustersAmount * _profilingElementSize;
+    return dpuTasksAmount * _clustersNum * _profilingElementSize;
 }
 
 void BaseClusterBufferScheduler::scheduleNceTask(VPUIP::NCEClusterTaskOp nceClusterTaskOp) {
@@ -82,7 +83,7 @@ void BaseClusterBufferScheduler::scheduleNceTask(VPUIP::NCEClusterTaskOp nceClus
 
     const auto requiredMemory = maxDpuTasks * _profilingWorkloadSize;
     VPUX_THROW_WHEN(requiredMemory > VPUIP::HW_DPU_PROFILING_MAX_BUFFER_SIZE,
-                    "NCEClusterTask at '{0}' requires more memory {1} then currently supported. Change  "
+                    "NCEClusterTask at '{0}' requires more memory {1} than currently supported. Change  "
                     "HW_DPU_PROFILING_MAX_BUFFER_SIZE.",
                     nceClusterTaskOp->getLoc(), requiredMemory);
     _nceTaskSignatures.push_back(taskSignature);
@@ -119,9 +120,9 @@ void BaseClusterBufferScheduler::addProfilingOps(unsigned& currentDDROffset, Sma
 
         _profilingBufferSizes.pop_front();
 
-        const unsigned totalSizeCMXElements = currentBufferSize * _profilingElementSize * _clustersAmount;
+        const unsigned totalSizeCMXElements = currentBufferSize * _profilingElementSize * _clustersNum;
         const auto locationName =
-                std::to_string(_clustersAmount) + "_dpuProfilingSubviewBuffer_" + std::to_string(currentBufferId);
+                std::to_string(_clustersNum) + "_dpuProfilingSubviewBuffer_" + std::to_string(currentBufferId);
 
         mlir::OpBuilder::InsertPoint lastInsertionPoint = _builder.saveInsertionPoint();
         _builder.setInsertionPointAfter(&_netFunc.getBody().front().front());
@@ -164,13 +165,13 @@ void BaseClusterBufferScheduler::addProfilingOps(unsigned& currentDDROffset, Sma
         }
         _builder.setInsertionPoint(insertionPoint);
 
-        const unsigned dpuTasksAmount = nceTaskSignature._maxSubTasks * _clustersAmount;
+        const unsigned dpuTasksAmount = nceTaskSignature._maxSubTasks * _clustersNum;
         auto profilingSamplesInCMX = countDpuTasks(nceProfilingOutputs);
         const auto expectedCMXMemoryUsage = (profilingSamplesInCMX + dpuTasksAmount) * _profilingWorkloadSize;
         // If couldnt place current task in the end of cmx buffer flushing all previous tasks to DDR
         // expectedCMXMemoryUsage counts size for all clusters, while HW_DPU_PROFILING_MAX_BUFFER_SIZE only for one
         // so, need to align them for comparison
-        if (expectedCMXMemoryUsage > VPUIP::HW_DPU_PROFILING_MAX_BUFFER_SIZE * _clustersAmount) {
+        if (expectedCMXMemoryUsage > VPUIP::HW_DPU_PROFILING_MAX_BUFFER_SIZE * _clustersNum) {
             flushCMX2DDR();  // Flush current CMX content to DDR
             profilingSamplesInCMX = 0;
             allocateProfilingBufferCMX();  // Allocate next CMX buffer
@@ -186,7 +187,7 @@ void BaseClusterBufferScheduler::addProfilingOps(unsigned& currentDDROffset, Sma
             timestampType = distrType.getCompactType();
         }
 
-        const auto profilingMeta = nceTaskSignature.signature(nceId, currentBufferId);
+        const auto profilingMeta = nceTaskSignature.dpuSignature(nceId, currentBufferId);
         const auto loc = appendLoc(_uniqifier->getUniqueLoc(nceTaskOp->getLoc()), profilingMeta);
 
         _builder.setInsertionPointAfter(nceTaskOp);
@@ -265,7 +266,7 @@ void BaseClusterBufferScheduler::addProfilingOps(unsigned& currentDDROffset, Sma
 
 SingleClusterScheduler::SingleClusterScheduler(unsigned profilingWorkloadSize, mlir::OpBuilder& builder,
                                                mlir::MLIRContext* ctx, vpux::VPU::MemoryKind memKind,
-                                               mlir::FuncOp netFunc, std::shared_ptr<NameUniqifier> uniqifier)
+                                               mlir::func::FuncOp netFunc, std::shared_ptr<NameUniqifier> uniqifier)
         : BaseClusterBufferScheduler(1, profilingWorkloadSize, builder, ctx, memKind, netFunc, uniqifier) {
     if (memKind == VPU::MemoryKind::CMX_NN) {
         _memKindAttr = IndexedSymbolAttr::get(_ctx, stringifyEnum(memKind), 0);
@@ -284,9 +285,9 @@ mlir::Operation* SingleClusterScheduler::createAllocationOp(unsigned totalSizeCM
                                                             const std::string& location) {
     const auto cmxMemType =
             getMemRefType(ShapeRef(totalSizeCMXElements), getUInt64Type(_ctx), DimsOrder::C, _memKindAttr);
-
-    return _builder.create<mlir::memref::AllocOp>(mlir::NameLoc::get(mlir::StringAttr::get(_ctx, location)),
-                                                  cmxMemType);
+    auto alignmentAttr = _builder.getI64IntegerAttr(_profilingWorkloadSize);
+    return _builder.create<mlir::memref::AllocOp>(mlir::NameLoc::get(mlir::StringAttr::get(_ctx, location)), cmxMemType,
+                                                  alignmentAttr);
 }
 
 mlir::Value SingleClusterScheduler::copyToDDR(mlir::BlockArgument& profilingResult, mlir::Operation* cmxMemOp,
@@ -314,18 +315,19 @@ mlir::Value SingleClusterScheduler::getViewToBuffer(mlir::Operation* currentProf
     return _builder.create<VPUIP::SubViewOp>(
             mlir::NameLoc::get(mlir::StringAttr::get(_ctx, "dpuProfilingSubview")),
             currentProfilingBuffer->getResult(0),
-            SmallVector<int64_t>({static_cast<int>(profilingSamplesInCMX * _profilingElementSize)}), sizes);
+            SmallVector<int64_t>({static_cast<int64_t>(profilingSamplesInCMX) * _profilingElementSize}), sizes);
 }
 
 VPUIP::DistributedBufferType MultiClusterScheduler::getDistributedBufferType(unsigned totalElements) {
     const auto layout = mlir::AffineMapAttr::get(DimsOrder::C.toAffineMap(_ctx));
 
     const auto distributionModeAttr = VPU::DistributionModeAttr::get(_ctx, VPU::DistributionMode::SEGMENTED);
-    const SmallVector<uint64_t> tiles = {_clustersAmount};
+    const SmallVector<uint64_t> tiles = {_clustersNum};
     const auto numTiles = getIntArrayAttr(_ctx, tiles);
-    const auto numClusters = getIntAttr(_ctx, _clustersAmount);
-    auto distributedTensorAttr = VPU::DistributedTensorAttr::get(distributionModeAttr, numTiles, nullptr, nullptr,
-                                                                 nullptr, numClusters, nullptr, _ctx);
+    const auto numClusters = getIntAttr(_ctx, _clustersNum);
+    auto distributedTensorAttr = VPU::DistributedTensorAttr::get(
+            distributionModeAttr, numTiles, nullptr, nullptr, nullptr, numClusters, nullptr,
+            /*uniformDistributedSegments=*/mlir::UnitAttr::get(_ctx), nullptr, nullptr, nullptr, _ctx);
     return VPUIP::DistributedBufferType::get(_ctx, {totalElements}, getUInt64Type(_ctx), layout, _memKindAttr,
                                              distributedTensorAttr);
 }
@@ -335,7 +337,7 @@ mlir::Type MultiClusterScheduler::getDistributedTimestampType(unsigned dpuTasksA
 }
 
 NCETaskSignature MultiClusterScheduler::getTaskSignature(VPUIP::NCEClusterTaskOp nceClusterTaskOp) {
-    SmallVector<unsigned> dpuTasksPerCluster(_clustersAmount, 0);
+    SmallVector<unsigned> dpuTasksPerCluster(_clustersNum, 0);
     unsigned maxTasksInCluster = 0;
     for (auto dpuTask : nceClusterTaskOp.variants().getOps<VPUIP::DPUTaskOp>()) {
         const auto clusterId = dpuTask.cluster_id().getValue();
@@ -346,8 +348,9 @@ NCETaskSignature MultiClusterScheduler::getTaskSignature(VPUIP::NCEClusterTaskOp
 
 mlir::Operation* MultiClusterScheduler::createAllocationOp(unsigned totalSizeCMXElements, const std::string& location) {
     const auto bufferType = getDistributedBufferType(totalSizeCMXElements);
+    auto alignmentAttr = _builder.getI64IntegerAttr(_profilingWorkloadSize);
     return _builder.create<VPURT::AllocDistributed>(mlir::NameLoc::get(mlir::StringAttr::get(_ctx, location)),
-                                                    bufferType, nullptr, nullptr);
+                                                    bufferType, alignmentAttr, nullptr);
 }
 
 mlir::Value MultiClusterScheduler::getViewToBuffer(mlir::Operation* currentProfilingBuffer,
@@ -355,7 +358,7 @@ mlir::Value MultiClusterScheduler::getViewToBuffer(mlir::Operation* currentProfi
     return _builder.create<VPUIP::SubViewOp>(
             mlir::NameLoc::get(mlir::StringAttr::get(_ctx, "dpuProfilingSubview")),
             currentProfilingBuffer->getResult(0),
-            SmallVector<int64_t>({static_cast<int>(profilingSamplesInCMX * _profilingElementSize / _clustersAmount)}),
+            SmallVector<int64_t>({static_cast<int64_t>(profilingSamplesInCMX) * _profilingElementSize / _clustersNum}),
             sizes);
 }
 

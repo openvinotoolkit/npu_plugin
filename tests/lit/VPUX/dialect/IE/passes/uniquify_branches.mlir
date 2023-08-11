@@ -1,11 +1,12 @@
 //
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
+
 // RUN: vpux-opt --split-input-file --init-compiler="vpu-arch=%arch%" --uniquify-branches %s | FileCheck %s
 // REQUIRES: arch-VPUX30XX || arch-VPUX37XX
 
-func @MoveExpandBeforeMultipleSlices(%arg0: tensor<2x70x4x4xf16>, %arg1: tensor<16x80x1x1xf16>) -> tensor<2x16x4x4xf16> {
+func.func @MoveExpandBeforeMultipleSlices(%arg0: tensor<2x70x4x4xf16>, %arg1: tensor<16x80x1x1xf16>) -> tensor<2x16x4x4xf16> {
     %0 = IE.Slice %arg0 [0, 0, 0, 0] [1, 70, 4, 4] : tensor<2x70x4x4xf16> to tensor<1x70x4x4xf16>
     %1 = IE.Slice %arg0 [1, 0, 0, 0] [1, 70, 4, 4] : tensor<2x70x4x4xf16> to tensor<1x70x4x4xf16>
 
@@ -32,7 +33,7 @@ func @MoveExpandBeforeMultipleSlices(%arg0: tensor<2x70x4x4xf16>, %arg1: tensor<
 
 // -----
 
-func @NoChangesExpandModifyesSliceAxis(%arg0: tensor<1x140x4x4xf16>, %arg1: tensor<16x80x1x1xf16>) -> tensor<2x16x4x4xf16> {
+func.func @NoChangesExpandModifyesSliceAxis(%arg0: tensor<1x140x4x4xf16>, %arg1: tensor<16x80x1x1xf16>) -> tensor<2x16x4x4xf16> {
     %0 = IE.Slice %arg0 [0, 0, 0, 0] [1, 70, 4, 4] : tensor<1x140x4x4xf16> to tensor<1x70x4x4xf16>
     %1 = IE.Slice %arg0 [0, 70, 0, 0] [1, 70, 4, 4] : tensor<1x140x4x4xf16> to tensor<1x70x4x4xf16>
 
@@ -58,7 +59,7 @@ func @NoChangesExpandModifyesSliceAxis(%arg0: tensor<1x140x4x4xf16>, %arg1: tens
 #NCWH = affine_map<(d0, d1, d2, d3) -> (d0, d1, d3, d2)>
 #NWCH = affine_map<(d0, d1, d2, d3) -> (d0, d3, d1, d2)>
 
-func @NoChangesDifferentExpands(%arg0: tensor<2x70x4x4xf16>, %arg1: tensor<16x80x1x1xf16>) -> tensor<2x16x4x4xf16> {
+func.func @NoChangesDifferentExpands(%arg0: tensor<2x70x4x4xf16>, %arg1: tensor<16x80x1x1xf16>) -> tensor<2x16x4x4xf16> {
     %0 = IE.Slice %arg0 [0, 0, 0, 0] [1, 70, 4, 4] : tensor<2x70x4x4xf16> to tensor<1x70x4x4xf16>
     %1 = IE.Slice %arg0 [1, 0, 0, 0] [1, 70, 4, 4] : tensor<2x70x4x4xf16> to tensor<1x70x4x4xf16>
 
@@ -83,7 +84,7 @@ func @NoChangesDifferentExpands(%arg0: tensor<2x70x4x4xf16>, %arg1: tensor<16x80
 
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
-func @MoveReorderBeforeMultipleSlices(%arg0: tensor<2x80x4x4xf16>, %arg1: tensor<16x80x1x1xf16, {order = #NHWC}>) -> tensor<2x16x4x4xf16> {
+func.func @MoveReorderBeforeMultipleSlices(%arg0: tensor<2x80x4x4xf16>, %arg1: tensor<16x80x1x1xf16, {order = #NHWC}>) -> tensor<2x16x4x4xf16> {
     %0 = IE.Slice %arg0 [0, 0, 0, 0] [1, 80, 4, 4] : tensor<2x80x4x4xf16> to tensor<1x80x4x4xf16>
     %1 = IE.Slice %arg0 [1, 0, 0, 0] [1, 80, 4, 4] : tensor<2x80x4x4xf16> to tensor<1x80x4x4xf16>
 
@@ -112,7 +113,7 @@ func @MoveReorderBeforeMultipleSlices(%arg0: tensor<2x80x4x4xf16>, %arg1: tensor
 
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
-func @NoChangesReorderModifyesSliceAxis(%arg0: tensor<1x160x4x4xf16>, %arg1: tensor<16x80x1x1xf16, {order = #NHWC}>) -> tensor<2x16x4x4xf16> {
+func.func @NoChangesReorderModifyesSliceAxis(%arg0: tensor<1x160x4x4xf16>, %arg1: tensor<16x80x1x1xf16, {order = #NHWC}>) -> tensor<2x16x4x4xf16> {
     %0 = IE.Slice %arg0 [0, 0, 0, 0] [1, 80, 4, 4] : tensor<1x160x4x4xf16> to tensor<1x80x4x4xf16>
     %1 = IE.Slice %arg0 [0, 80, 0, 0] [1, 80, 4, 4] : tensor<1x160x4x4xf16> to tensor<1x80x4x4xf16>
 
@@ -138,7 +139,7 @@ func @NoChangesReorderModifyesSliceAxis(%arg0: tensor<1x160x4x4xf16>, %arg1: ten
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 #NWHC = affine_map<(d0, d1, d2, d3) -> (d0, d3, d2, d1)>
 
-func @NoChangesDifferentReorders(%arg0: tensor<2x80x4x4xf16>, %arg1: tensor<16x80x1x1xf16, {order = #NHWC}>) -> (tensor<1x80x4x4xf16, {order = #NHWC}>, tensor<1x80x4x4xf16, {order = #NWHC}>) {
+func.func @NoChangesDifferentReorders(%arg0: tensor<2x80x4x4xf16>, %arg1: tensor<16x80x1x1xf16, {order = #NHWC}>) -> (tensor<1x80x4x4xf16, {order = #NHWC}>, tensor<1x80x4x4xf16, {order = #NWHC}>) {
     %0 = IE.Slice %arg0 [0, 0, 0, 0] [1, 80, 4, 4] : tensor<2x80x4x4xf16> to tensor<1x80x4x4xf16>
     %1 = IE.Slice %arg0 [1, 0, 0, 0] [1, 80, 4, 4] : tensor<2x80x4x4xf16> to tensor<1x80x4x4xf16>
 
@@ -156,7 +157,7 @@ func @NoChangesDifferentReorders(%arg0: tensor<2x80x4x4xf16>, %arg1: tensor<16x8
 
 // -----
 
-func @MoveTransposeBeforeMultipleSlices(%arg0: tensor<2x2x64x76xf16>, %arg1: tensor<1x64x1x1xf16>) -> tensor<4x76x1x1xf16> {
+func.func @MoveTransposeBeforeMultipleSlices(%arg0: tensor<2x2x64x76xf16>, %arg1: tensor<1x64x1x1xf16>) -> tensor<4x76x1x1xf16> {
     %0 = IE.Slice %arg0 [0, 0, 0, 0] [1, 1, 64, 76] : tensor<2x2x64x76xf16> to tensor<1x1x64x76xf16>
     %1 = IE.Slice %arg0 [0, 1, 0, 0] [1, 1, 64, 76] : tensor<2x2x64x76xf16> to tensor<1x1x64x76xf16>
     %2 = IE.Slice %arg0 [1, 0, 0, 0] [1, 1, 64, 76] : tensor<2x2x64x76xf16> to tensor<1x1x64x76xf16>
@@ -214,7 +215,7 @@ func @MoveTransposeBeforeMultipleSlices(%arg0: tensor<2x2x64x76xf16>, %arg1: ten
 
 // -----
 
-func @NoChangesTransposeModifyesSliceAxis(%arg0: tensor<1x2x128x76xf16>, %arg1: tensor<1x64x1x1xf16>) -> tensor<2x76x1x1xf16> {
+func.func @NoChangesTransposeModifyesSliceAxis(%arg0: tensor<1x2x128x76xf16>, %arg1: tensor<1x64x1x1xf16>) -> tensor<2x76x1x1xf16> {
     %0 = IE.Slice %arg0 [0, 0, 0, 0] [1, 1, 64, 76] : tensor<1x2x128x76xf16> to tensor<1x1x64x76xf16>
     %1 = IE.Slice %arg0 [0, 1, 64, 0] [1, 1, 64, 76] : tensor<1x2x128x76xf16> to tensor<1x1x64x76xf16>
 
@@ -243,7 +244,7 @@ func @NoChangesTransposeModifyesSliceAxis(%arg0: tensor<1x2x128x76xf16>, %arg1: 
 #NCWH = affine_map<(d0, d1, d2, d3) -> (d0, d1, d3, d2)>
 #NWCH = affine_map<(d0, d1, d2, d3) -> (d0, d3, d1, d2)>
 
-func @NoChangesDifferentTransposes(%arg0: tensor<1x2x128x76xf16>, %arg1: tensor<1x64x1x1xf16>) -> (tensor<1x76x1x1xf16>, tensor<1x76x1x64xf16>) {
+func.func @NoChangesDifferentTransposes(%arg0: tensor<1x2x128x76xf16>, %arg1: tensor<1x64x1x1xf16>) -> (tensor<1x76x1x1xf16>, tensor<1x76x1x64xf16>) {
     %0 = IE.Slice %arg0 [0, 0, 0, 0] [1, 1, 64, 76] : tensor<1x2x128x76xf16> to tensor<1x1x64x76xf16>
     %1 = IE.Slice %arg0 [0, 1, 64, 0] [1, 1, 64, 76] : tensor<1x2x128x76xf16> to tensor<1x1x64x76xf16>
 
@@ -268,7 +269,7 @@ func @NoChangesDifferentTransposes(%arg0: tensor<1x2x128x76xf16>, %arg1: tensor<
 #NWCH = affine_map<(d0, d1, d2, d3) -> (d0, d3, d1, d2)>
 
 // If source has exactly one slice consumer we do not propagate transpose/layer.
-func @NoChangesOneSliceConsumer(%arg0: tensor<1x2x128x76xf16>, %arg1: tensor<1x2x128x76xf16>) -> (tensor<1x1x76x64xf16>, tensor<1x1x76x64xf16>, tensor<1x2x128x76xf16>) {
+func.func @NoChangesOneSliceConsumer(%arg0: tensor<1x2x128x76xf16>, %arg1: tensor<1x2x128x76xf16>) -> (tensor<1x1x76x64xf16>, tensor<1x1x76x64xf16>, tensor<1x2x128x76xf16>) {
     %0 = IE.Slice %arg0 [0, 0, 0, 0] [1, 1, 64, 76] : tensor<1x2x128x76xf16> to tensor<1x1x64x76xf16>
     %1 = IE.Slice %arg1 [0, 1, 0, 0] [1, 1, 64, 76] : tensor<1x2x128x76xf16> to tensor<1x1x64x76xf16>
 
@@ -296,7 +297,7 @@ func @NoChangesOneSliceConsumer(%arg0: tensor<1x2x128x76xf16>, %arg1: tensor<1x2
 #NCWH = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
-func @MovePermuteCastBeforeMultipleSlices(%arg0: tensor<3x80x4x4xf16>) -> tensor<3x4x80x4xf16, {order = #NHWC}> {
+func.func @MovePermuteCastBeforeMultipleSlices(%arg0: tensor<3x80x4x4xf16>) -> tensor<3x4x80x4xf16, {order = #NHWC}> {
     %0 = IE.Slice %arg0 [0, 0, 0, 0] [1, 80, 4, 4] : tensor<3x80x4x4xf16> to tensor<1x80x4x4xf16>
     %1 = IE.Slice %arg0 [1, 0, 0, 0] [1, 80, 4, 4] : tensor<3x80x4x4xf16> to tensor<1x80x4x4xf16>
     %2 = IE.Slice %arg0 [2, 0, 0, 0] [1, 80, 4, 4] : tensor<3x80x4x4xf16> to tensor<1x80x4x4xf16>
@@ -327,7 +328,7 @@ func @MovePermuteCastBeforeMultipleSlices(%arg0: tensor<3x80x4x4xf16>) -> tensor
 #NCWH = affine_map<(d0, d1, d2, d3) -> (d0, d1, d3, d2)>
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
-func @NoChangesPermuteCastModifySameAxis(%arg0: tensor<1x3x5x4xf16>) -> tensor<3x5x4x1xf16> {
+func.func @NoChangesPermuteCastModifySameAxis(%arg0: tensor<1x3x5x4xf16>) -> tensor<3x5x4x1xf16> {
     %0 = IE.Slice %arg0 [0, 0, 0, 0] [1, 1, 5, 4] : tensor<1x3x5x4xf16> to tensor<1x1x5x4xf16>
     %1 = IE.Slice %arg0 [0, 1, 0, 0] [1, 1, 5, 4] : tensor<1x3x5x4xf16> to tensor<1x1x5x4xf16>
     %2 = IE.Slice %arg0 [0, 2, 0, 0] [1, 1, 5, 4] : tensor<1x3x5x4xf16> to tensor<1x1x5x4xf16>
@@ -359,7 +360,7 @@ func @NoChangesPermuteCastModifySameAxis(%arg0: tensor<1x3x5x4xf16>) -> tensor<3
 #NCHW = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
-func @MovePermuteCastBeforeMultipleSlicesAndNonSlice(%arg0: tensor<3x80x4x4xf16>) -> (tensor<3x4x80x4xf16>, tensor<3x4x80x4xf16, {order = #NHWC}>) {
+func.func @MovePermuteCastBeforeMultipleSlicesAndNonSlice(%arg0: tensor<3x80x4x4xf16>) -> (tensor<3x4x80x4xf16>, tensor<3x4x80x4xf16, {order = #NHWC}>) {
     %0 = IE.Slice %arg0 [0, 0, 0, 0] [1, 80, 4, 4] : tensor<3x80x4x4xf16> to tensor<1x80x4x4xf16>
     %1 = IE.Slice %arg0 [1, 0, 0, 0] [1, 80, 4, 4] : tensor<3x80x4x4xf16> to tensor<1x80x4x4xf16>
     %2 = IE.Slice %arg0 [2, 0, 0, 0] [1, 80, 4, 4] : tensor<3x80x4x4xf16> to tensor<1x80x4x4xf16>
@@ -395,7 +396,7 @@ func @MovePermuteCastBeforeMultipleSlicesAndNonSlice(%arg0: tensor<3x80x4x4xf16>
 #NC = affine_map<(d0, d1) -> (d0, d1)>
 #CN = affine_map<(d0, d1) -> (d1, d0)>
 
-func @MoveAffineReshapeType1BeforeMultipleSlices(%arg0: tensor<1x2x76x64xf16>) -> (tensor<76x64xf16, {order = #CN}>, tensor<76x64xf16, {order = #CN}>) {
+func.func @MoveAffineReshapeType1BeforeMultipleSlices(%arg0: tensor<1x2x76x64xf16>) -> (tensor<76x64xf16, {order = #CN}>, tensor<76x64xf16, {order = #CN}>) {
     %0 = IE.Slice %arg0 [0, 0, 0, 0] [1, 1, 76, 64] : tensor<1x2x76x64xf16> to tensor<1x1x76x64xf16>
     %1 = IE.Slice %arg0 [0, 1, 0, 0] [1, 1, 76, 64] : tensor<1x2x76x64xf16> to tensor<1x1x76x64xf16>
 
@@ -423,7 +424,7 @@ func @MoveAffineReshapeType1BeforeMultipleSlices(%arg0: tensor<1x2x76x64xf16>) -
 #NWCH = affine_map<(d0, d1, d2, d3) -> (d0, d3, d1, d2)>
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
-func @MoveAffineReshapeType2BeforeMultipleSlices(%arg0: tensor<152x64xf16>) -> (tensor<1x1x64x76xf16, {order = #NHWC}>, tensor<1x1x64x76xf16, {order = #NHWC}>) {
+func.func @MoveAffineReshapeType2BeforeMultipleSlices(%arg0: tensor<152x64xf16>) -> (tensor<1x1x64x76xf16, {order = #NHWC}>, tensor<1x1x64x76xf16, {order = #NHWC}>) {
     %0 = IE.Slice %arg0 [0, 0] [76, 64] : tensor<152x64xf16> to tensor<76x64xf16>
     %1 = IE.Slice %arg0 [76, 0] [76, 64] : tensor<152x64xf16> to tensor<76x64xf16>
 
@@ -447,7 +448,7 @@ func @MoveAffineReshapeType2BeforeMultipleSlices(%arg0: tensor<152x64xf16>) -> (
 
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
-func @MoveAffineReshapeType3BeforeMultipleSlices(%arg0: tensor<1x2x76x64xf16>) -> (tensor<76x64x1x1xf16, {order = #NHWC}>, tensor<76x64x1x1xf16, {order = #NHWC}>) {
+func.func @MoveAffineReshapeType3BeforeMultipleSlices(%arg0: tensor<1x2x76x64xf16>) -> (tensor<76x64x1x1xf16, {order = #NHWC}>, tensor<76x64x1x1xf16, {order = #NHWC}>) {
     %0 = IE.Slice %arg0 [0, 0, 0, 0] [1, 1, 76, 64] : tensor<1x2x76x64xf16> to tensor<1x1x76x64xf16>
     %1 = IE.Slice %arg0 [0, 1, 0, 0] [1, 1, 76, 64] : tensor<1x2x76x64xf16> to tensor<1x1x76x64xf16>
 
@@ -470,7 +471,7 @@ func @MoveAffineReshapeType3BeforeMultipleSlices(%arg0: tensor<1x2x76x64xf16>) -
 #NCHW = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
-func @MoveAffineReshapeBeforeMultipleSlicesForNHWCLayout(%arg0: tensor<1x2x76x64xf16, {order = #NHWC}>) -> (tensor<2x2x19x64xf16>, tensor<2x2x19x64xf16>) {
+func.func @MoveAffineReshapeBeforeMultipleSlicesForNHWCLayout(%arg0: tensor<1x2x76x64xf16, {order = #NHWC}>) -> (tensor<2x2x19x64xf16>, tensor<2x2x19x64xf16>) {
     %0 = IE.Slice %arg0 [0, 0, 0, 0] [1, 2, 38, 64] : tensor<1x2x76x64xf16, {order = #NHWC}> to tensor<1x2x38x64xf16, {order = #NHWC}>
     %1 = IE.Slice %arg0 [0, 0, 38, 0] [1, 2, 38, 64] : tensor<1x2x76x64xf16, {order = #NHWC}> to tensor<1x2x38x64xf16, {order = #NHWC}>
     %2 = IE.AffineReshape(%0) {dim_mapping = [[0], [1], [0, 2], [3]], shape_value = [2, 2, 19, 64]} : tensor<1x2x38x64xf16, {order = #NHWC}> -> tensor<2x2x19x64xf16, {order = #NHWC}>
@@ -492,7 +493,7 @@ func @MoveAffineReshapeBeforeMultipleSlicesForNHWCLayout(%arg0: tensor<1x2x76x64
 #NC = affine_map<(d0, d1) -> (d0, d1)>
 #CN = affine_map<(d0, d1) -> (d1, d0)>
 
-func @NoChangesAffineReshapeSliceOnOtherDimension(%arg0: tensor<1x2x76x64xf16>) -> (tensor<64x76xf16, {order = #CN}>, tensor<64x76xf16, {order = #CN}>) {
+func.func @NoChangesAffineReshapeSliceOnOtherDimension(%arg0: tensor<1x2x76x64xf16>) -> (tensor<64x76xf16, {order = #CN}>, tensor<64x76xf16, {order = #CN}>) {
     %0 = IE.Slice %arg0 [0, 0, 0, 0] [1, 2, 38, 64] : tensor<1x2x76x64xf16> to tensor<1x2x38x64xf16>
     %1 = IE.Slice %arg0 [0, 0, 38, 0] [1, 2, 38, 64] : tensor<1x2x76x64xf16> to tensor<1x2x38x64xf16>
 
@@ -520,7 +521,7 @@ func @NoChangesAffineReshapeSliceOnOtherDimension(%arg0: tensor<1x2x76x64xf16>) 
 #NCHW = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
-func @MoveMemPermuteBeforeMultipleSlicesAndNonSlice(%arg0: tensor<3x80x4x4xf16>) -> (tensor<3x4x80x4xf16>, tensor<3x4x80x4xf16, {order = #NHWC}>) {
+func.func @MoveMemPermuteBeforeMultipleSlicesAndNonSlice(%arg0: tensor<3x80x4x4xf16>) -> (tensor<3x4x80x4xf16>, tensor<3x4x80x4xf16, {order = #NHWC}>) {
     %0 = IE.Slice %arg0 [0, 0, 0, 0] [1, 80, 4, 4] : tensor<3x80x4x4xf16> to tensor<1x80x4x4xf16>
     %1 = IE.Slice %arg0 [1, 0, 0, 0] [1, 80, 4, 4] : tensor<3x80x4x4xf16> to tensor<1x80x4x4xf16>
     %2 = IE.Slice %arg0 [2, 0, 0, 0] [1, 80, 4, 4] : tensor<3x80x4x4xf16> to tensor<1x80x4x4xf16>

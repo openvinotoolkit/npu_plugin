@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #pragma once
 
 #include "vpux/compiler/core/aliases_info.hpp"
@@ -25,7 +23,7 @@ class MemLiveRangeInfo final {
     using ReverseUsersMap = OpOrderedMap<ValueOrderedSet>;
 
 public:
-    MemLiveRangeInfo(mlir::FuncOp funcOp, mlir::AnalysisManager& am);
+    MemLiveRangeInfo(mlir::func::FuncOp funcOp, mlir::AnalysisManager& am);
 
 public:
     ValueOrderedSet getUsedBuffers(mlir::Operation* op) const;

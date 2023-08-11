@@ -111,16 +111,17 @@ The table below contains VPU devices and corresponding platform:
 
 | VPU device                                    | PLATFORM |
 | :-------------------------------------------  | :--------|
-| Gen 3 Intel&reg; Movidius&trade; VPU (3700VE) |   3700   |
-| Gen 3 Intel&reg; Movidius&trade; VPU (3400VE) |   3400   |
-| Intel&reg; Movidius&trade; S 3900V VPU        |   3900   |
-| Intel&reg; Movidius&trade; S 3800V VPU        |   3800   |
+| Intel&reg; Neural VPU (3400VE)                |   3400   |
+| Intel&reg; Neural VPU (3700VE)                |   3700   |
+| Intel&reg; Neural VPU (3720VE)                |   3720   |
+| Intel&reg; Neural VPU (3800V)                 |   3800   |
+| Intel&reg; Neural VPU (3900V)                 |   3900   |
 
 ### Models caching
 
 ### Choosing device for inference
 
-VPU devices available in system can be obtained using a sample `hello_query_device`. The output below is an example of output (information about metrics was omitted for readability) for for Intel&reg; Vision Accelerator Design PCIe card with Intel Movidius&trade; S VPU
+VPU devices available in system can be obtained using a sample `hello_query_device`. The output below is an example of output (information about metrics was omitted for readability) for for Intel&reg; Vision Accelerator Design PCIe card with Intel&reg; Neural VPU
 
 ```
 user@user:~/openvino/bin/intel64/Release$ ./hello_query_device
@@ -220,12 +221,12 @@ A newly added compiler shall be registered:
 
 #### Specific config option
 
-The VPUX plugin supports the following private metrics:
+The VPUX plugin supports the following specific metrics not shared across other plugins:
 
-| Metric Name                         | Metric Type | Description                            |
-| :---                                | :---        | :---                                   |
-| `VPUX_METRIC_KEY(BACKEND_NAME)`     | std::string |  The name of used backend              |
-
+| Metric Name                              | Metric Type | Description                        |
+|:-----------------------------------------|:------------|:-----------------------------------|
+| `VPUX_METRIC_KEY(BACKEND_NAME)`          | std::string | The name of used backend           |
+| `VPUX_METRIC_KEY(DEVICE_TOTAL_MEM_SIZE)` | unit64_t    | Total size of available DDR memory |
 
 ## Contacts
 

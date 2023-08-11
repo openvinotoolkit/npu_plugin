@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/IE/passes.hpp"
 
@@ -37,7 +35,7 @@ mlir::LogicalResult ActShaveRewriter::matchAndRewrite(IE::ReorderOp origOp, mlir
     _log.trace("[{0}] Got '{1}' at '{2}'", getDebugName(), origOp->getName(), origOp->getLoc());
 
     auto allUsersAreReturn = llvm::all_of(origOp->getUsers(), [](auto user) {
-        return mlir::isa<mlir::ReturnOp>(user);
+        return mlir::isa<mlir::func::ReturnOp>(user);
     });
     if (!allUsersAreReturn) {
         return matchFailed(_log.nest(), rewriter, origOp, "Reorder is not the last operation in the graph.");
@@ -45,6 +43,9 @@ mlir::LogicalResult ActShaveRewriter::matchAndRewrite(IE::ReorderOp origOp, mlir
 
     // Check that the producer of this IE.Reorder is a software layer.
     auto producer = origOp.input().getDefiningOp();
+    if (producer == nullptr) {
+        return matchFailed(_log.nest(), rewriter, origOp, "Reorder producer is a block argument.");
+    }
     if (!IE::isActShaveKernel(producer)) {
         return matchFailed(_log.nest(), rewriter, origOp, "Reorder producer is not a software layer.");
     }
@@ -103,7 +104,7 @@ private:
 };
 
 void PropagateReorderToNCE::safeRunOnFunc() {
-    auto func = getFunction();
+    auto func = getOperation();
     auto module = func->getParentOfType<mlir::ModuleOp>();
     const auto arch = VPU::getArch(module);
     auto& ctx = getContext();
@@ -112,7 +113,7 @@ void PropagateReorderToNCE::safeRunOnFunc() {
             VPU::ArchKind::VPUX37XX,
     };
     if (compatibleTargets.count(arch) == 0) {
-        _log.trace("PropagateReorderToNCE is only applicable for VPUX37XX device.");
+        _log.trace("PropagateReorderToNCE is only applicable for VPUX37XX devices.");
         return;
     }
 

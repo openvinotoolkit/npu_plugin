@@ -85,7 +85,7 @@ void buildContinuedConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Module
 
     const auto funcType = builder.getFunctionType(llvm::makeArrayRef(inputTypes), outputParamType);
 
-    auto function = builder.create<mlir::FuncOp>(
+    auto function = builder.create<mlir::func::FuncOp>(
             builder.getUnknownLoc(), printToString("continued_conv_{0}_{1}_{2}", inputType, weightsType, outputType),
             funcType, builder.getStringAttr("private"));
 
@@ -246,11 +246,11 @@ void buildContinuedConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Module
     VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, barriers[2], mlir::ValueRange(), builder.getUnknownLoc(),
                                           output1CMX.getOperation()->getResult(0), functionOutput);
 
-    functionBuilder.create<mlir::ReturnOp>(builder.getUnknownLoc(), functionOutput);
+    functionBuilder.create<mlir::func::ReturnOp>(builder.getUnknownLoc(), functionOutput);
 
     mlir::PassManager pm(builder.getContext(), mlir::OpPassManager::Nesting::Implicit);
-    pm.addPass(VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::DefaultHW, None, None,
-                                           None, log));
+    pm.addPass(VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::DefaultHW, 1, None, None,
+                                           log));
 
     VPUX_THROW_UNLESS(mlir::succeeded(pm.run(module)), "Compilation failed");
 

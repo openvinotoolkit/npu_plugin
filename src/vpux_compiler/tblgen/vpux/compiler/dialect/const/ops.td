@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #ifndef VPUX_COMPILER_DIALECT_CONST_OPS
 #define VPUX_COMPILER_DIALECT_CONST_OPS
 
@@ -63,10 +61,8 @@ def Const_DeclareOp :
     );
 
     let hasFolder = 1;
-
-    let verifier = [{
-        return verifyOp(*this);
-    }];
+    let hasVerifier = 1;
+    let hasCustomAssemblyFormat = 1;
 
     let extraClassDeclaration = [{
         vpux::DotNodeColor getNodeColor() {
@@ -76,10 +72,6 @@ def Const_DeclareOp :
         void getAsmResultNames(mlir::OpAsmSetValueNameFn setNameFn) {
             setNameFn(getResult(), "cst");
         }
-    }];
-
-    let assemblyFormat = [{
-        attr-dict type($output) `=` $content
     }];
 }
 

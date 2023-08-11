@@ -3,14 +3,10 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/conversion.hpp"
 
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
-#include "vpux/compiler/dialect/VPUIP/utils.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
-#include "vpux/compiler/utils/allocate_buffers.hpp"
 #include "vpux/compiler/utils/error.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
 #include "vpux/compiler/utils/types.hpp"
@@ -57,7 +53,7 @@ private:
 private:
     mlir::Value applyPadding(const int64_t padAxis, const int64_t padValue, ArrayRef<int64_t> inSubViewOffsets,
                              const PaddingContext& padCtx, mlir::OpBuilder& builder) const;
-    size_t getMaxExpandConstShape(mlir::FuncOp func, Logger log);
+    size_t getMaxExpandConstShape(mlir::func::FuncOp func, Logger log);
     Dim getPadDim(vpux::NDTypeInterface inType, vpux::NDTypeInterface outType);
 };
 
@@ -116,7 +112,7 @@ mlir::Value ConvertExpandPass::applyPadding(const int64_t padAxis, const int64_t
     return subViewCopy.output();
 }
 
-size_t ConvertExpandPass::getMaxExpandConstShape(mlir::FuncOp func, Logger log) {
+size_t ConvertExpandPass::getMaxExpandConstShape(mlir::func::FuncOp func, Logger log) {
     size_t maxShapeSize = 0;
     func->walk([&](VPUIP::ExpandOp origOp) {
         auto inType = origOp.input().getType().dyn_cast<vpux::NDTypeInterface>();
@@ -164,7 +160,7 @@ Dim ConvertExpandPass::getPadDim(vpux::NDTypeInterface inType, vpux::NDTypeInter
 
 void ConvertExpandPass::safeRunOnFunc() {
     auto& ctx = getContext();
-    auto func = getFunction();
+    auto func = getOperation();
 
     mlir::OpBuilder builder(&func.getBody().front().front());
 

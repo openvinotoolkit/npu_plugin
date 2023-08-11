@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #pragma once
 
 #include <set>
@@ -34,8 +32,10 @@ bool isSegmentedSWOp(mlir::Operation* op);
 bool inputProducersCompatible(mlir::Operation* op);
 bool isSegmentedInputCompatible(mlir::Operation* op);
 bool isSegmentedOutputCompatible(mlir::Operation* op);
-int64_t getNumberOfClustersForSOKToAvoidAlignment(int64_t outputChannels, int64_t numClustersForCompilation);
-int64_t getNumberOfClustersForSOH(int64_t outputHeight, int64_t numClustersForCompilation);
+int64_t getNumberOfClustersForSOKToAvoidAlignment(int64_t outputChannels, int64_t numClustersForCompilation,
+                                                  bool uniformDistributedSegments = true);
+int64_t getNumberOfClustersForSpatialDim(int64_t outputSpatialDim, int64_t numClustersForCompilation,
+                                         bool uniformDistributedSegments = true);
 SmallVector<int64_t> getActivationTensorNumTiles(VPU::ClusteredOpInterface clusteredOp,
                                                  int64_t numClustersAvailableForCompilation,
                                                  VPU::MultiClusterStrategy strategy);
@@ -50,11 +50,12 @@ Optional<SmallVector<int64_t>> getOutputTensorAlignment(VPU::MultiClusterStrateg
 Optional<vpux::NDTypeInterface> adjustOutputAlignmentForSOH(VPU::ClusteredOpInterface clusteredOp,
                                                             vpux::NDTypeInterface originalDistType);
 
-SmallVector<int64_t> getWeightsTensorNumTiles(vpux::NDTypeInterface tensorType,
+SmallVector<int64_t> getWeightsTensorNumTiles(VPU::ClusteredOpInterface clusteredOp, vpux::NDTypeInterface tensorType,
                                               int64_t numClustersAvailableForCompilation,
                                               VPU::MultiClusterStrategy strategy);
 Optional<SmallVector<int64_t>> getWeightsTensorAlignment(VPU::MultiClusterStrategy strategy);
-SmallVector<int64_t> getWeightsTableTensorNumTiles(vpux::NDTypeInterface tensorType,
+SmallVector<int64_t> getWeightsTableTensorNumTiles(VPU::ClusteredOpInterface clusteredOp,
+                                                   vpux::NDTypeInterface tensorType,
                                                    int64_t numClustersAvailableForCompilation,
                                                    VPU::MultiClusterStrategy strategy);
 SmallVector<int64_t> getInstructionListTableTensorNumTiles(VPU::MultiClusterStrategy strategy);
@@ -69,7 +70,7 @@ DistributionMode getActivationWindowTensorDistributionMode(VPU::MultiClusterStra
 NCEClusterTilingOp createDistributedCopyOut(VPU::ClusteredOpInterface clusteredOp, NCEClusterTilingOp clusterTilingOp);
 NCEClusterTilingOp createDistributedCopyOut(mlir::Operation* sourceOp, vpux::NDTypeInterface outputType);
 int64_t getSOHPerClusterHeightAlignment(int64_t inputWidth);
-int64_t getSOHMinimalHeightAlignment(vpux::ShapeRef shape, int64_t numClusters);
+int64_t getSOHMinimalHeightAlignment(vpux::ShapeRef shape, int64_t numClusters, VPU::ArchKind arch);
 bool isSOHSupportedByDPU(ShapeRef inputShape, int64_t numClusters, bool DWTypeOp, VPU::ArchKind arch);
 
 mlir::IntegerAttr getOptimalNumClusters(VPU::ClusteredOpInterface clusteredOp, int64_t OC,
@@ -81,11 +82,23 @@ NCEClusterTilingOp createDistributedCopyIn(VPU::ClusteredOpInterface clusteredOp
 VPU::DistributedTensorType createDistributedTensorType(VPU::ClusteredOpInterface clusteredOp,
                                                        vpux::NDTypeInterface inputType,
                                                        DistributionMode distributionMode, mlir::ArrayAttr numTiles,
-                                                       mlir::IntegerAttr numClusters, mlir::ArrayAttr alignment);
+                                                       mlir::IntegerAttr numClusters, mlir::ArrayAttr alignment,
+                                                       mlir::ArrayAttr kernel = nullptr, VPU::PaddingAttr pad = nullptr,
+                                                       mlir::ArrayAttr stride = nullptr,
+                                                       mlir::UnitAttr equalComputeAndMemoryView = nullptr);
 
 VPU::DistributedTensorType createDistributedTensorType(VPU::NCEOpInterface nceOp, vpux::NDTypeInterface inputType,
                                                        DistributionMode distributionMode, mlir::ArrayAttr numTiles,
-                                                       mlir::IntegerAttr numClusters, mlir::ArrayAttr alignment);
+                                                       mlir::IntegerAttr numClusters, mlir::ArrayAttr alignment,
+                                                       mlir::ArrayAttr kernel = nullptr, VPU::PaddingAttr pad = nullptr,
+                                                       mlir::ArrayAttr stride = nullptr,
+                                                       mlir::UnitAttr equalComputeAndMemoryView = nullptr);
+
+DistributedTensorType createDistributedTensorType(VPU::ConcatOp viewLikeOp, vpux::NDTypeInterface inputType,
+                                                  DistributionMode distributionMode, mlir::ArrayAttr numTiles,
+                                                  mlir::IntegerAttr optimalNumberOfClusters, mlir::ArrayAttr alignment,
+                                                  mlir::ArrayAttr kernel = nullptr, VPU::PaddingAttr pad = nullptr,
+                                                  mlir::ArrayAttr stride = nullptr);
 
 VPU::DistributedTensorType createDistributedTensorType(VPU::SWOpInterface swOp, vpux::NDTypeInterface inputType,
                                                        DistributionMode distributionMode, mlir::ArrayAttr numTiles,
@@ -104,7 +117,8 @@ VPU::DistributedTypeInterface getDistributedOutputTypeFromOp(VPU::ClusteredOpInt
 VPU::DistributedTypeInterface getDistributedActivationTypeFromOp(VPU::ClusteredOpInterface clusteredOp,
                                                                  vpux::NDTypeInterface inputType,
                                                                  mlir::IntegerAttr numClusters,
-                                                                 VPU::MultiClusterStrategy customStrategy);
+                                                                 VPU::MultiClusterStrategy customStrategy,
+                                                                 mlir::ArrayAttr customAlignment = nullptr);
 VPU::DistributedTypeInterface getDistributedFilterTypeFromOp(VPU::NCEOpInterface nceOp, vpux::NDTypeInterface inputType,
                                                              mlir::IntegerAttr numClusters,
                                                              VPU::MultiClusterStrategy customStrategy);
@@ -114,13 +128,29 @@ VPU::DistributedTypeInterface getDistributedOutputTypeFromOp(VPU::ClusteredOpInt
                                                              VPU::MultiClusterStrategy customStrategy);
 
 Shape getLargestClusterOutputShape(VPU::ClusteredOpInterface clusteredOp, VPU::MultiClusterStrategy strategy);
-SmallVector<Shape> getPerClusterOutputShape(VPU::ClusteredOpInterface clusteredOp, VPU::MultiClusterStrategy strategy);
-bool archRequiresDWOpsHeightAlign(ArchKind arch);
-bool clusteredSWOpHasAlignedInput(VPU::ClusteredOpInterface swOp);
-bool clusteredSWOpHasAlignedOutput(VPU::ClusteredOpInterface swOp);
 bool isDWOpAndNeedsAlign(ArchKind arch, VPUIP::NCETaskType nceTaskType);
 bool isEltwiseOpAndNeedsAlign(VPU::ClusteredOpInterface nceOp);
-bool swOpInputNeedsAlign(VPU::ClusteredOpInterface swOp);
+bool isSWOpChannelAlignmentCompatible(VPU::ClusteredOpInterface swOp);
+bool isSWOpWithAlignedInputChannelReq(VPU::ClusteredOpInterface swOp);
+bool isSWOpWithAlignedOutputChannelReq(VPU::ClusteredOpInterface swOp);
+
+template <typename T,
+          enable_if_t<or_<std::is_same<VPU::NCEClusterTilingOp, T>, std::is_same<VPUIP::NCEClusterTilingOp, T>>::value,
+                      bool> = true>
+mlir::Value getDistributedOperandFromNCEClusterTiling(T clusterOp, mlir::Value innerOperand) {
+    if (innerOperand == nullptr) {
+        return nullptr;
+    }
+    auto blockArg = innerOperand.dyn_cast<mlir::BlockArgument>();
+    if (blockArg == nullptr) {
+        return nullptr;
+    }
+    auto operandNum = blockArg.getArgNumber();
+    VPUX_THROW_UNLESS(operandNum < clusterOp.getNumOperands(),
+                      "Argument number '{0}' is out of range of operands for NCEClusterTiling op '{1}'", operandNum,
+                      clusterOp.getNumOperands());
+    return clusterOp.getOperand(operandNum);
+}
 
 }  // namespace VPU
 }  // namespace vpux

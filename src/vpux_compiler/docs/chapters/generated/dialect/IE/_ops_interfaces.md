@@ -152,3 +152,11 @@ vpux::IE::LayerLayoutInfo getLayoutInfo();
 Get information about current layout for Layer inputs and outputs
 NOTE: This method *must* be implemented by the user.
 
+## SEOpInterface (`IE_SEOpInterface`)
+
+Interface for operations that can be executed using the Storage Element feature
+### Methods:
+## ViewLikeOpInterface (`IE_ViewLikeOpInterface`)
+
+Interface for IE view-like ops
+### Methods:

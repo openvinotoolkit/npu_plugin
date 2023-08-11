@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #pragma once
 
 #ifdef ENABLE_BITCOMPACTOR
@@ -18,12 +16,12 @@ namespace vpux {
 class BitCompactorCodec final : public ICodec {
 public:
     BitCompactorCodec();
-    ~BitCompactorCodec() = default;
+    ~BitCompactorCodec() override = default;
     BitCompactorCodec(const BitCompactorCodec&) = delete;
     BitCompactorCodec(const BitCompactorCodec&&) = delete;
     BitCompactorCodec& operator=(const BitCompactorCodec&) = delete;
     BitCompactorCodec& operator=(const BitCompactorCodec&&) = delete;
-    std::vector<uint8_t> compress(std::vector<uint8_t>& data) const;
+    std::vector<uint8_t> compress(std::vector<uint8_t>& data) const override;
 
 private:
     // Classified mutable because BitCompactor::btcmpctr_cmprs_bound is non-constant.

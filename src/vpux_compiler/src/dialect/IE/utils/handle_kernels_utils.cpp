@@ -62,17 +62,17 @@ Optional<Factors> vpux::IE::getFactors(int64_t kernelSize, int64_t& padValue) {
 // For iteration splitting, "Larger" means the final size distribution after splitting
 // In current iteration, the another factor is larger and it will enter next round to split into smaller factor
 //
-Optional<Factors> vpux::IE::getFactorsWithSupportedLarger(int64_t kernelSize) {
+Optional<Factors> vpux::IE::getFactorsWithSupportedLarger(int64_t kernelSize, int64_t& padValue) {
     const auto limit = VPU::NCEInvariant::MAX_KERNEL_SIZE;
     const auto& allLimitFactors = getFactorsListWithLimitation(kernelSize, limit);
-    if (!allLimitFactors.empty() && checkFactors(allLimitFactors.back(), kernelSize, true)) {
+    if (!allLimitFactors.empty() && allLimitFactors.back().larger != 1 &&
+        checkFactors(allLimitFactors.back(), kernelSize, true)) {
         return allLimitFactors.back();
     }
 
-    int64_t padValue = 1;
     while (padValue < kernelSize) {
         const auto& factors = getFactorsAroundWithLimit(kernelSize, padValue, limit);
-        if (checkFactors(factors, kernelSize, true)) {
+        if (factors.larger != 1 && checkFactors(factors, kernelSize, true)) {
             return factors;
         }
         padValue++;

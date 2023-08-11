@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/IE/utils/resources.hpp"
 
 #include "vpux/compiler/core/cost_model_utils.hpp"
@@ -42,7 +40,7 @@ constexpr int64_t MAX_SPLIT_NUMBER = 50;
 
 bool isMixedPrecisionSupportedForVPUX30XX(mlir::Type inElemType, mlir::Type outElemType, mlir::Operation* operation) {
     return inElemType.isa<mlir::quant::QuantizedType>() && !outElemType.isa<mlir::quant::QuantizedType>() &&
-           mlir::isa<VPU::NCEConvolutionOp, VPU::NCEDepthConvolutionOp, VPU::NCEMaxPoolOp, VPU::NCEAveragePoolOp>(
+           mlir::isa<VPU::NCEConvolutionOp, VPU::NCEDepthConvolutionOp, VPU::NCEMaxPoolOp, VPU::NCEInterpolateOp>(
                    operation);
 }
 
@@ -51,6 +49,7 @@ VPU::MPEMode getMpeModeForVPUX30XX(mlir::Type inElemType, mlir::Type outElemType
     if (isMixedPrecisionSupportedForVPUX30XX(inElemType, outElemType, operation)) {
         return VPU::MPEMode::VECTOR_FP16;
     }
+
     if (inElemType.isa<mlir::quant::QuantizedType>() || outElemType.isa<mlir::quant::QuantizedType>()) {
         const double W = static_cast<double>(shape[Dims4D::Act::W]);
         const double H = static_cast<double>(shape[Dims4D::Act::H]);
@@ -106,10 +105,9 @@ VPU::MPEMode getMpeModeForVPUX37XXConv(ShapeRef shape) {
 }
 
 VPU::MPEMode getMpeModeForVPUX37XX(mlir::Type, mlir::Type, mlir::Operation* operation, ShapeRef shape) {
-    if (mlir::isa<VPU::NCEConvolutionOp>(operation)) {
+    if (mlir::isa<VPU::NCEConvolutionOp, VPU::NCECompressConvolutionOp, VPU::NCEInterpolateOp>(operation)) {
         return getMpeModeForVPUX37XXConv(shape);
-    } else if (mlir::isa<VPU::NCEDepthConvolutionOp>(operation) || mlir::isa<VPU::NCEMaxPoolOp>(operation) ||
-               mlir::isa<VPU::NCEAveragePoolOp>(operation)) {
+    } else if (mlir::isa<VPU::NCEDepthConvolutionOp, VPU::NCEMaxPoolOp, VPU::NCEAveragePoolOp>(operation)) {
         return VPU::MPEMode::CUBOID_16x16;
     } else if (mlir::isa<VPU::NCEEltwiseOp>(operation)) {
         return VPU::MPEMode::CUBOID_8x16;
@@ -152,6 +150,7 @@ void generateWorkloads(mlir::OpBuilder& builder, VPU::NCEOpInterface origOp,
 
     auto inElemType = origOp->getOperand(0).getType().cast<vpux::NDTypeInterface>().getElementType();
     auto outElemType = origOp->getResult(0).getType().cast<vpux::NDTypeInterface>().getElementType();
+
     if (costParams.arch == VPU::ArchKind::VPUX30XX &&
         isMixedPrecisionSupportedForVPUX30XX(inElemType, outElemType, origOp.getOperation())) {
         dpuTiler.tileOverHWMixedPrecision(splitPoolSet);
@@ -192,6 +191,13 @@ void generateWorkloads(mlir::OpBuilder& builder, VPU::NCEOpInterface origOp,
     }
 
     const auto bestSplitInd = std::min_element(splitPoolCosts.begin(), splitPoolCosts.end()) - splitPoolCosts.begin();
+    if (splitPoolCosts[bestSplitInd] >= VPU::INVALID_COST) {
+        auto& log = Logger::global();
+        log.setName("SplitWorkloads");
+        log.error("A INVALID_COST catched for bestSplit. Please enable LOG_TRACE to check VPUNN error "
+                  "code details");
+        log.nest().error("bestSplit cost value: {0}", splitPoolCosts[bestSplitInd]);
+    }
     const auto& bestSplit = splitPool[bestSplitInd];
 
     origOp->setAttr(DPUCost, getIntAttr(origOp->getContext(), splitPoolCosts[bestSplitInd]));
@@ -249,7 +255,7 @@ void splitOntoWorkloads(mlir::OpBuilder& builder, VPU::NCEOpInterface origOp, VP
         VPUX_THROW_WHEN(distributedInputType == nullptr, "Wrong input type {0} for NCEClusterTilingOp",
                         input.getType());
 
-        const auto inputSubTensorShapes = distributedInputType.getPerClusterComputeShapes();
+        const auto inputSubTensorShapes = distributedInputType.getPerClusterMemoryShapes();
         VPUX_THROW_WHEN(outputSubTensorShapes.size() != inputSubTensorShapes.size(),
                         "output tensor size:{0} not equal to input tensor size:{1}", outputSubTensorShapes.size(),
                         inputSubTensorShapes.size());
@@ -276,7 +282,8 @@ void splitOntoWorkloads(mlir::OpBuilder& builder, VPU::NCEOpInterface origOp, VP
             costParams.inputShape = inputSubTensorShapes[clusterId];
             costParams.outputShape = outputSubTensorShapes[clusterId];
 
-            if (costParams.arch == VPU::ArchKind::VPUX37XX && mlir::isa<VPU::NCEConvolutionOp>(origOp)) {
+            if (costParams.arch == VPU::ArchKind::VPUX37XX &&
+                mlir::isa<VPU::NCEConvolutionOp, VPU::NCECompressConvolutionOp, VPU::NCEInterpolateOp>(origOp)) {
                 mpeMode = getMpeModeForVPUX37XXConv(outputSubTensorShapes[clusterId]);
             }
             generateWorkloads(builder, origOp, costParams, mpeMode, isTileOverZSupported, costModel, clusterIdAttr,
@@ -329,7 +336,8 @@ mlir::LogicalResult GenericNCERewrite::matchAndRewrite(VPU::NCEOpInterface nceOp
     const auto mpeMode = mpeByType(inElemType, outElemType, nceOp, outputShape);
 
     VPUIP::WorkloadCostParams params;
-    params.dataType = inElemType;
+    params.inDataType = inElemType;
+    params.outDataType = outElemType;
     params.numDPU = _numDPU;
     params.arch = _arch;
     params.fullInputShape = inputShape.raw();
@@ -349,6 +357,12 @@ mlir::LogicalResult GenericNCERewrite::matchAndRewrite(VPU::NCEOpInterface nceOp
                 params.nceTaskType = isCMajor ? VPUIP::NCETaskType::CMCONV : VPUIP::NCETaskType::CONV;
                 isTileOverZSupported |= !isCMajor;
             })
+            .Case<VPU::NCEInterpolateOp>([&](VPU::NCEInterpolateOp) {
+                params.nceTaskType = VPUIP::NCETaskType::CONV;
+            })
+            .Case<VPU::NCECompressConvolutionOp>([&](VPU::NCECompressConvolutionOp) {
+                params.nceTaskType = VPUIP::NCETaskType::CONV;
+            })
             .Case<VPU::NCEDepthConvolutionOp>([&](VPU::NCEDepthConvolutionOp) {
                 params.nceTaskType = VPUIP::NCETaskType::DWCONV;
             })
@@ -366,6 +380,7 @@ mlir::LogicalResult GenericNCERewrite::matchAndRewrite(VPU::NCEOpInterface nceOp
                 params.nceTaskType = VPUIP::NCETaskType::ELTWISE;
                 isTileOverZSupported = false;
             })
+
             .Default([](mlir::Operation* op) {
                 VPUX_THROW("Unsupported NCE operation '{0}' at '{1}'", op->getName(), op->getLoc());
             });
@@ -396,7 +411,7 @@ private:
 
 void SplitNCEOpsOntoWorkloadsPass::safeRunOnFunc() {
     auto& ctx = getContext();
-    auto func = getFunction();
+    auto func = getOperation();
 
     auto module = func->getParentOfType<mlir::ModuleOp>();
 

@@ -3,10 +3,9 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/VPU/ops.hpp"
+#include "vpux/compiler/dialect/VPU/utils/const_utils.hpp"
 
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/error.hpp"
@@ -25,7 +24,12 @@ using namespace vpux;
 
 void vpux::VPU::ConcatOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::ValueRange inputs,
                                 IE::ConcatAttrs per_axis) {
-    build(builder, state, inputs, per_axis, nullptr);
+    build(builder, state, inputs, per_axis, nullptr, nullptr);
+}
+
+void vpux::VPU::ConcatOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::ValueRange inputs,
+                                IE::ConcatAttrs per_axis, mlir::ArrayAttr static_offsets) {
+    build(builder, state, inputs, per_axis, static_offsets, nullptr);
 }
 
 void vpux::VPU::ConcatOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::ValueRange inputs,
@@ -46,7 +50,12 @@ void vpux::VPU::ConcatOp::build(mlir::OpBuilder& builder, mlir::OperationState& 
 
 void vpux::VPU::ConcatOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type outType,
                                 mlir::ValueRange inputs, mlir::ArrayAttr static_offsets) {
-    build(builder, state, outType, inputs, nullptr, static_offsets);
+    build(builder, state, outType, inputs, nullptr, static_offsets, nullptr);
+}
+
+void vpux::VPU::ConcatOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type outType,
+                                mlir::ValueRange inputs, IE::ConcatAttrs per_axis, mlir::ArrayAttr static_offsets) {
+    build(builder, state, outType, inputs, per_axis, static_offsets, nullptr);
 }
 
 void vpux::VPU::ConcatOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type outType,
@@ -316,7 +325,7 @@ mlir::LogicalResult vpux::VPU::ConcatOp::inferReturnTypes(mlir::MLIRContext* ctx
                                                           mlir::ValueRange operands, mlir::DictionaryAttr attrs,
                                                           mlir::RegionRange /*regions*/,
                                                           mlir::SmallVectorImpl<mlir::Type>& inferredTypes) {
-    const auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
+    const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
     VPU::ConcatOpAdaptor concat(operands, attrs);
     if (mlir::failed(concat.verify(loc))) {
@@ -461,6 +470,134 @@ mlir::LogicalResult FuseConcat::matchAndRewrite(VPU::ConcatOp origOp, mlir::Patt
     return mlir::success();
 }
 
+//
+// FuseConcatsWithDifferentAxes
+//
+
+class FuseConcatsWithDifferentAxes final : public mlir::OpRewritePattern<VPU::ConcatOp> {
+public:
+    FuseConcatsWithDifferentAxes(mlir::MLIRContext* ctx): mlir::OpRewritePattern<VPU::ConcatOp>(ctx) {
+        setDebugName("FuseConcatsWithDifferentAxes");
+    }
+
+    mlir::LogicalResult matchAndRewrite(VPU::ConcatOp origOp, mlir::PatternRewriter& rewriter) const final;
+
+private:
+    static bool hasConcatProducer(const mlir::Value input);
+    SmallVector<mlir::Value> flattenInputs(const mlir::ValueRange concatViewInputs) const;
+    SmallVector<SmallVector<int64_t>> recalculateConcatOffsets(const mlir::Value concatInput,
+                                                               ArrayRef<int64_t> origOpOffsets) const;
+    SmallVector<SmallVector<int64_t>> recalculateOffsets(VPU::ConcatOp origOp) const;
+};
+
+bool FuseConcatsWithDifferentAxes::hasConcatProducer(const mlir::Value input) {
+    auto concatOp = mlir::dyn_cast_or_null<VPU::ConcatOp>(input.getDefiningOp());
+    // The producer must have static offsets defined.
+    // Otherwise it's hard to recalculate the offsets properly.
+    if (concatOp == nullptr || concatOp.static_offsetsAttr() == nullptr || !concatOp.static_offsets().hasValue()) {
+        return false;
+    }
+    // Fusion of VPU.Concat operations with multiple consumers results in scheduling errors.
+    // It is safe to fuse VPU.Concat producer when all its consumers are VPU.Concat operations.
+    // See [E#75133]
+    const auto isConcat = [](const mlir::Operation* consumer) -> bool {
+        return mlir::isa<VPU::ConcatOp>(consumer);
+    };
+    const auto consumers = concatOp->getUsers();
+    return std::all_of(consumers.begin(), consumers.end(), isConcat);
+}
+
+// Propagate inputs from producer concat to consumer concat:
+// %concat = VPU.Concat(%val0, %val1)
+// VPU.Concat(%val2, %concat)
+// Results in VPU.Concat(%val2, %val0, %val1)
+SmallVector<mlir::Value> FuseConcatsWithDifferentAxes::flattenInputs(const mlir::ValueRange concatViewInputs) const {
+    SmallVector<mlir::Value> newInputs;
+    for (const auto& input : concatViewInputs) {
+        if (hasConcatProducer(input)) {
+            auto producerConcatOp = mlir::cast<VPU::ConcatOp>(input.getDefiningOp());
+            const auto producerConcatInputs = producerConcatOp.inputs();
+            newInputs.append(producerConcatInputs.begin(), producerConcatInputs.end());
+        } else {
+            newInputs.push_back(input);
+        }
+    }
+    return newInputs;
+}
+
+SmallVector<SmallVector<int64_t>> FuseConcatsWithDifferentAxes::recalculateConcatOffsets(
+        const mlir::Value concatInput, ArrayRef<int64_t> origOpOffsets) const {
+    SmallVector<SmallVector<int64_t>> recalculatedOffsets;
+    auto producerConcatOp = concatInput.getDefiningOp<VPU::ConcatOp>();
+    const auto oldOffsetsArr = producerConcatOp.static_offsets().getValue().getAsRange<mlir::ArrayAttr>();
+    for (const auto& oldOffsets : oldOffsetsArr) {
+        auto offsets = parseIntArrayAttr<int64_t>(oldOffsets);
+        VPUX_THROW_WHEN(offsets.size() != origOpOffsets.size(), "Rank of offsets mismatch: {0} vs {1}", offsets,
+                        origOpOffsets);
+        for (const auto& axis : irange(offsets.size())) {
+            offsets[axis] += origOpOffsets[axis];
+        }
+        recalculatedOffsets.push_back(offsets);
+    }
+    return recalculatedOffsets;
+}
+
+// Consider VPU.Concat with concat axis C:
+// %concat = VPU.Concat(%val0, %val1) { static_offsets = [[0, 0, 0, 0], [0, 0, 125, 0]] }
+// VPU.Concat(%val2, %concat) { static_offsets = [[0, 0, 0, 0], [0, 64, 0, 0]] }
+// In order to fuse the first VPU.Concat into the last, %val0 and %val1 must have offsets 64 by axis C:
+// VPU.Concat(%val2, %val0, %val1) { static_offsets = [[0, 0, 0, 0], [[0, 64, 0, 0], [0, 64, 125, 0]] }
+SmallVector<SmallVector<int64_t>> FuseConcatsWithDifferentAxes::recalculateOffsets(VPU::ConcatOp origOp) const {
+    const auto concatViewInputs = origOp.inputs();
+    const auto origOpOffsets = origOp.static_offsets().getValue().getAsRange<mlir::ArrayAttr>();
+    SmallVector<SmallVector<int64_t>> newOffsets;
+    for (const auto inputWithOffset : zip(concatViewInputs, origOpOffsets)) {
+        const auto& input = std::get<0>(inputWithOffset);
+        const auto origOpOffsets = parseIntArrayAttr<int64_t>(std::get<1>(inputWithOffset));
+        if (hasConcatProducer(input)) {
+            const auto offsets = recalculateConcatOffsets(input, makeArrayRef(origOpOffsets));
+            newOffsets.append(offsets.begin(), offsets.end());
+        } else {
+            newOffsets.push_back(origOpOffsets);
+        }
+    }
+
+    return newOffsets;
+}
+
+mlir::LogicalResult FuseConcatsWithDifferentAxes::matchAndRewrite(VPU::ConcatOp origOp,
+                                                                  mlir::PatternRewriter& rewriter) const {
+    if (origOp.static_offsetsAttr() == nullptr || !origOp.static_offsets().hasValue()) {
+        return mlir::failure();
+    }
+
+    const auto concatViewInputs = origOp.inputs();
+    if (std::none_of(concatViewInputs.begin(), concatViewInputs.end(), hasConcatProducer)) {
+        return mlir::failure();
+    }
+    // Fusion of VPU.Concat operations when origOp has const.Declare producers breaks inference.
+    // See [E#75967]
+    const auto hasConstantProducer = [](const mlir::Value input) -> bool {
+        auto declOp = input.getDefiningOp<Const::DeclareOp>();
+        return declOp != nullptr;
+    };
+    if (std::any_of(concatViewInputs.begin(), concatViewInputs.end(), hasConstantProducer)) {
+        return mlir::failure();
+    }
+
+    // Fuse the inputs.
+    const auto newInputs = flattenInputs(concatViewInputs);
+
+    // Recalculate the offsets.
+    const auto newOffsets = recalculateOffsets(origOp);
+
+    auto opConcat = rewriter.create<VPU::ConcatOp>(origOp->getLoc(), origOp->getResult(0).getType(), newInputs,
+                                                   getIntArrayOfArray(rewriter.getContext(), newOffsets));
+    rewriter.replaceOp(origOp, opConcat->getResult(0));
+
+    return mlir::success();
+}
+
 }  // namespace
 
 //
@@ -470,6 +607,7 @@ mlir::LogicalResult FuseConcat::matchAndRewrite(VPU::ConcatOp origOp, mlir::Patt
 void vpux::VPU::ConcatOp::getCanonicalizationPatterns(mlir::RewritePatternSet& results, mlir::MLIRContext* ctx) {
     results.add<ConvertPerAxisToOffsets>(ctx);
     results.add<FuseConcat>(ctx);
+    results.add<FuseConcatsWithDifferentAxes>(ctx);
 }
 
 //
@@ -526,24 +664,24 @@ EMU::BlobWriter::SpecificTask vpux::VPU::ConcatOp::serialize(EMU::BlobWriter& wr
 }
 
 //
-// verifyOp
+// verify
 //
 
-mlir::LogicalResult vpux::VPU::verifyOp(ConcatOp op) {
-    const auto loc = op.getLoc();
+mlir::LogicalResult vpux::VPU::ConcatOp::verify() {
+    const auto loc = getLoc();
 
-    if (op.inputs().empty()) {
+    if (inputs().empty()) {
         return errorAt(loc, "Missing inputs for '{0}'", VPU::ConcatOp::getOperationName());
     }
 
-    if (!op.per_axis().hasValue() && !op.static_offsets().hasValue()) {
+    if (!per_axis().hasValue() && !static_offsets().hasValue()) {
         return errorAt(loc, "Missing either 'per_axis' or 'static_offsets' attribute");
     }
-    if (op.per_axis().hasValue() && op.static_offsets().hasValue()) {
+    if (per_axis().hasValue() && static_offsets().hasValue()) {
         return errorAt(loc, "Only one attribute ('per_axis' or 'static_offsets') should be provided");
     }
 
-    auto input1DataType = op.inputs().front().getType();
+    auto input1DataType = inputs().front().getType();
     auto input1SparseType = input1DataType.dyn_cast_or_null<VPU::SparseTensorType>();
     if (input1SparseType != nullptr) {
         input1DataType = input1SparseType.getData();
@@ -554,9 +692,9 @@ mlir::LogicalResult vpux::VPU::verifyOp(ConcatOp op) {
 
         const auto inDesc = IE::getTensorAttr(inTypeRanked);
 
-        for (const auto val : op.inputs().drop_front()) {
+        for (const auto val : inputs().drop_front()) {
             if (!val.getType().isa<mlir::RankedTensorType, VPU::SparseTensorType>()) {
-                return errorAt(loc, "Misaligned tensor type for '{0}' inputs", op.getOperationName());
+                return errorAt(loc, "Misaligned tensor type for '{0}' inputs", getOperationName());
             }
 
             const auto curType =
@@ -566,7 +704,7 @@ mlir::LogicalResult vpux::VPU::verifyOp(ConcatOp op) {
             const auto curDesc = IE::getTensorAttr(curType);
 
             if (curDesc != inDesc) {
-                return errorAt(loc, "Misaligned TensorType attributes for '{0}' inputs", op.getOperationName());
+                return errorAt(loc, "Misaligned TensorType attributes for '{0}' inputs", getOperationName());
             }
         }
     } else if (const auto inTypeDistributed = input1DataType.dyn_cast<VPU::DistributedTensorType>()) {
@@ -576,9 +714,9 @@ mlir::LogicalResult vpux::VPU::verifyOp(ConcatOp op) {
 
         // Check consistent distributed tensor attributes
 
-        for (const auto val : op.inputs().drop_front()) {
+        for (const auto val : inputs().drop_front()) {
             if (!val.getType().isa<VPU::DistributedTensorType, VPU::SparseTensorType>()) {
-                return errorAt(loc, "Misaligned tensor type for '{0}' inputs", op.getOperationName());
+                return errorAt(loc, "Misaligned tensor type for '{0}' inputs", getOperationName());
             }
 
             const auto curType =
@@ -588,8 +726,7 @@ mlir::LogicalResult vpux::VPU::verifyOp(ConcatOp op) {
 
             if (curType.getOrder() != inOrder || curType.getMemSpace() != inMemSpace ||
                 curType.getDistribution() != inDistribution) {
-                return errorAt(loc, "Misaligned DistributedTensorType attributes for '{0}' inputs",
-                               op.getOperationName());
+                return errorAt(loc, "Misaligned DistributedTensorType attributes for '{0}' inputs", getOperationName());
             }
         }
     } else {
@@ -597,4 +734,39 @@ mlir::LogicalResult vpux::VPU::verifyOp(ConcatOp op) {
     }
 
     return mlir::success();
+}
+
+//
+// NCEOpInterface
+//
+
+bool vpux::VPU::ConcatOp::checkStrategyCompatibility(VPU::MultiClusterStrategy strategy) {
+    // cmx_concat has accuracy issue with SOH inputs and Height concatenate. Add a workaround here to avoid
+    // it happens in strategy manager pass.
+    auto outputType = output().getType().cast<NDTypeInterface>();
+    if (strategy == VPU::MultiClusterStrategy::SplitOverHeight) {
+        auto outputShape = outputType.getShape();
+        auto inputDataType = inputs().front().getType().cast<NDTypeInterface>();
+        auto inputShape = inputDataType.getShape();
+
+        if (inputShape[Dims4D::Act::H] != outputShape[Dims4D::Act::H]) {
+            return false;
+        }
+    }
+
+    return strategy == VPU::MultiClusterStrategy::SplitOverKernel ||
+           strategy == VPU::MultiClusterStrategy::SplitOverHeight || strategy == VPU::MultiClusterStrategy::Clustering;
+}
+
+bool vpux::VPU::ConcatOp::fitIntoCMX(vpux::NDTypeInterface output, Byte reservedMem) {
+    auto totalAvailableCMXSize = reservedMem.count() == 0 ? getTotalCMXSize(getOperation()).count()
+                                                          : getTotalCMXFragmentationAwareSize(getOperation()).count();
+    SmallVector<Byte> buffers{output.getTotalAllocSize()};
+    return vpux::VPU::calculateAlignedBuffersMemoryRequirement(getArch(getOperation()), buffers).count() +
+                   reservedMem.count() <=
+           totalAvailableCMXSize;
+}
+
+bool vpux::VPU::ConcatOp::fitIntoCMX(vpux::NDTypeInterface output) {
+    return fitIntoCMX(output, Byte(0));
 }

@@ -1,11 +1,18 @@
+//
+// Copyright (C) 2023 Intel Corporation.
+// SPDX-License-Identifier: Apache 2.0
+//
+
 // RUN: vpux-opt --init-compiler="vpu-arch=VPUX30XX" --dma-task-profiling-after-barrier %s | FileCheck %s
 
-!dataType = type memref<1x16x4x4xf16, affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>, [@CMX_NN, 0]>
+!dataType = memref<1x16x4x4xf16, affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>, [@CMX_NN, 0]>
 
 module @DMAGraph {
 
-  module @DmaProfilingReservedMemory {
-    IE.MemoryResource 256 bytes of @CMX_NN offset 0
+  module @ReservedMemory {
+    module @DmaProfilingReservedMemory {
+      IE.MemoryResource 256 bytes of @CMX_NN offset 0
+    }
   }
 
   IE.CNNNetwork entryPoint : @main inputsInfo : {
@@ -14,7 +21,7 @@ module @DMAGraph {
     DataInfo "prob" : tensor<1x16x4x4xf16>
   } profilingOutputsInfo :  {
   }
-  func @main(%arg0: !dataType, %arg1: !dataType) -> !dataType {
+  func.func @main(%arg0: !dataType, %arg1: !dataType) -> !dataType {
 
     %bar0 = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
 
@@ -39,8 +46,8 @@ module @DMAGraph {
 
 // CHECK:        profilingOutputsInfo
 // CHECK-NEXT:   DataInfo "dma" : tensor<6xui32>
-// CHECK:        func @main(%arg0: memref<1x16x4x4xf16, #NHWC, [@CMX_NN, 0]>, 
-// CHECK-SAME:       %arg1: memref<1x16x4x4xf16, #NHWC, [@CMX_NN, 0]>, 
+// CHECK:        func.func @main(%arg0: memref<1x16x4x4xf16, #NHWC, [@CMX_NN, 0]>,
+// CHECK-SAME:       %arg1: memref<1x16x4x4xf16, #NHWC, [@CMX_NN, 0]>,
 // CHECK-SAME:       %arg2: memref<6xui32>) ->
 // CHECK-SAME:       (memref<1x16x4x4xf16, #NHWC, [@CMX_NN, 0]>,
 // CHECK-SAME:       memref<6xui32>) {

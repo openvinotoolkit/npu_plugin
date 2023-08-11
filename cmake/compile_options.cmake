@@ -21,15 +21,13 @@ macro(replace_compile_visibility_options)
     set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} -rdynamic -export-dynamic")
 endmacro()
 
-macro(replace_noerror)
-    # foreach(flag IN ITEMS "-Wno-error")
-    foreach(flag IN ITEMS "-Wno-error=unused-variable" "-Wno-error=unused-but-set-variable" "-Wno-error=deprecated-declarations")
-        string(REPLACE ${flag} "" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
-        string(REPLACE ${flag} "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
-        string(REPLACE ${flag} "" CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS}")
-        string(REPLACE ${flag} "" CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS}")
-        string(REPLACE ${flag} "" CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS}")
-    endforeach()
+macro(replace_noerror TARGET_NAME)
+    if(NOT MSVC)
+        target_compile_options(${TARGET_NAME}
+            PRIVATE
+                -Wno-error=deprecated-declarations
+        )
+    endif()
 endmacro()
 
 # use flag /zi to solve debug size issue in debug variant on MSVC
@@ -58,9 +56,6 @@ if(MSVC)
 endif()
 
 function(enable_warnings_as_errors TARGET_NAME)
-    if(NOT TREAT_WARNING_AS_ERROR)
-        return()
-    endif()
 
     cmake_parse_arguments(WARNIGS "WIN_STRICT" "" "" ${ARGN})
 
@@ -87,7 +82,7 @@ function(enable_warnings_as_errors TARGET_NAME)
     else()
         target_compile_options(${TARGET_NAME}
             PRIVATE
-                -Wall -Wextra -Werror
+                -Wall -Wextra -Werror -Werror=suggest-override
         )
     endif()
 endfunction()

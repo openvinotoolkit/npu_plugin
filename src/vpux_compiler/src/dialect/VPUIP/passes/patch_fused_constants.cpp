@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/core/aliases_info.hpp"
 #include "vpux/compiler/dialect/VPU/attributes.hpp"
 #include "vpux/compiler/dialect/VPU/nce_sparsity.hpp"
@@ -36,13 +34,13 @@ public:
 private:
     void safeRunOnFunc() final;
     std::vector<int32_t> patchWeightTableInFusedConstant(uint32_t baseOffset, int32_t weightsOffset,
-                                                         int32_t sparsityOffset, Const::DeclareOp& weightsTable,
+                                                         int32_t sparsityOffset, Const::Content& wtContent,
                                                          bool hasSparsity, int64_t weightsElemByteSize,
                                                          VPUIP::CompressionSchemeAttr weightsCompression);
 };
 
 Const::DeclareOp createPatchedDeclareOp(std::vector<uint8_t>& patchedValuesBuf, uint32_t totalSize,
-                                        Const::DeclareOp& weightsTable) {
+                                        Const::DeclareOp& weightsTable, Const::SwizzleConstantAttr swizzleConstAttr) {
     mlir::OpBuilder builder(weightsTable);
     SmallVector<int64_t> patchedConstShape({1, 1, 1, totalSize});
     auto patchedConstElemType = getUInt8Type(builder.getContext());
@@ -52,21 +50,20 @@ Const::DeclareOp createPatchedDeclareOp(std::vector<uint8_t>& patchedValuesBuf, 
 
     auto rawWeights = reinterpret_cast<char*>(patchedValuesBuf.data());
     const auto rawWeightsBuffer = makeArrayRef(rawWeights, patchedValuesBuf.size() * sizeof(uint8_t));
-    bool isSplatBuffer = false;
-    auto patchedTensorTypeMemref = vpux::convertToMemRef(patchedTensorType);
-    VPUX_THROW_UNLESS(
-            mlir::DenseElementsAttr::isValidRawBuffer(patchedTensorTypeMemref, rawWeightsBuffer, isSplatBuffer),
-            "New constant has invalid buffer");
 
-    mlir::ElementsAttr value =
-            mlir::DenseElementsAttr::getFromRawBuffer(patchedTensorType, rawWeightsBuffer, isSplatBuffer);
-    return builder.create<Const::DeclareOp>(weightsTable->getLoc(), patchedTensorTypeMemref,
-                                            Const::ContentAttr::get(value));
+    mlir::ElementsAttr value = mlir::DenseElementsAttr::getFromRawBuffer(patchedTensorType, rawWeightsBuffer);
+
+    auto contentAttr = Const::ContentAttr::get(value);
+    if (swizzleConstAttr) {
+        contentAttr = Const::ContentAttr::addTransformation(contentAttr, swizzleConstAttr);
+    }
+
+    return builder.create<Const::DeclareOp>(weightsTable->getLoc(), weightsTable.getType(), contentAttr);
 }
 
 std::vector<int32_t> PatchFusedConstants::patchWeightTableInFusedConstant(
-        uint32_t baseOffset, int32_t weightsOffset, int32_t sparsityOffset, Const::DeclareOp& weightsTable,
-        bool hasSparsity, int64_t weightsElemByteSize, VPUIP::CompressionSchemeAttr weightsCompression) {
+        uint32_t baseOffset, int32_t weightsOffset, int32_t sparsityOffset, Const::Content& wtContent, bool hasSparsity,
+        int64_t weightsElemByteSize, VPUIP::CompressionSchemeAttr weightsCompression) {
     int32_t totalSize, numWTEntries, weightPtrStep = 0, sparsityPtrStep = 0, sparsityPtr;
     constexpr int32_t numElemPerOC = static_cast<size_t>(VPU::NCEInvariant::WEIGHT_TABLE_NUM_ELEMENTS_PER_OC);
     std::vector<int32_t> wtValuesI32;
@@ -82,7 +79,6 @@ std::vector<int32_t> PatchFusedConstants::patchWeightTableInFusedConstant(
         sparsityPtr = VPU::NCESparsity::SPARSITY_PTR_WHEN_NO_SPARSITY;
     }
 
-    auto wtContent = weightsTable.content();
     auto wtValues = wtContent.getValues<uint8_t>();
     totalSize = static_cast<int32_t>(wtValues.size());
 
@@ -149,7 +145,7 @@ std::vector<int32_t> PatchFusedConstants::patchWeightTableInFusedConstant(
             }
             weightsPtrSteps[oc] = weightsPtrOffset;
             const auto weightSetSize = (numElems[oc] * weightsElemByteSize);
-            weightsPtrOffset += alignVal<int64_t>(weightSetSize, alignment);
+            weightsPtrOffset += alignValUp<int64_t>(weightSetSize, alignment);
         }
     } else {
         for (int64_t oc = 0, clusterIdx = 0; oc < OC; ++oc) {
@@ -190,13 +186,14 @@ std::vector<int32_t> PatchFusedConstants::patchWeightTableInFusedConstant(
 //
 
 void PatchFusedConstants::safeRunOnFunc() {
-    auto funcOp = getFunction();
+    auto funcOp = getOperation();
     auto& aliasInfo = getAnalysis<AliasesInfo>();
 
     funcOp.walk([&](vpux::VPUIP::NCEClusterTaskOp nceOp) {
         if (!nceOp->hasAttr(vpux::ConstantFusing::constantsFused)) {
             return;
         }
+        _log.trace("Patch fused constant for NCEOp - '{0}'", nceOp->getLoc());
 
         VPUIP::CopyOp constCopyOp;
         VPUIP::StaticAllocOp staticAllocOp;
@@ -222,7 +219,33 @@ void PatchFusedConstants::safeRunOnFunc() {
         auto weightsTable = vpux::ConstantFusing::getConstAndCopyOp(nceOp, weightTable, constCopyOp);
         VPUX_THROW_UNLESS(weightsTable != nullptr, "Couldn't find Weight Table Declare Op");
 
-        auto wtContent = weightsTable.content();
+        auto contentAttr = weightsTable.contentAttr();
+
+        Const::ContentAttr newContentAttr;
+        auto baseContent = contentAttr.getBaseContent();
+
+        if (auto denseBaseAttr = baseContent.dyn_cast<mlir::DenseElementsAttr>()) {
+            newContentAttr = Const::ContentAttr::get(denseBaseAttr);
+        } else if (auto opaqueBaseAttr = baseContent.dyn_cast<Const::OpaqueElementsAttr>()) {
+            newContentAttr = Const::ContentAttr::get(opaqueBaseAttr);
+        } else {
+            VPUX_THROW("Got unsupported 'baseContent' in 'ContentAttr'");
+        }
+
+        // Check if constant had swizzling transformation. If yes then patching should be applied
+        // without swizzling. Swizzling transformation will be reattached after patching of
+        // weights table is completed
+        Const::SwizzleConstantAttr swizzleConstAttr;
+        for (auto attr : contentAttr.getTransformations()) {
+            swizzleConstAttr = attr.dyn_cast_or_null<Const::SwizzleConstantAttr>();
+            if (swizzleConstAttr != nullptr) {
+                _log.nest().trace("Swizzling transformation detected");
+                continue;
+            }
+            newContentAttr = Const::ContentAttr::addTransformation(newContentAttr, attr);
+        }
+
+        Const::Content wtContent = newContentAttr.fold();
         auto wtValues = wtContent.getValues<uint8_t>();
         auto totalSize = static_cast<uint32_t>(wtValues.size());
 
@@ -245,13 +268,15 @@ void PatchFusedConstants::safeRunOnFunc() {
             VPUX_THROW("Unsupported declare op for buffer- '{0}'", rootBuffer);
         }
 
-        auto wtValuesI32Patched =
-                patchWeightTableInFusedConstant(baseOffset, weightsOffset, sparsityOffset, weightsTable, hasSparsity,
-                                                weightsElemByteSize, weightsCompression);
+        auto wtValuesI32Patched = patchWeightTableInFusedConstant(baseOffset, weightsOffset, sparsityOffset, wtContent,
+                                                                  hasSparsity, weightsElemByteSize, weightsCompression);
+
         for (auto i : wtValuesI32Patched) {
             vpux::ConstantFusing::convertToU8<int32_t>(i, wtValuesU8);
         }
-        auto newOp = createPatchedDeclareOp(wtValuesU8, totalSize, weightsTable);
+
+        auto newOp = createPatchedDeclareOp(wtValuesU8, totalSize, weightsTable, swizzleConstAttr);
+
         if (auto tilingOp = constCopyOp->getParentOfType<VPUIP::NCEClusterTilingOp>()) {
             tilingOp.setOperand(0, newOp);
         } else {

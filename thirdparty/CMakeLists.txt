@@ -108,6 +108,7 @@ set(VPUX_ELF_SOURCE_DIR "${VPUX_ELF_SOURCE_DIR}" PARENT_SCOPE)
 message("VPUX_ELF_SOURCE_DIR : ${VPUX_ELF_SOURCE_DIR}")
 
 add_subdirectory(${VPUX_ELF_SOURCE_DIR}/vpux_elf)
+target_include_directories(vpux_elf PRIVATE "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/src/vpux_compiler/include/vpux/compiler/dialect/VPU37XX")
 
 #
 # zeroApi

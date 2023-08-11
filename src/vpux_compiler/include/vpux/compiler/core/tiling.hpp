@@ -3,13 +3,12 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #pragma once
 
 #include "vpux/compiler/core/attributes/dims_order.hpp"
 #include "vpux/compiler/core/attributes/shape.hpp"
 #include "vpux/compiler/core/layers.hpp"
+#include "vpux/compiler/dialect/IE/attributes.hpp"
 
 #include "vpux/utils/core/format.hpp"
 #include "vpux/utils/core/logger.hpp"
@@ -23,7 +22,11 @@
 namespace vpux {
 
 // Experimental number to avoid memory fragmentation when generating tiling.
+// This one is also used in memory check of long-term spilling.
 static constexpr double FRAGMENTATION_AVOID_RATIO = 0.9;
+
+// Experimental number to avoid memory fragmentation when pipelining
+static constexpr double FRAGMENTATION_AVOID_RATIO_PIPELINING = 0.85;
 
 // Experimental number to define large constant size
 // The constant filter is considered as large constant value
@@ -65,6 +68,8 @@ struct TileInfo final {
     Shape shape;
     Shape offsets;
     Shape axis;
+    // This flag represents a real tile by a tiling process and offsets & axis are meaningful
+    bool isCompletedTile = false;
 
     TileInfo() = delete;
 
@@ -187,6 +192,15 @@ InputTiling backInferPoolTile(const TileInfo& outputTile, ShapeRef origInputShap
                               mlir::ArrayAttr strides, const PadInfo& origPadding);
 
 //
+// Interpolate tiling
+//
+
+InputTiling backInferInterpolateTile(const vpux::TileInfo& outputTile, ArrayRef<int64_t> initialInputDims,
+                                     ArrayRef<int64_t> initialOutputDims, ArrayRef<int64_t> initialInputOffsets,
+                                     ArrayRef<int64_t> initialOutputOffsets, vpux::IE::InterpolateCoordMode coordMode,
+                                     vpux::Logger log);
+
+//
 // DimRange
 //
 
@@ -237,7 +251,15 @@ std::tuple<DimRange, int64_t, int64_t> inputForOutputDim(const DimRange& output,
                                                          const DimRange& initialInputRange, int64_t padBefore,
                                                          int64_t padAfter);
 
-SmallVector<int64_t> alignShape(ArrayRef<int64_t> shape, Optional<ArrayRef<int64_t>> alignment);
+template <typename AlignFunc>
+SmallVector<int64_t> alignShape(ArrayRef<int64_t> shape, Optional<ArrayRef<int64_t>> alignment, AlignFunc alignFunc) {
+    auto alignedShape = to_small_vector(shape);
+    if (!alignment.hasValue()) {
+        return alignedShape;
+    }
+    std::transform(shape.begin(), shape.end(), alignment.getValue().begin(), alignedShape.begin(), alignFunc);
+    return alignedShape;
+}
 SmallVector<Strides> adaptStrides(ShapeRef origShape, StridesRef origStrides, ArrayRef<Shape> adaptedShapes,
                                   DimsOrder dimsOrder);
 
@@ -251,11 +273,15 @@ InputTiling backInferEltwiseTile(mlir::Operation* op, const vpux::TileInfo& outp
 // SWLayer
 
 OutputTiling getSWLayerTilingStrategy(mlir::Operation* op, TilingMode tilingMode, Logger log);
+OutputTiling getSWLayerTilingStrategyWithAxesExclusion(mlir::Operation* op, TilingMode tilingMode, Logger log,
+                                                       SmallVector<int64_t> axes);
+InputTiling getSWLayerInputTiles(mlir::Operation* op, const vpux::TileInfo& outputTile);
 
 // HWLayer
 
 OutputTiling getHWLayerTilingStrategy(mlir::Operation* op, TilingMode tilingMode, Logger log);
 
 DimArr getTileDimOrder(mlir::Operation* op, TilingMode tilingMode, Logger log);
+DimArr getTileDimOrderND(MemShape memShape, DimsOrder dimOrder);
 
 }  // namespace vpux

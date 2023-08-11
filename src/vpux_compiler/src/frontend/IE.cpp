@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/frontend/IE.hpp"
 
 #include "vpux/compiler/core/attributes/dims_order.hpp"
@@ -14,6 +12,7 @@
 #include "vpux/compiler/dialect/const/ops.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/logging.hpp"
+#include "vpux/compiler/utils/rewriter.hpp"
 #include "vpux/compiler/utils/types.hpp"
 
 #include "vpux/passes/align_scales.hpp"
@@ -21,14 +20,12 @@
 #include "vpux/passes/convert_variadic_split_to_strided_slice.hpp"
 #include "vpux/passes/fuse_scale_in_previous_weights_fq.hpp"
 #include "vpux/passes/fuse_scaleshift.hpp"
-#include "vpux/passes/normalize_l2_fusion.hpp"
 #include "vpux/passes/propagate_fq.hpp"
 #include "vpux/passes/remove_NV12_conversion.hpp"
 #include "vpux/passes/remove_split_concat.hpp"
 #include "vpux/passes/replace_onnx_pattern_to_reorg.hpp"
 
 #include "vpux/utils/IE/format.hpp"
-#include "vpux/utils/IE/hash.hpp"
 #include "vpux/utils/IE/prefix.hpp"
 #include "vpux/utils/core/array_ref.hpp"
 #include "vpux/utils/core/checked_cast.hpp"
@@ -36,7 +33,6 @@
 #include "vpux/utils/core/range.hpp"
 #include "vpux/utils/core/small_vector.hpp"
 
-#include <mlir/Dialect/StandardOps/IR/Ops.h>
 #include <mlir/IR/BuiltinOps.h>
 #include <mlir/IR/Verifier.h>
 
@@ -44,36 +40,24 @@
 #include <ie_layouts.h>
 #include <ie_precision.hpp>
 
-#include <legacy/ngraph_ops/lrn_ie.hpp>
-#include <legacy/ngraph_ops/nms_ie.hpp>
 #include <ngraph/function.hpp>
 #include <ngraph/node.hpp>
-#include <ngraph/opsets/opset2.hpp>
-#include <ngraph/opsets/opset3.hpp>
-#include <ngraph/opsets/opset4.hpp>
-#include <ngraph/opsets/opset6.hpp>
-#include <ngraph/opsets/opset7.hpp>
-#include <ngraph/opsets/opset8.hpp>
-#include <ngraph/opsets/opset9.hpp>
 
 #include <ngraph/pass/constant_folding.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/pass/serialize.hpp>
 #include <ngraph/type/element_type.hpp>
-#include "legacy/ngraph_ops/normalize_ie.hpp"
+
 #include "vpux/passes/convert_MVN6_to_MVN1.hpp"
 #include "vpux/passes/fuse_mvn.hpp"
 
-#include <legacy/transformations/convert_opset1_to_legacy/convert_lrn_to_lrn_ie.hpp>
-#include <legacy/transformations/convert_opset1_to_legacy/convert_nms_5_to_legacy.hpp>
-#include <legacy/transformations/convert_opset1_to_legacy/convert_normalizel2_to_normalize_ie.hpp>
-#include <legacy/transformations/convert_opset1_to_legacy/convert_strided_slice_to_crop.hpp>
 #include <transformations/common_optimizations/add_fake_quantize_fusion.hpp>
 #include <transformations/common_optimizations/batch_to_space_fusion.hpp>
 #include <transformations/common_optimizations/conv_mul_fusion.hpp>
 #include <transformations/common_optimizations/convert_quantize_dequantize.hpp>
 #include <transformations/common_optimizations/depth_to_space_fusion.hpp>
 #include <transformations/common_optimizations/dropout_with_random_uniform_replacer.hpp>
+#include <transformations/common_optimizations/fq_mul_fusion.hpp>
 #include <transformations/common_optimizations/lin_op_sequence_fusion.hpp>
 #include <transformations/common_optimizations/moc_transformations.hpp>
 #include <transformations/common_optimizations/mul_conv_fusion.hpp>
@@ -95,12 +79,17 @@
 #include <transformations/op_conversions/convert_broadcast_to_tiles.hpp>
 #include <transformations/op_conversions/convert_deformable_conv_v8_to_v1.hpp>
 #include <transformations/op_conversions/convert_gather_upgrade.hpp>
+#include <transformations/op_conversions/convert_interpolate11_downgrade.hpp>
 #include <transformations/op_conversions/convert_interpolate1_to_interpolate4.hpp>
 #include <transformations/op_conversions/convert_maxpool_downgrade.hpp>
 #include <transformations/op_conversions/convert_mod.hpp>
+#include <transformations/op_conversions/convert_nms9_to_nms_ie_internal.hpp>
 #include <transformations/op_conversions/convert_pad_to_group_conv.hpp>
+#include <transformations/op_conversions/convert_previous_nms_to_nms_9.hpp>
 #include <transformations/op_conversions/convert_reduce_to_pooling.hpp>
+#include <transformations/op_conversions/convert_sequences_to_tensor_iterator.hpp>
 #include <transformations/op_conversions/convert_softmax_upgrade.hpp>
+#include <transformations/op_conversions/detection_output_downgrade.hpp>
 #include <transformations/op_conversions/einsum_decomposition.hpp>
 #include <transformations/op_conversions/gather_normalize_negative_indices.hpp>
 #include <transformations/op_conversions/gelu7_downgrade.hpp>
@@ -114,10 +103,9 @@
 #include <algorithm>
 
 using namespace vpux;
+using namespace IE;
 
 namespace {
-
-namespace opset_latest = ngraph::opset7;
 
 //
 // Sort parameters/results
@@ -146,213 +134,17 @@ ngraph::ResultVector sortResults(const ngraph::ResultVector& orig) {
     return out;
 }
 
-//
-// NGraphImporter
-//
+const std::string NGRAPH_ACT_SPARSITY_STATS_KEY = "activation_sparsity_statistic";
 
-class NGraphImporter final {
-public:
-    NGraphImporter(mlir::MLIRContext* ctx, std::shared_ptr<const ngraph::Function> netGraph, bool sharedConstants,
-                   Logger log)
-            : _ctx(ctx), _netGraph(std::move(netGraph)), _sharedConstants(sharedConstants), _log(log) {
-    }
-
-    mlir::FuncOp buildMainFunc(mlir::OpBuilder& moduleBuilder, StringRef funcName, mlir::TimingScope& rootTiming,
-                               bool stubLayers);
-    static std::unordered_set<std::string> getSupportedOps(std::shared_ptr<const ngraph::Function> netGraph);
-
-private:
-    using OrigNode = ngraph::Node;
-    using OrigNodePtr = std::shared_ptr<OrigNode>;
-    using NodeOutputMap = std::unordered_map<ngraph::Output<OrigNode>, mlir::Value>;
-    using Callback = void (NGraphImporter::*)(mlir::OpBuilder& builder, const OrigNodePtr& origNode);
-
-    static Callback getParser(const std::shared_ptr<ngraph::Node>& op);
-
-    template <class NodeType>
-    void parseDispatch(mlir::OpBuilder& builder, const OrigNodePtr& origNode);
-
-    void parseEmpty(mlir::OpBuilder&, const OrigNodePtr&) {
-    }
-
-    void parseNodeAsStub(mlir::OpBuilder& builder, const OrigNodePtr& origNode);
-
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Constant>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Convert>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset8::Softmax>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Tile>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Relu>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Split>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Power>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Multiply>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Convolution>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::GroupConvolution>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::ConvolutionBackpropData>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::AvgPool>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::MaxPool>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset8::AdaptiveAvgPool>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset8::AdaptiveMaxPool>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::ShuffleChannels>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset8::Gather>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset8::GatherND>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset8::NV12toRGB>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset8::NV12toBGR>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset8::I420toRGB>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset8::I420toBGR>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::BatchNormInference>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::GatherElements>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::ScatterNDUpdate>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::ScatterUpdate>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Clamp>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Elu>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Reshape>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Squeeze>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Sigmoid>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::LRN>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::op::LRN_IE>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::ReduceMax>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::ReduceMean>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::ReduceLogicalOr>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::ReduceLogicalAnd>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::ReduceProd>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::ReduceSum>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::ReduceMin>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::ReduceL1>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::ReduceL2>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Unsqueeze>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Minimum>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Maximum>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Add>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Divide>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::SquaredDifference>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::FloorMod>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Proposal>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::FakeQuantize>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::MatMul>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Tan>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Tanh>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Sin>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Cos>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Sqrt>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Sinh>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Cosh>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Asinh>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Acosh>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Atanh>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Log>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Selu>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset2::Gelu>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Exp>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::HSwish>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Floor>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Round>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Mish>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Erf>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Broadcast>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Bucketize>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Transpose>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Interpolate>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::TopK>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::RegionYolo>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::ReorgYolo>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::DetectionOutput>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::op::NormalizeIE>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::CumSum>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset4::MVN>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Concat>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::ROIPooling>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::PSROIPooling>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::ROIAlign>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::StridedSlice>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::PRelu>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Swish>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::GRN>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Negative>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Sign>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::CTCGreedyDecoder>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::CTCGreedyDecoderSeqLen>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Pad>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::LSTMCell>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Subtract>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::LogicalAnd>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::LSTMSequence>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Ceiling>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Equal>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Select>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::op::NonMaxSuppressionIE3>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::DepthToSpace>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::ReverseSequence>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Less>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::LessEqual>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::NotEqual>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::SoftPlus>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Greater>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::GreaterEqual>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::LogicalNot>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::LogicalOr>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::LogicalXor>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::SpaceToDepth>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::ExtractImagePatches>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Abs>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Atan>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Asin>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Acos>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Roll>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::HSigmoid>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::HardSigmoid>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset9::GridSample>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::EmbeddingBagOffsetsSum>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::EmbeddingSegmentsSum>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset3::Assign>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset3::ReadValue>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset6::Assign>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset6::ReadValue>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::GRUCell>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::GRUSequence>& origNode);
-    void parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::DeformablePSROIPooling>& origNode);
-
-    SmallVector<mlir::Value> getInputs(const OrigNodePtr& node);
-    void addOutputs(const OrigNodePtr& node, mlir::Operation* op);
-    mlir::Location createLocation(const OrigNodePtr& node);
-
-    static SmallVector<int64_t> importShape(const ngraph::PartialShape& shape);
-    mlir::Type importElemType(const ngraph::element::Type& elemType);
-    mlir::RankedTensorType importTensor(const ngraph::PartialShape& shape, const ngraph::element::Type& elemType);
-    IE::AutoBroadcastTypeAttr importBroadcastType(ngraph::op::AutoBroadcastType bType);
-    IE::BroadcastTypeAttr importBroadcastMode(ngraph::op::BroadcastType bType);
-    IE::RoundingTypeAttr importRoundingType(ngraph::op::RoundingType roundingType);
-    IE::TopKModeAttr importTopKMode(ngraph::op::TopKMode val);
-    IE::TopKSortTypeAttr importTopKSortType(ngraph::op::TopKSortType val);
-    IE::GridSampleModeAttr importGridSampleMode(const ngraph::op::v9::GridSample::InterpolationMode& val);
-    IE::GridSamplePaddingModeAttr importGridSamplePaddingMode(const ngraph::op::v9::GridSample::PaddingMode& val);
-    IE::ProposalAttr importProposalAttrs(const ngraph::op::ProposalAttrs& val);
-    IE::InterpolateAttr importInterpolateAttrs(const opset_latest::Interpolate::InterpolateAttrs& val);
-    IE::DetectionOutputAttr importDetectionOutputAttrs(const ngraph::op::DetectionOutputAttrs& val);
-    IE::ROIPoolingMethodAttr importROIPoolingMethod(const std::string& method);
-    IE::PSROIPoolingModeAttr importPSROIPoolingMode(const std::string& mode);
-    IE::ROIAlignMethodAttr importROIAlignMethod(const ngraph::op::v3::ROIAlign::PoolingMode& mode);
-    IE::PadModeAttr importPadMode(const ngraph::op::PadMode val);
-    IE::RoundModeAttr importRoundMode(const ngraph::op::v5::Round::RoundMode val);
-    IE::LRN_IERegionAttr importLRN_IERegion(const std::string& region);
-    IE::RNNSequenceDirectionAttr importRNNSequenceDirection(const ngraph::op::RecurrentSequenceDirection val);
-    IE::BoxEncodingTypeAttr importBoxEncodingType(const int val);
-    IE::DepthToSpaceModeAttr importDepthToSpaceMode(const ngraph::op::v0::DepthToSpace::DepthToSpaceMode val);
-    IE::SpaceToDepthModeAttr importSpaceToDepthMode(const ngraph::op::SpaceToDepth::SpaceToDepthMode val);
-    IE::PadTypeAttr importPadType(ngraph::op::PadType autoPads);
-    IE::DeformablePSROIPoolingModeAttr importDeformablePSROIPoolingMode(const std::string& mode);
-
-    mlir::MLIRContext* _ctx = nullptr;
-    std::shared_ptr<const ngraph::Function> _netGraph;
-    bool _sharedConstants = false;
-    Logger _log;
-
-    NodeOutputMap _importedVals;
-};
-
-template <class NodeType>
-void NGraphImporter::parseDispatch(mlir::OpBuilder& builder, const OrigNodePtr& origNode) {
-    parseNode(builder, std::dynamic_pointer_cast<NodeType>(origNode));
+template <typename ResType>
+ResType getSparsityStatsFieldChecked(std::shared_ptr<ngraph::Function> nFunc, const std::string& primaryKey,
+                                     const std::string& secondaryKey) {
+    VPUX_THROW_UNLESS(nFunc->has_rt_info(NGRAPH_ACT_SPARSITY_STATS_KEY, primaryKey, secondaryKey),
+                      "Failed to query '{0}/{1}/{2}' from runtime statistics", NGRAPH_ACT_SPARSITY_STATS_KEY,
+                      primaryKey, secondaryKey);
+    return nFunc->get_rt_info<ResType>(NGRAPH_ACT_SPARSITY_STATS_KEY, primaryKey, secondaryKey);
 }
+}  // namespace
 
 NGraphImporter::Callback NGraphImporter::getParser(const std::shared_ptr<ngraph::Node>& op) {
     using DispatchMap = std::map<ngraph::NodeTypeInfo, Callback>;
@@ -367,6 +159,7 @@ NGraphImporter::Callback NGraphImporter::getParser(const std::shared_ptr<ngraph:
             MAP_ENTRY(opset_latest::Constant),
             MAP_ENTRY(opset_latest::Convert),
             MAP_ENTRY(ngraph::opset8::Softmax),
+            MAP_ENTRY(opset_latest::LogSoftmax),
             MAP_ENTRY(opset_latest::Tile),
             MAP_ENTRY(opset_latest::Split),
             MAP_ENTRY(opset_latest::Power),
@@ -382,10 +175,13 @@ NGraphImporter::Callback NGraphImporter::getParser(const std::shared_ptr<ngraph:
             MAP_ENTRY(opset_latest::ShuffleChannels),
             MAP_ENTRY(ngraph::opset8::Gather),
             MAP_ENTRY(ngraph::opset8::GatherND),
+            MAP_ENTRY(opset_latest::GatherTree),
             MAP_ENTRY(ngraph::opset8::NV12toRGB),
             MAP_ENTRY(ngraph::opset8::NV12toBGR),
             MAP_ENTRY(ngraph::opset8::I420toRGB),
             MAP_ENTRY(ngraph::opset8::I420toBGR),
+            MAP_ENTRY(ngraph::opset8::RandomUniform),
+            MAP_ENTRY(opset_latest::OneHot),
             MAP_ENTRY(opset_latest::BatchNormInference),
             MAP_ENTRY(opset_latest::GatherElements),
             MAP_ENTRY(opset_latest::ScatterNDUpdate),
@@ -397,7 +193,6 @@ NGraphImporter::Callback NGraphImporter::getParser(const std::shared_ptr<ngraph:
             MAP_ENTRY(opset_latest::Sigmoid),
             MAP_ENTRY(ngraph::opset9::GridSample),
             MAP_ENTRY(opset_latest::LRN),
-            MAP_ENTRY(ngraph::op::LRN_IE),
             MAP_ENTRY(opset_latest::ReduceMax),
             MAP_ENTRY(opset_latest::ReduceMean),
             MAP_ENTRY(opset_latest::ReduceLogicalOr),
@@ -441,12 +236,14 @@ NGraphImporter::Callback NGraphImporter::getParser(const std::shared_ptr<ngraph:
             MAP_ENTRY(opset_latest::Transpose),
             MAP_ENTRY(opset_latest::Interpolate),
             MAP_ENTRY(opset_latest::TopK),
+            MAP_ENTRY(ngraph::opset1::TopK),
             MAP_ENTRY(opset_latest::RegionYolo),
             MAP_ENTRY(opset_latest::ReorgYolo),
-            MAP_ENTRY(opset_latest::DetectionOutput),
-            MAP_ENTRY(ngraph::op::NormalizeIE),
+            MAP_ENTRY(ngraph::opset1::DetectionOutput),
+            MAP_ENTRY(opset_latest::NormalizeL2),
             MAP_ENTRY(opset_latest::CumSum),
             MAP_ENTRY(ngraph::opset4::MVN),
+            MAP_ENTRY(ngraph::opset6::MVN),
             MAP_ENTRY(opset_latest::Concat),
             MAP_ENTRY(opset_latest::ROIPooling),
             MAP_ENTRY(opset_latest::PSROIPooling),
@@ -468,7 +265,8 @@ NGraphImporter::Callback NGraphImporter::getParser(const std::shared_ptr<ngraph:
             MAP_ENTRY(opset_latest::SoftPlus),
             MAP_ENTRY(opset_latest::Equal),
             MAP_ENTRY(opset_latest::Select),
-            MAP_ENTRY(ngraph::op::NonMaxSuppressionIE3),
+            MAP_ENTRY(ngraph::opset9::NonMaxSuppression),
+            MAP_ENTRY(ov::op::internal::NonMaxSuppressionIEInternal),
             MAP_ENTRY(opset_latest::DepthToSpace),
             MAP_ENTRY(opset_latest::ReverseSequence),
             MAP_ENTRY(opset_latest::Less),
@@ -490,6 +288,7 @@ NGraphImporter::Callback NGraphImporter::getParser(const std::shared_ptr<ngraph:
             MAP_ENTRY(opset_latest::HardSigmoid),
             MAP_ENTRY(opset_latest::EmbeddingBagOffsetsSum),
             MAP_ENTRY(opset_latest::EmbeddingSegmentsSum),
+            MAP_ENTRY(opset_latest::EmbeddingBagPackedSum),
             MAP_ENTRY(ngraph::opset3::Assign),
             MAP_ENTRY(ngraph::opset3::ReadValue),
             MAP_ENTRY(ngraph::opset6::Assign),
@@ -497,6 +296,10 @@ NGraphImporter::Callback NGraphImporter::getParser(const std::shared_ptr<ngraph:
             MAP_ENTRY(opset_latest::GRUCell),
             MAP_ENTRY(opset_latest::GRUSequence),
             MAP_ENTRY(opset_latest::DeformablePSROIPooling),
+            MAP_ENTRY(opset_latest::DFT),
+            MAP_ENTRY(opset_latest::IDFT),
+            MAP_ENTRY(ngraph::opset9::RDFT),
+            MAP_ENTRY(ngraph::opset9::IRDFT),
     };
 
 #undef MAP_ENTRY
@@ -505,31 +308,18 @@ NGraphImporter::Callback NGraphImporter::getParser(const std::shared_ptr<ngraph:
     return (dispatchIt != dispatchMap.end()) ? dispatchIt->second : nullptr;
 }
 
-std::unordered_set<std::string> NGraphImporter::getSupportedOps(std::shared_ptr<const ngraph::Function> netGraph) {
-    std::unordered_set<std::string> supported;
-    std::unordered_set<std::string> unsupported;
-    for (const auto& op : netGraph->get_ordered_ops()) {
-        const bool hasParser = (getParser(op) != nullptr);
-        for (auto&& fusedLayerName : ov::getFusedNamesVector(op)) {
-            if (hasParser) {
-                supported.emplace(fusedLayerName);
-            } else {
-                unsupported.emplace(fusedLayerName);
-            }
-        }
-    }
-    for (auto&& unsupportedNode : unsupported) {
-        supported.erase(unsupportedNode);
-    }
-    return supported;
+// TODO Extend implementation to check architecture, limitation and can we really compile it
+bool NGraphImporter::isOpSupported(const std::shared_ptr<ngraph::Node>& op) {
+    const bool hasParser = (NGraphImporter::getParser(op) != nullptr);
+    return hasParser;
 }
 
 //
 // buildMainFunc
 //
 
-mlir::FuncOp NGraphImporter::buildMainFunc(mlir::OpBuilder& moduleBuilder, StringRef funcName,
-                                           mlir::TimingScope& rootTiming, bool stubLayers) {
+mlir::func::FuncOp NGraphImporter::buildMainFunc(mlir::OpBuilder& moduleBuilder, StringRef funcName,
+                                                 mlir::TimingScope& rootTiming, bool stubLayers) {
     auto scopeTiming = rootTiming.nest("Import nGraph function");
 
     const auto sortedParameters = sortParameters(_netGraph->get_parameters());
@@ -549,7 +339,7 @@ mlir::FuncOp NGraphImporter::buildMainFunc(mlir::OpBuilder& moduleBuilder, Strin
 
     const auto funcType = mlir::FunctionType::get(_ctx, makeArrayRef(inputTypes), makeArrayRef(outputTypes));
 
-    auto func = moduleBuilder.create<mlir::FuncOp>(mlir::UnknownLoc::get(_ctx), funcName, funcType);
+    auto func = moduleBuilder.create<mlir::func::FuncOp>(mlir::UnknownLoc::get(_ctx), funcName, funcType);
 
     OpBuilderLogger builderLog(_log.nest());
     auto builder = mlir::OpBuilder::atBlockBegin(func.addEntryBlock(), &builderLog);
@@ -571,8 +361,11 @@ mlir::FuncOp NGraphImporter::buildMainFunc(mlir::OpBuilder& moduleBuilder, Strin
         if (parser != nullptr) {
             (this->*parser)(builder, origNode);
         } else {
-            VPUX_THROW_UNLESS(stubLayers, "Unsupported operation {0} with type {1}", origNode->get_friendly_name(),
-                              origNode->get_type_name());
+            VPUX_THROW_UNLESS(stubLayers,
+                              "[NOT IMPLEMENTED] Unsupported operation {0} with type {1}. "
+                              "Try to update the driver to the latest version. If the error persists, "
+                              "please submit a bug report in https://github.com/openvinotoolkit/openvino/issues",
+                              origNode->get_friendly_name(), origNode->get_type_name());
             parseNodeAsStub(builder, origNode);
         }
     }
@@ -592,8 +385,8 @@ mlir::FuncOp NGraphImporter::buildMainFunc(mlir::OpBuilder& moduleBuilder, Strin
         funcOutputs.push_back(resultInputs[0]);
     }
 
-    builder.create<mlir::ReturnOp>(mlir::NameLoc::get(mlir::StringAttr::get(_ctx, "output")),
-                                   makeArrayRef(funcOutputs));
+    builder.create<mlir::func::ReturnOp>(mlir::NameLoc::get(mlir::StringAttr::get(_ctx, "output")),
+                                         makeArrayRef(funcOutputs));
 
     return func;
 }
@@ -633,19 +426,11 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
 
     mlir::ElementsAttr value;
     if (_sharedConstants) {
-        auto* dialect = _ctx->getLoadedDialect<IE::IEDialect>();
-        VPUX_THROW_UNLESS(dialect != nullptr, "Got NULL pointer for IEDialect");
-
         const auto rawBuffer = StringRef(origNode->get_data_ptr<char>(), numElems * elemTypeSize.count());
-        value = mlir::OpaqueElementsAttr::get(dialect, tensorType, rawBuffer);
+        value = Const::OpaqueElementsAttr::get(tensorType, rawBuffer);
     } else {
         const auto rawBuffer = makeArrayRef(origNode->get_data_ptr<char>(), numElems * elemTypeSize.count());
-
-        bool isSplatBuffer = false;
-        VPUX_THROW_UNLESS(mlir::DenseElementsAttr::isValidRawBuffer(tensorType, rawBuffer, isSplatBuffer),
-                          "Constant node '{0}' has invalid buffer", origNode->get_friendly_name());
-
-        value = mlir::DenseElementsAttr::getFromRawBuffer(tensorType, rawBuffer, isSplatBuffer);
+        value = mlir::DenseElementsAttr::getFromRawBuffer(tensorType, rawBuffer);
     }
 
     auto op = builder.create<Const::DeclareOp>(createLocation(origNode), tensorType, Const::ContentAttr::get(value));
@@ -682,6 +467,21 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<n
     addOutputs(origNode, op);
 }
 
+void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::LogSoftmax>& origNode) {
+    static_assert(std::is_same<std::decay<decltype(*origNode)>::type, opset_latest::LogSoftmax>::value,
+                  "opset operation mismatch");
+
+    const auto inputs = getInputs(origNode);
+    VPUX_THROW_UNLESS(inputs.size() == 1, "nGraph LogSoftmax node '{0}' has unsupported number of inputs '{1}'",
+                      origNode->get_friendly_name(), inputs.size());
+
+    const auto axis = origNode->get_axis();
+    const auto axisAttr = getIntAttr(_ctx, axis);
+
+    auto op = builder.create<IE::LogSoftmaxOp>(createLocation(origNode), inputs[0], axisAttr);
+    addOutputs(origNode, op);
+}
+
 void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::Tile>& origNode) {
     static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v0::Tile>::value,
                   "opset operation mismatch");
@@ -689,8 +489,7 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
     const auto inputs = getInputs(origNode);
     VPUX_THROW_UNLESS(inputs.size() == 2, "nGraph Tile node '{0}' has unsupported number of inputs '{1}'",
                       origNode->get_friendly_name(), inputs.size());
-
-    auto op = builder.create<IE::TileOp>(createLocation(origNode), inputs[0], inputs[1]);
+    auto op = builder.create<IE::TileOp>(createLocation(origNode), inputs[0], inputs[1], nullptr);
     addOutputs(origNode, op);
 }
 
@@ -1010,6 +809,18 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<n
     addOutputs(origNode, op);
 }
 
+void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::GatherTree>& origNode) {
+    static_assert(std::is_same<std::decay<decltype(*origNode)>::type, opset_latest::GatherTree>::value,
+                  "opset operation mismatch");
+
+    const auto inputs = getInputs(origNode);
+    VPUX_THROW_UNLESS(inputs.size() == 4, "nGraph GatherTree node '{0}' has unsupported number of inputs '{1}'",
+                      origNode->get_friendly_name(), inputs.size());
+
+    auto op = builder.create<IE::GatherTreeOp>(createLocation(origNode), inputs[0], inputs[1], inputs[2], inputs[3]);
+    addOutputs(origNode, op);
+}
+
 void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset8::NV12toRGB>& origNode) {
     static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::opset8::NV12toRGB>::value,
                   "opset operation mismatch");
@@ -1072,6 +883,49 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<n
     auto thirdInput = inputs.size() == 1 ? nullptr : inputs[2];
     IE::YuvToRgbOp op = builder.create<IE::YuvToRgbOp>(createLocation(origNode), inputs[0], secondInput, thirdInput,
                                                        IE::ColorFmt::I420, IE::ColorFmt::BGR);
+
+    addOutputs(origNode, op);
+}
+
+void NGraphImporter::parseNode(mlir::OpBuilder& builder,
+                               const std::shared_ptr<ngraph::opset8::RandomUniform>& origNode) {
+    static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v8::RandomUniform>::value,
+                  "opset operation mismatch");
+
+    const auto inputs = getInputs(origNode);
+    VPUX_THROW_UNLESS(inputs.size() == 3, "nGraph RandomUniform node '{0}' has unsupported number of inputs '{1}'",
+                      origNode->get_friendly_name(), inputs.size());
+
+    const auto shapeConstant = dynamic_cast<opset_latest::Constant*>(origNode->input_value(0).get_node());
+    VPUX_THROW_UNLESS(shapeConstant != nullptr,
+                      "nGraph RandomUniform node '{0}' must have Constant shape input in order to infer output shape.",
+                      origNode->get_friendly_name());
+    const auto shapeValues = shapeConstant->cast_vector<int64_t>();
+    const auto shapeAttr = getIntArrayAttr(_ctx, shapeValues);
+
+    const auto outputTypeAttr = mlir::TypeAttr::get(importElemType(origNode->get_input_element_type(1)));
+    const auto globalSeedAttr = getIntAttr(_ctx, origNode->get_global_seed());
+    const auto opSeedAttr = getIntAttr(_ctx, origNode->get_op_seed());
+
+    auto op = builder.create<IE::RandomUniformOp>(createLocation(origNode), inputs[1], inputs[2], shapeAttr,
+                                                  outputTypeAttr, globalSeedAttr, opSeedAttr);
+
+    addOutputs(origNode, op);
+}
+
+void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::OneHot>& origNode) {
+    static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v1::OneHot>::value,
+                  "opset operation mismatch");
+
+    const auto inputs = getInputs(origNode);
+    VPUX_THROW_UNLESS(inputs.size() == 4, "nGraph OneHot node '{0}' has unsupported number of inputs '{1}'",
+                      origNode->get_friendly_name(), inputs.size());
+
+    const auto axisAttr = getIntAttr(_ctx, origNode->get_axis());
+    const auto outElemTypeAttr = mlir::TypeAttr::get(importElemType(origNode->get_element_type()));
+
+    IE::OneHotOp op = builder.create<IE::OneHotOp>(createLocation(origNode), inputs[0], inputs[1], inputs[2], inputs[3],
+                                                   nullptr, nullptr, nullptr, axisAttr, outElemTypeAttr);
 
     addOutputs(origNode, op);
 }
@@ -1244,30 +1098,6 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
 
     auto op = builder.create<IE::LRNOp>(createLocation(origNode), inputs[0], inputs[1], alphaAttr, betaAttr, biasAttr,
                                         sizeAttr);
-    addOutputs(origNode, op);
-}
-
-void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::op::LRN_IE>& origNode) {
-    static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::LRN_IE>::value,
-                  "opset operation mismatch");
-
-    const auto inputs = getInputs(origNode);
-    VPUX_THROW_UNLESS(inputs.size() == 1, "nGraph LRN_IE node '{0}' has unsupported number of inputs '{1}'",
-                      origNode->get_friendly_name(), inputs.size());
-
-    const auto alpha = origNode->get_alpha();
-    const auto beta = origNode->get_beta();
-    const auto bias = origNode->get_bias();
-    const auto size = origNode->get_nsize();
-
-    const auto alphaAttr = getFPAttr(_ctx, alpha);
-    const auto betaAttr = getFPAttr(_ctx, beta);
-    const auto biasAttr = getFPAttr(_ctx, bias);
-    const auto sizeAttr = getIntAttr(_ctx, size);
-    const auto regionAttr = importLRN_IERegion(origNode->get_region());
-
-    auto op = builder.create<IE::LRN_IEOp>(createLocation(origNode), inputs[0], alphaAttr, betaAttr, biasAttr, sizeAttr,
-                                           regionAttr);
     addOutputs(origNode, op);
 }
 
@@ -1870,6 +1700,24 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
     addOutputs(origNode, op);
 }
 
+void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::op::v1::TopK>& origNode) {
+    static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v1::TopK>::value,
+                  "opset operation mismatch");
+
+    const auto inputs = getInputs(origNode);
+    VPUX_THROW_UNLESS(inputs.size() == 2, "nGraph TopK node '{0}' has unsupported number of inputs '{1}'",
+                      origNode->get_friendly_name(), inputs.size());
+
+    const auto axisAttr = getIntAttr(_ctx, origNode->get_axis());
+    const auto modeAttr = importTopKMode(origNode->get_mode());
+    const auto sortTypeAttr = importTopKSortType(origNode->get_sort_type());
+    const auto indexElementTypeAttr = mlir::TypeAttr::get(importElemType(origNode->get_index_element_type()));
+
+    auto op = builder.create<IE::TopKOp>(createLocation(origNode), inputs[0], inputs[1], axisAttr, modeAttr,
+                                         sortTypeAttr, indexElementTypeAttr);
+    addOutputs(origNode, op);
+}
+
 void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::RegionYolo>& origNode) {
     static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v0::RegionYolo>::value,
                   "opset operation mismatch");
@@ -1915,7 +1763,7 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
 }
 
 void NGraphImporter::parseNode(mlir::OpBuilder& builder,
-                               const std::shared_ptr<opset_latest::DetectionOutput>& origNode) {
+                               const std::shared_ptr<ngraph::opset1::DetectionOutput>& origNode) {
     static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v0::DetectionOutput>::value,
                   "opset operation mismatch");
 
@@ -1937,20 +1785,18 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder,
     addOutputs(origNode, op);
 }
 
-void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::op::NormalizeIE>& origNode) {
-    static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::NormalizeIE>::value,
+void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<opset_latest::NormalizeL2>& origNode) {
+    static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v0::NormalizeL2>::value,
                   "opset operation mismatch");
 
     const auto inputs = getInputs(origNode);
-    VPUX_THROW_UNLESS(inputs.size() == 2, "nGraph Normalize node '{0}' has unsupported number of inputs '{1}'",
+    VPUX_THROW_UNLESS(inputs.size() == 2, "nGraph NormalizeL2 node '{0}' has unsupported number of inputs '{1}'",
                       origNode->get_friendly_name(), inputs.size());
 
     const auto epsAttr = getFPAttr(_ctx, origNode->get_eps());
-    const auto across_spatialAttr = mlir::BoolAttr::get(_ctx, origNode->get_across_spatial());
-    const auto channel_sharedAttr = mlir::BoolAttr::get(_ctx, origNode->get_channel_shared());
+    const auto epsModeAttr = importEpsMode(origNode->get_eps_mode());
 
-    auto op = builder.create<IE::NormalizeIEOp>(createLocation(origNode), inputs[0], inputs[1], epsAttr,
-                                                across_spatialAttr, channel_sharedAttr);
+    auto op = builder.create<IE::NormalizeL2Op>(createLocation(origNode), inputs[0], inputs[1], epsAttr, epsModeAttr);
     addOutputs(origNode, op);
 }
 
@@ -1987,6 +1833,24 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<n
 
     auto op = builder.create<IE::MVNOp>(createLocation(origNode), inputs[0], across_channelsAttr,
                                         normalize_varianceAttr, epsAttr);
+    addOutputs(origNode, op);
+}
+
+void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset6::MVN>& origNode) {
+    static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v6::MVN>::value,
+                  "opset operation mismatch");
+
+    const auto inputs = getInputs(origNode);
+    VPUX_THROW_UNLESS(inputs.size() == 2, "nGraph MVN node '{0}' has unsupported number of inputs '{1}'",
+                      origNode->get_friendly_name(), inputs.size());
+
+    const auto normalize_varianceAttr = mlir::BoolAttr::get(_ctx, origNode->get_normalize_variance());
+
+    const auto epsAttr = getFPAttr(_ctx, origNode->get_eps());
+    const auto epsModeAttr = importMvnEpsMode(origNode->get_eps_mode());
+
+    auto op = builder.create<IE::MVN6Op>(createLocation(origNode), inputs[0], inputs[1], nullptr,
+                                         normalize_varianceAttr, epsAttr, epsModeAttr);
     addOutputs(origNode, op);
 }
 
@@ -2248,8 +2112,8 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
 }
 
 void NGraphImporter::parseNode(mlir::OpBuilder& builder,
-                               const std::shared_ptr<ngraph::op::NonMaxSuppressionIE3>& origNode) {
-    static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::NonMaxSuppressionIE3>::value,
+                               const std::shared_ptr<ngraph::opset9::NonMaxSuppression>& origNode) {
+    static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::opset9::NonMaxSuppression>::value,
                   "opset operation mismatch");
 
     const auto inputs = getInputs(origNode);
@@ -2258,9 +2122,38 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder,
                       origNode->get_friendly_name(), inputs.size());
 
     const auto softNmsSigma = inputs.size() == 6 ? inputs[5] : nullptr;
+    int center_point_box = 0;
+    switch (origNode->get_box_encoding()) {
+    case ngraph::opset9::NonMaxSuppression::BoxEncodingType::CENTER:
+        center_point_box = 1;
+        break;
+    case ngraph::opset9::NonMaxSuppression::BoxEncodingType::CORNER:
+        center_point_box = 0;
+        break;
+    default:
+        VPUX_THROW("NonMaxSuppression layer has unsupported box encoding");
+    }
+    const auto boxEncodingAttr = importBoxEncodingType(center_point_box);
+    const auto sortResultDescendingAttr = origNode->get_sort_result_descending() ? mlir::UnitAttr::get(_ctx) : nullptr;
+
+    auto op = builder.create<IE::NonMaxSuppressionOp>(createLocation(origNode), inputs[0], inputs[1], inputs[2],
+                                                      inputs[3], inputs[4], softNmsSigma, boxEncodingAttr,
+                                                      sortResultDescendingAttr, nullptr, nullptr, nullptr, nullptr);
+    addOutputs(origNode, op);
+}
+
+void NGraphImporter::parseNode(mlir::OpBuilder& builder,
+                               const std::shared_ptr<ov::op::internal::NonMaxSuppressionIEInternal>& origNode) {
+    static_assert(
+            std::is_same<std::decay<decltype(*origNode)>::type, ov::op::internal::NonMaxSuppressionIEInternal>::value,
+            "opset operation mismatch");
+    const auto inputs = getInputs(origNode);
+    VPUX_THROW_UNLESS((inputs.size() == 5) || (inputs.size() == 6),
+                      "nGraph NonMaxSuppressionIEInternal node '{0}' has unsupported number of inputs '{1}'",
+                      origNode->get_friendly_name(), inputs.size());
+    const auto softNmsSigma = inputs.size() == 6 ? inputs[5] : nullptr;
     const auto boxEncodingAttr = importBoxEncodingType(origNode->m_center_point_box);
     const auto sortResultDescendingAttr = origNode->m_sort_result_descending ? mlir::UnitAttr::get(_ctx) : nullptr;
-
     auto op = builder.create<IE::NonMaxSuppressionOp>(createLocation(origNode), inputs[0], inputs[1], inputs[2],
                                                       inputs[3], inputs[4], softNmsSigma, boxEncodingAttr,
                                                       sortResultDescendingAttr, nullptr, nullptr, nullptr, nullptr);
@@ -2593,6 +2486,21 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder,
     addOutputs(origNode, op);
 }
 
+void NGraphImporter::parseNode(mlir::OpBuilder& builder,
+                               const std::shared_ptr<opset_latest::EmbeddingBagPackedSum>& origNode) {
+    static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v3::EmbeddingBagPackedSum>::value,
+                  "opset operation mismatch");
+
+    const auto inputs = getInputs(origNode);
+    VPUX_THROW_UNLESS(inputs.size() == 2 || inputs.size() == 3,
+                      "nGraph EmbeddingBagPackedSum node '{0}' has unsupported number of inputs '{1}'",
+                      origNode->get_friendly_name(), inputs.size());
+
+    mlir::Value weights = (inputs.size() == 3) ? inputs[2] : nullptr;
+    auto op = builder.create<IE::EmbeddingBagPackedSumOp>(createLocation(origNode), inputs[0], inputs[1], weights);
+    addOutputs(origNode, op);
+}
+
 void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset3::Assign>& origNode) {
     static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v3::Assign>::value,
                   "opset operation mismatch");
@@ -2690,10 +2598,6 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
                       "nGraph GRUSequence node '{0}' has unsupported activations '{1}'", origNode->get_friendly_name(),
                       origNode->get_activations());
 
-    VPUX_THROW_UNLESS(origNode->get_direction() == ngraph::op::RecurrentSequenceDirection::FORWARD,
-                      "nGraph GRUSequence node '{0}' has unsupported direction", origNode->get_friendly_name());
-    const auto directionAttr = importRNNSequenceDirection(origNode->get_direction());
-
     const auto seqLenConstant = dynamic_cast<opset_latest::Constant*>(origNode->input_value(2).get_node());
     VPUX_THROW_UNLESS(seqLenConstant != nullptr,
                       "nGraph GRUSequence node '{0}' has unsupported sequenceLengths input. It must be a Constant node",
@@ -2712,6 +2616,12 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<o
             "nGraph GRUSequence node '{0}' has unsupported sequenceLengths input. It must contain all the same values",
             origNode->get_friendly_name());
     const auto seqLenAttr = getIntAttr(_ctx, checked_cast<uint32_t>(seqLenValues[0]));
+
+    VPUX_THROW_UNLESS(origNode->get_direction() == ngraph::op::RecurrentSequenceDirection::FORWARD ||
+                              origNode->get_direction() == ngraph::op::RecurrentSequenceDirection::REVERSE,
+                      "nGraph GRUSequence node '{0}' supports direction 'FORWARD' and 'REVERSE'",
+                      origNode->get_friendly_name());
+    const auto directionAttr = importRNNSequenceDirection(origNode->get_direction());
 
     const auto hiddenSizeAttr = getIntAttr(_ctx, origNode->get_hidden_size());
     const auto clipAttr = getFPAttr(_ctx, origNode->get_clip());
@@ -2748,6 +2658,119 @@ void NGraphImporter::parseNode(mlir::OpBuilder& builder,
                                                            spatialBinsX, spatialBinsY, transStd, partSize, mode);
     addOutputs(origNode, op);
 }
+
+void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset7::DFT>& origNode) {
+    static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v7::DFT>::value,
+                  "opset operation mismatch");
+    const auto inputs = getInputs(origNode);
+    VPUX_THROW_UNLESS(((inputs.size() == 2) || (inputs.size() == 3)),
+                      "nGraph Interpolate node '{0}' has unsupported number of inputs '{1}'",
+                      origNode->get_friendly_name(), inputs.size());
+    IE::DFTOp op;
+
+    auto axesConst = inputs[1].getDefiningOp<Const::DeclareOp>();
+    VPUX_THROW_UNLESS((axesConst != nullptr), "Only constant axes is supported for DFT op.");
+    const auto axesContent = axesConst.content();
+    const auto axesAttr = getIntArrayAttr(_ctx, axesContent.getValues<int64_t>());
+    if (inputs.size() == 3) {
+        auto valueConst = inputs[2].getDefiningOp<Const::DeclareOp>();
+        VPUX_THROW_UNLESS((valueConst != nullptr), "Only constant signal_size is supported for DFT op.");
+        const auto valueContent = valueConst.content();
+        const auto signalSizeAttr = getIntArrayAttr(_ctx, valueContent.getValues<int64_t>());
+        op = builder.create<IE::DFTOp>(createLocation(origNode), inputs[0], axesAttr, signalSizeAttr);
+    } else {
+        // -1 default value populated for signal size
+        SmallVector<int64_t> ssize(axesContent.getValues<int64_t>().size(), -1);
+        const auto signalSizeAttr = getIntArrayAttr(_ctx, ssize);
+        op = builder.create<IE::DFTOp>(createLocation(origNode), inputs[0], axesAttr, signalSizeAttr);
+    }
+    addOutputs(origNode, op);
+}
+
+void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset9::RDFT>& origNode) {
+    static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v9::RDFT>::value,
+                  "opset operation mismatch");
+    const auto inputs = getInputs(origNode);
+    VPUX_THROW_UNLESS(((inputs.size() == 2) || (inputs.size() == 3)),
+                      "nGraph Interpolate node '{0}' has unsupported number of inputs '{1}'",
+                      origNode->get_friendly_name(), inputs.size());
+    IE::RDFTOp op;
+
+    auto axesConst = inputs[1].getDefiningOp<Const::DeclareOp>();
+    VPUX_THROW_UNLESS((axesConst != nullptr), "Only constant axes is supported for RDFT op.");
+    const auto axesContent = axesConst.content();
+    const auto axesAttr = getIntArrayAttr(_ctx, axesContent.getValues<int64_t>());
+    if (inputs.size() == 3) {
+        auto valueConst = inputs[2].getDefiningOp<Const::DeclareOp>();
+        VPUX_THROW_UNLESS((valueConst != nullptr), "Only constant signal_size is supported for RDFT op.");
+        const auto valueContent = valueConst.content();
+        const auto signalSizeAttr = getIntArrayAttr(_ctx, valueContent.getValues<int64_t>());
+        op = builder.create<IE::RDFTOp>(createLocation(origNode), inputs[0], axesAttr, signalSizeAttr);
+    } else {
+        // -1 default value populated for signal size
+        SmallVector<int64_t> ssize(axesContent.getValues<int64_t>().size(), -1);
+        const auto signalSizeAttr = getIntArrayAttr(_ctx, ssize);
+        op = builder.create<IE::RDFTOp>(createLocation(origNode), inputs[0], axesAttr, signalSizeAttr);
+    }
+    addOutputs(origNode, op);
+}
+
+void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset7::IDFT>& origNode) {
+    static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v7::IDFT>::value,
+                  "opset operation mismatch");
+    const auto inputs = getInputs(origNode);
+    VPUX_THROW_UNLESS(((inputs.size() == 2) || (inputs.size() == 3)),
+                      "nGraph Interpolate node '{0}' has unsupported number of inputs '{1}'",
+                      origNode->get_friendly_name(), inputs.size());
+    IE::IDFTOp op;
+
+    auto axesConst = inputs[1].getDefiningOp<Const::DeclareOp>();
+    VPUX_THROW_UNLESS((axesConst != nullptr), "Only constant axes is supported for IDFT op.");
+    const auto axesContent = axesConst.content();
+    const auto axesAttr = getIntArrayAttr(_ctx, axesContent.getValues<int64_t>());
+    if (inputs.size() == 3) {
+        auto valueConst = inputs[2].getDefiningOp<Const::DeclareOp>();
+        VPUX_THROW_UNLESS((valueConst != nullptr), "Only constant signal_size is supported for IDFT op.");
+        const auto valueContent = valueConst.content();
+        const auto signalSizeAttr = getIntArrayAttr(_ctx, valueContent.getValues<int64_t>());
+        op = builder.create<IE::IDFTOp>(createLocation(origNode), inputs[0], axesAttr, signalSizeAttr);
+    } else {
+        // -1 default value populated for signal size
+        SmallVector<int64_t> ssize(axesContent.getValues<int64_t>().size(), -1);
+        const auto signalSizeAttr = getIntArrayAttr(_ctx, ssize);
+        op = builder.create<IE::IDFTOp>(createLocation(origNode), inputs[0], axesAttr, signalSizeAttr);
+    }
+    addOutputs(origNode, op);
+}
+
+void NGraphImporter::parseNode(mlir::OpBuilder& builder, const std::shared_ptr<ngraph::opset9::IRDFT>& origNode) {
+    static_assert(std::is_same<std::decay<decltype(*origNode)>::type, ngraph::op::v9::IRDFT>::value,
+                  "opset operation mismatch");
+    const auto inputs = getInputs(origNode);
+    VPUX_THROW_UNLESS(((inputs.size() == 2) || (inputs.size() == 3)),
+                      "nGraph Interpolate node '{0}' has unsupported number of inputs '{1}'",
+                      origNode->get_friendly_name(), inputs.size());
+    IE::IRDFTOp op;
+
+    auto axesConst = inputs[1].getDefiningOp<Const::DeclareOp>();
+    VPUX_THROW_UNLESS((axesConst != nullptr), "Only constant axes is supported for IRDFT op.");
+    const auto axesContent = axesConst.content();
+    const auto axesAttr = getIntArrayAttr(_ctx, axesContent.getValues<int64_t>());
+    if (inputs.size() == 3) {
+        auto valueConst = inputs[2].getDefiningOp<Const::DeclareOp>();
+        VPUX_THROW_UNLESS((valueConst != nullptr), "Only constant signal_size is supported for IRDFT op.");
+        const auto valueContent = valueConst.content();
+        const auto signalSizeAttr = getIntArrayAttr(_ctx, valueContent.getValues<int64_t>());
+        op = builder.create<IE::IRDFTOp>(createLocation(origNode), inputs[0], axesAttr, signalSizeAttr);
+    } else {
+        // -1 default value populated for signal size
+        SmallVector<int64_t> ssize(axesContent.getValues<int64_t>().size(), -1);
+        const auto signalSizeAttr = getIntArrayAttr(_ctx, ssize);
+        op = builder.create<IE::IRDFTOp>(createLocation(origNode), inputs[0], axesAttr, signalSizeAttr);
+    }
+    addOutputs(origNode, op);
+}
+
 //
 // IR builder helpers
 //
@@ -2777,8 +2800,9 @@ void NGraphImporter::addOutputs(const OrigNodePtr& node, mlir::Operation* op) {
 }
 
 mlir::Location NGraphImporter::createLocation(const OrigNodePtr& node) {
-    const auto nodeName = mlir::StringAttr::get(_ctx, node->get_friendly_name() + ORIGINAL_NAME_SEPARATOR);
-    return mlir::NameLoc::get(nodeName);
+    const auto nodeName = mlir::StringAttr::get(_ctx, node->get_friendly_name());
+    const auto name = mlir::NameLoc::get(nodeName);
+    return appendLoc(name, std::string(LOCATION_LAYER_TYPE_PREFIX) + '_' + node->get_type_name());
 }
 
 //
@@ -2871,13 +2895,25 @@ IE::RoundingTypeAttr NGraphImporter::importRoundingType(ngraph::op::RoundingType
     }
 }
 
-IE::LRN_IERegionAttr NGraphImporter::importLRN_IERegion(const std::string& region) {
-    if (region == "same") {
-        return IE::LRN_IERegionAttr::get(_ctx, IE::LRN_IERegion::SAME);
-    } else if (region == "across") {
-        return IE::LRN_IERegionAttr::get(_ctx, IE::LRN_IERegion::ACROSS);
-    } else {
-        VPUX_THROW("Unknown LRN_IERegion");
+IE::EpsModeAttr NGraphImporter::importEpsMode(ngraph::op::EpsMode val) {
+    switch (val) {
+    case ngraph::op::EpsMode::ADD:
+        return IE::EpsModeAttr::get(_ctx, IE::EpsMode::ADD);
+    case ngraph::op::EpsMode::MAX:
+        return IE::EpsModeAttr::get(_ctx, IE::EpsMode::MAX);
+    default:
+        VPUX_THROW("Unknown EpsMode");
+    }
+}
+
+IE::MvnEpsModeAttr NGraphImporter::importMvnEpsMode(ngraph::op::MVNEpsMode val) {
+    switch (val) {
+    case ngraph::op::MVNEpsMode::INSIDE_SQRT:
+        return IE::MvnEpsModeAttr::get(_ctx, IE::MvnEpsMode::INSIDE_SQRT);
+    case ngraph::op::MVNEpsMode::OUTSIDE_SQRT:
+        return IE::MvnEpsModeAttr::get(_ctx, IE::MvnEpsMode::OUTSIDE_SQRT);
+    default:
+        VPUX_THROW("Unknown MvnEpsMode");
     }
 }
 
@@ -3038,8 +3074,20 @@ IE::InterpolateAttr NGraphImporter::importInterpolateAttrs(const opset_latest::I
     const auto padsEndAttr = getIntArrayAttr(_ctx, val.pads_end);
     const auto cubeCoeffAttr = getFPAttr(_ctx, val.cube_coeff);
 
-    return IE::InterpolateAttr::get(modeAttr, calcModeAttr, coordModeAttr, nearestModeAttr, antialiasAttr,
-                                    padsBeginAttr, padsEndAttr, cubeCoeffAttr, _ctx);
+    return IE::InterpolateAttr::get(_ctx, modeAttr, calcModeAttr, coordModeAttr, nearestModeAttr, antialiasAttr,
+                                    padsBeginAttr, padsEndAttr, cubeCoeffAttr);
+}
+
+IE::DetectionOutputCodeTypeAttr NGraphImporter::importDetectionOutputCodeType(const std::string& codeType) {
+    if (codeType == "caffe.PriorBoxParameter.CENTER_SIZE") {
+        return IE::DetectionOutputCodeTypeAttr::get(_ctx, IE::DetectionOutputCodeType::CENTER_SIZE);
+    } else if (codeType == "caffe.PriorBoxParameter.CORNER") {
+        return IE::DetectionOutputCodeTypeAttr::get(_ctx, IE::DetectionOutputCodeType::CORNER);
+    } else if (codeType == "caffe.PriorBoxParameter.CORNER_SIZE") {
+        return IE::DetectionOutputCodeTypeAttr::get(_ctx, IE::DetectionOutputCodeType::CORNER_SIZE);
+    }
+
+    VPUX_THROW("Unknown DetectionOutput code_type");
 }
 
 IE::DetectionOutputAttr NGraphImporter::importDetectionOutputAttrs(const ngraph::op::DetectionOutputAttrs& val) {
@@ -3050,7 +3098,7 @@ IE::DetectionOutputAttr NGraphImporter::importDetectionOutputAttrs(const ngraph:
     const auto varianceEncodedInTargetAttr = mlir::BoolAttr::get(_ctx, val.variance_encoded_in_target);
 
     const auto keepTopKAttr = getIntArrayAttr(_ctx, val.keep_top_k);
-    const auto codeTypeAttr = mlir::StringAttr::get(_ctx, val.code_type);
+    const auto codeTypeAttr = importDetectionOutputCodeType(val.code_type);
 
     const auto shareLocationAttr = mlir::BoolAttr::get(_ctx, val.share_location);
 
@@ -3067,10 +3115,11 @@ IE::DetectionOutputAttr NGraphImporter::importDetectionOutputAttrs(const ngraph:
 
     const auto objectnessScoreAttr = getFPAttr(_ctx, val.objectness_score);
 
-    return IE::DetectionOutputAttr::get(
-            numClassesAttr, backgroundLabelIdAttr, topKAttr, varianceEncodedInTargetAttr, keepTopKAttr, codeTypeAttr,
-            shareLocationAttr, nmsThresholdAttr, confidenceThresholdAttr, clipAfterNmsAttr, clipBeforeNmsAttr,
-            decreaseLabel_idAttr, normalizedAttr, inputHeightAttr, inputWidthAttr, objectnessScoreAttr, _ctx);
+    return IE::DetectionOutputAttr::get(_ctx, numClassesAttr, backgroundLabelIdAttr, topKAttr,
+                                        varianceEncodedInTargetAttr, keepTopKAttr, codeTypeAttr, shareLocationAttr,
+                                        nmsThresholdAttr, confidenceThresholdAttr, clipAfterNmsAttr, clipBeforeNmsAttr,
+                                        decreaseLabel_idAttr, normalizedAttr, inputHeightAttr, inputWidthAttr,
+                                        objectnessScoreAttr);
 }
 
 IE::ROIPoolingMethodAttr NGraphImporter::importROIPoolingMethod(const std::string& method) {
@@ -3262,9 +3311,19 @@ static void addCommonOptimizationsPasses(ngraph::pass::Manager& manager) {
     pass_config->disable<ov::pass::MVNFusionWithConstantsInside>();
     pass_config->disable<ov::pass::PullThroughReduce>();
     pass_config->disable<ov::pass::AddFakeQuantizeFusion>();
+    pass_config->disable<ov::pass::FakeQuantizeMulFusion>();
+
+    // NMS conversion passes
+    manager.register_pass<ov::pass::ConvertNMS1ToNMS9>();
+    manager.register_pass<ov::pass::ConvertNMS3ToNMS9>();
+    manager.register_pass<ov::pass::ConvertNMS4ToNMS9>();
+    manager.register_pass<ov::pass::ConvertNMS5ToNMS9>();
+
+    auto static_shape = manager.register_pass<ngraph::pass::GraphRewrite>();
+    static_shape->add_matcher<ov::pass::ConvertNMS9ToNMSIEInternal>();
+    static_shape->set_name("ngraph::pass::CommonStaticShape");
 
     auto common_fusions = manager.register_pass<ngraph::pass::GraphRewrite>();
-    common_fusions->add_matcher<ov::pass::LSTMCellDecomposition>();
     common_fusions->add_matcher<ov::pass::DepthToSpaceFusion>();
     common_fusions->add_matcher<ov::pass::ShuffleChannelsFusion>(false);
     common_fusions->add_matcher<ov::pass::SpaceToBatchFusion>();
@@ -3275,7 +3334,6 @@ static void addCommonOptimizationsPasses(ngraph::pass::Manager& manager) {
     auto decomp = manager.register_pass<ngraph::pass::GraphRewrite>();
     decomp->add_matcher<ov::pass::Gelu7Downgrade>();
     decomp->add_matcher<ov::pass::BidirectionalSequenceDecomposition>();
-    decomp->add_matcher<ov::pass::LogSoftmaxDecomposition>();
     decomp->add_matcher<ov::pass::ConvertBroadcastToTiles>();
     decomp->add_matcher<ov::pass::ConvertMod>();
     decomp->add_matcher<ov::pass::BatchNormDecomposition>();
@@ -3290,6 +3348,7 @@ static void addCommonOptimizationsPasses(ngraph::pass::Manager& manager) {
     // LinOpSequenceFusion must be executed after all decompositions
     manager.register_pass<ov::pass::LinOpSequenceFusion>();
     manager.register_pass<ov::pass::UnrollIf>();
+    manager.register_pass<ov::pass::ConvertLSTMSequenceToTensorIterator>();
     manager.register_pass<ov::pass::UnrollTensorIterator>();
 
     auto conv_fusions = manager.register_pass<ngraph::pass::GraphRewrite>();
@@ -3309,6 +3368,7 @@ static void addCommonOptimizationsPasses(ngraph::pass::Manager& manager) {
     manager.register_pass<ov::pass::ConvertDeformableConv8To1>();
     manager.register_pass<ov::pass::ConvertMaxPool8ToMaxPool1>();
     manager.register_pass<ov::pass::ConvertSoftMax1ToSoftMax8>();
+    manager.register_pass<ov::pass::ConvertDetectionOutput8ToDetectionOutput1>();
 
     // StridesOptimization should be at the very end
     // because we cannot insert any MaxPools since they may prevent
@@ -3316,34 +3376,31 @@ static void addCommonOptimizationsPasses(ngraph::pass::Manager& manager) {
     manager.register_pass<ov::pass::StridesOptimization>();
 }
 
-void runNGraphPasses(const std::shared_ptr<ngraph::Function>& netGraph,
-                     std::vector<vpux::PreProcessInfo>& /*preProcInfo*/, mlir::TimingScope& rootTiming,
-                     const vpux::VPU::ArchKind arch) {
+void NGraphPasses::runNGraphPasses(const std::shared_ptr<ngraph::Function>& netGraph,
+                                   std::vector<vpux::PreProcessInfo>& /*preProcInfo*/, mlir::TimingScope& rootTiming,
+                                   const vpux::VPU::ArchKind arch) {
     auto scopeTiming = rootTiming.nest("Common nGraph passes");
 
     ngraph::pass::Manager manager;
     manager.register_pass<ov::pass::InitNodeInfo>();
     manager.register_pass<vpux::passes::ConvertInstanceNormToMVN>();
-    manager.register_pass<vpux::passes::NormalizeL2Fusion>();
     manager.register_pass<vpux::pass::RemoveSplitConcat>();
     manager.register_pass<ov::pass::ConvertQuantizeDequantize>();
     manager.register_pass<ov::pass::WeightsDequantizeToFakeQuantize>();
     manager.register_pass<ngraph::pass::ConstantFolding>();
     manager.register_pass<vpux::pass::FuseScaleShift>();
     manager.register_pass<ov::pass::ConvertInterpolate1ToInterpolate4>();
-    manager.register_pass<ngraph::pass::ConvertNMS5ToLegacyMatcher>();
+    manager.register_pass<ov::pass::ConvertInterpolate11ToInterpolate4>();
     manager.register_pass<ngraph::pass::ConstantFolding>();
     manager.register_pass<vpux::passes::OnnxReorgPatternToDarkNetReorg>();
     manager.register_pass<vpux::pass::FuseScaleAfterClamp>();
     addCommonOptimizationsPasses(manager);
 
     manager.register_pass<vpux::passes::PropagateFQ>();
-    // Disables for VPUX37XX
     if (!supportsPerInputEltwiseScale(arch)) {
         manager.register_pass<vpux::passes::AlignScales>();
     }
 
-    manager.register_pass<ov::pass::ReluFakeQuantizeFusion>();
     // we need additionally propagate FQs because some ReLUs may be removed
     manager.register_pass<vpux::passes::PropagateFQ>();
     manager.register_pass<vpux::passes::CleanUpFQ>();
@@ -3352,12 +3409,7 @@ void runNGraphPasses(const std::shared_ptr<ngraph::Function>& netGraph,
     manager.register_pass<vpux::passes::ConvertLayerNormToMVN>();
     manager.register_pass<vpux::passes::ConvertMVN6toMVN1>();
 
-    // Disable for VPUX37XX
-    if (arch != VPU::ArchKind::VPUX37XX) {
-        manager.register_pass<ngraph::pass::ConvertLRNToLegacyMatcher>();
-    }
     manager.register_pass<vpux::passes::ConvertVariadicSplitToStridedSliceOp>();
-    manager.register_pass<ngraph::pass::ConvertNormalizeL2ToLegacyMatcher>();
 
 #if defined(VPUX_DEVELOPER_BUILD) || !defined(NDEBUG)
     if (const auto serializeCanonicalModel = std::getenv("VPUX_SERIALIZE_CANONICAL_MODEL")) {
@@ -3421,44 +3473,44 @@ void addCNNNetworkOp(mlir::OpBuilder& builder, mlir::FlatSymbolRefAttr mainFuncN
 }
 
 //
-// validateCNNNetwork
+// addSparsityStatistics
 //
 
-void validateCNNNetwork(const InferenceEngine::CNNNetwork& cnnNet) {
-    const auto inputsInfo = cnnNet.getInputsInfo();
+void addSparsityStatistics(InferenceEngine::CNNNetwork cnnNet, mlir::ModuleOp module, Logger log) {
+    using RTMap = std::map<std::string, ov::Any>;
 
-    for (const auto& p : inputsInfo) {
-        const auto& name = p.first;
-        const auto& info = p.second;
-        const auto& preProc = info->getPreProcess();
-        const auto meanVariant = preProc.getMeanVariant();
-        VPUX_THROW_UNLESS(meanVariant == InferenceEngine::MeanVariant::NONE,
-                          "MeanVariant pre-processing for input '{0}' is not supported", name);
+    auto nFunc = cnnNet.getFunction();
+    auto maybeRt = nFunc->get_rt_info();
+    if (maybeRt.empty()) {
+        log.trace("Missed RT info");
+        return;
     }
-}
+    log.trace("Found RT info");
+    if (!nFunc->has_rt_info(NGRAPH_ACT_SPARSITY_STATS_KEY)) {
+        return;
+    }
+    log.trace("Found activation statistics");
+    OpBuilderLogger builderLog(log.nest());
+    auto builder = mlir::OpBuilder::atBlockBegin(module.getBody(), &builderLog);
+    auto* ctx = builder.getContext();
 
-}  // namespace
+    auto statsOp = builder.create<IE::SparsityStatisticsOp>(mlir::UnknownLoc::get(ctx));
+    statsOp.sparsityInfo().emplaceBlock();
 
-//
-// queryNetwork
-//
+    auto statsBuilder = mlir::OpBuilder::atBlockBegin(&statsOp.sparsityInfo().front(), builder.getListener());
 
-std::unordered_set<std::string> vpux::IE::queryNetwork(const InferenceEngine::CNNNetwork& cnnNet,
-                                                       std::vector<PreProcessInfo>& preProcInfo,
-                                                       mlir::TimingScope& rootTiming, const vpux::VPU::ArchKind arch,
-                                                       Logger log) {
-    log.setName("IE::FrontEnd::queryNetwork");
+    auto actSparsityStats = nFunc->get_rt_info<RTMap>(NGRAPH_ACT_SPARSITY_STATS_KEY);
+    for (const auto& x : actSparsityStats) {
+        const auto key = x.first;
+        const auto nodeName = getSparsityStatsFieldChecked<std::string>(nFunc, key, "node_name");
+        const auto portId = getSparsityStatsFieldChecked<int>(nFunc, key, "port_id");
+        const auto ratio = getSparsityStatsFieldChecked<double>(nFunc, key, "statistic");
 
-    validateCNNNetwork(cnnNet);
-
-    const auto netGraph = ngraph::clone_function(*(cnnNet.getFunction()));
-    VPUX_THROW_UNLESS(netGraph != nullptr, "Old IR versions (prior v10) are not supported : {0}", cnnNet.getName());
-
-    log.trace("Run common nGraph passes");
-    runNGraphPasses(netGraph, preProcInfo, rootTiming, arch);
-
-    log.trace("Get supported operations list");
-    return NGraphImporter::getSupportedOps(netGraph);
+        const auto nameAttr = mlir::StringAttr::get(ctx, nodeName);
+        const auto inputAttr = getIntAttr(ctx, portId);
+        const auto ratioAttr = getFPAttr(ctx, ratio);
+        statsBuilder.create<IE::SparsityInfoOp>(mlir::UnknownLoc::get(ctx), nameAttr, inputAttr, ratioAttr);
+    }
 }
 
 //
@@ -3472,8 +3524,6 @@ mlir::OwningOpRef<mlir::ModuleOp> vpux::IE::importNetwork(mlir::MLIRContext* ctx
                                                           vpux::VPU::ArchKind arch, Logger log) {
     log.setName("IE::FrontEnd::importNetwork");
 
-    validateCNNNetwork(cnnNet);
-
     log.trace("Load IE::FrontEnd dependent Dialects");
     ctx->loadDialect<IE::IEDialect>();
 
@@ -3481,9 +3531,10 @@ mlir::OwningOpRef<mlir::ModuleOp> vpux::IE::importNetwork(mlir::MLIRContext* ctx
     VPUX_THROW_UNLESS(netGraph != nullptr, "Old IR versions (prior v10) are not supported : {0}", cnnNet.getName());
 
     log.trace("Run common nGraph passes");
-    runNGraphPasses(netGraph, preProcInfo, rootTiming, arch);
+    NGraphPasses::runNGraphPasses(netGraph, preProcInfo, rootTiming, arch);
 
     auto module = mlir::ModuleOp::create(mlir::UnknownLoc::get(ctx), StringRef(cnnNet.getName()));
+    addSparsityStatistics(cnnNet, module, log);
     const auto mainFuncName = mlir::FlatSymbolRefAttr::get(ctx, "main");
 
     OpBuilderLogger builderLog(log.nest());

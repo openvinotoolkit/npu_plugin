@@ -1,14 +1,15 @@
 //
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
+
 // RUN: vpux-opt --split-input-file --init-compiler="vpu-arch=VPUX30XX" --assign-virtual-barriers="num-barriers=8 num-slots-per-barrier=256" %s | FileCheck %s
 
 #NCHW = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
 // CHECK-LABEL: @ParallelGraph
-func @ParallelGraph(%arg0: memref<1x16x32x32xf16, #NHWC>, %arg1: memref<1x16x32x32xf16>) -> memref<1x16x32x32xf16> {
+func.func @ParallelGraph(%arg0: memref<1x16x32x32xf16, #NHWC>, %arg1: memref<1x16x32x32xf16>) -> memref<1x16x32x32xf16> {
     %cst0 = const.Declare memref<16x16x1x1xf16, #NHWC> =
         dense<1.0> : tensor<16x16x1x1xf16>, [#const.Reorder<#NHWC>]
     %cst1 = const.Declare memref<16x1x1x4xsi32> = dense<1> : tensor<16x1x1x4xsi32>
@@ -293,7 +294,7 @@ func @ParallelGraph(%arg0: memref<1x16x32x32xf16, #NHWC>, %arg1: memref<1x16x32x
 
     // CHECK:       VPURT.Task updates([[BAR2]] : !VPURT.Barrier)
     // CHECK:       VPUIP.NNDMA
-    
+
     // CHECK:       VPURT.Task waits([[BAR2]] : !VPURT.Barrier) updates([[BAR3]] : !VPURT.Barrier)
     // CHECK:       VPUIP.NCEClusterTask
 
@@ -330,42 +331,42 @@ func @ParallelGraph(%arg0: memref<1x16x32x32xf16, #NHWC>, %arg1: memref<1x16x32x
 #NCHW = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
-!InputDistributed = type !VPUIP.DistributedBuffer<
+!InputDistributed = !VPUIP.DistributedBuffer<
     1x16x8x32xf16, #NHWC, @CMX_NN, {
     mode = "DUPLICATED",
     num_clusters = 4
 }>
 
-!WeightsDistributed = type !VPUIP.DistributedBuffer<
+!WeightsDistributed = !VPUIP.DistributedBuffer<
     16x16x1x1xf16, #NHWC, @CMX_NN, {
     mode = "DUPLICATED",
     num_clusters = 4
 }>
 
-!WeightsTableDistributed = type !VPUIP.DistributedBuffer<
+!WeightsTableDistributed = !VPUIP.DistributedBuffer<
     16x1x1x4xsi32, #NCHW, @CMX_NN, {
     mode = "DUPLICATED",
     num_clusters = 4
 }>
 
-!OutputDistributed = type !VPUIP.DistributedBuffer<
+!OutputDistributed = !VPUIP.DistributedBuffer<
     1x16x8x32xf16, #NHWC, @CMX_NN, {
     mode = "DUPLICATED",
     num_clusters = 4
 }>
 
-!Input_DDR = type memref<1x16x8x32xf16, #NHWC, @DDR>
-!Weights_DDR = type memref<16x16x1x1xf16, #NHWC, @DDR>
-!WeightsTable_DDR = type memref<16x1x1x4xsi32, #NHWC, @DDR>
-!Output_DDR = type memref<1x16x8x32xf16, #NHWC, @DDR>
+!Input_DDR = memref<1x16x8x32xf16, #NHWC, @DDR>
+!Weights_DDR = memref<16x16x1x1xf16, #NHWC, @DDR>
+!WeightsTable_DDR = memref<16x1x1x4xsi32, #NHWC, @DDR>
+!Output_DDR = memref<1x16x8x32xf16, #NHWC, @DDR>
 
-!InputStub_CMX = type memref<1x16x8x32xf16, #NHWC, @CMX_NN>
-!WeightsStub_CMX = type memref<16x16x1x1xf16, #NHWC, @CMX_NN>
-!WeightsTableStub_CMX = type memref<16x1x1x4xsi32, #NHWC, @CMX_NN>
-!OutputStub_CMX = type memref<1x16x8x32xf16, #NHWC, @CMX_NN>
+!InputStub_CMX = memref<1x16x8x32xf16, #NHWC, @CMX_NN>
+!WeightsStub_CMX = memref<16x16x1x1xf16, #NHWC, @CMX_NN>
+!WeightsTableStub_CMX = memref<16x1x1x4xsi32, #NHWC, @CMX_NN>
+!OutputStub_CMX = memref<1x16x8x32xf16, #NHWC, @CMX_NN>
 
 // CHECK-LABEL: @ParallelGraphMultiCluster
-func @ParallelGraphMultiCluster(%input: memref<1x16x32x32xf16, #NHWC, @DDR>, %output: memref<1x16x32x32xf16, @DDR>) -> memref<1x16x32x32xf16, @DDR> {
+func.func @ParallelGraphMultiCluster(%input: memref<1x16x32x32xf16, #NHWC, @DDR>, %output: memref<1x16x32x32xf16, @DDR>) -> memref<1x16x32x32xf16, @DDR> {
     %cst0 = const.Declare memref<16x16x1x1xf16, #NHWC, @DDR> =
         dense<1.0> : tensor<16x16x1x1xf16>, [#const.Reorder<#NHWC>]
     %cst1 = const.Declare memref<16x1x1x4xsi32, #NHWC, @DDR> = dense<1> : tensor<16x1x1x4xsi32>, [#const.Reorder<#NHWC>]
@@ -707,7 +708,7 @@ func @ParallelGraphMultiCluster(%input: memref<1x16x32x32xf16, #NHWC, @DDR>, %ou
 
     // CHECK:       VPURT.Task updates([[BAR2]] : !VPURT.Barrier)
     // CHECK:       VPUIP.NNDMA
-    
+
     // CHECK:       VPURT.Task waits([[BAR2]] : !VPURT.Barrier) updates([[BAR3]] : !VPURT.Barrier)
     // CHECK:       VPUIP.NCEClusterTask
 

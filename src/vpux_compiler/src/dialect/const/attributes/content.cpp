@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/const/attributes/content.hpp"
 #include "vpux/compiler/dialect/const/utils/const_logger.hpp"
 
@@ -60,6 +58,18 @@ void vpux::Const::ContentAttr::walkImmediateSubElements(llvm::function_ref<void(
 }
 
 //
+// ContentAttr::replaceImmediateSubElements
+//
+
+mlir::Attribute vpux::Const::ContentAttr::replaceImmediateSubElements(ArrayRef<mlir::Attribute> replAttrs,
+                                                                      ArrayRef<mlir::Type> replTypes) const {
+    VPUX_THROW_WHEN(replAttrs.size() < 2, "Replace attrs array is too short: '{0}'", replAttrs.size());
+    VPUX_THROW_WHEN(replTypes.size() < 1, "Replace types array is too short: '{0}'", replTypes.size());
+    return get(replAttrs[0].dyn_cast_or_null<mlir::ElementsAttr>(), replAttrs[1].dyn_cast_or_null<mlir::ArrayAttr>(),
+               replTypes[0]);
+}
+
+//
 // ContentAttr::verify
 //
 
@@ -77,7 +87,7 @@ mlir::LogicalResult vpux::Const::ContentAttr::verify(FuncRef<mlir::InFlightDiagn
 
     if (baseContent.isa<mlir::DenseElementsAttr>()) {
         // OK
-    } else if (const auto opaque = baseContent.dyn_cast<mlir::OpaqueElementsAttr>()) {
+    } else if (const auto opaque = baseContent.dyn_cast<Const::OpaqueElementsAttr>()) {
         const size_t numElems = opaque.getNumElements();
         const Byte elemTypeSize = vpux::getElemTypeSize(opaque.getType());
 
@@ -128,7 +138,7 @@ Const::Content wrapBaseContent(mlir::ElementsAttr baseContent) {
         data = dense.getRawData();
         isSplat = dense.isSplat();
     } else {
-        const auto opaque = baseContent.cast<mlir::OpaqueElementsAttr>();
+        const auto opaque = baseContent.cast<Const::OpaqueElementsAttr>();
         const auto bytes = opaque.getValue();
         data = makeArrayRef(bytes.data(), bytes.size());
 
@@ -204,7 +214,7 @@ void vpux::Const::ContentAttr::print(mlir::AsmPrinter& printer) const {
 //
 
 mlir::Attribute vpux::Const::ContentAttr::parse(mlir::AsmParser& parser, mlir::Type) {
-    mlir::DenseElementsAttr baseContent;
+    mlir::ElementsAttr baseContent;
     if (mlir::failed(parser.parseAttribute(baseContent))) {
         return nullptr;
     }

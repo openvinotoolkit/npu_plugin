@@ -6,7 +6,7 @@
 #include <functional_test_utils/precision_utils.hpp>
 #include <ngraph_functions/builders.hpp>
 #include <ngraph_functions/utils/ngraph_helpers.hpp>
-#include "vpux_private_metrics.hpp"
+#include "vpux/vpux_metrics.hpp"
 
 InferenceEngine::CNNNetwork buildSingleLayerSoftMaxNetwork() {
     InferenceEngine::SizeVector inputShape = {1, 3, 4, 3};

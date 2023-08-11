@@ -120,12 +120,12 @@ void AdjustMemorySpacePass::safeRunOnFunc() {
 
     // NCE operations are only legal if all their outputs and inputs (incl. weights) reside in CMX
     const auto isLegalOp = [](mlir::Operation* op) {
-        if (auto nceOp = mlir::dyn_cast<VPU::NCEOpInterface>(op)) {
+        if (mlir::isa<VPU::NCEOpInterface>(op)) {
             const auto verifyLocationInCmx = [](mlir::Value operand) {
                 return operand.getType().cast<vpux::NDTypeInterface>().getMemoryKind() == MemoryKind::CMX_NN;
             };
-            return llvm::all_of(nceOp->getOperands(), verifyLocationInCmx) &&
-                   llvm::all_of(nceOp->getResults(), verifyLocationInCmx);
+            return llvm::all_of(op->getOperands(), verifyLocationInCmx) &&
+                   llvm::all_of(op->getResults(), verifyLocationInCmx);
         }
         return true;
     };
@@ -136,7 +136,7 @@ void AdjustMemorySpacePass::safeRunOnFunc() {
     mlir::RewritePatternSet patterns(&ctx);
     patterns.add<CopiesForNCEOp>(&ctx, _log);
 
-    auto func = getFunction();
+    auto func = getOperation();
     if (mlir::failed(mlir::applyPartialConversion(func, target, std::move(patterns)))) {
         signalPassFailure();
     }

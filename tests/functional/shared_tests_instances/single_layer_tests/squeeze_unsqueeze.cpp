@@ -1,5 +1,5 @@
 //
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,7 +11,7 @@
 
 namespace LayerTestsDefinitions {
 
-class KmbSqueezeUnsqueezeLayerTest :
+class VPUXSqueezeUnsqueezeLayerTest_VPU3700 :
         public SqueezeUnsqueezeLayerTest,
         virtual public LayerTestsUtils::KmbLayerTestsCommon {
     void SkipBeforeLoad() override {
@@ -32,12 +32,9 @@ class KmbSqueezeUnsqueezeLayerTest :
     }
 };
 
-TEST_P(KmbSqueezeUnsqueezeLayerTest, CompareWithRefs) {
-    Run();
-}
-
-TEST_P(KmbSqueezeUnsqueezeLayerTest, CompareWithRefs_MLIR) {
-    useCompilerMLIR();
+TEST_P(VPUXSqueezeUnsqueezeLayerTest_VPU3700, HW) {
+    setPlatformVPU3700();
+    setDefaultHardwareModeMLIR();
     Run();
 }
 
@@ -75,7 +72,7 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::
 const std::vector<ngraph::helpers::SqueezeOpType> opTypes = {ngraph::helpers::SqueezeOpType::SQUEEZE,
                                                              ngraph::helpers::SqueezeOpType::UNSQUEEZE};
 
-INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_Basic, KmbSqueezeUnsqueezeLayerTest,
+INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_Basic, VPUXSqueezeUnsqueezeLayerTest_VPU3700,
                          ::testing::Combine(::testing::ValuesIn(CommonTestUtils::combineParams(axesVectors)),
                                             ::testing::ValuesIn(opTypes), ::testing::ValuesIn(netPrecisions),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),

@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #pragma once
 
 #include "vpux/compiler/core/type_interfaces.hpp"
@@ -59,7 +57,7 @@ bool isAttrsSupported(ArchKind arch, int64_t KY, int64_t KX, int64_t SY, int64_t
 // Activation type checks
 //
 
-bool isAligned(vpux::NDTypeInterface type, int64_t alignment, LogCb logCb);
+bool isAligned(vpux::NDTypeInterface type, int64_t alignment, ArchKind arch, LogCb logCb);
 
 int64_t getAlignment(mlir::Type elemType);
 
@@ -92,7 +90,7 @@ bool verifyPads(int64_t KY, int64_t KX, int64_t padTop, int64_t padBottom, int64
 // Common utility for AvgPool, MaxPool, Eltwise and DWConv
 //
 
-bool checkLayouts(mlir::ValueRange operands, mlir::Value result, const VPU::ArchKind& arch,
+bool checkLayouts(mlir::TypeRange operandTypes, mlir::TypeRange resultTypes, const VPU::ArchKind& arch,
                   const unsigned numInputOperands, LogCb logCb);
 
 //
@@ -100,6 +98,12 @@ bool checkLayouts(mlir::ValueRange operands, mlir::Value result, const VPU::Arch
 //
 
 bool isCompressConvolution(ArchKind arch, mlir::Operation* op);
+
+//
+// Check if given architecture supports NCE tasks in superdense mode
+//
+
+bool isSuperdenseSupported(const VPU::ArchKind arch);
 
 }  // namespace NCEInvariant
 

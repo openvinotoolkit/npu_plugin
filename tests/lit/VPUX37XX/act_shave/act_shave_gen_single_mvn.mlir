@@ -1,7 +1,8 @@
 //
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
+
 // RUN: vpux-translate --export-VPUIP -o %t %s
 // RUN: flatc --raw-binary --json %vpuip_schema_file% -- %t
 // RUN: FileCheck %s --input-file %basename_t.json
@@ -50,7 +51,7 @@ VPURT.SW.Runtime
 module @VPU.SW {
     // The declaration should match C++ params structure in decomposed form.
     // `memref` will be translated to `MemRefData`, while raw scalars will be translated as is.
-    func private @builtin_mvn(%input : memref<*xf16>, %output : memref<*xf16>,
+    func.func private @builtin_mvn(%input : memref<*xf16>, %output : memref<*xf16>,
     %across_channels : i64,
     %normalize: i64,
     %eps : f32
@@ -61,7 +62,7 @@ module @VPU.SW {
         }
 
     // management kernel definition
-    func private @runtime()
+    func.func private @runtime()
         attributes {
             VPU.kernel_code = "nnActEntry"
         }
@@ -69,7 +70,7 @@ module @VPU.SW {
 
 
 
-func @main(%1: memref<1x4x512x1xf16, {order = #NCWH}>,
+func.func @main(%1: memref<1x4x512x1xf16, {order = #NCWH}>,
            %2: memref<1x4x512x1xf16, {order = #NCWH}>) -> memref<1x4x512x1xf16, {order = #NCWH}> {
 
     %in_tile0_cmx  = VPURT.DeclareBuffer "CMX_NN" [0] <0> -> memref<1x4x512x1xf16, {order = #NCWH}, [@CMX_NN, 0]>

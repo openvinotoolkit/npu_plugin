@@ -4,8 +4,6 @@
 //
 
 //
-
-//
 // Backprop to data is itself convolution, with inputs/outputs/attributes transmogrified as
 // follows.
 //
@@ -55,7 +53,7 @@ mlir::LogicalResult vpux::IE::DeconvolutionOp::inferReturnTypeComponents(
         mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
         mlir::DictionaryAttr attrs, mlir::RegionRange,
         SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
-    const auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
+    const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
     IE::DeconvolutionOpAdaptor convBackpropData(operands, attrs);
     if (mlir::failed(convBackpropData.verify(loc))) {

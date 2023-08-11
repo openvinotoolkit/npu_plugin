@@ -8,6 +8,7 @@
 #include "yolo_helpers.hpp"
 
 #include "vpux/utils/IE/blob.hpp"
+#include "vpux/utils/core/checked_cast.hpp"
 
 #include <cmath>
 
@@ -216,10 +217,8 @@ static void doNonMaximumSupressionSort(std::vector<utils::Box>& boxes, std::vect
     }
 }
 
-static int maxIndex(std::vector<float>& a, int n) {
-    if (n <= 0) {
-        return -1;
-    }
+static size_t maxIndex(std::vector<float>& a, int n) {
+    VPUX_THROW_UNLESS(n > 0, "Expected a positive number of classes, got {0}", n);
     int max_i = 0;
     float max = a[0];
     for (int i = 1; i < n; ++i) {
@@ -228,7 +227,7 @@ static int maxIndex(std::vector<float>& a, int n) {
             max_i = i;
         }
     }
-    return max_i;
+    return vpux::checked_cast<size_t>(max_i);
 }
 
 static float clampToImageSize(const float& valueToClamp, const float& low, const float& high) {

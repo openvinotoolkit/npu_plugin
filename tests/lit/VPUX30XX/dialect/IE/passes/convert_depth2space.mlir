@@ -1,16 +1,17 @@
 //
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
+
 // RUN: vpux-opt --split-input-file --init-compiler="vpu-arch=VPUX30XX compilation-mode=DefaultHW" --convert-depthToSpace %s | FileCheck %s
 
 // CHECK-LABEL: @Depth2SpaceCanConvertToNNDMAs_BLOCKS_FIRST
-func @Depth2SpaceCanConvertToNNDMAs_BLOCKS_FIRST(%arg0: tensor<1x16x64x64xf16>) -> tensor<1x1x256x256xf16> {
-    %0 = IE.DepthToSpace(%arg0) {block_size = 4 : i64, mode = "BLOCKS_FIRST"} : tensor<1x16x64x64xf16> -> tensor<1x1x256x256xf16>
+func.func @Depth2SpaceCanConvertToNNDMAs_BLOCKS_FIRST(%arg0: tensor<1x16x64x64xf16>) -> tensor<1x1x256x256xf16> {
+    %0 = IE.DepthToSpace(%arg0) {block_size = 4 : i64, mode = #IE.depth_to_space_mode<BLOCKS_FIRST>} : tensor<1x16x64x64xf16> -> tensor<1x1x256x256xf16>
 
     return %0 : tensor<1x1x256x256xf16>
 
-    // CHECK:       [[DepthToSpace:%.*]] = IE.DepthToSpace(%arg0) {block_size = 4 : i64, mode = "BLOCKS_FIRST"} : tensor<1x16x64x64xf16> -> tensor<1x1x256x256xf16>
+    // CHECK:       [[DepthToSpace:%.*]] = IE.DepthToSpace(%arg0) {block_size = 4 : i64, mode = #IE.depth_to_space_mode<BLOCKS_FIRST>} : tensor<1x16x64x64xf16> -> tensor<1x1x256x256xf16>
     // CHECK:       return [[DepthToSpace]] : tensor<1x1x256x256xf16>
 }
 
@@ -19,12 +20,12 @@ func @Depth2SpaceCanConvertToNNDMAs_BLOCKS_FIRST(%arg0: tensor<1x16x64x64xf16>) 
 //
 
 // CHECK-LABEL: @Depth2SpaceCanConvertToNNDMAs_DEPTH_FIRST
-func @Depth2SpaceCanConvertToNNDMAs_DEPTH_FIRST(%arg0: tensor<1x16x64x64xf16>) -> tensor<1x1x256x256xf16> {
-    %0 = IE.DepthToSpace(%arg0) {block_size = 4 : i64, mode = "DEPTH_FIRST"} : tensor<1x16x64x64xf16> -> tensor<1x1x256x256xf16>
+func.func @Depth2SpaceCanConvertToNNDMAs_DEPTH_FIRST(%arg0: tensor<1x16x64x64xf16>) -> tensor<1x1x256x256xf16> {
+    %0 = IE.DepthToSpace(%arg0) {block_size = 4 : i64, mode = #IE.depth_to_space_mode<DEPTH_FIRST>} : tensor<1x16x64x64xf16> -> tensor<1x1x256x256xf16>
 
     return %0 : tensor<1x1x256x256xf16>
 
-    // CHECK:       [[DepthToSpace:%.*]] = IE.DepthToSpace(%arg0) {block_size = 4 : i64, mode = "DEPTH_FIRST"} : tensor<1x16x64x64xf16> -> tensor<1x1x256x256xf16>
+    // CHECK:       [[DepthToSpace:%.*]] = IE.DepthToSpace(%arg0) {block_size = 4 : i64, mode = #IE.depth_to_space_mode<DEPTH_FIRST>} : tensor<1x16x64x64xf16> -> tensor<1x1x256x256xf16>
     // CHECK:       return [[DepthToSpace]] : tensor<1x1x256x256xf16>
 }
 
@@ -33,8 +34,8 @@ func @Depth2SpaceCanConvertToNNDMAs_DEPTH_FIRST(%arg0: tensor<1x16x64x64xf16>) -
 //
 
 // CHECK-LABEL: @Depth2SpaceCannotConvertToNNDMAsWithLargeSize_DEPTH_FIRST
-func @Depth2SpaceCannotConvertToNNDMAsWithLargeSize_DEPTH_FIRST(%arg0: tensor<1x64x256x256xf16>) -> tensor<1x4x1024x1024xf16> {
-    %0 = IE.DepthToSpace(%arg0) {block_size = 4 : i64, mode = "DEPTH_FIRST"} : tensor<1x64x256x256xf16> -> tensor<1x4x1024x1024xf16>
+func.func @Depth2SpaceCannotConvertToNNDMAsWithLargeSize_DEPTH_FIRST(%arg0: tensor<1x64x256x256xf16>) -> tensor<1x4x1024x1024xf16> {
+    %0 = IE.DepthToSpace(%arg0) {block_size = 4 : i64, mode = #IE.depth_to_space_mode<DEPTH_FIRST>} : tensor<1x64x256x256xf16> -> tensor<1x4x1024x1024xf16>
 
     return %0 : tensor<1x4x1024x1024xf16>
 

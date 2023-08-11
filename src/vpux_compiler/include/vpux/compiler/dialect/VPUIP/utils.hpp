@@ -1,8 +1,6 @@
 //
-// Copyright (C) 2022 Intel Corporation.
+// Copyright (C) 2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
-//
-
 //
 
 #pragma once
@@ -24,6 +22,14 @@ namespace vpux {
 namespace VPUIP {
 
 //
+// Activation compression
+//
+
+constexpr uint32_t ACT_COMPRESSION_RESERVED_MEM_SIZE = 64;
+constexpr uint32_t ACT_COMPRESSION_LUT_SIZE = 32;
+constexpr uint32_t ACT_COMPRESSION_BUF_SIZE_ALIGNMENT = 32;
+
+//
 // Profiling
 //
 
@@ -31,14 +37,14 @@ constexpr uint32_t HW_TIMER_ABSOLUTE_ADDR_30XX = 0x208200BC;
 constexpr uint32_t HW_TIMER_ABSOLUTE_ADDR_37XX = 0x26029000;
 // DMA Profiling consist of 2 32bit timestamps
 constexpr uint16_t HW_DMA_PROFILING_SIZE_BYTES = 8;
-constexpr uint32_t HW_DMA_PROFILING_MAX_BUFFER_SIZE = 256;
-constexpr uint32_t HW_DMA_PROFILING_RESERVED_MEM_OFFSET = 0;
+constexpr uint32_t HW_DMA_PROFILING_MAX_BUFFER_SIZE = 512;
+// maximal number of profiled DMAs in HWDDR profiling mode - 2^12
+constexpr uint32_t HW_DMA_PROFILING_ID_LIMIT = 4096;
 // DPU Profiling consist of 2 64bit timestamps(start and stop)
 constexpr uint16_t HW_DPU_PROFILING_SIZE_BYTES_30XX = 16;
 // DPU Profiling for 37XX use MODE0: // 8’h0, odu_tstamp[27:0], odu_wl_duration[27:0], {3’h0,sve_id[4:0]},
 // idu_tstamp[27:0], idu_wl_duration[27:0]
 constexpr uint16_t HW_DPU_PROFILING_SIZE_BYTES_37XX = 16;
-constexpr uint16_t HW_DPU_PROFILING_SIZE_BYTES_40XX = 16;
 constexpr uint32_t HW_DPU_PROFILING_MAX_BUFFER_SIZE =
         1024;  // Up to 64 DPU Tasks in single CMX DPU profiling buffer instance
 // UPA Profiling consist of 2 64bit timestamps(start and stop) + 2 32bit for active and stall counters
@@ -50,8 +56,12 @@ constexpr uint32_t HW_ACT_SHAVE_PROFILING_MAX_BUFFER_SIZE = 128;
 // 3720 architecture has 2 Mb CMX size. This define describes its half.
 constexpr uint32_t HW_MIDDLE_OF_AVAILABLE_CMX_MEMORY_3720 = (1024 * 1024);
 
-uint16_t getProfWorkloadSize(mlir::ModuleOp module);
+// PLL WORKPOINT_CONFIG_MIRROR ADDRESS
+constexpr uint32_t NUM_CAPTURED_WORKPOINTS = 2;
+constexpr uint32_t HW_PLL_WORKPOINT_ABSOLUTE_ADDR = 0x20082020;
+constexpr uint16_t HW_PLL_WORKPOINT_SIZE = 4;
 
+uint16_t getProfWorkloadSize(mlir::ModuleOp module);
 //
 // Run-time info
 //
@@ -60,6 +70,7 @@ double getMemoryDerateFactor(IE::MemoryResourceOp mem);
 uint32_t getMemoryBandwidth(IE::MemoryResourceOp mem);
 int64_t getNumClusterUsed(mlir::ModuleOp module);
 int64_t getNumAvailableBarriers(mlir::Operation* parentOp);
+size_t getBarrierMaxVariantCount(mlir::Operation* parentOp);
 
 //
 // DW Convolution utility
@@ -100,9 +111,28 @@ mlir::Operation* getRootConst(mlir::Value val);
 // Unrolling Utilities
 //
 
-SmallVector<mlir::Value> getPerClusterBuffers(mlir::MLIRContext* ctx, mlir::Location loc, StringRef bufferName,
-                                              mlir::Value clusterOperand, mlir::Value innerOperand, int64_t numClusters,
-                                              mlir::PatternRewriter& rewriter, bool allowDiscontinuousBuffers = false);
+mlir::Value getClusterOperand(VPUIP::NCEClusterTilingOp clusterOp, mlir::Value innerOperand);
+
+using outputBuffers = SmallVector<mlir::Value>;
+using outputItiBuffers = SmallVector<SmallVector<mlir::Value>>;
+
+SmallVector<mlir::Value> getPerClusterMemoryBuffers(mlir::MLIRContext* ctx, mlir::Location loc, StringRef bufferName,
+                                                    mlir::Value clusterOperand, mlir::Value innerOperand,
+                                                    int64_t numClusters, mlir::PatternRewriter& rewriter,
+                                                    bool allowDiscontinuousBuffers = false);
+SmallVector<mlir::Value> getPerClusterComputeBuffers(mlir::MLIRContext* ctx, mlir::Location loc, StringRef bufferName,
+                                                     mlir::Value clusterOperand, mlir::Value innerOperand,
+                                                     int64_t numClusters, mlir::PatternRewriter& rewriter,
+                                                     bool allowDiscontinuousBuffers = false);
+SmallVector<mlir::Value> getPerClusterSWMemoryBuffers(mlir::MLIRContext* ctx, mlir::Location loc, StringRef bufferName,
+                                                      VPUIP::NCEClusterTilingOp clusterOp, mlir::Value innerOperand,
+                                                      int64_t numClusters, mlir::PatternRewriter& rewriter, Logger log,
+                                                      bool allowDiscontinuousBuffers = false);
+SmallVector<mlir::Value> getPerClusterSWComputeBuffers(mlir::MLIRContext* ctx, mlir::Location loc, StringRef bufferName,
+                                                       VPUIP::NCEClusterTilingOp clusterOp, mlir::Value innerOperand,
+                                                       int64_t numClusters, mlir::PatternRewriter& rewriter, Logger log,
+                                                       bool allowDiscontinuousBuffers = false);
+
 SmallVector<mlir::Value> getSplitBuffers(mlir::MLIRContext* ctx, mlir::Location loc, StringRef bufferName,
                                          mlir::Value operand, SmallVector<vpux::Shape> shapes,
                                          SmallVector<vpux::Shape> shapeOffsets, int64_t splitNum,
@@ -114,19 +144,43 @@ SmallVector<mlir::Value> getSplitBuffers(mlir::MLIRContext* ctx, mlir::Location 
 
 bool isSegmentedOverH(VPU::DistributedTensorAttr distAttr);
 bool isSegmentedOverC(VPU::DistributedTensorAttr distAttr);
+bool isSegmentedOverN(VPU::DistributedTensorAttr distAttr);
 VPU::DistributedTensorAttr getSOHDistAttrWithNewShape(mlir::MLIRContext* ctx, VPUIP::DistributedBufferType origDistType,
-                                                      ShapeRef newShape);
-bool isDistributedCompatibleAfterShapeChange(VPUIP::DistributedBufferType inDistType, ShapeRef shape);
+                                                      ShapeRef newShape, VPU::ArchKind arch);
+bool isDistributedCompatibleAfterShapeChange(VPUIP::DistributedBufferType inDistType, ShapeRef shape,
+                                             VPU::ArchKind arch);
 
 //
 // Distributed buffer type compatibility check
 //
 
-bool equalPerClusterShapes(VPUIP::DistributedBufferType distributedBufferType);
 bool isCompatibleForDistributedInputOutput(mlir::Operation* op, VPUIP::DistributedBufferType distributedInType,
                                            VPUIP::DistributedBufferType distributedOutType);
-int64_t getTilingDimIndex(VPUIP::DistributedBufferType distributedBufferType);
+Optional<int64_t> getTilingDimIndex(mlir::Type type);
 bool isMemoryContiguousWithTiling(VPUIP::DistributedBufferType distributedBufferType);
+
+//
+// Compressed Convolution utility
+//
+
+bool canWeightsBeCompressed(VPUIP::NCEClusterTaskOp op);
+bool canTilingWeightsBeCompressed(VPUIP::NCEClusterTilingOp op);
+
+// Copy Utilities
+
+bool isCopyWithStaticStrides(VPUIP::CopyOp copyOp);
+bool isCopyToDDR(VPUIP::CopyOp copyOp);
+bool isCopyFromDDR(VPUIP::CopyOp copyOp);
+int64_t getStridingLevel(const mlir::Value val);
+bool strideMoreThanOne(VPUIP::CopyOp copyOp);
+int64_t getFirstStridingDim(VPUIP::CopyOp copyOp);
+int64_t getNumberOfPlanes(VPUIP::CopyOp copyOp);
+
+//
+// Operation utility
+//
+bool isOpOnlySplitOnDim(VPUIP::SubViewOp op, Dim dim);
+Byte getRequiredCMXSize(mlir::Operation* op);
 
 }  // namespace VPUIP
 }  // namespace vpux

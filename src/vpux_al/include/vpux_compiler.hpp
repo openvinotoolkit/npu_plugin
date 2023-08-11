@@ -34,12 +34,11 @@ using DataMap = std::map<std::string, InferenceEngine::DataPtr>;
  *
  */
 struct OVRawNode {
-    const std::string friendlyName;
-    const ov::element::Type_t type;
-    const ov::Shape shape;
-    const std::unordered_set<std::string> tensorNames;
-    const std::string inputName;
-    const bool isResult;
+    std::string friendlyName;
+    ov::element::Type_t type;
+    ov::Shape shape;
+    std::unordered_set<std::string> tensorNames;
+    std::string inputName;
 };
 
 /**

@@ -1,13 +1,14 @@
 //
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
-// RUN: vpux-opt --init-compiler="vpu-arch=%arch%" %s | vpux-translate --export-EMU -o %t
+
+// RUN: vpux-opt --init-compiler="vpu-arch=%arch% compilation-mode=ReferenceSW" %s | vpux-translate --export-EMU -o %t
 // RUN: flatc --raw-binary --json %vpuip_schema_file% -- %t
 // RUN: FileCheck %s --input-file %basename_t.json
 // RUN: rm %basename_t.json
 
-module @Test attributes {VPU.compilationMode = "ReferenceSW"} {
+module @Test {
 
 module @UsedMemory {
     IE.MemoryResource 2048 bytes of @DDR
@@ -23,7 +24,7 @@ IE.CNNNetwork
         DataInfo "softmax" : tensor<1x1000xf32>
     }
 
-func @main(%arg0: tensor<1x1x1x1000xf16>) -> tensor<1x1x1x1000xf16> {
+func.func @main(%arg0: tensor<1x1x1x1000xf16>) -> tensor<1x1x1x1000xf16> {
     %0 = VPU.SoftMax(%arg0) {axisInd = 3} : tensor<1x1x1x1000xf16> -> tensor<1x1x1x1000xf16>
     return %0: tensor<1x1x1x1000xf16>
 }
@@ -171,5 +172,3 @@ func @main(%arg0: tensor<1x1x1x1000xf16>) -> tensor<1x1x1x1000xf16> {
 // CHECK:                     0
 // CHECK:                   ],
 // CHECK:                   data_dtype: "FP16",
-
-

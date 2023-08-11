@@ -10,9 +10,7 @@
 #include <hetero/hetero_plugin_config.hpp>
 #include <ngraph/op/util/op_types.hpp>
 #include <ngraph/opsets/opset1.hpp>
-#include <ngraph/variant.hpp>
 
-PRETTY_PARAM(Device, std::string)
 PRETTY_PARAM(NetworkPath, std::string)
 PRETTY_PARAM(SplitLayer, std::string)
 PRETTY_PARAM(ImagePath, std::string)
@@ -41,11 +39,11 @@ void insert_noop_reshape_after(std::shared_ptr<ngraph::Node>& node, const std::s
     auto constant = std::make_shared<ngraph::op::Constant>(ngraph::element::i64, ngraph::Shape{shape.size()},
                                                            std::vector<size_t>{0, 1, 2, 3});
     constant->set_friendly_name(opName + "_const");
-    constant->get_rt_info()["affinity"] = std::make_shared<ngraph::VariantWrapper<std::string>>("VPUX");
+    constant->get_rt_info()["affinity"] = "VPUX";
 
     auto transpose = std::make_shared<ngraph::opset1::Transpose>(node, constant);
     transpose->set_friendly_name(opName);
-    transpose->get_rt_info()["affinity"] = std::make_shared<ngraph::VariantWrapper<std::string>>("VPUX");
+    transpose->get_rt_info()["affinity"] = "VPUX";
 
     // Reconnect all consumers to new_node
     for (auto input : consumers) {
@@ -78,7 +76,7 @@ void assignAffinities(InferenceEngine::CNNNetwork& network, const Device& firstD
 
     for (auto&& node : orderedOps) {
         auto& nodeInfo = node->get_rt_info();
-        nodeInfo["affinity"] = std::make_shared<ngraph::VariantWrapper<std::string>>(deviceName);
+        nodeInfo["affinity"] = deviceName;
 
         if (splitName == node->get_friendly_name()) {
             deviceName = std::string{secondDevice};

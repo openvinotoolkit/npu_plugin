@@ -1,5 +1,5 @@
 //
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,7 +25,7 @@ struct StridedSliceTestParams {
     std::vector<int64_t> _ellipsis_mask;
 };
 
-class KmbStridedSliceSubGraphTest :
+class VPUXStridedSliceSubGraphTest_VPU3700 :
         public LayerTestsUtils::KmbLayerTestsCommon,
         public testing::WithParamInterface<StridedSliceTestParams> {
     void SetUp() override {
@@ -60,11 +60,13 @@ class KmbStridedSliceSubGraphTest :
     }
 };
 
-TEST_P(KmbStridedSliceSubGraphTest, CompareWithRefs) {
+TEST_P(VPUXStridedSliceSubGraphTest_VPU3700, HW) {
+    setPlatformVPU3700();
+    setDefaultHardwareModeMLIR();
     Run();
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke, KmbStridedSliceSubGraphTest,
+INSTANTIATE_TEST_SUITE_P(smoke_StridedSlice, VPUXStridedSliceSubGraphTest_VPU3700,
                          ::testing::Values(
                                  StridedSliceTestParams{
                                          LayerTestsUtils::testPlatformTargetDevice,  // _device

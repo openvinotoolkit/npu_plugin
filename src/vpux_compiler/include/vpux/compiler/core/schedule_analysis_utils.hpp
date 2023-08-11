@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #pragma once
 
 #include "vpux/compiler/core/feasible_memory_scheduler.hpp"
@@ -36,11 +34,11 @@ ExecutorStallCycles getExecutorStallRegions(ScheduledOpInfoVec& scheduledOps);
 StallCycles getStallsOnAllExecutorPipelines(ScheduledOpInfoVec& scheduledOps);
 void verifyDependenciesPreservedInCycles(AsyncDepsInfo& depsInfo, ScheduledOpInfoVec& scheduledOps);
 StringRef getTaskType(ScheduledOpInfo op);
-void printScheduleStatistics(mlir::FuncOp& netFunc, AsyncDepsInfo& depsInfo, Logger log,
+void printScheduleStatistics(mlir::func::FuncOp& netFunc, AsyncDepsInfo& depsInfo, Logger log,
                              llvm::ArrayRef<ScheduledOpInfo> scheduledOps);
 SpillStats getDynamicSpillingStats(llvm::ArrayRef<ScheduledOpInfo> scheduledOps);
 void printSpillingStatistics(Logger log, SpillStats& beforePrefetching, SpillStats& afterPrefetching,
                              SpillStats& afterOptimizations);
-void createTracingJSON(mlir::FuncOp& netFunc, StringRef fileName = "scheduleTrace.json");
+void createTracingJSON(mlir::func::FuncOp& netFunc, StringRef fileName = "scheduleTrace.json");
 
 }  // namespace vpux

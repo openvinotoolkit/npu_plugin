@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/utils/partitioner.hpp"
 
 #include "vpux/utils/core/helper_macros.hpp"
@@ -221,7 +219,7 @@ AddressType vpux::Partitioner::getAddrFromGap(size_t pos, AddressType size, Addr
     }
 
     if (dir == Direction::Up) {
-        const auto alignedBegin = alignVal(g.begin, alignment);
+        const auto alignedBegin = alignValUp(g.begin, alignment);
 
         if ((alignedBegin + size) > g.end) {
             return InvalidAddress;
@@ -229,7 +227,7 @@ AddressType vpux::Partitioner::getAddrFromGap(size_t pos, AddressType size, Addr
 
         return alignedBegin;
     } else {
-        auto alignedBegin = alignVal(g.end - size, alignment);
+        auto alignedBegin = alignValUp(g.end - size, alignment);
 
         if ((alignedBegin + size) > g.end) {
             if (g.begin + alignment > alignedBegin) {

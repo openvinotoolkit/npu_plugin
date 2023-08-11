@@ -14,6 +14,7 @@
 #include <mlir/Support/FileUtilities.h>
 
 #include "vpux/compiler/conversion.hpp"
+#include "vpux/compiler/dialect/VPUIP/graph-schema/export.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
 #include "vpux/compiler/init.hpp"
@@ -48,6 +49,7 @@ mlir::OwningOpRef<mlir::ModuleOp> importHWTEST(llvm::StringRef sourceJson, mlir:
     ctx->appendDialectRegistry(registry);
     ctx->loadDialect<VPUIP::VPUIPDialect>();
     ctx->loadDialect<VPURT::VPURTDialect>();
+    ctx->loadDialect<VPUMI37XX::VPUMI37XXDialect>();
 
     auto module = mlir::ModuleOp::create(mlir::UnknownLoc::get(ctx), StringRef("mainModule"));
     auto log = Logger{"vpux-hwtest", LogLevel::Trace};
@@ -59,8 +61,12 @@ mlir::OwningOpRef<mlir::ModuleOp> importHWTEST(llvm::StringRef sourceJson, mlir:
     // This will be handled later based on op type in config json
     auto opType = jsonDesc.getCaseStr();
 
-    auto mainOpJsonDesc =
-            jsonDesc.getCaseType() == nb::CaseType::RaceCondition ? *jsonDesc.getUnderlyingOp() : jsonDesc;
+    auto mainOpJsonDesc = jsonDesc;
+    if (jsonDesc.getCaseType() == nb::CaseType::RaceCondition) {
+        auto underlyingOp = jsonDesc.getUnderlyingOp();
+        VPUX_THROW_WHEN(underlyingOp == nullptr, "underlyingOp is nullptr for CaseType::RaceCondition");
+        mainOpJsonDesc = *underlyingOp;
+    }
 
     const SmallVector<nb::InputLayer> inputList = mainOpJsonDesc.getInputLayerList();
     auto outputs = mainOpJsonDesc.getOutputLayers();
@@ -84,16 +90,16 @@ mlir::OwningOpRef<mlir::ModuleOp> importHWTEST(llvm::StringRef sourceJson, mlir:
         hwtest::buildDMA(jsonDesc, module, builder, log, input_types.front(), output_type);
         break;
     }
+    case nb::CaseType::DMAcompressAct: {
+        hwtest::buildDMACompressAct(jsonDesc, module, builder, log, input_types.front(), output_type);
+        break;
+    }
     case nb::CaseType::ZMajorConvolution: {
         const auto weightInChannels = weightList.front().shape[1];
-        const auto activationSwizzlingKey = jsonDesc.getActivationSwizzlingKey();
 
         if (weightInChannels > 8 * 1024) {
             hwtest::buildContinuedConv(jsonDesc, module, builder, log, input_types.front(), weightTypes.front(),
                                        output_type);
-        } else if (activationSwizzlingKey != nb::SwizzlingKey::key0) {
-            hwtest::buildDoubleConv(jsonDesc, module, builder, log, input_types.front(), weightTypes.front(),
-                                    output_type);
         } else {
             hwtest::buildSimpleZMajorConv(jsonDesc, module, builder, log, input_types.front(), weightTypes.front(),
                                           output_type);
@@ -109,6 +115,10 @@ mlir::OwningOpRef<mlir::ModuleOp> importHWTEST(llvm::StringRef sourceJson, mlir:
         hwtest::buildDWConv(jsonDesc, module, builder, log, input_types.front(), weightTypes.front(), output_type);
         break;
     }
+    case nb::CaseType::DoubleZMajorConvolution: {
+        hwtest::buildDoubleConv(jsonDesc, module, builder, log, input_types.front(), weightTypes.front(), output_type);
+        break;
+    }
     case nb::CaseType::EltwiseAdd: {
         hwtest::buildEltwiseAdd(jsonDesc, module, builder, log, input_types.front(), weightTypes.front(), output_type);
         break;
@@ -116,6 +126,11 @@ mlir::OwningOpRef<mlir::ModuleOp> importHWTEST(llvm::StringRef sourceJson, mlir:
     case nb::CaseType::EltwiseMult: {
         hwtest::buildEltwiseMultWithDwConv(jsonDesc, module, builder, log, input_types.front(), weightTypes.front(),
                                            output_type);
+        break;
+    }
+    case nb::CaseType::EltwiseSparse: {
+        hwtest::buildEltwiseSparse(jsonDesc, module, builder, log, input_types.front(), weightTypes.front(),
+                                   output_type);
         break;
     }
     case nb::CaseType::MaxPool: {
@@ -216,11 +231,25 @@ mlir::OwningOpRef<mlir::ModuleOp> importHWTEST(llvm::StringRef sourceJson, mlir:
 
     const std::vector<std::shared_ptr<const ov::Node>> params;
     const std::vector<std::shared_ptr<const ov::Node>> results;
-    if (jsonDesc.getCompilerBackend() == nb::CompilerBackend::ELF) {
+    if (jsonDesc.getCompilerBackend() == nb::CompilerBackend::Flatbuffer) {
+        mlir::DefaultTimingManager tm;
+        auto timing = tm.getRootScope();
+        auto blob = VPUIP::exportToBlob(module, timing, {}, params, results, log);
+
+        serialize(blob.data(), blob.size(), log);
+    } else if (jsonDesc.getCompilerBackend() == nb::CompilerBackend::ELF) {
         mlir::PassManager pm(ctx, mlir::OpPassManager::Nesting::Implicit);
-        vpux::buildLowerVPUIP2ELFPipeline(pm, log);
+
+        auto getLoweringPipeline = [](vpux::VPU::ArchKind /*arch*/) {
+            return buildLowerVPUIP2ELFPipeline;
+        };
+        auto getExportToELFfunc = [](vpux::VPU::ArchKind /*arch*/) {
+            return ELF::exportToELF;
+        };
+
+        getLoweringPipeline(jsonDesc.getArchitecture())(pm, log);
         VPUX_THROW_UNLESS(mlir::succeeded(pm.run(module)), "Failed to lower test model to ELF");
-        auto blob = ELF::exportToELF(module, {}, params, results, log);
+        auto blob = getExportToELFfunc(jsonDesc.getArchitecture())(module, {}, params, results, log);
 
         serialize(blob.data(), blob.size(), log);
     } else {

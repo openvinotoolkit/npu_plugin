@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/core/aliases_info.hpp"
 #include "vpux/compiler/core/cost_model_utils.hpp"
 #include "vpux/compiler/dialect/IE/utils/resources.hpp"
@@ -94,13 +92,21 @@ public:
     mlir::LogicalResult matchAndRewrite(VPUIP::PermuteDMAOp permuteOp, mlir::PatternRewriter& rewriter) const final;
 
 private:
-    mlir::LogicalResult unrollSegmentedOrOverlapped(VPUIP::NCEClusterTilingOp clusterOp, VPUIP::PermuteDMAOp permuteOp,
-                                                    VPUIP::DistributedBufferType distributedType,
-                                                    mlir::AffineMap memPerm, mlir::PatternRewriter& rewriter) const;
+    mlir::LogicalResult unrollSegmentedOrOverlappedOutput(VPUIP::NCEClusterTilingOp clusterOp,
+                                                          VPUIP::PermuteDMAOp permuteOp,
+                                                          VPUIP::DistributedBufferType distributedType,
+                                                          mlir::AffineMap memPerm,
+                                                          mlir::PatternRewriter& rewriter) const;
 
-    mlir::LogicalResult unrollDuplicated(VPUIP::NCEClusterTilingOp clusterOp, VPUIP::PermuteDMAOp permuteOp,
-                                         VPUIP::DistributedBufferType distributedType, mlir::AffineMap memPerm,
-                                         mlir::PatternRewriter& rewriter) const;
+    mlir::LogicalResult unrollDuplicatedOutput(VPUIP::NCEClusterTilingOp clusterOp, VPUIP::PermuteDMAOp permuteOp,
+                                               VPUIP::DistributedBufferType distributedType, mlir::AffineMap memPerm,
+                                               mlir::PatternRewriter& rewriter) const;
+
+    mlir::LogicalResult unrollDuplicatedInputAndOutput(VPUIP::NCEClusterTilingOp clusterOp,
+                                                       VPUIP::PermuteDMAOp permuteOp, mlir::AffineMap memPerm,
+                                                       mlir::PatternRewriter& rewriter) const;
+    mlir::LogicalResult unrollDuplicatedInput(VPUIP::NCEClusterTilingOp clusterOp, VPUIP::PermuteDMAOp permuteOp,
+                                              mlir::AffineMap memPerm, mlir::PatternRewriter& rewriter) const;
 
     int64_t _dmaPortCount;
     Logger _log;
@@ -119,29 +125,38 @@ mlir::LogicalResult PermuteRewriter::matchAndRewrite(VPUIP::PermuteDMAOp permute
 
         const auto inputType = input.getType().cast<vpux::NDTypeInterface>();
         const auto outputType = output.getType().cast<vpux::NDTypeInterface>();
+
+        VPUX_THROW_UNLESS(permuteOp.mem_perm().hasValue(), "Can not get memPerm attribute from PermuteDMA layer at {0}",
+                          permuteOp.getLoc());
+        const auto memPerm = permuteOp.mem_perm().getValue();
+        auto inDistributedType = inputType.dyn_cast<VPUIP::DistributedBufferType>();
+        auto outDistributedType = outputType.dyn_cast<VPUIP::DistributedBufferType>();
+
+        if (inDistributedType != nullptr && outDistributedType != nullptr) {
+            return unrollDuplicatedInputAndOutput(clusterOp, permuteOp, memPerm, rewriter);
+        } else if (inDistributedType != nullptr) {
+            return unrollDuplicatedInput(clusterOp, permuteOp, memPerm, rewriter);
+        }
+
         VPUX_THROW_UNLESS(inputType.getMemoryKind() == VPU::MemoryKind::DDR &&
                                   outputType.getMemoryKind() == VPU::MemoryKind::CMX_NN,
                           "Unexpected memory space. Got: input {0}, output {1}", inputType.getMemoryKind(),
                           outputType.getMemoryKind());
 
-        const auto distributedType = outputType.dyn_cast<VPUIP::DistributedBufferType>();
-        VPUX_THROW_WHEN(distributedType == nullptr, "Expect distributed type for permute op output, actual: {0}",
+        VPUX_THROW_WHEN(outDistributedType == nullptr, "Expect distributed type for permute op output, actual: {0}",
                         outputType);
 
-        VPUX_THROW_UNLESS(permuteOp.mem_perm().hasValue(), "Can not get memPerm attribute from PermuteDMA layer at {0}",
-                          permuteOp.getLoc());
-        const auto memPerm = permuteOp.mem_perm().getValue();
         VPUX_THROW_UNLESS(VPUIP::doesPermuteDMATileDimSupportWrapInCluster(innerInputType, innerOutputType, memPerm,
-                                                                           distributedType, _log),
+                                                                           outDistributedType, _log),
                           "Unsupported PermuteDMA under cluster tiling at '{0}'", permuteOp->getLoc());
 
-        const auto distributionAttr = distributedType.getDistribution();
+        const auto distributionAttr = outDistributedType.getDistribution();
         const auto mode = distributionAttr.mode().getValue();
         if (mode == VPU::DistributionMode::SEGMENTED || mode == VPU::DistributionMode::OVERLAPPED) {
-            return unrollSegmentedOrOverlapped(clusterOp, permuteOp, distributedType, memPerm, rewriter);
+            return unrollSegmentedOrOverlappedOutput(clusterOp, permuteOp, outDistributedType, memPerm, rewriter);
         } else if (VPU::bitEnumContains(mode, VPU::DistributionMode::DUPLICATED) ||
                    VPU::bitEnumContains(mode, VPU::DistributionMode::MULTICASTED)) {
-            return unrollDuplicated(clusterOp, permuteOp, distributedType, memPerm, rewriter);
+            return unrollDuplicatedOutput(clusterOp, permuteOp, outDistributedType, memPerm, rewriter);
         } else {
             VPUX_THROW("Unsupported distributed mode");
         }
@@ -324,11 +339,11 @@ mlir::LogicalResult PermuteRewriter::matchAndRewrite(VPUIP::PermuteDMAOp permute
     return mlir::success();
 }
 
-mlir::LogicalResult PermuteRewriter::unrollSegmentedOrOverlapped(VPUIP::NCEClusterTilingOp clusterOp,
-                                                                 VPUIP::PermuteDMAOp permuteOp,
-                                                                 VPUIP::DistributedBufferType distributedType,
-                                                                 mlir::AffineMap memPerm,
-                                                                 mlir::PatternRewriter& rewriter) const {
+mlir::LogicalResult PermuteRewriter::unrollSegmentedOrOverlappedOutput(VPUIP::NCEClusterTilingOp clusterOp,
+                                                                       VPUIP::PermuteDMAOp permuteOp,
+                                                                       VPUIP::DistributedBufferType distributedType,
+                                                                       mlir::AffineMap memPerm,
+                                                                       mlir::PatternRewriter& rewriter) const {
     auto loc = permuteOp->getLoc();
     auto ctx = permuteOp->getContext();
 
@@ -343,8 +358,8 @@ mlir::LogicalResult PermuteRewriter::unrollSegmentedOrOverlapped(VPUIP::NCEClust
     const auto mode = distributionAttr.mode().getValue();
     VPUX_THROW_UNLESS(mode == VPU::DistributionMode::SEGMENTED || mode == VPU::DistributionMode::OVERLAPPED,
                       "Unsupported distributed mode");
-    const auto perClusterOutShapes = distributedType.getPerClusterComputeShapes();
-    const auto perClusterShapeOffsets = distributedType.getPerClusterComputeShapeOffsets();
+    const auto perClusterOutShapes = distributedType.getPerClusterMemoryShapes();
+    const auto perClusterShapeOffsets = distributedType.getPerClusterMemoryShapeOffsets();
     auto cmxNameAttr = mlir::FlatSymbolRefAttr::get(ctx, stringifyEnum(VPU::MemoryKind::CMX_NN));
 
     auto vpurtTask = clusterOp->getParentOfType<VPURT::TaskOp>();
@@ -417,7 +432,6 @@ mlir::LogicalResult PermuteRewriter::unrollSegmentedOrOverlapped(VPUIP::NCEClust
     SmallVector<VPUIP::DmaDescriptorAttr> subDmaDescriptors;
     SmallVector<Byte> ddrOffsets;
     SmallVector<Shape> subMergedOutputShapes;
-    Byte ddrOffset(0);
 
     const auto mergedOutputDimList = VPUIP::getPermuteDMAOutputMergedDimList(innerOutputType, mergedOutputShape);
     auto tileDimForMergedOutput =
@@ -484,10 +498,11 @@ mlir::LogicalResult PermuteRewriter::unrollSegmentedOrOverlapped(VPUIP::NCEClust
     return mlir::success();
 }
 
-mlir::LogicalResult PermuteRewriter::unrollDuplicated(VPUIP::NCEClusterTilingOp clusterOp,
-                                                      VPUIP::PermuteDMAOp permuteOp,
-                                                      VPUIP::DistributedBufferType distributedType,
-                                                      mlir::AffineMap memPerm, mlir::PatternRewriter& rewriter) const {
+mlir::LogicalResult PermuteRewriter::unrollDuplicatedOutput(VPUIP::NCEClusterTilingOp clusterOp,
+                                                            VPUIP::PermuteDMAOp permuteOp,
+                                                            VPUIP::DistributedBufferType distributedType,
+                                                            mlir::AffineMap memPerm,
+                                                            mlir::PatternRewriter& rewriter) const {
     auto loc = permuteOp->getLoc();
     auto ctx = permuteOp->getContext();
 
@@ -514,8 +529,8 @@ mlir::LogicalResult PermuteRewriter::unrollDuplicated(VPUIP::NCEClusterTilingOp 
 
     rewriter.setInsertionPointAfter(vpurtTask);
 
-    const auto perClusterOutShape = distributedType.getPerClusterComputeShapes().front();
-    const auto perClusterShapeOffset = distributedType.getPerClusterComputeShapeOffsets().front();
+    const auto perClusterOutShape = distributedType.getPerClusterMemoryShapes().front();
+    const auto perClusterShapeOffset = distributedType.getPerClusterMemoryShapeOffsets().front();
 
     const auto getOperand = [&](mlir::Value operand, vpux::NDTypeInterface newType) -> mlir::Value {
         if (auto cst = operand.getDefiningOp<Const::DeclareOp>()) {
@@ -565,6 +580,144 @@ mlir::LogicalResult PermuteRewriter::unrollDuplicated(VPUIP::NCEClusterTilingOp 
     return mlir::success();
 }
 
+mlir::LogicalResult PermuteRewriter::unrollDuplicatedInputAndOutput(VPUIP::NCEClusterTilingOp clusterOp,
+                                                                    VPUIP::PermuteDMAOp permuteOp,
+                                                                    mlir::AffineMap memPerm,
+                                                                    mlir::PatternRewriter& rewriter) const {
+    auto loc = permuteOp->getLoc();
+    auto ctx = permuteOp->getContext();
+
+    const auto input = *clusterOp.getInputs().begin();
+    const auto output = *clusterOp.getOutputs().begin();
+
+    const auto innerInputType = permuteOp.input().getType().cast<vpux::NDTypeInterface>();
+    const auto innerOutputType = permuteOp.output_buff().getType().cast<vpux::NDTypeInterface>();
+
+    const auto inDistributedType = clusterOp->getOperand(0).getType().dyn_cast<VPUIP::DistributedBufferType>();
+    const auto outDistributedType = clusterOp->getResult(0).getType().dyn_cast<VPUIP::DistributedBufferType>();
+
+    const auto inMode = inDistributedType.getDistribution().mode().getValue();
+    const auto outMode = outDistributedType.getDistribution().mode().getValue();
+    VPUX_THROW_UNLESS(VPU::bitEnumContains(inMode, VPU::DistributionMode::DUPLICATED) &&
+                              VPU::bitEnumContains(outMode, VPU::DistributionMode::DUPLICATED),
+                      "Unsupported mode");
+
+    const auto distributionAttr = outDistributedType.getDistribution();
+    const auto numClusters = distributionAttr.num_clusters().getInt();
+    VPUX_THROW_WHEN(numClusters == 0, "Invalid number of clusters for {0}", outDistributedType);
+
+    SmallVector<int64_t> clusters(numClusters);
+    std::iota(clusters.begin(), clusters.end(), 0);
+
+    auto vpurtTask = clusterOp->getParentOfType<VPURT::TaskOp>();
+    VPUX_THROW_WHEN(vpurtTask == nullptr, "Can not get VPURT.TaskOp for {0}", permuteOp);
+    auto cycleBeginAttr = vpurtTask->getAttr(cycleBegin);
+    auto cycleEndAttr = vpurtTask->getAttr(cycleEnd);
+
+    const auto mode = distributionAttr.mode().getValue();
+    VPUX_THROW_UNLESS(mode == VPU::DistributionMode::DUPLICATED, "Unsupported distributed mode");
+
+    rewriter.setInsertionPointAfter(vpurtTask);
+
+    auto mergedInputShape = VPUIP::getPermuteDMAInputShape(innerInputType, innerOutputType, memPerm, _log).getValue();
+    auto mergedOutputShape = VPUIP::getPermuteDMAOutputShape(innerInputType, innerOutputType, memPerm, _log).getValue();
+    auto mergedMemPerm = VPUIP::getPermuteDMAMergedMemPerm(innerInputType, memPerm);
+    auto dmaDescriptorGenerator = VPUIP::PermuteDmaDescriptorGenerator(ctx, mergedMemPerm, _log);
+    auto elemTypeSize = Byte(innerInputType.getElemTypeSize());
+
+    // calculate the dma descriptor
+    VPUIP::DmaDescriptorAttr subDmaDescriptor =
+            dmaDescriptorGenerator.generate(mergedInputShape, mergedOutputShape, elemTypeSize);
+
+    // create new input buffer
+    auto inDeclBuff = input.getDefiningOp<VPURT::DeclareBufferOp>();
+    VPUX_THROW_UNLESS(inDeclBuff != nullptr, "Can't get input buffer offset");
+    const auto cmxNameAttr = mlir::FlatSymbolRefAttr::get(ctx, stringifyEnum(VPU::MemoryKind::CMX_NN));
+    const auto symbolAttr = vpux::IndexedSymbolAttr::get(ctx, {cmxNameAttr, vpux::getIntAttr(ctx, 0)});
+    const auto newInType = innerInputType.changeMemSpace(symbolAttr);
+    auto inputBuffer = VPURT::createOp<VPURT::DeclareBufferOp>(
+            rewriter, inDeclBuff, loc, newInType, VPURT::BufferSection::CMX_NN, getIntArrayAttr(ctx, makeArrayRef({0})),
+            inDeclBuff.byteOffset(), inDeclBuff.swizzlingKeyAttr());
+    _log.trace("Insert new input buffer declaration: '{0}'", inputBuffer);
+
+    // create new output buffer
+    auto outDeclBuff = output.getDefiningOp<VPURT::DeclareBufferOp>();
+    VPUX_THROW_UNLESS(outDeclBuff != nullptr, "Can't get output buffer offset");
+    auto outBuffer = VPURT::createOp<VPURT::DeclareBufferOp>(
+            rewriter, outDeclBuff, loc, outDeclBuff.getType(), VPURT::BufferSection::CMX_NN,
+            getIntArrayAttr(ctx, clusters), outDeclBuff.byteOffset(), outDeclBuff.swizzlingKeyAttr());
+
+    auto newPermuteDMAOp = VPURT::wrapIntoTaskOp<VPUIP::PermuteDMAOp>(
+            rewriter, vpurtTask.waitBarriers(), vpurtTask.updateBarriers(), loc, inputBuffer, outBuffer,
+            permuteOp.mem_permAttr(), subDmaDescriptor);
+
+    _log.trace("Insert new permute dma : '{0}'", newPermuteDMAOp);
+    auto newTaskOp = newPermuteDMAOp->getParentOfType<VPURT::TaskOp>();
+    newTaskOp->setAttr(cycleBegin, cycleBeginAttr);
+    newTaskOp->setAttr(cycleEnd, cycleEndAttr);
+    rewriter.eraseOp(vpurtTask);
+    return mlir::success();
+}
+
+mlir::LogicalResult PermuteRewriter::unrollDuplicatedInput(VPUIP::NCEClusterTilingOp clusterOp,
+                                                           VPUIP::PermuteDMAOp permuteOp, mlir::AffineMap memPerm,
+                                                           mlir::PatternRewriter& rewriter) const {
+    auto loc = permuteOp->getLoc();
+    auto ctx = permuteOp->getContext();
+
+    const auto input = *clusterOp.getInputs().begin();
+    const auto output = *clusterOp.getOutputs().begin();
+
+    const auto innerInputType = permuteOp.input().getType().cast<vpux::NDTypeInterface>();
+    const auto innerOutputType = permuteOp.output_buff().getType().cast<vpux::NDTypeInterface>();
+
+    const auto inDistributedType = clusterOp->getOperand(0).getType().dyn_cast<VPUIP::DistributedBufferType>();
+    const auto inMode = inDistributedType.getDistribution().mode().getValue();
+    VPUX_THROW_UNLESS(VPU::bitEnumContains(inMode, VPU::DistributionMode::DUPLICATED), "Unsupported mode");
+
+    auto vpurtTask = clusterOp->getParentOfType<VPURT::TaskOp>();
+    VPUX_THROW_WHEN(vpurtTask == nullptr, "Can not get VPURT.TaskOp for {0}", permuteOp);
+    auto cycleBeginAttr = vpurtTask->getAttr(cycleBegin);
+    auto cycleEndAttr = vpurtTask->getAttr(cycleEnd);
+
+    rewriter.setInsertionPointAfter(vpurtTask);
+
+    auto mergedInputShape = VPUIP::getPermuteDMAInputShape(innerInputType, innerOutputType, memPerm, _log).getValue();
+    auto mergedOutputShape = VPUIP::getPermuteDMAOutputShape(innerInputType, innerOutputType, memPerm, _log).getValue();
+    auto mergedMemPerm = VPUIP::getPermuteDMAMergedMemPerm(innerInputType, memPerm);
+    auto dmaDescriptorGenerator = VPUIP::PermuteDmaDescriptorGenerator(ctx, mergedMemPerm, _log);
+    auto elemTypeSize = Byte(innerInputType.getElemTypeSize());
+
+    // calculate the dma descriptor
+    VPUIP::DmaDescriptorAttr subDmaDescriptor =
+            dmaDescriptorGenerator.generate(mergedInputShape, mergedOutputShape, elemTypeSize);
+
+    // create new input buffer
+    auto inDeclBuff = input.getDefiningOp<VPURT::DeclareBufferOp>();
+    VPUX_THROW_UNLESS(inDeclBuff != nullptr, "Can't get input buffer offset");
+    const auto cmxNameAttr = mlir::FlatSymbolRefAttr::get(ctx, stringifyEnum(VPU::MemoryKind::CMX_NN));
+    const auto symbolAttr = vpux::IndexedSymbolAttr::get(ctx, {cmxNameAttr, vpux::getIntAttr(ctx, 0)});
+    const auto newInType = innerInputType.changeMemSpace(symbolAttr);
+    auto inputBuffer = VPURT::createOp<VPURT::DeclareBufferOp>(
+            rewriter, inDeclBuff, loc, newInType, VPURT::BufferSection::CMX_NN, getIntArrayAttr(ctx, makeArrayRef({0})),
+            inDeclBuff.byteOffset(), inDeclBuff.swizzlingKeyAttr());
+    _log.trace("Insert new input buffer declaration: '{0}'", inputBuffer);
+
+    // create new output buffer
+    auto outDeclBuff = output.getDefiningOp<VPURT::DeclareBufferOp>();
+
+    auto newPermuteDMAOp = VPURT::wrapIntoTaskOp<VPUIP::PermuteDMAOp>(
+            rewriter, vpurtTask.waitBarriers(), vpurtTask.updateBarriers(), loc, inputBuffer, outDeclBuff,
+            permuteOp.mem_permAttr(), subDmaDescriptor);
+
+    _log.trace("Insert new permute dma : '{0}'", newPermuteDMAOp);
+    auto newTaskOp = newPermuteDMAOp->getParentOfType<VPURT::TaskOp>();
+    newTaskOp->setAttr(cycleBegin, cycleBeginAttr);
+    newTaskOp->setAttr(cycleEnd, cycleEndAttr);
+    rewriter.eraseOp(vpurtTask);
+    return mlir::success();
+}
+
 //
 // UnrollPermuteToNNDMAPass
 //
@@ -581,7 +734,7 @@ private:
 
 void UnrollPermuteToNNDMAPass::safeRunOnFunc() {
     auto& ctx = getContext();
-    auto func = getFunction();
+    auto func = getOperation();
 
     auto module = func->getParentOfType<mlir::ModuleOp>();
     auto dmaOp = IE::getAvailableExecutor(module, VPU::ExecutorKind::DMA_NN);

@@ -1,13 +1,14 @@
 //
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
+
 // RUN: vpux-opt --split-input-file --init-compiler="vpu-arch=%arch%" --ungroup-sparse-buffers --canonicalize %s | FileCheck %s
 // REQUIRES: arch-VPUX30XX || arch-VPUX37XX
 
-// CHECK:       func @SparseCopy([[ARG0:%.+]]: memref<32x16x3x3xf16>, [[ARG1:%.+]]: memref<32x16x3x3xi1>)
+// CHECK:       func.func @SparseCopy([[ARG0:%.+]]: memref<32x16x3x3xf16>, [[ARG1:%.+]]: memref<32x16x3x3xi1>)
 // CHECK-SAME:      -> (memref<32x16x3x3xf16, @CMX_NN>, memref<32x16x3x3xi1, @CMX_NN>)
-func @SparseCopy(%arg0: memref<32x16x3x3xf16>, %arg1: memref<32x16x3x3xi1>) -> (memref<32x16x3x3xf16, @CMX_NN>, memref<32x16x3x3xi1, @CMX_NN>) {
+func.func @SparseCopy(%arg0: memref<32x16x3x3xf16>, %arg1: memref<32x16x3x3xi1>) -> (memref<32x16x3x3xf16, @CMX_NN>, memref<32x16x3x3xi1, @CMX_NN>) {
     %0 = VPUIP.GroupSparseBuffer (%arg0, %arg1)
         -> !VPUIP.SparseBuffer<data=memref<32x16x3x3xf16>, sparsity_map=memref<32x16x3x3xi1>>
     %1 = memref.alloc() : memref<32x16x3x3xf16, @CMX_NN>
@@ -37,10 +38,10 @@ func @SparseCopy(%arg0: memref<32x16x3x3xf16>, %arg1: memref<32x16x3x3xi1>) -> (
 
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
-// CHECK:       func @SparseConv([[ARG0:%.+]]: memref<1x16x64x64xf16, #NHWC>, [[ARG1:%.+]]: memref<1x16x64x64xi1, #NHWC>,
+// CHECK:       func.func @SparseConv([[ARG0:%.+]]: memref<1x16x64x64xf16, #NHWC>, [[ARG1:%.+]]: memref<1x16x64x64xi1, #NHWC>,
 // CHECK-SAME:                    [[ARG2:%.+]]: memref<1x32x64x64xf16, #NHWC>, [[ARG3:%.+]]: memref<1x32x64x64xi1, #NHWC>)
 // CHECK-SAME:      -> (memref<1x32x64x64xf16, #NHWC>, memref<1x32x64x64xi1, #NHWC>)
-func @SparseConv(%arg0: memref<1x16x64x64xf16, #NHWC>, %arg1: memref<1x16x64x64xi1, #NHWC>,
+func.func @SparseConv(%arg0: memref<1x16x64x64xf16, #NHWC>, %arg1: memref<1x16x64x64xi1, #NHWC>,
                  %arg2: memref<1x32x64x64xf16, #NHWC>, %arg3: memref<1x32x64x64xi1, #NHWC>)
         -> (memref<1x32x64x64xf16, #NHWC>, memref<1x32x64x64xi1, #NHWC>) {
     %input_sparse = VPUIP.GroupSparseBuffer (%arg0, %arg1)
@@ -183,28 +184,28 @@ func @SparseConv(%arg0: memref<1x16x64x64xf16, #NHWC>, %arg1: memref<1x16x64x64x
 #NCHW = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
-!Data_Distributed = type !VPUIP.DistributedBuffer<
+!Data_Distributed = !VPUIP.DistributedBuffer<
   32x16x3x3xf16, #NHWC, @CMX_NN, {
   mode = "DUPLICATED",
   num_clusters = 2 : i64
 }>
 
-!SM_Distributed = type !VPUIP.DistributedBuffer<
+!SM_Distributed = !VPUIP.DistributedBuffer<
   32x1x1x256xi1, #NCHW, @CMX_NN, {
   mode = "DUPLICATED",
   num_clusters = 2 : i64
 }>
 
-!Data_DDR = type memref<32x16x3x3xf16, #NHWC>
-!SM_DDR = type memref<32x1x1x256xi1>
+!Data_DDR = memref<32x16x3x3xf16, #NHWC>
+!SM_DDR = memref<32x1x1x256xi1>
 
-!Data_CMX = type memref<32x16x3x3xf16, #NHWC, @CMX_NN>
-!SM_CMX = type memref<32x1x1x256xi1, @CMX_NN>
+!Data_CMX = memref<32x16x3x3xf16, #NHWC, @CMX_NN>
+!SM_CMX = memref<32x1x1x256xi1, @CMX_NN>
 
-// CHECK:       func @SparseCopyDistributed([[ARG0:%.+]]: memref<32x16x3x3xf16, #NHWC>, [[ARG1:%.+]]: memref<32x1x1x256xi1>)
+// CHECK:       func.func @SparseCopyDistributed([[ARG0:%.+]]: memref<32x16x3x3xf16, #NHWC>, [[ARG1:%.+]]: memref<32x1x1x256xi1>)
 // CHECK-SAME:      -> (!VPUIP.DistributedBuffer<32x16x3x3xf16, #NHWC, @CMX_NN, {mode = "DUPLICATED", num_clusters = 2 : i64}>,
 // CHECK-SAME:          !VPUIP.DistributedBuffer<32x1x1x256xi1, affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>, @CMX_NN, {mode = "DUPLICATED", num_clusters = 2 : i64}>)
-func @SparseCopyDistributed(%arg0: !Data_DDR, %arg1: !SM_DDR) -> (!Data_Distributed, !SM_Distributed) {
+func.func @SparseCopyDistributed(%arg0: !Data_DDR, %arg1: !SM_DDR) -> (!Data_Distributed, !SM_Distributed) {
     %0 = VPUIP.GroupSparseBuffer (%arg0, %arg1) {is_weights} -> !VPUIP.SparseBuffer<data=!Data_DDR, sparsity_map=!SM_DDR, is_weights>
 
     %1 = VPURT.AllocDistributed -> !Data_Distributed
@@ -248,46 +249,46 @@ func @SparseCopyDistributed(%arg0: !Data_DDR, %arg1: !SM_DDR) -> (!Data_Distribu
 #NCHW = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
-!IODistributed = type !VPUIP.DistributedBuffer<
+!IODistributed = !VPUIP.DistributedBuffer<
     1x16x64x64xf16, #NHWC, @CMX_NN, {
     mode = "SEGMENTED",
     num_tiles = [1, 1, 2, 1],
     num_clusters = 2
 }>
 
-!IOSMDistributed = type !VPUIP.DistributedBuffer<
+!IOSMDistributed = !VPUIP.DistributedBuffer<
     1x16x64x64xi1, #NHWC, @CMX_NN, {
     mode = "SEGMENTED",
     num_tiles = [1, 1, 2, 1],
     num_clusters = 2
 }>
 
-!WeightsDistributed = type !VPUIP.DistributedBuffer<
+!WeightsDistributed = !VPUIP.DistributedBuffer<
     32x16x3x3xf16, #NHWC, @CMX_NN, {
     mode = "DUPLICATED",
     num_clusters = 2
 }>
 
-!WeightsSMDistributed = type !VPUIP.DistributedBuffer<
+!WeightsSMDistributed = !VPUIP.DistributedBuffer<
     32x1x1x256xi1, #NCHW, @CMX_NN, {
     mode = "DUPLICATED",
     num_clusters = 2
 }>
 
-!IOBuffer = type memref<1x16x64x64xf16, #NHWC, @CMX_NN>
-!IOSMBuffer = type memref<1x16x64x64xi1, #NHWC, @CMX_NN>
-!WeightsBuffer = type memref<32x16x3x3xf16, #NHWC, @CMX_NN>
-!WeightsSMBuffer = type memref<32x1x1x256xi1, @CMX_NN>
-!WeightsTableBuffer = type memref<32x1x1x4xsi32, @CMX_NN>
+!IOBuffer = memref<1x16x64x64xf16, #NHWC, @CMX_NN>
+!IOSMBuffer = memref<1x16x64x64xi1, #NHWC, @CMX_NN>
+!WeightsBuffer = memref<32x16x3x3xf16, #NHWC, @CMX_NN>
+!WeightsSMBuffer = memref<32x1x1x256xi1, @CMX_NN>
+!WeightsTableBuffer = memref<32x1x1x4xsi32, @CMX_NN>
 
-// CHECK:       func @SparseConvDistributed(
+// CHECK:       func.func @SparseConvDistributed(
 // CHECK-SAME:      [[ARG0:%.+]]: !VPUIP.DistributedBuffer<1x16x64x64xf16, #NHWC, @CMX_NN, {mode = "SEGMENTED", num_tiles = [1, 1, 2, 1], num_clusters = 2 : i64}>,
 // CHECK-SAME:      [[ARG1:%.+]]: !VPUIP.DistributedBuffer<1x16x64x64xi1, #NHWC, @CMX_NN, {mode = "SEGMENTED", num_tiles = [1, 1, 2, 1], num_clusters = 2 : i64}>,
 // CHECK-SAME:      [[ARG2:%.+]]: !VPUIP.DistributedBuffer<32x16x3x3xf16, #NHWC, @CMX_NN, {mode = "DUPLICATED", num_clusters = 2 : i64}>,
 // CHECK-SAME:      [[ARG3:%.+]]: !VPUIP.DistributedBuffer<32x1x1x256xi1, affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>, @CMX_NN, {mode = "DUPLICATED", num_clusters = 2 : i64}>)
 // CHECK-SAME:      -> (!VPUIP.DistributedBuffer<1x16x64x64xf16, #NHWC, @CMX_NN, {mode = "SEGMENTED", num_tiles = [1, 1, 2, 1], num_clusters = 2 : i64}>,
 // CHECK-SAME:          !VPUIP.DistributedBuffer<1x16x64x64xi1, #NHWC, @CMX_NN, {mode = "SEGMENTED", num_tiles = [1, 1, 2, 1], num_clusters = 2 : i64}>)
-func @SparseConvDistributed(%arg0: !IODistributed, %arg1: !IOSMDistributed, %arg2: !WeightsDistributed, %arg3: !WeightsSMDistributed)
+func.func @SparseConvDistributed(%arg0: !IODistributed, %arg1: !IOSMDistributed, %arg2: !WeightsDistributed, %arg3: !WeightsSMDistributed)
         -> (!IODistributed, !IOSMDistributed) {
     %input_sparse = VPUIP.GroupSparseBuffer (%arg0, %arg1)
         -> !VPUIP.SparseBuffer<data=!IODistributed, sparsity_map=!IOSMDistributed>
@@ -348,7 +349,7 @@ func @SparseConvDistributed(%arg0: !IODistributed, %arg1: !IOSMDistributed, %arg
 
     return %conv_out_data, %conv_out_sm : !IODistributed, !IOSMDistributed
 
-    // CHECK:       [[CST_WEIGHTS_TABLE:%.+]] = const.Declare memref<32x1x1x4xsi32, @CMX_NN> = dense<1> : tensor<32x1x1x4xsi32>
+    // CHECK-DAG:       [[CST_WEIGHTS_TABLE:%.+]] = const.Declare memref<32x1x1x4xsi32, @CMX_NN> = dense<1> : tensor<32x1x1x4xsi32>
     // CHECK:       [[OUT_DATA:%.+]] = VPURT.AllocDistributed -> !VPUIP.DistributedBuffer<1x16x64x64xf16, #NHWC, @CMX_NN, {mode = "SEGMENTED", num_tiles = [1, 1, 2, 1], num_clusters = 2 : i64}>
     // CHECK:       [[OUT_SM:%.+]] = VPURT.AllocDistributed -> !VPUIP.DistributedBuffer<1x16x64x64xi1, #NHWC, @CMX_NN, {mode = "SEGMENTED", num_tiles = [1, 1, 2, 1], num_clusters = 2 : i64}>
     // CHECK:       [[CONV_OUT:%.+]]:2 = VPUIP.NCEClusterTiling

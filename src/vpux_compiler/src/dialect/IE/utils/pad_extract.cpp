@@ -4,6 +4,7 @@
 //
 
 #include "vpux/compiler/dialect/IE/utils/pad_extract.hpp"
+#include "vpux/compiler/utils/error.hpp"
 
 namespace vpux {
 namespace IE {
@@ -14,14 +15,30 @@ mlir::FailureOr<SmallVector<int64_t>> extractPads(mlir::ArrayAttr padValue, Logg
         return mlir::failure();
     }
 
-    const auto valueVector = parseIntArrayAttr<int64_t>(padValue);
+    return parseIntArrayAttr<int64_t>(padValue);
+}
 
-    if (valueVector.size() != 4) {
-        log.nest().trace("Pad Attr size {1} != 4", valueVector.size());
-        return mlir::failure();
+mlir::FailureOr<SmallVector<int64_t>> extractPads(mlir::Location loc, const mlir::Value& padValue,
+                                                  const Optional<mlir::ArrayAttr>& padAttr, vpux::ShapeRef inputShape) {
+    if (padAttr.hasValue()) {
+        return parseIntArrayAttr<int64_t>(padAttr.getValue());
+    } else if (padValue != nullptr) {
+        auto padsConst = padValue.getDefiningOp<Const::DeclareOp>();
+        if (padsConst == nullptr) {
+            return errorAt(loc, "Only constant input is supported for pad");
+        }
+
+        auto padValueShape = padValue.getType().cast<vpux::NDTypeInterface>().getShape().raw();
+        if (padValueShape.size() != 1 || padValueShape[0] != checked_cast<int64_t>(inputShape.size())) {
+            return errorAt(loc, "pad_begin shape is not compatible with input tensor."
+                                "The length of the list must be equal to the number of dimensions in the input tensor");
+        }
+
+        const auto padContent = padsConst.content();
+        return to_small_vector(padContent.getValues<int64_t>());
     }
 
-    return valueVector;
+    return errorAt(loc, "Pads were not provided");
 }
 
 }  // namespace IE

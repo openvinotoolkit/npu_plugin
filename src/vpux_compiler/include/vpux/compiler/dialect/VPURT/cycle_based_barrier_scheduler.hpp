@@ -2,8 +2,6 @@
 // Copyright (C) 2022 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
-
-//
 #pragma once
 
 #include "vpux/compiler/core/cost_model_utils.hpp"
@@ -73,7 +71,7 @@ public:
     using taskOpUpdateMapType = SmallVector<llvm::BitVector>;
     using taskAndCyclePair = std::pair<vpux::VPURT::TaskOp, size_t>;
 
-    CycleBasedBarrierScheduler(mlir::FuncOp func, Logger log);
+    CycleBasedBarrierScheduler(mlir::func::FuncOp func, Logger log);
     void init(size_t numberOfBarriers, size_t maxProducersPerBarrier);
     void clearTemporaryAttributes();
     bool generateScheduleWithBarriers();
@@ -135,7 +133,7 @@ private:
     // The consumer tasks per task from original dependency
     std::map<mlir::Operation*, std::set<mlir::Operation*>> _taskConsumerMapOriginal;
     Logger _log;
-    mlir::FuncOp _func;
+    mlir::func::FuncOp _func;
     // Enable DMA related barrier optimization
     bool _enableDMAOptimization;
     // The number of execute tasks

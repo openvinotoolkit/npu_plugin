@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #ifndef VPUX_COMPILER_DIALECT_VPU
 #define VPUX_COMPILER_DIALECT_VPU
 
@@ -33,11 +31,13 @@ def VPU_Dialect : Dialect {
     let dependentDialects = [
         "vpux::Const::ConstDialect",
         "vpux::IE::IEDialect",
-        "mlir::StandardOpsDialect",
+        "mlir::func::FuncDialect",
         "mlir::quant::QuantizationDialect"
     ];
 
     let hasConstantMaterializer = 1;
+    let useDefaultTypePrinterParser = 1;
+    let useDefaultAttributePrinterParser = 1;
 }
 
 #endif

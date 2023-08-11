@@ -3,18 +3,15 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/utils/rewriter.hpp"
 
 #include "vpux/compiler/conversion.hpp"
 #include "vpux/compiler/core/aliases_info.hpp"
+#include "vpux/compiler/core/profiling.hpp"
 #include "vpux/compiler/utils/analysis.hpp"
 #include "vpux/compiler/utils/logging.hpp"
 
 #include "vpux/utils/core/checked_cast.hpp"
-
-#include <mlir/Dialect/StandardOps/IR/Ops.h>
 
 #include <llvm/ADT/SmallPtrSet.h>
 
@@ -24,9 +21,9 @@ using namespace vpux;
 // updateFunctionSignature
 //
 
-mlir::LogicalResult vpux::updateFunctionSignature(mlir::FuncOp funcOp, ArrayRef<mlir::Type> newArgTypes,
+mlir::LogicalResult vpux::updateFunctionSignature(mlir::func::FuncOp funcOp, ArrayRef<mlir::Type> newArgTypes,
                                                   ArrayRef<mlir::Type> newResultTypes, Logger log) {
-    const auto origFuncType = funcOp.getType();
+    const auto origFuncType = funcOp.getFunctionType();
 
     if (newArgTypes.size() != origFuncType.getNumInputs()) {
         log.trace("New inputs size '{0}' doesn't match original prototype", newArgTypes.size());
@@ -84,13 +81,13 @@ mlir::Type bufferizeTensor(mlir::Type tensorType) {
 // convertFunc
 //
 
-mlir::LogicalResult vpux::convertFunc(mlir::FuncOp funcOp, ArrayRef<mlir::Type> newArgTypes,
+mlir::LogicalResult vpux::convertFunc(mlir::func::FuncOp funcOp, ArrayRef<mlir::Type> newArgTypes,
                                       ArrayRef<mlir::Type> newResultTypes, CvtOpBuilderCb cvtOpBuilder, Logger log) {
-    log.trace("Convert Function '@{0}' prototype", funcOp.sym_name());
+    log.trace("Convert Function '@{0}' prototype", funcOp.getSymName());
     log = log.nest();
 
     if (funcOp.isExternal()) {
-        log.trace("Can't convert external Function '@{0}'", funcOp.sym_name());
+        log.trace("Can't convert external Function '@{0}'", funcOp.getSymName());
         return mlir::failure();
     }
 
@@ -142,7 +139,7 @@ mlir::LogicalResult vpux::convertFunc(mlir::FuncOp funcOp, ArrayRef<mlir::Type> 
 
     log.trace("Convert results");
 
-    funcOp.walk([&](mlir::ReturnOp retOp) {
+    funcOp.walk([&](mlir::func::ReturnOp retOp) {
         log.nest().trace("Process return Operation '{0}'", retOp.getLoc());
 
         OpBuilderLogger builderLog(log.nest(3));
@@ -200,6 +197,8 @@ mlir::Location vpux::appendLoc(mlir::Location baseLoc, const formatv_object_base
 }
 
 mlir::Location vpux::appendLoc(mlir::Location baseLoc, mlir::StringAttr suffix) {
+    VPUX_THROW_WHEN(suffix.getValue().find(LOCATION_ORIGIN_SEPARATOR) != std::string::npos,
+                    "{0} character is reserved inside locations", LOCATION_ORIGIN_SEPARATOR);
     const mlir::Location suffixLoc = mlir::NameLoc::get(suffix);
     return mlir::FusedLoc::get(baseLoc.getContext(), {baseLoc, suffixLoc});
 }
@@ -220,6 +219,7 @@ vpux::BufferizeTypeConverter::BufferizeTypeConverter() {
         const auto data = bufferizeTensor(type.getData());
         const auto sparsityMap = bufferizeTensor(type.getSparsityMap());
         const auto storageElementTable = bufferizeTensor(type.getStorageElementTable());
+        const auto seAttr = type.getSeAttr();
 
         VPUIP::CompressionSchemeAttr compressionScheme = nullptr;
         if (type.getCompressionScheme() != nullptr) {
@@ -230,7 +230,7 @@ vpux::BufferizeTypeConverter::BufferizeTypeConverter() {
         }
 
         return VPUIP::SparseBufferType::get(data, sparsityMap, storageElementTable, type.getIsWeights(),
-                                            compressionScheme);
+                                            compressionScheme, seAttr);
     });
 
     addTargetMaterialization(dummyConverter<mlir::BaseMemRefType>);

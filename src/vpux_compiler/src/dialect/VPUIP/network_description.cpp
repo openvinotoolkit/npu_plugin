@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/VPUIP/network_description.hpp"
 
 #include "vpux/compiler/core/attributes/dims_order.hpp"
@@ -21,8 +19,6 @@
 #include <ie_input_info.hpp>
 
 #include <algorithm>
-
-#include <precision_utils.h>
 
 using namespace vpux;
 using namespace InferenceEngine;
@@ -239,8 +235,7 @@ const EnumMap<MVCNN::OVNodeType, ov::element::Type_t> mapElementTypeIE = {
         {MVCNN::OVNodeType::OVNodeType_U64, ov::element::Type_t::u64},
 };
 
-std::vector<OVRawNode> deserializeOVNodes(const flatbuffers::Vector<flatbuffers::Offset<MVCNN::OVNode>>* mvcnnOVNode,
-                                          const bool isResult) {
+std::vector<OVRawNode> deserializeOVNodes(const flatbuffers::Vector<flatbuffers::Offset<MVCNN::OVNode>>* mvcnnOVNode) {
     // Check for the existence of a field in a blob. In older versions of the blob, this field may not exist
     if (mvcnnOVNode == nullptr) {
         return {};
@@ -268,15 +263,8 @@ std::vector<OVRawNode> deserializeOVNodes(const flatbuffers::Vector<flatbuffers:
                 return retTensorNames;
             }();
 
-            const auto inputName = [&node, &isResult]() {
-                std::string retInputName;
-                if (isResult) {
-                    retInputName = node->input_name()->str();
-                }
-                return retInputName;
-            }();
-
-            nodes.push_back({nodeFriendlyName, nodeType, nodeShape, tensorNames, inputName, isResult});
+            const auto inputName = node->input_name()->str();
+            nodes.push_back({nodeFriendlyName, nodeType, nodeShape, tensorNames, inputName});
         }
     }
     return nodes;
@@ -314,11 +302,11 @@ vpux::VPUIP::NetworkDescription::NetworkDescription(std::vector<char> blob)
     OV_ITT_TASK_NEXT(NETWORK_DESCRIPTION, "deserializeOVNodes");
     const auto ovParams = header->ov_parameters();
     if (ovParams != nullptr) {
-        _ovParameters = deserializeOVNodes(ovParams, false);
+        _ovParameters = deserializeOVNodes(ovParams);
     }
     const auto ovResults = header->ov_results();
     if (ovResults != nullptr) {
-        _ovResults = deserializeOVNodes(ovResults, true);
+        _ovResults = deserializeOVNodes(ovResults);
     }
 
     OV_ITT_TASK_NEXT(NETWORK_DESCRIPTION, "deserializeDataMap");

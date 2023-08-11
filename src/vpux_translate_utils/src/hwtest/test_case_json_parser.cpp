@@ -279,16 +279,22 @@ std::string nb::to_string(CaseType case_) {
     switch (case_) {
     case CaseType::DMA:
         return "DMA";
+    case CaseType::DMAcompressAct:
+        return "DMAcompressAct";
     case CaseType::ZMajorConvolution:
         return "ZMajorConvolution";
     case CaseType::SparseZMajorConvolution:
         return "SparseZMajorConvolution";
     case CaseType::DepthWiseConv:
         return "DepthWiseConv";
+    case CaseType::DoubleZMajorConvolution:
+        return "DoubleZMajorConvolution";
     case CaseType::EltwiseAdd:
         return "EltwiseAdd";
     case CaseType::EltwiseMult:
         return "EltwiseMult";
+    case CaseType::EltwiseSparse:
+        return "EltwiseSparse";
     case CaseType::MaxPool:
         return "MaxPool";
     case CaseType::AvgPool:
@@ -297,8 +303,6 @@ std::string nb::to_string(CaseType case_) {
         return "DifferentClustersDPU";
     case CaseType::MultiClustersDPU:
         return "MultiClustersDPU";
-    case CaseType::HaloMultiClustering:
-        return "HaloMultiClustering";
     case CaseType::ActShave:
         return "ActShave";
     case CaseType::ReadAfterWriteDPUDMA:
@@ -335,16 +339,22 @@ std::string nb::to_string(CaseType case_) {
 nb::CaseType nb::to_case(StringRef str) {
     if (isEqual(str, "DMA"))
         return CaseType::DMA;
+    if (isEqual(str, "DMAcompressAct"))
+        return CaseType::DMAcompressAct;
     if (isEqual(str, "ZMajorConvolution"))
         return CaseType::ZMajorConvolution;
     if (isEqual(str, "SparseZMajorConvolution"))
         return CaseType::SparseZMajorConvolution;
     if (isEqual(str, "DepthWiseConv"))
         return CaseType::DepthWiseConv;
+    if (isEqual(str, "DoubleZMajorConvolution"))
+        return CaseType::DoubleZMajorConvolution;
     if (isEqual(str, "EltwiseAdd"))
         return CaseType::EltwiseAdd;
     if (isEqual(str, "EltwiseMult"))
         return CaseType::EltwiseMult;
+    if (isEqual(str, "EltwiseSparse"))
+        return CaseType::EltwiseSparse;
     if (isEqual(str, "MaxPool"))
         return CaseType::MaxPool;
     if (isEqual(str, "AvgPool"))
@@ -353,8 +363,6 @@ nb::CaseType nb::to_case(StringRef str) {
         return CaseType::DifferentClustersDPU;
     if (isEqual(str, "MultiClustersDPU"))
         return CaseType::MultiClustersDPU;
-    if (isEqual(str, "HaloMultiClustering"))
-        return CaseType::HaloMultiClustering;
     if (isEqual(str, "ActShave"))
         return CaseType::ActShave;
     if (isEqual(str, "ReadAfterWriteDPUDMA"))
@@ -490,47 +498,6 @@ nb::MultiClusterDPUParams nb::TestCaseJsonDescriptor::loadMultiClusterDPUParams(
     return params;
 }
 
-nb::HaloParams nb::TestCaseJsonDescriptor::loadHaloTaskParams(llvm::json::Object* jsonObj) {
-    nb::HaloParams params;
-    auto* taskParams = jsonObj->getObject("HaloParams");
-
-    const auto* jsonTaskClusters = taskParams->getArray("task_clusters");
-    VPUX_THROW_UNLESS(jsonTaskClusters != nullptr, "loadHaloTaskParams: cannot find task_clusters config param");
-
-    params.taskClusters.resize(jsonTaskClusters->size());
-    for (size_t i = 0; i < jsonTaskClusters->size(); i++) {
-        params.taskClusters[i] = (*jsonTaskClusters)[i].getAsInteger().getValue();
-    }
-
-    const std::unordered_map<llvm::StringRef, SegmentationType> segmentOptions = {{"SOK", SegmentationType::SOK},
-                                                                                  {"SOH", SegmentationType::SOH},
-                                                                                  {"SOW", SegmentationType::SOW},
-                                                                                  {"SOHW", SegmentationType::SOHW},
-                                                                                  {"SOHK", SegmentationType::SOHK}};
-
-    auto segmentation = taskParams->getString("segmentation");
-    VPUX_THROW_UNLESS(segmentation.hasValue() && segmentOptions.find(segmentation.getValue()) != segmentOptions.end(),
-                      "loadHaloTaskParams: failed to get valid segmentation type");
-
-    params.segmentation = segmentOptions.at(segmentation.getValue().str());
-
-    if (params.segmentation == SegmentationType::SOHW || params.segmentation == SegmentationType::SOHK) {
-        const auto* jsonClustersPerDim = taskParams->getArray("clusters_per_dim");
-        VPUX_THROW_UNLESS(jsonClustersPerDim != nullptr,
-                          "loadHaloTaskParams: cannot find clusters_per_dim config param");
-
-        params.clustersPerDim.resize(jsonClustersPerDim->size());
-        for (size_t i = 0; i < jsonClustersPerDim->size(); i++) {
-            params.clustersPerDim[i] = (*jsonClustersPerDim)[i].getAsInteger().getValue();
-        }
-    }
-
-    params.heightHaloSize = taskParams->getInteger("spatial_halo_h").getValue();
-    params.widthHaloSize = taskParams->getInteger("spatial_halo_w").getValue();
-
-    return params;
-}
-
 SmallVector<nb::InputLayer> nb::TestCaseJsonDescriptor::loadInputLayer(llvm::json::Object* jsonObj) {
     SmallVector<nb::InputLayer> result;
 
@@ -586,6 +553,51 @@ SmallVector<nb::WeightLayer> nb::TestCaseJsonDescriptor::loadWeightLayer(llvm::j
     return result;
 }
 
+SmallVector<nb::SM> nb::TestCaseJsonDescriptor::loadInputSMs(llvm::json::Object* jsonObj) {
+    SmallVector<nb::SM> result;
+
+    auto* smArray = jsonObj->getArray("sparsity_map_input");
+    if (!smArray) {
+        return result;
+    }
+
+    result.resize(smArray->size());
+
+    for (size_t inIdx = 0; inIdx < smArray->size(); inIdx++) {
+        auto inputObj = (*smArray)[inIdx].getAsObject();
+        auto* shape = inputObj->getArray("shape");
+        VPUX_THROW_UNLESS(shape != nullptr, "loadInputSMs: missing shape");
+
+        for (size_t i = 0; i < shape->size(); i++) {
+            result[inIdx].shape[i] = (*shape)[i].getAsInteger().getValue();
+        }
+    }
+
+    return result;
+}
+
+SmallVector<nb::SM> nb::TestCaseJsonDescriptor::loadWeightSMs(llvm::json::Object* jsonObj) {
+    SmallVector<nb::SM> result;
+
+    auto* smArray = jsonObj->getArray("sparsity_map_weights");
+    if (!smArray) {
+        return result;
+    }
+
+    result.resize(smArray->size());
+    for (size_t inIdx = 0; inIdx < smArray->size(); inIdx++) {
+        auto inputObj = (*smArray)[inIdx].getAsObject();
+        auto* shape = inputObj->getArray("shape");
+        VPUX_THROW_UNLESS(shape != nullptr, "loadWeightSMs: missing shape");
+
+        for (size_t i = 0; i < shape->size(); i++) {
+            result[inIdx].shape[i] = (*shape)[i].getAsInteger().getValue();
+        }
+    }
+
+    return result;
+}
+
 SmallVector<nb::OutputLayer> nb::TestCaseJsonDescriptor::loadOutputLayer(llvm::json::Object* jsonObj) {
     SmallVector<nb::OutputLayer> result;
 
@@ -630,6 +642,18 @@ nb::DMAparams nb::TestCaseJsonDescriptor::loadDMAParams(llvm::json::Object* json
     auto dmaEngine = params->getInteger("dma_engine");
     VPUX_THROW_UNLESS(dmaEngine.hasValue(), "DMA engine doesn't provided");
     result.engine = dmaEngine.getValue();
+
+    return result;
+}
+
+nb::EltwiseLayer nb::TestCaseJsonDescriptor::loadEltwiseLayer(llvm::json::Object* jsonObj) {
+    std::string layerType = "ew_op";
+
+    nb::EltwiseLayer result;
+    auto* op = jsonObj->getObject("ew_op");
+    VPUX_THROW_UNLESS(op != nullptr, "loadEltwiseLayer: missing ew_op config");
+
+    result.seSize = op->getInteger("se_size").value_or(0);
 
     return result;
 }
@@ -679,6 +703,13 @@ nb::ConvLayer nb::TestCaseJsonDescriptor::loadConvLayer(llvm::json::Object* json
             result.cube_mode = vpux::VPU::MPEMode::CUBOID_4x16;
         }
         // TODO: Check for the default (CUBOID_16x16) and log if it's something else.
+    }
+
+    auto act_sparsity = op->getBoolean("act_sparsity");
+    if (act_sparsity.hasValue()) {
+        result.act_sparsity = act_sparsity.getValue();
+    } else {
+        result.act_sparsity = false;
     }
 
     return result;
@@ -830,19 +861,28 @@ void nb::TestCaseJsonDescriptor::parse(llvm::json::Object json_obj) {
     // Load conv json attribute values. Similar implementation for ALL HW layers (DW, group conv, Av/Max pooling and
     // eltwise needed).
     switch (caseType_) {
+    case CaseType::DMAcompressAct:
     case CaseType::DMA: {
         DMAparams_ = loadDMAParams(&json_obj);
         break;
     }
     case CaseType::ZMajorConvolution:
     case CaseType::DepthWiseConv:
-    case CaseType::SparseZMajorConvolution: {
+    case CaseType::SparseZMajorConvolution:
+    case CaseType::DoubleZMajorConvolution: {
         wtLayer_ = loadWeightLayer(&json_obj);
         convLayer_ = loadConvLayer(&json_obj);
 
         if (caseType_ == CaseType::ZMajorConvolution) {
             odu_permutation_ = to_odu_permutation(json_obj.getString("output_order").getValue());
             weightsSwizzlingKey_ = loadSwizzlingKey(&json_obj, "weights_swizzling_key");
+            activationSwizzlingKey_ = loadSwizzlingKey(&json_obj, "activation_swizzling_key");
+        }
+        if (caseType_ == CaseType::SparseZMajorConvolution) {
+            inSMs_ = loadInputSMs(&json_obj);
+        }
+        if (caseType_ == CaseType::DoubleZMajorConvolution) {
+            odu_permutation_ = to_odu_permutation(json_obj.getString("output_order").getValue());
             activationSwizzlingKey_ = loadSwizzlingKey(&json_obj, "activation_swizzling_key");
         }
         break;
@@ -891,15 +931,16 @@ void nb::TestCaseJsonDescriptor::parse(llvm::json::Object json_obj) {
         multiClusterDPUParams_ = loadMultiClusterDPUParams(&json_obj);
         break;
     }
-    case CaseType::HaloMultiClustering: {
-        wtLayer_ = loadWeightLayer(&json_obj);
-        convLayer_ = loadConvLayer(&json_obj);
-        haloParams_ = loadHaloTaskParams(&json_obj);
-        break;
-    }
     case CaseType::EltwiseAdd:
     case CaseType::EltwiseMult: {
         wtLayer_ = loadWeightLayer(&json_obj);
+        break;
+    }
+    case CaseType::EltwiseSparse: {
+        wtLayer_ = loadWeightLayer(&json_obj);
+        inSMs_ = loadInputSMs(&json_obj);
+        wtSMs_ = loadWeightSMs(&json_obj);
+        eltwiseLayer_ = loadEltwiseLayer(&json_obj);
         break;
     }
     case CaseType::MaxPool:

@@ -1,5 +1,5 @@
 //
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,25 +9,19 @@
 
 namespace LayerTestsDefinitions {
 
-class KmbNormalizeL2LayerTest : public NormalizeL2LayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {};
+class VPUXNormalizeL2LayerTest : public NormalizeL2LayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {};
+class VPUXNormalizeL2LayerTest_VPU3700 : public VPUXNormalizeL2LayerTest {};
+class VPUXNormalizeL2LayerTest_VPU3720 : public VPUXNormalizeL2LayerTest {};
 
-TEST_P(KmbNormalizeL2LayerTest, CompareWithRefs) {
+TEST_P(VPUXNormalizeL2LayerTest_VPU3700, HW) {
     threshold = 0.04;
+    setPlatformVPU3700();
+    setDefaultHardwareModeMLIR();
     Run();
 }
-TEST_P(KmbNormalizeL2LayerTest, CompareWithRefs_MLIR) {
-    threshold = 0.04;
-    useCompilerMLIR();
-    Run();
-}
 
-class KmbNormalizeL2LayerTest_VPU3720 :
-        public NormalizeL2LayerTest,
-        virtual public LayerTestsUtils::KmbLayerTestsCommon {};
-
-TEST_P(KmbNormalizeL2LayerTest_VPU3720, CompareWithRefs_MLIR_VPU3720) {
+TEST_P(VPUXNormalizeL2LayerTest_VPU3720, HW) {
     threshold = 0.04;
-    useCompilerMLIR();
     setPlatformVPU3720();
     setDefaultHardwareModeMLIR();
     Run();
@@ -67,7 +61,7 @@ const std::vector<ngraph::op::EpsMode> epsMode = {
 
 // There is a error at validation step for shapes which size are not equal to 4.
 // Possibly it is error in run-time due to only 4D shapes are allowed.
-// Example of output on KMB-board:
+// Example of output on board:
 // ...
 // TestReportProgress: KmbNormalizeL2LayerTest inferred
 // KmbLayerTestsCommon::Validate()
@@ -106,23 +100,76 @@ std::vector<std::vector<size_t>> shapes = {
         //{1, 1, 1, 10}
 };
 
-std::vector<std::vector<size_t>> shapesVPU3720 = {
-        {1, 128}, {1, 512}, {1, 8, 24, 64},
+const std::vector<std::vector<int64_t>> axesVPUX = {{1},
+
+                                                    // Only valid for shapes with 3D and above
+                                                    {1, 2},
+                                                    {0, 1, 2},
+
+                                                    // Only valid for shapes with 4D and above
+                                                    {0, 1, 2, 3}};
+
+const std::vector<float> epsVPUX = {9.9999999392252903e-09, 1.000000013351432e-10, 9.999999960041972e-13,
+                                    9.9999998245167004e-14};
+
+std::vector<std::vector<size_t>> shapesVPUX = {
+        {1, 128},
+        {1, 8, 24, 64},
+
+        // Values from real neural networks
+        {1, 256},
+        {1, 512},
+        {1, 128, 25, 43},
         // TODO: Kindly test this once tiling is enabled
+        // {1, 128, 50, 85},
         // {1, 512, 64, 64}
 };
 
-const auto normL2params = testing::Combine(testing::ValuesIn(axes), testing::ValuesIn(eps), testing::ValuesIn(epsMode),
-                                           testing::ValuesIn(shapes), testing::ValuesIn(netPrecisions),
-                                           testing::Values(LayerTestsUtils::testPlatformTargetDevice));
+const auto params = testing::Combine(testing::ValuesIn(axes), testing::ValuesIn(eps), testing::ValuesIn(epsMode),
+                                     testing::ValuesIn(shapes), testing::ValuesIn(netPrecisions),
+                                     testing::Values(LayerTestsUtils::testPlatformTargetDevice));
 
-const auto normL2paramsVPU3720 = testing::Combine(
-        testing::ValuesIn(axes), testing::ValuesIn(eps), testing::ValuesIn(epsMode), testing::ValuesIn(shapesVPU3720),
-        testing::ValuesIn(netPrecisions), testing::Values(LayerTestsUtils::testPlatformTargetDevice));
+const auto paramsVPUX =
+        testing::Combine(testing::ValuesIn(axesVPUX), testing::Values(epsVPUX[0]), testing::Values(epsMode[0]),
+                         testing::Values(shapesVPUX[1]), testing::ValuesIn(netPrecisions),
+                         testing::Values(LayerTestsUtils::testPlatformTargetDevice));
 
-INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_NormalizeL2, KmbNormalizeL2LayerTest, normL2params,
-                         KmbNormalizeL2LayerTest::getTestCaseName);
+const auto paramsVPUXRealNet_Set1 =
+        testing::Combine(testing::Values(axesVPUX[0]), testing::Values(epsVPUX[3]), testing::Values(epsMode[1]),
+                         testing::Values(shapesVPUX[2]), testing::ValuesIn(netPrecisions),
+                         testing::Values(LayerTestsUtils::testPlatformTargetDevice));
 
-INSTANTIATE_TEST_SUITE_P(smoke_NormalizeL2, KmbNormalizeL2LayerTest_VPU3720, normL2paramsVPU3720,
-                         KmbNormalizeL2LayerTest_VPU3720::getTestCaseName);
+const auto paramsVPUXRealNet_Set2 =
+        testing::Combine(testing::Values(axesVPUX[0]), testing::Values(epsVPUX[1]), testing::Values(epsMode[1]),
+                         testing::Values(shapesVPUX[3]), testing::ValuesIn(netPrecisions),
+                         testing::Values(LayerTestsUtils::testPlatformTargetDevice));
+
+const auto paramsVPUXRealNet_Set3 =
+        testing::Combine(testing::Values(axesVPUX[0]), testing::Values(epsVPUX[0]), testing::Values(epsMode[0]),
+                         testing::Values(shapesVPUX[4]), testing::ValuesIn(netPrecisions),
+                         testing::Values(LayerTestsUtils::testPlatformTargetDevice));
+
+const auto paramsVPUXPrecommit =
+        testing::Combine(testing::Values(axesVPUX[0]), testing::Values(epsVPUX[2]), testing::ValuesIn(epsMode),
+                         testing::Values(shapesVPUX[0]), testing::ValuesIn(netPrecisions),
+                         testing::Values(LayerTestsUtils::testPlatformTargetDevice));
+
+INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_NormalizeL2, VPUXNormalizeL2LayerTest_VPU3700, params,
+                         VPUXNormalizeL2LayerTest_VPU3700::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_NormalizeL2, VPUXNormalizeL2LayerTest_VPU3720, paramsVPUX,
+                         VPUXNormalizeL2LayerTest_VPU3720::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_NormalizeL2_real_net_Set1, VPUXNormalizeL2LayerTest_VPU3720, paramsVPUXRealNet_Set1,
+                         VPUXNormalizeL2LayerTest_VPU3720::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_NormalizeL2_real_net_Set2, VPUXNormalizeL2LayerTest_VPU3720, paramsVPUXRealNet_Set2,
+                         VPUXNormalizeL2LayerTest_VPU3720::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_NormalizeL2_real_net_Set3, VPUXNormalizeL2LayerTest_VPU3720, paramsVPUXRealNet_Set3,
+                         VPUXNormalizeL2LayerTest_VPU3720::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_precommit_NormalizeL2, VPUXNormalizeL2LayerTest_VPU3720, paramsVPUXPrecommit,
+                         VPUXNormalizeL2LayerTest_VPU3720::getTestCaseName);
+
 }  // namespace

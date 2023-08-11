@@ -1,5 +1,5 @@
 //
-// Copyright (C) 2022 Intel Corporation.
+// Copyright (C) 2022-2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
 
@@ -26,7 +26,12 @@ void VPUIP::GroupSparseBufferOp::build(mlir::OpBuilder& builder, mlir::Operation
                                        mlir::Value sparsityMap, mlir::Value storageElementTable, bool isWeights,
                                        VPUIP::CompressionSchemeAttr compressionScheme) {
     const auto isWeightsAttr = isWeights ? mlir::UnitAttr::get(builder.getContext()) : nullptr;
-    build(builder, state, data, sparsityMap, storageElementTable, isWeightsAttr, compressionScheme);
+    build(builder, state, data, sparsityMap, storageElementTable, isWeightsAttr, compressionScheme, nullptr);
+}
+
+void VPUIP::GroupSparseBufferOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value data,
+                                       mlir::Value sparsityMap, mlir::Value storageElementTable, VPU::SEAttr seAttr) {
+    build(builder, state, data, sparsityMap, storageElementTable, nullptr, nullptr, seAttr);
 }
 
 //
@@ -46,7 +51,7 @@ mlir::LogicalResult VPUIP::GroupSparseBufferOp::inferReturnTypes(mlir::MLIRConte
                                                                  mlir::ValueRange operands, mlir::DictionaryAttr attrs,
                                                                  mlir::RegionRange /*ranges*/,
                                                                  SmallVectorImpl<mlir::Type>& inferredReturnTypes) {
-    const auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
+    const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
     VPUIP::GroupSparseBufferOpAdaptor groupOp(operands, attrs);
     if (mlir::failed(groupOp.verify(loc))) {
@@ -60,7 +65,7 @@ mlir::LogicalResult VPUIP::GroupSparseBufferOp::inferReturnTypes(mlir::MLIRConte
 
     inferredReturnTypes.push_back(VPUIP::SparseBufferType::get(dataType, sparsityMapType, storageElementTableType,
                                                                groupOp.is_weightsAttr(),
-                                                               groupOp.compression_schemeAttr()));
+                                                               groupOp.compression_schemeAttr(), groupOp.seAttrAttr()));
 
     return mlir::success();
 }

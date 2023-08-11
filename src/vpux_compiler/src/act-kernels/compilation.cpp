@@ -3,14 +3,8 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/act_kernels/compilation.h"
-
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
-
-#include "vpux/utils/core/format.hpp"
-#include "vpux/utils/core/numeric.hpp"
 
 #ifdef _MSC_VER
 #pragma warning(push)
@@ -24,7 +18,6 @@
 #endif
 
 #include <algorithm>
-#include <fstream>
 #include <string>
 
 namespace vpux {
@@ -38,7 +31,7 @@ flatbuffers::Offset<MVCNN::KernelData> buildKernelData(flatbuffers::FlatBufferBu
     return builder.Finish();
 }
 
-ActKernelDesc compileKernelForACTShave(const CompilationUnitDesc& unitDesc) {
+ActKernelDesc compileKernelForACTShave(const CompilationUnitDesc& unitDesc, VPU::ArchKind /*archKind*/) {
     auto& kernelInfo = ShaveBinaryResources::getInstance();
 
     const std::string cpu = "3720xx";
@@ -74,7 +67,7 @@ const CompilationUnitDesc& managementKernelCompilationDesc() {
 ActKernelDesc compileManagementKernelForACTShave() {
     const auto& unitDesc = managementKernelCompilationDesc();
 
-    return compileKernelForACTShave(unitDesc);
+    return compileKernelForACTShave(unitDesc, VPU::ArchKind::VPUX37XX);
 }
 
 }  // namespace vpux

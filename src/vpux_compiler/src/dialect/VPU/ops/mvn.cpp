@@ -15,7 +15,7 @@ mlir::LogicalResult vpux::VPU::MVNOp::inferReturnTypes(mlir::MLIRContext* ctx, m
                                                        mlir::ValueRange operands, mlir::DictionaryAttr attrs,
                                                        mlir::RegionRange /*regions*/,
                                                        mlir::SmallVectorImpl<mlir::Type>& inferredReturnTypes) {
-    const auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
+    const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
     VPU::MVNOpAdaptor mvn(operands, attrs);
     if (mlir::failed(mvn.verify(loc))) {
@@ -40,21 +40,48 @@ void vpux::VPU::MVNOp::inferLayoutInfo(mlir::Operation*, IE::LayerLayoutInfo& in
 }
 
 //
-// NCEOpInterface
+// ClusteredOpInterface
 //
 
 bool vpux::VPU::MVNOp::checkStrategyCompatibility(VPU::MultiClusterStrategy strategy) {
-    return strategy == VPU::MultiClusterStrategy::Clustering || strategy == VPU::MultiClusterStrategy::SplitOverKernel;
+    if (strategy == VPU::MultiClusterStrategy::Clustering) {
+        return true;
+    }
+    // MVN can only apply SOK for layer normalization
+    // i.e. when the across_channel is false, the mean value is calculated over H and W
+    if (strategy == VPU::MultiClusterStrategy::SplitOverKernel && !across_channels()) {
+        return true;
+    }
+    return false;
 }
 
 //
 // SWOpInterface
 //
 
-bool vpux::VPU::MVNOp::fitIntoCMX(vpux::NDTypeInterface input, vpux::NDTypeInterface output) {
-    return vpux::VPU::calculateAlignedBuffersMemoryRequirement(
-                   getArch(getOperation()), {input.getTotalAllocSize(), output.getTotalAllocSize()}) <=
-           getTotalCMXSize(getOperation());
+bool vpux::VPU::MVNOp::fitIntoCMX(llvm::ArrayRef<vpux::NDTypeInterface> buffers, Byte reservedMem) {
+    VPUX_THROW_UNLESS(buffers.size() == 2, "MVNOp requires 1 input and 1 output, but the number of buffer is {0}",
+                      buffers.size());
+
+    SmallVector<Byte> buffersSize;
+    std::transform(buffers.begin(), buffers.end(), std::back_inserter(buffersSize), [](const auto buffer) {
+        return buffer.getTotalAllocSize();
+    });
+
+    auto totalAvailableCMXSize = reservedMem.count() == 0 ? getTotalCMXSize(getOperation()).count()
+                                                          : getTotalCMXFragmentationAwareSize(getOperation()).count();
+
+    return vpux::VPU::calculateAlignedBuffersMemoryRequirement(getArch(getOperation()), buffersSize).count() +
+                   reservedMem.count() <=
+           totalAvailableCMXSize;
+}
+
+bool vpux::VPU::MVNOp::fitIntoCMX(llvm::ArrayRef<vpux::NDTypeInterface> buffers) {
+    return fitIntoCMX(buffers, Byte(0));
+}
+
+bool vpux::VPU::MVNOp::supportCycleCostCalculation() {
+    return true;
 }
 
 //

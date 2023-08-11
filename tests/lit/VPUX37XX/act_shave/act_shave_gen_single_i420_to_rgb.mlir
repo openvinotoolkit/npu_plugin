@@ -1,7 +1,8 @@
 //
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
+
 // RUN: vpux-opt --init-compiler="vpu-arch=VPUX37XX" %s | vpux-translate --export-VPUIP -o %t
 // RUN: flatc --raw-binary --json %vpuip_schema_file% -- %t
 // RUN: FileCheck %s --input-file %basename_t.json
@@ -30,20 +31,20 @@ IE.CNNNetwork
 module @VPU.SW {
     // The declaration should match C++ params structure in decomposed form.
     // `memref` will be translated to `MemRefData`, while raw scalars will be translated as is.
-    func private @builtin_YuvToRgb(%input0 : memref<*xf16>, %input1 : memref<*xf16>, %input2 : memref<*xf16>, %output : memref<*xf16>, %rgbFormat : i64)
+    func.func private @builtin_YuvToRgb(%input0 : memref<*xf16>, %input1 : memref<*xf16>, %input2 : memref<*xf16>, %output : memref<*xf16>, %rgbFormat : i64)
         attributes {
             VPU.kernel_code = "single_shave_convert_color_i420_to_rgb.cpp",
-            VPU.kernel_entry = "single_shave_convert_color_i420_to_rgb"        
+            VPU.kernel_entry = "single_shave_convert_color_i420_to_rgb"
         }
 
     // management kernel definition
-    func private @runtime()
+    func.func private @runtime()
         attributes {
             VPU.kernel_code = "nnActEntry"
         }
 }
 
-func @main(%1: memref<1x240x320x1xf16>, %2: memref<1x120x160x1xf16>, %3: memref<1x120x160x1xf16>, %4: memref<1x240x320x3xf16>) -> memref<1x240x320x3xf16> {
+func.func @main(%1: memref<1x240x320x1xf16>, %2: memref<1x120x160x1xf16>, %3: memref<1x120x160x1xf16>, %4: memref<1x240x320x3xf16>) -> memref<1x240x320x3xf16> {
 
     %in0_tile0_cmx  = VPURT.DeclareBuffer "CMX_NN" [0] <0> -> memref<1x240x320x1xf16, [@CMX_NN, 0]>
     %in1_tile0_cmx  = VPURT.DeclareBuffer "CMX_NN" [0] <153600> -> memref<1x120x160x1xf16, [@CMX_NN, 0]>

@@ -1,21 +1,22 @@
 //
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
+
 // RUN: vpux-opt --split-input-file --init-compiler="vpu-arch=%arch%" --swap-operations  %s | FileCheck %s
 // REQUIRES: arch-VPUX30XX || arch-VPUX37XX
 
 #NHCW = affine_map<(d0, d1, d2, d3) -> (d0, d2, d1, d3)>
 
 // CHECK-LABEL: @SwapWithBias
-func @SwapWithBias(%arg0: tensor<4x9728x1x1xf16>) -> tensor<1x512x4x1xf16> {
+func.func @SwapWithBias(%arg0: tensor<4x9728x1x1xf16>) -> tensor<1x512x4x1xf16> {
    %filter = const.Declare tensor<512x9728x1x1xf16> = dense<1.000000e+00> : tensor<512x9728x1x1xf16>
    %bias = const.Declare tensor<1x512x1x1xf16> = dense<1.000000e+00> : tensor<1x512x1x1xf16>
 
     %0 = IE.Convolution(%arg0, %filter) {dilations = [1, 1], pads_begin = [0, 0], pads_end = [0, 0], strides = [1, 1]} : tensor<4x9728x1x1xf16>, tensor<512x9728x1x1xf16> -> tensor<4x512x1x1xf16>
     %1 = IE.AffineReshape(%0) {dim_mapping = [[0, 1], [2], [3], [3]], shape_value = [1, 4, 512, 1]} : tensor<4x512x1x1xf16> -> tensor<1x4x512x1xf16>
     %2 = IE.Transpose(%1) {order_value = #NHCW} : tensor<1x4x512x1xf16> -> tensor<1x512x4x1xf16>
-    %3 = IE.Add(%2, %bias) {auto_broadcast = "NUMPY"} : tensor<1x512x4x1xf16>, tensor<1x512x1x1xf16> -> tensor<1x512x4x1xf16>
+    %3 = IE.Add(%2, %bias) {auto_broadcast = #IE.auto_broadcast_type<NUMPY>} : tensor<1x512x4x1xf16>, tensor<1x512x1x1xf16> -> tensor<1x512x4x1xf16>
 
     return %3 : tensor<1x512x4x1xf16>
 
@@ -27,22 +28,21 @@ func @SwapWithBias(%arg0: tensor<4x9728x1x1xf16>) -> tensor<1x512x4x1xf16> {
    // CHECK-SAME: tensor<4x512x1x1xf16> -> tensor<1x4x512x1xf16>
    // CHECK: IE.Transpose
    // CHECK-SAME: tensor<1x4x512x1xf16> -> tensor<1x512x4x1xf16>
-
-  }
+}
 
 // -----
 
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
 // CHECK-LABEL: @SwapWithBiasNHWC
-func @SwapWithBiasNHWC(%arg0: tensor<4x9728x1x1xf16>) -> tensor<1x512x1x4xf16> {
+func.func @SwapWithBiasNHWC(%arg0: tensor<4x9728x1x1xf16>) -> tensor<1x512x1x4xf16> {
    %filter = const.Declare tensor<512x9728x1x1xf16> = dense<1.000000e+00> : tensor<512x9728x1x1xf16>
    %bias = const.Declare tensor<1x512x1x1xf16> = dense<1.000000e+00> : tensor<1x512x1x1xf16>
 
     %0 = IE.Convolution(%arg0, %filter) {dilations = [1, 1], pads_begin = [0, 0], pads_end = [0, 0], strides = [1, 1]} : tensor<4x9728x1x1xf16>, tensor<512x9728x1x1xf16> -> tensor<4x512x1x1xf16>
     %1 = IE.AffineReshape(%0) {dim_mapping = [[0, 1], [2], [3], [3]], shape_value = [1, 4, 512, 1]} : tensor<4x512x1x1xf16> -> tensor<1x4x512x1xf16>
     %2 = IE.Transpose(%1) {order_value = #NHWC} : tensor<1x4x512x1xf16> -> tensor<1x512x1x4xf16>
-    %3 = IE.Add(%2, %bias) {auto_broadcast = "NUMPY"} : tensor<1x512x1x4xf16>, tensor<1x512x1x1xf16> -> tensor<1x512x1x4xf16>
+    %3 = IE.Add(%2, %bias) {auto_broadcast = #IE.auto_broadcast_type<NUMPY>} : tensor<1x512x1x4xf16>, tensor<1x512x1x1xf16> -> tensor<1x512x1x4xf16>
 
     return %3 : tensor<1x512x1x4xf16>
 
@@ -54,16 +54,16 @@ func @SwapWithBiasNHWC(%arg0: tensor<4x9728x1x1xf16>) -> tensor<1x512x1x4xf16> {
    // CHECK-SAME: tensor<4x512x1x1xf16> -> tensor<1x4x512x1xf16>
    // CHECK: IE.Transpose
    // CHECK-SAME: tensor<1x4x512x1xf16> -> tensor<1x512x1x4xf16>
-  }
+}
 
 // -----
 
 // CHECK-LABEL: @NotChangeSwapBiasBroadcastWithReshape
-func @NotChangeSwapBiasBroadcastWithReshape(%arg0: tensor<1x924x77x1xf16>) -> tensor<1x12x77x77xf16> {
+func.func @NotChangeSwapBiasBroadcastWithReshape(%arg0: tensor<1x924x77x1xf16>) -> tensor<1x12x77x77xf16> {
    %bias = const.Declare tensor<1x1x77x77xf16> = dense<1.000000e+00> : tensor<1x1x77x77xf16>
 
     %0 = IE.AffineReshape(%arg0) {dim_mapping = [[0], [1, 2], [3], [3]], shape_value = [1, 12, 77, 77]} : tensor<1x924x77x1xf16> -> tensor<1x12x77x77xf16>
-    %1 = IE.Add(%0, %bias) {auto_broadcast = "NUMPY"} : tensor<1x12x77x77xf16>, tensor<1x1x77x77xf16> -> tensor<1x12x77x77xf16>
+    %1 = IE.Add(%0, %bias) {auto_broadcast = #IE.auto_broadcast_type<NUMPY>} : tensor<1x12x77x77xf16>, tensor<1x1x77x77xf16> -> tensor<1x12x77x77xf16>
 
     return %1 : tensor<1x12x77x77xf16>
 
@@ -71,18 +71,18 @@ func @NotChangeSwapBiasBroadcastWithReshape(%arg0: tensor<1x924x77x1xf16>) -> te
    // CHECK-SAME: tensor<1x924x77x1xf16> -> tensor<1x12x77x77xf16>
    // CHECK: IE.Add
    // CHECK-SAME: tensor<1x12x77x77xf16>, tensor<1x1x77x77xf16> -> tensor<1x12x77x77xf16>
-  }
+}
 
 // -----
 
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
 // CHECK-LABEL: @NotChangeSwapBiasWithReorder
-func @NotChangeSwapBiasWithReorder(%arg0: tensor<1x16x16x16xf16>) -> tensor<1x16x16x16xf16, {order = #NHWC}> {
+func.func @NotChangeSwapBiasWithReorder(%arg0: tensor<1x16x16x16xf16>) -> tensor<1x16x16x16xf16, {order = #NHWC}> {
     %bias = const.Declare tensor<1x16x1x1xf16, {order = #NHWC}> = dense<1.000000e+00> : tensor<1x16x1x1xf16>, [#const.Reorder<#NHWC>]
 
     %0 = IE.Reorder(%arg0) {dstOrder = #NHWC} : tensor<1x16x16x16xf16> -> tensor<1x16x16x16xf16, {order = #NHWC}>
-    %1 = IE.Add(%0, %bias) {auto_broadcast = "NUMPY"} : tensor<1x16x16x16xf16, {order = #NHWC}>, tensor<1x16x1x1xf16, {order = #NHWC}> -> tensor<1x16x16x16xf16, {order = #NHWC}>
+    %1 = IE.Add(%0, %bias) {auto_broadcast = #IE.auto_broadcast_type<NUMPY>} : tensor<1x16x16x16xf16, {order = #NHWC}>, tensor<1x16x1x1xf16, {order = #NHWC}> -> tensor<1x16x16x16xf16, {order = #NHWC}>
 
     return %1 : tensor<1x16x16x16xf16, {order = #NHWC}>
 
@@ -90,14 +90,64 @@ func @NotChangeSwapBiasWithReorder(%arg0: tensor<1x16x16x16xf16>) -> tensor<1x16
    // CHECK-SAME: tensor<1x16x16x16xf16> -> tensor<1x16x16x16xf16, {order = #NHWC}>
    // CHECK: IE.Add
    // CHECK-SAME: tensor<1x16x16x16xf16, {order = #NHWC}>, tensor<1x16x1x1xf16, {order = #NHWC}> -> tensor<1x16x16x16xf16, {order = #NHWC}>
-  }
+}
+
+// -----
+
+#NHCW = affine_map<(d0, d1, d2, d3) -> (d0, d2, d1, d3)>
+
+// CHECK-LABEL: @SwapWithSingleValueBias
+func.func @SwapWithSingleValueBias(%arg0: tensor<4x512x1x1xf16>) -> tensor<1x512x4x1xf16> {
+   %cst = const.Declare tensor<1x1x1x1xf16> = dense<-9.21613597> : tensor<1x1x1xf32>, [#const.ConvertElemType<f16>, #const.Reshape<[1, 1, 1, 1]>]
+   %1 = IE.AffineReshape(%arg0) {dim_mapping = [[0, 1], [2], [3], [3]], shape_value = [1, 4, 512, 1]} : tensor<4x512x1x1xf16> -> tensor<1x4x512x1xf16>
+   %2 = IE.Transpose(%1) {order_value = #NHCW} : tensor<1x4x512x1xf16> -> tensor<1x512x4x1xf16>
+   %3 = IE.Add(%2, %cst) {auto_broadcast = #IE.auto_broadcast_type<NUMPY>} : tensor<1x512x4x1xf16>, tensor<1x1x1x1xf16> -> tensor<1x512x4x1xf16>
+
+   return %3 : tensor<1x512x4x1xf16>
+
+   // CHECK: [[CST:%.*]] = const.Declare tensor<1x1x1x1xf16> = dense<-9.21613597> : tensor<1x1x1xf32>, [#const.ConvertElemType<f16>, #const.Reshape<[1, 1, 1, 1]>]
+   // CHECK: [[ADD:%.*]] = IE.Add(%arg0, [[CST]]) {auto_broadcast = #IE.auto_broadcast_type<NUMPY>} : tensor<4x512x1x1xf16>, tensor<1x1x1x1xf16> -> tensor<4x512x1x1xf16>
+   // CHECK: [[RESHAPE:%.*]] = IE.AffineReshape([[ADD]])
+   // CHECK-SAME{LITERAL}:     {dim_mapping = [[0, 1], [2], [3], [3]], shape_value = [1, 4, 512, 1]} : tensor<4x512x1x1xf16> -> tensor<1x4x512x1xf16>
+   // CHECK: [[TRANS:%.*]] = IE.Transpose([[RESHAPE]]) {order_value = #NHCW} : tensor<1x4x512x1xf16> -> tensor<1x512x4x1xf16>
+   // CHECK: return [[TRANS]] : tensor<1x512x4x1xf16>
+}
+
+// -----
+
+// CHECK-LABEL: @SwapWithSingleValueBiasThroughConcat
+func.func @SwapWithSingleValueBiasThroughConcat(%arg0: tensor<4096x4096x1x1xf16>, %arg1: tensor<4096x4096x1x1xf16>) -> tensor<1x2x4096x4096xf16> {
+   %cst = const.Declare tensor<1x1x1x1xf16> = dense<-9.21613597> : tensor<1x1x1xf32>, [#const.ConvertElemType<f16>, #const.Reshape<[1, 1, 1, 1]>]
+   %0 = IE.AffineReshape(%arg0) {dim_mapping = [[0], [1], [1], [1]], shape_value = [4096, 4096]} : tensor<4096x4096x1x1xf16> -> tensor<4096x4096xf16>
+   %1 = IE.AffineReshape(%arg1) {dim_mapping = [[0], [1], [1], [1]], shape_value = [4096, 4096]} : tensor<4096x4096x1x1xf16> -> tensor<4096x4096xf16>
+   %2 = IE.Concat(%0, %1) {static_offsets = [[0, 0], [4096, 0]]} : tensor<4096x4096xf16>, tensor<4096x4096xf16> -> tensor<8192x4096xf16>
+   %3 = IE.AffineReshape(%2) {dim_mapping = [[0, 1], [2]], shape_value = [2, 4096, 4096]} : tensor<8192x4096xf16> -> tensor<2x4096x4096xf16>
+   %4 = IE.Reshape(%3) {shape_value = [1, 2, 4096, 4096]} : tensor<2x4096x4096xf16> -> tensor<1x2x4096x4096xf16>
+   %5 = IE.Add(%4, %cst) {auto_broadcast = #IE.auto_broadcast_type<NUMPY>} : tensor<1x2x4096x4096xf16>, tensor<1x1x1x1xf16> -> tensor<1x2x4096x4096xf16>
+
+   return %5 : tensor<1x2x4096x4096xf16>
+
+   // CHECK: [[CST:%.*]] = const.Declare tensor<1x1x1x1xf16> = dense<-9.21613597> : tensor<1x1x1xf32>, [#const.ConvertElemType<f16>, #const.Reshape<[1, 1, 1, 1]>, #const.Reshape<[1, 1, 1]>, #const.Reshape<[1, 1]>, #const.Reshape<[1, 1, 1, 1]>]
+   // CHECK: [[ADD0:%.*]] = IE.Add(%arg0, [[CST]]) {auto_broadcast = #IE.auto_broadcast_type<NUMPY>} : tensor<4096x4096x1x1xf16>, tensor<1x1x1x1xf16> -> tensor<4096x4096x1x1xf16>
+   // CHECK: [[RESHAPE0:%.*]] = IE.AffineReshape([[ADD0]])
+   // CHECK-SAME{LITERAL}:     {dim_mapping = [[0], [1], [1], [1]], shape_value = [4096, 4096]} : tensor<4096x4096x1x1xf16> -> tensor<4096x4096xf16>
+   // CHECK: [[ADD1:%.*]] = IE.Add(%arg1, [[CST]]) {auto_broadcast = #IE.auto_broadcast_type<NUMPY>} : tensor<4096x4096x1x1xf16>, tensor<1x1x1x1xf16> -> tensor<4096x4096x1x1xf16>
+   // CHECK: [[RESHAPE1:%.*]] = IE.AffineReshape([[ADD1]])
+   // CHECK-SAME{LITERAL}:     {dim_mapping = [[0], [1], [1], [1]], shape_value = [4096, 4096]} : tensor<4096x4096x1x1xf16> -> tensor<4096x4096xf16>
+   // CHECK: [[CONCAT:%.*]] = IE.Concat([[RESHAPE0]], [[RESHAPE1]])
+   // CHECK-SAME{LITERAL}:     {static_offsets = [[0, 0], [4096, 0]]} : tensor<4096x4096xf16>, tensor<4096x4096xf16> -> tensor<8192x4096xf16>
+   // CHECK: [[RESHAPE2:%.*]] = IE.AffineReshape([[CONCAT]])
+   // CHECK-SAME{LITERAL}:     {dim_mapping = [[0, 1], [2]], shape_value = [2, 4096, 4096]} : tensor<8192x4096xf16> -> tensor<2x4096x4096xf16>
+   // CHECK: [[RESHAPE3:%.*]] = IE.Reshape([[RESHAPE2]]) {shape_value = [1, 2, 4096, 4096]} : tensor<2x4096x4096xf16> -> tensor<1x2x4096x4096xf16>
+   // CHECK: return [[RESHAPE3]] : tensor<1x2x4096x4096xf16>
+}
 
 // -----
 
 #NHCW = affine_map<(d0, d1, d2, d3) -> (d0, d2, d1, d3)>
 
 // CHECK-LABEL: @SwapWithRelu
-func @SwapWithRelu(%arg0: tensor<4x512x1x1xf16>) -> tensor<1x2048x4x1xf16> {
+func.func @SwapWithRelu(%arg0: tensor<4x512x1x1xf16>) -> tensor<1x2048x4x1xf16> {
     %cst = const.Declare tensor<2048x512x1x1xf16> = dense<1.000000e+00> : tensor<2048x512xf16>, [#const.Reshape<[2048, 512, 1, 1]>]
     %0 = IE.Convolution(%arg0, %cst) {dilations = [1, 1], pads_begin = [0, 0], pads_end = [0, 0], strides = [1, 1]} : tensor<4x512x1x1xf16>, tensor<2048x512x1x1xf16> -> tensor<4x2048x1x1xf16>
     %1 = IE.AffineReshape(%0) {dim_mapping = [[0, 1], [2], [3], [3]], shape_value = [1, 4, 2048, 1]} : tensor<4x2048x1x1xf16> -> tensor<1x4x2048x1xf16>
@@ -114,7 +164,6 @@ func @SwapWithRelu(%arg0: tensor<4x512x1x1xf16>) -> tensor<1x2048x4x1xf16> {
     // CHECK-SAME: tensor<4x2048x1x1xf16> -> tensor<1x4x2048x1xf16>
     // CHECK: IE.Transpose
     // CHECK-SAME: tensor<1x4x2048x1xf16> -> tensor<1x2048x4x1xf16>
-
 }
 
 // -----
@@ -122,7 +171,7 @@ func @SwapWithRelu(%arg0: tensor<4x512x1x1xf16>) -> tensor<1x2048x4x1xf16> {
 #NHCW = affine_map<(d0, d1, d2, d3) -> (d0, d2, d1, d3)>
 
 // CHECK-LABEL: @SwapWithSigmoid
-func @SwapWithSigmoid(%arg0: tensor<4x512x1x1xf16>) -> tensor<1x2048x4x1xf16> {
+func.func @SwapWithSigmoid(%arg0: tensor<4x512x1x1xf16>) -> tensor<1x2048x4x1xf16> {
     %cst = const.Declare tensor<2048x512x1x1xf16> = dense<1.000000e+00> : tensor<2048x512xf16>, [#const.Reshape<[2048, 512, 1, 1]>]
     %0 = IE.Convolution(%arg0, %cst) {dilations = [1, 1], pads_begin = [0, 0], pads_end = [0, 0], strides = [1, 1]} : tensor<4x512x1x1xf16>, tensor<2048x512x1x1xf16> -> tensor<4x2048x1x1xf16>
     %1 = IE.AffineReshape(%0) {dim_mapping = [[0, 1], [2], [3], [3]], shape_value = [1, 4, 2048, 1]} : tensor<4x2048x1x1xf16> -> tensor<1x4x2048x1xf16>
@@ -139,7 +188,6 @@ func @SwapWithSigmoid(%arg0: tensor<4x512x1x1xf16>) -> tensor<1x2048x4x1xf16> {
     // CHECK-SAME: tensor<4x2048x1x1xf16> -> tensor<1x4x2048x1xf16>
     // CHECK: IE.Transpose
     // CHECK-SAME: tensor<1x4x2048x1xf16> -> tensor<1x2048x4x1xf16>
-
 }
 
 // -----
@@ -147,7 +195,7 @@ func @SwapWithSigmoid(%arg0: tensor<4x512x1x1xf16>) -> tensor<1x2048x4x1xf16> {
 #NHCW = affine_map<(d0, d1, d2, d3) -> (d0, d2, d1, d3)>
 
 // CHECK-LABEL: @SwapWithTanh
-func @SwapWithTanh(%arg0: tensor<4x512x1x1xf16>) -> tensor<1x2048x4x1xf16> {
+func.func @SwapWithTanh(%arg0: tensor<4x512x1x1xf16>) -> tensor<1x2048x4x1xf16> {
     %cst = const.Declare tensor<2048x512x1x1xf16> = dense<1.000000e+00> : tensor<2048x512xf16>, [#const.Reshape<[2048, 512, 1, 1]>]
     %0 = IE.Convolution(%arg0, %cst) {dilations = [1, 1], pads_begin = [0, 0], pads_end = [0, 0], strides = [1, 1]} : tensor<4x512x1x1xf16>, tensor<2048x512x1x1xf16> -> tensor<4x2048x1x1xf16>
     %1 = IE.AffineReshape(%0) {dim_mapping = [[0, 1], [2], [3], [3]], shape_value = [1, 4, 2048, 1]} : tensor<4x2048x1x1xf16> -> tensor<1x4x2048x1xf16>
@@ -164,13 +212,60 @@ func @SwapWithTanh(%arg0: tensor<4x512x1x1xf16>) -> tensor<1x2048x4x1xf16> {
     // CHECK-SAME: tensor<4x2048x1x1xf16> -> tensor<1x4x2048x1xf16>
     // CHECK: IE.Transpose
     // CHECK-SAME: tensor<1x4x2048x1xf16> -> tensor<1x2048x4x1xf16>
+}
 
+// -----
+
+#NHCW = affine_map<(d0, d1, d2, d3) -> (d0, d2, d1, d3)>
+
+// CHECK-LABEL: @SwapWithClamp
+func.func @SwapWithClamp(%arg0: tensor<4x512x1x1xf16>) -> tensor<1x2048x4x1xf16> {
+   %cst = const.Declare tensor<2048x512x1x1xf16> = dense<1.000000e+00> : tensor<2048x512xf16>, [#const.Reshape<[2048, 512, 1, 1]>]
+   %0 = IE.Convolution(%arg0, %cst) {dilations = [1, 1], pads_begin = [0, 0], pads_end = [0, 0], strides = [1, 1]} : tensor<4x512x1x1xf16>, tensor<2048x512x1x1xf16> -> tensor<4x2048x1x1xf16>
+   %1 = IE.AffineReshape(%0) {dim_mapping = [[0, 1], [2], [3], [3]], shape_value = [1, 4, 2048, 1]} : tensor<4x2048x1x1xf16> -> tensor<1x4x2048x1xf16>
+   %2 = IE.Transpose(%1) {order_value = #NHCW} : tensor<1x4x2048x1xf16> -> tensor<1x2048x4x1xf16>
+   %3 = IE.Clamp(%2) {min = 1.0, max = 3.0} : tensor<1x2048x4x1xf16> -> tensor<1x2048x4x1xf16>
+
+    return %3 : tensor<1x2048x4x1xf16>
+
+    // CHECK: IE.Convolution
+    // CHECK-SAME: tensor<4x512x1x1xf16>, tensor<2048x512x1x1xf16> -> tensor<4x2048x1x1xf16>
+    // CHECK: IE.Clamp
+    // CHECK-SAME: tensor<4x2048x1x1xf16> -> tensor<4x2048x1x1xf16>
+    // CHECK: IE.AffineReshape
+    // CHECK-SAME: tensor<4x2048x1x1xf16> -> tensor<1x4x2048x1xf16>
+    // CHECK: IE.Transpose
+    // CHECK-SAME: tensor<1x4x2048x1xf16> -> tensor<1x2048x4x1xf16>
+}
+
+// -----
+
+#NHCW = affine_map<(d0, d1, d2, d3) -> (d0, d2, d1, d3)>
+
+// CHECK-LABEL: @SwapWithTwoClamps
+func.func @SwapWithTwoClamps(%arg0: tensor<4x512x1x1xf16>) -> tensor<4x1x2048x1xf16> {
+   %cst = const.Declare tensor<2048x512x1x1xf16> = dense<1.000000e+00> : tensor<2048x512xf16>, [#const.Reshape<[2048, 512, 1, 1]>]
+   %0 = IE.Convolution(%arg0, %cst) {dilations = [1, 1], pads_begin = [0, 0], pads_end = [0, 0], strides = [1, 1]} : tensor<4x512x1x1xf16>, tensor<2048x512x1x1xf16> -> tensor<4x2048x1x1xf16>
+   %1 = IE.Clamp(%0) {min = 1.0, max = 13.0} : tensor<4x2048x1x1xf16> -> tensor<4x2048x1x1xf16>
+   %2 = IE.Transpose(%1) {order_value = #NHCW} : tensor<4x2048x1x1xf16> -> tensor<4x1x2048x1xf16>
+   %3 = IE.Clamp(%2) {min = 4.0, max = 9.0} : tensor<4x1x2048x1xf16> -> tensor<4x1x2048x1xf16>
+
+    return %3 : tensor<4x1x2048x1xf16>
+
+    // CHECK: IE.Convolution
+    // CHECK-SAME: tensor<4x512x1x1xf16>, tensor<2048x512x1x1xf16> -> tensor<4x2048x1x1xf16>
+    // CHECK: IE.Clamp
+    // CHECK-SAME: tensor<4x2048x1x1xf16> -> tensor<4x2048x1x1xf16>
+    // CHECK: IE.Clamp
+    // CHECK-SAME: tensor<4x2048x1x1xf16> -> tensor<4x2048x1x1xf16>
+    // CHECK: IE.Transpose
+    // CHECK-SAME: tensor<4x2048x1x1xf16> -> tensor<4x1x2048x1xf16>
 }
 
 // -----
 
 // CHECK-LABEL: @NoSwapReshapeWithEltwise
-func @NoSwapReshapeWithEltwise(%arg0: tensor<4x9728x1x1xf16>, %arg1: tensor<4x9728x1x1xf16>) -> tensor<1x4x1x512xf16> {
+func.func @NoSwapReshapeWithEltwise(%arg0: tensor<4x9728x1x1xf16>, %arg1: tensor<4x9728x1x1xf16>) -> tensor<1x4x1x512xf16> {
    %filter_0 = const.Declare tensor<512x9728x1x1xf16> = dense<1.000000e+00> : tensor<512x9728x1x1xf16>
    %filter_1 = const.Declare tensor<512x9728x1x1xf16> = dense<1.000000e+00> : tensor<512x9728x1x1xf16>
 
@@ -178,7 +273,7 @@ func @NoSwapReshapeWithEltwise(%arg0: tensor<4x9728x1x1xf16>, %arg1: tensor<4x97
    %1 = IE.Convolution(%arg1, %filter_1) {dilations = [1, 1], pads_begin = [0, 0], pads_end = [0, 0], strides = [1, 1]} : tensor<4x9728x1x1xf16>, tensor<512x9728x1x1xf16> -> tensor<4x512x1x1xf16>
    %2 = IE.AffineReshape(%0) {dim_mapping = [[0, 1, 2], [3], [3], [3]], shape_value = [1, 4, 1, 512]} : tensor<4x512x1x1xf16> -> tensor<1x4x1x512xf16>
    %3 = IE.AffineReshape(%1) {dim_mapping = [[0, 1, 2], [3], [3], [3]], shape_value = [1, 4, 1, 512]} : tensor<4x512x1x1xf16> -> tensor<1x4x1x512xf16>
-   %4 = IE.Add(%2, %3) {auto_broadcast = "NONE_OR_EXPLICIT"} : tensor<1x4x1x512xf16>, tensor<1x4x1x512xf16> -> tensor<1x4x1x512xf16>
+   %4 = IE.Add(%2, %3) {auto_broadcast = #IE.auto_broadcast_type<NONE_OR_EXPLICIT>} : tensor<1x4x1x512xf16>, tensor<1x4x1x512xf16> -> tensor<1x4x1x512xf16>
 
    return %4 : tensor<1x4x1x512xf16>
 
@@ -197,13 +292,13 @@ func @NoSwapReshapeWithEltwise(%arg0: tensor<4x9728x1x1xf16>, %arg1: tensor<4x97
 // -----
 
 // CHECK-LABEL: @NoSwapReshapeWithLess4DBias
-func @NoSwapReshapeWithLess4DBias(%arg0: tensor<4x16x1xf16>) -> tensor<1x4x1x512xf16> {
+func.func @NoSwapReshapeWithLess4DBias(%arg0: tensor<4x16x1xf16>) -> tensor<1x4x1x512xf16> {
    %filter_0 = const.Declare tensor<512x16x1xf16> = dense<1.000000e+00> : tensor<512x16x1xf16>
    %bias = const.Declare tensor<1x1x1x512xf16> = dense<1.000000e+00> : tensor<1x1x1x512xf16>
 
    %0 = IE.Convolution(%arg0, %filter_0) {dilations = [1], pads_begin = [0], pads_end = [0], strides = [1]} : tensor<4x16x1xf16>, tensor<512x16x1xf16> -> tensor<4x512x1xf16>
    %1 = IE.Reshape(%0) {shape_value = [1, 4, 1, 512]} : tensor<4x512x1xf16> -> tensor<1x4x1x512xf16>
-   %2 = IE.Add(%1, %bias) {auto_broadcast = "NUMPY"} : tensor<1x4x1x512xf16>, tensor<1x1x1x512xf16> -> tensor<1x4x1x512xf16>
+   %2 = IE.Add(%1, %bias) {auto_broadcast = #IE.auto_broadcast_type<NUMPY>} : tensor<1x4x1x512xf16>, tensor<1x1x1x512xf16> -> tensor<1x4x1x512xf16>
 
    return %2 : tensor<1x4x1x512xf16>
 
@@ -218,7 +313,7 @@ func @NoSwapReshapeWithLess4DBias(%arg0: tensor<4x16x1xf16>) -> tensor<1x4x1x512
 // -----
 
 // CHECK-LABEL: @NoSwapReshapeWithMoreThan4DSigmoid
-func @NoSwapReshapeWithMoreThan4DSigmoid(%arg0: tensor<1x3x9x16x1xf16> ) -> tensor<3x9x16x1xf16> {
+func.func @NoSwapReshapeWithMoreThan4DSigmoid(%arg0: tensor<1x3x9x16x1xf16> ) -> tensor<3x9x16x1xf16> {
    %0 = IE.AffineReshape(%arg0) {dim_mapping = [[0], [0], [1], [2], [3]], shape_value = [3, 9, 16, 1]} : tensor<1x3x9x16x1xf16> -> tensor<3x9x16x1xf16>
    %1 = IE.Sigmoid(%0) : tensor<3x9x16x1xf16> -> tensor<3x9x16x1xf16>
 
@@ -234,7 +329,7 @@ func @NoSwapReshapeWithMoreThan4DSigmoid(%arg0: tensor<1x3x9x16x1xf16> ) -> tens
 
 // CHECK-LABEL: @OptimizeSliceTanH
 // CHECK-SAME:        [[INPUT:%arg[0-9]]]: tensor<1x16x32x32xf16>
-func @OptimizeSliceTanH(%arg0: tensor<1x16x32x32xf16>) -> tensor<1x8x32x32xf16> {
+func.func @OptimizeSliceTanH(%arg0: tensor<1x16x32x32xf16>) -> tensor<1x8x32x32xf16> {
    %0 = IE.Slice %arg0 [0, 0, 0, 0] [1, 8, 32, 32] : tensor<1x16x32x32xf16> to tensor<1x8x32x32xf16>
    %1 = IE.Tanh(%0) : tensor<1x8x32x32xf16> -> tensor<1x8x32x32xf16>
    return %1 : tensor<1x8x32x32xf16>
@@ -247,7 +342,7 @@ func @OptimizeSliceTanH(%arg0: tensor<1x16x32x32xf16>) -> tensor<1x8x32x32xf16> 
 
 // CHECK-LABEL: @DoNotOptimizeSliceTanH
 // CHECK-SAME:        [[INPUT:%arg[0-9]]]: tensor<1x16x32x32xf16>
-func @DoNotOptimizeSliceTanH(%arg0: tensor<1x16x32x32xf16>) -> tensor<1x4x32x32xf16> {
+func.func @DoNotOptimizeSliceTanH(%arg0: tensor<1x16x32x32xf16>) -> tensor<1x4x32x32xf16> {
    %0 = IE.Slice %arg0 [0, 0, 0, 0] [1, 4, 32, 32] : tensor<1x16x32x32xf16> to tensor<1x4x32x32xf16>
    %1 = IE.Tanh(%0) : tensor<1x4x32x32xf16> -> tensor<1x4x32x32xf16>
    return %1 : tensor<1x4x32x32xf16>
@@ -262,7 +357,7 @@ func @DoNotOptimizeSliceTanH(%arg0: tensor<1x16x32x32xf16>) -> tensor<1x4x32x32x
 #NCHW = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
 // CHECK-LABEL: @OptimizeSigmoidReorder
 // CHECK-SAME:        [[INPUT:%arg[0-9]]]: tensor<1x16x32x32xf16, {order = #NHWC}>
-func @OptimizeSigmoidReorder(%arg0: tensor<1x16x32x32xf16, {order = #NHWC}>) -> tensor<1x16x32x32xf16> {
+func.func @OptimizeSigmoidReorder(%arg0: tensor<1x16x32x32xf16, {order = #NHWC}>) -> tensor<1x16x32x32xf16> {
    %0 = IE.Reorder(%arg0) {dstOrder = #NCHW} : tensor<1x16x32x32xf16, {order = #NHWC}> -> tensor<1x16x32x32xf16>
    %1 = IE.Sigmoid(%0) : tensor<1x16x32x32xf16> -> tensor<1x16x32x32xf16>
    return %1 : tensor<1x16x32x32xf16>
@@ -277,11 +372,97 @@ func @OptimizeSigmoidReorder(%arg0: tensor<1x16x32x32xf16, {order = #NHWC}>) -> 
 #NCHW = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
 // CHECK-LABEL: @DoNotOptimizeSigmoidReorder
 // CHECK-SAME:        [[INPUT:%arg[0-9]]]: tensor<1x16x32x32xf16, {order = #NHCW}>
-func @DoNotOptimizeSigmoidReorder(%arg0: tensor<1x16x32x32xf16, {order = #NHCW}>) -> tensor<1x16x32x32xf16> {
+func.func @DoNotOptimizeSigmoidReorder(%arg0: tensor<1x16x32x32xf16, {order = #NHCW}>) -> tensor<1x16x32x32xf16> {
    %0 = IE.Reorder(%arg0) {dstOrder = #NCHW} : tensor<1x16x32x32xf16, {order = #NHCW}> -> tensor<1x16x32x32xf16>
    %1 = IE.Sigmoid(%0) : tensor<1x16x32x32xf16> -> tensor<1x16x32x32xf16>
    return %1 : tensor<1x16x32x32xf16>
 
    // CHECK:        [[REORDER:%.+]] = IE.Reorder([[INPUT]]) {dstOrder = #NCHW} : tensor<1x16x32x32xf16, {order = #NHCW}> -> tensor<1x16x32x32xf16>
    // CHECK:        [[SIGMOID:%.+]] = IE.Sigmoid([[REORDER]]) : tensor<1x16x32x32xf16> -> tensor<1x16x32x32xf16>
+}
+
+// -----
+
+#NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
+#NCWH = affine_map<(d0, d1, d2, d3) -> (d0, d1, d3, d2)>
+
+// CHECK-LABEL: @SwapWithBiasOrderChanged
+func.func @SwapWithBiasOrderChanged(%arg0: tensor<8x64x1x1xf16, {order = #NHWC}>) -> tensor<1x8x64x1xf16, {order = #NCWH}> {
+   %bias = const.Declare tensor<1x1x64x1xf16, {order = #NCWH}> = dense<1.000000e+00> : tensor<1x1x64x1xf16>, [#const.Reorder<#NCWH>]
+
+    %1 = IE.AffineReshape(%arg0) {dim_mapping = [[0, 1], [2], [3], [3]], shape_value = [1, 8, 64, 1]} : tensor<8x64x1x1xf16, {order = #NHWC}> -> tensor<1x8x64x1xf16, {order = #NCWH}>
+    %2 = IE.Add(%1, %bias) {auto_broadcast = #IE.auto_broadcast_type<NUMPY>} : tensor<1x8x64x1xf16, {order = #NCWH}>, tensor<1x1x64x1xf16, {order = #NCWH}> -> tensor<1x8x64x1xf16, {order = #NCWH}>
+
+    return %2 : tensor<1x8x64x1xf16, {order = #NCWH}>
+
+   // CHECK: const.Declare
+   // CHECK-SAME:  #const.Reshape<[1, 64, 1, 1]>, #const.Reorder<#NHWC>]
+   // CHECK: IE.Add
+   // CHECK-SAME: tensor<8x64x1x1xf16, {order = #NHWC}>, tensor<1x64x1x1xf16, {order = #NHWC}> -> tensor<8x64x1x1xf16, {order = #NHWC}>
+   // CHECK: IE.AffineReshape
+   // CHECK-SAME: tensor<8x64x1x1xf16, {order = #NHWC}> -> tensor<1x8x64x1xf16, {order = #NCWH}>
+}
+
+// -----
+
+// CHECK-LABEL: @SwapConcatWithClamp
+func.func @SwapConcatWithClamp(%arg0: tensor<4x512x1x1xf16>, %arg1: tensor<4x512x1x1xf16>) -> tensor<4x2048x1x2xf16> {
+   %cst = const.Declare tensor<2048x512x1x1xf16> = dense<1.000000e+00> : tensor<2048x512xf16>, [#const.Reshape<[2048, 512, 1, 1]>]
+   %cst_1 = const.Declare tensor<2048x512x1x1xf16> = dense<2.000000e+00> : tensor<2048x512xf16>, [#const.Reshape<[2048, 512, 1, 1]>]
+   %0 = IE.Convolution(%arg0, %cst) {dilations = [1, 1], pads_begin = [0, 0], pads_end = [0, 0], strides = [1, 1]} : tensor<4x512x1x1xf16>, tensor<2048x512x1x1xf16> -> tensor<4x2048x1x1xf16>
+   %1 = IE.Convolution(%arg1, %cst_1) {dilations = [1, 1], pads_begin = [0, 0], pads_end = [0, 0], strides = [1, 1]} : tensor<4x512x1x1xf16>, tensor<2048x512x1x1xf16> -> tensor<4x2048x1x1xf16>
+   %2 = IE.Concat(%0, %1) {per_axis = {axis = 3 : i64, offset = 1 : i64, stride = 2 : i64}} : tensor<4x2048x1x1xf16>, tensor<4x2048x1x1xf16> -> tensor<4x2048x1x2xf16>
+   %3 = IE.Clamp(%2) {min = 1.0, max = 3.0} : tensor<4x2048x1x2xf16> -> tensor<4x2048x1x2xf16>
+
+   return %3 : tensor<4x2048x1x2xf16>
+
+   // CHECK:      [[FILTER_1:%.*]] = const.Declare tensor<2048x512x1x1xf16> = dense<1.000000e+00> : tensor<2048x512xf16>, [#const.Reshape<[2048, 512, 1, 1]>]
+   // CHECK:      [[FILTER_2:%.*]] = const.Declare tensor<2048x512x1x1xf16> = dense<2.000000e+00> : tensor<2048x512xf16>, [#const.Reshape<[2048, 512, 1, 1]>]
+   // CHECK:      [[CONV_1:%.*]] = IE.Convolution(%arg0, [[FILTER_1]]) {dilations = [1, 1], pads_begin = [0, 0], pads_end = [0, 0], strides = [1, 1]} : tensor<4x512x1x1xf16>, tensor<2048x512x1x1xf16> -> tensor<4x2048x1x1xf16>
+   // CHECK:      [[CONV_2:%.*]] = IE.Convolution(%arg1, [[FILTER_2]]) {dilations = [1, 1], pads_begin = [0, 0], pads_end = [0, 0], strides = [1, 1]} : tensor<4x512x1x1xf16>, tensor<2048x512x1x1xf16> -> tensor<4x2048x1x1xf16>
+   // CHECK:      [[CLAMP_1:%.*]] = IE.Clamp([[CONV_1]]) {max = 3.000000e+00 : f64, min = 1.000000e+00 : f64} : tensor<4x2048x1x1xf16> -> tensor<4x2048x1x1xf16>
+   // CHECK:      [[CLAMP_2:%.*]] = IE.Clamp([[CONV_2]]) {max = 3.000000e+00 : f64, min = 1.000000e+00 : f64} : tensor<4x2048x1x1xf16> -> tensor<4x2048x1x1xf16>
+   // CHECK:      [[CONCAT:%.*]] = IE.Concat([[CLAMP_1]], [[CLAMP_2]]) {per_axis = {axis = 3 : i64, offset = 1 : i64, stride = 2 : i64}} : tensor<4x2048x1x1xf16>, tensor<4x2048x1x1xf16> -> tensor<4x2048x1x2xf16>
+   // CHECK:      return [[CONCAT]] : tensor<4x2048x1x2xf16>
+}
+
+// -----
+
+!qElemType0 = !quant.uniform<u8:f16, 1.0>
+!qElemType1 = !quant.uniform<u8:f16, 2.0>
+// CHECK-LABEL: @SwapExpandWithQuantizeCast
+// CHECK-SAME:      [[INPUT:%arg[0-9]]]: tensor<1x3x416x416x!qElemType0>
+func.func @SwapExpandWithQuantizeCast(%arg0: tensor<1x3x416x416x!qElemType0>) -> tensor<1x4x416x416x!qElemType1> {
+    %0 = IE.Expand(%arg0) {pads_begin = [0, 0, 0, 0], pads_end = [0, 1, 0, 0]} : tensor<1x3x416x416x!qElemType0>
+            -> tensor<1x4x416x416x!qElemType0>
+    %1 = IE.QuantizeCast(%0) {dstElemType = !qElemType1} : tensor<1x4x416x416x!qElemType0>
+            -> tensor<1x4x416x416x!qElemType1>
+    return %1 : tensor<1x4x416x416x!qElemType1>
+
+    // CHECK:       [[QUANTCAST:%.*]] = IE.QuantizeCast([[INPUT]]) {dstElemType = !qElemType1} : tensor<1x3x416x416x!qElemType0>
+    // CHECK-SAME:          -> tensor<1x3x416x416x!qElemType1>
+    // CHECK:       [[EXPAND:%.*]] = IE.Expand([[QUANTCAST]]) {pads_begin = [0, 0, 0, 0], pads_end = [0, 1, 0, 0]} : tensor<1x3x416x416x!qElemType1>
+    // CHECK-SAME:          -> tensor<1x4x416x416x!qElemType1>
+    // CHECK:       return [[EXPAND]] : tensor<1x4x416x416x!qElemType1>
+}
+
+// -----
+
+!qElemType0 = !quant.uniform<u8:f16:1, {1.0:124, 1.0:124, 1.0:124}>
+!qElemType1 = !quant.uniform<u8:f16:1, {2.0:124, 2.0:124, 2.0:124, 2.0:124}>
+!qElemType2 = !quant.uniform<u8:f16:1, {1.0:124, 1.0:124, 1.0:124, 1.0:124}>
+// CHECK-LABEL: @SkipSwapExpandWithPerChannelQuantizeCast
+// CHECK-SAME:      [[INPUT:%arg[0-9]]]: tensor<1x3x416x416x!qElemType0>
+func.func @SkipSwapExpandWithPerChannelQuantizeCast(%arg0: tensor<1x3x416x416x!qElemType0>) -> tensor<1x4x416x416x!qElemType1> {
+    %0 = IE.Expand(%arg0) {pads_begin = [0, 0, 0, 0], pads_end = [0, 1, 0, 0]} : tensor<1x3x416x416x!qElemType0>
+            -> tensor<1x4x416x416x!qElemType2>
+    %1 = IE.QuantizeCast(%0) {dstElemType = !qElemType1} : tensor<1x4x416x416x!qElemType2>
+            -> tensor<1x4x416x416x!qElemType1>
+    return %1 : tensor<1x4x416x416x!qElemType1>
+
+    // CHECK:       [[EXPAND:%.*]] = IE.Expand([[INPUT]]) {pads_begin = [0, 0, 0, 0], pads_end = [0, 1, 0, 0]} : tensor<1x3x416x416x!qElemType0>
+    // CHECK-SAME:          -> tensor<1x4x416x416x!qElemType2>
+    // CHECK:       [[QUANTCAST:%.*]] = IE.QuantizeCast([[EXPAND]]) {dstElemType = !qElemType1} : tensor<1x4x416x416x!qElemType2>
+    // CHECK-SAME:          -> tensor<1x4x416x416x!qElemType1>
+    // CHECK:       return [[QUANTCAST]] : tensor<1x4x416x416x!qElemType1>
 }

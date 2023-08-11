@@ -1,16 +1,14 @@
 //
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "shared_test_classes/subgraph/mobV2_SOH.hpp"
 #include <vector>
-#include "common_test_utils/test_constants.hpp"
 #include "kmb_layer_test.hpp"
 
 namespace SubgraphTestsDefinitions {
-
-class KmbMobilenetV2SlicedTest : public mobilenetV2SlicedTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
+class VPUXMobilenetV2SlicedTest : public mobilenetV2SlicedTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
     /* tests for mobilenet v2 split over H unequal subtensors
             input
               |
@@ -28,7 +26,9 @@ class KmbMobilenetV2SlicedTest : public mobilenetV2SlicedTest, virtual public La
     */
 };
 
-TEST_P(KmbMobilenetV2SlicedTest, CompareWithRefImpl) {
+TEST_P(VPUXMobilenetV2SlicedTest, HW) {
+    setPlatformVPU3700();
+    setDefaultHardwareModeMLIR();
     Run();
 };
 
@@ -43,7 +43,7 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::
 
 const std::vector<std::map<std::string, std::string>> configs = {{{"LOG_LEVEL", "LOG_INFO"}}};
 
-INSTANTIATE_TEST_CASE_P(smoke_mobilenetV2SlicedTest, KmbMobilenetV2SlicedTest,
+INSTANTIATE_TEST_CASE_P(smoke_mobilenetV2SlicedTest, VPUXMobilenetV2SlicedTest,
                         ::testing::Combine(::testing::ValuesIn(netPrecisions),
                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
                                            ::testing::ValuesIn(configs)),

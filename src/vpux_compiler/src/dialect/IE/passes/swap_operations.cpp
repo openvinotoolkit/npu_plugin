@@ -3,11 +3,10 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/conversion.hpp"
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/IE/passes.hpp"
+#include "vpux/compiler/dialect/IE/utils/const_attributes.hpp"
 #include "vpux/compiler/dialect/IE/utils/quantization.hpp"
 #include "vpux/compiler/dialect/IE/utils/transpose_op_utils.hpp"
 #include "vpux/compiler/dialect/VPUIP/nce_invariant.hpp"
@@ -30,6 +29,42 @@ namespace {
 const int64_t SUPPORTED_RANK = 4;
 const int8_t CHANNEL_ALIGNMENT = 16;
 
+bool checkOrderCompatible(mlir::Operation* origOp, DimsOrder origOrder, DimsOrder parentOrder) {
+    if (origOrder != parentOrder) {
+        auto iface = mlir::dyn_cast<IE::LayoutInfoOpInterface>(origOp);
+        if (iface == nullptr) {
+            return false;
+        }
+
+        // Current logic (orderInfo.setInput) cannot set a new order with a different rank
+        // e.g, 4D tensor -> AffineReshape -> 3D tensor -> 3D op  ===>  4D op -> 4D tensor -> AffineReshape -> 3D tensor
+        // TODO: Fix E#79970 and remove the following conditional statement
+        if (parentOrder.numDims() != origOrder.numDims()) {
+            return false;
+        }
+
+        auto orderInfo = iface.getLayoutInfo();
+        orderInfo.setInput(0, parentOrder);
+        iface.inferLayoutInfo(orderInfo);
+        if (orderInfo.getInput(0) != parentOrder) {
+            return false;
+        }
+        if (orderInfo.getOutput(0) != parentOrder) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+void updateOutputOrder(mlir::Value output, DimsOrder origOrder, DimsOrder parentOrder) {
+    if (origOrder != parentOrder) {
+        const auto newAddOutputType = output.getType().cast<vpux::NDTypeInterface>();
+        const auto newType = newAddOutputType.changeDimsOrder(parentOrder);
+        output.setType(newType);
+    }
+}
+
 mlir::Value alignConstant(mlir::PatternRewriter& rewriter, mlir::Operation* parent, mlir::Value constInput) {
     return llvm::TypeSwitch<mlir::Operation*, mlir::Value>(parent)
             .Case<IE::AffineReshapeOp, IE::ReshapeOp>([&](auto origOp) {
@@ -42,9 +77,18 @@ mlir::Value alignConstant(mlir::PatternRewriter& rewriter, mlir::Operation* pare
                 SmallVector<int64_t> constShape(constInputShape.size(), 1);
                 constShape[Dims4D::Act::C.ind()] = parentInputDimC;
 
-                return rewriter.createOrFold<IE::ReshapeOp>(
+                const auto constReshape = rewriter.createOrFold<IE::ReshapeOp>(
                         origOp->getLoc(), constInput, nullptr, false,
                         getIntArrayAttr(origOp->getContext(), makeArrayRef(constShape)));
+
+                const auto outOrder = DimsOrder::fromValue(constReshape);
+                const auto inOrder = DimsOrder::fromValue(origOp.input());
+                if (outOrder == inOrder) {
+                    return constReshape;
+                } else {
+                    const auto newOrderMap = inOrder.toAffineMap(rewriter.getContext());
+                    return rewriter.createOrFold<IE::ReorderOp>(origOp->getLoc(), constReshape, newOrderMap);
+                }
             })
             .Case<IE::TransposeOp>([&](auto origOp) {
                 const auto dstOrder = IE::deduceInverseOrder(origOp);
@@ -56,6 +100,30 @@ mlir::Value alignConstant(mlir::PatternRewriter& rewriter, mlir::Operation* pare
             .Default([](mlir::Operation* op) -> mlir::Value {
                 VPUX_THROW("Unsupported operation '{0}' at '{1}'", op->getName(), op->getLoc());
             });
+}
+
+bool isSingleValueBias(mlir::Value constInput) {
+    auto declareOp = constInput.getDefiningOp<Const::DeclareOp>();
+    if (declareOp == nullptr) {
+        return false;
+    }
+
+    auto constShape = getShape(constInput).raw();
+    auto hasNonTrivialDim = llvm::any_of(constShape, [](int64_t dim) {
+        return dim != 1;
+    });
+
+    return !hasNonTrivialDim;
+}
+
+mlir::Value reshapeSingleValueConstant(mlir::PatternRewriter& rewriter, mlir::Location loc, int64_t numDims,
+                                       mlir::Value constInput) {
+    VPUX_THROW_UNLESS(isSingleValueBias(constInput), "Expext single value bias");
+    auto ctx = rewriter.getContext();
+    auto newConstShape = SmallVector<int64_t>(numDims, 1);
+    auto reshapeConst =
+            rewriter.create<IE::ReshapeOp>(loc, constInput, nullptr, false, getIntArrayAttr(ctx, newConstShape));
+    return reshapeConst;
 }
 
 //
@@ -119,38 +187,77 @@ mlir::LogicalResult SwapWithBias::matchAndRewrite(IE::AddOp origOp, mlir::Patter
         return mlir::failure();
     }
 
-    if (mlir::isa<IE::ReorderOp>(parentOp)) {
-        _log.trace("[{0}] Don't swap ReorderOp {1}", getDebugName(), *parentOp);
-        return mlir::failure();
-    }
-
     if (!parentOp->hasOneUse()) {
         _log.trace("[{0}] Swapped operation {1} has more than one use", getDebugName(), *parentOp);
         return mlir::failure();
     }
 
     auto parentInput = parentOp->getOperand(0);
-    if (parentInput.getType().cast<vpux::NDTypeInterface>().getRank() != SUPPORTED_RANK) {
-        _log.trace("[{0}] Swapped operation doesn't have rank {1}", getDebugName(), SUPPORTED_RANK);
-        return mlir::failure();
+    const auto origOrder = DimsOrder::fromValue(activationInput);
+    const auto parentOrder = DimsOrder::fromValue(parentInput);
+
+    auto singleValueBias = isSingleValueBias(biasInput);
+
+    // Only the following situations are considered for Bias Swap:
+    // From: NCE Task -> AffineReshapeOp/ReshapeOp/TransposeOp -> Add
+    // To:   NCE Task -> Add -> AffineReshapeOp/ReshapeOp/TransposeOp
+    // So that Add can as bias and fuse into NCE Task
+    //
+    // Single value bias is a special case:
+    // 1.Can be swapped with ConcatOp
+    // 2.Always be order compatible with parent op
+    if (!mlir::isa<IE::AffineReshapeOp, IE::ReshapeOp, IE::TransposeOp>(parentOp)) {
+        if (!(mlir::isa<IE::ConcatOp>(parentOp) && singleValueBias)) {
+            _log.trace("[{0}] Only support AffineReshapeOp, ReshapeOp and TransposeOp, but got {1}", getDebugName(),
+                       *parentOp);
+            return mlir::failure();
+        }
+        _log.trace("[{0}] Swap single value bias with ConcatOp {1}", getDebugName(), parentOp->getLoc());
     }
 
-    // TODO: E#68168 check the layout info as we did for Sigmod/Relu/Tanh
-    auto newConstant = alignConstant(rewriter, parentOp, biasInput);
-    if (!newConstant) {
-        _log.trace("[{0}] Swapped operation {1} fails to align constant", getDebugName(), *parentOp);
-        return mlir::failure();
+    if (!singleValueBias) {
+        if (parentInput.getType().cast<vpux::NDTypeInterface>().getRank() != SUPPORTED_RANK) {
+            _log.trace("[{0}] Swapped operation doesn't have rank {1}", getDebugName(), SUPPORTED_RANK);
+            return mlir::failure();
+        }
+
+        if (!checkOrderCompatible(origOp, origOrder, parentOrder)) {
+            return mlir::failure();
+        }
     }
 
-    auto newAdd =
-            rewriter.create<IE::AddOp>(origOp.getLoc(), parentInput, newConstant, origOp.auto_broadcast(), nullptr);
+    rewriter.startRootUpdate(parentOp);
+    rewriter.setInsertionPoint(parentOp);
 
-    mlir::BlockAndValueMapping mapper;
-    mapper.map(parentOp->getOperands(), newAdd->getResults());
-    auto* newParent = rewriter.clone(*parentOp, mapper);
-    vpux::inferReturnTypes(newParent, vpux::InferShapedTypeMode::ALL);
+    // Create new Add ops for each input of parent operation.
+    for (auto& operand : parentOp->getOpOperands()) {
+        mlir::Value newConstant;
+        if (singleValueBias) {
+            auto oprandShape = getShape(operand.get()).raw();
+            newConstant = reshapeSingleValueConstant(rewriter, origOp->getLoc(), oprandShape.size(), biasInput);
+        } else {
+            // TODO: E#68168 check the layout info as we did for Sigmod/Relu/Tanh
+            newConstant = alignConstant(rewriter, parentOp, biasInput);
+        }
+        if (newConstant == nullptr) {
+            _log.trace("[{0}] Swapped operation {1} fails to align constant", getDebugName(), *parentOp);
+            return mlir::failure();
+        }
 
-    rewriter.replaceOp(origOp, newParent->getResults());
+        auto newAddOp = rewriter.create<IE::AddOp>(origOp->getLoc(), operand.get(), newConstant,
+                                                   origOp.auto_broadcast(), nullptr);
+
+        // Update input of Operation. NewAddOp -> parent Op.
+        operand.set(newAddOp.output());
+
+        updateOutputOrder(newAddOp->getResult(0), origOrder, parentOrder);
+    }
+
+    // Remove old Add ops.
+    rewriter.replaceOp(origOp, parentOp->getResults());
+
+    // Rewrite done.
+    rewriter.finalizeRootUpdate(parentOp);
 
     return mlir::success();
 }
@@ -184,9 +291,10 @@ mlir::LogicalResult SwapWithActivation<Activation>::matchAndRewrite(Activation o
         return mlir::failure();
     }
 
-    // TODO: E#18651 Support ElemTypeInfoOpInterface for Slice in the correct way
-    if (!mlir::isa<IE::ElemTypeInfoOpInterface>(parentOp) || mlir::isa<IE::SliceOp>(parentOp)) {
-        _log.trace("[{0}] Swapped operation {1} doesn't implement ElemTypeInfoOpInterface interface {0}",
+    if (!mlir::isa<IE::ElemTypeInfoOpInterface>(parentOp) || mlir::isa<IE::SliceOp>(parentOp) ||
+        mlir::isa<Activation>(parentOp)) {
+        _log.trace("[{0}] Swapped operation {1} doesn't implement ElemTypeInfoOpInterface interface {0} or it is an "
+                   "activation",
                    this->getDebugName(), parentOp);
         return mlir::failure();
     }
@@ -196,57 +304,36 @@ mlir::LogicalResult SwapWithActivation<Activation>::matchAndRewrite(Activation o
         return mlir::failure();
     }
 
-    mlir::Value parentInput = parentOp->getOperand(0);
-    if (parentInput.getType().cast<vpux::NDTypeInterface>().getRank() != SUPPORTED_RANK) {
-        _log.trace("[{0}] Swapped operation doesn't have rank {1}", this->getDebugName(), SUPPORTED_RANK);
-        return mlir::failure();
+    for (mlir::Value parentInput : parentOp->getOperands()) {
+        if (parentInput.getType().cast<vpux::NDTypeInterface>().getRank() != SUPPORTED_RANK) {
+            _log.trace("[{0}] Swapped operation doesn't have rank {1}", this->getDebugName(), SUPPORTED_RANK);
+            return mlir::failure();
+        }
     }
 
     mlir::Value origOperand = origOp->getResult(0);
     const auto origOrder = origOperand.getType().cast<vpux::NDTypeInterface>().getDimsOrder();
+    mlir::Value parentInput = parentOp->getOperand(0);
     const auto parentOrder = parentInput.getType().cast<vpux::NDTypeInterface>().getDimsOrder();
-    bool updateOutOrder = false;
 
-    if (origOrder != parentOrder) {
-        auto origLayoutOp = mlir::dyn_cast<IE::LayoutInfoOpInterface>(origOperand.getDefiningOp());
-        if (origLayoutOp == nullptr) {
-            return mlir::failure();
-        }
-
-        auto orderInfo = origLayoutOp.getLayoutInfo();
-        orderInfo.setInput(0, parentOrder);
-        origLayoutOp.inferLayoutInfo(orderInfo);
-        if (orderInfo.getInput(0) != parentOrder) {
-            return mlir::failure();
-        }
-        if (orderInfo.getOutput(0) != parentOrder) {
-            return mlir::failure();
-        }
-        updateOutOrder = true;
+    if (!checkOrderCompatible(origOp, origOrder, parentOrder)) {
+        return mlir::failure();
     }
 
-    mlir::BlockAndValueMapping mapper;
-    mapper.map(origOp->getOperands(), parentOp->getOperands());
-    auto* newActivation = rewriter.clone(*origOp, mapper);
-    vpux::inferReturnTypes(newActivation, vpux::InferShapedTypeMode::ALL);
+    rewriter.startRootUpdate(parentOp);
+    rewriter.setInsertionPoint(parentOp);
 
-    // TODO: E#68166 check IE operation's inferReturnTypes method in terms of layout,
-    // currently almost all set to default value.
-    if (updateOutOrder) {
-        mlir::Value newActivationOperand = newActivation->getResult(0);
-        const auto newActOrigType = newActivationOperand.getType().cast<vpux::NDTypeInterface>();
-        if (newActOrigType.getDimsOrder() != parentOrder) {
-            const auto newType = newActOrigType.changeDimsOrder(parentOrder);
-            newActivationOperand.setType(newType);
-        }
+    const auto parentOpInputs = parentOp->getOperands();
+    for (auto i : irange<size_t>(0, parentOpInputs.size())) {
+        auto newActivation = rewriter.clone(*origOp);
+        newActivation->setOperand(0, parentOpInputs[i]);
+        newActivation->getOpResult(0).setType(parentOpInputs[i].getType());
+        parentOp->getOpOperand(static_cast<uint32_t>(i)).set(newActivation->getResult(0));
     }
 
-    mapper.clear();
-    mapper.map(parentOp->getOperands(), newActivation->getResults());
-    auto* newParent = rewriter.clone(*parentOp, mapper);
-    vpux::inferReturnTypes(newParent, vpux::InferShapedTypeMode::ALL);
+    rewriter.replaceOp(origOp, parentOp->getResults());
 
-    rewriter.replaceOp(origOp, newParent->getResults());
+    rewriter.finalizeRootUpdate(parentOp);
 
     return mlir::success();
 }
@@ -299,6 +386,60 @@ mlir::LogicalResult SwapTanhSlice::matchAndRewrite(IE::TanhOp originOp, mlir::Pa
     return mlir::success();
 }
 
+//
+// SwapExpandQuantizeCast
+//
+// Move the QuantizeCast before Expand
+// to support the possible Expand-Copy optimization in the following passes
+//   Expand                         QuantizeCast
+//      |                                 |
+// QuantizeCast              ->        Expand
+
+class SwapExpandQuantizeCast final : public mlir::OpRewritePattern<IE::ExpandOp> {
+public:
+    SwapExpandQuantizeCast(mlir::MLIRContext* ctx, Logger log): mlir::OpRewritePattern<IE::ExpandOp>(ctx), _log(log) {
+        this->setDebugName("SwapExpandQuantizeCast");
+    }
+
+private:
+    mlir::LogicalResult matchAndRewrite(IE::ExpandOp expandOp, mlir::PatternRewriter& rewriter) const final;
+
+private:
+    Logger _log;
+};
+
+mlir::LogicalResult SwapExpandQuantizeCast::matchAndRewrite(IE::ExpandOp expandOp,
+                                                            mlir::PatternRewriter& rewriter) const {
+    _log.trace("[{0}] Got '{0}' at '{1}'", getDebugName(), expandOp->getName(), expandOp->getLoc());
+    if (!expandOp->hasOneUse()) {
+        return mlir::failure();
+    }
+    auto quantizeCastOp = mlir::dyn_cast<IE::QuantizeCastOp>(*expandOp.output().getUsers().begin());
+    if (quantizeCastOp == nullptr) {
+        return mlir::failure();
+    }
+    auto quantizeCastOutputType = quantizeCastOp.output().getType().cast<vpux::NDTypeInterface>();
+    auto quantizeCastInputType = quantizeCastOp.input().getType().cast<vpux::NDTypeInterface>();
+    auto isPerChannel = [](vpux::NDTypeInterface type) {
+        return type.getElementType().isa<mlir::quant::UniformQuantizedPerAxisType>();
+    };
+    if (isPerChannel(quantizeCastInputType) || isPerChannel(quantizeCastOutputType)) {
+        return mlir::failure();
+    }
+    auto log = _log.nest();
+    log.trace("Got Expand-QuantizeCast pattern: {0} -> {1}", expandOp->getLoc(), quantizeCastOp->getLoc());
+    // Swap Expand-QuantizeCast to QuantizeCast-Expand
+    auto expandInput = expandOp.input();
+    auto quantizeCastOutputElemType = quantizeCastOutputType.getElementType();
+    auto newQuantizeCastOp =
+            rewriter.create<IE::QuantizeCastOp>(quantizeCastOp->getLoc(), expandInput, quantizeCastOutputElemType);
+    expandOp.setOperand(newQuantizeCastOp);
+    expandOp.output().setType(quantizeCastOutputType);
+    quantizeCastOp->replaceAllUsesWith(expandOp);
+    log.trace("Swapped the Expand-QuantizeCast pattern: {0} -> {1}", newQuantizeCastOp->getLoc(), expandOp->getLoc());
+    return mlir::success();
+}
+
 class SwapOperationsPass final : public IE::SwapOperationsBase<SwapOperationsPass> {
 public:
     explicit SwapOperationsPass(Logger log) {
@@ -316,11 +457,13 @@ void SwapOperationsPass::safeRunOnFunc() {
     patterns.add<SwapWithActivation<IE::ReLUOp>>(&ctx, _log.nest());
     patterns.add<SwapWithActivation<IE::SigmoidOp>>(&ctx, _log.nest());
     patterns.add<SwapWithActivation<IE::TanhOp>>(&ctx, _log.nest());
+    patterns.add<SwapWithActivation<IE::ClampOp>>(&ctx, _log.nest());
     patterns.add<SwapWithBias>(&ctx, _log.nest());
     // TODO: E#18651 Support ElemTypeInfoOpInterface for Slice
     patterns.add<SwapTanhSlice>(&ctx, _log.nest());
+    patterns.add<SwapExpandQuantizeCast>(&ctx, _log.nest());
 
-    auto func = getFunction();
+    auto func = getOperation();
     if (mlir::failed(applyPatternsAndFoldGreedily(func, std::move(patterns), getDefaultGreedyRewriteConfig()))) {
         signalPassFailure();
     }

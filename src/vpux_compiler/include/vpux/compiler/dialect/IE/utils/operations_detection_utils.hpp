@@ -11,10 +11,10 @@
 namespace vpux {
 namespace IE {
 
-void detectAndReplacePreProcessedAgrs(Logger _log, mlir::FuncOp netFunc, SmallVector<mlir::Value>& newArgs,
+void detectAndReplacePreProcessedAgrs(Logger _log, mlir::func::FuncOp netFunc, SmallVector<mlir::Value>& newArgs,
                                       ArrayRef<mlir::Value> newResults);
 
-void detectAndReplacePostProcessedRes(Logger _log, mlir::FuncOp& netFunc, ArrayRef<mlir::Value> newResults);
+void detectAndReplacePostProcessedRes(Logger _log, mlir::func::FuncOp& netFunc, ArrayRef<mlir::Value> newResults);
 
 template <class ConcreteOp1, class ConcreteOp2 = ConcreteOp1>
 mlir::Value detectValueAfterOperation(mlir::Value val, SmallVector<mlir::Operation*>& ops) {

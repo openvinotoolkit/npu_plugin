@@ -14,6 +14,7 @@
 #include "kmb_test_power_def.hpp"
 #include "kmb_test_reshape_def.hpp"
 #include "kmb_test_softmax_def.hpp"
+#include "pretty_test_arguments.hpp"
 
 #include <vpux/vpux_plugin_config.hpp>
 
@@ -25,23 +26,6 @@
 #include <yolo_helpers.hpp>
 
 using namespace InferenceEngine;
-
-#define PRETTY_PARAM(name, type)                                                  \
-    class name {                                                                  \
-    public:                                                                       \
-        typedef type param_type;                                                  \
-        name(param_type arg = param_type()): val_(arg) {                          \
-        }                                                                         \
-        operator param_type() const {                                             \
-            return val_;                                                          \
-        }                                                                         \
-                                                                                  \
-    private:                                                                      \
-        param_type val_;                                                          \
-    };                                                                            \
-    static inline void PrintTo(name param, ::std::ostream* os) {                  \
-        *os << #name ": " << ::testing::PrintToString((name::param_type)(param)); \
-    }
 
 // #define RUN_SKIPPED_TESTS
 

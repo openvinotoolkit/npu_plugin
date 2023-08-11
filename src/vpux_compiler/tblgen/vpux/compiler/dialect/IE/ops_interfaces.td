@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #ifndef VPUX_COMPILER_DIALECT_IE_OPS_INTERFACES
 #define VPUX_COMPILER_DIALECT_IE_OPS_INTERFACES
 
@@ -204,6 +202,16 @@ def IE_EltwiseOp : NativeOpTrait<"EltwiseOp"> {
 }
 
 //
+// ViewLikeOpInterface
+//
+
+def IE_ViewLikeOpInterface: OpInterface<"ViewLikeOpInterface"> {
+    let description = "Interface for IE view-like ops";
+
+    let cppNamespace = "vpux::IE";
+}
+
+//
 // ElemTypeInfoOpInterface
 //
 
@@ -229,6 +237,16 @@ def IE_ElemTypeInfoOpInterface : OpInterface<"ElemTypeInfoOpInterface"> {
             }]
         >
     ];
+}
+
+//
+// SEOpInterface
+//
+
+def IE_SEOpInterface : OpInterface<"SEOpInterface"> {
+    let description = "Interface for operations that can be executed using the Storage Element feature";
+
+    let cppNamespace = "vpux::IE";
 }
 
 #endif

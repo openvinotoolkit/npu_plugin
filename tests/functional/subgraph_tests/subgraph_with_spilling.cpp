@@ -10,7 +10,7 @@
 
 namespace {
 
-struct KmbScheduleSubGraphSpillingTestParams {
+struct ScheduleSubGraphSpillingTestParams {
     LayerTestsUtils::TargetDevice _device;
     InferenceEngine::SizeVector _in_dims;
     InferenceEngine::SizeVector _w_dims_conv_1;
@@ -24,9 +24,9 @@ struct KmbScheduleSubGraphSpillingTestParams {
 //                  |-> Conv1 -> Conv2 -> |
 // Input -> MaxPool |                     | Eltwise -> Output
 //                  |-------------------> |
-class KmbScheduleSubGraphSpillingTest :
+class VPUXScheduleSubGraphSpillingTest_VPU3700 :
         public LayerTestsUtils::KmbLayerTestsCommon,
-        public testing::WithParamInterface<KmbScheduleSubGraphSpillingTestParams> {
+        public testing::WithParamInterface<ScheduleSubGraphSpillingTestParams> {
     void SetUp() override {
         const auto test_params = GetParam();
         targetDevice = test_params._device;
@@ -69,20 +69,20 @@ class KmbScheduleSubGraphSpillingTest :
         const auto eltwise = ngraph::builder::makeEltwise(pool, conv2, ngraph::helpers::EltwiseTypes::ADD);
 
         const ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(eltwise)};
-        function = std::make_shared<ngraph::Function>(results, params, "KmbScheduleSubGraphSpillingTest");
+        function = std::make_shared<ngraph::Function>(results, params, "VPUXScheduleSubGraphSpillingTest");
 
         threshold = 0.1f;
     }
 };
 
-TEST_P(KmbScheduleSubGraphSpillingTest, CompareWithRefs_MLIR) {
-    useCompilerMLIR();
+TEST_P(VPUXScheduleSubGraphSpillingTest_VPU3700, HW) {
+    setPlatformVPU3700();
     setDefaultHardwareModeMLIR();
     Run();
 }
 
-INSTANTIATE_TEST_CASE_P(smoke, KmbScheduleSubGraphSpillingTest,
-                        ::testing::Values(KmbScheduleSubGraphSpillingTestParams{
+INSTANTIATE_TEST_CASE_P(smoke_ScheduleSubGraphSpilling, VPUXScheduleSubGraphSpillingTest_VPU3700,
+                        ::testing::Values(ScheduleSubGraphSpillingTestParams{
                                 LayerTestsUtils::testPlatformTargetDevice,  // _device
                                 {1, 16, 80, 80},                            // in dims
                                 {32, 16, 1, 1},                             // weights 1 dims

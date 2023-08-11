@@ -11,32 +11,6 @@ namespace ov {
 namespace intel_vpux {
 
 /**
- * @brief [Only for vpu compiler]
- * Type: std::string, default is empty.
- * Provide path to custom layer binding xml file.
- * If layer is present in such an xml, it would be used during inference even if the layer is natively supported.
- * Configuration API v2.0
- */
-static constexpr ov::Property<std::string> custom_layers{"VPU_COMPILER_CUSTOM_LAYERS"};
-
-/**
- * @brief [Only for VPUX Plugin]
- * Type: integer, default is 0. SetNumUpaShaves is not called in that case.
- * Number of shaves to be used by NNCore plug-in during inference
- * Configuration API v2.0
- */
-static constexpr ov::Property<int64_t> inference_shaves{"VPUX_INFERENCE_SHAVES"};
-
-/**
- * Type: Arbitrary string. Default is "-1".
- * This option allows to specify CSRAM size in bytes
- * When the size is -1, low-level SW is responsible for determining the required amount of CSRAM
- * When the size is 0, CSRAM isn't used
- * Configuration API v2.0
- */
-static constexpr ov::Property<std::string> csram_size{"VPUX_CSRAM_SIZE"};
-
-/**
  * @brief [Only for VPUX compiler]
  * Type: "YES", "NO", default is platform-dependent.
  * This option allows to use host based pre- and post- processing
@@ -46,6 +20,15 @@ static constexpr ov::Property<std::string> csram_size{"VPUX_CSRAM_SIZE"};
  */
 static constexpr ov::Property<bool> force_host_precision_layout_conversion{
         "VPUX_FORCE_HOST_PRECISION_LAYOUT_CONVERSION"};
+
+/**
+ * @brief [Only for VPUX plugin]
+ * Type: uint64_t
+ * Read-only property to get size of available VPU DDR memory (both for discrete/integrated VPU devices)
+ *
+ * Note: Queries driver when device is discrete; returns host memory size when device is integrated
+ */
+static constexpr ov::Property<uint64_t> device_total_mem_size{"VPUX_DEVICE_TOTAL_MEM_SIZE"};
 
 }  // namespace intel_vpux
 }  // namespace ov

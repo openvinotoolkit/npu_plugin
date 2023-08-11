@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #ifndef VPUX_COMPILER_DIALECT_ELF_OPS_INTERFACES
 #define VPUX_COMPILER_DIALECT_ELF_OPS_INTERFACES
 
@@ -138,7 +136,6 @@ def ELF_BinaryOpInterface : OpInterface<"BinaryOpInterface"> {
         >,
     ];
 }
-
 
 def ELF_GetOffsetOfOpInterface : OpInterface<"GetOffsetOfOpInterface"> {
     let description = "Interface for the offset computation of different fields of inside serializable operations";

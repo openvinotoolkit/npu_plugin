@@ -19,18 +19,20 @@ to process encoding attribute in mlir::RankedTensorType
 The pass converts VPUNCE-friendly operations (such as Conv, Pool, Eltwise)
 
 It doesn't change the memory spaces or add any new operations such as Copy
-### `-convert-VPUIP-to-VPUIPRegMapped`: Convert VPUIP Dialect to VPUIPRegMapped Dialect
-### `-convert-VPUIPRegMapped-to-ELF`: Convert VPUIPRegMapped Dialect to ELF Dialect
+### `-convert-VPUIP-to-VPUMI37XX`: Convert VPUIP Dialect to VPUMI37XX Dialect
+### `-convert-VPUMI37XX-to-ELF`: Convert VPUMI37XX Dialect to ELF Dialect
 ### `-convert-layers-to-VPU`: Convert Layers Operations to VPU Dialect (SW and View layers)
 ### `-convert-layers-to-VPUIP`: Convert VPU Operations to VPUIP Dialect
-Convert software and view-like operations from VPU to VPUIP dialect.
-Software operations are converted to UPA tasks, supported by VPUX30XX.
+Convert operations from VPU to VPUIP dialect,
+including remaining operations except for NCE and SW operations.
 ### `-convert-nce-cluster-tiling-to-vpuip`: Convert VPU NCEClusterTiling ops to VPUIP
 Convert VPU::NCEClusterTiling ops to VPUIP::NCEClusterTiling.
 ### `-convert-sw-layers-to-Affine`: Convert Software Operations to Affine Dialect
 Convert software operations from IERT to Affine operations for VPU37XX.
-### `-convert-sw-layers-to-VPUIP`: Convert Software Operations to VPUIP SWKernel
-Convert software operations from VPU to VPUIP::SWKernel operations for VPU37XX.
+### `-convert-sw-layers-to-VPUIP-UPA`: Convert Software Operations to VPUIP UPAOp
+Convert software operations from VPU to VPUIP::XXXUPAOp operations.
+### `-convert-sw-layers-to-VPUIP-sw-kernel`: Convert Software Operations to VPUIP SWKernel
+Convert software operations from VPU to VPUIP::SWKernel operations.
 ### `-convert-vpu-nce-to-emu`: Convert VPU.NCE ops to EMU.ClusterTaskOp.
 Convert NCE.Convolution, NCE.DepthConvolution, NCE.MaxPool, NCE.AveragePool
 and NCE.Eltwise ops from VPU dialect to EMU.NCEClusterTaskOp

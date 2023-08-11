@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include <mlir/IR/Builders.h>
 #include <mlir/IR/PatternMatch.h>
 #include <vpux/compiler/utils/adjust_layout_utils.hpp>

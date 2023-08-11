@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/IE/passes.hpp"
 
 #include "vpux/compiler/utils/adjust_layout_utils.hpp"
@@ -85,19 +83,41 @@ mlir::LogicalResult LayerRewriter::matchAndRewrite(IE::LayoutInfoOpInterface ori
 
 class AdjustLayoutsPass final : public IE::AdjustLayoutsBase<AdjustLayoutsPass> {
 public:
-    explicit AdjustLayoutsPass(Logger log) {
+    explicit AdjustLayoutsPass(const bool adaptSEOps, Logger log): _adaptSEOps(adaptSEOps) {
         Base::initLogger(log, Base::getArgumentName());
     }
 
+    mlir::LogicalResult initialize(mlir::MLIRContext* ctx) final;
+
 private:
     void safeRunOnFunc() final;
+
+private:
+    bool _adaptSEOps;
 };
+
+mlir::LogicalResult AdjustLayoutsPass::initialize(mlir::MLIRContext* ctx) {
+    if (mlir::failed(Base::initialize(ctx))) {
+        return mlir::failure();
+    }
+
+    // When this parameter has a value, it probably comes from LIT test.
+    // Override the default
+    if (adaptSEOps.hasValue()) {
+        _adaptSEOps = adaptSEOps.getValue();
+    }
+
+    return mlir::success();
+}
 
 void AdjustLayoutsPass::safeRunOnFunc() {
     auto& ctx = getContext();
 
     mlir::ConversionTarget target(ctx);
     target.markUnknownOpDynamicallyLegal([&](mlir::Operation* op) {
+        if (!_adaptSEOps && mlir::isa<IE::SEOpInterface>(op)) {
+            return true;
+        }
         if (auto iface = mlir::dyn_cast<IE::LayoutInfoOpInterface>(op)) {
             _log.trace("Check layer operation '{0}' at '{1}'", op->getName(), op->getLoc());
 
@@ -117,7 +137,7 @@ void AdjustLayoutsPass::safeRunOnFunc() {
     mlir::RewritePatternSet patterns(&ctx);
     patterns.add<LayerRewriter>(&ctx, _log.nest());
 
-    auto func = getFunction();
+    auto func = getOperation();
     if (mlir::failed(mlir::applyPartialConversion(func, target, std::move(patterns)))) {
         signalPassFailure();
     }
@@ -129,6 +149,6 @@ void AdjustLayoutsPass::safeRunOnFunc() {
 // createAdjustLayoutsPass
 //
 
-std::unique_ptr<mlir::Pass> vpux::IE::createAdjustLayoutsPass(Logger log) {
-    return std::make_unique<AdjustLayoutsPass>(log);
+std::unique_ptr<mlir::Pass> vpux::IE::createAdjustLayoutsPass(const bool adaptSEOps, Logger log) {
+    return std::make_unique<AdjustLayoutsPass>(adaptSEOps, log);
 }

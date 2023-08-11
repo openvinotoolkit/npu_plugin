@@ -51,9 +51,9 @@ VPUXBackends::VPUXBackends(const std::vector<std::string>& backendRegistry): _lo
             const auto backend = std::make_shared<EngineBackend>(path);
             registerBackend(backend, name);
         } catch (const std::exception& ex) {
-            _logger.warning("Got an error during backend '{0}' loading : {1}", name, ex.what());
+            _logger.error("Got an error during backend '{0}' loading : {1}", name, ex.what());
         } catch (...) {
-            _logger.warning("Got an unknown error during backend '{0}' loading : {1}", name);
+            _logger.error("Got an unknown error during backend '{0}' loading : {1}", name);
         }
     }
 #else
@@ -147,6 +147,7 @@ void VPUXBackends::setup(const Config& config) {
 }
 
 static std::map<IE::VPUXConfigParams::VPUXPlatform, std::string> compilationPlatformMap = {
+        {IE::VPUXConfigParams::VPUXPlatform::AUTO_DETECT, "AUTO_DETECT"},
         {IE::VPUXConfigParams::VPUXPlatform::VPU3400_A0, "3400_A0"},
         {IE::VPUXConfigParams::VPUXPlatform::VPU3400, "3700"},  // sic
         {IE::VPUXConfigParams::VPUXPlatform::VPU3700, "3700"},
@@ -158,7 +159,7 @@ static std::map<IE::VPUXConfigParams::VPUXPlatform, std::string> compilationPlat
 std::string VPUXBackends::getCompilationPlatform(const IE::VPUXConfigParams::VPUXPlatform platform,
                                                  const std::string& deviceId) const {
     // Platform parameter has a higher priority than deviceID
-    if (platform != IE::VPUXConfigParams::VPUXPlatform::AUTO &&
+    if (platform != IE::VPUXConfigParams::VPUXPlatform::AUTO_DETECT &&
         platform != IE::VPUXConfigParams::VPUXPlatform::EMULATOR) {
         return compilationPlatformMap.at(platform);
     }

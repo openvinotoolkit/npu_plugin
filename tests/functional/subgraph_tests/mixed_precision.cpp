@@ -31,7 +31,7 @@ enum MixedMode {
 
 typedef std::tuple<MixedMode, NCETasksHelpers::NCEOpType> MixedPrecisionParams;
 
-class VPU3720NCEMixedPrecisionTest :
+class VPUXNCEMixedPrecisionTest_VPU3720 :
         public LayerTestsUtils::KmbLayerTestsCommon,
         public testing::WithParamInterface<MixedPrecisionParams> {
     void GenerateInputs() override {
@@ -73,7 +73,7 @@ class VPU3720NCEMixedPrecisionTest :
         const auto maybeQuantOutput = quantizeOutput(nce_task->output(0), isOutputQuantized, isMaxPool);
         const ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(maybeQuantOutput)};
 
-        function = std::make_shared<ngraph::Function>(results, params, "VPU3720NCEMixedPrecisionTest");
+        function = std::make_shared<ngraph::Function>(results, params, "VPUXNCEMixedPrecisionTest");
 
         threshold = 0.5f;
     }
@@ -93,8 +93,7 @@ public:
     }
 };
 
-TEST_P(VPU3720NCEMixedPrecisionTest, CompareWithRefs_MLIR_HW) {
-    useCompilerMLIR();
+TEST_P(VPUXNCEMixedPrecisionTest_VPU3720, HW) {
     setPlatformVPU3720();
     setDefaultHardwareModeMLIR();
     Run();
@@ -106,8 +105,8 @@ const std::vector<NCETasksHelpers::NCEOpType> nceOpType = {
         NCETasksHelpers::NCEOpType::EltwiseAdd, NCETasksHelpers::NCEOpType::GroupConv2d,
         NCETasksHelpers::NCEOpType::MaxPooling};
 
-INSTANTIATE_TEST_SUITE_P(conv2d_with_act, VPU3720NCEMixedPrecisionTest,
+INSTANTIATE_TEST_SUITE_P(smoke_conv2d_with_act, VPUXNCEMixedPrecisionTest_VPU3720,
                          ::testing::Combine(::testing::ValuesIn(mixedMode), ::testing::ValuesIn(nceOpType)),
-                         VPU3720NCEMixedPrecisionTest::getTestCaseName);
+                         VPUXNCEMixedPrecisionTest_VPU3720::getTestCaseName);
 
 }  // namespace

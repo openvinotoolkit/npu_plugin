@@ -6,17 +6,19 @@
 
 #include "single_layer_tests/embedding_bag_offsets_sum.hpp"
 #include <vector>
-#include "common_test_utils/test_constants.hpp"
 #include "kmb_layer_test.hpp"
 
 namespace LayerTestsDefinitions {
 
-class KmbEmbeddingBagOffsetsSumLayerTest :
+class VPUXEmbeddingBagOffsetsSumLayerTest :
         public EmbeddingBagOffsetsSumLayerTest,
         virtual public LayerTestsUtils::KmbLayerTestsCommon {};
 
-TEST_P(KmbEmbeddingBagOffsetsSumLayerTest, CompareWithRefs_MLIR) {
-    useCompilerMLIR();
+class VPUXEmbeddingBagOffsetsSumLayerTest_VPU3700 : public VPUXEmbeddingBagOffsetsSumLayerTest {};
+
+TEST_P(VPUXEmbeddingBagOffsetsSumLayerTest_VPU3700, HW) {
+    setPlatformVPU3700();
+    setDefaultHardwareModeMLIR();
     Run();
 }
 
@@ -48,10 +50,10 @@ const auto EmbeddingBagOffsetsSumParams1 = ::testing::Combine(
         ::testing::ValuesIn(emb_table_shape), ::testing::ValuesIn(indices), ::testing::ValuesIn(offsets),
         ::testing::ValuesIn(default_index), ::testing::ValuesIn(with_weights), ::testing::ValuesIn(with_default_index));
 
-INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_EmbeddingBagOffsetsSum1, KmbEmbeddingBagOffsetsSumLayerTest,
+INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_EmbeddingBagOffsetsSum1, VPUXEmbeddingBagOffsetsSumLayerTest_VPU3700,
                         ::testing::Combine(EmbeddingBagOffsetsSumParams1, ::testing::ValuesIn(netPrecisions),
                                            ::testing::ValuesIn(indPrecisions),
                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
-                        KmbEmbeddingBagOffsetsSumLayerTest::getTestCaseName);
+                        VPUXEmbeddingBagOffsetsSumLayerTest_VPU3700::getTestCaseName);
 
 }  // namespace

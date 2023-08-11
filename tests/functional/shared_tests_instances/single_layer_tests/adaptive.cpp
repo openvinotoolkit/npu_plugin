@@ -1,20 +1,21 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <vector>
 
 #include <common/functions.h>
-#include "common_test_utils/test_constants.hpp"
 #include "kmb_layer_test.hpp"
 #include "single_layer_tests/adaptive_pooling.hpp"
 
 namespace LayerTestsDefinitions {
 
-class KmbAdaPoolLayerTest : public AdaPoolLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {};
+class VPUXAdaPoolLayerTest : public AdaPoolLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {};
+class VPUXAdaPoolLayerTest_VPU3700 : public VPUXAdaPoolLayerTest {};
 
-TEST_P(KmbAdaPoolLayerTest, CompareWithRefs_MLIR) {
-    useCompilerMLIR();
+TEST_P(VPUXAdaPoolLayerTest_VPU3700, HW) {
+    setPlatformVPU3700();
+    setDefaultHardwareModeMLIR();
     Run();
 }
 
@@ -35,8 +36,8 @@ const auto AdaPool3DCases =
                            ::testing::ValuesIn(netPrecisions),                             // precision
                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));  // device
 
-INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_TestsAdaPool3D, KmbAdaPoolLayerTest, AdaPool3DCases,
-                        KmbAdaPoolLayerTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_TestsAdaPool3D, VPUXAdaPoolLayerTest_VPU3700, AdaPool3DCases,
+                        VPUXAdaPoolLayerTest_VPU3700::getTestCaseName);
 
 const auto AdaPool4DCases = ::testing::Combine(
         ::testing::ValuesIn(std::vector<std::vector<size_t>>{{1, 3, 32, 32}, {1, 1, 3, 2}}),  // inputShape
@@ -45,8 +46,8 @@ const auto AdaPool4DCases = ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),                                                   // precision
         ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));                        // device
 
-INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_TestsAdaPool4D, KmbAdaPoolLayerTest, AdaPool4DCases,
-                        KmbAdaPoolLayerTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_TestsAdaPool4D, VPUXAdaPoolLayerTest_VPU3700, AdaPool4DCases,
+                        VPUXAdaPoolLayerTest_VPU3700::getTestCaseName);
 
 const auto AdaPool5DCases = ::testing::Combine(
         ::testing::ValuesIn(std::vector<std::vector<size_t>>{{1, 17, 4, 5, 4}, {1, 1, 3, 2, 3}}),  // inputShape
@@ -55,5 +56,5 @@ const auto AdaPool5DCases = ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),                                                        // precision
         ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));                             // device
 
-INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_TestsAdaPool5D, KmbAdaPoolLayerTest, AdaPool5DCases,
-                        KmbAdaPoolLayerTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_TestsAdaPool5D, VPUXAdaPoolLayerTest_VPU3700, AdaPool5DCases,
+                        VPUXAdaPoolLayerTest_VPU3700::getTestCaseName);

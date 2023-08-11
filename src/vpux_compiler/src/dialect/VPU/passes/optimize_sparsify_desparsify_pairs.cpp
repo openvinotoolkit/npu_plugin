@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/VPU/nce_sparsity.hpp"
 #include "vpux/compiler/dialect/VPU/ops.hpp"
 #include "vpux/compiler/dialect/VPU/passes.hpp"
@@ -123,7 +121,7 @@ mlir::LogicalResult RemoveConcatWrappers::matchAndRewrite(VPU::ConcatOp concatOp
     _log.trace("Removed wrappers around '{0}'", concatOp);
     const auto newOutputType = (*consumerSparsifyOps.begin())->getResult(0).getType();
     auto newConcatOp = rewriter.create<VPU::ConcatOp>(concatOp->getLoc(), newOutputType, newConcatInputs,
-                                                      concatOp.static_offsetsAttr());
+                                                      concatOp.per_axisAttr(), concatOp.static_offsetsAttr());
 
     if (!canBeFullyConverted) {
         auto desparsifyOp = rewriter.create<VPU::DesparsifyOp>(concatOp->getLoc(), newConcatOp.output());
@@ -152,8 +150,8 @@ mlir::LogicalResult RemoveConcatWrappers::matchAndRewrite(VPU::ConcatOp concatOp
 
 class EliminateDesparsifySparsifyPairs final : public mlir::OpRewritePattern<VPU::DesparsifyOp> {
 public:
-    EliminateDesparsifySparsifyPairs(mlir::MLIRContext* ctx, Logger log)
-            : mlir::OpRewritePattern<VPU::DesparsifyOp>(ctx), _log(log) {
+    EliminateDesparsifySparsifyPairs(mlir::MLIRContext* ctx, Logger log, VPU::ActivationSparsityProfile sparsityProfile)
+            : mlir::OpRewritePattern<VPU::DesparsifyOp>(ctx), _log(log), _sparsityProfile(sparsityProfile) {
         setDebugName("EliminateDesparsifySparsifyPairs");
     }
 
@@ -162,17 +160,33 @@ public:
 
 private:
     Logger _log;
+    VPU::ActivationSparsityProfile _sparsityProfile;
 };
 
 // Eliminate Desparsify->Sparsify sequences. In most general case looks like
-//                /-> Sparsify => SparseConsumer
-// => Desparsify -|-> Sparsify => SparseConsumer
-//                \-> DenseConsumer
+//                    /-> Sparsify => SparseConsumer
+//     => Desparsify -|-> Sparsify => SparseConsumer
+//                    \-> DenseConsumer
 // To
-// => Desparsify -> DenseConsumer
-// ||=> SparseConsumer
-// ||=> SparseConsumer
-// If Desparsify has no dense consumers(most common case) sequence will be completely eliminated
+//     => Desparsify -> DenseConsumer
+//     ||=> SparseConsumer
+//     ||=> SparseConsumer
+// If Desparsify has no dense consumers (most common case) sequence will be completely eliminated
+//
+// For S0 and AUTO profiles, all Desparsify consumers have to be Sparsify operations in order for the optimization to
+// take place. This is done in order to avoid standalone Desparsify ops as much as possible since pairs can be easily
+// simplified. A concrete example:
+//     Sparsify -> NCEConv -> Sparsify -> Desparsify -> Sparsify -> NCEEltwise -> Sparsify -> Desparsify -> [result 0]
+//                                                   |           |>
+//                                                   |> Sparsify |
+//                                                   |
+//                                                   |> MaxPool -> [output 1]
+// Could be simplified to:
+//     Sparsify -> NCEConv -> Sparsify -> Desparsify -> MaxPool -> [output 1]
+//                                     |
+//                                     |> NCEEltwise -> Sparsify -> Desparsify -> [result 0]
+// NCEConv's output pair of Sparsify->Desparsify will be later simplified, similar to NCEEltwise's input Sparsify ops.
+// Therefore, standalone Desparsify operations can be avoided with S0 profile.
 mlir::LogicalResult EliminateDesparsifySparsifyPairs::matchAndRewrite(VPU::DesparsifyOp desparsifyOp,
                                                                       mlir::PatternRewriter& rewriter) const {
     size_t totalUses = 0;
@@ -184,7 +198,16 @@ mlir::LogicalResult EliminateDesparsifySparsifyPairs::matchAndRewrite(VPU::Despa
         }
     }
     if (removableOps.empty()) {
-        return mlir::failure();
+        return matchFailed(_log, rewriter, desparsifyOp, "[{0}] '{1}' at '{2}' does not have Sparsify consumers",
+                           getDebugName(), desparsifyOp->getName(), desparsifyOp->getLoc());
+    }
+    if (_sparsityProfile != VPU::ActivationSparsityProfile::S1) {
+        if (removableOps.size() != totalUses) {
+            return matchFailed(_log, rewriter, desparsifyOp,
+                               "[{0}] '{1}' at '{2}' does not have only Sparsify consumers, which is needed for S0 and "
+                               "AUTO profile",
+                               getDebugName(), desparsifyOp->getName(), desparsifyOp->getLoc());
+        }
     }
     auto sparseInput = desparsifyOp.input();
     for (auto sparsifyOp : removableOps) {
@@ -206,10 +229,10 @@ void OptimizeSparsifyDesparsifyPairsPass::safeRunOnFunc() {
     using namespace VPU;
     using namespace VPU::NCESparsity;
 
-    auto func = getFunction();
+    auto func = getOperation();
     auto& ctx = getContext();
     mlir::RewritePatternSet patterns(&ctx);
-    patterns.add<EliminateDesparsifySparsifyPairs>(&ctx, _log);
+    patterns.add<EliminateDesparsifySparsifyPairs>(&ctx, _log, _sparsityProfile);
     patterns.add<RemoveConcatWrappers>(&ctx, _log, _sparsityProfile);
     if (mlir::failed(applyPatternsAndFoldGreedily(func, std::move(patterns), getDefaultGreedyRewriteConfig()))) {
         signalPassFailure();

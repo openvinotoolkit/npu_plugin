@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #pragma once
 
 #include <string>
@@ -44,7 +42,7 @@ struct CompilationUnitDesc {
     mlir::StringRef entry;
 };
 
-ActKernelDesc compileKernelForACTShave(const CompilationUnitDesc& unitDesc);
+ActKernelDesc compileKernelForACTShave(const CompilationUnitDesc& unitDesc, VPU::ArchKind /*archKind*/);
 
 const CompilationUnitDesc& managementKernelCompilationDesc();
 

@@ -17,6 +17,7 @@
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/utils.hpp"
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
+#include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/error.hpp"
 #include "vpux/compiler/utils/hw_settings.hpp"
 #include "vpux/compiler/utils/linear_scan.hpp"
@@ -199,7 +200,7 @@ public:
 
 private:
     void safeRunOnModule() final;
-    void updateAsyncExecuteOpPosition(mlir::FuncOp& netFunc, AsyncDepsInfo& depsInfo,
+    void updateAsyncExecuteOpPosition(mlir::func::FuncOp& netFunc, AsyncDepsInfo& depsInfo,
                                       llvm::ArrayRef<FeasibleMemoryScheduler::ScheduledOpInfo> scheduledOps);
     void assignCyclesToExecOps(AsyncDepsInfo& depsInfo, FeasibleMemoryScheduler::ScheduledOpInfoVec& scheduledOps);
 
@@ -243,7 +244,7 @@ mlir::LogicalResult FeasibleAllocationPass::initialize(mlir::MLIRContext* ctx) {
 // aligned with. Without such sorting insertion of token dependency might hit
 // an error.
 void FeasibleAllocationPass::updateAsyncExecuteOpPosition(
-        mlir::FuncOp& netFunc, AsyncDepsInfo& depsInfo,
+        mlir::func::FuncOp& netFunc, AsyncDepsInfo& depsInfo,
         llvm::ArrayRef<FeasibleMemoryScheduler::ScheduledOpInfo> scheduledOps) {
     // Update placement of AsyncExecuteOps
     mlir::Operation* prevAsyncOp = nullptr;
@@ -310,7 +311,7 @@ void FeasibleAllocationPass::safeRunOnModule() {
     auto module = getOperation();
 
     IE::CNNNetworkOp netOp;
-    mlir::FuncOp netFunc;
+    mlir::func::FuncOp netFunc;
     IE::CNNNetworkOp::getFromModule(module, netOp, netFunc);
 
     // cluster information
@@ -329,16 +330,22 @@ void FeasibleAllocationPass::safeRunOnModule() {
 
     SmallVector<std::pair<vpux::AddressType, vpux::AddressType>> reservedMemVec;
 
-    // Check for profiling reserved memory:
-    if (auto dmaProfMem = IE::getDmaProfilingReservedMemory(module, _memKindAttr)) {
-        auto dmaProfMemSize = dmaProfMem.byteSize();
-        VPUX_THROW_UNLESS(dmaProfMem.offset().hasValue(), "No offset setting provided");
-        auto dmaProfMemOffset = dmaProfMem.offset().getValue();
-        VPUX_THROW_UNLESS(dmaProfMemOffset + dmaProfMemSize <= maxSize.count(),
-                          "Reserved DMA profiling memory beyond available memory");
+    // Check for reserved memory which memory scheduler should take into account
+    // so that they not overlap with other buffers
+    auto resMemVec = IE::getReservedMemoryResources(module, _memKindAttr);
+    if (!resMemVec.empty()) {
+        // Put all reserved resources starting from 0
+        int64_t resMemOffset = 0;
+        for (auto& resMem : resMemVec) {
+            auto resMemSize = resMem.byteSize();
+            VPUX_THROW_UNLESS(resMemOffset + resMemSize <= maxSize.count(), "Reserved memory beyond available memory");
 
-        reservedMemVec.push_back(std::make_pair(dmaProfMemOffset, dmaProfMemSize));
-        _log.trace("DMA profiling reserved memory - offset: '{0}', size: '{1}'", dmaProfMemOffset, dmaProfMemSize);
+            reservedMemVec.push_back(std::make_pair(resMemOffset, resMemSize));
+            _log.trace("Reserved memory - offset: '{0}', size: '{1}'", resMemOffset, resMemSize);
+
+            resMem.offsetAttr(getIntAttr(&ctx, resMemOffset));
+            resMemOffset += resMemSize;
+        }
     }
 
     LinearScan<mlir::Value, LinearScanHandler> scan(maxSize.count(), reservedMemVec, alignment);
@@ -349,6 +356,18 @@ void FeasibleAllocationPass::safeRunOnModule() {
     // VPUNN cost model
     const auto arch = VPU::getArch(module);
     const auto costModel = VPU::createCostModel(arch);
+
+    // Follow IR order of compute tasks
+    llvm::DenseMap<VPU::ExecutorKind, mlir::async::ExecuteOp> prevExecOp;
+    for (auto execOp : netFunc.getOps<mlir::async::ExecuteOp>()) {
+        const auto currExecutor = VPUIP::VPUIPDialect::getExecutorKind(execOp);
+        if (VPUIP::VPUIPDialect::isComputeExecutorKind(currExecutor)) {
+            if (prevExecOp.find(currExecutor) != prevExecOp.end()) {
+                depsInfo.addDependency(prevExecOp[currExecutor], execOp);
+            }
+            prevExecOp[currExecutor] = execOp;
+        }
+    }
 
     // Copy classes for iteration with prefetch edges, as for prefetching
     // scheduler will run twice and first iteration is used to gather information
@@ -390,12 +409,7 @@ void FeasibleAllocationPass::safeRunOnModule() {
     }
 
     // 3. optimize spills
-    // Locate first async-exec-op that will be used to determine insertion point for
-    // new allocation operations
-    auto allocOpInsertionPoint = depsInfo.getExecuteOpAtIndex(scheduledOps.begin()->op_).getOperation();
-    VPUX_THROW_UNLESS(allocOpInsertionPoint != nullptr, "Unable to find insertion point for new allocation operations");
-    FeasibleMemorySchedulerSpilling spilling(allocOpInsertionPoint, _memKind, _secondLvlMemKind, depsInfo, aliasesInfo,
-                                             _log, scan);
+    FeasibleMemorySchedulerSpilling spilling(_memKind, _secondLvlMemKind, depsInfo, aliasesInfo, _log, scan, arch);
     spilling.optimizeDataOpsSpills(scheduledOps);
     spilling.removeComputeOpRelocationSpills(scheduledOps);
     spilling.removeRedundantSpillWrites(scheduledOps);
@@ -425,12 +439,6 @@ void FeasibleAllocationPass::safeRunOnModule() {
     if (dmaCount == 1) {
         controlEdges.insertScheduleOrderDepsForExecutor(scheduledOps, VPU::ExecutorKind::DMA_NN);
     }
-    // The execution for other executors is linear - based on cycles so dependencies can be inserted
-    // to simplify barrier scheduling
-    controlEdges.insertScheduleOrderDepsForExecutor(scheduledOps, VPU::ExecutorKind::NCE);
-    controlEdges.insertScheduleOrderDepsForExecutor(scheduledOps, VPU::ExecutorKind::SHAVE_UPA);
-    controlEdges.insertScheduleOrderDepsForExecutor(scheduledOps, VPU::ExecutorKind::SHAVE_ACT);
-
     controlEdges.updateDependenciesInIR();
 
     if (_enableScheduleStatistics) {

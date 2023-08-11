@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/VPUIP/attributes.hpp"
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
 #include "vpux/compiler/dialect/VPUIP/utils.hpp"
@@ -76,7 +74,7 @@ void createNewFlatAlignedConst(Const::DeclareOp& constOp) {
 }
 
 void ResolveDMAWithSwizzlingPass::safeRunOnFunc() {
-    auto func = getFunction();
+    auto func = getOperation();
 
     func->walk([&](VPURT::TaskOp taskOp) {
         if (taskOp.getExecutorKind() != VPU::ExecutorKind::DMA_NN) {
@@ -184,7 +182,8 @@ void ResolveDMAWithSwizzlingPass::safeRunOnFunc() {
         builder.setInsertionPoint(dmaOp);
         auto newDmaOp = builder.create<VPUIP::NNDMAOp>(appendLoc(dmaOp->getLoc(), "_flat_buffer_dma"),
                                                        newInputOp->getResult(0), newOutputBuff, dmaOp.portAttr(),
-                                                       dmaOp.is_out_of_orderAttr(), dmaOp.is_criticalAttr());
+                                                       dmaOp.channelTypeAttr(), dmaOp.is_out_of_orderAttr(),
+                                                       dmaOp.is_criticalAttr(), dmaOp.spillIdAttr(), nullptr);
         _log.nest().trace("Create new DMA - '{0}'", newDmaOp->getLoc());
 
         dmaOp->erase();

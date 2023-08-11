@@ -9,7 +9,6 @@ if(ENABLE_LTO)
     ie_enable_lto()
 endif()
 
-replace_noerror()
 find_package(ZLIB)
 
 set(TARGET_NAME "vpux_utils")
@@ -25,6 +24,7 @@ ie_faster_build(${TARGET_NAME}
 )
 
 enable_warnings_as_errors(${TARGET_NAME} WIN_STRICT)
+replace_noerror(${TARGET_NAME})
 vpux_enable_clang_format(${TARGET_NAME})
 
 target_include_directories(${TARGET_NAME}
@@ -42,6 +42,7 @@ endforeach()
 target_include_directories(${TARGET_NAME}
     SYSTEM PUBLIC
         $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/src/vpux_compiler/include/vpux/compiler/dialect/VPUIP/generated>
+        $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/src/vpux_compiler/include/vpux/compiler/profiling/generated>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 )
 
@@ -57,10 +58,12 @@ link_system_libraries(${TARGET_NAME}
         openvino::runtime::dev
         openvino::runtime
         flatbuffers
+        vpux_elf
 )
 
 add_dependencies(${TARGET_NAME}
     vpux_mlir_compiler_schema
+    vpux_mlir_compiler_profiling_schema
 )
 
 add_dependencies(${TARGET_NAME}

@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/VPURT/cycle_based_barrier_scheduler.hpp"
 
 using namespace vpux::VPURT;
@@ -45,7 +43,7 @@ using namespace vpux::VPURT;
 // 1) if a task's cycle start <= t, then assign barrier for it and update related barrier consumer.
 // 2) if a task's cycle end <= t, then update the related barrier producer.
 
-CycleBasedBarrierScheduler::CycleBasedBarrierScheduler(mlir::FuncOp func, Logger log)
+CycleBasedBarrierScheduler::CycleBasedBarrierScheduler(mlir::func::FuncOp func, Logger log)
         : _barrierCount(),
           _slotsPerBarrier(),
           _barrierResourceState(),

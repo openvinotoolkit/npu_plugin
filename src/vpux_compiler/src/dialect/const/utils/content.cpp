@@ -3,12 +3,11 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/const/utils/content.hpp"
 
 #include "vpux/compiler/core/layers.hpp"
 #include "vpux/utils/IE/loop.hpp"
+#include "vpux/utils/core/numeric.hpp"
 
 using namespace vpux;
 
@@ -39,7 +38,7 @@ Const::Content vpux::Const::Content::allocTempBuffer(vpux::NDTypeInterface type,
 
     const int64_t tempBufSize = isSplat ? 1 : type.getNumElements();
     const Bit tempElemBitSize = vpux::getElemTypeSize(storageElemType);
-    const auto tempBufRawBitSize = tempElemBitSize * tempBufSize;
+    const auto tempBufRawBitSize = alignMemSize(tempElemBitSize * tempBufSize, Byte(1));
 
     content._tempBuf.reset(new char[Byte(tempBufRawBitSize).count()]);
     content._data = makeArrayRef(content._tempBuf.get(), Byte(tempBufRawBitSize).count());

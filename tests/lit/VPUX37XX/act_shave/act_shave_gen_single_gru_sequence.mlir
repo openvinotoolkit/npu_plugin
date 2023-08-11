@@ -1,3 +1,8 @@
+//
+// Copyright (C) 2023 Intel Corporation.
+// SPDX-License-Identifier: Apache 2.0
+//
+
 // RUN: vpux-opt --init-compiler="vpu-arch=VPUX37XX" %s | vpux-translate --export-VPUIP -o %t
 // RUN: flatc --raw-binary --json %vpuip_schema_file% -- %t
 // RUN: FileCheck %s --input-file %basename_t.json
@@ -26,20 +31,20 @@ IE.CNNNetwork
 module @VPU.SW {
     // The declaration should match C++ params structure in decomposed form.
     // `memref` will be translated to `MemRefData`, while raw scalars will be translated as is.
-    func private @builtin_GRUSequence(memref<*xf16>, memref<*xf16>, memref<*xf16>, memref<*xf16>, memref<*xf16>, memref<*xf16>, memref<*xf16>, i64, i64, i64, i64, f64)
+    func.func private @builtin_GRUSequence(memref<*xf16>, memref<*xf16>, memref<*xf16>, memref<*xf16>, memref<*xf16>, memref<*xf16>, memref<*xf16>, i64, i64, i64, i64, f64)
         attributes {
             VPU.kernel_code = "single_shave_gru_sequence.cpp",
             VPU.kernel_entry = "single_shave_gru_sequence"
         }
 
     // management kernel definition
-    func private @runtime()
+    func.func private @runtime()
         attributes {
             VPU.kernel_code = "nnActEntry"
         }
 }
 
-func @main(%arg0: memref<2x1x10xf16, @DDR>, %arg1: memref<2x1x4xf16, @DDR>, %arg2: memref<2x1x1x4xf16, @DDR>, %arg3: memref<2x1x4xf16, @DDR>) -> (memref<2x1x1x4xf16, @DDR>, memref<2x1x4xf16, @DDR>) {
+func.func @main(%arg0: memref<2x1x10xf16, @DDR>, %arg1: memref<2x1x4xf16, @DDR>, %arg2: memref<2x1x1x4xf16, @DDR>, %arg3: memref<2x1x4xf16, @DDR>) -> (memref<2x1x1x4xf16, @DDR>, memref<2x1x4xf16, @DDR>) {
 
     %cst = const.Declare memref<1x12x10xf16> = dense<1.0> : tensor<1x12x10xf16>
     %cst_0 = const.Declare memref<1x12x4xf16> = dense<1.0> : tensor<1x12x4xf16>

@@ -1,7 +1,8 @@
 //
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
+
 // RUN: vpux-opt --init-compiler="vpu-arch=VPUX37XX" %s | vpux-translate --export-VPUIP -o %t
 // RUN: flatc --raw-binary --json %vpuip_schema_file% -- %t
 // RUN: FileCheck %s --input-file %basename_t.json
@@ -39,20 +40,20 @@ VPURT.SW.Runtime
 module @VPU.SW {
     // The declaration should match C++ params structure in decomposed form.
     // `memref` will be translated to `MemRefData`, while raw scalars will be translated as is.
-    func private @builtin_vau_dp4_m(%input0 : memref<*xsi8>, %input1 : memref<*xsi8>, %output : memref<*xsi32>)
+    func.func private @builtin_vau_dp4_m(%input0 : memref<*xsi8>, %input1 : memref<*xsi8>, %output : memref<*xsi32>)
         attributes {
             VPU.kernel_code = "vau_dp4m.cpp",
-            VPU.kernel_entry = "vau_dp4m"        
+            VPU.kernel_entry = "vau_dp4m"
         }
 
     // management kernel definition
-    func private @runtime()
+    func.func private @runtime()
         attributes {
             VPU.kernel_code = "nnActEntry"
         }
 }
 
-func @main(%1: memref<1x1008x1x1xsi8>, %2: memref<1x1008x1x1xsi8>, %3: memref<1x252x1x1xsi32>) -> memref<1x252x1x1xsi32> {
+func.func @main(%1: memref<1x1008x1x1xsi8>, %2: memref<1x1008x1x1xsi8>, %3: memref<1x252x1x1xsi32>) -> memref<1x252x1x1xsi32> {
 
     %in0_tile0_cmx  = VPURT.DeclareBuffer "CMX_NN" [0] <0> -> memref<1x1008x1x1xsi8, [@CMX_NN, 0]>
     %in1_tile0_cmx  = VPURT.DeclareBuffer "CMX_NN" [0] <2000> -> memref<1x1008x1x1xsi8, [@CMX_NN, 0]>

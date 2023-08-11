@@ -271,8 +271,7 @@ void alignFQRanges(IE::ConcatOp origOp, MutableArrayRef<IE::FakeQuantizeOp> fqOp
     for (size_t i = 0; i < fqOpsToAlign.size(); i++) {
         const auto inputLowVals = getConst(fqOpsToAlign[i].input_low().getDefiningOp<Const::DeclareOp>());
         const auto inputHighVals = getConst(fqOpsToAlign[i].input_high().getDefiningOp<Const::DeclareOp>());
-        auto fqHasMaxRanges = [min, max, fqOpsToAlign, maxLevels, inputLowVals,
-                               inputHighVals](IE::FakeQuantizeOp fqOp) -> bool {
+        auto fqHasMaxRanges = [min, max, maxLevels, inputLowVals, inputHighVals](IE::FakeQuantizeOp fqOp) -> bool {
             return (static_cast<int>(fqOp.levels()) == maxLevels && isFloatEqual(min, inputLowVals[0]) &&
                     isFloatEqual(max, inputHighVals[0]));
         };
@@ -390,7 +389,7 @@ private:
 
 void AlignScalesPass::safeRunOnFunc() {
     auto& ctx = getContext();
-    auto func = getFunction();
+    auto func = getOperation();
 
     mlir::RewritePatternSet patterns(&ctx);
     patterns.add<AlignConcatScalesRewriter>(&ctx, _log);

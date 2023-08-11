@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/core/schedule_analysis_utils.hpp"
 
 #include <iomanip>
@@ -120,7 +118,7 @@ StringRef vpux::getTaskType(ScheduledOpInfo op) {
 
 // This method will analyse the async.execute operations and provide some scheduling statistics
 // regarding stalls and calculate how much they could be reduced
-void vpux::printScheduleStatistics(mlir::FuncOp& netFunc, AsyncDepsInfo& depsInfo, Logger log,
+void vpux::printScheduleStatistics(mlir::func::FuncOp& netFunc, AsyncDepsInfo& depsInfo, Logger log,
                                    llvm::ArrayRef<ScheduledOpInfo> scheduledOps) {
     log.setName("schedule-analysis");
     // 1. Print final schedule
@@ -291,7 +289,7 @@ void vpux::printSpillingStatistics(Logger log, SpillStats& beforePrefetching, Sp
     log = log.unnest();
 }
 
-void vpux::createTracingJSON(mlir::FuncOp& netFunc, StringRef fileName) {
+void vpux::createTracingJSON(mlir::func::FuncOp& netFunc, StringRef fileName) {
     std::ofstream out_stream(fileName.str());
     VPUX_THROW_UNLESS(out_stream.good(), "File with manual strategy not created correctly");
 

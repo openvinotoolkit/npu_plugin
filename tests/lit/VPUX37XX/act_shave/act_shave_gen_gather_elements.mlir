@@ -1,7 +1,8 @@
 //
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
+
 // RUN: vpux-opt --init-compiler="vpu-arch=VPUX37XX" %s | vpux-translate --export-VPUIP -o %t
 // RUN: flatc --raw-binary --json %vpuip_schema_file% -- %t
 // RUN: FileCheck %s --input-file %basename_t.json
@@ -37,26 +38,26 @@ VPURT.SW.Runtime
 module @VPU.SW {
     // The declaration should match C++ params structure in decomposed form.
     // `memref` will be translated to `MemRefData`, while raw scalars will be translated as is.
-    func private @builtin_GatherElements(%input : memref<*xf16>, %input2 : memref<*xsi32>, %output : memref<*xf16>)
+    func.func private @builtin_GatherElements(%input : memref<*xf16>, %input2 : memref<*xsi32>, %output : memref<*xf16>)
         attributes {
             VPU.kernel_code = "single_shave_gather_elements.cpp",
             VPU.kernel_entry = "single_shave_gather_elements"
         }
 
-    func private @builtin_Convert(%input3: memref<*xf32>, %output2: memref<*xf16>)
+    func.func private @builtin_Convert(%input3: memref<*xf32>, %output2: memref<*xf16>)
         attributes {
             VPU.kernel_code = "single_shave_convert.cpp",
             VPU.kernel_entry = "single_shave_convert"
         }
 
     // management kernel definition
-    func private @runtime()
+    func.func private @runtime()
         attributes {
             VPU.kernel_code = "nnActEntry"
         }
 }
 
-func @main(%arg0: memref<2x2xf32>, %arg1: memref<2x2xf32>) -> memref<2x2xf32> {
+func.func @main(%arg0: memref<2x2xf32>, %arg1: memref<2x2xf32>) -> memref<2x2xf32> {
     %cst = const.Declare memref<2x2xsi32> = dense<[[0, 0], [1, 1]]> : tensor<2x2xsi32>
     %0 = VPURT.DeclareBuffer "CMX_NN" [0] <0> -> memref<2x2xf32, [@CMX_NN, 0]>
     %1 = VPURT.DeclareBuffer "CMX_NN" [0] <128> -> memref<2x2xf16, [@CMX_NN, 0]>
@@ -192,6 +193,7 @@ func @main(%arg0: memref<2x2xf32>, %arg1: memref<2x2xf32>) -> memref<2x2xf32> {
 // CHECK:     }
 // CHECK:   ]
 
+// CHECK:    device: "VPUX37XX",
 // CHECK:    act_kernel_runtime: {
 // CHECK:        shaveStacks: [
 // CHECK:          {

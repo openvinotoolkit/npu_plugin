@@ -1,5 +1,5 @@
 //
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,7 +10,7 @@
 
 namespace LayerTestsDefinitions {
 
-class KmbPowerLayerTest : public PowerLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
+class VPUXPowerLayerTest_VPU3700 : public PowerLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
     void SkipBeforeLoad() override {
         if (envConfig.IE_KMB_TESTS_RUN_INFER) {
             throw LayerTestsUtils::KmbSkipTestException("layer test networks hang the board");
@@ -21,7 +21,9 @@ class KmbPowerLayerTest : public PowerLayerTest, virtual public LayerTestsUtils:
     }
 };
 
-TEST_P(KmbPowerLayerTest, PowerCheck) {
+TEST_P(VPUXPowerLayerTest_VPU3700, HW) {
+    setPlatformVPU3700();
+    setDefaultHardwareModeMLIR();
     Run();
 }
 }  // namespace LayerTestsDefinitions
@@ -39,12 +41,8 @@ std::vector<std::vector<float>> Power = {
 
 std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP16};
 
-// Test works only when power = 1, in all other cases there are similar errors:
-// C++ exception with description "Operation PowerIE Power_xxxxx has unsupported power N (where N unequals to 1)
-// vpux-plugin/src/frontend_mcm/src/ngraph_mcm_frontend/passes/convert_to_mcm_model.cpp:640
-// openvino/inference-engine/include/details/ie_exception_conversion.hpp:64" thrown in the test body.
 // [Track number: S#41811]
-INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_power, KmbPowerLayerTest,
+INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_power, VPUXPowerLayerTest_VPU3700,
                          ::testing::Combine(::testing::ValuesIn(inShapes), ::testing::ValuesIn(netPrecisions),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
@@ -52,6 +50,6 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_power, KmbPowerLayerTest,
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
                                             ::testing::ValuesIn(Power)),
-                         KmbPowerLayerTest::getTestCaseName);
+                         VPUXPowerLayerTest_VPU3700::getTestCaseName);
 
 }  // namespace

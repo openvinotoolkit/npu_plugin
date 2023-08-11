@@ -25,7 +25,7 @@ std::shared_ptr<ngraph::Node> build_activation_helper(const std::shared_ptr<ngra
     return nullptr;
 }
 
-class KmbConv2dWithBiasTest :
+class VPUXConv2dWithBiasTest_VPU3700 :
         public LayerTestsUtils::KmbLayerTestsCommon,
         public testing::WithParamInterface<std::tuple<InferenceEngine::SizeVector, ngraph::helpers::ActivationTypes>> {
     void SetUp() override {
@@ -72,14 +72,14 @@ class KmbConv2dWithBiasTest :
     }
 };
 
-TEST_P(KmbConv2dWithBiasTest, CompareWithRefs_MLIR_SW) {
-    useCompilerMLIR();
+TEST_P(VPUXConv2dWithBiasTest_VPU3700, SW) {
+    setPlatformVPU3700();
     setReferenceSoftwareModeMLIR();
     Run();
 }
 
-TEST_P(KmbConv2dWithBiasTest, CompareWithRefs_MLIR_HW) {
-    useCompilerMLIR();
+TEST_P(VPUXConv2dWithBiasTest_VPU3700, HW) {
+    setPlatformVPU3700();
     setDefaultHardwareModeMLIR();
     Run();
 }
@@ -96,7 +96,7 @@ const std::vector<ngraph::helpers::ActivationTypes> activations = {
         ngraph::helpers::Relu,
 };
 
-INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_conv2d_with_act, KmbConv2dWithBiasTest,
+INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_conv2d_with_act, VPUXConv2dWithBiasTest_VPU3700,
                          ::testing::Combine(::testing::ValuesIn(kernelShapes), ::testing::ValuesIn(activations)));
 
 }  // namespace

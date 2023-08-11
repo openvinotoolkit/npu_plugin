@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/core/mem_live_range_info.hpp"
 
 #include "vpux/compiler/utils/analysis.hpp"
@@ -15,9 +13,9 @@
 
 using namespace vpux;
 
-vpux::MemLiveRangeInfo::MemLiveRangeInfo(mlir::FuncOp funcOp, mlir::AnalysisManager& am)
+vpux::MemLiveRangeInfo::MemLiveRangeInfo(mlir::func::FuncOp funcOp, mlir::AnalysisManager& am)
         : _log(Logger::global().nest("mem-live-range-info", 0)),
-          _aliasInfo(am.getAnalysis<AliasesInfo, mlir::FuncOp>()) {
+          _aliasInfo(am.getAnalysis<AliasesInfo, mlir::func::FuncOp>()) {
     _log.trace("Collect all buffer allocations");
     _log = _log.nest();
 

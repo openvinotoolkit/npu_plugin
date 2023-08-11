@@ -11,6 +11,7 @@
 #include <vpux_elf/types/symbol_entry.hpp>
 #include <vpux_elf/utils/error.hpp>
 #include <vpux_loader/vpux_loader.hpp>
+#include "vpux_hpi.hpp"
 
 #include <cstdint>
 #include <ctime>
@@ -41,6 +42,7 @@ int main(int argc, char* argv[]) {
     }
 
     VPUXLoader loader();
+    HostParsedInference hpi();
     VPUX_ELF_LOG(LogLevel::DEBUG, "loaderTest : DEBUG : Just checking if we can use VPUXLoader headers");
     VPUX_ELF_LOG(LogLevel::INFO, "loaderTest : INFO : Just checking if we can use VPUXLoader headers");
 

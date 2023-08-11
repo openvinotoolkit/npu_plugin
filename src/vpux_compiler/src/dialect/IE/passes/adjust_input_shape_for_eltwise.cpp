@@ -3,10 +3,7 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include <llvm/ADT/STLExtras.h>
-#include <llvm/ADT/TypeSwitch.h>
 #include <mlir/Transforms/GreedyPatternRewriteDriver.h>
 #include "vpux/compiler/dialect/IE/passes.hpp"
 #include "vpux/compiler/dialect/IE/utils/shape_infer.hpp"
@@ -43,6 +40,46 @@ public:
 
     bool init();
 
+    Logger getLogger() {
+        return _log;
+    }
+
+    mlir::Operation* getEltwiseOperation() {
+        return _eltwiseOp;
+    }
+
+    void addExpandInput(IE::ExpandOp expand) {
+        _expandInputs.insert(expand);
+    }
+
+    mlir::DenseSet<IE::ExpandOp> getExpandInputs() {
+        return _expandInputs;
+    }
+
+    size_t getExpandInputsNum() {
+        return _expandInputs.size();
+    }
+
+    void addSliceOutput(IE::SliceOp slice) {
+        _sliceOutputs.insert(slice);
+    }
+
+    void addNonSliceOutput(mlir::Operation* op) {
+        _nonSliceOutputs.insert(op);
+    }
+
+    size_t getSliceOutputsNum() {
+        return _sliceOutputs.size();
+    }
+
+    void setUnExpandedShape(Shape shape) {
+        _unExpandedShape = shape;
+    }
+
+    void setNewExpandedShape(Shape shape) {
+        _newExpandedShape = shape;
+    }
+
 private:
     mlir::Operation* _eltwiseOp;
     mlir::DenseSet<IE::ExpandOp> _expandInputs{};
@@ -73,7 +110,7 @@ mlir::FailureOr<int64_t> getRealDataSize(Const::DeclareOp constOp) {
 
     if (auto denseBaseAttr = baseContent.dyn_cast<mlir::DenseElementsAttr>()) {
         return denseBaseAttr.getType().getNumElements();
-    } else if (auto opaqueBaseAttr = baseContent.dyn_cast<mlir::OpaqueElementsAttr>()) {
+    } else if (auto opaqueBaseAttr = baseContent.dyn_cast<Const::OpaqueElementsAttr>()) {
         return opaqueBaseAttr.getType().getNumElements();
     } else {
         VPUX_THROW("Got unsupported 'baseContent' in 'ContentAttr'");
@@ -157,7 +194,6 @@ bool ExpandEltwisePattern::init() {
         if (isF16 && uniformQElemType && !hasSingleUserSliceOp(_eltwiseOp)) {
             return false;
         }
-
         auto inputLayout = inputType.getDimsOrder();
         if (inputLayout != eltwiseOutputLayout) {
             _log.trace("Unsupported eltwise input and output layout");
@@ -325,7 +361,7 @@ mlir::LogicalResult ExpandEltwisePattern::rewrite() {
         if (auto denseBaseAttr = baseContent.dyn_cast<mlir::DenseElementsAttr>()) {
             newContentAttr = Const::ContentAttr::get(denseBaseAttr);
             realDataShape = denseBaseAttr.getType().getShape();
-        } else if (auto opaqueBaseAttr = baseContent.dyn_cast<mlir::OpaqueElementsAttr>()) {
+        } else if (auto opaqueBaseAttr = baseContent.dyn_cast<Const::OpaqueElementsAttr>()) {
             newContentAttr = Const::ContentAttr::get(opaqueBaseAttr);
             realDataShape = opaqueBaseAttr.getType().getShape();
         } else {
@@ -339,13 +375,33 @@ mlir::LogicalResult ExpandEltwisePattern::rewrite() {
         }
         const auto singleValueData = realDataSizeResult.getValue() == 1;
         if (singleValueData) {
-            for (auto dim : enumerate(dataShape)) {
-                if (dim.value() > 1) {
-                    newContentAttr = newContentAttr.broadcast(Dim(dim.index()), _newExpandedShape[Dims4D::Act::C]);
-                    auto newConstantShape = Shape(newConstOutputType.getShape().size(), int64_t(1));
-                    newConstantShape[Dim(dim.index())] = _newExpandedShape[Dims4D::Act::C];
-                    newConstOutputType = newConstOutputType.changeShape(newConstantShape);
+            if (mlir::dyn_cast<IE::GroupConvolutionOp>(_eltwiseOp)) {
+                for (const auto& dim : enumerate(dataShape)) {
+                    if (dim.value() > 1) {
+                        newContentAttr = newContentAttr.broadcast(Dim(dim.index()), _newExpandedShape[Dims4D::Act::C]);
+                        auto newConstantShape = Shape(newConstOutputType.getShape().size(), int64_t(1));
+                        newConstantShape[Dim(dim.index())] = _newExpandedShape[Dims4D::Act::C];
+                        newConstOutputType = newConstOutputType.changeShape(newConstantShape);
+                        newContentAttr = newContentAttr.reshape(newConstantShape);
+                    }
+                }
+            } else {
+                // original data shape may be [1], need to reshape new shape size like [1, 1, 1, 1], then broadcast to
+                // new shape
+                auto newConstantShape = Shape(_newExpandedShape.size(), int64_t(1));
+                if (realDataShape.size() != _newExpandedShape.size()) {
                     newContentAttr = newContentAttr.reshape(newConstantShape);
+                }
+                for (const auto& dim : enumerate(_newExpandedShape)) {
+                    if (dim.value() > 1) {
+                        newContentAttr =
+                                newContentAttr.broadcast(Dim(dim.index()), _newExpandedShape[Dim(dim.index())]);
+                        newConstantShape[Dim(dim.index())] = _newExpandedShape[Dim(dim.index())];
+                    }
+                }
+                // change newConstOutputType accordingly, which will be used to create a new const.
+                if (newConstOutputType.getShape() != newConstantShape) {
+                    newConstOutputType = newConstOutputType.changeShape(newConstantShape);
                 }
             }
         }
@@ -447,20 +503,32 @@ private:
 mlir::LogicalResult ExpandGroupConvRewriter::matchAndRewrite(IE::GroupConvolutionOp layerOp,
                                                              mlir::PatternRewriter&) const {
     _log.trace("[{0}] Got '{1}' at '{2}'", this->getDebugName(), layerOp->getName(), layerOp->getLoc());
-    mlir::SmallVector<Const::DeclareOp> constInputOps;
-    constInputOps.push_back(layerOp.filter().getDefiningOp<Const::DeclareOp>());
-    if (layerOp.bias()) {
-        constInputOps.push_back(layerOp.bias().getDefiningOp<Const::DeclareOp>());
-    }
+
     // Only support GroupConvolution with constant filter
     // if the GroupConvolution has bias, the bias has to be constant as well
     // the total size of filter constant is 1, as well as the bias, i.e., denseElem.getType().getNumElements() = 1
+    // Kernel size must be 1x1, and must be a depthwise convolution.
     // in that case, the GroupConvolution can be considered as an Eltwise
-    const auto supportedGroupConvConst = llvm::all_of(constInputOps, [](Const::DeclareOp constOp) {
-        auto realDataSizeResult = getRealDataSize(constOp);
-        return mlir::succeeded(realDataSizeResult) && realDataSizeResult.getValue() == 1;
-    });
-    if (!supportedGroupConvConst) {
+    const auto supportedGroupConv = [](IE::GroupConvolutionOp layerOp) {
+        // check kernel size and is a depthwise convolution or not
+        auto filterShape = getShape(layerOp.filter());
+        if (filterShape[Dims4D::Filter::KX] != 1 || filterShape[Dims4D::Filter::KX] != 1 ||
+            filterShape[Dims4D::Filter::OC] != layerOp.groups().getValue()) {
+            return false;
+        }
+
+        // check input const is single data or not
+        mlir::SmallVector<Const::DeclareOp> constInputOps;
+        constInputOps.push_back(layerOp.filter().getDefiningOp<Const::DeclareOp>());
+        if (layerOp.bias()) {
+            constInputOps.push_back(layerOp.bias().getDefiningOp<Const::DeclareOp>());
+        }
+        return llvm::all_of(constInputOps, [](Const::DeclareOp constOp) {
+            auto realDataSizeResult = getRealDataSize(constOp);
+            return mlir::succeeded(realDataSizeResult) && realDataSizeResult.getValue() == 1;
+        });
+    };
+    if (!supportedGroupConv(layerOp)) {
         return mlir::failure();
     }
 
@@ -474,14 +542,206 @@ mlir::LogicalResult ExpandGroupConvRewriter::matchAndRewrite(IE::GroupConvolutio
     return mlir::failure();
 }
 
+//
+// ExpandPermuteQuantizePattern
+//
+
+class ExpandPermuteQuantizePattern final : public ExpandEltwisePattern {
+public:
+    ExpandPermuteQuantizePattern(mlir::Operation* permuteQuantize, Logger log)
+            : ExpandEltwisePattern(permuteQuantize, log) {
+    }
+
+    // Overwrite ExpandEltwisePattern::init()
+    bool init();
+
+private:
+    bool checkValidPermuteQuantizeOrders(IE::PermuteQuantizeOp op);
+    bool checkValidPermuteQuantizePads(IE::PermuteQuantizeOp op);
+    mlir::FailureOr<Shape> getWidthAlignedExpandedShape(mlir::Operation* operation, ShapeRef unExpandedShape,
+                                                        Logger log);
+};
+
+//
+// For PermuteQuantize shape adjustment.
+// e.g
+// 2x2x4 tensor:
+// a11 a12 a13 a14               b11 b12 b13 b14
+// a21 a22 a23 a24               b21 b22 b23 b24
+// Layout in memory NCHW: a11 a12 a13 a14 a21 a22 a23 a24 b11 b12 b13 b14 b21 b22 b23 b24
+// Layout in memory NHWC: a11 b11 a12 b12 a13 b13 a14 b14 a21 b21 a22 b22 a23 b23 a24 b24
+//
+// 2x4x2 tensor:
+// a11 a12                              b11 b12
+// a13 a14                              b13 b14
+// a21 a22                              b21 b22
+// a23 a24                              b23 b24
+// Layout in memory NCHW: a11 a12 a13 a14 a21 a22 a23 a24 b11 b12 b13 b14 b21 b22 b23 b24
+// Layout in memory NHWC: a11 b11 a12 b12 a13 b13 a14 b14 a21 b21 a22 b22 a23 b23 a24 b24
+//
+bool ExpandPermuteQuantizePattern::checkValidPermuteQuantizeOrders(IE::PermuteQuantizeOp op) {
+    auto inType = op.input().getType().cast<vpux::NDTypeInterface>();
+    auto inputLayout = inType.getDimsOrder();
+    auto outType = op.output().getType().cast<vpux::NDTypeInterface>();
+    auto outputLayout = outType.getDimsOrder();
+
+    const auto supportedPerm = vpux::DimsOrder::NHWC.toAffineMap(op->getContext());
+
+    return inputLayout == DimsOrder::NCHW && outputLayout == DimsOrder::NHWC && op.mem_perm() == supportedPerm;
+}
+
+bool ExpandPermuteQuantizePattern::checkValidPermuteQuantizePads(IE::PermuteQuantizeOp op) {
+    const auto padStart = parseIntArrayAttr<int64_t>(op.pads_begin());
+    const auto padEnd = parseIntArrayAttr<int64_t>(op.pads_end());
+
+    const auto nonZeroPadStart = llvm::any_of(padStart, [](auto pad) {
+        return pad > 0;
+    });
+
+    const auto nonZeroPadEnd = llvm::any_of(padEnd, [](auto pad) {
+        return pad > 0;
+    });
+
+    return !(nonZeroPadStart || nonZeroPadEnd);
+}
+
+mlir::FailureOr<Shape> ExpandPermuteQuantizePattern::getWidthAlignedExpandedShape(mlir::Operation* operation,
+                                                                                  ShapeRef unExpandedShape,
+                                                                                  Logger log) {
+    auto permuteQuantize = mlir::dyn_cast_or_null<IE::PermuteQuantizeOp>(operation);
+    if (permuteQuantize == nullptr || !checkValidPermuteQuantizeOrders(permuteQuantize) ||
+        !checkValidPermuteQuantizePads(permuteQuantize)) {
+        return mlir::failure();
+    }
+
+    if (unExpandedShape.size() != 4) {
+        return mlir::failure();
+    }
+
+    const auto inputType = operation->getOperand(0).getType().cast<vpux::NDTypeInterface>();
+    const auto alignment = VPU::NCEInvariant::getAlignment(inputType.getElementType());
+
+    auto IH = unExpandedShape[Dims4D::Act::H];
+    auto IW = unExpandedShape[Dims4D::Act::W];
+    if (IH * IW % alignment != 0) {
+        log.trace("Unable to adjust the input shape for op {0} at {1}, shape {2}", operation->getName(),
+                  operation->getLoc(), unExpandedShape);
+        return mlir::failure();
+    }
+
+    auto newExpandedShape = Shape(unExpandedShape.size(), 1);
+    newExpandedShape[Dims4D::Act::N] = unExpandedShape[Dims4D::Act::N];
+    newExpandedShape[Dims4D::Act::C] = unExpandedShape[Dims4D::Act::C];
+    newExpandedShape[Dims4D::Act::H] = IH * IW / alignment;
+    newExpandedShape[Dims4D::Act::W] = alignment;
+
+    return newExpandedShape;
+}
+
+/* Try to match the Expand-PermuteQuantize patterns
+         Expand
+            |
+     PermuteQuantize
+            |
+      Slice (optional)
+*/
+
+bool ExpandPermuteQuantizePattern::init() {
+    auto log = getLogger().nest();
+    auto op = getEltwiseOperation();
+    auto permuteQuantize = mlir::dyn_cast<IE::PermuteQuantizeOp>(op);
+    if (permuteQuantize == nullptr) {
+        return false;
+    }
+
+    if (!checkValidPermuteQuantizeOrders(permuteQuantize)) {
+        log.trace("Invalid PermuteQuantize layouts. '{0}' at '{1}'", permuteQuantize->getName(),
+                  permuteQuantize->getLoc());
+        return false;
+    }
+
+    // match input expand
+    auto operand = op->getOperand(0);
+    if (auto expand = operand.getDefiningOp<IE::ExpandOp>()) {
+        const auto padsEnd = Shape(parseIntArrayAttr<int64_t>(expand.pads_end()));
+        if (padsEnd[Dims4D::Act::N] == 0 && padsEnd[Dims4D::Act::C] == 0 && padsEnd[Dims4D::Act::H] == 0) {
+            // only width expanding should be handled
+            addExpandInput(expand);
+        }
+    }
+
+    log.trace("{0} Expand input(s) found", getExpandInputsNum());
+    if (getExpandInputsNum() == 0) {
+        log.trace("Cannot find any input ExpandOp");
+        return false;
+    }
+
+    // match output slices or non-slices
+    for (auto user : op->getResult(0).getUsers()) {
+        if (auto slice = mlir::dyn_cast<IE::SliceOp>(user)) {
+            addSliceOutput(slice);
+        } else {
+            addNonSliceOutput(user);
+        }
+    }
+    log.trace("{0} Slice output(s) found", getSliceOutputsNum());
+
+    // save the original shape and generate new shape
+    auto expandInputOp = *getExpandInputs().begin();
+    auto unExpandedShape = expandInputOp.input().getType().cast<vpux::NDTypeInterface>().getShape().toValues();
+    setUnExpandedShape(unExpandedShape);
+
+    mlir::FailureOr<Shape> newExpandedShapeResult = getWidthAlignedExpandedShape(op, unExpandedShape, log);
+
+    if (mlir::failed(newExpandedShapeResult)) {
+        return false;
+    }
+    auto newExpandedShape = newExpandedShapeResult.getValue();
+    setNewExpandedShape(newExpandedShape);
+    return true;
+}
+
+//
+// ExpandPermuteQuantizeRewriter
+//
+
+class ExpandPermuteQuantizeRewriter final : public mlir::OpRewritePattern<IE::PermuteQuantizeOp> {
+public:
+    ExpandPermuteQuantizeRewriter(mlir::MLIRContext* ctx, Logger log)
+            : mlir::OpRewritePattern<IE::PermuteQuantizeOp>(ctx), _log(log) {
+        setDebugName("ExpandPermuteQuantizeRewriter");
+    }
+
+public:
+    mlir::LogicalResult matchAndRewrite(IE::PermuteQuantizeOp layerOp, mlir::PatternRewriter& rewriter) const final;
+
+private:
+    Logger _log;
+};
+
+mlir::LogicalResult ExpandPermuteQuantizeRewriter::matchAndRewrite(IE::PermuteQuantizeOp layerOp,
+                                                                   mlir::PatternRewriter&) const {
+    _log.trace("[{0}] Got '{1}' at '{2}'", this->getDebugName(), layerOp->getName(), layerOp->getLoc());
+
+    auto pattern = ExpandPermuteQuantizePattern(layerOp.getOperation(), _log);
+    if (!pattern.init()) {
+        return mlir::failure();
+    }
+    if (pattern.opCostReduced()) {
+        return pattern.rewrite();
+    }
+    return mlir::failure();
+}
+
 void AdjustInputShapeForEltwisePass::safeRunOnFunc() {
     auto& ctx = getContext();
-    auto func = getFunction();
+    auto func = getOperation();
     mlir::RewritePatternSet patterns(&ctx);
     patterns.add<ExpandEltwiseRewriter<IE::MultiplyOp>>(&ctx, _log);
     patterns.add<ExpandEltwiseRewriter<IE::SubtractOp>>(&ctx, _log);
     patterns.add<ExpandEltwiseRewriter<IE::AddOp>>(&ctx, _log);
     patterns.add<ExpandGroupConvRewriter>(&ctx, _log);
+    patterns.add<ExpandPermuteQuantizeRewriter>(&ctx, _log);
 
     if (mlir::failed(mlir::applyPatternsAndFoldGreedily(func, std::move(patterns), getDefaultGreedyRewriteConfig()))) {
         signalPassFailure();

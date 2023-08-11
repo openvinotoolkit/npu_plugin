@@ -1,5 +1,5 @@
 //
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,20 +10,19 @@
 
 namespace LayerTestsDefinitions {
 
-class KmbExtractImagePatchesTest :
+class VPUXExtractImagePatchesTest :
         public ExtractImagePatchesTest,
         virtual public LayerTestsUtils::KmbLayerTestsCommon {};
 
-TEST_P(KmbExtractImagePatchesTest, CompareWithRefs_MLIR) {
-    useCompilerMLIR();
+class VPUXExtractImagePatchesTest_VPU3700 : public VPUXExtractImagePatchesTest {};
+class VPUXExtractImagePatchesLayerTest_VPU3720 : public VPUXExtractImagePatchesTest {};
+
+TEST_P(VPUXExtractImagePatchesTest_VPU3700, HW) {
+    setPlatformVPU3700();
+    setDefaultHardwareModeMLIR();
     Run();
 }
-class VPUXExtractImagePatchesLayerTest_VPU3720 :
-        public ExtractImagePatchesTest,
-        virtual public LayerTestsUtils::KmbLayerTestsCommon {};
-
-TEST_P(VPUXExtractImagePatchesLayerTest_VPU3720, CompareWithRefs_MLIR_VPU3720) {
-    useCompilerMLIR();
+TEST_P(VPUXExtractImagePatchesLayerTest_VPU3720, SW) {
     setPlatformVPU3720();
     setReferenceSoftwareModeMLIR();
     Run();
@@ -57,8 +56,8 @@ const auto testExtractImagePatchesParams = ::testing::Combine(
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED), ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));
 
-INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_ExtractImagePatches, KmbExtractImagePatchesTest,
-                        testExtractImagePatchesParams, KmbExtractImagePatchesTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_ExtractImagePatches, VPUXExtractImagePatchesTest_VPU3700,
+                        testExtractImagePatchesParams, VPUXExtractImagePatchesTest_VPU3700::getTestCaseName);
 
 //
 // VPUX3720 tests
@@ -79,7 +78,7 @@ const auto testVPU37201ExtractImagePatchesParams =
                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));
 
 INSTANTIATE_TEST_CASE_P(smoke1_ExtractImagePatches_VPU3720, VPUXExtractImagePatchesLayerTest_VPU3720,
-                        testVPU37201ExtractImagePatchesParams, KmbExtractImagePatchesTest::getTestCaseName);
+                        testVPU37201ExtractImagePatchesParams, VPUXExtractImagePatchesTest::getTestCaseName);
 
 const auto testVPU37202ExtractImagePatchesParams =
         ::testing::Combine(::testing::ValuesIn(std::vector<std::vector<size_t>>{{1, 1, 10, 10}}),  // input shape
@@ -94,7 +93,7 @@ const auto testVPU37202ExtractImagePatchesParams =
                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));
 
 INSTANTIATE_TEST_CASE_P(DISABLED_smoke2_ExtractImagePatches_VPU3720, VPUXExtractImagePatchesLayerTest_VPU3720,
-                        testVPU37202ExtractImagePatchesParams, KmbExtractImagePatchesTest::getTestCaseName);
+                        testVPU37202ExtractImagePatchesParams, VPUXExtractImagePatchesTest::getTestCaseName);
 
 const auto testVPU37203ExtractImagePatchesParams =
         ::testing::Combine(::testing::ValuesIn(std::vector<std::vector<size_t>>{{1, 1, 10, 10}}),  // input shape
@@ -109,7 +108,7 @@ const auto testVPU37203ExtractImagePatchesParams =
                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));
 
 INSTANTIATE_TEST_CASE_P(smoke3_ExtractImagePatches_VPU3720, VPUXExtractImagePatchesLayerTest_VPU3720,
-                        testVPU37203ExtractImagePatchesParams, KmbExtractImagePatchesTest::getTestCaseName);
+                        testVPU37203ExtractImagePatchesParams, VPUXExtractImagePatchesTest::getTestCaseName);
 
 const auto testVPU37204ExtractImagePatchesParams =
         ::testing::Combine(::testing::ValuesIn(std::vector<std::vector<size_t>>{{1, 2, 5, 5}}),  // input shape
@@ -124,7 +123,7 @@ const auto testVPU37204ExtractImagePatchesParams =
                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));
 
 INSTANTIATE_TEST_CASE_P(smoke4_ExtractImagePatches_VPU3720, VPUXExtractImagePatchesLayerTest_VPU3720,
-                        testVPU37204ExtractImagePatchesParams, KmbExtractImagePatchesTest::getTestCaseName);
+                        testVPU37204ExtractImagePatchesParams, VPUXExtractImagePatchesTest::getTestCaseName);
 
 const auto testVPU37205ExtractImagePatchesParams =
         ::testing::Combine(::testing::ValuesIn(std::vector<std::vector<size_t>>{{1, 64, 26, 26}}),  // input shape
@@ -139,7 +138,7 @@ const auto testVPU37205ExtractImagePatchesParams =
                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));
 
 INSTANTIATE_TEST_CASE_P(DISABLED_smoke5_ExtractImagePatches_VPU3720, VPUXExtractImagePatchesLayerTest_VPU3720,
-                        testVPU37205ExtractImagePatchesParams, KmbExtractImagePatchesTest::getTestCaseName);
+                        testVPU37205ExtractImagePatchesParams, VPUXExtractImagePatchesTest::getTestCaseName);
 
 const auto testVPU37206ExtractImagePatchesParams = ::testing::Combine(
         ::testing::ValuesIn(std::vector<std::vector<size_t>>{{2, 1, 10, 10}}),                // input shape
@@ -154,7 +153,7 @@ const auto testVPU37206ExtractImagePatchesParams = ::testing::Combine(
         ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));
 
 INSTANTIATE_TEST_CASE_P(smoke6_ExtractImagePatches_VPU3720, VPUXExtractImagePatchesLayerTest_VPU3720,
-                        testVPU37206ExtractImagePatchesParams, KmbExtractImagePatchesTest::getTestCaseName);
+                        testVPU37206ExtractImagePatchesParams, VPUXExtractImagePatchesTest::getTestCaseName);
 
 const auto testVPU37207ExtractImagePatchesParams =
         ::testing::Combine(::testing::ValuesIn(std::vector<std::vector<size_t>>{{2, 3, 13, 37}}),  // input shape
@@ -169,7 +168,7 @@ const auto testVPU37207ExtractImagePatchesParams =
                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));
 
 INSTANTIATE_TEST_CASE_P(DISABLED_smoke7_ExtractImagePatches_VPU3720, VPUXExtractImagePatchesLayerTest_VPU3720,
-                        testVPU37207ExtractImagePatchesParams, KmbExtractImagePatchesTest::getTestCaseName);
+                        testVPU37207ExtractImagePatchesParams, VPUXExtractImagePatchesTest::getTestCaseName);
 
 const auto testVPU37208ExtractImagePatchesParams =
         ::testing::Combine(::testing::ValuesIn(std::vector<std::vector<size_t>>{{2, 3, 13, 37}}),  // input shape
@@ -184,7 +183,7 @@ const auto testVPU37208ExtractImagePatchesParams =
                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));
 
 INSTANTIATE_TEST_CASE_P(smoke8_ExtractImagePatches_VPU3720, VPUXExtractImagePatchesLayerTest_VPU3720,
-                        testVPU37208ExtractImagePatchesParams, KmbExtractImagePatchesTest::getTestCaseName);
+                        testVPU37208ExtractImagePatchesParams, VPUXExtractImagePatchesTest::getTestCaseName);
 
 // I32
 const auto testVPU37209ExtractImagePatchesParams =
@@ -200,7 +199,7 @@ const auto testVPU37209ExtractImagePatchesParams =
                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));
 
 INSTANTIATE_TEST_CASE_P(smoke9_ExtractImagePatches_VPU3720, VPUXExtractImagePatchesLayerTest_VPU3720,
-                        testVPU37209ExtractImagePatchesParams, KmbExtractImagePatchesTest::getTestCaseName);
+                        testVPU37209ExtractImagePatchesParams, VPUXExtractImagePatchesTest::getTestCaseName);
 
 INSTANTIATE_TEST_CASE_P(
         smoke_precommit_ExtractImagePatches_VPU3720, VPUXExtractImagePatchesLayerTest_VPU3720,
@@ -214,6 +213,6 @@ INSTANTIATE_TEST_CASE_P(
                            ::testing::Values(InferenceEngine::Precision::FP16),                    // Output precision
                            ::testing::Values(InferenceEngine::Layout::NCHW),                       // Input layout
                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
-        KmbExtractImagePatchesTest::getTestCaseName);
+        VPUXExtractImagePatchesTest::getTestCaseName);
 
 }  // namespace

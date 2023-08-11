@@ -1,8 +1,9 @@
 //
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
-// RUN: vpux-opt %s
+
+// RUN: vpux-opt --init-compiler="vpu-arch=VPUX37XX allow-custom-values=true" %s
 
 //
 // This file generates a blob that runs convolutions on two tiles, used to
@@ -16,7 +17,7 @@
 
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
-!qtype = type !quant.uniform<u8:f32, 1.000000e+00>
+!qtype = !quant.uniform<u8:f32, 1.000000e+00>
 
 module @dual_tile attributes {VPU.arch = "VPUX37XX", VPU.compilationMode = "DefaultHW"} {
   IE.CNNNetwork
@@ -36,7 +37,7 @@ module @dual_tile attributes {VPU.arch = "VPUX37XX", VPU.compilationMode = "Defa
   }
   IE.ExecutorResource 2 of @DMA_NN
 
-  func @main(
+  func.func @main(
         %input_arg: memref<1x16x16x16x!qtype, #NHWC, @DDR>,
         %output_arg: memref<2x16x16x16xf16, #NHWC, @DDR>
       ) -> memref<2x16x16x16xf16, #NHWC, @DDR> {

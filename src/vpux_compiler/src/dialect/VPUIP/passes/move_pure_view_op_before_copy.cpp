@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
 #include "vpux/compiler/dialect/VPUIP/utils.hpp"
 #include "vpux/compiler/utils/allocate_buffers.hpp"
@@ -97,6 +95,16 @@ mlir::LogicalResult LayerRewriterBase::matchAndRewrite(mlir::ViewLikeOpInterface
 
     auto copyOpInput = maybeCopy.getInputs()[0];
     auto copyOpOutput = maybeCopy.getOutputs()[0];
+    // When we have compress convolution we don't want to change
+    // order between shapeCast and copy operation.
+    // If shapeCast is moved before copy, instead of copying 4 channels,
+    // copy operation will try to move 16 channels from memory.
+    if (auto shapeCast = mlir::dyn_cast<VPUIP::ShapeCastOp>(*origOp)) {
+        auto clusterTask = mlir::dyn_cast_or_null<VPUIP::NCEClusterTaskOp>(*shapeCast.result().getUsers().begin());
+        if (clusterTask != nullptr && clusterTask.input_channels_compression() == true) {
+            return mlir::failure();
+        }
+    }
 
     if (!VPUIP::getRootAlloc<mlir::memref::AllocOp>(copyOpOutput)) {
         _log.trace("Skip complex case: the operation defining the output buffer is not Alloc");
@@ -121,6 +129,11 @@ mlir::LogicalResult LayerRewriterBase::matchAndRewrite(mlir::ViewLikeOpInterface
                 !VPUIP::isSegmentedOverH(distributedType.getDistribution())) {
                 return false;
             }
+            if (mlir::isa<VPUIP::QuantizeCastOp>(origOp)) {
+                // Only support per-tensor uniform quantized type
+                return (distributedType.getElementType().isa<mlir::quant::UniformQuantizedType>() &&
+                        viewOpOutputElemType.isa<mlir::quant::UniformQuantizedType>());
+            }
             // If the cluster copy op has siblings, moving pureViewOp
             // in front of it may cause accuracy issues
             if (!copyOpInput.hasOneUse()) {
@@ -133,14 +146,8 @@ mlir::LogicalResult LayerRewriterBase::matchAndRewrite(mlir::ViewLikeOpInterface
                 return false;
             }
             if (mlir::isa<VPUIP::ShapeCastOp, VPUIP::GenericReshapeOp>(origOp)) {
-                return VPUIP::isDistributedCompatibleAfterShapeChange(distributedType, viewOpOutputShape);
-            }
-            if (mlir::isa<VPUIP::QuantizeCastOp>(origOp)) {
-                // Only support per-tensor uniform quantized type
-                if (distributedType.getElementType().isa<mlir::quant::UniformQuantizedType>() &&
-                    viewOpOutputElemType.isa<mlir::quant::UniformQuantizedType>()) {
-                    return true;
-                }
+                const auto arch = VPU::getArch(origOp.getOperation());
+                return VPUIP::isDistributedCompatibleAfterShapeChange(distributedType, viewOpOutputShape, arch);
             }
             return false;
         };
@@ -196,9 +203,11 @@ mlir::LogicalResult LayerRewriterBase::matchAndRewrite(mlir::ViewLikeOpInterface
         auto ctx = origOp->getContext();
         const auto mode = distributedType.getDistribution().mode().getValue();
         const auto order = mlir::AffineMapAttr::get(viewOpOutputType.getDimsOrder().toAffineMap(ctx));
-        const auto distribution = mode == VPU::DistributionMode::SEGMENTED
-                                          ? VPUIP::getSOHDistAttrWithNewShape(ctx, distributedType, viewOpOutputShape)
-                                          : distributedType.getDistribution();
+        const auto arch = VPU::getArch(origOp.getOperation());
+        const auto distribution =
+                mode == VPU::DistributionMode::SEGMENTED
+                        ? VPUIP::getSOHDistAttrWithNewShape(ctx, distributedType, viewOpOutputShape, arch)
+                        : distributedType.getDistribution();
         newViewOpOutputType = VPUIP::DistributedBufferType::get(ctx, viewOpOutputShape.raw(), viewOpOutputElemType,
                                                                 order, distributedType.getMemSpace(), distribution);
     } else {
@@ -321,9 +330,11 @@ mlir::LogicalResult MoveSubviewToTheFrontOfCopyBase::matchAndRewrite(VPUIP::Copy
     auto allocOp = VPUIP::getRootAlloc<mlir::memref::AllocOp>(parentCopyOp.getOutputs()[0]);
     VPUX_THROW_UNLESS(allocOp, "CopyOp output buffer should be AllocationOp");
     auto allocOpDtype = allocOp->getResult(0).getType().cast<vpux::NDTypeInterface>();
-    auto newAllocOpType = allocOpDtype.changeShape(subViewOpShape);
+    // Per-axis quantization must be aligned with the shape.
+    const auto targetElemType = newSubViewOp.result().getType().cast<vpux::NDTypeInterface>().getElementType();
+    const auto newAllocOpType = allocOpDtype.changeShapeElemType(subViewOpShape, targetElemType);
     if (mlir::isa<mlir::memref::AllocOp>(allocOp)) {
-        allocOp->getResult(0).setType(allocOpDtype.changeShape(subViewOpShape));
+        allocOp->getResult(0).setType(allocOpDtype.changeShapeElemType(subViewOpShape, targetElemType));
     } else {
         mlir::OpBuilder::InsertPoint lastInsertionPoint = rewriter.saveInsertionPoint();
         rewriter.setInsertionPoint(allocOp);
@@ -410,7 +421,7 @@ private:
 
 void MovePureViewOpBeforeCopyPass::safeRunOnFunc() {
     auto& ctx = getContext();
-    auto func = getFunction();
+    auto func = getOperation();
 
     mlir::RewritePatternSet patterns(&ctx);
     patterns.add<MoveViewOpToTheFrontOfCopy>(&ctx, _log);

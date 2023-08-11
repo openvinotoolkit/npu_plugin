@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/IE/passes.hpp"
 
 #include "vpux/compiler/conversion.hpp"
@@ -130,8 +128,17 @@ mlir::LogicalResult generalReduceRewrite(
     auto valueConst = origOp->getOperand(1).getDefiningOp<Const::DeclareOp>();
     VPUX_THROW_UNLESS(valueConst != nullptr, "Failed to get axes in Reduce operation");
     const auto valueContent = valueConst.content();
-    const auto axes = to_small_vector(valueContent.getValues<int64_t>());
+    auto axes = to_small_vector(valueContent.getValues<int64_t>());
     auto* ctx = origOp->getContext();
+    // If axis is negative, it indicates indexing from the end.
+    // For example -1 represents the last dimension, -2 represents the penultimate dimension
+    // Adding shape size of tensor to the negative axis and do sorting can convert it to a normal positive axis case.
+    for (size_t i = 0; i < axes.size(); i++) {
+        if (axes[i] < 0) {
+            axes[i] += inputShape.size();
+        }
+    }
+    std::sort(axes.begin(), axes.end());
 
     // If Reduce op reduces only 1 dims we replace it with Reshape
     if (isReduceOneDim(inputShape, axes)) {
@@ -146,10 +153,11 @@ mlir::LogicalResult generalReduceRewrite(
     }
 
     const auto reduceChannels = axes.size() == 1 && axes.front() == Dims4D::Act::C.ind();
-    const auto heightAligned =
-            (inputShape.size() == 4)
-                    ? (inputShape[Dims4D::Act::H.ind()] % VPU::NCEInvariant::VPU_CHANNEL_ALIGNMENT == 0)
-                    : false;
+    const auto heightAligned = (inputShape.size() == 4)
+                                       ? (inputShape[Dims4D::Act::H.ind()] * inputShape[Dims4D::Act::W.ind()] %
+                                                  VPU::NCEInvariant::VPU_CHANNEL_ALIGNMENT ==
+                                          0)
+                                       : false;
 
     auto avoidExpandCase = reduceChannels && heightAligned;
 
@@ -178,7 +186,7 @@ mlir::LogicalResult generalReduceRewrite(
         auto newN = inputShape[Dims4D::Act::N.ind()];
         auto newC = inputShape[Dims4D::Act::C.ind()];
         auto newH = VPU::NCEInvariant::VPU_CHANNEL_ALIGNMENT;
-        auto newW = inputShape[Dims4D::Act::W.ind()] * (inputShape[Dims4D::Act::H.ind()] / newH);
+        auto newW = inputShape[Dims4D::Act::W.ind()] * inputShape[Dims4D::Act::H.ind()] / newH;
         Shape newShape{newN, newC, newH, newW};
         const auto newShapeAttr = getIntArrayAttr(ctx, newShape);
         input = rewriter.create<IE::ReshapeOp>(origOp->getLoc(), input, nullptr, false, newShapeAttr);
@@ -297,7 +305,14 @@ mlir::LogicalResult ReduceSumRewriter::matchAndRewrite(IE::ReduceSumOp origOp, m
                 auto valueConst = origOp.axes().getDefiningOp<Const::DeclareOp>();
                 VPUX_THROW_UNLESS(valueConst != nullptr, "Failed to get axes in Reduce operation");
                 const auto valueContent = valueConst.content();
-                const auto axes = valueContent.getValues<int64_t>();
+                auto axes = to_small_vector(valueContent.getValues<int64_t>());
+                for (size_t i = 0; i < axes.size(); i++) {
+                    if (axes[i] < 0) {
+                        axes[i] += inputShape.size();
+                    }
+                }
+                std::sort(axes.begin(), axes.end());
+
                 float reductionDimsCount = 1;
                 for (const auto& axis : axes) {
                     reductionDimsCount *= inputShape[axis];
@@ -355,14 +370,7 @@ private:
 
 void ConvertReduceToPoolingPass::safeRunOnFunc() {
     auto& ctx = getContext();
-    auto func = getFunction();
-    auto module = func->getParentOfType<mlir::ModuleOp>();
-    auto compilationMode = VPU::getCompilationMode(func);
-    const auto arch = VPU::getArch(module);
-    if (arch == VPU::ArchKind::VPUX37XX && compilationMode == VPU::CompilationMode::ReferenceSW) {
-        _log.trace("ConvertReduceToPoolingPass is not enabled for VPUX37XX device.");
-        return;
-    }
+    auto func = getOperation();
 
     const auto isLegalOp = [&](mlir::Operation* op) {
         const auto inputShape = getShape(op->getOperand(0)).raw();
@@ -386,6 +394,7 @@ void ConvertReduceToPoolingPass::safeRunOnFunc() {
 
         auto module = getOperation();
         const auto arch = VPU::getArch(module);
+        // TODO: #71539
         if (arch == VPU::ArchKind::VPUX30XX || arch == VPU::ArchKind::VPUX311X) {
             // Check that axis dimensions <= 255 otherwise this conversion is not applicable
             bool upaCompatible = true;

@@ -32,10 +32,16 @@ T isPowerOfTwo(T val) {
 }
 
 template <typename T, typename = require_t<std::is_integral<T>>>
-T alignVal(T val, T align) {
-    VPUX_THROW_UNLESS(align != 0, "Zero-alignment is not supported");
+T alignValUp(T val, T align) {
+    VPUX_THROW_WHEN(align == 0, "Zero-alignment is not supported");
     const T isPos = static_cast<T>(val >= 0);
     return ((val + isPos * (align - 1)) / align) * align;
+}
+
+template <typename T, typename = require_t<std::is_integral<T>>>
+T alignValDown(T val, T align) {
+    VPUX_THROW_WHEN(align == 0, "Zero-alignment is not supported");
+    return (val / align) * align;
 }
 
 template <typename T, typename = require_t<std::is_integral<T>>>

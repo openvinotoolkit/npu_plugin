@@ -17,7 +17,7 @@
 #include "vpux/utils/core/small_vector.hpp"
 
 #include <mlir/IR/MLIRContext.h>
-#include <mlir/Parser.h>
+#include <mlir/Parser/Parser.h>
 #include <mlir/Pass/PassManager.h>
 
 #include <gtest/gtest.h>
@@ -26,42 +26,6 @@ using namespace vpux;
 
 constexpr StringRef CMX_NAME = "CMX_NN";
 constexpr StringRef DDR_NAME = "DDR";
-
-namespace {
-
-class TestUnrankedOp : public mlir::Op<TestUnrankedOp, mlir::OpTrait::ZeroRegion> {
-public:
-    using Op::Op;
-
-    static constexpr llvm::StringLiteral getOperationName() {
-        return llvm::StringLiteral("test.UnrankedOp");
-    }
-
-    static ArrayRef<llvm::StringRef> getAttributeNames() {
-        return {};
-    }
-
-    static void build(mlir::OpBuilder&, mlir::OperationState& state, mlir::TypeRange resultTypes,
-                      mlir::ValueRange operands, ArrayRef<mlir::NamedAttribute> attributes = {}) {
-        state.addTypes(resultTypes);
-        state.addOperands(operands);
-        state.addAttributes(attributes);
-    }
-};
-
-class TestDialect final : public mlir::Dialect {
-public:
-    explicit TestDialect(mlir::MLIRContext* ctx)
-            : mlir::Dialect(getDialectNamespace(), ctx, mlir::TypeID::get<TestDialect>()) {
-        addOperations<TestUnrankedOp>();
-    }
-
-    static constexpr llvm::StringLiteral getDialectNamespace() {
-        return llvm::StringLiteral("test");
-    }
-};
-
-}  // namespace
 
 TEST(MLIR_NDTypeInterface, RankedTensorType) {
     mlir::DialectRegistry registry;
@@ -406,7 +370,7 @@ TEST(MLIR_NDTypeInterface, CompressedMemRefType) {
 
     int64_t totalByteSize = 0;
     for (auto elems : numElems) {
-        totalByteSize += alignVal<int64_t>(elems * sizeof(float16), alignment);
+        totalByteSize += alignValUp<int64_t>(elems * sizeof(float16), alignment);
     }
     EXPECT_EQ(ndType.getTotalAllocSize().count(), totalByteSize);
     EXPECT_EQ(ndType.getCompactAllocSize().count(), totalByteSize);
@@ -421,4 +385,32 @@ TEST(MLIR_NDTypeInterface, CompressedMemRefType) {
     ASSERT_TRUE(layout != nullptr);
     auto tiledNumElems = layout.compressionScheme().getNumElems().getValues<int64_t>();
     EXPECT_EQ(tiledNumElems.size(), tileShape[compressionAxis]);
+}
+
+TEST(MLIR_NDTypeInterface, ExplicitSizeMemRefType) {
+    mlir::DialectRegistry registry;
+    vpux::registerDialects(registry);
+
+    mlir::MLIRContext ctx(registry);
+    ctx.loadDialect<Const::ConstDialect>();
+    ctx.loadDialect<VPUIP::VPUIPDialect>();
+
+    const Shape shape{1, 1, 1, 512};
+    const DimsOrder order = DimsOrder::NCHW;
+
+    const auto orderAttr = mlir::AffineMapAttr::get(order.toAffineMap(&ctx));
+
+    const int64_t explicitSize = 1024;
+    mlir::IntegerAttr allocSizeAttr = getIntAttr(&ctx, explicitSize);
+
+    const auto newLayoutAttr = VPUIP::MemRefAttr::get(orderAttr, nullptr, nullptr, nullptr, allocSizeAttr, &ctx);
+
+    mlir::MemRefType::Builder builder(shape.raw(), mlir::IntegerType::get(&ctx, 8));
+    builder.setLayout(newLayoutAttr.cast<mlir::MemRefLayoutAttrInterface>());
+
+    auto memrefType = static_cast<mlir::MemRefType>(builder);
+    const auto ndType = memrefType.dyn_cast<vpux::NDTypeInterface>();
+    ASSERT_TRUE(ndType != nullptr) << "Type cannot be cast to vpux::NDTypeInterface";
+
+    EXPECT_EQ(ndType.getTotalAllocSize().count(), explicitSize);
 }

@@ -69,7 +69,21 @@ def delLayers(tree, layerName):
     if layer.get("type") == "Result":
         return
 
-    # get result layer
+    output = layer.find("output")
+    # there must be at least 1 output
+    if not output:
+        raise Exception('''Cannot find output for layer: {0}'''.format(layerName))
+
+    # TODO let's assume we have only one output port (legacy)
+    output_port = output.find("port")
+    if not output_port:
+        raise Exception('''Cannot find output port for layer: {0}'''.format(layerName))
+
+    # remember port dimensions: copies of XML nodes are required
+    # otherwise nodes modification will affect original nodes
+    output_port_dims = [et.fromstring(et.tostring(dim)) for dim in output_port.iter("dim")]
+
+    # get candidate result layer
     result = tree.find("//layer[@type='Result']");
 
     if result is None:
@@ -87,6 +101,25 @@ def delLayers(tree, layerName):
     changeEdges(edges, legimate_path, layer.get("id"), result.get("id"));
 
     legimate_path.add(result.get("id"))
+
+    result_input = result.find("input")
+    if not result_input:
+        raise Exception('''Cannot find input for Result id: {0}'''.format(result.get("id")))
+
+    result_input_port = result_input.find("port")
+    if not result_input_port:
+        raise Exception('''Cannot find input port for Result id: {0} '''.format(result.get("id")))
+
+    # override dims for new Result by actuals Layer dims:
+    # As first step we remove current dims in Result
+    # and then restore dims from Layer as new dims for Result
+    for dim in result_input_port.iter("dim"):
+        result_input_port.remove(dim)
+    for dim in output_port_dims:
+        result_input_port.append(dim)
+
+    print("OpenVINO fix: set attribute `names` forcibly for output with `port_id`: {0} in `layer`: {1}".format(output_port.get("id"), layer.get("name")))
+    output_port.set("names", result.get("name"))
 
     path_postfix = '''not(contains(concat('|', '{0}', '|'), concat('|', @id, '|')))'''.format( '|'.join(legimate_path)) if len(legimate_path) > 1 else '''(@id < '{0}' and @id > '{1}')'''.format(result.get("id"), layer.get("id"))
     layer_xpath = '''layer[{0}]'''.format(path_postfix);

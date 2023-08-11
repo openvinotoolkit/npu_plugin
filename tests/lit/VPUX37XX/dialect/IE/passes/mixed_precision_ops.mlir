@@ -1,12 +1,13 @@
 //
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
+
 // RUN: vpux-opt --split-input-file --init-compiler="vpu-arch=VPUX37XX" --convert-to-mixed-precision %s | FileCheck %s
 
-!qElemType = type !quant.uniform<u8:f16, 1.1534313725490195:128>
+!qElemType = !quant.uniform<u8:f16, 1.1534313725490195:128>
 
-func @MixedPrecisionConvForOutputShape(%arg0: tensor<1x16x3x3xf16>) -> tensor<1x16x3x3xf16> {
+func.func @MixedPrecisionConvForOutputShape(%arg0: tensor<1x16x3x3xf16>) -> tensor<1x16x3x3xf16> {
   %1 = IE.Quantize(%arg0) {dstElemType = !qElemType} : tensor<1x16x3x3xf16> -> tensor<1x16x3x3x!qElemType>
   %2 = IE.Dequantize(%1) {dstElemType = f16} : tensor<1x16x3x3x!qElemType> -> tensor<1x16x3x3xf16>
   %weights = const.Declare tensor<16x16x1x1x!qElemType> = dense<1.0> : tensor<16x16x1x1xf16>, [#const.ConvertElemType<ui8>, #const.QuantCast<!qElemType>]
@@ -26,13 +27,13 @@ func @MixedPrecisionConvForOutputShape(%arg0: tensor<1x16x3x3xf16>) -> tensor<1x
 
 // -----
 
-!qElemType = type !quant.uniform<u8:f16, 0.57450980392156858>
+!qElemType = !quant.uniform<u8:f16, 0.57450980392156858>
 
 // TODO: #67754
-func @MixedPrecisionMaxPoolForOutputShape(%arg0: tensor<1x3x16x16xf16>) -> tensor<1x3x16x16xf16> {
+func.func @MixedPrecisionMaxPoolForOutputShape(%arg0: tensor<1x3x16x16xf16>) -> tensor<1x3x16x16xf16> {
   %1 = IE.Quantize(%arg0) {dstElemType = !qElemType} : tensor<1x3x16x16xf16> -> tensor<1x3x16x16x!qElemType>
   %2 = IE.Dequantize(%1) {dstElemType = f16} : tensor<1x3x16x16x!qElemType> -> tensor<1x3x16x16xf16>
-  %3 = IE.MaxPool(%2) {kernel_size = [1, 1], pads_begin = [0, 0], pads_end = [0, 0], rounding_type = "FLOOR", strides = [1, 1]} : tensor<1x3x16x16xf16> -> tensor<1x3x16x16xf16>
+  %3 = IE.MaxPool(%2) {kernel_size = [1, 1], pads_begin = [0, 0], pads_end = [0, 0], rounding_type = #IE.rounding_type<FLOOR>, strides = [1, 1]} : tensor<1x3x16x16xf16> -> tensor<1x3x16x16xf16>
   return %3 : tensor<1x3x16x16xf16>
 
   //CHECK: [[VAL0:%.*]] = IE.Quantize(%arg0)
@@ -43,9 +44,9 @@ func @MixedPrecisionMaxPoolForOutputShape(%arg0: tensor<1x3x16x16xf16>) -> tenso
 
 // -----
 
-!qElemType = type !quant.uniform<u8:f16, 1.000000e+00>
+!qElemType = !quant.uniform<u8:f16, 1.000000e+00>
 
-func @MixedPrecisionGroupConvForOutputShape(%arg0: tensor<1x16x3x3xf16>) -> tensor<1x16x3x3xf16> {
+func.func @MixedPrecisionGroupConvForOutputShape(%arg0: tensor<1x16x3x3xf16>) -> tensor<1x16x3x3xf16> {
     %cst = const.Declare tensor<16x1x1x1x!qElemType> = dense<2.000000e+00> : tensor<16x1x1x1xf16>, [#const.ConvertElemType<ui8>, #const.QuantCast<!qElemType>]
 
     %0 = IE.Quantize(%arg0) {dstElemType = !qElemType} : tensor<1x16x3x3xf16> -> tensor<1x16x3x3x!qElemType>
@@ -66,16 +67,16 @@ func @MixedPrecisionGroupConvForOutputShape(%arg0: tensor<1x16x3x3xf16>) -> tens
 
 // -----
 
-!qElemType = type !quant.uniform<u8:f16, 1.000000e+00>
+!qElemType = !quant.uniform<u8:f16, 1.000000e+00>
 
-func @MixedPrecisionAdd(%arg0: tensor<1x16x3x3xf16>) -> tensor<1x16x3x3xf16> {
+func.func @MixedPrecisionAdd(%arg0: tensor<1x16x3x3xf16>) -> tensor<1x16x3x3xf16> {
     %cst = const.Declare tensor<1x16x3x3x!qElemType> = dense<2.000000e+00> : tensor<1x16x3x3xf16>, [#const.ConvertElemType<ui8>, #const.QuantCast<!qElemType>]
 
     %0 = IE.Quantize(%arg0) {dstElemType = !qElemType} : tensor<1x16x3x3xf16> -> tensor<1x16x3x3x!qElemType>
     %1 = IE.Dequantize(%0) {dstElemType = f16} : tensor<1x16x3x3x!qElemType> -> tensor<1x16x3x3xf16>
     %2 = IE.Dequantize(%cst) {dstElemType = f16} : tensor<1x16x3x3x!qElemType> -> tensor<1x16x3x3xf16>
 
-    %3 = IE.Add(%1, %2) {auto_broadcast = "NUMPY"} : tensor<1x16x3x3xf16>, tensor<1x16x3x3xf16> -> tensor<1x16x3x3xf16>
+    %3 = IE.Add(%1, %2) {auto_broadcast = #IE.auto_broadcast_type<NUMPY>} : tensor<1x16x3x3xf16>, tensor<1x16x3x3xf16> -> tensor<1x16x3x3xf16>
 
     return %3 : tensor<1x16x3x3xf16>
 
@@ -83,33 +84,33 @@ func @MixedPrecisionAdd(%arg0: tensor<1x16x3x3xf16>) -> tensor<1x16x3x3xf16> {
     //CHECK-SAME:     dense<2.000000e+00> : tensor<1x16x3x3xf16>, [#const.ConvertElemType<ui8>, #const.QuantCast<!qElemType>]
 
     //CHECK: [[VAL0:%.*]] = IE.Quantize(%arg0) {dstElemType = !qElemType} : tensor<1x16x3x3xf16> -> tensor<1x16x3x3x!qElemType>
-    //CHECK: [[VAL1:%.*]] = IE.Add([[VAL0]], [[CST]]) {auto_broadcast = "NUMPY"} : tensor<1x16x3x3x!qElemType>, tensor<1x16x3x3x!qElemType> -> tensor<1x16x3x3xf16>
+    //CHECK: [[VAL1:%.*]] = IE.Add([[VAL0]], [[CST]]) {auto_broadcast = #IE.auto_broadcast_type<NUMPY>} : tensor<1x16x3x3x!qElemType>, tensor<1x16x3x3x!qElemType> -> tensor<1x16x3x3xf16>
     //CHECK: return [[VAL1]] : tensor<1x16x3x3xf16>
 }
 
 // -----
 
-!qElemType0 = type !quant.uniform<u8:f16, 1.000000e+00>
-!qElemType1 = type !quant.uniform<u8:f16, 0.500000e+00>
+!qElemType0 = !quant.uniform<u8:f16, 1.000000e+00>
+!qElemType1 = !quant.uniform<u8:f16, 0.500000e+00>
 
-func @MixedPrecisionAddForDifferentScales(%arg0: tensor<1x16x3x3xf16>) -> tensor<1x16x3x3xf16> {
+func.func @MixedPrecisionAddForDifferentScales(%arg0: tensor<1x16x3x3xf16>) -> tensor<1x16x3x3xf16> {
     %cst = const.Declare tensor<1x16x3x3x!qElemType0> = dense<2.000000e+00> : tensor<1x16x3x3xf16>, [#const.ConvertElemType<ui8>, #const.QuantCast<!qElemType0>]
 
     %0 = IE.Quantize(%arg0) {dstElemType = !qElemType1} : tensor<1x16x3x3xf16> -> tensor<1x16x3x3x!qElemType1>
     %1 = IE.Dequantize(%0) {dstElemType = f16} : tensor<1x16x3x3x!qElemType1> -> tensor<1x16x3x3xf16>
     %2 = IE.Dequantize(%cst) {dstElemType = f16} : tensor<1x16x3x3x!qElemType0> -> tensor<1x16x3x3xf16>
 
-    %3 = IE.Add(%1, %2) {auto_broadcast = "NUMPY"} : tensor<1x16x3x3xf16>, tensor<1x16x3x3xf16> -> tensor<1x16x3x3xf16>
+    %3 = IE.Add(%1, %2) {auto_broadcast = #IE.auto_broadcast_type<NUMPY>} : tensor<1x16x3x3xf16>, tensor<1x16x3x3xf16> -> tensor<1x16x3x3xf16>
 
     return %3 : tensor<1x16x3x3xf16>
 
-    // CHECK: [[CST:%.*]] = const.Declare tensor<1x16x3x3x!qElemType0> =
+    // CHECK-DAG: [[CST:%.*]] = const.Declare tensor<1x16x3x3x!qElemType0> =
     // CHECK-SAME:     dense<2.000000e+00> : tensor<1x16x3x3xf16>, [#const.ConvertElemType<ui8>, #const.QuantCast<!qElemType0>]
 
     // CHECK: [[VAL0:%.*]] = IE.Quantize(%arg0) {dstElemType = !qElemType1} :
     // CHECK-SAME:  tensor<1x16x3x3xf16> -> tensor<1x16x3x3x!qElemType1>
 
-    // CHECK: [[VAL3:%.*]] = IE.Add([[VAL0]], [[CST]]) {auto_broadcast = "NUMPY"} :
+    // CHECK: [[VAL3:%.*]] = IE.Add([[VAL0]], [[CST]]) {auto_broadcast = #IE.auto_broadcast_type<NUMPY>} :
     // CHECK-SAME:  tensor<1x16x3x3x!qElemType1>, tensor<1x16x3x3x!qElemType0> -> tensor<1x16x3x3xf16>
 
     // CHECK: return [[VAL3]] : tensor<1x16x3x3xf16>
@@ -117,10 +118,10 @@ func @MixedPrecisionAddForDifferentScales(%arg0: tensor<1x16x3x3xf16>) -> tensor
 
 // -----
 
-!qElemType0 = type !quant.uniform<u8:f16, 0.0025215686274509803>
-!qElemType1 = type !quant.uniform<u8:f16, 0.0039215686274509803>
+!qElemType0 = !quant.uniform<u8:f16, 0.0025215686274509803>
+!qElemType1 = !quant.uniform<u8:f16, 0.0039215686274509803>
 
-func @FloatInConv2d(%arg0: tensor<1x16x3x3xf16>) -> tensor<1x16x3x3x!qElemType0> {
+func.func @FloatInConv2d(%arg0: tensor<1x16x3x3xf16>) -> tensor<1x16x3x3x!qElemType0> {
     %cst = const.Declare tensor<16x16x1x1x!qElemType1> = dense<2.000000e+00> : tensor<16x16x1x1xf16>, [
         #const.ConvertElemType<ui8>,
         #const.QuantCast<!qElemType1>
@@ -139,7 +140,7 @@ func @FloatInConv2d(%arg0: tensor<1x16x3x3xf16>) -> tensor<1x16x3x3x!qElemType0>
 
     return %1 : tensor<1x16x3x3x!qElemType0>
 
-    // CHECK:   [[CST:%.*]] = const.Declare tensor<16x16x1x1x!qElemType1> = dense<2.000000e+00> :
+    // CHECK-DAG:   [[CST:%.*]] = const.Declare tensor<16x16x1x1x!qElemType1> = dense<2.000000e+00> :
     // CHECK-SAME:  tensor<16x16x1x1xf16>, [#const.ConvertElemType<ui8>, #const.QuantCast<!qElemType1>]
 
     // CHECK:   [[DEQUANT:%.*]] = IE.Dequantize([[CST]]) {
@@ -158,10 +159,10 @@ func @FloatInConv2d(%arg0: tensor<1x16x3x3xf16>) -> tensor<1x16x3x3x!qElemType0>
 
 // -----
 
-!qElemType0 = type !quant.uniform<u8:f16, 0.0025215686274509803>
-!qElemType1 = type !quant.uniform<u8:f16, 0.0039215686274509803>
+!qElemType0 = !quant.uniform<u8:f16, 0.0025215686274509803>
+!qElemType1 = !quant.uniform<u8:f16, 0.0039215686274509803>
 
-func @FloatInGroupConv(%arg0: tensor<1x16x3x3xf16>) -> tensor<1x16x3x3x!qElemType0> {
+func.func @FloatInGroupConv(%arg0: tensor<1x16x3x3xf16>) -> tensor<1x16x3x3x!qElemType0> {
     %cst = const.Declare tensor<16x1x1x1x!qElemType1> = dense<2.000000e+00> : tensor<16x1x1x1xf16>, [
         #const.ConvertElemType<ui8>,
         #const.QuantCast<!qElemType1>
@@ -181,7 +182,7 @@ func @FloatInGroupConv(%arg0: tensor<1x16x3x3xf16>) -> tensor<1x16x3x3x!qElemTyp
 
     return %1 : tensor<1x16x3x3x!qElemType0>
 
-    // CHECK:   [[CST:%.*]] = const.Declare tensor<16x1x1x1x!qElemType1> = dense<2.000000e+00> :
+    // CHECK-DAG:   [[CST:%.*]] = const.Declare tensor<16x1x1x1x!qElemType1> = dense<2.000000e+00> :
     // CHECK-SAME:  tensor<16x1x1x1xf16>, [#const.ConvertElemType<ui8>, #const.QuantCast<!qElemType1>]
 
     // CHECK:   [[DEQUANT:%.*]] = IE.Dequantize([[CST]]) {
@@ -201,21 +202,21 @@ func @FloatInGroupConv(%arg0: tensor<1x16x3x3xf16>) -> tensor<1x16x3x3x!qElemTyp
 
 // -----
 
-!qElemType = type !quant.uniform<u8:f16, 0.0039215686274509803>
+!qElemType = !quant.uniform<u8:f16, 0.0039215686274509803>
 
-func @FloatInAdd(%arg0: tensor<1x16x3x3xf16>) -> tensor<1x16x3x3x!qElemType> {
+func.func @FloatInAdd(%arg0: tensor<1x16x3x3xf16>) -> tensor<1x16x3x3x!qElemType> {
     %0 = IE.Quantize(%arg0) {
         dstElemType = !qElemType
     } : tensor<1x16x3x3xf16> -> tensor<1x16x3x3x!qElemType>
 
     %1 = IE.Add(%0, %0) {
-        auto_broadcast = "NUMPY"
+        auto_broadcast = #IE.auto_broadcast_type<NUMPY>
     } : tensor<1x16x3x3x!qElemType>, tensor<1x16x3x3x!qElemType> -> tensor<1x16x3x3x!qElemType>
 
     return %1 : tensor<1x16x3x3x!qElemType>
 
     // CHECK:   [[VAL0:%.*]] = IE.Add(%arg0, %arg0) {
-    // CHECK-SAME:  auto_broadcast = "NUMPY"
+    // CHECK-SAME:  auto_broadcast = #IE.auto_broadcast_type<NUMPY>
     // CHECK-SAME:  } : tensor<1x16x3x3xf16>, tensor<1x16x3x3xf16> -> tensor<1x16x3x3x!qElemType>
 
     // CHECK:   return [[VAL0]] : tensor<1x16x3x3x!qElemType>
@@ -223,9 +224,9 @@ func @FloatInAdd(%arg0: tensor<1x16x3x3xf16>) -> tensor<1x16x3x3x!qElemType> {
 
 // -----
 
-!qElemType = type !quant.uniform<u8:f16, 0.0039215686274509803>
+!qElemType = !quant.uniform<u8:f16, 0.0039215686274509803>
 
-func @FloatInAvgPool(%arg0: tensor<1x16x3x3xf16>) -> tensor<1x16x3x3x!qElemType> {
+func.func @FloatInAvgPool(%arg0: tensor<1x16x3x3xf16>) -> tensor<1x16x3x3x!qElemType> {
     %0 = IE.Quantize(%arg0) {
         dstElemType = !qElemType
     } : tensor<1x16x3x3xf16> -> tensor<1x16x3x3x!qElemType>
@@ -234,7 +235,7 @@ func @FloatInAvgPool(%arg0: tensor<1x16x3x3xf16>) -> tensor<1x16x3x3x!qElemType>
         kernel_size = [1, 1],
         pads_begin = [0, 0],
         pads_end = [0, 0],
-        rounding_type = "FLOOR",
+        rounding_type = #IE.rounding_type<FLOOR>,
         strides = [1, 1]
     } : tensor<1x16x3x3x!qElemType> -> tensor<1x16x3x3x!qElemType>
 
@@ -244,7 +245,7 @@ func @FloatInAvgPool(%arg0: tensor<1x16x3x3xf16>) -> tensor<1x16x3x3x!qElemType>
     // CHECK-SAME:      kernel_size = [1, 1],
     // CHECK-SAME:      pads_begin = [0, 0],
     // CHECK-SAME:      pads_end = [0, 0],
-    // CHECK-SAME:      rounding_type = "FLOOR",
+    // CHECK-SAME:      rounding_type = #IE.rounding_type<FLOOR>,
     // CHECK-SAME:      strides = [1, 1]
     // CHECK-SAME:  } : tensor<1x16x3x3xf16> -> tensor<1x16x3x3x!qElemType>
 
@@ -253,9 +254,9 @@ func @FloatInAvgPool(%arg0: tensor<1x16x3x3xf16>) -> tensor<1x16x3x3x!qElemType>
 
 // -----
 
-!qElemType = type !quant.uniform<u8:f16, 0.0039215686274509803>
+!qElemType = !quant.uniform<u8:f16, 0.0039215686274509803>
 
-func @SkipFloatInMaxPool(%arg0: tensor<1x16x3x3xf16>) -> tensor<1x16x3x3x!qElemType> {
+func.func @SkipFloatInMaxPool(%arg0: tensor<1x16x3x3xf16>) -> tensor<1x16x3x3x!qElemType> {
     %0 = IE.Quantize(%arg0) {
         dstElemType = !qElemType
     } : tensor<1x16x3x3xf16> -> tensor<1x16x3x3x!qElemType>
@@ -264,7 +265,7 @@ func @SkipFloatInMaxPool(%arg0: tensor<1x16x3x3xf16>) -> tensor<1x16x3x3x!qElemT
         kernel_size = [1, 1],
         pads_begin = [0, 0],
         pads_end = [0, 0],
-        rounding_type = "FLOOR",
+        rounding_type = #IE.rounding_type<FLOOR>,
         strides = [1, 1]
     } : tensor<1x16x3x3x!qElemType> -> tensor<1x16x3x3x!qElemType>
 
@@ -278,7 +279,7 @@ func @SkipFloatInMaxPool(%arg0: tensor<1x16x3x3xf16>) -> tensor<1x16x3x3x!qElemT
     // CHECK-SAME:      kernel_size = [1, 1],
     // CHECK-SAME:      pads_begin = [0, 0],
     // CHECK-SAME:      pads_end = [0, 0],
-    // CHECK-SAME:      rounding_type = "FLOOR",
+    // CHECK-SAME:      rounding_type = #IE.rounding_type<FLOOR>,
     // CHECK-SAME:      strides = [1, 1]
     // CHECK-SAME:  } : tensor<1x16x3x3x!qElemType> -> tensor<1x16x3x3x!qElemType>
 
@@ -287,9 +288,9 @@ func @SkipFloatInMaxPool(%arg0: tensor<1x16x3x3xf16>) -> tensor<1x16x3x3x!qElemT
 
 // -----
 
-!qElemType = type !quant.uniform<u8:f16, 1.1534313725490195:128>
+!qElemType = !quant.uniform<u8:f16, 1.1534313725490195:128>
 
-func @DoNotConvertConvWithPReLU(%arg0: tensor<1x16x3x3xf16>) -> tensor<1x16x3x3xf16> {
+func.func @DoNotConvertConvWithPReLU(%arg0: tensor<1x16x3x3xf16>) -> tensor<1x16x3x3xf16> {
     %1 = IE.Quantize(%arg0) {
       dstElemType = !qElemType
     } : tensor<1x16x3x3xf16> -> tensor<1x16x3x3x!qElemType>
@@ -321,7 +322,7 @@ func @DoNotConvertConvWithPReLU(%arg0: tensor<1x16x3x3xf16>) -> tensor<1x16x3x3x
 
     return %4 : tensor<1x16x3x3xf16>
 
-    // CHECK: [[WEIGHTS:%.*]] = const.Declare tensor<16x16x1x1x!qElemType> =
+    // CHECK-DAG: [[WEIGHTS:%.*]] = const.Declare tensor<16x16x1x1x!qElemType> =
     // CHECK-SAME:  dense<1.000000e+00> : tensor<16x16x1x1xf16>, [
     // CHECK-SAME:      #const.ConvertElemType<ui8>,
     // CHECK-SAME:      #const.QuantCast<!qElemType>
@@ -357,9 +358,9 @@ func @DoNotConvertConvWithPReLU(%arg0: tensor<1x16x3x3xf16>) -> tensor<1x16x3x3x
 
 // -----
 
-!qElemType = type !quant.uniform<u8:f16, 0.0025215686274509803>
+!qElemType = !quant.uniform<u8:f16, 0.0025215686274509803>
 
-func @Conv2dWithQuantize(%arg0: tensor<1x16x3x3xf16>) -> tensor<1x16x3x3x!qElemType> {
+func.func @Conv2dWithQuantize(%arg0: tensor<1x16x3x3xf16>) -> tensor<1x16x3x3x!qElemType> {
     %cst = const.Declare tensor<16x16x1x1xf16> = dense<2.000000e+00> : tensor<16x16x1x1xf16>
 
     %0 = IE.Convolution(%arg0, %cst) {
@@ -375,7 +376,7 @@ func @Conv2dWithQuantize(%arg0: tensor<1x16x3x3xf16>) -> tensor<1x16x3x3x!qElemT
 
     return %1 : tensor<1x16x3x3x!qElemType>
 
-    // CHECK:   [[CST:%.*]] = const.Declare tensor<16x16x1x1xf16> = dense<2.000000e+00> :
+    // CHECK-DAG:   [[CST:%.*]] = const.Declare tensor<16x16x1x1xf16> = dense<2.000000e+00> :
     // CHECK-SAME:  tensor<16x16x1x1xf16>
 
     // CHECK:   [[VAL0:%.*]] = IE.Convolution(%arg0, [[CST]]) {
@@ -390,9 +391,9 @@ func @Conv2dWithQuantize(%arg0: tensor<1x16x3x3xf16>) -> tensor<1x16x3x3x!qElemT
 
 // -----
 
-!qElemType = type !quant.uniform<u8:f16, 0.0025215686274509803>
+!qElemType = !quant.uniform<u8:f16, 0.0025215686274509803>
 
-func @DoNotConv2dWithQuantize(%arg0: tensor<1x16x16x16xf16>) -> tensor<1x16x5x5x!qElemType> {
+func.func @DoNotConv2dWithQuantize(%arg0: tensor<1x16x16x16xf16>) -> tensor<1x16x5x5x!qElemType> {
     %cst = const.Declare tensor<16x16x12x12xf16> = dense<2.000000e+00> : tensor<16x16x12x12xf16>
 
     %0 = IE.Convolution(%arg0, %cst) {
@@ -408,7 +409,7 @@ func @DoNotConv2dWithQuantize(%arg0: tensor<1x16x16x16xf16>) -> tensor<1x16x5x5x
 
     return %1 : tensor<1x16x5x5x!qElemType>
 
-    // CHECK:   [[CST:%.*]] = const.Declare tensor<16x16x12x12xf16> = dense<2.000000e+00> :
+    // CHECK-DAG:   [[CST:%.*]] = const.Declare tensor<16x16x12x12xf16> = dense<2.000000e+00> :
     // CHECK-SAME:  tensor<16x16x12x12xf16>
 
     // CHECK:   [[VAL0:%.*]] = IE.Convolution(%arg0, [[CST]]) {
@@ -427,9 +428,9 @@ func @DoNotConv2dWithQuantize(%arg0: tensor<1x16x16x16xf16>) -> tensor<1x16x5x5x
 
 // -----
 
-!qElemType = type !quant.uniform<u8:f16, 0.0025215686274509803>
+!qElemType = !quant.uniform<u8:f16, 0.0025215686274509803>
 
-func @GroupConvWithQuantize(%arg0: tensor<1x16x3x3xf16>) -> tensor<1x16x3x3x!qElemType> {
+func.func @GroupConvWithQuantize(%arg0: tensor<1x16x3x3xf16>) -> tensor<1x16x3x3x!qElemType> {
     %cst = const.Declare tensor<16x1x1x1xf16> = dense<2.000000e+00> : tensor<16x1x1x1xf16>
 
     %0 = IE.GroupConvolution(%arg0, %cst) {
@@ -446,7 +447,7 @@ func @GroupConvWithQuantize(%arg0: tensor<1x16x3x3xf16>) -> tensor<1x16x3x3x!qEl
 
     return %1 : tensor<1x16x3x3x!qElemType>
 
-    // CHECK:   [[CST:%.*]] = const.Declare tensor<16x1x1x1xf16> = dense<2.000000e+00> :
+    // CHECK-DAG:   [[CST:%.*]] = const.Declare tensor<16x1x1x1xf16> = dense<2.000000e+00> :
     // CHECK-SAME:  tensor<16x1x1x1xf16>
 
     // CHECK:   [[VAL0:%.*]] = IE.GroupConvolution(%arg0, [[CST]]) {
@@ -462,14 +463,14 @@ func @GroupConvWithQuantize(%arg0: tensor<1x16x3x3xf16>) -> tensor<1x16x3x3x!qEl
 
 // -----
 
-!qElemType = type !quant.uniform<u8:f16, 0.0025215686274509803>
+!qElemType = !quant.uniform<u8:f16, 0.0025215686274509803>
 
-func @AvgPoolWithQuantize(%arg0: tensor<1x16x3x3xf16>) -> tensor<1x16x3x3x!qElemType> {
+func.func @AvgPoolWithQuantize(%arg0: tensor<1x16x3x3xf16>) -> tensor<1x16x3x3x!qElemType> {
     %0 = IE.AvgPool(%arg0) {
         kernel_size = [1, 1],
         pads_begin = [0, 0],
         pads_end = [0, 0],
-        rounding_type = "FLOOR",
+        rounding_type = #IE.rounding_type<FLOOR>,
         strides = [1, 1]
     } : tensor<1x16x3x3xf16> -> tensor<1x16x3x3xf16>
 
@@ -483,7 +484,7 @@ func @AvgPoolWithQuantize(%arg0: tensor<1x16x3x3xf16>) -> tensor<1x16x3x3x!qElem
     // CHECK-SAME:      kernel_size = [1, 1],
     // CHECK-SAME:      pads_begin = [0, 0],
     // CHECK-SAME:      pads_end = [0, 0],
-    // CHECK-SAME:      rounding_type = "FLOOR",
+    // CHECK-SAME:      rounding_type = #IE.rounding_type<FLOOR>,
     // CHECK-SAME:      strides = [1, 1]
     // CHECK-SAME:  } : tensor<1x16x3x3xf16> -> tensor<1x16x3x3x!qElemType>
 
@@ -492,15 +493,15 @@ func @AvgPoolWithQuantize(%arg0: tensor<1x16x3x3xf16>) -> tensor<1x16x3x3x!qElem
 
 // -----
 
-!qElemType = type !quant.uniform<u8:f16, 0.0025215686274509803>
+!qElemType = !quant.uniform<u8:f16, 0.0025215686274509803>
 
-func @DoNotAvgPoolWithQuantize(%arg0: tensor<1x1x64x128xf16>) -> tensor<1x1x1x128x!qElemType> {
+func.func @DoNotAvgPoolWithQuantize(%arg0: tensor<1x1x64x128xf16>) -> tensor<1x1x1x128x!qElemType> {
     %0 = IE.AvgPool(%arg0) {
         exclude_pads,
         kernel_size = [64, 1],
         pads_begin = [0, 0],
         pads_end = [0, 0],
-        rounding_type = "FLOOR",
+        rounding_type = #IE.rounding_type<FLOOR>,
         strides = [1, 1]
     } : tensor<1x1x64x128xf16> -> tensor<1x1x1x128xf16>
 
@@ -515,7 +516,7 @@ func @DoNotAvgPoolWithQuantize(%arg0: tensor<1x1x64x128xf16>) -> tensor<1x1x1x12
     // CHECK-SAME:      kernel_size = [64, 1],
     // CHECK-SAME:      pads_begin = [0, 0],
     // CHECK-SAME:      pads_end = [0, 0],
-    // CHECK-SAME:      rounding_type = "FLOOR",
+    // CHECK-SAME:      rounding_type = #IE.rounding_type<FLOOR>,
     // CHECK-SAME:      strides = [1, 1]
     // CHECK-SAME:  } : tensor<1x1x64x128xf16> -> tensor<1x1x1x128xf16>
     //
@@ -528,11 +529,11 @@ func @DoNotAvgPoolWithQuantize(%arg0: tensor<1x1x64x128xf16>) -> tensor<1x1x1x12
 
 // -----
 
-!qElemType = type !quant.uniform<u8:f16, 0.0039215686274509803>
+!qElemType = !quant.uniform<u8:f16, 0.0039215686274509803>
 
-func @AddWithQuantize(%arg0: tensor<1x16x3x3xf16>) -> tensor<1x16x3x3x!qElemType> {
+func.func @AddWithQuantize(%arg0: tensor<1x16x3x3xf16>) -> tensor<1x16x3x3x!qElemType> {
     %0 = IE.Add(%arg0, %arg0) {
-        auto_broadcast = "NUMPY"
+        auto_broadcast = #IE.auto_broadcast_type<NUMPY>
     } : tensor<1x16x3x3xf16>, tensor<1x16x3x3xf16> -> tensor<1x16x3x3xf16>
 
     %1 = IE.Quantize(%0) {
@@ -542,7 +543,7 @@ func @AddWithQuantize(%arg0: tensor<1x16x3x3xf16>) -> tensor<1x16x3x3x!qElemType
     return %1 : tensor<1x16x3x3x!qElemType>
 
     // CHECK:   [[VAL0:%.*]] = IE.Add(%arg0, %arg0) {
-    // CHECK-SAME:  auto_broadcast = "NUMPY"
+    // CHECK-SAME:  auto_broadcast = #IE.auto_broadcast_type<NUMPY>
     // CHECK-SAME:  } : tensor<1x16x3x3xf16>, tensor<1x16x3x3xf16> -> tensor<1x16x3x3x!qElemType>
 
     // CHECK:   return [[VAL0]] : tensor<1x16x3x3x!qElemType>
@@ -550,10 +551,10 @@ func @AddWithQuantize(%arg0: tensor<1x16x3x3xf16>) -> tensor<1x16x3x3x!qElemType
 
 // -----
 
-!qElemType0 = type !quant.uniform<u8:f16, 0.003937007874015748>
-!qElemType1 = type !quant.uniform<u8:f16, 1.000000e+00>
+!qElemType0 = !quant.uniform<u8:f16, 0.003937007874015748>
+!qElemType1 = !quant.uniform<u8:f16, 1.000000e+00>
 
-func @MixedPrecisionGroupConvForOutputShapeWithQuantWeightsBias(%arg0: tensor<1x3x320x480xf16>) -> tensor<1x3x320x480xf16> {
+func.func @MixedPrecisionGroupConvForOutputShapeWithQuantWeightsBias(%arg0: tensor<1x3x320x480xf16>) -> tensor<1x3x320x480xf16> {
     %cst = const.Declare tensor<1x3x1x1x!qElemType0> = dense<1.270000e+02> : tensor<1x3x1x1xf16>, [#const.ConvertElemType<ui8>, #const.QuantCast<!qElemType0>]
     %cst_0 = const.Declare tensor<3x1x1x1x!qElemType1> = dense<2.000000e+00> : tensor<3x1x1x1xf16>, [#const.ConvertElemType<ui8>, #const.QuantCast<!qElemType1>]
 
@@ -564,24 +565,24 @@ func @MixedPrecisionGroupConvForOutputShapeWithQuantWeightsBias(%arg0: tensor<1x
     %4 = IE.GroupConvolution(%1, %2, %3) {dilations = [1, 1], groups = 3 : i64, pads_begin = [0, 0], pads_end = [0, 0], strides = [1, 1]} : tensor<1x3x320x480xf16>, tensor<3x1x1x1xf16>, tensor<1x3x1x1xf16> -> tensor<1x3x320x480xf16>
     return %4 : tensor<1x3x320x480xf16>
 
-    //CHECK: [[CST:%.*]] = const.Declare tensor<3x1x1x1x!qElemType0> =
-    //CHECK-SAME:     dense<2.000000e+00> : tensor<3x1x1x1xf16>, [#const.ConvertElemType<ui8>, #const.QuantCast<!qElemType0>]
-    //CHECK: [[CST0:%.*]] = const.Declare tensor<1x3x1x1x!qElemType1> =
-    //CHECK-SAME:     dense<1.270000e+02> : tensor<1x3x1x1xf16>, [#const.ConvertElemType<ui8>, #const.QuantCast<!qElemType1>]
-    //CHECK: [[VAL0:%.*]] = IE.Quantize(%arg0) {dstElemType = !qElemType0} : tensor<1x3x320x480xf16> -> tensor<1x3x320x480x!qElemType0>
-    //CHECK: [[VAL1:%.*]] = IE.Dequantize(%cst_0) {dstElemType = f16} : tensor<1x3x1x1x!qElemType1> -> tensor<1x3x1x1xf16>
-    //CHECK: [[VAL2:%.*]] = IE.GroupConvolution([[VAL0]], [[CST]], [[VAL1]]) {dilations = [1, 1], groups = 3 : i64, pads_begin = [0, 0], pads_end = [0, 0], strides = [1, 1]} : tensor<1x3x320x480x!qElemType0>, tensor<3x1x1x1x!qElemType0>, tensor<1x3x1x1xf16> -> tensor<1x3x320x480xf16>
+    //CHECK: [[CST0:%.*]] = const.Declare tensor<1x3x1x1x!qElemType0> =
+    //CHECK-SAME:     dense<1.270000e+02> : tensor<1x3x1x1xf16>, [#const.ConvertElemType<ui8>, #const.QuantCast<!qElemType0>]
+    //CHECK: [[CST:%.*]] = const.Declare tensor<3x1x1x1x!qElemType1> =
+    //CHECK-SAME:     dense<2.000000e+00> : tensor<3x1x1x1xf16>, [#const.ConvertElemType<ui8>, #const.QuantCast<!qElemType1>]
+    //CHECK: [[VAL0:%.*]] = IE.Quantize(%arg0) {dstElemType = !qElemType1} : tensor<1x3x320x480xf16> -> tensor<1x3x320x480x!qElemType1>
+    //CHECK: [[VAL1:%.*]] = IE.Dequantize([[CST0]]) {dstElemType = f16} : tensor<1x3x1x1x!qElemType0> -> tensor<1x3x1x1xf16>
+    //CHECK: [[VAL2:%.*]] = IE.GroupConvolution([[VAL0]], [[CST]], [[VAL1]]) {dilations = [1, 1], groups = 3 : i64, pads_begin = [0, 0], pads_end = [0, 0], strides = [1, 1]} : tensor<1x3x320x480x!qElemType1>, tensor<3x1x1x1x!qElemType1>, tensor<1x3x1x1xf16> -> tensor<1x3x320x480xf16>
     //CHECK: return [[VAL2]] : tensor<1x3x320x480xf16>
 }
 
 // -----
 
-!qElemType = type !quant.uniform<u8:f16, 0.0039215686274509803>
+!qElemType = !quant.uniform<u8:f16, 0.0039215686274509803>
 
-func @DoNotAddWithQuantize(%arg0: tensor<1x8x8x32xf16>) -> tensor<1x8x8x32x!qElemType> {
+func.func @DoNotAddWithQuantize(%arg0: tensor<1x8x8x32xf16>) -> tensor<1x8x8x32x!qElemType> {
     %cst0 = const.Declare tensor<1x1x1x32xf16> = dense<1.000000e+00> : tensor<1x1x1x32xf16>
     %0 = IE.Add(%arg0, %cst0) {
-        auto_broadcast = "NUMPY"
+        auto_broadcast = #IE.auto_broadcast_type<NUMPY>
     } : tensor<1x8x8x32xf16>, tensor<1x1x1x32xf16> -> tensor<1x8x8x32xf16>
 
     %1 = IE.Quantize(%0) {
@@ -592,7 +593,7 @@ func @DoNotAddWithQuantize(%arg0: tensor<1x8x8x32xf16>) -> tensor<1x8x8x32x!qEle
 
     // CHECK:   [[CST0:%.*]] = const.Declare tensor<1x1x1x32xf16> = dense<1.000000e+00> : tensor<1x1x1x32xf16>
     // CHECK:   [[VAL0:%.*]] = IE.Add(%arg0, [[CST0]]) {
-    // CHECK-SAME:  auto_broadcast = "NUMPY"
+    // CHECK-SAME:  auto_broadcast = #IE.auto_broadcast_type<NUMPY>
     // CHECK-SAME:  } : tensor<1x8x8x32xf16>, tensor<1x1x1x32xf16> -> tensor<1x8x8x32xf16>
     //
     // CHECK:   [[VAL1:%.*]] = IE.Quantize([[VAL0]]) {
@@ -604,9 +605,9 @@ func @DoNotAddWithQuantize(%arg0: tensor<1x8x8x32xf16>) -> tensor<1x8x8x32x!qEle
 
 // -----
 
-!qElemType = type !quant.uniform<u8:f16, 0.0025215686274509803>
+!qElemType = !quant.uniform<u8:f16, 0.0025215686274509803>
 
-func @Conv2dLeakyReluWithQuantize(%arg0: tensor<1x16x3x3xf16>) -> tensor<1x3x3x3x!qElemType> {
+func.func @Conv2dLeakyReluWithQuantize(%arg0: tensor<1x16x3x3xf16>) -> tensor<1x3x3x3x!qElemType> {
     %cst = const.Declare tensor<3x16x1x1xf16> = dense<2.000000e+00> : tensor<3x16x1x1xf16>
 
     %0 = IE.Convolution(%arg0, %cst) {
@@ -649,9 +650,9 @@ func @Conv2dLeakyReluWithQuantize(%arg0: tensor<1x16x3x3xf16>) -> tensor<1x3x3x3
 
 // -----
 
-!qElemType = type !quant.uniform<u8:f16:1, {0.01:128,0.02:128,0.03:128}>
+!qElemType = !quant.uniform<u8:f16:1, {0.01:128,0.02:128,0.03:128}>
 
-func @DoNotConv2dLeakyReluWithQuantize(%arg0: tensor<1x16x3x3xf16>) -> tensor<1x3x3x3x!qElemType> {
+func.func @DoNotConv2dLeakyReluWithQuantize(%arg0: tensor<1x16x3x3xf16>) -> tensor<1x3x3x3x!qElemType> {
     %cst = const.Declare tensor<3x16x1x1xf16> = dense<2.000000e+00> : tensor<3x16x1x1xf16>
 
     %0 = IE.Convolution(%arg0, %cst) {

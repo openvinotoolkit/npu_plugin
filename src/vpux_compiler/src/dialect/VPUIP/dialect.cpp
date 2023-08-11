@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/VPUIP/dialect.hpp"
 
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
@@ -58,14 +56,12 @@ void vpux::VPUIP::VPUIPDialect::setExecutorInstanceMask(mlir::async::ExecuteOp e
 
         auto* bodyBlock = &execOp.body().front();
         for (auto& innerOp : bodyBlock->getOperations()) {
-            if (auto copyOp = mlir::dyn_cast<VPUIP::DepthToSpaceDMAOp>(innerOp)) {
-                copyOp.portAttr(portIdxAttr);
-            } else if (auto copyOp = mlir::dyn_cast<VPUIP::SpaceToDepthDMAOp>(innerOp)) {
-                copyOp.portAttr(portIdxAttr);
-            } else if (auto copyOp = mlir::dyn_cast<VPUIP::PermuteDMAOp>(innerOp)) {
-                copyOp.portAttr(portIdxAttr);
-            } else if (auto copyOp = mlir::dyn_cast<VPUIP::ExpandDMAOp>(innerOp)) {
-                copyOp.portAttr(portIdxAttr);
+            if (mlir::isa<VPUIP::CopyOp>(innerOp)) {
+                continue;
+            }
+
+            if (auto dmaOp = mlir::dyn_cast<VPUIP::DMATypeOpInterface>(innerOp)) {
+                dmaOp.setPortAttr(portIdxAttr);
             }
         }
     }
@@ -95,6 +91,12 @@ VPU::ExecutorKind vpux::VPUIP::VPUIPDialect::getExecutorKind(mlir::async::Execut
 
 bool vpux::VPUIP::VPUIPDialect::hasExecutorInstanceMask(mlir::async::ExecuteOp execOp) {
     return (execOp->getAttr(executorInstanceMaskAttrName) != nullptr);
+}
+
+bool vpux::VPUIP::VPUIPDialect::isComputeExecutorKind(VPU::ExecutorKind executorKind) {
+    static const llvm::DenseSet<VPU::ExecutorKind> computeExecutors = {
+            VPU::ExecutorKind::NCE, VPU::ExecutorKind::SHAVE_ACT, VPU::ExecutorKind::SHAVE_UPA};
+    return computeExecutors.find(executorKind) != computeExecutors.end();
 }
 
 mlir::ArrayAttr vpux::VPUIP::VPUIPDialect::getExecutorInstanceMask(mlir::async::ExecuteOp execOp) {

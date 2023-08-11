@@ -145,7 +145,7 @@ void SwapTransposeConcat::safeRunOnFunc() {
     mlir::RewritePatternSet patterns(&ctx);
     patterns.add<SwapTransposeConcat::ConcatConverter>(&ctx, _log);
 
-    auto func = getFunction();
+    auto func = getOperation();
     if (mlir::failed(mlir::applyPatternsAndFoldGreedily(func, std::move(patterns), getDefaultGreedyRewriteConfig()))) {
         signalPassFailure();
     }

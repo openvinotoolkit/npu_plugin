@@ -1,18 +1,17 @@
 //
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <vector>
 
 #include <common/functions.h>
-#include "common_test_utils/test_constants.hpp"
 #include "kmb_layer_test.hpp"
 #include "single_layer_tests/roi_pooling.hpp"
 
 namespace LayerTestsDefinitions {
 
-class KmbROIPoolingLayerTest : public ROIPoolingLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
+class VPUXROIPoolingLayerTest : public ROIPoolingLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
     void GenerateInputs() override {
         ngraph::helpers::ROIPoolingTypes poolMethod;
         float spatialScale = 0.f;
@@ -54,16 +53,16 @@ class KmbROIPoolingLayerTest : public ROIPoolingLayerTest, virtual public LayerT
         }
     }
 };
+class VPUXROIPoolingLayerTest_VPU3700 : public VPUXROIPoolingLayerTest {};
+class VPUXROIPoolingLayerTest_VPU3720 : public VPUXROIPoolingLayerTest {};
 
-class KmbROIPoolingLayerTest_VPU3720 : public KmbROIPoolingLayerTest {};
-
-TEST_P(KmbROIPoolingLayerTest, CompareWithRefs_MLIR) {
-    useCompilerMLIR();
+TEST_P(VPUXROIPoolingLayerTest_VPU3700, HW) {
+    setPlatformVPU3700();
+    setDefaultHardwareModeMLIR();
     Run();
 }
 
-TEST_P(KmbROIPoolingLayerTest_VPU3720, SW_MLIR_VPU3720) {
-    useCompilerMLIR();
+TEST_P(VPUXROIPoolingLayerTest_VPU3720, SW) {
     setPlatformVPU3720();
     setReferenceSoftwareModeMLIR();
     Run();
@@ -95,13 +94,13 @@ const auto test_ROIPooling_bilinear = ::testing::Combine(
         ::testing::Values(spatial_scales[1]), ::testing::Values(ngraph::helpers::ROIPoolingTypes::ROI_BILINEAR),
         ::testing::ValuesIn(netPRCs), ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));
 
-INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_TestsROIPooling_max, KmbROIPoolingLayerTest, test_ROIPooling_max,
-                         KmbROIPoolingLayerTest::getTestCaseName);
-INSTANTIATE_TEST_SUITE_P(smoke_TestsROIPooling_bilinear, KmbROIPoolingLayerTest, test_ROIPooling_bilinear,
-                         KmbROIPoolingLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_TestsROIPooling_max, VPUXROIPoolingLayerTest_VPU3700, test_ROIPooling_max,
+                         VPUXROIPoolingLayerTest_VPU3700::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_TestsROIPooling_bilinear, VPUXROIPoolingLayerTest_VPU3700, test_ROIPooling_bilinear,
+                         VPUXROIPoolingLayerTest_VPU3700::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_TestsROIPooling_max, KmbROIPoolingLayerTest_VPU3720, test_ROIPooling_max,
-                         KmbROIPoolingLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_TestsROIPooling_max, VPUXROIPoolingLayerTest_VPU3720, test_ROIPooling_max,
+                         VPUXROIPoolingLayerTest_VPU3720::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_TestsROIPooling_bilinear, KmbROIPoolingLayerTest_VPU3720, test_ROIPooling_bilinear,
-                         KmbROIPoolingLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_TestsROIPooling_bilinear, VPUXROIPoolingLayerTest_VPU3720, test_ROIPooling_bilinear,
+                         VPUXROIPoolingLayerTest_VPU3720::getTestCaseName);

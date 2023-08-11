@@ -13,7 +13,7 @@ mlir::LogicalResult vpux::VPU::LRNOp::inferReturnTypes(mlir::MLIRContext* ctx, m
                                                        mlir::ValueRange operands, mlir::DictionaryAttr attrs,
                                                        mlir::RegionRange /*regions*/,
                                                        mlir::SmallVectorImpl<mlir::Type>& inferredReturnTypes) {
-    const auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
+    const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
     VPU::LRNOpAdaptor lrn(operands, attrs);
     if (mlir::failed(lrn.verify(loc))) {

@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
 
 #include "vpux/compiler/core/aliases_info.hpp"
@@ -349,8 +347,8 @@ mlir::LogicalResult SpaceToDepthDMARewriter::unrollSegmented(VPUIP::NCEClusterTi
 
     const auto blockSize = spaceToDepthOp.block_size();
 
-    const auto perClusterOutShapes = distributedType.getPerClusterComputeShapes();
-    const auto perClusterShapeOffsets = distributedType.getPerClusterComputeShapeOffsets();
+    const auto perClusterOutShapes = distributedType.getPerClusterMemoryShapes();
+    const auto perClusterShapeOffsets = distributedType.getPerClusterMemoryShapeOffsets();
     auto cmxNameAttr = mlir::FlatSymbolRefAttr::get(ctx, stringifyEnum(VPU::MemoryKind::CMX_NN));
 
     auto vpurtTask = clusterOp->getParentOfType<VPURT::TaskOp>();
@@ -544,7 +542,7 @@ private:
 void UnrollSpaceToDepthDMAPass::safeRunOnFunc() {
     auto& ctx = getContext();
 
-    auto func = getFunction();
+    auto func = getOperation();
     auto module = func->getParentOfType<mlir::ModuleOp>();
     auto dmaOp = IE::getAvailableExecutor(module, VPU::ExecutorKind::DMA_NN);
     auto dmaPortCount = dmaOp.count();

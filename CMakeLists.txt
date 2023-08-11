@@ -124,7 +124,9 @@ if(ENABLE_DEVELOPER_BUILD)
     add_compile_definitions(VPUX_DEVELOPER_BUILD)
 endif()
 
-add_subdirectory(sw_runtime_kernels/kernels)
+if(ENABLE_MLIR_COMPILER)
+    add_subdirectory(sw_runtime_kernels/kernels)
+endif()
 
 add_subdirectory(src)
 
@@ -132,16 +134,9 @@ if(ENABLE_TESTS)
     include(cmake/lit_tests.cmake)
 
     add_subdirectory(tests)
-    add_subdirectory(tests_deprecated)
 endif()
 
-if(ENABLE_KMB_SAMPLES)
-    add_subdirectory(samples)
-endif()
-
-if(BUILD_SHARED_LIBS)
-    add_subdirectory(tools)
-endif()
+add_subdirectory(tools)
 
 #
 # targets install
@@ -165,6 +160,13 @@ if(NOT BUILD_SHARED_LIBS)
 
     if(TARGET flatbuffers)
         install(TARGETS flatbuffers EXPORT OpenVINOTargets
+                RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT ${VPUX_PLUGIN_COMPONENT}
+                ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT ${VPUX_PLUGIN_COMPONENT}
+                LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT ${VPUX_PLUGIN_COMPONENT})
+    endif()
+
+    if(TARGET vpux_elf)
+        install(TARGETS vpux_elf EXPORT OpenVINOTargets
                 RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT ${VPUX_PLUGIN_COMPONENT}
                 ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT ${VPUX_PLUGIN_COMPONENT}
                 LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT ${VPUX_PLUGIN_COMPONENT})

@@ -21,13 +21,24 @@
 namespace vpux {
 namespace hwtest {
 
+// usual case (only weights sparsity):
 //
-//       [input]
-//          |
-//        (conv)
-//          |
-//       [output]
+//                  [input]   [sparse weights*]
+//                     |     /
+//                   (conv)
+//                     |
+//                  [output]
 //
+//
+// activation + weights sparsity case:
+//
+//   [input]   [input_sparsity_map]   [sparse weights*]
+//       \             |                   /
+//                  (conv)
+//                     |
+//                  [output]
+//
+// *weights are in sparse format, without sparsity map(SM), but the SM is produced in builder
 
 void buildSparseZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module, mlir::OpBuilder builder,
                            Logger& log, mlir::Type inputType, mlir::Type weightsType, mlir::Type outputType) {
@@ -50,6 +61,12 @@ void buildSparseZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
     VPUX_THROW_UNLESS(!weightsShape.empty(), "buildSparseZMajorConv: Got empty weightsShape");
     VPUX_THROW_UNLESS(!weightsTableShape.empty(), "buildSparseZMajorConv: Got empty weightsTableShape");
 
+    SmallVector<std::int64_t> inputSMShape;
+    if (conv.act_sparsity) {
+        inputSMShape = inputShape;
+        VPUX_THROW_UNLESS(!inputSMShape.empty(), "buildSparseZMajorConv: Got empty inputSMShape");
+    }
+
     const char* weightsFileName = "weights.dat";
 
     auto inputCMXShape = inputShape;
@@ -59,11 +76,17 @@ void buildSparseZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
 
     const auto alignmentRequirement = 16;
 
-    const auto weightsCMXSize = vpux::hwtest::totalTensorSize(weightsCMXShape, weightsType);
-    const auto outputCMXSize = vpux::hwtest::totalTensorSize(outputCMXShape, outputType);
-    const auto inputCMXSize = vpux::hwtest::totalTensorSize(inputCMXShape, inputType);
     const auto sparsityElementType = mlir::IntegerType::get(ctx, 1, mlir::IntegerType::Signless);
+
+    const auto inputCMXSize = vpux::hwtest::totalTensorSize(inputCMXShape, inputType);
+    const auto weightsCMXSize = vpux::hwtest::totalTensorSize(weightsCMXShape, weightsType);
     const auto weightsSMCMXSize = vpux::hwtest::totalTensorSize(weightsCMXShape, sparsityElementType);
+    const auto outputCMXSize = vpux::hwtest::totalTensorSize(outputCMXShape, outputType);
+
+    std::size_t inputSMTotalsize = 0;
+    if (conv.act_sparsity) {
+        inputSMTotalsize = vpux::hwtest::totalTensorSize(inputSMShape, sparsityElementType);
+    }
 
     const auto alignment =
             (alignmentRequirement * static_cast<vpux::Bit>(getElemTypeSize(inputType)).count()) / CHAR_BIT;
@@ -79,7 +102,14 @@ void buildSparseZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
     VPUX_THROW_UNLESS(INPUT_CMX_OFFSET % alignment == 0, "INPUT_CMX_OFFSET must be multiple of {0}, got {1}", alignment,
                       INPUT_CMX_OFFSET);
 
-    const auto WEIGHTS_SM_CMX_OFFSET = INPUT_CMX_OFFSET + inputCMXSize;
+    unsigned long INPUT_SM_CMX_OFFSET;
+    if (conv.act_sparsity) {
+        INPUT_SM_CMX_OFFSET = INPUT_CMX_OFFSET + inputCMXSize;
+        VPUX_THROW_UNLESS(INPUT_SM_CMX_OFFSET % alignment == 0, "INPUT_CMX_OFFSET must be multiple of {0}, got {1}",
+                          alignment, INPUT_SM_CMX_OFFSET);
+    }
+
+    const auto WEIGHTS_SM_CMX_OFFSET = INPUT_CMX_OFFSET + inputCMXSize + inputSMTotalsize;
     VPUX_THROW_UNLESS(WEIGHTS_SM_CMX_OFFSET % alignment == 0, "WEIGHTS_SM_CMX_OFFSET must be multiple of {0}, got {1}",
                       alignment, WEIGHTS_SM_CMX_OFFSET);
 
@@ -87,22 +117,38 @@ void buildSparseZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
     VPUX_THROW_UNLESS(WEIGHTSTABLE_CMX_OFFSET % alignment == 0,
                       "WEIGHTSTABLE_CMX_OFFSET must be multiple of {0}, got {1}", alignment, WEIGHTSTABLE_CMX_OFFSET);
 
-    const auto inputParamType =
-            getMemRefType(VPURT::BufferSection::NetworkInput, inputShape, inputType, DimsOrder::NHWC);
-    const auto outputParamType =
-            getMemRefType(vpux::VPURT::BufferSection::NetworkOutput, outputShape, outputType, DimsOrder::NHWC);
+    SmallVector<mlir::Type> inputTypes;
+    auto inputParamType = getMemRefType(VPURT::BufferSection::NetworkInput, inputShape, inputType, DimsOrder::NHWC);
+    inputTypes.push_back(inputParamType);
+    if (conv.act_sparsity) {
+        auto inputSMType = inputParamType.cast<vpux::NDTypeInterface>()
+                                   .changeElemType(sparsityElementType)
+                                   .cast<mlir::MemRefType>();
+        inputTypes.push_back(inputSMType);
+    }
 
-    const auto funcType = builder.getFunctionType(SmallVector<mlir::Type>{inputParamType, outputParamType},
-                                                  SmallVector<mlir::Type>{outputParamType});
+    auto outputParamType = getMemRefType(VPURT::BufferSection::NetworkOutput, outputShape, outputType, DimsOrder::NHWC);
+    inputTypes.push_back(outputParamType);
 
-    auto function = builder.create<mlir::FuncOp>(
-            loc, llvm::formatv("race_condition_dpu_{0}_{1}_{2}", inputType, weightsType, outputType).str(), funcType,
-            builder.getStringAttr("private"));
+    const auto funcType = builder.getFunctionType(makeArrayRef(inputTypes), outputParamType);
+
+    auto function = builder.create<mlir::func::FuncOp>(
+            loc,
+            llvm::formatv("sparse_zm_conv_{0}_{1}_{2}_{3}", inputType, sparsityElementType, weightsType, outputType)
+                    .str(),
+            funcType, builder.getStringAttr("private"));
 
     auto functionBuilder = mlir::OpBuilder::atBlockBegin(function.addEntryBlock(), builder.getListener());
 
     auto functionInput = function.getArgument(0);
-    auto functionOutput = function.getArgument(1);
+    mlir::BlockArgument functionInputSM;
+    mlir::BlockArgument functionOutput;
+    if (conv.act_sparsity) {
+        functionInputSM = function.getArgument(1);
+        functionOutput = function.getArgument(2);
+    } else {
+        functionOutput = function.getArgument(1);
+    }
 
     auto qty = weightsType.dyn_cast<mlir::quant::QuantizedType>();
     if (qty != nullptr) {
@@ -144,6 +190,16 @@ void buildSparseZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
     auto inputCMX = createDeclareTensorOp(functionBuilder, VPURT::BufferSection::CMX_NN, inputShape, inputType,
                                           vpux::DimsOrder::NHWC, inputStrides, 0, INPUT_CMX_OFFSET);
 
+    mlir::Value inputSMCmxBuffer = nullptr;
+    vpux::VPURT::DeclareBufferOp inputSMCmx;
+    if (conv.act_sparsity) {
+        auto inputSMCmxType =
+                getMemRefType(VPURT::BufferSection::CMX_NN, 0, inputShape, sparsityElementType, DimsOrder::NHWC);
+        inputSMCmx = createDeclareTensorOp(functionBuilder, inputSMCmxType, VPURT::BufferSection::CMX_NN, 0,
+                                           INPUT_SM_CMX_OFFSET);
+        inputSMCmxBuffer = inputSMCmx.buffer();
+    }
+
     auto weightsSMStrides = weightsSMDDRType.cast<vpux::NDTypeInterface>().getStrides();
     auto weightsSMCMX =
             createDeclareTensorOp(functionBuilder, VPURT::BufferSection::CMX_NN, weightsSMShape, sparsityElementType,
@@ -180,7 +236,7 @@ void buildSparseZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
     for (auto oc : irange(OC)) {
         weightsPtrs[oc] = weightsPtrOffset;
         const auto weightSetSize = (numElems[oc] * weightsElemByteSize);
-        weightsPtrOffset += alignVal<int32_t>(weightSetSize, alignmentRequirement);
+        weightsPtrOffset += alignValUp<int32_t>(weightSetSize, alignmentRequirement);
 
         sparsityPtrs[oc] = sparsityPtrOffset;
         sparsityPtrOffset += sparsityPtrStep;
@@ -207,6 +263,11 @@ void buildSparseZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
     VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(),
                                           mlir::ValueRange(updateBarrier.barrier()), loc, functionInput,
                                           inputCMX.getOperation()->getResult(0));
+    if (conv.act_sparsity) {
+        VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(),
+                                              mlir::ValueRange(updateBarrier.barrier()), builder.getUnknownLoc(),
+                                              functionInputSM, inputSMCmxBuffer);
+    }
     VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(
             functionBuilder, mlir::ValueRange(), mlir::ValueRange(updateBarrier.barrier()), loc,
             weightsDDR.getOperation()->getResult(0), weightsCMX.getOperation()->getResult(0));
@@ -228,9 +289,10 @@ void buildSparseZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
     updateBarrier = functionBuilder.create<vpux::VPURT::ConfigureBarrierOp>(loc, 1);
     auto nceTask_0 = VPURT::wrapIntoTaskOp<VPUIP::NCEClusterTaskOp>(
             functionBuilder, mlir::ValueRange(waitBarrier.barrier()), mlir::ValueRange(updateBarrier.barrier()), loc,
-            inputCMX.buffer(), /*input_sparsity_map=*/nullptr,
+            inputCMX.buffer(), /*input_sparsity_map=*/inputSMCmxBuffer,
             /*input_storage_element_table=*/nullptr, weightsDenseViewCMX.buffer(), weightsSMCMX.buffer(),
-            weightsTableCMX_0.buffer(), nullptr, nullptr, inputCMX.buffer(), /*parent_input_sparsity_map=*/nullptr,
+            weightsTableCMX_0.buffer(), nullptr, nullptr, inputCMX.buffer(),
+            /*parent_input_sparsity_map=*/inputSMCmxBuffer,
             /*parent_input_storage_element_table=*/nullptr, outputCMX.buffer(), /*parent_output_sparsity_map=*/nullptr,
             outputCMX.buffer(), /*output_sparsity_map=*/nullptr, /*profiling_data=*/nullptr,
             vpux::VPUIP::NCETaskType::CONV, kernelSize, strides, kernelPaddings, nullptr, nullptr);
@@ -249,22 +311,31 @@ void buildSparseZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
     VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(waitBarrier.barrier()), mlir::ValueRange(),
                                           loc, outputCMX.getOperation()->getResult(0), functionOutput);
 
-    functionBuilder.create<mlir::ReturnOp>(loc, mlir::ValueRange{functionOutput});
+    functionBuilder.create<mlir::func::ReturnOp>(loc, mlir::ValueRange{functionOutput});
 
     module.dump();
 
     mlir::PassManager pm(ctx, mlir::OpPassManager::Nesting::Implicit);
-    pm.addPass(VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::DefaultHW, None, None,
-                                           None, log));
+    pm.addPass(VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::DefaultHW, 1, None, None,
+                                           log));
     if (conv.compress) {
         pm.addPass(VPUIP::createCompressWeightsBTCPass(log));
     }
-
+    if (conv.act_sparsity) {
+        pm.addPass(VPUIP::createComputeSESizesPass(/*onlyInputsConcatOverC=*/false, log));
+    }
     VPUX_THROW_UNLESS(mlir::succeeded(pm.run(module)), "Compilation failed");
 
-    buildCNNOp(builder, function.getName(),
-               {getTensorType(ShapeRef(inputShape), inputType, vpux::DimsOrder::NHWC, nullptr)},
-               {getTensorType(ShapeRef(outputShape), outputType, vpux::DimsOrder::NHWC, nullptr)});
+    if (conv.act_sparsity) {
+        buildCNNOp(builder, function.getName(),
+                   {getTensorType(ShapeRef(inputShape), inputType, vpux::DimsOrder::NHWC, nullptr),
+                    getTensorType(ShapeRef(inputSMShape), sparsityElementType, DimsOrder::NHWC, nullptr)},
+                   {getTensorType(ShapeRef(outputShape), outputType, vpux::DimsOrder::NHWC, nullptr)});
+    } else {
+        buildCNNOp(builder, function.getName(),
+                   {getTensorType(ShapeRef(inputShape), inputType, vpux::DimsOrder::NHWC, nullptr)},
+                   {getTensorType(ShapeRef(outputShape), outputType, vpux::DimsOrder::NHWC, nullptr)});
+    }
 }
 
 }  // namespace hwtest

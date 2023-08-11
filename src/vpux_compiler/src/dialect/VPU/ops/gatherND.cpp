@@ -18,7 +18,7 @@ mlir::LogicalResult vpux::VPU::GatherNDOp::inferReturnTypes(mlir::MLIRContext* c
                                                             mlir::ValueRange operands, mlir::DictionaryAttr attrs,
                                                             mlir::RegionRange /*regions*/,
                                                             mlir::SmallVectorImpl<mlir::Type>& inferredReturnTypes) {
-    const auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
+    const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
     VPU::GatherNDOpAdaptor gatherND(operands, attrs);
     if (mlir::failed(gatherND.verify(loc))) {
@@ -64,12 +64,13 @@ EMU::BlobWriter::SpecificTask vpux::VPU::GatherNDOp::serialize(EMU::BlobWriter& 
 // verify
 //
 
-mlir::LogicalResult vpux::VPU::verifyOp(GatherNDOp op) {
-    const auto inType = op.input().getType().cast<vpux::NDTypeInterface>();
+mlir::LogicalResult vpux::VPU::GatherNDOp::verify() {
+    const auto op = getOperation();
+    const auto inType = input().getType().cast<vpux::NDTypeInterface>();
     const auto inputShape = inType.getShape().raw();
-    const auto indicesShape = op.indices().getType().cast<vpux::NDTypeInterface>().getShape().raw();
+    const auto indicesShape = indices().getType().cast<vpux::NDTypeInterface>().getShape().raw();
 
-    const auto batchDims = op.batch_dims();
+    const auto batchDims = batch_dims();
     const auto lastIndices = indicesShape.back();
     const auto inputRank = static_cast<int64_t>(inputShape.size());
     const auto indicesRank = static_cast<int64_t>(indicesShape.size());

@@ -12,9 +12,16 @@
 
 #include "vpux.hpp"
 #include "vpux/utils/core/logger.hpp"
+#include "zero_executor.h"
+#include "zero_pipeline.h"
+#include "zero_profiling.h"
+#include "zero_utils.h"
+#include "zero_wrappers.h"
+
+#include <ze_api.h>
+#include <ze_graph_ext.h>
 
 namespace vpux {
-
 class ZeroInferRequest : public IInferRequest {
 public:
     using Ptr = std::shared_ptr<ZeroInferRequest>;
@@ -34,7 +41,12 @@ public:
 
     void GetResult() override;
 
-protected:
+private:
+    void push(const InferenceEngine::BlobMap& inputs);
+    void pull(InferenceEngine::BlobMap& outputs);
+
+    std::unique_ptr<Pipeline> makePipeline();
+
     const Executor::Ptr _executorPtr;
     const Config _config;
     Logger _logger;
@@ -43,6 +55,10 @@ protected:
     const vpux::DataMap _statesInfo;
     std::vector<std::shared_ptr<InferenceEngine::IVariableStateInternal>> _states{};
     std::once_flag _fillStatesOnceFlag;
+
+    vpux::zeroProfiling::ProfilingPool _profiling_pool;
+    vpux::zeroProfiling::ProfilingQuery _profiling_query;
+    std::unique_ptr<Pipeline> _pipeline;
 };
 
 }  //  namespace vpux

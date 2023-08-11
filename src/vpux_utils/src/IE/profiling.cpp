@@ -1,5 +1,5 @@
 //
-// Copyright (C) 2022 Intel Corporation.
+// Copyright (C) 2022-2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
 
@@ -12,7 +12,6 @@
 
 #include <cstring>
 #include <fstream>
-#include <iomanip>
 #include <iostream>
 #include <map>
 #include <set>
@@ -49,7 +48,7 @@ std::string getClusterFromName(const std::string& name) {
     const auto suffix = name.substr(name.rfind(CLUSTER_LEVEL_PROFILING_SUFFIX));
     const auto clusterBeginPos = suffix.find("_") + 1;
     const auto clusterEndPos = suffix.rfind("/");
-    // Havent variant suffix
+    // Does not have variant suffix
     if (clusterEndPos == suffix.npos) {
         return suffix.substr(clusterBeginPos);
     }
@@ -72,7 +71,7 @@ std::vector<std::string> generateThreadNames(const std::vector<TaskInfo>& tasks)
     std::map<TaskInfo::ExecType, std::set<std::string>> numsOfClusters;
     bool hasVariantsData = false;
     for (const auto& task : tasks) {
-        if (isClusterLevelProfilingTask(task) == true) {
+        if (isClusterLevelProfilingTask(task)) {
             numsOfClusters[task.exec_type].insert(getClusterFromName(task.name));
         }
         hasVariantsData = hasVariantsData || isLowLevelProfilingTask(task);
@@ -96,12 +95,55 @@ std::vector<std::string> generateThreadNames(const std::vector<TaskInfo>& tasks)
 
 bool isVariantLevelProfilingTask(const TaskInfo& task) {
     bool hasVariantInName = strstr(task.name, VARIANT_LEVEL_PROFILING_SUFFIX.c_str()) != nullptr;
-    return task.exec_type == TaskInfo::ExecType::DPU && hasVariantInName == true;
+    return task.exec_type == TaskInfo::ExecType::DPU && hasVariantInName;
 }
 
 bool isTileLevelProfilingTask(const TaskInfo& task) {
     bool hasTileInName = strstr(task.name, TILE_LEVEL_PROFILING_SUFFIX.c_str()) != nullptr;
-    return isSwTask(task) && hasTileInName == true;
+    return isSwTask(task) && hasTileInName;
+}
+
+void printDebugProfilingInfoForOneCategory(const RawProfilingRecords& records, std::ostream& outStream,
+                                           size_t commonOffset) {
+    using DebugFormattableRecordPtr = std::shared_ptr<DebugFormattableRecordMixin>;
+    std::map<size_t, DebugFormattableRecordPtr> orderedRecords;
+    for (const auto& record : records) {
+        const auto debugRecordPtr = std::dynamic_pointer_cast<DebugFormattableRecordMixin>(record);
+        orderedRecords[debugRecordPtr->getInMemoryOffset()] = debugRecordPtr;
+    }
+
+    bool firstTime = true;
+    for (const auto& offsetAndRecord : orderedRecords) {
+        const auto record = offsetAndRecord.second;
+        const auto taskOffset = offsetAndRecord.first * record->getDebugDataSize();
+        if (firstTime) {
+            record->printDebugHeader(outStream);
+            firstTime = false;
+        }
+        const auto taskGlobalOffset = commonOffset + taskOffset;
+        const auto asRawRecord = std::dynamic_pointer_cast<RawProfilingRecord>(record);
+        outStream << std::setw(14) << std::hex << taskGlobalOffset << std::setw(15) << taskOffset << std::setw(14)
+                  << asRawRecord->getRecordTypeName() << std::setw(100) << asRawRecord->getTaskName();
+        record->printDebugInfo(outStream);
+        outStream << std::endl;
+    }
+}
+
+void printDebugWorkpointsSetup(const RawProfilingData& rawProfData, std::ostream& outStream) {
+    if (!rawProfData.hasWorkpointConfig()) {
+        return;
+    }
+    const auto workpointDbgInfos = rawProfData.workpointsConfiguration;
+
+    outStream << std::setw(14) << "Global offset" << std::setw(25) << "Engine" << std::setw(17) << "PLL Value"
+              << std::setw(15) << "WRKPNT CFGID" << std::endl;
+    for (const auto& workpointDbgInfo : workpointDbgInfos) {
+        const auto workpointCfg = workpointDbgInfo.first;
+        const auto offset = workpointDbgInfo.second;
+
+        outStream << std::setw(14) << offset << std::setw(25) << "WORKPOINT" << std::setw(17)
+                  << workpointCfg.pllMultiplier << std::setw(15) << workpointCfg.configId << std::endl;
+    }
 }
 
 };  // namespace
@@ -109,7 +151,7 @@ bool isTileLevelProfilingTask(const TaskInfo& task) {
 bool vpux::profiling::isClusterLevelProfilingTask(const TaskInfo& task) {
     bool hasClusterInName = strstr(task.name, CLUSTER_LEVEL_PROFILING_SUFFIX.c_str()) != nullptr;
     bool isDPUorActTask = task.exec_type == TaskInfo::ExecType::DPU || isSwTask(task);
-    return isDPUorActTask && hasClusterInName == true && isLowLevelProfilingTask(task) == false;
+    return isDPUorActTask && hasClusterInName && !isLowLevelProfilingTask(task);
 }
 
 bool vpux::profiling::isLowLevelProfilingTask(const TaskInfo& task) {
@@ -124,18 +166,16 @@ static void streamWriter(const OutputType profilingType, const std::pair<const u
     const auto profilingData = profiling.first;
     const auto profilingSize = profiling.second;
 
-    std::vector<TaskInfo> taskProfiling;
-    std::vector<LayerInfo> layerProfiling;
-    std::vector<DebugInfo> debugProfiling;
-    SummaryInfo summary;
-
     if (profilingType == OutputType::DEBUG) {
-        debugProfiling = getTaskInfoInDebugMode(blobData, blobSize, profilingData, profilingSize, TaskType::ALL);
-        summary = getSummary(blobData, profilingSize);
-    } else {
-        taskProfiling = getTaskInfo(blobData, blobSize, profilingData, profilingSize, TaskType::ALL, verbosity, fpga);
-        layerProfiling = getLayerInfo(taskProfiling);
+        const auto rawProfData = getRawProfilingTasks(blobData, blobSize, profilingData, profilingSize, TaskType::ALL);
+        const auto summary = getSummary(rawProfData, profilingSize);
+        printDebugProfilingInfo(rawProfData, output);
+        printSummary(summary, output);
+        return;
     }
+    std::vector<TaskInfo> taskProfiling =
+            getTaskInfo(blobData, blobSize, profilingData, profilingSize, TaskType::ALL, verbosity, fpga);
+    std::vector<LayerInfo> layerProfiling = getLayerInfo(taskProfiling);
 
     switch (profilingType) {
     case OutputType::TEXT:
@@ -144,10 +184,7 @@ static void streamWriter(const OutputType profilingType, const std::pair<const u
     case OutputType::JSON:
         printProfilingAsTraceEvent(taskProfiling, layerProfiling, output);
         break;
-    case OutputType::DEBUG:
-        printDebugProfilingInfo(debugProfiling, output);
-        printSummary(summary, output);
-        break;
+    // case OutputType::DEBUG:
     case OutputType::NONE:
         break;
     default:
@@ -159,10 +196,11 @@ static void streamWriter(const OutputType profilingType, const std::pair<const u
 void vpux::profiling::printProfilingAsText(const std::vector<TaskInfo>& taskProfiling,
                                            const std::vector<LayerInfo>& layerProfiling, std::ostream& outStream) {
     uint64_t last_time_ns = 0;
+    std::ios::fmtflags origFlags(outStream.flags());
     outStream << std::left << std::setprecision(2) << std::fixed;
     for (auto& task : taskProfiling) {
         std::string exec_type_str;
-        std::string taskName = std::string(task.name);
+        std::string taskName(task.name);
 
         switch (task.exec_type) {
         case TaskInfo::ExecType::DMA:
@@ -196,31 +234,33 @@ void vpux::profiling::printProfilingAsText(const std::vector<TaskInfo>& taskProf
 
     uint64_t total_time = 0;
     for (auto& layer : layerProfiling) {
-        outStream << "Layer: " << std::setw(40) << layer.name << " DPU: " << std::setw(8) << (float)layer.dpu_ns / 1000
-                  << " SW: " << std::setw(8) << (float)layer.sw_ns / 1000 << " DMA: " << std::setw(8)
-                  << (float)layer.dma_ns / 1000 << "\tStart: " << (float)layer.start_time_ns / 1000 << std::endl;
+        outStream << "Layer: " << std::setw(40) << layer.name << " Type: " << std::setw(20) << layer.layer_type
+                  << " DPU: " << std::setw(8) << (float)layer.dpu_ns / 1000 << " SW: " << std::setw(8)
+                  << (float)layer.sw_ns / 1000 << " DMA: " << std::setw(8) << (float)layer.dma_ns / 1000
+                  << "\tStart: " << (float)layer.start_time_ns / 1000 << std::endl;
         total_time += layer.dpu_ns + layer.sw_ns + layer.dma_ns;
     }
 
     outStream << "Total time: " << (float)total_time / 1000 << "us, Real: " << (float)last_time_ns / 1000 << "us"
               << std::endl;
+    outStream.flags(origFlags);
 }
 
 void vpux::profiling::printProfilingAsTraceEvent(const std::vector<TaskInfo>& taskProfiling,
                                                  const std::vector<LayerInfo>& layerProfiling,
                                                  std::ostream& outStream) {
-    struct TracingEventDesc ted;
-    ted.pid = PID;
     const auto tidNames = generateThreadNames(taskProfiling);
     auto findTid = [&](auto& tidName) {
         // Adding 2 make offset from initial thread
         return static_cast<unsigned>(std::find(tidNames.begin(), tidNames.end(), tidName) - tidNames.begin() + 2);
     };
 
+    std::ios::fmtflags origFlags(outStream.flags());
     // Trace Events timestamps are in microseconds, set precision to preserve nanosecond resolution
     outStream << std::setprecision(3) << "{\"traceEvents\":[" << std::endl;
 
     for (auto& task : taskProfiling) {
+        struct TracingEventDesc ted;
         ted.name = task.name;
         ted.category = enumToStr.at(task.exec_type);
         std::string tidName = ted.category;
@@ -231,18 +271,27 @@ void vpux::profiling::printProfilingAsTraceEvent(const std::vector<TaskInfo>& ta
             tidName = createClusterThreadName(getClusterFromName(task.name), isSwExecType);
         }
 
+        ted.pid = PID;
         ted.tid = findTid(tidName);
         ted.timestamp = task.start_time_ns / 1000.;
         ted.duration = task.duration_ns / 1000.;
+
+        if (isSwExecType) {
+            ted.customArgs.push_back({"Stall cycles", std::to_string(task.stall_cycles)});
+        }
+
         outStream << ted;
     }
 
-    ted.category = "Layer";
     for (auto& layer : layerProfiling) {
+        struct TracingEventDesc ted;
         ted.name = layer.name;
+        ted.category = "Layer";
+        ted.pid = PID;
         ted.tid = findTid(LAYER_THREAD_NAME);
         ted.timestamp = layer.start_time_ns / 1000.;
         ted.duration = layer.duration_ns / 1000.;
+        ted.customArgs.push_back({"Layer type", layer.layer_type});
         outStream << ted;
     }
 
@@ -263,97 +312,16 @@ void vpux::profiling::printProfilingAsTraceEvent(const std::vector<TaskInfo>& ta
               // JSON timestamps are expected to be in microseconds regardless
               << "\"displayTimeUnit\": \"ns\"\n"
               << "}" << std::endl;
+    outStream.flags(origFlags);
 }
 
-static std::string rtToString(const RecordType rt) {
-    static const std::map<RecordType, std::string> dict{
-            {RecordType::DMA20, "DMA 2.0"}, {RecordType::DMA27, "DMA 2.7"}, {RecordType::DPU_HWP27, "HWP DPU"},
-            {RecordType::DPU_SW, "SW DPU"}, {RecordType::SW_UPA, "UPA"},    {RecordType::SW_ACT, "ACT"},
-    };
-    return dict.at(rt);
-}
-
-static constexpr int COL_WIDTH_32 = 11;
-static constexpr int COL_WIDTH_64 = 19;
-
-void vpux::profiling::printDebugProfilingInfo(const std::vector<DebugInfo>& debugProfiling, std::ostream& outStream) {
-    using ColDesc = std::vector<std::pair<std::string, int>>;
-    uint32_t commonOffset = 0;
-    auto header = [](bool& firstTime, const ColDesc& columns, std::ostream& outStream, const DebugInfo& task,
-                     uint32_t commonOffset) {
-        if (firstTime) {
-            firstTime = false;
-            outStream << std::setw(7) << "Offset" << std::setw(7) << "Offset" << std::setw(10) << "Engine"
-                      << std::setw(100) << "Layer name";
-            for (const std::pair<std::string, int>& p : columns) {
-                outStream << std::setw(p.second) << p.first;
-            }
-            outStream << std::endl;
-        }
-        outStream << std::setw(7) << std::hex << commonOffset << std::setw(7) << task.offset << std::setw(10)
-                  << rtToString(task.recordType) << std::setw(100) << task.name;
-    };
-
-    bool dmaTitles = true;
-    bool dpuTitles = true;
-    bool swTitles = true;
-    const ColDesc dmaCol{{"Timestamp", COL_WIDTH_64}};
-    const ColDesc swDpuCol{{"Begin tstamp", COL_WIDTH_64}, {"End tstamp", COL_WIDTH_64}};
-    const ColDesc hwpDpuCol{{"IDU dur", COL_WIDTH_32}, {"IDU tstamp", COL_WIDTH_32}, {"SWE ID", 7}, {"Res", 4},
-                            {"ODU dur", COL_WIDTH_32}, {"ODU tstamp", COL_WIDTH_32}, {"Res", 7}};
-    const ColDesc upaCol{{"Begin tstamp", COL_WIDTH_64},
-                         {"End tstamp", COL_WIDTH_64},
-                         {"Stall", COL_WIDTH_32},
-                         {"Active", COL_WIDTH_32}};
-    const ColDesc actShaveCol{{"Begin", COL_WIDTH_64}, {"Duration", COL_WIDTH_32}, {"Stall", COL_WIDTH_32}};
-    for (const DebugInfo& task : debugProfiling) {
-        switch (task.recordType) {
-        case RecordType::DMA20:
-            header(dmaTitles, dmaCol, outStream, task, commonOffset);
-            outStream << std::setw(dmaCol[0].second) << task.raw.dma20;
-            commonOffset += 4;
-            break;
-        case RecordType::DMA27:
-            header(dmaTitles, dmaCol, outStream, task, commonOffset);
-            outStream << std::setw(dmaCol[0].second) << task.raw.dma27;
-            commonOffset += 8;
-            break;
-        case RecordType::DPU_HWP27: {
-            header(dpuTitles, hwpDpuCol, outStream, task, commonOffset);
-            const HwpDpuMode0Data_t& hwpDpu = task.raw.hwpDpu;
-            outStream << std::setw(hwpDpuCol[0].second) << hwpDpu.idu_wl_duration << std::setw(hwpDpuCol[1].second)
-                      << hwpDpu.idu_tstamp << std::setw(hwpDpuCol[2].second) << hwpDpu.sve_id
-                      << std::setw(hwpDpuCol[3].second) << hwpDpu.reserved3 << std::setw(hwpDpuCol[4].second)
-                      << hwpDpu.odu_wl_duration << std::setw(hwpDpuCol[5].second) << hwpDpu.odu_tstamp
-                      << std::setw(hwpDpuCol[6].second) << hwpDpu.reserved8;
-            commonOffset += sizeof(HwpDpuMode0Data_t);
-            break;
-        }
-        case RecordType::DPU_SW:
-            header(dpuTitles, swDpuCol, outStream, task, commonOffset);
-            outStream << std::setw(swDpuCol[0].second) << task.raw.swDpu.begin << std::setw(swDpuCol[1].second)
-                      << task.raw.swDpu.end;
-            commonOffset += sizeof(SwDpuData_t);
-            break;
-        case RecordType::SW_UPA:
-            header(swTitles, upaCol, outStream, task, commonOffset);
-            outStream << std::setw(upaCol[0].second) << task.raw.upa.begin << std::setw(upaCol[1].second)
-                      << task.raw.upa.end << std::setw(upaCol[2].second) << task.raw.upa.stallCycles
-                      << std::setw(upaCol[3].second) << task.raw.upa.activeCycles;
-            commonOffset += sizeof(UpaData_t);
-            break;
-        case RecordType::SW_ACT:
-            header(swTitles, actShaveCol, outStream, task, commonOffset);
-            outStream << std::setw(actShaveCol[0].second) << task.raw.actShave.begin << std::setw(actShaveCol[1].second)
-                      << task.raw.actShave.duration << std::setw(actShaveCol[2].second)
-                      << task.raw.actShave.stallCycles;
-            commonOffset += sizeof(ActShaveData_t);
-            break;
-        default:
-            break;
-        }
-        outStream << std::endl;
+void vpux::profiling::printDebugProfilingInfo(const RawData& profData, std::ostream& outStream) {
+    const auto rawProfData = profData.rawRecords;
+    for (const auto& typeAndOffset : rawProfData.parseOrder) {
+        const auto tasks = rawProfData.getTaskOfType(typeAndOffset.first);
+        printDebugProfilingInfoForOneCategory(tasks, outStream, typeAndOffset.second);
     }
+    printDebugWorkpointsSetup(rawProfData, outStream);
 }
 
 void vpux::profiling::printSummary(const SummaryInfo& summary, std::ostream& outStream) {

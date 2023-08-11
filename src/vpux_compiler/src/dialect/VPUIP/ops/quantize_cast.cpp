@@ -62,9 +62,10 @@ bool isOverlapped(const VPUIP::DistributedBufferType inType, const VPUIP::Distri
            VPU::bitEnumContains(outMode, VPU::DistributionMode::OVERLAPPED);
 }
 
-mlir::LogicalResult VPUIP::verifyOp(VPUIP::QuantizeCastOp op) {
-    auto distributedInType = op.input().getType().dyn_cast<VPUIP::DistributedBufferType>();
-    auto distributedOutType = op.output().getType().dyn_cast<VPUIP::DistributedBufferType>();
+mlir::LogicalResult vpux::VPUIP::QuantizeCastOp::verify() {
+    const auto op = getOperation();
+    auto distributedInType = input().getType().dyn_cast<VPUIP::DistributedBufferType>();
+    auto distributedOutType = output().getType().dyn_cast<VPUIP::DistributedBufferType>();
     if (distributedInType && distributedOutType) {
         if (!isCompatibleForDistributedInputOutput(op, distributedInType, distributedOutType) &&
             !isOverlapped(distributedInType, distributedOutType)) {
@@ -75,6 +76,18 @@ mlir::LogicalResult VPUIP::verifyOp(VPUIP::QuantizeCastOp op) {
         if (inElemType.isa<mlir::FloatType>() || outElemType.isa<mlir::FloatType>()) {
             return errorAt(op, " QuantizeCastOp input and output must have the legal element type");
         }
+    }
+    auto inputStrides = getStrides(input());
+    auto outputStrides = getStrides(output());
+    if (inputStrides != outputStrides) {
+        return errorAt(op, "QuantizeCastOp input and output must have the same strides, but got {0} and {1}",
+                       inputStrides, outputStrides);
+    }
+    auto inputShape = getShape(input());
+    auto outputShape = getShape(output());
+    if (inputShape != outputShape) {
+        return errorAt(op, "QuantizeCastOp input and output must have the same shape, but got {0} and {1}", inputShape,
+                       outputShape);
     }
     return mlir::success();
 }

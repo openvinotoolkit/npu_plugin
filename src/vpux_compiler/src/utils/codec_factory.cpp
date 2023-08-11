@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include <vector>
 #include "vpux/compiler/utils/bit_compactor_codec.hpp"
 #include "vpux/compiler/utils/huffman_codec.hpp"

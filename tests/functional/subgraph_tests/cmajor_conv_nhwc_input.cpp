@@ -1,5 +1,5 @@
 //
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,10 +15,10 @@ namespace {
 typedef std::tuple<InferenceEngine::Precision, InferenceEngine::Precision, InferenceEngine::SizeVector,
                    InferenceEngine::SizeVector, ngraph::Strides, ngraph::Strides,
                    std::pair<ngraph::CoordinateDiff, ngraph::CoordinateDiff>>
-        KmbCMajorConvNHWCTestParams;
-class KmbCMajorConvNHWCTest :
+        CMajorConvNHWCTestParams;
+class VPUXCMajorConvNHWCTest_VPU3700 :
         public LayerTestsUtils::KmbLayerTestsCommon,
-        public testing::WithParamInterface<KmbCMajorConvNHWCTestParams> {
+        public testing::WithParamInterface<CMajorConvNHWCTestParams> {
     //[Track number: E#26428]
     void SkipBeforeLoad() override {
         if (getBackendName(*getCore()) == "VPUAL") {
@@ -60,7 +60,7 @@ class KmbCMajorConvNHWCTest :
                                                                         pads.second, dilations);
 
         const ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(conv)};
-        function = std::make_shared<ngraph::Function>(results, params, "KmbCMajorConvNHWCTest");
+        function = std::make_shared<ngraph::Function>(results, params, "VPUXCMajorConvNHWCTest");
 
         targetDevice = LayerTestsUtils::testPlatformTargetDevice;
         threshold = 0.1f;
@@ -83,7 +83,7 @@ class KmbCMajorConvNHWCTest :
     }
 
 public:
-    static std::string getTestCaseName(::testing::TestParamInfo<KmbCMajorConvNHWCTestParams> obj) {
+    static std::string getTestCaseName(::testing::TestParamInfo<CMajorConvNHWCTestParams> obj) {
         auto params = obj.param;
 
         InferenceEngine::Precision ip, op;
@@ -109,7 +109,9 @@ public:
     }
 };
 
-TEST_P(KmbCMajorConvNHWCTest, CompareWithRefs) {
+TEST_P(VPUXCMajorConvNHWCTest_VPU3700, HW) {
+    setPlatformVPU3700();
+    setDefaultHardwareModeMLIR();
     Run();
 }
 
@@ -127,11 +129,11 @@ const std::vector<ngraph::Strides> dilations{{1, 1}};
 const std::vector<std::pair<ngraph::CoordinateDiff, ngraph::CoordinateDiff>> pads{{{0, 0}, {0, 0}}};
 
 /* NOTE: Tests have not yet run on actual device, because of CI instability. Only LoadNetwork phase was done. */
-INSTANTIATE_TEST_CASE_P(smoke_Permute_NHWC_To_NCHW, KmbCMajorConvNHWCTest,
+INSTANTIATE_TEST_CASE_P(smoke_Permute_NHWC_To_NCHW, VPUXCMajorConvNHWCTest_VPU3700,
                         ::testing::Combine(::testing::ValuesIn(prec), ::testing::ValuesIn(prec),
                                            ::testing::ValuesIn(inputShapes), ::testing::ValuesIn(weightShapes),
                                            ::testing::ValuesIn(strides), ::testing::ValuesIn(dilations),
                                            ::testing::ValuesIn(pads)),
-                        KmbCMajorConvNHWCTest::getTestCaseName);
+                        VPUXCMajorConvNHWCTest_VPU3700::getTestCaseName);
 
 }  // namespace

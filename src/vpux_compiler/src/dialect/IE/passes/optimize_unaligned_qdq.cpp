@@ -107,7 +107,7 @@ private:
 
 void OptimizeUnalignedQDQSeqPass::safeRunOnFunc() {
     auto& ctx = getContext();
-    auto func = getFunction();
+    auto func = getOperation();
     mlir::ConversionTarget target(ctx);
 
     target.addDynamicallyLegalOp<IE::FakeQuantizeOp>([&](IE::FakeQuantizeOp fakeQuantize) {

@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/core/attributes/shape.hpp"
 #include "vpux/compiler/dialect/VPUIP/types.hpp"
 
@@ -32,6 +30,25 @@ void VPUIP::DistributedBufferType::walkImmediateSubElements(llvm::function_ref<v
     }
     walkAttrsFn(getMemSpace());
     walkAttrsFn(getDistribution());
+    walkAttrsFn(getCompressionScheme());
+}
+
+//
+// DistributedBufferType::replaceImmediateSubElements
+//
+
+mlir::Type VPUIP::DistributedBufferType::replaceImmediateSubElements(ArrayRef<mlir::Attribute> replAttrs,
+                                                                     ArrayRef<mlir::Type> replTypes) const {
+    bool hasLayout = replAttrs.size() > 2;
+    auto nextAfterLayout = hasLayout ? 1 : 0;
+    size_t expectedSize = hasLayout ? 5 : 4;
+    VPUX_THROW_WHEN(replAttrs.size() < expectedSize, "Replace attrs array is too short: '{0}'", replAttrs.size());
+    return get(getContext(), getShape().raw(), replTypes[0],
+               hasLayout ? replAttrs[0].dyn_cast_or_null<mlir::MemRefLayoutAttrInterface>()
+                         : mlir::MemRefLayoutAttrInterface(),
+               replAttrs[nextAfterLayout].dyn_cast_or_null<vpux::IndexedSymbolAttr>(),
+               replAttrs[nextAfterLayout + 1].dyn_cast_or_null<VPU::DistributedTensorAttr>(),
+               replAttrs[nextAfterLayout + 2].dyn_cast_or_null<VPUIP::CompressionSchemeAttr>());
 }
 
 //
@@ -78,8 +95,19 @@ void VPUIP::DistributedBufferType::print(mlir::AsmPrinter& printer) const {
     if (distribution.alignment() != nullptr) {
         printer << ", alignment = " << distribution.alignment();
     }
+    if (distribution.uniform_distributed_segments() != nullptr) {
+        printer << ", uniform_distributed_segments";
+    }
+    if (distribution.compute_shapes() != nullptr) {
+        printer << ", compute_shapes = " << distribution.compute_shapes();
+    }
+    if (distribution.compute_offsets() != nullptr) {
+        printer << ", compute_offsets = " << distribution.compute_offsets();
+    }
+    if (distribution.equal_memory_and_compute_view() != nullptr) {
+        printer << ", equal_memory_and_compute_view";
+    }
     printer << "}";
-
     if (getCompressionScheme() != nullptr) {
         printer << ", " << getCompressionScheme();
     }
@@ -160,6 +188,10 @@ mlir::Type VPUIP::DistributedBufferType::parse(mlir::AsmParser& parser) {
     mlir::ArrayAttr strides;
     mlir::IntegerAttr numClusters;
     mlir::ArrayAttr alignment;
+    mlir::UnitAttr uniformDistributedSegments;
+    mlir::ArrayAttr computeShapes;
+    mlir::ArrayAttr computeOffsets;
+    mlir::UnitAttr equalComputeAndMemoryView;
 
     while (parser.parseOptionalRBrace()) {
         if (parser.parseComma()) {
@@ -169,6 +201,21 @@ mlir::Type VPUIP::DistributedBufferType::parse(mlir::AsmParser& parser) {
         if (parser.parseKeywordOrString(&attrName)) {
             return Type();
         }
+
+        // Handle UnitAttr first since they don't have value assigned
+        if (attrName == "uniform_distributed_segments") {
+            uniformDistributedSegments = mlir::UnitAttr::get(parser.getContext());
+            continue;
+        } else if (attrName == "equal_memory_and_compute_view") {
+            equalComputeAndMemoryView = mlir::UnitAttr::get(parser.getContext());
+            continue;
+        }
+
+        if (attrName == "equal_memory_and_compute_view") {
+            equalComputeAndMemoryView = mlir::UnitAttr::get(parser.getContext());
+            continue;
+        }
+
         if (parser.parseEqual()) {
             return Type();
         }
@@ -196,6 +243,14 @@ mlir::Type VPUIP::DistributedBufferType::parse(mlir::AsmParser& parser) {
             if (parser.parseAttribute(alignment)) {
                 return Type();
             }
+        } else if (attrName == "compute_offsets") {
+            if (parser.parseAttribute(computeOffsets)) {
+                return Type();
+            }
+        } else if (attrName == "compute_shapes") {
+            if (parser.parseAttribute(computeShapes)) {
+                return Type();
+            }
         } else {
             return Type();
         }
@@ -211,8 +266,9 @@ mlir::Type VPUIP::DistributedBufferType::parse(mlir::AsmParser& parser) {
     if (parser.parseGreater()) {
         return Type();
     }
-    auto distributedAttr = VPU::DistributedTensorAttr::get(distributionModeAttr, numTiles, kernel, pads, strides,
-                                                           numClusters, alignment, parser.getContext());
+    auto distributedAttr = VPU::DistributedTensorAttr::get(
+            distributionModeAttr, numTiles, kernel, pads, strides, numClusters, alignment, uniformDistributedSegments,
+            computeShapes, computeOffsets, equalComputeAndMemoryView, parser.getContext());
     return static_cast<mlir::Type>(get(parser.getContext(), makeArrayRef(shape), elemType, layout, memSpace,
                                        distributedAttr, compressionScheme));
 }
@@ -326,6 +382,27 @@ SmallVector<Shape> VPUIP::DistributedBufferType::getPerClusterComputeShapeOffset
     return VPU::getPerClusterComputeShapeOffsets(getShape(), getDistribution());
 }
 
+// @brief Retrieve the array of memory shapes.
+// @warning An important thing to consider with regards to compute shapes,
+//  is that modes like DUPLICATED and MULTICASTED take precedence over
+//  SEGMENTED and OVERLAPPED.
+//  In an example case of a "SEGMENTED | DUPLICATED" (needed for SplitOverK)
+//  tensor with shape [1, 64, 4, 4], the memory shape in each cluster is
+//  [1, 64, 4, 4], which is the allocated shape (because of duplicated)
+//  information which is needed for scheduler and strategy manager,
+//  in order to estimate memory
+SmallVector<Shape> VPUIP::DistributedBufferType::getPerClusterMemoryShapes() const {
+    return VPU::getPerClusterMemoryShapes(getShape(), getDistribution());
+}
+
+// @brief Retrieve the array of memory buffer offsets with regards to the full buffer.
+// @warning An important thing to consider with regards to compute shapes,
+//  is that modes like DUPLICATED and MULTICASTED take precedence over
+//  SEGMENTED and OVERLAPPED.
+SmallVector<Shape> VPUIP::DistributedBufferType::getPerClusterMemoryShapeOffsets() const {
+    return VPU::getPerClusterMemoryShapeOffsets(getShape(), getDistribution());
+}
+
 // @brief Get largest compact compute shape
 // @warning This function should not be used for memory size calculation,
 // because it does not retrieve the true allocate shape in cases
@@ -352,12 +429,12 @@ SmallVector<PadInfo> VPUIP::DistributedBufferType::getPerClusterPadding() const 
     return VPU::getPerClusterPadding(getDistribution());
 }
 
-// @brief Retrieve the array of strided compute shapes
+// @brief Retrieve the array of strided memory shapes
 // @warning This function should not be used for memory size calculation,
 // because it does not retrieve the true allocate shape in cases
 // of broadcasting.
-SmallVector<StridedShape> VPUIP::DistributedBufferType::getPerClusterStridedShapes() const {
-    return VPU::getPerClusterStridedShapes(getShape(), getStrides(), getDimsOrder(), getDistribution());
+SmallVector<StridedShape> VPUIP::DistributedBufferType::getPerClusterMemoryStridedShapes() const {
+    return VPU::getPerClusterMemoryStridedShapes(getShape(), getStrides(), getDimsOrder(), getDistribution());
 }
 
 // @brief Get largest strided compute shape
@@ -365,7 +442,7 @@ SmallVector<StridedShape> VPUIP::DistributedBufferType::getPerClusterStridedShap
 // because it does not retrieve the true allocate shape in cases
 // of broadcasting.
 StridedShape VPUIP::DistributedBufferType::getLargestStridedShape() const {
-    auto stridedShapes = getPerClusterStridedShapes();
+    auto stridedShapes = getPerClusterMemoryStridedShapes();
     VPUX_THROW_UNLESS(!stridedShapes.empty(), "Missing per-cluster strided shapes");
     return *getLargestStridedShapeIt(stridedShapes);
 }
@@ -375,7 +452,7 @@ StridedShape VPUIP::DistributedBufferType::getLargestStridedShape() const {
 // because it does not retrieve the true allocate shape in cases
 // of broadcasting.
 StridedShape VPUIP::DistributedBufferType::getStridedShape(int64_t tileInd) const {
-    const auto stridedShapes = getPerClusterStridedShapes();
+    const auto stridedShapes = getPerClusterMemoryStridedShapes();
     VPUX_THROW_UNLESS(tileInd < static_cast<int64_t>(stridedShapes.size()),
                       "Requesting tiled shape outside of cluster pool");
     return stridedShapes[tileInd];
@@ -479,7 +556,8 @@ Byte VPUIP::DistributedBufferType::getTotalAllocSize() const {
         }
         const auto alignment = parseIntArrayAttr<int64_t>(distribution.alignment());
         const auto optionalAlignment = Optional<ArrayRef<int64_t>>(alignment);
-        const auto alignedTiledShape = Shape(alignShape(stridedTiledShape.shape.raw(), optionalAlignment));
+        const auto alignedTiledShape =
+                Shape(alignShape(stridedTiledShape.shape.raw(), optionalAlignment, alignValUp<int64_t>));
         const auto alignedTiledStrides =
                 adaptStrides(stridedTiledShape.shape, stridedTiledShape.strides, {alignedTiledShape}, getDimsOrder());
         return StridedShape(alignedTiledShape, alignedTiledStrides.front());
@@ -501,24 +579,16 @@ Byte VPUIP::DistributedBufferType::getTotalAllocSize() const {
         int64_t tileElemsBytes = 0;
 
         for (auto it = startTileIt; it != endTileIt; ++it) {
-            tileElemsBytes += alignVal<int64_t>(*it * elemByteSize, alignment);
+            tileElemsBytes += alignValUp<int64_t>(*it * elemByteSize, alignment);
         }
         return Byte(tileElemsBytes);
     };
 
     Byte allocSizeByte(0);
 
-    // DUPLICATED|MULTICASTED takes priority since it means that each cluster will have the entire
-    // tensor, regardless whether it's tiled or not.
-    Shape stridedTiledOffsets(SmallVector<int64_t>(shape.size(), 0));
-    if (VPU::bitEnumContains(distributionMode.getValue(), VPU::DistributionMode::DUPLICATED) ||
-        VPU::bitEnumContains(distributionMode.getValue(), VPU::DistributionMode::MULTICASTED)) {
-        const auto stridedTiledShape = StridedShape(shape, strides);
-        allocSizeByte = getAllocSize(stridedTiledShape, stridedTiledOffsets);
-    } else if (VPU::bitEnumContains(distributionMode.getValue(), VPU::DistributionMode::SEGMENTED) ||
-               VPU::bitEnumContains(distributionMode.getValue(), VPU::DistributionMode::OVERLAPPED)) {
-        const auto perClusterStridedShapes = getPerClusterStridedShapes();
-        const auto perClusterOffsets = getPerClusterComputeShapeOffsets();
+    if (distributionMode.getValue() != VPU::DistributionMode::NONE) {
+        const auto perClusterStridedShapes = getPerClusterMemoryStridedShapes();
+        const auto perClusterOffsets = getPerClusterMemoryShapeOffsets();
         for (auto p : zip(perClusterStridedShapes, perClusterOffsets)) {
             const auto tileShape = std::get<0>(p);
             const auto tileOffsets = std::get<1>(p);
@@ -527,6 +597,7 @@ Byte VPUIP::DistributedBufferType::getTotalAllocSize() const {
         }
     } else {
         // No distribution mode.
+        Shape stridedTiledOffsets(SmallVector<int64_t>(shape.size(), 0));
         const auto stridedTiledShape = alignStridedShape(StridedShape(shape, strides));
         allocSizeByte = getAllocSize(stridedTiledShape, stridedTiledOffsets);
     }
@@ -557,7 +628,7 @@ Byte VPUIP::DistributedBufferType::getCompactAllocSize() const {
         }
         const auto alignment = parseIntArrayAttr<int64_t>(distribution.alignment());
         const auto optionalAlignment = Optional<ArrayRef<int64_t>>(alignment);
-        return Shape(alignShape(tiledShape.raw(), optionalAlignment));
+        return Shape(alignShape(tiledShape.raw(), optionalAlignment, alignValUp<int64_t>));
     };
 
     const auto getAllocSize = [&](ShapeRef tiledShape, ShapeRef tiledOffsets) -> Byte {
@@ -574,7 +645,7 @@ Byte VPUIP::DistributedBufferType::getCompactAllocSize() const {
         const auto endTileIt = startTileIt + tiledShape[Dim(axis)];
         int64_t tileElemsBytes = 0;
         for (auto it = startTileIt; it != endTileIt; ++it) {
-            tileElemsBytes += alignVal<int64_t>(*it * elemByteSize.count(), alignment);
+            tileElemsBytes += alignValUp<int64_t>(*it * elemByteSize.count(), alignment);
         }
         return Byte(tileElemsBytes);
     };
@@ -590,8 +661,8 @@ Byte VPUIP::DistributedBufferType::getCompactAllocSize() const {
         allocSizeByte = getAllocSize(tiledShape, tiledOffsets);
     } else if (VPU::bitEnumContains(distributionMode.getValue(), VPU::DistributionMode::SEGMENTED) ||
                VPU::bitEnumContains(distributionMode.getValue(), VPU::DistributionMode::OVERLAPPED)) {
-        const auto perClusterShapes = getPerClusterComputeShapes();
-        const auto perClusterOffsets = getPerClusterComputeShapeOffsets();
+        const auto perClusterShapes = getPerClusterMemoryShapes();
+        const auto perClusterOffsets = getPerClusterMemoryShapeOffsets();
         for (auto p : zip(perClusterShapes, perClusterOffsets)) {
             const auto tileShape = std::get<0>(p);
             const auto tileOffsets = std::get<1>(p);
@@ -632,7 +703,7 @@ NDTypeInterface VPUIP::DistributedBufferType::changeShapeElemType(ShapeRef shape
         // If swizzlingKey is set get rid of strides settings
         if (auto swizzlingSchemeAttr = memRefAttr.swizzlingScheme()) {
             layoutAttr = VPUIP::MemRefAttr::get(orderAttr, nullptr, swizzlingSchemeAttr, memRefAttr.compressionScheme(),
-                                                ctx);
+                                                /*allocSize=*/nullptr, ctx);
         } else {
             layoutAttr = orderAttr;
         }
@@ -656,7 +727,7 @@ NDTypeInterface VPUIP::DistributedBufferType::changeDimsOrder(DimsOrder order) c
     if (auto memRefAttr = getLayout().dyn_cast<VPUIP::MemRefAttr>()) {
         // Assume compact strides
         layoutAttr = VPUIP::MemRefAttr::get(orderAttr, nullptr, memRefAttr.swizzlingScheme(),
-                                            memRefAttr.compressionScheme(), ctx);
+                                            memRefAttr.compressionScheme(), /*allocSize=*/nullptr, ctx);
     } else {
         layoutAttr = orderAttr;
     }
@@ -683,8 +754,8 @@ NDTypeInterface VPUIP::DistributedBufferType::changeStrides(StridesRef strides) 
         swizzlingSchemeAttr = descAttr.swizzlingScheme();
         compressionSchemeAttr = descAttr.compressionScheme();
     }
-    const auto newDescAttr =
-            VPUIP::MemRefAttr::get(order, newStridesAttr, swizzlingSchemeAttr, compressionSchemeAttr, ctx);
+    const auto newDescAttr = VPUIP::MemRefAttr::get(order, newStridesAttr, swizzlingSchemeAttr, compressionSchemeAttr,
+                                                    /*allocSize=*/nullptr, ctx);
     return VPUIP::DistributedBufferType::get(ctx, getShape().raw(), getElementType(), newDescAttr, getMemSpace(),
                                              getDistribution(), getCompressionScheme());
 }
@@ -692,11 +763,11 @@ NDTypeInterface VPUIP::DistributedBufferType::changeStrides(StridesRef strides) 
 NDTypeInterface VPUIP::DistributedBufferType::changeTypeComponents(TypeComponents typeComponents) const {
     const auto ctx = getContext();
 
-    const auto shape = typeComponents.shape.getValueOr(getShape());
-    const auto elementType = typeComponents.elementType.getValueOr(getElementType());
-    const auto dimsOrder = typeComponents.dimsOrder.getValueOr(getDimsOrder());
-    const auto strides = typeComponents.strides.getValueOr(getStrides());
-    const auto memSpace = typeComponents.memSpace.getValueOr(getMemSpace());
+    const auto shape = typeComponents.shape.value_or(Shape(getShape().toValues()));
+    const auto elementType = typeComponents.elementType.value_or(getElementType());
+    const auto dimsOrder = typeComponents.dimsOrder.value_or(getDimsOrder());
+    const auto strides = typeComponents.strides.value_or(getStrides());
+    const auto memSpace = typeComponents.memSpace.value_or(getMemSpace());
 
     const auto elemSize = vpux::getElemTypeSize(elementType).count();
     const auto order = mlir::AffineMapAttr::get(dimsOrder.toAffineMap(ctx));
@@ -711,8 +782,8 @@ NDTypeInterface VPUIP::DistributedBufferType::changeTypeComponents(TypeComponent
         swizzlingSchemeAttr = descAttr.swizzlingScheme();
         compressionSchemeAttr = descAttr.compressionScheme();
     }
-    const auto newDescAttr =
-            VPUIP::MemRefAttr::get(order, newStridesAttr, swizzlingSchemeAttr, compressionSchemeAttr, ctx);
+    const auto newDescAttr = VPUIP::MemRefAttr::get(order, newStridesAttr, swizzlingSchemeAttr, compressionSchemeAttr,
+                                                    /*allocSize=*/nullptr, ctx);
 
     return VPUIP::DistributedBufferType::get(ctx, shape.raw(), elementType, newDescAttr, memSpace, getDistribution(),
                                              getCompressionScheme());
@@ -767,8 +838,8 @@ NDTypeInterface VPUIP::DistributedBufferType::extractViewTile(vpux::ShapeRef til
         swizzlingSchemeAttr = descAttr.swizzlingScheme();
         compressionSchemeAttr = descAttr.compressionScheme();
     }
-    const auto newDescAttr =
-            VPUIP::MemRefAttr::get(order, newStridesAttr, swizzlingSchemeAttr, compressionSchemeAttr, ctx);
+    const auto newDescAttr = VPUIP::MemRefAttr::get(order, newStridesAttr, swizzlingSchemeAttr, compressionSchemeAttr,
+                                                    /*allocSize=*/nullptr, ctx);
 
     const auto compressionScheme = VPUIP::tileCompressionScheme(getCompressionScheme(), tileOffsets, tileShape);
 

@@ -12,7 +12,7 @@ namespace {
 
 enum class PostOp { SIGMOID, TANH, PRELU };
 
-class KmbConvPwlSubGraphTest :
+class VPUXConvPwlSubGraphTest_VPU3700 :
         public LayerTestsUtils::KmbLayerTestsCommon,
         public testing::WithParamInterface<std::tuple<LayerTestsUtils::TargetDevice, PostOp>> {
     void SetUp() override {
@@ -46,14 +46,14 @@ class KmbConvPwlSubGraphTest :
         }
 
         const ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(postOp)};
-        function = std::make_shared<ngraph::Function>(results, params, "KmbConvPwl");
+        function = std::make_shared<ngraph::Function>(results, params, "VPUXConvPwl");
 
         targetDevice = std::get<0>(GetParam());
         threshold = 0.1f;
     }
 };
 
-class KmbConvPwlQuantizedSubGraphTest :
+class VPUXConvPwlQuantizedSubGraphTest_VPU3700 :
         public LayerTestsUtils::KmbLayerTestsCommon,
         public testing::WithParamInterface<std::tuple<LayerTestsUtils::TargetDevice, PostOp>> {
     void SetUp() override {
@@ -111,33 +111,33 @@ class KmbConvPwlQuantizedSubGraphTest :
         }
 
         const ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(outputFq)};
-        function = std::make_shared<ngraph::Function>(results, params, "KmbConvPwlQuantized");
+        function = std::make_shared<ngraph::Function>(results, params, "VPUXConvPwlQuantized");
 
         targetDevice = std::get<0>(GetParam());
         threshold = 0.1f;
     }
 };
 
-TEST_P(KmbConvPwlSubGraphTest, CompareWithRefs_MLIR_SW) {
-    useCompilerMLIR();
+TEST_P(VPUXConvPwlSubGraphTest_VPU3700, SW) {
+    setPlatformVPU3700();
     setReferenceSoftwareModeMLIR();
     Run();
 }
 
-TEST_P(KmbConvPwlSubGraphTest, CompareWithRefs_MLIR_HW) {
-    useCompilerMLIR();
+TEST_P(VPUXConvPwlSubGraphTest_VPU3700, HW) {
+    setPlatformVPU3700();
     setDefaultHardwareModeMLIR();
     Run();
 }
 
-TEST_P(KmbConvPwlQuantizedSubGraphTest, CompareWithRefs_MLIR_SW) {
-    useCompilerMLIR();
+TEST_P(VPUXConvPwlQuantizedSubGraphTest_VPU3700, SW) {
+    setPlatformVPU3700();
     setReferenceSoftwareModeMLIR();
     Run();
 }
 
-TEST_P(KmbConvPwlQuantizedSubGraphTest, CompareWithRefs_MLIR_HW) {
-    useCompilerMLIR();
+TEST_P(VPUXConvPwlQuantizedSubGraphTest_VPU3700, HW) {
+    setPlatformVPU3700();
     setDefaultHardwareModeMLIR();
     Run();
 }
@@ -151,11 +151,11 @@ std::vector<PostOp> quantPostOps = {
         //, PostOp::PRELU
 };
 
-INSTANTIATE_TEST_CASE_P(smoke, KmbConvPwlSubGraphTest,
+INSTANTIATE_TEST_CASE_P(smoke_ConvPwl, VPUXConvPwlSubGraphTest_VPU3700,
                         ::testing::Combine(::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
                                            ::testing::ValuesIn(postOps)));
 
-INSTANTIATE_TEST_CASE_P(smoke, KmbConvPwlQuantizedSubGraphTest,
+INSTANTIATE_TEST_CASE_P(smoke_ConvPwlQuantized, VPUXConvPwlQuantizedSubGraphTest_VPU3700,
                         ::testing::Combine(::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
                                            ::testing::ValuesIn(quantPostOps)));
 

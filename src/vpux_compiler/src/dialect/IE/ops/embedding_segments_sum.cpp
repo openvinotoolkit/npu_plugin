@@ -15,6 +15,32 @@
 
 using namespace vpux;
 
+//
+// verify
+//
+
+mlir::LogicalResult vpux::IE::EmbeddingSegmentsSumOp::verify() {
+    int64_t numElements = 0;
+    const auto checkNumElements = [&](mlir::Value tensor) {
+        if (tensor == nullptr) {
+            return true;
+        }
+
+        numElements = tensor.getType().cast<vpux::NDTypeInterface>().getNumElements();
+        return numElements == 1;
+    };
+
+    if (!checkNumElements(num_segments())) {
+        return errorAt(*this, "num_segments should have only 1 element, while it has {0}", numElements);
+    }
+
+    if (!checkNumElements(default_index())) {
+        return errorAt(*this, "default_index should have only 1 element, while it has {0}", numElements);
+    }
+
+    return mlir::success();
+}
+
 namespace {
 
 mlir::FailureOr<int64_t> extractNumSegments(mlir::Location loc,
@@ -44,7 +70,7 @@ mlir::LogicalResult vpux::IE::EmbeddingSegmentsSumOp::inferReturnTypeComponents(
         mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
         mlir::DictionaryAttr attrs, mlir::RegionRange,
         SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
-    const auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
+    const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
     IE::EmbeddingSegmentsSumOpAdaptor embeddingSegmentsSum(operands, attrs);
     if (mlir::failed(embeddingSegmentsSum.verify(loc))) {
@@ -71,12 +97,11 @@ mlir::LogicalResult vpux::IE::EmbeddingSegmentsSumOp::inferReturnTypeComponents(
 }
 
 //
-// ConvertConstToAttr
+// ConvertConstToAttrVPUX30XX
 //
 
 namespace {
-
-class ConvertConstToAttr final : public mlir::OpRewritePattern<IE::EmbeddingSegmentsSumOp> {
+class ConvertConstToAttrVPUX30XX final : public mlir::OpRewritePattern<IE::EmbeddingSegmentsSumOp> {
 public:
     using mlir::OpRewritePattern<IE::EmbeddingSegmentsSumOp>::OpRewritePattern;
 
@@ -85,8 +110,13 @@ public:
                                         mlir::PatternRewriter& rewriter) const final;
 };
 
-mlir::LogicalResult ConvertConstToAttr::matchAndRewrite(IE::EmbeddingSegmentsSumOp embeddingSegmentsSumOp,
-                                                        mlir::PatternRewriter& rewriter) const {
+mlir::LogicalResult ConvertConstToAttrVPUX30XX::matchAndRewrite(IE::EmbeddingSegmentsSumOp embeddingSegmentsSumOp,
+                                                                mlir::PatternRewriter& rewriter) const {
+    const auto module = embeddingSegmentsSumOp->getParentOfType<mlir::ModuleOp>();
+    const auto arch = VPU::getArch(module);
+    if (arch != VPU::ArchKind::VPUX30XX) {
+        return mlir::failure();
+    }
     auto indicesAttr = vpux::IE::getIntArrayAttrValue(embeddingSegmentsSumOp.indices());
     auto segmentIdsAttr = vpux::IE::getIntArrayAttrValue(embeddingSegmentsSumOp.segment_ids());
     auto numSegmentsAttr = vpux::IE::getIntAttrValue(embeddingSegmentsSumOp.num_segments(), rewriter);
@@ -127,7 +157,50 @@ mlir::LogicalResult ConvertConstToAttr::matchAndRewrite(IE::EmbeddingSegmentsSum
 
 }  // namespace
 
+//
+// ConvertConstToAttrVPUX37XX
+//
+
+namespace {
+class ConvertConstToAttrVPUX37XX final : public mlir::OpRewritePattern<IE::EmbeddingSegmentsSumOp> {
+public:
+    using mlir::OpRewritePattern<IE::EmbeddingSegmentsSumOp>::OpRewritePattern;
+
+public:
+    mlir::LogicalResult matchAndRewrite(IE::EmbeddingSegmentsSumOp EmbeddingSegmentsSumOp,
+                                        mlir::PatternRewriter& rewriter) const final;
+};
+
+mlir::LogicalResult ConvertConstToAttrVPUX37XX::matchAndRewrite(
+        IE::EmbeddingSegmentsSumOp embeddingSegmentsSumOp, mlir::PatternRewriter& rewriter) const {
+    const auto module = embeddingSegmentsSumOp->getParentOfType<mlir::ModuleOp>();
+    const auto arch = VPU::getArch(module);
+    if (arch != VPU::ArchKind::VPUX37XX) {
+        return mlir::failure();
+    }
+    auto numSegmentsAttr = vpux::IE::getIntAttrValue(embeddingSegmentsSumOp.num_segments(), rewriter);
+    auto defaultIndexAttr = vpux::IE::getIntAttrValue(embeddingSegmentsSumOp.default_index(), rewriter);
+
+    if ((embeddingSegmentsSumOp.num_segments() == nullptr) && (embeddingSegmentsSumOp.default_index() == nullptr)) {
+        return mlir::failure();
+    }
+
+    if (defaultIndexAttr == nullptr) {
+        int32_t defaultValueDefaultIndex = -1;
+        defaultIndexAttr = rewriter.getI32IntegerAttr(defaultValueDefaultIndex);
+    }
+
+    rewriter.replaceOpWithNewOp<IE::EmbeddingSegmentsSumOp>(
+            embeddingSegmentsSumOp, embeddingSegmentsSumOp.getType(), embeddingSegmentsSumOp.emb_table(),
+            embeddingSegmentsSumOp.indices(), embeddingSegmentsSumOp.segment_ids(), nullptr, nullptr,
+            embeddingSegmentsSumOp.per_sample_weights(), nullptr, nullptr, numSegmentsAttr, defaultIndexAttr, nullptr);
+    return mlir::success();
+}
+
+}  // namespace
+
 void vpux::IE::EmbeddingSegmentsSumOp::getCanonicalizationPatterns(mlir::RewritePatternSet& patterns,
                                                                    mlir::MLIRContext* context) {
-    patterns.add<ConvertConstToAttr>(context);
+    patterns.add<ConvertConstToAttrVPUX30XX>(context);
+    patterns.add<ConvertConstToAttrVPUX37XX>(context);
 }

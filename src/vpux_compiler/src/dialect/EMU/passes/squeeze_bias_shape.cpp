@@ -3,13 +3,10 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/EMU/passes.hpp"
 
 #include "vpux/compiler/core/attributes/shape.hpp"
 #include "vpux/compiler/core/type_interfaces.hpp"
-#include "vpux/compiler/dialect/EMU/ops.hpp"
 #include "vpux/compiler/dialect/VPU/ops.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
 #include "vpux/compiler/utils/error.hpp"
@@ -102,7 +99,7 @@ void SqueezeBiasShapePass::safeRunOnFunc() {
     patterns.add<BiasShapeConverter<VPU::GroupConvolutionOp>>(&ctx, _log);
     patterns.add<BiasShapeConverter<VPU::FullyConnectedOp>>(&ctx, _log);
 
-    auto func = getFunction();
+    auto func = getOperation();
     if (mlir::failed(mlir::applyPartialConversion(func, target, std::move(patterns)))) {
         signalPassFailure();
     }

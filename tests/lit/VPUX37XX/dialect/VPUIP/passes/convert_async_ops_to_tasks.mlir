@@ -1,11 +1,12 @@
 //
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
+
 // RUN: vpux-opt --split-input-file --init-compiler="vpu-arch=VPUX37XX" --convert-async-ops-to-tasks --canonicalize --move-declarations-to-top %s | FileCheck %s
 
 // CHECK-LABEL: @WithProfiling
-func @WithProfiling(%arg0: memref<1x512xf16>, %arg1: memref<1x512xf16>) -> memref<1x512xf16> {
+func.func @WithProfiling(%arg0: memref<1x512xf16>, %arg1: memref<1x512xf16>) -> memref<1x512xf16> {
     %t1, %f1 = async.execute -> !async.value<memref<1x512xf16>>
         attributes { VPUIP.executor = @DMA_NN, VPUIP.num_units = 1, cycleBegin = 0 : i64, cycleCost = 2904 : i64, cycleEnd = 2904 : i64 } {
         %3 = VPURT.DeclareBuffer "DDR" <0> -> memref<1x512xf16, @DDR>

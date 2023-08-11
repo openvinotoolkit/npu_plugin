@@ -28,7 +28,7 @@ void printProfilingAsTraceEvent(const std::vector<TaskInfo>& taskProfiling,
 void printProfilingAsText(const std::vector<TaskInfo>& taskProfiling, const std::vector<LayerInfo>& layerProfiling,
                           std::ostream& out_stream);
 
-void printDebugProfilingInfo(const std::vector<DebugInfo>& debugProfiling, std::ostream& out_stream);
+void printDebugProfilingInfo(const RawData& rawProfData, std::ostream& out_stream);
 
 void printSummary(const SummaryInfo& summary, std::ostream& out_stream);
 

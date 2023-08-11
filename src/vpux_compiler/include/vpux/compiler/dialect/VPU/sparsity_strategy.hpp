@@ -3,12 +3,10 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #pragma once
 
 #include "vpux/compiler/core/attributes/shape.hpp"
-#include "vpux/compiler/dialect/IE/attributes/structs.hpp"
+#include "vpux/compiler/dialect/IE/attributes.hpp"
 #include "vpux/compiler/dialect/VPU/attributes.hpp"
 #include "vpux/compiler/dialect/VPU/nce_sparsity.hpp"
 #include "vpux/compiler/dialect/VPU/ops.hpp"
@@ -45,7 +43,7 @@ public:
     RatioBasedWeightsSparsityStrategy(double floatRatioThreshold, double intRatioThreshold,
                                       Optional<double> manualThreshold = None);
 
-    virtual bool shouldSparsifyWeights(Logger& log, mlir::Value sparsifyCandidateOperand, bool hasFloatInput) override;
+    bool shouldSparsifyWeights(Logger& log, mlir::Value sparsifyCandidateOperand, bool hasFloatInput) override;
 
 private:
     double _floatRatioThreshold;
@@ -84,7 +82,7 @@ public:
                                                const std::initializer_list<CMXBasedSparsityThreshold>& intervals,
                                                Optional<double> manualThreshold = None);
 
-    virtual bool shouldSparsifyWeights(Logger& log, mlir::Value sparsifyCandidateOperand, bool hasFloatInput) override;
+    bool shouldSparsifyWeights(Logger& log, mlir::Value sparsifyCandidateOperand, bool hasFloatInput) override;
 
 private:
     Byte _cmxMemorySize;

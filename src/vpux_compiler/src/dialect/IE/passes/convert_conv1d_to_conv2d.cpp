@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/IE/passes.hpp"
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
@@ -128,6 +126,50 @@ mlir::LogicalResult GroupConvolutionExpansion::matchAndRewrite(IE::GroupConvolut
 }
 
 //
+// DeconvolutionExpansion
+//
+
+class DeconvolutionExpansion final : public mlir::OpRewritePattern<IE::DeconvolutionOp> {
+public:
+    DeconvolutionExpansion(mlir::MLIRContext* ctx, Logger log)
+            : mlir::OpRewritePattern<IE::DeconvolutionOp>(ctx), _log(log) {
+        setDebugName("DeconvolutionExpansion");
+    }
+
+public:
+    mlir::LogicalResult matchAndRewrite(IE::DeconvolutionOp origOp, mlir::PatternRewriter& rewriter) const final;
+
+private:
+    Logger _log;
+};
+
+mlir::LogicalResult DeconvolutionExpansion::matchAndRewrite(IE::DeconvolutionOp origOp,
+                                                            mlir::PatternRewriter& rewriter) const {
+    _log.trace("Found IE::DeconvolutionOp Operation '{0}'", origOp->getLoc());
+
+    const auto newFeature = extendTensor(rewriter, origOp->getLoc(), origOp.feature());
+    const auto newFilter = extendTensor(rewriter, origOp->getLoc(), origOp.filter());
+
+    const auto newStrides = append(getContext(), origOp.strides(), 1);
+    const auto newPadsBegin = append(getContext(), origOp.pads_begin(), 0);
+    const auto newPadsEnd = append(getContext(), origOp.pads_end(), 0);
+    const auto newDilations = append(getContext(), origOp.dilations(), 1);
+    const auto newOutputPadding = append(getContext(), origOp.output_padding(), 0);
+
+    auto newDeconvOp =
+            rewriter.create<IE::DeconvolutionOp>(origOp->getLoc(), newFeature, newFilter, nullptr, newStrides,
+                                                 newPadsBegin, newPadsEnd, newDilations, newOutputPadding, nullptr);
+
+    const auto outputShape = origOp.output().getType().cast<vpux::NDTypeInterface>().getShape();
+    const auto outputShapeAttr = getIntArrayAttr(getContext(), outputShape);
+    rewriter.replaceOpWithNewOp<IE::ReshapeOp>(origOp, newDeconvOp.output(), nullptr, false, outputShapeAttr);
+
+    _log.trace("Replaced with 'IE::DeconvolutionOp' (2D)");
+
+    return mlir::success();
+}
+
+//
 // ConvertConv1DToConv2DPass
 //
 
@@ -151,21 +193,28 @@ void ConvertConv1DToConv2DPass::safeRunOnFunc() {
 
     const auto isLegalGroupConvOp = [&](IE::GroupConvolutionOp groupConv) {
         const auto inputShape = groupConv.filter().getType().cast<vpux::NDTypeInterface>().getShape();
-        const auto hasGroups = groupConv.groups().getValueOr(0) != 0;
+        const auto hasGroups = groupConv.groups().value_or(0) != 0;
         return (inputShape.size() + hasGroups) != 4;
+    };
+
+    const auto isLegalDeConvOp = [&](IE::DeconvolutionOp deConv) {
+        const auto inputShape = deConv.feature().getType().cast<vpux::NDTypeInterface>().getShape();
+        return inputShape.size() != 3;
     };
 
     mlir::ConversionTarget target(ctx);
     target.addDynamicallyLegalOp<IE::ConvolutionOp>(isLegalConvOp);
     target.addDynamicallyLegalOp<IE::GroupConvolutionOp>(isLegalGroupConvOp);
+    target.addDynamicallyLegalOp<IE::DeconvolutionOp>(isLegalDeConvOp);
     target.addLegalOp<IE::ReshapeOp>();
     target.addLegalOp<Const::DeclareOp>();
 
     mlir::RewritePatternSet patterns(&ctx);
     patterns.add<ConvolutionExpansion>(&ctx, _log);
     patterns.add<GroupConvolutionExpansion>(&ctx, _log);
+    patterns.add<DeconvolutionExpansion>(&ctx, _log);
 
-    auto func = getFunction();
+    auto func = getOperation();
     if (mlir::failed(mlir::applyPartialConversion(func, target, std::move(patterns)))) {
         signalPassFailure();
     }

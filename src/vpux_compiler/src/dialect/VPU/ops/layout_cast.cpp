@@ -12,7 +12,7 @@ mlir::LogicalResult vpux::VPU::LayoutCastOp::inferReturnTypes(mlir::MLIRContext*
                                                               mlir::ValueRange operands, mlir::DictionaryAttr attrs,
                                                               mlir::RegionRange /*regions*/,
                                                               mlir::SmallVectorImpl<mlir::Type>& inferredReturnTypes) {
-    const auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
+    const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
     VPU::LayoutCastOpAdaptor overrideLayout(operands, attrs);
     if (mlir::failed(overrideLayout.verify(loc))) {
@@ -34,14 +34,14 @@ EMU::BlobWriter::SpecificTask vpux::VPU::LayoutCastOp::serialize(EMU::BlobWriter
 }
 
 //
-// verifyOp
+// verify
 //
 
-mlir::LogicalResult vpux::VPU::verifyOp(LayoutCastOp op) {
-    const auto outAffineMap = op.dst_order();
-    const auto inType = op.input().getType().cast<vpux::NDTypeInterface>();
+mlir::LogicalResult vpux::VPU::LayoutCastOp::verify() {
+    const auto outAffineMap = dst_order();
+    const auto inType = input().getType().cast<vpux::NDTypeInterface>();
     if (inType.getRank() != outAffineMap.getNumDims()) {
-        return errorAt(op, "Cannot apply {0} map to {1}.", outAffineMap, inType.getShape());
+        return errorAt(*this, "Cannot apply {0} map to {1}.", outAffineMap, inType.getShape());
     }
 
     return mlir::success();

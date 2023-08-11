@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/const/attributes/content.hpp"
 #include "vpux/compiler/utils/quantization.hpp"
 #include "vpux/compiler/utils/subspaces.hpp"
@@ -24,6 +22,15 @@ using namespace vpux;
 
 void vpux::Const::DequantizeAttr::walkImmediateSubElements(llvm::function_ref<void(Attribute)>,
                                                            llvm::function_ref<void(mlir::Type)>) const {
+}
+
+//
+// DequantizeAttr::replaceImmediateSubElements
+//
+
+mlir::Attribute vpux::Const::DequantizeAttr::replaceImmediateSubElements(ArrayRef<mlir::Attribute>,
+                                                                         ArrayRef<mlir::Type>) const {
+    return DequantizeAttr();
 }
 
 //
@@ -84,6 +91,8 @@ Const::Content vpux::Const::DequantizeAttr::transform(vpux::Const::Content& inpu
 
         const auto innerSize = memShape[memAxis];
         const auto outerSize = subspace::getTotalLines(memShape, memAxis);
+        VPUX_THROW_WHEN(innerSize == 0, "Inner size is zero");
+        VPUX_THROW_WHEN(outerSize == 0, "Outer size is zero");
         const auto outerShape = subspace::arrayElementExclude(memShape, memAxis);
 
         VPUX_THROW_UNLESS(scales.size() == checked_cast<size_t>(innerSize), "Wrong scales size '{0}', expected '{1}'",

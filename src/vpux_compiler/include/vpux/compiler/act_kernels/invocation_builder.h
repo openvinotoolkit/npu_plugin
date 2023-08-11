@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #pragma once
 
 #include "nce2p7.h"
@@ -40,7 +38,7 @@ public:
      * @param operand
      */
     void addArg(mlir::Attribute attr);
-    void addTensorArg(mlir::Value value, const MVCNN::TensorReference* tenorRef);
+    void addTensorArg(mlir::Value value, const MVCNN::TensorReference* tenorRef, vpux::VPU::ArchKind archKind);
 
     /**
      * actual serialising routine
@@ -63,7 +61,7 @@ private:
      */
     template <class U, class T>
     PatchCallbackType createPatchPoint(const T& patcher) {
-        return [offset = _scalarStorage.size(), arrayOffset = _arrayStorage.size(), this, patcher](
+        return [offset = _scalarStorage.size(), arrayOffset = _arrayStorage.size(), patcher](
                        MutableArrayRef<uint8_t> serialStorage, size_t updateTo) {
             auto& origObject = reinterpret_cast<U&>(*(serialStorage.begin() + offset));
             patcher(origObject, checked_cast<uint32_t>(updateTo + arrayOffset));

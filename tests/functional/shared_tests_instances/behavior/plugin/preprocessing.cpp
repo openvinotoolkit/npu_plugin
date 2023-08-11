@@ -51,23 +51,16 @@ using namespace BehaviorTestsDefinitions;
 
 namespace {
 
-const std::vector<InferenceEngine::Precision> inputPrecisions = {InferenceEngine::Precision::U8,
-                                                                 InferenceEngine::Precision::FP16};
+const std::vector<InferenceEngine::Precision> inputPrecisions = {
+        InferenceEngine::Precision::I8, InferenceEngine::Precision::U8, InferenceEngine::Precision::FP16,
+        InferenceEngine::Precision::FP32};
 
 const std::vector<std::map<std::string, std::string>> configs = {{}};
 
-INSTANTIATE_TEST_CASE_P(smoke_BehaviorTestsPreprocessingTestsViaSetInput, VpuxPreprocessingPrecisionConvertTest,
+INSTANTIATE_TEST_CASE_P(smoke_precommit_VPU3720_BehaviorTestsPreprocessingTests, VpuxPreprocessingPrecisionConvertTest,
                         ::testing::Combine(::testing::ValuesIn(inputPrecisions),
-                                           ::testing::Values(1),     // Number of input tensor channels
-                                           ::testing::Values(true),  // Use SetInput
-                                           ::testing::Values(CommonTestUtils::DEVICE_KEEMBAY),
-                                           ::testing::ValuesIn(configs)),
-                        VpuxPreprocessingPrecisionConvertTest::getTestCaseName);
-
-INSTANTIATE_TEST_CASE_P(smoke_BehaviorTestsPreprocessingTestsViaGetBlob, VpuxPreprocessingPrecisionConvertTest,
-                        ::testing::Combine(::testing::ValuesIn(inputPrecisions),
-                                           ::testing::Values(1),      // Number of input tensor channels
-                                           ::testing::Values(false),  // use GetBlob
+                                           ::testing::Values(1),  // Number of input tensor channels
+                                           ::testing::Bool(),     // Use SetInput or GetBlob
                                            ::testing::Values(CommonTestUtils::DEVICE_KEEMBAY),
                                            ::testing::ValuesIn(configs)),
                         VpuxPreprocessingPrecisionConvertTest::getTestCaseName);

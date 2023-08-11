@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
 
 #include "vpux/compiler/core/async_deps_info.hpp"
@@ -68,7 +66,7 @@ private:
 };
 
 void MoveWaitResultToAsyncBlockArgsPass::safeRunOnFunc() {
-    auto func = getFunction();
+    auto func = getOperation();
 
     const auto allWaitOps = to_small_vector(func.getOps<mlir::async::AwaitOp>());
 

@@ -3,13 +3,11 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-// clang-format off
-
 #include "vpux/passes/clean_up_fq.hpp"
-#include <ngraph/op/fake_quantize.hpp>
 #include <memory>
-#include <ngraph/rt_info.hpp>
+#include <ngraph/op/fake_quantize.hpp>
 #include <ngraph/ops.hpp>
+#include "vpux/quantization_helpers.hpp"
 
 namespace vpux {
 namespace passes {
@@ -25,6 +23,7 @@ static bool calc_node(const std::shared_ptr<ngraph::Node>& node) {
             std::dynamic_pointer_cast<ngraph::op::v1::Reshape>(node) == nullptr &&
             std::dynamic_pointer_cast<ngraph::op::v0::Squeeze>(node) == nullptr &&
             std::dynamic_pointer_cast<ngraph::op::v0::Unsqueeze>(node) == nullptr &&
+            std::dynamic_pointer_cast<ngraph::op::v3::ScatterNDUpdate>(node) == nullptr &&
             std::dynamic_pointer_cast<ngraph::op::v0::FakeQuantize>(node) == nullptr);
 }
 
@@ -32,6 +31,10 @@ bool CleanUpFQ::run_on_node(std::shared_ptr<ngraph::Node> node) {
     const auto fq_node = std::dynamic_pointer_cast<ngraph::op::v0::FakeQuantize>(node);
     if (fq_node == nullptr)
         return false;
+    std::set<std::shared_ptr<ngraph::Node>> fq_nodes = {fq_node};
+    if (!all_fqs_have_same_io_params(fq_nodes)) {
+        return false;
+    }
 
     if (calc_node(fq_node->input_value(0).get_node_shared_ptr())) {
         return false;

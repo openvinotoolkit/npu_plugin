@@ -3,6 +3,14 @@ OUTPUT_ARCH(sparc)
 
 SECTIONS
 {  
+    . = 0x1e000000;
+    .arg.data : {
+        KEEP(*(.arg.data))
+        *(.arg.data)
+        . = ALIGN(16);
+        *(.data*)
+    }
+
     . = 0x1d000000;      
     .text : {               
         *(.text*)
@@ -11,14 +19,5 @@ SECTIONS
         . = ALIGN(16);
         KEEP(*(.uuid.rodata*))           
         *(.uuid.rodata*)
-    }
-
-    . = 0x1e000000;
-    
-    .arg.data : { 
-        KEEP(*(.arg.data))
-        *(.arg.data) 
-        . = ALIGN(16);
-        *(.data*) 
     }
 }

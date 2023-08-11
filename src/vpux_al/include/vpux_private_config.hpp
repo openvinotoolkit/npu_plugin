@@ -28,14 +28,14 @@ namespace VPUXConfigParams {
  * @brief VPUX device
  */
 enum class VPUXPlatform : int {
-    AUTO = 0,        // auto detection
-    VPU3400_A0 = 1,  // VPUX30XX A0
-    VPU3400 = 2,     // VPUX30XX B0
-    VPU3700 = 3,     // VPUX30XX B0
-    VPU3800 = 4,     // VPUX311X Prime
-    VPU3900 = 5,     // VPUX311X Full
-    VPU3720 = 6,     // VPU3720
-    EMULATOR = 7,    // emulator
+    AUTO_DETECT = 0,  // auto detection
+    VPU3400_A0 = 1,   // VPU30XX A0
+    VPU3400 = 2,      // VPU30XX B0
+    VPU3700 = 3,      // VPU30XX B0
+    VPU3800 = 4,      // VPU311X Prime
+    VPU3900 = 5,      // VPU311X Full
+    VPU3720 = 6,      // VPU3720
+    EMULATOR = 7,     // emulator
 };
 
 /**
@@ -46,52 +46,28 @@ enum class VPUXPlatform : int {
  */
 DECLARE_VPUX_CONFIG_KEY(PLATFORM);
 
-/**
- * @brief [Only for VPUX Plugin]
- * Type: "RGB", "BGR", default is "BGR"
- * This option allows to specify output format of image after SIPP preprocessing.
- * Does not affect preprocessing running on CPU. If a wrong value specified an exception will be thrown
- */
-DECLARE_VPUX_CONFIG_KEY(GRAPH_COLOR_FORMAT);
-DECLARE_VPUX_CONFIG_VALUE(BGR);
-DECLARE_VPUX_CONFIG_VALUE(RGB);
-
-/**
- * @brief [Only for VPUX Plugin]
- * Type: integer, default is 4.
- * Number of shaves to be used by SIPP during preprocessing
- */
-DECLARE_VPUX_CONFIG_KEY(PREPROCESSING_SHAVES);
-
-/**
- * @brief [Only for VPUAL Subplugin]
- * Type: integer, default is 8.
- * Lines per iteration value to be used by SIPP during preprocessing
- */
-DECLARE_VPUX_CONFIG_KEY(PREPROCESSING_LPI);
-
-/**
- * @brief [Only for VPUX Plugin]
- * Type: integer, default is 1.
- * Number of preprocessing pipelines to be used by particular network,
- * these pipelines will work in parallel and make preprocessing
- * for all infer requests of this network
- */
-DECLARE_VPUX_CONFIG_KEY(PREPROCESSING_PIPES);
-
-/**
- * @brief [Only for VPUAL Subplugin]
- * Type: "YES", "NO", default is "YES"
- * This option allows to use Streaming Image Processing Pipeline (SIPP) for image pre-processing
- */
-DECLARE_VPUX_CONFIG_KEY(USE_SIPP);
-
-/**
- * @brief [Only for VPUX Plugin]
- * Type: integer, default is 5 minutes = 60 * 1000 * 5.
- * Time interval during which to wait for backend pull to complete
- */
-DECLARE_VPUX_CONFIG_KEY(INFERENCE_TIMEOUT);
+inline std::ostream& operator<<(std::ostream& os, const VPUXPlatform& vpux_platform) {
+    switch (vpux_platform) {
+    case VPUXPlatform::AUTO_DETECT:
+        return os << "AUTO_DETECT";
+    case VPUXPlatform::VPU3400_A0:
+        return os << "VPU3400_A0";
+    case VPUXPlatform::VPU3400:
+        return os << "VPU3400";
+    case VPUXPlatform::VPU3700:
+        return os << "VPU3700";
+    case VPUXPlatform::VPU3800:
+        return os << "VPU3800";
+    case VPUXPlatform::VPU3900:
+        return os << "VPU3900";
+    case VPUXPlatform::VPU3720:
+        return os << "VPU3720";
+    case VPUXPlatform::EMULATOR:
+        return os << "EMULATOR";
+    default:
+        return os << "0x" << std::hex << static_cast<uint8_t>(vpux_platform);
+    }
+}
 
 /**
  * @brief [Only for VPUX Plugin]
@@ -139,6 +115,19 @@ DECLARE_VPUX_CONFIG_VALUE(NONE);
 DECLARE_VPUX_CONFIG_VALUE(TEXT);
 DECLARE_VPUX_CONFIG_VALUE(JSON);
 
+inline std::ostream& operator<<(std::ostream& os, const ProfilingOutputTypeArg& profiling_output_type) {
+    switch (profiling_output_type) {
+    case ProfilingOutputTypeArg::NONE:
+        return os << "NONE";
+    case ProfilingOutputTypeArg::TEXT:
+        return os << "TEXT";
+    case ProfilingOutputTypeArg::JSON:
+        return os << "JSON";
+    default:
+        return os << "0x" << std::hex << static_cast<uint8_t>(profiling_output_type);
+    }
+}
+
 /**
  * @brief [Only for VPUX Plugin]
  * Type: string, default is empty.
@@ -149,11 +138,31 @@ DECLARE_VPUX_CONFIG_KEY(PROFILING_OUTPUT_FILE);
 
 /**
  * @brief [Only for VPUX Plugin]
- * Type: String. Default is "NO".
+ * Type: String. Default is "AUTO".
  * This option is added for enabling ELF backend.
- * Possible values: "YES", "NO".
+ * Possible values: "AUTO", "YES", "NO".
  */
+
+enum class ElfCompilerBackend {
+    AUTO = 0,
+    NO = 1,
+    YES = 2,
+};
+
 DECLARE_VPUX_CONFIG_KEY(USE_ELF_COMPILER_BACKEND);
+
+inline std::ostream& operator<<(std::ostream& os, const ElfCompilerBackend& elf_compiler_backend) {
+    switch (elf_compiler_backend) {
+    case ElfCompilerBackend::AUTO:
+        return os << "AUTO";
+    case ElfCompilerBackend::NO:
+        return os << "NO";
+    case ElfCompilerBackend::YES:
+        return os << "YES";
+    default:
+        return os << "0x" << std::hex << static_cast<uint8_t>(elf_compiler_backend);
+    }
+}
 
 }  // namespace VPUXConfigParams
 }  // namespace InferenceEngine

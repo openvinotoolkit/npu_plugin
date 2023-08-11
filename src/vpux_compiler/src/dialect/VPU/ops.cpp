@@ -3,16 +3,16 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/VPU/ops.hpp"
+#include "vpux/compiler/dialect/VPU/utils/manual_strategy_utils.hpp"
 
+#include "vpux/compiler/core/attributes/stride_reqs.hpp"
 #include "vpux/compiler/utils/asm.hpp"
 
 using namespace vpux;
 
-mlir::LogicalResult VPU::sameOrder(VPU::DistributedTensorType inDistributedType,
-                                   VPU::DistributedTensorType outDistributedType, LogCb logCb) {
+mlir::LogicalResult VPU::sameLayout(VPU::DistributedTensorType inDistributedType,
+                                    VPU::DistributedTensorType outDistributedType, LogCb logCb) {
     if (inDistributedType.getOrder() != outDistributedType.getOrder()) {
         logCb(formatv("Mismatch between order for input ({0}) and output ({1}).", inDistributedType.getOrder(),
                       outDistributedType.getOrder()));
@@ -21,14 +21,36 @@ mlir::LogicalResult VPU::sameOrder(VPU::DistributedTensorType inDistributedType,
     return mlir::success();
 }
 
-mlir::LogicalResult VPU::sameOrder(VPUIP::DistributedBufferType inDistributedType,
-                                   VPUIP::DistributedBufferType outDistributedType, LogCb logCb) {
-    if (inDistributedType.getLayout() != outDistributedType.getLayout()) {
+mlir::LogicalResult VPU::sameLayout(VPUIP::DistributedBufferType inDistributedType,
+                                    VPUIP::DistributedBufferType outDistributedType, LogCb logCb) {
+    auto isContinuousWithSameOrder = [&]() {
+        const auto inStrideReqs = StrideReqs::compact(inDistributedType.getShape().size());
+        const auto outStrideReqs = StrideReqs::compact(outDistributedType.getShape().size());
+        auto inRes = inStrideReqs.checkStrides(inDistributedType);
+        auto outRes = outStrideReqs.checkStrides(outDistributedType);
+        return inRes && outRes && inDistributedType.getDimsOrder() == outDistributedType.getDimsOrder();
+    };
+
+    // The strides will be checked when comparing the layouts. So the function will return true if the layouts are equal
+    // or the buffers are compact with same dim order
+    if (inDistributedType.getLayout() != outDistributedType.getLayout() && !isContinuousWithSameOrder()) {
         logCb(formatv("Mismatch between order for input ({0}) and output ({1}).", inDistributedType.getLayout(),
                       outDistributedType.getLayout()));
         return mlir::failure();
     }
     return mlir::success();
+}
+
+bool VPU::isVFNCESupported(VPU::NCEOpInterface op) {
+    auto isOne = [](auto val) {
+        return val == 1;
+    };
+
+    if (llvm::all_of(op.getStrides(), isOne)) {
+        return true;
+    }
+
+    return false;
 }
 
 //
@@ -82,130 +104,178 @@ public:
 
 template <template <class> class OpModelForSW>
 void redirectOpInterfacesForIE(mlir::DialectRegistry& registry) {
-    // VPU_SameInOutDimsOrder
-    registry.addOpInterface<IE::ConvertOp, OpModelForSW<VPU::ConvertOp>>();
-    registry.addOpInterface<IE::SoftMaxOp, OpModelForSW<VPU::SoftMaxOp>>();
-    registry.addOpInterface<IE::AvgPoolOp, OpModelForSW<VPU::AvgPoolOp>>();
-    registry.addOpInterface<IE::AdaptiveAvgPoolOp, OpModelForSW<VPU::AdaptiveAvgPoolOp>>();
-    registry.addOpInterface<IE::AdaptiveMaxPoolOp, OpModelForSW<VPU::AdaptiveMaxPoolOp>>();
-    registry.addOpInterface<IE::RollOp, OpModelForSW<VPU::RollOp>>();
-    registry.addOpInterface<IE::TanOp, OpModelForSW<VPU::TanOp>>();
-    registry.addOpInterface<IE::SinOp, OpModelForSW<VPU::SinOp>>();
-    registry.addOpInterface<IE::CosOp, OpModelForSW<VPU::CosOp>>();
-    registry.addOpInterface<IE::LogOp, OpModelForSW<VPU::LogOp>>();
-    registry.addOpInterface<IE::SeluOp, OpModelForSW<VPU::SeluOp>>();
-    registry.addOpInterface<IE::PReluOp, OpModelForSW<VPU::PReluOp>>();
-    registry.addOpInterface<IE::SelectOp, OpModelForSW<VPU::SelectOp>>();
-    registry.addOpInterface<IE::SwishOp, OpModelForSW<VPU::SwishOp>>();
-    registry.addOpInterface<IE::LeakyReluOp, OpModelForSW<VPU::LeakyReluOp>>();
-    registry.addOpInterface<IE::HardSigmoidOp, OpModelForSW<VPU::HardSigmoidOp>>();
-    registry.addOpInterface<IE::GridSampleOp, OpModelForSW<VPU::GridSampleOp>>();
-    registry.addOpInterface<IE::BucketizeOp, OpModelForSW<VPU::BucketizeOp>>();
-    registry.addOpInterface<IE::TileOp, OpModelForSW<VPU::TileOp>>();
-    registry.addOpInterface<IE::PerAxisTileOp, OpModelForSW<VPU::PerAxisTileOp>>();
-    registry.addOpInterface<IE::NegativeOp, OpModelForSW<VPU::NegativeOp>>();
-    registry.addOpInterface<IE::PadOp, OpModelForSW<VPU::PadOp>>();
-    registry.addOpInterface<IE::LSTMCellOp, OpModelForSW<VPU::LSTMCellOp>>();
-    registry.addOpInterface<IE::SpaceToDepthOp, OpModelForSW<VPU::SpaceToDepthOp>>();
-    registry.addOpInterface<IE::DepthToSpaceOp, OpModelForSW<VPU::DepthToSpaceOp>>();
-    registry.addOpInterface<IE::NormalizeIEOp, OpModelForSW<VPU::NormalizeIEOp>>();
-    registry.addOpInterface<IE::CumSumOp, OpModelForSW<VPU::CumSumOp>>();
-    registry.addOpInterface<IE::ReverseSequenceOp, OpModelForSW<VPU::ReverseSequenceOp>>();
-    registry.addOpInterface<IE::SoftPlusOp, OpModelForSW<VPU::SoftPlusOp>>();
+    registry.addExtension(+[](mlir::MLIRContext* ctx, IE::IEDialect*) {
+        // VPU_SameInOutDimsOrder
+        IE::ConvertOp::attachInterface<OpModelForSW<VPU::ConvertOp>>(*ctx);
+        IE::SoftMaxOp::attachInterface<OpModelForSW<VPU::SoftMaxOp>>(*ctx);
+        IE::AvgPoolOp::attachInterface<OpModelForSW<VPU::AvgPoolOp>>(*ctx);
+        IE::AdaptiveAvgPoolOp::attachInterface<OpModelForSW<VPU::AdaptiveAvgPoolOp>>(*ctx);
+        IE::AdaptiveMaxPoolOp::attachInterface<OpModelForSW<VPU::AdaptiveMaxPoolOp>>(*ctx);
+        IE::RollOp::attachInterface<OpModelForSW<VPU::RollOp>>(*ctx);
+        IE::TanOp::attachInterface<OpModelForSW<VPU::TanOp>>(*ctx);
+        IE::SinOp::attachInterface<OpModelForSW<VPU::SinOp>>(*ctx);
+        IE::CosOp::attachInterface<OpModelForSW<VPU::CosOp>>(*ctx);
+        IE::LogOp::attachInterface<OpModelForSW<VPU::LogOp>>(*ctx);
+        IE::SeluOp::attachInterface<OpModelForSW<VPU::SeluOp>>(*ctx);
+        IE::PReluOp::attachInterface<OpModelForSW<VPU::PReluOp>>(*ctx);
+        IE::SelectOp::attachInterface<OpModelForSW<VPU::SelectOp>>(*ctx);
+        IE::SwishOp::attachInterface<OpModelForSW<VPU::SwishOp>>(*ctx);
+        IE::LeakyReluOp::attachInterface<OpModelForSW<VPU::LeakyReluOp>>(*ctx);
+        IE::HardSigmoidOp::attachInterface<OpModelForSW<VPU::HardSigmoidOp>>(*ctx);
+        IE::GridSampleOp::attachInterface<OpModelForSW<VPU::GridSampleOp>>(*ctx);
+        IE::BucketizeOp::attachInterface<OpModelForSW<VPU::BucketizeOp>>(*ctx);
+        IE::TileOp::attachInterface<OpModelForSW<VPU::TileOp>>(*ctx);
+        IE::PerAxisTileOp::attachInterface<OpModelForSW<VPU::PerAxisTileOp>>(*ctx);
+        IE::NegativeOp::attachInterface<OpModelForSW<VPU::NegativeOp>>(*ctx);
+        IE::PadOp::attachInterface<OpModelForSW<VPU::PadOp>>(*ctx);
+        IE::LSTMCellOp::attachInterface<OpModelForSW<VPU::LSTMCellOp>>(*ctx);
+        IE::SpaceToDepthOp::attachInterface<OpModelForSW<VPU::SpaceToDepthOp>>(*ctx);
+        IE::DepthToSpaceOp::attachInterface<OpModelForSW<VPU::DepthToSpaceOp>>(*ctx);
+        IE::NormalizeL2Op::attachInterface<OpModelForSW<VPU::NormalizeL2Op>>(*ctx);
+        IE::NormalizeIEOp::attachInterface<OpModelForSW<VPU::NormalizeIEOp>>(*ctx);
+        IE::CumSumOp::attachInterface<OpModelForSW<VPU::CumSumOp>>(*ctx);
+        IE::ReverseSequenceOp::attachInterface<OpModelForSW<VPU::ReverseSequenceOp>>(*ctx);
+        IE::SoftPlusOp::attachInterface<OpModelForSW<VPU::SoftPlusOp>>(*ctx);
 
-    // VPU_SameInOutDimsOrder_CHW_HWC_NCHW_NHWC
-    registry.addOpInterface<IE::SigmoidOp, OpModelForSW<VPU::SigmoidOp>>();
-    registry.addOpInterface<IE::ClampOp, OpModelForSW<VPU::ClampOp>>();
-    registry.addOpInterface<IE::ReLUOp, OpModelForSW<VPU::ReLUOp>>();
-    registry.addOpInterface<IE::EluOp, OpModelForSW<VPU::EluOp>>();
-    registry.addOpInterface<IE::HSwishOp, OpModelForSW<VPU::HSwishOp>>();
-    registry.addOpInterface<IE::ErfOp, OpModelForSW<VPU::ErfOp>>();
-    registry.addOpInterface<IE::MishOp, OpModelForSW<VPU::MishOp>>();
-    registry.addOpInterface<IE::FloorOp, OpModelForSW<VPU::FloorOp>>();
-    registry.addOpInterface<IE::RoundOp, OpModelForSW<VPU::RoundOp>>();
-    registry.addOpInterface<IE::TanhOp, OpModelForSW<VPU::TanhOp>>();
-    registry.addOpInterface<IE::SqrtOp, OpModelForSW<VPU::SqrtOp>>();
-    registry.addOpInterface<IE::SinhOp, OpModelForSW<VPU::SinhOp>>();
-    registry.addOpInterface<IE::CoshOp, OpModelForSW<VPU::CoshOp>>();
-    registry.addOpInterface<IE::AsinhOp, OpModelForSW<VPU::AsinhOp>>();
-    registry.addOpInterface<IE::AcoshOp, OpModelForSW<VPU::AcoshOp>>();
-    registry.addOpInterface<IE::AbsOp, OpModelForSW<VPU::AbsOp>>();
-    registry.addOpInterface<IE::HSigmoidOp, OpModelForSW<VPU::HSigmoidOp>>();
-    registry.addOpInterface<IE::AtanOp, OpModelForSW<VPU::AtanOp>>();
-    registry.addOpInterface<IE::AsinOp, OpModelForSW<VPU::AsinOp>>();
-    registry.addOpInterface<IE::AcosOp, OpModelForSW<VPU::AcosOp>>();
-    registry.addOpInterface<IE::AtanhOp, OpModelForSW<VPU::AtanhOp>>();
-    registry.addOpInterface<IE::GeluOp, OpModelForSW<VPU::GeluOp>>();
-    registry.addOpInterface<IE::ExpOp, OpModelForSW<VPU::ExpOp>>();
-    registry.addOpInterface<IE::ReduceMaxOp, OpModelForSW<VPU::ReduceMaxOp>>();
-    registry.addOpInterface<IE::ReduceMeanOp, OpModelForSW<VPU::ReduceMeanOp>>();
-    registry.addOpInterface<IE::ReduceLogicalOrOp, OpModelForSW<VPU::ReduceLogicalOrOp>>();
-    registry.addOpInterface<IE::ReduceLogicalAndOp, OpModelForSW<VPU::ReduceLogicalAndOp>>();
-    registry.addOpInterface<IE::ReduceProdOp, OpModelForSW<VPU::ReduceProdOp>>();
-    registry.addOpInterface<IE::ReduceSumOp, OpModelForSW<VPU::ReduceSumOp>>();
-    registry.addOpInterface<IE::ReduceMinOp, OpModelForSW<VPU::ReduceMinOp>>();
-    registry.addOpInterface<IE::ReduceL1Op, OpModelForSW<VPU::ReduceL1Op>>();
-    registry.addOpInterface<IE::ReduceL2Op, OpModelForSW<VPU::ReduceL2Op>>();
-    registry.addOpInterface<IE::LRN_IEOp, OpModelForSW<VPU::LRN_IEOp>>();
-    registry.addOpInterface<IE::UpsamplingOp, OpModelForSW<VPU::UpsamplingOp>>();
-    registry.addOpInterface<IE::ROIPoolingOp, OpModelForSW<VPU::ROIPoolingOp>>();
-    registry.addOpInterface<IE::PSROIPoolingOp, OpModelForSW<VPU::PSROIPoolingOp>>();
-    registry.addOpInterface<IE::CeilingOp, OpModelForSW<VPU::CeilingOp>>();
-    registry.addOpInterface<IE::DeformablePSROIPoolingOp, OpModelForSW<VPU::DeformablePSROIPoolingOp>>();
+        // VPU_SameInOutDimsOrder
+        IE::ConvertOp::attachInterface<OpModelForSW<VPU::ConvertOp>>(*ctx);
+        IE::SoftMaxOp::attachInterface<OpModelForSW<VPU::SoftMaxOp>>(*ctx);
+        IE::AvgPoolOp::attachInterface<OpModelForSW<VPU::AvgPoolOp>>(*ctx);
+        IE::AdaptiveAvgPoolOp::attachInterface<OpModelForSW<VPU::AdaptiveAvgPoolOp>>(*ctx);
+        IE::AdaptiveMaxPoolOp::attachInterface<OpModelForSW<VPU::AdaptiveMaxPoolOp>>(*ctx);
+        IE::RollOp::attachInterface<OpModelForSW<VPU::RollOp>>(*ctx);
+        IE::TanOp::attachInterface<OpModelForSW<VPU::TanOp>>(*ctx);
+        IE::SinOp::attachInterface<OpModelForSW<VPU::SinOp>>(*ctx);
+        IE::CosOp::attachInterface<OpModelForSW<VPU::CosOp>>(*ctx);
+        IE::LogOp::attachInterface<OpModelForSW<VPU::LogOp>>(*ctx);
+        IE::SeluOp::attachInterface<OpModelForSW<VPU::SeluOp>>(*ctx);
+        IE::PReluOp::attachInterface<OpModelForSW<VPU::PReluOp>>(*ctx);
+        IE::SelectOp::attachInterface<OpModelForSW<VPU::SelectOp>>(*ctx);
+        IE::SwishOp::attachInterface<OpModelForSW<VPU::SwishOp>>(*ctx);
+        IE::LeakyReluOp::attachInterface<OpModelForSW<VPU::LeakyReluOp>>(*ctx);
+        IE::HardSigmoidOp::attachInterface<OpModelForSW<VPU::HardSigmoidOp>>(*ctx);
+        IE::GridSampleOp::attachInterface<OpModelForSW<VPU::GridSampleOp>>(*ctx);
+        IE::BucketizeOp::attachInterface<OpModelForSW<VPU::BucketizeOp>>(*ctx);
+        IE::TileOp::attachInterface<OpModelForSW<VPU::TileOp>>(*ctx);
+        IE::PerAxisTileOp::attachInterface<OpModelForSW<VPU::PerAxisTileOp>>(*ctx);
+        IE::NegativeOp::attachInterface<OpModelForSW<VPU::NegativeOp>>(*ctx);
+        IE::PadOp::attachInterface<OpModelForSW<VPU::PadOp>>(*ctx);
+        IE::LSTMCellOp::attachInterface<OpModelForSW<VPU::LSTMCellOp>>(*ctx);
+        IE::SpaceToDepthOp::attachInterface<OpModelForSW<VPU::SpaceToDepthOp>>(*ctx);
+        IE::DepthToSpaceOp::attachInterface<OpModelForSW<VPU::DepthToSpaceOp>>(*ctx);
+        IE::NormalizeL2Op::attachInterface<OpModelForSW<VPU::NormalizeL2Op>>(*ctx);
+        IE::NormalizeIEOp::attachInterface<OpModelForSW<VPU::NormalizeIEOp>>(*ctx);
+        IE::CumSumOp::attachInterface<OpModelForSW<VPU::CumSumOp>>(*ctx);
+        IE::ReverseSequenceOp::attachInterface<OpModelForSW<VPU::ReverseSequenceOp>>(*ctx);
+        IE::SoftPlusOp::attachInterface<OpModelForSW<VPU::SoftPlusOp>>(*ctx);
+        IE::DFTOp::attachInterface<OpModelForSW<VPU::DFTOp>>(*ctx);
+        IE::RDFTOp::attachInterface<OpModelForSW<VPU::RDFTOp>>(*ctx);
+        IE::IDFTOp::attachInterface<OpModelForSW<VPU::IDFTOp>>(*ctx);
+        IE::IRDFTOp::attachInterface<OpModelForSW<VPU::IRDFTOp>>(*ctx);
 
-    // VPU_SameInOutDimsOrder_NCHW_NHWC
-    registry.addOpInterface<IE::FakeQuantizeOp, OpModelForSW<VPU::FakeQuantizeOp>>();
-    registry.addOpInterface<IE::GRNOp, OpModelForSW<VPU::GRNOp>>();
+        // VPU_SameInOutDimsOrder_CHW_HWC_NCHW_NHWC
+        IE::SigmoidOp::attachInterface<OpModelForSW<VPU::SigmoidOp>>(*ctx);
+        IE::ClampOp::attachInterface<OpModelForSW<VPU::ClampOp>>(*ctx);
+        IE::ReLUOp::attachInterface<OpModelForSW<VPU::ReLUOp>>(*ctx);
+        IE::EluOp::attachInterface<OpModelForSW<VPU::EluOp>>(*ctx);
+        IE::HSwishOp::attachInterface<OpModelForSW<VPU::HSwishOp>>(*ctx);
+        IE::ErfOp::attachInterface<OpModelForSW<VPU::ErfOp>>(*ctx);
+        IE::MishOp::attachInterface<OpModelForSW<VPU::MishOp>>(*ctx);
+        IE::FloorOp::attachInterface<OpModelForSW<VPU::FloorOp>>(*ctx);
+        IE::RoundOp::attachInterface<OpModelForSW<VPU::RoundOp>>(*ctx);
+        IE::TanhOp::attachInterface<OpModelForSW<VPU::TanhOp>>(*ctx);
+        IE::SqrtOp::attachInterface<OpModelForSW<VPU::SqrtOp>>(*ctx);
+        IE::SinhOp::attachInterface<OpModelForSW<VPU::SinhOp>>(*ctx);
+        IE::CoshOp::attachInterface<OpModelForSW<VPU::CoshOp>>(*ctx);
+        IE::AsinhOp::attachInterface<OpModelForSW<VPU::AsinhOp>>(*ctx);
+        IE::AcoshOp::attachInterface<OpModelForSW<VPU::AcoshOp>>(*ctx);
+        IE::AbsOp::attachInterface<OpModelForSW<VPU::AbsOp>>(*ctx);
+        IE::AtanOp::attachInterface<OpModelForSW<VPU::AtanOp>>(*ctx);
+        IE::AsinOp::attachInterface<OpModelForSW<VPU::AsinOp>>(*ctx);
+        IE::AcosOp::attachInterface<OpModelForSW<VPU::AcosOp>>(*ctx);
+        IE::AtanhOp::attachInterface<OpModelForSW<VPU::AtanhOp>>(*ctx);
+        IE::GeluOp::attachInterface<OpModelForSW<VPU::GeluOp>>(*ctx);
+        IE::ExpOp::attachInterface<OpModelForSW<VPU::ExpOp>>(*ctx);
+        IE::ReduceMaxOp::attachInterface<OpModelForSW<VPU::ReduceMaxOp>>(*ctx);
+        IE::ReduceMeanOp::attachInterface<OpModelForSW<VPU::ReduceMeanOp>>(*ctx);
+        IE::ReduceLogicalOrOp::attachInterface<OpModelForSW<VPU::ReduceLogicalOrOp>>(*ctx);
+        IE::ReduceLogicalAndOp::attachInterface<OpModelForSW<VPU::ReduceLogicalAndOp>>(*ctx);
+        IE::ReduceProdOp::attachInterface<OpModelForSW<VPU::ReduceProdOp>>(*ctx);
+        IE::ReduceSumOp::attachInterface<OpModelForSW<VPU::ReduceSumOp>>(*ctx);
+        IE::ReduceMinOp::attachInterface<OpModelForSW<VPU::ReduceMinOp>>(*ctx);
+        IE::ReduceL1Op::attachInterface<OpModelForSW<VPU::ReduceL1Op>>(*ctx);
+        IE::ReduceL2Op::attachInterface<OpModelForSW<VPU::ReduceL2Op>>(*ctx);
+        IE::LRN_IEOp::attachInterface<OpModelForSW<VPU::LRN_IEOp>>(*ctx);
+        IE::UpsamplingOp::attachInterface<OpModelForSW<VPU::UpsamplingOp>>(*ctx);
+        IE::ROIPoolingOp::attachInterface<OpModelForSW<VPU::ROIPoolingOp>>(*ctx);
+        IE::PSROIPoolingOp::attachInterface<OpModelForSW<VPU::PSROIPoolingOp>>(*ctx);
+        IE::CeilingOp::attachInterface<OpModelForSW<VPU::CeilingOp>>(*ctx);
+        IE::DeformablePSROIPoolingOp::attachInterface<OpModelForSW<VPU::DeformablePSROIPoolingOp>>(*ctx);
 
-    // VPU_SameInOutDimsOrder_NCHW
-    registry.addOpInterface<IE::ExtractImagePatchesOp, OpModelForSW<VPU::ExtractImagePatchesOp>>();
+        // VPU_SameInOutDimsOrder_NC_CHW_HWC_NCHW_NHWC
+        IE::HSigmoidOp::attachInterface<OpModelForSW<VPU::HSigmoidOp>>(*ctx);
 
-    // VPU_AnyDimsOrder
-    registry.addOpInterface<IE::DetectionOutputOp, OpModelForSW<VPU::DetectionOutputOp>>();
-    registry.addOpInterface<IE::EmbeddingBagOffsetsSumOp, OpModelForSW<VPU::EmbeddingBagOffsetsSumOp>>();
-    registry.addOpInterface<IE::EmbeddingSegmentsSumOp, OpModelForSW<VPU::EmbeddingSegmentsSumOp>>();
-    registry.addOpInterface<IE::BroadcastOp, OpModelForSW<VPU::BroadcastOp>>();
-    registry.addOpInterface<IE::ProposalOp, OpModelForSW<VPU::ProposalOp>>();
-    registry.addOpInterface<IE::StridedSliceOp, OpModelForSW<VPU::StridedSliceOp>>();
-    registry.addOpInterface<IE::ReorgYoloOp, OpModelForSW<VPU::ReorgYoloOp>>();
-    registry.addOpInterface<IE::GatherOp, OpModelForSW<VPU::GatherOp>>();
-    registry.addOpInterface<IE::ScatterNDUpdateOp, OpModelForSW<VPU::ScatterNDUpdateOp>>();
-    registry.addOpInterface<IE::ScatterUpdateOp, OpModelForSW<VPU::ScatterUpdateOp>>();
-    registry.addOpInterface<IE::YuvToRgbOp, OpModelForSW<VPU::YuvToRgbOp>>();
-    registry.addOpInterface<IE::LSTMSequenceOp, OpModelForSW<VPU::LSTMSequenceOp>>();
-    registry.addOpInterface<IE::GRUSequenceOp, OpModelForSW<VPU::GRUSequenceOp>>();
-    registry.addOpInterface<IE::ReorderOp, OpModelForSW<VPU::MemPermuteOp>>();
-    registry.addOpInterface<IE::MemPermuteOp, OpModelForSW<VPU::MemPermuteOp>>();
+        // VPU_SameInOutDimsOrder_NCHW_NHWC
+        IE::FakeQuantizeOp::attachInterface<OpModelForSW<VPU::FakeQuantizeOp>>(*ctx);
+        IE::GRNOp::attachInterface<OpModelForSW<VPU::GRNOp>>(*ctx);
 
-    // VPU_SameInOutDimsOrder_NCHW_CHW_NC_C
-    registry.addOpInterface<IE::DivideOp, OpModelForSW<VPU::DivideOp>>();
-    registry.addOpInterface<IE::SquaredDifferenceOp, OpModelForSW<VPU::SquaredDifferenceOp>>();
-    registry.addOpInterface<IE::PowerOp, OpModelForSW<VPU::PowerOp>>();
-    registry.addOpInterface<IE::FloorModOp, OpModelForSW<VPU::FloorModOp>>();
-    registry.addOpInterface<IE::MinimumOp, OpModelForSW<VPU::MinimumOp>>();
-    registry.addOpInterface<IE::MaximumOp, OpModelForSW<VPU::MaximumOp>>();
-    registry.addOpInterface<IE::LogicalOrOp, OpModelForSW<VPU::LogicalOrOp>>();
-    registry.addOpInterface<IE::LogicalXorOp, OpModelForSW<VPU::LogicalXorOp>>();
-    registry.addOpInterface<IE::LessOp, OpModelForSW<VPU::LessOp>>();
-    registry.addOpInterface<IE::LessEqualOp, OpModelForSW<VPU::LessEqualOp>>();
-    registry.addOpInterface<IE::NotEqualOp, OpModelForSW<VPU::NotEqualOp>>();
-    registry.addOpInterface<IE::GreaterOp, OpModelForSW<VPU::GreaterOp>>();
-    registry.addOpInterface<IE::GreaterEqualOp, OpModelForSW<VPU::GreaterEqualOp>>();
-    registry.addOpInterface<IE::EqualOp, OpModelForSW<VPU::EqualOp>>();
-    registry.addOpInterface<IE::LogicalNotOp, OpModelForSW<VPU::LogicalNotOp>>();
+        // VPU_SameInOutDimsOrder_NCHW
+        IE::ExtractImagePatchesOp::attachInterface<OpModelForSW<VPU::ExtractImagePatchesOp>>(*ctx);
 
-    // inferLayoutInfo
-    registry.addOpInterface<IE::QuantizeOp, OpModelForSW<VPU::QuantizeOp>>();
-    registry.addOpInterface<IE::DequantizeOp, OpModelForSW<VPU::DequantizeOp>>();
-    registry.addOpInterface<IE::FullyConnectedOp, OpModelForSW<VPU::FullyConnectedOp>>();
-    registry.addOpInterface<IE::ScaleShiftOp, OpModelForSW<VPU::ScaleShiftOp>>();
-    registry.addOpInterface<IE::CTCGreedyDecoderOp, OpModelForSW<VPU::CTCGreedyDecoderOp>>();
-    registry.addOpInterface<IE::CTCGreedyDecoderSeqLenOp, OpModelForSW<VPU::CTCGreedyDecoderSeqLenOp>>();
-    registry.addOpInterface<IE::InterpolateOp, OpModelForSW<VPU::InterpolateOp>>();
-    registry.addOpInterface<IE::RegionYoloOp, OpModelForSW<VPU::RegionYoloOp>>();
-    registry.addOpInterface<IE::MVNOp, OpModelForSW<VPU::MVNOp>>();
-    registry.addOpInterface<IE::NonMaxSuppressionOp, OpModelForSW<VPU::NonMaxSuppressionOp>>();
-    registry.addOpInterface<IE::GatherNDOp, OpModelForSW<VPU::GatherNDOp>>();
+        // VPU_AnyDimsOrder
+        IE::DetectionOutputOp::attachInterface<OpModelForSW<VPU::DetectionOutputOp>>(*ctx);
+        IE::EmbeddingBagOffsetsSumOp::attachInterface<OpModelForSW<VPU::EmbeddingBagOffsetsSumOp>>(*ctx);
+        IE::EmbeddingSegmentsSumOp::attachInterface<OpModelForSW<VPU::EmbeddingSegmentsSumOp>>(*ctx);
+        IE::EmbeddingBagPackedSumOp::attachInterface<OpModelForSW<VPU::EmbeddingBagPackedSumOp>>(*ctx);
+        IE::BroadcastOp::attachInterface<OpModelForSW<VPU::BroadcastOp>>(*ctx);
+        IE::ProposalOp::attachInterface<OpModelForSW<VPU::ProposalOp>>(*ctx);
+        IE::ReorgYoloOp::attachInterface<OpModelForSW<VPU::ReorgYoloOp>>(*ctx);
+        IE::GatherOp::attachInterface<OpModelForSW<VPU::GatherOp>>(*ctx);
+        IE::ScatterNDUpdateOp::attachInterface<OpModelForSW<VPU::ScatterNDUpdateOp>>(*ctx);
+        IE::ScatterUpdateOp::attachInterface<OpModelForSW<VPU::ScatterUpdateOp>>(*ctx);
+        IE::YuvToRgbOp::attachInterface<OpModelForSW<VPU::YuvToRgbOp>>(*ctx);
+        IE::LSTMSequenceOp::attachInterface<OpModelForSW<VPU::LSTMSequenceOp>>(*ctx);
+        IE::GRUSequenceOp::attachInterface<OpModelForSW<VPU::GRUSequenceOp>>(*ctx);
+        IE::GRUSequenceOp::attachInterface<OpModelForSW<VPU::GRUSequenceFirstPartOp>>(*ctx);
+        IE::GRUSequenceOp::attachInterface<OpModelForSW<VPU::GRUSequenceLastPartOp>>(*ctx);
+        IE::ReorderOp::attachInterface<OpModelForSW<VPU::MemPermuteOp>>(*ctx);
+        IE::MemPermuteOp::attachInterface<OpModelForSW<VPU::MemPermuteOp>>(*ctx);
+        IE::DynamicQuantizeOp::attachInterface<OpModelForSW<VPU::DynamicQuantizeOp>>(*ctx);
+
+        // VPU_SameInOutDimsOrder_NCHW_CHW_NC_C
+        IE::DivideOp::attachInterface<OpModelForSW<VPU::DivideOp>>(*ctx);
+        IE::SquaredDifferenceOp::attachInterface<OpModelForSW<VPU::SquaredDifferenceOp>>(*ctx);
+        IE::PowerOp::attachInterface<OpModelForSW<VPU::PowerOp>>(*ctx);
+        IE::FloorModOp::attachInterface<OpModelForSW<VPU::FloorModOp>>(*ctx);
+        IE::MinimumOp::attachInterface<OpModelForSW<VPU::MinimumOp>>(*ctx);
+        IE::MaximumOp::attachInterface<OpModelForSW<VPU::MaximumOp>>(*ctx);
+        IE::LogicalOrOp::attachInterface<OpModelForSW<VPU::LogicalOrOp>>(*ctx);
+        IE::LogicalXorOp::attachInterface<OpModelForSW<VPU::LogicalXorOp>>(*ctx);
+        IE::LessOp::attachInterface<OpModelForSW<VPU::LessOp>>(*ctx);
+        IE::LessEqualOp::attachInterface<OpModelForSW<VPU::LessEqualOp>>(*ctx);
+        IE::NotEqualOp::attachInterface<OpModelForSW<VPU::NotEqualOp>>(*ctx);
+        IE::GreaterOp::attachInterface<OpModelForSW<VPU::GreaterOp>>(*ctx);
+        IE::GreaterEqualOp::attachInterface<OpModelForSW<VPU::GreaterEqualOp>>(*ctx);
+        IE::EqualOp::attachInterface<OpModelForSW<VPU::EqualOp>>(*ctx);
+        IE::LogicalNotOp::attachInterface<OpModelForSW<VPU::LogicalNotOp>>(*ctx);
+        IE::StridedSliceOp::attachInterface<OpModelForSW<VPU::StridedSliceOp>>(*ctx);
+
+        // inferLayoutInfo
+        IE::RandomUniformOp::attachInterface<OpModelForSW<VPU::RandomUniformOp>>(*ctx);
+        IE::QuantizeOp::attachInterface<OpModelForSW<VPU::QuantizeOp>>(*ctx);
+        IE::DequantizeOp::attachInterface<OpModelForSW<VPU::DequantizeOp>>(*ctx);
+        IE::FullyConnectedOp::attachInterface<OpModelForSW<VPU::FullyConnectedOp>>(*ctx);
+        IE::ScaleShiftOp::attachInterface<OpModelForSW<VPU::ScaleShiftOp>>(*ctx);
+        IE::CTCGreedyDecoderOp::attachInterface<OpModelForSW<VPU::CTCGreedyDecoderOp>>(*ctx);
+        IE::CTCGreedyDecoderSeqLenOp::attachInterface<OpModelForSW<VPU::CTCGreedyDecoderSeqLenOp>>(*ctx);
+        IE::RegionYoloOp::attachInterface<OpModelForSW<VPU::RegionYoloOp>>(*ctx);
+        IE::OneHotOp::attachInterface<OpModelForSW<VPU::OneHotOp>>(*ctx);
+        IE::MVNOp::attachInterface<OpModelForSW<VPU::MVNOp>>(*ctx);
+        IE::MVN6Op::attachInterface<OpModelForSW<VPU::MVN6Op>>(*ctx);
+        IE::NonMaxSuppressionOp::attachInterface<OpModelForSW<VPU::NonMaxSuppressionOp>>(*ctx);
+        IE::GatherNDOp::attachInterface<OpModelForSW<VPU::GatherNDOp>>(*ctx);
+        IE::GatherTreeOp::attachInterface<OpModelForSW<VPU::GatherTreeOp>>(*ctx);
+    });
 }
 
 }  // namespace

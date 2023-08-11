@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #ifndef VPUX_COMPILER_DIALECT_EMU_OPS_INTERFACES
 #define VPUX_COMPILER_DIALECT_EMU_OPS_INTERFACES
 

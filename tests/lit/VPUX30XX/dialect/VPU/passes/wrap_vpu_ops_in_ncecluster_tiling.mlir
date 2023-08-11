@@ -1,13 +1,14 @@
 //
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
+
 // RUN: vpux-opt --split-input-file --init-compiler="vpu-arch=VPUX30XX compilation-mode=DefaultHW" --wrap-vpu-ops-in-ncecluster-tiling %s | FileCheck %s
 
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
 // CHECK-LABEL: @ConvToNCEClusterTilingSOH
-func @ConvToNCEClusterTilingSOH(%arg0: tensor<1x64x28x28xf16, {order = #NHWC}>) -> tensor<1x80x28x28xf16, {order = #NHWC}> {
+func.func @ConvToNCEClusterTilingSOH(%arg0: tensor<1x64x28x28xf16, {order = #NHWC}>) -> tensor<1x80x28x28xf16, {order = #NHWC}> {
     %cst = const.Declare tensor<80x1x1x4xsi32> = dense<10> : tensor<80x1x1x4xsi32>
     %cst_0 = const.Declare tensor<80x64x3x3xf16, {order = #NHWC}> = dense<1.000000e+00> : tensor<80x64x3x3xf16>, [#const.Reorder<#NHWC>]
     %0 = VPU.NCE.Convolution(%arg0, %cst_0, %cst) {multiClusterStrategy = "SplitOverHeight", pad = {bottom = 1 : i64, left = 1 : i64, right = 1 : i64, top = 1 : i64}, rawFilterShape = [80, 64, 3, 3], strides = [1, 1]} -> tensor<1x80x28x28xf16, {order = #NHWC}>
@@ -59,7 +60,7 @@ func @ConvToNCEClusterTilingSOH(%arg0: tensor<1x64x28x28xf16, {order = #NHWC}>) 
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
 // CHECK-LABEL: @ConvToNCEClusterTilingSOKUse3Clusters
-func @ConvToNCEClusterTilingSOKUse3Clusters(%arg0: tensor<1x128x28x28xf16, {order = #NHWC}>) -> tensor<1x80x28x28xf16, {order = #NHWC}> {
+func.func @ConvToNCEClusterTilingSOKUse3Clusters(%arg0: tensor<1x128x28x28xf16, {order = #NHWC}>) -> tensor<1x80x28x28xf16, {order = #NHWC}> {
     %cst = const.Declare tensor<80x1x1x4xsi32> = dense<10> : tensor<80x1x1x4xsi32>
     %cst_0 = const.Declare tensor<80x128x1x1xf16, {order = #NHWC}> = dense<1.000000e+00> : tensor<80x128x1x1xf16>, [#const.Reorder<#NHWC>]
     %0 = VPU.NCE.Convolution(%arg0, %cst_0, %cst) {multiClusterStrategy = "SplitOverKernel", pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}, rawFilterShape = [80, 128, 1, 1], strides = [1, 1]} -> tensor<1x80x28x28xf16, {order = #NHWC}>
@@ -111,7 +112,7 @@ func @ConvToNCEClusterTilingSOKUse3Clusters(%arg0: tensor<1x128x28x28xf16, {orde
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
 // CHECK-LABEL: @ConvToNCEClusterTilingSOK
-func @ConvToNCEClusterTilingSOK(%arg0: tensor<1x128x28x28xf16, {order = #NHWC}>) -> tensor<1x64x28x28xf16, {order = #NHWC}> {
+func.func @ConvToNCEClusterTilingSOK(%arg0: tensor<1x128x28x28xf16, {order = #NHWC}>) -> tensor<1x64x28x28xf16, {order = #NHWC}> {
     %cst = const.Declare tensor<64x1x1x4xsi32> = dense<10> : tensor<64x1x1x4xsi32>
     %cst_0 = const.Declare tensor<64x128x1x1xf16, {order = #NHWC}> = dense<1.000000e+00> : tensor<64x128x1x1xf16>, [#const.Reorder<#NHWC>]
     %0 = VPU.NCE.Convolution(%arg0, %cst_0, %cst) {multiClusterStrategy = "SplitOverKernel", pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}, rawFilterShape = [64, 128, 1, 1], strides = [1, 1]} -> tensor<1x64x28x28xf16, {order = #NHWC}>
@@ -163,7 +164,7 @@ func @ConvToNCEClusterTilingSOK(%arg0: tensor<1x128x28x28xf16, {order = #NHWC}>)
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
 // CHECK-LABEL: @ConvToNCEClusterTilingClustering
-func @ConvToNCEClusterTilingClustering(%arg0: tensor<1x64x14x14xf16, {order = #NHWC}>) -> tensor<1x48x14x14xf16, {order = #NHWC}> {
+func.func @ConvToNCEClusterTilingClustering(%arg0: tensor<1x64x14x14xf16, {order = #NHWC}>) -> tensor<1x48x14x14xf16, {order = #NHWC}> {
     %cst = const.Declare tensor<48x1x1x4xsi32> = dense<10> : tensor<48x1x1x4xsi32>
     %cst_0 = const.Declare tensor<48x64x3x3xf16, {order = #NHWC}> = dense<1.000000e+00> : tensor<48x64x3x3xf16>, [#const.Reorder<#NHWC>]
     %0 = VPU.NCE.Convolution(%arg0, %cst_0, %cst) {multiClusterStrategy = "Clustering", pad = {bottom = 1 : i64, left = 1 : i64, right = 1 : i64, top = 1 : i64}, rawFilterShape = [48, 64, 3, 3], strides = [1, 1]} -> tensor<1x48x14x14xf16, {order = #NHWC}>
@@ -216,7 +217,7 @@ func @ConvToNCEClusterTilingClustering(%arg0: tensor<1x64x14x14xf16, {order = #N
 #NCHW = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
 
 // CHECK-LABEL: @CMConvToNCEClusterTilingSOHOverlapped
-func @CMConvToNCEClusterTilingSOHOverlapped(%arg0: tensor<1x3x224x224xf16, {order = #NCHW}>) -> tensor<1x32x112x112xf16, {order = #NHWC}> {
+func.func @CMConvToNCEClusterTilingSOHOverlapped(%arg0: tensor<1x3x224x224xf16, {order = #NCHW}>) -> tensor<1x32x112x112xf16, {order = #NHWC}> {
     %cst = const.Declare tensor<1x1x1x32xui8> = dense<10> : tensor<1x1x1x32xui8>
     %cst_0 = const.Declare tensor<32x1x1x4xsi32> = dense<10> : tensor<32x1x1x4xsi32>
     %cst_1 = const.Declare tensor<32x1x1x32xf16, {order = #NHWC}> = dense<1.000000e+00> : tensor<32x1x1x32xf16>, [#const.Reorder<#NHWC>]
@@ -279,7 +280,7 @@ func @CMConvToNCEClusterTilingSOHOverlapped(%arg0: tensor<1x3x224x224xf16, {orde
 #NCHW = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
 
 // CHECK-LABEL: @CMConvToNCEClusterTilingClustering
-func @CMConvToNCEClusterTilingClustering(%arg0: tensor<1x3x16x16xf16, {order = #NCHW}>) -> tensor<1x48x16x16xf16, {order = #NHWC}> {
+func.func @CMConvToNCEClusterTilingClustering(%arg0: tensor<1x3x16x16xf16, {order = #NCHW}>) -> tensor<1x48x16x16xf16, {order = #NHWC}> {
     %cst = const.Declare tensor<1x1x1x16xui8> = dense<10> : tensor<1x1x1x16xui8>
     %cst_0 = const.Declare tensor<48x1x1x4xsi32> = dense<10> : tensor<48x1x1x4xsi32>
     %cst_1 = const.Declare tensor<48x1x1x32xf16, {order = #NHWC}> = dense<1.000000e+00> : tensor<48x1x1x32xf16>, [#const.Reorder<#NHWC>]
@@ -342,7 +343,7 @@ func @CMConvToNCEClusterTilingClustering(%arg0: tensor<1x3x16x16xf16, {order = #
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
 // CHECK-LABEL: @DepthConvToNCEClusterTilingSOH
-func @DepthConvToNCEClusterTilingSOH(%arg0: tensor<1x32x112x112xf16, {order = #NHWC}>) -> tensor<1x32x112x112xf16, {order = #NHWC}> {
+func.func @DepthConvToNCEClusterTilingSOH(%arg0: tensor<1x32x112x112xf16, {order = #NHWC}>) -> tensor<1x32x112x112xf16, {order = #NHWC}> {
     %cst = const.Declare tensor<1x1x1x16xui8> = dense<10> : tensor<1x1x1x16xui8>
     %cst_0 = const.Declare tensor<32x1x1x4xsi32> = dense<10> : tensor<32x1x1x4xsi32>
     %cst_1 = const.Declare tensor<32x16x1x1xf16, {order = #NHWC}> = dense<1.000000e+00> : tensor<32x16x1x1xf16>, [#const.Reorder<#NHWC>]
@@ -401,7 +402,7 @@ func @DepthConvToNCEClusterTilingSOH(%arg0: tensor<1x32x112x112xf16, {order = #N
 #NCHW = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
 
 // CHECK-LABEL: @DepthConvToNCEClusterTilingSOK
-func @DepthConvToNCEClusterTilingSOK(%arg0: tensor<1x128x56x56xf16, {order = #NHWC}>) -> tensor<1x128x56x56xf16, {order = #NHWC}> {
+func.func @DepthConvToNCEClusterTilingSOK(%arg0: tensor<1x128x56x56xf16, {order = #NHWC}>) -> tensor<1x128x56x56xf16, {order = #NHWC}> {
     %cst = const.Declare tensor<1x1x1x16xui8> = dense<10> : tensor<1x1x1x16xui8>
     %cst_0 = const.Declare tensor<128x1x1x4xsi32> = dense<10> : tensor<128x1x1x4xsi32>
     %cst_1 = const.Declare tensor<128x16x1x1xf16, {order = #NHWC}> = dense<1.000000e+00> : tensor<128x16x1x1xf16>, [#const.Reorder<#NHWC>]
@@ -464,7 +465,7 @@ func @DepthConvToNCEClusterTilingSOK(%arg0: tensor<1x128x56x56xf16, {order = #NH
 #NCHW = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
 
 // CHECK-LABEL: @DepthConvToNCEClusterTilingClustering
-func @DepthConvToNCEClusterTilingClustering(%arg0: tensor<1x32x14x14xf16, {order = #NHWC}>) -> tensor<1x32x14x14xf16, {order = #NHWC}> {
+func.func @DepthConvToNCEClusterTilingClustering(%arg0: tensor<1x32x14x14xf16, {order = #NHWC}>) -> tensor<1x32x14x14xf16, {order = #NHWC}> {
     %cst = const.Declare tensor<1x1x1x16xui8> = dense<10> : tensor<1x1x1x16xui8>
     %cst_0 = const.Declare tensor<32x1x1x4xsi32> = dense<10> : tensor<32x1x1x4xsi32>
     %cst_1 = const.Declare tensor<32x16x1x1xf16, {order = #NHWC}> = dense<1.000000e+00> : tensor<32x16x1x1xf16>, [#const.Reorder<#NHWC>]
@@ -526,7 +527,7 @@ func @DepthConvToNCEClusterTilingClustering(%arg0: tensor<1x32x14x14xf16, {order
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
 // CHECK-LABEL: @MaxPoolToNCEClusterTilingSOH
-func @MaxPoolToNCEClusterTilingSOH(%arg0: tensor<1x32x112x112xf16, {order = #NHWC}>) -> tensor<1x32x112x112xf16, {order = #NHWC}> {
+func.func @MaxPoolToNCEClusterTilingSOH(%arg0: tensor<1x32x112x112xf16, {order = #NHWC}>) -> tensor<1x32x112x112xf16, {order = #NHWC}> {
     %cst = const.Declare tensor<1x1x1x16xui8> = dense<10> : tensor<1x1x1x16xui8>
     %cst_0 = const.Declare tensor<32x1x1x4xsi32> = dense<10> : tensor<32x1x1x4xsi32>
     %0 = VPU.NCE.MaxPool(%arg0, %cst_0, %cst) {
@@ -580,7 +581,7 @@ func @MaxPoolToNCEClusterTilingSOH(%arg0: tensor<1x32x112x112xf16, {order = #NHW
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
 // CHECK-LABEL: @MaxPoolToNCEClusterTilingClustering
-func @MaxPoolToNCEClusterTilingClustering(%arg0: tensor<1x32x14x14xf16, {order = #NHWC}>) -> tensor<1x32x14x14xf16, {order = #NHWC}> {
+func.func @MaxPoolToNCEClusterTilingClustering(%arg0: tensor<1x32x14x14xf16, {order = #NHWC}>) -> tensor<1x32x14x14xf16, {order = #NHWC}> {
     %cst = const.Declare tensor<1x1x1x16xui8> = dense<10> : tensor<1x1x1x16xui8>
     %cst_0 = const.Declare tensor<32x1x1x4xsi32> = dense<10> : tensor<32x1x1x4xsi32>
     %0 = VPU.NCE.MaxPool(%arg0, %cst_0, %cst) {
@@ -634,7 +635,7 @@ func @MaxPoolToNCEClusterTilingClustering(%arg0: tensor<1x32x14x14xf16, {order =
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
 // CHECK-LABEL: @EltwiseAddToNCEClusterTilingSOH
-func @EltwiseAddToNCEClusterTilingSOH(%arg0: tensor<1x32x112x112xf16, {order = #NHWC}>, %arg1: tensor<1x32x112x112xf16, {order = #NHWC}>) -> tensor<1x32x112x112xf16, {order = #NHWC}> {
+func.func @EltwiseAddToNCEClusterTilingSOH(%arg0: tensor<1x32x112x112xf16, {order = #NHWC}>, %arg1: tensor<1x32x112x112xf16, {order = #NHWC}>) -> tensor<1x32x112x112xf16, {order = #NHWC}> {
     %0 = VPU.NCE.Eltwise(%arg0, %arg1) { multiClusterStrategy = "SplitOverHeight", op_type = "ADD" } :
          tensor<1x32x112x112xf16, {order = #NHWC}>, tensor<1x32x112x112xf16, {order = #NHWC}>
          -> tensor<1x32x112x112xf16, {order = #NHWC}>
@@ -670,7 +671,7 @@ func @EltwiseAddToNCEClusterTilingSOH(%arg0: tensor<1x32x112x112xf16, {order = #
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
 // CHECK-LABEL: @EltwiseAddToNCEClusterTilingClustering
-func @EltwiseAddToNCEClusterTilingClustering(%arg0: tensor<1x32x14x14xf16, {order = #NHWC}>, %arg1: tensor<1x32x14x14xf16, {order = #NHWC}>) -> tensor<1x32x14x14xf16, {order = #NHWC}> {
+func.func @EltwiseAddToNCEClusterTilingClustering(%arg0: tensor<1x32x14x14xf16, {order = #NHWC}>, %arg1: tensor<1x32x14x14xf16, {order = #NHWC}>) -> tensor<1x32x14x14xf16, {order = #NHWC}> {
     %0 = VPU.NCE.Eltwise(%arg0, %arg1) { multiClusterStrategy = "Clustering", op_type = "ADD" } :
          tensor<1x32x14x14xf16, {order = #NHWC}>, tensor<1x32x14x14xf16, {order = #NHWC}>
          -> tensor<1x32x14x14xf16, {order = #NHWC}>
@@ -707,7 +708,7 @@ func @EltwiseAddToNCEClusterTilingClustering(%arg0: tensor<1x32x14x14xf16, {orde
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
 // CHECK-LABEL: @OptimizeMultiClusteringSubgraphAlignment
-func @OptimizeMultiClusteringSubgraphAlignment(%arg0: tensor<1x80x22x22xf16, {order = #NHWC}>) -> tensor<1x64x22x22xf16, {order = #NHWC}> {
+func.func @OptimizeMultiClusteringSubgraphAlignment(%arg0: tensor<1x80x22x22xf16, {order = #NHWC}>) -> tensor<1x64x22x22xf16, {order = #NHWC}> {
     %cst_0 = const.Declare tensor<80x1x1x4xsi32> = dense<10> : tensor<80x1x1x4xsi32>
     %cst_1 = const.Declare tensor<80x80x3x3xf16, {order = #NHWC}> = dense<1.000000e+00> : tensor<80x80x3x3xf16>, [#const.Reorder<#NHWC>]
     %0 = VPU.NCE.Convolution(%arg0, %cst_1, %cst_0) {multiClusterStrategy = "SplitOverHeight", pad = {bottom = 1 : i64, left = 1 : i64, right = 1 : i64, top = 1 : i64}, rawFilterShape = [80, 80, 3, 3], strides = [1, 1]} -> tensor<1x80x22x22xf16, {order = #NHWC}>
@@ -800,7 +801,7 @@ func @OptimizeMultiClusteringSubgraphAlignment(%arg0: tensor<1x80x22x22xf16, {or
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
 // CHECK-LABEL: @SparseConvToNCEClusterTilingSOH
-func @SparseConvToNCEClusterTilingSOH(%arg0 : tensor<1x64x28x28xf16, {order = #NHWC}>, %arg1 : tensor<1x64x28x28xi1, {order = #NHWC}>)
+func.func @SparseConvToNCEClusterTilingSOH(%arg0 : tensor<1x64x28x28xf16, {order = #NHWC}>, %arg1 : tensor<1x64x28x28xi1, {order = #NHWC}>)
         -> !VPU.SparseTensor<data=tensor<1x80x28x28xf16, {order = #NHWC}>,
                              sparsity_map=tensor<1x80x28x28xi1, {order = #NHWC}>> {
 
@@ -823,7 +824,7 @@ func @SparseConvToNCEClusterTilingSOH(%arg0 : tensor<1x64x28x28xf16, {order = #N
             strides = [1, 1]
         } -> !VPU.SparseTensor<data=tensor<1x80x28x28xf16, {order = #NHWC}>,
                                sparsity_map=tensor<1x80x28x28xi1, {order = #NHWC}>> {
-            VPU.DPU.Workload [0, 0, 0, 0] [1, 32, 16, 16] {bottom = 0, left = 0, right = 0, top = 0} "VECTOR_FP16"
+            VPU.DPU.Workload outOffsets [0, 0, 0, 0] outSizes [1, 32, 16, 16] {bottom = 0, left = 0, right = 0, top = 0} "VECTOR_FP16"
         }
 
     return %0 : !VPU.SparseTensor<data=tensor<1x80x28x28xf16, {order = #NHWC}>,
@@ -833,13 +834,13 @@ func @SparseConvToNCEClusterTilingSOH(%arg0 : tensor<1x64x28x28xf16, {order = #N
     // CHECK-SAME:      -> !VPU.SparseTensor<data=tensor<1x64x28x28xf16, {order = #NHWC}>,
     // CHECK-SAME:                           sparsity_map=tensor<1x64x28x28xi1, {order = #NHWC}>>
 
-    // CHECK:       [[CST_WEIGHTS:%.+]] = const.Declare tensor<80x64x3x3xf16, {order = #NHWC}> = dense<1.000000e+00>
-    // CHECK:       [[CST_WEIGHTS_SM:%.+]] = const.Declare tensor<80x1x1x640xi1> = dense<1.000000e+00>
+    // CHECK-DAG:       [[CST_WEIGHTS:%.+]] = const.Declare tensor<80x64x3x3xf16, {order = #NHWC}> = dense<1.000000e+00>
+    // CHECK-DAG:       [[CST_WEIGHTS_SM:%.+]] = const.Declare tensor<80x1x1x640xi1> = dense<1.000000e+00>
     // CHECK:       [[WEIGHTS_SPARSE:%.+]] = VPU.GroupSparseTensor([[CST_WEIGHTS]], [[CST_WEIGHTS_SM]]) {is_weights}
     // CHECK-SAME:      -> !VPU.SparseTensor<data=tensor<80x64x3x3xf16, {order = #NHWC}>,
     // CHECK-SAME:                           sparsity_map=tensor<80x1x1x640xi1>, is_weights>
 
-    // CHECK:       [[CST_WEIGHTS_TABLE:%.+]] = const.Declare tensor<80x1x1x4xsi32>
+    // CHECK-DAG:       [[CST_WEIGHTS_TABLE:%.+]] = const.Declare tensor<80x1x1x4xsi32>
 
     // CHECK:       [[INPUT_SPARSE_CMX:%.+]] = VPU.NCE.ClusterTiling
     // CHECK-SAME:      ([[INPUT_SPARSE]] as [[INPUT_SPARSE_ARG:%.+]]: !VPU.SparseTensor<data=tensor<1x64x28x28xf16, {order = #NHWC}>,
@@ -894,4 +895,210 @@ func @SparseConvToNCEClusterTilingSOH(%arg0 : tensor<1x64x28x28xf16, {order = #N
 
     // CHECK:       return [[OUT]] : !VPU.SparseTensor<data=tensor<1x80x28x28xf16, {order = #NHWC}>,
     // CHECK-SAME:                                     sparsity_map=tensor<1x80x28x28xi1, {order = #NHWC}>>
+}
+
+// -----
+
+#NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
+
+// CHECK-LABEL: @NCEInterpolateToNCEClusterTilingClustering
+func.func @NCEInterpolateToNCEClusterTilingClustering(%arg0: tensor<1x16x1x1xf16, {order = #NHWC}>) -> tensor<1x16x2x2xf16, {order = #NHWC}> {
+    %weights = const.Declare tensor<16x16x1x1xf16, {order = #NHWC}> = dense<1.0> : tensor<16x16x1x1xf16>, [#const.Reorder<#NHWC>]
+    %weights_table = const.Declare tensor<16x1x1x4xsi32> = dense<1> : tensor<16x1x1x4xsi32>
+    %sparsity_map = const.Declare tensor<1x16x2x2xi1> = dense<1> : tensor<1x16x2x2xi1>
+
+    %storage_element = VPU.StorageElementTable {dataElemType = i32, seDepth = 1, seSize = 16, dataShape = [1, 16, 1, 1],
+        seAttr = #VPU.SEInterpolate<mode = "NEAREST", nearest_mode = "FLOOR", coordinate_transformation_mode = "ASYMMETRIC",
+                                    scale = [1.0, 1.0, 2.0, 2.0], offsets = [0, 0, 0, 0], sizes = [1, 16, 2, 2]>
+    } -> tensor<1x1x2x2xi32, {order = #NHWC}>
+
+    %input = VPU.GroupSparseTensor(%arg0, %sparsity_map, %storage_element) {
+        seAttr = #VPU.SEInterpolate<
+            mode = "NEAREST",
+            nearest_mode = "FLOOR",
+            coordinate_transformation_mode = "ASYMMETRIC",
+            scale = [1.0, 1.0, 2.0, 2.0],
+            offsets = [0, 0, 0, 0],
+            sizes = [1, 16, 2, 2]>
+    } -> !VPU.SparseTensor<data=tensor<1x16x1x1xf16, {order = #NHWC}>,
+                           sparsity_map=tensor<1x16x2x2xi1>,
+                           storage_element_table=tensor<1x1x2x2xi32, {order = #NHWC}>,
+                           #VPU.SEInterpolate<mode = "NEAREST", nearest_mode = "FLOOR", coordinate_transformation_mode = "ASYMMETRIC",
+                                              scale = [1.0, 1.0, 2.0, 2.0], offsets = [0, 0, 0, 0], sizes = [1, 16, 2, 2]>>
+
+    %interpolate = VPU.NCE.Interpolate(%input, %weights, %weights_table) {
+        rawFilterShape = [16, 16, 1, 1],
+        mode = "NEAREST",
+        multiClusterStrategy = "Clustering",
+        scales_attr = [2, 2],
+        ppe = {clamp_high = 2147483647, clamp_low = 0, lrelu_mult = 1, lrelu_shift = 0, mode = "NOOP"}
+    } -> tensor<1x16x2x2xf16, {order = #NHWC}>
+
+    return %interpolate : tensor<1x16x2x2xf16, {order = #NHWC}>
+
+    // CHECK-DAG:    [[WEIGHTS:%.*]] = const.Declare tensor<16x16x1x1xf16, {order = #NHWC}> = dense<1.000000e+00> : tensor<16x16x1x1xf16>, [#const.Reorder<#NHWC>]
+    // CHECK-DAG:    [[WEIGHTSTABLE:%.*]] = const.Declare tensor<16x1x1x4xsi32> = dense<1> : tensor<16x1x1x4xsi32>
+
+    // CHECK-DAG:    [[INPUT_SM:%.*]] = const.Declare tensor<1x16x2x2xi1> = dense<true> : tensor<1x16x2x2xi1>
+    // CHECK:        [[INPUT_SE:%.*]] = VPU.StorageElementTable {dataElemType = i32, dataShape = [1, 16, 1, 1],
+    // CHECK-SAME:       seAttr = #VPU.SEInterpolate<mode = "NEAREST", nearest_mode = "FLOOR", coordinate_transformation_mode = "ASYMMETRIC",
+    // CHECK-SAME:                                   scale = [1.000000e+00, 1.000000e+00, 2.000000e+00, 2.000000e+00], offsets = [0, 0, 0, 0], sizes = [1, 16, 2, 2]>,
+    // CHECK-SAME:       seDepth = 1 : i64, seSize = 16 : i64}
+    // CHECK-SAME:       -> tensor<1x1x2x2xi32, {order = #NHWC}>
+    // CHECK:        [[INPUT_SPARSE:%.+]] = VPU.GroupSparseTensor(%arg0, [[INPUT_SM]], [[INPUT_SE]])
+    // CHECK:        [[INPUT_CMX:%.*]] = VPU.NCE.ClusterTiling ([[INPUT_SPARSE]] as [[INNER_ARG0:[^:]+]]:
+    // CHECK-SAME:           !VPU.SparseTensor<data=tensor<1x16x1x1xf16, {order = #NHWC}>,
+    // CHECK-SAME:                             sparsity_map=tensor<1x16x2x2xi1>,
+    // CHECK-SAME:                             storage_element_table=tensor<1x1x2x2xi32, {order = #NHWC}>,
+    // CHECK-SAME:                             #VPU.SEInterpolate<mode = "NEAREST", nearest_mode = "FLOOR", coordinate_transformation_mode = "ASYMMETRIC",
+    // CHECK-SAME:                                                scale = [1.000000e+00, 1.000000e+00, 2.000000e+00, 2.000000e+00], offsets = [0, 0, 0, 0], sizes = [1, 16, 2, 2]>>)
+    // CHECK-SAME:           -> !VPU.SparseTensor<data=!VPU.DistributedTensor<1x16x1x1xf16, #NHWC, @CMX_NN, {mode = "DUPLICATED", num_clusters = 4 : i64, alignment = [1, 16, 1, 1]}>,
+    // CHECK-SAME:                                sparsity_map=!VPU.DistributedTensor<1x16x2x2xi1, #NCHW, @CMX_NN, {mode = "DUPLICATED", num_clusters = 4 : i64, alignment = [1, 16, 1, 1]}>,
+    // CHECK-SAME:                                storage_element_table=!VPU.DistributedTensor<1x1x2x2xi32, #NHWC, @CMX_NN, {mode = "DUPLICATED", num_clusters = 4 : i64, alignment = [1, 1, 1, 1]}>,
+    // CHECK-SAME:                                #VPU.SEInterpolate<mode = "NEAREST", nearest_mode = "FLOOR", coordinate_transformation_mode = "ASYMMETRIC",
+    // CHECK-SAME:                                                   scale = [1.000000e+00, 1.000000e+00, 2.000000e+00, 2.000000e+00], offsets = [0, 0, 0, 0], sizes = [1, 16, 2, 2]>> {
+    // CHECK:            [[RES0:%.*]] = VPU.Copy([[INNER_ARG0]]) {out_mem_space = @CMX_NN}
+    // CHECK:            VPU.Yield [[RES0]]
+    // CHECK:        }
+
+    // CHECK:        [[WEIGHTS_CMX:%.*]] = VPU.NCE.ClusterTiling ([[WEIGHTS]] as [[INNER_ARG0:[^:]+]]: tensor<16x16x1x1xf16, {order = #NHWC}>)
+    // CHECK-SAME:   -> !VPU.DistributedTensor<16x16x1x1xf16, #NHWC, @CMX_NN, {mode = "DUPLICATED", num_clusters = 4 : i64, alignment = [16, 1, 1, 1]}> {
+    // CHECK:            [[RES1:%.*]] = VPU.Copy([[INNER_ARG0]]) {out_mem_space = @CMX_NN}
+    // CHECK:            VPU.Yield [[RES1]]
+    // CHECK:        }
+
+    // CHECK:        [[WEIGHTSTABLE_CMX:%.*]] = VPU.NCE.ClusterTiling ([[WEIGHTSTABLE]] as [[INNER_ARG0:[^:]+]]: tensor<16x1x1x4xsi32>)
+    // CHECK-SAME:   -> !VPU.DistributedTensor<16x1x1x4xsi32, #NCHW, @CMX_NN, {mode = "DUPLICATED", num_clusters = 4 : i64, alignment = [16, 1, 1, 1]}> {
+    // CHECK:            [[RES2:%.*]] = VPU.Copy([[INNER_ARG0]]) {out_mem_space = @CMX_NN}
+    // CHECK:            VPU.Yield [[RES2]]
+    // CHECK:        }
+
+    // CHECK:        [[OUT_CMX:%.*]] = VPU.NCE.ClusterTiling (
+    // CHECK-SAME:             [[INPUT_CMX]] as [[INNER_ARG0:[^:]+]]: !VPU.SparseTensor<data=tensor<1x16x1x1xf16, {mem_space = @CMX_NN, order = #NHWC}>,
+    // CHECK-SAME:                                                                      sparsity_map=tensor<1x16x2x2xi1, {mem_space = @CMX_NN, order = #NCHW}>,
+    // CHECK-SAME:                                                                      storage_element_table=tensor<1x1x2x2xi32, {mem_space = @CMX_NN, order = #NHWC}>,
+    // CHECK-SAME:                                                                      #VPU.SEInterpolate<mode = "NEAREST", nearest_mode = "FLOOR", coordinate_transformation_mode = "ASYMMETRIC",
+    // CHECK-SAME:                                                                                         scale = [1.000000e+00, 1.000000e+00, 2.000000e+00, 2.000000e+00],
+    // CHECK-SAME:                                                                                         offsets = [0, 0, 0, 0], sizes = [1, 16, 2, 2]>>,
+    // CHECK-SAME:             [[WEIGHTS_CMX]] as [[INNER_ARG1:[^:]+]]: tensor<16x16x1x1xf16, {mem_space = @CMX_NN, order = #NHWC}>,
+    // CHECK-SAME:             [[WEIGHTSTABLE_CMX]] as [[INNER_ARG2:[^:]+]]: tensor<16x1x1x4xsi32, {mem_space = @CMX_NN, order = #NCHW}>)
+    // CHECK-SAME:   -> !VPU.DistributedTensor<1x16x2x2xf16, #NHWC, @CMX_NN, {mode = "DUPLICATED", num_clusters = 4 : i64, alignment = [1, 16, 1, 1]}> {
+    // CHECK:            [[RES3:%.*]] = VPU.NCE.Interpolate([[INNER_ARG0]], [[INNER_ARG1]], [[INNER_ARG2]])
+    // CHECK-SAME:           mode = "NEAREST",
+    // CHECK-SAME:           ppe = {clamp_high = 2147483647 : i64, clamp_low = 0 : i64, lrelu_mult = 1 : i64, lrelu_shift = 0 : i64, mode = "NOOP"},
+    // CHECK-SAME:           rawFilterShape = [16, 16, 1, 1],
+    // CHECK-SAME:           scales_attr = [2, 2]
+    // CHECK-SAME:           } -> tensor<1x16x2x2xf16, {mem_space = @CMX_NN, order = #NHWC}>
+    // CHECK:            VPU.Yield [[RES3]]
+    // CHECK:        }
+
+    // CHECK:        [[OUT:%.*]] = VPU.NCE.ClusterTiling ([[OUT_CMX]] as [[INNER_ARG0:[^:]+]]: tensor<1x16x2x2xf16, {mem_space = @CMX_NN, order = #NHWC}>) -> tensor<1x16x2x2xf16, {order = #NHWC}> {
+    // CHECK:            [[RES4:%.*]] = VPU.Copy([[INNER_ARG0]])
+    // CHECK:            VPU.Yield [[RES4]]
+    // CHECK:        }
+
+    // CHECK:        return [[OUT]] : tensor<1x16x2x2xf16, {order = #NHWC}>
+}
+
+// -----
+
+#NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
+
+// CHECK-LABEL: @NCEInterpolateToNCEClusterTilingSOK
+func.func @NCEInterpolateToNCEClusterTilingSOK(%arg0: tensor<1x64x5x10xf16, {order = #NHWC}>) -> tensor<1x64x10x20xf16, {order = #NHWC}> {
+    %weights = const.Declare tensor<64x64x1x1xf16, {order = #NHWC}> = dense<1.0> : tensor<64x64x1x1xf16>, [#const.Reorder<#NHWC>]
+    %weights_table = const.Declare tensor<64x1x1x4xsi32> = dense<1> : tensor<64x1x1x4xsi32>
+    %sparsity_map = const.Declare tensor<1x64x10x20xi1> = dense<1> : tensor<1x64x10x20xi1>
+
+    %storage_element = VPU.StorageElementTable {dataElemType = i32, seDepth = 1, seSize = 64, dataShape = [1, 64, 5, 10],
+        seAttr = #VPU.SEInterpolate<mode = "NEAREST", nearest_mode = "FLOOR", coordinate_transformation_mode = "ASYMMETRIC",
+                                    scale = [1.0, 1.0, 2.0, 2.0], offsets = [0, 0, 0, 0], sizes = [1, 64, 10, 20]>
+    } -> tensor<1x1x10x20xi32, {order = #NHWC}>
+
+    %input = VPU.GroupSparseTensor(%arg0, %sparsity_map, %storage_element) {
+        seAttr = #VPU.SEInterpolate<
+            mode = "NEAREST",
+            nearest_mode = "FLOOR",
+            coordinate_transformation_mode = "ASYMMETRIC",
+            scale = [1.0, 1.0, 2.0, 2.0],
+            offsets = [0, 0, 0, 0],
+            sizes = [1, 64, 10, 20]>
+    } -> !VPU.SparseTensor<data=tensor<1x64x5x10xf16, {order = #NHWC}>,
+                           sparsity_map=tensor<1x64x10x20xi1>,
+                           storage_element_table=tensor<1x1x10x20xi32, {order = #NHWC}>,
+                           #VPU.SEInterpolate<mode = "NEAREST", nearest_mode = "FLOOR", coordinate_transformation_mode = "ASYMMETRIC",
+                                              scale = [1.0, 1.0, 2.0, 2.0], offsets = [0, 0, 0, 0], sizes = [1, 64, 10, 20]>>
+
+    %interpolate = VPU.NCE.Interpolate(%input, %weights, %weights_table) {
+        rawFilterShape = [64, 64, 1, 1],
+        mode = "NEAREST",
+        multiClusterStrategy = "SplitOverKernel",
+        scales_attr = [2, 2],
+        ppe = {clamp_high = 2147483647, clamp_low = 0, lrelu_mult = 1, lrelu_shift = 0, mode = "NOOP"}
+    } -> tensor<1x64x10x20xf16, {order = #NHWC}>
+
+    return %interpolate : tensor<1x64x10x20xf16, {order = #NHWC}>
+
+    // CHECK-DAG:    [[WEIGHTS:%.*]] = const.Declare tensor<64x64x1x1xf16, {order = #NHWC}> = dense<1.000000e+00> : tensor<64x64x1x1xf16>, [#const.Reorder<#NHWC>]
+    // CHECK-DAG:    [[WEIGHTSTABLE:%.*]] = const.Declare tensor<64x1x1x4xsi32> = dense<1> : tensor<64x1x1x4xsi32>
+
+    // CHECK-DAG:    [[INPUT_SM:%.*]] = const.Declare tensor<1x64x10x20xi1> = dense<true> : tensor<1x64x10x20xi1>
+    // CHECK:        [[INPUT_SE:%.*]] = VPU.StorageElementTable {dataElemType = i32, dataShape = [1, 64, 5, 10],
+    // CHECK-SAME:       seAttr = #VPU.SEInterpolate<mode = "NEAREST", nearest_mode = "FLOOR", coordinate_transformation_mode = "ASYMMETRIC",
+    // CHECK-SAME:                                   scale = [1.000000e+00, 1.000000e+00, 2.000000e+00, 2.000000e+00], offsets = [0, 0, 0, 0], sizes = [1, 64, 10, 20]>,
+    // CHECK-SAME:       seDepth = 1 : i64, seSize = 64 : i64}
+    // CHECK-SAME:       -> tensor<1x1x10x20xi32, {order = #NHWC}>
+    // CHECK:        [[INPUT_SPARSE:%.+]] = VPU.GroupSparseTensor(%arg0, [[INPUT_SM]], [[INPUT_SE]])
+    // CHECK:        [[INPUT_CMX:%.*]] = VPU.NCE.ClusterTiling ([[INPUT_SPARSE]] as [[INNER_ARG0:[^:]+]]:
+    // CHECK-SAME:           !VPU.SparseTensor<data=tensor<1x64x5x10xf16, {order = #NHWC}>,
+    // CHECK-SAME:                             sparsity_map=tensor<1x64x10x20xi1>,
+    // CHECK-SAME:                             storage_element_table=tensor<1x1x10x20xi32, {order = #NHWC}>,
+    // CHECK-SAME:                             #VPU.SEInterpolate<mode = "NEAREST", nearest_mode = "FLOOR", coordinate_transformation_mode = "ASYMMETRIC",
+    // CHECK-SAME:                                                scale = [1.000000e+00, 1.000000e+00, 2.000000e+00, 2.000000e+00], offsets = [0, 0, 0, 0], sizes = [1, 64, 10, 20]>>)
+    // CHECK-SAME:           -> !VPU.SparseTensor<data=!VPU.DistributedTensor<1x64x5x10xf16, #NHWC, @CMX_NN, {mode = "DUPLICATED", num_clusters = 4 : i64, alignment = [1, 16, 1, 1]}>,
+    // CHECK-SAME:                                sparsity_map=!VPU.DistributedTensor<1x64x10x20xi1, #NCHW, @CMX_NN, {mode = "DUPLICATED", num_clusters = 4 : i64, alignment = [1, 16, 1, 1]}>,
+    // CHECK-SAME:                                storage_element_table=!VPU.DistributedTensor<1x1x10x20xi32, #NHWC, @CMX_NN, {mode = "DUPLICATED", num_clusters = 4 : i64, alignment = [1, 1, 1, 1]}>,
+    // CHECK-SAME:                                #VPU.SEInterpolate<mode = "NEAREST", nearest_mode = "FLOOR", coordinate_transformation_mode = "ASYMMETRIC",
+    // CHECK-SAME:                                                   scale = [1.000000e+00, 1.000000e+00, 2.000000e+00, 2.000000e+00], offsets = [0, 0, 0, 0], sizes = [1, 64, 10, 20]>> {
+    // CHECK:            [[RES0:%.*]] = VPU.Copy([[INNER_ARG0]]) {out_mem_space = @CMX_NN}
+    // CHECK:            VPU.Yield [[RES0]]
+    // CHECK:        }
+
+    // CHECK:        [[WEIGHTS_CMX:%.*]] = VPU.NCE.ClusterTiling ([[WEIGHTS]] as [[INNER_ARG0:[^:]+]]: tensor<64x64x1x1xf16, {order = #NHWC}>)
+    // CHECK-SAME:   -> !VPU.DistributedTensor<64x64x1x1xf16, #NHWC, @CMX_NN, {mode = "SEGMENTED", num_tiles = [4, 1, 1, 1], num_clusters = 4 : i64, alignment = [16, 1, 1, 1]}> {
+    // CHECK:            [[RES1:%.*]] = VPU.Copy([[INNER_ARG0]]) {out_mem_space = @CMX_NN}
+    // CHECK:            VPU.Yield [[RES1]]
+    // CHECK:        }
+
+    // CHECK:        [[WEIGHTSTABLE_CMX:%.*]] = VPU.NCE.ClusterTiling ([[WEIGHTSTABLE]] as [[INNER_ARG0:[^:]+]]: tensor<64x1x1x4xsi32>)
+    // CHECK-SAME:   -> !VPU.DistributedTensor<64x1x1x4xsi32, #NCHW, @CMX_NN, {mode = "SEGMENTED", num_tiles = [4, 1, 1, 1], num_clusters = 4 : i64, alignment = [16, 1, 1, 1]}> {
+    // CHECK:            [[RES2:%.*]] = VPU.Copy([[INNER_ARG0]]) {out_mem_space = @CMX_NN}
+    // CHECK:            VPU.Yield [[RES2]]
+    // CHECK:        }
+
+    // CHECK:        [[OUT_CMX:%.*]] = VPU.NCE.ClusterTiling (
+    // CHECK-SAME:             [[INPUT_CMX]] as [[INNER_ARG0:[^:]+]]: !VPU.SparseTensor<data=tensor<1x64x5x10xf16, {mem_space = @CMX_NN, order = #NHWC}>,
+    // CHECK-SAME:                                                                      sparsity_map=tensor<1x64x10x20xi1, {mem_space = @CMX_NN, order = #NCHW}>,
+    // CHECK-SAME:                                                                      storage_element_table=tensor<1x1x10x20xi32, {mem_space = @CMX_NN, order = #NHWC}>,
+    // CHECK-SAME:                                                                      #VPU.SEInterpolate<mode = "NEAREST", nearest_mode = "FLOOR", coordinate_transformation_mode = "ASYMMETRIC",
+    // CHECK-SAME:                                                                                         scale = [1.000000e+00, 1.000000e+00, 2.000000e+00, 2.000000e+00],
+    // CHECK-SAME:                                                                                         offsets = [0, 0, 0, 0], sizes = [1, 64, 10, 20]>>,
+    // CHECK-SAME:             [[WEIGHTS_CMX]] as [[INNER_ARG1:[^:]+]]: tensor<64x64x1x1xf16, {mem_space = @CMX_NN, order = #NHWC}>,
+    // CHECK-SAME:             [[WEIGHTSTABLE_CMX]] as [[INNER_ARG2:[^:]+]]: tensor<64x1x1x4xsi32, {mem_space = @CMX_NN, order = #NCHW}>)
+    // CHECK-SAME:   -> !VPU.DistributedTensor<1x64x10x20xf16, #NHWC, @CMX_NN, {mode = "DUPLICATED|SEGMENTED", num_tiles = [1, 4, 1, 1], num_clusters = 4 : i64, alignment = [1, 16, 1, 1]}> {
+    // CHECK:            [[RES3:%.*]] = VPU.NCE.Interpolate([[INNER_ARG0]], [[INNER_ARG1]], [[INNER_ARG2]])
+    // CHECK-SAME:           mode = "NEAREST",
+    // CHECK-SAME:           ppe = {clamp_high = 2147483647 : i64, clamp_low = 0 : i64, lrelu_mult = 1 : i64, lrelu_shift = 0 : i64, mode = "NOOP"},
+    // CHECK-SAME:           rawFilterShape = [64, 64, 1, 1],
+    // CHECK-SAME:           scales_attr = [2, 2]
+    // CHECK-SAME:           } -> tensor<1x64x10x20xf16, {mem_space = @CMX_NN, order = #NHWC}>
+    // CHECK:            VPU.Yield [[RES3]]
+    // CHECK:        }
+
+    // CHECK:        [[OUT:%.*]] = VPU.NCE.ClusterTiling ([[OUT_CMX]] as [[INNER_ARG0:[^:]+]]: tensor<1x64x10x20xf16, {mem_space = @CMX_NN, order = #NHWC}>) -> tensor<1x64x10x20xf16, {order = #NHWC}> {
+    // CHECK:            [[RES4:%.*]] = VPU.Copy([[INNER_ARG0]])
+    // CHECK:            VPU.Yield [[RES4]]
+    // CHECK:        }
+
+    // CHECK:        return [[OUT]] : tensor<1x64x10x20xf16, {order = #NHWC}>
 }

@@ -15,7 +15,7 @@ using namespace vpux;
 namespace {
 
 // Create an explicit DeclareBuffer operand for the NCE weights operand to maintain the dense type
-void setDenseWeightsOperandType(mlir::FuncOp func) {
+void setDenseWeightsOperandType(mlir::func::FuncOp func) {
     func.walk([&](VPUIP::NCEClusterTaskOp nceOp) {
         if (nceOp.weights() == nullptr) {
             return;
@@ -38,7 +38,7 @@ void setDenseWeightsOperandType(mlir::FuncOp func) {
 }
 
 // Enable the compression flag for the Sparsify transformation in order to flatten the constant's output type
-void compressConstWeightsType(mlir::FuncOp func) {
+void compressConstWeightsType(mlir::func::FuncOp func) {
     auto ctx = func.getContext();
 
     func.walk([&](Const::DeclareOp constOp) {
@@ -84,13 +84,14 @@ void compressConstWeightsType(mlir::FuncOp func) {
 }
 
 // Flatten the operand and result types of all operations, when the types contain a compression scheme
-void flattenShapes(mlir::FuncOp func) {
+void flattenShapes(mlir::func::FuncOp func) {
     const auto eraseCompressionScheme = [](vpux::NDTypeInterface type) -> mlir::Type {
         if (auto memrefType = type.dyn_cast<mlir::MemRefType>()) {
             auto layout = memrefType.getLayout();
             if (auto memrefAttr = layout.dyn_cast<VPUIP::MemRefAttr>()) {
                 layout = VPUIP::MemRefAttr::get(memrefAttr.order(), memrefAttr.strides(), memrefAttr.swizzlingScheme(),
-                                                /*compressionScheme=*/nullptr, memrefAttr.getContext());
+                                                /*compressionScheme=*/nullptr, /*allocSize=*/nullptr,
+                                                memrefAttr.getContext());
             }
             return mlir::MemRefType::get(memrefType.getShape(), memrefType.getElementType(), layout,
                                          memrefType.getMemorySpace());
@@ -158,7 +159,7 @@ private:
 };
 
 void FlattenSparseWeightsTypes::safeRunOnFunc() {
-    auto func = getFunction();
+    auto func = getOperation();
 
     setDenseWeightsOperandType(func);
     compressConstWeightsType(func);

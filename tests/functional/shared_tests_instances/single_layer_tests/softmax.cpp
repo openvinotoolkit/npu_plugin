@@ -1,123 +1,160 @@
 //
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "single_layer_tests/softmax.hpp"
-
+#include <algorithm>
 #include <vector>
-
 #include "vpux_layer_test.hpp"
 
-namespace ov {
-namespace test {
-namespace subgraph {
+namespace ov::test::subgraph {
 
-using namespace VPUXLayerTestsUtils;
+class VPUXSoftMaxLayerTest : public SoftMaxLayerTest, virtual public VPUXLayerTest {};
 
-class VPUXSoftMaxLayerTest : public SoftMaxLayerTest, virtual public VPUXLayerTestsCommon {
-    SkipMessage SkipBeforeLoad() override {
-        return vpux::None;
-    }
-};
-class VPUXSoftMaxLayerTest_VPU3720 : public SoftMaxLayerTest, virtual public VPUXLayerTestsCommon {};
-
-class VPUXSoftMaxTilingTest_VPU3720 : public VPUXSoftMaxLayerTest {};
-
-TEST_P(VPUXSoftMaxLayerTest, MLIR) {
+TEST_P(VPUXSoftMaxLayerTest, VPU3700_SW) {
     abs_threshold = 1e-3;
-    useCompilerMLIR();
-    run();
+    setReferenceSoftwareMode();
+    run(VPUXPlatform::VPU3700);
 }
 
-TEST_P(VPUXSoftMaxLayerTest_VPU3720, CompareWithRefs_MLIR_VPU3720) {
+TEST_P(VPUXSoftMaxLayerTest, VPU3700_HW) {
     abs_threshold = 1e-3;
-    useCompilerMLIR();
-    setPlatformVPU3720();
-    setDefaultHardwareModeMLIR();
-    run();
+    setDefaultHardwareMode();
+    run(VPUXPlatform::VPU3700);
 }
 
-TEST_P(VPUXSoftMaxTilingTest_VPU3720, MLIR_VPU3720) {
+TEST_P(VPUXSoftMaxLayerTest, VPU3720_SW) {
+    setSkipInferenceCallback([](std::stringstream& skip) {
+        const InputShape& inShape = std::get<3>(GetParam());
+        const auto isStatic = inShape.first.is_static();
+        if (!isStatic) {
+            return;
+        }
+
+        const auto failingShapes = std::vector<ov::Shape>{{10, 10}, {32, 76}, {1, 20, 64, 512}};
+        const auto& staticShapes = inShape.second;
+        for (const auto& badShape : failingShapes) {
+            const auto shapeEqual = [&](const ov::Shape& shape) {
+                return shape.size() == badShape.size() && std::equal(shape.begin(), shape.end(), badShape.begin());
+            };
+
+            if (std::any_of(staticShapes.begin(), staticShapes.end(), shapeEqual)) {
+                skip << "Bad shape";
+                return;
+            }
+        }
+    });
+
     abs_threshold = 1e-3;
-    useCompilerMLIR();
-    setPlatformVPU3720();
-    setDefaultHardwareModeMLIR();
-    run();
+    setReferenceSoftwareMode();
+    run(VPUXPlatform::VPU3720);
 }
+
+TEST_P(VPUXSoftMaxLayerTest, VPU3720_HW) {
+    setSkipInferenceCallback([](std::stringstream& skip) {
+        const InputShape& inShape = std::get<3>(GetParam());
+        const auto isStatic = inShape.first.is_static();
+        if (!isStatic) {
+            return;
+        }
+
+        const auto failingShapes = std::vector<ov::Shape>{{10, 10}, {32, 76}, {1, 20, 64, 512}};
+        const auto& staticShapes = inShape.second;
+        for (const auto& badShape : failingShapes) {
+            const auto shapeEqual = [&](const ov::Shape& shape) {
+                return shape.size() == badShape.size() && std::equal(shape.begin(), shape.end(), badShape.begin());
+            };
+
+            if (std::any_of(staticShapes.begin(), staticShapes.end(), shapeEqual)) {
+                skip << "Bad shape";
+                return;
+            }
+        }
+    });
+
+    abs_threshold = 1e-3;
+    setDefaultHardwareMode();
+    run(VPUXPlatform::VPU3720);
+}
+
+}  // namespace ov::test::subgraph
+
+namespace {
+
+using namespace ov::test::subgraph;
 
 const std::vector<ov::test::ElementType> netPrecisions = {
         ov::element::f16,
 };
 
-const std::vector<InferenceEngine::Layout> inLayouts2D = {
-        InferenceEngine::Layout::NC,
+const std::vector<ov::test::ElementType> inputPrecisions = {
+        ov::element::f16,
 };
 
+const std::vector<ov::test::ElementType> outputPrecisions = {
+        ov::element::f16,
+};
+
+//
+// Input 2D
+//
+
 const std::vector<ov::Shape> inShapes2D = {
-        {1, 100},
-        {100, 1},
-        {10, 10},
+        {1, 100}, {100, 1}, {10, 10}, {32, 76}, {72, 2},
 };
 
 const std::vector<size_t> axis2D = {0, 1};
 
-const std::vector<ElementType> inputPrecisions = {
-        ov::element::f16,
-};
-
-const std::vector<ElementType> outputPrecisions = {
-        ov::element::f16,
-};
-
 const auto params2D = testing::Combine(
         testing::ValuesIn(netPrecisions), testing::ValuesIn(inputPrecisions), testing::ValuesIn(outputPrecisions),
         testing::ValuesIn(ov::test::static_shapes_to_test_representation(inShapes2D)), testing::ValuesIn(axis2D),
-        testing::Values(testPlatformTargetDevice), testing::Values(Config{}));
+        testing::Values(targetDevice), testing::Values(ov::test::Config{}));
 
-INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_SoftMax2D, VPUXSoftMaxLayerTest, params2D,
-                        SoftMaxLayerTest::getTestCaseName);
-INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_SoftMax2D, VPUXSoftMaxLayerTest_VPU3720, params2D,
-                        SoftMaxLayerTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_SoftMax2D, VPUXSoftMaxLayerTest, params2D, SoftMaxLayerTest::getTestCaseName);
 
-const std::vector<ov::Shape> inShapes4D = {
-        {1, 2, 204, 62}, {1, 12, 2, 1444}, {1, 4, 1, 1}, {1, 1000, 1, 1}, {300, 21, 1, 1}};
+//
+// Input 3D
+//
+
+const std::vector<ov::Shape> inShapes3D = {{1, 4300, 2}, {8, 182, 182}};
+
+const std::vector<size_t> axis3D = {2};
+
+const auto params2DCasses = testing::Combine(
+        testing::ValuesIn(netPrecisions), testing::ValuesIn(inputPrecisions), testing::ValuesIn(outputPrecisions),
+        testing::ValuesIn(ov::test::static_shapes_to_test_representation(inShapes3D)), testing::ValuesIn(axis3D),
+        testing::Values(targetDevice), testing::Values(ov::test::Config{}));
+
+INSTANTIATE_TEST_CASE_P(smoke_SoftMax2DCasses, VPUXSoftMaxLayerTest, params2DCasses, SoftMaxLayerTest::getTestCaseName);
+
+//
+// Input 4D
+//
+
+const std::vector<ov::Shape> inShapes4D = {{1, 2, 108, 60}, {1, 12, 2, 148}, {1, 4, 1, 1},
+                                           {1, 100, 1, 1},  {300, 21, 1, 1}, {1, 2, 48, 2}};
 
 const std::vector<size_t> axis4D = {0, 1, 2, 3};
 
 const auto params4D = testing::Combine(
         testing::ValuesIn(netPrecisions), testing::ValuesIn(inputPrecisions), testing::ValuesIn(outputPrecisions),
         testing::ValuesIn(ov::test::static_shapes_to_test_representation(inShapes4D)), testing::ValuesIn(axis4D),
-        testing::Values(testPlatformTargetDevice), testing::Values(ov::AnyMap()));
+        testing::Values(targetDevice), testing::Values(ov::test::Config{}));
 
-INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_SoftMax4D, VPUXSoftMaxLayerTest, params4D,
-                        SoftMaxLayerTest::getTestCaseName);
-INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_SoftMax4D, VPUXSoftMaxLayerTest_VPU3720, params4D,
-                        SoftMaxLayerTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_SoftMax4D, VPUXSoftMaxLayerTest, params4D, SoftMaxLayerTest::getTestCaseName);
 
 const auto precommit_params4D = testing::Combine(
         testing::ValuesIn(netPrecisions), testing::ValuesIn(inputPrecisions), testing::ValuesIn(outputPrecisions),
         testing::ValuesIn(ov::test::static_shapes_to_test_representation({{1, 2, 72, 10}})), testing::ValuesIn(axis4D),
-        testing::Values(testPlatformTargetDevice), testing::Values(ov::AnyMap()));
+        testing::Values(targetDevice), testing::Values(ov::test::Config{}));
 
-INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_precommit_SoftMax4D, VPUXSoftMaxLayerTest, precommit_params4D,
-                        SoftMaxLayerTest::getTestCaseName);
-INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_precommit_SoftMax4D, VPUXSoftMaxLayerTest_VPU3720, precommit_params4D,
+INSTANTIATE_TEST_CASE_P(smoke_precommit_SoftMax4D, VPUXSoftMaxLayerTest, precommit_params4D,
                         SoftMaxLayerTest::getTestCaseName);
 
-const std::vector<ov::Shape> inShapes2DCasses = {{32, 76}, {16800, 2}};
-
-const std::vector<size_t> axis2DCasses = {1};
-
-const auto params2DCasses = testing::Combine(
-        testing::ValuesIn(netPrecisions), testing::ValuesIn(inputPrecisions), testing::ValuesIn(outputPrecisions),
-        testing::ValuesIn(ov::test::static_shapes_to_test_representation(inShapes2DCasses)),
-        testing::ValuesIn(axis2DCasses), testing::Values(testPlatformTargetDevice), testing::Values(Config{}));
-
-INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_SoftMax2DCasses, VPUXSoftMaxLayerTest_VPU3720, params2DCasses,
-                        SoftMaxLayerTest::getTestCaseName);
-
-// ------ Test tiling functionality ------
+//
+// Test tiling functionality
+//
 
 const std::vector<ov::Shape> inShapes = {{1, 20, 64, 512}};
 const std::vector<size_t> axis = {1};
@@ -125,11 +162,9 @@ const std::vector<size_t> axis = {1};
 const auto paramsTilingCasesVPU3720 = testing::Combine(
         testing::ValuesIn(netPrecisions), testing::ValuesIn(inputPrecisions), testing::ValuesIn(outputPrecisions),
         testing::ValuesIn(ov::test::static_shapes_to_test_representation(inShapes)), testing::ValuesIn(axis),
-        testing::Values(testPlatformTargetDevice), testing::Values(ov::AnyMap()));
+        testing::Values(targetDevice), testing::Values(ov::test::Config{}));
 
-INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_TilingSoftMax, VPUXSoftMaxTilingTest_VPU3720, paramsTilingCasesVPU3720,
+INSTANTIATE_TEST_CASE_P(smoke_TilingSoftMax, VPUXSoftMaxLayerTest, paramsTilingCasesVPU3720,
                         SoftMaxLayerTest::getTestCaseName);
 
-}  // namespace subgraph
-}  // namespace test
-}  // namespace ov
+}  // namespace

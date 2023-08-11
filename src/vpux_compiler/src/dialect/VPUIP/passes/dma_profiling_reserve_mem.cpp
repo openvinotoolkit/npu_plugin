@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/IE/utils/resources.hpp"
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
 #include "vpux/compiler/dialect/VPUIP/utils.hpp"
@@ -40,11 +38,9 @@ void DMATaskProfilingReserveMemPass::safeRunOnModule() {
 
     auto memSpaceAttr = mlir::SymbolRefAttr::get(ctx, stringifyEnum(VPU::MemoryKind::CMX_NN));
 
-    _log.trace("DMA profiling reserved memory - offset: '{0}', size: '{1}'",
-               VPUIP::HW_DMA_PROFILING_RESERVED_MEM_OFFSET, VPUIP::HW_DMA_PROFILING_MAX_BUFFER_SIZE);
+    _log.trace("DMA profiling reserved memory - size: '{0}'", VPUIP::HW_DMA_PROFILING_MAX_BUFFER_SIZE);
 
-    IE::setDmaProfilingReservedMemory(module, memSpaceAttr, VPUIP::HW_DMA_PROFILING_MAX_BUFFER_SIZE,
-                                      VPUIP::HW_DMA_PROFILING_RESERVED_MEM_OFFSET);
+    IE::setDmaProfilingReservedMemory(module, memSpaceAttr, VPUIP::HW_DMA_PROFILING_MAX_BUFFER_SIZE);
 }
 
 }  // namespace

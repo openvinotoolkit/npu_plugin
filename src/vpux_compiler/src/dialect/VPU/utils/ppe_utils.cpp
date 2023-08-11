@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/VPU/utils/ppe_utils.hpp"
 
 #include <numeric>
@@ -28,7 +26,7 @@ double calculateQuantScaleVectorForEltwise(vpux::NDTypeInterface input1ShapedTyp
     // In case of fully not quantized operation return
     if (!input1ElementType.isa<mlir::quant::QuantizedType>() && !input2ElementType.isa<mlir::quant::QuantizedType>() &&
         !outputElementType.isa<mlir::quant::QuantizedType>()) {
-        return {1.0};
+        return 1.0;
     }
 
     VPUX_THROW_WHEN(input1ElementType.isa<mlir::quant::UniformQuantizedPerAxisType>() ||
@@ -43,7 +41,7 @@ double calculateQuantScaleVectorForEltwise(vpux::NDTypeInterface input1ShapedTyp
     // In order to convert from I32 to S16.16 and back, we need to multiply/divide by 1<<16
     // Depends on target hardware
     const double fp16_scale =
-            (arch == VPU::ArchKind::VPUX30XX || arch == VPU::ArchKind::VPUX311X) ? (1.0 / 65536) : (1.0);
+            (VPU::ArchKind::VPUX37XX == arch) ? (1.0) : (1.0 / 65536);
 
     if (!input1ElementType.isa<mlir::quant::QuantizedType>() && !input2ElementType.isa<mlir::quant::QuantizedType>()) {
         scaleOutput = extractScalesAndZeroPoints(outputElementType).first.front();
@@ -69,7 +67,7 @@ double calculateQuantScaleVectorForEltwise(vpux::NDTypeInterface input1ShapedTyp
         ppeScale = scaleInput1 / scaleOutput;
     }
 
-    return {ppeScale};
+    return ppeScale;
 }
 
 double calculateQuantScaleVectorForAvgPool(vpux::NDTypeInterface inputShapedType,
@@ -82,7 +80,7 @@ double calculateQuantScaleVectorForAvgPool(vpux::NDTypeInterface inputShapedType
 
     // In case of fully not quantized operation return
     if (!inputElementType.isa<mlir::quant::QuantizedType>() && !outputElementType.isa<mlir::quant::QuantizedType>()) {
-        return {1.0 / divisor};
+        return 1.0 / divisor;
     }
 
     VPUX_THROW_WHEN(inputElementType.isa<mlir::quant::UniformQuantizedPerAxisType>() ||
@@ -93,7 +91,7 @@ double calculateQuantScaleVectorForAvgPool(vpux::NDTypeInterface inputShapedType
     // In order to convert from I32 to S16.16 and back, we need to multiply/divide by 1<<16
     // Depends on target hardware
     const double fp16_scale =
-            (arch == VPU::ArchKind::VPUX30XX || arch == VPU::ArchKind::VPUX311X) ? (1.0 / 65536) : (1.0);
+            (VPU::ArchKind::VPUX37XX == arch) ? (1.0) : (1.0 / 65536);
 
     auto scaleInput = fp16_scale;
     auto scaleOutput = fp16_scale;
@@ -106,7 +104,7 @@ double calculateQuantScaleVectorForAvgPool(vpux::NDTypeInterface inputShapedType
 
     VPUX_THROW_UNLESS(scaleInput != 0, "Invalid input scale value '0'");
     VPUX_THROW_UNLESS(scaleOutput != 0, "Invalid output scale value '0'");
-    return {scaleInput / scaleOutput / divisor};
+    return scaleInput / scaleOutput / divisor;
 }
 
 VPU::PPETaskAttr getPPEAttr(VPU::PostOpParams postOpParams, mlir::MLIRContext* ctx) {
@@ -173,7 +171,7 @@ VPU::PPETaskAttr getNCEAveragePoolPPETaskAttr(vpux::NDTypeInterface inputType, m
     // Input datatype entirely decides the precision of the compute pipeline.
     // Since VPU3720 we have a separation for float and integer compute pipelines
     // so it's best to make use of the correct pipeline.
-    if ((arch != VPU::ArchKind::VPUX30XX && arch != VPU::ArchKind::VPUX311X) &&
+    if ((VPU::ArchKind::VPUX37XX == arch) &&
         !inputElemType.isa<mlir::quant::QuantizedType>()) {
         ppeAttr =
                 getPPETaskAttr(ctx, ppeType, clampLow, clampHigh, LreluMult, LreluShift, ArrayRef<double>{quantScale});
@@ -220,7 +218,6 @@ VPU::PPETaskAttr getNCEEltwisePPETaskAttr(vpux::NDTypeInterface input1Type, vpux
     }
 
     VPU::PPEMode ppeType = VPU::getPPEMode(opType);
-    VPU::PPETaskAttr ppeAttr;
     // Since Eltwise operation doesn't have weights table it requires final quantization scaling
     // to be part of output tensor description. Scale vector will be placed in PPE block and
     // later used during NCE task serialization
@@ -348,7 +345,7 @@ llvm::Optional<VPU::PostOpParams> parsePostOp(IE::PostOp postOp, const mlir::Typ
         return PostOpParams{VPU::PPEMode::NOOP, clampLow, clampHigh, LreluMult, LreluShift};
     } else if (postOp.name().getValue() == IE::LeakyReluOp::getOperationName()) {
         // PWL case
-        if ((arch == VPU::ArchKind::VPUX30XX || arch == VPU::ArchKind::VPUX311X) && outElemQType != nullptr) {
+        if (arch != VPU::ArchKind::VPUX37XX && outElemQType != nullptr) {
             return getCustomPwlPostOpParams(postOp, outElemType);
         }
 
@@ -387,7 +384,7 @@ llvm::Optional<VPU::PostOpParams> parsePostOp(IE::PostOp postOp, const mlir::Typ
 }
 
 bool supportsPerInputEltwiseScale(const VPU::ArchKind arch) {
-    return arch != VPU::ArchKind::VPUX30XX && arch != VPU::ArchKind::VPUX311X;
+    return arch == VPU::ArchKind::VPUX37XX;
 }
 
 }  // namespace VPU

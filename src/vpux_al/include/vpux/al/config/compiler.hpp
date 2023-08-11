@@ -22,6 +22,7 @@ namespace InferenceEngine {
 namespace VPUXConfigParams {
 
 llvm::StringLiteral stringifyEnum(InferenceEngine::VPUXConfigParams::CompilerType val);
+llvm::StringLiteral stringifyEnum(InferenceEngine::VPUXConfigParams::ElfCompilerBackend val);
 
 }  // namespace VPUXConfigParams
 
@@ -202,24 +203,6 @@ struct DMA_ENGINES final : OptionBase<DMA_ENGINES, int64_t> {
 };
 
 //
-// CUSTOM_LAYERS
-//
-
-struct CUSTOM_LAYERS final : OptionBase<CUSTOM_LAYERS, std::string> {
-    static StringRef key() {
-        return ov::intel_vpux::custom_layers.name();
-    }
-
-    static std::string defaultValue() {
-        return "";
-    }
-
-    static OptionMode mode() {
-        return OptionMode::CompileTime;
-    }
-};
-
-//
 // VPUX_FORCE_HOST_PRECISION_LAYOUT_CONVERSION
 //
 
@@ -280,7 +263,8 @@ struct FORCE_HOST_QUANTIZATION final : OptionBase<FORCE_HOST_QUANTIZATION, bool>
 // USE_ELF_COMPILER_BACKEND
 //
 
-struct USE_ELF_COMPILER_BACKEND final : OptionBase<USE_ELF_COMPILER_BACKEND, bool> {
+struct USE_ELF_COMPILER_BACKEND final :
+        OptionBase<USE_ELF_COMPILER_BACKEND, InferenceEngine::VPUXConfigParams::ElfCompilerBackend> {
     static StringRef key() {
         return ov::intel_vpux::use_elf_compiler_backend.name();
     }
@@ -291,9 +275,11 @@ struct USE_ELF_COMPILER_BACKEND final : OptionBase<USE_ELF_COMPILER_BACKEND, boo
     }
 #endif
 
-    static bool defaultValue() {
-        return true;
+    static InferenceEngine::VPUXConfigParams::ElfCompilerBackend defaultValue() {
+        return InferenceEngine::VPUXConfigParams::ElfCompilerBackend::YES;
     }
+
+    static InferenceEngine::VPUXConfigParams::ElfCompilerBackend parse(StringRef val);
 };
 
 }  // namespace vpux

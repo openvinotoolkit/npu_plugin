@@ -1,5 +1,5 @@
 //
-// Copyright (C) 2022 Intel Corporation.
+// Copyright (C) 2022-2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
 
@@ -16,7 +16,7 @@ using namespace ngraph;
 using namespace InferenceEngine;
 using namespace FuncTestUtils::PrecisionUtils;
 
-class KmbNmsLayerTest : public NmsLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
+class VPUXNmsLayerTest : public NmsLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
 private:
     void Compare(const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>>& expectedOutputs,
                  const std::vector<InferenceEngine::Blob::Ptr>& actualOutputs) override;
@@ -25,9 +25,10 @@ protected:
     void SetUp() override;
 };
 
-class KmbNmsLayerTest_VPU3720 : public KmbNmsLayerTest {};
+class VPUXNmsLayerTest_VPU3700 : public VPUXNmsLayerTest {};
+class VPUXNmsLayerTest_VPU3720 : public VPUXNmsLayerTest {};
 
-void KmbNmsLayerTest::SetUp() {
+void VPUXNmsLayerTest::SetUp() {
     InputShapeParams inShapeParams;
     InputPrecisions inPrecisions;
     size_t maxOutBoxesPerClass;
@@ -52,11 +53,11 @@ void KmbNmsLayerTest::SetUp() {
     auto nms = builder::makeNms(paramOuts[0], paramOuts[1], convertIE2nGraphPrc(maxBoxPrec),
                                 convertIE2nGraphPrc(thrPrec), maxOutBoxesPerClass, iouThr, scoreThr, softNmsSigma,
                                 boxEncoding == ov::op::v5::NonMaxSuppression::BoxEncodingType::CENTER, sortResDescend,
-                                outType);
+                                outType, ngraph::builder::NmsVersion::NmsVersion9);
     function = std::make_shared<Function>(nms, params, "NMS");
 }
 
-void KmbNmsLayerTest::Compare(
+void VPUXNmsLayerTest::Compare(
         const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>>& expectedOutputs,
         const std::vector<InferenceEngine::Blob::Ptr>& actualOutputs) {
     for (int outputIndex = static_cast<int>(expectedOutputs.size()) - 1; outputIndex >= 0; outputIndex--) {
@@ -130,15 +131,15 @@ void KmbNmsLayerTest::Compare(
     }
 }
 
-TEST_P(KmbNmsLayerTest_VPU3720, CompareWithRefs_MLIR_VPU3720) {
-    useCompilerMLIR();
+TEST_P(VPUXNmsLayerTest_VPU3720, HW) {
     setPlatformVPU3720();
     setDefaultHardwareModeMLIR();
     Run();
 }
 
-TEST_P(KmbNmsLayerTest, CompareWithRefs_MLIR) {
-    useCompilerMLIR();
+TEST_P(VPUXNmsLayerTest_VPU3700, HW) {
+    setPlatformVPU3700();
+    setDefaultHardwareModeMLIR();
     Run();
 }
 
@@ -184,8 +185,25 @@ const auto nmsParams = ::testing::Combine(
         ::testing::ValuesIn(sigmaThreshold), ::testing::ValuesIn(encodType), ::testing::ValuesIn(sortResDesc),
         ::testing::ValuesIn(outType), ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));
 
-INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_NmsLayerTest, KmbNmsLayerTest, nmsParams, NmsLayerTest::getTestCaseName);
-INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_NmsLayerTest, KmbNmsLayerTest_VPU3720, nmsParams,
+INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_NmsLayerTest, VPUXNmsLayerTest_VPU3700, nmsParams,
+                        NmsLayerTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_NmsLayerTest, VPUXNmsLayerTest_VPU3720, nmsParams,
                         NmsLayerTest::getTestCaseName);
 
+INSTANTIATE_TEST_CASE_P(
+        smoke_precommit_NmsLayerTest, VPUXNmsLayerTest_VPU3720,
+        testing::Combine(
+                testing::ValuesIn(std::vector<InputShapeParams>{InputShapeParams{2, 9, 12}}),
+                testing::Combine(
+                        testing::ValuesIn(std::vector<InferenceEngine::Precision>{InferenceEngine::Precision::FP32}),
+                        testing::ValuesIn(std::vector<InferenceEngine::Precision>{InferenceEngine::Precision::I32}),
+                        testing::ValuesIn(std::vector<InferenceEngine::Precision>{InferenceEngine::Precision::FP16})),
+                testing::ValuesIn(std::vector<int32_t>{5}), testing::ValuesIn(std::vector<float>{0.3f}),
+                testing::ValuesIn(std::vector<float>{0.3f}), testing::ValuesIn(std::vector<float>{0.0f}),
+                testing::ValuesIn(std::vector<op::v5::NonMaxSuppression::BoxEncodingType>{
+                        op::v5::NonMaxSuppression::BoxEncodingType::CORNER}),
+                testing::ValuesIn(std::vector<bool>{false}),
+                testing::ValuesIn(std::vector<element::Type>{element::i32}),
+                testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+        NmsLayerTest::getTestCaseName);
 }  // namespace

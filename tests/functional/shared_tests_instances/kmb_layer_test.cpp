@@ -14,17 +14,11 @@
 
 namespace LayerTestsUtils {
 
-const TargetDevice testPlatformTargetDevice = []() -> std::string {
-    if (const auto var = std::getenv("IE_KMB_TESTS_DEVICE_NAME")) {
-        return var;
-    }
+const KmbTestEnvConfig& KmbLayerTestsCommon::envConfig = KmbTestEnvConfig::getInstance();
 
-    return "VPUX";
-}();
-
-const auto DEFAULT_IE_KMB_TESTS_INFERENCE_SHAVES = "16";
-
-const KmbTestEnvConfig KmbLayerTestsCommon::envConfig;
+const TargetDevice testPlatformTargetDevice = KmbTestEnvConfig::getInstance().IE_KMB_TESTS_DEVICE_NAME.empty()
+                                                      ? CommonTestUtils::DEVICE_KEEMBAY
+                                                      : KmbTestEnvConfig::getInstance().IE_KMB_TESTS_DEVICE_NAME;
 
 KmbLayerTestsCommon::KmbLayerTestsCommon(): kmbTestTool(envConfig) {
     IE_ASSERT(core != nullptr);
@@ -39,7 +33,6 @@ KmbLayerTestsCommon::KmbLayerTestsCommon(): kmbTestTool(envConfig) {
 void KmbLayerTestsCommon::BuildNetworkWithoutCompile() {
     cnnNetwork = InferenceEngine::CNNNetwork{function};
 
-    configuration[VPUX_CONFIG_KEY(INFERENCE_SHAVES)] = DEFAULT_IE_KMB_TESTS_INFERENCE_SHAVES;
     if (configuration.count(VPUX_CONFIG_KEY(PLATFORM)) == 0) {
         configuration[VPUX_CONFIG_KEY(PLATFORM)] = envConfig.IE_KMB_TESTS_PLATFORM;
     }
@@ -161,6 +154,14 @@ void KmbLayerTestsCommon::Validate() {
         }
     };
 
+    const auto convertDataToFP32 = [](std::vector<InferenceEngine::Blob::Ptr>& blobs) {
+        for (int i = 0; i < blobs.size(); ++i) {
+            if (blobs[i]->getTensorDesc().getPrecision() != InferenceEngine::Precision::FP32) {
+                blobs[i] = FuncTestUtils::copyBlobWithCast<InferenceEngine::Precision::FP32>(blobs[i]);
+            }
+        }
+    };
+
     // TODO:#-52272 Move re-layout to the CalculateRefs method
     rearrangeDataToLayoutFromNumDims(inputs);
 
@@ -185,6 +186,10 @@ void KmbLayerTestsCommon::Validate() {
             << "nGraph interpreter has " << expectedOutputs.size() << " outputs, while IE " << actualOutputs.size();
 
     rearrangeDataToLayoutFromNumDims(actualOutputs);
+
+    // TODO: Remove after C#-101214
+    convertDataToFP32(actualOutputs);
+
     Compare(expectedOutputs, actualOutputs);
 }
 
@@ -296,16 +301,16 @@ void KmbLayerTestsCommon::Run() {
     }
 }
 
-void KmbLayerTestsCommon::useCompilerMLIR() {
-    configuration[VPUX_CONFIG_KEY(COMPILER_TYPE)] = VPUX_CONFIG_VALUE(MLIR);
-}
-
 void KmbLayerTestsCommon::setReferenceSoftwareModeMLIR() {
     configuration[VPUX_CONFIG_KEY(COMPILATION_MODE)] = "ReferenceSW";
 }
 
 void KmbLayerTestsCommon::setDefaultHardwareModeMLIR() {
     configuration[VPUX_CONFIG_KEY(COMPILATION_MODE)] = "DefaultHW";
+}
+
+void KmbLayerTestsCommon::setPlatformVPU3700() {
+    configuration[VPUX_CONFIG_KEY(PLATFORM)] = "VPU3700";
 }
 
 void KmbLayerTestsCommon::setPlatformVPU3720() {
@@ -323,16 +328,6 @@ void KmbLayerTestsCommon::setPerformanceHintLatency() {
 
 void KmbLayerTestsCommon::useELFCompilerBackend() {
     configuration[VPUX_CONFIG_KEY(USE_ELF_COMPILER_BACKEND)] = CONFIG_VALUE(YES);
-}
-
-bool KmbLayerTestsCommon::isCompilerMLIR() const {
-    const auto it = configuration.find(VPUX_CONFIG_KEY(COMPILER_TYPE));
-    if (it == configuration.end()) {
-        // Default value for COMPILER_TYPE is MLIR
-        return true;
-    }
-
-    return it->second == VPUX_CONFIG_VALUE(MLIR);
 }
 
 void KmbLayerTestsCommon::TearDown() {

@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/IE/passes.hpp"
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
@@ -468,75 +466,6 @@ mlir::LogicalResult FuseWithConcat::matchAndRewrite(IE::QuantizeOp quantizeOp, m
 }
 
 //
-// FuseWithSplit
-//
-
-//
-//       [input]
-//          |
-//     (dequantize)
-//          |
-//       (split)
-//          |
-//       [output]
-//          |
-//      (quantize)
-//
-
-class FuseWithSplit final : public mlir::OpRewritePattern<IE::SplitOp> {
-public:
-    FuseWithSplit(mlir::MLIRContext* ctx, Logger log): mlir::OpRewritePattern<IE::SplitOp>(ctx), _log(log) {
-        setDebugName("FuseWithSplit");
-    }
-
-public:
-    mlir::LogicalResult matchAndRewrite(IE::SplitOp origOp, mlir::PatternRewriter& rewriter) const final;
-
-private:
-    Logger _log;
-};
-
-mlir::LogicalResult FuseWithSplit::matchAndRewrite(IE::SplitOp splitOp, mlir::PatternRewriter& rewriter) const {
-    auto dequantizeOp = splitOp.input().getDefiningOp<IE::DequantizeOp>();
-    if (dequantizeOp == nullptr) {
-        return mlir::failure();
-    }
-
-    if (!areAllUsersQuantized(splitOp)) {
-        return mlir::failure();
-    }
-
-    SmallVector<mlir::Type> newSplitOutputsType;
-    newSplitOutputsType.reserve(splitOp.outputs().size());
-
-    SmallVector<IE::QuantizeOp> oldSplitOutputs;
-    oldSplitOutputs.reserve(splitOp.outputs().size());
-
-    for (auto outVal : splitOp.outputs()) {
-        auto quantizeAfterSplitOp = outVal.hasOneUse() ? mlir::dyn_cast<IE::QuantizeOp>(*outVal.user_begin()) : nullptr;
-        if (quantizeAfterSplitOp == nullptr) {
-            return mlir::failure();
-        }
-
-        newSplitOutputsType.push_back(quantizeAfterSplitOp.getType());
-        oldSplitOutputs.push_back(quantizeAfterSplitOp);
-    }
-
-    ArrayRef<mlir::Type> typesArray(newSplitOutputsType);
-
-    auto newSplitOp = rewriter.create<IE::SplitOp>(splitOp.getLoc(), mlir::TypeRange(typesArray), dequantizeOp.input(),
-                                                   splitOp.axis(), splitOp.num_splits(), splitOp.axis_valueAttr());
-
-    for (auto ind : irange(oldSplitOutputs.size())) {
-        auto oldResReorderOp = oldSplitOutputs[ind];
-        auto newResVal = newSplitOp->getResult(checked_cast<uint32_t>(ind));
-        rewriter.replaceOp(oldResReorderOp, newResVal);
-    }
-
-    return mlir::success();
-}
-
-//
 // FuseWithEltwiseConverter
 //
 
@@ -700,7 +629,7 @@ private:
 
 void FuseQuantizedOpsPass::safeRunOnFunc() {
     auto& ctx = getContext();
-    auto func = getFunction();
+    auto func = getOperation();
     const auto arch = VPU::getArch(func->getParentOfType<mlir::ModuleOp>());
 
     const auto checkAddInputTypes = [&](mlir::Type input1Type, mlir::Type input2Type) -> mlir::LogicalResult {
@@ -746,9 +675,8 @@ void FuseQuantizedOpsPass::safeRunOnFunc() {
         patterns.add<FuseWithAveragePool>(&ctx, _log);
     }
     patterns.add<FuseWithConcat>(&ctx, _log);
-    patterns.add<FuseWithSplit>(&ctx, _log);
-    // VPUX37XX does not support element-wise multiplication, skip the fusion
-    if (arch == VPU::ArchKind::VPUX30XX || arch == VPU::ArchKind::VPUX311X) {
+    // VPUX37XX NCE does not support element-wise multiplication, skip the fusion
+    if (arch != VPU::ArchKind::VPUX37XX) {
         patterns.add<FuseWithEltwiseConverter<IE::MultiplyOp>>(&ctx, checkMulInputTypes, _log);
     } else {
         patterns.add<FuseWithDepth2Space>(&ctx, _log);

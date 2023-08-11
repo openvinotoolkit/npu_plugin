@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #ifndef VPUX_COMPILER_DIALECT_VPU_TYPE_INTERFACES
 #define VPUX_COMPILER_DIALECT_VPU_TYPE_INTERFACES
 
@@ -33,6 +31,10 @@ def ClusterTypeInterface : TypeInterface<"ClusterTypeInterface"> {
                      while the allocated shape is [1, 64, 4, 4] (because of duplicated)
                      information which is needed for scheduler and strategy manager,
                      in order to estimate memory
+                     In an example of OVERLAPPED over H with uniform segmentation for
+                     4 clusters, a tensor of shape [1, 64, 22, 16] will have the following
+                     compute distribution across clusters:
+                     [1 64 6 16] [1 64 6 16] [1 64 5 16] [1 64 5 16]
             }],
             "SmallVector<Shape>", "getPerClusterComputeShapes", (ins)
         >,
@@ -44,6 +46,33 @@ def ClusterTypeInterface : TypeInterface<"ClusterTypeInterface"> {
                      DUPLICATED and MULTICASTED.
              }],
             "SmallVector<Shape>", "getPerClusterComputeShapeOffsets", (ins)
+        >,
+
+        InterfaceMethod<[{
+            @brief Retrieve the array of memory shapes
+            @warning An important thing to consider with regards to memory shapes,
+                     is that modes like DUPLICATED and MULTICASTED take precedence over
+                     SEGMENTED and OVERLAPPED.
+                     In an example case of a "SEGMENTED | DUPLICATED" (needed for SplitOverK)
+                     tensor with shape [1, 64, 4, 4], the memory shape in each cluster is
+                     [1, 64, 4, 4], which is the allocated shape (because of duplicated)
+                     information which is needed for scheduler and strategy manager,
+                     in order to estimate memory
+                     In an example of OVERLAPPED over H with k3x3s1 pad (1, 1, 1, 1) and
+                     uniform segmentation across 4 clusters, a tensor of shape [1, 64, 22, 16]
+                     will have the following memory distribution across clusters:
+                     [1 64 7 16] [1 64 8 16] [1 64 7 16] [1 64 6 16]
+            }],
+            "SmallVector<Shape>", "getPerClusterMemoryShapes", (ins)
+        >,
+
+        InterfaceMethod<[{
+            @brief Retrieve the array of memory shape offsets with regards to the full buffer
+            @warning An important thing to consider with regards to memory shape offsets,
+                     is that modes like DUPLICATED and MULTICASTED take precedence over
+                     SEGMENTED and OVERLAPPED.
+             }],
+            "SmallVector<Shape>", "getPerClusterMemoryShapeOffsets", (ins)
         >,
 
         InterfaceMethod<[{
@@ -77,7 +106,7 @@ def ClusterTypeInterface : TypeInterface<"ClusterTypeInterface"> {
                      because it does not retrieve the true allocate shape in cases
                      of broadcasting.
             }],
-            "SmallVector<StridedShape>", "getPerClusterStridedShapes", (ins)
+            "SmallVector<StridedShape>", "getPerClusterMemoryStridedShapes", (ins)
         >,
 
         InterfaceMethod<[{

@@ -1,9 +1,14 @@
-// RUN: vpux-opt --split-input-file --wrap-vpu-ops-in-ncecluster-tiling %s | FileCheck %s
+//
+// Copyright (C) 2023 Intel Corporation.
+// SPDX-License-Identifier: Apache 2.0
+//
+
+// RUN: vpux-opt --split-input-file --init-compiler="vpu-arch=VPUX37XX allow-custom-values=true" --wrap-vpu-ops-in-ncecluster-tiling %s | FileCheck %s
 
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 #NWCH = affine_map<(d0, d1, d2, d3) -> (d0, d3, d1, d2)>
 
-!qElemType = type !quant.uniform<u8:f16, 1.000000e+00>
+!qElemType = !quant.uniform<u8:f16, 1.000000e+00>
 
 module @PermuteQuantize attributes {VPU.arch = "VPUX37XX", VPU.compilationMode = "DefaultHW"} {
   IE.ExecutorResource 2 of @NCE at 1.300000e+03 MHz {
@@ -15,7 +20,7 @@ module @PermuteQuantize attributes {VPU.arch = "VPUX37XX", VPU.compilationMode =
   IE.MemoryResource 1982464 bytes of @CMX_NN {VPU.bandwidth = 32 : i64, VPU.derateFactor = 1.000000e+00 : f64}
   IE.MemoryResource 524288000 bytes of @DDR {VPU.bandwidth = 8 : i64, VPU.derateFactor = 6.000000e-01 : f64}
 
-func @NCEPermuteQuantize3x224x224(%arg0: tensor<1x3x224x224xf16>) -> tensor<1x4x224x224x!qElemType, {order = #NHWC}> {
+func.func @NCEPermuteQuantize3x224x224(%arg0: tensor<1x3x224x224xf16>) -> tensor<1x4x224x224x!qElemType, {order = #NHWC}> {
     %0 = VPU.Reshape(%arg0) {
         shape_value = [1, 224, 3, 224]
     } : tensor<1x3x224x224xf16> -> tensor<1x224x3x224xf16>
@@ -148,7 +153,7 @@ func @NCEPermuteQuantize3x224x224(%arg0: tensor<1x3x224x224xf16>) -> tensor<1x4x
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 #NWCH = affine_map<(d0, d1, d2, d3) -> (d0, d3, d1, d2)>
 
-!qElemType = type !quant.uniform<u8:f16, 1.000000e+00>
+!qElemType = !quant.uniform<u8:f16, 1.000000e+00>
 
 module @DepthwiseConv attributes {VPU.arch = "VPUX37XX", VPU.compilationMode = "DefaultHW"} {
   IE.ExecutorResource 2 of @NCE at 1.300000e+03 MHz {
@@ -160,7 +165,7 @@ module @DepthwiseConv attributes {VPU.arch = "VPUX37XX", VPU.compilationMode = "
   IE.MemoryResource 1982464 bytes of @CMX_NN {VPU.bandwidth = 32 : i64, VPU.derateFactor = 1.000000e+00 : f64}
   IE.MemoryResource 524288000 bytes of @DDR {VPU.bandwidth = 8 : i64, VPU.derateFactor = 6.000000e-01 : f64}
 
-func @DWCONV3x224x224(%arg0: tensor<1x3x224x224xf16>) -> tensor<1x16x224x224x!qElemType, {order = #NHWC}> {
+func.func @DWCONV3x224x224(%arg0: tensor<1x3x224x224xf16>) -> tensor<1x16x224x224x!qElemType, {order = #NHWC}> {
     %cst = const.Declare tensor<1x1x1x16xui8> = dense<1> : tensor<1x1x1x16xui8>
     %WEIGHTS = const.Declare tensor<16x16x1x1x!qElemType, {order = #NHWC}>
         = dense<1.000000e+00> : tensor<16x16x1x1xf16>, [
@@ -323,7 +328,7 @@ func @DWCONV3x224x224(%arg0: tensor<1x3x224x224xf16>) -> tensor<1x16x224x224x!qE
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 #NWCH = affine_map<(d0, d1, d2, d3) -> (d0, d3, d1, d2)>
 
-!qElemType = type !quant.uniform<u8:f16, 1.000000e+00>
+!qElemType = !quant.uniform<u8:f16, 1.000000e+00>
 
 module @DepthwiseConv attributes {VPU.arch = "VPUX37XX", VPU.compilationMode = "DefaultHW"} {
   IE.ExecutorResource 2 of @NCE at 1.300000e+03 MHz {
@@ -335,7 +340,7 @@ module @DepthwiseConv attributes {VPU.arch = "VPUX37XX", VPU.compilationMode = "
   IE.MemoryResource 1982464 bytes of @CMX_NN {VPU.bandwidth = 32 : i64, VPU.derateFactor = 1.000000e+00 : f64}
   IE.MemoryResource 524288000 bytes of @DDR {VPU.bandwidth = 8 : i64, VPU.derateFactor = 6.000000e-01 : f64}
 
-func @CONV3x224x224(%arg0: tensor<1x3x224x224xf16>) -> tensor<1x16x112x112xf16, {order = #NHWC}> {
+func.func @CONV3x224x224(%arg0: tensor<1x3x224x224xf16>) -> tensor<1x16x112x112xf16, {order = #NHWC}> {
     %WEIGHTS = const.Declare tensor<16x1x1x48x!qElemType, {order = #NHWC}>
         = dense<1.000000e+00> : tensor<16x1x1x48xf16>, [
             #const.ConvertElemType<ui8>,
@@ -432,6 +437,7 @@ func @CONV3x224x224(%arg0: tensor<1x3x224x224xf16>) -> tensor<1x16x112x112xf16, 
     // CHECK-SAME:      },
     // CHECK-SAME:      strides = [2, 2],
     // CHECK-SAME:      num_clusters = 2 : i64
+    // CHECK-NOT:      equal_memory_and_compute_view
     // CHECK-SAME:  }
 
     // CHECK:   [[WORKLOAD:%.*]] = VPU.NCE.ClusterTiling ([[CAST_INPUT]]
@@ -447,6 +453,7 @@ func @CONV3x224x224(%arg0: tensor<1x3x224x224xf16>) -> tensor<1x16x112x112xf16, 
     // CHECK-SAME:      },
     // CHECK-SAME:      strides = [2, 2],
     // CHECK-SAME:      num_clusters = 2 : i64
+    // CHECK-SAME:      equal_memory_and_compute_view
     // CHECK-SAME:  }
 
     // CHECK:   VPU.NCE.PermuteQuantize
@@ -465,6 +472,7 @@ func @CONV3x224x224(%arg0: tensor<1x3x224x224xf16>) -> tensor<1x16x112x112xf16, 
     // CHECK-SAME:      },
     // CHECK-SAME:      strides = [2, 2],
     // CHECK-SAME:      num_clusters = 2 : i64
+    // CHECK-SAME:      equal_memory_and_compute_view
     // CHECK-SAME:  }
     // CHECK-SAME:  -> !VPU.DistributedTensor<1x4x224x224x!qElemType, #NHWC, @CMX_NN, {
     // CHECK-SAME:      mode = "OVERLAPPED",
@@ -478,6 +486,7 @@ func @CONV3x224x224(%arg0: tensor<1x3x224x224xf16>) -> tensor<1x16x112x112xf16, 
     // CHECK-SAME:      },
     // CHECK-SAME:      strides = [2, 2],
     // CHECK-SAME:      num_clusters = 2 : i64
+    // CHECK-NOT:       equal_memory_and_compute_view
     // CHECK-SAME:  }
 
     // CHECK:   [[COPY_OUTPUT:%.*]] = VPU.NCE.ClusterTiling ([[CAST_OUTPUT]]
@@ -495,7 +504,7 @@ func @CONV3x224x224(%arg0: tensor<1x3x224x224xf16>) -> tensor<1x16x112x112xf16, 
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 #NWCH = affine_map<(d0, d1, d2, d3) -> (d0, d3, d1, d2)>
 
-!qElemType = type !quant.uniform<u8:f16, 1.000000e+00>
+!qElemType = !quant.uniform<u8:f16, 1.000000e+00>
 
 module @NoAffineReshape attributes {VPU.arch = "VPUX37XX", VPU.compilationMode = "DefaultHW"} {
   IE.ExecutorResource 2 of @NCE at 1.300000e+03 MHz {
@@ -507,7 +516,7 @@ module @NoAffineReshape attributes {VPU.arch = "VPUX37XX", VPU.compilationMode =
   IE.MemoryResource 1982464 bytes of @CMX_NN {VPU.bandwidth = 32 : i64, VPU.derateFactor = 1.000000e+00 : f64}
   IE.MemoryResource 524288000 bytes of @DDR {VPU.bandwidth = 8 : i64, VPU.derateFactor = 6.000000e-01 : f64}
 
-func @NCEPermuteQuantize1x3x16x16(%arg0: tensor<1x3x16x16xf16>) -> tensor<1x16x16x16x!qElemType, {order = #NHWC}> {
+func.func @NCEPermuteQuantize1x3x16x16(%arg0: tensor<1x3x16x16xf16>) -> tensor<1x16x16x16x!qElemType, {order = #NHWC}> {
     %0 = VPU.Reshape(%arg0) {
         shape_value = [1, 16, 3, 16]
     } : tensor<1x3x16x16xf16> -> tensor<1x16x3x16xf16>

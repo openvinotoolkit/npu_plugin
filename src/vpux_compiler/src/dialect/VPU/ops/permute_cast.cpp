@@ -15,7 +15,7 @@ mlir::LogicalResult vpux::VPU::PermuteCastOp::inferReturnTypes(mlir::MLIRContext
                                                                mlir::ValueRange operands, mlir::DictionaryAttr attrs,
                                                                mlir::RegionRange /*regions*/,
                                                                mlir::SmallVectorImpl<mlir::Type>& inferredReturnTypes) {
-    const auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
+    const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
     VPU::PermuteCastOpAdaptor permuteCast(operands, attrs);
     if (mlir::failed(permuteCast.verify(loc))) {

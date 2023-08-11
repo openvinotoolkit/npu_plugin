@@ -9,6 +9,8 @@
 #include <sstream>
 #include "gtest/gtest.h"
 #include "kmb_test_report.hpp"
+#include "kmb_test_tool.hpp"
+#include "vpux/vpux_metrics.hpp"
 
 // Headers below are just for Yocto.
 #ifdef __aarch64__
@@ -26,6 +28,12 @@ void sigint_handler(int num) {
     exit(1);
 }
 #endif
+
+namespace testing {
+namespace internal {
+extern bool g_help_flag;
+}  // namespace internal
+}  // namespace testing
 
 void sigsegv_handler(int errCode) {
     auto& s = ov::test::utils::OpSummary::getInstance();
@@ -50,14 +58,48 @@ int main(int argc, char** argv, char** envp) {
     // register crashHandler for SIGSEGV signal
     signal(SIGSEGV, sigsegv_handler);
 
-    ::testing::InitGoogleTest(&argc, argv);
-    ::testing::AddGlobalTestEnvironment(new LayerTestsUtils::KmbTestReportEnvironment());
+    std::ostringstream oss;
+    oss << "Command line args (" << argc << "): ";
+    for (int c = 0; c < argc; ++c) {
+        oss << " " << argv[c];
+    }
+    oss << std::endl;
 
-    std::ostringstream oss("Environment variables: ", std::ios_base::ate);
+    oss << "Process id: " << getpid() << std::endl;
+    std::cout << oss.str();
+    oss.str("");
+
+    oss << "Environment variables: ";
     for (char** env = envp; *env != 0; env++) {
         oss << *env << "; ";
     }
-    std::cout << oss.str() << std::endl;
+
+    ::testing::InitGoogleTest(&argc, argv);
+    ::testing::AddGlobalTestEnvironment(new LayerTestsUtils::KmbTestReportEnvironment());
+
+    const bool dryRun = ::testing::GTEST_FLAG(list_tests) || ::testing::internal::g_help_flag;
+
+    if (!dryRun) {
+        const std::string noFetch{"<not fetched>"};
+        std::string backend{noFetch}, arch{noFetch}, full{noFetch};
+        try {
+            LayerTestsUtils::KmbTestTool kmbTestTool(LayerTestsUtils::KmbTestEnvConfig::getInstance());
+            backend = kmbTestTool.getDeviceMetric(VPUX_METRIC_KEY(BACKEND_NAME));
+            arch = kmbTestTool.getDeviceMetric(METRIC_KEY(DEVICE_ARCHITECTURE));
+            full = kmbTestTool.getDeviceMetric(METRIC_KEY(FULL_DEVICE_NAME));
+        } catch (const std::exception& e) {
+            std::cerr << "Exception while trying to determine device characteristics: " << e.what() << std::endl;
+        }
+        std::cout << "Tests run with: Backend name: '" << backend << "'; Device arch: '" << arch
+                  << "'; Full device name: '" << full << "'" << std::endl;
+    }
+
+    std::string dTest = ::testing::internal::GTEST_FLAG(internal_run_death_test);
+    if (dTest.empty()) {
+        std::cout << oss.str() << std::endl;
+    } else {
+        std::cout << "gtest death test process is running" << std::endl;
+    }
 
     return RUN_ALL_TESTS();
 }

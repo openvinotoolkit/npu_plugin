@@ -1,4 +1,4 @@
-// Copyright (C) 2019 Intel Corporation
+// Copyright (C) 2019-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,11 +11,12 @@
 #include "kmb_layer_test.hpp"
 
 namespace SubgraphTestsDefinitions {
+class VPUXConvActivationSubgraphTest : public ConvActTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {};
+class VPUXConvActivationSubgraphTest_VPU3700 : public VPUXConvActivationSubgraphTest {};
 
-class KmbConvActivationSubgraphTest : public ConvActTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {};
-;
-
-TEST_P(KmbConvActivationSubgraphTest, CompareWithRefs) {
+TEST_P(VPUXConvActivationSubgraphTest_VPU3700, HW) {
+    setPlatformVPU3700();
+    setDefaultHardwareModeMLIR();
     Run();
 }
 
@@ -70,7 +71,7 @@ const auto convCases =
                            ::testing::ValuesIn(padBegins), ::testing::ValuesIn(padEnds), ::testing::ValuesIn(dilations),
                            ::testing::ValuesIn(numOutCannels), ::testing::Values(ngraph::op::PadType::EXPLICIT));
 
-INSTANTIATE_TEST_SUITE_P(smoke_ConvActivation_Test, KmbConvActivationSubgraphTest, convCases,
+INSTANTIATE_TEST_SUITE_P(smoke_ConvActivation_Test, VPUXConvActivationSubgraphTest_VPU3700, convCases,
                          ConvActTest::getTestCaseName);
 
 }  // namespace

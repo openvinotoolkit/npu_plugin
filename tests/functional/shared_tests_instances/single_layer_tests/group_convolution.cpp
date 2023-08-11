@@ -1,5 +1,5 @@
 //
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,13 +12,14 @@
 
 namespace LayerTestsDefinitions {
 
-class KmbGroupConvolutionLayerTest :
+class VPUXGroupConvolutionLayerTest :
         public GroupConvolutionLayerTest,
-        virtual public LayerTestsUtils::KmbLayerTestsCommon {
+        virtual public LayerTestsUtils::KmbLayerTestsCommon {};
+class VPUXGroupConvolutionLayerTest_VPU3700 : public VPUXGroupConvolutionLayerTest {
     void SkipBeforeLoad() override {
     }
 
-    // There is difference between actual and expected values during validation step on KMB-board:
+    // There is difference between actual and expected values during validation step on board:
     // KmbLayerTestsCommon::Validate()
     // LayerTestsCommon::Validate()
     // openvino/inference-engine/tests/functional/shared_test_classes/include
@@ -40,19 +41,30 @@ class KmbGroupConvolutionLayerTest :
     }
 };
 
-TEST_P(KmbGroupConvolutionLayerTest, CompareWithRefs) {
-    Run();
-}
+using VPUXGroupConvolutionLayerTest_VPU3720_HW = VPUXGroupConvolutionLayerTest;
+using VPUXGroupConvolutionLayerTest_VPU3720_SW = VPUXGroupConvolutionLayerTest;
 
-TEST_P(KmbGroupConvolutionLayerTest, CompareWithRefs_MLIR_SW) {
-    useCompilerMLIR();
+TEST_P(VPUXGroupConvolutionLayerTest_VPU3700, SW) {
+    setPlatformVPU3700();
     setReferenceSoftwareModeMLIR();
     Run();
 }
 
-TEST_P(KmbGroupConvolutionLayerTest, CompareWithRefs_MLIR_HW) {
-    useCompilerMLIR();
+TEST_P(VPUXGroupConvolutionLayerTest_VPU3700, HW) {
+    setPlatformVPU3700();
     setDefaultHardwareModeMLIR();
+    Run();
+}
+
+TEST_P(VPUXGroupConvolutionLayerTest_VPU3720_HW, HW) {
+    setPlatformVPU3720();
+    setDefaultHardwareModeMLIR();
+    Run();
+}
+
+TEST_P(VPUXGroupConvolutionLayerTest_VPU3720_SW, SW) {
+    setPlatformVPU3720();
+    setReferenceSoftwareModeMLIR();
     Run();
 }
 
@@ -86,7 +98,7 @@ const auto groupConv1DParams_AutoPadValid = ::testing::Combine(
         ::testing::ValuesIn(numOutChannels1d), ::testing::ValuesIn(numGroups1d),
         ::testing::Values(ngraph::op::PadType::VALID));
 
-INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_GroupConvolution1D_ExplicitPadding, KmbGroupConvolutionLayerTest,
+INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_GroupConvolution1D_ExplicitPadding, VPUXGroupConvolutionLayerTest_VPU3700,
                          ::testing::Combine(groupConv1DParams_ExplicitPadding, ::testing::ValuesIn(netPrecisions),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
@@ -94,9 +106,9 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_GroupConvolution1D_ExplicitPadding, 
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::Values(std::vector<size_t>(inputShapes1d)),
                                             ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
-                         KmbGroupConvolutionLayerTest::getTestCaseName);
+                         VPUXGroupConvolutionLayerTest_VPU3700::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_GroupConvolution1D_AutoPadValid, KmbGroupConvolutionLayerTest,
+INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_GroupConvolution1D_AutoPadValid, VPUXGroupConvolutionLayerTest_VPU3700,
                          ::testing::Combine(groupConv1DParams_AutoPadValid, ::testing::ValuesIn(netPrecisions),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
@@ -104,17 +116,36 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_GroupConvolution1D_AutoPadValid, Kmb
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::Values(std::vector<size_t>({1, 16, 30})),
                                             ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
-                         KmbGroupConvolutionLayerTest::getTestCaseName);
+                         VPUXGroupConvolutionLayerTest_VPU3700::getTestCaseName);
 
+INSTANTIATE_TEST_CASE_P(smoke_GroupConvolution1D_ExplicitPadding_VPU3720, VPUXGroupConvolutionLayerTest_VPU3720_SW,
+                        ::testing::Combine(groupConv1DParams_ExplicitPadding, ::testing::ValuesIn(netPrecisions),
+                                           ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                           ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                           ::testing::Values(InferenceEngine::Layout::ANY),
+                                           ::testing::Values(InferenceEngine::Layout::ANY),
+                                           ::testing::Values(std::vector<size_t>(inputShapes1d)),
+                                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                        GroupConvolutionLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_CASE_P(smoke_GroupConvolution1D_AutoPadValid_VPU3720, VPUXGroupConvolutionLayerTest_VPU3720_SW,
+                        ::testing::Combine(groupConv1DParams_AutoPadValid, ::testing::ValuesIn(netPrecisions),
+                                           ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                           ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                           ::testing::Values(InferenceEngine::Layout::ANY),
+                                           ::testing::Values(InferenceEngine::Layout::ANY),
+                                           ::testing::Values(std::vector<size_t>(inputShapes1d)),
+                                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                        GroupConvolutionLayerTest::getTestCaseName);
 /* ============= 2D GroupConvolution ============= */
 const std::vector<std::vector<size_t>> kernels = {{3, 3}};
 const std::vector<std::vector<size_t>> strides = {{1, 1}};
 const std::vector<std::vector<ptrdiff_t>> padBegins = {{0, 0}};
 const std::vector<std::vector<ptrdiff_t>> padEnds = {{0, 0}};
 const std::vector<std::vector<size_t>> dilations = {{1, 1}};
-const std::vector<size_t> numOutChannels = {8, 16};
+const std::vector<size_t> numOutChannels = {8, 32};
 const std::vector<size_t> numGroups = {2, 8};
-const auto inputShapes = std::vector<size_t>({1, 16, 30, 30});
+const auto inputShapes = std::vector<size_t>({1, 32, 30, 30});
 
 const auto groupConv2DParams_ExplicitPadding = ::testing::Combine(
         ::testing::ValuesIn(kernels), ::testing::ValuesIn(strides), ::testing::ValuesIn(padBegins),
@@ -131,7 +162,7 @@ const auto groupConv2DParams_LargeStrides = ::testing::Combine(
         ::testing::ValuesIn(dilations), ::testing::ValuesIn(numOutChannels), ::testing::ValuesIn(numGroups),
         ::testing::Values(ngraph::op::PadType::VALID));
 
-INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_GroupConvolution2D_ExplicitPadding, KmbGroupConvolutionLayerTest,
+INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_GroupConvolution2D_ExplicitPadding, VPUXGroupConvolutionLayerTest_VPU3700,
                          ::testing::Combine(groupConv2DParams_ExplicitPadding, ::testing::ValuesIn(netPrecisions),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
@@ -139,9 +170,19 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_GroupConvolution2D_ExplicitPadding, 
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::Values(std::vector<size_t>(inputShapes)),
                                             ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
-                         KmbGroupConvolutionLayerTest::getTestCaseName);
+                         VPUXGroupConvolutionLayerTest_VPU3700::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_GroupConvolution2D_AutoPadValid, KmbGroupConvolutionLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_GroupConvolution2D_ExplicitPadding_VPU3720, VPUXGroupConvolutionLayerTest_VPU3720_SW,
+                         ::testing::Combine(groupConv2DParams_ExplicitPadding, ::testing::ValuesIn(netPrecisions),
+                                            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                            ::testing::Values(InferenceEngine::Layout::ANY),
+                                            ::testing::Values(InferenceEngine::Layout::ANY),
+                                            ::testing::Values(std::vector<size_t>(inputShapes)),
+                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                         GroupConvolutionLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_GroupConvolution2D_AutoPadValid, VPUXGroupConvolutionLayerTest_VPU3700,
                          ::testing::Combine(groupConv2DParams_AutoPadValid, ::testing::ValuesIn(netPrecisions),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
@@ -149,9 +190,19 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_GroupConvolution2D_AutoPadValid, Kmb
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::Values(std::vector<size_t>({1, 16, 30, 30})),
                                             ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
-                         KmbGroupConvolutionLayerTest::getTestCaseName);
+                         VPUXGroupConvolutionLayerTest_VPU3700::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_GroupConvolution2D_LargeStrides, KmbGroupConvolutionLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_GroupConvolution2D_AutoPadValid_VPU3720, VPUXGroupConvolutionLayerTest_VPU3720_SW,
+                         ::testing::Combine(groupConv2DParams_AutoPadValid, ::testing::ValuesIn(netPrecisions),
+                                            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                            ::testing::Values(InferenceEngine::Layout::ANY),
+                                            ::testing::Values(InferenceEngine::Layout::ANY),
+                                            ::testing::Values(std::vector<size_t>({1, 16, 30, 30})),
+                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                         GroupConvolutionLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_GroupConvolution2D_LargeStrides, VPUXGroupConvolutionLayerTest_VPU3700,
                         ::testing::Combine(groupConv2DParams_LargeStrides, ::testing::ValuesIn(netPrecisions),
                                            ::testing::Values(InferenceEngine::Precision::FP16),
                                            ::testing::Values(InferenceEngine::Precision::FP16),
@@ -159,7 +210,17 @@ INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_GroupConvolution2D_LargeStrides, KmbG
                                            ::testing::Values(InferenceEngine::Layout::ANY),
                                            ::testing::Values(std::vector<size_t>({1, 16, 30, 30})),
                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
-                        KmbGroupConvolutionLayerTest::getTestCaseName);
+                        VPUXGroupConvolutionLayerTest_VPU3700::getTestCaseName);
+
+INSTANTIATE_TEST_CASE_P(smoke_GroupConvolution2D_LargeStrides_VPU3720, VPUXGroupConvolutionLayerTest_VPU3720_SW,
+                        ::testing::Combine(groupConv2DParams_LargeStrides, ::testing::ValuesIn(netPrecisions),
+                                           ::testing::Values(InferenceEngine::Precision::FP16),
+                                           ::testing::Values(InferenceEngine::Precision::FP16),
+                                           ::testing::Values(InferenceEngine::Layout::ANY),
+                                           ::testing::Values(InferenceEngine::Layout::ANY),
+                                           ::testing::Values(std::vector<size_t>({1, 16, 30, 30})),
+                                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                        GroupConvolutionLayerTest::getTestCaseName);
 
 /* ============= 3D GroupConvolution ============= */
 const std::vector<std::vector<size_t>> kernels3d = {{3, 3, 3}};
@@ -178,10 +239,8 @@ const auto groupConv3DParams_AutoPadValid =
                            ::testing::Values(std::vector<ptrdiff_t>({0, 0, 0})), ::testing::ValuesIn(dilations3d),
                            ::testing::Values(4), ::testing::Values(2), ::testing::Values(ngraph::op::PadType::VALID));
 
-// Test is disabled because there is Segmentation fault (core dumped) at step
-// [Debug  ][VPU][KMB nGraph Parser] Convert nGraph to MCM Model
 // [Track number: S#50872]
-INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_GroupConvolution3D_ExplicitPadding, KmbGroupConvolutionLayerTest,
+INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_GroupConvolution3D_ExplicitPadding, VPUXGroupConvolutionLayerTest_VPU3700,
                          ::testing::Combine(groupConv3DParams_ExplicitPadding, ::testing::ValuesIn(netPrecisions),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
@@ -189,12 +248,10 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_GroupConvolution3D_ExplicitPadding, KmbG
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::Values(std::vector<size_t>(inputShapes3d)),
                                             ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
-                         KmbGroupConvolutionLayerTest::getTestCaseName);
+                         VPUXGroupConvolutionLayerTest_VPU3700::getTestCaseName);
 
-// Test is disabled because there is Segmentation fault (core dumped) at step
-// [Debug  ][VPU][KMB nGraph Parser] Convert nGraph to MCM Model
 // [Track number: S#50872]
-INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_GroupConvolution3D_AutoPadValid, KmbGroupConvolutionLayerTest,
+INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_GroupConvolution3D_AutoPadValid, VPUXGroupConvolutionLayerTest_VPU3700,
                          ::testing::Combine(groupConv3DParams_AutoPadValid, ::testing::ValuesIn(netPrecisions),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
@@ -202,6 +259,6 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_GroupConvolution3D_AutoPadValid, KmbGrou
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::Values(std::vector<size_t>({1, 4, 10, 10, 10})),
                                             ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
-                         KmbGroupConvolutionLayerTest::getTestCaseName);
+                         VPUXGroupConvolutionLayerTest_VPU3700::getTestCaseName);
 
 }  // namespace

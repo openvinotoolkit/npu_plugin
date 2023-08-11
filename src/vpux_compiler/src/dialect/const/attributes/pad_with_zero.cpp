@@ -3,13 +3,10 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/conversion.hpp"
 #include "vpux/compiler/core/layers.hpp"
 #include "vpux/compiler/dialect/const/attributes/content.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
-#include "vpux/compiler/utils/quantization.hpp"
 #include "vpux/compiler/utils/subspaces.hpp"
 #include "vpux/compiler/utils/types.hpp"
 
@@ -30,6 +27,16 @@ void vpux::Const::PadWithZeroAttr::walkImmediateSubElements(llvm::function_ref<v
                                                             llvm::function_ref<void(mlir::Type)>) const {
     walkAttrsFn(getPadBefore());
     walkAttrsFn(getPadAfter());
+}
+
+//
+// PadWithZeroAttr::replaceImmediateSubElements
+//
+
+mlir::Attribute vpux::Const::PadWithZeroAttr::replaceImmediateSubElements(ArrayRef<mlir::Attribute> replAttrs,
+                                                                          ArrayRef<mlir::Type>) const {
+    VPUX_THROW_WHEN(replAttrs.size() < 2, "Replace attrs array is too short: '{0}'", replAttrs.size());
+    return get(replAttrs[0].dyn_cast_or_null<mlir::ArrayAttr>(), replAttrs[1].dyn_cast_or_null<mlir::ArrayAttr>());
 }
 
 //

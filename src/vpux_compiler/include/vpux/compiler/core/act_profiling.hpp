@@ -3,12 +3,11 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #pragma once
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/utils/core/func_ref.hpp"
+#include "vpux/utils/core/profiling.hpp"
 
 #include "vpux/compiler/core/profiling.hpp"
 #include "vpux/compiler/dialect/VPUIP/dialect.hpp"
@@ -62,8 +61,8 @@ private:
     }
 
 public:
-    BaseActShaveProfiler(unsigned clustersAmount, mlir::OpBuilder& builder, mlir::MLIRContext* ctx,
-                         vpux::IndexedSymbolAttr memKindAttr, mlir::FuncOp netFunc, vpux::Logger& log,
+    BaseActShaveProfiler(unsigned clustersNum, mlir::OpBuilder& builder, mlir::MLIRContext* ctx,
+                         vpux::IndexedSymbolAttr memKindAttr, mlir::func::FuncOp netFunc, vpux::Logger& log,
                          std::shared_ptr<NameUniqifier> uniqifier);
 
     // Get amount of memory needed to store profiling data of all ActShave tasks in the model
@@ -90,7 +89,7 @@ protected:
 
     // Get a SubView of profiling buffer instance so that given ActShave task is given required chunk of it
     virtual mlir::Value getViewToBuffer(mlir::Operation* currentProfilingBuffer, unsigned profilingSamplesInCMX,
-                                        unsigned numTasks) = 0;
+                                        int64_t numTasks) = 0;
 
     // Replace a Actshave task with new one that has profiling output set
     virtual mlir::Value replaceOpWithProfiledOp(VPUIP::SwKernelOp origSwTask, mlir::Value profilingBuffer,
@@ -98,17 +97,17 @@ protected:
 
     SWTaskSignature getTaskSignature(VPUIP::SwKernelOp swOp) const;
 
-    mlir::Type getTimestampType(unsigned tasksAmount);
+    mlir::Type getTimestampType(int64_t tasksAmount);
 
 protected:
-    unsigned _clustersAmount;
+    unsigned _clustersNum;
     unsigned _profilingWorkloadSize;
     unsigned _profilingElementSize;
     std::deque<unsigned> _profilingBufferSizes;
     SmallVector<SWTaskSignature> _swTaskSignatures;
     mlir::OpBuilder& _builder;
     mlir::MLIRContext* _ctx;
-    mlir::FuncOp _netFunc;
+    mlir::func::FuncOp _netFunc;
     vpux::IndexedSymbolAttr _memKindAttr;
     vpux::Logger& _log;
     std::shared_ptr<NameUniqifier> _uniqifier;
@@ -118,8 +117,10 @@ protected:
 // This way profiling buffer instance can be a simple memref
 class UniformNonTiledActShaveProfiler : public BaseActShaveProfiler {
 public:
-    UniformNonTiledActShaveProfiler(unsigned clustersAmount, mlir::OpBuilder& builder, mlir::MLIRContext* ctx,
-                                    vpux::IndexedSymbolAttr memKindAttr, mlir::FuncOp netFunc, vpux::Logger& log,
+    virtual ~UniformNonTiledActShaveProfiler() = default;
+
+    UniformNonTiledActShaveProfiler(unsigned clustersNum, mlir::OpBuilder& builder, mlir::MLIRContext* ctx,
+                                    vpux::IndexedSymbolAttr memKindAttr, mlir::func::FuncOp netFunc, vpux::Logger& log,
                                     std::shared_ptr<NameUniqifier> uniqifier);
 
 protected:
@@ -134,7 +135,7 @@ protected:
 
     // Get a SubView of profiling buffer instance so that given ActShave task is given required chunk of it
     mlir::Value getViewToBuffer(mlir::Operation* currentProfilingBuffer, unsigned profilingSamplesInCMX,
-                                unsigned numTasks) override;
+                                int64_t numTasks) override;
 
     // Replace a Actshave task with new one that has profiling output set
     mlir::Value replaceOpWithProfiledOp(VPUIP::SwKernelOp origSwTask, mlir::Value profilingBuffer,
@@ -148,28 +149,30 @@ private:
     VPUIP::DistributedBufferType getDistributedBufferType(unsigned totalElements);
 
 public:
-    NCETiledActShaveProfiler(unsigned clustersAmount, mlir::OpBuilder& builder, mlir::MLIRContext* ctx,
-                             vpux::IndexedSymbolAttr memKindAttr, mlir::FuncOp netFunc, vpux::Logger& log,
+    virtual ~NCETiledActShaveProfiler() = default;
+
+    NCETiledActShaveProfiler(unsigned clustersNum, mlir::OpBuilder& builder, mlir::MLIRContext* ctx,
+                             vpux::IndexedSymbolAttr memKindAttr, mlir::func::FuncOp netFunc, vpux::Logger& log,
                              std::shared_ptr<NameUniqifier> uniqifier);
 
 protected:
     // Create allocation operation representing profiling buffer instance in CMX. If such buffer is full
     // new one needs to be allocated. Type of this alloc is a DistributedBufferType
-    virtual mlir::Operation* createAllocationOp(unsigned totalSizeCMXElements, const std::string& location) override;
+    mlir::Operation* createAllocationOp(unsigned totalSizeCMXElements, const std::string& location) override;
 
     // Insert DMA that will copy profiling buffer instance to proper offset in profiling output once
     // profiling buffer instance is full or there are no more tasks to profile
-    virtual mlir::Value copyToDdr(ProfilingResults profilingResults, mlir::Operation* cmxMemOp,
-                                  size_t& currentDDROffset, mlir::BlockArgument& profilingDdrResult) override;
+    mlir::Value copyToDdr(ProfilingResults profilingResults, mlir::Operation* cmxMemOp, size_t& currentDDROffset,
+                          mlir::BlockArgument& profilingDdrResult) override;
 
     // Get a SubView of profiling buffer instance so that given ActShave task is given required chunk of it
-    virtual mlir::Value getViewToBuffer(mlir::Operation* currentProfilingBuffer, unsigned profilingSamplesInCMX,
-                                        unsigned numTasks) override;
+    mlir::Value getViewToBuffer(mlir::Operation* currentProfilingBuffer, unsigned profilingSamplesInCMX,
+                                int64_t numTasks) override;
 
     // Replace a Actshave task with new one that has profiling output set. If this task is not multiclustered
     // then additional cast (ViewOp) is inserted for profiling slot to maintain type compatibility
-    virtual mlir::Value replaceOpWithProfiledOp(VPUIP::SwKernelOp origSwTask, mlir::Value profilingBuffer,
-                                                mlir::Location loc) override;
+    mlir::Value replaceOpWithProfiledOp(VPUIP::SwKernelOp origSwTask, mlir::Value profilingBuffer,
+                                        mlir::Location loc) override;
 };
 
 }  // namespace vpux

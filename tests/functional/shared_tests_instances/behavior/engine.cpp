@@ -23,7 +23,8 @@ TEST(smoke_InterfaceTests, TestEngineClassGetMetric) {
             GTEST_SKIP() << "No devices available";
 
         const auto fullDeviceName = expectedDeviceName + "." + deviceIDs[0];
-        const std::vector<std::string> supportedMetrics = ie.GetMetric(fullDeviceName, METRIC_KEY(SUPPORTED_METRICS));
+        const auto supportedMetrics =
+                ie.GetMetric(fullDeviceName, METRIC_KEY(SUPPORTED_METRICS)).as<std::vector<std::string>>();
         auto supportedConfigKeysFound = false;
         for (const auto& metricName : supportedMetrics) {
             if (metricName == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
@@ -43,8 +44,8 @@ TEST(smoke_InterfaceTests, TestEngineClassGetConfig) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED() {
         InferenceEngine::Core ie;
 
-        const std::vector<std::string> supportedConfigKeys =
-                ie.GetMetric(expectedDeviceName, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
+        const auto supportedConfigKeys =
+                ie.GetMetric(expectedDeviceName, METRIC_KEY(SUPPORTED_CONFIG_KEYS)).as<std::vector<std::string>>();
         ASSERT_FALSE(supportedConfigKeys.empty());
         for (const auto& configKey : supportedConfigKeys) {
             ASSERT_FALSE(ie.GetConfig(expectedDeviceName, configKey).empty());

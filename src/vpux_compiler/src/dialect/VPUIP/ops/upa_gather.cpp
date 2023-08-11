@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/VPUIP/graph-schema/blob_reader.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/utils/error.hpp"
@@ -14,12 +12,12 @@
 
 using namespace vpux;
 
-mlir::LogicalResult vpux::VPUIP::verifyOp(GatherUPAOp op) {
+mlir::LogicalResult vpux::VPUIP::GatherUPAOp::verify() {
     // Axis should not exceed input rank
-    const auto axisNo = op.axis();
-    const auto inShape = getShape(op.input());
+    const auto axisNo = axis();
+    const auto inShape = getShape(input());
     if (checked_cast<size_t>(axisNo) >= inShape.size()) {
-        return errorAt(op, "Gather axis '{0}' is out of range [0,{1}]", axisNo, inShape.size() - 1);
+        return errorAt(*this, "Gather axis '{0}' is out of range [0,{1}]", axisNo, inShape.size() - 1);
     }
 
     return mlir::success();

@@ -1,13 +1,14 @@
 //
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
+
 // RUN: vpux-opt --split-input-file --init-compiler="vpu-arch=%arch%" %s | FileCheck %s
 // REQUIRES: arch-VPUX30XX || arch-VPUX37XX
 
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
-func @ParsePrintClusterTiling(%arg0: memref<1x32x16x16xf16, #NHWC, @CMX_NN>) -> memref<1x64x14x14xf16, #NHWC, @CMX_NN> {
+func.func @ParsePrintClusterTiling(%arg0: memref<1x32x16x16xf16, #NHWC, @CMX_NN>) -> memref<1x64x14x14xf16, #NHWC, @CMX_NN> {
     %weights = const.Declare memref<64x32x3x3xf16, #NHWC, @CMX_NN>
                 = dense<1.000000e+00> : tensor<64x32x3x3xf16>, [#const.Reorder<#NHWC>]
 
@@ -88,7 +89,7 @@ func @ParsePrintClusterTiling(%arg0: memref<1x32x16x16xf16, #NHWC, @CMX_NN>) -> 
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 #NCHW = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
 
-!InputDistributed = type !VPUIP.DistributedBuffer<
+!InputDistributed = !VPUIP.DistributedBuffer<
     1x32x16x16xf16, #NHWC, @CMX_NN, {
     mode = "OVERLAPPED",
     num_tiles = [1, 1, 4, 1],
@@ -98,36 +99,36 @@ func @ParsePrintClusterTiling(%arg0: memref<1x32x16x16xf16, #NHWC, @CMX_NN>) -> 
     num_clusters = 4
 }>
 
-!WeightsDistributed = type !VPUIP.DistributedBuffer<
+!WeightsDistributed = !VPUIP.DistributedBuffer<
     64x32x3x3xf16, #NHWC, @CMX_NN, {
     mode = "DUPLICATED",
     num_clusters = 4
 }>
 
-!WeightsTableDistributed = type !VPUIP.DistributedBuffer<
+!WeightsTableDistributed = !VPUIP.DistributedBuffer<
     64x1x1x4xsi32, #NCHW, @CMX_NN, {
     mode = "DUPLICATED",
     num_clusters = 4
 }>
 
-!OutputDistributed = type !VPUIP.DistributedBuffer<
+!OutputDistributed = !VPUIP.DistributedBuffer<
     1x64x16x16xf16, #NHWC, @CMX_NN, {
     mode = "SEGMENTED",
     num_tiles = [1, 1, 4, 1],
     num_clusters = 4
 }>
 
-!Input_DDR = type memref<1x32x16x16xf16, #NHWC, @DDR>
-!Weights_DDR = type memref<64x32x3x3xf16, #NHWC, @DDR>
-!Output_DDR = type memref<1x64x16x16xf16, #NHWC, @DDR>
+!Input_DDR = memref<1x32x16x16xf16, #NHWC, @DDR>
+!Weights_DDR = memref<64x32x3x3xf16, #NHWC, @DDR>
+!Output_DDR = memref<1x64x16x16xf16, #NHWC, @DDR>
 
-!WeightsTableStub = type memref<64x1x1x4xsi32>
-!InputStub_CMX = type memref<1x32x16x16xf16, #NHWC, @CMX_NN>
-!WeightsStub_CMX = type memref<64x32x3x3xf16, #NHWC, @CMX_NN>
-!WeightsTableStub_CMX = type memref<64x1x1x4xsi32, @CMX_NN>
-!OutputStub_CMX = type memref<1x64x16x16xf16, #NHWC, @CMX_NN>
+!WeightsTableStub = memref<64x1x1x4xsi32>
+!InputStub_CMX = memref<1x32x16x16xf16, #NHWC, @CMX_NN>
+!WeightsStub_CMX = memref<64x32x3x3xf16, #NHWC, @CMX_NN>
+!WeightsTableStub_CMX = memref<64x1x1x4xsi32, @CMX_NN>
+!OutputStub_CMX = memref<1x64x16x16xf16, #NHWC, @CMX_NN>
 
-func @ParsePrintDistributedBuffer(%input: !Input_DDR) -> !Output_DDR {
+func.func @ParsePrintDistributedBuffer(%input: !Input_DDR) -> !Output_DDR {
     %weights = const.Declare memref<64x32x3x3xf16, #NHWC, @DDR> = dense<1.000000e+00> : tensor<64x32x3x3xf16>, [#const.Reorder<#NHWC>]
 
     %input_cmx = VPURT.AllocDistributed -> !InputDistributed
@@ -278,4 +279,50 @@ func @ParsePrintDistributedBuffer(%input: !Input_DDR) -> !Output_DDR {
     //CHECK:              async.yield
     //CHECK:        }
     //CHECK:        return [[OUTPUT]] : memref<1x64x16x16xf16, #NHWC, @DDR>
+}
+
+// -----
+
+#NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
+
+!OutputDistributed = !VPUIP.DistributedBuffer<
+    1x256x4x250xf16, #NHWC, @CMX_NN, {
+        mode = "SEGMENTED",
+        num_tiles = [1, 1, 1, 2],
+        kernel = [1, 1],
+        pads = {
+            bottom = 0 : i64,
+            left = 0 : i64,
+            right = 0 : i64,
+            top = 0 : i64
+        },
+        strides = [1, 1],
+        num_clusters = 2 : i64,
+        equal_memory_and_compute_view
+    }
+>
+
+// CHECK-LABEL:     @ParseEqualMemAndComputeView
+func.func @ParseEqualMemAndComputeView() -> !OutputDistributed {
+    %ALLOC = VPURT.AllocDistributed -> !OutputDistributed
+    return %ALLOC : !OutputDistributed
+
+    // CHECK:   [[ALLOC:%.*]] = VPURT.AllocDistributed -> !VPUIP.DistributedBuffer<
+    // CHECK-SAME:    1x256x4x250xf16, #NHWC, @CMX_NN, {
+    // CHECK-SAME:        mode = "SEGMENTED",
+    // CHECK-SAME:        num_tiles = [1, 1, 1, 2],
+    // CHECK-SAME:        kernel = [1, 1],
+    // CHECK-SAME:        pads = {
+    // CHECK-SAME:            bottom = 0 : i64,
+    // CHECK-SAME:            left = 0 : i64,
+    // CHECK-SAME:            right = 0 : i64,
+    // CHECK-SAME:            top = 0 : i64
+    // CHECK-SAME:        },
+    // CHECK-SAME:        strides = [1, 1],
+    // CHECK-SAME:        num_clusters = 2 : i64,
+    // CHECK-SAME:        equal_memory_and_compute_view
+    // CHECK-SAME:    }
+    // CHECK-SAME:  >
+
+    // CHECK:   return [[ALLOC]]
 }

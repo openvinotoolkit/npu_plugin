@@ -4,8 +4,11 @@
 #
 
 #
+# Build configuration
+#
 
-replace_noerror()
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # FIXME: LTO usage breaks vpux-translate for VPUIP blob generation in some cases (E#37558)
 # if(ENABLE_LTO)
@@ -15,6 +18,7 @@ replace_noerror()
 set(TARGET_NAME "vpux_mlir_compiler")
 set(TBLGEN_TARGET_NAME "${TARGET_NAME}_tblgen")
 set(SCHEMA_TARGET_NAME "${TARGET_NAME}_schema")
+set(PROFILING_SCHEMA_TARGET_NAME "${TARGET_NAME}_profiling_schema")
 set(DOCS_TARGET_NAME "${TARGET_NAME}_docs")
 set(OBJ_TARGET_NAME "${TARGET_NAME}_obj")
 set(STATIC_TARGET_NAME "${TARGET_NAME}_static")
@@ -271,10 +275,14 @@ add_dialect("IE")
 add_op_interfaces("dialect/IE")
 add_enum_attrs("IE")
 add_struct_attrs("IE")
+add_attributes("IE")
 add_passes("dialect/IE" "IE")
 add_rewriters("dialect/IE")
+add_passes("VPU30XX/dialect/IE" "IE")
+add_passes("VPU37XX/dialect/IE" "IE")
 
 add_dialect("VPU")
+add_attr_interfaces("dialect/VPU")
 add_op_interfaces("dialect/VPU")
 add_type_interfaces("dialect/VPU")
 add_enum_attrs("VPU")
@@ -288,6 +296,7 @@ add_op_interfaces("dialect/EMU")
 add_passes("dialect/EMU" "EMU")
 
 add_dialect("IERT")
+add_types("IERT")
 add_rewriters("dialect/IERT")
 
 add_dialect("VPUIP")
@@ -298,11 +307,6 @@ add_enum_attrs("VPUIP")
 add_struct_attrs("VPUIP")
 add_passes("dialect/VPUIP" "VPUIP")
 add_rewriters("dialect/VPUIP")
-
-add_dialect("VPUIPDPU")
-add_op_interfaces("dialect/VPUIPDPU")
-add_types("VPUIPDPU")
-add_enum_attrs("VPUIPDPU")
 
 add_dialect("VPURT")
 add_op_interfaces("dialect/VPURT")
@@ -316,13 +320,20 @@ add_enum_attrs("ELF")
 add_types("ELF")
 add_passes("dialect/ELF" "ELF")
 
-add_dialect("VPUIPRegMapped")
-add_op_interfaces("dialect/VPUIPRegMapped")
-add_attributes("VPUIPRegMapped")
-add_enum_attrs("VPUIPRegMapped")
-add_struct_attrs("VPUIPRegMapped")
-add_types("VPUIPRegMapped")
-add_passes("dialect/VPUIPRegMapped" "VPUIPRegMapped")
+add_dialect("VPUMI37XX")
+add_op_interfaces("dialect/VPUMI37XX")
+add_attributes("VPUMI37XX")
+add_enum_attrs("VPUMI37XX")
+add_struct_attrs("VPUMI37XX")
+add_types("VPUMI37XX")
+add_passes("dialect/VPUMI37XX" "VPUMI37XX")
+
+add_dialect("VPURegMapped")
+add_op_interfaces("dialect/VPURegMapped")
+add_attributes("VPURegMapped")
+add_types("VPURegMapped")
+add_enum_attrs("VPURegMapped")
+add_passes("dialect/VPURegMapped" "VPURegMapped")
 
 add_dialect("VPU37XX")
 add_exclusive_types("VPU37XX")
@@ -378,6 +389,17 @@ vpux_add_flatc_target(${SCHEMA_TARGET_NAME}
 )
 set_target_properties(${SCHEMA_TARGET_NAME} PROPERTIES FOLDER "src")
 
+#
+# ELF profiling schema target
+#
+
+vpux_add_flatc_target(${PROFILING_SCHEMA_TARGET_NAME}
+    SRC_DIR "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/src/vpux_utils/data"
+    DST_DIR "${CMAKE_CURRENT_BINARY_DIR}/${gen_base_dst_include_dir}/profiling/generated/schema"
+    ARGS "--gen-object-api"
+)
+set_target_properties(${PROFILING_SCHEMA_TARGET_NAME} PROPERTIES FOLDER "src")
+
 if(NOT ENABLE_MLIR_COMPILER)
     return()
 endif()
@@ -402,6 +424,11 @@ vpux_embed_bin_file(
     SOURCE_FILE "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/thirdparty/vpucostmodel/models/vpu_2_7.vpunn"
     HEADER_FILE "${CMAKE_CURRENT_BINARY_DIR}/${gen_base_dst_include_dir}/dialect/VPU/generated/cost_model_data_2_7.hpp.inc"
     VARIABLE_NAME "COST_MODEL_2_7"
+)
+vpux_embed_bin_file(
+    SOURCE_FILE "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/thirdparty/vpucostmodel/models/vpu_2_7.fast.vpunn"
+    HEADER_FILE "${CMAKE_CURRENT_BINARY_DIR}/${gen_base_dst_include_dir}/dialect/VPU/generated/cost_model_data_2_7_fast.hpp.inc"
+    VARIABLE_NAME "COST_MODEL_2_7_FAST"
 )
 
 #
@@ -448,6 +475,7 @@ set_target_properties(${OBJ_TARGET_NAME} PROPERTIES FOLDER "src")
 add_dependencies(${OBJ_TARGET_NAME}
     ${TBLGEN_TARGET_NAME}
     ${SCHEMA_TARGET_NAME}
+    ${PROFILING_SCHEMA_TARGET_NAME}
     ${BITCOMPACTOR_DEP}
     huffman_codec
 )
@@ -457,14 +485,7 @@ ie_faster_build(${OBJ_TARGET_NAME}
 )
 
 enable_warnings_as_errors(${OBJ_TARGET_NAME} WIN_STRICT)
-# FIXME: this flag is forced while building in a single tree with OV
-# but code cannot be compiled with the flag
-if(NOT MSVC)
-    target_compile_options(${OBJ_TARGET_NAME}
-        PUBLIC
-            -Wno-error=suggest-override
-    )
-endif()
+replace_noerror(${OBJ_TARGET_NAME})
 
 target_compile_definitions(${OBJ_TARGET_NAME}
     PRIVATE
@@ -542,6 +563,7 @@ if(BUILD_SHARED_LIBS)
     target_link_libraries(${TARGET_NAME} PRIVATE ${OBJ_TARGET_NAME})
     if(WIN32)
         ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
+        ov_add_vs_version_file(NAME ${TARGET_NAME} FILEDESCRIPTION "VPU MLIR Compiler")
     endif()
 endif()
 
@@ -576,12 +598,4 @@ if(NOT BUILD_SHARED_LIBS)
 	install(TARGETS ${MLIR_DEPS_NAME} EXPORT OpenVINOTargets
 		ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT ${VPUX_PLUGIN_COMPONENT}
 		LIBRARY DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT ${VPUX_PLUGIN_COMPONENT})
-endif()
-
-
-if(TARGET vpux_elf)
-    install(TARGETS vpux_elf EXPORT OpenVINOTargets
-            RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT ${VPUX_PLUGIN_COMPONENT}
-            ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT ${VPUX_PLUGIN_COMPONENT}
-            LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT ${VPUX_PLUGIN_COMPONENT})
 endif()

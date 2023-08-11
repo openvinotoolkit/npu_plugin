@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/IE/passes.hpp"
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
@@ -192,7 +190,7 @@ void UnrollBatchPass::safeRunOnFunc() {
     patterns.add<OpConverter<IE::AndOp>>(&ctx, _log, 2);
     patterns.add<OpConverter<IE::AddOp>>(&ctx, _log, 2);
 
-    auto func = getFunction();
+    auto func = getOperation();
     if (mlir::failed(mlir::applyPartialConversion(func, target, std::move(patterns)))) {
         signalPassFailure();
     }

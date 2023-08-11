@@ -1,13 +1,12 @@
 #
 # Copyright (C) 2023 Intel Corporation
-# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: Apache 2.0
 #
 
 from itertools import zip_longest
 import re
 import utils
 from dataclasses import astuple, dataclass
-import query
 
 
 def parse_missing_kernels(stdout):

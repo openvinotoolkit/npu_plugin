@@ -1,14 +1,15 @@
 //
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
+
 // RUN: vpux-opt --split-input-file --init-compiler="vpu-arch=%arch% compilation-mode=DefaultHW" --add-weights-table-to-eltwise %s | FileCheck %s
 // REQUIRES: arch-VPUX30XX || arch-VPUX37XX
 
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
 // CHECK-LABEL: @AddWeightsTableToEltwiseOps
-func @AddWeightsTableToEltwiseOps(%arg0: tensor<1x16x16x16xf16, {order = #NHWC}>, %arg1: tensor<1x16x16x16xf16, {order = #NHWC}>) -> tensor<1x16x16x16xf16, {order = #NHWC}> {
+func.func @AddWeightsTableToEltwiseOps(%arg0: tensor<1x16x16x16xf16, {order = #NHWC}>, %arg1: tensor<1x16x16x16xf16, {order = #NHWC}>) -> tensor<1x16x16x16xf16, {order = #NHWC}> {
     %0 = EMU.NCEClusterTask {
             task_type = "ELTWISE"
         }
@@ -21,7 +22,7 @@ func @AddWeightsTableToEltwiseOps(%arg0: tensor<1x16x16x16xf16, {order = #NHWC}>
 
     return %0 : tensor<1x16x16x16xf16, {order = #NHWC}>
 
-    // CHECK:       [[CST0:%.+]] = const.Declare tensor<16x1x1x4xsi32> = dense<{{.*}}> : tensor<16x1x1x4xsi32>
+    // CHECK-DAG:       [[CST0:%.+]] = const.Declare tensor<16x1x1x4xsi32> = dense<{{.*}}> : tensor<16x1x1x4xsi32>
 
     // CHECK:       [[VAL0:%.+]] = EMU.NCEClusterTask
     // CHECK-SAME:      task_type = "ELTWISE"
@@ -39,7 +40,7 @@ func @AddWeightsTableToEltwiseOps(%arg0: tensor<1x16x16x16xf16, {order = #NHWC}>
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
 // CHECK-LABEL: @AddWeightsTableToAvgPoolOps
-func @AddWeightsTableToAvgPoolOps(%arg0: tensor<1x16x16x16xf16, {order = #NHWC}>, %arg1: tensor<1x16x16x16xf16, {order = #NHWC}>) -> tensor<1x16x16x16xf16, {order = #NHWC}> {
+func.func @AddWeightsTableToAvgPoolOps(%arg0: tensor<1x16x16x16xf16, {order = #NHWC}>, %arg1: tensor<1x16x16x16xf16, {order = #NHWC}>) -> tensor<1x16x16x16xf16, {order = #NHWC}> {
     %0 = EMU.NCEClusterTask {
             task_type = "AVEPOOL",
             kernel_padding = [1, 1, 1, 1],
@@ -54,7 +55,7 @@ func @AddWeightsTableToAvgPoolOps(%arg0: tensor<1x16x16x16xf16, {order = #NHWC}>
 
     return %0 : tensor<1x16x16x16xf16, {order = #NHWC}>
 
-    // CHECK:       [[CST0:%.+]] = const.Declare tensor<16x1x1x4xsi32> = dense<{{.*}}> : tensor<16x1x1x4xsi32>
+    // CHECK-DAG:       [[CST0:%.+]] = const.Declare tensor<16x1x1x4xsi32> = dense<{{.*}}> : tensor<16x1x1x4xsi32>
 
     // CHECK:       [[VAL0:%.+]] = EMU.NCEClusterTask
     // CHECK-SAME:      kernel_padding = [1, 1, 1, 1],

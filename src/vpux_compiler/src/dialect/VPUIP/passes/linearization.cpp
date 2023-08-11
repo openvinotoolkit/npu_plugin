@@ -3,27 +3,14 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
 
 #include "vpux/compiler/core/async_deps_info.hpp"
 #include "vpux/compiler/dialect/IE/ops.hpp"
-#include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/error.hpp"
-#include "vpux/compiler/utils/linear_scan.hpp"
 
-#include "vpux/utils/core/checked_cast.hpp"
-#include "vpux/utils/core/error.hpp"
-#include "vpux/utils/core/format.hpp"
-#include "vpux/utils/core/numeric.hpp"
-
-#include <mlir/Dialect/MemRef/IR/MemRef.h>
-#include <mlir/Dialect/StandardOps/IR/Ops.h>
 #include <mlir/IR/Value.h>
 #include <mlir/Transforms/DialectConversion.h>
-
-#include <llvm/ADT/DenseSet.h>
 
 using namespace vpux;
 
@@ -43,7 +30,7 @@ void LinearizationPass::safeRunOnModule() {
     auto module = getOperation();
 
     IE::CNNNetworkOp netOp;
-    mlir::FuncOp netFunc;
+    mlir::func::FuncOp netFunc;
     IE::CNNNetworkOp::getFromModule(module, netOp, netFunc);
 
     auto& depsInfo = getChildAnalysis<AsyncDepsInfo>(netFunc);

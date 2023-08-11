@@ -7,6 +7,8 @@
 #include "iexternal_compiler.h"
 #include "vpux_compiler.hpp"
 
+#include <ze_graph_ext.h>
+
 namespace vpux {
 namespace driverCompilerAdapter {
 
@@ -36,7 +38,7 @@ private:
      * @brief Separate externals calls to separate class
      */
     IExternalCompiler::Ptr apiAdapter;
-
+    ze_driver_handle_t _driverHandle = nullptr;
     Logger _logger;
 };
 

@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/VPU/ops.hpp"
 #include "vpux/compiler/utils/error.hpp"
 
@@ -19,16 +17,17 @@ mlir::OpFoldResult VPU::DistributedCastOp::fold(ArrayRef<mlir::Attribute>) {
 }
 
 //
-// verifyOp
+// verify
 //
 
-mlir::LogicalResult VPU::verifyOp(VPU::DistributedCastOp op) {
+mlir::LogicalResult vpux::VPU::DistributedCastOp::verify() {
+    const auto op = getOperation();
     const auto logCb = [op](const formatv_object_base& msg) {
         std::ignore = errorAt(op, "{0}", msg.str());
     };
 
-    const auto inDistributedTypeInterface = op.input().getType().cast<VPU::DistributedTypeInterface>();
-    const auto outDistributedTypeInterface = op.output().getType().cast<VPU::DistributedTypeInterface>();
+    const auto inDistributedTypeInterface = input().getType().cast<VPU::DistributedTypeInterface>();
+    const auto outDistributedTypeInterface = output().getType().cast<VPU::DistributedTypeInterface>();
 
     auto inDistributedTypes = inDistributedTypeInterface.getDistributedTypes();
     auto outDistributedTypes = outDistributedTypeInterface.getDistributedTypes();

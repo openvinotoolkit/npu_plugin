@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #pragma once
 
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
@@ -126,7 +124,9 @@ public:
 
 public:
     mlir::LogicalResult checkProducerCount(Logger log) const;
-    mlir::LogicalResult simulateBarriers(Logger log, Optional<int64_t> numBarriers = None);
+    mlir::LogicalResult simulateBarriers(Logger log, Optional<int64_t> numBarriers = None,
+                                         Optional<bool> barrierLegalization = None);
+    SmallVector<mlir::DenseSet<VPURT::DeclareVirtualBarrierOp>> getBarrierBatchesToLegalize();
     void linkNextIds(Logger log);
 
 private:
@@ -144,6 +144,7 @@ private:
     // DMA task index {queue index, task index in queue}
     using DmaTaskIdx = std::pair<int64_t, size_t>;
 
+    int64_t _barrierProducerSlotCount = 0;
     int64_t _availableBarriers = 0;
     int64_t _usedBarriers = 0;
 
@@ -158,6 +159,10 @@ private:
     SmallVector<BarrierUserConfig> _upaTasks;
 
     VirtualDependencyTracker _vdt;
+
+    // barrier legalisation
+    SmallVector<std::set<int64_t>> _barrierBatchesToLegalize;
+    DenseMap<size_t, mlir::Operation*> _barrierVID;
 };
 
 }  // namespace VPURT

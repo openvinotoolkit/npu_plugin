@@ -3,14 +3,11 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/IE/utils/convert_op_types.hpp"
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/IE/passes.hpp"
 #include "vpux/compiler/utils/types.hpp"
 
-#include <mlir/Dialect/StandardOps/IR/Ops.h>
 #include <mlir/IR/BlockAndValueMapping.h>
 #include <mlir/IR/BuiltinOps.h>
 #include <mlir/IR/BuiltinTypes.h>
@@ -86,7 +83,7 @@ mlir::LogicalResult vpux::IE::runConvertPrecision(mlir::ModuleOp module, mlir::T
     target.addLegalOp<IE::ConvertOp>();
 
     mlir::RewritePatternSet patterns(module.getContext());
-    mlir::populateFunctionOpInterfaceTypeConversionPattern<mlir::FuncOp>(patterns, typeConverter);
+    mlir::populateFunctionOpInterfaceTypeConversionPattern<mlir::func::FuncOp>(patterns, typeConverter);
     patterns.add<ConvertOpTypes>(typeConverter, module.getContext(), log);
 
     return mlir::applyPartialConversion(module, target, std::move(patterns));

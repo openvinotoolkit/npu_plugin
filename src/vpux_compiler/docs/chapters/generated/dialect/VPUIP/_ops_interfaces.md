@@ -12,6 +12,74 @@ vpux::IndexedSymbolAttr getExecutor();
 Get Executor for the asynchronous launch
 NOTE: This method *must* be implemented by the user.
 
+## DMATypeOpInterface (`VPUIP_DMATypeOpInterface`)
+
+Interface for DMA type layers
+### Methods:
+#### `setDmaHwpId`
+
+```c++
+void setDmaHwpId(mlir::IntegerAttr dmaIdAttr);
+```
+Sets DMA hardware profiling id
+NOTE: This method *must* be implemented by the user.
+
+#### `getDmaHwpId`
+
+```c++
+mlir::IntegerAttr getDmaHwpId();
+```
+Returns DMA hardware profiling id
+NOTE: This method *must* be implemented by the user.
+
+#### `getPortAttr`
+
+```c++
+mlir::IntegerAttr getPortAttr();
+```
+Get DMA port attr
+NOTE: This method *must* be implemented by the user.
+
+#### `getPort`
+
+```c++
+int64_t getPort();
+```
+Get DMA port value
+NOTE: This method *must* be implemented by the user.
+
+#### `setPortAttr`
+
+```c++
+void setPortAttr(mlir::IntegerAttr portAttr);
+```
+Set DMA port attr
+NOTE: This method *must* be implemented by the user.
+
+#### `getChannelTypeAttr`
+
+```c++
+VPUIP::DmaChannelTypeAttr getChannelTypeAttr();
+```
+Get DMA channel attr
+NOTE: This method *must* be implemented by the user.
+
+#### `getChannelType`
+
+```c++
+::llvm::Optional<VPUIP::DmaChannelType> getChannelType();
+```
+Get DMA channel value
+NOTE: This method *must* be implemented by the user.
+
+#### `setChannelTypeAttr`
+
+```c++
+void setChannelTypeAttr(VPUIP::DmaChannelTypeAttr channelTypeAttr);
+```
+Set DMA channel attr
+NOTE: This method *must* be implemented by the user.
+
 ## LayerOpInterface (`VPUIP_LayerOpInterface`)
 
 Base interface for VPUIP Layer Operation
@@ -56,10 +124,6 @@ llvm::MutableArrayRef<mlir::OpOperand> getOutOpOperands();
 Get all layer output memory buffers
 NOTE: This method *must* be implemented by the user.
 
-## ProfiledDMAOpInterface (`VPUIP_ProfiledDMAOpInterface`)
-
-Interface for layers that will be covered by DMA profiling
-### Methods:
 ## SoftwareLayerOpInterface (`VPUIP_SoftwareLayerOpInterface`)
 
 Interface for layers that will be executed on SHAVEs. (For VPUX37XX only)

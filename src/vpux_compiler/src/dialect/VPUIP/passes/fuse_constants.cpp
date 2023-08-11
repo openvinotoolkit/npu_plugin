@@ -2,8 +2,6 @@
 // Copyright (C) 2022 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
-
-//
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
 #include "vpux/compiler/utils/types.hpp"
@@ -31,8 +29,7 @@ namespace {
 
 class FuseConstants final : public mlir::OpRewritePattern<VPUIP::NCEClusterTaskOp> {
 public:
-    FuseConstants(mlir::MLIRContext* ctx, Logger log)
-            : mlir::OpRewritePattern<VPUIP::NCEClusterTaskOp>(ctx), _log(log), _ctx(ctx) {
+    FuseConstants(mlir::MLIRContext* ctx, Logger log): mlir::OpRewritePattern<VPUIP::NCEClusterTaskOp>(ctx), _log(log) {
     }
 
     mlir::LogicalResult matchAndRewrite(VPUIP::NCEClusterTaskOp nceOp, mlir::PatternRewriter& rewriter) const final;
@@ -44,7 +41,6 @@ private:
 
 private:
     Logger _log;
-    mlir::MLIRContext* _ctx;
 };
 
 mlir::Value createAllocOp(Const::DeclareOp declOp, VPURT::AllocDistributed allocDistributed,
@@ -205,6 +201,11 @@ mlir::LogicalResult getInputsInFusingOrder(VPUIP::NCEClusterTaskOp& nceOp,
         tilingOp = nullptr;
     };
 
+    auto hasOneUse = [](VPUIP::CopyOp copyOp) {
+        auto tilingCopyOp = copyOp->getParentOfType<VPUIP::NCEClusterTilingOp>();
+        return tilingCopyOp == nullptr ? copyOp->hasOneUse() : tilingCopyOp->hasOneUse();
+    };
+
     vpux::ConstantFusing::getCopyAndDeclareOpForFusion(nceOp, nceOp.weight_table(), copyOp, declareOp, allocDistributed,
                                                        tilingOp);
 
@@ -222,6 +223,11 @@ mlir::LogicalResult getInputsInFusingOrder(VPUIP::NCEClusterTaskOp& nceOp,
         if (copyOp == nullptr) {
             return matchFailed(rewriter, nceOp, "Weights Copy Op missing");
         }
+        // TODO Handling shared weights with weight table. Ticket E#61458
+        if (!hasOneUse(copyOp)) {
+            return matchFailed(rewriter, nceOp, "Weights Copy Op has more than one use");
+        }
+
         if (declareOp != nullptr) {
             constantVector[1] = {copyOp, declareOp};
             tilingVector[1] = {allocDistributed, tilingOp};
@@ -239,6 +245,11 @@ mlir::LogicalResult getInputsInFusingOrder(VPUIP::NCEClusterTaskOp& nceOp,
         if (copyOp == nullptr) {
             return matchFailed(rewriter, nceOp, "Weights sparsity map Copy Op missing");
         }
+
+        if (!hasOneUse(copyOp)) {
+            return matchFailed(rewriter, nceOp, "Weights sparsity copy op has more than one use");
+        }
+
         if (declareOp != nullptr) {
             constantVector[2] = {copyOp, declareOp};
             tilingVector[2] = {allocDistributed, tilingOp};
@@ -252,6 +263,10 @@ mlir::LogicalResult getInputsInFusingOrder(VPUIP::NCEClusterTaskOp& nceOp,
         vpux::ConstantFusing::getCopyAndDeclareOpForFusion(nceOp, nceOp.activation_window(), copyOp, declareOp,
                                                            allocDistributed, tilingOp);
         if (declareOp != nullptr && copyOp != nullptr) {
+            if (!hasOneUse(copyOp)) {
+                return matchFailed(rewriter, nceOp, "Weights activation window copy op has more than one use");
+            }
+
             constantVector[3] = {copyOp, declareOp};
             tilingVector[3] = {allocDistributed, tilingOp};
         }
@@ -336,7 +351,7 @@ void FuseConstantsPass::safeRunOnFunc() {
     mlir::RewritePatternSet patterns(&ctx);
     patterns.insert<FuseConstants>(&ctx, _log);
 
-    auto func = getFunction();
+    auto func = getOperation();
     if (mlir::failed(mlir::applyPatternsAndFoldGreedily(func, std::move(patterns), getDefaultGreedyRewriteConfig()))) {
         signalPassFailure();
     }

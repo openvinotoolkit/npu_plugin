@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #pragma once
 
 #include <queue>
@@ -17,11 +15,19 @@ namespace VPU {
 //
 class SubgraphOptimizer final {
 public:
-    SubgraphOptimizer(mlir::FuncOp func, Logger log);
+    using ShortcutMapTy =
+            std::unordered_map<mlir::Operation*, std::pair<mlir::Operation*, SmallVector<mlir::Operation*>>>;
+    SubgraphOptimizer(mlir::func::FuncOp func, Logger log);
     void optimizeStrategyAvoidSpillingOnModel();
 
 private:
-    VPU::MultiClusterStrategy getRollbackStrategy(VPU::NCEOpInterface op);
+    struct SubgraphOptConfig {
+        // indicate if using rollback strategy for cost calculation
+        bool useRollbackStrategy;
+        // indicate if checking concat related spilling cost
+        bool checkConcatRelatedSpilling;
+    };
+
     VPU::MultiClusterStrategy getRollbackStrategy(VPU::ClusteredOpInterface op);
 
     bool isValidStrategy(VPU::ClusteredOpInterface op, VPU::MultiClusterStrategy strategy);
@@ -29,12 +35,30 @@ private:
     bool isStrategySOKLike(VPU::ClusteredOpInterface op);
     VPU::MultiClusterStrategy getBestInSOKLikeStrategies(VPU::ClusteredOpInterface op);
     VPU::MultiClusterStrategy getBestInSOHLikeStrategies(VPU::ClusteredOpInterface op);
-    double getInputSpillingRollbackCostToMultiClusterLayer(VPU::ClusteredOpInterface nceOp,
-                                                           VPU::MultiClusterStrategy strategy);
-    double getInputSpillingRollbackCostToMultiClusterLayer(VPU::ClusteredOpInterface nceOp, mlir::Value input,
-                                                           VPU::MultiClusterStrategy strategy);
-    double getOutputSpillingRollbackCostToMultiClusterLayer(VPU::ClusteredOpInterface nceOp,
-                                                            VPU::MultiClusterStrategy strategy);
+    bool hasSpillingAroundConcat(VPU::ClusteredOpInterface clusteredOp, VPU::MultiClusterStrategy clusteredStrategy,
+                                 mlir::Operation* excludedOp = nullptr);
+    bool hasSpillingCausedByStridedCMXConcat(VPU::ClusteredOpInterface clusteredOp,
+                                             VPU::MultiClusterStrategy clusteredStrategy, SubgraphOptConfig config);
+    bool hasSpillingRelatedToConcat(VPU::ClusteredOpInterface parentClusteredOp,
+                                    VPU::MultiClusterStrategy parentStrategy, VPU::ClusteredOpInterface userClusteredOp,
+                                    VPU::MultiClusterStrategy userStrategy, SubgraphOptConfig config);
+    ShortcutMapTy detectShortcuts();
+    bool hasLongTermSpilling(VPU::ClusteredOpInterface origOp, VPU::ClusteredOpInterface parentOp,
+                             VPU::MultiClusterStrategy parentOpStrategy, SubgraphOptConfig config);
+    bool hasInputSpillingToMultiClusterLayer(VPU::ClusteredOpInterface origClusteredOp,
+                                             VPU::MultiClusterStrategy origStrategy, SubgraphOptConfig config);
+    bool hasInputSpillingToMultiClusterLayer(VPU::ClusteredOpInterface origClusteredOp, mlir::Value input,
+                                             VPU::MultiClusterStrategy origStrategy, SubgraphOptConfig config);
+    bool hasOutputSpillingToMultiClusterLayer(VPU::ClusteredOpInterface origClusteredOp,
+                                              VPU::MultiClusterStrategy origStrategy, SubgraphOptConfig config);
+    bool hasOutputSpillingToMultiClusterLayer(VPU::ClusteredOpInterface origClusteredOp, mlir::Operation* userOp,
+                                              VPU::MultiClusterStrategy origStrategy, SubgraphOptConfig config);
+    double getInputSpillingCostToMultiClusterLayer(VPU::ClusteredOpInterface clusteredOp,
+                                                   VPU::MultiClusterStrategy strategy, SubgraphOptConfig config);
+    double getInputSpillingCostToMultiClusterLayer(VPU::ClusteredOpInterface clusteredOp, mlir::Value input,
+                                                   VPU::MultiClusterStrategy strategy, SubgraphOptConfig config);
+    double getOutputSpillingCostToMultiClusterLayer(VPU::ClusteredOpInterface clusteredOp,
+                                                    VPU::MultiClusterStrategy strategy, SubgraphOptConfig config);
     void optimizeStrategyAvoidSpillingOnSubgraph(VPU::ClusteredOpInterface op);
 
     SmallVector<VPU::ClusteredOpInterface> layersNeedRollback;
@@ -43,9 +67,23 @@ private:
     std::set<mlir::Operation*> layersWithConvergedStrategy;
     // Keeps a record of operations where spill cost has already being taken into account
     std::set<mlir::Operation*> opsWithSpillWriteCounted;
-    mlir::FuncOp _func;
+    mlir::func::FuncOp _func;
     Logger _log;
     LayerCostModel _layerCostModel;
+    // Map pattern: {ResBlock_endpoint : {ResBlock_startpoint : [Middle ops in residual block]}}
+    // Shortcut is the direct connection from ResBlock_startpoint to ResBlock_endpoint, which is a special structure we
+    // want to catch in long-term spilling
+    ShortcutMapTy _shortcutsMap;
+    // The configuration of finding a initial node for subgraph strategy optimization
+    SubgraphOptConfig _configForFindingStartNode = {false, false};
+    // The configuration of finding best rollback strategy
+    SubgraphOptConfig _configForFindingRollbackStrategy = {true, false};
+    // The configuration of checking whether neighbouring layers need be added into rollback list
+    SubgraphOptConfig _configForFindingNeighbourNodes = {true, true};
+    // The configuration of calculating the original cost of subgraph
+    SubgraphOptConfig _configForCalcOrigCost = {false, true};
+    // The configuration of calculating the rollback cost of subgraph
+    SubgraphOptConfig _configForCalcRollbackCost = {true, true};
 };
 
 }  // namespace VPU

@@ -19,3 +19,28 @@ and that the number of producers to a barrier is less than 256.
 ```
 ### `-barrier-simulation`: Simulate barriers
 Simulates the physical barrier execution and stops compilation on fail.
+### `-reduce-exceeding-active-count-barriers`: Reduce exceeding active barrier count
+This pass linearizes virtual barriers in the IR such that the number of active barriers at any time
+does not exceed the physical number of available barriers and that total producer + consumer variant 
+count <= MAX_VARIANT_COUNT.
+With exceeding active barrier count:
+- parallel barriers can be merged
+- parallel consumers to barrier can be linearized
+- parallel barriers can be linearized
+If nothing can be applied extreme linearization will be performed, where all tasks linked to active barriers
+will be linearized. 
+
+#### Options
+```
+-num-barriers      : Number of physical barriers, available for use
+-max-variant-count : Number of producer and consumer slots per barrier, available for use
+```
+### `-split-exceeding-variant-count-barriers`: Split exceeding variant (producer and consumer) count barriers
+This pass splits virtual barriers in the IR such that the number of producer solts <= MAX_VARIANT_COUNT / 2 
+and the number of consumer slots <= MAX_VARIANT_COUNT / 2. Ensuring that each barrier will satisfy condition: 
+total producer + consumer variant count <= MAX_VARIANT_COUNT.
+
+#### Options
+```
+-max-variant-count : Number of producer and consumer slots per barrier, available for use
+```

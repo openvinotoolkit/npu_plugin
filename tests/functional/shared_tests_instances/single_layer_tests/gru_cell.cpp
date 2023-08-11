@@ -1,5 +1,5 @@
 //
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,9 +17,8 @@ class VPUXGRUCellLayerTest_VPU3720 : public GRUCellTest, virtual public LayerTes
     }
 };
 
-TEST_P(VPUXGRUCellLayerTest_VPU3720, CompareWithRefs_MLIR) {
+TEST_P(VPUXGRUCellLayerTest_VPU3720, HW) {
     threshold = 0.06;
-    useCompilerMLIR();
     setPlatformVPU3720();
     setDefaultHardwareModeMLIR();
     Run();

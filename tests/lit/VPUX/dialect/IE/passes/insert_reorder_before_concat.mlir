@@ -1,16 +1,17 @@
 //
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
+
 // RUN: vpux-opt --split-input-file --init-compiler="vpu-arch=%arch%" --layer-reorder-concat-pass --canonicalize %s | FileCheck %s
 // REQUIRES: arch-VPUX30XX || arch-VPUX37XX
 
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 #NWCH = affine_map<(d0, d1, d2, d3) -> (d0, d3, d1, d2)>
 
-// CHECK: func @InsertReorderBeforeConcat(%arg0: tensor<1x8x512x64xf16>, %arg1: tensor<1x2x1x512xf16>) -> tensor<1x64x9x512xf16>
+// CHECK: func.func @InsertReorderBeforeConcat(%arg0: tensor<1x8x512x64xf16>, %arg1: tensor<1x2x1x512xf16>) -> tensor<1x64x9x512xf16>
 
-func @InsertReorderBeforeConcat(%arg0: tensor<1x8x512x64xf16>, %arg1: tensor<1x2x1x512xf16>) -> tensor<1x64x9x512xf16> {
+func.func @InsertReorderBeforeConcat(%arg0: tensor<1x8x512x64xf16>, %arg1: tensor<1x2x1x512xf16>) -> tensor<1x64x9x512xf16> {
     %cst = const.Declare tensor<64x2x1x1xf16> = dense<1.0>
         : tensor<64x2x1x1xf32>, [#const.ConvertElemType<f16>]
 
@@ -30,7 +31,7 @@ func @InsertReorderBeforeConcat(%arg0: tensor<1x8x512x64xf16>, %arg1: tensor<1x2
 
     return %2 : tensor<1x64x9x512xf16>
 
-    // CHECK:   %[[CONSTANT_1:.*]] = const.Declare tensor<64x2x1x1xf16> = dense<1.000000e+00>
+    // CHECK-DAG:   %[[CONSTANT_1:.*]] = const.Declare tensor<64x2x1x1xf16> = dense<1.000000e+00>
     // CHECK-SAME:  : tensor<64x2x1x1xf32>, [#const.ConvertElemType<f16>]
 
     // CHECK:   %[[TRANSPOSE:.*]] = IE.Transpose(%arg0) {order_value = #NWCH}
@@ -62,9 +63,9 @@ func @InsertReorderBeforeConcat(%arg0: tensor<1x8x512x64xf16>, %arg1: tensor<1x2
 
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
-// CHECK: func @InsertReorderBeforeReshapeConcat(%arg0: tensor<1x8x512x64xf16>, %arg1: tensor<1x2x1x512xf16>) -> tensor<1x64x9x512xf16>
+// CHECK: func.func @InsertReorderBeforeReshapeConcat(%arg0: tensor<1x8x512x64xf16>, %arg1: tensor<1x2x1x512xf16>) -> tensor<1x64x9x512xf16>
 
-func @InsertReorderBeforeReshapeConcat(%arg0: tensor<1x8x512x64xf16>, %arg1: tensor<1x2x1x512xf16>) -> tensor<1x64x9x512xf16> {
+func.func @InsertReorderBeforeReshapeConcat(%arg0: tensor<1x8x512x64xf16>, %arg1: tensor<1x2x1x512xf16>) -> tensor<1x64x9x512xf16> {
     %cst = const.Declare tensor<64x2x1x1xf16> = dense<1.0>
         : tensor<64x2x1x1xf32>, [#const.ConvertElemType<f16>]
 
@@ -84,7 +85,7 @@ func @InsertReorderBeforeReshapeConcat(%arg0: tensor<1x8x512x64xf16>, %arg1: ten
 
     return %2 : tensor<1x64x9x512xf16>
 
-    // CHECK:   %[[CONSTANT_1:.*]] = const.Declare tensor<64x2x1x1xf16> = dense<1.000000e+00>
+    // CHECK-DAG:   %[[CONSTANT_1:.*]] = const.Declare tensor<64x2x1x1xf16> = dense<1.000000e+00>
     // CHECK-SAME:  : tensor<64x2x1x1xf32>, [#const.ConvertElemType<f16>]
 
     // CHECK:   %[[RESHAPE:.*]] = IE.AffineReshape(%arg0)

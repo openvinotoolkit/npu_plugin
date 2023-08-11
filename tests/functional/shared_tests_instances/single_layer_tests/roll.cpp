@@ -1,4 +1,4 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,10 +11,19 @@
 
 namespace LayerTestsDefinitions {
 
-class KmbRollLayerTest : public RollLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {};
+class VPUXRollLayerTest_VPU3700 : public RollLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {};
 
-TEST_P(KmbRollLayerTest, CompareWithRefs_MLIR) {
-    useCompilerMLIR();
+class VPUXRollLayerTest_VPU3720 : public RollLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {};
+
+TEST_P(VPUXRollLayerTest_VPU3700, HW) {
+    setPlatformVPU3700();
+    setDefaultHardwareModeMLIR();
+    Run();
+}
+
+TEST_P(VPUXRollLayerTest_VPU3720, SW) {
+    setPlatformVPU3720();
+    setReferenceSoftwareModeMLIR();
     Run();
 }
 
@@ -49,36 +58,65 @@ const auto testRollParams0 = ::testing::Combine(::testing::Values(inputShapes[0]
                                                 ::testing::Values(shift[0]), ::testing::Values(axes[0]),
                                                 ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));
 
-INSTANTIATE_TEST_CASE_P(smoke_Roll_Test_Check0, KmbRollLayerTest, testRollParams0, KmbRollLayerTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_Roll_Test_Check0, VPUXRollLayerTest_VPU3700, testRollParams0,
+                        VPUXRollLayerTest_VPU3700::getTestCaseName);
 
 const auto testRollParams1 = ::testing::Combine(::testing::Values(inputShapes[1]), ::testing::ValuesIn(inputPrecisions),
                                                 ::testing::Values(shift[1]), ::testing::Values(axes[1]),
                                                 ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));
 
-INSTANTIATE_TEST_CASE_P(smoke_Roll_Test_Check1, KmbRollLayerTest, testRollParams1, KmbRollLayerTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_Roll_Test_Check1, VPUXRollLayerTest_VPU3700, testRollParams1,
+                        VPUXRollLayerTest_VPU3700::getTestCaseName);
 
 const auto testRollParams2 = ::testing::Combine(::testing::Values(inputShapes[2]), ::testing::ValuesIn(inputPrecisions),
                                                 ::testing::Values(shift[2]), ::testing::Values(axes[2]),
                                                 ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));
 
-INSTANTIATE_TEST_CASE_P(smoke_Roll_Test_Check2, KmbRollLayerTest, testRollParams2, KmbRollLayerTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_Roll_Test_Check2, VPUXRollLayerTest_VPU3700, testRollParams2,
+                        VPUXRollLayerTest_VPU3700::getTestCaseName);
 
 const auto testRollParams3 = ::testing::Combine(::testing::Values(inputShapes[3]), ::testing::ValuesIn(inputPrecisions),
                                                 ::testing::Values(shift[3]), ::testing::Values(axes[3]),
                                                 ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));
 
-INSTANTIATE_TEST_CASE_P(smoke_Roll_Test_Check3, KmbRollLayerTest, testRollParams3, KmbRollLayerTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_Roll_Test_Check3, VPUXRollLayerTest_VPU3700, testRollParams3,
+                        VPUXRollLayerTest_VPU3700::getTestCaseName);
 
 const auto testRollParams4 = ::testing::Combine(::testing::Values(inputShapes[4]), ::testing::ValuesIn(inputPrecisions),
                                                 ::testing::Values(shift[4]), ::testing::Values(axes[4]),
                                                 ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));
 
-INSTANTIATE_TEST_CASE_P(smoke_Roll_Test_Check4, KmbRollLayerTest, testRollParams4, KmbRollLayerTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_Roll_Test_Check4, VPUXRollLayerTest_VPU3700, testRollParams4,
+                        VPUXRollLayerTest_VPU3700::getTestCaseName);
 
 const auto testRollParams5 = ::testing::Combine(::testing::Values(inputShapes[5]), ::testing::ValuesIn(inputPrecisions),
                                                 ::testing::Values(shift[5]), ::testing::Values(axes[5]),
                                                 ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));
 
-INSTANTIATE_TEST_CASE_P(smoke_Roll_Test_Check5, KmbRollLayerTest, testRollParams5, KmbRollLayerTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_Roll_Test_Check5, VPUXRollLayerTest_VPU3700, testRollParams5,
+                        VPUXRollLayerTest_VPU3700::getTestCaseName);
+
+// VPU3720
+
+INSTANTIATE_TEST_CASE_P(smoke_precommit_Roll_Test1D_VPU3720, VPUXRollLayerTest_VPU3720, testRollParams0,
+                        VPUXRollLayerTest_VPU3720::getTestCaseName);
+
+INSTANTIATE_TEST_CASE_P(smoke_precommit_Roll_Test2D_VPU3720, VPUXRollLayerTest_VPU3720, testRollParams1,
+                        VPUXRollLayerTest_VPU3720::getTestCaseName);
+
+INSTANTIATE_TEST_CASE_P(smoke_precommit_Roll_Test3D_VPU3720, VPUXRollLayerTest_VPU3720, testRollParams3,
+                        VPUXRollLayerTest_VPU3720::getTestCaseName);
+
+INSTANTIATE_TEST_CASE_P(smoke_precommit_Roll_Test4D_VPU3720, VPUXRollLayerTest_VPU3720, testRollParams4,
+                        VPUXRollLayerTest_VPU3720::getTestCaseName);
+
+const auto testRollParams = ::testing::Combine(::testing::ValuesIn(std::vector<std::vector<size_t>>{{4, 3}}),
+                                               ::testing::ValuesIn(inputPrecisions),
+                                               ::testing::ValuesIn(std::vector<std::vector<int64_t>>{{1, 2, 1}}),
+                                               ::testing::ValuesIn(std::vector<std::vector<int64_t>>{{0, 1, 0}}),
+                                               ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));
+
+INSTANTIATE_TEST_CASE_P(smoke_precommit_Roll_Test_VPU3720, VPUXRollLayerTest_VPU3720, testRollParams,
+                        VPUXRollLayerTest_VPU3720::getTestCaseName);
 
 }  // namespace

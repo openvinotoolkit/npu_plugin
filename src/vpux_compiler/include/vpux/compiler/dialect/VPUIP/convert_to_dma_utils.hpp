@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #pragma once
 
 #include <mlir/IR/Builders.h>
@@ -39,6 +37,9 @@ mlir::AffineMap getPermuteDMAMergedMemPerm(vpux::NDTypeInterface inType, mlir::A
 
 // Get the numPlane dim of the merged input shape
 Dim getPermuteDMANumPlaneDim(vpux::NDTypeInterface inType, mlir::AffineMap memPerm);
+
+// Check if is a [d0, d1, d2] -> [d2, d1, d0] permutation that needs to be split in order to use permuteDMA
+bool isSplitNeededForPermuteDMA(vpux::NDTypeInterface inType, mlir::AffineMap memPerm);
 
 // Get Tiled dim of the distributed output of PermuteDMA op
 Optional<Dim> getTileDimForPermuteDMA(vpux::NDTypeInterface inType, vpux::NDTypeInterface outType,

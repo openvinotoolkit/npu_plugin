@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/utils/swizzle_transform.hpp"
 #include "vpux/compiler/dialect/VPU/nce_invariant.hpp"
 #include "vpux/compiler/dialect/VPU/nce_sparsity.hpp"
@@ -89,6 +87,17 @@ void vpux::Const::SwizzleConstantAttr::walkImmediateSubElements(llvm::function_r
     walkAttrsFn(getSwizzleKey());
     walkAttrsFn(getArch());
     walkAttrsFn(getAlignSize());
+}
+
+//
+// SwizzleConstantAttr::replaceImmediateSubElements
+//
+
+mlir::Attribute vpux::Const::SwizzleConstantAttr::replaceImmediateSubElements(ArrayRef<mlir::Attribute> replAttrs,
+                                                                              ArrayRef<mlir::Type>) const {
+    VPUX_THROW_WHEN(replAttrs.size() < 3, "Replace attrs array is too short: '{0}'", replAttrs.size());
+    return get(replAttrs[0].dyn_cast_or_null<mlir::IntegerAttr>(), replAttrs[1].dyn_cast_or_null<mlir::IntegerAttr>(),
+               replAttrs[2].dyn_cast_or_null<mlir::BoolAttr>());
 }
 
 //
@@ -182,16 +191,7 @@ Const::Content swizzleValues(Const::Content& input, BufferSwizzleTransform& buff
     auto totalSize = static_cast<size_t>(outputType.getTotalAllocSize().count());
     auto swizzledBuffer = output.getRawTempBuf();
 
-    // In case input size matches final size, then current storage buffer
-    // can be used as input
-    auto rawData = input.getRawStorageBuf();
-    if (totalSize == rawData.size()) {
-        bufferSwizzleTransform.swizzle<char>(rawData, swizzledBuffer);
-        return output;
-    }
-
-    // When size is different then new buffer needs to be created matching this size
-    // and filled with input data based on its size. Remaining part will be padded
+    // Create new buffer with required size. Fill it with input data
     std::vector<char> inputValues(totalSize);
     input.copyTo(makeMutableArrayRef(inputValues.data(), totalSize));
 

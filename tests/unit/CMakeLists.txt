@@ -63,18 +63,18 @@ if(ENABLE_HUFFMAN_CODEC)
     )
 else()
     list(APPEND EXCLUDED_UNIT_TESTS_DIR
-        "${CMAKE_CURRENT_SOURCE_DIR}/huffman_codec"
+        "${CMAKE_CURRENT_SOURCE_DIR}/compression_codec/huffman_encoding"
     )
 endif()
 
-add_subdirectory(kmb/test_utils)
+add_subdirectory(vpux_plugin/test_utils)
 
 addIeTargetTest(
     NAME ${TARGET_NAME}
     ROOT ${CMAKE_CURRENT_SOURCE_DIR}
     EXCLUDED_SOURCE_PATHS
         ${EXCLUDED_UNIT_TESTS_DIR}
-        ${CMAKE_CURRENT_SOURCE_DIR}/kmb/test_utils
+        ${CMAKE_CURRENT_SOURCE_DIR}/vpux_plugin/test_utils
     INCLUDES
         ${OPTIONAL_UNIT_TESTS_INCLUDES}
         "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/include"
@@ -83,13 +83,11 @@ addIeTargetTest(
     LINK_LIBRARIES
         ${OPTIONAL_UNIT_TESTS_LIBS}
         ${MANDATORY_UNIT_TESTS_LIBS}
-    LINK_LIBRARIES_WHOLE_ARCHIVE
-        kmbTestData
     DEFINES
         DATA_PATH=\"${DATA_PATH}\"
         MODELS_PATH=\"${MODELS_PATH}\"
     LABELS
-        KMB
+        VPUX_PLUGIN
 )
 
 set_target_properties(${TARGET_NAME} PROPERTIES FOLDER "tests")
@@ -98,8 +96,16 @@ add_dependencies(${TARGET_NAME} throw_test_backend vpu3700_test_backend no_devic
 enable_warnings_as_errors(${TARGET_NAME})
 vpux_enable_clang_format(${TARGET_NAME})
 
+# FIXME: E78489 gtest does not respect this option yet in some parts
+# so we cannot enable it for vpuxUnitTests
+
+if(NOT MSVC)
+    target_compile_options(${TARGET_NAME} PRIVATE -Wno-suggest-override)
+endif()
+
 install(TARGETS ${TARGET_NAME}
         RUNTIME DESTINATION tests
         COMPONENT ${VPUX_TESTS_COMPONENT}
         EXCLUDE_FROM_ALL
 )
+

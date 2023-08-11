@@ -1,579 +1,818 @@
 //
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "single_layer_tests/detection_output.hpp"
-#include <ie_blob.h>
-#include <ngraph/pass/constant_folding.hpp>
-#include <ngraph/pass/visualize_tree.hpp>
-#include <ngraph_functions/builders.hpp>
-#include <shared_tests_instances/kmb_layer_test.hpp>
-#include <transformations/init_node_info.hpp>
-#include "common/bbox_util.h"
+#include <algorithm>
+#include <common/print_test_case_name.hpp>
+#include <common/tensor_view.hpp>
+#include <numeric>
+#include <openvino/core/shape.hpp>
+#include <openvino/core/type/element_type.hpp>
+#include <ratio>
+#include <type_traits>
+#include <vpux_layer_test.hpp>
 
-using namespace LayerTestsDefinitions;
-using namespace InferenceEngine;
+#include "common/random_generator.hpp"
+#include "ngraph_functions/builders.hpp"
+#include "pretty_test_arguments.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 
-namespace {
+namespace ov::test::subgraph {
 
-const int DEFAULT_SEED_VALUE = 43;
-const int WIDTH = 300;
-const int HEIGHT = 300;
-const size_t NUM_LOC = 12996;
-const size_t NUM_CONF = 6498;
-const CodeType CODE_TYPE = CENTER_SIZE;
-const int NUM_ORIENT_CLASSES = 0;
-const int KEEP_TOP_K = 200;
-const size_t NUM_OUT = 200;
-const int INTERPOLATE_ORIENTATION = 0;
+enum class CodeType { CENTER_SIZE, CORNER_SIZE, CORNER };
 
-std::vector<std::uint8_t> convertVecFloat2Uint(const std::vector<float>& ref) {
-    std::vector<std::uint8_t> u8Data(ref.size() * sizeof(float), 0);
-    std::copy_n(reinterpret_cast<const std::uint8_t*>(ref.data()), ref.size() * sizeof(float), u8Data.data());
-
-    return u8Data;
+std::string codeTypeToString(CodeType codeType) {
+    switch (codeType) {
+    case CodeType::CENTER_SIZE:
+        return "caffe.PriorBoxParameter.CENTER_SIZE";
+    case CodeType::CORNER_SIZE:
+        return "caffe.PriorBoxParameter.CORNER_SIZE";
+    case CodeType::CORNER:
+        return "caffe.PriorBoxParameter.CORNER";
+    }
+    VPUX_THROW("Unsupported CodeType");
 }
 
-std::vector<float> convertVecUint2Float(const std::vector<std::uint8_t>& ref) {
-    EXPECT_EQ(ref.size() % sizeof(float), 0);
+// We can't get the name of Enum field
+static void PrintTo(CodeType param, ::std::ostream* os) {
+    const auto fullName = codeTypeToString(param);
+    const auto garbageSize = std::string_view(fullName).find_last_of(".") + 1;
+    const auto goodSize = fullName.size() - garbageSize;
+    const auto importantPart = fullName.substr(garbageSize, goodSize);
 
-    std::vector<float> floatData(ref.size() / sizeof(float), 0);
-    std::copy_n(ref.data(), ref.size(), reinterpret_cast<std::uint8_t*>(floatData.data()));
-
-    return floatData;
+    *os << "CodeType: " << ::testing::PrintToString(importantPart);
 }
 
-class DetectionOutputTestHelper {
+PRETTY_PARAM(VarianceEncodedInTarget, bool);
+PRETTY_PARAM(ShareLocation, bool);
+PRETTY_PARAM(Normalized, bool);
+PRETTY_PARAM(InputHeight, int);
+PRETTY_PARAM(InputWidth, int);
+PRETTY_PARAM(NumClasses, int);
+PRETTY_PARAM(BackgroundLabelId, int);
+PRETTY_PARAM(TopK, int);
+PRETTY_PARAM(KeepTopK, int);
+PRETTY_PARAM(NmsThreshold, float);
+PRETTY_PARAM(ConfidenceThreshold, float);
+PRETTY_PARAM(ClipAfterNms, bool);
+PRETTY_PARAM(ClipBeforeNms, bool);
+PRETTY_PARAM(DecreaseLabelId, bool);
+PRETTY_PARAM(ObjectnessScore, float);
+
+PRETTY_PARAM(HasAdditionalInputs, bool);
+PRETTY_PARAM(NumPriors, int);
+PRETTY_PARAM(NumBatches, int);
+PRETTY_PARAM(PriorBatchSizeOne, bool);
+
+PRETTY_PARAM(NumDetectedClasses, int);
+PRETTY_PARAM(NumDetectionsPerClass, int);
+
+class DetectionOutputAttributesBuilder {
 public:
-    struct BBox {
-        int x, y;
-        int width, height;
-    };
-
-    struct DetectionObject {
-        int batch_id;
-        int class_id;
-        float confidence;
-        BBox bbox;
-    };
-
-public:
-    void Compare(const std::vector<float>& expected, const InferenceEngine::Blob::Ptr& actual) {
-        EXPECT_EQ(7 * NUM_OUT, expected.size());
-        EXPECT_EQ(7 * NUM_OUT, actual->size());
-
-        const auto* actual_data = actual->cbuffer().as<const float*>();
-
-        std::vector<DetectionObject> ref_objs, actual_objs;
-        cvtDetectionObjects(expected.data(), NUM_OUT, WIDTH, HEIGHT, ref_objs);
-        cvtDetectionObjects(actual_data, NUM_OUT, WIDTH, HEIGHT, actual_objs);
-
-        checkDetectionObjectArrays(ref_objs, actual_objs, 0);
+#define str(x) #x
+#define BUILD_PARAM(Type, Field)                                                    \
+    DetectionOutputAttributesBuilder& set##Type(Type value) {                       \
+        params.Field = value;                                                       \
+        VPUX_THROW_WHEN(filled.count(str(Type)) != 0, str(Type) " is already set"); \
+        filled.insert(str(Type));                                                   \
+        return *this;                                                               \
     }
 
-    std::vector<float> Ref(const InferenceEngine::Blob::Ptr& locations, const InferenceEngine::Blob::Ptr& confidence,
-                           const InferenceEngine::Blob::Ptr& prior, const InferenceEngine::Blob::Ptr& output,
-                           const ngraph::op::DetectionOutputAttrs& attrs) {
-        std::vector<float> dst_data(7 * NUM_OUT, 0);
+    BUILD_PARAM(NumClasses, num_classes);
+    BUILD_PARAM(BackgroundLabelId, background_label_id);
+    BUILD_PARAM(TopK, top_k);
+    BUILD_PARAM(VarianceEncodedInTarget, variance_encoded_in_target);
+    BUILD_PARAM(ShareLocation, share_location);
+    BUILD_PARAM(NmsThreshold, nms_threshold);
+    BUILD_PARAM(ConfidenceThreshold, confidence_threshold);
+    BUILD_PARAM(ClipAfterNms, clip_after_nms);
+    BUILD_PARAM(ClipBeforeNms, clip_before_nms);
+    BUILD_PARAM(DecreaseLabelId, decrease_label_id);
+    BUILD_PARAM(Normalized, normalized);
+    BUILD_PARAM(InputHeight, input_height);
+    BUILD_PARAM(InputWidth, input_width);
+    BUILD_PARAM(ObjectnessScore, objectness_score);
+    DetectionOutputAttributesBuilder& setKeepTopK(KeepTopK value) {
+        params.keep_top_k = std::vector<int>{value};
+        VPUX_THROW_WHEN(filled.count("KeepTopK") != 0, "KeepTopK is already set");
+        filled.insert("KeepTopK");
+        return *this;
+    }
+    DetectionOutputAttributesBuilder& setCodeType(CodeType value) {
+        params.code_type = codeTypeToString(value);
+        VPUX_THROW_WHEN(filled.count("CodeType") != 0, "CodeType is already set");
+        filled.insert("CodeType");
+        return *this;
+    }
+#undef str
+#undef BUILD_PARAM
 
-        int _num_loc_classes = attrs.share_location ? 1 : attrs.num_classes;
-        int _num_priors = prior->getTensorDesc().getDims()[2] / 4;
+    ngraph::op::DetectionOutputAttrs build() {
+        VPUX_THROW_UNLESS(filled.size() == 16, "Not all DetectionOutput attributes were set");
+        filled.clear();
+        return params;
+    }
 
-        EXPECT_EQ(_num_priors * _num_loc_classes * 4, locations->getTensorDesc().getDims()[1])
-                << "Number of priors must match number of location predictions";
-        EXPECT_EQ(_num_priors * attrs.num_classes, confidence->getTensorDesc().getDims()[1])
-                << "Number of priors must match number of confidence predictions";
+private:
+    std::set<std::string> filled;
+    ngraph::op::DetectionOutputAttrs params;
+};
 
-        const auto* loc_data = locations->cbuffer().as<float*>();
-        const float* orient_data = nullptr;  // TODO : support orientation, when myriad will do it
-        const auto* conf_data = confidence->cbuffer().as<float*>();
-        const auto* prior_data = prior->cbuffer().as<float*>();
+struct NormalizedBox {
+    float xmin{};
+    float ymin{};
+    float xmax{};
+    float ymax{};
+};
 
-        const int num = locations->getTensorDesc().getDims()[0];
+struct DenormalizedBox {
+    float padding{};
+    float xmin{};
+    float ymin{};
+    float xmax{};
+    float ymax{};
+};
 
-        // Retrieve all location predictions.
-        std::vector<LabelBBox> all_loc_preds;
-        GetLocPredictions(loc_data, num, _num_priors, _num_loc_classes, attrs.share_location, &all_loc_preds);
+template <typename Distribution>
+auto generateBox(Distribution& distr, float minSize) {
+    auto& generator = RandomGenerator::get();
 
-        // Retrieve all confidences.
-        std::vector<std::map<int, std::vector<float>>> all_conf_scores;
-        GetConfidenceScores(conf_data, num, _num_priors, attrs.num_classes, &all_conf_scores);
+    float x1 = distr(generator);
+    float x2 = distr(generator);
+    float y1 = distr(generator);
+    float y2 = distr(generator);
 
-        // Retrieve all orientations
-        std::vector<std::vector<std::vector<float>>> all_orient_scores;
-        if (orient_data) {
-            GetOrientationScores(orient_data, num, _num_priors, NUM_ORIENT_CLASSES, &all_orient_scores);
+    float xmin = std::min(x1, x2);
+    float xmax = std::max(x1, x2);
+    float ymin = std::min(y1, y2);
+    float ymax = std::max(y1, y2);
+
+    return NormalizedBox{xmin, ymin, xmax + minSize, ymax + minSize};
+}
+
+ov::Tensor generateNormalizedPriorBoxTensor(NumBatches numBatches, PriorBatchSizeOne priorBatchSizeOne,
+                                            VarianceEncodedInTarget varianceEncodedInTarget, NumPriors numPriors) {
+    const auto height = varianceEncodedInTarget ? 1 : 2;
+    const auto normalizedBoxSize = sizeof(NormalizedBox) / sizeof(float);
+    const auto numPriorBatches = priorBatchSizeOne ? 1 : static_cast<int>(numBatches);
+
+    const auto tensor = ov::Tensor{ov::element::f32, makeShape(numPriorBatches, height, numPriors * normalizedBoxSize)};
+    const auto normalizedPriors = TensorView<NormalizedBox, 3>(tensor);
+
+    const auto priorMinSize = 0.3f;
+    auto priorsDistr = std::uniform_real_distribution<float>(-0.45f, 1.45f - priorMinSize);  // ssd_mobilenet_v1_coco
+
+    for (int b = 0; b < numPriorBatches; b++) {
+        for (int p = 0; p < numPriors; p++) {
+            normalizedPriors.at(b, 0, p) = generateBox(priorsDistr, priorMinSize);
         }
+    }
 
-        // Retrieve all prior bboxes. It is same within a batch since we assume all
-        // images in a batch are of same dimension.
-        std::vector<NormalizedBBox> prior_bboxes(_num_priors);
-        std::vector<float> prior_variances(_num_priors * 4);
-        GetPriorBBoxes(prior_data, _num_priors, prior_bboxes, prior_variances);
+    if (!varianceEncodedInTarget) {
+        const auto varianceMinSize = 0.1f;
+        auto varianceDistr = std::uniform_real_distribution<float>(0.7f, 1.2f - varianceMinSize);  // values near 1.0f
 
-        // Decode all loc predictions to bboxes.
-        std::vector<LabelBBox> all_decode_bboxes;
-        DecodeBBoxesAll(all_loc_preds, prior_bboxes, prior_variances, num, attrs.share_location, _num_loc_classes,
-                        attrs.background_label_id, CODE_TYPE, attrs.variance_encoded_in_target, &all_decode_bboxes);
-        // todo string to enum
-
-        int num_kept = 0;
-
-        std::vector<std::map<int, std::vector<int>>> all_indices;
-
-        for (int image_index_in_batch = 0; image_index_in_batch < num; ++image_index_in_batch) {
-            if (orient_data) {
-                EXPECT_EQ(_num_priors, all_orient_scores[image_index_in_batch].size())
-                        << "Orientation scores not equal to num priors.";
-            }
-
-            const LabelBBox& decode_bboxes = all_decode_bboxes[image_index_in_batch];
-            const std::map<int, std::vector<float>>& conf_scores = all_conf_scores[image_index_in_batch];
-            std::map<int, std::vector<int>> indices;
-            int num_det = 0;
-
-            for (int label_index = 0; label_index < attrs.num_classes; ++label_index) {
-                if (label_index == attrs.background_label_id) {
-                    // Ignore background class.
-                    continue;
-                }
-
-                EXPECT_NE(conf_scores.end(), conf_scores.find(label_index))
-                        << "Could not find confidence predictions for label " << label_index;
-
-                const std::vector<float>& scores = conf_scores.find(label_index)->second;
-
-                int label = attrs.share_location ? -1 : label_index;
-
-                if (decode_bboxes.find(label) == decode_bboxes.end()) {
-                    // Something bad happened if there are no predictions for current label.
-                    continue;
-                }
-
-                const std::vector<NormalizedBBox>& bboxes = decode_bboxes.find(label)->second;
-
-                ApplyNMSFast(bboxes, scores, attrs.confidence_threshold, attrs.nms_threshold, attrs.top_k,
-                             &(indices[label_index]));
-                num_det += indices[label_index].size();
-            }
-
-            if (KEEP_TOP_K > -1 && num_det > KEEP_TOP_K) {
-                std::vector<std::pair<float, std::pair<int, int>>> score_index_pairs;
-
-                for (std::map<int, std::vector<int>>::iterator it = indices.begin(); it != indices.end(); ++it) {
-                    int label = it->first;
-
-                    const std::vector<int>& label_indices = it->second;
-
-                    if (conf_scores.find(label) == conf_scores.end()) {
-                        // Something bad happened for current label.
-                        continue;
-                    }
-
-                    const std::vector<float>& scores = conf_scores.find(label)->second;
-
-                    for (int j = 0; j < label_indices.size(); ++j) {
-                        int idx = label_indices[j];
-
-                        EXPECT_LT(idx, scores.size()) << "Label index is out of array size";
-
-                        score_index_pairs.push_back(std::make_pair(scores[idx], std::make_pair(label, idx)));
-                    }
-                }
-
-                // Keep top k results per image.
-                std::sort(score_index_pairs.begin(), score_index_pairs.end(),
-                          SortScorePairDescend<std::pair<int, int>>);
-                score_index_pairs.resize(KEEP_TOP_K);
-
-                // Store the new indices.
-                std::map<int, std::vector<int>> new_indices;
-
-                for (int j = 0; j < score_index_pairs.size(); ++j) {
-                    int label = score_index_pairs[j].second.first;
-                    int idx = score_index_pairs[j].second.second;
-                    new_indices[label].push_back(idx);
-                }
-
-                all_indices.push_back(new_indices);
-                num_kept += KEEP_TOP_K;
-
-            } else {
-                all_indices.push_back(indices);
-                num_kept += num_det;
+        for (int b = 0; b < numPriorBatches; b++) {
+            for (int p = 0; p < numPriors; p++) {
+                normalizedPriors.at(b, 1, p) = generateBox(varianceDistr, varianceMinSize);
             }
         }
+    }
 
-        const int DETECTION_OUTPUT_SIZE = output->getTensorDesc().getDims()[3];
-        for (int i = 0; i < num * KEEP_TOP_K * DETECTION_OUTPUT_SIZE; i++) {
-            dst_data[i] = 0;
+    return tensor;
+}
+
+NormalizedBox encodeBoxLogit(NormalizedBox decodedBox, NormalizedBox priorBox, NormalizedBox varianceBox,
+                             CodeType codeType) {
+    const float priorWidth = priorBox.xmax - priorBox.xmin;
+    const float priorHeight = priorBox.ymax - priorBox.ymin;
+    const float priorCenterX = (priorBox.xmin + priorBox.xmax) / 2.0f;
+    const float priorCenterY = (priorBox.ymin + priorBox.ymax) / 2.0f;
+
+    switch (codeType) {
+    case CodeType::CENTER_SIZE: {
+        const float decodedBoxWidth = decodedBox.xmax - decodedBox.xmin;
+        const float decodedBoxHeight = decodedBox.ymax - decodedBox.ymin;
+        const float decodedBoxCenterX = (decodedBox.xmin + decodedBox.xmax) / 2.0f;
+        const float decodedBoxCenterY = (decodedBox.ymin + decodedBox.ymax) / 2.0f;
+
+        return NormalizedBox{(decodedBoxCenterX - priorCenterX) / (varianceBox.xmin * priorWidth),   // x min
+                             (decodedBoxCenterY - priorCenterY) / (varianceBox.ymin * priorHeight),  // y min
+                             std::log(decodedBoxWidth / priorWidth) / varianceBox.xmax,              // x max
+                             std::log(decodedBoxHeight / priorHeight) / varianceBox.ymax};           // y max
+    }
+    case CodeType::CORNER: {
+        return NormalizedBox{(decodedBox.xmin - priorBox.xmin) / varianceBox.xmin,   // x min
+                             (decodedBox.ymin - priorBox.ymin) / varianceBox.ymin,   // y min
+                             (decodedBox.xmax - priorBox.xmax) / varianceBox.xmax,   // x max
+                             (decodedBox.ymax - priorBox.ymax) / varianceBox.ymax};  // y max
+    }
+    case CodeType::CORNER_SIZE: {
+        return NormalizedBox{(decodedBox.xmin - priorBox.xmin) / (varianceBox.xmin * priorWidth),    // x min
+                             (decodedBox.ymin - priorBox.ymin) / (varianceBox.ymin * priorHeight),   // y min
+                             (decodedBox.xmax - priorBox.xmax) / (varianceBox.xmax * priorWidth),    // x max
+                             (decodedBox.ymax - priorBox.ymax) / (varianceBox.ymax * priorHeight)};  // y max
+    }
+    }
+    VPUX_THROW("CodeType '{0}' is not supported", codeTypeToString(codeType));
+}
+
+ov::Tensor encodeBoxLogits(TensorView<NormalizedBox, 3> priorBoxes, NumPriors numPriors, NumClasses numClasses,
+                           NumBatches numBatches, ShareLocation shareLocation, CodeType codeType) {
+    const auto numLocClasses = shareLocation ? 1 : static_cast<int>(numClasses);
+    const auto varianceEncodedInTarget = (priorBoxes.getShape()[1] == 1);
+    const auto priorBatchSizeOne = (priorBoxes.getShape()[0] == 1);
+
+    const auto boxSize = sizeof(NormalizedBox) / sizeof(float);
+    const auto tensor = ov::Tensor{ov::element::f32, makeShape(numBatches, numPriors * numLocClasses * boxSize)};
+    const auto boxLogits = TensorView<NormalizedBox, 3>(tensor, makeShape(numBatches, numPriors, numLocClasses));
+
+    const auto decodedMinSize = 0.05f;
+    auto decodedDistr = std::uniform_real_distribution<float>(0.0f, 1.0f - decodedMinSize);
+
+    for (int b = 0; b < numBatches; b++) {
+        const auto priorBatch = b * !priorBatchSizeOne;
+        for (int p = 0; p < numPriors; p++) {
+            const auto priorBox = priorBoxes.at(priorBatch, 0, p);
+            const auto varianceBox =
+                    varianceEncodedInTarget ? NormalizedBox{1.0f, 1.0f, 1.0f, 1.0f} : priorBoxes.at(priorBatch, 1, p);
+
+            for (int c = 0; c < numLocClasses; c++) {
+                auto decoded = generateBox(decodedDistr, decodedMinSize);
+                boxLogits.at(b, p, c) = encodeBoxLogit(decoded, priorBox, varianceBox, codeType);
+            }
+        }
+    }
+
+    return tensor;
+}
+
+std::vector<int> generateDetectedClassesIndices(int numClasses, int maxDetectedClasses) {
+    const auto numDetectedClasses = std::min<int>(numClasses, maxDetectedClasses);
+
+    auto indices = std::vector<int>(numClasses);
+    std::iota(indices.begin(), indices.end(), 0);
+    std::shuffle(indices.begin(), indices.end(), RandomGenerator::get());
+
+    indices.resize(numDetectedClasses);
+    std::sort(indices.begin(), indices.end());
+
+    return indices;
+}
+
+ov::Tensor generateClassPredictions(NumBatches numBatches, NumPriors numPriors, NumClasses numClasses,
+                                    int maxDetectedClasses, int maxDetectionsPerClass,
+                                    ConfidenceThreshold confidenceThreshold) {
+    const auto tensor = ov::Tensor{ov::element::f32, makeShape(numBatches, numPriors * numClasses)};
+    const auto classPredictions = TensorView<float, 3>(tensor, makeShape(numBatches, numPriors, numClasses));
+
+    std::fill_n(classPredictions.data(), classPredictions.size(), 0.0f);
+
+    const auto detectedClassIndices = generateDetectedClassesIndices(numClasses, maxDetectedClasses);
+    const auto numDetectionsPerClass = std::min<int>(maxDetectionsPerClass, numPriors);
+
+    const auto genConfidenceUniform = [&](std::vector<float>& confidence) {
+        const auto threshold = confidenceThreshold + 0.001;  // to not have a box with confidence == confidenceThreshold
+        const auto step = (1.0f - threshold) / numDetectionsPerClass;
+
+        for (int i = 0; i < numDetectionsPerClass; i++) {
+            confidence[i] = threshold + step * i;
+        }
+        for (int i = numDetectionsPerClass; i < numPriors; i++) {
+            confidence[i] = 0.0f;
         }
 
-        auto mark_end = [](float* data) -> void {
-            *data++ = -1;
-            *data++ = 0;
-            *data++ = 0;
-            *data++ = 0;
-            *data++ = 0;
-            *data++ = 0;
-            *data++ = 0;
+        std::shuffle(confidence.begin(), confidence.end(), RandomGenerator::get());
+    };
+
+    auto confidence = std::vector<float>(numPriors);
+    const auto numDetections = static_cast<int>(detectedClassIndices.size());
+    for (int b = 0; b < numBatches; b++) {
+        for (int i = 0; i < numDetections; i++) {
+            const auto classIndex = detectedClassIndices[i];
+
+            genConfidenceUniform(confidence);
+
+            VPUX_THROW_UNLESS(confidence.size() == numPriors, "Confidence values have unexpected size");
+            for (int p = 0; p < numPriors; p++) {
+                classPredictions.at(b, p, classIndex) = confidence[p];
+            }
+        }
+    }
+
+    return tensor;
+}
+
+ov::Tensor denormalizePriorBoxTensor(TensorView<NormalizedBox, 3> normalizedPriorBox, InputWidth inputWidth,
+                                     InputHeight inputHeight) {
+    const auto priorsShape = normalizedPriorBox.getShape();
+    VPUX_THROW_UNLESS(priorsShape[1] == 1,
+                      "Normalized == false and VarianceEncodedInTarget == false is not supported.");
+
+    const auto boxSize = sizeof(DenormalizedBox) / sizeof(float);
+    const auto tensor =
+            ov::Tensor{ov::element::f32, makeShape(priorsShape[0], priorsShape[1], priorsShape[2] * boxSize)};
+    const auto denormalizedPriorBox = TensorView<DenormalizedBox, 3>(tensor, priorsShape);
+
+    const auto denormalizePriorBox = [&](const NormalizedBox& normalized) {
+        DenormalizedBox denormalized;
+
+        denormalized.padding = 0.0f;
+        denormalized.xmin = normalized.xmin * inputWidth;
+        denormalized.ymin = normalized.ymin * inputHeight;
+        denormalized.xmax = normalized.xmax * inputWidth;
+        denormalized.ymax = normalized.ymax * inputHeight;
+
+        return denormalized;
+    };
+    std::transform(normalizedPriorBox.data(), normalizedPriorBox.data() + normalizedPriorBox.size(),
+                   denormalizedPriorBox.data(), denormalizePriorBox);
+
+    return tensor;
+}
+
+float jaccardOverlap(const NormalizedBox& box1, const NormalizedBox& box2) {
+    float intersectXmin = std::max(box1.xmin, box2.xmin);
+    float intersectYmin = std::max(box1.ymin, box2.ymin);
+    float intersectXmax = std::min(box1.xmax, box2.xmax);
+    float intersectYmax = std::min(box1.ymax, box2.ymax);
+
+    float intersectWidth = std::max(intersectXmax - intersectXmin, 0.0f);
+    float intersectHeight = std::max(intersectYmax - intersectYmin, 0.0f);
+    float intersectSize = intersectWidth * intersectHeight;
+
+    if (intersectSize <= 0) {
+        return 0;
+    }
+
+    float bbox1Size = (box1.xmax - box1.xmin) * (box1.ymax - box1.ymin);
+    float bbox2Size = (box2.xmax - box2.xmin) * (box2.ymax - box2.ymin);
+
+    return intersectSize / (bbox1Size + bbox2Size - intersectSize);
+}
+
+// remove boxes that has intersection area near nmsThreshold
+void removeUnwantedClassPredictions(TensorView<float, 3> classPredictions, TensorView<NormalizedBox, 3> decodedBoxes,
+                                    NumClasses numClasses, ShareLocation shareLocation, DecreaseLabelId decreaseLabelId,
+                                    NmsThreshold nmsThreshold, ConfidenceThreshold confidenceThreshold) {
+    VPUX_THROW_UNLESS(decreaseLabelId == false, "DecreaseLabelId == true (MxNet NMS) is not supported");
+
+    const auto rangeNearNmsThreshold = 0.1f;
+
+    const auto shape = classPredictions.getShape();
+    const auto numBatches = shape[0];
+    const auto numPriors = shape[1];
+
+    struct BoxConfidence {
+        float confidence;
+        int priorId;
+        NormalizedBox box;
+    };
+
+    auto detections = std::vector<BoxConfidence>();
+    auto goodBoxes = std::vector<NormalizedBox>();
+    detections.reserve(numPriors);
+    goodBoxes.reserve(numPriors);
+
+    for (int b = 0; b < numBatches; b++) {
+        for (int c = 0; c < numClasses; c++) {
+            detections.clear();
+            for (int p = 0; p < numPriors; p++) {
+                const auto box = decodedBoxes.at(b, c * !shareLocation, p);
+                const auto conf = classPredictions.at(b, p, c);
+                detections.push_back(BoxConfidence{conf, p, box});
+            }
+
+            const auto greaterConf = [](const BoxConfidence& lhs, const BoxConfidence& rhs) {
+                return lhs.confidence > rhs.confidence;
+            };
+            std::sort(detections.begin(), detections.end(), greaterConf);
+
+            const auto nonConfidentBox = [&](const BoxConfidence& boxConf) {
+                return boxConf.confidence < confidenceThreshold;
+            };
+            const auto lastBoxIt = std::find_if(detections.begin(), detections.end(), nonConfidentBox);
+            const auto confidentBoxesCount = std::distance(detections.begin(), lastBoxIt);
+
+            detections.resize(confidentBoxesCount);
+
+            goodBoxes.clear();
+            for (const auto& detection : detections) {
+                const auto suspectBox = detection.box;
+
+                const auto intersectsNearNmsThreshold = [&](const NormalizedBox& goodBox) {
+                    const auto overlap = jaccardOverlap(suspectBox, goodBox);
+                    return (std::fabs(overlap - nmsThreshold) < rangeNearNmsThreshold);
+                };
+                const auto isBorderlineBox =
+                        std::any_of(goodBoxes.begin(), goodBoxes.end(), intersectsNearNmsThreshold);
+
+                if (isBorderlineBox) {
+                    // remove suspectBox from consideration by zeroing its confidence
+                    const auto prior = detection.priorId;
+                    classPredictions.at(b, prior, c) = 0.0f;
+                } else {
+                    goodBoxes.push_back(suspectBox);
+                }
+            }
+        }
+    }
+}
+
+NormalizedBox decodeBox(NormalizedBox bbox, NormalizedBox priorBox, NormalizedBox varianceBox, CodeType codeType) {
+    switch (codeType) {
+    case CodeType::CENTER_SIZE: {
+        float priorWidth = priorBox.xmax - priorBox.xmin;
+        float priorHeight = priorBox.ymax - priorBox.ymin;
+        float priorCenterX = (priorBox.xmin + priorBox.xmax) / 2.f;
+        float priorCenterY = (priorBox.ymin + priorBox.ymax) / 2.f;
+
+        float decodeBboxCenterX = varianceBox.xmin * bbox.xmin * priorWidth + priorCenterX;
+        float decodeBboxCenterY = varianceBox.ymin * bbox.ymin * priorHeight + priorCenterY;
+        float decodeBboxWidth = std::exp(varianceBox.xmax * bbox.xmax) * priorWidth;
+        float decodeBboxHeight = std::exp(varianceBox.ymax * bbox.ymax) * priorHeight;
+
+        return NormalizedBox{
+                decodeBboxCenterX - decodeBboxWidth / 2.f,   // xmin
+                decodeBboxCenterY - decodeBboxHeight / 2.f,  // ymin
+                decodeBboxCenterX + decodeBboxWidth / 2.f,   // xmax
+                decodeBboxCenterY + decodeBboxHeight / 2.f   // ymax
+        };
+    }
+    case CodeType::CORNER: {
+        return NormalizedBox{
+                priorBox.xmin + varianceBox.xmin * bbox.xmin,  // xmin
+                priorBox.ymin + varianceBox.ymin * bbox.ymin,  // ymin
+                priorBox.xmax + varianceBox.xmax * bbox.xmax,  // xmax
+                priorBox.ymax + varianceBox.ymax * bbox.ymax   // ymax
+        };
+    }
+    case CodeType::CORNER_SIZE: {
+        float priorWidth = priorBox.xmax - priorBox.xmin;
+        float priorHeight = priorBox.ymax - priorBox.ymin;
+
+        return NormalizedBox{
+                priorBox.xmin + varianceBox.xmin * bbox.xmin * priorWidth,   // xmin
+                priorBox.ymin + varianceBox.ymin * bbox.ymin * priorHeight,  // ymin
+                priorBox.xmax + varianceBox.xmax * bbox.xmax * priorWidth,   // xmax
+                priorBox.ymax + varianceBox.ymax * bbox.ymax * priorHeight   // ymax
+        };
+    }
+    }
+    VPUX_THROW("Unsupported CodeType");
+}
+
+ov::Tensor decodeBoxes(TensorView<NormalizedBox, 3> boxLogits, TensorView<NormalizedBox, 3> normalizedPriorBox,
+                       CodeType codeType) {
+    const auto logitsShape = boxLogits.getShape();
+    const auto numBatches = logitsShape[0];
+    const auto numPriors = logitsShape[1];
+    const auto numLocClasses = logitsShape[2];
+
+    const auto boxSize = sizeof(NormalizedBox) / sizeof(float);
+    const auto tensor = ov::Tensor(ov::element::f32, makeShape(numBatches, numLocClasses, numPriors * boxSize));
+    const auto decodedBoxes = TensorView<NormalizedBox, 3>(tensor);
+
+    const auto varianceEncodedInTarget = (normalizedPriorBox.getShape()[1] == 1);
+
+    for (int b = 0; b < numBatches; b++) {
+        for (int p = 0; p < numPriors; p++) {
+            const auto priorBox = normalizedPriorBox.at(b, 0, p);
+            const auto varianceBox =
+                    varianceEncodedInTarget ? NormalizedBox{1.0f, 1.0f, 1.0f, 1.0f} : normalizedPriorBox.at(b, 1, p);
+            for (int c = 0; c < numLocClasses; c++) {
+                const auto boxLogit = boxLogits.at(b, p, c);
+
+                // store in more convenient "layout" (batch, classId, priorId)
+                decodedBoxes.at(b, c, p) = decodeBox(boxLogit, priorBox, varianceBox, codeType);
+            }
+        }
+    }
+
+    return tensor;
+}
+
+template <typename Threshold>
+struct TolerantFloat {
+    operator float() const {
+        return value;
+    }
+
+    bool operator<(const TolerantFloat& rhs) const {
+        const auto threshold = static_cast<float>(Threshold::num) / Threshold::den;
+        return (std::fabs(value - rhs.value) > threshold) && (value < rhs.value);
+    }
+
+    bool operator==(const TolerantFloat& rhs) const {
+        return !(value < rhs.value) && !(rhs.value < value);
+    }
+
+    float value = 0.0f;
+};
+
+struct Detection {
+    using ConfidenceTolerance = std::ratio<1, 1000>;
+    using CoordinateTolerance = std::ratio<5, 100>;
+
+    float batch;
+    float classId;
+    TolerantFloat<ConfidenceTolerance> confidence;
+    TolerantFloat<CoordinateTolerance> x0;
+    TolerantFloat<CoordinateTolerance> y0;
+    TolerantFloat<CoordinateTolerance> x1;
+    TolerantFloat<CoordinateTolerance> y1;
+};
+
+bool operator<(const Detection& lhs, const Detection& rhs) {
+    return std::tie(lhs.batch, lhs.classId, lhs.confidence, lhs.x0, lhs.y0, lhs.x1, lhs.y1) <
+           std::tie(rhs.batch, rhs.classId, rhs.confidence, rhs.x0, rhs.y0, rhs.x1, rhs.y1);
+}
+
+bool operator==(const Detection& lhs, const Detection& rhs) {
+    return !(lhs < rhs) && !(rhs < lhs);
+}
+
+std::ostream& operator<<(std::ostream& os, const Detection& detection) {
+    os << "[" << static_cast<int>(detection.batch) << " : " << static_cast<int>(detection.classId) << " : "
+       << std::fixed << std::setprecision(4) << static_cast<float>(detection.confidence) << " | "
+       << static_cast<float>(detection.x0) << " " << static_cast<float>(detection.y0) << " "
+       << static_cast<float>(detection.x1) << " " << static_cast<float>(detection.y1) << "]";
+    return os;
+}
+
+std::vector<Detection> detectionDifference(const std::vector<Detection>& lhs, const std::vector<Detection>& rhs) {
+    auto difference = std::vector<Detection>();
+    difference.reserve(std::max(lhs.size(), rhs.size()));
+    std::set_difference(lhs.begin(), lhs.end(), rhs.begin(), rhs.end(), std::back_inserter(difference));
+    difference.shrink_to_fit();
+    return difference;
+}
+
+void printDetections(const std::vector<Detection>& detections, int printErrors = 50) {
+    for (const auto& detection : detections) {
+        std::cout << detection << "\n";
+        if (!--printErrors) {
+            std::cout << "[...]\n";
+            break;
+        }
+    }
+}
+
+using NormalizationParams = std::tuple<Normalized, InputHeight, InputWidth, VarianceEncodedInTarget>;
+using TensorShapeParams = std::tuple<NumPriors, NumClasses, NumBatches, PriorBatchSizeOne, BackgroundLabelId>;
+using DetectionOutputAttributes = std::tuple<ShareLocation, TopK, KeepTopK, CodeType, NmsThreshold, ConfidenceThreshold,
+                                             ClipAfterNms, ClipBeforeNms, DecreaseLabelId>;
+using AdditionalInputsParams = std::tuple<HasAdditionalInputs, ObjectnessScore>;
+using MetaParams = std::tuple<NumDetectedClasses, NumDetectionsPerClass>;
+
+using DetectionOutputParams = std::tuple<NormalizationParams, TensorShapeParams, DetectionOutputAttributes,
+                                         AdditionalInputsParams, MetaParams, Device>;
+
+class VPUXDetectionOutputLayerTest : public testing::WithParamInterface<DetectionOutputParams>, public VPUXLayerTest {
+public:
+    void generate_inputs(const std::vector<ngraph::Shape>& inputShapes) override {
+        const auto& funcInputs = function->inputs();
+        VPUX_THROW_UNLESS(funcInputs.size() == 3, "Only 3 inputs are supported");
+
+        const auto detectionOutputAttrs = std::get<DetectionOutputAttributes>(GetParam());
+        const auto codeType = std::get<CodeType>(detectionOutputAttrs);
+        const auto nmsThreshold = std::get<NmsThreshold>(detectionOutputAttrs);
+
+        const auto normalizationParams = std::get<NormalizationParams>(GetParam());
+        const auto normalized = std::get<Normalized>(normalizationParams);
+        const auto inputHeight = std::get<InputHeight>(normalizationParams);
+        const auto inputWidth = std::get<InputWidth>(normalizationParams);
+        const auto varianceEncodedInTarget = std::get<VarianceEncodedInTarget>(normalizationParams);
+
+        const auto tensorSizeParams = std::get<TensorShapeParams>(GetParam());
+        const auto numPriors = std::get<NumPriors>(tensorSizeParams);
+        const auto numClasses = std::get<NumClasses>(tensorSizeParams);
+        const auto numBatches = std::get<NumBatches>(tensorSizeParams);
+        const auto priorBatchSizeOne = std::get<PriorBatchSizeOne>(tensorSizeParams);
+
+        const auto normalizedPriorBoxTensor =
+                generateNormalizedPriorBoxTensor(numBatches, priorBatchSizeOne, varianceEncodedInTarget, numPriors);
+
+        const auto detectionOutputAttributes = std::get<DetectionOutputAttributes>(GetParam());
+        const auto shareLocation = std::get<ShareLocation>(detectionOutputAttributes);
+        const auto decreaseLabelId = std::get<DecreaseLabelId>(detectionOutputAttributes);
+        const auto confidenceThreshold = std::get<ConfidenceThreshold>(detectionOutputAttributes);
+
+        const auto numLocClasses = shareLocation ? 1 : static_cast<int>(numClasses);
+        const auto normalizedPriorBoxes = TensorView<NormalizedBox, 3>(normalizedPriorBoxTensor);
+        const auto boxLogitsTensor =
+                encodeBoxLogits(normalizedPriorBoxes, numPriors, numClasses, numBatches, shareLocation, codeType);
+
+        const auto metaParams = std::get<MetaParams>(GetParam());
+        const auto numDetectedClasses = std::get<NumDetectedClasses>(metaParams);
+        const auto numDetectionsPerClass = std::get<NumDetectionsPerClass>(metaParams);
+        auto classPredictionsTensor = generateClassPredictions(numBatches, numPriors, numClasses, numDetectedClasses,
+                                                               numDetectionsPerClass, confidenceThreshold);
+
+        const auto boxLogits =
+                TensorView<NormalizedBox, 3>(boxLogitsTensor, makeShape(numBatches, numPriors, numLocClasses));
+        const auto decodedBoxesTensor = decodeBoxes(boxLogits, normalizedPriorBoxes, codeType);
+
+        auto classPredictions =
+                TensorView<float, 3>(classPredictionsTensor, makeShape(numBatches, numPriors, numClasses));
+
+        const auto decodedBoxes = TensorView<NormalizedBox, 3>(decodedBoxesTensor);
+        removeUnwantedClassPredictions(classPredictions, decodedBoxes, numClasses, shareLocation, decreaseLabelId,
+                                       nmsThreshold, confidenceThreshold);
+
+        const auto& priorBoxTensor = [&] {
+            if (normalized) {
+                return normalizedPriorBoxTensor;
+            }
+            return denormalizePriorBoxTensor(normalizedPriorBoxes, inputWidth, inputHeight);
+        }();
+
+        VPUX_THROW_UNLESS(boxLogitsTensor.get_shape() == inputShapes[0], "BoxLogits has shape {0}, but expected {1}",
+                          boxLogitsTensor.get_shape().to_string(), inputShapes[0].to_string());
+        VPUX_THROW_UNLESS(classPredictionsTensor.get_shape() == inputShapes[1],
+                          "ClassPredictions has shape {0}, but expected {1}",
+                          classPredictionsTensor.get_shape().to_string(), inputShapes[1].to_string());
+        VPUX_THROW_UNLESS(priorBoxTensor.get_shape() == inputShapes[2], "PriorBox has shape {0}, but expected {1}",
+                          priorBoxTensor.get_shape().to_string(), inputShapes[2].to_string());
+
+        inputs = {
+                {funcInputs[0].get_node_shared_ptr(), boxLogitsTensor},
+                {funcInputs[1].get_node_shared_ptr(), classPredictionsTensor},
+                {funcInputs[2].get_node_shared_ptr(), priorBoxTensor},
+        };
+    }
+
+    void compare(const std::vector<ov::Tensor>& expectedTensors,
+                 const std::vector<ov::Tensor>& actualTensors) override {
+        ASSERT_EQ(actualTensors.size(), 1);
+        ASSERT_EQ(expectedTensors.size(), 1);
+
+        auto expected = expectedTensors[0];
+        auto actual = actualTensors[0];
+        ASSERT_EQ(expected.get_size(), actual.get_size());
+
+        const auto countDetections = [](const ov::Tensor& tensor) {
+            const auto detections = reinterpret_cast<const Detection*>(tensor.data());
+            VPUX_THROW_UNLESS(tensor.get_shape().back() == 7, "DetectionOutput result tensor must have width == 7");
+            const auto maxDetections = tensor.get_size() / 7;
+            for (size_t i = 0; i < maxDetections; i++) {
+                if (detections[i].batch == -1.0f) {
+                    return i;
+                }
+            }
+            return maxDetections;
         };
 
-        if (num_kept == 0) {
-            // Nothing to detect
-            mark_end(dst_data.data());
-            return dst_data;
+        const auto actSize = countDetections(actual);
+        const auto expSize = countDetections(expected);
+        const auto detectionSize = 7;
+
+        VPUX_THROW_UNLESS(actSize <= (actual.get_size() / detectionSize), "Too many boxes detected");
+        VPUX_THROW_UNLESS(expSize <= (expected.get_size() / detectionSize), "Too many boxes in reference detected");
+
+        auto output = std::vector<Detection>(reinterpret_cast<const Detection*>(actual.data()),
+                                             reinterpret_cast<const Detection*>(actual.data()) + actSize);
+        auto reference = std::vector<Detection>(reinterpret_cast<const Detection*>(expected.data()),
+                                                reinterpret_cast<const Detection*>(expected.data()) + expSize);
+
+        std::sort(output.begin(), output.end());
+        std::sort(reference.begin(), reference.end());
+
+        const auto diff0 = detectionDifference(output, reference);
+        if (!diff0.empty()) {
+            std::cout << "Detections in output but not in reference:\n";
+            printDetections(diff0);
         }
 
-        int count = 0;
-
-        for (int image_index_in_batch = 0; image_index_in_batch < num; ++image_index_in_batch) {
-            const std::map<int, std::vector<float>>& conf_scores = all_conf_scores[image_index_in_batch];
-            const std::vector<std::vector<float>>* p_orient_scores =
-                    orient_data ? &(all_orient_scores[image_index_in_batch]) : NULL;
-
-            if (orient_data) {
-                EXPECT_EQ(_num_priors, p_orient_scores->size()) << "Orientation scores not equal to num priors";
-            }
-
-            const LabelBBox& decode_bboxes = all_decode_bboxes[image_index_in_batch];
-
-            for (auto it = all_indices[image_index_in_batch].begin(); it != all_indices[image_index_in_batch].end();
-                 ++it) {
-                int label = it->first;
-
-                if (conf_scores.find(label) == conf_scores.end()) {
-                    // Something bad happened if there are no predictions for current label.
-                    continue;
-                }
-
-                const std::vector<float>& scores = conf_scores.find(label)->second;
-                int loc_label = attrs.share_location ? -1 : label;
-
-                if (decode_bboxes.find(loc_label) == decode_bboxes.end()) {
-                    // Something bad happened if there are no predictions for current label.
-                    continue;
-                }
-
-                const std::vector<NormalizedBBox>& bboxes = decode_bboxes.find(loc_label)->second;
-
-                EXPECT_EQ(_num_priors, bboxes.size()) << "Bounding boxes num is not equal to num priors";
-
-                std::vector<int>& indices = it->second;
-
-                for (int j = 0; j < indices.size(); ++j) {
-                    int idx = indices[j];
-
-                    dst_data[count * DETECTION_OUTPUT_SIZE + 0] = image_index_in_batch;
-                    dst_data[count * DETECTION_OUTPUT_SIZE + 1] = attrs.decrease_label_id ? label - 1 : label;
-                    dst_data[count * DETECTION_OUTPUT_SIZE + 2] = scores[idx];
-
-                    const NormalizedBBox& clip_bbox = bboxes[idx];
-                    dst_data[count * DETECTION_OUTPUT_SIZE + 3] = clip_bbox.xmin();
-                    dst_data[count * DETECTION_OUTPUT_SIZE + 4] = clip_bbox.ymin();
-                    dst_data[count * DETECTION_OUTPUT_SIZE + 5] = clip_bbox.xmax();
-                    dst_data[count * DETECTION_OUTPUT_SIZE + 6] = clip_bbox.ymax();
-
-                    // NormalizedBBox::orientation
-                    if (DETECTION_OUTPUT_SIZE == 8) {
-                        float orientation = -10;
-
-                        if (p_orient_scores) {
-                            orientation = get_orientation((*p_orient_scores)[idx], INTERPOLATE_ORIENTATION);
-                        }
-
-                        dst_data[count * DETECTION_OUTPUT_SIZE + 7] = orientation;
-                    }
-
-                    ++count;
-                }
-            }
+        const auto diff1 = detectionDifference(reference, output);
+        if (!diff1.empty()) {
+            std::cout << "Detections in reference but not in output:\n";
+            printDetections(diff1);
         }
 
-        // TODO: Logic is correct only for mb=1
-        if (count < KEEP_TOP_K) {
-            // marker at end of boxes list
-            mark_end(dst_data.data() + count * DETECTION_OUTPUT_SIZE);
-        }
+        ASSERT_EQ(output.size(), reference.size());
+        ASSERT_EQ(diff0.size(), 0);
+        ASSERT_EQ(diff1.size(), 0);
+    }
 
-        return dst_data;
+    void SetUp() override {
+        const auto& [normalizationParams, tensorSizeParams, detectionOutputAttributes, additionalInputsParams,
+                     metaParams, device] = GetParam();
+
+        targetDevice = device;
+        inType = ov::element::Type_t::f32;
+        outType = ov::element::Type_t::f32;
+
+        const auto& [normalized, inputHeight, inputWidth, varianceEncodedInTarget] = normalizationParams;
+        const auto& [numPriors, numClasses, numBatches, priorBatchSizeOne, backgroundLabelId] = tensorSizeParams;
+        const auto& [shareLocation, topK, keepTopK, codeType, nmsThreshold, confidenceThreshold, clipAfterNms,
+                     clipBeforeNms, decreaseLabelId] = detectionOutputAttributes;
+        const auto& [hasAdditionalInputs, objectnessScore] = additionalInputsParams;
+
+        attrs = DetectionOutputAttributesBuilder()
+                        .setBackgroundLabelId(backgroundLabelId)
+                        .setClipAfterNms(clipAfterNms)
+                        .setClipBeforeNms(clipBeforeNms)
+                        .setCodeType(codeType)
+                        .setConfidenceThreshold(confidenceThreshold)
+                        .setDecreaseLabelId(decreaseLabelId)
+                        .setInputHeight(inputHeight)
+                        .setInputWidth(inputWidth)
+                        .setKeepTopK(keepTopK)
+                        .setNmsThreshold(nmsThreshold)
+                        .setNormalized(normalized)
+                        .setNumClasses(numClasses)
+                        .setObjectnessScore(objectnessScore)
+                        .setShareLocation(shareLocation)
+                        .setTopK(topK)
+                        .setVarianceEncodedInTarget(varianceEncodedInTarget)
+                        .build();
+
+        VPUX_THROW_UNLESS(hasAdditionalInputs == false, "DetectionOutput test does not support additional inputs");
+
+        const auto numLocClasses = shareLocation ? 1 : static_cast<int>(numClasses);
+
+        auto boxLogitsShape = StaticShape(makeShape(numBatches, numPriors * numLocClasses * 4));
+        auto classConfidenceShape = StaticShape(makeShape(numBatches, numPriors * numClasses));
+
+        const auto priorBatch = priorBatchSizeOne ? 1 : static_cast<int>(numBatches);
+        const auto priorHeight = varianceEncodedInTarget ? 1 : 2;
+        const auto priorBoxSize = normalized ? 4 : 5;
+
+        auto priorBoxesShape = StaticShape(makeShape(priorBatch, priorHeight, numPriors * priorBoxSize));
+
+        init_input_shapes({boxLogitsShape, classConfidenceShape, priorBoxesShape});
+
+        auto params = ngraph::builder::makeDynamicParams(ngraph::element::f32, inputDynamicShapes);
+        auto paramOuts = ngraph::helpers::convert2OutputVector(
+                ngraph::helpers::castOps2Nodes<ngraph::opset3::Parameter>(params));
+        auto detOut = ngraph::builder::makeDetectionOutput(paramOuts, attrs);
+        auto results = ngraph::ResultVector{std::make_shared<ngraph::opset3::Result>(detOut)};
+        function = std::make_shared<ngraph::Function>(results, params, "DetectionOutput");
     }
 
 private:
-    void cvt(float src, float& dst) {
-        dst = src;
-    }
-    void cvt(float src, ie_fp16& dst) {
-        dst = PrecisionUtils::f32tof16(src);
-    }
-    void cvt(ie_fp16 src, float& dst) {
-        dst = PrecisionUtils::f16tof32(src);
-    }
-
-    template <typename T>
-    void cvtDetectionObjects(T* data, int num, int width, int height, std::vector<DetectionObject>& out) {
-        out.clear();
-        out.reserve(num);
-
-        for (int i = 0; i < num; ++i) {
-            float batch_id, class_id, conf;
-            cvt(data[i * 7 + 0], batch_id);
-            cvt(data[i * 7 + 1], class_id);
-            cvt(data[i * 7 + 2], conf);
-
-            if (batch_id == -1) {
-                break;
-            }
-
-            float xmin, ymin, xmax, ymax;
-            cvt(data[i * 7 + 3], xmin);
-            cvt(data[i * 7 + 4], ymin);
-            cvt(data[i * 7 + 5], xmax);
-            cvt(data[i * 7 + 6], ymax);
-
-            BBox bbox;
-            bbox.x = width * xmin;
-            bbox.y = height * ymin;
-            bbox.width = width * (xmax - xmin);
-            bbox.height = height * (ymax - ymin);
-
-            out.push_back({static_cast<int>(batch_id), static_cast<int>(class_id), conf, bbox});
-        }
-    }
-
-    bool cmpDetectionObject(const DetectionObject& first, const DetectionObject& second) {
-        const float max_confidence_delta = 0.001f;
-        const int max_pixel_delta = 1;
-
-        return ((first.batch_id == second.batch_id) && (first.class_id == second.class_id) &&
-                (std::abs(first.bbox.x - second.bbox.x) <= max_pixel_delta) &&
-                (std::abs(first.bbox.y - second.bbox.y) <= max_pixel_delta) &&
-                (std::abs(first.bbox.width - second.bbox.width) <= 2 * max_pixel_delta) &&
-                (std::abs(first.bbox.height - second.bbox.height) <= 2 * max_pixel_delta) &&
-                (std::fabs(first.confidence - second.confidence) <= max_confidence_delta));
-    }
-
-    void checkDetectionObjectArrays(std::vector<DetectionObject> gold, std::vector<DetectionObject> actual,
-                                    int max_nonmatch_objs = 0) {
-        for (auto it_gold = gold.begin(); it_gold != gold.end();) {
-            std::vector<std::vector<DetectionObject>::iterator> candidates;
-            for (auto it_actual = actual.begin(); it_actual != actual.end(); it_actual++) {
-                if (cmpDetectionObject(*it_gold, *it_actual))
-                    candidates.push_back(it_actual);
-            }
-
-            if (0 == candidates.size()) {
-                ++it_gold;
-            } else {
-                int best_index = 0;
-                float best_abs_delta = std::fabs(candidates[0]->confidence - it_gold->confidence);
-
-                for (size_t i = 1; i < candidates.size(); i++) {
-                    float abs_delta = std::fabs(candidates[i]->confidence - it_gold->confidence);
-                    if (abs_delta < best_abs_delta) {
-                        best_index = i;
-                        best_abs_delta = abs_delta;
-                    }
-                }
-
-                actual.erase(candidates[best_index]);
-                it_gold = gold.erase(it_gold);
-            }
-        }
-
-        for (auto miss_gold : gold) {
-            std::cout << "Mistmatch in gold array: " << miss_gold << std::endl;
-        }
-
-        for (auto miss_actual : actual) {
-            std::cout << "Mistmatch in actual array: " << miss_actual << std::endl;
-        }
-
-        EXPECT_LE(gold.size(), max_nonmatch_objs);
-        EXPECT_LE(actual.size(), max_nonmatch_objs);
-    }
-
-    friend std::ostream& operator<<(std::ostream& os, const BBox& bbox) {
-        return os << "[" << bbox.x << ", " << bbox.y << ", " << bbox.width << ", " << bbox.height << "]";
-    }
-
-    friend std::ostream& operator<<(std::ostream& os, const DetectionObject& obj) {
-        return os << "[" << obj.batch_id << ", " << obj.class_id << ", " << obj.confidence << ", " << obj.bbox << "]";
-    }
+    ngraph::op::DetectionOutputAttrs attrs;
 };
 
-class KmbDetectionOutputLayerTest :
-        public DetectionOutputLayerTest,
-        virtual public LayerTestsUtils::KmbLayerTestsCommon {
-private:
-    DetectionOutputTestHelper _helper;
-    std::vector<float> _genLocations;
-    std::vector<float> _genConfidence;
-    std::vector<float> _genPrior;
+//
+// Test parameters
+//
 
-public:
-    void GenerateInputs() override {
-        GenInput();
-
-        size_t it = 0;
-        for (const auto& input : cnnNetwork.getInputsInfo()) {
-            const auto& info = input.second;
-            InferenceEngine::Blob::Ptr blob;
-            blob = make_blob_with_precision(info->getTensorDesc());
-            blob->allocate();
-            auto* dst = blob->buffer().as<float*>();
-            if (it == 0) {
-                std::copy_n(_genLocations.begin(), NUM_LOC, dst);
-            } else if (it == 1) {
-                std::copy_n(_genConfidence.begin(), NUM_CONF, dst);
-            } else {
-                std::copy_n(_genPrior.begin(), 2 * NUM_LOC, dst);
-            }
-            inputs.push_back(blob);
-            it++;
-        }
-    }
-
-    void Infer() override {
-        inferRequest = executableNetwork.CreateInferRequest();
-
-        size_t it = 0;
-        for (const auto& input : cnnNetwork.getInputsInfo()) {
-            const auto& info = input.second;
-            inferRequest.SetBlob(info->name(), inputs[it++]);
-        }
-
-        inferRequest.Infer();
-    }
-
-    void Compare(const std::pair<ngraph::element::Type, std::vector<std::uint8_t>>& expected,
-                 const InferenceEngine::Blob::Ptr& actual) override {
-        _helper.Compare(convertVecUint2Float(expected.second), actual);
-    }
-
-protected:
-    std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> CalculateRefs() override {
-        const auto refFloat = _helper.Ref(inputs[0], inputs[1], inputs[2], GetOutputs()[0], attrs);
-        std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> result(refFloat.size());
-        for (size_t i = 0; i < refFloat.size(); ++i) {
-            result.push_back({function->get_results()[i]->get_element_type(), convertVecFloat2Uint(refFloat)});
-        }
-        return result;
-    }
-
-private:
-    void GenInput() {
-        // TODO [Track number: C#48015]
-        srand(DEFAULT_SEED_VALUE);
-
-        _genLocations.resize(NUM_LOC);
-        for (size_t i = 0; i < NUM_LOC; i += 4) {
-            int x = std::rand() % WIDTH;
-            int y = std::rand() % HEIGHT;
-            int w = std::rand() % (WIDTH - x);
-            int h = std::rand() % (HEIGHT - y);
-
-            _genLocations[i + 0] = static_cast<float>(x) / WIDTH;       // xmin
-            _genLocations[i + 1] = static_cast<float>(y) / HEIGHT;      // ymin
-            _genLocations[i + 2] = static_cast<float>(x + w) / WIDTH;   // xmax
-            _genLocations[i + 3] = static_cast<float>(y + h) / HEIGHT;  // ymax
-        }
-
-        _genConfidence.resize(NUM_CONF);
-        for (size_t i = 0; i < NUM_CONF; ++i) {
-            _genConfidence[i] = static_cast<float>(std::rand()) / static_cast<float>(RAND_MAX);
-        }
-
-        // hardcoded values from deprecated tests
-        ngraph::op::PriorBoxClusteredAttrs attributes;
-        attributes.widths = {9.400000,  25.100000,  14.700000, 34.700001, 143.000000,
-                             77.400002, 128.800003, 51.099998, 75.599998};
-        attributes.heights = {15.000000,  39.599998,  25.500000,  63.200001, 227.500000,
-                              162.899994, 124.500000, 105.099998, 72.599998};
-        attributes.clip = false;
-        attributes.step_widths = 0;
-        attributes.step_heights = 0;
-        attributes.offset = 0.5;
-        attributes.variances = {0.100000, 0.100000, 0.200000, 0.200000};
-
-        auto in = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::i64, ngraph::Shape{2});
-        auto layer_shape = ngraph::opset3::Constant::create<int64_t>(ngraph::element::i64, ngraph::Shape{2}, {19, 19});
-        auto image_shape =
-                ngraph::opset3::Constant::create<int64_t>(ngraph::element::i64, ngraph::Shape{2}, {WIDTH, HEIGHT});
-        auto pb = std::make_shared<ngraph::opset3::PriorBoxClustered>(layer_shape, image_shape, attributes);
-
-        ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(pb)};
-        auto pbFunction = std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{in}, "PB");
-
-        ov::pass::InitNodeInfo().run_on_function(pbFunction);
-        ngraph::pass::ConstantFolding().run_on_function(pbFunction);
-
-        auto fused = std::dynamic_pointer_cast<ngraph::opset3::Constant>(
-                pbFunction->get_result()->input_value(0).get_node_shared_ptr());
-        _genPrior = fused->get_vector<float>();
-    }
-
-    void SkipBeforeValidate() override {
-        DetectionOutputAttributes commonAttrs;
-        ParamsWhichSizeDepends specificAttrs;
-        ngraph::op::DetectionOutputAttrs attrs;
-        size_t batch;
-        std::string targetDevice;
-        std::tie(commonAttrs, specificAttrs, batch, attrs.objectness_score, targetDevice) = GetParam();
-
-        std::tie(attrs.num_classes, attrs.background_label_id, attrs.top_k, attrs.keep_top_k, attrs.code_type,
-                 attrs.nms_threshold, attrs.confidence_threshold, attrs.clip_after_nms, attrs.clip_before_nms,
-                 attrs.decrease_label_id) = commonAttrs;
-
-        // [Track number: E#10211]
-        if (!attrs.decrease_label_id) {
-            throw LayerTestsUtils::KmbSkipTestException("validation fails");
-        }
-    }
+const auto normalizationParams = std::vector<NormalizationParams>{
+        {Normalized(true), InputHeight(0), InputWidth(0), VarianceEncodedInTarget(true)},
+        {Normalized(true), InputHeight(0), InputWidth(0), VarianceEncodedInTarget(false)},
+        {Normalized(false), InputHeight(420), InputWidth(1000), VarianceEncodedInTarget(true)},
 };
 
-const int numClasses = 2;
-const int backgroundLabelId = 0;
-const std::vector<int> topK = {400};
-const std::vector<std::vector<int>> keepTopK = {{KEEP_TOP_K}};
-const std::vector<std::string> codeType = {"caffe.PriorBoxParameter.CENTER_SIZE"};
-const float nmsThreshold = 0.45f;
-const float confidenceThreshold = 0.01f;
-const std::vector<bool> clipAfterNms = {false};
-const std::vector<bool> clipBeforeNms = {false};
-const std::vector<bool> decreaseLabelId = {true, false};
-const float objectnessScore = 0.0f;
-const std::vector<size_t> numberBatch = {1};
-
-const auto commonAttributes = ::testing::Combine(
-        ::testing::Values(numClasses), ::testing::Values(backgroundLabelId), ::testing::ValuesIn(topK),
-        ::testing::ValuesIn(keepTopK), ::testing::ValuesIn(codeType), ::testing::Values(nmsThreshold),
-        ::testing::Values(confidenceThreshold), ::testing::ValuesIn(clipAfterNms), ::testing::ValuesIn(clipBeforeNms),
-        ::testing::ValuesIn(decreaseLabelId));
-
-/* =============== 3 inputs cases =============== */
-
-const std::vector<ParamsWhichSizeDepends> specificParams3In = {
-        ParamsWhichSizeDepends{false, true, true, WIDTH, WIDTH, {1, NUM_LOC}, {1, NUM_CONF}, {1, 2, NUM_LOC}, {}, {}},
+// Example on how to extract NumPriors and NumClasses from input tensors shape:
+// Inputs: BoxLogits, ClassPredictions, PriorBoxes
+// PriorBoxSize = Normalized ? 4 : 5
+// NumPriors = PriorBoxesShape[2] / PriorBoxSize
+// NumClasses = ClassPredictions[1] / NumPriors
+//
+// Example face-detection-adas-0001: {1, 40448}, {1, 20224}, {1, 2, 40448}
+// PriorBoxSize = 4
+// NumPriors = {1, 2, 40448}[2] / 4 = 10112
+// NumClasses = {1, 20224}[1] / 10112 = 2
+//
+const auto tensorShapeParams = std::vector<TensorShapeParams>{
+        {NumPriors(10112), NumClasses(2), NumBatches(1), PriorBatchSizeOne(true), BackgroundLabelId(0)},
 };
 
-const auto params3Inputs = ::testing::Combine(commonAttributes, ::testing::ValuesIn(specificParams3In),
-                                              ::testing::ValuesIn(numberBatch), ::testing::Values(objectnessScore),
-                                              ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));
+const auto detectionOutputAttributes = ::testing::Combine(             //
+        ::testing::Values(ShareLocation(true), ShareLocation(false)),  //
+        ::testing::Values(TopK(200)),                                  //
+        ::testing::Values(KeepTopK(400)),                              //
+        ::testing::Values(CodeType(CodeType::CENTER_SIZE)),            //
+        ::testing::Values(NmsThreshold(0.45f)),                        //
+        ::testing::Values(ConfidenceThreshold(0.001f)),                //
+        ::testing::Values(ClipAfterNms(true), ClipAfterNms(false)),    //
+        ::testing::Values(ClipBeforeNms(true), ClipBeforeNms(false)),  //
+        ::testing::Values(DecreaseLabelId(false))                      //
+);
 
-TEST_P(KmbDetectionOutputLayerTest, CompareWithRefs) {
-    Run();
+const auto additionalInputsParams = std::vector<AdditionalInputsParams>{
+        {HasAdditionalInputs(false), ObjectnessScore(0.0f)},
 };
 
-TEST_P(KmbDetectionOutputLayerTest, CompareWithRefs_MLIR) {
-    useCompilerMLIR();
-    Run();
-};
+const auto metaParams = std::vector<MetaParams>{{NumDetectedClasses(5), NumDetectionsPerClass(20)}};
 
-// TODO: extend the test to 5 inputs [Track number: C#49276]
-// TODO: disabled due to [Track number: E#12713]
-INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_DetectionOutput3In, KmbDetectionOutputLayerTest, params3Inputs,
-                         DetectionOutputLayerTest::getTestCaseName);
+//
+// 3 Inputs tests
+//
 
-}  // namespace
+const auto detectionOutputParams = ::testing::Combine(
+        ::testing::ValuesIn(normalizationParams), ::testing::ValuesIn(tensorShapeParams), detectionOutputAttributes,
+        ::testing::ValuesIn(additionalInputsParams), ::testing::ValuesIn(metaParams), ::testing::Values(targetDevice));
+
+TEST_P(VPUXDetectionOutputLayerTest, VPU3720_HW) {
+    setDefaultHardwareMode();
+    run(VPUXPlatform::VPU3720);
+}
+
+INSTANTIATE_TEST_SUITE_P(precommit_smoke_DetectionOutput, VPUXDetectionOutputLayerTest, detectionOutputParams,
+                         PrintTestCaseName());
+
+}  // namespace ov::test::subgraph

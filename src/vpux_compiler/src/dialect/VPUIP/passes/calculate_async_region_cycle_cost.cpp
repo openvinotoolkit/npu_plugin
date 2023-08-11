@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/core/cost_model_utils.hpp"
 #include "vpux/compiler/dialect/VPU/cost_model.hpp"
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
@@ -56,6 +54,23 @@ size_t retrieveDPUCycleCost(mlir::async::ExecuteOp asyncExec) {
     return cycleCost;
 }
 
+size_t calculateShaveActCycleCost(mlir::async::ExecuteOp asyncExec,
+                                  const std::shared_ptr<VPUNN::VPUCostModel> costModel, VPU::ArchKind arch) {
+    size_t cycleCost = 0;
+    auto* bodyBlock = &asyncExec.body().front();
+    for (auto& innerOp : bodyBlock->getOperations()) {
+        auto mayBeSwKernelOp = &innerOp;
+        if (auto nceClustOp = mlir::dyn_cast<VPUIP::NCEClusterTilingOp>(innerOp)) {
+            mayBeSwKernelOp = nceClustOp.getInnerTaskOp();
+        }
+        if (auto swKernelOp = mlir::dyn_cast<VPUIP::SwKernelOp>(mayBeSwKernelOp)) {
+            cycleCost += vpux::calculateShaveActCycles(swKernelOp, costModel, arch);
+        }
+    }
+    VPUX_THROW_UNLESS(cycleCost > 0, "Invalid cycle cost for 'async.execute' {0}", asyncExec);
+    return cycleCost;
+}
+
 size_t calculateUPACycles(mlir::Operation* innerOp) {
     // TODO calculate UPA cost
     VPUX_UNUSED(innerOp);
@@ -94,7 +109,7 @@ private:
 };
 
 void CalculateAsyncRegionCycleCostPass::safeRunOnFunc() {
-    auto func = getFunction();
+    auto func = getOperation();
     auto module = func->getParentOfType<mlir::ModuleOp>();
     const auto arch = VPU::getArch(module);
     const auto costModel = VPU::createCostModel(arch);
@@ -112,8 +127,8 @@ void CalculateAsyncRegionCycleCostPass::safeRunOnFunc() {
             // calculate UPA cycles
             cycleCost = calculateUPACycleCost(asyncExec);
         } else if (executor == VPU::ExecutorKind::SHAVE_ACT) {
-            // calculate UPA cycles
-            cycleCost = calculateUPACycleCost(asyncExec);
+            // calculate SHAVE ACT cycles
+            cycleCost = calculateShaveActCycleCost(asyncExec, costModel, arch);
         } else if (executor == VPU::ExecutorKind::SHAVE_NN) {
             // calculate UPA cycles
             cycleCost = calculateUPACycleCost(asyncExec);

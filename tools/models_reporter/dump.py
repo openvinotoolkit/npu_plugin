@@ -1,19 +1,22 @@
 #
 # Copyright (C) 2023 Intel Corporation
-# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: Apache 2.0
 #
 
 from dataclasses import dataclass
+import os
+import re
 import pandas as pd
 from openpyxl import load_workbook
 from datetime import datetime
 from openpyxl.formula.translate import Translator
 from table import DataTable
+from pathlib import Path
 import utils
 
 
 @dataclass
-class ExcelSheet:
+class ExcelSheet(utils.StrictTypeCheck):
     name: str
     data_frame: pd.DataFrame
     format: bool
@@ -41,20 +44,24 @@ def adjust_column_width(df, sheet, format=None):
     max_column_width = 50
 
     for column in df:
-        column_width = max(df[column].astype(str)
-                           .map(len).max(), len(str(column)))
-        column_width = 3 + min(column_width, max_column_width)
+        cell_width = df[column].astype(str).map(len).max()
+        header_width = len(str(column)) + 5 # offset for the filter button
+        column_width = min(max(cell_width, header_width), max_column_width)
         col_idx = df.columns.get_loc(column)
+        # apply format for the whole column
         sheet.set_column(col_idx, col_idx, column_width, format)
+        # explicitly format the header cell
+        sheet.write(0, col_idx, column, format)
 
 
 def report_filename(device):
     now = datetime.now()
-    time_string = now.strftime("%Y_%m_%d_%Hh%Mm")
+    time_string = now.strftime("%Y_%m_%d_%H.%M")
     year, month, day, time = time_string.split("_")
     work_week, work_day = utils.date_to_work_week(
         int(year), int(month), int(day))
-    return f"{device}_ww{work_week:02d}.{work_day}_{time}.xlsx"
+    device = utils.safe_to_save_filename(device)
+    return f"ww{work_week:02d}.{work_day}_{time}_{device}.xlsx"
 
 
 def read_excel_template():
@@ -140,16 +147,27 @@ def export_table(writer, name, table):
     table.data_frame.to_excel(writer, sheet_name=name,
                               index=table.index, header=table.header)
     if table.format:
+        left_align_format = writer.book.add_format({'align': 'left'})
         add_autofilter(table.data_frame, writer.sheets[name])
         adjust_column_width(
-            table.data_frame, writer.sheets[name])
+            table.data_frame, writer.sheets[name], left_align_format)
 
 
-def to_excel(report: ExcelReport, report_path):
-    tab_order = ["Report", "Package", "Statistics", "Compilation", "CompilationProblems",
-                 "Inference", "InferenceProblems", "UnsupportedLayer", "ErrorTracking"]
+def to_excel(report: ExcelReport, report_path: Path):
+    tab_order = ["Report", "Package", "Statistics", "Compilation", "ConformanceCompilation", "CompilationProblems",
+                 "Inference", "InferenceProblems", "IMD", "Accuracy", "UnsupportedLayer", "ErrorTracking"]
 
-    print(f"Saving to {report_path}...")
+    if report_path.suffix == ".xlsx":
+        save_folder = report_path.parent
+        # also replace ':' in a file name in case of HETERO:_,_ device
+        safe_filename = utils.safe_to_save_filename(report_path.name)
+        report_path = report_path.with_name(safe_filename)
+    else:
+        save_folder = report_path
+    os.makedirs(save_folder, exist_ok=True)
+
+    print(f"saving to {report_path}")
+
     with pd.ExcelWriter(report_path) as writer:
         for name in tab_order:
             if name in report.tables:
@@ -159,32 +177,41 @@ def to_excel(report: ExcelReport, report_path):
             if name not in tab_order:
                 export_table(writer, name, report.tables[name])
 
-        # Fill CompilationProblems table
-        compilation_df = report.tables["Compilation"].data_frame
-        compilation_problems_df = report.tables["CompilationProblems"].data_frame
-        compilation_problems_sheet = writer.sheets["CompilationProblems"]
-        problem_frequency = count_unique_problems(compilation_df)
-        fill_problems_table(writer, compilation_problems_df,
-                            compilation_problems_sheet, problem_frequency)
-
         red_style = writer.book.add_format()
         red_style.set_bg_color('#FFC7CE')
         red_style.set_font_color('#9C0006')
-        color_red_failed_models(
-            compilation_df, writer.sheets["Compilation"], red_style)
 
-        # Fill InferenceProblems table
+        if "Compilation" in report.tables:
+            compilation_df = report.tables["Compilation"].data_frame
+            color_red_failed_models(
+                compilation_df, writer.sheets["Compilation"], red_style)
+            if "CompilationProblems" in report.tables:
+                compilation_problems_df = report.tables["CompilationProblems"].data_frame
+                compilation_problems_sheet = writer.sheets["CompilationProblems"]
+                problem_frequency = count_unique_problems(compilation_df)
+                fill_problems_table(writer, compilation_problems_df,
+                                    compilation_problems_sheet, problem_frequency)
+
         if "Inference" in report.tables:
             inference_df = report.tables["Inference"].data_frame
-            inference_problems_df = report.tables["InferenceProblems"].data_frame
-            inference_problems_sheet = writer.sheets["InferenceProblems"]
-            problem_frequency = count_unique_problems(inference_df)
-            fill_problems_table(writer, inference_problems_df,
-                                inference_problems_sheet, problem_frequency)
-
             color_red_failed_models(
                 inference_df, writer.sheets["Inference"], red_style)
+            if "InferenceProblems" in report.tables:
+                inference_problems_df = report.tables["InferenceProblems"].data_frame
+                inference_problems_sheet = writer.sheets["InferenceProblems"]
+                problem_frequency = count_unique_problems(inference_df)
+                fill_problems_table(writer, inference_problems_df,
+                                    inference_problems_sheet, problem_frequency)
 
-        adjust_tracking_table(writer.sheets["ErrorTracking"])
+        if "IMD" in report.tables:
+            accuracy_df = report.tables["IMD"].data_frame
+            color_red_failed_models(
+                accuracy_df, writer.sheets["IMD"], red_style)
 
-    print("Done, heh")
+        if "Accuracy" in report.tables:
+            accuracy_df = report.tables["Accuracy"].data_frame
+            color_red_failed_models(
+                accuracy_df, writer.sheets["Accuracy"], red_style)
+
+        if "ErrorTracking" in writer.sheets:
+            adjust_tracking_table(writer.sheets["ErrorTracking"])

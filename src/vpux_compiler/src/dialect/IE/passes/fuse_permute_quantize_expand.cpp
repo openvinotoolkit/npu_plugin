@@ -304,15 +304,7 @@ private:
 
 void FusePermuteQuantizeExpandPass::safeRunOnFunc() {
     auto& ctx = getContext();
-    auto func = getFunction();
-
-    auto module = func->getParentOfType<mlir::ModuleOp>();
-
-    const auto arch = VPU::getArch(module);
-    if (arch != VPU::ArchKind::VPUX37XX) {
-        _log.trace("FusePermuteQuantizeExpandPass enabled only for VPUX37XX device. Got: {0}", arch);
-        return;
-    }
+    auto func = getOperation();
 
     mlir::RewritePatternSet patterns(&ctx);
     patterns.add<FusePermuteQuantizeExpandTogetherRewrite>(&ctx, _log);

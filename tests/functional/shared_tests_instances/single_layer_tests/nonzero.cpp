@@ -1,5 +1,5 @@
 //
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,7 +12,7 @@
 
 namespace LayerTestsDefinitions {
 
-class KmbNonZeroLayerTest : public NonZeroLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
+class VPUXNonZeroLayerTest_VPU3700 : public NonZeroLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
     void SkipBeforeLoad() override {
         if (envConfig.IE_KMB_TESTS_RUN_INFER) {
             throw LayerTestsUtils::KmbSkipTestException("layer test networks hang the board");
@@ -23,7 +23,9 @@ class KmbNonZeroLayerTest : public NonZeroLayerTest, virtual public LayerTestsUt
     }
 };
 
-TEST_P(KmbNonZeroLayerTest, CompareWithRefs) {
+TEST_P(VPUXNonZeroLayerTest_VPU3700, HW) {
+    setPlatformVPU3700();
+    setDefaultHardwareModeMLIR();
     Run();
 }
 }  // namespace LayerTestsDefinitions
@@ -44,21 +46,11 @@ const std::vector<InferenceEngine::Precision> inputPrecisions = {
 
 std::map<std::string, std::string> additional_config = {};
 
-// Tests fails with one of common errors:
-// 1. C++ exception with description "Unsupported operation: NonZero_3972 with name NonZero_3987 with
-// type NonZero with C++ type N6ngraph2op2v37NonZeroE
-// vpux-plugin/src/frontend_mcm/src/ngraph_mcm_frontend/passes/convert_to_mcm_model.cpp:1524
-// openvino/inference-engine/include/details/ie_exception_conversion.hpp:64" thrown in the test body.
-//
-// 2. C++ exception with description "Unsupported dimensions layout
-// vpux-plugin/src/utils/dims_parser.cpp:45
-// openvino/inference-engine/include/details/ie_exception_conversion.hpp:64" thrown in the test body.
-//
 // [Track number: S#43181]
-INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_nonzero, KmbNonZeroLayerTest,
+INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_nonzero, VPUXNonZeroLayerTest_VPU3700,
                          ::testing::Combine(::testing::ValuesIn(inShapes), ::testing::ValuesIn(inputPrecisions),
                                             ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
                                             ::testing::Values(additional_config)),
-                         KmbNonZeroLayerTest::getTestCaseName);
+                         VPUXNonZeroLayerTest_VPU3700::getTestCaseName);
 
 }  // namespace

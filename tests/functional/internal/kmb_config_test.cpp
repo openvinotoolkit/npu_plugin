@@ -76,32 +76,7 @@ static const std::vector<ConfigMap> baseInferConfigs = {
         {{"PERF_COUNT", "YES"}},
         {{"PERF_COUNT", "NO"}},
         {{"DEVICE_ID", ""}},
-        {{"VPUX_CSRAM_SIZE", "-1"}},
-        {{"VPUX_CSRAM_SIZE", "0"}},
-        {{"VPUX_CSRAM_SIZE", "2097152"}},
-#if defined(__arm) || defined(__aarch64__)
-        {{"VPUX_VPUAL_REPACK_INPUT_LAYOUT", "YES"}},
-        {{"VPUX_VPUAL_REPACK_INPUT_LAYOUT", "NO"}},
-#endif
         {{"VPUX_PLATFORM", PlatformEnvironment::PLATFORM}},
-};
-
-static const std::vector<ConfigMap> colorFormatConfigs = {
-        {}, {{"VPUX_GRAPH_COLOR_FORMAT", "RGB"}}, {{"VPUX_GRAPH_COLOR_FORMAT", "BGR"}}};
-
-static const std::vector<ConfigMap> preProcParamConfigs = {
-        {},
-        {{"VPUX_PREPROCESSING_SHAVES", "4"}, {"VPUX_PREPROCESSING_LPI", "8"}},
-        {{"VPUX_PREPROCESSING_SHAVES", "2"}, {"VPUX_PREPROCESSING_LPI", "4"}}};
-
-static const std::vector<ConfigMap> inferShavesConfigs = {
-        {},
-        {{"VPUX_INFERENCE_SHAVES", "2"}},
-        {{"VPUX_INFERENCE_SHAVES", "4"}},
-#if defined(__arm) || defined(__aarch64__)
-        {{"VPUX_VPUAL_INFERENCE_SHAVES", "2"}},
-        {{"VPUX_VPUAL_INFERENCE_SHAVES", "4"}},
-#endif
 };
 
 static const auto allBaseConfigurations = ::testing::Combine(

@@ -3,9 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
-#include "vpux/compiler/dialect/IERT/ops.hpp"
 #include "vpux/compiler/dialect/VPU/attributes.hpp"
 #include "vpux/compiler/dialect/VPU/passes.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
@@ -13,7 +10,7 @@
 #include "vpux/compiler/init.hpp"
 
 #include <mlir/IR/MLIRContext.h>
-#include <mlir/Parser.h>
+#include <mlir/Parser/Parser.h>
 #include <mlir/Pass/PassManager.h>
 
 #include <gtest/gtest.h>
@@ -42,7 +39,7 @@ TEST(MLIR_VPUIP_LayerInfo, AsyncLayerOpInterface) {
 
     constexpr llvm::StringLiteral inputIR = R"(
         module @test {
-            func @main(%arg0: memref<1x512xf16>, %arg1: memref<1x512xf16>) -> memref<1x512xf16> {
+            func.func @main(%arg0: memref<1x512xf16>, %arg1: memref<1x512xf16>) -> memref<1x512xf16> {
                 %0 = memref.alloc() : memref<1x512xf16>
                 %1 = VPUIP.SoftMaxUPA {axisInd = 1 : i32} inputs(%arg0 : memref<1x512xf16>) outputs(%0 : memref<1x512xf16>) -> memref<1x512xf16>
                 %2 = VPUIP.Copy inputs(%1 : memref<1x512xf16>) outputs(%arg1 : memref<1x512xf16>) -> memref<1x512xf16>
@@ -52,10 +49,10 @@ TEST(MLIR_VPUIP_LayerInfo, AsyncLayerOpInterface) {
         }
     )";
 
-    auto module = mlir::parseSourceString(inputIR, &ctx);
+    auto module = mlir::parseSourceString<mlir::ModuleOp>(inputIR, &ctx);
     ASSERT_TRUE(module.get() != nullptr);
 
-    auto func = module.get().lookupSymbol<mlir::FuncOp>("main");
+    auto func = module.get().lookupSymbol<mlir::func::FuncOp>("main");
     ASSERT_TRUE(func != nullptr);
 
     mlir::PassManager pm(&ctx, mlir::OpPassManager::Nesting::Implicit);

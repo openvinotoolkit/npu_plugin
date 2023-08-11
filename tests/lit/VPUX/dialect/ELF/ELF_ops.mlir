@@ -1,9 +1,10 @@
 //
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
-// RUN: vpux-opt --split-input-file --canonicalize %s | FileCheck %s
-// REQUIRES: arch-VPUX30XX || arch-VPUX37XX
+
+// RUN: vpux-opt --split-input-file --init-compiler="vpu-arch=%arch% allow-custom-values=true" --canonicalize %s | FileCheck %s
+// REQUIRES: arch-VPUX37XX
 
 module @SingleLayer attributes {VPU.compilationMode = "ReferenceSW"}  {
   module @UsedMemory  {
@@ -14,7 +15,7 @@ module @SingleLayer attributes {VPU.compilationMode = "ReferenceSW"}  {
   } outputsInfo :  {
     DataInfo "outputCNN" : tensor<1x1000xf16>
   }
-  func @main(%arg0: memref<1x1000xf16>, %arg1: memref<1x1000xf16>) -> memref<1x1000xf16> {
+  func.func @main(%arg0: memref<1x1000xf16>, %arg1: memref<1x1000xf16>) -> memref<1x1000xf16> {
     // CHECK:       %[[VAL0:.*]] = ELF.CreateSection secType(SHT_LOUSER) secFlags(SHF_ALLOC) {secAddrAlign = 4 : i64, secInfo = 1 : i64, secName = ".data.Weights"} -> !ELF.Section
     %0 = ELF.CreateSection secType(SHT_LOUSER) secFlags(SHF_ALLOC) {secAddrAlign = 4 : i64, secInfo = 1 : i64, secName = ".data.Weights"} -> !ELF.Section  {
     }

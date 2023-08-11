@@ -1,5 +1,5 @@
 //
-// Copyright (C) 2022 Intel Corporation.
+// Copyright (C) 2022-2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
 
@@ -71,7 +71,7 @@ mlir::LogicalResult TimestampRewrite::matchAndRewrite(VPUIP::TimestampOp origOp,
     auto bufferOp = rewriter.create<VPURT::DeclareBufferOp>(origOp->getLoc(), timerType, VPURT::BufferSection::Register,
                                                             hwAddress);
 
-    rewriter.replaceOpWithNewOp<VPUIP::NNDMAOp>(origOp, bufferOp.buffer(), origOp.output_buff(), dmaPort, false, false);
+    rewriter.replaceOpWithNewOp<VPUIP::NNDMAOp>(origOp, bufferOp.buffer(), origOp.output_buff(), dmaPort);
 
     _log.trace("Replaced with 'VPURT::DeclareBufferOp'");
 
@@ -84,8 +84,7 @@ mlir::LogicalResult TimestampRewrite::matchAndRewrite(VPUIP::TimestampOp origOp,
 
 class CopyOpRewrite final : public mlir::OpRewritePattern<VPUIP::CopyOp> {
 public:
-    CopyOpRewrite(mlir::MLIRContext* ctx, vpux::VPU::ArchKind arch, Logger log)
-            : mlir::OpRewritePattern<VPUIP::CopyOp>(ctx), _log(log), _arch(arch) {
+    CopyOpRewrite(mlir::MLIRContext* ctx, Logger log): mlir::OpRewritePattern<VPUIP::CopyOp>(ctx), _log(log) {
     }
 
 public:
@@ -93,7 +92,6 @@ public:
 
 private:
     Logger _log;
-    vpux::VPU::ArchKind _arch;
 };
 
 mlir::LogicalResult CopyOpRewrite::matchAndRewrite(VPUIP::CopyOp origOp, mlir::PatternRewriter& rewriter) const {
@@ -111,7 +109,8 @@ mlir::LogicalResult CopyOpRewrite::matchAndRewrite(VPUIP::CopyOp origOp, mlir::P
         }
     }
 
-    rewriter.replaceOpWithNewOp<VPUIP::NNDMAOp>(origOp, origOp.input(), origOp.output_buff(), dmaPort, false, false);
+    rewriter.replaceOpWithNewOp<VPUIP::NNDMAOp>(origOp, origOp.input(), origOp.output_buff(), dmaPort,
+                                                origOp.channelTypeAttr(), false, false, origOp.spillIdAttr(), nullptr);
 
     return mlir::success();
 }
@@ -132,7 +131,7 @@ private:
 
 void ConvertTransferOpsToDMAsPass::safeRunOnFunc() {
     auto& ctx = getContext();
-    auto func = getFunction();
+    auto func = getOperation();
 
     auto module = func->getParentOfType<mlir::ModuleOp>();
     const auto arch = VPU::getArch(module);
@@ -145,7 +144,7 @@ void ConvertTransferOpsToDMAsPass::safeRunOnFunc() {
 
     mlir::RewritePatternSet patterns(&ctx);
     patterns.insert<TimestampRewrite>(&ctx, arch, _log);
-    patterns.insert<CopyOpRewrite>(&ctx, arch, _log);
+    patterns.insert<CopyOpRewrite>(&ctx, _log);
 
     if (mlir::failed(mlir::applyPartialConversion(func, target, std::move(patterns)))) {
         signalPassFailure();

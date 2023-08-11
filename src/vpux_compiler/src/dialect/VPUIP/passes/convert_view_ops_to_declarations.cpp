@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/core/aliases_info.hpp"
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
 #include "vpux/compiler/dialect/VPUIP/utils.hpp"
@@ -66,24 +64,18 @@ Byte ViewLikeRewrite::calculateOffset(mlir::Value val) const {
         if (auto distributedType = subViewOp.source().getType().dyn_cast<VPUIP::DistributedBufferType>()) {
             // Get tiling dim index
             const auto tileIndex = VPUIP::getTilingDimIndex(distributedType);
-            if (tileIndex != -1) {
+            if (tileIndex.hasValue()) {
+                auto tileIndexVal = tileIndex.getValue();
                 auto origShape = getShape(subViewOp.source());
                 auto subShape = getShape(subViewOp.result());
                 if (origShape.size() != 4 || origShape.size() != subShape.size()) {
                     return offset;
                 }
-                // Adjust for channel segmentation
-                if (!VPUIP::isSegmentedOverC(distributedType.getDistribution())) {
-                    return offset;
-                }
-                // Correct offset for tiling dim if different input/output tile index shape
-                if (origShape[Dim(tileIndex)] != subShape[Dim(tileIndex)]) {
-                    VPUX_THROW_UNLESS(VPUIP::equalPerClusterShapes(distributedType),
-                                      "Different per cluster shapes not supported, got {0}",
-                                      distributedType.getPerClusterComputeShapes());
 
+                // Correct offset for tiling dim if different input/output tile index shape
+                if (origShape[Dim(tileIndexVal)] != subShape[Dim(tileIndexVal)]) {
                     auto numTiles = parseIntArrayAttr<int64_t>(distributedType.getDistribution().num_tiles());
-                    offset -= Byte(strides[Dim(tileIndex)] * offsets[tileIndex]) / numTiles[tileIndex];
+                    offset -= Byte(strides[Dim(tileIndexVal)] * offsets[tileIndexVal]) / numTiles[tileIndexVal];
                 }
             }
         }
@@ -124,7 +116,7 @@ mlir::LogicalResult ViewLikeRewrite::matchAndRewrite(mlir::ViewLikeOpInterface o
     } else if (auto blockArg = rootVal.dyn_cast<mlir::BlockArgument>()) {
         _log.nest().trace("It aliases Block argument '{0}'", blockArg);
 
-        auto funcOp = mlir::dyn_cast_or_null<mlir::FuncOp>(blockArg.getOwner()->getParentOp());
+        auto funcOp = mlir::dyn_cast_or_null<mlir::func::FuncOp>(blockArg.getOwner()->getParentOp());
         VPUX_THROW_UNLESS(funcOp != nullptr, "The view source doesn't belong to Function");
 
         const auto argInd = checked_cast<size_t>(blockArg.getArgNumber());
@@ -174,13 +166,9 @@ mlir::LogicalResult ViewLikeRewrite::matchAndRewrite(mlir::ViewLikeOpInterface o
         swizzlingKey = swizzlingScheme.getKey();
     }
 
-    if (sectionIndex.hasValue()) {
-        rewriter.replaceOpWithNewOp<VPURT::DeclareBufferOp>(origOp, outType, section, sectionIndex.getValue(),
-                                                            offset.count(), swizzlingKey);
-    } else {
-        rewriter.replaceOpWithNewOp<VPURT::DeclareBufferOp>(origOp, outType, section, nullptr, offset.count(),
-                                                            swizzlingKey);
-    }
+    mlir::ArrayAttr sectionIndexAttr = sectionIndex.hasValue() ? sectionIndex.getValue() : nullptr;
+    rewriter.replaceOpWithNewOp<VPURT::DeclareBufferOp>(origOp, outType, section, sectionIndexAttr, offset.count(),
+                                                        swizzlingKey);
 
     return mlir::success();
 }
@@ -234,7 +222,7 @@ void ConvertViewOpsToDeclarationsPass::safeRunOnFunc() {
     target.addLegalDialect<Const::ConstDialect>();
     target.addLegalDialect<VPUIP::VPUIPDialect>();
     target.addLegalDialect<VPURT::VPURTDialect>();
-    target.addLegalOp<mlir::FuncOp, mlir::ReturnOp>();
+    target.addLegalOp<mlir::func::FuncOp, mlir::func::ReturnOp>();
     target.addIllegalOp<VPUIP::GenericReshapeOp, VPUIP::SubViewOp, VPUIP::ConcatViewOp, VPUIP::PermuteCastOp,
                         VPUIP::QuantizeCastOp, VPUIP::DistributedCastOp, VPUIP::ShapeCastOp, VPUIP::StubOp,
                         VPUIP::ViewOp, VPUIP::WorkloadCastOp>();
@@ -247,7 +235,7 @@ void ConvertViewOpsToDeclarationsPass::safeRunOnFunc() {
     patterns.add<ViewLikeRewrite>(&ctx, &aliasInfo, _log);
     patterns.add<RewriteConcatView>(&ctx);
 
-    auto func = getFunction();
+    auto func = getOperation();
     if (mlir::failed(mlir::applyFullConversion(func, target, std::move(patterns)))) {
         signalPassFailure();
     }

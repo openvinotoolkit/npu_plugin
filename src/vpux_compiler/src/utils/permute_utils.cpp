@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/utils/permute_utils.hpp"
 
 using namespace vpux;
@@ -78,4 +76,15 @@ mlir::AffineMap vpux::getPermutationFromOrders(DimsOrder inOrder, DimsOrder outO
     }
 
     return mlir::AffineMap::getPermutationMap(makeArrayRef(memPerm), ctx);
+}
+
+DimsOrder vpux::applyPermutation(const DimsOrder srcOrder, const DimsOrder dstOrder) {
+    const auto srcPermutation = srcOrder.toPermutation();
+    const auto dstPermutation = dstOrder.toPermutation();
+    DimArr result;
+    const auto getDimAt = [&](const Dim& perm) -> Dim {
+        return srcOrder.dimAt(perm.ind());
+    };
+    std::transform(dstPermutation.begin(), dstPermutation.end(), std::back_inserter(result), getDimAt);
+    return DimsOrder::fromPermutation(result);
 }

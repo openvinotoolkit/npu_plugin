@@ -15,7 +15,7 @@ mlir::LogicalResult vpux::VPU::DivideOp::inferReturnTypes(mlir::MLIRContext* ctx
                                                           mlir::ValueRange operands, mlir::DictionaryAttr attrs,
                                                           mlir::RegionRange /*regions*/,
                                                           mlir::SmallVectorImpl<mlir::Type>& inferredReturnTypes) {
-    const auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
+    const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
     VPU::DivideOpAdaptor divide(operands, attrs);
     if (mlir::failed(divide.verify(loc))) {

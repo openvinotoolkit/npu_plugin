@@ -12,10 +12,6 @@ It handles such VPU-specifics as:
 
 [TOC]
 
-## Type constraint definition
-
-### VPUIP Barrier Type
-This object represents closely a Barrier in the device
 ## Operation definition
 
 ### `VPURT.Alloc` (vpux::VPURT::Alloc)
@@ -225,5 +221,7 @@ Interfaces: DotInterface, MemoryEffectsOpInterface, RegionKindInterface, Seriali
 ### BarrierType
 
 VPUIP Barrier Type
+
+Syntax: `!VPURT.Barrier`
 
 This object represents closely a Barrier in the device

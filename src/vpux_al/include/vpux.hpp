@@ -177,19 +177,9 @@ public:
     using Ptr = std::shared_ptr<Executor>;
     using CPtr = std::shared_ptr<const Executor>;
 
-    virtual void setup(const InferenceEngine::ParamMap& params) = 0;
     virtual Executor::Ptr clone() const {
         IE_THROW() << "Not implemented";
     }
-
-    virtual void push(const InferenceEngine::BlobMap& inputs) = 0;
-    virtual void push(const InferenceEngine::BlobMap& inputs, const PreprocMap& preProcMap) = 0;
-
-    virtual void pull(InferenceEngine::BlobMap& outputs) = 0;
-
-    virtual bool isPreProcessingSupported(const PreprocMap& preProcMap) const = 0;
-    virtual std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> getLayerStatistics() = 0;
-    virtual InferenceEngine::Parameter getParameter(const std::string& paramName) const = 0;
 
     virtual ~Executor() = default;
 };
@@ -206,66 +196,6 @@ public:
     virtual void GetResult() = 0;
 };
 
-// TODO: extract to a separate header
-// E#-34780
-class InferRequest : public IInferRequest {
-public:
-    explicit InferRequest(const InferenceEngine::InputsDataMap& networkInputs,
-                          const InferenceEngine::OutputsDataMap& networkOutputs, const Executor::Ptr& executor,
-                          const Config& config, const std::string& netName,
-                          const std::vector<std::shared_ptr<const ov::Node>>& parameters,
-                          const std::vector<std::shared_ptr<const ov::Node>>& results,
-                          const vpux::DataMap& networkStatesInfo,
-                          const std::shared_ptr<InferenceEngine::IAllocator>& allocator = nullptr);
-
-    void Infer() override;
-    void InferImpl() override;
-    void InferAsync() override;
-    std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> GetPerformanceCounts() const override;
-
-    void GetResult() override;
-
-    using InferenceEngine::IInferRequestInternal::SetBlob;
-    void SetBlob(const std::string& name, const InferenceEngine::Blob::Ptr& data) override;
-
-protected:
-    void checkBlobs() override;
-
-    /**
-     * @brief Create map with preProcessing info
-     * @param[in] networkInputs Contains information of pre-processing, which should be done
-     * @param[in] preProcData Container with blobs, which should be preprocessed
-     * @return Map with preprocess information
-     */
-    PreprocMap preparePreProcessing(const InferenceEngine::InputsDataMap& networkInputs,
-                                    const std::map<std::string, InferenceEngine::PreProcessDataPtr>& preProcData);
-
-    /**
-     * @brief Move all preProcessing blobs to inputs BlobMap
-     * @param[in/out] inputs Map with NN blobs. PP blobs should be placed instead for some inputs.
-     * @details This should be done as separate step, if device cannot handle such preprocessing, input should not be
-     * replaced
-     */
-    void moveBlobsForPreprocessingToInputs(
-            InferenceEngine::BlobMap& inputs, const InferenceEngine::InputsDataMap& networkInputs,
-            const std::map<std::string, InferenceEngine::PreProcessDataPtr>& preProcData);
-
-    void updateRemoteBlobs(InferenceEngine::BlobMap& inputs, const PreprocMap& preProcMap);
-    void updateRemoteBlobColorFormat(InferenceEngine::Blob::Ptr& blob, const InferenceEngine::ColorFormat colorFormat);
-
-protected:
-    const Executor::Ptr _executorPtr;
-    const Config _config;
-    Logger _logger;
-    std::shared_ptr<InferenceEngine::IAllocator> _allocator;
-    const int _deviceId;
-    const std::string _netUniqueId;
-
-    // TODO Specific details for KMB-standalone preprocessing [Track number: S#43193]
-    // the buffer is used when non-shareable memory passed for preprocessing
-    std::unique_ptr<uint8_t, std::function<void(uint8_t*)>> _preprocBuffer;
-};
-
 //------------------------------------------------------------------------------
 
 class IDevice : public std::enable_shared_from_this<IDevice> {
@@ -280,18 +210,16 @@ public:
 
     virtual std::string getName() const = 0;
     virtual Uuid getUuid() const;
+    virtual uint64_t getTotalMemSize() const;
 
-    // TODO: options:
-    // * common implementation of infer request
-    // * force each to implement its own
-    virtual InferRequest::Ptr createInferRequest(const InferenceEngine::InputsDataMap& networkInputs,
-                                                 const InferenceEngine::OutputsDataMap& networkOutputs,
-                                                 const Executor::Ptr& executor, const Config& config,
-                                                 const std::string& networkName,
-                                                 const std::vector<std::shared_ptr<const ov::Node>>& parameters,
-                                                 const std::vector<std::shared_ptr<const ov::Node>>& results,
-                                                 const vpux::DataMap& networkStatesInfo,
-                                                 const std::shared_ptr<InferenceEngine::IAllocator>& allocator) = 0;
+    virtual IInferRequest::Ptr createInferRequest(const InferenceEngine::InputsDataMap& networkInputs,
+                                                  const InferenceEngine::OutputsDataMap& networkOutputs,
+                                                  const Executor::Ptr& executor, const Config& config,
+                                                  const std::string& networkName,
+                                                  const std::vector<std::shared_ptr<const ov::Node>>& parameters,
+                                                  const std::vector<std::shared_ptr<const ov::Node>>& results,
+                                                  const vpux::DataMap& networkStatesInfo,
+                                                  const std::shared_ptr<InferenceEngine::IAllocator>& allocator) = 0;
 
 protected:
     virtual ~IDevice() = default;
@@ -335,24 +263,20 @@ public:
         return _impl->getUuid();
     }
 
-    // TODO: is it the correct place for the method?
-    // probably, we need to wrap infer request to store pointer to so (need to check)
-    // can we provide default implementation for infer requests?
-    InferRequest::Ptr createInferRequest(const InferenceEngine::InputsDataMap& networkInputs,
-                                         const InferenceEngine::OutputsDataMap& networkOutputs,
-                                         const Executor::Ptr& executor, const Config& config,
-                                         const std::string& netName,
-                                         const std::vector<std::shared_ptr<const ov::Node>>& parameters,
-                                         const std::vector<std::shared_ptr<const ov::Node>>& results,
-                                         const vpux::DataMap& networkStatesInfo,
-                                         const std::shared_ptr<InferenceEngine::IAllocator>& allocator) {
-        InferRequest::Ptr request = _impl->createInferRequest(networkInputs, networkOutputs, executor, config, netName,
-                                                              parameters, results, networkStatesInfo, allocator);
-        if (!request) {
-            request = std::make_shared<InferRequest>(networkInputs, networkOutputs, executor, config, netName,
-                                                     parameters, results, networkStatesInfo, allocator);
-        }
-        return request;
+    uint64_t getTotalMemSize() const {
+        return _impl->getTotalMemSize();
+    }
+
+    IInferRequest::Ptr createInferRequest(const InferenceEngine::InputsDataMap& networkInputs,
+                                          const InferenceEngine::OutputsDataMap& networkOutputs,
+                                          const Executor::Ptr& executor, const Config& config,
+                                          const std::string& netName,
+                                          const std::vector<std::shared_ptr<const ov::Node>>& parameters,
+                                          const std::vector<std::shared_ptr<const ov::Node>>& results,
+                                          const vpux::DataMap& networkStatesInfo,
+                                          const std::shared_ptr<InferenceEngine::IAllocator>& allocator) {
+        return _impl->createInferRequest(networkInputs, networkOutputs, executor, config, netName, parameters, results,
+                                         networkStatesInfo, allocator);
     }
 
 private:

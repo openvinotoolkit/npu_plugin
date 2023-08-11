@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/ELF/utils.hpp"
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
 
@@ -48,49 +46,52 @@ void vpux::VPURT::DeclareBufferOp::build(mlir::OpBuilder& builder, ::mlir::Opera
           getIntAttr(builder, swizzlingKey));
 }
 
-mlir::LogicalResult vpux::VPURT::verifyOp(DeclareBufferOp op) {
-    const auto type = op.getType().cast<vpux::NDTypeInterface>();
-    const auto section = op.section();
+mlir::LogicalResult vpux::VPURT::DeclareBufferOp::verify() {
+    const auto op = getOperation();
+    const auto type = getType().cast<vpux::NDTypeInterface>();
+    const auto opSection = section();
 
-    if (!VPURT::isMemoryCompatible(section, type)) {
-        return errorAt(op, "BufferSection '{0}' is not compatible with memory space '{1}'", section,
+    if (!VPURT::isMemoryCompatible(opSection, type)) {
+        return errorAt(op, "BufferSection '{0}' is not compatible with memory space '{1}'", opSection,
                        type.getMemSpace());
     }
 
-    const auto maybeSectionIndex = op.sectionIndex();
+    const auto maybeSectionIndex = sectionIndex();
     if (maybeSectionIndex.hasValue()) {
         if (maybeSectionIndex.getValue().empty()) {
             return errorAt(op, "Empty section index is not supported");
         }
     }
 
-    if (op.section() == VPURT::BufferSection::CMX_NN) {
+    if (section() == VPURT::BufferSection::CMX_NN) {
         const auto checkSectionIndex = [&op, &type](ArrayRef<int64_t> sectionIdx) {
             if (auto distributedType = type.dyn_cast<VPUIP::DistributedBufferType>()) {
                 const auto distribution = distributedType.getDistribution();
                 const auto numClusters = checked_cast<size_t>(distribution.num_clusters().getInt());
                 if (numClusters != sectionIdx.size()) {
-                    return errorAt(op, "Number of clusters '{0}' and section indexes '{1}' mismatch", numClusters,
-                                   sectionIdx.size());
+                    return errorAt(op, "Number of clusters '{0}' and section indexes '{1}' mismatch for op = {2}",
+                                   numClusters, sectionIdx.size(), op);
                 }
             }
 
             if (sectionIdx.size() == 1) {
                 const auto memSpace = type.getMemSpace();
                 if (memSpace == nullptr) {
-                    return errorAt(op, "Output type must have CMX_NN memory space");
+                    return errorAt(op, "Output type must have CMX_NN memory space, op = {0}", op);
                 }
 
                 const auto maybeIdx = memSpace.getIndex();
                 if (!maybeIdx.hasValue()) {
-                    return errorAt(op, "Output type must have memory space index equal to '{0}', but it doesn't",
-                                   sectionIdx[0]);
+                    return errorAt(op,
+                                   "Output type must have memory space index equal to '{0}', but it doesn't. declare "
+                                   "buffer op = {1}",
+                                   sectionIdx[0], op);
                 }
 
                 const auto memSpaceIdx = maybeIdx.getValue();
                 if (memSpaceIdx != sectionIdx[0]) {
-                    return errorAt(op, "Section index '{0}' and memory space index '{1}' mismatch", sectionIdx[0],
-                                   memSpaceIdx);
+                    return errorAt(op, "Section index '{0}' and memory space index '{1}' mismatch for op = {2}",
+                                   sectionIdx[0], memSpaceIdx, op);
                 }
             }
 
@@ -98,7 +99,10 @@ mlir::LogicalResult vpux::VPURT::verifyOp(DeclareBufferOp op) {
                 const auto distributedType = type.dyn_cast<VPUIP::DistributedBufferType>();
                 const auto vpuipBufferType = type.dyn_cast<VPUIP::BufferType>();
                 if (distributedType == nullptr && vpuipBufferType == nullptr) {
-                    return errorAt(op, "Array of section indexes is supported only for vpuip/distributed buffer type");
+                    return errorAt(
+                            op,
+                            "Array of section indexes is supported only for vpuip/distributed buffer type, op = {0}",
+                            op);
                 }
             }
 
@@ -115,7 +119,7 @@ mlir::LogicalResult vpux::VPURT::verifyOp(DeclareBufferOp op) {
                 return mlir::failure();
             }
         }
-    } else if (op.section() == VPURT::BufferSection::DDR) {
+    } else if (section() == VPURT::BufferSection::DDR) {
         if (type.getMemSpace() == nullptr) {
             return errorAt(op, "Output type must have DDR memory space");
         }

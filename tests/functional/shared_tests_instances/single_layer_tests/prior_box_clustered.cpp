@@ -1,29 +1,27 @@
 //
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "single_layer_tests/prior_box_clustered.hpp"
-#include "common_test_utils/test_constants.hpp"
 #include "kmb_layer_test.hpp"
 
 namespace LayerTestsDefinitions {
 
-class KmbPriorBoxClusteredLayerTest :
+class VPUXPriorBoxClusteredLayerTest :
         public PriorBoxClusteredLayerTest,
         virtual public LayerTestsUtils::KmbLayerTestsCommon {};
 
-class VPUXPriorBoxClusteredLayerTest_VPU3720 :
-        public PriorBoxClusteredLayerTest,
-        virtual public LayerTestsUtils::KmbLayerTestsCommon {};
+class VPUXPriorBoxClusteredLayerTest_VPU3700 : public VPUXPriorBoxClusteredLayerTest {};
+class VPUXPriorBoxClusteredLayerTest_VPU3720 : public VPUXPriorBoxClusteredLayerTest {};
 
-TEST_P(KmbPriorBoxClusteredLayerTest, CompareWithRefs_MLIR) {
-    useCompilerMLIR();
+TEST_P(VPUXPriorBoxClusteredLayerTest_VPU3700, HW) {
+    setPlatformVPU3700();
+    setDefaultHardwareModeMLIR();
     Run();
 }
 
-TEST_P(VPUXPriorBoxClusteredLayerTest_VPU3720, SW_MLIR_VPU3720) {
-    useCompilerMLIR();
+TEST_P(VPUXPriorBoxClusteredLayerTest_VPU3720, SW) {
     setPlatformVPU3720();
     setReferenceSoftwareModeMLIR();
     Run();
@@ -58,7 +56,7 @@ const auto layerSpeficParams =
                          testing::ValuesIn(step_widths), testing::ValuesIn(step_heights), testing::ValuesIn(step),
                          testing::ValuesIn(offsets), testing::ValuesIn(variances));
 
-INSTANTIATE_TEST_CASE_P(smoke_PriorBoxClustered, KmbPriorBoxClusteredLayerTest,
+INSTANTIATE_TEST_CASE_P(smoke_PriorBoxClustered, VPUXPriorBoxClusteredLayerTest_VPU3700,
                         testing::Combine(layerSpeficParams, testing::Values(InferenceEngine::Precision::FP16),
                                          testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                          testing::Values(InferenceEngine::Precision::UNSPECIFIED),
@@ -67,7 +65,7 @@ INSTANTIATE_TEST_CASE_P(smoke_PriorBoxClustered, KmbPriorBoxClusteredLayerTest,
                                          testing::Values(std::vector<size_t>({4, 4})),
                                          testing::Values(std::vector<size_t>({50, 50})),
                                          testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
-                        KmbPriorBoxClusteredLayerTest::getTestCaseName);
+                        VPUXPriorBoxClusteredLayerTest_VPU3700::getTestCaseName);
 
 INSTANTIATE_TEST_CASE_P(smoke_PriorBoxClustered_VPU3720, VPUXPriorBoxClusteredLayerTest_VPU3720,
                         testing::Combine(layerSpeficParams, testing::Values(InferenceEngine::Precision::FP16),

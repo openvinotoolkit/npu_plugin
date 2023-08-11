@@ -4,3 +4,4 @@ pandas
 xlsxwriter
 pygit2
 openpyxl
+colorama

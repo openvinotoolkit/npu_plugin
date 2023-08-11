@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/IE/passes.hpp"
 
 #include "vpux/compiler/utils/logging.hpp"
@@ -105,7 +103,7 @@ private:
 };
 
 void OptimizeConcatSlicePass::safeRunOnFunc() {
-    auto func = getFunction();
+    auto func = getOperation();
     auto& ctx = getContext();
 
     mlir::RewritePatternSet patterns(&ctx);

@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/EMU/graph-schema/blob_writer.hpp"
 
 #include "vpux/compiler/core/attributes/dims_order.hpp"

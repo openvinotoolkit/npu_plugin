@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/IE/passes.hpp"
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
@@ -56,6 +54,21 @@ mlir::LogicalResult RemoveDuplicating<ConcreteOp>::matchAndRewrite(ConcreteOp or
 
         if (auto currOp = mlir::dyn_cast<ConcreteOp>(user)) {
             if (firstUser.getType() == currOp.getType()) {
+                // Binary Ops are duplicated only when both inputs are the same
+                if (mlir::isa<IE::AddOp, IE::AndOp>(user)) {
+                    const auto currOpInput1 = currOp->getOperands()[0];
+                    const auto currOpInput2 = currOp->getOperands()[1];
+                    const auto firstOpInput1 = firstUser->getOperands()[0];
+                    const auto firstOpInput2 = firstUser->getOperands()[1];
+
+                    const auto inputsAreEqual = (currOpInput1 == firstOpInput1) && (currOpInput2 == firstOpInput2);
+                    const auto swappedInputsAreEqual =
+                            (currOpInput1 == firstOpInput2) && (currOpInput1 == firstOpInput2);
+                    if (!(inputsAreEqual || swappedInputsAreEqual)) {
+                        continue;
+                    }
+                }
+
                 _log.trace("Current node has a duplicate. Eliminate usage of current node:\n{0} {1}\n{2} {3}",
                            firstUser.getLoc(), firstUser, currOp.getLoc(), currOp);
 
@@ -97,8 +110,12 @@ void UniquifyOpsPass::safeRunOnFunc() {
     patterns.add<RemoveDuplicating<IE::QuantizeCastOp>>(&ctx, _log);
     patterns.add<RemoveDuplicating<IE::AddOp>>(&ctx, _log);
     patterns.add<RemoveDuplicating<IE::AndOp>>(&ctx, _log);
+    patterns.add<RemoveDuplicating<IE::LayoutCastOp>>(&ctx, _log);
+    patterns.add<RemoveDuplicating<IE::MemPermuteOp>>(&ctx, _log);
+    patterns.add<RemoveDuplicating<IE::AffineReshapeOp>>(&ctx, _log);
+    patterns.add<RemoveDuplicating<IE::PermuteQuantizeOp>>(&ctx, _log);
 
-    auto func = getFunction();
+    auto func = getOperation();
     if (mlir::failed(mlir::applyPatternsAndFoldGreedily(func, std::move(patterns), getDefaultGreedyRewriteConfig()))) {
         signalPassFailure();
     }

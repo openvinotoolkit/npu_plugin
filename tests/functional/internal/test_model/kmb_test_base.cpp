@@ -16,8 +16,8 @@
 #include "common/functions.h"
 #include "functional_test_utils/plugin_cache.hpp"
 #include "vpux/utils/IE/config.hpp"
+#include "vpux/vpux_metrics.hpp"
 #include "vpux_private_config.hpp"
-#include "vpux_private_metrics.hpp"
 
 //
 // KmbTestBase

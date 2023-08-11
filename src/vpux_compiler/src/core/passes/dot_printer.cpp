@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/utils/dot_printer.hpp"
 
 #include "vpux/compiler/core/passes.hpp"
@@ -39,7 +37,7 @@ public:
 
 public:
     void processModule(mlir::ModuleOp module);
-    void processFunc(mlir::FuncOp func);
+    void processFunc(mlir::func::FuncOp func);
 
 public:
     bool checkPass(mlir::Pass* pass) const;
@@ -65,6 +63,9 @@ mlir::LogicalResult PrintDotPass::initializeOptions(StringRef options) {
     }
     if (printConstOpt.hasValue()) {
         _writerParams.printConst = printConstOpt.getValue();
+    }
+    if (printOnlyTaskAndBarrierOpt.hasValue()) {
+        _writerParams.printOnlyTaskAndBarrier = printOnlyTaskAndBarrierOpt.getValue();
     }
     if (startAfterOpt.hasValue()) {
         _writerParams.startAfter = startAfterOpt.getValue();
@@ -93,12 +94,12 @@ bool PrintDotPass::checkPass(mlir::Pass* pass) const {
 }
 
 void PrintDotPass::processModule(mlir::ModuleOp module) {
-    module.walk([this](mlir::FuncOp func) {
+    module.walk([this](mlir::func::FuncOp func) {
         processFunc(func);
     });
 }
 
-void PrintDotPass::processFunc(mlir::FuncOp func) {
+void PrintDotPass::processFunc(mlir::func::FuncOp func) {
     VPUX_THROW_WHEN(_fileName.empty(), "Output file name for PrintDot was not provided");
 
     for (auto& block : func.getBody()) {
@@ -117,8 +118,8 @@ public:
     }
 
 public:
-    void runAfterPass(mlir::Pass* pass, mlir::Operation* op);
-    void runAfterPassFailed(mlir::Pass* pass, mlir::Operation* op);
+    void runAfterPass(mlir::Pass* pass, mlir::Operation* op) override;
+    void runAfterPassFailed(mlir::Pass* pass, mlir::Operation* op) override;
 
 private:
     std::vector<std::unique_ptr<PrintDotPass>> _printers;
@@ -134,7 +135,7 @@ void PrintDotInstrumentation::runAfterPass(mlir::Pass* pass, mlir::Operation* op
 
         if (auto module = mlir::dyn_cast<mlir::ModuleOp>(op)) {
             printer->processModule(module);
-        } else if (auto func = mlir::dyn_cast<mlir::FuncOp>(op)) {
+        } else if (auto func = mlir::dyn_cast<mlir::func::FuncOp>(op)) {
             printer->processFunc(func);
         }
     }

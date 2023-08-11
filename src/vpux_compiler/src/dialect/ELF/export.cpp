@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/ELF/export.hpp"
 #include "vpux/compiler/dialect/ELF/metadata.hpp"
 
@@ -34,14 +32,24 @@ std::vector<uint8_t> vpux::ELF::exportToELF(mlir::ModuleOp module,
     // a SectionInterface rather than ops themselves.
 
     IE::CNNNetworkOp netOp;
-    mlir::FuncOp netFunc;
+    mlir::func::FuncOp netFunc;
     IE::CNNNetworkOp::getFromModule(module, netOp, netFunc);
 
     log.trace("Serializing '{0}' ops", ELF::CreateMetadataSectionOp::getOperationName());
     auto createMetadataSectionOps = netFunc.getOps<ELF::CreateMetadataSectionOp>();
     for (auto createMetadataSectionOp : createMetadataSectionOps) {
-        auto metadata = vpux::ELF::constructMetadata(module, netOp, netFunc, preprocessInfo, parameters, results);
+        auto metadataPtr = vpux::ELF::constructMetadata(module, netOp, netFunc, preprocessInfo, parameters, results);
+        auto& metadata = *metadataPtr.get();
         createMetadataSectionOp.serialize(elfWriter, sectionMap, symbolMap, metadata);
+    }
+
+    auto createProfilingSectionOps = netFunc.getOps<ELF::CreateProfilingSectionOp>();
+    if (!createProfilingSectionOps.empty()) {
+        log.trace("Serializing '{0}' ops", ELF::CreateProfilingSectionOp::getOperationName());
+        for (auto createProfilingSectionOp : createProfilingSectionOps) {
+            auto metadata = vpux::ELF::constructProfilingMeta37XX(module, netOp, netFunc, log);
+            createProfilingSectionOp.serialize(elfWriter, sectionMap, symbolMap, metadata);
+        }
     }
 
     log.trace("Serializing '{0}' ops", ELF::CreateSectionOp::getOperationName());

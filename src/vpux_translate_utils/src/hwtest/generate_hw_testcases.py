@@ -42,12 +42,17 @@ import warnings
 from typing import Callable, List, Optional, Sequence, Union
 import numpy as np
 import numpy.ma as ma
+from struct import pack, unpack
 from numpy.random import default_rng
 from openpyxl.styles.alignment import Alignment
 from openpyxl.utils import get_column_letter
 from scipy.sparse import rand as randSparse
+from scipy.sparse import random as randomSparse
+import bitarray
+import cmath
 
-# TODO: Fix this awful hack
+# TODO: Fix this awful hack, whose purpose in life is to point to where you've
+# checked out `NUMERICSBENCH_REPO`
 import os
 numericBenchPath = os.getenv('NUMERICSBENCH_PATH')
 if numericBenchPath == None:
@@ -78,6 +83,12 @@ class Architecture(Enum):
     VPUX30XX = 3700,
     VPUX37XX = 3720
 
+    def __str__(self):
+       return self.name
+
+
+ALL_ARCHITECTURES = [Architecture.VPUX37XX]
+
 
 class CompilerBackend(Enum):
     Flatbuffer = auto(),
@@ -87,7 +98,7 @@ class CompilerBackend(Enum):
 Orderer = Callable[[np.ndarray], np.ndarray]
 
 def tohex(val, nbits):
-  return hex((val + (1 << nbits)) % (1 << nbits))
+    return hex((val + (1 << nbits)) % (1 << nbits))
 
 def OrderNHWC(data: np.ndarray) -> np.ndarray:
     return np.concatenate([a.transpose(1, 2, 0).flatten() for a in data])
@@ -193,7 +204,7 @@ class AlignmentError(Error):
 def ValidatePaddings(kernel, paddings):
     # kernel size are width|height
     # The padding order is top|left|bottom|right
-    # Regarding documentation
+    # Regarding documentation (http://dub30.ir.intel.com/svn/TRUNK/keembay/docs/specification/pdf/Gen3_Intel_Movidius_VPU_3400VE-A0_Databook_v1.4.pdf KB databook (page 5558))
     # we have next paddings constraints:
     # When the kernel x dimension is odd, the PAD amount is [KERNEL_X-1]/2 on left and right
     # When the kernel y dimension is odd, the PAD amount is [KERNEL_Y-1]/2 on top and bottom
@@ -247,6 +258,43 @@ def ValidateSwizzlingKey(key):
         raise ValidationError(f'swizzling key must be between values 1-5. Value provided: {key}')
 
 
+def getSEParams(chanCount, seSize=None):
+    if (seSize == None):
+        seSize = chanCount
+    (numSEs, rem)  = divmod(chanCount, seSize)
+    if (rem != 0):
+        raise Error("Incorrect Storage Element size")
+    return (seSize, numSEs)
+
+def compressSEs(sparseNotCompressed: np.ndarray, seSize=None) -> np.ndarray:
+    shape = sparseNotCompressed.shape
+    (seSize, numSEs) = getSEParams(shape[1], seSize)
+    dtype = sparseNotCompressed.dtype
+    compressedSETensor = np.zeros(shape, dtype)
+    for N in range(shape[0]):
+        for H in range(shape[2]):
+            for W in range(shape[3]):
+                for se in range(numSEs):
+                    compressedSETensor[N,se*seSize:se*seSize + seSize,H,W] \
+                    = sorted(sparseNotCompressed[N,se*seSize:se*seSize + seSize,H,W], key=lambda x: not x)
+    return compressedSETensor
+
+def decompressSEs(sparseTensor: np.ndarray, sparsityMap: np.ndarray, seSize=None) -> np.ndarray:
+    shape = sparseTensor.shape
+    (seSize, numSEs) = getSEParams(shape[1], seSize)
+    dtype = sparseTensor.dtype
+    denseTensor = np.zeros(shape, dtype)
+    for N in range(shape[0]):
+        for H in range(shape[2]):
+            for W in range(shape[3]):
+                for se in range(numSEs):
+                    seSM = sparsityMap[N,se*seSize:se*seSize + seSize,H,W]
+                    compressedIdx = 0
+                    for smIdx, smElem in enumerate(seSM):
+                        if (smElem):
+                            denseTensor[N,smIdx+se*seSize,H,W] = sparseTensor[N,compressedIdx+se*seSize,H,W]
+                            compressedIdx += 1
+    return denseTensor
 
 @dataclass
 class Value:
@@ -279,6 +327,7 @@ class Value:
         if self.orderer:
             orderer = self.orderer
         data = orderer(self.data)
+        data[data == np.NZERO] = np.PZERO
         self.ttype.pack(self, data).tofile(dir / self.filename)
 
     def check_entropy(self):
@@ -349,6 +398,8 @@ class TType(ABC):
         if np.any(np.isnan(data)):
             raise EntropyError(f'got NaN elements')
 
+def pack_u1(data: np.ndarray) -> np.ndarray:
+    return np.packbits(np.array(data.flatten(), dtype=bool), bitorder='little')
 
 def pack_int4(data: np.ndarray) -> np.ndarray:
     flat = data.flatten()
@@ -361,6 +412,36 @@ def pack_int4(data: np.ndarray) -> np.ndarray:
     return np.array(result).astype(np.uint8)
 
 
+class U1(TType):
+    def __init__(self):
+        super().__init__(np.uint8, 'u1', 'int8', 1, False)
+        self.bitsize = 1
+        self.low = np.uint8(0)
+        self.high = np.uint8(1)
+
+    def generate(self, filename: str, shape, rng, orderer=None) -> Value:
+        return Value(self,
+                     filename,
+                     rng.integers(self.low, self.high, endpoint=True, size=shape, dtype=np.uint8),
+                     self.bitwidth,
+                     self.bitsize,
+                     False,
+                     orderer)
+
+    def check_entropy(self, data: np.ndarray):
+        self._check_entropy_eq(data, 0)
+        self._check_entropy_eq(data, 1)
+
+    @property
+    def is_float(self) -> bool:
+        return False
+
+    def pack(self, value: Value, data: np.ndarray) -> np.ndarray:
+        return pack_u1(data)
+
+    def clip(self, data: np.ndarray) -> np.ndarray:
+        return data.round().clip(0, 1)
+
 class UInt4(TType):
     def __init__(self, bitwidth=4):
         super().__init__(np.uint8, 'uint4', 'int8', bitwidth, False)
@@ -370,12 +451,12 @@ class UInt4(TType):
 
     def generate(self, filename: str, shape, rng, orderer=None) -> Value:
         return Value(self,
-                      filename,
-                      rng.integers(self.low, self.high, endpoint=True, size=shape, dtype=np.uint8),
-                      self.bitwidth,
-                      self.bitsize,
-                      False,
-                      orderer)
+                     filename,
+                     rng.integers(self.low, self.high, endpoint=True, size=shape, dtype=np.uint8),
+                     self.bitwidth,
+                     self.bitsize,
+                     False,
+                     orderer)
 
     def check_entropy(self, data: np.ndarray):
         self._check_entropy_eq(data, 0)
@@ -401,12 +482,12 @@ class Int4(TType):
 
     def generate(self, filename: str, shape, rng, orderer=None) -> Value:
         return Value(self,
-                      filename,
-                      rng.integers(self.low, self.high, endpoint=True, size=shape, dtype=np.int8),
-                      self.bitwidth,
-                      self.bitsize,
-                      True,
-                      orderer)
+                     filename,
+                     rng.integers(self.low, self.high, endpoint=True, size=shape, dtype=np.int8),
+                     self.bitwidth,
+                     self.bitsize,
+                     True,
+                     orderer)
 
     def check_entropy(self, data: np.ndarray):
         self._check_entropy_eq(data, -8)
@@ -433,14 +514,14 @@ class UInt8(TType):
 
     def generate(self, filename: str, shape, rng, orderer=None) -> Value:
         return Value(self,
-                      filename,
-                      rng.integers(self.low, self.high, endpoint=True, size=shape, dtype=np.uint8),
-                      self.bitwidth,
-                      self.bitsize,
-                      False,
-                      orderer)
+                     filename,
+                     rng.integers(self.low, self.high, endpoint=True, size=shape, dtype=np.uint8),
+                     self.bitwidth,
+                     self.bitsize,
+                     False,
+                     orderer)
 
-    def generateSparse(self, filename: str, shape, rng, sparsity_factor=0.5, orderer=None) -> np.ndarray:
+    def generateSparse(self, filename: str, shape, rng, sparsity_factor=0.5, orderer=None) -> Value:
         # NB For now, we restrict the number of bits in our floats in order
         #    to ensure we're not running into rounding issues.
         matrix = randSparse(1, np.prod(shape), density=1-sparsity_factor, format="csr", random_state=rng)
@@ -453,12 +534,21 @@ class UInt8(TType):
                         if floatSparseData[N][C][H][W] == 0:
                             data[N][C][H][W] = 0
         return Value(self,
-                    filename,
-                    data,
-                    self.bitwidth,
-                    self.bitsize,
-                    False,
-                    orderer)
+                     filename,
+                     data,
+                     self.bitwidth,
+                     self.bitsize,
+                     False,
+                     orderer)
+
+    # Activation sparsity is different because all non zero values are written into beggining of SE and the rest are zeroes
+    # example: SE = [12,13,14,15,0,0,0,0] and SM [1,0,1,0,1,0,0,1], if input is SOK then several SEs will be uses along axis
+    def generateSparseAct(self, data_file: str, sm_file: str, shape, rng, sparsity_factor=0.5, orderer=None, seSize=None):
+        sparseNotCompressed = self.generateSparse(data_file, shape, rng, sparsity_factor, orderer)
+        compressedSETensor = compressSEs(sparseNotCompressed.data, seSize)
+
+        return (Value(self, data_file, compressedSETensor, self.bitwidth, self.bitsize, False, orderer),
+                Value(U1(), sm_file, np.array(sparseNotCompressed.data, dtype=bool), 1, 1, False, orderer))
 
     def check_entropy(self, data: np.ndarray):
         self._check_entropy_eq(data, 0)
@@ -491,7 +581,7 @@ class Int8(TType):
                       True,
                       orderer)
 
-    def generateSparse(self, filename: str, shape, rng, sparsity_factor=0.5, orderer=None) -> np.ndarray:
+    def generateSparse(self, filename: str, shape, rng, sparsity_factor=0.5, orderer=None) -> Value:
         # NB For now, we restrict the number of bits in our floats in order
         #    to ensure we're not running into rounding issues.
         matrix = randSparse(1, np.prod(shape), density=1-sparsity_factor, format="csr", random_state=rng)
@@ -510,6 +600,13 @@ class Int8(TType):
                     self.bitsize,
                     False,
                     orderer)
+
+    def generateSparseAct(self, data_file: str, sm_file: str, shape, rng, sparsity_factor=0.5, orderer=None, seSize=None):
+        sparseNotCompressed = self.generateSparse(data_file, shape, rng, sparsity_factor, orderer)
+        compressedSETensor = compressSEs(sparseNotCompressed.data, seSize)
+
+        return (Value(self, data_file, compressedSETensor, self.bitwidth, self.bitsize, False, orderer),
+                Value(U1(), sm_file, np.array(sparseNotCompressed.data, dtype=bool), 1, 1, False, orderer))
 
     def check_entropy(self, data: np.ndarray):
         self._check_entropy_eq(data, -128)
@@ -562,16 +659,14 @@ class FP16(TType):
         # NB For now, we restrict the number of bits in our floats in order
         #    to ensure we're not running into rounding issues.
         if self.value:
-            # E#60912: RTL validation used the following constraint for FP16 input values generation:
-            # EXP != MAX && (EXP >= 1 || number == 0)
-            # EXP != MAX translates in maximum accepted number 0x7BFF = 65504.0
-            # Generate random input data but clip Inf values to self.value
             data = np.around(rng.random(size=shape, dtype=np.float32) * 8.) / 8.
             data = (data * (2. ** self.bitwidth)).astype(np.float16)
             data[data == np.inf] = self.value
         else:
-            data = np.around(rng.random(size=shape, dtype=np.float32) * 8.) / 8.
+            data = np.around((2 * rng.random(size=shape, dtype=np.float32) - 1) * 8.) / 8.
             data = (data * (2. ** self.bitwidth)).astype(np.float16)
+            data[data == np.NZERO] = np.PZERO
+
         return Value(self,
                       filename,
                       data,
@@ -580,10 +675,10 @@ class FP16(TType):
                       True,
                       orderer)
 
-    def generateSparse(self, filename: str, shape, rng, sparsity_factor=0.5, orderer=None) -> np.ndarray:
+    def generateSparse(self, filename: str, shape, rng, sparsity_factor=0.5, orderer=None) -> Value:
         # NB For now, we restrict the number of bits in our floats in order
         #    to ensure we're not running into rounding issues.
-        matrix = randSparse(1, np.prod(shape), density=1-sparsity_factor, format="csr", random_state=rng)
+        matrix = randomSparse(1, np.prod(shape), density=1-sparsity_factor, format="csr", random_state=rng, data_rvs=lambda s: (2* rng.random(size=s, dtype=np.float32) - 1))
         data = np.around(matrix.toarray().reshape(shape) * 8.) / 8.
 
         return Value(self,
@@ -593,6 +688,13 @@ class FP16(TType):
                       self.bitsize,
                       True,
                       orderer)
+
+    def generateSparseAct(self, data_file: str, sm_file: str, shape, rng, sparsity_factor=0.5, orderer=None, seSize=None):
+        sparseNotCompressed = self.generateSparse(data_file, shape, rng, sparsity_factor, orderer)
+        compressedSETensor = compressSEs(sparseNotCompressed.data, seSize)
+
+        return (Value(self, data_file, compressedSETensor, self.bitwidth, self.bitsize, True, orderer),
+                 Value(U1(), sm_file, np.array(sparseNotCompressed.data, dtype=bool), 1, 1, False, orderer))
 
     def check_entropy(self, data: np.ndarray):
         self._check_entropy_inf(data)
@@ -619,7 +721,8 @@ class FP32(TType):
     def generate(self, filename: str, shape, rng, orderer=None) -> np.ndarray:
         # NB For now, we restrict the number of bits in our floats in order
         #    to ensure we're not running into rounding issues.
-        data = np.around(rng.random(size=shape, dtype=np.float32) * 8.) / 8.
+        data = np.around((2 * rng.random(size=shape, dtype=np.float32) - 1) * 8.) / 8.
+        data[data == np.NZERO] = np.PZERO
         return Value(self,
                       filename,
                       (data * (2. ** self.bitwidth)).astype(np.float32),
@@ -649,7 +752,8 @@ class BF16(TType):
     def generate(self, filename: str, shape, rng, orderer=None) -> np.ndarray:
         # NB For now, we restrict the number of bits in our floats in order
         #    to ensure we're not running into rounding issues.
-        data = np.around(rng.random(size=shape, dtype=np.float32) * 8.) / 8.
+        data = np.around((2 * rng.random(size=shape, dtype=np.float32) - 1) * 8.) / 8.
+        data[data == np.NZERO] = np.PZERO
         return Value(self,
                       filename,
                       (data * (2. ** self.bitwidth)).astype(bfloat16),
@@ -658,10 +762,10 @@ class BF16(TType):
                       True,
                       orderer)
 
-    def generateSparse(self, filename: str, shape, rng, sparsity_factor=0.5, orderer=None) -> np.ndarray:
+    def generateSparse(self, filename: str, shape, rng, sparsity_factor=0.5, orderer=None) -> Value:
         # NB For now, we restrict the number of bits in our floats in order
         #    to ensure we're not running into rounding issues.
-        matrix = randSparse(1, np.prod(shape), density=1-sparsity_factor, format="csr", random_state=rng)
+        matrix = randomSparse(1, np.prod(shape), density=1-sparsity_factor, format="csr", random_state=rng, data_rvs=lambda s: (2* rng.random(size=s, dtype=np.float32) - 1))
         data = np.around(matrix.toarray().reshape(shape) * 8.) / 8.
 
         return Value(self,
@@ -671,6 +775,13 @@ class BF16(TType):
                       self.bitsize,
                       True,
                       orderer)
+
+    def generateSparseAct(self, data_file: str, sm_file: str, shape, rng, sparsity_factor=0.5, orderer=None, seSize=None):
+        sparseNotCompressed = self.generateSparse(data_file, shape, rng, sparsity_factor, orderer)
+        compressedSETensor = compressSEs(sparseNotCompressed.data, seSize)
+
+        return (Value(self, data_file, compressedSETensor, self.bitwidth, self.bitsize, True, orderer),
+                Value(U1(), sm_file, np.array(sparseNotCompressed.data, dtype=bool), 1, 1, False, orderer))
 
     def check_entropy(self, data: np.ndarray):
         self._check_entropy_inf(data)
@@ -695,6 +806,7 @@ def idu(input: Value, weights: Value) -> "tuple[np.ndarray, np.ndarray]":
 def iduConvCustom(input: Value, weights: Value) -> "tuple[np.ndarray, np.ndarray]":
     """Custom Model the hardware IDU that feet the NumericBench requirements for convolution operation"""
     if (input.data.dtype == np.float32) or (weights.data.dtype == np.float32) :
+        # Issue link: https://gitlab.devtools.intel.com/iotgai/NumericsBench/-/issues/247
         raise Error(f'NumericBench\'s convolution operation doesn\'t support float32 datatype for inputs/weights')
 
     def to_qint32(value: Value) -> Union[np.ndarray, NBQuantized]:
@@ -709,6 +821,7 @@ def iduConvCustom(input: Value, weights: Value) -> "tuple[np.ndarray, np.ndarray
     # NumericBench requires activations and weights types are equal meanwhile VPUX37XX hardware supports different data types
 
     if (input.data.dtype == bfloat16) or (weights.data.dtype == bfloat16) :
+        # docs link https://docs.intel.com/documents/MovidiusInternal/vpu27/common/SW/HLD/internal/02_04_NN_LayerMappingHLD.html#input-data-type-support
         raise Error(f'bfloat16 activations compatible with bfloat16 weights only')
     # NumericBench's convolution operation doesn't support float32 datatype for inputs/weights so we have to convert types to float16 dtype
     # but there's accuracy loss with conversion from int16/int32 -> fp16 is possible
@@ -719,9 +832,8 @@ def iduConvCustom(input: Value, weights: Value) -> "tuple[np.ndarray, np.ndarray
     return input.data.astype(np.float16), weights.data.astype(np.float16)
 
 class Operation(ABC):
-    def __init__(self, architecture: Architecture, compiler_backend: CompilerBackend):
+    def __init__(self, architecture: Architecture):
         self.architecture = architecture
-        self.compiler_backend = compiler_backend
 
     """Abstract base class for MPE operations."""
     def json_info(self, inputs) -> dict:
@@ -761,19 +873,21 @@ class Operation(ABC):
             return collection.value if isinstance(collection, NBQuantized) else collection
 
         ndarray = getValue(data)
+        #replace np.nan values with cmath.nan  (0xFE00 -> 0x7E00 fp16 representation)
+        ndarray = np.nan_to_num(ndarray, nan=cmath.nan)
+
         rescale = not output_ttype.is_float
         output_type = output_ttype
         output_scale = 1.
         output_zero_point = 0
-
-        result_bitwidth = math.ceil(np.log2(np.amax(abs(ndarray))))
+        result_bitwidth = math.ceil(np.log2(np.amax(abs(np.nan_to_num(ndarray)))))
         bitshift = max(result_bitwidth - output_type.bitwidth, 0)
 
         if rescale:
             if np.issubdtype(ndarray.dtype, np.integer):
                 ndarray = ndarray.astype(np.float64)
 
-            if isinstance(activation, PReLU):
+            if isinstance(activation, (PReLU, ReLUX)):
                 activated = np.where(ndarray < 0, ndarray * activation.slope, ndarray)
                 max_ = max(np.amax(activated), 0)
                 min_ = min(np.amin(activated), 0)
@@ -804,7 +918,7 @@ class Operation(ABC):
 
         if rescale:
             if isinstance(data, NBQuantized):
-                if isinstance(activation, PReLU):
+                if isinstance(activation, (PReLU, ReLUX)):
                     value.zero = output_zero_point
                     value.scale = output_scale
                 else:
@@ -820,9 +934,6 @@ class Operation(ABC):
     def odu(self, output: Value) -> List[Value]:
         """Models the hardware ODU"""
         return [output]
-
-    def set_compiler_backend(self, compiler_backend: CompilerBackend):
-        self.compiler_backend = compiler_backend
 
 
 def shape_to_str(shape: Sequence[int]) -> str:
@@ -865,6 +976,49 @@ class PReLU:
         if self.out_type is np.float16:
             return FP16()
 
+class ReLUX:
+    def __init__(self, architecture, maximum, out_type=np.float16):
+        self.architecture = architecture
+
+        self.slope = 0
+        self.maximum = maximum
+        self.out_type = out_type
+        if self.out_type is np.int8:
+            self.out_type_desc = 'int8'
+        elif self.out_type is np.uint8:
+            self.out_type_desc = 'uint8'
+        else:
+            self.out_type_desc = 'fp16'
+
+    def __str__(self):
+        return 'relux_{}_{}'.format(self.maximum, self.out_type_desc)
+
+    @property
+    def json_info(self):
+        if self.out_type_desc == 'fp16':
+            max = unpack('H', np.float16(self.maximum))[0]
+        else:
+            max = self.maximum
+        return {'architecture': self.architecture.name, 'name': 'ReLUX', 'output_type': self.out_type_desc, 'max': max}
+
+    def __call__(self, values, scale=None, zero_point=None):
+        if isinstance(values, NBQuantized):
+            data = RequantFuseWithPRelu().inference(values, self.slope, scale, zero_point)
+            data.value = np.clip(data.value, None, self.maximum)
+            return data
+        else:
+            data = PRelu(output_data_type=np.float16).inference(values, self.slope)
+            data = np.clip(data, None, self.maximum)
+            return data
+
+    def get_out_type(self):
+        if self.out_type is np.int8:
+            return Int8()
+        if self.out_type is np.uint8:
+            return UInt8()
+        if self.out_type is np.float16:
+            return FP16()
+
 class ZMajorConvolution(Operation):
 
     # kernel_strides are x|y directions
@@ -882,26 +1036,23 @@ class ZMajorConvolution(Operation):
         'kernel_pads',
         'compress',
         'mpe_mode',
-        'weights_swizzling_key',
-        'activation_swizzling_key'
+        'weights_swizzling_key'
     ]
     NAME = 'Z-Major'
 
-    def __init__(self, architecture: Architecture, compiler_backend: CompilerBackend, settings):
-        super().__init__(architecture, compiler_backend)
+    def __init__(self, architecture: Architecture, settings):
+        super().__init__(architecture)
 
         self.settings = settings
         settings.weight_shape = [settings.kernel_channels, settings.input_shape[1]] + settings.kernel_shape
 
-    def json_info(self, inputs, outputs):
-        weights_list = [inputs[1].json_info]
-        if self.settings.activation_swizzling_key:
-            weights_list.append(inputs[2].json_info)
+        self.issues = set()
 
+    def json_info(self, inputs, outputs):
         json = {}
         json['case_type'] = 'ZMajorConvolution'
         json['input'] = [inputs[0].json_info]
-        json['weight'] = weights_list
+        json['weight'] = [inputs[1].json_info]
         json['output'] = get_values_json_info(outputs)
         json['conv_op'] = {
             'stride': self.settings.kernel_strides,
@@ -915,8 +1066,6 @@ class ZMajorConvolution(Operation):
 
         if self.settings.weights_swizzling_key:
             json['weights_swizzling_key'] = self.settings.weights_swizzling_key
-        if self.settings.activation_swizzling_key:
-            json['activation_swizzling_key'] = self.settings.activation_swizzling_key
 
         return json
 
@@ -930,13 +1079,10 @@ class ZMajorConvolution(Operation):
         # validate output tensor channels alignment
         ValidateHWAlignment(self.settings.output_ttype, self.settings.kernel_channels)
         ValidateSwizzlingKey(self.settings.weights_swizzling_key)
-        ValidateSwizzlingKey(self.settings.activation_swizzling_key)
-
-
 
     @property
     def ident(self) -> str:
-        name = f'zm_conv_{shape_to_str(self.settings.input_shape)}x{self.settings.input_ttype.stype}_{shape_to_str(self.settings.weight_shape)}x{self.settings.weight_ttype.stype}_pads_{shape_to_str(self.settings.kernel_pads)}_strides_{shape_to_str(self.settings.kernel_strides)}_kern_chan_{self.settings.kernel_channels}'
+        name = str(self.architecture) + f'_zm_conv_{shape_to_str(self.settings.input_shape)}x{self.settings.input_ttype.stype}_{shape_to_str(self.settings.weight_shape)}x{self.settings.weight_ttype.stype}_pads_{shape_to_str(self.settings.kernel_pads)}_strides_{shape_to_str(self.settings.kernel_strides)}_kern_chan_{self.settings.kernel_channels}'
         if self.settings.output_order != Order.NHWC:
             name += '_' + self.settings.output_order.name.lower()
         if self.settings.compress:
@@ -945,8 +1091,6 @@ class ZMajorConvolution(Operation):
             name += '_' + self.settings.mpe_mode.name
         if self.settings.weights_swizzling_key:
             name += '_wswizz_' + str(self.settings.weights_swizzling_key)
-        if self.settings.activation_swizzling_key:
-            name += '_actswizz_' + str(self.settings.activation_swizzling_key)
         return name
 
     @property
@@ -990,13 +1134,6 @@ class ZMajorConvolution(Operation):
     def generate_inputs(self, rng) -> List[Value]:
         inputs = [self.settings.input_ttype.generate('input-0.bin', self.settings.input_shape, rng),
                   self.settings.weight_ttype.generate('weights.dat', self.settings.weight_shape, rng, orderer=OrderNCHW)]
-        if self.settings.activation_swizzling_key:
-            # weights shape: OC IC KH KW
-            # output of the first conv will be used as input for the 2nd conv, so
-            # new weights are generated, with the shape alligned with the intermediary output
-            weights_shape_conv_1 = self.settings.weight_shape.copy()
-            weights_shape_conv_1[1] = self.settings.weight_shape[0]
-            inputs.append(self.settings.weight_ttype.generate('weights1.dat', weights_shape_conv_1, rng, orderer=OrderNCHW))
         return inputs
 
     def apply_mpe(self, values: List[Value]) -> np.ndarray:
@@ -1005,18 +1142,9 @@ class ZMajorConvolution(Operation):
                         pads = self.settings.kernel_pads,
                         strides = self.settings.kernel_strides)
         result = c2d.inference(lhs, rhs)
-        if self.settings.activation_swizzling_key:
-            result = result.astype('float16')
-            input_values_conv2 = Value(self.settings.output_ttype, None, result, self.settings.output_ttype.bitwidth, self.settings.output_ttype.bitsize, self.settings.output_ttype.signed, None)
-            lhs1, rhs1 = iduConvCustom(input_values_conv2, values[2])
-            result = c2d.inference(lhs1, rhs1)
         return result
 
     def filter_issues(self, args) -> bool:
-        if 'E#58381' in self.issues:
-            return False
-        if 'E#58424' in self.issues:
-            return False
         if 'E#34451' in self.issues:
             return False
         return True
@@ -1038,35 +1166,44 @@ class SparseConvolution(Operation):
         'kernel_pads',
         'compress',
         'mpe_mode',
-        'sparsity_factor'
+        'sparsity_factor',
+        'act_sparsity'
     ]
     NAME = 'Sparse'
 
-    def __init__(self, architecture: Architecture, compiler_backend: CompilerBackend, settings):
-        super().__init__(architecture, compiler_backend)
+    def __init__(self, architecture: Architecture, settings):
+        super().__init__(architecture)
         self.settings = settings
         settings.weight_shape = [settings.kernel_channels, settings.input_shape[1]] + settings.kernel_shape
 
         self.issues = set()
-        if settings.compress == True and self.architecture == Architecture.VPUX37XX :
-            self.issues.add('E#65336')
 
     def json_info(self, inputs, outputs):
-        return {
-            'case_type': 'SparseZMajorConvolution',
-            'input': [inputs[0].json_info],
-            'weight': [inputs[1].json_info],
-            'output': get_values_json_info(outputs),
-            'conv_op': {
-                'stride': self.settings.kernel_strides,
-                'pad': self.settings.kernel_pads,
-                'group': 1,
-                'dilation': 1,
-                'compress': self.settings.compress,
-                'mpe_mode': self.settings.mpe_mode.name
-            },
-            'output_order': self.settings.output_order.name.lower()
+
+        weights_list = []
+        if self.settings.act_sparsity:
+            weights_list.append(inputs[2].json_info)
+        else:
+            weights_list.append(inputs[1].json_info)
+
+        json = {}
+        json['case_type'] = 'SparseZMajorConvolution'
+        json['input'] = [inputs[0].json_info]
+        if self.settings.act_sparsity:
+            json['sparsity_map_input'] = [inputs[1].json_info]
+        json['weight'] = weights_list
+        json['output'] = get_values_json_info(outputs)
+        json['conv_op'] = {
+            'stride': self.settings.kernel_strides,
+            'pad': self.settings.kernel_pads,
+            'group': 1,
+            'dilation': 1,
+            'compress': self.settings.compress,
+            'mpe_mode': self.settings.mpe_mode.name,
+            'act_sparsity': self.settings.act_sparsity
         }
+        json['output_order'] = self.settings.output_order.name.lower()
+        return json
 
     def validate(self):
         ValidatePaddings(self.settings.kernel_shape, self.settings.kernel_pads)
@@ -1079,14 +1216,18 @@ class SparseConvolution(Operation):
 
     @property
     def ident(self) -> str:
-        name = f'sparse_conv_{shape_to_str(self.settings.input_shape)}x{self.settings.input_ttype.stype}_{shape_to_str(self.settings.weight_shape)}x{self.settings.weight_ttype.stype}_pads_{shape_to_str(self.settings.kernel_pads)}_strides_{shape_to_str(self.settings.kernel_strides)}_kern_chan_{self.settings.kernel_channels}'
+        name = str(self.architecture) + (f'_sparse_conv_{shape_to_str(self.settings.input_shape)}x{self.settings.input_ttype.stype}_'
+                                         f'{shape_to_str(self.settings.weight_shape)}x{self.settings.weight_ttype.stype}_'
+                                         f'pads_{shape_to_str(self.settings.kernel_pads)}_strides_{shape_to_str(self.settings.kernel_strides)}_kern_chan_{self.settings.kernel_channels}')
         if self.settings.output_order != Order.NHWC:
             name += '_' + self.settings.output_order.name.lower()
         if self.settings.compress:
             name += '_compressed'
         if self.settings.mpe_mode != MPE_MODE.CUBOID_16x16:
             name += '_' + self.settings.mpe_mode.name
-        name += f'_sparsity_{self.settings.sparsity_factor}'
+        if self.settings.act_sparsity:
+            name += '_act'
+        name += f'_weights_sparsity_{self.settings.sparsity_factor}'
         return name
 
     @property
@@ -1110,13 +1251,28 @@ class SparseConvolution(Operation):
         }
 
     def generate_inputs(self, rng) -> List[Value]:
-        return [
-            self.settings.input_ttype.generate('input-0.bin', self.settings.input_shape, rng),
-            self.settings.weight_ttype.generateSparse('weights.dat', self.settings.weight_shape, rng, self.settings.sparsity_factor, orderer=OrderNCHW)
-        ]
+        inputs = []
+        if self.settings.act_sparsity:
+            input = self.settings.input_ttype.generateSparseAct('input-0.bin', 'input-1.bin', self.settings.input_shape, rng, sparsity_factor=self.settings.sparsity_factor, seSize=self.settings.input_shape[1])
+            inputs.append(input[0])
+            inputs.append(input[1])
+        else:
+            inputs.append(self.settings.input_ttype.generate('input-0.bin', self.settings.input_shape, rng))
+        inputs.append(self.settings.weight_ttype.generateSparse('weights.dat', self.settings.weight_shape, rng, self.settings.sparsity_factor, orderer=OrderNCHW))
+        return inputs
+
 
     def apply_mpe(self, values: List[Value]) -> np.ndarray:
-        lhs, rhs = iduConvCustom(values[0], values[1])
+        if self.settings.act_sparsity: #values: inputs, sm_inputs, weights
+            inputs = Value(values[0].ttype, 'dense-input-0.bin',
+                        decompressSEs(values[0].data, values[1].data, self.settings.input_shape[1]),
+                        values[0].bitwidth, values[0].bitsize, values[0].signed, values[0].orderer)
+            weights = values[2]
+        else:                          #values: inputs, weights
+            inputs = values[0]
+            weights = values[1]
+
+        lhs, rhs = iduConvCustom(inputs, weights)
         c2d = Conv2DVPUX(kernel_shape=self.settings.kernel_shape,
                      pads = self.settings.kernel_pads,
                      strides = self.settings.kernel_strides)
@@ -1124,9 +1280,6 @@ class SparseConvolution(Operation):
         return result
 
     def filter_issues(self, args) -> bool:
-        if 'E#65336' in self.issues:
-            # Sparse convolution + weights compression not working in PSS on VPUX37XX
-            return False
         if 'E#34451' in self.issues:
             return False
         return True
@@ -1147,8 +1300,8 @@ class DepthWiseConv(Operation):
     ]
     NAME = 'DW'
 
-    def __init__(self, architecture: Architecture, compiler_backend: CompilerBackend, settings):
-        super().__init__(architecture, compiler_backend)
+    def __init__(self, architecture: Architecture, settings):
+        super().__init__(architecture)
 
         self.settings = settings
         settings.weight_shape = [settings.kernel_channels, 1] + settings.kernel_shape
@@ -1172,7 +1325,7 @@ class DepthWiseConv(Operation):
 
     @property
     def ident(self) -> str:
-        return f'dw_conv_{shape_to_str(self.settings.input_shape)}x{self.settings.input_ttype.stype}_{shape_to_str(self.settings.weight_shape)}x{self.settings.input_ttype.stype}_pads_{shape_to_str(self.settings.kernel_pads)}_strides_{shape_to_str(self.settings.kernel_strides)}_kern_chan_{self.settings.kernel_channels}'
+        return  str(self.architecture) + f'_dw_conv_{shape_to_str(self.settings.input_shape)}x{self.settings.input_ttype.stype}_{shape_to_str(self.settings.weight_shape)}x{self.settings.input_ttype.stype}_pads_{shape_to_str(self.settings.kernel_pads)}_strides_{shape_to_str(self.settings.kernel_strides)}_kern_chan_{self.settings.kernel_channels}'
 
     @property
     def orderer(self) -> Orderer:
@@ -1224,13 +1377,164 @@ class DepthWiseConv(Operation):
         return True
 
 
+class DoubleZMajorConvolution(Operation):
+
+    # kernel_strides are x|y directions
+    # The padding order is top|left|bottom|right
+    PARAMS = [
+        'op_class',
+        'input_ttype',
+        'input_shape',
+        'weight_ttype',
+        'kernel_channels',
+        'kernel_shape',
+        'output_ttype',
+        'output_order',
+        'kernel_strides',
+        'kernel_pads',
+        'compress',
+        'mpe_mode',
+        'activation_swizzling_key',
+        'act_sparsity'
+    ]
+    NAME = 'Double-Z-Major'
+
+    def __init__(self, architecture: Architecture, settings):
+        super().__init__(architecture)
+
+        self.settings = settings
+        settings.weight_shape = [settings.kernel_channels, settings.input_shape[1]] + settings.kernel_shape
+
+        self.issues = set()
+
+    def json_info(self, inputs, outputs):
+        weights_list = []
+        weights_list.append(inputs[1].json_info)
+        weights_list.append(inputs[2].json_info)
+
+        json = {}
+        json['case_type'] = 'DoubleZMajorConvolution'
+        json['input'] = [inputs[0].json_info]
+        json['weight'] = weights_list
+        json['output'] = get_values_json_info(outputs)
+        json['conv_op'] = {
+            'stride': self.settings.kernel_strides,
+            'pad': self.settings.kernel_pads,
+            'group': 1,
+            'dilation': 1,
+            'compress': self.settings.compress,
+            'mpe_mode': self.settings.mpe_mode.name,
+            'act_sparsity': self.settings.act_sparsity
+        }
+        json['output_order'] = self.settings.output_order.name.lower()
+
+        if self.settings.activation_swizzling_key:
+            json['activation_swizzling_key'] = self.settings.activation_swizzling_key
+
+        return json
+
+
+    def validate(self):
+        ValidatePaddings(self.settings.kernel_shape, self.settings.kernel_pads)
+        ValidateHWAlignment(self.settings.output_ttype, self.settings.kernel_channels)
+        ValidateSwizzlingKey(self.settings.activation_swizzling_key)
+
+
+    @property
+    def ident(self) -> str:
+        name = str(self.architecture) + (f'_zm_conv_double_{shape_to_str(self.settings.input_shape)}x{self.settings.input_ttype.stype}'
+            f'_{shape_to_str(self.settings.weight_shape)}x{self.settings.weight_ttype.stype}'
+            f'_pads_{shape_to_str(self.settings.kernel_pads)}_strides_{shape_to_str(self.settings.kernel_strides)}_kern_chan_{self.settings.kernel_channels}'
+        )
+        if self.settings.output_order != Order.NHWC:
+            name += '_' + self.settings.output_order.name.lower()
+        if self.settings.compress:
+            name += '_compressed'
+        if self.settings.mpe_mode != MPE_MODE.CUBOID_16x16:
+            name += '_' + self.settings.mpe_mode.name
+        if self.settings.activation_swizzling_key:
+            name += '_actswizz_' + str(self.settings.activation_swizzling_key)
+        if self.settings.act_sparsity:
+            name+= f'_sparse_act_seSize_{self.settings.kernel_channels}'
+        return name
+
+    @property
+    def orderer(self) -> Orderer:
+        return OrderNHWC
+
+    @property
+    def output_orderer(self) -> Orderer:
+        return orderToOrderer(self.settings.output_order)
+
+    @property
+    def data(self) -> dict:
+        return {
+            'Name': self.ident,
+            'Input Type': np.dtype(self.settings.input_ttype),
+            'Input Scale': self.settings.input_ttype.scale if hasattr(self.settings.input_ttype, 'scale') else 1,
+            'Input Zero Point': self.settings.input_ttype.zero if hasattr(self.settings.input_ttype, 'zero') else 0,
+            'Weights Type': np.dtype(self.settings.weight_ttype),
+            'Weights Scale': self.settings.weight_ttype.scale if hasattr(self.settings.weight_ttype, 'scale') else 1,
+            'Weights Zero Point': self.settings.weight_ttype.zero if hasattr(self.settings.weight_ttype, 'zero') else 0,
+            'Output Type': np.dtype(self.settings.output_ttype),
+            'Output Scale': self.settings.output_ttype.scale if hasattr(self.settings.output_ttype, 'scale') else 1,
+            'Output Zero Point': self.settings.output_ttype.zero if hasattr(self.settings.output_ttype, 'zero') else 0,
+            'IC': self.settings.input_shape[1],
+            'IH': self.settings.input_shape[2],
+            'IW': self.settings.input_shape[3],
+            'IK': self.settings.kernel_channels,
+            'KH': self.settings.kernel_shape[0],
+            'KW': self.settings.kernel_shape[1],
+            'SH': self.settings.kernel_strides[1],
+            'SW': self.settings.kernel_strides[0],
+            'PT': self.settings.kernel_pads[0],
+            'PB': self.settings.kernel_pads[2],
+            'PL': self.settings.kernel_pads[1],
+            'PR': self.settings.kernel_pads[3],
+            'NTHW_NTK': mpeCube2NTHW_NTK[self.settings.mpe_mode],
+            'Output Permute': SW2HWOrder[self.settings.output_order],
+            'Compression': int(self.settings.compress),
+        }
+
+    def generate_inputs(self, rng) -> List[Value]:
+        inputs = []
+        inputs.append(self.settings.input_ttype.generate('input-0.bin', self.settings.input_shape, rng))
+        if self.settings.act_sparsity: # weights are in dense format, without SM. They do contain 0's with the purpose to produce sparse output
+            inputs.append(self.settings.weight_ttype.generateSparse('weights.dat', self.settings.weight_shape, rng, 0.9, orderer=OrderNCHW))
+        else:
+            inputs.append(self.settings.weight_ttype.generate('weights.dat', self.settings.weight_shape, rng, orderer=OrderNCHW))
+        # weights shape: OC IC KH KW
+        # output of the first conv will be used as input for the 2nd conv, so
+        # new weights are generated, with the shape alligned with the intermediary output
+        weights_shape_conv_1 = self.settings.weight_shape.copy()
+        weights_shape_conv_1[1] = self.settings.weight_shape[0]
+        inputs.append(self.settings.weight_ttype.generate('weights1.dat', weights_shape_conv_1, rng, orderer=OrderNCHW))
+        return inputs
+
+    def apply_mpe(self, values: List[Value]) -> np.ndarray:
+        lhs, rhs = iduConvCustom(values[0], values[1])
+        c2d = Conv2DVPUX(kernel_shape=self.settings.kernel_shape,
+                        pads = self.settings.kernel_pads,
+                        strides = self.settings.kernel_strides)
+        result = c2d.inference(lhs, rhs)
+        result = result.astype('float16')
+        input_values_conv2 = Value(self.settings.output_ttype, None, result, self.settings.output_ttype.bitwidth, self.settings.output_ttype.bitsize, self.settings.output_ttype.signed, None)
+        lhs1, rhs1 = iduConvCustom(input_values_conv2, values[2])
+        result = c2d.inference(lhs1, rhs1)
+        return result
+
+    def filter_issues(self, args) -> bool:
+        if 'E#34451' in self.issues:
+            return False
+        return True
+
 class EltwiseAdd(Operation):
 
     PARAMS = ['op_class', 'input_ttype', 'input_shape', 'output_ttype']
     NAME = 'Add'
 
-    def __init__(self, architecture: Architecture, compiler_backend: CompilerBackend, settings):
-        super().__init__(architecture, compiler_backend)
+    def __init__(self, architecture: Architecture, settings):
+        super().__init__(architecture)
         self.settings = settings
 
     def json_info(self, inputs, outputs):
@@ -1246,7 +1550,7 @@ class EltwiseAdd(Operation):
 
     @property
     def ident(self) -> str:
-        return f'ew_add_{shape_to_str(self.settings.input_shape)}x{self.settings.input_ttype.stype}'
+        return  str(self.architecture) + f'_ew_add_{shape_to_str(self.settings.input_shape)}x{self.settings.input_ttype.stype}'
 
     @property
     def orderer(self) -> Orderer:
@@ -1295,8 +1599,8 @@ class EltwiseMult(Operation):
     PARAMS = ['op_class', 'input_ttype', 'input_shape', 'output_ttype']
     NAME = 'Mult'
 
-    def __init__(self, architecture: Architecture, compiler_backend: CompilerBackend, settings):
-        super().__init__(architecture, compiler_backend)
+    def __init__(self, architecture: Architecture, settings):
+        super().__init__(architecture)
         self.settings = settings
 
     def json_info(self, inputs, outputs):
@@ -1312,7 +1616,7 @@ class EltwiseMult(Operation):
 
     @property
     def ident(self) -> str:
-        return f'ew_mult_{self.settings.input_ttype.stype}'
+        return  str(self.architecture) + f'_ew_mult_{self.settings.input_ttype.stype}'
 
     @property
     def orderer(self) -> Orderer:
@@ -1350,6 +1654,89 @@ class EltwiseMult(Operation):
     def filter_issues(self, args) -> bool:
         return True
 
+class EltwiseSparse(Operation):
+
+    PARAMS = ['op_class', 'input_ttype', 'input_shape', 'output_ttype', 'seSize']
+    NAME = 'EltwiseSparse'
+
+    def __init__(self, architecture: Architecture, settings):
+        super().__init__(architecture)
+        self.settings = settings
+
+    def json_info(self, inputs, outputs):
+        return {
+            'case_type': 'EltwiseSparse',
+            'input': [inputs[0].json_info],
+            'sparsity_map_input': [inputs[1].json_info],
+            'weight': [inputs[2].json_info],
+            'sparsity_map_weights': [inputs[3].json_info],
+            'output': get_values_json_info(outputs),
+            'ew_op': {
+                'se_size': self.settings.seSize
+            }
+        }
+
+    def validate(self):
+        pass
+
+    @property
+    def ident(self) -> str:
+        return  str(self.architecture) + f'_ew_sparse_{shape_to_str(self.settings.input_shape)}x{self.settings.input_ttype.stype}_se_size_{self.settings.seSize}'
+
+    @property
+    def orderer(self) -> Orderer:
+        return OrderNHWC
+
+    @property
+    def output_orderer(self) -> Orderer:
+        return OrderNHWC
+
+    @property
+    def data(self) -> dict:
+        return {
+            'Name': self.ident,
+            'Input Type': np.dtype(self.settings.input_ttype),
+            'Output Type': np.dtype(self.settings.output_ttype),
+            'C': self.settings.input_shape[1],
+            'H': self.settings.input_shape[2],
+            'W': self.settings.input_shape[3],
+            'SE Size' : self.settings.seSize
+        }
+
+    def generate_inputs(self, rng) -> List[Value]:
+        input = self.settings.input_ttype.generateSparseAct('input-0.bin', 'input-1.bin', self.settings.input_shape, rng, sparsity_factor=0.5, seSize=self.settings.seSize)
+        weights = self.settings.input_ttype.generateSparseAct('input-2.bin', 'input-3.bin', self.settings.input_shape, rng, sparsity_factor=0.5, seSize=self.settings.seSize)
+
+        return [
+            input[0],
+            input[1],
+            weights[0],
+            weights[1],
+        ]
+
+    def apply_mpe(self, values: List[Value]) -> np.ndarray:
+        adder = Add()
+        # use dense excecution for reference, decompress SEs for reference inplementation
+        input = Value(values[0].ttype, 'dense-input-0.bin',
+                      decompressSEs(values[0].data, values[1].data, self.settings.seSize),
+                      values[0].bitwidth, values[0].bitsize, values[0].signed, values[0].orderer)
+        weights = Value(values[2].ttype, 'dense-input-1.bin',
+                        decompressSEs(values[2].data, values[3].data, self.settings.seSize),
+                        values[2].bitwidth, values[2].bitsize, values[2].signed, values[2].orderer)
+        lhs, rhs = idu(input, weights)
+        if isinstance(lhs, NBQuantized) and isinstance(lhs, NBQuantized):
+            # Workaround for NumericsBench's Add operation: when both values are
+            # quantized and have roughly the same scale, NumericsBench just casts
+            # them to uint32, adds them, clips to [0, 255], and returns them as
+            # uint8 -- which isn't correct for anything other than uint8.
+            # So we go through the underlying platform add operation instead,
+            # which is what Add() does anyway when the scales don't quite match.
+            return adder.add.inference(lhs, rhs)
+        return adder.inference(lhs, rhs)
+
+    def filter_issues(self, args) -> bool:
+        return True
+
 class Maxpool(Operation):
 
     # kernel_strides are x|y directions
@@ -1357,8 +1744,8 @@ class Maxpool(Operation):
     PARAMS = ['op_class', 'input_ttype', 'input_shape', 'kernel_shape', 'output_ttype', 'kernel_strides', 'kernel_pads']
     NAME = 'MaxPool'
 
-    def __init__(self, architecture: Architecture, compiler_backend: CompilerBackend, settings):
-        super().__init__(architecture, compiler_backend)
+    def __init__(self, architecture: Architecture, settings):
+        super().__init__(architecture)
         self.settings = settings
 
     def json_info(self, inputs, outputs):
@@ -1379,7 +1766,7 @@ class Maxpool(Operation):
 
     @property
     def ident(self) -> str:
-        return f'max_pool_{shape_to_str(self.settings.input_shape)}x{self.settings.input_ttype.stype}_{shape_to_str(self.settings.kernel_shape)}_pads_{shape_to_str(self.settings.kernel_pads)}_strides_{shape_to_str(self.settings.kernel_strides)}'
+        return  str(self.architecture) + f'_max_pool_{shape_to_str(self.settings.input_shape)}x{self.settings.input_ttype.stype}_{shape_to_str(self.settings.kernel_shape)}_pads_{shape_to_str(self.settings.kernel_pads)}_strides_{shape_to_str(self.settings.kernel_strides)}'
 
     @property
     def orderer(self) -> Orderer:
@@ -1433,8 +1820,8 @@ class AvgPool(Operation):
     PARAMS = ['op_class', 'input_ttype', 'input_shape', 'kernel_shape', 'output_ttype', 'kernel_strides']
     NAME = 'AvgPool'
 
-    def __init__(self, architecture: Architecture, compiler_backend: CompilerBackend, settings):
-        super().__init__(architecture, compiler_backend)
+    def __init__(self, architecture: Architecture, settings):
+        super().__init__(architecture)
         self.settings = settings
 
     def json_info(self, inputs, outputs):
@@ -1457,7 +1844,7 @@ class AvgPool(Operation):
 
     @property
     def ident(self) -> str:
-        return f'avg_pool_{shape_to_str(self.settings.input_shape)}x{self.settings.input_ttype.stype}_kernel_{shape_to_str(self.settings.kernel_shape)}_strides_{shape_to_str(self.settings.kernel_strides)}'
+        return  str(self.architecture) + f'_avg_pool_{shape_to_str(self.settings.input_shape)}x{self.settings.input_ttype.stype}_kernel_{shape_to_str(self.settings.kernel_shape)}_strides_{shape_to_str(self.settings.kernel_strides)}'
 
     @property
     def orderer(self) -> Orderer:
@@ -1521,19 +1908,16 @@ class ActKernel(Operation):
     PARAMS = ['op_class', 'input_ttype', 'input_shape', 'output_ttype', 'activation_type']
     NAME = 'ActKernel'
 
-    def __init__(self, architecture: Architecture, compiler_backend: CompilerBackend, settings):
-        super().__init__(architecture, compiler_backend)
+    def __init__(self, architecture: Architecture, settings):
+        super().__init__(architecture)
 
         self.settings = settings
         self.issues = set()
-        if self.settings.activation_type[0] == ActivationType.Softmax :
-            self.issues.add('E#29786')
-
 
     @property
     def ident(self) -> str:
         name = self.settings.activation_type[0].name
-        ident = f'act_kernel_{name}_{shape_to_str(self.settings.input_shape)}x{self.settings.input_ttype.stype}'
+        ident =  str(self.architecture) + f'_act_kernel_{name}_{shape_to_str(self.settings.input_shape)}x{self.settings.input_ttype.stype}'
         if self.settings.activation_type[0] == ActivationType.Softmax :
             ident += f'_axis_{self.settings.activation_type[1]}'
         return ident
@@ -1709,14 +2093,13 @@ class ActKernel(Operation):
         elif self.settings.activation_type[0] == ActivationType.vau_sigm :
             result = Sigmoid().inference(values[0].data.astype(np.float32))
         elif self.settings.activation_type[0] == ActivationType.vau_sqrt :
-            result = np.sqrt(values[0].data.astype(np.float32))
+            with np.errstate(invalid='ignore'):
+                result = np.sqrt(values[0].data.astype(np.float32))
         elif self.settings.activation_type[0] == ActivationType.vau_tanh :
             result = np.tanh(values[0].data.astype(np.float32))
         elif self.settings.activation_type[0] == ActivationType.vau_log :
-            np.seterr(divide = 'ignore')
-            result = np.log(values[0].data.astype(np.float32))
-            result = np.nan_to_num(result)
-            np.seterr(divide = 'warn')
+            with np.errstate(divide='ignore', invalid='ignore'):
+                result = np.log(values[0].data.astype(np.float32))
         elif self.settings.activation_type[0] == ActivationType.vau_exp :
             result = np.exp(values[0].data.astype(np.float32))
         elif self.settings.activation_type[0] == ActivationType.vau_dp4 :
@@ -1761,13 +2144,13 @@ class ReadAfterWriteACTDMA(Operation):
 
     NAME = 'ReadAfterWriteACTDMA'
 
-    def __init__(self, architecture: Architecture, compiler_backend: CompilerBackend, settings):
-        super().__init__(architecture, compiler_backend)
+    def __init__(self, architecture: Architecture, settings):
+        super().__init__(architecture)
         self.settings = settings
 
     @property
     def ident(self) -> str:
-        ident = f'ReadAfterWriteACTDMA_{self.settings.input_ttype.stype}_iter_count_{self.settings.iteration_count}_cluster_{self.settings.cluster_number}'
+        ident =  str(self.architecture) + f'_ReadAfterWriteACTDMA_{self.settings.input_ttype.stype}_iter_count_{self.settings.iteration_count}_cluster_{self.settings.cluster_number}'
         return ident
 
     @property
@@ -1852,13 +2235,13 @@ class ReadAfterWriteDMAACT(Operation):
               'iteration_count']
     NAME = 'ReadAfterWriteDMAACT'
 
-    def __init__(self, architecture: Architecture, compiler_backend: CompilerBackend, settings):
-        super().__init__(architecture, compiler_backend)
+    def __init__(self, architecture: Architecture, settings):
+        super().__init__(architecture)
         self.settings = settings
 
     @property
     def ident(self) -> str:
-        ident = f'ReadAfterWriteDMAACT_{self.settings.input_ttype.stype}_iter_count_{self.settings.iteration_count}_cluster_{self.settings.cluster_number}'
+        ident =  str(self.architecture) + f'_ReadAfterWriteDMAACT_{self.settings.input_ttype.stype}_iter_count_{self.settings.iteration_count}_cluster_{self.settings.cluster_number}'
         return ident
 
     @property
@@ -1940,8 +2323,8 @@ class ReadAfterWriteDPUDMA(Operation):
         'iteration_count'
     ]
 
-    def __init__(self, architecture: Architecture, compiler_backend: CompilerBackend, settings):
-        super().__init__(architecture, compiler_backend)
+    def __init__(self, architecture: Architecture, settings):
+        super().__init__(architecture)
 
         self.settings = settings
         settings.weight_shape = [settings.kernel_channels, settings.input_shape[1]] + settings.kernel_shape
@@ -1970,7 +2353,7 @@ class ReadAfterWriteDPUDMA(Operation):
 
     @property
     def ident(self) -> str:
-        return f'ReadAfterWriteDPUDMA_{self.settings.input_ttype.stype}_iter_count_{self.settings.iteration_count}_cluster_{self.settings.cluster_number}'
+        return  str(self.architecture) + f'_ReadAfterWriteDPUDMA_{self.settings.input_ttype.stype}_iter_count_{self.settings.iteration_count}_cluster_{self.settings.cluster_number}'
 
     @property
     def orderer(self) -> Orderer:
@@ -2053,8 +2436,8 @@ class ReadAfterWriteDMADPU(Operation):
         'iteration_count'
     ]
 
-    def __init__(self, architecture: Architecture, compiler_backend: CompilerBackend, settings):
-        super().__init__(architecture, compiler_backend)
+    def __init__(self, architecture: Architecture, settings):
+        super().__init__(architecture)
 
         self.settings = settings
         settings.weight_shape = [settings.kernel_channels, settings.input_shape[1]] + settings.kernel_shape
@@ -2083,7 +2466,7 @@ class ReadAfterWriteDMADPU(Operation):
 
     @property
     def ident(self) -> str:
-        return f'ReadAfterWriteDMADPU_{self.settings.input_ttype.stype}_iter_count_{self.settings.iteration_count}_cluster_{self.settings.cluster_number}'
+        return  str(self.architecture) + f'_ReadAfterWriteDMADPU_{self.settings.input_ttype.stype}_iter_count_{self.settings.iteration_count}_cluster_{self.settings.cluster_number}'
 
     @property
     def orderer(self) -> Orderer:
@@ -2157,8 +2540,8 @@ class ReadAfterWriteDPUACT(Operation):
         'iteration_count'
     ]
 
-    def __init__(self, architecture: Architecture, compiler_backend: CompilerBackend, settings):
-        super().__init__(architecture, compiler_backend)
+    def __init__(self, architecture: Architecture, settings):
+        super().__init__(architecture)
 
         self.settings = settings
         settings.weight_shape = [settings.kernel_channels, settings.input_shape[1]] + settings.kernel_shape
@@ -2190,7 +2573,7 @@ class ReadAfterWriteDPUACT(Operation):
 
     @property
     def ident(self) -> str:
-        return f'ReadAfterWriteDPUACT_{self.settings.input_ttype.stype}_iter_count_{self.settings.iteration_count}_cluster_{self.settings.cluster_number}'
+        return  str(self.architecture) + f'_ReadAfterWriteDPUACT_{self.settings.input_ttype.stype}_iter_count_{self.settings.iteration_count}_cluster_{self.settings.cluster_number}'
 
     @property
     def orderer(self) -> Orderer:
@@ -2277,8 +2660,8 @@ class ReadAfterWriteACTDPU(Operation):
         'iteration_count'
     ]
 
-    def __init__(self, architecture: Architecture, compiler_backend: CompilerBackend, settings):
-        super().__init__(architecture, compiler_backend)
+    def __init__(self, architecture: Architecture, settings):
+        super().__init__(architecture)
 
         self.settings = settings
         settings.weight_shape = [settings.kernel_channels, settings.input_shape[1]] + settings.kernel_shape
@@ -2310,7 +2693,7 @@ class ReadAfterWriteACTDPU(Operation):
 
     @property
     def ident(self) -> str:
-        return f'ReadAfterWriteACTDPU_{self.settings.input_ttype.stype}_iter_count_{self.settings.iteration_count}_cluster_{self.settings.cluster_number}'
+        return  str(self.architecture) + f'_ReadAfterWriteACTDPU_{self.settings.input_ttype.stype}_iter_count_{self.settings.iteration_count}_cluster_{self.settings.cluster_number}'
 
     @property
     def orderer(self) -> Orderer:
@@ -2387,31 +2770,40 @@ class MemoryLocation(Enum):
 
 class DMA(Operation):
 
-    PARAMS = ['op_class', 'input_ttype', 'output_ttype', 'input_shape', 'src_memloc', 'dst_memloc', 'dma_engine']
-
-    def __init__(self, architecture: Architecture, compiler_backend: CompilerBackend, settings):
-        super().__init__(architecture, compiler_backend)
-
+    def __init__(self, architecture: Architecture, input_ttype, output_ttype, input_shape, src_memloc, dst_memloc, dma_engine, actCompressDenseMode = False, convert_datatype_en = False):
+        super().__init__(architecture)
+        settings = Settings()
         self.settings = settings
+        self.settings.input_ttype = input_ttype
+        self.settings.output_ttype = output_ttype
+        self.settings.input_shape = input_shape
+        self.settings.src_memloc = src_memloc
+        self.settings.dst_memloc = dst_memloc
+        self.settings.dma_engine = dma_engine
+        self.settings.actCompressDenseMode = actCompressDenseMode
+        self.settings.convert_datatype_en = convert_datatype_en
+        self.issues = set()
 
     def json_info(self, input, outputs):
-        return {
-            'case_type': 'DMA',
-            'input': get_values_json_info(input),
-            'output': get_values_json_info(outputs),
-            'DMA_params': {
-                'src_memory_location' : self.settings.src_memloc.name,
-                'dst_memory_location' : self.settings.dst_memloc.name,
-                'dma_engine' : self.settings.dma_engine
-            }
-        }
+        json = {}
+        json['case_type'] = 'DMAcompressAct' if self.settings.actCompressDenseMode == True else 'DMA'
+        json['input'] = get_values_json_info(input)
+        json['output'] = get_values_json_info(outputs)
+        json['DMA_params'] = {}
+        json['DMA_params']['src_memory_location'] = self.settings.src_memloc.name
+        json['DMA_params']['dst_memory_location'] = self.settings.dst_memloc.name
+        json['DMA_params']['dma_engine'] = self.settings.dma_engine
+
+        return json
 
     def validate(self):
         pass
 
     @property
     def ident(self) -> str:
-        return f'DMA_{shape_to_str(self.settings.input_shape)}x{self.settings.input_ttype.stype}_from_{self.settings.src_memloc.name}_to_{self.settings.dst_memloc.name}_engine_{self.settings.dma_engine}'
+        name =  str(self.architecture) + f'_DMA_{shape_to_str(self.settings.input_shape)}x{self.settings.input_ttype.stype}_from_{self.settings.src_memloc.name}_to_{self.settings.dst_memloc.name}_engine_{self.settings.dma_engine}'
+        name += f'_{self.settings.output_ttype.stype}'
+        return name
 
     @property
     def orderer(self) -> Orderer:
@@ -2423,14 +2815,19 @@ class DMA(Operation):
 
     @property
     def data(self) -> dict:
-        return {
-            'Op Mode': 'MPE_DMA',
-            'Input Type': self.settings.input_ttype.stype,
-            'Output Type': self.settings.output_ttype.stype,
-            'Src location': self.settings.src_memloc.name,
-            'Dst location': self.settings.dst_memloc.name,
-            'Engine': self.settings.dma_engine
-        }
+        data={}
+        data['Op Mode'] = 'MPE_DMA'
+        data['Input Type'] = self.settings.input_ttype.stype
+        data['Output Type'] = self.settings.output_ttype.stype
+        data['Src location'] = self.settings.src_memloc.name
+        data['Dst location'] = self.settings.dst_memloc.name
+        data['Engine'] = self.settings.dma_engine
+        return data
+
+    def value(self):
+        value = {'architecture': self.architecture.name}
+        value = {**value, **self.json_info(self.inputs, self.outputs)}
+        return value
 
     def generate_inputs(self, rng) -> List[Value]:
         return [
@@ -2438,9 +2835,31 @@ class DMA(Operation):
         ]
 
     def apply_mpe(self, values: List[Value]) -> np.ndarray:
-        return values[0].data
+        if self.settings.convert_datatype_en is True:
+            if self.settings.output_ttype.stype == "fp16":
+                output = (values[0].data).astype(np.float16)
+            elif self.settings.output_ttype.stype == "bfloat16":
+                output = (values[0].data).astype(bfloat16)
+            return output
+        else:
+            return values[0].data
+
+    def compute_values(self):
+        self.inputs = self.generate_inputs(default_rng(1))
+        out = self.apply_mpe(self.inputs)
+        value = Value(self.settings.output_ttype, 'output-0.bin', out, self.settings.output_ttype.bitwidth, self.settings.output_ttype.bitsize, self.settings.output_ttype.signed, None)
+        self.outputs = [value]
+
+    def write_data(self, dir: Path):
+        orderer = OrderNCHW # write data as is
+        for input in self.inputs:
+            input.write_data(dir, orderer)
+        for output in self.outputs:
+            output.write_data(dir, orderer)
 
     def filter_issues(self, args) -> bool:
+        if 'E#42566' in self.issues:
+            return False
         return True
 
 class DifferentClustersDPU(Operation):
@@ -2462,8 +2881,8 @@ class DifferentClustersDPU(Operation):
     ]
     NAME = 'DifferentClustersDPU'
 
-    def __init__(self, architecture: Architecture, compiler_backend: CompilerBackend, settings):
-        super().__init__(architecture, compiler_backend)
+    def __init__(self, architecture: Architecture, settings):
+        super().__init__(architecture)
 
         self.settings = settings
         settings.weight_shape = [settings.kernel_channels, settings.input_shape[1]] + settings.kernel_shape
@@ -2498,7 +2917,7 @@ class DifferentClustersDPU(Operation):
     @property
     def ident(self) -> str:
         out_clusters_str = '_'.join([str(cluster) for cluster in self.settings.DPU_task_params[1]])
-        return f'DifferentClustersDPU_{self.settings.input_ttype.stype}_input_cluster_{self.settings.DPU_task_params[0]}_output_cluster_{out_clusters_str}_weights_cluster_{self.settings.DPU_task_params[2]}_weights_table_cluster_{self.settings.DPU_task_params[3]}'
+        return  str(self.architecture) + f'_DifferentClustersDPU_{self.settings.input_ttype.stype}_input_cluster_{self.settings.DPU_task_params[0]}_output_cluster_{out_clusters_str}_weights_cluster_{self.settings.DPU_task_params[2]}_weights_table_cluster_{self.settings.DPU_task_params[3]}'
 
     @property
     def orderer(self) -> Orderer:
@@ -2587,8 +3006,8 @@ class MultiClustersDPU(Operation):
     ]
     NAME = 'MultiClustersDPU'
 
-    def __init__(self, architecture: Architecture, compiler_backend: CompilerBackend, settings):
-        super().__init__(architecture, compiler_backend)
+    def __init__(self, architecture: Architecture, settings):
+        super().__init__(architecture)
 
         self.settings = settings
         settings.weight_shape = [settings.kernel_channels, settings.input_shape[1]] + settings.kernel_shape
@@ -2625,7 +3044,7 @@ class MultiClustersDPU(Operation):
         task_clusters_str = '_'.join([str(cluster) for cluster in self.settings.MultiClustersDPU_params[0]])
         kernel_size_str = 'x'.join([str(dim) for dim in self.settings.kernel_shape])
         kernel_stride_str = 'x'.join([str(dim) for dim in self.settings.kernel_strides])
-        return f'MultiClustersDPU_{self.settings.input_ttype.stype}_task_cluster_{task_clusters_str}_{self.settings.MultiClustersDPU_params[1]}_broadcast_{self.settings.MultiClustersDPU_params[2]}_kern_chan_{self.settings.kernel_channels}_kern_sz_{kernel_size_str}_kern_stride_{kernel_stride_str}_in_shape_{shape_to_str(self.settings.input_shape)}'
+        return  str(self.architecture) + f'_MultiClustersDPU_{self.settings.input_ttype.stype}_task_cluster_{task_clusters_str}_{self.settings.MultiClustersDPU_params[1]}_broadcast_{self.settings.MultiClustersDPU_params[2]}_kern_chan_{self.settings.kernel_channels}_kern_sz_{kernel_size_str}_kern_stride_{kernel_stride_str}_in_shape_{shape_to_str(self.settings.input_shape)}'
 
     @property
     def orderer(self) -> Orderer:
@@ -2718,265 +3137,13 @@ class MultiClustersDPU(Operation):
 
         return outputs
 
-
-class HaloMultiClustering(Operation):
-
-    PARAMS = [
-        'op_class',
-        'input_ttype',
-        'input_shape',
-        'weight_ttype',
-        'kernel_channels',
-        'kernel_shape',
-        'output_ttype',
-        'output_order',
-        'kernel_strides',
-        'kernel_pads',
-        'compress',
-        'mpe_mode',
-        'HaloMultiClustering_params'
-    ]
-    NAME = 'HaloMultiClustering'
-
-    def __init__(self, architecture: Architecture, compiler_backend: CompilerBackend, settings):
-        super().__init__(architecture, compiler_backend)
-
-        self.settings = settings
-        settings.weight_shape = [settings.kernel_channels, settings.input_shape[1]] + settings.kernel_shape
-        self.issues = set()
-
-    def json_info(self, inputs, outputs):
-        return {
-            'case_type': 'HaloMultiClustering',
-            'input': [inputs[0].json_info],
-            'weight': [inputs[1].json_info],
-            'output': get_values_json_info(outputs),
-            'conv_op': {
-                'stride': self.settings.kernel_strides,
-                'pad': self.settings.kernel_pads,
-                'group': 1,
-                'dilation': 1,
-                'compress': self.settings.compress,
-                'mpe_mode': self.settings.mpe_mode.name
-            },
-            'output_order': self.settings.output_order.name.lower(),
-            'HaloParams': {
-                'task_clusters' : self.settings.HaloMultiClustering_params[0],
-                'segmentation': self.settings.HaloMultiClustering_params[1].name,
-                'clusters_per_dim' : self.settings.HaloMultiClustering_params[2],
-                'spatial_halo_h' : self.settings.HaloMultiClustering_params[3],
-                'spatial_halo_w' :  self.settings.HaloMultiClustering_params[4]
-            }
-        }
-
-    def validate(self):
-        segmentation_type = self.settings.HaloMultiClustering_params[1]
-        if segmentation_type not in { SEGMENTATION.SOK, SEGMENTATION.SOH, SEGMENTATION.SOW, SEGMENTATION.SOHW, SEGMENTATION.SOHK }:
-            raise Exception(f'HaloMultiClustering, unsupported segmentation type: {segmentation_type.name}\n')
-
-        clusters_per_dim = self.settings.HaloMultiClustering_params[2]
-        num_clusters = len(self.settings.HaloMultiClustering_params[0])
-        if self.settings.HaloMultiClustering_params[1] in { SEGMENTATION.SOHW, SEGMENTATION.SOHK }:
-            if 1 in clusters_per_dim:
-                raise Exception(
-                    f'HaloMultiClustering, incorrect configuration for segmentation type {segmentation_type.name}, \
-                    only one cluster given for one of the dims: clusters_per_dim = {clusters_per_dim}\n')
-            if clusters_per_dim[0] * clusters_per_dim[1] != num_clusters:
-                raise Exception(
-                    f'HaloMultiClustering, incorrect configuration for segmentation type {segmentation_type.name}, \
-                    improper split of clusters for 2-axis segmentation: clusters_per_dim = {clusters_per_dim}, num_clusters = {num_clusters}\n')
-
-        input_shape = self.settings.input_shape
-        weight_shape = self.settings.weight_shape
-        pads = self.settings.kernel_pads
-        strides = self.settings.kernel_strides
-        spatial_halo_h = self.settings.HaloMultiClustering_params[3]
-        spatial_halo_w = self.settings.HaloMultiClustering_params[4]
-
-        # (input_height - kernel_height + pad_top + pad_bottom) // stride_height + 1
-        output_height = (input_shape[2] - weight_shape[2] + pads[0] + pads[2]) // strides[0] + 1
-        # (input_width - kernel_width + pad_left + pad_right) // stride_width + 1
-        output_width = (input_shape[3] - weight_shape[3] + pads[1] + pads[3]) // strides[1] + 1
-
-        def check_dims_to_process(full_dim_sz, clusters, dim, halo_sz=1):
-            step_per_cluster = (full_dim_sz + clusters - 1) // clusters
-            last_cluster_size = full_dim_sz - (clusters - 1) * step_per_cluster
-
-            if dim == "channels":
-                if step_per_cluster % 16 != 0 or last_cluster_size % 16 != 0:
-                    raise Exception(
-                    f'HaloMultiClustering, incorrect configuration for segmentation type {segmentation_type.name}, \
-                    output channels are not a multiple of 16 for one or more clusters: \
-                    per cluster size = {step_per_cluster}, last cluster size = {last_cluster_size}\n')
-
-            if last_cluster_size <= 0:
-                raise Exception(
-                    f'HaloMultiClustering, incorrect configuration for segmentation type {segmentation_type.name}, \
-                    one or more clusters do not have output {dim} to process: full output dim = {full_dim_sz}, size per cluster = {step_per_cluster}\n')
-
-            if last_cluster_size < halo_sz and dim != "channels":
-                raise Exception(
-                    f'HaloMultiClustering, incorrect configuration for segmentation type {segmentation_type.name}, \
-                    halo size per {dim} is larger than output {dim} of last cluster: halo size = {halo_sz}, last cluster size = {last_cluster_size}\n')
-
-        if segmentation_type == SEGMENTATION.SOH:
-            check_dims_to_process(output_height, num_clusters, "height", spatial_halo_h)
-        elif segmentation_type == SEGMENTATION.SOW:
-            check_dims_to_process(output_width, num_clusters, "width", spatial_halo_w)
-        elif segmentation_type == SEGMENTATION.SOK:
-            check_dims_to_process(weight_shape[0], num_clusters, "channels")
-        elif segmentation_type == SEGMENTATION.SOHK:
-            check_dims_to_process(output_height, clusters_per_dim[0], "height", spatial_halo_h)
-            check_dims_to_process(weight_shape[0], clusters_per_dim[1], "channels")
-        elif segmentation_type == SEGMENTATION.SOHW:
-            check_dims_to_process(output_height, clusters_per_dim[0], "height", spatial_halo_h)
-            check_dims_to_process(output_width, clusters_per_dim[1], "width", spatial_halo_w)
-
-    @property
-    def ident(self) -> str:
-        task_clusters_str = '_'.join([str(cluster) for cluster in self.settings.HaloMultiClustering_params[0]])
-        kernel_size_str = 'x'.join([str(dim) for dim in self.settings.kernel_shape])
-        kernel_stride_str = 'x'.join([str(dim) for dim in self.settings.kernel_strides])
-
-        segmentation_type = self.settings.HaloMultiClustering_params[1]
-        extra_params = ""
-
-        if segmentation_type in {SEGMENTATION.SOH, SEGMENTATION.SOHK, SEGMENTATION.SOHW}:
-            extra_params += "_halo_h_sz_{}".format(str(self.settings.HaloMultiClustering_params[3]))
-
-        if segmentation_type in {SEGMENTATION.SOW, SEGMENTATION.SOHW}:
-            extra_params += "_halo_w_sz_{}".format(str(self.settings.HaloMultiClustering_params[4]))
-
-        if segmentation_type in {SEGMENTATION.SOHK, SEGMENTATION.SOHW}:
-            extra_params += "_clusters_per_dim" + '_'.join([str(cluster) for cluster in self.settings.HaloMultiClustering_params[2]])
-
-        return f'HaloMultiClustering_in_shape_{shape_to_str(self.settings.input_shape)}_{self.settings.input_ttype.stype}_kern_chan_{self.settings.kernel_channels}_kern_sz_{kernel_size_str}_kern_stride_{kernel_stride_str}_task_cluster_{task_clusters_str}_{segmentation_type.name}{extra_params}'
-
-    @property
-    def orderer(self) -> Orderer:
-        return OrderNHWC
-
-    @property
-    def output_orderer(self) -> Orderer:
-        return orderToOrderer(self.settings.output_order)
-
-    @property
-    def data(self) -> dict:
-        return {
-            'Name': self.ident,
-            'Input Type': np.dtype(self.settings.input_ttype),
-            'Input Scale': self.settings.input_ttype.scale if hasattr(self.settings.input_ttype, 'scale') else 1,
-            'Input Zero Point': self.settings.input_ttype.zero if hasattr(self.settings.input_ttype, 'zero') else 0,
-            'Weights Type': np.dtype(self.settings.weight_ttype),
-            'Weights Scale': self.settings.weight_ttype.scale if hasattr(self.settings.weight_ttype, 'scale') else 1,
-            'Weights Zero Point': self.settings.weight_ttype.zero if hasattr(self.settings.weight_ttype, 'zero') else 0,
-            'Output Type': np.dtype(self.settings.output_ttype),
-            'Output Scale': self.settings.output_ttype.scale if hasattr(self.settings.output_ttype, 'scale') else 1,
-            'Output Zero Point': self.settings.output_ttype.zero if hasattr(self.settings.output_ttype, 'zero') else 0,
-            'IC': self.settings.input_shape[1],
-            'IH': self.settings.input_shape[2],
-            'IW': self.settings.input_shape[3],
-            'IK': self.settings.kernel_channels,
-            'KH': self.settings.kernel_shape[0],
-            'KW': self.settings.kernel_shape[1],
-            'SH': self.settings.kernel_strides[1],
-            'SW': self.settings.kernel_strides[0],
-            'PT': self.settings.kernel_pads[0],
-            'PB': self.settings.kernel_pads[2],
-            'PL': self.settings.kernel_pads[1],
-            'PR': self.settings.kernel_pads[3],
-            'NTHW_NTK': mpeCube2NTHW_NTK[self.settings.mpe_mode],
-            'Output Permute': SW2HWOrder[self.settings.output_order],
-            'Compression': int(self.settings.compress),
-        }
-
-    def generate_inputs(self, rng) -> List[Value]:
-        return [
-            self.settings.input_ttype.generate('input-0.bin', self.settings.input_shape, rng),
-            self.settings.weight_ttype.generate('weights.dat', self.settings.weight_shape, rng, orderer=OrderNCHW)
-        ]
-
-    def apply_mpe(self, values: List[Value]) -> np.ndarray:
-        lhs, rhs = iduConvCustom(values[0], values[1])
-        c2d = Conv2DVPUX(kernel_shape=self.settings.kernel_shape,
-                        pads = self.settings.kernel_pads,
-                        strides = self.settings.kernel_strides)
-        result = c2d.inference(lhs, rhs)
-        return result
-
-    def filter_issues(self, args) -> bool:
-        return True
-
-    def odu(self, output: Value) -> List[Value]:
-        """Models the hardware ODU"""
-
-        def segment_over_single_axis(output, halo_sz, axis, num_clusters):
-            outputs = list()
-            start = [0, 0, 0, 0]
-            end = list(output.data.shape)
-            step_per_cluster = (output.data.shape[axis] + num_clusters - 1) // num_clusters
-
-            for idx in range(num_clusters):
-                halo_before = halo_sz if idx != 0 else 0
-                halo_after = halo_sz if idx != num_clusters - 1 else 0
-                start[axis] = idx * step_per_cluster - halo_before
-                end[axis] = start[axis] + step_per_cluster + halo_before + halo_after
-
-                data = output.data[start[0]:end[0], start[1]:end[1], start[2]:end[2], start[3]:end[3]]
-                value = Value(
-                    output.ttype, "output-{}.bin".format(idx), data, output.bitwidth,
-                    output.bitsize, output.signed, output.orderer)
-                outputs.append(value)
-
-            return outputs
-
-        def segment_over_k(output, num_clusters):
-            outputs = list()
-            for idx in range(num_clusters):
-                value = Value(
-                    output.ttype, "output-{}.bin".format(idx), output.data, output.bitwidth,
-                    output.bitsize, output.signed, output.orderer)
-                outputs.append(value)
-            return outputs
-
-        def segment_over_hk(output, num_clusters_per_dim, spatial_halo_h):
-            raise Exception(
-                    f'HaloMultiClustering, segmentation type SOHK not implemented yet\n')
-
-        def segment_over_hw(output, num_clusters_per_dim, spatial_halo_h, spatial_halo_w):
-            raise Exception(
-                    f'HaloMultiClustering, segmentation type SOHW not implemented yet\n')
-
-        task_clusters = self.settings.HaloMultiClustering_params[0]
-        num_clusters = len(task_clusters)
-        segmentation_type = self.settings.HaloMultiClustering_params[1]
-        clusters_per_dim = self.settings.HaloMultiClustering_params[2]
-        spatial_halo_h = self.settings.HaloMultiClustering_params[3]
-        spatial_halo_w = self.settings.HaloMultiClustering_params[4]
-
-        # generate a reference for each output; each cluster will have the data it computes plus the halo regions it receives form other clusters
-        if segmentation_type == SEGMENTATION.SOH:
-            return segment_over_single_axis(output, spatial_halo_h, 2, num_clusters)
-        elif segmentation_type == SEGMENTATION.SOW:
-            return segment_over_single_axis(output, spatial_halo_w, 3, num_clusters)
-        elif segmentation_type == SEGMENTATION.SOK:
-            return segment_over_k(output, num_clusters)
-        elif segmentation_type == SEGMENTATION.SOHK:
-            segment_over_hk(output, clusters_per_dim, spatial_halo_h)
-        elif segmentation_type == SEGMENTATION.SOHW:
-            segment_over_hw(output, clusters_per_dim, spatial_halo_h, spatial_halo_w)
-
-        raise Exception(
-                    f'HaloMultiClustering, unsupported segmentation type {self.settings.HaloMultiClustering_params[1].name}\n')
-
-
 class RaceConditionDMA(Operation):
 
     PARAMS = ['op_class', 'input_ttype', 'output_ttype', 'iteration_count']
     NAME = 'RaceConditionDMA'
 
-    def __init__(self, architecture: Architecture, compiler_backend: CompilerBackend, settings):
-        super().__init__(architecture, compiler_backend)
+    def __init__(self, architecture: Architecture, settings):
+        super().__init__(architecture)
 
         self.settings = settings
 
@@ -2993,7 +3160,7 @@ class RaceConditionDMA(Operation):
 
     @property
     def ident(self) -> str:
-        return f'DMA_race_cond_{self.settings.input_ttype.stype}_iter_count_{self.settings.iteration_count}'
+        return  str(self.architecture) + f'_DMA_race_cond_{self.settings.input_ttype.stype}_iter_count_{self.settings.iteration_count}'
 
     @property
     def orderer(self) -> Orderer:
@@ -3057,8 +3224,8 @@ class RaceConditionDPU(Operation):
     ]
     NAME = 'RaceConditionDMA'
 
-    def __init__(self, architecture: Architecture, compiler_backend: CompilerBackend, settings):
-        super().__init__(architecture, compiler_backend)
+    def __init__(self, architecture: Architecture, settings):
+        super().__init__(architecture)
 
         self.settings = settings
         settings.weight_shape = [settings.kernel_channels, settings.input_shape[1]] + settings.kernel_shape
@@ -3086,7 +3253,7 @@ class RaceConditionDPU(Operation):
 
     @property
     def ident(self) -> str:
-        return f'DPU_race_cond_{self.settings.input_ttype.stype}_iter_count_{self.settings.iteration_count}'
+        return  str(self.architecture) + f'_DPU_race_cond_{self.settings.input_ttype.stype}_iter_count_{self.settings.iteration_count}'
 
     @property
     def orderer(self) -> Orderer:
@@ -3175,8 +3342,8 @@ class RaceConditionDPUDMA(Operation):
         'iteration_count'
     ]
 
-    def __init__(self, architecture: Architecture, compiler_backend: CompilerBackend, settings):
-        super().__init__(architecture, compiler_backend)
+    def __init__(self, architecture: Architecture, settings):
+        super().__init__(architecture)
 
         self.settings = settings
         settings.weight_shape = [settings.kernel_channels, settings.input_shape[1]] + settings.kernel_shape
@@ -3204,7 +3371,7 @@ class RaceConditionDPUDMA(Operation):
 
     @property
     def ident(self) -> str:
-        return f'DPU_DMA_race_cond_{self.settings.input_ttype.stype}_iter_count_{self.settings.iteration_count}'
+        return  str(self.architecture) + f'_DPU_DMA_race_cond_{self.settings.input_ttype.stype}_iter_count_{self.settings.iteration_count}'
 
     @property
     def orderer(self) -> Orderer:
@@ -3278,8 +3445,8 @@ class RaceConditionDPUDMAACT(Operation):
         'iteration_count'
     ]
 
-    def __init__(self, architecture: Architecture, compiler_backend: CompilerBackend, settings):
-        super().__init__(architecture, compiler_backend)
+    def __init__(self, architecture: Architecture, settings):
+        super().__init__(architecture)
 
         self.settings = settings
         settings.weight_shape = [settings.kernel_channels, settings.input_shape[1]] + settings.kernel_shape
@@ -3310,7 +3477,7 @@ class RaceConditionDPUDMAACT(Operation):
 
     @property
     def ident(self) -> str:
-        return f'DPU_DMA_ACT_race_cond_{self.settings.input_ttype.stype}_iter_count_{self.settings.iteration_count}'
+        return  str(self.architecture) + f'_DPU_DMA_ACT_race_cond_{self.settings.input_ttype.stype}_iter_count_{self.settings.iteration_count}'
 
     @property
     def orderer(self) -> Orderer:
@@ -3399,8 +3566,8 @@ class RaceConditionDPUACT(Operation):
         'iteration_count'
     ]
 
-    def __init__(self, architecture: Architecture, compiler_backend: CompilerBackend, settings):
-        super().__init__(architecture, compiler_backend)
+    def __init__(self, architecture: Architecture, settings):
+        super().__init__(architecture)
 
         self.settings = settings
         settings.weight_shape = [settings.kernel_channels, settings.input_shape[1]] + settings.kernel_shape
@@ -3431,7 +3598,7 @@ class RaceConditionDPUACT(Operation):
 
     @property
     def ident(self) -> str:
-        return f'DPU_ACT_race_cond_{self.settings.input_ttype.stype}_iter_count_{self.settings.iteration_count}'
+        return  str(self.architecture) + f'_DPU_ACT_race_cond_{self.settings.input_ttype.stype}_iter_count_{self.settings.iteration_count}'
 
     @property
     def orderer(self) -> Orderer:
@@ -3500,9 +3667,8 @@ class RaceConditionDPUACT(Operation):
 class RaceCondition:
     PARAMS = ['operation', 'iteration_count', 'requested_cluster', 'requested_unit']
 
-    def __init__(self, architecture: Architecture, compiler_backend: CompilerBackend, operation, iter_count, requested_cluster, requested_unit):
+    def __init__(self, architecture: Architecture, operation, iter_count, requested_cluster, requested_unit):
         self.architecture = architecture
-        self.compiler_backend = compiler_backend
         self.operation = operation
         self.op = operation.op
         self.op.odu = self.odu
@@ -3517,7 +3683,6 @@ class RaceCondition:
             'iteration_count' : self.iter_count,
             'requested_clusters' : self.requested_cluster,
             'requested_units' : self.requested_unit,
-            'compiler_backend': self.compiler_backend.name
         }
 
     def validate(self):
@@ -3525,7 +3690,7 @@ class RaceCondition:
 
     @property
     def ident(self) -> str:
-        return f'race_cond_{self.operation.ident}_iters_{self.iter_count}_clusters_{self.requested_cluster}_shaves_{self.requested_unit}'
+        return  str(self.architecture) + f'_race_cond_{self.operation.ident}_iters_{self.iter_count}_clusters_{self.requested_cluster}_shaves_{self.requested_unit}'
 
     def compute_values(self):
         self.operation.compute_values()
@@ -3554,18 +3719,14 @@ class RaceCondition:
 
         return outputs
 
-    def set_compiler_backend(self, compiler_backend: CompilerBackend):
-        self.compiler_backend = compiler_backend
-        self.operation.set_compiler_backend(self.compiler_backend)
-
 
 class DualChannelDMA(Operation):
 
     PARAMS = ['op_class', 'input_ttype', 'output_ttype']
     NAME = 'DualChannelDMA'
 
-    def __init__(self, architecture: Architecture, compiler_backend: CompilerBackend, settings):
-        super().__init__(architecture, compiler_backend)
+    def __init__(self, architecture: Architecture, settings):
+        super().__init__(architecture)
 
         self.settings = settings
 
@@ -3581,7 +3742,7 @@ class DualChannelDMA(Operation):
 
     @property
     def ident(self) -> str:
-        return f'DMA_dual_channel_{self.settings.input_ttype.stype}'
+        return  str(self.architecture) + f'_DMA_dual_channel_{self.settings.input_ttype.stype}'
 
     @property
     def orderer(self) -> Orderer:
@@ -3647,8 +3808,8 @@ class StorageElementTableDPU(Operation):
     ]
     NAME = 'StorageElementTableDPU'
 
-    def __init__(self, architecture: Architecture, compiler_backend: CompilerBackend, settings):
-        super().__init__(architecture, compiler_backend)
+    def __init__(self, architecture: Architecture, settings):
+        super().__init__(architecture)
 
         self.settings = settings
         settings.weight_shape = [settings.kernel_channels, settings.input_shape[1]] + settings.kernel_shape
@@ -3668,8 +3829,7 @@ class StorageElementTableDPU(Operation):
                 'mpe_mode': self.settings.mpe_mode.name
             },
             'output_order': self.settings.output_order.name.lower(),
-            'SE_table_pattern': self.settings.SE_table_pattern.name,
-            'compiler_backend': self.compiler_backend.name
+            'SE_table_pattern': self.settings.SE_table_pattern.name
         }
 
     def validate(self):
@@ -3677,7 +3837,7 @@ class StorageElementTableDPU(Operation):
 
     @property
     def ident(self) -> str:
-        return f'StorageElementTableDPU_input_{shape_to_str(self.settings.input_shape)}x{self.settings.input_ttype.stype}_weights_{shape_to_str(self.settings.weight_shape)}x{self.settings.weight_ttype.stype}_pattern_{self.settings.SE_table_pattern}'
+        return  str(self.architecture) + f'_StorageElementTableDPU_input_{shape_to_str(self.settings.input_shape)}x{self.settings.input_ttype.stype}_weights_{shape_to_str(self.settings.weight_shape)}x{self.settings.weight_ttype.stype}_pattern_{self.settings.SE_table_pattern}'
 
     @property
     def orderer(self) -> Orderer:
@@ -3757,16 +3917,15 @@ class Settings:
 
 
 class DPUPipeline:
-    def __init__(self, architecture: Architecture, compiler_backend: CompilerBackend, option_names, option_values, activation=None):
+    def __init__(self, architecture: Architecture, option_names, option_values, activation=None):
         settings = Settings()
         self.settings = settings
         self.architecture = architecture
-        self.compiler_backend = compiler_backend
         self.issues = set()
         for name, value in zip(option_names, option_values):
             setattr(settings, name, value)
 
-        self.op = settings.op_class(self.architecture, self.compiler_backend, self.settings)
+        self.op = settings.op_class(self.architecture, self.settings)
         self.activation = activation
 
     def compute_values(self):
@@ -3776,13 +3935,12 @@ class DPUPipeline:
             self.mpe_data = mpe_data.value if isinstance(mpe_data, NBQuantized) else mpe_data
             ppe_value = self.op.ppe(self.inputs, self.settings.output_ttype, mpe_data, self.activation)
             self.outputs = self.op.odu(ppe_value)
-            for output in self.outputs:
-                output.check_entropy()
+            # skip entropy check for act kernel sqrt and log functions, as they tested with both positive/negative input data, resulting in NaN values
+            if not (isinstance(self.op, ActKernel) and (self.settings.activation_type[0] == ActivationType.vau_sqrt or self.settings.activation_type[0] == ActivationType.vau_log)):
+                for output in self.outputs:
+                    output.check_entropy()
         except Exception as ex:
             raise ComputationError(f'computing {self.ident}') from ex
-
-    def set_compiler_backend(self, compiler_backend):
-        self.op.set_compiler_backend(compiler_backend)
 
     def validate(self):
         try:
@@ -3822,7 +3980,7 @@ class DPUPipeline:
         orderer(self.mpe_data).tofile(dir / 'mpe_raw.bin')
 
     def value(self):
-        value = {'architecture': self.op.architecture.name, 'compiler_backend': self.op.compiler_backend.name}
+        value = {'architecture': self.op.architecture.name}
         value = {**value, **self.op.json_info(self.inputs, self.outputs)}
         if self.activation:
             value['activation'] = self.activation.json_info
@@ -3893,7 +4051,7 @@ _PPE_HAS_PERMUTATION_SUPPORT = {
 }
 
 
-def genZMConvs(architecture,
+def genZMConvs(architectures=ALL_ARCHITECTURES,
                input_types=[UInt8(2)],
                input_shapes=[[1, 32, 16, 16]],
                weight_types=None,
@@ -3906,11 +4064,9 @@ def genZMConvs(architecture,
                compress=[False],
                mpe_modes=[MPE_MODE.CUBOID_16x16],
                activations=[None],
-               compiler_backend=CompilerBackend.Flatbuffer,
-               weights_swizzling_keys=[None],
-               activation_swizzling_keys=[None]):
+               weights_swizzling_keys=[None]):
 
-    for (input_type, input_shape, kernel_channel, kernel_shape, output_order, stride, pad, mpe_mode, activation, weights_swizzling_key, activation_swizzling_key, comp) in itertools.product(input_types, input_shapes, kernel_channels, kernel_shapes, output_orders, strides, pads, mpe_modes, activations, weights_swizzling_keys, activation_swizzling_keys, compress):
+    for (architecture, input_type, input_shape, kernel_channel, kernel_shape, output_order, stride, pad, mpe_mode, activation, weights_swizzling_key, comp) in itertools.product(architectures, input_types, input_shapes, kernel_channels, kernel_shapes, output_orders, strides, pads, mpe_modes, activations, weights_swizzling_keys, compress):
 
         if weight_types is None:
             current_weight_types = _ZMCONV_VALID_WEIGHT_TYPES[input_type.__class__]
@@ -3929,7 +4085,7 @@ def genZMConvs(architecture,
                 if(output_order != Order.NHWC and not _PPE_HAS_PERMUTATION_SUPPORT[output_type.__class__]) :
                     print("skip", output_order, output_type)
                     continue
-                yield DPUPipeline(architecture, compiler_backend, ZMajorConvolution.PARAMS, (ZMajorConvolution,
+                yield DPUPipeline(architecture, ZMajorConvolution.PARAMS, (ZMajorConvolution,
                                                                            input_type,
                                                                            input_shape,
                                                                            weight_type,
@@ -3941,10 +4097,9 @@ def genZMConvs(architecture,
                                                                            pad,
                                                                            comp,
                                                                            mpe_mode,
-                                                                           weights_swizzling_key,
-                                                                           activation_swizzling_key), activation)
+                                                                           weights_swizzling_key), activation)
 
-def genSparseConvs( architecture,
+def genSparseConvs( architectures=ALL_ARCHITECTURES,
                     input_types=[UInt8(2)],
                     input_shapes=[[1, 32, 16, 16]],
                     weight_types=None,
@@ -3957,9 +4112,8 @@ def genSparseConvs( architecture,
                     compress=[False],
                     mpe_modes=[MPE_MODE.CUBOID_16x16],
                     sparsity_factors=[0.5],
-                    compiler_backend=CompilerBackend.Flatbuffer):
-
-    for (input_type, input_shape, kernel_channel, kernel_shape, output_order, stride, pad, mpe_mode, sparsity_factor, comp) in itertools.product(input_types, input_shapes, kernel_channels, kernel_shapes, output_orders, strides, pads, mpe_modes, sparsity_factors, compress):
+                    activation_sparsity=[False]):
+    for (architecture, input_type, input_shape, kernel_channel, kernel_shape, output_order, stride, pad, mpe_mode, sparsity_factor, comp, act_sparsity) in itertools.product(architectures, input_types, input_shapes, kernel_channels, kernel_shapes, output_orders, strides, pads, mpe_modes, sparsity_factors, compress, activation_sparsity):
 
         if weight_types is None:
             current_weight_types = _ZMCONV_VALID_WEIGHT_TYPES[input_type.__class__]
@@ -3977,7 +4131,7 @@ def genSparseConvs( architecture,
                 if(output_order != Order.NHWC and not _PPE_HAS_PERMUTATION_SUPPORT[output_type.__class__]) :
                     print("skip", output_order, output_type)
                     continue
-                yield DPUPipeline(architecture, compiler_backend, SparseConvolution.PARAMS, (SparseConvolution,
+                yield DPUPipeline(architecture, SparseConvolution.PARAMS, (SparseConvolution,
                                                                             input_type,
                                                                             input_shape,
                                                                             weight_type,
@@ -3989,54 +4143,120 @@ def genSparseConvs( architecture,
                                                                             pad,
                                                                             comp,
                                                                             mpe_mode,
-                                                                            sparsity_factor
+                                                                            sparsity_factor,
+                                                                            act_sparsity
                                                                             ))
 
-def genEltwiseAdds(architecture,
+def genDoubleZMConvs(architectures=ALL_ARCHITECTURES,
+               input_types=[UInt8(2)],
+               input_shapes=[[1, 32, 16, 16]],
+               weight_types=None,
+               kernel_channels=[64],
+               kernel_shapes=[[1, 1]],
+               output_types=None,
+               output_orders=[Order.NHWC],
+               strides=[[1, 1]],
+               pads=Pad.none,
+               compress=[False],
+               mpe_modes=[MPE_MODE.CUBOID_16x16],
+               activations=[None],
+               activation_swizzling_keys=[None],
+               activation_sparsity=[None]):
+
+    for (architecture, input_type, input_shape, kernel_channel, kernel_shape, output_order, stride, pad, mpe_mode, activation, activation_swizzling_key, comp, act_sparsity) in itertools.product(architectures, input_types, input_shapes, kernel_channels, kernel_shapes, output_orders, strides, pads, mpe_modes, activations, activation_swizzling_keys, compress, activation_sparsity):
+
+        if weight_types is None:
+            current_weight_types = _ZMCONV_VALID_WEIGHT_TYPES[input_type.__class__]
+        else:
+            current_weight_types = weight_types
+
+        for weight_type in current_weight_types:
+            if output_types is None:
+                current_output_types = _PPE_VALID_OUTPUT_TYPES[input_type.is_float or weight_type.is_float]
+            else:
+                current_output_types = output_types
+
+            for output_type in current_output_types:
+                if(output_order != Order.NHWC and not _PPE_HAS_PERMUTATION_SUPPORT[output_type.__class__]) :
+                    print("skip", output_order, output_type)
+                    continue
+                yield DPUPipeline(architecture, DoubleZMajorConvolution.PARAMS, (DoubleZMajorConvolution,
+                                                                                input_type,
+                                                                                input_shape,
+                                                                                weight_type,
+                                                                                kernel_channel,
+                                                                                kernel_shape,
+                                                                                output_type,
+                                                                                output_order,
+                                                                                stride,
+                                                                                pad,
+                                                                                comp,
+                                                                                mpe_mode,
+                                                                                activation_swizzling_key,
+                                                                                act_sparsity), activation)
+
+
+def genEltwiseAdds(architectures=ALL_ARCHITECTURES,
                    input_types=[Int8(6)],
                    input_shapes=[[1, 256, 16, 16]],
-                   output_types=None,
-                   compiler_backend=CompilerBackend.Flatbuffer):
-    for (input_type, input_shape) in itertools.product(input_types, input_shapes):
+                   output_types=None):
+    for (architecture, input_type, input_shape) in itertools.product(architectures, input_types, input_shapes):
         if output_types is None:
             current_output_types = _PPE_VALID_OUTPUT_TYPES[input_type.is_float]
         else:
             current_output_types = output_types
 
         for output_type in current_output_types:
-            yield DPUPipeline(architecture, compiler_backend, EltwiseAdd.PARAMS, (EltwiseAdd,
+            yield DPUPipeline(architecture, EltwiseAdd.PARAMS, (EltwiseAdd,
                                                                 input_type,
                                                                 input_shape,
                                                                 output_type))
 
 
-def genEltwiseMults(architecture,
+def genEltwiseMults(architectures=ALL_ARCHITECTURES,
                     input_types=[Int8(6)],
                     input_shapes=[[1, 256, 16, 16]],
-                    output_types=None,
-                    compiler_backend=CompilerBackend.Flatbuffer):
-    for (input_type, input_shape) in itertools.product(input_types, input_shapes):
+                    output_types=None):
+    for (architecture, input_type, input_shape) in itertools.product(architectures, input_types, input_shapes):
         if output_types is None:
             current_output_types = _PPE_VALID_OUTPUT_TYPES[input_type.is_float]
         else:
             current_output_types = output_types
 
         for output_type in current_output_types:
-            yield DPUPipeline(architecture, compiler_backend, EltwiseMult.PARAMS, (EltwiseMult,
+            yield DPUPipeline(architecture, EltwiseMult.PARAMS, (EltwiseMult,
                                                                  input_type,
                                                                  input_shape,
                                                                  output_type))
 
+def genEltwiseSparse(architectures=ALL_ARCHITECTURES,
+                     input_types=[Int8(6)],
+                     input_shapes=[[1, 16, 16, 32]],
+                     output_types=None,
+                     seSizes=None):
+    if (seSizes == None):
+        seSizes = [input_shapes[1]]
+    for (architecture, input_type, input_shape, seSize) in itertools.product(architectures, input_types, input_shapes, seSizes):
+        if output_types is None:
+            current_output_types = _PPE_VALID_OUTPUT_TYPES[input_type.is_float]
+        else:
+            current_output_types = output_types
 
-def genMaxPools(architecture,
+        for output_type in current_output_types:
+            yield DPUPipeline(architecture, EltwiseSparse.PARAMS, (EltwiseSparse,
+                                                                input_type,
+                                                                input_shape,
+                                                                output_type,
+                                                                seSize))
+
+def genMaxPools(architectures=ALL_ARCHITECTURES,
                 input_types=[FP16(6)],
                 input_shapes=[[1, 64, 16, 16]],
                 kernel_shapes=[[2, 2]],
                 output_types=None,
                 strides=[[2, 2]],
-                pads=Pad.none,
-                compiler_backend=CompilerBackend.Flatbuffer):
-    for (input_type, input_shape, kernel_shape, stride, pad) in itertools.product(input_types, input_shapes, kernel_shapes, strides, pads):
+                pads=Pad.none):
+    for (architecture, input_type, input_shape, kernel_shape, stride, pad) in itertools.product(architectures, input_types, input_shapes, kernel_shapes, strides, pads):
         if output_types is None:
             if input_type.is_float:
                 if input_type.__class__ is BF16:
@@ -4049,7 +4269,7 @@ def genMaxPools(architecture,
             current_output_types = output_types
 
         for output_type in current_output_types:
-            yield DPUPipeline(architecture, compiler_backend, Maxpool.PARAMS, (Maxpool,
+            yield DPUPipeline(architecture, Maxpool.PARAMS, (Maxpool,
                                                              input_type,
                                                              input_shape,
                                                              kernel_shape,
@@ -4058,21 +4278,20 @@ def genMaxPools(architecture,
                                                              pad))
 
 
-def genAvgPools(architecture,
+def genAvgPools(architectures=ALL_ARCHITECTURES,
                 input_types=[FP16(6)],
                 input_shapes=[[1, 64, 32, 32]],
                 kernel_shapes=[[2, 2]],
                 output_types=None,
-                strides=[[2, 2]],
-                compiler_backend=CompilerBackend.Flatbuffer):
-    for (input_type, input_shape, kernel_shape, stride) in itertools.product(input_types, input_shapes, kernel_shapes, strides):
+                strides=[[2, 2]]):
+    for (architecture, input_type, input_shape, kernel_shape, stride) in itertools.product(architectures, input_types, input_shapes, kernel_shapes, strides):
         if output_types is None:
             current_output_types = _PPE_VALID_OUTPUT_TYPES[input_type.is_float]
         else:
             current_output_types = output_types
 
         for output_type in current_output_types:
-            yield DPUPipeline(architecture, compiler_backend, AvgPool.PARAMS, (AvgPool,
+            yield DPUPipeline(architecture, AvgPool.PARAMS, (AvgPool,
                                                              input_type,
                                                              input_shape,
                                                              kernel_shape,
@@ -4087,23 +4306,22 @@ def getValidOutputTypes(input_type, kernel_channels) :
             output_types.append(output_type)
     return output_types
 
-def genDepthWiseConvs(architecture,
+def genDepthWiseConvs(architectures=ALL_ARCHITECTURES,
                       input_types=[FP16(2)],
                       input_shapes=[[1, 16, 32, 32]],
                       kernel_channels=[16],
                       kernel_shapes=[[4, 4]],
                       output_types=None,
                       strides=[[1, 1]],
-                      pads=Pad.none,
-                      compiler_backend=CompilerBackend.Flatbuffer):
-    for (input_type, input_shape, kernel_channel, kernel_shape, stride, pad) in itertools.product(input_types, input_shapes, kernel_channels, kernel_shapes, strides, pads):
+                      pads=Pad.none):
+    for (architecture, input_type, input_shape, kernel_channel, kernel_shape, stride, pad) in itertools.product(architectures, input_types, input_shapes, kernel_channels, kernel_shapes, strides, pads):
 
         if output_types is None:
             current_output_types = getValidOutputTypes(input_type, kernel_channel)
         else:
             current_output_types = output_types
         for output_type in current_output_types:
-            yield DPUPipeline(architecture, compiler_backend, DepthWiseConv.PARAMS, (DepthWiseConv,
+            yield DPUPipeline(architecture, DepthWiseConv.PARAMS, (DepthWiseConv,
                                                                    input_type,
                                                                    input_shape,
                                                                    kernel_channel,
@@ -4112,29 +4330,27 @@ def genDepthWiseConvs(architecture,
                                                                    stride,
                                                                    pad))
 
-def genReadAfterWriteACTDMA(architecture,
+def genReadAfterWriteACTDMA(architectures=ALL_ARCHITECTURES,
                             input_types=[FP16(0)],
                             input_shapes=[[1, 10, 2, 3]],
                             output_types=[FP16()],
                             act_shave_subtypes=[ActivationType.HSwish],
                             cluster_numbers=[0, 1],
-                            iteration_count = 19,
-                            compiler_backend=CompilerBackend.Flatbuffer):
-                    for (input_type, input_shape, output_type, act_shave_subtype, cluster_number) in itertools.product(input_types, input_shapes, output_types, act_shave_subtypes, cluster_numbers):
-                        yield DPUPipeline(architecture, compiler_backend, ReadAfterWriteACTDMA.PARAMS, (ReadAfterWriteACTDMA, input_type, input_shape, output_type, act_shave_subtype, cluster_number, iteration_count))
+                            iteration_count = 19):
+                    for (architecture, input_type, input_shape, output_type, act_shave_subtype, cluster_number) in itertools.product(architectures, input_types, input_shapes, output_types, act_shave_subtypes, cluster_numbers):
+                        yield DPUPipeline(architecture, ReadAfterWriteACTDMA.PARAMS, (ReadAfterWriteACTDMA, input_type, input_shape, output_type, act_shave_subtype, cluster_number, iteration_count))
 
-def genReadAfterWriteDMAACT(architecture,
+def genReadAfterWriteDMAACT(architectures=ALL_ARCHITECTURES,
                             input_types=[FP16(0)],
                             input_shapes=[[1, 10, 2, 3]],
                             output_types=[FP16()],
                             act_shave_subtypes=[ActivationType.HSwish],
                             cluster_numbers=[0, 1],
-                            iteration_count = 19,
-                            compiler_backend=CompilerBackend.Flatbuffer):
-                    for (input_type, input_shape, output_type, act_shave_subtype, cluster_number) in itertools.product(input_types, input_shapes, output_types, act_shave_subtypes, cluster_numbers):
-                        yield DPUPipeline(architecture, compiler_backend, ReadAfterWriteDMAACT.PARAMS, (ReadAfterWriteDMAACT, input_type, input_shape, output_type, act_shave_subtype, cluster_number, iteration_count))
+                            iteration_count = 19):
+                    for (architecture, input_type, input_shape, output_type, act_shave_subtype, cluster_number) in itertools.product(architectures, input_types, input_shapes, output_types, act_shave_subtypes, cluster_numbers):
+                        yield DPUPipeline(architecture, ReadAfterWriteDMAACT.PARAMS, (ReadAfterWriteDMAACT, input_type, input_shape, output_type, act_shave_subtype, cluster_number, iteration_count))
 
-def genReadAfterWriteDPUDMA(architecture,
+def genReadAfterWriteDPUDMA(architectures=ALL_ARCHITECTURES,
                             input_types=[FP16(0)],
                             input_shapes=[[1, 16, 16, 16]],
                             weight_types=[FP16(0)],
@@ -4147,9 +4363,8 @@ def genReadAfterWriteDPUDMA(architecture,
                             compress=False,
                             mpe_modes=[MPE_MODE.CUBOID_16x16],
                             cluster_numbers=[0, 1],
-                            iteration_count = 19,
-                            compiler_backend=CompilerBackend.Flatbuffer):
-    for (input_type, input_shape, kernel_channel, kernel_shape, output_order, stride, pad, mpe_mode, cluster_number) in itertools.product(input_types, input_shapes, kernel_channels, kernel_shapes, output_orders, strides, pads, mpe_modes, cluster_numbers):
+                            iteration_count = 19):
+    for (architecture, input_type, input_shape, kernel_channel, kernel_shape, output_order, stride, pad, mpe_mode, cluster_number) in itertools.product(architectures, input_types, input_shapes, kernel_channels, kernel_shapes, output_orders, strides, pads, mpe_modes, cluster_numbers):
 
         current_weight_types = weight_types
         for weight_type in current_weight_types:
@@ -4159,7 +4374,7 @@ def genReadAfterWriteDPUDMA(architecture,
                 if(output_order != Order.NHWC and not _PPE_HAS_PERMUTATION_SUPPORT[output_type.__class__]) :
                     print("skip", output_order, output_type)
                     continue
-                yield DPUPipeline(architecture, compiler_backend, ReadAfterWriteDPUDMA.PARAMS, (ReadAfterWriteDPUDMA,
+                yield DPUPipeline(architecture, ReadAfterWriteDPUDMA.PARAMS, (ReadAfterWriteDPUDMA,
                                                                               input_type,
                                                                               input_shape,
                                                                               weight_type,
@@ -4174,7 +4389,7 @@ def genReadAfterWriteDPUDMA(architecture,
                                                                               cluster_number,
                                                                               iteration_count))
 
-def genReadAfterWriteDMADPU(architecture,
+def genReadAfterWriteDMADPU(architectures=ALL_ARCHITECTURES,
                             input_types=[FP16(0)],
                             input_shapes=[[1, 16, 16, 16]],
                             weight_types=[FP16(0)],
@@ -4187,9 +4402,8 @@ def genReadAfterWriteDMADPU(architecture,
                             compress=False,
                             mpe_modes=[MPE_MODE.CUBOID_16x16],
                             cluster_numbers=[0, 1],
-                            iteration_count = 19,
-                            compiler_backend=CompilerBackend.Flatbuffer):
-    for (input_type, input_shape, kernel_channel, kernel_shape, output_order, stride, pad, mpe_mode, cluster_number) in itertools.product(input_types, input_shapes, kernel_channels, kernel_shapes, output_orders, strides, pads, mpe_modes, cluster_numbers):
+                            iteration_count = 19):
+    for (architecture, input_type, input_shape, kernel_channel, kernel_shape, output_order, stride, pad, mpe_mode, cluster_number) in itertools.product(architectures, input_types, input_shapes, kernel_channels, kernel_shapes, output_orders, strides, pads, mpe_modes, cluster_numbers):
 
         current_weight_types = weight_types
         for weight_type in current_weight_types:
@@ -4199,7 +4413,7 @@ def genReadAfterWriteDMADPU(architecture,
                 if(output_order != Order.NHWC and not _PPE_HAS_PERMUTATION_SUPPORT[output_type.__class__]) :
                     print("skip", output_order, output_type)
                     continue
-                yield DPUPipeline(architecture, compiler_backend, ReadAfterWriteDMADPU.PARAMS, (ReadAfterWriteDMADPU,
+                yield DPUPipeline(architecture, ReadAfterWriteDMADPU.PARAMS, (ReadAfterWriteDMADPU,
                                                                               input_type,
                                                                               input_shape,
                                                                               weight_type,
@@ -4214,7 +4428,7 @@ def genReadAfterWriteDMADPU(architecture,
                                                                               cluster_number,
                                                                               iteration_count))
 
-def genReadAfterWriteDPUACT(architecture,
+def genReadAfterWriteDPUACT(architectures=ALL_ARCHITECTURES,
                             input_types=[FP16(0)],
                             input_shapes=[[1, 16, 8, 8]],
                             weight_types=[FP16(0)],
@@ -4228,10 +4442,9 @@ def genReadAfterWriteDPUACT(architecture,
                             mpe_modes=[MPE_MODE.CUBOID_16x16],
                             act_types=[ActivationType.HSwish],
                             cluster_numbers=[0, 1],
-                            iteration_count = 19,
-                            compiler_backend=CompilerBackend.Flatbuffer):
+                            iteration_count = 19):
 
-    for (input_type, input_shape, kernel_channel, kernel_shape, output_order, stride, pad, mpe_mode, act_type, cluster_number) in itertools.product(input_types, input_shapes, kernel_channels, kernel_shapes, output_orders, strides, pads, mpe_modes, act_types, cluster_numbers):
+    for (architecture, input_type, input_shape, kernel_channel, kernel_shape, output_order, stride, pad, mpe_mode, act_type, cluster_number) in itertools.product(architectures, input_types, input_shapes, kernel_channels, kernel_shapes, output_orders, strides, pads, mpe_modes, act_types, cluster_numbers):
 
         current_weight_types = weight_types
         for weight_type in current_weight_types:
@@ -4241,7 +4454,7 @@ def genReadAfterWriteDPUACT(architecture,
                 if(output_order != Order.NHWC and not _PPE_HAS_PERMUTATION_SUPPORT[output_type.__class__]) :
                     print("skip", output_order, output_type)
                     continue
-                yield DPUPipeline(architecture, compiler_backend, ReadAfterWriteDPUACT.PARAMS, (ReadAfterWriteDPUACT,
+                yield DPUPipeline(architecture, ReadAfterWriteDPUACT.PARAMS, (ReadAfterWriteDPUACT,
                                                                               input_type,
                                                                               input_shape,
                                                                               weight_type,
@@ -4257,7 +4470,7 @@ def genReadAfterWriteDPUACT(architecture,
                                                                               cluster_number,
                                                                               iteration_count))
 
-def genReadAfterWriteACTDPU(architecture,
+def genReadAfterWriteACTDPU(architectures=ALL_ARCHITECTURES,
                             input_types=[FP16(0)],
                             input_shapes=[[1, 16, 8, 8]],
                             weight_types=[FP16(0)],
@@ -4271,10 +4484,9 @@ def genReadAfterWriteACTDPU(architecture,
                             mpe_modes=[MPE_MODE.CUBOID_16x16],
                             act_types=[ActivationType.HSwish],
                             cluster_numbers=[0, 1],
-                            iteration_count = 19,
-                            compiler_backend=CompilerBackend.Flatbuffer):
+                            iteration_count = 19):
 
-    for (input_type, input_shape, kernel_channel, kernel_shape, output_order, stride, pad, mpe_mode, act_type, cluster_number) in itertools.product(input_types, input_shapes, kernel_channels, kernel_shapes, output_orders, strides, pads, mpe_modes, act_types, cluster_numbers):
+    for (architecture, input_type, input_shape, kernel_channel, kernel_shape, output_order, stride, pad, mpe_mode, act_type, cluster_number) in itertools.product(architectures, input_types, input_shapes, kernel_channels, kernel_shapes, output_orders, strides, pads, mpe_modes, act_types, cluster_numbers):
 
         current_weight_types = weight_types
         for weight_type in current_weight_types:
@@ -4284,7 +4496,7 @@ def genReadAfterWriteACTDPU(architecture,
                 if(output_order != Order.NHWC and not _PPE_HAS_PERMUTATION_SUPPORT[output_type.__class__]) :
                     print("skip", output_order, output_type)
                     continue
-                yield DPUPipeline(architecture, compiler_backend, ReadAfterWriteACTDPU.PARAMS, (ReadAfterWriteACTDPU,
+                yield DPUPipeline(architecture, ReadAfterWriteACTDPU.PARAMS, (ReadAfterWriteACTDPU,
                                                                               input_type,
                                                                               input_shape,
                                                                               weight_type,
@@ -4300,7 +4512,7 @@ def genReadAfterWriteACTDPU(architecture,
                                                                               cluster_number,
                                                                               iteration_count))
 
-def genDifferentClustersDPU(architecture,
+def genDifferentClustersDPU(architectures=ALL_ARCHITECTURES,
                             input_types=[FP16(4)],
                             input_shapes=[[1, 32, 16, 16]],
                             weight_types=[FP16(4)],
@@ -4315,11 +4527,10 @@ def genDifferentClustersDPU(architecture,
                             input_clusters = [0, 1],
                             output_clusters = [[0], [1], [0, 1]],
                             weights_clusters = [0, 1],
-                            weights_table_clusters = [0, 1],
-                            compiler_backend=CompilerBackend.Flatbuffer):
+                            weights_table_clusters = [0, 1]):
 
-    for (input_type, input_shape, kernel_channel, kernel_shape, output_order, stride, pad, mpe_mode, input_cluster, output_cluster, weights_cluster, weights_table_cluster) \
-            in itertools.product(input_types, input_shapes, kernel_channels, kernel_shapes, output_orders, strides, pads, mpe_modes, input_clusters, output_clusters, weights_clusters, weights_table_clusters):
+    for (architecture, input_type, input_shape, kernel_channel, kernel_shape, output_order, stride, pad, mpe_mode, input_cluster, output_cluster, weights_cluster, weights_table_cluster) \
+            in itertools.product(architectures, input_types, input_shapes, kernel_channels, kernel_shapes, output_orders, strides, pads, mpe_modes, input_clusters, output_clusters, weights_clusters, weights_table_clusters):
 
         current_weight_types = weight_types
         for weight_type in current_weight_types:
@@ -4333,7 +4544,7 @@ def genDifferentClustersDPU(architecture,
                     print("skip, DPU uses the memory of the same cluster, cluster num:", input_cluster)
                     continue
 
-                yield DPUPipeline(architecture, compiler_backend, DifferentClustersDPU.PARAMS, (DifferentClustersDPU,
+                yield DPUPipeline(architecture, DifferentClustersDPU.PARAMS, (DifferentClustersDPU,
                                                                               input_type,
                                                                               input_shape,
                                                                               weight_type,
@@ -4347,7 +4558,7 @@ def genDifferentClustersDPU(architecture,
                                                                               mpe_mode,
                                                                               [input_cluster, output_cluster, weights_cluster, weights_table_cluster]))
 
-def genMultiClustersDPU(architecture,
+def genMultiClustersDPU(architectures=ALL_ARCHITECTURES,
                         input_types=[FP16(4)],
                         input_shapes=[[1, 32, 16, 16]],
                         weight_types=[FP16(4)],
@@ -4361,11 +4572,10 @@ def genMultiClustersDPU(architecture,
                         mpe_modes=[MPE_MODE.CUBOID_16x16],
                         task_clusters=[[0, 1]],
                         segmentation=SEGMENTATION.SOK,
-                        is_out_broadcasted=[True],
-                        compiler_backend=CompilerBackend.Flatbuffer):
+                        is_out_broadcasted=[True]):
 
-    for (input_type, input_shape, kernel_channel, kernel_shape, output_order, stride, pad, mpe_mode, task_cluster, broadcast) \
-            in itertools.product(input_types, input_shapes, kernel_channels, kernel_shapes, output_orders, strides, pads, mpe_modes, task_clusters, is_out_broadcasted):
+    for (architecture, input_type, input_shape, kernel_channel, kernel_shape, output_order, stride, pad, mpe_mode, task_cluster, broadcast) \
+            in itertools.product(architectures, input_types, input_shapes, kernel_channels, kernel_shapes, output_orders, strides, pads, mpe_modes, task_clusters, is_out_broadcasted):
 
         current_weight_types = weight_types
         for weight_type in current_weight_types:
@@ -4376,7 +4586,7 @@ def genMultiClustersDPU(architecture,
                     print("skip", output_order, output_type)
                     continue
 
-                yield DPUPipeline(architecture, compiler_backend, MultiClustersDPU.PARAMS, (MultiClustersDPU,
+                yield DPUPipeline(architecture, MultiClustersDPU.PARAMS, (MultiClustersDPU,
                                                                           input_type,
                                                                           input_shape,
                                                                           weight_type,
@@ -4390,91 +4600,52 @@ def genMultiClustersDPU(architecture,
                                                                           mpe_mode,
                                                                           [task_cluster, segmentation, broadcast]))
 
-
-def genHaloMultiClusters(architecture,
-                        input_types=[FP16(4)],
-                        input_shapes=[[1, 32, 16, 16]],
-                        weight_types=[FP16(4)],
-                        kernel_channels=[64],
-                        kernel_shapes=[[1, 1]],
-                        output_types=[FP16(4)],
-                        output_orders=[Order.NHWC],
-                        strides=[[1, 1]],
-                        pads=Pad.none,
-                        compress=False,
-                        mpe_modes=[MPE_MODE.CUBOID_16x16],
-                        task_clusters=[[0, 1]],
-                        segmentation=SEGMENTATION.SOH,
-                        clusters_per_dim=[[]],
-                        spatial_halo_h=[0],
-                        spatial_halo_w=[0],
-                        compiler_backend=CompilerBackend.Flatbuffer):
-    for (input_type, input_shape, kernel_channel, kernel_shape, output_order, stride, pad, mpe_mode, task_cluster, num_clusters_per_dim, halo_h, halo_w) \
-            in itertools.product(input_types, input_shapes, kernel_channels, kernel_shapes, output_orders, strides, pads, mpe_modes, task_clusters, clusters_per_dim, spatial_halo_h, spatial_halo_w):
-
-        current_weight_types = weight_types
-        for weight_type in current_weight_types:
-
-            current_output_types = output_types
-            for output_type in current_output_types:
-                if(output_order != Order.NHWC and not _PPE_HAS_PERMUTATION_SUPPORT[output_type.__class__]) :
-                    print("skip", output_order, output_type)
-                    continue
-
-                yield DPUPipeline(architecture, compiler_backend, HaloMultiClustering.PARAMS, (HaloMultiClustering,
-                                                                                               input_type,
-                                                                                               input_shape,
-                                                                                               weight_type,
-                                                                                               kernel_channel,
-                                                                                               kernel_shape,
-                                                                                               output_type,
-                                                                                               output_order,
-                                                                                               stride,
-                                                                                               pad,
-                                                                                               compress,
-                                                                                               mpe_mode,
-                                                                                               [task_cluster, segmentation, num_clusters_per_dim, halo_h, halo_w]))
-
-def genActShave(architecture,
-                input_types,
+def genActShave(input_types,
                 input_shapes,
                 output_types,
                 act_shave_subtypes,
-                compiler_backend=CompilerBackend.Flatbuffer):
-    for (input_type, input_shape, output_type, act_shave_subtype) in itertools.product(input_types, input_shapes, output_types, act_shave_subtypes):
-        yield DPUPipeline(architecture, compiler_backend, ActKernel.PARAMS, (ActKernel, input_type, input_shape, output_type, act_shave_subtype))
+                architectures=ALL_ARCHITECTURES):
+    for (architecture, input_type, input_shape, output_type, act_shave_subtype) in itertools.product(architectures, input_types, input_shapes, output_types, act_shave_subtypes):
+        yield DPUPipeline(architecture, ActKernel.PARAMS, (ActKernel, input_type, input_shape, output_type, act_shave_subtype))
 
-def genDMA(architecture, tensor_types=[FP16(2)], input_shapes=[[1, 16, 32, 32]], src_locations=[MemoryLocation.CMX0], dst_locations=[MemoryLocation.CMX0], dma_engines=[0], compiler_backend=CompilerBackend.Flatbuffer):
-    for (tensor_type, input_shape, src_location, dst_location, dma_engine) in itertools.product(tensor_types, input_shapes, src_locations, dst_locations, dma_engines):
-        yield DPUPipeline(architecture, compiler_backend, DMA.PARAMS, (DMA,
-                                                     tensor_type,
-                                                     tensor_type,
-                                                     input_shape,
-                                                     src_location,
-                                                     dst_location,
-                                                     dma_engine))
+def genDMA(architectures=ALL_ARCHITECTURES, tensor_types=[FP16(2)], input_shapes=[[1, 16, 32, 32]], src_locations=[MemoryLocation.CMX0], dst_locations=[MemoryLocation.CMX0], dma_engines=[0], actCompressDenseMode = False, convert = [False]):
+    for (architecture, tensor_type, input_shape, src_location, dst_location, dma_engine, convert_en) in itertools.product(architectures, tensor_types, input_shapes, src_locations, dst_locations, dma_engines, convert):
+        yield DMA(architecture, tensor_type, tensor_type,
+                                            input_shape,
+                                            src_location,
+                                            dst_location,
+                                            dma_engine,
+                                            actCompressDenseMode,
+                                            convert_en)
 
-def genRaceConditionDMA(architecture,
+def genDMAConvert(architectures=ALL_ARCHITECTURES, tensor_types=[FP16(2)], out_tensor_types=[FP16(2)], input_shapes=[[1, 16, 32, 32]], src_locations=[MemoryLocation.CMX0], dst_locations=[MemoryLocation.CMX0], dma_engines=[0], actCompressDenseMode = False, convert = [False]):
+    for (architecture, tensor_type, out_tensor_type, input_shape, src_location, dst_location, dma_engine, convert_en) in itertools.product(architectures, tensor_types, out_tensor_types, input_shapes, src_locations, dst_locations, dma_engines, convert):
+        yield DMA(architecture, tensor_type, out_tensor_type,
+                                            input_shape,
+                                            src_location,
+                                            dst_location,
+                                            dma_engine,
+                                            actCompressDenseMode,
+                                            convert_en)
+def genRaceConditionDMA(architectures=ALL_ARCHITECTURES,
                         input_types=[FP16(2)],
                         output_types=[FP16(2)],
-                        iteration_count=64,
-                        compiler_backend=CompilerBackend.Flatbuffer):
-    for (input_type, output_type) in itertools.product(input_types, output_types):
-        yield DPUPipeline(architecture, compiler_backend, RaceConditionDMA.PARAMS, (RaceConditionDMA,
+                        iteration_count=64):
+    for (architecture, input_type, output_type) in itertools.product(architectures, input_types, output_types):
+        yield DPUPipeline(architecture, RaceConditionDMA.PARAMS, (RaceConditionDMA,
                                                     input_type,
                                                     output_type,
                                                     iteration_count
                                                     ))
-def genRaceCondition(architecture,
-                     ops,
+def genRaceCondition(ops,
+                     architectures=ALL_ARCHITECTURES,
                      iteration_counts=[64],
                      requested_clusters=[1],
-                     requested_units=[1],
-                     compiler_backend=CompilerBackend.Flatbuffer):
-    for (op, iteration_count, requested_cluster, requested_unit) in itertools.product(ops, iteration_counts, requested_clusters, requested_units):
-        yield RaceCondition(architecture, compiler_backend, op, iteration_count, requested_cluster, requested_unit)
+                     requested_units=[1]):
+    for (architecture, op, iteration_count, requested_cluster, requested_unit) in itertools.product(architectures, ops, iteration_counts, requested_clusters, requested_units):
+        yield RaceCondition(architecture, op, iteration_count, requested_cluster, requested_unit)
 
-def genRaceConditionDPU(architecture,
+def genRaceConditionDPU(architectures=ALL_ARCHITECTURES,
                         input_types=[FP16(4)],
                         input_shapes=[[1, 32, 16, 16]],
                         weight_types=[FP16(4)],
@@ -4486,10 +4657,9 @@ def genRaceConditionDPU(architecture,
                         pads=Pad.none,
                         compress=False,
                         mpe_modes=[MPE_MODE.CUBOID_16x16],
-                        iteration_count = 64,
-                        compiler_backend=CompilerBackend.Flatbuffer):
+                        iteration_count = 64):
 
-    for (input_type, input_shape, kernel_channel, kernel_shape, output_order, stride, pad, mpe_mode) in itertools.product(input_types, input_shapes, kernel_channels, kernel_shapes, output_orders, strides, pads, mpe_modes):
+    for (architecture, input_type, input_shape, kernel_channel, kernel_shape, output_order, stride, pad, mpe_mode) in itertools.product(architectures, input_types, input_shapes, kernel_channels, kernel_shapes, output_orders, strides, pads, mpe_modes):
 
         current_weight_types = weight_types
         for weight_type in current_weight_types:
@@ -4499,7 +4669,7 @@ def genRaceConditionDPU(architecture,
                 if(output_order != Order.NHWC and not _PPE_HAS_PERMUTATION_SUPPORT[output_type.__class__]) :
                     print("skip", output_order, output_type)
                     continue
-                yield DPUPipeline(architecture, compiler_backend, RaceConditionDPU.PARAMS, (RaceConditionDPU,
+                yield DPUPipeline(architecture, RaceConditionDPU.PARAMS, (RaceConditionDPU,
                                                                           input_type,
                                                                           input_shape,
                                                                           weight_type,
@@ -4513,7 +4683,7 @@ def genRaceConditionDPU(architecture,
                                                                           mpe_mode,
                                                                           iteration_count))
 
-def genRaceConditionDPUDMA(architecture,
+def genRaceConditionDPUDMA(architectures=ALL_ARCHITECTURES,
                            input_types=[FP16(4)],
                            input_shapes=[[1, 32, 16, 16]],
                            weight_types=[FP16(4)],
@@ -4525,10 +4695,9 @@ def genRaceConditionDPUDMA(architecture,
                            pads=Pad.none,
                            compress=False,
                            mpe_modes=[MPE_MODE.CUBOID_16x16],
-                           iteration_count = 64,
-                           compiler_backend=CompilerBackend.Flatbuffer):
+                           iteration_count = 64):
 
-    for (input_type, input_shape, kernel_channel, kernel_shape, output_order, stride, pad, mpe_mode) in itertools.product(input_types, input_shapes, kernel_channels, kernel_shapes, output_orders, strides, pads, mpe_modes):
+    for (architecture, input_type, input_shape, kernel_channel, kernel_shape, output_order, stride, pad, mpe_mode) in itertools.product(architectures, input_types, input_shapes, kernel_channels, kernel_shapes, output_orders, strides, pads, mpe_modes):
 
         current_weight_types = weight_types
         for weight_type in current_weight_types:
@@ -4538,7 +4707,7 @@ def genRaceConditionDPUDMA(architecture,
                 if(output_order != Order.NHWC and not _PPE_HAS_PERMUTATION_SUPPORT[output_type.__class__]) :
                     print("skip", output_order, output_type)
                     continue
-                yield DPUPipeline(architecture, compiler_backend, RaceConditionDPUDMA.PARAMS, (RaceConditionDPUDMA,
+                yield DPUPipeline(architecture, RaceConditionDPUDMA.PARAMS, (RaceConditionDPUDMA,
                                                                              input_type,
                                                                              input_shape,
                                                                              weight_type,
@@ -4552,7 +4721,7 @@ def genRaceConditionDPUDMA(architecture,
                                                                              mpe_mode,
                                                                              iteration_count))
 
-def genRaceConditionDPUDMAACT(architecture,
+def genRaceConditionDPUDMAACT(architectures=ALL_ARCHITECTURES,
                               input_types=[FP16(0)],
                               input_shapes=[[1, 32, 16, 16]],
                               weight_types=[FP16(0)],
@@ -4565,10 +4734,9 @@ def genRaceConditionDPUDMAACT(architecture,
                               compress=False,
                               mpe_modes=[MPE_MODE.CUBOID_16x16],
                               act_types=[ActivationType.HSwish],
-                              iteration_count = 64,
-                              compiler_backend=CompilerBackend.Flatbuffer):
+                              iteration_count = 64):
 
-    for (input_type, input_shape, kernel_channel, kernel_shape, output_order, stride, pad, mpe_mode, act_type) in itertools.product(input_types, input_shapes, kernel_channels, kernel_shapes, output_orders, strides, pads, mpe_modes, act_types):
+    for (architecture, input_type, input_shape, kernel_channel, kernel_shape, output_order, stride, pad, mpe_mode, act_type) in itertools.product(architectures, input_types, input_shapes, kernel_channels, kernel_shapes, output_orders, strides, pads, mpe_modes, act_types):
 
         current_weight_types = weight_types
         for weight_type in current_weight_types:
@@ -4578,7 +4746,7 @@ def genRaceConditionDPUDMAACT(architecture,
                 if(output_order != Order.NHWC and not _PPE_HAS_PERMUTATION_SUPPORT[output_type.__class__]) :
                     print("skip", output_order, output_type)
                     continue
-                yield DPUPipeline(architecture, compiler_backend, RaceConditionDPUDMAACT.PARAMS, (RaceConditionDPUDMAACT,
+                yield DPUPipeline(architecture, RaceConditionDPUDMAACT.PARAMS, (RaceConditionDPUDMAACT,
                                                                                 input_type,
                                                                                 input_shape,
                                                                                 weight_type,
@@ -4593,16 +4761,15 @@ def genRaceConditionDPUDMAACT(architecture,
                                                                                 act_type,
                                                                                 iteration_count))
 
-def genDualChannelDMA(architecture,
+def genDualChannelDMA(architectures=ALL_ARCHITECTURES,
                         input_types=[FP16(2)],
-                        output_types=[FP16(2)],
-                        compiler_backend=CompilerBackend.Flatbuffer):
-    for (input_type, output_type) in itertools.product(input_types, output_types):
-        yield DPUPipeline(architecture, compiler_backend, DualChannelDMA.PARAMS, (DualChannelDMA,
+                        output_types=[FP16(2)]):
+    for (architecture, input_type, output_type) in itertools.product(architectures, input_types, output_types):
+        yield DPUPipeline(architecture, DualChannelDMA.PARAMS, (DualChannelDMA,
                                                     input_type,
                                                     output_type))
 
-def genStorageElementTableDPU(architecture,
+def genStorageElementTableDPU(architectures=ALL_ARCHITECTURES,
                             input_types=[FP16(4)],
                             input_shapes=[[1, 32, 16, 16]],
                             weight_types=[FP16(4)],
@@ -4614,11 +4781,10 @@ def genStorageElementTableDPU(architecture,
                             pads=Pad.none,
                             compress=False,
                             mpe_modes=[MPE_MODE.CUBOID_16x16],
-                            patterns=[SETablePattern.SwitchLines],
-                            compiler_backend=CompilerBackend.Flatbuffer):
+                            patterns=[SETablePattern.SwitchLines]):
 
-    for (input_type, input_shape, kernel_channel, kernel_shape, output_order, stride, pad, mpe_mode, pattern) \
-            in itertools.product(input_types, input_shapes, kernel_channels, kernel_shapes, output_orders, strides, pads, mpe_modes, patterns):
+    for (architecture, input_type, input_shape, kernel_channel, kernel_shape, output_order, stride, pad, mpe_mode, pattern) \
+            in itertools.product(architectures, input_types, input_shapes, kernel_channels, kernel_shapes, output_orders, strides, pads, mpe_modes, patterns):
 
         current_weight_types = weight_types
         for weight_type in current_weight_types:
@@ -4629,7 +4795,7 @@ def genStorageElementTableDPU(architecture,
                     print("skip", output_order, output_type)
                     continue
 
-                yield DPUPipeline(architecture, compiler_backend, StorageElementTableDPU.PARAMS, (StorageElementTableDPU,
+                yield DPUPipeline(architecture, StorageElementTableDPU.PARAMS, (StorageElementTableDPU,
                                                                               input_type,
                                                                               input_shape,
                                                                               weight_type,
@@ -4643,7 +4809,7 @@ def genStorageElementTableDPU(architecture,
                                                                               mpe_mode,
                                                                               pattern))
 
-def genRaceConditionDPUACT(architecture,
+def genRaceConditionDPUACT(architectures=ALL_ARCHITECTURES,
                               input_types=[FP16(0)],
                               input_shapes=[[1, 32, 16, 16]],
                               weight_types=[FP16(0)],
@@ -4656,10 +4822,9 @@ def genRaceConditionDPUACT(architecture,
                               compress=False,
                               mpe_cubs=[MPE_MODE.CUBOID_16x16],
                               act_types=[ActivationType.HSwish],
-                              iteration_count = 64,
-                              compiler_backend=CompilerBackend.Flatbuffer):
+                              iteration_count = 64):
 
-    for (input_type, input_shape, kernel_channel, kernel_shape, output_order, stride, pad, mpe_cub, act_type) in itertools.product(input_types, input_shapes, kernel_channels, kernel_shapes, output_orders, strides, pads, mpe_cubs, act_types):
+    for (architecture, input_type, input_shape, kernel_channel, kernel_shape, output_order, stride, pad, mpe_cub, act_type) in itertools.product(architectures, input_types, input_shapes, kernel_channels, kernel_shapes, output_orders, strides, pads, mpe_cubs, act_types):
 
         current_weight_types = weight_types
         for weight_type in current_weight_types:
@@ -4669,7 +4834,7 @@ def genRaceConditionDPUACT(architecture,
                 if(output_order != Order.NHWC and not _PPE_HAS_PERMUTATION_SUPPORT[output_type.__class__]) :
                     print("skip", output_order, output_type)
                     continue
-                yield DPUPipeline(architecture, compiler_backend, RaceConditionDPUACT.PARAMS, (RaceConditionDPUACT,
+                yield DPUPipeline(architecture, RaceConditionDPUACT.PARAMS, (RaceConditionDPUACT,
                                                                                 input_type,
                                                                                 input_shape,
                                                                                 weight_type,
@@ -4694,7 +4859,6 @@ def generate_options(args):
 
         # ActShave
         genActShave(
-            architecture=args.architecture,
             input_types=[FP16(0)],
             input_shapes=[[1, 10, 2, 3],  [1, 1000, 1, 1], [1, 1, 1000, 1], [1, 1, 1, 1000]],
             output_types=[FP16()],
@@ -4708,7 +4872,6 @@ def generate_options(args):
 
         # NOTE: test must align tensor size according to vector size
         genActShave(
-            architecture=Architecture.VPUX37XX,
             input_types=[FP16(0)],
             input_shapes=[[1, 16, 2, 3],  [1, 1000, 1, 1], [1, 1, 1000, 1], [1, 1, 1, 1000]],
             output_types=[FP16()],
@@ -4718,20 +4881,20 @@ def generate_options(args):
                 [ActivationType.vau_tanh],
                 [ActivationType.vau_log],
                 [ActivationType.vau_exp],
-            ]),
+            ],
+            architectures=[Architecture.VPUX37XX]),
 
         genActShave(
-            architecture=Architecture.VPUX37XX,
             input_types=[BF16(0)],
             input_shapes=[[1, 16, 2, 3],  [1, 1000, 1, 1], [1, 1, 1000, 1], [1, 1, 1, 1000]],
             output_types=[BF16()],
             act_shave_subtypes=[
                 [ActivationType.lsu_b16],
                 [ActivationType.lsu_b16_vec],
-            ]),
+            ],
+            architectures=[Architecture.VPUX37XX]),
 
         genActShave(
-            architecture=Architecture.VPUX37XX,
             input_types=[Int32()],
             input_shapes=[[1, 16, 2, 3],  [1, 1000, 1, 1], [1, 1, 1000, 1], [1, 1, 1, 1000]],
             output_types=[Int32()],
@@ -4739,10 +4902,10 @@ def generate_options(args):
                 [ActivationType.sau_dp4],
                 [ActivationType.sau_dp4a],
                 [ActivationType.sau_dp4m],
-            ]),
+            ],
+            architectures=[Architecture.VPUX37XX]),
 
         genActShave(
-            architecture=Architecture.VPUX37XX,
             input_types=[Int8()],
             input_shapes=[[1, 16, 2, 3], [1, 1008, 1, 1]],
             output_types=[Int32()],
@@ -4750,7 +4913,8 @@ def generate_options(args):
                 [ActivationType.vau_dp4],
                 [ActivationType.vau_dp4a],
                 [ActivationType.vau_dp4m],
-            ]),
+            ],
+            architectures=[Architecture.VPUX37XX]),
 
         # Z-Major Convolution
         #
@@ -4763,21 +4927,19 @@ def generate_options(args):
         #    fp16 weights.
 
         # Z-Major Convolution
-        genZMConvs(architecture=args.architecture, input_types=[Int8(3), Int4(3), UInt8(3), UInt4(3), FP16(4), BF16(4)]),
+        genZMConvs(input_types=[Int8(3), Int4(3), UInt8(3), UInt4(3), FP16(4), BF16(4)]),
 
         # Z-Major Convolution, uint8 activations with extended kernel shapes
         # NB The number of bits used is turned pretty far down, to avoid issues
         # with floating point rounding.
-        genZMConvs(architecture=args.architecture,
-                   input_types=[UInt8(1)],
+        genZMConvs(input_types=[UInt8(1)],
                    weight_types=[UInt8(1)],
                    kernel_shapes=[[r, c] for r in range(1, 12) for c in range(1, 12) if (r, c) != (1, 1)],
                    output_types=[FP16()],
                    compress=[True, False]),
 
         # Z-Major Convolution with strides
-        genZMConvs(architecture=args.architecture,
-                   input_types=[FP16(3)],
+        genZMConvs(input_types=[FP16(3)],
                    weight_types=[Int8(3), FP16(3)],
                    output_types=[FP16()],
                    kernel_shapes=[[2, 2]],
@@ -4785,8 +4947,7 @@ def generate_options(args):
                    compress=[True, False]),
 
         # Z-Major Convolution, padding, uint8
-        genZMConvs(architecture=args.architecture,
-                   input_types=[UInt8(2)],
+        genZMConvs(input_types=[UInt8(2)],
                    input_shapes=[[1, 16, 32, 32]],
                    weight_types=[UInt8(1)],
                    kernel_channels=[16],
@@ -4796,8 +4957,7 @@ def generate_options(args):
                    compress=[True, False]),
 
         # Z-Major Convolution, padding, uint8
-        genZMConvs(architecture=args.architecture,
-                   input_types=[UInt8(2)],
+        genZMConvs(input_types=[UInt8(2)],
                    input_shapes=[[1, 16, 32, 32]],
                    weight_types=[UInt8(1)],
                    kernel_channels=[32],
@@ -4807,8 +4967,7 @@ def generate_options(args):
                    compress=[True, False]),
 
         # Z-Major Convolution, padding, int8
-        genZMConvs(architecture=args.architecture,
-                   input_types=[Int8(2)],
+        genZMConvs(input_types=[Int8(2)],
                    input_shapes=[[1, 16, 32, 32]],
                    weight_types=[Int8(2)],
                    kernel_channels=[16],
@@ -4818,8 +4977,7 @@ def generate_options(args):
                    compress=[True, False]),
 
         # Z-Major Convolution, padding, int8
-        genZMConvs(architecture=args.architecture,
-                   input_types=[Int8(2)],
+        genZMConvs(input_types=[Int8(2)],
                    input_shapes=[[1, 32, 32, 32]],
                    weight_types=[Int8(2)],
                    kernel_channels=[16],
@@ -4829,8 +4987,7 @@ def generate_options(args):
                    compress=[True, False]),
 
         # Z-Major Convolution, padding, int8
-        genZMConvs(architecture=args.architecture,
-                   input_types=[Int8(2)],
+        genZMConvs(input_types=[Int8(2)],
                    input_shapes=[[1, 16, 32, 32]],
                    weight_types=[Int8(2)],
                    kernel_channels=[32],
@@ -4840,8 +4997,7 @@ def generate_options(args):
                    compress=[True, False]),
 
         # Z-Major Convolution, padding, int8
-        genZMConvs(architecture=args.architecture,
-                   input_types=[Int8(2)],
+        genZMConvs(input_types=[Int8(2)],
                    input_shapes=[[1, 32, 32, 32]],
                    weight_types=[Int8(2)],
                    kernel_channels=[32],
@@ -4851,8 +5007,7 @@ def generate_options(args):
                    compress=[True, False]),
 
         # Z-Major Convolution, padding, fp16
-        genZMConvs(architecture=args.architecture,
-                   input_types=[FP16(2)],
+        genZMConvs(input_types=[FP16(2)],
                    input_shapes=[[1, 16, 32, 32]],
                    weight_types=[FP16(2)],
                    kernel_channels=[16],
@@ -4862,8 +5017,7 @@ def generate_options(args):
                    compress=[True, False]),
 
         # Z-Major Convolution, padding, bf16
-        genZMConvs(architecture=args.architecture,
-                   input_types=[BF16(2)],
+        genZMConvs(input_types=[BF16(2)],
                    input_shapes=[[1, 16, 32, 32]],
                    weight_types=[BF16(2)],
                    kernel_channels=[16],
@@ -4873,8 +5027,7 @@ def generate_options(args):
                    compress=[True, False]),
 
         # Z-Major Convolution, padding, 4x6 kernel, uint8
-        genZMConvs(architecture=args.architecture,
-                   input_types=[UInt8(2)],
+        genZMConvs(input_types=[UInt8(2)],
                    input_shapes=[[1, 16, 8, 8]],
                    weight_types=[UInt8(1)],
                    kernel_channels=[16],
@@ -4884,8 +5037,7 @@ def generate_options(args):
                    compress=[True, False]),
 
         # Z-Major Convolution, padding, 5x5 kernel, uint8
-        genZMConvs(architecture=args.architecture,
-                   input_types=[UInt8(2)],
+        genZMConvs(input_types=[UInt8(2)],
                    input_shapes=[[1, 16, 32, 32]],
                    weight_types=[UInt8(1)],
                    kernel_channels=[16],
@@ -4895,14 +5047,12 @@ def generate_options(args):
                    compress=[True, False]),
 
         # Z-Major Convolution, output order
-        genZMConvs(architecture=args.architecture,
-                   input_types=[Int8(3), FP16(4)],
+        genZMConvs(input_types=[Int8(3), FP16(4)],
                    output_orders=[Order.NWHC, Order.NWCH, Order.NCWH, Order.NHCW, Order.NCHW],
                    compress=[True, False]),
 
         # Z-Major Convolution, integer cuboid combinations
-        genZMConvs(architecture=args.architecture,
-                   input_types=[Int8(3)],
+        genZMConvs(input_types=[Int8(3)],
                    input_shapes=[[1, 16, 32, 64]],
                    weight_types=[Int8(2)],
                    output_types=[Int8()],
@@ -4910,58 +5060,68 @@ def generate_options(args):
                    compress=[True, False]),
 
         # Z-Major Convolution, fp cuboid combinations
-        genZMConvs(architecture=args.architecture,
-                   input_types=[FP16(4)],
+        genZMConvs(input_types=[FP16(4)],
                    input_shapes=[[1, 16, 32, 64]],
                    weight_types=[FP16(2)],
                    output_types=[FP16()],
                    mpe_modes=[MPE_MODE.CUBOID_16x16, MPE_MODE.CUBOID_8x16, MPE_MODE.CUBOID_4x16],
                    compress=[True, False]),
 
-        # Z-Major Convolution, sparse
+        # Z-Major Convolution, sparse weights, sparse activations
         genSparseConvs(
-            architecture=args.architecture,
             input_types=[Int8(4)],
             input_shapes=[[1, 128, 32, 32]],
             kernel_shapes=[[1, 1], [5, 5]],
             weight_types=[Int8(4)],
             output_types=[Int8()],
             sparsity_factors = [0.1, 0.5, 0.9],
-            compress=[True, False]),
+            compress=[True, False],
+            activation_sparsity=[False, True]),
 
         genSparseConvs(
-            architecture=args.architecture,
             input_types=[UInt8(4)],
             input_shapes=[[1, 128, 32, 32]],
             kernel_shapes=[[1, 1], [5, 5]],
             weight_types=[UInt8(4)],
             output_types=[UInt8()],
             sparsity_factors = [0.1, 0.5, 0.9],
-            compress=[True, False]),
+            compress=[True, False],
+            activation_sparsity=[False, True]),
+
 
         genSparseConvs(
-            architecture=args.architecture,
             input_types=[FP16(2)],
             input_shapes=[[1, 128, 32, 32]],
             kernel_shapes=[[1, 1], [5, 5]],
             weight_types=[FP16(2), Int8(4)],
             output_types=[FP16()],
             sparsity_factors = [0.1, 0.5, 0.9],
-            compress=[True, False]),
+            compress=[True, False],
+            activation_sparsity=[False, True]),
 
         genSparseConvs(
-            architecture=args.architecture,
             input_types=[BF16(2)],
             input_shapes=[[1, 128, 32, 32]],
             kernel_shapes=[[1, 1], [5, 5]],
             weight_types=[BF16(2)],
             output_types=[BF16()],
             sparsity_factors = [0.1, 0.5, 0.9],
-            compress=[True, False]),
+            compress=[True, False],
+            activation_sparsity=[False, True]),
+
+        # Double Z-Major conv, intermediary sparse activations
+        genDoubleZMConvs(
+            input_types=[FP16(3)],
+            input_shapes=[[1, 16, 1, 1]],
+            weight_types=[FP16(-3)],
+            kernel_shapes=[[1, 1]],
+            kernel_channels=[16, 32, 64, 128, 256, 512],
+            output_types=[FP16()],
+            compress=[True, False],
+            activation_sparsity=[True]),
 
         # subnormal case
         genSparseConvs(
-            architecture=args.architecture,
             input_types=[FP16(-15)],
             input_shapes=[[1, 128, 32, 32]],
             kernel_shapes=[[1, 1], [5, 5]],
@@ -4969,160 +5129,156 @@ def generate_options(args):
             output_types=[FP32()],
             sparsity_factors=[0.1, 0.5, 0.9]),
 
-        genZMConvs(architecture=args.architecture,
-                   input_types=[FP16(2)],
+        genZMConvs(input_types=[FP16(2)],
                    input_shapes=[[1, 16, 16, 16]],
                    weight_types=[FP16(2)],
                    output_types=[FP16()],
                    compress=[True, False]),
 
         # Eltwise Add
-        genEltwiseAdds(architecture=args.architecture,
-                       input_types=[Int8(6), UInt8(6), FP16(6), BF16(6)],
+        genEltwiseAdds(input_types=[Int8(6), UInt8(6), FP16(6), BF16(6)],
                        input_shapes=[[1, 256, 16, 16]]),
 
         # Eltwise Mult
-        genEltwiseMults(architecture=args.architecture,
-                        input_types=[Int8(3), UInt8(4), FP16(6), BF16(6)],
+        genEltwiseMults(input_types=[Int8(3), UInt8(4), FP16(6), BF16(6)],
                         input_shapes=[[1, 1, 1, 64]]),
 
+        # Eltwise Sparse
+        genEltwiseSparse(input_types=[Int8(6), UInt8(6), FP16(6), BF16(6)],
+                         input_shapes=[[1, 256, 16, 16]], seSizes=[256, 128, 64, 32, 16]),
+
         # MaxPool
-        genMaxPools(architecture=args.architecture,
-                    input_types=[UInt8(6), Int8(6), FP16(6), BF16(6)],
+        genMaxPools(input_types=[UInt8(6), Int8(6), FP16(6), BF16(6)],
                     input_shapes=[[1, 64, 16, 16]],
                     pads=Pad.none + Pad.all(1) + Pad.top_bottom(1) + Pad.left_right(1)),
 
-        genMaxPools(architecture=args.architecture,
-                    input_types=[UInt8(6)],
+        genMaxPools(input_types=[UInt8(6)],
                     output_types=[UInt8()],
-                    strides=[[r, c] for r in range(2, 8) for c in range(2, 8) if (r, c) != (2, 2)]),
+                    strides=[[r, c] for r in range(1, 8) for c in range(1, 8) if (r, c) != (2, 2)]),
 
-        genMaxPools(architecture=args.architecture,
-                    input_types=[UInt8(6)],
+        genMaxPools(input_types=[UInt8(6)],
                     output_types=[UInt8()],
-                    kernel_shapes=[[r, c] for r in range(2, 12) for c in range(2, 12) if (r, c) != (2, 2)]),
+                    kernel_shapes=[[r, c] for r in range(1, 12) for c in range(1, 12) if (r, c) != (2, 2)]),
+
+        #maxpool with padding up to 5 in all directions
+        genMaxPools(input_types=[Int8()],
+                    output_types=[Int8()],
+                    input_shapes=[[1, 64, 16, 16]],
+                    kernel_shapes=[[11, 11]],
+                    strides=[[1, 1]],
+                    pads= Pad.all(5)
+                    ),
 
         # AvgPool
-        genAvgPools(architecture=args.architecture,
-                    input_types=[Int8(6), UInt8(6), FP16(6), BF16(6)],
+        genAvgPools(input_types=[Int8(6), UInt8(6), FP16(6), BF16(6)],
                     input_shapes=[[1, 64, 32, 32]]),
 
         # DepthWiseConv
-        genDepthWiseConvs(architecture=args.architecture,
-                          input_types=[Int8(6), UInt8(6), FP16(6), BF16(6)],
+        genDepthWiseConvs(input_types=[Int8(6), UInt8(6), FP16(6), BF16(6)],
                           pads=[[0, 0, 0, 0], [1, 0, 0, 0]]),
 
-        genDepthWiseConvs(architecture=args.architecture,
-                          input_types=[Int8(6), UInt8(6), FP16(6), BF16(6)],
+        genDepthWiseConvs(input_types=[Int8(6), UInt8(6), FP16(6), BF16(6)],
                           input_shapes=[[1, 32, 32, 32]],
                           kernel_channels=[32]),
 
-        genDepthWiseConvs(architecture=args.architecture,
-                          input_types=[Int8(6), UInt8(6), FP16(6), BF16(6)],
+        genDepthWiseConvs(input_types=[Int8(6), UInt8(6), FP16(6), BF16(6)],
                           input_shapes=[[1, 64, 32, 32]],
                           kernel_channels=[64]),
 
-        genDepthWiseConvs(architecture=args.architecture,
-                          input_types=[UInt8(6)],
+        genDepthWiseConvs(input_types=[UInt8(6)],
                           output_types=[UInt8()],
                           strides=[[r, c] for r in range(1, 8) for c in range(1, 8) if (r, c) != (1, 1)]),
 
-        genDepthWiseConvs(architecture=args.architecture,
-                          input_types=[UInt8(6)],
+        genDepthWiseConvs(input_types=[UInt8(6)],
                           output_types=[UInt8()],
                           kernel_shapes=[[r, c] for r in range(1, 12) for c in range(1, 12) if (r, c) != (4, 4)]),
 
+        #depthwise with padding up to 5 in all directions
+        genDepthWiseConvs(input_types=[UInt8(6)],
+                          output_types=[UInt8()],
+                          kernel_shapes=[[11, 11]],
+                          pads= Pad.all(5)
+        ),
+
         # MobileNet ELTWISE, uint8
-        genEltwiseAdds(architecture=args.architecture,
-                       input_types=[UInt8(2)],
+        genEltwiseAdds(input_types=[UInt8(2)],
                        input_shapes=[[1, 32, 56, 56],
                                      [1, 32, 28, 28],
                                      [1, 64, 14, 14]],
                        output_types=[UInt8()]),
 
         # MobileNet CONV (ZMajorConv)
-        genZMConvs(architecture=args.architecture,
-                   input_types=[UInt8(2)],
+        genZMConvs(input_types=[UInt8(2)],
                    input_shapes=[[1, 32, 112, 112]],
                    weight_types=[UInt8(2)],
                    kernel_channels=[16],
                    output_types=[UInt8()],
                    compress=[True, False]),
 
-        genZMConvs(architecture=args.architecture,
-                   input_types=[UInt8(2)],
+        genZMConvs(input_types=[UInt8(2)],
                    input_shapes=[[1, 16, 112, 112]],
                    weight_types=[UInt8(2)],
                    kernel_channels=[96],
                    output_types=[UInt8()],
                    compress=[True, False]),
 
-        genZMConvs(architecture=args.architecture,
-                   input_types=[UInt8(2)],
+        genZMConvs(input_types=[UInt8(2)],
                    input_shapes=[[1, 96, 56, 56]],
                    weight_types=[UInt8(2)],
                    kernel_channels=[32],
                    output_types=[UInt8()],
                    compress=[True, False]),
 
-        genZMConvs(architecture=args.architecture,
-                   input_types=[UInt8(2)],
+        genZMConvs(input_types=[UInt8(2)],
                    input_shapes=[[1, 32, 56, 56]],
                    weight_types=[UInt8(2)],
                    kernel_channels=[144],
                    output_types=[UInt8()],
                    compress=[True, False]),
 
-        genZMConvs(architecture=args.architecture,
-                   input_types=[UInt8(2)],
+        genZMConvs(input_types=[UInt8(2)],
                    input_shapes=[[1, 144, 56, 56]],
                    weight_types=[UInt8(2)],
                    kernel_channels=[32],
                    output_types=[UInt8()],
                    compress=[True, False]),
 
-        genZMConvs(architecture=args.architecture,
-                   input_types=[UInt8(2)],
+        genZMConvs(input_types=[UInt8(2)],
                    input_shapes=[[1, 144, 28, 28]],
                    weight_types=[UInt8(2)],
                    kernel_channels=[32],
                    output_types=[UInt8()],
                    compress=[True, False]),
 
-        genZMConvs(architecture=args.architecture,
-                   input_types=[UInt8(2)],
+        genZMConvs(input_types=[UInt8(2)],
                    input_shapes=[[1, 32, 28, 28]],
                    weight_types=[UInt8(2)],
                    kernel_channels=[192],
                    output_types=[UInt8()],
                    compress=[True, False]),
 
-        genZMConvs(architecture=args.architecture,
-                   input_types=[UInt8(2)],
+        genZMConvs(input_types=[UInt8(2)],
                    input_shapes=[[1, 192, 28, 28]],
                    weight_types=[UInt8(2)],
                    kernel_channels=[32],
                    output_types=[UInt8()],
                    compress=[True, False]),
 
-        genZMConvs(architecture=args.architecture,
-                   input_types=[UInt8(2)],
+        genZMConvs(input_types=[UInt8(2)],
                    input_shapes=[[1, 192, 14, 14]],
                    weight_types=[UInt8(2)],
                    kernel_channels=[64],
                    output_types=[UInt8()],
                    compress=[True, False]),
 
-        genZMConvs(architecture=args.architecture,
-                   input_types=[UInt8(2)],
+        genZMConvs(input_types=[UInt8(2)],
                    input_shapes=[[1, 64, 14, 14]],
                    weight_types=[UInt8(2)],
                    kernel_channels=[384],
                    output_types=[UInt8()],
                    compress=[True, False]),
 
-        genZMConvs(architecture=args.architecture,
-                   input_types=[UInt8(2)],
+        genZMConvs(input_types=[UInt8(2)],
                    input_shapes=[[1, 384, 14, 14]],
                    weight_types=[UInt8(2)],
                    kernel_channels=[64],
@@ -5131,8 +5287,7 @@ def generate_options(args):
 
         # Z-Major Convolution, weights swizzling_key = 1-to-5
         # Weights swizzling implemented in ZMajorConv builder
-        genZMConvs(architecture=args.architecture,
-                   input_types=[FP16(3)],
+        genZMConvs(input_types=[FP16(3)],
                    input_shapes=[[1, 16, 1, 1]],
                    weight_types=[FP16(-3)],
                    kernel_channels=[64,128,256,512,1024],
@@ -5143,7 +5298,6 @@ def generate_options(args):
                    compress=[True, False]),
 
         genZMConvs(
-            architecture=args.architecture,
             input_types=[UInt8(2)],
             input_shapes=[[1, 1, 16, 16]],
             weight_types=[UInt8(2)],
@@ -5157,8 +5311,7 @@ def generate_options(args):
 
         # Z-Major Convolution, activation swizzling_key = 1-to-5
         # Activation swizzling implemented in DoubleConv builder
-        genZMConvs(architecture=args.architecture,
-                   input_types=[FP16(3)],
+        genDoubleZMConvs(input_types=[FP16(3)],
                    input_shapes=[[1, 16, 1, 1]],
                    weight_types=[FP16(-3)],
                    kernel_channels=[64,128,256,512],
@@ -5170,8 +5323,7 @@ def generate_options(args):
         ),
 
         # Z-Major Continued Convolution, fp16
-        genZMConvs(architecture=args.architecture,
-                   input_types=[FP16(3)],
+        genZMConvs(input_types=[FP16(3)],
                    input_shapes=[[1, 16*1024, 1, 1]],
                    weight_types=[FP16(-3)],
                    kernel_channels=[16],
@@ -5181,8 +5333,7 @@ def generate_options(args):
                    compress=[True, False]),
 
         # Z-major compressed Convolution, int8
-        genZMConvs(architecture=args.architecture,
-                   input_types=[Int8(2)],
+        genZMConvs(input_types=[Int8(2)],
                    input_shapes=[[1, 16, 64, 64]],
                    weight_types=[Int8(2)],
                    kernel_channels=[16],
@@ -5194,7 +5345,6 @@ def generate_options(args):
 
         # Z-major first layer DPU optimization uint8
         genZMConvs(
-            architecture=args.architecture,
             input_types=[UInt8(2)],
             input_shapes=[[1, 1, 16, 16]],
             weight_types=[UInt8(2)],
@@ -5206,7 +5356,6 @@ def generate_options(args):
         ),
 
         genZMConvs(
-            architecture=args.architecture,
             input_types=[UInt8(2)],
             input_shapes=[[1, 2, 16, 16]],
             weight_types=[UInt8(2)],
@@ -5218,7 +5367,6 @@ def generate_options(args):
         ),
 
         genZMConvs(
-            architecture=args.architecture,
             input_types=[UInt8(2)],
             input_shapes=[[1, 3, 16, 16]],
             weight_types=[UInt8(2)],
@@ -5230,7 +5378,6 @@ def generate_options(args):
         ),
 
         genZMConvs(
-            architecture=args.architecture,
             input_types=[UInt8(2)],
             input_shapes=[[1, 4, 16, 16]],
             weight_types=[UInt8(2)],
@@ -5242,7 +5389,6 @@ def generate_options(args):
         ),
 
         genZMConvs(
-            architecture=args.architecture,
             input_types=[UInt8(2)],
             input_shapes=[[1, 5, 16, 16]],
             weight_types=[UInt8(2)],
@@ -5254,7 +5400,6 @@ def generate_options(args):
         ),
 
         genZMConvs(
-            architecture=args.architecture,
             input_types=[UInt8(2)],
             input_shapes=[[1, 6, 16, 16]],
             weight_types=[UInt8(2)],
@@ -5266,7 +5411,6 @@ def generate_options(args):
         ),
 
         genZMConvs(
-            architecture=args.architecture,
             input_types=[UInt8(2)],
             input_shapes=[[1, 7, 16, 16]],
             weight_types=[UInt8(2)],
@@ -5278,7 +5422,6 @@ def generate_options(args):
         ),
 
         genZMConvs(
-            architecture=args.architecture,
             input_types=[UInt8(2)],
             input_shapes=[[1, 8, 16, 16]],
             weight_types=[UInt8(2)],
@@ -5290,7 +5433,6 @@ def generate_options(args):
         ),
 
         genZMConvs(
-            architecture=args.architecture,
             input_types=[UInt8(2)],
             input_shapes=[[1, 9, 16, 16]],
             weight_types=[UInt8(2)],
@@ -5302,7 +5444,6 @@ def generate_options(args):
         ),
 
         genZMConvs(
-            architecture=args.architecture,
             input_types=[UInt8(2)],
             input_shapes=[[1, 10, 16, 16]],
             weight_types=[UInt8(2)],
@@ -5314,7 +5455,6 @@ def generate_options(args):
         ),
 
         genZMConvs(
-            architecture=args.architecture,
             input_types=[UInt8(2)],
             input_shapes=[[1, 11, 16, 16]],
             weight_types=[UInt8(2)],
@@ -5326,7 +5466,6 @@ def generate_options(args):
         ),
 
         genZMConvs(
-            architecture=args.architecture,
             input_types=[UInt8(2)],
             input_shapes=[[1, 12, 16, 16]],
             weight_types=[UInt8(2)],
@@ -5338,7 +5477,6 @@ def generate_options(args):
         ),
 
         genZMConvs(
-            architecture=args.architecture,
             input_types=[UInt8(2)],
             input_shapes=[[1, 13, 16, 16]],
             weight_types=[UInt8(2)],
@@ -5350,7 +5488,6 @@ def generate_options(args):
         ),
 
         genZMConvs(
-            architecture=args.architecture,
             input_types=[UInt8(2)],
             input_shapes=[[1, 14, 16, 16]],
             weight_types=[UInt8(2)],
@@ -5362,7 +5499,6 @@ def generate_options(args):
         ),
 
         genZMConvs(
-            architecture=args.architecture,
             input_types=[UInt8(2)],
             input_shapes=[[1, 15, 16, 16]],
             weight_types=[UInt8(2)],
@@ -5375,7 +5511,6 @@ def generate_options(args):
 
         # Z-major first layer DPU optimization fp16
         genZMConvs(
-            architecture=args.architecture,
             input_types=[FP16(2)],
             input_shapes=[[1, 1, 16, 16]],
             weight_types=[FP16(2)],
@@ -5387,7 +5522,6 @@ def generate_options(args):
         ),
 
         genZMConvs(
-            architecture=args.architecture,
             input_types=[FP16(2)],
             input_shapes=[[1, 2, 16, 16]],
             weight_types=[FP16(2)],
@@ -5399,7 +5533,6 @@ def generate_options(args):
         ),
 
         genZMConvs(
-            architecture=args.architecture,
             input_types=[FP16(2)],
             input_shapes=[[1, 3, 16, 16]],
             weight_types=[FP16(2)],
@@ -5411,7 +5544,6 @@ def generate_options(args):
         ),
 
         genZMConvs(
-            architecture=args.architecture,
             input_types=[FP16(2)],
             input_shapes=[[1, 4, 16, 16]],
             weight_types=[FP16(2)],
@@ -5424,7 +5556,6 @@ def generate_options(args):
 
 
         genZMConvs(
-            architecture=args.architecture,
             input_types=[FP16(2)],
             input_shapes=[[1, 5, 16, 16]],
             weight_types=[FP16(2)],
@@ -5436,7 +5567,6 @@ def generate_options(args):
         ),
 
         genZMConvs(
-            architecture=args.architecture,
             input_types=[FP16(2)],
             input_shapes=[[1, 6, 16, 16]],
             weight_types=[FP16(2)],
@@ -5448,7 +5578,6 @@ def generate_options(args):
         ),
 
         genZMConvs(
-            architecture=args.architecture,
             input_types=[FP16(2)],
             input_shapes=[[1, 7, 16, 16]],
             weight_types=[FP16(2)],
@@ -5460,7 +5589,6 @@ def generate_options(args):
         ),
 
         genZMConvs(
-            architecture=args.architecture,
             input_types=[FP16(2)],
             input_shapes=[[1, 8, 16, 16]],
             weight_types=[FP16(2)],
@@ -5472,7 +5600,6 @@ def generate_options(args):
         ),
 
         genZMConvs(
-            architecture=args.architecture,
             input_types=[FP16(2)],
             input_shapes=[[1, 9, 16, 16]],
             weight_types=[FP16(2)],
@@ -5484,7 +5611,6 @@ def generate_options(args):
         ),
 
         genZMConvs(
-            architecture=args.architecture,
             input_types=[FP16(2)],
             input_shapes=[[1, 10, 16, 16]],
             weight_types=[FP16(2)],
@@ -5496,7 +5622,6 @@ def generate_options(args):
         ),
 
         genZMConvs(
-            architecture=args.architecture,
             input_types=[FP16(2)],
             input_shapes=[[1, 11, 16, 16]],
             weight_types=[FP16(2)],
@@ -5508,7 +5633,6 @@ def generate_options(args):
         ),
 
         genZMConvs(
-            architecture=args.architecture,
             input_types=[FP16(2)],
             input_shapes=[[1, 32, 2, 15]],
             weight_types=[FP16(2)],
@@ -5521,47 +5645,45 @@ def generate_options(args):
         ),
 
         genReadAfterWriteACTDMA(
-            architecture=Architecture.VPUX37XX,
+            architectures=[Architecture.VPUX37XX],
             iteration_count=13
         ),
 
         genReadAfterWriteDMAACT(
-            architecture=Architecture.VPUX37XX,
+            architectures=[Architecture.VPUX37XX],
             iteration_count=13
         ),
 
         genReadAfterWriteDPUACT(
-            architecture=Architecture.VPUX37XX,
+            architectures=[Architecture.VPUX37XX],
             iteration_count=11
         ),
 
         genReadAfterWriteACTDPU(
-            architecture=Architecture.VPUX37XX,
+            act_types=[ActivationType.Sigmoid],
             iteration_count=13
         ),
 
         genReadAfterWriteDPUDMA(
-            architecture=args.architecture,
             iteration_count=13
         ),
 
         genReadAfterWriteDMADPU(
-            architecture=args.architecture,
             iteration_count=13
         ),
 
-        genDifferentClustersDPU(architecture=args.architecture),
-        genMultiClustersDPU(architecture=Architecture.VPUX37XX,
+        genDifferentClustersDPU(architectures=[Architecture.VPUX37XX]),
+        genMultiClustersDPU(architectures=[Architecture.VPUX37XX],
                             kernel_channels=[64],
                             segmentation=SEGMENTATION.SOK,
                             is_out_broadcasted=[True, False]),
-        genMultiClustersDPU(architecture=Architecture.VPUX37XX,
+        genMultiClustersDPU(architectures=[Architecture.VPUX37XX],
                             input_shapes=[[1, 32, 32, 32]],
                             kernel_channels=[64],
                             strides=[[3, 3], [1, 1]],
                             segmentation=SEGMENTATION.SOH,
                             is_out_broadcasted=[True, False]),
-        genMultiClustersDPU(architecture=Architecture.VPUX37XX,
+        genMultiClustersDPU(architectures=[Architecture.VPUX37XX],
                             input_shapes=[[1, 32, 32, 32]],
                             kernel_channels=[64],
                             kernel_shapes=[[3, 3]],
@@ -5571,14 +5693,13 @@ def generate_options(args):
 
         # # check all datatypes
         genDMA(
-            architecture=args.architecture,
             tensor_types=[Int4(3), UInt4(3), Int8(3), UInt8(3), FP16(4), BF16(4)],
             input_shapes=[[1, 16, 32, 32]]
         ),
 
         # check all memory locations
         genDMA(
-            architecture=args.architecture,
+            architectures=[Architecture.VPUX37XX],
             tensor_types=[Int8(3)],
             input_shapes=[[1, 32, 16, 16]],
             src_locations=[MemoryLocation.CMX0, MemoryLocation.CMX1, MemoryLocation.DDR],
@@ -5587,7 +5708,7 @@ def generate_options(args):
         ),
         # check max available CMX
         genDMA(
-            architecture=args.architecture,
+            architectures=[Architecture.VPUX37XX],
             tensor_types=[UInt8(3)],
             input_shapes=[[1, 1, 1, HALF_OF_CMX_SIZE]],
             src_locations=[MemoryLocation.CMX0, MemoryLocation.CMX1],
@@ -5596,36 +5717,35 @@ def generate_options(args):
         ),
 
         genRaceConditionDMA(
-            architecture=Architecture.VPUX37XX,
+            architectures=[Architecture.VPUX37XX],
             input_types=[FP16(2)],
             output_types=[FP16(2)],
             iteration_count=64 # 64 (max) barriers = 2 tiles x 32 barriers per tile
         ),
 
         genRaceConditionDPU(
-            architecture=Architecture.VPUX37XX,
+            architectures=[Architecture.VPUX37XX],
             iteration_count=48 # 48 barriers = 2 tiles x 24 barriers per tile
         ),
 
         genRaceConditionDPUDMA(
-            architecture=Architecture.VPUX37XX,
+            architectures=[Architecture.VPUX37XX],
             iteration_count=48 # 48 barriers = 2 tiles x 24 barriers per tile
         ),
 
         genRaceConditionDPUDMAACT(
-            architecture=Architecture.VPUX37XX,
+            architectures=[Architecture.VPUX37XX],
             iteration_count=24 # single tile test, max 32 barriers per tile, test configures iteration_count+1=25 barriers
         ),
 
         genRaceConditionDPUACT(
-            architecture=Architecture.VPUX37XX,
+            architectures=[Architecture.VPUX37XX],
             iteration_count=24
         ),
 
         genRaceCondition(
-            architecture=Architecture.VPUX37XX,
             ops = genActShave(
-                architecture=args.architecture,
+                architectures=[Architecture.VPUX37XX],
                 input_types=[FP16(0)],
                 input_shapes=[[1, 10, 2, 3]],
                 output_types=[FP16()],
@@ -5637,6 +5757,7 @@ def generate_options(args):
                     [ActivationType.Softmax, 3],  # axis W
                 ]
             ),
+            architectures=[Architecture.VPUX37XX],
             iteration_counts=[10], # number of barriers used in test is 10x2=20 < 32 (max number of barriers per tile)
             requested_clusters=[1, 2],
             requested_units=[1, 2]
@@ -5644,9 +5765,8 @@ def generate_options(args):
 
         # NOTE: test must align tensor size according to vector size
         genRaceCondition(
-            architecture=Architecture.VPUX37XX,
             ops = genActShave(
-                architecture=Architecture.VPUX37XX,
+                architectures=[Architecture.VPUX37XX],
                 input_types=[FP16(0)],
                 input_shapes=[[1, 16, 2, 3]],
                 output_types=[FP16()],
@@ -5660,13 +5780,13 @@ def generate_options(args):
                     [ActivationType.lsu_b16_vec],
                 ]
             ),
+            architectures=[Architecture.VPUX37XX],
             iteration_counts=[10],
             requested_clusters=[1, 2],
             requested_units=[1, 2]
         ),
 
         genZMConvs(
-            architecture=args.architecture,
             input_types=[Int8(2)],
             input_shapes=[[1, 16, 16, 16]],
             weight_types=[Int8(2)],
@@ -5687,7 +5807,35 @@ def generate_options(args):
         ),
 
         genZMConvs(
-            architecture=args.architecture,
+            input_types=[Int8(4)],
+            input_shapes=[[1, 16, 16, 16]],
+            weight_types=[Int8(4)],
+            kernel_channels=[16],
+            kernel_shapes=[[1, 1]],
+            output_types=[Int32()],
+            pads=[[0, 0, 0, 0]],
+            activations=[
+                ReLUX(args.architecture, 6, np.int8),
+                ReLUX(args.architecture, 6, np.uint8),
+            ]
+        ),
+
+        genZMConvs(
+            input_types=[FP16(1)],
+            input_shapes=[[1, 16, 16, 16]],
+            weight_types=[FP16(1)],
+            kernel_channels=[16],
+            kernel_shapes=[[1, 1]],
+            output_types=[FP16()],
+            pads=[[0, 0, 0, 0]],
+            activations=[
+                ReLUX(args.architecture, 6, np.int8),
+                ReLUX(args.architecture, 6, np.uint8),
+                ReLUX(args.architecture, 6),
+            ]
+        ),
+
+        genZMConvs(
             input_types=[FP16(2)],
             input_shapes=[[1, 16, 16, 16]],
             weight_types=[FP16(2)],
@@ -5708,7 +5856,6 @@ def generate_options(args):
         ),
 
         genZMConvs(
-            architecture=args.architecture,
             input_types=[FP16(2)],
             input_shapes=[[1, 16, 16, 16]],
             weight_types=[FP16(2)],
@@ -5728,15 +5875,17 @@ def generate_options(args):
             ]
         ),
 
+        # when storage_elements are stacked in Z direction, they must be a power of 2 in size
         genStorageElementTableDPU(
-            architecture=args.architecture,
-            patterns=[SETablePattern.SwitchLines, SETablePattern.OriginalInput]),
+            patterns=[SETablePattern.SwitchLines, SETablePattern.OriginalInput],
+            input_shapes=[[1, 32, 16, 16]],
+        ),
 
         genDualChannelDMA(
-            architecture=Architecture.VPUX37XX,
+            architectures=[Architecture.VPUX37XX],
             input_types=[FP16(2)],
             output_types=[FP16(2)]
-        ),
+        )
     )
 
 def create_config_files(args):
@@ -5753,12 +5902,6 @@ def create_config_files(args):
     for option in generate_options(args):
         if option.architecture is not args.architecture:
             continue
-
-        if (option.compiler_backend is not args.compiler_backend) and not args.force_elf:
-            continue
-
-        if args.force_elf:
-            option.set_compiler_backend(CompilerBackend.ELF)
 
         option.validate()
         ident = option.ident
@@ -5781,6 +5924,9 @@ def create_config_files(args):
         with (path / 'config.json').open('w') as outfile:
             option.write_data(path)
             descriptor = option.value()
+            if 'operation' in descriptor:
+                descriptor['operation']['compiler_backend'] = args.compiler_backend.name
+            descriptor['compiler_backend'] = args.compiler_backend.name
 
             json.dump(descriptor, outfile, indent=4)
 
@@ -5846,8 +5992,9 @@ def main():
     parser_write_configs.add_argument('--low-entropy-ok', help='Ignore entropy errors', action='store_true')
     parser_write_configs.add_argument('--filter', help='Regex filter for the generated tests', default='.*')
     parser_write_configs.add_argument('--arch', help='Architecture for which to generate tests', default='vpu27', dest="architecture", type=get_architecture_type)
-    parser_write_configs.add_argument('--force-elf', help='Force ELF compiler backend for all tests. It overrides a choice of test and --compiler-backend option', action='store_true')
-    parser_write_configs.add_argument('--compiler-backend', help='Compiler backend for which to generate tests', default='flatbuffer', dest="compiler_backend", type=get_compiler_backend)
+    args, remaining = parser.parse_known_args()
+    compiler_backend_default = "elf" if args.architecture is Architecture.VPUX37XX else "flatbuffer"
+    parser_write_configs.add_argument('--compiler-backend', help='Compiler backend for which to generate tests', default=compiler_backend_default, dest="compiler_backend", type=get_compiler_backend)
     parser_write_configs.set_defaults(func=create_config_files)
 
     parser_export_excel = subparsers.add_parser('export-excel', help='Write test cases as an Excel spreadsheet')

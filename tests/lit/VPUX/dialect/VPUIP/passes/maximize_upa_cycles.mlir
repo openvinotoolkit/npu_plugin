@@ -1,12 +1,13 @@
 //
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
+
 // RUN: vpux-opt --split-input-file --init-compiler="vpu-arch=%arch%" --maximize-upa-cycles %s | FileCheck %s
 // REQUIRES: arch-VPUX30XX || arch-VPUX37XX
 
 // CHECK-LABEL: @RecalculateUPACycle
-func @RecalculateUPACycle(%arg0: memref<1x1x1x100xf16>, %arg1: memref<1x1x1x100xf16>) -> (memref<1x1x1x100xf16>, memref<1x1x1x100xf16>) {
+func.func @RecalculateUPACycle(%arg0: memref<1x1x1x100xf16>, %arg1: memref<1x1x1x100xf16>) -> (memref<1x1x1x100xf16>, memref<1x1x1x100xf16>) {
 
     %buf0 = memref.alloc() : memref<1x1x1x100xf16>
     %buf1 = memref.alloc() : memref<1x1x1x100xf16>
@@ -53,7 +54,7 @@ func @RecalculateUPACycle(%arg0: memref<1x1x1x100xf16>, %arg1: memref<1x1x1x100x
 // -----
 
 // CHECK-LABEL: @RecalculateUPANoDepsCycle
-func @RecalculateUPANoDepsCycle(%arg0: memref<1x1x1x100xf16>, %arg1: memref<1x1x1x100xf16>) -> (memref<1x1x1x100xf16>, memref<1x1x1x100xf16>) {
+func.func @RecalculateUPANoDepsCycle(%arg0: memref<1x1x1x100xf16>, %arg1: memref<1x1x1x100xf16>) -> (memref<1x1x1x100xf16>, memref<1x1x1x100xf16>) {
 
     %buf1 = memref.alloc() : memref<1x1x1x100xf16>
     %buf2 = VPURT.DeclareBuffer "CMX_NN" [0] <0> -> memref<1x1x1x100xf16, [@CMX_NN, 0]>
@@ -94,7 +95,7 @@ func @RecalculateUPANoDepsCycle(%arg0: memref<1x1x1x100xf16>, %arg1: memref<1x1x
 // -----
 
 // CHECK-LABEL: @RecalculateUPANoConsCycle
-func @RecalculateUPANoConsCycle(%arg0: memref<1x1x1x100xf16>, %arg1: memref<1x1x1x100xf16>) -> (memref<1x1x1x100xf16>, memref<1x1x1x100xf16>) {
+func.func @RecalculateUPANoConsCycle(%arg0: memref<1x1x1x100xf16>, %arg1: memref<1x1x1x100xf16>) -> (memref<1x1x1x100xf16>, memref<1x1x1x100xf16>) {
 
     %buf0 = memref.alloc() : memref<1x1x1x100xf16>
     %buf1 = memref.alloc() : memref<1x1x1x100xf16>

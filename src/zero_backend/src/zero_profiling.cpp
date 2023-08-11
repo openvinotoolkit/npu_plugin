@@ -118,6 +118,7 @@ void saveProfilingDataToFile(ProfilingFormat format, std::ostream& outfile,
 
 void saveRawDataToFile(uint8_t* rawBuffer, size_t size, std::ostream& outfile) {
     outfile.write(reinterpret_cast<char*>(rawBuffer), size);
+    outfile.flush();
 }
 
 LayerStatistics convertLayersToIeProfilingInfo(const std::vector<LayerInfo>& layerInfo) {
@@ -164,16 +165,7 @@ void ProfilingQuery::create(const ze_graph_profiling_pool_handle_t& profiling_po
 
 LayerStatistics ProfilingQuery::getLayerStatistics(IE::VPUXConfigParams::CompilerType compiler_type,
                                                    const std::vector<char>& blob) {
-    if (!(_handle)) {
-        IE_THROW() << "Can't get profiling statistics because profiling is disabled.";
-    }
-    const auto supportedProfilingVersion = ZE_MAKE_VERSION(1, 0);
-
-    ze_device_profiling_data_properties_t profProp;
-    getProfilingProperties(&profProp);
-    if (profProp.extensionVersion != supportedProfilingVersion) {
-        IE_THROW() << "Profiling version mismatch. Probably you need to update the application.";
-    }
+    verifyProfilingProperties();
     std::ofstream outFile;
 
     const auto printProfiling = getEnvVar("VPUX_PRINT_PROFILING", true);
@@ -194,29 +186,35 @@ LayerStatistics ProfilingQuery::getLayerStatistics(IE::VPUXConfigParams::Compile
     std::vector<LayerInfo> layerProfiling;
 
     if (compiler_type != IE::VPUXConfigParams::CompilerType::MLIR) {
-        layerProfiling = getData<LayerInfo>();
         if (outFile.is_open()) {
             if (format != ProfilingFormat::RAW) {
                 const auto taskProfiling = getData<TaskInfo>();
+                layerProfiling = getData<LayerInfo>();
                 saveProfilingDataToFile(format, outFile, layerProfiling, taskProfiling);
             } else {
                 std::vector<uint8_t> rawBytes = getData<uint8_t>();
                 saveRawDataToFile(rawBytes.data(), rawBytes.size(), outFile);
+                layerProfiling = getData<LayerInfo>();
             }
+        } else {
+            layerProfiling = getData<LayerInfo>();
         }
     } else {
         // Process raw profiling data on the application side
         std::vector<uint8_t> rawBytes = getData<uint8_t>();
         const uint8_t* blob_data = reinterpret_cast<const uint8_t*>(blob.data());
-        layerProfiling = getLayerInfo(blob_data, blob.size(), rawBytes.data(), rawBytes.size());
         if (outFile.is_open()) {
             if (format != ProfilingFormat::RAW) {
                 std::vector<TaskInfo> taskProfiling = getTaskInfo(blob_data, blob.size(), rawBytes.data(),
                                                                   rawBytes.size(), TaskType::ALL, VerbosityLevel::HIGH);
+                layerProfiling = getLayerInfo(blob_data, blob.size(), rawBytes.data(), rawBytes.size());
                 saveProfilingDataToFile(format, outFile, layerProfiling, taskProfiling);
             } else {
                 saveRawDataToFile(rawBytes.data(), rawBytes.size(), outFile);
+                layerProfiling = getLayerInfo(blob_data, blob.size(), rawBytes.data(), rawBytes.size());
             }
+        } else {
+            layerProfiling = getLayerInfo(blob_data, blob.size(), rawBytes.data(), rawBytes.size());
         }
     }
     return convertLayersToIeProfilingInfo(layerProfiling);
@@ -256,6 +254,34 @@ void ProfilingQuery::getProfilingProperties(ze_device_profiling_data_properties_
         zeroUtils::throwOnFail(
                 "getProfilingProperties",
                 _graph_profiling_ddi_table_ext->pfnDeviceGetProfilingDataProperties(_device_handle, properties));
+    }
+}
+
+void ProfilingQuery::verifyProfilingProperties() {
+    if (!_handle) {
+        IE_THROW() << "Can't get profiling statistics because profiling is disabled.";
+    }
+    const auto stringifyVersion = [](auto version) -> std::string {
+        return std::to_string(ZE_MAJOR_VERSION(version)) + "." + std::to_string(ZE_MINOR_VERSION(version));
+    };
+
+    ze_device_profiling_data_properties_t profProp;
+    getProfilingProperties(&profProp);
+    const auto currentProfilingVersion = ze_profiling_data_ext_version_t::ZE_PROFILING_DATA_EXT_VERSION_CURRENT;
+
+    if (ZE_MAJOR_VERSION(profProp.extensionVersion) != ZE_MAJOR_VERSION(currentProfilingVersion)) {
+        IE_THROW() << "Unsupported VPU driver."
+                   << "Profiling API version: plugin: " << stringifyVersion(currentProfilingVersion)
+                   << ", driver: " << stringifyVersion(profProp.extensionVersion);
+    }
+    // Now currentProfilingVersion minor version is 0, so next branch looks like "0 > (version & 0xFFFF)", what now is
+    // always false. Overriding coverity warning
+    /* coverity[result_independent_of_operands] */
+    if (ZE_MINOR_VERSION(currentProfilingVersion) > ZE_MINOR_VERSION(profProp.extensionVersion)) {
+        auto log = vpux::Logger::global().nest("ZeroProfilingQuery", 0);
+        log.warning("Outdated VPU driver detected. Some features might not be available! "
+                    "Profiling API version: plugin: {0}, driver: {1}",
+                    stringifyVersion(currentProfilingVersion), stringifyVersion(profProp.extensionVersion));
     }
 }
 

@@ -3,10 +3,7 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
-#include "vpux/compiler/dialect/VPUIP/utils.hpp"
 
 #include "vpux/compiler/core/attributes/dim.hpp"
 #include "vpux/compiler/core/attributes/shape.hpp"
@@ -17,7 +14,8 @@
 
 using namespace vpux;
 
-mlir::LogicalResult vpux::VPUIP::verifyOp(ConvolutionUPAOp op) {
+mlir::LogicalResult vpux::VPUIP::ConvolutionUPAOp::verify() {
+    const auto op = getOperation();
     if (verifySameInOutSpecificDimsOrder(op, {DimsOrder::NCHW}).failed()) {
         return mlir::failure();
     }
@@ -26,8 +24,8 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(ConvolutionUPAOp op) {
     // SWConvUPA supports parallel execution on multiple uPA units.
     // However, it does not have group support, so group convolutions go to ConvUPA.
     // ConvUPA expects NCHW order, SWConvUPA expects YXOI.
-    const auto expectedFilterLayout = (op.groups() > 1) ? DimsOrder::OIYX : DimsOrder::YXOI;
-    const auto filterLayout = DimsOrder::fromValue(op.filter());
+    const auto expectedFilterLayout = (groups() > 1) ? DimsOrder::OIYX : DimsOrder::YXOI;
+    const auto filterLayout = DimsOrder::fromValue(filter());
 
     if (filterLayout != expectedFilterLayout) {
         return errorAt(op, "filter layout must be {0}, got {1}", expectedFilterLayout, filterLayout);

@@ -61,6 +61,7 @@ private:
     template <class ProfilingData>
     std::vector<ProfilingData> getData();
     void getProfilingProperties(ze_device_profiling_data_properties_t* properties);
+    void verifyProfilingProperties();
 
     const uint32_t _index;
     ze_device_handle_t _device_handle;

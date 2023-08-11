@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/IE/ops.hpp"
 
 #include "vpux/compiler/dialect/const/ops.hpp"
@@ -82,7 +80,7 @@ mlir::LogicalResult vpux::IE::TransposeOp::inferReturnTypeComponents(
         mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
         mlir::DictionaryAttr attrs, mlir::RegionRange,
         SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
-    const auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
+    const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
     IE::TransposeOpAdaptor transpose(operands, attrs);
     if (mlir::failed(transpose.verify(loc))) {
@@ -133,15 +131,18 @@ mlir::LogicalResult vpux::IE::TransposeOp::inferReturnTypeComponents(
 void vpux::IE::TransposeOp::inferElemTypeInfo(vpux::IE::LayerDataInfo<mlir::Type>& info) {
     auto outputElemType = inferElemType((*this).order_value().getValue(), info.getInput(0));
 
-    for (size_t outputInd = 0; outputInd < info.getNumOutputs(); ++outputInd) {
-        info.setOutput(outputInd, outputElemType);
+    // Do not propagate element type down in per channel case.
+    if (outputElemType.dyn_cast_or_null<mlir::quant::UniformQuantizedPerAxisType>() == nullptr) {
+        for (size_t outputInd = 0; outputInd < info.getNumOutputs(); ++outputInd) {
+            info.setOutput(outputInd, outputElemType);
+        }
     }
 }
 
 void vpux::IE::TransposeOp::inferElemTypeInfoUp(vpux::IE::LayerDataInfo<mlir::Type>& info) {
     const auto outputElemType = info.getOutput(0);
 
-    if (outputElemType.dyn_cast_or_null<mlir::quant::UniformQuantizedPerAxisType>() != nullptr) {
+    if (outputElemType != nullptr && outputElemType.isa<mlir::quant::UniformQuantizedPerAxisType>()) {
         // E#31029: implement propagate type up for per channel, currently it leads to failures in later passes.
         return;
     }

@@ -18,5 +18,7 @@ public:
     void Reset() override;
     void SetState(const InferenceEngine::Blob::Ptr& new_state) override;
     InferenceEngine::Blob::CPtr GetState() const override;
+
+    virtual ~VariableState() = default;
 };
 }  // namespace vpux

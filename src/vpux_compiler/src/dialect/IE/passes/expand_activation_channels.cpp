@@ -3,18 +3,14 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/IE/passes.hpp"
 
 #include <vpux/compiler/utils/quantization.hpp>
 #include "vpux/compiler/core/layers.hpp"
 #include "vpux/compiler/dialect/IE/ops.hpp"
-#include "vpux/compiler/dialect/VPU/ops.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/error.hpp"
-#include "vpux/compiler/utils/rewriter.hpp"
 #include "vpux/compiler/utils/types.hpp"
 
 #include "vpux/utils/core/func_ref.hpp"
@@ -46,7 +42,7 @@ Shape calcPadsEnd(vpux::NDTypeInterface origType, int64_t channelAlignment) {
     const auto origShape = origType.getShape();
 
     auto extendedShape = origShape.toValues();
-    extendedShape[Dims4D::Act::C] = alignVal(origShape[Dims4D::Act::C], channelAlignment);
+    extendedShape[Dims4D::Act::C] = alignValUp(origShape[Dims4D::Act::C], channelAlignment);
 
     return calcPadsEnd(origShape, extendedShape);
 }
@@ -203,11 +199,12 @@ mlir::Value concatWithZeroConst(mlir::Location loc, mlir::Value filter, ShapeRef
                 return eleType;
             }
         };
+        const auto storageElementType = getEleStorageType();
 
-        auto outputBuffer = Const::Content::allocTempBuffer(padType, eleType, false);
+        auto outputBuffer = Const::Content::allocTempBuffer(padType, storageElementType, false);
         outputBuffer.fillWithZero();
 
-        const auto dataType = padType.changeElemType(getEleStorageType()).cast<mlir::RankedTensorType>();
+        const auto dataType = padType.changeElemType(storageElementType).cast<mlir::RankedTensorType>();
         mlir::DenseElementsAttr eleAttr;
         const auto getDataAttr = [&](auto buffer) {
             eleAttr = mlir::DenseElementsAttr::get(dataType, buffer);
@@ -258,31 +255,47 @@ mlir::LogicalResult ConvolutionRewriter::matchAndRewrite(IE::ConvolutionOp origO
             filterPadsEnd[Dims4D::Filter::IC] = inChanPadEnd;
 
             auto filterOp = origOp.filter().getDefiningOp();
-            auto constFilter = mlir::isa_and_nonnull<Const::DeclareOp>(filterOp);
-            if (!constFilter) {
+
+            bool isConstFilter = mlir::isa_and_nonnull<Const::DeclareOp>(filterOp);
+            if (!isConstFilter) {
                 if (auto fqOp = mlir::dyn_cast_or_null<IE::FakeQuantizeOp>(filterOp)) {
                     const auto fqInputConstOp = fqOp.input().getDefiningOp<Const::DeclareOp>();
-                    constFilter = fqInputConstOp != nullptr;
+                    isConstFilter = fqInputConstOp != nullptr;
                 }
             }
 
-            if (!constFilter && inChanPadEnd != 0 && outChanPadEnd == 0) {
+            const auto filterType = origOp.filter().getType().cast<vpux::NDTypeInterface>();
+            bool isFp16Type = filterType.getElementType().isa<mlir::Float16Type>();
+
+            // E#72287: Convert ExpandOp to const Concat in VPUIP, ExpandOp is preferred in IE for optimization.
+            const auto expandTensor = [&](mlir::Value filter, ShapeRef pad) {
+                if (isFp16Type) {
+                    return rewriter.createOrFold<IE::ExpandOp>(origOp->getLoc(), filter, None, pad);
+                } else {
+                    return concatWithZeroConst(origOp->getLoc(), filter, pad, rewriter);
+                }
+            };
+
+            if (!isConstFilter && inChanPadEnd != 0 && outChanPadEnd == 0) {
+                // 1 dim expand for non-const filter
                 _log.trace("Pad non-const filter in IC at '{0}'", origOp->getLoc());
-                paddedFilter = concatWithZeroConst(origOp->getLoc(), origOp.filter(), filterPadsEnd, rewriter);
-            } else if (!constFilter && inChanPadEnd != 0 && outChanPadEnd != 0) {
-                // 2 dims expand if not a const filter
+                paddedFilter = expandTensor(origOp.filter(), filterPadsEnd);
+
+            } else if (!isConstFilter && inChanPadEnd != 0 && outChanPadEnd != 0) {
+                // 2 dims expand for non-const filter
                 _log.trace("Pad non-const filter in IC & OC at '{0}'", origOp->getLoc());
 
                 mlir::Value paddedFilter1;
                 Shape filterPadsEnd1(filterShape.size(), 0);
                 filterPadsEnd1[Dims4D::Filter::IC] = inChanPadEnd;
-                paddedFilter1 = concatWithZeroConst(origOp->getLoc(), origOp.filter(), filterPadsEnd1, rewriter);
+                paddedFilter1 = expandTensor(origOp.filter(), filterPadsEnd1);
 
                 Shape filterPadsEnd2(filterShape.size(), 0);
                 filterPadsEnd2[Dims4D::Filter::OC] = outChanPadEnd;
                 paddedFilter = rewriter.createOrFold<IE::ExpandOp>(origOp->getLoc(), paddedFilter1, None,
                                                                    ShapeRef(filterPadsEnd2));
             } else {
+                // Const filter expand or expand on OC only
                 paddedFilter = rewriter.createOrFold<IE::ExpandOp>(origOp->getLoc(), origOp.filter(), None,
                                                                    ShapeRef(filterPadsEnd));
             }
@@ -447,25 +460,86 @@ mlir::LogicalResult GroupConvolutionRewriter::matchAndRewrite(IE::GroupConvoluti
 }
 
 //
+// InterpolateRewriter
+//
+
+class InterpolateRewriter final : public mlir::OpRewritePattern<IE::InterpolateOp> {
+public:
+    InterpolateRewriter(mlir::MLIRContext* ctx, Logger log): mlir::OpRewritePattern<IE::InterpolateOp>(ctx), _log(log) {
+        setDebugName("InterpolateRewriter");
+    }
+
+    mlir::LogicalResult matchAndRewrite(IE::InterpolateOp origOp, mlir::PatternRewriter& rewriter) const final;
+
+private:
+    Logger _log;
+};
+
+mlir::LogicalResult InterpolateRewriter::matchAndRewrite(IE::InterpolateOp origOp,
+                                                         mlir::PatternRewriter& rewriter) const {
+    _log.trace("[{0}] Got Interpolate layer at '{1}'", getDebugName(), origOp->getLoc());
+
+    const auto opCreator = [&](mlir::Value expandedInput, int64_t outChanPadsEnd) -> mlir::Operation* {
+        const Shape outPadBefore(checked_cast<size_t>(origOp.getType().getRank()), 0);
+
+        Shape outPadAfter(checked_cast<size_t>(origOp.getType().getRank()), 0);
+        outPadAfter[Dims4D::Act::C] = outChanPadsEnd;
+
+        const auto ndType = origOp.getType().cast<vpux::NDTypeInterface>();
+        const auto newOutputType = ndType.pad(outPadBefore, outPadAfter);
+
+        return rewriter.create<IE::InterpolateOp>(origOp.getLoc(), newOutputType, expandedInput, origOp.sizes(),
+                                                  origOp.scales(), origOp.axes(), origOp.sizes_attrAttr(),
+                                                  origOp.scales_attrAttr(), origOp.axes_attrAttr(),
+                                                  origOp.tile_offset_attrAttr(), origOp.initial_input_dims_attrAttr(),
+                                                  origOp.initial_output_dims_attrAttr(), origOp.attrAttr());
+    };
+
+    return generalRewrite(origOp, rewriter, opCreator, _log.nest());
+}
+
+//
 // ExpandActivationChannelsPass
 //
 
 class ExpandActivationChannelsPass final : public IE::ExpandActivationChannelsBase<ExpandActivationChannelsPass> {
 public:
-    explicit ExpandActivationChannelsPass(Logger log) {
+    explicit ExpandActivationChannelsPass(const bool adaptSEOps, Logger log): _adaptSEOps(adaptSEOps) {
         Base::initLogger(log, Base::getArgumentName());
     }
 
+    mlir::LogicalResult initialize(mlir::MLIRContext* ctx) final;
+
 private:
     void safeRunOnFunc() final;
+
+private:
+    bool _adaptSEOps;
 };
+
+mlir::LogicalResult ExpandActivationChannelsPass::initialize(mlir::MLIRContext* ctx) {
+    if (mlir::failed(Base::initialize(ctx))) {
+        return mlir::failure();
+    }
+
+    // When this parameter has a value, it probably comes from LIT test.
+    // Override the default
+    if (adaptSEOps.hasValue()) {
+        _adaptSEOps = adaptSEOps.getValue();
+    }
+
+    return mlir::success();
+}
 
 void ExpandActivationChannelsPass::safeRunOnFunc() {
     auto& ctx = getContext();
-    auto func = getFunction();
+    auto func = getOperation();
     const auto arch = VPU::getArch(func->getParentOfType<mlir::ModuleOp>());
 
     const auto isLegal = [&](mlir::Operation* op) {
+        if (!_adaptSEOps && mlir::isa<IE::SEOpInterface>(op)) {
+            return true;
+        }
         if (auto iface = mlir::dyn_cast<IE::AlignedChannelsOpInterface>(op)) {
             return iface.verifyChannels().succeeded();
         }
@@ -473,7 +547,7 @@ void ExpandActivationChannelsPass::safeRunOnFunc() {
         return true;
     };
 
-    bool isArchToSkip = !(arch == VPU::ArchKind::VPUX30XX || arch == VPU::ArchKind::VPUX311X);
+    bool isArchToSkip = arch == VPU::ArchKind::VPUX37XX;
 
     mlir::ConversionTarget target(ctx);
     target.markUnknownOpDynamicallyLegal(isLegal);
@@ -499,6 +573,10 @@ void ExpandActivationChannelsPass::safeRunOnFunc() {
     patterns.add<ConvolutionRewriter>(&ctx, _log);
     patterns.add<GroupConvolutionRewriter>(&ctx, _log);
 
+    if (_adaptSEOps) {
+        patterns.add<InterpolateRewriter>(&ctx, _log);
+    }
+
     if (mlir::failed(mlir::applyFullConversion(func, target, std::move(patterns)))) {
         signalPassFailure();
     }
@@ -506,6 +584,6 @@ void ExpandActivationChannelsPass::safeRunOnFunc() {
 
 }  // namespace
 
-std::unique_ptr<mlir::Pass> vpux::IE::createExpandActivationChannelsPass(Logger log) {
-    return std::make_unique<ExpandActivationChannelsPass>(log);
+std::unique_ptr<mlir::Pass> vpux::IE::createExpandActivationChannelsPass(const bool adaptSEOps, Logger log) {
+    return std::make_unique<ExpandActivationChannelsPass>(adaptSEOps, log);
 }

@@ -16,22 +16,17 @@ using namespace InferenceEngine::VPUXConfigParams;
 
 void vpux::registerRunTimeOptions(OptionsDesc& desc) {
     desc.add<EXCLUSIVE_ASYNC_REQUESTS>();
-    desc.add<INFERENCE_SHAVES>();
-    desc.add<CSRAM_SIZE>();
-    desc.add<GRAPH_COLOR_FORMAT>();
-    desc.add<PREPROCESSING_SHAVES>();
-    desc.add<PREPROCESSING_LPI>();
-    desc.add<PREPROCESSING_PIPES>();
-    desc.add<USE_SIPP>();
-    desc.add<INFERENCE_TIMEOUT_MS>();
     desc.add<PRINT_PROFILING>();
     desc.add<PROFILING_OUTPUT_FILE>();
     desc.add<MODEL_PRIORITY>();
+    desc.add<CREATE_EXECUTOR>();
+    desc.add<NUM_STREAMS>();
 }
 
-// Heuristically obtained number. Could actually vary depending on the use-case.
-// Note: this is a default value. User could define their own optimal configuration.
-int64_t vpux::getNumOptimalInferRequests(const Config& config) {
+// Heuristically obtained number. Varies depending on the values of PLATFORM and PERFORMANCE_HINT
+// Note: this is the value provided by the plugin, application should query and consider it, but may supply its own
+// preference for number of parallel requests via dedicated configuration
+int64_t vpux::getOptimalNumberOfInferRequestsInParallel(const Config& config) {
     switch (config.get<PLATFORM>()) {
     case InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3720: {
         if (config.get<PERFORMANCE_HINT>() == ov::hint::PerformanceMode::THROUGHPUT) {
@@ -47,24 +42,6 @@ int64_t vpux::getNumOptimalInferRequests(const Config& config) {
             return 1;
         }
     }
-}
-
-//
-// GRAPH_COLOR_FORMAT
-//
-
-InferenceEngine::ColorFormat vpux::GRAPH_COLOR_FORMAT::parse(StringRef val) {
-    const auto extractColorString = [](ov::intel_vpux::ColorFormat format) -> std::string {
-        return graph_color_format(format).second.as<std::string>();
-    };
-
-    if (val == extractColorString(ov::intel_vpux::ColorFormat::BGR)) {
-        return InferenceEngine::ColorFormat::BGR;
-    } else if (val == extractColorString(ov::intel_vpux::ColorFormat::RGB)) {
-        return InferenceEngine::ColorFormat::RGB;
-    }
-
-    VPUX_THROW("Value '{0}' is not a valid GRAPH_COLOR_FORMAT option", val);
 }
 
 //
@@ -127,6 +104,42 @@ std::string vpux::MODEL_PRIORITY::toString(const ov::hint::Priority& val) {
         strStream << "MODEL_PRIORITY_HIGH";
     } else {
         VPUX_THROW("No valid string for current MODEL_PRIORITY option");
+    }
+
+    return strStream.str();
+}
+
+//
+// NUM_STREAMS
+//
+const ov::streams::Num vpux::NUM_STREAMS::defVal = ov::streams::Num(1);
+
+ov::streams::Num vpux::NUM_STREAMS::parse(StringRef val) {
+    if (val == "AUTO") {
+        return ov::streams::AUTO;
+    } else if (val == "NUMA") {
+        return ov::streams::NUMA;
+    } else {
+        try {
+            return ov::streams::Num(std::stoi(val.str()));
+        } catch (...) {
+            VPUX_THROW("Value '{0}' is not a valid NUM_STREAMS option", val);
+        }
+    }
+}
+
+std::string vpux::NUM_STREAMS::toString(const ov::streams::Num& val) {
+    std::stringstream strStream;
+    if (val == ov::streams::AUTO) {
+        strStream << "AUTO";
+    } else if (val == ov::streams::NUMA) {
+        strStream << "NUMA";
+    } else {
+        try {
+            strStream << val.num;
+        } catch (...) {
+            VPUX_THROW("No valid string for current NUM_STREAMS option");
+        }
     }
 
     return strStream.str();

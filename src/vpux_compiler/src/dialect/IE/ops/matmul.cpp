@@ -4,8 +4,6 @@
 //
 
 //
-
-//
 // MatMul operation takes two tensors and performs usual matrix-matrix multiplication, matrix-vector multiplication or
 // vector-matrix multiplication depending on argument shapes. Input tensors can have any rank >= 1. Two right-most axes
 // in each tensor are interpreted as matrix rows and columns dimensions while all left-most axes (if present) are
@@ -48,7 +46,7 @@ mlir::LogicalResult vpux::IE::MatMulOp::inferReturnTypeComponents(
         mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
         mlir::DictionaryAttr attrs, mlir::RegionRange,
         SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
-    const auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
+    const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
     IE::MatMulOpAdaptor matMul(operands, attrs);
     if (mlir::failed(matMul.verify(loc))) {

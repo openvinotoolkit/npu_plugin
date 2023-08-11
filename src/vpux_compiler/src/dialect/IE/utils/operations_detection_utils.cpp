@@ -7,8 +7,8 @@
 
 using namespace vpux;
 
-void vpux::IE::detectAndReplacePreProcessedAgrs(Logger _log, mlir::FuncOp netFunc, SmallVector<mlir::Value>& newArgs,
-                                                ArrayRef<mlir::Value> newResults) {
+void vpux::IE::detectAndReplacePreProcessedAgrs(Logger _log, mlir::func::FuncOp netFunc,
+                                                SmallVector<mlir::Value>& newArgs, ArrayRef<mlir::Value> newResults) {
     if (newResults.size() != netFunc.getNumResults()) {
         // It is a check for potential multiple return statements.
         // They can appear in case of control flow:
@@ -53,8 +53,9 @@ void vpux::IE::detectAndReplacePreProcessedAgrs(Logger _log, mlir::FuncOp netFun
     }
 }
 
-void vpux::IE::detectAndReplacePostProcessedRes(Logger _log, mlir::FuncOp& netFunc, ArrayRef<mlir::Value> newResults) {
-    netFunc.walk([&](mlir::ReturnOp retOp) {
+void vpux::IE::detectAndReplacePostProcessedRes(Logger _log, mlir::func::FuncOp& netFunc,
+                                                ArrayRef<mlir::Value> newResults) {
+    netFunc.walk([&](mlir::func::ReturnOp retOp) {
         for (auto& curRes : retOp->getOpOperands()) {
             const auto& newRes = newResults[curRes.getOperandNumber()];
 

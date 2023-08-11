@@ -11,12 +11,22 @@
 
 namespace LayerTestsDefinitions {
 
-class KmbEmbeddingSegmentsSumLayerTest :
+class VPUXEmbeddingSegmentsSumLayerTest :
         public EmbeddingSegmentsSumLayerTest,
         virtual public LayerTestsUtils::KmbLayerTestsCommon {};
 
-TEST_P(KmbEmbeddingSegmentsSumLayerTest, CompareWithRefs_MLIR) {
-    useCompilerMLIR();
+class VPUXEmbeddingSegmentsSumLayerTest_VPU3700 : public VPUXEmbeddingSegmentsSumLayerTest {};
+class VPUXEmbeddingSegmentsSumLayerTest_VPU3720 : public VPUXEmbeddingSegmentsSumLayerTest {};
+
+TEST_P(VPUXEmbeddingSegmentsSumLayerTest_VPU3700, SW) {
+    setPlatformVPU3700();
+    setReferenceSoftwareModeMLIR();
+    Run();
+}
+
+TEST_P(VPUXEmbeddingSegmentsSumLayerTest_VPU3720, HW) {
+    setPlatformVPU3720();
+    setDefaultHardwareModeMLIR();
     Run();
 }
 
@@ -45,9 +55,16 @@ const auto params = testing::Combine(::testing::ValuesIn(embTableShape), ::testi
                                      ::testing::ValuesIn(defaultIndex), ::testing::ValuesIn(withWeights),
                                      ::testing::ValuesIn(withDefaultIndex));
 
-INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_EmbeddingSegmentsSumCheck1, KmbEmbeddingSegmentsSumLayerTest,
+INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_EmbeddingSegmentsSumCheck1, VPUXEmbeddingSegmentsSumLayerTest_VPU3700,
                         ::testing::Combine(params, ::testing::ValuesIn(netPrecisions),
                                            ::testing::ValuesIn(indPrecisions),
                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
-                        KmbEmbeddingSegmentsSumLayerTest::getTestCaseName);
+                        VPUXEmbeddingSegmentsSumLayerTest_VPU3700::getTestCaseName);
+
+INSTANTIATE_TEST_CASE_P(smoke_EmbeddingSegmentsSumCheck1, VPUXEmbeddingSegmentsSumLayerTest_VPU3720,
+                        ::testing::Combine(params, ::testing::ValuesIn(netPrecisions),
+                                           ::testing::ValuesIn(indPrecisions),
+                                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                        VPUXEmbeddingSegmentsSumLayerTest_VPU3720::getTestCaseName);
+
 }  // namespace

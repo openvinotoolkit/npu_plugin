@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/const/attributes/content.hpp"
 #include "vpux/compiler/utils/quantization.hpp"
 #include "vpux/compiler/utils/types.hpp"
@@ -25,6 +23,16 @@ void vpux::Const::QuantCastAttr::walkImmediateSubElements(llvm::function_ref<voi
     if (const auto elemTypeVal = getElemType()) {
         walkTypesFn(elemTypeVal);
     }
+}
+
+//
+// QuantCastAttr::replaceImmediateSubElements
+//
+
+mlir::Attribute vpux::Const::QuantCastAttr::replaceImmediateSubElements(ArrayRef<mlir::Attribute>,
+                                                                        ArrayRef<mlir::Type> replTypes) const {
+    VPUX_THROW_WHEN(replTypes.size() < 1, "Replace types array is too short: '{0}'", replTypes.size());
+    return get(getContext(), replTypes[0].dyn_cast_or_null<mlir::quant::QuantizedType>());
 }
 
 //

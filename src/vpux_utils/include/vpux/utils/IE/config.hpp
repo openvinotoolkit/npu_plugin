@@ -58,6 +58,11 @@ struct OptionParser<int64_t> final {
 };
 
 template <>
+struct OptionParser<uint64_t> final {
+    static uint64_t parse(StringRef val);
+};
+
+template <>
 struct OptionParser<double> final {
     static double parse(StringRef val);
 };

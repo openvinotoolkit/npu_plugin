@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #ifndef VPUX_COMPILER_DIALECT_IE
 #define VPUX_COMPILER_DIALECT_IE
 
@@ -37,7 +35,7 @@ Quantization parameters are stored as a part of tensor/buffer element type (`Qua
 The network topology (nGraph) is represented as a MLIR Function, which works with `tensor` types.
 
 ```MLIR
-func @main(%input: tensor<1x1000xf32>) -> tensor<1x1000xf32> {
+func.func @main(%input: tensor<1x1000xf32>) -> tensor<1x1000xf32> {
     %output = IE.SoftMax(%input) {axisInd = 1} : tensor<1x1000xf32> -> tensor<1x1000xf32>
     return %output
 }
@@ -92,12 +90,17 @@ The `IE.ExecutorResource` and `IE.MemoryResource` are added by underlying low-le
 
     let dependentDialects = [
         "vpux::Const::ConstDialect",
-        "mlir::StandardOpsDialect",
+        "mlir::func::FuncDialect",
         "mlir::tensor::TensorDialect",
         "mlir::quant::QuantizationDialect"
     ];
 
+    let extraClassDeclaration = [{
+        void registerAttributes();
+    }];
+
     let hasConstantMaterializer = 1;
+    let useDefaultAttributePrinterParser = 1;
 }
 
 #endif

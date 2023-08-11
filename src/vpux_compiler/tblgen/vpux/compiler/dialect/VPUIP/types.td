@@ -3,14 +3,13 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #ifndef VPUX_COMPILER_DIALECT_VPUIP_TYPES
 #define VPUX_COMPILER_DIALECT_VPUIP_TYPES
 
 include "vpux/compiler/dialect/VPUIP/dialect.td"
 include "vpux/compiler/dialect/VPUIP/attributes.td"
 include "vpux/compiler/dialect/VPU/type_interfaces.td"
+include "vpux/compiler/dialect/VPU/attributes.td"
 include "vpux/compiler/core/type_interfaces.td"
 
 include "mlir/IR/SubElementInterfaces.td"
@@ -64,6 +63,7 @@ def VPUIP_Buffer :
         }]>
     ];
 
+    let hasCustomAssemblyFormat = 1;
 }
 
 //
@@ -76,7 +76,8 @@ def VPUIP_DistributedBuffer :
             [
                 DeclareTypeInterfaceMethods<SubElementTypeInterface>,
                 DeclareTypeInterfaceMethods<NDTypeInterface>,
-                DeclareTypeInterfaceMethods<ClusterTypeInterface>
+                DeclareTypeInterfaceMethods<ClusterTypeInterface>,
+                VPU_DistributedTypeInterface
             ]
         > {
     let summary = "VPUIP buffer type to describe the buffer tiling";
@@ -118,6 +119,7 @@ def VPUIP_DistributedBuffer :
 
     let skipDefaultBuilders = 1;
     let genVerifyDecl = 1;
+    let hasCustomAssemblyFormat = 1;
 }
 
 //
@@ -128,7 +130,9 @@ def VPUIP_SparseBuffer :
         VPUIP_Type<
             "SparseBuffer",
             [
-                DeclareTypeInterfaceMethods<NDTypeInterface>
+                GroupedTypeInterface,
+                DeclareTypeInterfaceMethods<NDTypeInterface>,
+                DeclareTypeInterfaceMethods<VPU_DistributedTypeInterface, ["containsDistributedTypes", "getDistributedTypes"]>
             ]
         > {
     let summary = "VPUIP Sparse Buffer Type";
@@ -157,7 +161,8 @@ def VPUIP_SparseBuffer :
         "mlir::Type":$sparsityMap,
         "mlir::Type":$storageElementTable,
         "mlir::UnitAttr":$isWeights,
-        "VPUIP::CompressionSchemeAttr":$compressionScheme
+        "VPUIP::CompressionSchemeAttr":$compressionScheme,
+        VPU_SEAttr:$seAttr
     );
 
     let builders = [
@@ -167,14 +172,16 @@ def VPUIP_SparseBuffer :
                 CArg<"mlir::Type", "{}">:$sparsityMap,
                 CArg<"mlir::Type", "{}">:$storageElementTable,
                 CArg<"mlir::UnitAttr", "{}">:$isWeights,
-                CArg<"VPUIP::CompressionSchemeAttr", "{}">:$compressionScheme
+                CArg<"VPUIP::CompressionSchemeAttr", "{}">:$compressionScheme,
+                CArg<"VPU::SEAttr", "{}">:$seAttr
             ), [{
-            return $_get(data.getContext(), data, sparsityMap, storageElementTable, isWeights, compressionScheme);
+            return $_get(data.getContext(), data, sparsityMap, storageElementTable, isWeights, compressionScheme, seAttr);
         }]>
     ];
 
     let skipDefaultBuilders = 1;
     let genVerifyDecl = 1;
+    let hasCustomAssemblyFormat = 1;
 }
 
 #endif

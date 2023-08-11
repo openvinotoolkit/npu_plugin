@@ -1,11 +1,18 @@
+//
+// Copyright (C) 2023 Intel Corporation.
+// SPDX-License-Identifier: Apache 2.0
+//
+
 // RUN: vpux-opt --init-compiler="vpu-arch=VPUX37XX" --dma-task-profiling-after-barrier %s | FileCheck %s
 
-!dataType = type memref<1x16x4x4xf16, affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>, [@CMX_NN, 0]>
+!dataType = memref<1x16x4x4xf16, affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>, [@CMX_NN, 0]>
 
 module @DMAGraph {
 
-  module @DmaProfilingReservedMemory {
-    IE.MemoryResource 256 bytes of @CMX_NN offset 0
+  module @ReservedMemory {
+    module @DmaProfilingReservedMemory {
+      IE.MemoryResource 256 bytes of @CMX_NN offset 0
+    }
   }
 
   IE.CNNNetwork entryPoint : @main inputsInfo : {
@@ -14,7 +21,7 @@ module @DMAGraph {
     DataInfo "prob" : tensor<1x16x4x4xf16>
   } profilingOutputsInfo :  {
   }
-  func @main(%arg0: !dataType, %arg1: !dataType) -> !dataType {
+  func.func @main(%arg0: !dataType, %arg1: !dataType) -> !dataType {
 
     %bar0 = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
 
@@ -39,8 +46,8 @@ module @DMAGraph {
 
 // CHECK:        profilingOutputsInfo
 // CHECK-NEXT:   DataInfo "dma" : tensor<6xui64>
-// CHECK:        func @main(%arg0: memref<1x16x4x4xf16, #NHWC, [@CMX_NN, 0]>, 
-// CHECK-SAME:       %arg1: memref<1x16x4x4xf16, #NHWC, [@CMX_NN, 0]>, 
+// CHECK:        func.func @main(%arg0: memref<1x16x4x4xf16, #NHWC, [@CMX_NN, 0]>,
+// CHECK-SAME:       %arg1: memref<1x16x4x4xf16, #NHWC, [@CMX_NN, 0]>,
 // CHECK-SAME:       %arg2: memref<6xui64>) ->
 // CHECK-SAME:       (memref<1x16x4x4xf16, #NHWC, [@CMX_NN, 0]>,
 // CHECK-SAME:       memref<6xui64>) {
@@ -52,13 +59,13 @@ module @DMAGraph {
 // CHECK:    [[REG_0:%.+]] = VPURT.DeclareBuffer "Register" <637702144> -> memref<1xui64, @Register>
 // CHECK:    [[PROF_BUF_0:%.+]] = VPURT.DeclareBuffer "CMX_NN" [0] <0> -> memref<1xui64, [@CMX_NN, 0]>
 // CHECK:    VPURT.Task
-// CHECK-NEXT:    VPUIP.NNDMA {port = 0 : i64}
+// CHECK-NEXT:    VPUIP.NNDMA {is_out_of_order, port = 0 : i64}
 // CHECK-SAME:        inputs([[REG_0]] :
 // CHECK-SAME:        outputs([[PROF_BUF_0]] :
 
 // Profiled DMA task
 // CHECK:  VPURT.Task
-// CHECK-NEXT:    VPUIP.NNDMA {port = 0 : i64}
+// CHECK-NEXT:    VPUIP.NNDMA {is_out_of_order, port = 0 : i64}
 // CHECK-SAME:        inputs(%arg0 :
 // CHECK-SAME:        outputs([[BUF_DATA_0]] :
 
@@ -82,13 +89,13 @@ module @DMAGraph {
 // CHECK:    [[REG_2:%.+]] = VPURT.DeclareBuffer "Register" <637702144> -> memref<1xui64, @Register>
 // CHECK:    [[PROF_BUF_2:%.+]] = VPURT.DeclareBuffer "CMX_NN" [0] <128> -> memref<1xui64, [@CMX_NN, 0]>
 // CHECK:    VPURT.Task waits([[BAR0]]
-// CHECK-NEXT:    VPUIP.NNDMA {port = 1 : i64}
+// CHECK-NEXT:    VPUIP.NNDMA {is_out_of_order, port = 1 : i64}
 // CHECK-SAME:        inputs([[REG_2]] :
 // CHECK-SAME:        outputs([[PROF_BUF_2]] :
 
 // Profiled DMA task
 // CHECK:  VPURT.Task
-// CHECK-NEXT:    VPUIP.NNDMA {port = 1 : i64}
+// CHECK-NEXT:    VPUIP.NNDMA {is_out_of_order, port = 1 : i64}
 // CHECK-SAME:        inputs([[BUF_DATA_0]] :
 // CHECK-SAME:        outputs([[BUF_DATA_1]] :
 
@@ -104,13 +111,13 @@ module @DMAGraph {
 // CHECK:    [[REG_4:%.+]] = VPURT.DeclareBuffer "Register" <637702144> -> memref<1xui64, @Register>
 // CHECK:    [[PROF_BUF_4:%.+]] = VPURT.DeclareBuffer "CMX_NN" [0] <144> -> memref<1xui64, [@CMX_NN, 0]>
 // CHECK:    VPURT.Task
-// CHECK-NEXT:    VPUIP.NNDMA {port = 1 : i64}
+// CHECK-NEXT:    VPUIP.NNDMA {is_out_of_order, port = 1 : i64}
 // CHECK-SAME:        inputs([[REG_4]] :
 // CHECK-SAME:        outputs([[PROF_BUF_4]] :
 
 // Profiled DMA task
 // CHECK:  VPURT.Task
-// CHECK-NEXT:    VPUIP.NNDMA {port = 1 : i64}
+// CHECK-NEXT:    VPUIP.NNDMA {is_out_of_order, port = 1 : i64}
 // CHECK-SAME:        inputs([[BUF_DATA_1]] :
 // CHECK-SAME:        outputs(%arg1 :
 

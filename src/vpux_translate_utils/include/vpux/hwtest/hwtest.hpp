@@ -7,7 +7,7 @@
 
 #pragma once
 
-#include <mlir/Translation.h>
+#include <mlir/Tools/mlir-translate/Translation.h>
 
 namespace vpux {
 

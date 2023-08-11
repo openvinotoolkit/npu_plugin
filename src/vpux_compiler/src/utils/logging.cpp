@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/utils/logging.hpp"
 
 #include <mlir/IR/Operation.h>
@@ -57,31 +55,35 @@ public:
     explicit PassLogging(Logger log): _log(log) {
     }
 
-    void runBeforePipeline(mlir::StringAttr name, const PipelineParentInfo&) final {
-        _log.trace("Start Pass Pipeline {0}", name);
+    void runBeforePipeline(Optional<mlir::OperationName> name, const PipelineParentInfo&) final {
+        if (name.has_value()) {
+            _log.trace("Start Pass Pipeline {0}", *name);
+        }
     }
 
-    void runAfterPipeline(mlir::StringAttr name, const PipelineParentInfo&) final {
-        _log.trace("End Pass Pipeline {0}", name);
+    void runAfterPipeline(Optional<mlir::OperationName> name, const PipelineParentInfo&) final {
+        if (name.has_value()) {
+            _log.trace("End Pass Pipeline {0}", *name);
+        }
     }
 
     void runBeforePass(mlir::Pass* pass, mlir::Operation* op) final {
         _log.trace("Start Pass {0} on Operation {1}", pass->getName(), op->getLoc());
     }
 
-    void runAfterPass(mlir::Pass* pass, mlir::Operation* op) {
+    void runAfterPass(mlir::Pass* pass, mlir::Operation* op) override {
         _log.trace("End Pass {0} on Operation {1}", pass->getName(), op->getLoc());
     }
 
-    void runAfterPassFailed(mlir::Pass* pass, mlir::Operation* op) {
+    void runAfterPassFailed(mlir::Pass* pass, mlir::Operation* op) override {
         _log.error("Failed Pass {0} on Operation {1}", pass->getName(), op->getLoc());
     }
 
-    void runBeforeAnalysis(StringRef name, mlir::TypeID, mlir::Operation* op) {
+    void runBeforeAnalysis(StringRef name, mlir::TypeID, mlir::Operation* op) override {
         _log.trace("Start Analysis {0} on Operation {1}", name, op->getLoc());
     }
 
-    void runAfterAnalysis(StringRef name, mlir::TypeID, mlir::Operation* op) {
+    void runAfterAnalysis(StringRef name, mlir::TypeID, mlir::Operation* op) override {
         _log.trace("End Analysis {0} on Operation {1}", name, op->getLoc());
     }
 

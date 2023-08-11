@@ -15,6 +15,5 @@ add_tool_target(
     LINK_LIBRARIES
         IE::inference_engine IE::ngraph IE::format_reader
         gflags
-        kmb_utils
         IE::ie_samples_utils
 )

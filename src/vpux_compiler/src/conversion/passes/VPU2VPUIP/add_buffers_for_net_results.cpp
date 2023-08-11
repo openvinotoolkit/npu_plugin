@@ -3,11 +3,8 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/conversion.hpp"
 
-#include <mlir/Dialect/StandardOps/IR/Ops.h>
 #include <mlir/IR/Operation.h>
 #include <mlir/Pass/Pass.h>
 #include <mlir/Transforms/DialectConversion.h>
@@ -19,8 +16,8 @@ namespace {
 // Updates the func op and entry block.
 //
 // Any args appended to the entry block are added to `appendedEntryArgs`.
-void updateFuncOp(mlir::FuncOp func, SmallVectorImpl<mlir::BlockArgument>& appendedEntryArgs) {
-    auto functionType = func.getType();
+void updateFuncOp(mlir::func::FuncOp func, SmallVectorImpl<mlir::BlockArgument>& appendedEntryArgs) {
+    auto functionType = func.getFunctionType();
 
     // Add the new arguments to the function type.
     auto newArgTypes =
@@ -42,8 +39,8 @@ void updateFuncOp(mlir::FuncOp func, SmallVectorImpl<mlir::BlockArgument>& appen
 
 // Updates all ReturnOps in the scope of the given FuncOp by  copying the associated buffer contents into the given
 // out-params.
-void updateReturnOps(mlir::FuncOp func, ArrayRef<mlir::BlockArgument> appendedEntryArgs) {
-    func.walk([&](mlir::ReturnOp op) {
+void updateReturnOps(mlir::func::FuncOp func, ArrayRef<mlir::BlockArgument> appendedEntryArgs) {
+    func.walk([&](mlir::func::ReturnOp op) {
         mlir::OpBuilder builder(op);
         for (auto i : irange(op.getNumOperands())) {
             auto copyOp = builder.create<VPUIP::CopyOp>(op.getLoc(), op.getOperand(i), appendedEntryArgs[i]);
@@ -73,9 +70,9 @@ private:
 void AddBuffersForNetResults::safeRunOnModule() {
     auto module = getOperation();
 
-    for (auto func : module.getOps<mlir::FuncOp>()) {
+    for (auto func : module.getOps<mlir::func::FuncOp>()) {
         if (func.isExternal()) {
-            _log.trace("Can't convert external Function '@{0}'", func.sym_name());
+            _log.trace("Can't convert external Function '@{0}'", func.getSymName());
             signalPassFailure();
         }
 

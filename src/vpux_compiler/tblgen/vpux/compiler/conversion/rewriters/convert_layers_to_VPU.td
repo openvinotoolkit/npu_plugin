@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #ifndef VPUX_COMPILER_CONVERSION_REWRITERS_CONVERT_LAYERS_TO_VPU
 #define VPUX_COMPILER_CONVERSION_REWRITERS_CONVERT_LAYERS_TO_VPU
 
@@ -12,6 +10,7 @@ include "vpux/compiler/dialect/IE/ops.td"
 include "vpux/compiler/dialect/VPU/ops.td"
 
 include "mlir/IR/OpBase.td"
+include "mlir/IR/PatternBase.td"
 
 //
 // IE.Convert -> VPU.Convert
@@ -44,6 +43,21 @@ def RewriteSoftMax :
         >;
 
 //
+// IE.LogSoftmax -> VPU.LogSoftmax
+//
+
+def createLogSoftmaxOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPU::LogSoftmaxOp>($_loc, $0, $1)
+        }]>;
+
+def RewriteLogSoftmax :
+        Pat<
+            (IE_LogSoftmaxOp $input, $axisInd),
+            (createLogSoftmaxOp $input, $axisInd)
+        >;
+
+//
 // IE.Tile -> VPU.Tile
 //
 
@@ -54,8 +68,8 @@ def createTileOp :
 
 def RewriteTile :
         Pat<
-            (IE_TileOp $input, $repeats),
-            (createTileOp $input, $repeats)
+            (IE_TileOp $input, $repeats, $repeats_values),
+            (createTileOp $input, $repeats_values)
         >;
 
 //
@@ -385,12 +399,6 @@ def RewriteHardSigmoid :
 // IE.GridSample -> VPU.GridSample
 //
 
-def createGridSampleOp :
-        NativeCodeCall<[{
-            $_builder.create<vpux::VPU::GridSampleOp>(
-                $_loc, $0, $1, $2, $3, $4)
-        }]>;
-
 def RewriteGridSample :
         Pat<
             (IE_GridSampleOp $input, $grip, $align_corners, $mode, $padding_mode),
@@ -412,21 +420,6 @@ def RewriteEmbeddingBagOffsetsSum :
             (createEmbeddingBagOffsetsSumOp $input, $indices_value, $offsets_value, $default_index_value, $weights_value)
         >;
 
-//
-// IE.EmbeddingSegmentsSum -> VPU.EmbeddingSegmentsSum
-//
-
-def createEmbeddingSegmentsSumOp :
-        NativeCodeCall<[{
-            $_builder.create<vpux::VPU::EmbeddingSegmentsSumOp>(
-                $_loc, $0, $1, $2, $3, $4, $5)
-        }]>;
-
-def RewriteEmbeddingSegmentsSum :
-        Pat<
-            (IE_EmbeddingSegmentsSumOp $emb_table, $indices, $segment_ids, $num_segments, $default_index, $per_sample_weights, $indices_value, $segment_ids_value, $num_segments_value, $default_index_value, $per_sample_weights_value),
-            (createEmbeddingSegmentsSumOp $emb_table, $indices_value, $segment_ids_value, $num_segments_value, $default_index_value, $per_sample_weights_value)
-            >;
 
 //
 // IE.Clamp -> VPU.Clamp
@@ -936,6 +929,16 @@ def RewriteDequantize :
         >;
 
 //
+// IE.DynamicQuantize -> VPU.DynamicQuantize
+//
+
+def RewriteDynamicQuantize :
+        Pat<
+            (IE_DynamicQuantizeOp $input),
+            (VPU_DynamicQuantizeOp $input)
+        >;
+
+//
 // IE.QuantizeCast -> VPU.QuantizeCast
 //
 
@@ -1217,13 +1220,13 @@ def RewriteScaleShift :
 def createUpsamplingOp :
         NativeCodeCall<[{
             $_builder.create<vpux::VPU::UpsamplingOp>(
-                $_loc, $0, $1, $2, $3)
+                $_loc, $0, $1, $2)
         }]>;
 
 def RewriteUpsampling :
         Pat<
-            (IE_UpsamplingOp $input, $upsampling_factor, $pad_l, $pad_r),
-            (createUpsamplingOp $input, $upsampling_factor, $pad_l, $pad_r)
+            (IE_UpsamplingOp $input, $upsampling_factor, $pad),
+            (createUpsamplingOp $input, $upsampling_factor, $pad)
         >;
 
 //
@@ -1491,6 +1494,22 @@ def RewriteMVN :
         >;
 
 //
+// IE.MVN6 -> VPU.MVN6
+//
+
+def createMVN6Op :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPU::MVN6Op>(
+                $_loc, $0, $1, $2, $3, $4)
+        }]>;
+
+def RewriteMVN6 :
+        Pat<
+            (IE_MVN6Op $input, $axes, $axes_value, $normalize_variance, $eps, $eps_mode),
+            (createMVN6Op $input, $axes_value, $normalize_variance, $eps, $eps_mode)
+        >;
+
+//
 // IE.Gather -> VPU.Gather
 //
 
@@ -1541,6 +1560,22 @@ def RewriteGatherElements :
         >;
 
 //
+// IE.GatherTree -> VPU.GatherTree
+//
+
+def createGatherTreeOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPU::GatherTreeOp>(
+                    $_loc, $0, $1, $2, $3)
+        }]>;
+
+def RewriteGatherTree :
+        Pat<
+            (IE_GatherTreeOp $stepIds, $parentIds, $maxSeqLen, $endToken),
+            (createGatherTreeOp $stepIds, $parentIds, $maxSeqLen, $endToken)
+        >;
+
+//
 // IE.YuvToRgb -> VPU.YuvToRgb
 //
 
@@ -1557,6 +1592,33 @@ def RewriteYuvToRgb :
         Pat<
             (IE_YuvToRgbOp $input1, $input2, $input3, $inFmt, $outFmt),
             (createYuvToRgbOp $input1, $input2, $input3, $inFmt, $outFmt)
+        >;
+
+//
+// IE.RandomUniform -> VPU.RandomUniform
+//
+
+def RewriteRandomUniform :
+        Pat<
+            (IE_RandomUniformOp $min, $max, $shape, $type, $global_seed, $op_seed),
+            (VPU_RandomUniformOp $min, $max, $shape, $type, $global_seed, $op_seed)
+        >;
+
+//
+// IE.OneHot -> VPU.OneHot
+//
+
+def createOneHotOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPU::OneHotOp>(
+            $_loc, $0, $1, $2, $3, $4, $5)
+        }]>;
+
+def RewriteOneHot :
+        Pat<
+            (IE_OneHotOp $input, $depth, $on_value, $off_value, $depth_attr,
+             $on_value_attr, $off_value_attr, $axis_attr, $outElemType),
+            (createOneHotOp $input, $depth_attr, $on_value_attr, $off_value_attr, $axis_attr, $outElemType)
         >;
 
 //
@@ -1670,6 +1732,22 @@ def RewriteCeiling :
         >;
 
 //
+// IE.NormalizeL2 -> VPU.NormalizeL2
+//
+
+def createNormalizeL2Op :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPU::NormalizeL2Op>(
+                $_loc, $0, $1, $2, $3)
+        }]>;
+
+def RewriteNormalizeL2 :
+        Pat<
+            (IE_NormalizeL2Op $data, $axes, $eps, $eps_mode),
+            (createNormalizeL2Op $data, $axes, $eps, $eps_mode)
+        >;
+
+//
 // IE.NormalizeIE -> VPU.NormalizeIE
 //
 
@@ -1769,6 +1847,17 @@ def RewriteLSTMSequence :
         >;
 
 //
+// IE.LSTMGates -> VPU.LSTMGates
+//
+
+def RewriteLSTMGates :
+        Pat<
+            (IE_LSTMGatesOp $inputData, $initialCellState),
+            (VPU_LSTMGatesOp $inputData, $initialCellState)
+        >;
+
+
+//
 // IE.TopK -> VPU.TopK
 //
 
@@ -1852,4 +1941,50 @@ def RewriteShapeCast :
             (IE_ShapeCastOp $source, $shape),
             (createShapeCastOp $source, $shape)
         >;
+
+//
+// IE.LayoutCast -> VPU.LayoutCast
+//
+
+def createLayoutCastOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPU::LayoutCastOp>($_loc, $0, $1)
+        }]>;
+
+def RewriteLayoutCast :
+        Pat<
+            (IE_LayoutCastOp $input, $dst_order),
+            (createLayoutCastOp $input, $dst_order)
+        >;
+
+//
+// IE.DFT -> VPU.DFT
+//
+
+def createDFTOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPU::DFTOp>($_loc, $0, $1, $2)
+        }]>;
+
+def RewriteDFT :
+        Pat<
+            (IE_DFTOp $input, $axes_attr, $signal_size_attr),
+            (createDFTOp $input, $axes_attr, $signal_size_attr)
+        >;
+
+//
+// IE.IDFT -> VPU.IDFT
+//
+
+def createIDFTOp :
+        NativeCodeCall<[{
+            $_builder.create<vpux::VPU::IDFTOp>($_loc, $0, $1, $2)
+        }]>;
+
+def RewriteIDFT :
+        Pat<
+            (IE_IDFTOp $input, $axes_attr, $signal_size_attr),
+            (createIDFTOp $input, $axes_attr, $signal_size_attr)
+        >;
+
 #endif

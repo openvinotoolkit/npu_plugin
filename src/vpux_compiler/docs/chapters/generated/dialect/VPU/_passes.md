@@ -7,11 +7,22 @@ The pass adjusts the location of tensors that are used by hardware-driven operat
 
 Currently, it surrounds VPU-driven nodes with Copy operations to specify that all the data
 that they consume/produce must reside in CMX
+### `-adjust-tiling-for-permute-quantize`: Adjust Slice and Concat position after tiling permute quantize
+This pass rewrites the operation sequence for `VPU.NCE.PermuteQuantize`.
+After `ApplyTilingPass` `VPU.Slice` and `VPU.Concat` operations will be inserted next to `VPU.NCE.PermuteQuantize`, 
+but we want to slice and concatenate all the sequence (Reshape -> LayoutCast -> PermuteQuantize -> LayoutCast -> [optional Reshape]).
+### `-adjust-vf-tiling-strategy`: Adjust tiling strategy in order to make sure that all subgraphs fit in CMX
+Take into account conditions in order to avoid additional spills
+In case some of them breaks, increase number of tiles
+Following buffers should fit in CMX for each VF tile
+1. Input tensors of VF tile
+2. Output of VF tile
+3. Largest operation in the block
+### `-apply-tiling`: Apply tiling on layers with assigned tiling strategy
+The pass applies tiling strategy on layers with previously assigned strategy attribute.
 ### `-cmx-concat`: Move Concat operations from DDR to NNCMX
 This pass will try to check if a Concat operation can fit in NNCMX
 with few restrictions and if so move the concat from DDR to NNCMX.
-### `-convert-scalar-to-tensor`: Convert a scalar input to tensor
-Some operations (e.g. Gather) do not support scalar data. This pass converts scalar operands to tensors with one element.
 ### `-correct-NCE-workloads`: Correct NCE workloads if they do not fit requirements
 The pass adjusts workload size for NCEDepthConvolution, NCEMaxPool, NCEAveragePool and NCEPermuteQuantize,
 as well as for NCE operations that produce sparse activations.
@@ -29,14 +40,40 @@ of channels has to be a power of two. Additionally, if the NCE op shares a consu
 This pass will check if Eltwise operation has input and output buffers of the same size
 in memory and mark such Eltwise eligible for inplace execution.
 It will write the result into one of the inputs in memory.
+### `-detection-output-decomposition`: Replace DetectionOutput operation with a subgraph of smaller operations
+Replace DetectionOutput operation
+┌─────────┐   ┌────────────────┐  ┌──────────┐
+│BoxLogits│   │ClassPredictions│  │PriorBoxes│
+└────┬────┘   └───────┬────────┘  └─────┬────┘
+     │                │                 │
+     │         ┌──────┴────────┐        │
+     └─────────┤DetectionOutput├────────┘
+               └───────────────┘
+
+with a subgraph (Reshapes and MemPermutes are ommited)
+┌─────────┐  ┌──────────┐        ┌────────────────┐
+│BoxLogits│  │PriorBoxes│        │ClassPredictions│
+└───────┬─┘  └─┬────────┘        └───────┬────────┘
+        │      │                         │
+┌───────┴──────┴───────────┐  ┌──────────┴────────────┐
+│DetectionOutputDecodeBoxes│  │DetectionOutputSortTopK│
+└───────────────────┬──────┘  └───┬──┬─────┬─┬────────┘
+                    │             │  │     │ │
+              ┌─────┴─────────────┴──┴───┐ │ │
+              │DetectionOutputSelectBoxes│ │ │
+              └─────────────┬────────────┘ │ │
+                            │              │ │
+                          ┌─┴──────────────┴─┴────┐
+                          │DetectionOutputNmsCaffe│
+                          └────┬─┬─┬──────────────┘
+                               │ │ │
+                  ┌────────────┴─┴─┴────────────┐
+                  │DetectionOutputCollectResults│
+                  └─────────────────────────────┘
 ### `-ensure-nce-ops-size-requirements`: Ensure hw operations meet size requirements
 This pass ensures that hardware operations meet hardware size requirements:
 each operation need to have less than 8192 values per dimension. This is done
 by tiling such operations into smaller ones.
-
-Note: currently, operations with input channels greater than 8192 will cause this
-pass to fail. I introduced allowLargeInputChannels config, in order to bypass this failure for Model_G,
-this will be removed when input channel implementation done.
 ### `-fuse-clamp`: Fuses VPU.Clamp parameters into previous NCE operation
 This pass follows `SetupPPEPass` and fuses VPU.Clamp with already existing PPE task.
 1. Search for VPU.NCE -> VPU.Clamp pattern
@@ -55,25 +92,35 @@ initializes **IERT Dialect** run-time resources information.
 
 #### Options
 ```
--vpu-arch          : VPU architecture to compile for
--compilation-mode  : [Optional] Set compilation mode as `ReferenceSW`, `ReferenceHW` or `DefaultHW`
--num-of-dpu-groups : [Optional] Number of available DPU groups
--num-of-dma-ports  : [Optional] Number of available DMA ports
+-vpu-arch            : VPU architecture to compile for
+-compilation-mode    : [Optional] Set compilation mode as `ReferenceSW`, `ReferenceHW` or `DefaultHW`
+-num-of-dpu-groups   : [Optional] Number of available DPU groups
+-num-of-dma-ports    : [Optional] Number of available DMA ports
+-allow-custom-values : [Optional] Allows keep predefined values in IR
 ```
-### `-isolated-tiling`: Tile layers in isolation so that all their I/O meet the memory capacity
-The pass applies tiling to the layers whose memory requirements exceed the capacity available.
+### `-lower-ops-to-se-nce`: Converts compatible operations to SE NCE operations
+Finds operations that can be executed on hardware using the Storage Element pointers
+feature and lowers them to VPU.NCE.
 
-The pass tries to split each single layer in isolation, with no smarter heuristics
-such as "allow running in parallel" or "allow continious computation in tiles" or any else.
+The list of supported operations:
+- Interpolate - mode: NEAREST
+                axes: H, W
+                coordinate_transformation_mode: ASYMMETRIC
+                nearest_mode: all
+                scale: integer only
+                padding: none
 
-The pass does not use any cost model to optimize the entire layer's processing time. It just
-iteratively increases the number of tiles until the the largest tile's memory requirements  meet
-the device capacity, and stops there.
+              - mode: LINEAR, LINEAR_ONNX
+                axes: H, W
+                coordinate_transformation_mode: ASYMMETRIC
+                scale: [1-11] (integer only)
+                padding: none
 ### `-lower-sparsity-ops`: Convert Sparsify/Desparsify ops to Eltwise or GroupSparseBufferOp
-Convert left Sparsify/Desparsify operations to actual HW ops. Desparsify converts
-to Eltwise with aliased inputs, while Sparsify lowering controled by fake-sparsify option.
-If fake-sparsify enabled lowering, then fake sparsity map(all values are 1's) will be generated.
-Otherwise lowering in same way as Desparsify.
+Converts Sparsify operations to Convolutions and Desparsify operations to Eltwise ops.
+
+In case the `fakeSparsity` flag is set to true, Sparsify operations are instead converted to a
+GroupSparseTensor operation whose sparsity map contains only values of 1. This lets the data be
+interpreted as a sparse one without actually removing the sparse values.
 
 #### Options
 ```
@@ -91,11 +138,16 @@ overwrite the strategy.
 -read-strategy-from-json      : Flag to enable reading strategy from file
 -read-strategy-file-location  : Location/path to read strategy file
 ```
-### `-manual-tiling`: Tile layers with manual strategy
-The pass performs manual tiling on layers specified by the user.
+### `-merge-vertical-fusion-subgraphs`: Build subgraph from VF single regions
+Merge VF blocks and add operations to them recalculating tiling information
+and in following cases:
+1. Number of operations which might increase computational cost does not exceed limit
+2. All operations have same multicluster strategy or don't have them at all
+3. Region which is supposed to be added doesn't have any other users except current region or
+all its users point to current region too.
+4. All operations in new region after merging fit in CMX when they are tiled for VF. In case they don't, number of tiles 
+increases.
 ### `-multi-cluster-strategy-assignment`: This pass compute the hardware efficiency of layer that is executed as SOH or SOK and assigns the most optimal strategy
-### `-optimize-concate-slice-to-slice-concat`: Optimize concate-slice to slice-concat
-This pass optimize concat-slice to slice-concat to reduce data copy.
 ### `-optimize-sparsify-desparsify-pairs`: Optimize common patterns of subsequent sparsify-desparsify ops to remove redundant conversions
 
 #### Options
@@ -111,16 +163,29 @@ until output sparsity wouldnt be fused
 ```
 -sparsity-profile : Flag to choose sparsity profile
 ```
-### `-prefetch-tiling`: Tile layers into smaller tiles to enable prefetch pipeline
-The pass performs tiling on layers to enable prefetch pipeline.
-
-The pass tries run tiles in parallel.
-The 'prefetch' means that the next tile could be loaded in advance when the current tile is computing.
-
-The pass does not consider cost models,
-only tiles layers to make at least two tiles could be loaded in CMX memory at the same time.
 ### `-recompute-sparsity-ptrs`: Recomputes sparsity pointers
 Recomputes the sparsity pointers inside the weights table for sparse weights.
+### `-resolve-eltwise-with-z-tiled-workloads`: Resolves Eltwise operations which have workloads tiled over Z
+Hardware Eltwise does not support variants tiled over the Z dimension. If such cases are encountered,
+these operations are split into separate Eltwise operations, each containing the workloads that cover
+a different subset of channels.
+
+For example, if the original Eltwise contains the following workloads:
+    1. offset = [0, 0,  0, 0], sizes = [1, 64, 8, 16], cluster_id = 0
+    2. offset = [0, 64, 0, 0], sizes = [1, 64, 8, 16], cluster_id = 0
+    3. offset = [0, 0,  8, 0], sizes = [1, 64, 8, 16], cluster_id = 1
+    4. offset = [0, 64, 8, 0], sizes = [1, 64, 8, 16], cluster_id = 1
+Two Eltwise operations will be created, the first one containing workloads 1 and 3, the other one
+workloads 2 and 4, with their channel offsets reset to zero. The correct subset of channels is
+sliced individually for each new Eltwise operation.
+
+In case the inputs are distributed types in CMX, manual copy operations that spill them to DDR are
+introduced, in order to avoid Slice operations that work with these types. These Slice operations
+would get lowered to copies where both the input and output are distributed types; such scenarios
+are not fully supported (E#78676).
+
+The outputs of the smaller Eltwise operations get copied to DDR in order to avoid accuracy degradation
+that takes place when the outputs are concatenated in CMX.
 ### `-resolve-pwl-post-ops`: Resolve requirements for fused PWL post-ops
 Ensures the correct quantization ranges are used for fused PWL activation functions.
 ### `-setup-ppe`: Sets activation function for VPU37XX PPE based on clamp range
@@ -132,6 +197,34 @@ Namely:
 ### `-sparsify-weights`: Sparsify weights for NCE ops
 Convert const parameters for NCE ops to sparse types depending on sparsify strategy.
 ### `-split-NCE-ops-onto-workloads`: Split VPU NCE operation onto workloads
+### `-split-gru-sequence`: Split GRUSequence into GRUSequenceFirstPart and GRUSequenceLastPart
+The pass can split GRUSequence into two parts to fit into CMX when tiling strategy can't be generated.
+### `-tiling-strategy-assignment`: Assign tiling strategy for layers applicable
+The pass assigns tiling strategy for layers whose memory requirements exceed the capacity available.
+The pass only assigns strategy and do not perform any tiling actions, and if tiling strategy is set by
+ManualStrategyUtilsPass, it will not be processed by this pass.
+
+Isolated tiling: split each single layer in isolation, with no smarter heuristics such as
+                 "allow running in parallel" or "allow continious computation in tiles" or any else.
+Prefetch tiling: tries to run tiles in parallel, and 'prefetch' means that the next tile could be loaded
+                 in advance when the current tile is computing.
+
+The pass does not use any cost model to optimize the entire layer's processing time.
+
+#### Options
+```
+-tiling-mode : [Optional] Set tiling mode as `ISOLATED` or `PREFETCH`
+```
+### `-unroll-unused-vertical-fusion`: Unroll single VF blocks
+Unroll VF block in case it hasn't been assembled with other blocks in subgraph
+### `-vertical-fusion-tiling`: Apply tiling on VF subgraph
+Apply VF tiling on subgraph wrapped in VF region.
+### `-wrap-in-vertical-fusion`: This pass wraps vpu operations that might be tiled in order to implement VF
+Wrap operations to VerticalFusion block which match criterias
+1. Operation has activation tiling (activation doesn't fit in CMX)
+2. NCE operations don't have strides larger than 1
+3. Even if NCE operation doesn't have activation tiling, but its kernel is 1x1,
+it also might be wrapped because there is no additional computation cost of it
 ### `-wrap-ops-in-sparsify-pairs`: Wrap operations in pairs of Sparsify-Desparsify
 Wraps operations in pairs of Sparsify-Desparify ops. The sparsity profile
 will determine which operations will be wrapped:
@@ -140,7 +233,8 @@ will determine which operations will be wrapped:
 
 #### Options
 ```
--sparsity-profile : Flag to choose sparsity profile
+-enable-activation-sparsity-mode : Activation sparsity enablement mode (auto, true or false)
+-sparsity-profile                : Flag to choose sparsity profile
 ```
 ### `-wrap-vpu-ops-in-ncecluster-tiling`: This pass wraps vpu operations that should be executed across multiple clusters in NCEClusterTiling operations
 This pass builds an IR in order to represent multi-cluster compilation. It performs a number of functions.

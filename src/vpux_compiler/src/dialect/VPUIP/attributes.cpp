@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/VPUIP/attributes.hpp"
 #include "vpux/compiler/dialect/VPUIP/dialect.hpp"
 
@@ -65,7 +63,7 @@ Byte VPUIP::CompressionSchemeAttr::getAllocSize(mlir::Type elemType) const {
     const auto numElems = getNumElems().getValues<int64_t>();
     int64_t totalAllocSize = 0;
     for (auto num : numElems) {
-        totalAllocSize += alignVal<int64_t>(num * elemByteSize, alignment);
+        totalAllocSize += alignValUp<int64_t>(num * elemByteSize, alignment);
     }
     return Byte(totalAllocSize);
 }

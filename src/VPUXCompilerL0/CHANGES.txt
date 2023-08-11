@@ -1,5 +1,9 @@
 Change Log:
 -----------
+VPUXCompilerL0 3.0.0
+  - Update VCLCompilerCreate and VCLProfilingCreate to support log handle
+  - Add VCLLogHandleGetString, VCLLogHandleDestroy
+
 VPUXCompilerL0 2.1.1:
   - Add VPUXLoader module with loaderTest.
 
@@ -70,7 +74,7 @@ VPUXCompilerL0 1.1.2139:
     - Change modelIR structure and type.
 
 VPUXCompilerL0 1.1.2138:
-  - Update VPUx-plugin to releases/2021/4_vpux_ww37.
+  - Update VPUX-plugin to releases/2021/4_vpux_ww37.
 
 VPUXCompilerL0 1.1.2137:
   - Remove gc_api.
@@ -86,10 +90,10 @@ VPUXCompilerL0 1.1.2136:
   - Workaround for fixing heap leaking issue.
   - Remove unnecessary fucSharedTests dependency.
   - Remove tbb library dependency.
-  - Scroll VPUx-plugin back to releases/2021/4_vpux_ww34 as WW36 dKMB Release indicates.
+  - Scroll VPUX-plugin back to releases/2021/4_vpux_ww34 as WW36 dKMB Release indicates.
 
 VPUXCompilerL0 1.1.2135:
-  - Update VPUx-plugin to releases/2021/4_vpux_ww35
+  - Update VPUX-plugin to releases/2021/4_vpux_ww35
   - Remove accidentally included MCM compiler components.
 
 VPUXCompilerL0 1.1.2134:

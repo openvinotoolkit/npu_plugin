@@ -13,46 +13,45 @@ namespace LayerTestsDefinitions {
 
 class VPUXConvolutionLayerTest : public ConvolutionLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {};
 
-class VPUXConvolutionLayerTestLatency : public VPUXConvolutionLayerTest {};
-class KmbConvolutionLayerTest : public VPUXConvolutionLayerTest {};
+class VPUXConvolutionLayerTest_VPU3700 : public VPUXConvolutionLayerTest {};
 
 using VPUXConvolutionLayerTest_VPU3720_ELF = VPUXConvolutionLayerTest;
+class VPUXConvolutionLayerTest_VPU3720_HW : public VPUXConvolutionLayerTest {};
+class VPUXConvolutionLayerTest_VPU3720_SW : public VPUXConvolutionLayerTest {};
+class VPUXConvolutionLayerTestLatency_VPU3720 : public VPUXConvolutionLayerTest {};
 
-// Comparisons fail (ticket???)
-TEST_P(KmbConvolutionLayerTest, DISABLED_CompareWithRefs) {
-    Run();
-}
-
-TEST_P(KmbConvolutionLayerTest, CompareWithRefs_MLIR_SW) {
-    useCompilerMLIR();
+TEST_P(VPUXConvolutionLayerTest_VPU3700, SW) {
+    setPlatformVPU3700();
     setReferenceSoftwareModeMLIR();
     Run();
 }
 
-TEST_P(KmbConvolutionLayerTest, CompareWithRefs_MLIR_HW) {
-    useCompilerMLIR();
+TEST_P(VPUXConvolutionLayerTest_VPU3700, HW) {
+    setPlatformVPU3700();
     setDefaultHardwareModeMLIR();
     Run();
 }
 
-TEST_P(VPUXConvolutionLayerTest, CompareWithRefs_MLIR_VPU3720) {
+TEST_P(VPUXConvolutionLayerTest_VPU3720_HW, HW) {
     setPlatformVPU3720();
-    useCompilerMLIR();
     setDefaultHardwareModeMLIR();
     Run();
 }
 
-TEST_P(VPUXConvolutionLayerTest_VPU3720_ELF, CompareWithRefs_MLIR_VPU3720) {
+TEST_P(VPUXConvolutionLayerTest_VPU3720_SW, SW) {
     setPlatformVPU3720();
-    useCompilerMLIR();
+    setReferenceSoftwareModeMLIR();
+    Run();
+}
+TEST_P(VPUXConvolutionLayerTest_VPU3720_ELF, HW) {
+    setPlatformVPU3720();
     setDefaultHardwareModeMLIR();
     setSingleClusterMode();
     useELFCompilerBackend();
     Run();
 }
 
-TEST_P(VPUXConvolutionLayerTestLatency, CompareWithRefs_MLIR_VPU3720) {
-    useCompilerMLIR();
+TEST_P(VPUXConvolutionLayerTestLatency_VPU3720, HW) {
     setPlatformVPU3720();
     setPerformanceHintLatency();
     setDefaultHardwareModeMLIR();
@@ -77,7 +76,7 @@ const auto conv1DParams = ::testing::Combine(::testing::ValuesIn<SizeVector>({{1
                                              ::testing::Values(ngraph::op::PadType::EXPLICIT)          // padType
 );
 
-INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_Convolution1D, KmbConvolutionLayerTest,
+INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_Convolution1D, VPUXConvolutionLayerTest_VPU3700,
                         ::testing::Combine(conv1DParams,
                                            ::testing::Values(Precision::FP16),              // netPrc
                                            ::testing::Values(Precision::UNSPECIFIED),       // inPrc
@@ -88,6 +87,16 @@ INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_Convolution1D, KmbConvolutionLayerTes
                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
                         ConvolutionLayerTest::getTestCaseName);
 
+INSTANTIATE_TEST_CASE_P(smoke_Convolution1D_VPU3720, VPUXConvolutionLayerTest_VPU3720_SW,
+                        ::testing::Combine(conv1DParams,
+                                           ::testing::Values(Precision::FP16),              // netPrc
+                                           ::testing::Values(Precision::FP16),              // inPrc
+                                           ::testing::Values(Precision::FP16),              // outPrc
+                                           ::testing::Values(Layout::ANY),                  // inLayout
+                                           ::testing::Values(Layout::ANY),                  // outLayout
+                                           ::testing::ValuesIn<SizeVector>({{1, 16, 64}}),  // inputShapes
+                                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                        ConvolutionLayerTest::getTestCaseName);
 /* ============= 2D Convolution / AutoPadValid ============= */
 
 const auto conv2DParams_AutoPadValid =
@@ -100,13 +109,27 @@ const auto conv2DParams_AutoPadValid =
                            ::testing::Values(ngraph::op::PadType::VALID)           // padType
         );
 
-INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_Convolution2D_AutoPadValid, KmbConvolutionLayerTest,
+INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_Convolution2D_AutoPadValid, VPUXConvolutionLayerTest_VPU3700,
                         ::testing::Combine(conv2DParams_AutoPadValid,                  //
                                            ::testing::Values(Precision::FP16),         // netPrc
                                            ::testing::Values(Precision::UNSPECIFIED),  // inPrc
                                            ::testing::Values(Precision::UNSPECIFIED),  // outPrc
                                            ::testing::Values(Layout::ANY),             // inLayout
                                            ::testing::Values(Layout::ANY),             // outLayout
+                                           ::testing::ValuesIn<SizeVector>({{1, 8, 32, 32},
+                                                                            {1, 16, 24, 24},
+                                                                            {1, 24, 16, 16},
+                                                                            {1, 32, 8, 8}}),  // inputShapes
+                                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),  //
+                        ConvolutionLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_CASE_P(smoke_Convolution2D_AutoPadValid_VPU3720, VPUXConvolutionLayerTest_VPU3720_SW,
+                        ::testing::Combine(conv2DParams_AutoPadValid,           //
+                                           ::testing::Values(Precision::FP16),  // netPrc
+                                           ::testing::Values(Precision::FP16),  // inPrc
+                                           ::testing::Values(Precision::FP16),  // outPrc
+                                           ::testing::Values(Layout::ANY),      // inLayout
+                                           ::testing::Values(Layout::ANY),      // outLayout
                                            ::testing::ValuesIn<SizeVector>({{1, 8, 32, 32},
                                                                             {1, 16, 24, 24},
                                                                             {1, 24, 16, 16},
@@ -126,7 +149,7 @@ const auto conv2DParams_CMajorCompatible =
                            ::testing::Values(ngraph::op::PadType::VALID)           // padType
         );
 
-INSTANTIATE_TEST_CASE_P(smoke_Convolution2D_CMajorCompatible, KmbConvolutionLayerTest,
+INSTANTIATE_TEST_CASE_P(smoke_Convolution2D_CMajorCompatible, VPUXConvolutionLayerTest_VPU3700,
                         ::testing::Combine(conv2DParams_CMajorCompatible,                      //
                                            ::testing::Values(Precision::FP16),                 // netPrc
                                            ::testing::Values(Precision::UNSPECIFIED),          // inPrc
@@ -137,6 +160,64 @@ INSTANTIATE_TEST_CASE_P(smoke_Convolution2D_CMajorCompatible, KmbConvolutionLaye
                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),  //
                         ConvolutionLayerTest::getTestCaseName);
 
+INSTANTIATE_TEST_CASE_P(smoke_Convolution2D_CMajorCompatible_VPU3720, VPUXConvolutionLayerTest_VPU3720_SW,
+                        ::testing::Combine(conv2DParams_CMajorCompatible,                      //
+                                           ::testing::Values(Precision::FP16),                 // netPrc
+                                           ::testing::Values(Precision::FP16),                 // inPrc
+                                           ::testing::Values(Precision::FP16),                 // outPrc
+                                           ::testing::Values(Layout::ANY),                     // inLayout
+                                           ::testing::Values(Layout::ANY),                     // outLayout
+                                           ::testing::ValuesIn<SizeVector>({{1, 3, 64, 64}}),  // inputShapes
+                                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),  //
+                        ConvolutionLayerTest::getTestCaseName);
+
+/* ============= 2D Convolution / LargeKernel ============= */
+
+const auto conv2DParams_LargeKernel1 =
+        ::testing::Combine(::testing::ValuesIn<SizeVector>({{13, 13}}),            // kernels
+                           ::testing::ValuesIn<SizeVector>({{1, 1}}),              // strides
+                           ::testing::ValuesIn<std::vector<ptrdiff_t>>({{0, 0}}),  // padBegins
+                           ::testing::ValuesIn<std::vector<ptrdiff_t>>({{0, 0}}),  // padEnds
+                           ::testing::ValuesIn<SizeVector>({{1, 1}}),              // dilations
+                           ::testing::Values(8),                                   // numOutChannels
+                           ::testing::Values(ngraph::op::PadType::VALID)           // padType
+        );
+
+// Reason for temporary disabled: E#82060
+INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_Convolution2D_LargeKernel, VPUXConvolutionLayerTest_VPU3720_HW,
+                        ::testing::Combine(conv2DParams_LargeKernel1,                          //
+                                           ::testing::Values(Precision::FP16),                 // netPrc
+                                           ::testing::Values(Precision::FP16),                 // inPrc
+                                           ::testing::Values(Precision::FP16),                 // outPrc
+                                           ::testing::Values(Layout::ANY),                     // inLayout
+                                           ::testing::Values(Layout::ANY),                     // outLayout
+                                           ::testing::ValuesIn<SizeVector>({{1, 3, 64, 64}}),  // inputShapes
+                                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),  //
+                        ConvolutionLayerTest::getTestCaseName);
+
+/* ============= 2D Convolution / LargeDilations ============= */
+
+const auto conv2DParams_LargeDilations =
+        ::testing::Combine(::testing::ValuesIn<SizeVector>({{3, 3}}),              // kernels
+                           ::testing::ValuesIn<SizeVector>({{1, 1}}),              // strides
+                           ::testing::ValuesIn<std::vector<ptrdiff_t>>({{0, 0}}),  // padBegins
+                           ::testing::ValuesIn<std::vector<ptrdiff_t>>({{0, 0}}),  // padEnds
+                           ::testing::ValuesIn<SizeVector>({{7, 7}}),              // dilations
+                           ::testing::Values(8),                                   // numOutChannels
+                           ::testing::Values(ngraph::op::PadType::VALID)           // padType
+        );
+
+// Reason for temporary disabled: E#82060
+INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_Convolution2D_LargeDilations, VPUXConvolutionLayerTest_VPU3720_HW,
+                        ::testing::Combine(conv2DParams_LargeDilations,                        //
+                                           ::testing::Values(Precision::FP16),                 // netPrc
+                                           ::testing::Values(Precision::FP16),                 // inPrc
+                                           ::testing::Values(Precision::FP16),                 // outPrc
+                                           ::testing::Values(Layout::ANY),                     // inLayout
+                                           ::testing::Values(Layout::ANY),                     // outLayout
+                                           ::testing::ValuesIn<SizeVector>({{1, 3, 64, 64}}),  // inputShapes
+                                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),  //
+                        ConvolutionLayerTest::getTestCaseName);
 /* ============= 2D Convolution / ExplicitPadding ============= */
 
 const auto conv2DParams_ExplicitPadding =
@@ -149,7 +230,7 @@ const auto conv2DParams_ExplicitPadding =
                            ::testing::Values(ngraph::op::PadType::EXPLICIT)  // padType
         );
 
-INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_Convolution2D_ExplicitPadding, KmbConvolutionLayerTest,
+INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_Convolution2D_ExplicitPadding, VPUXConvolutionLayerTest_VPU3700,
                         ::testing::Combine(conv2DParams_ExplicitPadding,                       //
                                            ::testing::Values(Precision::FP16),                 // netPrc
                                            ::testing::Values(Precision::UNSPECIFIED),          // inPrc
@@ -160,6 +241,16 @@ INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_Convolution2D_ExplicitPadding, KmbCon
                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
                         ConvolutionLayerTest::getTestCaseName);
 
+INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_Convolution2D_ExplicitPadding_VPU3720, VPUXConvolutionLayerTest_VPU3720_SW,
+                        ::testing::Combine(conv2DParams_ExplicitPadding,                       //
+                                           ::testing::Values(Precision::FP16),                 // netPrc
+                                           ::testing::Values(Precision::FP16),                 // inPrc
+                                           ::testing::Values(Precision::FP16),                 // outPrc
+                                           ::testing::Values(Layout::ANY),                     // inLayout
+                                           ::testing::Values(Layout::ANY),                     // outLayout
+                                           ::testing::ValuesIn<SizeVector>({{1, 3, 16, 16}}),  // inputShapes
+                                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                        ConvolutionLayerTest::getTestCaseName);
 /* ============= 2D Convolution / AsymmetricPadding ============= */
 
 const auto conv2DParams_AsymmetricPadding =
@@ -172,11 +263,22 @@ const auto conv2DParams_AsymmetricPadding =
                            ::testing::Values(ngraph::op::PadType::EXPLICIT)  // padType
         );
 
-INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_Convolution2D_AsymmetricPadding, KmbConvolutionLayerTest,
+INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_Convolution2D_AsymmetricPadding, VPUXConvolutionLayerTest_VPU3700,
                         ::testing::Combine(conv2DParams_AsymmetricPadding,                     //
                                            ::testing::Values(Precision::FP16),                 // netPrc
                                            ::testing::Values(Precision::UNSPECIFIED),          // inPrc
                                            ::testing::Values(Precision::UNSPECIFIED),          // outPrc
+                                           ::testing::Values(Layout::ANY),                     // inLayout
+                                           ::testing::Values(Layout::ANY),                     // outLayout
+                                           ::testing::ValuesIn<SizeVector>({{1, 3, 64, 64}}),  // inputShapes
+                                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                        ConvolutionLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_CASE_P(smoke_Convolution2D_AsymmetricPadding_VPU3720, VPUXConvolutionLayerTest_VPU3720_SW,
+                        ::testing::Combine(conv2DParams_AsymmetricPadding,                     //
+                                           ::testing::Values(Precision::FP16),                 // netPrc
+                                           ::testing::Values(Precision::FP16),                 // inPrc
+                                           ::testing::Values(Precision::FP16),                 // outPrc
                                            ::testing::Values(Layout::ANY),                     // inLayout
                                            ::testing::Values(Layout::ANY),                     // outLayout
                                            ::testing::ValuesIn<SizeVector>({{1, 3, 64, 64}}),  // inputShapes
@@ -195,7 +297,7 @@ const auto conv2DParams_AsymmetricKernel =
                            ::testing::Values(ngraph::op::PadType::VALID)           // padType
         );
 
-INSTANTIATE_TEST_CASE_P(smoke_Convolution2D_AsymmetricKernel, KmbConvolutionLayerTest,
+INSTANTIATE_TEST_CASE_P(smoke_Convolution2D_AsymmetricKernel, VPUXConvolutionLayerTest_VPU3700,
                         ::testing::Combine(conv2DParams_AsymmetricKernel,                      //
                                            ::testing::Values(Precision::FP16),                 // netPrc
                                            ::testing::Values(Precision::UNSPECIFIED),          // inPrc
@@ -206,6 +308,16 @@ INSTANTIATE_TEST_CASE_P(smoke_Convolution2D_AsymmetricKernel, KmbConvolutionLaye
                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
                         ConvolutionLayerTest::getTestCaseName);
 
+INSTANTIATE_TEST_CASE_P(smoke_Convolution2D_AsymmetricKernel_VPU3720, VPUXConvolutionLayerTest_VPU3720_SW,
+                        ::testing::Combine(conv2DParams_AsymmetricKernel,                      //
+                                           ::testing::Values(Precision::FP16),                 // netPrc
+                                           ::testing::Values(Precision::FP16),                 // inPrc
+                                           ::testing::Values(Precision::FP16),                 // outPrc
+                                           ::testing::Values(Layout::ANY),                     // inLayout
+                                           ::testing::Values(Layout::ANY),                     // outLayout
+                                           ::testing::ValuesIn<SizeVector>({{1, 3, 16, 16}}),  // inputShapes
+                                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                        ConvolutionLayerTest::getTestCaseName);
 /* ============= 2D Convolution / AsymmetricStrides ============= */
 
 const auto conv2DParams_AsymmetricStrides =
@@ -218,7 +330,7 @@ const auto conv2DParams_AsymmetricStrides =
                            ::testing::Values(ngraph::op::PadType::EXPLICIT)        // padType
         );
 
-INSTANTIATE_TEST_CASE_P(smoke_Convolution2D_AsymmetricStrides, KmbConvolutionLayerTest,
+INSTANTIATE_TEST_CASE_P(smoke_Convolution2D_AsymmetricStrides, VPUXConvolutionLayerTest_VPU3700,
                         ::testing::Combine(conv2DParams_AsymmetricStrides,                     //
                                            ::testing::Values(Precision::FP16),                 // netPrc
                                            ::testing::Values(Precision::UNSPECIFIED),          // inPrc
@@ -229,7 +341,7 @@ INSTANTIATE_TEST_CASE_P(smoke_Convolution2D_AsymmetricStrides, KmbConvolutionLay
                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
                         ConvolutionLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_Convolution2D_AsymmetricStrides, VPUXConvolutionLayerTest,
+INSTANTIATE_TEST_CASE_P(smoke_Convolution2D_AsymmetricStrides_VPU3720, VPUXConvolutionLayerTest_VPU3720_HW,
                         ::testing::Combine(conv2DParams_AsymmetricStrides,                     //
                                            ::testing::Values(Precision::FP16),                 // netPrc
                                            ::testing::Values(Precision::UNSPECIFIED),          // inPrc
@@ -237,6 +349,40 @@ INSTANTIATE_TEST_CASE_P(smoke_Convolution2D_AsymmetricStrides, VPUXConvolutionLa
                                            ::testing::Values(Layout::ANY),                     // inLayout
                                            ::testing::Values(Layout::ANY),                     // outLayout
                                            ::testing::ValuesIn<SizeVector>({{1, 3, 16, 16}}),  // inputShapes
+                                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                        ConvolutionLayerTest::getTestCaseName);
+
+/* ============= 2D Convolution / LargeKernel ============= */
+
+const auto conv2DParams_LargeKernel =
+        ::testing::Combine(::testing::ValuesIn<SizeVector>({{22, 22}}),              // kernels
+                           ::testing::ValuesIn<SizeVector>({{16, 16}}),              // strides
+                           ::testing::ValuesIn<std::vector<ptrdiff_t>>({{16, 16}}),  // padBegins
+                           ::testing::ValuesIn<std::vector<ptrdiff_t>>({{16, 16}}),  // padEnds
+                           ::testing::ValuesIn<SizeVector>({{1, 1}}),                // dilations
+                           ::testing::Values(1),                                     // numOutChannels
+                           ::testing::Values(ngraph::op::PadType::EXPLICIT)          // padType
+        );
+
+INSTANTIATE_TEST_CASE_P(smoke_Convolution2D_LargeKernel, VPUXConvolutionLayerTest_VPU3700,
+                        ::testing::Combine(conv2DParams_LargeKernel,                             //
+                                           ::testing::Values(Precision::FP16),                   // netPrc
+                                           ::testing::Values(Precision::UNSPECIFIED),            // inPrc
+                                           ::testing::Values(Precision::UNSPECIFIED),            // outPrc
+                                           ::testing::Values(Layout::ANY),                       // inLayout
+                                           ::testing::Values(Layout::ANY),                       // outLayout
+                                           ::testing::ValuesIn<SizeVector>({{1, 1, 320, 320}}),  // inputShapes
+                                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                        ConvolutionLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_CASE_P(smoke_Convolution2D_LargeKernel_VPU3720, VPUXConvolutionLayerTest_VPU3720_HW,
+                        ::testing::Combine(conv2DParams_LargeKernel,                             //
+                                           ::testing::Values(Precision::FP16),                   // netPrc
+                                           ::testing::Values(Precision::UNSPECIFIED),            // inPrc
+                                           ::testing::Values(Precision::UNSPECIFIED),            // outPrc
+                                           ::testing::Values(Layout::ANY),                       // inLayout
+                                           ::testing::Values(Layout::ANY),                       // outLayout
+                                           ::testing::ValuesIn<SizeVector>({{1, 1, 320, 320}}),  // inputShapes
                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
                         ConvolutionLayerTest::getTestCaseName);
 
@@ -252,7 +398,7 @@ const auto conv2DParams_Dilated =
                            ::testing::Values(ngraph::op::PadType::VALID)           // padType
         );
 
-INSTANTIATE_TEST_CASE_P(smoke_Convolution2D_Dilated, KmbConvolutionLayerTest,
+INSTANTIATE_TEST_CASE_P(smoke_Convolution2D_Dilated, VPUXConvolutionLayerTest_VPU3700,
                         ::testing::Combine(conv2DParams_Dilated,                               //
                                            ::testing::Values(Precision::FP16),                 // netPrc
                                            ::testing::Values(Precision::UNSPECIFIED),          // inPrc
@@ -263,6 +409,16 @@ INSTANTIATE_TEST_CASE_P(smoke_Convolution2D_Dilated, KmbConvolutionLayerTest,
                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
                         ConvolutionLayerTest::getTestCaseName);
 
+INSTANTIATE_TEST_CASE_P(smoke_Convolution2D_Dilated_VPU3720, VPUXConvolutionLayerTest_VPU3720_SW,
+                        ::testing::Combine(conv2DParams_Dilated,                               //
+                                           ::testing::Values(Precision::FP16),                 // netPrc
+                                           ::testing::Values(Precision::FP16),                 // inPrc
+                                           ::testing::Values(Precision::FP16),                 // outPrc
+                                           ::testing::Values(Layout::ANY),                     // inLayout
+                                           ::testing::Values(Layout::ANY),                     // outLayout
+                                           ::testing::ValuesIn<SizeVector>({{1, 3, 16, 16}}),  // inputShapes
+                                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                        ConvolutionLayerTest::getTestCaseName);
 /* ============= 2D Convolution / LargeSize ============= */
 
 const auto conv2DParams_LargeSize1 =
@@ -275,11 +431,22 @@ const auto conv2DParams_LargeSize1 =
                            ::testing::Values(ngraph::op::PadType::VALID)           // padType
         );
 
-INSTANTIATE_TEST_CASE_P(smoke_Convolution2D_LargeSize1, KmbConvolutionLayerTest,
+INSTANTIATE_TEST_CASE_P(smoke_Convolution2D_LargeSize1, VPUXConvolutionLayerTest_VPU3700,
                         ::testing::Combine(conv2DParams_LargeSize1,                               //
                                            ::testing::Values(Precision::FP16),                    // netPrc
                                            ::testing::Values(Precision::UNSPECIFIED),             // inPrc
                                            ::testing::Values(Precision::UNSPECIFIED),             // outPrc
+                                           ::testing::Values(Layout::ANY),                        // inLayout
+                                           ::testing::Values(Layout::ANY),                        // outLayout
+                                           ::testing::ValuesIn<SizeVector>({{1, 16, 128, 128}}),  // inputShapes
+                                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),  //
+                        ConvolutionLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_Convolution2D_LargeSize1_VPU3720, VPUXConvolutionLayerTest_VPU3720_SW,
+                        ::testing::Combine(conv2DParams_LargeSize1,                               //
+                                           ::testing::Values(Precision::FP16),                    // netPrc
+                                           ::testing::Values(Precision::FP16),                    // inPrc
+                                           ::testing::Values(Precision::FP16),                    // outPrc
                                            ::testing::Values(Layout::ANY),                        // inLayout
                                            ::testing::Values(Layout::ANY),                        // outLayout
                                            ::testing::ValuesIn<SizeVector>({{1, 16, 128, 128}}),  // inputShapes
@@ -306,11 +473,22 @@ const auto conv2DParams_LargeSize2_ELF =
                            ::testing::Values(ngraph::op::PadType::VALID)           // padType
         );
 
-INSTANTIATE_TEST_CASE_P(smoke_Convolution2D_LargeSize2, KmbConvolutionLayerTest,
+INSTANTIATE_TEST_CASE_P(smoke_Convolution2D_LargeSize2, VPUXConvolutionLayerTest_VPU3700,
                         ::testing::Combine(conv2DParams_LargeSize2,                               //
                                            ::testing::Values(Precision::FP16),                    // netPrc
                                            ::testing::Values(Precision::UNSPECIFIED),             // inPrc
                                            ::testing::Values(Precision::UNSPECIFIED),             // outPrc
+                                           ::testing::Values(Layout::ANY),                        // inLayout
+                                           ::testing::Values(Layout::ANY),                        // outLayout
+                                           ::testing::ValuesIn<SizeVector>({{1, 16, 256, 256}}),  // inputShapes
+                                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),  //
+                        ConvolutionLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_Convolution2D_LargeSize2_VPU3720, VPUXConvolutionLayerTest_VPU3720_SW,
+                        ::testing::Combine(conv2DParams_LargeSize2,                               //
+                                           ::testing::Values(Precision::FP16),                    // netPrc
+                                           ::testing::Values(Precision::FP16),                    // inPrc
+                                           ::testing::Values(Precision::FP16),                    // outPrc
                                            ::testing::Values(Layout::ANY),                        // inLayout
                                            ::testing::Values(Layout::ANY),                        // outLayout
                                            ::testing::ValuesIn<SizeVector>({{1, 16, 256, 256}}),  // inputShapes
@@ -329,7 +507,18 @@ const auto conv2DParams_LargeStrides =
                            ::testing::Values(ngraph::op::PadType::VALID)           // padType
         );
 
-INSTANTIATE_TEST_CASE_P(smoke_Convolution2D_LargeStrides, KmbConvolutionLayerTest,
+INSTANTIATE_TEST_CASE_P(smoke_Convolution2D_LargeStrides, VPUXConvolutionLayerTest_VPU3700,
+                        ::testing::Combine(conv2DParams_LargeStrides,                          //
+                                           ::testing::Values(Precision::FP16),                 // netPrc
+                                           ::testing::Values(Precision::FP16),                 // inPrc
+                                           ::testing::Values(Precision::FP16),                 // outPrc
+                                           ::testing::Values(Layout::ANY),                     // inLayout
+                                           ::testing::Values(Layout::ANY),                     // outLayout
+                                           ::testing::ValuesIn<SizeVector>({{1, 3, 64, 64}}),  // inputShapes
+                                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),  //
+                        ConvolutionLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_Convolution2D_LargeStrides_VPU3720, VPUXConvolutionLayerTest_VPU3720_SW,
                         ::testing::Combine(conv2DParams_LargeStrides,                          //
                                            ::testing::Values(Precision::FP16),                 // netPrc
                                            ::testing::Values(Precision::FP16),                 // inPrc
@@ -351,7 +540,7 @@ const auto conv2DParams_SOK = ::testing::Combine(::testing::ValuesIn<SizeVector>
                                                  ::testing::Values(ngraph::op::PadType::VALID)  // padType
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_Convolution2D_SOK, VPUXConvolutionLayerTestLatency,
+INSTANTIATE_TEST_CASE_P(smoke_Convolution2D_SOK, VPUXConvolutionLayerTestLatency_VPU3720,
                         ::testing::Combine(conv2DParams_SOK,                                  //
                                            ::testing::Values(Precision::FP16),                // netPrc
                                            ::testing::Values(Precision::FP16),                // inPrc

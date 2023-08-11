@@ -18,76 +18,6 @@ It handles such VPU-specifics as:
 
 [TOC]
 
-## Attribute definition
-
-### CompressionSchemeAttr
-
-
-
-Represents the compression as the number of elements along a specified axis.
-
-For example, a two-dimensional type with the shape 4x30 might be compressed
-along axis 0 into with the number of elements [12, 15, 30, 3].
-
-In case the compression is over the entire data (instead of a specified axis),
-the `axis` attribute can be set to null with the `numElems` as a splat value.
-
-The `alignment` attribute can be used to represent a required alignment for
-each set of elements on the given axis. For example, in case the compression
-for weights sparsity is represented by this attribute, the compression will
-be over the output channel axis and each weight set (i.e. ICxKYxKX - set of
-values for each output channel) has to be aligned to 16 bytes.
-
-#### Parameters:
-
-| Parameter | C++ type | Description |
-| :-------: | :-------: | ----------- |
-| axis | `mlir::IntegerAttr` |  |
-| numElems | `mlir::ElementsAttr` |  |
-| alignment | `mlir::IntegerAttr` |  |
-
-### SwizzlingSchemeAttr
-
-
-
-This contains information about all the swizzling related requirements for the buffer
-
-The 'key' is the swizzling key to be used, these keys refers to 5 swizzling patterns that determines how much striping is applied
-Higher swizzling shows higher performance but needs larger alignment/padding size for each allocation depending on the architecture
-The 'sizeAlignment' is the requirement for the buffer size dictated by the architecture
-
-#### Parameters:
-
-| Parameter | C++ type | Description |
-| :-------: | :-------: | ----------- |
-| key | `mlir::IntegerAttr` |  |
-| sizeAlignment | `mlir::IntegerAttr` |  |
-
-## Type constraint definition
-
-### VPUIP Buffer Type
-This type represents a simple buffer similar to memref
-### VPUIP buffer type to describe the buffer tiling
-This type of buffer is used together with the ClusterTiling operation
-                           to describe a tile operation between clusters
-### VPUIP Sparse Buffer Type
-This type represents a sparse buffer as a group of data and metadata.
-The metadata is represented by the sparsity map and, in some instances,
-the storage element table.
-
-The data and metadata have to be of one of the following types:
-- mlir::MemRefType
-- VPU::DistributedBufferType
-
-The `isWeights` attribute is used to mark cases where a sparse buffer is
-consumed as weights by the IDU of the user operation. In such cases, the
-weights set size of the sparsity map (i.e. ICxKYxKW) needs to be aligned
-to 16 bytes for every output channel.
-
-The `compressionScheme` attribute is utilized for weights sparsity to
-identify the number of elements per output channel that are present in
-the data after removing the sparse values.
-
 ## Operation definition
 
 ### `VPUIP.AbsUPA` (vpux::VPUIP::AbsUPAOp)
@@ -620,45 +550,50 @@ Interfaces: InferTypeOpInterface, LayerOpInterface, MemoryEffectsOpInterface, Ta
 | :----: | ----------- |
 | `output` | memref of 16-bit float values
 
-### `VPUIP.CompressedDMAOp` (vpux::VPUIP::CompressedDMAOp)
+### `VPUIP.CompressDMAOp` (vpux::VPUIP::CompressDMAOp)
 
-NN DMA task with enabled compression. Omits VPUIP_SameShape trait.
+
+        NN DMA task for Activation Spill Compression.
+        In case of Activation Spill Compression: compress with the HW feature in the DMA (BTC).
+        Omits VPUIP_SameShape trait & VPUIP_SameElementType (verifier for input/output same element type)
 
 
 Syntax:
 
 ```
-operation ::= `VPUIP.CompressedDMAOp` attr-dict
+operation ::= `VPUIP.CompressDMAOp` attr-dict
               `inputs` `(` $input `:` type($input) `)`
               `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `act_compression_size_entry` `(` $act_compression_size_entry  `:` type($act_compression_size_entry) `)`
               `->` type(results)
 ```
 
 
-Traits: VPUIP_SameElementType
-
-Interfaces: DotInterface, InferTypeOpInterface, LayerOpInterface, MemoryEffectsOpInterface, TaskOpInterface, VPUIP_AsyncLayerOpInterface, ViewLikeOpInterface
+Interfaces: DotInterface, InferTypeOpInterface, LayerOpInterface, MemoryEffectsOpInterface, TaskOpInterface, VPUIP_AsyncLayerOpInterface, VPUIP_DMATypeOpInterface, ViewLikeOpInterface
 
 #### Attributes:
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
 | `port` | mlir::IntegerAttr | Integer attribute
+| `channelType` | vpux::VPUIP::DmaChannelTypeAttr | DMA channel type
 | `is_out_of_order` | ::mlir::UnitAttr | unit attribute
 | `is_critical` | ::mlir::UnitAttr | unit attribute
+| `dma_hwp_id` | mlir::IntegerAttr | Integer attribute
 
 #### Operands:
 
 | Operand | Description |
 | :-----: | ----------- |
 | `input` | memref of any type values
-| `output_buff` | memref of any type values or VPUIP buffer type to describe the buffer tiling
+| `act_compression_size_entry` | memref of any type values
+| `output_buff` | memref of any type values
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `output` | memref of any type values or VPUIP buffer type to describe the buffer tiling
+| `output` | memref of any type values
 
 ### `VPUIP.ConcatView` (vpux::VPUIP::ConcatViewOp)
 
@@ -691,6 +626,48 @@ Effects: MemoryEffects::Effect{}
 | Result | Description |
 | :----: | ----------- |
 | `output` | memref of any type values or VPUIP Buffer Type or VPUIP buffer type to describe the buffer tiling or VPUIP Sparse Buffer Type
+
+### `VPUIP.ConvertDMA` (vpux::VPUIP::ConvertDMAOp)
+
+NN DMA task which enables data conversion
+
+
+Syntax:
+
+```
+operation ::= `VPUIP.ConvertDMA` attr-dict
+              `inputs` `(` $input `:` type($input) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+Traits: VPUIP_SameInOutDimsOrder, VPUIP_SameShape
+
+Interfaces: DotInterface, InferTypeOpInterface, LayerOpInterface, MemoryEffectsOpInterface, TaskOpInterface, VPUIP_AsyncLayerOpInterface, VPUIP_DMATypeOpInterface, ViewLikeOpInterface
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+| `port` | mlir::IntegerAttr | Integer attribute
+| `channelType` | vpux::VPUIP::DmaChannelTypeAttr | DMA channel type
+| `is_out_of_order` | ::mlir::UnitAttr | unit attribute
+| `is_critical` | ::mlir::UnitAttr | unit attribute
+| `dma_hwp_id` | mlir::IntegerAttr | Integer attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `input` | memref of any type values or VPUIP Buffer Type or VPUIP buffer type to describe the buffer tiling
+| `output_buff` | memref of any type values or VPUIP Buffer Type or VPUIP buffer type to describe the buffer tiling
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+| `output` | memref of any type values or VPUIP Buffer Type or VPUIP buffer type to describe the buffer tiling
 
 ### `VPUIP.ConvertUPA` (vpux::VPUIP::ConvertUPAOp)
 
@@ -793,7 +770,14 @@ operation ::= `VPUIP.Copy` attr-dict
 ```
 
 
-Interfaces: DotInterface, InferTypeOpInterface, LayerOpInterface, MemoryEffectsOpInterface, VPUIP_ProfiledDMAOpInterface, ViewLikeOpInterface
+Interfaces: DotInterface, InferTypeOpInterface, LayerOpInterface, MemoryEffectsOpInterface, VPUIP_DMATypeOpInterface, ViewLikeOpInterface
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+| `channelType` | vpux::VPUIP::DmaChannelTypeAttr | DMA channel type
+| `spillId` | mlir::IntegerAttr | Integer attribute
 
 #### Operands:
 
@@ -937,6 +921,53 @@ Traits: HasParent<vpux::VPUIP::NCEClusterTaskOp>
 | `pad` | vpux::VPU::PaddingAttr | DictionaryAttr with field(s): 'left', 'right', 'top', 'bottom' (each field having its own constraints)
 | `mpe_mode` | vpux::VPU::MPEModeAttr | MPE Mode
 | `cluster_id` | mlir::IntegerAttr | Integer attribute
+| `workload_id` | mlir::IntegerAttr | Integer attribute
+
+### `VPUIP.DecompressDMAOp` (vpux::VPUIP::DecompressDMAOp)
+
+
+        NN DMA task for BitCompactor weight compression & Activation Spill Decompression.
+        In case of BitCompactor weight compression: use BitCompactor library to compress weights and decompress with the HW feature in the DMA (BTC)
+        In case of Activation Spill Decompression: decompress with the HW feature in the DMA (BTC)
+        Omits VPUIP_SameShape trait & VPUIP_SameElementType (verifier for input/output same element type)
+
+
+Syntax:
+
+```
+operation ::= `VPUIP.DecompressDMAOp` attr-dict
+              `inputs` `(` $input `:` type($input) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              (`act_compression_size_entry` `(` $act_compression_size_entry^  `:` type($act_compression_size_entry) `)`)?
+              `->` type(results)
+```
+
+
+Interfaces: DotInterface, InferTypeOpInterface, LayerOpInterface, MemoryEffectsOpInterface, TaskOpInterface, VPUIP_AsyncLayerOpInterface, VPUIP_DMATypeOpInterface, ViewLikeOpInterface
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+| `port` | mlir::IntegerAttr | Integer attribute
+| `channelType` | vpux::VPUIP::DmaChannelTypeAttr | DMA channel type
+| `is_out_of_order` | ::mlir::UnitAttr | unit attribute
+| `is_critical` | ::mlir::UnitAttr | unit attribute
+| `dma_hwp_id` | mlir::IntegerAttr | Integer attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `input` | memref of any type values
+| `act_compression_size_entry` | memref of any type values
+| `output_buff` | memref of any type values or VPUIP buffer type to describe the buffer tiling
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+| `output` | memref of any type values or VPUIP buffer type to describe the buffer tiling
 
 ### `VPUIP.DeformablePSROIPoolingUPA` (vpux::VPUIP::DeformablePSROIPoolingUPAOp)
 
@@ -1002,30 +1033,32 @@ operation ::= `VPUIP.DepthToSpaceDMA` attr-dict
 
 Traits: VPUIP_SameElementType
 
-Interfaces: InferTypeOpInterface, LayerOpInterface, MemoryEffectsOpInterface, TaskOpInterface, VPUIP_AsyncLayerOpInterface, VPUIP_ProfiledDMAOpInterface, ViewLikeOpInterface
+Interfaces: InferTypeOpInterface, LayerOpInterface, MemoryEffectsOpInterface, TaskOpInterface, VPUIP_AsyncLayerOpInterface, VPUIP_DMATypeOpInterface, ViewLikeOpInterface
 
 #### Attributes:
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
 | `port` | mlir::IntegerAttr | Integer attribute
+| `channelType` | vpux::VPUIP::DmaChannelTypeAttr | DMA channel type
 | `block_size` | mlir::IntegerAttr | Integer attribute
 | `mode` | vpux::IE::DepthToSpaceModeAttr | DepthToSpaceMode that the InferenceEngine supports
 | `dma_descriptor` | vpux::VPUIP::DmaDescriptorAttr | DictionaryAttr with field(s): 'numPlanes', 'len', 'srcWidth', 'srcStride', 'srcPlaneStride', 'dstWidth', 'dstStride', 'dstPlaneStride' (each field having its own constraints)
 | `padded_channels` | vpux::IE::ChannelPadding | DictionaryAttr with field(s): 'input', 'output' (each field having its own constraints)
+| `dma_hwp_id` | mlir::IntegerAttr | Integer attribute
 
 #### Operands:
 
 | Operand | Description |
 | :-----: | ----------- |
-| `input` | memref of any type values
-| `output_buff` | memref of any type values
+| `input` | memref of any type values or VPUIP buffer type to describe the buffer tiling
+| `output_buff` | memref of any type values or VPUIP buffer type to describe the buffer tiling
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `output` | memref of any type values
+| `output` | memref of any type values or VPUIP buffer type to describe the buffer tiling
 
 ### `VPUIP.DepthToSpaceUPA` (vpux::VPUIP::DepthToSpaceUPAOp)
 
@@ -1090,7 +1123,7 @@ Interfaces: InferTypeOpInterface, LayerOpInterface, MemoryEffectsOpInterface, Ta
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-| `attr` | vpux::IE::DetectionOutputAttr | DictionaryAttr with field(s): 'num_classes', 'background_label_id', 'top_k', 'variance_encoded_in_target', 'keep_top_k', 'code_type', 'share_location', 'nms_threshold', 'confidence_threshold', 'clip_after_nms', 'clip_before_nms', 'decrease_label_id', 'normalized', 'input_height', 'input_width', 'objectness_score' (each field having its own constraints)
+| `attr` | vpux::IE::DetectionOutputAttr | 
 
 #### Operands:
 
@@ -1380,7 +1413,7 @@ operation ::= `VPUIP.ExpandDMA` attr-dict
 
 Traits: VPUIP_SameElementType
 
-Interfaces: InferTypeOpInterface, LayerOpInterface, MemoryEffectsOpInterface, TaskOpInterface, VPUIP_AsyncLayerOpInterface, VPUIP_ProfiledDMAOpInterface, ViewLikeOpInterface
+Interfaces: InferTypeOpInterface, LayerOpInterface, MemoryEffectsOpInterface, TaskOpInterface, VPUIP_AsyncLayerOpInterface, VPUIP_DMATypeOpInterface, ViewLikeOpInterface
 
 #### Attributes:
 
@@ -1390,14 +1423,16 @@ Interfaces: InferTypeOpInterface, LayerOpInterface, MemoryEffectsOpInterface, Ta
 | `pads_end` | ::mlir::ArrayAttr | 64-bit integer array attribute
 | `dma_descriptor` | vpux::VPUIP::DmaDescriptorAttr | DictionaryAttr with field(s): 'numPlanes', 'len', 'srcWidth', 'srcStride', 'srcPlaneStride', 'dstWidth', 'dstStride', 'dstPlaneStride' (each field having its own constraints)
 | `port` | mlir::IntegerAttr | Integer attribute
+| `channelType` | vpux::VPUIP::DmaChannelTypeAttr | DMA channel type
 | `is_out_of_order` | ::mlir::UnitAttr | unit attribute
 | `is_critical` | ::mlir::UnitAttr | unit attribute
+| `dma_hwp_id` | mlir::IntegerAttr | Integer attribute
 
 #### Operands:
 
 | Operand | Description |
 | :-----: | ----------- |
-| `input` | memref of any type values or VPUIP Buffer Type
+| `input` | memref of any type values or VPUIP Buffer Type or VPUIP buffer type to describe the buffer tiling
 | `output_buff` | memref of any type values or VPUIP Buffer Type or VPUIP buffer type to describe the buffer tiling
 
 #### Results:
@@ -1842,6 +1877,7 @@ Effects: MemoryEffects::Effect{}
 | :-------: | :-------: | ----------- |
 | `is_weights` | ::mlir::UnitAttr | unit attribute
 | `compression_scheme` | vpux::VPUIP::CompressionSchemeAttr | 
+| `seAttr` | vpux::VPU::SEAttr | Storage Element attribute
 
 #### Operands:
 
@@ -2340,19 +2376,20 @@ Interfaces: InferTypeOpInterface, LayerOpInterface, MemoryEffectsOpInterface, Mu
 | `is_inplace` | ::mlir::BoolAttr | bool attribute
 | `input_se_size` | mlir::IntegerAttr | Integer attribute
 | `output_se_size` | mlir::IntegerAttr | Integer attribute
+| `is_permute_quantize` | ::mlir::UnitAttr | unit attribute
 
 #### Operands:
 
 | Operand | Description |
 | :-----: | ----------- |
-| `input` | memref of 16-bit float or bfloat16 type or QuantizedType values or VPUIP Buffer Type
-| `input_sparsity_map` | memref of 1-bit signless integer values
-| `input_storage_element_table` | memref of 32-bit signless integer values
-| `weights` | memref of 16-bit float or bfloat16 type or QuantizedType values or VPUIP Buffer Type
-| `weights_sparsity_map` | memref of 1-bit signless integer values
-| `weight_table` | memref of 32-bit signed integer values
-| `instruction_list_table` | memref of 32-bit signed integer values
-| `activation_window` | memref of 8-bit unsigned integer values
+| `input` | memref of 16-bit float or bfloat16 type or QuantizedType values or VPUIP buffer type to describe the buffer tiling or VPUIP Buffer Type
+| `input_sparsity_map` | memref of 1-bit signless integer values or VPUIP buffer type to describe the buffer tiling
+| `input_storage_element_table` | memref of 32-bit signless integer values or VPUIP buffer type to describe the buffer tiling
+| `weights` | memref of 16-bit float or bfloat16 type or QuantizedType values or VPUIP buffer type to describe the buffer tiling or VPUIP Buffer Type
+| `weights_sparsity_map` | memref of 1-bit signless integer values or VPUIP buffer type to describe the buffer tiling
+| `weight_table` | memref of 32-bit signed integer values or VPUIP buffer type to describe the buffer tiling
+| `instruction_list_table` | memref of 32-bit signed integer values or VPUIP buffer type to describe the buffer tiling
+| `activation_window` | memref of 8-bit unsigned integer values or VPUIP buffer type to describe the buffer tiling
 | `parent_input` | memref of any type values or VPUIP Buffer Type or VPUIP buffer type to describe the buffer tiling
 | `parent_input_sparsity_map` | memref of 1-bit signless integer values or VPUIP buffer type to describe the buffer tiling
 | `parent_input_storage_element_table` | memref of 32-bit signless integer values or VPUIP buffer type to describe the buffer tiling
@@ -2368,16 +2405,16 @@ Interfaces: InferTypeOpInterface, LayerOpInterface, MemoryEffectsOpInterface, Mu
 | :----: | ----------- |
 | `output` | memref of 16-bit float or 32-bit float or bfloat16 type or QuantizedType values or VPUIP Buffer Type or VPUIP buffer type to describe the buffer tiling
 | `output_sparsity_map` | memref of 1-bit signless integer values or VPUIP buffer type to describe the buffer tiling
-| `profiling_output` | memref of 64-bit unsigned integer values
+| `profiling_output` | memref of 64-bit unsigned integer values or VPUIP buffer type to describe the buffer tiling
 
 ### `VPUIP.NCEClusterTiling` (vpux::VPUIP::NCEClusterTilingOp)
 
 Operation that encapsulates details of tiling operation between clusters
 
 
-Traits: AttrSizedOperandSegments, IsolatedFromAbove, NoTerminator
+Traits: AttrSizedOperandSegments, HasOnlyGraphRegion, IsolatedFromAbove, NoTerminator, SingleBlock
 
-Interfaces: LayerOpInterface, MemoryEffectsOpInterface, MultiViewOpInterface, RegionBranchOpInterface, VPUIP_AsyncLayerOpInterface
+Interfaces: LayerOpInterface, MemoryEffectsOpInterface, MultiViewOpInterface, RegionKindInterface, VPUIP_AsyncLayerOpInterface
 
 #### Operands:
 
@@ -2409,21 +2446,24 @@ operation ::= `VPUIP.NNDMA` attr-dict
 
 Traits: VPUIP_SameElementType, VPUIP_SameInOutDimsOrder, VPUIP_SameShape
 
-Interfaces: DotInterface, InferTypeOpInterface, LayerOpInterface, MemoryEffectsOpInterface, TaskOpInterface, VPUIP_AsyncLayerOpInterface, VPUIP_ProfiledDMAOpInterface, ViewLikeOpInterface
+Interfaces: DotInterface, InferTypeOpInterface, LayerOpInterface, MemoryEffectsOpInterface, TaskOpInterface, VPUIP_AsyncLayerOpInterface, VPUIP_DMATypeOpInterface, ViewLikeOpInterface
 
 #### Attributes:
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
 | `port` | mlir::IntegerAttr | Integer attribute
+| `channelType` | vpux::VPUIP::DmaChannelTypeAttr | DMA channel type
 | `is_out_of_order` | ::mlir::UnitAttr | unit attribute
 | `is_critical` | ::mlir::UnitAttr | unit attribute
+| `spillId` | mlir::IntegerAttr | Integer attribute
+| `dma_hwp_id` | mlir::IntegerAttr | Integer attribute
 
 #### Operands:
 
 | Operand | Description |
 | :-----: | ----------- |
-| `input` | memref of any type values or VPUIP Buffer Type
+| `input` | memref of any type values or VPUIP Buffer Type or VPUIP buffer type to describe the buffer tiling
 | `output_buff` | memref of any type values or VPUIP Buffer Type or VPUIP buffer type to describe the buffer tiling
 
 #### Results:
@@ -2610,7 +2650,7 @@ operation ::= `VPUIP.PPETask` $ppe_layer_type attr-dict
 ```
 
 
-Traits: HasParent<vpux::VPUIP::NCEClusterTaskOp, vpux::VPUIPRegMapped::DPUInvariantOp>
+Traits: HasParent<vpux::VPUIP::NCEClusterTaskOp, vpux::VPUMI37XX::DPUInvariantOp>
 
 #### Attributes:
 
@@ -2764,29 +2804,31 @@ operation ::= `VPUIP.PerAxisTileDMA` attr-dict
 
 Traits: VPUIP_SameInOutDimsOrder
 
-Interfaces: InferTypeOpInterface, LayerOpInterface, MemoryEffectsOpInterface, TaskOpInterface, VPUIP_AsyncLayerOpInterface, VPUIP_ProfiledDMAOpInterface, ViewLikeOpInterface
+Interfaces: InferTypeOpInterface, LayerOpInterface, MemoryEffectsOpInterface, TaskOpInterface, VPUIP_AsyncLayerOpInterface, VPUIP_DMATypeOpInterface, ViewLikeOpInterface
 
 #### Attributes:
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
 | `port` | mlir::IntegerAttr | Integer attribute
+| `channelType` | vpux::VPUIP::DmaChannelTypeAttr | DMA channel type
 | `axis` | mlir::IntegerAttr | Integer attribute
 | `tiles` | mlir::IntegerAttr | Integer attribute
 | `dma_descriptor` | vpux::VPUIP::DmaDescriptorAttr | DictionaryAttr with field(s): 'numPlanes', 'len', 'srcWidth', 'srcStride', 'srcPlaneStride', 'dstWidth', 'dstStride', 'dstPlaneStride' (each field having its own constraints)
+| `dma_hwp_id` | mlir::IntegerAttr | Integer attribute
 
 #### Operands:
 
 | Operand | Description |
 | :-----: | ----------- |
-| `input` | memref of 16-bit float values
-| `output_buff` | memref of 16-bit float values or VPUIP buffer type to describe the buffer tiling
+| `input` | memref of 8-bit unsigned integer or 16-bit float values or VPUIP buffer type to describe the buffer tiling
+| `output_buff` | memref of 8-bit unsigned integer or 16-bit float values or VPUIP buffer type to describe the buffer tiling
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `output` | memref of 16-bit float values or VPUIP buffer type to describe the buffer tiling
+| `output` | memref of 8-bit unsigned integer or 16-bit float values or VPUIP buffer type to describe the buffer tiling
 
 ### `VPUIP.PerAxisTileUPA` (vpux::VPUIP::PerAxisTileUPAOp)
 
@@ -2881,23 +2923,25 @@ operation ::= `VPUIP.PermuteDMA` attr-dict
 
 Traits: VPUIP_SameElementType
 
-Interfaces: InferTypeOpInterface, LayerOpInterface, MemoryEffectsOpInterface, TaskOpInterface, VPUIP_AsyncLayerOpInterface, VPUIP_ProfiledDMAOpInterface, ViewLikeOpInterface
+Interfaces: InferTypeOpInterface, LayerOpInterface, MemoryEffectsOpInterface, TaskOpInterface, VPUIP_AsyncLayerOpInterface, VPUIP_DMATypeOpInterface, ViewLikeOpInterface
 
 #### Attributes:
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
 | `port` | mlir::IntegerAttr | Integer attribute
+| `channelType` | vpux::VPUIP::DmaChannelTypeAttr | DMA channel type
 | `is_out_of_order` | ::mlir::UnitAttr | unit attribute
 | `is_critical` | ::mlir::UnitAttr | unit attribute
 | `mem_perm` | ::mlir::AffineMapAttr | AffineMap attribute
 | `dma_descriptor` | vpux::VPUIP::DmaDescriptorAttr | DictionaryAttr with field(s): 'numPlanes', 'len', 'srcWidth', 'srcStride', 'srcPlaneStride', 'dstWidth', 'dstStride', 'dstPlaneStride' (each field having its own constraints)
+| `dma_hwp_id` | mlir::IntegerAttr | Integer attribute
 
 #### Operands:
 
 | Operand | Description |
 | :-----: | ----------- |
-| `input` | memref of any type values
+| `input` | memref of any type values or VPUIP buffer type to describe the buffer tiling
 | `output_buff` | memref of any type values or VPUIP buffer type to describe the buffer tiling
 
 #### Results:
@@ -3872,29 +3916,31 @@ operation ::= `VPUIP.SpaceToDepthDMA` attr-dict
 
 Traits: VPUIP_SameElementType
 
-Interfaces: InferTypeOpInterface, LayerOpInterface, MemoryEffectsOpInterface, TaskOpInterface, VPUIP_AsyncLayerOpInterface, VPUIP_ProfiledDMAOpInterface, ViewLikeOpInterface
+Interfaces: InferTypeOpInterface, LayerOpInterface, MemoryEffectsOpInterface, TaskOpInterface, VPUIP_AsyncLayerOpInterface, VPUIP_DMATypeOpInterface, ViewLikeOpInterface
 
 #### Attributes:
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
 | `port` | mlir::IntegerAttr | Integer attribute
+| `channelType` | vpux::VPUIP::DmaChannelTypeAttr | DMA channel type
 | `block_size` | mlir::IntegerAttr | Integer attribute
 | `mode` | vpux::IE::SpaceToDepthModeAttr | SpaceToDepthMode that the InferenceEngine supports
 | `dma_descriptor` | vpux::VPUIP::DmaDescriptorAttr | DictionaryAttr with field(s): 'numPlanes', 'len', 'srcWidth', 'srcStride', 'srcPlaneStride', 'dstWidth', 'dstStride', 'dstPlaneStride' (each field having its own constraints)
+| `dma_hwp_id` | mlir::IntegerAttr | Integer attribute
 
 #### Operands:
 
 | Operand | Description |
 | :-----: | ----------- |
-| `input` | memref of any type values
-| `output_buff` | memref of any type values
+| `input` | memref of any type values or VPUIP buffer type to describe the buffer tiling
+| `output_buff` | memref of any type values or VPUIP buffer type to describe the buffer tiling
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `output` | memref of any type values
+| `output` | memref of any type values or VPUIP buffer type to describe the buffer tiling
 
 ### `VPUIP.SpaceToDepthUPA` (vpux::VPUIP::SpaceToDepthUPAOp)
 
@@ -3999,7 +4045,7 @@ Effects: MemoryEffects::Effect{}
 
 ### `VPUIP.StorageElementTable` (vpux::VPUIP::StorageElementTableOp)
 
-Declares Storage Element Pointers table
+Declares a Storage Element Pointers table
 
 
 Syntax:
@@ -4008,10 +4054,31 @@ Syntax:
 operation ::= `VPUIP.StorageElementTable` attr-dict `->` type(results)
 ```
 
-Declares Storage Element Pointers table with defined width,
-height, number of output pixels each SE contains(seSize), amount of SE
-per tensor depth(seDepth) and not empty list of base pointers for each
-element.
+A Storage Element represents a 1x1xN volume that contains sparse data, where N
+represents the number of channels stored. The Storage Element Table is comprised
+of pointers to these Storage Elements, which have the following structure:
+
+31-29 28                            9 8         0
+-------------------------------------------------
+| xx |           DATA_PTR            | BASE_PTR |
+-------------------------------------------------
+
+The DATA_PTR represents the offset to a Storage Element in relation to the start of
+the input data. BASE_PTR is used to decide what base address is added to DATA_PTR
+in order to find the location of the Storage Element in memory during inference.
+
+This operation represents the Storage Element Table in relation to the input data,
+on top of which transformations can be applied. This operation will later get
+converted to a constant, where the pointers are generated based on the information
+contained in this operation.
+
+The following information is contained:
+- dataShape, dataElemType, dataStrides: information about the input data that
+  is associated with this Storage Element Table
+- seSize: the size of a Storage Element
+- seDepth: the number of Storage Elements per depth
+- seAttr: information on how the input data is transformed
+- basePtrs: base pointers associated with each Storage Element pointer
 
 Interfaces: InferTypeOpInterface, NoSideEffect (MemoryEffectOpInterface)
 
@@ -4021,11 +4088,13 @@ Effects: MemoryEffects::Effect{}
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-| `seDepth` | mlir::IntegerAttr | Integer attribute
+| `dataShape` | ::mlir::ArrayAttr | 64-bit integer array attribute
+| `dataElemType` | ::mlir::TypeAttr | any type attribute
 | `seSize` | mlir::IntegerAttr | Integer attribute
-| `height` | mlir::IntegerAttr | Integer attribute
-| `width` | mlir::IntegerAttr | Integer attribute
-| `base_ptrs` | ::mlir::ArrayAttr | 32-bit integer array attribute
+| `seDepth` | mlir::IntegerAttr | Integer attribute
+| `seAttr` | vpux::VPU::SEAttr | Storage Element attribute
+| `dataStrides` | ::mlir::ArrayAttr | 64-bit integer array attribute
+| `basePtrs` | ::mlir::DenseIntElementsAttr | 32-bit signless integer elements attribute
 
 #### Results:
 
@@ -4156,22 +4225,22 @@ Interfaces: InferTypeOpInterface, LayerOpInterface, MemoryEffectsOpInterface, Mu
 | :-------: | :-------: | ----------- |
 | `kernelFunction` | ::mlir::SymbolRefAttr | symbol reference attribute
 | `tileIndex` | mlir::IntegerAttr | Integer attribute
-| `strides` | ::mlir::ArrayAttr | array attribute
+| `strides` | ::mlir::ArrayAttr | array of 64-bit integer arrays
 
 #### Operands:
 
 | Operand | Description |
 | :-----: | ----------- |
-| `inputs` | memref of any type values
-| `output_buffs` | memref of any type values
-| `profiling_data` | memref of 32-bit unsigned integer values
+| `inputs` | memref of any type values or VPUIP buffer type to describe the buffer tiling
+| `output_buffs` | memref of any type values or VPUIP buffer type to describe the buffer tiling
+| `profiling_data` | memref of 32-bit unsigned integer values or VPUIP buffer type to describe the buffer tiling
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `results` | memref of any type values
-| `profiling_output` | memref of 32-bit unsigned integer values
+| `results` | memref of any type values or VPUIP buffer type to describe the buffer tiling
+| `profiling_output` | memref of 32-bit unsigned integer values or VPUIP buffer type to describe the buffer tiling
 
 ### `VPUIP.SW.Kernel.run` (vpux::VPUIP::SwKernelRun)
 
@@ -4196,7 +4265,7 @@ operation ::= `VPUIP.SW.Kernel.run` attr-dict
 
 | Operand | Description |
 | :-----: | ----------- |
-| `args` | memref of any type values
+| `args` | memref of any type values or VPUIP buffer type to describe the buffer tiling
 
 ### `VPUIP.SwishUPA` (vpux::VPUIP::SwishUPAOp)
 
@@ -4417,7 +4486,7 @@ operation ::= `VPUIP.UpsamplingDMAOp` attr-dict
 
 Traits: VPUIP_SameElementType, VPUIP_SameInOutDimsOrder
 
-Interfaces: InferTypeOpInterface, LayerOpInterface, MemoryEffectsOpInterface, TaskOpInterface, VPUIP_AsyncLayerOpInterface, VPUIP_ProfiledDMAOpInterface, ViewLikeOpInterface
+Interfaces: InferTypeOpInterface, LayerOpInterface, MemoryEffectsOpInterface, TaskOpInterface, VPUIP_AsyncLayerOpInterface, VPUIP_DMATypeOpInterface, ViewLikeOpInterface
 
 #### Attributes:
 
@@ -4425,20 +4494,23 @@ Interfaces: InferTypeOpInterface, LayerOpInterface, MemoryEffectsOpInterface, Ta
 | :-------: | :-------: | ----------- |
 | `upsampling_factor` | ::mlir::ArrayAttr | 64-bit integer array attribute
 | `dma_descriptor` | vpux::VPUIP::DmaDescriptorAttr | DictionaryAttr with field(s): 'numPlanes', 'len', 'srcWidth', 'srcStride', 'srcPlaneStride', 'dstWidth', 'dstStride', 'dstPlaneStride' (each field having its own constraints)
+| `expand` | ::mlir::ArrayAttr | 64-bit integer array attribute
 | `port` | mlir::IntegerAttr | Integer attribute
+| `channelType` | vpux::VPUIP::DmaChannelTypeAttr | DMA channel type
+| `dma_hwp_id` | mlir::IntegerAttr | Integer attribute
 
 #### Operands:
 
 | Operand | Description |
 | :-----: | ----------- |
-| `input` | memref of any type values
-| `output_buff` | memref of any type values
+| `input` | memref of any type values or VPUIP buffer type to describe the buffer tiling
+| `output_buff` | memref of any type values or VPUIP buffer type to describe the buffer tiling
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `output` | memref of any type values
+| `output` | memref of any type values or VPUIP buffer type to describe the buffer tiling
 
 ### `VPUIP.UpsamplingUPA` (vpux::VPUIP::UpsamplingUPAOp)
 
@@ -4464,8 +4536,7 @@ Interfaces: InferTypeOpInterface, LayerOpInterface, MemoryEffectsOpInterface, Ta
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
 | `upsampling_factor` | ::mlir::ArrayAttr | 64-bit integer array attribute
-| `pad_l` | ::mlir::ArrayAttr | 64-bit integer array attribute
-| `pad_r` | ::mlir::ArrayAttr | 64-bit integer array attribute
+| `pad` | vpux::IE::UpsamplingPadAttr | DictionaryAttr with field(s): 'pads_channel', 'pads_height', 'pads_width' (each field having its own constraints)
 
 #### Operands:
 
@@ -4580,6 +4651,70 @@ Interfaces: InferTypeOpInterface, LayerOpInterface, MemoryEffectsOpInterface, Ta
 | :----: | ----------- |
 | `output` | memref of 8-bit unsigned integer or 16-bit float or 32-bit float values
 
+## Attribute definition
+
+### CompressionSchemeAttr
+
+
+
+Syntax:
+
+```
+!VPUIP.CompressionScheme<
+  mlir::IntegerAttr,   # axis
+  mlir::ElementsAttr,   # numElems
+  mlir::IntegerAttr   # alignment
+>
+```
+
+Represents the compression as the number of elements along a specified axis.
+
+For example, a two-dimensional type with the shape 4x30 might be compressed
+along axis 0 into with the number of elements [12, 15, 30, 3].
+
+In case the compression is over the entire data (instead of a specified axis),
+the `axis` attribute can be set to null with the `numElems` as a splat value.
+
+The `alignment` attribute can be used to represent a required alignment for
+each set of elements on the given axis. For example, in case the compression
+for weights sparsity is represented by this attribute, the compression will
+be over the output channel axis and each weight set (i.e. ICxKYxKX - set of
+values for each output channel) has to be aligned to 16 bytes.
+
+#### Parameters:
+
+| Parameter | C++ type | Description |
+| :-------: | :-------: | ----------- |
+| axis | `mlir::IntegerAttr` |  |
+| numElems | `mlir::ElementsAttr` |  |
+| alignment | `mlir::IntegerAttr` |  |
+
+### SwizzlingSchemeAttr
+
+
+
+Syntax:
+
+```
+!VPUIP.SwizzlingScheme<
+  mlir::IntegerAttr,   # key
+  mlir::IntegerAttr   # sizeAlignment
+>
+```
+
+This contains information about all the swizzling related requirements for the buffer
+
+The 'key' is the swizzling key to be used, these keys refers to 5 swizzling patterns that determines how much striping is applied
+Higher swizzling shows higher performance but needs larger alignment/padding size for each allocation depending on the architecture
+The 'sizeAlignment' is the requirement for the buffer size dictated by the architecture
+
+#### Parameters:
+
+| Parameter | C++ type | Description |
+| :-------: | :-------: | ----------- |
+| key | `mlir::IntegerAttr` |  |
+| sizeAlignment | `mlir::IntegerAttr` |  |
+
 ## Type definition
 
 ### BufferType
@@ -4644,4 +4779,5 @@ the data after removing the sparse values.
 | storageElementTable | `mlir::Type` |  |
 | isWeights | `mlir::UnitAttr` |  |
 | compressionScheme | `VPUIP::CompressionSchemeAttr` |  |
+| seAttr | `vpux::VPU::SEAttr` | Storage Element attribute |
 

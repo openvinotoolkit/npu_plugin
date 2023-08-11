@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/VPURT/cycle_based_barrier_scheduler.hpp"
 
 using namespace vpux::VPURT;

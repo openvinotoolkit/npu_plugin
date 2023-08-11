@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #pragma once
 
 #include "vpux/compiler/core/ops_interfaces.hpp"
@@ -16,12 +14,12 @@
 #include "vpux/compiler/dialect/VPUIP/dialect.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops_interfaces.hpp"
 #include "vpux/compiler/dialect/VPUIP/types.hpp"
-#include "vpux/compiler/dialect/VPUIPRegMapped/ops.hpp"
+#include "vpux/compiler/dialect/VPUMI37XX/ops.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
 
+#include <mlir/Dialect/Func/IR/FuncOps.h>
 #include <mlir/Dialect/Quant/QuantOps.h>
-#include <mlir/Dialect/SCF/SCF.h>
-#include <mlir/Dialect/StandardOps/IR/Ops.h>
+#include <mlir/Dialect/SCF/IR/SCF.h>
 #include <mlir/IR/BuiltinOps.h>
 #include <mlir/IR/BuiltinTypes.h>
 #include <mlir/IR/Dialect.h>
@@ -50,55 +48,6 @@ constexpr KB SHAVE_LIB_DATA_SIZE = 112_KB;
 // According to the documentation, total transfer length (LEN) field is stored in 24 bits that means max value is 16MB
 constexpr Byte DMA_LIMIT = MB(16).to<Byte>() - Byte(1);
 constexpr int64_t CMX_DMA_MAX_NUM_PLANES = 255;
-
-mlir::LogicalResult verifyOp(ConvertUPAOp op);
-mlir::LogicalResult verifyOp(SoftMaxUPAOp op);
-mlir::LogicalResult verifyOp(PoolingUPAOp op);
-mlir::LogicalResult verifyOp(FakeQuantizeUPAOp op);
-mlir::LogicalResult verifyOp(QuantCastUPAOp op);
-mlir::LogicalResult verifyOp(PerAxisTileUPAOp op);
-mlir::LogicalResult verifyOp(ROIPoolingUPAOp op);
-mlir::LogicalResult verifyOp(PSROIPoolingUPAOp op);
-mlir::LogicalResult verifyOp(ProposalUPAOp op);
-mlir::LogicalResult verifyOp(PermuteUPAOp op);
-mlir::LogicalResult verifyOp(CTCGreedyDecoderUPAOp op);
-mlir::LogicalResult verifyOp(MVNUPAOp op);
-mlir::LogicalResult verifyOp(PadUPAOp op);
-mlir::LogicalResult verifyOp(GatherUPAOp op);
-mlir::LogicalResult verifyOp(YuvToRgbUPAOp op);
-mlir::LogicalResult verifyOp(ConvolutionUPAOp op);
-mlir::LogicalResult verifyOp(BucketizeUPAOp op);
-mlir::LogicalResult verifyOp(ReduceUPAOp op);
-mlir::LogicalResult verifyOp(NCEClusterTaskOp op);
-mlir::LogicalResult verifyOp(DepthToSpaceUPAOp op);
-mlir::LogicalResult verifyOp(DPUTaskOp op);
-mlir::LogicalResult verifyOp(SpaceToDepthUPAOp op);
-mlir::LogicalResult verifyOp(NormUPAOp op);
-mlir::LogicalResult verifyOp(ReverseSequenceUPAOp op);
-mlir::LogicalResult verifyOp(TopKUPAOp op);
-mlir::LogicalResult verifyPostOp(mlir::Operation* op);
-mlir::LogicalResult verifyOp(NNDMAOp op);
-mlir::LogicalResult verifyOp(CompressedDMAOp op);
-mlir::LogicalResult verifyOp(DepthToSpaceDMAOp op);
-mlir::LogicalResult verifyOp(SpaceToDepthDMAOp op);
-mlir::LogicalResult verifyOp(PermuteDMAOp op);
-mlir::LogicalResult verifyOp(PerAxisTileDMAOp op);
-mlir::LogicalResult verifyOp(SelectUPAOp op);
-mlir::LogicalResult verifyOp(NCEClusterTilingOp op);
-mlir::LogicalResult verifyOp(DistributedCastOp op);
-mlir::LogicalResult verifyOp(GenericReshapeOp op);
-mlir::LogicalResult verifyOp(ShapeCastOp op);
-mlir::LogicalResult verifyOp(StorageElementTableOp op);
-mlir::LogicalResult verifyOp(ExpandDMAOp op);
-mlir::LogicalResult verifyOp(PermuteCastOp op);
-mlir::LogicalResult verifyOp(QuantizeCastOp op);
-mlir::LogicalResult verifyOp(UpsamplingDMAOp op);
-
-void print(mlir::OpAsmPrinter& p, NCEClusterTilingOp op);
-mlir::ParseResult parseNCEClusterTilingOp(mlir::OpAsmParser& parser, mlir::OperationState& result);
-
-void print(mlir::OpAsmPrinter& p, SwKernelOp op);
-mlir::ParseResult parseSwKernelOp(mlir::OpAsmParser& parser, mlir::OperationState& result);
 
 }  // namespace VPUIP
 }  // namespace vpux

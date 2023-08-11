@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #ifndef VPUX_COMPILER_DIALECT_EMU_OPS
 #define VPUX_COMPILER_DIALECT_EMU_OPS
 
@@ -174,9 +172,7 @@ def EMU_NCEClusterTaskOp :
         `PPE` `:` $ppe
     }];
 
-    let verifier = [{
-        return vpux::EMU::verifyOp(*this);
-    }];
+    let hasVerifier = 1;
 
     let extraClassDeclaration = [{
         static void addPPETask(mlir::OpBuilder& builder, mlir::OperationState& state, vpux::VPU::PPETaskAttr ppeAttr);

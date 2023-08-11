@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/core/aliases_info.hpp"
 #include "vpux/compiler/dialect/VPUIP/attributes.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
@@ -44,15 +42,19 @@ public:
     using ValuesSet = mlir::DenseSet<mlir::Value>;
 
 public:
-    explicit Swizzling(bool enableWeightSwizzling, bool enableActivationSwizzling, Logger log)
+    explicit Swizzling(const bool enableWeightSwizzling, const bool enableActivationSwizzling, Logger log)
             : _enableWeightSwizzling(enableWeightSwizzling), _enableActivationSwizzling(enableActivationSwizzling) {
         Base::initLogger(log, Base::getArgumentName());
     }
+    mlir::LogicalResult initialize(mlir::MLIRContext* ctx) final;
 
 private:
     bool _enableWeightSwizzling;
     bool _enableActivationSwizzling;
+    // Flags used for debug purpose and performance experiments
     bool _checkConstantSizeAlignment = false;
+    bool _enableSwizzlingOfFusedConsts = false;
+
     int64_t _cmxSize{};
     mlir::MLIRContext* _ctx{nullptr};
     VPU::ArchKind _archKind{VPU::ArchKind::UNKNOWN};
@@ -64,13 +66,19 @@ private:
     void activationBufferSwizzling(mlir::OpBuilder& builder, VPUIP::NCEClusterTaskOp nceOp);
     void constantBufferSwizzling(mlir::OpBuilder& builder, VPUIP::NCEClusterTaskOp nceOp, mlir::Value cst);
     template <typename InAllocOp, typename OutAllocOp>
-    void addSwizzlingAttributesToBuffer(mlir::OpBuilder& builder, InAllocOp inAllocOp, mlir::Type newType);
+    void addSwizzlingAttributesToBuffer(mlir::OpBuilder& builder, InAllocOp inAllocOp, mlir::Type newType,
+                                        VPU::ArchKind archKind);
     void attachSwizzleTransformation(Const::DeclareOp decOp, mlir::Operation* cstLoadOp, int64_t swizzlingKey);
     bool canSwizzleWeights(VPUIP::NCEClusterTaskOp nceOp);
     bool canSwizzleActivation(VPUIP::NCEClusterTaskOp nceOp);
     bool checkCMXUsage(mlir::Operation* op, ValuesSet newBufsToSwizzle) const;
     SmallVector<mlir::Operation*> _opsToRemove{};
-    SmallVector<VPUIP::NCEClusterTaskOp> _opsForActivationSwizzling{};
+    struct OpSwizzlingFlags {
+        bool activationInput{false};
+        bool activationOutput{false};
+        bool weightInput{false};
+    };
+    DenseMap<VPUIP::NCEClusterTaskOp, OpSwizzlingFlags> _opsSwizzlingFlagsMap;
 };
 
 void adjustReturnTypesForInputChain(mlir::Value value, int64_t swizzlingKey, VPU::ArchKind archKind) {
@@ -117,8 +125,8 @@ VPUIP::NCEClusterTilingOp buildNewNceClusterTilingOp(mlir::OpBuilder& builder,
 // After NCEClusterTiling operation was recreated and it is producing new result type
 // it might be used as an operand by another NCEClusterTiling operation which will need to have its
 // argument type updated
-void updateNceClusterTilingOpResultUsers(VPUIP::NCEClusterTilingOp nceClusterTilingOp) {
-    const auto result = nceClusterTilingOp.getResult(0);
+void updateNceClusterTilingOpResultUsers(VPUIP::NCEClusterTilingOp nceClusterTilingOp, unsigned int index = 0) {
+    const auto result = nceClusterTilingOp.getResult(index);
     const auto resultType = result.getType();
     for (auto& use : llvm::make_early_inc_range(result.getUses())) {
         auto operandIdx = use.getOperandNumber();
@@ -139,7 +147,8 @@ VPUIP::DistributedBufferType getDistributedBufferTypeWithSwizzling(VPUIP::Distri
     const auto ctx = origDistType.getContext();
     const auto order = origDistType.getDimsOrder();
     const auto orderAttr = mlir::AffineMapAttr::get(order.toAffineMap(ctx));
-    const auto layoutAttr = VPUIP::MemRefAttr::get(orderAttr, nullptr, swizzlingSchemeAttr, nullptr, ctx);
+    const auto layoutAttr =
+            VPUIP::MemRefAttr::get(orderAttr, nullptr, swizzlingSchemeAttr, nullptr, /*allocSize=*/nullptr, ctx);
 
     return VPUIP::DistributedBufferType::get(ctx, origDistType.getShape().raw(), origDistType.getElementType(),
                                              layoutAttr, origDistType.getMemSpace(), origDistType.getDistribution(),
@@ -164,12 +173,12 @@ bool isSizeAlignmentRequired(Const::DeclareOp decOp, VPU::ArchKind archKind,
         const auto distributionAttr = distributedType.getDistribution();
         const auto numClusters = distributionAttr.num_clusters().getInt();
 
-        const auto perClusterShapes = distributedType.getPerClusterComputeShapes();
+        const auto perClusterShapes = distributedType.getPerClusterMemoryShapes();
         VPUX_THROW_UNLESS(perClusterShapes.size() == checked_cast<size_t>(numClusters),
                           "Number of shapes '{0}' and clusters '{1}' are mismatch", perClusterShapes.size(),
                           numClusters);
 
-        const auto perClusterOffsets = distributedType.getPerClusterComputeShapeOffsets();
+        const auto perClusterOffsets = distributedType.getPerClusterMemoryShapeOffsets();
         VPUX_THROW_UNLESS(perClusterOffsets.size() == checked_cast<size_t>(numClusters),
                           "Number of offsets '{0}' and clusters '{1}' are mismatch", perClusterOffsets.size(),
                           numClusters);
@@ -196,6 +205,23 @@ bool isSizeAlignmentRequired(Const::DeclareOp decOp, VPU::ArchKind archKind,
     return false;
 }
 
+mlir::LogicalResult Swizzling::initialize(mlir::MLIRContext* ctx) {
+    if (mlir::failed(Base::initialize(ctx))) {
+        return mlir::failure();
+    }
+
+    // When this parameter has a value, it probably comes from LIT test.
+    // Override the default
+    if (enableWeightsSwizzling.hasValue()) {
+        _enableWeightSwizzling = enableWeightsSwizzling.getValue();
+    }
+    if (enableActivationSwizzling.hasValue()) {
+        _enableActivationSwizzling = enableActivationSwizzling.getValue();
+    }
+
+    return mlir::success();
+}
+
 // Check if for a given operation adding swizzling for provided buffers will not cause in increase
 // of memory demand beyond CMX size
 bool Swizzling::checkCMXUsage(mlir::Operation* op, ValuesSet newBufsToSwizzle) const {
@@ -218,7 +244,7 @@ bool Swizzling::checkCMXUsage(mlir::Operation* op, ValuesSet newBufsToSwizzle) c
         if (bufferSwizzled) {
             buffSizeAndAlignment.push_back(
                     std::make_pair(alignSizeForSwizzling(totalSize, _archKind),
-                                   vpux::getAddressAlignmentForSwizzling(vpux::SWIZZLING_KEY_5)));
+                                   vpux::getAddressAlignmentForSwizzling(vpux::SWIZZLING_KEY_5, _archKind)));
         } else {
             buffSizeAndAlignment.push_back(std::make_pair(totalSize, vpux::DEFAULT_CMX_ALIGNMENT));
         }
@@ -260,41 +286,37 @@ bool Swizzling::canSwizzleWeights(VPUIP::NCEClusterTaskOp nceOp) {
     auto weightsSM = VPUIP::getTopBufferOfNCEClusterTiling(nceOp, nceOp.weights_sparsity_map());
     auto weightTable = VPUIP::getTopBufferOfNCEClusterTiling(nceOp, nceOp.weight_table());
 
-    // Swizzling is not yet fully supported in case of fused constant, see E#67130
-    if (isFused) {
-        _log.trace("Cannot swizzle weights for '{0}' because of fused constants", nceOp->getLoc());
-        return false;
-    }
+    _log.trace("Check if weights swizzling can be enabled for NCEOp '{0}'", nceOp->getLoc());
 
     // Swizzling for ELTWISE is handled with activation swizzling
     if (weights == nullptr || weightTable == nullptr || nceOp.task_type() == VPUIP::NCETaskType::ELTWISE) {
-        _log.trace("Cannot swizzle weights for '{0}' because of missed weights", nceOp->getLoc());
+        _log.nest().trace("Cannot swizzle weights because of missed weights", nceOp->getLoc());
         return false;
     }
 
     // WA for disabling swizzling for compressed conv layer
     // E#56431 will remove workaround for a long term fix
     if (auto shapeCastOp = weights.getDefiningOp<VPUIP::ShapeCastOp>()) {
-        _log.trace("Cannot swizzle weights for '{0}' because of disabled compressed conv case", nceOp->getLoc());
-        return false;
-    }
-
-    // [Track number: E#65141]
-    // Disable fused constant swizzling if operation has activation window as this is not yet supported
-    if (isFused && nceOp.activation_window() != nullptr) {
-        _log.trace("Do not swizzle fused constant in case operation has also activation window", nceOp->getLoc());
+        _log.nest().trace("Cannot swizzle weights because this is compressed conv");
         return false;
     }
 
     if (isFused) {
+        if (!_enableSwizzlingOfFusedConsts) {
+            // Even though support is in place enabling this caused schedule change
+            // that had negative impact on performance in few cases
+            // E#73720 will try to remove this check
+            _log.nest().trace("Do not swizzle weights in case of fused consts");
+            return false;
+        }
         VPUIP::CopyOp copyOp = nullptr;
         auto decOp = vpux::ConstantFusing::getConstAndCopyOp(nceOp, weights, copyOp);
         if (decOp == nullptr) {
-            _log.trace("Cannot swizzle weights for '{0}' because of missed declare op", nceOp->getLoc());
+            _log.nest().trace("Cannot swizzle weights because of missed declare op");
             return false;
         }
         if (_checkConstantSizeAlignment && isSizeAlignmentRequired(decOp, _archKind)) {
-            _log.trace("Cannot swizzle weights for '{0}'. Size alignment required", nceOp->getLoc());
+            _log.nest().trace("Cannot swizzle weights. Size alignment required");
             return false;
         }
     } else if (isTiled) {
@@ -330,8 +352,7 @@ bool Swizzling::canSwizzleWeights(VPUIP::NCEClusterTaskOp nceOp) {
         auto bufferTilingOp = shapeCastOp ? shapeCastOp.source().getDefiningOp<VPUIP::NCEClusterTilingOp>()
                                           : weights.getDefiningOp<VPUIP::NCEClusterTilingOp>();
         if (!checkDistributedContent(bufferTilingOp)) {
-            _log.trace("Cannot swizzle weights for '{0}' because weights doesnot satisfy requirements",
-                       nceOp->getLoc());
+            _log.nest().trace("Cannot swizzle weights, because weights do not satisfy distributed type requirements");
             return false;
         }
 
@@ -339,16 +360,16 @@ bool Swizzling::canSwizzleWeights(VPUIP::NCEClusterTaskOp nceOp) {
         // TODO E#48057 Resize these buffers
         auto wtBufferTilingOp = weightTable.getDefiningOp<VPUIP::NCEClusterTilingOp>();
         if (!checkDistributedContent(wtBufferTilingOp)) {
-            _log.trace("Cannot swizzle weights for '{0}' because weightTable doesnot satisfy requirements",
-                       nceOp->getLoc());
+            _log.nest().trace(
+                    "Cannot swizzle weights, because weightTable do not satisfy distributed type requirements");
             return false;
         }
 
         if (weightsSM != nullptr) {
             auto weightsSMClusterTilingCopyOp = weightsSM.getDefiningOp<VPUIP::NCEClusterTilingOp>();
             if (!checkDistributedContent(weightsSMClusterTilingCopyOp)) {
-                _log.trace("Cannot swizzle weights for '{0}' because weightsSM doesnot satisfy requirements",
-                           nceOp->getLoc());
+                _log.nest().trace(
+                        "Cannot swizzle weights, because weightsSM do not satisfy distributed type requirements");
                 return false;
             }
         }
@@ -371,23 +392,22 @@ bool Swizzling::canSwizzleWeights(VPUIP::NCEClusterTaskOp nceOp) {
 
         auto copyOp = weights.getDefiningOp<VPUIP::CopyOp>();
         if (!checkCopyOfContentForSwizzling(copyOp)) {
-            _log.trace("Cannot swizzle weights for '{0}' because weights doesnot satisfy requirements",
-                       nceOp->getLoc());
+            _log.nest().trace("Cannot swizzle weights, because weights do not satisfy distributed type requirements");
             return false;
         }
 
         auto wtCopyOp = weightTable.getDefiningOp<VPUIP::CopyOp>();
         if (!checkCopyOfContentForSwizzling(wtCopyOp)) {
-            _log.trace("Cannot swizzle weights for '{0}' because weightTable doesnot satisfy requirements",
-                       nceOp->getLoc());
+            _log.nest().trace(
+                    "Cannot swizzle weights, because weightTable do not satisfy distributed type requirements");
             return false;
         }
 
         if (weightsSM != nullptr) {
             auto weightsSMCopyOp = weightsSM.getDefiningOp<VPUIP::CopyOp>();
             if (!checkCopyOfContentForSwizzling(weightsSMCopyOp)) {
-                _log.trace("Cannot swizzle weights for '{0}' because weightsSM doesnot satisfy requirements",
-                           nceOp->getLoc());
+                _log.nest().trace(
+                        "Cannot swizzle weights, because weightSM do not satisfy distributed type requirements");
                 return false;
             }
         }
@@ -400,18 +420,19 @@ bool Swizzling::canSwizzleWeights(VPUIP::NCEClusterTaskOp nceOp) {
 
     // Check if adding constants swizzling will not increase operation memory demand beyond CMX size
     if (!checkCMXUsage(isTiled ? nceOp->getParentOfType<VPUIP::NCEClusterTilingOp>() : nceOp, operands)) {
-        _log.trace("Do not enable weights swizzling because of increase in memory demand beyond CMX size, op - '{0}'",
-                   nceOp->getLoc());
+        _log.nest().trace("Do not enable weights swizzling because of increase in memory demand beyond CMX size");
         return false;
     }
 
+    _log.nest().trace("NCEOp weights are eligible for swizzling");
     return true;
 }
 
 template <typename InAllocOp, typename OutAllocOp>
-void Swizzling::addSwizzlingAttributesToBuffer(mlir::OpBuilder& builder, InAllocOp inAllocOp, mlir::Type newType) {
+void Swizzling::addSwizzlingAttributesToBuffer(mlir::OpBuilder& builder, InAllocOp inAllocOp, mlir::Type newType,
+                                               VPU::ArchKind archKind) {
     auto swizzlingSchemeAttr = getSwizzlingSchemeAttr(newType);
-    auto addressAlignment = vpux::getAddressAlignmentForSwizzling(swizzlingSchemeAttr.getKey().getInt());
+    auto addressAlignment = vpux::getAddressAlignmentForSwizzling(swizzlingSchemeAttr.getKey().getInt(), archKind);
     auto addressAlignmentAttr = getIntAttr(_ctx, addressAlignment);
 
     builder.setInsertionPoint(inAllocOp);
@@ -446,7 +467,7 @@ void Swizzling::attachSwizzleTransformation(Const::DeclareOp cstOp, mlir::Operat
     VPUX_THROW_WHEN(cstOp == nullptr, "DeclareOp was not found");
     // On top of existing transformation a new transformation is added to the content attribute
     // of weight table const. The new transformation will swizzle the constant with swizzle key parameter
-    _log.nest().trace("Constant for swizzling '{0}'", cstOp->getLoc());
+    _log.nest().trace("Constant for swizzling transformation'{0}'", cstOp->getLoc());
 
     // Extract content attrib with existing transformations
     auto constAttr = cstOp.contentAttr();
@@ -522,7 +543,7 @@ void Swizzling::constantBufferSwizzling(mlir::OpBuilder& builder, VPUIP::NCEClus
 
         // Create new allocation with swizzling enabled and required alignment setting
         addSwizzlingAttributesToBuffer<VPURT::AllocDistributed, VPURT::AllocDistributed>(builder, distributedBuffer,
-                                                                                         newType);
+                                                                                         newType, _archKind);
 
         // Create new CopyOp with correct result type
         builder.setInsertionPointAfter(copyOp);
@@ -562,7 +583,7 @@ void Swizzling::constantBufferSwizzling(mlir::OpBuilder& builder, VPUIP::NCEClus
                                      origType.getMemSpace(), StridesRef(), swizzlingSchemeAttr,
                                      VPUIP::getCompressionSchemeAttr(origType));
 
-        addSwizzlingAttributesToBuffer<mlir::memref::AllocOp, VPURT::Alloc>(builder, allocOp, newType);
+        addSwizzlingAttributesToBuffer<mlir::memref::AllocOp, VPURT::Alloc>(builder, allocOp, newType, _archKind);
 
         // Create new CopyOp with updated type
         builder.setInsertionPoint(copyOp);
@@ -575,6 +596,8 @@ void Swizzling::constantBufferSwizzling(mlir::OpBuilder& builder, VPUIP::NCEClus
 bool Swizzling::canSwizzleActivation(VPUIP::NCEClusterTaskOp nceOp) {
     mlir::Value nceDataResult = nceOp.output();
     mlir::Value maybeNceSMResult = nullptr;
+
+    _log.trace("Check if output swizzling can be enabled for NCEOp '{0}'", nceOp->getLoc());
 
     ValuesSet nceResults = {nceOp.output()};
     ValuesSet outputBuffs = {nceOp.output_buff()};
@@ -611,15 +634,9 @@ bool Swizzling::canSwizzleActivation(VPUIP::NCEClusterTaskOp nceOp) {
 
         auto userNCETaskOp = mlir::dyn_cast_or_null<VPUIP::NCEClusterTaskOp>(userTask);
         if (userNCETaskOp == nullptr) {
-            _log.trace("Cannot swizzle activation buffers of '{0}' because one of consumers isnot "
-                       "VPUIP.NCEClusterTaskOp",
-                       nceOp->getLoc());
-            return false;
-        }
-
-        // [Track number: E#65141]
-        // Disable activation swizzling for operations with activation window temporarily because of accuracy issue
-        if (userNCETaskOp.activation_window() != nullptr) {
+            _log.nest().trace("Cannot swizzle activation buffers because one of consumers is not "
+                              "VPUIP.NCEClusterTaskOp, user NCEOp - '{0}'",
+                              userTask->getLoc());
             return false;
         }
 
@@ -627,9 +644,8 @@ bool Swizzling::canSwizzleActivation(VPUIP::NCEClusterTaskOp nceOp) {
         if (maybeNceSMResult != nullptr &&
             VPUIP::getTopBufferOfNCEClusterTiling(userNCETaskOp, userNCETaskOp.input_sparsity_map()) !=
                     maybeNceSMResult) {
-            _log.trace("Cannot swizzle activation buffers of '{0}' because sparsity map consumed isnot directly "
-                       "consumed by VPUIP.NCEClusterTaskOp",
-                       nceOp->getLoc());
+            _log.nest().trace("Cannot swizzle activation buffers because sparsity map is not directly consumed by "
+                              "VPUIP.NCEClusterTaskOp");
             return false;
         }
     }
@@ -638,17 +654,15 @@ bool Swizzling::canSwizzleActivation(VPUIP::NCEClusterTaskOp nceOp) {
         auto* bufOp = outBuff.getDefiningOp();
 
         if (!mlir::isa_and_nonnull<mlir::memref::AllocOp, VPURT::AllocDistributed>(bufOp)) {
-            _log.trace("Cannot swizzle activation buffers of '{0}' because buffer '{1}' isnot defined by allocation op",
-                       nceOp->getLoc(), outBuff);
+            _log.nest().trace("Cannot swizzle activation buffers because buffer '{0}' is not defined by allocation op",
+                              outBuff);
             return false;
         }
     }
 
     // Check if adding activation swizzling will not increase operation memory demand beyond CMX size
     if (!checkCMXUsage(op, outputBuffs)) {
-        _log.trace("Do not enable activation swizzling because of increase in memory demand beyond CMX size, op - "
-                   "'{0}'",
-                   nceOp->getLoc());
+        _log.nest().trace("Do not enable activation swizzling because of increase in memory demand beyond CMX size");
         return false;
     }
 
@@ -656,20 +670,55 @@ bool Swizzling::canSwizzleActivation(VPUIP::NCEClusterTaskOp nceOp) {
     // beyond CMX size of user operations
     for (auto* userTask : userTasks) {
         if (!checkCMXUsage(userTask, nceResults)) {
-            _log.trace("Do not enable activation swizzling because of increase in memory demand beyond CMX size of "
-                       "user task, op - '{0}', user task - '{1}'",
-                       nceOp->getLoc(), userTask->getLoc());
+            _log.nest().trace("Do not enable activation swizzling because of increase in memory demand beyond CMX size "
+                              "of user task - '{0}'",
+                              userTask->getLoc());
             return false;
         }
     }
 
-    _log.trace("NCEOp at '{0}' is eligeble for swizzling.", nceOp->getLoc());
+    // Set information about input swizzling for user tasks
+    for (auto* user : userTasks) {
+        auto* userTask = user;
+        if (auto nceClusterUser = mlir::dyn_cast<VPUIP::NCEClusterTilingOp>(user)) {
+            userTask = nceClusterUser.getInnerTaskOp();
+        }
+
+        auto userNceOp = mlir::dyn_cast_or_null<VPUIP::NCEClusterTaskOp>(userTask);
+        auto userSwizzSettingsIt = _opsSwizzlingFlagsMap.find(userNceOp);
+        VPUX_THROW_WHEN(userSwizzSettingsIt == _opsSwizzlingFlagsMap.end(),
+                        "Not found swizzling settings for given NCEOp - {0}", userNceOp->getLoc());
+
+        // Before making final decision, check if user NCEOps which have fused constants
+        // and have constant that is related to NCEOp input (e.g. activation_window)
+        // has it also swizzled
+        if (userNceOp.activation_window() != nullptr && userNceOp->hasAttr(vpux::ConstantFusing::constantsFused)) {
+            // If fused constant of user task is not swizzled then output cannot be swizzled
+            if (!userSwizzSettingsIt->second.weightInput) {
+                _log.nest().trace(
+                        "Do not enable activation swizzling because user task which has fused constant and has "
+                        "activation window does not have constants swizzled, user task - '{0}'",
+                        userNceOp->getLoc());
+                return false;
+            }
+        }
+
+        userSwizzSettingsIt->second.activationInput = true;
+    }
+
+    _log.nest().trace("NCEOp is eligible for swizzling");
     return true;
 }
 
 void Swizzling::activationBufferSwizzling(mlir::OpBuilder& builder, VPUIP::NCEClusterTaskOp nceOp) {
     SmallVector<mlir::Type> newClusterResultTypes;
     VPUIP::NCEClusterTilingOp nceClusterTilingOp = nullptr;
+
+    auto getResultIndex = [&](mlir::Value outputBuffer) {
+        // data always has index 0. Profiling isn't enabled yet, so sparsityMap's index 1
+        auto type = outputBuffer.getType().cast<vpux::NDTypeInterface>();
+        return type.getElemTypeSize() == Bit(1) ? 1 : 0;
+    };
 
     for (auto bufVal : {nceOp.output_buff(), nceOp.output_sparsity_map_buff()}) {
         if (bufVal == nullptr) {
@@ -685,12 +734,12 @@ void Swizzling::activationBufferSwizzling(mlir::OpBuilder& builder, VPUIP::NCECl
         }
 
         auto swizzlingSchemeAttr = createSwizzlingSchemeAttr(_ctx, _archKind, SWIZZLING_KEY_5);
-        auto addressAlignment = vpux::getAddressAlignmentForSwizzling(swizzlingSchemeAttr.getKey().getInt());
+        auto addressAlignment = vpux::getAddressAlignmentForSwizzling(swizzlingSchemeAttr.getKey().getInt(), _archKind);
         auto addressAlignmentAttr = getIntAttr(_ctx, addressAlignment);
 
         auto origType = (*sourceAllocOp->getResultTypes().begin()).cast<vpux::NDTypeInterface>();
-        // data always has index 0. Profiling isn't enabled yet, so sparsityMap's index 1
-        const auto outputIndex = origType.getElemTypeSize() == Bit(1) ? 1 : 0;
+
+        const auto outputIndex = getResultIndex(bufVal);
 
         _log.trace("Enable swizzling for {0}th output buffer of NCE task - '{1}'", outputIndex, nceOp->getLoc());
 
@@ -736,14 +785,20 @@ void Swizzling::activationBufferSwizzling(mlir::OpBuilder& builder, VPUIP::NCECl
         }
     }
 
+    _opsToRemove.push_back(nceOp.getOperation());
     if (nceClusterTilingOp != nullptr) {
         // Create new NCEClusterTask wrapped in NCEClusterTiling with updated result type
         auto newNceClusterTilingOp =
                 buildNewNceClusterTilingOp(builder, nceClusterTilingOp, nceOp.getOperation(), newClusterResultTypes);
 
-        updateNceClusterTilingOpResultUsers(newNceClusterTilingOp);
+        for (auto bufVal : {nceOp.output_buff(), nceOp.output_sparsity_map_buff()}) {
+            if (bufVal == nullptr) {
+                continue;
+            }
+            const auto outputIndex = getResultIndex(bufVal);
+            updateNceClusterTilingOpResultUsers(newNceClusterTilingOp, outputIndex);
+        }
 
-        _opsToRemove.push_back(nceOp.getOperation());
         _opsToRemove.push_back(nceClusterTilingOp.getOperation());
     }
 }
@@ -752,18 +807,14 @@ void Swizzling::activationBufferSwizzling(mlir::OpBuilder& builder, VPUIP::NCECl
 // safeRunOnFunc
 //
 
+// TODO: #71565
 void Swizzling::safeRunOnFunc() {
-    auto func = getFunction();
+    auto func = getOperation();
     auto module = func->getParentOfType<mlir::ModuleOp>();
 
     _archKind = VPU::getArch(module);
     _cmxSize = VPU::getTotalCMXSize(module).count();
     _ctx = &getContext();
-
-    if (_archKind != VPU::ArchKind::VPUX37XX) {
-        _log.trace("Swizzling is supported starting from VPUX37XX");
-        return;
-    }
 
     if (!_enableActivationSwizzling && !_enableWeightSwizzling) {
         _log.trace("Swizzling is disabled");
@@ -773,20 +824,52 @@ void Swizzling::safeRunOnFunc() {
     OpBuilderLogger builderLog(_log.nest());
     mlir::OpBuilder builder(&func.getBody().front().front(), &builderLog);
 
+    // Iterate IR twice. First to check what NCEOps can have constats swizzled,
+    // the second time check which NCEOps can have their output swizzled.
+    // Second iteration is separated because when determining if NCEOp output can be swizzled
+    // information about const swizzling is used. Some constants like activation_window impact
+    // NCEOps activation input and both need to have matching swizzling setting.
+    // In the end HW requires to have matching swizzling setting on NCE operands which
+    // are consumed/produced by same reader/writer:
+    // activation reader:
+    // - input
+    // - input_sparisty_map
+    // - activation_window
+    // weights reader
+    // - weights
+    // - weights_table
+    // - weights_sparisty_map
+    // output writer:
+    // - output
+    // - output_sparisty_map
     func->walk([&](VPUIP::NCEClusterTaskOp nceOp) {
-        if (_enableWeightSwizzling) {
-            if (canSwizzleWeights(nceOp)) {
-                constantBufferSwizzling(builder, nceOp, nceOp.weights());
-                constantBufferSwizzling(builder, nceOp, nceOp.weights_sparsity_map());
-                constantBufferSwizzling(builder, nceOp, nceOp.weight_table());
-            }
-        }
-        if (_enableActivationSwizzling) {
-            if (canSwizzleActivation(nceOp)) {
-                _opsForActivationSwizzling.push_back(nceOp);
-            }
+        _opsSwizzlingFlagsMap[nceOp] = OpSwizzlingFlags();
+        if (_enableWeightSwizzling && canSwizzleWeights(nceOp)) {
+            _opsSwizzlingFlagsMap[nceOp].weightInput = true;
         }
     });
+
+    if (_enableActivationSwizzling) {
+        func->walk([&](VPUIP::NCEClusterTaskOp nceOp) {
+            if (canSwizzleActivation(nceOp)) {
+                _opsSwizzlingFlagsMap[nceOp].activationOutput = true;
+            }
+        });
+    }
+
+    // Check if in cases where fused constant is to be swizzled together with activation_window
+    // and operation input is not swizzled then constant swizzling needs to be disabled
+    for (auto& opsSwizzlingFlags : _opsSwizzlingFlagsMap) {
+        auto nceOp = opsSwizzlingFlags.first;
+        auto swizzFlags = opsSwizzlingFlags.second;
+        if (!swizzFlags.activationInput && swizzFlags.weightInput &&
+            nceOp->hasAttr(vpux::ConstantFusing::constantsFused) && nceOp.activation_window() != nullptr) {
+            opsSwizzlingFlags.second.weightInput = false;
+            _log.trace("Cannot swizzle weights of '{0}', since it is fused constant with activation_windows and there "
+                       "is no swizzling on input",
+                       nceOp->getLoc());
+        }
+    }
 
     // Check Eltwise operations as they require same swizzling attribute on both inputs
     // There might be cases where disabling swizzling for one of eltwise inputs
@@ -825,29 +908,29 @@ void Swizzling::safeRunOnFunc() {
             }
 
             bool input1SwizzlingFlag = false;
-            auto input1NceTaskItr = _opsForActivationSwizzling.end();
+            auto input1SwizzlingFlagItr = _opsSwizzlingFlagsMap.end();
             if (input1NceTask) {
-                input1NceTaskItr =
-                        std::find(_opsForActivationSwizzling.begin(), _opsForActivationSwizzling.end(), input1NceTask);
-                input1SwizzlingFlag = (input1NceTaskItr != _opsForActivationSwizzling.end());
+                input1SwizzlingFlagItr = _opsSwizzlingFlagsMap.find(input1NceTask);
+                input1SwizzlingFlag = ((input1SwizzlingFlagItr != _opsSwizzlingFlagsMap.end()) &&
+                                       input1SwizzlingFlagItr->second.activationOutput);
             }
 
             bool input2SwizzlingFlag = false;
-            auto input2NceTaskItr = _opsForActivationSwizzling.end();
+            auto input2SwizzlingFlagItr = _opsSwizzlingFlagsMap.end();
             if (input2NceTask) {
-                input2NceTaskItr =
-                        std::find(_opsForActivationSwizzling.begin(), _opsForActivationSwizzling.end(), input2NceTask);
-                input2SwizzlingFlag = (input2NceTaskItr != _opsForActivationSwizzling.end());
+                input2SwizzlingFlagItr = _opsSwizzlingFlagsMap.find(input2NceTask);
+                input2SwizzlingFlag = ((input2SwizzlingFlagItr != _opsSwizzlingFlagsMap.end()) &&
+                                       input2SwizzlingFlagItr->second.activationOutput);
             }
 
             bool outputSwizzlingFlag = false;
-            auto outputNceTaskItr = _opsForActivationSwizzling.end();
+            auto outputSwizzlingFlagItr = _opsSwizzlingFlagsMap.end();
             bool inplaceEltwise = false;
-            if (nceOp.is_inplace().getValueOr(false)) {
+            if (nceOp.is_inplace().value_or(false)) {
                 inplaceEltwise = true;
-                outputNceTaskItr =
-                        std::find(_opsForActivationSwizzling.begin(), _opsForActivationSwizzling.end(), nceOp);
-                outputSwizzlingFlag = (outputNceTaskItr != _opsForActivationSwizzling.end());
+                outputSwizzlingFlagItr = _opsSwizzlingFlagsMap.find(nceOp);
+                outputSwizzlingFlag = ((outputSwizzlingFlagItr != _opsSwizzlingFlagsMap.end()) &&
+                                       outputSwizzlingFlagItr->second.activationOutput);
             }
 
             if (input1SwizzlingFlag != input2SwizzlingFlag ||
@@ -855,15 +938,15 @@ void Swizzling::safeRunOnFunc() {
                  (input1SwizzlingFlag != outputSwizzlingFlag || input2SwizzlingFlag != outputSwizzlingFlag))) {
                 _log.trace("Mismatch of swizzling setting of eltwise inputs, eltwise op - '{0}'", nceOp->getLoc());
                 if (input1SwizzlingFlag) {
-                    _opsForActivationSwizzling.erase(input1NceTaskItr);
+                    input1SwizzlingFlagItr->second.activationOutput = false;
                     _log.nest().trace("Swizzling cannot be enabled on op - '{0}'", input1NceTask->getLoc());
                     anyEltwiseBuffersUpdated = true;
                 } else if (input2SwizzlingFlag) {
-                    _opsForActivationSwizzling.erase(input2NceTaskItr);
+                    input2SwizzlingFlagItr->second.activationOutput = false;
                     _log.nest().trace("Swizzling cannot be enabled on op - '{0}'", input2NceTask->getLoc());
                     anyEltwiseBuffersUpdated = true;
                 } else if (outputSwizzlingFlag) {
-                    _opsForActivationSwizzling.erase(outputNceTaskItr);
+                    outputSwizzlingFlagItr->second.activationOutput = false;
                     _log.nest().trace("Swizzling cannot be enabled on eltwise - '{0}'", nceOp->getLoc());
                     anyEltwiseBuffersUpdated = true;
                 }
@@ -871,15 +954,36 @@ void Swizzling::safeRunOnFunc() {
         });
     } while (anyEltwiseBuffersUpdated);
 
-    // After identifying all qualified for swizzling ops and removing those which
-    // due to eltwise input swizzling mismatch cannot be enabled, perform
-    // actual swizzling enabling
-    for (auto nceOp : llvm::make_early_inc_range(_opsForActivationSwizzling)) {
-        activationBufferSwizzling(builder, nceOp);
+    // After identifying operations which can have swizzling applied
+    // perform actual enabling. Code before only made necessary checks
+    // where swizzling can be applied and in some cases due to limitations
+    // (e.g. eltwise input swizzling mismatch) swizzling enabling was reverted.
+    for (auto opSwizzlingFlag : _opsSwizzlingFlagsMap) {
+        auto nceOp = opSwizzlingFlag.first;
+        auto flags = opSwizzlingFlag.second;
+        if (flags.weightInput) {
+            constantBufferSwizzling(builder, nceOp, nceOp.weights());
+            constantBufferSwizzling(builder, nceOp, nceOp.weights_sparsity_map());
+            constantBufferSwizzling(builder, nceOp, nceOp.weight_table());
+        }
+        if (flags.activationInput) {
+            // Special action need to be taken in case operation has activation_window, which
+            // is a constant but related to activation input. If nceOp has fused constants
+            // it was already swizzled as part of rest of constants
+            if (nceOp.activation_window() != nullptr) {
+                constantBufferSwizzling(builder, nceOp, nceOp.activation_window());
+            }
+        }
+
+        if (flags.activationOutput) {
+            activationBufferSwizzling(builder, nceOp);
+        }
     }
 
     for (auto opToRemove : llvm::make_early_inc_range(_opsToRemove)) {
-        opToRemove->erase();
+        if (opToRemove->use_empty()) {
+            opToRemove->erase();
+        }
     }
 }
 
@@ -889,7 +993,7 @@ void Swizzling::safeRunOnFunc() {
 // createSwizzlingPass
 //
 
-std::unique_ptr<mlir::Pass> vpux::VPUIP::createSwizzlingPass(bool enableWeightSwizzling, bool enableActivationSwizzling,
-                                                             Logger log) {
+std::unique_ptr<mlir::Pass> vpux::VPUIP::createSwizzlingPass(const bool enableWeightSwizzling,
+                                                             const bool enableActivationSwizzling, Logger log) {
     return std::make_unique<Swizzling>(enableWeightSwizzling, enableActivationSwizzling, log);
 }

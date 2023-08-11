@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/conversion.hpp"
 #include "vpux/compiler/core/layers.hpp"
 #include "vpux/compiler/dialect/const/attributes/content.hpp"
@@ -27,6 +25,16 @@ using namespace vpux;
 void vpux::Const::ExpandDilatedAttr::walkImmediateSubElements(llvm::function_ref<void(Attribute)> walkAttrsFn,
                                                               llvm::function_ref<void(mlir::Type)>) const {
     walkAttrsFn(getDilations());
+}
+
+//
+// ExpandDilatedAttr::replaceImmediateSubElements
+//
+
+mlir::Attribute vpux::Const::ExpandDilatedAttr::replaceImmediateSubElements(ArrayRef<mlir::Attribute> replAttrs,
+                                                                            ArrayRef<mlir::Type>) const {
+    VPUX_THROW_WHEN(replAttrs.size() < 1, "Replace attrs array is too short: '{0}'", replAttrs.size());
+    return get(replAttrs[0].dyn_cast_or_null<mlir::ArrayAttr>());
 }
 
 //

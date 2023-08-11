@@ -95,6 +95,9 @@ For example, `export IE_VPUX_IR_PRINTING_FILTER=convert-.*-to-VPUIP`.
 * `IE_VPUX_IR_PRINTING_ORDER=before` - Dump Internal Representation before selected Passes.
 * `IE_VPUX_IR_PRINTING_ORDER=after` (default) - Dump Internal Representation after selected Passes.
 * `IE_VPUX_IR_PRINTING_ORDER=before_after` - Dump Internal Representation before and after selected Passes.
+
+`IE_VPUX_PRINT_DEBUG_INFO=1` - Append debug location info to the dumped MLIR. Makes it easier to cross reference the nodes from original graph.
+
 ## Crash reproducer (Developer build)
 
 The **VPUX NN Compiler** allows to dump Internal Representation after the failed Pass.
@@ -120,7 +123,7 @@ Also it can be enabled with `export IE_VPUX_LOG_FILTER=vpux-compiler`.
 
 ## Replace unsupported SW kernels
 
-Enable replacement with `VPUX_COMPILATION_MODE_PARAMS dummy-op-replacement=true`
+Enable replacement of unsupported SW kernels with `VPUX_COMPILATION_MODE_PARAMS dummy-op-replacement=true`
 
 ## VS Code extension
 

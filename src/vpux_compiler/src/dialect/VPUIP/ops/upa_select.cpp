@@ -23,9 +23,9 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::SelectUPAOp::serialize(VPUIP::BlobW
     return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_EltwiseParams});
 }
 
-mlir::LogicalResult vpux::VPUIP::verifyOp(SelectUPAOp op) {
-    if (!((op.input2().getType() == op.input3().getType()) && (op.input3().getType() == op.output_buff().getType()))) {
-        return errorAt(op, "Input 2, 3 & output_buff have different type");
+mlir::LogicalResult vpux::VPUIP::SelectUPAOp::verify() {
+    if (!((input2().getType() == input3().getType()) && (input3().getType() == output_buff().getType()))) {
+        return errorAt(*this, "Input 2, 3 & output_buff have different type");
     }
     return mlir::success();
 }

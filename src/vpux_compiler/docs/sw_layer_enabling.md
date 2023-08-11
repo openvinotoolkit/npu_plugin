@@ -78,7 +78,6 @@ Add OpenVINO single layer test. Copy test suites from the MKLDNN plugin for init
 
 A simple test will be useful to have for debugging. Run it to see the build/compilation issues.
 Make sure to derive `LayerTest` from `LayerTestsUtils::KmbLayerTestsCommon`.
-Use `*_MLIR` test suite name. Add `useCompilerMLIR()` function to your `TEST_P` macro. It will set plugin config to use MLIR compiler.
 
 Useful links:
 [How to run tests](../../../guides/how-to-test.md)
@@ -91,14 +90,17 @@ Useful links:
 #include "kmb_layer_test.hpp"
 
 namespace LayerTestsDefinitions {
-
-class KmbCTCGreedyDecoderLayerTest:
+class VPUXCTCGreedyDecoderLayerTest :
         public CTCGreedyDecoderLayerTest,
-        virtual public LayerTestsUtils::KmbLayerTestsCommon {
+        virtual public LayerTestsUtils::KmbLayerTestsCommon {};
+
+class VPUXCTCGreedyDecoderLayerTest_VPU3700 :
+        public VPUXCTCGreedyDecoderLayerTest {
 };
 
-TEST_P(KmbCTCGreedyDecoderLayerTest, CompareWithRefs_MLIR) {
-    useCompilerMLIR();
+TEST_P(VPUXCTCGreedyDecoderLayerTest_VPU3700, HW) { // HW to reflect which pipeline is used, in this case it is DefaultHW
+    setPlatformVPU3700();
+    setDefaultHardwareModeMLIR();
     Run();
 }
 
@@ -133,7 +135,7 @@ const auto params = testing::Combine(
 
 INSTANTIATE_TEST_CASE_P(
     smoke_CTCGreedyDecoder,
-    KmbCTCGreedyDecoderLayerTest,
+    VPUXCTCGreedyDecoderLayerTest_VPU3700,
     params,
     CTCGreedyDecoderLayerTest::getTestCaseName
 );
@@ -226,7 +228,7 @@ Add map entry for operation dispatcher.
 
 [src/vpux_compiler/src/frontend/IE.cpp#L248](../src/frontend/IE.cpp#L248)
 ```cpp
-mlir::FuncOp NGraphImporter::buildMainFunc(mlir::OpBuilder& moduleBuilder, StringRef funcName) {
+mlir::func::FuncOp NGraphImporter::buildMainFunc(mlir::OpBuilder& moduleBuilder, StringRef funcName) {
     using Callback = void (NGraphImporter::*)(mlir::OpBuilder & builder, const OrigNodePtr& origNode);
     using DispatchMap = std::map<ngraph::NodeTypeInfo, Callback>;
 
@@ -245,7 +247,7 @@ Given input tensors and layer parameters, this function computes output shapes a
 mlir::LogicalResult vpux::IE::CTCGreedyDecoderOp::inferReturnTypeComponents(
         mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueRange operands, mlir::DictionaryAttr attrs,
         mlir::RegionRange, SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
-    const auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
+    const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
     IE::CTCGreedyDecoderOpAdaptor ctc(operands, attrs);
     if (mlir::failed(ctc.verify(loc))) {
@@ -518,7 +520,7 @@ void ConvertConv1DToConv2DPass::safeRunOnFunc() {
     mlir::RewritePatternSet patterns(&ctx);
     patterns.add<ConvolutionExpansion>(&ctx, _log);
 
-    auto func = getFunction();
+    auto func = getOperation();
     if (mlir::failed(mlir::applyPartialConversion(func, target, std::move(patterns)))) {
         signalPassFailure();
     }
@@ -595,7 +597,7 @@ mlir::LogicalResult vpux::VPU::CTCGreedyDecoderOp::inferReturnTypes(
         mlir::MLIRContext* ctx, mlir::Optional<mlir::Location> optLoc, mlir::ValueRange operands,
         mlir::DictionaryAttr attrs, mlir::RegionRange /*regions*/,
         mlir::SmallVectorImpl<mlir::Type>& inferredReturnTypes) {
-    const auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
+    const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
     VPU::CTCGreedyDecoderOpAdaptor ctc(operands, attrs);
     if (mlir::failed(ctc.verify(loc))) {
@@ -719,7 +721,7 @@ The lowering logic should also be tested. For this, create a dedicated lit-test 
 
 ```cpp
 // CHECK-LABEL: @CTCGreedyDecoder
-func @CTCGreedyDecoder(%arg0: tensor<20x8x128xf16>, %arg1: tensor<20x8xf16>) -> tensor<8x20x1x1xf16> {
+func.func @CTCGreedyDecoder(%arg0: tensor<20x8x128xf16>, %arg1: tensor<20x8xf16>) -> tensor<8x20x1x1xf16> {
     %0 = IE.CTCGreedyDecoder(%arg0, %arg1) {mergeRepeated} : tensor<20x8x128xf16>, tensor<20x8xf16> -> tensor<8x20x1x1xf16>
     return %0 : tensor<8x20x1x1xf16>
 
@@ -735,17 +737,17 @@ You should be able to compile code now. Run single layer test and look for "Unab
 # GraphFile-schema
 GraphFile-schema is a common layer between compiler and runtime. It is a tool for serializing data to the blob.
 
-Before lowering to the VPUIP dialect, make sure that graphFile-schema repository has your operation included. For debugging purposes, you can checkout VPUx-plugin schema to the custom branch with the new operation added.
+Before lowering to the VPUIP dialect, make sure that graphFile-schema repository has your operation included. For debugging purposes, you can checkout VPUX-plugin schema to the custom branch with the new operation added.
 
 ```bash
-cd thirdparty/elf
+cd thirdparty/graphFile-schema
 git checkout custom_branch
 ```
 or you can manually add your layer to the existing schema
 
 > graphFile-schema is a submodule that we can't link with a relative path. Please find files below after thirdparty initialization.
 
-In relative file path is `thirdparty/elf/src/schema/software.fbs` from line `446`
+In relative file path is `thirdparty/graphFile-schema/src/schema/software.fbs` from line `446`
 ```cpp
 table CTCDecoderParams {
   ctc_merge_repeated: bool;
@@ -862,7 +864,7 @@ Add two lines of code to register interfaces that resolves dependencies between 
 template <template <class, class> class OpModelForHW, template <class> class OpModelForSW>
 void redirectOpInterfacesForIE(mlir::DialectRegistry& registry) {
     // ...
-    registry.addOpInterface<IE::CTCGreedyDecoderOp, OpModelForSW<VPUIP::CTCGreedyDecoderUPAOp>>();
+    IE::CTCGreedyDecoderOp::attachInterface<OpModelForSW<VPUIP::CTCGreedyDecoderUPAOp>>(*ctx);
 }
 ```
 
@@ -875,7 +877,7 @@ void redirectOpInterfacesForIE(mlir::DialectRegistry& registry) {
 template <class OpModelForHW, class OpModelForDMA, class OpModelForSW>
 void redirectOpInterfacesForVPUIP(mlir::DialectRegistry& registry) {
     // ...
-    registry.addOpInterface<VPUIP::CTCGreedyDecoderUPAOp, OpModelForSW>();
+    VPUIP::CTCGreedyDecoderUPAOp::attachInterface<OpModelForSW>(*ctx);
 }
 ```
 
@@ -886,27 +888,20 @@ Add verifier to the VPUIP table gen.
 
 [src/vpux_compiler/tblgen/vpux/compiler/dialect/VPUIP/ops.td](../tblgen/vpux/compiler/dialect/VPUIP/ops.td)
 ```swift
-let verifier = [{
-    return vpux::VPUIP::verifyOp(*this);
-}];
+let hasVerifier = 1;
 ```
-Declare and implement verifyOp function.
-
-[src/vpux_compiler/include/vpux/compiler/dialect/VPUIP/ops.hpp](../include/vpux/compiler/dialect/VPUIP/ops.hpp)
-```cpp
-mlir::LogicalResult verifyOp(CTCGreedyDecoderUPAOp op);
-```
+Implement verify function.
 [src/vpux_compiler/src/dialect/VPUIP/ops/upa_ctc_greedy_decoder.cpp](../src/dialect/VPUIP/ops/upa_ctc_greedy_decoder.cpp)
 ```cpp
-mlir::LogicalResult vpux::VPUIP::verifyOp(CTCGreedyDecoderUPAOp op) {
-    const auto inShape = getShape(op.input());
+mlir::LogicalResult vpux::VPUIP::CTCGreedyDecoderUPAOp::verify() {
+    const auto inShape = getShape(input());
 
     if (inShape.size() != 3) {
-        return errorAt(op, "Input shape should have 3 dimensions");
+        return errorAt(*this, "Input shape should have 3 dimensions");
     }
 
     if (inShape[Dim(1)] != 1) {
-        return errorAt(op, "Input tensor [T N C] = [{0} {1} {2}] has unsupported dimension size N != 1",
+        return errorAt(*this, "Input tensor [T N C] = [{0} {1} {2}] has unsupported dimension size N != 1",
                        inShape[Dim(0)], inShape[Dim(1)], inShape[Dim(2)]);
     }
 
@@ -947,7 +942,7 @@ Similar to IE->VPU, the lowering logic will be tested by creating a lit-test in 
 
 ```cpp
 // CHECK-LABEL: @CTCGreedyDecoder
-func @CTCGreedyDecoder(%arg0: memref<20x1x128xf16>, %arg1: memref<20x1xf16>) -> memref<1x20x1x1xf16> {
+func.func @CTCGreedyDecoder(%arg0: memref<20x1x128xf16>, %arg1: memref<20x1xf16>) -> memref<1x20x1x1xf16> {
     %0 = builtin.unrealized_conversion_cast %arg0 : memref<20x1x128xf16> to tensor<20x1x128xf16>
     %1 = builtin.unrealized_conversion_cast %arg1 : memref<20x1xf16> to tensor<20x1xf16>
     %2 = VPU.CTCGreedyDecoder(%0, %1) {mergeRepeated} : tensor<20x1x128xf16>, tensor<20x1xf16> -> tensor<1x20x1x1xf16>
@@ -1052,7 +1047,7 @@ The bufferization logic will be tested by creating a lit-test in [bufferize_IE.m
 
 ```cpp
 // CHECK-LABEL: @CTCGreedyDecoder
-func @CTCGreedyDecoder(%arg0: tensor<20x8x128xf16>, %arg1: tensor<20x8xf16>) -> tensor<8x20x1x1xf16> {
+func.func @CTCGreedyDecoder(%arg0: tensor<20x8x128xf16>, %arg1: tensor<20x8xf16>) -> tensor<8x20x1x1xf16> {
     %0 = IE.CTCGreedyDecoder(%arg0, %arg1) {mergeRepeated} : tensor<20x8x128xf16>, tensor<20x8xf16> -> tensor<8x20x1x1xf16>
     return %0 : tensor<8x20x1x1xf16>
 

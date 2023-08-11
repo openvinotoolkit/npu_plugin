@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #pragma once
 
 #include <mlir/IR/BuiltinAttributes.h>
@@ -30,8 +28,9 @@ int64_t getSizeAlignmentForSwizzling(VPU::ArchKind arch);
 
 /// @brief Required alignment of buffers in CMX memory required swizzling operations
 /// @param swizzlingKey
+/// @param archKind
 /// @return alignment [bytes]
-int64_t getAddressAlignmentForSwizzling(int64_t swizzlingKey);
+int64_t getAddressAlignmentForSwizzling(int64_t swizzlingKey, VPU::ArchKind archKind);
 
 VPUIP::SwizzlingSchemeAttr createSwizzlingSchemeAttr(mlir::MLIRContext* ctx, VPU::ArchKind archKind,
                                                      int64_t swizzlingKey);

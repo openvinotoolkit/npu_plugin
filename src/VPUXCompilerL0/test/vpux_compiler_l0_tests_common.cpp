@@ -63,9 +63,22 @@ IRInfoTestType VpuxCompilerL0TestsCommon::readJson2Vec(std::string fileName) {
         for (auto it = res.begin(); it != res.end(); ++it) {
             ir_info.emplace(it.key(), it.value());
         }
-        ir_infos.push_back(ir_info);
-    }
 
+        bool enabled;
+        auto find = ir_info.find("enabled");
+        std::istringstream enabled_is;
+        if (find != ir_info.end()) {
+            enabled_is.str(find->second);
+        } else {
+            std::cout << "Not found enabled entry, using false as its default\n";
+            enabled_is.str("false");
+        }
+        enabled_is >> std::boolalpha >> enabled;
+
+        if (enabled) {
+            ir_infos.push_back(ir_info);
+        }
+    }
     return ir_infos;
 }
 

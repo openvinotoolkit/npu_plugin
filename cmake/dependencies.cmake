@@ -38,10 +38,10 @@ endif()
 # TODO move it out into submodules
 if (ENABLE_VALIDATION_SET)
     add_lfs_repo(
-        ${VALIDATION_SET_NAME}
-        "${TEMP}/${VALIDATION_SET_NAME}"
-        ${VALIDATION_SET_REPO}
-        ${VALIDATION_SET_BRANCH}
+        "validation_set"
+        "${TEMP}/validation_set"
+        "git@gitlab-icv.inn.intel.com:inference-engine/validation-set.git"
+        "master"
     )
 endif()
 

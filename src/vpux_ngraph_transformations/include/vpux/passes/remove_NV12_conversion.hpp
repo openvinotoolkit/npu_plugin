@@ -20,7 +20,7 @@ class RemoveNV12Conversion final : public ngraph::pass::FunctionPass {
 public:
     explicit RemoveNV12Conversion(std::vector<vpux::PreProcessInfo>& preProcInfo): _preProcInfo(preProcInfo){};
 
-    bool run_on_function(std::shared_ptr<ngraph::Function> f) final {
+    bool run_on_model(const std::shared_ptr<ngraph::Function>& f) final {
         for (const auto& node : f->get_ordered_ops()) {
             if (auto nv12 = std::dynamic_pointer_cast<T>(node)) {
                 auto inputs = nv12->input_values();

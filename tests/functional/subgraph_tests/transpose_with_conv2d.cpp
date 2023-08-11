@@ -10,7 +10,7 @@
 
 namespace {
 
-class KmbTransposeWithConv2dTest :
+class VPUXTransposeWithConv2dTest_VPU3700 :
         public LayerTestsUtils::KmbLayerTestsCommon,
         public testing::WithParamInterface<std::tuple<std::vector<int64_t>>> {
     void SetUp() override {
@@ -48,20 +48,20 @@ class KmbTransposeWithConv2dTest :
         auto reluNode = std::make_shared<ngraph::op::Relu>(conv2dNode->output(0));
         const ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(reluNode)};
 
-        function = std::make_shared<ngraph::Function>(results, params, "KmbTransposeWithConv2dTest");
+        function = std::make_shared<ngraph::Function>(results, params, "VPUXTransposeWithConv2dTest");
 
         threshold = 0.5f;
     }
 };
 
-TEST_P(KmbTransposeWithConv2dTest, CompareWithRefs_MLIR_SW) {
-    useCompilerMLIR();
+TEST_P(VPUXTransposeWithConv2dTest_VPU3700, SW) {
+    setPlatformVPU3700();
     setReferenceSoftwareModeMLIR();
     Run();
 }
 
-TEST_P(KmbTransposeWithConv2dTest, CompareWithRefs_MLIR_HW) {
-    useCompilerMLIR();
+TEST_P(VPUXTransposeWithConv2dTest_VPU3700, HW) {
+    setPlatformVPU3700();
     setDefaultHardwareModeMLIR();
     Run();
 }
@@ -70,7 +70,7 @@ const std::vector<std::vector<int64_t>> transposes = {
         {0, 3, 1, 2}, {0, 3, 2, 1}, {0, 2, 1, 3}, {0, 2, 3, 1}, {0, 1, 3, 2},
 };
 
-INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_conv2d_with_act, KmbTransposeWithConv2dTest,
+INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_transpose_conv2d, VPUXTransposeWithConv2dTest_VPU3700,
                          ::testing::Combine(::testing::ValuesIn(transposes)));
 
 }  // namespace

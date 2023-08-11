@@ -33,3 +33,33 @@ TEST(MLIR_MemSize, ValidCases) {
     EXPECT_EQ(gigabyte1.to<KB>().count(), 1 * 1024 * 1024);
     EXPECT_EQ(gigabyte1.to<Byte>().count(), 1 * 1024 * 1024 * 1024);
 }
+
+TEST(MLIR_MemSize, AlignMemSize) {
+    const auto bits109 = 109_Bit;
+    const auto bits128 = 128_Bit;
+    const auto bytes16 = 16_Byte;
+    const auto kilobyte16 = 16_KB;
+    const auto megabyte24 = 24_MB;
+    const auto gigabyte32 = 32_GB;
+
+    EXPECT_EQ(alignMemSize(bits128, Bit(1)).count(), 128);
+    EXPECT_EQ(alignMemSize(bits128, Bit(5)).count(), 130);
+    EXPECT_EQ(alignMemSize(bits128, Byte(3)).count(), 144);
+
+    EXPECT_EQ(alignMemSize(bits109, Byte(1)).count(), 112);
+
+    EXPECT_EQ(alignMemSize(bytes16, Byte(1)).count(), 16);
+    EXPECT_EQ(alignMemSize(bytes16, Byte(5)).count(), 20);
+    EXPECT_EQ(alignMemSize(bytes16, KB(3)).count(), 3072);
+
+    EXPECT_EQ(alignMemSize(kilobyte16, KB(1)).count(), 16);
+    EXPECT_EQ(alignMemSize(kilobyte16, KB(5)).count(), 20);
+    EXPECT_EQ(alignMemSize(kilobyte16, MB(3)).count(), 3072);
+
+    EXPECT_EQ(alignMemSize(megabyte24, MB(1)).count(), 24);
+    EXPECT_EQ(alignMemSize(megabyte24, MB(5)).count(), 25);
+    EXPECT_EQ(alignMemSize(megabyte24, GB(3)).count(), 3072);
+
+    EXPECT_EQ(alignMemSize(gigabyte32, GB(1)).count(), 32);
+    EXPECT_EQ(alignMemSize(gigabyte32, GB(5)).count(), 35);
+}

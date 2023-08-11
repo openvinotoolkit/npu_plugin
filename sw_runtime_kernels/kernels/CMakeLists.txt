@@ -26,7 +26,6 @@ set(include_dirs_list_default
 
 set(define_symbols_list_default
   "__act_shave__"
-  "CONFIG_TARGET_SOC_3720"
 )
 
 set(always_inline_default "no")
@@ -69,12 +68,12 @@ if(DEFINED ENV{MV_TOOLS_DIR} AND DEFINED ENV{MV_TOOLS_VERSION})
 
   if(UNIX)
     set(mv_tools_compile "${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}/linux64/bin/moviCompile")
-    set(mv_tools_link "${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}/linux64/sparc-myriad-rtems-6.3.0/bin/sparc-myriad-rtems-ld")
-    set(mv_tools_objcopy "${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}/linux64/sparc-myriad-rtems-6.3.0/bin/sparc-myriad-rtems-objcopy")
+    set(mv_tools_link "${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}/linux64/bin/moviLLD")
+    set(mv_tools_objcopy "${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}/linux64/bin/llvm-objcopy")
   elseif(WIN32)
     set(mv_tools_compile "${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}/win32/bin/moviCompile.exe")
-    set(mv_tools_link "${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}/win32/sparc-myriad-rtems-9.2.0/bin/sparc-myriad-rtems-ld.exe")
-    set(mv_tools_objcopy "${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}/win32/sparc-myriad-rtems-6.3.0/bin/sparc-myriad-rtems-objcopy.exe")
+    set(mv_tools_link "${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}/win64/bin/moviLLD.exe")
+    set(mv_tools_objcopy "${MV_TOOLS_DIR}/${MV_TOOLS_VERSION}/win64/bin/llvm-objcopy.exe")
   endif()
 
   set(link_libraries_list_VPU3720
@@ -155,6 +154,7 @@ foreach(kernel_descrip ${kernel_descrip_list})
   set(optimization_opts "-O3")
   set(include_dirs_list "")
   set(define_symbols_list "")
+  set(cppflags_list "")
   set(always_inline "${always_inline_default}")
   set(rt_kernel "${rt_kernel_default}")
   set(extra_src_list "")
@@ -174,6 +174,8 @@ foreach(kernel_descrip ${kernel_descrip_list})
     set(link_libraries_list ${link_libraries_list_VPU3720})
   endif()
 
+  list(APPEND define_symbols_list "CONFIG_TARGET_SOC_${kernel_cpunum}")
+
   if(always_inline STREQUAL "yes")
     list(APPEND define_symbols_list "CONFIG_ALWAYS_INLINE")
   endif()
@@ -186,10 +188,16 @@ foreach(kernel_descrip ${kernel_descrip_list})
 
   set(kernel_src_file "${kernel_src_dir}/${kernel_src}")
 
+  set(blob_text_data_target "${target_prefix}${kernel_name}${kernel_cpu_suffix}")
+  set(jtag_text_data_target "${target_prefix}${kernel_name}${kernel_cpu_suffix}.jtag")
   set(blob_text_file "${target_prefix}${kernel_name}${kernel_cpu_suffix}${blob_text_suffix}")
   set(blob_data_file "${target_prefix}${kernel_name}${kernel_cpu_suffix}${blob_data_suffix}")
   set(jtag_text_file "${target_prefix}${kernel_name}${kernel_cpu_suffix}${jtag_text_suffix}")
   set(jtag_data_file "${target_prefix}${kernel_name}${kernel_cpu_suffix}${jtag_data_suffix}")
+
+  set(obj_file "${kernel_src}${kernel_cpu_suffix}${obj_suffix}")
+  set(elf_file "${kernel_name}${kernel_cpu_suffix}${elf_suffix}")
+  set(elf_path "${target_binary_dir}/${elf_file}")
 
   if(rt_kernel STREQUAL "yes")
     if(NOT ENABLE_MANAGEMENT_KERNEL_BUILD)
@@ -197,6 +205,7 @@ foreach(kernel_descrip ${kernel_descrip_list})
         COMMAND ${CMAKE_COMMAND} -E make_directory "${target_binary_dir}"
         COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_SOURCE_DIR}/prebuild/act_shave_bin/${blob_text_file}" "${target_binary_dir}"
         COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_SOURCE_DIR}/prebuild/act_shave_bin/${blob_data_file}" "${target_binary_dir}"
+        COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_SOURCE_DIR}/prebuild/act_shave_bin/${elf_file}" "${target_binary_dir}"
       )
       add_dependencies(act_shave_kernels_build "${kernel_name}${kernel_cpu_suffix}_kernel_copy")
 
@@ -222,22 +231,28 @@ foreach(kernel_descrip ${kernel_descrip_list})
   list(TRANSFORM include_dirs_list PREPEND "-I")
   list(TRANSFORM define_symbols_list PREPEND "-D")
 
-  set(obj_file "${kernel_src}${kernel_cpu_suffix}${obj_suffix}")
+  if(kernel_cpunum STREQUAL "3720")
+    add_custom_command(
+      OUTPUT "${obj_file}"
+      DEPENDS "${kernel_src_file}"
+      COMMAND "${mv_tools_compile}" -mcpu=${kernel_cpu} ${optimization_opts} ${cppflags_list} ${include_dirs_list} ${define_symbols_list} -c "${kernel_src_path}" -o "${obj_file}"
+    )
+  endif()
 
-  set(elf_file "${kernel_name}${kernel_cpu_suffix}${elf_suffix}")
-  set(elf_path "${target_binary_dir}/${elf_file}")
-
-  add_custom_command(
-    OUTPUT "${obj_file}"
-    DEPENDS "${kernel_src_file}"
-    COMMAND "${mv_tools_compile}" -mcpu=${kernel_cpu} ${optimization_opts} ${include_dirs_list} ${define_symbols_list} -c "${kernel_src_path}" -o "${obj_file}"
-  )
   set(obj_file_list "${obj_file}")
 
   if(NOT extra_src_list STREQUAL "")
     foreach(extra_src_file ${extra_src_list})
       get_filename_component(src_name ${extra_src_file} NAME_WE)
-      set(obj_file "${src_name}${kernel_cpu}${obj_suffix}")
+      get_filename_component(dir_name ${extra_src_file} DIRECTORY)
+
+      # Discard full path, just keep name of the dir the file is in
+      get_filename_component(dir_name ${dir_name} NAME_WE)
+
+      # Some extra_src files have the same filename so the .o files
+      # must be in separate directories to avoid overwriting.
+      file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/extra_src/${kernel_cpu}/${dir_name})
+      set(obj_file "${CMAKE_CURRENT_BINARY_DIR}/extra_src/${kernel_cpu}/${dir_name}/${src_name}.${kernel_cpu}${obj_suffix}")
 
       # Compile once and check list to avoid double compilation
       if(NOT "${obj_file}" IN_LIST compiled_extra_list)
@@ -263,35 +278,26 @@ foreach(kernel_descrip ${kernel_descrip_list})
   set(blob_text_path "${target_binary_dir}/${blob_text_file}")
   set(blob_data_path "${target_binary_dir}/${blob_data_file}")
 
-  add_custom_target("${blob_text_file}"
-    COMMAND ${CMAKE_COMMAND} -E make_directory "${target_binary_dir}"
+  add_custom_target("${blob_text_data_target}"
     COMMAND "${mv_tools_objcopy}" -O binary --only-section=.text "${elf_path}" "${blob_text_path}"
-    DEPENDS "${elf_path}"
-  )
-  add_custom_target("${blob_data_file}"
-    COMMAND ${CMAKE_COMMAND} -E make_directory "${target_binary_dir}"
     COMMAND "${mv_tools_objcopy}" -O binary --only-section=.data "${elf_path}" "${blob_data_path}"
     DEPENDS "${elf_path}"
   )
 
-  add_dependencies(act_shave_kernels_build "${blob_text_file}" "${blob_data_file}")
+  add_dependencies(act_shave_kernels_build "${blob_text_data_target}")
 
   if(ENABLE_JTAG_BINARIES_BUILD)
     set(jtag_text_path "${CMAKE_CURRENT_BINARY_DIR}/${jtag_text_file}")
     set(jtag_data_path "${CMAKE_CURRENT_BINARY_DIR}/${jtag_data_file}")
 
-    add_custom_target("${jtag_text_file}"
+    add_custom_target("${jtag_text_data_target}"
       COMMAND ${host_tools_xxd} -i "${blob_text_file}" "${jtag_text_path}"
-      WORKING_DIRECTORY "${target_binary_dir}"
-      DEPENDS "${blob_text_file}"
-    )
-    add_custom_target("${jtag_data_file}"
       COMMAND ${host_tools_xxd} -i "${blob_data_file}" "${jtag_data_path}"
       WORKING_DIRECTORY "${target_binary_dir}"
-      DEPENDS "${blob_data_file}"
     )
 
-    add_dependencies(act_shave_jtag_kernels_build "${jtag_text_file}" "${jtag_data_file}")
+    add_dependencies("${jtag_text_data_target}" "${blob_text_data_target}")
+    add_dependencies(act_shave_jtag_kernels_build "${jtag_text_data_target}")
   endif()
 endforeach()
 

@@ -4,12 +4,8 @@
 //
 
 #include "vpux/passes/remove_split_concat.hpp"
-
 #include <memory>
-#include <ngraph/op/reshape.hpp>
 #include <ngraph/op/split.hpp>
-#include <ngraph/op/transpose.hpp>
-#include <ngraph/op/variadic_split.hpp>
 #include "ngraph/op/concat.hpp"
 
 namespace vpux {

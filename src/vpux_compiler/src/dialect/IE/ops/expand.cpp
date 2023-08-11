@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/IE/ops.hpp"
 
 #include "vpux/compiler/utils/attributes.hpp"
@@ -38,7 +36,7 @@ mlir::LogicalResult vpux::IE::ExpandOp::inferReturnTypeComponents(
         mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
         mlir::DictionaryAttr attrs, mlir::RegionRange,
         SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
-    const auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
+    const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
     IE::ExpandOpAdaptor expand(operands, attrs);
     if (mlir::failed(expand.verify(loc))) {
@@ -91,17 +89,18 @@ mlir::OpFoldResult vpux::IE::ExpandOp::fold(ArrayRef<mlir::Attribute> operands) 
 // verify
 //
 
-mlir::LogicalResult vpux::IE::verifyOp(IE::ExpandOp op) {
-    if (op.input().getDefiningOp() != nullptr && mlir::isa<Const::DeclareOp>(op.input().getDefiningOp())) {
+mlir::LogicalResult vpux::IE::ExpandOp::verify() {
+    const auto op = getOperation();
+    if (input().getDefiningOp() != nullptr && mlir::isa<Const::DeclareOp>(input().getDefiningOp())) {
         // Limitations below are not applicable to constants.
         return mlir::success();
     }
     const auto nonZeroPadPredicate = [](const int64_t dim) -> bool {
         return dim > 0;
     };
-    const auto padsEnd = parseIntArrayAttr<int64_t>(op.pads_end());
+    const auto padsEnd = parseIntArrayAttr<int64_t>(pads_end());
     const auto nonZeroPadsEnd = std::count_if(padsEnd.begin(), padsEnd.end(), nonZeroPadPredicate);
-    const auto padsBegin = parseIntArrayAttr<int64_t>(op.pads_begin());
+    const auto padsBegin = parseIntArrayAttr<int64_t>(pads_begin());
     const auto nonZeroPadsBegin = std::count_if(padsBegin.begin(), padsBegin.end(), nonZeroPadPredicate);
     if (nonZeroPadsEnd == 0 && nonZeroPadsBegin == 0) {
         // Such pad configuration is foldable.
@@ -119,11 +118,11 @@ mlir::LogicalResult vpux::IE::verifyOp(IE::ExpandOp op) {
     const auto padBeginAxisIter = std::find_if(padsBegin.begin(), padsBegin.end(), nonZeroPadPredicate);
     if (padBeginAxisIter != padsBegin.end()) {
         const auto padAxis = std::distance(padsBegin.begin(), padBeginAxisIter);
-        const auto inShape = getShape(op.input());
+        const auto inShape = getShape(input());
         if (padAxis >= checked_cast<int64_t>(inShape.size())) {
             return errorAt(op, "pads_begin axis {0} exceeds input rank {1}", padAxis, inShape.size());
         }
-        const auto outShape = getShape(op.output());
+        const auto outShape = getShape(output());
         if (padAxis >= checked_cast<int64_t>(outShape.size())) {
             return errorAt(op, "pads_begin axis {0} exceeds output rank {1}", padAxis, inShape.size());
         }
@@ -132,11 +131,11 @@ mlir::LogicalResult vpux::IE::verifyOp(IE::ExpandOp op) {
     const auto padEndAxisIter = std::find_if(padsEnd.begin(), padsEnd.end(), nonZeroPadPredicate);
     if (padEndAxisIter != padsEnd.end()) {
         const auto padAxis = std::distance(padsEnd.begin(), padEndAxisIter);
-        const auto inShape = getShape(op.input());
+        const auto inShape = getShape(input());
         if (padAxis >= checked_cast<int64_t>(inShape.size())) {
             return errorAt(op, "pads_end axis {0} exceeds input rank {1}", padAxis, inShape.size());
         }
-        const auto outShape = getShape(op.output());
+        const auto outShape = getShape(output());
         if (padAxis >= checked_cast<int64_t>(outShape.size())) {
             return errorAt(op, "pads_end axis {0} exceeds output rank {1}", padAxis, inShape.size());
         }

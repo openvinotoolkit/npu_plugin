@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/VPURT/barrier_scheduler.hpp"
 #include "vpux/compiler/dialect/VPURT/task.hpp"
 
@@ -36,7 +34,7 @@ using namespace vpux::VPURT;
 // In the context of VPU hardware the number of slots for a DPU tasks are the DPU worklaods
 // and for a DMA/UPA tasks it is 1.
 
-BarrierScheduler::BarrierScheduler(mlir::FuncOp func, Logger log): _log(log), _func(func){};
+BarrierScheduler::BarrierScheduler(mlir::func::FuncOp func, Logger log): _log(log), _func(func){};
 
 void BarrierScheduler::populateTasksUpdateWaitBarrierMap(barrierWaitMapType& barrierOpWaitMap,
                                                          barrierUpdateMapType& barrierOpUpdateMap,

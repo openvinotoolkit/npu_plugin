@@ -10,6 +10,7 @@
 #include "vpux/compiler/core/layers.hpp"
 #include "vpux/compiler/dialect/VPUIP/graph-schema/utils.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
+#include "vpux/compiler/utils/empty_node.hpp"
 #include "vpux/compiler/utils/error.hpp"
 
 #include "vpux/utils/core/checked_cast.hpp"
@@ -29,7 +30,7 @@ mlir::LogicalResult vpux::VPU::ConvolutionOp::inferReturnTypes(mlir::MLIRContext
                                                                mlir::ValueRange operands, mlir::DictionaryAttr attrs,
                                                                mlir::RegionRange /*regions*/,
                                                                mlir::SmallVectorImpl<mlir::Type>& inferredReturnTypes) {
-    const auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
+    const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
     VPU::ConvolutionOpAdaptor conv(operands, attrs);
     if (mlir::failed(conv.verify(loc))) {
@@ -52,7 +53,7 @@ mlir::LogicalResult vpux::VPU::ConvolutionOp::inferReturnTypes(mlir::MLIRContext
     }
 
     const auto outputShape =
-            ngraph::infer_convolution_forward(nullptr, ngraph::Shape(inShape.begin(), inShape.end()),
+            ngraph::infer_convolution_forward(EmptyNode::instance(), ngraph::Shape(inShape.begin(), inShape.end()),
                                               ngraph::Strides(windowStrides.size(), 1),  // dummy data dilations
                                               ngraph::CoordinateDiff(dataPaddingBelow.begin(), dataPaddingBelow.end()),
                                               ngraph::CoordinateDiff(dataPaddingAbove.begin(), dataPaddingAbove.end()),
@@ -72,7 +73,14 @@ mlir::LogicalResult vpux::VPU::ConvolutionOp::inferReturnTypes(mlir::MLIRContext
 
 void vpux::VPU::ConvolutionOp::inferLayoutInfo(mlir::Operation* origOp, IE::LayerLayoutInfo& info) {
     // SW Convolution Op
-    const auto expectedFilterLayout = mlir::isa<IE::GroupConvolutionOp>(origOp) ? DimsOrder::OIYX : DimsOrder::YXOI;
+    auto expectedFilterLayout = mlir::isa<IE::GroupConvolutionOp>(origOp) ? DimsOrder::OIYX : DimsOrder::YXOI;
+
+    const auto module = origOp->getParentOfType<mlir::ModuleOp>();
+    const auto arch = VPU::getArch(module);
+
+    if (arch == VPU::ArchKind::VPUX37XX) {
+        expectedFilterLayout = DimsOrder::OIYX;
+    }
 
     info.setInput(0, DimsOrder::NCHW);
     info.setInput(1, expectedFilterLayout);

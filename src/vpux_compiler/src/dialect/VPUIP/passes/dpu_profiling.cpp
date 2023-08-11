@@ -1,5 +1,5 @@
 //
-// Copyright (C) 2022 Intel Corporation.
+// Copyright (C) 2022-2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
 
@@ -16,6 +16,8 @@
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
 #include "vpux/compiler/dialect/VPUIP/utils.hpp"
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
+
+#include "vpux/utils/core/profiling.hpp"
 
 #include <algorithm>
 #include <numeric>
@@ -41,10 +43,27 @@ public:
 
 private:
     void safeRunOnModule() final;
+    void setWorkloadIds(VPUIP::NCEClusterTaskOp nceClusterTaskOp);
 
 private:
     VPUIP::MemKindCreateFunc _memKindCb;
 };
+
+void DPUProfilingPass::setWorkloadIds(VPUIP::NCEClusterTaskOp nceClusterTaskOp) {
+    int32_t workloadId = 0;
+    int32_t prevClusterId = -1;
+    nceClusterTaskOp.walk([&](VPUIP::DPUTaskOp dpuTaskOp) {
+        if (dpuTaskOp.cluster_id().hasValue()) {
+            int32_t clusterId = dpuTaskOp.cluster_id().value();
+            if (prevClusterId != clusterId) {
+                workloadId = 0;
+            }
+            prevClusterId = clusterId;
+        }
+        dpuTaskOp.workload_idAttr(vpux::getIntAttr(dpuTaskOp->getContext(), workloadId));
+        ++workloadId;
+    });
+}
 
 // DPU profiling pass
 // Add profiling buffer for the all DPU Clusters in the network
@@ -72,13 +91,13 @@ void DPUProfilingPass::safeRunOnModule() {
     auto memKind = maybeMemKind.getValue();
 
     IE::CNNNetworkOp netOp;
-    mlir::FuncOp netFunc;
+    mlir::func::FuncOp netFunc;
     IE::CNNNetworkOp::getFromModule(module, netOp, netFunc);
+    const auto arch = VPU::getArch(module);
     OpBuilderLogger builderLog(_log.nest());
     mlir::OpBuilder builder(&netFunc.getBody().front().front(), &builderLog);
     unsigned profilingWorkloadSize = VPUIP::getProfWorkloadSize(module);
     auto nameUniqifier = std::make_shared<NameUniqifier>(_log);
-
     std::map<unsigned, std::unique_ptr<BaseClusterBufferScheduler>> clusterSchedulers;
     // Single cluster handled in another way
     clusterSchedulers[1] = std::unique_ptr<BaseClusterBufferScheduler>(
@@ -92,6 +111,9 @@ void DPUProfilingPass::safeRunOnModule() {
                     numClusters, profilingWorkloadSize, builder, ctx, memKind, netFunc, nameUniqifier));
         }
         clusterSchedulers[numClusters]->scheduleNceTask(nceClusterTaskOp);
+        if (arch == VPU::ArchKind::VPUX37XX) {
+            setWorkloadIds(nceClusterTaskOp);
+        }
     });
 
     unsigned totalDpuDdrProfilingOutputSize =
@@ -112,7 +134,8 @@ void DPUProfilingPass::safeRunOnModule() {
         clusterScheduler.second->addProfilingOps(currentDDROffset, concatResults, profilingResult, nceId);
     }
 
-    mlir::ReturnOp returnOp = mlir::dyn_cast_or_null<mlir::ReturnOp>(netFunc.getBody().front().getTerminator());
+    mlir::func::ReturnOp returnOp =
+            mlir::dyn_cast_or_null<mlir::func::ReturnOp>(netFunc.getBody().front().getTerminator());
     VPUX_THROW_UNLESS(returnOp != nullptr, "No ReturnOp was found");
     builder.setInsertionPoint(returnOp);
 

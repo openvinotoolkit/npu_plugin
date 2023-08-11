@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #pragma once
 
 #include "vpux/compiler/core/attributes/dims_order.hpp"
@@ -33,6 +31,7 @@ using memref_type_if = enable_t<OutT, std::is_enum<Enum>, details::HasStringifyE
 // get<scalar>Type
 //
 
+mlir::IntegerType getInt1Type(mlir::MLIRContext* ctx);
 mlir::IntegerType getInt4Type(mlir::MLIRContext* ctx);
 mlir::IntegerType getInt8Type(mlir::MLIRContext* ctx);
 mlir::IntegerType getInt16Type(mlir::MLIRContext* ctx);
@@ -96,6 +95,8 @@ memref_type_if<Enum> getMemRefType(ShapeRef shape, mlir::Type elemType, DimsOrde
 
 IndexedSymbolAttr getMemorySpace(mlir::MemRefType type);
 
+mlir::SmallVector<float> getFloatStrides(StridesRef strides);
+
 //
 // RankedTensorType utilities
 //
@@ -114,6 +115,14 @@ mlir::MemRefType convertToMemRef(mlir::RankedTensorType tensorType);
 // NDTypeInterface utilities
 //
 
-bool isCompatibleForInplaceOp(vpux::NDTypeInterface inInterface, vpux::NDTypeInterface outInterface, vpux::Logger log);
+bool isCompatibleForInplaceOp(NDTypeInterface inInterface, NDTypeInterface outInterface, Logger log);
+NDTypeInterface getEffectiveSparseOutputType(mlir::Type dataType, mlir::Type seTableType);
+
+//
+// Type comparison
+//
+
+bool areTypesCompatible(mlir::TypeRange lhs, mlir::TypeRange rhs, IE::TypeComparisonMode elemComparisonMode,
+                        bool checkDimsOrder, bool checkMemSpace);
 
 }  // namespace vpux

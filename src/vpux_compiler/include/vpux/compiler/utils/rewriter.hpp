@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #pragma once
 
 #include "vpux/compiler/core/type_interfaces.hpp"
@@ -15,6 +13,7 @@
 #include "vpux/utils/core/logger.hpp"
 #include "vpux/utils/core/small_vector.hpp"
 
+#include <mlir/Dialect/Func/IR/FuncOps.h>
 #include <mlir/IR/Builders.h>
 #include <mlir/IR/BuiltinOps.h>
 #include <mlir/Transforms/DialectConversion.h>
@@ -25,7 +24,7 @@ namespace vpux {
 // updateFunctionSignature
 //
 
-mlir::LogicalResult updateFunctionSignature(mlir::FuncOp funcOp, ArrayRef<mlir::Type> newArgTypes,
+mlir::LogicalResult updateFunctionSignature(mlir::func::FuncOp funcOp, ArrayRef<mlir::Type> newArgTypes,
                                             ArrayRef<mlir::Type> newResultTypes, Logger log = Logger::global());
 
 //
@@ -34,7 +33,7 @@ mlir::LogicalResult updateFunctionSignature(mlir::FuncOp funcOp, ArrayRef<mlir::
 
 using CvtOpBuilderCb = FuncRef<mlir::Operation*(mlir::OpBuilder&, mlir::Location, mlir::Value, vpux::NDTypeInterface)>;
 
-mlir::LogicalResult convertFunc(mlir::FuncOp funcOp, ArrayRef<mlir::Type> newArgTypes,
+mlir::LogicalResult convertFunc(mlir::func::FuncOp funcOp, ArrayRef<mlir::Type> newArgTypes,
                                 ArrayRef<mlir::Type> newResultTypes, CvtOpBuilderCb cvtOpBuilder,
                                 Logger log = Logger::global());
 

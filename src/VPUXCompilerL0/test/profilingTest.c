@@ -15,28 +15,34 @@ int readFile(const char* fileName, char** buffer, size_t* size) {
     }
 
     fseek(file, 0L, SEEK_END);
-    size_t filesize = (size_t)ftell(file);
+    long fileSize = ftell(file);
+    if (fileSize < 0) {
+        printf("Ftell method returns failure.");
+        fclose(file);
+        return VCL_RESULT_ERROR_IO;
+    }
+    uint64_t unsignedFileSize = (uint64_t)fileSize;
     fseek(file, 0L, SEEK_SET);
 
-    char* binaryBuffer = (char*)malloc(filesize);
+    char* binaryBuffer = (char*)malloc(unsignedFileSize);
     if (!binaryBuffer) {
-        fprintf(stderr, "Can't allocate %zu bytes to read %s.", filesize, fileName);
+        fprintf(stderr, "Can't allocate %zu bytes to read %s.", unsignedFileSize, fileName);
+        fclose(file);
         return EXIT_FAILURE;
     }
 
-    const size_t numOfReadBytes = fread(binaryBuffer, 1, filesize, file);
-    if (numOfReadBytes != filesize) {
+    const size_t numOfReadBytes = fread(binaryBuffer, 1, unsignedFileSize, file);
+    if (numOfReadBytes != unsignedFileSize) {
         free(binaryBuffer);
         fprintf(stderr, "Can't read whole file %s.", fileName);
+        fclose(file);
         return EXIT_FAILURE;
     }
 
-    if (fclose(file) != 0) {
-        fprintf(stderr, "Can't close file stream %s. Will continue execution.", fileName);
-    }
+    fclose(file);
 
     *buffer = binaryBuffer;
-    *size = filesize;
+    *size = unsignedFileSize;
 
     return EXIT_SUCCESS;
 }
@@ -55,11 +61,9 @@ int main(int argc, char** argv) {
     const char* blobFileName = argv[1];
     const char* profFileName = argv[2];
 
-    int result = EXIT_SUCCESS;
-
     char* blobBuffer = NULL;
     size_t blobSize = 0;
-    result = readFile(blobFileName, &blobBuffer, &blobSize);
+    int result = readFile(blobFileName, &blobBuffer, &blobSize);
     if (result != EXIT_SUCCESS) {
         return result;
     }
@@ -73,14 +77,12 @@ int main(int argc, char** argv) {
     }
 
     vcl_result_t ret = VCL_RESULT_SUCCESS;
-    vcl_profiling_input_t profilingApiInput = {
-        .blobData = blobBuffer,
-        .blobSize = blobSize,
-        .profData = profBuffer,
-        .profSize = profSize
-    };
+    vcl_profiling_input_t profilingApiInput = {.blobData = blobBuffer,
+                                               .blobSize = blobSize,
+                                               .profData = profBuffer,
+                                               .profSize = profSize};
     vcl_profiling_handle_t profHandle = NULL;
-    ret = vclProfilingCreate(&profilingApiInput, &profHandle);
+    ret = vclProfilingCreate(&profilingApiInput, &profHandle, NULL);
     if (ret != VCL_RESULT_SUCCESS) {
         result = EXIT_FAILURE;
         goto exit;

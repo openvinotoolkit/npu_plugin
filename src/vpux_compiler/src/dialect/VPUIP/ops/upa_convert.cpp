@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 
 #include "vpux/compiler/dialect/VPUIP/graph-schema/blob_reader.hpp"
@@ -21,26 +19,27 @@
 
 using namespace vpux;
 
-mlir::LogicalResult vpux::VPUIP::verifyOp(ConvertUPAOp op) {
-    const mlir::Type GF_U8 = getUInt8Type(op.getContext());
-    const mlir::Type GF_FP16 = mlir::Float16Type::get(op.getContext());
-    const mlir::Type GF_FP32 = mlir::Float32Type::get(op.getContext());
-    const mlir::Type GF_INT32 = getSInt32Type(op.getContext());
+mlir::LogicalResult vpux::VPUIP::ConvertUPAOp::verify() {
+    const auto op = getOperation();
+    const mlir::Type GF_U8 = getUInt8Type(getContext());
+    const mlir::Type GF_FP16 = mlir::Float16Type::get(getContext());
+    const mlir::Type GF_FP32 = mlir::Float32Type::get(getContext());
+    const mlir::Type GF_INT32 = getSInt32Type(getContext());
 
     const std::unordered_set<std::pair<mlir::Type, mlir::Type>> supportedConversions{
             {GF_FP16, GF_FP32}, {GF_FP16, GF_INT32}, {GF_FP32, GF_FP16}, {GF_INT32, GF_FP16}, {GF_U8, GF_FP16},
             {GF_U8, GF_FP32},   {GF_FP16, GF_U8},    {GF_FP32, GF_U8},   {GF_INT32, GF_U8},
     };
 
-    const auto inType = op.input().getType().cast<vpux::NDTypeInterface>().getElementType();
-    const auto outType = op.output().getType().cast<vpux::NDTypeInterface>().getElementType();
+    const auto inType = input().getType().cast<vpux::NDTypeInterface>().getElementType();
+    const auto outType = output().getType().cast<vpux::NDTypeInterface>().getElementType();
 
     if (supportedConversions.find({inType, outType}) == supportedConversions.end()) {
         return errorAt(op, "Unsupported conversion type : '{0}' -> '{1}'", inType, outType);
     }
 
-    const auto batchID = op.batchID().getValueOr(0);
-    if (!op.haveBatch() && batchID != 0) {
+    const auto batchIDValue = batchID().value_or(0);
+    if (!haveBatch() && batchIDValue != 0) {
         return errorAt(op, "Invalid batch parameters");
     }
 
@@ -55,7 +54,7 @@ void vpux::VPUIP::ConvertUPAOp::build(mlir::OpBuilder& builder, mlir::OperationS
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::ConvertUPAOp::serialize(VPUIP::BlobWriter& writer) {
     const auto scale = scaleAttr() ? scaleAttr().getValueAsDouble() : 1.0;
     const auto bias = biasAttr() ? biasAttr().getValueAsDouble() : 0.0;
-    const auto batchID = checked_cast<int32_t>(this->batchID().getValueOr(0));
+    const auto batchID = checked_cast<int32_t>(this->batchID().value_or(0));
 
     MVCNN::ConvertParamsBuilder builder(writer);
     builder.add_scale(checked_cast<float>(scale));

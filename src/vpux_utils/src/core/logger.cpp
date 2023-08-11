@@ -60,6 +60,7 @@ void vpux::globalLogCb(const formatv_object_base& msg) {
 //
 // Logger
 //
+static const char* logLevelPrintout[] = {"NONE", "FATAL", "ERROR", "WARNING", "INFO", "DEBUG", "TRACE"};
 
 Logger& vpux::Logger::global() {
 #ifdef VPUX_DEVELOPER_BUILD
@@ -160,19 +161,18 @@ void vpux::Logger::addEntryPacked(LogLevel msgLevel, const formatv_object_base& 
     llvm::SmallString<512> tempBuf;
     llvm::raw_svector_ostream tempStream(tempBuf);
 
+    char timeStr[] = "undefined_time";
     time_t now = time(nullptr);
-    struct tm tstruct;
-    char timeStr[10];
-    struct tm* tstruct_ptr = localtime(&now);
-    if (tstruct_ptr != NULL) {
-        tstruct = *tstruct_ptr;
+    struct tm* loctime = localtime(&now);
+    if (loctime != nullptr) {
+        strftime(timeStr, sizeof(timeStr), "%H:%M:%S", loctime);
     }
-    strftime(timeStr, sizeof(timeStr), "%H:%M:%S", &tstruct);
 
     using namespace std::chrono;
     uint32_t ms = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count() % 1000;
 
-    printTo(tempStream, "{0}.{1,0+3} [{2}]", timeStr, ms, _name);
+    printTo(tempStream, "[{0}] {1}.{2,0+3} [{3}]", logLevelPrintout[static_cast<uint8_t>(msgLevel)], timeStr, ms,
+            _name);
 
     for (size_t i = 0; i < _indentLevel; ++i)
         tempStream << "  ";

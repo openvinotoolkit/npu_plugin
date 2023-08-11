@@ -40,7 +40,7 @@ struct MV_TOOLS_PATH final : OptionBase<MV_TOOLS_PATH, std::string> {
 // LAUNCH_MODE
 //
 
-enum class LaunchMode { MoviSim, MoviDebug };
+enum class LaunchMode { Simulator, MoviDebug };
 
 StringLiteral stringifyEnum(LaunchMode val);
 
@@ -56,7 +56,7 @@ struct LAUNCH_MODE final : OptionBase<LAUNCH_MODE, LaunchMode> {
     static LaunchMode parse(StringRef val);
 
     static LaunchMode defaultValue() {
-        return LaunchMode::MoviSim;
+        return LaunchMode::Simulator;
     }
 
     static bool isPublic() {

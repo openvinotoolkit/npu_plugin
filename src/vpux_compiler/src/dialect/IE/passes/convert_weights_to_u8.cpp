@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/IE/passes.hpp"
 
@@ -154,7 +152,7 @@ private:
 
 void ConvertWeightsToU8Pass::safeRunOnFunc() {
     auto& ctx = getContext();
-    auto func = getFunction();
+    auto func = getOperation();
 
     mlir::TypeConverter typeConverter;
     typeConverter.addConversion([](vpux::NDTypeInterface tensor) {

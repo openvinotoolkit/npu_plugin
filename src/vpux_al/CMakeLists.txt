@@ -90,8 +90,6 @@ else()
 endif ()
 
 target_link_libraries(${TARGET_NAME}
-    PUBLIC
-        vpux_utils
     PRIVATE
         kmb_utils
 )

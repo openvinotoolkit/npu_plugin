@@ -1,7 +1,8 @@
 //
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
+
 // RUN: vpux-opt --init-compiler="vpu-arch=%arch%" %s | vpux-translate --export-VPUIP -o %t
 // RUN: flatc --raw-binary --json %vpuip_schema_file% -- %t
 // RUN: FileCheck %s --input-file %basename_t.json
@@ -25,7 +26,7 @@ IE.CNNNetwork
         DataInfo "output" : tensor<1x16x32x32xf16>
     }
 
-func @main(%arg0: memref<1x16x32x32xf16, #NHWC>, %arg1: memref<1x16x32x32xf16, #NHWC, [@CMX_NN, 0]>) -> memref<1x16x32x32xf16, #NHWC, [@CMX_NN, 0]> {
+func.func @main(%arg0: memref<1x16x32x32xf16, #NHWC>, %arg1: memref<1x16x32x32xf16, #NHWC, [@CMX_NN, 0]>) -> memref<1x16x32x32xf16, #NHWC, [@CMX_NN, 0]> {
     %cst_wt = VPURT.DeclareBuffer "CMX_NN" [0] <0> -> memref<16x16x1x1xf16, #NHWC, [@CMX_NN, 0]>
     %cst_wt_table = VPURT.DeclareBuffer "CMX_NN" [0] <512> -> memref<16x1x1x4xsi32, [@CMX_NN, 0]>
 

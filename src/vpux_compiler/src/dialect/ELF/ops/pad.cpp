@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include <vpux_elf/writer.hpp>
 #include "vpux/compiler/dialect/ELF/ops.hpp"
 #include "vpux/compiler/dialect/ELF/utils.hpp"
@@ -13,7 +11,7 @@
 void vpux::ELF::PadOp::serialize(elf::writer::BinaryDataSection<uint8_t>& binDataSection) {
     auto padSize = paddingSize();
 
-    auto padValue = paddingValue().getValueOr(0);
+    auto padValue = paddingValue().value_or(0);
 
     SmallVector<uint8_t> padding(padSize, padValue);
 

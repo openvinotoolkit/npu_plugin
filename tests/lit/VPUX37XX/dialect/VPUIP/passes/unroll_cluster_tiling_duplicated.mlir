@@ -1,7 +1,8 @@
 //
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
+
 // RUN: vpux-opt --split-input-file --init-compiler="vpu-arch=VPUX37XX" --unroll-cluster-tiling  %s | FileCheck %s
 
 
@@ -10,30 +11,30 @@
 
 #NCWH = affine_map<(d0, d1, d2, d3) -> (d0, d1, d3, d2)>
 
-!typeCmxDistributed = type !VPUIP.DistributedBuffer<
+!typeCmxDistributed = !VPUIP.DistributedBuffer<
     1x4x512x1xf16, #NCWH, @CMX_NN, {
     mode = "DUPLICATED",
     num_clusters = 2
 }>
 
-!type_CMX_memref = type memref<1x4x512x1xf16, #NCWH, @CMX_NN>
-!type_CMX_tensor = type tensor<1x4x512x512xf16, {mem_space = @CMX_NN, order = #NCWH}>
+!type_CMX_memref = memref<1x4x512x1xf16, #NCWH, @CMX_NN>
+!type_CMX_tensor = tensor<1x4x512x512xf16, {mem_space = @CMX_NN, order = #NCWH}>
 
 
-!Input_DDR  = type memref<1x4x512x1xf16, #NCWH, @DDR>
-!Output_DDR = type memref<1x4x512x1xf16, #NCWH, @DDR>
+!Input_DDR  = memref<1x4x512x1xf16, #NCWH, @DDR>
+!Output_DDR = memref<1x4x512x1xf16, #NCWH, @DDR>
 
 
 VPURT.SW.Runtime entryPoint : @VPU.SW::@runtime stack_configuration : [4096, 4096, 4096, 4096]
 module @VPU.SW {
-    func private @builtin_MVN(memref<*xf16, @CMX_NN>, memref<*xf16, @CMX_NN>, i1, i1, f64) attributes {VPU.kernel_code = "singleShaveMVN.cpp", VPU.kernel_entry = "singleShaveMVN"}
-    func private @runtime() attributes {VPU.kernel_code = "nnActEntry"}
+    func.func private @builtin_MVN(memref<*xf16, @CMX_NN>, memref<*xf16, @CMX_NN>, i1, i1, f64) attributes {VPU.kernel_code = "singleShaveMVN.cpp", VPU.kernel_entry = "singleShaveMVN"}
+    func.func private @runtime() attributes {VPU.kernel_code = "nnActEntry"}
 }
 
 
 // NCEClusterTiling operation with distributed type of input, and output - splitting strategy for SOK intended for full activation
 // CHECK-LABEL: @UnrollSWOpInterface
-func @UnrollSWOpInterface(%input0: !Input_DDR, %output: !Output_DDR) -> !Output_DDR {
+func.func @UnrollSWOpInterface(%input0: !Input_DDR, %output: !Output_DDR) -> !Output_DDR {
 
     %bar0 = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
     %bar1 = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier

@@ -257,16 +257,16 @@ public:
             printHeader();
 
             InferenceEngine::MemoryBlob::CPtr moutput = InferenceEngine::as<InferenceEngine::MemoryBlob>(_outBlob);
+            if (!moutput) {
+                throw std::logic_error("We expect _outBlob to be inherited from MemoryBlob in "
+                                       "ClassificationResult::print, "
+                                       "but by fact we were not able to cast _outBlob to MemoryBlob");
+            }
+            // locked memory holder should be alive all time while access to its buffer happens
             auto moutputHolder = moutput->rmap();
             for (size_t id = image_id * _nTop, cnt = 0; id < (image_id + 1) * _nTop; ++cnt, ++id) {
                 std::cout.precision(7);
                 /** Getting probability for resulting class **/
-                if (!moutput) {
-                    throw std::logic_error("We expect _outBlob to be inherited from MemoryBlob in "
-                                           "ClassificationResult::print, "
-                                           "but by fact we were not able to cast _outBlob to MemoryBlob");
-                }
-                // locked memory holder should be alive all time while access to its buffer happens
                 const auto result = moutputHolder.as<const InferenceEngine::PrecisionTrait<
                         InferenceEngine::Precision::FP32>::value_type*>()[_results.at(id) +
                                                                           image_id * (_outBlob->size() / _batchSize)];

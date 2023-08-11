@@ -1,14 +1,15 @@
 //
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
+
 // RUN: vpux-opt --split-input-file --init-compiler="vpu-arch=%arch%" --canonicalize %s | FileCheck %s
 // REQUIRES: arch-VPUX30XX || arch-VPUX37XX
 
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
 // CHECK-LABEL: @Fold
-func @Fold(%arg0: memref<1x3x8x4xf32, #NHWC>) -> memref<1x3x8x4xf32, #NHWC> {
+func.func @Fold(%arg0: memref<1x3x8x4xf32, #NHWC>) -> memref<1x3x8x4xf32, #NHWC> {
     %0 = const.Declare memref<1x3x16x16xf32, #NHWC> =
         dense<1.000000e+00> : tensor<1x3x16x16xf32>, [#const.Reorder<#NHWC>]
 
@@ -23,7 +24,7 @@ func @Fold(%arg0: memref<1x3x8x4xf32, #NHWC>) -> memref<1x3x8x4xf32, #NHWC> {
 
     return %2 : memref<1x3x8x4xf32, #NHWC>
 
-    // CHECK:       [[VAR0:%.+]] = const.Declare memref<1x3x8x4xf32, #NHWC> =
+    // CHECK-DAG:       [[VAR0:%.+]] = const.Declare memref<1x3x8x4xf32, #NHWC> =
     // CHECK-SAME:      [#const.Reorder<#NHWC>, #const.SubView<[0, 0, 8, 12], [1, 3, 8, 4]>]
     // CHECK-NOT:   VPUIP.SubView
 
@@ -39,7 +40,7 @@ func @Fold(%arg0: memref<1x3x8x4xf32, #NHWC>) -> memref<1x3x8x4xf32, #NHWC> {
 #NCHW = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
 
 // CHECK-LABEL: @ComposeSubView
-func @ComposeSubView(%arg0: memref<1x3x8x4xf32>) -> memref<1x3x8x4xf32> {
+func.func @ComposeSubView(%arg0: memref<1x3x8x4xf32>) -> memref<1x3x8x4xf32> {
     %0 = memref.alloc() : memref<1x3x16x16xf32>
 
     %1 = VPUIP.SubView %0 [0, 0, 0, 8] [1, 3, 16, 8] :

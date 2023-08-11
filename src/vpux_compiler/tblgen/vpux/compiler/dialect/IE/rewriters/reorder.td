@@ -3,14 +3,13 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #ifndef VPUX_COMPILER_DIALECT_IE_REWRITERS_REORDER
 #define VPUX_COMPILER_DIALECT_IE_REWRITERS_REORDER
 
 include "vpux/compiler/dialect/IE/ops.td"
 
 include "mlir/IR/OpBase.td"
+include "mlir/IR/PatternBase.td"
 
 //
 // FuseReorders

@@ -11,7 +11,6 @@
 
 #include <mlir/Transforms/GreedyPatternRewriteDriver.h>
 
-#include <llvm/ADT/TypeSwitch.h>
 #include <vpux/compiler/conversion.hpp>
 
 using namespace vpux;
@@ -118,7 +117,7 @@ void SwapConcatWithEltwise::safeRunOnFunc() {
     mlir::RewritePatternSet patterns(&ctx);
     patterns.add<SwapConcatWithEltwise::FakeQuantOpConverter>(&ctx, _log);
 
-    auto func = getFunction();
+    auto func = getOperation();
     if (mlir::failed(mlir::applyPatternsAndFoldGreedily(func, std::move(patterns), getDefaultGreedyRewriteConfig()))) {
         signalPassFailure();
     }

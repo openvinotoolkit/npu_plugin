@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/IE/passes.hpp"
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
@@ -37,13 +35,13 @@ void UseUserPrecisionPass::safeRunOnModule() {
     auto module = getOperation();
 
     IE::CNNNetworkOp netInfo;
-    mlir::FuncOp netFunc;
+    mlir::func::FuncOp netFunc;
     IE::CNNNetworkOp::getFromModule(module, netInfo, netFunc);
 
     auto userInputs = netInfo.getInputsInfo();
     auto userOutputs = netInfo.getOutputsInfo();
 
-    const auto funcType = netFunc.getType();
+    const auto funcType = netFunc.getFunctionType();
 
     SmallVector<mlir::Type> newArgTypes(netFunc.getNumArguments());
 

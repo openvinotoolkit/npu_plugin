@@ -1,9 +1,10 @@
 //
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
-// RUN: vpux-opt --split-input-file --init-compiler="vpu-arch=%arch%" --lower-VPU-to-VPUIP %s | FileCheck %s
-// REQUIRES: arch-VPUX30XX || arch-VPUX37XX
+
+// RUN: vpux-opt --split-input-file --init-compiler="vpu-arch=%arch%" --lower-VPU-to-VPUIP-37XX %s | FileCheck %s
+// REQUIRES: arch-VPUX37XX
 
 //
 // The 'lower-VPU-to-VPUIP' pipeline:
@@ -12,22 +13,91 @@
 //   * Changes all Value types from `tensor` to `memref`
 //   * Adds result arguments to Function signature
 //   * Inserts `VPUIP.Copy` to store result in output buffer
+//   * Uses activation SHAVE kernels `VPUIP.SW.Kernel` for software ops
 //
 
-// CHECK: func @ConstantLayer([[ARG0:%.*]]: memref<1x2x2x2xf16>) -> memref<1x2x2x2xf16> {
-func @ConstantLayer() -> tensor<1x2x2x2xf16> {
+// CHECK:       module @VPU.SW  {
+// CHECK:           func.func private @builtin_SoftMax(memref<*xf16, [@CMX_NN, 0]>, memref<*xf16, [@CMX_NN, 0]>, i64)
+// CHECK-SAME:           attributes {VPU.kernel_code = "single_shave_softmax.cpp", VPU.kernel_entry = "singleShaveSoftmax"}
+// CHECK:           func.func private @runtime() attributes {VPU.kernel_code = "nnActEntry"}
+// CHECK:       }
+
+// CHECK: func.func @SingleLayer([[ARG0:%.*]]: memref<1x1000xf16>, [[ARG1:%.*]]: memref<1x1000xf16>) -> memref<1x1000xf16> {
+func.func @SingleLayer(%arg0: tensor<1x1000xf16>) -> tensor<1x1000xf16> {
+    %0 = VPU.SoftMax(%arg0) {axisInd = 1} : tensor<1x1000xf16> -> tensor<1x1000xf16>
+    return %0 : tensor<1x1000xf16>
+
+    // CHECK:       [[VAR0:%.+]] = memref.alloc() : memref<1x1000xf16, [@CMX_NN, 0]>
+    // CHECK:       [[VAR1:%.+]] = VPUIP.Copy inputs([[ARG0]] : memref<1x1000xf16>)
+    // CHECK-SAME:                  outputs([[VAR0]] : memref<1x1000xf16, [@CMX_NN, 0]>) -> memref<1x1000xf16, [@CMX_NN, 0]>
+    // CHECK:       [[VAR2:%.+]] = memref.alloc() : memref<1x1000xf16, [@CMX_NN, 0]>
+
+    // CHECK:       [[VAR3:%.+]] = VPUIP.SW.Kernel {result_segment_sizes = dense<[1, 0]> : vector<2xi32>}
+    // CHECK-SAME:      @VPU.SW::@builtin_SoftMax inputs([[VAR1]] as %arg2: memref<1x1000xf16, [@CMX_NN, 0]>)
+    // CHECK-SAME:                                outputs([[VAR2]] as %arg3: memref<1x1000xf16, [@CMX_NN, 0]>) on tile 0
+    // CHECK-SAME:               -> memref<1x1000xf16, [@CMX_NN, 0]>{
+    // CHECK:           VPUIP.SW.Kernel.run {attrs = [0]}(%arg2, %arg3)
+    // CHECK-SAME:               : memref<1x1000xf16, [@CMX_NN, 0]>, memref<1x1000xf16, [@CMX_NN, 0]>
+    // CHECK:       }
+
+    // CHECK:       [[VAR4:%.+]] = memref.alloc() : memref<1x1000xf16>
+    // CHECK:       [[VAR5:%.+]] = VPUIP.Copy inputs([[VAR3]] : memref<1x1000xf16, [@CMX_NN, 0]>) outputs([[VAR4]] : memref<1x1000xf16>) -> memref<1x1000xf16>
+    // CHECK:       [[VAR6:%.+]] = VPUIP.Copy inputs([[VAR5]] : memref<1x1000xf16>) outputs([[ARG1]] : memref<1x1000xf16>) -> memref<1x1000xf16>
+    // CHECK:       return [[VAR6]] : memref<1x1000xf16>
+}
+
+// -----
+
+// CHECK:       module @VPU.SW  {
+// CHECK:           func.func private @builtin_SoftMax(memref<*xf16, [@CMX_NN, 0]>, memref<*xf16, [@CMX_NN, 0]>, i64)
+// CHECK-SAME:           attributes {VPU.kernel_code = "single_shave_softmax.cpp", VPU.kernel_entry = "singleShaveSoftmax"}
+// CHECK:           func.func private @runtime() attributes {VPU.kernel_code = "nnActEntry"}
+// CHECK:       }
+
+// CHECK: func.func @ReshapeInGraph([[ARG0:%.*]]: memref<1x512x1x1xf16>, [[ARG1:%.*]]: memref<1x512x1x1xf16>) -> memref<1x512x1x1xf16> {
+func.func @ReshapeInGraph(%arg0 : tensor<1x512x1x1xf16>) -> tensor<1x512x1x1xf16> {
+    %0 = VPU.Reshape(%arg0) {shape_value = [1, 512]} : tensor<1x512x1x1xf16> -> tensor<1x512xf16>
+    %1 = VPU.SoftMax(%0) {axisInd = 1} : tensor<1x512xf16> -> tensor<1x512xf16>
+    %2 = VPU.Reshape(%1) {shape_value = [1, 512, 1, 1]} : tensor<1x512xf16> -> tensor<1x512x1x1xf16>
+    return %2 : tensor<1x512x1x1xf16>
+
+    // CHECK:       [[VAR0:%.+]] = VPUIP.GenericReshape inputs(%arg0 : memref<1x512x1x1xf16>) -> memref<1x512xf16>
+    // CHECK:       [[VAR1:%.+]] = memref.alloc() : memref<1x512xf16, [@CMX_NN, 0]>
+    // CHECK:       [[VAR2:%.+]] = VPUIP.Copy inputs([[VAR0]] : memref<1x512xf16>)
+    // CHECK-SAME:                  outputs([[VAR1]] : memref<1x512xf16, [@CMX_NN, 0]>) -> memref<1x512xf16, [@CMX_NN, 0]>
+    // CHECK:       [[VAR3:%.+]] = memref.alloc() : memref<1x512xf16, [@CMX_NN, 0]>
+
+    // CHECK:       [[VAR4:%.+]] = VPUIP.SW.Kernel {result_segment_sizes = dense<[1, 0]> : vector<2xi32>}
+    // CHECK-SAME:      @VPU.SW::@builtin_SoftMax inputs([[VAR2]] as %arg2: memref<1x512xf16, [@CMX_NN, 0]>)
+    // CHECK-SAME:                                outputs([[VAR3]] as %arg3: memref<1x512xf16, [@CMX_NN, 0]>) on tile 0
+    // CHECK-SAME:               -> memref<1x512xf16, [@CMX_NN, 0]>{
+    // CHECK:         VPUIP.SW.Kernel.run {attrs = [0]}(%arg2, %arg3)
+    // CHECK-SAME:               : memref<1x512xf16, [@CMX_NN, 0]>, memref<1x512xf16, [@CMX_NN, 0]>
+    // CHECK:       }
+
+    // CHECK:       [[VAR5:%.+]] = memref.alloc() : memref<1x512xf16>
+    // CHECK:       [[VAR6:%.+]] = VPUIP.Copy inputs([[VAR4]] : memref<1x512xf16, [@CMX_NN, 0]>) outputs([[VAR5]] : memref<1x512xf16>) -> memref<1x512xf16>
+    // CHECK:       [[VAR7:%.+]] = VPUIP.GenericReshape inputs([[VAR6]] : memref<1x512xf16>) -> memref<1x512x1x1xf16>
+    // CHECK:       [[VAR8:%.+]] = VPUIP.Copy inputs([[VAR7]] : memref<1x512x1x1xf16>) outputs([[ARG1]] : memref<1x512x1x1xf16>) -> memref<1x512x1x1xf16>
+    // CHECK:       return [[VAR8]] : memref<1x512x1x1xf16>
+}
+
+// -----
+
+// CHECK: func.func @ConstantLayer([[ARG0:%.*]]: memref<1x2x2x2xf16>) -> memref<1x2x2x2xf16> {
+func.func @ConstantLayer() -> tensor<1x2x2x2xf16> {
     %0 = const.Declare tensor<1x2x2x2xf16> = dense<1.0> : tensor<1x2x2x2xf16>
     return %0 : tensor<1x2x2x2xf16>
 
-    // CHECK:  [[VAR0:%.*]] = const.Declare memref<1x2x2x2xf16> = dense<1.000000e+00> : tensor<1x2x2x2xf16>
+    // CHECK-DAG:  [[VAR0:%.*]] = const.Declare memref<1x2x2x2xf16> = dense<1.000000e+00> : tensor<1x2x2x2xf16>
     // CHECK:  [[VAR1:%.*]] = VPUIP.Copy inputs([[VAR0]] : memref<1x2x2x2xf16>) outputs([[ARG0]] : memref<1x2x2x2xf16>) -> memref<1x2x2x2xf16>
     // CHECK:  return [[VAR1]] : memref<1x2x2x2xf16>
 }
 
 // -----
 
-// CHECK: func @Reshape([[ARG0:%.*]]: memref<1x512x1x1xf32>, [[ARG1:%.*]]: memref<1x512xf32>) -> memref<1x512xf32> {
-func @Reshape(%arg0 : tensor<1x512x1x1xf32>) -> tensor<1x512xf32> {
+// CHECK: func.func @Reshape([[ARG0:%.*]]: memref<1x512x1x1xf32>, [[ARG1:%.*]]: memref<1x512xf32>) -> memref<1x512xf32> {
+func.func @Reshape(%arg0 : tensor<1x512x1x1xf32>) -> tensor<1x512xf32> {
     %0 = VPU.Reshape(%arg0) {shape_value = [1, 512]} : tensor<1x512x1x1xf32> -> tensor<1x512xf32>
     return %0 : tensor<1x512xf32>
 
@@ -40,8 +110,8 @@ func @Reshape(%arg0 : tensor<1x512x1x1xf32>) -> tensor<1x512xf32> {
 
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
-// CHECK: func @NCEConv([[ARG0:%.*]]: memref<1x32x16x16xf16, #NHWC, @CMX_NN>, [[ARG1:%.*]]: memref<1x64x14x14xf16, #NHWC, @CMX_NN>) -> memref<1x64x14x14xf16, #NHWC, @CMX_NN> {
-func @NCEConv(%arg0 : tensor<1x32x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>) -> tensor<1x64x14x14xf16, {mem_space = @CMX_NN, order = #NHWC}> {
+// CHECK: func.func @NCEConv([[ARG0:%.*]]: memref<1x32x16x16xf16, #NHWC, @CMX_NN>, [[ARG1:%.*]]: memref<1x64x14x14xf16, #NHWC, @CMX_NN>) -> memref<1x64x14x14xf16, #NHWC, @CMX_NN> {
+func.func @NCEConv(%arg0 : tensor<1x32x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>) -> tensor<1x64x14x14xf16, {mem_space = @CMX_NN, order = #NHWC}> {
     %weights = const.Declare tensor<64x32x3x3xf16, {mem_space = @CMX_NN, order = #NHWC}> = dense<1.000000e+00> : tensor<64x32x3x3xf16, {mem_space = @CMX_NN}>, [#const.Reorder<#NHWC>]
     %weights_table = const.Declare tensor<64x1x1x4xsi32, {mem_space = @CMX_NN}> = dense<1> : tensor<64x1x1x4xsi32, {mem_space = @CMX_NN}>
 
@@ -50,14 +120,14 @@ func @NCEConv(%arg0 : tensor<1x32x16x16xf16, {mem_space = @CMX_NN, order = #NHWC
             rawFilterShape = [64, 32, 3, 3],
             strides = [1, 1]
         } -> tensor<1x64x14x14xf16, {mem_space = @CMX_NN, order = #NHWC}> {
-            VPU.DPU.Workload [0, 0, 0, 0] [1, 32, 16, 16] {bottom = 0, left = 0, right = 0, top = 0} "VECTOR_FP16"
+            VPU.DPU.Workload outOffsets [0, 0, 0, 0] outSizes [1, 32, 16, 16] {bottom = 0, left = 0, right = 0, top = 0} "VECTOR_FP16"
         }
 
     return %out : tensor<1x64x14x14xf16, {mem_space = @CMX_NN, order = #NHWC}>
 
-    // CHECK:       [[WEIGHTS_TABLE:%.+]] = const.Declare memref<64x1x1x4xsi32, @CMX_NN> = dense<1>
+    // CHECK-DAG:       [[WEIGHTS_TABLE:%.+]] = const.Declare memref<64x1x1x4xsi32, @CMX_NN> = dense<1>
     // CHECK-SAME:      : tensor<64x1x1x4xsi32, {mem_space = @CMX_NN}>
-    // CHECK:       [[WEIGHTS:%.+]] = const.Declare memref<64x32x3x3xf16, #NHWC, @CMX_NN> = dense<1.000000e+00>
+    // CHECK-DAG:       [[WEIGHTS:%.+]] = const.Declare memref<64x32x3x3xf16, #NHWC, @CMX_NN> = dense<1.000000e+00>
     // CHECK-SAME:      : tensor<64x32x3x3xf16, {mem_space = @CMX_NN}>, [#const.Reorder<#NHWC>]
 
     // CHECK:       [[OUT_BUF:%.+]] = memref.alloc() : memref<1x64x14x14xf16, #NHWC, @CMX_NN>
@@ -83,12 +153,12 @@ func @NCEConv(%arg0 : tensor<1x32x16x16xf16, {mem_space = @CMX_NN, order = #NHWC
 
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
-// CHECK:       func @SparseNCEConv([[ARG0:%.+]]: memref<1x32x16x16xf16, #NHWC>,
+// CHECK:       func.func @SparseNCEConv([[ARG0:%.+]]: memref<1x32x16x16xf16, #NHWC>,
 // CHECK-SAME:                      [[ARG1:%.+]]: memref<1x32x16x16xi1, #NHWC>,
 // CHECK-SAME:                      [[ARG2:%.+]]: !VPUIP.SparseBuffer<data=memref<1x64x14x14xf16, #NHWC>,
 // CHECK-SAME:                                                        sparsity_map=memref<1x64x14x14xi1, #NHWC>>)
 // CHECK-SAME:       -> !VPUIP.SparseBuffer<data=memref<1x64x14x14xf16, #NHWC>, sparsity_map=memref<1x64x14x14xi1, #NHWC>> {
-func @SparseNCEConv(%arg0 : tensor<1x32x16x16xf16, {order = #NHWC}>, %arg1 : tensor<1x32x16x16xi1, {order = #NHWC}>)
+func.func @SparseNCEConv(%arg0 : tensor<1x32x16x16xf16, {order = #NHWC}>, %arg1 : tensor<1x32x16x16xi1, {order = #NHWC}>)
         -> !VPU.SparseTensor<data=tensor<1x64x14x14xf16, {order = #NHWC}>,
                              sparsity_map=tensor<1x64x14x14xi1, {order = #NHWC}>> {
 
@@ -119,7 +189,7 @@ func @SparseNCEConv(%arg0 : tensor<1x32x16x16xf16, {order = #NHWC}>, %arg1 : ten
             strides = [1, 1]
         } -> !VPU.SparseTensor<data=tensor<1x64x14x14xf16, {mem_space = @CMX_NN, order = #NHWC}>,
                                sparsity_map=tensor<1x64x14x14xi1, {mem_space = @CMX_NN, order = #NHWC}>> {
-            VPU.DPU.Workload [0, 0, 0, 0] [1, 32, 16, 16] {bottom = 0, left = 0, right = 0, top = 0} "VECTOR_FP16"
+            VPU.DPU.Workload outOffsets [0, 0, 0, 0] outSizes [1, 32, 16, 16] {bottom = 0, left = 0, right = 0, top = 0} "VECTOR_FP16"
         }
     %output_sparse = VPU.Copy(%output_sparse_cmx) :
            !VPU.SparseTensor<data=tensor<1x64x14x14xf16, {mem_space = @CMX_NN, order = #NHWC}>,
@@ -130,12 +200,12 @@ func @SparseNCEConv(%arg0 : tensor<1x32x16x16xf16, {order = #NHWC}>, %arg1 : ten
     return %output_sparse : !VPU.SparseTensor<data=tensor<1x64x14x14xf16, {order = #NHWC}>,
                                               sparsity_map=tensor<1x64x14x14xi1, {order = #NHWC}>>
 
-    // CHECK:       [[CST_WEIGHTS_TABLE:%.+]] = const.Declare memref<64x1x1x4xsi32> = dense<1>
+    // CHECK-DAG:       [[CST_WEIGHTS_TABLE:%.+]] = const.Declare memref<64x1x1x4xsi32> = dense<1>
     // CHECK-SAME:      : tensor<64x1x1x4xsi32>
 
-    // CHECK:       [[CST_WEIGHTS_SM:%.+]] = const.Declare memref<64x1x1x384xi1> = dense<1.000000e+00>
+    // CHECK-DAG:       [[CST_WEIGHTS_SM:%.+]] = const.Declare memref<64x1x1x384xi1> = dense<1.000000e+00>
     // CHECK-SAME:      : tensor<64x32x3x3xf16>, [#const.Reorder<#NHWC>, #const.GetSparsityMap]
-    // CHECK:       [[CST_WEIGHTS:%.+]] = const.Declare memref<64x32x3x3xf16, #NHWC> = dense<1.000000e+00>
+    // CHECK-DAG:       [[CST_WEIGHTS:%.+]] = const.Declare memref<64x32x3x3xf16, #NHWC> = dense<1.000000e+00>
     // CHECK-SAME:      : tensor<64x32x3x3xf16>, [#const.Reorder<#NHWC>, #const.Sparsify<false>]
 
     // CHECK:       [[IN_SPARSE_DDR:%.+]] = VPUIP.GroupSparseBuffer([[ARG0]], [[ARG1]])
@@ -212,74 +282,74 @@ func @SparseNCEConv(%arg0 : tensor<1x32x16x16xf16, {order = #NHWC}>, %arg1 : ten
 #NCHW = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
-!InputDistributed = type !VPU.DistributedTensor<
+!InputDistributed = !VPU.DistributedTensor<
     1x32x16x16xf16, #NHWC, @CMX_NN, {
     mode = "SEGMENTED",
     num_tiles = [1, 1, 2, 1],
     num_clusters = 2
 }>
 
-!InputSMDistributed = type !VPU.DistributedTensor<
+!InputSMDistributed = !VPU.DistributedTensor<
     1x32x16x16xi1, #NHWC, @CMX_NN, {
     mode = "SEGMENTED",
     num_tiles = [1, 1, 2, 1],
     num_clusters = 2
 }>
 
-!WeightsDistributed = type !VPU.DistributedTensor<
+!WeightsDistributed = !VPU.DistributedTensor<
     64x32x3x3xf16, #NHWC, @CMX_NN, {
     mode = "DUPLICATED",
     num_clusters = 2
 }>
 
-!WeightsSMDistributed = type !VPU.DistributedTensor<
+!WeightsSMDistributed = !VPU.DistributedTensor<
     64x1x1x384xi1, #NCHW, @CMX_NN, {
     mode = "DUPLICATED",
     num_clusters = 2
 }>
 
-!WeightsTableDistributed = type !VPU.DistributedTensor<
+!WeightsTableDistributed = !VPU.DistributedTensor<
     64x1x1x4xsi32, #NCHW, @CMX_NN, {
     mode = "DUPLICATED",
     num_clusters = 2
 }>
 
-!OutputDistributed = type !VPU.DistributedTensor<
+!OutputDistributed = !VPU.DistributedTensor<
     1x64x14x14xf16, #NHWC, @CMX_NN, {
     mode = "SEGMENTED",
     num_tiles = [1, 1, 2, 1],
     num_clusters = 2
 }>
 
-!OutputSMDistributed = type !VPU.DistributedTensor<
+!OutputSMDistributed = !VPU.DistributedTensor<
     1x64x14x14xi1, #NHWC, @CMX_NN, {
     mode = "SEGMENTED",
     num_tiles = [1, 1, 2, 1],
     num_clusters = 2
 }>
 
-!Input_DDR = type tensor<1x32x16x16xf16, {mem_space = @DDR, order = #NHWC}>
-!InputSM_DDR = type tensor<1x32x16x16xi1, {mem_space = @DDR, order = #NHWC}>
-!Weights_DDR = type tensor<64x32x3x3xf16, {mem_space = @DDR, order = #NHWC}>
-!WeightsSM_DDR = type tensor<64x1x1x384xi1, {mem_space = @DDR}>
-!WeightsTable_DDR = type tensor<64x1x1x4xsi32, {mem_space = @DDR}>
-!Output_DDR = type tensor<1x64x14x14xf16, {mem_space = @DDR, order = #NHWC}>
-!OutputSM_DDR = type tensor<1x64x14x14xi1, {mem_space = @DDR, order = #NHWC}>
+!Input_DDR = tensor<1x32x16x16xf16, {mem_space = @DDR, order = #NHWC}>
+!InputSM_DDR = tensor<1x32x16x16xi1, {mem_space = @DDR, order = #NHWC}>
+!Weights_DDR = tensor<64x32x3x3xf16, {mem_space = @DDR, order = #NHWC}>
+!WeightsSM_DDR = tensor<64x1x1x384xi1, {mem_space = @DDR}>
+!WeightsTable_DDR = tensor<64x1x1x4xsi32, {mem_space = @DDR}>
+!Output_DDR = tensor<1x64x14x14xf16, {mem_space = @DDR, order = #NHWC}>
+!OutputSM_DDR = tensor<1x64x14x14xi1, {mem_space = @DDR, order = #NHWC}>
 
-!Input_CMX = type tensor<1x32x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>
-!InputSM_CMX = type tensor<1x32x16x16xi1, {mem_space = @CMX_NN, order = #NHWC}>
-!Weights_CMX = type tensor<64x32x3x3xf16, {mem_space = @CMX_NN, order = #NHWC}>
-!WeightsSM_CMX = type tensor<64x1x1x384xi1, {mem_space = @CMX_NN}>
-!WeightsTable_CMX = type tensor<64x1x1x4xsi32, {mem_space = @CMX_NN}>
-!Output_CMX = type tensor<1x64x14x14xf16, {mem_space = @CMX_NN, order = #NHWC}>
-!OutputSM_CMX = type tensor<1x64x14x14xi1, {mem_space = @CMX_NN, order = #NHWC}>
+!Input_CMX = tensor<1x32x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>
+!InputSM_CMX = tensor<1x32x16x16xi1, {mem_space = @CMX_NN, order = #NHWC}>
+!Weights_CMX = tensor<64x32x3x3xf16, {mem_space = @CMX_NN, order = #NHWC}>
+!WeightsSM_CMX = tensor<64x1x1x384xi1, {mem_space = @CMX_NN}>
+!WeightsTable_CMX = tensor<64x1x1x4xsi32, {mem_space = @CMX_NN}>
+!Output_CMX = tensor<1x64x14x14xf16, {mem_space = @CMX_NN, order = #NHWC}>
+!OutputSM_CMX = tensor<1x64x14x14xi1, {mem_space = @CMX_NN, order = #NHWC}>
 
-// CHECK:       func @SparseNCEConvSOH([[ARG0:%.+]]: memref<1x32x16x16xf16, #NHWC, @DDR>,
+// CHECK:       func.func @SparseNCEConvSOH([[ARG0:%.+]]: memref<1x32x16x16xf16, #NHWC, @DDR>,
 // CHECK-SAME:                         [[ARG1:%.+]]: memref<1x32x16x16xi1, #NHWC, @DDR>,
 // CHECK-SAME:                         [[ARG2:%.+]]: !VPUIP.SparseBuffer<data=memref<1x64x14x14xf16, #NHWC, @DDR>,
 // CHECK-SAME:                                                           sparsity_map=memref<1x64x14x14xi1, #NHWC, @DDR>>)
 // CHECK-SAME:       -> !VPUIP.SparseBuffer<data=memref<1x64x14x14xf16, #NHWC, @DDR>, sparsity_map=memref<1x64x14x14xi1, #NHWC, @DDR>> {
-func @SparseNCEConvSOH(%arg0 : !Input_DDR, %arg1 : !InputSM_DDR) -> !VPU.SparseTensor<data=!Output_DDR, sparsity_map=!OutputSM_DDR> {
+func.func @SparseNCEConvSOH(%arg0 : !Input_DDR, %arg1 : !InputSM_DDR) -> !VPU.SparseTensor<data=!Output_DDR, sparsity_map=!OutputSM_DDR> {
     %input_sparse = VPU.GroupSparseTensor(%arg0, %arg1) -> !VPU.SparseTensor<data=!Input_DDR, sparsity_map=!InputSM_DDR>
 
     %weights = const.Declare !Weights_DDR = dense<1.000000e+00> : tensor<64x32x3x3xf16>, [#const.Reorder<#NHWC>, #const.Sparsify<false>]
@@ -316,7 +386,7 @@ func @SparseNCEConvSOH(%arg0 : !Input_DDR, %arg1 : !InputSM_DDR) -> !VPU.SparseT
                 rawFilterShape = [64, 32, 3, 3],
                 strides = [1, 1]
             } -> !VPU.SparseTensor<data=!Output_CMX, sparsity_map=!OutputSM_CMX> {
-            VPU.DPU.Workload [0, 0, 0, 0] [1, 32, 16, 16] {bottom = 0, left = 0, right = 0, top = 0} "VECTOR_FP16"
+            VPU.DPU.Workload outOffsets [0, 0, 0, 0] outSizes [1, 32, 16, 16] {bottom = 0, left = 0, right = 0, top = 0} "VECTOR_FP16"
         }
         VPU.Yield %0
     }
@@ -330,11 +400,11 @@ func @SparseNCEConvSOH(%arg0 : !Input_DDR, %arg1 : !InputSM_DDR) -> !VPU.SparseT
 
     return %output_sparse : !VPU.SparseTensor<data=!Output_DDR, sparsity_map=!OutputSM_DDR>
 
-    // CHECK:       [[CST_WEIGHTS_TABLE:%.+]] = const.Declare memref<64x1x1x4xsi32, @DDR> = dense<1> : tensor<64x1x1x4xsi32>
+    // CHECK-DAG:       [[CST_WEIGHTS_TABLE:%.+]] = const.Declare memref<64x1x1x4xsi32, @DDR> = dense<1> : tensor<64x1x1x4xsi32>
 
-    // CHECK:       [[CST_WEIGHTS_SM:%.+]] = const.Declare memref<64x1x1x384xi1, @DDR> = dense<1.000000e+00>
+    // CHECK-DAG:       [[CST_WEIGHTS_SM:%.+]] = const.Declare memref<64x1x1x384xi1, @DDR> = dense<1.000000e+00>
     // CHECK-SAME:      : tensor<64x32x3x3xf16>, [#const.Reorder<#NHWC>, #const.GetSparsityMap]
-    // CHECK:       [[CST_WEIGHTS:%.+]] = const.Declare memref<64x32x3x3xf16, #NHWC, @DDR> = dense<1.000000e+00>
+    // CHECK-DAG:       [[CST_WEIGHTS:%.+]] = const.Declare memref<64x32x3x3xf16, #NHWC, @DDR> = dense<1.000000e+00>
     // CHECK-SAME:      : tensor<64x32x3x3xf16>, [#const.Reorder<#NHWC>, #const.Sparsify<false>]
 
     // CHECK:       [[INPUT_SPARSE_DDR:%.+]] = VPUIP.GroupSparseBuffer([[ARG0]], [[ARG1]])
@@ -443,20 +513,20 @@ func @SparseNCEConvSOH(%arg0 : !Input_DDR, %arg1 : !InputSM_DDR) -> !VPU.SparseT
 
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
-func @SparseNCEConvSETable(%arg0 : tensor<1x32x16x16xf16, {order = #NHWC}>, %arg1 : tensor<1x32x16x16xi1, {order = #NHWC}>)
+func.func @SparseNCEConvSETable(%arg0 : tensor<1x32x16x16xf16, {order = #NHWC}>, %arg1 : tensor<1x32x16x16xi1, {order = #NHWC}>)
         -> tensor<1x64x14x14xf16, {order = #NHWC}> {
-    %se_table = VPU.StorageElementTable{seDepth = 1, seSize = 32, height = 16, width = 16} -> tensor<1x1x16x16xi32>
+    %se_table = VPU.StorageElementTable {dataElemType = f16, dataShape = [1, 32, 16, 16], seDepth = 1 : i64, seSize = 32 : i64} -> tensor<1x1x16x16xi32, {order = #NHWC}>
     %input_sparse = VPU.GroupSparseTensor(%arg0, %arg1, %se_table)
         -> !VPU.SparseTensor<data=tensor<1x32x16x16xf16, {order = #NHWC}>,
                              sparsity_map=tensor<1x32x16x16xi1, {order = #NHWC}>,
-                             storage_element_table=tensor<1x1x16x16xi32>>
+                             storage_element_table=tensor<1x1x16x16xi32, {order = #NHWC}>>
     %input_sparse_cmx = VPU.Copy(%input_sparse) {out_mem_space = @CMX_NN} :
            !VPU.SparseTensor<data=tensor<1x32x16x16xf16, {order = #NHWC}>,
                              sparsity_map=tensor<1x32x16x16xi1, {order = #NHWC}>,
-                             storage_element_table=tensor<1x1x16x16xi32>>
+                             storage_element_table=tensor<1x1x16x16xi32, {order = #NHWC}>>
         -> !VPU.SparseTensor<data=tensor<1x32x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>,
                              sparsity_map=tensor<1x32x16x16xi1, {mem_space = @CMX_NN, order = #NHWC}>,
-                             storage_element_table=tensor<1x1x16x16xi32, {mem_space = @CMX_NN}>>
+                             storage_element_table=tensor<1x1x16x16xi32, {mem_space = @CMX_NN, order = #NHWC}>>
 
     %weights = const.Declare tensor<64x32x3x3xf16, {order = #NHWC}> = dense<1.000000e+00> : tensor<64x32x3x3xf16>, [#const.Reorder<#NHWC>]
     %weights_cmx = VPU.Copy(%weights) {out_mem_space = @CMX_NN} :
@@ -472,7 +542,7 @@ func @SparseNCEConvSETable(%arg0 : tensor<1x32x16x16xf16, {order = #NHWC}>, %arg
             rawFilterShape = [64, 32, 3, 3],
             strides = [1, 1]
         } -> tensor<1x64x14x14xf16, {mem_space = @CMX_NN, order = #NHWC}> {
-            VPU.DPU.Workload [0, 0, 0, 0] [1, 32, 16, 16] {bottom = 0, left = 0, right = 0, top = 0} "VECTOR_FP16"
+            VPU.DPU.Workload outOffsets [0, 0, 0, 0] outSizes [1, 32, 16, 16] {bottom = 0, left = 0, right = 0, top = 0} "VECTOR_FP16"
         }
     %output = VPU.Copy(%output_cmx) :
            tensor<1x64x14x14xf16, {mem_space = @CMX_NN, order = #NHWC}>
@@ -480,34 +550,34 @@ func @SparseNCEConvSETable(%arg0 : tensor<1x32x16x16xf16, {order = #NHWC}>, %arg
 
     return %output : tensor<1x64x14x14xf16, {order = #NHWC}>
 
-    // CHECK:       [[WEIGHTS_TABLE:%.+]] = const.Declare memref<64x1x1x4xsi32> = dense<1> : tensor<64x1x1x4xsi32>
-    // CHECK:       [[WEIGHTS:%.+]] = const.Declare memref<64x32x3x3xf16, #NHWC> = dense<1.000000e+00> : tensor<64x32x3x3xf16>, [#const.Reorder<#NHWC>]
+    // CHECK-DAG:       [[WEIGHTS_TABLE:%.+]] = const.Declare memref<64x1x1x4xsi32> = dense<1> : tensor<64x1x1x4xsi32>
+    // CHECK-DAG:       [[WEIGHTS:%.+]] = const.Declare memref<64x32x3x3xf16, #NHWC> = dense<1.000000e+00> : tensor<64x32x3x3xf16>, [#const.Reorder<#NHWC>]
     // CHECK:       [[SE_TABLE:%.+]] = VPUIP.StorageElementTable
-    // CHECK-SAME:      {height = 16 : i64, seDepth = 1 : i64, seSize = 32 : i64, width = 16 : i64} -> memref<1x1x16x16xi32>
+    // CHECK-SAME:      {dataElemType = f16, dataShape = [1, 32, 16, 16], seDepth = 1 : i64, seSize = 32 : i64} -> memref<1x1x16x16xi32, #NHWC>
     // CHECK:       [[GROUP_SPARSE_BUFFER:%.+]] = VPUIP.GroupSparseBuffer(%arg0, %arg1, [[SE_TABLE]])
     // CHECK-SAME:      -> !VPUIP.SparseBuffer<data=memref<1x32x16x16xf16, #NHWC>,
     // CHECK-SAME:                             sparsity_map=memref<1x32x16x16xi1, #NHWC>,
-    // CHECK-SAME:                             storage_element_table=memref<1x1x16x16xi32>>
+    // CHECK-SAME:                             storage_element_table=memref<1x1x16x16xi32, #NHWC>>
 
     // CHECK:       [[DATA_ALLOC:%.+]] = memref.alloc() : memref<1x32x16x16xf16, #NHWC, @CMX_NN>
     // CHECK:       [[SPARSITY_MAP_ALLOC:%.+]] = memref.alloc() : memref<1x32x16x16xi1, #NHWC, @CMX_NN>
-    // CHECK:       [[SE_TABLE_ALLOC:%.+]] = memref.alloc() : memref<1x1x16x16xi32, @CMX_NN>
+    // CHECK:       [[SE_TABLE_ALLOC:%.+]] = memref.alloc() : memref<1x1x16x16xi32, #NHWC, @CMX_NN>
     // CHECK:       [[GROUP_SP_BUFF_ALLOC:%.+]] = VPUIP.GroupSparseBuffer([[DATA_ALLOC]], [[SPARSITY_MAP_ALLOC]], [[SE_TABLE_ALLOC]])
     // CHECK-SAME:      -> !VPUIP.SparseBuffer<
     // CHECK-SAME:      data=memref<1x32x16x16xf16, #NHWC, @CMX_NN>,
     // CHECK-SAME:      sparsity_map=memref<1x32x16x16xi1, #NHWC, @CMX_NN>,
-    // CHECK-SAME:      storage_element_table=memref<1x1x16x16xi32, @CMX_NN>>
+    // CHECK-SAME:      storage_element_table=memref<1x1x16x16xi32, #NHWC, @CMX_NN>>
 
-    // CHECK:       [[IN_SPARSE:%.+]] = VPUIP.Copy 
+    // CHECK:       [[IN_SPARSE:%.+]] = VPUIP.Copy
     // CHECK-SAME:      inputs([[GROUP_SPARSE_BUFFER]] : !VPUIP.SparseBuffer<data=memref<1x32x16x16xf16, #NHWC>,
     // CHECK-SAME:                                                           sparsity_map=memref<1x32x16x16xi1, #NHWC>,
-    // CHECK-SAME:                                                           storage_element_table=memref<1x1x16x16xi32>>)
+    // CHECK-SAME:                                                           storage_element_table=memref<1x1x16x16xi32, #NHWC>>)
     // CHECK-SAME:      outputs([[GROUP_SP_BUFF_ALLOC]] : !VPUIP.SparseBuffer<data=memref<1x32x16x16xf16, #NHWC, @CMX_NN>,
     // CHECK-SAME:                                                            sparsity_map=memref<1x32x16x16xi1, #NHWC, @CMX_NN>,
-    // CHECK-SAME:                                                            storage_element_table=memref<1x1x16x16xi32, @CMX_NN>>)
+    // CHECK-SAME:                                                            storage_element_table=memref<1x1x16x16xi32, #NHWC, @CMX_NN>>)
     // CHECK-SAME:      -> !VPUIP.SparseBuffer<data=memref<1x32x16x16xf16, #NHWC, @CMX_NN>,
     // CHECK-SAME:                             sparsity_map=memref<1x32x16x16xi1, #NHWC, @CMX_NN>,
-    // CHECK-SAME:                             storage_element_table=memref<1x1x16x16xi32, @CMX_NN>>
+    // CHECK-SAME:                             storage_element_table=memref<1x1x16x16xi32, #NHWC, @CMX_NN>>
 
 
     // CHECK:       [[WEIGHTS_ALLOC:%.+]] = memref.alloc() : memref<64x32x3x3xf16, #NHWC, @CMX_NN>
@@ -520,17 +590,17 @@ func @SparseNCEConvSETable(%arg0 : tensor<1x32x16x16xf16, {order = #NHWC}>, %arg
 
     // CHECK:       [[OUT_NCE_CLUSTER:%.+]] = memref.alloc() : memref<1x64x14x14xf16, #NHWC, @CMX_NN>
     // CHECK:       [[INPUT:%.+]], [[INPUT_SM:%.+]],  [[INPUT_SE:%.+]] = VPUIP.UngroupSparseBuffer([[IN_SPARSE]])
-    // CHECK-SAME:      -> memref<1x32x16x16xf16, #NHWC, @CMX_NN>, memref<1x32x16x16xi1, #NHWC, @CMX_NN>, memref<1x1x16x16xi32, @CMX_NN>
-    // CHECK:       [[RESULT_CMX:%.+]] = VPUIP.NCEClusterTask 
+    // CHECK-SAME:      -> memref<1x32x16x16xf16, #NHWC, @CMX_NN>, memref<1x32x16x16xi1, #NHWC, @CMX_NN>, memref<1x1x16x16xi32, #NHWC, @CMX_NN>
+    // CHECK:       [[RESULT_CMX:%.+]] = VPUIP.NCEClusterTask
     // CHECK-SAME:      {kernel_padding = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64},
     // CHECK-SAME:      kernel_size = [3, 3], kernel_strides = [1, 1], task_type = "CONV"}
     // CHECK-SAME:      input([[INPUT]] : memref<1x32x16x16xf16, #NHWC, @CMX_NN>)
     // CHECK-SAME:      input_sparsity_map([[INPUT_SM]] : memref<1x32x16x16xi1, #NHWC, @CMX_NN>)
-    // CHECK-SAME:      input_storage_element_table([[INPUT_SE]] : memref<1x1x16x16xi32, @CMX_NN>)
+    // CHECK-SAME:      input_storage_element_table([[INPUT_SE]] : memref<1x1x16x16xi32, #NHWC, @CMX_NN>)
     // CHECK-SAME:      weights([[WEIGHTS_CMX]] : memref<64x32x3x3xf16, #NHWC, @CMX_NN>) weight_table(%10 : memref<64x1x1x4xsi32, @CMX_NN>)
     // CHECK-SAME:      parent_input([[INPUT]] : memref<1x32x16x16xf16, #NHWC, @CMX_NN>)
     // CHECK-SAME:      parent_input_sparsity_map([[INPUT_SM]] : memref<1x32x16x16xi1, #NHWC, @CMX_NN>)
-    // CHECK-SAME:      parent_input_storage_element_table([[INPUT_SE]] : memref<1x1x16x16xi32, @CMX_NN>)
+    // CHECK-SAME:      parent_input_storage_element_table([[INPUT_SE]] : memref<1x1x16x16xi32, #NHWC, @CMX_NN>)
     // CHECK-SAME:      parent_output([[OUT_NCE_CLUSTER]] : memref<1x64x14x14xf16, #NHWC, @CMX_NN>)
     // CHECK-SAME:      outputs([[OUT_NCE_CLUSTER]] : memref<1x64x14x14xf16, #NHWC, @CMX_NN>) -> memref<1x64x14x14xf16, #NHWC, @CMX_NN> variants : {
     // CHECK:           DPUTask {mpe_mode = "VECTOR_FP16", outEnd = [15, 15, 31], outStart = [0, 0, 0],

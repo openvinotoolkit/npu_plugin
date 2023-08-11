@@ -59,6 +59,7 @@ DEFINE_double(prob_tolerance, 1e-4, "Probability tolerance for 'classification/s
 
 DEFINE_double(raw_tolerance, 1e-4, "Tolerance for 'raw' mode (absolute diff)");
 DEFINE_double(cosim_threshold, 0.90, "Threshold for 'cosim' mode");
+DEFINE_double(rrmse_loss_threshold, std::numeric_limits<double>::max(), "Threshold for 'rrmse' mode");
 DEFINE_double(confidence_threshold, 1e-4, "Confidence threshold for Detection mode");
 DEFINE_double(box_tolerance, 1e-4, "Box tolerance for 'detection' mode");
 
@@ -150,6 +151,9 @@ void parseCommandLine(int argc, char* argv[]) {
             std::cout << "    Tolerance:        " << FLAGS_psnr_tolerance << std::endl;
             std::cout << "    Scale_border:     " << FLAGS_scale_border << std::endl;
             std::cout << "    Normalized_image: " << FLAGS_normalized_image << std::endl;
+        }
+        if (strEq(FLAGS_mode, "rrmse")) {
+            std::cout << "    Threshold:        " << FLAGS_rrmse_loss_threshold << std::endl;
         }
     }
     std::cout << "    Log level:        " << FLAGS_log_level << std::endl;
@@ -566,6 +570,29 @@ void dumpBlob(const ie::MemoryBlob::Ptr& blob, const std::string& filePath) {
     file.write(blobPtr, static_cast<std::streamsize>(blob->byteSize()));
 }
 
+std::map<std::string, std::string> parseConfigFile() {
+    std::map<std::string, std::string> config;
+
+    std::ifstream file(FLAGS_config);
+    IE_ASSERT(file.is_open()) << "Can't open file " << FLAGS_config << " for read";
+
+    std::string option;
+    while (std::getline(file, option)) {
+        if (option.empty() || option[0] == '#') {
+            continue;
+        }
+        size_t spacePos = option.find(' ');
+        std::string key, value;
+        if (spacePos != std::string::npos) {
+            key = option.substr(0, spacePos);
+            value = option.substr(spacePos + 1);
+            config[key] = value;
+        }
+    }
+
+    return config;
+}
+
 //
 // Inference Engine
 //
@@ -590,17 +617,7 @@ void setupInferenceEngine() {
     }
 
     if (!FLAGS_config.empty()) {
-        std::ifstream file(FLAGS_config);
-        IE_ASSERT(file.is_open()) << "Can't open file " << FLAGS_config << " for read";
-
-        std::string key, value;
-        while (file >> key >> value) {
-            if (key.empty() || key[0] == '#') {
-                continue;
-            }
-
-            ieCoreShared->SetConfig({{key, value}}, flagDevice);
-        }
+        ieCoreShared->SetConfig(parseConfigFile(), flagDevice);
     }
 }
 
@@ -697,10 +714,8 @@ static ProfVec get_profiling_info(InferenceEngine::InferRequest& req) {
     return infos;
 }
 
-std::pair<ie::BlobMap, ProfVec> runInfer(ie::ExecutableNetwork& exeNet, const ie::BlobMap& inputs,
-                                         const std::vector<std::string>& dumpedInputsPaths) {
-    auto inferRequest = exeNet.CreateInferRequest();
-
+std::pair<ie::BlobMap, ProfVec> runInfer(ie::InferRequest& inferRequest, ie::ExecutableNetwork& exeNet,
+                                         const ie::BlobMap& inputs, const std::vector<std::string>& dumpedInputsPaths) {
     for (const auto& p : inputs) {
         inferRequest.SetBlob(p.first, p.second);
     }
@@ -1051,6 +1066,79 @@ bool testCoSim(const ie::BlobMap& outputs, const ie::BlobMap& refOutputs) {
 }
 
 //
+// Relative Root Mean Squared Error mode
+// (using 'rrmse_loss_threshold' flag, with expected value in range [0.0 -> infinity))
+// e.g. '--mode rrmse --rrmse_loss_threshold 0.1'
+//
+
+bool computeRRMSE(const ie::MemoryBlob::Ptr actOutput, const ie::MemoryBlob::Ptr refOutput) {
+    const auto& actDesc = actOutput->getTensorDesc();
+    const auto& refDesc = refOutput->getTensorDesc();
+
+    if (actDesc.getDims() != refDesc.getDims()) {
+        std::cout << "Actual and reference blobs has different shape" << std::endl;
+        return false;
+    }
+
+    const auto actFP32 = vpux::toFP32(vpux::toDefLayout(actOutput));
+    const auto refFP32 = vpux::toFP32(vpux::toDefLayout(refOutput));
+
+    const auto actMem = actFP32->rmap();
+    const auto refMem = refFP32->rmap();
+
+    const auto act = actMem.as<const float*>();
+    const auto ref = refMem.as<const float*>();
+
+    const auto size = refOutput->size();
+
+    double error = 0, sum = 0, diff;
+    for (size_t i = 0; i < size; ++i) {
+        diff = (act[i] - ref[i]);
+        sum += (act[i] * act[i]);
+        error += (diff * diff);
+    }
+
+    if (error <= std::numeric_limits<double>::epsilon()) {
+        std::cout << "There results perfectly match." << std::endl;
+        return true;
+    }
+
+    if (sum == 0) {
+        std::cout << "Div by ZERO. Cannot compute RRMSE loss." << std::endl;
+        return false;
+    }
+
+    double rrmseLoss = sqrt(error / sum);
+
+    if (rrmseLoss < 0.0) {
+        std::cout << "Invalid result RMMSE loss value " << rrmseLoss << " (valid range [0 ; infinity))" << std::endl;
+        return false;
+    }
+
+    std::cout << "RRMSE loss : " << rrmseLoss << std::endl;
+    return rrmseLoss <= FLAGS_rrmse_loss_threshold;
+}
+
+bool testRRMSE(const ie::BlobMap& actOutputs, const ie::BlobMap& refOutputs) {
+    if (actOutputs.size() != refOutputs.size()) {
+        std::cout << "Actual and reference has different number of output blobs" << std::endl;
+        return false;
+    }
+
+    for (const auto& actualBlob : actOutputs) {
+        auto ref_it = refOutputs.find(actualBlob.first);
+        IE_ASSERT(ref_it != refOutputs.end());
+
+        std::cout << "Compare " << actualBlob.first << " with reference" << std::endl;
+        if (!computeRRMSE(ie::as<ie::MemoryBlob>(actualBlob.second), ie::as<ie::MemoryBlob>(ref_it->second))) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+//
 // Yolo V2 mode
 //
 bool testYoloV2(const ie::BlobMap& actualBlobs, const ie::BlobMap& refBlobs, const ie::ConstInputsDataMap& inputsDesc) {
@@ -1189,7 +1277,7 @@ static void printPerformanceCountsAndLatency(size_t numberOfTestCase, const Prof
     std::cout << "Latency: " << std::fixed << std::setprecision(2) << durationMs.count() << " ms" << std::endl;
 }
 
-bool compare_mean_IoU(std::vector<float> iou, float semSegThreshold, uint32_t classes) {
+bool compare_mean_IoU(std::vector<std::pair<bool, float>> iou, float semSegThreshold, uint32_t classes) {
     float threshold = semSegThreshold * 100;
     float ma = 0.0f;
     bool stateValue = true;
@@ -1198,22 +1286,28 @@ bool compare_mean_IoU(std::vector<float> iou, float semSegThreshold, uint32_t cl
         classes--;
     }
 
+    size_t numberOfLabeledClasses = 0;
     for (size_t i = 0; i < classes; i++) {
-        if (FLAGS_dataset == "camVid12") {
-            std::cout << "mean_iou@" << camVid12[i].c_str() << ": " << std::fixed << std::setprecision(2) << iou[i]
-                      << "%" << std::endl;
+        if (iou[i].first) {
+            numberOfLabeledClasses++;
+            if (FLAGS_dataset == "camVid12") {
+                std::cout << "mean_iou@" << camVid12[i].c_str() << ": " << std::fixed << std::setprecision(2)
+                          << iou[i].second << "%" << std::endl;
+            } else {
+                std::cout << "mean_iou@class" << i << ": " << std::fixed << std::setprecision(2) << iou[i].second << "%"
+                          << std::endl;
+            }
+            if (iou[i].second < threshold) {
+                std::cout << "Threshold smaller than " << threshold << "%" << std::endl;
+                stateValue = false;
+            }
+            ma += iou[i].second;
         } else {
-            std::cout << "mean_iou@class" << i << ": " << std::fixed << std::setprecision(2) << iou[i] << "%"
-                      << std::endl;
+            std::cout << "mean_iou@class" << i << ": no pixels labeled." << std::endl;
         }
-
-        if (iou[i] < threshold) {
-            std::cout << "Threshold smaller than " << threshold << "%" << std::endl;
-            stateValue = false;
-        }
-        ma += iou[i];
     }
-    std::cout << "mean_iou@:mean " << std::fixed << std::setprecision(2) << (ma / classes) << "%" << std::endl;
+    std::cout << "mean_iou@:mean " << std::fixed << std::setprecision(2) << (ma / numberOfLabeledClasses) << "%"
+              << std::endl;
 
     return stateValue;
 }
@@ -1233,7 +1327,7 @@ bool testMeanIoU(const ie::BlobMap& actBlobs, const ie::BlobMap& refBlobs, const
 
     std::vector<uint8_t> refOutput;
     std::vector<uint8_t> actOutput;
-    std::vector<float> iou(classes, 0.0f);
+    std::vector<std::pair<bool, float>> iou(classes, {false, 0.0f});
 
     utils::argMax_channels(ie::as<ie::MemoryBlob>(refBlobs.begin()->second), refOutput);
     utils::argMax_channels(ie::as<ie::MemoryBlob>(actBlobs.begin()->second), actOutput);
@@ -1399,6 +1493,8 @@ static int runSingleImageTestOV10() {
             exeNet = importNetwork(FLAGS_network);
         }
 
+        auto inferRequest = exeNet.CreateInferRequest();
+
         std::string netFileName;
         {
             auto startPos = FLAGS_network.rfind('/');
@@ -1454,7 +1550,7 @@ static int runSingleImageTestOV10() {
 
             std::cout << "Run inference on " << FLAGS_device << std::endl;
             const auto startTime = Time::now();
-            const auto inferenceOutput = runInfer(exeNet, inputs, dumpedInputsPaths);
+            const auto inferenceOutput = runInfer(inferRequest, exeNet, inputs, dumpedInputsPaths);
             const auto endTime = Time::now();
 
             const ie::BlobMap outputs = inferenceOutput.first;
@@ -1509,6 +1605,13 @@ static int runSingleImageTestOV10() {
                     }
                 } else if (strEq(FLAGS_mode, "cosim")) {
                     if (testCoSim(outputs, refOutputs)) {
+                        std::cout << "PASSED" << std::endl;
+                    } else {
+                        std::cout << "FAILED" << std::endl;
+                        return EXIT_FAILURE;
+                    }
+                } else if (strEq(FLAGS_mode, "rrmse")) {
+                    if (testRRMSE(outputs, refOutputs)) {
                         std::cout << "PASSED" << std::endl;
                     } else {
                         std::cout << "FAILED" << std::endl;
@@ -1615,25 +1718,14 @@ void setupOVCore(ov::Core& core) {
     }
 
     if (!FLAGS_config.empty()) {
-        std::ifstream file(FLAGS_config);
-        IE_ASSERT(file.is_open()) << "Can't open file " << FLAGS_config << " for read";
-
-        std::string key, value;
-        while (file >> key >> value) {
-            if (key.empty() || key[0] == '#') {
-                continue;
-            }
-
-            core.set_property(flagDevice, {{key, value}});
-        }
+        const auto configs = parseConfigFile();
+        core.set_property(flagDevice, {configs.begin(), configs.end()});
     }
 }
 
 using TensorMap = std::map<std::string, ov::Tensor>;
-std::pair<TensorMap, ProfVec> runInfer(ov::CompiledModel& compiledModel, const TensorMap& inputs,
-                                       const std::vector<std::string>& dumpedInputsPaths) {
-    auto inferRequest = compiledModel.create_infer_request();
-
+std::pair<TensorMap, ProfVec> runInfer(ov::InferRequest& inferRequest, ov::CompiledModel& compiledModel,
+                                       const TensorMap& inputs, const std::vector<std::string>& dumpedInputsPaths) {
     for (const auto& p : inputs) {
         inferRequest.set_tensor(p.first, p.second);
     }
@@ -1878,7 +1970,7 @@ bool testMeanIoU(const ie::BlobMap& actBlobs, const ie::BlobMap& refBlobs, const
 
     std::vector<uint8_t> refOutput;
     std::vector<uint8_t> actOutput;
-    std::vector<float> iou(classes, 0.0f);
+    std::vector<std::pair<bool, float>> iou(classes, {false, 0.0f});
 
     utils::argMax_channels(ie::as<ie::MemoryBlob>(refBlobs.begin()->second), refOutput);
     utils::argMax_channels(ie::as<ie::MemoryBlob>(actBlobs.begin()->second), actOutput);
@@ -1916,6 +2008,7 @@ static int runSingleImageTestOV20() {
 
         std::vector<std::string> inputFilesPerCase;
         std::vector<std::vector<std::string>> inputFilesForOneInfer;
+
         inputFilesPerCase = splitStringList(FLAGS_input, ';');
         for (const auto& images : inputFilesPerCase) {
             inputFilesForOneInfer.push_back(splitStringList(images, ','));
@@ -2047,6 +2140,8 @@ static int runSingleImageTestOV20() {
             compiledModel = core.import_model(file, FLAGS_device);
         }
 
+        auto inferRequest = compiledModel.create_infer_request();
+
         std::string netFileName;
         {
             auto startPos = FLAGS_network.rfind('/');
@@ -2134,7 +2229,7 @@ static int runSingleImageTestOV20() {
             std::cout << "Run inference on " << FLAGS_device << std::endl;
 
             const auto startTime = Time::now();
-            const auto outInference = runInfer(compiledModel, in_tensors, dumpedInputsPaths);
+            const auto outInference = runInfer(inferRequest, compiledModel, in_tensors, dumpedInputsPaths);
             const auto endTime = Time::now();
 
             const TensorMap& outTensors = outInference.first;
@@ -2210,6 +2305,13 @@ static int runSingleImageTestOV20() {
                     }
                 } else if (strEq(FLAGS_mode, "cosim")) {
                     if (testCoSim(outputs, refOutputs)) {
+                        std::cout << "PASSED" << std::endl;
+                    } else {
+                        std::cout << "FAILED" << std::endl;
+                        return EXIT_FAILURE;
+                    }
+                } else if (strEq(FLAGS_mode, "rrmse")) {
+                    if (testRRMSE(outputs, refOutputs)) {
                         std::cout << "PASSED" << std::endl;
                     } else {
                         std::cout << "FAILED" << std::endl;

@@ -1,49 +1,50 @@
 //
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
+
 // RUN: vpux-opt --split-input-file --init-compiler="vpu-arch=VPUX30XX" --unroll-cluster-tiling  %s | FileCheck %s
 
 #NCHW = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
-!InputDistributed = type !VPUIP.DistributedBuffer<
+!InputDistributed = !VPUIP.DistributedBuffer<
     1x16x33x32xf16, #NHWC, @CMX_NN, {
     mode = "SEGMENTED",
     num_tiles = [1, 1, 2, 1],
     num_clusters = 2
 }>
 
-!OutputDistributed = type !VPUIP.DistributedBuffer<
+!OutputDistributed = !VPUIP.DistributedBuffer<
     1x16x33x32xf16, #NHWC, @CMX_NN, {
     mode = "MULTICASTED|SEGMENTED",
     num_tiles = [1, 1, 2, 1],
     num_clusters = 2
 }>
 
-!WeightsDistributed = type !VPUIP.DistributedBuffer<
+!WeightsDistributed = !VPUIP.DistributedBuffer<
     16x16x1x1xf16, #NHWC, @CMX_NN, {
     mode = "DUPLICATED",
     num_clusters = 2
 }>
 
-!WeightsTableDistributed = type !VPUIP.DistributedBuffer<
+!WeightsTableDistributed = !VPUIP.DistributedBuffer<
     16x1x1x4xsi32, #NCHW, @CMX_NN, {
     mode = "DUPLICATED",
     num_clusters = 2
 }>
 
-!Input_DDR = type memref<1x16x33x32xf16, #NHWC>
-!Output_DDR = type memref<1x16x33x32xf16, #NHWC>
-!Weights_DDR = type memref<16x16x1x1xf16, #NHWC>
-!WeightsTable_DDR = type memref<16x1x1x4xsi32>
+!Input_DDR = memref<1x16x33x32xf16, #NHWC>
+!Output_DDR = memref<1x16x33x32xf16, #NHWC>
+!Weights_DDR = memref<16x16x1x1xf16, #NHWC>
+!WeightsTable_DDR = memref<16x1x1x4xsi32>
 
-!InputStub_CMX = type memref<1x16x33x32xf16, #NHWC, @CMX_NN>
-!OutputStub_CMX = type memref<1x16x33x32xf16, #NHWC, @CMX_NN>
-!WeightsStub_CMX = type memref<16x16x1x1xf16, #NHWC, @CMX_NN>
-!WeightsTableStub_CMX = type memref<16x1x1x4xsi32, @CMX_NN>
+!InputStub_CMX = memref<1x16x33x32xf16, #NHWC, @CMX_NN>
+!OutputStub_CMX = memref<1x16x33x32xf16, #NHWC, @CMX_NN>
+!WeightsStub_CMX = memref<16x16x1x1xf16, #NHWC, @CMX_NN>
+!WeightsTableStub_CMX = memref<16x1x1x4xsi32, @CMX_NN>
 
-func @UnrollNCESequence(%input: !Input_DDR, %output: !Output_DDR) -> !Output_DDR {
+func.func @UnrollNCESequence(%input: !Input_DDR, %output: !Output_DDR) -> !Output_DDR {
     // Barriers
     %bar0 = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
     %bar1 = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier

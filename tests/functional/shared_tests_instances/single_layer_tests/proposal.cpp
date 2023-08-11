@@ -5,13 +5,12 @@
 
 #include <vector>
 
-#include "common_test_utils/test_constants.hpp"
 #include "kmb_layer_test.hpp"
 #include "single_layer_tests/proposal.hpp"
 
 namespace LayerTestsDefinitions {
 
-class KmbProposalLayerTest : public ProposalLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
+class VPUXProposalLayerTest_VPU3700 : public ProposalLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
 protected:
     void Validate() override {
         LayerTestsUtils::KmbLayerTestsCommon::Validate();
@@ -177,8 +176,9 @@ protected:
     }
 };
 
-TEST_P(KmbProposalLayerTest, CompareWithRefs_MLIR) {
-    useCompilerMLIR();
+TEST_P(VPUXProposalLayerTest_VPU3700, HW) {
+    setPlatformVPU3700();
+    setDefaultHardwareModeMLIR();
     Run();
 }
 
@@ -209,13 +209,13 @@ const auto proposalParams = ::testing::Combine(::testing::ValuesIn(base_size_), 
                                                ::testing::ValuesIn(scale_), ::testing::ValuesIn(clip_before_nms_),
                                                ::testing::ValuesIn(clip_after_nms_), ::testing::ValuesIn(framework_));
 
-INSTANTIATE_TEST_SUITE_P(smoke_Proposal_tests, KmbProposalLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Proposal_tests, VPUXProposalLayerTest_VPU3700,
                          ::testing::Combine(proposalParams,
                                             ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
-                         KmbProposalLayerTest::getTestCaseName);
+                         VPUXProposalLayerTest_VPU3700::getTestCaseName);
 // conformance "Proposal_108377"
 INSTANTIATE_TEST_SUITE_P(
-        smoke_Proposal_tests_108377, KmbProposalLayerTest,
+        smoke_Proposal_tests_108377, VPUXProposalLayerTest_VPU3700,
         ::testing::Combine(::testing::Combine(::testing::ValuesIn(std::vector<base_size_type>{32}),
                                               ::testing::ValuesIn(std::vector<pre_nms_topn_type>{2147483647}),
                                               ::testing::ValuesIn(std::vector<post_nms_topn_type>{100}),
@@ -227,11 +227,11 @@ INSTANTIATE_TEST_SUITE_P(
                                               ::testing::ValuesIn(std::vector<clip_after_nms_type>{false}),
                                               ::testing::ValuesIn(std::vector<framework_type>{"tensorflow"})),
                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
-        KmbProposalLayerTest::getTestCaseName);
+        VPUXProposalLayerTest_VPU3700::getTestCaseName);
 
 // conformance "Proposal_129693"
 INSTANTIATE_TEST_SUITE_P(
-        smoke_Proposal_tests_129693, KmbProposalLayerTest,
+        smoke_Proposal_tests_129693, VPUXProposalLayerTest_VPU3700,
         ::testing::Combine(::testing::Combine(::testing::ValuesIn(std::vector<base_size_type>{16}),
                                               ::testing::ValuesIn(std::vector<pre_nms_topn_type>{6000}),
                                               ::testing::ValuesIn(std::vector<post_nms_topn_type>{300}),
@@ -243,5 +243,5 @@ INSTANTIATE_TEST_SUITE_P(
                                               ::testing::ValuesIn(std::vector<clip_after_nms_type>{false}),
                                               ::testing::ValuesIn(std::vector<framework_type>{""})),
                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
-        KmbProposalLayerTest::getTestCaseName);
+        VPUXProposalLayerTest_VPU3700::getTestCaseName);
 }  // namespace

@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include <llvm/ADT/TypeSwitch.h>
 #include "vpux/compiler/dialect/VPU/layer_strategy.hpp"
 

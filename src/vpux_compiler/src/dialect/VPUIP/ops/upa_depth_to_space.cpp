@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 
 #include "vpux/compiler/dialect/VPUIP/graph-schema/blob_reader.hpp"
@@ -15,12 +13,13 @@
 
 using namespace vpux;
 
-mlir::LogicalResult vpux::VPUIP::verifyOp(DepthToSpaceUPAOp op) {
-    if (op.block_size() <= 0) {
-        return errorAt(op, "Block size should be greater than 0. Got {0}", op.block_size());
+mlir::LogicalResult vpux::VPUIP::DepthToSpaceUPAOp::verify() {
+    const auto op = getOperation();
+    if (block_size() <= 0) {
+        return errorAt(op, "Block size should be greater than 0. Got {0}", block_size());
     }
 
-    if (op.mode() != vpux::IE::DepthToSpaceMode::BLOCKS_FIRST && op.mode() != vpux::IE::DepthToSpaceMode::DEPTH_FIRST) {
+    if (mode() != vpux::IE::DepthToSpaceMode::BLOCKS_FIRST && mode() != vpux::IE::DepthToSpaceMode::DEPTH_FIRST) {
         return errorAt(op, "Unknown DepthToSpaceMode. Blocks_FIRST and DEPTH_FIRST methods are supported only");
     }
 

@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #ifndef VPUX_COMPILER_DIALECT_ELF_OPS
 #define VPUX_COMPILER_DIALECT_ELF_OPS
 
@@ -12,13 +10,13 @@ include "vpux/compiler/core/attributes.td"
 include "vpux/compiler/dialect/ELF/attributes.td"
 include "vpux/compiler/dialect/ELF/dialect.td"
 include "vpux/compiler/dialect/ELF/types.td"
-include "vpux/compiler/dialect/VPUIPRegMapped/dialect.td"
-include "vpux/compiler/dialect/VPUIPRegMapped/types.td"
+include "vpux/compiler/dialect/VPUMI37XX/dialect.td"
+include "vpux/compiler/dialect/VPUMI37XX/types.td"
 include "mlir/IR/RegionKindInterface.td"
 include "vpux/compiler/dialect/VPUIP/dialect.td"
 include "vpux/compiler/dialect/VPURT/types.td"
 include "vpux/compiler/dialect/ELF/ops_interfaces.td"
-
+include "vpux/compiler/dialect/VPURegMapped/types.td"
 
 include "mlir/Interfaces/SideEffectInterfaces.td"
 
@@ -146,6 +144,47 @@ def CreateMetadataSectionOp :
         `->` type(results)
         $aRegion
     }];
+}
+
+//
+// CreateProfilingSectionOp
+//
+
+def CreateProfilingSectionOp :
+        ELF_Op<"CreateProfilingSection",
+            [
+                NoRegionArguments,
+                DeclareOpInterfaceMethods<ELF_SectionInterface>
+            ]
+            # GraphRegionNoTerminator.traits
+        > {
+    let summary = "Create ELF Profiling Metadata Section";
+
+    let arguments = (ins
+        StrAttr:$secName,
+        ELF_SectionFlagsAttr:$secFlags,
+        IntAttr:$secInfo,
+        IntAttr:$secAddrAlign
+        );
+
+    let results = (outs ELF_Section:$section);
+
+    let regions = (region
+        SizedRegion<1>:$aRegion
+    );
+
+    let extraClassDeclaration = [{
+        void serialize(elf::Writer& writer, vpux::DenseMap<mlir::Operation*, elf::writer::Section*>& sectionMap, vpux::DenseMap<mlir::Operation*, elf::writer::Symbol*>& symbolMap, const flatbuffers::DetachedBuffer& metadata);
+    }];
+
+    let assemblyFormat = [{
+        `secFlags` `(` $secFlags `)`
+        attr-dict
+        `->` type(results)
+        $aRegion
+    }];
+
+    let hasVerifier = 1;
 }
 
 //
@@ -292,7 +331,7 @@ def RelocImmOffsetOp :
     let summary = "Immediate Value Reloc Op";
 
     let arguments = (ins
-          Optional<VPUIPRegMapped_IndexType>:$baseOp,
+          Optional<VPURegMapped_IndexType>:$baseOp,
           IntAttr:$offset,
           ELF_RelocationTypeAttr:$relocationType,
           ELF_Symbol:$sourceSymbol,

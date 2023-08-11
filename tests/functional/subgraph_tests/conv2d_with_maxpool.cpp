@@ -1,5 +1,5 @@
 //
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,7 +11,7 @@
 
 namespace {
 
-struct KmbScheduleSubGraphTestParams {
+struct ScheduleSubGraphTestParams {
     LayerTestsUtils::TargetDevice _device;
     InferenceEngine::SizeVector _in_dims;
     InferenceEngine::SizeVector _w_dims;
@@ -20,9 +20,9 @@ struct KmbScheduleSubGraphTestParams {
     std::vector<int64_t> _pads_end;
 };
 
-class KmbScheduleSubGraphTest :
+class VPUXScheduleSubGraphTest_VPU3700 :
         public LayerTestsUtils::KmbLayerTestsCommon,
-        public testing::WithParamInterface<KmbScheduleSubGraphTestParams> {
+        public testing::WithParamInterface<ScheduleSubGraphTestParams> {
     void SetUp() override {
         const auto test_params = GetParam();
         targetDevice = test_params._device;
@@ -89,20 +89,20 @@ class KmbScheduleSubGraphTest :
                                                               outHigh, outLow, outHigh);
 
         const ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(result)};
-        function = std::make_shared<ngraph::Function>(results, params, "KmbScheduleSubGraphTest");
+        function = std::make_shared<ngraph::Function>(results, params, "VPUXScheduleSubGraphTest");
 
         threshold = 0.1f;
     }
 };
 
-TEST_P(KmbScheduleSubGraphTest, CompareWithRefs_MLIR) {
-    useCompilerMLIR();
+TEST_P(VPUXScheduleSubGraphTest_VPU3700, HW) {
+    setPlatformVPU3700();
     setDefaultHardwareModeMLIR();
     Run();
 }
 
-INSTANTIATE_TEST_CASE_P(smoke, KmbScheduleSubGraphTest,
-                        ::testing::Values(KmbScheduleSubGraphTestParams{
+INSTANTIATE_TEST_CASE_P(smoke, VPUXScheduleSubGraphTest_VPU3700,
+                        ::testing::Values(ScheduleSubGraphTestParams{
                                 LayerTestsUtils::testPlatformTargetDevice,  // _device
                                 {1, 16, 16, 16},                            // in dims
                                 {16, 16, 1, 1},                             // weights dims

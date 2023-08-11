@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #ifdef ENABLE_BITCOMPACTOR
 
 #include "vpux/compiler/utils/bit_compactor_codec.hpp"

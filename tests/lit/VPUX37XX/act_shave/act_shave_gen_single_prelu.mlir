@@ -1,7 +1,8 @@
 //
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
+
 // RUN: vpux-opt --init-compiler="vpu-arch=VPUX37XX" %s | vpux-translate --export-VPUIP -o %t
 // RUN: flatc --raw-binary --json %vpuip_schema_file% -- %t
 // RUN: FileCheck %s --input-file %basename_t.json
@@ -30,20 +31,20 @@ IE.CNNNetwork
 module @VPU.SW {
     // The declaration should match C++ params structure in decomposed form.
     // `memref` will be translated to `MemRefData`, while raw scalars will be translated as is.
-    func private @builtin_prelu(%input : memref<*xf16>, %output : memref<*xf16>)
+    func.func private @builtin_prelu(%input : memref<*xf16>, %output : memref<*xf16>)
         attributes {
             VPU.kernel_code = "prelu_fp16.cpp",
             VPU.kernel_entry = "prelu_fp16"
         }
 
     // management kernel definition
-    func private @runtime()
+    func.func private @runtime()
         attributes {
             VPU.kernel_code = "nnActEntry"
         }
 }
 
-func @main(%1: memref<1x1000x1x1xf16>, %2: memref<1x1000x1x1xf16>) -> memref<1x1000x1x1xf16> {
+func.func @main(%1: memref<1x1000x1x1xf16>, %2: memref<1x1000x1x1xf16>) -> memref<1x1000x1x1xf16> {
     %cst = const.Declare memref<1000xf16> = dense<0.00999999977> : tensor<1000xf32>, [#const.ConvertElemType<f16>]
     %in0_tile0_cmx  = VPURT.DeclareBuffer "CMX_NN" [0] <0> -> memref<1x1000x1x1xf16, [@CMX_NN, 0]>
     %in1_tile0_cmx  = VPURT.DeclareBuffer "CMX_NN" [0] <2048> -> memref<1000xf16, [@CMX_NN, 0]>

@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 
 #include "vpux/compiler/dialect/VPUIP/graph-schema/blob_reader.hpp"
@@ -14,10 +12,10 @@
 
 using namespace vpux;
 
-mlir::LogicalResult vpux::VPUIP::verifyOp(ProposalUPAOp op) {
-    IE::ProposalAttr attr = op.proposal_attrs();
+mlir::LogicalResult vpux::VPUIP::ProposalUPAOp::verify() {
+    IE::ProposalAttr attr = proposal_attrs();
     if (attr.framework().getValue() != "" && attr.framework().getValue() != "tensorflow") {
-        return errorAt(op, "Unsupported framework attr {0}", attr.framework().getValue().str());
+        return errorAt(*this, "Unsupported framework attr {0}", attr.framework().getValue().str());
     }
 
     return mlir::success();

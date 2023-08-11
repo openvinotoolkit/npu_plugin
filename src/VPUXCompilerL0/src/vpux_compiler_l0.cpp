@@ -7,19 +7,21 @@
 
 #include <cpp/ie_cnn_network.h>
 #include <ie_core.hpp>
-#include <legacy/convert_function_to_cnn_network.hpp>
 #include <openvino/openvino.hpp>
 
 #include "vpux/al/config/common.hpp"
 #include "vpux/al/config/compiler.hpp"
 #include "vpux/al/config/runtime.hpp"
+#include "vpux/al/opset/opset_version.hpp"
 #include "vpux/utils/plugin/profiling_parser.hpp"
 #include "vpux/vpux_plugin_config.hpp"
 #include "vpux_compiler.hpp"
 #include "vpux_private_config.hpp"
 
+#include <string.h>
 #include <chrono>
 #include <istream>
+#include <mutex>
 #include <sstream>
 #include <string>
 #include <utility>
@@ -27,12 +29,8 @@
 #define xstr(s) str(s)
 #define str(s) #s
 
-#define COMPILER_MAJOR 2
-#define COMPILER_MINOR 1
-static const char* COMPILER_VERSION = xstr(COMPILER_MAJOR) "." xstr(COMPILER_MINOR);
-
-#define PROFILING_MAJOR 1
-#define PROFILING_MINOR 0
+static const char* COMPILER_VERSION =
+        xstr(DRIVER_COMPILER_ID) "." xstr(VCL_COMPILER_VERSION_MAJOR) "." xstr(VCL_COMPILER_VERSION_MINOR);
 
 #define KEY_INPUTS_PRECISIONS "--inputs_precisions"
 #define KEY_INPUTS_LAYOUTS "--inputs_layouts"
@@ -51,10 +49,62 @@ using namespace vpux;
 
 namespace VPUXCompilerL0 {
 
-vpux::Logger vclLogger("VCL", LogLevel::None);
+class VCLLogger final : public vpux::Logger {
+public:
+    VCLLogger(StringLiteral name, LogLevel lvl, bool saveErrorLog)
+            : Logger(name, lvl), _saveErrorLog(saveErrorLog), _log("") {
+    }
+
+    vcl_result_t getString(size_t* size, char* log) {
+        if (size == nullptr) {
+            Logger::error("Invalid argument to get log!");
+            return VCL_RESULT_ERROR_INVALID_ARGUMENT;
+        }
+        std::lock_guard<std::mutex> mLock(_lock);
+        const char* localLog = _log.c_str();
+        auto localLogSize = _log.size();
+        if (localLog == nullptr || localLogSize == 0) {
+            // No error log
+            *size = 0;
+        } else {
+            if (log == nullptr) {
+                // Return actual size if pointer is nullptr, extra 1 to store '\0'
+                *size = localLogSize + 1;
+            } else if (log != nullptr && *size == localLogSize + 1) {
+                // Copy local log content if the pointer is valid
+                memcpy(log, localLog, localLogSize + 1);
+                _log = "";
+            } else {
+                Logger::error("Invalid value of size to get log!");
+                return VCL_RESULT_ERROR_INVALID_ARGUMENT;
+            }
+        }
+        return VCL_RESULT_SUCCESS;
+    }
+
+    void outputError(std::string log) {
+        if (_saveErrorLog) {
+            auto size = log.size();
+            if (size == 0) {
+                return;
+            }
+            _lock.lock();
+            // Show new log in next line
+            _log.append(log + "\n");
+            _lock.unlock();
+        } else {
+            Logger::error("{0}", log.c_str());
+        }
+    }
+
+private:
+    bool _saveErrorLog;
+    std::mutex _lock;
+    std::string _log;
+};
 
 template <typename T>
-vcl_result_t parseSingleOption(std::string& option, uint32_t debugLevel, std::unordered_map<std::string, T>& arrays,
+vcl_result_t parseSingleOption(std::string& option, VCLLogger* vclLogger, std::unordered_map<std::string, T>& arrays,
                                T (*function)(std::string, bool&)) {
     // The ioInfo may like --inputs_precisions="A:fp16", the stream shall be A:fp16
     std::size_t firstDelimPos = option.find_first_of('"');
@@ -66,17 +116,17 @@ vcl_result_t parseSingleOption(std::string& option, uint32_t debugLevel, std::un
         // The stream may like A:fp16
         std::size_t lastDelimPos = elem.find_last_of(':');
         if (lastDelimPos == std::string::npos) {
-            vclLogger.error("Failed to find delim in option! Value: {0}", elem);
+            vclLogger->outputError(formatv("Failed to find delim in option! Value: {0}", elem));
             return VCL_RESULT_ERROR_INVALID_ARGUMENT;
         }
         std::string key = elem.substr(0, lastDelimPos);
         std::string val = elem.substr(lastDelimPos + 1);
-        vclLogger.debug("ioInfo options - key: {0} value: {1}", key, val);
+        vclLogger->debug("ioInfo options - key: {0} value: {1}", key, val);
         arrays[key] = function(val, matched);
         if (!matched) {
             // Return error if the setting is not in list.
             // Support "ANY" layout and "UNSPECIFIED" precision can increase robustness.
-            vclLogger.error("Failed to find {0} for {1}", val, key);
+            vclLogger->outputError(formatv("Failed to find {0} for {1}", val, key));
             return VCL_RESULT_ERROR_INVALID_ARGUMENT;
         }
     }
@@ -132,19 +182,19 @@ struct IOInfoV1 {
                                                                        InferenceEngine::Layout::ANY);
     }
 
-    vcl_result_t parse(std::vector<std::string>& ioInfoOptions, uint32_t debugLevel) {
+    vcl_result_t parse(std::vector<std::string>& ioInfoOptions, VCLLogger* vclLogger) {
         vcl_result_t ret = VCL_RESULT_SUCCESS;
         for (auto& option : ioInfoOptions) {
             if (option.find(KEY_INPUTS_PRECISIONS) != std::string::npos) {
-                ret = parseSingleOption(option, debugLevel, inPrcsIE, getPrecisionIE);
+                ret = parseSingleOption(option, vclLogger, inPrcsIE, getPrecisionIE);
             } else if (option.find(KEY_INPUTS_LAYOUTS) != std::string::npos) {
-                ret = parseSingleOption(option, debugLevel, inLayoutsIE, getLayoutIE);
+                ret = parseSingleOption(option, vclLogger, inLayoutsIE, getLayoutIE);
             } else if (option.find(KEY_OUTPUTS_PRECISIONS) != std::string::npos) {
-                ret = parseSingleOption(option, debugLevel, outPrcsIE, getPrecisionIE);
+                ret = parseSingleOption(option, vclLogger, outPrcsIE, getPrecisionIE);
             } else if (option.find(KEY_OUTPUTS_LAYOUTS) != std::string::npos) {
-                ret = parseSingleOption(option, debugLevel, outLayoutsIE, getLayoutIE);
+                ret = parseSingleOption(option, vclLogger, outLayoutsIE, getLayoutIE);
             } else {
-                vclLogger.error("Invalid key in option! Option: {0}", option);
+                vclLogger->outputError(formatv("Invalid key in option! Option: {0}", option));
                 return VCL_RESULT_ERROR_INVALID_ARGUMENT;
             }
             if (ret != VCL_RESULT_SUCCESS)
@@ -207,23 +257,23 @@ struct IOInfoV2 {
                                                                        InferenceEngine::Layout::ANY);
     }
 
-    vcl_result_t parse(std::vector<std::string>& ioInfoOptions, uint32_t debugLevel) {
+    vcl_result_t parse(std::vector<std::string>& ioInfoOptions, VCLLogger* vclLogger) {
         vcl_result_t ret = VCL_RESULT_SUCCESS;
         for (auto& option : ioInfoOptions) {
             if (option.find(KEY_INPUTS_PRECISIONS) != std::string::npos) {
-                ret = parseSingleOption(option, debugLevel, inPrcsOV, getPrecisionOV);
+                ret = parseSingleOption(option, vclLogger, inPrcsOV, getPrecisionOV);
             } else if (option.find(KEY_INPUTS_LAYOUTS) != std::string::npos) {
-                ret = parseSingleOption(option, debugLevel, inLayoutsOV, getLayoutOV);
+                ret = parseSingleOption(option, vclLogger, inLayoutsOV, getLayoutOV);
             } else if (option.find(KEY_INPUTS_MODEL_LAYOUTS) != std::string::npos) {
-                ret = parseSingleOption(option, debugLevel, inMLayoutsOV, getLayoutOV);
+                ret = parseSingleOption(option, vclLogger, inMLayoutsOV, getLayoutOV);
             } else if (option.find(KEY_OUTPUTS_PRECISIONS) != std::string::npos) {
-                ret = parseSingleOption(option, debugLevel, outPrcsOV, getPrecisionOV);
+                ret = parseSingleOption(option, vclLogger, outPrcsOV, getPrecisionOV);
             } else if (option.find(KEY_OUTPUTS_LAYOUTS) != std::string::npos) {
-                ret = parseSingleOption(option, debugLevel, outLayoutsOV, getLayoutOV);
+                ret = parseSingleOption(option, vclLogger, outLayoutsOV, getLayoutOV);
             } else if (option.find(KEY_OUTPUTS_MODEL_LAYOUTS) != std::string::npos) {
-                ret = parseSingleOption(option, debugLevel, outMLayoutsOV, getLayoutOV);
+                ret = parseSingleOption(option, vclLogger, outMLayoutsOV, getLayoutOV);
             } else {
-                vclLogger.error("Invalid key in option! Option: {0}", option);
+                vclLogger->outputError(formatv("Invalid key in option! Option: {0}", option));
                 return VCL_RESULT_ERROR_INVALID_ARGUMENT;
             }
             if (ret != VCL_RESULT_SUCCESS)
@@ -262,22 +312,23 @@ struct StopWatch {
 
 class VPUXExecutableL0 final {
 public:
-    VPUXExecutableL0(NetworkDescription::Ptr networkDesc, bool enableProfiling);
+    VPUXExecutableL0(NetworkDescription::Ptr networkDesc, bool enableProfiling, VCLLogger* vclLogger);
     vcl_result_t serializeNetwork();
     vcl_result_t getNetworkSize(uint64_t* blobSize);
     vcl_result_t exportNetwork(uint8_t* blob, uint64_t blobSize);
+    VCLLogger* getLogger() const {
+        return _logger;
+    }
 
 private:
     NetworkDescription::Ptr _networkDesc;
     bool enableProfiling;
     std::vector<char> _blob;
-    Logger _logger;
+    VCLLogger* _logger;
 };
 
-VPUXExecutableL0::VPUXExecutableL0(NetworkDescription::Ptr networkDesc, bool enableProfiling)
-        : _networkDesc(networkDesc),
-          enableProfiling(enableProfiling),
-          _logger("VPUXExecutableL0", enableProfiling ? LogLevel::Info : LogLevel::Error) {
+VPUXExecutableL0::VPUXExecutableL0(NetworkDescription::Ptr networkDesc, bool enableProfiling, VCLLogger* vclLogger)
+        : _networkDesc(networkDesc), enableProfiling(enableProfiling), _logger(vclLogger) {
     _blob.clear();
 }
 
@@ -290,20 +341,20 @@ vcl_result_t VPUXExecutableL0::serializeNetwork() {
 
     if (enableProfiling) {
         stopWatch.stop();
-        _logger.info("getCompiledNetwork time: {0} ms", stopWatch.delta_ms());
+        _logger->info("getCompiledNetwork time: {0} ms", stopWatch.delta_ms());
     }
     return VCL_RESULT_SUCCESS;
 }
 
 vcl_result_t VPUXExecutableL0::getNetworkSize(uint64_t* blobSize) {
     if (blobSize == nullptr) {
-        _logger.error("Can not return blob size for NULL argument!");
+        _logger->outputError("Can not return blob size for NULL argument!");
         return VCL_RESULT_ERROR_INVALID_ARGUMENT;
     }
     *blobSize = _blob.size();
     if (*blobSize == 0) {
         // The executable handle do not contain a legal network.
-        _logger.error("No blob created! The compiled network is empty!");
+        _logger->outputError("No blob created! The compiled network is empty!");
         return VCL_RESULT_ERROR_UNKNOWN;
     } else {
         return VCL_RESULT_SUCCESS;
@@ -312,7 +363,7 @@ vcl_result_t VPUXExecutableL0::getNetworkSize(uint64_t* blobSize) {
 
 vcl_result_t VPUXExecutableL0::exportNetwork(uint8_t* blob, uint64_t blobSize) {
     if (!blob || blobSize != _blob.size()) {
-        _logger.error("Invalid argument to export network");
+        _logger->outputError("Invalid argument to export network");
         return VCL_RESULT_ERROR_INVALID_ARGUMENT;
     }
 
@@ -324,14 +375,76 @@ vcl_result_t VPUXExecutableL0::exportNetwork(uint8_t* blob, uint64_t blobSize) {
 
     if (enableProfiling) {
         stopWatch.stop();
-        _logger.info("exportNetwork time: {0} ms", stopWatch.delta_ms());
+        _logger->info("exportNetwork time: {0} ms", stopWatch.delta_ms());
+    }
+    return VCL_RESULT_SUCCESS;
+}
+
+class VPUXQueryNetworkL0 final {
+public:
+    VPUXQueryNetworkL0(VCLLogger* vclLogger);
+    vcl_result_t setQueryResult(std::map<std::string, std::string>& layerMap);
+    vcl_result_t getQueryString(uint8_t* inputStr, uint64_t inputSize);
+    vcl_result_t getQueryResultSize(uint64_t* stringSize);
+
+private:
+    std::vector<uint8_t> queryResultVec;
+    uint64_t size = 0;
+    VCLLogger* _logger;
+};
+
+VPUXQueryNetworkL0::VPUXQueryNetworkL0(VCLLogger* vclLogger): _logger(vclLogger) {
+}
+
+vcl_result_t VPUXQueryNetworkL0::getQueryResultSize(uint64_t* stringSize) {
+    // Get the size of queryResultString
+    if (stringSize == nullptr) {
+        _logger->outputError("Can not return size for NULL argument!");
+        return VCL_RESULT_ERROR_INVALID_ARGUMENT;
+    }
+    *stringSize = size;
+    return VCL_RESULT_SUCCESS;
+}
+
+vcl_result_t VPUXQueryNetworkL0::getQueryString(uint8_t* inputStr, uint64_t inputSize) {
+    // Copy the value from queryResultString to inputStr
+    if (inputSize != size) {
+        _logger->outputError("Input size does not match size of queryResultString!");
+        return VCL_RESULT_ERROR_INVALID_ARGUMENT;
+    }
+    if (inputStr == nullptr) {
+        _logger->outputError("Invalid input pointer of queryResult!");
+        return VCL_RESULT_ERROR_INVALID_ARGUMENT;
+    }
+    memcpy(inputStr, queryResultVec.data(), size);
+    return VCL_RESULT_SUCCESS;
+}
+
+vcl_result_t VPUXQueryNetworkL0::setQueryResult(std::map<std::string, std::string>& layerMap) {
+    // Set the value of queryResultString
+    // Format query result
+    // <name_0><name_1><name_2>...<name_n>
+    // size = (layerName.length + 2) * layerCount
+    size = 0;
+    size_t i = 0;
+    for (auto& name : layerMap) {
+        size = size + name.first.length() + 2;
+    }
+    queryResultVec.resize(size);
+    uint8_t charSplitLeft = '<';
+    uint8_t charSplitRight = '>';
+    for (auto& name : layerMap) {
+        queryResultVec[i++] = charSplitLeft;
+        memcpy(&queryResultVec[i], (uint8_t*)(name.first.c_str()), name.first.length());
+        i += name.first.length();
+        queryResultVec[i++] = charSplitRight;
     }
     return VCL_RESULT_SUCCESS;
 }
 
 class VPUXCompilerL0 final {
 public:
-    VPUXCompilerL0(vcl_compiler_desc_t desc, std::map<std::string, std::string>& config);
+    VPUXCompilerL0(vcl_compiler_desc_t desc, std::map<std::string, std::string>& config, VCLLogger* log);
 
     vcl_compiler_properties_t getCompilerProp() const {
         return _compilerProp;
@@ -344,6 +457,10 @@ public:
         return _options;
     }
 
+    VCLLogger* getLogger() const {
+        return _logger;
+    }
+
     std::pair<VPUXExecutableL0*, vcl_result_t> importNetworkV1(const uint8_t* buffer, uint64_t bufferSize,
                                                                const uint8_t* weights, uint64_t weightsSize,
                                                                Config& vpuxConfig, const IOInfoV1& ioInfo,
@@ -354,18 +471,20 @@ public:
                                                                Config& vpuxConfig, const IOInfoV2& ioInfo,
                                                                bool enableProfiling);
 
+    vcl_result_t queryNetwork(const InferenceEngine::CNNNetwork& network, const vpux::Config& config,
+                              VPUXQueryNetworkL0* pQueryNetwork);
+
 private:
     std::shared_ptr<OptionsDesc> _options;
     Compiler::Ptr _compiler = NULL;
     vcl_compiler_properties_t _compilerProp;
     vcl_compiler_desc_t _compilerDesc;
     std::mutex _mlock;
-    Logger _logger;
+    VCLLogger* _logger;
 };
 
-VPUXCompilerL0::VPUXCompilerL0(vcl_compiler_desc_t desc, std::map<std::string, std::string>& config)
-        : _options(std::make_shared<OptionsDesc>()),
-          _logger("VPUXCompilerL0", static_cast<LogLevel>(desc.debug_level)) {
+VPUXCompilerL0::VPUXCompilerL0(vcl_compiler_desc_t desc, std::map<std::string, std::string>& config, VCLLogger* logger)
+        : _options(std::make_shared<OptionsDesc>()), _logger(logger) {
     registerCommonOptions(*_options);
     registerCompilerOptions(*_options);
     registerRunTimeOptions(*_options);
@@ -376,9 +495,33 @@ VPUXCompilerL0::VPUXCompilerL0(vcl_compiler_desc_t desc, std::map<std::string, s
 
     _compilerDesc = desc;
     _compilerProp.id = COMPILER_VERSION;
-    _compilerProp.version.major = COMPILER_MAJOR;
-    _compilerProp.version.minor = COMPILER_MINOR;
-    _compilerProp.supportedOpsets = 7;
+    _compilerProp.version.major = VCL_COMPILER_VERSION_MAJOR;
+    _compilerProp.version.minor = VCL_COMPILER_VERSION_MINOR;
+
+    // If ov::get_available_opsets is upraded to support opset12, this may not be supported by mlir compiler
+    // Extract the latest int version from the opset string version, i.e., opset11 -> 11
+    uint32_t largestVersion = vpux::extractOpsetVersion();
+    _compilerProp.supportedOpsets = largestVersion;
+}
+
+vcl_result_t VPUXCompilerL0::queryNetwork(const InferenceEngine::CNNNetwork& network, const vpux::Config& config,
+                                          VPUXQueryNetworkL0* pQueryNetwork) {
+    _logger->info("Start to call query function from compiler to get supported layers!");
+    InferenceEngine::QueryNetworkResult queryNetworkResult;
+    try {
+        queryNetworkResult = _compiler->query(network, config);
+    } catch (const std::exception& error) {
+        _logger->outputError(error.what());
+        return VCL_RESULT_ERROR_UNKNOWN;
+    } catch (...) {
+        _logger->outputError("Failed to call query from compiler!");
+        return VCL_RESULT_ERROR_UNKNOWN;
+    }
+    _logger->info("Successfully query supported layers!");
+
+    std::map<std::string, std::string>& layerMap = queryNetworkResult.supportedLayersMap;
+    auto ret = pQueryNetwork->setQueryResult(layerMap);
+    return ret;
 }
 
 std::pair<VPUXExecutableL0*, vcl_result_t> VPUXCompilerL0::importNetworkV1(const uint8_t* buffer, uint64_t bufferSize,
@@ -386,7 +529,7 @@ std::pair<VPUXExecutableL0*, vcl_result_t> VPUXCompilerL0::importNetworkV1(const
                                                                            Config& config, const IOInfoV1& ioInfo,
                                                                            bool enableProfiling) {
     if (buffer == nullptr || weights == nullptr) {
-        _logger.error("Null argument to import network");
+        _logger->outputError("Null argument to import network");
         return std::pair<VPUXExecutableL0*, vcl_result_t>(nullptr, VCL_RESULT_ERROR_INVALID_ARGUMENT);
     }
 
@@ -405,7 +548,7 @@ std::pair<VPUXExecutableL0*, vcl_result_t> VPUXCompilerL0::importNetworkV1(const
 
     if (enableProfiling) {
         stopWatch.stop();
-        _logger.info("ReadNetwork time: {0} ms", stopWatch.delta_ms());
+        _logger->info("ReadNetwork time: {0} ms", stopWatch.delta_ms());
         stopWatch.start();
     }
 
@@ -457,17 +600,17 @@ std::pair<VPUXExecutableL0*, vcl_result_t> VPUXCompilerL0::importNetworkV1(const
 
         networkDesc = _compiler->compile(cnnNet.getFunction(), cnnNet.getName(), inputs, outputs, config);
     } catch (const std::exception& error) {
-        _logger.error("{0}", error.what());
+        _logger->outputError(error.what());
         return std::pair<VPUXExecutableL0*, vcl_result_t>(nullptr, VCL_RESULT_ERROR_INVALID_ARGUMENT);
     } catch (...) {
-        _logger.error("Internal exception! Can not compile!");
+        _logger->outputError("Internal exception! Can not compile!");
         return std::pair<VPUXExecutableL0*, vcl_result_t>(nullptr, VCL_RESULT_ERROR_INVALID_ARGUMENT);
     }
     if (enableProfiling) {
         stopWatch.stop();
-        _logger.info("Compile net time: {0} ms", stopWatch.delta_ms());
+        _logger->info("Compile net time: {0} ms", stopWatch.delta_ms());
     }
-    VPUXExecutableL0* exe = new VPUXExecutableL0(networkDesc, enableProfiling);
+    VPUXExecutableL0* exe = new VPUXExecutableL0(networkDesc, enableProfiling, _logger);
     return std::pair<VPUXExecutableL0*, vcl_result_t>(exe, VCL_RESULT_SUCCESS);
 }
 
@@ -476,7 +619,7 @@ std::pair<VPUXExecutableL0*, vcl_result_t> VPUXCompilerL0::importNetworkV2(const
                                                                            Config& config, const IOInfoV2& ioInfo,
                                                                            bool enableProfiling) {
     if (buffer == nullptr || weights == nullptr) {
-        _logger.error("Null argument to import network");
+        _logger->outputError("Null argument to import network");
         return std::pair<VPUXExecutableL0*, vcl_result_t>(nullptr, VCL_RESULT_ERROR_INVALID_ARGUMENT);
     }
 
@@ -491,7 +634,7 @@ std::pair<VPUXExecutableL0*, vcl_result_t> VPUXCompilerL0::importNetworkV2(const
     auto model = core.read_model(modelData, weightsTensor);
     if (enableProfiling) {
         stopWatch.stop();
-        _logger.info("ReadNetwork time: {0} ms", stopWatch.delta_ms());
+        _logger->info("ReadNetwork time: {0} ms", stopWatch.delta_ms());
         stopWatch.start();
     }
 
@@ -513,7 +656,7 @@ std::pair<VPUXExecutableL0*, vcl_result_t> VPUXCompilerL0::importNetworkV2(const
                 }
             }
             if (!found) {
-                _logger.error("Failed to find {0} in inputs to set precision!", name);
+                _logger->outputError(formatv("Failed to find {0} in inputs to set precision!", name));
                 return std::pair<VPUXExecutableL0*, vcl_result_t>(nullptr, VCL_RESULT_ERROR_INVALID_ARGUMENT);
             }
         }
@@ -529,8 +672,7 @@ std::pair<VPUXExecutableL0*, vcl_result_t> VPUXCompilerL0::importNetworkV2(const
                 }
             }
             if (!found) {
-                _logger.error("Failed to find {0} in inputs to set layout!", name);
-                ;
+                _logger->outputError(formatv("Failed to find {0} in inputs to set layout!", name));
                 return std::pair<VPUXExecutableL0*, vcl_result_t>(nullptr, VCL_RESULT_ERROR_INVALID_ARGUMENT);
             }
         }
@@ -546,7 +688,7 @@ std::pair<VPUXExecutableL0*, vcl_result_t> VPUXCompilerL0::importNetworkV2(const
                 }
             }
             if (!found) {
-                _logger.error("Failed to find {0} in inputs to set model layout!", name);
+                _logger->outputError(formatv("Failed to find {0} in inputs to set model layout!", name));
                 return std::pair<VPUXExecutableL0*, vcl_result_t>(nullptr, VCL_RESULT_ERROR_INVALID_ARGUMENT);
             }
         }
@@ -562,7 +704,7 @@ std::pair<VPUXExecutableL0*, vcl_result_t> VPUXCompilerL0::importNetworkV2(const
                 }
             }
             if (!found) {
-                _logger.error("Failed to find {0} in outputs to set precision!", name);
+                _logger->outputError(formatv("Failed to find {0} in outputs to set precision!", name));
                 return std::pair<VPUXExecutableL0*, vcl_result_t>(nullptr, VCL_RESULT_ERROR_INVALID_ARGUMENT);
             }
         }
@@ -578,7 +720,7 @@ std::pair<VPUXExecutableL0*, vcl_result_t> VPUXCompilerL0::importNetworkV2(const
                 }
             }
             if (!found) {
-                _logger.error("Failed to find {0} in outputs to set layout!", name);
+                _logger->outputError(formatv("Failed to find {0} in outputs to set layout!", name));
                 return std::pair<VPUXExecutableL0*, vcl_result_t>(nullptr, VCL_RESULT_ERROR_INVALID_ARGUMENT);
             }
         }
@@ -594,7 +736,7 @@ std::pair<VPUXExecutableL0*, vcl_result_t> VPUXCompilerL0::importNetworkV2(const
                 }
             }
             if (!found) {
-                _logger.error("Failed to find {0} in outputs to set model layout!", name);
+                _logger->outputError(formatv("Failed to find {0} in outputs to set model layout!", name));
                 return std::pair<VPUXExecutableL0*, vcl_result_t>(nullptr, VCL_RESULT_ERROR_INVALID_ARGUMENT);
             }
         }
@@ -610,13 +752,13 @@ std::pair<VPUXExecutableL0*, vcl_result_t> VPUXCompilerL0::importNetworkV2(const
             InferenceEngine::Layout layout =
                     IOInfoV2::convertOVLayoutToIELayout(ov::layout::get_layout(input).to_string(), matched);
             if (!matched) {
-                _logger.error("Failed to convert OV layout {0} to IE layout!",
-                              ov::layout::get_layout(input).to_string());
+                _logger->outputError(formatv("Failed to convert OV layout {0} to IE layout!",
+                                             ov::layout::get_layout(input).to_string()));
                 return std::pair<VPUXExecutableL0*, vcl_result_t>(nullptr, VCL_RESULT_ERROR_INVALID_ARGUMENT);
             }
             auto precision = IOInfoV2::convertOVPrecisionToIEPrecision(input.get_element_type(), matched);
             if (!matched) {
-                _logger.error("Failed to convert OV precision to IE precision!");
+                _logger->outputError("Failed to convert OV precision to IE precision!");
                 return std::pair<VPUXExecutableL0*, vcl_result_t>(nullptr, VCL_RESULT_ERROR_INVALID_ARGUMENT);
             }
             InferenceEngine::DataPtr data = std::make_shared<InferenceEngine::Data>(name, precision, layout);
@@ -630,13 +772,13 @@ std::pair<VPUXExecutableL0*, vcl_result_t> VPUXCompilerL0::importNetworkV2(const
             InferenceEngine::Layout layout =
                     IOInfoV2::convertOVLayoutToIELayout(ov::layout::get_layout(output).to_string(), matched);
             if (!matched) {
-                _logger.error("Failed to convert OV layout {0} to IE layout!",
-                              ov::layout::get_layout(output).to_string());
+                _logger->outputError(formatv("Failed to convert OV layout {0} to IE layout!",
+                                             ov::layout::get_layout(output).to_string()));
                 return std::pair<VPUXExecutableL0*, vcl_result_t>(nullptr, VCL_RESULT_ERROR_INVALID_ARGUMENT);
             }
             auto precision = IOInfoV2::convertOVPrecisionToIEPrecision(output.get_element_type(), matched);
             if (!matched) {
-                _logger.error("Failed to convert OV precision to IE precision!");
+                _logger->outputError(formatv("Failed to convert OV precision to IE precision!"));
                 return std::pair<VPUXExecutableL0*, vcl_result_t>(nullptr, VCL_RESULT_ERROR_INVALID_ARGUMENT);
             }
             InferenceEngine::DataPtr data = std::make_shared<InferenceEngine::Data>(name, precision, layout);
@@ -644,35 +786,38 @@ std::pair<VPUXExecutableL0*, vcl_result_t> VPUXCompilerL0::importNetworkV2(const
         }
         networkDesc = _compiler->compile(model, model->get_friendly_name(), inputsInfo, outputsInfo, config);
     } catch (const std::exception& error) {
-        _logger.error("{0}", error.what());
+        _logger->outputError(error.what());
         return std::pair<VPUXExecutableL0*, vcl_result_t>(nullptr, VCL_RESULT_ERROR_INVALID_ARGUMENT);
     } catch (...) {
-        _logger.error("Internal exception! Can not compile!");
+        _logger->outputError("Internal exception! Can not compile!");
         return std::pair<VPUXExecutableL0*, vcl_result_t>(nullptr, VCL_RESULT_ERROR_INVALID_ARGUMENT);
     }
     if (enableProfiling) {
         stopWatch.stop();
-        _logger.info("Compile net time: {0} ms", stopWatch.delta_ms());
+        _logger->info("Compile net time: {0} ms", stopWatch.delta_ms());
         ;
     }
-    VPUXExecutableL0* exe = new VPUXExecutableL0(networkDesc, enableProfiling);
+    VPUXExecutableL0* exe = new VPUXExecutableL0(networkDesc, enableProfiling, _logger);
     return std::pair<VPUXExecutableL0*, vcl_result_t>(exe, VCL_RESULT_SUCCESS);
 }
 
 class VPUXProfilingL0 final {
 public:
-    VPUXProfilingL0(p_vcl_profiling_input_t profInput)
+    VPUXProfilingL0(p_vcl_profiling_input_t profInput, VCLLogger* vclLogger)
             : _blobData(profInput->blobData),
               _blobSize(profInput->blobSize),
               _profData(profInput->profData),
               _profSize(profInput->profSize),
-              _logger("VPUXProfilingL0", LogLevel::Error) {
+              _logger(vclLogger) {
     }
 
     vcl_result_t getTaskInfo(p_vcl_profiling_output_t profOutput);
     vcl_result_t getLayerInfo(p_vcl_profiling_output_t profOutput);
     vcl_result_t getRawInfo(p_vcl_profiling_output_t profOutput);
     vcl_profiling_properties_t getProperties();
+    VCLLogger* getLogger() const {
+        return _logger;
+    }
 
 private:
     const uint8_t* _blobData;  ///< Pointer to the buffer with the blob
@@ -682,12 +827,12 @@ private:
 
     std::vector<profiling::TaskInfo> _taskInfo;    ///< Per-task (DPU, DMA, SW) profiling info
     std::vector<profiling::LayerInfo> _layerInfo;  ///< Per-layer profiling info
-    Logger _logger;                                ///< Internal logger
+    VCLLogger* _logger;                            ///< Internal logger
 };
 
 vcl_result_t VPUXProfilingL0::getTaskInfo(p_vcl_profiling_output_t profOutput) {
     if (!profOutput) {
-        _logger.error("Null argument to get task info");
+        _logger->outputError("Null argument to get task info");
         return VCL_RESULT_ERROR_INVALID_ARGUMENT;
     }
 
@@ -696,10 +841,10 @@ vcl_result_t VPUXProfilingL0::getTaskInfo(p_vcl_profiling_output_t profOutput) {
             _taskInfo = profiling::getTaskInfo(_blobData, _blobSize, _profData, _profSize, profiling::TaskType::ALL,
                                                profiling::VerbosityLevel::HIGH, false);
         } catch (const std::exception& error) {
-            _logger.error("{0}", error.what());
+            _logger->outputError(error.what());
             return VCL_RESULT_ERROR_UNKNOWN;
         } catch (...) {
-            _logger.error("Internal exception! Can't parse profiling information.");
+            _logger->outputError("Internal exception! Can't parse profiling information.");
             return VCL_RESULT_ERROR_UNKNOWN;
         }
     }
@@ -711,7 +856,7 @@ vcl_result_t VPUXProfilingL0::getTaskInfo(p_vcl_profiling_output_t profOutput) {
 
 vcl_result_t VPUXProfilingL0::getLayerInfo(p_vcl_profiling_output_t profOutput) {
     if (!profOutput) {
-        _logger.error("Null argument to get layer info");
+        _logger->outputError("Null argument to get layer info");
         return VCL_RESULT_ERROR_INVALID_ARGUMENT;
     }
 
@@ -723,10 +868,10 @@ vcl_result_t VPUXProfilingL0::getLayerInfo(p_vcl_profiling_output_t profOutput) 
             }
             _layerInfo = profiling::getLayerInfo(_taskInfo);
         } catch (const std::exception& error) {
-            _logger.error("{0}", error.what());
+            _logger->outputError(error.what());
             return VCL_RESULT_ERROR_UNKNOWN;
         } catch (...) {
-            _logger.error("Internal exception! Can't parse profiling information.");
+            _logger->outputError("Internal exception! Can't parse profiling information.");
             return VCL_RESULT_ERROR_UNKNOWN;
         }
     }
@@ -738,7 +883,7 @@ vcl_result_t VPUXProfilingL0::getLayerInfo(p_vcl_profiling_output_t profOutput) 
 
 vcl_result_t VPUXProfilingL0::getRawInfo(p_vcl_profiling_output_t profOutput) {
     if (!profOutput) {
-        _logger.error("Null argument to get raw info");
+        _logger->outputError("Null argument to get raw info");
         return VCL_RESULT_ERROR_INVALID_ARGUMENT;
     }
 
@@ -749,8 +894,8 @@ vcl_result_t VPUXProfilingL0::getRawInfo(p_vcl_profiling_output_t profOutput) {
 
 vcl_profiling_properties_t VPUXProfilingL0::getProperties() {
     vcl_profiling_properties_t prop;
-    prop.version.major = PROFILING_MAJOR;
-    prop.version.minor = PROFILING_MINOR;
+    prop.version.major = VCL_PROFILING_VERSION_MAJOR;
+    prop.version.minor = VCL_PROFILING_VERSION_MINOR;
     return prop;
 }
 
@@ -766,10 +911,120 @@ extern "C" {
 #define DLLEXPORT __attribute__((visibility("default")))
 #endif
 
-DLLEXPORT vcl_result_t vclCompilerCreate(vcl_compiler_desc_t desc, vcl_compiler_handle_t* compiler) {
+DLLEXPORT vcl_result_t VCL_APICALL vclQueryNetworkCreate(vcl_compiler_handle_t compiler, uint8_t* modelIR,
+                                                         uint64_t modelIRSize, vcl_query_handle_t* query) {
+    // Format of modelIR is defined in L0 adaptor
+    // modelIR is parsed into modelData and weightsTensor which a model can be constructed from
+    VPUXCompilerL0::VPUXCompilerL0* pvc = reinterpret_cast<VPUXCompilerL0::VPUXCompilerL0*>(compiler);
+    VPUXCompilerL0::VCLLogger* vclLogger = pvc->getLogger();
+
+    if (!modelIR) {
+        vclLogger->outputError("Invalid IR buffer!");
+        return VCL_RESULT_ERROR_INVALID_ARGUMENT;
+    }
+    if (!modelIRSize) {
+        vclLogger->outputError("Invalid IR size!");
+        return VCL_RESULT_ERROR_INVALID_ARGUMENT;
+    }
+    uint32_t offset = 0;
+    vcl_version_info_t APIVersion;
+    memcpy(&APIVersion, modelIR, sizeof(APIVersion));
+    vcl_version_info_t currentAPIVersion = pvc->getCompilerProp().version;
+    if (APIVersion.major != currentAPIVersion.major || APIVersion.minor != currentAPIVersion.minor) {
+        vclLogger->outputError(formatv("Unsupported IR API version! Val: {0}.{1}", APIVersion.major, APIVersion.minor));
+        return VCL_RESULT_ERROR_INVALID_IR;
+    }
+    offset += sizeof(vcl_version_info_t);
+    uint32_t numOfElements = 0;
+    memcpy(&numOfElements, modelIR + offset, sizeof(numOfElements));
+    if (numOfElements >= maxNumberOfElements) {
+        vclLogger->outputError("Bad elements number in IR!");
+        return VCL_RESULT_ERROR_INVALID_IR;
+    }
+    offset += sizeof(numOfElements);
+    uint64_t bufferSize = 0;
+    memcpy(&bufferSize, modelIR + offset, sizeof(bufferSize));
+    if (bufferSize == 0 || bufferSize >= maxSizeOfXML) {
+        vclLogger->outputError("Bad buffer size in IR!");
+        return VCL_RESULT_ERROR_INVALID_IR;
+    }
+    offset += sizeof(bufferSize);
+    const uint8_t* buffer = modelIR + offset;
+    offset += bufferSize;
+    uint64_t weightsSize = 0;
+    memcpy(&weightsSize, modelIR + offset, sizeof(weightsSize));
+    if (weightsSize >= maxSizeOfWeights) {
+        vclLogger->outputError("Bad weights size in IR!");
+        return VCL_RESULT_ERROR_INVALID_IR;
+    }
+    offset += sizeof(weightsSize);
+    const uint8_t* weights = modelIR + offset;
+    if (offset + weightsSize > modelIRSize) {
+        vclLogger->outputError("The IR content and size mismatch!");
+        return VCL_RESULT_ERROR_INVALID_IR;
+    }
+
+    VPUXCompilerL0::VPUXQueryNetworkL0* pQueryNetwork = nullptr;
+    vcl_result_t ret = VCL_RESULT_SUCCESS;
+    try {
+        std::string modelData(buffer, buffer + bufferSize);
+        ov::runtime::Tensor weightsTensor;
+        if (weightsSize > 0)
+            weightsTensor = ov::runtime::Tensor(ov::element::u8, {weightsSize}, const_cast<uint8_t*>(weights));
+
+        ov::Core core;
+        auto model = core.read_model(modelData, weightsTensor);
+        InferenceEngine::CNNNetwork cnnNetwork(std::const_pointer_cast<ngraph::Function>(model));
+
+        Config parsedConfig(pvc->getOptions());
+        pQueryNetwork = new VPUXCompilerL0::VPUXQueryNetworkL0(vclLogger);
+        ret = pvc->queryNetwork(cnnNetwork, parsedConfig, pQueryNetwork);
+    } catch (const std::exception& error) {
+        vclLogger->outputError(error.what());
+        return VCL_RESULT_ERROR_UNKNOWN;
+    } catch (...) {
+        vclLogger->outputError("Internal exception! Can not query network!");
+        return VCL_RESULT_ERROR_UNKNOWN;
+    }
+    if (ret != VCL_RESULT_SUCCESS) {
+        return ret;
+    }
+    *query = reinterpret_cast<vcl_query_handle_t>(pQueryNetwork);
+    return VCL_RESULT_SUCCESS;
+}
+
+DLLEXPORT vcl_result_t VCL_APICALL vclQueryNetwork(vcl_query_handle_t query, uint8_t* queryResult, uint64_t* size) {
+    if (query == nullptr || size == nullptr) {
+        return VCL_RESULT_ERROR_INVALID_ARGUMENT;
+    }
+
+    VPUXCompilerL0::VPUXQueryNetworkL0* pvq = reinterpret_cast<VPUXCompilerL0::VPUXQueryNetworkL0*>(query);
+    vcl_result_t ret = VCL_RESULT_SUCCESS;
+
+    if (queryResult == nullptr) {
+        // First time calling vclQueryNetwork, get size of queryResultString
+        ret = pvq->getQueryResultSize(size);
+    } else {
+        // Second time calling vclQueryNetwork, get data of queryResultString
+        ret = pvq->getQueryString(queryResult, *size);
+    }
+    return ret;
+}
+
+DLLEXPORT vcl_result_t vclCompilerCreate(vcl_compiler_desc_t desc, vcl_compiler_handle_t* compiler,
+                                         vcl_log_handle_t* logHandle) {
+    VPUXCompilerL0::VCLLogger* vclLogger = nullptr;
+    if (logHandle != nullptr) {
+        // Create logger which saves latest error messages, output other messages to terminal
+        vclLogger = new VPUXCompilerL0::VCLLogger("VCL", LogLevel::Error, true);
+    } else {
+        // Create logger which output all message to terminal
+        vclLogger = new VPUXCompilerL0::VCLLogger("VCL", LogLevel::Error, false);
+    }
     // TODO: Check desc here once we limit the platform scope
     if (compiler == nullptr) {
-        VPUXCompilerL0::vclLogger.error("Null argument to create compiler");
+        vclLogger->outputError("Null argument to create compiler!");
+        delete vclLogger;
         return VCL_RESULT_ERROR_INVALID_ARGUMENT;
     }
     // Set all default configs here
@@ -777,52 +1032,56 @@ DLLEXPORT vcl_result_t vclCompilerCreate(vcl_compiler_desc_t desc, vcl_compiler_
     config[VPUX_CONFIG_KEY(COMPILER_TYPE)] = VPUX_CONFIG_VALUE(MLIR);
     // Set log level
     switch (desc.debug_level) {
-    case 0:
+    case VCL_LOG_NONE:
         config[CONFIG_KEY(LOG_LEVEL)] = CONFIG_VALUE(LOG_NONE);
         break;
-    case 1:
+    case VCL_LOG_ERROR:
         config[CONFIG_KEY(LOG_LEVEL)] = CONFIG_VALUE(LOG_ERROR);
         break;
-    case 2:
+    case VCL_LOG_WARNING:
         config[CONFIG_KEY(LOG_LEVEL)] = CONFIG_VALUE(LOG_WARNING);
         break;
-    case 3:
+    case VCL_LOG_INFO:
         config[CONFIG_KEY(LOG_LEVEL)] = CONFIG_VALUE(LOG_INFO);
         break;
-    case 4:
+    case VCL_LOG_DEBUG:
         config[CONFIG_KEY(LOG_LEVEL)] = CONFIG_VALUE(LOG_DEBUG);
         break;
-    case 5:
+    case VCL_LOG_TRACE:
         config[CONFIG_KEY(LOG_LEVEL)] = CONFIG_VALUE(LOG_TRACE);
         break;
     default:
         config[CONFIG_KEY(LOG_LEVEL)] = CONFIG_VALUE(LOG_ERROR);
-        desc.debug_level = 1;
+        desc.debug_level = VCL_LOG_ERROR;
     };
 
-    if (desc.debug_level > 0) {
+    int dl = static_cast<int>(desc.debug_level);
+    if (dl > 0) {
         // OV does not have CONFIG_VALUE(LOG_FATAL), so does not use LogLevel::Fatal in VCL.
-        VPUXCompilerL0::vclLogger.setLevel(static_cast<LogLevel>(desc.debug_level + 1));
+        vclLogger->setLevel(static_cast<LogLevel>(dl + 1));
     }
 
     VPUXCompilerL0::VPUXCompilerL0* pvc = nullptr;
     try {
-        pvc = new VPUXCompilerL0::VPUXCompilerL0(desc, config);
+        pvc = new VPUXCompilerL0::VPUXCompilerL0(desc, config, vclLogger);
+        *compiler = reinterpret_cast<vcl_compiler_handle_t>(pvc);
     } catch (const std::exception& error) {
-        VPUXCompilerL0::vclLogger.error("{0}", error.what());
+        vclLogger->outputError(error.what());
+        delete vclLogger;
         return VCL_RESULT_ERROR_INVALID_ARGUMENT;
     } catch (...) {
-        VPUXCompilerL0::vclLogger.error("Internal exception during compiler creation!");
+        vclLogger->outputError("Internal exception during compiler creation!");
+        delete vclLogger;
         return VCL_RESULT_ERROR_UNKNOWN;
     }
-    if (pvc != nullptr)
-        *compiler = reinterpret_cast<vcl_compiler_handle_t>(pvc);
+    if (logHandle != nullptr) {
+        *logHandle = reinterpret_cast<vcl_log_handle_t>(vclLogger);
+    }
     return VCL_RESULT_SUCCESS;
 }
 
 DLLEXPORT vcl_result_t vclCompilerGetProperties(vcl_compiler_handle_t compiler, vcl_compiler_properties_t* properties) {
     if (!properties || !compiler) {
-        VPUXCompilerL0::vclLogger.error("Invalid arguments to query property!");
         return VCL_RESULT_ERROR_INVALID_ARGUMENT;
     }
     VPUXCompilerL0::VPUXCompilerL0* pvc = reinterpret_cast<VPUXCompilerL0::VPUXCompilerL0*>(compiler);
@@ -837,17 +1096,15 @@ DLLEXPORT vcl_result_t vclExecutableCreate(vcl_compiler_handle_t compiler, vcl_e
 
     const uint8_t* modelIR = desc.modelIRData;
     if (!compiler || !executable || !modelIR) {
-        VPUXCompilerL0::vclLogger.error("Invalid arguments to create executable!");
         return VCL_RESULT_ERROR_INVALID_ARGUMENT;
     }
 
     VPUXCompilerL0::VPUXCompilerL0* pvc = reinterpret_cast<VPUXCompilerL0::VPUXCompilerL0*>(compiler);
-    uint32_t debug_level = pvc->getCompilerDesc().debug_level;
+    VPUXCompilerL0::VCLLogger* vclLogger = pvc->getLogger();
     // Check exeDesc and create VPUXConfig
     std::map<std::string, std::string> config;
     // To avoid access violation
     std::string descOptions(desc.options, desc.optionsSize);
-    VPUXCompilerL0::vclLogger.info("config: {0}", descOptions);
 
     std::size_t ips = descOptions.find(KEY_INPUTS_PRECISIONS);
     std::size_t ils = descOptions.find(KEY_INPUTS_LAYOUTS);
@@ -885,7 +1142,7 @@ DLLEXPORT vcl_result_t vclExecutableCreate(vcl_compiler_handle_t compiler, vcl_e
     } else {
         // Return error if the mandatory ioInfo options are not passed
         // Skip ioInfo missing if is used for debug.
-        VPUXCompilerL0::vclLogger.error("Mandatory ioInfo options are missing! DescOptions: {0}", descOptions);
+        vclLogger->outputError(formatv("Mandatory ioInfo options are missing! DescOptions: {0}", descOptions));
         return VCL_RESULT_ERROR_INVALID_ARGUMENT;
     }
     std::vector<std::string> options;
@@ -910,27 +1167,8 @@ DLLEXPORT vcl_result_t vclExecutableCreate(vcl_compiler_handle_t compiler, vcl_e
         }
     }
     for (auto& op : options) {
-        VPUXCompilerL0::vclLogger.debug("option : {0}", op);
+        vclLogger->debug("option : {0}", op);
     }
-    // Set platform
-    switch (pvc->getCompilerDesc().platform) {
-    case VCL_PLATFORM_VPU3400:
-        config[VPUX_CONFIG_KEY(PLATFORM)] = "3400";
-        config[CONFIG_KEY(DEVICE_ID)] = "3400";
-        break;
-    case VCL_PLATFORM_VPU3700:
-        config[VPUX_CONFIG_KEY(PLATFORM)] = "3700";
-        config[CONFIG_KEY(DEVICE_ID)] = "3700";
-        break;
-    case VCL_PLATFORM_VPU3720:
-        config[VPUX_CONFIG_KEY(PLATFORM)] = "3720";
-        config[CONFIG_KEY(DEVICE_ID)] = "3720";
-        break;
-    default:
-        config[VPUX_CONFIG_KEY(PLATFORM)] = "3720";
-        config[CONFIG_KEY(DEVICE_ID)] = "3720";
-    };
-
     // Options will overwrite default configs.
     try {
         for (auto& option : options) {
@@ -947,18 +1185,40 @@ DLLEXPORT vcl_result_t vclExecutableCreate(vcl_compiler_handle_t compiler, vcl_e
             std::string key = option.substr(0, lastDelimPos);
             // For key="value", the val shall be value
             std::string val = option.substr(lastDelimPos + 2, length - 1 - (lastDelimPos + 2));
-            VPUXCompilerL0::vclLogger.debug("config options - key: {0} value: {1}", key, val);
+            vclLogger->debug("config options - key: {0} value: {1}", key, val);
             config[key] = val;
         }
     } catch (const std::exception& error) {
-        VPUXCompilerL0::vclLogger.error("{0}", error.what());
+        vclLogger->outputError(error.what());
         return VCL_RESULT_ERROR_INVALID_ARGUMENT;
     } catch (...) {
-        VPUXCompilerL0::vclLogger.error("Internal exception in config parser!");
+        vclLogger->outputError("Internal exception in config parser!");
         return VCL_RESULT_ERROR_INVALID_ARGUMENT;
     }
-    // Foce to use MLIR compiler.
+    // Force to use MLIR compiler.
     config[VPUX_CONFIG_KEY(COMPILER_TYPE)] = VPUX_CONFIG_VALUE(MLIR);
+
+    // Use platform information provided by driver if platform config is either not found or set on AUTO_DETECT
+    if (config.find(VPUX_CONFIG_KEY(PLATFORM)) == config.end() || "AUTO_DETECT" == config[VPUX_CONFIG_KEY(PLATFORM)]) {
+        // Set platform
+        switch (pvc->getCompilerDesc().platform) {
+        case VCL_PLATFORM_VPU3400:
+            config[VPUX_CONFIG_KEY(PLATFORM)] = "3400";
+            config[CONFIG_KEY(DEVICE_ID)] = "3400";
+            break;
+        case VCL_PLATFORM_VPU3700:
+            config[VPUX_CONFIG_KEY(PLATFORM)] = "3700";
+            config[CONFIG_KEY(DEVICE_ID)] = "3700";
+            break;
+        case VCL_PLATFORM_VPU3720:
+            config[VPUX_CONFIG_KEY(PLATFORM)] = "3720";
+            config[CONFIG_KEY(DEVICE_ID)] = "3720";
+            break;
+        default:
+            vclLogger->outputError(formatv("Unrecognized platform! {0}", pvc->getCompilerDesc().platform));
+            return VCL_RESULT_ERROR_INVALID_ARGUMENT;
+        };
+    }
 
     std::map<std::string, std::string>::iterator iter = config.find(CONFIG_KEY(LOG_LEVEL));
     if (iter != config.end()) {
@@ -979,33 +1239,38 @@ DLLEXPORT vcl_result_t vclExecutableCreate(vcl_compiler_handle_t compiler, vcl_e
     try {
         parsedConfig.update(config, OptionMode::CompileTime);
     } catch (const std::exception& error) {
-        VPUXCompilerL0::vclLogger.error("{0}", error.what());
+        vclLogger->outputError(error.what());
         return VCL_RESULT_ERROR_INVALID_ARGUMENT;
     } catch (...) {
-        VPUXCompilerL0::vclLogger.error("Internal exception! Can not update config! DescOptions: {0}", descOptions);
+        vclLogger->outputError(formatv("Internal exception! Can not update config! DescOptions: {0}", descOptions));
         return VCL_RESULT_ERROR_INVALID_ARGUMENT;
     }
+    if (iter != config.end()) {
+        vclLogger->setLevel(parsedConfig.get<LOG_LEVEL>());
+    }
+    vclLogger->info("config: {0}", descOptions);
 
     uint32_t offset = 0;
     vcl_version_info_t APIVersion;
     memcpy(&APIVersion, modelIR, sizeof(APIVersion));
     vcl_version_info_t currentAPIVersion = pvc->getCompilerProp().version;
+    vclLogger->info("Current driver compiler id: {0}", pvc->getCompilerProp().id);
     if (APIVersion.major != currentAPIVersion.major || APIVersion.minor != currentAPIVersion.minor) {
-        VPUXCompilerL0::vclLogger.error("Unsupported IR API version! Val: {0}.{1}", APIVersion.major, APIVersion.minor);
+        vclLogger->outputError(formatv("Unsupported IR API version! Val: {0}.{1}", APIVersion.major, APIVersion.minor));
         return VCL_RESULT_ERROR_INVALID_IR;
     }
     offset += sizeof(vcl_version_info_t);
     uint32_t numOfElements = 0;
     memcpy(&numOfElements, modelIR + offset, sizeof(numOfElements));
     if (numOfElements >= maxNumberOfElements) {
-        VPUXCompilerL0::vclLogger.error("Bad elements number in IR!");
+        vclLogger->outputError("Bad elements number in IR!");
         return VCL_RESULT_ERROR_INVALID_IR;
     }
     offset += sizeof(numOfElements);
     uint64_t bufferSize = 0;
     memcpy(&bufferSize, modelIR + offset, sizeof(bufferSize));
     if (bufferSize == 0 || bufferSize >= maxSizeOfXML) {
-        VPUXCompilerL0::vclLogger.error("Bad buffer size in IR!");
+        vclLogger->outputError("Bad buffer size in IR!");
         return VCL_RESULT_ERROR_INVALID_IR;
     }
     offset += sizeof(bufferSize);
@@ -1014,13 +1279,13 @@ DLLEXPORT vcl_result_t vclExecutableCreate(vcl_compiler_handle_t compiler, vcl_e
     uint64_t weightsSize = 0;
     memcpy(&weightsSize, modelIR + offset, sizeof(weightsSize));
     if (weightsSize >= maxSizeOfWeights) {
-        VPUXCompilerL0::vclLogger.error("Bad weights size in IR!");
+        vclLogger->outputError("Bad weights size in IR!");
         return VCL_RESULT_ERROR_INVALID_IR;
     }
     offset += sizeof(weightsSize);
     const uint8_t* weights = modelIR + offset;
     if (offset + weightsSize > desc.modelIRSize) {
-        VPUXCompilerL0::vclLogger.error("The IR content and size mismatch!");
+        vclLogger->outputError("The IR content and size mismatch!");
         return VCL_RESULT_ERROR_INVALID_IR;
     }
 
@@ -1028,34 +1293,44 @@ DLLEXPORT vcl_result_t vclExecutableCreate(vcl_compiler_handle_t compiler, vcl_e
     VPUXCompilerL0::IOInfoV2 ioInfoV2;
     try {
         if (!useOVAPI2) {
-            ret = ioInfoV1.parse(ioInfoOptions, debug_level);
+            ret = ioInfoV1.parse(ioInfoOptions, vclLogger);
         } else {
-            ret = ioInfoV2.parse(ioInfoOptions, debug_level);
+            ret = ioInfoV2.parse(ioInfoOptions, vclLogger);
         }
     } catch (const std::exception& error) {
-        VPUXCompilerL0::vclLogger.error("{0}", error.what());
+        vclLogger->outputError(error.what());
         ret = VCL_RESULT_ERROR_INVALID_ARGUMENT;
     } catch (...) {
-        VPUXCompilerL0::vclLogger.error("Internal exception! Can't parse ioInfo! DescOptions: {0}", descOptions);
+        vclLogger->outputError(formatv("Internal exception! Can't parse ioInfo! DescOptions: {0}", descOptions));
         ret = VCL_RESULT_ERROR_INVALID_ARGUMENT;
     }
     if (ret != VCL_RESULT_SUCCESS) {
-        VPUXCompilerL0::vclLogger.error("Failed to parse ioInfoOptions! DescOptions: {0}", descOptions);
+        vclLogger->outputError(formatv("Failed to parse ioInfoOptions! DescOptions: {0}", descOptions));
         return ret;
     }
 
     // Create blob and set blob size.
     std::pair<VPUXCompilerL0::VPUXExecutableL0*, vcl_result_t> status;
-    if (!useOVAPI2) {
-        status =
-                pvc->importNetworkV1(buffer, bufferSize, weights, weightsSize, parsedConfig, ioInfoV1, enableProfiling);
-    } else {
-        status =
-                pvc->importNetworkV2(buffer, bufferSize, weights, weightsSize, parsedConfig, ioInfoV2, enableProfiling);
+    try {
+        if (!useOVAPI2) {
+            status = pvc->importNetworkV1(buffer, bufferSize, weights, weightsSize, parsedConfig, ioInfoV1,
+                                          enableProfiling);
+        } else {
+            status = pvc->importNetworkV2(buffer, bufferSize, weights, weightsSize, parsedConfig, ioInfoV2,
+                                          enableProfiling);
+        }
+    } catch (const std::exception& error) {
+        vclLogger->outputError(error.what());
+        ret = VCL_RESULT_ERROR_INVALID_ARGUMENT;
+    } catch (...) {
+        vclLogger->outputError("Internal exception! Can't compile model!");
+        ret = VCL_RESULT_ERROR_INVALID_ARGUMENT;
     }
-    if (status.second != VCL_RESULT_SUCCESS) {
+    if (status.second != VCL_RESULT_SUCCESS || ret != VCL_RESULT_SUCCESS) {
+        if (status.first != NULL)
+            delete status.first;
         *executable = NULL;
-        VPUXCompilerL0::vclLogger.error("Failed to create executable");
+        vclLogger->outputError("Failed to create executable");
         return status.second;
     } else {
         VPUXCompilerL0::VPUXExecutableL0* pve = status.first;
@@ -1063,7 +1338,7 @@ DLLEXPORT vcl_result_t vclExecutableCreate(vcl_compiler_handle_t compiler, vcl_e
         if (ret != VCL_RESULT_SUCCESS) {
             delete pve;
             *executable = NULL;
-            VPUXCompilerL0::vclLogger.error("Failed to get compiled network");
+            vclLogger->outputError("Failed to get compiled network");
             return ret;
         }
         *executable = reinterpret_cast<vcl_executable_handle_t>(pve);
@@ -1075,17 +1350,17 @@ DLLEXPORT vcl_result_t vclExecutableGetSerializableBlob(vcl_executable_handle_t 
                                                         uint64_t* blobSize) {
     vcl_result_t ret = VCL_RESULT_SUCCESS;
     if (!blobSize || !executable) {
-        VPUXCompilerL0::vclLogger.error("Invalid argument! Can not get compilation result!");
         return VCL_RESULT_ERROR_INVALID_ARGUMENT;
     }
     VPUXCompilerL0::VPUXExecutableL0* pve = reinterpret_cast<VPUXCompilerL0::VPUXExecutableL0*>(executable);
+    VPUXCompilerL0::VCLLogger* vclLogger = pve->getLogger();
     if (!blobBuffer) {
         ret = pve->getNetworkSize(blobSize);
     } else {
         ret = pve->exportNetwork(blobBuffer, *blobSize);
     }
     if (ret != VCL_RESULT_SUCCESS) {
-        VPUXCompilerL0::vclLogger.error("Failed to get blob");
+        vclLogger->outputError("Failed to get blob");
         return ret;
     }
     return VCL_RESULT_SUCCESS;
@@ -1102,36 +1377,59 @@ DLLEXPORT vcl_result_t vclExecutableDestroy(vcl_executable_handle_t executable) 
 DLLEXPORT vcl_result_t vclCompilerDestroy(vcl_compiler_handle_t compiler) {
     if (compiler) {
         VPUXCompilerL0::VPUXCompilerL0* pvc = reinterpret_cast<VPUXCompilerL0::VPUXCompilerL0*>(compiler);
+        VPUXCompilerL0::VCLLogger* vclLogger = pvc->getLogger();
+        delete vclLogger;
         delete pvc;
     }
     return VCL_RESULT_SUCCESS;
 }
 
+DLLEXPORT vcl_result_t vclQueryNetworkDestroy(vcl_query_handle_t query) {
+    if (query != nullptr) {
+        VPUXCompilerL0::VPUXQueryNetworkL0* pvq = reinterpret_cast<VPUXCompilerL0::VPUXQueryNetworkL0*>(query);
+        delete pvq;
+    }
+    return VCL_RESULT_SUCCESS;
+}
+
 DLLEXPORT vcl_result_t VCL_APICALL vclProfilingCreate(p_vcl_profiling_input_t profilingInput,
-                                                      vcl_profiling_handle_t* profilingHandle) {
+                                                      vcl_profiling_handle_t* profilingHandle,
+                                                      vcl_log_handle_t* logHandle) {
     if (!profilingInput || !profilingHandle) {
-        VPUXCompilerL0::vclLogger.error("Null argument to create profiler");
         return VCL_RESULT_ERROR_INVALID_ARGUMENT;
     }
+    VPUXCompilerL0::VCLLogger* vclLogger = nullptr;
+    if (logHandle != nullptr) {
+        // Create logger which saves latest error messages, output other messages to terminal
+        vclLogger = new VPUXCompilerL0::VCLLogger("VCL", LogLevel::Error, true);
+    } else {
+        // Create logger which output all message to terminal
+        vclLogger = new VPUXCompilerL0::VCLLogger("VCL", LogLevel::Error, false);
+    }
 
-    VPUXCompilerL0::VPUXProfilingL0* profHandle = new (std::nothrow) VPUXCompilerL0::VPUXProfilingL0(profilingInput);
+    VPUXCompilerL0::VPUXProfilingL0* profHandle =
+            new (std::nothrow) VPUXCompilerL0::VPUXProfilingL0(profilingInput, vclLogger);
     if (!profHandle) {
-        VPUXCompilerL0::vclLogger.error("Failed to create profiler");
+        vclLogger->outputError("Failed to create profiler");
+        delete vclLogger;
         return VCL_RESULT_ERROR_OUT_OF_MEMORY;
     }
 
     *profilingHandle = reinterpret_cast<vcl_profiling_handle_t>(profHandle);
+    if (logHandle != nullptr) {
+        *logHandle = reinterpret_cast<vcl_log_handle_t>(vclLogger);
+    }
     return VCL_RESULT_SUCCESS;
 }
 DLLEXPORT vcl_result_t VCL_APICALL vclGetDecodedProfilingBuffer(vcl_profiling_handle_t profilingHandle,
                                                                 vcl_profiling_request_type_t requestType,
                                                                 p_vcl_profiling_output_t profilingOutput) {
     if (!profilingHandle || !profilingOutput) {
-        VPUXCompilerL0::vclLogger.error("Null argument to get buffer");
         return VCL_RESULT_ERROR_INVALID_ARGUMENT;
     }
 
     VPUXCompilerL0::VPUXProfilingL0* prof = reinterpret_cast<VPUXCompilerL0::VPUXProfilingL0*>(profilingHandle);
+    VPUXCompilerL0::VCLLogger* vclLogger = prof->getLogger();
     switch (requestType) {
     case VCL_PROFILING_LAYER_LEVEL:
         return prof->getLayerInfo(profilingOutput);
@@ -1140,7 +1438,7 @@ DLLEXPORT vcl_result_t VCL_APICALL vclGetDecodedProfilingBuffer(vcl_profiling_ha
     case VCL_PROFILING_RAW:
         return prof->getRawInfo(profilingOutput);
     default:
-        VPUXCompilerL0::vclLogger.error("Request type is not supported.");
+        vclLogger->outputError("Request type is not supported.");
         return VCL_RESULT_ERROR_INVALID_ARGUMENT;
     }
 
@@ -1150,6 +1448,8 @@ DLLEXPORT vcl_result_t VCL_APICALL vclGetDecodedProfilingBuffer(vcl_profiling_ha
 DLLEXPORT vcl_result_t VCL_APICALL vclProfilingDestroy(vcl_profiling_handle_t profilingHandle) {
     if (profilingHandle) {
         VPUXCompilerL0::VPUXProfilingL0* pvp = reinterpret_cast<VPUXCompilerL0::VPUXProfilingL0*>(profilingHandle);
+        VPUXCompilerL0::VCLLogger* vclLogger = pvp->getLogger();
+        delete vclLogger;
         delete pvp;
     }
     return VCL_RESULT_SUCCESS;
@@ -1158,12 +1458,16 @@ DLLEXPORT vcl_result_t VCL_APICALL vclProfilingDestroy(vcl_profiling_handle_t pr
 DLLEXPORT vcl_result_t VCL_APICALL vclProfilingGetProperties(vcl_profiling_handle_t profilingHandle,
                                                              vcl_profiling_properties_t* properties) {
     if (!profilingHandle || !properties) {
-        VPUXCompilerL0::vclLogger.error("Null argument to get profiler properties");
         return VCL_RESULT_ERROR_INVALID_ARGUMENT;
     }
     VPUXCompilerL0::VPUXProfilingL0* pvp = reinterpret_cast<VPUXCompilerL0::VPUXProfilingL0*>(profilingHandle);
     *properties = pvp->getProperties();
     return VCL_RESULT_SUCCESS;
+}
+
+DLLEXPORT vcl_result_t vclLogHandleGetString(vcl_log_handle_t logHandle, size_t* logSize, char* log) {
+    VPUXCompilerL0::VCLLogger* vclLogger = reinterpret_cast<VPUXCompilerL0::VCLLogger*>(logHandle);
+    return vclLogger->getString(logSize, log);
 }
 
 #ifdef __cplusplus

@@ -1,5 +1,5 @@
 //
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,7 +11,7 @@
 
 namespace {
 
-struct KmbAsymmetricStrideConvSubGraphTestParams {
+struct AsymmetricStrideConvSubGraphTestParams {
     LayerTestsUtils::TargetDevice _device;
     InferenceEngine::SizeVector _in_dims;
     InferenceEngine::SizeVector _w_dims;
@@ -20,9 +20,9 @@ struct KmbAsymmetricStrideConvSubGraphTestParams {
     std::vector<int64_t> _pads_end;
 };
 
-class KmbAsymmetricStrideConvSubGraphTest :
+class VPUXAsymmetricStrideConvSubGraphTest_VPU3700 :
         public LayerTestsUtils::KmbLayerTestsCommon,
-        public testing::WithParamInterface<KmbAsymmetricStrideConvSubGraphTestParams> {
+        public testing::WithParamInterface<AsymmetricStrideConvSubGraphTestParams> {
     void SetUp() override {
         const auto test_params = GetParam();
         targetDevice = test_params._device;
@@ -89,19 +89,21 @@ class KmbAsymmetricStrideConvSubGraphTest :
                                                               outHigh, outLow, outHigh);
 
         const ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(result)};
-        function = std::make_shared<ngraph::Function>(results, params, "KmbAsymmetricStrideConvSubGraphTest");
+        function = std::make_shared<ngraph::Function>(results, params, "VPUXAsymmetricStrideConvSubGraphTest");
 
         threshold = 0.1f;
     }
 };
 
-TEST_P(KmbAsymmetricStrideConvSubGraphTest, CompareWithRefs) {
+TEST_P(VPUXAsymmetricStrideConvSubGraphTest_VPU3700, HW) {
+    setPlatformVPU3700();
+    setDefaultHardwareModeMLIR();
     Run();
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke, KmbAsymmetricStrideConvSubGraphTest,
+INSTANTIATE_TEST_SUITE_P(smoke_AsymmetricStrideConv, VPUXAsymmetricStrideConvSubGraphTest_VPU3700,
                          ::testing::Values(
-                                 KmbAsymmetricStrideConvSubGraphTestParams{
+                                 AsymmetricStrideConvSubGraphTestParams{
                                          LayerTestsUtils::testPlatformTargetDevice,  // _device
                                          {1, 1, 16, 16},                             // in dims
                                          {2, 1, 1, 2},                               // weights dims
@@ -109,7 +111,7 @@ INSTANTIATE_TEST_SUITE_P(smoke, KmbAsymmetricStrideConvSubGraphTest,
                                          {0, 0},                                     // pads_begin
                                          {0, 0},                                     // pads_end
                                  },
-                                 KmbAsymmetricStrideConvSubGraphTestParams{
+                                 AsymmetricStrideConvSubGraphTestParams{
                                          LayerTestsUtils::testPlatformTargetDevice,  // _device
                                          {1, 16, 64, 64},                            // in dims
                                          {16, 16, 1, 2},                             // weights dims

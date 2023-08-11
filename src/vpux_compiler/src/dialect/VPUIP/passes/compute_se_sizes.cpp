@@ -6,7 +6,6 @@
 #include "vpux/compiler/core/aliases_info.hpp"
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
 
-#include "vpux/utils/core/checked_cast.hpp"
 #include "vpux/utils/core/numeric.hpp"
 
 #include <mlir/IR/BuiltinAttributes.h>
@@ -141,7 +140,7 @@ mlir::LogicalResult ComputeSESizesPass::initialize(mlir::MLIRContext* ctx) {
 
 void ComputeSESizesPass::safeRunOnFunc() {
     auto& ctx = getContext();
-    auto func = getFunction();
+    auto func = getOperation();
 
     // Set the storage element size attributes only for the input operand in case the sparse data is concatenated
     // over channels. This is necessary since sparse activations are sparsified individually by each DPU producer
@@ -150,10 +149,16 @@ void ComputeSESizesPass::safeRunOnFunc() {
     // Therefore, sparse activations concatenated over channels must all have the same number of channels,
     // regardless of whether the concatenation is done explicitly, using ODU broadcasting, by multiple variants
     // of the same invariant, or a combination of these methods.
-    if (_onlyInputsConcatOverC.getValueOr(false)) {
+    if (_onlyInputsConcatOverC.value_or(false)) {
         _log.trace("Setting storage element sizes only for inputs concatenated over channels");
 
         func.walk([&](VPUIP::NCEClusterTaskOp nceOp) {
+            if (nceOp.input_storage_element_table() != nullptr) {
+                _log.trace("Skipping operation '{0}' at '{1}' which has a storage element table", nceOp->getName(),
+                           nceOp->getLoc());
+                return;
+            }
+
             _log.trace("Handling operation '{0}' at '{1}'", nceOp->getName(), nceOp->getLoc());
 
             if (nceOp.input_sparsity_map() != nullptr) {
@@ -167,7 +172,7 @@ void ComputeSESizesPass::safeRunOnFunc() {
 
             if (nceOp.task_type() == VPUIP::NCETaskType::ELTWISE && nceOp.weights_sparsity_map() != nullptr) {
                 if (auto seSizeAttr = getInputSESizeForConcatOverC(nceOp, nceOp.weights())) {
-                    const auto inputSeSize = nceOp.input_se_size().getValueOr(seSizeAttr.getInt());
+                    const auto inputSeSize = nceOp.input_se_size().value_or(seSizeAttr.getInt());
                     VPUX_THROW_UNLESS(
                             inputSeSize == seSizeAttr.getInt(),
                             "Different storage element sizes expected for the two Eltwise inputs: {0} and {1} at '{2}'",
@@ -185,18 +190,34 @@ void ComputeSESizesPass::safeRunOnFunc() {
     func.walk([&](VPUIP::NCEClusterTaskOp nceOp) {
         _log.trace("Handling operation '{0}' at '{1}'", nceOp->getName(), nceOp->getLoc());
 
-        if (nceOp.input_sparsity_map() != nullptr && nceOp.input_se_sizeAttr() == nullptr) {
-            auto numChannels = nceOp.input().getType().cast<vpux::NDTypeInterface>().getShape()[Dims4D::Act::C];
-            VPUX_THROW_UNLESS(isPowerOfTwo(numChannels), "Value '{0}' for input is not a power of 2", numChannels);
-            _log.nest().trace("Setting input_se_size to '{0}'", numChannels);
-            nceOp.input_se_sizeAttr(getIntAttr(&ctx, numChannels));
+        if (nceOp.input_se_sizeAttr() == nullptr) {
+            if (nceOp.input_storage_element_table() != nullptr) {
+                VPUX_THROW_WHEN(nceOp.task_type() == VPUIP::NCETaskType::ELTWISE,
+                                "Explicit SETable for Eltwise operations is not yet supported");
 
-            if (nceOp.task_type() == VPUIP::NCETaskType::ELTWISE) {
-                auto numChannelsInput2 =
-                        nceOp.weights().getType().cast<vpux::NDTypeInterface>().getShape()[Dims4D::Act::C];
-                VPUX_THROW_UNLESS(numChannels == numChannelsInput2,
-                                  "Different storage element sizes expected for the two Eltwise inputs: {0} and {1}",
-                                  numChannels, numChannelsInput2);
+                auto inputType = nceOp.input().getType().cast<vpux::NDTypeInterface>();
+                auto seTableType = nceOp.input_storage_element_table().getType().cast<vpux::NDTypeInterface>();
+                const auto numChannels = inputType.getShape()[Dims4D::Act::C];
+                const auto seDepth = seTableType.getShape()[Dims4D::Act::C];
+                VPUX_THROW_WHEN(numChannels % seDepth != 0, "Storage element size is not an integer");
+                const auto seSize = numChannels / seDepth;
+
+                _log.nest().trace("Setting input_se_size to '{0}' [SE]", seSize);
+                nceOp.input_se_sizeAttr(getIntAttr(&ctx, seSize));
+            } else if (nceOp.input_sparsity_map() != nullptr) {
+                auto numChannels = nceOp.input().getType().cast<vpux::NDTypeInterface>().getShape()[Dims4D::Act::C];
+                VPUX_THROW_UNLESS(isPowerOfTwo(numChannels), "Value '{0}' for input is not a power of 2", numChannels);
+                _log.nest().trace("Setting input_se_size to '{0}' [SM]", numChannels);
+                nceOp.input_se_sizeAttr(getIntAttr(&ctx, numChannels));
+
+                if (nceOp.task_type() == VPUIP::NCETaskType::ELTWISE) {
+                    auto numChannelsInput2 =
+                            nceOp.weights().getType().cast<vpux::NDTypeInterface>().getShape()[Dims4D::Act::C];
+                    VPUX_THROW_UNLESS(
+                            numChannels == numChannelsInput2,
+                            "Different storage element sizes expected for the two Eltwise inputs: {0} and {1}",
+                            numChannels, numChannelsInput2);
+                }
             }
         }
 

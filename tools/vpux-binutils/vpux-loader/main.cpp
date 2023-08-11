@@ -101,7 +101,7 @@ public:
         (void)devBuffer;
     }
 
-    void lock(DeviceBuffer& devBuffer) {
+    void lock(DeviceBuffer& devBuffer) override {
         void* cpu_addr = reinterpret_cast<void*>(devBuffer.cpu_addr());
         void* vpu_addr = reinterpret_cast<void*>(devBuffer.vpu_addr());
         size_t len = devBuffer.size();
@@ -110,7 +110,7 @@ public:
                      vpu_addr, len);
     }
 
-    void unlock(DeviceBuffer& devBuffer) {
+    void unlock(DeviceBuffer& devBuffer) override {
         void* cpu_addr = reinterpret_cast<void*>(devBuffer.cpu_addr());
         void* vpu_addr = reinterpret_cast<void*>(devBuffer.vpu_addr());
         size_t len = devBuffer.size();
@@ -161,14 +161,14 @@ private:
 
 // TODO(E#23975): This beautiful piece of code contains the "special symtab" that normally needs to be queried from
 // the runtime. In IMDemo example we have a similar class that constructs this symTab based on data from the
-// InferenceRuntimeService. Since we cannot include that in VPUx-plugin, we will occasionally manually check the
-// values, and update them here Hopefully if we solve the riddle of integration between VPUx Plugin and vpuip_2, then
+// InferenceRuntimeService. Since we cannot include that in VPUX-plugin, we will occasionally manually check the
+// values, and update them here Hopefully if we solve the riddle of integration between VPUX Plugin and vpuip_2, then
 // we will not have to resort to magical solutions (This is my wish to SantaClaus this year :) ) This ticket will
 // not totally solve the problem, but will greatly reduce the hack-ishness of this solution
 
 class HardCodedSymtabToCluster0 {
 private:
-    static constexpr size_t SPECIAL_SYMTAB_SIZE = 7;  // I counted!!!! Twice!!
+    static constexpr size_t SPECIAL_SYMTAB_SIZE = 8;  // I counted!!!! Twice!!
     SymbolEntry symTab_[SPECIAL_SYMTAB_SIZE];
 
 public:
@@ -200,15 +200,18 @@ public:
 
         symTab_[VPU_NNRD_SYM_BARRIERS_START].st_value = 0;
         symTab_[VPU_NNRD_SYM_BARRIERS_START].st_size = 0;
+
+        symTab_[VPU_NNRD_SYM_HW_REGISTER].st_value = 0;
+        symTab_[VPU_NNRD_SYM_HW_REGISTER].st_size = 0;
     }
 
-    const details::ArrayRef<SymbolEntry> symTab() const {
-        return details::ArrayRef<SymbolEntry>(symTab_, SPECIAL_SYMTAB_SIZE);
+    const ArrayRef<SymbolEntry> symTab() const {
+        return ArrayRef<SymbolEntry>(symTab_, SPECIAL_SYMTAB_SIZE);
     }
 };
 
-void allocIO(BufferManager* mngr, std::vector<DeviceBuffer>& ioVec, details::ArrayRef<DeviceBuffer> sizes,
-             uint32_t* ioPtrs, uint32_t* ioSizesP, uint32_t* ioSize) {
+void allocIO(BufferManager* mngr, std::vector<DeviceBuffer>& ioVec, ArrayRef<DeviceBuffer> sizes, uint32_t* ioPtrs,
+             uint32_t* ioSizesP, uint32_t* ioSize) {
     auto ioPtrBuf = mngr->allocate(BufferSpecs(1, sizes.size() * sizeof(uint32_t), SHF_NONE));
     auto ioSizesBuf = mngr->allocate(BufferSpecs(1, sizes.size() * sizeof(uint32_t), SHF_NONE));
 
@@ -274,6 +277,13 @@ void dumpOutputs(const std::vector<DeviceBuffer>& vec) {
     }
 }
 
+void dumpProfiling(const std::vector<DeviceBuffer>& vec) {
+    llvm::outs() << llvm::formatv("Profiling count {0}:\n", vec.size());
+    for (size_t i = 0; i < vec.size(); ++i) {
+        llvm::outs() << llvm::formatv("\t {0}: {1:x} -> size {2}\n", i, vec[i].vpu_addr(), vec[i].size());
+    }
+}
+
 void dumpInputs(const std::vector<DeviceBuffer>& vec) {
     llvm::outs() << llvm::formatv("Input count {0}:\n", vec.size());
     for (size_t i = 0; i < vec.size(); ++i) {
@@ -290,56 +300,71 @@ struct HexMappedInferenceEntry {
     uint32_t outputsPtr;
     uint32_t outputSizesPtr;
     uint32_t outputsCount;
+    uint32_t profilingPtr;
+    uint32_t profilingSizesPtr;
+    uint32_t profilingCount;
 };
 
 int main(int argc, char* argv[]) {
-    llvm::cl::ParseCommandLineOptions(argc, argv);
+    try {
+        llvm::cl::ParseCommandLineOptions(argc, argv);
 
-    if (verbose.getValue()) {
-        Logger::setGlobalLevel(LogLevel::DEBUG);
+        if (verbose.getValue()) {
+            Logger::setGlobalLevel(LogLevel::DEBUG);
+        }
+
+        std::ifstream inputStream(elfFilePath.data(), std::ios::binary);
+        std::vector<uint8_t> elfFile((std::istreambuf_iterator<char>(inputStream)), (std::istreambuf_iterator<char>()));
+        inputStream.close();
+
+        HardCodedSymtabToCluster0 singleClusterSymTab;
+        FlatHexBufferManager bufferManager(baseAddr, memSize);
+
+        HexMappedInferenceEntry* hexEntry = reinterpret_cast<HexMappedInferenceEntry*>(
+                bufferManager.allocate(BufferSpecs(1, sizeof(HexMappedInferenceEntry), SHF_NONE)).cpu_addr());
+
+        ElfDDRAccessManager accessor(reinterpret_cast<const uint8_t*>(elfFile.data()), elfFile.size(), &bufferManager);
+
+        VPUXLoader loader(&accessor, &bufferManager, singleClusterSymTab.symTab());
+
+        std::vector<DeviceBuffer> inputs;
+        std::vector<DeviceBuffer> outputs;
+        std::vector<DeviceBuffer> profiling;
+        auto inputSizes = loader.getInputBuffers();
+        auto outputSizes = loader.getOutputBuffers();
+        auto profilingSizes = loader.getProfBuffers();
+
+        allocIO(&bufferManager, inputs, inputSizes, &hexEntry->inputsPtr, &hexEntry->inputSizesPtr,
+                &hexEntry->inputsCount);
+        allocIO(&bufferManager, outputs, outputSizes, &hexEntry->outputsPtr, &hexEntry->outputSizesPtr,
+                &hexEntry->outputsCount);
+        allocIO(&bufferManager, profiling, profilingSizes, &hexEntry->profilingPtr, &hexEntry->profilingSizesPtr,
+                &hexEntry->profilingCount);
+        hexEntry->elfEntryPtr = static_cast<uint32_t>(loader.getEntry());
+
+        setInputs(inputs);
+
+        llvm::outs() << llvm::formatv("Mapped Inferece pointer at:\n\t {0:x}\n", loader.getEntry());
+        dumpInputs(inputs);
+        dumpOutputs(outputs);
+        dumpProfiling(profiling);
+
+        loader.applyJitRelocations(inputs, outputs, profiling);
+
+        hexEntry->totalSize = static_cast<uint32_t>(bufferManager.size());
+
+        std::ofstream outFileStream;
+
+        outFileStream.open(outputFile.data(), std::ios::out | std::ios::binary);
+        outFileStream.write(reinterpret_cast<char*>(bufferManager.buffer()), bufferManager.size());
+        outFileStream.close();
+
+        VPUX_ELF_THROW_UNLESS(outFileStream.good(), AccessError, "Error at writing the output file");
+    } catch (std::exception& e) {
+        llvm::outs() << llvm::formatv("Caught exception: {0}\n", e.what());
+    } catch (...) {
+        llvm::outs() << llvm::formatv("Caught exception unknown exception\n");
     }
-
-    std::ifstream inputStream(elfFilePath.data(), std::ios::binary);
-    std::vector<uint8_t> elfFile((std::istreambuf_iterator<char>(inputStream)), (std::istreambuf_iterator<char>()));
-    inputStream.close();
-
-    HardCodedSymtabToCluster0 singleClusterSymTab;
-    FlatHexBufferManager bufferManager(baseAddr, memSize);
-
-    HexMappedInferenceEntry* hexEntry = reinterpret_cast<HexMappedInferenceEntry*>(
-            bufferManager.allocate(BufferSpecs(1, sizeof(HexMappedInferenceEntry), SHF_NONE)).cpu_addr());
-
-    ElfDDRAccessManager accessor(reinterpret_cast<const uint8_t*>(elfFile.data()), elfFile.size(), &bufferManager);
-
-    VPUXLoader loader(&accessor, &bufferManager, singleClusterSymTab.symTab());
-
-    std::vector<DeviceBuffer> inputs;
-    std::vector<DeviceBuffer> outputs;
-    auto inputSizes = loader.getInputBuffers();
-    auto outputSizes = loader.getOutputBuffers();
-
-    allocIO(&bufferManager, inputs, inputSizes, &hexEntry->inputsPtr, &hexEntry->inputSizesPtr, &hexEntry->inputsCount);
-    allocIO(&bufferManager, outputs, outputSizes, &hexEntry->outputsPtr, &hexEntry->outputSizesPtr,
-            &hexEntry->outputsCount);
-    hexEntry->elfEntryPtr = static_cast<uint32_t>(loader.getEntry());
-
-    setInputs(inputs);
-
-    llvm::outs() << llvm::formatv("Mapped Inferece pointer at:\n\t {0:x}\n", loader.getEntry());
-    dumpInputs(inputs);
-    dumpOutputs(outputs);
-
-    loader.applyJitRelocations(inputs, outputs);
-
-    hexEntry->totalSize = static_cast<uint32_t>(bufferManager.size());
-
-    std::ofstream outFileStream;
-
-    outFileStream.open(outputFile.data(), std::ios::out | std::ios::binary);
-    outFileStream.write(reinterpret_cast<char*>(bufferManager.buffer()), bufferManager.size());
-    outFileStream.close();
-
-    VPUX_ELF_THROW_UNLESS(outFileStream.good(), AccessError, "Error at writing the output file");
 
     return 0;
 }

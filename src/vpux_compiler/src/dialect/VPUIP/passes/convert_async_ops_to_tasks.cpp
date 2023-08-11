@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
 
@@ -107,7 +105,7 @@ mlir::LogicalResult InlineAsyncRegion::matchAndRewrite(mlir::async::ExecuteOp ex
             if (auto tilingOp = mlir::dyn_cast<VPUIP::NCEClusterTilingOp>(op)) {
                 op = tilingOp.getInnerTaskOp();
             }
-            VPUX_THROW_UNLESS(mlir::isa<VPUIP::ProfiledDMAOpInterface>(op),
+            VPUX_THROW_UNLESS(mlir::isa<VPUIP::DMATypeOpInterface>(op),
                               "Found unsupported operation nested inside async.execute: {0}", *op);
             size_t dmaCost = calculateCopyCycles(op, _arch, _costModel);
             taskOp->setAttr(cycleBegin, getIntAttr(taskOp->getContext(), currentStart));
@@ -168,7 +166,7 @@ mlir::LogicalResult RemoveWait::matchAndRewrite(mlir::async::AwaitOp waitOp, OpA
     // into src/vpux_compiler/src/dialect/VPUIP/ops.cpp `redirectOpInterfacesForIE(...)`
     // and `redirectOpInterfacesForIERT(...)`
     VPUX_THROW_UNLESS(waitOp.result().hasOneUse(), "'async.await' doesn't have only one consumer");
-    VPUX_THROW_UNLESS(mlir::isa<mlir::ReturnOp>(*waitOp.result().user_begin()),
+    VPUX_THROW_UNLESS(mlir::isa<mlir::func::ReturnOp>(*waitOp.result().user_begin()),
                       "'async.await' has non 'return' consumer");
 
     rewriter.replaceOp(waitOp, newArgs.operand());
@@ -182,7 +180,7 @@ mlir::LogicalResult RemoveWait::matchAndRewrite(mlir::async::AwaitOp waitOp, OpA
 void ConvertAsyncOpsToTasksPass::safeRunOnFunc() {
     auto& ctx = getContext();
 
-    auto func = getFunction();
+    auto func = getOperation();
     auto module = func->getParentOfType<mlir::ModuleOp>();
 
     mlir::TypeConverter typeConverter;
@@ -206,7 +204,7 @@ void ConvertAsyncOpsToTasksPass::safeRunOnFunc() {
     target.addLegalDialect<VPUIP::VPUIPDialect>();
     target.addLegalDialect<VPURT::VPURTDialect>();
     target.addLegalOp<mlir::UnrealizedConversionCastOp>();
-    target.addLegalOp<mlir::FuncOp, mlir::ReturnOp>();
+    target.addLegalOp<mlir::func::FuncOp, mlir::func::ReturnOp>();
 
     target.addLegalOp<VPUIP::SwKernelOp>();
     target.markOpRecursivelyLegal<VPUIP::SwKernelOp>([&](mlir::Operation*) {

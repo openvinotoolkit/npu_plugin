@@ -1,10 +1,11 @@
 //
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
-// RUN: vpux-opt --split-input-file --fuse-sparsity-ops="fuse-sparsify=false" %s | FileCheck %s
 
-!qElemType = type !quant.uniform<u8:f16, 0.034255280214197492:128>
+// RUN: vpux-opt --split-input-file --init-compiler="vpu-arch=VPUX37XX allow-custom-values=true" --fuse-sparsity-ops="fuse-sparsify=false" %s | FileCheck %s
+
+!qElemType = !quant.uniform<u8:f16, 0.034255280214197492:128>
 
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 #NWCH = affine_map<(d0, d1, d2, d3) -> (d0, d3, d1, d2)>
@@ -13,7 +14,7 @@ module @PermuteQuantize attributes {VPU.arch = "VPUX37XX", VPU.compilationMode =
   IE.MemoryResource 1982464 bytes of @CMX_NN {VPU.bandwidth = 32 : i64, VPU.derateFactor = 1.000000e+00 : f64}
 
 // CHECK-LABEL: @SparsifyPermuteQuantize
-func @SparsifyPermuteQuantize(%arg0: tensor<1x32x3x1568xf16, {order = #NHWC}>) -> tensor<1x32x4x1568x!qElemType, {order = #NWCH}> {
+func.func @SparsifyPermuteQuantize(%arg0: tensor<1x32x3x1568xf16, {order = #NHWC}>) -> tensor<1x32x4x1568x!qElemType, {order = #NWCH}> {
     %0 = VPU.Sparsify(%arg0) : tensor<1x32x3x1568xf16, {order = #NHWC}> -> !VPU.SparseTensor<data=tensor<1x32x3x1568xf16, {order = #NHWC}>>
     %1 = VPU.Desparsify(%0) : !VPU.SparseTensor<data=tensor<1x32x3x1568xf16, {order = #NHWC}>> -> tensor<1x32x3x1568xf16, {order = #NHWC}>
 

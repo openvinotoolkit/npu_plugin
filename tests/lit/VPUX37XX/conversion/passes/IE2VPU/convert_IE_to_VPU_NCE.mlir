@@ -1,14 +1,15 @@
 //
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
+
 // RUN: vpux-opt --split-input-file --init-compiler="vpu-arch=VPUX37XX compilation-mode=DefaultHW" --convert-IE-to-VPU-NCE %s | FileCheck %s
 
 #NCHW = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
 // CHECK-LABEL: @DepthConvToNCE
-func @DepthConvToNCE(%arg0: tensor<1x16x40x80xf16, {order = #NHWC}>) -> tensor<1x16x37x73xf16, {order = #NHWC}> {
+func.func @DepthConvToNCE(%arg0: tensor<1x16x40x80xf16, {order = #NHWC}>) -> tensor<1x16x37x73xf16, {order = #NHWC}> {
     %weights = const.Declare tensor<16x1x4x8xf16, {order = #NHWC}> =
         dense<1.000000e+00> : tensor<16x1x4x8xf16>, [#const.Reorder<#NHWC>]
 
@@ -24,9 +25,9 @@ func @DepthConvToNCE(%arg0: tensor<1x16x40x80xf16, {order = #NHWC}>) -> tensor<1
 
     return %0 : tensor<1x16x37x73xf16, {order = #NHWC}>
 
-    // CHECK:       [[ACTIVATION_WINDOW:%.+]] = const.Declare tensor<1x1x1x16xui8>
-    // CHECK:       [[WEIGHTS_TABLE:%.+]] = const.Declare tensor<16x1x1x4xsi32>
-    // CHECK:       [[WEIGHTS:%.+]] = const.Declare tensor<16x1x4x8xf16, {order = #NHWC}>
+    // CHECK-DAG:       [[ACTIVATION_WINDOW:%.+]] = const.Declare tensor<1x1x1x16xui8>
+    // CHECK-DAG:       [[WEIGHTS_TABLE:%.+]] = const.Declare tensor<16x1x1x4xsi32>
+    // CHECK-DAG:       [[WEIGHTS:%.+]] = const.Declare tensor<16x1x4x8xf16, {order = #NHWC}>
 
     // CHECK:       [[OUT:%.+]] = VPU.NCE.DepthConvolution(%arg0, [[WEIGHTS]], [[WEIGHTS_TABLE]], [[ACTIVATION_WINDOW]])
     // CHECK-SAME:      pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}
@@ -43,9 +44,9 @@ func @DepthConvToNCE(%arg0: tensor<1x16x40x80xf16, {order = #NHWC}>) -> tensor<1
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
 // CHECK-LABEL: @EltwiseAddWithReluRewriter
-func @EltwiseAddWithReluRewriter(%arg0: tensor<1x64x28x28xf16, {order = #NHWC}>, %arg1: tensor<1x64x28x28xf16, {order = #NHWC}>)
+func.func @EltwiseAddWithReluRewriter(%arg0: tensor<1x64x28x28xf16, {order = #NHWC}>, %arg1: tensor<1x64x28x28xf16, {order = #NHWC}>)
         -> tensor<1x64x28x28xf16, {order = #NHWC}> {
-    %0 = IE.Add(%arg0, %arg1) { auto_broadcast = "NUMPY", post_op = {attrs = {}, name = "IE.ReLU"} } :
+    %0 = IE.Add(%arg0, %arg1) { auto_broadcast = #IE.auto_broadcast_type<NUMPY>, post_op = {attrs = {}, name = "IE.ReLU"} } :
         tensor<1x64x28x28xf16, {order = #NHWC}>, tensor<1x64x28x28xf16, {order = #NHWC}>
         -> tensor<1x64x28x28xf16, {order = #NHWC}>
 
@@ -65,13 +66,13 @@ func @EltwiseAddWithReluRewriter(%arg0: tensor<1x64x28x28xf16, {order = #NHWC}>,
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
 // CHECK-LABEL: @AveragePoolToNCE
-func @AveragePoolToNCE(%arg0: tensor<1x64x28x28xf16, {order = #NHWC}>)
+func.func @AveragePoolToNCE(%arg0: tensor<1x64x28x28xf16, {order = #NHWC}>)
         -> tensor<1x64x14x14xf16, {order = #NHWC}> {
-    %0 = IE.AvgPool(%arg0) { 
+    %0 = IE.AvgPool(%arg0) {
             kernel_size = [2, 2],
             pads_begin = [0, 0],
             pads_end = [0, 0],
-            rounding_type = "FLOOR",
+            rounding_type = #IE.rounding_type<FLOOR>,
             strides = [2, 2]
          } : tensor<1x64x28x28xf16, {order = #NHWC}> -> tensor<1x64x14x14xf16, {order = #NHWC}>
 
@@ -84,18 +85,18 @@ func @AveragePoolToNCE(%arg0: tensor<1x64x28x28xf16, {order = #NHWC}>)
 
     // CHECK:       return [[OUT]] : tensor<1x64x14x14xf16, {order = #NHWC}>
 }
-    
+
 // -----
 
-!qElemType0 = type !quant.uniform<u8:f16, 0.049356617647058822>
-!qElemType1 = type !quant.uniform<u8:f16, 0.01013327205882353>
-!qElemType2 = type !quant.uniform<u8:f16, 0.053278186274509802>
+!qElemType0 = !quant.uniform<u8:f16, 0.049356617647058822>
+!qElemType1 = !quant.uniform<u8:f16, 0.01013327205882353>
+!qElemType2 = !quant.uniform<u8:f16, 0.053278186274509802>
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
 // CHECK-LABEL: @EltwiseAddWithDifferentScales(%arg0: tensor<1x64x28x28x!qElemType0, {order = #NHWC}>, %arg1: tensor<1x64x28x28x!qElemType1, {order = #NHWC}>)
-func @EltwiseAddWithDifferentScales(%arg0: tensor<1x64x28x28x!qElemType0, {order = #NHWC}>, %arg1: tensor<1x64x28x28x!qElemType1, {order = #NHWC}>)
+func.func @EltwiseAddWithDifferentScales(%arg0: tensor<1x64x28x28x!qElemType0, {order = #NHWC}>, %arg1: tensor<1x64x28x28x!qElemType1, {order = #NHWC}>)
         -> tensor<1x64x28x28x!qElemType2, {order = #NHWC}> {
-    %0 = IE.Add(%arg0, %arg1) { auto_broadcast = "NUMPY" } :
+    %0 = IE.Add(%arg0, %arg1) { auto_broadcast = #IE.auto_broadcast_type<NUMPY> } :
         tensor<1x64x28x28x!qElemType0, {order = #NHWC}>, tensor<1x64x28x28x!qElemType1, {order = #NHWC}>
         -> tensor<1x64x28x28x!qElemType2, {order = #NHWC}>
 
@@ -118,9 +119,9 @@ func @EltwiseAddWithDifferentScales(%arg0: tensor<1x64x28x28x!qElemType0, {order
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
 // CHECK-LABEL: @SkipEltwiseMulToNCE
-func @SkipEltwiseMulToNCE(%arg0: tensor<1x64x28x28xf16, {order = #NHWC}>, %arg1: tensor<1x64x28x28xf16, {order = #NHWC}>)
+func.func @SkipEltwiseMulToNCE(%arg0: tensor<1x64x28x28xf16, {order = #NHWC}>, %arg1: tensor<1x64x28x28xf16, {order = #NHWC}>)
         -> tensor<1x64x28x28xf16, {order = #NHWC}> {
-    %0 = IE.Multiply(%arg0, %arg1) { auto_broadcast = "NUMPY" } :
+    %0 = IE.Multiply(%arg0, %arg1) { auto_broadcast = #IE.auto_broadcast_type<NUMPY> } :
         tensor<1x64x28x28xf16, {order = #NHWC}>, tensor<1x64x28x28xf16, {order = #NHWC}>
         -> tensor<1x64x28x28xf16, {order = #NHWC}>
 
@@ -128,7 +129,7 @@ func @SkipEltwiseMulToNCE(%arg0: tensor<1x64x28x28xf16, {order = #NHWC}>, %arg1:
 
     // CHECK-NOT:   VPU.NCE.Eltwise
 
-    // CHECK:       [[OUT:%.+]] = IE.Multiply(%arg0, %arg1) {auto_broadcast = "NUMPY"} :
+    // CHECK:       [[OUT:%.+]] = IE.Multiply(%arg0, %arg1) {auto_broadcast = #IE.auto_broadcast_type<NUMPY>} :
     // CHECK-SAME:      tensor<1x64x28x28xf16, {order = #NHWC}>, tensor<1x64x28x28xf16, {order = #NHWC}>
     // CHECK-SAME:      -> tensor<1x64x28x28xf16, {order = #NHWC}>
 
@@ -140,9 +141,9 @@ func @SkipEltwiseMulToNCE(%arg0: tensor<1x64x28x28xf16, {order = #NHWC}>, %arg1:
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
 // CHECK-LABEL: @SkipEltwiseSubToNCE
-func @SkipEltwiseSubToNCE(%arg0: tensor<1x64x28x28xf16, {order = #NHWC}>, %arg1: tensor<1x64x28x28xf16, {order = #NHWC}>)
+func.func @SkipEltwiseSubToNCE(%arg0: tensor<1x64x28x28xf16, {order = #NHWC}>, %arg1: tensor<1x64x28x28xf16, {order = #NHWC}>)
         -> tensor<1x64x28x28xf16, {order = #NHWC}> {
-    %0 = IE.Subtract(%arg0, %arg1) { auto_broadcast = "NUMPY" } :
+    %0 = IE.Subtract(%arg0, %arg1) { auto_broadcast = #IE.auto_broadcast_type<NUMPY> } :
         tensor<1x64x28x28xf16, {order = #NHWC}>, tensor<1x64x28x28xf16, {order = #NHWC}>
         -> tensor<1x64x28x28xf16, {order = #NHWC}>
 
@@ -150,7 +151,7 @@ func @SkipEltwiseSubToNCE(%arg0: tensor<1x64x28x28xf16, {order = #NHWC}>, %arg1:
 
     // CHECK-NOT:   VPU.NCE.Eltwise
 
-    // CHECK:       [[OUT:%.+]] = IE.Subtract(%arg0, %arg1) {auto_broadcast = "NUMPY"} :
+    // CHECK:       [[OUT:%.+]] = IE.Subtract(%arg0, %arg1) {auto_broadcast = #IE.auto_broadcast_type<NUMPY>} :
     // CHECK-SAME:      tensor<1x64x28x28xf16, {order = #NHWC}>, tensor<1x64x28x28xf16, {order = #NHWC}>
     // CHECK-SAME:      -> tensor<1x64x28x28xf16, {order = #NHWC}>
 
@@ -162,9 +163,9 @@ func @SkipEltwiseSubToNCE(%arg0: tensor<1x64x28x28xf16, {order = #NHWC}>, %arg1:
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
 // CHECK-LABEL: @SkipEltwiseAndToNCE
-func @SkipEltwiseAndToNCE(%arg0: tensor<1x64x28x28xf16, {order = #NHWC}>, %arg1: tensor<1x64x28x28xf16, {order = #NHWC}>)
+func.func @SkipEltwiseAndToNCE(%arg0: tensor<1x64x28x28xf16, {order = #NHWC}>, %arg1: tensor<1x64x28x28xf16, {order = #NHWC}>)
         -> tensor<1x64x28x28xf16, {order = #NHWC}> {
-    %0 = IE.And(%arg0, %arg1) { auto_broadcast = "NUMPY" } :
+    %0 = IE.And(%arg0, %arg1) { auto_broadcast = #IE.auto_broadcast_type<NUMPY> } :
         tensor<1x64x28x28xf16, {order = #NHWC}>, tensor<1x64x28x28xf16, {order = #NHWC}>
         -> tensor<1x64x28x28xf16, {order = #NHWC}>
 
@@ -172,7 +173,7 @@ func @SkipEltwiseAndToNCE(%arg0: tensor<1x64x28x28xf16, {order = #NHWC}>, %arg1:
 
     // CHECK-NOT:   VPU.NCE.Eltwise
 
-    // CHECK:       [[OUT:%.+]] = IE.And(%arg0, %arg1) {auto_broadcast = "NUMPY"} :
+    // CHECK:       [[OUT:%.+]] = IE.And(%arg0, %arg1) {auto_broadcast = #IE.auto_broadcast_type<NUMPY>} :
     // CHECK-SAME:      tensor<1x64x28x28xf16, {order = #NHWC}>, tensor<1x64x28x28xf16, {order = #NHWC}>
     // CHECK-SAME:      -> tensor<1x64x28x28xf16, {order = #NHWC}>
 
@@ -185,7 +186,7 @@ func @SkipEltwiseAndToNCE(%arg0: tensor<1x64x28x28xf16, {order = #NHWC}>, %arg1:
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
 // CHECK-LABEL: @ConvToNCE4channels
-func @ConvToNCE4channels(%arg0: tensor<1x4x16x16xf16, {order = #NHWC}>) -> tensor<1x16x16x16xf16, {order = #NHWC}> {
+func.func @ConvToNCE4channels(%arg0: tensor<1x4x16x16xf16, {order = #NHWC}>) -> tensor<1x16x16x16xf16, {order = #NHWC}> {
     %weights = const.Declare tensor<16x4x1x1xf16, {order = #NHWC}> =
         dense<1.000000e+00> : tensor<16x4x1x1xf16>, [#const.Reorder<#NHWC>]
     %bias = const.Declare tensor<1x16x1x1xf16> = dense<1.000000e+00> : tensor<1x16x1x1xf16>
@@ -201,9 +202,9 @@ func @ConvToNCE4channels(%arg0: tensor<1x4x16x16xf16, {order = #NHWC}>) -> tenso
 
     return %0 : tensor<1x16x16x16xf16, {order = #NHWC}>
 
-    // CHECK:       [[WEIGHTS:%.+]] = const.Declare tensor<16x1x1x16xf16, {order = #NHWC}> = dense<1.000000e+00> : tensor<16x4x1x1xf16>,
+    // CHECK-DAG:       [[WEIGHTS:%.+]] = const.Declare tensor<16x1x1x16xf16, {order = #NHWC}> = dense<1.000000e+00> : tensor<16x4x1x1xf16>,
     // CHECK-SAME:      [#const.Reorder<#NHWC>, #const.Reshape<[16, 1, 1, 4]>, #const.PadWithZero<[0, 0, 0, 0], [0, 0, 0, 12]>]
-    // CHECK:       [[WEIGHTS_TABLE:%.+]] = const.Declare tensor<16x1x1x4xsi32>
+    // CHECK-DAG:       [[WEIGHTS_TABLE:%.+]] = const.Declare tensor<16x1x1x4xsi32>
 
     // CHECK:       [[VAL0:%.+]] = VPU.NCE.Convolution(%arg0, [[WEIGHTS]], [[WEIGHTS_TABLE]])
     // CHECK-SAME:      pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64}
@@ -220,11 +221,11 @@ func @ConvToNCE4channels(%arg0: tensor<1x4x16x16xf16, {order = #NHWC}>) -> tenso
 
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
-!qElemType0 = type !quant.uniform<u8:f16, 0.078431372549019607>
-!qElemType1 = type !quant.uniform<u8:f16, 0.039215686274509803>
+!qElemType0 = !quant.uniform<u8:f16, 0.078431372549019607>
+!qElemType1 = !quant.uniform<u8:f16, 0.039215686274509803>
 
 // CHECK-LABEL: @AddWithDifferentScales
-func @AddWithDifferentScales(%arg0: tensor<1x16x1x2xui8, {order = #NHWC}>) -> tensor<1x16x1x2xf16, {order = #NHWC}> {
+func.func @AddWithDifferentScales(%arg0: tensor<1x16x1x2xui8, {order = #NHWC}>) -> tensor<1x16x1x2xf16, {order = #NHWC}> {
     %cst = const.Declare tensor<1x16x1x2x!qElemType0, {order = #NHWC}> =
         dense<1.000000e+00> : tensor<1x16x1x2xf32>, [
             #const.ConvertElemType<f16>,
@@ -238,12 +239,12 @@ func @AddWithDifferentScales(%arg0: tensor<1x16x1x2xui8, {order = #NHWC}>) -> te
     } : tensor<1x16x1x2xui8, {order = #NHWC}> -> tensor<1x16x1x2x!qElemType1, {order = #NHWC}>
 
     %1 = IE.Add(%0, %cst) {
-        auto_broadcast = "NUMPY"
+        auto_broadcast = #IE.auto_broadcast_type<NUMPY>
     } : tensor<1x16x1x2x!qElemType1, {order = #NHWC}>, tensor<1x16x1x2x!qElemType0, {order = #NHWC}> -> tensor<1x16x1x2xf16, {order = #NHWC}>
 
     return %1 : tensor<1x16x1x2xf16, {order = #NHWC}>
 
-    // CHECK:   [[ADD_WEIGHTS:%.*]] = const.Declare tensor<1x16x1x2x!qElemType0, {order = #NHWC}> =
+    // CHECK-DAG:   [[ADD_WEIGHTS:%.*]] = const.Declare tensor<1x16x1x2x!qElemType0, {order = #NHWC}> =
     // CHECK-SAME:  dense<1.000000e+00> : tensor<1x16x1x2xf32>, [
     // CHECK-SAME:    #const.ConvertElemType<f16>,
     // CHECK-SAME:    #const.ConvertElemType<ui8>,
@@ -280,10 +281,10 @@ func @AddWithDifferentScales(%arg0: tensor<1x16x1x2xui8, {order = #NHWC}>) -> te
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 #NWCH = affine_map<(d0, d1, d2, d3) -> (d0, d3, d1, d2)>
 
-!qElemType = type !quant.uniform<u8:f16, 1.000000e+00>
+!qElemType = !quant.uniform<u8:f16, 1.000000e+00>
 
 // CHECK-LABEL: @ConvertPermuteQuantize
-func @ConvertPermuteQuantize(%arg0: tensor<1x3x224x224xf16>) -> tensor<1x4x224x224x!qElemType, {order = #NHWC}> {
+func.func @ConvertPermuteQuantize(%arg0: tensor<1x3x224x224xf16>) -> tensor<1x4x224x224x!qElemType, {order = #NHWC}> {
     %0 = IE.PermuteQuantize(%arg0) {
         dstElemType = !qElemType,
         dst_order = #NHWC,
@@ -332,10 +333,10 @@ func @ConvertPermuteQuantize(%arg0: tensor<1x3x224x224xf16>) -> tensor<1x4x224x2
 
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
-!qElemType = type !quant.uniform<u8:f16, 1.000000e+00>
+!qElemType = !quant.uniform<u8:f16, 1.000000e+00>
 
 // CHECK-LABEL: @PermuteQuantizeDoesNotFitCMX
-func @PermuteQuantizeDoesNotFitCMX(%arg0: tensor<1x3x512x512xf16>) -> tensor<1x16x512x512x!qElemType, {order = #NHWC}> {
+func.func @PermuteQuantizeDoesNotFitCMX(%arg0: tensor<1x3x512x512xf16>) -> tensor<1x16x512x512x!qElemType, {order = #NHWC}> {
     %0 = IE.PermuteQuantize(%arg0) {
         dstElemType = !qElemType,
         dst_order = #NHWC,
@@ -384,10 +385,10 @@ func @PermuteQuantizeDoesNotFitCMX(%arg0: tensor<1x3x512x512xf16>) -> tensor<1x1
 
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
-!qElemType = type !quant.uniform<u8:f16, 1.000000e+00>
+!qElemType = !quant.uniform<u8:f16, 1.000000e+00>
 
 // CHECK-LABEL: @PermuteQuantizeStartPadsOverHeight
-func @PermuteQuantizeStartPadsOverHeight(%arg0: tensor<1x3x224x224xf16>) -> tensor<1x4x225x224x!qElemType, {order = #NHWC}> {
+func.func @PermuteQuantizeStartPadsOverHeight(%arg0: tensor<1x3x224x224xf16>) -> tensor<1x4x225x224x!qElemType, {order = #NHWC}> {
     %0 = IE.PermuteQuantize(%arg0) {
         dstElemType = !qElemType,
         dst_order = #NHWC,
@@ -417,10 +418,10 @@ func @PermuteQuantizeStartPadsOverHeight(%arg0: tensor<1x3x224x224xf16>) -> tens
 
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
-!qElemType = type !quant.uniform<u8:f16, 1.000000e+00>
+!qElemType = !quant.uniform<u8:f16, 1.000000e+00>
 
 // CHECK-LABEL: @PermuteQuantizeEndPadsOverHeight
-func @PermuteQuantizeEndPadsOverHeight(%arg0: tensor<1x3x224x224xf16>) -> tensor<1x4x225x224x!qElemType, {order = #NHWC}> {
+func.func @PermuteQuantizeEndPadsOverHeight(%arg0: tensor<1x3x224x224xf16>) -> tensor<1x4x225x224x!qElemType, {order = #NHWC}> {
     %0 = IE.PermuteQuantize(%arg0) {
         dstElemType = !qElemType,
         dst_order = #NHWC,
@@ -451,10 +452,10 @@ func @PermuteQuantizeEndPadsOverHeight(%arg0: tensor<1x3x224x224xf16>) -> tensor
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 #NCWH = affine_map<(d0, d1, d2, d3) -> (d0, d1, d3, d2)>
 
-!qElemType = type !quant.uniform<u8:f16, 1.000000e+00>
+!qElemType = !quant.uniform<u8:f16, 1.000000e+00>
 
 // CHECK-LABEL: @PermuteQuantizeUnsupportedInputLayout
-func @PermuteQuantizeUnsupportedInputLayout(%arg0: tensor<1x3x224x224xf16, {order = #NCWH}>) -> tensor<1x4x224x224x!qElemType, {order = #NHWC}> {
+func.func @PermuteQuantizeUnsupportedInputLayout(%arg0: tensor<1x3x224x224xf16, {order = #NCWH}>) -> tensor<1x4x224x224x!qElemType, {order = #NHWC}> {
     %0 = IE.PermuteQuantize(%arg0) {
         dstElemType = !qElemType,
         dst_order = #NHWC,
@@ -485,10 +486,10 @@ func @PermuteQuantizeUnsupportedInputLayout(%arg0: tensor<1x3x224x224xf16, {orde
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 #NWCH = affine_map<(d0, d1, d2, d3) -> (d0, d3, d1, d2)>
 
-!qElemType = type !quant.uniform<u8:f16, 1.000000e+00>
+!qElemType = !quant.uniform<u8:f16, 1.000000e+00>
 
 // CHECK-LABEL: @PermuteQuantizeUnsupportedOutputLayout
-func @PermuteQuantizeUnsupportedOutputLayout(%arg0: tensor<1x3x224x224xf16>) -> tensor<1x4x224x224x!qElemType, {order = #NWCH}> {
+func.func @PermuteQuantizeUnsupportedOutputLayout(%arg0: tensor<1x3x224x224xf16>) -> tensor<1x4x224x224x!qElemType, {order = #NWCH}> {
     %0 = IE.PermuteQuantize(%arg0) {
         dstElemType = !qElemType,
         dst_order = #NWCH,
@@ -518,10 +519,10 @@ func @PermuteQuantizeUnsupportedOutputLayout(%arg0: tensor<1x3x224x224xf16>) -> 
 
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
-!qElemType = type !quant.uniform<u8:f16, 1.000000e+00>
+!qElemType = !quant.uniform<u8:f16, 1.000000e+00>
 
 // CHECK-LABEL: @PermuteQuantizeUnsupportedShape
-func @PermuteQuantizeUnsupportedShape(%arg0: tensor<1x3x225x225xf16>) -> tensor<1x4x225x225x!qElemType, {order = #NHWC}> {
+func.func @PermuteQuantizeUnsupportedShape(%arg0: tensor<1x3x225x225xf16>) -> tensor<1x4x225x225x!qElemType, {order = #NHWC}> {
     %0 = IE.PermuteQuantize(%arg0) {
         dstElemType = !qElemType,
         dst_order = #NHWC,
@@ -551,7 +552,7 @@ func @PermuteQuantizeUnsupportedShape(%arg0: tensor<1x3x225x225xf16>) -> tensor<
 
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
-func @ClampLowInF16PReLU(%arg0: tensor<1x16x128x128xf16, {order = #NHWC}>) -> tensor<1x64x64x64xf16, {order = #NHWC}> {
+func.func @ClampLowInF16PReLU(%arg0: tensor<1x16x128x128xf16, {order = #NHWC}>) -> tensor<1x64x64x64xf16, {order = #NHWC}> {
     %WEIGHTS = const.Declare tensor<64x16x3x3xf16, {order = #NHWC}> = dense<1.0> : tensor<64x16x3x3xf16, {order = #NHWC}>
     %CONV = IE.Convolution(%arg0, %WEIGHTS) {
         dilations = [1, 1],

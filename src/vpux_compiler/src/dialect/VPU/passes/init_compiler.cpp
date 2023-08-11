@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/VPU/passes.hpp"
 
 using namespace vpux;
@@ -18,7 +16,7 @@ namespace {
 class InitCompilerPass final : public VPU::InitCompilerBase<InitCompilerPass> {
 public:
     InitCompilerPass() = default;
-    InitCompilerPass(VPU::ArchKind arch, Optional<VPU::CompilationMode> compilationMode, Optional<int> numOfDPUGroups,
+    InitCompilerPass(VPU::ArchKind arch, VPU::CompilationMode compilationMode, Optional<int> numOfDPUGroups,
                      Optional<int> numOfDMAPorts, Optional<int> ddrHeapSize, Logger log);
 
 private:
@@ -27,13 +25,14 @@ private:
 
 private:
     VPU::ArchKind _arch = VPU::ArchKind::UNKNOWN;
-    Optional<VPU::CompilationMode> _compilationMode;
+    VPU::CompilationMode _compilationMode = VPU::CompilationMode::DefaultHW;
     Optional<int> _numOfDPUGroups;
     Optional<int> _numOfDMAPorts;
     Optional<int> _ddrHeapSize;
+    bool _allowCustomValues = false;
 };
 
-InitCompilerPass::InitCompilerPass(VPU::ArchKind arch, Optional<VPU::CompilationMode> compilationMode,
+InitCompilerPass::InitCompilerPass(VPU::ArchKind arch, VPU::CompilationMode compilationMode,
                                    Optional<int> numOfDPUGroups, Optional<int> numOfDMAPorts, Optional<int> ddrHeapSize,
                                    Logger log)
         : _arch(arch),
@@ -53,15 +52,16 @@ mlir::LogicalResult InitCompilerPass::initializeOptions(StringRef options) {
     VPUX_THROW_UNLESS(archStr.hasValue(), "Unknown VPU architecture : '{0}'", archOpt.getValue());
     _arch = archStr.getValue();
 
-    if (compilationModeOpt.hasValue()) {
-        auto compilationModeStr = VPU::symbolizeEnum<VPU::CompilationMode>(compilationModeOpt.getValue());
-        VPUX_THROW_UNLESS(compilationModeStr.hasValue(), "Unknown compilation mode: '{0}'",
-                          compilationModeOpt.getValue());
-        _compilationMode = compilationModeStr.getValue();
-    }
+    auto compilationModeStr = VPU::symbolizeEnum<VPU::CompilationMode>(compilationModeOpt.getValue());
+    VPUX_THROW_UNLESS(compilationModeStr.hasValue(), "Unknown compilation mode: '{0}'", compilationModeOpt.getValue());
+    _compilationMode = compilationModeStr.getValue();
 
     if (numberOfDPUGroupsOpt.hasValue()) {
         _numOfDPUGroups = numberOfDPUGroupsOpt.getValue();
+    }
+
+    if (allowCustomValues.hasValue()) {
+        _allowCustomValues = allowCustomValues.getValue();
     }
 
     return mlir::success();
@@ -71,11 +71,13 @@ void InitCompilerPass::safeRunOnModule() {
     auto module = getOperation();
 
     _log.trace("Set VPU architecture to {0}", _arch);
-    VPU::setArch(module, _arch, _numOfDPUGroups, _numOfDMAPorts, _ddrHeapSize);
+    VPU::setArch(module, _arch, _numOfDPUGroups, _numOfDMAPorts, _ddrHeapSize, _allowCustomValues);
 
-    if (_compilationMode.hasValue()) {
-        _log.trace("Set compilation mode to {0}", _compilationMode.getValue());
-        VPU::setCompilationMode(module, _compilationMode.getValue());
+    VPUX_THROW_WHEN(!_allowCustomValues && VPU::hasCompilationMode(module),
+                    "CompilationMode is already defined, probably you run '--init-compiler' twice");
+    if (!VPU::hasCompilationMode(module)) {
+        _log.trace("Set compilation mode to {0}", _compilationMode);
+        VPU::setCompilationMode(module, _compilationMode);
     }
 }
 
@@ -89,7 +91,7 @@ std::unique_ptr<mlir::Pass> vpux::VPU::createInitCompilerPass() {
     return std::make_unique<InitCompilerPass>();
 }
 
-std::unique_ptr<mlir::Pass> vpux::VPU::createInitCompilerPass(ArchKind arch, Optional<CompilationMode> compilationMode,
+std::unique_ptr<mlir::Pass> vpux::VPU::createInitCompilerPass(ArchKind arch, CompilationMode compilationMode,
                                                               Optional<int> numOfDPUGroups, Optional<int> numOfDMAPorts,
                                                               Optional<int> ddrHeapSize, Logger log) {
     return std::make_unique<InitCompilerPass>(arch, compilationMode, numOfDPUGroups, numOfDMAPorts, ddrHeapSize, log);

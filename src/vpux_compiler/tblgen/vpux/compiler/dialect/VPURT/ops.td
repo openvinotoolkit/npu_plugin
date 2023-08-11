@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #ifndef VPUX_COMPILER_DIALECT_VPURT_OPS
 #define VPUX_COMPILER_DIALECT_VPURT_OPS
 
@@ -107,9 +105,7 @@ def VPURT_DeclareBufferOp :
         >
     ];
 
-    let verifier = [{
-        return vpux::VPURT::verifyOp(*this);
-    }];
+    let hasVerifier = 1;
 
     let assemblyFormat = [{
         $section ($sectionIndex^)? ` ``<` $byteOffset `>` attr-dict `->` type(results)
@@ -212,10 +208,6 @@ def VPURT_TaskOp :
         SizedRegion<1>:$body
     );
 
-    let verifier = [{
-        return vpux::VPURT::verifyTaskOp(*this);
-    }];
-
     let builders = [
         OpBuilder<(ins
             "mlir::ValueRange":$waitBarriers, "mlir::ValueRange":$updateBarriers
@@ -241,6 +233,8 @@ def VPURT_TaskOp :
         attr-dict-with-keyword
         $body
     }];
+
+    let hasVerifier = 1;
 }
 
 //

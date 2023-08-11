@@ -1,0 +1,1 @@
+https://af01p-ir.devtools.intel.com/artifactory/movidius-meteor-lake-vpu-sw-ir-local/nightly/integration/vpubin/main/20230328_2101/release/headers/

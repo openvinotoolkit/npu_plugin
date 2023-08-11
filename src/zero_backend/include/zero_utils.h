@@ -19,7 +19,7 @@ std::string result_to_string(const ze_result_t result);
 
 static inline void throwOnFail(const std::string& step, const ze_result_t result) {
     if (ZE_RESULT_SUCCESS != result) {
-        IE_THROW() << "throwOnFail: " << step << " result: " << result_to_string(result) << ", code 0x" << std::hex
+        IE_THROW() << "L0 " << step << " result: " << result_to_string(result) << ", code 0x" << std::hex
                    << uint64_t(result);
     }
 }
@@ -39,19 +39,29 @@ static inline ze_command_queue_priority_t toZeQueuePriority(const ov::hint::Prio
 
 static inline std::size_t precisionToSize(const ze_graph_argument_precision_t val) {
     switch (val) {
-    case ZE_GRAPH_ARGUMENT_PRECISION_FP32:
+    case ZE_GRAPH_ARGUMENT_PRECISION_INT4:
         return 4;
-    case ZE_GRAPH_ARGUMENT_PRECISION_FP16:
-        return 2;
-    case ZE_GRAPH_ARGUMENT_PRECISION_UINT16:
-        return 2;
-    case ZE_GRAPH_ARGUMENT_PRECISION_UINT8:
-        return 1;
-    case ZE_GRAPH_ARGUMENT_PRECISION_INT32:
+    case ZE_GRAPH_ARGUMENT_PRECISION_UINT4:
         return 4;
-    case ZE_GRAPH_ARGUMENT_PRECISION_INT16:
-        return 2;
     case ZE_GRAPH_ARGUMENT_PRECISION_INT8:
+        return 8;
+    case ZE_GRAPH_ARGUMENT_PRECISION_UINT8:
+        return 8;
+    case ZE_GRAPH_ARGUMENT_PRECISION_INT16:
+        return 16;
+    case ZE_GRAPH_ARGUMENT_PRECISION_UINT16:
+        return 16;
+    case ZE_GRAPH_ARGUMENT_PRECISION_INT32:
+        return 32;
+    case ZE_GRAPH_ARGUMENT_PRECISION_UINT32:
+        return 32;
+    case ZE_GRAPH_ARGUMENT_PRECISION_BF16:
+        return 16;
+    case ZE_GRAPH_ARGUMENT_PRECISION_FP16:
+        return 16;
+    case ZE_GRAPH_ARGUMENT_PRECISION_FP32:
+        return 32;
+    case ZE_GRAPH_ARGUMENT_PRECISION_BIN:
         return 1;
     default:
         IE_THROW() << "precisionToSize switch->default reached";
@@ -60,6 +70,10 @@ static inline std::size_t precisionToSize(const ze_graph_argument_precision_t va
 
 static inline ze_graph_argument_precision_t getZePrecision(const InferenceEngine::Precision precision) {
     switch (precision) {
+    case InferenceEngine::Precision::I4:
+        return ZE_GRAPH_ARGUMENT_PRECISION_INT4;
+    case InferenceEngine::Precision::U4:
+        return ZE_GRAPH_ARGUMENT_PRECISION_UINT4;
     case InferenceEngine::Precision::I8:
         return ZE_GRAPH_ARGUMENT_PRECISION_INT8;
     case InferenceEngine::Precision::U8:
@@ -70,6 +84,10 @@ static inline ze_graph_argument_precision_t getZePrecision(const InferenceEngine
         return ZE_GRAPH_ARGUMENT_PRECISION_UINT16;
     case InferenceEngine::Precision::I32:
         return ZE_GRAPH_ARGUMENT_PRECISION_INT32;
+    case InferenceEngine::Precision::U32:
+        return ZE_GRAPH_ARGUMENT_PRECISION_UINT32;
+    case InferenceEngine::Precision::BF16:
+        return ZE_GRAPH_ARGUMENT_PRECISION_BF16;
     case InferenceEngine::Precision::FP16:
         return ZE_GRAPH_ARGUMENT_PRECISION_FP16;
     case InferenceEngine::Precision::FP32:
@@ -113,7 +131,8 @@ static inline std::size_t getSizeIOBytes(const ze_graph_argument_properties_t& a
     for (std::size_t i = 0; i < layoutCount(argument.deviceLayout); ++i) {
         num_elements *= argument.dims[i];
     }
-    const std::size_t size_in_bytes = num_elements * precisionToSize(argument.devicePrecision);
+    const std::size_t size_in_bits = num_elements * precisionToSize(argument.devicePrecision);
+    const std::size_t size_in_bytes = (size_in_bits + (CHAR_BIT - 1)) / CHAR_BIT;
     return size_in_bytes;
 }
 

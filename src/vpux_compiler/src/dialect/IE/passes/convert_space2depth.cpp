@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/IE/passes.hpp"
 #include "vpux/compiler/dialect/VPUIP/convert_to_dma_utils.hpp"
 #include "vpux/compiler/dialect/VPUIP/dma_descriptor_generator.hpp"
@@ -46,7 +44,7 @@ public:
     }
 
 public:
-    mlir::LogicalResult matchAndRewrite(IE::SpaceToDepthOp origOp, mlir::PatternRewriter& rewriter) const;
+    mlir::LogicalResult matchAndRewrite(IE::SpaceToDepthOp origOp, mlir::PatternRewriter& rewriter) const override;
 
 private:
     Logger _log;
@@ -128,7 +126,7 @@ mlir::LogicalResult ConvertSpace2DepthLayerPass::Space2DepthLayerConverter::matc
 void ConvertSpace2DepthLayerPass::safeRunOnFunc() {
     auto& ctx = getContext();
 
-    auto func = getFunction();
+    auto func = getOperation();
 
     mlir::ConversionTarget target(ctx);
     target.addDynamicallyLegalOp<IE::SpaceToDepthOp>([&](IE::SpaceToDepthOp spaceToDepthOp) {

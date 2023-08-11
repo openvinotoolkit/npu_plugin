@@ -1,14 +1,15 @@
 //
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
+
 // RUN: vpux-opt --split-input-file --init-compiler="vpu-arch=%arch%" --canonicalize %s | FileCheck %s
 // REQUIRES: arch-VPUX30XX || arch-VPUX37XX
 
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
 // CHECK-LABEL: @DepthConvCannonicalize
-func @DepthConvCannonicalize(%arg0: tensor<1x16x40x80xf16, {order = #NHWC}>) -> tensor<1x16x37x73xf16, {order = #NHWC}> {
+func.func @DepthConvCannonicalize(%arg0: tensor<1x16x40x80xf16, {order = #NHWC}>) -> tensor<1x16x37x73xf16, {order = #NHWC}> {
     %cst0 = const.Declare tensor<16x1x4x8xf16, {order = #NHWC}> =
         dense<1.000000e+00> : tensor<16x1x4x8xf16>, [#const.Reorder<#NHWC>]
     %cst1 = const.Declare tensor<16x1x1x4xsi32> =
@@ -29,8 +30,8 @@ func @DepthConvCannonicalize(%arg0: tensor<1x16x40x80xf16, {order = #NHWC}>) -> 
 
     return %0 : tensor<1x16x37x73xf16, {order = #NHWC}>
 
-    // CHECK:       [[CST0:%.+]] = const.Declare tensor<16x4x8xf16> = dense<1.000000e+00> : tensor<16x1x4x8xf16>, [#const.Reorder<#NHWC>, #const.Reorder<#NCHW>, #const.Reshape<[16, 4, 8]>]
-    // CHECK:       [[CST:%.+]] = const.Declare tensor<16x1x1x4xsi32> = dense<1> : tensor<16x1x1x4xsi32>
+    // CHECK-DAG:       [[CST0:%.+]] = const.Declare tensor<16x4x8xf16> = dense<1.000000e+00> : tensor<16x1x4x8xf16>, [#const.Reorder<#NHWC>, #const.Reorder<#NCHW>, #const.Reshape<[16, 4, 8]>]
+    // CHECK-DAG:       [[CST:%.+]] = const.Declare tensor<16x1x1x4xsi32> = dense<1> : tensor<16x1x1x4xsi32>
 
 
     // CHECK:       [[VAL0:%.+]] = EMU.NCEClusterTask

@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/utils/asm.hpp"
 
 #include "vpux/utils/core/error.hpp"
@@ -209,24 +207,25 @@ void vpux::printGroupOfOperands(mlir::OpAsmPrinter& p, mlir::Block* entry, mlir:
 };
 
 mlir::ParseResult vpux::parseGroupOfOperands(mlir::OpAsmParser& parser, mlir::OperationState& result,
-                                             SmallVector<mlir::OpAsmParser::OperandType>& blockArgs,
+                                             SmallVector<mlir::OpAsmParser::Argument>& blockArgs,
                                              SmallVector<mlir::Type>& blockTypes, mlir::StringRef groupName,
                                              int32_t& count) {
     if (parser.parseKeyword(groupName)) {
         return mlir::failure();
     }
 
-    SmallVector<mlir::OpAsmParser::OperandType> operands;
+    SmallVector<mlir::OpAsmParser::UnresolvedOperand> operands;
     SmallVector<mlir::Type> operandRawTypes;
 
     // Parse a single instance of `%operand as %blockArg : <type>`.
     auto parseOperands = [&]() -> mlir::ParseResult {
         if (parser.parseOperand(operands.emplace_back()) || parser.parseKeyword("as") ||
-            parser.parseOperand(blockArgs.emplace_back()) || parser.parseColonType(blockTypes.emplace_back())) {
+            parser.parseArgument(blockArgs.emplace_back()) || parser.parseColonType(blockTypes.emplace_back())) {
             return mlir::failure();
         }
 
         operandRawTypes.push_back(mlir::Type{});
+        blockArgs.back().type = blockTypes.back();
         count++;
         return mlir::success();
     };

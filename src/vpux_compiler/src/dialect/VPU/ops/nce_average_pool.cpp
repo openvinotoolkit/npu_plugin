@@ -3,20 +3,16 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
-#include "vpux/compiler/dialect/VPU/ops.hpp"
-#include "vpux/compiler/dialect/VPU/utils/const_utils.hpp"
-
 #include "vpux/compiler/core/attributes/shape.hpp"
 #include "vpux/compiler/core/layers.hpp"
 #include "vpux/compiler/dialect/VPU/nce_invariant.hpp"
 #include "vpux/compiler/dialect/VPU/nce_sparsity.hpp"
+#include "vpux/compiler/dialect/VPU/ops.hpp"
 #include "vpux/compiler/dialect/VPU/utils/const_utils.hpp"
 #include "vpux/compiler/dialect/VPU/utils/generate_tiling.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
+#include "vpux/compiler/utils/empty_node.hpp"
 #include "vpux/compiler/utils/error.hpp"
-#include "vpux/compiler/utils/rewriter.hpp"
 
 #include <ngraph/validation_util.hpp>
 
@@ -29,9 +25,17 @@ using namespace vpux;
 //
 
 bool vpux::VPU::NCEAveragePoolOp::fitIntoCMX(vpux::NDTypeInterface input, vpux::NDTypeInterface output) {
-    return vpux::VPU::calculateAlignedBuffersMemoryRequirement(
-                   getArch(getOperation()), {input.getTotalAllocSize(), output.getTotalAllocSize()}) <=
-           getTotalCMXSize(getOperation());
+    return fitIntoCMX(input, output, Byte(0));
+}
+
+bool vpux::VPU::NCEAveragePoolOp::fitIntoCMX(vpux::NDTypeInterface input, vpux::NDTypeInterface output,
+                                             Byte reservedMem) {
+    auto totalAvailableCMXSize = reservedMem.count() == 0 ? getTotalCMXSize(getOperation()).count()
+                                                          : getTotalCMXFragmentationAwareSize(getOperation()).count();
+    SmallVector<Byte> buffers = {input.getTotalAllocSize(), output.getTotalAllocSize()};
+    return vpux::VPU::calculateAlignedBuffersMemoryRequirement(getArch(getOperation()), buffers).count() +
+                   reservedMem.count() <=
+           totalAvailableCMXSize;
 }
 
 //
@@ -79,7 +83,7 @@ bool vpux::VPU::NCEAveragePoolOp::isSupported(IE::AvgPoolOp op, LogCb logCb, boo
 
     if (checkLayout) {
         const auto arch = getArch(op);
-        if (!NCEInvariant::checkLayouts(op->getOperands(), op->getResult(0), arch, 1, logCb)) {
+        if (!NCEInvariant::checkLayouts(op->getOperandTypes(), op->getResultTypes(), arch, 1, logCb)) {
             return false;
         }
     }
@@ -88,28 +92,29 @@ bool vpux::VPU::NCEAveragePoolOp::isSupported(IE::AvgPoolOp op, LogCb logCb, boo
 }
 
 //
-// verifyOp
+// verify
 //
 
-mlir::LogicalResult vpux::VPU::verifyOp(NCEAveragePoolOp op) {
+mlir::LogicalResult vpux::VPU::NCEAveragePoolOp::verify() {
+    const auto op = getOperation();
     const auto arch = getArch(op);
 
     const auto logCb = [op](const formatv_object_base& msg) {
         (void)errorAt(op, "{0}", msg.str());
     };
 
-    const auto kernelSize = Shape(parseIntArrayAttr<int64_t>(op.kernel_size()));
+    const auto kernelSize = Shape(parseIntArrayAttr<int64_t>(kernel_size()));
     const auto KY = kernelSize[Dims4D::Kernel::Y];
     const auto KX = kernelSize[Dims4D::Kernel::X];
 
-    const auto kernelStrides = Shape(parseIntArrayAttr<int64_t>(op.strides()));
+    const auto kernelStrides = Shape(parseIntArrayAttr<int64_t>(strides()));
     const auto SY = kernelStrides[Dims4D::Strides::Y];
     const auto SX = kernelStrides[Dims4D::Strides::X];
 
-    const auto padTop = op.pad().top().getValue().getSExtValue();
-    const auto padBottom = op.pad().bottom().getValue().getSExtValue();
-    const auto padLeft = op.pad().left().getValue().getSExtValue();
-    const auto padRight = op.pad().right().getValue().getSExtValue();
+    const auto padTop = pad().top().getValue().getSExtValue();
+    const auto padBottom = pad().bottom().getValue().getSExtValue();
+    const auto padLeft = pad().left().getValue().getSExtValue();
+    const auto padRight = pad().right().getValue().getSExtValue();
 
     if (!NCEInvariant::isAttrsSupported(arch, KY, KX, SY, SX, padTop, padBottom, padLeft, padRight, logCb)) {
         return mlir::failure();
@@ -126,7 +131,7 @@ mlir::LogicalResult vpux::VPU::NCEAveragePoolOp::inferReturnTypes(
         mlir::MLIRContext* ctx, mlir::Optional<mlir::Location> optLoc, mlir::ValueRange operands,
         mlir::DictionaryAttr attrs, mlir::RegionRange /*regions*/,
         mlir::SmallVectorImpl<mlir::Type>& inferredReturnTypes) {
-    const auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
+    const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
     NCEAveragePoolOpAdaptor op(operands, attrs);
     if (mlir::failed(op.verify(loc))) {
@@ -147,7 +152,7 @@ mlir::LogicalResult vpux::VPU::NCEAveragePoolOp::inferReturnTypes(
     const auto dataPaddingAbove = ngraph::CoordinateDiff({padBottom, padRight});
 
     const auto outputShapeNG = ngraph::infer_batched_pooling_forward(
-            nullptr, ngraph::Shape(inShape.begin(), inShape.end()), dataPaddingBelow, dataPaddingAbove,
+            EmptyNode::instance(), ngraph::Shape(inShape.begin(), inShape.end()), dataPaddingBelow, dataPaddingAbove,
             ngraph::Shape(windowShape.begin(), windowShape.end()),
             ngraph::Strides(windowStrides.begin(), windowStrides.end()), /*is_window_all_in_padding_allowed=*/true,
             /*ceil_mode=*/false);
@@ -225,6 +230,10 @@ mlir::LogicalResult vpux::VPU::NCEAveragePoolOp::verifyInputType(vpux::NDTypeInt
                                                                           getInputChannelAlignment(), false));
 }
 
+bool vpux::VPU::NCEAveragePoolOp::isVFSupported() {
+    return vpux::VPU::isVFNCESupported(*this);
+}
+
 //
 // serialize
 //
@@ -238,14 +247,21 @@ EMU::BlobWriter::SpecificTask vpux::VPU::NCEAveragePoolOp::serialize(EMU::BlobWr
 //
 
 vpux::VPU::SparsitySupport vpux::VPU::NCEAveragePoolOp::sparsitySupport() {
-    using vpux::VPU::SparsitySupport;
-    const auto arch = getArch(this->getOperation());
+    // Super-dense mode does not support ODU sparsity
+    const auto arch = getArch(getOperation());
+    const auto outputType = output().getType().cast<vpux::NDTypeInterface>();
+    auto excludeMode = VPU::NCESparsity::bitwiseNot(VPU::SparsitySupport::NONE);
+    if (VPU::NCESparsity::isSuperdenseRequired(arch, outputType.getDimsOrder(), outputType.getShape(),
+                                               outputType.getElementType())) {
+        excludeMode = VPU::NCESparsity::bitwiseNot(VPU::SparsitySupport::SPARSE_OUTPUTS);
+    }
+
     switch (arch) {
     case VPU::ArchKind::VPUX30XX:
     case VPU::ArchKind::VPUX311X:
         VPUX_THROW("NCEAveragePoolOp is not supported for {0}", arch);
     case VPU::ArchKind::VPUX37XX:
-        return SparsitySupport::SPARSE_OUTPUTS;
+        return VPU::SparsitySupport::SPARSE_OUTPUTS & excludeMode;
     default:
         VPUX_THROW("Unknown sparsity support mode for {0}", arch);
     }

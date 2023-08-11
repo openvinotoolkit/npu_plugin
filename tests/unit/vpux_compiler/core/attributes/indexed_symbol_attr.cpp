@@ -13,7 +13,7 @@
 #include "vpux/compiler/init.hpp"
 
 #include <mlir/IR/MLIRContext.h>
-#include <mlir/Parser.h>
+#include <mlir/Parser/Parser.h>
 
 #include <gtest/gtest.h>
 
@@ -84,7 +84,7 @@ TEST(MLIR_IndexedSymbolAttr, CheckMemoryResourceAttr) {
 
     constexpr llvm::StringLiteral inputIR = R"(
         module @test {
-            func @main(%arg0: memref<1x8x20x20xf16, @DDR>, %arg1: memref<1x8x20x20xf16, @DDR>) -> memref<1x8x20x20xf16, @DDR> {
+            func.func @main(%arg0: memref<1x8x20x20xf16, @DDR>, %arg1: memref<1x8x20x20xf16, @DDR>) -> memref<1x8x20x20xf16, @DDR> {
                 %0 = memref.alloc(): memref<1x8x20x20xf16, [@CMX_NN, 0]>
                 %1 = VPUIP.Copy inputs(%arg0 : memref<1x8x20x20xf16, @DDR>) outputs(%0 : memref<1x8x20x20xf16, [@CMX_NN, 0]>) -> memref<1x8x20x20xf16, [@CMX_NN, 0]>
                 %2 = VPUIP.Copy inputs(%0 : memref<1x8x20x20xf16, [@CMX_NN, 0]>) outputs(%arg1 : memref<1x8x20x20xf16, @DDR>) -> memref<1x8x20x20xf16, @DDR>
@@ -94,10 +94,10 @@ TEST(MLIR_IndexedSymbolAttr, CheckMemoryResourceAttr) {
         }
     )";
 
-    auto module = mlir::parseSourceString(inputIR, &ctx);
+    auto module = mlir::parseSourceString<mlir::ModuleOp>(inputIR, &ctx);
     ASSERT_TRUE(module.get() != nullptr);
 
-    auto func = module.get().lookupSymbol<mlir::FuncOp>("main");
+    auto func = module.get().lookupSymbol<mlir::func::FuncOp>("main");
     ASSERT_TRUE(func != nullptr);
 
     const auto checkMemSpace = [](vpux::IndexedSymbolAttr indexedSymAttr) {
@@ -143,7 +143,7 @@ TEST(MLIR_IndexedSymbolAttr, CheckExecutorResourceAttr) {
             }
             IE.ExecutorResource 1 of @DMA_NN
 
-            func @main(%arg0: memref<1x16x62x62xf16, #NHWC>,
+            func.func @main(%arg0: memref<1x16x62x62xf16, #NHWC>,
                         %arg1: memref<1x48x60x60xf16, #NHWC>) -> memref<1x48x60x60xf16, #NHWC> {
                 %cst = const.Declare memref<48x16x3x3xf16, #NHWC> = dense<1.000000e+00> : tensor<48x16x3x3xf32>, [#const.ConvertElemType<f16>, #const.Reorder<#NHWC>]
                 %0 = VPUIP.StaticAlloc<0> -> memref<1x16x62x62xf16, #NHWC, @CMX_NN>
@@ -200,10 +200,10 @@ TEST(MLIR_IndexedSymbolAttr, CheckExecutorResourceAttr) {
         }
     )";
 
-    auto module = mlir::parseSourceString(inputIR, &ctx);
+    auto module = mlir::parseSourceString<mlir::ModuleOp>(inputIR, &ctx);
     ASSERT_TRUE(module.get() != nullptr);
 
-    auto func = module.get().lookupSymbol<mlir::FuncOp>("main");
+    auto func = module.get().lookupSymbol<mlir::func::FuncOp>("main");
     ASSERT_TRUE(func != nullptr);
 
     for (auto& op : func.getOps()) {

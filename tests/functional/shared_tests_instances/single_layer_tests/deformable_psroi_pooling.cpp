@@ -1,4 +1,4 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation
 // SPDX-License-Identifier: Apache 2.0
 //
 
@@ -11,12 +11,15 @@
 
 namespace LayerTestsDefinitions {
 
-class KmbDeformablePSROIPoolingLayerTest :
+class VPUXDeformablePSROIPoolingLayerTest :
         public DeformablePSROIPoolingLayerTest,
         virtual public LayerTestsUtils::KmbLayerTestsCommon {};
 
-TEST_P(KmbDeformablePSROIPoolingLayerTest, CompareWithRefs_MLIR) {
-    useCompilerMLIR();
+class VPUXDeformablePSROIPoolingLayerTest_VPU3700 : public VPUXDeformablePSROIPoolingLayerTest {};
+
+TEST_P(VPUXDeformablePSROIPoolingLayerTest_VPU3700, HW) {
+    setPlatformVPU3700();
+    setDefaultHardwareModeMLIR();
     Run();
 }
 
@@ -43,8 +46,9 @@ const auto deformablePSROICases_test_params =
                            ::testing::Values(InferenceEngine::Precision::FP32),            // Net precision
                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));  // Device name
 
-INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_TestsDeformablePSROIPooling, KmbDeformablePSROIPoolingLayerTest,
-                         deformablePSROICases_test_params, KmbDeformablePSROIPoolingLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_TestsDeformablePSROIPooling, VPUXDeformablePSROIPoolingLayerTest_VPU3700,
+                         deformablePSROICases_test_params,
+                         VPUXDeformablePSROIPoolingLayerTest_VPU3700::getTestCaseName);
 
 const auto deformablePSROIParams_advanced =
         ::testing::Combine(::testing::ValuesIn(std::vector<std::vector<size_t>>{{1, 441, 8, 8}}),  // data input shape
@@ -62,9 +66,9 @@ const auto deformablePSROICases_test_params_advanced =
                            ::testing::Values(InferenceEngine::Precision::FP32),            // Net precision
                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));  // Device name
 
-INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_TestsDeformablePSROIPooling_advanced, KmbDeformablePSROIPoolingLayerTest,
-                         deformablePSROICases_test_params_advanced,
-                         KmbDeformablePSROIPoolingLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_TestsDeformablePSROIPooling_advanced,
+                         VPUXDeformablePSROIPoolingLayerTest_VPU3700, deformablePSROICases_test_params_advanced,
+                         VPUXDeformablePSROIPoolingLayerTest_VPU3700::getTestCaseName);
 
 const auto deformablePSROIParams_advanced1 =
         ::testing::Combine(::testing::ValuesIn(std::vector<std::vector<size_t>>{{1, 441, 8, 8}}),  // data input shape
@@ -82,8 +86,8 @@ const auto deformablePSROICases_test_params_advanced1 =
                            ::testing::Values(InferenceEngine::Precision::FP32),            // Net precision
                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));  // Device name
 
-INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_TestsDeformablePSROIPooling_advanced1, KmbDeformablePSROIPoolingLayerTest,
-                         deformablePSROICases_test_params_advanced1,
-                         KmbDeformablePSROIPoolingLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_TestsDeformablePSROIPooling_advanced1,
+                         VPUXDeformablePSROIPoolingLayerTest_VPU3700, deformablePSROICases_test_params_advanced1,
+                         VPUXDeformablePSROIPoolingLayerTest_VPU3700::getTestCaseName);
 
 }  // namespace

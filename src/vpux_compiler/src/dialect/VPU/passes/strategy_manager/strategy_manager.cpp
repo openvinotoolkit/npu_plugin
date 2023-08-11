@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/VPU/strategy_manager.hpp"
 #include <llvm/ADT/TypeSwitch.h>
 #include <unordered_map>
@@ -12,7 +10,7 @@
 using namespace vpux;
 using namespace VPU;
 
-StrategyManager::StrategyManager(mlir::FuncOp func, Logger log)
+StrategyManager::StrategyManager(mlir::func::FuncOp func, Logger log)
         : _func(func), _log(log), _costModel(func, log), _optimizer(func, log) {
 }
 
@@ -36,6 +34,7 @@ void StrategyManager::assignMultiClusterStrategy() {
     };
 
     const auto callback = [&](mlir::Operation* op) {
+        _log.trace("Getting strategy for op {0}", op->getName());
         llvm::TypeSwitch<mlir::Operation*, void>(op)
                 .Case<NCEMaxPoolOp>([&](NCEMaxPoolOp origOp) {
                     auto layerStrategyChecker = LayerStrategyCheckerFactory::instance().get(origOp->getName());
@@ -82,6 +81,22 @@ void StrategyManager::assignMultiClusterStrategy() {
                                    DimsOrder::fromValue(origOp.input()));
                     }
                 })
+                .Case<NCECompressConvolutionOp>([&](NCECompressConvolutionOp origOp) {
+                    auto layerStrategyChecker = LayerStrategyCheckerFactory::instance().get(origOp->getName());
+                    if (DimsOrder::fromValue(origOp.input()) == DimsOrder::NHWC) {
+                        if (layerStrategyChecker->isOperationSplitOverHeightCompatible(origOp.getOperation())) {
+                            setLayerStrategy(VPU::MultiClusterStrategy::SplitOverHeightOverlapped,
+                                             origOp.getOperation());
+                        } else {
+                            auto bestStrategy =
+                                    _costModel.getOptimalLayerStrategy(origOp.getOperation(), layerStrategyChecker);
+                            setLayerStrategy(bestStrategy, origOp.getOperation());
+                        }
+                    } else {
+                        VPUX_THROW("Unsupported input layout {0} to CompressConvolution ",
+                                   DimsOrder::fromValue(origOp.input()));
+                    }
+                })
                 .Case<NCEDepthConvolutionOp>([&](NCEDepthConvolutionOp origOp) {
                     auto layerStrategyChecker = LayerStrategyCheckerFactory::instance().get(origOp->getName());
                     auto bestStrategy = _costModel.getOptimalLayerStrategy(origOp.getOperation(), layerStrategyChecker);
@@ -107,7 +122,7 @@ void StrategyManager::assignMultiClusterStrategy() {
                         return;
                     }
 
-                    const auto outputType = origOp.input().getType().cast<vpux::NDTypeInterface>();
+                    const auto outputType = origOp.output().getType().cast<vpux::NDTypeInterface>();
                     const auto outputShape = outputType.getShape();
                     if (outputShape.size() != RANK_REQUIRED_FOR_TILING) {
                         _log.trace(
@@ -123,49 +138,57 @@ void StrategyManager::assignMultiClusterStrategy() {
                         return;
                     }
 
-                    const auto outElemType = outputType.getElementType();
-                    // Cluster tiling does not work well when combined with isolated tiling.
-                    // E#68311
-                    if (outElemType.isF16() && !origOp.fitIntoCMX(inputType, outputType)) {
-                        _log.trace("Operation '{0}' at '{1}' requires isolated tiling", origOp->getName(),
-                                   origOp->getLoc());
-                        return;
-                    }
-
                     const auto bestStrategy = VPU::MultiClusterStrategy::SplitOverWidth;
                     setLayerStrategy(bestStrategy, origOp.getOperation());
                 })
+                .Case<NCEInterpolateOp>([&](NCEInterpolateOp origOp) {
+                    auto layerStrategyChecker = LayerStrategyCheckerFactory::instance().get(origOp->getName());
+                    auto bestStrategy = _costModel.getOptimalLayerStrategy(origOp.getOperation(), layerStrategyChecker);
+                    setLayerStrategy(bestStrategy, origOp.getOperation());
+                })
                 .Case<SWOpInterface>([&](SWOpInterface origOp) {
-                    // TODO extend to more layers E#63362
-                    if (auto mvn = mlir::dyn_cast<VPU::MVNOp>(origOp.getOperation())) {
-                        const auto inputType = mvn.input().getType().cast<vpux::NDTypeInterface>();
-                        const auto IC = inputType.getShape()[Dims4D::Act::C];
-                        const auto acrossChannels = mvn.across_channels();
-                        // Currently consider SplitOverKernel as the highest priority for MVN by experience.
-                        // Rewrite this part by comparing cycle cost when we have an accurate cost model for MVN shave
-                        // kernel.
-                        if (IC > 1 && !acrossChannels) {
-                            setLayerStrategy(VPU::MultiClusterStrategy::SplitOverKernel, origOp.getOperation());
-                        } else {
-                            setLayerStrategy(VPU::MultiClusterStrategy::Clustering, origOp.getOperation());
-                        }
-                    } else if (auto tanh = mlir::dyn_cast<VPU::TanhOp>(origOp.getOperation())) {
-                        const auto inputType = tanh.input().getType().cast<vpux::NDTypeInterface>();
-                        if (inputType.getDimsOrder() == DimsOrder::NHWC && inputType.getShape()[Dims4D::Act::H] > 1) {
-                            // no strided read support
-                            setLayerStrategy(VPU::MultiClusterStrategy::SplitOverHeight, origOp.getOperation());
-                        } else {
-                            setLayerStrategy(VPU::MultiClusterStrategy::Clustering, origOp.getOperation());
-                        }
-                    } else {
-                        setLayerStrategy(VPU::MultiClusterStrategy::Clustering, origOp.getOperation());
+                    const auto arch = VPU::getArch(origOp.getOperation());
+                    // E#73159
+                    if (arch == vpux::VPU::ArchKind::VPUX30XX) {
+                        return;
                     }
+                    auto layerStrategyChecker = LayerStrategyCheckerFactory::instance().get(origOp->getName());
+                    auto bestStrategy =
+                            origOp.supportCycleCostCalculation()
+                                    ? _costModel.getOptimalLayerStrategy(origOp.getOperation(), layerStrategyChecker)
+                                    : VPU::getDefaultLayerStrategy(origOp.getOperation(), layerStrategyChecker);
+                    setLayerStrategy(bestStrategy, origOp.getOperation());
+                    _log.info("SW Operation '{0}' {1} set to {2}", origOp->getName(), origOp->getLoc(), bestStrategy);
+                })
+                .Case<ConcatOp>([&](ConcatOp origOp) {
+                    const auto inputType = origOp.inputs().front().getType().cast<vpux::NDTypeInterface>();
+                    const auto inputShape = inputType.getShape();
+                    // Currently the distributed tensor only supports the tiling scheme with numTile shape=4
+                    // TODO: #E81820
+                    constexpr size_t RANK_REQUIRED_FOR_TILING = 4;
+                    if (inputShape.size() != RANK_REQUIRED_FOR_TILING) {
+                        _log.trace(
+                                "Operation '{0}' at '{1}' has input rank {2} and cannot be tiled. Expected rank: {3}.",
+                                origOp->getName(), origOp->getLoc(), inputShape.size(), RANK_REQUIRED_FOR_TILING);
+                        return;
+                    }
+
+                    const auto outputType = origOp.output().getType().cast<vpux::NDTypeInterface>();
+                    const auto outputShape = outputType.getShape();
+                    if (outputShape.size() != RANK_REQUIRED_FOR_TILING) {
+                        _log.trace(
+                                "Operation '{0}' at '{1}' has output rank {2} and cannot be tiled. Expected rank: {3}.",
+                                origOp->getName(), origOp->getLoc(), outputShape.size(), RANK_REQUIRED_FOR_TILING);
+                        return;
+                    }
+
+                    auto layerStrategyChecker = LayerStrategyCheckerFactory::instance().get(origOp->getName());
+                    auto bestStrategy = VPU::getDefaultLayerStrategy(origOp.getOperation(), layerStrategyChecker);
+                    setLayerStrategy(bestStrategy, origOp.getOperation());
                 })
                 .Default([&](mlir::Operation* unknownOp) -> void {
-                    _log.trace("Operation '{0}' at '{1}' is not supported ClusterTilingStrategy interface therefore it "
-                               "should not have a "
-                               "multi-cluster strategy",
-                               unknownOp->getName(), unknownOp->getLoc());
+                    _log.trace("Operation '{0}' does not support multi cluster", unknownOp->getName(),
+                               unknownOp->getLoc());
                 });
     };
 
@@ -174,4 +197,14 @@ void StrategyManager::assignMultiClusterStrategy() {
 
 void StrategyManager::optimizeMulticlusterStrategy() {
     _optimizer.optimizeStrategyAvoidSpillingOnModel();
+}
+
+// Temporary strategy is assigned to Concat to help strategy optimization. We need to remove it after strategy manager
+// pass.
+void StrategyManager::removeTemporaryMulticlusterStrategy() {
+    const auto callback = [](VPU::ConcatOp concatOp) {
+        concatOp.removeMultiClusterStrategyAttr();
+    };
+
+    _func.walk(callback);
 }

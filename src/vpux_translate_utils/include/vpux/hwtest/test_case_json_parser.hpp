@@ -24,13 +24,14 @@ enum class CaseType {
     ZMajorConvolution,
     SparseZMajorConvolution,
     DepthWiseConv,
+    DoubleZMajorConvolution,
     EltwiseAdd,
     EltwiseMult,
+    EltwiseSparse,
     MaxPool,
     AvgPool,
     DifferentClustersDPU,
     MultiClustersDPU,
-    HaloMultiClustering,
     ActShave,
     ReadAfterWriteDPUDMA,
     ReadAfterWriteDMADPU,
@@ -46,6 +47,7 @@ enum class CaseType {
     RaceCondition,
     StorageElementTableDPU,
     DualChannelDMA,
+    DMAcompressAct,
     Unknown
 };
 
@@ -57,7 +59,7 @@ enum class CompilerBackend { Flatbuffer, ELF };
 std::string to_string(CompilerBackend compilerBackend);
 llvm::Optional<nb::CompilerBackend> to_compiler_backend(llvm::StringRef str);
 
-enum class DType { U4, I4, U8, I8, I32, FP8, FP16, FP32, BF16, UNK };
+enum class DType { U1, U4, I4, U8, I8, I32, FP8, FP16, FP32, BF16, UNK };
 
 enum class MemoryLocation { CMX0, CMX1, DDR, Unknown };
 MemoryLocation to_memory_location(llvm::StringRef str);
@@ -100,10 +102,17 @@ struct WeightLayer {
     std::string filename;
 };
 
+struct SM {
+    DType dtype = DType::U1;
+    std::array<std::int64_t, 4> shape = {0};
+};
+
 struct DMAparams {
     MemoryLocation srcLocation = MemoryLocation::Unknown;
     MemoryLocation dstLocation = MemoryLocation::Unknown;
     int64_t engine = 0;
+    bool actCompressDenseMode = false;
+    bool doConvert = false;
 };
 
 struct ConvLayer {
@@ -111,8 +120,13 @@ struct ConvLayer {
     std::array<std::int64_t, 4> pad = {0};
     std::int64_t group = 0;
     std::int64_t dilation = 0;
+    bool act_sparsity = false;
     bool compress = false;
     vpux::VPU::MPEMode cube_mode = vpux::VPU::MPEMode::CUBOID_16x16;
+};
+
+struct EltwiseLayer {
+    std::int64_t seSize = 0;
 };
 
 struct PoolLayer {
@@ -145,21 +159,6 @@ struct MultiClusterDPUParams {
     std::vector<std::size_t> taskClusters;
     SegmentationType segmentation = SegmentationType::SOK;
     bool broadcast = false;
-};
-
-struct HaloParams {
-    // clusters on which the DPUTasks will run
-    std::vector<std::size_t> taskClusters;
-    // type of multiclustering tensor segmentation (SOK, SOH, SOW etc.)
-    SegmentationType segmentation = SegmentationType::SOK;
-    // number of clusters assigned per each dim, for segmentation on multiple dims
-    // e.g. SOHK clustersPerDim = {2, 3} -> height is split in 2, output channels are split in 3
-    // e.g. SOHW clustersPerDim = {3, 2} -> height is split in 3, width is split in 2
-    std::vector<std::size_t> clustersPerDim;
-    // halo size over height, to be used for strategies SOH, SOHK
-    int64_t heightHaloSize = 0;
-    // halo size over width, to be used for strategies SOW, SOHW
-    int64_t widthHaloSize = 0;
 };
 
 struct OutputLayer {
@@ -215,8 +214,14 @@ public:
     llvm::SmallVector<InputLayer> getInputLayerList() const {
         return inLayers_;
     }
+    llvm::SmallVector<SM> getInputSMList() const {
+        return inSMs_;
+    }
     llvm::SmallVector<WeightLayer> getWeightLayers() const {
         return wtLayer_;
+    }
+    llvm::SmallVector<SM> getWeightSMs() const {
+        return wtSMs_;
     }
     llvm::SmallVector<OutputLayer> getOutputLayers() const {
         return outLayers_;
@@ -226,6 +231,9 @@ public:
     }
     ConvLayer getConvLayer() const {
         return convLayer_;
+    }
+    EltwiseLayer getEltwiseLayer() const {
+        return eltwiseLayer_;
     }
     PoolLayer getPoolLayer() const {
         return poolLayer_;
@@ -241,9 +249,6 @@ public:
     }
     MultiClusterDPUParams getMultiClusterDPUParams() const {
         return multiClusterDPUParams_;
-    }
-    HaloParams getHaloParams() const {
-        return haloParams_;
     }
     CaseType getCaseType() const {
         return caseType_;
@@ -290,9 +295,12 @@ public:
 private:
     llvm::SmallVector<InputLayer> loadInputLayer(llvm::json::Object* jsonObj);
     llvm::SmallVector<WeightLayer> loadWeightLayer(llvm::json::Object* jsonObj);
+    llvm::SmallVector<SM> loadInputSMs(llvm::json::Object* jsonObj);
+    llvm::SmallVector<SM> loadWeightSMs(llvm::json::Object* jsonObj);
     llvm::SmallVector<OutputLayer> loadOutputLayer(llvm::json::Object* jsonObj);
     DMAparams loadDMAParams(llvm::json::Object* jsonObj);
     ConvLayer loadConvLayer(llvm::json::Object* jsonObj);
+    EltwiseLayer loadEltwiseLayer(llvm::json::Object* jsonObj);
     PoolLayer loadPoolLayer(llvm::json::Object* jsonObj);
     ActivationLayer loadActivationLayer(llvm::json::Object* jsonObj);
     CaseType loadCaseType(llvm::json::Object* jsonObj);
@@ -300,7 +308,6 @@ private:
     RaceConditionParams loadRaceConditionParams(llvm::json::Object* obj);
     DPUTaskParams loadDPUTaskParams(llvm::json::Object* obj);
     MultiClusterDPUParams loadMultiClusterDPUParams(llvm::json::Object* obj);
-    HaloParams loadHaloTaskParams(llvm::json::Object* jsonObj);
     std::size_t loadIterationCount(llvm::json::Object* obj);
     std::size_t loadClusterNumber(llvm::json::Object* obj);
     SETablePattern loadSETablePattern(llvm::json::Object* obj);
@@ -309,12 +316,14 @@ private:
     CaseType caseType_ = CaseType::Unknown;
     DMAparams DMAparams_;
     ConvLayer convLayer_;
+    EltwiseLayer eltwiseLayer_;
     PoolLayer poolLayer_;
     llvm::SmallVector<InputLayer> inLayers_;
+    llvm::SmallVector<SM> inSMs_;
     llvm::SmallVector<WeightLayer> wtLayer_;
+    llvm::SmallVector<SM> wtSMs_;
     llvm::SmallVector<OutputLayer> outLayers_;
     ActivationLayer activationLayer_;
-    bool hasActivationLayer_ = false;
     std::string kernelFilename_;
     std::string caseTypeStr_;
     vpux::VPU::PPEMode ppeLayerType_ = vpux::VPU::PPEMode::ADD;
@@ -327,7 +336,6 @@ private:
     RaceConditionParams raceConditionParams_;
     DPUTaskParams DPUTaskParams_;
     MultiClusterDPUParams multiClusterDPUParams_;
-    HaloParams haloParams_;
     SETablePattern seTablePattern_ = SETablePattern::SwitchLines;
     vpux::VPU::ArchKind architecture_ = vpux::VPU::ArchKind::UNKNOWN;
     CompilerBackend compilerBackend_ = CompilerBackend::Flatbuffer;

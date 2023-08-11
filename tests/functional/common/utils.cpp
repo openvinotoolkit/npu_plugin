@@ -6,7 +6,7 @@
 #include <string>
 
 #include "utils.hpp"
-#include "vpux_private_metrics.hpp"
+#include "vpux/vpux_metrics.hpp"
 
 std::string getBackendName(const ov::Core& core) {
     return core.get_property("VPUX", VPUX_METRIC_KEY(BACKEND_NAME)).as<std::string>();

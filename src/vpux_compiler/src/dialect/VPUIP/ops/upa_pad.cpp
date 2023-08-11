@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 
 #include "vpux/compiler/dialect/VPUIP/graph-schema/blob_reader.hpp"
@@ -16,26 +14,27 @@
 
 using namespace vpux;
 
-mlir::LogicalResult vpux::VPUIP::verifyOp(PadUPAOp op) {
-    const auto inShape = getShape(op.input());
+mlir::LogicalResult vpux::VPUIP::PadUPAOp::verify() {
+    const auto op = getOperation();
+    const auto inShape = getShape(input());
 
-    if (inShape.size() != op.pads_begin().size()) {
+    if (inShape.size() != pads_begin().size()) {
         return errorAt(op, "pads_begin attr size is not compatible with input tensor."
                            "The length of the list must be equal to the number of dimensions in the input tensor");
     }
 
-    if (inShape.size() != op.pads_end().size()) {
+    if (inShape.size() != pads_end().size()) {
         return errorAt(op, "pads_end attr size is not compatible with input tensor."
                            "The length of the list must be equal to the number of dimensions in the input tensor");
     }
 
-    const auto padBegin = parseIntArrayAttr<int64_t>(op.pads_begin());
-    const auto padEnd = parseIntArrayAttr<int64_t>(op.pads_end());
-    if (op.pads_begin().size() == 4 && op.pads_end().size() == 4 && padEnd[0] - padBegin[0] != 0) {
+    const auto padBegin = parseIntArrayAttr<int64_t>(pads_begin());
+    const auto padEnd = parseIntArrayAttr<int64_t>(pads_end());
+    if (pads_begin().size() == 4 && pads_end().size() == 4 && padEnd[0] - padBegin[0] != 0) {
         return errorAt(op, "PadUPAOp: Cannot expand batch");
     }
 
-    if (op.mode() == IE::PadMode::CONSTANT && !op.pad_value().hasValue()) {
+    if (mode() == IE::PadMode::CONSTANT && !pad_value().hasValue()) {
         return errorAt(op, "pad_mode is CONSTANT but pad_value hasn't provided");
     }
 

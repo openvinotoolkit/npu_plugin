@@ -8,8 +8,7 @@
 
 #include <ie_icore.hpp>
 #include <ie_metric_helpers.hpp>
-#include <legacy/convert_function_to_cnn_network.hpp>
-#include <legacy/transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
+#include <ie_ngraph_utils.hpp>
 #include <ngraph/pass/constant_folding.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <openvino/runtime/properties.hpp>
@@ -80,6 +79,7 @@ ExecutableNetwork::ExecutableNetwork(const Config& config, const Device::Ptr& de
           _supportedMetrics({METRIC_KEY(NETWORK_NAME), METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS),
                              METRIC_KEY(SUPPORTED_CONFIG_KEYS), METRIC_KEY(SUPPORTED_METRICS)}) {
 }
+
 //------------------------------------------------------------------------------
 //      Load network
 //------------------------------------------------------------------------------
@@ -111,9 +111,11 @@ ExecutableNetwork::ExecutableNetwork(const IE::CNNNetwork& orignet, const Device
     _networkStatesInfo = ExtractStatesFromInputsInfo();
 
     // TODO: Fix this WA for E#22783, E#25449
+    // Precedence: 1st env var; 2nd config value;
+    const bool configCreateExecutor = _config.get<CREATE_EXECUTOR>();
     static const auto envVar = std::getenv("IE_VPUX_CREATE_EXECUTOR");
-    static const bool IE_VPUX_CREATE_EXECUTOR =
-            envVar ? vpux::envVarStrToBool("IE_VPUX_CREATE_EXECUTOR", envVar) : true;
+    const bool IE_VPUX_CREATE_EXECUTOR =
+            envVar ? vpux::envVarStrToBool("IE_VPUX_CREATE_EXECUTOR", envVar) : configCreateExecutor;
     OV_ITT_TASK_NEXT(EXECUTABLE_NETWORK_LOAD, "createExecutor");
     if (IE_VPUX_CREATE_EXECUTOR) {
         _logger.info("Creating executor at Load Network step");
@@ -124,6 +126,38 @@ ExecutableNetwork::ExecutableNetwork(const IE::CNNNetwork& orignet, const Device
     }
 
     OV_ITT_TASK_SKIP(EXECUTABLE_NETWORK_LOAD);
+}
+
+InferenceEngine::InputsDataMap ExecutableNetwork::BeautifyInputsInfo() const {
+    const vpux::DataMap& origDataMap = _networkPtr->getInputsInfo();
+    vpux::DataMap inputWithoutStates;
+
+    // If network to launch is passed as binary file for import, it comes with information about inputs,
+    // containing additional items, related to states (VPUX stateful networks implementation specifics).
+    // We don't want to expose these inputs to user, so we only store non-states inputs information in map.
+    for (auto& inputInfo : origDataMap) {
+        if (!isStateInputName(inputInfo.first)) {
+            inputWithoutStates.insert({inputInfo.first, inputInfo.second});
+        }
+    }
+
+    return helpers::dataMapIntoInputsDataMap(inputWithoutStates);
+}
+
+InferenceEngine::OutputsDataMap ExecutableNetwork::BeautifyOutputsInfo() const {
+    const vpux::DataMap& origDataMap = _networkPtr->getOutputsInfo();
+    vpux::DataMap outputWithoutStates;
+
+    // If network to launch is passed as binary file for import, it comes with information about outputs,
+    // containing additional items, related to states (VPUX stateful networks implementation specifics).
+    // We don't want to expose these outputs to user, so we only store non-states outputs information in map.
+    for (auto& outputInfo : origDataMap) {
+        if (!isStateOutputName(outputInfo.first)) {
+            outputWithoutStates.insert({outputInfo.first, outputInfo.second});
+        }
+    }
+
+    return helpers::dataMapIntoOutputsDataMap(outputWithoutStates);
 }
 
 //------------------------------------------------------------------------------
@@ -140,11 +174,11 @@ ExecutableNetwork::ExecutableNetwork(std::istream& networkModel, const Device::P
         OV_ITT_TASK_NEXT(EXECUTABLE_NETWORK_IMPORT, "createExecutor");
         _executorPtr = createExecutor(_networkPtr, _config, device);
         OV_ITT_TASK_NEXT(EXECUTABLE_NETWORK_IMPORT, "setIn/Out");
-        _networkInputs = helpers::dataMapIntoInputsDataMap(_networkPtr->getInputsInfo());
-        _networkOutputs = helpers::dataMapIntoOutputsDataMap(_networkPtr->getOutputsInfo());
+        _networkStatesInfo = ExtractStatesFromInputsInfo();
+        _networkInputs = BeautifyInputsInfo();
+        _networkOutputs = BeautifyOutputsInfo();
         setInputs(helpers::ovRawNodesIntoOVNodes(_networkPtr->getOVParameters(), false));
         setOutputs(helpers::ovRawNodesIntoOVNodes(_networkPtr->getOVResults(), true));
-        _networkStatesInfo = ExtractStatesFromInputsInfo();
         OV_ITT_TASK_NEXT(EXECUTABLE_NETWORK_IMPORT, "ConfigureStreamsExecutor");
         ConfigureStreamsExecutor(networkName);
         OV_ITT_TASK_SKIP(EXECUTABLE_NETWORK_IMPORT);
@@ -193,7 +227,7 @@ vpux::DataMap ExecutableNetwork::ExtractStatesFromInputsInfo() const {
 
     auto& outputsMap = _networkPtr->getOutputsInfo();
     for (auto& inputInfo : _networkPtr->getInputsInfo()) {
-        if (inputInfo.first.find(READVALUE_PREFIX) == std::string::npos) {
+        if (!isStateInputName(inputInfo.first)) {
             continue;
         }
 
@@ -283,7 +317,7 @@ void ExecutableNetwork::Export(std::ostream& model) {
     auto graphBlob = _networkPtr->getCompiledNetwork();
     model.write(graphBlob.data(), graphBlob.size());
     std::stringstream str;
-    str << "Blob hash: " << std::hex << hash(graphBlob);
+    str << "Blob size: " << graphBlob.size() << ", hash: " << std::hex << hash(graphBlob);
     _logger.info("{0}", str.str());
 }
 
@@ -304,26 +338,10 @@ void ExecutableNetwork::Export(const std::string& modelFileName) {
 IE::Parameter ExecutableNetwork::GetConfigValue(const std::string& name) const {
     if (name == ov::device::id) {
         return _config.get<DEVICE_ID>();
-    } else if (name == ov::intel_vpux::csram_size) {
-        return _config.get<CSRAM_SIZE>();
-    } else if (name == ov::intel_vpux::graph_color_format) {
-        return _config.get<GRAPH_COLOR_FORMAT>();
-    } else if (name == ov::intel_vpux::inference_shaves) {
-        return _config.get<INFERENCE_SHAVES>();
-    } else if (name == ov::intel_vpux::inference_timeout) {
-        return _config.get<INFERENCE_TIMEOUT_MS>();
-    } else if (name == ov::intel_vpux::preprocessing_lpi) {
-        return _config.get<PREPROCESSING_LPI>();
-    } else if (name == ov::intel_vpux::preprocessing_pipes) {
-        return _config.get<PREPROCESSING_PIPES>();
-    } else if (name == ov::intel_vpux::preprocessing_shaves) {
-        return _config.get<PREPROCESSING_SHAVES>();
     } else if (name == ov::intel_vpux::print_profiling) {
         return _config.get<PRINT_PROFILING>();
     } else if (name == ov::intel_vpux::profiling_output_file) {
         return _config.get<PROFILING_OUTPUT_FILE>();
-    } else if (name == ov::intel_vpux::use_sipp) {
-        return _config.get<USE_SIPP>();
     } else if (name == ov::intel_vpux::vpux_platform) {
         return _config.get<PLATFORM>();
     } else if (name == ov::intel_vpux::ddr_heap_size_mb) {
@@ -338,6 +356,8 @@ IE::Parameter ExecutableNetwork::GetConfigValue(const std::string& name) const {
         return _config.get<PERFORMANCE_HINT_NUM_REQUESTS>();
     } else if (name == ov::intel_vpux::use_elf_compiler_backend) {
         return _config.get<USE_ELF_COMPILER_BACKEND>();
+    } else if (name == ov::intel_vpux::create_executor) {
+        return _config.get<CREATE_EXECUTOR>();
     }
 
     return IE::Parameter(nullptr);
@@ -360,26 +380,20 @@ IE::Parameter ExecutableNetwork::GetMetric(const std::string& name) const {
                     RO_property(ov::hint::num_requests.name()),
                     RO_property(ov::hint::performance_mode.name()),
                     RO_property(ov::device::id.name()),
-                    RO_property(ov::intel_vpux::csram_size.name()),
-                    RO_property(ov::intel_vpux::graph_color_format.name()),
-                    RO_property(ov::intel_vpux::inference_shaves.name()),
-                    RO_property(ov::intel_vpux::inference_timeout.name()),
-                    RO_property(ov::intel_vpux::preprocessing_lpi.name()),
-                    RO_property(ov::intel_vpux::preprocessing_pipes.name()),
-                    RO_property(ov::intel_vpux::preprocessing_shaves.name()),
                     RO_property(ov::intel_vpux::print_profiling.name()),
                     RO_property(ov::intel_vpux::profiling_output_file.name()),
-                    RO_property(ov::intel_vpux::use_sipp.name()),
                     RO_property(ov::intel_vpux::vpux_platform.name()),
                     RO_property(ov::intel_vpux::use_elf_compiler_backend.name()),
-                    RO_property(ov::intel_vpux::ddr_heap_size_mb.name())};
+                    RO_property(ov::intel_vpux::ddr_heap_size_mb.name()),
+                    RO_property(ov::intel_vpux::create_executor.name()),
+            };
             return supportedProperties;
         } else if (name == ov::model_name) {
             VPUX_THROW_WHEN(_networkPtr == nullptr, "GetMetric: network is not initialized");
             return _networkPtr->getName();
         } else if (name == ov::optimal_number_of_infer_requests) {
             VPUX_THROW_WHEN(_networkPtr == nullptr, "GetMetric: network is not initialized");
-            return static_cast<uint32_t>(getNumOptimalInferRequests(_config));
+            return static_cast<uint32_t>(getOptimalNumberOfInferRequestsInParallel(_config));
         } else {
             const IE::Parameter param = GetConfigValue(name);
             if (!param.empty()) {
@@ -394,7 +408,7 @@ IE::Parameter ExecutableNetwork::GetMetric(const std::string& name) const {
     } else if (name == METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)) {
         VPUX_THROW_WHEN(_networkPtr == nullptr, "GetMetric: network is not initialized");
         IE_SET_METRIC_RETURN(OPTIMAL_NUMBER_OF_INFER_REQUESTS,
-                             static_cast<unsigned int>(getNumOptimalInferRequests(_config)));
+                             static_cast<unsigned int>(getOptimalNumberOfInferRequestsInParallel(_config)));
     } else if (name == METRIC_KEY(SUPPORTED_METRICS)) {
         IE_SET_METRIC_RETURN(SUPPORTED_METRICS, _supportedMetrics);
     } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {

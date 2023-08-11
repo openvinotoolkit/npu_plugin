@@ -34,13 +34,13 @@ private:
 };
 
 void ConvertFuncArgsToDeclarationsPass::safeRunOnFunc() {
-    auto netFunc = getFunction();
+    auto netFunc = getOperation();
 
     VPUX_THROW_UNLESS(netFunc.getNumArguments() >= netFunc.getNumResults(), "Function '{0}' is not bufferized",
                       netFunc);
     const auto numInputs = netFunc.getNumArguments() - netFunc.getNumResults();
 
-    auto returnOp = *netFunc.getOps<mlir::ReturnOp>().begin();
+    auto returnOp = *netFunc.getOps<mlir::func::ReturnOp>().begin();
     auto& firstOp = *netFunc.getOps().begin();
 
     const auto replaceUse = [&](mlir::ValueRange args, VPURT::BufferSection section) {

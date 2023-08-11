@@ -15,6 +15,9 @@ constexpr bool IS_ON_ARM = false;
 
 namespace LayerTestsUtils {
 
+/**
+ * Reads configuration environment variables
+ */
 class KmbTestEnvConfig {
 public:
     std::string IE_KMB_TESTS_DEVICE_NAME;
@@ -36,6 +39,9 @@ public:
     bool IE_KMB_TESTS_LONG_FILE_NAME = false;
 
 public:
+    static const KmbTestEnvConfig& getInstance();
+
+private:
     explicit KmbTestEnvConfig();
 };
 

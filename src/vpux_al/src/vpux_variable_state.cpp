@@ -33,7 +33,7 @@ void VariableState::SetState(const InferenceEngine::Blob::Ptr& new_state) {
     auto state_mem_blob = InferenceEngine::as<InferenceEngine::MemoryBlob>(state);
     IE_ASSERT(state_mem_blob);
     auto state_mem_locker = state_mem_blob->wmap();
-    std::uint8_t* state_buffer = new_state_mem_locker.as<std::uint8_t*>();
+    std::uint8_t* state_buffer = state_mem_locker.as<std::uint8_t*>();
 
     IE_ASSERT(new_state->byteSize() == state->byteSize());
     std::memcpy(state_buffer, new_state_buffer, state->byteSize());

@@ -1,3 +1,4 @@
+//
 // Copyright (C) Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -11,7 +12,7 @@
 
 namespace {
 
-class PermuteQuantizeTest_VPU3720 :
+class VPUXPermuteQuantizeTest :
         public LayerTestsUtils::KmbLayerTestsCommon,
         public testing::WithParamInterface<std::tuple<InferenceEngine::SizeVector>> {
     void ConfigureNetwork() override {
@@ -33,29 +34,27 @@ class PermuteQuantizeTest_VPU3720 :
         const auto quantOp = NCETasksHelpers::quantize(nceTask, quantRange);
         const ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(quantOp)};
 
-        function = std::make_shared<ngraph::Function>(results, params, "PermuteQuantizeTest_VPU3720");
+        function = std::make_shared<ngraph::Function>(results, params, "PermuteQuantizeTest");
 
         threshold = 0.5f;
-
-        configuration["PERFORMANCE_HINT"] = "LATENCY";
-        configuration["VPUX_DPU_GROUPS"] = "2";
     }
 };
 
-TEST_P(PermuteQuantizeTest_VPU3720, CompareWithRefs_MLIR_VPU3720) {
-    useCompilerMLIR();
+class VPUXPermuteQuantizeTest_VPU3720 : public VPUXPermuteQuantizeTest {};
+
+TEST_P(VPUXPermuteQuantizeTest_VPU3720, HW) {
     setPlatformVPU3720();
     setDefaultHardwareModeMLIR();
+    configuration["PERFORMANCE_HINT"] = "LATENCY";
+    configuration["VPUX_DPU_GROUPS"] = "2";
     Run();
 }
 
 const std::vector<InferenceEngine::SizeVector> inputShapes = {
-        {1, 3, 224, 224},
-        {1, 3, 128, 256},
-        {1, 1, 64, 64},
+        {1, 3, 224, 224}, {1, 3, 128, 256}, {1, 1, 64, 64}, {1, 3, 224, 225}, {1, 3, 640, 320},
 };
 
-INSTANTIATE_TEST_SUITE_P(conv2d_with_act, PermuteQuantizeTest_VPU3720,
+INSTANTIATE_TEST_SUITE_P(smoke_PermuteQuantizeTest, VPUXPermuteQuantizeTest_VPU3720,
                          ::testing::Combine(::testing::ValuesIn(inputShapes)));
 
 }  // namespace

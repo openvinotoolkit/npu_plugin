@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/VPURT/barrier_simulator.hpp"
 
 #include "vpux/compiler/dialect/VPU/attributes.hpp"
@@ -124,6 +122,7 @@ void vpux::VPURT::VirtualDependencyTracker::print(Logger log) const {
 //
 
 vpux::VPURT::BarrierSimulator::BarrierSimulator(mlir::Operation* parentOp) {
+    _barrierProducerSlotCount = static_cast<int64_t>(VPUIP::getBarrierMaxVariantCount(parentOp));
     _availableBarriers = VPUIP::getNumAvailableBarriers(parentOp);
     assignVirtualIds(parentOp);
     parseBarriers(parentOp);
@@ -148,6 +147,7 @@ void vpux::VPURT::BarrierSimulator::parseBarriers(mlir::Operation* parentOp) {
                           "Got wrong virtual ID for the barrier at '{0}'", barrierOp->getLoc());
 
         _barriersMap.insert({barrierOp, _barriers.size()});
+        _barrierVID.insert({_barriers.size(), barrierOp});
         _barriers.emplace_back(barrierOp->getLoc());
     });
 
@@ -254,14 +254,12 @@ void vpux::VPURT::BarrierSimulator::parseTasks(mlir::Operation* parentOp) {
 //   256 + 1 variants
 //
 mlir::LogicalResult vpux::VPURT::BarrierSimulator::checkProducerCount(Logger log) const {
-    static constexpr int64_t MAX_PRODUCER_COUNT = 256;
-
     for (auto vid : irange(_barriers.size())) {
         const auto producerCount = _barriers[vid].producerCount;
 
-        if (producerCount > MAX_PRODUCER_COUNT) {
+        if (producerCount > _barrierProducerSlotCount) {
             log.error("Barrier {0} at '{1}' has {2} producers (max {3})", vid, _barriers[vid].loc, producerCount,
-                      MAX_PRODUCER_COUNT);
+                      _barrierProducerSlotCount);
             return mlir::failure();
         }
     }
@@ -269,14 +267,43 @@ mlir::LogicalResult vpux::VPURT::BarrierSimulator::checkProducerCount(Logger log
     return mlir::success();
 }
 
-mlir::LogicalResult vpux::VPURT::BarrierSimulator::simulateBarriers(Logger log, Optional<int64_t> numBarriers) {
+SmallVector<mlir::DenseSet<VPURT::DeclareVirtualBarrierOp>>
+vpux::VPURT::BarrierSimulator::getBarrierBatchesToLegalize() {
+    // convert id's to barriers
+    SmallVector<mlir::DenseSet<DeclareVirtualBarrierOp>> batches;
+    for (const auto& batch : _barrierBatchesToLegalize) {
+        mlir::DenseSet<DeclareVirtualBarrierOp> barrierBatch;
+
+        for (const auto& barrierVID : batch) {
+            auto barrierOp = mlir::dyn_cast<VPURT::DeclareVirtualBarrierOp>(_barrierVID[barrierVID]);
+            VPUX_THROW_UNLESS(barrierOp != nullptr, "Got invalid barrier type {0}", _barrierVID[barrierVID]);
+            if (barrierOp.barrier().use_empty()) {
+                // barrier will be removed
+                continue;
+            }
+            barrierBatch.insert(barrierOp);
+        }
+
+        if (barrierBatch.empty()) {
+            // case when all barriers have no use
+            continue;
+        }
+        batches.push_back(barrierBatch);
+    }
+    return batches;
+}
+
+mlir::LogicalResult vpux::VPURT::BarrierSimulator::simulateBarriers(Logger log, Optional<int64_t> numBarriers,
+                                                                    Optional<bool> barrierLegalization) {
     if (numBarriers.hasValue()) {
         VPUX_THROW_UNLESS(numBarriers.getValue() <= _availableBarriers,
                           "Provided number of barriers '{0}' is greater than HW limitation '{1}'", numBarriers,
                           _availableBarriers);
     }
 
-    SmallVector<int64_t> toVirtual(numBarriers.getValueOr(_availableBarriers), -1);
+    auto activeBarrierLimit = checked_cast<size_t>(numBarriers.value_or(_availableBarriers));
+    SmallVector<int64_t> toVirtual(activeBarrierLimit, -1);
+    bool barrierLegalizationSim = barrierLegalization.value_or(false);
 
     RingBuffer<int64_t> nextReal;
     if (_isDynamicBarriers) {
@@ -331,6 +358,43 @@ mlir::LogicalResult vpux::VPURT::BarrierSimulator::simulateBarriers(Logger log, 
 
             log.nest(3).trace("VID[{0}]: PID {1}, producers {2}, consumers {3}", bar, real,
                               _barriers[bar].producerCount, _barriers[bar].consumerCount);
+        }
+
+        // condition to create new batch of barriers
+        const auto isNewBatchNeeded = [&]() {
+            if (_barrierBatchesToLegalize.empty()) {
+                return true;
+            }
+
+            if (_barrierBatchesToLegalize.rbegin()->empty()) {
+                // do not create new batch if last one is empty
+                return false;
+            }
+
+            bool activeBarrierIsMapped = false;
+            for (const auto& activeBar : toVirtual) {
+                VPUX_THROW_WHEN(activeBar == -1, "Found not mapped barrier with exceeding barriers");
+                if (_barrierBatchesToLegalize.rbegin()->find(activeBar) != _barrierBatchesToLegalize.rbegin()->end()) {
+                    // check if last batch contains any current active barriers
+                    return false;
+                }
+                activeBarrierIsMapped = true;
+            }
+
+            return activeBarrierIsMapped;
+        };
+
+        // store barriers to legalize in batches, count also free barriers (-1) as during
+        // iteration barriers can be produced and consumed, but all need to be mapped
+        if (barrierLegalizationSim && toVirtual.size() > activeBarrierLimit) {
+            if (isNewBatchNeeded()) {
+                // create new batch
+                _barrierBatchesToLegalize.push_back({});
+            }
+            for (const auto& activeBar : toVirtual) {
+                VPUX_THROW_WHEN(activeBar == -1, "Found not mapped barrier with exceeding barriers");
+                _barrierBatchesToLegalize.rbegin()->insert(activeBar);
+            }
         }
 
         // Process DMAs
@@ -388,7 +452,7 @@ mlir::LogicalResult vpux::VPURT::BarrierSimulator::simulateBarriers(Logger log, 
         }
 
         // Process Act Kernels
-        log.nest(2).trace("Process DPUs");
+        log.nest(2).trace("Process Act Kernels");
         for (; act < _actTasks.size(); ++act, progressed = true) {
             auto& dt = _actTasks[act];
 
@@ -423,6 +487,64 @@ mlir::LogicalResult vpux::VPURT::BarrierSimulator::simulateBarriers(Logger log, 
             log.nest(3).trace("UPA[{0}]: waits: {1}, posts: {2}", upa, dt.waits, dt.posts);
         }
 
+        if (barrierLegalizationSim) {
+            // update progress
+            log.nest(1).trace("Barrier Legalization: progressed={0}", progressed);
+            auto freeBarriers = checked_cast<size_t>(std::count(toVirtual.begin(), toVirtual.end(), -1));
+
+            const auto updateNextReal = [&]() {
+                nextReal.reset(toVirtual.size());
+                for (const auto& p : toVirtual | indexed) {
+                    if (p.value() == -1) {
+                        // find all indices equal to -1
+                        nextReal.push(checked_cast<int64_t>(p.index()));
+                    }
+                }
+            };
+
+            if (!progressed) {
+                VPUX_THROW_WHEN(freeBarriers > 0, "Simulation not progressed and there are '{0}' free barriers",
+                                freeBarriers);
+                log.nest(2).trace("There are {0} free barriers", freeBarriers);
+
+                // increase real barrier size
+                toVirtual.push_back(-1);
+                log.nest(3).trace("Increased real barrier size to {0} physical barriers", toVirtual.size());
+
+                progressed = true;
+                updateNextReal();
+            } else if (freeBarriers > 0 && toVirtual.size() > activeBarrierLimit) {
+                // decrease exceeding barriers when possible
+                log.nest(2).trace("Reduce exceeding active barrier count, there are {0} free barriers", freeBarriers);
+
+                size_t freeBarrierCount = 0;
+                for (const auto& p : toVirtual | indexed) {
+                    // remap barrier mapping
+                    if (p.value() != -1) {
+                        // not a free barrier, update _barriers[v].realId
+                        log.nest(4).trace("Remap '{0}' from '{1}' -> '{2}'", p.value(), _barriers[p.value()].realId,
+                                          p.index() - freeBarrierCount);
+                        _barriers[p.value()].realId = checked_cast<int64_t>(p.index() - freeBarrierCount);
+                        continue;
+                    }
+
+                    if (toVirtual.size() - freeBarrierCount > activeBarrierLimit) {
+                        // remaining free barriers will stay
+                        ++freeBarrierCount;
+                    }
+                }
+
+                // remove free barriers exceeding active barrier limit
+                auto indexItr = std::find(toVirtual.begin(), toVirtual.end(), -1);
+                while (indexItr != toVirtual.end() && toVirtual.size() > activeBarrierLimit) {
+                    toVirtual.erase(indexItr);
+                    indexItr = std::find(toVirtual.begin(), toVirtual.end(), -1);
+                }
+
+                updateNextReal();
+            }
+        }
+
         if (!progressed) {
             log.error("Barrier simulation blocked at DMA: {0} / {1}, {2} / {3}; DPU: {4} / {5}; ACT: {6} / {7}; UPA: "
                       "{8} / {9}; BAR: {10} / {11}",
@@ -437,6 +559,11 @@ mlir::LogicalResult vpux::VPURT::BarrierSimulator::simulateBarriers(Logger log, 
 
             return mlir::failure();
         }
+    }
+
+    if (barrierLegalizationSim && !_barrierBatchesToLegalize.empty()) {
+        log.trace("Barrier Legalization: barrier batch to legalize {0}", _barrierBatchesToLegalize.size());
+        return mlir::failure();
     }
 
     return mlir::success();
@@ -476,7 +603,7 @@ VPURT::BarrierSimulator::Status vpux::VPURT::BarrierSimulator::processSim(
         const auto r = _barriers[v].realId;
 
         if (!isBarrierMapped(v, r)) {
-            log.trace("{0}[{1}] is waiting for consumer barrier {2} to be mapped", taskType, index, v);
+            log.trace("{0}[{1}] is waiting for producer barrier {2} to be mapped", taskType, index, v);
             return Status::Skip;
         }
     }

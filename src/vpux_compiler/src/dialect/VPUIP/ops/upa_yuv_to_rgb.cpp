@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/VPUIP/graph-schema/blob_reader.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/utils/error.hpp"
@@ -14,11 +12,12 @@
 
 using namespace vpux;
 
-mlir::LogicalResult vpux::VPUIP::verifyOp(YuvToRgbUPAOp op) {
-    if ((op.inFmt() != IE::ColorFmt::NV12) && (op.inFmt() != IE::ColorFmt::I420))
-        return errorAt(op, "Invalid INPUT format '{0}'", op.inFmt());
-    if ((op.outFmt() != IE::ColorFmt::RGB) && (op.outFmt() != IE::ColorFmt::BGR))
-        return errorAt(op, "Invalid OUTPUT format '{0}'", op.outFmt());
+mlir::LogicalResult vpux::VPUIP::YuvToRgbUPAOp::verify() {
+    const auto op = getOperation();
+    if ((inFmt() != IE::ColorFmt::NV12) && (inFmt() != IE::ColorFmt::I420))
+        return errorAt(op, "Invalid INPUT format '{0}'", inFmt());
+    if ((outFmt() != IE::ColorFmt::RGB) && (outFmt() != IE::ColorFmt::BGR))
+        return errorAt(op, "Invalid OUTPUT format '{0}'", outFmt());
     return mlir::success();
 }
 
@@ -70,7 +69,7 @@ mlir::Operation* vpux::VPUIP::BlobReader::parseYuvToRgb(mlir::OpBuilder& builder
     if (I420params) {
         auto secondInput = inputs.size() == 1 ? nullptr : inputs[1];
         auto thirdInput = inputs.size() == 1 ? nullptr : inputs[2];
-        switch (NV12params->colorFormat()) {
+        switch (I420params->colorFormat()) {
         case MVCNN::RgbFormat::RgbFormat_RGB:
             return builder.create<IE::YuvToRgbOp>(mlir::UnknownLoc::get(_ctx), inputs[0], secondInput, thirdInput,
                                                   IE::ColorFmt::I420, IE::ColorFmt::RGB);

@@ -3,13 +3,13 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #ifndef VPUX_COMPILER_DIALECT_VPURT_TYPES
 #define VPUX_COMPILER_DIALECT_VPURT_TYPES
 
 include "vpux/compiler/dialect/VPURT/dialect.td"
 include "vpux/compiler/core/type_interfaces.td"
+
+include "mlir/IR/AttrTypeBase.td"
 
 //
 // Base classes

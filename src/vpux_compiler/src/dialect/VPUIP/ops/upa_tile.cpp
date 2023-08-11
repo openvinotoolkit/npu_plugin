@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 
 #include "vpux/compiler/core/attributes/dims_order.hpp"
@@ -20,10 +18,10 @@
 
 using namespace vpux;
 
-mlir::LogicalResult vpux::VPUIP::verifyOp(PerAxisTileUPAOp op) {
-    const auto inShape = getShape(op.input());
-    if (checked_cast<size_t>(op.axis()) > inShape.size()) {
-        return errorAt(op, "Tile axis '{0}' is out of range [1,{1}]", op.axis(), inShape.size());
+mlir::LogicalResult vpux::VPUIP::PerAxisTileUPAOp::verify() {
+    const auto inShape = getShape(input());
+    if (checked_cast<size_t>(axis()) > inShape.size()) {
+        return errorAt(*this, "Tile axis '{0}' is out of range [1,{1}]", axis(), inShape.size());
     }
     return mlir::success();
 }

@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/IE/passes.hpp"
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
@@ -163,7 +161,7 @@ void UpstreamSlicePass::safeRunOnFunc() {
     IE::SliceOp::getCanonicalizationPatterns(patterns, &ctx);
     IE::StridedSliceOp::getCanonicalizationPatterns(patterns, &ctx);
 
-    auto func = getFunction();
+    auto func = getOperation();
     if (mlir::failed(applyPatternsAndFoldGreedily(func, std::move(patterns), getDefaultGreedyRewriteConfig()))) {
         signalPassFailure();
     }

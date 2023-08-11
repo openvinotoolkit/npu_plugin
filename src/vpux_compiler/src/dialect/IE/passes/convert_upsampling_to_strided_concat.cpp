@@ -3,11 +3,9 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/IE/passes.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
-#include "vpux/compiler/utils/rewriter.hpp"
 #include "vpux/compiler/utils/types.hpp"
 #include "vpux/utils/core/range.hpp"
 
@@ -84,12 +82,13 @@ mlir::LogicalResult ConvertUpsamplingToStridedConcatPass::UpsamplingOpConverter:
     const auto inputShape = getShape(origOp.input());
 
     const auto upsamplingFactorVectorTmp = parseIntArrayAttr<int64_t>(origOp.upsampling_factor());
-    auto padsL = parseIntArrayAttr<int64_t>(origOp.pad_l());
-    auto padsR = parseIntArrayAttr<int64_t>(origOp.pad_r());
+    auto padChannel = parseIntArrayAttr<int64_t>(origOp.padAttr().pads_channel());
+    auto padHeight = parseIntArrayAttr<int64_t>(origOp.padAttr().pads_height());
+    auto padWidth = parseIntArrayAttr<int64_t>(origOp.padAttr().pads_width());
     SmallVector<int64_t> upsamplingFactorVector = {1, upsamplingFactorVectorTmp[2], upsamplingFactorVectorTmp[1],
                                                    upsamplingFactorVectorTmp[0]};
-    SmallVector<int64_t> padingLAtt = {0, padsL[2], padsL[1], padsL[0]};
-    SmallVector<int64_t> padingRAtt = {0, padsR[2], padsR[1], padsR[0]};
+    SmallVector<int64_t> padingLAtt = {0, padChannel[0], padHeight[0], padWidth[0]};
+    SmallVector<int64_t> padingRAtt = {0, padChannel[1], padHeight[1], padWidth[1]};
     bool convertNow = (upsamplingFactorVectorTmp[2] != 1);
     bool needSlicing = false;
     Shape sliceShape(inputShape.raw());
@@ -136,14 +135,13 @@ mlir::LogicalResult ConvertUpsamplingToStridedConcatPass::UpsamplingOpConverter:
             upsamplingResult = {slice->getResult(0)};
         }
     } else {
-        SmallVector<int64_t> newPadL(3, 0);
-        SmallVector<int64_t> newPadR = upsamplingFactorVectorTmp;
-        for (size_t i = 0; i < newPadR.size(); i++) {
-            newPadR[i] = newPadR[i] - 1;
-        }
-        auto newUpsample = rewriter.create<IE::UpsamplingOp>(
-                origOp->getLoc(), upsamplingResult, origOp.upsampling_factor(), getIntArrayAttr(rewriter, newPadL),
-                getIntArrayAttr(rewriter, newPadR));
+        auto padChannelAttr = getIntArrayAttr(rewriter, SmallVector<int64_t>{0, upsamplingFactorVectorTmp[2] - 1});
+        auto padHeightAttr = getIntArrayAttr(rewriter, SmallVector<int64_t>{0, upsamplingFactorVectorTmp[1] - 1});
+        auto padWidthAttr = getIntArrayAttr(rewriter, SmallVector<int64_t>{0, upsamplingFactorVectorTmp[0] - 1});
+        auto padAttr = IE::UpsamplingPadAttr::get(padChannelAttr, padHeightAttr, padWidthAttr, rewriter.getContext());
+
+        auto newUpsample = rewriter.create<IE::UpsamplingOp>(origOp->getLoc(), upsamplingResult,
+                                                             origOp.upsampling_factor(), padAttr);
         upsamplingResult = newUpsample.output();
     }
     auto isZero = [](auto val) {
@@ -179,8 +177,15 @@ void ConvertUpsamplingToStridedConcatPass::safeRunOnFunc() {
 
     target.addDynamicallyLegalOp<IE::UpsamplingOp>([&](IE::UpsamplingOp op) {
         const auto inputShape = getShape(op.input());
-        const auto padLVector = parseIntArrayAttr<int64_t>(op.pad_l());
-        const auto padRVector = parseIntArrayAttr<int64_t>(op.pad_r());
+        SmallVector<int64_t> padLVector = {
+                checked_cast<int64_t>(op.padAttr().pads_channel()[0].cast<mlir::IntegerAttr>().getInt()),
+                checked_cast<int64_t>(op.padAttr().pads_height()[0].cast<mlir::IntegerAttr>().getInt()),
+                checked_cast<int64_t>(op.padAttr().pads_width()[0].cast<mlir::IntegerAttr>().getInt())};
+
+        SmallVector<int64_t> padRVector = {
+                checked_cast<int64_t>(op.padAttr().pads_channel()[1].cast<mlir::IntegerAttr>().getInt()),
+                checked_cast<int64_t>(op.padAttr().pads_height()[1].cast<mlir::IntegerAttr>().getInt()),
+                checked_cast<int64_t>(op.padAttr().pads_width()[1].cast<mlir::IntegerAttr>().getInt())};
         const auto upsamplingFactorVector = parseIntArrayAttr<int64_t>(op.upsampling_factor());
 
         // Upsampling only supports 4D Input shape
@@ -202,11 +207,9 @@ void ConvertUpsamplingToStridedConcatPass::safeRunOnFunc() {
             return false;
         }
 
-        for (size_t i = 0; i < upsamplingFactorVector.size(); i++) {
-            auto delta = upsamplingFactorVector[i] - padRVector[i];
-            if (1 != delta) {
-                return false;
-            }
+        if (1 != upsamplingFactorVector[0] - padRVector[2] || 1 != upsamplingFactorVector[1] - padRVector[1] ||
+            1 != upsamplingFactorVector[2] - padRVector[0]) {
+            return false;
         }
         return true;
     });
@@ -219,7 +222,7 @@ void ConvertUpsamplingToStridedConcatPass::safeRunOnFunc() {
     mlir::RewritePatternSet patterns(&ctx);
     patterns.insert<UpsamplingOpConverter>(&ctx, _log);
 
-    auto func = getFunction();
+    auto func = getOperation();
     if (mlir::failed(mlir::applyPartialConversion(func, target, std::move(patterns)))) {
         signalPassFailure();
     }

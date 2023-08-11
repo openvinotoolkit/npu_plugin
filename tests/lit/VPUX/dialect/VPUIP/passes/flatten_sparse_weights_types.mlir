@@ -1,13 +1,14 @@
 //
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
+
 // RUN: vpux-opt --split-input-file --init-compiler="vpu-arch=%arch%" --flatten-sparse-weights-types %s | FileCheck %s
 // REQUIRES: arch-VPUX30XX || arch-VPUX37XX
 
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
-func @SparseConvWeights(%arg0: memref<1x32x3x3xf16, #NHWC, [@CMX_NN, 0]>, %arg1: memref<1x64x3x3xf16, #NHWC, [@CMX_NN, 0]>) -> memref<1x64x3x3xf16, #NHWC, [@CMX_NN, 0]> {
+func.func @SparseConvWeights(%arg0: memref<1x32x3x3xf16, #NHWC, [@CMX_NN, 0]>, %arg1: memref<1x64x3x3xf16, #NHWC, [@CMX_NN, 0]>) -> memref<1x64x3x3xf16, #NHWC, [@CMX_NN, 0]> {
   %cst_weights = const.Declare memref<64x32x1x1xf16, {compressionScheme = #VPUIP.CompressionScheme<axis = 0 : i64, numElems = dense<32> : tensor<64xi64>, alignment = 16 : i64>, order = #NHWC}>
     = dense<1.0> : tensor<64x32x1x1xf16>, [#const.Reorder<#NHWC>, #const.Sparsify<false, dense<32> : tensor<64xi64>>]
   %cst_weights_sm = const.Declare memref<64x1x1x128xi1> = dense<1.0> : tensor<64x32x1x1xf16>, [#const.Reorder<#NHWC>, #const.GetSparsityMap]

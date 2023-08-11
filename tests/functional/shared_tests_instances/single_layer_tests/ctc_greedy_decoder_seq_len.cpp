@@ -1,5 +1,5 @@
 //
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,14 +8,15 @@
 #include "kmb_layer_test.hpp"
 
 #include <ngraph/op/util/op_types.hpp>
-#include <ngraph/variant.hpp>
 
 using namespace ngraph;
 namespace LayerTestsDefinitions {
 
-class KmbCTCGreedyDecoderSeqLenLayerTest :
+class VPUXCTCGreedyDecoderSeqLenLayerTest :
         public CTCGreedyDecoderSeqLenLayerTest,
-        virtual public LayerTestsUtils::KmbLayerTestsCommon {
+        virtual public LayerTestsUtils::KmbLayerTestsCommon {};
+
+class VPUXCTCGreedyDecoderSeqLenLayerTest_VPU3700 : public VPUXCTCGreedyDecoderSeqLenLayerTest {
     void SkipBeforeLoad() override {
     }
     void SkipBeforeInfer() override {
@@ -23,21 +24,15 @@ class KmbCTCGreedyDecoderSeqLenLayerTest :
     }
 };
 
-class KmbCTCGreedyDecoderSeqLenLayerTest_MLIR_VPU3720 :
-        public CTCGreedyDecoderSeqLenLayerTest,
-        virtual public LayerTestsUtils::KmbLayerTestsCommon {};
+class VPUXCTCGreedyDecoderSeqLenLayerTest_VPU3720 : public VPUXCTCGreedyDecoderSeqLenLayerTest {};
 
-TEST_P(KmbCTCGreedyDecoderSeqLenLayerTest, CompareWithRefs) {
+TEST_P(VPUXCTCGreedyDecoderSeqLenLayerTest_VPU3700, HW) {
+    setPlatformVPU3700();
+    setDefaultHardwareModeMLIR();
     Run();
 }
 
-TEST_P(KmbCTCGreedyDecoderSeqLenLayerTest, CompareWithRefs_MLIR) {
-    useCompilerMLIR();
-    Run();
-}
-
-TEST_P(KmbCTCGreedyDecoderSeqLenLayerTest_MLIR_VPU3720, COMPILER_MLIR_VPU3720) {
-    useCompilerMLIR();
+TEST_P(VPUXCTCGreedyDecoderSeqLenLayerTest_VPU3720, HW) {
     setPlatformVPU3720();
     setDefaultHardwareModeMLIR();
     Run();
@@ -59,7 +54,7 @@ const auto sequenceLengths = std::vector<int>{1, 50, 100};
 
 const auto blankIndexes = std::vector<int>{0, 50};
 
-INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_CTCGreedyDecoderSeqLenTests, KmbCTCGreedyDecoderSeqLenLayerTest,
+INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_CTCGreedyDecoderSeqLenTests, VPUXCTCGreedyDecoderSeqLenLayerTest_VPU3700,
                          ::testing::Combine(::testing::ValuesIn(inputShape), ::testing::ValuesIn(sequenceLengths),
                                             ::testing::ValuesIn(probPrecisions), ::testing::ValuesIn(idxPrecisions),
                                             ::testing::ValuesIn(blankIndexes), ::testing::ValuesIn(mergeRepeated),
@@ -71,5 +66,5 @@ const auto params_MLIR_VPU3720 = testing::Combine(
         ::testing::ValuesIn(idxPrecisions), ::testing::ValuesIn(blankIndexes), ::testing::ValuesIn(mergeRepeated),
         ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));
 
-INSTANTIATE_TEST_SUITE_P(smoke_CTCGreedyDecoderSeqLenTests_VPU3720, KmbCTCGreedyDecoderSeqLenLayerTest_MLIR_VPU3720,
+INSTANTIATE_TEST_SUITE_P(smoke_CTCGreedyDecoderSeqLenTests_VPU3720, VPUXCTCGreedyDecoderSeqLenLayerTest_VPU3720,
                          params_MLIR_VPU3720, CTCGreedyDecoderSeqLenLayerTest::getTestCaseName);

@@ -6,7 +6,7 @@ module @MVN_case1 {
     DataInfo "Div_0" : tensor<1x4x512xf32> loc(#loc0)
   } profilingOutputsInfo : {
   } loc(#loc0)
-  func @main(%arg0: tensor<1x4x512xf16> loc(unknown)) -> tensor<1x4x512xf16> {
+  func.func @main(%arg0: tensor<1x4x512xf16> loc(unknown)) -> tensor<1x4x512xf16> {
     %cst_0 = const.Declare tensor<4xsi64> = dense<[1, 4, 512, 1]> : tensor<4xsi64> loc(#loc3)
     %1 = IE.Reshape(%arg0, %cst_0) : tensor<1x4x512xf16>, tensor<4xsi64> -> tensor<1x4x512x1xf16> loc(#loc4)
     %2 = IE.MVN(%1) {across_channels = false, eps = 1.0013580322265625E-5 : f64, normalize_variance = true} : tensor<1x4x512x1xf16> -> tensor<1x4x512x1xf16> loc(#loc5)

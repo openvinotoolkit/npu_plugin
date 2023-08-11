@@ -8,17 +8,22 @@
 #include <map>
 #include <string>
 
+#include "vpux/utils/core/logger.hpp"
 #include "ze_api.h"
 #include "ze_graph_ext.h"
 
 namespace vpux {
 namespace zeroMemory {
 struct HostMem {
-    HostMem() = default;
+    HostMem() = delete;
     /* flag = {} (default 0) - default behavior may use implicit driver-based heuristics */
     HostMem(const ze_context_handle_t context, const std::size_t size, ze_host_mem_alloc_flag_t flag = {});
     HostMem(const HostMem&) = delete;
-    HostMem(HostMem&& other): _size(other._size), _data(other._data), _context(other._context) {
+    HostMem(HostMem&& other)
+            : _size(other._size),
+              _data(other._data),
+              _context(other._context),
+              _log(Logger::global().nest("HostMem", 0)) {
         other._size = 0;
         other._data = nullptr;
     }
@@ -42,13 +47,19 @@ private:
     void* _data = nullptr;
     ze_context_handle_t _context = nullptr;
     const static std::size_t _alignment = 4096;
+
+    Logger _log;
 };
 
 struct DeviceMem {
-    DeviceMem() = default;
+    DeviceMem() = delete;
     DeviceMem(const ze_device_handle_t device_handle, const ze_context_handle_t context, const std::size_t size);
     DeviceMem(const DeviceMem&) = delete;
-    DeviceMem(DeviceMem&& other): _size(other._size), _data(other._data), _context(other._context) {
+    DeviceMem(DeviceMem&& other)
+            : _size(other._size),
+              _data(other._data),
+              _context(other._context),
+              _log(Logger::global().nest("DeviceMem", 0)) {
         other._size = 0;
         other._data = nullptr;
     }
@@ -72,6 +83,8 @@ private:
     void* _data = nullptr;
     ze_context_handle_t _context = nullptr;
     const static std::size_t _alignment = 4096;
+
+    Logger _log;
 };
 
 // For graph arguments (inputs and outputs) memory should be located on a host side. For discrete HW
@@ -102,8 +115,8 @@ struct MemoryManagementUnit {
 private:
     std::size_t _size = 0;
 
-    HostMem _host;
-    DeviceMem _device;
+    std::unique_ptr<HostMem> _host;
+    std::unique_ptr<DeviceMem> _device;
     std::map<std::string, std::size_t> _offsets;
 
     const static std::size_t alignment = 4096;

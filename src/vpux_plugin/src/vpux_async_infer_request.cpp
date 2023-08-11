@@ -9,10 +9,10 @@ namespace vpux {
 namespace IE = InferenceEngine;
 
 // clang-format off
-AsyncInferRequest::AsyncInferRequest(const InferRequest::Ptr &inferRequest,
-                                               const IE::ITaskExecutor::Ptr &requestExecutor,
-                                               const IE::ITaskExecutor::Ptr &getResultExecutor,
-                                               const IE::ITaskExecutor::Ptr &callbackExecutor)
+AsyncInferRequest::AsyncInferRequest(const IInferRequest::Ptr &inferRequest,
+                                     const IE::ITaskExecutor::Ptr &requestExecutor,
+                                     const IE::ITaskExecutor::Ptr &getResultExecutor,
+                                     const IE::ITaskExecutor::Ptr &callbackExecutor)
         : IE::AsyncInferRequestThreadSafeDefault(inferRequest, requestExecutor, callbackExecutor),
           _inferRequest(inferRequest), _getResultExecutor(getResultExecutor) {
     _pipeline = {
@@ -20,7 +20,10 @@ AsyncInferRequest::AsyncInferRequest(const InferRequest::Ptr &inferRequest,
             {_getResultExecutor,     [this] { _inferRequest->GetResult(); }}
     };
 }
+// clang-format on
 
-AsyncInferRequest::~AsyncInferRequest() { StopAndWait(); }
+AsyncInferRequest::~AsyncInferRequest() {
+    StopAndWait();
+}
 
-} // namespace vpux
+}  // namespace vpux

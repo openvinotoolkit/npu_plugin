@@ -3,15 +3,10 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
-#include "vpux/compiler/dialect/VPUIP/ops.hpp"
-#include "vpux/compiler/dialect/VPUIP/utils.hpp"
-
-#include "vpux/compiler/core/attributes/dims_order.hpp"
 #include "vpux/compiler/core/attributes/shape.hpp"
 #include "vpux/compiler/dialect/VPUIP/graph-schema/blob_reader.hpp"
 #include "vpux/compiler/dialect/VPUIP/graph-schema/utils.hpp"
+#include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/error.hpp"
 
@@ -52,14 +47,15 @@ mlir::LogicalResult poolSizesCheck(VPUIP::PoolingUPAOp op, int64_t sizeI, int64_
 
 }  // namespace
 
-mlir::LogicalResult vpux::VPUIP::verifyOp(PoolingUPAOp op) {
+mlir::LogicalResult vpux::VPUIP::PoolingUPAOp::verify() {
+    const auto op = getOperation();
     static const auto N = Dim(0);
     static const auto C = Dim(1);
     static const auto H = Dim(2);
     static const auto W = Dim(3);
 
-    const auto inShape = getShape(op.input());
-    const auto outShape = getShape(op.output());
+    const auto inShape = getShape(input());
+    const auto outShape = getShape(output());
 
     if (inShape[N] != outShape[N]) {
         return errorAt(op, "Input batch '{0}' doesn't match with output '{1}'", inShape[N], outShape[N]);
@@ -68,47 +64,47 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(PoolingUPAOp op) {
         return errorAt(op, "Input number of channels '{0}' doesn't match with output '{1}'", inShape[C], outShape[C]);
     }
 
-    const auto kernel = parseIntArrayAttr<int64_t>(op.kernel());
-    const auto strides = parseIntArrayAttr<int64_t>(op.strides());
-    const auto padsBegin = parseIntArrayAttr<int64_t>(op.padsBegin());
-    const auto padsEnd = parseIntArrayAttr<int64_t>(op.padsEnd());
+    const auto kernelVal = parseIntArrayAttr<int64_t>(kernel());
+    const auto stridesVal = parseIntArrayAttr<int64_t>(strides());
+    const auto padsBeginVal = parseIntArrayAttr<int64_t>(padsBegin());
+    const auto padsEndVal = parseIntArrayAttr<int64_t>(padsEnd());
 
-    if (kernel.size() != 2) {
-        return errorAt(op, "Got unsupported kernel '{0}', only 2D is supported", kernel);
+    if (kernelVal.size() != 2) {
+        return errorAt(op, "Got unsupported kernel '{0}', only 2D is supported", kernelVal);
     }
-    if (strides.size() != 2) {
-        return errorAt(op, "Got unsupported strides '{0}', only 2D is supported", strides);
+    if (stridesVal.size() != 2) {
+        return errorAt(op, "Got unsupported strides '{0}', only 2D is supported", stridesVal);
     }
-    if (padsBegin.size() != 2) {
-        return errorAt(op, "Got unsupported padsBegin '{0}', only 2D is supported", padsBegin);
+    if (padsBeginVal.size() != 2) {
+        return errorAt(op, "Got unsupported padsBegin '{0}', only 2D is supported", padsBeginVal);
     }
-    if (padsEnd.size() != 2) {
-        return errorAt(op, "Got unsupported padsEnd '{0}', only 2D is supported", padsEnd);
+    if (padsEndVal.size() != 2) {
+        return errorAt(op, "Got unsupported padsEnd '{0}', only 2D is supported", padsEndVal);
     }
 
-    const auto kernelY = kernel[0];
-    const auto kernelX = kernel[1];
+    const auto kernelY = kernelVal[0];
+    const auto kernelX = kernelVal[1];
 
     if (kernelY < 1 || kernelX < 1 || (kernelY > 64 && kernelX > 64)) {
-        return errorAt(op, "Got unsupported kernel '{0}', kx, ky up to 64 only supported", kernel);
+        return errorAt(op, "Got unsupported kernel '{0}', kx, ky up to 64 only supported", kernelVal);
     }
     if (kernelY > 255 || kernelX > 255) {
-        return errorAt(op, "Got unsupported kernel '{0}', kx, ky cannot exceed unsigned byte value range", kernel);
+        return errorAt(op, "Got unsupported kernel '{0}', kx, ky cannot exceed unsigned byte value range", kernelVal);
     }
 
-    const auto strideY = strides[0];
-    const auto strideX = strides[1];
+    const auto strideY = stridesVal[0];
+    const auto strideX = stridesVal[1];
 
-    const auto padY = padsBegin[0];
-    const auto padX = padsBegin[1];
+    const auto padY = padsBeginVal[0];
+    const auto padX = padsBeginVal[1];
 
-    const auto bpadY = padsEnd[0];
-    const auto rpadX = padsEnd[1];
+    const auto bpadY = padsEndVal[0];
+    const auto rpadX = padsEndVal[1];
 
-    if (mlir::failed(poolSizesCheck(op, inShape[W], outShape[W], kernelX, strideX, padX, rpadX))) {
+    if (mlir::failed(poolSizesCheck(*this, inShape[W], outShape[W], kernelX, strideX, padX, rpadX))) {
         return mlir::failure();
     }
-    if (mlir::failed(poolSizesCheck(op, inShape[H], outShape[H], kernelY, strideY, padY, bpadY))) {
+    if (mlir::failed(poolSizesCheck(*this, inShape[H], outShape[H], kernelY, strideY, padY, bpadY))) {
         return mlir::failure();
     }
 

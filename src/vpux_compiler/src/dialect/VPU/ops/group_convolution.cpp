@@ -5,11 +5,13 @@
 
 #include "vpux/compiler/dialect/VPU/attributes.hpp"
 #include "vpux/compiler/dialect/VPU/ops.hpp"
+#include "vpux/compiler/dialect/VPU/utils/const_utils.hpp"
 
 #include "vpux/compiler/core/attributes/shape.hpp"
 #include "vpux/compiler/core/layers.hpp"
 #include "vpux/compiler/dialect/VPUIP/graph-schema/utils.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
+#include "vpux/compiler/utils/empty_node.hpp"
 #include "vpux/compiler/utils/error.hpp"
 
 #include "vpux/utils/core/checked_cast.hpp"
@@ -19,7 +21,6 @@
 #include <mlir/IR/PatternMatch.h>
 
 #include <ngraph/coordinate.hpp>
-#include <ngraph/op/max_pool.hpp>
 #include <ngraph/validation_util.hpp>
 
 using namespace vpux;
@@ -28,7 +29,7 @@ mlir::LogicalResult vpux::VPU::GroupConvolutionOp::inferReturnTypes(
         mlir::MLIRContext* ctx, mlir::Optional<mlir::Location> optLoc, mlir::ValueRange operands,
         mlir::DictionaryAttr attrs, mlir::RegionRange /*regions*/,
         mlir::SmallVectorImpl<mlir::Type>& inferredReturnTypes) {
-    const auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
+    const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
     VPU::GroupConvolutionOpAdaptor conv(operands, attrs);
     if (mlir::failed(conv.verify(loc))) {
@@ -45,7 +46,7 @@ mlir::LogicalResult vpux::VPU::GroupConvolutionOp::inferReturnTypes(
     const auto windowDilations = parseIntArrayAttr<int64_t>(conv.dilations());
 
     int64_t groups = 0;
-    if (conv.groups().getValueOr(0) != 0) {
+    if (conv.groups().value_or(0) != 0) {
         if (filterShape.size() != inShape.size()) {
             return errorAt(loc, "Input size '{0}' does not match filter size '{1}'. (groups != 0)", inShape.size(),
                            filterShape.size());
@@ -68,7 +69,7 @@ mlir::LogicalResult vpux::VPU::GroupConvolutionOp::inferReturnTypes(
     inShape[1] /= groups;
 
     const auto outputShape =
-            ngraph::infer_convolution_forward(nullptr, ngraph::Shape(inShape.begin(), inShape.end()),
+            ngraph::infer_convolution_forward(EmptyNode::instance(), ngraph::Shape(inShape.begin(), inShape.end()),
                                               ngraph::Strides(windowStrides.size(), 1),  // dummy data dilations
                                               ngraph::CoordinateDiff(dataPaddingBelow.begin(), dataPaddingBelow.end()),
                                               ngraph::CoordinateDiff(dataPaddingAbove.begin(), dataPaddingAbove.end()),
@@ -95,6 +96,27 @@ InputTiling vpux::VPU::GroupConvolutionOp::backInferTileInfo(const vpux::TileInf
     return backInferGroupConvTile(outputTile, origInputShape, origFilterShape, origBiasShape, strides(), origPadding);
 }
 
+//
+// fitIntoCMX
+//
+
+bool vpux::VPU::GroupConvolutionOp::fitIntoCMX(vpux::NDTypeInterface input, vpux::NDTypeInterface filter,
+                                               vpux::NDTypeInterface output) {
+    return fitIntoCMX(input, filter, output, Byte(0));
+}
+
+bool vpux::VPU::GroupConvolutionOp::fitIntoCMX(vpux::NDTypeInterface input, vpux::NDTypeInterface filter,
+                                               vpux::NDTypeInterface output, Byte reservedMem) {
+    SmallVector<Byte> buffers = {input.getTotalAllocSize(), filter.getTotalAllocSize(), output.getTotalAllocSize()};
+
+    auto totalAvailableCMXSize = reservedMem.count() == 0 ? getTotalCMXSize(getOperation()).count()
+                                                          : getTotalCMXFragmentationAwareSize(getOperation()).count();
+
+    return vpux::VPU::calculateAlignedBuffersMemoryRequirement(getArch(getOperation()), buffers).count() +
+                   reservedMem.count() <=
+           totalAvailableCMXSize;
+}
+
 void vpux::VPU::GroupConvolutionOp::adjustAttrs(const TilingInfo& inputTiling, const TileInfo& /*outputTile*/) {
     const auto& inputTiles = inputTiling.tiles;
     VPUX_THROW_UNLESS(inputTiles.size() > 1, "Missed tile information. Got {0} tiles info, must be at least 2",
@@ -102,8 +124,9 @@ void vpux::VPU::GroupConvolutionOp::adjustAttrs(const TilingInfo& inputTiling, c
 
     IE::adjustPaddings(this, inputTiling);
 
+    const auto& inputTile = inputTiles[0];
     const auto& filterTile = inputTiles[1];
-    const auto groups = filterTile.shape[Dims4D::Filter::OC];
+    const auto groups = inputTile.shape[Dims4D::Act::C] / filterTile.shape[Dims4D::Filter::IC];
     const auto groupsNewAttr = getIntAttr(getContext(), groups);
 
     groupsAttr(groupsNewAttr);

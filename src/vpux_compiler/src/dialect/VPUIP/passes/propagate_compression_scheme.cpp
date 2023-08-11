@@ -135,7 +135,7 @@ void PropagateCompressionScheme::propagateUpCompressionScheme(mlir::Value operan
 // end of the model
 void PropagateCompressionScheme::propagateDownCompressionScheme(mlir::Operation* op,
                                                                 VPUIP::CompressionSchemeAttr compressionSchemeAttr) {
-    if (mlir::isa<VPUIP::NCEClusterTaskOp, mlir::ReturnOp>(op)) {
+    if (mlir::isa<VPUIP::NCEClusterTaskOp, mlir::func::ReturnOp>(op)) {
         return;
     }
 
@@ -165,7 +165,7 @@ void PropagateCompressionScheme::propagateDownCompressionScheme(mlir::Operation*
 
 void PropagateCompressionScheme::safeRunOnFunc() {
     auto& ctx = getContext();
-    auto func = getFunction();
+    auto func = getOperation();
 
     func.walk([&](Const::DeclareOp constOp) {
         const auto contentAttr = constOp.contentAttr();

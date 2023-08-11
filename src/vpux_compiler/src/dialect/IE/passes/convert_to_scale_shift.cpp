@@ -114,6 +114,13 @@ mlir::LogicalResult ConvertBiasToScaleShift<BiasTypeOp>::matchAndRewrite(BiasTyp
     _log.trace("Got op {0} at {1}", biasOp->getName(), biasOp->getLoc());
     auto inElemType = biasOp.input2().getType().template cast<vpux::NDTypeInterface>().getElementType();
     auto outElemType = biasOp.output().getType().template cast<vpux::NDTypeInterface>().getElementType();
+
+    // from the ops defination, scale shift can only support F16 FP32
+    if (!(inElemType.isF16() || inElemType.isF32())) {
+        _log.trace("Could not convert to scale shift due to input date type is not FP32 or FP16");
+        return mlir::failure();
+    }
+
     if (inElemType != outElemType) {
         _log.nest().trace("op {0} input and output types are not matching", biasOp->getName());
         return mlir::failure();
@@ -141,6 +148,35 @@ mlir::LogicalResult ConvertBiasToScaleShift<BiasTypeOp>::matchAndRewrite(BiasTyp
     }
 
     auto biasConst = findBiasConst.getValue();
+
+    // Convert:
+    //
+    // Tensor              Const
+    //    |                  |
+    //    |               Negative
+    //    |                  |
+    //     \______AddOp______/
+    //              |
+    //
+    // To:
+    //
+    // Tensor             NewConst
+    //    |                  |
+    //    |                  |
+    //    |                  |
+    //     \___ScaleShift___/
+    //              |
+
+    if (mlir::isa<IE::NegativeOp>(biasInput.getDefiningOp())) {
+        const auto negativeConstAttr = biasConst.contentAttr().rescale(-1.0);
+        auto newBiasInput =
+                rewriter.create<Const::DeclareOp>(biasConst->getLoc(), biasConst.getType(), negativeConstAttr);
+        _log.nest().trace("replacing op {0} with ScaleShift", biasOp->getName());
+        rewriter.replaceOpWithNewOp<IE::ScaleShiftOp>(biasOp, biasOp.getType(), activationInput, nullptr, newBiasInput);
+
+        return mlir::success();
+    }
+
     if (mlir::isa<IE::SubtractOp>(biasOp)) {
         const auto negativeConstAttr = biasConst.contentAttr().rescale(-1.0);
         rewriter.replaceOpWithNewOp<Const::DeclareOp>(biasConst, biasConst.getType(), negativeConstAttr)
@@ -175,6 +211,13 @@ mlir::LogicalResult ConvertMultiplyToScaleShift::matchAndRewrite(IE::MultiplyOp 
     _log.trace("Got op {0} at {1}", mulOp->getName(), mulOp->getLoc());
     const auto lhsType = mulOp.input1().getType().cast<mlir::ShapedType>();
     const auto outShapeRes = mulOp.output().getType().cast<mlir::ShapedType>();
+
+    // from the ops defination, scale shift can only support F16 FP32
+    const auto lhsEltmentType = lhsType.getElementType();
+    if (!(lhsEltmentType.isF16() || lhsEltmentType.isF32())) {
+        _log.trace("Could not convert to scale shift due to input data type is not FP32 or FP16");
+        return mlir::failure();
+    }
 
     bool lhsIsActivation = (lhsType == outShapeRes);
     auto activationInput = lhsIsActivation ? mulOp.input1() : mulOp.input2();
@@ -217,7 +260,7 @@ void ConvertToScaleShiftPass::safeRunOnFunc() {
     patterns.add<ConvertBiasToScaleShift<IE::SubtractOp>>(&ctx, _log);
     patterns.add<ConvertMultiplyToScaleShift>(&ctx, _log);
 
-    auto func = getFunction();
+    auto func = getOperation();
     if (mlir::failed(mlir::applyPatternsAndFoldGreedily(func, std::move(patterns), getDefaultGreedyRewriteConfig()))) {
         signalPassFailure();
     }

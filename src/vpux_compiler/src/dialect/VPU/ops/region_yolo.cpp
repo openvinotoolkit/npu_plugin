@@ -14,7 +14,7 @@ mlir::LogicalResult vpux::VPU::RegionYoloOp::inferReturnTypes(mlir::MLIRContext*
                                                               mlir::ValueRange operands, mlir::DictionaryAttr attrs,
                                                               mlir::RegionRange /*regions*/,
                                                               mlir::SmallVectorImpl<mlir::Type>& inferredReturnTypes) {
-    const auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
+    const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
     VPU::RegionYoloOpAdaptor regionYolo(operands, attrs);
     if (mlir::failed(regionYolo.verify(loc))) {

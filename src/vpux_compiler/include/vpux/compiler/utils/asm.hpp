@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #pragma once
 
 #include "vpux/utils/core/array_ref.hpp"
@@ -93,7 +91,7 @@ mlir::ParseResult parseOptionalBlockRegion(mlir::OpAsmParser& parser, mlir::Regi
 void printGroupOfOperands(mlir::OpAsmPrinter& p, mlir::Block* entry, mlir::StringRef groupName,
                           mlir::ValueRange operands, unsigned& opIdx);
 mlir::ParseResult parseGroupOfOperands(mlir::OpAsmParser& parser, mlir::OperationState& result,
-                                       SmallVector<mlir::OpAsmParser::OperandType>& blockArgs,
+                                       SmallVector<mlir::OpAsmParser::Argument>& blockArgs,
                                        SmallVector<mlir::Type>& blockTypes, mlir::StringRef groupName, int32_t& count);
 
 }  // namespace vpux

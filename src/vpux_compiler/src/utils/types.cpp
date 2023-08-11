@@ -3,13 +3,11 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/utils/types.hpp"
 
 #include "vpux/compiler/core/attributes/stride_reqs.hpp"
 #include "vpux/compiler/core/attributes/strides.hpp"
-#include "vpux/compiler/dialect/IE/attributes/structs.hpp"
+#include "vpux/compiler/dialect/IE/attributes.hpp"
 #include "vpux/compiler/dialect/VPUIP/attributes.hpp"
 #include "vpux/compiler/dialect/VPUIP/types.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
@@ -25,6 +23,10 @@ using namespace vpux;
 //
 // get<scalar>Type
 //
+
+mlir::IntegerType vpux::getInt1Type(mlir::MLIRContext* ctx) {
+    return mlir::IntegerType::get(ctx, 1);
+}
 
 mlir::IntegerType vpux::getInt4Type(mlir::MLIRContext* ctx) {
     return mlir::IntegerType::get(ctx, 4);
@@ -195,11 +197,25 @@ mlir::MemRefType vpux::getMemRefType(ShapeRef shape, mlir::Type elemType, DimsOr
     if (stridesAttr == nullptr && swizzlingSchemeAttr == nullptr && compressionSchemeAttr == nullptr) {
         builder.setLayout(orderAttr);
     } else {
-        const auto layoutAttr =
-                VPUIP::MemRefAttr::get(orderAttr, stridesAttr, swizzlingSchemeAttr, compressionSchemeAttr, ctx);
+        const auto layoutAttr = VPUIP::MemRefAttr::get(orderAttr, stridesAttr, swizzlingSchemeAttr,
+                                                       compressionSchemeAttr, /*allocSize=*/nullptr, ctx);
         builder.setLayout(layoutAttr.cast<mlir::MemRefLayoutAttrInterface>());
     }
     return builder;
+}
+
+mlir::SmallVector<float> vpux::getFloatStrides(StridesRef strides) {
+    Strides temp(strides.begin(), strides.end());
+
+    const auto cvtBitStrideToByteFP = [](Bit val) {
+        if (val.count() % CHAR_BIT == 0) {
+            return checked_cast<float>(Byte(val).count());
+        }
+
+        return checked_cast<float>(val.count()) / CHAR_BIT;
+    };
+
+    return to_small_vector(temp | transformed(cvtBitStrideToByteFP));
 }
 
 //
@@ -255,6 +271,105 @@ bool vpux::isCompatibleForInplaceOp(vpux::NDTypeInterface inInterface, vpux::NDT
         log.trace("Case with different tensor sizes not supported {0} != {1}", inInterface.getTotalAllocSize(),
                   outInterface.getTotalAllocSize());
         return false;
+    }
+
+    return true;
+}
+
+NDTypeInterface vpux::getEffectiveSparseOutputType(mlir::Type dataType, mlir::Type seTableType) {
+    auto dataNDType = dataType.cast<NDTypeInterface>();
+    if (seTableType != nullptr) {
+        auto seTableNDType = seTableType.cast<NDTypeInterface>();
+        auto outShape = Shape(seTableNDType.getShape().raw());
+        outShape[Dims4D::Act::N] = dataNDType.getShape()[Dims4D::Act::N];
+        outShape[Dims4D::Act::C] = dataNDType.getShape()[Dims4D::Act::C];
+        dataNDType = dataNDType.changeShape(outShape);
+    }
+    return dataNDType;
+}
+
+//
+// Type comparison
+//
+
+bool vpux::areTypesCompatible(mlir::TypeRange lhs, mlir::TypeRange rhs, IE::TypeComparisonMode elemComparisonModes,
+                              bool checkDimsOrder, bool checkMemSpace) {
+    if (lhs.size() != rhs.size()) {
+        return false;
+    }
+
+    for (const auto p : zip(lhs, rhs)) {
+        auto lhsOrigType = std::get<0>(p);
+        auto rhsOrigType = std::get<1>(p);
+
+        if (lhsOrigType.getTypeID() != rhsOrigType.getTypeID()) {
+            if (IE::bitEnumContains(elemComparisonModes, IE::TypeComparisonMode::ALLOW_GROUPED_OUTPUT)) {
+                const auto oneIsGrouped = (lhsOrigType.isa<vpux::GroupedTypeInterface>() &&
+                                           !rhsOrigType.isa<vpux::GroupedTypeInterface>()) ||
+                                          (!lhsOrigType.isa<vpux::GroupedTypeInterface>() &&
+                                           rhsOrigType.isa<vpux::GroupedTypeInterface>());
+                if (!oneIsGrouped) {
+                    return false;
+                }
+            }
+        }
+
+        auto lhsType = lhsOrigType.dyn_cast<NDTypeInterface>();
+        auto rhsType = rhsOrigType.dyn_cast<NDTypeInterface>();
+
+        if (lhsType == nullptr || rhsType == nullptr) {
+            return false;
+        }
+
+        if (lhsType.getShape() != rhsType.getShape()) {
+            return false;
+        }
+
+        if (lhsType.getElementType() != rhsType.getElementType()) {
+            if (IE::bitEnumContains(elemComparisonModes, IE::TypeComparisonMode::STRICT_EQUAL)) {
+                return false;
+            }
+
+            const auto lhsQuantizedType = lhsType.getElementType().dyn_cast<mlir::quant::QuantizedType>();
+            const auto rhsQuantizedType = rhsType.getElementType().dyn_cast<mlir::quant::QuantizedType>();
+
+            if (!lhsQuantizedType && !rhsQuantizedType) {
+                return false;
+            } else if (lhsQuantizedType && rhsQuantizedType) {
+                if ((lhsQuantizedType.getExpressedType() != rhsQuantizedType.getExpressedType()) ||
+                    (lhsQuantizedType.getStorageType() != rhsQuantizedType.getStorageType())) {
+                    if (!IE::bitEnumContains(elemComparisonModes, IE::TypeComparisonMode::ALLOW_DIFFERENT_QUANT)) {
+                        return false;
+                    }
+                }
+            } else {
+                if (!IE::bitEnumContains(elemComparisonModes, IE::TypeComparisonMode::ALLOW_QUANT_MIXED_PRECISION)) {
+                    return false;
+                }
+            }
+        }
+
+        if (checkDimsOrder) {
+            const auto order1 = lhsType.getDimsOrder();
+            const auto order2 = rhsType.getDimsOrder();
+
+            if (order1 != order2) {
+                return false;
+            }
+        }
+
+        if (checkMemSpace) {
+            const auto memSpace1 = lhsType.getMemSpace();
+            const auto memSpace2 = rhsType.getMemSpace();
+
+            if (memSpace1 != memSpace2) {
+                // Allow different memory spaces only if both types are in DDR, since a null value also represents DDR
+                if (!(lhsType.getMemoryKind() == VPU::MemoryKind::DDR &&
+                      rhsType.getMemoryKind() == VPU::MemoryKind::DDR)) {
+                    return false;
+                }
+            }
+        }
     }
 
     return true;

@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #pragma once
 
 #include "vpux_compiler.hpp"
@@ -35,5 +33,7 @@ enum class IRPrintingOrder {
     AFTER,
     BEFORE_AFTER,
 };
+
+bool isELFEnabled(const vpux::Config& configuration);
 
 }  // namespace vpux

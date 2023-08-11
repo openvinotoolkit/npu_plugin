@@ -3,12 +3,6 @@
 
 [TOC]
 
-## Type constraint definition
-
-### ELF Section Type
-This object represents closely a Section
-### ELF Symbol Type
-This object represents closely a Symbol
 ## Operation definition
 
 ### `ELF.CreateLogicalSection` (::vpux::ELF::CreateLogicalSectionOp)
@@ -56,6 +50,40 @@ Syntax:
 
 ```
 operation ::= `ELF.CreateMetadataSection` `secFlags` `(` $secFlags `)`
+              attr-dict
+              `->` type(results)
+              $aRegion
+```
+
+
+Traits: HasOnlyGraphRegion, NoRegionArguments, NoTerminator, SingleBlock
+
+Interfaces: ElfSectionInterface, RegionKindInterface
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+| `secName` | ::mlir::StringAttr | string attribute
+| `secFlags` | vpux::ELF::SectionFlagsAttrAttr | Enum for describing ELF section header flags (we can use also the | operator)
+| `secInfo` | mlir::IntegerAttr | Integer attribute
+| `secAddrAlign` | mlir::IntegerAttr | Integer attribute
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+| `section` | ELF Section Type
+
+### `ELF.CreateProfilingSection` (::vpux::ELF::CreateProfilingSectionOp)
+
+Create ELF Profiling Metadata Section
+
+
+Syntax:
+
+```
+operation ::= `ELF.CreateProfilingSection` `secFlags` `(` $secFlags `)`
               attr-dict
               `->` type(results)
               $aRegion
@@ -264,7 +292,7 @@ Interfaces: ElfRelocationObjectInterface
 
 | Operand | Description |
 | :-----: | ----------- |
-| `baseOp` | VPUIPRegMapped Index type
+| `baseOp` | VPUregMapped Index type
 | `sourceSymbol` | ELF Symbol Type
 
 ### `ELF.Reloc` (::vpux::ELF::RelocOp)
@@ -345,9 +373,13 @@ Interfaces: ElfSymbolObjectInterface
 
 ELF Section Type
 
+Syntax: `!ELF.Section`
+
 This object represents closely a Section
 ### SymbolType
 
 ELF Symbol Type
+
+Syntax: `!ELF.Symbol`
 
 This object represents closely a Symbol

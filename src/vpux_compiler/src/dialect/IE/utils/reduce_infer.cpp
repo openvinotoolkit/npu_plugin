@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/IE/utils/reduce_infer.hpp"
 #include "vpux/compiler/dialect/IE/utils/const_attributes.hpp"
 constexpr vpux::StringLiteral keep_dims = "keep_dims";
@@ -36,6 +34,11 @@ mlir::LogicalResult vpux::IE::inferReduceReturnTypeComponents(
             outShape.push_back(1);
         }
     }
+
+    if (outShape.size() == 0) {
+        outShape.push_back(1);
+    }
+
     inferredReturnShapes.emplace_back(outShape, inType.getElementType());
 
     return mlir::success();

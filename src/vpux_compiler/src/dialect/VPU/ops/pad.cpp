@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
+#include "vpux/compiler/dialect/IE/utils/pad_extract.hpp"
 #include "vpux/compiler/dialect/VPU/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/graph-schema/utils.hpp"
 
@@ -10,38 +11,11 @@
 
 using namespace vpux;
 
-namespace {
-
-mlir::FailureOr<SmallVector<int64_t>> extractPads(mlir::Location loc, const mlir::Value& padValue,
-                                                  const Optional<mlir::ArrayAttr>& padAttr, vpux::ShapeRef inputShape) {
-    if (padAttr.hasValue()) {
-        return parseIntArrayAttr<int64_t>(padAttr.getValue());
-    } else if (padValue != nullptr) {
-        auto padsConst = padValue.getDefiningOp<Const::DeclareOp>();
-        if (padsConst == nullptr) {
-            return errorAt(loc, "Only constant input is supported for pad");
-        }
-
-        auto padValueShape = padValue.getType().cast<vpux::NDTypeInterface>().getShape().raw();
-        if (padValueShape.size() != 1 || padValueShape[0] != checked_cast<int64_t>(inputShape.size())) {
-            return errorAt(loc, "pad_begin shape is not compatible with input tensor."
-                                "The length of the list must be equal to the number of dimensions in the input tensor");
-        }
-
-        const auto padContent = padsConst.content();
-        return to_small_vector(padContent.getValues<int64_t>());
-    }
-
-    return errorAt(loc, "Pads were not provided");
-}
-
-}  // namespace
-
 mlir::LogicalResult vpux::VPU::PadOp::inferReturnTypes(mlir::MLIRContext* ctx, mlir::Optional<mlir::Location> optLoc,
                                                        mlir::ValueRange operands, mlir::DictionaryAttr attrs,
                                                        mlir::RegionRange /*regions*/,
                                                        mlir::SmallVectorImpl<mlir::Type>& inferredReturnTypes) {
-    const auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
+    const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
     VPU::PadOpAdaptor pad(operands, attrs);
     if (mlir::failed(pad.verify(loc))) {
@@ -51,11 +25,11 @@ mlir::LogicalResult vpux::VPU::PadOp::inferReturnTypes(mlir::MLIRContext* ctx, m
     const auto inType = pad.input().getType().cast<vpux::NDTypeInterface>();
     const auto inputShape = inType.getShape();
 
-    auto padBegin = extractPads(loc, pad.pads_begin(), pad.pads_begin_attr(), inputShape);
+    auto padBegin = IE::extractPads(loc, pad.pads_begin(), pad.pads_begin_attr(), inputShape);
     if (mlir::failed(padBegin)) {
         return mlir::failure();
     }
-    const auto padEnd = extractPads(loc, pad.pads_end(), pad.pads_end_attr(), inputShape);
+    const auto padEnd = IE::extractPads(loc, pad.pads_end(), pad.pads_end_attr(), inputShape);
     if (mlir::failed(padEnd)) {
         return mlir::failure();
     }

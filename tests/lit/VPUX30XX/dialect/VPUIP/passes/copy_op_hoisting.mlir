@@ -1,13 +1,14 @@
 //
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
+
 // RUN: vpux-opt --split-input-file --init-compiler="vpu-arch=VPUX30XX" --copy-op-hoisting %s | FileCheck %s
 
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
 // CHECK-LABEL: @CopyToTempBufNoChange
-func @CopyToTempBufNoChange(%arg0: memref<1x16x1x1xf16, #NHWC, @CMX_NN>, %arg1: memref<1x16x1x1xf16>) -> memref<1x16x1x1xf16> {
+func.func @CopyToTempBufNoChange(%arg0: memref<1x16x1x1xf16, #NHWC, @CMX_NN>, %arg1: memref<1x16x1x1xf16>) -> memref<1x16x1x1xf16> {
     %wt = const.Declare memref<16x1x1x4xsi32, @CMX_NN> = dense<1> : tensor<16x1x1x4xsi32>
     %act_win = const.Declare memref<1x1x1x16xui8, @CMX_NN> = dense<1> : tensor<1x1x1x16xui8>
     %0 = memref.alloc() : memref<1x16x1x1xf16, #NHWC, @CMX_NN>
@@ -50,7 +51,7 @@ func @CopyToTempBufNoChange(%arg0: memref<1x16x1x1xf16, #NHWC, @CMX_NN>, %arg1: 
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
 // CHECK-LABEL: @CopyToTempBufMoveCopyOnly
-func @CopyToTempBufMoveCopyOnly(%arg0: memref<1x16x1x1xf16, #NHWC, @CMX_NN>, %arg1: memref<1x16x1x1xf16>, %arg2: memref<1x16x1x1xf16>) -> (memref<1x16x1x1xf16>, memref<1x16x1x1xf16>) {
+func.func @CopyToTempBufMoveCopyOnly(%arg0: memref<1x16x1x1xf16, #NHWC, @CMX_NN>, %arg1: memref<1x16x1x1xf16>, %arg2: memref<1x16x1x1xf16>) -> (memref<1x16x1x1xf16>, memref<1x16x1x1xf16>) {
     %wt = const.Declare memref<16x1x1x4xsi32, @CMX_NN> = dense<1> : tensor<16x1x1x4xsi32>
     %act_win = const.Declare memref<1x1x1x16xui8, @CMX_NN> = dense<1> : tensor<1x1x1x16xui8>
     %0 = memref.alloc() : memref<1x16x1x1xf16, #NHWC, @CMX_NN>
@@ -123,7 +124,7 @@ func @CopyToTempBufMoveCopyOnly(%arg0: memref<1x16x1x1xf16, #NHWC, @CMX_NN>, %ar
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
 // CHECK-LABEL: @CopyToTempBufMoveWithAlloc
-func @CopyToTempBufMoveWithAlloc(%arg0: memref<1x16x1x1xf16, #NHWC, @CMX_NN>, %arg1: memref<1x16x1x1xf16>, %arg2: memref<1x16x1x1xf16>) -> (memref<1x16x1x1xf16>, memref<1x16x1x1xf16>) {
+func.func @CopyToTempBufMoveWithAlloc(%arg0: memref<1x16x1x1xf16, #NHWC, @CMX_NN>, %arg1: memref<1x16x1x1xf16>, %arg2: memref<1x16x1x1xf16>) -> (memref<1x16x1x1xf16>, memref<1x16x1x1xf16>) {
     %wt = const.Declare memref<16x1x1x4xsi32, @CMX_NN> = dense<1> : tensor<16x1x1x4xsi32>
     %act_win = const.Declare memref<1x1x1x16xui8, @CMX_NN> = dense<1> : tensor<1x1x1x16xui8>
     %0 = memref.alloc() : memref<1x16x1x1xf16, #NHWC, @CMX_NN>
@@ -196,7 +197,7 @@ func @CopyToTempBufMoveWithAlloc(%arg0: memref<1x16x1x1xf16, #NHWC, @CMX_NN>, %a
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
 // CHECK-LABEL: @CopyToTempBufSubViewMoveCopyOnly
-func @CopyToTempBufSubViewMoveCopyOnly(%arg0: memref<1x8x1x1xf16, #NHWC, @CMX_NN>, %arg1: memref<16x1x1xf16>) -> memref<16x1x1xf16> {
+func.func @CopyToTempBufSubViewMoveCopyOnly(%arg0: memref<1x8x1x1xf16, #NHWC, @CMX_NN>, %arg1: memref<16x1x1xf16>) -> memref<16x1x1xf16> {
     %wt = const.Declare memref<8x1x1x4xsi32, @CMX_NN> = dense<1> : tensor<8x1x1x4xsi32>
     %act_win = const.Declare memref<1x1x1x8xui8, @CMX_NN> = dense<1> : tensor<1x1x1x8xui8>
     %0 = memref.alloc() : memref<1x8x1x1xf16, #NHWC, @CMX_NN>
@@ -271,7 +272,7 @@ func @CopyToTempBufSubViewMoveCopyOnly(%arg0: memref<1x8x1x1xf16, #NHWC, @CMX_NN
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
 // CHECK-LABEL: @CopyToTempBufSubViewMoveWithAlloc
-func @CopyToTempBufSubViewMoveWithAlloc(%arg0: memref<1x8x1x1xf16, #NHWC, @CMX_NN>, %arg1: memref<16x1x1xf16>) -> memref<16x1x1xf16> {
+func.func @CopyToTempBufSubViewMoveWithAlloc(%arg0: memref<1x8x1x1xf16, #NHWC, @CMX_NN>, %arg1: memref<16x1x1xf16>) -> memref<16x1x1xf16> {
     %wt = const.Declare memref<8x1x1x4xsi32, @CMX_NN> = dense<1> : tensor<8x1x1x4xsi32>
     %act_win = const.Declare memref<1x1x1x8xui8, @CMX_NN> = dense<1> : tensor<1x1x1x8xui8>
     %0 = memref.alloc() : memref<1x8x1x1xf16, #NHWC, @CMX_NN>

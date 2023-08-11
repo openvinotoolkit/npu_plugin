@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 
 #include "vpux/compiler/dialect/VPUIP/graph-schema/blob_reader.hpp"
@@ -24,7 +22,7 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::RegionYoloUPAOp::serialize(VPUIP::B
     builder.add_coords(checked_cast<int32_t>(coords()));
     builder.add_classes(checked_cast<int32_t>(classes()));
     builder.add_num(checked_cast<int32_t>(regions()));
-    builder.add_do_softmax(do_softmax().getValueOr(false));
+    builder.add_do_softmax(do_softmax().value_or(false));
     if (mask().hasValue()) {
         builder.add_mask(serializedMask);
     }

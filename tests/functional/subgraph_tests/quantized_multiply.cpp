@@ -29,7 +29,7 @@ using QuantizedMulTestParams = std::tuple<InferenceEngine::Precision,  // inPrc
                                           std::vector<float>,          // fqRanges1
                                           LayerTestsUtils::TargetDevice>;
 
-class KmbQuantizedMulSubGraphTest :
+class VPUXQuantizedMulSubGraphTest_VPU3700 :
         public LayerTestsUtils::KmbLayerTestsCommon,
         public testing::WithParamInterface<QuantizedMulTestParams> {
     void SetUp() override {
@@ -62,7 +62,7 @@ class KmbQuantizedMulSubGraphTest :
         const auto outFq = makeFQdata(mul, outputRange);
 
         const ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(outFq)};
-        function = std::make_shared<ngraph::Function>(results, params, "KmbQuantizedMul");
+        function = std::make_shared<ngraph::Function>(results, params, "VPUXQuantizedMul");
     }
 
 public:
@@ -83,14 +83,14 @@ public:
     }
 };
 
-TEST_P(KmbQuantizedMulSubGraphTest, CompareWithRefs_MLIR_SW) {
-    useCompilerMLIR();
+TEST_P(VPUXQuantizedMulSubGraphTest_VPU3700, SW) {
+    setPlatformVPU3700();
     setReferenceSoftwareModeMLIR();
     Run();
 }
 
-TEST_P(KmbQuantizedMulSubGraphTest, CompareWithRefs_MLIR_HW) {
-    useCompilerMLIR();
+TEST_P(VPUXQuantizedMulSubGraphTest_VPU3700, HW) {
+    setPlatformVPU3700();
     setDefaultHardwareModeMLIR();
     Run();
 }
@@ -109,6 +109,6 @@ const auto basicCases =
                            ::testing::ValuesIn(fqRanges), ::testing::ValuesIn(fqRanges),
                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));
 
-INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke, KmbQuantizedMulSubGraphTest, basicCases);
+INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_QuantizedMul, VPUXQuantizedMulSubGraphTest_VPU3700, basicCases);
 
 }  // namespace

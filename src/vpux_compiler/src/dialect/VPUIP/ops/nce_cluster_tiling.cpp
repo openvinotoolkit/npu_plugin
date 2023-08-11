@@ -3,33 +3,11 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/utils/asm.hpp"
 #include "vpux/compiler/utils/error.hpp"
 
 using namespace vpux;
-
-//
-// RegionBranchOpInterface
-//
-
-mlir::OperandRange vpux::VPUIP::NCEClusterTilingOp::getSuccessorEntryOperands(unsigned index) {
-    VPUX_THROW_UNLESS(index == 0, "Invalid region index: {0}", index);
-    return getOperands();
-}
-
-void vpux::VPUIP::NCEClusterTilingOp::getSuccessorRegions(Optional<unsigned> index, ArrayRef<mlir::Attribute>,
-                                                          SmallVectorImpl<mlir::RegionSuccessor>& regions) {
-    if (index.hasValue()) {
-        VPUX_THROW_UNLESS(*index == 0, "Invalid region index: {0}", *index);
-        regions.push_back(mlir::RegionSuccessor(results()));
-        return;
-    }
-
-    regions.push_back(mlir::RegionSuccessor(&body(), body().getArguments()));
-}
 
 //
 // Inner info
@@ -68,31 +46,30 @@ IndexedSymbolAttr vpux::VPUIP::NCEClusterTilingOp::getExecutor() {
 // print/parse
 //
 
-void vpux::VPUIP::print(mlir::OpAsmPrinter& p, VPUIP::NCEClusterTilingOp op) {
+void vpux::VPUIP::NCEClusterTilingOp::print(mlir::OpAsmPrinter& p) {
     // (%operand as %blockArg: <type>, ...)
 
-    auto& body = op.body();
-    VPUX_THROW_UNLESS(!body.empty(), "Cannot serialize operation with empty body.");
+    VPUX_THROW_UNLESS(!body().empty(), "Cannot serialize operation with empty body.");
 
-    auto* entry = &op.body().front();
-    VPUX_THROW_UNLESS(op.getNumOperands() == entry->getNumArguments(),
-                      "Mismatch between the number of operands({0}) and body arguments({1}).", op.getNumOperands(),
+    auto* entry = &body().front();
+    VPUX_THROW_UNLESS(getNumOperands() == entry->getNumArguments(),
+                      "Mismatch between the number of operands({0}) and body arguments({1}).", getNumOperands(),
                       entry->getNumArguments());
 
     unsigned opIdx = 0;
 
-    printGroupOfOperands(p, entry, "inputs", op.inputs(), opIdx);
-    printGroupOfOperands(p, entry, "outputs", op.output_buffs(), opIdx);
+    printGroupOfOperands(p, entry, "inputs", inputs(), opIdx);
+    printGroupOfOperands(p, entry, "outputs", output_buffs(), opIdx);
 
-    p.printOptionalAttrDictWithKeyword(op->getAttrs(), {"operand_segment_sizes"});
-    p.printOptionalArrowTypeList(op.getResultTypes());
+    p.printOptionalAttrDictWithKeyword(getOperation()->getAttrs(), {"operand_segment_sizes"});
+    p.printOptionalArrowTypeList(getResultTypes());
     p << " ";
-    p.printRegion(op.body(), /*printEntryBlockArgs=*/false);
+    p.printRegion(body(), /*printEntryBlockArgs=*/false);
 }
 
-mlir::ParseResult vpux::VPUIP::parseNCEClusterTilingOp(mlir::OpAsmParser& parser, mlir::OperationState& result) {
+mlir::ParseResult vpux::VPUIP::NCEClusterTilingOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result) {
     // Parse operands (%operand as %blockArg : <type>).
-    SmallVector<mlir::OpAsmParser::OperandType> blockArgs;
+    SmallVector<mlir::OpAsmParser::Argument> blockArgs;
     SmallVector<mlir::Type> blockTypes;
 
     int32_t inCount = 0;
@@ -126,7 +103,7 @@ mlir::ParseResult vpux::VPUIP::parseNCEClusterTilingOp(mlir::OpAsmParser& parser
 
     // Parse region.
     auto* body = result.addRegion();
-    if (parser.parseRegion(*body, blockArgs, blockTypes, /*argLocations=*/{}, /*enableNameShadowing=*/false)) {
+    if (parser.parseRegion(*body, blockArgs)) {
         return mlir::failure();
     }
 
@@ -171,7 +148,7 @@ void vpux::VPUIP::NCEClusterTilingOp::build(mlir::OpBuilder& builder, mlir::Oper
                     seType = sparseType.getStorageElementTable().cast<DistributedBufferType>().getCompactType();
                 }
                 type = SparseBufferType::get(dataType, smType, seType, sparseType.getIsWeights(),
-                                             sparseType.getCompressionScheme());
+                                             sparseType.getCompressionScheme(), sparseType.getSeAttr());
             }
         }
 
@@ -186,12 +163,13 @@ void vpux::VPUIP::NCEClusterTilingOp::build(mlir::OpBuilder& builder, mlir::Oper
 }
 
 //
-// verifyOp
+// verify
 //
 
-mlir::LogicalResult vpux::VPUIP::verifyOp(vpux::VPUIP::NCEClusterTilingOp op) {
-    auto& body = op.body();
-    if (!body.hasOneBlock()) {
+mlir::LogicalResult vpux::VPUIP::NCEClusterTilingOp::verify() {
+    const auto op = getOperation();
+    auto& opBody = body();
+    if (!opBody.hasOneBlock()) {
         return errorAt(op->getLoc(), "Operation must have only one block.");
     }
 
@@ -200,7 +178,7 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(vpux::VPUIP::NCEClusterTilingOp op) {
         return errorAt(op->getLoc(), "Operation must have at least one operand.");
     }
 
-    auto bodyNumArgs = body.getNumArguments();
+    auto bodyNumArgs = opBody.getNumArguments();
     if (numOperands != bodyNumArgs) {
         return errorAt(op->getLoc(), "Mismatch between the number of operands({0}) and body arguments({1}).",
                        numOperands, bodyNumArgs);
@@ -210,7 +188,7 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(vpux::VPUIP::NCEClusterTilingOp op) {
         return errorAt(op->getLoc(), "Operation must have at least one result.");
     }
 
-    auto isNceClusterTaskType = mlir::isa<VPUIP::NCEClusterTaskOp>(op.getInnerTaskOp());
+    auto isNceClusterTaskType = mlir::isa<VPUIP::NCEClusterTaskOp>(getInnerTaskOp());
     const auto checkShape = [&](mlir::ValueRange operands) {
         for (auto operand : operands) {
             auto operandType = operand.getType();
@@ -233,7 +211,7 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(vpux::VPUIP::NCEClusterTilingOp op) {
         return mlir::failure();
     }
 
-    auto isArgsValid = checkShape(op.body().getArguments());
+    auto isArgsValid = checkShape(opBody.getArguments());
     if (isArgsValid.failed()) {
         return mlir::failure();
     }

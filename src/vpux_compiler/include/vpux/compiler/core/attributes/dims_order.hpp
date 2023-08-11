@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #pragma once
 
 #include "vpux/compiler/core/attributes/dim.hpp"
@@ -51,6 +49,8 @@ public:
     static const DimsOrder CHW;
     static const DimsOrder HWC;
     static const DimsOrder HCW;
+    static const DimsOrder WHC;
+    static const DimsOrder CWH;
     static const DimsOrder NCHW;
     static const DimsOrder NHWC;
     static const DimsOrder NHCW;
@@ -59,6 +59,9 @@ public:
     static const DimsOrder NWHC;
     static const DimsOrder NWCH;
     static const DimsOrder NCWH;
+    static const DimsOrder WCHN;
+    static const DimsOrder WHNC;
+    static const DimsOrder HWCN;
 
     // Orders for 2D Convolution weights
     static const DimsOrder OIYX;

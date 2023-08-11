@@ -1,21 +1,22 @@
 //
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2021-2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
-// RUN: vpux-opt --split-input-file --init-compiler="vpu-arch=VPUX37XX" --group-async-execute-ops %s | FileCheck %s
 
-module @Test attributes {VPU.compilationMode = "DefaultHW"} {
+// RUN: vpux-opt --split-input-file --init-compiler="vpu-arch=VPUX37XX compilation-mode=DefaultHW" --group-async-execute-ops %s | FileCheck %s
+
+module @Test {
 
 VPURT.SW.Runtime entryPoint : @VPU.SW::@runtime stack_configuration : [4096, 4096, 4096, 4096]
 module @VPU.SW  {
-    func private @builtin_TanhOp(memref<*xf16>, memref<*xf16>, i64) attributes {VPU.kernel_code = "tanh_fp16.cpp", VPU.kernel_entry = "tanh_fp16"}
-    func private @builtin_Sigmoid(memref<*xf16>, memref<*xf16>) attributes {VPU.kernel_code = "sigmoid_fp16.c", VPU.kernel_entry = "sigmoid_fp16"}
-    func private @runtime() attributes {VPU.kernel_code = "nnActEntry"}
+    func.func private @builtin_TanhOp(memref<*xf16>, memref<*xf16>, i64) attributes {VPU.kernel_code = "tanh_fp16.cpp", VPU.kernel_entry = "tanh_fp16"}
+    func.func private @builtin_Sigmoid(memref<*xf16>, memref<*xf16>) attributes {VPU.kernel_code = "sigmoid_fp16.c", VPU.kernel_entry = "sigmoid_fp16"}
+    func.func private @runtime() attributes {VPU.kernel_code = "nnActEntry"}
 }
 
 // CHECK-LABEL: @DontMergeACTAndDMA
 // Do not merge 2 ACT tasks or 2 DMA task due to exclusive users or different dependencies
-func @DontMergeACTAndDMA(%arg0: memref<16xf16>, %arg1: memref<16xf16>, %arg2: memref<16xf16>)
+func.func @DontMergeACTAndDMA(%arg0: memref<16xf16>, %arg1: memref<16xf16>, %arg2: memref<16xf16>)
         -> (memref<16xf16>, memref<16xf16>) {
     %buf0 = memref.alloc() : memref<16xf16>
     %buf1 = memref.alloc() : memref<16xf16>
@@ -110,16 +111,16 @@ func @DontMergeACTAndDMA(%arg0: memref<16xf16>, %arg1: memref<16xf16>, %arg2: me
 
 // -----
 
-module @Test attributes {VPU.compilationMode = "DefaultHW"} {
+module @Test {
 
 VPURT.SW.Runtime entryPoint : @VPU.SW::@runtime stack_configuration : [4096, 4096, 4096, 4096]
 module @VPU.SW  {
-    func private @builtin_TanhOp(memref<*xf16>, memref<*xf16>, i64) attributes {VPU.kernel_code = "tanh_fp16.cpp", VPU.kernel_entry = "tanh_fp16"}
-    func private @runtime() attributes {VPU.kernel_code = "nnActEntry"}
+    func.func private @builtin_TanhOp(memref<*xf16>, memref<*xf16>, i64) attributes {VPU.kernel_code = "tanh_fp16.cpp", VPU.kernel_entry = "tanh_fp16"}
+    func.func private @runtime() attributes {VPU.kernel_code = "nnActEntry"}
 }
 
 // CHECK-LABEL: @MergeDMAs
-func @MergeDMAs(%arg0: memref<16xf16>, %arg1: memref<16xf16>, %arg2: memref<16xf16>)
+func.func @MergeDMAs(%arg0: memref<16xf16>, %arg1: memref<16xf16>, %arg2: memref<16xf16>)
         -> (memref<16xf16>, memref<16xf16>) {
     %buf = memref.alloc() : memref<16xf16>
 
@@ -174,16 +175,16 @@ func @MergeDMAs(%arg0: memref<16xf16>, %arg1: memref<16xf16>, %arg2: memref<16xf
 
 // -----
 
-module @Test attributes {VPU.compilationMode = "DefaultHW"} {
+module @Test {
 
 VPURT.SW.Runtime entryPoint : @VPU.SW::@runtime stack_configuration : [4096, 4096, 4096, 4096]
 module @VPU.SW  {
-    func private @builtin_Sigmoid(memref<*xf16>, memref<*xf16>) attributes {VPU.kernel_code = "sigmoid_fp16.c", VPU.kernel_entry = "sigmoid_fp16"}
-    func private @runtime() attributes {VPU.kernel_code = "nnActEntry"}
+    func.func private @builtin_Sigmoid(memref<*xf16>, memref<*xf16>) attributes {VPU.kernel_code = "sigmoid_fp16.c", VPU.kernel_entry = "sigmoid_fp16"}
+    func.func private @runtime() attributes {VPU.kernel_code = "nnActEntry"}
 }
 
 // CHECK-LABEL: @TaskWithExclusiveUsers
-func @TaskWithExclusiveUsers(%arg0: memref<16xf16>, %arg1: memref<16xf16>, %arg2: memref<16xf16>)
+func.func @TaskWithExclusiveUsers(%arg0: memref<16xf16>, %arg1: memref<16xf16>, %arg2: memref<16xf16>)
         -> (memref<16xf16>, memref<16xf16>) {
     %buf = memref.alloc() : memref<16xf16>
 

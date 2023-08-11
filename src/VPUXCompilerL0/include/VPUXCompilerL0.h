@@ -22,6 +22,11 @@
 extern "C" {
 #endif
 
+#define VCL_COMPILER_VERSION_MAJOR 3
+#define VCL_COMPILER_VERSION_MINOR 0
+#define VCL_PROFILING_VERSION_MAJOR 2
+#define VCL_PROFILING_VERSION_MINOR 0
+
 ///////////////////////////////////////////////////////////////////////////////
 #ifndef VCL_APICALL
 #if defined(_WIN32)
@@ -53,6 +58,14 @@ typedef struct __vcl_executable_handle_t* vcl_executable_handle_t;
 ///////////////////////////////////////////////////////////////////////////////
 /// @brief Profiling handle
 typedef struct __vcl_profiling_handle_t* vcl_profiling_handle_t;
+
+///////////////////////////////////////////////////////////////////////////////
+
+/// @brief QueryNetwork handle
+typedef struct __vcl_query_handle_t* vcl_query_handle_t;
+
+/// @brief Error log handle
+typedef struct __vcl_log_handle_t* vcl_log_handle_t;
 
 ///////////////////////////////////////////////////////////////////////////////
 /// @brief Defines type of requested data.
@@ -104,20 +117,32 @@ typedef struct __vcl_profiling_properties_t {
 
 ///////////////////////////////////////////////////////////////////////////////
 /// @brief Defines platform for compilation
-typedef enum __vcl_paltform_t {
+typedef enum __vcl_platform_t {
     VCL_PLATFORM_UNKNOWN = -1,
 
-    VCL_PLATFORM_VPU3400,  ///< KMB B0 400 MHz
-    VCL_PLATFORM_VPU3700,  ///< KMB B0 700 MHz
+    VCL_PLATFORM_VPU3400,  ///< VPU3400
+    VCL_PLATFORM_VPU3700,  ///< VPU3700
     VCL_PLATFORM_VPU3720,  ///< VPU3720
 
-} vcl_paltform_t;
+} vcl_platform_t;
+
+///////////////////////////////////////////////////////////////////////////////
+/// @brief Defines debug level for VCL
+typedef enum __vcl_log_level_t {
+    VCL_LOG_NONE = 0,     ///< Log is disabled
+    VCL_LOG_ERROR = 1,    ///< Events which are not expected, containing probable reason
+    VCL_LOG_WARNING = 2,  ///< Events which are unusal
+    VCL_LOG_INFO = 3,     ///< Short messages about ongoing activity
+    VCL_LOG_DEBUG = 4,    ///< Messages with praticular data and explanations
+    VCL_LOG_TRACE = 5,    ///< Messages with detailed information about execution
+
+} vcl_log_level_t;
 
 ///////////////////////////////////////////////////////////////////////////////
 /// @brief Defines compiler desc to be passed during creation
 typedef struct __vcl_compiler_desc_t {
-    vcl_paltform_t platform;
-    uint32_t debug_level;
+    vcl_platform_t platform;
+    vcl_log_level_t debug_level;
 
 } vcl_compiler_desc_t;
 
@@ -157,7 +182,8 @@ typedef struct __vcl_profiling_output_t {
 
 ///////////////////////////////////////////////////////////////////////////////
 /// @brief Creates a compiler object and returns the compiler handle
-VCL_APIEXPORT vcl_result_t VCL_APICALL vclCompilerCreate(vcl_compiler_desc_t desc, vcl_compiler_handle_t* compiler);
+VCL_APIEXPORT vcl_result_t VCL_APICALL vclCompilerCreate(vcl_compiler_desc_t desc, vcl_compiler_handle_t* compiler,
+                                                         vcl_log_handle_t* logHandle);
 
 ///////////////////////////////////////////////////////////////////////////////
 /// @brief Destroys the compiler
@@ -167,6 +193,20 @@ VCL_APIEXPORT vcl_result_t VCL_APICALL vclCompilerDestroy(vcl_compiler_handle_t 
 /// @brief Retrieves the compiler properties, include the version and supported_opsets
 VCL_APIEXPORT vcl_result_t VCL_APICALL vclCompilerGetProperties(vcl_compiler_handle_t compiler,
                                                                 vcl_compiler_properties_t* properties);
+
+///////////////////////////////////////////////////////////////////////////////
+/// @brief Create an querynetwork object and return the handle
+VCL_APIEXPORT vcl_result_t VCL_APICALL vclQueryNetworkCreate(vcl_compiler_handle_t compiler, uint8_t* modelIR,
+                                                             uint64_t modelIRSize, vcl_query_handle_t* query);
+
+///////////////////////////////////////////////////////////////////////////////
+/// @brief Retrieve result of query network
+/// vclQueryNetwork should be called twice, first time to retrieve data size, second time to get data.
+VCL_APIEXPORT vcl_result_t VCL_APICALL vclQueryNetwork(vcl_query_handle_t query, uint8_t* queryResult, uint64_t* size);
+
+///////////////////////////////////////////////////////////////////////////////
+/// @brief Destroys the queryNetwork and releases the cached query result
+VCL_APIEXPORT vcl_result_t VCL_APICALL vclQueryNetworkDestroy(vcl_query_handle_t query);
 
 ///////////////////////////////////////////////////////////////////////////////
 /// @brief Creates an executable object and returns the executable handle
@@ -193,7 +233,8 @@ VCL_APIEXPORT vcl_result_t VCL_APICALL vclExecutableGetSerializableBlob(vcl_exec
 /// \b vclProfilingCreate function doesn't copy profiling output buffer but will
 /// return pointer to it as a response to \b VCL_PROFILING_RAW request.
 VCL_APIEXPORT vcl_result_t VCL_APICALL vclProfilingCreate(p_vcl_profiling_input_t profilingInput,
-                                                          vcl_profiling_handle_t* profilingHandle);
+                                                          vcl_profiling_handle_t* profilingHandle,
+                                                          vcl_log_handle_t* logHandle);
 
 ///////////////////////////////////////////////////////////////////////////////
 /// @brief Provides profiling information based on request argument.
@@ -213,6 +254,11 @@ VCL_APIEXPORT vcl_result_t VCL_APICALL vclProfilingDestroy(vcl_profiling_handle_
 /// @brief Get version of post-processing module
 VCL_APIEXPORT vcl_result_t VCL_APICALL vclProfilingGetProperties(vcl_profiling_handle_t profilingHandle,
                                                                  vcl_profiling_properties_t* properties);
+
+///////////////////////////////////////////////////////////////////////////////
+/// @brief Retrieves error message from log handler.
+/// Handle is released automatically with related compiler or Profiler.
+VCL_APIEXPORT vcl_result_t VCL_APICALL vclLogHandleGetString(vcl_log_handle_t logHandle, size_t* logSize, char* log);
 
 #if defined(__cplusplus)
 }  // extern "C"

@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/IE/passes.hpp"
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
@@ -70,17 +68,28 @@ mlir::LogicalResult ConvertShuffleChannelsPass::ShuffleChannelsOpConverter::matc
     for (size_t i = 0; i < _axis; i++) {
         shape1[0] *= inputShape[i];
     }
-    shape1[1] = group;
-    shape1[2] = inputShape[_axis] / group;
-    // All dims after 'axis' dim
-    for (size_t i = _axis + 1; i < inputShape.size(); i++) {
-        shape1[3] *= inputShape[i];
+    // The shape1 is {N, group, C / group, H * W}
+    // If input layout is NHWC, the permute will be converted to sw kernel.
+    // If N==1, the shape could be {group, C/group, H, W}. The ShuffleChannels be converted to 2 permuteDMA.
+    bool fuseDimsHW = true;
+    if (shape1[0] == 1 && inputShape.size() == 4) {
+        shape1[0] = group;
+        shape1[1] = inputShape[_axis] / group;
+        shape1[2] = inputShape[2];
+        shape1[3] = inputShape[3];
+        fuseDimsHW = false;
+    } else {
+        shape1[1] = group;
+        shape1[2] = inputShape[_axis] / group;
+        // All dims after 'axis' dim
+        for (size_t i = _axis + 1; i < inputShape.size(); i++) {
+            shape1[3] *= inputShape[i];
+        }
     }
-
     const auto shape1Attr = getIntArrayAttr(getContext(), shape1);
     auto reShape1Op = rewriter.create<IE::ReshapeOp>(origOp->getLoc(), origOp.input(), nullptr, false, shape1Attr);
 
-    const SmallVector<uint32_t> permuteNdOrder{0, 2, 1, 3};
+    auto permuteNdOrder = !fuseDimsHW ? SmallVector<uint32_t>{1, 0, 2, 3} : SmallVector<uint32_t>{0, 2, 1, 3};
     const auto permutationMap = mlir::AffineMap::getPermutationMap(makeArrayRef(permuteNdOrder), getContext());
     auto transpOp = rewriter.create<IE::TransposeOp>(origOp->getLoc(), reShape1Op.output(), nullptr,
                                                      mlir::AffineMapAttr::get(permutationMap));
@@ -106,7 +115,7 @@ void ConvertShuffleChannelsPass::safeRunOnFunc() {
     mlir::RewritePatternSet patterns(&ctx);
     patterns.add<ShuffleChannelsOpConverter>(&ctx, _log);
 
-    auto func = getFunction();
+    auto func = getOperation();
     if (mlir::failed(mlir::applyPartialConversion(func, target, std::move(patterns)))) {
         signalPassFailure();
     }

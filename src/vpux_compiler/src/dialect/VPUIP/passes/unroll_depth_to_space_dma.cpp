@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
 
 #include "vpux/compiler/core/aliases_info.hpp"
@@ -130,8 +128,8 @@ mlir::LogicalResult DepthToSpaceDMARewriter::matchAndRewriteClusterDMA(VPUIP::De
 
     if (clusterInputType != nullptr && clusterOutputType != nullptr) {
         _log.nest().trace("Got multi-cluster to multi-clutser case");
-        const auto inputPerClusterShapes = clusterInputType.getPerClusterComputeShapes();
-        const auto outputPerClusterShapes = clusterOutputType.getPerClusterComputeShapes();
+        const auto inputPerClusterShapes = clusterInputType.getPerClusterMemoryShapes();
+        const auto outputPerClusterShapes = clusterOutputType.getPerClusterMemoryShapes();
 
         const auto isShapeCompatible = [&](ShapeRef inShape, ShapeRef outShape) {
             return inShape == backInferInputShape(outShape);
@@ -142,20 +140,21 @@ mlir::LogicalResult DepthToSpaceDMARewriter::matchAndRewriteClusterDMA(VPUIP::De
 
         const auto numClusters = checked_cast<int64_t>(inputPerClusterShapes.size());
 
-        inputBuffers = VPUIP::getPerClusterBuffers(ctx, loc, "input", input, innerInput, numClusters, rewriter);
-        outputBuffers = VPUIP::getPerClusterBuffers(ctx, loc, "output", output, innerOutput, numClusters, rewriter);
+        inputBuffers = VPUIP::getPerClusterMemoryBuffers(ctx, loc, "input", input, innerInput, numClusters, rewriter);
+        outputBuffers =
+                VPUIP::getPerClusterMemoryBuffers(ctx, loc, "output", output, innerOutput, numClusters, rewriter);
     }
 
     if (clusterInputType != nullptr && clusterOutputType == nullptr) {
         _log.nest().trace("Got multi-cluster to single-clutser case");
         const auto outputShapes = SmallVector<vpux::Shape>(
-                llvm::map_range(clusterInputType.getPerClusterComputeShapes(), inferOutputShape));
+                llvm::map_range(clusterInputType.getPerClusterMemoryShapes(), inferOutputShape));
         const auto outputShapeOffsets = SmallVector<vpux::Shape>(
-                llvm::map_range(clusterInputType.getPerClusterComputeShapeOffsets(), inferOutputShape));
+                llvm::map_range(clusterInputType.getPerClusterMemoryShapeOffsets(), inferOutputShape));
 
         const auto numClusters = checked_cast<int64_t>(outputShapes.size());
 
-        inputBuffers = VPUIP::getPerClusterBuffers(ctx, loc, "input", input, innerInput, numClusters, rewriter);
+        inputBuffers = VPUIP::getPerClusterMemoryBuffers(ctx, loc, "input", input, innerInput, numClusters, rewriter);
         outputBuffers = VPUIP::getSplitBuffers(ctx, loc, "output", output, outputShapes, outputShapeOffsets,
                                                numClusters, rewriter);
     }
@@ -163,15 +162,16 @@ mlir::LogicalResult DepthToSpaceDMARewriter::matchAndRewriteClusterDMA(VPUIP::De
     if (clusterInputType == nullptr && clusterOutputType != nullptr) {
         _log.nest().trace("Got single-cluster to multi-clutser case");
         const auto inputShapes = SmallVector<vpux::Shape>(
-                llvm::map_range(clusterOutputType.getPerClusterComputeShapes(), backInferInputShape));
+                llvm::map_range(clusterOutputType.getPerClusterMemoryShapes(), backInferInputShape));
         const auto inputShapeOffsets = SmallVector<vpux::Shape>(
-                llvm::map_range(clusterOutputType.getPerClusterComputeShapeOffsets(), backInferInputShape));
+                llvm::map_range(clusterOutputType.getPerClusterMemoryShapeOffsets(), backInferInputShape));
 
         const auto numClusters = checked_cast<int64_t>(inputShapes.size());
 
         inputBuffers =
                 VPUIP::getSplitBuffers(ctx, loc, "input", input, inputShapes, inputShapeOffsets, numClusters, rewriter);
-        outputBuffers = VPUIP::getPerClusterBuffers(ctx, loc, "output", output, innerOutput, numClusters, rewriter);
+        outputBuffers =
+                VPUIP::getPerClusterMemoryBuffers(ctx, loc, "output", output, innerOutput, numClusters, rewriter);
     }
 
     VPUX_THROW_WHEN(inputBuffers.size() != outputBuffers.size(), "Size of input/output buffers list must match");
@@ -345,7 +345,7 @@ private:
 void UnrollDepthToSpaceDMAPass::safeRunOnFunc() {
     auto& ctx = getContext();
 
-    auto func = getFunction();
+    auto func = getOperation();
     auto module = func->getParentOfType<mlir::ModuleOp>();
     auto dmaOp = IE::getAvailableExecutor(module, VPU::ExecutorKind::DMA_NN);
     auto dmaPortCount = dmaOp.count();

@@ -1,14 +1,12 @@
 //
-// Copyright (C) 2022 Intel Corporation.
+// Copyright (C) 2022-2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
-//
-
 //
 
 #pragma once
 
 #include "vpux/compiler/core/attributes/stride_reqs.hpp"
-#include "vpux/compiler/dialect/IE/attributes/structs.hpp"
+#include "vpux/compiler/dialect/IE/attributes.hpp"
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/VPU/attributes.hpp"
 #include "vpux/compiler/dialect/VPUIP/graph-schema/schema.hpp"
@@ -35,6 +33,7 @@ namespace VPUIP {
 
 MVCNN::TargetDevice mapTargetDevice(VPU::ArchKind kind);
 MVCNN::TargetDeviceRevision mapTargetDeviceRevision(VPU::ArchKind kind);
+MVCNN::PerfDataMode mapProfilingMode(VPU::ArchKind kind);
 
 MVCNN::DType createDType(mlir::Type type);
 MVCNN::MemoryLocation createMemoryLocation(VPURT::BufferSection section);

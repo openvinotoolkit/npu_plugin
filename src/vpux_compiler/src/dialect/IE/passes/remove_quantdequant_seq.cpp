@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/IE/passes.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
 
@@ -27,7 +25,7 @@ private:
 };
 
 void RemoveQuantDequantSeqPass::safeRunOnFunc() {
-    auto func = getFunction();
+    auto func = getOperation();
     // Remove remaining Quantize->Dequantize sequence to not perform explicit FakeQuantize.
     // This might have slight impact on accuracy but gives visible performance improvement
     // TODO: Evaluate possibility of replacing such sequence with ClampOp fused with DPU task

@@ -1,5 +1,5 @@
 //
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,24 +11,18 @@
 
 namespace LayerTestsDefinitions {
 
-class KmbReverseSequenceLayerTest :
+class VPUXReverseSequenceLayerTest :
         public ReverseSequenceLayerTest,
-        virtual public LayerTestsUtils::KmbLayerTestsCommon {
-    void SkipBeforeLoad() override {
-    }
-};
+        virtual public LayerTestsUtils::KmbLayerTestsCommon {};
+class VPUXReverseSequenceLayerTest_VPU3700 : public VPUXReverseSequenceLayerTest {};
+class VPUXReverseSequenceLayerTest_VPU3720 : public VPUXReverseSequenceLayerTest {};
 
-class VPUXReverseSequenceLayerTest_MLIR_VPU3720 : public KmbReverseSequenceLayerTest {};
-
-TEST_P(KmbReverseSequenceLayerTest, CompareWithRefs) {
+TEST_P(VPUXReverseSequenceLayerTest_VPU3700, HW) {
+    setPlatformVPU3700();
+    setDefaultHardwareModeMLIR();
     Run();
 }
-TEST_P(KmbReverseSequenceLayerTest, CompareWithRefs_MLIR) {
-    useCompilerMLIR();
-    Run();
-}
-TEST_P(VPUXReverseSequenceLayerTest_MLIR_VPU3720, CompareWithRefs_MLIR_VPU3720) {
-    useCompilerMLIR();
+TEST_P(VPUXReverseSequenceLayerTest_VPU3720, HW) {
     setPlatformVPU3720();
     setDefaultHardwareModeMLIR();
     Run();
@@ -55,30 +49,31 @@ const std::vector<std::vector<size_t>> reversSeqLengthsVecShapes = {{3}};
 const std::vector<ngraph::helpers::InputLayerType> secondaryInputTypes = {ngraph::helpers::InputLayerType::CONSTANT,
                                                                           ngraph::helpers::InputLayerType::PARAMETER};
 
-INSTANTIATE_TEST_SUITE_P(Basic_smoke, KmbReverseSequenceLayerTest,
+INSTANTIATE_TEST_SUITE_P(Basic_smoke, VPUXReverseSequenceLayerTest_VPU3700,
                          ::testing::Combine(::testing::ValuesIn(batchAxisIndices), ::testing::ValuesIn(seqAxisIndices),
                                             ::testing::ValuesIn(inputShapes),
                                             ::testing::ValuesIn(reversSeqLengthsVecShapes),
                                             ::testing::ValuesIn(secondaryInputTypes),
                                             ::testing::ValuesIn(netPrecisions),
                                             ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
-                         KmbReverseSequenceLayerTest::getTestCaseName);
+                         VPUXReverseSequenceLayerTest_VPU3700::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_ReverseSequence_VPU3720, VPUXReverseSequenceLayerTest_MLIR_VPU3720,
+INSTANTIATE_TEST_SUITE_P(smoke_ReverseSequence_VPU3720, VPUXReverseSequenceLayerTest_VPU3720,
                          ::testing::Combine(::testing::ValuesIn(batchAxisIndices), ::testing::ValuesIn(seqAxisIndices),
                                             ::testing::ValuesIn(inputShapesVPU3720),
                                             ::testing::ValuesIn(reversSeqLengthsVecShapes),
                                             ::testing::Values(ngraph::helpers::InputLayerType::PARAMETER),
                                             ::testing::ValuesIn(netPrecisions),
                                             ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
-                         VPUXReverseSequenceLayerTest_MLIR_VPU3720::getTestCaseName);
+                         VPUXReverseSequenceLayerTest_VPU3720::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_precommit_ReverseSequence_VPU3720, VPUXReverseSequenceLayerTest_MLIR_VPU3720,
+INSTANTIATE_TEST_SUITE_P(smoke_precommit_ReverseSequence_VPU3720, VPUXReverseSequenceLayerTest_VPU3720,
                          ::testing::Combine(::testing::ValuesIn(batchAxisIndices), ::testing::ValuesIn(seqAxisIndices),
                                             ::testing::ValuesIn(inputShapes),
                                             ::testing::ValuesIn(reversSeqLengthsVecShapes),
                                             ::testing::Values(ngraph::helpers::InputLayerType::PARAMETER),
                                             ::testing::ValuesIn(netPrecisions),
                                             ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
-                         VPUXReverseSequenceLayerTest_MLIR_VPU3720::getTestCaseName);
+                         VPUXReverseSequenceLayerTest_VPU3720::getTestCaseName);
+
 }  // namespace

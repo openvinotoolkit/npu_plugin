@@ -1,12 +1,13 @@
 //
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
+
 // RUN: vpux-opt --split-input-file --init-compiler="vpu-arch=%arch%" --unroll-batch %s | FileCheck %s
 // REQUIRES: arch-VPUX30XX || arch-VPUX37XX
 
 // CHECK-LABEL: @UnrollFullyConnectedBatch
-func @UnrollFullyConnectedBatch(%arg0: tensor<2x16xf32>) -> tensor<2x64xf32> {
+func.func @UnrollFullyConnectedBatch(%arg0: tensor<2x16xf32>) -> tensor<2x64xf32> {
     %cst = const.Declare tensor<64x16xf16> = dense<1.0> : tensor<64x16xf32>, [#const.ConvertElemType<f16>]
     %0 = IE.Convert(%arg0) {dstElemType = f16} : tensor<2x16xf32> -> tensor<2x16xf16>
     %1 = IE.FullyConnected(%0, %cst) : tensor<2x16xf16>, tensor<64x16xf16> -> tensor<2x64xf16>
@@ -14,7 +15,7 @@ func @UnrollFullyConnectedBatch(%arg0: tensor<2x16xf32>) -> tensor<2x64xf32> {
 
     return %2 : tensor<2x64xf32>
 
-    // CHECK:       %[[WEIGHTS:.*]] = const.Declare tensor<64x16xf16> = dense<1.000000e+00>
+    // CHECK-DAG:       %[[WEIGHTS:.*]] = const.Declare tensor<64x16xf16> = dense<1.000000e+00>
     // CHECK-SAME:      : tensor<64x16xf32>, [#const.ConvertElemType<f16>]
     // CHECK:       %[[INPUT:.*]] = IE.Convert(%arg0) {dstElemType = f16} : tensor<2x16xf32> -> tensor<2x16xf16>
     // CHECK:       %[[INPUT_SLICE_1:.*]] = IE.Slice %[[INPUT]] [0, 0] [1, 16] : tensor<2x16xf16> to tensor<1x16xf16>
@@ -27,27 +28,27 @@ func @UnrollFullyConnectedBatch(%arg0: tensor<2x16xf32>) -> tensor<2x64xf32> {
     // CHECK:       return %[[OUT]] : tensor<2x64xf32>
 }
 
-!qElemType = type !quant.uniform<u8:f16, 2.4627450980392158>
+!qElemType = !quant.uniform<u8:f16, 2.4627450980392158>
 
 // CHECK-LABEL: @UnrollEltwiseAndBatch
-func @UnrollEltwiseAndBatch(%arg0: tensor<2x128x40x8xf16>) -> tensor<2x128x40x8xf16> {
-    %0 = IE.And(%arg0, %arg0) {auto_broadcast = "NONE_OR_EXPLICIT"} : tensor<2x128x40x8xf16>, tensor<2x128x40x8xf16> -> tensor<2x128x40x8x!qElemType>
-    %1 = IE.And(%0, %0) {auto_broadcast = "NONE_OR_EXPLICIT"} : tensor<2x128x40x8x!qElemType>, tensor<2x128x40x8x!qElemType> -> tensor<2x128x40x8xf16>
+func.func @UnrollEltwiseAndBatch(%arg0: tensor<2x128x40x8xf16>) -> tensor<2x128x40x8xf16> {
+    %0 = IE.And(%arg0, %arg0) {auto_broadcast = #IE.auto_broadcast_type<NONE_OR_EXPLICIT>} : tensor<2x128x40x8xf16>, tensor<2x128x40x8xf16> -> tensor<2x128x40x8x!qElemType>
+    %1 = IE.And(%0, %0) {auto_broadcast = #IE.auto_broadcast_type<NONE_OR_EXPLICIT>} : tensor<2x128x40x8x!qElemType>, tensor<2x128x40x8x!qElemType> -> tensor<2x128x40x8xf16>
     return %1 : tensor<2x128x40x8xf16>
 
     // CHECK: [[SLICE0_ARG0:%.*]] = IE.Slice %arg0 [0, 0, 0, 0] [1, 128, 40, 8] : tensor<2x128x40x8xf16> to tensor<1x128x40x8xf16>
-    // CHECK: [[AND0:%.*]] = IE.And([[SLICE0_ARG0]], [[SLICE0_ARG0]]) {auto_broadcast = "NONE_OR_EXPLICIT"} :
+    // CHECK: [[AND0:%.*]] = IE.And([[SLICE0_ARG0]], [[SLICE0_ARG0]]) {auto_broadcast = #IE.auto_broadcast_type<NONE_OR_EXPLICIT>} :
     // CHECK-SAME: tensor<1x128x40x8xf16>, tensor<1x128x40x8xf16> -> tensor<1x128x40x8x!qElemType>
     // CHECK: [[SLICE1_ARG0:%.*]] = IE.Slice %arg0 [1, 0, 0, 0] [1, 128, 40, 8] : tensor<2x128x40x8xf16> to tensor<1x128x40x8xf16>
-    // CHECK: [[AND1:%.*]] = IE.And([[SLICE1_ARG0]], [[SLICE1_ARG0]]) {auto_broadcast = "NONE_OR_EXPLICIT"} :
+    // CHECK: [[AND1:%.*]] = IE.And([[SLICE1_ARG0]], [[SLICE1_ARG0]]) {auto_broadcast = #IE.auto_broadcast_type<NONE_OR_EXPLICIT>} :
     // CHECK-SAME: tensor<1x128x40x8xf16>, tensor<1x128x40x8xf16> -> tensor<1x128x40x8x!qElemType>
     // CHECK: [[CONCAT0:%.*]] = IE.Concat([[AND0]], [[AND1]]) {per_axis = {axis = 0 : i64}} :
     // CHECK-SAME: tensor<1x128x40x8x!qElemType>, tensor<1x128x40x8x!qElemType> -> tensor<2x128x40x8x!qElemType>
     // CHECK: [[SLICE2:%.*]] = IE.Slice [[CONCAT0]] [0, 0, 0, 0] [1, 128, 40, 8] : tensor<2x128x40x8x!qElemType> to tensor<1x128x40x8x!qElemType>
-    // CHECK: [[AND2:%.*]] = IE.And([[SLICE2]], [[SLICE2]]) {auto_broadcast = "NONE_OR_EXPLICIT"} :
+    // CHECK: [[AND2:%.*]] = IE.And([[SLICE2]], [[SLICE2]]) {auto_broadcast = #IE.auto_broadcast_type<NONE_OR_EXPLICIT>} :
     // CHECK-SAME: tensor<1x128x40x8x!qElemType>, tensor<1x128x40x8x!qElemType> -> tensor<1x128x40x8xf16>
     // CHECK: [[SLICE3:%.*]] = IE.Slice [[CONCAT0]] [1, 0, 0, 0] [1, 128, 40, 8] : tensor<2x128x40x8x!qElemType> to tensor<1x128x40x8x!qElemType>
-    // CHECK: [[AND3:%.*]] = IE.And([[SLICE3]], [[SLICE3]]) {auto_broadcast = "NONE_OR_EXPLICIT"} :
+    // CHECK: [[AND3:%.*]] = IE.And([[SLICE3]], [[SLICE3]]) {auto_broadcast = #IE.auto_broadcast_type<NONE_OR_EXPLICIT>} :
     // CHECK-SAME: tensor<1x128x40x8x!qElemType>, tensor<1x128x40x8x!qElemType> -> tensor<1x128x40x8xf16>
     // CHECK: [[CONCAT1:%.*]] = IE.Concat([[AND2]], [[AND3]]) {per_axis = {axis = 0 : i64}} :
     // CHECK-SAME: tensor<1x128x40x8xf16>, tensor<1x128x40x8xf16> -> tensor<2x128x40x8xf16>
@@ -56,7 +57,7 @@ func @UnrollEltwiseAndBatch(%arg0: tensor<2x128x40x8xf16>) -> tensor<2x128x40x8x
 
 // -----
 
-func @UnrollSigmoidBatch(%arg0: tensor<3x9x16x1xf16>) -> tensor<3x9x16x1xf16> {
+func.func @UnrollSigmoidBatch(%arg0: tensor<3x9x16x1xf16>) -> tensor<3x9x16x1xf16> {
     %0 = IE.Sigmoid(%arg0) : tensor<3x9x16x1xf16> -> tensor<3x9x16x1xf16>
     return %0 : tensor<3x9x16x1xf16>
     // CHECK: [[SLICE0_ARG0:%.*]] = IE.Slice %arg0 [0, 0, 0, 0] [1, 9, 16, 1] : tensor<3x9x16x1xf16> to tensor<1x9x16x1xf16>
@@ -75,7 +76,7 @@ func @UnrollSigmoidBatch(%arg0: tensor<3x9x16x1xf16>) -> tensor<3x9x16x1xf16> {
 
 // -----
 
-func @UnrollExpBatch(%arg0: tensor<3x9x16x1xf16>) -> tensor<3x9x16x1xf16> {
+func.func @UnrollExpBatch(%arg0: tensor<3x9x16x1xf16>) -> tensor<3x9x16x1xf16> {
     %0 = IE.Exp(%arg0) : tensor<3x9x16x1xf16> -> tensor<3x9x16x1xf16>
     return %0 : tensor<3x9x16x1xf16>
     // CHECK: [[SLICE0_ARG0:%.*]] = IE.Slice %arg0 [0, 0, 0, 0] [1, 9, 16, 1] : tensor<3x9x16x1xf16> to tensor<1x9x16x1xf16>
@@ -94,7 +95,7 @@ func @UnrollExpBatch(%arg0: tensor<3x9x16x1xf16>) -> tensor<3x9x16x1xf16> {
 
 // -----
 
-func @UnrollGroupConvolutionBatch(%arg0: tensor<3x9x16x1xf16>, %arg1: tensor<9x1x1x1xf16>) -> tensor<3x9x16x1xf16> {
+func.func @UnrollGroupConvolutionBatch(%arg0: tensor<3x9x16x1xf16>, %arg1: tensor<9x1x1x1xf16>) -> tensor<3x9x16x1xf16> {
     %0 = IE.GroupConvolution(%arg0, %arg1) {dilations = [1, 1], groups = 9 : i64, pads_begin = [0, 0], pads_end = [0, 0], strides = [1, 1]} : tensor<3x9x16x1xf16>, tensor<9x1x1x1xf16> -> tensor<3x9x16x1xf16>
     return %0 : tensor<3x9x16x1xf16>
     // CHECK: [[SLICE0_ARG0:%.*]] = IE.Slice %arg0 [0, 0, 0, 0] [1, 9, 16, 1] : tensor<3x9x16x1xf16> to tensor<1x9x16x1xf16>

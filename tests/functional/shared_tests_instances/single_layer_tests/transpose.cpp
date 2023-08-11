@@ -1,5 +1,5 @@
 //
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,21 +11,17 @@
 
 namespace LayerTestsDefinitions {
 
-class KmbTransposeLayerTest : public TransposeLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {};
-class KmbTransposeLayerTest_MLIR : public KmbTransposeLayerTest {};
-class KmbTransposeLayerTest_VPU3720 : public KmbTransposeLayerTest {};
+class VPUXTransposeLayerTest : public TransposeLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {};
+class VPUXTransposeLayerTest_VPU3700 : public VPUXTransposeLayerTest {};
+class VPUXTransposeLayerTest_VPU3720 : public VPUXTransposeLayerTest {};
 
-TEST_P(KmbTransposeLayerTest, CompareWithRefs) {
+TEST_P(VPUXTransposeLayerTest_VPU3700, HW) {
+    setPlatformVPU3700();
+    setDefaultHardwareModeMLIR();
     Run();
 }
 
-TEST_P(KmbTransposeLayerTest_MLIR, CompareWithRefs_MLIR) {
-    useCompilerMLIR();
-    Run();
-}
-
-TEST_P(KmbTransposeLayerTest_VPU3720, MLIR_VPU3720) {
-    useCompilerMLIR();
+TEST_P(VPUXTransposeLayerTest_VPU3720, HW) {
     setPlatformVPU3720();
     setDefaultHardwareModeMLIR();
     Run();
@@ -59,8 +55,8 @@ const auto params2D =
                          testing::ValuesIn(inputShapes2D), testing::Values(LayerTestsUtils::testPlatformTargetDevice));
 
 // [Track number: W#7312]
-INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_Transpose2D, KmbTransposeLayerTest_MLIR, params2D,
-                         KmbTransposeLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_Transpose2D, VPUXTransposeLayerTest_VPU3700, params2D,
+                         VPUXTransposeLayerTest_VPU3700::getTestCaseName);
 
 // MLIR 4D instantiation
 
@@ -82,8 +78,8 @@ const auto params4D =
                          testing::Values(InferenceEngine::Layout::ANY), testing::Values(InferenceEngine::Layout::ANY),
                          testing::ValuesIn(inputShapes4D), testing::Values(LayerTestsUtils::testPlatformTargetDevice));
 
-INSTANTIATE_TEST_SUITE_P(smoke_Transpose4D, KmbTransposeLayerTest_MLIR, params4D,
-                         KmbTransposeLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Transpose4D, VPUXTransposeLayerTest_VPU3700, params4D,
+                         VPUXTransposeLayerTest_VPU3700::getTestCaseName);
 
 // MLIR 4D MemPermute instantiation
 
@@ -101,8 +97,8 @@ const auto paramsMemPermNCHWtoNHWC = testing::Combine(
         testing::Values(InferenceEngine::Layout::NCHW), testing::Values(InferenceEngine::Layout::NHWC),
         testing::ValuesIn(inputShapesMemPerm), testing::Values(LayerTestsUtils::testPlatformTargetDevice));
 
-INSTANTIATE_TEST_CASE_P(smoke_TransposeMemPermNCHW, KmbTransposeLayerTest_MLIR, paramsMemPermNCHWtoNHWC,
-                        KmbTransposeLayerTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_TransposeMemPermNCHW, VPUXTransposeLayerTest_VPU3700, paramsMemPermNCHWtoNHWC,
+                        VPUXTransposeLayerTest_VPU3700::getTestCaseName);
 
 const auto paramsMemPermInNHWC = testing::Combine(
         testing::ValuesIn(inputOrderMemPerm), testing::ValuesIn(netPrecisions),
@@ -111,8 +107,8 @@ const auto paramsMemPermInNHWC = testing::Combine(
         testing::Values(InferenceEngine::Layout::ANY), testing::ValuesIn(inputShapesMemPerm),
         testing::Values(LayerTestsUtils::testPlatformTargetDevice));
 
-INSTANTIATE_TEST_CASE_P(smoke_TransposeMemPermNHWC, KmbTransposeLayerTest_MLIR, paramsMemPermInNHWC,
-                        KmbTransposeLayerTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_TransposeMemPermNHWC, VPUXTransposeLayerTest_VPU3700, paramsMemPermInNHWC,
+                        VPUXTransposeLayerTest_VPU3700::getTestCaseName);
 
 // ------ VPU3720 ------
 
@@ -126,8 +122,8 @@ const auto paramsVPU3720 = testing::Combine(
         testing::Values(InferenceEngine::Layout::ANY), testing::Values(InferenceEngine::Layout::ANY),
         testing::ValuesIn(inputShapesMemPerm), testing::Values(LayerTestsUtils::testPlatformTargetDevice));
 
-INSTANTIATE_TEST_CASE_P(smoke_precommit_TransposeVPU3720, KmbTransposeLayerTest_VPU3720, paramsVPU3720,
-                        KmbTransposeLayerTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_precommit_TransposeVPU3720, VPUXTransposeLayerTest_VPU3720, paramsVPU3720,
+                        VPUXTransposeLayerTest_VPU3720::getTestCaseName);
 
 // -------- ND ---------
 
@@ -142,7 +138,7 @@ const auto paramsVPU3720_5D = testing::Combine(
         testing::Values(InferenceEngine::Layout::ANY), testing::Values(InferenceEngine::Layout::ANY),
         testing::ValuesIn(shape_5D), testing::Values(LayerTestsUtils::testPlatformTargetDevice));
 
-INSTANTIATE_TEST_CASE_P(smoke_TransposeVPU3720_5D, KmbTransposeLayerTest_VPU3720, paramsVPU3720_5D,
-                        KmbTransposeLayerTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_TransposeVPU3720_5D, VPUXTransposeLayerTest_VPU3720, paramsVPU3720_5D,
+                        VPUXTransposeLayerTest_VPU3720::getTestCaseName);
 
 }  // namespace

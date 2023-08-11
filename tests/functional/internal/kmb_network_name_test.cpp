@@ -48,7 +48,7 @@ std::string KmbNetworkNameTest::runTest(TestNetwork& netDesc, const std::string&
         exeNet.Export(blobFileName);
     }
     ExecutableNetwork importedNet = core->ImportNetwork(blobFileName, DEVICE_NAME, {});
-    const std::string netName = importedNet.GetMetric(EXEC_NETWORK_METRIC_KEY(NETWORK_NAME));
+    const auto netName = importedNet.GetMetric(EXEC_NETWORK_METRIC_KEY(NETWORK_NAME)).as<std::string>();
 
     return netName;
 }

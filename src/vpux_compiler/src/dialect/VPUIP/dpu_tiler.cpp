@@ -3,9 +3,8 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/VPUIP/dpu_tiler.hpp"
+#include "vpux/compiler/dialect/VPU/cost_model.hpp"
 
 #include "vpux/compiler/core/layers.hpp"
 #include "vpux/compiler/utils/factors.hpp"
@@ -47,29 +46,6 @@ VPUNN::ExecutionMode getExecutionMode(VPU::MPEMode mpeMode) {
     }
 }
 
-VPUNN::Operation getOperationType(VPUIP::NCETaskType taskType) {
-    switch (taskType) {
-    case VPUIP::NCETaskType::CONV:
-        return VPUNN::Operation::CONVOLUTION;
-    case VPUIP::NCETaskType::DWCONV:
-        return VPUNN::Operation::DW_CONVOLUTION;
-    case VPUIP::NCETaskType::MAXPOOL:
-        return VPUNN::Operation::MAXPOOL;
-    case VPUIP::NCETaskType::AVEPOOL:
-        return VPUNN::Operation::AVEPOOL;
-    case VPUIP::NCETaskType::ELTWISE:
-        return VPUNN::Operation::ELTWISE;
-    case VPUIP::NCETaskType::CMCONV:
-        return VPUNN::Operation::CM_CONVOLUTION;
-    // unsupported type for vpunn, use convolution as work around
-    case VPUIP::NCETaskType::IDENTITY:
-    case VPUIP::NCETaskType::FCL:
-        return VPUNN::Operation::CONVOLUTION;
-    default:
-        VPUX_THROW("Unsupported operation type: '{0}'", taskType);
-    }
-}
-
 VPUNN::DataType getElementType(mlir::Type type) {
     if (type.isBF16()) {
         return VPUNN::DataType::BFLOAT16;
@@ -85,18 +61,6 @@ VPUNN::DataType getElementType(mlir::Type type) {
         }
     }
     VPUX_THROW("Unsupported data type: '{0}'", type);
-}
-
-VPUNN::VPUDevice getVPUDeviceType(VPU::ArchKind archKind) {
-    switch (archKind) {
-    case VPU::ArchKind::VPUX30XX:
-    case VPU::ArchKind::VPUX311X:
-        return VPUNN::VPUDevice::VPU_2_0;
-    case VPU::ArchKind::VPUX37XX:
-        return VPUNN::VPUDevice::VPU_2_7;
-    default:
-        VPUX_THROW("Unsupported VPU arch type: '{0}'", archKind);
-    }
 }
 
 VPUNN::VPUTensor getVPUTensor(ShapeRef shape, mlir::Type elemType) {
@@ -147,8 +111,8 @@ MpeModeSize getMpeModeSize(VPU::MPEMode mpeMode) {
  * Split workloads on both dimension H and W evenly. Each workload will try to make shape value align with the mpe
  * mode on the splitting dimension. For example, output tensor is [1, 16, 12, 12],  mpe mode is 4x4, and we tried to
  * split workloads into 5x5 pieces. On dimension W, max width = 3 = 12/5 (width/splitNumber) doesn't align with mpe mode
- * value(4), so the max workload width will be changed to 4 (alignVal(3,4)), and the split number will be 3 instead of 5
- * then. So does for dimension H.
+ * value(4), so the max workload width will be changed to 4 (alignValUp(3,4)), and the split number will be 3 instead of
+ * 5 then. So does for dimension H.
  *                            --------------------------------
  *   [0 1 2 ...  11]|         | [0 - 3] | [4 - 7] | [8 - 11]|
  *   [0 1 2 ...  11]|         | [0 - 3] | [4 - 7] | [8 - 11]|
@@ -174,10 +138,10 @@ VPUIP::WorkloadSplit createWorkloadSplitOverHW(ShapeRef shape, int64_t widthFact
     auto height = shape[Dims4D::Act::H];
 
     auto maxWidth = divUp(width, widthFactor);
-    maxWidth = alignVal(maxWidth, mpeModeSize.second);
+    maxWidth = alignValUp(maxWidth, mpeModeSize.second);
     auto actualWidthSplitsNum = divUp(width, maxWidth);
     auto maxHeight = divUp(height, heightFactor);
-    maxHeight = alignVal(maxHeight, mpeModeSize.first);
+    maxHeight = alignValUp(maxHeight, mpeModeSize.first);
     auto actualHeightSplitsNum = divUp(height, maxHeight);
 
     VPUIP::WorkloadSplit split;
@@ -287,7 +251,7 @@ void vpux::VPUIP::DpuTiler::tileOverZ(int64_t splitNumber, WorkloadSplitPool& sp
 
     const auto C = _outShape[Dims4D::Act::C];
     auto maxChannelPerWL = divUp(C, splitNumber);
-    maxChannelPerWL = alignVal(maxChannelPerWL, DEFAULT_ZTILE_VALUE);
+    maxChannelPerWL = alignValUp(maxChannelPerWL, DEFAULT_ZTILE_VALUE);
     if (maxChannelPerWL < DEFAULT_ZTILE_VALUE) {
         return;
     }
@@ -380,6 +344,10 @@ int64_t vpux::VPUIP::computeSplitCost(const WorkloadSplit& split, const Workload
     std::vector<int64_t> workloadCost;
     workloadCost.reserve(split.size());
 
+    auto& log = Logger::global();
+    log.setName("SplitWorkloads");
+    std::string vpunnInputCheckInfo;
+
     for (const auto& wl : split) {
         const auto& outputTile = std::get<0>(wl);
         const auto mpeMode = std::get<1>(wl);
@@ -387,7 +355,7 @@ int64_t vpux::VPUIP::computeSplitCost(const WorkloadSplit& split, const Workload
         const auto padsTileConf = backInferPadsTile(outputTile, params.fullInputShape, params.padInfo,
                                                     makeArrayRef({KY, KX}), makeArrayRef({SY, SX}));
 
-        const auto outputTensor = getVPUTensor(outputTile.shape, params.dataType);
+        const auto outputTensor = getVPUTensor(outputTile.shape, params.outDataType);
 
         const auto IW = (outputTile.shape[Dims4D::Act::W] - 1) * SX + KX - padsTileConf.left - padsTileConf.right;
         const auto IH = (outputTile.shape[Dims4D::Act::H] - 1) * SY + KY - padsTileConf.top - padsTileConf.bottom;
@@ -398,23 +366,52 @@ int64_t vpux::VPUIP::computeSplitCost(const WorkloadSplit& split, const Workload
                                 : outputTile.shape[Dims4D::Act::C];
         const auto IN = outputTile.shape[Dims4D::Act::N];
 
-        const auto inputTensor = getVPUTensor(ShapeRef({IN, IC, IH, IW}), params.dataType);
+        const auto inputTensor = getVPUTensor(ShapeRef({IN, IC, IH, IW}), params.inDataType);
 
-        const auto wlCost = costModel->DPU(
-                {getVPUDeviceType(params.arch),
-                 opType,
-                 {inputTensor},
-                 {outputTensor},
-                 {static_cast<unsigned int>(KX), static_cast<unsigned int>(KY)},
-                 {static_cast<unsigned int>(SX), static_cast<unsigned int>(SY)},
-                 {static_cast<unsigned int>(padsTileConf.top), static_cast<unsigned int>(padsTileConf.bottom),
-                  static_cast<unsigned int>(padsTileConf.left), static_cast<unsigned int>(padsTileConf.right)},
-                 getExecutionMode(mpeMode)});
-
+        auto wlCost = VPU::checkAndReturnCost(
+                costModel->DPU(
+                        {getVPUDeviceType(params.arch),
+                         opType,
+                         {inputTensor},
+                         {outputTensor},
+                         {static_cast<unsigned int>(KX), static_cast<unsigned int>(KY)},
+                         {static_cast<unsigned int>(SX), static_cast<unsigned int>(SY)},
+                         {static_cast<unsigned int>(padsTileConf.top), static_cast<unsigned int>(padsTileConf.bottom),
+                          static_cast<unsigned int>(padsTileConf.left), static_cast<unsigned int>(padsTileConf.right)},
+                         getExecutionMode(mpeMode)},
+                        vpunnInputCheckInfo),
+                log, true);
+        if (wlCost == VPU::INVALID_COST) {
+            log.debug("[VPUNN LOG] INVALID_COST catched. Please check possible VPUNN debug info: {0}",
+                      vpunnInputCheckInfo);
+        }
         workloadCost.push_back(static_cast<int64_t>(wlCost));
     }
 
     return VPUNN::dpu_schedule(params.numDPU, workloadCost, RUNTIME_OVERHEAD_PER_WORKLOAD);
+}
+
+VPUNN::Operation vpux::VPUIP::getOperationType(VPUIP::NCETaskType taskType) {
+    switch (taskType) {
+    case VPUIP::NCETaskType::CONV:
+        return VPUNN::Operation::CONVOLUTION;
+    case VPUIP::NCETaskType::DWCONV:
+        return VPUNN::Operation::DW_CONVOLUTION;
+    case VPUIP::NCETaskType::MAXPOOL:
+        return VPUNN::Operation::MAXPOOL;
+    case VPUIP::NCETaskType::AVEPOOL:
+        return VPUNN::Operation::AVEPOOL;
+    case VPUIP::NCETaskType::ELTWISE:
+        return VPUNN::Operation::ELTWISE;
+    case VPUIP::NCETaskType::CMCONV:
+        return VPUNN::Operation::CM_CONVOLUTION;
+    // unsupported type for vpunn, use convolution as work around
+    case VPUIP::NCETaskType::IDENTITY:
+    case VPUIP::NCETaskType::FCL:
+        return VPUNN::Operation::CONVOLUTION;
+    default:
+        VPUX_THROW("Unsupported operation type: '{0}'", taskType);
+    }
 }
 
 StringLiteral vpux::VPUIP::stringifyEnum(SplitDimension splitDimension) {

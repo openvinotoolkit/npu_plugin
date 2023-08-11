@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 
 #include "vpux/compiler/dialect/VPUIP/graph-schema/blob_reader.hpp"
@@ -15,8 +13,9 @@
 
 using namespace vpux;
 
-mlir::LogicalResult vpux::VPUIP::verifyOp(CTCGreedyDecoderUPAOp op) {
-    const auto inShape = getShape(op.input());
+mlir::LogicalResult vpux::VPUIP::CTCGreedyDecoderUPAOp::verify() {
+    const auto op = getOperation();
+    const auto inShape = getShape(input());
 
     if (inShape.size() != 3) {
         return errorAt(op, "Input shape should have 3 dimensions");

@@ -5,8 +5,8 @@
 #ifndef VPUX_COMPILER_DIALECT_VPU37XX_TYPES
 #define VPUX_COMPILER_DIALECT_VPU37XX_TYPES
 
-include "vpux/compiler/dialect/VPUIPRegMapped/dialect.td"
-include "vpux/compiler/dialect/VPUIPRegMapped/types.td"
+include "vpux/compiler/dialect/VPURegMapped/dialect.td"
+include "vpux/compiler/dialect/VPURegMapped/types.td"
 include "vpux/compiler/dialect/VPU37XX/dialect.td"
 
 //
@@ -14,7 +14,7 @@ include "vpux/compiler/dialect/VPU37XX/dialect.td"
 //
 
 class VPU37XX_RegFieldWrapper<string name = "", int width = 0, int pos = 0> :
-    VPUIPRegMapped_RegFieldWrapper<VPU37XX_Dialect, name, width, pos> {
+    VPURegMapped_RegFieldWrapper<VPU37XX_Dialect, name, width, pos> {
 
     }
 
@@ -204,7 +204,7 @@ def bf_TeBegX : VPU37XX_RegFieldWrapper<"TeBegX", 13, 0>;
 //
 
 class VPU37XX_RegisterWrapper<string name = "", int size = 0, int address = 0x00, list<string> regFieldTypes = []> :
-    VPUIPRegMapped_RegisterWrapper<VPU37XX_Dialect, "vpux::VPU37XX::", name, size, address, regFieldTypes> {
+    VPURegMapped_RegisterWrapper<VPU37XX_Dialect, "vpux::VPU37XX::", name, size, address, regFieldTypes> {
 
 }
 
@@ -213,12 +213,12 @@ class VPU37XX_RegisterWrapper<string name = "", int size = 0, int address = 0x00
 //
 
 // z_Config
-def reg_ZConfig : VPU37XX_RegisterWrapper<"ZConfig", 32, 0xac, 
+def reg_ZConfig : VPU37XX_RegisterWrapper<"ZConfig", 32, 0xac,
     ["SeZSplit", "NumSesInZDir", "CmSpPattern", "Reserved", "AddrFormatSel"]>;
 
 // kernel_pad_cfg
-def reg_KernelPadCfg : VPU37XX_RegisterWrapper<"KernelPadCfg", 32, 0xb0, 
-    ["MpeAssign", "PadRightEn", "PadLeftEn", "PadBottomEn", "PadTopEn", "KernelY", "KernelX", "WtPltCfg", "ActDense", "WtDense", 
+def reg_KernelPadCfg : VPU37XX_RegisterWrapper<"KernelPadCfg", 32, 0xb0,
+    ["MpeAssign", "PadRightEn", "PadLeftEn", "PadBottomEn", "PadTopEn", "KernelY", "KernelX", "WtPltCfg", "ActDense", "WtDense",
     "StrideYEn", "StrideY", "DynamicBwEn", "DwWtSpIns", "Layer1WtSpIns", "Layer1CmpEn", "PoolOptEn", "SpSeTblSegment", "RstCtxt"]>;
 
 // tensor_size0
@@ -228,15 +228,15 @@ def reg_TensorSize0 : VPU37XX_RegisterWrapper<"TensorSize0", 32, 0xc0, ["TensorS
 def reg_TensorSize1 : VPU37XX_RegisterWrapper<"TensorSize1", 32, 0xc4, ["TensorSizeZ"]>;
 
 // tensor_mode
-def reg_TensorMode : VPU37XX_RegisterWrapper<"TensorMode", 32, 0xcc, 
+def reg_TensorMode : VPU37XX_RegisterWrapper<"TensorMode", 32, 0xcc,
     ["Wmode", "Amode", "Stride", "ZmInput", "DwInput", "CmInput", "WorkloadOperation", "PadValue"]>;
 
 // elops_wload
-def reg_ElopsWload : VPU37XX_RegisterWrapper<"ElopsWload", 32, 0xd8, 
+def reg_ElopsWload : VPU37XX_RegisterWrapper<"ElopsWload", 32, 0xd8,
     ["ElopWload", "SeedWload", "FifoWrWload", "ElopWloadType", "PoolWtData", "PoolWtRdDis"]>;
 
 // odu_cfg
-def reg_OduCfg : VPU37XX_RegisterWrapper<"OduCfg", 32, 0xf8, 
+def reg_OduCfg : VPU37XX_RegisterWrapper<"OduCfg", 32, 0xf8,
     ["Dtype", "SpValue", "SpOutEn", "WriteSp", "WritePt", "WriteAc", "Mode", "Grid", "SwizzleKey", "Nthw", "Permutation", "DebugMode"]>;
 
 // te_dim0
@@ -246,7 +246,7 @@ def reg_TeDim0 : VPU37XX_RegisterWrapper<"TeDim0", 32, 0x108, ["TeDimY", "TeDimZ
 def reg_OduCast : VPU37XX_RegisterWrapper<"OduCast", 32, 0x130, ["CastEnable", "CastOffset"]>;
 
 // mpe_cfg
-def reg_MpeCfg : VPU37XX_RegisterWrapper<"MpeCfg", 32, 0x13c, 
+def reg_MpeCfg : VPU37XX_RegisterWrapper<"MpeCfg", 32, 0x13c,
     ["MpeWtbias", "MpeActbias", "MpeMode", "MpeDense", "MrmWeightDense", "MrmActDense", "MpeDaz", "MpeFtz"]>;
 
 // elop_scale
@@ -278,7 +278,7 @@ def reg_PpeFpCfg : VPU37XX_RegisterWrapper<"PpeFpCfg", 32, 0x180, ["PpeFpConvert
 def reg_WorkloadSize0 : VPU37XX_RegisterWrapper<"WorkloadSize0", 32, 0x20, ["WorkloadSizeX", "WorkloadSizeY"]>;
 
 // workload_size1
-def reg_WorkloadSize1 : VPU37XX_RegisterWrapper<"WorkloadSize1", 32, 0x24, 
+def reg_WorkloadSize1 : VPU37XX_RegisterWrapper<"WorkloadSize1", 32, 0x24,
     ["WorkloadSizeZ", "PadCountUp", "PadCountLeft", "PadCountDown", "PadCountRight"]>;
 
 // workload_start0
@@ -288,9 +288,9 @@ def reg_WorkloadStart0 : VPU37XX_RegisterWrapper<"WorkloadStart0", 32, 0x28, ["W
 def reg_WorkloadStart1 : VPU37XX_RegisterWrapper<"WorkloadStart1", 32, 0x2c, ["WorkloadStartZ"]>;
 
 // offset_addr
-def reg_OffsetAddr : VPU37XX_RegisterWrapper<"OffsetAddr", 32, 0x30, 
-    ["NthwNtk", "BinCfg", "ConvCond", "DenseSe", "IdxQuad", "SwizzleKeyOffsetAddr", "IduMrmClkEn", "OduClkEn", 
-    "MpeClkEn", "PpeClkEn", "OduStatEn", "IduStatEn", "OduStatClrMode", "IduStatClrMode", "ShaveL2CacheEn", 
+def reg_OffsetAddr : VPU37XX_RegisterWrapper<"OffsetAddr", 32, 0x30,
+    ["NthwNtk", "BinCfg", "ConvCond", "DenseSe", "IdxQuad", "SwizzleKeyOffsetAddr", "IduMrmClkEn", "OduClkEn",
+    "MpeClkEn", "PpeClkEn", "OduStatEn", "IduStatEn", "OduStatClrMode", "IduStatClrMode", "ShaveL2CacheEn",
     "IduDbgEn", "WtSwizzleKey", "WtSwizzleSel"]>;
 
 // te_end0
@@ -310,17 +310,17 @@ def reg_TeBeg1 : VPU37XX_RegisterWrapper<"TeBeg1", 32, 0x40, ["TeBegX"]>;
 //
 
 class VPU37XX_RegMappedWrapper<string name = "", list<string> regsTypes = []> :
-    VPUIPRegMapped_RegMappedWrapper<VPU37XX_Dialect, "vpux::VPU37XX::", name, regsTypes> {
+    VPURegMapped_RegMappedWrapper<VPU37XX_Dialect, "vpux::VPU37XX::", name, regsTypes> {
 
 }
 
 // DPUInvariantRegister
-def reg_mapped_DpuInvariantRegister : VPU37XX_RegMappedWrapper<"DpuInvariantRegister", 
-    ["ZConfig", "KernelPadCfg", "TensorSize0", "TensorSize1", "TensorMode", "ElopsWload", "OduCfg", "TeDim0", 
+def reg_mapped_DpuInvariantRegister : VPU37XX_RegMappedWrapper<"DpuInvariantRegister",
+    ["ZConfig", "KernelPadCfg", "TensorSize0", "TensorSize1", "TensorMode", "ElopsWload", "OduCfg", "TeDim0",
     "OduCast", "MpeCfg", "ElopScale", "PpeCfg", "PpeScale", "PpeScaleCtrl", "PpePrelu", "PpeMisc", "PpeFpCfg"]>;
 
 // DPUVariantRegister
-def reg_mapped_DpuVariantRegister : VPU37XX_RegMappedWrapper<"DpuVariantRegister", 
+def reg_mapped_DpuVariantRegister : VPU37XX_RegMappedWrapper<"DpuVariantRegister",
     ["WorkloadSize0", "WorkloadSize1", "WorkloadStart0", "WorkloadStart1", "OffsetAddr", "TeEnd0", "TeEnd1", "TeBeg0", "TeBeg1"]>;
 
 #endif

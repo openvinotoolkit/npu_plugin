@@ -1,20 +1,21 @@
 //
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
+
 // RUN: vpux-opt --split-input-file --init-compiler="vpu-arch=%arch% compilation-mode=DefaultHW" --convert-nce-cluster-tiling-to-vpuip --canonicalize %s | FileCheck %s
 // REQUIRES: arch-VPUX30XX || arch-VPUX37XX
 
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
-!type_DDR_tensor = type tensor<1x32x16x16xf16, {mem_space = @DDR, order = #NHWC}>
-!type_DDR_memref = type memref<1x32x16x16xf16, #NHWC, @DDR>
-!type_CMX_tensor = type tensor<1x32x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>
-!type_CMX_memref = type memref<1x32x16x16xf16, #NHWC, @CMX_NN>
+!type_DDR_tensor = tensor<1x32x16x16xf16, {mem_space = @DDR, order = #NHWC}>
+!type_DDR_memref = memref<1x32x16x16xf16, #NHWC, @DDR>
+!type_CMX_tensor = tensor<1x32x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>
+!type_CMX_memref = memref<1x32x16x16xf16, #NHWC, @CMX_NN>
 
 // NCEClusterTiling operation with memref output
 // Original operation before IE2IERT lowering:
-// func @NCEClusterTilingCopyOpTensorResult(%input0: !type_DDR_tensor) -> !type_CMX_tensor{
+// func.func @NCEClusterTilingCopyOpTensorResult(%input0: !type_DDR_tensor) -> !type_CMX_tensor{
 //     %tensor_cmx = VPU.NCE.ClusterTiling(%input0 as %arg0: !type_DDR_tensor) -> !type_CMX_tensor {
 //         %0 = IE.Copy(%arg0) { out_mem_space = @CMX_NN } : !type_DDR_tensor -> !type_CMX_tensor
 //         VPU.Yield %0
@@ -23,7 +24,7 @@
 // }
 
 // CHECK-LABEL: @NCEClusterTilingCopyOpTensorResult
-func @NCEClusterTilingCopyOpTensorResult(%input0: !type_DDR_memref) -> !type_CMX_memref{
+func.func @NCEClusterTilingCopyOpTensorResult(%input0: !type_DDR_memref) -> !type_CMX_memref{
 
     %input_DDR_tensor = builtin.unrealized_conversion_cast %input0 : !type_DDR_memref
         to !type_DDR_tensor
@@ -56,7 +57,7 @@ func @NCEClusterTilingCopyOpTensorResult(%input0: !type_DDR_memref) -> !type_CMX
 
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
-!typeCmxDistributed = type !VPU.DistributedTensor<
+!typeCmxDistributed = !VPU.DistributedTensor<
     1x32x16x16xf16, #NHWC, @CMX_NN, {
     mode = "OVERLAPPED",
     num_tiles = [1, 1, 4, 1],
@@ -66,14 +67,14 @@ func @NCEClusterTilingCopyOpTensorResult(%input0: !type_DDR_memref) -> !type_CMX
     num_clusters = 4
 }>
 
-!type_DDR_tensor = type tensor<1x32x16x16xf16, {mem_space = @DDR, order = #NHWC}>
-!type_DDR_memref = type memref<1x32x16x16xf16, #NHWC, @DDR>
-!type_CMX_tensor = type tensor<1x32x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>
-!type_CMX_memref = type memref<1x32x16x16xf16, #NHWC, @CMX_NN>
+!type_DDR_tensor = tensor<1x32x16x16xf16, {mem_space = @DDR, order = #NHWC}>
+!type_DDR_memref = memref<1x32x16x16xf16, #NHWC, @DDR>
+!type_CMX_tensor = tensor<1x32x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>
+!type_CMX_memref = memref<1x32x16x16xf16, #NHWC, @CMX_NN>
 
 // NCEClusterTiling operation with distributed type of output
 // Original operation before IE2IERT lowering
-// func @NCEClusterTilingCopyOpDistributedResult(%input0: !type_DDR_tensor) -> !type_CMX_tensor{
+// func.func @NCEClusterTilingCopyOpDistributedResult(%input0: !type_DDR_tensor) -> !type_CMX_tensor{
 //     %tensor_distributed_cmx = VPU.NCE.ClusterTiling(%input0 as %arg0: !type_DDR_tensor) -> !typeCmxDistributed {
 //         %0 = IE.Copy(%arg0) { out_mem_space = @CMX_NN } : !type_DDR_tensor -> !type_CMX_tensor
 //         VPU.Yield %0
@@ -83,7 +84,7 @@ func @NCEClusterTilingCopyOpTensorResult(%input0: !type_DDR_memref) -> !type_CMX
 //     return %tensor_cmx : !type_CMX_tensor
 // }
 // CHECK-LABEL: @NCEClusterTilingCopyOpDistributedResult
-func @NCEClusterTilingCopyOpDistributedResult(%input0: !type_DDR_memref) -> !type_CMX_memref{
+func.func @NCEClusterTilingCopyOpDistributedResult(%input0: !type_DDR_memref) -> !type_CMX_memref{
 
     %input_DDR_tensor = builtin.unrealized_conversion_cast %input0 : !type_DDR_memref
         to !type_DDR_tensor
@@ -116,7 +117,7 @@ func @NCEClusterTilingCopyOpDistributedResult(%input0: !type_DDR_memref) -> !typ
 
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
-!typeCmxDistributed = type !VPU.DistributedTensor<
+!typeCmxDistributed = !VPU.DistributedTensor<
     1x32x16x16xf16, #NHWC, @CMX_NN, {
     mode = "OVERLAPPED",
     num_tiles = [1, 1, 4, 1],
@@ -126,14 +127,14 @@ func @NCEClusterTilingCopyOpDistributedResult(%input0: !type_DDR_memref) -> !typ
     num_clusters = 4
 }>
 
-!type_DDR_tensor = type tensor<1x32x16x16xf16, {mem_space = @DDR, order = #NHWC}>
-!type_DDR_memref = type memref<1x32x16x16xf16, #NHWC, @DDR>
-!type_CMX_tensor = type tensor<1x32x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>
-!type_CMX_memref = type memref<1x32x16x16xf16, #NHWC, @CMX_NN>
+!type_DDR_tensor = tensor<1x32x16x16xf16, {mem_space = @DDR, order = #NHWC}>
+!type_DDR_memref = memref<1x32x16x16xf16, #NHWC, @DDR>
+!type_CMX_tensor = tensor<1x32x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>
+!type_CMX_memref = memref<1x32x16x16xf16, #NHWC, @CMX_NN>
 
 // 2 NCEClusterTiling operations with distributed type passed in between
 // Original operation before IE2IERT lowering
-// func @NCEClusterTilingDistributedCopy2CopyOp(%input0: !type_DDR_tensor) -> !type_DDR_tensor {
+// func.func @NCEClusterTilingDistributedCopy2CopyOp(%input0: !type_DDR_tensor) -> !type_DDR_tensor {
 //     %tensor_distributed_cmx = VPU.NCE.ClusterTiling(%input0 as %arg0: !type_DDR_tensor) -> !typeCmxDistributed {
 //         %0 = IE.Copy(%arg0) { out_mem_space = @CMX_NN } : !type_DDR_tensor -> !type_CMX_tensor
 //         VPU.Yield %0
@@ -146,7 +147,7 @@ func @NCEClusterTilingCopyOpDistributedResult(%input0: !type_DDR_memref) -> !typ
 // }
 
 // CHECK-LABEL: @NCEClusterTilingDistributedCopy2CopyOp
-func @NCEClusterTilingDistributedCopy2CopyOp(%arg0: !type_DDR_memref, %arg1: !type_DDR_memref) -> !type_DDR_memref {
+func.func @NCEClusterTilingDistributedCopy2CopyOp(%arg0: !type_DDR_memref, %arg1: !type_DDR_memref) -> !type_DDR_memref {
     %0 = builtin.unrealized_conversion_cast %arg0 : !type_DDR_memref to !type_DDR_tensor
     %1 = VPU.NCE.ClusterTiling (%0 as %arg2: !type_DDR_tensor) -> !typeCmxDistributed {
         %5 = builtin.unrealized_conversion_cast %arg2 : !type_DDR_tensor to !type_DDR_memref
@@ -189,46 +190,46 @@ func @NCEClusterTilingDistributedCopy2CopyOp(%arg0: !type_DDR_memref, %arg1: !ty
 #NCHW = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
-!TensorDistributed = type !VPU.DistributedTensor<
+!TensorDistributed = !VPU.DistributedTensor<
     32x16x3x3xf16, #NHWC, @CMX_NN, {
     mode = "SEGMENTED",
     num_tiles = [1, 1, 2, 1],
     num_clusters = 2
 }>
 
-!SMTensorDistributed = type !VPU.DistributedTensor<
+!SMTensorDistributed = !VPU.DistributedTensor<
     32x1x1x256xi1, #NCHW, @CMX_NN, {
     mode = "SEGMENTED",
     num_tiles = [1, 1, 2, 1],
     num_clusters = 2
 }>
 
-!BufferDistributed = type !VPUIP.DistributedBuffer<
+!BufferDistributed = !VPUIP.DistributedBuffer<
     32x16x3x3xf16, #NHWC, @CMX_NN, {
     mode = "SEGMENTED",
     num_tiles = [1, 1, 2, 1],
     num_clusters = 2
 }>
 
-!SMBufferDistributed = type !VPUIP.DistributedBuffer<
+!SMBufferDistributed = !VPUIP.DistributedBuffer<
     32x1x1x256xi1, #NCHW, @CMX_NN, {
     mode = "SEGMENTED",
     num_tiles = [1, 1, 2, 1],
     num_clusters = 2
 }>
 
-!Tensor_DDR = type tensor<32x16x3x3xf16, {mem_space = @DDR, order = #NHWC}>
-!SMTensor_DDR = type tensor<32x1x1x256xi1, {mem_space = @DDR}>
-!Tensor_CMX = type tensor<32x16x3x3xf16, {mem_space = @CMX_NN, order = #NHWC}>
-!SMTensor_CMX = type tensor<32x1x1x256xi1, {mem_space = @CMX_NN}>
+!Tensor_DDR = tensor<32x16x3x3xf16, {mem_space = @DDR, order = #NHWC}>
+!SMTensor_DDR = tensor<32x1x1x256xi1, {mem_space = @DDR}>
+!Tensor_CMX = tensor<32x16x3x3xf16, {mem_space = @CMX_NN, order = #NHWC}>
+!SMTensor_CMX = tensor<32x1x1x256xi1, {mem_space = @CMX_NN}>
 
-!Buffer_DDR = type memref<32x16x3x3xf16, #NHWC, @DDR>
-!SMBuffer_DDR = type memref<32x1x1x256xi1, @DDR>
-!Buffer_CMX = type memref<32x16x3x3xf16, #NHWC, @CMX_NN>
-!SMBuffer_CMX = type memref<32x1x1x256xi1, @CMX_NN>
+!Buffer_DDR = memref<32x16x3x3xf16, #NHWC, @DDR>
+!SMBuffer_DDR = memref<32x1x1x256xi1, @DDR>
+!Buffer_CMX = memref<32x16x3x3xf16, #NHWC, @CMX_NN>
+!SMBuffer_CMX = memref<32x1x1x256xi1, @CMX_NN>
 
-// CHECK:  func @SparseDistributedCopyCMXToDDR([[ARG0:%.+]]: memref<32x16x3x3xf16, #NHWC, @DDR>
-func @SparseDistributedCopyCMXToDDR(%arg0: !Buffer_DDR, %arg1: !VPUIP.SparseBuffer<data=!BufferDistributed, sparsity_map=!SMBufferDistributed, is_weights>)
+// CHECK:  func.func @SparseDistributedCopyCMXToDDR([[ARG0:%.+]]: memref<32x16x3x3xf16, #NHWC, @DDR>
+func.func @SparseDistributedCopyCMXToDDR(%arg0: !Buffer_DDR, %arg1: !VPUIP.SparseBuffer<data=!BufferDistributed, sparsity_map=!SMBufferDistributed, is_weights>)
         -> !VPUIP.SparseBuffer<data=!BufferDistributed, sparsity_map=!SMBufferDistributed, is_weights> {
 
     %cst_sm = const.Declare !SMBuffer_DDR = dense<1.000000e+00> : tensor<32x16x3x3xf16>, [#const.Reorder<#NHWC>, #const.GetSparsityMap]
@@ -257,7 +258,7 @@ func @SparseDistributedCopyCMXToDDR(%arg0: !Buffer_DDR, %arg1: !VPUIP.SparseBuff
 
     return %3 : !VPUIP.SparseBuffer<data=!BufferDistributed, sparsity_map=!SMBufferDistributed, is_weights>
 
-    // CHECK:       [[CST_SM:%.+]] = const.Declare memref<32x1x1x256xi1, @DDR> = dense<1.000000e+00> : tensor<32x16x3x3xf16>, [#const.Reorder<#NHWC>, #const.GetSparsityMap]
+    // CHECK-DAG:       [[CST_SM:%.+]] = const.Declare memref<32x1x1x256xi1, @DDR> = dense<1.000000e+00> : tensor<32x16x3x3xf16>, [#const.Reorder<#NHWC>, #const.GetSparsityMap]
     // CHECK:       [[INPUT_SPARSE_DDR:%.+]] = VPUIP.GroupSparseBuffer(%arg0, [[CST_SM]]) {is_weights}
     // CHECK-SAME:          -> !VPUIP.SparseBuffer<data=memref<32x16x3x3xf16, #NHWC, @DDR>, sparsity_map=memref<32x1x1x256xi1, @DDR>, is_weights>
     // CHECK:       [[DATA_DIST_CMX:%.+]] = VPURT.AllocDistributed -> !VPUIP.DistributedBuffer<32x16x3x3xf16, #NHWC, @CMX_NN, {mode = "SEGMENTED", num_tiles = [1, 1, 2, 1], num_clusters = 2 : i64}>
@@ -282,48 +283,48 @@ func @SparseDistributedCopyCMXToDDR(%arg0: !Buffer_DDR, %arg1: !VPUIP.SparseBuff
 
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
-!IOTensorDistributed = type !VPU.DistributedTensor<
+!IOTensorDistributed = !VPU.DistributedTensor<
     1x32x16x16xf16, #NHWC, @CMX_NN, {
     mode = "SEGMENTED",
     num_tiles = [1, 1, 2, 1],
     num_clusters = 2
 }>
 
-!IOSMTensorDistributed = type !VPU.DistributedTensor<
+!IOSMTensorDistributed = !VPU.DistributedTensor<
     1x32x16x16xi1, #NHWC, @CMX_NN, {
     mode = "SEGMENTED",
     num_tiles = [1, 1, 2, 1],
     num_clusters = 2
 }>
 
-!IOBufferDistributed = type !VPUIP.DistributedBuffer<
+!IOBufferDistributed = !VPUIP.DistributedBuffer<
     1x32x16x16xf16, #NHWC, @CMX_NN, {
     mode = "SEGMENTED",
     num_tiles = [1, 1, 2, 1],
     num_clusters = 2
 }>
 
-!IOSMBufferDistributed = type !VPUIP.DistributedBuffer<
+!IOSMBufferDistributed = !VPUIP.DistributedBuffer<
     1x32x16x16xi1, #NHWC, @CMX_NN, {
     mode = "SEGMENTED",
     num_tiles = [1, 1, 2, 1],
     num_clusters = 2
 }>
 
-!IOTensor = type tensor<1x32x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>
-!IOSMTensor = type tensor<1x32x16x16xi1, {mem_space = @CMX_NN, order = #NHWC}>
-!WeightsTensor = type tensor<64x32x3x3xf16, {mem_space = @CMX_NN, order = #NHWC}>
-!WeightsSMTensor = type tensor<64x1x1x384xi1, {mem_space = @CMX_NN}>
-!WeightsTableTensor = type tensor<64x1x1x4xsi32, {mem_space = @CMX_NN}>
+!IOTensor = tensor<1x32x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>
+!IOSMTensor = tensor<1x32x16x16xi1, {mem_space = @CMX_NN, order = #NHWC}>
+!WeightsTensor = tensor<64x32x3x3xf16, {mem_space = @CMX_NN, order = #NHWC}>
+!WeightsSMTensor = tensor<64x1x1x384xi1, {mem_space = @CMX_NN}>
+!WeightsTableTensor = tensor<64x1x1x4xsi32, {mem_space = @CMX_NN}>
 
-!IOBuffer = type memref<1x32x16x16xf16, #NHWC, @CMX_NN>
-!IOSMBuffer = type memref<1x32x16x16xi1, #NHWC, @CMX_NN>
-!WeightsBuffer = type memref<64x32x3x3xf16, #NHWC, @CMX_NN>
-!WeightsSMBuffer = type memref<64x1x1x384xi1, @CMX_NN>
-!WeightsTableBuffer = type memref<64x1x1x4xsi32, @CMX_NN>
+!IOBuffer = memref<1x32x16x16xf16, #NHWC, @CMX_NN>
+!IOSMBuffer = memref<1x32x16x16xi1, #NHWC, @CMX_NN>
+!WeightsBuffer = memref<64x32x3x3xf16, #NHWC, @CMX_NN>
+!WeightsSMBuffer = memref<64x1x1x384xi1, @CMX_NN>
+!WeightsTableBuffer = memref<64x1x1x4xsi32, @CMX_NN>
 
-// CHECK:  func @SparseDistributedNCEConv([[ARG0:%.+]]: memref<1x32x16x16xf16, #NHWC, @CMX_NN>, [[ARG1:%.+]]: memref<1x32x16x16xi1, #NHWC, @CMX_NN>
-func @SparseDistributedNCEConv(%arg0: !IOBuffer, %arg1: !IOSMBuffer, %arg2: !VPUIP.SparseBuffer<data=!IOBufferDistributed, sparsity_map=!IOSMBufferDistributed>)
+// CHECK:  func.func @SparseDistributedNCEConv([[ARG0:%.+]]: memref<1x32x16x16xf16, #NHWC, @CMX_NN>, [[ARG1:%.+]]: memref<1x32x16x16xi1, #NHWC, @CMX_NN>
+func.func @SparseDistributedNCEConv(%arg0: !IOBuffer, %arg1: !IOSMBuffer, %arg2: !VPUIP.SparseBuffer<data=!IOBufferDistributed, sparsity_map=!IOSMBufferDistributed>)
         -> !VPUIP.SparseBuffer<data=!IOBufferDistributed, sparsity_map=!IOSMBufferDistributed> {
 
     %input_sparse = VPUIP.GroupSparseBuffer(%arg0, %arg1) -> !VPUIP.SparseBuffer<data=!IOBuffer, sparsity_map=!IOSMBuffer>
@@ -442,23 +443,23 @@ func @SparseDistributedNCEConv(%arg0: !IOBuffer, %arg1: !IOSMBuffer, %arg2: !VPU
 
 #NWHC = affine_map<(d0, d1, d2, d3) -> (d0, d3, d2, d1)>
 
-!type_CMX_tensor = type tensor<1x4x512x1xf16, {mem_space = @CMX_NN, order = #NWHC}>
-!type_CMX_memref = type memref<1x4x512x1xf16, #NWHC, @CMX_NN>
+!type_CMX_tensor = tensor<1x4x512x1xf16, {mem_space = @CMX_NN, order = #NWHC}>
+!type_CMX_memref = memref<1x4x512x1xf16, #NWHC, @CMX_NN>
 
 
-!typeCmxDistributed = type !VPU.DistributedTensor<
+!typeCmxDistributed = !VPU.DistributedTensor<
     1x4x512x1xf16, #NWHC, @CMX_NN, {
     mode = "DUPLICATED",
     num_clusters = 2
 }>
 
 module @VPU.SW {
-func private @builtin_MVN(memref<*xf16, @CMX_NN>, memref<*xf16, @CMX_NN>, i1, i1, f64) attributes {VPU.kernel_code = "singleShaveMVN.cpp", VPU.kernel_entry = "singleShaveMVN"}
-func private @runtime() attributes {VPU.kernel_code = "nnActEntry"}
+func.func private @builtin_MVN(memref<*xf16, @CMX_NN>, memref<*xf16, @CMX_NN>, i1, i1, f64) attributes {VPU.kernel_code = "singleShaveMVN.cpp", VPU.kernel_entry = "singleShaveMVN"}
+func.func private @runtime() attributes {VPU.kernel_code = "nnActEntry"}
 }
 
 
-func @NCEClusterTilingWithSWOp(%arg0: !typeCmxDistributed) -> !typeCmxDistributed {
+func.func @NCEClusterTilingWithSWOp(%arg0: !typeCmxDistributed) -> !typeCmxDistributed {
 
  %184 = VPU.NCE.ClusterTiling (%arg0 as %arg2: !type_CMX_tensor) -> !typeCmxDistributed {
       %205 = builtin.unrealized_conversion_cast %arg2 : !type_CMX_tensor to !type_CMX_memref
@@ -482,3 +483,80 @@ func @NCEClusterTilingWithSWOp(%arg0: !typeCmxDistributed) -> !typeCmxDistribute
 // CHECK:  [[ARG3:%.+]] = builtin.unrealized_conversion_cast [[ARG2]] : !VPUIP.DistributedBuffer<1x4x512x1xf16, #NWHC, @CMX_NN, {mode = "DUPLICATED", num_clusters = 2 : i64}> to !VPU.DistributedTensor<1x4x512x1xf16, #NWHC, @CMX_NN, {mode = "DUPLICATED", num_clusters = 2 : i64}>
 // CHECK:  return [[ARG3]] : !VPU.DistributedTensor<1x4x512x1xf16, #NWHC, @CMX_NN, {mode = "DUPLICATED", num_clusters = 2 : i64}>
 
+// -----
+
+#NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
+#NCHW = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
+
+!OTensorDistributed = !VPU.DistributedTensor<
+    1x64x112x112xf16, #NHWC, @CMX_NN, {
+    mode = "SEGMENTED",
+    num_tiles = [1, 1, 2, 1],
+    num_clusters = 2 :i64
+}>
+
+!in_CMX_tensor = tensor<1x4x224x224xf16, {mem_space = @CMX_NN, order = #NHWC}>
+!weight_CMX_tensor = tensor<64x1x1x160xf16, {mem_space = @CMX_NN, order = #NHWC}>
+!weight_table_CMX_tensor = tensor<64x1x1x4xsi32, {mem_space = @CMX_NN, order = #NCHW}>
+
+// CHECK-LABEL: @NCEClusterTilingCompressConv
+func.func @NCEClusterTilingCompressConv(%input: !in_CMX_tensor, %in_weights: !weight_CMX_tensor, %in_weights_table: !weight_table_CMX_tensor) -> !OTensorDistributed{
+    %clusterTiling = VPU.NCE.ClusterTiling (%input as %arg2: !in_CMX_tensor, %in_weights as %arg3: !weight_CMX_tensor, %in_weights_table as %arg4: !weight_table_CMX_tensor) -> !OTensorDistributed {
+      %in = builtin.unrealized_conversion_cast %arg2 : !in_CMX_tensor to memref<1x4x224x224xf16, #NHWC, @CMX_NN>
+      %weights = builtin.unrealized_conversion_cast %arg3 : !weight_CMX_tensor to memref<64x1x1x160xf16, #NHWC, @CMX_NN>
+      %weight_table = builtin.unrealized_conversion_cast %arg4 : !weight_table_CMX_tensor to memref<64x1x1x4xsi32, @CMX_NN>
+      %w_shape_cast = VPUIP.ShapeCast {shape = [64, 16, 7, 7]} inputs(%weights : memref<64x1x1x160xf16, #NHWC, @CMX_NN>) -> memref<64x16x7x7xf16, #NHWC, @CMX_NN>
+      %out_alloc = memref.alloc() : memref<1x64x112x112xf16, #NHWC, @CMX_NN>
+      %in_shape_cast = VPUIP.ShapeCast {shape = [1, 16, 224, 224]} inputs(%in : memref<1x4x224x224xf16, #NHWC, @CMX_NN>) -> memref<1x16x224x224xf16, #NHWC, @CMX_NN>
+      %27 = VPUIP.NCEClusterTask {
+            cm_sp_pattern = 15 : i64, input_channels_compression,
+            kernel_padding = {bottom = 2 : i64, left = 3 : i64, right = 2 : i64, top = 3 : i64},
+            kernel_size = [7, 7], kernel_strides = [2, 2],
+            minimumHardwareExecutionCost = 229838 : i64, task_type = "CONV"}
+                input(%in_shape_cast : memref<1x16x224x224xf16, #NHWC, @CMX_NN>)
+                weights(%w_shape_cast : memref<64x16x7x7xf16, #NHWC, @CMX_NN>)
+                weight_table(%weight_table : memref<64x1x1x4xsi32, @CMX_NN>)
+                parent_input(%in_shape_cast : memref<1x16x224x224xf16, #NHWC, @CMX_NN>)
+                parent_output(%out_alloc : memref<1x64x112x112xf16, #NHWC, @CMX_NN>)
+                outputs(%out_alloc : memref<1x64x112x112xf16, #NHWC, @CMX_NN>)
+                -> memref<1x64x112x112xf16, #NHWC, @CMX_NN> variants : {
+        DPUTask {cluster_id = 0 : i64, mpe_mode = "CUBOID_16x16", outEnd = [111, 55, 63], outStart = [0, 0, 0], pad = {bottom = 0 : i64, left = 3 : i64, right = 2 : i64, top = 3 : i64}}
+        DPUTask {cluster_id = 1 : i64, mpe_mode = "CUBOID_16x16", outEnd = [111, 111, 63], outStart = [0, 56, 0], pad = {bottom = 2 : i64, left = 3 : i64, right = 2 : i64, top = 0 : i64}}
+      } PPE : {
+        PPETask "NOOP" {clamp_high = 255 : i64, clamp_low = 0 : i64, fp_prelu_alpha = 1.000000e+00 : f64, lrelu_mult = 1 : i64, lrelu_shift = 0 : i64}
+      }
+      %28 = builtin.unrealized_conversion_cast %27 : memref<1x64x112x112xf16, #NHWC, @CMX_NN> to tensor<1x64x112x112xf16, {mem_space = @CMX_NN, order = #NHWC}>
+      VPU.Yield %28
+    }
+
+    return %clusterTiling : !OTensorDistributed
+}
+
+// CHECK:  [[ARG0:%.+]] = builtin.unrealized_conversion_cast %arg2 : tensor<64x1x1x4xsi32, {mem_space = @CMX_NN, order = #NCHW}> to memref<64x1x1x4xsi32, @CMX_NN>
+// CHECK:  [[ARG1:%.+]] = builtin.unrealized_conversion_cast %arg1 : tensor<64x1x1x160xf16, {mem_space = @CMX_NN, order = #NHWC}> to memref<64x1x1x160xf16, #NHWC, @CMX_NN>
+// CHECK:  [[W_SHAPE_CAST:%.+]] = VPUIP.ShapeCast {shape = [64, 16, 7, 7]} inputs([[ARG1]] : memref<64x1x1x160xf16, #NHWC, @CMX_NN>) -> memref<64x16x7x7xf16, #NHWC, @CMX_NN>
+// CHECK:  [[ALLOC:%.+]] = VPURT.AllocDistributed -> !VPUIP.DistributedBuffer<1x64x112x112xf16, #NHWC, @CMX_NN, {mode = "SEGMENTED", num_tiles = [1, 1, 2, 1], num_clusters = 2 : i64}>
+// CHECK:  [[ARG2:%.+]] = builtin.unrealized_conversion_cast %arg0 : tensor<1x4x224x224xf16, {mem_space = @CMX_NN, order = #NHWC}> to memref<1x4x224x224xf16, #NHWC, @CMX_NN>
+// CHECK:  [[IN_SHAPE_CAST:%.+]] = VPUIP.ShapeCast {shape = [1, 16, 224, 224]} inputs([[ARG2]] : memref<1x4x224x224xf16, #NHWC, @CMX_NN>) -> memref<1x16x224x224xf16, #NHWC, @CMX_NN>
+
+// CHECK:  [[CLUSTER_TILING:%.+]] = VPUIP.NCEClusterTiling inputs(
+// CHECK-SAME:      [[IN_SHAPE_CAST]] as [[INNER_ARG0:[^:]+]]: memref<1x16x224x224xf16, #NHWC, @CMX_NN>,
+// CHECK-SAME:      [[W_SHAPE_CAST]] as [[INNER_ARG1:[^:]+]]: memref<64x16x7x7xf16, #NHWC, @CMX_NN>,
+// CHECK-SAME:      [[ARG0]] as [[INNER_ARG2:[^:]+]]: memref<64x1x1x4xsi32, @CMX_NN>) outputs([[ALLOC]] as [[INNER_ARG3:[^:]+]]: memref<1x64x112x112xf16, #NHWC, @CMX_NN>)
+// CHECK-SAME:      -> !VPUIP.DistributedBuffer<1x64x112x112xf16, #NHWC, @CMX_NN, {mode = "SEGMENTED", num_tiles = [1, 1, 2, 1], num_clusters = 2 : i64}> {
+
+// CHECK:        [[CLUSTER_TASK:%.+]] = VPUIP.NCEClusterTask {cm_sp_pattern = 15 : i64, input_channels_compression,
+// CHECK-SAME:                              kernel_padding = {bottom = 2 : i64, left = 3 : i64, right = 2 : i64, top = 3 : i64},
+// CHECK-SAME:                              kernel_size = [7, 7], kernel_strides = [2, 2],
+// CHECK-SAME:                              minimumHardwareExecutionCost = 229838 : i64, task_type = "CONV"}
+// CHECK-SAME:              input([[INNER_ARG0]] : memref<1x16x224x224xf16, #NHWC, @CMX_NN>)
+// CHECK-SAME:              weights([[INNER_ARG1]] : memref<64x16x7x7xf16, #NHWC, @CMX_NN>)
+// CHECK-SAME:              weight_table([[INNER_ARG2]] : memref<64x1x1x4xsi32, @CMX_NN>)
+// CHECK-SAME:              parent_input([[INNER_ARG0]] : memref<1x16x224x224xf16, #NHWC, @CMX_NN>)
+// CHECK-SAME:              parent_output([[INNER_ARG3]] : memref<1x64x112x112xf16, #NHWC, @CMX_NN>)
+// CHECK-SAME:              outputs([[INNER_ARG3]] : memref<1x64x112x112xf16, #NHWC, @CMX_NN>) -> memref<1x64x112x112xf16, #NHWC, @CMX_NN> variants : {
+// CHECK:          DPUTask {cluster_id = 0 : i64, mpe_mode = "CUBOID_16x16", outEnd = [111, 55, 63], outStart = [0, 0, 0], pad = {bottom = 0 : i64, left = 3 : i64, right = 2 : i64, top = 3 : i64}}
+// CHECK:          DPUTask {cluster_id = 1 : i64, mpe_mode = "CUBOID_16x16", outEnd = [111, 111, 63], outStart = [0, 56, 0], pad = {bottom = 2 : i64, left = 3 : i64, right = 2 : i64, top = 0 : i64}}
+// CHECK:   [[OUT:%.+]] = builtin.unrealized_conversion_cast [[CLUSTER_TILING]] : !VPUIP.DistributedBuffer<1x64x112x112xf16, #NHWC, @CMX_NN, {mode = "SEGMENTED", num_tiles = [1, 1, 2, 1], num_clusters = 2 : i64}>
+// CHECK-SAME:      to !VPU.DistributedTensor<1x64x112x112xf16, #NHWC, @CMX_NN, {mode = "SEGMENTED", num_tiles = [1, 1, 2, 1], num_clusters = 2 : i64}>
+// CHECK:  return [[OUT]] : !VPU.DistributedTensor<1x64x112x112xf16, #NHWC, @CMX_NN, {mode = "SEGMENTED", num_tiles = [1, 1, 2, 1], num_clusters = 2 : i64}>

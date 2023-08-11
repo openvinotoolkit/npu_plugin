@@ -3,15 +3,9 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/ELF/passes.hpp"
-
 #include "vpux/compiler/utils/adjust_layout_utils.hpp"
 #include "vpux/compiler/utils/logging.hpp"
-#include "vpux/compiler/utils/types.hpp"
-
-#include <mlir/Transforms/DialectConversion.h>
 
 using namespace vpux;
 
@@ -44,7 +38,7 @@ private:
 };
 
 void RemoveEmptyELFSectionsPass::safeRunOnFunc() {
-    auto funcOp = getFunction();
+    auto funcOp = getOperation();
 
     auto sections = funcOp.getOps<ELF::ElfSectionInterface>();
 

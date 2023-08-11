@@ -5,10 +5,11 @@ Convert current MLIR graph to Dot graph.
 
 #### Options
 ```
--print-declarations : Print declare memory operations
--print-const        : Print const declare operations
--start-after        : Start graph generation after this operation
--stop-before        : Stop graph generation after this operation
--output             : Path to the output file
--pass               : Print Dot after the pass
+-print-declarations          : Print declare memory operations
+-print-const                 : Print const declare operations
+-print-only-task-and-barrier : Print only task and barrier operations
+-start-after                 : Start graph generation after this operation
+-stop-before                 : Stop graph generation after this operation
+-output                      : Path to the output file
+-pass                        : Print Dot after the pass
 ```

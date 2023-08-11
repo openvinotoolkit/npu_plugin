@@ -3,12 +3,10 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #pragma once
 
 #include "vpux/compiler/core/ops_interfaces.hpp"
-#include "vpux/compiler/dialect/IE/attributes/enums.hpp"
+#include "vpux/compiler/dialect/IE/attributes.hpp"
 
 #include "vpux/compiler/dialect/const/ops.hpp"
 #include "vpux/utils/core/array_ref.hpp"
@@ -29,5 +27,6 @@ mlir::FailureOr<Shape> getShapeCastExpandedShape(mlir::Operation* operation, Sha
                                                  ShapeRef unExpandedShape, Logger log);
 
 bool isShapeCompatibleWithODUPermute(const ShapeRef shape, const int64_t alignment);
+bool isODUPermuteEffectiveForShape(const ShapeRef shape, const int64_t alignment);
 }  // namespace IE
 }  // namespace vpux

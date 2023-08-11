@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/VPU/ops.hpp"
 #include "vpux/compiler/dialect/VPU/utils/const_utils.hpp"
 
@@ -14,8 +12,8 @@
 #include "vpux/compiler/dialect/VPU/nce_sparsity.hpp"
 #include "vpux/compiler/dialect/VPU/utils/generate_tiling.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
+#include "vpux/compiler/utils/empty_node.hpp"
 #include "vpux/compiler/utils/error.hpp"
-#include "vpux/compiler/utils/rewriter.hpp"
 
 #include <ngraph/validation_util.hpp>
 
@@ -28,7 +26,7 @@ using namespace vpux;
 //
 
 bool vpux::VPU::NCEDepthConvolutionOp::fitIntoCMX(vpux::NDTypeInterface input, vpux::NDTypeInterface filter,
-                                                  vpux::NDTypeInterface output) {
+                                                  vpux::NDTypeInterface output, Byte reservedMem) {
     const auto filterShape = Shape(parseIntArrayAttr<int64_t>(rawFilterShape()));
     const auto KY = filterShape[Dims4D::Filter::KY];
     const auto KX = filterShape[Dims4D::Filter::KX];
@@ -50,14 +48,24 @@ bool vpux::VPU::NCEDepthConvolutionOp::fitIntoCMX(vpux::NDTypeInterface input, v
         buffers.push_back(activationWindowSize * 1_Byte);
     }
 
-    return vpux::VPU::calculateAlignedBuffersMemoryRequirement(arch, buffers) <= getTotalCMXSize(getOperation());
+    auto totalAvailableCMXSize = reservedMem.count() == 0 ? getTotalCMXSize(getOperation()).count()
+                                                          : getTotalCMXFragmentationAwareSize(getOperation()).count();
+
+    return vpux::VPU::calculateAlignedBuffersMemoryRequirement(arch, buffers).count() + reservedMem.count() <=
+           totalAvailableCMXSize;
+}
+
+bool vpux::VPU::NCEDepthConvolutionOp::fitIntoCMX(vpux::NDTypeInterface input, vpux::NDTypeInterface filter,
+                                                  vpux::NDTypeInterface output) {
+    return fitIntoCMX(input, filter, output, Byte(0));
 }
 
 //
 // isSupported
 //
 
-bool vpux::VPU::NCEDepthConvolutionOp::isSupported(IE::GroupConvolutionOp op, LogCb logCb) {
+bool vpux::VPU::NCEDepthConvolutionOp::isSupported(IE::GroupConvolutionOp op, LogCb logCb, bool checkLayout,
+                                                   bool checkChannelAlignment) {
     if (op.getType().getRank() != 4) {
         logCb(formatv("Only 4D tensors are supported"));
         return false;
@@ -113,19 +121,27 @@ bool vpux::VPU::NCEDepthConvolutionOp::isSupported(IE::GroupConvolutionOp op, Lo
     const auto inputType = op.input().getType().cast<vpux::NDTypeInterface>();
     const auto outputType = op.output().getType().cast<vpux::NDTypeInterface>();
 
-    if (!NCEInvariant::isInputActTypeSupported(getArch(op), inputType, getInputChannelAlignmentImpl(inputType),
-                                               false) ||
-        !NCEInvariant::isOutputActTypeSupported(outputType, getOutputChannelAlignmentImpl(outputType))) {
-        logCb(formatv("Misaligned tensor shape"));
-        return false;
+    if (checkChannelAlignment) {
+        if (!NCEInvariant::isInputActTypeSupported(getArch(op), inputType, getInputChannelAlignmentImpl(inputType),
+                                                   false) ||
+            !NCEInvariant::isOutputActTypeSupported(outputType, getOutputChannelAlignmentImpl(outputType))) {
+            logCb(formatv("Misaligned tensor shape"));
+            return false;
+        }
     }
 
-    const auto arch = getArch(op);
-    return NCEInvariant::checkLayouts(op->getOperands(), op->getResult(0), arch, 2, logCb);
+    if (checkLayout) {
+        const auto arch = getArch(op);
+        if (!NCEInvariant::checkLayouts(op->getOperandTypes(), op->getResultTypes(), arch, 2, logCb)) {
+            return false;
+        }
+    }
+
+    return true;
 }
 
 //
-// verifyOp
+// verify
 //
 
 mlir::LogicalResult verifyDepthConv(mlir::Location loc, VPU::ArchKind arch, VPU::NCEDepthConvolutionOpAdaptor op,
@@ -165,11 +181,12 @@ mlir::LogicalResult verifyDepthConv(mlir::Location loc, VPU::ArchKind arch, VPU:
     return mlir::success();
 }
 
-mlir::LogicalResult vpux::VPU::verifyOp(NCEDepthConvolutionOp op) {
+mlir::LogicalResult vpux::VPU::NCEDepthConvolutionOp::verify() {
+    const auto op = getOperation();
     const auto arch = getArch(op);
 
     const NCEDepthConvolutionOpAdaptor convAdaptor(op->getOperands(), op->getAttrDictionary(), op->getRegions());
-    if (mlir::failed(verifyDepthConv(op->getLoc(), arch, convAdaptor, op.output()))) {
+    if (mlir::failed(verifyDepthConv(op->getLoc(), arch, convAdaptor, output()))) {
         return mlir::failure();
     }
 
@@ -177,24 +194,24 @@ mlir::LogicalResult vpux::VPU::verifyOp(NCEDepthConvolutionOp op) {
     const auto logCb = [loc](const llvm::formatv_object_base& msg) {
         std::ignore = errorAt(loc, "{0}", msg.str());
     };
-    if (!NCEInvariant::checkLayouts(op->getOperands(), op->getResult(0), arch, 2, logCb)) {
+    if (!NCEInvariant::checkLayouts(op->getOperandTypes(), op->getResultTypes(), arch, 2, logCb)) {
         return errorAt(op, "Unsupported layouts");
     }
 
-    const auto inputType = op.input().getType().cast<NDTypeInterface>();
+    const auto inputType = input().getType().cast<NDTypeInterface>();
     const auto IC = inputType.getShape()[Dims4D::Act::C];
 
-    const auto outputType = op.output().getType().cast<NDTypeInterface>();
+    const auto outputType = output().getType().cast<NDTypeInterface>();
 
-    const auto filterShape = Shape(parseIntArrayAttr<int64_t>(op.rawFilterShape()));
+    const auto filterShape = Shape(parseIntArrayAttr<int64_t>(rawFilterShape()));
     const auto KY = filterShape[Dims4D::Filter::KY];
     const auto KX = filterShape[Dims4D::Filter::KX];
     const auto kernelSize = Shape{KY, KX};
 
-    const auto kernelStrides = Shape(parseIntArrayAttr<int64_t>(op.strides()));
+    const auto kernelStrides = Shape(parseIntArrayAttr<int64_t>(strides()));
     const auto SX = kernelStrides[Dims4D::Strides::X];
 
-    const auto activationWindowShape = getShape(op.activationWindow());
+    const auto activationWindowShape = getShape(activationWindow());
     const auto expectedActivationWindowShape = NCESparsity::inferActivationWindowShape(
             NCESparsity::Mode::DW_CONV, kernelSize, SX, inputType.getElementType(), 1);
 
@@ -206,13 +223,13 @@ mlir::LogicalResult vpux::VPU::verifyOp(NCEDepthConvolutionOp op) {
     const auto bitPatternSize = VPU::NCESparsity::getBitPatternSize(VPU::NCESparsity::Mode::DW_CONV, kernelSize, SX,
                                                                     inputType.getElementType(), IC);
 
-    if (op.activation_window_channel_length() != bitPatternSize) {
+    if (activation_window_channel_length() != bitPatternSize) {
         return errorAt(op, "Got wrong value for 'activation_window_channel_length' '{0}', expected '{1}'",
-                       op.activation_window_channel_length(), bitPatternSize);
+                       activation_window_channel_length(), bitPatternSize);
     }
 
-    const auto alignedFilterShape = getShape(op.filter());
-    const auto expectedAlignedFilterShape = op.inferAlignedFilterShape(outputType);
+    const auto alignedFilterShape = getShape(filter());
+    const auto expectedAlignedFilterShape = inferAlignedFilterShape(outputType);
 
     if (alignedFilterShape != expectedAlignedFilterShape) {
         return errorAt(op, "Got wrong shape for 'filter' '{0}', expected '{1}'", alignedFilterShape,
@@ -250,7 +267,7 @@ mlir::LogicalResult vpux::VPU::NCEDepthConvolutionOp::inferReturnTypes(
         mlir::MLIRContext* ctx, mlir::Optional<mlir::Location> optLoc, mlir::ValueRange operands,
         mlir::DictionaryAttr attrs, mlir::RegionRange /*regions*/,
         mlir::SmallVectorImpl<mlir::Type>& inferredReturnTypes) {
-    const auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
+    const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
     NCEDepthConvolutionOpAdaptor op(operands, attrs);
     if (mlir::failed(op.verify(loc))) {
@@ -280,7 +297,7 @@ mlir::LogicalResult vpux::VPU::NCEDepthConvolutionOp::inferReturnTypes(
     const auto dataPaddingAbove = ngraph::CoordinateDiff({padBottom, padRight});
 
     const auto outputShapeNG = ngraph::infer_convolution_forward(
-            nullptr, ngraph::Shape(inShape.begin(), inShape.end()),
+            EmptyNode::instance(), ngraph::Shape(inShape.begin(), inShape.end()),
             ngraph::Strides(windowStrides.size(), 1),  // dummy data dilations
             dataPaddingBelow, dataPaddingAbove, ngraph::Shape(filterShape.begin(), filterShape.end()),
             ngraph::Strides(windowStrides.begin(), windowStrides.end()), windowDilations);
@@ -328,8 +345,11 @@ vpux::InputTiling vpux::VPU::NCEDepthConvolutionOp::backInferTileInfo(const vpux
                               mlir::cast<VPU::NCEOpInterface>(*this->getOperation()), inputTiling, log)),
                       "Failed to get an aligned act input tiling");
 
-    // Drop the bias tile
-    inputTiling.tiles.pop_back();
+    // Remove bias input tile if present
+    if (inputTiling.tiles.size() > 2) {
+        // Drop the bias tile
+        inputTiling.tiles.pop_back();
+    }
 
     // Adjust filter tile for the aligned filter
     inputTiling.tiles[1].shape = getShape(filter()).toValues();
@@ -396,6 +416,10 @@ mlir::LogicalResult vpux::VPU::NCEDepthConvolutionOp::verifyInputType(vpux::NDTy
                                                                           getInputChannelAlignment(), false));
 }
 
+bool vpux::VPU::NCEDepthConvolutionOp::isVFSupported() {
+    return vpux::VPU::isVFNCESupported(*this);
+}
+
 //
 // serialize
 //
@@ -409,19 +433,21 @@ EMU::BlobWriter::SpecificTask vpux::VPU::NCEDepthConvolutionOp::serialize(EMU::B
 //
 
 vpux::VPU::SparsitySupport vpux::VPU::NCEDepthConvolutionOp::sparsitySupport() {
-    using vpux::VPU::SparsitySupport;
-    const auto arch = getArch(this->getOperation());
-    // Actually NCEDWConv support output sparsity regardless to type
-    // But now [De]Sparsify operations doesn't support per-axis quantization
-    // So disabling output sparsity to prevent generation of [De]Sparsify. Follow up E#63106
-    const auto supportOutputSparsity = !this->output().getType().isa<mlir::quant::UniformQuantizedPerAxisType>()
-                                               ? SparsitySupport::SPARSE_OUTPUTS
-                                               : SparsitySupport::NONE;
+    // Super-dense mode does not support ODU sparsity
+    const auto arch = getArch(getOperation());
+    const auto outputType = output().getType().cast<vpux::NDTypeInterface>();
+    auto excludeMode = VPU::NCESparsity::bitwiseNot(VPU::SparsitySupport::NONE);
+    if (VPU::NCESparsity::isSuperdenseRequired(arch, outputType.getDimsOrder(), outputType.getShape(),
+                                               outputType.getElementType())) {
+        excludeMode = VPU::NCESparsity::bitwiseNot(VPU::SparsitySupport::SPARSE_OUTPUTS);
+    }
+
     switch (arch) {
     case VPU::ArchKind::VPUX30XX:
     case VPU::ArchKind::VPUX311X:
+        return VPU::SparsitySupport::NONE;
     case VPU::ArchKind::VPUX37XX:
-        return supportOutputSparsity;
+        return VPU::SparsitySupport::SPARSE_OUTPUTS & excludeMode;
     default:
         VPUX_THROW("Unknown sparsity support mode for {0}", arch);
     }

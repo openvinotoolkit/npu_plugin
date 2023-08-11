@@ -1,3 +1,4 @@
+//
 // Copyright (C) Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -7,8 +8,6 @@
 #include <string>
 #include <vector>
 #include "common/functions.h"
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
 #include "vpux_private_config.hpp"
 
 using CompileForDifferentPlatformsTests = BehaviorTestsUtils::BehaviorTestsBasic;
@@ -19,7 +18,9 @@ namespace {
 TEST_P(CompileForDifferentPlatformsTests, CompilationForSpecificPlatform) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED() {
         InferenceEngine::CNNNetwork cnnNet = buildSingleLayerSoftMaxNetwork();
-        ASSERT_NO_THROW(ie->LoadNetwork(cnnNet, target_device, configuration));
+        auto cfg = configuration;
+        cfg["VPUX_CREATE_EXECUTOR"] = "0";
+        ASSERT_NO_THROW(ie->LoadNetwork(cnnNet, target_device, cfg));
     }
 }
 

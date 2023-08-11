@@ -44,9 +44,8 @@ enum DataType : uint32_t {
 };
 
 typedef uint64_t NDOrder;
-
+// clang-format off
 typedef enum : uint64_t {
-    // clang-format off
     ND_NHWC = 0x1342,
     ND_NHCW = 0x1324,
     ND_NCHW = 0x1234,
@@ -64,43 +63,38 @@ typedef enum : uint64_t {
     ND_C    = 0x1,
     ND_H    = 0x1,
     ND_W    = 0x1,
-    // clang-format on
+
     FULL_ND_ORDER = 0x123456789ABCDEF,
     FULL_ND_NHWC = 0x123456789ABCEFD
 } NDFrequentlyUsedOrders;
-// clang-format off
-enum Location : uint32_t
-{
-    NONE,
-    DDR,
-    NN_CMX,
-    UPA_CMX
-};
 // clang-format on
+
+enum Location : uint32_t { NONE, DDR, NN_CMX, UPA_CMX };
+
+// clang-format off
 #ifdef __cplusplus
-#define ALIGN_AS(size) alignas(size)
+    #define ALIGN_AS(size) alignas(size)
 #else
-#define ALIGN_AS(size) __attribute__((aligned(size)))
+    #define ALIGN_AS(size) __attribute__((aligned(size)))
 #endif
+// clang-format on
 
 #pragma pack(push, 1)
 struct MemRefData {
-    // clang-format off
-    uint32_t dataAddr;      // Can't use pointers, since they have platform-dependent size.
-                            // Will be located in WIN_F.
+    uint32_t dataAddr;  // Can't use pointers, since they have platform-dependent size.
+                        // Will be located in WIN_F.
 
-    uint32_t isStatic;      // Boolean flag to indicate static shape vs dynamic shape.
+    uint32_t isStatic;  // Boolean flag to indicate static shape vs dynamic shape.
 
     uint32_t numDims;
-    uint32_t dimsAddr;      // Pointer to the buffer with dimensions (int32_t[]).
-    uint32_t stridesAddr;   // Pointer to the buffer with strides in bits (int64_t[]).
-                            // Will be located in WIN_E (static case) or in WIN_F (dynamic case).
-                            // The kernel should infer output dims/strides and write them only in dynamic case.
+    uint32_t dimsAddr;     // Pointer to the buffer with dimensions (int32_t[]).
+    uint32_t stridesAddr;  // Pointer to the buffer with strides in bits (int64_t[]).
+                           // Will be located in WIN_E (static case) or in WIN_F (dynamic case).
+                           // The kernel should infer output dims/strides and write them only in dynamic case.
 
-    uint32_t dataType;      // An enum, which should be aligned between kernels and the compiler.
-    uint64_t dimsOrder;     // Packed permutation array.
+    uint32_t dataType;   // An enum, which should be aligned between kernels and the compiler.
+    uint64_t dimsOrder;  // Packed permutation array.
     enum Location location;
-    // clang-format on
 };
 
 struct ALIGN_AS(64) BaseKernelParams {
@@ -112,6 +106,17 @@ struct ALIGN_AS(64) BaseKernelParams {
 
 #pragma pack(pop)
 #undef ALIGN_AS
+
+#ifdef __cplusplus
+static inline uint32_t getNumElem(const struct MemRefData& buff) {
+    uint32_t n = 1;
+    uint32_t* pDims = (uint32_t*)(buff.dimsAddr);
+    for (uint32_t i = 0; i < buff.numDims; i++) {
+        n *= pDims[i];
+    }
+    return n;
+}
+#endif
 
 #ifdef __cplusplus
 }  // namespace sw_params

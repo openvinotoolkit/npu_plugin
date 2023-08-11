@@ -4,7 +4,6 @@
 
 #include "behavior/infer_request/config.hpp"
 #include <vector>
-#include <vpux/vpux_compiler_config.hpp>
 #include <vpux/vpux_plugin_config.hpp>
 #include "ie_plugin_config.hpp"
 
@@ -19,15 +18,10 @@ const std::vector<std::map<std::string, std::string>> configs = {
         {{CONFIG_KEY(PERF_COUNT), CONFIG_VALUE(YES)}, {CONFIG_KEY(PERFORMANCE_HINT), CONFIG_VALUE(THROUGHPUT)}},
         {{CONFIG_KEY(PERF_COUNT), CONFIG_VALUE(YES)}, {CONFIG_KEY(PERFORMANCE_HINT), CONFIG_VALUE(LATENCY)}},
         {{CONFIG_KEY(DEVICE_ID), ""}},
-        {{VPUX_CONFIG_KEY(CSRAM_SIZE), "2097152"}},
         {{CONFIG_KEY(MODEL_PRIORITY), CONFIG_VALUE(MODEL_PRIORITY_HIGH)}},
 
         // Private options
-        {{"VPUX_GRAPH_COLOR_FORMAT", "RGB"}},
-        {{"VPUX_USE_SIPP", CONFIG_VALUE(YES)}},
-        {{"VPUX_PREPROCESSING_SHAVES", "4"}},
-        {{"VPUX_PREPROCESSING_LPI", "8"}},
-        {{"VPUX_PLATFORM", "AUTO"}},
+        {{"VPUX_PLATFORM", "AUTO_DETECT"}},
 };
 
 const std::vector<std::map<std::string, std::string>> Inconfigs = {
@@ -35,13 +29,8 @@ const std::vector<std::map<std::string, std::string>> Inconfigs = {
         {{CONFIG_KEY(LOG_LEVEL), "SOME_LEVEL"}},
         {{CONFIG_KEY(PERF_COUNT), "YEP"}},
         {{CONFIG_KEY(DEVICE_ID), "SOME_DEVICE_ID"}},
-        {{VPUX_CONFIG_KEY(CSRAM_SIZE), "-3"}},
 
         // Private options
-        {{"VPUX_GRAPH_COLOR_FORMAT", "NV12"}},
-        {{"VPUX_USE_SIPP", "NOP"}},
-        {{"VPUX_PREPROCESSING_SHAVES", "FOUR"}},
-        {{"VPUX_PREPROCESSING_LPI", "EIGHT"}},
         {{"VPUX_PLATFORM", "SOME_PLATFORM"}},
 };
 

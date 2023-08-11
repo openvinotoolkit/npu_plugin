@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #ifndef VPUX_COMPILER_CORE_TYPE_INTERFACES
 #define VPUX_COMPILER_CORE_TYPE_INTERFACES
 
@@ -158,6 +156,18 @@ def NDTypeInterface : TypeInterface<"NDTypeInterface"> {
             return changeMemSpace(vpux::IndexedSymbolAttr::get(getContext(), stringifyEnum(kind)));
         }
     }];
+}
+
+//
+// GroupedTypeInterface
+//
+
+def GroupedTypeInterface : TypeInterface<"GroupedTypeInterface"> {
+    let description = [{
+        Interface representing types that are composed of multiple types.
+    }];
+
+    let cppNamespace = "vpux";
 }
 
 #endif

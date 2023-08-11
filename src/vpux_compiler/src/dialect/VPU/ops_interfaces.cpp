@@ -3,11 +3,10 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/VPU/ops_interfaces.hpp"
 #include "vpux/compiler/dialect/IE/ops_interfaces.hpp"
 
+#include "vpux/compiler/dialect/IE/utils/shape_infer.hpp"
 #include "vpux/compiler/dialect/VPU/nce_invariant.hpp"
 #include "vpux/compiler/dialect/VPU/ops.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
@@ -20,7 +19,7 @@ using namespace vpux;
 //
 
 bool vpux::VPU::supportsSparseInputs(mlir::Operation* op) {
-    const auto compressedInput = [op](mlir::Value operand) {
+    const auto compressedInput = [](mlir::Value operand) {
         auto inputShape = operand.getType().cast<vpux::NDTypeInterface>().getShape();
         if (inputShape[Dims4D::Act::C] < VPU::NCEInvariant::VPU_CHANNEL_ALIGNMENT) {
             return true;
@@ -151,11 +150,24 @@ mlir::LogicalResult vpux::VPU::verifyEltwiseOp(mlir::Operation* op) {
         return errorAt(op, "Operation with multiple results can't be EltwiseOp");
     }
 
-    const auto outputShape = op->getResult(0).getType().cast<vpux::NDTypeInterface>().getShape();
-    if (llvm::none_of(op->getOperands(), [&](mlir::Value operand) {
-            return operand.getType().cast<vpux::NDTypeInterface>().getShape() == outputShape;
-        })) {
-        return errorAt(op, "EltwiseOp must have at least one input shape equal to the output shape");
+    if (op->hasAttr("auto_broadcast")) {
+        auto autoBroadcast = op->getAttr("auto_broadcast").dyn_cast<IE::AutoBroadcastTypeAttr>();
+        if (autoBroadcast == nullptr) {
+            return errorAt(op, "Auto broadcast attribute cannot be cast");
+        }
+        auto broadcast = autoBroadcast.getValue();
+
+        SmallVector<ArrayRef<int64_t>> inputShapes;
+        for (auto operand : op->getOperands()) {
+            const auto shape = operand.getType().cast<vpux::NDTypeInterface>().getShape().raw();
+            inputShapes.push_back(shape);
+        }
+
+        const auto outputShape = IE::broadcastEltwiseShape(inputShapes, broadcast, op->getLoc());
+
+        if (mlir::failed(outputShape)) {
+            return errorAt(op, "Eltwise inputs cannot be broadcast");
+        }
     }
 
     return mlir::success();
@@ -186,10 +198,10 @@ mlir::LogicalResult vpux::VPU::verifyNCEOp(mlir::Operation* op) {
 }
 
 //
-// SameInOutDimsOrder
+// SameInOutDefaultDimsOrder
 //
 
-mlir::LogicalResult vpux::VPU::verifySameInOutDimsOrder(mlir::Operation* op) {
+mlir::LogicalResult vpux::VPU::verifySameInOutDefaultDimsOrder(mlir::Operation* op) {
     auto layer = mlir::dyn_cast<VPU::LayerOpInterface>(op);
     VPUX_THROW_UNLESS(layer != nullptr, "Operation {0} does not implement VPU::LayerOpInterface", op->getName());
 
@@ -207,7 +219,7 @@ mlir::LogicalResult vpux::VPU::verifySameInOutDimsOrder(mlir::Operation* op) {
     return mlir::success();
 }
 
-void vpux::VPU::inferLayoutInfoSameInOutDimsOrder(IE::LayerLayoutInfo& info) {
+void vpux::VPU::inferLayoutInfoSameInOutDefaultDimsOrder(IE::LayerLayoutInfo& info) {
     const auto filter = [](size_t ind) {
         return ind != 0;
     };
@@ -217,12 +229,43 @@ void vpux::VPU::inferLayoutInfoSameInOutDimsOrder(IE::LayerLayoutInfo& info) {
 }
 
 //
+// SameAnyDimsOrder
+//
+
+mlir::LogicalResult vpux::VPU::verifySameAnyDimsOrder(mlir::Operation* op) {
+    auto layer = mlir::dyn_cast<VPU::LayerOpInterface>(op);
+    if (layer == nullptr) {
+        return errorAt(op, "Operation '{0}' doesn't implement Layer interface", op->getName());
+    }
+
+    auto inputs = layer.getInputs();
+
+    const auto firstInput = inputs.front();
+    const auto mainOrder = DimsOrder::fromValue(firstInput);
+
+    for (const auto& val : layer->getOpOperands()) {
+        const auto order = DimsOrder::fromValue(val.get());
+
+        if (order != mainOrder) {
+            return errorAt(op, "Operation's input/output layout mismatch");
+        }
+    }
+
+    return mlir::success();
+}
+
+void vpux::VPU::inferLayoutInfoSameAnyDimsOrder(IE::LayerLayoutInfo& info) {
+    const auto inOrder = info.getInput(0);
+    info.fill(inOrder);
+}
+
+//
 // SameInOutSpecificDimsOrder
 //
 
 mlir::LogicalResult vpux::VPU::verifySameInOutSpecificDimsOrder(mlir::Operation* op,
                                                                 ArrayRef<DimsOrder> supportedLayouts) {
-    if (verifySameInOutDimsOrder(op).failed()) {
+    if (verifySameInOutDefaultDimsOrder(op).failed()) {
         return mlir::failure();
     }
 

@@ -107,7 +107,7 @@ void buildRaceConditionDPUACTTest(const nb::TestCaseJsonDescriptor& testDesc, ml
             builder.getFunctionType(SmallVector<mlir::Type>{inputParamType, outputParamType, inputParamType},
                                     SmallVector<mlir::Type>{outputParamType, inputParamType});
 
-    auto function = builder.create<mlir::FuncOp>(
+    auto function = builder.create<mlir::func::FuncOp>(
             loc, printToString("race_condition_dpu_act_{0}_{1}_{2}", inputType, weightsType, outputType), funcType,
             builder.getStringAttr("private"));
 
@@ -226,7 +226,7 @@ void buildRaceConditionDPUACTTest(const nb::TestCaseJsonDescriptor& testDesc, ml
     VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(waitBarrier.barrier()), mlir::ValueRange(),
                                           loc, outputCMX_1.getOperation()->getResult(0), functionOutput_1);
 
-    functionBuilder.create<mlir::ReturnOp>(loc, mlir::ValueRange{functionOutput_0, functionOutput_1});
+    functionBuilder.create<mlir::func::ReturnOp>(loc, mlir::ValueRange{functionOutput_0, functionOutput_1});
 
     module.dump();
 

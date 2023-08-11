@@ -3,12 +3,11 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #ifndef VPUX_COMPILER_CORE_ATTRIBUTES
 #define VPUX_COMPILER_CORE_ATTRIBUTES
 
 include "mlir/IR/OpBase.td"
+include "mlir/IR/EnumAttr.td"
 
 def IntAttr : Attr<CPred<"$_self.isa<mlir::IntegerAttr>()">, "Integer attribute"> {
     let storageType = "mlir::IntegerAttr";
@@ -20,6 +19,10 @@ def IntAttr : Attr<CPred<"$_self.isa<mlir::IntegerAttr>()">, "Integer attribute"
 
 def I64ArrayOfArraysAttr : TypedArrayAttrBase<I64ArrayAttr, "array of 64-bit integer arrays">;
 
+def SymbolRefArrayOfArraysAttr : TypedArrayAttrBase<SymbolRefArrayAttr, "array of symbol ref arrays">;
+
+def UI32ArrayAttr : TypedArrayAttrBase<UI32Attr,
+                                      "Unsigned 32-bit integer array attribute">;
 def IndexedSymbolAttr :
         Attr<
             CPred<"$_self.isa<vpux::IndexedSymbolAttr>()">,

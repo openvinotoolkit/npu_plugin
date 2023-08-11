@@ -6,7 +6,10 @@
 #include "vpux/compiler/dialect/ELF/elf_importer.hpp"
 
 #include <vpux_elf/accessor.hpp>
+#include "vpux/compiler/dialect/ELF/attributes.hpp"
 #include "vpux/compiler/dialect/ELF/import.hpp"
+#include "vpux/compiler/dialect/ELF/ops.hpp"
+#include "vpux/compiler/dialect/VPURegMapped/ops.hpp"
 #include "vpux/compiler/utils/logging.hpp"
 
 #include <mlir/Dialect/Arithmetic/IR/Arithmetic.h>
@@ -33,8 +36,7 @@ void vpux::ELF::ImporterBufferManager::deallocate(elf::DeviceBuffer& devBuffer) 
     for (auto devBufIt = m_allocatedZones.begin(); devBufIt != m_allocatedZones.end(); ++devBufIt) {
         if (devBufIt->cpu_addr() == devBuffer.cpu_addr() && devBufIt->vpu_addr() == devBuffer.vpu_addr() &&
             devBufIt->size() == devBuffer.size()) {
-            delete devBuffer.cpu_addr();
-            m_allocatedZones.erase(devBufIt);
+            delete[] devBuffer.cpu_addr();
             break;
         }
     }
@@ -52,8 +54,9 @@ size_t vpux::ELF::ImporterBufferManager::copy(elf::DeviceBuffer& to, const uint8
 }
 
 vpux::ELF::ImporterBufferManager::~ImporterBufferManager() {
-    for (auto& devBuffer : m_allocatedZones) {
-        deallocate(devBuffer);
+    for (auto devBufferIt = m_allocatedZones.begin(); devBufferIt != m_allocatedZones.end();) {
+        deallocate(*devBufferIt);
+        devBufferIt = m_allocatedZones.erase(devBufferIt);
     }
 }
 
@@ -68,7 +71,8 @@ vpux::ELF::ElfImporter::ElfImporter(mlir::MLIRContext* ctx, const std::string& e
     _log.trace("Load VPUX::VPUELF dependent Dialects");
     _ctx->loadDialect<IE::IEDialect>();
     _ctx->loadDialect<IERT::IERTDialect>();
-    _ctx->loadDialect<VPUIPRegMapped::VPUIPRegMappedDialect>();
+    _ctx->loadDialect<VPUMI37XX::VPUMI37XXDialect>();
+    _ctx->loadDialect<VPURegMapped::VPURegMappedDialect>();
     _ctx->loadDialect<VPURT::VPURTDialect>();
     _ctx->loadDialect<ELF::ELFDialect>();
 
@@ -102,7 +106,7 @@ void vpux::ELF::ElfImporter::parseUserInputsOutputs(OpBuilderLogger& builderLog,
 
         for (unsigned int idx = 1; idx < symbolsNum; ++idx) {
             const auto inputName = std::string(symStrTab.getData<char>() + symbols[idx].st_name);
-            ArrayRef<int64_t> shapeType{(int64_t)symbols[idx].st_size};
+            SmallVector<int64_t> shapeType{(int64_t)symbols[idx].st_size};
             const auto rankedTensor = mlir::RankedTensorType::get(shapeType, getUInt8Type(_ctx));
             const auto memRefRankedTensor = mlir::MemRefType::get(shapeType, getUInt8Type(_ctx));
 
@@ -155,9 +159,9 @@ void vpux::ELF::ElfImporter::createConfigureBarrierOp(mlir::OpBuilder& opsBuilde
         mlir::IntegerAttr producerCount = mlir::IntegerAttr::get(typeU8Attr, barrierCountConfig->producer_count_);
         mlir::IntegerAttr consumerCount = mlir::IntegerAttr::get(typeU8Attr, barrierCountConfig->consumer_count_);
 
-        auto barrierOpValue = opsBuilder.create<VPUIPRegMapped::ConfigureBarrierOp>(
-                mlir::UnknownLoc::get(_ctx), VPUIPRegMapped::IndexType::get(_ctx, idx), realId, nextSameId,
-                producerCount, consumerCount);
+        auto barrierOpValue = opsBuilder.create<VPUMI37XX::ConfigureBarrierOp>(
+                mlir::UnknownLoc::get(_ctx), VPURegMapped::IndexType::get(_ctx, idx), realId, nextSameId, producerCount,
+                consumerCount);
         _barrierConfigsByRealId.push_back(std::make_pair(barrierCountConfig->real_id_, barrierOpValue));
         barrierConfigOps.push_back(barrierOpValue);
         barrierCountConfig++;
@@ -167,7 +171,8 @@ void vpux::ELF::ElfImporter::createConfigureBarrierOp(mlir::OpBuilder& opsBuilde
 }
 
 std::vector<std::pair<unsigned int, ELF::SymbolOp>> vpux::ELF::ElfImporter::createSymbolOp(
-        mlir::FuncOp& func, mlir::OpBuilder& opsBuilder, const elf::Reader<elf::ELF_Bitness::Elf64>::Section& section) {
+        mlir::func::FuncOp& func, mlir::OpBuilder& opsBuilder,
+        const elf::Reader<elf::ELF_Bitness::Elf64>::Section& section) {
     const auto sectionHeader = section.getHeader();
     const auto& symStrTab = _elfReader.getSection(sectionHeader->sh_link);
     const auto* symbols = section.getData<elf::SymbolEntry>();
@@ -181,7 +186,7 @@ std::vector<std::pair<unsigned int, ELF::SymbolOp>> vpux::ELF::ElfImporter::crea
         mlir::Type typeAttr = mlir::IntegerType::get(_ctx, 64, mlir::IntegerType::Unsigned);
         mlir::IntegerAttr symSizeAttr = mlir::IntegerAttr::get(typeAttr, symbols[idx].st_size);
         mlir::IntegerAttr symValAttr = mlir::IntegerAttr::get(typeAttr, symbols[idx].st_value);
-        auto symAttr = symbolizeSymbolTypeAttr(symbols[idx].st_info).getValueOr(vpux::ELF::SymbolTypeAttr::STT_NOTYPE);
+        auto symAttr = symbolizeSymbolTypeAttr(symbols[idx].st_info).value_or(vpux::ELF::SymbolTypeAttr::STT_NOTYPE);
 
         mlir::Value inputArg;
         if (sectionHeader->sh_flags & elf::VPU_SHF_USERINPUT) {
@@ -304,23 +309,23 @@ void vpux::ELF::ElfImporter::createSectionOpForActKernalRange(mlir::OpBuilder& o
     std::vector<mlir::Value> actKTextOps;
     std::vector<mlir::Value> actKDataOps;
     for (uint32_t idx = 0; idx < noOfActKRangeTasks; ++idx) {
-        auto kernelTextOp = opsBuilder.create<VPUIPRegMapped::DeclareKernelTextOp>(
-                opsBuilder.getUnknownLoc(), VPUIPRegMapped::IndexType::get(_ctx, idx),
+        auto kernelTextOp = opsBuilder.create<VPUMI37XX::DeclareKernelTextOp>(
+                opsBuilder.getUnknownLoc(), VPURegMapped::IndexType::get(_ctx, idx),
                 mlir::StringAttr::get(_ctx, kernelTypeElfDummy));
         actKTextOps.push_back(kernelTextOp.getResult());
 
-        auto kernelArgsOp = opsBuilder.create<VPUIPRegMapped::DeclareKernelArgsOp>(
-                opsBuilder.getUnknownLoc(), VPUIPRegMapped::IndexType::get(_ctx, idx),
+        auto kernelArgsOp = opsBuilder.create<VPUMI37XX::DeclareKernelArgsOp>(
+                opsBuilder.getUnknownLoc(), VPURegMapped::IndexType::get(_ctx, idx),
                 mlir::StringAttr::get(_ctx, kernelTypeElfDummy));
         actKDataOps.push_back(kernelArgsOp.getResult());
 
-        auto kernelEntryOp = opsBuilder.create<VPUIPRegMapped::DeclareKernelEntryOp>(
-                opsBuilder.getUnknownLoc(), VPUIPRegMapped::IndexType::get(_ctx, idx),
+        auto kernelEntryOp = opsBuilder.create<VPUMI37XX::DeclareKernelEntryOp>(
+                opsBuilder.getUnknownLoc(), VPURegMapped::IndexType::get(_ctx, idx),
                 mlir::StringAttr::get(_ctx, kernelTypeElfDummy));
 
-        auto actKernalRangeOp = opsBuilder.create<VPUIPRegMapped::ActKernelRangeOp>(
-                mlir::UnknownLoc::get(_ctx), VPUIPRegMapped::IndexType::get(_ctx, idx), kernelTextOp, kernelArgsOp,
-                kernelEntryOp);
+        auto actKernalRangeOp = opsBuilder.create<VPUMI37XX::ActKernelRangeOp>(
+                mlir::UnknownLoc::get(_ctx), VPURegMapped::IndexType::get(_ctx, idx), /*taskLocation*/ nullptr,
+                kernelTextOp, kernelArgsOp, kernelEntryOp);
 
         _actKRangeOps.push_back(actKernalRangeOp);
         actKRangeOps.push_back(actKernalRangeOp.getResult());
@@ -358,10 +363,11 @@ void vpux::ELF::ElfImporter::createSectionOpForActKernelInvocation(mlir::OpBuild
         mlir::ValueRange waitBarriers, updateBarriers;
         fillValueForWaitAndUpdateBarrierConfigs(actKernelInvocation->barriers.post_mask_,
                                                 actKernelInvocation->barriers.wait_mask_, updateBarriers, waitBarriers);
-        auto actKInvOp = opsBuilder.create<VPUIPRegMapped::ActKernelInvocationOp>(
-                mlir::UnknownLoc::get(_ctx), VPUIPRegMapped::IndexType::get(_ctx, idx), mlir::ValueRange(waitBarriers),
-                mlir::ValueRange(updateBarriers), _actKRangeOps.at(actKernelInvocation->kernel_range_index).getResult(),
-                mlir::IntegerAttr::get(type64UAttr, actKernelInvocation->invo_tile),
+        auto actKInvOp = opsBuilder.create<VPUMI37XX::ActKernelInvocationOp>(
+                mlir::UnknownLoc::get(_ctx), VPURegMapped::IndexType::get(_ctx, idx), /*taskLocation*/ nullptr,
+                mlir::ValueRange(waitBarriers), mlir::ValueRange(updateBarriers),
+                _actKRangeOps.at(actKernelInvocation->kernel_range_index).getResult(),
+                /*profiling_data*/ nullptr, mlir::IntegerAttr::get(type64UAttr, actKernelInvocation->invo_tile),
                 mlir::IntegerAttr::get(type64UAttr, actKernelInvocation->barriers_sched.start_after_),
                 mlir::IntegerAttr::get(type64UAttr, actKernelInvocation->barriers_sched.clean_after_));
 
@@ -386,7 +392,7 @@ void vpux::ELF::ElfImporter::createSectionOpForActKernelParams(mlir::OpBuilder& 
         return;
     }
 
-    ArrayRef<uint8_t> params_vector_dummy = {
+    SmallVector<uint8_t> params_vector_dummy = {
             // input
             0x00, 0x00, 0x00, 0x00,                          // dataAddr
             0x01, 0x00, 0x00, 0x00,                          // isStatic
@@ -412,8 +418,8 @@ void vpux::ELF::ElfImporter::createSectionOpForActKernelParams(mlir::OpBuilder& 
 
     mlir::Type type8UIntAttr = mlir::IntegerType::get(_ctx, 8, mlir::IntegerType::SignednessSemantics::Unsigned);
     long int params_size = (long int)(params_vector_dummy.size());
-    auto kernalParamsOp = opsBuilder.create<VPUIPRegMapped::KernelParamsOp>(
-            mlir::UnknownLoc::get(_ctx), VPUIPRegMapped::IndexType::get(_ctx, 0),
+    auto kernalParamsOp = opsBuilder.create<VPUMI37XX::KernelParamsOp>(
+            mlir::UnknownLoc::get(_ctx), VPURegMapped::IndexType::get(_ctx, 0),
             mlir::ValueRange(_buffers.front().second.getResult()), mlir::ValueRange(_buffers.back().second.getResult()),
             mlir::StringAttr::get(_ctx, "Softmax"),
             mlir::DenseIntElementsAttr::get(mlir::VectorType::get({params_size}, type8UIntAttr), params_vector_dummy));
@@ -471,8 +477,8 @@ void vpux::ELF::ElfImporter::createSectionOpForShaveRtConfigs(mlir::OpBuilder& o
         return;
     }
 
-    auto actShaveRtOpValue = opsBuilder.create<VPUIPRegMapped::ActShaveRtOp>(
-            mlir::UnknownLoc::get(_ctx), VPUIPRegMapped::IndexType::get(_ctx, 0), mlir::StringRef("nnActEntry"));
+    auto actShaveRtOpValue = opsBuilder.create<VPUMI37XX::ActShaveRtOp>(
+            mlir::UnknownLoc::get(_ctx), VPURegMapped::IndexType::get(_ctx, 0), mlir::StringRef("nnActEntry"));
     actRtTextOpValue = actShaveRtOpValue.getResult();
     createSectionOp(opsBuilder, actRtConfigsSectionIdx, actShaveRtOpValue.getResult());
 }
@@ -523,9 +529,9 @@ void vpux::ELF::ElfImporter::createSectionOpForInvariants(mlir::OpBuilder& opsBu
 
     std::vector<mlir::Value> invariantsOps;
     for (uint32_t idx = 0; idx < noOfInvariantsTasks; ++idx) {
-        auto invariantIndex = VPUIPRegMapped::IndexType::get(_ctx, idx);
+        auto invariantIndex = VPURegMapped::IndexType::get(_ctx, idx);
         VPUX_UNUSED(invariantIndex);
-        // TBI - create <VPUIPRegMapped::DPUInvariantOp>
+        // TBI - create <VPUMI37XX::DPUInvariantOp>
     }
     createSectionOp(opsBuilder, invariantsSectionIdx, invariantsOps);
 }
@@ -546,14 +552,14 @@ void vpux::ELF::ElfImporter::createSectionOpForVariants(mlir::OpBuilder& opsBuil
 
     std::vector<mlir::Value> variantsOps;
     for (uint32_t idx = 0; idx < noOfVariantsTasks; ++idx) {
-        auto variantIndex = VPUIPRegMapped::IndexType::get(_ctx, idx);
+        auto variantIndex = VPURegMapped::IndexType::get(_ctx, idx);
         VPUX_UNUSED(variantIndex);
-        // TBI - create <VPUIPRegMapped::DPUVariantOp>
+        // TBI - create <VPUMI37XX::DPUVariantOp>
     }
     createSectionOp(opsBuilder, variantsSectionIdx, variantsOps);
 }
 
-void vpux::ELF::ElfImporter::createSectionOpForMappedInferece(mlir::FuncOp& func, mlir::OpBuilder& opsBuilder) {
+void vpux::ELF::ElfImporter::createSectionOpForMappedInferece(mlir::func::FuncOp& func, mlir::OpBuilder& opsBuilder) {
     _mappedInferSectionIdx = getMappedInferenceSectionIndex();
     _log.debug("mappedInference section index {0}", _mappedInferSectionIdx);
     VPUX_THROW_UNLESS(_mappedInferSectionIdx != INVALID_SEC_IDX, "Got invalid mappedInference section index");
@@ -602,8 +608,8 @@ void vpux::ELF::ElfImporter::createSectionOpForMappedInferece(mlir::FuncOp& func
         actKernelInvocations = _actKInvocationOps.front();
     }
 
-    auto mappedInferenceOp = opsBuilder.create<VPUIPRegMapped::MappedInferenceOp>(
-            mlir::UnknownLoc::get(_ctx), VPUIPRegMapped::IndexType::get(_ctx, 0), mlir::ValueRange{dmaListHeads},
+    auto mappedInferenceOp = opsBuilder.create<VPUMI37XX::MappedInferenceOp>(
+            mlir::UnknownLoc::get(_ctx), VPURegMapped::IndexType::get(_ctx, 0), mlir::ValueRange{dmaListHeads},
             invariantList, variantList, actKernelRanges, actKernelInvocations, barrierList, actRtText,
             mlir::ValueRange{_shaveStacks}, opsBuilder.getI64ArrayAttr(dmaCountVec), mappedInference->invariants.count,
             mappedInference->variants.count, mappedInference->act_kernel_ranges.count,
@@ -628,7 +634,7 @@ void vpux::ELF::ElfImporter::fillValueForWaitAndUpdateBarrierConfigs(const uint6
     }
 }
 
-void vpux::ELF::ElfImporter::createSectionOpForDMA(mlir::FuncOp& func, mlir::OpBuilder& opsBuilder,
+void vpux::ELF::ElfImporter::createSectionOpForDMA(mlir::func::FuncOp& func, mlir::OpBuilder& opsBuilder,
                                                    const nn_public::VpuMappedInference* mappedInference) {
     for (uint32_t dmaTaskIdx = 0; dmaTaskIdx < nn_public::VPU_MAX_DMA_ENGINES; dmaTaskIdx++) {
         auto dmaOffest = offsetof(nn_public::VpuMappedInference, dma_tasks) +
@@ -690,10 +696,10 @@ void vpux::ELF::ElfImporter::createSectionOpForDMA(mlir::FuncOp& func, mlir::OpB
                     opsBuilder, dmaSectionIdx, transactionDstOffset, dmaTasks->transaction_.attr2d.dst_width,
                     elf::VPU_SHF_USEROUTPUT, func.getArgument(dmaTaskIdx + 1));
 
-            auto nndmaOp = opsBuilder.create<VPUIPRegMapped::NNDMAOp>(
-                    mlir::UnknownLoc::get(_ctx), VPUIPRegMapped::IndexType::get(_ctx, idx), inputBuf, outputBuf,
-                    previousDMAIdx, waitBarriers, updateBarriers, compression, startAfter, cleanAfter, isOutOfOrder,
-                    isCritical, port, dmaDescriptor);
+            auto nndmaOp = opsBuilder.create<VPUMI37XX::NNDMAOp>(
+                    mlir::UnknownLoc::get(_ctx), VPURegMapped::IndexType::get(_ctx, idx), /*taskLocation*/ nullptr,
+                    inputBuf, outputBuf, previousDMAIdx, waitBarriers, updateBarriers, compression, startAfter,
+                    cleanAfter, isOutOfOrder, isCritical, port, dmaDescriptor);
 
             previousDMAIdx = nndmaOp.getResult();
             _nndmaOps[dmaTaskIdx].push_back(previousDMAIdx);
@@ -718,8 +724,8 @@ void vpux::ELF::ElfImporter::createSectionOp(mlir::OpBuilder& opsBuilder, const 
     const auto sectionHeader = section.getHeader();
     auto elfCreateSectionOp = opsBuilder.create<ELF::CreateSectionOp>(
             mlir::UnknownLoc::get(_ctx), vpux::ELF::SectionType::get(_ctx), mlir::StringRef(section.getName()),
-            symbolizeSectionTypeAttr(sectionHeader->sh_type).getValueOr(vpux::ELF::SectionTypeAttr::SHT_NULL),
-            symbolizeSectionFlagsAttr(sectionHeader->sh_flags).getValueOr(vpux::ELF::SectionFlagsAttr::SHF_NONE),
+            symbolizeSectionTypeAttr(sectionHeader->sh_type).value_or(vpux::ELF::SectionTypeAttr::SHT_NULL),
+            symbolizeSectionFlagsAttr(sectionHeader->sh_flags).value_or(vpux::ELF::SectionFlagsAttr::SHF_NONE),
             static_cast<int64_t>(sectionHeader->sh_info), static_cast<int64_t>(sectionHeader->sh_addralign));
 
     mlir::Region& region = elfCreateSectionOp.getOperation()->getRegion(0);
@@ -746,8 +752,8 @@ void vpux::ELF::ElfImporter::createLogicalSectionOp(mlir::OpBuilder& opsBuilder,
     const auto sectionHeader = section.getHeader();
     auto elfLogicalCreateSectionOp = opsBuilder.create<ELF::CreateLogicalSectionOp>(
             mlir::UnknownLoc::get(_ctx), vpux::ELF::SectionType::get(_ctx), mlir::StringRef(section.getName()),
-            symbolizeSectionTypeAttr(sectionHeader->sh_type).getValueOr(vpux::ELF::SectionTypeAttr::SHT_NULL),
-            symbolizeSectionFlagsAttr(sectionHeader->sh_flags).getValueOr(vpux::ELF::SectionFlagsAttr::SHF_NONE),
+            symbolizeSectionTypeAttr(sectionHeader->sh_type).value_or(vpux::ELF::SectionTypeAttr::SHT_NULL),
+            symbolizeSectionFlagsAttr(sectionHeader->sh_flags).value_or(vpux::ELF::SectionFlagsAttr::SHF_NONE),
             static_cast<int64_t>(sectionHeader->sh_info), static_cast<int64_t>(sectionHeader->sh_addralign));
 
     mlir::Region& region = elfLogicalCreateSectionOp.getOperation()->getRegion(0);
@@ -772,7 +778,7 @@ void vpux::ELF::ElfImporter::createGenericBuiltInRegion(mlir::OpBuilder& opsBuil
 
     for (uint8_t val = 0; val <= vpux::ELF::getMaxEnumValForCMXMappingSymbolAttr(); ++val) {
         auto arithOperation = opsBuilder.create<mlir::arith::ConstantIntOp>(mlir::UnknownLoc::get(_ctx), val, 8);
-        auto specialSymAttr = symbolizeCMXMappingSymbolAttr(val).getValueOr(
+        auto specialSymAttr = symbolizeCMXMappingSymbolAttr(val).value_or(
                 vpux::ELF::CMXMappingSymbolAttr::VPU_NNRD_SYM_NNCXM_SLICE_BASE_ADDR);
         auto symbolValue = opsBuilder.create<ELF::SymbolOp>(
                 mlir::UnknownLoc::get(_ctx), vpux::ELF::SymbolType::get(_ctx), arithOperation.getResult(),
@@ -864,7 +870,7 @@ void vpux::ELF::ElfImporter::buildMainFunc() {
     auto funcArguments = _inputTypes;
     funcArguments.insert(funcArguments.end(), _outputTypes.begin(), _outputTypes.end());
     const auto funcType = mlir::FunctionType::get(_ctx, makeArrayRef(funcArguments), makeArrayRef(_outputTypes));
-    auto func = builder.create<mlir::FuncOp>(mlir::UnknownLoc::get(_ctx), _mainFuncName.getValue(), funcType);
+    auto func = builder.create<mlir::func::FuncOp>(mlir::UnknownLoc::get(_ctx), _mainFuncName.getValue(), funcType);
 
     auto opsBuilder = mlir::OpBuilder::atBlockBegin(func.addEntryBlock(), &builderLog);
 
@@ -905,8 +911,7 @@ void vpux::ELF::ElfImporter::buildMainFunc() {
 
             auto elfSymTabSectionOp = opsBuilder.create<ELF::CreateSymbolTableSectionOp>(
                     mlir::UnknownLoc::get(_ctx), vpux::ELF::SectionType::get(_ctx), mlir::StringRef(section.getName()),
-                    symbolizeSectionFlagsAttr(sectionHeader->sh_flags)
-                            .getValueOr(vpux::ELF::SectionFlagsAttr::SHF_NONE),
+                    symbolizeSectionFlagsAttr(sectionHeader->sh_flags).value_or(vpux::ELF::SectionFlagsAttr::SHF_NONE),
                     nullptr);
             _sectionOpByValue[sectionCtr] = elfSymTabSectionOp.getResult();
 
@@ -931,8 +936,7 @@ void vpux::ELF::ElfImporter::buildMainFunc() {
             auto elfRelocateSectionOp = opsBuilder.create<ELF::CreateRelocationSectionOp>(
                     mlir::UnknownLoc::get(_ctx), vpux::ELF::SectionType::get(_ctx), mlir::StringRef(section.getName()),
                     _sectionOpByValue[sectionHeader->sh_link], _sectionOpByValue[sectionHeader->sh_info],
-                    symbolizeSectionFlagsAttr(sectionHeader->sh_flags)
-                            .getValueOr(vpux::ELF::SectionFlagsAttr::SHF_NONE));
+                    symbolizeSectionFlagsAttr(sectionHeader->sh_flags).value_or(vpux::ELF::SectionFlagsAttr::SHF_NONE));
             _sectionOpByValue[sectionCtr] = elfRelocateSectionOp.getResult();
 
             mlir::Region& regionSec = elfRelocateSectionOp.getOperation()->getRegion(0);
@@ -945,7 +949,7 @@ void vpux::ELF::ElfImporter::buildMainFunc() {
 
             for (size_t idx = 0; idx < entriesNum; ++idx) {
                 const auto rType = vpux::ELF::symbolizeRelocationTypeAttr(elf::elf64RType(entries[idx].r_info));
-                const auto relocationType = rType.getValueOr(vpux::ELF::RelocationTypeAttr::R_VPU_64);
+                const auto relocationType = rType.value_or(vpux::ELF::RelocationTypeAttr::R_VPU_64);
                 const auto symbolIdx = elf::elf64RSym(entries[idx].r_info);
                 auto symbolForRelocation = getSymbolValueBySecHeaderAndSymbolIdx(sectionHeader->sh_link, symbolIdx);
                 if (symbolForRelocation == nullptr) {
@@ -958,8 +962,7 @@ void vpux::ELF::ElfImporter::buildMainFunc() {
         } else if (elf::VPU_SHT_NETDESC == sectionHeader->sh_type) {
             auto elfMetadataSectionOp = opsBuilder.create<ELF::CreateMetadataSectionOp>(
                     mlir::UnknownLoc::get(_ctx), vpux::ELF::SectionType::get(_ctx), mlir::StringRef(section.getName()),
-                    symbolizeSectionFlagsAttr(sectionHeader->sh_flags)
-                            .getValueOr(vpux::ELF::SectionFlagsAttr::SHF_NONE),
+                    symbolizeSectionFlagsAttr(sectionHeader->sh_flags).value_or(vpux::ELF::SectionFlagsAttr::SHF_NONE),
                     static_cast<int64_t>(sectionHeader->sh_info), static_cast<int64_t>(sectionHeader->sh_addralign));
 
             mlir::Region& regionSymTabSec = elfMetadataSectionOp.getOperation()->getRegion(0);
@@ -967,13 +970,28 @@ void vpux::ELF::ElfImporter::buildMainFunc() {
             regionSymTabSec.push_back(blkSym);
             mlir::OpBuilder builderSymTabSec(blkSym, blkSym->begin());
 
-            builderSymTabSec.create<VPUIPRegMapped::NetworkMetadataOp>(mlir::UnknownLoc::get(_ctx),
-                                                                       VPUIPRegMapped::IndexType::get(_ctx, 0));
+            builderSymTabSec.create<VPUMI37XX::NetworkMetadataOp>(mlir::UnknownLoc::get(_ctx),
+                                                                  VPURegMapped::IndexType::get(_ctx, 0));
 
             _sectionOpByValue[sectionCtr] = elfMetadataSectionOp.getResult();
+        } else if (elf::VPU_SHT_PROF == sectionHeader->sh_type) {
+            auto elfProfSectionOp = opsBuilder.create<ELF::CreateProfilingSectionOp>(
+                    mlir::UnknownLoc::get(_ctx), vpux::ELF::SectionType::get(_ctx), mlir::StringRef(section.getName()),
+                    symbolizeSectionFlagsAttr(sectionHeader->sh_flags).value_or(vpux::ELF::SectionFlagsAttr::SHF_NONE),
+                    static_cast<int64_t>(sectionHeader->sh_info), static_cast<int64_t>(sectionHeader->sh_addralign));
+
+            mlir::Region& regionSymTabSec = elfProfSectionOp.getOperation()->getRegion(0);
+            mlir::Block* blkSym = new mlir::Block();
+            regionSymTabSec.push_back(blkSym);
+            mlir::OpBuilder builderSymTabSec(blkSym, blkSym->begin());
+
+            builderSymTabSec.create<VPUMI37XX::ProfilingMetadataOp>(mlir::UnknownLoc::get(_ctx),
+                                                                    VPURegMapped::IndexType::get(_ctx, 0));
+
+            _sectionOpByValue[sectionCtr] = elfProfSectionOp.getResult();
         } else {
             auto secHeaderTypeAttr =
-                    symbolizeSectionTypeAttr(sectionHeader->sh_type).getValueOr(vpux::ELF::SectionTypeAttr::SHT_NULL);
+                    symbolizeSectionTypeAttr(sectionHeader->sh_type).value_or(vpux::ELF::SectionTypeAttr::SHT_NULL);
             auto sectionHeaderTypeStr = stringifySectionTypeAttr(secHeaderTypeAttr).str();
             _log.debug("unsupported section header type {0} ", sectionHeaderTypeStr);
         }
@@ -981,7 +999,7 @@ void vpux::ELF::ElfImporter::buildMainFunc() {
 
     const auto functionOutArguments = mlir::ValueRange{func.getArguments().begin() + _inputTypes.size(),
                                                        static_cast<ptrdiff_t>(_outputTypes.size())};
-    opsBuilder.create<mlir::ReturnOp>(mlir::UnknownLoc::get(_ctx), functionOutArguments);
+    opsBuilder.create<mlir::func::ReturnOp>(mlir::UnknownLoc::get(_ctx), functionOutArguments);
 }
 
 mlir::OwningOpRef<mlir::ModuleOp> vpux::ELF::ElfImporter::read() {

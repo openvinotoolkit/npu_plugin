@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/VPU/ops.hpp"
 #include "vpux/compiler/dialect/VPU/passes.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
@@ -116,7 +114,9 @@ mlir::LogicalResult ClampConverter::matchAndRewrite(VPU::ClampOp clampOp, mlir::
     auto newOp = mlir::dyn_cast_or_null<VPU::NCEOpInterface>(rewriter.clone(*nceOp));
     newOp.setPPE(ppeTaskAttr);
     rewriter.replaceOp(clampOp, newOp->getResult(0));
-    rewriter.eraseOp(nceOp);
+    if (nceOp.use_empty()) {
+        rewriter.eraseOp(nceOp);
+    }
 
     return mlir::success();
 }
@@ -165,18 +165,9 @@ private:
 };
 
 void FuseClampPass::safeRunOnFunc() {
-    auto func = getFunction();
-    auto module = func->getParentOfType<mlir::ModuleOp>();
-    const auto arch = VPU::getArch(module);
+    // TODO: #70644
 
-    const std::set<VPU::ArchKind> compatibleTargets = {
-            VPU::ArchKind::VPUX37XX,
-    };
-    if (compatibleTargets.count(arch) == 0) {
-        _log.trace("FuseClampPass is only applicable for VPUX37XX device.");
-        return;
-    }
-
+    auto func = getOperation();
     auto& ctx = getContext();
     mlir::ConversionTarget target(ctx);
     // Adding the entire dialect here since the VPU.Clamp will be replaced with one of VPU.NCE operations.

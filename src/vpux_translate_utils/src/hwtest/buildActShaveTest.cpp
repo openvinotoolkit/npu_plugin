@@ -3,10 +3,7 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/VPU/passes.hpp"
-#include "vpux/compiler/dialect/VPUIP/passes.hpp"
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
 #include "vpux/compiler/dialect/VPURT/task.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
@@ -58,8 +55,8 @@ void buildActShave(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp mo
     }
     funcOpName += printToString("{0}", outputType);
 
-    auto func = builder.create<mlir::FuncOp>(builder.getUnknownLoc(), funcOpName, funcType,
-                                             builder.getStringAttr("private"));
+    auto func = builder.create<mlir::func::FuncOp>(builder.getUnknownLoc(), funcOpName, funcType,
+                                                   builder.getStringAttr("private"));
 
     auto funcbuilder = mlir::OpBuilder::atBlockBegin(func.addEntryBlock(), builder.getListener());
 
@@ -106,7 +103,7 @@ void buildActShave(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp mo
                                                 builder.getUnknownLoc(), getTensorResult(outputcmx), funcoutput);
 
     //  Build main function: returnOp
-    funcbuilder.create<mlir::ReturnOp>(builder.getUnknownLoc(), funcoutput);
+    funcbuilder.create<mlir::func::ReturnOp>(builder.getUnknownLoc(), funcoutput);
 
     //  Pass Manager
     mlir::PassManager pm(ctx, mlir::OpPassManager::Nesting::Implicit);

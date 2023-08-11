@@ -93,6 +93,7 @@ void ungroupOperation(Logger& log, mlir::OpBuilder& builder, mlir::Operation* op
     SmallVector<mlir::Type> seTableResultTypes;
     SmallVector<mlir::UnitAttr> isWeights;
     SmallVector<VPUIP::CompressionSchemeAttr> compressionSchemes;
+    SmallVector<VPU::SEAttr> seAttrs;
     for (auto result : sparseResults) {
         auto sparseType = result.getType().cast<VPUIP::SparseBufferType>();
         dataResultTypes.push_back(sparseType.getData());
@@ -104,6 +105,7 @@ void ungroupOperation(Logger& log, mlir::OpBuilder& builder, mlir::Operation* op
         }
         isWeights.push_back(sparseType.getIsWeights());
         compressionSchemes.push_back(sparseType.getCompressionScheme());
+        seAttrs.push_back(sparseType.getSeAttr());
     }
 
     auto dataOp = createUngroupedOp(log, builder, op, sparseOperands, dataOperands, dataResultTypes);
@@ -115,9 +117,10 @@ void ungroupOperation(Logger& log, mlir::OpBuilder& builder, mlir::Operation* op
     auto seTableResult = (seTableOp != nullptr) ? seTableOp->getResult(0) : nullptr;
     auto isWeightsAttr = (isWeights.size() > 0) ? isWeights[0] : nullptr;
     auto compressionSchemeAttr = (compressionSchemes.size() > 0) ? compressionSchemes[0] : nullptr;
+    auto seAttr = (seAttrs.size() > 0) ? seAttrs[0] : nullptr;
 
     auto groupOp = builder.create<VPUIP::GroupSparseBufferOp>(op->getLoc(), dataResult, smResult, seTableResult,
-                                                              isWeightsAttr, compressionSchemeAttr);
+                                                              isWeightsAttr, compressionSchemeAttr, seAttr);
     op->getResult(0).replaceAllUsesExcept(groupOp.output(), llvm::SmallPtrSet<mlir::Operation*, 1>{groupOp});
     op->erase();
 }
@@ -137,7 +140,7 @@ private:
 };
 
 void UngroupSparseBuffers::safeRunOnFunc() {
-    auto func = getFunction();
+    auto func = getOperation();
 
     const auto getSparseValues = [](mlir::ValueRange values) -> SmallVector<mlir::Value> {
         SmallVector<mlir::Value> sparseValues;

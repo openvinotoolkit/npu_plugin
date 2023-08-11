@@ -1,11 +1,12 @@
 //
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
+
 // RUN: vpux-opt --split-input-file --init-compiler="vpu-arch=%arch% compilation-mode=DefaultHW" --force-host-quantization %s | FileCheck %s
 // REQUIRES: arch-VPUX30XX || arch-VPUX37XX
 
-!qElemType = type !quant.uniform<u8:f16, 1.1534313725490195:128>
+!qElemType = !quant.uniform<u8:f16, 1.1534313725490195:128>
 
 module @Quantize1 {
 
@@ -18,9 +19,9 @@ IE.CNNNetwork
         DataInfo "output" : tensor<1x2x3x4xf16>
     }
 
-// CHECK:       func @main(
+// CHECK:       func.func @main(
 // CHECK-SAME:      %[[VAL_0:.*]]: tensor<1x2x3x4x!qElemType>)
-func @main(%arg0: tensor<1x2x3x4xf32>) -> tensor<1x2x3x4xf16> {
+func.func @main(%arg0: tensor<1x2x3x4xf32>) -> tensor<1x2x3x4xf16> {
     %0 = IE.Quantize(%arg0) {dstElemType = !qElemType} : tensor<1x2x3x4xf32> -> tensor<1x2x3x4x!qElemType>
     %1 = IE.Dequantize(%0) {dstElemType = f16} : tensor<1x2x3x4x!qElemType> -> tensor<1x2x3x4xf16>
 

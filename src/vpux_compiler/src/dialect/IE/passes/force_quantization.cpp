@@ -31,7 +31,7 @@ void ForceHostQuantizationPass::safeRunOnModule() {
     auto module = getOperation();
 
     IE::CNNNetworkOp netInfo;
-    mlir::FuncOp netFunc;
+    mlir::func::FuncOp netFunc;
     IE::CNNNetworkOp::getFromModule(module, netInfo, netFunc);
 
     SmallVector<mlir::Value> newArgs, results;
@@ -46,7 +46,7 @@ void ForceHostQuantizationPass::safeRunOnModule() {
 
         newArgs.push_back(newArg);
     }
-    netFunc.walk([&](mlir::ReturnOp retOp) {
+    netFunc.walk([&](mlir::func::ReturnOp retOp) {
         for (const auto res : retOp->getOperands()) {
             results.push_back(res);
         }

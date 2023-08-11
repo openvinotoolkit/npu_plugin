@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/utils/error.hpp"
 
@@ -15,7 +13,7 @@ mlir::LogicalResult vpux::IE::ShapeCastOp::inferReturnTypeComponents(
         mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
         mlir::DictionaryAttr attrs, mlir::RegionRange,
         SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnTypes) {
-    const auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
+    const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
     IE::ShapeCastOpAdaptor shapeCast(operands, attrs);
     if (mlir::failed(shapeCast.verify(loc))) {
@@ -51,14 +49,13 @@ public:
     mlir::LogicalResult matchAndRewrite(IE::ShapeCastOp origOp, mlir::PatternRewriter& rewriter) const final;
 };
 
-mlir::LogicalResult FuseShapeCast::matchAndRewrite(IE::ShapeCastOp origOp, mlir::PatternRewriter& /*rewriter*/) const {
+mlir::LogicalResult FuseShapeCast::matchAndRewrite(IE::ShapeCastOp origOp, mlir::PatternRewriter& rewriter) const {
     auto prevOp = origOp.source().getDefiningOp<IE::ShapeCastOp>();
-    if (prevOp == nullptr || !prevOp.result().hasOneUse()) {
+    if (prevOp == nullptr) {
         return mlir::failure();
     }
 
-    prevOp.result().replaceAllUsesWith(prevOp.source());
-    origOp.source().setType(prevOp.source().getType());
+    rewriter.replaceOpWithNewOp<IE::ShapeCastOp>(origOp, prevOp.source(), origOp.shape());
     return mlir::success();
 }
 

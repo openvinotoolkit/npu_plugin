@@ -3,13 +3,12 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include <vpux_elf/writer.hpp>
 #include "vpux/compiler/dialect/ELF/ops.hpp"
 #include "vpux/compiler/dialect/ELF/utils.hpp"
-#include "vpux/compiler/dialect/VPUIPRegMapped/ops.hpp"
-#include "vpux/compiler/dialect/VPUIPRegMapped/types.hpp"
+#include "vpux/compiler/dialect/VPUMI37XX/types.hpp"
+
+#include <mlir/Dialect/Arithmetic/IR/Arithmetic.h>
 
 namespace {
 mlir::Value getTargetSectionOfRelocOp(mlir::Operation* op) {
@@ -52,7 +51,7 @@ void vpux::ELF::RelocOp::serialize(elf::writer::Relocation* relocation, vpux::EL
             "Value given as offsetOf parameter does not represent an Op that implements getOffsetOfOpInterface");
     auto computedOffsetOf = getOffsetOfOpIf.getOffsetOfWithinOperation(offsetOf());
 
-    totalOffset += computedOffsetOf.getValueOr(0);
+    totalOffset += computedOffsetOf.value_or(0);
 
     relocation->setType(static_cast<elf::Elf_Word>(relocType));
     relocation->setOffset(totalOffset);

@@ -76,7 +76,7 @@ mlir::LogicalResult vpux::VPU::DepthToSpaceOp::inferReturnTypes(
         mlir::MLIRContext* ctx, mlir::Optional<mlir::Location> optLoc, mlir::ValueRange operands,
         mlir::DictionaryAttr attrs, mlir::RegionRange /*regions*/,
         mlir::SmallVectorImpl<mlir::Type>& inferredReturnTypes) {
-    const auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
+    const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
     VPU::DepthToSpaceOpAdaptor depthToSpace(operands, attrs);
     if (mlir::failed(depthToSpace.verify(loc))) {
@@ -145,14 +145,12 @@ vpux::InputTiling vpux::VPU::DepthToSpaceOp::backInferTileInfo(const vpux::TileI
     const auto origInputShape = getShape(input());
 
     int64_t blockSize = 0;
-
     if (block_sizeAttr() != nullptr) {
-        blockSize = block_sizeAttr().dyn_cast_or_null<mlir::IntegerAttr>().getValue().getSExtValue();
+        blockSize = block_sizeAttr().getValue().getSExtValue();
     }
+    VPUX_THROW_WHEN(blockSize == 0, "BlockSize is zero and used as a divisor");
 
     TileInfo inputTile(origInputShape);
-
-    VPUX_THROW_WHEN(blockSize == 0, "BlockSize variable is zero and used as a divisor");
     inputTile.shape[Dims4D::Act::N] = outputTile.shape[Dims4D::Act::N];
     inputTile.shape[Dims4D::Act::C] = outputTile.shape[Dims4D::Act::C] * (blockSize * blockSize);
     inputTile.shape[Dims4D::Act::W] = outputTile.shape[Dims4D::Act::W] / blockSize;
@@ -179,8 +177,9 @@ OutputTiling vpux::VPU::DepthToSpaceOp::getTilingStrategy(TilingMode tilingMode,
 
     int64_t blockSize = 0;
     if (origOp.block_sizeAttr() != nullptr) {
-        blockSize = origOp.block_sizeAttr().dyn_cast_or_null<mlir::IntegerAttr>().getValue().getSExtValue();
+        blockSize = origOp.block_sizeAttr().getValue().getSExtValue();
     }
+    VPUX_THROW_WHEN(blockSize == 0, "BlockSize is zero and used as a divisor");
 
     Shape nTilesOnDimforDepthToSpace(outputShape.size(), 1);
     tilingMode = TilingMode::ISOLATED;

@@ -50,13 +50,13 @@ TEST_F(NgraphTransformations_Serialize, resultOfSerializationIsNotEmpy) {
 using NgraphTransformations_isFuncSupported = NgraphTransformations_UnitTests;
 
 TEST_F(NgraphTransformations_isFuncSupported, opset6Function_forOpset5Compiler_NotSupported) {
-    const size_t opset = 5;
+    const std::string opset = "opset5";
     const bool isSupported = ngraphTransformations::isFunctionSupported(opset6mvn, opset);
     ASSERT_FALSE(isSupported);
 }
 
 TEST_F(NgraphTransformations_isFuncSupported, opset6Function_forOpset6Compiler_IsSupported) {
-    const size_t opset = 6;
+    const std::string opset = "opset6";
     const bool isSupported = ngraphTransformations::isFunctionSupported(opset6mvn, opset);
     ASSERT_TRUE(isSupported);
 }
@@ -71,7 +71,7 @@ TEST_F(NgraphTransformations_isFuncSupported, opset6ParameterAndConstant_Support
     std::shared_ptr<ngraph::Function> opset4mvn_opset6params =
             std::make_shared<ngraph::Function>(ngraph::NodeVector{mvn}, ngraph::ParameterVector{data});
 
-    const size_t supportedOpset = 4;
+    const std::string supportedOpset = "opset4";
     const bool isSupported = ngraphTransformations::isFunctionSupported(opset4mvn_opset6params, supportedOpset);
 
     EXPECT_TRUE(isSupported);

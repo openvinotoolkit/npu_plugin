@@ -1,7 +1,8 @@
 //
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
+
 // RUN: vpux-opt --split-input-file --init-compiler="vpu-arch=VPUX37XX" --unroll-cluster-tiling  %s | FileCheck %s
 
 #NCHW = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
@@ -9,7 +10,7 @@
 
 // In this example DPU task in SOHoverlapped mode with input 1x16x32x32
 // will be split into 2 clusters where each input will be 1x16x17x32
-!InputDistributed = type !VPUIP.DistributedBuffer<
+!InputDistributed = !VPUIP.DistributedBuffer<
     1x16x32x32xf16, #NHWC, @CMX_NN, {
     mode = "OVERLAPPED",
     num_tiles = [1, 1, 2, 1],
@@ -19,34 +20,34 @@
     num_clusters = 2
 }>
 
-!OutputDistributed = type !VPUIP.DistributedBuffer<
+!OutputDistributed = !VPUIP.DistributedBuffer<
     1x16x30x30xf16, #NHWC, @CMX_NN, {
     mode = "SEGMENTED",
     num_tiles = [1, 1, 2, 1],
     num_clusters = 2
 }>
 
-!WeightsDistributed = type !VPUIP.DistributedBuffer<
+!WeightsDistributed = !VPUIP.DistributedBuffer<
     16x16x3x3xf16, #NHWC, @CMX_NN, {
     mode = "DUPLICATED",
     num_clusters = 2
 }>
 
-!Input_DDR = type memref<1x16x32x32xf16, #NHWC, @DDR>
-!Output_DDR = type memref<1x16x30x30xf16, #NHWC, @DDR>
-!Weights_DDR = type memref<16x16x3x3xf16, #NHWC, @DDR>
+!Input_DDR = memref<1x16x32x32xf16, #NHWC, @DDR>
+!Output_DDR = memref<1x16x30x30xf16, #NHWC, @DDR>
+!Weights_DDR = memref<16x16x3x3xf16, #NHWC, @DDR>
 
-!InputStub_CMX = type memref<1x16x32x32xf16, #NHWC, @CMX_NN>
-!OutputStub_CMX = type memref<1x16x30x30xf16, #NHWC, @CMX_NN>
-!WeightsStub_CMX = type memref<16x16x3x3xf16, #NHWC, @CMX_NN>
+!InputStub_CMX = memref<1x16x32x32xf16, #NHWC, @CMX_NN>
+!OutputStub_CMX = memref<1x16x30x30xf16, #NHWC, @CMX_NN>
+!WeightsStub_CMX = memref<16x16x3x3xf16, #NHWC, @CMX_NN>
 
 // Below dimensions are not correct but this is because related NCETask
 // is just simulated using NNDMA
-!Buffer0_CMX = type memref<1x16x15x30xf16, #NHWC, [@CMX_NN, 0]>
-!Buffer1_CMX = type memref<1x16x15x30xf16, #NHWC, [@CMX_NN, 1]>
+!Buffer0_CMX = memref<1x16x15x30xf16, #NHWC, [@CMX_NN, 0]>
+!Buffer1_CMX = memref<1x16x15x30xf16, #NHWC, [@CMX_NN, 1]>
 
 //CHECK-LABEL: @UnrollNNDMA
-func @UnrollNNDMA(%input: memref<1x16x32x32xf16>, %output: memref<1x16x30x30xf16>) -> memref<1x16x30x30xf16> {
+func.func @UnrollNNDMA(%input: memref<1x16x32x32xf16>, %output: memref<1x16x30x30xf16>) -> memref<1x16x30x30xf16> {
     // Barriers
     %bar0 = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
     %bar1 = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
@@ -206,7 +207,7 @@ func @UnrollNNDMA(%input: memref<1x16x32x32xf16>, %output: memref<1x16x30x30xf16
 
 // In this example DPU task in SOHoverlapped mode with input 1x16x32x32
 // will be split into 2 clusters where each input will be 1x16x17x32
-!InputDistributed = type !VPUIP.DistributedBuffer<
+!InputDistributed = !VPUIP.DistributedBuffer<
     1x16x32x32xf16, #NCHW, @CMX_NN, {
     mode = "OVERLAPPED",
     num_tiles = [1, 1, 2, 1],
@@ -216,45 +217,45 @@ func @UnrollNNDMA(%input: memref<1x16x32x32xf16>, %output: memref<1x16x30x30xf16
     num_clusters = 2
 }>
 
-!OutputDistributed = type !VPUIP.DistributedBuffer<
+!OutputDistributed = !VPUIP.DistributedBuffer<
     1x16x30x30xf16, #NHWC, @CMX_NN, {
     mode = "SEGMENTED",
     num_tiles = [1, 1, 2, 1],
     num_clusters = 2
 }>
 
-!WeightsDistributed = type !VPUIP.DistributedBuffer<
+!WeightsDistributed = !VPUIP.DistributedBuffer<
     16x16x3x3xf16, #NHWC, @CMX_NN, {
     mode = "DUPLICATED",
     num_clusters = 2
 }>
 
-!WeightsTableDistributed = type !VPUIP.DistributedBuffer<
+!WeightsTableDistributed = !VPUIP.DistributedBuffer<
     16x1x1x4xsi32, #NCHW, @CMX_NN, {
     mode = "DUPLICATED",
     num_clusters = 2
 }>
 
-!ActivationWindowDistributed = type !VPUIP.DistributedBuffer<
+!ActivationWindowDistributed = !VPUIP.DistributedBuffer<
     1x1x1x16xui8, #NCHW, @CMX_NN, {
     mode = "DUPLICATED",
     num_clusters = 2
 }>
 
-!Input_DDR = type memref<1x16x32x32xf16, #NCHW, @DDR>
-!Output_DDR = type memref<1x16x30x30xf16, #NHWC, @DDR>
-!Weights_DDR = type memref<16x16x3x3xf16, #NHWC, @DDR>
-!WeightsTable_DDR = type memref<16x1x1x4xsi32>
-!ActivationWindow_DDR = type memref<1x1x1x16xui8>
+!Input_DDR = memref<1x16x32x32xf16, #NCHW, @DDR>
+!Output_DDR = memref<1x16x30x30xf16, #NHWC, @DDR>
+!Weights_DDR = memref<16x16x3x3xf16, #NHWC, @DDR>
+!WeightsTable_DDR = memref<16x1x1x4xsi32>
+!ActivationWindow_DDR = memref<1x1x1x16xui8>
 
-!InputStub_CMX = type memref<1x16x32x32xf16, #NCHW, @CMX_NN>
-!OutputStub_CMX = type memref<1x16x30x30xf16, #NHWC, @CMX_NN>
-!WeightsStub_CMX = type memref<16x16x3x3xf16, #NHWC, @CMX_NN>
-!WeightsTableStub_CMX = type memref<16x1x1x4xsi32, @CMX_NN>
-!ActivationWindowStub_CMX = type memref<1x1x1x16xui8, @CMX_NN>
+!InputStub_CMX = memref<1x16x32x32xf16, #NCHW, @CMX_NN>
+!OutputStub_CMX = memref<1x16x30x30xf16, #NHWC, @CMX_NN>
+!WeightsStub_CMX = memref<16x16x3x3xf16, #NHWC, @CMX_NN>
+!WeightsTableStub_CMX = memref<16x1x1x4xsi32, @CMX_NN>
+!ActivationWindowStub_CMX = memref<1x1x1x16xui8, @CMX_NN>
 
 //CHECK-LABEL: @UnrollNCE
-func @UnrollNCE(%input: !Input_DDR, %output: !Output_DDR) -> !Output_DDR {
+func.func @UnrollNCE(%input: !Input_DDR, %output: !Output_DDR) -> !Output_DDR {
     // Barriers
     %bar0 = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
     %bar1 = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier

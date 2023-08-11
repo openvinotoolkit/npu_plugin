@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/conversion.hpp"
 
 #include "vpux/compiler/core/layers.hpp"
@@ -55,7 +53,7 @@ mlir::LogicalResult ConvToNCE::matchAndRewrite(IE::ConvolutionOp origOp, mlir::P
         return matchFailed(_log, rewriter, origOp, "Operation at '{0}' has unsupported input layout '{1}'",
                            origOp->getLoc(), inOrder);
     }
-    if (!VPU::NCEConvolutionOp::isSupported(origOp, logCb)) {
+    if (!VPU::NCEConvolutionOp::isSupported(origOp, logCb, /*checkLayout=*/true, /*checkChannelAlignment=*/true)) {
         return mlir::failure();
     }
 
@@ -150,7 +148,7 @@ mlir::LogicalResult DepthConvToNCE::matchAndRewrite(IE::GroupConvolutionOp origO
         std::ignore = matchFailed(_log, rewriter, origOp, "[{0}] {1}", getDebugName(), msg.str());
     };
 
-    if (!VPU::NCEDepthConvolutionOp::isSupported(origOp, logCb)) {
+    if (!VPU::NCEDepthConvolutionOp::isSupported(origOp, logCb, /*checkLayout=*/true, /*checkChannelAlignment=*/true)) {
         return mlir::failure();
     }
 
@@ -240,7 +238,7 @@ mlir::LogicalResult MaxPoolToNCE::matchAndRewrite(IE::MaxPoolOp origOp, mlir::Pa
         std::ignore = matchFailed(_log, rewriter, origOp, "[{0}] {1}", getDebugName(), msg.str());
     };
 
-    if (!VPU::NCEMaxPoolOp::isSupported(origOp, logCb)) {
+    if (!VPU::NCEMaxPoolOp::isSupported(origOp, logCb, /*checkLayout=*/true, /*checkChannelAlignment=*/true)) {
         return mlir::failure();
     }
 
@@ -307,7 +305,7 @@ mlir::LogicalResult AveragePoolToNCE::matchAndRewrite(IE::AvgPoolOp origOp, mlir
         std::ignore = matchFailed(_log, rewriter, origOp, "[{0}] {1}", getDebugName(), msg.str());
     };
 
-    if (!VPU::NCEAveragePoolOp::isSupported(origOp, logCb)) {
+    if (!VPU::NCEAveragePoolOp::isSupported(origOp, logCb, /*checkLayout=*/true, /*checkChannelAlignment=*/true)) {
         return mlir::failure();
     }
 
@@ -360,7 +358,8 @@ mlir::LogicalResult EltwiseToNCE<ConcreteOp>::matchAndRewrite(ConcreteOp origOp,
             supportsPerInputEltwiseScale(_arch) ? true : _opType == VPU::EltwiseType::MULTIPLY;
     const bool allowDifferentZp = true;
 
-    if (!VPU::NCEEltwiseOp::isSupported(origOp, allowDifferentScales, allowDifferentZp, logCb)) {
+    if (!VPU::NCEEltwiseOp::isSupported(origOp, allowDifferentScales, allowDifferentZp, logCb, /*checkLayout=*/true,
+                                        /*checkChannelAlignment=*/true)) {
         return mlir::failure();
     }
 
@@ -383,15 +382,14 @@ mlir::LogicalResult EltwiseToNCE<ConcreteOp>::matchAndRewrite(ConcreteOp origOp,
 
 class PermuteQuantizeToNCE final : public mlir::OpRewritePattern<IE::PermuteQuantizeOp> {
 public:
-    PermuteQuantizeToNCE(mlir::MLIRContext* ctx, VPU::ArchKind arch, Logger log)
-            : mlir::OpRewritePattern<IE::PermuteQuantizeOp>(ctx), _arch(arch), _log(log) {
+    PermuteQuantizeToNCE(mlir::MLIRContext* ctx, Logger log)
+            : mlir::OpRewritePattern<IE::PermuteQuantizeOp>(ctx), _log(log) {
     }
 
 public:
     mlir::LogicalResult matchAndRewrite(IE::PermuteQuantizeOp origOp, mlir::PatternRewriter& rewriter) const final;
 
 private:
-    VPU::ArchKind _arch;
     Logger _log;
 };
 
@@ -488,7 +486,7 @@ mlir::LogicalResult PermuteQuantizeToNCE::matchAndRewrite(IE::PermuteQuantizeOp 
     const auto logCb = [&](const formatv_object_base& msg) {
         std::ignore = matchFailed(_log, rewriter, origOp, "[{0}] {1}", getDebugName(), msg.str());
     };
-    if (!VPU::NCEPermuteQuantizeOp::isSupported(origOp, logCb)) {
+    if (!VPU::NCEPermuteQuantizeOp::isSupported(origOp, logCb, /*checkLayout=*/true, /*checkChannelAlignment=*/true)) {
         return mlir::failure();
     }
 
@@ -521,7 +519,7 @@ private:
 
 void ConvertIEToVPUNCEPass::safeRunOnFunc() {
     auto& ctx = getContext();
-    auto func = getFunction();
+    auto func = getOperation();
     auto module = func->getParentOfType<mlir::ModuleOp>();
     const auto arch = VPU::getArch(module);
 
@@ -531,7 +529,7 @@ void ConvertIEToVPUNCEPass::safeRunOnFunc() {
     patterns.add<MaxPoolToNCE>(&ctx, arch, _log);
     if (arch == VPU::ArchKind::VPUX37XX) {
         patterns.add<AveragePoolToNCE>(&ctx, arch, _log);
-        patterns.add<PermuteQuantizeToNCE>(&ctx, arch, _log);
+        patterns.add<PermuteQuantizeToNCE>(&ctx, _log);
     }
     patterns.add<EltwiseToNCE<IE::AddOp>>(&ctx, VPU::EltwiseType::ADD, arch, _log);
     if (arch != VPU::ArchKind::VPUX37XX) {

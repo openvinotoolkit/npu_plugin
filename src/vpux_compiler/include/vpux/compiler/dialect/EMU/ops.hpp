@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #pragma once
 
 #include "vpux/compiler/core/attributes/dims_order.hpp"
@@ -14,7 +12,6 @@
 #include "vpux/compiler/dialect/const/ops.hpp"
 
 #include <mlir/Dialect/Quant/QuantOps.h>
-#include <mlir/Dialect/StandardOps/IR/Ops.h>
 #include <mlir/Dialect/Tensor/IR/Tensor.h>
 #include <mlir/IR/BuiltinOps.h>
 #include <mlir/IR/BuiltinTypes.h>
@@ -32,18 +29,3 @@
 
 #define GET_OP_CLASSES
 #include <vpux/compiler/dialect/EMU/generated/ops.hpp.inc>
-
-//
-// Operation verifiers
-//
-
-namespace vpux {
-namespace EMU {
-
-constexpr Bit FP16_SIZE = 16_Bit;
-
-mlir::LogicalResult verifyOp(NCEClusterTaskOp op);
-mlir::LogicalResult verifyPostOp(mlir::Operation* op);
-
-}  // namespace EMU
-}  // namespace vpux

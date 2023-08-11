@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #ifndef VPUX_COMPILER_DIALECT_VPUIP_PASSES
 #define VPUX_COMPILER_DIALECT_VPUIP_PASSES
 
@@ -41,24 +39,42 @@ def OptimizeCopies : PassBase<"optimize-copies", "vpux::FunctionPass"> {
 }
 
 //
-// OptimizeSpillingCopies
+// MoveSubViewBeforeSparseBuffer
 //
 
-def OptimizeSpillingCopies : PassBase<"optimize-spilling-copies", "vpux::FunctionPass"> {
-    let summary = "Optimize pattern with CMX->DDR->CMX spilling";
+def MoveSubViewBeforeSparseBuffer : PassBase<"move-subview-before-sparse-buffer", "vpux::FunctionPass"> {
+    let summary = "Moves child SubViewOp up through GroupSparseBufferOp";
 
     let description = [{
-        Optimize following pattern
-
-        NCE Task 16 channels output -> Copy 16 channels -> Concat -> Subview -> 3 channels
-
-        to
-
-        NCE Task 16 channels output -> Copy 3 channels -> Concat -> Subview -> 3 channels
-
+        Moves child SubViewOp up through GroupSparseBufferOp and fuses it with constants if possible.
+        Reinfer output types of child operations since output type may change.
     }];
 
-    let constructor = "vpux::VPUIP::createOptimizeSpillingCopiesPass()";
+    let constructor = "vpux::VPUIP::createMoveSubViewBeforeSparseBufferPass()";
+}
+
+//
+// OptimizeConcatViewCopies
+//
+
+def OptimizeConcatViewCopies : PassBase<"optimize-concat-view-copies", "vpux::FunctionPass"> {
+    let summary = "Optimize ConcatView Op to remove unnecessary copies or reduce copies data size";
+
+    let description = [{
+        1. Propagate SubView Op before ConcatView Op to reduce data size of copies
+        Target Pattern: NCE Task 16 channels output -> Copy 16 channels -> Concat -> Subview -> 3 channels
+        Optimization:   NCE Task 16 channels output -> Copy 3 channels -> Concat -> Subview -> 3 channels
+
+        2. Fuse ConcatView Ops to remove unnecessary copies, two conditions need to be satisfied:
+        a) The Stride Level for each ConcatView input (after fusing) should be no more than 2;
+           It's a runtime and HW limitation in order to get the right NNDMA descriptor, we support a maximum of 3D DMA transfers with 2 levels of striding.
+        b) The number of inputs from the second ConcatView, which come from the output of the first ConcatView should no more than 1;
+           For example, first ConcatView has M inputs, second ConcatView has N inputs, out of which P of them are the output of the first ConcatView
+           After fusing, the number of input copies is: M * P + (N - P)
+           Can't ensure we get benefit when P is of a large size. Limit optimization to P=1.
+    }];
+
+    let constructor = "vpux::VPUIP::createOptimizeConcatViewCopiesPass()";
 }
 
 //
@@ -101,13 +117,9 @@ def CopyOpTiling : PassBase<"tile-copies", "vpux::FunctionPass"> {
     let description = [{
         This pass checks if Copy Op can be executed at target hardware and splits it into a few tiles if necessary.
         To fit hardware requirements it should copy less or equal than 16MB(2**24 bytes) and have less than 256 planes.
-        The number of planes is defined by the outermost dimension in the tensor (except for N - batch).
-        Depending on the order of the data in memory, there may be several options for what to count as the number of planes.
-        For example, if the dimension order (from the outermost to the innermost) is NCHW, then HW (height-width) is considered a plane,
-        and the number of planes equals to the value of dimension C. The number of planes for different dimension orders:
-        * For NHWC - H
-        * For NCHW - C
-        * For NWCH - W
+        The higher dimensional stride of the two-dimensional stride DMA is implemented through the plane.
+        So if the copy has two dimensional stride, and the higher dimensional stride exceeds the number of planes, 
+        we need to split the copy on the higher stride dimension
     }];
 
     let constructor = "vpux::VPUIP::createCopyOpTilingPass()";
@@ -225,29 +237,6 @@ def BreakDataFlow : PassBase<"break-data-flow", "vpux::FunctionPass"> {
 }
 
 //
-// DMATaskProfiling
-//
-
-def DMATaskProfiling : PassBase<"dma-task-profiling", "vpux::ModulePass"> {
-    let summary = "DMA task profiling using DMA-Timestamps";
-
-    let description = [{
-        This pass add DMA task profiling.
-    }];
-
-    let constructor = [{
-        vpux::VPUIP::createDMATaskProfilingPass([](vpux::StringRef memSpaceName) {
-            if (memSpaceName.empty()) {
-                return Optional<vpux::VPU::MemoryKind>{VPU::MemoryKind::CMX_NN};
-            }
-
-            return vpux::VPU::symbolizeEnum<VPU::MemoryKind>(memSpaceName);
-        })
-    }];
-
-}
-
-//
 // DMATaskProfilingReserveMem
 //
 
@@ -273,6 +262,20 @@ def DMATaskProfilingAfterBarrierSched : PassBase<"dma-task-profiling-after-barri
     }];
 
     let constructor = "vpux::VPUIP::createDMATaskProfilingAfterBarrierSchedPass()";
+}
+
+//
+// CaptureWorkpoint
+//
+
+def CaptureWorkpoint : PassBase<"capture-workpoint", "vpux::ModulePass"> {
+    let summary = "Read value from WORKPOINT_CONFIG_MIRROR.FINAL_PLL_FREQ and store to profiling output";
+
+    let description = [{
+        Insert DMA transaction to capture PLL frequency multiplier needed for DPU profiling
+    }];
+
+    let constructor = "vpux::VPUIP::createCaptureWorkpointPass()";
 }
 
 //
@@ -428,9 +431,9 @@ def MaximizeUPACycles : PassBase<"maximize-upa-cycles", "vpux::FunctionPass"> {
 
     let description = [{
         For each SHAVE_UPA executor the pass recalculates cycleBegin, cycleEnd and cycleCost
-        in order to expand cycle from latest producer of executor to nearest consumer.
+        in order to expand cycle from latest producer of executor to nearest consumer. 
         It takes maximum of cycleEnd value of producers as new cycleBegin and minimum of cycleBegin
-        of consumers as new cycleEnd.
+        of consumers as new cycleEnd. 
     }];
 
     let constructor = "vpux::VPUIP::createMaximizeUPACyclesPass()";
@@ -579,7 +582,7 @@ def CompressWeightsBTC : PassBase<"compress-weights-btc", "vpux::FunctionPass"> 
         2. Check that weights size matches minimal compression size.
         3. Compress weights.
         4. Wrap compressed weights to flat tensor shapes with UInt8 data type.
-        5. Replace original VPUIP::NNDMAOp with VPUIP::CompressedDMAOp
+        5. Replace original VPUIP::NNDMAOp with VPUIP::DecompressDMAOp
 
         This pass also handles multicluster cases, where NNDMAOp is wrapped in NCEClusterTiling with
         DistributedBuffer output type (with DUPLICATED). SOK case is supported as well since this pass
@@ -610,6 +613,22 @@ def UnrollClusterTiling : PassBase<"unroll-cluster-tiling", "vpux::FunctionPass"
 }
 
 //
+// UnwrapClusterTiling
+//
+
+def UnwrapClusterTiling : PassBase<"unwrap-cluster-tiling", "vpux::FunctionPass"> {
+    let summary = "Uwraps operations covered with NCEClusterTiling";
+
+    let description = [{
+        Remove NCEClusterTiling wrapper op and update inner task to use DistributedBuffer operands directly
+        NOTE: This is temporary pass to be removed once NCEClusterTilingOp is no longer used
+    }];
+
+    let constructor = "vpux::VPUIP::createUnwrapClusterTilingPass()";
+
+}
+
+//
 // UnrollDepthToSpaceDMA
 //
 
@@ -621,7 +640,7 @@ def UnrollDepthToSpaceDMA : PassBase<"unroll-depth-to-space-dma", "vpux::Functio
         Each sub DepthToSpaceDMA will be converted to a NNDMA.
         1. if input/output layout is NHWC with model block_first, number of sub DepthToSpaceDMA is same as block_size.
         2. if input/output layout is NHWC with model depth_first, number of sub DepthToSpaceDMA is OH * OW / block_size.
-        block_size is the size of the spatial block. It is an attribution of DepthToSpace.
+        block_size is the size of the spatial block. It is an attribution of DepthToSpace. 
     }];
 
     let constructor = "vpux::VPUIP::createUnrollDepthToSpaceDMAPass()";
@@ -835,6 +854,18 @@ def Swizzling : PassBase<"swizzling", "vpux::FunctionPass"> {
         "vpux::VPUIP::VPUIPDialect",
         "vpux::VPURT::VPURTDialect"
     ];
+    let options = [
+        Option<
+            "enableWeightsSwizzling", "enable-weights-swizzling",
+            "bool", "true",
+            "Enables weights swizzling"
+        >,
+        Option<
+            "enableActivationSwizzling", "enable-activation-swizzling",
+            "bool", "true",
+            "Enables activation swizzling"
+        >
+    ];
 }
 
 //
@@ -871,7 +902,7 @@ def AdjustCompressConvInputs : PassBase<"adjust-compress-conv-inputs", "vpux::Fu
 
     let description = [{
         This pass checks if weights from a Convolution op were previously padded with zero, remove that pad and insert a ShapeCast op.
-        Also add a ShapeCast Op to activations if channels there are less than 16 channels
+        Also add a ShapeCast Op to activations if channels there are less than 16 channels 
     }];
 
     let constructor = "vpux::VPUIP::createAdjustCompressConvInputsPass()";
@@ -903,7 +934,7 @@ def PatchFusedConstants : PassBase<"patch-fused-constants", "vpux::FunctionPass"
     let summary = "Patch the weight table fused in fused constant";
 
     let description = [{
-        This pass converts the U8 weight table values to I32. Updates the address of each weight set
+        This pass converts the U8 weight table values to I32. Updates the address of each weight set 
         and activation window present in the fused constant for each output channel of the layer
     }];
 
@@ -1008,6 +1039,119 @@ def ComputeSESizes : PassBase<"compute-se-sizes", "vpux::FunctionPass"> {
 }
 
 //
+// ComputeSEBasePtrs
+//
+
+def ComputeSEBasePtrs : PassBase<"compute-se-base-ptrs", "vpux::FunctionPass"> {
+    let summary = "Computes the base pointers for storage elements";
+
+    let description = [{
+        Computes the base pointers for NCEClusterTasks and stores them into the
+        input storage element table operation.
+
+        The pass will identify the NCE operations that have the input storage element
+        table present and whose input data is distributed. In case the input data
+        is not distributed, the base pointers will be considered to be the implicit
+        zero value.
+
+        The input data distribution across clusters will determine the value of the
+        base pointers. For example, let's take an interpolate operation whose input
+        data is 3x3 and segmented over height across two clusters as follows:
+        1 2 3   <- cluster 0
+        4 5 6   <- cluster 0
+        7 8 9   <- cluster 1
+
+        If the interpolate configuration is nearest-neighbor with a scale of 2, the
+        following elements would be identified by the storage element pointers:
+        1 1 2 2 3 3
+        1 1 2 2 3 3
+        4 4 5 5 6 6
+        4 4 5 5 6 6
+        7 7 8 8 9 9
+        7 7 8 8 9 9
+
+        The following base pointers are determined:
+        0 0 0 0 0 0
+        0 0 0 0 0 0
+        0 0 0 0 0 0
+        0 0 0 0 0 0
+        1 1 1 1 1 1
+        1 1 1 1 1 1
+
+        The distribution across clusters of the storage element table will not
+        influence the computation of the base pointers, since they are used during
+        inference to determine the physical location of the input data.
+
+        Note: Eltwise operations with input storage element tables are not yet
+        supported, so the pass will fail in case such an operation is encountered.
+    }];
+
+    let constructor = "vpux::VPUIP::createComputeSEBasePtrsPass()";
+    let dependentDialects = [
+        "vpux::VPUIP::VPUIPDialect"
+    ];
+}
+
+//
+// ConvertSETablesToConstants
+//
+
+def ConvertSETablesToConstants : PassBase<"convert-se-tables-to-constants", "vpux::FunctionPass"> {
+    let summary = "Converts Storage Element Table operations to constants";
+
+    let constructor = "vpux::VPUIP::createConvertSETablesToConstantsPass()";
+
+    let description = [{
+        Computes the Storage Element pointers for every Storage Element Table operation
+        and stores them into a constant. The original operation is replaced by the new constant.
+
+        The Storage Element pointers have the following format:
+            31-29 28                            9 8         0
+            -------------------------------------------------
+            | xx |           DATA_PTR            | BASE_PTR |
+            -------------------------------------------------
+        The DATA_PTR represents the offset to a Storage Element in relation to the start of
+        the input data. It is computed based on the information about the input data
+        (e.g. shape, element byte-size) and, if present, using the value of the SEAttr from
+        the Storage Element Table operation.
+
+        BASE_PTR is used to decide what base address is added to DATA_PTR in order to find the
+        location of the Storage Element in memory during inference. Its value is determined by
+        the presence of the basePtrs attribute of the operation, which should have one value
+        for every Storage Element pointer. The default value zero is used if the basePtrs
+        attribute is missing.
+    }];
+
+    let dependentDialects = [
+        "vpux::VPUIP::VPUIPDialect"
+    ];
+}
+
+//
+// AdjustInputDataForExplicitSETable
+//
+
+def AdjustInputDataForExplicitSETable : PassBase<"adjust-input-data-for-explicit-se-table", "vpux::FunctionPass"> {
+    let summary = "Adjust input data type when a Storage Element table is present";
+
+    let constructor = "vpux::VPUIP::createAdjustInputDataForExplicitSETablePass()";
+
+    let description = [{
+        For cases with explicit input Storage Element tables, the input data might have a different
+        shape in memory compared to the way the IDU reads this data using the pointers inside the
+        table. For the DPU to properly read the input, it has to interpret the data as having the
+        shape represented by the table.
+
+        This pass alters the view of the input data for the NCE operation with explicit Storage
+        Element tables, so that it reflects the effective data represented by the table.
+    }];
+
+    let dependentDialects = [
+        "vpux::VPUIP::VPUIPDialect"
+    ];
+}
+
+//
 // ResolveDMAWithSwizzling
 //
 
@@ -1040,6 +1184,53 @@ def TileActShaveKernelTask : PassBase<"tile-act-shave-kernel-task", "vpux::Funct
     }];
 
     let constructor = "vpux::VPUIP::createTileActShaveKernelTaskPass()";
+}
+
+//
+// Adjust activation spilling size
+//
+
+def AdjustSpillSize : PassBase<"adjust-spill-size", "vpux::FunctionPass"> {
+    let summary = "Adjusts activation spilling buffer size in DDR";
+
+    let description = [{
+        This pass prepares DDR allocation for handling HW support for activation spilling compression.
+        In worst case scenario DDR buffer needs to be enlarged in case size after compression is bigger
+    }];
+
+    let constructor = "vpux::VPUIP::createAdjustSpillSizePass()";
+}
+
+//
+// Reserve memory for compressed DMA
+//
+
+def CompressDmaReserveMem : PassBase<"compress-dma-reserve-mem", "vpux::ModulePass"> {
+    let summary = "Reserve memory for additional compressedDMA metadata";
+
+    let description = [{
+        Reserve memory in CMX where additional metadata is stored for compressed DMAs handling activation spilling.
+        In this memory Compressed DMA wil store a LUT with actual compressed data sizee that is later to be used
+        by decompress DMA
+    }];
+
+    let constructor = "vpux::VPUIP::createCompressDmaReserveMemPass()";
+}
+
+//
+// FuseDDRCopiesIntoConcats
+//
+
+def FuseDDRCopiesIntoConcats : PassBase<"fuse-ddr-copies-into-concats", "vpux::FunctionPass"> {
+    let summary = "Fuse VPUIP.Copy into adjacent VPUIP.ConcatView";
+
+    let description = [{
+        When there's NCEClusterTask (CMX2DDR) -> Copy (DDR2DDR) -> ConcatView (DDR) pattern in a graph,
+        it is possible to get rid of the copy.
+        In order to do that both NCEClusterTask and ConcatView must share output buffer.
+    }];
+
+    let constructor = "vpux::VPUIP::createFuseDDRCopiesIntoConcats()";
 }
 
 #endif

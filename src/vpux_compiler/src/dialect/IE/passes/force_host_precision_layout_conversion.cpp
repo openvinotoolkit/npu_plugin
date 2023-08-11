@@ -32,7 +32,7 @@ void ForceHostPrecisionLayoutConversionPass::safeRunOnModule() {
     auto module = getOperation();
 
     IE::CNNNetworkOp netInfo;
-    mlir::FuncOp netFunc;
+    mlir::func::FuncOp netFunc;
     IE::CNNNetworkOp::getFromModule(module, netInfo, netFunc);
 
     SmallVector<mlir::Value> newArgs, newResults;
@@ -50,7 +50,7 @@ void ForceHostPrecisionLayoutConversionPass::safeRunOnModule() {
         }
         newArgs.push_back(newArg);
     }
-    netFunc.walk([&](mlir::ReturnOp retOp) {
+    netFunc.walk([&](mlir::func::ReturnOp retOp) {
         for (const auto res : retOp->getOperands()) {
             const auto newRes = detectValueBeforeOperation<IE::ConvertOp, IE::ReorderOp>(res, postProcOps);
             if (newRes != res) {

@@ -25,7 +25,9 @@ namespace SubgraphTestsDefinitions {
 //      (quantize)
 //
 
-class KmbQuantGroupConvLayerTest : public QuantGroupConvLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
+class VPUXQuantGroupConvLayerTest_VPU3700 :
+        public QuantGroupConvLayerTest,
+        virtual public LayerTestsUtils::KmbLayerTestsCommon {
     void SetUp() override {
         threshold = 0.5f;
 
@@ -98,18 +100,14 @@ class KmbQuantGroupConvLayerTest : public QuantGroupConvLayerTest, virtual publi
     }
 };
 
-TEST_P(KmbQuantGroupConvLayerTest, CompareWithRefs) {
-    Run();
-}
-
-TEST_P(KmbQuantGroupConvLayerTest, CompareWithRefs_MLIR_SW) {
-    useCompilerMLIR();
+TEST_P(VPUXQuantGroupConvLayerTest_VPU3700, SW) {
+    setPlatformVPU3700();
     setReferenceSoftwareModeMLIR();
     Run();
 }
 
-TEST_P(KmbQuantGroupConvLayerTest, CompareWithRefs_MLIR_HW) {
-    useCompilerMLIR();
+TEST_P(VPUXQuantGroupConvLayerTest_VPU3700, HW) {
+    setPlatformVPU3700();
     setDefaultHardwareModeMLIR();
     Run();
 }
@@ -144,7 +142,7 @@ const auto quantGroupConv2DParams = ::testing::Combine(
         ::testing::ValuesIn(numGroups), ::testing::ValuesIn(levels), ::testing::ValuesIn(granularity),
         ::testing::ValuesIn(quantizeWeights2D));
 
-INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_QuantGroupConv2D, KmbQuantGroupConvLayerTest,
+INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_QuantGroupConv2D, VPUXQuantGroupConvLayerTest_VPU3700,
                          ::testing::Combine(quantGroupConv2DParams, ::testing::ValuesIn(netPrecisions),
                                             ::testing::ValuesIn(inputShapes2D),
                                             ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
@@ -165,7 +163,7 @@ const auto quantGroupConv3DParams = ::testing::Combine(
         ::testing::ValuesIn(numGroups), ::testing::ValuesIn(levels), ::testing::ValuesIn(granularity),
         ::testing::ValuesIn(quantizeWeights3D));
 
-INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_QuantGroupConv3D, KmbQuantGroupConvLayerTest,
+INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_QuantGroupConv3D, VPUXQuantGroupConvLayerTest_VPU3700,
                          ::testing::Combine(quantGroupConv3DParams, ::testing::ValuesIn(netPrecisions),
                                             ::testing::ValuesIn(inputShapes3D),
                                             ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),

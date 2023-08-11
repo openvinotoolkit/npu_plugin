@@ -3,18 +3,16 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #pragma once
 
-#include "vpux/compiler/dialect/VPUIPRegMapped/types.hpp"
+#include "vpux/compiler/dialect/VPURegMapped/types.hpp"
 #include "vpux/utils/core/string_ref.hpp"
 
 #include <mlir/IR/DialectImplementation.h>
 #include <mlir/IR/Types.h>
 #include <mlir/Interfaces/SideEffectInterfaces.h>
 
-#include "vpux/compiler/dialect/VPUIPRegMapped/attributes.hpp"
+#include "vpux/compiler/dialect/VPURegMapped/attributes.hpp"
 
 //
 // Generated

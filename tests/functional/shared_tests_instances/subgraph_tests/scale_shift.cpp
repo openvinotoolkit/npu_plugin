@@ -1,5 +1,5 @@
 //
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,12 +13,13 @@
 
 namespace SubgraphTestsDefinitions {
 
-class KmbScaleShiftLayerTest : public ScaleShiftLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {};
+class VPUXScaleShiftLayerTest : public ScaleShiftLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {};
 
-class KmbScaleShiftLayerTestMLIR : public KmbScaleShiftLayerTest {};
+class VPUXScaleShiftLayerTest_VPU3700 : public VPUXScaleShiftLayerTest {};
 
-TEST_P(KmbScaleShiftLayerTestMLIR, CompareWithRefs_MLIR) {
-    useCompilerMLIR();
+TEST_P(VPUXScaleShiftLayerTest_VPU3700, HW) {
+    setPlatformVPU3700();
+    setDefaultHardwareModeMLIR();
     Run();
 }
 
@@ -49,10 +50,10 @@ std::vector<InferenceEngine::Precision> netPrecisions = {
         InferenceEngine::Precision::FP16,
 };
 
-INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_scale_shift_mlir, KmbScaleShiftLayerTestMLIR,
+INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_scale_shift_mlir, VPUXScaleShiftLayerTest_VPU3700,
                          ::testing::Combine(::testing::ValuesIn(inShapes), ::testing::ValuesIn(netPrecisions),
                                             ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
                                             ::testing::ValuesIn(Scales), ::testing::ValuesIn(Shifts)),
-                         KmbScaleShiftLayerTest::getTestCaseName);
+                         VPUXScaleShiftLayerTest_VPU3700::getTestCaseName);
 
 }  // namespace

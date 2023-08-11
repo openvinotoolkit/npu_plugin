@@ -3,14 +3,13 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #ifndef VPUX_COMPILER_DIALECT_IERT_REWRITERS_CONVERT
 #define VPUX_COMPILER_DIALECT_IERT_REWRITERS_CONVERT
 
 include "vpux/compiler/dialect/IERT/ops.td"
 
 include "mlir/IR/OpBase.td"
+include "mlir/IR/PatternBase.td"
 
 //
 // FuseCopies

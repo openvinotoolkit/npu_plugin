@@ -45,7 +45,6 @@ install(
     COMPONENT    ${VPUX_PLUGIN_COMPONENT}
 )
 
-replace_noerror()
 
 if(ENABLE_LTO)
     ie_enable_lto()
@@ -60,6 +59,7 @@ set_target_properties(${TARGET_NAME} PROPERTIES FOLDER "src")
 add_dependencies(${TARGET_NAME} "${TARGET_NAME}_copy_app")
 
 enable_warnings_as_errors(${TARGET_NAME} WIN_STRICT)
+replace_noerror(${TARGET_NAME})
 
 vpux_enable_clang_format(${TARGET_NAME})
 

@@ -21,7 +21,7 @@ It combines both memory effects and buffer aliasing for this:
 ```MLIR
 #NHWC = affine_map<(n, c, h, w) -> (n, h, w, c)>
 
-func @main(%input: memref<1x3x240x240xf16, #NHWC>, %output: memref<1x3x240x240xf16, #NHWC>) -> memref<1x3x240x240xf16, #NHWC> {
+func.func @main(%input: memref<1x3x240x240xf16, #NHWC>, %output: memref<1x3x240x240xf16, #NHWC>) -> memref<1x3x240x240xf16, #NHWC> {
     %1 = IERT.SoftMax(%input, %output) {axisInd = 1} // %1 is an alias for %output
     return %1
 }
@@ -62,6 +62,83 @@ The **IERT Dialect** uses the following scheme to represent scheduling informati
 [TOC]
 
 ## Operation definition
+
+### `IERT.ExtendedCall` (vpux::IERT::ExtendedCallOp)
+
+extended call operation
+
+
+Syntax:
+
+```
+operation ::= `IERT.ExtendedCall` $callee `(` $operands `)` attr-dict `:` functional-type($operands, results)
+```
+
+The `ExtendedCall` operation represents a call to an mlir::func::FuncOp or
+to an mlir::LLVM::LLVMFuncOp. We have to change for this op method
+verifySymbolUses() from IERT/ops.cpp to accept LLVMFuncOp as well.
+
+Example:
+
+```mlir
+%2 = ExtendedCall @Cos0(%0) : (!IERT.PackedParams) -> memref<1000xf16>
+```
+
+Traits: MemRefsNormalizable
+
+Interfaces: CallOpInterface, SymbolUserOpInterface
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+| `callee` | ::mlir::SymbolRefAttr | symbol reference attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `operands` | any type
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+&laquo;unnamed&raquo; | any type
+
+### `IERT.ExtractParam` (vpux::IERT::ExtractParamOp)
+
+extract param operation
+
+
+Syntax:
+
+```
+operation ::= `IERT.ExtractParam` `(` $operands `:` type($operands) `,` $idx `)`
+              attr-dict
+              `->` type(results)
+```
+
+      The `ExtractParam` operation extracts from its IERT.PackedParams typed
+operand a MemRef with a certain index.
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+| `idx` | mlir::IntegerAttr | Integer attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `operands` | IERT Packed Params
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+&laquo;unnamed&raquo; | memref of any type values
 
 ### `IERT.Abs` (vpux::IERT::AbsOp)
 
@@ -1072,7 +1149,7 @@ Interfaces: InferTypeOpInterface, LayerOpInterface, MemoryEffectsOpInterface, Vi
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-| `attr` | vpux::IE::DetectionOutputAttr | DictionaryAttr with field(s): 'num_classes', 'background_label_id', 'top_k', 'variance_encoded_in_target', 'keep_top_k', 'code_type', 'share_location', 'nms_threshold', 'confidence_threshold', 'clip_after_nms', 'clip_before_nms', 'decrease_label_id', 'normalized', 'input_height', 'input_width', 'objectness_score' (each field having its own constraints)
+| `attr` | vpux::IE::DetectionOutputAttr | 
 
 #### Operands:
 
@@ -1200,6 +1277,38 @@ Interfaces: InferTypeOpInterface, LayerOpInterface, MemoryEffectsOpInterface, Vi
 | Result | Description |
 | :----: | ----------- |
 | `output` | memref of any type values
+
+### `IERT.EmbeddingBagPackedSum` (vpux::IERT::EmbeddingBagPackedSumOp)
+
+InferenceEngine run-time EmbeddingBagPackedSum layer
+
+
+Syntax:
+
+```
+operation ::= `IERT.EmbeddingBagPackedSum` attr-dict
+              `inputs` `(` $emb_table `:` type($emb_table) `,` $indices `:` type($indices) `,` $per_sample_weights `:` type($per_sample_weights) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+Interfaces: InferTypeOpInterface, LayerOpInterface, MemoryEffectsOpInterface, ViewLikeOpInterface
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `emb_table` | memref of 16-bit float or 32-bit float values
+| `indices` | memref of 32-bit signed integer or 64-bit signed integer values
+| `per_sample_weights` | memref of 16-bit float or 32-bit float values
+| `output_buff` | memref of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+| `output` | memref of 16-bit float or 32-bit float values
 
 ### `IERT.EmbeddingSegmentsSum` (vpux::IERT::EmbeddingSegmentsSumOp)
 
@@ -2874,6 +2983,44 @@ Interfaces: InferTypeOpInterface, LayerOpInterface, MemoryEffectsOpInterface, Vi
 | :----: | ----------- |
 | `output` | memref of 16-bit float or 32-bit float values
 
+### `IERT.NormalizeL2` (vpux::IERT::NormalizeL2Op)
+
+InferenceEngine run-time NormalizeL2 layer
+
+
+Syntax:
+
+```
+operation ::= `IERT.NormalizeL2` attr-dict
+              `inputs` `(` $input `:` type($input) `,` $axes `:` type($axes) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+Interfaces: InferTypeOpInterface, LayerOpInterface, MemoryEffectsOpInterface, ViewLikeOpInterface
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+| `eps` | ::mlir::FloatAttr | 64-bit float attribute
+| `eps_mode` | vpux::IE::EpsModeAttr | EpsMode that the InferenceEngine supports
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `input` | memref of 16-bit float or 32-bit float values
+| `axes` | memref of 32-bit signed integer or 64-bit signed integer values
+| `output_buff` | memref of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+| `output` | memref of 16-bit float or 32-bit float values
+
 ### `IERT.NotEqual` (vpux::IERT::NotEqualOp)
 
 InferenceEngine run-time NotEqual layer
@@ -2906,6 +3053,46 @@ Interfaces: InferTypeOpInterface, LayerOpInterface, MemoryEffectsOpInterface, Vi
 | Result | Description |
 | :----: | ----------- |
 | `output` | memref of 16-bit float or 32-bit float values
+
+### `IERT.OneHot` (vpux::IERT::OneHotOp)
+
+InferenceEngine run-time OneHot layer
+
+
+Syntax:
+
+```
+operation ::= `IERT.OneHot` attr-dict
+              `inputs` `(` $input `:` type($input) `)`
+              `outputs` `(` $output_buff `:` type($output_buff) `)`
+              `->` type(results)
+```
+
+
+Interfaces: InferTypeOpInterface, LayerOpInterface, MemoryEffectsOpInterface, ViewLikeOpInterface
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+| `depth` | mlir::IntegerAttr | Integer attribute
+| `on_value` | ::mlir::FloatAttr | 64-bit float attribute
+| `off_value` | ::mlir::FloatAttr | 64-bit float attribute
+| `axis` | mlir::IntegerAttr | Integer attribute
+| `outElemType` | ::mlir::TypeAttr | any type attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `input` | memref of 32-bit signed integer or 64-bit signed integer values
+| `output_buff` | memref of any type values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+| `output` | memref of any type values
 
 ### `IERT.PRelu` (vpux::IERT::PReluOp)
 
@@ -4735,8 +4922,7 @@ Interfaces: InferTypeOpInterface, LayerOpInterface, MemoryEffectsOpInterface, Vi
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
 | `upsampling_factor` | ::mlir::ArrayAttr | 64-bit integer array attribute
-| `pad_l` | ::mlir::ArrayAttr | 64-bit integer array attribute
-| `pad_r` | ::mlir::ArrayAttr | 64-bit integer array attribute
+| `pad` | vpux::IE::UpsamplingPadAttr | DictionaryAttr with field(s): 'pads_channel', 'pads_height', 'pads_width' (each field having its own constraints)
 
 #### Operands:
 
@@ -4792,3 +4978,70 @@ Interfaces: InferTypeOpInterface, LayerOpInterface, MemoryEffectsOpInterface, Vi
 | :----: | ----------- |
 | `output` | memref of 8-bit unsigned integer or 16-bit float or 32-bit float values
 
+### `IERT.PackMemref` (vpux::IERT::PackMemrefOp)
+
+packs memrefs
+
+
+Syntax:
+
+```
+operation ::= `IERT.PackMemref` (`(` $operands^ `:` type($operands) `)`)?
+              attr-dict
+              `->` type(results)
+```
+
+      The `PackMemref` operation puts inside an object type of IERT.PackedParams
+a variadic number of MemRefs.
+
+Interfaces: InferTypeOpInterface
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `operands` | memref of any type values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+&laquo;unnamed&raquo; | IERT Packed Params
+
+### `IERT.SpecialCast` (vpux::IERT::SpecialCastOp)
+
+special cast operation
+
+
+Syntax:
+
+```
+operation ::= `IERT.SpecialCast` `(` $operands `:` type($operands) `)`
+              attr-dict
+              `->` type(results)
+```
+
+     The `SpecialCast` operation represents a cast operation from
+llvm.struct to memref.
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `operands` | any type
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+&laquo;unnamed&raquo; | memref of any type values
+
+## Type definition
+
+### PackedParamsType
+
+IERT Packed Params
+
+Syntax: `!IERT.PackedParams`
+
+IERT Packed Params

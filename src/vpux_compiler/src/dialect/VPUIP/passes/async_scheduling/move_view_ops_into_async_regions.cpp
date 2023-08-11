@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
 
 #include "vpux/compiler/utils/error.hpp"
@@ -103,7 +101,7 @@ void MoveViewOpsIntoAsyncRegionsPass::safeRunOnFunc() {
     mlir::RewritePatternSet patterns(&ctx);
     patterns.add<AsyncRegionRewriter>(&ctx, _log);
 
-    if (mlir::failed(mlir::applyPatternsAndFoldGreedily(getFunction(), std::move(patterns),
+    if (mlir::failed(mlir::applyPatternsAndFoldGreedily(getOperation(), std::move(patterns),
                                                         getDefaultGreedyRewriteConfig()))) {
         signalPassFailure();
     }

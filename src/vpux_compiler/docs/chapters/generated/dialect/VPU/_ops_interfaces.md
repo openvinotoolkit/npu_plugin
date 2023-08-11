@@ -135,9 +135,17 @@ Interface for SW operations
 #### `fitIntoCMX`
 
 ```c++
-bool fitIntoCMX(vpux::NDTypeInterface input, vpux::NDTypeInterface output);
+bool fitIntoCMX(::llvm::ArrayRef<vpux::NDTypeInterface> buffers, Byte reservedMem);
 ```
-Check if layer fits in NNCMX## SparseOpInterface (`VPU_SparseOpInterface`)
+Check if layer fits in NNCMX excluding reserved memory#### `supportCycleCostCalculation`
+
+```c++
+bool supportCycleCostCalculation();
+```
+Check if layer is supported by cost model for cycle cost calculation
+NOTE: This method *must* be implemented by the user.
+
+## SparseOpInterface (`VPU_SparseOpInterface`)
 
 Interface for sparse operations
 ### Methods:
@@ -195,6 +203,26 @@ Interface for operations to provide information about required/supported tiling 
 bool isSupportedTiling(const vpux::OutputTiling&tiles, vpux::TilingMode tilingMode, vpux::Logger log);
 ```
 Check, if the provided tiling configuration is supported by the operation implementation
+NOTE: This method *must* be implemented by the user.
+
+## VerticalFusionOpInterface (`VPU_VerticalFusionOpInterface`)
+
+Interface for operations which might be vertically fused
+### Methods:
+#### `isVFSupported`
+
+```c++
+bool isVFSupported();
+```
+Check if VF supported for operation
+NOTE: This method *must* be implemented by the user.
+
+#### `availableSingleMerge`
+
+```c++
+bool availableSingleMerge();
+```
+Check if operation can be fused as single operation in VF block with next block
 NOTE: This method *must* be implemented by the user.
 
 ## ViewLikeOpInterface (`VPU_ViewLikeOpInterface`)

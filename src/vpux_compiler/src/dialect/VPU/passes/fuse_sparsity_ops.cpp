@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/VPU/nce_sparsity.hpp"
 #include "vpux/compiler/dialect/VPU/ops.hpp"
 #include "vpux/compiler/dialect/VPU/passes.hpp"
@@ -68,7 +66,7 @@ mlir::LogicalResult FuseSparsityOpsPass::initialize(mlir::MLIRContext* ctx) {
 // SparseProducer ===> SparseCompatibleConsumer
 //                 +=> SparseCompatibleConsumer
 //                 \=> Desparsify -> Consumer
-void fuseDesparsify(mlir::FuncOp func, Logger log) {
+void fuseDesparsify(mlir::func::FuncOp func, Logger log) {
     func->walk([&](VPU::DesparsifyOp desparsifyOp) {
         mlir::DenseSet<mlir::Operation*> fusibleConsumers;
         for (const auto user : desparsifyOp->getUsers()) {
@@ -91,7 +89,7 @@ void fuseDesparsify(mlir::FuncOp func, Logger log) {
 // Convert SparseCompatibleProducer -> Sparsify => Consumers
 // To
 // SparseProducer => Consumers
-void fuseSparsify(mlir::FuncOp func, Logger log) {
+void fuseSparsify(mlir::func::FuncOp func, Logger log) {
     func->walk([&](VPU::SparsifyOp sparsifyOp) {
         // Fusing only VPU.NCE.Op->SparsifyOp pattern
         const auto producer = sparsifyOp.input().getDefiningOp();
@@ -121,8 +119,8 @@ void FuseSparsityOpsPass::safeRunOnFunc() {
     using namespace VPU;
     using namespace VPU::NCESparsity;
 
-    auto func = getFunction();
-    if (_fuseSparsify.getValueOr(false)) {
+    auto func = getOperation();
+    if (_fuseSparsify.value_or(false)) {
         ::fuseSparsify(func, _log);
     } else {
         ::fuseDesparsify(func, _log);

@@ -13,7 +13,6 @@
 #include "vpux/compiler/dialect/VPU/nce_sparsity.hpp"
 #include "vpux/compiler/dialect/VPU/passes.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
-#include "vpux/compiler/dialect/VPUIP/utils.hpp"
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
 #include "vpux/compiler/dialect/VPURT/task.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
@@ -38,7 +37,6 @@ mlir::DenseElementsAttr generateZeroPadForEltwiseMultWeights(ArrayRef<int64_t> w
     auto vecSize = static_cast<size_t>(std::accumulate(wt_shape_padded.begin(), wt_shape_padded.end(),
                                                        static_cast<int64_t>(1), std::multiplies<int64_t>()));
 
-    mlir::DenseElementsAttr wt_data_vals;
     if (dtype.isF16()) {
         std::vector<float16> wt_vec(vecSize, 0);
         return mlir::DenseElementsAttr::get(wtData_ddr_valueType, makeArrayRef<float16>(wt_vec));
@@ -165,7 +163,7 @@ void buildEltwiseMultWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir
 
     const auto funcType = builder.getFunctionType(makeArrayRef(inputTypes), outputParamType);
 
-    auto func = builder.create<mlir::FuncOp>(
+    auto func = builder.create<mlir::func::FuncOp>(
             builder.getUnknownLoc(), printToString("eltwise_mult_{0}_{1}_{2}", inputType, weightsType, outputType),
             funcType, builder.getStringAttr("private"));
 
@@ -345,12 +343,12 @@ void buildEltwiseMultWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir
                                           getTensorResult(output_cmx), funcoutput);
 
     // Return op
-    funcbuilder.create<mlir::ReturnOp>(builder.getUnknownLoc(), funcoutput);
+    funcbuilder.create<mlir::func::ReturnOp>(builder.getUnknownLoc(), funcoutput);
 
     // Runtime resources
     mlir::PassManager pm(ctx, mlir::OpPassManager::Nesting::Implicit);
-    pm.addPass(VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::DefaultHW, None, None,
-                                           None, log));
+    pm.addPass(VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::DefaultHW, 1, None, None,
+                                           log));
 
     // Compile
     VPUX_THROW_UNLESS(mlir::succeeded(pm.run(module)), "Compilation failed");

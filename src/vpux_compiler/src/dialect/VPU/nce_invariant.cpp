@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/VPU/nce_invariant.hpp"
 
 #include "vpux/compiler/core/attributes/dims_order.hpp"
@@ -25,7 +23,7 @@ bool vpux::VPU::NCEInvariant::isPrecisionSupported(ArchKind arch, mlir::ValueRan
     for (const auto& val : vals) {
         const auto elemType = val.getType().cast<vpux::NDTypeInterface>().getElementType();
 
-        if (elemType.isBF16() && (arch == VPU::ArchKind::VPUX30XX || arch == VPU::ArchKind::VPUX311X)) {
+        if (elemType.isBF16() && arch != ArchKind::VPUX37XX) {
             logCb(formatv("BF16 is only supported by VPUX37XX"));
             return false;
         }
@@ -40,19 +38,19 @@ bool vpux::VPU::NCEInvariant::isPrecisionSupported(ArchKind arch, mlir::ValueRan
 
 bool vpux::VPU::NCEInvariant::verifyPads(int64_t KY, int64_t KX, int64_t padTop, int64_t padBottom, int64_t padLeft,
                                          int64_t padRight, LogCb logCb) {
-    if (padTop < 0 || (padTop > 1 && padTop > KY / 2)) {
+    if (padTop < 0 || padTop > KY / 2) {
         logCb(formatv("Unsupported padding '{0}', must be in range [0, {1}]", padTop, KY / 2));
         return false;
     }
-    if (padBottom < 0 || (padBottom > 1 && padBottom > KY / 2)) {
+    if (padBottom < 0 || padBottom > KY / 2) {
         logCb(formatv("Unsupported padding '{0}', must be in range [0, {1}]", padBottom, KY / 2));
         return false;
     }
-    if (padLeft < 0 || (padLeft > 1 && padLeft > KX / 2)) {
+    if (padLeft < 0 || padLeft > KX / 2) {
         logCb(formatv("Unsupported padding '{0}', must be in range [0, {1}]", padLeft, KX / 2));
         return false;
     }
-    if (padRight < 0 || (padRight > 1 && padRight > KX / 2)) {
+    if (padRight < 0 || padRight > KX / 2) {
         logCb(formatv("Unsupported padding '{0}', must be in range [0, {1}]", padRight, KX / 2));
         return false;
     }
@@ -94,7 +92,7 @@ bool vpux::VPU::NCEInvariant::isAttrsSupported(ArchKind arch, int64_t KY, int64_
         return false;
     }
 
-    if (SX != SY && (arch == VPU::ArchKind::VPUX30XX || arch == VPU::ArchKind::VPUX311X)) {
+    if (SX != SY && arch != VPU::ArchKind::VPUX37XX) {
         logCb(formatv("Asymmetric strides are not supported"));
         return false;
     }
@@ -114,10 +112,17 @@ bool vpux::VPU::NCEInvariant::isAttrsSupported(ArchKind arch, int64_t KY, int64_
 // Activation type checks
 //
 
-bool vpux::VPU::NCEInvariant::isAligned(vpux::NDTypeInterface type, int64_t alignment, LogCb logCb) {
+bool vpux::VPU::NCEInvariant::isAligned(vpux::NDTypeInterface type, int64_t alignment, ArchKind arch, LogCb logCb) {
     const auto shape = type.getShape();
     const auto order = type.getDimsOrder();
     const auto memShape = order.toMemoryOrder(shape);
+
+    const bool supportsSuperDense = VPU::NCEInvariant::isSuperdenseSupported(arch);
+    // In super-dense mode only channels must be aligned.
+    const auto channels = shape[Dims4D::Act::C];
+    if (supportsSuperDense && channels % alignment == 0) {
+        return true;
+    }
 
     const auto innerDim = memShape.back();
     if (innerDim % alignment != 0) {
@@ -155,12 +160,12 @@ bool vpux::VPU::NCEInvariant::isInputActTypeSupported(ArchKind arch, vpux::NDTyp
         return false;
     }
 
-    if ((arch != VPU::ArchKind::VPUX30XX && arch != VPU::ArchKind::VPUX311X) && supportsInputActCompression) {
+    if ((arch == ArchKind::VPUX37XX) && supportsInputActCompression) {
         const auto IC = type.getShape()[Dims4D::Act::C];
-        return IC == VPU_COMPRESSED_INPUT_CHANNEL_NUM || isAligned(type, alignment, logCb);
+        return IC == VPU_COMPRESSED_INPUT_CHANNEL_NUM || isAligned(type, alignment, arch, logCb);
     }
 
-    return isAligned(type, alignment, logCb);
+    return isAligned(type, alignment, arch, logCb);
 }
 
 //
@@ -195,23 +200,25 @@ bool vpux::VPU::NCEInvariant::isChannelMajorCompatible(ArchKind arch, vpux::NDTy
 // Common utility for AvgPool, MaxPool, Eltwise and DWConv
 //
 
-bool vpux::VPU::NCEInvariant::checkLayouts(mlir::ValueRange operands, mlir::Value result, const VPU::ArchKind& arch,
-                                           const unsigned numInputOperands, LogCb logCb) {
+bool vpux::VPU::NCEInvariant::checkLayouts(mlir::TypeRange operandTypes, mlir::TypeRange resultTypes,
+                                           const VPU::ArchKind& arch, const unsigned numInputOperands, LogCb logCb) {
     for (unsigned opIdx = 0; opIdx < numInputOperands; opIdx++) {
-        const auto& inOperand = operands[opIdx];
+        const auto actualInLayout = operandTypes[opIdx].cast<vpux::NDTypeInterface>().getDimsOrder();
         const auto& expectedInLayout = DimsOrder::NHWC;
-        const auto actualInLayout = DimsOrder::fromValue(inOperand);
         if (actualInLayout != expectedInLayout) {
             logCb(formatv("Unsupported input layout. Expected: {0}, got: {1}", expectedInLayout, actualInLayout));
             return false;
         }
     }
 
-    const auto& expectedOutLayout = DimsOrder::NHWC;
-    const auto actualOutLayout = DimsOrder::fromValue(result);
-    if ((arch == VPU::ArchKind::VPUX30XX || arch == VPU::ArchKind::VPUX311X) && actualOutLayout != expectedOutLayout) {
-        logCb(formatv("Unsupported output layout. Expected: {0}, got: {1}", expectedOutLayout, actualOutLayout));
-        return false;
+    for (auto resultType : resultTypes) {
+        const auto actualOutLayout = resultType.cast<vpux::NDTypeInterface>().getDimsOrder();
+        const auto& expectedOutLayout = DimsOrder::NHWC;
+        if (arch != VPU::ArchKind::VPUX37XX &&
+            actualOutLayout != expectedOutLayout) {
+            logCb(formatv("Unsupported output layout. Expected: {0}, got: {1}", expectedOutLayout, actualOutLayout));
+            return false;
+        }
     }
 
     return true;
@@ -222,7 +229,7 @@ bool vpux::VPU::NCEInvariant::checkLayouts(mlir::ValueRange operands, mlir::Valu
 //
 
 bool vpux::VPU::NCEInvariant::isCompressConvolution(ArchKind arch, mlir::Operation* op) {
-    if (arch == VPU::ArchKind::VPUX30XX || arch == VPU::ArchKind::VPUX311X) {
+    if (arch != ArchKind::VPUX37XX) {
         return false;
     }
 
@@ -239,6 +246,16 @@ bool vpux::VPU::NCEInvariant::isCompressConvolution(ArchKind arch, mlir::Operati
 
         return true;
     }
+    if (auto origOp = mlir::dyn_cast<vpux::VPU::NCECompressConvolutionOp>(op)) {
+        return true;
+    }
 
     return false;
+}
+
+bool vpux::VPU::NCEInvariant::isSuperdenseSupported(const VPU::ArchKind arch) {
+    const llvm::DenseSet<VPU::ArchKind> compatibleTargets = {
+            VPU::ArchKind::VPUX37XX,
+    };
+    return compatibleTargets.contains(arch);
 }

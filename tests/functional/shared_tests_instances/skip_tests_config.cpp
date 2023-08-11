@@ -45,6 +45,10 @@ public:
         return _name == "EMULATOR";
     }
 
+    bool isIMD() const {
+        return _name == "IMD";
+    }
+
 private:
     std::string _name;
 };
@@ -71,6 +75,12 @@ public:
     bool has3720() const {
         return std::any_of(_availableDevices.begin(), _availableDevices.end(), [](const std::string& deviceName) {
             return deviceName.find("3720") != std::string::npos;
+        });
+    }
+
+    bool has3700() const {
+        return std::any_of(_availableDevices.begin(), _availableDevices.end(), [](const std::string& deviceName) {
+            return deviceName.find("3700") != std::string::npos;
         });
     }
 
@@ -266,7 +276,7 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO:
         _skipRegistry.addPatterns(
                 "Issue: E#63469", {
-                ".*KmbConversionLayerTest.*ConvertLike.*",
+                ".*VPUXConversionLayerTest.*ConvertLike.*",
         });
 
         _skipRegistry.addPatterns(
@@ -305,12 +315,9 @@ std::vector<std::string> disabledTestPatterns() {
                 ".*OVClassLoadNetworkTest.*LoadNetworkMULTIwithHETERONoThrow.*",
         });
 
-        // [Track number: E#65295]
         _skipRegistry.addPatterns(
-                "throwOnFail:0x7ffffffe when running with IE_VPUX_CREATE_EXECUTOR=1", {
-                ".*LoadNetwork.*samePlatformProduceTheSameBlob.*",
-                ".*ExecutableNetworkBaseTest.*loadIncorrectV.*Model.*",
-                ".*CompilationForSpecificPlatform.*",
+                "compiler: Unsupported arch kind: VPUX311X", {
+                ".*CompilationForSpecificPlatform.*(3800|3900).*",
         });
 
         _skipRegistry.addPatterns(
@@ -320,42 +327,100 @@ std::vector<std::string> disabledTestPatterns() {
                 R"(.*Behavior.*InferRequestIOBBlobSetLayoutTest.*CanSetOutBlobWithDifferentLayouts.*layout=(CN|HW).*)",
         });
 
+        // [Track number: E#67741]
+        _skipRegistry.addPatterns(
+                "Cannot call setShape for Blobs", {
+                R"(.*(smoke_Behavior|smoke_Multi_Behavior).*OVInferRequestIOTensorTest.*canInferAfterIOBlobReallocation.*)",
+                R"(.*(smoke_Behavior|smoke_Multi_Behavior).*OVInferRequestIOTensorTest.*InferStaticNetworkSetChangedInputTensorThrow.*targetDevice=(VPUX_|MULTI_configItem=MULTI_DEVICE_PRIORITIES_VPUX).*)"
+        });
+
+        // [Track number: E#67743]
+        _skipRegistry.addPatterns(
+                "throwOnFail: zeCommandQueueExecuteCommandLists result: ZE_RESULT_ERROR_UNKNOWN, code 0x7ffffffe", {
+                ".*smoke_Behavior.*InferRequestIOBBlobTest.*canReallocateExternalBlobViaGet.*",
+        });
+
+        // [Track number: E#67747]
+        _skipRegistry.addPatterns(
+                "AUTOload all devices fail", {
+                ".*Auto_Behavior.*InferRequestIOBBlobTest.*canReallocateExternalBlobViaGet.*MULTI_DEVICE_PRIORITIES_VPUX_.*",
+        });
+
+        // [Track number: E#67749]
+        _skipRegistry.addPatterns(
+                "Can't loadNetwork without cache for ReadConcatSplitAssign with precision f32", {
+                ".*CachingSupportCase_KeemBay.*CompileModelCacheTestBase.*CompareWithRefImpl.*ReadConcatSplitAssign.*",
+        });
+
+        // [Track number: E#73523]
+        _skipRegistry.addPatterns(
+                "VPUX Plugin currently fails to get a valid output in these test cases", {
+                "smoke_precommit_VPU3720_BehaviorTestsPreprocess/InferRequestPreprocessTest.SetMeanImagePreProcessGetBlob.*",
+                "smoke_precommit_VPU3720_BehaviorTestsPreprocess/InferRequestPreprocessTest.SetMeanImagePreProcessSetBlob.*",
+                "smoke_precommit_VPU3720_BehaviorTestsPreprocess/InferRequestPreprocessTest.SetMeanValuePreProcessGetBlob.*",
+                "smoke_precommit_VPU3720_BehaviorTestsPreprocess/InferRequestPreprocessTest.SetMeanValuePreProcessSetBlob.*",
+                "smoke_precommit_VPU3720_BehaviorTestsPreprocess/InferRequestPreprocessTest.SetScalePreProcessGetBlob.*",
+                "smoke_precommit_VPU3720_BehaviorTestsPreprocess/InferRequestPreprocessTest.SetScalePreProcessSetBlob.*",
+        });
+
+
+        // [Track number: E#68774]
+        _skipRegistry.addPatterns(
+                "OV requires the plugin to throw when value of DEVICE_ID is unrecognized, but plugin does not throw", {
+                "smoke_BehaviorTests.*IncorrectConfigTests.SetConfigWithIncorrectKey.*(SOME_DEVICE_ID|DEVICE_UNKNOWN).*",
+                "smoke_BehaviorTests.*IncorrectConfigTests.SetConfigWithNoExistingKey.*SOME_DEVICE_ID.*",
+                "smoke_BehaviorTests.*IncorrectConfigAPITests.SetConfigWithNoExistingKey.*(SOME_DEVICE_ID|DEVICE_UNKNOWN).*",
+        });
+
+        // [Track number: E#77755]
+        _skipRegistry.addPatterns(
+                "OV requires the plugin to throw on network load when config file is incorrect, but plugin does not throw", {
+                R"(.*smoke_Auto_BehaviorTests.*IncorrectConfigTests.CanNotLoadNetworkWithIncorrectConfig.*AUTO_config.*unknown_file_MULTI_DEVICE_PRIORITIES=(VPUX_|VPUX,CPU_).*)"
+        });
+
+        // [Track number: E#77756]
+        _skipRegistry.addPatterns(
+                "OV expects the plugin to not throw any exception on network load, but it actually throws", {
+                R"(.*(smoke_Multi_Behavior|smoke_Auto_Behavior).*SetPropLoadNetWorkGetPropTests.*SetPropLoadNetWorkGetProperty.*)"
+        });
+
+        // [Track number: E#68776]
+        _skipRegistry.addPatterns(
+                "Plugin can not perform SetConfig for value like: device=VPUX config key=LOG_LEVEL value=0", {
+                "smoke_BehaviorTests/DefaultValuesConfigTests.CanSetDefaultValueBackToPlugin.*",
+        });
+
         _skipRegistry.addPatterns(
                 "Disabled with ticket number", {
                 // [Track number: E#48480]
                 ".*OVExecutableNetworkBaseTest.*",
                 ".*OVInferRequestCheckTensorPrecision.*",
 
-                // [Track number: E#62882]
-                ".*OVClassNetworkTestP.*QueryNetworkMultiThrows.*",
-                ".*OVClassNetworkTestP.*LoadNetworkMultiWithoutSettingDevicePrioritiesThrows.*",
-
                 // [Track number: E#63708]
                 ".*smoke_BehaviorTests.*InferStaticNetworkSetInputTensor.*",
-                ".*smoke_Multi_BehaviorTests.*InferStaticNetworkSetInputTensor.*"
+                ".*smoke_Multi_BehaviorTests.*InferStaticNetworkSetInputTensor.*",
+
+                // [Track number: E#64490]
+                 ".*OVClassNetworkTestP.*SetAffinityWithConstantBranches.*"
+        });
+
+        // [Track number: E#73598]
+        _skipRegistry.addPatterns(
+                "The test tries to concatenate an extra .0123 after the typical VPUX.0123 name, and it fails currently", {
+                "smoke_InterfaceTests.TestEngineClassGetMetric*",
         });
 
         //
         // Conditionally disabled test patterns
         //
 
-        _skipRegistry.addPatterns(devices.count() && devices.has3720(), "Tests are disabled for VPU3720",
-                                  {
-                                          // [Track number: E#50459]
-                                          ".*Pad_Const.*",
-                                  });
-
         _skipRegistry.addPatterns(devices.count() && !devices.has3720(), "Tests are disabled for all devices except VPU3720",
                                   {
                                           // [Track number: E#49620]
-                                          ".*CompareWithRefs.*",
-                                          ".*KmbMultipleoutputTest.CompareWithRefImpl.*",
-                                          ".*CompareWithRefs_MLIR.*",
-                                          ".*KmbMvn6LayerTest.*",
-                                          ".*SoftMax4D.*",
-                                          ".*smoke_StridedSlice.*",
-                                          ".*LayerTest.*",
+                                          ".*VPU3700(\\.|_)(SW|HW).*",
                                           ".*VPU3720.*",
+                                          // [Track number: E#84621]
+                                          ".*VpuxDriverCompilerAdapterDowngradeInterpolate11Test.*",
                                   });
 
         _skipRegistry.addPatterns(
@@ -392,24 +457,21 @@ std::vector<std::string> disabledTestPatterns() {
                         // [Track number: E#30824]
                         ".*OVClassImportExportTestP.*",
                         ".*OVClassLoadNetworkTest.*LoadNetwork.*",
+                        // [Track number: E#84621]
+                        ".*VpuxDriverCompilerAdapterDowngradeInterpolate11Test.*",
                 });
 
-        _skipRegistry.addPatterns(backendName.isZero(), "CumSum layer is not supported by VPU3720 platform",
+        _skipRegistry.addPatterns(backendName.isZero() && devices.has3700(),
+                                  "TensorIterator layer is not supported by dKMB platform",
                                   {
                                           ".*SetBlobTest.*",
                                   });
 
-        _skipRegistry.addPatterns(backendName.isZero(),
-                                  "TensorIterator layer is not supported by VPU3720/dKMB platform",
-                                  {
-                                          ".*SetBlobTest.*",
-                                  });
-
-        _skipRegistry.addPatterns(backendName.isZero(), "Abs layer is not supported by VPU3720/dKMB platform",
+        _skipRegistry.addPatterns(backendName.isZero() && devices.has3700(), "Abs layer is not supported by dKMB platform",
                                   {".*PrePostProcessTest.*"});
 
-        _skipRegistry.addPatterns(backendName.isZero(), "Convert layer is not supported by VPU3720/dKMB platform",
-                                  {".*PreprocessingPrecisionConvertTest.*", ".*InferRequestPreprocess.*"});
+        _skipRegistry.addPatterns(backendName.isZero() && devices.has3700(), "Convert layer is not supported by dKMB platform",
+                                 {".*PreprocessingPrecisionConvertTest.*", ".*InferRequestPreprocess.*"});
 
         _skipRegistry.addPatterns(backendName.isZero(), "Most KmbProfilingTest instances break sporadically, only stable instances are left, #65844", {
                                                 ".*precommit_profilingDisabled/KmbProfilingTest.*",
@@ -417,6 +479,12 @@ std::vector<std::string> disabledTestPatterns() {
                                                 ".*precommit_profilingNonMatchedName_drv/KmbProfilingTest.*",
                                                 ".*precommit_profilingMatchedName_drv/KmbProfilingTest.*",
                                                 });
+
+        _skipRegistry.addPatterns(backendName.isIMD(), "IMD/Simics do not support the tests",
+                                  {
+                                        // [Tracking number: E#81065]
+                                        ".*smoke_VPUXClassPluginPropertiesTest/VPUXClassPluginPropertiesTestSuite2.CanNotSetImmutableProperty.*",
+                                  });
 
         _skipRegistry.addPatterns(platform.isARM(), "CumSum layer is not supported by ARM platform",
                                   {
@@ -426,8 +494,16 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO: [Track number: E#26428]
         _skipRegistry.addPatterns(platform.isARM(), "LoadNetwork throws an exception",
                                   {
-                                          ".*KmbGatherLayerTest.CompareWithRefs/.*",
+                                          ".*VPUXGatherLayerTest_VPU3700.HW/.*",
                                   });
+
+        _skipRegistry.addPatterns(!backendName.isZero() || !devices.has3720(),
+                "Tests enabled only for L0 VPU3720", {
+                // [Track number: E#83423]
+                ".*smoke_VariableStateBasic.*",
+                // [Track number: E#83708]
+                ".*smoke_MemoryLSTMCellTest.*",
+        });
 
         _skipRegistry.addPatterns(
                 devices.count() > 1,
@@ -437,6 +513,11 @@ std::vector<std::string> disabledTestPatterns() {
                         ".*OVClassGetConfigTest.*GetConfigHeteroNoThrow.*",
                 });
 
+#ifdef __unix__
+        _skipRegistry.addPatterns(backendName.isZero() && devices.has3720(), "E#77822", {".*CTCGreedyDecoder.*"});
+        _skipRegistry.addPatterns(backendName.isZero() && devices.has3720(), "E#78232", {".*smoke_Tile3720_tiling_2.*"});
+        _skipRegistry.addPatterns(backendName.isZero() && devices.has3720(), "E#78232", {".*smoke_Tile3720_tiling_3.*"});
+#endif
 
         return _skipRegistry;
     }();

@@ -10,7 +10,7 @@
 
 namespace {
 
-class EltwiseAddQuantizedSubGraphTest_VPU3720 :
+class VPUXEltwiseAddQuantizedSubGraphTest_VPU3720 :
         public LayerTestsUtils::KmbLayerTestsCommon,
         public testing::WithParamInterface<std::tuple<LayerTestsUtils::TargetDevice>> {
     void ConfigureNetwork() override {
@@ -50,14 +50,13 @@ class EltwiseAddQuantizedSubGraphTest_VPU3720 :
     }
 };
 
-TEST_P(EltwiseAddQuantizedSubGraphTest_VPU3720, CompareWithRefs_MLIR_HW) {
-    useCompilerMLIR();
+TEST_P(VPUXEltwiseAddQuantizedSubGraphTest_VPU3720, HW) {
     setPlatformVPU3720();
     setDefaultHardwareModeMLIR();
     Run();
 }
 
-INSTANTIATE_TEST_CASE_P(smoke, EltwiseAddQuantizedSubGraphTest_VPU3720,
+INSTANTIATE_TEST_CASE_P(smoke_EltwiseAddQuantized, VPUXEltwiseAddQuantizedSubGraphTest_VPU3720,
                         ::testing::Combine(::testing::Values(LayerTestsUtils::testPlatformTargetDevice)));
 
 }  // namespace

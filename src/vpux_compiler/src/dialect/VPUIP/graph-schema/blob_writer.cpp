@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/VPUIP/graph-schema/blob_writer.hpp"
 #include "vpux/compiler/dialect/VPUIP/convert_to_dma_utils.hpp"
 
@@ -44,7 +42,7 @@ namespace {
 constexpr uint64_t nonEmptyOffset = 1;
 
 SmallVector<uint8_t> createInvocationArgs(VPUIP::BlobWriter& blobWriter, VPUIP::SwKernelOp swKernelOp,
-                                          size_t dataOffset, Logger log) {
+                                          size_t dataOffset, VPU::ArchKind archKind, Logger log) {
     vpux::InvocationBuilder invocationBuilder(dataOffset, log);
 
     const auto insSize = swKernelOp.inputs().size();
@@ -68,7 +66,7 @@ SmallVector<uint8_t> createInvocationArgs(VPUIP::BlobWriter& blobWriter, VPUIP::
                 const auto tensorRefOffset = blobWriter.getTensorRef(operandVal);
 
                 auto tensorRef = flatbuffers::GetTemporaryPointer(blobWriter, tensorRefOffset);
-                invocationBuilder.addTensorArg(operandVal, tensorRef);
+                invocationBuilder.addTensorArg(operandVal, tensorRef, archKind);
             } else {
                 VPUX_THROW("Only block arguments are supported");
             }
@@ -117,14 +115,15 @@ VPUIP::BlobWriter::Task vpux::VPUIP::BlobWriter::createTask(mlir::Operation* op)
     return off;
 }
 
-ActKernelDesc vpux::VPUIP::BlobWriter::compileKernelData(const CompilationUnitDesc& unitDesc) {
-    return compileKernelForACTShave(unitDesc);
+ActKernelDesc vpux::VPUIP::BlobWriter::compileKernelData(const CompilationUnitDesc& unitDesc,
+                                                         const vpux::VPU::ArchKind& archKind) {
+    return compileKernelForACTShave(unitDesc, archKind);
 }
 
-ActKernelDesc vpux::VPUIP::BlobWriter::compileManagementKernelData() {
+ActKernelDesc vpux::VPUIP::BlobWriter::compileManagementKernelData(const vpux::VPU::ArchKind& archKind) {
     const auto& listDesc = managementKernelCompilationDesc();
 
-    return compileKernelForACTShave(listDesc);
+    return compileKernelForACTShave(listDesc, archKind);
 }
 
 const vpux::VPUIP::BlobWriter::ActShavesKernelDataMap& vpux::VPUIP::BlobWriter::getKernelData() const {
@@ -145,7 +144,7 @@ vpux::VPUIP::BlobWriter::KernelDataRef vpux::VPUIP::BlobWriter::createKernelData
         // there is no kernelData for this name available
         // for now lets generate new kernelData entry using given content data
         _log.trace("Store new kernel in kernelData array: {0}\n", name);
-        _actKernelsData[name.data()] = {name.data(), buildKernelData(_impl, content), content.size()};
+        _actKernelsData[name.str()] = {name.str(), buildKernelData(_impl, content), content.size()};
     }
 
     // use c_str() to ensure string termination
@@ -156,7 +155,7 @@ vpux::VPUIP::BlobWriter::KernelDataRef vpux::VPUIP::BlobWriter::createKernelData
 
     kernelData.add_referenced_data_size(checked_cast<uint32_t>(dataSize));
     kernelData.add_locale(serializedLocale);
-    auto mappedLocaleIterator = _actKernelsData.find(name.data());
+    auto mappedLocaleIterator = _actKernelsData.find(name.str());
     auto mappedLocaleIndex = std::distance(_actKernelsData.begin(), mappedLocaleIterator);
 
     kernelData.add_locale_offset(vpux::checked_cast<uint32_t>(mappedLocaleIndex));
@@ -187,7 +186,7 @@ vpux::VPUIP::BlobWriter::ActKernel vpux::VPUIP::BlobWriter::createRuntimeKernelT
     auto swRuntimeOp = mlir::dyn_cast<VPURT::SWRunTimeOp>(op);
     VPUX_THROW_UNLESS(swRuntimeOp != nullptr, "Operation '{0}' is not a SWRuntimeOp", op->getName());
 
-    auto kernelFunc = module.lookupSymbol<mlir::FuncOp>(swRuntimeOp.entryPointAttr());
+    auto kernelFunc = module.lookupSymbol<mlir::func::FuncOp>(swRuntimeOp.entryPointAttr());
     VPUX_THROW_UNLESS(kernelFunc, "Undefined runtime kernel : '{0}'", swRuntimeOp.entryPointAttr());
 
     const auto kernelCode = kernelFunc->getAttrOfType<mlir::StringAttr>("VPU.kernel_code");
@@ -199,9 +198,9 @@ vpux::VPUIP::BlobWriter::ActKernel vpux::VPUIP::BlobWriter::createRuntimeKernelT
     listDesc.name = kernelCode.getValue();
     listDesc.entry = kernelCode.getValue();
 
-    compileKernelForACTShave(listDesc);
+    compileKernelForACTShave(listDesc, VPU::getArch(module));
 
-    auto runtimeKernelDesc = compileManagementKernelData();
+    auto runtimeKernelDesc = compileManagementKernelData(VPU::getArch(module));
     auto runtimeKernelText = createKernelDataRef(runtimeKernelDesc.text);
     auto runtimeKernelData = createKernelDataRef(runtimeKernelDesc.data);
 
@@ -221,7 +220,7 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BlobWriter::createSW_KernelTask(mli
 
     // extracting kernel source code or compiled code
     auto module = op->getParentOfType<mlir::ModuleOp>();
-    auto kernelFunc = module.lookupSymbol<mlir::FuncOp>(swKernelTask.kernelFunctionAttr());
+    auto kernelFunc = module.lookupSymbol<mlir::func::FuncOp>(swKernelTask.kernelFunctionAttr());
     VPUX_THROW_UNLESS(kernelFunc, "Invalid function call : '{0}', undefined kernel name",
                       swKernelTask.kernelFunctionAttr());
 
@@ -235,7 +234,7 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BlobWriter::createSW_KernelTask(mli
 
     // TODO : check that arguments in given function
     CompilationUnitDesc compilationDesc = {kernelFunc.getName(), kernelEntryPoint.getValue()};
-    auto actKernelDesc = compileKernelData(compilationDesc);
+    auto actKernelDesc = compileKernelData(compilationDesc, VPU::getArch(module));
 
     auto kernelText = createKernelDataRef(actKernelDesc.text);
 
@@ -256,7 +255,8 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BlobWriter::createSW_KernelTask(mli
     // .data section is accessible from WIN_E address
     // invocation args accessible from  WIN_E + sizeof(.data section)
 
-    auto invocationArgs = createInvocationArgs(*this, swKernelTask, actKernelDesc.data.size, _log);
+    auto invocationArgs =
+            createInvocationArgs(*this, swKernelTask, actKernelDesc.data.size, VPU::getArch(module), _log);
 
     auto invocationArgsAndData = invocationArgs;
     invocationArgsAndData.insert(invocationArgsAndData.begin(), actKernelDesc.data.data.begin(),
@@ -320,7 +320,7 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::BlobWriter::createSW_KernelTask(mli
     invocationBuilder.add_dataSection(dataSection);
     invocationBuilder.add_associatedBarriers(barrierReference);
     invocationBuilder.add_invocationArgs(invocationSection);
-    invocationBuilder.add_tile(checked_cast<uint32_t>(swKernelTask.tileIndex().getValueOr(0)));
+    invocationBuilder.add_tile(checked_cast<uint32_t>(swKernelTask.tileIndex().value_or(0)));
     invocationBuilder.add_inputTensors(inputs);
     invocationBuilder.add_outputTensors(outputs);
 

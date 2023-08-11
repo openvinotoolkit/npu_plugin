@@ -3,33 +3,32 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/compiler.hpp"
 
 #include "vpux/al/config/common.hpp"
 #include "vpux/al/config/compiler.hpp"
 
-#include "vpux/compiler/conversion.hpp"
+#include "vpux/compiler/VPU30XX/pipeline_strategy.hpp"
+#include "vpux/compiler/VPU30XX/pipelines.hpp"
+#include "vpux/compiler/VPU37XX/pipeline_strategy.hpp"
+#include "vpux/compiler/VPU37XX/pipelines.hpp"
 #include "vpux/compiler/dialect/ELF/export.hpp"
+#include "vpux/compiler/dialect/EMU/graph-schema/export.hpp"
 #include "vpux/compiler/dialect/IE/ops.hpp"
-#include "vpux/compiler/dialect/IERT/ops.hpp"
 #include "vpux/compiler/dialect/VPU/attributes.hpp"
-#include "vpux/compiler/dialect/VPU/passes.hpp"
+#include "vpux/compiler/dialect/VPUIP/graph-schema/export.hpp"
 #include "vpux/compiler/dialect/VPUIP/network_description.hpp"
-#include "vpux/compiler/dialect/VPUIP/ops.hpp"
-#include "vpux/compiler/dialect/VPUIPRegMapped/network_description.hpp"
+#include "vpux/compiler/dialect/VPUMI37XX/network_description.hpp"
 #include "vpux/compiler/frontend/IE.hpp"
 #include "vpux/compiler/init.hpp"
+#include "vpux/compiler/options_mapper.hpp"
 #include "vpux/compiler/pipelines.hpp"
 #include "vpux/compiler/utils/dot_printer.hpp"
 #include "vpux/compiler/utils/logging.hpp"
 
 #include "vpux/utils/IE/itt.hpp"
 #include "vpux/utils/core/error.hpp"
-#include "vpux/utils/core/helper_macros.hpp"
 #include "vpux/utils/core/optional.hpp"
-#include "vpux/utils/core/string_utils.hpp"
 
 #include <mlir/IR/Dialect.h>
 #include <mlir/IR/MLIRContext.h>
@@ -58,109 +57,35 @@ using namespace InferenceEngine;
 
 namespace {
 
-//
-// getArchKind
-//
+/**
+ * @brief We do not support old MeanVariant pre-processing in any form.
+ *  Add explicit check for that to generate an exception in case of such pre-processing to inform the user.
+ */
+void validateCNNNetwork(const InferenceEngine::CNNNetwork& cnnNet) {
+    const auto inputsInfo = cnnNet.getInputsInfo();
 
-VPU::ArchKind getArchKind(const Config& config) {
-    auto platform = config.get<PLATFORM>();
-    if (platform == InferenceEngine::VPUXConfigParams::VPUXPlatform::EMULATOR) {
-        platform = utils::getPlatformByEMUDeviceName(config.get<DEVICE_ID>());
+    for (const auto& p : inputsInfo) {
+        const auto& name = p.first;
+        const auto& info = p.second;
+        const auto& preProc = info->getPreProcess();
+        const auto meanVariant = preProc.getMeanVariant();
+        VPUX_THROW_UNLESS(meanVariant == InferenceEngine::MeanVariant::NONE,
+                          "MeanVariant pre-processing for input '{0}' is not supported", name);
     }
+}
 
-    switch (platform) {
-    case InferenceEngine::VPUXConfigParams::VPUXPlatform::AUTO:
-    case InferenceEngine::VPUXConfigParams::VPUXPlatform::EMULATOR:
-        return VPU::ArchKind::UNKNOWN;
-    case InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3400:
-    case InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3700:
-        return VPU::ArchKind::VPUX30XX;
-    case InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3800:
-    case InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3900:
-        return VPU::ArchKind::VPUX311X;
-    case InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3720:
-        return VPU::ArchKind::VPUX37XX;
+//
+// createPipelineStrategy
+//
+
+std::unique_ptr<IPipelineStrategy> createPipelineStrategy(VPU::ArchKind arch) {
+    switch (arch) {
+    case VPU::ArchKind::VPUX30XX:
+        return std::make_unique<PipelineStrategy30XX>();
+    case VPU::ArchKind::VPUX37XX:
+        return std::make_unique<PipelineStrategy37XX>();
     default:
-        VPUX_THROW("Unsupported VPUX platform");
-    }
-}
-
-//
-// getCompilationMode
-//
-
-VPU::CompilationMode getCompilationMode(const Config& config) {
-    if (!config.has<COMPILATION_MODE>()) {
-        return VPU::CompilationMode::DefaultHW;
-    }
-
-    const auto parsed = VPU::symbolizeCompilationMode(config.get<COMPILATION_MODE>());
-    VPUX_THROW_UNLESS(parsed.hasValue(), "Unsupported compilation mode '{0}'", config.get<COMPILATION_MODE>());
-    return parsed.getValue();
-}
-
-//
-// getDDRHeapSize
-//
-
-Optional<int> getDDRHeapSize(const Config& config) {
-    if (config.has<DDR_HEAP_SIZE_MB>()) {
-        return checked_cast<int>(config.get<DDR_HEAP_SIZE_MB>());
-    }
-
-    return 500;
-}
-
-//
-// getNumberOfDPUGroups
-//
-
-Optional<int> getNumberOfDPUGroups(const Config& config) {
-    if (config.has<DPU_GROUPS>()) {
-        return checked_cast<int>(config.get<DPU_GROUPS>());
-    }
-
-    switch (config.get<PLATFORM>()) {
-    case InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3720: {
-        switch (config.get<PERFORMANCE_HINT>()) {
-        case ov::hint::PerformanceMode::THROUGHPUT:
-        case ov::hint::PerformanceMode::UNDEFINED:
-        case ov::hint::PerformanceMode::LATENCY:
-        default:
-            return checked_cast<int>(VPU::getMaxDPUClusterNum(getArchKind(config)));
-        }
-        break;
-    }
-    default: {
-        switch (config.get<PERFORMANCE_HINT>()) {
-        case ov::hint::PerformanceMode::THROUGHPUT:
-            return 1;
-        case ov::hint::PerformanceMode::LATENCY:
-        case ov::hint::PerformanceMode::UNDEFINED:
-        default:
-            return checked_cast<int>(VPU::getMaxDPUClusterNum(getArchKind(config)));
-        }
-        break;
-    }
-    }
-}
-
-//
-// getNumberOfDMAPorts
-//
-
-Optional<int> getNumberOfDMAPorts(const Config& config) {
-    if (config.has<DMA_ENGINES>()) {
-        return checked_cast<int>(config.get<DMA_ENGINES>());
-    }
-
-    switch (config.get<PERFORMANCE_HINT>()) {
-    case ov::hint::PerformanceMode::THROUGHPUT:
-        return 1;
-    case ov::hint::PerformanceMode::LATENCY:
-    case ov::hint::PerformanceMode::UNDEFINED:
-    default:
-        return checked_cast<int>(VPU::getMaxDMAPorts(getArchKind(config)));
+        VPUX_THROW("Unsupported arch kind: {0}", arch);
     }
 }
 
@@ -338,20 +263,39 @@ void DeveloperConfig::setup(mlir::PassManager& pm) const {
 InferenceEngine::QueryNetworkResult vpux::CompilerImpl::query(const InferenceEngine::CNNNetwork& network,
                                                               const Config& config) {
     Logger log("vpux-compiler", config.get<LOG_LEVEL>());
-    InferenceEngine::QueryNetworkResult result;
-    const std::string plugin_name = DEVICE_NAME;
+    log.setName("vpux::CompilerImpl::query");
 
+    InferenceEngine::QueryNetworkResult result;
+    // TODO Find why we need this variable
+    std::vector<vpux::PreProcessInfo> preProcInfo;
+
+    const std::string plugin_name = DEVICE_NAME;
     const auto arch = getArchKind(config);
+
+    validateCNNNetwork(network);
+    auto model = network.getFunction();
+    if (model == nullptr) {
+        IE_THROW() << "Only ngraph-based models are supported!";
+    }
 
     DeveloperConfig devConf(log);
     mlir::DefaultTimingManager tm;
     devConf.setup(tm);
     auto rootTiming = tm.getRootScope();
 
-    std::vector<vpux::PreProcessInfo> preProcInfo;
-    auto supportedLayers = IE::queryNetwork(network, preProcInfo, rootTiming, arch, log);
+    log.trace("Get supported nodes.");
+    auto supportedNodes = InferenceEngine::GetSupportedNodes(
+            model,
+            [&](std::shared_ptr<ov::Model>& model) {
+                log.trace("Run common nGraph passes.");
+                IE::NGraphPasses::runNGraphPasses(model, preProcInfo, rootTiming, arch);
+            },
+            [&](const std::shared_ptr<ngraph::Node>& op) {
+                log.trace("Get supported operations list.");
+                return IE::NGraphImporter::isOpSupported(op);
+            });
 
-    for (auto&& layerName : supportedLayers) {
+    for (auto&& layerName : supportedNodes) {
         result.supportedLayersMap.emplace(layerName, plugin_name);
     }
 
@@ -363,76 +307,6 @@ InferenceEngine::QueryNetworkResult vpux::CompilerImpl::query(const InferenceEng
 //
 
 namespace {
-
-void buildPipeline(mlir::PassManager& pm, const Config& config, mlir::TimingScope& rootTiming, Logger log,
-                   const bool inAndOutFp16, bool floatInputPrecision) {
-    auto buildTiming = rootTiming.nest("Build compilation pipeline");
-
-    const auto archKind = getArchKind(config);
-    const auto compilationMode = getCompilationMode(config);
-    const auto enableProfiling = config.get<PERF_COUNT>();
-    const auto numOfDPUGroups = getNumberOfDPUGroups(config);
-    const auto numOfDMAPorts = getNumberOfDMAPorts(config);
-    const auto ddrHeapSize = getDDRHeapSize(config);
-
-    pm.addPass(VPU::createInitCompilerPass(archKind, compilationMode, numOfDPUGroups, numOfDMAPorts, ddrHeapSize,
-                                           log.nest()));
-
-    if (compilationMode == VPU::CompilationMode::ReferenceSW) {
-        const auto options = ReferenceSWOptions::createFromString(config.get<COMPILATION_MODE_PARAMS>());
-        VPUX_THROW_UNLESS(options != nullptr, "buildPipeline failed to parse COMPILATION_MODE_PARAMS");
-        options->enableProfiling = enableProfiling;
-        if (config.get<PLATFORM>() == InferenceEngine::VPUXConfigParams::VPUXPlatform::EMULATOR) {
-            buildEMUReferenceSWModePipeline(pm, *options, log.nest());
-        } else {
-            buildReferenceSWModePipeline(pm, *options, log.nest());
-        }
-    } else if (compilationMode == VPU::CompilationMode::ReferenceHW) {
-        const auto options = ReferenceHWOptions::createFromString(config.get<COMPILATION_MODE_PARAMS>());
-        VPUX_THROW_UNLESS(options != nullptr, "buildPipeline failed to parse COMPILATION_MODE_PARAMS");
-        options->enableProfiling = enableProfiling;
-        if (config.get<PLATFORM>() == InferenceEngine::VPUXConfigParams::VPUXPlatform::EMULATOR) {
-            buildEMUReferenceHWModePipeline(pm, *options, log.nest());
-        } else {
-            buildReferenceHWModePipeline(pm, *options, log.nest());
-        }
-    } else if (compilationMode == VPU::CompilationMode::DefaultHW) {
-        const auto options = DefaultHWOptions::createFromString(config.get<COMPILATION_MODE_PARAMS>());
-        VPUX_THROW_UNLESS(options != nullptr, "buildPipeline failed to parse COMPILATION_MODE_PARAMS");
-        options->enableProfiling = enableProfiling;
-
-        if (archKind == VPU::ArchKind::VPUX37XX) {
-            options->enableConvertAvgPoolToDWConv = false;
-            options->enableHandleAsymmetricStrides = false;
-        }
-        // floatInputPrecision:
-        // In case user passes -ip fp16/fp32 and enables FORCE_HOST_QUANTIZATION feature
-        // we perform quantization on host.
-        options->forceHostInputQuantization = config.get<FORCE_HOST_QUANTIZATION>() && floatInputPrecision;
-
-        if (archKind == VPU::ArchKind::VPUX30XX) {
-            options->forceHostPrecisionLayoutConversion = config.get<FORCE_HOST_PRECISION_LAYOUT_CONVERSION>();
-            if (inAndOutFp16) {
-#if defined(_WIN32)
-                options->forceHostPrecisionLayoutConversion = false;
-                options->enableUseUserPrecision = false;
-                options->enableUseUserLayout = false;
-#endif
-            }
-        }
-
-        if (config.get<PLATFORM>() == InferenceEngine::VPUXConfigParams::VPUXPlatform::EMULATOR) {
-            buildEMUDefaultHWModePipeline(pm, *options, log.nest());
-        } else {
-            buildDefaultHWModePipeline(pm, *options, log.nest());
-        }
-    } else {
-        VPUX_THROW("Unsupported compilation mode '{0}'", compilationMode);
-    }
-    if (config.get<USE_ELF_COMPILER_BACKEND>()) {
-        buildLowerVPUIP2ELFPipeline(pm, log.nest());
-    }
-}
 
 CNNNetwork prepareNetwork(const std::shared_ptr<ngraph::Function>& func, const InputsDataMap& inputsInfo,
                           const OutputsDataMap& outputsInfo, mlir::TimingScope& rootTiming) {
@@ -456,6 +330,7 @@ auto importNetwork(mlir::MLIRContext* ctx, CNNNetwork cnnNet, const DeveloperCon
                    std::vector<vpux::PreProcessInfo>& preProcInfo, mlir::TimingScope& rootTiming, bool enableProfiling,
                    bool stubLayers, vpux::VPU::ArchKind arch, Logger log) {
     auto importTiming = rootTiming.nest("Import network");
+    validateCNNNetwork(cnnNet);
     return IE::importNetwork(ctx, cnnNet, preProcInfo, devConf.useSharedConstants(), importTiming, enableProfiling,
                              stubLayers, arch, log.nest());
 }
@@ -464,6 +339,19 @@ void compileNetwork(mlir::ModuleOp module, mlir::PassManager& pm, mlir::TimingSc
     auto compileTiming = rootTiming.nest("Compile network");
     pm.enableTiming(compileTiming);
     VPUX_THROW_UNLESS(mlir::succeeded(pm.run(module)), "Compilation failed");
+}
+
+auto exportToBlob(mlir::ModuleOp module, mlir::TimingScope& rootTiming,
+                  const std::vector<vpux::PreProcessInfo>& preprocessInfo,
+                  const std::vector<std::shared_ptr<const ov::Node>>& parameters,
+                  const std::vector<std::shared_ptr<const ov::Node>>& results, Logger log, const Config& config) {
+    auto exportTiming = rootTiming.nest("Export to blob");
+    switch (config.get<PLATFORM>()) {
+    case InferenceEngine::VPUXConfigParams::VPUXPlatform::EMULATOR:
+        return EMU::exportToBlob(module, exportTiming, preprocessInfo, parameters, results, log);
+    default:
+        return VPUIP::exportToBlob(module, exportTiming, preprocessInfo, parameters, results, log);
+    }
 }
 
 auto exportToELF(mlir::ModuleOp module, const std::vector<vpux::PreProcessInfo>& preprocessInfo,
@@ -521,7 +409,7 @@ std::vector<std::shared_ptr<const ov::Node>> buildOVResults(const std::shared_pt
     for (const auto& result : model->get_results()) {
         auto fakeParam = std::make_shared<ov::op::v0::Parameter>(result->get_output_element_type(0),
                                                                  result->get_output_partial_shape(0));
-        const std::string paramName = ngraph::op::util::create_ie_output_name(result->input_value(0));
+        const std::string paramName = ov::op::util::create_ie_output_name(result->input_value(0));
         fakeParam->set_friendly_name(paramName);
         fakeParam->set_element_type(
                 InferenceEngine::details::convertPrecision(outputsInfo.at(paramName)->getPrecision()));
@@ -535,6 +423,61 @@ std::vector<std::shared_ptr<const ov::Node>> buildOVResults(const std::shared_pt
     }
 
     return constResults;
+}
+
+std::shared_ptr<INetworkDescription> exportNetwork(mlir::ModuleOp module, mlir::TimingScope& rootTiming,
+                                                   const std::vector<vpux::PreProcessInfo>& preprocessInfo, Logger log,
+                                                   const std::shared_ptr<ngraph::Function>& func,
+                                                   const InputsDataMap& inputsInfo, const OutputsDataMap& outputsInfo,
+                                                   const Config& configuration) {
+    const auto parameters = buildOVParams(func, inputsInfo);
+    const auto results = buildOVResults(func, outputsInfo);
+
+    if (isELFEnabled(configuration)) {
+        const auto blob = exportToELF(module, preprocessInfo, parameters, results);
+        std::vector<char> compiledNetwork(blob.size());
+        std::copy_n(reinterpret_cast<const char*>(blob.data()), blob.size(), compiledNetwork.data());
+        return std::make_shared<VPUMI37XX::NetworkDescription>(std::move(compiledNetwork));
+    } else {
+        const auto blob = exportToBlob(module, rootTiming, preprocessInfo, parameters, results, log, configuration);
+        auto finalTiming = rootTiming.nest("Wrap into NetworkDescription");
+        std::vector<char> compiledNetwork(blob.size());
+        std::copy_n(reinterpret_cast<const char*>(blob.data()), blob.size(), compiledNetwork.data());
+
+        return std::make_shared<VPUIP::NetworkDescription>(std::move(compiledNetwork));
+    }
+}
+
+template <typename Options>
+bool getDummyOpReplacement(const Config& config) {
+    const auto options = Options::createFromString(config.get<COMPILATION_MODE_PARAMS>());
+    VPUX_THROW_UNLESS(options != nullptr, "failed to parse COMPILATION_MODE_PARAMS");
+    return options->enableDummyOpReplacement;
+}
+
+template <typename ReferenceSWOptions, typename ReferenceHWOptions, typename DefaultHWOptions>
+bool getDummyOpReplacement(const Config& config) {
+    const auto compilationMode = getCompilationMode(config);
+    if (compilationMode == VPU::CompilationMode::ReferenceSW) {
+        return getDummyOpReplacement<ReferenceSWOptions>(config);
+    } else if (compilationMode == VPU::CompilationMode::ReferenceHW) {
+        return getDummyOpReplacement<ReferenceHWOptions>(config);
+    } else if (compilationMode == VPU::CompilationMode::DefaultHW) {
+        return getDummyOpReplacement<DefaultHWOptions>(config);
+    } else {
+        VPUX_THROW("Unsupported compilation mode: {0}", compilationMode);
+    }
+}
+
+bool getDummyOpReplacement(const Config& config) {
+    const auto arch = getArchKind(config);
+    if (arch == VPU::ArchKind::VPUX30XX) {
+        return getDummyOpReplacement<ReferenceSWOptions30XX, ReferenceHWOptions30XX, DefaultHWOptions30XX>(config);
+    } else if (arch == VPU::ArchKind::VPUX37XX) {
+        return getDummyOpReplacement<ReferenceSWOptions37XX, ReferenceHWOptions37XX, DefaultHWOptions37XX>(config);
+    } else {
+        VPUX_THROW("Unsupported device typee: {0}", arch);
+    }
 }
 
 }  // namespace
@@ -554,25 +497,10 @@ std::shared_ptr<INetworkDescription> vpux::CompilerImpl::compile(const std::shar
     mlir::DialectRegistry registry;
     registerDialects(registry);
 
-    bool enableDummyOpReplacement = false;
-
     bool inAndOutFp16 = false;
     bool floatInputPrecision = false;
-    // TODO: needs refactoring. Ticket: E#50937
     const auto compilationMode = getCompilationMode(config);
-    if (compilationMode == VPU::CompilationMode::ReferenceSW) {
-        const auto options = ReferenceSWOptions::createFromString(config.get<COMPILATION_MODE_PARAMS>());
-        VPUX_THROW_UNLESS(options != nullptr, "failed to parse COMPILATION_MODE_PARAMS");
-        enableDummyOpReplacement = options->enableDummyOpReplacement;
-    } else if (compilationMode == VPU::CompilationMode::ReferenceHW) {
-        const auto options = ReferenceHWOptions::createFromString(config.get<COMPILATION_MODE_PARAMS>());
-        VPUX_THROW_UNLESS(options != nullptr, "failed to parse COMPILATION_MODE_PARAMS");
-        enableDummyOpReplacement = options->enableDummyOpReplacement;
-    } else if (compilationMode == VPU::CompilationMode::DefaultHW) {
-        const auto options = DefaultHWOptions::createFromString(config.get<COMPILATION_MODE_PARAMS>());
-        VPUX_THROW_UNLESS(options != nullptr, "failed to parse COMPILATION_MODE_PARAMS");
-        enableDummyOpReplacement = options->enableDummyOpReplacement;
-
+    if (compilationMode == VPU::CompilationMode::DefaultHW) {
         bool inFp16 = false, outFp16 = false;
         for (const auto& p : inputsInfo) {
             inFp16 = p.second->getPrecision() == InferenceEngine::Precision::FP16;
@@ -585,6 +513,8 @@ std::shared_ptr<INetworkDescription> vpux::CompilerImpl::compile(const std::shar
         inAndOutFp16 = inFp16 && outFp16;
     }
 
+    // TODO: needs refactoring. Ticket: E#50937
+    bool enableDummyOpReplacement = getDummyOpReplacement(config);
     if (enableDummyOpReplacement) {
         registerInterfacesWithReplacement(registry);
     }
@@ -594,18 +524,9 @@ std::shared_ptr<INetworkDescription> vpux::CompilerImpl::compile(const std::shar
     mlir::MLIRContext ctx(registry);
     addLogging(ctx, log);
 
-    OV_ITT_TASK_NEXT(COMPILER_IMPLEMENTATION, "PassManager");
-
-    mlir::PassManager pm(&ctx, mlir::OpPassManager::Nesting::Implicit);
-    addLogging(pm, log);
-    devConf.setup(pm);
-
-    auto rootTiming = tm.getRootScope();
-
-    // TODO: somehow protect non-target cases
-    buildPipeline(pm, config, rootTiming, log, inAndOutFp16, floatInputPrecision);  // builds compilation pipeline
     OV_ITT_TASK_NEXT(COMPILER_IMPLEMENTATION, "prepareNetwork");
 
+    auto rootTiming = tm.getRootScope();
     const auto cnnNet = prepareNetwork(func, inputsInfo, outputsInfo, rootTiming);
     std::vector<vpux::PreProcessInfo> preProcInfo;
 
@@ -616,19 +537,28 @@ std::shared_ptr<INetworkDescription> vpux::CompilerImpl::compile(const std::shar
     const auto module = importNetwork(&ctx, cnnNet, devConf, preProcInfo, rootTiming, config.get<PERF_COUNT>(),
                                       enableDummyOpReplacement, arch, log);
 
+    OV_ITT_TASK_NEXT(COMPILER_IMPLEMENTATION, "PassManager");
+
+    mlir::PassManager pm(&ctx, mlir::OpPassManager::Nesting::Implicit);
+    addLogging(pm, log);
+    devConf.setup(pm);
+
+    auto pipelineFactory = createPipelineStrategy(arch);
+    PrecisionInfo prcInfo{inAndOutFp16, floatInputPrecision};
+
+    // TODO: somehow protect non-target cases
+    pipelineFactory->buildPipeline(pm, config, rootTiming, log, prcInfo);
+
     OV_ITT_TASK_NEXT(COMPILER_IMPLEMENTATION, "compileNetwork");
 
     compileNetwork(module.get(), pm, rootTiming);  // applies each pass in the pipeline
 
     OV_ITT_TASK_NEXT(COMPILER_IMPLEMENTATION, "exportNetwork");
-
-    const auto blob =
-            exportToELF(module.get(), preProcInfo, buildOVParams(func, inputsInfo), buildOVResults(func, outputsInfo));
-    std::vector<char> compiledNetwork(blob.size());
-    std::copy_n(reinterpret_cast<const char*>(blob.data()), blob.size(), compiledNetwork.data());
-    return std::make_shared<VPUIPRegMapped::NetworkDescription>(std::move(compiledNetwork));
-
+    auto networkDescription =
+            exportNetwork(module.get(), rootTiming, preProcInfo, log, func, inputsInfo, outputsInfo, config);
     OV_ITT_TASK_SKIP(COMPILER_IMPLEMENTATION);
+
+    return networkDescription;
 }
 
 //
@@ -636,8 +566,12 @@ std::shared_ptr<INetworkDescription> vpux::CompilerImpl::compile(const std::shar
 //
 
 std::shared_ptr<vpux::INetworkDescription> vpux::CompilerImpl::parse(const std::vector<char>& compiledNetwork,
-                                                                     const Config&, const std::string&) {
-    return std::make_shared<VPUIP::NetworkDescription>(compiledNetwork);
+                                                                     const Config& config, const std::string&) {
+    if (isELFEnabled(config)) {
+        return std::make_shared<VPUMI37XX::NetworkDescription>(compiledNetwork);
+    } else {
+        return std::make_shared<VPUIP::NetworkDescription>(compiledNetwork);
+    }
 }
 
 //
@@ -649,3 +583,16 @@ INFERENCE_PLUGIN_API(void) CreateVPUXCompiler(std::shared_ptr<ICompiler>& obj) {
     obj = std::make_shared<CompilerImpl>();
 }
 #endif
+
+bool vpux::isELFEnabled(const Config& configuration) {
+#ifdef __unix__
+    const auto isUnix = true;
+#else
+    const auto isUnix = false;
+#endif
+    const auto isVPUX37XX = getArchKind(configuration) == vpux::VPU::ArchKind::VPUX37XX;
+    const auto optionValue = configuration.get<USE_ELF_COMPILER_BACKEND>();
+    using InferenceEngine::VPUXConfigParams::ElfCompilerBackend;
+
+    return optionValue == ElfCompilerBackend::YES || (optionValue == ElfCompilerBackend::AUTO && isUnix && isVPUX37XX);
+}

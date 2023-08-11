@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #pragma once
 
 #include "vpux/compiler/core/attributes/dims_order.hpp"
@@ -21,6 +19,17 @@ template <typename PermOpPrev, typename PermOp>
 mlir::LogicalResult fusePermutations(PermOp permuteOp, mlir::PatternRewriter& rewriter) {
     auto prevPermuteOp = mlir::dyn_cast_or_null<PermOpPrev>(permuteOp.input().getDefiningOp());
     if (prevPermuteOp == nullptr) {
+        return mlir::failure();
+    }
+
+    // For the case with mempermute having a mempermute and op X as user
+    // having sequantial mempermutes yields more performance than parallel, thus don't fuse them
+    // If all users are mempermute, then fusing them is better
+    auto checkAllUsersMemPerm = llvm::none_of(prevPermuteOp->getUsers(), [](auto user) {
+        return !mlir::isa<IE::MemPermuteOp>(user);
+    });
+
+    if (mlir::isa<IE::MemPermuteOp>(prevPermuteOp) && !prevPermuteOp->hasOneUse() && !checkAllUsersMemPerm) {
         return mlir::failure();
     }
 

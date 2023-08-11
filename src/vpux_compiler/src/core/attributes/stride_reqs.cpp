@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/core/attributes/stride_reqs.hpp"
 
 #include "vpux/compiler/dialect/VPURT/types.hpp"
@@ -185,13 +183,14 @@ Optional<DimStrideReq> vpux::StrideReqsRef::operator[](MemDim memDim) const {
 namespace {
 
 Bit applyStrideReq(Bit baseStride, const DimStrideReq& req) {
-    if (req.kind() == StrideReqKind::Compact) {
+    switch (req.kind()) {
+    case StrideReqKind::Compact:
         return baseStride;
-    } else if (req.kind() == StrideReqKind::Aligned) {
-        return Bit(alignVal(baseStride.count(), req.alignment().count()));
-    } else if (req.kind() == StrideReqKind::Fixed) {
+    case StrideReqKind::Aligned:
+        return Bit(alignValUp(baseStride.count(), req.alignment().count()));
+    case StrideReqKind::Fixed:
         return req.fixedValue();
-    } else {
+    default:
         VPUX_THROW("Uncovered stride requirement {0}", req);
     }
 }
@@ -270,7 +269,7 @@ bool vpux::StrideReqsRef::checkStrides(MemStridesRef memStrides, Bit elemSize, M
         } else {
             const auto prevMemDim = MemDim(ind + 1);
 
-            if (strideVal < memStrides[prevMemDim] * memShape[prevMemDim]) {
+            if (strideVal < memStrides[prevMemDim] * memShape[prevMemDim] - elemSize) {
                 return false;
             }
         }

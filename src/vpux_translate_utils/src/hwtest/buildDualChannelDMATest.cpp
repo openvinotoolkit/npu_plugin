@@ -71,8 +71,9 @@ void buildDualChannelDMATest(const nb::TestCaseJsonDescriptor& testDesc, mlir::M
             builder.getFunctionType(makeArrayRef(std::vector<mlir::Type>{inType, outType, outType, outType, outType}),
                                     makeArrayRef(std::vector<mlir::Type>{outType, outType, outType, outType}));
 
-    auto func = builder.create<mlir::FuncOp>(loc, printToString("race_condition_dma_{0}_{1}", inputType, outputType),
-                                             funcType, builder.getStringAttr("private"));
+    auto func =
+            builder.create<mlir::func::FuncOp>(loc, printToString("race_condition_dma_{0}_{1}", inputType, outputType),
+                                               funcType, builder.getStringAttr("private"));
 
     auto funcBuilder = mlir::OpBuilder::atBlockBegin(func.addEntryBlock(), builder.getListener());
 
@@ -106,46 +107,43 @@ void buildDualChannelDMATest(const nb::TestCaseJsonDescriptor& testDesc, mlir::M
 
     // transactions from ProgrammableInput to CMX
     vpux::VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcBuilder, mlir::ValueRange(), mlir::ValueRange(barrier_0.barrier()),
-                                                loc, funcInput, inputCMX_0.getOperation()->getResult(0), 0, false,
-                                                false);
+                                                loc, funcInput, inputCMX_0.getOperation()->getResult(0), 0);
 
     vpux::VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcBuilder, mlir::ValueRange(), mlir::ValueRange(barrier_0.barrier()),
-                                                loc, funcInput, inputCMX_1.getOperation()->getResult(0), 1, false,
-                                                false);
+                                                loc, funcInput, inputCMX_1.getOperation()->getResult(0), 1);
 
     // 4 DMA ops in parallel
     vpux::VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(
             funcBuilder, mlir::ValueRange(barrier_0.barrier()), mlir::ValueRange(barrier_1.barrier()), loc,
-            inputCMX_0.getOperation()->getResult(0), outputCMX_0.getOperation()->getResult(0), 0, false,
-            false);  // CMX->CMX (port 0)
+            inputCMX_0.getOperation()->getResult(0), outputCMX_0.getOperation()->getResult(0), 0);  // CMX->CMX (port 0)
 
     vpux::VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(
             funcBuilder, mlir::ValueRange(barrier_0.barrier()), mlir::ValueRange(barrier_1.barrier()), loc,
-            inputCMX_1.getOperation()->getResult(0), outputCMX_1.getOperation()->getResult(0), 1, false,
-            false);  // CMX->CMX (port 1)
+            inputCMX_1.getOperation()->getResult(0), outputCMX_1.getOperation()->getResult(0), 1);  // CMX->CMX (port 1)
 
     vpux::VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcBuilder, mlir::ValueRange(barrier_0.barrier()),
-                                                mlir::ValueRange(barrier_1.barrier()), loc, funcInput, funcOutput_2, 0,
-                                                false, false);  // DDR->DDR (port 0)
+                                                mlir::ValueRange(barrier_1.barrier()), loc, funcInput, funcOutput_2,
+                                                0);  // DDR->DDR (port 0)
 
     vpux::VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcBuilder, mlir::ValueRange(barrier_0.barrier()),
-                                                mlir::ValueRange(barrier_1.barrier()), loc, funcInput, funcOutput_3, 1,
-                                                false, false);  // DDR->DDR (port 1)
+                                                mlir::ValueRange(barrier_1.barrier()), loc, funcInput, funcOutput_3,
+                                                1);  // DDR->DDR (port 1)
 
     // transactions from CMX to ProgrammableOutput
     vpux::VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcBuilder, mlir::ValueRange(barrier_1.barrier()), mlir::ValueRange(),
-                                                loc, outputCMX_0.getOperation()->getResult(0), funcOutput_0, 0, false,
-                                                false);
+                                                loc, outputCMX_0.getOperation()->getResult(0), funcOutput_0, 0,
+                                                /*channelType=*/nullptr, false, false, nullptr, nullptr);
 
     vpux::VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcBuilder, mlir::ValueRange(barrier_1.barrier()), mlir::ValueRange(),
-                                                loc, outputCMX_1.getOperation()->getResult(0), funcOutput_1, 1, false,
-                                                false);
+                                                loc, outputCMX_1.getOperation()->getResult(0), funcOutput_1, 1,
+                                                /*channelType=*/nullptr, false, false, nullptr, nullptr);
 
-    funcBuilder.create<mlir::ReturnOp>(loc, mlir::ValueRange{funcOutput_0, funcOutput_1, funcOutput_2, funcOutput_3});
+    funcBuilder.create<mlir::func::ReturnOp>(loc,
+                                             mlir::ValueRange{funcOutput_0, funcOutput_1, funcOutput_2, funcOutput_3});
 
     mlir::PassManager pm(ctx, mlir::OpPassManager::Nesting::Implicit);
-    pm.addPass(VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::DefaultHW, None, None,
-                                           None, log));
+    pm.addPass(VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::DefaultHW, 2, None, None,
+                                           log));
 
     VPUX_THROW_UNLESS(mlir::succeeded(pm.run(module)), "Compilation failed");
 

@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/VPU/nce_sparsity.hpp"
 #include "vpux/compiler/dialect/VPU/ops.hpp"
 #include "vpux/compiler/dialect/VPU/passes.hpp"
@@ -44,7 +42,7 @@ private:
 //
 
 void RecomputeSparsityPtrsPass::safeRunOnFunc() {
-    auto func = getFunction();
+    auto func = getOperation();
 
     func->walk([&](VPU::NCEOpInterface nceOp) {
         const auto weights = nceOp.getWeightsOperand();

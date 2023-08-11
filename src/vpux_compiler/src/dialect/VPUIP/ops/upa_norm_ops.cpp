@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 
 #include "vpux/compiler/dialect/VPUIP/graph-schema/blob_reader.hpp"
@@ -12,16 +10,17 @@
 
 using namespace vpux;
 
-mlir::LogicalResult vpux::VPUIP::verifyOp(NormUPAOp op) {
-    const auto inShape = getShape(op.input());
+mlir::LogicalResult vpux::VPUIP::NormUPAOp::verify() {
+    const auto op = getOperation();
+    const auto inShape = getShape(input());
 
     if (inShape.size() == 4 && inShape[Dim(0)] != 1) {
         return errorAt(op, "Only input tensor batch = 1 is supported, got '{0}'", inShape[Dim(0)]);
     }
 
-    const auto bias = op.bias().convertToDouble();
-    if (bias != 1.0) {
-        return errorAt(op, "Only bias = 1.0 is supported, got '{0}'", bias);
+    const auto biasVal = bias().convertToDouble();
+    if (biasVal != 1.0) {
+        return errorAt(op, "Only bias = 1.0 is supported, got '{0}'", biasVal);
     }
 
     return mlir::success();

@@ -1,7 +1,8 @@
 //
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
+
 // RUN: vpux-opt --split-input-file --init-compiler="vpu-arch=VPUX37XX" --resolve-scatter-update-by-transpose  %s | FileCheck %s
 
 
@@ -9,7 +10,7 @@
 #map1 = affine_map<(d0, d1, d2, d3) -> (d1, d2, d0, d3)>
 
 // CHECK-LABEL: @ResolveScatterUpdateByTranspose
-func @ResolveScatterUpdateByTranspose (%arg0: tensor<10x16x12x15xf16>, %arg1: tensor<8xsi32>, %arg2: tensor<10x16x8x15xf16>)  -> tensor<10x16x12x15xf16> {
+func.func @ResolveScatterUpdateByTranspose (%arg0: tensor<10x16x12x15xf16>, %arg1: tensor<8xsi32>, %arg2: tensor<10x16x8x15xf16>)  -> tensor<10x16x12x15xf16> {
     %0 = IE.ScatterUpdate(%arg0, %arg1, %arg2) {axis_value = 2 : i64} : tensor<10x16x12x15xf16>, tensor<8xsi32>, tensor<10x16x8x15xf16> -> tensor<10x16x12x15xf16>
     return %0 : tensor<10x16x12x15xf16>
 
@@ -19,4 +20,3 @@ func @ResolveScatterUpdateByTranspose (%arg0: tensor<10x16x12x15xf16>, %arg1: te
     // CHECK:  [[TRANSPOSE_3:%.*]] = IE.Transpose([[VAL1]]) {order_value = #map1} : tensor<12x10x16x15xf16> -> tensor<10x16x12x15xf16>
     // CHECK:  return [[TRANSPOSE_3]] : tensor<10x16x12x15xf16>
 }
-

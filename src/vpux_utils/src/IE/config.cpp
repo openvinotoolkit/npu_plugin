@@ -37,6 +37,14 @@ int64_t OptionParser<int64_t>::parse(StringRef val) {
     }
 }
 
+uint64_t OptionParser<uint64_t>::parse(StringRef val) {
+    try {
+        return std::stoull(val.str());
+    } catch (...) {
+        VPUX_THROW("Value '{0}' is not a valid UINT64 option", val);
+    }
+}
+
 double OptionParser<double>::parse(StringRef val) {
     try {
         return std::stod(val.str());

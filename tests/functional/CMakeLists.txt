@@ -18,6 +18,7 @@ addIeTargetTest(
         "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/artifacts/vpuip_2"
         "${CMAKE_CURRENT_SOURCE_DIR}/internal"
         "${CMAKE_CURRENT_SOURCE_DIR}/shared_test_classes/include"
+        "${PROJECT_BINARY_DIR}/src/vpux_compiler/include"
         ${LLVM_INCLUDE_DIRS}
     DEPENDENCIES
         openvino_intel_vpux_plugin
@@ -36,6 +37,10 @@ addIeTargetTest(
     LABELS
         KMB
 )
+
+set_target_properties(${TARGET_NAME} PROPERTIES
+                      FOLDER ${CMAKE_CURRENT_SOURCE_DIR}
+                      CXX_STANDARD 17)
 
 if(MSVC)
     # Enforce standards conformance on MSVC

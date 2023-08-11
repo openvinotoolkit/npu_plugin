@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/IE/utils/shape_infer.hpp"
 #include "vpux/compiler/dialect/VPUIP/nce_invariant.hpp"
 
@@ -76,18 +74,24 @@ mlir::FailureOr<SmallVector<int64_t>> vpux::IE::broadcastEltwiseShape(ArrayRef<A
         }
 
         return to_small_vector(shapes[0]);
-    } else {
-        size_t rank = shapes[0].size();
-        for (size_t i = 1; i < shapes.size(); ++i) {
-            rank = std::max(rank, shapes[i].size());
-        }
+    }
 
-        SmallVector<int64_t> outShape(rank, 0);
-        for (size_t i = 0; i < outShape.size(); ++i) {
-            *(outShape.rbegin() + i) = *(shapes[0].rbegin() + i);
+    size_t rank = shapes[0].size();
+    size_t biggerSize = 0;
+    for (size_t i = 0; i < shapes.size(); ++i) {
+        if (rank < shapes[i].size()) {
+            rank = shapes[i].size();
+            biggerSize = i;
         }
+    }
 
-        for (size_t i = 1; i < shapes.size(); ++i) {
+    SmallVector<int64_t> outShape(rank, 0);
+    for (size_t i = 0; i < outShape.size(); ++i) {
+        *(outShape.rbegin() + i) = *(shapes[biggerSize].rbegin() + i);
+    }
+
+    for (size_t i = 0; i < shapes.size(); ++i) {
+        if (i != biggerSize) {
             auto in1ShapeIter = outShape.rbegin();
             auto in2ShapeIter = shapes[i].rbegin();
 
@@ -110,11 +114,9 @@ mlir::FailureOr<SmallVector<int64_t>> vpux::IE::broadcastEltwiseShape(ArrayRef<A
                 }
             }
         }
-
-        return outShape;
     }
 
-    return errorAt(loc, "Unsupported BroadcastType '{0}'", broadcastType);
+    return outShape;
 }
 
 mlir::FailureOr<SmallVector<int64_t>> vpux::IE::constInputToData(mlir::Location loc, const mlir::Value& value) {
@@ -231,4 +233,20 @@ bool vpux::IE::isShapeCompatibleWithODUPermute(const ShapeRef shape, const int64
     }
     const auto tensorSizeZ = shape[Dims4D::Act::W];
     return tensorSizeZ % alignment == 0;
+}
+
+bool vpux::IE::isODUPermuteEffectiveForShape(const ShapeRef shape, const int64_t alignment) {
+    // Set alignment to 1 to make alignment check pass all the time.
+    // In this case, when isShapeCompatibleWithODUPermute fails, it's not because of the alignment.
+    const int64_t neutralAlignment = 1;
+    if (!isShapeCompatibleWithODUPermute(shape, neutralAlignment)) {
+        return false;
+    }
+
+    const auto IH = shape[Dims4D::Act::H];
+    const auto IW = shape[Dims4D::Act::W];
+    // Expanding 1xCxHx1 to 1xCxHx16 is not very effective.
+    // PermuteQuantize has to process a tensor which is 16 times bigger than the original.
+    const int64_t minimalEffectiveWidth = 2;
+    return IH * IW % alignment == 0 || IW >= minimalEffectiveWidth;
 }

@@ -15,7 +15,6 @@
 #include "vpux/utils/core/small_vector.hpp"
 
 #include <mlir/IR/MLIRContext.h>
-#include <mlir/Parser.h>
 
 #include <gtest/gtest.h>
 
@@ -24,7 +23,6 @@ using namespace vpux;
 namespace {
 
 constexpr vpux::StringRef CMX_NAME = "CMX_NN";
-constexpr vpux::StringRef DDR_NAME = "DDR";
 
 }  // namespace
 
@@ -40,8 +38,9 @@ TEST(MLIR_MemoryContiguousWithTilingTest, SegmentedDistributedBufferType) {
         const auto distributionModeAttr = VPU::DistributionModeAttr::get(&ctx, VPU::DistributionMode::SEGMENTED);
         const auto numTilesAttr = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 1, 2, 1}));
         const auto numClustersAttr = getIntAttr(&ctx, 2);
-        const auto distributedAttr = VPU::DistributedTensorAttr::get(distributionModeAttr, numTilesAttr, nullptr,
-                                                                     nullptr, nullptr, numClustersAttr, nullptr, &ctx);
+        const auto distributedAttr =
+                VPU::DistributedTensorAttr::get(distributionModeAttr, numTilesAttr, nullptr, nullptr, nullptr,
+                                                numClustersAttr, nullptr, nullptr, nullptr, nullptr, nullptr, &ctx);
 
         const auto shape = SmallVector<int64_t>({1, 64, 13, 16});
         const auto elemType = mlir::Float16Type::get(&ctx);
@@ -49,7 +48,8 @@ TEST(MLIR_MemoryContiguousWithTilingTest, SegmentedDistributedBufferType) {
         const auto orderAttr = mlir::AffineMapAttr::get(DimsOrder::NHWC.toAffineMap(&ctx));
         const auto elemStrides = SmallVector<int64_t>({64 * 16 * 13, 1, 64 * 16, 64});
         const auto stridesAttr = getIntArrayAttr(&ctx, elemStrides);
-        const auto layout = VPUIP::MemRefAttr::get(orderAttr, stridesAttr, /*swizzlingScheme=*/nullptr, nullptr, &ctx);
+        const auto layout = VPUIP::MemRefAttr::get(orderAttr, stridesAttr, /*swizzlingScheme=*/nullptr, nullptr,
+                                                   /*allocSize=*/nullptr, &ctx);
 
         const auto dimsSpace = vpux::IndexedSymbolAttr::get(&ctx, CMX_NAME);
 
@@ -64,8 +64,9 @@ TEST(MLIR_MemoryContiguousWithTilingTest, SegmentedDistributedBufferType) {
         const auto distributionModeAttr = VPU::DistributionModeAttr::get(&ctx, VPU::DistributionMode::SEGMENTED);
         const auto numTilesAttr = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 2, 1, 1}));
         const auto numClustersAttr = getIntAttr(&ctx, 2);
-        const auto distributedAttr = VPU::DistributedTensorAttr::get(distributionModeAttr, numTilesAttr, nullptr,
-                                                                     nullptr, nullptr, numClustersAttr, nullptr, &ctx);
+        const auto distributedAttr =
+                VPU::DistributedTensorAttr::get(distributionModeAttr, numTilesAttr, nullptr, nullptr, nullptr,
+                                                numClustersAttr, nullptr, nullptr, nullptr, nullptr, nullptr, &ctx);
 
         const auto shape = SmallVector<int64_t>({1, 64, 13, 16});
         const auto elemType = mlir::Float16Type::get(&ctx);
@@ -73,7 +74,8 @@ TEST(MLIR_MemoryContiguousWithTilingTest, SegmentedDistributedBufferType) {
         const auto orderAttr = mlir::AffineMapAttr::get(DimsOrder::NHWC.toAffineMap(&ctx));
         const auto elemStrides = SmallVector<int64_t>({64 * 16 * 13, 1, 64 * 16, 64});
         const auto stridesAttr = getIntArrayAttr(&ctx, elemStrides);
-        const auto layout = VPUIP::MemRefAttr::get(orderAttr, stridesAttr, /*swizzlingScheme=*/nullptr, nullptr, &ctx);
+        const auto layout = VPUIP::MemRefAttr::get(orderAttr, stridesAttr, /*swizzlingScheme=*/nullptr, nullptr,
+                                                   /*allocSize=*/nullptr, &ctx);
 
         const auto dimsSpace = vpux::IndexedSymbolAttr::get(&ctx, CMX_NAME);
 
@@ -88,8 +90,9 @@ TEST(MLIR_MemoryContiguousWithTilingTest, SegmentedDistributedBufferType) {
         const auto distributionModeAttr = VPU::DistributionModeAttr::get(&ctx, VPU::DistributionMode::SEGMENTED);
         const auto numTilesAttr = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 2, 1, 1}));
         const auto numClustersAttr = getIntAttr(&ctx, 2);
-        const auto distributedAttr = VPU::DistributedTensorAttr::get(distributionModeAttr, numTilesAttr, nullptr,
-                                                                     nullptr, nullptr, numClustersAttr, nullptr, &ctx);
+        const auto distributedAttr =
+                VPU::DistributedTensorAttr::get(distributionModeAttr, numTilesAttr, nullptr, nullptr, nullptr,
+                                                numClustersAttr, nullptr, nullptr, nullptr, nullptr, nullptr, &ctx);
 
         const auto shape = SmallVector<int64_t>({1, 64, 13, 16});
         const auto elemType = mlir::Float16Type::get(&ctx);
@@ -97,7 +100,8 @@ TEST(MLIR_MemoryContiguousWithTilingTest, SegmentedDistributedBufferType) {
         const auto orderAttr = mlir::AffineMapAttr::get(DimsOrder::NCHW.toAffineMap(&ctx));
         const auto elemStrides = SmallVector<int64_t>({64 * 13 * 16, 13 * 16, 16, 1});
         const auto stridesAttr = getIntArrayAttr(&ctx, elemStrides);
-        const auto layout = VPUIP::MemRefAttr::get(orderAttr, stridesAttr, /*swizzlingScheme=*/nullptr, nullptr, &ctx);
+        const auto layout = VPUIP::MemRefAttr::get(orderAttr, stridesAttr, /*swizzlingScheme=*/nullptr, nullptr,
+                                                   /*allocSize=*/nullptr, &ctx);
 
         const auto dimsSpace = vpux::IndexedSymbolAttr::get(&ctx, CMX_NAME);
 
@@ -125,7 +129,8 @@ TEST(MLIR_MemoryContiguousWithTilingTest, OverlappedDistributedBufferType) {
     const auto orderAttr = mlir::AffineMapAttr::get(DimsOrder::NHWC.toAffineMap(&ctx));
     const auto elemStrides = SmallVector<int64_t>({64 * 16 * 13, 1, 64 * 16, 64});
     const auto stridesAttr = getIntArrayAttr(&ctx, elemStrides);
-    const auto layout = VPUIP::MemRefAttr::get(orderAttr, stridesAttr, /*swizzlingScheme=*/nullptr, nullptr, &ctx);
+    const auto layout = VPUIP::MemRefAttr::get(orderAttr, stridesAttr, /*swizzlingScheme=*/nullptr, nullptr,
+                                               /*allocSize=*/nullptr, &ctx);
 
     const auto dimsSpace = vpux::IndexedSymbolAttr::get(&ctx, CMX_NAME);
 
@@ -134,8 +139,9 @@ TEST(MLIR_MemoryContiguousWithTilingTest, OverlappedDistributedBufferType) {
     const auto pads = VPU::PaddingAttr::get(getIntAttr(&ctx, 0), getIntAttr(&ctx, 0), getIntAttr(&ctx, 0),
                                             getIntAttr(&ctx, 0), &ctx);
     const auto strides = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 1}));
-    const auto distributedAttr = VPU::DistributedTensorAttr::get(distributionModeAttr, numTilesAttr, kernel, pads,
-                                                                 strides, numClustersAttr, nullptr, &ctx);
+    const auto distributedAttr =
+            VPU::DistributedTensorAttr::get(distributionModeAttr, numTilesAttr, kernel, pads, strides, numClustersAttr,
+                                            nullptr, nullptr, nullptr, nullptr, nullptr, &ctx);
     const auto distributedBufferType =
             VPUIP::DistributedBufferType::get(&ctx, shape, elemType, layout, dimsSpace, distributedAttr);
 
@@ -153,8 +159,9 @@ TEST(MLIR_MemoryContiguousWithTilingTest, SegmentedDuplicatedDistributedBufferTy
             VPU::DistributionModeAttr::get(&ctx, VPU::DistributionMode::SEGMENTED | VPU::DistributionMode::DUPLICATED);
     const auto numTilesAttr = getIntArrayAttr(&ctx, SmallVector<int64_t>({1, 1, 2, 1}));
     const auto numClustersAttr = getIntAttr(&ctx, 2);
-    const auto distributedAttr = VPU::DistributedTensorAttr::get(distributionModeAttr, numTilesAttr, nullptr, nullptr,
-                                                                 nullptr, numClustersAttr, nullptr, &ctx);
+    const auto distributedAttr =
+            VPU::DistributedTensorAttr::get(distributionModeAttr, numTilesAttr, nullptr, nullptr, nullptr,
+                                            numClustersAttr, nullptr, nullptr, nullptr, nullptr, nullptr, &ctx);
 
     const auto shape = SmallVector<int64_t>({1, 64, 13, 16});
     const auto elemType = mlir::Float16Type::get(&ctx);
@@ -162,7 +169,8 @@ TEST(MLIR_MemoryContiguousWithTilingTest, SegmentedDuplicatedDistributedBufferTy
     const auto orderAttr = mlir::AffineMapAttr::get(DimsOrder::NHWC.toAffineMap(&ctx));
     const auto elemStrides = SmallVector<int64_t>({64 * 16 * 13, 1, 64 * 16, 64});
     const auto stridesAttr = getIntArrayAttr(&ctx, elemStrides);
-    const auto layout = VPUIP::MemRefAttr::get(orderAttr, stridesAttr, /*swizzlingScheme=*/nullptr, nullptr, &ctx);
+    const auto layout = VPUIP::MemRefAttr::get(orderAttr, stridesAttr, /*swizzlingScheme=*/nullptr, nullptr,
+                                               /*allocSize=*/nullptr, &ctx);
 
     const auto dimsSpace = vpux::IndexedSymbolAttr::get(&ctx, CMX_NAME);
 
@@ -180,8 +188,9 @@ TEST(MLIR_MemoryContiguousWithTilingTest, DuplicatedDistributedBufferType) {
 
     const auto distributionModeAttr = VPU::DistributionModeAttr::get(&ctx, VPU::DistributionMode::DUPLICATED);
     const auto numClustersAttr = getIntAttr(&ctx, 2);
-    const auto distributedAttr = VPU::DistributedTensorAttr::get(distributionModeAttr, nullptr, nullptr, nullptr,
-                                                                 nullptr, numClustersAttr, nullptr, &ctx);
+    const auto distributedAttr =
+            VPU::DistributedTensorAttr::get(distributionModeAttr, nullptr, nullptr, nullptr, nullptr, numClustersAttr,
+                                            nullptr, nullptr, nullptr, nullptr, nullptr, &ctx);
 
     const auto shape = SmallVector<int64_t>({1, 64, 13, 16});
     const auto elemType = mlir::Float16Type::get(&ctx);
@@ -189,7 +198,8 @@ TEST(MLIR_MemoryContiguousWithTilingTest, DuplicatedDistributedBufferType) {
     const auto orderAttr = mlir::AffineMapAttr::get(DimsOrder::NHWC.toAffineMap(&ctx));
     const auto elemStrides = SmallVector<int64_t>({64 * 16 * 13, 1, 64 * 16, 64});
     const auto stridesAttr = getIntArrayAttr(&ctx, elemStrides);
-    const auto layout = VPUIP::MemRefAttr::get(orderAttr, stridesAttr, /*swizzlingScheme=*/nullptr, nullptr, &ctx);
+    const auto layout = VPUIP::MemRefAttr::get(orderAttr, stridesAttr, /*swizzlingScheme=*/nullptr, nullptr,
+                                               /*allocSize=*/nullptr, &ctx);
 
     const auto dimsSpace = vpux::IndexedSymbolAttr::get(&ctx, CMX_NAME);
 

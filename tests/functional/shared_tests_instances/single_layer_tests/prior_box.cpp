@@ -1,17 +1,16 @@
 //
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "single_layer_tests/prior_box.hpp"
-#include "common_test_utils/test_constants.hpp"
 #include "kmb_layer_test.hpp"
 
 namespace LayerTestsDefinitions {
 
-class KmbPriorBoxLayerTest : public PriorBoxLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {};
-
-class VPUXPriorBoxLayerTest_VPU3720 : public PriorBoxLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
+class VPUXPriorBoxLayerTest : public PriorBoxLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {};
+class VPUXPriorBoxLayerTest_VPU3700 : public VPUXPriorBoxLayerTest {};
+class VPUXPriorBoxLayerTest_VPU3720 : public VPUXPriorBoxLayerTest {
     // Cloned 'SetUp' from OpenVino, but with constant foldings enabled.
     void SetUp() override {
         priorBoxSpecificParams specParams;
@@ -48,13 +47,13 @@ class VPUXPriorBoxLayerTest_VPU3720 : public PriorBoxLayerTest, virtual public L
     }
 };
 
-TEST_P(KmbPriorBoxLayerTest, CompareWithRefs_MLIR) {
-    useCompilerMLIR();
+TEST_P(VPUXPriorBoxLayerTest_VPU3700, HW) {
+    setPlatformVPU3700();
+    setDefaultHardwareModeMLIR();
     Run();
 }
 
-TEST_P(VPUXPriorBoxLayerTest_VPU3720, SW_MLIR_VPU3720) {
-    useCompilerMLIR();
+TEST_P(VPUXPriorBoxLayerTest_VPU3720, SW) {
     setPlatformVPU3720();
     setReferenceSoftwareModeMLIR();
     Run();
@@ -142,7 +141,7 @@ const InferenceEngine::SizeVector imageShape2 = {10, 10};
 const InferenceEngine::SizeVector imageShape3 = {300, 300};
 const InferenceEngine::SizeVector imageShape4 = {5, 5};
 
-INSTANTIATE_TEST_CASE_P(smoke_PriorBox_1, KmbPriorBoxLayerTest,
+INSTANTIATE_TEST_CASE_P(smoke_PriorBox_1, VPUXPriorBoxLayerTest_VPU3700,
                         testing::Combine(testing::Values(param1), testing::Values(InferenceEngine::Precision::FP16),
                                          testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                          testing::Values(InferenceEngine::Precision::UNSPECIFIED),
@@ -150,9 +149,9 @@ INSTANTIATE_TEST_CASE_P(smoke_PriorBox_1, KmbPriorBoxLayerTest,
                                          testing::Values(InferenceEngine::Layout::ANY), testing::Values(inputShape1),
                                          testing::Values(imageShape1),
                                          testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
-                        KmbPriorBoxLayerTest::getTestCaseName);
+                        VPUXPriorBoxLayerTest_VPU3700::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_PriorBox_2, KmbPriorBoxLayerTest,
+INSTANTIATE_TEST_CASE_P(smoke_PriorBox_2, VPUXPriorBoxLayerTest_VPU3700,
                         testing::Combine(testing::Values(param2), testing::Values(InferenceEngine::Precision::FP16),
                                          testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                          testing::Values(InferenceEngine::Precision::UNSPECIFIED),
@@ -160,9 +159,9 @@ INSTANTIATE_TEST_CASE_P(smoke_PriorBox_2, KmbPriorBoxLayerTest,
                                          testing::Values(InferenceEngine::Layout::ANY), testing::Values(inputShape2),
                                          testing::Values(imageShape2),
                                          testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
-                        KmbPriorBoxLayerTest::getTestCaseName);
+                        VPUXPriorBoxLayerTest_VPU3700::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_PriorBox_3, KmbPriorBoxLayerTest,
+INSTANTIATE_TEST_CASE_P(smoke_PriorBox_3, VPUXPriorBoxLayerTest_VPU3700,
                         testing::Combine(testing::Values(param3), testing::Values(InferenceEngine::Precision::FP16),
                                          testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                          testing::Values(InferenceEngine::Precision::UNSPECIFIED),
@@ -170,7 +169,7 @@ INSTANTIATE_TEST_CASE_P(smoke_PriorBox_3, KmbPriorBoxLayerTest,
                                          testing::Values(InferenceEngine::Layout::ANY), testing::Values(inputShape3),
                                          testing::Values(imageShape3),
                                          testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
-                        KmbPriorBoxLayerTest::getTestCaseName);
+                        VPUXPriorBoxLayerTest_VPU3700::getTestCaseName);
 
 INSTANTIATE_TEST_CASE_P(smoke_PriorBox_1_VPU3720, VPUXPriorBoxLayerTest_VPU3720,
                         testing::Combine(testing::Values(param1), testing::Values(InferenceEngine::Precision::FP16),

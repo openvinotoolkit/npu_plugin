@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #ifndef VPUX_COMPILER_CORE_PASSES
 #define VPUX_COMPILER_CORE_PASSES
 
@@ -41,6 +39,11 @@ def PrintDot : PassBase<"print-dot", "vpux::ModulePass"> {
             "printConstOpt", "print-const",
             "bool", "",
             "Print const declare operations"
+        >,
+        Option<
+            "printOnlyTaskAndBarrierOpt", "print-only-task-and-barrier",
+            "bool", "",
+            "Print only task and barrier operations"
         >,
         Option<
             "startAfterOpt", "start-after",

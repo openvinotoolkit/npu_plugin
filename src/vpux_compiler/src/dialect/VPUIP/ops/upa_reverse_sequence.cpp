@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include <mlir/IR/BuiltinTypes.h>
 #include "vpux/compiler/dialect/VPUIP/graph-schema/blob_reader.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
@@ -12,11 +10,11 @@
 
 using namespace vpux;
 
-mlir::LogicalResult vpux::VPUIP::verifyOp(ReverseSequenceUPAOp op) {
-    const auto seqShape = getShape(op.seq_length());
+mlir::LogicalResult vpux::VPUIP::ReverseSequenceUPAOp::verify() {
+    const auto seqShape = getShape(seq_length());
 
     if (seqShape.size() != 1) {
-        return errorAt(op, "ReverseSequence second input should be 1D Tensor");
+        return errorAt(*this, "ReverseSequence second input should be 1D Tensor");
     }
 
     return mlir::success();

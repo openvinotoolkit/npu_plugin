@@ -41,6 +41,10 @@ StringLiteral stringifyEnum(MemType val);
 template <MemType FROM, MemType TO>
 struct MemMultiplier;
 
+template <MemType TYPE>
+struct MemMultiplier<TYPE, TYPE> final {
+    static constexpr int64_t value = 1;
+};
 template <>
 struct MemMultiplier<MemType::Byte, MemType::Bit> final {
     static constexpr int64_t value = CHAR_BIT;
@@ -238,6 +242,22 @@ inline constexpr MB operator""_MB(unsigned long long const size) {
 }
 inline constexpr GB operator""_GB(unsigned long long const size) {
     return GB(static_cast<int64_t>(size));
+}
+
+//
+// align memSize
+//
+
+template <MemType TYPE, MemType OTHER>
+constexpr MemSize<TYPE> alignMemSize(MemSize<TYPE> memSize, MemSize<OTHER> alignment) {
+    auto alignedSize = memSize.count();
+    if (auto mult = vpux::MemMultiplier<OTHER, TYPE>::value) {
+        auto alignmetCount = alignment.template to<MemSize<TYPE>>().count();
+        if (memSize.count() % alignmetCount) {
+            alignedSize = memSize.count() + (alignmetCount - (memSize.count() % alignmetCount));
+        }
+    }
+    return MemSize<TYPE>(alignedSize);
 }
 
 }  // namespace vpux

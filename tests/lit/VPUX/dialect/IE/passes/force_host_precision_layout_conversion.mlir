@@ -1,7 +1,8 @@
 //
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
+
 // RUN: vpux-opt --split-input-file --init-compiler="vpu-arch=%arch%" --force-host-precision-layout-conversion %s | FileCheck %s
 // REQUIRES: arch-VPUX30XX || arch-VPUX37XX
 
@@ -16,8 +17,8 @@ IE.CNNNetwork
         DataInfo "output" : tensor<1x2x3x4xf32>
     }
 
-// CHECK: func @main([[ARG0:%arg[0-9]+]]: tensor<1x2x3x4xf16>) -> tensor<1x2x3x4xf16>
-func @main(%arg0: tensor<1x2x3x4xf32>) -> tensor<1x2x3x4xf32> {
+// CHECK: func.func @main([[ARG0:%arg[0-9]+]]: tensor<1x2x3x4xf16>) -> tensor<1x2x3x4xf16>
+func.func @main(%arg0: tensor<1x2x3x4xf32>) -> tensor<1x2x3x4xf32> {
     %0 = IE.Convert(%arg0) {dstElemType = f16} : tensor<1x2x3x4xf32> -> tensor<1x2x3x4xf16>
 
     %1 = IE.SoftMax(%0) {axisInd = 1} : tensor<1x2x3x4xf16> -> tensor<1x2x3x4xf16>
@@ -48,8 +49,8 @@ IE.CNNNetwork
         DataInfo "output" : tensor<1x2x3x4xf16>
     }
 
-// CHECK: func @main([[ARG0:%arg[0-9]+]]: tensor<1x2x3x4xf16, {order = #NHWC}>) -> tensor<1x2x3x4xf16, {order = #NHWC}>
-func @main(%arg0: tensor<1x2x3x4xf16>) -> tensor<1x2x3x4xf16> {
+// CHECK: func.func @main([[ARG0:%arg[0-9]+]]: tensor<1x2x3x4xf16, {order = #NHWC}>) -> tensor<1x2x3x4xf16, {order = #NHWC}>
+func.func @main(%arg0: tensor<1x2x3x4xf16>) -> tensor<1x2x3x4xf16> {
     %0 = IE.Reorder(%arg0) {dstOrder = #NHWC} : tensor<1x2x3x4xf16> -> tensor<1x2x3x4xf16, {order = #NHWC}>
 
     %1 = IE.SoftMax(%0) {axisInd = 1} : tensor<1x2x3x4xf16, {order = #NHWC}> -> tensor<1x2x3x4xf16, {order = #NHWC}>
@@ -80,8 +81,8 @@ IE.CNNNetwork
         DataInfo "output" : tensor<24xf32>
     }
 
-// CHECK: func @main([[ARG0:%arg[0-9]+]]: tensor<1x2x3x4xf16, {order = #NHWC}>) -> tensor<24xf16>
-func @main(%arg0: tensor<1x2x3x4xf32>) -> tensor<24xf32> {
+// CHECK: func.func @main([[ARG0:%arg[0-9]+]]: tensor<1x2x3x4xf16, {order = #NHWC}>) -> tensor<24xf16>
+func.func @main(%arg0: tensor<1x2x3x4xf32>) -> tensor<24xf32> {
     %0 = IE.Reorder(%arg0) {dstOrder = #NHWC} : tensor<1x2x3x4xf32> -> tensor<1x2x3x4xf32, {order = #NHWC}>
     %1 = IE.Convert(%0) {dstElemType = f16} : tensor<1x2x3x4xf32, {order = #NHWC}> -> tensor<1x2x3x4xf16, {order = #NHWC}>
 
@@ -120,19 +121,19 @@ IE.CNNNetwork
         DataInfo "output2" : tensor<1x2x3x4xf32>
     }
 
-// CHECK:       func @main([[ARG0:%arg[0-9]+]]: tensor<1x2x3x4xf16, {order = #NHWC}>,
+// CHECK:       func.func @main([[ARG0:%arg[0-9]+]]: tensor<1x2x3x4xf16, {order = #NHWC}>,
 // CHECK-SAME:             [[ARG1:%arg[0-9]+]]: tensor<1x2x3x4xf16, {order = #NHWC}>)
 // CHECK-SAME:      -> (tensor<1x2x3x4xf16>, tensor<1x2x3x4xf16>)
-func @main(%arg0: tensor<1x2x3x4xf32>, %arg1: tensor<1x2x3x4xf32>) -> (tensor<1x2x3x4xf32>, tensor<1x2x3x4xf32>) {
+func.func @main(%arg0: tensor<1x2x3x4xf32>, %arg1: tensor<1x2x3x4xf32>) -> (tensor<1x2x3x4xf32>, tensor<1x2x3x4xf32>) {
     %0 = IE.Convert(%arg0) {dstElemType = f16} : tensor<1x2x3x4xf32> -> tensor<1x2x3x4xf16>
     %1 = IE.Reorder(%0) {dstOrder = #NHWC} : tensor<1x2x3x4xf16> -> tensor<1x2x3x4xf16, {order = #NHWC}>
 
     %2 = IE.Reorder(%arg1) {dstOrder = #NHWC} : tensor<1x2x3x4xf32> -> tensor<1x2x3x4xf32, {order = #NHWC}>
     %3 = IE.Convert(%2) {dstElemType = f16} : tensor<1x2x3x4xf32, {order = #NHWC}> -> tensor<1x2x3x4xf16, {order = #NHWC}>
 
-    %4 = IE.Add(%1, %3) { auto_broadcast = "NUMPY" } :
+    %4 = IE.Add(%1, %3) { auto_broadcast = #IE.auto_broadcast_type<NUMPY> } :
         tensor<1x2x3x4xf16, {order = #NHWC}>, tensor<1x2x3x4xf16, {order = #NHWC}> -> tensor<1x2x3x4xf16>
-    %5 = IE.Multiply(%1, %3) { auto_broadcast = "NUMPY" } :
+    %5 = IE.Multiply(%1, %3) { auto_broadcast = #IE.auto_broadcast_type<NUMPY> } :
         tensor<1x2x3x4xf16, {order = #NHWC}>, tensor<1x2x3x4xf16, {order = #NHWC}> -> tensor<1x2x3x4xf16>
 
     %6 = IE.Convert(%4) {dstElemType = f32} : tensor<1x2x3x4xf16> -> tensor<1x2x3x4xf32>

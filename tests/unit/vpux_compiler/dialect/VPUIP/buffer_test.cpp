@@ -13,7 +13,6 @@
 #include "vpux/utils/core/small_vector.hpp"
 
 #include <mlir/IR/MLIRContext.h>
-#include <mlir/Parser.h>
 
 #include <gtest/gtest.h>
 
@@ -39,7 +38,8 @@ TEST(MLIR_NDTypeInterface, BufferType) {
     const auto orderAttr = mlir::AffineMapAttr::get(DimsOrder::NHWC.toAffineMap(&ctx));
     const auto elemStrides = SmallVector<int64_t>({64 * 16 * 13, 1, 64 * 16, 64});
     const auto stridesAttr = getIntArrayAttr(&ctx, elemStrides);
-    const auto layout = VPUIP::MemRefAttr::get(orderAttr, stridesAttr, /*swizzlingScheme=*/nullptr, nullptr, &ctx);
+    const auto layout = VPUIP::MemRefAttr::get(orderAttr, stridesAttr, /*swizzlingScheme=*/nullptr, nullptr,
+                                               /*allocSize=*/nullptr, &ctx);
 
     const auto dimsSpace = vpux::IndexedSymbolAttr::get(&ctx, CMX_NAME);
 

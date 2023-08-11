@@ -1,5 +1,5 @@
 //
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,8 +12,9 @@
 #include "kmb_layer_test.hpp"
 
 namespace SubgraphTestsDefinitions {
+class VPUXMultipleoutputTest : public MultioutputTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {};
 
-class KmbMultipleoutputTest : public MultioutputTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
+class VPUXMultipleoutputTest_VPU3700 : public VPUXMultipleoutputTest {
     /* tests dumping intermediate outputs
 
         input
@@ -28,7 +29,9 @@ class KmbMultipleoutputTest : public MultioutputTest, virtual public LayerTestsU
     */
 };
 
-TEST_P(KmbMultipleoutputTest, CompareWithRefImpl) {
+TEST_P(VPUXMultipleoutputTest_VPU3700, HW) {
+    setPlatformVPU3700();
+    setDefaultHardwareModeMLIR();
     Run();
 };
 
@@ -51,7 +54,7 @@ std::vector<convParams> convParams = {
 
 std::vector<size_t> outputChannels = {16};
 
-INSTANTIATE_TEST_SUITE_P(smoke_MultipleOutputs, KmbMultipleoutputTest,
+INSTANTIATE_TEST_SUITE_P(smoke_MultipleOutputs, VPUXMultipleoutputTest_VPU3700,
                          ::testing::Combine(::testing::ValuesIn(netPrecisions),
                                             ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
                                             ::testing::ValuesIn(configs), ::testing::ValuesIn(convParams),

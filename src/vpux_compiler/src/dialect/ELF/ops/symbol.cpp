@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include <vpux_elf/writer.hpp>
 #include "vpux/compiler/dialect/ELF/ops.hpp"
 
@@ -42,10 +40,10 @@ void vpux::ELF::SymbolOp::serialize(elf::writer::Symbol* symbol, vpux::ELF::Sect
     if (isBuiltin())
         return;
 
-    auto symName = name().getValueOr("");
-    auto symType = type().getValueOr(vpux::ELF::SymbolTypeAttr::STT_NOTYPE);
-    auto symSize = size().getValueOr(0);
-    auto symVal = value().getValueOr(0);
+    auto symName = name().value_or("");
+    auto symType = type().value_or(vpux::ELF::SymbolTypeAttr::STT_NOTYPE);
+    auto symSize = size().value_or(0);
+    auto symVal = value().value_or(0);
 
     /* From the serialization perspective the symbols can be of 5 types:
         - Section symbols: in this case the parentSection is the defining op itself;
@@ -68,7 +66,7 @@ void vpux::ELF::SymbolOp::serialize(elf::writer::Symbol* symbol, vpux::ELF::Sect
         } else {
             parentSection = getParentSectionOp(inputArg());
 
-            if (mlir::isa<mlir::FuncOp>(parentSection)) {
+            if (mlir::isa<mlir::func::FuncOp>(parentSection)) {
                 parentSection = nullptr;
             } else {
                 VPUX_THROW_UNLESS(parentSection != nullptr, "Could not find valid parent section for op");

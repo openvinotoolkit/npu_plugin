@@ -120,6 +120,11 @@ function(bundle_static_library TARGET_NAME)
             list(APPEND STATIC_LIBS_FULL_NAMES $<TARGET_FILE:${TARGET}>)
         endforeach()
 
+        # Remove vpux_mlir_dependencies from the list to prevent it from exceeding size limit
+        if(${TARGET_NAME} STREQUAL "vpux_mlir_dependencies")
+            list(REMOVE_ITEM STATIC_LIBS_FULL_NAMES $<TARGET_FILE:${TARGET_NAME}>)
+        endif()
+
         add_custom_command(
             TARGET ${TARGET_NAME} POST_BUILD
             COMMAND ${lib_tool} /NOLOGO /OUT:${TARGET_FULL_NAME} ${STATIC_LIBS_FULL_NAMES}

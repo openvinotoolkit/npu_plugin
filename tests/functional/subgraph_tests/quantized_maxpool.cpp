@@ -10,7 +10,7 @@
 
 namespace {
 
-class KmbQuantizedMaxPoolSubGraphTest :
+class VPUXQuantizedMaxPoolSubGraphTest_VPU3700 :
         public LayerTestsUtils::KmbLayerTestsCommon,
         public testing::WithParamInterface<LayerTestsUtils::TargetDevice> {
     void SetUp() override {
@@ -44,26 +44,26 @@ class KmbQuantizedMaxPoolSubGraphTest :
                                                                  outDataLow, outDataHigh, outDataLow, outDataHigh);
 
         const ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(outDataFq)};
-        function = std::make_shared<ngraph::Function>(results, params, "KmbQuantizedMaxPool");
+        function = std::make_shared<ngraph::Function>(results, params, "VPUXQuantizedMaxPool");
 
         targetDevice = GetParam();
         threshold = 0.1f;
     }
 };
 
-TEST_P(KmbQuantizedMaxPoolSubGraphTest, CompareWithRefs_MLIR_SW) {
-    useCompilerMLIR();
+TEST_P(VPUXQuantizedMaxPoolSubGraphTest_VPU3700, SW) {
+    setPlatformVPU3700();
     setReferenceSoftwareModeMLIR();
     Run();
 }
 
-TEST_P(KmbQuantizedMaxPoolSubGraphTest, CompareWithRefs_MLIR_HW) {
-    useCompilerMLIR();
+TEST_P(VPUXQuantizedMaxPoolSubGraphTest_VPU3700, HW) {
+    setPlatformVPU3700();
     setDefaultHardwareModeMLIR();
     Run();
 }
 
-INSTANTIATE_TEST_CASE_P(smoke, KmbQuantizedMaxPoolSubGraphTest,
+INSTANTIATE_TEST_CASE_P(smoke_QuantizedMaxPool, VPUXQuantizedMaxPoolSubGraphTest_VPU3700,
                         ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));
 
 }  // namespace

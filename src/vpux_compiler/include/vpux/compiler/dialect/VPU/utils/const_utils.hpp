@@ -3,11 +3,9 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #pragma once
 
-#include "vpux/compiler/dialect/IE/attributes/structs.hpp"
+#include "vpux/compiler/dialect/IE/attributes.hpp"
 #include "vpux/compiler/dialect/VPU/nce_sparsity.hpp"
 
 namespace vpux {
@@ -27,7 +25,7 @@ mlir::Value createInstructionListTableTensor(mlir::OpBuilder& builder, mlir::Loc
 mlir::Value alignDepthWiseWeightsTensor(mlir::OpBuilder& builder, mlir::Location loc, mlir::Value origFilter);
 mlir::Value alignConvWeightsTensor(mlir::OpBuilder& builder, mlir::Location loc, mlir::Value origFilter,
                                    const bool isCMajorConv);
-
+mlir::Value getZerosConst(mlir::PatternRewriter& rewriter, Shape constShape, mlir::Value input, mlir::Location loc);
 /**
  * @brief calculate memory requirement for given buffer sizes and architecture-dependent allocation requirements
  *

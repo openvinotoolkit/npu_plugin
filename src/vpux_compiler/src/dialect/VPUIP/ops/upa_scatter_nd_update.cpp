@@ -3,14 +3,8 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/VPUIP/graph-schema/blob_reader.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
-#include "vpux/compiler/utils/error.hpp"
-#include "vpux/compiler/utils/subspaces.hpp"
-
-#include <mlir/IR/BuiltinTypes.h>
 
 using namespace vpux;
 

@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/VPU/nce_sparsity.hpp"
 #include "vpux/compiler/dialect/VPU/ops.hpp"
 #include "vpux/compiler/dialect/VPU/passes.hpp"
@@ -48,7 +46,7 @@ private:
 void SparsifyWeightsPass::safeRunOnFunc() {
     using namespace VPU::NCESparsity;
 
-    auto func = getFunction();
+    auto func = getOperation();
     auto module = getOperation();
     auto& ctx = getContext();
 

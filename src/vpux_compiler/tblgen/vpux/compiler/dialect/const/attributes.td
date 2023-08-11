@@ -3,15 +3,15 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #ifndef VPUX_COMPILER_DIALECT_CONST_ATTRIBUTES
 #define VPUX_COMPILER_DIALECT_CONST_ATTRIBUTES
 
 include "vpux/compiler/dialect/const/dialect.td"
 include "vpux/compiler/dialect/const/attr_interfaces.td"
 
+include "mlir/IR/AttrTypeBase.td"
 include "mlir/IR/SubElementInterfaces.td"
+include "mlir/IR/BuiltinAttributeInterfaces.td"
 
 //
 // Base classes
@@ -20,6 +20,44 @@ include "mlir/IR/SubElementInterfaces.td"
 class Const_Attr<string name, list<Trait> traits = [], string baseCppClass = "mlir::Attribute"> :
         AttrDef<Const_Dialect, name, traits, baseCppClass> {
     let mnemonic = name;
+}
+
+//
+// OpaqueElementsAttr
+//
+
+def Const_OpaqueElementsAttr : Const_Attr<"OpaqueElements", [ElementsAttrInterface]> {
+    let summary = "An opaque representation of a multi-dimensional array";
+    let description = [{
+        An opaque elements attribute is an elements attribute where the content of
+        the value is opaque. Attribute is used to store a reference to shared data 
+        received by compiler frontend. (It does not own the memory)
+
+        Note: The parsed string literal must be in hexadecimal form.
+
+        Examples:
+
+        ```mlir
+        opaque<"elided_large_const", "0xDEADBEEF"> : tensor<10xi32>
+        ```
+    }];
+
+    let parameters = (ins AttributeSelfTypeParameter<"", "mlir::ShapedType">:$type,
+                          StringRefParameter<"">:$value);
+    let builders = [
+        AttrBuilderWithInferredContext<(ins "mlir::ShapedType":$type,
+                                          "mlir::StringRef":$value), [{
+            return $_get(type.getContext(), type, value);
+        }]>,
+    ];
+
+    let extraClassDeclaration = [{
+        using ValueType = StringRef;
+    }];
+
+    let storageNamespace = "details";
+    let hasCustomAssemblyFormat = 1;
+    let skipDefaultBuilders = 1;
 }
 
 //
@@ -64,6 +102,7 @@ def Const_ContentAttr : Const_Attr<"Content", [DeclareAttrInterfaceMethods<SubEl
     let genVerifyDecl = 1;
     let skipDefaultBuilders = 1;
     let genAccessors = 0;
+    let hasCustomAssemblyFormat = 1;
 
     let extraClassDeclaration = [{
         using ValueType = vpux::Const::Content;
@@ -79,7 +118,7 @@ def Const_ContentAttr : Const_Attr<"Content", [DeclareAttrInterfaceMethods<SubEl
         vpux::Const::ContentAttr quantCast(mlir::quant::QuantizedType newElemType = nullptr) const;
         vpux::Const::ContentAttr dequantize() const;
         vpux::Const::ContentAttr rescale(double scale) const;
-        vpux::Const::ContentAttr relocateWeightsTablePointers(uint64_t weightsPtr, uint64_t sparsityPtr, vpux::ShapeRef offsets,
+        vpux::Const::ContentAttr relocateWeightsTablePointers(ArrayRef<int32_t> weightsPtr, uint64_t sparsityPtr, vpux::ShapeRef offsets,
                                                               uint64_t weightsElemByteSize, VPUIP::CompressionSchemeAttr weightsCompression) const;
         vpux::Const::ContentAttr swizzleConstant(uint64_t swizzleKey, uint64_t arch) const;
         vpux::Const::ContentAttr add(double bias) const;
@@ -126,6 +165,7 @@ def Const_ConvertElemTypeAttr : Const_Attr<"ConvertElemType",
     let storageNamespace = "details";
     let genVerifyDecl = 1;
     let skipDefaultBuilders = 1;
+    let hasCustomAssemblyFormat = 1;
 }
 
 //
@@ -151,6 +191,7 @@ def Const_QuantCastAttr : Const_Attr<"QuantCast",
 
     let storageNamespace = "details";
     let genVerifyDecl = 1;
+    let hasCustomAssemblyFormat = 1;
     let skipDefaultBuilders = 1;
 }
 
@@ -185,6 +226,7 @@ def Const_RescaleAttr : Const_Attr<"Rescale",
 
     let storageNamespace = "details";
     let skipDefaultBuilders = 1;
+    let hasCustomAssemblyFormat = 1;
 }
 
 //
@@ -209,6 +251,7 @@ def Const_AddAttr : Const_Attr<"Add",
 
     let storageNamespace = "details";
     let skipDefaultBuilders = 1;
+    let hasCustomAssemblyFormat = 1;
 }
 
 //
@@ -234,6 +277,7 @@ def Const_ReshapeAttr : Const_Attr<"Reshape",
     let storageNamespace = "details";
     let genVerifyDecl = 1;
     let skipDefaultBuilders = 1;
+    let hasCustomAssemblyFormat = 1;
 }
 
 //
@@ -259,6 +303,7 @@ def Const_ReorderAttr : Const_Attr<"Reorder",
     let storageNamespace = "details";
     let genVerifyDecl = 1;
     let skipDefaultBuilders = 1;
+    let hasCustomAssemblyFormat = 1;
 }
 
 //
@@ -290,6 +335,7 @@ def Const_ReverseAttr : Const_Attr<"Reverse",
 
     let storageNamespace = "details";
     let skipDefaultBuilders = 1;
+    let hasCustomAssemblyFormat = 1;
 }
 
 
@@ -317,6 +363,7 @@ def Const_PadWithZeroAttr : Const_Attr<"PadWithZero",
     let storageNamespace = "details";
     let genVerifyDecl = 1;
     let skipDefaultBuilders = 1;
+    let hasCustomAssemblyFormat = 1;
 }
 
 //
@@ -343,6 +390,7 @@ def Const_SubViewAttr : Const_Attr<"SubView",
     let storageNamespace = "details";
     let genVerifyDecl = 1;
     let skipDefaultBuilders = 1;
+    let hasCustomAssemblyFormat = 1;
 }
 
 //
@@ -368,6 +416,7 @@ def Const_BroadcastAttr : Const_Attr<"Broadcast",
 
     let storageNamespace = "details";
     let skipDefaultBuilders = 1;
+    let hasCustomAssemblyFormat = 1;
 }
 
 //
@@ -394,6 +443,7 @@ def Const_BitPackAttr : Const_Attr<"BitPack",
     let storageNamespace = "details";
     let genVerifyDecl = 1;
     let skipDefaultBuilders = 1;
+    let hasCustomAssemblyFormat = 1;
 }
 
 //
@@ -419,6 +469,7 @@ def Const_TransposeAttr : Const_Attr<"Transpose",
     let storageNamespace = "details";
     let genVerifyDecl = 1;
     let skipDefaultBuilders = 1;
+    let hasCustomAssemblyFormat = 1;
 }
 
 //
@@ -430,7 +481,7 @@ def Const_RelocateWeightsTableAttr : Const_Attr<"RelocateWeightsTable",
     let summary = "Patches offsets in the weights table";
 
     let parameters = (ins
-        "mlir::IntegerAttr":$weightsPtr,
+        "mlir::ArrayAttr":$weightsPtr,
         "mlir::IntegerAttr":$sparsityPtr,
         "mlir::ArrayAttr":$offsets,
         "mlir::IntegerAttr":$weightsElemByteSize,
@@ -439,7 +490,7 @@ def Const_RelocateWeightsTableAttr : Const_Attr<"RelocateWeightsTable",
 
     let builders = [
         AttrBuilderWithInferredContext<
-            (ins "mlir::IntegerAttr":$weightsPtr, "mlir::IntegerAttr":$sparsityPtr, "mlir::ArrayAttr":$offsets,
+            (ins "mlir::ArrayAttr":$weightsPtr, "mlir::IntegerAttr":$sparsityPtr, "mlir::ArrayAttr":$offsets,
                  "mlir::IntegerAttr":$weightsElemByteSize, "VPUIP::CompressionSchemeAttr":$weightsCompression), [{
                 return $_get(weightsPtr.getContext(), weightsPtr, sparsityPtr, offsets, weightsElemByteSize, weightsCompression);
             }]
@@ -448,6 +499,7 @@ def Const_RelocateWeightsTableAttr : Const_Attr<"RelocateWeightsTable",
 
     let storageNamespace = "details";
     let skipDefaultBuilders = 1;
+    let hasCustomAssemblyFormat = 1;
 }
 
 //
@@ -487,6 +539,7 @@ def Const_SwizzleConstantAttr : Const_Attr<"SwizzleConstant",
 
     let storageNamespace = "details";
     let skipDefaultBuilders = 1;
+    let hasCustomAssemblyFormat = 1;
 }
 
 //
@@ -512,6 +565,7 @@ def Const_ExpandDilatedAttr : Const_Attr<"ExpandDilated",
     let storageNamespace = "details";
     let genVerifyDecl = 1;
     let skipDefaultBuilders = 1;
+    let hasCustomAssemblyFormat = 1;
 }
 
 //
@@ -561,6 +615,7 @@ def Const_SparsifyAttr : Const_Attr<"Sparsify", [
     let storageNamespace = "details";
     let genVerifyDecl = 1;
     let skipDefaultBuilders = 1;
+    let hasCustomAssemblyFormat = 1;
 }
 
 #endif

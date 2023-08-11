@@ -77,7 +77,7 @@ void buildActShaveTask(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleO
                    });
 
     // first creating management kernel definition
-    VPUIP::createRuntimeKernelDefinition(module, log);
+    VPUIP::createRuntimeKernelDefinition(module, log, testDesc.getArchitecture());
 
     // Create built-in function ------------------------------------------------
 

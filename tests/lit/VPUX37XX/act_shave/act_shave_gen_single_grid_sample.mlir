@@ -25,11 +25,11 @@ IE.CNNNetwork
 module @VPU.SW {
     // The declaration should match C++ params structure in decomposed form.
     // `memref` will be translated to `MemRefData`, while raw scalars will be translated as is.
-    func private @builtin_GridSample(memref<*xf16, [@CMX_NN, 0]>, memref<*xf16, [@CMX_NN, 0]>, memref<*xf16, [@CMX_NN, 0]>, i64, i64, i64) attributes {VPU.kernel_code = "single_shave_grid_sample.cpp", VPU.kernel_entry = "single_shave_grid_sample"}
-    func private @runtime() attributes {VPU.kernel_code = "nnActEntry"}
+    func.func private @builtin_GridSample(memref<*xf16, [@CMX_NN, 0]>, memref<*xf16, [@CMX_NN, 0]>, memref<*xf16, [@CMX_NN, 0]>, i64, i64, i64) attributes {VPU.kernel_code = "single_shave_grid_sample.cpp", VPU.kernel_entry = "single_shave_grid_sample"}
+    func.func private @runtime() attributes {VPU.kernel_code = "nnActEntry"}
 }
 
-  func @main(%arg0: memref<1x1x2x3xf32>, %arg1: memref<1x1x3x2xf32>, %arg2: memref<1x1x1x3xf32>) -> memref<1x1x1x3xf32> {
+  func.func @main(%arg0: memref<1x1x2x3xf32>, %arg1: memref<1x1x3x2xf32>, %arg2: memref<1x1x1x3xf32>) -> memref<1x1x1x3xf32> {
     %0 = builtin.unrealized_conversion_cast %arg1 : memref<1x1x3x2xf32> to tensor<1x1x3x2xf32>
     %1 = builtin.unrealized_conversion_cast %arg0 : memref<1x1x2x3xf32> to tensor<1x1x2x3xf32>
     %2 = memref.alloc() : memref<1x1x2x3xf32, [@CMX_NN, 0]>

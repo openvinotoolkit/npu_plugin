@@ -3,12 +3,12 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #ifndef VPUX_COMPILER_DIALECT_ELF_TYPES
 #define VPUX_COMPILER_DIALECT_ELF_TYPES
 
 include "vpux/compiler/dialect/ELF/dialect.td"
+
+include "mlir/IR/AttrTypeBase.td"
 
 //
 // Base classes

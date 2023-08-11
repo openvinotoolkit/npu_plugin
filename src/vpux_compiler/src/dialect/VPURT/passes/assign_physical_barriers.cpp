@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/VPURT/passes.hpp"
 
 #include "vpux/compiler/dialect/VPURT/barrier_simulator.hpp"
@@ -62,7 +60,7 @@ private:
 
 void AssignPhysicalBarriersPass::safeRunOnFunc() {
     auto& ctx = getContext();
-    auto func = getFunction();
+    auto func = getOperation();
 
     const auto numBarriers = numBarriersOpt.hasValue() ? Optional<int64_t>(numBarriersOpt.getValue()) : None;
 
