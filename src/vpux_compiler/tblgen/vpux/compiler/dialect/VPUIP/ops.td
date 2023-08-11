@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #ifndef VPUX_COMPILER_DIALECT_VPUIP_OPS
 #define VPUX_COMPILER_DIALECT_VPUIP_OPS
 
@@ -82,19 +80,22 @@ def VPUIP_NNDMAOp :
                 VPUIP_SameShape,
                 VPUIP_SameElementType,
                 VPUIP_SameInOutDimsOrder,
-                VPUIP_ProfiledDMAOpInterface,
+                VPUIP_DMATypeOpInterface,
                 DotInterface
             ]
         > {
     let summary = "NN DMA task";
 
     let arguments = (ins
-        AnyTypeOf<[AnyMemRef, VPUIP_Buffer]>:$input,
+        AnyTypeOf<[AnyMemRef, VPUIP_Buffer, VPUIP_DistributedBuffer]>:$input,
         AnyTypeOf<[AnyMemRef, VPUIP_Buffer, VPUIP_DistributedBuffer]>:$output_buff,
 
         DefaultValuedAttr<IntAttr, "0">:$port,
+        OptionalAttr<VPUIP_DmaChannelType>:$channelType,
         UnitAttr:$is_out_of_order,
-        UnitAttr:$is_critical
+        UnitAttr:$is_critical,
+        OptionalAttr<IntAttr>:$spillId,
+        OptionalAttr<IntAttr>:$dma_hwp_id
     );
 
     let results = (outs
@@ -107,7 +108,16 @@ def VPUIP_NNDMAOp :
         >,
         OpBuilder<
             (ins "mlir::Value":$input, "mlir::Value":$output_buff, "int64_t":$port)
-        >
+        >,
+        OpBuilder<
+            (ins "mlir::Value":$input, "mlir::Value":$output_buff, "int64_t":$port, "int32_t":$dma_hwp_id)
+        >,
+        OpBuilder<
+            (ins "mlir::Value":$input, "mlir::Value":$output_buff, "mlir::IntegerAttr":$port, "mlir::UnitAttr":$is_out_of_order, "mlir::UnitAttr":$is_critical, "mlir::IntegerAttr":$spillId)
+        >,
+        OpBuilder<
+            (ins "mlir::Value":$input, "mlir::Value":$output_buff, "int64_t":$port, "bool":$is_out_of_order, "bool":$is_critical, "mlir::IntegerAttr":$spillId)
+        >,
     ];
 
     let extraClassDeclaration = [{
@@ -119,7 +129,7 @@ def VPUIP_NNDMAOp :
             const auto memKind = getType().cast<vpux::NDTypeInterface>().getMemoryKind();
             return memKind == vpux::VPU::MemoryKind::DDR ? vpux::DotNodeColor::RED : vpux::DotNodeColor::GREEN;
         }
-    }] # VPUIP_InferLayerReturnTypes<1>.impl;
+    }] # commonExtraClassDeclaration;
 
     let assemblyFormat = [{
         attr-dict
@@ -128,9 +138,7 @@ def VPUIP_NNDMAOp :
         `->` type(results)
     }];
 
-    let verifier = [{
-        return vpux::VPUIP::verifyOp(*this);
-    }];
+    let hasVerifier = 1;
 }
 
 //
@@ -142,20 +150,22 @@ def VPUIP_PermuteDMAOp :
             [
                 ViewLikeOpInterface,
                 VPUIP_SameElementType,
-                VPUIP_ProfiledDMAOpInterface
+                VPUIP_DMATypeOpInterface
             ]
         > {
     let summary = "NN DMA task which enables permutation";
 
     let arguments = (ins
-        AnyMemRef:$input,
+        AnyTypeOf<[AnyMemRef, VPUIP_DistributedBuffer]>:$input,
         AnyTypeOf<[AnyMemRef, VPUIP_DistributedBuffer]>:$output_buff,
 
         DefaultValuedAttr<IntAttr, "0">:$port,
+        OptionalAttr<VPUIP_DmaChannelType>:$channelType,
         UnitAttr:$is_out_of_order,
         UnitAttr:$is_critical,
         OptionalAttr<AffineMapAttr>:$mem_perm,
-        OptionalAttr<VPUIP_DmaDescriptorAttr>:$dma_descriptor
+        OptionalAttr<VPUIP_DmaDescriptorAttr>:$dma_descriptor,
+        OptionalAttr<IntAttr>:$dma_hwp_id
     );
 
     let results = (outs
@@ -182,7 +192,7 @@ def VPUIP_PermuteDMAOp :
             const auto memKind = getType().cast<vpux::NDTypeInterface>().getMemoryKind();
             return memKind == vpux::VPU::MemoryKind::DDR ? vpux::DotNodeColor::RED : vpux::DotNodeColor::GREEN;
         }
-    }] # VPUIP_InferLayerReturnTypes<1>.impl;
+    }] # commonExtraClassDeclaration;
 
     let assemblyFormat = [{
         attr-dict
@@ -191,36 +201,38 @@ def VPUIP_PermuteDMAOp :
         `->` type(results)
     }];
 
-    let verifier = [{
-        return vpux::VPUIP::verifyOp(*this);
-    }];
+    let hasVerifier = 1;
 }
 
 //
-// CompressedDMAOp
+// ConvertDMAOp
 //
 
-def VPUIP_CompressedDMAOp :
-        VPUIP_TaskOp<1, "CompressedDMAOp",
+def VPUIP_ConvertDMAOp :
+        VPUIP_TaskOp<1, "ConvertDMA",
             [
                 ViewLikeOpInterface,
-                VPUIP_SameElementType,
+                VPUIP_SameShape,
+                VPUIP_SameInOutDimsOrder,
+                VPUIP_DMATypeOpInterface,
                 DotInterface
             ]
         > {
-    let summary = "NN DMA task with enabled compression. Omits VPUIP_SameShape trait.";
+    let summary = "NN DMA task which enables data conversion";
 
     let arguments = (ins
-        AnyMemRef:$input,
-        AnyTypeOf<[AnyMemRef, VPUIP_DistributedBuffer]>:$output_buff,
+        AnyTypeOf<[AnyMemRef, VPUIP_Buffer, VPUIP_DistributedBuffer]>:$input,
+        AnyTypeOf<[AnyMemRef, VPUIP_Buffer, VPUIP_DistributedBuffer]>:$output_buff,
 
         DefaultValuedAttr<IntAttr, "0">:$port,
+        OptionalAttr<VPUIP_DmaChannelType>:$channelType,
         UnitAttr:$is_out_of_order,
-        UnitAttr:$is_critical
+        UnitAttr:$is_critical,
+        OptionalAttr<IntAttr>:$dma_hwp_id
     );
 
     let results = (outs
-        AnyTypeOf<[AnyMemRef, VPUIP_DistributedBuffer]>:$output
+        AnyTypeOf<[AnyMemRef, VPUIP_Buffer, VPUIP_DistributedBuffer]>:$output
     );
 
     let builders = [
@@ -241,7 +253,7 @@ def VPUIP_CompressedDMAOp :
             const auto memKind = getType().cast<vpux::NDTypeInterface>().getMemoryKind();
             return memKind == vpux::VPU::MemoryKind::DDR ? vpux::DotNodeColor::RED : vpux::DotNodeColor::GREEN;
         }
-    }] # VPUIP_InferLayerReturnTypes<1>.impl;
+    }] # commonExtraClassDeclaration;
 
     let assemblyFormat = [{
         attr-dict
@@ -250,9 +262,148 @@ def VPUIP_CompressedDMAOp :
         `->` type(results)
     }];
 
-    let verifier = [{
-        return vpux::VPUIP::verifyOp(*this);
+    let hasVerifier = 1;
+}
+
+//
+// DecompressDMAOp
+//
+
+def VPUIP_DecompressDMAOp :
+        VPUIP_TaskOp<1, "DecompressDMAOp",
+            [
+                ViewLikeOpInterface,
+                DotInterface,
+                VPUIP_DMATypeOpInterface
+            ]
+        > {
+    let summary = [{
+        NN DMA task for BitCompactor weight compression & Activation Spill Decompression.
+        In case of BitCompactor weight compression: use BitCompactor library to compress weights and decompress with the HW feature in the DMA (BTC)
+        In case of Activation Spill Decompression: decompress with the HW feature in the DMA (BTC)
+        Omits VPUIP_SameShape trait & VPUIP_SameElementType (verifier for input/output same element type)}];
+
+    let arguments = (ins
+        AnyMemRef:$input,
+        Optional<AnyMemRef>:$act_compression_size_entry,
+        AnyTypeOf<[AnyMemRef, VPUIP_DistributedBuffer]>:$output_buff,
+
+        DefaultValuedAttr<IntAttr, "0">:$port,
+        OptionalAttr<VPUIP_DmaChannelType>:$channelType,
+        UnitAttr:$is_out_of_order,
+        UnitAttr:$is_critical,
+        OptionalAttr<IntAttr>:$dma_hwp_id
+    );
+
+    let results = (outs
+        AnyTypeOf<[AnyMemRef, VPUIP_DistributedBuffer]>:$output
+    );
+
+    let builders = [
+        OpBuilder<
+            (ins "mlir::Value":$input, "mlir::Value":$output_buff)
+        >,
+        OpBuilder<
+            (ins "mlir::Value":$input, "mlir::Value":$output_buff, "int64_t":$port)
+        >,
+        OpBuilder<
+            (ins "mlir::Value":$input, "mlir::Value":$output_buff, "mlir::IntegerAttr":$port, "mlir::UnitAttr":$is_out_of_order, "mlir::UnitAttr":$is_critical)
+        >,
+        OpBuilder<
+            (ins "mlir::Value":$input, "mlir::Value":$output_buff, "int64_t":$port, "bool":$is_out_of_order, "bool":$is_critical)
+        >,
+        OpBuilder<
+            (ins "mlir::Value":$input, "mlir::Value":$actCompressionSizeEntryBuff, "mlir::Value":$output_buff, "int64_t":$port, "bool":$is_out_of_order, "bool":$is_critical)
+        >,
+        OpBuilder<
+            (ins "mlir::Value":$input, "mlir::Value":$actCompressionSizeEntryBuff, "mlir::Value":$output_buff, "mlir::IntegerAttr":$port, "mlir::UnitAttr":$is_out_of_order, "mlir::UnitAttr":$is_critical)
+        >,
+    ];
+
+    let extraClassDeclaration = [{
+        static vpux::VPU::ExecutorKind getExecutorKind() {
+            return vpux::VPU::ExecutorKind::DMA_NN;
+        }
+
+        vpux::DotNodeColor getNodeColor() {
+            const auto memKind = getType().cast<vpux::NDTypeInterface>().getMemoryKind();
+            return memKind == vpux::VPU::MemoryKind::DDR ? vpux::DotNodeColor::RED : vpux::DotNodeColor::GREEN;
+        }
+    }] # commonExtraClassDeclaration;
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        (`act_compression_size_entry` `(` $act_compression_size_entry^  `:` type($act_compression_size_entry) `)`)?
+        `->` type(results)
     }];
+
+    let hasVerifier = 1;
+}
+
+//
+// CompressDMAOp
+//
+
+def VPUIP_CompressDMAOp :
+        VPUIP_TaskOp<1, "CompressDMAOp",
+            [
+                ViewLikeOpInterface,
+                DotInterface,
+                VPUIP_DMATypeOpInterface
+            ]
+        > {
+    let summary = [{
+        NN DMA task for Activation Spill Compression.
+        In case of Activation Spill Compression: compress with the HW feature in the DMA (BTC).
+        Omits VPUIP_SameShape trait & VPUIP_SameElementType (verifier for input/output same element type)}];
+
+    let arguments = (ins
+        AnyMemRef:$input,
+        AnyMemRef:$act_compression_size_entry,
+        AnyMemRef:$output_buff,
+
+        DefaultValuedAttr<IntAttr, "0">:$port,
+        OptionalAttr<VPUIP_DmaChannelType>:$channelType,
+        UnitAttr:$is_out_of_order,
+        UnitAttr:$is_critical,
+        OptionalAttr<IntAttr>:$dma_hwp_id
+    );
+
+    let results = (outs
+        AnyMemRef:$output
+    );
+
+    let builders = [
+        OpBuilder<
+            (ins "mlir::Value":$input, "mlir::Value":$actCompressionSizeEntryBuff, "mlir::Value":$output_buff, "int64_t":$port, "bool":$is_out_of_order, "bool":$is_critical)
+        >,
+        OpBuilder<
+            (ins "mlir::Value":$input, "mlir::Value":$actCompressionSizeEntryBuff, "mlir::Value":$output_buff, "mlir::IntegerAttr":$port, "mlir::UnitAttr":$is_out_of_order, "mlir::UnitAttr":$is_critical)
+        >,
+    ];
+
+    let extraClassDeclaration = [{
+        static vpux::VPU::ExecutorKind getExecutorKind() {
+            return vpux::VPU::ExecutorKind::DMA_NN;
+        }
+
+        vpux::DotNodeColor getNodeColor() {
+            const auto memKind = getType().cast<vpux::NDTypeInterface>().getMemoryKind();
+            return memKind == vpux::VPU::MemoryKind::DDR ? vpux::DotNodeColor::RED : vpux::DotNodeColor::GREEN;
+        }
+    }] # commonExtraClassDeclaration;
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `act_compression_size_entry` `(` $act_compression_size_entry  `:` type($act_compression_size_entry) `)`
+        `->` type(results)
+    }];
+
+    let hasVerifier = 1;
 }
 
 //
@@ -289,9 +440,7 @@ def VPUIP_ConvertUPAOp :
         >
     ];
 
-    let verifier = [{
-        return vpux::VPUIP::verifyOp(*this);
-    }];
+    let hasVerifier = 1;
 
     let assemblyFormat = [{
         attr-dict
@@ -326,9 +475,7 @@ def VPUIP_SoftMaxUPAOp :
         F16MemRef:$output
     );
 
-    let verifier = [{
-        return vpux::VPUIP::verifyOp(*this);
-    }];
+    let hasVerifier = 1;
 
     let assemblyFormat = [{
         attr-dict
@@ -367,9 +514,7 @@ def VPUIP_PoolingUPAOp :
         F16MemRef:$output
     );
 
-    let verifier = [{
-        return vpux::VPUIP::verifyOp(*this);
-    }];
+    let hasVerifier = 1;
 
     let assemblyFormat = [{
         attr-dict
@@ -478,9 +623,7 @@ def VPUIP_ConvolutionUPAOp :
         `->` type(results)
     }];
 
-    let verifier = [{
-        return vpux::VPUIP::verifyOp(*this);
-    }];
+    let hasVerifier = 1;
 }
 
 //
@@ -507,9 +650,7 @@ def VPUIP_ReLUUPAOp :
         F16MemRef:$output
     );
 
-    let verifier = [{
-        return vpux::VPUIP::verifyPostOp(*this);
-    }];
+    let hasVerifier = 1;
 
     let assemblyFormat = [{
         attr-dict
@@ -575,9 +716,7 @@ def VPUIP_SigmoidUPAOp :
         F16MemRef:$output
     );
 
-    let verifier = [{
-        return vpux::VPUIP::verifyPostOp(*this);
-    }];
+    let hasVerifier = 1;
 
     let assemblyFormat = [{
         attr-dict
@@ -611,9 +750,7 @@ def VPUIP_HSwishUPAOp :
         F16MemRef:$output
     );
 
-    let verifier = [{
-        return vpux::VPUIP::verifyPostOp(*this);
-    }];
+    let hasVerifier = 1;
 
     let assemblyFormat = [{
         attr-dict
@@ -647,9 +784,7 @@ def VPUIP_ErfUPAOp :
         F16MemRef:$output
     );
 
-    let verifier = [{
-        return vpux::VPUIP::verifyPostOp(*this);
-    }];
+    let hasVerifier = 1;
 
     let assemblyFormat = [{
         attr-dict
@@ -683,9 +818,7 @@ def VPUIP_MishUPAOp :
         F16MemRef:$output
     );
 
-    let verifier = [{
-        return vpux::VPUIP::verifyPostOp(*this);
-    }];
+    let hasVerifier = 1;
 
     let assemblyFormat = [{
         attr-dict
@@ -719,9 +852,7 @@ def VPUIP_FloorUPAOp :
         F16MemRef:$output
     );
 
-    let verifier = [{
-        return vpux::VPUIP::verifyPostOp(*this);
-    }];
+    let hasVerifier = 1;
 
     let assemblyFormat = [{
         attr-dict
@@ -750,16 +881,14 @@ def VPUIP_RoundUPAOp :
         F16MemRef:$input,
         F16MemRef:$output_buff,
 
-        IE_RoundMode:$mode
+        IE_RoundModeAttr:$mode
     );
 
     let results = (outs
         F16MemRef:$output
     );
 
-    let verifier = [{
-        return vpux::VPUIP::verifyPostOp(*this);
-    }];
+    let hasVerifier = 1;
 
     let assemblyFormat = [{
         attr-dict
@@ -796,9 +925,7 @@ def VPUIP_ClampUPAOp :
         F16MemRef:$output
     );
 
-    let verifier = [{
-        return vpux::VPUIP::verifyPostOp(*this);
-    }];
+    let hasVerifier = 1;
 
     let assemblyFormat = [{
         attr-dict
@@ -834,9 +961,7 @@ def VPUIP_EluUPAOp :
         F16MemRef:$output
     );
 
-    let verifier = [{
-        return vpux::VPUIP::verifyPostOp(*this);
-    }];
+    let hasVerifier = 1;
 
     let assemblyFormat = [{
         attr-dict
@@ -870,9 +995,7 @@ def VPUIP_TanhUPAOp :
         F16MemRef:$output
     );
 
-    let verifier = [{
-        return vpux::VPUIP::verifyPostOp(*this);
-    }];
+    let hasVerifier = 1;
 
     let assemblyFormat = [{
         attr-dict
@@ -906,9 +1029,7 @@ def VPUIP_SinUPAOp :
         F16MemRef:$output
     );
 
-    let verifier = [{
-        return vpux::VPUIP::verifyPostOp(*this);
-    }];
+    let hasVerifier = 1;
 
     let assemblyFormat = [{
         attr-dict
@@ -942,9 +1063,7 @@ def VPUIP_CosUPAOp :
         F16MemRef:$output
     );
 
-    let verifier = [{
-        return vpux::VPUIP::verifyPostOp(*this);
-    }];
+    let hasVerifier = 1;
 
     let assemblyFormat = [{
         attr-dict
@@ -978,9 +1097,7 @@ def VPUIP_TanUPAOp :
         F16MemRef:$output
     );
 
-    let verifier = [{
-        return vpux::VPUIP::verifyPostOp(*this);
-    }];
+    let hasVerifier = 1;
 
     let assemblyFormat = [{
         attr-dict
@@ -1014,9 +1131,7 @@ def VPUIP_SqrtUPAOp :
         F16MemRef:$output
     );
 
-    let verifier = [{
-        return vpux::VPUIP::verifyPostOp(*this);
-    }];
+    let hasVerifier = 1;
 
     let assemblyFormat = [{
         attr-dict
@@ -1050,9 +1165,7 @@ def VPUIP_SinhUPAOp :
         F16MemRef:$output
     );
 
-    let verifier = [{
-        return vpux::VPUIP::verifyPostOp(*this);
-    }];
+    let hasVerifier = 1;
 
     let assemblyFormat = [{
         attr-dict
@@ -1086,9 +1199,7 @@ def VPUIP_CoshUPAOp :
         F16MemRef:$output
     );
 
-    let verifier = [{
-        return vpux::VPUIP::verifyPostOp(*this);
-    }];
+    let hasVerifier = 1;
 
     let assemblyFormat = [{
         attr-dict
@@ -1122,9 +1233,7 @@ def VPUIP_AsinhUPAOp :
         F16MemRef:$output
     );
 
-    let verifier = [{
-        return vpux::VPUIP::verifyPostOp(*this);
-    }];
+    let hasVerifier = 1;
 
     let assemblyFormat = [{
         attr-dict
@@ -1158,9 +1267,7 @@ def VPUIP_AcoshUPAOp :
         F16MemRef:$output
     );
 
-    let verifier = [{
-        return vpux::VPUIP::verifyPostOp(*this);
-    }];
+    let hasVerifier = 1;
 
     let assemblyFormat = [{
         attr-dict
@@ -1194,9 +1301,7 @@ def VPUIP_AbsUPAOp :
         F16MemRef:$output
     );
 
-    let verifier = [{
-        return vpux::VPUIP::verifyPostOp(*this);
-    }];
+    let hasVerifier = 1;
 
     let assemblyFormat = [{
         attr-dict
@@ -1230,9 +1335,7 @@ def VPUIP_HSigmoidUPAOp :
         F16MemRef:$output
     );
 
-    let verifier = [{
-        return vpux::VPUIP::verifyPostOp(*this);
-    }];
+    let hasVerifier = 1;
 
     let assemblyFormat = [{
         attr-dict
@@ -1266,9 +1369,7 @@ def VPUIP_AtanUPAOp :
         F16MemRef:$output
     );
 
-    let verifier = [{
-        return vpux::VPUIP::verifyPostOp(*this);
-    }];
+    let hasVerifier = 1;
 
     let assemblyFormat = [{
         attr-dict
@@ -1302,9 +1403,7 @@ def VPUIP_AsinUPAOp :
         F16MemRef:$output
     );
 
-    let verifier = [{
-        return vpux::VPUIP::verifyPostOp(*this);
-    }];
+    let hasVerifier = 1;
 
     let assemblyFormat = [{
         attr-dict
@@ -1338,9 +1437,7 @@ def VPUIP_AcosUPAOp :
         F16MemRef:$output
     );
 
-    let verifier = [{
-        return vpux::VPUIP::verifyPostOp(*this);
-    }];
+    let hasVerifier = 1;
 
     let assemblyFormat = [{
         attr-dict
@@ -1374,9 +1471,7 @@ def VPUIP_AtanhUPAOp :
         F16MemRef:$output
     );
 
-    let verifier = [{
-        return vpux::VPUIP::verifyPostOp(*this);
-    }];
+    let hasVerifier = 1;
 
     let assemblyFormat = [{
         attr-dict
@@ -1409,9 +1504,7 @@ def VPUIP_LogUPAOp :
         F16MemRef:$output
     );
 
-    let verifier = [{
-        return vpux::VPUIP::verifyPostOp(*this);
-    }];
+    let hasVerifier = 1;
 
     let assemblyFormat = [{
         attr-dict
@@ -1477,9 +1570,7 @@ def VPUIP_GeluUPAOp :
         F16MemRef:$output
     );
 
-    let verifier = [{
-        return vpux::VPUIP::verifyPostOp(*this);
-    }];
+    let hasVerifier = 1;
 
     let assemblyFormat = [{
         attr-dict
@@ -1513,9 +1604,7 @@ def VPUIP_ExpUPAOp :
         F16MemRef:$output
     );
 
-    let verifier = [{
-        return vpux::VPUIP::verifyPostOp(*this);
-    }];
+    let hasVerifier = 1;
 
     let assemblyFormat = [{
         attr-dict
@@ -1553,9 +1642,7 @@ def VPUIP_FakeQuantizeUPAOp :
         F16MemRef:$output
     );
 
-    let verifier = [{
-        return vpux::VPUIP::verifyOp(*this);
-    }];
+    let hasVerifier = 1;
 
     let assemblyFormat = [{
         attr-dict
@@ -1588,9 +1675,7 @@ def VPUIP_QuantCastUPAOp :
         MemRefOf<[F16, quant_QuantizedType]>:$output
     );
 
-    let verifier = [{
-        return vpux::VPUIP::verifyOp(*this);
-    }];
+    let hasVerifier = 1;
 
     let assemblyFormat = [{
         attr-dict
@@ -1748,9 +1833,7 @@ def VPUIP_SelectUPAOp :
         MemRefOf<[SI32,F16]>:$output
     );
 
-    let verifier = [{
-        return vpux::VPUIP::verifyOp(*this);
-    }];
+    let hasVerifier = 1;
 
     let assemblyFormat = [{
         attr-dict
@@ -1782,7 +1865,7 @@ def VPUIP_DetectionOutputUPAOp :
 
         F16MemRef:$output_buff,
 
-        IE_DetectionOutputAttrs:$attr
+        IE_DetectionOutputAttr:$attr
     );
 
     let results = (outs
@@ -2014,7 +2097,7 @@ def VPUIP_NormUPAOp :
         F64Attr:$beta,
         F64Attr:$bias,
         IntAttr:$local_size,
-        IE_LRN_IERegion:$region
+        IE_LRN_IERegionAttr:$region
     );
 
     let results = (outs
@@ -2028,9 +2111,7 @@ def VPUIP_NormUPAOp :
         `->` type(results)
     }];
 
-    let verifier = [{
-        return vpux::VPUIP::verifyOp(*this);
-    }];
+    let hasVerifier = 1;
 }
 
 //
@@ -2041,7 +2122,7 @@ def VPUIP_BroadcastUPAOp :
         VPUIP_UPATaskOp<1, "BroadcastUPA",
             [
                 ViewLikeOpInterface
-                
+
             ]
         > {
     let summary = "Broadcast UPA SHAVE kernel";
@@ -2053,7 +2134,7 @@ def VPUIP_BroadcastUPAOp :
 
         F16MemRef:$output_buff,
 
-        OptionalAttr<IE_BroadcastType>:$mode
+        OptionalAttr<IE_BroadcastTypeAttr>:$mode
     );
 
     let results = (outs
@@ -2101,9 +2182,7 @@ def VPUIP_BucketizeUPAOp :
         `->` type(results)
     }];
 
-    let verifier = [{
-        return vpux::VPUIP::verifyOp(*this);
-    }];
+    let hasVerifier = 1;
 }
 
 //
@@ -2139,10 +2218,12 @@ def VPUIP_ScaleShiftUPAOp :
         `->` type(results)
     }];
 
-    let verifier = [{
-        return vpux::VPUIP::verifyPostOp(*this);
-    }];
+    let hasVerifier = 1;
 }
+
+//
+// VPUIP_UpsamplingUPAOp
+//
 
 def VPUIP_UpsamplingUPAOp :
         VPUIP_UPATaskOp<1, "UpsamplingUPA",
@@ -2158,8 +2239,7 @@ def VPUIP_UpsamplingUPAOp :
         F16MemRef:$output_buff,
 
         I64ArrayAttr:$upsampling_factor,
-        I64ArrayAttr:$pad_l,
-        I64ArrayAttr:$pad_r
+        OptionalAttr<IE_UpsamplingPadAttr>:$pad
     );
 
     let results = (outs
@@ -2197,6 +2277,8 @@ def VPUIP_PerAxisTileUPAOp :
     let results = (outs
         F16MemRef:$output
     );
+
+    let hasVerifier = 1;
 
     let assemblyFormat = [{
         attr-dict
@@ -2290,6 +2372,8 @@ def VPUIP_ProposalUPAOp :
         F16MemRef:$probs
     );
 
+    let hasVerifier = 1;
+
     let assemblyFormat = [{
         attr-dict
         `inputs` `(` $class_probs `:` type($class_probs) `,` $bbox_deltas `:` type($bbox_deltas) `,` $image_shape `:` type($image_shape) `)`
@@ -2317,12 +2401,14 @@ def VPUIP_ROIPoolingUPAOp :
 
         I64ArrayAttr:$output_size,
         F64Attr:$spatial_scale,
-        IE_ROIPoolingMethod:$method
+        IE_ROIPoolingMethodAttr:$method
     );
 
     let results = (outs
         F16MemRef:$output
     );
+
+    let hasVerifier = 1;
 
     let assemblyFormat = [{
         attr-dict
@@ -2354,12 +2440,14 @@ def VPUIP_PSROIPoolingUPAOp :
         IntAttr:$group_size,
         OptionalAttr<IntAttr>:$spatial_bins_x,
         OptionalAttr<IntAttr>:$spatial_bins_y,
-        OptionalAttr<IE_PSROIPoolingMode>:$mode
+        OptionalAttr<IE_PSROIPoolingModeAttr>:$mode
     );
 
     let results = (outs
         F16MemRef:$output
     );
+
+    let hasVerifier = 1;
 
     let assemblyFormat = [{
         attr-dict
@@ -2391,7 +2479,7 @@ def VPUIP_ROIAlignUPAOp :
         IntAttr:$pooled_w,
         IntAttr:$sampling_ratio,
         F64Attr:$spatial_scale,
-        IE_ROIAlignMethod:$poolingMode
+        IE_ROIAlignMethodAttr:$poolingMode
     );
 
     let results = (outs
@@ -2436,9 +2524,7 @@ def VPUIP_PermuteUPAOp :
         `->` type(results)
     }];
 
-    let verifier = [{
-        return vpux::VPUIP::verifyOp(*this);
-    }];
+    let hasVerifier = 1;
 }
 
 //
@@ -2461,7 +2547,8 @@ def VPUIP_DPUTaskOp :
         OptionalAttr<I64ArrayAttr>:$inEnd,
         VPU_PaddingAttr:$pad,
         VPU_MPEMode:$mpe_mode,
-        OptionalAttr<IntAttr>:$cluster_id
+        OptionalAttr<IntAttr>:$cluster_id,
+        OptionalAttr<IntAttr>:$workload_id
     );
 
     let builders = [
@@ -2485,6 +2572,24 @@ def VPUIP_DPUTaskOp :
             "mlir::ArrayAttr":$inEnd,
             "VPU::PaddingAttr":$pad,
             "VPU::MPEMode":$mpeMode
+        )>,
+        OpBuilder<(ins
+            "mlir::ArrayAttr":$outStart,
+            "mlir::ArrayAttr":$outEnd,
+            "mlir::ArrayAttr":$inStart,
+            "mlir::ArrayAttr":$inEnd,
+            "VPU::PaddingAttr":$pad,
+            "VPU::MPEMode":$mpeMode,
+            "mlir::IntegerAttr":$clusterId
+        )>,
+        OpBuilder<(ins
+            "mlir::ArrayAttr":$outStart,
+            "mlir::ArrayAttr":$outEnd,
+            "mlir::ArrayAttr":$inStart,
+            "mlir::ArrayAttr":$inEnd,
+            "VPU::PaddingAttr":$pad,
+            "VPU::MPEMode":$mpeMode,
+            "mlir::IntegerAttr":$clusterId
         )>
     ];
 
@@ -2492,9 +2597,7 @@ def VPUIP_DPUTaskOp :
         attr-dict
     }];
 
-    let verifier = [{
-        return vpux::VPUIP::verifyOp(*this);
-    }];
+    let hasVerifier = 1;
 }
 
 //
@@ -2505,7 +2608,7 @@ def VPUIP_PPETaskOp :
         VPUIP_Op<
             "PPETask",
             [
-                ParentOneOf<["vpux::VPUIP::NCEClusterTaskOp", "vpux::VPUIPRegMapped::DPUInvariantOp"]>
+                ParentOneOf<["vpux::VPUIP::NCEClusterTaskOp", "vpux::VPUMI37XX::DPUInvariantOp"]>
             ]
         > {
     let summary = "PPE Type for NCE Task";
@@ -2613,14 +2716,14 @@ def VPUIP_NCEClusterTaskOp :
     }];
 
     let arguments = (ins
-        AnyTypeOf<[MemRefOf<[F16, BF16, quant_QuantizedType]>, VPUIP_Buffer]>:$input,
-        Optional<MemRefOf<[I1]>>:$input_sparsity_map,
-        Optional<MemRefOf<[I32]>>:$input_storage_element_table,
-        Optional<AnyTypeOf<[MemRefOf<[F16, BF16, quant_QuantizedType]>, VPUIP_Buffer]>>:$weights,
-        Optional<MemRefOf<[I1]>>:$weights_sparsity_map,
-        Optional<MemRefOf<[SI32]>>:$weight_table,
-        Optional<MemRefOf<[SI32]>>:$instruction_list_table,
-        Optional<MemRefOf<[UI8]>>:$activation_window,
+        AnyTypeOf<[MemRefOf<[F16, BF16, quant_QuantizedType]>, VPUIP_DistributedBuffer, VPUIP_Buffer]>:$input,
+        Optional<AnyTypeOf<[MemRefOf<[I1]>, VPUIP_DistributedBuffer]>>:$input_sparsity_map,
+        Optional<AnyTypeOf<[MemRefOf<[I32]>, VPUIP_DistributedBuffer]>>:$input_storage_element_table,
+        Optional<AnyTypeOf<[MemRefOf<[F16, BF16, quant_QuantizedType]>, VPUIP_DistributedBuffer, VPUIP_Buffer]>>:$weights,
+        Optional<AnyTypeOf<[MemRefOf<[I1]>, VPUIP_DistributedBuffer]>>:$weights_sparsity_map,
+        Optional<AnyTypeOf<[MemRefOf<[SI32]>, VPUIP_DistributedBuffer]>>:$weight_table,
+        Optional<AnyTypeOf<[MemRefOf<[SI32]>, VPUIP_DistributedBuffer]>>:$instruction_list_table,
+        Optional<AnyTypeOf<[MemRefOf<[UI8]>, VPUIP_DistributedBuffer]>>:$activation_window,
 
         AnyTypeOf<[AnyMemRef, VPUIP_Buffer, VPUIP_DistributedBuffer]>:$parent_input,
         Optional<AnyTypeOf<[MemRefOf<[I1]>, VPUIP_DistributedBuffer]>>:$parent_input_sparsity_map,
@@ -2645,13 +2748,14 @@ def VPUIP_NCEClusterTaskOp :
         OptionalAttr<UnitAttr>:$is_superdense,
         OptionalAttr<BoolAttr>:$is_inplace,
         OptionalAttr<IntAttr>:$input_se_size,
-        OptionalAttr<IntAttr>:$output_se_size
+        OptionalAttr<IntAttr>:$output_se_size,
+        OptionalAttr<UnitAttr>:$is_permute_quantize
     );
 
     let results = (outs
         AnyTypeOf<[MemRefOf<[F16, F32, BF16, quant_QuantizedType]>, VPUIP_Buffer, VPUIP_DistributedBuffer]>:$output,
         Optional<AnyTypeOf<[MemRefOf<[I1]>, VPUIP_DistributedBuffer]>>:$output_sparsity_map,
-        Optional<MemRefOf<[UI64]>>:$profiling_output
+        Optional<AnyTypeOf<[MemRefOf<[UI64]>, VPUIP_DistributedBuffer]>>:$profiling_output
     );
 
     let regions = (region
@@ -2684,7 +2788,8 @@ def VPUIP_NCEClusterTaskOp :
             CArg<"mlir::UnitAttr", "nullptr">:$is_superdense,
             CArg<"mlir::BoolAttr", "nullptr">:$is_inplace,
             CArg<"mlir::IntegerAttr", "nullptr">:$input_se_size,
-            CArg<"mlir::IntegerAttr", "nullptr">:$output_se_size
+            CArg<"mlir::IntegerAttr", "nullptr">:$output_se_size,
+            CArg<"mlir::UnitAttr", "nullptr">:$is_permute_quantize
         )>,
 
         OpBuilder<(ins
@@ -2704,7 +2809,8 @@ def VPUIP_NCEClusterTaskOp :
             CArg<"mlir::UnitAttr", "nullptr">:$is_superdense,
             CArg<"mlir::BoolAttr", "nullptr">:$is_inplace,
             CArg<"mlir::IntegerAttr", "nullptr">:$input_se_size,
-            CArg<"mlir::IntegerAttr", "nullptr">:$output_se_size
+            CArg<"mlir::IntegerAttr", "nullptr">:$output_se_size,
+            CArg<"mlir::UnitAttr", "nullptr">:$is_permute_quantize
         )>,
 
         OpBuilder<(ins
@@ -2723,7 +2829,8 @@ def VPUIP_NCEClusterTaskOp :
             CArg<"mlir::UnitAttr", "nullptr">:$is_superdense,
             CArg<"mlir::BoolAttr", "nullptr">:$is_inplace,
             CArg<"mlir::IntegerAttr", "nullptr">:$input_se_size,
-            CArg<"mlir::IntegerAttr", "nullptr">:$output_se_size
+            CArg<"mlir::IntegerAttr", "nullptr">:$output_se_size,
+            CArg<"mlir::UnitAttr", "nullptr">:$is_permute_quantize
         )>,
 
         OpBuilder<(ins
@@ -2743,7 +2850,8 @@ def VPUIP_NCEClusterTaskOp :
             CArg<"mlir::UnitAttr", "nullptr">:$is_superdense,
             CArg<"mlir::BoolAttr", "nullptr">:$is_inplace,
             CArg<"mlir::IntegerAttr", "nullptr">:$input_se_size,
-            CArg<"mlir::IntegerAttr", "nullptr">:$output_se_size
+            CArg<"mlir::IntegerAttr", "nullptr">:$output_se_size,
+            CArg<"mlir::UnitAttr", "nullptr">:$is_permute_quantize
         )>,
 
         OpBuilder<(ins
@@ -2765,30 +2873,8 @@ def VPUIP_NCEClusterTaskOp :
             CArg<"mlir::UnitAttr", "nullptr">:$is_superdense,
             CArg<"mlir::BoolAttr", "nullptr">:$is_inplace,
             CArg<"mlir::IntegerAttr", "nullptr">:$input_se_size,
-            CArg<"mlir::IntegerAttr", "nullptr">:$output_se_size
-        )>,
-
-        OpBuilder<(ins
-            "mlir::Type":$output, "mlir::Type":$output_sparsity_map, "mlir::Type":$profiling_output,
-            "mlir::Value":$input, "mlir::Value":$input_sparsity_map, "mlir::Value":$input_storage_element_table,
-            "mlir::Value":$weights, "mlir::Value":$weights_sparsity_map,
-            "mlir::Value":$weight_table,
-            "mlir::Value":$instruction_list_table, "mlir::Value":$activation_window,
-            "mlir::Value":$parent_input, "mlir::Value":$parent_input_sparsity_map, "mlir::Value":$parent_input_storage_element_table,
-            "mlir::Value":$parent_output, "mlir::Value":$parent_output_sparsity_map,
-            "mlir::Value":$output_buff, "mlir::Value":$output_sparsity_map_buff, "mlir::Value":$profiling_data,
-            "vpux::VPUIP::NCETaskType":$task_type,
-            "mlir::ArrayAttr":$kernel_size, "mlir::ArrayAttr":$kernel_strides, "vpux::VPU::PaddingAttr":$kernel_padding,
-            "mlir::IntegerAttr":$activation_window_channel_length,
-            CArg<"mlir::UnitAttr", "nullptr">:$is_continued,
-            CArg<"mlir::IntegerAttr", "nullptr">:$cm_sp_pattern,
-            CArg<"mlir::UnitAttr", "nullptr">:$is_segmented,
-            CArg<"mlir::IntegerAttr", "nullptr">:$out_channel_offset,
-            CArg<"mlir::UnitAttr", "nullptr">:$input_channels_compression,
-            CArg<"mlir::UnitAttr", "nullptr">:$is_superdense,
-            CArg<"mlir::BoolAttr", "nullptr">:$is_inplace,
-            CArg<"mlir::IntegerAttr", "nullptr">:$input_se_size,
-            CArg<"mlir::IntegerAttr", "nullptr">:$output_se_size
+            CArg<"mlir::IntegerAttr", "nullptr">:$output_se_size,
+            CArg<"mlir::UnitAttr", "nullptr">:$is_permute_quantize
         )>,
 
         OpBuilder<(ins
@@ -2811,7 +2897,32 @@ def VPUIP_NCEClusterTaskOp :
             CArg<"mlir::UnitAttr", "nullptr">:$is_superdense,
             CArg<"mlir::BoolAttr", "nullptr">:$is_inplace,
             CArg<"mlir::IntegerAttr", "nullptr">:$input_se_size,
-            CArg<"mlir::IntegerAttr", "nullptr">:$output_se_size
+            CArg<"mlir::IntegerAttr", "nullptr">:$output_se_size,
+            CArg<"mlir::UnitAttr", "nullptr">:$is_permute_quantize
+        )>,
+
+        OpBuilder<(ins
+            "mlir::Type":$output, "mlir::Type":$output_sparsity_map, "mlir::Type":$profiling_output,
+            "mlir::Value":$input, "mlir::Value":$input_sparsity_map, "mlir::Value":$input_storage_element_table,
+            "mlir::Value":$weights, "mlir::Value":$weights_sparsity_map,
+            "mlir::Value":$weight_table,
+            "mlir::Value":$instruction_list_table, "mlir::Value":$activation_window,
+            "mlir::Value":$parent_input, "mlir::Value":$parent_input_sparsity_map, "mlir::Value":$parent_input_storage_element_table,
+            "mlir::Value":$parent_output, "mlir::Value":$parent_output_sparsity_map,
+            "mlir::Value":$output_buff, "mlir::Value":$output_sparsity_map_buff, "mlir::Value":$profiling_data,
+            "vpux::VPUIP::NCETaskType":$task_type,
+            "mlir::ArrayAttr":$kernel_size, "mlir::ArrayAttr":$kernel_strides, "vpux::VPU::PaddingAttr":$kernel_padding,
+            "mlir::IntegerAttr":$activation_window_channel_length,
+            CArg<"mlir::UnitAttr", "nullptr">:$is_continued,
+            CArg<"mlir::IntegerAttr", "nullptr">:$cm_sp_pattern,
+            CArg<"mlir::UnitAttr", "nullptr">:$is_segmented,
+            CArg<"mlir::IntegerAttr", "nullptr">:$out_channel_offset,
+            CArg<"mlir::UnitAttr", "nullptr">:$input_channels_compression,
+            CArg<"mlir::UnitAttr", "nullptr">:$is_superdense,
+            CArg<"mlir::BoolAttr", "nullptr">:$is_inplace,
+            CArg<"mlir::IntegerAttr", "nullptr">:$input_se_size,
+            CArg<"mlir::IntegerAttr", "nullptr">:$output_se_size,
+            CArg<"mlir::UnitAttr", "nullptr">:$is_permute_quantize
         )>
     ];
 
@@ -2838,9 +2949,7 @@ def VPUIP_NCEClusterTaskOp :
         `PPE` `:` $ppe
     }];
 
-    let verifier = [{
-        return vpux::VPUIP::verifyOp(*this);
-    }];
+    let hasVerifier = 1;
 
     let extraClassDeclaration = [{
         vpux::VPUIP::DPUTaskOp addDPUTask(mlir::OpBuilder& builder,
@@ -2900,9 +3009,7 @@ def VPUIP_CTCGreedyDecoderUPAOp :
         F16MemRef:$output
     );
 
-    let verifier = [{
-        return vpux::VPUIP::verifyOp(*this);
-    }];
+    let hasVerifier = 1;
 
     let assemblyFormat = [{
         attr-dict
@@ -2966,16 +3073,14 @@ def VPUIP_PadUPAOp :
         I64ArrayAttr:$pads_begin,
         I64ArrayAttr:$pads_end,
         OptionalAttr<F64Attr>:$pad_value,
-        IE_PadMode:$mode
+        IE_PadModeAttr:$mode
     );
 
     let results = (outs
         F16MemRef:$output
     );
 
-    let verifier = [{
-        return vpux::VPUIP::verifyOp(*this);
-    }];
+    let hasVerifier = 1;
 
     let assemblyFormat = [{
         attr-dict
@@ -3030,7 +3135,7 @@ def VPUIP_SwKernelRun
     : VPUIP_Op<"SW.Kernel.run"> {
 
     let arguments  = (ins
-        Variadic<AnyMemRef>:$args,
+        Variadic<AnyTypeOf<[AnyMemRef, VPUIP_DistributedBuffer]>>:$args,
         OptionalAttr<ArrayAttr>:$attrs
     );
 
@@ -3063,16 +3168,16 @@ def VPUIP_SwKernelOp :
 
     let arguments = (ins
         SymbolRefAttr:$kernelFunction,
-        Variadic<AnyMemRef>:$inputs,
-        Variadic<AnyMemRef>:$output_buffs,
-        Optional<MemRefOf<[UI32]>>:$profiling_data,
-        OptionalAttr<IntAttr>:$tileIndex, 
-        OptionalAttr<ArrayAttr>:$strides
+        Variadic<AnyTypeOf<[AnyMemRef, VPUIP_DistributedBuffer]>>:$inputs,
+        Variadic<AnyTypeOf<[AnyMemRef, VPUIP_DistributedBuffer]>>:$output_buffs,
+        Optional<AnyTypeOf<[MemRefOf<[UI32]>, VPUIP_DistributedBuffer]>>:$profiling_data,
+        OptionalAttr<IntAttr>:$tileIndex,
+        OptionalAttr<I64ArrayOfArraysAttr>:$strides
     );
 
     let results = (outs
-        Variadic<AnyMemRef>:$results,
-        Optional<MemRefOf<[UI32]>>:$profiling_output
+        Variadic<AnyTypeOf<[AnyMemRef, VPUIP_DistributedBuffer]>>:$results,
+        Optional<AnyTypeOf<[MemRefOf<[UI32]>, VPUIP_DistributedBuffer]>>:$profiling_output
     );
 
     let regions = (region
@@ -3110,9 +3215,6 @@ def VPUIP_SwKernelOp :
         )>
     ];
 
-    let printer = [{ return vpux::VPUIP::print(p, *this); }];
-    let parser = [{ return vpux::VPUIP::parse$cppClass(parser, result); }];
-
     let extraClassDeclaration = [{
         static vpux::VPU::ExecutorKind getExecutorKind() {
             return vpux::VPU::ExecutorKind::SHAVE_ACT;
@@ -3124,6 +3226,9 @@ def VPUIP_SwKernelOp :
 
         static vpux::VPUIP::KernelInfo getKernelInfo(mlir::Operation* origOp);
         static vpux::VPUIP::KernelInfo getDummyKernelInfo();
+
+        void print(::mlir::OpAsmPrinter& p);
+        static ::mlir::ParseResult parse(::mlir::OpAsmParser& parser, ::mlir::OperationState& result);
     }];
 }
 
@@ -3150,7 +3255,7 @@ def VPUIP_LSTMSequenceUPAOp :
         F16MemRef:$outputHiddenState_buff,
 
         IntAttr:$sequenceLength,
-        IE_RNNSequenceDirection:$direction
+        IE_RNNSequenceDirectionAttr:$direction
     );
 
     let results = (outs
@@ -3187,9 +3292,9 @@ def VPUIP_InterpolateUPAOp :
 
         F16MemRef:$output_buff,
 
-        IE_InterpolateMode:$mode,
-        IE_InterpolateCoordMode:$coord_mode,
-        IE_InterpolateNearestMode:$nearest_mode,
+        IE_InterpolateModeAttr:$mode,
+        IE_InterpolateCoordModeAttr:$coord_mode,
+        IE_InterpolateNearestModeAttr:$nearest_mode,
         UnitAttr:$antialias
     );
 
@@ -3363,9 +3468,7 @@ def VPUIP_MVNUPAOp :
         AnyMemRef:$output
     );
 
-    let verifier = [{
-        return vpux::VPUIP::verifyOp(*this);
-    }];
+    let hasVerifier = 1;
 
     let assemblyFormat = [{
         attr-dict
@@ -3400,9 +3503,7 @@ def VPUIP_GatherUPAOp :
         AnyMemRef:$output
     );
 
-    let verifier = [{
-        return vpux::VPUIP::verifyOp(*this);
-    }];
+    let hasVerifier = 1;
 
     let assemblyFormat = [{
         attr-dict
@@ -3462,16 +3563,14 @@ def VPUIP_SpaceToDepthUPAOp :
         F16MemRef:$output_buff,
 
         IntAttr:$block_size,
-        IE_SpaceToDepthMode:$mode
+        IE_SpaceToDepthModeAttr:$mode
     );
 
     let results = (outs
         F16MemRef:$output
     );
 
-    let verifier = [{
-        return vpux::VPUIP::verifyOp(*this);
-    }];
+    let hasVerifier = 1;
 
     let assemblyFormat = [{
         attr-dict
@@ -3490,19 +3589,21 @@ def VPUIP_SpaceToDepthDMAOp :
             [
                 ViewLikeOpInterface,
                 VPUIP_SameElementType,
-                VPUIP_ProfiledDMAOpInterface
+                VPUIP_DMATypeOpInterface
             ]
         > {
     let summary = "A NNDMA task which performs a functionality equivalent DMA transfer to a UPA SpaceToDepth task";
 
     let arguments = (ins
-        AnyMemRef:$input,
-        AnyMemRef:$output_buff,
+        AnyTypeOf<[AnyMemRef, VPUIP_DistributedBuffer]>:$input,
+        AnyTypeOf<[AnyMemRef, VPUIP_DistributedBuffer]>:$output_buff,
 
         DefaultValuedAttr<IntAttr, "0">:$port,
+        OptionalAttr<VPUIP_DmaChannelType>:$channelType,
         IntAttr:$block_size,
-        IE_SpaceToDepthMode:$mode,
-        OptionalAttr<VPUIP_DmaDescriptorAttr>:$dma_descriptor
+        IE_SpaceToDepthModeAttr:$mode,
+        OptionalAttr<VPUIP_DmaDescriptorAttr>:$dma_descriptor,
+        OptionalAttr<IntAttr>:$dma_hwp_id
     );
 
     let builders = [
@@ -3515,7 +3616,7 @@ def VPUIP_SpaceToDepthDMAOp :
     ];
 
     let results = (outs
-        AnyMemRef:$output
+        AnyTypeOf<[AnyMemRef, VPUIP_DistributedBuffer]>:$output
     );
 
     let extraClassDeclaration = [{
@@ -3527,11 +3628,9 @@ def VPUIP_SpaceToDepthDMAOp :
             const auto memKind = getType().cast<vpux::NDTypeInterface>().getMemoryKind();
             return memKind == vpux::VPU::MemoryKind::DDR ? vpux::DotNodeColor::RED : vpux::DotNodeColor::GREEN;
         }
-    }] # VPUIP_InferLayerReturnTypes<1>.impl;
+    }] # commonExtraClassDeclaration;
 
-    let verifier = [{
-        return vpux::VPUIP::verifyOp(*this);
-    }];
+    let hasVerifier = 1;
 
     let assemblyFormat = [{
         attr-dict
@@ -3550,19 +3649,21 @@ def VPUIP_PerAxisTileDMAOp :
             [
                 ViewLikeOpInterface,
                 VPUIP_SameInOutDimsOrder,
-                VPUIP_ProfiledDMAOpInterface
+                VPUIP_DMATypeOpInterface
             ]
         > {
     let summary = "A NNDMA task which performs a functionality equivalent DMA transfer to a UPA PerAxisTileUPAOp task";
 
     let arguments = (ins
-        F16MemRef:$input,
-        AnyTypeOf<[F16MemRef, VPUIP_DistributedBuffer]>:$output_buff,
+        AnyTypeOf<[MemRefOf<[UI8, F16]>, VPUIP_DistributedBuffer]>:$input,
+        AnyTypeOf<[MemRefOf<[UI8, F16]>, VPUIP_DistributedBuffer]>:$output_buff,
 
         DefaultValuedAttr<IntAttr, "0">:$port,
+        OptionalAttr<VPUIP_DmaChannelType>:$channelType,
         OptionalAttr<IntAttr>:$axis,
         OptionalAttr<IntAttr>:$tiles,
-        OptionalAttr<VPUIP_DmaDescriptorAttr>:$dma_descriptor
+        OptionalAttr<VPUIP_DmaDescriptorAttr>:$dma_descriptor,
+        OptionalAttr<IntAttr>:$dma_hwp_id
     );
 
     let builders = [
@@ -3575,7 +3676,7 @@ def VPUIP_PerAxisTileDMAOp :
     ];
 
     let results = (outs
-        AnyTypeOf<[F16MemRef, VPUIP_DistributedBuffer]>:$output
+        AnyTypeOf<[MemRefOf<[UI8, F16]>, VPUIP_DistributedBuffer]>:$output
     );
 
     let extraClassDeclaration = [{
@@ -3587,11 +3688,9 @@ def VPUIP_PerAxisTileDMAOp :
             const auto memKind = getType().cast<vpux::NDTypeInterface>().getMemoryKind();
             return memKind == vpux::VPU::MemoryKind::DDR ? vpux::DotNodeColor::RED : vpux::DotNodeColor::GREEN;
         }
-    }] # VPUIP_InferLayerReturnTypes<1>.impl;
+    }] # commonExtraClassDeclaration;
 
-    let verifier = [{
-        return vpux::VPUIP::verifyOp(*this);
-    }];
+    let hasVerifier = 1;
 
     let assemblyFormat = [{
         attr-dict
@@ -3687,9 +3786,7 @@ def VPUIP_CeilingUPAOp :
         F16MemRef:$output
     );
 
-    let verifier = [{
-        return vpux::VPUIP::verifyPostOp(*this);
-    }];
+    let hasVerifier = 1;
 
     let assemblyFormat = [{
         attr-dict
@@ -3749,7 +3846,7 @@ def VPUIP_DepthToSpaceUPAOp :
         F16MemRef:$output_buff,
 
         IntAttr:$block_size,
-        IE_DepthToSpaceMode:$mode,
+        IE_DepthToSpaceModeAttr:$mode,
         OptionalAttr<IE_ChannelPadding>:$padded_channels
     );
 
@@ -3763,9 +3860,7 @@ def VPUIP_DepthToSpaceUPAOp :
         >
     ];
 
-    let verifier = [{
-        return vpux::VPUIP::verifyOp(*this);
-    }];
+    let hasVerifier = 1;
 
     let assemblyFormat = [{
         attr-dict
@@ -3784,20 +3879,22 @@ def VPUIP_DepthToSpaceDMAOp :
             [
                 ViewLikeOpInterface,
                 VPUIP_SameElementType,
-                VPUIP_ProfiledDMAOpInterface
+                VPUIP_DMATypeOpInterface
             ]
         > {
     let summary = "A NNDMA task which performs a functionality equivalent DMA transfer to a UPA DepthToSpace task";
 
     let arguments = (ins
-        AnyMemRef:$input,
-        AnyMemRef:$output_buff,
+        AnyTypeOf<[AnyMemRef, VPUIP_DistributedBuffer]>:$input,
+        AnyTypeOf<[AnyMemRef, VPUIP_DistributedBuffer]>:$output_buff,
 
         DefaultValuedAttr<IntAttr, "0">:$port,
+        OptionalAttr<VPUIP_DmaChannelType>:$channelType,
         IntAttr:$block_size,
-        IE_DepthToSpaceMode:$mode,
+        IE_DepthToSpaceModeAttr:$mode,
         OptionalAttr<VPUIP_DmaDescriptorAttr>:$dma_descriptor,
-        OptionalAttr<IE_ChannelPadding>:$padded_channels
+        OptionalAttr<IE_ChannelPadding>:$padded_channels,
+        OptionalAttr<IntAttr>:$dma_hwp_id
     );
 
     let builders = [
@@ -3812,7 +3909,7 @@ def VPUIP_DepthToSpaceDMAOp :
     ];
 
     let results = (outs
-        AnyMemRef:$output
+        AnyTypeOf<[AnyMemRef, VPUIP_DistributedBuffer]>:$output
     );
 
     let extraClassDeclaration = [{
@@ -3824,11 +3921,9 @@ def VPUIP_DepthToSpaceDMAOp :
             const auto memKind = getType().cast<vpux::NDTypeInterface>().getMemoryKind();
             return memKind == vpux::VPU::MemoryKind::DDR ? vpux::DotNodeColor::RED : vpux::DotNodeColor::GREEN;
         }
-    }] # VPUIP_InferLayerReturnTypes<1>.impl;
+    }] # commonExtraClassDeclaration;
 
-    let verifier = [{
-        return vpux::VPUIP::verifyOp(*this);
-    }];
+    let hasVerifier = 1;
 
     let assemblyFormat = [{
         attr-dict
@@ -3924,7 +4019,7 @@ def VPUIP_NonMaxSuppressionUPAOp :
         F16MemRef:$out_selected_scores_buff,
         MemRefOf<[SI32]>:$out_valid_outputs_buff,
 
-        IE_BoxEncodingType:$box_encoding,
+        IE_BoxEncodingTypeAttr:$box_encoding,
         UnitAttr:$sort_result_descending,
 
         IntAttr:$max_output_boxes_per_class_value,
@@ -3975,9 +4070,7 @@ def VPUIP_ReverseSequenceUPAOp :
         F16MemRef:$output
     );
 
-    let verifier = [{
-        return vpux::VPUIP::verifyOp(*this);
-    }];
+    let hasVerifier = 1;
 
     let assemblyFormat = [{
         attr-dict
@@ -4006,8 +4099,8 @@ def VPUIP_TopKUPAOp:
         MemRefOf<[SI32]>:$target_shape_buff,
 
         IntAttr:$axis,
-        IE_TopKMode:$mode,
-        IE_TopKSortType:$sort,
+        IE_TopKModeAttr:$mode,
+        IE_TopKSortTypeAttr:$sort,
         TypeAttr:$element_type
     );
 
@@ -4040,9 +4133,7 @@ def VPUIP_SoftPlusUPAOp :
         F16MemRef:$output
     );
 
-    let verifier = [{
-        return vpux::VPUIP::verifyPostOp(*this);
-    }];
+    let hasVerifier = 1;
 
     let assemblyFormat = [{
         attr-dict
@@ -4071,17 +4162,15 @@ def VPUIP_YuvToRgbUPAOp :
         Optional<MemRefOf<[UI8, F16, F32]>>:$input3,
                  MemRefOf<[UI8, F16, F32]> :$output_buff,
 
-        IE_ColorFmt:$inFmt,
-        IE_ColorFmt:$outFmt
+        IE_ColorFmtAttr:$inFmt,
+        IE_ColorFmtAttr:$outFmt
     );
 
     let results = (outs
         MemRefOf<[UI8, F16, F32]>:$output
     );
 
-    let verifier = [{
-        return vpux::VPUIP::verifyOp(*this);
-    }];
+    let hasVerifier = 1;
 
     let assemblyFormat = [{
         attr-dict
@@ -4106,9 +4195,8 @@ def VPUIP_NCEClusterTilingOp :
                 AttrSizedOperandSegments,
                 MemoryEffectsOpInterface,
                 DeclareOpInterfaceMethods<VPUIP_LayerOpInterface>,
-                DeclareOpInterfaceMethods<RegionBranchOpInterface, ["getSuccessorEntryOperands"]>,
                 VPUIP_AsyncLayerOpInterface
-            ]
+            ] # GraphRegionNoTerminator.traits
         > {
     let summary = "Operation that encapsulates details of tiling operation between clusters";
 
@@ -4123,9 +4211,7 @@ def VPUIP_NCEClusterTilingOp :
 
     let regions = (region SizedRegion<1>:$body);
 
-    let printer = [{ vpux::VPUIP::print(p, *this); }];
-    let parser = [{ return vpux::VPUIP::parse$cppClass(parser, result); }];
-    let verifier = [{ return vpux::VPUIP::verifyOp(*this); }];
+    let hasVerifier = 1;
 
     let skipDefaultBuilders = 1;
     let builders = [
@@ -4144,6 +4230,9 @@ def VPUIP_NCEClusterTilingOp :
         mlir::MutableArrayRef<mlir::BlockArgument> getInnerOutputs();
 
         vpux::IndexedSymbolAttr getExecutor();
+
+        void print(::mlir::OpAsmPrinter& p);
+        static ::mlir::ParseResult parse(::mlir::OpAsmParser& parser, ::mlir::OperationState& result);
     }];
 }
 
@@ -4166,7 +4255,7 @@ def VPUIP_ExtractImagePatchesUPAOp :
         I64ArrayAttr:$sizes,
         I64ArrayAttr:$strides,
         I64ArrayAttr:$rates,
-        IE_PadType:$autoPad
+        IE_PadTypeAttr:$autoPad
     );
 
     let results = (outs
@@ -4211,8 +4300,7 @@ def VPUIP_DistributedCastOp :
     }];
 
     let hasFolder = 1;
-
-    let verifier = [{ return vpux::VPUIP::verifyOp(*this); }];
+    let hasVerifier = 1;
 }
 
 
@@ -4341,9 +4429,7 @@ def VPUIP_PermuteCastOp :
         AnyTypeOf<[AnyMemRef, VPUIP_SparseBuffer, VPUIP_DistributedBuffer]>:$result
     );
 
-    let verifier = [{
-        return vpux::VPUIP::verifyOp(*this);
-    }];
+    let hasVerifier = 1;
 
     let assemblyFormat = [{
         attr-dict
@@ -4376,9 +4462,7 @@ def VPUIP_QuantizeCastOp :
         AnyTypeOf<[MemRefOf<[SI8, UI8, quant_QuantizedType]>, VPUIP_DistributedBuffer]>:$output
     );
 
-    let verifier = [{
-        return vpux::VPUIP::verifyOp(*this);
-    }];
+    let hasVerifier = 1;
 
     let assemblyFormat = [{
         attr-dict
@@ -4413,9 +4497,7 @@ def VPUIP_GenericReshapeOp :
         AnyTypeOf<[AnyMemRef, VPUIP_SparseBuffer, VPUIP_DistributedBuffer]>:$output
     );
 
-    let verifier = [{
-        return vpux::VPUIP::verifyOp(*this);
-    }];
+    let hasVerifier = 1;
 
     let assemblyFormat = [{
         attr-dict
@@ -4473,7 +4555,7 @@ def VPUIP_CopyOp :
                 InferTypeOpInterface,
                 DeclareOpInterfaceMethods<VPUIP_LayerOpInterface>,
                 MemoryEffectsOpInterface,
-                VPUIP_ProfiledDMAOpInterface,
+                VPUIP_DMATypeOpInterface,
                 DotInterface
             ]
         > {
@@ -4481,7 +4563,9 @@ def VPUIP_CopyOp :
 
     let arguments = (ins
         AnyTypeOf<[AnyMemRef, VPUIP_Buffer, VPUIP_SparseBuffer]>:$input,
-        AnyTypeOf<[AnyMemRef, VPUIP_Buffer, VPUIP_SparseBuffer]>:$output_buff
+        AnyTypeOf<[AnyMemRef, VPUIP_Buffer, VPUIP_SparseBuffer]>:$output_buff,
+        OptionalAttr<VPUIP_DmaChannelType>:$channelType,
+        OptionalAttr<IntAttr>:$spillId
     );
 
     let results = (outs
@@ -4495,7 +4579,39 @@ def VPUIP_CopyOp :
         `->` type(results)
     }];
 
+    let builders = [
+        OpBuilder<
+            (ins "mlir::Value":$input, "mlir::Value":$output_buff)
+        >,
+        OpBuilder<
+            (ins "mlir::Value":$input, "mlir::Value":$output_buff, "int64_t":$spillId)
+        >,
+        OpBuilder<
+            (ins "mlir::Type":$output, "mlir::Value":$input, "mlir::Value":$output_buff)
+        >
+    ];
+
     let extraClassDeclaration = [{
+        mlir::IntegerAttr portAttr() {
+            VPUX_THROW("CopyOp has no port attribute");
+        }
+
+        int64_t port() {
+            VPUX_THROW("CopyOp has no port attribute");
+        }
+
+        void portAttr(mlir::IntegerAttr) {
+            VPUX_THROW("CopyOp has no port attribute");
+        }
+
+        void setDmaHwpId(mlir::IntegerAttr) {
+            VPUX_THROW("CopyOp has no port attribute");
+        }
+
+        mlir::IntegerAttr getDmaHwpId() {
+            VPUX_THROW("CopyOp has no port attribute");
+        }
+
         vpux::DotNodeColor getNodeColor() {
             return vpux::DotNodeColor::GREEN;
         }
@@ -4570,9 +4686,7 @@ def VPUIP_ShapeCastOp :
         AnyTypeOf<[AnyMemRef, VPUIP_DistributedBuffer, VPUIP_SparseBuffer]>:$result
     );
 
-    let verifier = [{
-        return vpux::VPUIP::verifyOp(*this);
-    }];
+    let hasVerifier = 1;
 
     let assemblyFormat = [{
         attr-dict
@@ -4604,7 +4718,9 @@ def VPUIP_GroupSparseBufferOp :
         Optional<AnyTypeOf<[AnyMemRef, VPUIP_DistributedBuffer]>>:$storageElementTable,
 
         OptionalAttr<UnitAttr>:$is_weights,
-        OptionalAttr<VPUIP_CompressionSchemeAttr>:$compression_scheme
+        OptionalAttr<VPUIP_CompressionSchemeAttr>:$compression_scheme,
+
+        OptionalAttr<VPU_SEAttr>:$seAttr
     );
 
     let results = (outs
@@ -4623,6 +4739,10 @@ def VPUIP_GroupSparseBufferOp :
         OpBuilder<
             (ins "mlir::Value":$data, "mlir::Value":$sparsityMap, "mlir::Value":$storageElementTable,
                 CArg<"bool", "{}">:$is_weights, CArg<"VPUIP::CompressionSchemeAttr", "{}">:$compression_scheme)
+        >,
+        OpBuilder<
+            (ins "mlir::Value":$data, "mlir::Value":$sparsityMap, "mlir::Value":$storageElementTable,
+                CArg<"VPU::SEAttr", "{}">:$seAttr)
         >
     ];
 
@@ -4711,28 +4831,52 @@ def VPUIP_StorageElementTableOp :
                 DeclareOpInterfaceMethods<InferTypeOpInterface>,
             ]
         > {
-    let summary = "Declares Storage Element Pointers table";
+    let summary = "Declares a Storage Element Pointers table";
 
-        let description = [{
-        Declares Storage Element Pointers table with defined width,
-        height, number of output pixels each SE contains(seSize), amount of SE
-        per tensor depth(seDepth) and not empty list of base pointers for each
-        element.
+    let description = [{
+        A Storage Element represents a 1x1xN volume that contains sparse data, where N
+        represents the number of channels stored. The Storage Element Table is comprised
+        of pointers to these Storage Elements, which have the following structure:
+
+        31-29 28                            9 8         0
+        -------------------------------------------------
+        | xx |           DATA_PTR            | BASE_PTR |
+        -------------------------------------------------
+
+        The DATA_PTR represents the offset to a Storage Element in relation to the start of
+        the input data. BASE_PTR is used to decide what base address is added to DATA_PTR
+        in order to find the location of the Storage Element in memory during inference.
+
+        This operation represents the Storage Element Table in relation to the input data,
+        on top of which transformations can be applied. This operation will later get
+        converted to a constant, where the pointers are generated based on the information
+        contained in this operation.
+
+        The following information is contained:
+        - dataShape, dataElemType, dataStrides: information about the input data that
+          is associated with this Storage Element Table
+        - seSize: the size of a Storage Element
+        - seDepth: the number of Storage Elements per depth
+        - seAttr: information on how the input data is transformed
+        - basePtrs: base pointers associated with each Storage Element pointer
     }];
 
     let arguments = (ins
-        IntAttr:$seDepth,
+        I64ArrayAttr:$dataShape,
+        TypeAttr:$dataElemType,
         IntAttr:$seSize,
-        IntAttr:$height,
-        IntAttr:$width,
-        OptionalAttr<I32ArrayAttr>:$base_ptrs
+        IntAttr:$seDepth,
+        OptionalAttr<VPU_SEAttr>:$seAttr,
+        OptionalAttr<I64ArrayAttr>:$dataStrides,
+        OptionalAttr<I32ElementsAttr>:$basePtrs
     );
 
     let results = (outs
         MemRefOf<[I32]>:$output
     );
 
-    let verifier = [{ return vpux::VPUIP::verifyOp(*this); }];
+    let hasVerifier = 1;
+    let hasCanonicalizer = 1;
 
     let assemblyFormat = [{
          attr-dict `->` type(results)
@@ -4740,13 +4884,23 @@ def VPUIP_StorageElementTableOp :
 
     let builders = [
         OpBuilder<(ins
-            CArg<"int64_t">:$seDepth,
+            CArg<"llvm::ArrayRef<int64_t>">:$dataShape,
+            CArg<"mlir::Type">:$dataElemType,
             CArg<"int64_t">:$seSize,
-            CArg<"int64_t">:$height,
-            CArg<"int64_t">:$width,
-            CArg<"int32_t">:$base_ptr
+            CArg<"int64_t">:$seDepth,
+            CArg<"VPU::SEAttr">:$seAttr
         )>
     ];
+
+    let extraClassDeclaration = [{
+        static bool isCompatibleReturnTypes(mlir::TypeRange lhs, mlir::TypeRange rhs) {
+            return vpux::areTypesCompatible(lhs, rhs,
+                vpux::IE::TypeComparisonMode::STRICT_EQUAL,
+                /*checkInferredDimsOrder=*/true,
+                /*checkInferredMemSpace=*/true
+            );
+        }
+    }];
 }
 
 //
@@ -4803,7 +4957,7 @@ let arguments = (ins
         OptionalAttr<IntAttr>:$spatial_bins_y,
         OptionalAttr<F64Attr>:$trans_std,
         OptionalAttr<IntAttr>:$part_size,
-        OptionalAttr<IE_DeformablePSROIPoolingMode>:$mode
+        OptionalAttr<IE_DeformablePSROIPoolingModeAttr>:$mode
     );
 
     let results = (outs
@@ -4897,13 +5051,13 @@ def VPUIP_ExpandDMAOp :
             [
                 ViewLikeOpInterface,
                 VPUIP_SameElementType,
-                VPUIP_ProfiledDMAOpInterface
+                VPUIP_DMATypeOpInterface
             ]
         > {
     let summary = "A NNDMA task which expands tensor by copying values from original buffer";
 
     let arguments = (ins
-        AnyTypeOf<[AnyMemRef, VPUIP_Buffer]>:$input,
+        AnyTypeOf<[AnyMemRef, VPUIP_Buffer, VPUIP_DistributedBuffer]>:$input,
         AnyTypeOf<[AnyMemRef, VPUIP_Buffer, VPUIP_DistributedBuffer]>:$output_buff,
 
         I64ArrayAttr:$pads_begin,
@@ -4911,8 +5065,10 @@ def VPUIP_ExpandDMAOp :
 
         OptionalAttr<VPUIP_DmaDescriptorAttr>:$dma_descriptor,
         DefaultValuedAttr<IntAttr, "0">:$port,
+        OptionalAttr<VPUIP_DmaChannelType>:$channelType,
         UnitAttr:$is_out_of_order,
-        UnitAttr:$is_critical
+        UnitAttr:$is_critical,
+        OptionalAttr<IntAttr>:$dma_hwp_id
     );
 
     let results = (outs
@@ -4923,14 +5079,12 @@ def VPUIP_ExpandDMAOp :
         OpBuilder<(ins "mlir::Value":$input, "mlir::Value":$output_buff, "mlir::ArrayAttr":$pads_begin,
             "mlir::ArrayAttr":$pads_end, "VPUIP::DmaDescriptorAttr":$dma_descriptor)
         >,
-        OpBuilder<(ins "mlir::Value":$input, "mlir::Value":$output_buff, "mlir::ArrayAttr":$pads_begin, 
+        OpBuilder<(ins "mlir::Value":$input, "mlir::Value":$output_buff, "mlir::ArrayAttr":$pads_begin,
             "mlir::ArrayAttr":$pads_end, "VPUIP::DmaDescriptorAttr":$dma_descriptor, "mlir::IntegerAttr":$port)
         >
     ];
 
-    let verifier = [{
-        return vpux::VPUIP::verifyOp(*this);
-    }];
+    let hasVerifier = 1;
 
     let extraClassDeclaration = [{
         static vpux::VPU::ExecutorKind getExecutorKind() {
@@ -4941,7 +5095,7 @@ def VPUIP_ExpandDMAOp :
             const auto memKind = getType().cast<vpux::NDTypeInterface>().getMemoryKind();
             return memKind == vpux::VPU::MemoryKind::DDR ? vpux::DotNodeColor::RED : vpux::DotNodeColor::GREEN;
         }
-    }] # VPUIP_InferLayerReturnTypes<1>.impl;
+    }] # commonExtraClassDeclaration;
 
     let assemblyFormat = [{
         attr-dict
@@ -4961,23 +5115,35 @@ def VPUIP_UpsamplingDMAOp :
                 ViewLikeOpInterface,
                 VPUIP_SameElementType,
                 VPUIP_SameInOutDimsOrder,
-                VPUIP_ProfiledDMAOpInterface
+                VPUIP_DMATypeOpInterface
             ]
         > {
     let summary = "A NNDMA task which performs a functionality equivalent DMA transfer to a UPA UpsamplingDMA task";
 
     let arguments = (ins
-        AnyMemRef:$input,
-        AnyMemRef:$output_buff,
+        AnyTypeOf<[AnyMemRef, VPUIP_DistributedBuffer]>:$input,
+        AnyTypeOf<[AnyMemRef, VPUIP_DistributedBuffer]>:$output_buff,
         I64ArrayAttr:$upsampling_factor,
 
         OptionalAttr<VPUIP_DmaDescriptorAttr>:$dma_descriptor,
-        DefaultValuedAttr<IntAttr, "0">:$port
+        OptionalAttr<I64ArrayAttr>:$expand,
+        DefaultValuedAttr<IntAttr, "0">:$port,
+        OptionalAttr<VPUIP_DmaChannelType>:$channelType,
+        OptionalAttr<IntAttr>:$dma_hwp_id
     );
 
     let results = (outs
-        AnyMemRef:$output
+        AnyTypeOf<[AnyMemRef, VPUIP_DistributedBuffer]>:$output
     );
+
+    let builders = [
+        OpBuilder<
+            (ins "mlir::Value":$input, "mlir::Value":$output_buff, "mlir::ArrayAttr":$upsampling_factor, "vpux::VPUIP::DmaDescriptorAttr":$dma_descriptor, "mlir::ArrayAttr":$expand)
+        >,
+        OpBuilder<
+            (ins "mlir::Value":$input, "mlir::Value":$output_buff, "mlir::ArrayAttr":$upsampling_factor, "vpux::VPUIP::DmaDescriptorAttr":$dma_descriptor, "mlir::ArrayAttr":$expand, "int64_t":$port)
+        >,
+    ];
 
     let extraClassDeclaration = [{
         static vpux::VPU::ExecutorKind getExecutorKind() {
@@ -4988,11 +5154,9 @@ def VPUIP_UpsamplingDMAOp :
             const auto memKind = getType().cast<vpux::NDTypeInterface>().getMemoryKind();
             return memKind == vpux::VPU::MemoryKind::DDR ? vpux::DotNodeColor::RED : vpux::DotNodeColor::GREEN;
         }
-    }] # VPUIP_InferLayerReturnTypes<1>.impl;
+    }] # commonExtraClassDeclaration;
 
-    let verifier = [{
-        return vpux::VPUIP::verifyOp(*this);
-    }];
+    let hasVerifier = 1;
 
     let assemblyFormat = [{
         attr-dict

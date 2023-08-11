@@ -16,39 +16,38 @@ const static std::map<uint32_t, InferenceEngine::VPUXConfigParams::VPUXPlatform>
 };
 
 const static std::map<InferenceEngine::VPUXConfigParams::VPUXPlatform, std::string> platformNameMap = {
-        {InferenceEngine::VPUXConfigParams::VPUXPlatform::AUTO, "AUTO"},           // auto detection
-        {InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3400_A0, "3400_A0"},  // VPUX30XX A0
-        {InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3400, "3400"},        // VPUX30XX B0 500 MHz
-        {InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3700, "3700"},        // VPUX30XX B0 700 MHz
-        {InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3800, "3800"},        // VPU311X Prime
-        {InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3900, "3900"},        // VPU311X Full
-        {InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3720, "3720"},        // VPU3720
+        {InferenceEngine::VPUXConfigParams::VPUXPlatform::AUTO_DETECT, "AUTO_DETECT"},  // auto detection
+        {InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3400_A0, "3400_A0"},       // VPUX30XX A0
+        {InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3400, "3400"},             // VPUX30XX B0 500 MHz
+        {InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3700, "3700"},             // VPUX30XX B0 700 MHz
+        {InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3800, "3800"},             // VPU311X Prime
+        {InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3900, "3900"},             // VPU311X Full
+        {InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3720, "3720"},             // VPU3720
 };
 
 const static std::map<std::string, InferenceEngine::VPUXConfigParams::VPUXPlatform> platformNameInverseMap = {
-        {"AUTO", InferenceEngine::VPUXConfigParams::VPUXPlatform::AUTO},             // auto detection
-        {"3400_A0", InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3400_A0},    // VPUX30XX A0
-        {"3400", InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3400},          // VPUX30XX B0 500 MHz
-        {"3700", InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3700},          // VPUX30XX B0 700 MHz
-        {"3800", InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3800},          // VPU311X Prime
-        {"3900", InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3900},          // VPU311X Full
-        {"3720", InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3720},          // VPU3720
-        {"3400_A0_EMU", InferenceEngine::VPUXConfigParams::VPUXPlatform::EMULATOR},  // Emulator VPUX30XX A0
-        {"3400_EMU", InferenceEngine::VPUXConfigParams::VPUXPlatform::EMULATOR},     // Emulator VPUX30XX B0 500 MHz
-        {"3700_EMU", InferenceEngine::VPUXConfigParams::VPUXPlatform::EMULATOR},     // Emulator VPUX30XX B0 700 MHz
-        {"3800_EMU", InferenceEngine::VPUXConfigParams::VPUXPlatform::EMULATOR},     // Emulator VPU311X Prime
-        {"3900_EMU", InferenceEngine::VPUXConfigParams::VPUXPlatform::EMULATOR},     // Emulator VPU311X Full
-        {"3720_EMU", InferenceEngine::VPUXConfigParams::VPUXPlatform::EMULATOR},     // Emulator VPU3720
+        {"AUTO_DETECT", InferenceEngine::VPUXConfigParams::VPUXPlatform::AUTO_DETECT},  // auto detection
+        {"3400_A0", InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3400_A0},       // VPUX30XX A0
+        {"3400", InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3400},             // VPUX30XX B0 500 MHz
+        {"3700", InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3700},             // VPUX30XX B0 700 MHz
+        {"3800", InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3800},             // VPU311X Prime
+        {"3900", InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3900},             // VPU311X Full
+        {"3720", InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3720},             // VPU3720
+        {"3400_A0_EMU", InferenceEngine::VPUXConfigParams::VPUXPlatform::EMULATOR},     // Emulator VPUX30XX A0
+        {"3400_EMU", InferenceEngine::VPUXConfigParams::VPUXPlatform::EMULATOR},        // Emulator VPUX30XX B0 500 MHz
+        {"3700_EMU", InferenceEngine::VPUXConfigParams::VPUXPlatform::EMULATOR},        // Emulator VPUX30XX B0 700 MHz
+        {"3800_EMU", InferenceEngine::VPUXConfigParams::VPUXPlatform::EMULATOR},        // Emulator VPU311X Prime
+        {"3900_EMU", InferenceEngine::VPUXConfigParams::VPUXPlatform::EMULATOR},        // Emulator VPU311X Full
+        {"3720_EMU", InferenceEngine::VPUXConfigParams::VPUXPlatform::EMULATOR},        // Emulator VPU3720
 };
 
-// TODO Need to clarify the full names of devices. Definitely for VPU3720, possibly for others
 const static std::map<InferenceEngine::VPUXConfigParams::VPUXPlatform, std::string> platformToFullDeviceNameMap = {
-        {InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3400_A0, "Gen3 Intel(R) Movidius(TM) VPU 3400VE"},
-        {InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3400, "Gen3 Intel(R) Movidius(TM) VPU 3400VE"},
-        {InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3700, "Gen3 Intel(R) Movidius(TM) VPU 3700VE"},
-        {InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3800, "Gen3 Intel(R) Movidius(TM) S VPU 3800V"},
-        {InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3900, "Gen3 Intel(R) Movidius(TM) S VPU 3900V"},
-        {InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3720, "Gen4 Intel(R) Movidius(TM) VPU 3720VE"},  // VPU3720
+        {InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3400_A0, "Intel(R) Neural VPU (3400VE)"},
+        {InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3400, "Intel(R) Neural VPU (3400VE)"},
+        {InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3700, "Intel(R) Neural VPU (3700VE)"},
+        {InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3800, "Intel(R) Neural VPU (3800V)"},
+        {InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3900, "Intel(R) Neural VPU (3900V)"},
+        {InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3720, "Intel(R) Neural VPU (3720VE)"},
         {InferenceEngine::VPUXConfigParams::VPUXPlatform::EMULATOR, "Emulator"},  // Emulator
 };
 

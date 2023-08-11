@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/VPU/utils/const_utils.hpp"
 #include "vpux/compiler/utils/hw_settings.hpp"
 #include "vpux/compiler/utils/swizzling_utils.hpp"
@@ -287,11 +285,28 @@ mlir::Value alignConvWeightsTensor(mlir::OpBuilder& builder, mlir::Location loc,
     return alignedWeightsOp.output();
 }
 
+mlir::Value getZerosConst(mlir::PatternRewriter& rewriter, Shape constShape, mlir::Value input, mlir::Location loc) {
+    const auto elemType = input.getType().cast<vpux::NDTypeInterface>().getElementType();
+    const auto inputDimOrder = input.getType().cast<vpux::NDTypeInterface>().getDimsOrder();
+    const auto dataStorageType = mlir::RankedTensorType::get(to_small_vector(constShape), elemType)
+                                         .cast<vpux::NDTypeInterface>()
+                                         .changeDimsOrder(inputDimOrder);
+
+    mlir::DenseElementsAttr denseElementVal = wrapData(dataStorageType.cast<mlir::RankedTensorType>(), 0.0f);
+    VPUX_THROW_UNLESS(denseElementVal != nullptr,
+                      "Upsampling has incompatible data type {0}, only float16 or float32 are supported", elemType);
+
+    return rewriter
+            .create<Const::DeclareOp>(loc, vpux::convertToMemRef(dataStorageType.cast<mlir::RankedTensorType>()),
+                                      Const::ContentAttr::get(denseElementVal))
+            .output();
+}
+
 Byte calculateAlignedBuffersMemoryRequirement(VPU::ArchKind arch, SmallVector<Byte> bufferSizes) {
     Byte offsetAlignment = Byte(vpux::DEFAULT_CMX_ALIGNMENT);
     Byte sizeAlignment = Byte(1);
     if (arch == VPU::ArchKind::VPUX37XX) {
-        offsetAlignment = Byte(getAddressAlignmentForSwizzling(SWIZZLING_KEY_5));
+        offsetAlignment = Byte(getAddressAlignmentForSwizzling(SWIZZLING_KEY_5, arch));
         sizeAlignment = Byte(vpux::getSizeAlignmentForSwizzling(arch));
     }
     return vpux::calculateAlignedBuffersMemoryRequirement(bufferSizes, offsetAlignment, sizeAlignment);

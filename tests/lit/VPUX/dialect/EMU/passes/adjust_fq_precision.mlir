@@ -1,19 +1,20 @@
 //
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
+
 // RUN: vpux-opt --split-input-file --init-compiler="vpu-arch=%arch%" --adjust-fq-precision %s | FileCheck %s
 // REQUIRES: arch-VPUX30XX || arch-VPUX37XX
 
 // CHECK-LABEL: @AdjustFQPrecision
-func @AdjustFQPrecision(%arg0: tensor<1x3x16x16xf16>) -> tensor<1x3x16x16xf16> {
+func.func @AdjustFQPrecision(%arg0: tensor<1x3x16x16xf16>) -> tensor<1x3x16x16xf16> {
     %input_low = const.Declare tensor<f32> = dense<0.0> : tensor<f32>
     %input_high = const.Declare tensor<f32> = dense<255.0> : tensor<f32>
     %output_low = const.Declare tensor<f32> = dense<0.0> : tensor<f32>
     %output_high = const.Declare tensor<f32> = dense<255.0> : tensor<f32>
 
     %fq = VPU.FakeQuantize(%arg0, %input_low, %input_high, %output_low, %output_high)
-        { auto_broadcast = "NUMPY", levels = 256 } :
+        { auto_broadcast = #IE.auto_broadcast_type<NUMPY>, levels = 256 } :
         tensor<1x3x16x16xf16>, tensor<f32>, tensor<f32>, tensor<f32>, tensor<f32> -> tensor<1x3x16x16xf16>
 
     return %fq : tensor<1x3x16x16xf16>
@@ -28,12 +29,12 @@ func @AdjustFQPrecision(%arg0: tensor<1x3x16x16xf16>) -> tensor<1x3x16x16xf16> {
 }
 
 // CHECK-LABEL: @AdjustFQPrecisionAliased
-func @AdjustFQPrecisionAliased(%arg0: tensor<1x3x16x16xf16>) -> tensor<1x3x16x16xf16> {
+func.func @AdjustFQPrecisionAliased(%arg0: tensor<1x3x16x16xf16>) -> tensor<1x3x16x16xf16> {
     %input_low = const.Declare tensor<f32> = dense<0.0> : tensor<f32>
     %input_high = const.Declare tensor<f32> = dense<255.0> : tensor<f32>
 
     %fq = VPU.FakeQuantize(%arg0, %input_low, %input_high, %input_low, %input_high)
-        { auto_broadcast = "NUMPY", levels = 256 } :
+        { auto_broadcast = #IE.auto_broadcast_type<NUMPY>, levels = 256 } :
         tensor<1x3x16x16xf16>, tensor<f32>, tensor<f32>, tensor<f32>, tensor<f32> -> tensor<1x3x16x16xf16>
 
     return %fq : tensor<1x3x16x16xf16>

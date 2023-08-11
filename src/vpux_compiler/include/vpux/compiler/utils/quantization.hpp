@@ -3,14 +3,12 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #pragma once
 
 #include "vpux/compiler/core/attributes/shape.hpp"
 #include "vpux/compiler/core/type_interfaces.hpp"
 #include "vpux/compiler/dialect/EMU/graph-schema/blob_writer.hpp"
-#include "vpux/compiler/dialect/IE/attributes/enums.hpp"
+#include "vpux/compiler/dialect/IE/attributes.hpp"
 
 #include <mlir/Dialect/Quant/QuantTypes.h>
 #include <mlir/IR/BuiltinTypes.h>

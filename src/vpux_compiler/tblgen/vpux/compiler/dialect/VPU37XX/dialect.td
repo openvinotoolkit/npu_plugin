@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #ifndef VPUX_COMPILER_DIALECT_VPU37XX
 #define VPUX_COMPILER_DIALECT_VPU37XX
 
@@ -14,7 +12,7 @@ def VPU37XX_Dialect : Dialect {
     let summary = "VPU 37XX HW specifics";
 
     let description = [{
-        The **37XX** encapsulates VPU2.7/37XX specific information.
+        The **37XX** encapsulates 37XX specific information.
 
     }];
 
@@ -23,7 +21,7 @@ def VPU37XX_Dialect : Dialect {
     let cppNamespace = "vpux::VPU37XX";
 
     let dependentDialects = [
-        "vpux::VPUIPRegMapped::VPUIPRegMappedDialect"
+        "vpux::VPURegMapped::VPURegMappedDialect"
     ];
 
     let extraClassDeclaration = [{

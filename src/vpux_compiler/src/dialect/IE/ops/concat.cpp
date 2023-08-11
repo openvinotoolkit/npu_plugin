@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/IE/ops.hpp"
 
 #include "vpux/compiler/utils/attributes.hpp"
@@ -341,7 +339,7 @@ mlir::LogicalResult vpux::IE::ConcatOp::inferReturnTypeComponents(
         mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
         mlir::DictionaryAttr attrs, mlir::RegionRange,
         SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
-    const auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
+    const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
     IE::ConcatOpAdaptor concat(operands, attrs);
     if (mlir::failed(concat.verify(loc))) {
@@ -423,8 +421,18 @@ void vpux::IE::ConcatOp::inferElemTypeInfo(vpux::IE::LayerDataInfo<mlir::Type>& 
     info.setOutput(0, outElemType.getValue());
 }
 
-void vpux::IE::ConcatOp::inferElemTypeInfoUp(vpux::IE::LayerDataInfo<mlir::Type>&) {
-    // TODO: #66717
+void vpux::IE::ConcatOp::inferElemTypeInfoUp(vpux::IE::LayerDataInfo<mlir::Type>& info) {
+    // E#66717: Propagate Quantize through the Concat layer.
+    const auto outputElemType = info.getOutput(0);
+
+    if (outputElemType != nullptr && outputElemType.isa<mlir::quant::UniformQuantizedPerAxisType>()) {
+        // E#31029: implement propagate type up for per channel, currently it leads to failures in later passes.
+        return;
+    }
+
+    for (size_t inputInd = 0; inputInd < info.getNumInputs(); ++inputInd) {
+        info.setInput(inputInd, outputElemType);
+    }
 }
 
 //

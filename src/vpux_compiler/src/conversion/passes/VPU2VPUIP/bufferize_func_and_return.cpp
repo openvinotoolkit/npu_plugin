@@ -3,12 +3,10 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/conversion.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
 
-#include <mlir/Dialect/StandardOps/Transforms/FuncConversions.h>
+#include <mlir/Dialect/Func/Transforms/FuncConversions.h>
 #include <mlir/IR/Operation.h>
 #include <mlir/Pass/Pass.h>
 #include <mlir/Transforms/DialectConversion.h>
@@ -38,8 +36,8 @@ void BufferizeFuncAndReturn::safeRunOnModule() {
 
     mlir::ConversionTarget target(ctx);
     target.addLegalOp<mlir::ModuleOp>();
-    target.addDynamicallyLegalOp<mlir::FuncOp>([&](mlir::FuncOp op) {
-        return typeConverter.isSignatureLegal(op.getType()) && typeConverter.isLegal(&op.getBody());
+    target.addDynamicallyLegalOp<mlir::func::FuncOp>([&](mlir::func::FuncOp op) {
+        return typeConverter.isSignatureLegal(op.getFunctionType()) && typeConverter.isLegal(&op.getBody());
     });
     target.markUnknownOpDynamicallyLegal([&](mlir::Operation* op) {
         return mlir::isNotBranchOpInterfaceOrReturnLikeOp(op) ||
@@ -48,7 +46,7 @@ void BufferizeFuncAndReturn::safeRunOnModule() {
     vpux::populateBufferizeMaterializationLegality(target);
 
     mlir::RewritePatternSet patterns(&ctx);
-    mlir::populateFunctionOpInterfaceTypeConversionPattern<mlir::FuncOp>(patterns, typeConverter);
+    mlir::populateFunctionOpInterfaceTypeConversionPattern<mlir::func::FuncOp>(patterns, typeConverter);
     mlir::populateReturnOpTypeConversionPattern(patterns, typeConverter);
 
     auto module = getOperation();

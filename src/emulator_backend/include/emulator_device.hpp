@@ -8,6 +8,8 @@
 #include "vpux.hpp"
 #include "vpux/utils/core/logger.hpp"
 
+#include "emulator_infer_request.hpp"
+
 #include <memory>
 #include <string>
 
@@ -19,22 +21,25 @@ public:
     std::shared_ptr<Executor> createExecutor(const NetworkDescription::Ptr& networkDescription,
                                              const Config& config) override;
 
-    virtual std::shared_ptr<Allocator> getAllocator() const {
+    std::shared_ptr<Allocator> getAllocator() const override {
         return nullptr;
     }
+    std::shared_ptr<Allocator> getAllocator(const InferenceEngine::ParamMap& params) const override {
+        return nullptr;
+    }
+
     std::string getName() const override;
 
-    // TODO: it is a stub for future implementation
-    // currently, nullptr is used as a signal to use InferRequest from vpux_al
-    InferRequest::Ptr createInferRequest(const InferenceEngine::InputsDataMap& /*networkInputs*/,
-                                         const InferenceEngine::OutputsDataMap& /*networkOutputs*/,
-                                         const Executor::Ptr& /*executor*/, const Config& /*config*/,
-                                         const std::string& /*networkName*/,
-                                         const std::vector<std::shared_ptr<const ov::Node>>& /*parameters*/,
-                                         const std::vector<std::shared_ptr<const ov::Node>>& /*results*/,
-                                         const vpux::DataMap& /* networkStatesInfo */,
-                                         const std::shared_ptr<InferenceEngine::IAllocator>& /*allocator*/) override {
-        return nullptr;
+    IInferRequest::Ptr createInferRequest(const InferenceEngine::InputsDataMap& networkInputs,
+                                          const InferenceEngine::OutputsDataMap& networkOutputs,
+                                          const Executor::Ptr& executor, const Config& config,
+                                          const std::string& networkName,
+                                          const std::vector<std::shared_ptr<const ov::Node>>& parameters,
+                                          const std::vector<std::shared_ptr<const ov::Node>>& results,
+                                          const vpux::DataMap& networkStatesInfo,
+                                          const std::shared_ptr<InferenceEngine::IAllocator>& allocator) override {
+        return std::make_shared<EmulatorInferRequest>(networkInputs, networkOutputs, executor, config, networkName,
+                                                      parameters, results, networkStatesInfo, allocator);
     }
 
 private:

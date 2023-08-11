@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/IE/passes.hpp"
 #include "vpux/compiler/utils/logging.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
@@ -38,10 +36,10 @@ void UseUserLayoutPass::safeRunOnModule() {
     auto module = getOperation();
 
     IE::CNNNetworkOp netInfo;
-    mlir::FuncOp netFunc;
+    mlir::func::FuncOp netFunc;
     IE::CNNNetworkOp::getFromModule(module, netInfo, netFunc);
 
-    const auto funcType = netFunc.getType();
+    const auto funcType = netFunc.getFunctionType();
 
     auto userInputs = netInfo.getInputsInfo();
     auto userOutputs = netInfo.getOutputsInfo();

@@ -1,9 +1,10 @@
 //
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
-// RUN: vpux-opt --init-compiler="vpu-arch=VPUX37XX" --convert-VPUIPRegMapped-to-ELF %s -o t_dma.mlir
-// RUN: vpux-translate --export-ELF t_dma.mlir -o t_dma.elf 
+
+// RUN: vpux-opt --init-compiler="vpu-arch=VPUX37XX" --convert-VPUMI37XX-to-ELF %s -o t_dma.mlir
+// RUN: vpux-translate --export-ELF t_dma.mlir -o t_dma.elf
 // RUN: vpux-translate --import-ELF t_dma.elf | FileCheck %s
 // RUN: rm t_dma.elf t_dma.mlir
 //
@@ -16,52 +17,52 @@ module @mainModule {
     DataInfo "output_0" : tensor<1x16x16x16xf16, {order = #NHWC}>
     DataInfo "output_1" : tensor<1x16x16x16xf16, {order = #NHWC}>
   }
-  func private @race_condition_dma_f16_f16(%arg0: memref<1x16x16x16xf16, #NHWC, @DDR>, %arg1: memref<1x16x16x16xf16, #NHWC, @DDR>, %arg2: memref<1x16x16x16xf16, #NHWC, @DDR>) -> (memref<1x16x16x16xf16, #NHWC, @DDR>, memref<1x16x16x16xf16, #NHWC, @DDR>) {
+  func.func private @race_condition_dma_f16_f16(%arg0: memref<1x16x16x16xf16, #NHWC, @DDR>, %arg1: memref<1x16x16x16xf16, #NHWC, @DDR>, %arg2: memref<1x16x16x16xf16, #NHWC, @DDR>) -> (memref<1x16x16x16xf16, #NHWC, @DDR>, memref<1x16x16x16xf16, #NHWC, @DDR>) {
     %0 = VPURT.DeclareBuffer "CMX_NN" [0] <0> -> memref<1x16x16x16xf16, #NHWC, [@CMX_NN, 0]>
     %1 = VPURT.DeclareBuffer "CMX_NN" [1] <0> -> memref<1x16x16x16xf16, #NHWC, [@CMX_NN, 1]>
-    %2 = VPUIPRegMapped.ConfigureBarrier {consumer_count = 2 : ui8, producer_count = 2 : ui8}<0, -1> -> !VPUIPRegMapped.Index<0>
-    %3 = VPUIPRegMapped.NNDMA {port = 0 : i64} inputs(%arg0 : memref<1x16x16x16xf16, #NHWC, @DDR>) outputs(%0 : memref<1x16x16x16xf16, #NHWC, [@CMX_NN, 0]>) updates(%2 : !VPUIPRegMapped.Index<0>) start_after(0) clean_after(0) -> !VPUIPRegMapped.Index<0>
-    %4 = VPUIPRegMapped.NNDMA {port = 1 : i64} inputs(%arg0 : memref<1x16x16x16xf16, #NHWC, @DDR>) outputs(%1 : memref<1x16x16x16xf16, #NHWC, [@CMX_NN, 1]>) updates(%2 : !VPUIPRegMapped.Index<0>) start_after(0) clean_after(0) -> !VPUIPRegMapped.Index<0>
-    %5 = VPUIPRegMapped.ConfigureBarrier {consumer_count = 2 : ui8, producer_count = 2 : ui8}<1, -1> -> !VPUIPRegMapped.Index<1>
-    %6 = VPUIPRegMapped.NNDMA {port = 0 : i64} inputs(%arg0 : memref<1x16x16x16xf16, #NHWC, @DDR>) outputs(%0 : memref<1x16x16x16xf16, #NHWC, [@CMX_NN, 0]>) previousDMA(%3 : !VPUIPRegMapped.Index<0>) waits(%2 : !VPUIPRegMapped.Index<0>) updates(%5 : !VPUIPRegMapped.Index<1>) start_after(0) clean_after(0) -> !VPUIPRegMapped.Index<1>
-    %7 = VPUIPRegMapped.NNDMA {port = 1 : i64} inputs(%arg0 : memref<1x16x16x16xf16, #NHWC, @DDR>) outputs(%1 : memref<1x16x16x16xf16, #NHWC, [@CMX_NN, 1]>) previousDMA(%4 : !VPUIPRegMapped.Index<0>) waits(%2 : !VPUIPRegMapped.Index<0>) updates(%5 : !VPUIPRegMapped.Index<1>) start_after(0) clean_after(0) -> !VPUIPRegMapped.Index<1>
-    %8 = VPUIPRegMapped.NNDMA {port = 0 : i64} inputs(%0 : memref<1x16x16x16xf16, #NHWC, [@CMX_NN, 0]>) outputs(%arg1 : memref<1x16x16x16xf16, #NHWC, @DDR>) previousDMA(%6 : !VPUIPRegMapped.Index<1>) waits(%5 : !VPUIPRegMapped.Index<1>) start_after(0) clean_after(0) -> !VPUIPRegMapped.Index<2>
-    %9 = VPUIPRegMapped.NNDMA {port = 1 : i64} inputs(%1 : memref<1x16x16x16xf16, #NHWC, [@CMX_NN, 1]>) outputs(%arg2 : memref<1x16x16x16xf16, #NHWC, @DDR>) previousDMA(%7 : !VPUIPRegMapped.Index<1>) waits(%5 : !VPUIPRegMapped.Index<1>) start_after(0) clean_after(0) -> !VPUIPRegMapped.Index<2>
-    %10 = VPUIPRegMapped.MappedInference dmas(%3, %4 : !VPUIPRegMapped.Index<0>, !VPUIPRegMapped.Index<0>) barriers(%2 : !VPUIPRegMapped.Index<0>) dmaCount([3, 3]) invariantCount(0) variantCount(0) actKernelRangesCount(0) actKernelInvocationsCount(0) barrierCount(2) -> !VPUIPRegMapped.Index<0>
+    %2 = VPUMI37XX.ConfigureBarrier {consumer_count = 2 : ui8, producer_count = 2 : ui8}<0, -1> -> !VPURegMapped.Index<0:0:0>
+    %3 = VPUMI37XX.NNDMA {port = 0 : i64} inputs(%arg0 : memref<1x16x16x16xf16, #NHWC, @DDR>) outputs(%0 : memref<1x16x16x16xf16, #NHWC, [@CMX_NN, 0]>) updates(%2 : !VPURegMapped.Index<0:0:0>) start_after(0) clean_after(0) -> !VPURegMapped.Index<0:0:0>
+    %4 = VPUMI37XX.NNDMA {port = 1 : i64} inputs(%arg0 : memref<1x16x16x16xf16, #NHWC, @DDR>) outputs(%1 : memref<1x16x16x16xf16, #NHWC, [@CMX_NN, 1]>) updates(%2 : !VPURegMapped.Index<0:0:0>) start_after(0) clean_after(0) -> !VPURegMapped.Index<0:0:0>
+    %5 = VPUMI37XX.ConfigureBarrier {consumer_count = 2 : ui8, producer_count = 2 : ui8}<1, -1> -> !VPURegMapped.Index<0:0:1>
+    %6 = VPUMI37XX.NNDMA {port = 0 : i64} inputs(%arg0 : memref<1x16x16x16xf16, #NHWC, @DDR>) outputs(%0 : memref<1x16x16x16xf16, #NHWC, [@CMX_NN, 0]>) previousDMA(%3 : !VPURegMapped.Index<0:0:0>) waits(%2 : !VPURegMapped.Index<0:0:0>) updates(%5 : !VPURegMapped.Index<0:0:1>) start_after(0) clean_after(0) -> !VPURegMapped.Index<0:0:1>
+    %7 = VPUMI37XX.NNDMA {port = 1 : i64} inputs(%arg0 : memref<1x16x16x16xf16, #NHWC, @DDR>) outputs(%1 : memref<1x16x16x16xf16, #NHWC, [@CMX_NN, 1]>) previousDMA(%4 : !VPURegMapped.Index<0:0:0>) waits(%2 : !VPURegMapped.Index<0:0:0>) updates(%5 : !VPURegMapped.Index<0:0:1>) start_after(0) clean_after(0) -> !VPURegMapped.Index<0:0:1>
+    %8 = VPUMI37XX.NNDMA {port = 0 : i64} inputs(%0 : memref<1x16x16x16xf16, #NHWC, [@CMX_NN, 0]>) outputs(%arg1 : memref<1x16x16x16xf16, #NHWC, @DDR>) previousDMA(%6 : !VPURegMapped.Index<0:0:1>) waits(%5 : !VPURegMapped.Index<0:0:1>) start_after(0) clean_after(0) -> !VPURegMapped.Index<0:0:2>
+    %9 = VPUMI37XX.NNDMA {port = 1 : i64} inputs(%1 : memref<1x16x16x16xf16, #NHWC, [@CMX_NN, 1]>) outputs(%arg2 : memref<1x16x16x16xf16, #NHWC, @DDR>) previousDMA(%7 : !VPURegMapped.Index<0:0:1>) waits(%5 : !VPURegMapped.Index<0:0:1>) start_after(0) clean_after(0) -> !VPURegMapped.Index<0:0:2>
+    %10 = VPUMI37XX.MappedInference dmas(%3, %4 : !VPURegMapped.Index<0:0:0>, !VPURegMapped.Index<0:0:0>) barriers(%2 : !VPURegMapped.Index<0:0:0>) dmaCount([3, 3]) invariantCount(0) variantCount(0) actKernelRangesCount(0) actKernelInvocationsCount(0) barrierCount(2) -> !VPURegMapped.Index<0:0:0>
 
     return %arg1, %arg2 : memref<1x16x16x16xf16, #NHWC, @DDR>, memref<1x16x16x16xf16, #NHWC, @DDR>
   }
 }
 
-//CHECK: %[[VAL0:.*]] = VPUIPRegMapped.ConfigureBarrier {consumer_count = 2 : ui8, producer_count = 2 : ui8}<0, -1> -> !VPUIPRegMapped.Index<0>
-//CHECK: %[[VAL1:.*]] = VPUIPRegMapped.ConfigureBarrier {consumer_count = 2 : ui8, producer_count = 2 : ui8}<1, -1> -> !VPUIPRegMapped.Index<1>
+//CHECK: %[[VAL0:.*]] = VPUMI37XX.ConfigureBarrier {consumer_count = 2 : ui8, producer_count = 2 : ui8}<0, -1> -> !VPURegMapped.Index<0:0:0>
+//CHECK: %[[VAL1:.*]] = VPUMI37XX.ConfigureBarrier {consumer_count = 2 : ui8, producer_count = 2 : ui8}<1, -1> -> !VPURegMapped.Index<0:0:1>
 //CHECK-DAG: %[[VAL2:.*]] = ELF.CreateSection {{.*}} secName = ".text.BarrierConfigs"
-//CHECK-NEXT: ELF.PutOpInSection %[[VAL0]] : !VPUIPRegMapped.Index<0>
-//CHECK-NEXT: ELF.PutOpInSection %[[VAL1]] : !VPUIPRegMapped.Index<1>
+//CHECK-NEXT: ELF.PutOpInSection %[[VAL0]] : !VPURegMapped.Index<0:0:0>
+//CHECK-NEXT: ELF.PutOpInSection %[[VAL1]] : !VPURegMapped.Index<0:0:1>
 
 //CHECK: %[[VAL3:.*]] = VPURT.DeclareBuffer "CMX_NN" [0] <0> -> memref<8192xui8, [@CMX_NN, 0]>
-//CHECK: %[[VAL4:.*]] = VPUIPRegMapped.NNDMA {dma_descriptor = {dstPlaneStride = 0 : i64, dstStride = 8192 : i64, dstWidth = 8192 : i64, len = 8192 : i64, numPlanes = 0 : i64, srcPlaneStride = 0 : i64, srcStride = 8192 : i64, srcWidth = 8192 : i64}, is_critical, is_out_of_order, port = 0 : si64} inputs(%[[VALINPUT0:.*]] : {{.*}}) outputs(%[[VAL3]] : memref<8192xui8, [@CMX_NN, 0]>) updates(%[[VAL0]] : !VPUIPRegMapped.Index<0>) start_after(0) clean_after(0) -> !VPUIPRegMapped.Index<0>
-//CHECK: %[[VAL5:.*]] = VPUIPRegMapped.NNDMA {dma_descriptor = {dstPlaneStride = 0 : i64, dstStride = 8192 : i64, dstWidth = 8192 : i64, len = 8192 : i64, numPlanes = 0 : i64, srcPlaneStride = 0 : i64, srcStride = 8192 : i64, srcWidth = 8192 : i64}, is_critical, is_out_of_order, port = 0 : si64} inputs(%[[VALINPUT0]] : {{.*}}) outputs(%[[VAL3]] : memref<8192xui8, [@CMX_NN, 0]>) previousDMA(%[[VAL4]] : !VPUIPRegMapped.Index<0>) waits(%[[VAL0]] : !VPUIPRegMapped.Index<0>) updates(%[[VAL1]] : !VPUIPRegMapped.Index<1>) start_after(0) clean_after(0) -> !VPUIPRegMapped.Index<1>
-//CHECK: %[[VAL6:.*]] = VPUIPRegMapped.NNDMA {dma_descriptor = {dstPlaneStride = 0 : i64, dstStride = 8192 : i64, dstWidth = 8192 : i64, len = 8192 : i64, numPlanes = 0 : i64, srcPlaneStride = 0 : i64, srcStride = 8192 : i64, srcWidth = 8192 : i64}, is_critical, is_out_of_order, port = 0 : si64} inputs(%3 : memref<8192xui8, [@CMX_NN, 0]>) outputs(%[[VALOUTPUT0:.*]] : {{.*}}) previousDMA(%[[VAL5]] : !VPUIPRegMapped.Index<1>) waits(%1 : !VPUIPRegMapped.Index<1>) start_after(0) clean_after(0) -> !VPUIPRegMapped.Index<2>
+//CHECK: %[[VAL4:.*]] = VPUMI37XX.NNDMA {dma_descriptor = {dstPlaneStride = 0 : i64, dstStride = 8192 : i64, dstWidth = 8192 : i64, len = 8192 : i64, numPlanes = 0 : i64, srcPlaneStride = 0 : i64, srcStride = 8192 : i64, srcWidth = 8192 : i64}, is_critical, is_out_of_order, port = 0 : si64} inputs(%[[VALINPUT0:.*]] : {{.*}}) outputs(%[[VAL3]] : memref<8192xui8, [@CMX_NN, 0]>) updates(%[[VAL0]] : !VPURegMapped.Index<0:0:0>) start_after(0) clean_after(0) -> !VPURegMapped.Index<0:0:0>
+//CHECK: %[[VAL5:.*]] = VPUMI37XX.NNDMA {dma_descriptor = {dstPlaneStride = 0 : i64, dstStride = 8192 : i64, dstWidth = 8192 : i64, len = 8192 : i64, numPlanes = 0 : i64, srcPlaneStride = 0 : i64, srcStride = 8192 : i64, srcWidth = 8192 : i64}, is_critical, is_out_of_order, port = 0 : si64} inputs(%[[VALINPUT0]] : {{.*}}) outputs(%[[VAL3]] : memref<8192xui8, [@CMX_NN, 0]>) previousDMA(%[[VAL4]] : !VPURegMapped.Index<0:0:0>) waits(%[[VAL0]] : !VPURegMapped.Index<0:0:0>) updates(%[[VAL1]] : !VPURegMapped.Index<0:0:1>) start_after(0) clean_after(0) -> !VPURegMapped.Index<0:0:1>
+//CHECK: %[[VAL6:.*]] = VPUMI37XX.NNDMA {dma_descriptor = {dstPlaneStride = 0 : i64, dstStride = 8192 : i64, dstWidth = 8192 : i64, len = 8192 : i64, numPlanes = 0 : i64, srcPlaneStride = 0 : i64, srcStride = 8192 : i64, srcWidth = 8192 : i64}, is_critical, is_out_of_order, port = 0 : si64} inputs(%3 : memref<8192xui8, [@CMX_NN, 0]>) outputs(%[[VALOUTPUT0:.*]] : {{.*}}) previousDMA(%[[VAL5]] : !VPURegMapped.Index<0:0:1>) waits(%1 : !VPURegMapped.Index<0:0:1>) start_after(0) clean_after(0) -> !VPURegMapped.Index<0:0:2>
 
 //CHECK: %[[VAL7:.*]] = ELF.CreateSection secType(SHT_PROGBITS) secFlags(SHF_ALLOC) {secAddrAlign = 64 : i64, secInfo = 0 : i64, secName = ".text.dmaTasks0"} -> !ELF.Section {
-//CHECK-NEXT: ELF.PutOpInSection %[[VAL4]] : !VPUIPRegMapped.Index<0>
-//CHECK-NEXT: ELF.PutOpInSection %[[VAL5]] : !VPUIPRegMapped.Index<1>
-//CHECK-NEXT: ELF.PutOpInSection %[[VAL6]] : !VPUIPRegMapped.Index<2>
+//CHECK-NEXT: ELF.PutOpInSection %[[VAL4]] : !VPURegMapped.Index<0:0:0>
+//CHECK-NEXT: ELF.PutOpInSection %[[VAL5]] : !VPURegMapped.Index<0:0:1>
+//CHECK-NEXT: ELF.PutOpInSection %[[VAL6]] : !VPURegMapped.Index<0:0:2>
 
 //CHECK: %[[VAL8:.*]] = VPURT.DeclareBuffer "CMX_NN" [0] <2097152> -> memref<8192xui8, [@CMX_NN, 0]>
-//CHECK: %[[VAL9:.*]] = VPUIPRegMapped.NNDMA {dma_descriptor = {dstPlaneStride = 0 : i64, dstStride = 8192 : i64, dstWidth = 8192 : i64, len = 8192 : i64, numPlanes = 0 : i64, srcPlaneStride = 0 : i64, srcStride = 8192 : i64, srcWidth = 8192 : i64}, is_critical, is_out_of_order, port = 0 : si64} inputs(%[[VALOUTPUT0]] : {{.*}}) outputs(%[[VAL8]] : memref<8192xui8, [@CMX_NN, 0]>) updates(%[[VAL0]] : !VPUIPRegMapped.Index<0>) start_after(0) clean_after(0) -> !VPUIPRegMapped.Index<0>
-//CHECK: %[[VAL10:.*]] = VPUIPRegMapped.NNDMA {dma_descriptor = {dstPlaneStride = 0 : i64, dstStride = 8192 : i64, dstWidth = 8192 : i64, len = 8192 : i64, numPlanes = 0 : i64, srcPlaneStride = 0 : i64, srcStride = 8192 : i64, srcWidth = 8192 : i64}, is_critical, is_out_of_order, port = 0 : si64} inputs(%[[VALOUTPUT0]] : {{.*}}) outputs(%[[VAL8]] : memref<8192xui8, [@CMX_NN, 0]>) previousDMA(%[[VAL9]] : !VPUIPRegMapped.Index<0>) waits(%[[VAL0]] : !VPUIPRegMapped.Index<0>) updates(%[[VAL1]] : !VPUIPRegMapped.Index<1>) start_after(0) clean_after(0) -> !VPUIPRegMapped.Index<1>
-//CHECK: %[[VAL11:.*]] = VPUIPRegMapped.NNDMA {dma_descriptor = {dstPlaneStride = 0 : i64, dstStride = 8192 : i64, dstWidth = 8192 : i64, len = 8192 : i64, numPlanes = 0 : i64, srcPlaneStride = 0 : i64, srcStride = 8192 : i64, srcWidth = 8192 : i64}, is_critical, is_out_of_order, port = 0 : si64} inputs(%[[VAL8]] : memref<8192xui8, [@CMX_NN, 0]>) outputs(%[[VALOUTPUT1:.*]] : {{.*}}) previousDMA(%[[VAL10]] : !VPUIPRegMapped.Index<1>) waits(%[[VAL1]] : !VPUIPRegMapped.Index<1>) start_after(0) clean_after(0) -> !VPUIPRegMapped.Index<2>
+//CHECK: %[[VAL9:.*]] = VPUMI37XX.NNDMA {dma_descriptor = {dstPlaneStride = 0 : i64, dstStride = 8192 : i64, dstWidth = 8192 : i64, len = 8192 : i64, numPlanes = 0 : i64, srcPlaneStride = 0 : i64, srcStride = 8192 : i64, srcWidth = 8192 : i64}, is_critical, is_out_of_order, port = 0 : si64} inputs(%[[VALOUTPUT0]] : {{.*}}) outputs(%[[VAL8]] : memref<8192xui8, [@CMX_NN, 0]>) updates(%[[VAL0]] : !VPURegMapped.Index<0:0:0>) start_after(0) clean_after(0) -> !VPURegMapped.Index<0:0:0>
+//CHECK: %[[VAL10:.*]] = VPUMI37XX.NNDMA {dma_descriptor = {dstPlaneStride = 0 : i64, dstStride = 8192 : i64, dstWidth = 8192 : i64, len = 8192 : i64, numPlanes = 0 : i64, srcPlaneStride = 0 : i64, srcStride = 8192 : i64, srcWidth = 8192 : i64}, is_critical, is_out_of_order, port = 0 : si64} inputs(%[[VALOUTPUT0]] : {{.*}}) outputs(%[[VAL8]] : memref<8192xui8, [@CMX_NN, 0]>) previousDMA(%[[VAL9]] : !VPURegMapped.Index<0:0:0>) waits(%[[VAL0]] : !VPURegMapped.Index<0:0:0>) updates(%[[VAL1]] : !VPURegMapped.Index<0:0:1>) start_after(0) clean_after(0) -> !VPURegMapped.Index<0:0:1>
+//CHECK: %[[VAL11:.*]] = VPUMI37XX.NNDMA {dma_descriptor = {dstPlaneStride = 0 : i64, dstStride = 8192 : i64, dstWidth = 8192 : i64, len = 8192 : i64, numPlanes = 0 : i64, srcPlaneStride = 0 : i64, srcStride = 8192 : i64, srcWidth = 8192 : i64}, is_critical, is_out_of_order, port = 0 : si64} inputs(%[[VAL8]] : memref<8192xui8, [@CMX_NN, 0]>) outputs(%[[VALOUTPUT1:.*]] : {{.*}}) previousDMA(%[[VAL10]] : !VPURegMapped.Index<0:0:1>) waits(%[[VAL1]] : !VPURegMapped.Index<0:0:1>) start_after(0) clean_after(0) -> !VPURegMapped.Index<0:0:2>
 
 //CHECK: %[[VAL12:.*]] = ELF.CreateSection secType(SHT_PROGBITS) secFlags(SHF_ALLOC) {secAddrAlign = 64 : i64, secInfo = 0 : i64, secName = ".text.dmaTasks1"} -> !ELF.Section {
-//CHECK-NEXT: ELF.PutOpInSection %[[VAL9]] : !VPUIPRegMapped.Index<0>
-//CHECK-NEXT: ELF.PutOpInSection %[[VAL10]] : !VPUIPRegMapped.Index<1>
-//CHECK-NEXT: ELF.PutOpInSection %[[VAL11]] : !VPUIPRegMapped.Index<2>
+//CHECK-NEXT: ELF.PutOpInSection %[[VAL9]] : !VPURegMapped.Index<0:0:0>
+//CHECK-NEXT: ELF.PutOpInSection %[[VAL10]] : !VPURegMapped.Index<0:0:1>
+//CHECK-NEXT: ELF.PutOpInSection %[[VAL11]] : !VPURegMapped.Index<0:0:2>
 
-//CHECK: %[[VAL13:.*]] = VPUIPRegMapped.MappedInference dmas(%[[VAL4]], %[[VAL9]] : !VPUIPRegMapped.Index<0>, !VPUIPRegMapped.Index<0>) barriers(%[[VAL0]] : !VPUIPRegMapped.Index<0>) dmaCount([3, 3]) invariantCount(0) variantCount(0) actKernelRangesCount(0) actKernelInvocationsCount(0) barrierCount(2) -> !VPUIPRegMapped.Index<0>
+//CHECK: %[[VAL13:.*]] = VPUMI37XX.MappedInference dmas(%[[VAL4]], %[[VAL9]] : !VPURegMapped.Index<0:0:0>, !VPURegMapped.Index<0:0:0>) barriers(%[[VAL0]] : !VPURegMapped.Index<0:0:0>) dmaCount([3, 3]) invariantCount(0) variantCount(0) actKernelRangesCount(0) actKernelInvocationsCount(0) barrierCount(2) -> !VPURegMapped.Index<0:0:0>
 //CHECK: %[[VAL14:.*]] = ELF.CreateSection secType(SHT_PROGBITS) secFlags("SHF_NONE") {secAddrAlign = 64 : i64, secInfo = 0 : i64, secName = ".text.MappedInference"} -> !ELF.Section {
-//CHECK: ELF.PutOpInSection  %[[VAL13]] : !VPUIPRegMapped.Index<0>
+//CHECK: ELF.PutOpInSection  %[[VAL13]] : !VPURegMapped.Index<0:0:0>
 
 //CHECK-DAG: %[[symIn0:.*]] = ELF.Symbol %[[VALINPUT0]] name("input_0") {{.*}}
 //CHECK-DAG: %[[symTabSecIn:.*]] = ELF.CreateSymbolTableSection secName(".symtab.input") secFlags(VPU_SHF_USERINPUT) -> !ELF.Section {

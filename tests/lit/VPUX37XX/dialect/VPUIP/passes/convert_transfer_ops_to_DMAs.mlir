@@ -1,11 +1,12 @@
 //
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
+
 // RUN: vpux-opt --split-input-file --init-compiler="vpu-arch=VPUX37XX" --convert-transfer-ops-to-DMAs %s | FileCheck %s
 
 // CHECK-LABEL: @TimestampToDMA
-func @TimestampToDMA(%arg0: memref<1xui64>) -> memref<1xui64> {
+func.func @TimestampToDMA(%arg0: memref<1xui64>) -> memref<1xui64> {
     %0 = VPUIP.StaticAlloc<0> -> memref<1xui64, @CMX_NN>
     %1 = VPUIP.Timestamp(%0 : memref<1xui64, @CMX_NN>) -> memref<1xui64, @CMX_NN>
     %2 = VPUIP.Copy inputs(%1 : memref<1xui64, @CMX_NN>) outputs(%arg0 : memref<1xui64>) -> memref<1xui64>

@@ -3,13 +3,32 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #ifndef VPUX_COMPILER_DIALECT_IE_ATTRIBUTES
 #define VPUX_COMPILER_DIALECT_IE_ATTRIBUTES
 
 include "vpux/compiler/core/attributes.td"
 include "vpux/compiler/dialect/IE/dialect.td"
+
+//
+// Base classes
+//
+
+class IE_I64EnumAttr <string name, string summary, list<I64EnumAttrCase> cases> : 
+        I64EnumAttr<name, summary, cases> {
+    let cppNamespace = "vpux::IE";
+    let genSpecializedAttr = 0;
+}
+
+class IE_EnumAttr <EnumAttrInfo enumInfo, string name = "", list <Trait> traits = []> : 
+        EnumAttr<IE_Dialect, enumInfo, name, traits> {
+    let assemblyFormat = "`<`$value`>`";
+}
+
+class IE_Attr<string name, list<Trait> traits = []> :
+        AttrDef<IE_Dialect, name, traits> {
+    let mnemonic = name;
+    let assemblyFormat = "`<` struct(params) `>`";
+}
 
 //
 // TypeComparisonMode
@@ -25,14 +44,14 @@ defvar IE_TypeComparisonMode_ALLOW_DIFFERENT_QUANT = !strconcat("vpux::IE::TypeC
 defvar IE_TypeComparisonMode_ALLOW_GROUPED_OUTPUT = !strconcat("vpux::IE::TypeComparisonMode::", IE_ALLOW_GROUPED_OUTPUT);
 
 def IE_TypeComparisonMode :
-        BitEnumAttr<
+        I64BitEnumAttr<
             "TypeComparisonMode",
             "Tensor element type comparison modes",
             [
-                BitEnumAttrCase<IE_STRICT_EQUAL, 0x1>,
-                BitEnumAttrCase<IE_ALLOW_QUANT_MIXED_PRECISION, 0x2>,
-                BitEnumAttrCase<IE_ALLOW_DIFFERENT_QUANT, 0x4>,
-                BitEnumAttrCase<IE_ALLOW_GROUPED_OUTPUT, 0x8>
+                I64BitEnumAttrCase<IE_STRICT_EQUAL, 0x1>,
+                I64BitEnumAttrCase<IE_ALLOW_QUANT_MIXED_PRECISION, 0x2>,
+                I64BitEnumAttrCase<IE_ALLOW_DIFFERENT_QUANT, 0x4>,
+                I64BitEnumAttrCase<IE_ALLOW_GROUPED_OUTPUT, 0x8>
             ]
         > {
     let cppNamespace = "vpux::IE";
@@ -54,179 +73,213 @@ def IE_TensorAttr :
         >;
 
 //
+// EpsMode
+//
+
+def IE_EpsMode :
+        IE_I64EnumAttr<
+            "EpsMode",
+            "EpsMode that the InferenceEngine supports",
+            [
+                I64EnumAttrCase<"ADD", 0>,
+                I64EnumAttrCase<"MAX", 1>,
+            ]
+        > {
+}
+
+def IE_EpsModeAttr : IE_EnumAttr<IE_EpsMode, "eps_mode">;
+
+//
+// MvnEpsMode
+//
+
+def IE_MvnEpsMode :
+        IE_I64EnumAttr<
+            "MvnEpsMode",
+            "MvnEpsMode that the InferenceEngine supports",
+            [
+                I64EnumAttrCase<"INSIDE_SQRT", 0>,
+                I64EnumAttrCase<"OUTSIDE_SQRT", 1>,
+            ]
+        > {
+}
+
+def IE_MvnEpsModeAttr : IE_EnumAttr<IE_MvnEpsMode, "mvn_eps_mode">;
+
+//
 // TopKMode
 //
 
 def IE_TopKMode :
-        StrEnumAttr<
+        IE_I64EnumAttr<
             "TopKMode",
             "TopKMode that the InferenceEngine supports",
             [
-                StrEnumAttrCase<"MAX">,
-                StrEnumAttrCase<"MIN">,
+                I64EnumAttrCase<"MAX", 0>,
+                I64EnumAttrCase<"MIN", 1>,
             ]
         > {
-    let cppNamespace = "vpux::IE";
-    let genSpecializedAttr = 1;
 }
+
+def IE_TopKModeAttr : IE_EnumAttr<IE_TopKMode, "topk_mode">;
 
 //
 // TopKSortType
 //
 
 def IE_TopKSortType :
-        StrEnumAttr<
+        IE_I64EnumAttr<
             "TopKSortType",
             "TopKSortType that the InferenceEngine supports",
             [
-                StrEnumAttrCase<"NONE">,
-                StrEnumAttrCase<"SORT_VALUES">,
-                StrEnumAttrCase<"SORT_INDICES">,
+                I64EnumAttrCase<"NONE", 0>,
+                I64EnumAttrCase<"SORT_VALUES", 1>,
+                I64EnumAttrCase<"SORT_INDICES", 2>,
             ]
         > {
-    let cppNamespace = "vpux::IE";
-    let genSpecializedAttr = 1;
 }
+
+def IE_TopKSortTypeAttr : IE_EnumAttr<IE_TopKSortType, "topk_sort_type">;
 
 //
 // GridSampleMode
 //
 
 def IE_GridSampleMode :
-        StrEnumAttr<
+        IE_I64EnumAttr<
             "GridSampleMode",
             "GridSampleMode that the InferenceEngine supports",
             [
-                StrEnumAttrCase<"BILINEAR">,
-                StrEnumAttrCase<"BICUBIC">,
-                StrEnumAttrCase<"NEAREST">,
+                I64EnumAttrCase<"BILINEAR", 0>,
+                I64EnumAttrCase<"BICUBIC", 1>,
+                I64EnumAttrCase<"NEAREST", 2>,
             ]
         > {
-    let cppNamespace = "vpux::IE";
-    let genSpecializedAttr = 1;
 }
+
+def IE_GridSampleModeAttr : IE_EnumAttr<IE_GridSampleMode, "grid_sample_mode">;
 
 //
 // GridSamplePaddingMode
 //
 
 def IE_GridSamplePaddingMode :
-        StrEnumAttr<
+        IE_I64EnumAttr<
             "GridSamplePaddingMode",
             "GridSamplePaddingMode that the InferenceEngine supports",
             [
-                StrEnumAttrCase<"ZEROS">,
-                StrEnumAttrCase<"BORDER">,
-                StrEnumAttrCase<"REFLECTION">,
+                I64EnumAttrCase<"ZEROS", 0>,
+                I64EnumAttrCase<"BORDER", 1>,
+                I64EnumAttrCase<"REFLECTION", 2>,
             ]
         > {
-    let cppNamespace = "vpux::IE";
-    let genSpecializedAttr = 1;
 }
+
+def IE_GridSamplePaddingModeAttr : IE_EnumAttr<IE_GridSamplePaddingMode, "grid_sample_padding_mode">;
 
 //
 // ROIPoolingMethod
 //
 
 def IE_ROIPoolingMethod :
-        StrEnumAttr<
+        IE_I64EnumAttr<
             "ROIPoolingMethod",
             "ROIPoolingMethod that the InferenceEngine supports",
             [
-                StrEnumAttrCase<"MAX">,
-                StrEnumAttrCase<"BILINEAR">,
+                I64EnumAttrCase<"MAX", 0>,
+                I64EnumAttrCase<"BILINEAR", 1>,
             ]
         > {
-    let cppNamespace = "vpux::IE";
-    let genSpecializedAttr = 1;
 }
+
+def IE_ROIPoolingMethodAttr : IE_EnumAttr<IE_ROIPoolingMethod, "roi_pooling_method">;
 
 //
 // ROIAlignMethod
 //
 
 def IE_ROIAlignMethod :
-        StrEnumAttr<
+        IE_I64EnumAttr<
             "ROIAlignMethod",
             "ROIAlignMethod that the InferenceEngine supports",
             [
-                StrEnumAttrCase<"AVG">,
-                StrEnumAttrCase<"MAX">,
+                I64EnumAttrCase<"AVG", 0>,
+                I64EnumAttrCase<"MAX", 1>,
             ]
         > {
-    let cppNamespace = "vpux::IE";
-    let genSpecializedAttr = 1;
 }
+
+def IE_ROIAlignMethodAttr : IE_EnumAttr<IE_ROIAlignMethod, "roi_align_method">;
 
 //
 // AutoBroadcastType
 //
 
 def IE_AutoBroadcastType :
-        StrEnumAttr<
+        IE_I64EnumAttr<
             "AutoBroadcastType",
             "Specifies rules used for auto-broadcasting of input tensors",
             [
-                StrEnumAttrCase<"NONE_OR_EXPLICIT">,
-                StrEnumAttrCase<"NUMPY">,
-                StrEnumAttrCase<"PDPD">,
+                I64EnumAttrCase<"NONE_OR_EXPLICIT", 0>,
+                I64EnumAttrCase<"NUMPY", 1>,
+                I64EnumAttrCase<"PDPD", 2>,
             ]
         > {
-    let cppNamespace = "vpux::IE";
-    let genSpecializedAttr = 1;
 }
+
+def IE_AutoBroadcastTypeAttr : IE_EnumAttr<IE_AutoBroadcastType, "auto_broadcast_type">;
 
 //
 // BroadcastType
 //
 
 def IE_BroadcastType :
-        StrEnumAttr<
+        IE_I64EnumAttr<
             "BroadcastType",
             "Broadcast type that operations support",
             [
-                StrEnumAttrCase<"NUMPY">,
-                StrEnumAttrCase<"EXPLICIT">,
-                StrEnumAttrCase<"BIDIRECTIONAL">,
+                I64EnumAttrCase<"NUMPY", 0>,
+                I64EnumAttrCase<"EXPLICIT", 1>,
+                I64EnumAttrCase<"BIDIRECTIONAL", 2>,
             ]
         > {
-    let cppNamespace = "vpux::IE";
-    let genSpecializedAttr = 1;
 }
+
+def IE_BroadcastTypeAttr : IE_EnumAttr<IE_BroadcastType, "broadcast_type">;
 
 //
 // RoundingType
 //
 
 def IE_RoundingType :
-        StrEnumAttr<
+        IE_I64EnumAttr<
             "RoundingType",
             "Rounding type that operations support",
             [
-                StrEnumAttrCase<"FLOOR">,
-                StrEnumAttrCase<"CEIL">,
+                I64EnumAttrCase<"FLOOR", 0>,
+                I64EnumAttrCase<"CEIL", 1>,
             ]
         > {
-    let cppNamespace = "vpux::IE";
-    let genSpecializedAttr = 1;
 }
+
+def IE_RoundingTypeAttr : IE_EnumAttr<IE_RoundingType, "rounding_type">;
 
 //
 // LRN_IERegion
 //
 
 def IE_LRN_IERegion :
-        StrEnumAttr<
+        IE_I64EnumAttr<
             "LRN_IERegion",
             "LRN_IE region that operations support",
             [
-                StrEnumAttrCase<"SAME">,
-                StrEnumAttrCase<"ACROSS">
+                I64EnumAttrCase<"SAME", 0>,
+                I64EnumAttrCase<"ACROSS", 1>
             ]
         > {
-    let cppNamespace = "vpux::IE";
-    let genSpecializedAttr = 1;
 }
+
+def IE_LRN_IERegionAttr : IE_EnumAttr<IE_LRN_IERegion, "lrn_ieregion">;
 
 //
 // Proposal
@@ -260,161 +313,174 @@ def IE_ProposalAttrs :
 //
 
 def IE_InterpolateMode :
-        StrEnumAttr<
+        IE_I64EnumAttr<
             "InterpolateMode",
             "Specifies type of interpolation",
             [
-                StrEnumAttrCase<"NEAREST">,
-                StrEnumAttrCase<"LINEAR">,
-                StrEnumAttrCase<"LINEAR_ONNX">,
-                StrEnumAttrCase<"CUBIC">,
+                I64EnumAttrCase<"NEAREST", 0>,
+                I64EnumAttrCase<"LINEAR", 1>,
+                I64EnumAttrCase<"LINEAR_ONNX", 2>,
+                I64EnumAttrCase<"CUBIC", 3>,
             ]
         > {
-    let cppNamespace = "vpux::IE";
-    let genSpecializedAttr = 1;
 }
 
+def IE_InterpolateModeAttr : IE_EnumAttr<IE_InterpolateMode, "interpolate_mode">;
+
 def IE_InterpolateCalcMode :
-        StrEnumAttr<
+        IE_I64EnumAttr<
             "InterpolateCalcMode",
             "Specifies which input, sizes or scales, is used to calculate an output shape.",
             [
-                StrEnumAttrCase<"SIZES">,
-                StrEnumAttrCase<"SCALES">,
+                I64EnumAttrCase<"SIZES", 0>,
+                I64EnumAttrCase<"SCALES", 1>,
             ]
         > {
-    let cppNamespace = "vpux::IE";
-    let genSpecializedAttr = 1;
 }
 
+def IE_InterpolateCalcModeAttr : IE_EnumAttr<IE_InterpolateCalcMode, "interpolate_calc_mode">;
+
 def IE_InterpolateCoordMode :
-        StrEnumAttr<
+        IE_I64EnumAttr<
             "InterpolateCoordMode",
             "coordinate_transformation_mode specifies how to transform the coordinate.",
             [
-                StrEnumAttrCase<"HALF_PIXEL">,
-                StrEnumAttrCase<"PYTORCH_HALF_PIXEL">,
-                StrEnumAttrCase<"ASYMMETRIC">,
-                StrEnumAttrCase<"TF_HALF_PIXEL_FOR_NN">,
-                StrEnumAttrCase<"ALIGN_CORNERS">,
+                I64EnumAttrCase<"HALF_PIXEL", 0>,
+                I64EnumAttrCase<"PYTORCH_HALF_PIXEL", 1>,
+                I64EnumAttrCase<"ASYMMETRIC", 2>,
+                I64EnumAttrCase<"TF_HALF_PIXEL_FOR_NN", 3>,
+                I64EnumAttrCase<"ALIGN_CORNERS", 4>,
             ]
         > {
-    let cppNamespace = "vpux::IE";
-    let genSpecializedAttr = 1;
 }
 
+def IE_InterpolateCoordModeAttr : IE_EnumAttr<IE_InterpolateCoordMode, "interpolate_coord_mode">;
+
 def IE_InterpolateNearestMode :
-        StrEnumAttr<
+        IE_I64EnumAttr<
             "InterpolateNearestMode",
             "specifies round mode when mode == nearest",
             [
-                StrEnumAttrCase<"ROUND_PREFER_FLOOR">,
-                StrEnumAttrCase<"ROUND_PREFER_CEIL">,
-                StrEnumAttrCase<"FLOOR">,
-                StrEnumAttrCase<"CEIL">,
-                StrEnumAttrCase<"SIMPLE">,
+                I64EnumAttrCase<"ROUND_PREFER_FLOOR", 0>,
+                I64EnumAttrCase<"ROUND_PREFER_CEIL", 1>,
+                I64EnumAttrCase<"FLOOR", 2>,
+                I64EnumAttrCase<"CEIL", 3>,
+                I64EnumAttrCase<"SIMPLE", 4>,
             ]
         > {
-    let cppNamespace = "vpux::IE";
-    let genSpecializedAttr = 1;
 }
 
-def IE_InterpolateAttr :
-        StructAttr<
-            "InterpolateAttr",
-            IE_Dialect,
-            [
-                StructFieldAttr<"mode",             IE_InterpolateMode>,
-                StructFieldAttr<"shape_calc_mode",  IE_InterpolateCalcMode>,
-                StructFieldAttr<"coord_mode",       IE_InterpolateCoordMode>,
-                StructFieldAttr<"nearest_mode",     IE_InterpolateNearestMode>,
-                StructFieldAttr<"antialias",        BoolAttr>,
-                StructFieldAttr<"pads_begin",       I64ArrayAttr>,
-                StructFieldAttr<"pads_end",         I64ArrayAttr>,
-                StructFieldAttr<"cube_coeff",       F64Attr>,
-            ]
-        >;
+def IE_InterpolateNearestModeAttr : IE_EnumAttr<IE_InterpolateNearestMode, "interpolate_nearest_mode">;
+
+def IE_InterpolateAttr : IE_Attr<"Interpolate"> {
+    let parameters = (ins
+        "vpux::IE::InterpolateModeAttr":$mode,
+        "vpux::IE::InterpolateCalcModeAttr":$shape_calc_mode,
+        "vpux::IE::InterpolateCoordModeAttr":$coord_mode,
+        "vpux::IE::InterpolateNearestModeAttr":$nearest_mode,
+        "mlir::BoolAttr":$antialias,
+        "mlir::ArrayAttr":$pads_begin,
+        "mlir::ArrayAttr":$pads_end,
+        "mlir::FloatAttr":$cube_coeff
+    );
+}
 
 //
-// DetectionOutputAttrs
+// DetectionOutputCodeType
 //
 
-def IE_DetectionOutputAttrs :
-        StructAttr<
-            "DetectionOutputAttr",
-            IE_Dialect,
+def IE_DetectionOutputCodeType :
+        IE_I64EnumAttr<
+            "DetectionOutputCodeType",
+            "DetectionOutput parameter that specifies bounding box decoding algorithm",
             [
-                StructFieldAttr<"num_classes",                IntAttr>,
-                StructFieldAttr<"background_label_id",        IntAttr>,
-                StructFieldAttr<"top_k",                      IntAttr>,
-                StructFieldAttr<"variance_encoded_in_target", BoolAttr>,
-                StructFieldAttr<"keep_top_k",                 I64ArrayAttr>,
-                StructFieldAttr<"code_type",                  StrAttr>,
-                StructFieldAttr<"share_location",             BoolAttr>,
-                StructFieldAttr<"nms_threshold",              F64Attr>,
-                StructFieldAttr<"confidence_threshold",       F64Attr>,
-                StructFieldAttr<"clip_after_nms",             BoolAttr>,
-                StructFieldAttr<"clip_before_nms",            BoolAttr>,
-                StructFieldAttr<"decrease_label_id",          BoolAttr>,
-                StructFieldAttr<"normalized",                 BoolAttr>,
-                StructFieldAttr<"input_height",               IntAttr>,
-                StructFieldAttr<"input_width",                IntAttr>,
-                StructFieldAttr<"objectness_score",           F64Attr>,
+                I64EnumAttrCase<"CENTER_SIZE", 0>,
+                I64EnumAttrCase<"CORNER", 1>,
+                I64EnumAttrCase<"CORNER_SIZE", 2>,
             ]
-        >;
+        > {
+}
+
+def IE_DetectionOutputCodeTypeAttr : IE_EnumAttr<IE_DetectionOutputCodeType, "detection_output_code_type">;
+
+//
+// DetectionOutputAttr
+//
+
+def IE_DetectionOutputAttr : IE_Attr<"DetectionOutput"> {
+    let parameters = (ins
+        "mlir::IntegerAttr":$num_classes,                
+        "mlir::IntegerAttr":$background_label_id,        
+        "mlir::IntegerAttr":$top_k,                      
+        "mlir::BoolAttr":$variance_encoded_in_target, 
+        "mlir::ArrayAttr":$keep_top_k,                 
+        "vpux::IE::DetectionOutputCodeTypeAttr":$code_type,                  
+        "mlir::BoolAttr":$share_location,             
+        "mlir::FloatAttr":$nms_threshold,              
+        "mlir::FloatAttr":$confidence_threshold,       
+        "mlir::BoolAttr":$clip_after_nms,             
+        "mlir::BoolAttr":$clip_before_nms,            
+        "mlir::BoolAttr":$decrease_label_id,          
+        "mlir::BoolAttr":$normalized,                 
+        "mlir::IntegerAttr":$input_height,               
+        "mlir::IntegerAttr":$input_width,                
+        "mlir::FloatAttr":$objectness_score
+    );
+}
 
 //
 // PadMode
 //
 
 def IE_PadMode :
-        StrEnumAttr<
+        IE_I64EnumAttr<
             "PadMode",
             "TPadMode that the InferenceEngine supports",
             [
-                StrEnumAttrCase<"CONSTANT">,
-                StrEnumAttrCase<"EDGE">,
-                StrEnumAttrCase<"REFLECT">,
-                StrEnumAttrCase<"SYMMETRIC">,
+                I64EnumAttrCase<"CONSTANT", 0>,
+                I64EnumAttrCase<"EDGE", 1>,
+                I64EnumAttrCase<"REFLECT", 2>,
+                I64EnumAttrCase<"SYMMETRIC", 3>,
             ]
         > {
-    let cppNamespace = "vpux::IE";
-    let genSpecializedAttr = 1;
 }
+
+def IE_PadModeAttr : IE_EnumAttr<IE_PadMode, "pad_mode">;
 
 //
 // RoundMode
 //
 
 def IE_RoundMode :
-        StrEnumAttr<
+        IE_I64EnumAttr<
             "RoundMode",
             "RoundMode that the InferenceEngine supports",
             [
-                StrEnumAttrCase<"HALF_TO_EVEN">,
-                StrEnumAttrCase<"HALF_AWAY_FROM_ZERO">,
+                I64EnumAttrCase<"HALF_TO_EVEN", 0>,
+                I64EnumAttrCase<"HALF_AWAY_FROM_ZERO", 1>,
             ]
         > {
-    let cppNamespace = "vpux::IE";
-    let genSpecializedAttr = 1;
 }
+
+def IE_RoundModeAttr : IE_EnumAttr<IE_RoundMode, "round_mode">;
 
 //
 // RNNSequenceDirection
 //
 
 def IE_RNNSequenceDirection :
-        StrEnumAttr<
+        IE_I64EnumAttr<
             "RNNSequenceDirection",
             "RNNSequenceDirection that the InferenceEngine supports",
             [
-                StrEnumAttrCase<"FORWARD">,
-                StrEnumAttrCase<"REVERSE">,
+                I64EnumAttrCase<"FORWARD", 0>,
+                I64EnumAttrCase<"REVERSE", 1>,
+                I64EnumAttrCase<"BIDIRECTIONAL", 2>,
             ]
         > {
-    let cppNamespace = "vpux::IE";
-    let genSpecializedAttr = 1;
 }
+
+def IE_RNNSequenceDirectionAttr : IE_EnumAttr<IE_RNNSequenceDirection, "rnn_seq_direction">;
 
 //
 // PostOp
@@ -452,34 +518,34 @@ def IE_ConcatAttrs :
 //
 
 def IE_DepthToSpaceMode :
-        StrEnumAttr<
+        IE_I64EnumAttr<
             "DepthToSpaceMode",
             "DepthToSpaceMode that the InferenceEngine supports",
             [
-                StrEnumAttrCase<"BLOCKS_FIRST">,
-                StrEnumAttrCase<"DEPTH_FIRST">,
+                I64EnumAttrCase<"BLOCKS_FIRST", 0>,
+                I64EnumAttrCase<"DEPTH_FIRST", 1>,
             ]
         > {
-    let cppNamespace = "vpux::IE";
-    let genSpecializedAttr = 1;
 }
+
+def IE_DepthToSpaceModeAttr : IE_EnumAttr<IE_DepthToSpaceMode, "depth_to_space_mode">;
 
 //
 // IE_SpaceToDepthMode
 //
 
 def IE_SpaceToDepthMode :
-        StrEnumAttr<
+        IE_I64EnumAttr<
             "SpaceToDepthMode",
             "SpaceToDepthMode that the InferenceEngine supports",
             [
-                StrEnumAttrCase<"BLOCKS_FIRST">,
-                StrEnumAttrCase<"DEPTH_FIRST">,
+                I64EnumAttrCase<"BLOCKS_FIRST", 0>,
+                I64EnumAttrCase<"DEPTH_FIRST", 1>,
             ]
         > {
-    let cppNamespace = "vpux::IE";
-    let genSpecializedAttr = 1;
 }
+
+def IE_SpaceToDepthModeAttr : IE_EnumAttr<IE_SpaceToDepthMode, "space_to_depth_mode">;
 
 //
 // ChannelPadding
@@ -500,87 +566,103 @@ def IE_ChannelPadding :
 //
 
 def IE_ColorFmt :
-        StrEnumAttr<
+        IE_I64EnumAttr<
             "ColorFmt",
             "YUV, RGB color formats",
             [
-                StrEnumAttrCase<"NV12">,
-                StrEnumAttrCase<"I420">,
-                StrEnumAttrCase<"RGB">,
-                StrEnumAttrCase<"BGR">
+                I64EnumAttrCase<"NV12", 0>,
+                I64EnumAttrCase<"I420", 1>,
+                I64EnumAttrCase<"RGB", 2>,
+                I64EnumAttrCase<"BGR", 3>
             ]
         > {
-    let cppNamespace = "vpux::IE";
-    let genSpecializedAttr = 1;
     }
+
+def IE_ColorFmtAttr : IE_EnumAttr<IE_ColorFmt, "color_fmt">;
 
 //
 // BoxEncodingType
 //
 
 def IE_BoxEncodingType :
-        StrEnumAttr<
+        IE_I64EnumAttr<
             "BoxEncodingType",
             "BoxEncodingType that the InferenceEngine supports",
             [
-                StrEnumAttrCase<"CORNER">,
-                StrEnumAttrCase<"CENTER">,
+                I64EnumAttrCase<"CORNER", 0>,
+                I64EnumAttrCase<"CENTER", 1>,
             ]
         > {
-    let cppNamespace = "vpux::IE";
-    let genSpecializedAttr = 1;
 }
+
+def IE_BoxEncodingTypeAttr : IE_EnumAttr<IE_BoxEncodingType, "box_encoding_type">;
 
 //
 // PSROIPoolingMode
 //
 
 def IE_PSROIPoolingMode :
-        StrEnumAttr<
+        IE_I64EnumAttr<
             "PSROIPoolingMode",
             "PSROIPoolingMode that the InferenceEngine supports",
             [
-                StrEnumAttrCase<"AVERAGE">,
-                StrEnumAttrCase<"BILINEAR">,
+                I64EnumAttrCase<"AVERAGE", 0>,
+                I64EnumAttrCase<"BILINEAR", 1>,
             ]
         > {
-    let cppNamespace = "vpux::IE";
-    let genSpecializedAttr = 1;
 }
+
+def IE_PSROIPoolingModeAttr : IE_EnumAttr<IE_PSROIPoolingMode, "psroi_poolong_mode">;
 
 //
 // PadType
 //
 
 def IE_PadType :
-        StrEnumAttr<
+        IE_I64EnumAttr<
             "PadType",
             "PadType that the InferenceEngine supports",
             [
-                StrEnumAttrCase<"SAME_LOWER">,
-                StrEnumAttrCase<"SAME_UPPER">,
-                StrEnumAttrCase<"VALID">,
+                I64EnumAttrCase<"SAME_LOWER", 0>,
+                I64EnumAttrCase<"SAME_UPPER", 1>,
+                I64EnumAttrCase<"VALID", 2>,
             ]
         > {
-    let cppNamespace = "vpux::IE";
-    let genSpecializedAttr = 1;
 }
+
+def IE_PadTypeAttr : IE_EnumAttr<IE_PadType, "pad_type">;
 
 //
 // DeformablePSROIPoolingMode
 //
 
 def IE_DeformablePSROIPoolingMode :
-        StrEnumAttr<
+        IE_I64EnumAttr<
             "DeformablePSROIPoolingMode",
             "DeformablePSROIPoolingMode that the InferenceEngine supports",
             [
-                StrEnumAttrCase<"AVERAGE">,
-                StrEnumAttrCase<"BILINEAR_DEFORMABLE">,
+                I64EnumAttrCase<"AVERAGE", 0>,
+                I64EnumAttrCase<"BILINEAR_DEFORMABLE", 1>,
             ]
         > {
-    let cppNamespace = "vpux::IE";
-    let genSpecializedAttr = 1;
 }
+
+def IE_DeformablePSROIPoolingModeAttr : IE_EnumAttr<IE_DeformablePSROIPoolingMode, "deformable_psroi_pooling_mode">;
+
+//
+// UpsamplingPadAttr
+//
+
+def IE_UpsamplingPadAttr :
+        StructAttr<
+            "UpsamplingPadAttr",
+            IE_Dialect,
+            [
+                StructFieldAttr<"pads_channel",       I64ArrayAttr>,
+                StructFieldAttr<"pads_height",        I64ArrayAttr>,
+                StructFieldAttr<"pads_width",         I64ArrayAttr>
+            ]
+        >;
+
 
 #endif

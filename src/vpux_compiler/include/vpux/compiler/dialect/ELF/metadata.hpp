@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #pragma once
 
 #include "vpux/utils/core/logger.hpp"
@@ -63,10 +61,14 @@ const EnumMap<vpux::PreProcessResizeAlgorithm, elf::PreProcessResizeAlgorithm> m
          elf::PreProcessResizeAlgorithm::PreProcessResizeAlgorithm_NO_RESIZE},
 };
 
-elf::NetworkMetadata constructMetadata(mlir::ModuleOp module, IE::CNNNetworkOp netOp, mlir::FuncOp netFunc,
-                                       const std::vector<vpux::PreProcessInfo>& preprocessInfo,
-                                       const std::vector<std::shared_ptr<const ov::Node>>& parameters,
-                                       const std::vector<std::shared_ptr<const ov::Node>>& results);
+std::unique_ptr<elf::NetworkMetadata> constructMetadata(mlir::ModuleOp module, IE::CNNNetworkOp netOp,
+                                                        mlir::func::FuncOp netFunc,
+                                                        const std::vector<vpux::PreProcessInfo>& preprocessInfo,
+                                                        const std::vector<std::shared_ptr<const ov::Node>>& parameters,
+                                                        const std::vector<std::shared_ptr<const ov::Node>>& results);
+
+flatbuffers::DetachedBuffer constructProfilingMeta37XX(mlir::ModuleOp module, IE::CNNNetworkOp netOp,
+                                                       mlir::func::FuncOp funcOp, Logger _log);
 
 elf::TensorRef createTensorRef(mlir::Value val, StringRef name);
 elf::TensorRef createTensorRef(vpux::NDTypeInterface type, StringRef name);

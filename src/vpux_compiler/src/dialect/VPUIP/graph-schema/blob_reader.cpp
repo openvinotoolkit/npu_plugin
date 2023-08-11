@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/VPUIP/graph-schema/blob_reader.hpp"
 
 #include "vpux/compiler/dialect/IE/utils/resources.hpp"
@@ -305,7 +303,7 @@ mlir::Value vpux::VPUIP::BlobReader::createTensorOp(mlir::OpBuilder& builder, co
         VPUX_THROW_UNLESS(ioTypeIt != ioTypes.end(), "Input/output was not found in function arguments");
 
         IE::CNNNetworkOp netOp;
-        mlir::FuncOp netFunc;
+        mlir::func::FuncOp netFunc;
         IE::CNNNetworkOp::getFromModule(_module, netOp, netFunc);
         return netFunc.getArgument(argOffset + static_cast<unsigned>(std::distance(ioTypes.begin(), ioTypeIt)));
     };
@@ -326,8 +324,7 @@ mlir::Value vpux::VPUIP::BlobReader::createTensorOp(mlir::OpBuilder& builder, co
                 reinterpret_cast<const char*>(_graphFile->binary_data()->Get(_constCounter++)->data()->Data()),
                 numElems * elemTypeSize.count());
 
-        bool isSplatBuffer = false;
-        const auto value = mlir::DenseElementsAttr::getFromRawBuffer(tensorType, rawBuffer, isSplatBuffer);
+        const auto value = mlir::DenseElementsAttr::getFromRawBuffer(tensorType, rawBuffer);
         VPUX_THROW_UNLESS(tensorRef->locale_index() && tensorRef->locale_index()->size() == 1,
                           "Missing locale index for constant tensor");
 
@@ -402,7 +399,7 @@ void vpux::VPUIP::BlobReader::buildMainFunc() {
     auto funcArguments = _inputTypes;
     funcArguments.insert(funcArguments.end(), _outputTypes.begin(), _outputTypes.end());
     const auto funcType = mlir::FunctionType::get(_ctx, makeArrayRef(funcArguments), makeArrayRef(_outputTypes));
-    auto func = builder.create<mlir::FuncOp>(mlir::UnknownLoc::get(_ctx), _mainFuncName.getValue(), funcType);
+    auto func = builder.create<mlir::func::FuncOp>(mlir::UnknownLoc::get(_ctx), _mainFuncName.getValue(), funcType);
 
     auto opsBuilder = mlir::OpBuilder::atBlockBegin(func.addEntryBlock(), &builderLog);
 
@@ -521,13 +518,45 @@ void vpux::VPUIP::BlobReader::buildMainFunc() {
             auto& block = taskOp.body().emplaceBlock();
             lastInsertPoint = opsBuilder.saveInsertionPoint();
             opsBuilder.setInsertionPointToStart(&block);
+
             if (nnDMATask->compression()) {
-                opsBuilder.create<VPUIP::CompressedDMAOp>(loc, inputs.front(), outputs.front(), nnDMATask->port(),
-                                                          !nnDMATask->set_ord(), nnDMATask->set_crit());
+                const auto actCompressionSizeEntry = nnDMATask->act_compression_size_entry();
+                const auto memKindSrc = convertMemoryLocation(nnDMATask->src()->locale());
+                const auto memKindDst = convertMemoryLocation(nnDMATask->dst()->locale());
+                const auto ddr2cmx = ((memKindSrc == VPU::MemoryKind::DDR) && (memKindDst == VPU::MemoryKind::CMX_NN))
+                                             ? true
+                                             : false;
+                const auto cmx2ddr = ((memKindSrc == VPU::MemoryKind::CMX_NN) && (memKindDst == VPU::MemoryKind::DDR))
+                                             ? true
+                                             : false;
+                const auto compression = cmx2ddr;
+                const auto decompression_weights = (ddr2cmx && (actCompressionSizeEntry == nullptr)) ? true : false;
+                const auto decompression_act = (ddr2cmx && actCompressionSizeEntry) ? true : false;
+                mlir::Value actCompressionSizeEntryBuff;
+
+                if (actCompressionSizeEntry) {
+                    actCompressionSizeEntryBuff = createTensorOp(opsBuilder, actCompressionSizeEntry);
+                }
+
+                if (compression) {
+                    opsBuilder.create<VPUIP::CompressDMAOp>(loc, inputs.front(), actCompressionSizeEntryBuff,
+                                                            outputs.front(), nnDMATask->port(), !nnDMATask->set_ord(),
+                                                            nnDMATask->set_crit());
+                }
+                if (decompression_weights) {
+                    opsBuilder.create<VPUIP::DecompressDMAOp>(loc, inputs.front(), outputs.front(), nnDMATask->port(),
+                                                              !nnDMATask->set_ord(), nnDMATask->set_crit());
+                }
+                if (decompression_act) {
+                    opsBuilder.create<VPUIP::DecompressDMAOp>(loc, inputs.front(), actCompressionSizeEntryBuff,
+                                                              outputs.front(), nnDMATask->port(), !nnDMATask->set_ord(),
+                                                              nnDMATask->set_crit());
+                }
             } else {
                 opsBuilder.create<VPUIP::NNDMAOp>(loc, inputs.front(), outputs.front(), nnDMATask->port(),
-                                                  !nnDMATask->set_ord(), nnDMATask->set_crit());
+                                                  !nnDMATask->set_ord(), nnDMATask->set_crit(), nullptr);
             }
+
             opsBuilder.restoreInsertionPoint(lastInsertPoint);
         } else if (const auto controllerTask = task->task_as_ControllerTask()) {
             const auto barrierTask = controllerTask->task_as_BarrierConfigurationTask();
@@ -542,7 +571,7 @@ void vpux::VPUIP::BlobReader::buildMainFunc() {
 
     const auto functionOutArguments = mlir::ValueRange{func.getArguments().begin() + _inputTypes.size(),
                                                        static_cast<ptrdiff_t>(_outputTypes.size())};
-    opsBuilder.create<mlir::ReturnOp>(mlir::UnknownLoc::get(_ctx), functionOutArguments);
+    opsBuilder.create<mlir::func::ReturnOp>(mlir::UnknownLoc::get(_ctx), functionOutArguments);
 }
 
 mlir::OwningOpRef<mlir::ModuleOp> vpux::VPUIP::BlobReader::read() {

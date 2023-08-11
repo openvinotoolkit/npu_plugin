@@ -11,7 +11,7 @@ mlir::LogicalResult vpux::VPU::EmbeddingSegmentsSumOp::inferReturnTypes(
         mlir::MLIRContext* ctx, mlir::Optional<mlir::Location> optLoc, mlir::ValueRange operands,
         mlir::DictionaryAttr attrs, mlir::RegionRange /*regions*/,
         mlir::SmallVectorImpl<mlir::Type>& inferredReturnTypes) {
-    const auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
+    const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
     VPU::EmbeddingSegmentsSumOpAdaptor embeddingSegmentsSum(operands, attrs);
     if (mlir::failed(embeddingSegmentsSum.verify(loc))) {
@@ -36,8 +36,8 @@ mlir::LogicalResult vpux::VPU::EmbeddingSegmentsSumOp::inferReturnTypes(
 //
 
 EMU::BlobWriter::SpecificTask vpux::VPU::EmbeddingSegmentsSumOp::serialize(EMU::BlobWriter& writer) {
-    const auto indices = writer.createVector(parseIntArrayAttr<int32_t>(indices_value()));
-    const auto segmentIds = writer.createVector(parseIntArrayAttr<int32_t>(segment_ids_value()));
+    const auto indices = writer.createVector(parseIntArrayAttr<int32_t>(indices_value().getValue()));
+    const auto segmentIds = writer.createVector(parseIntArrayAttr<int32_t>(segment_ids_value().getValue()));
 
     const auto getRawFP16 = [](auto val) {
         const auto valFP16 = float16(val);
@@ -48,7 +48,7 @@ EMU::BlobWriter::SpecificTask vpux::VPU::EmbeddingSegmentsSumOp::serialize(EMU::
     };
 
     EMU::BlobWriter::Vector<uint16_t> serializedWeights;
-    const auto weightsArr = parseFPArrayAttr<double>(per_sample_weights_value());
+    const auto weightsArr = parseFPArrayAttr<double>(per_sample_weights_value().getValue());
     serializedWeights = getVecFP16(weightsArr);
 
     MVCNN::EmbeddingSegmentsSumParamsBuilder builder(writer);

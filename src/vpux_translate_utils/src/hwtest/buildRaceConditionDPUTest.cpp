@@ -10,14 +10,12 @@
 #include "vpux/compiler/dialect/VPU/passes.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
-#include "vpux/compiler/dialect/VPUIP/utils.hpp"
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
 #include "vpux/compiler/dialect/VPURT/task.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
 #include "vpux/hwtest/hwtest_utils.hpp"
 #include "vpux/hwtest/test_case_json_parser.hpp"
 #include "vpux/utils/core/error.hpp"
-#include "vpux/utils/core/numeric.hpp"
 
 namespace vpux {
 namespace hwtest {
@@ -103,7 +101,7 @@ void buildRaceConditionDPUTest(const nb::TestCaseJsonDescriptor& testDesc, mlir:
             builder.getFunctionType(SmallVector<mlir::Type>{inputParamType, outputParamType, outputParamType},
                                     SmallVector<mlir::Type>{outputParamType, outputParamType});
 
-    auto function = builder.create<mlir::FuncOp>(
+    auto function = builder.create<mlir::func::FuncOp>(
             loc, printToString("race_condition_dpu_{0}_{1}_{2}", inputType, weightsType, outputType), funcType,
             builder.getStringAttr("private"));
 
@@ -235,12 +233,14 @@ void buildRaceConditionDPUTest(const nb::TestCaseJsonDescriptor& testDesc, mlir:
     VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(waitBarrier.barrier()), mlir::ValueRange(),
                                           loc, outputCMX_1.getOperation()->getResult(0), functionOutput_1);
 
-    functionBuilder.create<mlir::ReturnOp>(loc, mlir::ValueRange{functionOutput_0, functionOutput_1});
+    functionBuilder.create<mlir::func::ReturnOp>(loc, mlir::ValueRange{functionOutput_0, functionOutput_1});
 
     module.dump();
 
     mlir::PassManager pm(ctx, mlir::OpPassManager::Nesting::Implicit);
-    pm.addPass(VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::DefaultHW, None, None,
+    Optional<int> numTiles = None;
+
+    pm.addPass(VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::DefaultHW, numTiles, None,
                                            None, log));
     if (conv.compress) {
         pm.addPass(VPUIP::createCompressWeightsBTCPass(log));

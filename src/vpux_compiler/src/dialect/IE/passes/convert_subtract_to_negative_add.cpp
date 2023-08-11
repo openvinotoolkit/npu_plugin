@@ -40,14 +40,6 @@ Const::DeclareOp createShapeConst(mlir::PatternRewriter& rewriter, mlir::MLIRCon
     return rewriter.create<Const::DeclareOp>(loc, shapeStorageType, newContentAttr);
 }
 
-template <typename T>
-mlir::DenseElementsAttr negateConstantValues(Const::details::ContentRange<float>& values,
-                                             vpux::NDTypeInterface contentType) {
-    std::vector<T> negativeValues;
-    std::transform(values.begin(), values.end(), std::back_inserter(negativeValues), std::negate<T>());
-    return mlir::DenseElementsAttr::get(contentType, makeArrayRef(negativeValues));
-}
-
 static inline Const::DeclareOp createConstOpFromValue(mlir::PatternRewriter& rewriter, mlir::Location loc, float val,
                                                       mlir::RankedTensorType argType) {
     const auto denseElementVal = wrapData(argType, val);
@@ -132,23 +124,9 @@ mlir::LogicalResult ConvertSubtractToDWConvAdd::matchAndRewrite(IE::SubtractOp s
     auto fqInput2 = input2.getDefiningOp<IE::FakeQuantizeOp>();
     auto constInput2 = getConstInput(subOp);
     if (constInput2 != nullptr) {
-        auto inputConstContent = constInput2.content();
-        const auto contentType = inputConstContent.getType();
-        const auto contentElemType = contentType.getElementType();
-
-        const auto rankedTensorType = contentType.cast<mlir::RankedTensorType>();
-        auto inValues = inputConstContent.getValues<float>();
-        mlir::DenseElementsAttr denseAttr = nullptr;
-        if (contentElemType.isF32()) {
-            denseAttr = negateConstantValues<float>(inValues, contentType);
-        } else if (contentElemType.isF16()) {
-            denseAttr = negateConstantValues<float16>(inValues, contentType);
-        } else {
-            VPUX_THROW("Unsupported type: {0}", contentElemType);
-        }
-        const auto constContentAttr = Const::ContentAttr::get(denseAttr);
-
-        negativeInput = rewriter.create<Const::DeclareOp>(subOpLoc, rankedTensorType, constContentAttr).output();
+        auto constInput2Content = constInput2.contentAttr();
+        auto negativeContent = constInput2Content.rescale(-1.0);
+        negativeInput = rewriter.create<Const::DeclareOp>(subOpLoc, constInput2.getType(), negativeContent);
     } else {
         const auto inputC = input2Shape[Dims4D::Act::C];
         const Shape filterShape = {inputC, 1, 1, 1};
@@ -266,7 +244,7 @@ void ConvertSubtractToAddPass::safeRunOnFunc() {
         patterns.add<ConvertSubtractToDWConvAdd>(&ctx, _log);
     }
 
-    auto func = getFunction();
+    auto func = getOperation();
     if (mlir::failed(mlir::applyPatternsAndFoldGreedily(func, std::move(patterns), getDefaultGreedyRewriteConfig()))) {
         signalPassFailure();
     }

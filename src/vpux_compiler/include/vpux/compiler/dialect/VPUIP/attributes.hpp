@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #pragma once
 
 #include "vpux/compiler/core/attributes/shape.hpp"
@@ -36,6 +34,8 @@ namespace VPUIP {
 class MemRefAttrLayout final :
         public mlir::MemRefLayoutAttrInterface::ExternalModel<MemRefAttrLayout, VPUIP::MemRefAttr> {
 public:
+    using ConcreteEntity = mlir::DictionaryAttr;
+
     mlir::AffineMap getAffineMap(mlir::Attribute attr) const;
 
     bool isIdentity(mlir::Attribute) const;

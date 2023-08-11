@@ -5,10 +5,8 @@
 
 #include "vpux/compiler/dialect/const/passes.hpp"
 
-#include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
 #include "vpux/compiler/utils/error.hpp"
-#include "vpux/compiler/utils/rewriter.hpp"
 #include "vpux/compiler/utils/types.hpp"
 #include "vpux/utils/core/numeric.hpp"
 
@@ -35,7 +33,7 @@ private:
 };
 
 void ConstantFoldingPass::safeRunOnFunc() {
-    auto func = getFunction();
+    auto func = getOperation();
 
     func.walk([&](Const::DeclareOp origOp) {
         _log.trace("Folding constant at location '{0}'", origOp.getLoc());
@@ -57,11 +55,7 @@ void ConstantFoldingPass::safeRunOnFunc() {
                     contentType.changeElemType(normalizeQuantStorageType(qtype)).cast<mlir::RankedTensorType>();
         }
 
-        bool isSplatBuffer = false;
-        VPUX_THROW_UNLESS(mlir::DenseElementsAttr::isValidRawBuffer(rankedTensorType, tempBuf, isSplatBuffer),
-                          "Constant node '{0}' has invalid buffer", origOp.getLoc());
-
-        const auto denseAttr = mlir::DenseElementsAttr::getFromRawBuffer(rankedTensorType, tempBuf, isSplatBuffer);
+        const auto denseAttr = mlir::DenseElementsAttr::getFromRawBuffer(rankedTensorType, tempBuf);
 
         const auto newOp =
                 builder.create<Const::DeclareOp>(origOp.getLoc(), origOp.getType(), Const::ContentAttr::get(denseAttr));

@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/core/attributes/shape.hpp"
 #include "vpux/compiler/dialect/VPUIP/types.hpp"
 
@@ -270,7 +268,8 @@ NDTypeInterface VPUIP::BufferType::changeStrides(StridesRef strides) const {
                                                 return stride.count() / elemSize;
                                             }));
     const auto newStridesAttr = getIntArrayAttr(ctx, newStrides);
-    const auto newDescAttr = VPUIP::MemRefAttr::get(order, newStridesAttr, /*swizzlingScheme=*/nullptr, nullptr, ctx);
+    const auto newDescAttr = VPUIP::MemRefAttr::get(order, newStridesAttr, /*swizzlingScheme=*/nullptr, nullptr,
+                                                    /*allocSize=*/nullptr, ctx);
     return VPUIP::BufferType::get(ctx, getShape().raw(), getElementType(), newDescAttr, getMemSpace(),
                                   getSwizzlingKey());
 }
@@ -278,11 +277,11 @@ NDTypeInterface VPUIP::BufferType::changeStrides(StridesRef strides) const {
 NDTypeInterface VPUIP::BufferType::changeTypeComponents(TypeComponents typeComponents) const {
     const auto ctx = getContext();
 
-    const auto shape = typeComponents.shape.getValueOr(getShape());
-    const auto elementType = typeComponents.elementType.getValueOr(getElementType());
-    const auto dimsOrder = typeComponents.dimsOrder.getValueOr(getDimsOrder());
-    const auto strides = typeComponents.strides.getValueOr(getStrides());
-    const auto memSpace = typeComponents.memSpace.getValueOr(getMemSpace());
+    const auto shape = typeComponents.shape.value_or(Shape(getShape().toValues()));
+    const auto elementType = typeComponents.elementType.value_or(getElementType());
+    const auto dimsOrder = typeComponents.dimsOrder.value_or(getDimsOrder());
+    const auto strides = typeComponents.strides.value_or(getStrides());
+    const auto memSpace = typeComponents.memSpace.value_or(getMemSpace());
 
     VPUX_THROW_UNLESS(dimsOrder.numDims() == shape.size(), "New order '{0}' is incompatible with shape '{1}'",
                       dimsOrder, shape);
@@ -293,7 +292,8 @@ NDTypeInterface VPUIP::BufferType::changeTypeComponents(TypeComponents typeCompo
                                                 return stride.count() / elemSize;
                                             }));
     const auto newStridesAttr = getIntArrayAttr(ctx, newStrides);
-    const auto newDescAttr = VPUIP::MemRefAttr::get(layout, newStridesAttr, /*swizzlingScheme=*/nullptr, nullptr, ctx);
+    const auto newDescAttr = VPUIP::MemRefAttr::get(layout, newStridesAttr, /*swizzlingScheme=*/nullptr, nullptr,
+                                                    /*allocSize=*/nullptr, ctx);
 
     return VPUIP::BufferType::get(ctx, shape.raw(), elementType, newDescAttr, memSpace, getSwizzlingKey());
 }
@@ -338,7 +338,8 @@ NDTypeInterface VPUIP::BufferType::extractViewTile(vpux::ShapeRef tileOffsets, v
                                             }));
 
     const auto newStridesAttr = getIntArrayAttr(ctx, newStrides);
-    const auto newDescAttr = VPUIP::MemRefAttr::get(order, newStridesAttr, /*swizzlingScheme=*/nullptr, nullptr, ctx);
+    const auto newDescAttr = VPUIP::MemRefAttr::get(order, newStridesAttr, /*swizzlingScheme=*/nullptr, nullptr,
+                                                    /*allocSize=*/nullptr, ctx);
 
     return VPUIP::BufferType::get(ctx, tileShape.raw(), tileElemType, newDescAttr, memSpace, getSwizzlingKey());
 }

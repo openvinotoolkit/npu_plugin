@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/VPU/nce_sparsity.hpp"
 #include "vpux/compiler/dialect/VPU/ops.hpp"
 #include "vpux/compiler/dialect/VPU/passes.hpp"
@@ -28,7 +26,7 @@ namespace {
 void updateUsers(mlir::OpResult& result) {
     for (auto user : result.getUsers()) {
         // If sparsity consumer then do not go further
-        if (mlir::isa<VPU::NCEOpInterface, VPU::DesparsifyOp, mlir::ReturnOp>(user)) {
+        if (mlir::isa<VPU::NCEOpInterface, VPU::DesparsifyOp, mlir::func::ReturnOp>(user)) {
             continue;
         }
         // Can propagate type, do it recursively
@@ -60,7 +58,7 @@ private:
 //
 
 void AddSparsityMapToSparseActivationsPass::safeRunOnFunc() {
-    auto func = getFunction();
+    auto func = getOperation();
     auto& ctx = getContext();
 
     func->walk([&](mlir::Operation* op) {

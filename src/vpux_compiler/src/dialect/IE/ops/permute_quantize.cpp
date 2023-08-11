@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/IE/ops.hpp"
 
 #include "vpux/compiler/core/attributes/shape.hpp"
@@ -21,7 +19,7 @@ mlir::LogicalResult vpux::IE::PermuteQuantizeOp::inferReturnTypeComponents(
         mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
         mlir::DictionaryAttr attrs, mlir::RegionRange,
         SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
-    const auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
+    const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
     IE::PermuteQuantizeOpAdaptor permute_quantize(operands, attrs);
     if (mlir::failed(permute_quantize.verify(loc))) {
@@ -53,6 +51,46 @@ mlir::LogicalResult vpux::IE::PermuteQuantizeOp::inferReturnTypeComponents(
     inferredReturnShapes.emplace_back(outShape.raw(), dstElemType, outDesc);
 
     return mlir::success();
+}
+
+namespace {
+
+//
+// ConvertToPermuteCast
+//
+
+class ConvertToPermuteCast final : public mlir::OpRewritePattern<IE::PermuteQuantizeOp> {
+public:
+    using mlir::OpRewritePattern<IE::PermuteQuantizeOp>::OpRewritePattern;
+
+public:
+    mlir::LogicalResult matchAndRewrite(IE::PermuteQuantizeOp origOp, mlir::PatternRewriter& rewriter) const final;
+};
+
+mlir::LogicalResult ConvertToPermuteCast::matchAndRewrite(IE::PermuteQuantizeOp origOp,
+                                                          mlir::PatternRewriter& rewriter) const {
+    const auto inOrder = DimsOrder::fromValue(origOp.input());
+    const auto inShape = getShape(origOp.input());
+    const auto inMemShape = inOrder.toMemoryOrder(inShape);
+
+    const auto inputType = origOp.input().getType().cast<NDTypeInterface>().getElementType();
+    const auto outputType = origOp.output().getType().cast<NDTypeInterface>().getElementType();
+
+    if (!isTrivialPermute(inMemShape, origOp.mem_perm()) || inputType != outputType ||
+        inShape != getShape(origOp.output())) {
+        return mlir::failure();
+    }
+
+    rewriter.replaceOpWithNewOp<IE::PermuteCastOp>(origOp, origOp.input(), origOp.dst_orderAttr(),
+                                                   origOp.mem_permAttr());
+    return mlir::success();
+}
+
+}  // namespace
+
+void vpux::IE::PermuteQuantizeOp::getCanonicalizationPatterns(mlir::RewritePatternSet& patterns,
+                                                              mlir::MLIRContext* context) {
+    patterns.add<ConvertToPermuteCast>(context);
 }
 
 mlir::OpFoldResult vpux::IE::PermuteQuantizeOp::fold(ArrayRef<mlir::Attribute>) {

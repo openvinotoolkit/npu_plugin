@@ -9,7 +9,7 @@
 namespace vpux {
 namespace zeroMemory {
 HostMem::HostMem(const ze_context_handle_t context, const std::size_t size, ze_host_mem_alloc_flag_t flag)
-        : _size(size), _context(context) {
+        : _size(size), _context(context), _log(Logger::global().nest("HostMem", 0)) {
     ze_host_mem_alloc_desc_t desc = {ZE_STRUCTURE_TYPE_HOST_MEM_ALLOC_DESC, nullptr, flag};
     zeroUtils::throwOnFail("zeMemAllocHost", zeMemAllocHost(_context, &desc, _size, _alignment, &_data));
 }
@@ -32,11 +32,15 @@ void HostMem::free() {
     }
 }
 HostMem::~HostMem() {
-    free();
+    try {
+        free();
+    } catch (const std::exception& e) {
+        _log.error("Caught when freeing memory: {0}", e.what());
+    }
 }
 
 DeviceMem::DeviceMem(const ze_device_handle_t device_handle, ze_context_handle_t context, const std::size_t size)
-        : _size(size), _context(context) {
+        : _size(size), _context(context), _log(Logger::global().nest("DeviceMem", 0)) {
     ze_device_mem_alloc_desc_t desc = {ZE_STRUCTURE_TYPE_DEVICE_MEM_ALLOC_DESC, nullptr, 0, 0};
 
     zeroUtils::throwOnFail("zeMemAllocDevice",
@@ -61,7 +65,11 @@ void DeviceMem::free() {
     }
 }
 DeviceMem::~DeviceMem() {
-    free();
+    try {
+        free();
+    } catch (const std::exception& e) {
+        _log.error("Caught when freeing memory: {0}", e.what());
+    }
 }
 
 void MemoryManagementUnit::appendArgument(const std::string& name, const ze_graph_argument_properties_t& argument) {
@@ -73,54 +81,54 @@ void MemoryManagementUnit::appendArgument(const std::string& name, const ze_grap
 }
 
 void MemoryManagementUnit::allocate(const ze_context_handle_t context, ze_host_mem_alloc_flag_t flag) {
-    if (0 != _host.size())
+    if (_host && 0 != _host->size())
         IE_THROW() << "Memory already allocated";
     if (0 == _size)
         IE_THROW() << "Can't allocate empty buffer";
 
-    _host = HostMem(context, _size, flag);
+    _host = std::make_unique<HostMem>(context, _size, flag);
 }
 
 void MemoryManagementUnit::allocate(const ze_device_handle_t device_handle, const ze_context_handle_t context) {
-    if (0 != _host.size())
+    if (_host && 0 != _host->size())
         IE_THROW() << "Memory already allocated";
     if (0 == _size)
         IE_THROW() << "Can't allocate empty buffer";
 
-    _host = HostMem(context, _size);
-    _device = DeviceMem(device_handle, context, _size);
+    _host = std::make_unique<HostMem>(context, _size);
+    _device = std::make_unique<DeviceMem>(device_handle, context, _size);
 }
 std::size_t MemoryManagementUnit::getSize() const {
     return _size;
 }
 const void* MemoryManagementUnit::getHostMemRegion() const {
-    return _host.data();
+    return _host ? _host->data() : nullptr;
 }
 const void* MemoryManagementUnit::getDeviceMemRegion() const {
-    return _device.data();
+    return _device ? _device->data() : nullptr;
 }
 void* MemoryManagementUnit::getHostMemRegion() {
-    return _host.data();
+    return _host ? _host->data() : nullptr;
 }
 void* MemoryManagementUnit::getDeviceMemRegion() {
-    return _device.data();
+    return _device ? _device->data() : nullptr;
 }
 void* MemoryManagementUnit::getHostPtr(const std::string& name) {
-    uint8_t* from = static_cast<uint8_t*>(_host.data());
+    uint8_t* from = static_cast<uint8_t*>(_host ? _host->data() : nullptr);
     if (nullptr == from)
         IE_THROW() << "Host memory not allocated yet";
 
     return zeroUtils::mapArguments(_offsets, name) + from;
 }
 void* MemoryManagementUnit::getDevicePtr(const std::string& name) {
-    uint8_t* from = static_cast<uint8_t*>(_device.data());
+    uint8_t* from = static_cast<uint8_t*>(_device ? _device->data() : nullptr);
     if (nullptr == from)
         IE_THROW() << "Device memory not allocated yet";
 
     return zeroUtils::mapArguments(_offsets, name) + from;
 }
 bool MemoryManagementUnit::checkHostPtr(const void* ptr) const {
-    const uint8_t* from = static_cast<const uint8_t*>(_host.data());
+    const uint8_t* from = static_cast<const uint8_t*>(_host ? _host->data() : nullptr);
     return (ptr >= from && (from + _size) > ptr);
 }
 }  // namespace zeroMemory

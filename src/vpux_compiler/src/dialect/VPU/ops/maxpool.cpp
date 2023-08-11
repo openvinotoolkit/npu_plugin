@@ -6,6 +6,7 @@
 #include "vpux/compiler/dialect/VPU/ops.hpp"
 
 #include "vpux/compiler/utils/attributes.hpp"
+#include "vpux/compiler/utils/empty_node.hpp"
 
 #include "vpux/compiler/dialect/VPUIP/graph-schema/utils.hpp"
 #include "vpux/utils/core/checked_cast.hpp"
@@ -24,7 +25,7 @@ mlir::LogicalResult vpux::VPU::MaxPoolOp::inferReturnTypes(mlir::MLIRContext* ct
                                                            mlir::ValueRange operands, mlir::DictionaryAttr attrs,
                                                            mlir::RegionRange /*regions*/,
                                                            mlir::SmallVectorImpl<mlir::Type>& inferredReturnTypes) {
-    const auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
+    const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
     VPU::MaxPoolOpAdaptor maxPool(operands, attrs);
     if (mlir::failed(maxPool.verify(loc))) {
@@ -41,7 +42,7 @@ mlir::LogicalResult vpux::VPU::MaxPoolOp::inferReturnTypes(mlir::MLIRContext* ct
     const auto inShape = inType.getShape();
 
     const auto outputShape = ngraph::infer_batched_pooling_forward(
-            nullptr, ngraph::Shape(inShape.begin(), inShape.end()),
+            EmptyNode::instance(), ngraph::Shape(inShape.begin(), inShape.end()),
             ngraph::CoordinateDiff(dataPaddingBelow.begin(), dataPaddingBelow.end()),
             ngraph::CoordinateDiff(dataPaddingAbove.begin(), dataPaddingAbove.end()),
             ngraph::Shape(windowShape.begin(), windowShape.end()),

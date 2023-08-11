@@ -49,7 +49,7 @@ mlir::LogicalResult vpux::VPU::GatherOp::inferReturnTypes(mlir::MLIRContext* ctx
                                                           mlir::ValueRange operands, mlir::DictionaryAttr attrs,
                                                           mlir::RegionRange /*regions*/,
                                                           mlir::SmallVectorImpl<mlir::Type>& inferredReturnTypes) {
-    const auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
+    const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
     VPU::GatherOpAdaptor gather(operands, attrs);
     if (mlir::failed(gather.verify(loc))) {
@@ -142,7 +142,7 @@ vpux::InputTiling vpux::VPU::GatherOp::backInferTileInfo(const vpux::TileInfo& o
     auto inputRank = origInputShape.size();
     auto indicesRank = origIndicesShape.size();
 
-    for (int64_t i = 0; i < static_cast<signed>(inputRank); ++i) {
+    for (int64_t i = 0; i < static_cast<int64_t>(inputRank); ++i) {
         if (i < axisValue) {
             inputTile.shape[Dim(i)] = outputTile.shape[Dim(i)];
             inputTile.offsets[Dim(i)] = outputTile.offsets[Dim(i)];
@@ -153,6 +153,17 @@ vpux::InputTiling vpux::VPU::GatherOp::backInferTileInfo(const vpux::TileInfo& o
             inputTile.offsets[Dim(i)] = outputTile.offsets[Dim(i + indicesRank - batchDims - 1)];
         }
     }
+
+    for (int64_t i = 0; i < static_cast<int64_t>(indicesRank); ++i) {
+        if (i < batchDims) {
+            indicesTile.shape[Dim(i)] = outputTile.shape[Dim(i)];
+            indicesTile.offsets[Dim(i)] = outputTile.offsets[Dim(i)];
+        } else {
+            indicesTile.shape[Dim(i)] = outputTile.shape[Dim(i + axisValue - batchDims)];
+            indicesTile.offsets[Dim(i)] = outputTile.offsets[Dim(i + axisValue - batchDims)];
+        }
+    }
+
     if (hasAxisTensor) {
         return InputTiling{{inputTile, indicesTile, axisTile}};
     } else {
@@ -181,9 +192,6 @@ OutputTiling vpux::VPU::GatherOp::getTilingStrategy(TilingMode tilingMode, Logge
         axisValue = axisContent.getSplatValue<int64_t>();
     }
 
-    const auto indicesType = indices().getType().cast<vpux::NDTypeInterface>();
-    const auto indicesShape = indicesType.getShape();
-
     auto tilingInfo = mlir::dyn_cast<VPU::TilingInfoOpInterface>(baseOp);
     VPUX_THROW_WHEN(tilingInfo == nullptr, "Operation '{0}' doesn't implement TilingInfoOpInterface",
                     baseOp->getName());
@@ -200,16 +208,50 @@ OutputTiling vpux::VPU::GatherOp::getTilingStrategy(TilingMode tilingMode, Logge
     if (batch_dimsAttr() != nullptr) {
         batchDims = batch_dimsAttr().dyn_cast_or_null<mlir::IntegerAttr>().getValue().getSExtValue();
     }
-    int64_t tileDim = batchDims;
-    while (!isSupportedTileSize(nTilesOnDimforGather, tilingMode)) {
-        if (tileDim == axisValue) {
-            tileDim += (indicesShape.size() - batchDims);
-        } else if (nTilesOnDimforGather[Dim(tileDim)] >= outputShape[Dim(tileDim)]) {
-            ++tileDim;
+
+    const auto inputType = input().getType().cast<vpux::NDTypeInterface>();
+    const auto inputSize = inputType.getCompactAllocSize();
+    const auto indicesType = indices().getType().cast<vpux::NDTypeInterface>();
+    const auto indicesShape = indicesType.getShape();
+    const auto indicesSize = indicesType.getCompactAllocSize();
+    const auto outputRank = static_cast<int64_t>(outputShape.size());
+    const auto indicesRank = static_cast<int64_t>(indicesShape.size());
+
+    SmallVector<int64_t> batchDimsRange, dataBeforeAxisRange, indicesRange, dataAfterAxisRange;
+    for (int64_t i = 0; i < outputRank; ++i) {
+        if (i < batchDims) {
+            batchDimsRange.push_back(i);
+        } else if (batchDims <= i && i < axisValue) {
+            dataBeforeAxisRange.push_back(i);
+        } else if (axisValue <= i && i < axisValue + indicesRank - batchDims) {
+            indicesRange.push_back(i);
         } else {
-            ++nTilesOnDimforGather[Dim(tileDim)];
+            dataAfterAxisRange.push_back(i);
         }
     }
+    SmallVector<int64_t> tileDimOrder;
+    tileDimOrder.insert(tileDimOrder.end(), batchDimsRange.begin(), batchDimsRange.end());
+    if (inputSize > indicesSize) {
+        // TileDimOrder: {batchDimsRange, dataBeforeAxisRange, dataAfterAxisRange, indicesRange}.
+        tileDimOrder.insert(tileDimOrder.end(), dataBeforeAxisRange.begin(), dataBeforeAxisRange.end());
+        tileDimOrder.insert(tileDimOrder.end(), dataAfterAxisRange.begin(), dataAfterAxisRange.end());
+        tileDimOrder.insert(tileDimOrder.end(), indicesRange.begin(), indicesRange.end());
+    } else {
+        // TileDimOrder: {batchDimsRange, indicesRange, dataBeforeAxisRange, dataAfterAxisRange}.
+        tileDimOrder.insert(tileDimOrder.end(), indicesRange.begin(), indicesRange.end());
+        tileDimOrder.insert(tileDimOrder.end(), dataBeforeAxisRange.begin(), dataBeforeAxisRange.end());
+        tileDimOrder.insert(tileDimOrder.end(), dataAfterAxisRange.begin(), dataAfterAxisRange.end());
+    }
+    auto tileDimIter = tileDimOrder.begin();
+    auto dimToTile = *tileDimIter;
+    while (tileDimIter < tileDimOrder.end() && !isSupportedTileSize(nTilesOnDimforGather, tilingMode)) {
+        if (nTilesOnDimforGather[Dim(dimToTile)] >= outputShape[Dim(dimToTile)]) {
+            dimToTile = *(++tileDimIter);
+        } else {
+            ++nTilesOnDimforGather[Dim(dimToTile)];
+        }
+    }
+
     log.trace("Isolated tiling strategy: {0}", nTilesOnDimforGather);
     return fillDividedTiles(baseOp, nTilesOnDimforGather, outputShape);
 }

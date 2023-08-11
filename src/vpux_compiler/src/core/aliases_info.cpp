@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/core/aliases_info.hpp"
 
 #include "vpux/compiler/core/ops_interfaces.hpp"
@@ -38,7 +36,7 @@ std::string getValueForLog(mlir::Value val) {
 
 }  // namespace
 
-vpux::AliasesInfo::AliasesInfo(mlir::FuncOp func): _log(Logger::global().nest("aliases-info", 0)) {
+vpux::AliasesInfo::AliasesInfo(mlir::func::FuncOp func): _log(Logger::global().nest("aliases-info", 0)) {
     _log.trace("Analyze aliases for Function '@{0}'", func.getName());
     _log = _log.nest();
 

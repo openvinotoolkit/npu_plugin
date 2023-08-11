@@ -32,11 +32,11 @@ IE::PSROIPoolingMode convertPSROIPoolingModeToIE(MVCNN::PSROIPoolingMode mode) {
 
 }  // namespace
 
-mlir::LogicalResult vpux::VPUIP::verifyOp(PSROIPoolingUPAOp op) {
-    const auto outputDim = op.output_dim();
+mlir::LogicalResult vpux::VPUIP::PSROIPoolingUPAOp::verify() {
+    const auto outputDim = output_dim();
 
     if (outputDim <= 0) {
-        return errorAt(op, "Attribute outputDim should be positive. Got {0} value", outputDim);
+        return errorAt(*this, "Attribute outputDim should be positive. Got {0} value", outputDim);
     }
 
     return mlir::success();

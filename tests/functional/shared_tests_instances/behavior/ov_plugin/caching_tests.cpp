@@ -57,4 +57,29 @@ INSTANTIATE_TEST_SUITE_P(nightly_CachingSupportCase_KeemBay, CompileModelCacheTe
                                             ::testing::Values(CommonTestUtils::DEVICE_KEEMBAY),
                                             ::testing::Values(ov::AnyMap{})),
                          CompileModelCacheTestBase::getTestCaseName);
+
+const std::vector<ov::AnyMap> LoadFromFileConfigs = {
+        {ov::device::priorities(CommonTestUtils::DEVICE_KEEMBAY),
+         ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)},
+        {ov::device::priorities(CommonTestUtils::DEVICE_KEEMBAY),
+         ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)}};
+const std::vector<std::string> TestTargets = {
+        CommonTestUtils::DEVICE_AUTO,
+        CommonTestUtils::DEVICE_MULTI,
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_Auto_CachingSupportCase_KeemBay, CompileModelLoadFromFileTestBase,
+                         ::testing::Combine(::testing::ValuesIn(TestTargets), ::testing::ValuesIn(LoadFromFileConfigs)),
+                         CompileModelLoadFromFileTestBase::getTestCaseName);
+
+const std::vector<ov::AnyMap> KEEMBAYLoadFromFileConfigs = {
+        {ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)},
+        {ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)},
+        {},
+};
+INSTANTIATE_TEST_SUITE_P(smoke_CachingSupportCase_KeemBay, CompileModelLoadFromFileTestBase,
+                         ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_KEEMBAY),
+                                            ::testing::ValuesIn(KEEMBAYLoadFromFileConfigs)),
+                         CompileModelLoadFromFileTestBase::getTestCaseName);
+
 }  // namespace

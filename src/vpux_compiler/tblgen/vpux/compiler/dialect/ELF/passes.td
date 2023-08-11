@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #ifndef VPUX_COMPILER_DIALECT_ELF_PASSES
 #define VPUX_COMPILER_DIALECT_ELF_PASSES
 
@@ -53,7 +51,7 @@ def UpdateELFSectionFlags : PassBase<"update-ELF-section-flags", "vpux::ModulePa
     let dependentDialects = [
         "vpux::Const::ConstDialect",
         "vpux::ELF::ELFDialect",
-        "vpux::VPUIPRegMapped::VPUIPRegMappedDialect",
+        "vpux::VPUMI37XX::VPUMI37XXDialect",
     ];
 }
 

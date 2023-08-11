@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,15 +10,17 @@
 
 namespace LayerTestsDefinitions {
 
-class KmbLSTMCellLayerTest : public LSTMCellTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {};
+class VPUXLSTMCellLayerTest : public LSTMCellTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {};
+class VPUXLSTMCellLayerTest_VPU3700 : public VPUXLSTMCellLayerTest {};
 
-TEST_P(KmbLSTMCellLayerTest, CompareWithRefs_MLIR) {
+TEST_P(VPUXLSTMCellLayerTest_VPU3700, HW) {
     threshold = 0.06;
-    useCompilerMLIR();
+    setPlatformVPU3700();
+    setDefaultHardwareModeMLIR();
     Run();
 }
 
-class VPUXLSTMCellLayerTest_VPU3720 : public LSTMCellTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
+class VPUXLSTMCellLayerTest_VPU3720 : public VPUXLSTMCellLayerTest {
     void SetUp() override {
         inPrc = InferenceEngine::Precision::FP16;
         outPrc = InferenceEngine::Precision::FP16;
@@ -54,9 +56,8 @@ class VPUXLSTMCellLayerTest_VPU3720 : public LSTMCellTest, virtual public LayerT
     }
 };
 
-TEST_P(VPUXLSTMCellLayerTest_VPU3720, CompareWithRefs_MLIR) {
+TEST_P(VPUXLSTMCellLayerTest_VPU3720, HW) {
     threshold = 0.06;
-    useCompilerMLIR();
     setPlatformVPU3720();
     setDefaultHardwareModeMLIR();
     Run();
@@ -78,19 +79,19 @@ std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precis
 // that can't be moved to separate scope due to dissimilar parameters
 // Also some simple test cases with small dimensions takes more than 5 sec time (don't fit to timeout)
 
-INSTANTIATE_TEST_CASE_P(smoke_LSTMCellCommon, KmbLSTMCellLayerTest,
+INSTANTIATE_TEST_CASE_P(smoke_LSTMCellCommon, VPUXLSTMCellLayerTest_VPU3700,
                         ::testing::Combine(::testing::ValuesIn(should_decompose), ::testing::ValuesIn(batch),
                                            ::testing::ValuesIn(hidden_size), ::testing::ValuesIn(input_size),
                                            ::testing::ValuesIn(activations), ::testing::ValuesIn(clip),
                                            ::testing::ValuesIn(netPrecisions),
                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
-                        KmbLSTMCellLayerTest::getTestCaseName);
+                        VPUXLSTMCellLayerTest_VPU3700::getTestCaseName);
 
 // VPU3720 test
 std::vector<size_t> batch_VPU3720{1};
 std::vector<size_t> hidden_size_VPU3720{4, 64};
 std::vector<size_t> input_size_VPU3720{6, 24};
-INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_LSTMCellCommon_VPU3720, VPUXLSTMCellLayerTest_VPU3720,
+INSTANTIATE_TEST_CASE_P(smoke_LSTMCellCommon_VPU3720, VPUXLSTMCellLayerTest_VPU3720,
                         ::testing::Combine(::testing::ValuesIn(should_decompose), ::testing::ValuesIn(batch_VPU3720),
                                            ::testing::ValuesIn(hidden_size_VPU3720),
                                            ::testing::ValuesIn(input_size_VPU3720), ::testing::ValuesIn(activations),
@@ -100,7 +101,7 @@ INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_LSTMCellCommon_VPU3720, VPUXLSTMCellL
 
 std::vector<size_t> hidden_size_VPU3720_precomit{2, 16};
 std::vector<size_t> input_size_VPU3720_precomit{3, 12};
-INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_precommit_LSTMCellCommon_VPU3720, VPUXLSTMCellLayerTest_VPU3720,
+INSTANTIATE_TEST_CASE_P(smoke_precommit_LSTMCellCommon_VPU3720, VPUXLSTMCellLayerTest_VPU3720,
                         ::testing::Combine(::testing::ValuesIn(should_decompose), ::testing::ValuesIn(batch_VPU3720),
                                            ::testing::ValuesIn(hidden_size_VPU3720_precomit),
                                            ::testing::ValuesIn(input_size_VPU3720_precomit),

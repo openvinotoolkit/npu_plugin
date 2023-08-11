@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #ifndef VPUX_COMPILER_DIALECT_IERT_OPS
 #define VPUX_COMPILER_DIALECT_IERT_OPS
 
@@ -13,12 +11,17 @@ include "vpux/compiler/core/ops_interfaces.td"
 include "vpux/compiler/dialect/IE/attributes.td"
 include "vpux/compiler/dialect/IE/ops_interfaces.td"
 include "vpux/compiler/dialect/IERT/dialect.td"
+include "vpux/compiler/dialect/IERT/types.td"
 include "vpux/compiler/dialect/VPUIP/ops_interfaces.td"
 
 include "mlir/Dialect/Quant/QuantOpsBase.td"
 include "mlir/Interfaces/InferTypeOpInterface.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
 include "mlir/Interfaces/ViewLikeInterface.td"
+
+include "mlir/Interfaces/CallInterfaces.td"
+include "mlir/IR/SymbolInterfaces.td"
+
 
 //
 // Base classes
@@ -548,7 +551,7 @@ def IERT_LRN_IEOp :
         F64Attr:$beta,
         F64Attr:$bias,
         IntAttr:$size,
-        IE_LRN_IERegion:$region
+        IE_LRN_IERegionAttr:$region
     );
 
     let results = (outs
@@ -1006,7 +1009,7 @@ def IERT_RoundOp :
         MemRefOf<[F16, F32]>:$input,
         MemRefOf<[F16, F32]>:$output_buff,
 
-        IE_RoundMode:$mode
+        IE_RoundModeAttr:$mode
     );
 
     let results = (outs
@@ -1133,7 +1136,7 @@ def IERT_BroadcastOp :
 
         AnyMemRef:$output_buff,
 
-        OptionalAttr<IE_BroadcastType>:$mode
+        OptionalAttr<IE_BroadcastTypeAttr>:$mode
     );
 
     let results = (outs
@@ -1511,8 +1514,8 @@ def IERT_GridSampleOp :
         AnyMemRef:$output_buff,
 
         OptionalAttr<UnitAttr>:$align_corners,
-        OptionalAttr<IE_GridSampleMode>:$mode,
-        OptionalAttr<IE_GridSamplePaddingMode>:$padding_mode
+        OptionalAttr<IE_GridSampleModeAttr>:$mode,
+        OptionalAttr<IE_GridSamplePaddingModeAttr>:$padding_mode
     );
 
     let results = (outs
@@ -1583,6 +1586,37 @@ def IERT_EmbeddingSegmentsSumOp :
     let assemblyFormat = [{
         attr-dict
         `inputs` `(` $emb_table `:` type($emb_table) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
+//
+// EmbeddingBagPackedSumOp
+//
+
+def IERT_EmbeddingBagPackedSumOp :
+        IERT_LayerOp<1, "EmbeddingBagPackedSum",
+            [
+                ViewLikeOpInterface,
+            ]
+        > {
+    let summary = "InferenceEngine run-time EmbeddingBagPackedSum layer";
+
+    let arguments = (ins
+        MemRefOf<[F16, F32]>:$emb_table,
+        MemRefOf<[SI32, SI64]>:$indices,
+        Optional<MemRefOf<[F16, F32]>>:$per_sample_weights,
+        MemRefOf<[F16, F32]>:$output_buff
+    );
+
+    let results = (outs
+        MemRefOf<[F16, F32]>:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $emb_table `:` type($emb_table) `,` $indices `:` type($indices) `,` $per_sample_weights `:` type($per_sample_weights) `)`
         `outputs` `(` $output_buff `:` type($output_buff) `)`
         `->` type(results)
     }];
@@ -2608,9 +2642,7 @@ def IERT_GenericReshapeOp :
         AnyMemRef:$output
     );
 
-    let verifier = [{
-        return vpux::IERT::verifyOp(*this);
-    }];
+    let hasVerifier = 1;
 
     let assemblyFormat = [{
         attr-dict
@@ -2643,7 +2675,7 @@ def IERT_DetectionOutputOp :
 
         MemRefOf<[AnyFloat]>:$output_buff,
 
-        IE_DetectionOutputAttrs:$attr
+        IE_DetectionOutputAttr:$attr
     );
 
     let results = (outs
@@ -2741,8 +2773,7 @@ def IERT_UpsamplingOp :
         MemRefOf<[F16, F32]>:$input,
         MemRefOf<[F16, F32]>:$output_buff,
         I64ArrayAttr:$upsampling_factor,
-        I64ArrayAttr:$pad_l,
-        I64ArrayAttr:$pad_r
+        OptionalAttr<IE_UpsamplingPadAttr>:$pad
     );
 
     let results = (outs
@@ -2965,7 +2996,7 @@ def IERT_ROIPoolingOp :
 
         I64ArrayAttr:$output_size,
         F64Attr:$spatial_scale,
-        IE_ROIPoolingMethod:$method
+        IE_ROIPoolingMethodAttr:$method
     );
 
     let results = (outs
@@ -3002,7 +3033,7 @@ def IERT_PSROIPoolingOp :
         IntAttr:$groupSize,
         OptionalAttr<IntAttr>:$spatialBinsX,
         OptionalAttr<IntAttr>:$spatialBinsY,
-        OptionalAttr<IE_PSROIPoolingMode>:$mode
+        OptionalAttr<IE_PSROIPoolingModeAttr>:$mode
     );
 
     let results = (outs
@@ -3039,7 +3070,7 @@ def IERT_ROIAlignOp :
         IntAttr:$pooled_w,
         IntAttr:$sampling_ratio,
         F64Attr:$spatial_scale,
-        IE_ROIAlignMethod:$poolingMode
+        IE_ROIAlignMethodAttr:$poolingMode
     );
 
     let results = (outs
@@ -3208,7 +3239,7 @@ def IERT_PadOp :
         I64ArrayAttr:$pads_begin,
         I64ArrayAttr:$pads_end,
         OptionalAttr<F64Attr>:$pad_value,
-        IE_PadMode:$mode
+        IE_PadModeAttr:$mode
     );
 
     let results = (outs
@@ -3239,9 +3270,9 @@ def IERT_InterpolateOp :
         MemRefOf<[F16, F32]>:$input,
         MemRefOf<[F16, F32]>:$output_buff,
 
-        IE_InterpolateMode:$mode,
-        IE_InterpolateCoordMode:$coord_mode,
-        IE_InterpolateNearestMode:$nearest_mode,
+        IE_InterpolateModeAttr:$mode,
+        IE_InterpolateCoordModeAttr:$coord_mode,
+        IE_InterpolateNearestModeAttr:$nearest_mode,
         UnitAttr:$antialias
     );
 
@@ -3578,7 +3609,7 @@ def IERT_SpaceToDepthOp :
         MemRefOf<[F16]>:$output_buff,
 
         IntAttr:$block_size,
-        IE_SpaceToDepthMode:$mode
+        IE_SpaceToDepthModeAttr:$mode
     );
 
     let results = (outs
@@ -3617,7 +3648,7 @@ def IERT_LSTMSequenceOp :
         MemRefOf<[F16, F32]>:$outputCellState_buff,
 
         IntAttr:$sequenceLength,
-        IE_RNNSequenceDirection:$direction
+        IE_RNNSequenceDirectionAttr:$direction
     );
 
     let results = (outs
@@ -3860,6 +3891,39 @@ def IERT_CeilingOp :
 }
 
 //
+// NormalizeL2Op
+//
+
+def IERT_NormalizeL2Op :
+        IERT_LayerOp<1, "NormalizeL2",
+            [
+                ViewLikeOpInterface
+            ]
+        > {
+    let summary = "InferenceEngine run-time NormalizeL2 layer";
+
+    let arguments = (ins
+        MemRefOf<[F16, F32]>:$input,
+        MemRefOf<[SI32, SI64]>:$axes,
+        MemRefOf<[F16, F32]>:$output_buff,
+
+        F64Attr:$eps,
+        IE_EpsModeAttr:$eps_mode
+    );
+
+    let results = (outs
+        MemRefOf<[F16, F32]>:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `,` $axes `:` type($axes) `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
+//
 // NormalizeIEOp
 //
 
@@ -4010,7 +4074,7 @@ def IERT_DepthToSpaceOp :
         F16MemRef:$input,
         F16MemRef:$output_buff,
         IntAttr:$block_size,
-        IE_DepthToSpaceMode:$mode
+        IE_DepthToSpaceModeAttr:$mode
     );
 
     let results = (outs
@@ -4109,8 +4173,8 @@ def IERT_TopKOp:
         MemRefOf<[SI32]>:$target_shape_buff,
 
         IntAttr:$axis,
-        IE_TopKMode:$mode,
-        IE_TopKSortType:$sort,
+        IE_TopKModeAttr:$mode,
+        IE_TopKSortTypeAttr:$sort,
         TypeAttr:$element_type
     );
 
@@ -4170,8 +4234,8 @@ def IERT_YuvToRgbOp :
         Optional<MemRefOf<[UI8, F16, F32]>>:$input3,
                  MemRefOf<[UI8, F16, F32]> :$output_buff,
 
-        IE_ColorFmt:$inFmt,
-        IE_ColorFmt:$outFmt
+        IE_ColorFmtAttr:$inFmt,
+        IE_ColorFmtAttr:$outFmt
     );
 
     let results = (outs
@@ -4181,6 +4245,42 @@ def IERT_YuvToRgbOp :
     let assemblyFormat = [{
         attr-dict
         `inputs` `(` $input1 `:` type($input1) (`,` $input2^ `:` type($input2))? (`,` $input3^ `:` type($input3))? `)`
+        `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
+//
+// OneHotOp
+//
+
+def IERT_OneHotOp :
+        IERT_LayerOp<1, "OneHot",
+            [
+                ViewLikeOpInterface
+            ]
+        > {
+    let summary = "InferenceEngine run-time OneHot layer";
+
+    let arguments = (ins
+        MemRefOf<[SI32, SI64]> :$input,
+        AnyMemRef:$output_buff,
+
+        IntAttr:$depth,
+        F64Attr:$on_value,
+        F64Attr:$off_value,
+        IntAttr:$axis,
+
+        TypeAttr:$outElemType
+    );
+
+    let results = (outs
+        AnyMemRef:$output
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $input `:` type($input) `)`
         `outputs` `(` $output_buff `:` type($output_buff) `)`
         `->` type(results)
     }];
@@ -4205,7 +4305,7 @@ def IERT_ExtractImagePatchesOp :
         I64ArrayAttr:$sizes,
         I64ArrayAttr:$strides,
         I64ArrayAttr:$rates,
-        IE_PadType:$autoPad
+        IE_PadTypeAttr:$autoPad
     );
 
     let results = (outs
@@ -4283,7 +4383,7 @@ def IERT_GRUSequenceOp:
 
         IntAttr:$hidden_size,
         IntAttr:$seq_length,
-        IE_RNNSequenceDirection:$direction,
+        IE_RNNSequenceDirectionAttr:$direction,
         UnitAttr:$should_linear_before_reset,
         F64Attr:$clip
     );
@@ -4328,7 +4428,7 @@ def IERT_DeformablePSROIPoolingOp :
         OptionalAttr<IntAttr>:$spatial_bins_y,
         OptionalAttr<F64Attr>:$trans_std,
         OptionalAttr<IntAttr>:$part_size,
-        OptionalAttr<IE_DeformablePSROIPoolingMode>:$mode
+        OptionalAttr<IE_DeformablePSROIPoolingModeAttr>:$mode
     );
 
     let results = (outs
@@ -4360,7 +4460,7 @@ def IERT_NonMaxSuppressionOp :
         MemRefOf<[F16, F32]>:$out_selected_scores_buff,
         MemRefOf<[SI32]>:$out_valid_outputs_buff,
 
-        IE_BoxEncodingType:$box_encoding,
+        IE_BoxEncodingTypeAttr:$box_encoding,
         UnitAttr:$sort_result_descending,
 
         OptionalAttr<IntAttr>:$max_output_boxes_per_class_value,
@@ -4415,6 +4515,144 @@ def IERT_PermuteQuantizeOp :
         attr-dict
         `inputs` `(` $input `:` type($input) `)`
         `outputs` `(` $output_buff `:` type($output_buff) `)`
+        `->` type(results)
+    }];
+}
+
+//
+// ExtendedCallOp
+//
+
+def ExtendedCallOp : IERT_Op<"ExtendedCall",
+    [CallOpInterface, MemRefsNormalizable,
+     DeclareOpInterfaceMethods<SymbolUserOpInterface>]> {
+    let summary = "extended call operation";
+    let description = [{
+        The `ExtendedCall` operation represents a call to an mlir::func::FuncOp or
+        to an mlir::LLVM::LLVMFuncOp. We have to change for this op method
+        verifySymbolUses() from IERT/ops.cpp to accept LLVMFuncOp as well.
+
+        Example:
+
+        ```mlir
+        %2 = ExtendedCall @Cos0(%0) : (!IERT.PackedParams) -> memref<1000xf16>
+        ```
+    }];
+
+    let arguments = (ins SymbolRefAttr:$callee, Variadic<AnyType>:$operands);
+    let results = (outs Variadic<AnyType>);
+
+    let builders = [
+        OpBuilder<(ins "mlir::func::FuncOp":$callee, CArg<"mlir::ValueRange", "{}">:$operands), [{
+            $_state.addOperands(operands);
+            $_state.addAttribute("callee", mlir::SymbolRefAttr::get(callee));
+            $_state.addTypes(callee.getFunctionType().getResults());
+        }]>,
+        OpBuilder<(ins "mlir::SymbolRefAttr":$callee, "mlir::TypeRange":$results,
+            CArg<"mlir::ValueRange", "{}">:$operands), [{
+            $_state.addOperands(operands);
+            $_state.addAttribute("callee", callee);
+            $_state.addTypes(results);
+        }]>,
+        OpBuilder<(ins "mlir::StringAttr":$callee, "mlir::TypeRange":$results,
+            CArg<"mlir::ValueRange", "{}">:$operands), [{
+            build($_builder, $_state, mlir::SymbolRefAttr::get(callee), results, operands);
+        }]>,
+        OpBuilder<(ins "mlir::StringRef":$callee, "mlir::TypeRange":$results,
+            CArg<"mlir::ValueRange", "{}">:$operands), [{
+            build($_builder, $_state, mlir::StringAttr::get($_builder.getContext(), callee),
+                  results, operands);
+        }]>];
+
+    let extraClassDeclaration = [{
+        mlir::FunctionType getCalleeType();
+
+        void getCalleeType(mlir::LLVM::LLVMFunctionType& res);
+
+        /// Get the argument operands to the called function.
+        operand_range getArgOperands() {
+            return {arg_operand_begin(), arg_operand_end()};
+        }
+
+        operand_iterator arg_operand_begin() { return operand_begin(); }
+        operand_iterator arg_operand_end() { return operand_end(); }
+
+        /// Return the callee of this operation.
+        mlir::CallInterfaceCallable getCallableForCallee() {
+            return (*this)->getAttrOfType<mlir::SymbolRefAttr>("callee");
+        }
+    }];
+
+    let assemblyFormat = [{
+        $callee `(` $operands `)` attr-dict `:` functional-type($operands, results)
+    }];
+}
+
+//
+// PackMemrefOp
+//
+
+def PackMemrefOp : IERT_Op<"PackMemref",
+    []> {
+    let summary = "packs memrefs";
+    let description = [{
+        The `PackMemref` operation puts inside an object type of IERT.PackedParams
+		a variadic number of MemRefs.
+    }];
+
+    let arguments = (ins Variadic<AnyMemRef>:$operands);
+    let results = (outs IERT_PackedParams);
+
+    let assemblyFormat = [{
+        (`(` $operands^ `:` type($operands) `)`)?
+        attr-dict
+        `->` type(results)
+    }];
+}
+
+//
+// ExtractParamOp
+//
+
+def ExtractParamOp : IERT_Op<"ExtractParam",
+    []> {
+    let summary = "extract param operation";
+    let description = [{
+        The `ExtractParam` operation extracts from its IERT.PackedParams typed
+		operand a MemRef with a certain index.
+    }];
+
+    let arguments = (ins IERT_PackedParams:$operands,
+                         IntAttr:$idx
+                    );
+    let results = (outs AnyMemRef);
+
+    let assemblyFormat = [{
+        `(` $operands `:` type($operands) `,` $idx `)`
+        attr-dict
+        `->` type(results)
+    }];
+}
+
+//
+// SpecialCastOp
+//
+
+def SpecialCastOp : IERT_Op<"SpecialCast",
+    []> {
+    let summary = "special cast operation";
+    let description = [{
+        The `SpecialCast` operation represents a cast operation from
+	  llvm.struct to memref.
+    }];
+
+    let arguments = (ins AnyType:$operands);
+
+    let results = (outs AnyMemRef);
+
+    let assemblyFormat = [{
+        `(` $operands `:` type($operands) `)`
+        attr-dict
         `->` type(results)
     }];
 }

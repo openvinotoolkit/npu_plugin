@@ -9,16 +9,17 @@
 #include <limits>
 
 #include <ie_blob.h>
+#include <limits>
+#include <utility>
 
 namespace utils {
 
 void argMax_channels(const InferenceEngine::MemoryBlob::Ptr blob, std::vector<uint8_t>& resultArgmax);
 
 template <typename T>
-std::vector<float> mean_IoU(std::vector<T> actOutput, std::vector<T> refOutput, uint32_t classes,
-                            uint32_t ignoreLabel) {
-    std::vector<uint8_t> output;
-
+std::vector<std::pair<bool, float>> mean_IoU(std::vector<T> actOutput, std::vector<T> refOutput, uint32_t classes,
+                                             uint32_t ignoreLabel) {
+    std::vector<uint32_t> output;
     for (size_t i = 0; i < refOutput.size(); i++) {
         auto mask = (refOutput[i] < classes) & (actOutput[i] < classes);
 
@@ -66,10 +67,11 @@ std::vector<float> mean_IoU(std::vector<T> actOutput, std::vector<T> refOutput, 
         unionVect[i] = sum1[i] + sum0[i] - diagonal[i];
     }
 
-    std::vector<float> iou(classes, 0.0f);
+    std::vector<std::pair<bool, float>> iou(classes, {false, 0.0f});
     for (size_t i = 0; i < diagonal.size() - 1; i++) {
         if (unionVect[i] != 0) {
-            iou[i] = (diagonal[i] / unionVect[i]) * 100.0f;
+            iou[i].first = true;
+            iou[i].second = (diagonal[i] / unionVect[i]) * 100.0f;
         }
     }
 

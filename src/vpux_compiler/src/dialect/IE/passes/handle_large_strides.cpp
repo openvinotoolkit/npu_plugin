@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/IE/passes.hpp"
 
 #include "vpux/compiler/core/layers.hpp"
@@ -270,6 +268,23 @@ mlir::LogicalResult AvgPoolGeneralRewriter::matchAndRewrite(IE::AvgPoolOp origOp
     _log.trace("[{0}] Got AvgPool layer at '{1}'", getDebugName(), origOp->getLoc());
 
     const auto kernelSz = parseIntArrayAttr<int64_t>(origOp.kernel_size());
+    const auto inputShape = getShape(origOp->getOperand(0));
+    const auto origStrides = parseIntArrayAttr<int64_t>(origOp.strides());
+    auto padX = parseIntArrayAttr<int64_t>(origOp.pads_begin())[Dims4D::PadsBegin::Left.ind()] +
+                parseIntArrayAttr<int64_t>(origOp.pads_end())[Dims4D::PadsEnd::Right.ind()];
+    auto padY = parseIntArrayAttr<int64_t>(origOp.pads_begin())[Dims4D::PadsBegin::Top.ind()] +
+                parseIntArrayAttr<int64_t>(origOp.pads_end())[Dims4D::PadsEnd::Bottom.ind()];
+    // There are some cases that stride size bigger than activation size(including padding).
+    // It's no need to slice the op and the stride attr should be set to (1, 1).
+    if ((origStrides[Dims4D::Strides::X.ind()] >= inputShape[Dims4D::Act::W] + padX) &&
+        (origStrides[Dims4D::Strides::Y.ind()] >= inputShape[Dims4D::Act::H] + padY)) {
+        const auto newStrides = SmallVector<int64_t>{1, 1};
+        const auto newStridesAttr = getIntArrayAttr(getContext(), newStrides);
+        rewriter.replaceOpWithNewOp<IE::AvgPoolOp>(
+                origOp, origOp.getType(), origOp.input(), origOp.kernel_size(), newStridesAttr, origOp.pads_begin(),
+                origOp.pads_end(), origOp.rounding_typeAttr(), origOp.exclude_padsAttr(), origOp.post_opAttr());
+        return mlir::success();
+    }
 
     return generalSplitter(
             origOp, rewriter, origOp.strides(), makeArrayRef({kernelSz[1], kernelSz[0]}), origOp.pads_begin(),
@@ -323,14 +338,15 @@ mlir::LogicalResult opWithMaxPoolOptimization(
 
     log.trace("New strides for {0} are {1}", origOp->getLoc(), newStride);
 
-    const auto outputFQ = mlir::dyn_cast<IE::FakeQuantizeOp>(*(origOp->getResult(0).user_begin()));
-
     auto* newOp = makeOperation(appendLoc(origOp->getLoc(), "small-stride"), origOp->getOperand(0),
                                 getIntArrayAttr(ctx, newStride));
 
     // TODO: temporary FQ propagation
-    if (outputFQ != nullptr) {
-        newOp = createFQ(rewriter, newOp, outputFQ);
+    if (!origOp->getResult(0).getUsers().empty()) {
+        const auto outputFQ = mlir::dyn_cast<IE::FakeQuantizeOp>(*(origOp->getResult(0).user_begin()));
+        if (outputFQ != nullptr) {
+            newOp = createFQ(rewriter, newOp, outputFQ);
+        }
     }
 
     const SmallVector<int64_t> maxPoolStrides = {SY / newStride[0], SX / newStride[1]};
@@ -461,6 +477,24 @@ mlir::LogicalResult AvgPoolMPOptimizationRewriter::matchAndRewrite(IE::AvgPoolOp
                                                                    mlir::PatternRewriter& rewriter) const {
     _log.trace("[{0}] Got AvgPool layer at '{1}'", getDebugName(), origOp->getLoc());
 
+    const auto inputShape = getShape(origOp->getOperand(0));
+    const auto origStrides = parseIntArrayAttr<int64_t>(origOp.strides());
+    auto padX = parseIntArrayAttr<int64_t>(origOp.pads_begin())[Dims4D::PadsBegin::Left.ind()] +
+                parseIntArrayAttr<int64_t>(origOp.pads_end())[Dims4D::PadsEnd::Right.ind()];
+    auto padY = parseIntArrayAttr<int64_t>(origOp.pads_begin())[Dims4D::PadsBegin::Top.ind()] +
+                parseIntArrayAttr<int64_t>(origOp.pads_end())[Dims4D::PadsEnd::Bottom.ind()];
+    // There are some cases that stride size bigger than activation size(including padding).
+    // It's no need to slice the op and the stride attr should be set to (1, 1).
+    if ((origStrides[Dims4D::Strides::X.ind()] >= inputShape[Dims4D::Act::W] + padX) &&
+        (origStrides[Dims4D::Strides::Y.ind()] >= inputShape[Dims4D::Act::H] + padY)) {
+        const auto newStrides = SmallVector<int64_t>{1, 1};
+        const auto newStridesAttr = getIntArrayAttr(getContext(), newStrides);
+        rewriter.replaceOpWithNewOp<IE::AvgPoolOp>(
+                origOp, origOp.getType(), origOp.input(), origOp.kernel_size(), newStridesAttr, origOp.pads_begin(),
+                origOp.pads_end(), origOp.rounding_typeAttr(), origOp.exclude_padsAttr(), origOp.post_opAttr());
+        return mlir::success();
+    }
+
     return opWithMaxPoolOptimization(
             origOp, rewriter, origOp.strides(),
             [&](mlir::Location loc, mlir::Value input, mlir::ArrayAttr strides) -> mlir::Operation* {
@@ -526,7 +560,7 @@ void HandleLargeStridesPass::safeRunOnFunc() {
     patterns.add<MaxPoolGeneralRewriter>(&ctx, _log);
     patterns.add<AvgPoolGeneralRewriter>(&ctx, _log);
 
-    auto func = getFunction();
+    auto func = getOperation();
     if (mlir::failed(mlir::applyPartialConversion(func, target, std::move(patterns)))) {
         signalPassFailure();
     }

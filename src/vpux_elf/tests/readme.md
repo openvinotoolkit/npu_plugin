@@ -1,6 +1,6 @@
 # VPUX ELF Tests
 
-These **VPUIPRegMapped** MLIR files have the sole purpose of being used for **ELF generation** testing purposes.
+These **VPUMI37XX** MLIR files have the sole purpose of being used for **ELF generation** testing purposes.
 
 ## Test MLIR files
 - Simple 1-DMA ELF generation

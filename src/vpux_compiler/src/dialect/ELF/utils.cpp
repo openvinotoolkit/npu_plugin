@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/ELF/utils.hpp"
 #include <vpux_elf/accessor.hpp>
 #include <vpux_elf/reader.hpp>
@@ -88,7 +86,7 @@ size_t vpux::ELF::getOffsetOfOpInSection(mlir::Value& op) {
 
     auto type = op.getType().dyn_cast<vpux::NDTypeInterface>();
 
-    auto tile = type.getMemSpace().getIndex().getValueOr(0);
+    auto tile = type.getMemSpace().getIndex().value_or(0);
 
     return tile * mvds::nce2p7::CMX_SLICE_SIZE + declareBufferOp.byteOffset();
 }
@@ -98,7 +96,7 @@ SmallString vpux::ELF::getSwKernelArchString(VPU::ArchKind archKind) {
     return SmallString("3720xx");
 }
 
-void vpux::ELF::RelocationManager::init(mlir::FuncOp funcOp) {
+void vpux::ELF::RelocationManager::init(mlir::func::FuncOp funcOp) {
     funcOp_ = funcOp;
 }
 
@@ -108,7 +106,7 @@ void vpux::ELF::RelocationManager::initCMXSymTab(ELF::CreateSymbolTableSectionOp
 }
 
 ELF::ElfSectionInterface vpux::ELF::RelocationManager::getSection(mlir::Value value) {
-    VPUX_THROW_UNLESS(funcOp_ != nullptr, "Relocation Manager is not initialized with a mlir::FuncOp");
+    VPUX_THROW_UNLESS(funcOp_ != nullptr, "Relocation Manager is not initialized with a mlir::func::FuncOp");
 
     auto section = sectionMap_.find(value);
     if (section != sectionMap_.end()) {
@@ -141,12 +139,13 @@ ELF::CreateSymbolTableSectionOp vpux::ELF::RelocationManager::getCMXSymTab() {
 }
 
 ELF::CreateSymbolTableSectionOp vpux::ELF::RelocationManager::getSymTab(mlir::Value value) {
-    VPUX_THROW_UNLESS(funcOp_ != nullptr, "Relocation Manager is not initialized with a mlir::FuncOp");
+    VPUX_THROW_UNLESS(funcOp_ != nullptr, "Relocation Manager is not initialized with a mlir::func::FuncOp");
 
     auto binaryOp = mlir::dyn_cast<ELF::BinaryOpInterface>(value.getDefiningOp());
 
     if (binaryOp != nullptr) {
-        if (binaryOp.getMemorySpace() == VPURT::BufferSection::CMX_NN) {
+        auto memSpace = binaryOp.getMemorySpace();
+        if (memSpace == VPURT::BufferSection::CMX_NN || memSpace == VPURT::BufferSection::Register) {
             VPUX_THROW_UNLESS(cmxMappingSymTab_ != nullptr, "RelocManager: cmxMappingSymTab is not init!");
             symTabMap_[value] = cmxMappingSymTab_;
             return cmxMappingSymTab_;
@@ -205,7 +204,7 @@ ELF::CreateSymbolTableSectionOp vpux::ELF::RelocationManager::getSymTab(mlir::Va
 
 ELF::CreateRelocationSectionOp vpux::ELF::RelocationManager::getRelocSection(ELF::ElfSectionInterface section,
                                                                              ELF::CreateSymbolTableSectionOp symTab) {
-    VPUX_THROW_UNLESS(funcOp_ != nullptr, "Relocation Manager is not initialized with a mlir::FuncOp");
+    VPUX_THROW_UNLESS(funcOp_ != nullptr, "Relocation Manager is not initialized with a mlir::func::FuncOp");
 
     // for some reason, can't construct an interface object from opaque pointer. So will use the result as the key
     // for the map

@@ -9,19 +9,19 @@
 
 namespace LayerTestsDefinitions {
 
-class KmbScatterUpdateLayerTest : public ScatterUpdateLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {};
+class VPUXScatterUpdateLayerTest :
+        public ScatterUpdateLayerTest,
+        virtual public LayerTestsUtils::KmbLayerTestsCommon {};
+class VPUXScatterUpdateLayerTest_VPU3700 : public VPUXScatterUpdateLayerTest {};
+class VPUXScatterUpdateLayerTest_VPU3720 : public VPUXScatterUpdateLayerTest {};
 
-TEST_P(KmbScatterUpdateLayerTest, CompareWithRefs_MLIR) {
-    useCompilerMLIR();
+TEST_P(VPUXScatterUpdateLayerTest_VPU3700, HW) {
+    setPlatformVPU3700();
+    setDefaultHardwareModeMLIR();
     Run();
 }
 
-class KmbScatterUpdateLayerTest_VPU3720 :
-        public ScatterUpdateLayerTest,
-        virtual public LayerTestsUtils::KmbLayerTestsCommon {};
-
-TEST_P(KmbScatterUpdateLayerTest_VPU3720, CompareWithRefs_MLIR_VPU3720) {
-    useCompilerMLIR();
+TEST_P(VPUXScatterUpdateLayerTest_VPU3720, HW) {
     setPlatformVPU3720();
     setDefaultHardwareModeMLIR();
     Run();
@@ -38,20 +38,20 @@ std::map<std::vector<size_t>, std::map<std::vector<size_t>, std::vector<int>>> a
 
 const std::vector<std::vector<int64_t>> scatterIndices = {{0, 2, 4, 6, 1, 3, 5, 7}};
 
-INSTANTIATE_TEST_SUITE_P(smoke_ScatterUpdate, KmbScatterUpdateLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_ScatterUpdate, VPUXScatterUpdateLayerTest_VPU3700,
                          testing::Combine(testing::ValuesIn(ScatterUpdateLayerTest::combineShapes(axesShapeInShape)),
                                           testing::ValuesIn(scatterIndices),
                                           testing::Values(InferenceEngine::Precision::FP16),
                                           testing::Values(InferenceEngine::Precision::I32),
                                           testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
-                         KmbScatterUpdateLayerTest::getTestCaseName);
+                         VPUXScatterUpdateLayerTest_VPU3700::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_ScatterUpdate, KmbScatterUpdateLayerTest_VPU3720,
+INSTANTIATE_TEST_SUITE_P(smoke_ScatterUpdate, VPUXScatterUpdateLayerTest_VPU3720,
                          testing::Combine(testing::ValuesIn(ScatterUpdateLayerTest::combineShapes(axesShapeInShape)),
                                           testing::ValuesIn(scatterIndices),
                                           testing::Values(InferenceEngine::Precision::FP16),
                                           testing::Values(InferenceEngine::Precision::I32),
                                           testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
-                         KmbScatterUpdateLayerTest_VPU3720::getTestCaseName);
+                         VPUXScatterUpdateLayerTest_VPU3720::getTestCaseName);
 
 }  // namespace

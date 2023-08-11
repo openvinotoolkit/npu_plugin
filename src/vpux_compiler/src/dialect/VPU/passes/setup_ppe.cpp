@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/VPU/passes.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
 
@@ -215,17 +213,7 @@ private:
 };
 
 void SetupPPEPass::safeRunOnFunc() {
-    auto func = getFunction();
-    auto module = func->getParentOfType<mlir::ModuleOp>();
-    const auto arch = VPU::getArch(module);
-
-    const std::set<VPU::ArchKind> compatibleTargets = {
-            VPU::ArchKind::VPUX37XX,
-    };
-    if (compatibleTargets.count(arch) == 0) {
-        _log.trace("SetupPPEPass is only applicable for VPUX37XX device.");
-        return;
-    }
+    auto func = getOperation();
 
     func->walk([&](VPU::NCEOpInterface op) {
         applyPpeRewriter(op, _log);

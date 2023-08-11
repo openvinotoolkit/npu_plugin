@@ -8,17 +8,19 @@
 #include "kmb_layer_test.hpp"
 
 namespace LayerTestsDefinitions {
-class KmbVariadicSplitLayerTest : public VariadicSplitLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {};
-class KmbVariadicSplitLayerTest_VPU3720 :
+class VPUXVariadicSplitLayerTest :
         public VariadicSplitLayerTest,
         virtual public LayerTestsUtils::KmbLayerTestsCommon {};
 
-TEST_P(KmbVariadicSplitLayerTest, CompareWithRefs_MLIR) {
-    useCompilerMLIR();
+class VPUXVariadicSplitLayerTest_VPU3700 : public VPUXVariadicSplitLayerTest {};
+class VPUXVariadicSplitLayerTest_VPU3720 : public VPUXVariadicSplitLayerTest {};
+
+TEST_P(VPUXVariadicSplitLayerTest_VPU3700, HW) {
+    setPlatformVPU3700();
+    setDefaultHardwareModeMLIR();
     Run();
 }
-TEST_P(KmbVariadicSplitLayerTest_VPU3720, CompareWithRefs_MLIR_VPU3720) {
-    useCompilerMLIR();
+TEST_P(VPUXVariadicSplitLayerTest_VPU3720, SW) {
     setPlatformVPU3720();
     setReferenceSoftwareModeMLIR();
     Run();
@@ -36,7 +38,7 @@ const InferenceEngine::Precision netPrecisions = InferenceEngine::Precision::FP3
 const std::vector<size_t> numSplits = {64, 48, 32};
 
 // [Track number: E#28335]
-INSTANTIATE_TEST_CASE_P(DISABLED_smoke_VariadicSplit, KmbVariadicSplitLayerTest,
+INSTANTIATE_TEST_CASE_P(DISABLED_smoke_VariadicSplit, VPUXVariadicSplitLayerTest_VPU3700,
                         ::testing::Combine(::testing::Values(numSplits),                                // numSplits
                                            ::testing::Values(1),                                        // axis
                                            ::testing::Values(netPrecisions),                            // netPrecision
@@ -46,11 +48,11 @@ INSTANTIATE_TEST_CASE_P(DISABLED_smoke_VariadicSplit, KmbVariadicSplitLayerTest,
                                            ::testing::Values(InferenceEngine::Layout::ANY),             // outLayout
                                            ::testing::ValuesIn(inputShapes),                            // inputShapes
                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
-                        KmbVariadicSplitLayerTest::getTestCaseName);
+                        VPUXVariadicSplitLayerTest_VPU3700::getTestCaseName);
 
 /* ============= Negative Axis ============= */
 
-INSTANTIATE_TEST_CASE_P(smoke_VariadicSplitNegAxis, KmbVariadicSplitLayerTest,
+INSTANTIATE_TEST_CASE_P(smoke_VariadicSplitNegAxis, VPUXVariadicSplitLayerTest_VPU3700,
                         ::testing::Combine(::testing::Values(std::vector<size_t>{1, 1}),                // numSplits
                                            ::testing::Values(-1),                                       // axis
                                            ::testing::Values(netPrecisions),                            // netPrc
@@ -60,11 +62,11 @@ INSTANTIATE_TEST_CASE_P(smoke_VariadicSplitNegAxis, KmbVariadicSplitLayerTest,
                                            ::testing::Values(InferenceEngine::Layout::ANY),             // outLayout
                                            ::testing::Values(InferenceEngine::SizeVector{1, 384, 2}),   // inputShapes
                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
-                        KmbVariadicSplitLayerTest::getTestCaseName);
+                        VPUXVariadicSplitLayerTest_VPU3700::getTestCaseName);
 
 /* ============= VPU3720  ============= */
 
-INSTANTIATE_TEST_CASE_P(smoke_VariadicSplitNegAxis, KmbVariadicSplitLayerTest_VPU3720,
+INSTANTIATE_TEST_CASE_P(smoke_VariadicSplitNegAxis, VPUXVariadicSplitLayerTest_VPU3720,
                         ::testing::Combine(::testing::Values(std::vector<size_t>{1, 1}),                // numSplits
                                            ::testing::Values(-1),                                       // axis
                                            ::testing::Values(netPrecisions),                            // netPrc
@@ -74,9 +76,9 @@ INSTANTIATE_TEST_CASE_P(smoke_VariadicSplitNegAxis, KmbVariadicSplitLayerTest_VP
                                            ::testing::Values(InferenceEngine::Layout::ANY),             // outLayout
                                            ::testing::Values(InferenceEngine::SizeVector{1, 384, 2}),   // inputShapes
                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
-                        KmbVariadicSplitLayerTest::getTestCaseName);
+                        VPUXVariadicSplitLayerTest_VPU3720::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_VariadicSplitPosAxis, KmbVariadicSplitLayerTest_VPU3720,
+INSTANTIATE_TEST_CASE_P(smoke_VariadicSplitPosAxis, VPUXVariadicSplitLayerTest_VPU3720,
                         ::testing::Combine(::testing::Values(std::vector<size_t>{2, 4, 4}),             // numSplits
                                            ::testing::Values(0, 1, 2, 3),                               // axis
                                            ::testing::Values(netPrecisions),                            // netPrc
@@ -87,9 +89,9 @@ INSTANTIATE_TEST_CASE_P(smoke_VariadicSplitPosAxis, KmbVariadicSplitLayerTest_VP
                                            ::testing::Values(InferenceEngine::SizeVector{10, 10, 10,
                                                                                          10}),  // inputShapes
                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
-                        KmbVariadicSplitLayerTest::getTestCaseName);
+                        VPUXVariadicSplitLayerTest_VPU3720::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_precommit_VariadicSplitNegAxis, KmbVariadicSplitLayerTest_VPU3720,
+INSTANTIATE_TEST_CASE_P(smoke_precommit_VariadicSplitNegAxis, VPUXVariadicSplitLayerTest_VPU3720,
                         ::testing::Combine(::testing::Values(std::vector<size_t>{1, 1}),                // numSplits
                                            ::testing::Values(-1),                                       // axis
                                            ::testing::Values(netPrecisions),                            // netPrc
@@ -99,5 +101,5 @@ INSTANTIATE_TEST_CASE_P(smoke_precommit_VariadicSplitNegAxis, KmbVariadicSplitLa
                                            ::testing::Values(InferenceEngine::Layout::ANY),             // outLayout
                                            ::testing::Values(InferenceEngine::SizeVector{1, 4, 2}),     // inputShapes
                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
-                        KmbVariadicSplitLayerTest::getTestCaseName);
+                        VPUXVariadicSplitLayerTest_VPU3720::getTestCaseName);
 }  // namespace

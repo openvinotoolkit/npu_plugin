@@ -483,7 +483,7 @@ TEST_F(MLIR_DimsOrderTest, isCompatibleLayoutTest) {
 
         const auto layout = VPUIP::MemRefAttr::get(mlir::AffineMapAttr::get(originOrder.toAffineMap(&ctx)),
                                                    getIntArrayAttr(&ctx, elemStrides),
-                                                   /*swizzlingScheme=*/nullptr, nullptr, &ctx);
+                                                   /*swizzlingScheme=*/nullptr, nullptr, /*allocSize=*/nullptr, &ctx);
 
         const auto memRefType = mlir::MemRefType::get(shape, mlir::Float16Type::get(&ctx),
                                                       layout.cast<mlir::MemRefLayoutAttrInterface>());

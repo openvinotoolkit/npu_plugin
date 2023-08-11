@@ -8,6 +8,7 @@
 #include "vpux/compiler/dialect/IE/utils/shape_infer.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
+#include "vpux/compiler/utils/empty_node.hpp"
 #include "vpux/compiler/utils/error.hpp"
 
 #include "vpux/utils/core/checked_cast.hpp"
@@ -46,7 +47,7 @@ mlir::LogicalResult vpux::VPU::StridedSliceOp::inferReturnTypes(
         mlir::MLIRContext* ctx, mlir::Optional<mlir::Location> optLoc, mlir::ValueRange operands,
         mlir::DictionaryAttr attrs, mlir::RegionRange /*regions*/,
         mlir::SmallVectorImpl<mlir::Type>& inferredReturnTypes) {
-    const auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
+    const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
     VPU::StridedSliceOpAdaptor slice(operands, attrs);
     if (mlir::failed(slice.verify(loc))) {
@@ -81,9 +82,9 @@ mlir::LogicalResult vpux::VPU::StridedSliceOp::inferReturnTypes(
     const auto shrinkAxisMask = getAxisSetArr(slice.shrink_axis_mask());
     const auto ellipsisMask = getAxisSetArr(slice.ellipsis_mask());
 
-    const auto outputShape =
-            ngraph::infer_slice_shape(nullptr, ngraph::Shape(inDataShape.begin(), inDataShape.end()), begins, ends,
-                                      strides, beginMask, endMask, newAxisMask, shrinkAxisMask, ellipsisMask);
+    const auto outputShape = ngraph::infer_slice_shape(
+            EmptyNode::instance(), ngraph::Shape(inDataShape.begin(), inDataShape.end()), begins, ends, strides,
+            beginMask, endMask, newAxisMask, shrinkAxisMask, ellipsisMask);
 
     const auto shapeI64 = to_small_vector(outputShape.get_shape() | transformed([](size_t val) {
                                               return checked_cast<int64_t>(val);
@@ -140,7 +141,7 @@ InputTiling vpux::VPU::StridedSliceOp::backInferTileInfo(const vpux::TileInfo& o
     auto curTile = outputTile;
     for (auto ind : irange(inShape.size())) {
         auto idx = outOrder.dimAt(ind);
-        curTile.shape[idx] = (outputTile.shape[idx] * strides[idx] - (strides[idx] - 1));
+        curTile.shape[idx] = outputTile.shape[idx] * strides[idx];
         curTile.offsets[idx] = outputTile.offsets[idx] * strides[idx] + begins[idx];
         curTile.axis[idx] = outputTile.axis[idx];
     }

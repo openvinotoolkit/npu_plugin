@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #pragma once
 
 #include <vpux/compiler/act_kernels/compilation.h>
@@ -95,8 +93,8 @@ public:
     ActKernel createRuntimeKernelTask(mlir::ModuleOp module, mlir::Operation* op);
 
     //  compiles kernel code and returns it's data and text sections
-    ActKernelDesc compileKernelData(const CompilationUnitDesc& unitDesc);
-    ActKernelDesc compileManagementKernelData();
+    ActKernelDesc compileKernelData(const CompilationUnitDesc& unitDesc, const vpux::VPU::ArchKind& archKind);
+    ActKernelDesc compileManagementKernelData(const vpux::VPU::ArchKind& archKind);
 
     KernelDataRef createKernelDataRef(StringRef name, uint64_t dataOffset, uint64_t dataSize,
                                       ArrayRef<uint8_t> content = None);

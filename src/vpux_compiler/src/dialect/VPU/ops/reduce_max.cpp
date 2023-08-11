@@ -3,14 +3,11 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-#include "vpux/compiler/dialect/VPU/ops.hpp"
-
 #include "vpux/compiler/dialect/IE/utils/reduce_infer.hpp"
 #include "vpux/compiler/dialect/IE/utils/shape_infer.hpp"
+#include "vpux/compiler/dialect/VPU/ops.hpp"
 #include "vpux/compiler/dialect/VPU/utils/type_infer.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
-#include "vpux/compiler/utils/error.hpp"
-
 #include "vpux/utils/core/checked_cast.hpp"
 
 using namespace vpux;
@@ -20,7 +17,7 @@ mlir::LogicalResult vpux::VPU::ReduceMaxOp::inferReturnTypes(mlir::MLIRContext* 
                                                              mlir::ValueRange operands, mlir::DictionaryAttr attrs,
                                                              mlir::RegionRange /*regions*/,
                                                              mlir::SmallVectorImpl<mlir::Type>& inferredReturnTypes) {
-    const auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
+    const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
     VPU::ReduceMaxOpAdaptor reduceMax(operands, attrs);
     if (mlir::failed(reduceMax.verify(loc))) {

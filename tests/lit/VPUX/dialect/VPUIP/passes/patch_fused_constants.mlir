@@ -1,7 +1,8 @@
 //
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
+
 // RUN: vpux-opt --split-input-file --init-compiler="vpu-arch=%arch%" --patch-fused-constants %s | FileCheck %s
 // REQUIRES: arch-VPUX30XX || arch-VPUX37XX
 
@@ -9,7 +10,7 @@
 #NCHW = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
 
 // CHECK-LABEL: @PatchFusedConstantWithSpill
-func @PatchFusedConstantWithSpill() ->  memref<1x126x2x2xf16, #NHWC, [@CMX_NN, 0]> {
+func.func @PatchFusedConstantWithSpill() ->  memref<1x126x2x2xf16, #NHWC, [@CMX_NN, 0]> {
     %in = VPURT.DeclareBuffer "CMX_NN" [0] <0> -> memref<1x1008x14x14xf16, #NHWC, [@CMX_NN, 0]>
     %out = VPURT.DeclareBuffer "CMX_NN" [0] <556416> -> memref<1x126x2x2xf16, #NHWC, [@CMX_NN, 0]>
 
@@ -60,7 +61,7 @@ func @PatchFusedConstantWithSpill() ->  memref<1x126x2x2xf16, #NHWC, [@CMX_NN, 0
 
     // CHECK:   [[INPUT:%.*]] = VPURT.DeclareBuffer "CMX_NN" [0] <0> -> memref<1x1008x14x14xf16, #NHWC, [@CMX_NN, 0]>
     // CHECK:   [[OUTPUT:%.*]] = VPURT.DeclareBuffer "CMX_NN" [0] <556416> -> memref<1x126x2x2xf16, #NHWC, [@CMX_NN, 0]>
-    // CHECK:   [[FUSED_CONSTANT:%.*]] = const.Declare memref<1x1x1x784xui8>
+    // CHECK-DAG:   [[FUSED_CONSTANT:%.*]] = const.Declare memref<1x1x1x784xui8>
 
     // CHECK:   [[FUSED_CONSTANT_1:%.*]] = VPURT.DeclareBuffer "CMX_NN" [0] <540288> -> memref<1x1x1x784xui8, [@CMX_NN, 0]>
     // CHECK:   [[FUSED_CONSTANT_DDR:%.*]] = VPURT.DeclareBuffer "DDR" <0> -> memref<1x1x1x784xui8, @DDR>
@@ -85,10 +86,10 @@ func @PatchFusedConstantWithSpill() ->  memref<1x126x2x2xf16, #NHWC, [@CMX_NN, 0
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 #NCHW = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
 
-!IpOp_Stub = type memref<1x64x104x104xf16, #NHWC, [@CMX_NN, 0]>
+!IpOp_Stub = memref<1x64x104x104xf16, #NHWC, [@CMX_NN, 0]>
 
 // CHECK-LABEL: @PatchFusedConstantWithSpillAsyncConstruct
-func @PatchFusedConstantWithSpillAsyncConstruct() -> !IpOp_Stub {
+func.func @PatchFusedConstantWithSpillAsyncConstruct() -> !IpOp_Stub {
 
     %cst_26 = const.Declare memref<1x1x1x5120xui8> = dense<1> : tensor<1x1x1x5120xui8>
 
@@ -132,7 +133,7 @@ func @PatchFusedConstantWithSpillAsyncConstruct() -> !IpOp_Stub {
     %5 = async.await %r3 : !async.value<memref<1x64x104x104xf16, #NHWC, [@CMX_NN, 0]>>
     return %5 : memref<1x64x104x104xf16, #NHWC, [@CMX_NN, 0]>
 
-    // CHECK:   [[FUSED_CONSTANT:%.*]] = const.Declare memref<1x1x1x5120xui8>
+    // CHECK-DAG:   [[FUSED_CONSTANT:%.*]] = const.Declare memref<1x1x1x5120xui8>
     // CHECK:   [[INPUT:%.*]] = VPURT.DeclareBuffer "CMX_NN" [0] <512> -> memref<1x64x104x104xf16, #NHWC, [@CMX_NN, 0]>
     // CHECK:   [[OUTPUT:%.*]] = VPURT.DeclareBuffer "CMX_NN" [0] <692736> -> memref<1x64x104x104xf16, #NHWC, [@CMX_NN, 0]>
     // CHECK:   [[DDR_FUSED_BUF:%.*]] = VPUIP.StaticAlloc<2076800> -> memref<1x1x1x5120xui8, @DDR>

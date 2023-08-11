@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 
 #include "vpux/compiler/core/attributes/dims_order.hpp"
@@ -56,21 +54,22 @@ bool checkFakeQuantizeParamsShape(ShapeRef shape, int64_t numChannels) {
 
 }  // namespace
 
-mlir::LogicalResult vpux::VPUIP::verifyOp(FakeQuantizeUPAOp op) {
+mlir::LogicalResult vpux::VPUIP::FakeQuantizeUPAOp::verify() {
+    const auto op = getOperation();
     static const auto C = Dim(1);
 
-    const auto inShape = getShape(op.input());
-    const auto outShape = getShape(op.output());
+    const auto inShape = getShape(input());
+    const auto outShape = getShape(output());
     if (inShape != outShape) {
         return errorAt(op, "Input and output shapes must be equal. Got: {0} != {1}", inShape, outShape);
     }
 
-    const auto inOrder = DimsOrder::fromValue(op.input());
-    const auto inStrides = getStrides(op.input());
+    const auto inOrder = DimsOrder::fromValue(input());
+    const auto inStrides = getStrides(input());
     const auto memShape = inOrder.toMemoryOrder(inShape);
 
     const auto strideReqs = StrideReqs::compact(inShape.size());
-    if (!strideReqs.checkStrides(op.input())) {
+    if (!strideReqs.checkStrides(input())) {
         return errorAt(op, "Only compact strides are supported");
     }
 
@@ -83,10 +82,10 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(FakeQuantizeUPAOp op) {
 
     const auto numChannels = inShape[C];
 
-    const auto inLowShape = op.input_low().getType().cast<vpux::NDTypeInterface>().getShape();
-    const auto inHighShape = op.input_high().getType().cast<vpux::NDTypeInterface>().getShape();
-    const auto outLowShape = op.output_low().getType().cast<vpux::NDTypeInterface>().getShape();
-    const auto outHighShape = op.output_high().getType().cast<vpux::NDTypeInterface>().getShape();
+    const auto inLowShape = input_low().getType().cast<vpux::NDTypeInterface>().getShape();
+    const auto inHighShape = input_high().getType().cast<vpux::NDTypeInterface>().getShape();
+    const auto outLowShape = output_low().getType().cast<vpux::NDTypeInterface>().getShape();
+    const auto outHighShape = output_high().getType().cast<vpux::NDTypeInterface>().getShape();
 
     if (!checkFakeQuantizeParamsShape(inLowShape, numChannels)) {
         return errorAt(op, "input_low shape is not per-tensor/per-channel : '{0}'", inLowShape);

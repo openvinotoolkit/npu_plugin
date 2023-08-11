@@ -28,10 +28,9 @@ constexpr char SPILL_WRITE_OP_NAME_SUFFIX[] = "spill_write_";
 //
 class FeasibleMemorySchedulerSpilling final {
 public:
-    explicit FeasibleMemorySchedulerSpilling(mlir::Operation* allocOpInsertionPoint, VPU::MemoryKind memKind,
-                                             Optional<VPU::MemoryKind> secondLvlMemKind, AsyncDepsInfo& depsInfo,
-                                             AliasesInfo& aliasInfo, Logger log,
-                                             LinearScan<mlir::Value, LinearScanHandler>& scan);
+    explicit FeasibleMemorySchedulerSpilling(VPU::MemoryKind memKind, Optional<VPU::MemoryKind> secondLvlMemKind,
+                                             AsyncDepsInfo& depsInfo, AliasesInfo& aliasInfo, Logger log,
+                                             LinearScan<mlir::Value, LinearScanHandler>& scan, VPU::ArchKind arch);
 
     void removeComputeOpRelocationSpills(FeasibleMemoryScheduler::ScheduledOpInfoVec& scheduledOps);
     void optimizeDataOpsSpills(FeasibleMemoryScheduler::ScheduledOpInfoVec& scheduledOps);
@@ -43,10 +42,11 @@ private:
     void createSpillRead(FeasibleMemoryScheduler::ScheduledOpInfoVec& scheduledOps, size_t schedOpIndex);
     mlir::async::ExecuteOp insertSpillWriteCopyOp(mlir::async::ExecuteOp opThatWasSpilled,
                                                   mlir::async::ExecuteOp insertAfterExecOp, mlir::Value bufferToSpill,
-                                                  size_t allocatedAddress);
+                                                  size_t allocatedAddress, int spillId);
     mlir::async::ExecuteOp insertSpillReadCopyOp(mlir::async::ExecuteOp opThatWasSpilled, mlir::Value bufferToSpill,
                                                  mlir::async::ExecuteOp spillWriteExecOp,
-                                                 mlir::async::ExecuteOp insertAfterExecOp, size_t allocatedAddress);
+                                                 mlir::async::ExecuteOp insertAfterExecOp, size_t allocatedAddress,
+                                                 int spillId);
     void updateSpillWriteReadUsers(mlir::Value bufferToSpill, mlir::async::ExecuteOp spillWriteExecOp,
                                    mlir::async::ExecuteOp spillReadExecOp);
     SmallVector<mlir::Value> getAsyncResultsForBuffer(mlir::async::ExecuteOp opThatWasSpilled, mlir::Value buffer);
@@ -80,6 +80,12 @@ private:
         mlir::Value _bufferToSpill;
     };
 
+    struct SpillWriteInfo {
+        mlir::Value spilledBuffer;
+        mlir::async::ExecuteOp execOp;
+        int spillId;
+    };
+
 private:
     Logger _log;
     // op insertion point for allocation related operations
@@ -94,11 +100,16 @@ private:
     AliasesInfo& _aliasInfo;
     // allocator class
     LinearScan<mlir::Value, LinearScanHandler>& _scan;
-    // Vector of pairs of operation ID and inserted spill-write exec-op that doesn't have yet corresponding spill-read
-    SmallVector<std::pair<mlir::Value, mlir::async::ExecuteOp>> _opIdAndSpillWritePairs;
+    // information about architecture
+    VPU::ArchKind _arch;
+    // Vector storing information about already inserted spill-writes. Used when spill-read is inerted
+    // to properly connect both operations
+    SmallVector<SpillWriteInfo> _spillWriteInfoVec;
     // Map storing new buffers replacing spilled buffers: key - original spilled buffer, value - new allocated buffer
     // after spill-read
     DenseMap<mlir::Value, mlir::Value> _bufferReplacementAfterSpillRead;
+    // Index identifying spill-write and corresponding spill-reads (can be more than 1)
+    int _spillId{-1};
 };
 
 }  // namespace vpux

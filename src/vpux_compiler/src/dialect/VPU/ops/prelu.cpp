@@ -8,24 +8,26 @@
 using namespace vpux;
 
 //
-// verifyOp
+// verify
 //
 
-mlir::LogicalResult vpux::VPU::verifyOp(PReluOp op) {
-    const auto inType = op.input().getType().cast<vpux::NDTypeInterface>();
+mlir::LogicalResult vpux::VPU::PReluOp::verify() {
+    const auto inType = input().getType().cast<vpux::NDTypeInterface>();
     const auto inShape = inType.getShape().raw();
-    const auto slopeType = op.negative_slope().getType().cast<vpux::NDTypeInterface>();
+    const auto slopeType = negative_slope().getType().cast<vpux::NDTypeInterface>();
     const auto slopeShape = slopeType.getShape().raw();
 
-    if (slopeShape.size() != 4) {
-        return errorAt(op, "Tiling restrictions require slope to have a 4D shape, got size of {0}", slopeShape.size());
+    if (slopeShape.size() != 4 || inShape.size() != 4) {
+        return errorAt(*this, "Tiling restrictions require slope to have a 4D shape, got size of {0}",
+                       slopeShape.size());
     }
 
-    if (inShape[Dims4D::Act::C.ind()] != slopeShape[Dim(3).ind()]) {
-        return errorAt(op,
+    if (inShape[Dims4D::Act::C.ind()] != slopeShape[Dims4D::Act::C.ind()] ||
+        slopeShape[Dims4D::Act::C.ind()] != slopeType.getShape().totalSize()) {
+        return errorAt(*this,
                        "4D slope shape should have the last dim equal to the channel input dim, as broadcast with "
                        "numpy values is not supported: {0} != {1}",
-                       inShape[Dims4D::Act::C.ind()], slopeShape[Dim(3).ind()]);
+                       inShape[Dims4D::Act::C.ind()], slopeShape[Dims4D::Act::C.ind()]);
     }
 
     return mlir::success();
@@ -35,7 +37,7 @@ mlir::LogicalResult vpux::VPU::PReluOp::inferReturnTypes(mlir::MLIRContext* ctx,
                                                          mlir::ValueRange operands, mlir::DictionaryAttr attrs,
                                                          mlir::RegionRange /*regions*/,
                                                          mlir::SmallVectorImpl<mlir::Type>& inferredReturnTypes) {
-    const auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
+    const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
     VPU::PReluOpAdaptor prelu(operands, attrs);
     if (mlir::failed(prelu.verify(loc))) {
@@ -71,10 +73,10 @@ vpux::InputTiling vpux::VPU::PReluOp::backInferTileInfo(const vpux::TileInfo& ou
     TileInfo inputTile(getShape(input()));
     TileInfo slopeTile(getShape(negative_slope()));
     inputTile = outputTile;
-    if (outputTile.shape[Dims4D::Act::C] != slopeTile.shape[Dims4D::Act::W]) {
+    if (outputTile.shape[Dims4D::Act::C] != slopeTile.shape[Dims4D::Act::C]) {
         VPUX_THROW("Tiling per channel output is not supported for now, proposed {0} channel shape does not match the "
                    "slope value {1}.",
-                   outputTile.shape[Dims4D::Act::C], slopeTile.shape[Dims4D::Act::W]);
+                   outputTile.shape[Dims4D::Act::C], slopeTile.shape[Dims4D::Act::C]);
     }
 
     return TilingInfo{{inputTile, slopeTile}};

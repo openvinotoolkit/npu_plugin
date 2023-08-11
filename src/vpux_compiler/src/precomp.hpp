@@ -3,14 +3,10 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #pragma once
 
 #include <mlir/Dialect/Bufferization/Transforms/Bufferize.h>
 #include <mlir/Dialect/Quant/QuantTypes.h>
-#include <mlir/Dialect/StandardOps/IR/Ops.h>
-#include <mlir/Dialect/StandardOps/Transforms/Passes.h>
 #include <mlir/IR/AffineMap.h>
 #include <mlir/IR/BlockAndValueMapping.h>
 #include <mlir/IR/Builders.h>
@@ -36,10 +32,10 @@
 #include <mlir/Pass/Pass.h>
 #include <mlir/Pass/PassInstrumentation.h>
 #include <mlir/Pass/PassManager.h>
-#include <mlir/Support/MlirOptMain.h>
+#include <mlir/Tools/mlir-opt/MlirOptMain.h>
+#include <mlir/Tools/mlir-translate/Translation.h>
 #include <mlir/Transforms/DialectConversion.h>
 #include <mlir/Transforms/GreedyPatternRewriteDriver.h>
 #include <mlir/Transforms/Passes.h>
-#include <mlir/Translation.h>
 
 #include <flatbuffers/flatbuffers.h>

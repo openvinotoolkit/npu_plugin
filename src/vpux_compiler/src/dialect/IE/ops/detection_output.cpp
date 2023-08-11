@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/IE/ops.hpp"
 
 #include "vpux/compiler/utils/error.hpp"
@@ -17,7 +15,7 @@ mlir::LogicalResult vpux::IE::DetectionOutputOp::inferReturnTypeComponents(
         mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
         mlir::DictionaryAttr attrs, mlir::RegionRange,
         SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
-    const auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
+    const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
     IE::DetectionOutputOpAdaptor detectionOutput(operands, attrs);
     if (mlir::failed(detectionOutput.verify(loc))) {
@@ -29,7 +27,7 @@ mlir::LogicalResult vpux::IE::DetectionOutputOp::inferReturnTypeComponents(
     auto origN{0}, origC{1};
     const auto num_images = boxLogitsType.getShape()[origN];
     const auto num_loc_classes =
-            detectionOutput.attr().share_location().getValue() ? 1 : detectionOutput.attr().num_classes().getInt();
+            detectionOutput.attr().getShareLocation().getValue() ? 1 : detectionOutput.attr().getNumClasses().getInt();
 
     if (num_loc_classes <= 0) {
         return errorAt(loc, "Number of classes should be a natural number");
@@ -40,9 +38,9 @@ mlir::LogicalResult vpux::IE::DetectionOutputOp::inferReturnTypeComponents(
     }
 
     const auto num_prior_boxes = boxLogitsType.getShape()[origC] / (num_loc_classes * 4);
-    const auto keep_top_k = detectionOutput.attr().keep_top_k()[0].cast<mlir::IntegerAttr>().getInt();
-    const auto top_k = detectionOutput.attr().top_k().getInt();
-    const auto num_classes = detectionOutput.attr().num_classes().getInt();
+    const auto keep_top_k = detectionOutput.attr().getKeepTopK()[0].cast<mlir::IntegerAttr>().getInt();
+    const auto top_k = detectionOutput.attr().getTopK().getInt();
+    const auto num_classes = detectionOutput.attr().getNumClasses().getInt();
 
     SmallVector<int64_t> output_shape{1, 1};
     if (keep_top_k > 0) {

@@ -1,12 +1,13 @@
 //
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
+
 // RUN: vpux-opt --split-input-file --init-compiler="vpu-arch=%arch%" --assign-physical-barriers="num-barriers=4" %s | FileCheck %s
 // REQUIRES: arch-VPUX30XX || arch-VPUX37XX
 
 // CHECK-LABEL: @LinearDMA
-func @LinearDMA(%arg0: memref<10xf16>, %arg1: memref<10xf16>) -> memref<10xf16> {
+func.func @LinearDMA(%arg0: memref<10xf16>, %arg1: memref<10xf16>) -> memref<10xf16> {
     // CHECK-NOT: VPURT.DeclareVirtualBarrier
     // CHECK: VPURT.ConfigureBarrier<0>
     %bar0 = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
@@ -51,7 +52,7 @@ func @LinearDMA(%arg0: memref<10xf16>, %arg1: memref<10xf16>) -> memref<10xf16> 
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
 // CHECK-LABEL: @MultipleExecutors
-func @MultipleExecutors(%arg0: memref<1x16x32x32xf16>, %arg1: memref<1x16x32x32xf16>) -> memref<1x16x32x32xf16> {
+func.func @MultipleExecutors(%arg0: memref<1x16x32x32xf16>, %arg1: memref<1x16x32x32xf16>) -> memref<1x16x32x32xf16> {
     %cst0 = const.Declare memref<16x16x1x1xf16, #NHWC> =
         dense<1.0> : tensor<16x16x1x1xf16>, [#const.Reorder<#NHWC>]
     %cst1 = const.Declare memref<16x1x1x4xsi32> = dense<1> : tensor<16x1x1x4xsi32>

@@ -1,4 +1,4 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,20 +8,29 @@
 
 namespace LayerTestsDefinitions {
 
-class KmbLogSoftmaxLayerTest : public LogSoftmaxLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {};
+class VPUXLogSoftmaxLayerTest : public LogSoftmaxLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {};
+class VPUXLogSoftmaxLayerTest_VPU3700 : public VPUXLogSoftmaxLayerTest {};
+class VPUXLogSoftmaxLayerTest_VPU3720 : public VPUXLogSoftmaxLayerTest {};
 
 // Disabled as 'convert-subtract-to-negative-add' pass is not ready for one/more platforms in `ReferenceSW` mode
 // These tests shall be re-enabled and revalidate once such pass is added to 'ReferenceSW' pipeline
-TEST_P(KmbLogSoftmaxLayerTest, DISABLED_CompareWithRefs_SW_MLIR) {
-    useCompilerMLIR();
+TEST_P(VPUXLogSoftmaxLayerTest_VPU3700, DISABLED_SW) {
+    setPlatformVPU3700();
     setReferenceSoftwareModeMLIR();
     Run();
 }
-TEST_P(KmbLogSoftmaxLayerTest, CompareWithRefs_MLIR_HW) {
-    useCompilerMLIR();
+TEST_P(VPUXLogSoftmaxLayerTest_VPU3700, HW) {
+    setPlatformVPU3700();
     setDefaultHardwareModeMLIR();
     Run();
 }
+
+TEST_P(VPUXLogSoftmaxLayerTest_VPU3720, HW) {
+    setPlatformVPU3720();
+    setDefaultHardwareModeMLIR();
+    Run();
+}
+
 }  // namespace LayerTestsDefinitions
 
 using namespace LayerTestsDefinitions;
@@ -40,7 +49,7 @@ std::vector<std::vector<size_t>> inShapes2D = {
         {12, 5}, {1200, 5}  // real case
 };
 
-std::vector<int64_t> axis2D = {1};
+std::vector<int64_t> axis2D = {0, 1};
 
 const auto params2D = testing::Combine(
         testing::ValuesIn(netPrecision), testing::ValuesIn(dataPrecision), testing::ValuesIn(dataPrecision),
@@ -48,8 +57,11 @@ const auto params2D = testing::Combine(
         testing::ValuesIn(axis2D), testing::Values(LayerTestsUtils::testPlatformTargetDevice),
         ::testing::Values(std::map<std::string, std::string>({})));
 
-INSTANTIATE_TEST_SUITE_P(smoke_LogSoftmax_2D, KmbLogSoftmaxLayerTest, params2D,
-                         KmbLogSoftmaxLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_LogSoftmax_2D, VPUXLogSoftmaxLayerTest_VPU3700, params2D,
+                         VPUXLogSoftmaxLayerTest_VPU3700::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(precommit_LogSoftmax_2D, VPUXLogSoftmaxLayerTest_VPU3720, params2D,
+                         VPUXLogSoftmaxLayerTest_VPU3720::getTestCaseName);
 
 /* ============= 3D/4D LogSoftmax ============= */
 
@@ -75,6 +87,33 @@ const auto params = testing::Combine(testing::ValuesIn(netPrecision), testing::V
                                      testing::Values(LayerTestsUtils::testPlatformTargetDevice),
                                      ::testing::Values(std::map<std::string, std::string>({})));
 
-INSTANTIATE_TEST_SUITE_P(smoke_LogSoftmax_3D_4D, KmbLogSoftmaxLayerTest, params,
-                         KmbLogSoftmaxLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_LogSoftmax_3D_4D, VPUXLogSoftmaxLayerTest_VPU3700, params,
+                         VPUXLogSoftmaxLayerTest_VPU3700::getTestCaseName);
+
+std::vector<std::vector<size_t>> inShapesVPU3720 = {
+        {1, 10, 7, 4},
+        {1, 2, 204, 62},
+        {3, 20, 1, 15},
+};
+
+std::vector<int64_t> axisVPU3720 = {0, 2};
+
+const auto paramsVPU3720 = testing::Combine(
+        testing::ValuesIn(netPrecision), testing::ValuesIn(dataPrecision), testing::ValuesIn(dataPrecision),
+        testing::ValuesIn(layouts), testing::ValuesIn(layouts), testing::ValuesIn(inShapesVPU3720),
+        testing::ValuesIn(axisVPU3720), testing::Values(LayerTestsUtils::testPlatformTargetDevice),
+        ::testing::Values(std::map<std::string, std::string>({})));
+
+INSTANTIATE_TEST_SUITE_P(precommit_LogSoftmax_3D_4D, VPUXLogSoftmaxLayerTest_VPU3720, paramsVPU3720,
+                         VPUXLogSoftmaxLayerTest_VPU3720::getTestCaseName);
+
+const auto paramsTiling = testing::Combine(
+        testing::ValuesIn(netPrecision), testing::ValuesIn(dataPrecision), testing::ValuesIn(dataPrecision),
+        testing::ValuesIn(layouts), testing::ValuesIn(layouts), testing::Values(std::vector<size_t>{1, 48, 160, 80}),
+        testing::Values(1), testing::Values(LayerTestsUtils::testPlatformTargetDevice),
+        ::testing::Values(std::map<std::string, std::string>({})));
+
+INSTANTIATE_TEST_SUITE_P(precommit_LogSoftmax_3D_4D_tiling_VPU3720, VPUXLogSoftmaxLayerTest_VPU3720, paramsTiling,
+                         VPUXLogSoftmaxLayerTest_VPU3720::getTestCaseName);
+
 }  // namespace

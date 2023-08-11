@@ -3,14 +3,14 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/core/aliases_info.hpp"
 #include "vpux/compiler/dialect/VPU/attributes.hpp"
+#include "vpux/compiler/dialect/VPU/utils/const_utils.hpp"
 #include "vpux/compiler/dialect/VPUIP/convert_to_dma_utils.hpp"
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
 #include "vpux/compiler/utils/analysis.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
+#include "vpux/compiler/utils/permute_utils.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
 
 using namespace vpux;
@@ -149,8 +149,13 @@ mlir::LogicalResult ConvertToDMAPass::MemPermuteConverter::matchAndRewrite(VPUIP
 
     // create copy after MemPermuteDMAOp
     auto getOutputAllocOp = [&]() -> mlir::Value {
+        // The input of child of permuteUPAOp should be checked as well as the output,
+        // because the input of child could be a BlockArgument while the output of permuteUPAOp is not
         if (permuteUPAOp.output_buff().isa<mlir::BlockArgument>()) {
             _log.trace("Insert copy Op after MemPermute Op with alloc buffer goes to output.");
+            return permuteUPAOp.output_buff();
+        } else if (permuteUPAOp.output().use_empty()) {
+            _log.trace("MemPermute Op is the last Op outputs to a viewlike Op(QuantizeCast/ PermuteCast)");
             return permuteUPAOp.output_buff();
         }
 
@@ -314,12 +319,67 @@ mlir::LogicalResult ConvertToDMAPass::SwKernelMemPermuteConverter::matchAndRewri
 
     VPUX_THROW_UNLESS(swKernelOp->getNumOperands() == 2, "Unexpected operand number for VPUIP.SwKernelOp at '{0}'",
                       swKernelOp);
-    auto input = swKernelOp.getOperand(0);
-    auto outputBuf = swKernelOp.getOperand(1);
-    rewriter.replaceOpWithNewOp<VPUIP::PermuteDMAOp>(swKernelOp, input, outputBuf,
-                                                     mlir::AffineMapAttr::get(memPerm.getValue()), nullptr);
 
-    _log.nest().trace("Rewrite Mempermute SwKernel '{0}' at '{1}' to PermuteDMA.", swKernelOp->getName(),
+    const auto inType = swKernelOp.getOperand(0).getType().cast<vpux::NDTypeInterface>();
+    const auto input = swKernelOp.getOperand(0);
+    const auto outputBuf = swKernelOp.getOperand(1);
+    // Check for inversed permutation which needs split into 2 consecutive permuteDMAs
+    // e.g. pattern [d0, d1, d2, d3] -> [d0, d3, d2, d1]
+    if (!VPUIP::isSplitNeededForPermuteDMA(inType, memPerm.getValue())) {
+        rewriter.replaceOpWithNewOp<VPUIP::PermuteDMAOp>(swKernelOp, input, outputBuf,
+                                                         mlir::AffineMapAttr::get(memPerm.getValue()), nullptr);
+
+        _log.nest().trace("Rewrite Mempermute SwKernel '{0}' at '{1}' to PermuteDMA.", swKernelOp->getName(),
+                          swKernelOp->getLoc());
+        return mlir::success();
+    }
+    _log.nest().trace("Split into 2 permuteDMA: memPerm {0}", memPerm);
+
+    auto permuteMemRefType = swKernelOp.getOperand(1).getType().dyn_cast<mlir::MemRefType>();
+    VPUX_THROW_WHEN(permuteMemRefType == nullptr, "Unexpected output type for VPUIP.SwKernelOp at '{0}'",
+                    swKernelOp->getLoc());
+
+    // 3 types of memPermute can be supported:
+    // a) NHWC -> NCHW; b) NWCH -> NCHW; c) NCWH -> NHWC
+    // The first 2 types cannot be replaced with the 2 consecutive permuteDMAs directly,
+    // so a permuteCast is required before the 2 permuteDMAs.
+    // The dst order of permuteCast can be reversedly derived from the final dst order
+
+    const auto outType = swKernelOp->getResult(0).getType().cast<vpux::NDTypeInterface>();
+    auto outShapedType = outType.cast<vpux::NDTypeInterface>();
+    auto outOrder = outType.getDimsOrder();
+    // The 2nd permuteDMA is [d0, d2, d3, d1] -> [d0, d3, d2, d1], permutation is [d0, d2, d1, d3]
+    // The inversed permutation is [d0, d2, d1, d3]
+    // dstOutOrder here is actually the inOrder for the second permuation
+    auto inversePermLast = mlir::AffineMap::getPermutationMap({0, 2, 1, 3}, rewriter.getContext());
+    auto dstOutOrder = applyPermutation(outOrder, DimsOrder::fromAffineMap(inversePermLast));
+    // The 1st permuteDMA is [d0, d1, d2, d3] -> [d0, d2, d3, d1], permutation is [d0, d2, d3, d1]
+    // The inverse permuation is [d0, d3, d1, d2]]
+    auto inversePermFirst = mlir::AffineMap::getPermutationMap({0, 3, 1, 2}, rewriter.getContext());
+    auto permuteCastDstOrder = applyPermutation(dstOutOrder, DimsOrder::fromAffineMap(inversePermFirst));
+    auto permuteCastOutType = outShapedType.changeDimsOrder(permuteCastDstOrder);
+    _log.nest().trace("Deduced permuteCastDstOrder = {0} from outOrder {1}", permuteCastDstOrder, outOrder);
+    auto permuteCastOp = rewriter.create<VPUIP::PermuteCastOp>(
+            swKernelOp->getLoc(), permuteCastOutType, input,
+            mlir::AffineMapAttr::get(permuteCastDstOrder.toAffineMap(rewriter.getContext())),
+            mlir::AffineMapAttr::get(DimsOrder::NCHW.toAffineMap(rewriter.getContext())));
+
+    // create the 1st permuteDMA Op [d0, d1, d2, d3] -> [d0, d2, d3, d1], permutation is [d0, d2, d3, d1]
+    auto memPermFirst = mlir::AffineMap::getPermutationMap({0, 2, 3, 1}, rewriter.getContext());
+    auto newPermuteMemRefType = mlir::MemRefType::get(
+            permuteMemRefType.getShape(), permuteMemRefType.getElementType(),
+            dstOutOrder.toAffineMap(rewriter.getContext()),
+            IndexedSymbolAttr::get(rewriter.getContext(), stringifyEnum(VPU::MemoryKind::CMX_NN), 0));
+
+    auto allocPermuteOp = rewriter.create<mlir::memref::AllocOp>(swKernelOp->getLoc(), newPermuteMemRefType);
+    auto permuteDmaOp = rewriter.create<VPUIP::PermuteDMAOp>(swKernelOp->getLoc(), permuteCastOp, allocPermuteOp,
+                                                             mlir::AffineMapAttr::get(memPermFirst), nullptr);
+
+    // create the 2nd permuteDMA Op [d0, d2, d3, d1] -> [d0, d3, d2, d1], permutation is [d0, d2, d1, d3]
+    auto memPermLast = mlir::AffineMap::getPermutationMap({0, 2, 1, 3}, rewriter.getContext());
+    rewriter.replaceOpWithNewOp<VPUIP::PermuteDMAOp>(swKernelOp, permuteDmaOp.output(), outputBuf,
+                                                     mlir::AffineMapAttr::get(memPermLast), nullptr);
+    _log.nest().trace("Rewrite Mempermute SwKernel '{0}' at '{1}' to 2 PermuteDMA ops.", swKernelOp->getName(),
                       swKernelOp->getLoc());
     return mlir::success();
 }
@@ -529,24 +589,6 @@ mlir::LogicalResult ConvertToDMAPass::SwKernelPerAxisTileConverter::matchAndRewr
 // UpsamplingOpConverter
 //
 
-mlir::Value getZerosConst(mlir::PatternRewriter& rewriter, Shape constShape, VPUIP::UpsamplingUPAOp origOp) {
-    const auto elemType = origOp.input().getType().cast<vpux::NDTypeInterface>().getElementType();
-    const auto inputDimOrder = origOp.input().getType().cast<vpux::NDTypeInterface>().getDimsOrder();
-    const auto dataStorageType = mlir::RankedTensorType::get(to_small_vector(constShape), elemType)
-                                         .cast<vpux::NDTypeInterface>()
-                                         .changeDimsOrder(inputDimOrder);
-
-    mlir::DenseElementsAttr denseElementVal = wrapData(dataStorageType.cast<mlir::RankedTensorType>(), 0.0f);
-    VPUX_THROW_UNLESS(denseElementVal != nullptr,
-                      "Upsampling has incompatible data type {0}, only float16 or float32 are supported", elemType);
-
-    return rewriter
-            .create<Const::DeclareOp>(origOp.getLoc(),
-                                      vpux::convertToMemRef(dataStorageType.cast<mlir::RankedTensorType>()),
-                                      Const::ContentAttr::get(denseElementVal))
-            .output();
-}
-
 class ConvertToDMAPass::UpsamplingOpConverter final : public mlir::OpRewritePattern<VPUIP::UpsamplingUPAOp> {
 public:
     UpsamplingOpConverter(mlir::MLIRContext* ctx, Logger log)
@@ -570,13 +612,13 @@ mlir::LogicalResult ConvertToDMAPass::UpsamplingOpConverter::matchAndRewrite(VPU
     SmallVector<int64_t> upsamplingFactorVector = {1, upsamplingFactorVectorTmp[2], upsamplingFactorVectorTmp[1],
                                                    upsamplingFactorVectorTmp[0]};
 
-    auto constZeros = getZerosConst(rewriter, outputShape.toValues(), origOp);
+    auto constZeros = VPU::getZerosConst(rewriter, outputShape.toValues(), origOp.input(), origOp.getLoc());
 
     auto copyZeroOp = rewriter.create<VPUIP::CopyOp>(origOp->getLoc(), constZeros, origOp.output_buff());
-
     auto upsampleFactorAttr = getIntArrayAttr(origOp.getContext(), upsamplingFactorVector);
     auto upsampeDMA = rewriter.create<VPUIP::UpsamplingDMAOp>(origOp.getLoc(), origOp.input(), copyZeroOp.output(),
-                                                              upsampleFactorAttr, nullptr);
+                                                              upsampleFactorAttr, nullptr, nullptr,
+                                                              getIntAttr(origOp->getContext(), 0), nullptr, nullptr);
 
     rewriter.replaceOp(origOp, upsampeDMA.output());
     return mlir::success();
@@ -631,7 +673,7 @@ void ConvertToDMAPass::safeRunOnFunc() {
     patterns.add<SwKernelPerAxisTileConverter>(&ctx, _log);
     patterns.add<UpsamplingOpConverter>(&ctx, _log);
 
-    auto func = getFunction();
+    auto func = getOperation();
     if (mlir::failed(mlir::applyPartialConversion(func, target, std::move(patterns)))) {
         signalPassFailure();
     }

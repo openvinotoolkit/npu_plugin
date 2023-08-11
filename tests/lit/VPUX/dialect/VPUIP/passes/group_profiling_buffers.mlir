@@ -1,7 +1,8 @@
 //
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
+
 // RUN: vpux-opt --init-compiler="vpu-arch=%arch%" --group-profiling-buffers %s | FileCheck %s
 // REQUIRES: arch-VPUX30XX || arch-VPUX37XX
 
@@ -16,7 +17,7 @@ module @GroupProfilingBuffers {
         DataInfo "dma" : tensor<14xui32>
         DataInfo "upa" : tensor<24xui32>
     }
-    func @main(%arg0: memref<1x48x30x30xf16>, %arg1: memref<1x48x30x30xf32>, %arg2: memref<4xui64>, %arg3: memref<14xui32>, %arg4: memref<24xui32>) -> (memref<1x48x30x30xf32>, memref<4xui64>, memref<14xui32>, memref<24xui32>) {
+    func.func @main(%arg0: memref<1x48x30x30xf16>, %arg1: memref<1x48x30x30xf32>, %arg2: memref<4xui64>, %arg3: memref<14xui32>, %arg4: memref<24xui32>) -> (memref<1x48x30x30xf32>, memref<4xui64>, memref<14xui32>, memref<24xui32>) {
         %0 = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
         %1 = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
         %2 = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
@@ -53,5 +54,3 @@ module @GroupProfilingBuffers {
     //CHECK-SAME:   outputs([[VAR2]] : memref<14xui32>)
     //CHECK:        return %arg1, %arg2 : memref<1x48x30x30xf32>, memref<46xui32>
 }
-
-

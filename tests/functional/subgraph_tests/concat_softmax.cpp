@@ -1,5 +1,5 @@
 //
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,7 +10,7 @@
 #include "shared_test_classes/single_layer/concat.hpp"
 
 namespace ConcatSoftmaxSubGraphTestsDefinitions {
-class KmbConcatSoftmaxSubGraphTest :
+class VPUXConcatSoftmaxSubGraphTest_VPU3700 :
         public LayerTestsUtils::KmbLayerTestsCommon,
         public LayerTestsDefinitions::ConcatLayerTest {
     void SetUp() override {
@@ -31,8 +31,9 @@ class KmbConcatSoftmaxSubGraphTest :
     }
 };
 
-TEST_P(KmbConcatSoftmaxSubGraphTest, CompareWithRefs_MLIR) {
-    useCompilerMLIR();
+TEST_P(VPUXConcatSoftmaxSubGraphTest_VPU3700, HW) {
+    setPlatformVPU3700();
+    setDefaultHardwareModeMLIR();
     Run();
 }
 
@@ -41,7 +42,7 @@ std::vector<InferenceEngine::Precision> netPrecisions = {
         InferenceEngine::Precision::FP16,
 };
 
-// Note: VPUx-plugin does not support batch-size > 1.
+// Note: VPUX-plugin does not support batch-size > 1.
 
 // 4d cases
 std::vector<int> axes4d = {1, 2, 3};
@@ -51,7 +52,7 @@ std::vector<std::vector<std::vector<size_t>>> inShapes4d = {
         {{1, 10, 33, 80}, {1, 10, 33, 80}, {1, 10, 33, 80}, {1, 10, 33, 80}},
 };
 
-INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke4d_tensors, KmbConcatSoftmaxSubGraphTest,
+INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke4d_tensors, VPUXConcatSoftmaxSubGraphTest_VPU3700,
                          ::testing::Combine(::testing::ValuesIn(axes4d), ::testing::ValuesIn(inShapes4d),
                                             ::testing::ValuesIn(netPrecisions),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
@@ -59,7 +60,7 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke4d_tensors, KmbConcatSoftmaxSubGraphT
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
-                         KmbConcatSoftmaxSubGraphTest::getTestCaseName);
+                         VPUXConcatSoftmaxSubGraphTest_VPU3700::getTestCaseName);
 
 // 3d cases
 std::vector<int> axes3d = {1, 2};
@@ -68,7 +69,7 @@ std::vector<std::vector<std::vector<size_t>>> inShapes3d = {
         {{1, 10, 33}, {1, 10, 33}, {1, 10, 33}, {1, 10, 33}},
 };
 
-INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke3d_tensors, KmbConcatSoftmaxSubGraphTest,
+INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke3d_tensors, VPUXConcatSoftmaxSubGraphTest_VPU3700,
                          ::testing::Combine(::testing::ValuesIn(axes3d), ::testing::ValuesIn(inShapes4d),
                                             ::testing::ValuesIn(netPrecisions),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
@@ -76,7 +77,7 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke3d_tensors, KmbConcatSoftmaxSubGraphT
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
-                         KmbConcatSoftmaxSubGraphTest::getTestCaseName);
+                         VPUXConcatSoftmaxSubGraphTest_VPU3700::getTestCaseName);
 
 // Check parameters from squeezenet1_1
 std::vector<int> axes_squeeznet1_1 = {1};
@@ -86,7 +87,7 @@ std::vector<std::vector<std::vector<size_t>>> inShapes_squeeznet1_1 = {{{1, 64, 
                                                                        {{1, 128, 28, 28}, {1, 128, 28, 28}},
                                                                        {{1, 256, 14, 14}, {1, 256, 14, 14}}};
 
-INSTANTIATE_TEST_SUITE_P(squeeznet1_1_tensors, KmbConcatSoftmaxSubGraphTest,
+INSTANTIATE_TEST_SUITE_P(smoke_squeeznet1_1_tensors, VPUXConcatSoftmaxSubGraphTest_VPU3700,
                          ::testing::Combine(::testing::ValuesIn(axes_squeeznet1_1),
                                             ::testing::ValuesIn(inShapes_squeeznet1_1),
                                             ::testing::ValuesIn(netPrecisions),
@@ -95,6 +96,6 @@ INSTANTIATE_TEST_SUITE_P(squeeznet1_1_tensors, KmbConcatSoftmaxSubGraphTest,
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
-                         KmbConcatSoftmaxSubGraphTest::getTestCaseName);
+                         VPUXConcatSoftmaxSubGraphTest_VPU3700::getTestCaseName);
 
 }  // namespace ConcatSoftmaxSubGraphTestsDefinitions

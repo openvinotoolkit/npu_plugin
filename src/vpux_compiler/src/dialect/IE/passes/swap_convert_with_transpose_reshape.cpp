@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/IE/passes.hpp"
 
 #include "vpux/compiler/utils/error.hpp"
@@ -12,7 +10,6 @@
 
 #include <mlir/Transforms/GreedyPatternRewriteDriver.h>
 
-#include <llvm/ADT/TypeSwitch.h>
 #include <vpux/compiler/conversion.hpp>
 
 using namespace vpux;
@@ -84,7 +81,7 @@ mlir::LogicalResult SwapConvertWithTransposeReshape::OpSwapConverter::matchAndRe
 }
 
 void SwapConvertWithTransposeReshape::safeRunOnFunc() {
-    auto func = getFunction();
+    auto func = getOperation();
 
     auto& ctx = getContext();
 

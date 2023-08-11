@@ -52,8 +52,6 @@ private:
 };
 ```
 
-
-
 ### Semantic correctness
 
 Do your best to name the things in a most descriptive way, even when it makes the names longer.
@@ -79,8 +77,6 @@ if (temp / len < maxCount) {
     // <...>
 }
 ```
-
-## Style Preferences
 
 ## Operators
 
@@ -121,7 +117,7 @@ The same rule applies to all operations from MLIR dialects: `IE`, `IERT`, `VPUIP
 
 ```cpp
 void someFunction(mlir::Value functionOperand);  // OK
-void someFunction(mlir::Value& functionOperand); // BAD: no performance gain, so pass it by value instead
+void someFunction(const mlir::Value& functionOperand); // BAD: no performance gain, so pass it by value instead
 ```
 
 #### Arrays
@@ -481,9 +477,97 @@ void OptimizeCopiesPass::safeRunOnFunc() {
     mlir::RewritePatternSet patterns(&ctx);
     patterns.add<CopyToBlockArgument>(&ctx, aliasInfo, _log);
 
-    auto func = getFunction();
+    auto func = getOperation();
     if (mlir::failed(mlir::applyPatternsAndFoldGreedily(func, std::move(patterns), getDefaultGreedyRewriteConfig()))) {
         signalPassFailure();
     }
 }
+```
+
+## Lit-tests
+
+### Command line
+
+The device type must always be specified using the command line in order for the appropriate passes to be registered.
+There are two ways to do this:
+
+`vpu-arch` -- please use this option to test pipelines only (DefaultHW, ReferenceSW, etc.):
+```
+// RUN: vpux-opt --vpu-arch=VPUX37XX --split-input-file --mlir-elide-elementsattrs-if-larger 8 --default-hw-mode %s | FileCheck %s
+```
+
+`init-compiler` for passes and sub-pipelines:
+```
+// RUN: vpux-opt --split-input-file --init-compiler="vpu-arch=VPUX37XX" --unroll-cluster-tiling  %s | FileCheck %s
+```
+
+In some cases, it is necessary to save predefined resources in IR:
+```
+module @memory {
+    IE.MemoryResource 10000 bytes of @CMX_NN
+}
+```
+
+There is a special option `allow-custom-values`, which sets the remaining resources and saves the existing ones:
+```
+// RUN: vpux-opt --split-input-file --init-compiler="vpu-arch=VPUX37XX allow-custom-values=true" --unroll-cluster-tiling  %s | FileCheck %s
+```
+
+### Naming
+
+#### Files
+
+The file name have to match the pass name, so for `OptimizeCopiesPass` the file name have to be `optimize_copies.mlir`.
+It is allowed to divide the file into several specialized test suites and use the suffix for this: `optimize_copies_DDR.mlir`, `optimize_copies_CMX.mlir`.
+
+Test system has several folders:
+- For common tests: [VPUX](../../../tests/lit/VPUX). If the test suite is suitable for all types of devices, then it should only follow general naming rules. 
+Otherwise, add suffix for each supported device: `optimize_copies_37XX_30XX.mlir`
+- For specic tests: [VPUX30XX](../../../tests/lit/VPUX30XX)/[VPUX37XX](../../../tests/lit/VPUX37XX). The test suite suitable for only one device have to be placed here and follow general naming rules.
+
+#### Variables
+
+Prefer to use `.+` expression to capture a variable:
+
+```cpp
+// OK
+// CHECK:       [[CST0:%.+]] = const.Declare tensor<1x8x4x4xf32>
+
+// BAD: The asterisk indicates zero or more occurrences of the preceding element.
+//      But at least one character must be present
+// CHECK:       [[CST0:%.*]] = const.Declare tensor<1x8x4x4xf32>
+```
+
+Please use `%` inside the capture expression:
+
+```cpp
+// OK
+// CHECK:       [[CST0:%.+]] = const.Declare tensor<1x8x4x4xf32> = dense<5.000000e+00> : tensor<1x8x4x4xf32>
+// CHECK-NOT:   const.Declare
+// CHECK-NOT:   IE.Add
+// CHECK:       return [[CST0]]
+
+// BAD: You need to write `%` again when using the captured variable
+// CHECK:       %[[CST0:.+]] = const.Declare tensor<1x8x4x4xf32> = dense<5.000000e+00> : tensor<1x8x4x4xf32>
+// CHECK-NOT:   const.Declare
+// CHECK-NOT:   IE.Add
+// CHECK:       return %[[CST0]]
+```
+
+Each variable should have a meaningful name:
+
+```cpp
+// OK
+// CHECK-DAG:   [[FILTERS:%.+]] = const.Declare tensor<16x3x3x3xf32> = dense<1.000000e+00> : tensor<16x3x3x3xf32>
+// CHECK-DAG:   [[BIAS:%.+]] = const.Declare tensor<1x16x1x1xf32> = dense<1.000000e+00> : tensor<1x16x1x1xf32>
+// CHECK:       [[CONV:%.+]] = IE.Convolution([[ARG0]], [[FILTERS]], [[BIAS]])
+// CHECK:       return [[CONV]]
+
+// BAD: Such a test is much more difficult to understand, 
+//      since the origin of the variables and what they mean are unknown.
+//      There is also a high probability of making a "green" test for the wrong behavior of the pass
+// CHECK-DAG:   [[VAR1:%.+]] = const.Declare tensor<16x3x3x3xf32> = dense<1.000000e+00> : tensor<16x3x3x3xf32>
+// CHECK-DAG:   [[VAR2:%.+]] = const.Declare tensor<1x16x1x1xf32> = dense<1.000000e+00> : tensor<1x16x1x1xf32>
+// CHECK:       [[VAR3:%.+]] = IE.Convolution([[VAR0]], [[VAR1]], [[VAR2]])
+// CHECK:       return [[VAR4]]
 ```

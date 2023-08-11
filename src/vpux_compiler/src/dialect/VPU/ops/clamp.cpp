@@ -11,7 +11,7 @@ mlir::LogicalResult vpux::VPU::ClampOp::inferReturnTypes(mlir::MLIRContext* ctx,
                                                          mlir::ValueRange operands, mlir::DictionaryAttr attrs,
                                                          mlir::RegionRange /*regions*/,
                                                          mlir::SmallVectorImpl<mlir::Type>& inferredReturnTypes) {
-    const auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
+    const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
     VPU::ClampOpAdaptor clamp(operands, attrs);
     if (mlir::failed(clamp.verify(loc))) {

@@ -111,7 +111,7 @@ public:
 private:
     void safeRunOnModule() final;
 
-    LinearScanHandler runLinearScan(mlir::FuncOp netFunc);
+    LinearScanHandler runLinearScan(mlir::func::FuncOp netFunc);
 
 private:
     VPUIP::MemKindCreateFunc _memKindCb;
@@ -140,7 +140,7 @@ mlir::LogicalResult StaticAllocationPass::initialize(mlir::MLIRContext* ctx) {
     return mlir::success();
 }
 
-LinearScanHandler StaticAllocationPass::runLinearScan(mlir::FuncOp netFunc) {
+LinearScanHandler StaticAllocationPass::runLinearScan(mlir::func::FuncOp netFunc) {
     auto& aliasInfo = getChildAnalysis<AliasesInfo>(netFunc);
     auto& liveRangeInfo = getChildAnalysis<MemLiveRangeInfo>(netFunc);
     auto& depsInfo = getChildAnalysis<AsyncDepsInfo>(netFunc);
@@ -362,7 +362,7 @@ void StaticAllocationPass::safeRunOnModule() {
     auto module = getOperation();
 
     IE::CNNNetworkOp netOp;
-    mlir::FuncOp netFunc;
+    mlir::func::FuncOp netFunc;
     IE::CNNNetworkOp::getFromModule(module, netOp, netFunc);
 
     const auto allocInfo = runLinearScan(netFunc);

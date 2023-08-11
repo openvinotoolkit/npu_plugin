@@ -7,7 +7,6 @@
 #include "functional_test_utils/summary/op_summary.hpp"
 
 #include <fstream>
-#include <iomanip>
 #include <iostream>
 
 namespace LayerTestsUtils {

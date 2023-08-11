@@ -4,11 +4,10 @@
 //
 
 #include "kmb_test_tool.hpp"
-
+#include <functional_test_utils/plugin_cache.hpp>
 #include "vpux/utils/core/format.hpp"
 
 #include <fstream>
-#include <iomanip>
 #include <iostream>
 
 using namespace InferenceEngine;
@@ -82,6 +81,12 @@ void KmbTestTool::exportBlob(const InferenceEngine::Blob::Ptr blob, const std::s
     file.write(blob->cbuffer().as<const char*>(), static_cast<std::streamsize>(blob->byteSize()));
     if (!file)
         IE_THROW() << "exportBlob(). Error when writing file " << fileName;
+}
+
+std::string KmbTestTool::getDeviceMetric(std::string name) {
+    std::shared_ptr<InferenceEngine::Core> core = PluginCache::get().ie(DEVICE_NAME);
+
+    return core->GetMetric(DEVICE_NAME, name).as<std::string>();
 }
 
 unsigned long int FNV_hash(const std::string& str) {

@@ -6,7 +6,6 @@
 #include "vpux/compiler/dialect/IE/utils/shape_infer.hpp"
 #include "vpux/compiler/dialect/VPU/ops.hpp"
 
-#include "vpux/utils/core/checked_cast.hpp"
 #include "vpux/utils/core/small_vector.hpp"
 
 using namespace vpux;
@@ -15,7 +14,7 @@ mlir::LogicalResult vpux::VPU::AddOp::inferReturnTypes(mlir::MLIRContext* ctx, m
                                                        mlir::ValueRange operands, mlir::DictionaryAttr attrs,
                                                        mlir::RegionRange /*regions*/,
                                                        mlir::SmallVectorImpl<mlir::Type>& inferredReturnTypes) {
-    const auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
+    const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
     VPU::AddOpAdaptor add(operands, attrs);
     if (mlir::failed(add.verify(loc))) {

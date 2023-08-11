@@ -3,10 +3,9 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/IE/ops.hpp"
 
+#include "vpux/compiler/dialect/IE/utils/reshape_utils.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/error.hpp"
@@ -121,7 +120,7 @@ mlir::LogicalResult vpux::IE::AffineReshapeOp::inferReturnTypeComponents(
         mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
         mlir::DictionaryAttr attrs, mlir::RegionRange,
         SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
-    const auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
+    const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
     IE::AffineReshapeOpAdaptor affineReshape(operands, attrs);
     if (mlir::failed(affineReshape.verify(loc))) {
@@ -169,7 +168,7 @@ void vpux::IE::AffineReshapeOp::inferElemTypeInfo(vpux::IE::LayerDataInfo<mlir::
 void vpux::IE::AffineReshapeOp::inferElemTypeInfoUp(vpux::IE::LayerDataInfo<mlir::Type>& info) {
     const auto outputElemType = info.getOutput(0);
 
-    if (outputElemType.dyn_cast_or_null<mlir::quant::UniformQuantizedPerAxisType>() != nullptr) {
+    if (outputElemType != nullptr && outputElemType.isa<mlir::quant::UniformQuantizedPerAxisType>()) {
         // E#31029: implement propagate type up for per channel, currently it leads to failures in later passes.
         return;
     }
@@ -197,17 +196,17 @@ void vpux::IE::AffineReshapeOp::inferLayoutInfo(vpux::IE::LayerLayoutInfo& info)
 }
 
 //
-// verifyOp
+// verify
 //
 
-mlir::LogicalResult vpux::IE::verifyOp(AffineReshapeOp op) {
-    const auto inType = op.input().getType().cast<vpux::NDTypeInterface>();
-    const auto outType = op.output().getType().cast<vpux::NDTypeInterface>();
+mlir::LogicalResult vpux::IE::AffineReshapeOp::verify() {
+    const auto inType = input().getType().cast<vpux::NDTypeInterface>();
+    const auto outType = output().getType().cast<vpux::NDTypeInterface>();
 
     auto inNumElem = inType.getNumElements();
     auto outNumElem = outType.getNumElements();
     if (inNumElem != outNumElem) {
-        return errorAt(op,
+        return errorAt(*this,
                        "AffineReshape input and output must have the same number of elements. Got: input number '{0}'; "
                        "output number '{1}'",
                        inNumElem, outNumElem);
@@ -235,6 +234,65 @@ mlir::OpFoldResult vpux::IE::AffineReshapeOp::fold(ArrayRef<mlir::Attribute> ope
 }
 
 //
+// FuseAffineReshapes
+//
+
+namespace {
+class FuseAffineReshapes final : public mlir::OpRewritePattern<IE::AffineReshapeOp> {
+public:
+    using mlir::OpRewritePattern<IE::AffineReshapeOp>::OpRewritePattern;
+
+public:
+    mlir::LogicalResult matchAndRewrite(IE::AffineReshapeOp origOp, mlir::PatternRewriter& rewriter) const final;
+};
+
+mlir::LogicalResult FuseAffineReshapes::matchAndRewrite(IE::AffineReshapeOp origOp,
+                                                        mlir::PatternRewriter& rewriter) const {
+    auto prevOp = origOp.input().getDefiningOp<IE::AffineReshapeOp>();
+    if (prevOp == nullptr) {
+        return mlir::failure();
+    }
+
+    auto inputType = prevOp.input().getType().cast<NDTypeInterface>();
+    auto outputType = origOp.output().getType().cast<NDTypeInterface>();
+
+    const auto inputDimsOrder = inputType.getDimsOrder();
+    const auto outputDimsOrder = outputType.getDimsOrder();
+
+    const auto inputShape = inputType.cast<mlir::ShapedType>().getShape();
+    const auto outputShape = outputType.cast<mlir::ShapedType>().getShape();
+    const auto outputShapeAttr = getIntArrayAttr(getContext(), outputShape);
+
+    // Fusing AffineReshape with any of the above mentioned ops might result in another AffineReshape or not,
+    // depending on the resulting input and output shapes.
+    // E. g. 1 x 24 x 2 x 2 -> AffineReshape -> 1 x 24 x 4 -> AffineReshape -> 1 x 24 x 4 x 1
+    //       mapping: id0 = od0, id1 = od1 and id2 * id3 = od2 * od3 (not an AffineReshape)
+    // If the Reshape that replaces the two ops ends up being a valid AffineReshape, then it will be converted by
+    // Reshape's canonicalizer.
+    // TODO: E#70418 1. support reshape(in: NHWC, out: NHWC) 2. support different in&out order of reshape
+    if (inputDimsOrder == outputDimsOrder && inputDimsOrder == DimsOrder::NHWC) {
+        const auto reassociationMap = vpux::IE::getReassociationMap(inputShape, outputShape);
+
+        if (mlir::failed(reassociationMap)) {
+            return mlir::failure();
+        }
+
+        rewriter.replaceOpWithNewOp<IE::AffineReshapeOp>(
+                origOp, prevOp.input(), getIntArrayOfArray(getContext(), reassociationMap.getValue()), outputShapeAttr);
+        return mlir::success();
+    }
+    // Reshape's output dim order is limited to NCHW, so the compiler will not fuse the ops in this case
+    if (outputDimsOrder != DimsOrder::NCHW) {
+        return mlir::failure();
+    }
+
+    rewriter.replaceOpWithNewOp<IE::ReshapeOp>(origOp, prevOp->getOperand(0), nullptr, false, outputShapeAttr);
+    return mlir::success();
+}
+
+}  // namespace
+
+//
 // FuseWithReshape
 //
 
@@ -253,17 +311,14 @@ mlir::LogicalResult FuseWithReshape::matchAndRewrite(IE::AffineReshapeOp origOp,
     if (prevOp == nullptr) {
         return mlir::failure();
     }
-    if (!mlir::isa<IE::SqueezeOp, IE::UnsqueezeOp, IE::ReshapeOp, IE::AffineReshapeOp>(prevOp)) {
+    if (!mlir::isa<IE::SqueezeOp, IE::UnsqueezeOp, IE::ReshapeOp>(prevOp)) {
         return mlir::failure();
     }
-
     const auto outputShape = origOp.getType().getShape();
     const auto outputShapeAttr = getIntArrayAttr(getContext(), outputShape);
 
     // Fusing AffineReshape with any of the above mentioned ops might result in another AffineReshape or not,
     // depending on the resulting input and output shapes.
-    // E. g. 1 x 24 x 2 x 2 -> AffineReshape -> 1 x 24 x 4 -> AffineReshape -> 1 x 24 x 4 x 1
-    //       mapping: id0 = od0, id1 = od1 and id2 * id3 = od2 * od3 (not an AffineReshape)
     // If the Reshape that replaces the two ops ends up being a valid AffineReshape, then it will be converted by
     // Reshape's canonicalizer.
     rewriter.replaceOpWithNewOp<IE::ReshapeOp>(origOp, prevOp->getOperand(0), nullptr, false, outputShapeAttr);
@@ -277,5 +332,6 @@ mlir::LogicalResult FuseWithReshape::matchAndRewrite(IE::AffineReshapeOp origOp,
 //
 
 void vpux::IE::AffineReshapeOp::getCanonicalizationPatterns(mlir::RewritePatternSet& patterns, mlir::MLIRContext* ctx) {
+    patterns.add<FuseAffineReshapes>(ctx);
     patterns.add<FuseWithReshape>(ctx);
 }

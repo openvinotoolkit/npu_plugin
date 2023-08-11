@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/IE/passes.hpp"
 
 #include "vpux/compiler/utils/rewriter.hpp"
@@ -95,7 +93,7 @@ private:
 
 void InsertMaxpoolToConcatActivationPass::safeRunOnFunc() {
     auto& ctx = getContext();
-    auto func = getFunction();
+    auto func = getOperation();
     auto module = func->getParentOfType<mlir::ModuleOp>();
     const auto arch = VPU::getArch(module);
     const std::set<VPU::ArchKind> avgPoolTargets = {

@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/IE/passes.hpp"
 #include "vpux/compiler/dialect/VPUIP/convert_to_dma_utils.hpp"
 
@@ -44,7 +42,7 @@ public:
     }
 
 public:
-    mlir::LogicalResult matchAndRewrite(IE::DepthToSpaceOp origOp, mlir::PatternRewriter& rewriter) const;
+    mlir::LogicalResult matchAndRewrite(IE::DepthToSpaceOp origOp, mlir::PatternRewriter& rewriter) const override;
 
 private:
     Logger _log;
@@ -155,7 +153,7 @@ void ConvertDepth2SpaceLayerPass::safeRunOnFunc() {
     mlir::RewritePatternSet patterns(&ctx);
     patterns.add<Depth2SpaceLayerConverter>(&ctx, _log);
 
-    auto func = getFunction();
+    auto func = getOperation();
     if (mlir::failed(mlir::applyPartialConversion(func, target, std::move(patterns)))) {
         signalPassFailure();
     }

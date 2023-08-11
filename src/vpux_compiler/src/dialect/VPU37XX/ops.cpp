@@ -3,11 +3,8 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/VPU37XX/ops.hpp"
-#include "vpux/compiler/dialect/VPUIPRegMapped/ops.hpp"
-#include "vpux/compiler/dialect/VPUIPRegMapped/types.hpp"
+#include "vpux/compiler/dialect/VPURegMapped/types.hpp"
 
 using namespace vpux;
 

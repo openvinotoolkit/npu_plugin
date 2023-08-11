@@ -66,21 +66,17 @@ public:
         EOpType opType_;
         mlir::Value spillBuffer_;
     };
-    // Sort heap by earlierst cycle
-    struct MinHeapOrdering {
-        bool operator()(const HeapElement& a, const HeapElement& b) {
-            if (a.cycleBegin_ == b.cycleBegin_) {
-                if (a.isPrefetched() && !b.isPrefetched()) {
-                    return true;
-                } else if (!a.isPrefetched() && b.isPrefetched()) {
-                    return false;
-                } else {
-                    return a.op_ > b.op_;
-                }
-            }
-            return a.cycleBegin_ > b.cycleBegin_;
-        }
+
+    // Sort heap by earliest begin cycle
+    struct CycleBeginMinHeapOrdering {
+        bool operator()(const HeapElement& a, const HeapElement& b);
     };
+
+    // Sort heap by earliest end cycle
+    struct CycleEndMinHeapOrdering {
+        bool operator()(const HeapElement& a, const HeapElement& b);
+    };
+
     // Sort pair by the second arg - operation index (=async-deps-index) which is aligned with order in IR
     struct operationIdxSort {
         // TODO will be replaced by DPU order heuristic
@@ -285,12 +281,17 @@ public:
 
     // Struct storing buffer info for allocation order
     struct BufferOrder {
-        BufferOrder(mlir::Value buffer, vpux::AddressType size, size_t level = std::numeric_limits<size_t>::min(),
-                    bool highAllocationPriority = false)
-                : buffer(buffer), size(size), level(level), highAllocationPriority(highAllocationPriority) {
+        BufferOrder(mlir::Value buffer, vpux::AddressType size, size_t outDegree,
+                    size_t level = std::numeric_limits<size_t>::min(), bool highAllocationPriority = false)
+                : buffer(buffer),
+                  size(size),
+                  outDegree(outDegree),
+                  level(level),
+                  highAllocationPriority(highAllocationPriority) {
         }
         mlir::Value buffer;
         vpux::AddressType size;
+        size_t outDegree;
         size_t level;
         bool highAllocationPriority;
     };
@@ -334,17 +335,21 @@ public:
     };
     // Struct storing info for prefetch DMAs
     struct PrefetchDMA {
-        PrefetchDMA(operationIdxType opIdx, size_t level, mlir::Value buffer = nullptr)
-                : opIdx_(opIdx), level_(level), buffer_(buffer) {
+        PrefetchDMA(operationIdxType opIdx, size_t level, size_t outDegree = 0, mlir::Value buffer = nullptr)
+                : opIdx_(opIdx), level_(level), buffer_(buffer), outDegree_(outDegree) {
         }
         operationIdxType opIdx_;
         size_t level_;
         mlir::Value buffer_;
+        size_t outDegree_;
     };
     // Sort prefetchSet based on PrefetchDMA level
     struct LevelSort {
         bool operator()(const PrefetchDMA& op1, const PrefetchDMA& op2) const {
             if (op1.level_ == op2.level_) {
+                if (op1.outDegree_ != op2.outDegree_) {
+                    return op1.outDegree_ > op2.outDegree_;
+                }
                 return op1.opIdx_ < op2.opIdx_;
             }
 
@@ -449,6 +454,7 @@ private:
     void forceScheduleActiveOpEviction();
     size_t getOpBufferOutputIdx(operationIdxType opIdx, mlir::Value buffer);
     void cleanUpAndLogSchedule();
+    void createBufferAsyncIdxMap();
 
 private:
     Logger _log;
@@ -511,6 +517,12 @@ private:
             {VPU::ExecutorKind::NCE, {1}},    {VPU::ExecutorKind::SHAVE_NN, {1}}, {VPU::ExecutorKind::SHAVE_ACT, {1}}};
     // spilled operation cycle cost
     mlir::DenseMap<mlir::Value, size_t> _spillBufferCycleCost;
+
+    // Map of root buffers and vector of operations (operationIdx) writing to this buffer
+    // This is used to sort the shared buffers based on their outdegree using the _outDegreeTable
+    // so that we can prefetch them at the start in the CMX not somewhere in the middle to get a contigious CMX
+    // space
+    mlir::DenseMap<mlir::Value, SmallVector<operationIdxType>> _bufferOpIdxMap;
 };
 
 }  // namespace vpux

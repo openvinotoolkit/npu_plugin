@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #pragma once
 
 #include "vpux/compiler/dialect/VPU/ops.hpp"
@@ -15,6 +13,8 @@
 
 namespace vpux {
 namespace VPU {
+
+OutputTiling getLayerTilingStrategy(VPU::TilingBuilderOpInterface origOp, bool enablePrefetchTiling, Logger log);
 
 mlir::LogicalResult checkAndAlignActInputTiling(vpux::VPU::NCEOpInterface nceOp, InputTiling& inputTiling,
                                                 vpux::Logger log);

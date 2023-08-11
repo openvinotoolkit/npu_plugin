@@ -4,24 +4,26 @@
 //
 
 // IE
+#include <cpp_interfaces/interface/ie_internal_plugin_config.hpp>
 #include <ie_metric_helpers.hpp>
 // Plugin
 #include "device_helpers.hpp"
 #include "vpux/properties.hpp"
+#include "vpux/vpux_metrics.hpp"
 #include "vpux_metrics.h"
 #include "vpux_private_config.hpp"
 #include "vpux_private_properties.hpp"
 
 namespace vpux {
-namespace IE = InferenceEngine;
 
 Metrics::Metrics(const VPUXBackends::CPtr& backends): _backends(backends) {
     _supportedMetrics = {
-            METRIC_KEY(SUPPORTED_METRICS),         METRIC_KEY(AVAILABLE_DEVICES),
-            METRIC_KEY(FULL_DEVICE_NAME),          METRIC_KEY(SUPPORTED_CONFIG_KEYS),
-            METRIC_KEY(OPTIMIZATION_CAPABILITIES), METRIC_KEY(RANGE_FOR_ASYNC_INFER_REQUESTS),
-            METRIC_KEY(RANGE_FOR_STREAMS),         METRIC_KEY(IMPORT_EXPORT_SUPPORT),
-            METRIC_KEY(DEVICE_ARCHITECTURE),
+            METRIC_KEY(SUPPORTED_METRICS),          METRIC_KEY(AVAILABLE_DEVICES),
+            METRIC_KEY(FULL_DEVICE_NAME),           METRIC_KEY(SUPPORTED_CONFIG_KEYS),
+            METRIC_KEY(OPTIMIZATION_CAPABILITIES),  METRIC_KEY(RANGE_FOR_ASYNC_INFER_REQUESTS),
+            METRIC_KEY(RANGE_FOR_STREAMS),          METRIC_KEY(IMPORT_EXPORT_SUPPORT),
+            METRIC_KEY(DEVICE_ARCHITECTURE),        ov::caching_properties.name(),
+            VPUX_METRIC_KEY(DEVICE_TOTAL_MEM_SIZE),
     };
 
     _supportedConfigKeys = {ov::log::level.name(),
@@ -30,8 +32,7 @@ Metrics::Metrics(const VPUXBackends::CPtr& backends): _backends(backends) {
                             ov::hint::performance_mode.name(),
                             ov::num_streams.name(),
                             ov::hint::num_requests.name(),
-                            ov::intel_vpux::compilation_mode_params.name(),
-                            ov::intel_vpux::inference_shaves.name()};
+                            ov::intel_vpux::compilation_mode_params.name()};
 }
 
 std::vector<std::string> Metrics::GetAvailableDevicesNames() const {
@@ -80,12 +81,25 @@ Uuid Metrics::GetDeviceUuid(const std::string& specifiedDeviceName) const {
     return Uuid{};
 }
 
+std::vector<ov::PropertyName> Metrics::GetCachingProperties() const {
+    return _cachingProperties;
+}
+
 std::string Metrics::GetBackendName() const {
     if (_backends == nullptr) {
         IE_THROW() << "No available backends";
     }
 
     return _backends->getBackendName();
+}
+
+uint64_t Metrics::GetDeviceTotalMemSize(const std::string& specifiedDeviceName) const {
+    const auto devName = getDeviceName(specifiedDeviceName);
+    auto device = _backends->getDevice(devName);
+    if (device) {
+        return device->getTotalMemSize();
+    }
+    IE_THROW() << "No device with name '" << specifiedDeviceName << "' is available";
 }
 
 std::string Metrics::getDeviceName(const std::string& specifiedDeviceName) const {

@@ -1,7 +1,8 @@
 //
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
+
 // RUN: vpux-opt --split-input-file --init-compiler="vpu-arch=%arch%" --feasible-allocation="memory-space=CMX_NN second-level-memory-space=DDR" %s | FileCheck %s
 // REQUIRES: arch-VPUX30XX || arch-VPUX37XX
 
@@ -22,7 +23,7 @@ IE.CNNNetwork
 // CHECK:   module @UsedMemory
 // CHECK:           IE.MemoryResource 1024 bytes of @CMX_NN
 
-func @main(%in: memref<1x16x4x4xf16, #NHWC, [@CMX_NN, 0]>, %out: memref<1x16x4x4xf16, #NHWC>) -> memref<1x16x4x4xf16, #NHWC> {
+func.func @main(%in: memref<1x16x4x4xf16, #NHWC, [@CMX_NN, 0]>, %out: memref<1x16x4x4xf16, #NHWC>) -> memref<1x16x4x4xf16, #NHWC> {
     %wt = const.Declare memref<16x1x1x4xsi32, [@CMX_NN, 0]> = dense<1> : tensor<16x1x1x4xsi32>
     %act_win = const.Declare memref<1x1x1x16xui8, [@CMX_NN, 0]> = dense<1> : tensor<1x1x1x16xui8>
 
@@ -136,8 +137,10 @@ func @main(%in: memref<1x16x4x4xf16, #NHWC, [@CMX_NN, 0]>, %out: memref<1x16x4x4
 // CHECK-LABEL: @SimpleGraphWithReservedMem
 module @SimpleGraphWithReservedMem {
 
-module @DmaProfilingReservedMemory {
-    IE.MemoryResource 512 bytes of @CMX_NN offset 0
+module @ReservedMemory {
+    module @DmaProfilingReservedMemory {
+        IE.MemoryResource 512 bytes of @CMX_NN offset 0
+    }
 }
 
 IE.CNNNetwork
@@ -152,7 +155,7 @@ IE.CNNNetwork
 // CHECK:   module @UsedMemory
 // CHECK:           IE.MemoryResource 1536 bytes of @CMX_NN
 
-func @main(%in: memref<1x16x4x4xf16, #NHWC, [@CMX_NN, 0]>, %out: memref<1x16x4x4xf16, #NHWC>) -> memref<1x16x4x4xf16, #NHWC> {
+func.func @main(%in: memref<1x16x4x4xf16, #NHWC, [@CMX_NN, 0]>, %out: memref<1x16x4x4xf16, #NHWC>) -> memref<1x16x4x4xf16, #NHWC> {
     %wt = const.Declare memref<16x1x1x4xsi32, [@CMX_NN, 0]> = dense<1> : tensor<16x1x1x4xsi32>
     %act_win = const.Declare memref<1x1x1x16xui8, [@CMX_NN, 0]> = dense<1> : tensor<1x1x1x16xui8>
 
@@ -279,7 +282,7 @@ IE.CNNNetwork
 // CHECK:   module @UsedMemory
 // CHECK:           IE.MemoryResource 1024 bytes of @CMX_NN
 
-func @main(%arg0: memref<1x16x4x4xf16, #NHWC, [@CMX_NN, 0]>, %arg1: memref<1x16x4x4xf16, #NHWC>, %arg2: memref<1x16x4x4xf16, #NHWC>)
+func.func @main(%arg0: memref<1x16x4x4xf16, #NHWC, [@CMX_NN, 0]>, %arg1: memref<1x16x4x4xf16, #NHWC>, %arg2: memref<1x16x4x4xf16, #NHWC>)
         -> (memref<1x16x4x4xf16, #NHWC>, memref<1x16x4x4xf16, #NHWC>) {
     %cst = const.Declare memref<1x16x4x4xf16, #NHWC, [@CMX_NN, 0]> = dense<1.000000e+00> : tensor<1x16x4x4xf16>, [#const.Reorder<#NHWC>]
     %wt = const.Declare memref<16x1x1x4xsi32, [@CMX_NN, 0]> = dense<1> : tensor<16x1x1x4xsi32>

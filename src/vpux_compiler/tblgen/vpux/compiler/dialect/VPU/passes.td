@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #ifndef VPUX_COMPILER_DIALECT_VPU_PASSES
 #define VPUX_COMPILER_DIALECT_VPU_PASSES
 
@@ -27,7 +25,7 @@ def InitCompiler : PassBase<"init-compiler", "vpux::ModulePass"> {
     let options = [
         Option<
             "archOpt", "vpu-arch",
-            "std::string", [{"VPUX30XX"}],
+            "std::string", "",
             "VPU architecture to compile for"
         >,
         Option<
@@ -44,6 +42,11 @@ def InitCompiler : PassBase<"init-compiler", "vpux::ModulePass"> {
             "numberOfDMAPortsOpt", "num-of-dma-ports",
             "int", "",
             "[Optional] Number of available DMA ports"
+        >,
+        Option<
+            "allowCustomValues", "allow-custom-values",
+            "bool", "",
+            "[Optional] Allows keep predefined values in IR"
         >
     ];
 
@@ -82,6 +85,112 @@ def WrapVPUOpsInNCEClusterTiling : PassBase<"wrap-vpu-ops-in-ncecluster-tiling",
     }];
 
     let constructor = "vpux::VPU::createWrapVPUOpsInNCEClusterTilingPass()";
+
+    let dependentDialects = [
+        "vpux::VPU::VPUDialect"
+    ];
+}
+
+//
+// Wrap operations in VerticalFusionOp
+//
+
+def WrapVerticalFusionRegion : PassBase<"wrap-in-vertical-fusion", "vpux::FunctionPass"> {
+    let summary = "This pass wraps vpu operations that might be tiled in order to implement VF";
+
+    let description = [{
+        Wrap operations to VerticalFusion block which match criterias
+        1. Operation has activation tiling (activation doesn't fit in CMX)
+        2. NCE operations don't have strides larger than 1
+        3. Even if NCE operation doesn't have activation tiling, but its kernel is 1x1,
+        it also might be wrapped because there is no additional computation cost of it
+    }];
+
+    let constructor = "vpux::VPU::createWrapVerticalFusionRegionPass()";
+
+    let dependentDialects = [
+        "vpux::VPU::VPUDialect"
+    ];
+}
+
+//
+// Build VF Subgraph
+//
+
+def MergeVfSubgraphs : PassBase<"merge-vertical-fusion-subgraphs", "vpux::FunctionPass"> {
+    let summary = "Build subgraph from VF single regions";
+
+    let description = [{
+        Merge VF blocks and add operations to them recalculating tiling information
+        and in following cases:
+        1. Number of operations which might increase computational cost does not exceed limit
+        2. All operations have same multicluster strategy or don't have them at all
+        3. Region which is supposed to be added doesn't have any other users except current region or
+        all its users point to current region too.
+        4. All operations in new region after merging fit in CMX when they are tiled for VF. In case they don't, number of tiles 
+        increases.
+    }];
+
+    let constructor = "vpux::VPU::createMergeVfSubgraphsPass()";
+
+    let dependentDialects = [
+        "vpux::VPU::VPUDialect"
+    ];
+}
+
+//
+// VF Tiling
+//
+
+def VfTiling : PassBase<"vertical-fusion-tiling", "vpux::FunctionPass"> {
+    let summary = "Apply tiling on VF subgraph";
+
+    let description = [{
+        Apply VF tiling on subgraph wrapped in VF region.
+    }];
+
+    let constructor = "vpux::VPU::createVfTilingPass()";
+
+    let dependentDialects = [
+        "vpux::VPU::VPUDialect"
+    ];
+}
+
+//
+// Unroll unused VerticalFusionOp
+//
+
+def UnrollUnusedVerticalFusionRegion : PassBase<"unroll-unused-vertical-fusion", "vpux::FunctionPass"> {
+    let summary = "Unroll single VF blocks";
+
+    let description = [{
+        Unroll VF block in case it hasn't been assembled with other blocks in subgraph
+    }];
+
+    let constructor = "vpux::VPU::createUnrollUnusedVerticalFusionRegionPass()";
+
+    let dependentDialects = [
+        "vpux::VPU::VPUDialect"
+    ];
+}
+
+//
+// Adjust tiling strategy for VF
+//
+
+def AdjustVFTilingStrategy : PassBase<"adjust-vf-tiling-strategy", "vpux::FunctionPass"> {
+    let summary = "Adjust tiling strategy in order to make sure that all subgraphs fit in CMX";
+
+    let description = [{
+        Take into account conditions in order to avoid additional spills
+        In case some of them breaks, increase number of tiles
+        Following buffers should fit in CMX for each VF tile
+        1. Input tensors of VF tile
+        2. Output of VF tile
+        3. Largest operation in the block
+    }];
+
+    let constructor = "vpux::VPU::createAdjustVFTilingStrategyPass()";
 
     let dependentDialects = [
         "vpux::VPU::VPUDialect"
@@ -175,6 +284,43 @@ def CorrectNCEWorkloads : PassBase<"correct-NCE-workloads", "vpux::FunctionPass"
 }
 
 //
+// ResolveEltwiseWithZTiledWorkloads
+//
+
+def ResolveEltwiseWithZTiledWorkloads : PassBase<"resolve-eltwise-with-z-tiled-workloads", "vpux::FunctionPass"> {
+    let summary = "Resolves Eltwise operations which have workloads tiled over Z";
+
+    let description = [{
+        Hardware Eltwise does not support variants tiled over the Z dimension. If such cases are encountered,
+        these operations are split into separate Eltwise operations, each containing the workloads that cover
+        a different subset of channels.
+
+        For example, if the original Eltwise contains the following workloads:
+            1. offset = [0, 0,  0, 0], sizes = [1, 64, 8, 16], cluster_id = 0
+            2. offset = [0, 64, 0, 0], sizes = [1, 64, 8, 16], cluster_id = 0
+            3. offset = [0, 0,  8, 0], sizes = [1, 64, 8, 16], cluster_id = 1
+            4. offset = [0, 64, 8, 0], sizes = [1, 64, 8, 16], cluster_id = 1
+        Two Eltwise operations will be created, the first one containing workloads 1 and 3, the other one
+        workloads 2 and 4, with their channel offsets reset to zero. The correct subset of channels is
+        sliced individually for each new Eltwise operation.
+
+        In case the inputs are distributed types in CMX, manual copy operations that spill them to DDR are
+        introduced, in order to avoid Slice operations that work with these types. These Slice operations
+        would get lowered to copies where both the input and output are distributed types; such scenarios
+        are not fully supported (E#78676).
+
+        The outputs of the smaller Eltwise operations get copied to DDR in order to avoid accuracy degradation
+        that takes place when the outputs are concatenated in CMX.
+    }];
+
+    let constructor = "vpux::VPU::createResolveEltwiseWithZTiledWorkloadsPass()";
+
+    let dependentDialects = [
+        "vpux::VPU::VPUDialect"
+    ];
+}
+
+//
 // AdjustMemorySpace
 //
 
@@ -233,23 +379,22 @@ def ResolvePWLPostOps : PassBase<"resolve-pwl-post-ops", "vpux::FunctionPass"> {
 }
 
 //
-// ConvertScalarToTensor
+// SplitGRUSequence
 //
 
-def ConvertScalarToTensor : PassBase<"convert-scalar-to-tensor", "vpux::FunctionPass"> {
-    let summary = "Convert a scalar input to tensor";
+def SplitGRUSequence : PassBase<"split-gru-sequence", "vpux::FunctionPass"> {
+    let summary = "Split GRUSequence into GRUSequenceFirstPart and GRUSequenceLastPart";
 
     let description = [{
-        Some operations (e.g. Gather) do not support scalar data. This pass converts scalar operands to tensors with one element.
+        The pass can split GRUSequence into two parts to fit into CMX when tiling strategy can't be generated.
     }];
 
-    let constructor = "vpux::VPU::createConvertScalarToTensorPass()";
+    let constructor = "vpux::VPU::createSplitGRUSequencePass()";
 
     let dependentDialects = [
         "vpux::VPU::VPUDialect"
     ];
 }
-
 
 //
 // DetectInPlaceEltwise
@@ -286,13 +431,18 @@ def WrapOpsInSparsifyDesparsifyPairs : PassBase<"wrap-ops-in-sparsify-pairs", "v
         - profile S1: add Sparsify-Desparsify chain both for inputs and output
     }];
 
-    let constructor = "vpux::VPU::createWrapOpsInSparsifyDesparsifyPairsPass(vpux::VPU::symbolizeEnum<VPU::ActivationSparsityProfile>)";
+    let constructor = "vpux::VPU::createWrapOpsInSparsifyDesparsifyPairsPass()";
 
     let dependentDialects = [
         "vpux::VPU::VPUDialect"
     ];
 
     let options = [
+        Option<
+            "enableActivationSparsityMode", "enable-activation-sparsity-mode",
+            "std::string", [{"false"}],
+            "Activation sparsity enablement mode (auto, true or false)"
+        >,
         Option<
             "sparsityProfile", "sparsity-profile",
             "std::string", [{""}],
@@ -383,10 +533,11 @@ def LowerSparsityOps : PassBase<"lower-sparsity-ops", "vpux::FunctionPass"> {
     let constructor = "vpux::VPU::createLowerSparsityOpsPass()";
 
     let description = [{
-        Convert left Sparsify/Desparsify operations to actual HW ops. Desparsify converts
-        to Eltwise with aliased inputs, while Sparsify lowering controled by fake-sparsify option.
-        If fake-sparsify enabled lowering, then fake sparsity map(all values are 1's) will be generated.
-        Otherwise lowering in same way as Desparsify.
+        Converts Sparsify operations to Convolutions and Desparsify operations to Eltwise ops.
+
+        In case the `fakeSparsity` flag is set to true, Sparsify operations are instead converted to a
+        GroupSparseTensor operation whose sparsity map contains only values of 1. This lets the data be
+        interpreted as a sparse one without actually removing the sparse values.
     }];
 
     let dependentDialects = [
@@ -459,29 +610,90 @@ def AddSparsityMapToSparseActivations : PassBase<"add-sparsity-map-to-sparse-act
     ];
 }
 
+//
+// LowerOpsToSENCE
+//
+
+def LowerOpsToSENCE : PassBase<"lower-ops-to-se-nce", "vpux::FunctionPass"> {
+    let summary = "Converts compatible operations to SE NCE operations";
+
+    let description = [{
+        Finds operations that can be executed on hardware using the Storage Element pointers
+        feature and lowers them to VPU.NCE.
+
+        The list of supported operations:
+        - Interpolate - mode: NEAREST
+                        axes: H, W
+                        coordinate_transformation_mode: ASYMMETRIC
+                        nearest_mode: all
+                        scale: integer only
+                        padding: none
+
+                      - mode: LINEAR, LINEAR_ONNX
+                        axes: H, W
+                        coordinate_transformation_mode: ASYMMETRIC
+                        scale: [1-11] (integer only)
+                        padding: none
+    }];
+
+    let constructor = "vpux::VPU::createLowerOpsToSENCEPass()";
+
+    let dependentDialects = [
+        "vpux::VPU::VPUDialect"
+    ];
+}
+
 //=================================================================================
 // Tiling
 //=================================================================================
 
 //
-// Isolated Tiling
+// Tiling Strategy Assignment
 //
 
-def IsolatedTiling : PassBase<"isolated-tiling", "vpux::FunctionPass"> {
-    let summary = "Tile layers in isolation so that all their I/O meet the memory capacity";
+def TilingStrategyAssignment : PassBase<"tiling-strategy-assignment", "vpux::FunctionPass"> {
+    let summary = "Assign tiling strategy for layers applicable";
 
     let description = [{
-        The pass applies tiling to the layers whose memory requirements exceed the capacity available.
+        The pass assigns tiling strategy for layers whose memory requirements exceed the capacity available.
+        The pass only assigns strategy and do not perform any tiling actions, and if tiling strategy is set by
+        ManualStrategyUtilsPass, it will not be processed by this pass.
 
-        The pass tries to split each single layer in isolation, with no smarter heuristics
-        such as "allow running in parallel" or "allow continious computation in tiles" or any else.
+        Isolated tiling: split each single layer in isolation, with no smarter heuristics such as
+                         "allow running in parallel" or "allow continious computation in tiles" or any else.
+        Prefetch tiling: tries to run tiles in parallel, and 'prefetch' means that the next tile could be loaded
+                         in advance when the current tile is computing.
 
-        The pass does not use any cost model to optimize the entire layer's processing time. It just
-        iteratively increases the number of tiles until the the largest tile's memory requirements  meet
-        the device capacity, and stops there.
+        The pass does not use any cost model to optimize the entire layer's processing time.
     }];
 
-    let constructor = "vpux::VPU::createIsolatedTilingPass()";
+    let constructor = "vpux::VPU::createTilingStrategyAssignmentPass()";
+
+    let dependentDialects = [
+        "vpux::VPU::VPUDialect"
+    ];
+
+    let options = [
+        Option<
+            "tilingMode", "tiling-mode",
+            "std::string", [{"PREFETCH"}],
+            "[Optional] Set tiling mode as `ISOLATED` or `PREFETCH`"
+        >
+    ];
+}
+
+//
+// Apply Tiling
+//
+
+def ApplyTiling : PassBase<"apply-tiling", "vpux::FunctionPass"> {
+    let summary = "Apply tiling on layers with assigned tiling strategy";
+
+    let description = [{
+        The pass applies tiling strategy on layers with previously assigned strategy attribute.
+    }];
+
+    let constructor = "vpux::VPU::createApplyTilingPass()";
 
     let dependentDialects = [
         "vpux::VPU::VPUDialect"
@@ -489,59 +701,49 @@ def IsolatedTiling : PassBase<"isolated-tiling", "vpux::FunctionPass"> {
 }
 
 //
-// Prefetch Tiling
+// DetectionOutput decomposition
 //
 
-def PrefetchTiling : PassBase<"prefetch-tiling", "vpux::FunctionPass"> {
-    let summary = "Tile layers into smaller tiles to enable prefetch pipeline";
+def DetectionOutputDecomposition : PassBase<"detection-output-decomposition", "vpux::FunctionPass"> {
+    let summary = "Replace DetectionOutput operation with a subgraph of smaller operations";
 
     let description = [{
-        The pass performs tiling on layers to enable prefetch pipeline.
+        Replace DetectionOutput operation
+        ┌─────────┐   ┌────────────────┐  ┌──────────┐
+        │BoxLogits│   │ClassPredictions│  │PriorBoxes│
+        └────┬────┘   └───────┬────────┘  └─────┬────┘
+             │                │                 │
+             │         ┌──────┴────────┐        │
+             └─────────┤DetectionOutput├────────┘
+                       └───────────────┘
 
-        The pass tries run tiles in parallel.
-        The 'prefetch' means that the next tile could be loaded in advance when the current tile is computing.
-
-        The pass does not consider cost models,
-        only tiles layers to make at least two tiles could be loaded in CMX memory at the same time.
+        with a subgraph (Reshapes and MemPermutes are ommited)
+        ┌─────────┐  ┌──────────┐        ┌────────────────┐
+        │BoxLogits│  │PriorBoxes│        │ClassPredictions│
+        └───────┬─┘  └─┬────────┘        └───────┬────────┘
+                │      │                         │
+        ┌───────┴──────┴───────────┐  ┌──────────┴────────────┐
+        │DetectionOutputDecodeBoxes│  │DetectionOutputSortTopK│
+        └───────────────────┬──────┘  └───┬──┬─────┬─┬────────┘
+                            │             │  │     │ │
+                      ┌─────┴─────────────┴──┴───┐ │ │
+                      │DetectionOutputSelectBoxes│ │ │
+                      └─────────────┬────────────┘ │ │
+                                    │              │ │
+                                  ┌─┴──────────────┴─┴────┐
+                                  │DetectionOutputNmsCaffe│
+                                  └────┬─┬─┬──────────────┘
+                                       │ │ │
+                          ┌────────────┴─┴─┴────────────┐
+                          │DetectionOutputCollectResults│
+                          └─────────────────────────────┘
     }];
 
-    let constructor = "vpux::VPU::createPrefetchTilingPass()";
+    let constructor = "vpux::VPU::createDetectionOutputDecompositionPass()";
 
     let dependentDialects = [
         "vpux::VPU::VPUDialect"
     ];
-}
-
-//
-// OptimizeConcatSliceToSliceConcat
-//
-
-def OptimizeConcatSliceToSliceConcat : PassBase<"optimize-concate-slice-to-slice-concat", "vpux::FunctionPass"> {
-    let summary = "Optimize concate-slice to slice-concat";
-
-    let description = [{
-        This pass optimize concat-slice to slice-concat to reduce data copy.
-    }];
-
-    let constructor = "vpux::VPU::createOptimizeConcatSliceToSliceConcatPass()";
-
-    let dependentDialects = [
-        "vpux::VPU::VPUDialect"
-    ];
-}
-
-//
-// Manual Tiling
-//
-
-def ManualTiling : PassBase<"manual-tiling", "vpux::FunctionPass"> {
-    let summary = "Tile layers with manual strategy";
-
-    let description = [{
-        The pass performs manual tiling on layers specified by the user.
-    }];
-
-    let constructor = "vpux::VPU::createManualTilingPass()";
 }
 
 //
@@ -577,10 +779,6 @@ def EnsureNCEOpsSizeRequirements : PassBase<"ensure-nce-ops-size-requirements", 
         This pass ensures that hardware operations meet hardware size requirements:
         each operation need to have less than 8192 values per dimension. This is done
         by tiling such operations into smaller ones.
-        
-        Note: currently, operations with input channels greater than 8192 will cause this
-        pass to fail. I introduced allowLargeInputChannels config, in order to bypass this failure for Model_G,
-        this will be removed when input channel implementation done.
     }];
 
     let constructor = "vpux::VPU::createEnsureNCEOpsSizeRequirementsPass()";
@@ -606,6 +804,26 @@ def FuseClampPass : PassBase<"fuse-clamp", "vpux::FunctionPass"> {
     }];
 
     let constructor = "vpux::VPU::createFuseClampPass()";
+
+    let dependentDialects = [
+        "vpux::VPU::VPUDialect"
+    ];
+}
+
+//
+// AdjustTilingForPermuteQuantizePass
+//
+
+def AdjustTilingForPermuteQuantizePass : PassBase<"adjust-tiling-for-permute-quantize", "vpux::FunctionPass"> {
+    let summary = "Adjust Slice and Concat position after tiling permute quantize";
+
+    let description = [{
+        This pass rewrites the operation sequence for `VPU.NCE.PermuteQuantize`.
+        After `ApplyTilingPass` `VPU.Slice` and `VPU.Concat` operations will be inserted next to `VPU.NCE.PermuteQuantize`, 
+        but we want to slice and concatenate all the sequence (Reshape -> LayoutCast -> PermuteQuantize -> LayoutCast -> [optional Reshape]).
+    }];
+
+    let constructor = "vpux::VPU::createAdjustTilingForPermuteQuantizePass()";
 
     let dependentDialects = [
         "vpux::VPU::VPUDialect"

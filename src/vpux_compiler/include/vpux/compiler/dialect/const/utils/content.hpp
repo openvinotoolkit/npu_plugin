@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #pragma once
 
 #include "vpux/compiler/core/attributes/shape.hpp"
@@ -58,6 +56,14 @@ struct CvtHelper<bfloat16> final {
     template <typename InT>
     static bfloat16 cvt(InT val) {
         return bfloat16(checked_cast<float>(val));
+    }
+};
+
+template <>
+struct CvtHelper<bool> final {
+    template <typename InT>
+    static bool cvt(InT val) {
+        return val != static_cast<InT>(0);
     }
 };
 

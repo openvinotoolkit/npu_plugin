@@ -9,8 +9,6 @@ namespace vpux {
 
 constexpr StringLiteral multiClusterStrategy = "multiClusterStrategy";  // only be used for manual strategy utils
 constexpr StringLiteral tilingStrategy = "tilingStrategy";
-constexpr StringLiteral manualTilingStrategy = "manualTilingStrategy";
-constexpr StringLiteral manualTilingStrategyApplied = "manualTilingStrategyApplied";
 constexpr StringLiteral defaultNoStrategy = "NONE";
 
 }  // namespace vpux

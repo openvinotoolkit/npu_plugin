@@ -3,18 +3,14 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #pragma once
-
-#include "vpux/compiler/dialect/const/ops.hpp"
 
 #include "vpux/compiler/dialect/ELF/ops.hpp"
 #include "vpux/compiler/dialect/EMU/ops.hpp"
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/IERT/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
-#include "vpux/compiler/dialect/VPUIPRegMapped/ops.hpp"
+#include "vpux/compiler/dialect/VPUMI37XX/ops.hpp"
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
 #include "vpux/compiler/utils/passes.hpp"
 
@@ -24,7 +20,6 @@
 #include <mlir/Dialect/LLVMIR/LLVMDialect.h>
 #include <mlir/Dialect/Math/IR/Math.h>
 #include <mlir/Dialect/Quant/QuantOps.h>
-#include <mlir/Dialect/StandardOps/IR/Ops.h>
 #include <mlir/IR/BuiltinOps.h>
 #include <mlir/Pass/Pass.h>
 #include <mlir/Pass/PassManager.h>
@@ -68,7 +63,8 @@ std::unique_ptr<mlir::Pass> createConvertLayers2VPUPass(Logger log = Logger::glo
 // including Function types, call graph and return operations.
 //
 
-void buildLowerVPU2VPUIPPipeline(mlir::OpPassManager& pm, Logger log = Logger::global());
+void buildLowerVPU2VPUIP37XXPipeline(mlir::OpPassManager& pm, Logger log = Logger::global());
+void buildLowerVPU2VPUIP30XXPipeline(mlir::OpPassManager& pm, Logger log = Logger::global());
 
 std::unique_ptr<mlir::Pass> createBufferizeFuncAndReturnPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createAddBuffersForNetResults(Logger log = Logger::global());
@@ -76,12 +72,17 @@ std::unique_ptr<mlir::Pass> createAddBuffersForNetResults(Logger log = Logger::g
 std::unique_ptr<mlir::Pass> createConvertVPUNCEToVPUIPPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createConvertNCEClusterTilingToVPUIPPass(Logger log = Logger::global());
 
-std::unique_ptr<mlir::Pass> createConvertSWLayers2VPUIPPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createConvertSWLayers2VPUIPSWKernelPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createConvertSWLayers2VPUIPUPAPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createConvertSWLayers2AffinePass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createConvertAffine2LLVMPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createConvertLayers2VPUIPPass(Logger log = Logger::global());
-std::unique_ptr<mlir::Pass> createConvertVPUIP2VPUIPRegMappedPass(Logger log = Logger::global());
-std::unique_ptr<mlir::Pass> createConvertVPUIPRegMapped2ELFPass(Logger log = Logger::global());
+
+// ELF back-end lowerings
+std::unique_ptr<mlir::Pass> createConvertVPUIP2VPUMI37XXPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createConvertVPUMI37XX2ELFPass(Logger log = Logger::global());
+
+std::unique_ptr<mlir::Pass> createMoveIOBuffersToSectionsPass(Logger log = Logger::global());
 
 void buildLowerVPUIP2ELFPipeline(mlir::OpPassManager& pm, Logger log = Logger::global());
 

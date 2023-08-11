@@ -1,5 +1,5 @@
 //
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -35,7 +35,7 @@ struct UpstreamReduceStridedSliceTestParams {
 //                                     V
 //                                 Slice_1 (H)  --- > ...
 
-class KmbUpstreamReduceStridedSliceSubGraphTest :
+class VPUXUpstreamReduceStridedSliceSubGraphTest_VPU3700 :
         public LayerTestsUtils::KmbLayerTestsCommon,
         public testing::WithParamInterface<UpstreamReduceStridedSliceTestParams> {
     void ValidateTestParams(UpstreamReduceStridedSliceTestParams testParams) {
@@ -169,25 +169,25 @@ class KmbUpstreamReduceStridedSliceSubGraphTest :
 
         const ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(addStridedSlice)};
 
-        function = std::make_shared<ngraph::Function>(results, paramIns, "KmbUpstreamReduceStridedSliceSubGraphTest");
+        function = std::make_shared<ngraph::Function>(results, paramIns, "VPUXUpstreamReduceStridedSliceSubGraphTest");
 
         threshold = 0.5f;
     }
 };
 
-TEST_P(KmbUpstreamReduceStridedSliceSubGraphTest, CompareWithRefs_MLIR_SW) {
-    useCompilerMLIR();
+TEST_P(VPUXUpstreamReduceStridedSliceSubGraphTest_VPU3700, SW) {
+    setPlatformVPU3700();
     setReferenceSoftwareModeMLIR();
     Run();
 }
 
-TEST_P(KmbUpstreamReduceStridedSliceSubGraphTest, CompareWithRefs_MLIR_HW) {
-    useCompilerMLIR();
+TEST_P(VPUXUpstreamReduceStridedSliceSubGraphTest_VPU3700, HW) {
+    setPlatformVPU3700();
     setDefaultHardwareModeMLIR();
     Run();
 }
 
-INSTANTIATE_TEST_CASE_P(smoke, KmbUpstreamReduceStridedSliceSubGraphTest,
+INSTANTIATE_TEST_CASE_P(smoke_UpstreamReduceStridedSlice, VPUXUpstreamReduceStridedSliceSubGraphTest_VPU3700,
                         ::testing::Values(UpstreamReduceStridedSliceTestParams{
                                 LayerTestsUtils::testPlatformTargetDevice,  // device
                                 {{1, 16, 64, 4}, {1, 16, 17, 2}},           // in dims

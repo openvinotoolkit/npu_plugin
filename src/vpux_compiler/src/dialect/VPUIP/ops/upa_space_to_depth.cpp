@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include <mlir/IR/BuiltinTypes.h>
 #include "vpux/compiler/dialect/VPUIP/graph-schema/blob_reader.hpp"
 #include "vpux/compiler/dialect/VPUIP/graph-schema/utils.hpp"
@@ -13,9 +11,9 @@
 
 using namespace vpux;
 
-mlir::LogicalResult vpux::VPUIP::verifyOp(SpaceToDepthUPAOp op) {
-    if (op.block_size() <= 0) {
-        return errorAt(op, "block_size should be greater than zero");
+mlir::LogicalResult vpux::VPUIP::SpaceToDepthUPAOp::verify() {
+    if (block_size() <= 0) {
+        return errorAt(*this, "block_size should be greater than zero");
     }
 
     return mlir::success();

@@ -12,6 +12,7 @@
 #include <mlir/IR/BuiltinOps.h>
 #include <mlir/IR/BuiltinTypes.h>
 
+#include "vpux/compiler/dialect/VPUIP/graph-schema/export.hpp"
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
 #include "vpux/compiler/utils/logging.hpp"
 #include "vpux/hwtest/test_case_json_parser.hpp"
@@ -51,6 +52,8 @@ void buildCNNOp(mlir::OpBuilder& builder, llvm::StringRef mainFuncName, llvm::Ar
 
 void buildDMA(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module, mlir::OpBuilder builder, Logger& log,
               mlir::Type inputType, mlir::Type outputType);
+void buildDMACompressAct(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module, mlir::OpBuilder builder,
+                         Logger& log, mlir::Type inputType, mlir::Type outputType);
 void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module, mlir::OpBuilder builder,
                            Logger& log, mlir::Type inputType, mlir::Type weightsType, mlir::Type outputType);
 void buildContinuedConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module, mlir::OpBuilder builder,
@@ -64,6 +67,8 @@ void buildEltwiseAdd(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp 
 void buildEltwiseMultWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module,
                                 mlir::OpBuilder builder, Logger& log, mlir::Type inputType, mlir::Type weightsType,
                                 mlir::Type outputType);
+void buildEltwiseSparse(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module, mlir::OpBuilder builder,
+                        Logger& log, mlir::Type inputType, mlir::Type weightsType, mlir::Type outputType);
 void buildMaxPool(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module, mlir::OpBuilder builder,
                   Logger& log, mlir::Type input0Type, mlir::Type outputType);
 void buildAvgpoolWithDwConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp module, mlir::OpBuilder builder,
@@ -175,7 +180,8 @@ vpux::DimsOrder oduPermutationToLayout(const MVCNN::Permutation oduPermutation);
 vpux::Dim getInnermostDim(const vpux::DimsOrder& order);
 
 VPU::PaddingAttr getMulticlusteringPaddings(mlir::MLIRContext* ctx, const int64_t cluster, const int64_t numClusters,
-                                            nb::SegmentationType segmentationType, VPU::PaddingAttr globalPadding);
+                                            nb::SegmentationType segmentationType, VPU::PaddingAttr globalPadding,
+                                            SmallVector<std::int64_t> clustersPerDim = {});
 
 }  // namespace hwtest
 }  // namespace vpux

@@ -1,111 +1,114 @@
 //
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
+
 // RUN: vpux-opt --split-input-file --init-compiler="vpu-arch=%arch%" --tile-copies %s | FileCheck %s
 // REQUIRES: arch-VPUX30XX || arch-VPUX37XX
 
 #NCHW = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
 
-func @SplitByChannels(
-        %arg0: memref<1x320x32x16xf16, {order = #NCHW, strides = [655360, 2048, 32, 1]}>,
-        %arg1: memref<1x320x32x16xf16, {order = #NCHW, strides = [655360, 2048, 32, 1]}>)
-        -> memref<1x320x32x16xf16, {order = #NCHW, strides = [655360, 2048, 32, 1]}> {
-    %0 = VPUIP.Copy inputs(%arg0 : memref<1x320x32x16xf16, {order = #NCHW, strides = [655360, 2048, 32, 1]}>)
-                   outputs(%arg1 : memref<1x320x32x16xf16, {order = #NCHW, strides = [655360, 2048, 32, 1]}>)
-                   -> memref<1x320x32x16xf16, {order = #NCHW, strides = [655360, 2048, 32, 1]}>
+func.func @SplitDoubleStrideCopyByChannels(
+        %arg0: memref<1x320x32x16xf16, {order = #NCHW, strides = [655360, 1024, 32, 1]}>,
+        %arg1: memref<1x320x32x16xf16, {order = #NCHW, strides = [655360, 1024, 32, 1]}>)
+        -> memref<1x320x32x16xf16, {order = #NCHW, strides = [655360, 1024, 32, 1]}> {
+    %0 = VPUIP.Copy inputs(%arg0 : memref<1x320x32x16xf16, {order = #NCHW, strides = [655360, 1024, 32, 1]}>)
+                   outputs(%arg1 : memref<1x320x32x16xf16, {order = #NCHW, strides = [655360, 1024, 32, 1]}>)
+                   -> memref<1x320x32x16xf16, {order = #NCHW, strides = [655360, 1024, 32, 1]}>
 
-    return %0 : memref<1x320x32x16xf16, {order = #NCHW, strides = [655360, 2048, 32, 1]}>
+    return %0 : memref<1x320x32x16xf16, {order = #NCHW, strides = [655360, 1024, 32, 1]}>
 
     // CHECK: %[[ARG_0_TILE_0:.*]] = VPUIP.SubView %arg0 [0, 0, 0, 0] [1, 255, 32, 16] :
-    // CHECK-SAME:              memref<1x320x32x16xf16, {order = #NCHW, strides = [655360, 2048, 32, 1]}>
-    // CHECK-SAME:           to memref<1x255x32x16xf16, {order = #NCHW, strides = [655360, 2048, 32, 1]}>
+    // CHECK-SAME:              memref<1x320x32x16xf16, {order = #NCHW, strides = [655360, 1024, 32, 1]}>
+    // CHECK-SAME:           to memref<1x255x32x16xf16, {order = #NCHW, strides = [655360, 1024, 32, 1]}>
 
     // CHECK: %[[ARG_1_TILE_0:.*]] = VPUIP.SubView %arg1 [0, 0, 0, 0] [1, 255, 32, 16] :
-    // CHECK-SAME:              memref<1x320x32x16xf16, {order = #NCHW, strides = [655360, 2048, 32, 1]}>
-    // CHECK-SAME:           to memref<1x255x32x16xf16, {order = #NCHW, strides = [655360, 2048, 32, 1]}>
+    // CHECK-SAME:              memref<1x320x32x16xf16, {order = #NCHW, strides = [655360, 1024, 32, 1]}>
+    // CHECK-SAME:           to memref<1x255x32x16xf16, {order = #NCHW, strides = [655360, 1024, 32, 1]}>
 
     // CHECK: %[[COPY_TILE_0:.*]] = VPUIP.Copy
-    // CHECK-SAME:  inputs(%[[ARG_0_TILE_0]] : memref<1x255x32x16xf16, {order = #NCHW, strides = [655360, 2048, 32, 1]}>)
-    // CHECK-SAME:  outputs(%[[ARG_1_TILE_0]] : memref<1x255x32x16xf16, {order = #NCHW, strides = [655360, 2048, 32, 1]}>)
-    // CHECK-SAME:  -> memref<1x255x32x16xf16, {order = #NCHW, strides = [655360, 2048, 32, 1]}>
+    // CHECK-SAME:  inputs(%[[ARG_0_TILE_0]] : memref<1x255x32x16xf16, {order = #NCHW, strides = [655360, 1024, 32, 1]}>)
+    // CHECK-SAME:  outputs(%[[ARG_1_TILE_0]] : memref<1x255x32x16xf16, {order = #NCHW, strides = [655360, 1024, 32, 1]}>)
+    // CHECK-SAME:  -> memref<1x255x32x16xf16, {order = #NCHW, strides = [655360, 1024, 32, 1]}>
 
     // CHECK: %[[ARG_0_TILE_1:.*]] = VPUIP.SubView %arg0 [0, 255, 0, 0] [1, 65, 32, 16] :
-    // CHECK-SAME:              memref<1x320x32x16xf16, {order = #NCHW, strides = [655360, 2048, 32, 1]}>
-    // CHECK-SAME:           to memref<1x65x32x16xf16, {order = #NCHW, strides = [655360, 2048, 32, 1]}>
+    // CHECK-SAME:              memref<1x320x32x16xf16, {order = #NCHW, strides = [655360, 1024, 32, 1]}>
+    // CHECK-SAME:           to memref<1x65x32x16xf16, {order = #NCHW, strides = [655360, 1024, 32, 1]}>
 
     // CHECK: %[[ARG_1_TILE_1:.*]] = VPUIP.SubView %arg1 [0, 255, 0, 0] [1, 65, 32, 16] :
-    // CHECK-SAME:              memref<1x320x32x16xf16, {order = #NCHW, strides = [655360, 2048, 32, 1]}>
-    // CHECK-SAME:           to memref<1x65x32x16xf16, {order = #NCHW, strides = [655360, 2048, 32, 1]}>
+    // CHECK-SAME:              memref<1x320x32x16xf16, {order = #NCHW, strides = [655360, 1024, 32, 1]}>
+    // CHECK-SAME:           to memref<1x65x32x16xf16, {order = #NCHW, strides = [655360, 1024, 32, 1]}>
 
     // CHECK: %[[COPY_TILE_1:.*]] = VPUIP.Copy
-    // CHECK-SAME:  inputs(%[[ARG_0_TILE_1]] : memref<1x65x32x16xf16, {order = #NCHW, strides = [655360, 2048, 32, 1]}>)
-    // CHECK-SAME:  outputs(%[[ARG_1_TILE_1]] : memref<1x65x32x16xf16, {order = #NCHW, strides = [655360, 2048, 32, 1]}>)
-    // CHECK-SAME:  -> memref<1x65x32x16xf16, {order = #NCHW, strides = [655360, 2048, 32, 1]}>
+    // CHECK-SAME:  inputs(%[[ARG_0_TILE_1]] : memref<1x65x32x16xf16, {order = #NCHW, strides = [655360, 1024, 32, 1]}>)
+    // CHECK-SAME:  outputs(%[[ARG_1_TILE_1]] : memref<1x65x32x16xf16, {order = #NCHW, strides = [655360, 1024, 32, 1]}>)
+    // CHECK-SAME:  -> memref<1x65x32x16xf16, {order = #NCHW, strides = [655360, 1024, 32, 1]}>
 
     // CHECK: %[[CONCAT:.*]] = VPUIP.ConcatView
     // CHECK-SAME:  inputs(%[[COPY_TILE_0]], %[[COPY_TILE_1]] :
-    // CHECK-SAME:      memref<1x255x32x16xf16, {order = #NCHW, strides = [655360, 2048, 32, 1]}>,
-    // CHECK-SAME:      memref<1x65x32x16xf16, {order = #NCHW, strides = [655360, 2048, 32, 1]}>)
-    // CHECK-SAME:  outputs(%arg1 : memref<1x320x32x16xf16, {order = #NCHW, strides = [655360, 2048, 32, 1]}>)
-    // CHECK-SAME:  -> memref<1x320x32x16xf16, {order = #NCHW, strides = [655360, 2048, 32, 1]}>
+    // CHECK-SAME:      memref<1x255x32x16xf16, {order = #NCHW, strides = [655360, 1024, 32, 1]}>,
+    // CHECK-SAME:      memref<1x65x32x16xf16, {order = #NCHW, strides = [655360, 1024, 32, 1]}>)
+    // CHECK-SAME:  outputs(%arg1 : memref<1x320x32x16xf16, {order = #NCHW, strides = [655360, 1024, 32, 1]}>)
+    // CHECK-SAME:  -> memref<1x320x32x16xf16, {order = #NCHW, strides = [655360, 1024, 32, 1]}>
 
-    // CHECK: return %[[CONCAT]] : memref<1x320x32x16xf16, {order = #NCHW, strides = [655360, 2048, 32, 1]}>
+    // CHECK: return %[[CONCAT]] : memref<1x320x32x16xf16, {order = #NCHW, strides = [655360, 1024, 32, 1]}>
 }
 
 // -----
 
-#NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
+#NCHW = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
 
-func @SplitByHeight(
-        %arg0 : memref<1x18x360x1280xf16, {order = #NHWC, strides = [14745600, 1, 40960, 32]}>,
-        %arg1 : memref<1x18x360x1280xf16, {order = #NHWC, strides = [29491200, 1, 81920, 32]}>)
-        -> memref<1x18x360x1280xf16, {order = #NHWC, strides = [29491200, 1, 81920, 32]}> {
-    %0 = VPUIP.Copy inputs(%arg0 : memref<1x18x360x1280xf16, {order = #NHWC, strides = [14745600, 1, 40960, 32]}>)
-                   outputs(%arg1 : memref<1x18x360x1280xf16, {order = #NHWC, strides = [29491200, 1, 81920, 32]}>)
-                   -> memref<1x18x360x1280xf16, {order = #NHWC, strides = [29491200, 1, 81920, 32]}>
+func.func @SplitOutputDoubleStrideCopyByChannels(
+        %arg0: memref<1x320x32x16xf16, {order = #NCHW, strides = [655360, 512, 16, 1]}>,
+        %arg1: memref<1x320x32x16xf16, {order = #NCHW, strides = [655360, 1024, 32, 1]}>)
+        -> memref<1x320x32x16xf16, {order = #NCHW, strides = [655360, 1024, 32, 1]}> {
+    %0 = VPUIP.Copy inputs(%arg0 : memref<1x320x32x16xf16, {order = #NCHW, strides = [655360, 512, 16, 1]}>)
+                   outputs(%arg1 : memref<1x320x32x16xf16, {order = #NCHW, strides = [655360, 1024, 32, 1]}>)
+                   -> memref<1x320x32x16xf16, {order = #NCHW, strides = [655360, 1024, 32, 1]}>
 
-    return %0 : memref<1x18x360x1280xf16, {order = #NHWC, strides = [29491200, 1, 81920, 32]}>
+    return %0 : memref<1x320x32x16xf16, {order = #NCHW, strides = [655360, 1024, 32, 1]}>
 
-    // CHECK: %[[ARG_0_TILE_0:.*]] = VPUIP.SubView %arg0 [0, 0, 0, 0] [1, 18, 255, 1280] :
-    // CHECK-SAME:              memref<1x18x360x1280xf16, {order = #NHWC, strides = [14745600, 1, 40960, 32]}
-    // CHECK-SAME:           to memref<1x18x255x1280xf16, {order = #NHWC, strides = [14745600, 1, 40960, 32]}>
+    // CHECK: %[[ARG_0_TILE_0:.*]] = VPUIP.SubView %arg0 [0, 0, 0, 0] [1, 255, 32, 16] :
+    // CHECK-SAME:              memref<1x320x32x16xf16, {order = #NCHW, strides = [655360, 512, 16, 1]}>
+    // CHECK-SAME:           to memref<1x255x32x16xf16, {order = #NCHW, strides = [655360, 512, 16, 1]}>
 
-    // CHECK: %[[ARG_1_TILE_0:.*]] = VPUIP.SubView %arg1 [0, 0, 0, 0] [1, 18, 255, 1280] :
-    // CHECK-SAME:              memref<1x18x360x1280xf16, {order = #NHWC, strides = [29491200, 1, 81920, 32]}>
-    // CHECK-SAME:           to memref<1x18x255x1280xf16, {order = #NHWC, strides = [29491200, 1, 81920, 32]}>
+    // CHECK: %[[ARG_1_TILE_0:.*]] = VPUIP.SubView %arg1 [0, 0, 0, 0] [1, 255, 32, 16] :
+    // CHECK-SAME:              memref<1x320x32x16xf16, {order = #NCHW, strides = [655360, 1024, 32, 1]}>
+    // CHECK-SAME:           to memref<1x255x32x16xf16, {order = #NCHW, strides = [655360, 1024, 32, 1]}>
 
     // CHECK: %[[COPY_TILE_0:.*]] = VPUIP.Copy
-    // CHECK-SAME:  inputs(%[[ARG_0_TILE_0]] : memref<1x18x255x1280xf16, {order = #NHWC, strides = [14745600, 1, 40960, 32]}>)
-    // CHECK-SAME:  outputs(%[[ARG_1_TILE_0]] : memref<1x18x255x1280xf16, {order = #NHWC, strides = [29491200, 1, 81920, 32]}>)
-    // CHECK-SAME:  -> memref<1x18x255x1280xf16, {order = #NHWC, strides = [29491200, 1, 81920, 32]}>
+    // CHECK-SAME:  inputs(%[[ARG_0_TILE_0]] : memref<1x255x32x16xf16, {order = #NCHW, strides = [655360, 512, 16, 1]}>)
+    // CHECK-SAME:  outputs(%[[ARG_1_TILE_0]] : memref<1x255x32x16xf16, {order = #NCHW, strides = [655360, 1024, 32, 1]}>)
+    // CHECK-SAME:  -> memref<1x255x32x16xf16, {order = #NCHW, strides = [655360, 1024, 32, 1]}>
 
-    // CHECK: %[[ARG_0_TILE_1:.*]] = VPUIP.SubView %arg0 [0, 0, 255, 0] [1, 18, 105, 1280] :
-    // CHECK-SAME:              memref<1x18x360x1280xf16, {order = #NHWC, strides = [14745600, 1, 40960, 32]}>
-    // CHECK-SAME:           to memref<1x18x105x1280xf16, {order = #NHWC, strides = [14745600, 1, 40960, 32]}>
+    // CHECK: %[[ARG_0_TILE_1:.*]] = VPUIP.SubView %arg0 [0, 255, 0, 0] [1, 65, 32, 16] :
+    // CHECK-SAME:              memref<1x320x32x16xf16, {order = #NCHW, strides = [655360, 512, 16, 1]}>
+    // CHECK-SAME:           to memref<1x65x32x16xf16, {order = #NCHW, strides = [655360, 512, 16, 1]}>
 
-    // CHECK: %[[ARG_1_TILE_1:.*]] = VPUIP.SubView %arg1 [0, 0, 255, 0] [1, 18, 105, 1280] :
-    // CHECK-SAME:              memref<1x18x360x1280xf16, {order = #NHWC, strides = [29491200, 1, 81920, 32]}>
-    // CHECK-SAME:           to memref<1x18x105x1280xf16, {order = #NHWC, strides = [29491200, 1, 81920, 32]}>
+    // CHECK: %[[ARG_1_TILE_1:.*]] = VPUIP.SubView %arg1 [0, 255, 0, 0] [1, 65, 32, 16] :
+    // CHECK-SAME:              memref<1x320x32x16xf16, {order = #NCHW, strides = [655360, 1024, 32, 1]}>
+    // CHECK-SAME:           to memref<1x65x32x16xf16, {order = #NCHW, strides = [655360, 1024, 32, 1]}>
 
     // CHECK: %[[COPY_TILE_1:.*]] = VPUIP.Copy
-    // CHECK-SAME:  inputs(%[[ARG_0_TILE_1]] : memref<1x18x105x1280xf16, {order = #NHWC, strides = [14745600, 1, 40960, 32]}>)
-    // CHECK-SAME:  outputs(%[[ARG_1_TILE_1]] : memref<1x18x105x1280xf16, {order = #NHWC, strides = [29491200, 1, 81920, 32]}>)
-    // CHECK-SAME:  -> memref<1x18x105x1280xf16, {order = #NHWC, strides = [29491200, 1, 81920, 32]}>
+    // CHECK-SAME:  inputs(%[[ARG_0_TILE_1]] : memref<1x65x32x16xf16, {order = #NCHW, strides = [655360, 512, 16, 1]}>)
+    // CHECK-SAME:  outputs(%[[ARG_1_TILE_1]] : memref<1x65x32x16xf16, {order = #NCHW, strides = [655360, 1024, 32, 1]}>)
+    // CHECK-SAME:  -> memref<1x65x32x16xf16, {order = #NCHW, strides = [655360, 1024, 32, 1]}>
 
     // CHECK: %[[CONCAT:.*]] = VPUIP.ConcatView
     // CHECK-SAME:  inputs(%[[COPY_TILE_0]], %[[COPY_TILE_1]] :
-    // CHECK-SAME:      memref<1x18x255x1280xf16, {order = #NHWC, strides = [29491200, 1, 81920, 32]}>,
-    // CHECK-SAME:      memref<1x18x105x1280xf16, {order = #NHWC, strides = [29491200, 1, 81920, 32]}>)
-    // CHECK-SAME:  outputs(%arg1 : memref<1x18x360x1280xf16, {order = #NHWC, strides = [29491200, 1, 81920, 32]}>)
-    // CHECK-SAME:  -> memref<1x18x360x1280xf16, {order = #NHWC, strides = [29491200, 1, 81920, 32]}>
+    // CHECK-SAME:      memref<1x255x32x16xf16, {order = #NCHW, strides = [655360, 1024, 32, 1]}>,
+    // CHECK-SAME:      memref<1x65x32x16xf16, {order = #NCHW, strides = [655360, 1024, 32, 1]}>)
+    // CHECK-SAME:  outputs(%arg1 : memref<1x320x32x16xf16, {order = #NCHW, strides = [655360, 1024, 32, 1]}>)
+    // CHECK-SAME:  -> memref<1x320x32x16xf16, {order = #NCHW, strides = [655360, 1024, 32, 1]}>
 
-    // CHECK: return %[[CONCAT]] : memref<1x18x360x1280xf16, {order = #NHWC, strides = [29491200, 1, 81920, 32]}>
+    // CHECK: return %[[CONCAT]] : memref<1x320x32x16xf16, {order = #NCHW, strides = [655360, 1024, 32, 1]}>
 }
+
+// -----
 
 #NCHW = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
 
-func @LegalizeCopy(
+func.func @LegalizeCopy(
         %arg0: memref<1x64x512x512xf16, #NCHW>,
         %arg1: memref<1x64x512x512xf16, #NCHW>)
         -> memref<1x64x512x512xf16, #NCHW> {
@@ -167,7 +170,7 @@ func @LegalizeCopy(
 
 #NCHW = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
 
-func @LegalizeStridedCopy(
+func.func @LegalizeStridedCopy(
         %arg0: memref<1x64x512x512xf16, {order = #NCHW, strides = [33554432, 262144, 512, 1]}>,
         %arg1: memref<1x64x512x512xf16, #NCHW>)
         -> memref<1x64x512x512xf16, #NCHW> {
@@ -237,7 +240,7 @@ func @LegalizeStridedCopy(
 
 #NCHW = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
 
-func @DoNotLegalizeCopy(
+func.func @DoNotLegalizeCopy(
         %arg0: memref<1x315x221x241xi8, #NCHW>,
         %arg1: memref<1x315x221x241xi8, #NCHW>)
         -> memref<1x315x221x241xi8, #NCHW> {
@@ -260,50 +263,248 @@ func @DoNotLegalizeCopy(
 
 #NCHW = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
 
-!SparseType = type !VPUIP.SparseBuffer<data=memref<1x320x32x16xf16, {order = #NCHW, strides = [655360, 2048, 32, 1]}>,
-                                       sparsity_map=memref<1x320x32x16xi1, {order = #NCHW, strides = [655360, 2048, 32, 1]}>>
+func.func  @SplitDoubleStrideCopy(
+        %arg0: memref<1x256x16x1xf16, {order = #NCHW, strides = [655360, 1024, 32, 1]}>,
+        %arg1: memref<1x256x16x1xf16, {order = #NCHW, strides = [655360, 1024, 32, 1]}>)
+        -> memref<1x256x16x1xf16, {order = #NCHW, strides = [655360, 1024, 32, 1]}> {
+    %0 = VPUIP.Copy inputs(%arg0 : memref<1x256x16x1xf16, {order = #NCHW, strides = [655360, 1024, 32, 1]}>)
+                   outputs(%arg1 : memref<1x256x16x1xf16, {order = #NCHW, strides = [655360, 1024, 32, 1]}>)
+                   -> memref<1x256x16x1xf16, {order = #NCHW, strides = [655360, 1024, 32, 1]}>
 
-func @SplitByChannelsSparseBuffers(%arg0: !SparseType, %arg1: !SparseType) -> !SparseType {
+    return %0 : memref<1x256x16x1xf16, {order = #NCHW, strides = [655360, 1024, 32, 1]}>
+    // CHECK: %[[ARG_0_TILE_0:.*]] = VPUIP.SubView %arg0 [0, 0, 0, 0] [1, 255, 16, 1] :
+    // CHECK-SAME:              memref<1x256x16x1xf16, {order = #NCHW, strides = [655360, 1024, 32, 1]}>
+    // CHECK-SAME:           to memref<1x255x16x1xf16, {order = #NCHW, strides = [655360, 1024, 32, 1]}>
+
+    // CHECK: %[[ARG_1_TILE_0:.*]] = VPUIP.SubView %arg1 [0, 0, 0, 0] [1, 255, 16, 1] :
+    // CHECK-SAME:              memref<1x256x16x1xf16, {order = #NCHW, strides = [655360, 1024, 32, 1]}>
+    // CHECK-SAME:           to memref<1x255x16x1xf16, {order = #NCHW, strides = [655360, 1024, 32, 1]}>
+
+    // CHECK: %[[COPY_TILE_0:.*]] = VPUIP.Copy
+    // CHECK-SAME:  inputs(%[[ARG_0_TILE_0]] : memref<1x255x16x1xf16, {order = #NCHW, strides = [655360, 1024, 32, 1]}>)
+    // CHECK-SAME:  outputs(%[[ARG_1_TILE_0]] : memref<1x255x16x1xf16, {order = #NCHW, strides = [655360, 1024, 32, 1]}>)
+    // CHECK-SAME:  -> memref<1x255x16x1xf16, {order = #NCHW, strides = [655360, 1024, 32, 1]}>
+
+    // CHECK: %[[ARG_0_TILE_1:.*]] = VPUIP.SubView %arg0 [0, 255, 0, 0] [1, 1, 16, 1] :
+    // CHECK-SAME:              memref<1x256x16x1xf16, {order = #NCHW, strides = [655360, 1024, 32, 1]}>
+    // CHECK-SAME:           to memref<1x1x16x1xf16, {order = #NCHW, strides = [655360, 1024, 32, 1]}>
+
+    // CHECK: %[[ARG_1_TILE_1:.*]] = VPUIP.SubView %arg1 [0, 255, 0, 0] [1, 1, 16, 1] :
+    // CHECK-SAME:              memref<1x256x16x1xf16, {order = #NCHW, strides = [655360, 1024, 32, 1]}>
+    // CHECK-SAME:           to memref<1x1x16x1xf16, {order = #NCHW, strides = [655360, 1024, 32, 1]}>
+
+    // CHECK: %[[COPY_TILE_1:.*]] = VPUIP.Copy
+    // CHECK-SAME:  inputs(%[[ARG_0_TILE_1]] : memref<1x1x16x1xf16, {order = #NCHW, strides = [655360, 1024, 32, 1]}>)
+    // CHECK-SAME:  outputs(%[[ARG_1_TILE_1]] : memref<1x1x16x1xf16, {order = #NCHW, strides = [655360, 1024, 32, 1]}>)
+    // CHECK-SAME:  -> memref<1x1x16x1xf16, {order = #NCHW, strides = [655360, 1024, 32, 1]}>
+
+    // CHECK: %[[CONCAT:.*]] = VPUIP.ConcatView
+    // CHECK-SAME:  inputs(%[[COPY_TILE_0]], %[[COPY_TILE_1]] :
+    // CHECK-SAME:      memref<1x255x16x1xf16, {order = #NCHW, strides = [655360, 1024, 32, 1]}>,
+    // CHECK-SAME:      memref<1x1x16x1xf16, {order = #NCHW, strides = [655360, 1024, 32, 1]}>)
+    // CHECK-SAME:  outputs(%arg1 : memref<1x256x16x1xf16, {order = #NCHW, strides = [655360, 1024, 32, 1]}>)
+    // CHECK-SAME:  -> memref<1x256x16x1xf16, {order = #NCHW, strides = [655360, 1024, 32, 1]}>
+
+    // CHECK: return %[[CONCAT]] : memref<1x256x16x1xf16, {order = #NCHW, strides = [655360, 1024, 32, 1]}>
+}
+
+// -----
+
+#NCHW = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
+
+!SparseType =  !VPUIP.SparseBuffer<data=memref<1x320x32x16xf16, {order = #NCHW, strides = [655360, 1024, 32, 1]}>,
+                                       sparsity_map=memref<1x320x32x16xi1, {order = #NCHW, strides = [655360, 1024, 32, 1]}>>
+
+func.func @SplitByChannelsSparseBuffers(%arg0: !SparseType, %arg1: !SparseType) -> !SparseType {
     %0 = VPUIP.Copy inputs(%arg0 : !SparseType) outputs(%arg1 : !SparseType)-> !SparseType
     return %0 : !SparseType
 
     // CHECK:       [[ARG_0_TILE_0:%.*]] = VPUIP.SubView %arg0 [0, 0, 0, 0] [1, 255, 32, 16] :
-    // CHECK-SAME:         !VPUIP.SparseBuffer<data=memref<1x320x32x16xf16, {order = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>, strides = [655360, 2048, 32, 1]}>,
-    // CHECK-SAME:                             sparsity_map=memref<1x320x32x16xi1, {order = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>, strides = [655360, 2048, 32, 1]}>> to
-    // CHECK-SAME:         !VPUIP.SparseBuffer<data=memref<1x255x32x16xf16, {order = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>, strides = [655360, 2048, 32, 1]}>,
-    // CHECK-SAME:                             sparsity_map=memref<1x255x32x16xi1, {order = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>, strides = [655360, 2048, 32, 1]}>>
+    // CHECK-SAME:         !VPUIP.SparseBuffer<data=memref<1x320x32x16xf16, {order = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>, strides = [655360, 1024, 32, 1]}>,
+    // CHECK-SAME:                             sparsity_map=memref<1x320x32x16xi1, {order = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>, strides = [655360, 1024, 32, 1]}>> to
+    // CHECK-SAME:         !VPUIP.SparseBuffer<data=memref<1x255x32x16xf16, {order = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>, strides = [655360, 1024, 32, 1]}>,
+    // CHECK-SAME:                             sparsity_map=memref<1x255x32x16xi1, {order = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>, strides = [655360, 1024, 32, 1]}>>
 
     // CHECK:       [[ARG_1_TILE_0:%.*]] = VPUIP.SubView %arg1 [0, 0, 0, 0] [1, 255, 32, 16] :
-    // CHECK-SAME:         !VPUIP.SparseBuffer<data=memref<1x320x32x16xf16, {order = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>, strides = [655360, 2048, 32, 1]}>,
-    // CHECK-SAME:                             sparsity_map=memref<1x320x32x16xi1, {order = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>, strides = [655360, 2048, 32, 1]}>> to
-    // CHECK-SAME:         !VPUIP.SparseBuffer<data=memref<1x255x32x16xf16, {order = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>, strides = [655360, 2048, 32, 1]}>,
-    // CHECK-SAME:                             sparsity_map=memref<1x255x32x16xi1, {order = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>, strides = [655360, 2048, 32, 1]}>>
+    // CHECK-SAME:         !VPUIP.SparseBuffer<data=memref<1x320x32x16xf16, {order = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>, strides = [655360, 1024, 32, 1]}>,
+    // CHECK-SAME:                             sparsity_map=memref<1x320x32x16xi1, {order = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>, strides = [655360, 1024, 32, 1]}>> to
+    // CHECK-SAME:         !VPUIP.SparseBuffer<data=memref<1x255x32x16xf16, {order = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>, strides = [655360, 1024, 32, 1]}>,
+    // CHECK-SAME:                             sparsity_map=memref<1x255x32x16xi1, {order = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>, strides = [655360, 1024, 32, 1]}>>
 
     // CHECK:       [[COPY_TILE_0:%.*]] = VPUIP.Copy
     // CHECK-SAME:      inputs([[ARG_0_TILE_0]]
     // CHECK-SAME:      outputs([[ARG_1_TILE_0]]
 
     // CHECK:       [[ARG_0_TILE_1:%.*]] = VPUIP.SubView %arg0 [0, 255, 0, 0] [1, 65, 32, 16] :
-    // CHECK-SAME:         !VPUIP.SparseBuffer<data=memref<1x320x32x16xf16, {order = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>, strides = [655360, 2048, 32, 1]}>,
-    // CHECK-SMAE:                             sparsity_map=memref<1x320x32x16xi1, {order = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>, strides = [655360, 2048, 32, 1]}>> to
-    // CHECK-SAME:         !VPUIP.SparseBuffer<data=memref<1x65x32x16xf16, {order = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>, strides = [655360, 2048, 32, 1]}>,
-    // CHECK-SMAE:                             sparsity_map=memref<1x65x32x16xi1, {order = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>, strides = [655360, 2048, 32, 1]}>>
+    // CHECK-SAME:         !VPUIP.SparseBuffer<data=memref<1x320x32x16xf16, {order = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>, strides = [655360, 1024, 32, 1]}>,
+    // CHECK-SMAE:                             sparsity_map=memref<1x320x32x16xi1, {order = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>, strides = [655360, 1024, 32, 1]}>> to
+    // CHECK-SAME:         !VPUIP.SparseBuffer<data=memref<1x65x32x16xf16, {order = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>, strides = [655360, 1024, 32, 1]}>,
+    // CHECK-SMAE:                             sparsity_map=memref<1x65x32x16xi1, {order = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>, strides = [655360, 1024, 32, 1]}>>
 
     // CHECK:       [[ARG_1_TILE_1:%.*]] = VPUIP.SubView %arg1 [0, 255, 0, 0] [1, 65, 32, 16] :
-    // CHECK-SAME:         !VPUIP.SparseBuffer<data=memref<1x320x32x16xf16, {order = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>, strides = [655360, 2048, 32, 1]}>,
-    // CHECK-SAME:                             sparsity_map=memref<1x320x32x16xi1, {order = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>, strides = [655360, 2048, 32, 1]}>> to
-    // CHECK-SAME:         !VPUIP.SparseBuffer<data=memref<1x65x32x16xf16, {order = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>, strides = [655360, 2048, 32, 1]}>,
-    // CHECK-SAME:                             sparsity_map=memref<1x65x32x16xi1, {order = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>, strides = [655360, 2048, 32, 1]}>>
+    // CHECK-SAME:         !VPUIP.SparseBuffer<data=memref<1x320x32x16xf16, {order = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>, strides = [655360, 1024, 32, 1]}>,
+    // CHECK-SAME:                             sparsity_map=memref<1x320x32x16xi1, {order = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>, strides = [655360, 1024, 32, 1]}>> to
+    // CHECK-SAME:         !VPUIP.SparseBuffer<data=memref<1x65x32x16xf16, {order = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>, strides = [655360, 1024, 32, 1]}>,
+    // CHECK-SAME:                             sparsity_map=memref<1x65x32x16xi1, {order = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>, strides = [655360, 1024, 32, 1]}>>
 
     // CHECK:       [[COPY_TILE_1:%.*]] = VPUIP.Copy
     // CHECK-SAME:      inputs([[ARG_0_TILE_1]]
-    // CHECK-SAME:      outputs([[ARG_1_TILE_1]]
 
     // CHECK:       [[CONCAT:%.*]] = VPUIP.ConcatView
     // CHECK-SAME:      inputs([[COPY_TILE_0]], [[COPY_TILE_1]]
     // CHECK-SAME:      outputs(%arg1
-    // CHECK-SAME:      -> !VPUIP.SparseBuffer<data=memref<1x320x32x16xf16, {order = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>, strides = [655360, 2048, 32, 1]}>,
-    // CHECK-SAME:                             sparsity_map=memref<1x320x32x16xi1, {order = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>, strides = [655360, 2048, 32, 1]}>>
+    // CHECK-SAME:      -> !VPUIP.SparseBuffer<data=memref<1x320x32x16xf16, {order = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>, strides = [655360, 1024, 32, 1]}>,
+    // CHECK-SAME:                             sparsity_map=memref<1x320x32x16xi1, {order = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>, strides = [655360, 1024, 32, 1]}>>
 
     // CHECK:       return [[CONCAT]]
+}
+
+// -----
+
+#CHW = affine_map<(d0, d1, d2) -> (d0, d1, d2)>
+
+func.func @SplitByHeight3D(
+        %arg0: memref<1x260x64000xf16, {order = #CHW, strides = [66560000, 128000, 1]}>,
+        %arg1: memref<1x260x64000xf16, {order = #CHW, strides = [66560000, 128000, 1]}>)
+        -> memref<1x260x64000xf16, {order = #CHW, strides = [66560000, 128000, 1]}> {
+    %0 = VPUIP.Copy inputs(%arg0 : memref<1x260x64000xf16, {order = #CHW, strides = [66560000, 128000, 1]}>)
+                   outputs(%arg1 : memref<1x260x64000xf16, {order = #CHW, strides = [66560000, 128000, 1]}>)
+                   -> memref<1x260x64000xf16, {order = #CHW, strides = [66560000, 128000, 1]}>
+
+    return %0 : memref<1x260x64000xf16, {order = #CHW, strides = [66560000, 128000, 1]}>
+
+    // CHECK: %[[ARG_0_TILE_0:.*]] = VPUIP.SubView %arg0 [0, 0, 0] [1, 131, 64000] :
+    // CHECK-SAME:              memref<1x260x64000xf16, {order = #CHW, strides = [66560000, 128000, 1]}>
+    // CHECK-SAME:           to memref<1x131x64000xf16, {order = #CHW, strides = [66560000, 128000, 1]}>
+
+    // CHECK: %[[ARG_1_TILE_0:.*]] = VPUIP.SubView %arg1 [0, 0, 0] [1, 131, 64000] :
+    // CHECK-SAME:              memref<1x260x64000xf16, {order = #CHW, strides = [66560000, 128000, 1]}>
+    // CHECK-SAME:           to memref<1x131x64000xf16, {order = #CHW, strides = [66560000, 128000, 1]}>
+
+    // CHECK: %[[COPY_TILE_0:.*]] = VPUIP.Copy
+    // CHECK-SAME:  inputs(%[[ARG_0_TILE_0]] : memref<1x131x64000xf16, {order = #CHW, strides = [66560000, 128000, 1]}>)
+    // CHECK-SAME:  outputs(%[[ARG_1_TILE_0]] : memref<1x131x64000xf16, {order = #CHW, strides = [66560000, 128000, 1]}>)
+    // CHECK-SAME:  -> memref<1x131x64000xf16, {order = #CHW, strides = [66560000, 128000, 1]}>
+
+    // CHECK: %[[ARG_0_TILE_1:.*]] = VPUIP.SubView %arg0 [0, 131, 0] [1, 129, 64000] :
+    // CHECK-SAME:              memref<1x260x64000xf16, {order = #CHW, strides = [66560000, 128000, 1]}>
+    // CHECK-SAME:           to memref<1x129x64000xf16, {order = #CHW, strides = [66560000, 128000, 1]}>
+
+    // CHECK: %[[ARG_1_TILE_1:.*]] = VPUIP.SubView %arg1 [0, 131, 0] [1, 129, 64000] :
+    // CHECK-SAME:              memref<1x260x64000xf16, {order = #CHW, strides = [66560000, 128000, 1]}>
+    // CHECK-SAME:           to memref<1x129x64000xf16, {order = #CHW, strides = [66560000, 128000, 1]}>
+
+    // CHECK: %[[COPY_TILE_1:.*]] = VPUIP.Copy
+    // CHECK-SAME:  inputs(%[[ARG_0_TILE_1]] : memref<1x129x64000xf16, {order = #CHW, strides = [66560000, 128000, 1]}>)
+    // CHECK-SAME:  outputs(%[[ARG_1_TILE_1]] : memref<1x129x64000xf16, {order = #CHW, strides = [66560000, 128000, 1]}>)
+    // CHECK-SAME:  -> memref<1x129x64000xf16, {order = #CHW, strides = [66560000, 128000, 1]}>
+
+    // CHECK: %[[CONCAT:.*]] = VPUIP.ConcatView
+    // CHECK-SAME:  inputs(%[[COPY_TILE_0]], %[[COPY_TILE_1]] :
+    // CHECK-SAME:      memref<1x131x64000xf16, {order = #CHW, strides = [66560000, 128000, 1]}>,
+    // CHECK-SAME:      memref<1x129x64000xf16, {order = #CHW, strides = [66560000, 128000, 1]}>)
+    // CHECK-SAME:  outputs(%arg1 : memref<1x260x64000xf16, {order = #CHW, strides = [66560000, 128000, 1]}>)
+    // CHECK-SAME:  -> memref<1x260x64000xf16, {order = #CHW, strides = [66560000, 128000, 1]}>
+
+    // CHECK: return %[[CONCAT]] : memref<1x260x64000xf16, {order = #CHW, strides = [66560000, 128000, 1]}>
+}
+
+// -----
+
+#NCDHW = affine_map<(d0, d1, d2, d3, d4) -> (d0, d1, d2, d3, d4)>
+
+func.func @SplitByChannels5D(
+        %arg0: memref<1x320x32x16x1xf16, {order = #NCDHW, strides = [655360, 1024, 32, 1, 1]}>,
+        %arg1: memref<1x320x32x16x1xf16, {order = #NCDHW, strides = [655360, 1024, 32, 1, 1]}>)
+        -> memref<1x320x32x16x1xf16, {order = #NCDHW, strides = [655360, 1024, 32, 1, 1]}> {
+    %0 = VPUIP.Copy inputs(%arg0 : memref<1x320x32x16x1xf16, {order = #NCDHW, strides = [655360, 1024, 32, 1, 1]}>)
+                   outputs(%arg1 : memref<1x320x32x16x1xf16, {order = #NCDHW, strides = [655360, 1024, 32, 1, 1]}>)
+                   -> memref<1x320x32x16x1xf16, {order = #NCDHW, strides = [655360, 1024, 32, 1, 1]}>
+
+    return %0 : memref<1x320x32x16x1xf16, {order = #NCDHW, strides = [655360, 1024, 32, 1, 1]}>
+
+    // CHECK: %[[ARG_0_TILE_0:.*]] = VPUIP.SubView %arg0 [0, 0, 0, 0, 0] [1, 255, 32, 16, 1] :
+    // CHECK-SAME:              memref<1x320x32x16x1xf16, {order = #NCDHW, strides = [655360, 1024, 32, 1, 1]}>
+    // CHECK-SAME:           to memref<1x255x32x16x1xf16, {order = #NCDHW, strides = [655360, 1024, 32, 1, 1]}>
+
+    // CHECK: %[[ARG_1_TILE_0:.*]] = VPUIP.SubView %arg1 [0, 0, 0, 0, 0] [1, 255, 32, 16, 1] :
+    // CHECK-SAME:              memref<1x320x32x16x1xf16, {order = #NCDHW, strides = [655360, 1024, 32, 1, 1]}>
+    // CHECK-SAME:           to memref<1x255x32x16x1xf16, {order = #NCDHW, strides = [655360, 1024, 32, 1, 1]}>
+
+    // CHECK: %[[COPY_TILE_0:.*]] = VPUIP.Copy
+    // CHECK-SAME:  inputs(%[[ARG_0_TILE_0]] : memref<1x255x32x16x1xf16, {order = #NCDHW, strides = [655360, 1024, 32, 1, 1]}>)
+    // CHECK-SAME:  outputs(%[[ARG_1_TILE_0]] : memref<1x255x32x16x1xf16, {order = #NCDHW, strides = [655360, 1024, 32, 1, 1]}>)
+    // CHECK-SAME:  -> memref<1x255x32x16x1xf16, {order = #NCDHW, strides = [655360, 1024, 32, 1, 1]}>
+
+    // CHECK: %[[ARG_0_TILE_1:.*]] = VPUIP.SubView %arg0 [0, 255, 0, 0, 0] [1, 65, 32, 16, 1] :
+    // CHECK-SAME:              memref<1x320x32x16x1xf16, {order = #NCDHW, strides = [655360, 1024, 32, 1, 1]}>
+    // CHECK-SAME:           to memref<1x65x32x16x1xf16, {order = #NCDHW, strides = [655360, 1024, 32, 1, 1]}>
+
+    // CHECK: %[[ARG_1_TILE_1:.*]] = VPUIP.SubView %arg1 [0, 255, 0, 0, 0] [1, 65, 32, 16, 1] :
+    // CHECK-SAME:              memref<1x320x32x16x1xf16, {order = #NCDHW, strides = [655360, 1024, 32, 1, 1]}>
+    // CHECK-SAME:           to memref<1x65x32x16x1xf16, {order = #NCDHW, strides = [655360, 1024, 32, 1, 1]}>
+
+    // CHECK: %[[COPY_TILE_1:.*]] = VPUIP.Copy
+    // CHECK-SAME:  inputs(%[[ARG_0_TILE_1]] : memref<1x65x32x16x1xf16, {order = #NCDHW, strides = [655360, 1024, 32, 1, 1]}>)
+    // CHECK-SAME:  outputs(%[[ARG_1_TILE_1]] : memref<1x65x32x16x1xf16, {order = #NCDHW, strides = [655360, 1024, 32, 1, 1]}>)
+    // CHECK-SAME:  -> memref<1x65x32x16x1xf16, {order = #NCDHW, strides = [655360, 1024, 32, 1, 1]}>
+
+    // CHECK: %[[CONCAT:.*]] = VPUIP.ConcatView
+    // CHECK-SAME:  inputs(%[[COPY_TILE_0]], %[[COPY_TILE_1]] :
+    // CHECK-SAME:      memref<1x255x32x16x1xf16, {order = #NCDHW, strides = [655360, 1024, 32, 1, 1]}>,
+    // CHECK-SAME:      memref<1x65x32x16x1xf16, {order = #NCDHW, strides = [655360, 1024, 32, 1, 1]}>)
+    // CHECK-SAME:  outputs(%arg1 : memref<1x320x32x16x1xf16, {order = #NCDHW, strides = [655360, 1024, 32, 1, 1]}>)
+    // CHECK-SAME:  -> memref<1x320x32x16x1xf16, {order = #NCDHW, strides = [655360, 1024, 32, 1, 1]}>
+
+    // CHECK: return %[[CONCAT]] : memref<1x320x32x16x1xf16, {order = #NCDHW, strides = [655360, 1024, 32, 1, 1]}>
+}
+
+// -----
+
+#NCDHW = affine_map<(d0, d1, d2, d3, d4) -> (d0, d1, d2, d3, d4)>
+
+func.func @SplitByDepth5D(
+        %arg0: memref<1x1x320x192x160xf16, {order = #NCDHW, strides = [19660800, 19660800, 61440, 320, 1]}>,
+        %arg1: memref<1x1x320x192x160xf16, {order = #NCDHW, strides = [19660800, 19660800, 61440, 320, 1]}>)
+        -> memref<1x1x320x192x160xf16, {order = #NCDHW, strides = [19660800, 19660800, 61440, 320, 1]}> {
+    %0 = VPUIP.Copy inputs(%arg0 : memref<1x1x320x192x160xf16, {order = #NCDHW, strides = [19660800, 19660800, 61440, 320, 1]}>)
+                   outputs(%arg1 : memref<1x1x320x192x160xf16, {order = #NCDHW, strides = [19660800, 19660800, 61440, 320, 1]}>)
+                   -> memref<1x1x320x192x160xf16, {order = #NCDHW, strides = [19660800, 19660800, 61440, 320, 1]}>
+
+    return %0 : memref<1x1x320x192x160xf16, {order = #NCDHW, strides = [19660800, 19660800, 61440, 320, 1]}>
+
+    // CHECK: %[[ARG_0_TILE_0:.*]] = VPUIP.SubView %arg0 [0, 0, 0, 0, 0] [1, 1, 255, 192, 160] :
+    // CHECK-SAME:              memref<1x1x320x192x160xf16, {order = #NCDHW, strides = [19660800, 19660800, 61440, 320, 1]}>
+    // CHECK-SAME:           to memref<1x1x255x192x160xf16, {order = #NCDHW, strides = [19660800, 19660800, 61440, 320, 1]}>
+
+    // CHECK: %[[ARG_1_TILE_0:.*]] = VPUIP.SubView %arg1 [0, 0, 0, 0, 0] [1, 1, 255, 192, 160] :
+    // CHECK-SAME:              memref<1x1x320x192x160xf16, {order = #NCDHW, strides = [19660800, 19660800, 61440, 320, 1]}>
+    // CHECK-SAME:           to memref<1x1x255x192x160xf16, {order = #NCDHW, strides = [19660800, 19660800, 61440, 320, 1]}>
+
+    // CHECK: %[[COPY_TILE_0:.*]] = VPUIP.Copy
+    // CHECK-SAME:  inputs(%[[ARG_0_TILE_0]] : memref<1x1x255x192x160xf16, {order = #NCDHW, strides = [19660800, 19660800, 61440, 320, 1]}>)
+    // CHECK-SAME:  outputs(%[[ARG_1_TILE_0]] : memref<1x1x255x192x160xf16, {order = #NCDHW, strides = [19660800, 19660800, 61440, 320, 1]}>)
+    // CHECK-SAME:  -> memref<1x1x255x192x160xf16, {order = #NCDHW, strides = [19660800, 19660800, 61440, 320, 1]}>
+
+    // CHECK: %[[ARG_0_TILE_1:.*]] = VPUIP.SubView %arg0 [0, 0, 255, 0, 0] [1, 1, 65, 192, 160] :
+    // CHECK-SAME:              memref<1x1x320x192x160xf16, {order = #NCDHW, strides = [19660800, 19660800, 61440, 320, 1]}>
+    // CHECK-SAME:           to memref<1x1x65x192x160xf16, {order = #NCDHW, strides = [19660800, 19660800, 61440, 320, 1]}>
+
+    // CHECK: %[[ARG_1_TILE_1:.*]] = VPUIP.SubView %arg1 [0, 0, 255, 0, 0] [1, 1, 65, 192, 160] :
+    // CHECK-SAME:              memref<1x1x320x192x160xf16, {order = #NCDHW, strides = [19660800, 19660800, 61440, 320, 1]}>
+    // CHECK-SAME:           to memref<1x1x65x192x160xf16, {order = #NCDHW, strides = [19660800, 19660800, 61440, 320, 1]}>
+
+    // CHECK: %[[COPY_TILE_1:.*]] = VPUIP.Copy
+    // CHECK-SAME:  inputs(%[[ARG_0_TILE_1]] : memref<1x1x65x192x160xf16, {order = #NCDHW, strides = [19660800, 19660800, 61440, 320, 1]}>)
+    // CHECK-SAME:  outputs(%[[ARG_1_TILE_1]] : memref<1x1x65x192x160xf16, {order = #NCDHW, strides = [19660800, 19660800, 61440, 320, 1]}>)
+    // CHECK-SAME:  -> memref<1x1x65x192x160xf16, {order = #NCDHW, strides = [19660800, 19660800, 61440, 320, 1]}>
+
+    // CHECK: %[[CONCAT:.*]] = VPUIP.ConcatView
+    // CHECK-SAME:  inputs(%[[COPY_TILE_0]], %[[COPY_TILE_1]] :
+    // CHECK-SAME:      memref<1x1x255x192x160xf16, {order = #NCDHW, strides = [19660800, 19660800, 61440, 320, 1]}>,
+    // CHECK-SAME:      memref<1x1x65x192x160xf16, {order = #NCDHW, strides = [19660800, 19660800, 61440, 320, 1]}>)
+    // CHECK-SAME:  outputs(%arg1 : memref<1x1x320x192x160xf16, {order = #NCDHW, strides = [19660800, 19660800, 61440, 320, 1]}>)
+    // CHECK-SAME:  -> memref<1x1x320x192x160xf16, {order = #NCDHW, strides = [19660800, 19660800, 61440, 320, 1]}>
+
+    // CHECK: return %[[CONCAT]] : memref<1x1x320x192x160xf16, {order = #NCDHW, strides = [19660800, 19660800, 61440, 320, 1]}>
 }

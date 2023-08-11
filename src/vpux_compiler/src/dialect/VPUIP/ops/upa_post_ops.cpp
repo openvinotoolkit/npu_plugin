@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 
 #include "vpux/compiler/core/attributes/stride_reqs.hpp"
@@ -20,7 +18,7 @@ using namespace vpux;
 // verifyPostOp
 //
 
-mlir::LogicalResult vpux::VPUIP::verifyPostOp(mlir::Operation* op) {
+static mlir::LogicalResult verifyPostOp(mlir::Operation* op) {
     VPUX_THROW_UNLESS(op != nullptr, "Got NULL pointer in verifyPostOp");
 
     auto layer = mlir::dyn_cast<VPUIP::LayerOpInterface>(op);
@@ -60,6 +58,10 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::ClampUPAOp::serialize(VPUIP::BlobWr
     return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_PostOpsParams});
 }
 
+mlir::LogicalResult vpux::VPUIP::ClampUPAOp::verify() {
+    return verifyPostOp(getOperation());
+}
+
 //
 // EluUPAOp
 //
@@ -77,6 +79,10 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::EluUPAOp::serialize(VPUIP::BlobWrit
     return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_PostOpsParams});
 }
 
+mlir::LogicalResult vpux::VPUIP::EluUPAOp::verify() {
+    return verifyPostOp(getOperation());
+}
+
 //
 // HSwishUPAOp
 //
@@ -92,6 +98,10 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::HSwishUPAOp::serialize(VPUIP::BlobW
     return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_PostOpsParams});
 }
 
+mlir::LogicalResult vpux::VPUIP::HSwishUPAOp::verify() {
+    return verifyPostOp(getOperation());
+}
+
 //
 // FloorUPAOp
 //
@@ -105,6 +115,10 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::FloorUPAOp::serialize(VPUIP::BlobWr
     const auto paramsOff = builder.Finish();
 
     return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_PostOpsParams});
+}
+
+mlir::LogicalResult vpux::VPUIP::FloorUPAOp::verify() {
+    return verifyPostOp(getOperation());
 }
 
 //
@@ -123,6 +137,10 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::RoundUPAOp::serialize(VPUIP::BlobWr
     return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_PostOpsParams});
 }
 
+mlir::LogicalResult vpux::VPUIP::RoundUPAOp::verify() {
+    return verifyPostOp(getOperation());
+}
+
 //
 // MishUPAOp
 //
@@ -136,6 +154,10 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::MishUPAOp::serialize(VPUIP::BlobWri
     const auto paramsOff = builder.Finish();
 
     return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_PostOpsParams});
+}
+
+mlir::LogicalResult vpux::VPUIP::MishUPAOp::verify() {
+    return verifyPostOp(getOperation());
 }
 
 //
@@ -153,6 +175,10 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::ErfUPAOp::serialize(VPUIP::BlobWrit
     return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_PostOpsParams});
 }
 
+mlir::LogicalResult vpux::VPUIP::ErfUPAOp::verify() {
+    return verifyPostOp(getOperation());
+}
+
 //
 // Tan
 //
@@ -166,6 +192,10 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::TanUPAOp::serialize(VPUIP::BlobWrit
     const auto paramsOff = builder.Finish();
 
     return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_PostOpsParams});
+}
+
+mlir::LogicalResult vpux::VPUIP::TanUPAOp::verify() {
+    return verifyPostOp(getOperation());
 }
 
 //
@@ -183,6 +213,10 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::TanhUPAOp::serialize(VPUIP::BlobWri
     return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_PostOpsParams});
 }
 
+mlir::LogicalResult vpux::VPUIP::TanhUPAOp::verify() {
+    return verifyPostOp(getOperation());
+}
+
 //
 // Sin
 //
@@ -196,6 +230,10 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::SinUPAOp::serialize(VPUIP::BlobWrit
     const auto paramsOff = builder.Finish();
 
     return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_PostOpsParams});
+}
+
+mlir::LogicalResult vpux::VPUIP::SinUPAOp::verify() {
+    return verifyPostOp(getOperation());
 }
 
 //
@@ -213,6 +251,10 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::CosUPAOp::serialize(VPUIP::BlobWrit
     return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_PostOpsParams});
 }
 
+mlir::LogicalResult vpux::VPUIP::CosUPAOp::verify() {
+    return verifyPostOp(getOperation());
+}
+
 //
 // Sqrt
 //
@@ -226,6 +268,10 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::SqrtUPAOp::serialize(VPUIP::BlobWri
     const auto paramsOff = builder.Finish();
 
     return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_PostOpsParams});
+}
+
+mlir::LogicalResult vpux::VPUIP::SqrtUPAOp::verify() {
+    return verifyPostOp(getOperation());
 }
 
 //
@@ -243,6 +289,10 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::SinhUPAOp::serialize(VPUIP::BlobWri
     return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_PostOpsParams});
 }
 
+mlir::LogicalResult vpux::VPUIP::SinhUPAOp::verify() {
+    return verifyPostOp(getOperation());
+}
+
 //
 // Cosh
 //
@@ -256,6 +306,10 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::CoshUPAOp::serialize(VPUIP::BlobWri
     const auto paramsOff = builder.Finish();
 
     return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_PostOpsParams});
+}
+
+mlir::LogicalResult vpux::VPUIP::CoshUPAOp::verify() {
+    return verifyPostOp(getOperation());
 }
 
 //
@@ -273,6 +327,10 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::AsinhUPAOp::serialize(VPUIP::BlobWr
     return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_PostOpsParams});
 }
 
+mlir::LogicalResult vpux::VPUIP::AsinhUPAOp::verify() {
+    return verifyPostOp(getOperation());
+}
+
 //
 // Acosh
 //
@@ -286,6 +344,10 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::AcoshUPAOp::serialize(VPUIP::BlobWr
     const auto paramsOff = builder.Finish();
 
     return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_PostOpsParams});
+}
+
+mlir::LogicalResult vpux::VPUIP::AcoshUPAOp::verify() {
+    return verifyPostOp(getOperation());
 }
 
 //
@@ -303,6 +365,10 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::AbsUPAOp::serialize(VPUIP::BlobWrit
     return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_PostOpsParams});
 }
 
+mlir::LogicalResult vpux::VPUIP::AbsUPAOp::verify() {
+    return verifyPostOp(getOperation());
+}
+
 //
 // HSigmoidUPAOp
 //
@@ -316,6 +382,10 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::HSigmoidUPAOp::serialize(VPUIP::Blo
     const auto paramsOff = builder.Finish();
 
     return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_PostOpsParams});
+}
+
+mlir::LogicalResult vpux::VPUIP::HSigmoidUPAOp::verify() {
+    return verifyPostOp(getOperation());
 }
 
 //
@@ -333,6 +403,10 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::AtanUPAOp::serialize(VPUIP::BlobWri
     return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_PostOpsParams});
 }
 
+mlir::LogicalResult vpux::VPUIP::AtanUPAOp::verify() {
+    return verifyPostOp(getOperation());
+}
+
 //
 // AsinUPAOp
 //
@@ -346,6 +420,10 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::AsinUPAOp::serialize(VPUIP::BlobWri
     const auto paramsOff = builder.Finish();
 
     return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_PostOpsParams});
+}
+
+mlir::LogicalResult vpux::VPUIP::AsinUPAOp::verify() {
+    return verifyPostOp(getOperation());
 }
 
 //
@@ -363,6 +441,10 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::AcosUPAOp::serialize(VPUIP::BlobWri
     return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_PostOpsParams});
 }
 
+mlir::LogicalResult vpux::VPUIP::AcosUPAOp::verify() {
+    return verifyPostOp(getOperation());
+}
+
 //
 // Atanh
 //
@@ -378,6 +460,10 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::AtanhUPAOp::serialize(VPUIP::BlobWr
     return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_PostOpsParams});
 }
 
+mlir::LogicalResult vpux::VPUIP::AtanhUPAOp::verify() {
+    return verifyPostOp(getOperation());
+}
+
 //
 // LogUPAOp
 //
@@ -391,6 +477,10 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::LogUPAOp::serialize(VPUIP::BlobWrit
     const auto paramsOff = builder.Finish();
 
     return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_PostOpsParams});
+}
+
+mlir::LogicalResult vpux::VPUIP::LogUPAOp::verify() {
+    return verifyPostOp(getOperation());
 }
 
 //
@@ -426,6 +516,10 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::GeluUPAOp::serialize(VPUIP::BlobWri
     return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_PostOpsParams});
 }
 
+mlir::LogicalResult vpux::VPUIP::GeluUPAOp::verify() {
+    return verifyPostOp(getOperation());
+}
+
 //
 // Exp
 //
@@ -439,6 +533,10 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::ExpUPAOp::serialize(VPUIP::BlobWrit
     const auto paramsOff = builder.Finish();
 
     return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_PostOpsParams});
+}
+
+mlir::LogicalResult vpux::VPUIP::ExpUPAOp::verify() {
+    return verifyPostOp(getOperation());
 }
 
 //
@@ -456,6 +554,10 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::ReLUUPAOp::serialize(VPUIP::BlobWri
     return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_PostOpsParams});
 }
 
+mlir::LogicalResult vpux::VPUIP::ReLUUPAOp::verify() {
+    return verifyPostOp(getOperation());
+}
+
 //
 // SigmoidUPAOp
 //
@@ -469,6 +571,10 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::SigmoidUPAOp::serialize(VPUIP::Blob
     const auto paramsOff = builder.Finish();
 
     return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_PostOpsParams});
+}
+
+mlir::LogicalResult vpux::VPUIP::SigmoidUPAOp::verify() {
+    return verifyPostOp(getOperation());
 }
 
 //
@@ -535,6 +641,10 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::SwishUPAOp::serialize(VPUIP::BlobWr
     return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_PostOpsParams});
 }
 
+//
+// ScaleShiftUPAOp
+//
+
 VPUIP::BlobWriter::SpecificTask vpux::VPUIP::ScaleShiftUPAOp::serialize(VPUIP::BlobWriter& writer) {
     const auto scaleShift = MVCNN::CreateScaleShiftParams(writer);
 
@@ -557,6 +667,10 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::ScaleShiftUPAOp::serialize(VPUIP::B
     return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_PostOpsParams});
 }
 
+mlir::LogicalResult vpux::VPUIP::ScaleShiftUPAOp::verify() {
+    return verifyPostOp(getOperation());
+}
+
 //
 // CeilingUPAOp
 //
@@ -572,6 +686,10 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::CeilingUPAOp::serialize(VPUIP::Blob
     return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_PostOpsParams});
 }
 
+mlir::LogicalResult vpux::VPUIP::CeilingUPAOp::verify() {
+    return verifyPostOp(getOperation());
+}
+
 //
 // SoftPlusUPAOp
 //
@@ -585,6 +703,10 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::SoftPlusUPAOp::serialize(VPUIP::Blo
     const auto paramsOff = builder.Finish();
 
     return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_PostOpsParams});
+}
+
+mlir::LogicalResult vpux::VPUIP::SoftPlusUPAOp::verify() {
+    return verifyPostOp(getOperation());
 }
 
 //
@@ -604,6 +726,10 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::HardSigmoidUPAOp::serialize(VPUIP::
 
     return writer.createUPALayerTask(*this, {paramsOff.Union(), MVCNN::SoftwareLayerParams_PostOpsParams});
 }
+
+//
+// parsePostOps
+//
 
 mlir::Operation* vpux::VPUIP::BlobReader::parsePostOps(mlir::OpBuilder& builder, ArrayRef<mlir::Value> inputs,
                                                        ArrayRef<mlir::Value> outputs, const MVCNN::UPALayerTask* task) {

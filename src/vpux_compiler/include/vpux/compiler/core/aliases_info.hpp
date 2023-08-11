@@ -3,13 +3,12 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #pragma once
 
 #include "vpux/utils/core/dense_map.hpp"
 #include "vpux/utils/core/logger.hpp"
 
+#include <mlir/Dialect/Func/IR/FuncOps.h>
 #include <mlir/IR/BuiltinOps.h>
 #include <mlir/IR/Value.h>
 
@@ -24,7 +23,7 @@ public:
     using OpRange = llvm::iterator_range<mlir::Region::OpIterator>;
 
 public:
-    explicit AliasesInfo(mlir::FuncOp func);
+    explicit AliasesInfo(mlir::func::FuncOp func);
 
     // Returns the sources of a value.
     // Will return an empty set if `val` is a root value.

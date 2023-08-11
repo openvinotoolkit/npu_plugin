@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/IE/passes.hpp"
 
 #include "vpux/compiler/dialect/IE/utils/quantization.hpp"
@@ -84,7 +82,7 @@ void TransposeToPermuteCast::safeRunOnFunc() {
     mlir::RewritePatternSet patterns(&ctx);
     patterns.add<TransposeToPermuteCast::TransposeOpConverter>(&ctx, _log);
 
-    auto func = getFunction();
+    auto func = getOperation();
     if (mlir::failed(mlir::applyPartialConversion(func, target, std::move(patterns)))) {
         signalPassFailure();
     }

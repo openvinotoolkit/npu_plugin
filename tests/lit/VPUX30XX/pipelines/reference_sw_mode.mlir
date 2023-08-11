@@ -1,8 +1,9 @@
 //
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
-// RUN: vpux-opt --split-input-file --reference-sw-mode="vpu-arch=VPUX30XX" %s | FileCheck %s
+
+// RUN: vpux-opt --vpu-arch=VPUX30XX --split-input-file --reference-sw-mode %s | FileCheck %s
 
 // CHECK-LABEL: @SingleLayer
 module @SingleLayer {
@@ -22,31 +23,31 @@ IE.CNNNetwork
         DataInfo "softmax" : tensor<1x1000xf16>
     }
 
-// CHECK:       func @main(
+// CHECK:       func.func @main(
 // CHECK-SAME:      [[ARG0:%.+]]: memref<1x1000xf16, @DDR>,
 // CHECK-SAME:      [[ARG1:%.+]]: memref<1x1000xf16, @DDR>) -> memref<1x1000xf16, @DDR> {
-func @main(%arg0: tensor<1x1000xf16>) -> tensor<1x1000xf16> {
+func.func @main(%arg0: tensor<1x1000xf16>) -> tensor<1x1000xf16> {
     %0 = IE.SoftMax(%arg0) {axisInd = 1} : tensor<1x1000xf16> -> tensor<1x1000xf16>
     return %0 : tensor<1x1000xf16>
 
-    // CHECK-DAG:   [[IN1:%.+]] = VPURT.DeclareBuffer "NetworkInput" [0] <0> -> memref<1x1000xf16, @DDR>
+    // CHECK-DAG:   [[IN1:%.+]] = VPURT.DeclareBuffer "NetworkInput" [0] <0> -> memref<1x1x1x1000xf16, @DDR>
     // CHECK-DAG:   [[OUT1:%.+]] = VPURT.DeclareBuffer "NetworkOutput" [0] <0> -> memref<1x1000xf16, @DDR>
 
-    // CHECK-DAG:   [[VAR1:%.+]] = VPURT.DeclareBuffer "DDR" <0> -> memref<1x1000xf16, @DDR>
+    // CHECK-DAG:   [[VAR1:%.+]] = VPURT.DeclareBuffer "DDR" <0> -> memref<1x1x1x1000xf16, @DDR>
+    // CHECK-DAG:   [[VAR2:%.+]] = VPURT.DeclareBuffer "DDR" <0> -> memref<1x1000xf16, @DDR>
 
-    // CHECK-DAG:   [[VAR2:%.+]] = VPURT.ConfigureBarrier<0> -> !VPURT.Barrier
-
+    // CHECK-DAG:   [[VAR3:%.+]] = VPURT.ConfigureBarrier<0> -> !VPURT.Barrier
     // CHECK-NEXT:  VPURT.Task
-    // CHECK-SAME:              updates([[VAR2]] : !VPURT.Barrier)
+    // CHECK-SAME:              updates([[VAR3]] : !VPURT.Barrier)
     // CHECK-NEXT:  VPUIP.SoftMaxUPA
-    // CHECK-SAME:              axisInd = 1
-    // CHECK-SAME:              inputs([[IN1]] : memref<1x1000xf16, @DDR>)
-    // CHECK-SAME:              outputs([[VAR1]] : memref<1x1000xf16, @DDR>)
+    // CHECK-SAME:              axisInd = 3
+    // CHECK-SAME:              inputs([[IN1]] : memref<1x1x1x1000xf16, @DDR>
+    // CHECK-SAME:              outputs([[VAR1]] : memref<1x1x1x1000xf16, @DDR>
 
     // CHECK:  VPURT.Task
-    // CHECK-SAME:              waits([[VAR2]] : !VPURT.Barrier)
+    // CHECK-SAME:              waits([[VAR3]] : !VPURT.Barrier)
     // CHECK-NEXT:  VPUIP.NNDMA
-    // CHECK-SAME:              inputs([[VAR1]] : memref<1x1000xf16, @DDR>)
+    // CHECK-SAME:              inputs([[VAR2]] : memref<1x1000xf16, @DDR>)
     // CHECK-SAME:              outputs([[OUT1]] : memref<1x1000xf16, @DDR>)
 
     // CHECK:  return [[ARG1]] : memref<1x1000xf16, @DDR>
@@ -73,10 +74,10 @@ IE.CNNNetwork
         DataInfo "output2" : tensor<1x2x2x2xf16>
     }
 
-// CHECK:       func @main(
+// CHECK:       func.func @main(
 // CHECK-SAME:      [[ARG0:%.+]]: memref<1x2x2x2xf16, @DDR>, [[ARG1:%.+]]: memref<1x2x2x2xf16, @DDR>,
 // CHECK-SAME:      [[ARG2:%.+]]: memref<1x2x2x2xf16, @DDR>) -> (memref<1x2x2x2xf16, @DDR>, memref<1x2x2x2xf16, @DDR>) {
-func @main(%arg0: tensor<1x2x2x2xf16>) -> (tensor<1x2x2x2xf16>, tensor<1x2x2x2xf16>) {
+func.func @main(%arg0: tensor<1x2x2x2xf16>) -> (tensor<1x2x2x2xf16>, tensor<1x2x2x2xf16>) {
     %cst = const.Declare tensor<1x2x2x2xf16> =
         dense<[
             [
@@ -155,9 +156,9 @@ IE.CNNNetwork
         DataInfo "prob" : tensor<1x2x4x2xf16>
     }
 
-// CHECK:       func @main(
+// CHECK:       func.func @main(
 // CHECK-SAME:      [[ARG:%.+]]: memref<1x2x4x2xf16, @DDR>) -> memref<1x2x4x2xf16, @DDR> {
-func @main() -> tensor<1x2x4x2xf16> {
+func.func @main() -> tensor<1x2x4x2xf16> {
     %0 = const.Declare tensor<1x2x4x2xf16> =
         dense<[[
                 [
@@ -209,7 +210,7 @@ IE.CNNNetwork
         DataInfo "output" : tensor<1x2x4x2xf16, {order = #NWHC}>
     }
 
-func @main(%arg0: tensor<1x2x4x2xf16, {order = #NWHC}>) -> tensor<1x2x4x2xf16, {order = #NWHC}> {
+func.func @main(%arg0: tensor<1x2x4x2xf16, {order = #NWHC}>) -> tensor<1x2x4x2xf16, {order = #NWHC}> {
     %0 = IE.ReLU(%arg0) : tensor<1x2x4x2xf16, {order = #NWHC}> -> tensor<1x2x4x2xf16, {order = #NWHC}>
     return %0 : tensor<1x2x4x2xf16, {order = #NWHC}>
 

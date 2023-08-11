@@ -1,0 +1,37 @@
+// Copyright (C) 2023 Intel Corporation
+// SPDX-License-Identifier: Apache 2.0
+
+namespace ProfilingFB;
+
+table DMATask {
+    name: string;
+    sourceLocale: string;
+    waitBarriers: [uint];
+    updateBarriers: [uint];
+}
+
+table DPUTask {
+    name: string;
+    waitBarriers: [uint];
+    updateBarriers: [uint];
+}
+
+table ActShaveTask {
+    name: string;
+    waitBarriers: [uint];
+    updateBarriers: [uint];
+}
+
+table ProfilingBuffer {
+    name: string;
+    dimensions: [uint];
+}
+
+table ProfilingMeta {
+    profilingBuffer: ProfilingBuffer;
+    dmaTasks: [DMATask];
+    dpuTasks: [DPUTask];
+    actShaveTasks: [ActShaveTask];
+}
+
+root_type ProfilingMeta;

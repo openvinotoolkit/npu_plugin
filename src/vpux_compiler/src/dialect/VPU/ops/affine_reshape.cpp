@@ -115,7 +115,7 @@ mlir::LogicalResult vpux::VPU::AffineReshapeOp::inferReturnTypes(
         mlir::MLIRContext* ctx, mlir::Optional<mlir::Location> optLoc, mlir::ValueRange operands,
         mlir::DictionaryAttr attrs, mlir::RegionRange /*regions*/,
         mlir::SmallVectorImpl<mlir::Type>& inferredReturnTypes) {
-    const auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
+    const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
     VPU::AffineReshapeOpAdaptor affineReshape(operands, attrs);
     if (mlir::failed(affineReshape.verify(loc))) {
@@ -170,7 +170,7 @@ void vpux::VPU::AffineReshapeOp::inferElemTypeInfo(vpux::IE::LayerDataInfo<mlir:
 void vpux::VPU::AffineReshapeOp::inferElemTypeInfoUp(vpux::IE::LayerDataInfo<mlir::Type>& info) {
     const auto outputElemType = info.getOutput(0);
 
-    if (outputElemType.dyn_cast_or_null<mlir::quant::UniformQuantizedPerAxisType>() != nullptr) {
+    if (outputElemType != nullptr && outputElemType.isa<mlir::quant::UniformQuantizedPerAxisType>()) {
         // E#31029: implement propagate type up for per channel, currently it leads to failures in later passes.
         return;
     }

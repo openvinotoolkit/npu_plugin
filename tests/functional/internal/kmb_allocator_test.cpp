@@ -13,18 +13,6 @@
 
 using KmbAllocatorTest = KmbLayerTestBase;
 
-static bool csramAvailable() {
-    std::ifstream soc_model_file("/sys/firmware/devicetree/base/model", std::ios_base::in);
-    if (!soc_model_file.is_open()) {
-        return false;
-    }
-    auto soc_model_file_size = vpu::KmbPlugin::utils::getFileSize(soc_model_file);
-    std::string soc_model_file_content(soc_model_file_size, '\0');
-    soc_model_file.read(&soc_model_file_content.front(), soc_model_file_content.size());
-    soc_model_file.close();
-    return soc_model_file_content.find("Thunder") != std::string::npos;
-}
-
 static std::shared_ptr<ngraph::Function> buildTestGraph(const ngraph::Shape& inputShape) {
     auto inputNode = std::make_shared<ngraph::op::Parameter>(ngraph::element::Type_t::f16, inputShape);
     auto sumShape = ngraph::Shape{1, 3, 1, 1};
@@ -36,54 +24,6 @@ static std::shared_ptr<ngraph::Function> buildTestGraph(const ngraph::Shape& inp
 
     auto ngraphCallback = std::make_shared<ngraph::Function>(resultNode, ngraph::ParameterVector{inputNode}, "testNet");
     return ngraphCallback;
-}
-
-TEST_F(KmbAllocatorTest, DISABLED_checkCSRAM) {
-    TestNetwork testNet;
-    testNet.setUserInput("input", Precision::FP16, Layout::NCHW)
-            .addNetInput("input", {1, 3, 512, 512}, Precision::FP32)
-            .addLayer<SoftmaxLayerDef>("softmax", 1)
-            .input("input")
-            .build()
-            .addNetOutput(PortInfo("softmax"))
-            .setUserOutput(PortInfo("softmax"), Precision::FP16, Layout::NCHW)
-            .finalize();
-
-    const std::map<std::string, std::string> config_no_csram = {
-            {"VPUX_CSRAM_SIZE", "0"},
-    };
-    double virtual_no_csram = 0.f;
-    double resident_no_csram = 0.f;
-    {
-        InferenceEngine::Core ie;
-        testNet.setCompileConfig(config_no_csram);
-        ExecutableNetwork exe_net_no_csram = getExecNetwork(testNet);
-        MemoryUsage::procMemUsage(virtual_no_csram, resident_no_csram);
-    }
-    const size_t CSRAM_SIZE = 2 * 1024 * 1024;
-    const std::map<std::string, std::string> config_with_csram = {
-            {"VPUX_CSRAM_SIZE", std::to_string(CSRAM_SIZE)},
-    };
-
-    double virtual_with_csram = 0.f;
-    double resident_with_csram = 0.f;
-    {
-        std::shared_ptr<InferenceEngine::Core> ie = std::make_shared<InferenceEngine::Core>();
-        testNet.setCompileConfig(config_with_csram);
-        ExecutableNetwork exe_net_no_csram = getExecNetwork(testNet);
-        MemoryUsage::procMemUsage(virtual_with_csram, resident_with_csram);
-    }
-
-    // there's nothing to check when test suite cannot run inference
-    if (RUN_INFER) {
-        double alloc_diff = (virtual_no_csram - virtual_with_csram) * 1024.0;
-        bool has_csram = csramAvailable();
-        if (has_csram) {
-            ASSERT_GE(alloc_diff, CSRAM_SIZE);
-        } else {
-            ASSERT_LT(alloc_diff, CSRAM_SIZE);
-        }
-    }
 }
 
 // [Track number: S#48063]

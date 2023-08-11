@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/IE/passes.hpp"
 
 #include "vpux/compiler/utils/error.hpp"
@@ -13,7 +11,6 @@
 #include <mlir/Transforms/GreedyPatternRewriteDriver.h>
 #include "vpux/compiler/dialect/IE/utils/transpose_op_utils.hpp"
 
-#include <llvm/ADT/TypeSwitch.h>
 #include <vpux/compiler/conversion.hpp>
 
 using namespace vpux;
@@ -77,7 +74,7 @@ mlir::LogicalResult SwapMVNWithTranspose::OpSwapConverter::matchAndRewrite(IE::M
 }
 
 void SwapMVNWithTranspose::safeRunOnFunc() {
-    auto func = getFunction();
+    auto func = getOperation();
 
     auto& ctx = getContext();
 

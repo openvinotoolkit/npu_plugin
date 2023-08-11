@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
 
 #include "vpux/compiler/dialect/VPU/attributes.hpp"
@@ -39,7 +37,7 @@ private:
 
 void ConvertAllocationsToDeclarationsPass::safeRunOnFunc() {
     auto& ctx = getContext();
-    auto func = getFunction();
+    auto func = getOperation();
 
     mlir::ConversionTarget target(ctx);
     target.addLegalDialect<mlir::async::AsyncDialect>();
@@ -48,7 +46,7 @@ void ConvertAllocationsToDeclarationsPass::safeRunOnFunc() {
     target.addLegalDialect<VPURT::VPURTDialect>();
     target.addIllegalOp<VPUIP::StaticAllocOp>();
     target.addLegalOp<VPUIP::SwKernelOp>();
-    target.addLegalOp<mlir::FuncOp, mlir::ReturnOp>();
+    target.addLegalOp<mlir::func::FuncOp, mlir::func::ReturnOp>();
     target.markOpRecursivelyLegal<VPUIP::SwKernelOp>([&](mlir::Operation*) {
         return true;
     });

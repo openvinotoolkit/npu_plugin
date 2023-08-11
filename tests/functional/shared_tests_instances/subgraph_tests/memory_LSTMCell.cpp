@@ -3,10 +3,37 @@
 //
 
 #include "shared_test_classes/subgraph/memory_LSTMCell.hpp"
+#include <openvino/runtime/device_id_parser.hpp>
 #include <subgraph_tests/memory_LSTMCell.hpp>
 #include "common_test_utils/test_constants.hpp"
 
 using namespace SubgraphTestsDefinitions;
+
+static std::string getDeviceName() {
+    auto* env_val = std::getenv("IE_KMB_TESTS_DEVICE_NAME");
+    return (env_val != nullptr) ? env_val : "VPUX.3720";
+}
+
+const ov::DeviceIDParser parser = ov::DeviceIDParser(getDeviceName());
+
+static std::string getDeviceNameTestCase() {
+    return parser.get_device_name().substr(0, parser.get_device_name().size() - 1) + parser.get_device_id();
+}
+
+static std::string getTestCaseName(testing::TestParamInfo<memoryLSTMCellParams> obj) {
+    ngraph::helpers::MemoryTransformation memoryTransform;
+    std::string targetDevice;
+    InferenceEngine::Precision precision;
+    size_t inputSize;
+    size_t outputSize;
+    std::map<std::string, std::string> configuration;
+    std::tie(memoryTransform, targetDevice, precision, inputSize, outputSize, configuration) = obj.param;
+    std::ostringstream result;
+    result << "targetDevice=" << getDeviceNameTestCase() << "_";
+    result << "inSize=" << inputSize << "_";
+    result << "outSize=" << outputSize << "_";
+    return result.str();
+}
 
 std::vector<ngraph::helpers::MemoryTransformation> transformation{
         ngraph::helpers::MemoryTransformation::NONE,
@@ -20,12 +47,10 @@ std::vector<size_t> hidden_sizes = {
 
 std::map<std::string, std::string> additional_config = {};
 
-// Tests fail with threshold 0.01 and fail to infer result type on VPUX37XX.
-// E#62473
-INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_MemoryLSTMCellTest, MemoryLSTMCellTest,
+INSTANTIATE_TEST_SUITE_P(smoke_MemoryLSTMCellTest, MemoryLSTMCellTest,
                          ::testing::Combine(::testing::ValuesIn(transformation),
                                             ::testing::Values(CommonTestUtils::DEVICE_KEEMBAY),
                                             ::testing::Values(InferenceEngine::Precision::FP32),
                                             ::testing::ValuesIn(input_sizes), ::testing::ValuesIn(hidden_sizes),
                                             ::testing::Values(additional_config)),
-                         MemoryLSTMCellTest::getTestCaseName);
+                         getTestCaseName);

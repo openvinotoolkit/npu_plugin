@@ -1,7 +1,8 @@
 //
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
+
 // RUN: vpux-opt --split-input-file --init-compiler="vpu-arch=%arch%" --use-user-precision %s | FileCheck %s
 // REQUIRES: arch-VPUX30XX || arch-VPUX37XX
 
@@ -19,8 +20,8 @@ IE.CNNNetwork
         DataInfo "prob" : tensor<1x1000xf32>
     }
 
-// CHECK: func @main(%[[ARG0:arg.*]]: tensor<1x1000xui8>) -> tensor<1x1000xf32>
-func @main(%arg0: tensor<1x1000xf16>) -> tensor<1x1000xf16> {
+// CHECK: func.func @main(%[[ARG0:arg.*]]: tensor<1x1000xui8>) -> tensor<1x1000xf32>
+func.func @main(%arg0: tensor<1x1000xf16>) -> tensor<1x1000xf16> {
     %prob = IE.SoftMax(%arg0) {axisInd = 1} : tensor<1x1000xf16> -> tensor<1x1000xf16>
     return %prob : tensor<1x1000xf16>
 
@@ -56,8 +57,8 @@ IE.CNNNetwork
         DataInfo "prob" : tensor<1x1000xf16>
     }
 
-// CHECK: func @main(%[[ARG0:arg.*]]: tensor<1x1000xf16>) -> tensor<1x1000xf16>
-func @main(%arg0: tensor<1x1000xf16>) -> tensor<1x1000xf16> {
+// CHECK: func.func @main(%[[ARG0:arg.*]]: tensor<1x1000xf16>) -> tensor<1x1000xf16>
+func.func @main(%arg0: tensor<1x1000xf16>) -> tensor<1x1000xf16> {
     %prob = IE.SoftMax(%arg0) {axisInd = 1} : tensor<1x1000xf16> -> tensor<1x1000xf16>
     return %prob : tensor<1x1000xf16>
 

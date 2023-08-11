@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/IE/ops_interfaces.hpp"
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
@@ -19,6 +17,7 @@
 #include <mlir/IR/BlockAndValueMapping.h>
 #include <mlir/IR/BuiltinTypes.h>
 #include <vpux/compiler/dialect/VPU/utils/distributed_tensor_utils.hpp>
+#include "vpux/compiler/dialect/IE/utils/shape_infer.hpp"
 
 using namespace vpux;
 
@@ -79,84 +78,6 @@ mlir::LogicalResult vpux::IE::inferTensorTypes(InferTypeComponentsCb componentsC
     }
 
     return mlir::success();
-}
-
-bool vpux::IE::areTypesCompatible(mlir::TypeRange lhs, mlir::TypeRange rhs, IE::TypeComparisonMode elemComparisonModes,
-                                  bool checkDimsOrder, bool checkMemSpace) {
-    if (lhs.size() != rhs.size()) {
-        return false;
-    }
-
-    for (const auto p : zip(lhs, rhs)) {
-        auto lhsOrigType = std::get<0>(p);
-        auto rhsOrigType = std::get<1>(p);
-
-        if (lhsOrigType.getTypeID() != rhsOrigType.getTypeID()) {
-            if (IE::bitEnumContains(elemComparisonModes, IE::TypeComparisonMode::ALLOW_GROUPED_OUTPUT)) {
-                const auto oneIsSparse =
-                        (lhsOrigType.isa<VPU::SparseTensorType>() && !rhsOrigType.isa<VPU::SparseTensorType>()) ||
-                        (!lhsOrigType.isa<VPU::SparseTensorType>() && rhsOrigType.isa<VPU::SparseTensorType>());
-                if (!oneIsSparse) {
-                    return false;
-                }
-            }
-        }
-
-        auto lhsType = lhsOrigType.dyn_cast<NDTypeInterface>();
-        auto rhsType = rhsOrigType.dyn_cast<NDTypeInterface>();
-
-        if (lhsType == nullptr || rhsType == nullptr) {
-            return false;
-        }
-
-        if (lhsType.getShape() != rhsType.getShape()) {
-            return false;
-        }
-
-        if (lhsType.getElementType() != rhsType.getElementType()) {
-            if (IE::bitEnumContains(elemComparisonModes, IE::TypeComparisonMode::STRICT_EQUAL)) {
-                return false;
-            }
-
-            const auto lhsQuantizedType = lhsType.getElementType().dyn_cast<mlir::quant::QuantizedType>();
-            const auto rhsQuantizedType = rhsType.getElementType().dyn_cast<mlir::quant::QuantizedType>();
-
-            if (!lhsQuantizedType && !rhsQuantizedType) {
-                return false;
-            } else if (lhsQuantizedType && rhsQuantizedType) {
-                if ((lhsQuantizedType.getExpressedType() != rhsQuantizedType.getExpressedType()) ||
-                    (lhsQuantizedType.getStorageType() != rhsQuantizedType.getStorageType())) {
-                    if (!IE::bitEnumContains(elemComparisonModes, IE::TypeComparisonMode::ALLOW_DIFFERENT_QUANT)) {
-                        return false;
-                    }
-                }
-            } else {
-                if (!IE::bitEnumContains(elemComparisonModes, IE::TypeComparisonMode::ALLOW_QUANT_MIXED_PRECISION)) {
-                    return false;
-                }
-            }
-        }
-
-        if (checkDimsOrder) {
-            const auto order1 = lhsType.getDimsOrder();
-            const auto order2 = rhsType.getDimsOrder();
-
-            if (order1 != order2) {
-                return false;
-            }
-        }
-
-        if (checkMemSpace) {
-            const auto memSpace1 = lhsType.getMemSpace();
-            const auto memSpace2 = rhsType.getMemSpace();
-
-            if (memSpace1 != memSpace2) {
-                return false;
-            }
-        }
-    }
-
-    return true;
 }
 
 //
@@ -229,11 +150,24 @@ mlir::LogicalResult vpux::IE::verifyEltwiseOp(mlir::Operation* op) {
         return errorAt(op, "Operation with multiple results can't be EltwiseOp");
     }
 
-    const auto outputShape = op->getResult(0).getType().cast<vpux::NDTypeInterface>().getShape();
-    if (llvm::none_of(op->getOperands(), [&](mlir::Value operand) {
-            return operand.getType().cast<vpux::NDTypeInterface>().getShape() == outputShape;
-        })) {
-        return errorAt(op, "EltwiseOp must have at least one input shape equal to the output shape");
+    if (op->hasAttr("auto_broadcast")) {
+        auto autoBroadcast = op->getAttr("auto_broadcast").dyn_cast<IE::AutoBroadcastTypeAttr>();
+        if (autoBroadcast == nullptr) {
+            return errorAt(op, "Auto broadcast attribute cannot be cast");
+        }
+        auto broadcast = autoBroadcast.getValue();
+
+        SmallVector<ArrayRef<int64_t>> inputShapes;
+        for (auto operand : op->getOperands()) {
+            const auto shape = operand.getType().cast<vpux::NDTypeInterface>().getShape().raw();
+            inputShapes.push_back(shape);
+        }
+
+        const auto outputShape = IE::broadcastEltwiseShape(inputShapes, broadcast, op->getLoc());
+
+        if (mlir::failed(outputShape)) {
+            return errorAt(op, "Eltwise inputs cannot be broadcast");
+        }
     }
 
     return mlir::success();
@@ -253,6 +187,14 @@ vpux::IE::LayerDataInfo<mlir::Type> vpux::IE::getElemTypeInfo(mlir::Operation* o
     }
 
     return vpux::IE::LayerDataInfo<mlir::Type>(std::move(inputTypes), std::move(outputTypes));
+}
+
+//
+// isPureViewLike
+//
+
+bool vpux::IE::isPureViewOp(mlir::Operation* op) {
+    return mlir::isa<IE::ViewLikeOpInterface, mlir::ViewLikeOpInterface>(op);
 }
 
 //

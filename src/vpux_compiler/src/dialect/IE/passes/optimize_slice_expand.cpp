@@ -1,8 +1,6 @@
 //
-// Copyright (C)  Intel Corporation.
+// Copyright (C) 2022-2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
-//
-
 //
 
 #include "vpux/compiler/core/layers.hpp"
@@ -164,62 +162,47 @@ private:
 };
 
 mlir::LogicalResult OptimizeSliceExpand::matchAndRewrite(IE::ExpandOp layerOp, mlir::PatternRewriter& rewriter) const {
-    bool convertToSlice = false;
-    bool convertToExpand = false;
     auto sliceOp = layerOp.input().getDefiningOp<IE::SliceOp>();
-
     if (sliceOp == nullptr) {
         return mlir::failure();
     }
 
+    auto sliceOffset = parseIntArrayAttr<int64_t>(sliceOp.static_offsets());
     auto expandedShape = to_small_vector(getShape(layerOp.output()));
     auto parentShape = to_small_vector(getShape(sliceOp.source()));
 
-    if (parentShape.size() == expandedShape.size()) {
-        for (auto index : irange(parentShape.size())) {
-            if (parentShape[index] > expandedShape[index]) {
-                convertToSlice = true;
-            } else if (parentShape[index] < expandedShape[index]) {
-                convertToExpand = true;
-            }
+    bool convertToSlice = true;
+    bool convertToExpand = true;
 
-            if (convertToSlice && convertToExpand) {
-                return mlir::failure();
-            }
-        }
-    } else {
+    for (auto index : irange(parentShape.size())) {
+        auto newEndOffset = sliceOffset[index] + expandedShape[index];
+
+        convertToSlice &= parentShape[index] >= newEndOffset;
+        convertToExpand &= newEndOffset >= parentShape[index] && sliceOffset[index] == 0;
+    }
+
+    if (convertToSlice && convertToExpand) {
         return mlir::failure();
     }
 
     if (convertToExpand) {
-        auto sliceOffset = parseIntArrayAttr<int64_t>(sliceOp.static_offsets());
-        auto padsEnd = parseIntArrayAttr<int64_t>(layerOp.pads_endAttr());
-        auto hasNonZeroOffset = llvm::any_of(sliceOffset, [](auto offset) {
-            return offset != 0;
-        });
-        if (hasNonZeroOffset) {
-            return mlir::failure();
-        }
-
+        auto newPadsEnd = SmallVector<int64_t>(parentShape.size(), 0);
         for (auto index : irange(parentShape.size())) {
-            padsEnd[index] = expandedShape[index] - parentShape[index];
+            newPadsEnd[index] = expandedShape[index] - parentShape[index];
         }
 
         rewriter.replaceOpWithNewOp<IE::ExpandOp>(layerOp, sliceOp.source(), layerOp.pads_beginAttr(),
-                                                  getIntArrayAttr(layerOp.getContext(), padsEnd));
+                                                  getIntArrayAttr(layerOp.getContext(), newPadsEnd));
         return mlir::success();
     }
 
-    auto sliceSizes = parseIntArrayAttr<int64_t>(sliceOp.static_sizesAttr());
-
-    for (auto index : irange(parentShape.size())) {
-        sliceSizes[index] = expandedShape[index];
+    if (convertToSlice) {
+        rewriter.replaceOpWithNewOp<IE::SliceOp>(layerOp, sliceOp.source(), sliceOp.static_offsetsAttr(),
+                                                 getIntArrayAttr(layerOp.getContext(), expandedShape));
+        return mlir::success();
     }
 
-    rewriter.replaceOpWithNewOp<IE::SliceOp>(layerOp, sliceOp.source(), sliceOp.static_offsetsAttr(),
-                                             getIntArrayAttr(layerOp.getContext(), sliceSizes));
-
-    return mlir::success();
+    return mlir::failure();
 }
 
 //
@@ -365,7 +348,7 @@ void OptimizeSliceExpandPass::safeRunOnFunc() {
     patterns.add<OptimizeSliceImplicitExpand<IE::QuantizeCastOp>>(&ctx, _log);
     patterns.add<OptimizeSliceImplicitExpand<IE::ConcatOp>>(&ctx, _log);
 
-    auto func = getFunction();
+    auto func = getOperation();
     if (mlir::failed(mlir::applyPatternsAndFoldGreedily(func, std::move(patterns), getDefaultGreedyRewriteConfig()))) {
         signalPassFailure();
         return;

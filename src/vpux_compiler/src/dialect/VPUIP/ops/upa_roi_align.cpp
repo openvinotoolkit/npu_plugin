@@ -3,13 +3,10 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/VPUIP/graph-schema/utils.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 
 #include "vpux/compiler/dialect/VPUIP/graph-schema/blob_reader.hpp"
-#include "vpux/compiler/dialect/VPUIP/graph-schema/utils.hpp"
 
 using namespace vpux;
 

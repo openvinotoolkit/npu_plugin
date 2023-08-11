@@ -6,8 +6,8 @@
 #include <functional_test_utils/skip_tests_config.hpp>
 #include "common/functions.h"
 #include "common_test_utils/file_utils.hpp"
+#include "vpux/vpux_metrics.hpp"
 #include "vpux_private_config.hpp"
-#include "vpux_private_metrics.hpp"
 
 using namespace BehaviorTestsDefinitions;
 using IEClassExecutableNetworkGetMetricTest_nightly = IEClassExecutableNetworkGetMetricTest;

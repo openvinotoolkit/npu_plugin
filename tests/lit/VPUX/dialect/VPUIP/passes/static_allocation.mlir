@@ -1,7 +1,8 @@
 //
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
+
 // RUN: vpux-opt --split-input-file --init-compiler="vpu-arch=%arch%" --static-allocation="memory-space=DDR" %s | FileCheck %s
 // REQUIRES: arch-VPUX30XX || arch-VPUX37XX
 
@@ -20,7 +21,7 @@ IE.CNNNetwork
 // CHECK:   module @UsedMemory
 // CHECK:           IE.MemoryResource 4096 bytes of @DDR
 
-func @main(%in: memref<1x1x1x1000xf16>, %out: memref<1x1x1x1000xf16>) -> memref<1x1x1x1000xf16> {
+func.func @main(%in: memref<1x1x1x1000xf16>, %out: memref<1x1x1x1000xf16>) -> memref<1x1x1x1000xf16> {
     %buf0 = memref.alloc() : memref<1x1x1x1000xf16, @DDR>
     %buf1 = memref.alloc() : memref<1x1x1x1000xf16, @DDR>
     %buf2 = memref.alloc() : memref<1x1x1x1000xf16, @DDR>

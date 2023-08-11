@@ -18,7 +18,7 @@ namespace LayerTestsUtils {
 
 class KmbLayerTestsCommon : virtual public LayerTestsCommon {
 protected:
-    static const KmbTestEnvConfig envConfig;
+    static const KmbTestEnvConfig& envConfig;
     KmbTestTool kmbTestTool;
 
 public:
@@ -48,17 +48,15 @@ protected:
     virtual void SkipBeforeValidate() {
     }
 
-    void useCompilerMLIR();
     void setReferenceSoftwareModeMLIR();
     void setDefaultHardwareModeMLIR();
+    void setPlatformVPU3700();
     void setPlatformVPU3720();
 
     void setSingleClusterMode();
 
     void setPerformanceHintLatency();
     void useELFCompilerBackend();
-
-    bool isCompilerMLIR() const;
 
     void TearDown() override;
 };

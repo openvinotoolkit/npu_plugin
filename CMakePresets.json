@@ -18,6 +18,14 @@
             }
         },
         {
+            "name": "EnableClang",
+            "hidden": true,
+            "cacheVariables": {
+                "CMAKE_C_COMPILER": "clang",
+                "CMAKE_CXX_COMPILER": "clang++"
+            }
+        },
+        {
             "name": "LinkerOptimization",
             "hidden": true,
             "cacheVariables": {
@@ -59,7 +67,6 @@
                 "ENABLE_TESTS": false,
                 "ENABLE_FUNCTIONAL_TESTS": false,
                 "ENABLE_DEVELOPER_BUILD": false,
-                "ENABLE_KMB_SAMPLES": false,
                 "ENABLE_MODELS": false,
                 "ENABLE_VALIDATION_SET": false,
                 "ENABLE_LTO": false,
@@ -71,7 +78,6 @@
                 "ENABLE_DRIVER_COMPILER_ADAPTER": false,
                 "ENABLE_EMULATOR": false,
                 "ENABLE_VPUX_DOCS": false,
-                "TREAT_WARNING_AS_ERROR": false,
                 "ENABLE_IMD_BACKEND": false
             }
         },
@@ -101,7 +107,6 @@
                 "ENABLE_IMD_BACKEND": true,
 
                 "ENABLE_CPPLINT": false,
-                "ENABLE_KMB_SAMPLES": false,
 
                 "ENABLE_MODELS": false,
                 "ENABLE_VALIDATION_SET": false,
@@ -135,7 +140,6 @@
                 "ENABLE_CLANG_FORMAT": true,
 
                 "ENABLE_CPPLINT": false,
-                "ENABLE_KMB_SAMPLES": false,
 
                 "ENABLE_IMD_BACKEND": false,
                 "ENABLE_DEVELOPER_BUILD": false,
@@ -159,13 +163,12 @@
                 "ENABLE_INTEL_GNA": false,
                 "ENABLE_INTEL_GPU": false,
                 "ENABLE_TEMPLATE": true,
-                "ENABLE_INTEL_MYRIAD": false,
-                "ENABLE_INTEL_MYRIAD_COMMON": false,
 
                 "ENABLE_IR_V7_READER": false,
                 "ENABLE_OV_ONNX_FRONTEND": false,
                 "ENABLE_OV_PADDLE_FRONTEND": false,
                 "ENABLE_OV_TF_FRONTEND": false,
+                "ENABLE_OV_TF_LITE_FRONTEND": false,
 
                 "THREADING": {
                     "type": "STRING",
@@ -176,7 +179,6 @@
                 "ENABLE_LTO": false,
                 "ENABLE_OPENCV": true,
 
-                "ENABLE_SAMPLES": true,
                 "ENABLE_TESTS": true,
                 "ENABLE_FUNCTIONAL_TESTS": true,
 

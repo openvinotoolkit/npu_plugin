@@ -1,13 +1,14 @@
 //
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
+
 // RUN: vpux-opt --split-input-file --init-compiler="vpu-arch=%arch%" --optimize-parallel-copies %s | FileCheck %s
 // REQUIRES: arch-VPUX30XX || arch-VPUX37XX
 
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
-func @OptimizeParallelNonConstCopies(
+func.func @OptimizeParallelNonConstCopies(
         %input: memref<1x16x112x112xf32, #NHWC>,
         %output1: memref<1x16x112x112xf16, #NHWC, @DDR>,
         %output2: memref<1x16x112x112xf16, #NHWC, @DDR>)
@@ -83,7 +84,7 @@ func @OptimizeParallelNonConstCopies(
 
 }
 
-// CHECK-LABEL: func @OptimizeParallelNonConstCopies
+// CHECK-LABEL: func.func @OptimizeParallelNonConstCopies
 
 // CHECK:       [[VAR0:%.*]] =  VPUIP.ConvertUPA inputs(%arg0 : memref<1x16x112x112xf32, #NHWC>)
 // CHECK:       [[VAR1:%.*]] =  VPUIP.Copy inputs([[VAR0]] : memref<1x16x112x112xf16, #NHWC, @DDR>)
@@ -100,7 +101,7 @@ func @OptimizeParallelNonConstCopies(
 
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
-func @OptimizeParallelSubViewPatternCopies(
+func.func @OptimizeParallelSubViewPatternCopies(
         %input: memref<1x16x112x113xf32, #NHWC>,
         %output1: memref<1x16x112x112xf16, #NHWC, @DDR>,
         %output2: memref<1x16x112x112xf16, #NHWC, @DDR>)
@@ -181,7 +182,7 @@ func @OptimizeParallelSubViewPatternCopies(
 
 }
 
-// CHECK-LABEL: func @OptimizeParallelSubViewPatternCopies
+// CHECK-LABEL: func.func @OptimizeParallelSubViewPatternCopies
 
 // CHECK:       [[VAR0:%.*]] =  VPUIP.ConvertUPA inputs(%arg0 : memref<1x16x112x113xf32, #NHWC>)
 // CHECK:       [[VAR1:%.*]] =  VPUIP.SubView [[VAR0]] [0, 0, 0, 0] [1, 16, 112, 112]

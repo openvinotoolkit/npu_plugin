@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/IE/ops.hpp"
 
 #include "vpux/compiler/dialect/const/ops.hpp"
@@ -79,7 +77,7 @@ mlir::LogicalResult vpux::IE::SplitOp::inferReturnTypeComponents(
         mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
         mlir::DictionaryAttr attrs, mlir::RegionRange,
         SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
-    const auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
+    const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
     IE::SplitOpAdaptor split(operands, attrs);
     if (mlir::failed(split.verify(loc))) {
@@ -149,4 +147,32 @@ mlir::LogicalResult ConvertConstToAttr::matchAndRewrite(IE::SplitOp splitOp, mli
 
 void vpux::IE::SplitOp::getCanonicalizationPatterns(mlir::RewritePatternSet& patterns, mlir::MLIRContext* context) {
     patterns.add<ConvertConstToAttr>(context);
+}
+
+//
+// inferElemTypeInfo
+//
+
+void vpux::IE::SplitOp::inferElemTypeInfo(vpux::IE::LayerDataInfo<mlir::Type>& info) {
+    auto outputElemType = info.getInput(0);
+
+    // Do not propagate element type down in per channel case.
+    if (outputElemType.dyn_cast_or_null<mlir::quant::UniformQuantizedPerAxisType>() == nullptr) {
+        for (size_t outputInd = 0; outputInd < info.getNumOutputs(); ++outputInd) {
+            info.setOutput(outputInd, outputElemType);
+        }
+    }
+}
+
+void vpux::IE::SplitOp::inferElemTypeInfoUp(vpux::IE::LayerDataInfo<mlir::Type>& info) {
+    const auto outputElemType = info.getOutput(0);
+
+    if (outputElemType.dyn_cast_or_null<mlir::quant::UniformQuantizedPerAxisType>() != nullptr) {
+        // E#31029: implement propagate type up for per channel, currently it leads to failures in later passes.
+        return;
+    }
+
+    for (size_t inputInd = 0; inputInd < info.getNumInputs(); ++inputInd) {
+        info.setInput(inputInd, outputElemType);
+    }
 }

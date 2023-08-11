@@ -3,18 +3,21 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/conversion.hpp"
 
 #include "vpux/compiler/core/attributes/stride_reqs.hpp"
 #include "vpux/compiler/core/cost_model_utils.hpp"
 #include "vpux/compiler/core/layers.hpp"
+#include "vpux/compiler/dialect/IERT/ops.hpp"
 #include "vpux/compiler/dialect/VPU/attributes.hpp"
 #include "vpux/compiler/dialect/VPU/nce_sparsity.hpp"
+#include "vpux/compiler/dialect/VPU/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/dpu_tiler.hpp"
 #include "vpux/compiler/dialect/VPUIP/nce_invariant.hpp"
+#include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/utils.hpp"
+#include "vpux/compiler/dialect/VPURT/ops.hpp"
+#include "vpux/compiler/dialect/const/ops.hpp"
 #include "vpux/compiler/utils/allocate_buffers.hpp"
 #include "vpux/compiler/utils/analysis.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
@@ -30,8 +33,6 @@
 #include <mlir/Dialect/Bufferization/Transforms/Bufferize.h>
 #include <mlir/IR/BlockAndValueMapping.h>
 #include <mlir/Transforms/DialectConversion.h>
-
-#include <llvm/ADT/TypeSwitch.h>
 
 using namespace vpux;
 
@@ -67,8 +68,8 @@ void addDPUTasks(const Logger& log, VPUIP::NCEClusterTaskOp nceOp, mlir::Pattern
 
     for (auto dpuTaskOp : workloads.getOps<VPU::DPUWorkloadOp>()) {
         SmallVector<int64_t> ends;
-        const auto offsets = parseIntArrayAttr<int64_t>(dpuTaskOp.offsets());
-        const auto sizes = parseIntArrayAttr<int64_t>(dpuTaskOp.sizes());
+        const auto offsets = parseIntArrayAttr<int64_t>(dpuTaskOp.outOffsets());
+        const auto sizes = parseIntArrayAttr<int64_t>(dpuTaskOp.outSizes());
         ends.reserve(sizes.size());
 
         llvm::transform(llvm::seq<size_t>(0, sizes.size()), std::back_inserter(ends), [&](size_t index) {
@@ -80,8 +81,25 @@ void addDPUTasks(const Logger& log, VPUIP::NCEClusterTaskOp nceOp, mlir::Pattern
                                   offsets[Dims4D::Act::C.ind()]};
         const auto outDpuEnds = {ends[Dims4D::Act::W.ind()], ends[Dims4D::Act::H.ind()], ends[Dims4D::Act::C.ind()]};
 
+        mlir::ArrayAttr inStartAttr = nullptr;
+        mlir::ArrayAttr inEndAttr = nullptr;
+
+        if (dpuTaskOp.inOffsetsAttr() != nullptr && dpuTaskOp.inSizesAttr() != nullptr) {
+            const auto inOffset = parseIntArrayAttr<int64_t>(dpuTaskOp.inOffsetsAttr());
+            const auto inSizes = parseIntArrayAttr<int64_t>(dpuTaskOp.inSizesAttr());
+
+            const auto inDpuStart = {inOffset[Dims4D::Act::W.ind()], inOffset[Dims4D::Act::H.ind()],
+                                     inOffset[Dims4D::Act::C.ind()]};
+            const auto inDpuEnds = {inOffset[Dims4D::Act::W.ind()] + inSizes[Dims4D::Act::W.ind()] - 1,
+                                    inOffset[Dims4D::Act::H.ind()] + inSizes[Dims4D::Act::H.ind()] - 1,
+                                    inOffset[Dims4D::Act::C.ind()] + inSizes[Dims4D::Act::C.ind()] - 1};
+
+            inStartAttr = getIntArrayAttr(rewriter, inDpuStart);
+            inEndAttr = getIntArrayAttr(rewriter, inDpuEnds);
+        }
+
         nceOp.addDPUTask(rewriter, getIntArrayAttr(rewriter, outDpuStart), getIntArrayAttr(rewriter, outDpuEnds),
-                         dpuTaskOp.pad(), dpuTaskOp.mpe_mode(), dpuTaskOp.cluster_idAttr());
+                         inStartAttr, inEndAttr, dpuTaskOp.pad(), dpuTaskOp.mpe_mode(), dpuTaskOp.cluster_idAttr());
     }
 }
 
@@ -97,7 +115,8 @@ mlir::Value createNCEClusterTask(mlir::ConversionPatternRewriter& rewriter, mlir
                                  mlir::IntegerAttr activationWindowChannelLengthAttr, mlir::Region& workloads,
                                  mlir::UnitAttr isSuperdenseAttr = nullptr, VPU::PPETaskAttr ppeAttr = nullptr,
                                  mlir::Attribute dpuCostAttr = nullptr, mlir::BoolAttr isInplace = nullptr,
-                                 Logger log = Logger::global()) {
+                                 mlir::UnitAttr isPermuteQuantize = nullptr, mlir::IntegerAttr cmSpPattern = nullptr,
+                                 mlir::UnitAttr inputChannelsCompression = nullptr, Logger log = Logger::global()) {
     const auto getIndividualBuffers = [&](mlir::Value value) {
         mlir::Value data = value;
         mlir::Value sparsityMap = nullptr;
@@ -125,13 +144,11 @@ mlir::Value createNCEClusterTask(mlir::ConversionPatternRewriter& rewriter, mlir
             instructionListTable, activationWindow, inputData, inputSparsityMap, inputSETable, outputBuffData,
             outputBuffSparsityMap, outputBuffData, outputBuffSparsityMap, nullptr, taskType, kernelSizeAttr,
             kernelStridesAttr, kernelPaddingAttr, activationWindowChannelLengthAttr,
-            /*is_continued=*/nullptr,
-            /*cm_sp_pattern=*/nullptr,
+            /*is_continued=*/nullptr, cmSpPattern,
             /*is_segmented=*/nullptr,
-            /*out_channel_offset=*/nullptr,
-            /*input_channels_compression=*/nullptr, isSuperdenseAttr, isInplace,
+            /*out_channel_offset=*/nullptr, inputChannelsCompression, isSuperdenseAttr, isInplace,
             /*input_se_size=*/nullptr,
-            /*output_se_size=*/nullptr);
+            /*output_se_size=*/nullptr, isPermuteQuantize);
 
     addDPUTasks(log, nceClusterTask, rewriter, workloads);
 
@@ -152,6 +169,15 @@ mlir::Value createNCEClusterTask(mlir::ConversionPatternRewriter& rewriter, mlir
     return nceClusterTask.output();
 }
 
+bool isSuperdenseOp(mlir::Operation* nceOp) {
+    const auto outType = nceOp->getResult(0).getType().cast<vpux::NDTypeInterface>();
+    const auto outputOrder = outType.getDimsOrder();
+    const auto outputShape = outType.getShape();
+    const auto outElemType = outType.getElementType();
+    const auto arch = VPU::getArch(nceOp);
+    return VPU::NCESparsity::isSuperdenseRequired(arch, outputOrder, outputShape, outElemType);
+}
+
 //
 // ConvRewriter
 //
@@ -160,7 +186,6 @@ class ConvRewriter final : public mlir::OpConversionPattern<VPU::NCEConvolutionO
 public:
     ConvRewriter(mlir::TypeConverter& typeConverter, mlir::MLIRContext* ctx, Logger log)
             : mlir::OpConversionPattern<VPU::NCEConvolutionOp>(typeConverter, ctx), _log(log) {
-        setDebugName("ConvRewriter");
     }
 
 public:
@@ -211,13 +236,20 @@ mlir::LogicalResult ConvRewriter::matchAndRewrite(VPU::NCEConvolutionOp origOp, 
     auto dpuCostAttr = origOp->hasAttr(DPUCost) ? origOp->getAttr(DPUCost) : nullptr;
 
     _log.nest().trace("Creating VPUIP::NCEClusterTaskOp");
+    mlir::UnitAttr isSuperdenseAttr = nullptr;
+    if (isSuperdenseOp(origOp)) {
+        VPUX_THROW_WHEN(origOp->getResult(0).getType().isa<VPU::SparseTensorType>(),
+                        "Output cannot be sparse and super-dense at the same time");
+        isSuperdenseAttr = mlir::UnitAttr::get(this->getContext());
+    }
 
     auto nceOp = createNCEClusterTask(rewriter, origOp->getLoc(), newArgs.input(), newArgs.filter(),
                                       newArgs.weightsTable(), newArgs.instructionListTable(),
                                       newArgs.activationWindow(), outputBuffers, taskType, kernelSizeAttr,
                                       origOp.strides(), origOp.padAttr(), origOp.activation_window_channel_lengthAttr(),
-                                      origOp.workloads(), /*isSuperdenseAttr=*/nullptr, ppeAttr, dpuCostAttr,
-                                      /*isInplace=*/nullptr, _log);
+                                      origOp.workloads(), isSuperdenseAttr, ppeAttr, dpuCostAttr,
+                                      /*isInplace=*/nullptr, /*isPermuteQuantize=*/nullptr, /*cmSpPattern=*/nullptr,
+                                      /*inputChannelsCompression=*/nullptr, _log);
 
     rewriter.replaceOp(origOp, nceOp);
 
@@ -268,12 +300,20 @@ mlir::LogicalResult MaxPoolRewriter::matchAndRewrite(VPU::NCEMaxPoolOp origOp, O
     auto dpuCostAttr = origOp->hasAttr(DPUCost) ? origOp->getAttr(DPUCost) : nullptr;
 
     _log.nest().trace("Creating VPUIP::NCEClusterTaskOp");
+    mlir::UnitAttr isSuperdenseAttr = nullptr;
+    if (isSuperdenseOp(origOp)) {
+        VPUX_THROW_WHEN(origOp->getResult(0).getType().isa<VPU::SparseTensorType>(),
+                        "Output cannot be sparse and super-dense at the same time");
+        isSuperdenseAttr = mlir::UnitAttr::get(this->getContext());
+    }
 
     auto nceOp = createNCEClusterTask(
             rewriter, origOp->getLoc(), newArgs.input(), /*weights=*/nullptr, newArgs.weightsTable(),
             /*instruction_list_table=*/nullptr, newArgs.activationWindow(), outputBuffers, VPUIP::NCETaskType::MAXPOOL,
             origOp.kernel_size(), origOp.strides(), origOp.pad(), origOp.activation_window_channel_lengthAttr(),
-            origOp.workloads(), /*isSuperdenseAttr=*/nullptr, ppeAttr, dpuCostAttr, /*isInplace=*/nullptr, _log);
+            origOp.workloads(), isSuperdenseAttr, ppeAttr, dpuCostAttr, /*isInplace=*/nullptr,
+            /*isPermuteQuantize=*/nullptr, /*cmSpPattern=*/nullptr,
+            /*inputChannelsCompression=*/nullptr, _log);
 
     rewriter.replaceOp(origOp, nceOp);
 
@@ -322,13 +362,21 @@ mlir::LogicalResult AveragePoolRewriter::matchAndRewrite(VPU::NCEAveragePoolOp o
     auto dpuCostAttr = origOp->hasAttr(DPUCost) ? origOp->getAttr(DPUCost) : nullptr;
 
     _log.nest().trace("Creating VPUIP::NCEClusterTaskOp");
+    mlir::UnitAttr isSuperdenseAttr = nullptr;
+    if (isSuperdenseOp(origOp)) {
+        VPUX_THROW_WHEN(origOp->getResult(0).getType().isa<VPU::SparseTensorType>(),
+                        "Output cannot be sparse and super-dense at the same time");
+        isSuperdenseAttr = mlir::UnitAttr::get(this->getContext());
+    }
 
     auto nceOp = createNCEClusterTask(rewriter, origOp->getLoc(), newArgs.input(), /*weights=*/nullptr,
                                       /*weights_table=*/nullptr,
                                       /*instruction_list_table=*/nullptr, /*activation_window=*/nullptr, outputBuffers,
                                       VPUIP::NCETaskType::AVEPOOL, origOp.kernel_size(), origOp.strides(), origOp.pad(),
                                       /*activation_window_channel_length=*/nullptr, origOp.workloads(),
-                                      /*isSuperdenseAttr=*/nullptr, ppeAttr, dpuCostAttr, /*isInplace=*/nullptr, _log);
+                                      isSuperdenseAttr, ppeAttr, dpuCostAttr, /*isInplace=*/nullptr,
+                                      /*isPermuteQuantize=*/nullptr, /*cmSpPattern=*/nullptr,
+                                      /*inputChannelsCompression=*/nullptr, _log);
 
     rewriter.replaceOp(origOp, nceOp);
 
@@ -388,12 +436,90 @@ mlir::LogicalResult DepthwiseConvRewriter::matchAndRewrite(VPU::NCEDepthConvolut
     auto dpuCostAttr = origOp->hasAttr(DPUCost) ? origOp->getAttr(DPUCost) : nullptr;
 
     _log.nest().trace("Creating VPUIP::NCEClusterTaskOp");
+    mlir::UnitAttr isSuperdenseAttr = nullptr;
+    if (isSuperdenseOp(origOp)) {
+        VPUX_THROW_WHEN(origOp->getResult(0).getType().isa<VPU::SparseTensorType>(),
+                        "Output cannot be sparse and super-dense at the same time");
+        isSuperdenseAttr = mlir::UnitAttr::get(this->getContext());
+    }
 
     auto nceOp = createNCEClusterTask(
             rewriter, origOp->getLoc(), newArgs.input(), newArgs.filter(), newArgs.weightsTable(),
             newArgs.instructionListTable(), newArgs.activationWindow(), outputBuffers, VPUIP::NCETaskType::DWCONV,
             kernelSizeAttr, origOp.strides(), origOp.pad(), origOp.activation_window_channel_lengthAttr(),
-            origOp.workloads(), /*isSuperdenseAttr=*/nullptr, ppeAttr, dpuCostAttr, /*isInplace=*/nullptr, _log);
+            origOp.workloads(), isSuperdenseAttr, ppeAttr, dpuCostAttr, /*isInplace=*/nullptr,
+            /*isPermuteQuantize=*/nullptr, /*cmSpPattern=*/nullptr,
+            /*inputChannelsCompression=*/nullptr, _log);
+
+    rewriter.replaceOp(origOp, nceOp);
+
+    return mlir::success();
+}
+
+//
+// InterpolateRewriter
+//
+
+class InterpolateRewriter final : public mlir::OpConversionPattern<VPU::NCEInterpolateOp> {
+public:
+    InterpolateRewriter(mlir::TypeConverter& converter, mlir::MLIRContext* ctx, Logger log)
+            : mlir::OpConversionPattern<VPU::NCEInterpolateOp>(converter, ctx), _log(log) {
+    }
+
+public:
+    mlir::LogicalResult matchAndRewrite(VPU::NCEInterpolateOp origOp, OpAdaptor newArgs,
+                                        mlir::ConversionPatternRewriter& rewriter) const final;
+
+private:
+    Logger _log;
+};
+
+mlir::LogicalResult InterpolateRewriter::matchAndRewrite(VPU::NCEInterpolateOp origOp, OpAdaptor newArgs,
+                                                         mlir::ConversionPatternRewriter& rewriter) const {
+    _log.trace("Got '{0}' at '{1}'", origOp->getName(), origOp->getLoc());
+
+    auto* typeConverter = getTypeConverter();
+    VPUX_THROW_WHEN(typeConverter == nullptr, "TypeConverter is not set");
+
+    const auto filterShape = Shape(parseIntArrayAttr<int64_t>(origOp.rawFilterShape()));
+
+    const auto KY = filterShape[Dims4D::Filter::KY];
+    const auto KX = filterShape[Dims4D::Filter::KX];
+
+    auto kernelSizeAttr = getIntArrayAttr(getContext(), makeArrayRef({KY, KX}));
+
+    _log.nest().trace("Allocating output buffer");
+
+    auto newLoc = appendLoc(origOp.getLoc(), "_interpolate");
+
+    const auto outputBuffers = allocateBuffers(_log, newLoc, rewriter, *typeConverter, {origOp.output()},
+                                               /*individualBuffers=*/true);
+
+    _log.nest().trace("Creating VPUIP::NCEClusterTaskOp");
+
+    auto ppeTaskAttr = origOp.ppe().hasValue() ? origOp.ppeAttr() : nullptr;
+    auto dpuCostAttr = origOp->hasAttr(DPUCost) ? origOp->getAttr(DPUCost) : nullptr;
+
+    mlir::UnitAttr isSuperdenseAttr = nullptr;
+    if (isSuperdenseOp(origOp)) {
+        VPUX_THROW_WHEN(origOp->getResult(0).getType().isa<VPU::SparseTensorType>(),
+                        "Output cannot be sparse and super-dense at the same time");
+        isSuperdenseAttr = mlir::UnitAttr::get(this->getContext());
+    }
+
+    auto nceOp = createNCEClusterTask(
+            /*rewriter=*/rewriter, /*loc=*/newLoc, /*input=*/newArgs.input(),
+            /*weights=*/newArgs.weights(), /*weightsTable=*/newArgs.weightsTable(),
+            /*instructionListTable=*/nullptr,
+            /*activationWindow=*/nullptr, /*outputBuffs=*/outputBuffers, /*taskType=*/VPUIP::NCETaskType::CONV,
+            /*kernelSizeAttr=*/kernelSizeAttr,
+            /*kernelStridesAttr=*/getIntArrayAttr(getContext(), origOp.getStrides()),
+            /*kernelPaddingAttr=*/origOp.getPad(),
+            /*activationWindowChannelLengthAttr=*/nullptr,
+            /*workloads=*/origOp.workloads(), /*isSuperdenseAttr=*/isSuperdenseAttr, /*ppeAttr=*/ppeTaskAttr,
+            /*dpuCostAttr=*/dpuCostAttr,
+            /*isInplace=*/nullptr, /*isPermuteQuantize=*/nullptr, /*cmSpPattern=*/nullptr,
+            /*inputChannelsCompression=*/nullptr, /*log=*/_log);
 
     rewriter.replaceOp(origOp, nceOp);
 
@@ -446,16 +572,23 @@ mlir::LogicalResult EltwiseRewriter::matchAndRewrite(VPU::NCEEltwiseOp origOp, O
     auto dpuCostAttr = origOp->hasAttr(DPUCost) ? origOp->getAttr(DPUCost) : nullptr;
 
     _log.nest().trace("Creating VPUIP::NCEClusterTaskOp");
+    mlir::UnitAttr isSuperdenseAttr = nullptr;
+    if (isSuperdenseOp(origOp)) {
+        VPUX_THROW_WHEN(origOp->getResult(0).getType().isa<VPU::SparseTensorType>(),
+                        "Output cannot be sparse and super-dense at the same time");
+        isSuperdenseAttr = mlir::UnitAttr::get(this->getContext());
+    }
 
-    auto nceOp =
-            createNCEClusterTask(rewriter, origOp->getLoc(), newArgs.input1(), newArgs.input2(),
-                                 /*weightsTable=*/nullptr,
-                                 /*instruction_table_list=*/nullptr,
-                                 /*activation_window=*/nullptr, outputBuffers, VPUIP::NCETaskType::ELTWISE,
-                                 /*kernel_size=*/nullptr,
-                                 /*kernel_strides=*/nullptr,
-                                 /*kernel_padding=*/nullptr, activation_window_channel_length, origOp.workloads(),
-                                 /*isSuperdenseAttr=*/nullptr, ppeAttr, dpuCostAttr, origOp.is_inplaceAttr(), _log);
+    auto nceOp = createNCEClusterTask(rewriter, origOp->getLoc(), newArgs.input1(), newArgs.input2(),
+                                      /*weightsTable=*/nullptr,
+                                      /*instruction_table_list=*/nullptr,
+                                      /*activation_window=*/nullptr, outputBuffers, VPUIP::NCETaskType::ELTWISE,
+                                      /*kernel_size=*/nullptr,
+                                      /*kernel_strides=*/nullptr,
+                                      /*kernel_padding=*/nullptr, activation_window_channel_length, origOp.workloads(),
+                                      isSuperdenseAttr, ppeAttr, dpuCostAttr, origOp.is_inplaceAttr(),
+                                      /*isPermuteQuantize=*/nullptr, /*cmSpPattern=*/nullptr,
+                                      /*inputChannelsCompression=*/nullptr, _log);
 
     rewriter.replaceOp(origOp, nceOp);
 
@@ -534,12 +667,15 @@ mlir::LogicalResult PermuteQuantizeRewriter::matchAndRewrite(VPU::NCEPermuteQuan
     auto dpuCostAttr = origOp->hasAttr(DPUCost) ? origOp->getAttr(DPUCost) : nullptr;
 
     mlir::UnitAttr isSuperdenseAttr = nullptr;
-    if (origOp.isSuperdense()) {
+    if (isSuperdenseOp(origOp)) {
+        VPUX_THROW_WHEN(origOp->getResult(0).getType().isa<VPU::SparseTensorType>(),
+                        "Output cannot be sparse and super-dense at the same time");
         isSuperdenseAttr = mlir::UnitAttr::get(this->getContext());
     }
 
     _log.nest().trace("Creating VPUIP::NCEClusterTaskOp");
 
+    auto isPermuteQuantizeAttr = mlir::UnitAttr::get(this->getContext());
     auto nceOp = createNCEClusterTask(rewriter, origOp->getLoc(), newArgs.input(), newArgs.input(),
                                       /*weightsTable=*/nullptr,
                                       /*instruction_table_list=*/nullptr,
@@ -548,7 +684,96 @@ mlir::LogicalResult PermuteQuantizeRewriter::matchAndRewrite(VPU::NCEPermuteQuan
                                       /*kernel_strides=*/nullptr,
                                       /*kernel_padding=*/nullptr, activation_window_channel_length, origOp.workloads(),
                                       isSuperdenseAttr, ppeTaskAttr, dpuCostAttr,
-                                      /*isInplace=*/nullptr, _log);
+                                      /*isInplace=*/nullptr, isPermuteQuantizeAttr, /*cmSpPattern=*/nullptr,
+                                      /*inputChannelsCompression=*/nullptr, _log);
+
+    rewriter.replaceOp(origOp, nceOp);
+
+    return mlir::success();
+}
+
+//
+// CompressConvRewriter
+//
+
+class CompressConvRewriter final : public mlir::OpConversionPattern<VPU::NCECompressConvolutionOp> {
+public:
+    CompressConvRewriter(mlir::TypeConverter& typeConverter, mlir::MLIRContext* ctx, Logger log)
+            : mlir::OpConversionPattern<VPU::NCECompressConvolutionOp>(typeConverter, ctx), _log(log) {
+        setDebugName("CompressConvRewriter");
+    }
+
+public:
+    mlir::LogicalResult matchAndRewrite(VPU::NCECompressConvolutionOp origOp, OpAdaptor newArgs,
+                                        mlir::ConversionPatternRewriter& rewriter) const final;
+
+private:
+    Logger _log;
+};
+
+mlir::LogicalResult CompressConvRewriter::matchAndRewrite(VPU::NCECompressConvolutionOp origOp, OpAdaptor newArgs,
+                                                          mlir::ConversionPatternRewriter& rewriter) const {
+    _log.trace("Got '{0}' at '{1}'", origOp->getName(), origOp->getLoc());
+
+    //
+    // Buffer allocation
+    //
+
+    auto* typeConverter = getTypeConverter();
+    VPUX_THROW_UNLESS(typeConverter != nullptr, "TypeConverter is not set");
+
+    //
+    // Get dimensions
+    //
+
+    const auto filterShape = Shape(parseIntArrayAttr<int64_t>(origOp.rawFilterShape()));
+
+    const auto KY = filterShape[Dims4D::Filter::KY];
+    const auto KX = filterShape[Dims4D::Filter::KX];
+
+    const auto channelAlignValue =
+            VPU::NCEInvariant::getAlignment(newArgs.filter().getType().cast<vpux::NDTypeInterface>().getElementType());
+
+    const auto finalShape = SmallVector<int64_t>({filterShape[Dims4D::Filter::OC], channelAlignValue, KY, KX});
+    auto shapeCastWeightsOp = rewriter.create<VPUIP::ShapeCastOp>(origOp->getLoc(), newArgs.filter(),
+                                                                  getIntArrayAttr(origOp.getContext(), finalShape));
+    //
+    // Prepare output buffer for DPU
+    //
+
+    const auto outputBuffers = allocateBuffers(_log, origOp.getLoc(), rewriter, *typeConverter, {origOp.output()},
+                                               /*individualBuffers=*/true);
+
+    //
+    // Create NCE per-cluster Operation
+    //
+    auto inputType = newArgs.input().getType();
+    const auto inputShape = inputType.cast<vpux::NDTypeInterface>().getShape();
+    const auto finalInputShape = vpux::Shape(
+            {inputShape[Dims4D::Act::N], channelAlignValue, inputShape[Dims4D::Act::H], inputShape[Dims4D::Act::W]});
+    auto finalInputShapeAttr = getIntArrayAttr(origOp.getContext(), finalInputShape);
+
+    const auto kernelSizeAttr = getIntArrayAttr(getContext(), makeArrayRef({KY, KX}));
+    auto ppeAttr = origOp.ppe().hasValue() ? origOp.ppeAttr() : nullptr;
+    auto dpuCostAttr = origOp->hasAttr(DPUCost) ? origOp->getAttr(DPUCost) : nullptr;
+
+    _log.nest().trace("Creating VPUIP::NCEClusterTaskOp");
+    mlir::UnitAttr isSuperdenseAttr = nullptr;
+    if (isSuperdenseOp(origOp)) {
+        VPUX_THROW_WHEN(origOp->getResult(0).getType().isa<VPU::SparseTensorType>(),
+                        "Output cannot be sparse and super-dense at the same time");
+        isSuperdenseAttr = mlir::UnitAttr::get(this->getContext());
+    }
+    auto inputShapeCastOp = rewriter.create<VPUIP::ShapeCastOp>(origOp->getLoc(), newArgs.input(), finalInputShapeAttr);
+    const auto inputChannelsCompression = mlir::UnitAttr::get(origOp->getContext());
+
+    auto nceOp = createNCEClusterTask(
+            rewriter, origOp->getLoc(), inputShapeCastOp.result(), shapeCastWeightsOp.result(), newArgs.weightsTable(),
+            /*instructionListTable=*/nullptr, /*activationWindow=*/nullptr, outputBuffers, VPUIP::NCETaskType::CONV,
+            kernelSizeAttr, origOp.strides(), origOp.padAttr(), /*activation_window_channel_lengthAttr=*/nullptr,
+            origOp.workloads(), isSuperdenseAttr, ppeAttr, dpuCostAttr,
+            /*isInplace=*/nullptr, /*isPermuteQuantize=*/nullptr, origOp.cm_sp_patternAttr(), inputChannelsCompression,
+            _log);
 
     rewriter.replaceOp(origOp, nceOp);
 
@@ -571,7 +796,7 @@ private:
 
 void ConvertVPUNCEToVPUIPPass::safeRunOnFunc() {
     auto& ctx = getContext();
-    auto func = getFunction();
+    auto func = getOperation();
 
     vpux::BufferizeTypeConverter typeConverter;
 
@@ -579,7 +804,7 @@ void ConvertVPUNCEToVPUIPPass::safeRunOnFunc() {
     target.addLegalDialect<VPUIP::VPUIPDialect>();
     target.addLegalDialect<VPURT::VPURTDialect>();
     target.addIllegalOp<VPU::NCEConvolutionOp, VPU::NCEDepthConvolutionOp, VPU::NCEMaxPoolOp, VPU::NCEAveragePoolOp,
-                        VPU::NCEEltwiseOp>();
+                        VPU::NCEEltwiseOp, VPU::NCEInterpolateOp, VPU::NCECompressConvolutionOp>();
     // NCEClusterTiling will be handled in follow up pass (convertNCEClusterTilingToVPUIP pass)
     target.addLegalOp<VPU::NCEClusterTilingOp>();
     target.addLegalOp<VPU::YieldOp>();
@@ -589,10 +814,12 @@ void ConvertVPUNCEToVPUIPPass::safeRunOnFunc() {
     mlir::RewritePatternSet patterns(&ctx);
     patterns.add<ConvRewriter>(typeConverter, &ctx, _log);
     patterns.add<DepthwiseConvRewriter>(typeConverter, &ctx, _log);
+    patterns.add<InterpolateRewriter>(typeConverter, &ctx, _log);
     patterns.add<MaxPoolRewriter>(typeConverter, &ctx, _log);
     patterns.add<AveragePoolRewriter>(typeConverter, &ctx, _log);
     patterns.add<EltwiseRewriter>(typeConverter, &ctx, _log);
     patterns.add<PermuteQuantizeRewriter>(typeConverter, &ctx, _log);
+    patterns.add<CompressConvRewriter>(typeConverter, &ctx, _log);
 
     if (mlir::failed(mlir::applyPartialConversion(func, target, std::move(patterns)))) {
         signalPassFailure();

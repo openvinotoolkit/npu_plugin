@@ -3,9 +3,9 @@
 # SPDX-License-Identifier: Apache 2.0
 #
 
-#if(ENABLE_LTO)
-#    ie_enable_lto()
-#endif()
+if(ENABLE_LTO)
+    ie_enable_lto()
+endif()
 
 set(TARGET_NAME "vpux_emulator_backend")
 set(OBJ_TARGET_NAME "vpux_emulator_backend_obj")

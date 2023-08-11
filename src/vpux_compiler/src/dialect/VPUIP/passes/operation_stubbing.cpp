@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/core/layers.hpp"
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
@@ -94,7 +92,7 @@ void OperationStubbing::safeRunOnFunc() {
     mlir::RewritePatternSet patterns(&ctx);
     patterns.insert<StubConversion>(typeConverter, &ctx, _log);
 
-    auto func = getFunction();
+    auto func = getOperation();
     if (mlir::failed(mlir::applyPartialConversion(func, target, std::move(patterns)))) {
         signalPassFailure();
     }

@@ -21,7 +21,8 @@ namespace VPUIP {
 
 struct WorkloadCostParams {
     VPUIP::NCETaskType nceTaskType;
-    mlir::Type dataType;
+    mlir::Type inDataType;
+    mlir::Type outDataType;
     VPU::ArchKind arch;
     Shape fullInputShape;
     Shape inputShape;
@@ -30,6 +31,10 @@ struct WorkloadCostParams {
     int64_t numDPU;
     SmallVector<int64_t> kernelSize;
     SmallVector<int64_t> kernelStride;
+    // Sparsity ratio calculation can refer the comments for getWeightsSparsityRatio()
+    // The two items will pass to VPUNN for memory calculation
+    bool isWeightsSparsityEnabled = false;
+    float weightsSparsityRatio = 0.0;
 };
 
 enum class SplitDimension { SPLIT_OVER_H = 0, SPLIT_OVER_W = 1, SPLIT_OVER_HW = 2 };
@@ -59,6 +64,7 @@ private:
 
 int64_t computeSplitCost(const WorkloadSplit& split, const WorkloadCostParams& params,
                          const std::shared_ptr<VPUNN::VPUCostModel>& costModel);
+VPUNN::Operation getOperationType(VPUIP::NCETaskType taskType);
 
 }  // namespace VPUIP
 }  // namespace vpux

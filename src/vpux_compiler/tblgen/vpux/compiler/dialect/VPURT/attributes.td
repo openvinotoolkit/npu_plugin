@@ -3,12 +3,11 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #ifndef VPUX_COMPILER_DIALECT_VPURT_ATTRIBUTES
 #define VPUX_COMPILER_DIALECT_VPURT_ATTRIBUTES
 
 include "mlir/IR/OpBase.td"
+include "mlir/IR/EnumAttr.td"
 
 //
 // BufferSection

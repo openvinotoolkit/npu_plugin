@@ -9,6 +9,7 @@
 #include <unordered_set>
 #include <vpux.hpp>
 
+#include "vpux/utils/core/logger.hpp"
 #include "ze_api.h"
 
 namespace vpux {
@@ -17,8 +18,10 @@ class ZeroAllocator : public Allocator {
 
     static std::unordered_set<const void*> our_pointers;
 
+    Logger _log;
+
 public:
-    explicit ZeroAllocator(ze_driver_handle_t) {
+    explicit ZeroAllocator(ze_driver_handle_t): _log(Logger::global().nest("ZeroAllocator", 0)) {
     }
 
     /**
@@ -71,8 +74,8 @@ public:
     static bool isZeroPtr(const void*);
 
 protected:
-    ZeroAllocator(const ZeroAllocator&) = default;
-    ZeroAllocator& operator=(const ZeroAllocator&) = default;
+    ZeroAllocator(const ZeroAllocator&) = delete;
+    ZeroAllocator& operator=(const ZeroAllocator&) = delete;
 };
 
 }  // namespace vpux

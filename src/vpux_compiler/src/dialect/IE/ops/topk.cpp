@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/IE/ops.hpp"
 
 #include "vpux/compiler/dialect/const/ops.hpp"
@@ -14,11 +12,24 @@
 
 using namespace vpux;
 
+//
+// verify
+//
+
+mlir::LogicalResult vpux::IE::TopKOp::verify() {
+    auto kNumElements = k().getType().cast<vpux::NDTypeInterface>().getNumElements();
+    if (kNumElements != 1) {
+        return errorAt(*this, "K should have only 1 element, while it has {0}", kNumElements);
+    }
+
+    return mlir::success();
+}
+
 mlir::LogicalResult vpux::IE::TopKOp::inferReturnTypeComponents(
         mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
         mlir::DictionaryAttr attrs, mlir::RegionRange,
         SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
-    const auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
+    const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
     IE::TopKOpAdaptor topK(operands, attrs);
     if (mlir::failed(topK.verify(loc))) {
@@ -28,7 +39,9 @@ mlir::LogicalResult vpux::IE::TopKOp::inferReturnTypeComponents(
     const auto inType = topK.input().getType().cast<mlir::ShapedType>();
     const auto inputShape = inType.getShape();
 
-    auto kConst = topK.k().getDefiningOp<Const::DeclareOp>();
+    auto reshapeK = topK.k().getDefiningOp<IE::ReshapeOp>();
+    auto kConst = (reshapeK != nullptr) ? reshapeK.input().getDefiningOp<Const::DeclareOp>()
+                                        : topK.k().getDefiningOp<Const::DeclareOp>();
     if (kConst == nullptr) {
         return errorAt(loc, "Only constant input is supported for k");
     }

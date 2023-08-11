@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #pragma once
 
 #include "vpux/utils/core/func_ref.hpp"
@@ -12,6 +10,7 @@
 #include "vpux/utils/core/small_vector.hpp"
 
 #include <mlir/Dialect/Async/IR/Async.h>
+#include <mlir/Dialect/Func/IR/FuncOps.h>
 #include <mlir/IR/BuiltinOps.h>
 #include <mlir/IR/Operation.h>
 
@@ -21,7 +20,7 @@ namespace vpux {
 
 class AsyncDepsInfo final {
 public:
-    explicit AsyncDepsInfo(mlir::FuncOp func);
+    explicit AsyncDepsInfo(mlir::func::FuncOp func);
 
 public:
     void addDependency(mlir::async::ExecuteOp from, mlir::async::ExecuteOp to);
@@ -40,7 +39,7 @@ private:
     void setIndex(mlir::async::ExecuteOp execOp, uint64_t index);
 
 private:
-    void buildDepsMap(mlir::FuncOp func);
+    void buildDepsMap(mlir::func::FuncOp func);
     void addExecOp(mlir::async::ExecuteOp execOp);
 
 private:

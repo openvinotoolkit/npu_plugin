@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #pragma once
 
 #include "vpux/utils/core/helper_macros.hpp"
@@ -19,7 +17,6 @@
 //
 
 namespace MVCNN {
-
 #define VPUX_STRINGIFY_SCHEMA_ENUM(_name_)             \
     inline vpux::StringRef stringifyEnum(_name_ val) { \
         return VPUX_COMBINE(EnumName, _name_)(val);    \

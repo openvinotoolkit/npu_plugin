@@ -1,0 +1,611 @@
+//
+// Copyright (C) 2022 Intel Corporation.
+// SPDX-License-Identifier: Apache 2.0
+//
+
+#ifndef VPUX_COMPILER_DIALECT_VPUMI37XX_OPS
+#define VPUX_COMPILER_DIALECT_VPUMI37XX_OPS
+
+include "vpux/compiler/core/attributes.td"
+include "vpux/compiler/core/ops_interfaces.td"
+include "vpux/compiler/dialect/const/attributes.td"
+include "vpux/compiler/dialect/VPUIP/ops_interfaces.td"
+include "vpux/compiler/dialect/VPUMI37XX/attributes.td"
+include "vpux/compiler/dialect/VPUMI37XX/dialect.td"
+include "vpux/compiler/dialect/VPUMI37XX/ops_interfaces.td"
+include "vpux/compiler/dialect/VPUMI37XX/types.td"
+include "vpux/compiler/dialect/VPURT/types.td"
+include "vpux/compiler/dialect/VPU/attributes.td"
+include "vpux/compiler/dialect/VPUIP/types.td"
+include "vpux/compiler/dialect/VPUIP/attributes.td"
+include "vpux/compiler/dialect/ELF/ops_interfaces.td"
+include "vpux/compiler/dialect/VPURegMapped/types.td"
+include "vpux/compiler/dialect/VPURegMapped/attributes.td"
+include "vpux/compiler/dialect/VPURegMapped/ops_interfaces.td"
+
+include "mlir/Dialect/Quant/QuantOpsBase.td"
+include "mlir/Interfaces/CopyOpInterface.td"
+include "mlir/Interfaces/InferTypeOpInterface.td"
+include "mlir/Interfaces/ViewLikeInterface.td"
+include "mlir/Interfaces/SideEffectInterfaces.td"
+include "mlir/IR/RegionKindInterface.td"
+include "mlir/IR/SymbolInterfaces.td"
+
+//
+// Base classes
+//
+
+class VPUMI37XX_Op<string mnemonic, list<Trait> traits = []> :
+        Op<
+            VPUMI37XX_Dialect,
+            mnemonic,
+            traits
+        >;
+
+class VPUMI37XX_TaskOp<string mnemonic, list<Trait> traits = []> :
+        VPUMI37XX_Op<
+            mnemonic,
+            !listconcat(
+                traits,
+                [
+                    DeclareOpInterfaceMethods<VPURegMapped_TaskOpInterface>,
+                    DeclareOpInterfaceMethods<ELF_BinaryOpInterface>,
+                    DeclareOpInterfaceMethods<ELF_GetOffsetOfOpInterface>,
+                    VPUMI37XX_SingleOutputAsIndexOp
+                ]
+            )
+        > {
+}
+
+//
+// ConfigureBarrierOp
+//
+
+def VPUMI37XX_ConfigureBarrierOp :
+        VPUMI37XX_Op<"ConfigureBarrier",
+            [
+                DeclareOpInterfaceMethods<ELF_BinaryOpInterface>,
+                VPUMI37XX_SingleOutputAsIndexOp,
+                DeclarationOp
+            ]
+        > {
+    let summary = "A task to configure the setup for a barrier";
+
+    let arguments = (ins
+        I8Attr:$id,
+        SI32Attr:$next_same_id,
+        OptionalAttr<UI8Attr>:$producer_count,
+        OptionalAttr<UI8Attr>:$consumer_count
+    );
+
+    let results = (outs
+        VPURegMapped_IndexType:$barrier
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        `<` $id `,` $next_same_id `>`
+        `->` type(results)
+    }];
+}
+
+//
+// MappedInferenceOp
+//
+def VPUMI37XX_MappedInferenceOp :
+        VPUMI37XX_Op<"MappedInference",
+            [
+                DeclareOpInterfaceMethods<ELF_BinaryOpInterface>,
+                DeclareOpInterfaceMethods<ELF_GetOffsetOfOpInterface>,
+                VPUMI37XX_SingleOutputAsIndexOp,
+                AttrSizedOperandSegments
+            ]
+        > {
+    let summary = "Task representing the MappedInference structure";
+
+    let arguments = (ins
+        Variadic<VPURegMapped_IndexType>:$dmaTasks,
+        Optional<VPURegMapped_IndexType>:$invariantTasks,
+        Optional<VPURegMapped_IndexType>:$variantTasks,
+        Optional<VPURegMapped_IndexType>:$actKernelRanges,
+        Optional<VPURegMapped_IndexType>:$actKernelInvocations,
+        Optional<VPURegMapped_IndexType>:$barrierTasks,
+        Optional<VPURegMapped_IndexType>:$actShaveRt,
+        Variadic<AnyMemRef>:$actShaveStacks,
+        I64ArrayAttr:$dmaCount,
+        UI32Attr:$invariantCount,
+        UI32Attr:$variantCount,
+        UI32Attr:$actKernelRangesCount,
+        UI32Attr:$actKernelInvocationsCount,
+        UI32Attr:$barrierCount
+    );
+
+    let results = (outs
+        VPURegMapped_IndexType:$index
+    );
+
+    let assemblyFormat = [{
+    attr-dict
+        (`dmas` `(` $dmaTasks^ `:` type($dmaTasks) `)`)?
+        (`invariants` `(` $invariantTasks^ `:` type($invariantTasks) `)`)?
+        (`variants` `(` $variantTasks^ `:` type($variantTasks) `)`)?
+        (`actKernelRanges` `(` $actKernelRanges^ `:` type($actKernelRanges) `)`)?
+        (`actKernelInvocations` `(` $actKernelInvocations^ `:` type($actKernelInvocations) `)`)?
+        (`barriers` `(` $barrierTasks^ `:` type($barrierTasks) `)` )?
+        (`actShaveRt` `(` $actShaveRt^ `:` type($actShaveRt) `)` )?
+        (`actShaveStacks` `(` $actShaveStacks^ `:` type($actShaveStacks) `)`)?
+        `dmaCount` `(` $dmaCount `)`
+        `invariantCount` `(` $invariantCount `)`
+        `variantCount` `(` $variantCount `)`
+        `actKernelRangesCount` `(` $actKernelRangesCount `)`
+        `actKernelInvocationsCount` `(` $actKernelInvocationsCount `)`
+        `barrierCount` `(` $barrierCount `)`
+        `->` type(results)
+    }];
+}
+
+
+//
+// NNDMAOp
+//
+
+def VPUMI37XX_NNDMAOp :
+        VPUMI37XX_TaskOp<"NNDMA",
+            [
+                DeclareOpInterfaceMethods<VPUMI37XX_ExecutableTaskOpInterface>,
+                AttrSizedOperandSegments
+            ]
+        > {
+    let summary = "NN DMA task";
+
+    let arguments = (ins
+        Optional<VPURegMapped_IndexType>:$taskLocation,
+        AnyMemRef:$input,
+        Variadic<AnyMemRef>:$output_buffs,
+        Optional<VPURegMapped_IndexType>:$previousDMAIdx,
+        Variadic<VPURegMapped_IndexType>:$waitBarriers,
+        Variadic<VPURegMapped_IndexType>:$updateBarriers,
+        UnitAttr:$compression,
+        UI64Attr:$start_after,
+        UI64Attr:$clean_after,
+        UnitAttr:$is_out_of_order,
+        UnitAttr:$is_critical,
+        DefaultValuedAttr<IntAttr, "0">:$port,
+        OptionalAttr<VPUIP_DmaDescriptorAttr>:$dma_descriptor
+    );
+
+    let results = (outs
+        VPURegMapped_IndexType:$index
+    );
+
+    let builders = [
+        OpBuilder<
+            (ins "mlir::Value":$src, "mlir::Value":$dst)
+        >,
+        OpBuilder<
+            (ins "mlir::Type":$index, "mlir::Value":$input, "mlir::ValueRange":$output_buffs,
+            "mlir::Value":$previousDMAIdx, "mlir::ValueRange":$waitBarriers, "mlir::ValueRange":$updateBarriers,
+            "bool":$compression, "uint64_t":$start_after, "uint64_t":$clean_after, "bool":$is_out_of_order,
+            "bool":$is_critical, "int64_t":$port, "vpux::VPUIP::DmaDescriptorAttr":$dma_descriptor)
+        >
+    ];
+
+    let assemblyFormat = [{
+        attr-dict
+        (`taskLocation` `(` $taskLocation^ `:` type($taskLocation) `)`)?
+        `inputs` `(` $input `:` type($input) `)`
+        (`outputs` `(` $output_buffs^ `:` type($output_buffs) `)`)?
+        ( `previousDMA` `(` $previousDMAIdx^ `:` type($previousDMAIdx) `)`)?
+        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
+        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+        `start_after` `(` $start_after `)`
+        `clean_after` `(` $clean_after `)`
+        `->` type(results)
+    }];
+}
+
+//
+// Activation Kernel Ops
+//
+
+//
+// ActShaveRtOp
+//
+
+def VPUMI37XX_ActShaveRtOp :
+        VPUMI37XX_Op<"ActShaveRt",
+            [
+                DeclareOpInterfaceMethods<ELF_BinaryOpInterface>,
+                VPUMI37XX_SingleOutputAsIndexOp,
+                DeclarationOp
+            ]
+        > {
+    let summary = "Declaration of Act Shave Management Kernel";
+
+    let arguments = (ins
+        StrAttr:$kernel_path
+    );
+
+    let results = (outs
+        VPURegMapped_IndexType:$index
+    );
+
+    let assemblyFormat = [{
+        attr-dict `kernel` `(` $kernel_path `)` `->` type(results)
+    }];
+
+    let extraClassDeclaration = [{
+        uint32_t getKernelEntry();
+        uint32_t getVersion();
+    }];
+}
+
+//
+// DeclareKernelTextOp
+//
+
+def VPUMI37XX_DeclareKernelTextOp :
+        VPUMI37XX_Op<"DeclareKernelText",
+            [
+                DeclareOpInterfaceMethods<ELF_BinaryOpInterface>,
+                VPUMI37XX_SingleOutputAsIndexOp,
+                DeclarationOp
+            ]
+        > {
+    let summary = "Declaration of Software Kernel .text ";
+
+    let arguments = (ins
+        StrAttr:$kernel_path
+    );
+
+    let results = (outs
+        VPURegMapped_IndexType:$index
+    );
+
+    let assemblyFormat = [{
+        attr-dict `kernel_path` `(` $kernel_path `)` `->` type(results)
+    }];
+}
+
+
+//
+// DeclareKernelArgsOp
+//
+
+def VPUMI37XX_DeclareKernelArgsOp :
+        VPUMI37XX_Op<"DeclareKernelArgs",
+            [
+                DeclareOpInterfaceMethods<ELF_BinaryOpInterface>,
+                VPUMI37XX_SingleOutputAsIndexOp,
+                DeclarationOp
+            ]
+        > {
+    let summary = "Declaration of Software Kernel .args";
+
+    let arguments = (ins
+        StrAttr:$kernel_path
+    );
+
+    let results = (outs
+        VPURegMapped_IndexType:$index
+    );
+
+    let assemblyFormat = [{
+        attr-dict `kernel_path` `(` $kernel_path `)` `->` type(results)
+    }];
+}
+
+//
+// DeclareKernelEntryOp
+//
+
+def VPUMI37XX_DeclareKernelEntryOp :
+        VPUMI37XX_Op<"DeclareKernelEntry",
+            [
+                VPUMI37XX_SingleOutputAsIndexOp,
+                DeclarationOp
+            ]
+        > {
+    let summary = "Declaration of Kernel Entry";
+
+    let arguments = (ins
+        StrAttr:$kernel_path
+    );
+
+    let results = (outs
+        VPURegMapped_IndexType:$index
+    );
+
+    let assemblyFormat = [{
+        attr-dict `kernel_path` `(` $kernel_path `)` `->` type(results)
+    }];
+
+    let extraClassDeclaration = [{
+        uint32_t getKernelEntry();
+    }];
+
+}
+
+//
+// KernelParamsOp
+//
+
+def VPUMI37XX_KernelParamsOp :
+        VPUMI37XX_Op<"KernelParams",
+            [
+                DeclareOpInterfaceMethods<ELF_BinaryOpInterface>,
+                DeclareOpInterfaceMethods<ELF_GetOffsetOfOpInterface>,
+                VPUMI37XX_SingleOutputAsIndexOp,
+                AttrSizedOperandSegments
+            ]
+        > {
+    let summary = "Kernel Params";
+
+    let arguments = (ins
+        Variadic<AnyMemRef>:$inputs,
+        Variadic<AnyMemRef>:$outputs,
+        StrAttr:$kernel_type,
+        ElementsAttr:$kernel_params
+    );
+
+    let results = (outs
+        VPURegMapped_IndexType:$index  // TODO: modify to VPUIndexType
+    );
+
+    let extraClassDeclaration = [{
+        size_t getParamsStructSize();
+    }];
+
+    let assemblyFormat = [{
+        attr-dict
+        `inputs` `(` $inputs `:` type($inputs) `)`
+        `outputs` `(` $outputs `:` type($outputs) `)`
+        `kernel_type` `(` $kernel_type `)`
+        `kernel_params` `(` $kernel_params `)`
+        `->` type(results)
+    }];
+}
+
+//
+// ActKernelRangeOp
+//
+
+def VPUMI37XX_ActKernelRangeOp : VPUMI37XX_TaskOp<"ActKernelRange", []> {
+    let summary = "Activation Kernel Range";
+
+    let arguments = (ins
+        Optional<VPURegMapped_IndexType>:$taskLocation,
+        VPURegMapped_IndexType:$kernel_text_index,
+        VPURegMapped_IndexType:$kernel_args_index,
+        VPURegMapped_IndexType:$kernel_entry_index
+    );
+
+    let results = (outs
+        VPURegMapped_IndexType:$index
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        (`taskLocation` `(` $taskLocation^ `:` type($taskLocation) `)`)?
+        `kernel_text_index` `(` $kernel_text_index `:` type($kernel_text_index) `)`
+        `kernel_args_index` `(` $kernel_args_index `:` type($kernel_args_index) `)`
+        `kernel_entry_index` `(` $kernel_entry_index `:` type($kernel_entry_index) `)`
+        `->` type(results)
+    }];
+}
+
+//
+// ActKernelInvocationOp
+//
+
+def VPUMI37XX_ActKernelInvocationOp :
+        VPUMI37XX_TaskOp<"ActKernelInvocation",
+            [
+                DeclareOpInterfaceMethods<VPUMI37XX_ExecutableTaskOpInterface>,
+                AttrSizedOperandSegments
+            ]
+        > {
+    let summary = "Activation Kernel Invocation";
+
+    let arguments = (ins
+        Optional<VPURegMapped_IndexType>:$taskLocation,
+        Variadic<VPURegMapped_IndexType>:$waitBarriers,
+        Variadic<VPURegMapped_IndexType>:$updateBarriers,
+        VPURegMapped_IndexType:$range_index,
+        Optional<MemRefOf<[UI32]>>:$profiling_data,
+        DefaultValuedAttr<UI64Attr, "0">:$tile,
+        UI64Attr:$start_after,
+        UI64Attr:$clean_after
+    );
+
+    let results = (outs
+        VPURegMapped_IndexType:$index
+    );
+
+    let assemblyFormat = [{
+        attr-dict
+        (`taskLocation` `(` $taskLocation^ `:` type($taskLocation) `)`)?
+        `range_index` `(` $range_index `:` type($range_index) `)`
+        (`profiling_data` `(` $profiling_data^ `:` type($profiling_data) `)`)?
+        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
+        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+        `tile` `(` $tile `)`
+        `start_after` `(` $start_after `)`
+        `clean_after` `(` $clean_after `)`
+        `->` type(results)
+    }];
+}
+
+//
+// DPU Variant Op
+//
+
+def VPUMI37XX_DPUVariantOp : VPUMI37XX_TaskOp<"DPUVariant", []> {
+    let summary = "DPU Variant Op";
+
+    let results = (outs
+        VPURegMapped_IndexType:$index
+    );
+
+    let arguments = (ins
+        Optional<VPURegMapped_IndexType>:$taskLocation,
+        VPURegMapped_IndexType:$Invariant,
+        I64ArrayAttr:$start,
+        I64ArrayAttr:$end,
+        VPU_PaddingAttr:$pad,
+        VPU_MPEMode:$mpe_mode,
+        OptionalAttr<IntAttr>:$cluster_id,
+        OptionalAttr<IntAttr>:$workload_id
+    );
+}
+
+//
+// DPU Invariant Op
+//
+
+def VPUMI37XX_DPUInvariantOp :
+        VPUMI37XX_TaskOp<"DPUInvariant",
+            [
+                DeclareOpInterfaceMethods<VPUMI37XX_ExecutableTaskOpInterface>,
+                AttrSizedOperandSegments
+            ]
+            # GraphRegionNoTerminator.traits
+        > {
+
+    let summary = "DPU Invariant Op";
+
+    let arguments = (ins
+        Optional<VPURegMapped_IndexType>:$taskLocation,
+        MemRefOf<[F16, BF16, quant_QuantizedType]>:$input,
+        Optional<MemRefOf<[I1]>>:$input_sparsity_map,
+        Optional<MemRefOf<[I32]>>:$input_storage_element_table,
+        Optional<MemRefOf<[F16, BF16, quant_QuantizedType]>>:$weights,
+        Optional<MemRefOf<[I1]>>:$weights_sparsity_map,
+        Optional<MemRefOf<[SI32]>>:$weight_table,
+
+        AnyTypeOf<[AnyMemRef, VPUIP_DistributedBuffer]>:$parent_input,
+        Optional<AnyTypeOf<[MemRefOf<[I1]>, VPUIP_DistributedBuffer]>>:$parent_input_sparsity_map,
+        Optional<AnyTypeOf<[MemRefOf<[I32]>, VPUIP_DistributedBuffer]>>:$parent_input_storage_element_table,
+
+        AnyTypeOf<[AnyMemRef, VPUIP_DistributedBuffer]>:$parent_output,
+        Optional<AnyTypeOf<[MemRefOf<[I1]>, VPUIP_DistributedBuffer]>>:$parent_output_sparsity_map,
+
+        Variadic<MemRefOf<[F16, F32, BF16, quant_QuantizedType]>>:$output_buffs,
+        Optional<AnyTypeOf<[MemRefOf<[I1]>, VPUIP_DistributedBuffer]>>:$output_sparsity_map_buff,
+        Optional<AnyTypeOf<[MemRefOf<[UI64]>, VPUIP_DistributedBuffer]>>:$profiling_data,
+
+        VPUIP_NCETaskType:$task_type,
+        VPU_MPEMode:$mpe_frequent_mode,
+        OptionalAttr<I64ArrayAttr>:$kernel_size,
+        OptionalAttr<I64ArrayAttr>:$kernel_strides,
+        OptionalAttr<VPU_PaddingAttr>:$kernel_padding,
+        OptionalAttr<IntAttr>:$activation_window_channel_length,
+        OptionalAttr<UnitAttr>:$is_continued,
+        OptionalAttr<IntAttr>:$cm_sp_pattern,
+        OptionalAttr<UnitAttr>:$is_segmented,
+        OptionalAttr<UnitAttr>:$input_channels_compression,
+        OptionalAttr<IntAttr>:$out_channel_offset,
+        OptionalAttr<UnitAttr>:$is_superdense,
+        OptionalAttr<BoolAttr>:$is_inplace,
+        OptionalAttr<IntAttr>:$input_se_size,
+        OptionalAttr<IntAttr>:$output_se_size,
+        OptionalAttr<UnitAttr>:$is_permute_quantize,
+
+        Variadic<VPURegMapped_IndexType>:$waitBarriers,
+        Variadic<VPURegMapped_IndexType>:$updateBarriers,
+        UI64Attr:$start_after,
+        UI64Attr:$clean_after
+    );
+
+    let results = (outs
+        VPURegMapped_IndexType:$index
+    );
+
+    let regions = (region
+        SizedRegion<1>:$ppe
+    );
+
+    let extraClassDeclaration = [{
+        std::size_t getBarrierHitsCount() {
+            auto users = getResult().getUsers();
+            return static_cast<std::size_t>(std::count_if(std::begin(users), std::end(users), [](auto user) { return mlir::isa<vpux::VPUMI37XX::DPUVariantOp>(user); }));
+        }
+    }];
+
+    let assemblyFormat = [{
+        attr-dict
+        (`taskLocation` `(` $taskLocation^ `:` type($taskLocation) `)`)?
+        `input` `(` $input  `:` type($input) `)`
+        (`input_sparsity_map` `(` $input_sparsity_map^  `:` type($input_sparsity_map) `)`)?
+        (`input_storage_element_table` `(` $input_storage_element_table^  `:` type($input_storage_element_table) `)`)?
+        (`weights` `(` $weights^  `:` type($weights) `)`)?
+        (`weights_sparsity_map` `(` $weights_sparsity_map^  `:` type($weights_sparsity_map) `)`)?
+        (`weight_table` `(` $weight_table^  `:` type($weight_table) `)`)?
+        `parent_input` `(` $parent_input `:` type($parent_input) `)`
+        (`parent_input_sparsity_map` `(` $parent_input_sparsity_map^  `:` type($parent_input_sparsity_map) `)`)?
+        (`parent_input_storage_element_table` `(` $parent_input_storage_element_table^  `:` type($parent_input_storage_element_table) `)`)?
+        `parent_output` `(` $parent_output `:` type($parent_output) `)`
+        (`parent_output_sparsity_map` `(` $parent_output_sparsity_map^  `:` type($parent_output_sparsity_map) `)`)?
+        (`outputs` `(` $output_buffs^ `:` type($output_buffs) `)`)?
+        (`output_sparsity_map_buff` `(` $output_sparsity_map_buff^  `:` type($output_sparsity_map_buff) `)`)?
+        (`profiling_data` `(` $profiling_data^  `:` type($profiling_data) `)`)?
+        (`waits` `(` $waitBarriers^ `:` type($waitBarriers) `)`)?
+        (`updates` `(` $updateBarriers^ `:` type($updateBarriers) `)`)?
+        `->` type($index)
+        `PPE` `:` $ppe
+    }];
+
+}
+
+//
+// Network Metadata Op
+//
+
+def VPUMI37XX_NetworkMetadataOp :
+        VPUMI37XX_Op<"NetworkMetadata",
+            [
+                DeclareOpInterfaceMethods<ELF_BinaryOpInterface>
+            ]
+        > {
+    let summary = "Network Metadata Op";
+
+    let results = (outs
+        VPURegMapped_IndexType:$index
+    );
+
+    let extraClassDeclaration = [{
+        void serialize(elf::writer::BinaryDataSection<uint8_t>& binDataSection, ::elf::NetworkMetadata& metadata);
+    }];
+
+    let assemblyFormat = [{
+        attr-dict `->` type(results)
+    }];
+}
+
+//
+// Profiling Metadata Op
+//
+
+def VPUMI37XX_ProfilingMetadataOp :
+        VPUMI37XX_Op<"ProfilingMetadata",
+            [
+                DeclareOpInterfaceMethods<ELF_BinaryOpInterface>
+            ]
+        > {
+    let summary = "Profiling Metadata Op";
+
+    let results = (outs
+        VPURegMapped_IndexType:$index
+    );
+
+    let extraClassDeclaration = [{
+        void serialize(elf::writer::BinaryDataSection<uint8_t>& binDataSection, const flatbuffers::DetachedBuffer& metadata);
+    }];
+
+    let assemblyFormat = [{
+        attr-dict `->` type(results)
+    }];
+}
+
+
+#endif

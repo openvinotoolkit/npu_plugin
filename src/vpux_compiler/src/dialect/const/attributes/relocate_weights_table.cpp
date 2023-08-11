@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/VPU/nce_invariant.hpp"
 #include "vpux/compiler/dialect/VPU/nce_sparsity.hpp"
 #include "vpux/compiler/dialect/const/attributes/content.hpp"
@@ -27,6 +25,20 @@ void vpux::Const::RelocateWeightsTableAttr::walkImmediateSubElements(llvm::funct
     walkAttrsFn(getWeightsPtr());
     walkAttrsFn(getSparsityPtr());
     walkAttrsFn(getOffsets());
+    walkAttrsFn(getWeightsElemByteSize());
+    walkAttrsFn(getWeightsCompression());
+}
+
+//
+// RelocateWeightsTableAttr::replaceImmediateSubElements
+//
+
+mlir::Attribute vpux::Const::RelocateWeightsTableAttr::replaceImmediateSubElements(ArrayRef<mlir::Attribute> replAttrs,
+                                                                                   ArrayRef<mlir::Type>) const {
+    VPUX_THROW_WHEN(replAttrs.size() < 5, "Replace attrs array is too short: '{0}'", replAttrs.size());
+    return get(replAttrs[0].dyn_cast_or_null<mlir::ArrayAttr>(), replAttrs[1].dyn_cast_or_null<mlir::IntegerAttr>(),
+               replAttrs[2].dyn_cast_or_null<mlir::ArrayAttr>(), replAttrs[3].dyn_cast_or_null<mlir::IntegerAttr>(),
+               replAttrs[4].dyn_cast_or_null<VPUIP::CompressionSchemeAttr>());
 }
 
 //
@@ -60,7 +72,7 @@ mlir::Attribute vpux::Const::RelocateWeightsTableAttr::parse(mlir::AsmParser& pa
         return nullptr;
     }
 
-    mlir::IntegerAttr weightsPtr;
+    mlir::ArrayAttr weightsPtr;
     mlir::IntegerAttr sparsityPtr;
     mlir::ArrayAttr offsets;
     mlir::IntegerAttr weightsElemByteSize;
@@ -142,7 +154,7 @@ Const::Content vpux::Const::RelocateWeightsTableAttr::transform(vpux::Const::Con
     const auto values = input.getValues<int32_t>();
     auto patchedValues = output.getTempBuf<int32_t>();
 
-    const auto weightsPtr = static_cast<int32_t>(*getWeightsPtr().getValue().getRawData());
+    const auto weightsPtr = parseIntArrayAttr<int32_t>(getWeightsPtr());
     const auto sparsityPtr = static_cast<int32_t>(*getSparsityPtr().getValue().getRawData());
     const auto offsets = parseIntArrayAttr<int64_t>(getOffsets());
 
@@ -175,7 +187,7 @@ Const::Content vpux::Const::RelocateWeightsTableAttr::transform(vpux::Const::Con
             }
             weightsPtrSteps[oc] = weightsPtrOffset;
             const auto weightSetSize = (numElems[oc] * weightsElemByteSize);
-            weightsPtrOffset += alignVal<int64_t>(weightSetSize, alignment);
+            weightsPtrOffset += alignValUp<int64_t>(weightSetSize, alignment);
         }
     } else {
         for (int64_t oc = 0, clusterIdx = 0; oc < OC; ++oc) {
@@ -193,7 +205,7 @@ Const::Content vpux::Const::RelocateWeightsTableAttr::transform(vpux::Const::Con
 
         const auto wtInd = oc * numElemPerOC;
 
-        patchedValues[wtInd + 0] = checked_cast<int32_t>(weightsPtr + weightsPtrSteps[oc]);
+        patchedValues[wtInd + 0] = checked_cast<int32_t>(weightsPtr[clusterIdx] + weightsPtrSteps[oc]);
 
         patchedValues[wtInd + 1] = values[wtInd + 1];
         if (values[wtInd + 1] != VPU::NCESparsity::SPARSITY_PTR_WHEN_NO_SPARSITY) {
@@ -209,10 +221,10 @@ Const::Content vpux::Const::RelocateWeightsTableAttr::transform(vpux::Const::Con
 }
 
 Const::ContentAttr vpux::Const::ContentAttr::relocateWeightsTablePointers(
-        uint64_t weightsPtr, uint64_t sparsityPtr, ShapeRef offsets, uint64_t weightsElemByteSize,
+        ArrayRef<int32_t> weightsPtr, uint64_t sparsityPtr, ShapeRef offsets, uint64_t weightsElemByteSize,
         VPUIP::CompressionSchemeAttr weightsCompression) const {
     return get(*this, Const::RelocateWeightsTableAttr::get(
-                              getIntAttr(getContext(), weightsPtr), getIntAttr(getContext(), sparsityPtr),
+                              getIntArrayAttr(getContext(), weightsPtr), getIntAttr(getContext(), sparsityPtr),
                               getIntArrayAttr(getContext(), offsets), getIntAttr(getContext(), weightsElemByteSize),
                               weightsCompression)
                               .cast<Const::TransformAttrInterface>());

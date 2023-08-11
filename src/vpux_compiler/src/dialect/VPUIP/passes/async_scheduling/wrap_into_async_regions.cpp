@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
 
 #include "vpux/compiler/dialect/VPUIP/dialect.hpp"
@@ -81,7 +79,7 @@ void WrapIntoAsyncRegionsPass::safeRunOnFunc() {
         warpIntoAsyncRegion(op, _log.nest());
     };
 
-    getFunction().walk(callback);
+    getOperation().walk(callback);
 }
 
 }  // namespace

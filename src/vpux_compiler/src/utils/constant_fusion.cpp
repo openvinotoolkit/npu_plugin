@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/utils/constant_fusion.hpp"
 #include "vpux/utils/IE/float16.hpp"
 
@@ -154,6 +152,21 @@ Const::DeclareOp ConstantFusing::getConstAndCopyOp(VPUIP::NCEClusterTaskOp nceOp
         }
         constCopyOp = copyOp;
     }
+
+    if (auto clusterOp = source.getDefiningOp<VPUIP::NCEClusterTilingOp>()) {
+        VPUX_THROW_WHEN(clusterOp.inputs().empty(), "NCEClusterTiling op has no inputs - '{0}'", clusterOp->getLoc());
+        constDeclareOp = clusterOp.inputs()[0].getDefiningOp<Const::DeclareOp>();
+
+        while (constDeclareOp == nullptr) {
+            clusterOp = clusterOp.inputs()[0].getDefiningOp<VPUIP::NCEClusterTilingOp>();
+            VPUX_THROW_UNLESS(clusterOp != nullptr, "Next NCEClusterTiling as source operation expected");
+
+            VPUX_THROW_WHEN(clusterOp.inputs().empty(), "NCEClusterTiling op has no inputs - '{0}'",
+                            clusterOp->getLoc());
+            constDeclareOp = clusterOp.inputs()[0].getDefiningOp<Const::DeclareOp>();
+        }
+        constCopyOp = clusterOp.getInnerTaskOpOfType<VPUIP::CopyOp>();
+    }
     return constDeclareOp;
 }
 
@@ -197,7 +210,8 @@ VPUIP::DistributedBufferType ConstantFusing::getDistributedBufferType(VPUIP::Dis
                                              }));
 
     const auto stridesAttr = getIntArrayAttr(ctx, elemStrides);
-    const auto layoutAttr = VPUIP::MemRefAttr::get(orderAttr, stridesAttr, /*swizzlingScheme=*/nullptr, nullptr, ctx);
+    const auto layoutAttr = VPUIP::MemRefAttr::get(orderAttr, stridesAttr, /*swizzlingScheme=*/nullptr, nullptr,
+                                                   /*allocSize=*/nullptr, ctx);
 
     vpux::IndexedSymbolAttr memKindAttr =
             IndexedSymbolAttr::get(rewriter.getContext(), stringifyEnum(VPU::MemoryKind::CMX_NN));
@@ -206,7 +220,9 @@ VPUIP::DistributedBufferType ConstantFusing::getDistributedBufferType(VPUIP::Dis
     auto origDistributedTensorAttr = origDistType.getDistribution();
     auto distributedTensorAttr = VPU::DistributedTensorAttr::get(
             origDistributedTensorAttr.mode(), origDistributedTensorAttr.num_tiles(), nullptr, nullptr, nullptr,
-            origDistributedTensorAttr.num_clusters(), nullptr, ctx);
+            origDistributedTensorAttr.num_clusters(), nullptr, origDistributedTensorAttr.uniform_distributed_segments(),
+            origDistributedTensorAttr.compute_shapes(), origDistributedTensorAttr.compute_offsets(),
+            origDistributedTensorAttr.equal_memory_and_compute_view(), ctx);
 
     return VPUIP::DistributedBufferType::get(ctx, typeInterface.getShape().raw(), typeInterface.getElementType(),
                                              layoutAttr, memKindAttr, distributedTensorAttr);
@@ -251,7 +267,7 @@ void ConstantFusing::getCopyAndDeclareOpForFusion(VPUIP::NCEClusterTaskOp& nceOp
 
             while (declareOp == nullptr) {
                 // If this is the case then the constant is not spilled, To be handled with E#45105
-                if (mlir::isa_and_nonnull<VPUIP::PermuteCastOp>(copyOp.input().getDefiningOp())) {
+                if (VPUIP::isPureViewOp(copyOp.input().getDefiningOp())) {
                     // Return nullptr, will skip fusion for this layer
                     break;
                 }

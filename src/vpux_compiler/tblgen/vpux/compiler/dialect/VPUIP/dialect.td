@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #ifndef VPUX_COMPILER_DIALECT_VPUIP
 #define VPUX_COMPILER_DIALECT_VPUIP
 
@@ -38,12 +36,14 @@ It handles such VPU-specifics as:
         "vpux::IE::IEDialect",
         "vpux::VPU::VPUDialect",
         "vpux::IERT::IERTDialect",
-        "mlir::StandardOpsDialect",
+        "mlir::func::FuncDialect",
         "mlir::quant::QuantizationDialect",
         "mlir::async::AsyncDialect"
     ];
 
     let hasConstantMaterializer = 1;
+    let useDefaultTypePrinterParser = 1;
+    let useDefaultAttributePrinterParser = 1;
 
     let extraClassDeclaration = [{
         void registerAttributes();
@@ -55,6 +55,7 @@ It handles such VPU-specifics as:
         static vpux::IndexedSymbolAttr getExecutor(mlir::async::ExecuteOp execOp);
         static VPU::ExecutorKind getExecutorKind(mlir::async::ExecuteOp execOp);
         static bool hasExecutorInstanceMask(mlir::async::ExecuteOp execOp);
+        static bool isComputeExecutorKind(VPU::ExecutorKind executorKind);
         static mlir::ArrayAttr getExecutorInstanceMask(mlir::async::ExecuteOp execOp);
 
         static void setupExtraInterfaces(mlir::DialectRegistry& registry);

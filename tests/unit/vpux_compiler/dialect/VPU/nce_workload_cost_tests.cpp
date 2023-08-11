@@ -3,25 +3,17 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/core/tiling.hpp"
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/VPU/attributes.hpp"
 #include "vpux/compiler/dialect/VPU/cost_model.hpp"
 #include "vpux/compiler/dialect/VPU/nce_invariant.hpp"
 #include "vpux/compiler/dialect/VPUIP/dpu_tiler.hpp"
-#include "vpux/compiler/init.hpp"
-#include "vpux/utils/core/array_ref.hpp"
-#include "vpux/utils/core/optional.hpp"
 
-#include <file_utils.h>
-#include <llvm/ADT/SmallString.h>
 #include <llvm/ADT/SmallVector.h>
 #include <llvm/Support/FileSystem.h>
-#include <llvm/Support/Path.h>
+
 #include <mlir/IR/MLIRContext.h>
-#include <mlir/Parser.h>
 
 #include <gtest/gtest.h>
 
@@ -42,7 +34,8 @@ struct NceOpTensorShape {
 
 vpux::VPUIP::WorkloadCostParams buildWorkloadCost(const NceOpTensorShape& tensorShape, mlir::MLIRContext* ctx) {
     vpux::VPUIP::WorkloadCostParams costParams;
-    costParams.dataType = mlir::Float16Type::get(ctx);
+    costParams.inDataType = mlir::Float16Type::get(ctx);
+    costParams.outDataType = mlir::Float16Type::get(ctx);
     costParams.fullInputShape = tensorShape.inputShape;
     costParams.inputShape = tensorShape.inputShape;
     costParams.outputShape = tensorShape.outputShape;

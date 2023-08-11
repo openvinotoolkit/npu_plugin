@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #pragma once
 
 #include "vpux/compiler/core/ops_interfaces.hpp"
@@ -25,15 +23,3 @@
 
 #define GET_OP_CLASSES
 #include <vpux/compiler/dialect/VPURT/generated/ops.hpp.inc>
-
-//
-// Operation verifiers
-//
-
-namespace vpux {
-namespace VPURT {
-
-mlir::LogicalResult verifyOp(DeclareBufferOp op);
-
-}  // namespace VPURT
-}  // namespace vpux

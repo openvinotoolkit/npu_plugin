@@ -25,6 +25,25 @@ For 3-d case:
 It is also possible to apply reshape to get `IE.Add : tensor<NxMx1x1>, tensor<1xMx1x1>`.
 However, such approach may lead to a big cluster of NCE tasks after `UnrollBatch` pass.
 The measurements show that transposition is more effective for this pass.
+### `-adjust-convolution-input-shape`: Adjust convolution input shape for better hardware utilization
+This pass adjusts convolution input shape for better hardware utilization
+
+Original operation:
+    Activation: 1x32x256x1 -> 
+                            Conv -> 1x16x256x1
+    Weights:    16x32x1x1 -> 
+
+New subgraph:
+    Activation: 1x32x256x1     Weights:16x32x1x1
+        |                       |
+    Reshape: 1x32x64x4          |
+        |                       |
+        |                       |
+        |                       |
+             Conv: 1x16x64x4
+                    |
+             Reshape: 1x16x256x1
+                    |
 ### `-adjust-input-shape-for-eltwise`: Reshape the activation inputs of eltwise ops to make the inputs' channel aligned without `IE.Expand`
 Insert ShapeCast Ops to the inputs of eltwise ops when the input channels require alignment.
 Insert ShapeCast Ops to the outputs before the next non-eltwise op.
@@ -33,6 +52,11 @@ The pass is a part of `IECommon` pipeline.
 
 This pass adds the required layouts instead of the default one
 depending on the layer specification from underlying Dialect.
+
+#### Options
+```
+-adapt-se-ops : Flag to choose whether to adapt the operations that can be executed using the Storage Element hardware feature
+```
 ### `-adjust-software-ops-precision`: Adjust precision of software ops to satisfy kernel implementation
 The pass is a part of `AdjustPrecision` pipeline.
 
@@ -72,7 +96,7 @@ The pass is a part of `AdjustForVPU` pipeline.
 
 This pass replaces suitable `AvgPool` operations with `GroupConvolution` operation.
 ### `-convert-batched-conv-to-1n`: Convert Convolution with batched input to new one with batch equal to 1
-This pass inserts Transpose and Reshape to convert batched input to new one with batch equal to 1
+This pass inserts Transpose to convert batched input to new one with batch equal to 1
 
 Original operation:
     Activation: 4x16x1x1 ->
@@ -82,20 +106,28 @@ Original operation:
 New subgraph:
     Activation:4x16x1x1     Weights:5x16x1x1
         |                       |
-    Transpose:16x4x1x1          |
+    Transpose:1x16x4x1          |
         |                       |
-    Reshape:1x16x4x1            |
         |                       |
                 Conv:1x5x4x1
-                    |
-              Reshape:5x4x1x1
                     |
              Transpose:4x5x1x1
 ### `-convert-bilinear-to-strided-concat-and-conv`: Convert bilinear interpolate op to strided concat, MaxPool and some depthwise convolution Ops
 The pass is a part of `AdjustForVPU` pipeline.
 
-This pass replaces `Bilinear Interpolate` operations with `Concat` operations with strides, MaxPool and some `depthwise` convolutions.
+This pass replaces `Bilinear Interpolate` operations with `Concat` operations with strides,
+MaxPool and some `depthwise` convolutions.
+
+In case the `interpolateAsSEOp` option is set to true, only cases that cannot be executed
+using the Storage Element hardware feature will be converted to concats & NCE ops.
+
+#### Options
+```
+-interpolate-as-se-op : Flag which identifies whether an Interpolate operation can be executed using the Storage Element hardware feature
+```
 ### `-convert-broadcast-to-tile`: Convert Broadcast operation to Tile operation
+The pass is a part of `AdjustForVPU` pipeline.
+
 This pass replaces `Broadcast` operation with `Tile` operation.
 ### `-convert-conv1d-to-conv2d`: Convert Convolution1D and GroupConvolution1D to its 2D variance
 The pass is a part of `AdjustForVPU` pipeline.
@@ -114,6 +146,32 @@ Replaces deconvolution by upsampling and convolution
 The pass is a part of `AdjustForVPU` pipeline.
 
 This pass replaces all `DepthToSpace` operations with {reshape -> transpose -> reshape} subgraph.
+### `-convert-expand-to-conv`: Convert IE.Expand to IE.Reshape -> IE.Convolution -> IE.Reshape
+Replace NHWC IE.Expand with IE.Convolution.
+1. Reshape input from [1, IC, H, W] to [1, IC * 16, H, W / 16]
+For example 1x3x480x640 becomes 1x48x480x40
+2. Compose IE.Convolution that has OC = (IC + padIC) * 16.
+Padded channels must be multiplied by zero.
+Activation channels must be multiplied by 1.
+3. Reshape output back to original shape [1, IC + padIC, H, W]
+For example when padIC = 13, OC = (3 + 13) * 16 = 256
+When padIC = 1, OC = (3 + 1) * 16 = 64
+Weights structure goes like this for 3 input channels and 4 output channels:
+| idx   |    0 |    1 |    2 |    3 |    4 |    5 |    6 |    7 |  ... |   46 |   47 |
+| ----- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- |
+| OC 0  |    1 |    0 |    0 |    0 |    0 |    0 |    0 |    0 |  ... |    0 |    0 |
+| OC 1  |    0 |    1 |    0 |    0 |    0 |    0 |    0 |    0 |  ... |    0 |    0 |
+| OC 2  |    0 |    0 |    1 |    0 |    0 |    0 |    0 |    0 |  ... |    0 |    0 |
+| OC 3  |    0 |    0 |    0 |    0 |    0 |    0 |    0 |    0 |  ... |    0 |    0 |
+| OC 4  |    0 |    0 |    0 |    1 |    0 |    0 |    0 |    0 |  ... |    0 |    0 |
+| OC 5  |    0 |    0 |    0 |    0 |    1 |    0 |    0 |    0 |  ... |    0 |    0 |
+| OC 6  |    0 |    0 |    0 |    0 |    0 |    1 |    0 |    0 |  ... |    0 |    0 |
+| OC 7  |    0 |    0 |    0 |    0 |    0 |    0 |    0 |    0 |  ... |    0 |    0 |
+| OC 8  |    0 |    0 |    0 |    0 |    0 |    0 |    1 |    0 |  ... |    0 |    0 |
+| OC 9  |    0 |    0 |    0 |    0 |    0 |    0 |    0 |    1 |  ... |    0 |    0 |
+| ...   |  ... |  ... |  ... |  ... |  ... |  ... |  ... |  ... |  ... |  ... |  ... |
+| OC 62 |    0 |    0 |    0 |    0 |    0 |    0 |    0 |    0 |  ... |    0 |    1 |
+| OC 63 |    0 |    0 |    0 |    0 |    0 |    0 |    0 |    0 |  ... |    0 |    0 |
 ### `-convert-extract-image-patches`: Converts subgraphs around ExtractImagePatches into some more optimal for VPU ones when the necessary conditions are met
 Converts these subgraphs:
 ```
@@ -140,12 +198,25 @@ It inserts extra `Reshape` operations to satisfy `Convolution` specification.
 The pass is a part of `AdjustForVPU` pipeline.
 
 This pass replaces legal `Gather` operations with `Slice` operations.
-### `-convert-matmul-to-conv`: Convert MatMul with 2d 'weights' to convolution
-This pass replaces 2d `Matmul` operations with `Convolution` .
-### `-convert-nearest-to-strided-concat`: Convert nearest interpolate op to strided concat ops
+### `-convert-groupconv-to-conv`: Convert GroupConvolution to Convolution
 The pass is a part of `AdjustForVPU` pipeline.
 
-This pass replaces `Nearest Interpolate` operations with `Concat` operations with strides.
+This pass replaces some `GroupConvolution` operations with `Convolution` operation.
+It inserts extra `Slice` and `Concat` operations to satisfy `Convolution` specification.
+### `-convert-matmul-to-conv`: Convert MatMul with 2d 'weights' to convolution
+This pass replaces 2d `Matmul` operations with `Convolution` .
+### `-convert-nearest-to-broadcast-or-strided-concat`: Convert nearest interpolate op to broadcast or strided concat ops
+The pass is a part of `AdjustForVPU` pipeline.
+
+This pass replaces `Nearest Interpolate` operations with `Broadcast` or `Concat` operations with strides.
+
+In case the `interpolateAsSEOp` option is set to true, only cases that cannot be executed
+using the Storage Element hardware feature will be converted to `Broadcast` or `Concat`.
+
+#### Options
+```
+-interpolate-as-se-op : Flag which identifies whether an Interpolate operation can be executed using the Storage Element hardware feature
+```
 ### `-convert-pad-to-concat`: Convert Pad Ops to Concat with Constant
 The pass is a part of `AdjustForVPU` pipeline.
 
@@ -175,12 +246,20 @@ Converts per-tensor Quantize/Dequantize to eltwise And mixed-precision operation
 where input2 is input1 to perform type conversion on DPU instead of UPA.
 ### `-convert-reduce-to-pooling`: Convert reduce to pooling ops
 The pass is to convert reduce operations (mean, max, sum, min) into pooling.
+### `-convert-reflect-pad-to-slice-and-concat`: Convert reflect pad to slice and concat
+Convert reflect pad to slice and concat
 ### `-convert-reorder-to-permute-quantize`: Converts IE.Reorder to DPU permute
 Converts IE.Reorder with float16 input and float16 output to DPU permute.
+### `-convert-scalar-to-tensor`: Convert a scalar input to tensor
+This pass checks the operands/results rank for any operation and if it is a scalar(its rank is 0), it will be converted into a tensor with one element.
 ### `-convert-scale-shift-depthwise`: Convert Scale-Shift operation to Depthwise Convolution
 The pass is a part of `HardwareMode` pipeline.
 
 Convert Scale-Shift operation to Depthwise convolution.
+### `-convert-scatterndupdate-to-strided-concat`: Convert ScatterNDUpdate op to strided concat ops
+The pass is a part of `AdjustForVPU` pipeline.
+
+This pass replaces `ScatterNDUpdate` operations with `Concat` operations with strides.
 ### `-convert-shape-to-4d`: Convert tensors shapes to 4D
 The pass is a part of `AdjustForVPU` pipeline.
 
@@ -197,10 +276,6 @@ This pass replaces all `SpaceToDepth` operations with {reshape -> transpose -> r
 This pass converts SquaredDifference operation to its equivalent (x-y)^2
 ### `-convert-subtract-to-add`: Convert Subtract operation to Add with either Negative or DW Conv operations
 This pass replaces `Subtract` operation with `Add` with `Negative` operations on VPUX30XX or `Add` with `DW Conv` operations on VPUX37XX.
-### `-convert-tile-to-per-axis-tiles`: Convert tile op by multiple axes to multiple PerAxisTile operations
-The pass is a part of `AdjustForVPU` pipeline.
-
-This pass replaces all `Tile` op with a set of `PerAxisTile` operations.
 ### `-convert-to-mem-permute`: Convert Reorder and Transpose ops to MemPermute operation
 The pass is a part of `AdjustForVPU` pipeline.
 
@@ -218,12 +293,8 @@ This pass replaces `Upsampling` operations with `Concat` operations with strides
 The pass is a part of `LowPrecision` pipeline.
 
 Pass detects quantized convolution and shifts weights data from a signed range to an unsigned one
-### `-delete-peraxis-quantization`: Delete PerAxis Quantize Dequantize for VPUX37XX
-The pass is a part of `LowPrecision` pipeline.
-
-It deletes per axis quantization which left after LPT.
-Conversion is not mathimatically equal, but for now it gives small
-    accuracy deviation
+### `-decompose-lstm-cell`: Replace LSTMCell operation with a subgraph of smaller operations
+Decomposes `LSTMCell` operation into smaller `DPU` friendly operations, followed by a single `LSTMGates` operation which computes activation functions.
 ### `-dequantize-const`: Dequantize constant tensors
 The pass is a part of `LowPrecision` pipeline.
 
@@ -234,6 +305,11 @@ The pass is a part of `buildHardwareModePipeline` pipeline.
 
 This pass processes operations, which can be compile as a DPU tasks and
     expands channels number to number divisible by 16 in case they doesn't satisfy hardware requirements
+
+#### Options
+```
+-adapt-se-ops : Flag to choose whether to adapt the operations that can be executed using the Storage Element hardware feature
+```
 ### `-expand-activation-width`: Align input tensors shape of DPU operation with hardware requirements
 This pass processes operations, which can be compiled as DPU tasks and
 expands output width to the next number divisible by 16 when they don't
@@ -249,6 +325,10 @@ Supported operations:
 * IE.MaxPool
 * IE.AvgPool
 * IE.Add
+### `-fold-relu-before-fq`: Delete ReLUOp if next Op is FakeQuantize with input_low > 0
+The pass is a part of `LowPrecision` pipeline.
+
+It deletes the ReLUOp from `ReLU -> FakeQuantize` if the FakeQuantizeOp has input_low > 0.
 ### `-force-host-precision-layout-conversion`: Move pre-/post- processing operations to host side
 This pass detects the following pre-/post- processing operations and excludes them from device IR:
 
@@ -263,6 +343,23 @@ Note: current implementation will not allow us to use this feature in CiD case.
 ### `-fuse-convert-with-quantize`: Fuse Convert with Quantize into QuantCast operation
 Pass detects pattern Convert(i8/ui8 -> FP16) -> Quantize(FP16 -> !quant.uniform<...>)
 and fuses it into single QuantCast(i8/ui8 -> !quant.uniform<...>) operation.
+### `-fuse-mem-permute`: Fuses IE.MemPermute to previous NCE task as ODU permutation
+Converts these subgraphs:
+```
+    Input [NHWC] -> IE.Convolution [NHWC] -> IE.MemPermute [NCHW]
+    Input [NHWC] -> IE.GroupConvolution [NHWC] -> IE.MemPermute [NCHW]
+    Input [NHWC] -> IE.MaxPool [NHWC] -> IE.MemPermute [NCHW]
+    Input [NHWC] -> IE.AvgPool [NHWC] -> IE.MemPermute [NCHW]
+    Input [NHWC] -> IE.Add [NHWC] -> IE.MemPermute [NCHW]
+```
+Into the following subgraphs respectively:
+```
+    Input [NHWC] -> IE.Convolution [NCHW]
+    Input [NHWC] -> IE.GroupConvolution [NCHW]
+    Input [NHWC] -> IE.MaxPool [NCHW]
+    Input [NHWC] -> IE.AvgPool [NCHW]
+    Input [NHWC] -> IE.Add [NCHW]
+```
 ### `-fuse-pad-ops`: Fuse PadOp with CONSTANT model
 The pass is a part of `AdjustForVPU` pipeline.
 
@@ -272,6 +369,11 @@ Merge [Pad] -> [GroupConv] into [GroupConv].
 Merge [Pad] -> [MaxPool] into [MaxPool].
 ### `-fuse-permute-quantize`: Converts Quantize-MemPermute combination in 1 common operation
 Converts Quantize-MemPermute combination in 1 common operation.
+
+#### Options
+```
+-dpu-only : [Optional] Set to true when target platform does not have software PermuteQuantize layer
+```
 ### `-fuse-permute-quantize-expand`: Converts Quantize-MemPermute-Expand combination in 1 common operation
 Converts Quantize-MemPermute-Expand combination in 1 common operation.
 ### `-fuse-post-ops`: Fuse activation functions with tasks that support post-processing
@@ -316,6 +418,11 @@ with equivalent average pooling (approx equiv in case of prime kernel i.e. 13x13
 For FP16-INT8: support to split into two average pooling.
 For FP16 / FP32: support multiple splits (converting to more than two average pooling ops) as there is no loss
                  of accuracy from the varying min/max ranges of the intermediate average pooling ops.
+### `-handle-large-pads`: Handle operations with large pads
+This pass handle operations with pad larger than supported on hardware.
+It will move the pad from the layer parameter to it's input. for example,
+if one conv's top pad is 5, but what HW support is 2, we will set conv's pad
+to 2, and concat  the input with 3 line zero constant.
 ### `-handle-large-strides`: Handle operations with large strides
 This pass splits operations with strides larger than supported on hardware.
 ### `-insert-maxpool-to-concat-activation`: Insert Maxpool op between Concat and Activation ops
@@ -346,6 +453,19 @@ The pass is used as a fallback to FP16 computations for the cases, where quantiz
 ### `-move-permute-post-eltwise`: Move the input Permute ops post Eltwise to reduce the number of Permute ops
 The layout does not matter for eltwise ops as long as the input and output layouts are the same.
 move the permute ops from the inputs of the eltwise to the output to reduce the number of permute ops.
+### `-normalizeL2-fusion`: Convert a subgraph to normalizeL2
+Convert this subgraph 
+
+    |
+  /   \
+ |     |
+ |  ReduceL2
+ |     |
+ |   Clamp
+  \   /
+  Divide
+    |
+to a single normalizeL2Op
 ### `-optimize-concat-slice`: Bypass concat if slice is the subtensor of one of concat inputs
 For the pattern ConcatOp->SliceOp, if SliceOp input is the subtensor of one of ConcatOp input,
 Bypass ConcatOp and ConcatOp would be removed if it has only one user.
@@ -396,13 +516,41 @@ Propagate Expand through Eltwise Add in case layers before might be fused with E
 in following cases:
 1. PermuteQuntize might be fused with Expand in FusePermuteQuantizeExpand pass
 2. DepthToSpace is used with padded channels' descriptor
-
+3. SpaceToDepth might be executed with expanded input on dpu with following convolution with padded filter
 ### `-propagate-fq-through-concat`: Propagate FakeQuantize operation through Concat
 `ConvertPadToConcat` adds a `Concat` operation which does not propagate `FakeQuantize` operation.
 
 1. Check if such `Concat` operation has one and only one quantized input
 2. Fetch quantization parameters
 3. Apply them to every single `Concat` input and output
+### `-propagate-mem-permute-through-add`: Propagates IE.MemPermute through IE.Add when both inputs of IE.Add have IE.MemPermute
+Propagates last permute in the chain. Converts this subgraph
+```
+    IE.MemPermute -> IE.ShapeCast \
+                                   IE.Add -> IE.ShapeCast -> IE.MemPermute
+    IE.MemPermute -> IE.ShapeCast /
+```
+into
+```
+    IE.MemPermute -> IE.MemPermute -> IE.ShapeCast \
+                                                    IE.Add -> IE.ShapeCast
+    IE.MemPermute -> IE.MemPermute -> IE.ShapeCast /
+```
+Canonicalization may simplify this when IE.MemPermute operations cancel one another
+### `-propagate-mem-permute-through-affine-reshape`: Propagate IE.MemPermute through IE.AffineReshape
+Propagates permute through affine reshape. Converts this subgraph
+```
+    IE.AffineReshape -> IE.MemPermute
+```
+into
+```
+    [IE.PermuteCast] -> IE.MemPermute -> IE.Reshape -> IE.PermuteCast
+```
+Canonicalization may fuse IE.MemPermute with another one.
+### `-propagate-op-through-batch-concat`: Propagate SW ops after batch unrolled matmul to enable vertical fusion
+Move ops after concat to place after each batch unrolled matmul.
+Currently only softmax is enabled.
+
 ### `-propagate-quantize-dequantize`: Propagate Quantize/Dequantize through agnostic operations
 The pass is a part of LowPrecision pipeline.
 
@@ -424,6 +572,10 @@ Into the following subgraphs respectively:
     Input [NHWC] -> IE.AvgPool [NHWC] -> IE.Reorder [NCHW] -> Act shave layer [NCHW]
     Input [NHWC] -> IE.Add [NHWC] -> IE.Reorder [NCHW] -> Act shave layer [NCHW]
 ```
+### `-remove-identity-pools`: Remove identiy pools
+The pass removes the identity ops
+Because we have passes which introduce such identity pools, we can't have this
+as a folder/canonicalizer
 ### `-remove-quantdequant-seq`: Removes quantize->dequantize ops sequence
 The optional pass in the `LowPrecision` pipeline.
 
@@ -459,10 +611,10 @@ The pass is a part of `HardwareMode` pipeline.
 
 It swaps `Transpose` and 'Reshape' operations with Convert operation when possible.
 This transormation reduces the number of `MemPermute` operations in resulting graph.
-### `-swap-fake-quant-reshape`: Swap FakeQuantize with Reshape when required to void redundant expand and permute ops
+### `-swap-fake-quant-with-reshape-and-strided-slice`: Swap FakeQuantize with Reshape and StridedSlice when required to void redundant expand and permute ops
 The pass is a part of `LowPrecision` pipeline.
 
-It matches pattern non-channel-aligned op -> optional Reshapes -> FQ -> Reshapes -> channel-aligned op
+It matches pattern non-channel-aligned op -> optional Reshapes -> FQ -> Reshapes / StridedSlice -> channel-aligned op
 Move the FQ right before the channel-aligned op to avoid redundant expand and permute ops.
 ### `-swap-maxpool-with-act`: Swaps the MaxPool and activation
 This pass is needed for VPUX37XX only since HW MaxPool does not support post-op operations.
@@ -478,8 +630,7 @@ intermediate operations will be moved after the fusable operation. For example:
   `Conv -> Reshape -> bias` will be converted to `Conv -> bias -> Reshape`
   `Conv -> Transpose -> ReLU` will be converted to `Conv -> ReLU -> Transpose
 Only operations that implement `IE_ElemTypeInfoOpInterface` are moved.
-Currently, operations are moved only through bias (Add), ReLU, Sigmoid, Tanh.
-
+Currently, operations are moved only through bias (Add), ReLU, Sigmoid, Tanh and Clamp.
 ### `-swap-pad-layer`: Swap pattern Pad -> Transpose to Transpose -> Pad
 In order to fuse Pad layer to Convolution swap Pad with operations between it and Convolution.
 For now only case Pad -> Transpose is supported

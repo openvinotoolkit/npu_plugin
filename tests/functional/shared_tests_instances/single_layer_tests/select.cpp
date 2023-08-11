@@ -1,5 +1,5 @@
 //
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation
 // SPDX-License-Identifier: Apache 2.0
 
 #include "single_layer_tests/select.hpp"
@@ -8,7 +8,7 @@
 #include "kmb_layer_test.hpp"
 
 namespace LayerTestsDefinitions {
-class KmbSelectLayerTest : public SelectLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
+class VPUXSelectLayerTest : public SelectLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
     void SetUp() override {
         std::vector<std::vector<size_t>> inputShapes(3);
         InferenceEngine::Precision inputPrecision;
@@ -31,17 +31,16 @@ class KmbSelectLayerTest : public SelectLayerTest, virtual public LayerTestsUtil
     }
 };
 
-class KmbSelectLayerTest_MLIR : public KmbSelectLayerTest {};
-class KmbSelectLayerTest_VPU3720 : public KmbSelectLayerTest {};
+class VPUXSelectLayerTest_VPU3700 : public VPUXSelectLayerTest {};
+class VPUXSelectLayerTest_VPU3720 : public VPUXSelectLayerTest {};
 
-TEST_P(KmbSelectLayerTest_MLIR, CompareWithRefs_SW) {
-    useCompilerMLIR();
+TEST_P(VPUXSelectLayerTest_VPU3700, SW) {
+    setPlatformVPU3700();
     setReferenceSoftwareModeMLIR();
     Run();
 }
 
-TEST_P(KmbSelectLayerTest_VPU3720, SW_MLIR_VPU3720) {
-    useCompilerMLIR();
+TEST_P(VPUXSelectLayerTest_VPU3720, SW) {
     setPlatformVPU3720();
     setReferenceSoftwareModeMLIR();
     Run();
@@ -64,7 +63,7 @@ const std::vector<std::vector<std::vector<size_t>>> shapes = {
 };
 
 const auto selectTestParams = ::testing::Combine(::testing::ValuesIn(shapes), ::testing::ValuesIn(inputPrecision),
-                                                 ::testing::Values(ngraph::op::AutoBroadcastSpec::NONE),
+                                                 ::testing::Values(ov::op::AutoBroadcastType::NONE),
                                                  ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));
 
 const std::vector<std::vector<std::vector<size_t>>> shapesHighDims = {
@@ -74,25 +73,25 @@ const std::vector<std::vector<std::vector<size_t>>> shapesHighDims = {
 
 const auto selectTestParams_highDims =
         ::testing::Combine(::testing::ValuesIn(shapesHighDims), ::testing::ValuesIn(inputPrecision),
-                           ::testing::Values(ngraph::op::AutoBroadcastSpec::NONE),
+                           ::testing::Values(ov::op::AutoBroadcastType::NONE),
                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));
 
-INSTANTIATE_TEST_CASE_P(smoke_select_common, KmbSelectLayerTest_MLIR, selectTestParams,
-                        KmbSelectLayerTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_select_common, VPUXSelectLayerTest_VPU3700, selectTestParams,
+                        VPUXSelectLayerTest_VPU3700::getTestCaseName);
 
 // Blob generated from VPUIP_2 does not generate the expected result when the 4th dimension's is not 1
 // [Track number: E#26954]
-INSTANTIATE_TEST_CASE_P(DISABLED_smoke_select_highDims, KmbSelectLayerTest_MLIR, selectTestParams_highDims,
-                        KmbSelectLayerTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(DISABLED_smoke_select_highDims, VPUXSelectLayerTest_VPU3700, selectTestParams_highDims,
+                        VPUXSelectLayerTest_VPU3700::getTestCaseName);
 
 const std::vector<std::vector<std::vector<size_t>>> inShapesVPU3720 = {{{10, 2, 1, 1}, {10, 2, 1, 1}, {1, 2, 1, 1}}};
 
 const auto selectTestParams_VPU3720 =
         ::testing::Combine(::testing::ValuesIn(inShapesVPU3720), ::testing::ValuesIn(inputPrecision),
-                           ::testing::Values(ngraph::op::AutoBroadcastSpec::NUMPY),
+                           ::testing::Values(ov::op::AutoBroadcastType::NUMPY),
                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));
 
-INSTANTIATE_TEST_CASE_P(smoke_Select_VPU3720, KmbSelectLayerTest_VPU3720, selectTestParams_VPU3720,
-                        KmbSelectLayerTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_Select_VPU3720, VPUXSelectLayerTest_VPU3720, selectTestParams_VPU3720,
+                        VPUXSelectLayerTest_VPU3720::getTestCaseName);
 
 }  // namespace

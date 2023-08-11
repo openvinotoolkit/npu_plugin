@@ -1,5 +1,5 @@
 //
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,19 +10,17 @@
 
 namespace LayerTestsDefinitions {
 
-class KmbMaxMinLayerTest : public MaxMinLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {};
+class VPUXMaxMinLayerTest : public MaxMinLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {};
+class VPUXMaxMinLayerTest_VPU3700 : public VPUXMaxMinLayerTest {};
+class VPUXMaxMinLayerTest_VPU3720 : public VPUXMaxMinLayerTest {};
 
-class KmbMaxMinLayerTest_MLIR : public KmbMaxMinLayerTest {};
-
-class KmbMaxMinLayerTest_MLIR_VPU3720 : public KmbMaxMinLayerTest {};
-
-TEST_P(KmbMaxMinLayerTest_MLIR, CompareWithRefs) {
-    useCompilerMLIR();
+TEST_P(VPUXMaxMinLayerTest_VPU3700, HW) {
+    setPlatformVPU3700();
+    setDefaultHardwareModeMLIR();
     Run();
 }
 
-TEST_P(KmbMaxMinLayerTest_MLIR_VPU3720, CompareWithRefs) {
-    useCompilerMLIR();
+TEST_P(VPUXMaxMinLayerTest_VPU3720, SW) {
     setPlatformVPU3720();
     setReferenceSoftwareModeMLIR();
     Run();
@@ -53,7 +51,7 @@ const std::vector<InferenceEngine::Layout> layout4D = {InferenceEngine::Layout::
                                                        // [Track number: E#25740]
                                                        InferenceEngine::Layout::NHWC};
 
-INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_maximum_4D, KmbMaxMinLayerTest_MLIR,
+INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_maximum_4D, VPUXMaxMinLayerTest_VPU3700,
                          ::testing::Combine(::testing::ValuesIn(inShapes4D), ::testing::ValuesIn(opType),
                                             ::testing::ValuesIn(netPrecisions),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
@@ -61,11 +59,11 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_maximum_4D, KmbMaxMinLayerTest_MLIR,
                                             ::testing::ValuesIn(layout4D), ::testing::ValuesIn(layout4D),
                                             ::testing::ValuesIn(inputType),
                                             ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
-                         KmbMaxMinLayerTest::getTestCaseName);
+                         VPUXMaxMinLayerTest_VPU3700::getTestCaseName);
 
 const std::vector<std::vector<std::vector<size_t>>> inShapes3D = {{{1, 2, 4}, {1}}};
 
-INSTANTIATE_TEST_SUITE_P(smoke_maximum_3D, KmbMaxMinLayerTest_MLIR,
+INSTANTIATE_TEST_SUITE_P(smoke_maximum_3D, VPUXMaxMinLayerTest_VPU3700,
                          ::testing::Combine(::testing::ValuesIn(inShapes3D), ::testing::ValuesIn(opType),
                                             ::testing::ValuesIn(netPrecisions),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
@@ -74,7 +72,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_maximum_3D, KmbMaxMinLayerTest_MLIR,
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::ValuesIn(inputType),
                                             ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
-                         KmbMaxMinLayerTest::getTestCaseName);
+                         VPUXMaxMinLayerTest_VPU3700::getTestCaseName);
 
 const std::vector<std::vector<std::vector<size_t>>> inShapesScalar = {
         /// test scalar constant input for case MAX(x, scalar_threshold)
@@ -86,7 +84,7 @@ const std::vector<std::vector<std::vector<size_t>>> inShapesScalar = {
 
 const std::vector<std::vector<std::vector<size_t>>> inShapesVPU3720 = {{{1, 1, 16, 32}, {1, 1, 16, 32}}, {{32}, {1}}};
 
-INSTANTIATE_TEST_SUITE_P(smoke_maximum_VPU3720, KmbMaxMinLayerTest_MLIR_VPU3720,
+INSTANTIATE_TEST_SUITE_P(smoke_Min_Max_VPU3720, VPUXMaxMinLayerTest_VPU3720,
                          ::testing::Combine(::testing::ValuesIn(inShapesVPU3720), ::testing::ValuesIn(opType),
                                             ::testing::ValuesIn(netPrecisions),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
@@ -95,9 +93,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_maximum_VPU3720, KmbMaxMinLayerTest_MLIR_VPU3720,
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::ValuesIn(inputType),
                                             ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
-                         KmbMaxMinLayerTest::getTestCaseName);
+                         VPUXMaxMinLayerTest_VPU3720::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_precommit_maximum_VPU3720, KmbMaxMinLayerTest_MLIR_VPU3720,
+INSTANTIATE_TEST_SUITE_P(smoke_precommit_Min_Max_VPU3720, VPUXMaxMinLayerTest_VPU3720,
                          ::testing::Combine(::testing::Values(std::vector<std::vector<size_t>>({{1, 1, 1, 3}, {1}})),
                                             ::testing::ValuesIn(opType), ::testing::ValuesIn(netPrecisions),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
@@ -106,6 +104,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_precommit_maximum_VPU3720, KmbMaxMinLayerTest_MLI
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::ValuesIn(inputType),
                                             ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
-                         KmbMaxMinLayerTest::getTestCaseName);
+                         VPUXMaxMinLayerTest_VPU3720::getTestCaseName);
 
 }  // namespace

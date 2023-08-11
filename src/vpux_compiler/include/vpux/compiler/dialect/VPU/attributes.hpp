@@ -3,11 +3,10 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #pragma once
 
 #include "vpux/compiler/core/attributes/shape.hpp"
+#include "vpux/compiler/dialect/VPU/attr_interfaces.hpp"
 #include "vpux/compiler/dialect/VPU/type_interfaces.hpp"
 
 #include "vpux/utils/core/array_ref.hpp"
@@ -44,6 +43,9 @@ class PaddingAttr;
 
 namespace vpux {
 namespace VPU {
+
+// This one represents a CMX_NN memory space with fragmentation consideration
+constexpr StringLiteral CMX_NN_FragmentationAware = "CMX_NN_FragmentationAware";
 
 //
 // Run-time resources
@@ -113,20 +115,25 @@ double getNCEThroughput(ArchKind arch);
 
 Byte getTotalCMXSize(mlir::Operation* op);
 Byte getTotalCMXSize(mlir::ModuleOp module);
+Byte getTotalCMXFragmentationAwareSize(mlir::Operation* op);
+Byte getTotalCMXFragmentationAwareSize(mlir::ModuleOp module);
 
 //
 // ArchKind
 //
 
 void setArch(mlir::ModuleOp module, ArchKind kind, Optional<int> numOfDPUGroups = None,
-             Optional<int> numOfDMAPorts = None, Optional<int> ddrHeapSize = None);
+             Optional<int> numOfDMAPorts = None, Optional<int> ddrHeapSize = None, bool allowCustomChanges = false);
+
 ArchKind getArch(mlir::Operation* op);
+bool isArchVPUX3XXX(VPU::ArchKind arch);
 
 //
 // CompilationMode
 //
 
 void setCompilationMode(mlir::ModuleOp module, CompilationMode compilationMode);
+bool hasCompilationMode(mlir::ModuleOp module);
 CompilationMode getCompilationMode(mlir::Operation* op);
 
 //
@@ -172,12 +179,14 @@ mlir::LogicalResult areDistributionModesCompatible(DistributionMode sourceMode, 
 mlir::LogicalResult areDistributionNumClustersCompatible(mlir::IntegerAttr sourceNumClusters,
                                                          mlir::IntegerAttr targetNumClusters);
 mlir::LogicalResult areDistributionElementTypesCompatible(mlir::Type inType, mlir::Type outType);
-mlir::LogicalResult areDistributionAttrsCompatible(DistributedTensorAttr sourceAttr, DistributedTensorAttr targetAttr);
 SmallVector<Shape> getPerClusterComputeShapes(ShapeRef shapeRef, DistributedTensorAttr distributionAttr);
 SmallVector<Shape> getPerClusterComputeShapeOffsets(ShapeRef shapeRef, DistributedTensorAttr distributionAttr);
+SmallVector<Shape> getPerClusterMemoryShapes(ShapeRef shapeRef, DistributedTensorAttr distributionAttr);
+SmallVector<Shape> getPerClusterMemoryShapeOffsets(ShapeRef shapeRef, DistributedTensorAttr distributionAttr);
 SmallVector<PadInfo> getPerClusterPadding(DistributedTensorAttr distributionAttr);
-SmallVector<StridedShape> getPerClusterStridedShapes(ShapeRef shape, StridesRef strides, DimsOrder dimsOrder,
-                                                     DistributedTensorAttr distributionAttr);
+SmallVector<StridedShape> getPerClusterMemoryStridedShapes(ShapeRef shape, StridesRef strides, DimsOrder dimsOrder,
+                                                           DistributedTensorAttr distributionAttr);
+int64_t getDistributedTilingAxis(ArrayRef<int64_t> tilingScheme);
 
 //
 // CompressionSchemeAttr

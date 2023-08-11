@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/conversion.hpp"
 
 #include "vpux/compiler/core/attributes/stride_reqs.hpp"
@@ -779,6 +777,17 @@ mlir::Operation* createRTLayer(IE::YuvToRgbOp origOp, ArrayRef<mlir::Value> allB
                                       origOp.outFmtAttr());
 }
 
+mlir::Operation* createRTLayer(IE::OneHotOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
+    VPUX_THROW_UNLESS(allBufs.size() == 2, "Constant inputs should have been converted to attributes");
+    VPUX_THROW_UNLESS(origOp.depth_attr().hasValue(), "depth_attr is null");
+    VPUX_THROW_UNLESS(origOp.on_value_attr().hasValue(), "on_value_attr is null");
+    VPUX_THROW_UNLESS(origOp.off_value_attr().hasValue(), "off_value_attr is null");
+    IERT::OneHotOp::Adaptor newOp(allBufs);
+    return b.create<IERT::OneHotOp>(origOp.getLoc(), newOp.input(), newOp.output_buff(), origOp.depth_attr().getValue(),
+                                    origOp.on_value_attr().getValue(), origOp.off_value_attr().getValue(),
+                                    origOp.axis_attr(), origOp.outElemType());
+}
+
 mlir::Operation* createRTLayer(IE::GatherElementsOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
     IERT::GatherElementsOp::Adaptor newOp(allBufs);
     return b.create<IERT::GatherElementsOp>(origOp.getLoc(), newOp.input(), newOp.indices(), newOp.output_buff(),
@@ -1099,8 +1108,9 @@ mlir::Operation* createRTLayer(IE::InterpolateOp origOp, ArrayRef<mlir::Value> a
 
     IERT::InterpolateOp::Adaptor newOp(allBufs);
     return b.create<IERT::InterpolateOp>(origOp.getLoc(), newOp.input(), newOp.output_buff(),
-                                         origOp.attr().mode().getValue(), origOp.attr().coord_mode().getValue(),
-                                         origOp.attr().nearest_mode().getValue(), origOp.attr().antialias().getValue());
+                                         origOp.attr().getMode().getValue(), origOp.attr().getCoordMode().getValue(),
+                                         origOp.attr().getNearestMode().getValue(),
+                                         origOp.attr().getAntialias().getValue());
 }
 
 mlir::Operation* createRTLayer(IE::StridedSliceOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
@@ -1159,6 +1169,12 @@ mlir::Operation* createRTLayer(IE::CeilingOp origOp, ArrayRef<mlir::Value> allBu
     return b.create<IERT::CeilingOp>(origOp.getLoc(), newOp.input(), newOp.output_buff());
 }
 
+mlir::Operation* createRTLayer(IE::NormalizeL2Op origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
+    IERT::NormalizeL2Op::Adaptor newOp(allBufs);
+    return b.create<IERT::NormalizeL2Op>(origOp.getLoc(), newOp.input(), newOp.axes(), newOp.output_buff(),
+                                         origOp.eps(), origOp.eps_mode());
+}
+
 mlir::Operation* createRTLayer(IE::NormalizeIEOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
     IERT::NormalizeIEOp::Adaptor newOp(allBufs);
     return b.create<IERT::NormalizeIEOp>(origOp.getLoc(), newOp.data(), newOp.weights(), newOp.output_buff(),
@@ -1185,7 +1201,7 @@ mlir::Operation* createRTLayer(IE::SelectOp origOp, ArrayRef<mlir::Value> allBuf
 mlir::Operation* createRTLayer(IE::UpsamplingOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
     IERT::UpsamplingOp::Adaptor newOp(allBufs);
     return b.create<IERT::UpsamplingOp>(origOp.getLoc(), newOp.input(), newOp.output_buff(),
-                                        origOp.upsampling_factorAttr(), origOp.pad_lAttr(), origOp.pad_rAttr());
+                                        origOp.upsampling_factorAttr(), origOp.padAttr());
 }
 
 mlir::Operation* createRTLayer(IE::LessOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
@@ -1310,6 +1326,12 @@ mlir::Operation* createRTLayer(IE::EmbeddingSegmentsSumOp origOp, ArrayRef<mlir:
                                                   origOp.per_sample_weights_valueAttr());
 }
 
+mlir::Operation* createRTLayer(IE::EmbeddingBagPackedSumOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
+    IERT::EmbeddingBagPackedSumOp::Adaptor newOp(allBufs);
+    return b.create<IERT::EmbeddingBagPackedSumOp>(origOp.getLoc(), newOp.emb_table(), newOp.indices(),
+                                                   newOp.per_sample_weights(), newOp.output_buff());
+}
+
 mlir::Operation* createRTLayer(IE::GRUCellOp origOp, ArrayRef<mlir::Value> allBufs, mlir::OpBuilder& b) {
     IERT::GRUCellOp::Adaptor newOp(allBufs);
     return b.create<IERT::GRUCellOp>(origOp.getLoc(), newOp.input_data(), newOp.initial_hidden_state(), newOp.weights(),
@@ -1426,6 +1448,7 @@ mlir::LogicalResult LayerRewrite::matchAndRewrite(mlir::Operation* origOp, Array
     CASE(IE::GatherOp)
     CASE(IE::GatherNDOp)
     CASE(IE::YuvToRgbOp)
+    CASE(IE::OneHotOp)
     CASE(IE::GatherElementsOp)
     CASE(IE::ScatterNDUpdateOp)
     CASE(IE::ScatterUpdateOp)
@@ -1465,6 +1488,7 @@ mlir::LogicalResult LayerRewrite::matchAndRewrite(mlir::Operation* origOp, Array
     CASE(IE::MemPermuteOp)
     CASE(IE::SoftPlusOp)
     CASE(IE::CeilingOp)
+    CASE(IE::NormalizeL2Op)
     CASE(IE::NormalizeIEOp)
     CASE(IE::CumSumOp)
     CASE(IE::EqualOp)
@@ -1493,6 +1517,7 @@ mlir::LogicalResult LayerRewrite::matchAndRewrite(mlir::Operation* origOp, Array
     CASE(IE::EmbeddingBagOffsetsSumOp)
     CASE(IE::ProposalOp)
     CASE(IE::EmbeddingSegmentsSumOp)
+    CASE(IE::EmbeddingBagPackedSumOp)
     CASE(IE::GRUCellOp)
     CASE(IE::GRUSequenceOp)
     CASE(IE::DeformablePSROIPoolingOp)
@@ -1577,7 +1602,7 @@ void BufferizeIEPass::safeRunOnFunc() {
     patterns.add<ReverseSequenceRewrite>(typeConverter, &ctx, _log);
     Const::ConstDialect::populateBufferizePatterns(patterns, typeConverter, _log);
 
-    auto func = getFunction();
+    auto func = getOperation();
     if (mlir::failed(mlir::applyPartialConversion(func, target, std::move(patterns)))) {
         signalPassFailure();
     }

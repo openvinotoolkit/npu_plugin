@@ -1,34 +1,29 @@
 //
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <vector>
 
-#include "common_test_utils/test_constants.hpp"
 #include "kmb_layer_test.hpp"
 #include "single_layer_tests/shape_of.hpp"
 
 namespace LayerTestsDefinitions {
-
-class KmbShapeOfLayerTest : public ShapeOfLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
+class VPUXShapeOfLayerTest : public ShapeOfLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {};
+class VPUXShapeOfLayerTest_VPU3700 : public VPUXShapeOfLayerTest {
     void SkipBeforeLoad() override {
     }
 };
 
-class VPUXShapeOfLayerTest_VPU3720 : public ShapeOfLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {};
+class VPUXShapeOfLayerTest_VPU3720 : public VPUXShapeOfLayerTest {};
 
-TEST_P(KmbShapeOfLayerTest, CompareWithRefs) {
+TEST_P(VPUXShapeOfLayerTest_VPU3700, HW) {
+    setPlatformVPU3700();
+    setDefaultHardwareModeMLIR();
     Run();
 }
 
-TEST_P(KmbShapeOfLayerTest, CompareWithRefs_MLIR) {
-    useCompilerMLIR();
-    Run();
-}
-
-TEST_P(VPUXShapeOfLayerTest_VPU3720, SW_MLIR_VPU3720) {
-    useCompilerMLIR();
+TEST_P(VPUXShapeOfLayerTest_VPU3720, SW) {
     setPlatformVPU3720();
     setReferenceSoftwareModeMLIR();
     Run();
@@ -62,14 +57,14 @@ const std::vector<std::vector<size_t>> inShapes_precommit = {
 // While validating node 'v3::ShapeOf ShapeOf_1 (Parameter_0[0]:f32{10,10,10}) -> (dynamic?)' with
 // friendly_name 'ShapeOf_1': Output type must be i32 or i64" thrown in SetUp().
 // [Track number: S#49606]
-INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_Check, KmbShapeOfLayerTest,
+INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_Check, VPUXShapeOfLayerTest_VPU3700,
                          ::testing::Combine(::testing::ValuesIn(netPrecisions),
                                             ::testing::Values(InferenceEngine::Precision::I64),
                                             ::testing::Values(std::vector<size_t>({10, 10, 10})),
                                             ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
                          ShapeOfLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_ShapeOf, KmbShapeOfLayerTest,
+INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_ShapeOf, VPUXShapeOfLayerTest_VPU3700,
                          ::testing::Combine(::testing::ValuesIn(netPrecisions),
                                             ::testing::Values(InferenceEngine::Precision::I32),
                                             ::testing::ValuesIn(inShapes),

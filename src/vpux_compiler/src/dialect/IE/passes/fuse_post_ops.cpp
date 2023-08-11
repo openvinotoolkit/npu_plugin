@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/IE/passes.hpp"
 
 #include "vpux/compiler/utils/error.hpp"
@@ -12,8 +10,6 @@
 #include "vpux/utils/core/numeric.hpp"
 
 #include <mlir/Transforms/GreedyPatternRewriteDriver.h>
-
-#include <llvm/ADT/TypeSwitch.h>
 
 using namespace vpux;
 
@@ -91,7 +87,7 @@ void FusePostOpsPass::safeRunOnFunc() {
     mlir::RewritePatternSet patterns(&ctx);
     patterns.add<GenericConverter>(&ctx, _log);
 
-    auto func = getFunction();
+    auto func = getOperation();
     if (mlir::failed(applyPatternsAndFoldGreedily(func, std::move(patterns), getDefaultGreedyRewriteConfig()))) {
         signalPassFailure();
     }

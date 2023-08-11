@@ -14,9 +14,14 @@ using namespace vpux;
  * @return Handle to the allocated resource
  */
 void* ZeroAllocator::alloc(std::size_t size) noexcept {
-    void* mem = new char[size];
-    our_pointers.insert(mem);
-    return mem;
+    try {
+        void* mem = new char[size];
+        our_pointers.insert(mem);
+        return mem;
+    } catch (const std::bad_array_new_length& e) {
+        _log.error("Caught while allocating memory: {0}", e.what());
+        return 0;
+    }
 }
 
 /**

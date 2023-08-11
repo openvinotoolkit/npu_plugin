@@ -3,11 +3,8 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/IERT/ops.hpp"
 
-#include "vpux/compiler/core/attributes/dims_order.hpp"
 #include "vpux/compiler/core/attributes/stride_reqs.hpp"
 #include "vpux/compiler/core/attributes/strides.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
@@ -15,9 +12,10 @@
 
 using namespace vpux;
 
-mlir::LogicalResult vpux::IERT::verifyOp(GenericReshapeOp op) {
-    const auto inType = op.input().getType().cast<vpux::NDTypeInterface>();
-    const auto outType = op.output().getType().cast<vpux::NDTypeInterface>();
+mlir::LogicalResult vpux::IERT::GenericReshapeOp::verify() {
+    const auto op = getOperation();
+    const auto inType = input().getType().cast<vpux::NDTypeInterface>();
+    const auto outType = output().getType().cast<vpux::NDTypeInterface>();
 
     if (inType.getNumElements() != outType.getNumElements()) {
         return errorAt(op, "Reshape input and output must have the same number of elements");

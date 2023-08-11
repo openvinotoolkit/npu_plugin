@@ -152,8 +152,7 @@ public:
 
 class VPUXQuantizedConvClampSubGraphTest_VPU3720 : public VPUXQuantizedConvClampSubGraphTest {};
 
-TEST_P(VPUXQuantizedConvClampSubGraphTest_VPU3720, MLIR_HW) {
-    useCompilerMLIR();
+TEST_P(VPUXQuantizedConvClampSubGraphTest_VPU3720, HW) {
     setPlatformVPU3720();
     setDefaultHardwareModeMLIR();
     Run();
@@ -191,7 +190,7 @@ const auto basicCases = ::testing::Combine(::testing::ValuesIn(inPrecisions), ::
                                            ::testing::ValuesIn(outFQAndClampRanges),
                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));
 
-INSTANTIATE_TEST_SUITE_P(precommit, VPUXQuantizedConvClampSubGraphTest_VPU3720, basicCases,
+INSTANTIATE_TEST_SUITE_P(precommit_QuantizedConvClamp, VPUXQuantizedConvClampSubGraphTest_VPU3720, basicCases,
                          VPUXQuantizedConvClampSubGraphTest::getTestCaseName);
 
 }  // namespace

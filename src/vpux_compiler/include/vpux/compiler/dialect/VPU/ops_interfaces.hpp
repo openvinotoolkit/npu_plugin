@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #pragma once
 
 #include "vpux/compiler/core/attributes/shape.hpp"
@@ -15,6 +13,10 @@
 
 #include <mlir/IR/OpDefinition.h>
 #include <mlir/IR/Operation.h>
+#include <mlir/IR/ValueRange.h>
+
+#include <initializer_list>
+#include <numeric>
 
 namespace vpux {
 namespace VPU {
@@ -100,21 +102,39 @@ mlir::LogicalResult verifyNCEOp(mlir::Operation* op);
 bool isPureViewOp(mlir::Operation* op);
 
 //
-// SameInOutDimsOrder
+// SameInOutDefaultDimsOrder
 //
 
-mlir::LogicalResult verifySameInOutDimsOrder(mlir::Operation* op);
-void inferLayoutInfoSameInOutDimsOrder(IE::LayerLayoutInfo& info);
+mlir::LogicalResult verifySameInOutDefaultDimsOrder(mlir::Operation* op);
+void inferLayoutInfoSameInOutDefaultDimsOrder(IE::LayerLayoutInfo& info);
 
 template <typename ConcreteOp>
-class SameInOutDimsOrder : public mlir::OpTrait::TraitBase<ConcreteOp, SameInOutDimsOrder> {
+class SameInOutDefaultDimsOrder : public mlir::OpTrait::TraitBase<ConcreteOp, SameInOutDefaultDimsOrder> {
 public:
     static mlir::LogicalResult verifyTrait(mlir::Operation* op) {
-        return verifySameInOutDimsOrder(op);
+        return verifySameInOutDefaultDimsOrder(op);
     }
 
     static void inferLayoutInfo(mlir::Operation*, IE::LayerLayoutInfo& info) {
-        inferLayoutInfoSameInOutDimsOrder(info);
+        inferLayoutInfoSameInOutDefaultDimsOrder(info);
+    }
+};
+
+//
+// SameAnyDimsOrder
+//
+
+mlir::LogicalResult verifySameAnyDimsOrder(mlir::Operation* op);
+void inferLayoutInfoSameAnyDimsOrder(IE::LayerLayoutInfo& info);
+
+template <typename ConcreteOp>
+class SameAnyDimsOrder : public mlir::OpTrait::TraitBase<ConcreteOp, SameAnyDimsOrder> {
+public:
+    static mlir::LogicalResult verifyTrait(mlir::Operation* op) {
+        return verifySameAnyDimsOrder(op);
+    }
+    static void inferLayoutInfo(mlir::Operation*, IE::LayerLayoutInfo& info) {
+        inferLayoutInfoSameAnyDimsOrder(info);
     }
 };
 
@@ -188,6 +208,25 @@ public:
 };
 
 //
+// SameInOutDimsOrder_NC_CHW_HWC_NCHW_NHWC
+//
+
+template <typename ConcreteOp>
+class SameInOutDimsOrder_NC_CHW_HWC_NCHW_NHWC :
+        public mlir::OpTrait::TraitBase<ConcreteOp, SameInOutDimsOrder_NC_CHW_HWC_NCHW_NHWC> {
+public:
+    static mlir::LogicalResult verifyTrait(mlir::Operation* op) {
+        return verifySameInOutSpecificDimsOrder(
+                op, {DimsOrder::NC, DimsOrder::CHW, DimsOrder::HWC, DimsOrder::NCHW, DimsOrder::NHWC});
+    }
+
+    static void inferLayoutInfo(mlir::Operation*, IE::LayerLayoutInfo& info) {
+        inferLayoutInfoSameInOutSpecificDimsOrder(
+                info, {DimsOrder::NC, DimsOrder::CHW, DimsOrder::HWC, DimsOrder::NCHW, DimsOrder::NHWC});
+    }
+};
+
+//
 // AnyDimsOrder
 //
 
@@ -196,6 +235,41 @@ class AnyDimsOrder : public mlir::OpTrait::TraitBase<ConcreteOp, AnyDimsOrder> {
 public:
     static void inferLayoutInfo(mlir::Operation*, IE::LayerLayoutInfo&) {
     }
+};
+
+//
+// LimitedToArch
+//
+
+template <ArchKind... archs>
+struct LimitedToArch {
+    template <typename ConcreteType>
+    class Impl : public mlir::OpTrait::TraitBase<ConcreteType, Impl> {
+    public:
+        static mlir::LogicalResult verifyTrait(mlir::Operation* op) {
+            return verifyArchKind(op, {archs...});
+        }
+
+    private:
+        static mlir::LogicalResult verifyArchKind(mlir::Operation* op, std::initializer_list<ArchKind> supportedArchs) {
+            auto arch = getArch(op);
+
+            if (arch != ArchKind::UNKNOWN) {
+                if (std::find(cbegin(supportedArchs), cend(supportedArchs), arch) == cend(supportedArchs)) {
+                    auto archStr = stringifyArchKind(arch).str();
+                    auto archsStr = std::accumulate(cbegin(supportedArchs), cend(supportedArchs), std::string(),
+                                                    [](const std::string& accu, const ArchKind arch) -> std::string {
+                                                        return accu + (accu.length() > 0 ? "," : "") +
+                                                               stringifyArchKind(arch).str();
+                                                    });
+                    return vpux::errorAt(op, "Operation {0} not supported in {1}; list of supported archs: {2}",
+                                         op->getName(), archStr, archsStr);
+                }
+            }
+
+            return mlir::success();
+        }
+    };
 };
 
 }  // namespace VPU

@@ -55,9 +55,9 @@ void buildMaxPool(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp mod
 
     const auto funcType = builder.getFunctionType(makeArrayRef(inputTypes), outputParamType);
 
-    auto func = builder.create<mlir::FuncOp>(builder.getUnknownLoc(),
-                                             printToString("maxpool_{0}_{1}", inputType, outputType), funcType,
-                                             builder.getStringAttr("private"));
+    auto func = builder.create<mlir::func::FuncOp>(builder.getUnknownLoc(),
+                                                   printToString("maxpool_{0}_{1}", inputType, outputType), funcType,
+                                                   builder.getStringAttr("private"));
 
     auto funcbuilder = mlir::OpBuilder::atBlockBegin(func.addEntryBlock(), builder.getListener());
 
@@ -187,11 +187,11 @@ void buildMaxPool(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp mod
     VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcbuilder, mlir::ValueRange(barrier1.barrier()), mlir::ValueRange(),
                                           builder.getUnknownLoc(), outputcmx.getOperation()->getResult(0), funcoutput);
 
-    funcbuilder.create<mlir::ReturnOp>(builder.getUnknownLoc(), funcoutput);
+    funcbuilder.create<mlir::func::ReturnOp>(builder.getUnknownLoc(), funcoutput);
     // set runtime resources
     mlir::PassManager pm(ctx, mlir::OpPassManager::Nesting::Implicit);
-    pm.addPass(VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::DefaultHW, None, None,
-                                           None, log));
+    pm.addPass(VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::DefaultHW, 1, None, None,
+                                           log));
 
     VPUX_THROW_UNLESS(mlir::succeeded(pm.run(module)), "Compilation failed");
     // IE.CNNNetwork

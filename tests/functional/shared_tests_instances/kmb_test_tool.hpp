@@ -8,6 +8,7 @@
 #include <gtest/gtest.h>
 #include <ie_common.h>
 #include <ie_core.hpp>
+#include <iostream>
 #include <string>
 #include "kmb_test_env_cfg.hpp"
 
@@ -26,6 +27,7 @@ public:
                                                      const std::string& fsName);
     void exportBlob(const InferenceEngine::Blob::Ptr blob, const std::string& fsName);
     void importBlob(InferenceEngine::Blob::Ptr blob, const std::string& fsName);
+    std::string getDeviceMetric(std::string name);
 };
 
 std::string filesysName(const testing::TestInfo* testInfo, const std::string& ext, bool limitAbsPathLength);

@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 
 #include "vpux/compiler/dialect/VPU/passes.hpp"
-#include "vpux/compiler/dialect/VPUIP/passes.hpp"
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
 #include "vpux/compiler/dialect/VPURT/task.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
@@ -51,9 +50,9 @@ void buildReadAfterWriteDMAACTTest(const nb::TestCaseJsonDescriptor& testDesc, m
 
     const auto funcType = builder.getFunctionType(makeArrayRef(inputTypes), outputParamType);
 
-    auto function =
-            builder.create<mlir::FuncOp>(loc, printToString("read_after_write_dma_act_{0}_{1}", inputType, outputType),
-                                         funcType, builder.getStringAttr("private"));
+    auto function = builder.create<mlir::func::FuncOp>(
+            loc, printToString("read_after_write_dma_act_{0}_{1}", inputType, outputType), funcType,
+            builder.getStringAttr("private"));
 
     auto functionBuilder = mlir::OpBuilder::atBlockBegin(function.addEntryBlock(), builder.getListener());
 
@@ -87,10 +86,10 @@ void buildReadAfterWriteDMAACTTest(const nb::TestCaseJsonDescriptor& testDesc, m
                                                  DimsOrder::NHWC, cluster, OUTPUT_DMA_CMX_OFFSET);
         }
         updateBarrier = functionBuilder.create<vpux::VPURT::ConfigureBarrierOp>(loc, i);
-        VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(waitBarrier.barrier()),
-                                              mlir::ValueRange(updateBarrier.barrier()), loc,
-                                              inputCMXVec[0].getOperation()->getResult(0),
-                                              outputDMACMX.getOperation()->getResult(0), cluster, false, false);
+        VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(
+                functionBuilder, mlir::ValueRange(waitBarrier.barrier()), mlir::ValueRange(updateBarrier.barrier()),
+                loc, inputCMXVec[0].getOperation()->getResult(0), outputDMACMX.getOperation()->getResult(0),
+                cluster);
 
         waitBarrier = updateBarrier;
         updateBarrier = functionBuilder.create<vpux::VPURT::ConfigureBarrierOp>(loc, i + 1);
@@ -104,7 +103,7 @@ void buildReadAfterWriteDMAACTTest(const nb::TestCaseJsonDescriptor& testDesc, m
     VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(waitBarrier.barrier()), mlir::ValueRange(),
                                           loc, outputDMACMX.getOperation()->getResult(0), functionOutput);
 
-    functionBuilder.create<mlir::ReturnOp>(loc, mlir::ValueRange{functionOutput});
+    functionBuilder.create<mlir::func::ReturnOp>(loc, mlir::ValueRange{functionOutput});
 
     mlir::PassManager pm(ctx, mlir::OpPassManager::Nesting::Implicit);
     pm.addPass(

@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #pragma once
 
 #include <vector>
@@ -16,12 +14,12 @@ namespace vpux {
 class HuffmanCodec final : public ICodec {
 public:
     HuffmanCodec();
-    ~HuffmanCodec() = default;
+    ~HuffmanCodec() override = default;
     HuffmanCodec(const HuffmanCodec&) = delete;
     HuffmanCodec(const HuffmanCodec&&) = delete;
     HuffmanCodec& operator=(const HuffmanCodec&) = delete;
     HuffmanCodec& operator=(const HuffmanCodec&&) = delete;
-    std::vector<uint8_t> compress(std::vector<uint8_t>& data) const;
+    std::vector<uint8_t> compress(std::vector<uint8_t>& data) const override;
 
 private:
     mutable huffmanCodec _huffmanCodec;

@@ -3,17 +3,11 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 
-#include "vpux/compiler/core/attributes/dims_order.hpp"
 #include "vpux/compiler/dialect/VPUIP/graph-schema/blob_reader.hpp"
-#include "vpux/compiler/utils/analysis.hpp"
 #include "vpux/compiler/utils/error.hpp"
 
-#include "vpux/utils/IE/float16.hpp"
-#include "vpux/utils/core/mem_size.hpp"
 #include "vpux/utils/core/numeric.hpp"
 #include "vpux/utils/core/range.hpp"
 
@@ -60,9 +54,10 @@ std::pair<VPUIP::BlobWriter::Vector<uint16_t>, VPUIP::BlobWriter::Vector<uint16_
 
 }  // namespace
 
-mlir::LogicalResult vpux::VPUIP::verifyOp(QuantCastUPAOp op) {
-    const auto inType = op.input().getType().cast<vpux::NDTypeInterface>().getElementType();
-    const auto outType = op.output().getType().cast<vpux::NDTypeInterface>().getElementType();
+mlir::LogicalResult vpux::VPUIP::QuantCastUPAOp::verify() {
+    const auto op = getOperation();
+    const auto inType = input().getType().cast<vpux::NDTypeInterface>().getElementType();
+    const auto outType = output().getType().cast<vpux::NDTypeInterface>().getElementType();
 
     if (!((inType.isF16() && outType.isa<mlir::quant::QuantizedType>()) ||
           (inType.isa<mlir::quant::QuantizedType>() && outType.isF16()))) {

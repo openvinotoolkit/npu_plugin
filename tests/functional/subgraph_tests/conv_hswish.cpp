@@ -1,5 +1,5 @@
 //
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,7 +12,7 @@
 
 namespace {
 
-class KmbConvHSwishTest : public LayerTestsUtils::KmbLayerTestsCommon {
+class VPUXConvHSwishTest_VPU3700 : public LayerTestsUtils::KmbLayerTestsCommon {
     // [Track number: E#26428]
     void SkipBeforeLoad() override {
         if (getBackendName(*getCore()) == "VPUAL") {
@@ -66,13 +66,15 @@ class KmbConvHSwishTest : public LayerTestsUtils::KmbLayerTestsCommon {
 
         const ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(mul_node)};
 
-        function = std::make_shared<ngraph::Function>(results, params, "KmbConvHSwishTest");
+        function = std::make_shared<ngraph::Function>(results, params, "VPUXConvHSwishTest");
 
         threshold = 0.5f;
     }
 };
 
-TEST_F(KmbConvHSwishTest, CompareWithRefs) {
+TEST_F(VPUXConvHSwishTest_VPU3700, HW) {
+    setPlatformVPU3700();
+    setDefaultHardwareModeMLIR();
     Run();
 }
 }  // namespace

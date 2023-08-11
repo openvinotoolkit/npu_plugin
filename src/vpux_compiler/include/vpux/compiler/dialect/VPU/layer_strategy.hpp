@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #pragma once
 
 #include "vpux/compiler/conversion.hpp"
@@ -33,17 +31,20 @@ namespace VPU {
 class BaseLayerStrategy {
 public:
     using Ptr = std::shared_ptr<BaseLayerStrategy>;
-    explicit BaseLayerStrategy(mlir::FuncOp func, Logger log);
+    explicit BaseLayerStrategy(mlir::func::FuncOp func, Logger log);
     virtual ~BaseLayerStrategy() = default;
 
     virtual bool isOperationSplitOverHeightCompatible(VPU::ClusteredOpInterface nceOp,
                                                       ShapeRef customOutputShape = ShapeRef()) const;
+    virtual bool isOperationSplitOverWidthCompatible(VPU::ClusteredOpInterface nceOp,
+                                                     ShapeRef customOutputShape = ShapeRef()) const;
     virtual bool isOperationSplitOverKernelCompatible(VPU::ClusteredOpInterface nceOp,
                                                       ShapeRef customOutputShape = ShapeRef()) const;
 
     virtual SmallVector<VPU::DistributedTypeInterface> getDistributedTensorType(
             VPU::ClusteredOpInterface nceOp, VPU::MultiClusterStrategy strategy) const = 0;
-    virtual bool doesLayerFitIntoCMX(VPU::ClusteredOpInterface nceOp, VPU::MultiClusterStrategy strategy) const;
+    virtual bool doesLayerFitIntoCMX(VPU::ClusteredOpInterface nceOp, VPU::MultiClusterStrategy strategy,
+                                     Byte reservedMem = Byte(0)) const;
     virtual bool doesLayerChangeOutputAlignmentFitIntoCMX(VPU::ClusteredOpInterface nceOp,
                                                           VPU::MultiClusterStrategy strategy,
                                                           VPU::DistributedTypeInterface newDistributedTensorType) const;
@@ -52,8 +53,9 @@ protected:
     int64_t _numClusters;
     int64_t _numDPUs;
     int64_t _minimumOutputHeightForSOH;
+    int64_t _minimumOutputWidthForSOW;
     const int64_t _numChannelAlignment = 16;
-    mlir::FuncOp _func;
+    mlir::func::FuncOp _func;
     Logger _log;
 };
 
@@ -62,13 +64,27 @@ protected:
 //
 class ConvolutionStrategy : public BaseLayerStrategy {
 public:
-    ConvolutionStrategy(mlir::FuncOp func, Logger log): BaseLayerStrategy(func, log) {
+    ConvolutionStrategy(mlir::func::FuncOp func, Logger log): BaseLayerStrategy(func, log) {
     }
 
-    SmallVector<VPU::DistributedTypeInterface> getDistributedTensorType(
-            VPU::ClusteredOpInterface nceOp, VPU::MultiClusterStrategy strategy) const override final;
+    SmallVector<VPU::DistributedTypeInterface> getDistributedTensorType(VPU::ClusteredOpInterface nceOp,
+                                                                        VPU::MultiClusterStrategy strategy) const final;
     bool isOperationSplitOverHeightCompatible(VPU::ClusteredOpInterface nceOp,
-                                              ShapeRef customOutputShape = ShapeRef()) const override final;
+                                              ShapeRef customOutputShape = ShapeRef()) const final;
+};
+
+//
+// CompressConvolutionStrategy
+//
+class CompressConvolutionStrategy : public BaseLayerStrategy {
+public:
+    CompressConvolutionStrategy(mlir::func::FuncOp func, Logger log): BaseLayerStrategy(func, log) {
+    }
+
+    SmallVector<VPU::DistributedTypeInterface> getDistributedTensorType(VPU::ClusteredOpInterface nceOp,
+                                                                        VPU::MultiClusterStrategy strategy) const final;
+    bool isOperationSplitOverHeightCompatible(VPU::ClusteredOpInterface nceOp,
+                                              ShapeRef customOutputShape = ShapeRef()) const final;
 };
 
 //
@@ -76,13 +92,13 @@ public:
 //
 class DepthConvolutionStrategy : public BaseLayerStrategy {
 public:
-    DepthConvolutionStrategy(mlir::FuncOp func, Logger log): BaseLayerStrategy(func, log) {
+    DepthConvolutionStrategy(mlir::func::FuncOp func, Logger log): BaseLayerStrategy(func, log) {
     }
 
-    SmallVector<VPU::DistributedTypeInterface> getDistributedTensorType(
-            VPU::ClusteredOpInterface nceOp, VPU::MultiClusterStrategy strategy) const override final;
+    SmallVector<VPU::DistributedTypeInterface> getDistributedTensorType(VPU::ClusteredOpInterface nceOp,
+                                                                        VPU::MultiClusterStrategy strategy) const final;
     bool isOperationSplitOverHeightCompatible(VPU::ClusteredOpInterface nceOp,
-                                              ShapeRef customOutputShape = ShapeRef()) const override final;
+                                              ShapeRef customOutputShape = ShapeRef()) const final;
 };
 
 //
@@ -90,13 +106,13 @@ public:
 //
 class MaxPoolStrategy : public BaseLayerStrategy {
 public:
-    MaxPoolStrategy(mlir::FuncOp func, Logger log): BaseLayerStrategy(func, log) {
+    MaxPoolStrategy(mlir::func::FuncOp func, Logger log): BaseLayerStrategy(func, log) {
     }
 
-    SmallVector<VPU::DistributedTypeInterface> getDistributedTensorType(
-            VPU::ClusteredOpInterface nceOp, VPU::MultiClusterStrategy strategy) const override final;
+    SmallVector<VPU::DistributedTypeInterface> getDistributedTensorType(VPU::ClusteredOpInterface nceOp,
+                                                                        VPU::MultiClusterStrategy strategy) const final;
     bool isOperationSplitOverHeightCompatible(VPU::ClusteredOpInterface nceOp,
-                                              ShapeRef customOutputShape = ShapeRef()) const override final;
+                                              ShapeRef customOutputShape = ShapeRef()) const final;
 };
 
 //
@@ -104,13 +120,13 @@ public:
 //
 class AveragePoolStrategy : public BaseLayerStrategy {
 public:
-    AveragePoolStrategy(mlir::FuncOp func, Logger log): BaseLayerStrategy(func, log) {
+    AveragePoolStrategy(mlir::func::FuncOp func, Logger log): BaseLayerStrategy(func, log) {
     }
 
-    SmallVector<VPU::DistributedTypeInterface> getDistributedTensorType(
-            VPU::ClusteredOpInterface nceOp, VPU::MultiClusterStrategy strategy) const override final;
+    SmallVector<VPU::DistributedTypeInterface> getDistributedTensorType(VPU::ClusteredOpInterface nceOp,
+                                                                        VPU::MultiClusterStrategy strategy) const final;
     bool isOperationSplitOverHeightCompatible(VPU::ClusteredOpInterface nceOp,
-                                              ShapeRef customOutputShape = ShapeRef()) const override final;
+                                              ShapeRef customOutputShape = ShapeRef()) const final;
 };
 
 //
@@ -118,23 +134,89 @@ public:
 //
 class EltwiseStrategy : public BaseLayerStrategy {
 public:
-    EltwiseStrategy(mlir::FuncOp func, Logger log): BaseLayerStrategy(func, log) {
+    EltwiseStrategy(mlir::func::FuncOp func, Logger log): BaseLayerStrategy(func, log) {
     }
 
-    SmallVector<VPU::DistributedTypeInterface> getDistributedTensorType(
-            VPU::ClusteredOpInterface nceOp, VPU::MultiClusterStrategy strategy) const override final;
+    SmallVector<VPU::DistributedTypeInterface> getDistributedTensorType(VPU::ClusteredOpInterface nceOp,
+                                                                        VPU::MultiClusterStrategy strategy) const final;
 };
 
 //
-// SWStrategy
+// PermuteQuantizeStrategy
 //
-class SWStrategy : public BaseLayerStrategy {
+class PermuteQuantizeStrategy : public BaseLayerStrategy {
 public:
-    SWStrategy(mlir::FuncOp func, Logger log): BaseLayerStrategy(func, log) {
+    PermuteQuantizeStrategy(mlir::func::FuncOp func, Logger log): BaseLayerStrategy(func, log) {
     }
 
-    SmallVector<VPU::DistributedTypeInterface> getDistributedTensorType(
-            VPU::ClusteredOpInterface nceOp, VPU::MultiClusterStrategy strategy) const override final;
+    SmallVector<VPU::DistributedTypeInterface> getDistributedTensorType(VPU::ClusteredOpInterface nceOp,
+                                                                        VPU::MultiClusterStrategy strategy) const final;
+};
+
+//
+// InterpolateStrategy
+//
+class InterpolateStrategy : public BaseLayerStrategy {
+public:
+    InterpolateStrategy(mlir::func::FuncOp func, Logger log): BaseLayerStrategy(func, log) {
+    }
+
+    SmallVector<VPU::DistributedTypeInterface> getDistributedTensorType(VPU::ClusteredOpInterface nceOp,
+                                                                        VPU::MultiClusterStrategy strategy) const final;
+    bool isOperationSplitOverHeightCompatible(VPU::ClusteredOpInterface nceOp,
+                                              ShapeRef customOutputShape = ShapeRef()) const final;
+};
+
+//
+// ConcatStrategy
+//
+class ConcatStrategy : public BaseLayerStrategy {
+public:
+    ConcatStrategy(mlir::func::FuncOp func, Logger log): BaseLayerStrategy(func, log) {
+    }
+
+    SmallVector<VPU::DistributedTypeInterface> getDistributedTensorType(VPU::ClusteredOpInterface nceOp,
+                                                                        VPU::MultiClusterStrategy strategy) const final;
+    bool isOperationSplitOverHeightCompatible(VPU::ClusteredOpInterface nceOp,
+                                              ShapeRef customOutputShape = ShapeRef()) const final;
+    bool isOperationSplitOverKernelCompatible(VPU::ClusteredOpInterface nceOp,
+                                              ShapeRef customOutputShape = ShapeRef()) const final;
+};
+
+//
+// SWGeneralStrategy
+//
+class SWGeneralStrategy : public BaseLayerStrategy {
+public:
+    SWGeneralStrategy(mlir::func::FuncOp func, Logger log): BaseLayerStrategy(func, log) {
+    }
+
+    SmallVector<VPU::DistributedTypeInterface> getDistributedTensorType(VPU::ClusteredOpInterface nceOp,
+                                                                        VPU::MultiClusterStrategy strategy) const final;
+};
+
+//
+// SWInterpolateStrategy
+//
+class SWInterpolateStrategy : public BaseLayerStrategy {
+public:
+    SWInterpolateStrategy(mlir::func::FuncOp func, Logger log): BaseLayerStrategy(func, log) {
+    }
+
+    SmallVector<VPU::DistributedTypeInterface> getDistributedTensorType(VPU::ClusteredOpInterface nceOp,
+                                                                        VPU::MultiClusterStrategy strategy) const final;
+};
+
+//
+// SWMultiplyStrategy
+//
+class SWMultiplyStrategy : public BaseLayerStrategy {
+public:
+    SWMultiplyStrategy(mlir::func::FuncOp func, Logger log): BaseLayerStrategy(func, log) {
+    }
+
+    SmallVector<VPU::DistributedTypeInterface> getDistributedTensorType(VPU::ClusteredOpInterface nceOp,
+                                                                        VPU::MultiClusterStrategy strategy) const final;
 };
 
 }  // namespace VPU

@@ -3,13 +3,12 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/IE/ops.hpp"
 
 #include "vpux/compiler/dialect/IE/utils/shape_infer.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
+#include "vpux/compiler/utils/empty_node.hpp"
 #include "vpux/compiler/utils/error.hpp"
 
 #include "vpux/utils/core/checked_cast.hpp"
@@ -60,7 +59,7 @@ mlir::LogicalResult vpux::IE::StridedSliceOp::inferReturnTypeComponents(
         mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
         mlir::DictionaryAttr attrs, mlir::RegionRange,
         SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
-    const auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
+    const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
     IE::StridedSliceOpAdaptor slice(operands, attrs);
     if (mlir::failed(slice.verify(loc))) {
@@ -98,9 +97,9 @@ mlir::LogicalResult vpux::IE::StridedSliceOp::inferReturnTypeComponents(
     const auto shrinkAxisMask = getAxisSetArr(slice.shrink_axis_mask());
     const auto ellipsisMask = getAxisSetArr(slice.ellipsis_mask());
 
-    const auto outputShape =
-            ngraph::infer_slice_shape(nullptr, ngraph::Shape(inDataShape.begin(), inDataShape.end()), begins, ends,
-                                      strides, beginMask, endMask, newAxisMask, shrinkAxisMask, ellipsisMask);
+    const auto outputShape = ngraph::infer_slice_shape(
+            EmptyNode::instance(), ngraph::Shape(inDataShape.begin(), inDataShape.end()), begins, ends, strides,
+            beginMask, endMask, newAxisMask, shrinkAxisMask, ellipsisMask);
 
     const auto shapeI64 = to_small_vector(outputShape.get_shape() | transformed([](size_t val) {
                                               return checked_cast<int64_t>(val);
@@ -181,6 +180,14 @@ mlir::LogicalResult ComposeStridedSlice::matchAndRewrite(IE::StridedSliceOp orig
         resultBegin[i] = firstBegin[i] + nextBegin[i] * firstStride[i];
         resultEnd[i] = firstBegin[i] + nextEnd[i] * firstStride[i];
         resultStride[i] = firstStride[i] * nextStride[i];
+    }
+    // Stride on more than 1 axis is not supported
+    const auto greaterThanOne = [](auto ele) {
+        return ele > 1;
+    };
+    auto stridesGreaterThanOne = llvm::count_if(resultStride, greaterThanOne);
+    if (stridesGreaterThanOne > 1) {
+        return mlir::failure();
     }
 
     const auto beginsAttr = getIntArrayAttr(getContext(), resultBegin);

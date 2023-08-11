@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/IE/utils/resources.hpp"
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
 
@@ -35,7 +33,7 @@ namespace {
 class ClusterUpsamplingDMARewriter final : public mlir::OpRewritePattern<VPUIP::UpsamplingDMAOp> {
 public:
     ClusterUpsamplingDMARewriter(mlir::MLIRContext* ctx, int64_t dmaPortCount, Logger log)
-            : mlir::OpRewritePattern<VPUIP::UpsamplingDMAOp>(ctx), _log(log), _ctx(ctx), _dmaPortCount(dmaPortCount) {
+            : mlir::OpRewritePattern<VPUIP::UpsamplingDMAOp>(ctx), _log(log), _dmaPortCount(dmaPortCount) {
         setDebugName("ClusterUpsamplingDMARewriter");
 
         _cmxNameAttr = mlir::FlatSymbolRefAttr::get(ctx, stringifyEnum(VPU::MemoryKind::CMX_NN));
@@ -46,28 +44,28 @@ public:
 
 private:
     Logger _log;
-    mlir::MLIRContext* _ctx;
     int64_t _dmaPortCount;
     mlir::FlatSymbolRefAttr _cmxNameAttr;
 };
 
 static VPUIP::DmaDescriptorAttr generateUpsampingDmaDescriptor(mlir::MLIRContext* ctx, vpux::ShapeRef inShape,
-                                                               mlir::ArrayAttr factor, Byte inElemTypeSize) {
+                                                               mlir::ArrayAttr factor, Byte inElemTypeSize,
+                                                               int64_t expandChannel) {
     auto upsampleFactor = parseIntArrayAttr<int64_t>(factor);
     auto elemTypeSize = inElemTypeSize.count();
 
     const auto IC = inShape[Dims4D::Act::C];
     const auto H = inShape[Dims4D::Act::H];
     const auto W = inShape[Dims4D::Act::W];
-
     auto len = vpux::getIntAttr(ctx, W * IC * elemTypeSize);
     auto srcWidth = vpux::getIntAttr(ctx, IC * W * elemTypeSize);
     auto srcStride = vpux::getIntAttr(ctx, IC * W * elemTypeSize);
     auto srcPlaneStride = vpux::getIntAttr(ctx, W * IC * elemTypeSize);
     auto dstWidth = vpux::getIntAttr(ctx, IC * elemTypeSize);
-    auto dstStride = vpux::getIntAttr(ctx, IC * elemTypeSize * upsampleFactor[Dims4D::Act::W.ind()]);
-    auto dstPlaneStride = vpux::getIntAttr(
-            ctx, W * IC * elemTypeSize * upsampleFactor[Dims4D::Act::H.ind()] * upsampleFactor[Dims4D::Act::W.ind()]);
+    auto dstStride = vpux::getIntAttr(ctx, (IC + expandChannel) * elemTypeSize * upsampleFactor[Dims4D::Act::W.ind()]);
+    auto dstPlaneStride =
+            vpux::getIntAttr(ctx, W * (IC + expandChannel) * elemTypeSize * upsampleFactor[Dims4D::Act::H.ind()] *
+                                          upsampleFactor[Dims4D::Act::W.ind()]);
     auto numPlanes = vpux::getIntAttr(ctx, H);
     return VPUIP::DmaDescriptorAttr::get(numPlanes, len, srcWidth, srcStride, srcPlaneStride, dstWidth, dstStride,
                                          dstPlaneStride, ctx);
@@ -116,11 +114,19 @@ mlir::LogicalResult ClusterUpsamplingDMARewriter::matchAndRewrite(VPUIP::Upsampl
     auto dstOffset = dstDeclBuff.byteOffset();
     auto contex = upsamplingDMAOp.getContext();
     auto upsampingFactor = parseIntArrayAttr<int64_t>(upsamplingDMAOp.upsampling_factor());
+    auto hasExpandAttr = upsamplingDMAOp.expand().hasValue();
+    SmallVector<int64_t, 4> expand;
+    if (hasExpandAttr) {
+        expand = extractFromI64ArrayAttr(upsamplingDMAOp.expandAttr());
+    }
 
-    auto getOutShape = [&upsampingFactor](ShapeRef inShape) {
+    auto getOutShape = [&upsampingFactor, &hasExpandAttr, &expand](ShapeRef inShape) {
         auto outShape = Shape(inShape.raw());
         for (size_t i = 0; i < outShape.size(); i++) {
             outShape[Dim(i)] *= upsampingFactor[i];
+            if (hasExpandAttr) {
+                outShape[Dim(i)] += expand[i];
+            }
         }
         return outShape;
     };
@@ -133,15 +139,20 @@ mlir::LogicalResult ClusterUpsamplingDMARewriter::matchAndRewrite(VPUIP::Upsampl
         auto outShape = getOutShape(inputShape);
         auto newDstMemRef = vpux::getMemRefType(outShape, dstType.getElementType(), inOrder, dstType.getMemSpace());
         auto newDstBuff = VPUIP::createNewDeclareBuffer(rewriter, dstDeclBuff, dstDeclBuff, newDstMemRef, dstOffset);
-        auto descriptorAttr = generateUpsampingDmaDescriptor(contex, inputShape, upsamplingDMAOp.upsampling_factor(),
-                                                             inType.getElemTypeSize());
+        auto descriptorAttr =
+                hasExpandAttr ? generateUpsampingDmaDescriptor(contex, inputShape, upsamplingDMAOp.upsampling_factor(),
+                                                               inType.getElemTypeSize(), expand[1])
+                              : generateUpsampingDmaDescriptor(contex, inputShape, upsamplingDMAOp.upsampling_factor(),
+                                                               inType.getElemTypeSize(), 0);
 
         auto nextOffset = srcOffset + inputShape.totalSize() * elemTypeSize.count();
         const auto newLoc =
                 appendLoc(upsamplingDMAOp->getLoc(), "_unroll_upsampingDMA[{0},{1}]", srcOffset, nextOffset);
         const auto newUpsamplingDMA = VPURT::wrapIntoTaskOp<VPUIP::UpsamplingDMAOp>(
                 rewriter, vpurtTask.waitBarriers(), vpurtTask.updateBarriers(), newLoc, newSrcBuff, newDstBuff,
-                upsamplingDMAOp.upsampling_factorAttr(), descriptorAttr, dmaPort);
+                upsamplingDMAOp.upsampling_factorAttr(), descriptorAttr, upsamplingDMAOp.expandAttr(), dmaPort,
+                upsamplingDMAOp.channelTypeAttr(), nullptr);
+
         auto newVpurtTask = newUpsamplingDMA->getParentOfType<VPURT::TaskOp>();
         if (cycleBeginAttr) {
             newVpurtTask->setAttr(cycleBegin, cycleBeginAttr);
@@ -154,7 +165,6 @@ mlir::LogicalResult ClusterUpsamplingDMARewriter::matchAndRewrite(VPUIP::Upsampl
         dstOffset += outShape.totalSize() * elemTypeSize.count();
     }
     rewriter.eraseOp(vpurtTask);
-
     return mlir::success();
 }
 
@@ -174,7 +184,7 @@ private:
 
 void UnrollUpsamplingDMAPass::safeRunOnFunc() {
     auto& ctx = getContext();
-    auto func = getFunction();
+    auto func = getOperation();
     auto module = func->getParentOfType<mlir::ModuleOp>();
     auto dmaOp = IE::getAvailableExecutor(module, VPU::ExecutorKind::DMA_NN);
     auto dmaPortCount = dmaOp.count();

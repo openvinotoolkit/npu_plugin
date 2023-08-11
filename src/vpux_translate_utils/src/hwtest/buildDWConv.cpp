@@ -87,7 +87,7 @@ void buildDWConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp modu
     const auto weightsElementTypeBitSize = static_cast<Bit>(getElemTypeSize(weightsType)).count();
     const auto alignment = (16 * weightsElementTypeBitSize) / CHAR_BIT;
     const auto WEIGHTS_CMX_OFFSET =
-            vpux::alignVal(INPUT_CMX_OFFSET + input_totalsize, static_cast<std::uint64_t>(alignment));
+            vpux::alignValUp(INPUT_CMX_OFFSET + input_totalsize, static_cast<std::uint64_t>(alignment));
 
     SmallVector<mlir::Type> inputTypes;
 
@@ -98,9 +98,9 @@ void buildDWConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp modu
     const auto funcType = builder.getFunctionType(makeArrayRef(inputTypes), outputParamType);
 
     // TODO: Func should not return
-    auto func = builder.create<mlir::FuncOp>(builder.getUnknownLoc(),
-                                             printToString("dw_conv_{0}_{1}_{2}", inputType, weightsType, outputType),
-                                             funcType, builder.getStringAttr("private"));
+    auto func = builder.create<mlir::func::FuncOp>(
+            builder.getUnknownLoc(), printToString("dw_conv_{0}_{1}_{2}", inputType, weightsType, outputType), funcType,
+            builder.getStringAttr("private"));
 
     auto funcbuilder = mlir::OpBuilder::atBlockBegin(func.addEntryBlock(), builder.getListener());
 
@@ -288,12 +288,12 @@ void buildDWConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp modu
                                                 loc, outputcmx.getOperation()->getResult(0), funcoutput);
 
     // TODO : return empty as func does not return anything
-    /* auto returnOp = */ funcbuilder.create<mlir::ReturnOp>(builder.getUnknownLoc(), funcoutput);
+    /* auto returnOp = */ funcbuilder.create<mlir::func::ReturnOp>(builder.getUnknownLoc(), funcoutput);
 
     // set runtime resources
     mlir::PassManager pm(builder.getContext(), mlir::OpPassManager::Nesting::Implicit);
-    pm.addPass(VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::DefaultHW, None, None,
-                                           None, log));
+    pm.addPass(VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::DefaultHW, 1, None, None,
+                                           log));
 
     VPUX_THROW_UNLESS(mlir::succeeded(pm.run(module)), "Compilation failed");
 

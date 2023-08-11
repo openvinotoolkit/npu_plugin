@@ -4,8 +4,6 @@
 //
 
 //
-
-//
 // Partitioner finds and allocates unused portion of memory from the contiguous
 // memory array; returns the portion back after their usage is finished
 //

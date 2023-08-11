@@ -114,4 +114,7 @@ Uuid IDevice::getUuid() const {
     IE_THROW() << "Get UUID not supported";
 }
 
+uint64_t IDevice::getTotalMemSize() const {
+    IE_THROW() << "Get TotalMemSize is not supported";
+}
 }  // namespace vpux

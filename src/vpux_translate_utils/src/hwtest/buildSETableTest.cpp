@@ -143,7 +143,7 @@ void buildSETableTest(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp
     const auto argTypesVec = SmallVector<mlir::Type>({inputParamType, outputParamType});
     const auto funcType = builder.getFunctionType(argTypesVec, returnTypesVec);
 
-    auto function = builder.create<mlir::FuncOp>(
+    auto function = builder.create<mlir::func::FuncOp>(
             loc, printToString("se_table_dpu_{0}_{1}_{2}", inputType, weightsType, outputType), funcType,
             builder.getStringAttr("private"));
 
@@ -180,7 +180,7 @@ void buildSETableTest(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp
     const auto numElems = inputCMX.getType().cast<vpux::NDTypeInterface>().getShape().totalSize();
     const auto sparseMapContent = std::vector<char>(numElems / CHAR_BIT, 0xFF);
     auto sparseMapValues = mlir::DenseElementsAttr::getFromRawBuffer(mlir::RankedTensorType::get(inputShape, int1),
-                                                                     llvm::makeArrayRef<char>(sparseMapContent), false);
+                                                                     llvm::makeArrayRef<char>(sparseMapContent));
     auto sparseMapConstAttr = vpux::Const::ContentAttr::get(sparseMapValues);
 
     auto sparsityMapDDRType = getMemRefType(VPURT::BufferSection::Constant, inputShape, int1, DimsOrder::OIYX);
@@ -213,7 +213,7 @@ void buildSETableTest(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp
     auto inputSeSizeAttr = getIntAttr(ctx, inputShape[Dims4D::Act::C.ind()]);
 
     auto inputSparseBuffer = fcnBuilder.create<VPUIP::GroupSparseBufferOp>(
-            loc, inputCMX.buffer(), sparsityMapCMX.buffer(), seTableCMX.buffer());
+            loc, inputCMX.buffer(), sparsityMapCMX.buffer(), seTableCMX.buffer(), nullptr);
 
     // Create weights table
     auto& weightsOutputChannelsStrideInBits = weightsStrides[vpux::Dims4D::Filter::OC];
@@ -306,11 +306,11 @@ void buildSETableTest(const nb::TestCaseJsonDescriptor& testDesc, mlir::ModuleOp
     VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(fcnBuilder, mlir::ValueRange(waitBarrier.barrier()), mlir::ValueRange(), loc,
                                           outCMXBuffer, functionOutput);
 
-    fcnBuilder.create<mlir::ReturnOp>(loc, SmallVector<mlir::Value>{functionOutput});
+    fcnBuilder.create<mlir::func::ReturnOp>(loc, SmallVector<mlir::Value>{functionOutput});
 
     mlir::PassManager pm(ctx, mlir::OpPassManager::Nesting::Implicit);
-    pm.addPass(VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::DefaultHW, None, None,
-                                           None, log));
+    pm.addPass(VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::DefaultHW, 1, None, None,
+                                           log));
     if (conv.compress) {
         pm.addPass(VPUIP::createCompressWeightsBTCPass(log));
     }

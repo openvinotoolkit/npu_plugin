@@ -13,8 +13,8 @@ using namespace vpux;
 
 StringLiteral vpux::IMD::stringifyEnum(LaunchMode val) {
     switch (val) {
-    case LaunchMode::MoviSim:
-        return "MoviSim";
+    case LaunchMode::Simulator:
+        return "Simulator";
     case LaunchMode::MoviDebug:
         return "MoviDebug";
     default:
@@ -23,8 +23,8 @@ StringLiteral vpux::IMD::stringifyEnum(LaunchMode val) {
 }
 
 IMD::LaunchMode vpux::IMD::LAUNCH_MODE::parse(StringRef val) {
-    if (val == VPUX_IMD_CONFIG_VALUE(MOVI_SIM)) {
-        return LaunchMode::MoviSim;
+    if (val == VPUX_IMD_CONFIG_VALUE(SIMULATOR)) {
+        return LaunchMode::Simulator;
     } else if (val == VPUX_IMD_CONFIG_VALUE(MOVI_DEBUG)) {
         return LaunchMode::MoviDebug;
     }

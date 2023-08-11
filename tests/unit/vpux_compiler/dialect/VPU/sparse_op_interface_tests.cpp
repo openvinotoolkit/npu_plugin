@@ -12,7 +12,7 @@
 #include "vpux/compiler/init.hpp"
 
 #include <mlir/IR/MLIRContext.h>
-#include <mlir/Parser.h>
+#include <mlir/Parser/Parser.h>
 #include <mlir/Pass/PassManager.h>
 
 #include <gtest/gtest.h>
@@ -25,10 +25,10 @@ void testSparsitySupport(llvm::StringLiteral inputIR, ArchKind arch, bool suppor
     vpux::registerDialects(registry);
 
     mlir::MLIRContext ctx(registry);
-    auto module = mlir::parseSourceString(inputIR, &ctx);
+    auto module = mlir::parseSourceString<mlir::ModuleOp>(inputIR, &ctx);
     ASSERT_TRUE(module.get() != nullptr);
 
-    auto func = module.get().lookupSymbol<mlir::FuncOp>("main");
+    auto func = module.get().lookupSymbol<mlir::func::FuncOp>("main");
     ASSERT_TRUE(func != nullptr);
 
     mlir::PassManager pm(&ctx, mlir::OpPassManager::Nesting::Implicit);
@@ -51,7 +51,7 @@ TEST(MLIR_VPU_Sparsity, NCEZMajorConvSparsitySupport) {
         #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
         module @test {
-            func @main(%arg0: tensor<1x16x16x16xf16, {order = #NHWC}>, %wt: tensor<16x1x1x4xsi32>) -> tensor<1x16x16x16xf16, {order = #NHWC}> {
+            func.func @main(%arg0: tensor<1x16x16x16xf16, {order = #NHWC}>, %wt: tensor<16x1x1x4xsi32>) -> tensor<1x16x16x16xf16, {order = #NHWC}> {
                 %weights = const.Declare tensor<16x16x1x1xf16, {order = #NHWC}> = dense<1.> : tensor<16x16x1x1xf16>, [#const.Reorder<#NHWC>]
                 %1 = VPU.NCE.Convolution(%arg0, %weights, %wt) {
                         pad = {bottom = 0 : i64, left = 0 : i64, right = 0 : i64, top = 0 : i64},
@@ -63,8 +63,8 @@ TEST(MLIR_VPU_Sparsity, NCEZMajorConvSparsitySupport) {
             }
         }
     )";
-    testSparsitySupport(inputIR, ArchKind::VPUX30XX, true, true, true);
-    testSparsitySupport(inputIR, ArchKind::VPUX37XX, true, true, true);
+    testSparsitySupport(inputIR, ArchKind::VPUX30XX, /*input=*/false, /*output=*/false, /*weights=*/true);
+    testSparsitySupport(inputIR, ArchKind::VPUX37XX, /*input=*/true, /*output=*/true, /*weights=*/true);
 }
 
 TEST(MLIR_VPU_Sparsity, NCECMajorConvSparsitySupport) {
@@ -73,7 +73,7 @@ TEST(MLIR_VPU_Sparsity, NCECMajorConvSparsitySupport) {
         #NCHW = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
 
         module @test {
-            func @main(%arg0: tensor<1x3x224x224xf16, {order = #NCHW}>) -> tensor<1x32x112x112xf16, {order = #NHWC}> {
+            func.func @main(%arg0: tensor<1x3x224x224xf16, {order = #NCHW}>) -> tensor<1x32x112x112xf16, {order = #NHWC}> {
                 %cst = const.Declare tensor<1x1x1x32xui8> = dense<10> : tensor<1x1x1x32xui8>
                 %cst_0 = const.Declare tensor<32x1x1x4xsi32> = dense<10> : tensor<32x1x1x4xsi32>
                 %cst_1 = const.Declare tensor<32x1x1x32xf16, {order = #NHWC}> = dense<1.000000e+00> : tensor<32x1x1x32xf16>, [#const.Reorder<#NHWC>]
@@ -86,7 +86,7 @@ TEST(MLIR_VPU_Sparsity, NCECMajorConvSparsitySupport) {
             }
         }
     )";
-    testSparsitySupport(inputIR, ArchKind::VPUX30XX, false, true, false);
+    testSparsitySupport(inputIR, ArchKind::VPUX30XX, /*input=*/false, /*output=*/false, /*weights=*/false);
 }
 
 TEST(MLIR_VPU_Sparsity, NCEEltwiseSparsitySupport) {
@@ -94,14 +94,14 @@ TEST(MLIR_VPU_Sparsity, NCEEltwiseSparsitySupport) {
         #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
         module @test {
-            func @main(%arg0: tensor<1x16x16x16xf16, {order = #NHWC}>) -> tensor<1x16x16x16xf16, {order = #NHWC}> {
+            func.func @main(%arg0: tensor<1x16x16x16xf16, {order = #NHWC}>) -> tensor<1x16x16x16xf16, {order = #NHWC}> {
                 %0 = VPU.NCE.Eltwise(%arg0, %arg0) {op_type = "ADD", ppe = {clamp_high = 2147483647 : i64, clamp_low = -2147483648 : i64, lrelu_mult = 1 : i64, lrelu_shift = 0 : i64, mode = "ADD"}} -> tensor<1x16x16x16xf16, {order = #NHWC}> 
                 return %0 : tensor<1x16x16x16xf16, {order = #NHWC}>
             }
         }
     )";
-    testSparsitySupport(inputIR, ArchKind::VPUX30XX, false, true, false);
-    testSparsitySupport(inputIR, ArchKind::VPUX37XX, false, true, false);
+    testSparsitySupport(inputIR, ArchKind::VPUX30XX, /*input=*/false, /*output=*/false, /*weights=*/false);
+    testSparsitySupport(inputIR, ArchKind::VPUX37XX, /*input=*/false, /*output=*/true, /*weights=*/false);
 }
 
 TEST(MLIR_VPU_Sparsity, NCEDepthconvSparsitySupport) {
@@ -109,7 +109,7 @@ TEST(MLIR_VPU_Sparsity, NCEDepthconvSparsitySupport) {
         #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
         module @test {
-            func @main(%arg0: tensor<1x16x40x80xf16, {order = #NHWC}>) -> tensor<1x16x37x73xf16, {order = #NHWC}> {
+            func.func @main(%arg0: tensor<1x16x40x80xf16, {order = #NHWC}>) -> tensor<1x16x37x73xf16, {order = #NHWC}> {
                 %cst0 = const.Declare tensor<16x1x4x8xf16, {order = #NHWC}> =
                     dense<1.000000e+00> : tensor<16x1x4x8xf16>, [#const.Reorder<#NHWC>]
                 %cst1 = const.Declare tensor<16x1x1x4xsi32> =
@@ -127,8 +127,8 @@ TEST(MLIR_VPU_Sparsity, NCEDepthconvSparsitySupport) {
             }
         }
     )";
-    testSparsitySupport(inputIR, ArchKind::VPUX30XX, false, true, false);
-    testSparsitySupport(inputIR, ArchKind::VPUX37XX, false, true, false);
+    testSparsitySupport(inputIR, ArchKind::VPUX30XX, /*input=*/false, /*output=*/false, /*weights=*/false);
+    testSparsitySupport(inputIR, ArchKind::VPUX37XX, /*input=*/false, /*output=*/true, /*weights=*/false);
 }
 
 TEST(MLIR_VPU_Sparsity, NCEMaxpoolSparsitySupport) {
@@ -136,20 +136,20 @@ TEST(MLIR_VPU_Sparsity, NCEMaxpoolSparsitySupport) {
         #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
         module @test {
-            func @main(%arg0: tensor<16x16x16x16xf16, {order = #NHWC}>) -> tensor<16x16x16x16xf16, {order = #NHWC}> {
+            func.func @main(%arg0: tensor<16x16x16x16xf16, {order = #NHWC}>) -> tensor<16x16x16x16xf16, {order = #NHWC}> {
                 %0 = VPU.MaxPool(%arg0) {
                     kernel_size = [3, 3], 
                     pads_begin = [1, 1], 
                     pads_end = [1, 1], 
-                    rounding_type = "FLOOR", 
+                    rounding_type = #IE.rounding_type<FLOOR>, 
                     strides = [1, 1]
                 } : tensor<16x16x16x16xf16, {order = #NHWC}> -> tensor<16x16x16x16xf16, {order = #NHWC}>
                 return %0 : tensor<16x16x16x16xf16, {order = #NHWC}>
             }
         }
     )";
-    testSparsitySupport(inputIR, ArchKind::VPUX30XX, false, true, false);
-    testSparsitySupport(inputIR, ArchKind::VPUX37XX, false, true, false);
+    testSparsitySupport(inputIR, ArchKind::VPUX30XX, /*input=*/false, /*output=*/false, /*weights=*/false);
+    testSparsitySupport(inputIR, ArchKind::VPUX37XX, /*input=*/false, /*output=*/true, /*weights=*/false);
 }
 
 TEST(MLIR_VPU_Sparsity, NCEAvgpoolSparsitySupport) {
@@ -157,7 +157,7 @@ TEST(MLIR_VPU_Sparsity, NCEAvgpoolSparsitySupport) {
         #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
         module @test {
-            func @main(%arg0: tensor<1x16x4x4xf16, {order = #NHWC}>) -> tensor<1x16x4x4xf16, {order = #NHWC}> {
+            func.func @main(%arg0: tensor<1x16x4x4xf16, {order = #NHWC}>) -> tensor<1x16x4x4xf16, {order = #NHWC}> {
                 %0 = VPU.NCE.AveragePool(%arg0) {
                         kernel_size = [3, 3],
                         pad = {bottom = 1, left = 1, right = 1, top = 1},
@@ -169,6 +169,7 @@ TEST(MLIR_VPU_Sparsity, NCEAvgpoolSparsitySupport) {
             }
         }
     )";
-    EXPECT_ANY_THROW(testSparsitySupport(inputIR, ArchKind::VPUX30XX, false, false, false));
-    testSparsitySupport(inputIR, ArchKind::VPUX37XX, false, true, false);
+    EXPECT_ANY_THROW(
+            testSparsitySupport(inputIR, ArchKind::VPUX30XX, /*input=*/false, /*output=*/false, /*weights=*/false));
+    testSparsitySupport(inputIR, ArchKind::VPUX37XX, /*input=*/false, /*output=*/true, /*weights=*/false);
 }

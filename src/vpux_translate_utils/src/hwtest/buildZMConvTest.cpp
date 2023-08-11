@@ -37,6 +37,9 @@ vpux::VPU::PPEMode getPPEMode(nb::ActivationType activationType) {
     case nb::ActivationType::LeakyReLU:
         return vpux::VPU::PPEMode::LPRELU;
         break;
+    case nb::ActivationType::ReLUX:
+        return vpux::VPU::PPEMode::LRELUX;
+        break;
     default:
         VPUX_THROW("Encountered unsupported activation type '{0}'", nb::to_string(activationType));
     }
@@ -115,6 +118,7 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
     const auto paddedWeightsSize = vpux::hwtest::totalTensorSize(paddedWeightsCMXShape, weightsType);
     const auto isWeightsPaddingRequired = (weightsSwizzlingKey != nb::SwizzlingKey::key0) &&
                                           (paddedWeightsSize < static_cast<uint64_t>(swizzlingPaddingAlignment));
+    const auto isWeightsSwizzlingRequired = weightsSwizzlingKey != nb::SwizzlingKey::key0;
     mlir::UnitAttr inputChannelsCompression = nullptr;
 
     if (isWeightsPaddingRequired) {
@@ -132,22 +136,24 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
             inputCMXShape[inputChannelsIndex] = subLineLength;
             inputCMXShape[inputHeightIndex] = 1;
             inputCMXShape[inputWidthIndex] =
-                    vpux::alignVal(inputHeight * inputWidth, static_cast<std::int64_t>(subLineLength));
+                    vpux::alignValUp(inputHeight * inputWidth, static_cast<std::int64_t>(subLineLength));
         }
     }
 
-    const std::unordered_map<nb::SwizzlingKey, std::uint64_t> swizzlingOffsets = {
-            {nb::SwizzlingKey::key0, 16},   {nb::SwizzlingKey::key1, 1024}, {nb::SwizzlingKey::key2, 2048},
-            {nb::SwizzlingKey::key3, 4096}, {nb::SwizzlingKey::key4, 8192}, {nb::SwizzlingKey::key5, 16384}};
-    const auto swizzlingAligment = swizzlingOffsets.at(weightsSwizzlingKey);
+    mlir::IntegerAttr swizzlingKeyAttr;
+    vpux::VPUIP::SwizzlingSchemeAttr swizzlingSchemeAttr;
+    const auto swizzlingAligment =
+            (isWeightsSwizzlingRequired)
+                    ? vpux::getAddressAlignmentForSwizzling(nb::to_underlying(weightsSwizzlingKey), architecture)
+                    : 16;
 
     const auto weightsCMXSize =
-            vpux::alignVal(vpux::hwtest::totalTensorSize(paddedWeightsCMXShape, weightsType),
-                           static_cast<std::uint64_t>(vpux::getSizeAlignmentForSwizzling(architecture)));
+            vpux::alignValUp(vpux::hwtest::totalTensorSize(paddedWeightsCMXShape, weightsType),
+                             static_cast<std::uint64_t>(vpux::getSizeAlignmentForSwizzling(architecture)));
     const auto outputCMXSize = vpux::hwtest::totalTensorSize(outputCMXShape, outputType);
     const auto inputCMXSize =
-            vpux::alignVal(vpux::hwtest::totalTensorSize(inputCMXShape, inputType),
-                           static_cast<std::uint64_t>(vpux::getSizeAlignmentForSwizzling(architecture)));
+            vpux::alignValUp(vpux::hwtest::totalTensorSize(inputCMXShape, inputType),
+                             static_cast<std::uint64_t>(vpux::getSizeAlignmentForSwizzling(architecture)));
     const auto alignment =
             (alignmentRequirement * static_cast<vpux::Bit>(getElemTypeSize(inputType)).count()) / CHAR_BIT;
     const auto WEIGHTS_CMX_OFFSET = 0;
@@ -159,7 +165,8 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
     VPUX_THROW_UNLESS(INPUT_CMX_OFFSET % alignment == 0, "INPUT_CMX_OFFSET must be multiple of {0}, got {1}", alignment,
                       INPUT_CMX_OFFSET);
 
-    const auto WEIGHTSTABLE_CMX_OFFSET = vpux::alignVal(INPUT_CMX_OFFSET + inputCMXSize, swizzlingAligment);
+    const auto WEIGHTSTABLE_CMX_OFFSET =
+            vpux::alignValUp(INPUT_CMX_OFFSET + inputCMXSize, static_cast<std::uint64_t>(swizzlingAligment));
     VPUX_THROW_UNLESS(WEIGHTSTABLE_CMX_OFFSET % alignment == 0,
                       "WEIGHTSTABLE_CMX_OFFSET must be multiple of {0}, got {1}", alignment, WEIGHTSTABLE_CMX_OFFSET);
 
@@ -173,7 +180,7 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
 
     const auto funcType = builder.getFunctionType(llvm::makeArrayRef(inputTypes), outputParamType);
 
-    auto function = builder.create<mlir::FuncOp>(
+    auto function = builder.create<mlir::func::FuncOp>(
             builder.getUnknownLoc(), printToString("zmajor_conv_{0}_{1}_{2}", inputType, weightsType, outputType),
             funcType, builder.getStringAttr("private"));
 
@@ -201,7 +208,10 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
     }
 
     const auto weightsDDRType =
-            getMemRefType(VPURT::BufferSection::Constant, weightsCMXShape, weightsType, DimsOrder::NHWC);
+            (isWeightsSwizzlingRequired)
+                    ? getMemRefType(VPURT::BufferSection::Constant, 0, weightsCMXShape, weightsType, DimsOrder::NHWC,
+                                    StridesRef(), swizzlingSchemeAttr)
+                    : getMemRefType(VPURT::BufferSection::Constant, weightsCMXShape, weightsType, DimsOrder::NHWC);
 
     auto weightsStrides = weightsDDRType.cast<vpux::NDTypeInterface>().getStrides();
     auto inputStrides = vpux::getStrides(functionInput);
@@ -213,8 +223,8 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
         const auto weightsElememtSizeInBytes = weightsElementSizeInBits / CHAR_BIT;
         const auto weightsOutputChannelsStrideInElements =
                 weightsOutputChannelsStrideInBytes / weightsElememtSizeInBytes;
-        const auto alignedWeightsOutputChannelStrideInElements =
-                vpux::alignVal(weightsOutputChannelsStrideInElements, static_cast<std::int64_t>(alignmentRequirement));
+        const auto alignedWeightsOutputChannelStrideInElements = vpux::alignValUp(
+                weightsOutputChannelsStrideInElements, static_cast<std::int64_t>(alignmentRequirement));
         const auto alignedWeightsOutputChannelsStrideInBits =
                 alignedWeightsOutputChannelStrideInElements * weightsElementSizeInBits;
         weightsOutputChannelsStrideInBits = vpux::Bit(alignedWeightsOutputChannelsStrideInBits);
@@ -225,13 +235,20 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
         inputStrides[vpux::Dims4D::Act::N] = inputStrides[vpux::Dims4D::Act::H] * inputShape[inputHeightIndex];
     }
 
-    auto weightsCMX = createDeclareTensorOp(functionBuilder, VPURT::BufferSection::CMX_NN, weightsCMXShape, weightsType,
-                                            vpux::DimsOrder::OYXI, weightsStrides, 0, WEIGHTS_CMX_OFFSET);
+    vpux::VPURT::DeclareBufferOp weightsCMX;
+    if (isWeightsSwizzlingRequired) {
+        swizzlingKeyAttr = getIntAttr(ctx, nb::to_underlying(weightsSwizzlingKey));
+        swizzlingSchemeAttr = createSwizzlingSchemeAttr(ctx, architecture, swizzlingKeyAttr.getInt());
 
-    if (weightsSwizzlingKey != nb::SwizzlingKey::key0) {
         weightsAttribute = weightsAttribute.swizzleConstant(nb::to_underlying(weightsSwizzlingKey),
                                                             static_cast<uint64_t>(architecture));
+        weightsCMX = createDeclareTensorOp(functionBuilder, VPURT::BufferSection::CMX_NN, weightsCMXShape, weightsType,
+                                           vpux::DimsOrder::OYXI, weightsStrides, 0, WEIGHTS_CMX_OFFSET,
+                                           swizzlingSchemeAttr);
         weightsCMX.swizzlingKeyAttr(vpux::getIntAttr(builder.getContext(), nb::to_underlying(weightsSwizzlingKey)));
+    } else {
+        weightsCMX = createDeclareTensorOp(functionBuilder, VPURT::BufferSection::CMX_NN, weightsCMXShape, weightsType,
+                                           vpux::DimsOrder::OYXI, weightsStrides, 0, WEIGHTS_CMX_OFFSET);
     }
 
     auto inputCMX = createDeclareTensorOp(functionBuilder, VPURT::BufferSection::CMX_NN, inputShape, inputType,
@@ -242,8 +259,20 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
     if (isInputPaddingRequired) {
         paddedInputCMX = createDeclareTensorOp(functionBuilder, VPURT::BufferSection::CMX_NN, paddedInputCMXShape,
                                                inputType, DimsOrder::NHWC, 0, INPUT_CMX_OFFSET);
-        paddedWeightsCMX = createDeclareTensorOp(functionBuilder, VPURT::BufferSection::CMX_NN, paddedWeightsCMXShape,
-                                                 weightsType, DimsOrder::NHWC, 0, WEIGHTS_CMX_OFFSET);
+
+        if (isWeightsSwizzlingRequired) {
+            const auto paddedWeightsDDRType =
+                    getMemRefType(VPURT::BufferSection::Constant, 0, paddedWeightsCMXShape, weightsType,
+                                  DimsOrder::NHWC, StridesRef(), swizzlingSchemeAttr);
+            const auto paddedWeightsStrides = paddedWeightsDDRType.cast<vpux::NDTypeInterface>().getStrides();
+            paddedWeightsCMX = createDeclareTensorOp(functionBuilder, VPURT::BufferSection::CMX_NN,
+                                                     paddedWeightsCMXShape, weightsType, DimsOrder::NHWC,
+                                                     paddedWeightsStrides, 0, WEIGHTS_CMX_OFFSET, swizzlingSchemeAttr);
+        } else {
+            paddedWeightsCMX =
+                    createDeclareTensorOp(functionBuilder, VPURT::BufferSection::CMX_NN, paddedWeightsCMXShape,
+                                          weightsType, DimsOrder::NHWC, 0, WEIGHTS_CMX_OFFSET);
+        }
     }
 
     auto weightsDDR =
@@ -272,22 +301,34 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
             VPU::NCESparsity::SPARSITY_PTR_WHEN_NO_SPARSITY, sparsityPtrStep, testDesc.getArchitecture(),
             output.shape[1], weightsType);
 
-    const auto weightsTableDDRMemRef =
-            getMemRefType(VPURT::BufferSection::Constant, weightsTableShape, int32, DimsOrder::NHWC);
+    mlir::MemRefType weightsTableDDRMemRef;
+    if (isWeightsSwizzlingRequired) {
+        weightsTableDDRMemRef = getMemRefType(VPURT::BufferSection::Constant, 0, weightsTableShape, int32,
+                                              DimsOrder::NHWC, StridesRef(), swizzlingSchemeAttr);
+    } else {
+        weightsTableDDRMemRef =
+                getMemRefType(VPURT::BufferSection::Constant, weightsTableShape, int32, DimsOrder::NHWC);
+    }
+
     const auto weightsTableValues =
             mlir::DenseElementsAttr::get(weightsTableDDRType, llvm::makeArrayRef<std::int32_t>(weightsTable));
-
+    auto weightsTableStrides = weightsTableDDRMemRef.cast<vpux::NDTypeInterface>().getStrides();
     auto weightsTableContentAttr = vpux::Const::ContentAttr::get(weightsTableValues).reorder(vpux::DimsOrder::NHWC);
-    auto weightsTableCMX = createDeclareTensorOp(functionBuilder, VPURT::BufferSection::CMX_NN, weightsTableShape,
-                                                 int32, DimsOrder::NHWC, 0, WEIGHTSTABLE_CMX_OFFSET);
 
-    if (weightsCMX.swizzlingKeyAttr()) {
-        paddedWeightsCMX.swizzlingKeyAttr(
-                vpux::getIntAttr(builder.getContext(), nb::to_underlying(weightsSwizzlingKey)));
+    vpux::VPURT::DeclareBufferOp weightsTableCMX;
+    if (isWeightsSwizzlingRequired) {
+        weightsTableCMX = createDeclareTensorOp(functionBuilder, VPURT::BufferSection::CMX_NN, weightsTableShape, int32,
+                                                DimsOrder::NHWC, weightsTableStrides, 0, WEIGHTSTABLE_CMX_OFFSET,
+                                                swizzlingSchemeAttr);
         weightsTableCMX.swizzlingKeyAttr(
+                vpux::getIntAttr(builder.getContext(), nb::to_underlying(weightsSwizzlingKey)));
+        paddedWeightsCMX.swizzlingKeyAttr(
                 vpux::getIntAttr(builder.getContext(), nb::to_underlying(weightsSwizzlingKey)));
         weightsTableContentAttr = weightsTableContentAttr.swizzleConstant(nb::to_underlying(weightsSwizzlingKey),
                                                                           static_cast<uint64_t>(architecture));
+    } else {
+        weightsTableCMX = createDeclareTensorOp(functionBuilder, VPURT::BufferSection::CMX_NN, weightsTableShape, int32,
+                                                DimsOrder::NHWC, 0, WEIGHTSTABLE_CMX_OFFSET);
     }
     auto weightsTableDDR = functionBuilder.create<vpux::Const::DeclareOp>(
             builder.getUnknownLoc(), weightsTableDDRMemRef, weightsTableContentAttr);
@@ -344,9 +385,14 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
         const auto preluScale = ppeConfiguration.alpha;
         const auto alphaApproximation = PReLUApproximation(testDesc.getArchitecture(), preluScale);
 
+        if (ppeConfiguration.maximum != 0) {
+            clampHigh = ppeConfiguration.maximum;
+        }
+
         nceTask.addPPETask(functionBuilder, getPPEMode(ppeConfiguration.activationType), clampLow, clampHigh,
                            alphaApproximation.mult(), alphaApproximation.shift(), scaleApproximation.mult(),
-                           scaleApproximation.shift());
+                           scaleApproximation.shift(), /*quant_post_shift=*/0, /*quant_scale=*/1, /*in1_quant_mult=*/0,
+                           /*in2_quant_mult=*/0, ppeConfiguration.alpha);
     } else {
         const auto outputScale = 1.0 / output.qp.scale;
         const auto scaleApproximation = QuantizationApproximation(testDesc.getArchitecture(), outputScale);
@@ -355,17 +401,17 @@ void buildSimpleZMajorConv(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mod
                            outputScale);
     }
 
-    functionBuilder.create<mlir::ReturnOp>(builder.getUnknownLoc(), functionOutput);
+    functionBuilder.create<mlir::func::ReturnOp>(builder.getUnknownLoc(), functionOutput);
 
     module.dump();
 
     mlir::PassManager pm(ctx, mlir::OpPassManager::Nesting::Implicit);
-    pm.addPass(VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::DefaultHW, None, None,
-                                           None, log));
+    pm.addPass(VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::DefaultHW, 1, None, None,
+                                           log));
     if (conv.compress) {
         pm.addPass(VPUIP::createCompressWeightsBTCPass(log));
     }
-    if (weightsCMX.swizzlingKeyAttr()) {
+    if (isWeightsSwizzlingRequired) {
         pm.addPass(Const::createConstantFoldingPass());
     }
 

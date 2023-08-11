@@ -75,4 +75,9 @@ KmbTestEnvConfig::KmbTestEnvConfig() {
     }
 }
 
+const KmbTestEnvConfig& KmbTestEnvConfig::getInstance() {
+    static KmbTestEnvConfig instance{};
+    return instance;
+}
+
 }  // namespace LayerTestsUtils

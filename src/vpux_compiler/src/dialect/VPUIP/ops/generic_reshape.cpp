@@ -14,20 +14,22 @@
 
 using namespace vpux;
 
-mlir::LogicalResult VPUIP::verifyOp(VPUIP::GenericReshapeOp op) {
-    auto distributedInType = op.input().getType().dyn_cast<VPUIP::DistributedBufferType>();
-    auto distributedOutType = op.output().getType().dyn_cast<VPUIP::DistributedBufferType>();
+mlir::LogicalResult vpux::VPUIP::GenericReshapeOp::verify() {
+    const auto op = getOperation();
+    auto distributedInType = input().getType().dyn_cast<VPUIP::DistributedBufferType>();
+    auto distributedOutType = output().getType().dyn_cast<VPUIP::DistributedBufferType>();
     if (distributedInType && distributedOutType) {
         if (!isCompatibleForDistributedInputOutput(op, distributedInType, distributedOutType)) {
             return errorAt(op, "Reshape input and output must have the same distribution mode");
         }
-        if (!isDistributedCompatibleAfterShapeChange(distributedInType, distributedOutType.getShape())) {
+        if (!isDistributedCompatibleAfterShapeChange(distributedInType, distributedOutType.getShape(),
+                                                     VPU::getArch(getOperation()))) {
             return errorAt(op, "Reshape has incompatible output shape as clustering");
         }
     }
 
-    const auto inType = op.input().getType().cast<vpux::NDTypeInterface>();
-    const auto outType = op.output().getType().cast<vpux::NDTypeInterface>();
+    const auto inType = input().getType().cast<vpux::NDTypeInterface>();
+    const auto outType = output().getType().cast<vpux::NDTypeInterface>();
 
     if (inType.getNumElements() != outType.getNumElements()) {
         return errorAt(op, "Reshape input and output must have the same number of elements");

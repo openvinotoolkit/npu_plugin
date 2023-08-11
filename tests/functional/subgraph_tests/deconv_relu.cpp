@@ -1,20 +1,18 @@
 //
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "common/functions.h"
 #include "kmb_layer_test.hpp"
 
-#include <legacy/ngraph_ops/deconvolution_ie.hpp>
-#include <legacy/ngraph_ops/relu_ie.hpp>
 #include <ngraph_functions/builders.hpp>
 #include <ngraph_functions/utils/ngraph_helpers.hpp>
 #include <shared_test_classes/base/layer_test_utils.hpp>
 
 namespace {
 
-class KmbDeconvReluTest : public LayerTestsUtils::KmbLayerTestsCommon {
+class VPUXDeconvReluTest_VPU3700 : public LayerTestsUtils::KmbLayerTestsCommon {
     // [Track number: E#26428]
     void SkipBeforeLoad() override {
         if (getBackendName(*getCore()) == "VPUAL") {
@@ -55,13 +53,15 @@ class KmbDeconvReluTest : public LayerTestsUtils::KmbLayerTestsCommon {
 
         const ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(relu_node)};
 
-        function = std::make_shared<ngraph::Function>(results, params, "KmbDeconvReluTest");
+        function = std::make_shared<ngraph::Function>(results, params, "VPUXDeconvReluTest");
 
         threshold = 0.5f;
     }
 };
 
-TEST_F(KmbDeconvReluTest, CompareWithRefs) {
+TEST_F(VPUXDeconvReluTest_VPU3700, HW) {
+    setPlatformVPU3700();
+    setDefaultHardwareModeMLIR();
     Run();
 }
 }  // namespace

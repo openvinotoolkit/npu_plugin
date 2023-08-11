@@ -1,12 +1,13 @@
 //
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
+
 // RUN: vpux-opt --init-compiler="vpu-arch=%arch%" --resolve-strided-slice %s | FileCheck %s
 // REQUIRES: arch-VPUX30XX || arch-VPUX37XX
 
 // CHECK-LABEL: @ResolveStridedSliceWithStride
-func @ResolveStridedSliceWithStride(%arg0: tensor<1x10x20x30xf16>) -> tensor<1x5x5x5xf16> {
+func.func @ResolveStridedSliceWithStride(%arg0: tensor<1x10x20x30xf16>) -> tensor<1x5x5x5xf16> {
     %0 = IE.StridedSlice(%arg0) {
         begins_attr = [0, 0, 0, 15],
         ends_attr = [1, 5, 10, 20],
@@ -34,7 +35,7 @@ func @ResolveStridedSliceWithStride(%arg0: tensor<1x10x20x30xf16>) -> tensor<1x5
 }
 
 // CHECK-LABEL: @ResolveStridedSliceWoutStride
-func @ResolveStridedSliceWoutStride(%arg0: tensor<1x10x20x30xf16>) -> tensor<1x5x10x5xf16> {
+func.func @ResolveStridedSliceWoutStride(%arg0: tensor<1x10x20x30xf16>) -> tensor<1x5x10x5xf16> {
     %0 = IE.StridedSlice(%arg0) {
         begins_attr = [0, 0, 0, 15],
         ends_attr = [1, 5, 10, 20],
@@ -54,7 +55,7 @@ func @ResolveStridedSliceWoutStride(%arg0: tensor<1x10x20x30xf16>) -> tensor<1x5
 }
 
 // CHECK-LABEL: @ResolveStridedSliceNegStride
-func @ResolveStridedSliceNegStride(%arg0: tensor<1x10x20x30xf16>) -> tensor<1x5x5x5xf16> {
+func.func @ResolveStridedSliceNegStride(%arg0: tensor<1x10x20x30xf16>) -> tensor<1x5x5x5xf16> {
     %0 = IE.StridedSlice(%arg0) {
         begins_attr = [0, 0, 0, 15],
         ends_attr = [1, 5, 10, 20],

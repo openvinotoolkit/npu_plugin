@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/core/async_deps_info.hpp"
 
 #include "vpux/compiler/utils/attributes.hpp"
@@ -17,7 +15,7 @@ using namespace vpux;
 // Constructor
 //
 
-vpux::AsyncDepsInfo::AsyncDepsInfo(mlir::FuncOp func)
+vpux::AsyncDepsInfo::AsyncDepsInfo(mlir::func::FuncOp func)
         : _log(Logger::global().nest("async-deps-info", 0)),
           _indexAttrName(mlir::StringAttr::get(func->getContext(), "async-deps-index")) {
     buildDepsMap(func);
@@ -48,7 +46,7 @@ mlir::async::ExecuteOp vpux::AsyncDepsInfo::getExecuteOpAtIndex(size_t opIdx) co
 // buildDepsMap
 //
 
-void vpux::AsyncDepsInfo::buildDepsMap(mlir::FuncOp func) {
+void vpux::AsyncDepsInfo::buildDepsMap(mlir::func::FuncOp func) {
     _log.trace("Collect initial dependencies maps");
     _log = _log.nest();
 
@@ -128,17 +126,56 @@ void vpux::AsyncDepsInfo::optimizeDepsMap() {
     // If B depends on A and C depends on [A, B] ==> we can remove A from C deps list,
     // since it will be implicit dependency taken from B.
     //
+    // Algorithm is divided into two steps:
+    //  step 1 - transitive closure
+    //  step 2 - transitive reduction
+    // Worst case complexity is O(N^3) but expected time will be proportional to ~N*E^2
+    // so in case of sparse graphs which is a usual case for NN models expected time shouldn't
+    // be as bad as N^3
 
-    for (auto& curDeps : _depsMap) {
+    // Step 1: Transitive closure
+    // Update all dependencies in a new depsMapClosure to represent transitive closure
+    // of initial dependencies graph. For each node starting from beginning it will go
+    // though its dependencies, take their dependensiec and update its own based on that
+    // In this step even if initial graph was sparse, after it, it will be dense
+    // In depsStartAndEnd for each node (represented by async deps index) store information
+    // about first and last dependency index. This is used to reduce computation time of step 2
+    // in case original graph had nodes which in most cases depended only on fairly close neighbours
+    auto depsMapClosure = _depsMap;
+    SmallVector<std::pair<int, int>> depsStartAndEnd;
+    for (auto& curDeps : depsMapClosure) {
+        depsStartAndEnd.push_back(std::make_pair(curDeps.find_first(), curDeps.find_last()));
         for (auto curDepInd : curDeps.set_bits()) {
-            const auto& depOfDeps = _depsMap[curDepInd];
+            const auto& depOfDeps = depsMapClosure[curDepInd];
             curDeps |= depOfDeps;
         }
     }
 
-    for (auto& curDeps : _depsMap | reversed) {
-        for (auto curDepInd : curDeps.set_bits()) {
-            const auto& depOfDeps = _depsMap[curDepInd];
+    // Step 2: Transitive reduction
+    // Remove all unnecessary edges.
+    // Go through each node starting from the end and remove depndencies if those dependencies
+    // are already represented in its dependand nodes
+    // To leverage the fact that in most cases each node will only have limited range of dependencies
+    // this step is optimized to only scan range from original deps (depsStartAndEnd) and not all
+    // from transitive closure step. This optimization reduces expected computation time, although worst case
+    // complexity can be the same as without it.
+    for (int depInd = (static_cast<int>(_depsMap.size()) - 1); depInd >= 0; depInd--) {
+        auto& curDeps = _depsMap[depInd];
+
+        auto startIdx = depsStartAndEnd[depInd].first;
+        auto endIdx = depsStartAndEnd[depInd].second;
+
+        // If node does not have any dependency (negative idx) or it has
+        // only one dependency then skip
+        if (startIdx < 0 || endIdx < 0 || startIdx == endIdx) {
+            continue;
+        }
+
+        for (int curDepInd = startIdx; curDepInd <= endIdx; ++curDepInd) {
+            if (!curDeps[curDepInd]) {
+                continue;
+            }
+            const auto& depOfDeps = depsMapClosure[curDepInd];
             curDeps.reset(depOfDeps);
         }
     }

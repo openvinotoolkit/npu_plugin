@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #pragma once
 
 #include "vpux/compiler/conversion.hpp"
@@ -26,14 +24,15 @@ namespace VPU {
 // and other strategy related utilities
 class StrategyManager final {
 public:
-    explicit StrategyManager(mlir::FuncOp func, Logger log);
+    explicit StrategyManager(mlir::func::FuncOp func, Logger log);
 
 public:
     void assignMultiClusterStrategy();
     void optimizeMulticlusterStrategy();
+    void removeTemporaryMulticlusterStrategy();
 
 private:
-    mlir::FuncOp _func;
+    mlir::func::FuncOp _func;
     Logger _log;
     LayerCostModel _costModel;
     SubgraphOptimizer _optimizer;

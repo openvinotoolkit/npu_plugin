@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/IE/utils/resources.hpp"
 #include "vpux/compiler/dialect/VPUIP/dma_descriptor_generator.hpp"
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
@@ -103,10 +101,10 @@ void ClusterExpandDMARewriter::unrollSegmentedOrOverlapped(mlir::Location loc, V
                       "Input shape size '{0}' and tiles array size '{1}' are mismatch", originInShape.size(),
                       numTiles.size());
 
-    const auto perClusterShapes = distributedType.getPerClusterComputeShapes();
+    const auto perClusterShapes = distributedType.getPerClusterMemoryShapes();
     VPUX_THROW_UNLESS(perClusterShapes.size() == checked_cast<size_t>(numClusters),
                       "Number of shapes '{0}' and clusters '{1}' are mismatch", perClusterShapes.size(), numClusters);
-    const auto perClusterShapeOffsets = distributedType.getPerClusterComputeShapeOffsets();
+    const auto perClusterShapeOffsets = distributedType.getPerClusterMemoryShapeOffsets();
     VPUX_THROW_UNLESS(perClusterShapeOffsets.size() == checked_cast<size_t>(numClusters),
                       "Number of shape offsets '{0}' and clusters '{1}' are mismatch", perClusterShapeOffsets.size(),
                       numClusters);
@@ -119,10 +117,6 @@ void ClusterExpandDMARewriter::unrollSegmentedOrOverlapped(mlir::Location loc, V
         }
 
         return newTypes;
-    };
-
-    const auto isValidTile = [](auto dim) {
-        return dim > 1;
     };
 
     const auto getOperand = [&](int64_t clusterId, mlir::Value operand, vpux::NDTypeInterface newType,
@@ -148,7 +142,7 @@ void ClusterExpandDMARewriter::unrollSegmentedOrOverlapped(mlir::Location loc, V
 
         Byte ddrOffset{declBuff.byteOffset()};
         const auto tilingScheme = parseIntArrayAttr<int64_t>(distributionAttr.num_tiles());
-        const auto axis = std::distance(tilingScheme.begin(), llvm::find_if(tilingScheme, isValidTile));
+        const auto axis = vpux::VPU::getDistributedTilingAxis(tilingScheme);
 
         ddrOffset += perClusterShapeOffsets[clusterId][Dim(axis)] * static_cast<Byte>(newType.getStrides()[Dim(axis)]);
 
@@ -425,7 +419,7 @@ private:
 
 void UnrollExpandDMAPass::safeRunOnFunc() {
     auto& ctx = getContext();
-    auto func = getFunction();
+    auto func = getOperation();
     auto module = func->getParentOfType<mlir::ModuleOp>();
     auto dmaOp = IE::getAvailableExecutor(module, VPU::ExecutorKind::DMA_NN);
     auto dmaPortCount = dmaOp.count();

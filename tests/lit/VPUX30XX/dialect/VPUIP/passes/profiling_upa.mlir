@@ -1,7 +1,8 @@
 //
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
+
 // RUN: vpux-opt --init-compiler="vpu-arch=VPUX30XX" --upa-profiling %s | FileCheck %s
 
 // CHECK-LABEL: @UpaProfiling
@@ -13,7 +14,7 @@ module @UpaProfiling {
         DataInfo "out" : tensor<1x48x30x30xf32>
     } profilingOutputsInfo :  {
     }
-    func @main(%arg0: memref<1x48x30x30xf16>, %arg1: memref<1x48x30x30xf32>) -> memref<1x48x30x30xf32> {
+    func.func @main(%arg0: memref<1x48x30x30xf16>, %arg1: memref<1x48x30x30xf32>) -> memref<1x48x30x30xf32> {
         %2 = VPURT.DeclareBuffer "DDR" [0] <0> -> memref<1x48x30x30xf16, @DDR>
         %3 = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
         %4 = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
@@ -29,7 +30,7 @@ module @UpaProfiling {
 
     //CHECK:        profilingOutputsInfo
     //CHECK-NEXT:   DataInfo "upa" : tensor<12xui32>
-    //CHECK:        func @main(%arg0: memref<1x48x30x30xf16>, %arg1: memref<1x48x30x30xf32>, %arg2: memref<12xui32>) -> (memref<1x48x30x30xf32>, memref<12xui32>)
+    //CHECK:        func.func @main(%arg0: memref<1x48x30x30xf16>, %arg1: memref<1x48x30x30xf32>, %arg2: memref<12xui32>) -> (memref<1x48x30x30xf32>, memref<12xui32>)
     //CHECK:        [[VAR0:%.+]] = VPURT.DeclareBuffer "ProfilingOutput" [0] <0> -> memref<6xui32>
     //CHECK:        VPURT.Task
     //CHECK-SAME:   profiling_data([[VAR0]] : memref<6xui32>)

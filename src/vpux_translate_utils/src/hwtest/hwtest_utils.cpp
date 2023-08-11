@@ -431,7 +431,8 @@ vpux::Dim getInnermostDim(const vpux::DimsOrder& order) {
 
 // Get padding for each cluster based on global padding, segmentation type and current cluster
 VPU::PaddingAttr getMulticlusteringPaddings(mlir::MLIRContext* ctx, const int64_t cluster, const int64_t numClusters,
-                                            nb::SegmentationType segmentationType, VPU::PaddingAttr globalPadding) {
+                                            nb::SegmentationType segmentationType, VPU::PaddingAttr globalPadding,
+                                            SmallVector<std::int64_t> clustersPerDim) {
     const auto noPad = getIntAttr<int64_t>(ctx, 0);
     switch (segmentationType) {
     case nb::SegmentationType::SOH: {
@@ -460,11 +461,38 @@ VPU::PaddingAttr getMulticlusteringPaddings(mlir::MLIRContext* ctx, const int64_
     }
     case nb::SegmentationType::SOK:
         return globalPadding;
+    case nb::SegmentationType::SOHW: {
+        if (clustersPerDim.size() != 2) {
+            VPUX_THROW("SOHW needs clustersPerDim size to pe 2");
+        }
+        const auto heightNumClusters = clustersPerDim[0];
+        const auto widthNumClusters = clustersPerDim[1];
 
-    case nb::SegmentationType::SOHW:
-    case nb::SegmentationType::SOHK:
-        VPUX_THROW("Per cluster padding selection not implemented yet for strategy {0}",
-                   nb::to_string(segmentationType));
+        const auto idxH = cluster / widthNumClusters;
+        const auto idxW = cluster % widthNumClusters;
+
+        const auto top = (idxH == 0) ? globalPadding.top() : noPad;
+        const auto bottom = (idxH == heightNumClusters - 1) ? globalPadding.bottom() : noPad;
+        const auto left = (idxW == 0) ? globalPadding.left() : noPad;
+        const auto right = (idxW == widthNumClusters - 1) ? globalPadding.right() : noPad;
+
+        return VPU::PaddingAttr::get(left, right, top, bottom, ctx);
+    }
+    case nb::SegmentationType::SOHK: {
+        if (clustersPerDim.size() != 2) {
+            VPUX_THROW("SOHW needs clustersPerDim size to pe 2");
+        }
+
+        const auto heightNumClusters = clustersPerDim[0];
+        const auto channelsNumClusters = clustersPerDim[1];
+
+        const auto idxH = cluster / channelsNumClusters;
+
+        const auto top = (idxH == 0) ? globalPadding.top() : noPad;
+        const auto bottom = (idxH == heightNumClusters - 1) ? globalPadding.top() : noPad;
+
+        return VPU::PaddingAttr::get(globalPadding.left(), globalPadding.right(), top, bottom, ctx);
+    }
     default:
         VPUX_THROW("Segmentation type unsupported {0}", nb::to_string(segmentationType));
     };

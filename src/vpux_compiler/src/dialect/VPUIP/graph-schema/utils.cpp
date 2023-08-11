@@ -1,8 +1,6 @@
 //
-// Copyright (C) 2022 Intel Corporation.
+// Copyright (C) 2022-2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
-//
-
 //
 
 #include "vpux/compiler/dialect/VPUIP/graph-schema/utils.hpp"
@@ -72,6 +70,17 @@ MVCNN::TargetDeviceRevision VPUIP::mapTargetDeviceRevision(VPU::ArchKind kind) {
         return MVCNN::TargetDeviceRevision::TargetDeviceRevision_B0;
     default:
         return MVCNN::TargetDeviceRevision::TargetDeviceRevision_NONE;
+    }
+}
+
+MVCNN::PerfDataMode VPUIP::mapProfilingMode(VPU::ArchKind kind) {
+    switch (kind) {
+    case VPU::ArchKind::VPUX30XX:
+    case VPU::ArchKind::VPUX311X:
+    case VPU::ArchKind::VPUX37XX:
+        return MVCNN::PerfDataMode_MODE0;
+    default:
+        VPUX_THROW("Unsupported architecture '{0}'", kind);
     }
 }
 
@@ -325,7 +334,7 @@ namespace {
 
 void setActivityFactor(VPU::ExecutorKind execKind, MVCNN::ProcessorMappingBuilder& builder, mlir::ModuleOp module) {
     // TODO: calc this value during compilation
-    static const float activityFactor = 0.9f;
+    static const float activityFactor = 0.6f;
     const auto arch = VPU::getArch(module);
     if (arch == VPU::ArchKind::VPUX30XX || arch == VPU::ArchKind::VPUX311X) {
         if (execKind == VPU::ExecutorKind::NCE || execKind == VPU::ExecutorKind::SHAVE_UPA) {

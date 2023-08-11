@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/IE/passes.hpp"
 
 #include "vpux/compiler/core/layers.hpp"
@@ -95,9 +93,7 @@ mlir::LogicalResult DeconvolutionConversion::matchAndRewrite(IE::DeconvolutionOp
     const auto padsBeginVector = Shape(parseIntArrayAttr<int64_t>(origOp.pads_begin()));
     const auto padsEndVector = Shape(parseIntArrayAttr<int64_t>(origOp.pads_end()));
     const auto stridesVector = Shape(parseIntArrayAttr<int64_t>(origOp.strides()));
-    const auto padsOutput = Shape(parseIntArrayAttr<int64_t>(origOp.output_padding()));
-
-    VPUX_THROW_UNLESS(padsBeginVector == padsEndVector, "Supported only symmetrical paddings");
+    auto padsOutput = Shape(parseIntArrayAttr<int64_t>(origOp.output_padding()));
 
     const auto featureShape = getShape(origOp.feature());
     VPUX_THROW_UNLESS(featureShape.size() == 4, "Only 2D deconvolution is supported");
@@ -109,12 +105,25 @@ mlir::LogicalResult DeconvolutionConversion::matchAndRewrite(IE::DeconvolutionOp
     VPUX_THROW_UNLESS(filterShape.size() == 4, "Only 2D deconvolution is supported");
 
     auto padL = filterShape[Dims4D::Filter::KX] - 1 - padsBeginVector[Dims4D::PadsBegin::Left];
-    auto padR = filterShape[Dims4D::Filter::KX] - 1 - padsBeginVector[Dims4D::PadsEnd::Right];
+    auto padR = filterShape[Dims4D::Filter::KX] - 1 - padsEndVector[Dims4D::PadsEnd::Right];
     auto padT = filterShape[Dims4D::Filter::KY] - 1 - padsBeginVector[Dims4D::PadsBegin::Top];
-    auto padB = filterShape[Dims4D::Filter::KY] - 1 - padsBeginVector[Dims4D::PadsEnd::Bottom];
+    auto padB = filterShape[Dims4D::Filter::KY] - 1 - padsEndVector[Dims4D::PadsEnd::Bottom];
 
-    auto padBegin = getIntArrayAttr(getContext(), SmallVector<int64_t>{padL, padT, 0});
-    auto padEnd = getIntArrayAttr(getContext(), SmallVector<int64_t>{padR, padB, 0});
+    // Output_padding refers to copying convolutional input data. If the value of Output_padding is less than the value
+    // of PadR&PadB, the copied data will be 0, so it can be merged with PadR&PadB.
+    if ((padsOutput[Dims4D::PadsOutput::Y] > 0) && (padsOutput[Dims4D::PadsOutput::Y] <= padB)) {
+        padB += padsOutput[Dims4D::PadsOutput::Y];
+        padsOutput[Dims4D::PadsOutput::Y] = 0;
+    }
+    if ((padsOutput[Dims4D::PadsOutput::X] > 0) && (padsOutput[Dims4D::PadsOutput::X] <= padR)) {
+        padR += padsOutput[Dims4D::PadsOutput::X];
+        padsOutput[Dims4D::PadsOutput::X] = 0;
+    }
+
+    auto padChannelAttr = getIntArrayAttr(getContext(), SmallVector<int64_t>{0, 0});
+    auto padHeightAttr = getIntArrayAttr(getContext(), SmallVector<int64_t>{padT, padB});
+    auto padWidthAttr = getIntArrayAttr(getContext(), SmallVector<int64_t>{padL, padR});
+    auto padAttr = IE::UpsamplingPadAttr::get(padChannelAttr, padHeightAttr, padWidthAttr, getContext());
 
     VPUX_THROW_WHEN(((padL < 0) || (padR < 0) || (padT < 0) || (padB < 0)),
                     "Upsampling layer does not support negative paddings");
@@ -122,9 +131,8 @@ mlir::LogicalResult DeconvolutionConversion::matchAndRewrite(IE::DeconvolutionOp
     auto upsamplingFactor = getIntArrayAttr(getContext(), SmallVector<int64_t>{stridesVector[Dims4D::Strides::X],
                                                                                stridesVector[Dims4D::Strides::Y], 1});
 
-    auto newUpsamplingOp =
-            rewriter.create<IE::UpsamplingOp>(origOp->getLoc(), origOp.feature(), upsamplingFactor, padBegin, padEnd);
-
+    auto paddingOutput =
+            rewriter.create<IE::UpsamplingOp>(origOp->getLoc(), origOp.feature(), upsamplingFactor, padAttr).output();
     auto strides = getIntArrayAttr(getContext(), SmallVector<int64_t>{1, 1});
     auto padsBegin = getIntArrayAttr(getContext(), SmallVector<int64_t>{0, 0});
     auto padsEnd = getIntArrayAttr(getContext(), SmallVector<int64_t>{0, 0});
@@ -136,13 +144,11 @@ mlir::LogicalResult DeconvolutionConversion::matchAndRewrite(IE::DeconvolutionOp
     const auto filterContentAttr = dwConvFilter.contentAttr();
 
     std::swap(filterShape[Dims4D::Filter::OC], filterShape[Dims4D::Filter::IC]);
-
     const auto dataStorageType = mlir::RankedTensorType::get(to_small_vector(filterShape), elemType);
 
     const auto content =
             filterContentAttr.reverse(Dims4D::Filter::IC).convertElemType(elemType).transpose(DimsOrder::IOYX);
     auto reshapedFilter = rewriter.create<Const::DeclareOp>(dwConvFilter.getLoc(), dataStorageType, content);
-
     auto fakeQuantizeOp = origOp.filter().getDefiningOp<IE::FakeQuantizeOp>();
     IE::FakeQuantizeOp newFakeQuantizeOp = nullptr;
     if (fakeQuantizeOp != nullptr) {
@@ -163,20 +169,20 @@ mlir::LogicalResult DeconvolutionConversion::matchAndRewrite(IE::DeconvolutionOp
 
     const auto postOp = origOp.post_opAttr();
 
+    if (padsOutput[Dims4D::PadsOutput::Y] > 0) {
+        paddingOutput = createPadding(rewriter, origOp, paddingOutput, Dims4D::Act::H,
+                                      padsOutput[Dims4D::PadsOutput::Y], outputFQ);
+    }
+    if (padsOutput[Dims4D::PadsOutput::X] > 0) {
+        paddingOutput = createPadding(rewriter, origOp, paddingOutput, Dims4D::Act::W,
+                                      padsOutput[Dims4D::PadsOutput::X], outputFQ);
+    }
+
     auto resultOP = rewriter.create<IE::ConvolutionOp>(
-                                    origOp.getLoc(), newUpsamplingOp.output(),
+                                    origOp.getLoc(), paddingOutput,
                                     fakeQuantizeOp != nullptr ? newFakeQuantizeOp.output() : reshapedFilter.output(),
                                     nullptr, strides, padsBegin, padsEnd, dilations, postOp)
                             .output();
-
-    if (padsOutput[Dims4D::PadsOutput::Y] > 0) {
-        resultOP =
-                createPadding(rewriter, origOp, resultOP, Dims4D::Act::H, padsOutput[Dims4D::PadsOutput::Y], outputFQ);
-    }
-    if (padsOutput[Dims4D::PadsOutput::X] > 0) {
-        resultOP =
-                createPadding(rewriter, origOp, resultOP, Dims4D::Act::W, padsOutput[Dims4D::PadsOutput::X], outputFQ);
-    }
 
     rewriter.replaceOp(origOp, resultOP);
 
@@ -225,7 +231,7 @@ void ConvertDeconv2DToConv2DPass::safeRunOnFunc() {
     mlir::RewritePatternSet patterns(&ctx);
     patterns.add<DeconvolutionConversion>(&ctx, _log);
 
-    auto func = getFunction();
+    auto func = getOperation();
     if (mlir::failed(mlir::applyPartialConversion(func, target, std::move(patterns)))) {
         signalPassFailure();
     }

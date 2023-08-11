@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #pragma once
 
 #include "vpux/compiler/utils/passes.hpp"
@@ -20,12 +18,26 @@ namespace vpux {
 namespace VPURT {
 
 //
+// Barrier Legalization Pipeline
+//
+
+void buildBarrierLegalizationPipeline(mlir::OpPassManager& pm, Logger log = Logger::global());
+
+//
 // Passes
 //
 
 std::unique_ptr<mlir::Pass> createAssignVirtualBarriersPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createSplitExceedingVariantCountBarriersPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createReduceExceedingActiveCountBarriersPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createAssignPhysicalBarriersPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createBarrierSimulationPass(Logger log = Logger::global());
+
+//
+// Registration
+//
+
+void registerVPURTPipelines();
 
 //
 // Generated

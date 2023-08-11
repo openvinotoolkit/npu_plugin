@@ -1,12 +1,13 @@
 //
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
+
 // RUN: vpux-opt --split-input-file --init-compiler="vpu-arch=%arch%" --move-view-ops-into-async-regions %s | FileCheck %s
 // REQUIRES: arch-VPUX30XX || arch-VPUX37XX
 
-// CHECK:   func @TiledGraph([[in:%.*]]: memref<10x10x1xf16>, [[out_buf:%.*]]: memref<10x10x1xf16>)
-func @TiledGraph(%in : memref<10x10x1xf16>, %out_buf : memref<10x10x1xf16>) -> memref<10x10x1xf16> {
+// CHECK:   func.func @TiledGraph([[in:%.*]]: memref<10x10x1xf16>, [[out_buf:%.*]]: memref<10x10x1xf16>)
+func.func @TiledGraph(%in : memref<10x10x1xf16>, %out_buf : memref<10x10x1xf16>) -> memref<10x10x1xf16> {
     %in_flat = VPUIP.GenericReshape inputs(%in : memref<10x10x1xf16>) -> memref<100x1x1xf16>
 
     %in_tile_0 = VPUIP.SubView %in_flat [ 0, 0, 0] [50, 1, 1] : memref<100x1x1xf16> to memref<50x1x1xf16>
@@ -144,7 +145,7 @@ func @TiledGraph(%in : memref<10x10x1xf16>, %out_buf : memref<10x10x1xf16>) -> m
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
 // CHECK-LABEL: @WeightsTableOp
-func @WeightsTableOp(%arg0: memref<1x1x16x64xf32>, %arg1: memref<16x1x1x4xsi32>) -> memref<16x1x1x4xsi32> {
+func.func @WeightsTableOp(%arg0: memref<1x1x16x64xf32>, %arg1: memref<16x1x1x4xsi32>) -> memref<16x1x1x4xsi32> {
     %cst0 = const.Declare memref<16x16x1x1xf16, #NHWC> =
         dense<1.000000e+00> : tensor<16x16x1x1xf16>, [#const.Reorder<#NHWC>]
 
@@ -184,8 +185,8 @@ func @WeightsTableOp(%arg0: memref<1x1x16x64xf32>, %arg1: memref<16x1x1x4xsi32>)
     %5 = async.await %f5 : !async.value<memref<16x1x1x4xsi32>>
 
     return %5 : memref<16x1x1x4xsi32>
-    // CHECK:       [[WEIGHT_TABLE_CST:%.+]] = const.Declare memref<16x1x1x4xsi32> = dense<10> : tensor<16x1x1x4xsi32>
-    // CHECK:       [[CST0:%.+]] = const.Declare memref<16x16x1x1xf16, #NHWC>
+    // CHECK-DAG:       [[WEIGHT_TABLE_CST:%.+]] = const.Declare memref<16x1x1x4xsi32> = dense<10> : tensor<16x1x1x4xsi32>
+    // CHECK-DAG:       [[CST0:%.+]] = const.Declare memref<16x16x1x1xf16, #NHWC>
 
     // CHECK:       [[BUF0:%.+]] = memref.alloc() : memref<1x1x16x64xf16>
     // CHECK:       [[BUF1:%.+]] = memref.alloc() : memref<1x16x1x64xf16, #NHWC>

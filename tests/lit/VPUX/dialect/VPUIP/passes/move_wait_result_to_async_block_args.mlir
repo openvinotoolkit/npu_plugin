@@ -1,12 +1,13 @@
 //
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
+
 // RUN: vpux-opt --init-compiler="vpu-arch=%arch%" --move-wait-result-to-async-block-args %s | FileCheck %s
 // REQUIRES: arch-VPUX30XX || arch-VPUX37XX
 
 // CHECK-LABEL: @LinearCase
-func @LinearCase(%arg0: memref<1x1x1x10xf16>, %arg1: memref<1x1x1x10xf16>) -> memref<1x1x1x10xf16> {
+func.func @LinearCase(%arg0: memref<1x1x1x10xf16>, %arg1: memref<1x1x1x10xf16>) -> memref<1x1x1x10xf16> {
     %buf0 = memref.alloc() : memref<1x1x1x10xf16>
     %buf1 = memref.alloc() : memref<1x1x1x10xf16>
 
@@ -50,7 +51,7 @@ func @LinearCase(%arg0: memref<1x1x1x10xf16>, %arg1: memref<1x1x1x10xf16>) -> me
 }
 
 // CHECK-LABEL: @MultipleUsesInOneRegion
-func @MultipleUsesInOneRegion(%arg0: memref<1x1x1x10xf16>, %arg1: memref<1x1x1x10xf16>) -> memref<1x1x1x10xf16> {
+func.func @MultipleUsesInOneRegion(%arg0: memref<1x1x1x10xf16>, %arg1: memref<1x1x1x10xf16>) -> memref<1x1x1x10xf16> {
     %buf0 = memref.alloc() : memref<1x1x1x10xf16>
 
     %t1, %f1 = async.execute -> !async.value<memref<1x1x1x10xf16>> {
@@ -80,7 +81,7 @@ func @MultipleUsesInOneRegion(%arg0: memref<1x1x1x10xf16>, %arg1: memref<1x1x1x1
 }
 
 // CHECK-LABEL: @UsesFromMultipleWaits
-func @UsesFromMultipleWaits(%arg0: memref<1x1x1x10xf16>, %arg1: memref<1x1x1x10xf16>) -> memref<1x1x1x10xf16> {
+func.func @UsesFromMultipleWaits(%arg0: memref<1x1x1x10xf16>, %arg1: memref<1x1x1x10xf16>) -> memref<1x1x1x10xf16> {
     %buf0 = memref.alloc() : memref<1x1x1x10xf16>
     %buf1 = memref.alloc() : memref<1x1x1x10xf16>
 
@@ -124,7 +125,7 @@ func @UsesFromMultipleWaits(%arg0: memref<1x1x1x10xf16>, %arg1: memref<1x1x1x10x
 // -----
 
 // CHECK-LABEL: @TwoOutputs
-func @TwoOutputs(%arg0: memref<1x1x1x2xf16>, %arg1: memref<1x1x1x2xf16>, %arg2: memref<1x1x1x2xf16>) -> (memref<1x1x1x2xf16>, memref<1x1x1x2xf16>) {
+func.func @TwoOutputs(%arg0: memref<1x1x1x2xf16>, %arg1: memref<1x1x1x2xf16>, %arg2: memref<1x1x1x2xf16>) -> (memref<1x1x1x2xf16>, memref<1x1x1x2xf16>) {
     %cst = const.Declare memref<1x1x1x2xf16> = dense<1.0> : tensor<1x1x1x2xf16>
 
     %buf1 = memref.alloc() : memref<1x1x1x2xf16>
@@ -157,7 +158,7 @@ func @TwoOutputs(%arg0: memref<1x1x1x2xf16>, %arg1: memref<1x1x1x2xf16>, %arg2: 
 
     return %3, %4 : memref<1x1x1x2xf16>, memref<1x1x1x2xf16>
 
-    // CHECK:       [[CST:%.+]] = const.Declare
+    // CHECK-DAG:       [[CST:%.+]] = const.Declare
 
     // CHECK:       [[BUF1:%.+]] = memref.alloc() : memref<1x1x1x2xf16>
     // CHECK:       [[BUF2:%.+]] = memref.alloc() : memref<1x1x1x2xf16>

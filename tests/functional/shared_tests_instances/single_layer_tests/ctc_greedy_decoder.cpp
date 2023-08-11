@@ -1,5 +1,5 @@
 //
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,11 +12,11 @@
 
 namespace LayerTestsDefinitions {
 
-class KmbCTCGreedyDecoderLayerTest :
+class VPUXCTCGreedyDecoderLayerTest :
         public CTCGreedyDecoderLayerTest,
         virtual public LayerTestsUtils::KmbLayerTestsCommon {};
 
-class KmbCTCGreedyDecoderLayerTest_MLIR : public KmbCTCGreedyDecoderLayerTest {
+class VPUXCTCGreedyDecoderLayerTest_VPU3700 : public VPUXCTCGreedyDecoderLayerTest {
     void SkipBeforeLoad() override {
         // Input shapes below were gotten from CPU-plugin test. They produce 2 error types for MLIR-compiler:
         // 1) Shapes beginning with {50, ..} lead to error at compile step:
@@ -31,7 +31,7 @@ class KmbCTCGreedyDecoderLayerTest_MLIR : public KmbCTCGreedyDecoderLayerTest {
         //
         // 2) Shape { 1, 1, 16 } lead to error on kmb-board:
         // [Error  ][VPU][VpualCoreNNExecutor] allocateGraph: failed to create NnCorePlg
-        // vpux-plugin/tests/functional/shared_tests_instances/kmb_layer_test.cpp:165: Failure
+        // VPUX-plugin/tests/functional/shared_tests_instances/kmb_layer_test.cpp:165: Failure
         // Expected: executableNetwork = getCore()->LoadNetwork(cnnNetwork, targetDevice, configuration)
         // doesn't throw an exception.
         // Actual: it throws:VpualCoreNNExecutor::allocateGraph: failed to create NnCorePlg: 6
@@ -52,17 +52,15 @@ class KmbCTCGreedyDecoderLayerTest_MLIR : public KmbCTCGreedyDecoderLayerTest {
     }
 };
 
-class VPUXCTCGreedyDecoderLayerTest_MLIR_VPU3720 :
-        public KmbCTCGreedyDecoderLayerTest,
-        virtual public LayerTestsUtils::KmbLayerTestsCommon {};
+class VPUXCTCGreedyDecoderLayerTest_VPU3720 : public VPUXCTCGreedyDecoderLayerTest {};
 
-TEST_P(KmbCTCGreedyDecoderLayerTest_MLIR, CompareWithRefs_MLIR) {
-    useCompilerMLIR();
+TEST_P(VPUXCTCGreedyDecoderLayerTest_VPU3700, HW) {
+    setPlatformVPU3700();
+    setDefaultHardwareModeMLIR();
     Run();
 }
 
-TEST_P(VPUXCTCGreedyDecoderLayerTest_MLIR_VPU3720, COMPILER_MLIR_VPU3720) {
-    useCompilerMLIR();
+TEST_P(VPUXCTCGreedyDecoderLayerTest_VPU3720, HW) {
     setPlatformVPU3720();
     setDefaultHardwareModeMLIR();
     Run();
@@ -96,7 +94,7 @@ const auto params_MLIR = testing::Combine(
         testing::Values(InferenceEngine::Layout::ANY), testing::ValuesIn(inputShapes_MLIR),
         testing::ValuesIn(mergeRepeated), testing::Values(LayerTestsUtils::testPlatformTargetDevice));
 
-INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_CTCGreedyDecoder, KmbCTCGreedyDecoderLayerTest_MLIR, params_MLIR,
+INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_CTCGreedyDecoder, VPUXCTCGreedyDecoderLayerTest_VPU3700, params_MLIR,
                          CTCGreedyDecoderLayerTest::getTestCaseName);
 
 const auto params_MLIR_VPU3720 = testing::Combine(
@@ -105,7 +103,7 @@ const auto params_MLIR_VPU3720 = testing::Combine(
         testing::Values(InferenceEngine::Layout::ANY), testing::ValuesIn(precommit_inputShapes_MLIR),
         testing::ValuesIn(mergeRepeated), testing::Values(LayerTestsUtils::testPlatformTargetDevice));
 
-INSTANTIATE_TEST_SUITE_P(smoke_precommit_CTCGreedyDecoder, VPUXCTCGreedyDecoderLayerTest_MLIR_VPU3720,
-                         params_MLIR_VPU3720, CTCGreedyDecoderLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_precommit_CTCGreedyDecoder, VPUXCTCGreedyDecoderLayerTest_VPU3720, params_MLIR_VPU3720,
+                         CTCGreedyDecoderLayerTest::getTestCaseName);
 
 }  // namespace

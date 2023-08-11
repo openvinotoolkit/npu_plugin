@@ -82,7 +82,8 @@ IE::OutputsDataMap ZeroCompilerAdapterTests::createTwoOutputDataMap(
 TEST_F(ZeroCompilerAdapterTests, SingleIONetwork_ipU8opFP32) {
     const auto inputsInfo = createSingleInputDataMap();
     const auto outputsInfo = createSingleOutputDataMap();
-    const std::string ioInfo = LevelZeroCompilerInDriver::serializeIOInfo(inputsInfo, outputsInfo);
+    const std::string ioInfo =
+            LevelZeroCompilerInDriver<ze_graph_dditable_ext_t>::serializeIOInfo(inputsInfo, outputsInfo);
 
     const std::string expectedStr = "--inputs_precisions=\"inputName1:U8\" --inputs_layouts=\"inputName1:NCHW\""
                                     " --outputs_precisions=\"outputName1:FP32\" --outputs_layouts=\"outputName1:NC\"";
@@ -105,7 +106,8 @@ TEST_F(ZeroCompilerAdapterTests, TwoIONetwork_ipU8U8opFP32FP32) {
     const auto outputsInfo = createTwoOutputDataMap(outputName1, outputName2, outputsPrecision, outputsPrecision,
                                                     outputsLayout, outputsLayout);
 
-    const std::string ioInfo = LevelZeroCompilerInDriver::serializeIOInfo(inputsInfo, outputsInfo);
+    const std::string ioInfo =
+            LevelZeroCompilerInDriver<ze_graph_dditable_ext_t>::serializeIOInfo(inputsInfo, outputsInfo);
 
     const std::string expectedStr =
             "--inputs_precisions=\"inputName1:U8 inputName2:U8\" --inputs_layouts=\"inputName1:NCHW inputName2:NCHW\""
@@ -126,7 +128,8 @@ TEST_F(ZeroCompilerAdapterTests, OneInputTwoOuputsNetwork_ipU8opFP16FP32) {
     const auto outputsInfo = createTwoOutputDataMap(outputName, outputName2, outputsPrecision1, outputsPrecision2,
                                                     outputsLayout1, outputsLayout2);
 
-    const std::string ioInfo = LevelZeroCompilerInDriver::serializeIOInfo(inputsInfo, outputsInfo);
+    const std::string ioInfo =
+            LevelZeroCompilerInDriver<ze_graph_dditable_ext_t>::serializeIOInfo(inputsInfo, outputsInfo);
 
     const std::string expectedStr = "--inputs_precisions=\"inputName1:U8\" --inputs_layouts=\"inputName1:NCHW\""
                                     " --outputs_precisions=\"outputName1:FP32 outputName2:FP16\""

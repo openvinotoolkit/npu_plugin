@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 
 #include "vpux/compiler/core/attributes/dims_order.hpp"
@@ -21,18 +19,19 @@
 using namespace vpux;
 
 //
-// verifyOp
+// verify
 //
 
-mlir::LogicalResult vpux::VPUIP::verifyOp(PermuteUPAOp op) {
-    const auto inType = op.input().getType().cast<vpux::NDTypeInterface>();
-    const auto outType = op.output().getType().cast<vpux::NDTypeInterface>();
+mlir::LogicalResult vpux::VPUIP::PermuteUPAOp::verify() {
+    const auto op = getOperation();
+    const auto inType = input().getType().cast<vpux::NDTypeInterface>();
+    const auto outType = output().getType().cast<vpux::NDTypeInterface>();
 
     if (inType.getRank() > outType.getRank()) {
         return errorAt(op, "Input rank {0} doesn't match output rank {1}", inType.getRank(), outType.getRank());
     }
 
-    const auto order = DimsOrder::fromAffineMap(op.order_value());
+    const auto order = DimsOrder::fromAffineMap(order_value());
     const auto inShape = inType.getShape();
 
     if (order.numDims() > inShape.size()) {

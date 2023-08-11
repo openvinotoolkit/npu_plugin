@@ -10,7 +10,6 @@
         "^/cmake/lit.*",
         "^/cmake/oecore.arm64.toolchain\\.cmake",
         "^/docs/.*",
-        "^/samples/.*",
         "^/scripts/.*",
         "^/src/VPUXCompilerL0/.*",
         "^/src/emulator_backend/.*",

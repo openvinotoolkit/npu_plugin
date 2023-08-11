@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/core/passes.hpp"
 
 #include "vpux/compiler/core/ops_interfaces.hpp"
@@ -32,7 +30,7 @@ private:
 };
 
 void MoveDeclarationsToTopPass::safeRunOnFunc() {
-    auto& block = getFunction().getBody().front();
+    auto& block = getOperation().getBody().front();
 
     SmallVector<mlir::Operation*> allDeclOps;
     for (auto& op : block) {

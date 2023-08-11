@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/ELF/passes.hpp"
 
 using namespace vpux;
@@ -19,7 +17,7 @@ public:
 
 private:
     template <typename OpTy>
-    void runOnSectionOps(mlir::FuncOp& funcOp) {
+    void runOnSectionOps(mlir::func::FuncOp& funcOp) {
         for (auto sectionOp : funcOp.getOps<OpTy>()) {
             auto currFlagsAttrVal = sectionOp.secFlags();
             auto tempFlagsAttrVal = currFlagsAttrVal;
@@ -38,7 +36,7 @@ private:
         mlir::ModuleOp moduleOp = getOperation();
 
         IE::CNNNetworkOp cnnOp;
-        mlir::FuncOp funcOp;
+        mlir::func::FuncOp funcOp;
         IE::CNNNetworkOp::getFromModule(moduleOp, cnnOp, funcOp);
 
         runOnSectionOps<ELF::CreateSectionOp>(funcOp);

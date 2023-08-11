@@ -14,7 +14,7 @@ namespace IE {
 bool hasSupportedKernels(ArrayRef<int64_t> kernelSize);
 bool isPoolingKernelSizeValid(int64_t kernelSize);
 Optional<Factors> getFactors(int64_t kernelSize, int64_t& padValue);
-Optional<Factors> getFactorsWithSupportedLarger(int64_t kernelSize);
+Optional<Factors> getFactorsWithSupportedLarger(int64_t kernelSize, int64_t& padValue);
 
 }  // namespace IE
 }  // namespace vpux

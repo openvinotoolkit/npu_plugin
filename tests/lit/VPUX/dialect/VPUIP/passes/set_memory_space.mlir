@@ -1,12 +1,13 @@
 //
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
+
 // RUN: vpux-opt --split-input-file --init-compiler="vpu-arch=%arch%" --set-memory-space="memory-space=DDR" %s | FileCheck %s
 // REQUIRES: arch-VPUX30XX || arch-VPUX37XX
 
-// CHECK: func @MultipleAllocs([[ARG0:%.+]]: memref<1x1000xf16, @DDR>, [[ARG1:%.+]]: memref<1x1000xf16, @DDR>) -> memref<1x1000xf16, @DDR>
-func @MultipleAllocs(%arg0: memref<1x1000xf16>, %arg1: memref<1x1000xf16>) -> memref<1x1000xf16> {
+// CHECK: func.func @MultipleAllocs([[ARG0:%.+]]: memref<1x1000xf16, @DDR>, [[ARG1:%.+]]: memref<1x1000xf16, @DDR>) -> memref<1x1000xf16, @DDR>
+func.func @MultipleAllocs(%arg0: memref<1x1000xf16>, %arg1: memref<1x1000xf16>) -> memref<1x1000xf16> {
     %0 = memref.alloc() : memref<1x1000xf16>
     %1 = IERT.SoftMax {axisInd = 1} inputs(%arg0 : memref<1x1000xf16>) outputs(%0 : memref<1x1000xf16>) -> memref<1x1000xf16>
     %2 = memref.alloc() : memref<1x1000xf16>
@@ -24,8 +25,8 @@ func @MultipleAllocs(%arg0: memref<1x1000xf16>, %arg1: memref<1x1000xf16>) -> me
 
 // -----
 
-// CHECK: func @ReshapeInGraph([[ARG0:%.+]]: memref<1x512x1x1xf32, @DDR>, [[ARG1:%.+]]: memref<1x512x1x1xf32, @DDR>) -> memref<1x512x1x1xf32, @DDR>
-func @ReshapeInGraph(%arg0: memref<1x512x1x1xf32>, %arg1: memref<1x512x1x1xf32>) -> memref<1x512x1x1xf32> {
+// CHECK: func.func @ReshapeInGraph([[ARG0:%.+]]: memref<1x512x1x1xf32, @DDR>, [[ARG1:%.+]]: memref<1x512x1x1xf32, @DDR>) -> memref<1x512x1x1xf32, @DDR>
+func.func @ReshapeInGraph(%arg0: memref<1x512x1x1xf32>, %arg1: memref<1x512x1x1xf32>) -> memref<1x512x1x1xf32> {
     %0 = VPUIP.GenericReshape inputs(%arg0 : memref<1x512x1x1xf32>) -> memref<1x512xf32>
     %1 = memref.alloc() : memref<1x512xf32>
     %2 = IERT.SoftMax {axisInd = 1} inputs(%0 : memref<1x512xf32>) outputs(%1 : memref<1x512xf32>) -> memref<1x512xf32>
@@ -43,8 +44,8 @@ func @ReshapeInGraph(%arg0: memref<1x512x1x1xf32>, %arg1: memref<1x512x1x1xf32>)
 
 // -----
 
-// CHECK: func @Async([[ARG0:%.+]]: memref<1x1000xf16, @DDR>, [[ARG1:%.+]]: memref<1x1000xf16, @DDR>) -> memref<1x1000xf16, @DDR>
-func @Async(%arg0: memref<1x1000xf16>, %arg1: memref<1x1000xf16>) -> memref<1x1000xf16> {
+// CHECK: func.func @Async([[ARG0:%.+]]: memref<1x1000xf16, @DDR>, [[ARG1:%.+]]: memref<1x1000xf16, @DDR>) -> memref<1x1000xf16, @DDR>
+func.func @Async(%arg0: memref<1x1000xf16>, %arg1: memref<1x1000xf16>) -> memref<1x1000xf16> {
     %0 = memref.alloc() : memref<1x1000xf16>
 
     %t1, %f1 = async.execute -> !async.value<memref<1x1000xf16>> {
@@ -85,15 +86,15 @@ func @Async(%arg0: memref<1x1000xf16>, %arg1: memref<1x1000xf16>) -> memref<1x10
 
 // -----
 
-!SparseType = type !VPUIP.SparseBuffer<
+!SparseType = !VPUIP.SparseBuffer<
     data=memref<1x1000xf16>,
     sparsity_map=memref<1x1000xi1>
 >
 
-// CHECK-LABEL: func @GroupOp
+// CHECK-LABEL: func.func @GroupOp
 // CHECK-SAME:  ([[ARG0:%.*]]: !VPUIP.SparseBuffer<data=memref<1x1000xf16, @DDR>, sparsity_map=memref<1x1000xi1, @DDR>>)
 // CHECK-SAME:      -> !VPUIP.SparseBuffer<data=memref<1x1000xf16, @DDR>, sparsity_map=memref<1x1000xi1, @DDR>>
-func @GroupOp(%arg0: !SparseType) -> !SparseType {
+func.func @GroupOp(%arg0: !SparseType) -> !SparseType {
     %0 = memref.alloc() : memref<1x1000xf16>
     %1 = const.Declare memref<1x1000xi1> = dense<1> : tensor<1x1000xi1>
     %2 = VPUIP.GroupSparseBuffer(%0, %1) -> !SparseType
@@ -101,7 +102,7 @@ func @GroupOp(%arg0: !SparseType) -> !SparseType {
     return %3 : !SparseType
 
     // CHECK:       [[VAR0:%.+]] = memref.alloc() : memref<1x1000xf16, @DDR>
-    // CHECK:       [[VAR1:%.+]] = const.Declare memref<1x1000xi1, @DDR> = dense<true> : tensor<1x1000xi1>
+    // CHECK-DAG:       [[VAR1:%.+]] = const.Declare memref<1x1000xi1, @DDR> = dense<true> : tensor<1x1000xi1>
     // CHECK:       [[VAR2:%.+]] = VPUIP.GroupSparseBuffer([[VAR0]], [[VAR1]]) -> !VPUIP.SparseBuffer<data=memref<1x1000xf16, @DDR>, sparsity_map=memref<1x1000xi1, @DDR>>
     // CHECK:       [[VAR3:%.+]] = VPUIP.Copy inputs([[VAR2]] : !VPUIP.SparseBuffer<data=memref<1x1000xf16, @DDR>, sparsity_map=memref<1x1000xi1, @DDR>>)
     // CHECK-SAME:                            outputs([[ARG0]] : !VPUIP.SparseBuffer<data=memref<1x1000xf16, @DDR>, sparsity_map=memref<1x1000xi1, @DDR>>)
@@ -111,23 +112,23 @@ func @GroupOp(%arg0: !SparseType) -> !SparseType {
 
 // -----
 
-!SparseType = type !VPUIP.SparseBuffer<
+!SparseType = !VPUIP.SparseBuffer<
     data=memref<1x1000xf16>,
     sparsity_map=memref<1x1000xi1>
 >
 
-// CHECK-LABEL: func @GroupOpAllInputsNoneMemSpace
+// CHECK-LABEL: func.func @GroupOpAllInputsNoneMemSpace
 // CHECK-SAME:  ([[ARG0:%.*]]: !VPUIP.SparseBuffer<data=memref<1x1000xf16, @DDR>, sparsity_map=memref<1x1000xi1, @DDR>>)
 // CHECK-SAME:      -> !VPUIP.SparseBuffer<data=memref<1x1000xf16, @DDR>, sparsity_map=memref<1x1000xi1, @DDR>>
-func @GroupOpAllInputsNoneMemSpace(%arg0: !SparseType) -> !SparseType {
+func.func @GroupOpAllInputsNoneMemSpace(%arg0: !SparseType) -> !SparseType {
     %0 = const.Declare memref<1x1000xf16> = dense<1.0> : tensor<1x1000xf16>
     %1 = const.Declare memref<1x1000xi1> = dense<1> : tensor<1x1000xi1>
     %2 = VPUIP.GroupSparseBuffer(%0, %1) -> !SparseType
     %3 = VPUIP.Copy inputs(%2 : !SparseType) outputs(%arg0 : !SparseType) -> !SparseType
     return %3 : !SparseType
 
-    // CHECK:       [[VAR0:%.+]] = const.Declare memref<1x1000xf16> = dense<1.000000e+00> : tensor<1x1000xf16>
-    // CHECK:       [[VAR1:%.+]] = const.Declare memref<1x1000xi1> = dense<true> : tensor<1x1000xi1>
+    // CHECK-DAG:       [[VAR0:%.+]] = const.Declare memref<1x1000xf16> = dense<1.000000e+00> : tensor<1x1000xf16>
+    // CHECK-DAG:       [[VAR1:%.+]] = const.Declare memref<1x1000xi1> = dense<true> : tensor<1x1000xi1>
     // CHECK:       [[VAR2:%.+]] = VPUIP.GroupSparseBuffer([[VAR0]], [[VAR1]]) -> !VPUIP.SparseBuffer<data=memref<1x1000xf16>, sparsity_map=memref<1x1000xi1>>
     // CHECK:       [[VAR3:%.+]] = VPUIP.Copy inputs([[VAR2]] : !VPUIP.SparseBuffer<data=memref<1x1000xf16>, sparsity_map=memref<1x1000xi1>>)
     // CHECK-SAME:                            outputs([[ARG0]] : !VPUIP.SparseBuffer<data=memref<1x1000xf16, @DDR>, sparsity_map=memref<1x1000xi1, @DDR>>)

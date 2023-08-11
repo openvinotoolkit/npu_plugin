@@ -104,7 +104,7 @@ mlir::LogicalResult vpux::VPU::ReshapeOp::inferReturnTypes(mlir::MLIRContext* ct
                                                            mlir::ValueRange operands, mlir::DictionaryAttr attrs,
                                                            mlir::RegionRange /*regions*/,
                                                            mlir::SmallVectorImpl<mlir::Type>& inferredReturnTypes) {
-    const auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
+    const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
     VPU::ReshapeOpAdaptor reshape(operands, attrs);
     if (mlir::failed(reshape.verify(loc))) {
@@ -137,17 +137,19 @@ void vpux::VPU::ReshapeOp::inferElemTypeInfo(vpux::IE::LayerDataInfo<mlir::Type>
 
     // Do not propagate element type down in per channel case.
     // E#31030
-    if (inputElemType.dyn_cast_or_null<mlir::quant::UniformQuantizedPerAxisType>() == nullptr) {
-        for (size_t outputInd = 0; outputInd < info.getNumOutputs(); ++outputInd) {
-            info.setOutput(outputInd, inputElemType);
-        }
+    if (inputElemType != nullptr && inputElemType.isa<mlir::quant::UniformQuantizedPerAxisType>()) {
+        return;
+    }
+
+    for (size_t outputInd = 0; outputInd < info.getNumOutputs(); ++outputInd) {
+        info.setOutput(outputInd, inputElemType);
     }
 }
 
 void vpux::VPU::ReshapeOp::inferElemTypeInfoUp(vpux::IE::LayerDataInfo<mlir::Type>& info) {
     const auto outputElemType = info.getOutput(0);
 
-    if (outputElemType.dyn_cast_or_null<mlir::quant::UniformQuantizedPerAxisType>() != nullptr) {
+    if (outputElemType != nullptr && outputElemType.isa<mlir::quant::UniformQuantizedPerAxisType>()) {
         // E#31029: implement propagate type up for per channel, currently it leads to failures in later passes.
         return;
     }

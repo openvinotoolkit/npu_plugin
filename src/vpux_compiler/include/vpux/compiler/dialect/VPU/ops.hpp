@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #pragma once
 
 #include "vpux/compiler/core/attributes/shape.hpp"
@@ -32,25 +30,6 @@
 
 namespace vpux {
 namespace VPU {
-
-mlir::LogicalResult verifyConv(mlir::Location loc, ArchKind arch, NCEConvolutionOpAdaptor op, mlir::Value output);
-
-mlir::LogicalResult verifyOp(NCEConvolutionOp op);
-mlir::LogicalResult verifyOp(NCEDepthConvolutionOp op);
-mlir::LogicalResult verifyOp(NCEMaxPoolOp op);
-mlir::LogicalResult verifyOp(NCEAveragePoolOp op);
-mlir::LogicalResult verifyOp(NCEPermuteQuantizeOp op);
-mlir::LogicalResult verifyOp(BucketizeOp op);
-mlir::LogicalResult verifyOp(PReluOp op);
-mlir::LogicalResult verifyOp(GatherNDOp op);
-
-mlir::LogicalResult verifyOp(NCEClusterTilingOp op);
-mlir::LogicalResult verifyOp(YieldOp op);
-
-mlir::LogicalResult verifyOp(DistributedCastOp op);
-mlir::LogicalResult verifyOp(StorageElementTableOp op);
-mlir::LogicalResult verifyOp(LayoutCastOp op);
-mlir::LogicalResult verifyOp(ConcatOp op);
 
 //
 // Tiling
@@ -136,13 +115,96 @@ void adjustRawFilterShape(ConcreteOp* op, const TileInfo& outputTile) {
 // Misc
 //
 
-void print(mlir::OpAsmPrinter& p, VPU::NCEClusterTilingOp op);
-mlir::ParseResult parseNCEClusterTilingOp(mlir::OpAsmParser& parser, mlir::OperationState& result);
+bool isVFNCESupported(VPU::NCEOpInterface op);
 
-mlir::LogicalResult sameOrder(VPU::DistributedTensorType inDistributedType,
-                              VPU::DistributedTensorType outDistributedType, LogCb logCb = emptyLogCb);
-mlir::LogicalResult sameOrder(VPUIP::DistributedBufferType inDistributedType,
-                              VPUIP::DistributedBufferType outDistributedType, LogCb logCb = emptyLogCb);
+mlir::LogicalResult sameLayout(VPU::DistributedTensorType inDistributedType,
+                               VPU::DistributedTensorType outDistributedType, LogCb logCb = emptyLogCb);
+mlir::LogicalResult sameLayout(VPUIP::DistributedBufferType inDistributedType,
+                               VPUIP::DistributedBufferType outDistributedType, LogCb logCb = emptyLogCb);
+
+template <typename T, enable_if_t<or_<std::is_same<VPU::DistributedTensorType, T>,
+                                      std::is_same<VPUIP::DistributedBufferType, T>>::value,
+                                  bool> = true>
+mlir::LogicalResult areDistributionAttrsCompatible(T sourceType, T targetType,
+                                                   const bool allowOverlapWithDiffConfig = false) {
+    const auto sourceAttr = sourceType.getDistribution();
+    const auto targetAttr = targetType.getDistribution();
+
+    const auto inDistributionMode = sourceAttr.mode().getValue();
+    const auto outDistributionMode = targetAttr.mode().getValue();
+
+    if (inDistributionMode != outDistributionMode) {
+        if (VPU::areDistributionModesCompatible(inDistributionMode, outDistributionMode).failed()) {
+            return mlir::failure();
+        }
+    }
+
+    // Check if the distributed tensor has the full tensor on each cluster
+    auto isMemoryFullSizeMode = [&](VPU::DistributionMode mode) -> bool {
+        return VPU::bitEnumContains(mode, VPU::DistributionMode::DUPLICATED) ||
+               VPU::bitEnumContains(mode, VPU::DistributionMode::MULTICASTED);
+    };
+
+    // Only check the alignment when the tensor needs to split
+    // For FullSizeTensor, e.g., DUPLICATED and MULTICASTED, tensors might be compatible even though
+    // they have different alignment attributes. Because the tensors are aligned and the same on each cluster
+    // For tensors that need to split, the same alignments are required to make sure tensors compatible on each cluster
+    if (!(isMemoryFullSizeMode(inDistributionMode) && isMemoryFullSizeMode(outDistributionMode)) &&
+        sourceAttr.alignment() != targetAttr.alignment()) {
+        return mlir::failure();
+    }
+
+    const auto inDistributionNumClusters = sourceAttr.num_clusters();
+    const auto outDistributionNumClusters = targetAttr.num_clusters();
+
+    if (VPU::areDistributionNumClustersCompatible(inDistributionNumClusters, outDistributionNumClusters).failed()) {
+        return mlir::failure();
+    }
+
+    // Ensure the memory view for the source and target distributions are the same,
+    // no matter the attributes of the distribution.
+    // For example, given:
+    // sourceAttr = SEGMENTED across 2 clusters without uniformDistributedSegments
+    // targetAttr = SEGMENTED across 2 clusters with uniformDistributedSegments
+    // memory view will always be the same, so the distribution attrs are compatible.
+    auto arePerClusterMemoryShapeAndOffsetsEqual = [&]() -> bool {
+        auto srcMemoryOffsets = sourceType.getPerClusterMemoryShapeOffsets();
+        auto targetMemoryOffsets = targetType.getPerClusterMemoryShapeOffsets();
+
+        auto srcMemoryShapes = sourceType.getPerClusterMemoryShapes();
+        auto targetMemoryShapes = targetType.getPerClusterMemoryShapes();
+
+        return (srcMemoryOffsets == targetMemoryOffsets) && (srcMemoryShapes == targetMemoryShapes);
+    };
+
+    if ((inDistributionMode == VPU::DistributionMode::SEGMENTED) &&
+        (outDistributionMode == VPU::DistributionMode::SEGMENTED)) {
+        const auto inDistributionNumTiles = parseIntArrayAttr<int64_t>(sourceAttr.num_tiles());
+        const auto outDistributionNumTiles = parseIntArrayAttr<int64_t>(targetAttr.num_tiles());
+        if (inDistributionNumTiles != outDistributionNumTiles) {
+            return mlir::failure();
+        }
+
+        return arePerClusterMemoryShapeAndOffsetsEqual() ? mlir::success() : mlir::failure();
+    }
+
+    if ((inDistributionMode == VPU::DistributionMode::OVERLAPPED) &&
+        (outDistributionMode == VPU::DistributionMode::OVERLAPPED)) {
+        const auto inDistributionNumTiles = parseIntArrayAttr<int64_t>(sourceAttr.num_tiles());
+        const auto outDistributionNumTiles = parseIntArrayAttr<int64_t>(targetAttr.num_tiles());
+        if (inDistributionNumTiles != outDistributionNumTiles) {
+            return mlir::failure();
+        }
+
+        if (allowOverlapWithDiffConfig) {
+            return mlir::success();
+        }
+
+        return arePerClusterMemoryShapeAndOffsetsEqual() ? mlir::success() : mlir::failure();
+    }
+
+    return mlir::success();
+}
 
 template <typename T, enable_if_t<or_<std::is_same<VPU::DistributedTensorType, T>,
                                       std::is_same<VPUIP::DistributedBufferType, T>>::value,
@@ -167,17 +229,14 @@ mlir::LogicalResult isDistributedCastCompatible(T inDistributedType, T outDistri
         return mlir::failure();
     }
 
-    const auto sameOrderCheck = sameOrder(inDistributedType, outDistributedType, logCb);
-    if (sameOrderCheck.failed()) {
+    const auto sameLayoutCheck = sameLayout(inDistributedType, outDistributedType, logCb);
+    if (sameLayoutCheck.failed()) {
         return mlir::failure();
     }
 
-    const auto inDistributionAttr = inDistributedType.getDistribution();
-    const auto outDistributionAttr = outDistributedType.getDistribution();
-
-    if (areDistributionAttrsCompatible(inDistributionAttr, outDistributionAttr).failed()) {
-        logCb(formatv("Mismatch between distributionAttr for input ({0}) and output ({1}).", inDistributionAttr,
-                      outDistributionAttr));
+    if (areDistributionAttrsCompatible(inDistributedType, outDistributedType).failed()) {
+        logCb(formatv("Mismatch between distributionAttr for input ({0}) and output ({1}).",
+                      inDistributedType.getDistribution(), outDistributedType.getDistribution()));
         return mlir::failure();
     }
 

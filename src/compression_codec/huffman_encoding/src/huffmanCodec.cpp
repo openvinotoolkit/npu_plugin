@@ -8,10 +8,8 @@
 #include <vector>
 
 #include <cmath>
-#include <cstdio>
 #include <cstring>
 #include <iomanip>
-#include <iostream>
 
 #include "Huffman.hpp"
 #include "huffmanCodec.hpp"
@@ -44,12 +42,18 @@ huffmanCodec::huffmanCodec(uint32_t pBitsPerSym, uint32_t pMaxEncSyms, uint32_t 
 }
 
 huffmanCodec::~huffmanCodec() {
-    stringstream rptStream;
-    delete mHuffmanCodec;
-    delete mHuffmanCodecConfig;
+    try {
+        stringstream rptStream;
+        delete mHuffmanCodec;
+        delete mHuffmanCodecConfig;
 
-    rptStream << "huffmanCodec: destructor" << endl;
-    Report(3, rptStream);
+        rptStream << "huffmanCodec: destructor" << endl;
+        Report(3, rptStream);
+    } catch (const std::ios_base::failure& ex) {
+        std::cerr << "Caught: std::ios_base::failure" << std::endl;
+    } catch (const std::bad_array_new_length& ex) {
+        std::cerr << "Caught: std::bad_array_new_length" << std::endl;
+    }
 }
 
 vector<char> huffmanCodec::getInputDataWithExclusions(const uint32_t& inputDataLength, const uint8_t* inputData,
@@ -80,12 +84,12 @@ vector<char> huffmanCodec::getInputDataWithExclusions(const uint32_t& inputDataL
 
             memcpy(&data[0], &inputData[mInputDataPlayhead], len);
             mInputDataPlayhead += len;
-        }
 
-        for (uint32_t i = 0; i < len && nd.size() < stepSize; i++) {
-            if (exclusions.find(data[i]) != exclusions.end())
-                continue;
-            nd.push_back(data[i]);
+            for (uint32_t i = 0; i < len && nd.size() < stepSize; i++) {
+                if (exclusions.find(data[i]) != exclusions.end())
+                    continue;
+                nd.push_back(data[i]);
+            }
         }
     } while (!(mInputDataPlayhead >= inputDataLength) && nd.size() != stepSize);
 

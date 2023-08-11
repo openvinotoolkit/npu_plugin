@@ -1,14 +1,15 @@
 //
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
+
 // RUN: vpux-opt --split-input-file --init-compiler="vpu-arch=%arch%" --copy-op-hoisting %s | FileCheck %s
 // REQUIRES: arch-VPUX30XX || arch-VPUX37XX
 
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
 // CHECK-LABEL: @CopyFromBlockArgumentNoChange
-func @CopyFromBlockArgumentNoChange(%arg0: memref<1x16x1x1xf16, @CMX_NN>, %arg1: memref<1x16x1x1xf16>, %arg2: memref<1x16x1x1xf16>)
+func.func @CopyFromBlockArgumentNoChange(%arg0: memref<1x16x1x1xf16, @CMX_NN>, %arg1: memref<1x16x1x1xf16>, %arg2: memref<1x16x1x1xf16>)
         -> (memref<1x16x1x1xf16>, memref<1x16x1x1xf16>) {
     %0 = VPUIP.Copy inputs(%arg0 : memref<1x16x1x1xf16, @CMX_NN>) outputs(%arg1 : memref<1x16x1x1xf16>) -> memref<1x16x1x1xf16>
     %1 = VPUIP.Copy inputs(%arg0 : memref<1x16x1x1xf16, @CMX_NN>) outputs(%arg2 : memref<1x16x1x1xf16>) -> memref<1x16x1x1xf16>
@@ -24,7 +25,7 @@ func @CopyFromBlockArgumentNoChange(%arg0: memref<1x16x1x1xf16, @CMX_NN>, %arg1:
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
 // CHECK-LABEL: @CopyToBlockArgumentNoChange
-func @CopyToBlockArgumentNoChange(%arg0: memref<1x16x1x1xf16, #NHWC, @CMX_NN>, %arg1: memref<1x16x1x1xf16>) -> memref<1x16x1x1xf16> {
+func.func @CopyToBlockArgumentNoChange(%arg0: memref<1x16x1x1xf16, #NHWC, @CMX_NN>, %arg1: memref<1x16x1x1xf16>) -> memref<1x16x1x1xf16> {
     %wt = const.Declare memref<16x1x1x4xsi32, @CMX_NN> = dense<1> : tensor<16x1x1x4xsi32>
     %act_win = const.Declare memref<1x1x1x16xui8, @CMX_NN> = dense<1> : tensor<1x1x1x16xui8>
     %0 = memref.alloc() : memref<1x16x1x1xf16, #NHWC, @CMX_NN>
@@ -64,7 +65,7 @@ func @CopyToBlockArgumentNoChange(%arg0: memref<1x16x1x1xf16, #NHWC, @CMX_NN>, %
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
 // CHECK-LABEL: @CopyToBlockArgumentMoveCopyOnly
-func @CopyToBlockArgumentMoveCopyOnly(%arg0: memref<1x16x1x1xf16, #NHWC, @CMX_NN>, %arg1: memref<1x16x1x1xf16>, %arg2: memref<1x16x1x1xf16>) -> (memref<1x16x1x1xf16>, memref<1x16x1x1xf16>) {
+func.func @CopyToBlockArgumentMoveCopyOnly(%arg0: memref<1x16x1x1xf16, #NHWC, @CMX_NN>, %arg1: memref<1x16x1x1xf16>, %arg2: memref<1x16x1x1xf16>) -> (memref<1x16x1x1xf16>, memref<1x16x1x1xf16>) {
     %wt = const.Declare memref<16x1x1x4xsi32, @CMX_NN> = dense<1> : tensor<16x1x1x4xsi32>
     %act_win = const.Declare memref<1x1x1x16xui8, @CMX_NN> = dense<1> : tensor<1x1x1x16xui8>
     %0 = memref.alloc() : memref<1x16x1x1xf16, #NHWC, @CMX_NN>
@@ -129,7 +130,7 @@ func @CopyToBlockArgumentMoveCopyOnly(%arg0: memref<1x16x1x1xf16, #NHWC, @CMX_NN
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
 // CHECK-LABEL: @CopyToBlockArgumentSubView
-func @CopyToBlockArgumentSubView(%arg0: memref<1x8x1x1xf16, #NHWC, @CMX_NN>, %arg1: memref<16x1x1xf16>) -> memref<16x1x1xf16> {
+func.func @CopyToBlockArgumentSubView(%arg0: memref<1x8x1x1xf16, #NHWC, @CMX_NN>, %arg1: memref<16x1x1xf16>) -> memref<16x1x1xf16> {
     %wt = const.Declare memref<8x1x1x4xsi32, @CMX_NN> = dense<1> : tensor<8x1x1x4xsi32>
     %act_win = const.Declare memref<1x1x1x8xui8, @CMX_NN> = dense<1> : tensor<1x1x1x8xui8>
     %0 = memref.alloc() : memref<1x8x1x1xf16, #NHWC, @CMX_NN>
@@ -199,24 +200,24 @@ func @CopyToBlockArgumentSubView(%arg0: memref<1x8x1x1xf16, #NHWC, @CMX_NN>, %ar
 
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
-!SparseInputCMXBufferType = type !VPUIP.SparseBuffer<
+!SparseInputCMXBufferType = !VPUIP.SparseBuffer<
     data=memref<1x16x1x1xf16, @CMX_NN>,
     sparsity_map=memref<1x16x1x1xi1, @CMX_NN>
 >
 
-!SparseInputDDRBufferType = type !VPUIP.SparseBuffer<
+!SparseInputDDRBufferType = !VPUIP.SparseBuffer<
     data=memref<1x16x1x1xf16, @DDR>,
     sparsity_map=memref<1x16x1x1xi1, @DDR>
 >
 
 // CHECK-LABEL: @CopyFromBlockArgumentNoChangeSparse
-func @CopyFromBlockArgumentNoChangeSparse(%arg0: !SparseInputCMXBufferType, %arg1: !SparseInputDDRBufferType, %arg2: !SparseInputDDRBufferType)
+func.func @CopyFromBlockArgumentNoChangeSparse(%arg0: !SparseInputCMXBufferType, %arg1: !SparseInputDDRBufferType, %arg2: !SparseInputDDRBufferType)
         -> (!SparseInputDDRBufferType, !SparseInputDDRBufferType) {
     %0 = VPUIP.Copy inputs(%arg0 : !SparseInputCMXBufferType) outputs(%arg1 : !SparseInputDDRBufferType) -> !SparseInputDDRBufferType
     %1 = VPUIP.Copy inputs(%arg0 : !SparseInputCMXBufferType) outputs(%arg2 : !SparseInputDDRBufferType) -> !SparseInputDDRBufferType
     return %0, %1 : !SparseInputDDRBufferType, !SparseInputDDRBufferType
 
-    // CHECK:       [[VAR0:%.+]] = VPUIP.Copy inputs(%arg0 : !VPUIP.SparseBuffer<data=memref<1x16x1x1xf16, @CMX_NN>, sparsity_map=memref<1x16x1x1xi1, @CMX_NN>>) 
+    // CHECK:       [[VAR0:%.+]] = VPUIP.Copy inputs(%arg0 : !VPUIP.SparseBuffer<data=memref<1x16x1x1xf16, @CMX_NN>, sparsity_map=memref<1x16x1x1xi1, @CMX_NN>>)
     // CHECK-SAME:                      outputs(%arg1 : !VPUIP.SparseBuffer<data=memref<1x16x1x1xf16, @DDR>, sparsity_map=memref<1x16x1x1xi1, @DDR>>)
     // CHECK:       [[VAR1:%.+]] = VPUIP.Copy inputs(%arg0 : !VPUIP.SparseBuffer<data=memref<1x16x1x1xf16, @CMX_NN>, sparsity_map=memref<1x16x1x1xi1, @CMX_NN>>)
     // CHECK-SAME:                      outputs(%arg2 : !VPUIP.SparseBuffer<data=memref<1x16x1x1xf16, @DDR>, sparsity_map=memref<1x16x1x1xi1, @DDR>>)
@@ -227,21 +228,21 @@ func @CopyFromBlockArgumentNoChangeSparse(%arg0: !SparseInputCMXBufferType, %arg
 
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
-!IOZMajorDataType = type memref<1x16x1x1xf16, #NHWC, @CMX_NN>
-!IOZMajorSMType = type memref<1x16x1x1xi1, #NHWC, @CMX_NN>
+!IOZMajorDataType = memref<1x16x1x1xf16, #NHWC, @CMX_NN>
+!IOZMajorSMType = memref<1x16x1x1xi1, #NHWC, @CMX_NN>
 
-!IOZMajorSparseType = type !VPUIP.SparseBuffer<
+!IOZMajorSparseType = !VPUIP.SparseBuffer<
     data=!IOZMajorDataType,
     sparsity_map=!IOZMajorSMType
 >
 
-!SparseOutputDDRBufferType = type !VPUIP.SparseBuffer<
+!SparseOutputDDRBufferType = !VPUIP.SparseBuffer<
     data=memref<1x16x1x1xf16>,
     sparsity_map=memref<1x16x1x1xi1>
 >
 
 // CHECK-LABEL: @CopyToBlockArgumentNoChangeSparse
-func @CopyToBlockArgumentNoChangeSparse(%arg0: !IOZMajorSparseType, %arg1: !SparseOutputDDRBufferType) -> !SparseOutputDDRBufferType {
+func.func @CopyToBlockArgumentNoChangeSparse(%arg0: !IOZMajorSparseType, %arg1: !SparseOutputDDRBufferType) -> !SparseOutputDDRBufferType {
     %wt = const.Declare memref<16x1x1x4xsi32, @CMX_NN> = dense<1> : tensor<16x1x1x4xsi32>
     %act_win = const.Declare memref<1x1x1x16xui8, @CMX_NN> = dense<1> : tensor<1x1x1x16xui8>
     %0 = memref.alloc() : !IOZMajorDataType
@@ -285,7 +286,7 @@ func @CopyToBlockArgumentNoChangeSparse(%arg0: !IOZMajorSparseType, %arg1: !Spar
     // CHECK:       [[BUFF_0_SM:%.+]] = memref.alloc() : memref<1x16x1x1xi1, #NHWC, @CMX_NN>
     // CHECK:       [[BUFF_0:%.*]] = VPUIP.GroupSparseBuffer([[BUFF_0_DATA]], [[BUFF_0_SM]])
 
-    // CHECK:       [[DATA_0:%.*]], [[SM_0:%.*]] = VPUIP.UngroupSparseBuffer(%arg0) 
+    // CHECK:       [[DATA_0:%.*]], [[SM_0:%.*]] = VPUIP.UngroupSparseBuffer(%arg0)
     // CHECK:       [[DATA_1:%.*]], [[SM_1:%.*]] = VPUIP.UngroupSparseBuffer([[BUFF_0]])
 
     // CHECK:       [[NCE0:%.+]]:2 = VPUIP.NCEClusterTask
@@ -306,23 +307,23 @@ func @CopyToBlockArgumentNoChangeSparse(%arg0: !IOZMajorSparseType, %arg1: !Spar
 
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
-!IOZMajorDataType = type memref<1x16x1x1xf16, #NHWC, @CMX_NN>
-!IOZMajorSMType = type memref<1x16x1x1xi1, #NHWC, @CMX_NN>
+!IOZMajorDataType = memref<1x16x1x1xf16, #NHWC, @CMX_NN>
+!IOZMajorSMType = memref<1x16x1x1xi1, #NHWC, @CMX_NN>
 
-!IOZMajorSparseType = type !VPUIP.SparseBuffer<
+!IOZMajorSparseType = !VPUIP.SparseBuffer<
     data=!IOZMajorDataType,
     sparsity_map=!IOZMajorSMType
 >
 
-!SparseOutputDDRBufferType = type !VPUIP.SparseBuffer<
+!SparseOutputDDRBufferType = !VPUIP.SparseBuffer<
     data=memref<1x16x1x1xf16>,
     sparsity_map=memref<1x16x1x1xi1>
 >
 // CHECK-LABEL: @CopyToBlockArgumentMoveCopyOnlySparse
-func @CopyToBlockArgumentMoveCopyOnlySparse(%arg0: !IOZMajorSparseType, %arg1: !SparseOutputDDRBufferType, %arg2: !SparseOutputDDRBufferType) -> (!SparseOutputDDRBufferType, !SparseOutputDDRBufferType) {
+func.func @CopyToBlockArgumentMoveCopyOnlySparse(%arg0: !IOZMajorSparseType, %arg1: !SparseOutputDDRBufferType, %arg2: !SparseOutputDDRBufferType) -> (!SparseOutputDDRBufferType, !SparseOutputDDRBufferType) {
     %wt = const.Declare memref<16x1x1x4xsi32, @CMX_NN> = dense<1> : tensor<16x1x1x4xsi32>
     %act_win = const.Declare memref<1x1x1x16xui8, @CMX_NN> = dense<1> : tensor<1x1x1x16xui8>
-    
+
     %0 = memref.alloc() : !IOZMajorDataType
     %1 = memref.alloc() : !IOZMajorSMType
     %2 = VPUIP.GroupSparseBuffer(%0, %1) -> !IOZMajorSparseType
@@ -399,8 +400,8 @@ func @CopyToBlockArgumentMoveCopyOnlySparse(%arg0: !IOZMajorSparseType, %arg1: !
     // CHECK:       [[BUFF_1_DATA:%.+]] = memref.alloc() : memref<1x16x1x1xf16, #NHWC, @CMX_NN>
     // CHECK:       [[BUFF_1_SM:%.+]] = memref.alloc() : memref<1x16x1x1xi1, #NHWC, @CMX_NN>
     // CHECK:       [[BUFF_1:%.*]] = VPUIP.GroupSparseBuffer([[BUFF_1_DATA]], [[BUFF_1_SM]])
-        
-    // CHECK:       [[DATA_0:%.*]], [[SM_0:%.*]] = VPUIP.UngroupSparseBuffer(%arg0) 
+
+    // CHECK:       [[DATA_0:%.*]], [[SM_0:%.*]] = VPUIP.UngroupSparseBuffer(%arg0)
     // CHECK:       [[DATA_1:%.*]], [[SM_1:%.*]] = VPUIP.UngroupSparseBuffer([[BUFF_0]])
     // CHECK:       [[DATA_2:%.*]], [[SM_2:%.*]] = VPUIP.UngroupSparseBuffer([[BUFF_1]])
 
@@ -432,29 +433,29 @@ func @CopyToBlockArgumentMoveCopyOnlySparse(%arg0: !IOZMajorSparseType, %arg1: !
 
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
-!IOZMajorDataType = type memref<1x8x1x1xf16, #NHWC, @CMX_NN>
-!IOZMajorSMType = type memref<1x8x1x1xi1, #NHWC, @CMX_NN>
+!IOZMajorDataType = memref<1x8x1x1xf16, #NHWC, @CMX_NN>
+!IOZMajorSMType = memref<1x8x1x1xi1, #NHWC, @CMX_NN>
 
-!IOZMajorSparseType = type !VPUIP.SparseBuffer<
+!IOZMajorSparseType = !VPUIP.SparseBuffer<
     data=!IOZMajorDataType,
     sparsity_map=!IOZMajorSMType
 >
 
-!SparseOutputDDRBufferType = type !VPUIP.SparseBuffer<
+!SparseOutputDDRBufferType = !VPUIP.SparseBuffer<
     data=memref<1x16x1x1xf16>,
     sparsity_map=memref<1x16x1x1xi1>
 >
 
-!SparseHalfOutputDDRBufferType = type !VPUIP.SparseBuffer<
+!SparseHalfOutputDDRBufferType = !VPUIP.SparseBuffer<
     data=memref<1x8x1x1xf16, {order = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>, strides = [16, 1, 1, 1]}>,
     sparsity_map=memref<1x8x1x1xi1, {order = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>, strides = [16, 1, 1, 1]}>
 >
 
 // CHECK-LABEL: @CopyToBlockArgumentSubViewSparse
-func @CopyToBlockArgumentSubViewSparse(%arg0: !IOZMajorSparseType, %arg1: !SparseOutputDDRBufferType) -> !SparseOutputDDRBufferType {
+func.func @CopyToBlockArgumentSubViewSparse(%arg0: !IOZMajorSparseType, %arg1: !SparseOutputDDRBufferType) -> !SparseOutputDDRBufferType {
     %wt = const.Declare memref<8x1x1x4xsi32, @CMX_NN> = dense<1> : tensor<8x1x1x4xsi32>
     %act_win = const.Declare memref<1x1x1x8xui8, @CMX_NN> = dense<1> : tensor<1x1x1x8xui8>
-    
+
     %0 = memref.alloc() : !IOZMajorDataType
     %1 = memref.alloc() : !IOZMajorSMType
     %2 = VPUIP.GroupSparseBuffer(%0, %1) -> !IOZMajorSparseType
@@ -536,8 +537,8 @@ func @CopyToBlockArgumentSubViewSparse(%arg0: !IOZMajorSparseType, %arg1: !Spars
     // CHECK:       [[BUFF_1_DATA:%.+]] = memref.alloc() : memref<1x8x1x1xf16, #NHWC, @CMX_NN>
     // CHECK:       [[BUFF_1_SM:%.+]] = memref.alloc() : memref<1x8x1x1xi1, #NHWC, @CMX_NN>
     // CHECK:       [[BUFF_1:%.*]] = VPUIP.GroupSparseBuffer([[BUFF_1_DATA]], [[BUFF_1_SM]])
-        
-    // CHECK:       [[DATA_0:%.*]], [[SM_0:%.*]] = VPUIP.UngroupSparseBuffer(%arg0) 
+
+    // CHECK:       [[DATA_0:%.*]], [[SM_0:%.*]] = VPUIP.UngroupSparseBuffer(%arg0)
     // CHECK:       [[DATA_1:%.*]], [[SM_1:%.*]] = VPUIP.UngroupSparseBuffer([[BUFF_0]])
     // CHECK:       [[DATA_2:%.*]], [[SM_2:%.*]] = VPUIP.UngroupSparseBuffer([[BUFF_1]])
 
@@ -550,7 +551,7 @@ func @CopyToBlockArgumentSubViewSparse(%arg0: !IOZMajorSparseType, %arg1: !Spars
     // CHECK:       [[VAR1:%.*]] = VPUIP.GroupSparseBuffer([[NCE0]]#0, [[NCE0]]#1)
     // CHECK:       [[VAR2:%.*]] = VPUIP.SubView %arg1 [0, 0, 0, 0] [1, 8, 1, 1]
     // CHECK:       [[VAR3:%.+]] = VPUIP.Copy inputs([[VAR1]] : !VPUIP.SparseBuffer<data=memref<1x8x1x1xf16, #NHWC, @CMX_NN>, sparsity_map=memref<1x8x1x1xi1, #NHWC, @CMX_NN>>)
-    // CHECK-SAME:      outputs([[VAR2]] : !VPUIP.SparseBuffer<data=memref<1x8x1x1xf16, {order = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>, strides = [16, 1, 1, 1]}>, 
+    // CHECK-SAME:      outputs([[VAR2]] : !VPUIP.SparseBuffer<data=memref<1x8x1x1xf16, {order = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>, strides = [16, 1, 1, 1]}>,
     // CHECK-SAME:                                             sparsity_map=memref<1x8x1x1xi1, {order = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>, strides = [16, 1, 1, 1]}>>)
 
 
@@ -563,9 +564,9 @@ func @CopyToBlockArgumentSubViewSparse(%arg0: !IOZMajorSparseType, %arg1: !Spars
     // CHECK:       [[VAR4:%.*]] = VPUIP.GroupSparseBuffer([[NCE1]]#0, [[NCE1]]#1)
     // CHECK:       [[VAR5:%.*]] = VPUIP.SubView %arg1 [0, 8, 0, 0] [1, 8, 1, 1]
     // CHECK:       [[VAR6:%.+]] = VPUIP.Copy inputs([[VAR4]] : !VPUIP.SparseBuffer<data=memref<1x8x1x1xf16, #NHWC, @CMX_NN>, sparsity_map=memref<1x8x1x1xi1, #NHWC, @CMX_NN>>)
-    // CHECK-SAME:      outputs([[VAR5]] : !VPUIP.SparseBuffer<data=memref<1x8x1x1xf16, {order = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>, strides = [16, 1, 1, 1]}>, 
+    // CHECK-SAME:      outputs([[VAR5]] : !VPUIP.SparseBuffer<data=memref<1x8x1x1xf16, {order = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>, strides = [16, 1, 1, 1]}>,
     // CHECK-SAME:                                             sparsity_map=memref<1x8x1x1xi1, {order = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>, strides = [16, 1, 1, 1]}>>)
-    
+
     // CHECK:       [[VAR7:%.+]] = VPUIP.ConcatView inputs([[VAR3]], [[VAR6]]
     // CHECK-SAME:      outputs(%arg1 : !VPUIP.SparseBuffer<data=memref<1x16x1x1xf16>, sparsity_map=memref<1x16x1x1xi1>>) -> !VPUIP.SparseBuffer<data=memref<1x16x1x1xf16>, sparsity_map=memref<1x16x1x1xi1>>
 

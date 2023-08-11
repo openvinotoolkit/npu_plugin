@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/IE/ops.hpp"
 
 #include "vpux/compiler/dialect/IE/utils/const_attributes.hpp"
@@ -21,7 +19,7 @@ mlir::LogicalResult vpux::IE::ReduceSumOp::inferReturnTypeComponents(
         mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
         mlir::DictionaryAttr attrs, mlir::RegionRange,
         SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
-    const auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
+    const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
     IE::ReduceSumOpAdaptor reduceSum(operands, attrs);
     if (mlir::failed(reduceSum.verify(loc))) {
@@ -40,14 +38,15 @@ mlir::LogicalResult vpux::IE::ReduceSumOp::inferReturnTypeComponents(
     return IE::inferReduceReturnTypeComponents(loc, input, keepDims, axesValue, inferredReturnShapes);
 }
 
-mlir::LogicalResult vpux::IE::verifyOp(IE::ReduceSumOp op) {
-    const auto axes = op.axes().getType().dyn_cast<mlir::RankedTensorType>();
+mlir::LogicalResult vpux::IE::ReduceSumOp::verify() {
+    const auto op = getOperation();
+    const auto opAxes = axes().getType().dyn_cast<mlir::RankedTensorType>();
 
-    if (axes == nullptr) {
-        return errorAt(op, "Axes is not a 'RankedTensorType', got '{0}'", axes);
+    if (opAxes == nullptr) {
+        return errorAt(op, "Axes is not a 'RankedTensorType', got '{0}'", opAxes);
     }
 
-    const auto axesRank = axes.getRank();
+    const auto axesRank = opAxes.getRank();
 
     // The axes input must be a scalar or 1D tensor
     if (axesRank > 1) {
@@ -56,13 +55,13 @@ mlir::LogicalResult vpux::IE::verifyOp(IE::ReduceSumOp op) {
                        axesRank);
     }
     // The axes input must have integer type.
-    if (!axes.getElementType().isa<mlir::IntegerType>()) {
+    if (!opAxes.getElementType().isa<mlir::IntegerType>()) {
         return errorAt(op, " Axes input must have integer element type but actual element type is '{0}'",
-                       axes.getElementType());
+                       opAxes.getElementType());
     }
 
     // The axes input must contain unique elements
-    auto axesVec = parseIntArrayAttr<int64_t>(vpux::IE::getIntArrayAttrValue(op.axes()));
+    auto axesVec = parseIntArrayAttr<int64_t>(vpux::IE::getIntArrayAttrValue(axes()));
     llvm::sort(axesVec);
     bool isAllUnique = std::unique(axesVec.begin(), axesVec.end()) == axesVec.end();
     if (!isAllUnique) {

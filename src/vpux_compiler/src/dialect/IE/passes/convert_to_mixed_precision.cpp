@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/IE/passes.hpp"
 
 #include "vpux/compiler/dialect/VPU/attributes.hpp"
@@ -57,7 +55,7 @@ bool isMixPrecisionSupported(mlir::Operation* origOp, const VPU::ArchKind& arch,
             return false;
     }
 
-    // Mixed precision for average pooling is supported only for VPUX37XX target
+    // Mixed precision for average pooling is supported only for VPUX37XX targets
     if (mlir::isa<IE::AvgPoolOp>(origOp) && compatibleTargets.count(arch) == 0) {
         return false;
     }
@@ -577,7 +575,7 @@ mlir::LogicalResult QuantizeWithNCERewriter::matchAndRewrite(IE::QuantizeOp orig
 
 void ConvertToMixedPrecisionPass::safeRunOnFunc() {
     auto& ctx = getContext();
-    auto func = getFunction();
+    auto func = getOperation();
     auto module = func->getParentOfType<mlir::ModuleOp>();
     const auto arch = VPU::getArch(module);
 

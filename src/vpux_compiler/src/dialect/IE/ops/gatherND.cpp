@@ -16,7 +16,7 @@ mlir::LogicalResult vpux::IE::GatherNDOp::inferReturnTypeComponents(
         mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
         mlir::DictionaryAttr attrs, mlir::RegionRange,
         SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
-    const auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
+    const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
     IE::GatherNDOpAdaptor gatherND(operands, attrs);
     if (mlir::failed(gatherND.verify(loc))) {
@@ -46,12 +46,13 @@ mlir::LogicalResult vpux::IE::GatherNDOp::inferReturnTypeComponents(
 // verify
 //
 
-mlir::LogicalResult vpux::IE::verifyOp(GatherNDOp op) {
-    const auto inType = op.input().getType().cast<mlir::ShapedType>();
+mlir::LogicalResult vpux::IE::GatherNDOp::verify() {
+    const auto op = getOperation();
+    const auto inType = input().getType().cast<mlir::ShapedType>();
     const auto inputShape = inType.getShape();
-    const auto indicesShape = op.indices().getType().cast<mlir::ShapedType>().getShape();
+    const auto indicesShape = indices().getType().cast<mlir::ShapedType>().getShape();
 
-    const auto batchDims = op.batch_dims();
+    const auto batchDims = batch_dims();
     const auto lastIndices = indicesShape.back();
     const auto inputRank = static_cast<int64_t>(inputShape.size());
     const auto indicesRank = static_cast<int64_t>(indicesShape.size());

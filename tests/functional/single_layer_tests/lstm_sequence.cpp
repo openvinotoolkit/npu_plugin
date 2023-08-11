@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,19 +8,16 @@
 #include "shared_tests_instances/kmb_layer_test.hpp"
 
 #include <memory>
-#include <ngraph/op/util/attr_types.hpp>
 #include <string>
 #include <tuple>
 #include "ngraph/pass/visualize_tree.hpp"
 #include "ngraph_functions/builders.hpp"
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
-#include "transformations/op_conversions/bidirectional_sequences_decomposition.hpp"
-#include "transformations/op_conversions/convert_sequences_to_tensor_iterator.hpp"
 
 namespace LayerTestsDefinitions {
 
-class KmbLSTMSequenceLayerTest :
+class VPUXLSTMSequenceLayerTest_VPU3700 :
         public testing::WithParamInterface<LSTMSequenceParams>,
         virtual public LayerTestsUtils::LayerTestsCommon,
         virtual public LayerTestsUtils::KmbLayerTestsCommon {
@@ -111,9 +108,7 @@ protected:
 
 private:
     void SkipBeforeValidate() override {
-        if (isCompilerMLIR()) {
-            throw LayerTestsUtils::KmbSkipTestException("differs from the reference");
-        }
+        throw LayerTestsUtils::KmbSkipTestException("differs from the reference");
     }
 
 private:
@@ -129,13 +124,13 @@ class VPUXLSTMSequenceLayerTest_VPU3720 : public LSTMSequenceTest, virtual publi
     }
 };
 
-TEST_P(KmbLSTMSequenceLayerTest, CompareWithRefs_MLIR) {
-    useCompilerMLIR();
+TEST_P(VPUXLSTMSequenceLayerTest_VPU3700, HW) {
+    setPlatformVPU3700();
+    setDefaultHardwareModeMLIR();
     Run();
 }
 
-TEST_P(VPUXLSTMSequenceLayerTest_VPU3720, CompareWithRefs_MLIR) {
-    useCompilerMLIR();
+TEST_P(VPUXLSTMSequenceLayerTest_VPU3720, HW) {
     setPlatformVPU3720();
     setDefaultHardwareModeMLIR();
     Run();
@@ -159,21 +154,21 @@ std::vector<ngraph::op::RecurrentSequenceDirection> direction = {ngraph::op::Rec
                                                                  ngraph::op::RecurrentSequenceDirection::BIDIRECTIONAL};
 std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP16};
 
-INSTANTIATE_TEST_CASE_P(smoke_LSTMSequenceCommonZeroClip, KmbLSTMSequenceLayerTest,
+INSTANTIATE_TEST_CASE_P(smoke_LSTMSequenceCommonZeroClip, VPUXLSTMSequenceLayerTest_VPU3700,
                         ::testing::Combine(::testing::ValuesIn(mode), ::testing::ValuesIn(seq_lengths_zero_clip),
                                            ::testing::ValuesIn(batch), ::testing::ValuesIn(hidden_size),
                                            ::testing::ValuesIn(input_size), ::testing::ValuesIn(activations),
                                            ::testing::ValuesIn(clip), ::testing::ValuesIn(direction),
                                            ::testing::ValuesIn(netPrecisions),
                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
-                        KmbLSTMSequenceLayerTest::getTestCaseName);
+                        VPUXLSTMSequenceLayerTest_VPU3700::getTestCaseName);
 
 std::vector<size_t> seq_lengths_zero_clip_vpu3720{3};
 std::vector<size_t> batch_vpu3720{3};
 std::vector<size_t> hidden_size_vpu3720{64};
 std::vector<size_t> input_size_vpu3720{67};
 
-INSTANTIATE_TEST_CASE_P(smoke_LSTMSequenceCommonZeroClipVPU3720, VPUXLSTMSequenceLayerTest_VPU3720,
+INSTANTIATE_TEST_CASE_P(smoke_precommit_LSTMSequenceCommonZeroClipVPU3720, VPUXLSTMSequenceLayerTest_VPU3720,
                         ::testing::Combine(::testing::ValuesIn(mode),
                                            ::testing::ValuesIn(seq_lengths_zero_clip_vpu3720),
                                            ::testing::ValuesIn(batch_vpu3720), ::testing::ValuesIn(hidden_size_vpu3720),

@@ -10,7 +10,6 @@
 #include "vpux/compiler/dialect/VPU/passes.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
-#include "vpux/compiler/dialect/VPUIP/utils.hpp"
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
 #include "vpux/compiler/dialect/VPURT/task.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
@@ -18,7 +17,6 @@
 #include "vpux/hwtest/ops/act_shave_op.hpp"
 #include "vpux/hwtest/test_case_json_parser.hpp"
 #include "vpux/utils/core/error.hpp"
-#include "vpux/utils/core/numeric.hpp"
 
 namespace vpux {
 namespace hwtest {
@@ -92,7 +90,7 @@ void buildReadAfterWriteDPUACTTest(const nb::TestCaseJsonDescriptor& testDesc, m
     const auto funcType = builder.getFunctionType(SmallVector<mlir::Type>{inputParamType, outputParamType},
                                                   SmallVector<mlir::Type>{outputParamType});
 
-    auto function = builder.create<mlir::FuncOp>(
+    auto function = builder.create<mlir::func::FuncOp>(
             loc, printToString("read_after_write_dpu_act_{0}_{1}_{2}", inputType, weightsType, outputType), funcType,
             builder.getStringAttr("private"));
 
@@ -221,7 +219,7 @@ void buildReadAfterWriteDPUACTTest(const nb::TestCaseJsonDescriptor& testDesc, m
     VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(waitBarrier.barrier()), mlir::ValueRange(),
                                           loc, outputDPUCMX.getOperation()->getResult(0), functionOutput);
 
-    functionBuilder.create<mlir::ReturnOp>(loc, mlir::ValueRange{functionOutput});
+    functionBuilder.create<mlir::func::ReturnOp>(loc, mlir::ValueRange{functionOutput});
 
     mlir::PassManager pm(ctx, mlir::OpPassManager::Nesting::Implicit);
     pm.addPass(VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::ReferenceHW, 1, 1, None,

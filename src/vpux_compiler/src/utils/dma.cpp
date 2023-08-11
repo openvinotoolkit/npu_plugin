@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/utils/dma.hpp"
 
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
@@ -14,23 +12,17 @@
 using namespace vpux;
 
 int64_t vpux::getDMAPortValue(mlir::Operation* wrappedTaskOp) {
-    if (auto dmaOp = mlir::dyn_cast<VPUIP::NNDMAOp>(wrappedTaskOp)) {
-        return dmaOp.port();
-    } else if (auto compressedDmaOp = mlir::dyn_cast<VPUIP::CompressedDMAOp>(wrappedTaskOp)) {
-        return compressedDmaOp.port();
-    } else if (auto depthToSpaceDMAOp = mlir::dyn_cast<VPUIP::DepthToSpaceDMAOp>(wrappedTaskOp)) {
-        return depthToSpaceDMAOp.port();
-    } else if (auto spaceToDepthDMAOp = mlir::dyn_cast<VPUIP::SpaceToDepthDMAOp>(wrappedTaskOp)) {
-        return spaceToDepthDMAOp.port();
-    } else if (auto perAxisTileDMAOp = mlir::dyn_cast<VPUIP::PerAxisTileDMAOp>(wrappedTaskOp)) {
-        return perAxisTileDMAOp.port();
-    } else if (auto permuteDMAOp = mlir::dyn_cast<VPUIP::PermuteDMAOp>(wrappedTaskOp)) {
-        return permuteDMAOp.port();
-    } else if (auto expandDMAOp = mlir::dyn_cast<VPUIP::ExpandDMAOp>(wrappedTaskOp)) {
-        return expandDMAOp.port();
-    } else if (auto upsamplingDMAOp = mlir::dyn_cast<VPUIP::UpsamplingDMAOp>(wrappedTaskOp)) {
-        return upsamplingDMAOp.port();
+    if (auto dmaOp = mlir::dyn_cast<VPUIP::DMATypeOpInterface>(wrappedTaskOp)) {
+        auto portAttr = dmaOp.getPortAttr();
+        if (portAttr == nullptr) {
+            return 0;
+        }
+        return portAttr.getInt();
     }
 
-    VPUX_THROW("Could not cast to DMA task");
+    VPUX_THROW("Could not cast to DMA task '{0}'", *wrappedTaskOp);
+}
+
+VPUIP::DmaChannelType vpux::setDMAChannelType(VPUIP::DMATypeOpInterface /*dmaOp*/, VPU::ArchKind /*arch*/) {
+    return VPUIP::DmaChannelType::DDR;
 }

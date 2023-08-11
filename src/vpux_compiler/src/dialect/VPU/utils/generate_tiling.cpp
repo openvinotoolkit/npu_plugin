@@ -2,14 +2,11 @@
 // Copyright (C) 2022 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
-
-//
 #include <llvm/ADT/TypeSwitch.h>
 
 #include "vpux/compiler/core/attributes/dim.hpp"
 #include "vpux/compiler/core/tiling.hpp"
 #include "vpux/compiler/dialect/VPU/ops.hpp"
-#include "vpux/compiler/dialect/VPU/strategy_manager.hpp"
 #include "vpux/compiler/dialect/VPU/utils/distributed_tensor_utils.hpp"
 #include "vpux/compiler/dialect/VPU/utils/generate_tiling.hpp"
 #include "vpux/compiler/dialect/VPU/utils/manual_strategy_utils.hpp"
@@ -17,9 +14,27 @@
 namespace vpux {
 namespace VPU {
 
-void storeTilingStrategyForOp(mlir::Operation* op, ShapeRef nTilesOnDim) {
-    const auto tilesAttr = getIntArrayAttr(op->getContext(), nTilesOnDim);
-    op->setAttr(tilingStrategy, tilesAttr);
+OutputTiling getLayerTilingStrategy(VPU::TilingBuilderOpInterface origOp, bool enablePrefetchTiling, Logger log) {
+    log.trace("getLayerTilingStrategy for op '{0}' at '{1}'", origOp->getName(), origOp->getLoc());
+    auto op = origOp.getOperation();
+    auto tilingInfo = mlir::cast<VPU::TilingInfoOpInterface>(op);
+
+    log.nest().trace("Enable Prefetch Tiling: {0}", enablePrefetchTiling);
+
+    // Default to ISOLATED mode
+    auto mode = TilingMode::ISOLATED;
+
+    // Prefetching for HW layers
+    if (enablePrefetchTiling && mlir::isa<VPU::NCEOpInterface>(op)) {
+        const auto resShape = getShape(op->getResult(0));
+        const auto isSupportIsolated =
+                tilingInfo.isSupportedTiling({TileInfo(resShape)}, TilingMode::ISOLATED, log.nest());
+        const auto isPrefetchable = VPU::prefetchTilingConditionSatisfied(op, log.nest());
+        mode = isSupportIsolated && isPrefetchable ? TilingMode::PREFETCHING : TilingMode::PIPELINING;
+    }
+
+    log.nest().trace("Assigning {0} tiling strategy", getTilingModeStr(mode));
+    return origOp.getTilingStrategy(mode, log.nest());
 }
 
 mlir::LogicalResult checkAndAlignActInputTiling(vpux::VPU::NCEOpInterface nceOp, InputTiling& inputTiling,
@@ -165,10 +180,13 @@ mlir::Value reifyTile(VPU::TilingBuilderOpInterface origOp, const TileInfo& outp
 
 mlir::LogicalResult applyTileStrategy(VPU::TilingBuilderOpInterface origOp, OutputTiling tiles,
                                       mlir::PatternRewriter& rewriter, Logger log) {
-    storeTilingStrategyForOp(origOp.getOperation(), tiles.front().axis);
     // TODO: delete when function will allow rewrite for multiple output ops (E#59988)
     if (mlir::isa<VPU::TopKOp>(origOp)) {
         return applyTileStrategyTopK(origOp, tiles, rewriter, log);
+    }
+    if (mlir::isa<VPU::GRUSequenceOp>(origOp)) {
+        auto gruSequenceOp = mlir::dyn_cast<VPU::GRUSequenceOp>(origOp.getOperation());
+        return gruSequenceOp.applyTileStrategyGRUSequence(origOp, tiles, rewriter, log);
     }
 
     // apply the generated tiling strategy and create tiled operations
@@ -324,7 +342,8 @@ bool prefetchTilingConditionSatisfied(mlir::Operation* op, Logger log) {
 
 bool isLargeConstOp(mlir::Operation* op, Logger log) {
     // The operation should have constant filter
-    if (!mlir::isa<VPU::NCEConvolutionOp>(op) && !mlir::isa<VPU::NCEDepthConvolutionOp>(op)) {
+    if (!mlir::isa<VPU::NCEConvolutionOp>(op) && !mlir::isa<VPU::NCEDepthConvolutionOp>(op) &&
+        !mlir::isa<VPU::NCECompressConvolutionOp>(op)) {
         return false;
     }
     auto filter = op->getOperand(1).getDefiningOp<Const::DeclareOp>();
@@ -380,7 +399,7 @@ bool largeConstPipelineConditionSatisfied(mlir::Operation* op, Logger log) {
 }
 
 bool archSupportsSwLayerTiling(VPU::ArchKind arch) {
-    return arch != VPU::ArchKind::VPUX30XX && arch != VPU::ArchKind::VPUX311X;
+    return arch == VPU::ArchKind::VPUX37XX;
 }
 
 }  // namespace VPU

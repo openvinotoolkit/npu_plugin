@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/IE/passes.hpp"
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
@@ -59,7 +57,7 @@ void LegalizeNDMemPermutePass::safeRunOnFunc() {
     // Only enabled for VPUX37XX where Tiling for SW kernels is limited to 4D ops. Not all ops can be
     // reduced to 4D! As a future task these ops they could be decomposed into multiple MemPermutes that are 4D.
     // ToDo: Remove pass after limitation.
-    auto func = getFunction();
+    auto func = getOperation();
 
     func.walk([this](IE::MemPermuteOp origOp) {
         auto _log = this->_log;

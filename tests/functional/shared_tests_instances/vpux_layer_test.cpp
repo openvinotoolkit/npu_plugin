@@ -4,170 +4,149 @@
 //
 
 #include "vpux_layer_test.hpp"
-#include <signal.h>
-#include <stdlib.h>
-#include <common/utils.hpp>
-#include <common_test_utils/common_utils.hpp>
-#include <exception>
-#include <functional_test_utils/skip_tests_config.hpp>
-#include <ngraph_functions/utils/ngraph_helpers.hpp>
+#include <gtest/internal/gtest-internal.h>
 #include <openvino/runtime/core.hpp>
 #include <shared_test_classes/base/layer_test_utils.hpp>
+#include <sstream>
 #include <vpux/utils/IE/config.hpp>
-#include <vpux/utils/core/error.hpp>
+#include <vpux_private_config.hpp>
+
 #include "kmb_test_report.hpp"
 
-namespace VPUXLayerTestsUtils {
+VPUXLayerTest::VPUXLayerTest() {
+    VPUX_THROW_UNLESS(core != nullptr, "ov::Core instance is null");
 
-const LayerTestsUtils::KmbTestEnvConfig VPUXLayerTestsCommon::envConfig = LayerTestsUtils::KmbTestEnvConfig{};
+    _log.setName("VPUXTest");
+    _log.setLevel(vpux::LogLevel::Info);
 
-VPUXLayerTestsCommon::VPUXLayerTestsCommon() {
-    IE_ASSERT(core != nullptr);
-    _log.setLevel(vpux::LogLevel::Warning);
-
-    if (!envConfig.IE_KMB_TESTS_LOG_LEVEL.empty()) {
-        core->set_property(testPlatformTargetDevice, {{CONFIG_KEY(LOG_LEVEL), envConfig.IE_KMB_TESTS_LOG_LEVEL}});
-
-        const auto logLevel = vpux::OptionParser<vpux::LogLevel>::parse(envConfig.IE_KMB_TESTS_LOG_LEVEL);
+    if (auto var = std::getenv("IE_VPUX_TESTS_LOG_LEVEL")) {
+        const auto logLevel = vpux::OptionParser<vpux::LogLevel>::parse(var);
         _log.setLevel(logLevel);
     }
 }
 
-void VPUXLayerTestsCommon::configure_model() {
-    const char* DEFAULT_IE_KMB_TESTS_INFERENCE_SHAVES = "16";
-    configuration[VPUX_CONFIG_KEY(INFERENCE_SHAVES)] = DEFAULT_IE_KMB_TESTS_INFERENCE_SHAVES;
-    if (configuration.count(VPUX_CONFIG_KEY(PLATFORM)) == 0) {
-        configuration[VPUX_CONFIG_KEY(PLATFORM)] = envConfig.IE_KMB_TESTS_PLATFORM;
-    }
-
-    SubgraphBaseTest::configure_model();
+void VPUXLayerTest::run(VPUXPlatform platform) {
+    setPlatform(platform);
+    run();
 }
 
-void VPUXLayerTestsCommon::useCompilerMLIR() {
-    configuration[VPUX_CONFIG_KEY(COMPILER_TYPE)] = VPUX_CONFIG_VALUE(MLIR);
-}
-
-void VPUXLayerTestsCommon::setReferenceSoftwareModeMLIR() {
-    configuration[VPUX_CONFIG_KEY(COMPILATION_MODE)] = "ReferenceSW";
-}
-
-void VPUXLayerTestsCommon::setDefaultHardwareModeMLIR() {
-    configuration[VPUX_CONFIG_KEY(COMPILATION_MODE)] = "DefaultHW";
-}
-
-void VPUXLayerTestsCommon::setPlatformVPU3720() {
-    configuration[VPUX_CONFIG_KEY(PLATFORM)] = "VPU3720";
-}
-
-bool VPUXLayerTestsCommon::isCompilerMLIR() const {
-    const auto it = configuration.find(VPUX_CONFIG_KEY(COMPILER_TYPE));
-    if (it == configuration.end()) {
-        return false;
-    }
-
-    return it->second.as<std::string>() == VPUX_CONFIG_VALUE(MLIR);
-}
-
-bool VPUXLayerTestsCommon::isPlatformVPU3720() const {
-    const auto it = configuration.find(VPUX_CONFIG_KEY(PLATFORM));
-    if (it == configuration.end()) {
-        return false;
-    }
-
-    return it->second.as<std::string>() == "VPU3720";
-}
-
-void VPUXLayerTestsCommon::run() {
-    ov::test::utils::PassRate::Statuses status = FuncTestUtils::SkipTestsConfig::currentTestIsDisabled()
-                                                         ? ov::test::utils::PassRate::Statuses::SKIPPED
-                                                         : ov::test::utils::PassRate::Statuses::CRASHED;
+void VPUXLayerTest::run() {
     summary.setDeviceName(targetDevice);
-    summary.updateOPsStats(function, status);
 
-    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    if (FuncTestUtils::SkipTestsConfig::currentTestIsDisabled()) {
+        summary.updateOPsStats(function, ov::test::utils::PassRate::Statuses::SKIPPED);
+        GTEST_SKIP_("Disabled test due to configuration");
+    }
+
+    summary.updateOPsStats(function, ov::test::utils::PassRate::Statuses::CRASHED);
 
     ASSERT_FALSE(targetStaticShapes.empty()) << "Target Static Shape is empty!";
 
-    // Using KmbTestReport to have a uniform class for both OV test frameworks
-    auto& report = LayerTestsUtils::KmbTestReport::getInstance();
-    const auto& testInfo = testing::UnitTest::GetInstance()->current_test_info();
-    report.run(testInfo);
+    auto crashHandler = std::make_unique<CommonTestUtils::CrashHandler>();
 
-    std::string errorMessage;
-    try {
-        printNetworkConfig();
-        if (skipBeforeLoadImpl()) {
-            return;
-        }
-
-        if (envConfig.IE_KMB_TESTS_RUN_COMPILER) {
-            std::cout << "*** COMPILE MODEL ***\n";
-            compile_model();
-            report.compiled(testInfo);
-            exportNetwork();
+#ifdef _WIN32
+    switch (setjmp(CommonTestUtils::env)) {
+#else
+    switch (sigsetjmp(CommonTestUtils::env, 1)) {
+#endif
+    case CommonTestUtils::JMP_STATUS::ok:
+        crashHandler->StartTimer();
+        if (auto errorMessage = runTest()) {
+            _log.error("Test has failed: {0}", errorMessage->c_str());
+            GTEST_FATAL_FAILURE_(errorMessage->c_str());
+            summary.updateOPsStats(function, ov::test::utils::PassRate::Statuses::FAILED);
         } else {
-            importNetwork();
-            report.imported(testInfo);
+            summary.updateOPsStats(function, ov::test::utils::PassRate::Statuses::PASSED);
         }
+        break;
+    case CommonTestUtils::JMP_STATUS::anyError:
+        GTEST_FATAL_FAILURE_("Crash happened");
+        break;
+    case CommonTestUtils::JMP_STATUS::alarmErr:
+        summary.updateOPsStats(function, ov::test::utils::PassRate::Statuses::HANGED);
+        GTEST_FATAL_FAILURE_("Application hanged");
+        break;
+    default:
+        GTEST_FATAL_FAILURE_("Test failed: Unsupported failure type");
+    }
+}
+
+VPUXLayerTest::ErrorMessage VPUXLayerTest::runTest() {
+    try {
+        auto& report = LayerTestsUtils::KmbTestReport::getInstance();
+        const auto testInfo = testing::UnitTest::GetInstance()->current_test_info();
+        report.run(testInfo);
+
+        printNetworkConfig();
+
+        if (skipCompilationImpl()) {
+            return std::nullopt;
+        }
+
+        _log.debug("Compile model");
+        compile_model();
+        report.compiled(testInfo);
 
         for (const auto& targetStaticShapeVec : targetStaticShapes) {
             try {
                 if (!inputDynamicShapes.empty()) {
                     ngraph::helpers::resize_function(functionRefs, targetStaticShapeVec);
                 }
-
                 generate_inputs(targetStaticShapeVec);
-                exportInput();
-                importInput();
-
-                if (skipBeforeInferImpl()) {
-                    continue;
-                }
-
-                std::cout << "*** INFER USING " << getBackendName(*core) << " ***\n";
-                infer();
-                report.inferred(testInfo);
-
-                if (skipBeforeValidateImpl()) {
-                    continue;
-                }
-
-                std::cout << "*** VALIDATE ***\n";
-                validate();
-                report.validated(testInfo);
-                exportReference();
-                exportOutput();
             } catch (const std::exception& ex) {
-                throw std::runtime_error("Incorrect target static shape: " +
-                                         CommonTestUtils::vec2str(targetStaticShapeVec) + "\n" + ex.what());
+                return ErrorMessage{"Impossible to reshape ov::Model using the shape: " +
+                                    CommonTestUtils::vec2str(targetStaticShapeVec) + " " + ex.what()};
+            }
+
+            try {
+                if (skipInferenceImpl()) {
+                    continue;
+                }
+
+                // [Track number: C#104172]
+                // The infer() function is called inside validate() -> get_plugin_outputs() function
+                _log.info("Infer using '{0}' backend & validate", getBackendName(*core));
+                validate();
+                report.inferred(testInfo);
+                report.validated(testInfo);
+            } catch (const std::exception& ex) {
+                return ErrorMessage{"Test failed on static shape: " + CommonTestUtils::vec2str(targetStaticShapeVec) +
+                                    "\n" + ex.what()};
             }
         }
-        status = ov::test::utils::PassRate::Statuses::PASSED;
     } catch (const std::exception& ex) {
-        status = ov::test::utils::PassRate::Statuses::FAILED;
-        errorMessage = ex.what();
+        return ErrorMessage{ex.what()};
     } catch (...) {
-        status = ov::test::utils::PassRate::Statuses::FAILED;
-        errorMessage = "Unknown failure occurred.";
+        return ErrorMessage{"Unknown failure occurred."};
     }
 
-    summary.updateOPsStats(function, status);
-    if (status != ov::test::utils::PassRate::Statuses::PASSED) {
-        _log.error("Test has failed: {0}", errorMessage.c_str());
-        GTEST_FATAL_FAILURE_(errorMessage.c_str());
-    }
+    return std::nullopt;
 }
 
-bool VPUXLayerTestsCommon::skipBeforeLoadImpl() {
-    if (auto skipMessage = SkipBeforeLoad()) {
-        _log.warning("Compilation skipped: {0}", skipMessage.getValue());
-        return true;
+void VPUXLayerTest::setSkipCompilationCallback(SkipCallback skipCallback) {
+    skipCompilationCallback = skipCallback;
+}
+
+void VPUXLayerTest::setSkipInferenceCallback(SkipCallback skipCallback) {
+    skipInferenceCallback = skipCallback;
+}
+
+bool VPUXLayerTest::skipCompilationImpl() {
+    if (skipCompilationCallback != nullptr) {
+        std::stringstream skipStream;
+        skipCompilationCallback(skipStream);
+
+        const auto skipMessage = skipStream.str();
+        if (!skipMessage.empty()) {
+            _log.warning("Compilation skipped: {0}", skipMessage);
+            return true;
+        }
     }
 
     return false;
 }
 
-bool VPUXLayerTestsCommon::skipBeforeInferImpl() {
+bool VPUXLayerTest::skipInferenceImpl() {
     const auto backendName = getBackendName(*core);
 
     if (backendName.empty()) {
@@ -175,88 +154,76 @@ bool VPUXLayerTestsCommon::skipBeforeInferImpl() {
         return true;
     }
 
-    // [Track number: E#20335]
-    // Disabling inference for layer tests on emulator device due to segfault
-    if (backendName == "EMULATOR") {
-        _log.warning("Inference skipped: backend is EMULATOR");
-        return true;
-    }
+    if (skipInferenceCallback != nullptr) {
+        std::stringstream skipStream;
+        skipInferenceCallback(skipStream);
 
-    if (auto skipMessage = SkipBeforeInfer()) {
-        _log.warning("Inference skipped: {0}", skipMessage.getValue());
-        return true;
-    }
-
-    return false;
-}
-
-bool VPUXLayerTestsCommon::skipBeforeValidateImpl() {
-    if (auto skipMessage = SkipBeforeValidate()) {
-        _log.warning("Validation skipped: {0}", skipMessage.getValue());
-        return true;
+        const auto skipMessage = skipStream.str();
+        if (!skipMessage.empty()) {
+            _log.warning("Inference skipped: {0}", skipStream.str());
+            return true;
+        }
     }
 
     return false;
 }
 
-SkipMessage VPUXLayerTestsCommon::SkipBeforeLoad() {
-    return {};
-}
-SkipMessage VPUXLayerTestsCommon::SkipBeforeInfer() {
-    return {};
-}
-SkipMessage VPUXLayerTestsCommon::SkipBeforeValidate() {
-    return {};
-}
-
-void VPUXLayerTestsCommon::importNetwork() {
-    // [Track number: E#24517]
-    _log.warning("VPUXLayerTestsCommon::importNetwork() is not implemented");
-}
-
-void VPUXLayerTestsCommon::exportNetwork() {
-    // [Track number: E#24517]
-    if (envConfig.IE_KMB_TESTS_RUN_EXPORT) {
-        _log.warning("VPUXLayerTestsCommon::exportNetwork() is not implemented");
-    }
-}
-
-void VPUXLayerTestsCommon::importInput() {
-    // [Track number: E#24517]
-    if (envConfig.IE_KMB_TESTS_IMPORT_INPUT) {
-        _log.warning("VPUXLayerTestsCommon::importInput() is not implemented");
-    }
-}
-
-void VPUXLayerTestsCommon::exportInput() {
-    // [Track number: E#24517]
-    if (envConfig.IE_KMB_TESTS_EXPORT_INPUT) {
-        _log.warning("VPUXLayerTestsCommon::exportInput() is not implemented");
-    }
-}
-
-void VPUXLayerTestsCommon::exportOutput() {
-    // [Track number: E#24517]
-    if (envConfig.IE_KMB_TESTS_EXPORT_OUTPUT) {
-        _log.warning("VPUXLayerTestsCommon::exportOutput() is not implemented");
-    }
-}
-
-void VPUXLayerTestsCommon::exportReference() {
-    // [Track number: E#24517]
-    if (envConfig.IE_KMB_TESTS_EXPORT_REF) {
-        _log.warning("VPUXLayerTestsCommon::exportReference() is not implemented");
-    }
-}
-
-void VPUXLayerTestsCommon::printNetworkConfig() const {
+void VPUXLayerTest::printNetworkConfig() const {
     std::ostringstream ostr;
     for (const auto& item : configuration) {
         ostr << item.first << "=";
         item.second.print(ostr);
         ostr << "; ";
     }
-    std::cout << "LoadNetwork Config: " << ostr.str() << '\n';
+    _log.info("VPUX Plugin config: {0}", ostr.str());
 }
 
-}  // namespace VPUXLayerTestsUtils
+void VPUXLayerTest::setPlatform(VPUXPlatform platform) {
+    const auto platformString = [&]() {
+        switch (platform) {
+        case VPUXPlatform::VPU3700:
+            return "3700";
+        case VPUXPlatform::VPU3720:
+            return "3720";
+        default:
+            VPUX_THROW("Unsupported platform provided");
+            return "None";
+        }
+    }();
+
+    // [Track number: E#70404]
+    // Multiple different ways of setting the platform
+    configuration[VPUX_CONFIG_KEY(PLATFORM)] = platformString;
+    configuration[CONFIG_KEY(DEVICE_ID)] = platformString;
+}
+
+void VPUXLayerTest::setReferenceSoftwareMode() {
+    configuration[VPUX_CONFIG_KEY(COMPILATION_MODE)] = "ReferenceSW";
+}
+
+void VPUXLayerTest::setDefaultHardwareMode() {
+    configuration[VPUX_CONFIG_KEY(COMPILATION_MODE)] = "DefaultHW";
+}
+
+bool VPUXLayerTest::isReferenceSoftwareMode() const {
+    const auto compilationMode = configuration.at(VPUX_CONFIG_KEY(COMPILATION_MODE)).as<std::string>();
+    return compilationMode == "ReferenceSW";
+}
+
+bool VPUXLayerTest::isDefaultHardwareMode() const {
+    const auto compilationMode = configuration.at(VPUX_CONFIG_KEY(COMPILATION_MODE)).as<std::string>();
+    return compilationMode == "DefaultHW";
+}
+
+void VPUXLayerTest::setSingleClusterMode() {
+    configuration[VPUX_CONFIG_KEY(DPU_GROUPS)] = "1";
+    configuration[VPUX_CONFIG_KEY(DMA_ENGINES)] = "1";
+}
+
+void VPUXLayerTest::setPerformanceHintLatency() {
+    configuration[CONFIG_KEY(PERFORMANCE_HINT)] = "LATENCY";
+}
+
+void VPUXLayerTest::useELFCompilerBackend() {
+    configuration[VPUX_CONFIG_KEY(USE_ELF_COMPILER_BACKEND)] = CONFIG_VALUE(YES);
+}

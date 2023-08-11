@@ -1,7 +1,8 @@
 //
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
+
 // RUN: vpux-opt --split-input-file --init-compiler="vpu-arch=%arch%" --convert-to-mem-permute %s | FileCheck %s
 // REQUIRES: arch-VPUX30XX || arch-VPUX37XX
 
@@ -10,7 +11,7 @@
 #NCHW = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
 
 // CHECK-LABEL: @ConvertToMemPermute
-func @ConvertToMemPermute(%arg0: tensor<1x2x3x4xf32>,
+func.func @ConvertToMemPermute(%arg0: tensor<1x2x3x4xf32>,
                             %arg1: tensor<1x2x3x4xf32, {order = #NHWC}>,
                             %arg2: tensor<1x2x3x4xf32>) ->
                         (tensor<1x4x2x3xf32>, tensor<1x2x3x4xf32>, tensor<1x2x3x4xf32, {order = #NHWC}>) {

@@ -1,8 +1,6 @@
 //
-// Copyright (C) Intel Corporation.
+// Copyright (C) 2022-2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
-//
-
 //
 
 #include "vpux/compiler/core/async_deps_info.hpp"
@@ -41,7 +39,7 @@ public:
     }
 };
 
-void recalculateUPACycles(mlir::FuncOp func, AsyncDepsInfo& depsInfo, mlir::async::ExecuteOp execOp) {
+void recalculateUPACycles(mlir::func::FuncOp func, AsyncDepsInfo& depsInfo, mlir::async::ExecuteOp execOp) {
     const auto execOpIdx = depsInfo.getIndex(execOp);
     const auto deps = depsInfo.getOpDeps(execOpIdx);
     const auto consumers = depsInfo.getConsumerOps(execOpIdx);
@@ -67,7 +65,7 @@ void recalculateUPACycles(mlir::FuncOp func, AsyncDepsInfo& depsInfo, mlir::asyn
 }
 
 void MaximizeUPACyclesPass::safeRunOnFunc() {
-    auto func = getFunction();
+    auto func = getOperation();
     auto& depsInfo = getAnalysis<AsyncDepsInfo>();
     depsInfo.buildConsMap();
 

@@ -1,5 +1,5 @@
 //
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,7 +21,7 @@ namespace {
 //          [output]
 //
 
-struct KmbDeconvFQTestParams {
+struct DeconvFQTestParams {
     LayerTestsUtils::TargetDevice device;
     InferenceEngine::SizeVector in_dims;
     InferenceEngine::SizeVector w_dims;
@@ -34,9 +34,9 @@ struct KmbDeconvFQTestParams {
     std::vector<int64_t> deconv_out_pads;
 };
 
-class KmbDeconvFQTest :
+class VPUXDeconvFQTest_VPU3700 :
         public LayerTestsUtils::KmbLayerTestsCommon,
-        public testing::WithParamInterface<KmbDeconvFQTestParams> {
+        public testing::WithParamInterface<DeconvFQTestParams> {
     void SetUp() override {
         const auto test_params = GetParam();
         targetDevice = test_params.device;
@@ -87,19 +87,19 @@ class KmbDeconvFQTest :
 
         const ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(deconv2d_node)};
 
-        function = std::make_shared<ngraph::Function>(results, params, "KmbDeconvFQTest");
+        function = std::make_shared<ngraph::Function>(results, params, "VPUXDeconvFQTest");
         threshold = 0.5f;
     }
 };
 
-TEST_P(KmbDeconvFQTest, CompareWithRefs_MLIR) {
-    useCompilerMLIR();
+TEST_P(VPUXDeconvFQTest_VPU3700, HW) {
+    setPlatformVPU3700();
     setDefaultHardwareModeMLIR();
     Run();
 }
 
-INSTANTIATE_TEST_CASE_P(smoke, KmbDeconvFQTest,
-                        ::testing::Values(KmbDeconvFQTestParams{
+INSTANTIATE_TEST_CASE_P(smoke_DeconvFQ, VPUXDeconvFQTest_VPU3700,
+                        ::testing::Values(DeconvFQTestParams{
                                 LayerTestsUtils::testPlatformTargetDevice,  // device
                                 {1, 3, 8, 14},                              // in dims
                                 {16, 3, 4, 4},                              // weights dims

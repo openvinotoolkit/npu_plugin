@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #ifndef VPUX_COMPILER_DIALECT_VPU_TYPES
 #define VPUX_COMPILER_DIALECT_VPU_TYPES
 
@@ -57,6 +55,7 @@ def VPU_DistributedTensor :
     }];
 
     let genVerifyDecl = 1;
+    let hasCustomAssemblyFormat = 1;
 }
 
 //
@@ -67,6 +66,7 @@ def VPU_SparseTensor :
         VPU_Type<
             "SparseTensor",
             [
+                GroupedTypeInterface,
                 DeclareTypeInterfaceMethods<NDTypeInterface>,
                 DeclareTypeInterfaceMethods<VPU_DistributedTypeInterface, ["containsDistributedTypes", "getDistributedTypes"]>
             ]
@@ -97,7 +97,8 @@ def VPU_SparseTensor :
         "mlir::Type":$sparsityMap,
         "mlir::Type":$storageElementTable,
         "mlir::UnitAttr":$isWeights,
-        "VPU::CompressionSchemeAttr":$compressionScheme
+        "VPU::CompressionSchemeAttr":$compressionScheme,
+        VPU_SEAttr:$seAttr
     );
 
     let builders = [
@@ -107,14 +108,16 @@ def VPU_SparseTensor :
                 CArg<"mlir::Type", "{}">:$sparsityMap,
                 CArg<"mlir::Type", "{}">:$storageElementTable,
                 CArg<"mlir::UnitAttr", "{}">:$isWeights,
-                CArg<"VPU::CompressionSchemeAttr", "{}">:$compressionScheme
+                CArg<"VPU::CompressionSchemeAttr", "{}">:$compressionScheme,
+                CArg<"VPU::SEAttr", "{}">:$seAttr
             ), [{
-            return $_get(data.getContext(), data, sparsityMap, storageElementTable, isWeights, compressionScheme);
+            return $_get(data.getContext(), data, sparsityMap, storageElementTable, isWeights, compressionScheme, seAttr);
         }]>
     ];
 
     let skipDefaultBuilders = 1;
     let genVerifyDecl = 1;
+    let hasCustomAssemblyFormat = 1;
 }
 
 #endif

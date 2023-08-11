@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #pragma once
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
@@ -63,6 +61,10 @@ struct AdjustLayoutOptions : mlir::PassPipelineOptions<AdjustLayoutOptions> {
     BoolOption enableForceZMajorConcat{*this, "force-z-major-concat",
                                        llvm::cl::desc("Enable transpose-reorder-concat pass"), llvm::cl::init(true)};
 
+    BoolOption enableSEPtrsOperations{*this, "enable-se-ptrs-operations",
+                                      llvm::cl::desc("Enable storage element pointer operations"),
+                                      llvm::cl::init(false)};
+
     AdjustLayoutOptions() = default;
 
     template <
@@ -72,6 +74,7 @@ struct AdjustLayoutOptions : mlir::PassPipelineOptions<AdjustLayoutOptions> {
         enableUseUserLayout = options.enableUseUserLayout;
         enableOptimizeReorders = options.enableOptimizeReorders;
         enableForceZMajorConcat = options.enableForceZMajorConcat;
+        enableSEPtrsOperations = options.enableSEPtrsOperations;
     }
 };
 
@@ -79,9 +82,10 @@ void buildAdjustLayoutPipeline(mlir::OpPassManager& pm, const AdjustLayoutOption
                                Logger log = Logger::global());
 
 std::unique_ptr<mlir::Pass> createUseUserLayout(Logger log = Logger::global());
-std::unique_ptr<mlir::Pass> createAdjustLayoutsPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createAdjustLayoutsPass(const bool adaptSEOps = false, Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createOptimizeReordersPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createUniquifyOpsPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createRemoveIdentityPoolPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createConvertToMemPermutePass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createLegalizeNDMemPermutePass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createTransposeToPermuteCastPass(Logger log = Logger::global());
@@ -97,6 +101,9 @@ struct AdjustForVPUOptions : mlir::PassPipelineOptions<AdjustForVPUOptions> {
     BoolOption enableSwapConcatWithEltwise{*this, "swap-concat-with-eltwise",
                                            ::llvm::cl::desc("Enable SwapConcatWithEltwise pass"),
                                            ::llvm::cl::init(true)};
+    BoolOption enableSEPtrsOperations{*this, "enable-se-ptrs-operations",
+                                      llvm::cl::desc("Enable storage element pointer operations"),
+                                      llvm::cl::init(false)};
 
     AdjustForVPUOptions() = default;
 
@@ -105,6 +112,7 @@ struct AdjustForVPUOptions : mlir::PassPipelineOptions<AdjustForVPUOptions> {
             typename = std::enable_if_t<std::is_base_of<mlir::PassPipelineOptions<OtherOptions>, OtherOptions>::value>>
     explicit AdjustForVPUOptions(const OtherOptions& options) {
         enableSwapConcatWithEltwise = options.enableSwapConcatWithEltwise;
+        enableSEPtrsOperations = options.enableSEPtrsOperations;
     }
 };
 
@@ -112,13 +120,14 @@ void buildAdjustForVPUPipeline(mlir::OpPassManager& pm, const AdjustForVPUOption
                                Logger log = Logger::global());
 
 std::unique_ptr<mlir::Pass> createConvertAssignReadValueToReturnsAndInputs(Logger log = Logger::global());
-std::unique_ptr<mlir::Pass> createConvertTile2PerAxisTilePass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createConvertScalarToTensorPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createConvertShapeTo4DPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createSwapOperationsPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createSwapQuantCastAndClampPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createSwapTransposeConcatPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createSwapPadLayerPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createConvertConv1DToConv2DPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createConvertGroupConvToConvPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createConvertPaddingsToFloorModePass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createConvertShuffleChannelsPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createLegalizeDilatedConvolutionPass(Logger log = Logger::global());
@@ -142,11 +151,15 @@ std::unique_ptr<mlir::Pass> createSwapConcatWithEltwisePass(Logger log = Logger:
 std::unique_ptr<mlir::Pass> createPerAxisFQConcatPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createConvertGatherToSlicePass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createConvertToScaleShiftPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createDecomposeLSTMCellPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createConvertSubtractToAddPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createOptimizeConcatSlicePass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createConvertBroadcastToTilePass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createUniquifyBranchesPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createSwapMVNWithTransposePass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createPropagateMemPermuteThroughAddPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createPropagateMemPermuteThroughAffineReshapePass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createPropagateOpThroughBatchConcatPass(Logger log = Logger::global());
 
 //
 // LowPrecision
@@ -190,7 +203,27 @@ struct LowPrecisionOptions : mlir::PassPipelineOptions<LowPrecisionOptions> {
 void buildLowPrecisionPipeline(mlir::OpPassManager& pm, const LowPrecisionOptions& options,
                                Logger log = Logger::global());
 
-std::unique_ptr<mlir::Pass> createSwapFakeQuantReshapePass(Logger log = Logger::global());
+struct TransformOptions : mlir::PassPipelineOptions<TransformOptions> {
+    TransformOptions() = default;
+
+    BoolOption enableConvertFCToConv{*this, "convert-fc-to-conv", llvm::cl::desc("Enable convert-fc-to-conv pass"),
+                                     llvm::cl::init(true)};
+
+    template <
+            class OtherOptions,
+            typename = std::enable_if_t<std::is_base_of<mlir::PassPipelineOptions<OtherOptions>, OtherOptions>::value>>
+    explicit TransformOptions(const OtherOptions& options) {
+        enableConvertFCToConv = options.enableConvertFCToConv;
+    }
+};
+
+void buildInitialTransformationsPipeline(mlir::OpPassManager& pm, const TransformOptions& options,
+                                         Logger log = Logger::global());
+
+void buildMemPermuteProcessingPipeline(mlir::OpPassManager& pm, Logger log = Logger::global());
+
+std::unique_ptr<mlir::Pass> createFoldReLUBeforeFQPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createSwapFakeQuantWithReshapeAndStridedSlicePass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createResolveScatterUpdateByTransposePass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createAlignScalesPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createSplitFakeQuantPass(Logger log = Logger::global());
@@ -205,7 +238,6 @@ std::unique_ptr<mlir::Pass> createFuseConvertWithQuantizePass(Logger log = Logge
 std::unique_ptr<mlir::Pass> createConvertToMixedPrecision(const bool allowFP16ToU8 = true,
                                                           Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createConvertQuantizeOpsToNceOpsPass(Logger log = Logger::global());
-std::unique_ptr<mlir::Pass> createDeletePerAxisQuantizationPass(Logger log = Logger::global());
 
 //
 // Legalization for NCE
@@ -213,17 +245,22 @@ std::unique_ptr<mlir::Pass> createDeletePerAxisQuantizationPass(Logger log = Log
 
 std::unique_ptr<mlir::Pass> createUnrollBatchPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createConvertBatchedConvTo1NPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createAdjustConvolutionInputShapePass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createMatMulInputsTo2dPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createConvertMatMulToConvPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createConvertFCToConvPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createConvertAvgPoolToDWConvPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createConvertScaleShiftToDWPass(Logger log = Logger::global());
-std::unique_ptr<mlir::Pass> createConvertNearestToStridedConcatPass(Logger log = Logger::global());
-std::unique_ptr<mlir::Pass> createConvertBilinearToStridedConcatAndConvPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createConvertNearestToBroadCastOrStridedConcatPass(const bool interpolateAsSEOp = false,
+                                                                               Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createConvertBilinearToStridedConcatAndConvPass(const bool interpolateAsSEOp = false,
+                                                                            Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createConvertScatterNDUpdateToStridedConcatPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createSplitConvWithMultipleFQPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createHandleLargeStridesPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createHandleAsymmetricStridesPass(Logger log = Logger::global());
-std::unique_ptr<mlir::Pass> createExpandActivationChannelsPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createExpandActivationChannelsPass(const bool adaptSEOps = false,
+                                                               Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createHandleLargeKernelsPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createConvertReduceToPoolingPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createHandleExcludePadForAvgPoolPass(Logger log = Logger::global());
@@ -231,7 +268,7 @@ std::unique_ptr<mlir::Pass> createConvertSquaredDiffToSubAndPowerPass(Logger log
 std::unique_ptr<mlir::Pass> createConvertPowerToMultPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createExpandActivationWidthPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createOptimizeSliceExpandPass(Logger log = Logger::global());
-std::unique_ptr<mlir::Pass> createFusePermuteQuantizePass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createFusePermuteQuantizePass(const bool dpuOnly = false, Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createPropagateExpandPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createFusePermuteQuantizeExpandPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createAdjustInputShapeForEltwisePass(Logger log = Logger::global());
@@ -239,6 +276,9 @@ std::unique_ptr<mlir::Pass> createMovePermutePostEltwisePass(Logger log = Logger
 std::unique_ptr<mlir::Pass> createConvertExtractImagePatchesPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createBroadcastInputForAddPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createConvertReorderToPermuteQuantizePass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createFuseMemPermutePass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createHandleLargePadsPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createNormalizeL2FusionPass(Logger log = Logger::global());
 
 //
 // Generic Optimizations
@@ -247,6 +287,8 @@ std::unique_ptr<mlir::Pass> createConvertReorderToPermuteQuantizePass(Logger log
 std::unique_ptr<mlir::Pass> createUpstreamSlicePass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createForceHostPrecisionLayoutConversionPass(Logger log = Logger::global());
 std::unique_ptr<mlir::Pass> createForceHostQuantizationPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createConvertReflectPadToSliceAndConcatPass(Logger log = Logger::global());
+std::unique_ptr<mlir::Pass> createConvertExpandToConvPass(Logger log = Logger::global());
 
 //
 // Registration

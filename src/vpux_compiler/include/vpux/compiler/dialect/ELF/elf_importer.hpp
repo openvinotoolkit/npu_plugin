@@ -7,8 +7,8 @@
 
 #include "vpux/compiler/dialect/ELF/ops.hpp"
 #include "vpux/compiler/dialect/IE/ops.hpp"
-#include "vpux/compiler/dialect/VPUIPRegMapped/nn_public/vpu_nnrt_api.h"
-#include "vpux/compiler/dialect/VPUIPRegMapped/ops.hpp"
+#include "vpux/compiler/dialect/VPU37XX/api/vpu_nnrt_api.h"
+#include "vpux/compiler/dialect/VPUMI37XX/ops.hpp"
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
 #include "vpux/compiler/utils/logging.hpp"
 #include "vpux/utils/core/logger.hpp"
@@ -38,7 +38,7 @@ public:
     void unlock(elf::DeviceBuffer&) override;
     size_t copy(elf::DeviceBuffer& to, const uint8_t* from, size_t count) override;
 
-    ~ImporterBufferManager();
+    ~ImporterBufferManager() override;
 
 private:
     std::vector<elf::DeviceBuffer> m_allocatedZones;
@@ -66,8 +66,8 @@ private:
     void createLogicalSectionOp(mlir::OpBuilder& opsBuilder, const uint32_t sectionIdx,
                                 const std::vector<mlir::Value>& inputArgs);
     void createConfigureBarrierOp(mlir::OpBuilder& opsBuilder, const uint32_t noOfBarrierConfigs);
-    void createSectionOpForMappedInferece(mlir::FuncOp& func, mlir::OpBuilder& opsBuilder);
-    void createSectionOpForDMA(mlir::FuncOp& func, mlir::OpBuilder& opsBuilder,
+    void createSectionOpForMappedInferece(mlir::func::FuncOp& func, mlir::OpBuilder& opsBuilder);
+    void createSectionOpForDMA(mlir::func::FuncOp& func, mlir::OpBuilder& opsBuilder,
                                const nn_public::VpuMappedInference* mappedInference);
     void createSectionOpForActKernalRange(mlir::OpBuilder& opsBuilder, const uint32_t noOfActKRangeTasks);
     void createSectionOpForActKernelInvocation(mlir::OpBuilder& opsBuilder, const uint32_t noOfActKInvocationTasks);
@@ -82,7 +82,7 @@ private:
     void createSectionOpForVariants(mlir::OpBuilder& opsBuilder, const uint32_t noOfVariantsTasks);
     void createGenericBuiltInRegion(mlir::OpBuilder& opsBuilder);
     std::vector<std::pair<unsigned int, ELF::SymbolOp>> createSymbolOp(
-            mlir::FuncOp& func, mlir::OpBuilder& opsBuilder,
+            mlir::func::FuncOp& func, mlir::OpBuilder& opsBuilder,
             const elf::Reader<elf::ELF_Bitness::Elf64>::Section& section);
     VPURT::DeclareBufferOp createDeclareBufferOp(mlir::OpBuilder& opsBuilder, const int64_t& bufferSize,
                                                  const bool isTypeDDR, const int64_t& byteOffset);
@@ -112,8 +112,8 @@ private:
     std::map<size_t, std::vector<std::pair<unsigned int, ELF::SymbolOp>>> _symbolsOpByValue;
     std::vector<std::pair<uint32_t, mlir::Value>> _barrierConfigsByRealId;
     std::map<size_t, std::vector<mlir::Value>> _nndmaOps;
-    std::vector<VPUIPRegMapped::ActKernelRangeOp> _actKRangeOps;
-    std::vector<VPUIPRegMapped::ActKernelInvocationOp> _actKInvocationOps;
+    std::vector<VPUMI37XX::ActKernelRangeOp> _actKRangeOps;
+    std::vector<VPUMI37XX::ActKernelInvocationOp> _actKInvocationOps;
     std::vector<std::pair<bool, VPURT::DeclareBufferOp>> _buffers;
     llvm::SmallVector<mlir::Value> _shaveStacks;
 };

@@ -1,5 +1,5 @@
 //
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,7 +11,7 @@
 
 namespace LayerTestsDefinitions {
 
-class KmbLogicalLayerTest : public LogicalLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
+class VPUXLogicalLayerTest : public LogicalLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
     void SetUp() override {
         SetupParams();
 
@@ -39,33 +39,29 @@ class KmbLogicalLayerTest : public LogicalLayerTest, virtual public LayerTestsUt
     }
 };
 
-class KmbLogicalLayerTest_MLIR : public KmbLogicalLayerTest {};
+class VPUXLogicalLayerTest_VPU3700 : public VPUXLogicalLayerTest {};
+class VPUXLogicalLayerTest_SW_VPU3720 : public VPUXLogicalLayerTest {};
+class VPUXLogicalLayerTest_HW_VPU3720 : public VPUXLogicalLayerTest {};
 
-class VPUXLogicalLayerTest_MLIR_SW_VPU3720 : public KmbLogicalLayerTest {};
-
-class VPUXLogicalLayerTest_MLIR_HW_VPU3720 : public KmbLogicalLayerTest {};
-
-TEST_P(KmbLogicalLayerTest_MLIR, CompareWithRefs_HW) {
-    useCompilerMLIR();
+TEST_P(VPUXLogicalLayerTest_VPU3700, HW) {
+    setPlatformVPU3700();
     setDefaultHardwareModeMLIR();
     Run();
 }
 
-TEST_P(KmbLogicalLayerTest_MLIR, CompareWithRefs_SW) {
-    useCompilerMLIR();
+TEST_P(VPUXLogicalLayerTest_VPU3700, SW) {
+    setPlatformVPU3700();
     setReferenceSoftwareModeMLIR();
     Run();
 }
 
-TEST_P(VPUXLogicalLayerTest_MLIR_SW_VPU3720, MLIR_VPU3720) {
-    useCompilerMLIR();
+TEST_P(VPUXLogicalLayerTest_SW_VPU3720, SW) {
     setPlatformVPU3720();
     setReferenceSoftwareModeMLIR();
     Run();
 }
 
-TEST_P(VPUXLogicalLayerTest_MLIR_HW_VPU3720, MLIR_VPU3720) {
-    useCompilerMLIR();
+TEST_P(VPUXLogicalLayerTest_HW_VPU3720, HW) {
     setPlatformVPU3720();
     setDefaultHardwareModeMLIR();
     Run();
@@ -85,7 +81,7 @@ std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> inputShapes = {
         {{2, 17, 3, 4}, {{2, 1, 3, 4}}},
 
         // The same as for eltwise:
-        // There are errors at validation step on KMB-board for some input shapes:
+        // There are errors at validation step on board for some input shapes:
         // [Track number: S#51346]
         // {{2, 200}, {{2, 200} }},
 
@@ -138,66 +134,76 @@ const auto LogicalTestParamsNot = ::testing::Combine(
         ::testing::Values(InferenceEngine::Layout::ANY), ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(LayerTestsUtils::testPlatformTargetDevice), ::testing::Values(additional_config));
 
-INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_CompareWithRefs, KmbLogicalLayerTest_MLIR, LogicalTestParams,
+INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_CompareWithRefs, VPUXLogicalLayerTest_VPU3700, LogicalTestParams,
                         LogicalLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_CompareWithRefsNot, KmbLogicalLayerTest_MLIR, LogicalTestParamsNot,
+INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_CompareWithRefsNot, VPUXLogicalLayerTest_VPU3700, LogicalTestParamsNot,
                          LogicalLayerTest::getTestCaseName);
 
 //
 // VPU3720 Instantiation
 //
-std::set<ngraph::helpers::LogicalTypes> supportedTypesVPU3720 = {
+std::set<ngraph::helpers::LogicalTypes> supportedTypesVPUX = {
         ngraph::helpers::LogicalTypes::LOGICAL_OR,
         ngraph::helpers::LogicalTypes::LOGICAL_XOR,
         ngraph::helpers::LogicalTypes::LOGICAL_AND,
 };
 
-std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> inShapesVPU3720 = {
+std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> inShapesVPUX = {
         {{2, 17, 3, 4}, {{2, 1, 3, 4}}},
         {{1, 16, 32}, {{1, 16, 32}}},
+        {{1, 28, 300, 1}, {{1, 1, 300, 28}}},
 };
 
-const auto logical_params_VPU3720 = ::testing::Combine(
-        ::testing::ValuesIn(LogicalLayerTest::combineShapes(inShapesVPU3720)),
-        ::testing::ValuesIn(supportedTypesVPU3720), ::testing::ValuesIn(secondInputTypes),
-        ::testing::ValuesIn(netPrecisions), ::testing::ValuesIn(inputsPrecisions),
-        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED), ::testing::Values(InferenceEngine::Layout::ANY),
-        ::testing::Values(InferenceEngine::Layout::ANY), ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
-        ::testing::Values(additional_config));
-
-INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_CompareWithRefs_VPU3720, VPUXLogicalLayerTest_MLIR_SW_VPU3720,
-                        logical_params_VPU3720, LogicalLayerTest::getTestCaseName);
-
-std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> precommit_inShapesVPU3720 = {
-        {{1, 16, 32}, {{1, 1, 32}}},
+std::vector<InferenceEngine::Precision> inputsPrecisions_VPUX = {
+        InferenceEngine::Precision::FP16,
+        InferenceEngine::Precision::I32,
 };
 
-const auto precommit_logical_params_VPU3720 = ::testing::Combine(
-        ::testing::ValuesIn(LogicalLayerTest::combineShapes(precommit_inShapesVPU3720)),
-        ::testing::ValuesIn(supportedTypesVPU3720), ::testing::ValuesIn(secondInputTypes),
-        ::testing::ValuesIn(netPrecisions), ::testing::ValuesIn(inputsPrecisions),
-        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED), ::testing::Values(InferenceEngine::Layout::ANY),
-        ::testing::Values(InferenceEngine::Layout::ANY), ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
-        ::testing::Values(additional_config));
-
-INSTANTIATE_TEST_CASE_P(smoke_precommit_CompareWithRefs_VPU3720, VPUXLogicalLayerTest_MLIR_SW_VPU3720,
-                        precommit_logical_params_VPU3720, LogicalLayerTest::getTestCaseName);
-
-std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> inShapesNotVPU3720 = {
-        {{1, 2, 4}, {}},
+std::vector<InferenceEngine::Precision> netPrecisions_VPUX = {
+        InferenceEngine::Precision::FP16,
+        InferenceEngine::Precision::I32,
 };
 
-const auto precommit_logical_params_not_VPU3720 = ::testing::Combine(
-        ::testing::ValuesIn(LogicalLayerTest::combineShapes(inShapesNotVPU3720)),
-        ::testing::Values(ngraph::helpers::LogicalTypes::LOGICAL_NOT),
-        ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT), ::testing::ValuesIn(netPrecisions),
-        ::testing::ValuesIn(inputsPrecisions), ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+const auto logical_params_VPUX = ::testing::Combine(
+        ::testing::ValuesIn(LogicalLayerTest::combineShapes(inShapesVPUX)), ::testing::ValuesIn(supportedTypesVPUX),
+        ::testing::ValuesIn(secondInputTypes), ::testing::ValuesIn(netPrecisions_VPUX),
+        ::testing::ValuesIn(inputsPrecisions_VPUX), ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         ::testing::Values(InferenceEngine::Layout::ANY), ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(LayerTestsUtils::testPlatformTargetDevice), ::testing::Values(additional_config));
 
-INSTANTIATE_TEST_CASE_P(smoke_precommit_not_CompareWithRefs_VPU3720, VPUXLogicalLayerTest_MLIR_SW_VPU3720,
-                        precommit_logical_params_not_VPU3720, LogicalLayerTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_logical_VPU3720, VPUXLogicalLayerTest_SW_VPU3720, logical_params_VPUX,
+                        LogicalLayerTest::getTestCaseName);
+
+std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> precommit_inShapesVPUX = {
+        {{1, 16, 32}, {{1, 1, 32}}},
+};
+
+const auto precommit_logical_params_VPUX = ::testing::Combine(
+        ::testing::ValuesIn(LogicalLayerTest::combineShapes(precommit_inShapesVPUX)),
+        ::testing::ValuesIn(supportedTypesVPUX), ::testing::ValuesIn(secondInputTypes),
+        ::testing::ValuesIn(netPrecisions_VPUX), ::testing::ValuesIn(inputsPrecisions_VPUX),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED), ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::Values(InferenceEngine::Layout::ANY), ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
+        ::testing::Values(additional_config));
+
+INSTANTIATE_TEST_CASE_P(smoke_precommit_CompareWithRefs_VPU3720, VPUXLogicalLayerTest_SW_VPU3720,
+                        precommit_logical_params_VPUX, LogicalLayerTest::getTestCaseName);
+
+std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> inShapesNotVPUX = {
+        {{1, 2, 4}, {}},
+};
+
+const auto precommit_logical_params_not_VPUX = ::testing::Combine(
+        ::testing::ValuesIn(LogicalLayerTest::combineShapes(inShapesNotVPUX)),
+        ::testing::Values(ngraph::helpers::LogicalTypes::LOGICAL_NOT),
+        ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT), ::testing::ValuesIn(netPrecisions_VPUX),
+        ::testing::ValuesIn(inputsPrecisions_VPUX), ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Layout::ANY), ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice), ::testing::Values(additional_config));
+
+INSTANTIATE_TEST_CASE_P(smoke_precommit_not_CompareWithRefs_VPU3720, VPUXLogicalLayerTest_SW_VPU3720,
+                        precommit_logical_params_not_VPUX, LogicalLayerTest::getTestCaseName);
 
 //
 // Test tiling functionality
@@ -215,6 +221,7 @@ const auto tiling_logical_params_VPU3720 = ::testing::Combine(
         ::testing::Values(InferenceEngine::Layout::ANY), ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
         ::testing::Values(additional_config));
 
-INSTANTIATE_TEST_CASE_P(smoke_tiling_CompareWithRefs_VPU3720, VPUXLogicalLayerTest_MLIR_HW_VPU3720,
+INSTANTIATE_TEST_CASE_P(smoke_tiling_CompareWithRefs_VPU3720, VPUXLogicalLayerTest_HW_VPU3720,
                         tiling_logical_params_VPU3720, LogicalLayerTest::getTestCaseName);
+
 }  // namespace

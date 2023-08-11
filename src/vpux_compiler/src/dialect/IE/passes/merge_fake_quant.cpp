@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/IE/passes.hpp"
 
 #include "vpux/compiler/dialect/const/ops.hpp"
@@ -143,7 +141,7 @@ void MergeFakeQuantPass::safeRunOnFunc() {
     patterns.add<MergeQuantDequant>(&ctx, _log);
     patterns.add<MergeQuantCastDequant>(&ctx, _log);
 
-    auto func = getFunction();
+    auto func = getOperation();
     if (mlir::failed(mlir::applyPatternsAndFoldGreedily(func, std::move(patterns), getDefaultGreedyRewriteConfig()))) {
         signalPassFailure();
     }

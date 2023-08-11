@@ -10,8 +10,7 @@
 #include "single_layer_tests/psroi_pooling.hpp"
 
 namespace LayerTestsDefinitions {
-
-class KmbPSROIPoolingLayerTest : public PSROIPoolingLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
+class VPUXPSROIPoolingLayerTest : public PSROIPoolingLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
     void SkipBeforeLoad() override {
         std::string psROIPoolingMode;
         std::tie(std::ignore, std::ignore, std::ignore, std::ignore, std::ignore, std::ignore, std::ignore,
@@ -22,8 +21,18 @@ class KmbPSROIPoolingLayerTest : public PSROIPoolingLayerTest, virtual public La
     }
 };
 
-TEST_P(KmbPSROIPoolingLayerTest, CompareWithRefs_MLIR) {
-    useCompilerMLIR();
+class VPUXPSROIPoolingLayerTest_VPU3700 : public VPUXPSROIPoolingLayerTest {};
+class VPUXPSROIPoolingLayerTest_VPU3720 : public VPUXPSROIPoolingLayerTest {};
+
+TEST_P(VPUXPSROIPoolingLayerTest_VPU3700, HW) {
+    setPlatformVPU3700();
+    setDefaultHardwareModeMLIR();
+    Run();
+}
+
+TEST_P(VPUXPSROIPoolingLayerTest_VPU3720, HW) {
+    setPlatformVPU3720();
+    setDefaultHardwareModeMLIR();
     Run();
 }
 
@@ -44,7 +53,7 @@ const std::vector<std::vector<size_t>> coordShapesVector0 = {{1, 5}};
 const std::vector<std::vector<size_t>> coordShapesVector1 = {{300, 5}};
 const std::vector<std::vector<size_t>> coordShapesVector2 = {{100, 5}};
 
-INSTANTIATE_TEST_SUITE_P(smoke_PSROIPoolingAverageLayoutTest0, KmbPSROIPoolingLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_PSROIPoolingAverageLayoutTest0, VPUXPSROIPoolingLayerTest_VPU3700,
                          testing::Combine(::testing::ValuesIn(inputShapeVector0),   // input
                                           ::testing::ValuesIn(coordShapesVector0),  // coord
                                           ::testing::Values(50),                    // outputDim
@@ -55,9 +64,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_PSROIPoolingAverageLayoutTest0, KmbPSROIPoolingLa
                                           ::testing::Values("average"),             // mode
                                           ::testing::ValuesIn(netPrecisions),
                                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
-                         KmbPSROIPoolingLayerTest::getTestCaseName);
+                         VPUXPSROIPoolingLayerTest_VPU3700::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_PSROIPoolingAverageLayoutTest1, KmbPSROIPoolingLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_PSROIPoolingAverageLayoutTest1, VPUXPSROIPoolingLayerTest_VPU3700,
                          testing::Combine(::testing::ValuesIn(inputShapeVector1),   // input
                                           ::testing::ValuesIn(coordShapesVector1),  // coord
                                           ::testing::Values(8),                     // outputDim
@@ -68,9 +77,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_PSROIPoolingAverageLayoutTest1, KmbPSROIPoolingLa
                                           ::testing::Values("average"),             // mode
                                           ::testing::ValuesIn(netPrecisions),
                                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
-                         KmbPSROIPoolingLayerTest::getTestCaseName);
+                         VPUXPSROIPoolingLayerTest_VPU3700::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_PSROIPoolingAverageLayoutTest2, KmbPSROIPoolingLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_PSROIPoolingAverageLayoutTest2, VPUXPSROIPoolingLayerTest_VPU3700,
                          testing::Combine(::testing::ValuesIn(inputShapeVector2),   // input
                                           ::testing::ValuesIn(coordShapesVector0),  // coord
                                           ::testing::Values(1),                     // outputDim
@@ -81,9 +90,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_PSROIPoolingAverageLayoutTest2, KmbPSROIPoolingLa
                                           ::testing::Values("average"),             // mode
                                           ::testing::ValuesIn(netPrecisions),
                                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
-                         KmbPSROIPoolingLayerTest::getTestCaseName);
+                         VPUXPSROIPoolingLayerTest_VPU3700::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_PSROIPoolingBiliniarLayoutTest0, KmbPSROIPoolingLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_PSROIPoolingBiliniarLayoutTest0, VPUXPSROIPoolingLayerTest_VPU3700,
                          testing::Combine(::testing::ValuesIn(inputShapeVector3),   // input
                                           ::testing::ValuesIn(coordShapesVector2),  // coord
                                           ::testing::Values(360),                   // outputDim
@@ -94,4 +103,17 @@ INSTANTIATE_TEST_SUITE_P(smoke_PSROIPoolingBiliniarLayoutTest0, KmbPSROIPoolingL
                                           ::testing::Values("bilinear"),            // mode
                                           ::testing::ValuesIn(netPrecisions),
                                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
-                         KmbPSROIPoolingLayerTest::getTestCaseName);
+                         VPUXPSROIPoolingLayerTest_VPU3700::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_precommit_PSROIPoolingAverageLayoutTest0_VPU3720, VPUXPSROIPoolingLayerTest_VPU3720,
+                         testing::Combine(::testing::ValuesIn(inputShapeVector0),   // input
+                                          ::testing::ValuesIn(coordShapesVector0),  // coord
+                                          ::testing::Values(50),                    // outputDim
+                                          ::testing::Values(2),                     // groupSize
+                                          ::testing::Values(1.0f),                  // spatialScale
+                                          ::testing::Values(1),                     // spatialBinX
+                                          ::testing::Values(1),                     // spatialBinY
+                                          ::testing::Values("average"),             // mode
+                                          ::testing::ValuesIn(netPrecisions),
+                                          ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                         VPUXPSROIPoolingLayerTest_VPU3720::getTestCaseName);

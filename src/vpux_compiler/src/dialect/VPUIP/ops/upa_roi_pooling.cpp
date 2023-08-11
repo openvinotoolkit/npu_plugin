@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/VPUIP/graph-schema/utils.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 
@@ -20,9 +18,10 @@
 
 using namespace vpux;
 
-mlir::LogicalResult vpux::VPUIP::verifyOp(ROIPoolingUPAOp op) {
-    const auto inShapeFeatureMap = getShape(op.input());
-    const auto inShapeCoord = getShape(op.coords());
+mlir::LogicalResult vpux::VPUIP::ROIPoolingUPAOp::verify() {
+    const auto op = getOperation();
+    const auto inShapeFeatureMap = getShape(input());
+    const auto inShapeCoord = getShape(coords());
 
     if (inShapeFeatureMap.size() != 4) {
         return errorAt(op, "Dimension of the feature maps input should be 4. Got {0} D tensor",
@@ -34,12 +33,12 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(ROIPoolingUPAOp op) {
                        inShapeCoord.size());
     }
 
-    const auto output_size = parseIntArrayAttr<int64_t>(op.output_size());
-    if (output_size.size() != 2) {
-        return errorAt(op, "Dimension of pooled size is expected to be equal to 2. Got {0}", output_size.size());
+    const auto outputSize = parseIntArrayAttr<int64_t>(output_size());
+    if (outputSize.size() != 2) {
+        return errorAt(op, "Dimension of pooled size is expected to be equal to 2. Got {0}", outputSize.size());
     }
 
-    if (output_size[0] <= 0 || output_size[1] <= 0) {
+    if (outputSize[0] <= 0 || outputSize[1] <= 0) {
         return errorAt(op, "Pooled size attributes pooled_h and pooled_w should be positive.");
     }
 

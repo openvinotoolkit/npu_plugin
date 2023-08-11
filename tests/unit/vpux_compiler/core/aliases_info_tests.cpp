@@ -14,18 +14,17 @@
 
 #include <mlir/Dialect/Async/IR/Async.h>
 #include <mlir/Dialect/MemRef/IR/MemRef.h>
-#include <mlir/Dialect/StandardOps/IR/Ops.h>
 #include <mlir/IR/BuiltinOps.h>
 #include <mlir/IR/MLIRContext.h>
 #include <mlir/IR/OpImplementation.h>
 #include <mlir/IR/Value.h>
-#include <mlir/Parser.h>
+#include <mlir/Parser/Parser.h>
 
 #include <gtest/gtest.h>
 
 using namespace vpux;
 
-namespace {
+namespace AlisesInfoTest {
 
 class TestMultiViewOp : public mlir::Op<TestMultiViewOp, vpux::MultiViewOpInterface::Trait> {
 public:
@@ -88,19 +87,19 @@ public:
     }
 };
 
-}  // namespace
+}  // namespace AlisesInfoTest
 
 TEST(MLIR_AliasesInfo, TestMultiViewOp) {
     mlir::DialectRegistry registry;
     registry.insert<mlir::memref::MemRefDialect>();
-    registry.insert<mlir::StandardOpsDialect>();
-    registry.insert<TestDialect>();
+    registry.insert<mlir::func::FuncDialect>();
+    registry.insert<AlisesInfoTest::TestDialect>();
 
     mlir::MLIRContext ctx(registry);
 
     constexpr StringLiteral inputIR = R"(
         module @test {
-            func @main(%arg: memref<100xf32>) -> memref<100xf32> {
+            func.func @main(%arg: memref<100xf32>) -> memref<100xf32> {
                 %0 = memref.alloc(): memref<100xf32>
                 %1 = memref.subview %arg[0][50][1] : memref<100xf32> to memref<50xf32>
                 %2:2 = "test.multiview"(%0, %1) : (memref<100xf32>, memref<50xf32>) -> (memref<100xf32>, memref<50xf32>)
@@ -109,10 +108,10 @@ TEST(MLIR_AliasesInfo, TestMultiViewOp) {
         }
     )";
 
-    auto module = mlir::parseSourceString(inputIR, &ctx);
+    auto module = mlir::parseSourceString<mlir::ModuleOp>(inputIR, &ctx);
     ASSERT_TRUE(module.get() != nullptr);
 
-    auto func = module.get().lookupSymbol<mlir::FuncOp>("main");
+    auto func = module.get().lookupSymbol<mlir::func::FuncOp>("main");
     ASSERT_TRUE(func != nullptr);
 
     vpux::AliasesInfo info(func);
@@ -131,9 +130,10 @@ TEST(MLIR_AliasesInfo, TestMultiViewOp) {
 
     for (const auto alias : funcArgAliases) {
         if (auto* producerOp = alias.getDefiningOp()) {
-            EXPECT_TRUE(mlir::isa<mlir::memref::SubViewOp>(producerOp) || mlir::isa<TestMultiViewOp>(producerOp));
+            EXPECT_TRUE(mlir::isa<mlir::memref::SubViewOp>(producerOp) ||
+                        mlir::isa<AlisesInfoTest::TestMultiViewOp>(producerOp));
 
-            if (mlir::isa<TestMultiViewOp>(producerOp)) {
+            if (mlir::isa<AlisesInfoTest::TestMultiViewOp>(producerOp)) {
                 EXPECT_EQ(alias.cast<mlir::OpResult>().getResultNumber(), 1);
             }
         } else {
@@ -158,10 +158,11 @@ TEST(MLIR_AliasesInfo, TestMultiViewOp) {
                 auto* producerOp = alias.getDefiningOp();
                 ASSERT_TRUE(producerOp != nullptr);
 
-                EXPECT_TRUE(mlir::isa<mlir::memref::AllocOp>(producerOp) || mlir::isa<TestMultiViewOp>(producerOp))
+                EXPECT_TRUE(mlir::isa<mlir::memref::AllocOp>(producerOp) ||
+                            mlir::isa<AlisesInfoTest::TestMultiViewOp>(producerOp))
                         << "producerOp = " << producerOp->getName().getStringRef().data();
 
-                if (mlir::isa<TestMultiViewOp>(producerOp)) {
+                if (mlir::isa<AlisesInfoTest::TestMultiViewOp>(producerOp)) {
                     EXPECT_EQ(alias.cast<mlir::OpResult>().getResultNumber(), 0);
                 } else {
                     EXPECT_TRUE(producerOp == allocOp);
@@ -176,7 +177,7 @@ TEST(MLIR_AliasesInfo, TestMultiViewOp) {
             const auto viewRoots = info.getRoots(viewRes);
             EXPECT_EQ(viewRoots.size(), 1) << "viewRes roots: %arg";
             EXPECT_TRUE((*viewRoots.begin()).isa<mlir::BlockArgument>());
-        } else if (auto viewOp = mlir::dyn_cast<TestMultiViewOp>(op)) {
+        } else if (auto viewOp = mlir::dyn_cast<AlisesInfoTest::TestMultiViewOp>(op)) {
             const auto viewRes0 = viewOp->getResult(0);
 
             const auto viewSource0 = info.getSource(viewRes0);
@@ -201,14 +202,14 @@ TEST(MLIR_AliasesInfo, TestMultiViewOp) {
 TEST(MLIR_AliasesInfo, TestGroupedViewOp) {
     mlir::DialectRegistry registry;
     registry.insert<mlir::memref::MemRefDialect>();
-    registry.insert<mlir::StandardOpsDialect>();
-    registry.insert<TestDialect>();
+    registry.insert<mlir::func::FuncDialect>();
+    registry.insert<AlisesInfoTest::TestDialect>();
 
     mlir::MLIRContext ctx(registry);
 
     constexpr StringLiteral inputIR = R"(
         module @test {
-            func @main(%arg: memref<100xf32>) -> memref<100xf32> {
+            func.func @main(%arg: memref<100xf32>) -> memref<100xf32> {
                 %0 = memref.alloc(): memref<50xf32>
                 %1 = "test.groupedview"(%arg, %0) : (memref<100xf32>, memref<50xf32>) -> memref<100xf32>
                 return %1 : memref<100xf32>
@@ -216,10 +217,10 @@ TEST(MLIR_AliasesInfo, TestGroupedViewOp) {
         }
     )";
 
-    auto module = mlir::parseSourceString(inputIR, &ctx);
+    auto module = mlir::parseSourceString<mlir::ModuleOp>(inputIR, &ctx);
     ASSERT_TRUE(module.get() != nullptr);
 
-    auto func = module.get().lookupSymbol<mlir::FuncOp>("main");
+    auto func = module.get().lookupSymbol<mlir::func::FuncOp>("main");
     ASSERT_TRUE(func != nullptr);
 
     vpux::AliasesInfo info(func);
@@ -238,7 +239,7 @@ TEST(MLIR_AliasesInfo, TestGroupedViewOp) {
 
     for (const auto alias : funcArgAliases) {
         if (auto* producerOp = alias.getDefiningOp()) {
-            EXPECT_TRUE(mlir::isa<TestGroupedViewOp>(producerOp));
+            EXPECT_TRUE(mlir::isa<AlisesInfoTest::TestGroupedViewOp>(producerOp));
         } else {
             EXPECT_TRUE(alias == funcArg);
         }
@@ -261,10 +262,11 @@ TEST(MLIR_AliasesInfo, TestGroupedViewOp) {
                 auto* producerOp = alias.getDefiningOp();
                 ASSERT_TRUE(producerOp != nullptr);
 
-                EXPECT_TRUE(mlir::isa<mlir::memref::AllocOp>(producerOp) || mlir::isa<TestGroupedViewOp>(producerOp))
+                EXPECT_TRUE(mlir::isa<mlir::memref::AllocOp>(producerOp) ||
+                            mlir::isa<AlisesInfoTest::TestGroupedViewOp>(producerOp))
                         << "producerOp = " << producerOp->getName().getStringRef().data();
             }
-        } else if (auto viewOp = mlir::dyn_cast<TestGroupedViewOp>(op)) {
+        } else if (auto viewOp = mlir::dyn_cast<AlisesInfoTest::TestGroupedViewOp>(op)) {
             const auto viewRes = viewOp->getResult(0);
 
             const auto viewSources = info.getSources(viewRes);
@@ -287,13 +289,13 @@ TEST(MLIR_AliasesInfo, AsyncRegions) {
     mlir::DialectRegistry registry;
     registry.insert<mlir::memref::MemRefDialect>();
     registry.insert<mlir::async::AsyncDialect>();
-    registry.insert<mlir::StandardOpsDialect>();
+    registry.insert<mlir::func::FuncDialect>();
 
     mlir::MLIRContext ctx(registry);
 
     constexpr StringLiteral inputIR = R"(
         module @test {
-            func @main(%arg: memref<100xf32>) -> memref<70xf32> {
+            func.func @main(%arg: memref<100xf32>) -> memref<70xf32> {
                 %0 = memref.subview %arg[0][90][1] : memref<100xf32> to memref<90xf32>
 
                 %t1, %f1 =
@@ -317,10 +319,10 @@ TEST(MLIR_AliasesInfo, AsyncRegions) {
         }
     )";
 
-    auto module = mlir::parseSourceString(inputIR, &ctx);
+    auto module = mlir::parseSourceString<mlir::ModuleOp>(inputIR, &ctx);
     ASSERT_TRUE(module.get() != nullptr);
 
-    auto func = module.get().lookupSymbol<mlir::FuncOp>("main");
+    auto func = module.get().lookupSymbol<mlir::func::FuncOp>("main");
     ASSERT_TRUE(func != nullptr);
 
     vpux::AliasesInfo info(func);

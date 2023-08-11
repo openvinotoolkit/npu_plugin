@@ -171,11 +171,9 @@ mlir::LogicalResult ConvertToReduceSumRewriter::matchAndRewrite(IE::ExtractImage
         const auto unsqueezeAxesAttr = getIntArrayAttr(getContext(), unsqueezeAxis);
         rewriter.replaceOpWithNewOp<IE::UnsqueezeOp>(belowReduceSumOp, newReduceSumOp, nullptr, unsqueezeAxesAttr);
         return mlir::success();
-
-    } else {
-        return replaceExtractImagePatchesWithTranspose(origOp, rewriter, _log);
     }
-    return mlir::failure();
+
+    return replaceExtractImagePatchesWithTranspose(origOp, rewriter, _log);
 }
 
 // ======================================================================================
@@ -364,7 +362,7 @@ private:
 
 void ConvertExtractImagePatchesPass::safeRunOnFunc() {
     auto& ctx = getContext();
-    auto func = getFunction();
+    auto func = getOperation();
 
     mlir::RewritePatternSet patterns(&ctx);
     patterns.add<ConvertToReduceSumRewriter>(&ctx, _log);

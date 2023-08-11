@@ -1,20 +1,21 @@
 //
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
+
 // RUN: vpux-opt --split-input-file --init-compiler="vpu-arch=VPUX37XX" --unroll-per-axis-tile-dma --canonicalize %s | FileCheck %s
 
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 #map = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
-!OutputDistributed = type !VPUIP.DistributedBuffer<
+!OutputDistributed = !VPUIP.DistributedBuffer<
     1x512x1x1xf16, #NHWC, @CMX_NN, {
     mode = "DUPLICATED",
     num_clusters =  2 : i64
 }>
 
 // CHECK-LABEL: @UnrollPerAxisTileDMAWrapInClusterDUPLICATED
-func @UnrollPerAxisTileDMAWrapInClusterDUPLICATED() -> !OutputDistributed {
+func.func @UnrollPerAxisTileDMAWrapInClusterDUPLICATED() -> !OutputDistributed {
     %bar0 = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
     %bar1 = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
     %0 = VPURT.DeclareBuffer "DDR" <64> -> memref<1x1x1x1xf16, #NHWC, @DDR>
@@ -40,7 +41,7 @@ func @UnrollPerAxisTileDMAWrapInClusterDUPLICATED() -> !OutputDistributed {
     //CHECK:      VPUIP.PerAxisTileDMA {dma_descriptor = {dstPlaneStride = 1024 : i64, dstStride = 1024 : i64, dstWidth = 1024 : i64, len = 1024 : i64, numPlanes = 1 : i64, srcPlaneStride = 2 : i64, srcStride = 0 : i64, srcWidth = 2 : i64}, port = 0 : i64}
     //CHECK:                inputs([[INPUT]] : memref<1x1x1xf16, @DDR>
     //CHECK:                outputs([[OUTPUT]] : !VPUIP.DistributedBuffer<1x512x1xf16, affine_map<(d0, d1, d2) -> (d0, d1, d2)>, @CMX_NN, {mode = "DUPLICATED", num_clusters = 2 : i64}>
-  
+
     //CHECK:    return [[OUTDISTRIBUTION]] : !VPUIP.DistributedBuffer
 }
 
@@ -48,7 +49,7 @@ func @UnrollPerAxisTileDMAWrapInClusterDUPLICATED() -> !OutputDistributed {
 
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
-!OutputDistributed = type !VPUIP.DistributedBuffer<
+!OutputDistributed = !VPUIP.DistributedBuffer<
     1x16x35x16xf16, #NHWC, @CMX_NN, {
     mode = "SEGMENTED",
     num_tiles = [1, 1, 2, 1],
@@ -57,7 +58,7 @@ func @UnrollPerAxisTileDMAWrapInClusterDUPLICATED() -> !OutputDistributed {
 }>
 
 // CHECK-LABEL: @UnrollPerAxisTileDMAWrapInClusterSEGMENTED
-func @UnrollPerAxisTileDMAWrapInClusterSEGMENTED() -> !OutputDistributed {
+func.func @UnrollPerAxisTileDMAWrapInClusterSEGMENTED() -> !OutputDistributed {
     %bar0 = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
     %bar1 = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
 
@@ -106,7 +107,7 @@ func @UnrollPerAxisTileDMAWrapInClusterSEGMENTED() -> !OutputDistributed {
     //CHECK:      VPUIP.PerAxisTileDMA {dma_descriptor = {dstPlaneStride = 32 : i64, dstStride = 32 : i64, dstWidth = 32 : i64, len = 32 : i64, numPlanes = 16 : i64, srcPlaneStride = 4 : i64, srcStride = 0 : i64, srcWidth = 4 : i64}, port = 1 : i64}
     //CHECK:                inputs([[INPUT_2]] : memref<16x2x1xf16, @DDR>
     //CHECK:                outputs([[OUTPUT_2]] : memref<16x16x1xf16, [@CMX_NN, 1]>
-  
+
     //CHECK:    return [[OUTDISTRIBUTION]] : !VPUIP.DistributedBuffer
 }
 
@@ -114,7 +115,7 @@ func @UnrollPerAxisTileDMAWrapInClusterSEGMENTED() -> !OutputDistributed {
 
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
-!OutputDistributed = type !VPUIP.DistributedBuffer<
+!OutputDistributed = !VPUIP.DistributedBuffer<
     1x4x240x240xf16, #NHWC, @CMX_NN, {
     mode = "OVERLAPPED",
     num_tiles = [1, 1, 2, 1],
@@ -125,7 +126,7 @@ func @UnrollPerAxisTileDMAWrapInClusterSEGMENTED() -> !OutputDistributed {
 }>
 
 // CHECK-LABEL: @UnrollPerAxisTileDMAWrapInClusterOVERLAPPED
-func @UnrollPerAxisTileDMAWrapInClusterOVERLAPPED() -> !OutputDistributed {
+func.func @UnrollPerAxisTileDMAWrapInClusterOVERLAPPED() -> !OutputDistributed {
     %bar0 = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
     %bar1 = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
 
@@ -160,6 +161,6 @@ func @UnrollPerAxisTileDMAWrapInClusterOVERLAPPED() -> !OutputDistributed {
     //CHECK:      VPUIP.PerAxisTileDMA {dma_descriptor = {dstPlaneStride = 1440 : i64, dstStride = 1440 : i64, dstWidth = 1440 : i64, len = 1440 : i64, numPlanes = 120 : i64, srcPlaneStride = 720 : i64, srcStride = 0 : i64, srcWidth = 720 : i64}, port = 1 : i64}
     //CHECK:                inputs([[INPUT_1]] : memref<120x120x4xf16, @DDR>
     //CHECK:                outputs([[OUTPUT_1]] : memref<120x240x4xf16, [@CMX_NN, 1]>
-  
+
     //CHECK:    return [[OUTDISTRIBUTION]] : !VPUIP.DistributedBuffer
 }

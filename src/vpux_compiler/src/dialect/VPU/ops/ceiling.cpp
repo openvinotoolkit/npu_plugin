@@ -12,7 +12,7 @@ mlir::LogicalResult vpux::VPU::CeilingOp::inferReturnTypes(mlir::MLIRContext* ct
                                                            mlir::ValueRange operands, mlir::DictionaryAttr attrs,
                                                            mlir::RegionRange /*regions*/,
                                                            mlir::SmallVectorImpl<mlir::Type>& inferredReturnTypes) {
-    const auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
+    const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
     VPU::CeilingOpAdaptor ceiling(operands, attrs);
     if (mlir::failed(ceiling.verify(loc))) {

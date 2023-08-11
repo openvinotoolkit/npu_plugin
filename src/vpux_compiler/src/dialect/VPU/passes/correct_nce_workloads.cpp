@@ -19,10 +19,6 @@
 #include "vpux/utils/core/enums.hpp"
 #include "vpux/utils/core/numeric.hpp"
 
-#include <mlir/Transforms/GreedyPatternRewriteDriver.h>
-
-#include <llvm/ADT/TypeSwitch.h>
-
 using namespace vpux;
 using namespace VPU;
 
@@ -40,7 +36,7 @@ mlir::DenseSet<int64_t> getWorkloadsChannels(const mlir::DenseSet<mlir::Operatio
         auto workloads = nceOp.workloads().getOps<VPU::DPUWorkloadOp>();
         auto channels = to_container<mlir::DenseSet<int64_t>>(
                 workloads | transformed([](VPU::DPUWorkloadOp workload) -> int64_t {
-                    const auto wlSizes = parseIntArrayAttr<int64_t>(workload.sizes());
+                    const auto wlSizes = parseIntArrayAttr<int64_t>(workload.outSizes());
                     return wlSizes[Dims4D::Act::C.ind()];
                 }));
         workloadsChannels.insert(channels.begin(), channels.end());
@@ -58,7 +54,7 @@ mlir::DenseSet<mlir::Operation*> findConsumerOps(mlir::Value value) {
             taskOp = nceClusterOp.getInnerTaskOp();
         }
 
-        if (mlir::isa<VPU::NCEOpInterface, VPU::DesparsifyOp, mlir::ReturnOp>(taskOp)) {
+        if (mlir::isa<VPU::NCEOpInterface, VPU::DesparsifyOp, mlir::func::ReturnOp>(taskOp)) {
             consumerOps.insert(userOp);
         } else if (mlir::isa<VPU::CopyOp>(taskOp) || VPU::isPureViewOp(taskOp)) {
             auto ops = findConsumerOps(userOp->getResult(0));
@@ -226,7 +222,7 @@ mlir::DenseSet<mlir::Operation*> findInvalidPermuteQuantizeOps(const mlir::Dense
             const auto left = pads.left().getInt();
             const auto right = pads.right().getInt();
             const auto zeroPadding = top == 0 && bottom == 0 && left == 0 && right == 0;
-            const auto wlOffsets = parseIntArrayAttr<int64_t>(workload.offsetsAttr());
+            const auto wlOffsets = parseIntArrayAttr<int64_t>(workload.outOffsetsAttr());
             const auto isZeroPredicate = [](const int64_t value) -> bool {
                 return value == 0;
             };
@@ -287,12 +283,31 @@ SmallVector<int64_t> getSupportedChannels(const mlir::DenseSet<mlir::Operation*>
     return supportedChannels;
 }
 
+// Get offset from start of the cluster
+SmallVector<Shape> getPerClusterOffsetsCorrection(VPU::NCEOpInterface nceOp) {
+    auto nceClusterTilingOp = mlir::dyn_cast<VPU::NCEClusterTilingOp>(nceOp->getParentOp());
+
+    if (nceClusterTilingOp == nullptr) {
+        return {};
+    }
+
+    auto outputType = nceClusterTilingOp->getResult(0).getType();
+    auto distributedOut = outputType.dyn_cast<VPU::DistributedTensorType>();
+    if (distributedOut == nullptr) {
+        return {};
+    }
+
+    // TODO: E#73931
+    // PermuteQuantize output will always have memory and compute equal for now.
+    return distributedOut.getPerClusterMemoryShapeOffsets();
+}
+
 // Splits the workload channels so that they are composed out of the values in the `supportedChannels` array, if it is
 // provided. Additionally, removes the padding and spatial offsets from the workload based on the `removePadding` flag
 void splitWorkload(VPU::DPUWorkloadOp dpuWorkloadOp, ArrayRef<int64_t> supportedChannels, const bool removePadding,
-                   Logger log) {
-    auto wlSizes = parseIntArrayAttr<int64_t>(dpuWorkloadOp.sizesAttr());
-    auto wlOffsets = parseIntArrayAttr<int64_t>(dpuWorkloadOp.offsetsAttr());
+                   ArrayRef<Shape> offsetsCorrectionForPermuteQuantize, Logger log) {
+    auto wlSizes = parseIntArrayAttr<int64_t>(dpuWorkloadOp.outSizesAttr());
+    auto wlOffsets = parseIntArrayAttr<int64_t>(dpuWorkloadOp.outOffsetsAttr());
     auto padsAttr = dpuWorkloadOp.pad();
     if (removePadding) {
         const auto pads = dpuWorkloadOp.pad();
@@ -302,11 +317,13 @@ void splitWorkload(VPU::DPUWorkloadOp dpuWorkloadOp, ArrayRef<int64_t> supported
         const auto right = pads.right().getInt();
         wlSizes[Dims4D::Act::H.ind()] -= (top + bottom);
         wlSizes[Dims4D::Act::W.ind()] -= (left + right);
-
-        wlOffsets[Dims4D::Act::N.ind()] = 0;
-        wlOffsets[Dims4D::Act::C.ind()] = 0;
-        wlOffsets[Dims4D::Act::H.ind()] = 0;
-        wlOffsets[Dims4D::Act::W.ind()] = 0;
+        if (!offsetsCorrectionForPermuteQuantize.empty()) {
+            const auto clusterId = dpuWorkloadOp.cluster_id().getValue();
+            const auto offsetsCorrectionPerCluster = offsetsCorrectionForPermuteQuantize[clusterId].raw();
+            std::transform(wlOffsets.begin(), wlOffsets.end(), offsetsCorrectionPerCluster.begin(), wlOffsets.begin(),
+                           std::minus<int64_t>());
+            log.nest().trace("Applied offset correction {0}", offsetsCorrectionForPermuteQuantize);
+        }
 
         padsAttr = VPU::getPaddingAttr(pads.getContext(), PadInfo(0, 0, 0, 0));
 
@@ -367,7 +384,7 @@ private:
 };
 
 void CorrectNCEWorkloadsPass::safeRunOnFunc() {
-    auto func = getFunction();
+    auto func = getOperation();
 
     mlir::DenseSet<mlir::Operation*> handledNCEOps;
 
@@ -408,15 +425,17 @@ void CorrectNCEWorkloadsPass::safeRunOnFunc() {
                        op->getName(), op->getLoc(), isInvalidDepthwise, isInvalidSparsity, opIdx++,
                        producerNCEOps.size(), isInvalidPermuteQuantizeOp);
 
+            const auto offsetsCorrectionForPermuteQuantize = getPerClusterOffsetsCorrection(nceOp);
             auto workloads = nceOp.workloads().getOps<VPU::DPUWorkloadOp>();
             for (auto workloadOp : llvm::make_early_inc_range(workloads)) {
-                const auto wlSizes = parseIntArrayAttr<int64_t>(workloadOp.sizes());
+                const auto wlSizes = parseIntArrayAttr<int64_t>(workloadOp.outSizes());
                 auto wlChannels = wlSizes[Dims4D::Act::C.ind()];
                 if (llvm::find(supportedChannels, wlChannels) != supportedChannels.end()) {
                     continue;
                 }
 
-                splitWorkload(workloadOp, supportedChannels, /*removePadding=*/isInvalidPermuteQuantizeOp, _log);
+                splitWorkload(workloadOp, supportedChannels, /*removePadding=*/isInvalidPermuteQuantizeOp,
+                              offsetsCorrectionForPermuteQuantize, _log);
             }
 
             handledNCEOps.insert(op);

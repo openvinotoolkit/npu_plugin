@@ -4,9 +4,9 @@
 //
 
 #include "behavior/ov_plugin/core_integration.hpp"
-#include "common/functions.h"
 #include "functional_test_utils/plugin_cache.hpp"
 #include "vpux/utils/plugin/plugin_name.hpp"
+#include "vpux/vpux_metrics.hpp"
 
 using namespace ov::test::behavior;
 
@@ -23,9 +23,9 @@ std::pair<std::string, std::string> plugins[] = {
 // IE Class Common tests with <pluginName, deviceName params>
 //
 
-INSTANTIATE_TEST_SUITE_P(OVClassBasicTestP_smoke, OVClassBasicTestP, ::testing::ValuesIn(plugins));
+INSTANTIATE_TEST_SUITE_P(smoke_OVClassBasicTestP, OVClassBasicTestP, ::testing::ValuesIn(plugins));
 
-INSTANTIATE_TEST_SUITE_P(OVClassNetworkTestP_smoke, OVClassNetworkTestP, ::testing::ValuesIn(devices));
+INSTANTIATE_TEST_SUITE_P(smoke_OVClassNetworkTestP, OVClassNetworkTestP, ::testing::ValuesIn(devices));
 
 //
 // OVClassNetworkTestP tests, customized to add SKIP_IF_CURRENT_TEST_IS_DISABLED()
@@ -65,6 +65,59 @@ INSTANTIATE_TEST_SUITE_P(OVClassGetMetricTest_nightly, OVClassGetMetricTest_RANG
 
 INSTANTIATE_TEST_SUITE_P(OVClassGetMetricTest_nightly, OVClassGetMetricTest_DEVICE_UUID, ::testing::ValuesIn(devices));
 
+INSTANTIATE_TEST_SUITE_P(smoke_OVClassSetLogLevelConfigTest, OVClassSetLogLevelConfigTest,
+                         ::testing::Values("MULTI", "AUTO"));
+
+const std::vector<ov::AnyMap> multiConfigs = {{ov::device::priorities(CommonTestUtils::DEVICE_KEEMBAY)}};
+const std::vector<ov::AnyMap> configsDeviceProperties = {
+        {ov::device::properties(CommonTestUtils::DEVICE_KEEMBAY, ov::num_streams(4))}};
+const std::vector<ov::AnyMap> configsWithSecondaryProperties = {
+        {ov::device::properties(CommonTestUtils::DEVICE_KEEMBAY,
+                                ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT))},
+        {ov::device::properties(CommonTestUtils::DEVICE_KEEMBAY,
+                                ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)),
+         ov::device::properties(CommonTestUtils::DEVICE_KEEMBAY,
+                                ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY))}};
+
+const std::vector<ov::AnyMap> multiConfigsWithSecondaryProperties = {
+        {ov::device::priorities(CommonTestUtils::DEVICE_CPU),
+         ov::device::properties(CommonTestUtils::DEVICE_CPU,
+                                ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT))},
+        {ov::device::priorities(CommonTestUtils::DEVICE_CPU),
+         ov::device::properties(CommonTestUtils::DEVICE_CPU,
+                                ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)),
+         ov::device::properties(CommonTestUtils::DEVICE_KEEMBAY,
+                                ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY))}};
+
+const std::vector<ov::AnyMap> autoConfigsWithSecondaryProperties = {
+        {ov::device::priorities(CommonTestUtils::DEVICE_CPU),
+         ov::device::properties("AUTO", ov::enable_profiling(false),
+                                ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT))},
+        {ov::device::priorities(CommonTestUtils::DEVICE_CPU),
+         ov::device::properties(CommonTestUtils::DEVICE_CPU,
+                                ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT))},
+        {ov::device::priorities(CommonTestUtils::DEVICE_CPU),
+         ov::device::properties(CommonTestUtils::DEVICE_CPU,
+                                ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)),
+         ov::device::properties(CommonTestUtils::DEVICE_KEEMBAY,
+                                ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY))},
+        {ov::device::priorities(CommonTestUtils::DEVICE_CPU),
+         ov::device::properties("AUTO", ov::enable_profiling(false),
+                                ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)),
+         ov::device::properties(CommonTestUtils::DEVICE_CPU,
+                                ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT))},
+        {ov::device::priorities(CommonTestUtils::DEVICE_CPU),
+         ov::device::properties("AUTO", ov::enable_profiling(false),
+                                ov::device::priorities(CommonTestUtils::DEVICE_KEEMBAY),
+                                ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)),
+         ov::device::properties(CommonTestUtils::DEVICE_CPU,
+                                ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)),
+         ov::device::properties(CommonTestUtils::DEVICE_KEEMBAY,
+                                ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY))}};
+
+INSTANTIATE_TEST_SUITE_P(smoke_OVClassSetDevicePriorityConfigTest, OVClassSetDevicePriorityConfigTest,
+                         ::testing::Combine(::testing::Values("MULTI", "AUTO"), ::testing::ValuesIn(multiConfigs)));
+
 //
 // IE Class GetConfig
 //
@@ -76,9 +129,53 @@ INSTANTIATE_TEST_SUITE_P(OVClassGetConfigTest_nightly, OVClassGetConfigTest_Thro
 
 // IE Class Query network
 
-INSTANTIATE_TEST_SUITE_P(OVClassQueryNetworkTest_smoke, OVClassQueryNetworkTest, ::testing::ValuesIn(devices));
+INSTANTIATE_TEST_SUITE_P(smoke_OVClassQueryNetworkTest, OVClassQueryNetworkTest, ::testing::ValuesIn(devices));
 
 // IE Class Load network
 
-INSTANTIATE_TEST_SUITE_P(OVClassLoadNetworkTest_smoke, OVClassLoadNetworkTest, ::testing::ValuesIn(devices));
+INSTANTIATE_TEST_SUITE_P(smoke_VPUX_OVClassLoadNetworkWithCorrectSecondaryPropertiesTest,
+                         OVClassLoadNetworkWithCorrectPropertiesTest,
+                         ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_KEEMBAY, "AUTO:VPUX",
+                                                              "MULTI:VPUX"),
+                                            ::testing::ValuesIn(configsWithSecondaryProperties)));
+
+INSTANTIATE_TEST_SUITE_P(smoke_Multi_OVClassLoadNetworkWithSecondaryPropertiesTest,
+                         OVClassLoadNetworkWithCorrectPropertiesTest,
+                         ::testing::Combine(::testing::Values("MULTI"),
+                                            ::testing::ValuesIn(multiConfigsWithSecondaryProperties)));
+
+INSTANTIATE_TEST_SUITE_P(smoke_AUTO_OVClassLoadNetworkWithSecondaryPropertiesTest,
+                         OVClassLoadNetworkWithCorrectPropertiesTest,
+                         ::testing::Combine(::testing::Values("AUTO"),
+                                            ::testing::ValuesIn(autoConfigsWithSecondaryProperties)));
+
+// IE Class load and check network with ov::device::properties
+// OVClassLoadNetworkAndCheckSecondaryPropertiesTest only works with property num_streams of type int32_t
+INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_VPUX_OVClassLoadNetworkAndCheckWithSecondaryPropertiesTest,
+                         OVClassLoadNetworkAndCheckSecondaryPropertiesTest,
+                         ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_KEEMBAY, "AUTO:VPUX",
+                                                              "MULTI:VPUX"),
+                                            ::testing::ValuesIn(configsDeviceProperties)));
+
+INSTANTIATE_TEST_SUITE_P(smoke_OVClassLoadNetworkTest, OVClassLoadNetworkTest, ::testing::ValuesIn(devices));
+
+//
+// VPUX specific metrics
+//
+using OVClassGetMetricTest_VPUX_DEVICE_TOTAL_MEM_SIZE = OVClassBaseTestP;
+TEST_P(OVClassGetMetricTest_VPUX_DEVICE_TOTAL_MEM_SIZE, GetMetricAndPrintNoThrow) {
+    ov::Core ie;
+    ov::Any p;
+
+    ASSERT_NO_THROW(p = ie.get_property(target_device, VPUX_METRIC_KEY(DEVICE_TOTAL_MEM_SIZE)));
+    uint64_t t = p.as<uint64_t>();
+
+    std::cout << "OV VPUX device total memory size: " << t << std::endl;
+
+    OV_ASSERT_PROPERTY_SUPPORTED(VPUX_METRIC_KEY(DEVICE_TOTAL_MEM_SIZE));
+}
+
+INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest, OVClassGetMetricTest_VPUX_DEVICE_TOTAL_MEM_SIZE,
+                         ::testing::Values("VPUX"));
+
 }  // namespace

@@ -1,12 +1,13 @@
 //
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
+
 // RUN: vpux-opt --split-input-file --init-compiler="vpu-arch=%arch%" --optimize-async-deps %s | FileCheck %s
 // REQUIRES: arch-VPUX30XX || arch-VPUX37XX
 
 // CHECK-LABEL: @LinearGraph
-func @LinearGraph(%arg0: memref<10xf16>, %arg1: memref<10xf16>) -> memref<10xf16> {
+func.func @LinearGraph(%arg0: memref<10xf16>, %arg1: memref<10xf16>) -> memref<10xf16> {
     %buf0 = memref.alloc() : memref<10xf16>
     %buf1 = memref.alloc() : memref<10xf16>
 
@@ -52,7 +53,7 @@ func @LinearGraph(%arg0: memref<10xf16>, %arg1: memref<10xf16>) -> memref<10xf16
 // -----
 
 // CHECK-LABEL: @IndependentBranchesLinearSched
-func @IndependentBranchesLinearSched(%arg0: memref<10xf16>, %arg1: memref<10xf16>, %arg2: memref<20xf16>) -> memref<20xf16> {
+func.func @IndependentBranchesLinearSched(%arg0: memref<10xf16>, %arg1: memref<10xf16>, %arg2: memref<20xf16>) -> memref<20xf16> {
     %buf = memref.alloc() : memref<20xf16>
 
     %t0, %f0 = async.execute -> !async.value<memref<10xf16>> {
@@ -104,7 +105,7 @@ func @IndependentBranchesLinearSched(%arg0: memref<10xf16>, %arg1: memref<10xf16
 // -----
 
 // CHECK-LABEL: @IndependentBranchesParallelSched
-func @IndependentBranchesParallelSched(%arg0: memref<10xf16>, %arg1: memref<10xf16>, %arg2: memref<20xf16>) -> memref<20xf16> {
+func.func @IndependentBranchesParallelSched(%arg0: memref<10xf16>, %arg1: memref<10xf16>, %arg2: memref<20xf16>) -> memref<20xf16> {
     %buf = memref.alloc() : memref<20xf16>
 
     %t0, %f0 = async.execute -> !async.value<memref<10xf16>> {
@@ -154,7 +155,7 @@ func @IndependentBranchesParallelSched(%arg0: memref<10xf16>, %arg1: memref<10xf
 // -----
 
 // CHECK-LABEL: @TwoOutputs
-func @TwoOutputs(%arg0: memref<2xf16>, %arg1: memref<2xf16>, %arg2: memref<2xf16>) -> (memref<2xf16>, memref<2xf16>) {
+func.func @TwoOutputs(%arg0: memref<2xf16>, %arg1: memref<2xf16>, %arg2: memref<2xf16>) -> (memref<2xf16>, memref<2xf16>) {
     %0 = const.Declare memref<2xf16> = dense<1.0> : tensor<2xf16>
 
     %t1, %f1 = async.execute -> !async.value<memref<2xf16>> {
@@ -184,7 +185,7 @@ func @TwoOutputs(%arg0: memref<2xf16>, %arg1: memref<2xf16>, %arg2: memref<2xf16
 
     return %3, %4 : memref<2xf16>, memref<2xf16>
 
-    // CHECK:       [[CST:%.+]] = const.Declare
+    // CHECK-DAG:       [[CST:%.+]] = const.Declare
 
     // CHECK:       [[T1:%.+]], [[F1:%.+]] = async.execute
     // CHECK:           {{%.+}} = VPUIP.StaticAlloc<0>
@@ -214,7 +215,7 @@ func @TwoOutputs(%arg0: memref<2xf16>, %arg1: memref<2xf16>, %arg2: memref<2xf16
 // -----
 
 // CHECK-LABEL: @DiamondGraph
-func @DiamondGraph(%arg0: memref<10xf16>, %arg1: memref<10xf16>) -> memref<10xf16> {
+func.func @DiamondGraph(%arg0: memref<10xf16>, %arg1: memref<10xf16>) -> memref<10xf16> {
     %buf0 = memref.alloc() : memref<10xf16>
     %buf1 = memref.alloc() : memref<10xf16>
     %buf2 = memref.alloc() : memref<10xf16>

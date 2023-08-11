@@ -1,12 +1,13 @@
 //
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
+
 // RUN: vpux-opt --split-input-file --init-compiler="vpu-arch=%arch%" --convert-async-ops-to-tasks --canonicalize --move-declarations-to-top %s | FileCheck %s
 // REQUIRES: arch-VPUX30XX || arch-VPUX37XX
 
 // CHECK-LABEL: @LinearGraph
-func @LinearGraph(%arg0: memref<10xf16>, %arg1: memref<10xf16>) -> memref<10xf16> {
+func.func @LinearGraph(%arg0: memref<10xf16>, %arg1: memref<10xf16>) -> memref<10xf16> {
     %buf0 = VPURT.DeclareBuffer "DDR" <0> -> memref<10xf16, @DDR>
     %t0, %f0 = async.execute -> !async.value<memref<10xf16, @DDR>>
             attributes { VPUIP.executor = @DMA_NN, VPUIP.num_units = 1, cycleBegin = 0 : i64, cycleCost = 2 : i64, cycleEnd = 2 : i64} {
@@ -45,7 +46,7 @@ func @LinearGraph(%arg0: memref<10xf16>, %arg1: memref<10xf16>) -> memref<10xf16
 // -----
 
 // CHECK-LABEL: @IndependentBranchesLinearSched
-func @IndependentBranchesLinearSched(%arg0: memref<10xf16>, %arg1: memref<10xf16>, %arg2: memref<20xf16>) -> memref<20xf16> {
+func.func @IndependentBranchesLinearSched(%arg0: memref<10xf16>, %arg1: memref<10xf16>, %arg2: memref<20xf16>) -> memref<20xf16> {
     %buf0 = VPURT.DeclareBuffer "DDR" <0> -> memref<10xf16, @DDR>
     %t0, %f0 = async.execute -> !async.value<memref<10xf16, @DDR>>
         attributes { VPUIP.executor = @DMA_NN, VPUIP.num_units = 1, cycleBegin = 0 : i64, cycleCost = 2 : i64, cycleEnd = 2 : i64} {
@@ -105,7 +106,7 @@ func @IndependentBranchesLinearSched(%arg0: memref<10xf16>, %arg1: memref<10xf16
 // -----
 
 // CHECK-LABEL: @IndependentBranchesParallelSched
-func @IndependentBranchesParallelSched(%arg0: memref<10xf16>, %arg1: memref<10xf16>, %arg2: memref<20xf16>) -> memref<20xf16> {
+func.func @IndependentBranchesParallelSched(%arg0: memref<10xf16>, %arg1: memref<10xf16>, %arg2: memref<20xf16>) -> memref<20xf16> {
     %buf = VPURT.DeclareBuffer "DDR" <0> -> memref<20xf16, @DDR>
 
     %t0, %f0 = async.execute -> !async.value<memref<10xf16, @DDR>>
@@ -165,7 +166,7 @@ func @IndependentBranchesParallelSched(%arg0: memref<10xf16>, %arg1: memref<10xf
 // -----
 
 // CHECK-LABEL: @TwoOutputs
-func @TwoOutputs(%arg0: memref<2xf16>, %arg1: memref<2xf16>, %arg2: memref<2xf16>) -> (memref<2xf16>, memref<2xf16>) {
+func.func @TwoOutputs(%arg0: memref<2xf16>, %arg1: memref<2xf16>, %arg2: memref<2xf16>) -> (memref<2xf16>, memref<2xf16>) {
     %cst = const.Declare memref<2xf16, @DDR> = dense<1.0> : tensor<2xf16>
 
     %buf0 = VPURT.DeclareBuffer "DDR" <0> -> memref<2xf16, @DDR>
@@ -239,7 +240,7 @@ func @TwoOutputs(%arg0: memref<2xf16>, %arg1: memref<2xf16>, %arg2: memref<2xf16
 // -----
 
 // CHECK-LABEL: @WithReshape
-func @WithReshape(%arg0: memref<1x512xf16>, %arg1: memref<1x512xf16>) -> memref<1x512xf16> {
+func.func @WithReshape(%arg0: memref<1x512xf16>, %arg1: memref<1x512xf16>) -> memref<1x512xf16> {
     %0 = VPURT.DeclareBuffer "DDR" <0> -> memref<1x512x1x1xf16, @DDR>
 
     %t2, %f2 = async.execute -> !async.value<memref<1x512x1x1xf16, @DDR>>
@@ -288,7 +289,7 @@ func @WithReshape(%arg0: memref<1x512xf16>, %arg1: memref<1x512xf16>) -> memref<
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
 // CHECK-LABEL: @AwaitWithoutUsers
-func @AwaitWithoutUsers(%arg0: memref<1x16x112x112xf16, #NHWC>, %arg1: memref<1x16x112x112xf16, #NHWC>, %arg2: memref<1x32x112x112xf16, #NHWC>) -> memref<1x32x112x112xf16, #NHWC> {
+func.func @AwaitWithoutUsers(%arg0: memref<1x16x112x112xf16, #NHWC>, %arg1: memref<1x16x112x112xf16, #NHWC>, %arg2: memref<1x32x112x112xf16, #NHWC>) -> memref<1x32x112x112xf16, #NHWC> {
     %t1, %f1 = async.execute -> !async.value<memref<1x16x112x112xf16, {order = #NHWC, strides = [401408, 1, 3584, 32]}>>
         attributes { VPUIP.executor = @DMA_NN, VPUIP.num_units = 1, cycleBegin = 0 : i64, cycleCost = 2 : i64, cycleEnd = 2 : i64} {
         %1 = VPURT.DeclareBuffer "NetworkOutput" [0] <0> -> memref<1x16x112x112xf16, {order = #NHWC, strides = [401408, 1, 3584, 32]}>

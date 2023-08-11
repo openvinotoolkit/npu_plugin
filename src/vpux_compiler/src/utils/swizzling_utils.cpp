@@ -2,8 +2,6 @@
 // Copyright (C) 2022 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
-
-//
 #include "vpux/compiler/utils/swizzling_utils.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/types.hpp"
@@ -36,7 +34,7 @@ VPUIP::SwizzlingSchemeAttr vpux::createSwizzlingSchemeAttr(mlir::MLIRContext* ct
     return swizzlingSchemeAttr;
 }
 
-int64_t vpux::getAddressAlignmentForSwizzling(int64_t swizzlingKey) {
+int64_t vpux::getAddressAlignmentForSwizzling(int64_t swizzlingKey, VPU::ArchKind /*archKind*/) {
     if (swizzlingKey < 1 || swizzlingKey > 5) {
         return 0;
     }
@@ -187,17 +185,13 @@ mlir::Type vpux::setSwizzlingKey(mlir::Type type, mlir::IntegerAttr swizzlingKey
             stridesAttr = getIntArrayAttr(ctx, elemStrides);
         }
 
-        VPUIP::CompressionSchemeAttr compressionSchemeAttr;
-        if (auto distType = type.dyn_cast<VPUIP::DistributedBufferType>()) {
-            compressionSchemeAttr = distType.getCompressionScheme();
-        }
-
-        const auto layoutAttr =
-                VPUIP::MemRefAttr::get(orderAttr, stridesAttr, swizzlingSchemeAttr, compressionSchemeAttr, ctx);
+        const auto layoutAttr = VPUIP::MemRefAttr::get(orderAttr, stridesAttr, swizzlingSchemeAttr, nullptr,
+                                                       /*allocSize=*/nullptr, ctx);
 
         auto distBufferType = type.cast<VPUIP::DistributedBufferType>();
         return VPUIP::DistributedBufferType::get(ctx, shape.raw(), elemType, layoutAttr, memSpace,
-                                                 distBufferType.getDistribution());
+                                                 distBufferType.getDistribution(),
+                                                 distBufferType.getCompressionScheme());
     }
 
     VPUX_THROW("Unsupported type for storing swizzling setting");

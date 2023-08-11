@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #ifndef VPUX_COMPILER_DIALECT_VPUIP_ATTRIBUTES
 #define VPUX_COMPILER_DIALECT_VPUIP_ATTRIBUTES
 
@@ -143,7 +141,8 @@ def VPUIP_MemRefAttr :
                 StructFieldAttr<"order", AffineMapAttr>,
                 StructFieldAttr<"strides", OptionalAttr<I64ArrayAttr>>,
                 StructFieldAttr<"swizzlingScheme", OptionalAttr<VPUIP_SwizzlingSchemeAttr>>,
-                StructFieldAttr<"compressionScheme", OptionalAttr<VPUIP_CompressionSchemeAttr>>
+                StructFieldAttr<"compressionScheme", OptionalAttr<VPUIP_CompressionSchemeAttr>>,
+                StructFieldAttr<"allocSize", OptionalAttr<IntAttr>>
             ]
         >;
 
@@ -166,5 +165,28 @@ def VPUIP_DmaDescriptorAttr :
                 StructFieldAttr<"dstPlaneStride", IntAttr>
             ]
         >;
+
+//
+// DmaChannelType
+//
+
+def VPUIP_DmaChannelType :
+        I64EnumAttr<
+            "DmaChannelType",
+            "DMA channel type",
+            [
+                I64EnumAttrCase<"DDR", 0>,
+                I64EnumAttrCase<"CMX", 1>
+            ]
+        > {
+    let cppNamespace = "vpux::VPUIP";
+
+    let description = [{
+      In VPU different DMA channel receives data movement job from link agent.
+      Different channel is used based on transaction source:
+       - DDR channel - DMA SRC is DDR
+       - CMX channel - DMA SRC is CMX or HW register"
+    }];
+}
 
 #endif

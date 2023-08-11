@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/IE/utils/resources.hpp"
 
 #include "vpux/compiler/utils/attributes.hpp"
@@ -13,7 +11,6 @@
 #include "vpux/utils/core/error.hpp"
 #include "vpux/utils/core/format.hpp"
 #include "vpux/utils/core/range.hpp"
-#include "vpux/utils/core/small_vector.hpp"
 
 #include <mlir/IR/Builders.h>
 
@@ -26,12 +23,18 @@ using namespace vpux;
 IE::MemoryResourceOp vpux::IE::addAvailableMemory(mlir::ModuleOp mainModule, mlir::StringAttr memSpace, Byte size) {
     VPUX_THROW_UNLESS(size.count() > 0, "Trying to set zero size of memory kind '{0}'", memSpace);
 
-    auto res = mainModule.lookupSymbol<MemoryResourceOp>(memSpace);
-    VPUX_THROW_UNLESS(res == nullptr, "Available memory kind '{0}' was already added", memSpace);
-
     const auto byteSizeAttr = getIntAttr(mainModule->getContext(), size.count());
     auto builder = mlir::OpBuilder::atBlockBegin(mainModule.getBody());
     return builder.create<IE::MemoryResourceOp>(mainModule.getLoc(), memSpace, byteSizeAttr, nullptr);
+}
+
+bool vpux::IE::hasAvailableMemory(mlir::ModuleOp mainModule, mlir::StringAttr memSpace) {
+    auto res = mainModule.lookupSymbol<IE::MemoryResourceOp>(memSpace);
+    return res != nullptr;
+}
+
+IE::MemoryResourceOp vpux::IE::getAvailableMemory(mlir::ModuleOp mainModule, mlir::StringAttr memSpace) {
+    return mainModule.lookupSymbol<IE::MemoryResourceOp>(memSpace);
 }
 
 IE::MemoryResourceOp vpux::IE::getAvailableMemory(mlir::ModuleOp mainModule, mlir::SymbolRefAttr memSpace) {
@@ -82,37 +85,66 @@ SmallVector<IE::MemoryResourceOp> vpux::IE::getUsedMemory(mlir::ModuleOp mainMod
 }
 
 //
+// Reserved memory resources
+//
+SmallVector<IE::MemoryResourceOp> vpux::IE::getReservedMemoryResources(mlir::ModuleOp mainModule,
+                                                                       mlir::SymbolRefAttr memSpace) {
+    auto resMemModule = mainModule.lookupSymbol<mlir::ModuleOp>(resMemModuleName);
+    if (resMemModule == nullptr) {
+        return {};
+    }
+
+    SmallVector<IE::MemoryResourceOp> resMemVec;
+
+    for (auto resMemModuleOp : resMemModule.getOps<mlir::ModuleOp>()) {
+        resMemVec.push_back(resMemModuleOp.lookupSymbol<IE::MemoryResourceOp>(memSpace));
+    }
+
+    return resMemVec;
+}
+
+//
 // DMA profiling reserved memory
 //
 
 IE::MemoryResourceOp vpux::IE::setDmaProfilingReservedMemory(mlir::ModuleOp mainModule, mlir::SymbolRefAttr memSpace,
-                                                             int64_t size, int64_t offset) {
+                                                             int64_t size) {
     auto* ctx = mainModule->getContext();
     auto byteSizeAttr = getIntAttr(ctx, size);
-    auto offsetAttr = getIntAttr(ctx, offset);
     auto memSpaceAttr = memSpace.getLeafReference();
     auto mainBuilder = mlir::OpBuilder::atBlockBegin(mainModule.getBody());
 
-    auto dmaProfilingResMemModule = mainModule.lookupSymbol<mlir::ModuleOp>(dmaProfilingResMemModuleName);
+    auto resMemModule = mainModule.lookupSymbol<mlir::ModuleOp>(resMemModuleName);
+    if (resMemModule == nullptr) {
+        resMemModule = mainBuilder.create<mlir::ModuleOp>(mainModule->getLoc(), resMemModuleName);
+    }
+
+    auto resMemBuilder = mlir::OpBuilder::atBlockBegin(resMemModule.getBody());
+
+    auto dmaProfilingResMemModule = resMemModule.lookupSymbol<mlir::ModuleOp>(dmaProfilingResMemModuleName);
     if (dmaProfilingResMemModule == nullptr) {
         dmaProfilingResMemModule =
-                mainBuilder.create<mlir::ModuleOp>(mainModule->getLoc(), dmaProfilingResMemModuleName);
+                resMemBuilder.create<mlir::ModuleOp>(resMemModule->getLoc(), dmaProfilingResMemModuleName);
     }
 
     auto res = dmaProfilingResMemModule.lookupSymbol<IE::MemoryResourceOp>(memSpace.getLeafReference());
     if (res != nullptr) {
         res.byteSizeAttr(byteSizeAttr);
-        res.offsetAttr(offsetAttr);
         return res;
     }
 
     auto innerBuilder = mlir::OpBuilder::atBlockBegin(dmaProfilingResMemModule.getBody());
     return innerBuilder.create<IE::MemoryResourceOp>(dmaProfilingResMemModule->getLoc(), memSpaceAttr, byteSizeAttr,
-                                                     offsetAttr);
+                                                     nullptr);
 }
 
 IE::MemoryResourceOp vpux::IE::getDmaProfilingReservedMemory(mlir::ModuleOp mainModule, mlir::SymbolRefAttr memSpace) {
-    auto dmaProfilingResMemModule = mainModule.lookupSymbol<mlir::ModuleOp>(dmaProfilingResMemModuleName);
+    auto resMemModule = mainModule.lookupSymbol<mlir::ModuleOp>(resMemModuleName);
+    if (resMemModule == nullptr) {
+        return nullptr;
+    }
+
+    auto dmaProfilingResMemModule = resMemModule.lookupSymbol<mlir::ModuleOp>(dmaProfilingResMemModuleName);
     if (dmaProfilingResMemModule == nullptr) {
         return nullptr;
     }
@@ -121,7 +153,12 @@ IE::MemoryResourceOp vpux::IE::getDmaProfilingReservedMemory(mlir::ModuleOp main
 }
 
 SmallVector<IE::MemoryResourceOp> vpux::IE::getDmaProfilingReservedMemory(mlir::ModuleOp mainModule) {
-    auto dmaProfilingResMemModule = mainModule.lookupSymbol<mlir::ModuleOp>(dmaProfilingResMemModuleName);
+    auto resMemModule = mainModule.lookupSymbol<mlir::ModuleOp>(resMemModuleName);
+    if (resMemModule == nullptr) {
+        return {};
+    }
+
+    auto dmaProfilingResMemModule = resMemModule.lookupSymbol<mlir::ModuleOp>(dmaProfilingResMemModuleName);
     if (dmaProfilingResMemModule == nullptr) {
         return {};
     }
@@ -130,17 +167,77 @@ SmallVector<IE::MemoryResourceOp> vpux::IE::getDmaProfilingReservedMemory(mlir::
 }
 
 //
+// Compressed DMA reserved memory
+//
+
+IE::MemoryResourceOp vpux::IE::setCompressDmaReservedMemory(mlir::ModuleOp mainModule, mlir::SymbolRefAttr memSpace,
+                                                            int64_t size) {
+    auto* ctx = mainModule->getContext();
+    auto byteSizeAttr = getIntAttr(ctx, size);
+    auto memSpaceAttr = memSpace.getLeafReference();
+    auto mainBuilder = mlir::OpBuilder::atBlockBegin(mainModule.getBody());
+
+    auto resMemModule = mainModule.lookupSymbol<mlir::ModuleOp>(resMemModuleName);
+    if (resMemModule == nullptr) {
+        resMemModule = mainBuilder.create<mlir::ModuleOp>(mainModule->getLoc(), resMemModuleName);
+    }
+
+    auto resMemBuilder = mlir::OpBuilder::atBlockBegin(resMemModule.getBody());
+
+    auto compressDmaResMemModule = resMemModule.lookupSymbol<mlir::ModuleOp>(compressDmaResMemModuleName);
+    if (compressDmaResMemModule == nullptr) {
+        compressDmaResMemModule =
+                resMemBuilder.create<mlir::ModuleOp>(resMemModule->getLoc(), compressDmaResMemModuleName);
+    }
+
+    auto res = compressDmaResMemModule.lookupSymbol<IE::MemoryResourceOp>(memSpace.getLeafReference());
+    if (res != nullptr) {
+        res.byteSizeAttr(byteSizeAttr);
+        return res;
+    }
+
+    auto innerBuilder = mlir::OpBuilder::atBlockBegin(compressDmaResMemModule.getBody());
+    return innerBuilder.create<IE::MemoryResourceOp>(compressDmaResMemModule->getLoc(), memSpaceAttr, byteSizeAttr,
+                                                     nullptr);
+}
+
+IE::MemoryResourceOp vpux::IE::getCompressDmaReservedMemory(mlir::ModuleOp mainModule, mlir::SymbolRefAttr memSpace) {
+    auto resMemModule = mainModule.lookupSymbol<mlir::ModuleOp>(resMemModuleName);
+    if (resMemModule == nullptr) {
+        return nullptr;
+    }
+
+    auto compressDmaResMemModule = resMemModule.lookupSymbol<mlir::ModuleOp>(compressDmaResMemModuleName);
+    if (compressDmaResMemModule == nullptr) {
+        return nullptr;
+    }
+
+    return compressDmaResMemModule.lookupSymbol<IE::MemoryResourceOp>(memSpace);
+}
+
+SmallVector<IE::MemoryResourceOp> vpux::IE::getCompressDmaReservedMemory(mlir::ModuleOp mainModule) {
+    auto resMemModule = mainModule.lookupSymbol<mlir::ModuleOp>(resMemModuleName);
+    if (resMemModule == nullptr) {
+        return {};
+    }
+
+    auto compressDmaResMemModule = resMemModule.lookupSymbol<mlir::ModuleOp>(compressDmaResMemModuleName);
+    if (compressDmaResMemModule == nullptr) {
+        return {};
+    }
+
+    return to_small_vector(compressDmaResMemModule.getOps<IE::MemoryResourceOp>());
+}
+
+//
 // ExecutorResourceOp
 //
 
-IE::ExecutorResourceOp vpux::IE::details::addExecutor(mlir::SymbolTable mainModule, mlir::Region& region,
-                                                      mlir::StringAttr executorAttr, uint32_t count) {
+IE::ExecutorResourceOp vpux::IE::details::addExecutor(mlir::Region& region, mlir::StringAttr executorAttr,
+                                                      uint32_t count) {
     VPUX_THROW_UNLESS(count > 0, "Trying to set zero count of executor kind '{0}'", executorAttr);
 
     auto* ctx = region.getContext();
-    auto res = mainModule.lookup<ExecutorResourceOp>(executorAttr);
-    VPUX_THROW_UNLESS(res == nullptr, "Available executor kind '{0}' was already added", executorAttr);
-
     const auto countAttr = getIntAttr(ctx, count);
     auto builder = mlir::OpBuilder::atBlockBegin(&region.front());
     auto resOp = builder.create<IE::ExecutorResourceOp>(region.getLoc(), executorAttr, countAttr, nullptr);
@@ -150,12 +247,21 @@ IE::ExecutorResourceOp vpux::IE::details::addExecutor(mlir::SymbolTable mainModu
     return resOp;
 }
 
+bool vpux::IE::details::hasExecutor(mlir::SymbolTable mainModule, mlir::StringAttr executorAttr) {
+    auto res = mainModule.lookup<IE::ExecutorResourceOp>(executorAttr);
+    return res != nullptr;
+}
+
 IE::ExecutorResourceOp vpux::IE::getAvailableExecutor(mlir::ModuleOp mainModule, mlir::SymbolRefAttr executorAttr) {
     return mlir::dyn_cast_or_null<IE::ExecutorResourceOp>(mlir::SymbolTable::lookupSymbolIn(mainModule, executorAttr));
 }
 
 IE::ExecutorResourceOp vpux::IE::ExecutorResourceOp::addSubExecutor(mlir::StringAttr executorAttr, uint32_t count) {
-    return details::addExecutor(getOperation(), getRegion(), executorAttr, count);
+    return details::addExecutor(getRegion(), executorAttr, count);
+}
+
+bool vpux::IE::ExecutorResourceOp::hasSubExecutor(mlir::StringAttr executorAttr) {
+    return details::hasExecutor(getOperation(), executorAttr);
 }
 
 IE::ExecutorResourceOp vpux::IE::ExecutorResourceOp::getSubExecutor(mlir::StringAttr executorAttr) {

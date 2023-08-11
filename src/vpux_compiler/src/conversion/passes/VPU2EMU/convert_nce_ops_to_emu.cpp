@@ -212,7 +212,7 @@ private:
 
 void ConvertVPUNCEToEMUPass::safeRunOnFunc() {
     auto& ctx = getContext();
-    auto func = getFunction();
+    auto func = getOperation();
 
     mlir::RewritePatternSet patterns(&ctx);
     patterns.add<ConvToEMU>(&ctx, _log);

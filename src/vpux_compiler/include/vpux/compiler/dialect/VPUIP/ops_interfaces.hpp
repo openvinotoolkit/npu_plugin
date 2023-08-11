@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #pragma once
 
 #include "vpux/compiler/dialect/IE/ops_interfaces.hpp"
@@ -18,6 +16,7 @@
 
 #include <mlir/IR/OpDefinition.h>
 #include <mlir/IR/Operation.h>
+#include <mlir/IR/ValueRange.h>
 #include <mlir/Interfaces/SideEffectInterfaces.h>
 
 namespace vpux {

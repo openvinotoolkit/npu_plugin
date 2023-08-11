@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/IE/ops.hpp"
 
 #include "vpux/compiler/core/aliases_info.hpp"
@@ -20,14 +18,16 @@
 
 using namespace vpux;
 
-static mlir::LogicalResult checkFunctionPrototype(vpux::IE::CNNNetworkOp cnnOp, mlir::FuncOp netFunc,
+static mlir::LogicalResult checkFunctionPrototype(vpux::IE::CNNNetworkOp cnnOp, mlir::func::FuncOp netFunc,
                                                   SmallVector<IE::DataInfoOp>& inputsInfo,
                                                   SmallVector<IE::DataInfoOp>& outputsInfo,
                                                   SmallVector<IE::DataInfoOp>& profilingOutputsInfo) {
-    const auto netFuncType = netFunc.getType();
+    const auto netFuncType = netFunc.getFunctionType();
     const auto args = netFunc.getArgumentTypes();
 
-    if (netFuncType.getNumResults() != outputsInfo.size() + profilingOutputsInfo.size()) {
+    const auto hoistedIOs = (netFuncType.getNumInputs() == 0) && (netFuncType.getNumResults() == 0);
+
+    if (!hoistedIOs && netFuncType.getNumResults() != outputsInfo.size() + profilingOutputsInfo.size()) {
         return errorAt(cnnOp, "entryPoint '@{0}' outputs count '{1}' doesn't match userOutputs count '{2}'",
                        cnnOp.entryPoint(), netFuncType.getNumResults(), outputsInfo.size());
     }
@@ -51,10 +51,11 @@ static mlir::LogicalResult checkFunctionPrototype(vpux::IE::CNNNetworkOp cnnOp, 
     const auto isBufferized =
             (netFuncType.getNumInputs() == inputsInfo.size() + outputsInfo.size() + profilingOutputsInfo.size()) &&
             isArgsBufferized;
-    if (isBufferized) {
+
+    if (isBufferized && !hoistedIOs) {
         mlir::LogicalResult res = mlir::success();
         const AliasesInfo info{netFunc};
-        netFunc.walk([&inputsInfo, &netFunc, &res, &info](mlir::ReturnOp op) {
+        netFunc.walk([&inputsInfo, &netFunc, &res, &info](mlir::func::ReturnOp op) {
             const auto operands = op.getOperands();
             for (const auto ind : irange(operands.size())) {
                 const auto rawInd = checked_cast<unsigned>(inputsInfo.size() + ind);
@@ -77,6 +78,10 @@ static mlir::LogicalResult checkFunctionPrototype(vpux::IE::CNNNetworkOp cnnOp, 
         return res.failed() ? res : mlir::success();
     }
 
+    // E#69730: find cleaner representation of the FuncOp with no args
+    if (hoistedIOs)
+        return mlir::success();
+
     return errorAt(cnnOp,
                    "entryPoint '@{0}' has invalid state. inputs count '{1}', results count '{2}', user inputs "
                    "count '{3}', user outputs count '{4}'",
@@ -94,7 +99,7 @@ void vpux::IE::CNNNetworkOp::build(mlir::OpBuilder& builder, mlir::OperationStat
 }
 
 mlir::LogicalResult vpux::IE::CNNNetworkOp::verifySymbolUses(mlir::SymbolTableCollection& symbolTable) {
-    auto netFunc = symbolTable.lookupNearestSymbolFrom<mlir::FuncOp>(*this, entryPointAttr());
+    auto netFunc = symbolTable.lookupNearestSymbolFrom<mlir::func::FuncOp>(*this, entryPointAttr());
 
     if (netFunc == nullptr) {
         return errorAt(*this, "entryPoint '@{0}' doesn't refer to existing Function", entryPoint());
@@ -130,7 +135,13 @@ mlir::LogicalResult vpux::IE::CNNNetworkOp::verifySymbolUses(mlir::SymbolTableCo
         return mlir::success();
     };
 
-    const auto netFuncType = netFunc.getType();
+    const auto netFuncType = netFunc.getFunctionType();
+
+    // E#69730: find cleaner representation of the FuncOp with no args
+    const auto hoistedIOs = (netFuncType.getNumInputs() == 0) && (netFuncType.getNumResults() == 0);
+    if (hoistedIOs)
+        return mlir::success();
+
     for (const auto ind : irange(inputsInfo.size())) {
         const auto funcType = netFuncType.getInput(static_cast<uint32_t>(ind)).dyn_cast<vpux::NDTypeInterface>();
         const auto userType = inputsInfo[ind].userType().dyn_cast<vpux::NDTypeInterface>();
@@ -173,33 +184,23 @@ mlir::LogicalResult verifyDataInfoRegion(mlir::Operation* op, mlir::Region& regi
 
 }  // namespace
 
-mlir::LogicalResult vpux::IE::verifyOp(CNNNetworkOp op) {
-    auto entryPointAttr = op.entryPointAttr();
-
-    if (entryPointAttr == nullptr) {
-        return errorAt(op, "entryPoint attribute is NULL");
+mlir::LogicalResult vpux::IE::CNNNetworkOp::verify() {
+    if (entryPointAttr() == nullptr) {
+        return errorAt(*this, "entryPoint attribute is NULL");
     }
 
-    if (mlir::failed(verifyDataInfoRegion(op, op.inputsInfo(), "inputInfo"))) {
+    if (mlir::failed(verifyDataInfoRegion(*this, inputsInfo(), "inputInfo"))) {
         return mlir::failure();
     }
-    if (mlir::failed(verifyDataInfoRegion(op, op.outputsInfo(), "outputsInfo"))) {
+    if (mlir::failed(verifyDataInfoRegion(*this, outputsInfo(), "outputsInfo"))) {
         return mlir::failure();
     }
 
-    auto inputsInfo = op.getInputsInfo();
-    auto outputsInfo = op.getOutputsInfo();
+    auto inputsInfo = getInputsInfo();
+    auto outputsInfo = getOutputsInfo();
 
     if (outputsInfo.empty()) {
-        return errorAt(op, "Operation has no user outputs information");
-    }
-
-    std::unordered_set<StringRef> usedNames;
-    for (auto info : concat<IE::DataInfoOp>(inputsInfo, outputsInfo)) {
-        const auto res = usedNames.insert(info.name()).second;
-        if (!res) {
-            return errorAt(op, "Operation has duplicating DataInfo name '{0}'", info.name());
-        }
+        return errorAt(*this, "Operation has no user outputs information");
     }
 
     return mlir::success();
@@ -235,14 +236,14 @@ SmallVector<IE::DataInfoOp, 1> vpux::IE::CNNNetworkOp::getProfilingOutputsInfo()
     return SmallVector<IE::DataInfoOp, 1>();
 }
 
-void vpux::IE::CNNNetworkOp::getFromModule(mlir::ModuleOp module, CNNNetworkOp& netInfo, mlir::FuncOp& netFunc) {
+void vpux::IE::CNNNetworkOp::getFromModule(mlir::ModuleOp module, CNNNetworkOp& netInfo, mlir::func::FuncOp& netFunc) {
     auto netOps = to_small_vector(module.getOps<CNNNetworkOp>());
 
     VPUX_THROW_UNLESS(netOps.size() == 1, "Can't have more than one 'IE::CNNNetworkOp' Operation in Module, got '{0}'",
                       netOps.size());
 
     netInfo = netOps.front();
-    netFunc = module.lookupSymbol<mlir::FuncOp>(netInfo.entryPointAttr());
+    netFunc = module.lookupSymbol<mlir::func::FuncOp>(netInfo.entryPointAttr());
 
     VPUX_THROW_UNLESS(netFunc != nullptr, "Can't find entryPoint '@{0}' for '{1}' Operation", netInfo.entryPoint(),
                       netInfo->getName());
@@ -252,16 +253,18 @@ void vpux::IE::CNNNetworkOp::getFromModule(mlir::ModuleOp module, CNNNetworkOp& 
 // DataInfoOp
 //
 
-mlir::LogicalResult vpux::IE::verifyOp(DataInfoOp op) {
-    const auto userType = op.userType().dyn_cast<mlir::RankedTensorType>();
+mlir::LogicalResult vpux::IE::DataInfoOp::verify() {
+    const auto op = getOperation();
+    const auto opUserType = userType().dyn_cast<mlir::RankedTensorType>();
 
-    if (userType == nullptr) {
-        return errorAt(op, "User type is not a 'RankedTensorType', got '{0}'", userType);
+    if (opUserType == nullptr) {
+        return errorAt(op, "User type is not a 'RankedTensorType', got '{0}'", userType());
     }
 
-    const auto precision = userType.getElementType();
+    const auto precision = opUserType.getElementType();
 
-    if (!(precision.isSignedInteger() || precision.isUnsignedInteger() || precision.isa<mlir::FloatType>())) {
+    if (!(precision.isSignedInteger() || precision.isUnsignedInteger() || precision.isSignlessInteger() ||
+          precision.isa<mlir::FloatType>())) {
         return errorAt(op, "Operation has unsupported userType precision '{0}', it must be either Float or Integer",
                        precision);
     }

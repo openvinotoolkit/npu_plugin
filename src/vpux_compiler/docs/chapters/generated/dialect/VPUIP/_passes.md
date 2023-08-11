@@ -3,18 +3,35 @@
 This pass allocate required memory for ActShaveProfiling profiling and perform buffer spilling
 ### `-adjust-compress-conv-inputs`: Modify compress conv inputs
 This pass checks if weights from a Convolution op were previously padded with zero, remove that pad and insert a ShapeCast op.
-Also add a ShapeCast Op to activations if channels there are less than 16 channels
+Also add a ShapeCast Op to activations if channels there are less than 16 channels 
+### `-adjust-input-data-for-explicit-se-table`: Adjust input data type when a Storage Element table is present
+For cases with explicit input Storage Element tables, the input data might have a different
+shape in memory compared to the way the IDU reads this data using the pointers inside the
+table. For the DPU to properly read the input, it has to interpret the data as having the
+shape represented by the table.
+
+This pass alters the view of the input data for the NCE operation with explicit Storage
+Element tables, so that it reflects the effective data represented by the table.
+### `-adjust-spill-size`: Adjusts activation spilling buffer size in DDR
+This pass prepares DDR allocation for handling HW support for activation spilling compression.
+In worst case scenario DDR buffer needs to be enlarged in case size after compression is bigger
 ### `-break-data-flow`: Breaks the data flow in the graph
 This pass breaks the data flow in the graph. It is required for the VPURT dialect for correct task creation
 because all VPUIP dialect tasks will be inside body of the TaskOp and it is impossible to use operation results inside another body of TaskOp.
 ### `-calculate-async-region-cycle-cost`: Calculates cycle cost of 'async.execute'
+### `-capture-workpoint`: Read value from WORKPOINT_CONFIG_MIRROR.FINAL_PLL_FREQ and store to profiling output
+Insert DMA transaction to capture PLL frequency multiplier needed for DPU profiling
+### `-compress-dma-reserve-mem`: Reserve memory for additional compressedDMA metadata
+Reserve memory in CMX where additional metadata is stored for compressed DMAs handling activation spilling.
+In this memory Compressed DMA wil store a LUT with actual compressed data sizee that is later to be used
+by decompress DMA
 ### `-compress-weights-btc`: Compress binary data when possible using BitCompactor
 This pass applies bitcompactor to tensor binary data. The logic is the following:
 1. Find VPUIP::NNDMAOp with Const::DeclareOp source and VPURT::DeclareBufferOp target.
 2. Check that weights size matches minimal compression size.
 3. Compress weights.
 4. Wrap compressed weights to flat tensor shapes with UInt8 data type.
-5. Replace original VPUIP::NNDMAOp with VPUIP::CompressedDMAOp
+5. Replace original VPUIP::NNDMAOp with VPUIP::DecompressDMAOp
 
 This pass also handles multicluster cases, where NNDMAOp is wrapped in NCEClusterTiling with
 DistributedBuffer output type (with DUPLICATED). SOK case is supported as well since this pass
@@ -24,6 +41,45 @@ chunks.
 This pass behaves differently for pre-VPU37XX and post-VPU37XX platforms. For former the compression
 is done using huffman encoding and applied only to quantized data types, for the latter the
 compression is done using bit-compactor library.
+### `-compute-se-base-ptrs`: Computes the base pointers for storage elements
+Computes the base pointers for NCEClusterTasks and stores them into the
+input storage element table operation.
+
+The pass will identify the NCE operations that have the input storage element
+table present and whose input data is distributed. In case the input data
+is not distributed, the base pointers will be considered to be the implicit
+zero value.
+
+The input data distribution across clusters will determine the value of the
+base pointers. For example, let's take an interpolate operation whose input
+data is 3x3 and segmented over height across two clusters as follows:
+1 2 3   <- cluster 0
+4 5 6   <- cluster 0
+7 8 9   <- cluster 1
+
+If the interpolate configuration is nearest-neighbor with a scale of 2, the
+following elements would be identified by the storage element pointers:
+1 1 2 2 3 3
+1 1 2 2 3 3
+4 4 5 5 6 6
+4 4 5 5 6 6
+7 7 8 8 9 9
+7 7 8 8 9 9
+
+The following base pointers are determined:
+0 0 0 0 0 0
+0 0 0 0 0 0
+0 0 0 0 0 0
+0 0 0 0 0 0
+1 1 1 1 1 1
+1 1 1 1 1 1
+
+The distribution across clusters of the storage element table will not
+influence the computation of the base pointers, since they are used during
+inference to determine the physical location of the input data.
+
+Note: Eltwise operations with input storage element tables are not yet
+supported, so the pass will fail in case such an operation is encountered.
 ### `-compute-se-sizes`: Computes the storage element sizes for sparse NCEClusterTask activations
 Computes the storage element sizes for the sparse activations of NCEClusterTasks.
 The pass should be called twice:
@@ -54,6 +110,25 @@ This pass will convert the Expand to copy and concat subgraph.
 ### `-convert-func-args-to-declarations`: Replace use of function arguments with result of DeclareBuffer
 Operands that are network arguments are replaced by the result of DeclareBuffer operation
 with the corresponding buffer section (NetworkInput/NetworkOutput)
+### `-convert-se-tables-to-constants`: Converts Storage Element Table operations to constants
+Computes the Storage Element pointers for every Storage Element Table operation
+and stores them into a constant. The original operation is replaced by the new constant.
+
+The Storage Element pointers have the following format:
+    31-29 28                            9 8         0
+    -------------------------------------------------
+    | xx |           DATA_PTR            | BASE_PTR |
+    -------------------------------------------------
+The DATA_PTR represents the offset to a Storage Element in relation to the start of
+the input data. It is computed based on the information about the input data
+(e.g. shape, element byte-size) and, if present, using the value of the SEAttr from
+the Storage Element Table operation.
+
+BASE_PTR is used to decide what base address is added to DATA_PTR in order to find the
+location of the Storage Element in memory during inference. Its value is determined by
+the presence of the basePtrs attribute of the operation, which should have one value
+for every Storage Element pointer. The default value zero is used if the basePtrs
+attribute is missing.
 ### `-convert-to-dma`: Convert Permute and DepthToSpace from SW/UPA ops to DMA ops
 This pass will convert some SW/UPA operations (e.g. DepthToSpace, Permute) to DMA ops
 if it is possible to achieve better performance
@@ -63,8 +138,6 @@ if it is possible to achieve better performance
 This pass checks all CopyOps and updates their position in the parent block to be close to source op
 that generates the copy op source buffer
 ### `-dma-barrier-optimization`: Optimize DMA related barriers after dma port has been assigned for VPUX37XX
-### `-dma-task-profiling`: DMA task profiling using DMA-Timestamps
-This pass add DMA task profiling.
 ### `-dma-task-profiling-after-barrier`: DMA task profiling handling after barrier scheduled
 This pass adds DMA profiling tasks after barrier scheduler.
 ### `-dma-task-profiling-reserve-mem`: DMA task profiling memory reserving
@@ -90,6 +163,10 @@ Concatenates input constants into one in the following order:
 For any NCEClusterTaskOp if the number of constants to fuse is 1 such layers are skipped
 Special Case with DWCONV, if the constants to fuse are == 2 such DWCONV are skipped as weights are not constants
 Special Case for Compressed Conv layer, if the weights are ShapeCast these such layers are skipped
+### `-fuse-ddr-copies-into-concats`: Fuse VPUIP.Copy into adjacent VPUIP.ConcatView
+When there's NCEClusterTask (CMX2DDR) -> Copy (DDR2DDR) -> ConcatView (DDR) pattern in a graph,
+it is possible to get rid of the copy.
+In order to do that both NCEClusterTask and ConcatView must share output buffer.
 ### `-group-async-execute-ops`: Reduces number of async.execute operations
 Groups consecutive operations which utilizes the same executor and max resources into same async.execute region
 ### `-group-profiling-buffers`: Group profiling buffers into single profiling output buffer
@@ -99,35 +176,41 @@ Group profiling buffers from different profiling engines into single profiling o
 Perform linearization of the IR with fully sequential execution.
 ### `-maximize-upa-cycles`: Expand cycles for UPA ops
 For each SHAVE_UPA executor the pass recalculates cycleBegin, cycleEnd and cycleCost
-in order to expand cycle from latest producer of executor to nearest consumer.
+in order to expand cycle from latest producer of executor to nearest consumer. 
 It takes maximum of cycleEnd value of producers as new cycleBegin and minimum of cycleBegin
-of consumers as new cycleEnd.
+of consumers as new cycleEnd. 
 ### `-move-pure-view-op-before-copy`: Move pure view-like operations before copy
 By moving pure view-like ops, this pass creates copy operation chains, that can be fused:
 Before: CopyOp -> PermuteCast -> GenericReshape -> CopyOp
 After: PermuteCast -> GenericReshape -> CopyOp -> CopyOp
+### `-move-subview-before-sparse-buffer`: Moves child SubViewOp up through GroupSparseBufferOp
+Moves child SubViewOp up through GroupSparseBufferOp and fuses it with constants if possible.
+Reinfer output types of child operations since output type may change.
 ### `-move-view-ops-into-async-regions`: Moves view-like Operations inside the asynchronous regions which depends on them
 ### `-move-wait-result-to-async-block-args`: Moves 'async.await' result usage from 'async.execute' body to it's operands
 ### `-operation-stubbing`: Stub operations with StubOp
 ### `-optimize-async-deps`: Optimizes dependencies between 'async.execute' operations
 The pass tries to remove extra explicit `!async.token` based dependencies,
 if they are represented implicitly (as a result of transitive dependencies).
+### `-optimize-concat-view-copies`: Optimize ConcatView Op to remove unnecessary copies or reduce copies data size
+1. Propagate SubView Op before ConcatView Op to reduce data size of copies
+Target Pattern: NCE Task 16 channels output -> Copy 16 channels -> Concat -> Subview -> 3 channels
+Optimization:   NCE Task 16 channels output -> Copy 3 channels -> Concat -> Subview -> 3 channels
+
+2. Fuse ConcatView Ops to remove unnecessary copies, two conditions need to be satisfied:
+a) The Stride Level for each ConcatView input (after fusing) should be no more than 2;
+   It's a runtime and HW limitation in order to get the right NNDMA descriptor, we support a maximum of 3D DMA transfers with 2 levels of striding.
+b) The number of inputs from the second ConcatView, which come from the output of the first ConcatView should no more than 1;
+   For example, first ConcatView has M inputs, second ConcatView has N inputs, out of which P of them are the output of the first ConcatView
+   After fusing, the number of input copies is: M * P + (N - P)
+   Can't ensure we get benefit when P is of a large size. Limit optimization to P=1.
 ### `-optimize-copies`: Removes Copy Ops which are unnecessary
 This pass checks if Copy Op can be optimized out to reduce the amount of unnecessary DMAs and intermediate buffers.
 ### `-optimize-parallel-copies`: Copy the data only once for all the tiles that share the same data
 This pass checks all the CopyOps consumed by tiles of one tiling subgraph.
 If the CopyOps operate on the same weight or activation, merge the parallel copies into one.
-### `-optimize-spilling-copies`: Optimize pattern with CMX->DDR->CMX spilling
-Optimize following pattern
-
-NCE Task 16 channels output -> Copy 16 channels -> Concat -> Subview -> 3 channels
-
-to
-
-NCE Task 16 channels output -> Copy 3 channels -> Concat -> Subview -> 3 channels
-
 ### `-patch-fused-constants`: Patch the weight table fused in fused constant
-This pass converts the U8 weight table values to I32. Updates the address of each weight set
+This pass converts the U8 weight table values to I32. Updates the address of each weight set 
 and activation window present in the fused constant for each output channel of the layer
 ### `-patch-weight-table`: Adjusts weights and sparsity pointers after memory scheduling
 This pass adds RelocateWeightsTable transformation to weights table constants. The transformation adds weights and sparsity base pointers
@@ -172,18 +255,20 @@ Device supported swizzling key
 - 3: 4096 bytes alignment
 - 4: 8192 bytes alignment
 - 5: 16384 bytes alignment
+
+#### Options
+```
+-enable-weights-swizzling    : Enables weights swizzling
+-enable-activation-swizzling : Enables activation swizzling
+```
 ### `-tile-act-shave-kernel-task`: Tile act shave kernel task on multi shaves
 This pass will tile act kernel run task on multi shaves.
 ### `-tile-copies`: Legalizes Copy Ops which do not fit hardware capabilities
 This pass checks if Copy Op can be executed at target hardware and splits it into a few tiles if necessary.
 To fit hardware requirements it should copy less or equal than 16MB(2**24 bytes) and have less than 256 planes.
-The number of planes is defined by the outermost dimension in the tensor (except for N - batch).
-Depending on the order of the data in memory, there may be several options for what to count as the number of planes.
-For example, if the dimension order (from the outermost to the innermost) is NCHW, then HW (height-width) is considered a plane,
-and the number of planes equals to the value of dimension C. The number of planes for different dimension orders:
-* For NHWC - H
-* For NCHW - C
-* For NWCH - W
+The higher dimensional stride of the two-dimensional stride DMA is implemented through the plane.
+So if the copy has two dimensional stride, and the higher dimensional stride exceeds the number of planes, 
+we need to split the copy on the higher stride dimension
 ### `-ungroup-sparse-buffers`: Ungroups sparse buffers into individual buffers
 Splits operations that work with sparse buffers into multiple operations,
 each working with an individual buffer.
@@ -198,7 +283,7 @@ This pass spilt DepthToSpaceDMA tasks with several NN DMA tasks, which are funct
 Each sub DepthToSpaceDMA will be converted to a NNDMA.
 1. if input/output layout is NHWC with model block_first, number of sub DepthToSpaceDMA is same as block_size.
 2. if input/output layout is NHWC with model depth_first, number of sub DepthToSpaceDMA is OH * OW / block_size.
-block_size is the size of the spatial block. It is an attribution of DepthToSpace.
+block_size is the size of the spatial block. It is an attribution of DepthToSpace. 
 ### `-unroll-expand-dma`: Unroll expand task with several NN DMA tasks
 This pass unroll ExpandDMA tasks with several NN DMA tasks, which are functionally equivalent.
 Each sub ExpandDMA will be converted to a NNDMA.
@@ -219,6 +304,9 @@ Each SwkernelRun will be wrapped into a SwKernel task.
 ### `-unroll-upsampling-dma`: Unroll upsampling task with several NN DMA tasks
 This pass unroll UpsamplingDMA tasks with several NN DMA tasks, which are functionally equivalent.
 Each sub UpsamplingDMA will be converted to a NNDMA.
+### `-unwrap-cluster-tiling`: Uwraps operations covered with NCEClusterTiling
+Remove NCEClusterTiling wrapper op and update inner task to use DistributedBuffer operands directly
+NOTE: This is temporary pass to be removed once NCEClusterTilingOp is no longer used
 ### `-upa-profiling`: upa task profiling
 This pass allocate required memory in DDR space for UPA profiling and is own profiling output to the network
 ### `-wrap-into-async-regions`: Wraps layer operations into asynchronous regions

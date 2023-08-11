@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #ifndef VPUX_COMPILER_DIALECT_IERT
 #define VPUX_COMPILER_DIALECT_IERT
 
@@ -33,7 +31,7 @@ It combines both memory effects and buffer aliasing for this:
 ```MLIR
 #NHWC = affine_map<(n, c, h, w) -> (n, h, w, c)>
 
-func @main(%input: memref<1x3x240x240xf16, #NHWC>, %output: memref<1x3x240x240xf16, #NHWC>) -> memref<1x3x240x240xf16, #NHWC> {
+func.func @main(%input: memref<1x3x240x240xf16, #NHWC>, %output: memref<1x3x240x240xf16, #NHWC>) -> memref<1x3x240x240xf16, #NHWC> {
     %1 = IERT.SoftMax(%input, %output) {axisInd = 1} // %1 is an alias for %output
     return %1
 }
@@ -79,13 +77,14 @@ The **IERT Dialect** uses the following scheme to represent scheduling informati
     let dependentDialects = [
         "vpux::Const::ConstDialect",
         "vpux::IE::IEDialect",
-        "mlir::StandardOpsDialect",
+        "mlir::func::FuncDialect",
         "mlir::memref::MemRefDialect",
         "mlir::quant::QuantizationDialect",
         "mlir::async::AsyncDialect"
     ];
 
     let hasConstantMaterializer = 1;
+    let useDefaultTypePrinterParser = 1;
 
     let extraClassDeclaration = [{
         static void setupExtraInterfaces(mlir::DialectRegistry& registry);

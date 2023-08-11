@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/IE/passes.hpp"
 
@@ -134,7 +132,7 @@ void FuseConvertWithQuantizePass::safeRunOnFunc() {
     patterns.add<ConvertQuantizeRewriter>(&ctx, _log);
     patterns.add<DequantizeConvertRewriter>(&ctx, _log);
 
-    auto func = getFunction();
+    auto func = getOperation();
     if (mlir::failed(applyPatternsAndFoldGreedily(func, std::move(patterns), getDefaultGreedyRewriteConfig()))) {
         signalPassFailure();
     }

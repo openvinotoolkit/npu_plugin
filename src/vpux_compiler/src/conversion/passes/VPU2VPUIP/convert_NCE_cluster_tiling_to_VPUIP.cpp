@@ -3,11 +3,13 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/conversion.hpp"
 
 #include "vpux/compiler/core/aliases_info.hpp"
+#include "vpux/compiler/dialect/IERT/ops.hpp"
+#include "vpux/compiler/dialect/VPU/ops.hpp"
+#include "vpux/compiler/dialect/VPUIP/ops.hpp"
+#include "vpux/compiler/dialect/VPURT/ops.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
 #include "vpux/compiler/utils/allocate_buffers.hpp"
 #include "vpux/compiler/utils/analysis.hpp"
@@ -60,10 +62,7 @@ mlir::LogicalResult NCEClusterTilingRewriter::matchAndRewrite(VPU::NCEClusterTil
 
     const auto clusterTilingBufferType = typeConverter->convertType(origOp.results()[0].getType());
 
-    auto outputDataDistType = clusterTilingBufferType.dyn_cast<VPUIP::DistributedBufferType>();
-    if (auto sparseType = clusterTilingBufferType.dyn_cast<VPUIP::SparseBufferType>()) {
-        outputDataDistType = sparseType.getData().dyn_cast<VPUIP::DistributedBufferType>();
-    }
+    auto outputDistType = clusterTilingBufferType.dyn_cast<VPU::DistributedTypeInterface>();
 
     auto& origOpBodyBlock = origOp.body().front();
 
@@ -73,14 +72,18 @@ mlir::LogicalResult NCEClusterTilingRewriter::matchAndRewrite(VPU::NCEClusterTil
     // In case the resulting type of NCEClusterTiling is a distributed type, these allocations
     // should also produce distributed types now that they are outside.
     // This function will ensure the correct buffer type is allocated.
-    const auto createNewAllocOp = [&](mlir::Operation* op) {
+    const auto createNewAllocOp = [&](mlir::Operation* op, const size_t allocOpIdx) {
         const auto outputType = op->getResult(0).getType();
-        if (outputDataDistType != nullptr) {
+        if (outputDistType != nullptr && outputDistType.containsDistributedTypes()) {
+            auto distTypes = outputDistType.getDistributedTypes();
+            auto targetType = (allocOpIdx < distTypes.size()) ? distTypes[allocOpIdx] : distTypes.front();
+            auto targetDistType = targetType.cast<VPUIP::DistributedBufferType>();
+
             const auto ndOutputType = outputType.cast<vpux::NDTypeInterface>();
             const auto layout = mlir::AffineMapAttr::get(ndOutputType.getDimsOrder().toAffineMap(_ctx));
             auto distributedBufferType = VPUIP::DistributedBufferType::get(
                     _ctx, ndOutputType.getShape().raw(), ndOutputType.getElementType(), layout,
-                    ndOutputType.getMemSpace(), outputDataDistType.getDistribution());
+                    ndOutputType.getMemSpace(), targetDistType.getDistribution());
             return rewriter.create<VPURT::AllocDistributed>(op->getLoc(), distributedBufferType, nullptr, nullptr)
                     .getOperation();
         }
@@ -88,14 +91,14 @@ mlir::LogicalResult NCEClusterTilingRewriter::matchAndRewrite(VPU::NCEClusterTil
         return rewriter.create<mlir::memref::AllocOp>(op->getLoc(), memrefOutputType).getOperation();
     };
     // checks whether given operation is a direct Inner or a level 2 or more inner
-    const auto isLevelOneOp = [&origOpBodyBlock, this](mlir::Operation* op) -> bool {
+    const auto isLevelOneOp = [&origOpBodyBlock](mlir::Operation* op) -> bool {
         return op->getBlock() == &origOpBodyBlock;
     };
 
     const auto isInnerOp = [isLevelOneOp](mlir::Operation* op) -> bool {
         return !mlir::isa<VPU::YieldOp, VPUIP::UngroupSparseBufferOp, VPUIP::GroupSparseBufferOp,
                           mlir::UnrealizedConversionCastOp>(op) &&
-               !isBufAllocOp(op) && isLevelOneOp(op);
+               !isBufAllocOp(op) && isLevelOneOp(op) && !VPUIP::isPureViewOp(op);
     };
 
     const auto skipUserCast = [](mlir::Value operand) -> mlir::Value {
@@ -123,7 +126,7 @@ mlir::LogicalResult NCEClusterTilingRewriter::matchAndRewrite(VPU::NCEClusterTil
     origOpBodyBlock.walk([&](mlir::Operation* op) {
         if (vpux::isBufAllocOp(op)) {
             _log.nest().trace("Cloning allocation op '{0}' at '{1}", op->getName(), op->getLoc());
-            auto newAllocOp = createNewAllocOp(op);
+            auto newAllocOp = createNewAllocOp(op, newAllocOps.size());
             newAllocOps.push_back(newAllocOp);
             innerOuterOpValueMapping[op->getResult(0)] = newAllocOp->getResult(0);
 
@@ -165,6 +168,23 @@ mlir::LogicalResult NCEClusterTilingRewriter::matchAndRewrite(VPU::NCEClusterTil
             vpux::inferReturnTypes(newOp, vpux::InferShapedTypeMode::ALL);
             newGroupOps.push_back(newOp);
             innerOuterOpValueMapping[op->getResult(0)] = newOp->getResult(0);
+        } else if (VPUIP::isPureViewOp(op)) {
+            mlir::BlockAndValueMapping mapper;
+            auto operand = op->getOperands().front();
+            auto unrealizedConversCastOp = operand.getDefiningOp<mlir::UnrealizedConversionCastOp>();
+            auto inputBlockArg = unrealizedConversCastOp.getInputs().front().dyn_cast<mlir::BlockArgument>();
+
+            auto outerInput = origOp.getOperand(inputBlockArg.getArgNumber());
+            outerInput = skipProducerCast(outerInput);
+
+            auto outerType = typeConverter->convertType(outerInput.getType());
+            auto outerValueCast = rewriter.create<mlir::UnrealizedConversionCastOp>(
+                    op->getLoc(), mlir::TypeRange{outerType}, mlir::ValueRange{outerInput});
+            mapper.map(operand, outerValueCast.getResult(0));
+            auto newOp = rewriter.clone(*op, mapper);
+            vpux::inferReturnTypes(newOp, vpux::InferShapedTypeMode::ALL);
+
+            innerOuterOpValueMapping[op->getResult(0)] = newOp->getResult(0);
         }
     });
 
@@ -181,30 +201,26 @@ mlir::LogicalResult NCEClusterTilingRewriter::matchAndRewrite(VPU::NCEClusterTil
     for (auto p : inputOperands | indexed) {
         auto operandIdx = p.index();
         auto operand = p.value();
-        if (!operand.getType().isa<VPUIP::SparseBufferType>()) {
-            newOperands.push_back(operand);
-            operandsIdxMapping[operandIdx].push_back(newOperands.size() - 1);
-            continue;
-        }
 
         mlir::Value origOperand = origOpBodyBlock.getArguments()[operandIdx];
         origOperand = skipUserCast(origOperand);
 
         if (llvm::any_of(origOperand.getUsers(), [](mlir::Operation* userOp) {
-                return !mlir::isa<VPUIP::UngroupSparseBufferOp>(userOp);
+                return mlir::isa<VPUIP::UngroupSparseBufferOp>(userOp) ||
+                       (VPUIP::isPureViewOp(userOp) && !mlir::isa<VPUIP::GroupSparseBufferOp>(userOp));
             })) {
-            newOperands.push_back(operand);
-            operandsIdxMapping[operandIdx].push_back(newOperands.size() - 1);
+            for (auto userOp : origOperand.getUsers()) {
+                for (auto result : userOp->getResults()) {
+                    auto it = innerOuterOpValueMapping.find(result);
+                    newOperands.push_back(it->second);
+                    operandsIdxMapping[operandIdx].push_back(newOperands.size() - 1);
+                }
+            }
             continue;
         }
 
-        for (auto userOp : origOperand.getUsers()) {
-            for (auto result : userOp->getResults()) {
-                auto it = innerOuterOpValueMapping.find(result);
-                newOperands.push_back(it->second);
-                operandsIdxMapping[operandIdx].push_back(newOperands.size() - 1);
-            }
-        }
+        newOperands.push_back(operand);
+        operandsIdxMapping[operandIdx].push_back(newOperands.size() - 1);
     }
 
     // Add the output operands to the new vector of operands
@@ -233,6 +249,13 @@ mlir::LogicalResult NCEClusterTilingRewriter::matchAndRewrite(VPU::NCEClusterTil
                 auto resultIt = llvm::find(ungroupOp->getResults(), operand);
                 auto resultIdx = std::distance(ungroupOp->getResults().begin(), resultIt);
                 innerOpOperandMapping[operand] = operandsIdxMapping[blockArg.getArgNumber()][resultIdx];
+            } else if (VPUIP::isPureViewOp(operand.getDefiningOp()) &&
+                       !mlir::isa<VPUIP::GroupSparseBufferOp>(operand.getDefiningOp())) {
+                auto opInput = skipProducerCast(operand.getDefiningOp()->getOperands().front());
+                auto blockArg = opInput.dyn_cast<mlir::BlockArgument>();
+                VPUX_THROW_UNLESS(blockArg != nullptr, "Unexpected operand for pureView operation");
+
+                innerOpOperandMapping[operand] = operandsIdxMapping[blockArg.getArgNumber()].front();
             } else {
                 auto outerOperand = innerOuterOpValueMapping[operand];
                 innerOpOperandMapping[operand] = outputOperandsMapping[outerOperand];
@@ -307,7 +330,7 @@ private:
 
 void ConvertNCEClusterTilingToVPUIPPass::safeRunOnFunc() {
     auto& ctx = getContext();
-    auto func = getFunction();
+    auto func = getOperation();
 
     vpux::BufferizeTypeConverter typeConverter;
 
@@ -317,7 +340,7 @@ void ConvertNCEClusterTilingToVPUIPPass::safeRunOnFunc() {
     target.addLegalDialect<VPUIP::VPUIPDialect>();
     target.addLegalDialect<VPURT::VPURTDialect>();
     target.addIllegalOp<VPU::NCEClusterTilingOp>();
-    target.addLegalOp<mlir::FuncOp, mlir::ReturnOp>();
+    target.addLegalOp<mlir::func::FuncOp, mlir::func::ReturnOp>();
     target.addLegalOp<mlir::memref::AllocOp>();
     vpux::populateBufferizeMaterializationLegality(target);
 

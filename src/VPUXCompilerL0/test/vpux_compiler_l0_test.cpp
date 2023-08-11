@@ -71,9 +71,9 @@ vcl_result_t CompilerTest::init(const char* netName, const char* weightName) {
     vcl_result_t ret = VCL_RESULT_SUCCESS;
 
     vcl_version_info_t version;
-    vcl_compiler_desc_t compilerDesc = {VCL_PLATFORM_VPU3700, 0};
+    vcl_compiler_desc_t compilerDesc = {VCL_PLATFORM_VPU3720, VCL_LOG_ERROR};
     vcl_compiler_handle_t compiler = NULL;
-    ret = vclCompilerCreate(compilerDesc, &compiler);
+    ret = vclCompilerCreate(compilerDesc, &compiler, NULL);
     if (ret) {
         std::cerr << "Failed to create compiler! Result:0x" << std::hex << uint64_t(ret) << std::dec << std::endl;
         return ret;
@@ -130,9 +130,9 @@ vcl_result_t CompilerTest::init(const char* netName, const char* weightName) {
 
 vcl_result_t CompilerTest::run(const std::string& options) {
     vcl_result_t ret = VCL_RESULT_SUCCESS;
-    vcl_compiler_desc_t compilerDesc = {VCL_PLATFORM_VPU3700, 5};
+    vcl_compiler_desc_t compilerDesc = {VCL_PLATFORM_VPU3720, VCL_LOG_ERROR};
     vcl_compiler_handle_t compiler = NULL;
-    ret = vclCompilerCreate(compilerDesc, &compiler);
+    ret = vclCompilerCreate(compilerDesc, &compiler, NULL);
     if (ret) {
         std::cerr << "Failed to create compiler! Result: " << ret << std::endl;
         return ret;

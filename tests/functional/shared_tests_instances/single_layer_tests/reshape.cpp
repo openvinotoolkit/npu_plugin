@@ -1,4 +1,4 @@
-// Copyright (C) 2019 Intel Corporation
+// Copyright (C) 2019-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,12 +6,11 @@
 
 #include <vector>
 
-#include "common_test_utils/test_constants.hpp"
 #include "kmb_layer_test.hpp"
 
 namespace LayerTestsDefinitions {
-
-class KmbReshapeLayerTest : public ReshapeLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
+class VPUXReshapeLayerTest : public ReshapeLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {};
+class VPUXReshapeLayerTest_VPU3700 : public VPUXReshapeLayerTest {
     void ConfigureNetwork() override {
         LayerTestsUtils::KmbLayerTestsCommon::ConfigureNetwork();
     }
@@ -20,19 +19,15 @@ class KmbReshapeLayerTest : public ReshapeLayerTest, virtual public LayerTestsUt
     }
 };
 
-TEST_P(KmbReshapeLayerTest, CompareWithRefs) {
+class VPUXReshapeLayerTest_VPU3720 : public VPUXReshapeLayerTest {};
+
+TEST_P(VPUXReshapeLayerTest_VPU3700, HW) {
+    setPlatformVPU3700();
+    setDefaultHardwareModeMLIR();
     Run();
 }
 
-TEST_P(KmbReshapeLayerTest, CompareWithRefs_MLIR) {
-    useCompilerMLIR();
-    Run();
-}
-
-class KmbReshapeLayerTest_VPU3720 : public ReshapeLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {};
-
-TEST_P(KmbReshapeLayerTest_VPU3720, CompareWithRefs_MLIR_VPU3720) {
-    useCompilerMLIR();
+TEST_P(VPUXReshapeLayerTest_VPU3720, SW) {
     setPlatformVPU3720();
     setReferenceSoftwareModeMLIR();
     Run();
@@ -46,7 +41,7 @@ namespace {
 
 const std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP16};
 
-INSTANTIATE_TEST_SUITE_P(smoke_ReshapeCollapse1, KmbReshapeLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_ReshapeCollapse1, VPUXReshapeLayerTest_VPU3700,
                          ::testing::Combine(::testing::Values(true), ::testing::ValuesIn(netPrecisions),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
@@ -57,9 +52,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_ReshapeCollapse1, KmbReshapeLayerTest,
                                             ::testing::Values(std::vector<int64_t>({0, 100})),
                                             ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
                                             ::testing::Values(std::map<std::string, std::string>({}))),
-                         KmbReshapeLayerTest::getTestCaseName);
+                         VPUXReshapeLayerTest_VPU3700::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_ReshapeCollapse2, KmbReshapeLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_ReshapeCollapse2, VPUXReshapeLayerTest_VPU3700,
                          ::testing::Combine(::testing::Values(true), ::testing::ValuesIn(netPrecisions),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
@@ -69,9 +64,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_ReshapeCollapse2, KmbReshapeLayerTest,
                                             ::testing::Values(std::vector<int64_t>({1, 0, 100})),
                                             ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
                                             ::testing::Values(std::map<std::string, std::string>({}))),
-                         KmbReshapeLayerTest::getTestCaseName);
+                         VPUXReshapeLayerTest_VPU3700::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_ReshapeExpand1, KmbReshapeLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_ReshapeExpand1, VPUXReshapeLayerTest_VPU3700,
                          ::testing::Combine(::testing::Values(true), ::testing::ValuesIn(netPrecisions),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
@@ -81,9 +76,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_ReshapeExpand1, KmbReshapeLayerTest,
                                             ::testing::Values(std::vector<int64_t>({0, 100, 1, 1})),
                                             ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
                                             ::testing::Values(std::map<std::string, std::string>({}))),
-                         KmbReshapeLayerTest::getTestCaseName);
+                         VPUXReshapeLayerTest_VPU3700::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_ReshapeExpand2, KmbReshapeLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_ReshapeExpand2, VPUXReshapeLayerTest_VPU3700,
                          ::testing::Combine(::testing::Values(true), ::testing::ValuesIn(netPrecisions),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
@@ -93,9 +88,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_ReshapeExpand2, KmbReshapeLayerTest,
                                             ::testing::Values(std::vector<int64_t>({0, 0, 10, 10})),
                                             ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
                                             ::testing::Values(std::map<std::string, std::string>({}))),
-                         KmbReshapeLayerTest::getTestCaseName);
+                         VPUXReshapeLayerTest_VPU3700::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_ReshapeExpand3, KmbReshapeLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_ReshapeExpand3, VPUXReshapeLayerTest_VPU3700,
                          ::testing::Combine(::testing::Values(true), ::testing::ValuesIn(netPrecisions),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
@@ -105,9 +100,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_ReshapeExpand3, KmbReshapeLayerTest,
                                             ::testing::Values(std::vector<int64_t>{1, 1, 2, 2}),
                                             ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
                                             ::testing::Values(std::map<std::string, std::string>({}))),
-                         KmbReshapeLayerTest::getTestCaseName);
+                         VPUXReshapeLayerTest_VPU3700::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_ReshapeGeneric1, KmbReshapeLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_ReshapeGeneric1, VPUXReshapeLayerTest_VPU3700,
                          ::testing::Combine(::testing::Values(true), ::testing::ValuesIn(netPrecisions),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
@@ -117,9 +112,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_ReshapeGeneric1, KmbReshapeLayerTest,
                                             ::testing::Values(std::vector<int64_t>({1, 1000, 1, 1})),
                                             ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
                                             ::testing::Values(std::map<std::string, std::string>({}))),
-                         KmbReshapeLayerTest::getTestCaseName);
+                         VPUXReshapeLayerTest_VPU3700::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_ReshapeGeneric2, KmbReshapeLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_ReshapeGeneric2, VPUXReshapeLayerTest_VPU3700,
                          ::testing::Combine(::testing::Values(true), ::testing::ValuesIn(netPrecisions),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
@@ -129,9 +124,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_ReshapeGeneric2, KmbReshapeLayerTest,
                                             ::testing::Values(std::vector<int64_t>{1, 2, 4, 2}),
                                             ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
                                             ::testing::Values(std::map<std::string, std::string>({}))),
-                         KmbReshapeLayerTest::getTestCaseName);
+                         VPUXReshapeLayerTest_VPU3700::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_ReshapeCollapse1, KmbReshapeLayerTest_VPU3720,
+INSTANTIATE_TEST_SUITE_P(smoke_ReshapeCollapse1, VPUXReshapeLayerTest_VPU3720,
                          ::testing::Combine(::testing::Values(true), ::testing::ValuesIn(netPrecisions),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
@@ -142,9 +137,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_ReshapeCollapse1, KmbReshapeLayerTest_VPU3720,
                                             ::testing::Values(std::vector<int64_t>({0, 100})),
                                             ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
                                             ::testing::Values(std::map<std::string, std::string>({}))),
-                         KmbReshapeLayerTest_VPU3720::getTestCaseName);
+                         VPUXReshapeLayerTest_VPU3720::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_ReshapeCollapse2, KmbReshapeLayerTest_VPU3720,
+INSTANTIATE_TEST_SUITE_P(smoke_ReshapeCollapse2, VPUXReshapeLayerTest_VPU3720,
                          ::testing::Combine(::testing::Values(true), ::testing::ValuesIn(netPrecisions),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
@@ -154,9 +149,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_ReshapeCollapse2, KmbReshapeLayerTest_VPU3720,
                                             ::testing::Values(std::vector<int64_t>({1, 0, 100})),
                                             ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
                                             ::testing::Values(std::map<std::string, std::string>({}))),
-                         KmbReshapeLayerTest_VPU3720::getTestCaseName);
+                         VPUXReshapeLayerTest_VPU3720::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_ReshapeExpand1, KmbReshapeLayerTest_VPU3720,
+INSTANTIATE_TEST_SUITE_P(smoke_ReshapeExpand1, VPUXReshapeLayerTest_VPU3720,
                          ::testing::Combine(::testing::Values(true), ::testing::ValuesIn(netPrecisions),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
@@ -166,9 +161,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_ReshapeExpand1, KmbReshapeLayerTest_VPU3720,
                                             ::testing::Values(std::vector<int64_t>({0, 100, 1, 1})),
                                             ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
                                             ::testing::Values(std::map<std::string, std::string>({}))),
-                         KmbReshapeLayerTest_VPU3720::getTestCaseName);
+                         VPUXReshapeLayerTest_VPU3720::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_ReshapeExpand2, KmbReshapeLayerTest_VPU3720,
+INSTANTIATE_TEST_SUITE_P(smoke_ReshapeExpand2, VPUXReshapeLayerTest_VPU3720,
                          ::testing::Combine(::testing::Values(true), ::testing::ValuesIn(netPrecisions),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
@@ -178,9 +173,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_ReshapeExpand2, KmbReshapeLayerTest_VPU3720,
                                             ::testing::Values(std::vector<int64_t>({0, 0, 10, 10})),
                                             ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
                                             ::testing::Values(std::map<std::string, std::string>({}))),
-                         KmbReshapeLayerTest_VPU3720::getTestCaseName);
+                         VPUXReshapeLayerTest_VPU3720::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_ReshapeExpand3, KmbReshapeLayerTest_VPU3720,
+INSTANTIATE_TEST_SUITE_P(smoke_ReshapeExpand3, VPUXReshapeLayerTest_VPU3720,
                          ::testing::Combine(::testing::Values(true), ::testing::ValuesIn(netPrecisions),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
@@ -190,9 +185,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_ReshapeExpand3, KmbReshapeLayerTest_VPU3720,
                                             ::testing::Values(std::vector<int64_t>{1, 1, 2, 2}),
                                             ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
                                             ::testing::Values(std::map<std::string, std::string>({}))),
-                         KmbReshapeLayerTest_VPU3720::getTestCaseName);
+                         VPUXReshapeLayerTest_VPU3720::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_ReshapeGeneric1, KmbReshapeLayerTest_VPU3720,
+INSTANTIATE_TEST_SUITE_P(smoke_ReshapeGeneric1, VPUXReshapeLayerTest_VPU3720,
                          ::testing::Combine(::testing::Values(true), ::testing::ValuesIn(netPrecisions),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
@@ -202,9 +197,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_ReshapeGeneric1, KmbReshapeLayerTest_VPU3720,
                                             ::testing::Values(std::vector<int64_t>({1, 1000, 1, 1})),
                                             ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
                                             ::testing::Values(std::map<std::string, std::string>({}))),
-                         KmbReshapeLayerTest_VPU3720::getTestCaseName);
+                         VPUXReshapeLayerTest_VPU3720::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_precommit_ReshapeGeneric2, KmbReshapeLayerTest_VPU3720,
+INSTANTIATE_TEST_SUITE_P(smoke_precommit_ReshapeGeneric2, VPUXReshapeLayerTest_VPU3720,
                          ::testing::Combine(::testing::Values(true), ::testing::ValuesIn(netPrecisions),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
@@ -214,6 +209,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_precommit_ReshapeGeneric2, KmbReshapeLayerTest_VP
                                             ::testing::Values(std::vector<int64_t>{1, 2, 4, 2}),
                                             ::testing::Values(LayerTestsUtils::testPlatformTargetDevice),
                                             ::testing::Values(std::map<std::string, std::string>({}))),
-                         KmbReshapeLayerTest_VPU3720::getTestCaseName);
+                         VPUXReshapeLayerTest_VPU3720::getTestCaseName);
 
 }  // namespace

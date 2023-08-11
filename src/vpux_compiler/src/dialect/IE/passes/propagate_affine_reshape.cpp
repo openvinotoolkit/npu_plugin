@@ -12,7 +12,6 @@
 #include <mlir/IR/PatternMatch.h>
 #include <mlir/Transforms/GreedyPatternRewriteDriver.h>
 
-#include <llvm/ADT/TypeSwitch.h>
 #include <vpux/compiler/conversion.hpp>
 
 using namespace vpux;
@@ -322,6 +321,8 @@ void getConcatOffsetsParameters(mlir::ArrayAttr oldOffsets, mlir::ArrayAttr& new
 
         SmallVector<int64_t> newOffset(inReshapeShape.size(), 0);
         const auto oldOffset = oldOffsetsList[currentIndex];
+        int64_t prevDim = -1;
+        int64_t prevOffset = -1;
 
         for (const auto index : irange(newOffset.size())) {
             const auto inputReshapeSize = inReshapeShape[index];
@@ -337,6 +338,23 @@ void getConcatOffsetsParameters(mlir::ArrayAttr oldOffsets, mlir::ArrayAttr& new
                     }
 
                     newOffset[index] = oldOffset[dim];
+
+                    // To handle the case of expanding to multiple 1, and concat on this dimension
+                    // eg: 2 x ([1] -> [1, 1, 1]) -- Concat --> [1, 2, 1] {offset = [0, 0, 0], [0, 1, 0], [0, 2, 0]}
+                    auto dimOneIt = llvm::find_if(dims, [&](int64_t elem) {
+                        return (outputReshapeShape[elem] == 1 && oldOffset[elem] != 0);
+                    });
+                    if (dimOneIt != dims.end()) {
+                        newOffset[index] = oldOffset[*dimOneIt];
+                    }
+
+                    if (index > 0 && newOffset[index] == prevOffset && dim == prevDim) {
+                        newOffset[index] = 0;
+                    } else {
+                        prevOffset = newOffset[index];
+                    }
+
+                    prevDim = dim;
                     break;
                 }
             }
@@ -470,7 +488,7 @@ private:
 
 void PropagateAffineReshape::safeRunOnFunc() {
     auto& ctx = getContext();
-    auto func = getFunction();
+    auto func = getOperation();
 
     mlir::RewritePatternSet patterns(&ctx);
     patterns.add<MoveThroughTranspose>(&ctx, _log);

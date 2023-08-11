@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/VPU/nce_sparsity.hpp"
 #include "vpux/compiler/dialect/VPU/ops.hpp"
 #include "vpux/compiler/dialect/VPU/passes.hpp"
@@ -179,15 +177,15 @@ void OptimizeSparsityOpsPass::safeRunOnFunc() {
     using namespace VPU;
     using namespace VPU::NCESparsity;
 
-    auto func = getFunction();
+    auto func = getOperation();
     auto& ctx = getContext();
 
-    if (_sparsityProfile == ActivationSparsityProfile::S0) {
+    if (_sparsityProfile != ActivationSparsityProfile::S1) {
         mlir::ConversionTarget target(ctx);
         target.addIllegalOp<VPU::SparsifyOp>();
         target.addLegalDialect<Const::ConstDialect>();
         target.addLegalDialect<VPU::VPUDialect>();
-        target.addLegalOp<mlir::FuncOp, mlir::ReturnOp>();
+        target.addLegalOp<mlir::func::FuncOp, mlir::func::ReturnOp>();
 
         mlir::RewritePatternSet legalPatterns(&ctx);
         legalPatterns.add<RemoveExtraSparsifyOp>(&ctx, _log);

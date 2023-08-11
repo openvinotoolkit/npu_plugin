@@ -1,4 +1,4 @@
-// Copyright (C) 2019 Intel Corporation
+// Copyright (C) 2019-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,20 +10,21 @@
 
 namespace LayerTestsDefinitions {
 
-class KmbConvolutionBackpropDataLayerTest :
+class VPUXConvolutionBackpropDataLayerTest :
         public ConvolutionBackpropDataLayerTest,
         virtual public LayerTestsUtils::KmbLayerTestsCommon {};
+class VPUXConvolutionBackpropDataLayerTest_VPU3700 : public VPUXConvolutionBackpropDataLayerTest {};
+class VPUXConvolutionBackpropDataLayerTest_VPU3720 : public VPUXConvolutionBackpropDataLayerTest {};
 
-TEST_P(KmbConvolutionBackpropDataLayerTest, CompareWithRefs) {
+TEST_P(VPUXConvolutionBackpropDataLayerTest_VPU3720, HW) {
+    setPlatformVPU3720();
+    setDefaultHardwareModeMLIR();
     Run();
 }
 
-class KmbConvolutionBackpropDataLayerTest_MLIR :
-        public ConvolutionBackpropDataLayerTest,
-        virtual public LayerTestsUtils::KmbLayerTestsCommon {};
-
-TEST_P(KmbConvolutionBackpropDataLayerTest_MLIR, CompareWithRefs) {
-    useCompilerMLIR();
+TEST_P(VPUXConvolutionBackpropDataLayerTest_VPU3700, HW) {
+    setPlatformVPU3700();
+    setDefaultHardwareModeMLIR();
     Run();
 }
 
@@ -35,34 +36,57 @@ namespace {
 
 const std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP16};
 
-/// Current Deconv impelmentation Only support 16x channels (MCM)
-/// The other channel which needs alignment and crop will cause concat issue
 const std::vector<size_t> numOutChannels = {16};
 const std::vector<size_t> specificNumOutChannels = {128};
 const std::vector<std::vector<size_t>> emptyOutputShape = {{}};
 const std::vector<std::vector<size_t>> outputShape = {{32, 64}};
 const std::vector<std::vector<ptrdiff_t>> emptyOutputPadding = {{}};
 
+/* ============= 1D ConvolutionBackpropData ============= */
+const std::vector<std::vector<size_t>> inputShapes1D = {{1, 3, 30}};
+const std::vector<std::vector<size_t>> kernels1D = {{2}};
+const std::vector<std::vector<size_t>> strides1D = {{2}};
+const std::vector<std::vector<size_t>> dilations1D = {{1}};
+
+const auto conv1DParams_AutoPadValid = ::testing::Combine(
+        ::testing::ValuesIn(kernels1D), ::testing::ValuesIn(strides1D), ::testing::Values(std::vector<ptrdiff_t>({0})),
+        ::testing::Values(std::vector<ptrdiff_t>({0})), ::testing::ValuesIn(dilations1D),
+        ::testing::ValuesIn(numOutChannels), ::testing::Values(ngraph::op::PadType::VALID),
+        ::testing::ValuesIn(emptyOutputPadding));
+
+INSTANTIATE_TEST_SUITE_P(smoke_precommit_ConvolutionBackpropData1D_TestConv1DToConv2D,
+                         VPUXConvolutionBackpropDataLayerTest_VPU3720,
+                         ::testing::Combine(conv1DParams_AutoPadValid, ::testing::ValuesIn(netPrecisions),
+                                            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                            ::testing::Values(InferenceEngine::Layout::ANY),
+                                            ::testing::Values(InferenceEngine::Layout::ANY),
+                                            ::testing::ValuesIn(inputShapes1D), ::testing::ValuesIn(emptyOutputShape),
+                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                         VPUXConvolutionBackpropDataLayerTest_VPU3720::getTestCaseName);
+
 /* ============= 2D ConvolutionBackpropData ============= */
-const std::vector<std::vector<size_t>> inputShapes2D = {{1, 3, 30, 30}};
+const std::vector<std::vector<size_t>> inputShapes2D = {{1, 16, 30, 30}};
 const std::vector<std::vector<size_t>> inputShapes2D_MLIR = {
         {1, 3, 30, 30}, {1, 32, 23, 30}, {1, 32, 46, 60}, {1, 32, 92, 120}, {1, 32, 184, 240}};
 const std::vector<std::vector<size_t>> specificInputShapes2D_MLIR = {{1, 256, 16, 32}};
-/// Need Kernel_size == Stride_size (MCM)
-/// Refer: src/mcmCompiler/src/pass/adaptation/conv_dilation_pass.cpp:366
+
 const std::vector<std::vector<size_t>> kernels2D = {{2, 2}};
 const std::vector<std::vector<size_t>> specificKernels2D = {{4, 4}};
 const std::vector<std::vector<size_t>> strides2D = {{2, 2}};
 const std::vector<std::vector<ptrdiff_t>> padBegins2D = {{0, 0}};
 const std::vector<std::vector<ptrdiff_t>> padEnds2D = {{0, 0}};
+const std::vector<std::vector<ptrdiff_t>> outputPadding2D = {{1, 1}};
 const std::vector<std::vector<size_t>> dilations2D = {{1, 1}};
 
-/// Not support SAME_UPPER padding mode (MCM)
-/// Refer: src/mcmCompiler/src/pass/adaptation/conv_dilation_pass.cpp:61
 const auto conv2DParams_ExplicitPadding = ::testing::Combine(
         ::testing::ValuesIn(kernels2D), ::testing::ValuesIn(strides2D), ::testing::ValuesIn(padBegins2D),
         ::testing::ValuesIn(padEnds2D), ::testing::ValuesIn(dilations2D), ::testing::ValuesIn(numOutChannels),
         ::testing::Values(ngraph::op::PadType::EXPLICIT), ::testing::ValuesIn(emptyOutputPadding));
+const auto conv2DParams_OutputPadding = ::testing::Combine(
+        ::testing::ValuesIn(kernels2D), ::testing::ValuesIn(strides2D), ::testing::ValuesIn(padBegins2D),
+        ::testing::ValuesIn(padEnds2D), ::testing::ValuesIn(dilations2D), ::testing::ValuesIn(numOutChannels),
+        ::testing::Values(ngraph::op::PadType::EXPLICIT), ::testing::ValuesIn(outputPadding2D));
 const auto conv2DParams_AutoPadValid = ::testing::Combine(
         ::testing::ValuesIn(kernels2D), ::testing::ValuesIn(strides2D),
         ::testing::Values(std::vector<ptrdiff_t>({0, 0})), ::testing::Values(std::vector<ptrdiff_t>({0, 0})),
@@ -74,26 +98,18 @@ const auto conv2DParams_AutoPadSameLower = ::testing::Combine(
         ::testing::ValuesIn(dilations2D), ::testing::ValuesIn(specificNumOutChannels),
         ::testing::Values(ngraph::op::PadType::SAME_LOWER), ::testing::ValuesIn(emptyOutputPadding));
 
-// Test-case fails at stage "Run MCM Compiler" with error:
-// vpuxFuncTests: vpux-plugin/src/mcmCompiler/src/scheduler/feasible_scheduler.hpp:2198:
-// void mv::lp_scheduler::Feasible_Memory_Schedule_Generator<T, SchedulerTraits, Allocator>::
-// unschedule_op(const mv::lp_scheduler::Feasible_Memory_Schedule_Generator<T, SchedulerTraits, Allocator>::
-// heap_element_t&) [with T = mv::scheduler::Operation_Dag<>; SchedulerTraits =
-// mv::lp_scheduler::scheduler_traits<mv::scheduler::Operation_Dag<> >;
-// Allocator = std::allocator<mv::scheduler::Operation_Dag<> >]: Assertion `itr != op_output_table_.end()' failed.
-// Aborted (core dumped)
-// [Track number: S#44901]
-INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionBackpropData2D_ExplicitPadding, KmbConvolutionBackpropDataLayerTest,
-                         ::testing::Combine(conv2DParams_ExplicitPadding, ::testing::ValuesIn(netPrecisions),
+INSTANTIATE_TEST_SUITE_P(smoke_precommit_ConvolutionBackpropData2D_OutputPadding,
+                         VPUXConvolutionBackpropDataLayerTest_VPU3720,
+                         ::testing::Combine(conv2DParams_OutputPadding, ::testing::ValuesIn(netPrecisions),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::ValuesIn(inputShapes2D), ::testing::ValuesIn(emptyOutputShape),
                                             ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
-                         KmbConvolutionBackpropDataLayerTest::getTestCaseName);
+                         VPUXConvolutionBackpropDataLayerTest_VPU3720::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionBackpropData2D_ExplicitPadding, KmbConvolutionBackpropDataLayerTest_MLIR,
+INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionBackpropData2D_ExplicitPadding, VPUXConvolutionBackpropDataLayerTest_VPU3700,
                          ::testing::Combine(conv2DParams_ExplicitPadding, ::testing::ValuesIn(netPrecisions),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
@@ -102,9 +118,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionBackpropData2D_ExplicitPadding, KmbCon
                                             ::testing::ValuesIn(inputShapes2D_MLIR),
                                             ::testing::ValuesIn(emptyOutputShape),
                                             ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
-                         KmbConvolutionBackpropDataLayerTest_MLIR::getTestCaseName);
+                         VPUXConvolutionBackpropDataLayerTest_VPU3700::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionBackpropData2D_OutputShape, KmbConvolutionBackpropDataLayerTest_MLIR,
+INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionBackpropData2D_OutputShape, VPUXConvolutionBackpropDataLayerTest_VPU3700,
                          ::testing::Combine(conv2DParams_AutoPadSameLower, ::testing::ValuesIn(netPrecisions),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
@@ -113,28 +129,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionBackpropData2D_OutputShape, KmbConvolu
                                             ::testing::ValuesIn(specificInputShapes2D_MLIR),
                                             ::testing::ValuesIn(outputShape),
                                             ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
-                         KmbConvolutionBackpropDataLayerTest_MLIR::getTestCaseName);
+                         VPUXConvolutionBackpropDataLayerTest_VPU3700::getTestCaseName);
 
-// Test-case fails at stage "Run MCM Compiler" with error:
-// vpuxFuncTests: vpux-plugin/src/mcmCompiler/src/scheduler/feasible_scheduler.hpp:2198:
-// void mv::lp_scheduler::Feasible_Memory_Schedule_Generator<T, SchedulerTraits, Allocator>::
-// unschedule_op(const mv::lp_scheduler::Feasible_Memory_Schedule_Generator<T, SchedulerTraits, Allocator>::
-// heap_element_t&) [with T = mv::scheduler::Operation_Dag<>; SchedulerTraits =
-// mv::lp_scheduler::scheduler_traits<mv::scheduler::Operation_Dag<> >;
-// Allocator = std::allocator<mv::scheduler::Operation_Dag<> >]: Assertion `itr != op_output_table_.end()' failed.
-// Aborted (core dumped)
 // [Track number: S#44901]
-INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_ConvolutionBackpropData2D_AutoPadValid, KmbConvolutionBackpropDataLayerTest,
-                         ::testing::Combine(conv2DParams_AutoPadValid, ::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                            ::testing::Values(InferenceEngine::Layout::ANY),
-                                            ::testing::Values(InferenceEngine::Layout::ANY),
-                                            ::testing::ValuesIn(inputShapes2D), ::testing::ValuesIn(emptyOutputShape),
-                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
-                         KmbConvolutionBackpropDataLayerTest::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionBackpropData2D_AutoPadValid, KmbConvolutionBackpropDataLayerTest_MLIR,
+INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionBackpropData2D_AutoPadValid, VPUXConvolutionBackpropDataLayerTest_VPU3700,
                          ::testing::Combine(conv2DParams_AutoPadValid, ::testing::ValuesIn(netPrecisions),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
@@ -143,7 +141,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionBackpropData2D_AutoPadValid, KmbConvol
                                             ::testing::ValuesIn(inputShapes2D_MLIR),
                                             ::testing::ValuesIn(emptyOutputShape),
                                             ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
-                         KmbConvolutionBackpropDataLayerTest_MLIR::getTestCaseName);
+                         VPUXConvolutionBackpropDataLayerTest_VPU3700::getTestCaseName);
 
 /* ============= 3D ConvolutionBackpropData ============= */
 const std::vector<std::vector<size_t>> inputShapes3D = {{1, 3, 10, 10, 10}, {1, 16, 5, 5, 5}, {1, 32, 5, 5, 5}};
@@ -163,14 +161,9 @@ const auto conv3DParams_AutoPadValid = ::testing::Combine(
         ::testing::ValuesIn(dilations3D), ::testing::ValuesIn(numOutChannels),
         ::testing::Values(ngraph::op::PadType::VALID), ::testing::ValuesIn(emptyOutputPadding));
 
-// All test instances fail at stage "Convert nGraph to MCM Model" with error:
-// Expected: executableNetwork = getCore()->LoadNetwork(cnnNetwork, targetDevice, configuration)
-// doesn't throw an exception.
-// Actual: it throws:Unsupported dimensions layout
-// vpux-plugin/src/utils/dims_parser.cpp:45
-// openvino/inference-engine/include/details/ie_exception_conversion.hpp:64
 // [Track number: S#44901]
-INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_ConvolutionBackpropData3D_ExplicitPadding, KmbConvolutionBackpropDataLayerTest,
+INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_ConvolutionBackpropData3D_ExplicitPadding,
+                         VPUXConvolutionBackpropDataLayerTest_VPU3700,
                          ::testing::Combine(conv3DParams_ExplicitPadding, ::testing::ValuesIn(netPrecisions),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
@@ -178,16 +171,11 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_ConvolutionBackpropData3D_ExplicitPaddin
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::ValuesIn(inputShapes3D), ::testing::ValuesIn(emptyOutputShape),
                                             ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
-                         KmbConvolutionBackpropDataLayerTest::getTestCaseName);
+                         VPUXConvolutionBackpropDataLayerTest_VPU3700::getTestCaseName);
 
-// All test instances fail at stage "Convert nGraph to MCM Model" with error:
-// Expected: executableNetwork = getCore()->LoadNetwork(cnnNetwork, targetDevice, configuration)
-// doesn't throw an exception.
-// Actual: it throws:Unsupported dimensions layout
-// vpux-plugin/src/utils/dims_parser.cpp:45
-// openvino/inference-engine/include/details/ie_exception_conversion.hpp:64
 // [Track number: S#44901]
-INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_ConvolutionBackpropData3D_AutoPadValid, KmbConvolutionBackpropDataLayerTest,
+INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_ConvolutionBackpropData3D_AutoPadValid,
+                         VPUXConvolutionBackpropDataLayerTest_VPU3700,
                          ::testing::Combine(conv3DParams_AutoPadValid, ::testing::ValuesIn(netPrecisions),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
@@ -195,6 +183,6 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_ConvolutionBackpropData3D_AutoPadValid, 
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::ValuesIn(inputShapes3D), ::testing::ValuesIn(emptyOutputShape),
                                             ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
-                         KmbConvolutionBackpropDataLayerTest::getTestCaseName);
+                         VPUXConvolutionBackpropDataLayerTest_VPU3700::getTestCaseName);
 
 }  // namespace

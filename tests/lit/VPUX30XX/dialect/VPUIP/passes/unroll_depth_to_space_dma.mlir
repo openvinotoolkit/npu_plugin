@@ -1,13 +1,14 @@
 //
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
+
 // RUN: vpux-opt --split-input-file --init-compiler="vpu-arch=VPUX30XX" --unroll-depth-to-space-dma  %s | FileCheck %s
 
 #NCHW = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
-func @UnrollDepthToSpaceDMABlockFirstNHWC(%input: memref<1x8x2x3xf16, #NHWC>, %output: memref<1x2x4x6xf16, #NHWC>) -> memref<1x2x4x6xf16, #NHWC> {
+func.func @UnrollDepthToSpaceDMABlockFirstNHWC(%input: memref<1x8x2x3xf16, #NHWC>, %output: memref<1x2x4x6xf16, #NHWC>) -> memref<1x2x4x6xf16, #NHWC> {
     %bar0 = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
     %bar1 = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
 
@@ -19,7 +20,7 @@ func @UnrollDepthToSpaceDMABlockFirstNHWC(%input: memref<1x8x2x3xf16, #NHWC>, %o
     }
 
     VPURT.Task waits(%bar0: !VPURT.Barrier) updates(%bar1: !VPURT.Barrier) {
-        VPUIP.DepthToSpaceDMA {block_size = 2 : i64, mode = "BLOCKS_FIRST", output_channel = 2 : i64, output_width = 6 : i64, port = 0 : i64}
+        VPUIP.DepthToSpaceDMA {block_size = 2 : i64, mode = #IE.depth_to_space_mode<BLOCKS_FIRST>, output_channel = 2 : i64, output_width = 6 : i64, port = 0 : i64}
                 inputs(%inBuffer : memref<1x8x2x3xf16, #NHWC, [@CMX_NN, 0]>)
                 outputs(%outBuffer : memref<1x2x4x6xf16, #NHWC, [@CMX_NN, 0]>) -> memref<1x2x4x6xf16, #NHWC, [@CMX_NN, 0]>
     }
@@ -48,7 +49,7 @@ func @UnrollDepthToSpaceDMABlockFirstNHWC(%input: memref<1x8x2x3xf16, #NHWC>, %o
     //CHECK:    VPURT.Task waits([[BARRIER_0]] : !VPURT.Barrier) updates([[BARRIER_1]] : !VPURT.Barrier) attributes {isTrailingSWLayer = false} {
     //CHECK:        VPUIP.DepthToSpaceDMA {block_size = 2 : i64,
     //CHECK:            dma_descriptor = {dstPlaneStride = 48 : i64, dstStride = 2 : i64, dstWidth = 24 : i64, len = 24 : i64, numPlanes = 2 : i64, srcPlaneStride = 48 : i64, srcStride = 16 : i64, srcWidth = 8 : i64},
-    //CHECK:            mode = "BLOCKS_FIRST", port = 0 : i64}
+    //CHECK:            mode = #IE.depth_to_space_mode<BLOCKS_FIRST>, port = 0 : i64}
     //CHECK:            inputs([[INPUT_0]] : memref<1x4x2x3xf16, #NHWC, [@CMX_NN, 0]>)
     //CHECK:            outputs([[OUTPUT_0]] : memref<1x4x2x3xf16, #NHWC, [@CMX_NN, 0]>) -> memref<1x4x2x3xf16, #NHWC, [@CMX_NN, 0]>
     //CHECK:    }
@@ -56,7 +57,7 @@ func @UnrollDepthToSpaceDMABlockFirstNHWC(%input: memref<1x8x2x3xf16, #NHWC>, %o
     //CHECK:    VPURT.Task waits([[BARRIER_0]] : !VPURT.Barrier) updates([[BARRIER_1]] : !VPURT.Barrier) attributes {isTrailingSWLayer = false} {
     //CHECK:        VPUIP.DepthToSpaceDMA {block_size = 2 : i64,
     //CHECK:            dma_descriptor = {dstPlaneStride = 48 : i64, dstStride = 2 : i64, dstWidth = 24 : i64, len = 24 : i64, numPlanes = 2 : i64, srcPlaneStride = 48 : i64, srcStride = 16 : i64, srcWidth = 8 : i64},
-    //CHECK:            mode = "BLOCKS_FIRST", port = 0 : i64}
+    //CHECK:            mode = #IE.depth_to_space_mode<BLOCKS_FIRST>, port = 0 : i64}
     //CHECK:            inputs([[INPUT_1]] : memref<1x4x2x3xf16, #NHWC, [@CMX_NN, 0]>)
     //CHECK:            outputs([[OUTPUT_1]] : memref<1x4x2x3xf16, #NHWC, [@CMX_NN, 0]>) -> memref<1x4x2x3xf16, #NHWC, [@CMX_NN, 0]>
     //CHECK:    }
@@ -70,7 +71,7 @@ func @UnrollDepthToSpaceDMABlockFirstNHWC(%input: memref<1x8x2x3xf16, #NHWC>, %o
     //CHECK:    return %arg1 : memref<1x2x4x6xf16, #NHWC>
 }
 
-func @UnrollDepthToSpaceDMADepthFirstNHWC(%input: memref<1x8x2x1xf16, #NHWC>, %output: memref<1x2x4x2xf16, #NHWC>) -> memref<1x2x4x2xf16, #NHWC> {
+func.func @UnrollDepthToSpaceDMADepthFirstNHWC(%input: memref<1x8x2x1xf16, #NHWC>, %output: memref<1x2x4x2xf16, #NHWC>) -> memref<1x2x4x2xf16, #NHWC> {
     %bar0 = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
     %bar1 = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
 
@@ -82,7 +83,7 @@ func @UnrollDepthToSpaceDMADepthFirstNHWC(%input: memref<1x8x2x1xf16, #NHWC>, %o
     }
 
     VPURT.Task waits(%bar0: !VPURT.Barrier) updates(%bar1: !VPURT.Barrier) {
-        VPUIP.DepthToSpaceDMA {block_size = 2 : i64, mode = "DEPTH_FIRST", output_channel = 2 : i64, output_width = 2 : i64, port = 0 : i64}
+        VPUIP.DepthToSpaceDMA {block_size = 2 : i64, mode = #IE.depth_to_space_mode<DEPTH_FIRST>, output_channel = 2 : i64, output_width = 2 : i64, port = 0 : i64}
                 inputs(%inBuffer : memref<1x8x2x1xf16, #NHWC, [@CMX_NN, 0]>)
                 outputs(%outBuffer : memref<1x2x4x2xf16, #NHWC, [@CMX_NN, 0]>) -> memref<1x2x4x2xf16, #NHWC, [@CMX_NN, 0]>
     }
@@ -116,7 +117,7 @@ func @UnrollDepthToSpaceDMADepthFirstNHWC(%input: memref<1x8x2x1xf16, #NHWC>, %o
     //CHECK:    VPURT.Task waits([[BARRIER_0]] : !VPURT.Barrier) updates([[BARRIER_1]] : !VPURT.Barrier) attributes {isTrailingSWLayer = false} {
     //CHECK:        VPUIP.DepthToSpaceDMA {block_size = 2 : i64,
     //CHECK:            dma_descriptor = {dstPlaneStride = 16 : i64, dstStride = 4 : i64, dstWidth = 2 : i64, len = 4 : i64, numPlanes = 2 : i64, srcPlaneStride = 16 : i64, srcStride = 16 : i64, srcWidth = 4 : i64},
-    //CHECK:            mode = "DEPTH_FIRST", port = 0 : i64}
+    //CHECK:            mode = #IE.depth_to_space_mode<DEPTH_FIRST>, port = 0 : i64}
     //CHECK:            inputs([[INPUT_0]] : memref<1x2x2x1xf16, #NHWC, [@CMX_NN, 0]>)
     //CHECK:            outputs([[OUTPUT_0]] : memref<1x2x2x1xf16, #NHWC, [@CMX_NN, 0]>) -> memref<1x2x2x1xf16, #NHWC, [@CMX_NN, 0]>
     //CHECK:    }
@@ -124,7 +125,7 @@ func @UnrollDepthToSpaceDMADepthFirstNHWC(%input: memref<1x8x2x1xf16, #NHWC>, %o
     //CHECK:    VPURT.Task waits([[BARRIER_0]] : !VPURT.Barrier) updates([[BARRIER_1]] : !VPURT.Barrier) attributes {isTrailingSWLayer = false} {
     //CHECK:        VPUIP.DepthToSpaceDMA {block_size = 2 : i64,
     //CHECK:            dma_descriptor = {dstPlaneStride = 16 : i64, dstStride = 4 : i64, dstWidth = 2 : i64, len = 4 : i64, numPlanes = 2 : i64, srcPlaneStride = 16 : i64, srcStride = 16 : i64, srcWidth = 4 : i64},
-    //CHECK:            mode = "DEPTH_FIRST", port = 0 : i64}
+    //CHECK:            mode = #IE.depth_to_space_mode<DEPTH_FIRST>, port = 0 : i64}
     //CHECK:            inputs([[INPUT_1]] : memref<1x2x2x1xf16, #NHWC, [@CMX_NN, 0]>)
     //CHECK:            outputs([[OUTPUT_1]] : memref<1x2x2x1xf16, #NHWC, [@CMX_NN, 0]>) -> memref<1x2x2x1xf16, #NHWC, [@CMX_NN, 0]>
     //CHECK:    }
@@ -132,7 +133,7 @@ func @UnrollDepthToSpaceDMADepthFirstNHWC(%input: memref<1x8x2x1xf16, #NHWC>, %o
     //CHECK:    VPURT.Task waits([[BARRIER_0]] : !VPURT.Barrier) updates([[BARRIER_1]] : !VPURT.Barrier) attributes {isTrailingSWLayer = false} {
     //CHECK:        VPUIP.DepthToSpaceDMA {block_size = 2 : i64,
     //CHECK:            dma_descriptor = {dstPlaneStride = 16 : i64, dstStride = 4 : i64, dstWidth = 2 : i64, len = 4 : i64, numPlanes = 2 : i64, srcPlaneStride = 16 : i64, srcStride = 16 : i64, srcWidth = 4 : i64},
-    //CHECK:            mode = "DEPTH_FIRST", port = 0 : i64}
+    //CHECK:            mode = #IE.depth_to_space_mode<DEPTH_FIRST>, port = 0 : i64}
     //CHECK:            inputs([[INPUT_2]] : memref<1x2x2x1xf16, #NHWC, [@CMX_NN, 0]>)
     //CHECK:            outputs([[OUTPUT_2]] : memref<1x2x2x1xf16, #NHWC, [@CMX_NN, 0]>) -> memref<1x2x2x1xf16, #NHWC, [@CMX_NN, 0]>
     //CHECK:    }
@@ -140,7 +141,7 @@ func @UnrollDepthToSpaceDMADepthFirstNHWC(%input: memref<1x8x2x1xf16, #NHWC>, %o
     //CHECK:    VPURT.Task waits([[BARRIER_0]] : !VPURT.Barrier) updates([[BARRIER_1]] : !VPURT.Barrier) attributes {isTrailingSWLayer = false} {
     //CHECK:        VPUIP.DepthToSpaceDMA {block_size = 2 : i64,
     //CHECK:            dma_descriptor = {dstPlaneStride = 16 : i64, dstStride = 4 : i64, dstWidth = 2 : i64, len = 4 : i64, numPlanes = 2 : i64, srcPlaneStride = 16 : i64, srcStride = 16 : i64, srcWidth = 4 : i64},
-    //CHECK:            mode = "DEPTH_FIRST", port = 0 : i64}
+    //CHECK:            mode = #IE.depth_to_space_mode<DEPTH_FIRST>, port = 0 : i64}
     //CHECK:            inputs([[INPUT_3]] : memref<1x2x2x1xf16, #NHWC, [@CMX_NN, 0]>)
     //CHECK:            outputs([[OUTPUT_3]] : memref<1x2x2x1xf16, #NHWC, [@CMX_NN, 0]>) -> memref<1x2x2x1xf16, #NHWC, [@CMX_NN, 0]>
     //CHECK:    }

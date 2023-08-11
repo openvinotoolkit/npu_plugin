@@ -1,13 +1,14 @@
 //
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
+
 // RUN: vpux-opt --split-input-file --init-compiler="vpu-arch=%arch% compilation-mode=DefaultHW" --convert-vpu-nce-to-emu %s | FileCheck %s
 // REQUIRES: arch-VPUX30XX || arch-VPUX37XX
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
 // CHECK-LABEL: @ConvToNCE
-func @ConvToNCE(%arg0: tensor<1x16x16x16xf16, {order = #NHWC}>) -> tensor<1x16x16x16xf16, {order = #NHWC}> {
+func.func @ConvToNCE(%arg0: tensor<1x16x16x16xf16, {order = #NHWC}>) -> tensor<1x16x16x16xf16, {order = #NHWC}> {
     %cst0 = const.Declare tensor<16x16x1x1xf16, {order = #NHWC}> =
         dense<1.000000e+00> : tensor<16x16x1x1xf16>, [#const.Reorder<#NHWC>]
     %cst1 = const.Declare tensor<16x1x1x4xsi32> =
@@ -21,8 +22,8 @@ func @ConvToNCE(%arg0: tensor<1x16x16x16xf16, {order = #NHWC}>) -> tensor<1x16x1
         } -> tensor<1x16x16x16xf16, {order = #NHWC}>
     return %0 : tensor<1x16x16x16xf16, {order = #NHWC}>
 
-    // CHECK:       [[CST:%.+]] = const.Declare tensor<16x1x1x4xsi32> = dense<1> : tensor<16x1x1x4xsi32>
-    // CHECK:       [[CST0:%.+]] = const.Declare tensor<16x16x1x1xf16, {order = #NHWC}> = dense<1.000000e+00> : tensor<16x16x1x1xf16>, [#const.Reorder<#NHWC>]
+    // CHECK-DAG:       [[CST:%.+]] = const.Declare tensor<16x1x1x4xsi32> = dense<1> : tensor<16x1x1x4xsi32>
+    // CHECK-DAG:       [[CST0:%.+]] = const.Declare tensor<16x16x1x1xf16, {order = #NHWC}> = dense<1.000000e+00> : tensor<16x16x1x1xf16>, [#const.Reorder<#NHWC>]
 
     // CHECK:       [[VAL0:%.+]] = EMU.NCEClusterTask
     // CHECK-SAME:      kernel_padding = [0, 0, 0, 0], kernel_size = [1, 1], kernel_strides = [1, 1], rawFilterShape = [16, 16, 1, 1], task_type = "CONV"
@@ -40,7 +41,7 @@ func @ConvToNCE(%arg0: tensor<1x16x16x16xf16, {order = #NHWC}>) -> tensor<1x16x1
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
 // CHECK-LABEL: @DepthConvToNCE
-func @DepthConvToNCE(%arg0: tensor<1x16x40x80xf16, {order = #NHWC}>) -> tensor<1x16x37x73xf16, {order = #NHWC}> {
+func.func @DepthConvToNCE(%arg0: tensor<1x16x40x80xf16, {order = #NHWC}>) -> tensor<1x16x37x73xf16, {order = #NHWC}> {
     %cst0 = const.Declare tensor<16x1x4x8xf16, {order = #NHWC}> =
         dense<1.000000e+00> : tensor<16x1x4x8xf16>, [#const.Reorder<#NHWC>]
     %cst1 = const.Declare tensor<16x1x1x4xsi32> =
@@ -57,8 +58,8 @@ func @DepthConvToNCE(%arg0: tensor<1x16x40x80xf16, {order = #NHWC}>) -> tensor<1
 
     return %0 : tensor<1x16x37x73xf16, {order = #NHWC}>
 
-    // CHECK:       [[CST:%.+]] = const.Declare tensor<16x1x1x4xsi32> = dense<1> : tensor<16x1x1x4xsi32>
-    // CHECK:       [[CST0:%.+]] = const.Declare tensor<16x1x4x8xf16, {order = #NHWC}> = dense<1.000000e+00> : tensor<16x1x4x8xf16>, [#const.Reorder<#NHWC>]
+    // CHECK-DAG:       [[CST:%.+]] = const.Declare tensor<16x1x1x4xsi32> = dense<1> : tensor<16x1x1x4xsi32>
+    // CHECK-DAG:       [[CST0:%.+]] = const.Declare tensor<16x1x4x8xf16, {order = #NHWC}> = dense<1.000000e+00> : tensor<16x1x4x8xf16>, [#const.Reorder<#NHWC>]
 
     // CHECK:       [[VAL0:%.+]] = EMU.NCEClusterTask
     // CHECK-SAME:      kernel_padding = [0, 0, 0, 0], kernel_size = [4, 8], kernel_strides = [1, 1], rawFilterShape = [16, 1, 4, 8], task_type = "DWCONV"
@@ -75,7 +76,7 @@ func @DepthConvToNCE(%arg0: tensor<1x16x40x80xf16, {order = #NHWC}>) -> tensor<1
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
 // CHECK-LABEL: @MaxPoolToNCE
-func @MaxPoolToNCE(%arg0: tensor<1x16x1x4xf16, {order = #NHWC}>) -> tensor<1x16x1x4xf16, {order = #NHWC}> {
+func.func @MaxPoolToNCE(%arg0: tensor<1x16x1x4xf16, {order = #NHWC}>) -> tensor<1x16x1x4xf16, {order = #NHWC}> {
     %cst0 = const.Declare tensor<16x1x1x4xsi32> =
         dense<1> : tensor<16x1x1x4xsi32>
     %cst1 = const.Declare tensor<1x1x1x16xui8> =
@@ -90,7 +91,7 @@ func @MaxPoolToNCE(%arg0: tensor<1x16x1x4xf16, {order = #NHWC}>) -> tensor<1x16x
 
     return %0 : tensor<1x16x1x4xf16, {order = #NHWC}>
 
-    // CHECK:       [[CST0:%.+]] = const.Declare tensor<16x1x1x4xsi32> = dense<1> : tensor<16x1x1x4xsi32>
+    // CHECK-DAG:       [[CST0:%.+]] = const.Declare tensor<16x1x1x4xsi32> = dense<1> : tensor<16x1x1x4xsi32>
 
     // CHECK:       [[VAL0:%.+]] = EMU.NCEClusterTask
     // CHECK-SAME:      kernel_padding = [0, 0, 0, 0], kernel_size = [1, 1], kernel_strides = [1, 1], task_type = "MAXPOOL"
@@ -106,7 +107,7 @@ func @MaxPoolToNCE(%arg0: tensor<1x16x1x4xf16, {order = #NHWC}>) -> tensor<1x16x
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
 // CHECK-LABEL: @AvgPoolToNCE
-func @AvgPoolToNCE(%arg0: tensor<1x16x4x4xf16, {order = #NHWC}>) -> tensor<1x16x4x4xf16, {order = #NHWC}> {
+func.func @AvgPoolToNCE(%arg0: tensor<1x16x4x4xf16, {order = #NHWC}>) -> tensor<1x16x4x4xf16, {order = #NHWC}> {
     %0 = VPU.NCE.AveragePool(%arg0) {
             kernel_size = [3, 3],
             pad = {bottom = 1, left = 1, right = 1, top = 1},
@@ -131,7 +132,7 @@ func @AvgPoolToNCE(%arg0: tensor<1x16x4x4xf16, {order = #NHWC}>) -> tensor<1x16x
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
 // CHECK-LABEL: @EltwiseAddToNCE
-func @EltwiseAddToNCE(%arg0: tensor<1x64x28x28xf16, {order = #NHWC}>, %arg1: tensor<1x64x28x28xf16, {order = #NHWC}>)
+func.func @EltwiseAddToNCE(%arg0: tensor<1x64x28x28xf16, {order = #NHWC}>, %arg1: tensor<1x64x28x28xf16, {order = #NHWC}>)
         -> tensor<1x64x28x28xf16, {order = #NHWC}> {
     %0 = VPU.NCE.Eltwise(%arg0, %arg1) {
         op_type = "ADD",
@@ -156,7 +157,7 @@ func @EltwiseAddToNCE(%arg0: tensor<1x64x28x28xf16, {order = #NHWC}>, %arg1: ten
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
 // CHECK-LABEL: @EltwiseAndSameInputsToNCE
-func @EltwiseAndSameInputsToNCE(%arg0: tensor<1x64x28x28xf16, {order = #NHWC}>)
+func.func @EltwiseAndSameInputsToNCE(%arg0: tensor<1x64x28x28xf16, {order = #NHWC}>)
         -> tensor<1x64x28x28xf16, {order = #NHWC}> {
     %0 = VPU.NCE.Eltwise(%arg0, %arg0) {
         op_type = "AND",

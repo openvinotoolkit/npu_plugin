@@ -34,8 +34,9 @@
 #include <llvm/Support/TargetSelect.h>
 
 #include <mlir/IR/Dialect.h>
-#include <mlir/Support/MlirOptMain.h>
-#include <mlir/Translation.h>
+#include <mlir/Tools/mlir-opt/MlirOptMain.h>
+#include <mlir/Tools/mlir-translate/MlirTranslateMain.h>
+#include <mlir/Tools/mlir-translate/Translation.h>
 
 #include <llvm/Support/SourceMgr.h>
 

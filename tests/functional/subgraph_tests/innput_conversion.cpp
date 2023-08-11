@@ -1,5 +1,5 @@
 //
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,7 +11,7 @@
 
 namespace {
 
-class KmbQuantizedInputConversionTest :
+class VPUXQuantizedInputConversionTest_VPU3700 :
         public LayerTestsUtils::KmbLayerTestsCommon,
         public testing::WithParamInterface<LayerTestsUtils::TargetDevice> {
     void SetUp() override {
@@ -61,11 +61,13 @@ class KmbQuantizedInputConversionTest :
     }
 };
 
-TEST_P(KmbQuantizedInputConversionTest, CompareWithRefs_MCM) {
+TEST_P(VPUXQuantizedInputConversionTest_VPU3700, HW) {
+    setPlatformVPU3700();
+    setDefaultHardwareModeMLIR();
     Run();
 }
 
-INSTANTIATE_TEST_CASE_P(smoke, KmbQuantizedInputConversionTest,
+INSTANTIATE_TEST_CASE_P(smoke_QuantizedInputConversion, VPUXQuantizedInputConversionTest_VPU3700,
                         ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));
 
 }  // namespace

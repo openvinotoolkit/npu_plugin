@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/VPU/passes.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
 
@@ -27,6 +25,17 @@ VPU::ActivationSparsityProfile getActSparsityProfile(const StrOption& actProfile
 template <VPU::ActivationSparsityProfile PROFILE>
 Optional<VPU::ActivationSparsityProfile> getSparsityProfile(StringRef) {
     return PROFILE;
+}
+
+auto getSparsityProfileCallback(VPU::ActivationSparsityProfile actSparsityProfile) {
+    switch (actSparsityProfile) {
+    case VPU::ActivationSparsityProfile::S0:
+        return getSparsityProfile<VPU::ActivationSparsityProfile::S0>;
+    case VPU::ActivationSparsityProfile::S1:
+        return getSparsityProfile<VPU::ActivationSparsityProfile::S1>;
+    default:
+        VPUX_THROW("Unknown ActSparsityProfile");
+    }
 }
 
 VPU::WeightsSparsityHeuristic getWeightsSparsityHeuristic(const StrOption& weightsSparsityHeuristic) {
@@ -58,11 +67,10 @@ void vpux::VPU::buildActivationSparsityPipeline(mlir::OpPassManager& pm, const V
                                                 Logger log) {
     const auto grc = getDefaultGreedyRewriteConfig();
     const auto actSparsityProfile = getActSparsityProfile(options.actSparsityProfile);
-    const auto profileCallback = actSparsityProfile == VPU::ActivationSparsityProfile::S0
-                                         ? getSparsityProfile<ActivationSparsityProfile::S0>
-                                         : getSparsityProfile<ActivationSparsityProfile::S1>;
+    const auto profileCallback = getSparsityProfileCallback(actSparsityProfile);
 
-    pm.addPass(VPU::createWrapOpsInSparsifyDesparsifyPairsPass(profileCallback, log));
+    pm.addPass(VPU::createWrapOpsInSparsifyDesparsifyPairsPass(
+            VPU::getActSparsityMode(options.enableActivationSparsity), actSparsityProfile, log));
 
     if (actSparsityProfile == VPU::ActivationSparsityProfile::S1) {
         pm.addPass(VPU::createFuseSparsityOpsPass(/*fuseSparsify=*/false, log));
@@ -87,6 +95,24 @@ void vpux::VPU::buildWeightsSparsityPipeline(mlir::OpPassManager& pm, const VPU:
     pm.addPass(VPU::createRecomputeSparsityPtrsPass(log));
 }
 
+void vpux::VPU::buildTilingPipeline(mlir::OpPassManager& pm, const VPU::TilingOptions& options, Logger log) {
+    const auto grc = getDefaultGreedyRewriteConfig();
+
+    pm.addPass(VPU::createTilingStrategyAssignmentPass(options.enablePrefetchTiling, log));
+
+    if (options.enableVerticalFusion) {
+        pm.addPass(VPU::createWrapVerticalFusionRegionPass(log));
+        pm.addPass(VPU::createMergeVfSubgraphsPass(log));
+        pm.addPass(VPU::createUnrollUnusedVerticalFusionRegionPass(log));
+        pm.addPass(VPU::createAdjustVFTilingStrategyPass(log));
+        pm.addPass(VPU::createVfTilingPass(log));
+    }
+
+    pm.addPass(VPU::createApplyTilingPass(log));
+
+    pm.addPass(mlir::createCanonicalizerPass(grc));
+}
+
 void VPU::registerVPUPipelines() {
     mlir::PassPipelineRegistration<VPU::ActivationSparsityOptions>(
             "enable-act-sparsity", "Enable activation sparsity",
@@ -98,4 +124,8 @@ void VPU::registerVPUPipelines() {
             [](mlir::OpPassManager& pm, const VPU::WeightsSparsityOptions& options) {
                 VPU::buildWeightsSparsityPipeline(pm, options);
             });
+    mlir::PassPipelineRegistration<VPU::TilingOptions>("tiling", "Apply tiling",
+                                                       [](mlir::OpPassManager& pm, const VPU::TilingOptions& options) {
+                                                           VPU::buildTilingPipeline(pm, options);
+                                                       });
 }

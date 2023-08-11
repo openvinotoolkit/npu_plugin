@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/VPU/ops.hpp"
 #include "vpux/compiler/dialect/VPU/passes.hpp"
 
@@ -41,7 +39,7 @@ mlir::LogicalResult DetectInPlaceEltwise::matchAndRewrite(VPU::NCEEltwiseOp eltw
                                                           mlir::PatternRewriter& rewriter) const {
     _log.trace("Check Eltwise op {0} for inplace execution", eltwiseOp->getLoc());
 
-    if (eltwiseOp.is_inplace().getValueOr(false)) {
+    if (eltwiseOp.is_inplace().value_or(false)) {
         return mlir::failure();
     }
 
@@ -105,14 +103,9 @@ private:
 
 void DetectInPlaceEltwisePass::safeRunOnFunc() {
     auto& ctx = getContext();
-    auto function = getFunction();
+    auto function = getOperation();
 
-    // #65420
-    auto arch = VPU::getArch(function);
-    if ((arch != VPU::ArchKind::VPUX37XX)) {
-        return;
-    }
-
+    // TODO: #65420
     mlir::RewritePatternSet patterns(&ctx);
     patterns.add<DetectInPlaceEltwise>(&ctx, _log);
 

@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/IE/passes.hpp"
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
@@ -98,13 +96,18 @@ mlir::LogicalResult ConvertMatMulToConvPass::MatMulOpConverter::matchAndRewrite(
         input2 = rewriter.create<IE::TransposeOp>(matmulOp->getLoc(), input2, nullptr, orderAttr).output();
     }
 
-    const auto weightsShape = input2.getType().cast<vpux::NDTypeInterface>().getShape().raw();
-    const std::array<int64_t, 4> newWeightsShape = {weightsShape[0], weightsShape[1], 1, 1};
+    auto newWeightsShape = to_small_vector(getShape(input2));
+    // Extend to 4D
+    newWeightsShape.insert(newWeightsShape.end(), 2, 1);
+
     const auto filterShapeAttr = getIntArrayAttr(ctx, newWeightsShape);
     auto weight = rewriter.create<IE::ReshapeOp>(matmulOp->getLoc(), input2, nullptr, false, filterShapeAttr).output();
 
-    const auto newInputShape = input1.getType().cast<vpux::NDTypeInterface>().getShape().raw();
-    const std::array<int64_t, 4> inputShape = {1, newInputShape[0], newInputShape[1], newInputShape[2]};
+    auto inputShape = to_small_vector(getShape(input1));
+    if (inputShape.size() == 3) {
+        // Extend to 4D
+        inputShape.insert(inputShape.begin(), 1);
+    }
     const auto inputShapeAttr = getIntArrayAttr(ctx, inputShape);
     auto reshapeLoc = appendLoc(matmulOp->getLoc(), "_BEFORE_CONV");
 
@@ -150,7 +153,8 @@ void ConvertMatMulToConvPass::safeRunOnFunc() {
     target.addDynamicallyLegalOp<IE::MatMulOp>([](IE::MatMulOp op) -> bool {
         const auto input1Shape = getShape(op.input1());
         const auto input2Shape = getShape(op.input2());
-        if (input1Shape.size() == 3 && input2Shape.size() == 2) {
+        if ((input1Shape.size() == 3 || (input1Shape.size() == 4 && input1Shape[Dim(0)] == 1)) &&
+            input2Shape.size() == 2) {
             return false;
         }
 
@@ -164,7 +168,7 @@ void ConvertMatMulToConvPass::safeRunOnFunc() {
     mlir::RewritePatternSet patterns(&ctx);
     patterns.add<MatMulOpConverter>(&ctx, _log);
 
-    auto func = getFunction();
+    auto func = getOperation();
     if (mlir::failed(mlir::applyPartialConversion(func, target, std::move(patterns)))) {
         signalPassFailure();
     }

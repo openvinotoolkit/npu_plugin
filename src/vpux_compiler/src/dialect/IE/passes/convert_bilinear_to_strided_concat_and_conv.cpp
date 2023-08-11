@@ -3,15 +3,12 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/IE/passes.hpp"
-#include "vpux/compiler/dialect/IE/utils/resources.hpp"
 #include "vpux/compiler/dialect/VPU/nce_invariant.hpp"
 #include "vpux/compiler/dialect/VPU/utils/const_utils.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
-#include "vpux/compiler/utils/types.hpp"
 
 #include <mlir/Pass/PassManager.h>
 #include <mlir/Transforms/DialectConversion.h>
@@ -128,9 +125,12 @@ mlir::Value createMaxPool(mlir::Value input, mlir::Location loc, mlir::PatternRe
 class ConvertBilinearToStridedConcatAndConvPass final :
         public IE::ConvertBilinearToStridedConcatAndConvBase<ConvertBilinearToStridedConcatAndConvPass> {
 public:
-    explicit ConvertBilinearToStridedConcatAndConvPass(Logger log) {
+    explicit ConvertBilinearToStridedConcatAndConvPass(const bool interpolateAsSEOp, Logger log)
+            : _interpolateAsSEOp(interpolateAsSEOp) {
         Base::initLogger(log, Base::getArgumentName());
     }
+
+    mlir::LogicalResult initialize(mlir::MLIRContext* ctx) final;
 
 public:
     class BilinearInterpolateOpConverter;
@@ -138,7 +138,24 @@ public:
 
 private:
     void safeRunOnFunc() final;
+
+private:
+    bool _interpolateAsSEOp;
 };
+
+mlir::LogicalResult ConvertBilinearToStridedConcatAndConvPass::initialize(mlir::MLIRContext* ctx) {
+    if (mlir::failed(Base::initialize(ctx))) {
+        return mlir::failure();
+    }
+
+    // When this parameter has a value, it probably comes from LIT test.
+    // Override the default
+    if (interpolateAsSEOp.hasValue()) {
+        _interpolateAsSEOp = interpolateAsSEOp.getValue();
+    }
+
+    return mlir::success();
+}
 
 // BilinearInterpolateOpConverter
 class ConvertBilinearToStridedConcatAndConvPass::BilinearInterpolateOpConverter final :
@@ -181,15 +198,15 @@ mlir::LogicalResult ConvertBilinearToStridedConcatAndConvPass::BilinearInterpola
     const auto inputShape = getShape(origOp.input());
     const auto attrs = origOp.attr();
     const auto outShape = getShape(origOp.output());
-    const auto axesValue = parseIntArrayAttr<int64_t>(origOp.axes_attrAttr());
-    VPUX_THROW_UNLESS(llvm::all_of(axesValue,
-                                   [](auto axes) {
-                                       return axes > 1;
-                                   }),
-                      "Axes must be H or W");
+
+    if ((inputShape[Dims4D::Act::N] != outShape[Dims4D::Act::N]) ||
+        (inputShape[Dims4D::Act::C] != outShape[Dims4D::Act::C])) {
+        VPUX_THROW("Interpolate axes must be H or W.");
+    }
+
     bool isAlignCorners = 0;
 
-    if ((attrs.coord_mode().getValue() == IE::InterpolateCoordMode::ALIGN_CORNERS) &&
+    if ((attrs.getCoordMode().getValue() == IE::InterpolateCoordMode::ALIGN_CORNERS) &&
         (outShape[Dims4D::Act::W] - 1) % (inputShape[Dims4D::Act::W] - 1) == 0 &&
         (outShape[Dims4D::Act::H] - 1) % (inputShape[Dims4D::Act::H] - 1) == 0) {
         isAlignCorners = 1;
@@ -235,7 +252,7 @@ mlir::LogicalResult ConvertBilinearToStridedConcatAndConvPass::BilinearInterpola
 
 /// @brief Replace 2x2 bilinear interpolate as three depthwise convolutions and one maxpool or six depthwise
 /// convolutions if use cmx-concat, and a cascaded structure of strided concat over W and H
-/// @details It is a faster solution than the original one above. See ticket: E#49791
+/// @details It is a faster solutoin than the original one above. See ticket: E#49791
 mlir::LogicalResult ConvertBilinearToStridedConcatAndConvPass::BilinearInterpolateOpConverterV2::matchAndRewrite(
         IE::InterpolateOp origOp, mlir::PatternRewriter& rewriter) const {
     _log.trace("DPU Interp solution V2: optimize bilinear Interpolate Op {0}", origOp);
@@ -246,18 +263,17 @@ mlir::LogicalResult ConvertBilinearToStridedConcatAndConvPass::BilinearInterpola
     auto input = origOp.input();
     const auto inputShape = getShape(input);
     const auto outShape = getShape(origOp.output());
-    const auto axesValue = parseIntArrayAttr<int64_t>(origOp.axes_attrAttr());
-    VPUX_THROW_UNLESS(llvm::all_of(axesValue,
-                                   [](auto axes) {
-                                       return axes > 1;
-                                   }),
-                      "Axes must be H or W");
+
+    if ((inputShape[Dims4D::Act::N] != outShape[Dims4D::Act::N]) ||
+        (inputShape[Dims4D::Act::C] != outShape[Dims4D::Act::C])) {
+        VPUX_THROW("Interpolate axes must be H or W.");
+    }
 
     const auto scaleW = outShape[Dims4D::Act::W] / inputShape[Dims4D::Act::W];
     const auto scaleH = outShape[Dims4D::Act::H] / inputShape[Dims4D::Act::H];
-
+    const auto attrs = origOp.attr();
     // This is a fast dpu solution only for 2x2 upsampling
-    if (scaleW != 2 || scaleH != 2) {
+    if (scaleW != 2 || scaleH != 2 || (attrs.getCoordMode().getValue() == IE::InterpolateCoordMode::ALIGN_CORNERS)) {
         return mlir::failure();
     }
 
@@ -375,12 +391,23 @@ mlir::LogicalResult ConvertBilinearToStridedConcatAndConvPass::BilinearInterpola
 
 void ConvertBilinearToStridedConcatAndConvPass::safeRunOnFunc() {
     auto& ctx = getContext();
+
+    const auto logCb = [&](const formatv_object_base& msg) {
+        _log.trace("{0}", msg.str());
+    };
+
     mlir::ConversionTarget target(ctx);
     target.addDynamicallyLegalOp<IE::InterpolateOp>([&](IE::InterpolateOp op) {
+        if (_interpolateAsSEOp) {
+            if (VPU::NCEInterpolateOp::isSupported(op, logCb, /*checkLayout=*/false, /*checkChannelAlignment=*/false)) {
+                return true;
+            }
+        }
+
         const auto attrs = op.attr();
-        const auto interpMode = attrs.mode().getValue();
-        const auto antiAlias = attrs.antialias().getValue();
-        const auto coordMode = attrs.coord_mode().getValue();
+        const auto interpMode = attrs.getMode().getValue();
+        const auto antiAlias = attrs.getAntialias().getValue();
+        const auto coordMode = attrs.getCoordMode().getValue();
         const auto inputShape = getShape(op.input());
         const auto outShape = getShape(op.output());
         int64_t scaleW = 1;
@@ -413,7 +440,7 @@ void ConvertBilinearToStridedConcatAndConvPass::safeRunOnFunc() {
         }
 
         // E46240: only this kind of align_corners is accurate and is supported
-        if ((attrs.coord_mode().getValue() == IE::InterpolateCoordMode::ALIGN_CORNERS)) {
+        if ((attrs.getCoordMode().getValue() == IE::InterpolateCoordMode::ALIGN_CORNERS)) {
             if ((outShape[Dims4D::Act::W] - 1) % (inputShape[Dims4D::Act::W] - 1) == 0 &&
                 (outShape[Dims4D::Act::H] - 1) % (inputShape[Dims4D::Act::H] - 1) == 0) {
                 scaleW = (outShape[Dims4D::Act::W] - 1) / (inputShape[Dims4D::Act::W] - 1);
@@ -455,7 +482,7 @@ void ConvertBilinearToStridedConcatAndConvPass::safeRunOnFunc() {
     patterns.insert<BilinearInterpolateOpConverterV2>(&ctx, vpux::benefitMid, _log);
     patterns.insert<BilinearInterpolateOpConverter>(&ctx, vpux::benefitLow, _log);
 
-    auto func = getFunction();
+    auto func = getOperation();
     if (mlir::failed(mlir::applyPartialConversion(func, target, std::move(patterns)))) {
         signalPassFailure();
     }
@@ -467,6 +494,7 @@ void ConvertBilinearToStridedConcatAndConvPass::safeRunOnFunc() {
 // createConvertBilinearToStridedConcatAndConvPass
 //
 
-std::unique_ptr<mlir::Pass> vpux::IE::createConvertBilinearToStridedConcatAndConvPass(Logger log) {
-    return std::make_unique<ConvertBilinearToStridedConcatAndConvPass>(log);
+std::unique_ptr<mlir::Pass> vpux::IE::createConvertBilinearToStridedConcatAndConvPass(const bool interpolateAsSEOp,
+                                                                                      Logger log) {
+    return std::make_unique<ConvertBilinearToStridedConcatAndConvPass>(interpolateAsSEOp, log);
 }

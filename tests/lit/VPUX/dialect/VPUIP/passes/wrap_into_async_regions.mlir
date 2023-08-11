@@ -1,12 +1,13 @@
 //
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
+
 // RUN: vpux-opt --split-input-file --init-compiler="vpu-arch=%arch%" --wrap-into-async-regions %s | FileCheck %s
 // REQUIRES: arch-VPUX30XX || arch-VPUX37XX
 
 // CHECK-LABEL: @LinearGraph
-func @LinearGraph(%arg0: memref<1x1x1x100xf16>, %arg1: memref<1x1x1x100xf16>) -> memref<1x1x1x100xf16> {
+func.func @LinearGraph(%arg0: memref<1x1x1x100xf16>, %arg1: memref<1x1x1x100xf16>) -> memref<1x1x1x100xf16> {
     %0 = memref.alloc() :  memref<1x1x1x100xf16>
     %1 = VPUIP.ReLUUPA inputs(%arg0 : memref<1x1x1x100xf16>) outputs(%0 : memref<1x1x1x100xf16>) -> memref<1x1x1x100xf16>
     %2 = VPUIP.Copy inputs(%1 : memref<1x1x1x100xf16>) outputs(%arg1 : memref<1x1x1x100xf16>) -> memref<1x1x1x100xf16>
@@ -34,7 +35,7 @@ func @LinearGraph(%arg0: memref<1x1x1x100xf16>, %arg1: memref<1x1x1x100xf16>) ->
 // -----
 
 // CHECK-LABEL: @ConcatView
-func @ConcatView(%arg0: memref<50x1x1xf16>, %arg1: memref<100x1x1xf16>) -> memref<100x1x1xf16> {
+func.func @ConcatView(%arg0: memref<50x1x1xf16>, %arg1: memref<100x1x1xf16>) -> memref<100x1x1xf16> {
     %0 = VPUIP.SubView %arg1 [0, 0 ,0] [50, 1, 1] : memref<100x1x1xf16> to memref<50x1x1xf16>
     %1 = VPUIP.ReLUUPA inputs(%arg0 : memref<50x1x1xf16>) outputs(%0 : memref<50x1x1xf16>) -> memref<50x1x1xf16>
 
@@ -68,7 +69,7 @@ func @ConcatView(%arg0: memref<50x1x1xf16>, %arg1: memref<100x1x1xf16>) -> memre
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
 // CHECK-LABEL: @NCEClusterTiling
-func @NCEClusterTiling(%arg0: memref<1x32x16x16xf16, #NHWC, @DDR>) -> memref<1x32x16x16xf16, #NHWC, @CMX_NN> {
+func.func @NCEClusterTiling(%arg0: memref<1x32x16x16xf16, #NHWC, @DDR>) -> memref<1x32x16x16xf16, #NHWC, @CMX_NN> {
     %0 = memref.alloc() : memref<1x32x16x16xf16, #NHWC, @CMX_NN>
     %1 = VPUIP.NCEClusterTiling inputs(%arg0 as %arg2: memref<1x32x16x16xf16, #NHWC, @DDR>) outputs(%0 as %arg3: memref<1x32x16x16xf16, #NHWC, @CMX_NN>) -> memref<1x32x16x16xf16, #NHWC, @CMX_NN> {
       %2 = VPUIP.Copy inputs(%arg2 : memref<1x32x16x16xf16, #NHWC, @DDR>) outputs(%arg3 : memref<1x32x16x16xf16, #NHWC, @CMX_NN>) -> memref<1x32x16x16xf16, #NHWC, @CMX_NN>

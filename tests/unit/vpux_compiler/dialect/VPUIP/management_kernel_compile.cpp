@@ -3,11 +3,7 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include <vpux/compiler/act_kernels/compilation.h>
-
-#include "vpux/compiler/dialect/VPUIP/graph-schema/blob_writer.hpp"
 
 #include <gtest/gtest.h>
 

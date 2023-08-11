@@ -28,6 +28,22 @@ void VPU::DistributedTensorType::walkImmediateSubElements(llvm::function_ref<voi
 }
 
 //
+// DistributedTensorType::replaceImmediateSubElements
+//
+
+mlir::Type VPU::DistributedTensorType::replaceImmediateSubElements(ArrayRef<mlir::Attribute> replAttrs,
+                                                                   ArrayRef<mlir::Type> replTypes) const {
+    bool hasOrder = replAttrs.size() > 2;
+    auto nextAfterOrder = hasOrder ? 1 : 0;
+    size_t expectedSize = hasOrder ? 4 : 3;
+    VPUX_THROW_WHEN(replAttrs.size() < expectedSize, "Replace attrs array is too short: '{0}'", replAttrs.size());
+    return get(getContext(), getShape().raw(), replTypes[0],
+               hasOrder ? replAttrs[0].dyn_cast_or_null<mlir::AffineMapAttr>() : mlir::AffineMapAttr(),
+               replAttrs[nextAfterOrder].dyn_cast_or_null<vpux::IndexedSymbolAttr>(),
+               replAttrs[nextAfterOrder + 1].dyn_cast_or_null<VPU::DistributedTensorAttr>());
+}
+
+//
 // print/parse
 //
 
@@ -60,6 +76,18 @@ void VPU::DistributedTensorType::print(mlir::AsmPrinter& printer) const {
     }
     if (distribution.alignment() != nullptr) {
         printer << ", alignment = " << distribution.alignment();
+    }
+    if (distribution.uniform_distributed_segments() != nullptr) {
+        printer << ", uniform_distributed_segments";
+    }
+    if (distribution.compute_shapes() != nullptr) {
+        printer << ", compute_shapes = " << distribution.compute_shapes();
+    }
+    if (distribution.compute_offsets() != nullptr) {
+        printer << ", compute_offsets = " << distribution.compute_offsets();
+    }
+    if (distribution.equal_memory_and_compute_view() != nullptr) {
+        printer << ", equal_memory_and_compute_view";
     }
     printer << "}";
 
@@ -131,6 +159,10 @@ mlir::Type VPU::DistributedTensorType::parse(mlir::AsmParser& parser) {
     mlir::ArrayAttr strides;
     mlir::IntegerAttr numClusters;
     mlir::ArrayAttr alignment;
+    mlir::UnitAttr uniformDistributedSegments;
+    mlir::ArrayAttr computeShapes;
+    mlir::ArrayAttr computeOffsets;
+    mlir::UnitAttr equalComputeAndMemoryView;
 
     while (parser.parseOptionalRBrace()) {
         if (parser.parseComma()) {
@@ -140,6 +172,18 @@ mlir::Type VPU::DistributedTensorType::parse(mlir::AsmParser& parser) {
         if (parser.parseKeywordOrString(&attrName)) {
             return Type();
         }
+
+        // Handle UnitAttr first since they don't have value assigned
+        if (attrName == "uniform_distributed_segments") {
+            uniformDistributedSegments = mlir::UnitAttr::get(parser.getContext());
+            continue;
+        }
+
+        if (attrName == "equal_memory_and_compute_view") {
+            equalComputeAndMemoryView = mlir::UnitAttr::get(parser.getContext());
+            continue;
+        }
+
         if (parser.parseEqual()) {
             return Type();
         }
@@ -167,6 +211,14 @@ mlir::Type VPU::DistributedTensorType::parse(mlir::AsmParser& parser) {
             if (parser.parseAttribute(alignment)) {
                 return Type();
             }
+        } else if (attrName == "compute_shapes") {
+            if (parser.parseAttribute(computeShapes)) {
+                return Type();
+            }
+        } else if (attrName == "compute_offsets") {
+            if (parser.parseAttribute(computeOffsets)) {
+                return Type();
+            }
         } else {
             return Type();
         }
@@ -175,8 +227,9 @@ mlir::Type VPU::DistributedTensorType::parse(mlir::AsmParser& parser) {
     if (parser.parseGreater()) {
         return Type();
     }
-    auto distributedAttr = VPU::DistributedTensorAttr::get(distributionModeAttr, numTiles, kernel, pads, strides,
-                                                           numClusters, alignment, parser.getContext());
+    auto distributedAttr = VPU::DistributedTensorAttr::get(
+            distributionModeAttr, numTiles, kernel, pads, strides, numClusters, alignment, uniformDistributedSegments,
+            computeShapes, computeOffsets, equalComputeAndMemoryView, parser.getContext());
     return static_cast<mlir::Type>(
             get(parser.getContext(), makeArrayRef(shape), elemType, order, memSpace, distributedAttr));
 }
@@ -207,14 +260,18 @@ mlir::RankedTensorType VPU::DistributedTensorType::getCompactType() const {
 
 // @brief Retrieve the array of compute shapes.
 // @warning An important thing to consider with regards to compute shapes,
-// is that modes like SEGMENTED and OVERLAPPED take precedence over
-// DUPLICATED and MULTICASTED.
-// In an example case of a "SEGMENTED | DUPLICATED" (needed for SplitOverK)
-// tensor with shape [1, 64, 4, 4], the compute shape in each cluster is
-// [1, 16, 4, 4], which is needed when tiling and generating workloads,
-// while the allocated shape is [1, 64, 4, 4] (because of duplicated)
-// information which is needed for scheduler and strategy manager,
-// in order to estimate memory
+//  is that modes like SEGMENTED and OVERLAPPED take precedence over
+//  DUPLICATED and MULTICASTED.
+//  In an example case of a "SEGMENTED | DUPLICATED" (needed for SplitOverK)
+//  tensor with shape [1, 64, 4, 4], the compute shape in each cluster is
+//  [1, 16, 4, 4], which is needed when tiling and generating workloads,
+//  while the allocated shape is [1, 64, 4, 4] (because of duplicated)
+//  information which is needed for scheduler and strategy manager,
+//  in order to estimate memory
+//  In an example of OVERLAPPED over H with  k3x3s1x1 pad (1, 1, 1, 1) and
+//  uniform segmentation for 4 clusters, a tensor of shape [1, 64, 22, 16]
+//  will have the following compute distribution across clusters:
+//  [1 64 6 16] [1 64 6 16] [1 64 5 16] [1 64 5 16]
 SmallVector<Shape> VPU::DistributedTensorType::getPerClusterComputeShapes() const {
     return VPU::getPerClusterComputeShapes(getShape(), getDistribution());
 }
@@ -225,6 +282,31 @@ SmallVector<Shape> VPU::DistributedTensorType::getPerClusterComputeShapes() cons
 // DUPLICATED and MULTICASTED.
 SmallVector<Shape> VPU::DistributedTensorType::getPerClusterComputeShapeOffsets() const {
     return VPU::getPerClusterComputeShapeOffsets(getShape(), getDistribution());
+}
+
+// @brief Retrieve the array of memory shapes.
+// @warning An important thing to consider with regards to memory shapes,
+//  is that modes like DUPLICATED and MULTICASTED take precedence over
+//  SEGMENTED and OVERLAPPED.
+//  In an example case of a "SEGMENTED | DUPLICATED" (needed for SplitOverK)
+//  tensor with shape [1, 64, 4, 4], the memory shape in each cluster is
+//  [1, 64, 4, 4], which is the allocated shape (because of duplicated)
+//  information which is needed for scheduler and strategy manager,
+//  in order to estimate memory
+//  In an example of OVERLAPPED over H with k3x3s1x1 pad (1, 1, 1, 1) and
+//  uniform segmentation across 4 clusters, a tensor of shape [1, 64, 22, 16]
+//  will have the following memory distribution across clusters:
+//  [1 64 7 16] [1 64 8 16] [1 64 7 16] [1 64 6 16]
+SmallVector<Shape> VPU::DistributedTensorType::getPerClusterMemoryShapes() const {
+    return VPU::getPerClusterMemoryShapes(getShape(), getDistribution());
+}
+
+// @brief Retrieve the array of memory buffer offsets with regards to the full buffer.
+// @warning An important thing to consider with regards to memory shape offsets,
+//  is that modes like DUPLICATED and MULTICASTED take precedence over
+//  SEGMENTED and OVERLAPPED.
+SmallVector<Shape> VPU::DistributedTensorType::getPerClusterMemoryShapeOffsets() const {
+    return VPU::getPerClusterMemoryShapeOffsets(getShape(), getDistribution());
 }
 
 // @brief Get largest compact compute shape
@@ -255,17 +337,17 @@ SmallVector<PadInfo> VPU::DistributedTensorType::getPerClusterPadding() const {
     return VPU::getPerClusterPadding(getDistribution());
 }
 
-// @brief Retrieve the array of strided compute shapes
+// @brief Retrieve the array of strided memory shapes
 // @warning This function should not be used for memory size calculation,
 // because it does not retrieve the true allocate shape in cases
 // of broadcasting.
-SmallVector<StridedShape> VPU::DistributedTensorType::getPerClusterStridedShapes() const {
+SmallVector<StridedShape> VPU::DistributedTensorType::getPerClusterMemoryStridedShapes() const {
     const auto strideInReqs = StrideReqs::compact(getShape().size());
     VPUX_THROW_UNLESS(strideInReqs.checkStrides(*this), "Only compact strides are supported");
-    return VPU::getPerClusterStridedShapes(getShape(), getStrides(), getDimsOrder(), getDistribution());
+    return VPU::getPerClusterMemoryStridedShapes(getShape(), getStrides(), getDimsOrder(), getDistribution());
 }
 
-// @brief Get largest strided compute shape
+// @brief Get largest strided memory shape
 // @warning This function should not be used for memory size calculation,
 // because it does not retrieve the true allocate shape in cases
 // of broadcasting.
@@ -274,7 +356,7 @@ StridedShape VPU::DistributedTensorType::getLargestStridedShape() const {
         return stridedShape.shape.front() * stridedShape.strides.front();
     };
 
-    const auto stridedShapes = getPerClusterStridedShapes();
+    const auto stridedShapes = getPerClusterMemoryStridedShapes();
     VPUX_THROW_UNLESS(!stridedShapes.empty(), "Missing per-cluster strided shapes");
     return *std::max_element(stridedShapes.begin(), stridedShapes.end(),
                              [&](const StridedShape& a, const StridedShape& b) {
@@ -282,12 +364,12 @@ StridedShape VPU::DistributedTensorType::getLargestStridedShape() const {
                              });
 }
 
-// @brief Get the strided compute shape for a specific cluster
+// @brief Get the strided memory shape for a specific cluster
 // @warning This function should not be used for memory size calculation,
 // because it does not retrieve the true allocate shape in cases
 // of broadcasting.
 StridedShape VPU::DistributedTensorType::getStridedShape(int64_t tileInd) const {
-    const auto stridedShapes = getPerClusterStridedShapes();
+    const auto stridedShapes = getPerClusterMemoryStridedShapes();
     VPUX_THROW_UNLESS(tileInd < static_cast<int64_t>(stridedShapes.size()),
                       "Requesting tiled shape outside of cluster pool");
     return stridedShapes[tileInd];
@@ -355,29 +437,11 @@ Byte VPU::DistributedTensorType::getTotalAllocSize() const {
 }
 
 Byte VPU::DistributedTensorType::getCompactAllocSize() const {
-    auto shape = getShape();
-    const auto distribution = getDistribution();
-    const auto distributionMode = distribution.mode();
-
-    // DUPLICATED|MULTICASTED takes priority since it means that each cluster will have the entire
-    // tensor, regardless whether it's tiled or not.
-    Shape tiledShape;
-    if (VPU::bitEnumContains(distributionMode.getValue(), VPU::DistributionMode::DUPLICATED) ||
-        VPU::bitEnumContains(distributionMode.getValue(), VPU::DistributionMode::MULTICASTED)) {
-        tiledShape = Shape(shape.raw());
-    } else if (VPU::bitEnumContains(distributionMode.getValue(), VPU::DistributionMode::SEGMENTED) ||
-               VPU::bitEnumContains(distributionMode.getValue(), VPU::DistributionMode::OVERLAPPED)) {
-        tiledShape = getLargestCompactShape();
-    } else {
-        // No distribution mode.
-        tiledShape = Shape(shape.raw());
-    }
-
-    if (distribution.alignment() != nullptr) {
-        const auto alignment = parseIntArrayAttr<int64_t>(distribution.alignment());
-        const auto optionalAlignment = Optional<ArrayRef<int64_t>>(alignment);
-        tiledShape = Shape(alignShape(tiledShape.raw(), optionalAlignment));
-    }
+    const auto perClusterShapes = getPerClusterMemoryShapes();
+    const Shape tiledShape =
+            *std::max_element(perClusterShapes.begin(), perClusterShapes.end(), [](ShapeRef a, ShapeRef b) {
+                return vpux::details::calcTotalShapeSize(a.raw()) < vpux::details::calcTotalShapeSize(b.raw());
+            });
 
     const auto totalSize = vpux::details::calcTotalShapeSize(tiledShape.raw());
     const auto elemSize = getElemTypeSize();
@@ -431,9 +495,9 @@ NDTypeInterface VPU::DistributedTensorType::changeStrides(StridesRef /*strides*/
 }
 
 NDTypeInterface VPU::DistributedTensorType::changeTypeComponents(TypeComponents typeComponents) const {
-    const auto shape = typeComponents.shape.getValueOr(getShape());
-    const auto dimsOrder = typeComponents.dimsOrder.getValueOr(getDimsOrder());
-    const auto memSpace = typeComponents.memSpace.getValueOr(getMemSpace());
+    const auto shape = typeComponents.shape.value_or(Shape(getShape().toValues()));
+    const auto dimsOrder = typeComponents.dimsOrder.value_or(getDimsOrder());
+    const auto memSpace = typeComponents.memSpace.value_or(getMemSpace());
 
     auto elementType = getElementType();
     if (typeComponents.elementType.hasValue()) {

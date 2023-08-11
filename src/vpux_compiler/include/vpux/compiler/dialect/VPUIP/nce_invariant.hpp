@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #pragma once
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
@@ -46,6 +44,10 @@ public:
 
     static mlir::LogicalResult verifyPipeliningCMX(VPU::NCEConvolutionOp origOp, vpux::OutputTiling tiling,
                                                    Logger log = Logger::global());
+    static mlir::LogicalResult verifyPipeliningCMX(VPU::NCEInterpolateOp origOp, vpux::OutputTiling tiling,
+                                                   Logger log = Logger::global());
+    static mlir::LogicalResult verifyPipeliningCMX(VPU::NCECompressConvolutionOp origOp, vpux::OutputTiling tiling,
+                                                   Logger log = Logger::global());
     static mlir::LogicalResult verifyPipeliningCMX(VPU::NCEMaxPoolOp origOp, vpux::OutputTiling tiling,
                                                    Logger log = Logger::global());
     static mlir::LogicalResult verifyPipeliningCMX(VPU::NCEAveragePoolOp origOp, vpux::OutputTiling tiling,
@@ -73,6 +75,7 @@ public:
 public:
     static mlir::LogicalResult verifyChannels(IE::ConvolutionOp origOp, Logger log = Logger::global());
     static mlir::LogicalResult verifyChannels(VPU::NCEConvolutionOp origOp, Logger log = Logger::global());
+    static mlir::LogicalResult verifyChannels(VPU::NCECompressConvolutionOp origOp, Logger log = Logger::global());
 
     static mlir::LogicalResult verifyChannels(IE::MaxPoolOp origOp, Logger log = Logger::global());
     static mlir::LogicalResult verifyChannels(VPU::NCEMaxPoolOp origOp, Logger log = Logger::global());
@@ -97,10 +100,15 @@ public:
     static mlir::LogicalResult verifyGroupConvChannels(mlir::Location loc, vpux::NDTypeInterface inputType,
                                                        vpux::NDTypeInterface filterType, Logger log = Logger::global());
 
+    static mlir::LogicalResult verifyChannels(IE::InterpolateOp origOp, Logger log = Logger::global());
+    static mlir::LogicalResult verifyChannels(VPU::NCEInterpolateOp origOp, Logger log = Logger::global());
+
 public:
     static mlir::LogicalResult verifyKernel(IE::ConvolutionOp origOp, Logger log = Logger::global());
     static mlir::LogicalResult verifyKernel(IE::DeconvolutionOp origOp, Logger log = Logger::global());
     static mlir::LogicalResult verifyKernel(VPU::NCEConvolutionOp origOp, Logger log = Logger::global());
+    static mlir::LogicalResult verifyKernel(VPU::NCEInterpolateOp origOp, Logger log = Logger::global());
+    static mlir::LogicalResult verifyKernel(VPU::NCECompressConvolutionOp origOp, Logger log = Logger::global());
 
     static mlir::LogicalResult verifyKernel(IE::MaxPoolOp origOp, Logger log = Logger::global());
     static mlir::LogicalResult verifyKernel(VPU::NCEMaxPoolOp origOp, Logger log = Logger::global());
@@ -122,6 +130,9 @@ public:
                                             int64_t padTop, int64_t padBottom, int64_t padLeft, int64_t padRight,
                                             VPU::ArchKind arch, Logger log = Logger::global());
     static mlir::LogicalResult verifyKernel(mlir::Operation* origOp, Logger log = Logger::global());
+
+public:
+    static mlir::LogicalResult isSupported(mlir::Operation* origOp, Logger log = Logger::global());
 };
 
 }  // namespace VPUIP

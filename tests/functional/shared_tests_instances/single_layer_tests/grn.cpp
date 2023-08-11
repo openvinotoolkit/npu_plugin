@@ -1,5 +1,5 @@
 //
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,10 +12,12 @@
 
 namespace LayerTestsDefinitions {
 
-class KmbGRNLayerTest : public GrnLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {};
+class VPUXGRNLayerTest : public GrnLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {};
+class VPUXGRNLayerTest_VPU3700 : public VPUXGRNLayerTest {};
 
-TEST_P(KmbGRNLayerTest, CompareWithRefs_MLIR) {
-    useCompilerMLIR();
+TEST_P(VPUXGRNLayerTest_VPU3700, HW) {
+    setPlatformVPU3700();
+    setDefaultHardwareModeMLIR();
     Run();
 }
 
@@ -28,7 +30,7 @@ namespace {
 
 const std::vector<InferenceEngine::Precision> netPrecisions = {
         InferenceEngine::Precision::FP32,  // Testing FP32/FP16 netPrecision functionality only for small scope of
-        InferenceEngine::Precision::FP16   // tests: KmbGRNLayerTest, KmbSplitLayerTest, KmbCTCGreedyDecoderLayerTest
+        InferenceEngine::Precision::FP16   // tests: VPUXGRNLayerTest, VPUXSplitLayerTest, VPUXCTCGreedyDecoderLayerTest
 };
 
 const std::vector<InferenceEngine::SizeVector> inShapes = {
@@ -47,6 +49,6 @@ const auto params = testing::Combine(
         testing::Values(InferenceEngine::Layout::ANY), testing::ValuesIn(inShapes), testing::ValuesIn(biases),
         testing::Values(LayerTestsUtils::testPlatformTargetDevice));
 
-INSTANTIATE_TEST_SUITE_P(smoke_GRN_test, KmbGRNLayerTest, params, GrnLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_GRN_test, VPUXGRNLayerTest_VPU3700, params, GrnLayerTest::getTestCaseName);
 
 }  // namespace

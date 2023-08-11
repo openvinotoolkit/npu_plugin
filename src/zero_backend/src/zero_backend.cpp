@@ -8,7 +8,9 @@
 #include <description_buffer.hpp>
 #include <vector>
 
+#include "ze_intel_vpu_uuid.h"
 #include "zero_device.h"
+#include "zero_utils.h"
 
 #include "vpux/utils/IE/itt.hpp"
 #include "vpux/utils/core/logger.hpp"
@@ -35,16 +37,11 @@ private:
     ze_context_handle_t context = nullptr;
 };
 
-const ze_driver_uuid_t ZeroStructsInitializer::uuid = {0x01, 0x7d, 0xe9, 0x31, 0x6b, 0x4d, 0x4f, 0xd4,
-                                                       0xaa, 0x9b, 0x5b, 0xed, 0x77, 0xfc, 0x8e, 0x89};
+const ze_driver_uuid_t ZeroStructsInitializer::uuid = ze_intel_vpu_driver_uuid;
 
 ZeroStructsInitializer::ZeroStructsInitializer(): log(Logger::global().nest("ZeroStructsInitializer", 0)) {
     OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "ZeroStructsInitializer::ZeroStructsInitializer");
-    auto result = zeInit(ZE_INIT_FLAG_VPU_ONLY);
-    if (ZE_RESULT_SUCCESS != result) {
-        log.warning("zeInit failed {0:X+}", uint64_t(result));
-        return;
-    }
+    zeroUtils::throwOnFail("zeInit", zeInit(ZE_INIT_FLAG_VPU_ONLY));
 
     ze_driver_handle_t driver_handle = nullptr;
     ze_device_handle_t device_handle = nullptr;
@@ -53,20 +50,14 @@ ZeroStructsInitializer::ZeroStructsInitializer(): log(Logger::global().nest("Zer
     ze_graph_profiling_dditable_ext_t* _graph_profiling_ddi_table_ext = nullptr;
 
     uint32_t drivers = 0;
-    result = zeDriverGet(&drivers, nullptr);
-    if (ZE_RESULT_SUCCESS != result) {
-        log.warning("zeDriverGet count failed {0:X+}", uint64_t(result));
-        return;
-    }
+    zeroUtils::throwOnFail("zeDriverGet", zeDriverGet(&drivers, nullptr));
+
     std::vector<ze_driver_handle_t> all_drivers(drivers);
-    result = zeDriverGet(&drivers, all_drivers.data());
-    if (ZE_RESULT_SUCCESS != result) {
-        log.warning("zeDriverGet get failed {0:X+}", uint64_t(result));
-        return;
-    }
+    zeroUtils::throwOnFail("zeDriverGet", zeDriverGet(&drivers, all_drivers.data()));
 
     // Get our target driver
-    ze_driver_properties_t props{};
+    ze_driver_properties_t props = {};
+    props.stype = ZE_STRUCTURE_TYPE_DRIVER_PROPERTIES;
     for (uint32_t i = 0; i < drivers; ++i) {
         zeDriverGetProperties(all_drivers[i], &props);
 
@@ -76,39 +67,40 @@ ZeroStructsInitializer::ZeroStructsInitializer(): log(Logger::global().nest("Zer
         }
     }
     if (driver_handle == nullptr) {
-        log.warning("zeDriverGet failed to return VPU driver");
-        return;
+        IE_THROW() << "zeDriverGet failed to return VPU driver";
+    }
+
+    // Check L0 API version
+    ze_api_version_t ze_drv_api_version = {};
+    zeroUtils::throwOnFail("zeDriverGetApiVersion", zeDriverGetApiVersion(driver_handle, &ze_drv_api_version));
+
+    if (ZE_MAJOR_VERSION(ZE_API_VERSION_CURRENT) != ZE_MAJOR_VERSION(ze_drv_api_version)) {
+        IE_THROW() << "Incompatibility between VPU plugin and driver! "
+                   << "Plugin L0 API major version = " << ZE_MAJOR_VERSION(ZE_API_VERSION_CURRENT) << ", "
+                   << "Driver L0 API major version = " << ZE_MAJOR_VERSION(ze_drv_api_version);
+    }
+    if (ZE_MINOR_VERSION(ZE_API_VERSION_CURRENT) != ZE_MINOR_VERSION(ze_drv_api_version)) {
+        log.warning("Some features might not be available! "
+                    "Plugin L0 API minor version = {0}, Driver L0 API minor version = {1}",
+                    ZE_MINOR_VERSION(ZE_API_VERSION_CURRENT), ZE_MINOR_VERSION(ze_drv_api_version));
     }
 
     // Load our graph extension
-    result = zeDriverGetExtensionFunctionAddress(driver_handle, "ZE_extension_graph",
-                                                 reinterpret_cast<void**>(&_graph_ddi_table_ext));
-    if (ZE_RESULT_SUCCESS != result) {
-        log.warning("zeDriverGetExtensionFunctionAddress failed {0:X+}", uint64_t(result));
-        return;
-    }
+    zeroUtils::throwOnFail("zeDriverGetExtensionFunctionAddress",
+                           zeDriverGetExtensionFunctionAddress(driver_handle, "ZE_extension_graph",
+                                                               reinterpret_cast<void**>(&_graph_ddi_table_ext)));
 
-    result = zeDriverGetExtensionFunctionAddress(driver_handle, "ZE_extension_profiling_data",
-                                                 reinterpret_cast<void**>(&_graph_profiling_ddi_table_ext));
-    if (ZE_RESULT_SUCCESS != result) {
-        log.warning("zeDriverGetExtensionFunctionAddress failed {0:X+}", uint64_t(result));
-        return;
-    }
+    zeroUtils::throwOnFail(
+            "zeDriverGetExtensionFunctionAddress",
+            zeDriverGetExtensionFunctionAddress(driver_handle, "ZE_extension_profiling_data",
+                                                reinterpret_cast<void**>(&_graph_profiling_ddi_table_ext)));
 
     uint32_t device_count = 1;
     // Get our target device
-    result = zeDeviceGet(driver_handle, &device_count, &device_handle);
-    if (ZE_RESULT_SUCCESS != result) {
-        log.warning("zeDeviceGet failed {0:X+}", uint64_t(result));
-        return;
-    }
+    zeroUtils::throwOnFail("zeDeviceGet", zeDeviceGet(driver_handle, &device_count, &device_handle));
 
     ze_context_desc_t context_desc = {ZE_STRUCTURE_TYPE_CONTEXT_DESC, 0, 0};
-    result = zeContextCreate(driver_handle, &context_desc, &context);
-    if (ZE_RESULT_SUCCESS != result) {
-        log.warning("zeContextCreate failed {0:X+}", uint64_t(result));
-        return;
-    }
+    zeroUtils::throwOnFail("zeContextCreate", zeContextCreate(driver_handle, &context_desc, &context));
 
     auto device = std::make_shared<ZeroDevice>(driver_handle, device_handle, context, _graph_ddi_table_ext,
                                                _graph_profiling_ddi_table_ext);
@@ -119,7 +111,7 @@ ZeroStructsInitializer::~ZeroStructsInitializer() {
     if (context) {
         auto result = zeContextDestroy(context);
         if (ZE_RESULT_SUCCESS != result) {
-            log.warning("zeContextDestroy failed {0:X+}", uint64_t(result));
+            log.error("zeContextDestroy failed {0:X+}", uint64_t(result));
         }
     }
 };

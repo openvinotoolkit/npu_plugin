@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/IE/passes.hpp"
 
 #include "vpux/compiler/core/layers.hpp"
@@ -19,8 +17,6 @@
 #include "vpux/utils/core/numeric.hpp"
 
 #include <mlir/Pass/PassManager.h>
-
-#include <legacy/ngraph_ops/convolution_ie.hpp>
 
 using namespace vpux;
 
@@ -43,12 +39,12 @@ mlir::LogicalResult generalFusion(mlir::Operation* origOp, mlir::ArrayAttr kerne
     }
 
     auto padsBegin = vpux::IE::extractPads(origPadOp.pads_begin_attrAttr(), log);
-    if (mlir::failed(padsBegin)) {
+    if (mlir::failed(padsBegin) || padsBegin.getValue().size() != 4) {
         return mlir::failure();
     }
 
     auto padsEnd = vpux::IE::extractPads(origPadOp.pads_end_attrAttr(), log);
-    if (mlir::failed(padsEnd)) {
+    if (mlir::failed(padsEnd) || padsEnd.getValue().size() != 4) {
         return mlir::failure();
     }
 
@@ -216,7 +212,7 @@ void FusePadOpsPass::safeRunOnFunc() {
     patterns.add<FuseConstantPadWithGroupConv>(&ctx, _log);
     patterns.add<FuseConstantPadWithMaxpool>(&ctx, _log);
 
-    auto func = getFunction();
+    auto func = getOperation();
     if (mlir::failed(mlir::applyPatternsAndFoldGreedily(func, std::move(patterns), getDefaultGreedyRewriteConfig()))) {
         signalPassFailure();
     }

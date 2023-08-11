@@ -3,9 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
-#include <llvm/ADT/TypeSwitch.h>
 #include <mlir/Transforms/GreedyPatternRewriteDriver.h>
 #include <vpux/compiler/utils/rewriter.hpp>
 
@@ -19,9 +16,8 @@ namespace {
 
 Const::DeclareOp createShapeConstForBroadCast(mlir::PatternRewriter& rewriter, mlir::MLIRContext* ctx,
                                               mlir::Location loc, ShapeRef shape) {
-    SmallVector<int64_t> constShape = {4};
     auto intType = getSInt64Type(ctx);
-    const auto shapeStorageType = mlir::RankedTensorType::get(constShape, intType);
+    const auto shapeStorageType = mlir::RankedTensorType::get({static_cast<int64_t>(shape.size())}, intType);
     const auto shapeDenseAttr = mlir::DenseElementsAttr::get(shapeStorageType, shape.raw());
     auto newContentAttr = Const::ContentAttr::get(shapeDenseAttr).convertElemType(getSInt32Type(ctx));
     return rewriter.create<Const::DeclareOp>(loc, shapeStorageType, newContentAttr);
@@ -59,11 +55,9 @@ bool BroadcastInputRewriter::isAddQuantized(mlir::Value input) const {
 void BroadcastInputRewriter::createBroadcastBeforeAddOp(IE::AddOp origOp, mlir::PatternRewriter& rewriter,
                                                         mlir::MLIRContext* ctx, mlir::Value broadcastInput,
                                                         mlir::Value origInput, ShapeRef target_shape) const {
-    const auto origOpLoc = vpux::stringifyLocation(origOp.getLoc());
-    const auto broadcastedName = mlir::StringAttr::get(ctx, origOpLoc + "_broadcasted");
-    const auto broadcastedLoc = mlir::NameLoc::get(broadcastedName);
-    const auto fusedName = mlir::StringAttr::get(ctx, origOpLoc + "_fused");
-    const auto fusedLoc = mlir::NameLoc::get(fusedName);
+    const auto origOpLoc = origOp.getLoc();
+    const auto broadcastedLoc = appendLoc(origOpLoc, "broadcasted");
+    const auto fusedLoc = appendLoc(origOpLoc, "fused");
     auto broadcastedOp = rewriter.create<IE::BroadcastOp>(
             broadcastedLoc, broadcastInput, createShapeConstForBroadCast(rewriter, ctx, broadcastedLoc, target_shape),
             nullptr, IE::BroadcastTypeAttr::get(ctx, IE::BroadcastType::NUMPY));
@@ -91,7 +85,7 @@ mlir::LogicalResult BroadcastInputRewriter::matchAndRewrite(IE::AddOp origOp, ml
     // Pattern like:
     // IE.Add: tensor<1xMxNxOxf16>, tensor<1xMxNx1xf16>, IE.Add: tensor<PxMxNxOxf16>, tensor<PxMxNx1xf16> (Input order
     // and vice versa), those cannot convert to Scaleshift, broadcast the input and lowering to eltwise add.
-    if (lhsShape == rhsShape || !(nonTrivialInputDims > 1 && nonTrivialWeightDims > 1)) {
+    if (lhsShape == rhsShape || !nonTrivialInputDims || !nonTrivialWeightDims) {
         return mlir::failure();
     }
 
@@ -104,7 +98,15 @@ mlir::LogicalResult BroadcastInputRewriter::matchAndRewrite(IE::AddOp origOp, ml
                  ? mlir::isa_and_nonnull<Const::DeclareOp>(
                            mlir::dyn_cast<IE::FakeQuantizeOp>(origOp.input2().getDefiningOp()).input().getDefiningOp())
                  : mlir::isa_and_nonnull<Const::DeclareOp>(origOp.input2().getDefiningOp()))) {
-        return mlir::failure();
+        auto channelScale = nonTrivialInputDims > nonTrivialWeightDims
+                                    ? lhsShape[Dims4D::Act::C] / rhsShape[Dims4D::Act::C]
+                                    : rhsShape[Dims4D::Act::C] / lhsShape[Dims4D::Act::C];
+        // TODO: [E#82719] ADD shave kernel optimization followup. Will compare performance after this work.
+        // According to CI results, scale on C <= 3 shows better performance.
+        // If the broadcast scale is large, the eltwise add performance may drop.
+        if (channelScale > 3) {
+            return mlir::failure();
+        }
     }
 
     if (nonTrivialInputDims > nonTrivialWeightDims) {
@@ -132,7 +134,7 @@ private:
 };
 
 void BroadcastInputForAddPass::safeRunOnFunc() {
-    auto func = getFunction();
+    auto func = getOperation();
     auto& ctx = getContext();
 
     mlir::RewritePatternSet patterns(&ctx);

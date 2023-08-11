@@ -1,13 +1,14 @@
 //
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
+
 // RUN: vpux-opt --split-input-file --init-compiler="vpu-arch=VPUX30XX compilation-mode=DefaultHW" --remove-weights-alignment --canonicalize %s | FileCheck %s
 
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
 // CHECK-LABEL: @RemoveWeightsAlignmentCMCONV
-func @RemoveWeightsAlignmentCMCONV(%arg0: tensor<1x3x224x224xf16>) -> tensor<1x32x112x112xf16, {order = #NHWC}> {
+func.func @RemoveWeightsAlignmentCMCONV(%arg0: tensor<1x3x224x224xf16>) -> tensor<1x32x112x112xf16, {order = #NHWC}> {
     %cst0 = const.Declare tensor<32x1x1x32xf16, {order = #NHWC}> =
         dense<1.000000e+00> : tensor<32x1x1x32xf16>, [#const.Reorder<#NHWC>]
     %cst1 = const.Declare tensor<32x1x1x4xsi32> = dense<1> : tensor<32x1x1x4xsi32>
@@ -27,9 +28,9 @@ func @RemoveWeightsAlignmentCMCONV(%arg0: tensor<1x3x224x224xf16>) -> tensor<1x3
 
     return %0 : tensor<1x32x112x112xf16, {order = #NHWC}>
 
-    // CHECK:       [[CST0:%.+]] = const.Declare tensor<32x3x3x3xf16>
-    // CHECK:       [[CST1:%.+]] = const.Declare tensor<32x1x1x4xsi32>
-    
+    // CHECK-DAG:       [[CST0:%.+]] = const.Declare tensor<32x3x3x3xf16>
+    // CHECK-DAG:       [[CST1:%.+]] = const.Declare tensor<32x1x1x4xsi32>
+
     // CHECK:       [[VAL0:%.+]] = EMU.NCEClusterTask
     // CHECK-SAME:      kernel_padding = [1, 0, 1, 0], kernel_size = [3, 3], kernel_strides = [2, 2], rawFilterShape = [32, 3, 3, 3], task_type = "CMCONV"
     // CHECK-SAME:      input(%arg0 : tensor<1x3x224x224xf16>)
@@ -47,7 +48,7 @@ func @RemoveWeightsAlignmentCMCONV(%arg0: tensor<1x3x224x224xf16>) -> tensor<1x3
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
 // CHECK-LABEL: @RemoveWeightsAlignmentDWCONVConst
-func @RemoveWeightsAlignmentDWCONVConst(%arg0: tensor<1x32x112x112xf16, {order = #NHWC}>) -> tensor<1x32x112x112xf16, {order = #NHWC}> {
+func.func @RemoveWeightsAlignmentDWCONVConst(%arg0: tensor<1x32x112x112xf16, {order = #NHWC}>) -> tensor<1x32x112x112xf16, {order = #NHWC}> {
     %cst0 = const.Declare tensor<32x16x1x1xf16, {order = #NHWC}> =
         dense<1.000000e+00> : tensor<32x16x1x1xf16>, [#const.Reorder<#NHWC>]
     %cst1 = const.Declare tensor<32x1x1x4xsi32> = dense<1> : tensor<32x1x1x4xsi32>
@@ -67,9 +68,9 @@ func @RemoveWeightsAlignmentDWCONVConst(%arg0: tensor<1x32x112x112xf16, {order =
 
     return %0 : tensor<1x32x112x112xf16, {order = #NHWC}>
 
-    // CHECK:       [[CST0:%.+]] = const.Declare tensor<32x3x3xf16>
-    // CHECK:       [[CST1:%.+]] = const.Declare tensor<32x1x1x4xsi32>
-    
+    // CHECK-DAG:       [[CST0:%.+]] = const.Declare tensor<32x3x3xf16>
+    // CHECK-DAG:       [[CST1:%.+]] = const.Declare tensor<32x1x1x4xsi32>
+
     // CHECK:       [[VAL0:%.+]] = EMU.NCEClusterTask
     // CHECK-SAME:      kernel_padding = [1, 1, 1, 1], kernel_size = [3, 3], kernel_strides = [1, 1], rawFilterShape = [32, 1, 3, 3], task_type = "DWCONV"
     // CHECK-SAME:      input(%arg0 : tensor<1x32x112x112xf16, {order = #NHWC}>)
@@ -89,7 +90,7 @@ func @RemoveWeightsAlignmentDWCONVConst(%arg0: tensor<1x32x112x112xf16, {order =
 #NWCH = affine_map<(d0, d1, d2, d3) -> (d0, d3, d1, d2)>
 
 // CHECK-LABEL: @RemoveWeightsAlignmentDWCONVNonConst
-func @RemoveWeightsAlignmentDWCONVNonConst(%arg0: tensor<1x32x112x112xf16, {order = #NHWC}>, %arg1: tensor<32x1x3x3xf16, {order = #NHWC}>) -> tensor<1x32x112x112xf16, {order = #NHWC}> {
+func.func @RemoveWeightsAlignmentDWCONVNonConst(%arg0: tensor<1x32x112x112xf16, {order = #NHWC}>, %arg1: tensor<32x1x3x3xf16, {order = #NHWC}>) -> tensor<1x32x112x112xf16, {order = #NHWC}> {
     %cst0 = const.Declare tensor<32x1x1x4xsi32> = dense<1> : tensor<32x1x1x4xsi32>
     %cst1 = const.Declare tensor<32x7x1x1xf16> = dense<0.0e+00> : tensor<32x7x1x1xf16>
 
@@ -117,13 +118,13 @@ func @RemoveWeightsAlignmentDWCONVNonConst(%arg0: tensor<1x32x112x112xf16, {orde
 
     return %4 : tensor<1x32x112x112xf16, {order = #NHWC}>
 
-    // CHECK:       [[CST0:%.+]] = const.Declare tensor<32x1x1x4xsi32>
+    // CHECK-DAG:       [[CST0:%.+]] = const.Declare tensor<32x1x1x4xsi32>
 
     // CHECK:       [[VAL0:%.+]] = IE.PermuteCast(%arg1) {dst_order = #NCHW, mem_perm = #NWCH} : tensor<32x1x3x3xf16, {order = #NHWC}> -> tensor<32x1x3x3xf16>
 
     // CHECK:       [[VAL1:%.+]] = IE.AffineReshape([[VAL0]])
     // CHECK-SAME{LITERAL}: {dim_mapping = [[0], [0], [1], [2]], shape_value = [32, 3, 3]} : tensor<32x1x3x3xf16> -> tensor<32x3x3xf16>
-    
+
     // CHECK:       [[VAL2:%.+]] = EMU.NCEClusterTask
     // CHECK-SAME:      kernel_padding = [1, 1, 1, 1], kernel_size = [3, 3], kernel_strides = [1, 1], rawFilterShape = [32, 1, 3, 3], task_type = "DWCONV"
     // CHECK-SAME:      input(%arg0 : tensor<1x32x112x112xf16, {order = #NHWC}>)

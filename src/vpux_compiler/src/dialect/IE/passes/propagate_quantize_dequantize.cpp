@@ -3,15 +3,9 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
-#include "vpux/compiler/dialect/IE/passes.hpp"
-
 #include "vpux/compiler/dialect/IE/ops.hpp"
-#include "vpux/compiler/dialect/IE/utils/quantization.hpp"
-#include "vpux/compiler/dialect/VPUIP/nce_invariant.hpp"
+#include "vpux/compiler/dialect/IE/passes.hpp"
 #include "vpux/compiler/utils/error.hpp"
-#include "vpux/compiler/utils/quantization.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
 
 #include <mlir/Dialect/Quant/QuantTypes.h>
@@ -85,12 +79,20 @@ mlir::LogicalResult PropagateQuantize::matchAndRewrite(IE::ElemTypeInfoOpInterfa
     // 4. Check that operation supports quantization params propagation.
     const auto quantizedElemType = quantizeOp.output().getType().cast<vpux::NDTypeInterface>().getElementType();
     auto elemTypeInfo = origOp.getElemTypeInfo();
+    for (size_t outputInd = 0; outputInd < layer->getNumResults(); outputInd++) {
+        elemTypeInfo.setOutput(outputInd, quantizedElemType);
+    }
 
-    elemTypeInfo.setOutput(0, quantizedElemType);
     origOp.inferElemTypeInfoUp(elemTypeInfo);
 
-    if (elemTypeInfo.getOutput(0) != quantizedElemType || !elemTypeInfo.getInput(0).isa<mlir::quant::QuantizedType>()) {
+    if (!elemTypeInfo.getInput(0).isa<mlir::quant::QuantizedType>()) {
         return matchFailed(rewriter, origOp, "Operation does not support quantization params propagation");
+    }
+
+    for (size_t outputInd = 0; outputInd < layer->getNumResults(); outputInd++) {
+        if (elemTypeInfo.getOutput(outputInd) != quantizedElemType) {
+            return matchFailed(rewriter, origOp, "Operation does not support quantization params propagation");
+        }
     }
 
     // All checks passed. Rewrite the sub-graph.
@@ -118,8 +120,10 @@ mlir::LogicalResult PropagateQuantize::matchAndRewrite(IE::ElemTypeInfoOpInterfa
     }
 
     // 3. remove old Quantize ops.
-    for (auto* user : llvm::make_early_inc_range(origOp->getUsers())) {
-        rewriter.replaceOp(user, origOp->getResults());
+    for (auto result : origOp->getResults()) {
+        for (auto user : llvm::make_early_inc_range(result.getUsers())) {
+            rewriter.replaceOp(user, result);
+        }
     }
 
     // Rewrite done.
@@ -147,7 +151,7 @@ private:
 };
 
 /* This rewriter searches for pattern:
-quantized_tensor -> [Dequantize] -> fp_tensor -> [ElemTypeInfoOpInterface] 	                -> fp_tensor
+quantized_tensor -> [Dequantize] -> fp_tensor -> [ElemTypeInfoOpInterface]                  -> fp_tensor
 and replaces it with
 quantized_tensor -> [ElemTypeInfoOpInterface] -> quantized_tensor(inferred) -> [Dequantize] -> fp_tensor */
 mlir::LogicalResult PropagateDequantize::matchAndRewrite(IE::ElemTypeInfoOpInterface origOp,
@@ -155,13 +159,10 @@ mlir::LogicalResult PropagateDequantize::matchAndRewrite(IE::ElemTypeInfoOpInter
     _log.trace("Got layer: {0}", origOp);
 
     auto layer = mlir::cast<IE::LayerOpInterface>(origOp.getOperation());
-    if (layer->getNumResults() != 1) {
-        return mlir::failure();
-    }
 
     // 1. Check if there is output below
     auto hasReturnConsumer = llvm::any_of(layer->getUsers(), [](auto user) {
-        return mlir::isa<mlir::ReturnOp>(user);
+        return mlir::isa<mlir::func::ReturnOp>(user);
     });
     if (hasReturnConsumer) {
         return matchFailed(rewriter, origOp, "Operation has Return op consumer");
@@ -198,9 +199,12 @@ mlir::LogicalResult PropagateDequantize::matchAndRewrite(IE::ElemTypeInfoOpInter
         return mlir::dyn_cast_or_null<IE::ElemTypeInfoOpInterface>(user) == nullptr;
     };
 
-    if (layer->getResult(0).getType().cast<vpux::NDTypeInterface>().getRank() != QUANT_DEQUANT_RANK &&
-        llvm::any_of(layer->getUsers(), isElemType)) {
-        return mlir::failure();
+    if (llvm::any_of(layer->getUsers(), isElemType)) {
+        for (unsigned int outputInd = 0; outputInd < layer->getNumResults(); outputInd++) {
+            if (layer->getResult(outputInd).getType().cast<vpux::NDTypeInterface>().getRank() != QUANT_DEQUANT_RANK) {
+                return mlir::failure();
+            }
+        }
     }
 
     // 4. Check if operation supports quantization params propagation.
@@ -221,9 +225,15 @@ mlir::LogicalResult PropagateDequantize::matchAndRewrite(IE::ElemTypeInfoOpInter
         return elemTypeInfo.getInput(idx) == originalTypes[idx];
     });
 
-    if (!typesAreOriginal || !elemTypeInfo.getOutput(0).isa<mlir::quant::QuantizedType>()) {
-        return matchFailed(rewriter, origOp, "Operation does not support quantization params propagation: {0}",
-                           elemTypeInfo.getOutput(0));
+    if (!typesAreOriginal) {
+        return matchFailed(rewriter, origOp, "Operation does not support quantization params propagation");
+    }
+
+    for (size_t outputInd = 0; outputInd < layer->getNumResults(); outputInd++) {
+        if (!elemTypeInfo.getOutput(outputInd).isa<mlir::quant::QuantizedType>()) {
+            return matchFailed(rewriter, origOp, "Operation does not support quantization params propagation: {0}",
+                               elemTypeInfo.getOutput(outputInd));
+        }
     }
 
     // 5. Rewrite the sub-graph.
@@ -243,15 +253,18 @@ mlir::LogicalResult PropagateDequantize::matchAndRewrite(IE::ElemTypeInfoOpInter
                                           op->getRegions(), inferredTypes)
                               .succeeded(),
                       "New type inference failed for '{0}'", op);
-    origOp->getResult(0).setType(inferredTypes[0]);
 
-    const auto output = origOp->getOpResult(0);
-    rewriter.setInsertionPointAfter(origOp);
-    auto newLoc = appendLoc(origOp->getLoc(), "_propagated_Dequantize");
-    auto newDequant = rewriter.create<IE::DequantizeOp>(newLoc, output, firstDequantizeOp.dstElemType());
-    _log.trace("Added new Dequantize op: {0}", newDequant);
-    output.replaceAllUsesExcept(newDequant.output(), llvm::SmallPtrSet<mlir::Operation*, 1>{newDequant});
-    _log.trace("All uses of current layer have been replaced with new Dequantize op");
+    for (unsigned int outputInd = 0; outputInd < layer->getNumResults(); outputInd++) {
+        origOp->getResult(outputInd).setType(inferredTypes[outputInd]);
+
+        const auto output = origOp->getOpResult(outputInd);
+        rewriter.setInsertionPointAfter(origOp);
+        auto newLoc = appendLoc(origOp->getLoc(), "_propagated_Dequantize '{0}'", outputInd);
+        auto newDequant = rewriter.create<IE::DequantizeOp>(newLoc, output, firstDequantizeOp.dstElemType());
+        _log.trace("Added new Dequantize op: '{0}' at index '{1}'", newDequant, outputInd);
+        output.replaceAllUsesExcept(newDequant.output(), llvm::SmallPtrSet<mlir::Operation*, 1>{newDequant});
+        _log.trace("All uses of current layer have been replaced with new Dequantize op at index '{0}'", outputInd);
+    }
 
     rewriter.finalizeRootUpdate(origOp);
     return mlir::success();
@@ -275,7 +288,7 @@ void PropagateQuantizeDequantizePass::safeRunOnFunc() {
     patterns.add<PropagateQuantize>(&ctx, _log.nest());
     patterns.add<PropagateDequantize>(&ctx, _log.nest());
 
-    auto func = getFunction();
+    auto func = getOperation();
     if (mlir::failed(applyPatternsAndFoldGreedily(func, std::move(patterns), getDefaultGreedyRewriteConfig()))) {
         signalPassFailure();
     }

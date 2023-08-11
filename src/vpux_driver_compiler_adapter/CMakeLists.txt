@@ -70,6 +70,7 @@ if(BUILD_SHARED_LIBS)
     target_link_libraries(${TARGET_NAME} PRIVATE ${OBJ_TARGET_NAME})
     if(WIN32)
         ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
+        ov_add_vs_version_file(NAME ${TARGET_NAME} FILEDESCRIPTION "VPU Plugin Driver Compiler Adapter")
     endif()
 
     add_library(${STATIC_TARGET_NAME} STATIC)

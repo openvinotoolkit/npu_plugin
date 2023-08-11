@@ -1,12 +1,13 @@
 //
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
+
 // RUN: vpux-opt --split-input-file --init-compiler="vpu-arch=VPUX30XX" --group-async-execute-ops %s | FileCheck %s
 
 // CHECK-LABEL: @NoMergeUPAAndDMA
 // Do not merge 2 UPA task or 2 DMAs task due to exclusie users or different dependencies
-func @NoMergeUPAAndDMA(%arg0: memref<1x1x1x16xui8>, %arg1: memref<1x1x1x16xf16>, %arg2: memref<1x1x1x16xf16>)
+func.func @NoMergeUPAAndDMA(%arg0: memref<1x1x1x16xui8>, %arg1: memref<1x1x1x16xf16>, %arg2: memref<1x1x1x16xf16>)
         -> (memref<1x1x1x16xf16>, memref<1x1x1x16xf16>) {
     %buf0 = memref.alloc() : memref<1x1x1x16xf16>
     %buf1 = memref.alloc() : memref<1x1x1x16xf16>
@@ -91,7 +92,7 @@ func @NoMergeUPAAndDMA(%arg0: memref<1x1x1x16xui8>, %arg1: memref<1x1x1x16xf16>,
 // -----
 
 // CHECK-LABEL: @MergeDMAs
-func @MergeDMAs(%arg0: memref<1x1x1x16xui8>, %arg1: memref<1x1x1x16xf16>, %arg2: memref<1x1x1x16xf16>)
+func.func @MergeDMAs(%arg0: memref<1x1x1x16xui8>, %arg1: memref<1x1x1x16xf16>, %arg2: memref<1x1x1x16xf16>)
         -> (memref<1x1x1x16xf16>, memref<1x1x1x16xf16>) {
     %buf = memref.alloc() : memref<1x1x1x16xf16>
 
@@ -142,7 +143,7 @@ func @MergeDMAs(%arg0: memref<1x1x1x16xui8>, %arg1: memref<1x1x1x16xf16>, %arg2:
 // -----
 
 // CHECK-LABEL: @TaskWithExclusiveUsers
-func @TaskWithExclusiveUsers(%arg0: memref<1x1x1x16xf16>, %arg1: memref<1x1x1x16xf16>, %arg2: memref<1x1x1x16xf16>)
+func.func @TaskWithExclusiveUsers(%arg0: memref<1x1x1x16xf16>, %arg1: memref<1x1x1x16xf16>, %arg2: memref<1x1x1x16xf16>)
         -> (memref<1x1x1x16xf16>, memref<1x1x1x16xf16>) {
     %buf = memref.alloc() : memref<1x1x1x16xf16>
 
@@ -198,7 +199,7 @@ func @TaskWithExclusiveUsers(%arg0: memref<1x1x1x16xf16>, %arg1: memref<1x1x1x16
 // -----
 
 // CHECK-LABEL: @MergeInputDMAs
-func @MergeInputDMAs(%arg0: memref<1x3x1x1xf16>, %arg1: memref<1x3x1x1xf16>, %arg2: memref<1x3x1x1xf16>, %arg3: memref<1x3x1x1xf16>)
+func.func @MergeInputDMAs(%arg0: memref<1x3x1x1xf16>, %arg1: memref<1x3x1x1xf16>, %arg2: memref<1x3x1x1xf16>, %arg3: memref<1x3x1x1xf16>)
         -> (memref<1x3x1x1xf16>) {
     %token_0, %results_0 = async.execute
             -> !async.value<memref<1x3x1x1xf16>>

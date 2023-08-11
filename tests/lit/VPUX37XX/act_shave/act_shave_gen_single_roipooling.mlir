@@ -1,7 +1,8 @@
 //
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
+
 // RUN: vpux-opt --init-compiler="vpu-arch=VPUX37XX" %s | vpux-translate --export-VPUIP -o %t
 // RUN: flatc --raw-binary --json %vpuip_schema_file% -- %t
 // RUN: FileCheck %s --input-file %basename_t.json
@@ -37,20 +38,20 @@ VPURT.SW.Runtime
 module @VPU.SW {
     // The declaration should match C++ params structure in decomposed form.
     // `memref` will be translated to `MemRefData`, while raw scalars will be translated as is.
-    func private @builtin_roipooling(%input0 : memref<*xf16>, %input1 : memref<*xf16>, %output : memref<*xf16>)
+    func.func private @builtin_roipooling(%input0 : memref<*xf16>, %input1 : memref<*xf16>, %output : memref<*xf16>)
         attributes {
             VPU.kernel_code = "single_shave_roipooling.cpp",
             VPU.kernel_entry = "single_shave_roipooling"
         }
 
     // management kernel definition
-    func private @runtime()
+    func.func private @runtime()
         attributes {
             VPU.kernel_code = "nnActEntry"
         }
 }
 
-func @main(%1: memref<1x3x8x8xf16>, %2: memref<1x5xf16>, %3: memref<1x3x2x2xf16>) -> memref<1x3x2x2xf16> {
+func.func @main(%1: memref<1x3x8x8xf16>, %2: memref<1x5xf16>, %3: memref<1x3x2x2xf16>) -> memref<1x3x2x2xf16> {
     %in0_tile0_cmx  = VPURT.DeclareBuffer "CMX_NN" [0] <0> -> memref<1x3x8x8xf16, [@CMX_NN, 0]>
     %in1_tile0_cmx  = VPURT.DeclareBuffer "CMX_NN" [0] <4000> -> memref<1x5xf16, [@CMX_NN, 0]>
     %out_tile0_cmx = VPURT.DeclareBuffer "CMX_NN" [0] <8000> -> memref<1x3x2x2xf16, [@CMX_NN, 0]>

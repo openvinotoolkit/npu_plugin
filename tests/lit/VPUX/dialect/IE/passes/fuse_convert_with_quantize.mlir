@@ -1,15 +1,16 @@
 //
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
+
 // RUN: vpux-opt --split-input-file --init-compiler="vpu-arch=%arch%" --fuse-convert-with-quantize %s | FileCheck %s
 // REQUIRES: arch-VPUX30XX || arch-VPUX37XX
 
-// CHECK: !qElemType = type !quant.uniform<u8:f16, 1.000000e+00>
-!qElemType = type !quant.uniform<u8:f16, 0.956:128>
+// CHECK: !qElemType = !quant.uniform<u8:f16, 1.000000e+00>
+!qElemType = !quant.uniform<u8:f16, 0.956:128>
 
 // CHECK-LABEL: @PerTensor
-func @PerTensor(%arg0: tensor<1x3x16x16xui8>) -> tensor<1x3x16x16xf16> {
+func.func @PerTensor(%arg0: tensor<1x3x16x16xui8>) -> tensor<1x3x16x16xf16> {
     %0 = IE.Convert(%arg0) {dstElemType = f16} : tensor<1x3x16x16xui8> -> tensor<1x3x16x16xf16>
     %1 = IE.Quantize(%0) {dstElemType = !qElemType} : tensor<1x3x16x16xf16> -> tensor<1x3x16x16x!qElemType>
     %2 = IE.Dequantize(%1) {dstElemType = f16} : tensor<1x3x16x16x!qElemType> -> tensor<1x3x16x16xf16>
@@ -26,11 +27,11 @@ func @PerTensor(%arg0: tensor<1x3x16x16xui8>) -> tensor<1x3x16x16xf16> {
 
 // -----
 
-// CHECK: !qElemType = type !quant.uniform<u8:f16:1, {1.000000e+00,1.000000e+00,1.000000e+00}>
-!qElemType = type !quant.uniform<u8:f16:1, {0.956:128, 0.785:128, 0.567:128}>
+// CHECK: !qElemType = !quant.uniform<u8:f16:1, {1.000000e+00,1.000000e+00,1.000000e+00}>
+!qElemType = !quant.uniform<u8:f16:1, {0.956:128, 0.785:128, 0.567:128}>
 
 // CHECK-LABEL: @PerAxis
-func @PerAxis(%arg0: tensor<1x3x16x16xui8>) -> tensor<1x3x16x16xf16> {
+func.func @PerAxis(%arg0: tensor<1x3x16x16xui8>) -> tensor<1x3x16x16xf16> {
     %0 = IE.Convert(%arg0) {dstElemType = f16} : tensor<1x3x16x16xui8> -> tensor<1x3x16x16xf16>
     %1 = IE.Quantize(%0) {dstElemType = !qElemType} : tensor<1x3x16x16xf16> -> tensor<1x3x16x16x!qElemType>
     %2 = IE.Dequantize(%1) {dstElemType = f16} : tensor<1x3x16x16x!qElemType> -> tensor<1x3x16x16xf16>
@@ -47,10 +48,10 @@ func @PerAxis(%arg0: tensor<1x3x16x16xui8>) -> tensor<1x3x16x16xf16> {
 
 // -----
 
-!qElemType = type !quant.uniform<u8:f16, 1.0:128>
+!qElemType = !quant.uniform<u8:f16, 1.0:128>
 
 // CHECK-LABEL: @PerTensorDequantizeConvert
-func @PerTensorDequantizeConvert(%arg0: tensor<1x3x16x16x!qElemType>) -> tensor<1x3x16x16xui8> {
+func.func @PerTensorDequantizeConvert(%arg0: tensor<1x3x16x16x!qElemType>) -> tensor<1x3x16x16xui8> {
     %0 = IE.Dequantize(%arg0) {dstElemType = f16} : tensor<1x3x16x16x!qElemType> -> tensor<1x3x16x16xf16>
     %1 = IE.Convert(%0) {dstElemType = ui8} : tensor<1x3x16x16xf16> -> tensor<1x3x16x16xui8>
 
@@ -65,10 +66,10 @@ func @PerTensorDequantizeConvert(%arg0: tensor<1x3x16x16x!qElemType>) -> tensor<
 
 // -----
 
-!qElemType = type !quant.uniform<u8:f16:1, {0.956:128, 0.785:128, 0.567:128}>
+!qElemType = !quant.uniform<u8:f16:1, {0.956:128, 0.785:128, 0.567:128}>
 
 // CHECK-LABEL: @PerAxisDequantizeConvert
-func @PerAxisDequantizeConvert(%arg0: tensor<1x3x16x16x!qElemType>) -> tensor<1x3x16x16xui8> {
+func.func @PerAxisDequantizeConvert(%arg0: tensor<1x3x16x16x!qElemType>) -> tensor<1x3x16x16xui8> {
     %0 = IE.Dequantize(%arg0) {dstElemType = f16} : tensor<1x3x16x16x!qElemType> -> tensor<1x3x16x16xf16>
     %1 = IE.Convert(%0) {dstElemType = ui8} : tensor<1x3x16x16xf16> -> tensor<1x3x16x16xui8>
 

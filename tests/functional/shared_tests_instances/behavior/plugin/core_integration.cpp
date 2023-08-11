@@ -7,8 +7,8 @@
 #include "common/functions.h"
 #include "common_test_utils/file_utils.hpp"
 #include "vpux/utils/plugin/plugin_name.hpp"
+#include "vpux/vpux_metrics.hpp"
 #include "vpux_private_config.hpp"
-#include "vpux_private_metrics.hpp"
 
 using namespace BehaviorTestsDefinitions;
 using IEClassGetMetricTest_nightly = IEClassGetMetricTest;
@@ -362,5 +362,25 @@ TEST_P(IEClassGetMetricTest_FULL_DEVICE_NAME, GetMetricWithIncorrectDeviceIDThro
 
 INSTANTIATE_TEST_CASE_P(IEClassGetMetricTest_nightly, IEClassGetMetricTest_FULL_DEVICE_NAME,
                         ::testing::ValuesIn(devices));
+
+//
+// VPU specific metrics
+//
+using IEClassGetMetricTest_VPUX_DEVICE_TOTAL_MEM_SIZE = BehaviorTestsUtils::IEClassBaseTestP;
+TEST_P(IEClassGetMetricTest_VPUX_DEVICE_TOTAL_MEM_SIZE, GetMetricAndPrintNoThrow) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    InferenceEngine::Core ie;
+    InferenceEngine::Parameter p;
+
+    ASSERT_NO_THROW(p = ie.GetMetric(target_device, VPUX_METRIC_KEY(DEVICE_TOTAL_MEM_SIZE)));
+    uint64_t t = p.as<uint64_t>();
+
+    std::cout << "VPUX device total memory size: " << t << std::endl;
+
+    ASSERT_METRIC_SUPPORTED_IE(VPUX_METRIC_KEY(DEVICE_TOTAL_MEM_SIZE));
+}
+
+INSTANTIATE_TEST_SUITE_P(nightly_IEClassGetMetricTest, IEClassGetMetricTest_VPUX_DEVICE_TOTAL_MEM_SIZE,
+                         ::testing::Values("VPUX"));
 
 }  // namespace

@@ -21,6 +21,8 @@
 #include <gtest/gtest.h>
 #include <vpux/compiler/utils/quantization.hpp>
 
+#include <numeric>
+
 using namespace vpux;
 
 namespace {
@@ -123,13 +125,11 @@ TEST_F(MLIR_ConstContentAttrTest, FromSplatDenseElementsAttr) {
 }
 
 TEST_F(MLIR_ConstContentAttrTest, FromOpaqueElementsAttr) {
-    auto* dialect = ctx.getOrLoadDialect<IE::IEDialect>();
-
     const auto baseType = mlir::RankedTensorType::get({1, 2, 3, 4}, mlir::Float32Type::get(&ctx));
 
     const auto vals = generateValues<float>(baseType.getNumElements());
     const auto bytes = StringRef(reinterpret_cast<const char*>(vals.data()), vals.size() * sizeof(float));
-    const auto baseAttr = mlir::OpaqueElementsAttr::get(dialect, baseType, bytes);
+    const auto baseAttr = Const::OpaqueElementsAttr::get(baseType, bytes);
 
     const auto contentAttr = Const::ContentAttr::get(baseAttr);
     ASSERT_NE(contentAttr, nullptr);
@@ -223,13 +223,40 @@ TEST_F(MLIR_ConstContentAttrTest, ConvertElemTypeSplat) {
     }
 }
 
+TEST_F(MLIR_ConstContentAttrTest, ConvertElemTypeSubByte) {
+    const auto baseType =
+            mlir::RankedTensorType::get({3}, mlir::IntegerType::get(&ctx, 8, mlir::IntegerType::Unsigned));
+
+    const auto vals = generateValues<uint8_t>(baseType.getNumElements());
+    const auto baseAttr = mlir::DenseElementsAttr::get(baseType, makeArrayRef(vals));
+
+    const auto baseContentAttr = Const::ContentAttr::get(baseAttr);
+    ASSERT_NE(baseContentAttr, nullptr);
+    EXPECT_EQ(baseContentAttr.getType(), baseType);
+
+    const auto contentAttr = baseContentAttr.convertElemType(mlir::IntegerType::get(&ctx, 1));
+    ASSERT_NE(contentAttr, nullptr);
+    EXPECT_NE(contentAttr.getType(), baseType);
+
+    const auto content = contentAttr.fold();
+    EXPECT_NE(content.getType(), baseType);
+    EXPECT_FALSE(content.isSplat());
+
+    const auto contentVals = content.getValues<bool>();
+    EXPECT_EQ(contentVals.size(), vals.size());
+
+    for (size_t i = 0; i < contentVals.size(); ++i) {
+        EXPECT_EQ(contentVals[i], (i == 0) ? false : true);
+    }
+}
+
 TEST_F(MLIR_ConstContentAttrTest, Add) {
     const auto baseType = mlir::RankedTensorType::get({1, 2, 3, 4}, mlir::Float32Type::get(&ctx));
 
     const auto bias = 10;
     const auto vals = generateValues<float>(baseType.getNumElements());
     std::vector<float> expectedVals(vals.size());
-    std::transform(vals.begin(), vals.end(), expectedVals.begin(), [bias](float item) {
+    std::transform(vals.begin(), vals.end(), expectedVals.begin(), [&](float item) {
         return item + bias;
     });
 
@@ -711,6 +738,58 @@ TEST_F(MLIR_ConstContentAttrTest, SubView) {
     }
 }
 
+TEST_F(MLIR_ConstContentAttrTest, SubViewI1) {
+    const int64_t IC = 1;
+    const int64_t IH = 7;
+    const int64_t IW = 5;
+
+    const auto baseType = mlir::RankedTensorType::get({IC, IH, IW}, getInt1Type(&ctx));
+    auto vals = SmallVector<bool>(baseType.getNumElements());
+    for (auto index : irange(vals.size())) {
+        vals[index] = static_cast<bool>(index % 2);
+    }
+
+    const auto valsArrayRef = makeArrayRef<bool>(vals);
+    const auto baseAttr = mlir::DenseElementsAttr::get(baseType, valsArrayRef);
+
+    const auto baseContentAttr = Const::ContentAttr::get(baseAttr);
+    ASSERT_NE(baseContentAttr, nullptr);
+    EXPECT_EQ(baseContentAttr.getType(), baseType);
+
+    const int64_t OFF_C = 0;
+    const int64_t OFF_H = 1;
+    const int64_t OFF_W = 1;
+
+    const int64_t OC = 1;
+    const int64_t OH = 1;
+    const int64_t OW = 1;
+
+    const auto contentAttr = baseContentAttr.subview({OFF_C, OFF_H, OFF_W}, {OC, OH, OW});
+    ASSERT_NE(contentAttr, nullptr);
+    EXPECT_NE(contentAttr.getType(), baseType);
+
+    const auto content = contentAttr.fold();
+    EXPECT_NE(content.getType(), baseType);
+    EXPECT_FALSE(content.isSplat());
+
+    // getValues is not realized for sub-byte types
+    // therefore access through raw buffer
+    auto contentBuf = content.getRawStorageBuf();
+    auto contentData = contentBuf.data();
+
+    for (int64_t c = 0; c < OC; ++c) {
+        for (int64_t h = 0; h < OH; ++h) {
+            for (int64_t w = 0; w < OW; ++w) {
+                const auto newIndex = w + h * OW + c * OW * OH;
+                const auto origIndex = (w + OFF_W) + (h + OFF_H) * IW + (c + OFF_C) * IW * IH;
+                auto inputCoord = std::div(newIndex, checked_cast<size_t>(CHAR_BIT));
+                bool bitValue = contentData[inputCoord.quot] & (1 << inputCoord.rem);
+                EXPECT_EQ(bitValue, vals[origIndex]) << c << " " << h << " " << w;
+            }
+        }
+    }
+}
+
 TEST_F(MLIR_ConstContentAttrTest, SubViewSplat) {
     const int64_t IC = 1;
     const int64_t IH = 2;
@@ -982,7 +1061,7 @@ TEST_F(MLIR_ConstContentAttrTest, GetSparsityMap) {
 
     const auto valsSize = static_cast<size_t>(vals.size() / 8);
     const auto alignment = static_cast<size_t>(16);
-    const auto alignedValsSize = vpux::alignVal(valsSize, alignment);
+    const auto alignedValsSize = vpux::alignValUp(valsSize, alignment);
     std::vector<uint8_t> actVals(alignedValsSize, 0);
     auto buf = makeMutableArrayRef(reinterpret_cast<char*>(actVals.data()), actVals.size());
     content.copyTo(buf);
@@ -1032,7 +1111,7 @@ TEST_F(MLIR_ConstContentAttrTest, GetSparsityMapQuantized) {
 
     const auto valsSize = static_cast<size_t>(vals.size() / 8);
     const auto alignment = static_cast<size_t>(16);
-    const auto alignedValsSize = vpux::alignVal(valsSize, alignment);
+    const auto alignedValsSize = vpux::alignValUp(valsSize, alignment);
     std::vector<uint8_t> actVals(alignedValsSize, 0);
     auto buf = makeMutableArrayRef(reinterpret_cast<char*>(actVals.data()), actVals.size());
     content.copyTo(buf);
@@ -1145,4 +1224,35 @@ TEST_F(MLIR_ConstContentAttrTest, PositionRequirement) {
     EXPECT_EQ(finalTransformations[1].getTransformationName(), "ConvertElemType");
     EXPECT_EQ(finalTransformations[2].getTransformationName(), "Sparsify");
     EXPECT_EQ(finalTransformations[3].getTransformationName(), "SwizzleConstant");
+}
+
+TEST_F(MLIR_ConstContentAttrTest, ElideLargeElements) {
+    int numElems = 10;
+    const Shape shape({numElems});
+    const auto dataType = mlir::RankedTensorType::get(shape.raw(), mlir::Float32Type::get(&ctx));
+
+    std::vector<float> content(shape.totalSize());
+    std::iota(content.begin(), content.end(), 0);
+
+    const auto rawBuffer = StringRef(reinterpret_cast<char*>(content.data()),
+                                     shape.totalSize() * getElemTypeSize(dataType).to<Byte>().count());
+    const auto dataAttr = Const::OpaqueElementsAttr::get(dataType, rawBuffer);
+
+    mlir::OpBuilder builder(&ctx);
+    auto constDeclOp =
+            builder.create<Const::DeclareOp>(mlir::UnknownLoc::get(&ctx), dataType, Const::ContentAttr::get(dataAttr));
+
+    std::string ostr;
+    llvm::raw_string_ostream os(ostr);
+
+    mlir::OpPrintingFlags flags;
+    flags.elideLargeElementsAttrs(numElems / 2);
+
+    constDeclOp.print(os, flags);
+
+    // Check that constant was elided:
+    StringRef actualStr(ostr);
+    constexpr StringLiteral expectedStr = "#const.OpaqueElements<\"elided_large_const\", \"0xDEADBEEF\">";
+
+    EXPECT_TRUE(actualStr.contains(expectedStr));
 }

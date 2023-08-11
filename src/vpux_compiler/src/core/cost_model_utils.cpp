@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/core/cost_model_utils.hpp"
 
 using namespace vpux;
@@ -55,7 +53,10 @@ size_t calculateMultiClusterDMACost(mlir::Value innerOperand, VPUNN::DataType in
     auto distributedType = operandType.dyn_cast<VPUIP::DistributedBufferType>();
     VPUX_THROW_UNLESS(distributedType != nullptr, "Unsupported operand type {0}", operandType);
 
-    auto perClusterShapes = distributedType.getPerClusterComputeShapes();
+    // TODO: E#66557
+    // Currently, if DMA source is OVERLAPPED we're moving the overlap twice. Once that is optimized,
+    // we might need to update the cost here as well
+    auto perClusterShapes = distributedType.getPerClusterMemoryShapes();
 
     return static_cast<size_t>(costModel->DMA(getVPUDeviceType(archKind),
                                               {getVPUNNTensorMultiCluster(perClusterShapes, inElemType)},
@@ -148,4 +149,110 @@ size_t vpux::calculateCopyCycles(mlir::Operation* innerOp, VPU::ArchKind archKin
         return checked_cast<size_t>(getDMACost(copyOp.input(), copyOp.output(), archKind, costModel));
     }
     return 0;
+}
+
+vpux::Byte vpux::getSwKernelRunTotalAllocSize(VPUIP::SwKernelRun swKernelRun, ArrayRef<mlir::Value> inputs,
+                                              ArrayRef<mlir::Value> outputBuffs,
+                                              SmallVector<mlir::Value>& inputsForKernelRun,
+                                              SmallVector<mlir::Value>& outputsForKernelRun) {
+    const auto insSize = inputs.size();
+    const auto outsSize = outputBuffs.size();
+    const auto kernelOpArgsCount = insSize + outsSize;
+    auto totalSwKernelRunSize = vpux::Byte(0);
+
+    for (auto arg : swKernelRun.args()) {
+        auto blkArg = arg.dyn_cast_or_null<mlir::BlockArgument>();
+        if (blkArg == nullptr) {
+            continue;
+        }
+
+        auto id = blkArg.getArgNumber();
+        VPUX_THROW_UNLESS(id < kernelOpArgsCount,
+                          "Index '{0}' of argument of Kernel.Run operation is out of range {1}'", id,
+                          kernelOpArgsCount);
+        mlir::Value buffer;
+        if (id < insSize) {
+            buffer = inputs[id];
+            inputsForKernelRun.push_back(buffer);
+        } else {
+            buffer = outputBuffs[id - insSize];
+            outputsForKernelRun.push_back(buffer);
+        }
+        totalSwKernelRunSize += buffer.getType().cast<vpux::NDTypeInterface>().getCompactAllocSize();
+    }
+    return totalSwKernelRunSize;
+}
+
+size_t vpux::getShaveActCycleForSwKernelOp(VPUIP::SwKernelOp swKernelOp, VPU::ArchKind arch,
+                                           ArrayRef<mlir::Value> inputs, ArrayRef<mlir::Value> outputBuffs,
+                                           const std::shared_ptr<VPUNN::VPUCostModel>& costModel) {
+    SmallVector<mlir::Value> inputsForLargestKernelRun{inputs[0]};
+    SmallVector<mlir::Value> outputsForLargestKernelRun{outputBuffs[0]};
+    auto largestSwKernelRunSize = vpux::Byte(0);
+    auto swKernelRuns = swKernelOp.body().getOps<VPUIP::SwKernelRun>();
+
+    // SwKernelOp can have multiple SWKernelRun which could further be distributed on 2 ACTShaves in parallel
+    // In such case use the largest SwKernelRun to calculate the cycle cost
+    if (std::distance(swKernelRuns.begin(), swKernelRuns.end()) > 1) {
+        for (auto&& kernelRun : swKernelRuns) {
+            SmallVector<mlir::Value> inputsForKernelRun;
+            SmallVector<mlir::Value> outputsForKernelRun;
+            auto swKernelRunSize = getSwKernelRunTotalAllocSize(kernelRun, inputs, outputBuffs, inputsForKernelRun,
+                                                                outputsForKernelRun);
+            if (largestSwKernelRunSize < swKernelRunSize) {
+                largestSwKernelRunSize = swKernelRunSize;
+                inputsForLargestKernelRun = inputsForKernelRun;
+                outputsForLargestKernelRun = outputsForKernelRun;
+            }
+        }
+    }
+
+    // For now, the inputs and outputs will be just 1, but in future we may have SWKernels that may have any number
+    // of inputs and outputs In such cases the layer can be formed using a list/vector of inputs and outputs
+    auto largestInputNdType = inputsForLargestKernelRun[0].getType().cast<vpux::NDTypeInterface>();
+    auto largestOutputNdType = outputsForLargestKernelRun[0].getType().cast<vpux::NDTypeInterface>();
+
+    auto inputTensor =
+            getVPUNNTensor(largestInputNdType.getShape(), getElementType(largestInputNdType.getElementType()));
+    auto outputTensor =
+            getVPUNNTensor(largestOutputNdType.getShape(), getElementType(largestOutputNdType.getElementType()));
+
+    auto strKernelOp = swKernelOp.kernelFunction().getLeafReference().str();
+    std::unique_ptr<VPUNN::SWOperation> vpunnLayer;
+    if (strKernelOp.find("SoftMax") != std::string::npos) {
+        vpunnLayer = std::make_unique<VPUNN::SHVSoftmax>(getVPUDeviceType(arch), inputTensor, outputTensor);
+    } else if (strKernelOp.find("MVN") != std::string::npos) {
+        vpunnLayer = std::make_unique<VPUNN::SHVMVN>(getVPUDeviceType(arch), inputTensor, outputTensor);
+    } else if (strKernelOp.find("Tanh") != std::string::npos) {
+        vpunnLayer = std::make_unique<VPUNN::SHVTanh>(getVPUDeviceType(arch), inputTensor, outputTensor);
+    } else {
+        vpunnLayer = nullptr;
+    }
+    return vpunnLayer != nullptr ? costModel->SHAVE(*vpunnLayer) : 1;
+}
+
+size_t vpux::calculateShaveActCycles(VPUIP::SwKernelOp swKernelOp,
+                                     const std::shared_ptr<VPUNN::VPUCostModel>& costModel, VPU::ArchKind arch) {
+    auto inputNdType = swKernelOp->getOperand(0).getType().cast<vpux::NDTypeInterface>();
+    auto outputNdType = swKernelOp->getResult(0).getType().cast<vpux::NDTypeInterface>();
+    auto inputElemType = inputNdType.getElementType();
+    auto outputElemType = outputNdType.getElementType();
+
+    // CostModel does not support F32/SI32 layers
+    if (inputElemType.isF32() || outputElemType.isF32()) {
+        return 1;
+    }
+    if (inputElemType.isSignedInteger(32) || outputElemType.isSignedInteger(32)) {
+        return 1;
+    }
+    auto inputs = to_small_vector(swKernelOp.inputs());
+    auto outputs = to_small_vector(swKernelOp.output_buffs());
+
+    // In case the parent is a TilingOp, the Layer could be distributed
+    // In such case updated the inputTensor and outputTensor with the biggest perCluster Shape
+    if (auto parentOp = mlir::dyn_cast<VPUIP::NCEClusterTilingOp>(swKernelOp->getParentOp())) {
+        inputs = to_small_vector(parentOp.inputs());
+        outputs = to_small_vector(parentOp.output_buffs());
+    }
+    return getShaveActCycleForSwKernelOp(swKernelOp, arch, inputs, outputs, costModel);
 }

@@ -91,7 +91,7 @@ void buildDifferentClustersDPUTest(const nb::TestCaseJsonDescriptor& testDesc, m
     argTypesVec.append(returnTypesVec.begin(), returnTypesVec.end());
     const auto funcType = builder.getFunctionType(argTypesVec, returnTypesVec);
 
-    auto function = builder.create<mlir::FuncOp>(
+    auto function = builder.create<mlir::func::FuncOp>(
             loc, printToString("different_clusters_dpu_{0}_{1}_{2}", inputType, weightsType, outputType), funcType,
             builder.getStringAttr("private"));
 
@@ -161,15 +161,17 @@ void buildDifferentClustersDPUTest(const nb::TestCaseJsonDescriptor& testDesc, m
         // Create distributed buffer for CMX output
         const auto distributionModeAttr = VPU::DistributionModeAttr::get(ctx, VPU::DistributionMode::DUPLICATED);
         const auto numClustersAttr = getIntAttr(ctx, outputClusters.size());
-        const auto distributedAttr = VPU::DistributedTensorAttr::get(distributionModeAttr, nullptr, nullptr, nullptr,
-                                                                     nullptr, numClustersAttr, nullptr, ctx);
+        const auto distributedAttr =
+                VPU::DistributedTensorAttr::get(distributionModeAttr, nullptr, nullptr, nullptr, nullptr,
+                                                numClustersAttr, nullptr, nullptr, nullptr, nullptr, nullptr, ctx);
 
         const auto orderAttr = mlir::AffineMapAttr::get(outputTypeIf.getDimsOrder().toAffineMap(ctx));
         const auto elemStrides = to_small_vector(outputTypeIf.getStrides() | transformed([&](Bit stride) {
                                                      return stride.count() / outputTypeIf.getElemTypeSize().count();
                                                  }));
         const auto stridesAttr = getIntArrayAttr(ctx, elemStrides);
-        const auto layout = VPUIP::MemRefAttr::get(orderAttr, stridesAttr, /*swizzlingScheme=*/nullptr, nullptr, ctx);
+        const auto layout = VPUIP::MemRefAttr::get(orderAttr, stridesAttr, /*swizzlingScheme=*/nullptr, nullptr,
+                                                   /*allocSize=*/nullptr, ctx);
 
         const auto dimsSpace = vpux::IndexedSymbolAttr::get(ctx, stringifyMemoryKind(outputTypeIf.getMemoryKind()));
 
@@ -229,13 +231,13 @@ void buildDifferentClustersDPUTest(const nb::TestCaseJsonDescriptor& testDesc, m
                                               mlir::ValueRange(), loc, outCMXBufferVec[idx], functionOutput);
     }
 
-    functionBuilder.create<mlir::ReturnOp>(loc, functionOutputs);
+    functionBuilder.create<mlir::func::ReturnOp>(loc, functionOutputs);
 
     module.dump();
 
     mlir::PassManager pm(ctx, mlir::OpPassManager::Nesting::Implicit);
-    pm.addPass(VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::DefaultHW, None, None,
-                                           None, log));
+    pm.addPass(VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::DefaultHW,
+                                           outputClusters.size(), None, None, log));
     if (conv.compress) {
         pm.addPass(VPUIP::createCompressWeightsBTCPass(log));
     }

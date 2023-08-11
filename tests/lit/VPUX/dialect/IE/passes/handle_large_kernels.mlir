@@ -1,33 +1,35 @@
 //
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
+
 // RUN: vpux-opt --split-input-file --init-compiler="vpu-arch=%arch%" --handle-large-kernels %s | FileCheck %s
 // REQUIRES: arch-VPUX30XX || arch-VPUX37XX
 
 // CHECK-LABEL: @HandleLargeKernelsAvgPool
-func @HandleLargeKernelsAvgPool(%arg0 : tensor<1x2048x23x30xf16>) -> (tensor<1x2048x1x1xf16>) {
+func.func @HandleLargeKernelsAvgPool(%arg0 : tensor<1x2048x23x30xf16>) -> (tensor<1x2048x1x1xf16>) {
     %ave_pool = IE.AvgPool(%arg0) {
         kernel_size = [23, 30],
         pads_begin = [0, 0],
         pads_end = [0, 0],
-        rounding_type = "FLOOR",
+        rounding_type = #IE.rounding_type<FLOOR>,
         strides = [23, 30]
     } : tensor<1x2048x23x30xf16> -> tensor<1x2048x1x1xf16>
 
     return %ave_pool : tensor<1x2048x1x1xf16>
+
     // CHECK:       IE.AvgPool
     // CHECK-SAME:      kernel_size = [6, 6]
     // CHECK-SAME:      pads_begin = [0, 0]
     // CHECK-SAME:      pads_end = [1, 0]
-    // CHECK-SAME:      rounding_type = "FLOOR",
+    // CHECK-SAME:      rounding_type = #IE.rounding_type<FLOOR>,
     // CHECK-SAME:      strides = [6, 6]
     // CHECK-SAME:      : tensor<1x2048x23x30xf16> -> tensor<1x2048x4x5xf16>
     // CHECK:       IE.AvgPool
     // CHECK-SAME:      kernel_size = [4, 5]
     // CHECK-SAME:      pads_begin = [0, 0]
     // CHECK-SAME:      pads_end = [0, 0]
-    // CHECK-SAME:      rounding_type = "FLOOR",
+    // CHECK-SAME:      rounding_type = #IE.rounding_type<FLOOR>,
     // CHECK-SAME:      strides = [1, 1]
     // CHECK-SAME:      : tensor<1x2048x4x5xf16> -> tensor<1x2048x1x1xf16>
 }
@@ -35,12 +37,12 @@ func @HandleLargeKernelsAvgPool(%arg0 : tensor<1x2048x23x30xf16>) -> (tensor<1x2
 // -----
 
 // CHECK-LABEL: @HandleLargeKernelsMaxPool
-func @HandleLargeKernelsMaxPool(%arg0 : tensor<1x512x19x19xf16>) -> (tensor<1x512x19x19xf16>) {
+func.func @HandleLargeKernelsMaxPool(%arg0 : tensor<1x512x19x19xf16>) -> (tensor<1x512x19x19xf16>) {
     %max_pool = IE.MaxPool(%arg0) {
         kernel_size = [13, 13],
         pads_begin = [6, 6],
         pads_end = [6, 6],
-        rounding_type = "FLOOR",
+        rounding_type = #IE.rounding_type<FLOOR>,
         strides = [1, 1]
     } : tensor<1x512x19x19xf16> -> tensor<1x512x19x19xf16>
 
@@ -49,14 +51,14 @@ func @HandleLargeKernelsMaxPool(%arg0 : tensor<1x512x19x19xf16>) -> (tensor<1x51
     // CHECK-SAME:      kernel_size = [7, 7]
     // CHECK-SAME:      pads_begin = [3, 3]
     // CHECK-SAME:      pads_end = [3, 3]
-    // CHECK-SAME:      rounding_type = "FLOOR",
+    // CHECK-SAME:      rounding_type = #IE.rounding_type<FLOOR>,
     // CHECK-SAME:      strides = [1, 1]
     // CHECK-SAME:      : tensor<1x512x19x19xf16> -> tensor<1x512x19x19xf16>
     // CHECK:       IE.MaxPool
     // CHECK-SAME:      kernel_size = [7, 7]
     // CHECK-SAME:      pads_begin = [3, 3]
     // CHECK-SAME:      pads_end = [3, 3]
-    // CHECK-SAME:      rounding_type = "FLOOR",
+    // CHECK-SAME:      rounding_type = #IE.rounding_type<FLOOR>,
     // CHECK-SAME:      strides = [1, 1]
     // CHECK-SAME:      : tensor<1x512x19x19xf16> -> tensor<1x512x19x19xf16>
 }
@@ -64,12 +66,12 @@ func @HandleLargeKernelsMaxPool(%arg0 : tensor<1x512x19x19xf16>) -> (tensor<1x51
 // -----
 
 // CHECK-LABEL: @HandleLargeKernelsXMaxPool
-func @HandleLargeKernelsXMaxPool(%arg0 : tensor<1x64x10x13xf16>) -> (tensor<1x64x10x1xf16>) {
+func.func @HandleLargeKernelsXMaxPool(%arg0 : tensor<1x64x10x13xf16>) -> (tensor<1x64x10x1xf16>) {
     %max_pool = IE.MaxPool(%arg0) {
         kernel_size = [1, 13],
         pads_begin = [0, 0],
         pads_end = [0, 0],
-        rounding_type = "FLOOR",
+        rounding_type = #IE.rounding_type<FLOOR>,
         strides = [1, 13]
     } : tensor<1x64x10x13xf16> -> tensor<1x64x10x1xf16>
 
@@ -78,14 +80,14 @@ func @HandleLargeKernelsXMaxPool(%arg0 : tensor<1x64x10x13xf16>) -> (tensor<1x64
     // CHECK-SAME:      kernel_size = [1, 7]
     // CHECK-SAME:      pads_begin = [0, 0]
     // CHECK-SAME:      pads_end = [0, 1]
-    // CHECK-SAME:      rounding_type = "FLOOR",
+    // CHECK-SAME:      rounding_type = #IE.rounding_type<FLOOR>,
     // CHECK-SAME:      strides = [1, 7]
     // CHECK-SAME:      : tensor<1x64x10x13xf16> -> tensor<1x64x10x2xf16>
     // CHECK:       IE.MaxPool
     // CHECK-SAME:      kernel_size = [1, 2]
     // CHECK-SAME:      pads_begin = [0, 0]
     // CHECK-SAME:      pads_end = [0, 1]
-    // CHECK-SAME:      rounding_type = "FLOOR",
+    // CHECK-SAME:      rounding_type = #IE.rounding_type<FLOOR>,
     // CHECK-SAME:      strides = [1, 2]
     // CHECK-SAME:      : tensor<1x64x10x2xf16> -> tensor<1x64x10x1xf16>
 }
@@ -93,12 +95,12 @@ func @HandleLargeKernelsXMaxPool(%arg0 : tensor<1x64x10x13xf16>) -> (tensor<1x64
 // -----
 
 // CHECK-LABEL: @HandleLargeKernelsYMaxPool
-func @HandleLargeKernelsYMaxPool(%arg0 : tensor<1x64x13x10xf16>) -> (tensor<1x64x1x10xf16>) {
+func.func @HandleLargeKernelsYMaxPool(%arg0 : tensor<1x64x13x10xf16>) -> (tensor<1x64x1x10xf16>) {
     %max_pool = IE.MaxPool(%arg0) {
         kernel_size = [13, 1],
         pads_begin = [0, 0],
         pads_end = [0, 0],
-        rounding_type = "FLOOR",
+        rounding_type = #IE.rounding_type<FLOOR>,
         strides = [13, 1]
     } : tensor<1x64x13x10xf16> -> tensor<1x64x1x10xf16>
 
@@ -107,14 +109,14 @@ func @HandleLargeKernelsYMaxPool(%arg0 : tensor<1x64x13x10xf16>) -> (tensor<1x64
     // CHECK-SAME:      kernel_size = [7, 1]
     // CHECK-SAME:      pads_begin = [0, 0]
     // CHECK-SAME:      pads_end = [1, 0]
-    // CHECK-SAME:      rounding_type = "FLOOR",
+    // CHECK-SAME:      rounding_type = #IE.rounding_type<FLOOR>,
     // CHECK-SAME:      strides = [7, 1]
     // CHECK-SAME:      : tensor<1x64x13x10xf16> -> tensor<1x64x2x10xf16>
     // CHECK:       IE.MaxPool
     // CHECK-SAME:      kernel_size = [2, 1]
     // CHECK-SAME:      pads_begin = [0, 0]
     // CHECK-SAME:      pads_end = [1, 0]
-    // CHECK-SAME:      rounding_type = "FLOOR",
+    // CHECK-SAME:      rounding_type = #IE.rounding_type<FLOOR>,
     // CHECK-SAME:      strides = [2, 1]
     // CHECK-SAME:      : tensor<1x64x2x10xf16> -> tensor<1x64x1x10xf16>
 }
@@ -122,12 +124,12 @@ func @HandleLargeKernelsYMaxPool(%arg0 : tensor<1x64x13x10xf16>) -> (tensor<1x64
 // -----
 
 // CHECK-LABEL: @HandleLargeKernelsGlobalMaxPool
-func @HandleLargeKernelsGlobalMaxPool(%arg0 : tensor<1x128x9x16xf16>) -> (tensor<1x128x1x1xf16>) {
+func.func @HandleLargeKernelsGlobalMaxPool(%arg0 : tensor<1x128x9x16xf16>) -> (tensor<1x128x1x1xf16>) {
     %max_pool = IE.MaxPool(%arg0) {
         kernel_size = [9, 16],
         pads_begin = [0, 0],
         pads_end = [0, 0],
-        rounding_type = "FLOOR",
+        rounding_type = #IE.rounding_type<FLOOR>,
         strides = [9, 16]
     } : tensor<1x128x9x16xf16> -> tensor<1x128x1x1xf16>
 
@@ -136,27 +138,109 @@ func @HandleLargeKernelsGlobalMaxPool(%arg0 : tensor<1x128x9x16xf16>) -> (tensor
     // CHECK-SAME:      kernel_size = [9, 4]
     // CHECK-SAME:      pads_begin = [0, 0]
     // CHECK-SAME:      pads_end = [0, 0]
-    // CHECK-SAME:      rounding_type = "FLOOR",
+    // CHECK-SAME:      rounding_type = #IE.rounding_type<FLOOR>,
     // CHECK-SAME:      strides = [1, 4]
     // CHECK-SAME:      : tensor<1x128x9x16xf16> -> tensor<1x128x1x4xf16>
     // CHECK:       IE.MaxPool
     // CHECK-SAME:      kernel_size = [1, 4]
     // CHECK-SAME:      pads_begin = [0, 0]
     // CHECK-SAME:      pads_end = [0, 0]
-    // CHECK-SAME:      rounding_type = "FLOOR",
+    // CHECK-SAME:      rounding_type = #IE.rounding_type<FLOOR>,
     // CHECK-SAME:      strides = [1, 1]
     // CHECK-SAME:      : tensor<1x128x1x4xf16> -> tensor<1x128x1x1xf16>
 }
 
 // -----
 
+// CHECK-LABEL: @HandleLargeKernelsMaxPoolFromReduce
+func.func @HandleLargeKernelsMaxPoolFromReduce(%arg0 : tensor<1x1x71x2xf16>) -> (tensor<1x1x1x2xf16>) {
+    %max_pool = IE.MaxPool(%arg0) {
+        kernel_size = [71, 1],
+        pads_begin = [0, 0],
+        pads_end = [0, 0],
+        rounding_type = #IE.rounding_type<FLOOR>,
+        strides = [1, 1]
+    } : tensor<1x1x71x2xf16> -> tensor<1x1x1x2xf16>
+
+    return %max_pool : tensor<1x1x1x2xf16>
+
+    // CHECK:       [[SLICE:%.*]] = IE.Slice %arg0 [0, 0, 0, 0] [1, 1, 1, 2] : tensor<1x1x71x2xf16> to tensor<1x1x1x2xf16>
+    // CHECK:       [[CONCAT:%.*]] = IE.Concat(%arg0, [[SLICE]]) {per_axis = {axis = 2 : i64}} : tensor<1x1x71x2xf16>, tensor<1x1x1x2xf16> -> tensor<1x1x72x2xf16>
+    // CHECK:       [[MAXPOOL_1:%.*]] = IE.MaxPool([[CONCAT]])
+    // CHECK-SAME:      {kernel_size = [9, 1], pads_begin = [0, 0], pads_end = [0, 0], rounding_type = #IE.rounding_type<FLOOR>, strides = [9, 1]} : tensor<1x1x72x2xf16> -> tensor<1x1x8x2xf16>
+    // CHECK:       [[MAXPOOL_2:%.*]] = IE.MaxPool([[MAXPOOL_1]])
+    // CHECK-SAME:      {kernel_size = [8, 1], pads_begin = [0, 0], pads_end = [0, 0], rounding_type = #IE.rounding_type<FLOOR>, strides = [1, 1]} : tensor<1x1x8x2xf16> -> tensor<1x1x1x2xf16>
+    // CHECK        return [[MAXPOOL_2]]
+}
+
+// -----
+
+// CHECK-LABEL: @HandleLargeKernelsMaxPoolFromReduceNoPaddingNeeded
+func.func @HandleLargeKernelsMaxPoolFromReduceNoPaddingNeeded(%arg0 : tensor<1x1x32x2xf16>) -> (tensor<1x1x1x2xf16>) {
+    %max_pool = IE.MaxPool(%arg0) {
+        kernel_size = [32, 1],
+        pads_begin = [0, 0],
+        pads_end = [0, 0],
+        rounding_type = #IE.rounding_type<FLOOR>,
+        strides = [1, 1]
+    } : tensor<1x1x32x2xf16> -> tensor<1x1x1x2xf16>
+
+    return %max_pool : tensor<1x1x1x2xf16>
+
+    // CHECK:       IE.MaxPool
+    // CHECK-SAME:      kernel_size = [8, 1]
+    // CHECK-SAME:      pads_begin = [0, 0]
+    // CHECK-SAME:      pads_end = [0, 0]
+    // CHECK-SAME:      rounding_type = #IE.rounding_type<FLOOR>,
+    // CHECK-SAME:      strides = [8, 1]
+    // CHECK-SAME:      : tensor<1x1x32x2xf16> -> tensor<1x1x4x2xf16>
+    // CHECK:       IE.MaxPool
+    // CHECK-SAME:      kernel_size = [4, 1]
+    // CHECK-SAME:      pads_begin = [0, 0]
+    // CHECK-SAME:      pads_end = [0, 0]
+    // CHECK-SAME:      rounding_type = #IE.rounding_type<FLOOR>,
+    // CHECK-SAME:      strides = [1, 1]
+    // CHECK-SAME:      : tensor<1x1x4x2xf16> -> tensor<1x1x1x2xf16>
+}
+
+// -----
+
+// CHECK-LABEL: @HandleLargeKernelsMaxPoolWithPadding
+func.func @HandleLargeKernelsMaxPoolWithPadding(%arg0 : tensor<1x256x13x13xf16>) -> (tensor<1x256x13x13xf16>) {
+    %max_pool = IE.MaxPool(%arg0) {
+        kernel_size = [13, 13],
+        pads_begin = [6, 6],
+        pads_end = [6, 6],
+        rounding_type = #IE.rounding_type<FLOOR>,
+        strides = [1, 1]
+    } : tensor<1x256x13x13xf16> -> tensor<1x256x13x13xf16>
+
+    return %max_pool : tensor<1x256x13x13xf16>
+    // CHECK:       IE.MaxPool
+    // CHECK-SAME:      kernel_size = [7, 7]
+    // CHECK-SAME:      pads_begin = [3, 3]
+    // CHECK-SAME:      pads_end = [3, 3]
+    // CHECK-SAME:      rounding_type = #IE.rounding_type<FLOOR>,
+    // CHECK-SAME:      strides = [1, 1]
+    // CHECK-SAME:      : tensor<1x256x13x13xf16> -> tensor<1x256x13x13xf16>
+    // CHECK:       IE.MaxPool
+    // CHECK-SAME:      kernel_size = [7, 7]
+    // CHECK-SAME:      pads_begin = [3, 3]
+    // CHECK-SAME:      pads_end = [3, 3]
+    // CHECK-SAME:      rounding_type = #IE.rounding_type<FLOOR>,
+    // CHECK-SAME:      strides = [1, 1]
+    // CHECK-SAME:      : tensor<1x256x13x13xf16> -> tensor<1x256x13x13xf16>
+}
+
+// -----
+
 // CHECK-LABEL: @HandleLargeKernelsGlobalAvgPool
-func @HandleLargeKernelsGlobalAvgPool(%arg0 : tensor<1x128x9x16xf16>) -> (tensor<1x128x1x1xf16>) {
+func.func @HandleLargeKernelsGlobalAvgPool(%arg0 : tensor<1x128x9x16xf16>) -> (tensor<1x128x1x1xf16>) {
     %avg_pool = IE.AvgPool(%arg0) {
         kernel_size = [9, 16],
         pads_begin = [0, 0],
         pads_end = [0, 0],
-        rounding_type = "FLOOR",
+        rounding_type = #IE.rounding_type<FLOOR>,
         strides = [9, 16]
     } : tensor<1x128x9x16xf16> -> tensor<1x128x1x1xf16>
 
@@ -165,14 +249,14 @@ func @HandleLargeKernelsGlobalAvgPool(%arg0 : tensor<1x128x9x16xf16>) -> (tensor
     // CHECK-SAME:      kernel_size = [9, 4]
     // CHECK-SAME:      pads_begin = [0, 0]
     // CHECK-SAME:      pads_end = [0, 0]
-    // CHECK-SAME:      rounding_type = "FLOOR",
+    // CHECK-SAME:      rounding_type = #IE.rounding_type<FLOOR>,
     // CHECK-SAME:      strides = [1, 4]
     // CHECK-SAME:      : tensor<1x128x9x16xf16> -> tensor<1x128x1x4xf16>
     // CHECK:       IE.AvgPool
     // CHECK-SAME:      kernel_size = [1, 4]
     // CHECK-SAME:      pads_begin = [0, 0]
     // CHECK-SAME:      pads_end = [0, 0]
-    // CHECK-SAME:      rounding_type = "FLOOR",
+    // CHECK-SAME:      rounding_type = #IE.rounding_type<FLOOR>,
     // CHECK-SAME:      strides = [1, 1]
     // CHECK-SAME:      : tensor<1x128x1x4xf16> -> tensor<1x128x1x1xf16>
 }
@@ -180,12 +264,12 @@ func @HandleLargeKernelsGlobalAvgPool(%arg0 : tensor<1x128x9x16xf16>) -> (tensor
 // -----
 
 // CHECK-LABEL: @HandleLargerKernelsAvgPool
-func @HandleLargerKernelsAvgPool(%arg0 : tensor<1x16x128x128xf16>) -> (tensor<1x16x1x1xf16>) {
+func.func @HandleLargerKernelsAvgPool(%arg0 : tensor<1x16x128x128xf16>) -> (tensor<1x16x1x1xf16>) {
     %ave_pool = IE.AvgPool(%arg0) {
         kernel_size = [128, 128],
         pads_begin = [0, 0],
         pads_end = [0, 0],
-        rounding_type = "FLOOR",
+        rounding_type = #IE.rounding_type<FLOOR>,
         strides = [128, 128]
     } : tensor<1x16x128x128xf16> -> tensor<1x16x1x1xf16>
 
@@ -194,21 +278,21 @@ func @HandleLargerKernelsAvgPool(%arg0 : tensor<1x16x128x128xf16>) -> (tensor<1x
     // CHECK-SAME:      kernel_size = [8, 8]
     // CHECK-SAME:      pads_begin = [0, 0]
     // CHECK-SAME:      pads_end = [0, 0]
-    // CHECK-SAME:      rounding_type = "FLOOR",
+    // CHECK-SAME:      rounding_type = #IE.rounding_type<FLOOR>,
     // CHECK-SAME:      strides = [8, 8]
     // CHECK-SAME:      : tensor<1x16x128x128xf16> -> tensor<1x16x16x16xf16>
     // CHECK:       IE.AvgPool
     // CHECK-SAME:      kernel_size = [4, 4]
     // CHECK-SAME:      pads_begin = [0, 0]
     // CHECK-SAME:      pads_end = [0, 0]
-    // CHECK-SAME:      rounding_type = "FLOOR",
+    // CHECK-SAME:      rounding_type = #IE.rounding_type<FLOOR>,
     // CHECK-SAME:      strides = [4, 4]
     // CHECK-SAME:      : tensor<1x16x16x16xf16> -> tensor<1x16x4x4xf16>
     // CHECK:       IE.AvgPool
     // CHECK-SAME:      kernel_size = [4, 4]
     // CHECK-SAME:      pads_begin = [0, 0]
     // CHECK-SAME:      pads_end = [0, 0]
-    // CHECK-SAME:      rounding_type = "FLOOR",
+    // CHECK-SAME:      rounding_type = #IE.rounding_type<FLOOR>,
     // CHECK-SAME:      strides = [1, 1]
     // CHECK-SAME:      : tensor<1x16x4x4xf16> -> tensor<1x16x1x1xf16>
 }
@@ -216,28 +300,258 @@ func @HandleLargerKernelsAvgPool(%arg0 : tensor<1x16x128x128xf16>) -> (tensor<1x
 // -----
 
 // CHECK-LABEL: @HandleSymmetricLargeKernelsGlobalAvgPool
-func @HandleSymmetricLargeKernelsGlobalAvgPool(%arg0 : tensor<1x2048x65x65xf16>) -> (tensor<1x2048x1x1xf16>) {
+func.func @HandleSymmetricLargeKernelsGlobalAvgPool(%arg0 : tensor<1x2048x65x65xf16>) -> (tensor<1x2048x1x1xf16>) {
     %ave_pool = IE.AvgPool(%arg0) {
         kernel_size = [65, 65],
         pads_begin = [0, 0],
         pads_end = [0, 0],
-        rounding_type = "FLOOR",
+        rounding_type = #IE.rounding_type<FLOOR>,
         strides = [65, 65]
     } : tensor<1x2048x65x65xf16> -> tensor<1x2048x1x1xf16>
 
     return %ave_pool : tensor<1x2048x1x1xf16>
-    // CHECK:       IE.AvgPool
-    // CHECK-SAME:      kernel_size = [6, 6]
+    // CHECK:       const.Declare
+    // CHECK-SAME:      tensor<2048x1x6x6xf16> = dense<2.864070e-02>
+    // CHECK-SAME:      : tensor<2048x1x6x6xf16>
+    // CHECK:       IE.GroupConvolution
+    // CHECK-SAME:      dilations = [1, 1]
+    // CHECK-SAME:      groups = 2048 : i64
     // CHECK-SAME:      pads_begin = [0, 0]
     // CHECK-SAME:      pads_end = [1, 1]
-    // CHECK-SAME:      rounding_type = "FLOOR",
     // CHECK-SAME:      strides = [6, 6]
-    // CHECK-SAME:      : tensor<1x2048x65x65xf16> -> tensor<1x2048x11x11xf16>
+    // CHECK-SAME:      : tensor<1x2048x65x65xf16>, tensor<2048x1x6x6xf16> -> tensor<1x2048x11x11xf16>
     // CHECK:       IE.AvgPool
     // CHECK-SAME:      kernel_size = [11, 11]
     // CHECK-SAME:      pads_begin = [0, 0]
     // CHECK-SAME:      pads_end = [0, 0]
-    // CHECK-SAME:      rounding_type = "FLOOR",
+    // CHECK-SAME:      rounding_type = #IE.rounding_type<FLOOR>,
     // CHECK-SAME:      strides = [1, 1]
     // CHECK-SAME:      : tensor<1x2048x11x11xf16> -> tensor<1x2048x1x1xf16>
+}
+
+// -----
+
+// CHECK-LABEL: @HandleLargerKernelsAvgPoolPaddingNeeded
+func.func @HandleLargerKernelsAvgPoolPaddingNeeded(%arg0 : tensor<1x16x257x257xf16>) -> (tensor<1x16x1x1xf16>) {
+    %ave_pool = IE.AvgPool(%arg0) {
+        kernel_size = [257, 257],
+        pads_begin = [0, 0],
+        pads_end = [0, 0],
+        rounding_type = #IE.rounding_type<FLOOR>,
+        strides = [1, 1]
+    } : tensor<1x16x257x257xf16> -> tensor<1x16x1x1xf16>
+
+    return %ave_pool : tensor<1x16x1x1xf16>
+    // CHECK:       const.Declare
+    // CHECK-SAME:      tensor<16x1x6x6xf16> = dense<2.799990e-02>
+    // CHECK-SAME:      : tensor<16x1x6x6xf16>
+    // CHECK:       const.Declare
+    // CHECK-SAME:      tensor<16x1x4x4xf16> = dense<6.542960e-02>
+    // CHECK-SAME:      : tensor<16x1x4x4xf16>
+    // CHECK:       IE.GroupConvolution
+    // CHECK-SAME:      dilations = [1, 1]
+    // CHECK-SAME:      groups = 16 : i64
+    // CHECK-SAME:      pads_begin = [0, 0]
+    // CHECK-SAME:      pads_end = [1, 1]
+    // CHECK-SAME:      strides = [6, 6]
+    // CHECK-SAME:      : tensor<1x16x257x257xf16>, tensor<16x1x6x6xf16> -> tensor<1x16x43x43xf16>
+    // CHECK:       IE.GroupConvolution
+    // CHECK-SAME:      dilations = [1, 1]
+    // CHECK-SAME:      groups = 16 : i64
+    // CHECK-SAME:      pads_begin = [0, 0]
+    // CHECK-SAME:      pads_end = [1, 1]
+    // CHECK-SAME:      strides = [4, 4]
+    // CHECK-SAME:      : tensor<1x16x43x43xf16>, tensor<16x1x4x4xf16> -> tensor<1x16x11x11xf16>
+    // CHECK:       IE.AvgPool
+    // CHECK-SAME:      kernel_size = [11, 11]
+    // CHECK-SAME:      pads_begin = [0, 0]
+    // CHECK-SAME:      pads_end = [0, 0]
+    // CHECK-SAME:      rounding_type = #IE.rounding_type<FLOOR>,
+    // CHECK-SAME:      strides = [1, 1]
+    // CHECK-SAME:      : tensor<1x16x11x11xf16> -> tensor<1x16x1x1xf16>
+}
+
+// -----
+
+// CHECK-LABEL: @HandleLargerKernelsReverseAvgPool
+func.func @HandleLargerKernelsReverseAvgPool(%arg0 : tensor<1x16x176x176xf16>) -> (tensor<1x16x1x1xf16>) {
+    %ave_pool = IE.AvgPool(%arg0) {
+        kernel_size = [176, 176],
+        pads_begin = [0, 0],
+        pads_end = [0, 0],
+        rounding_type = #IE.rounding_type<FLOOR>,
+        strides = [176, 176]
+    } : tensor<1x16x176x176xf16> -> tensor<1x16x1x1xf16>
+
+    return %ave_pool : tensor<1x16x1x1xf16>
+    // CHECK:       IE.AvgPool
+    // CHECK-SAME:      kernel_size = [4, 4]
+    // CHECK-SAME:      pads_begin = [0, 0]
+    // CHECK-SAME:      pads_end = [0, 0]
+    // CHECK-SAME:      rounding_type = #IE.rounding_type<FLOOR>,
+    // CHECK-SAME:      strides = [4, 4]
+    // CHECK-SAME:      : tensor<1x16x176x176xf16> -> tensor<1x16x44x44xf16>
+    // CHECK:       IE.AvgPool
+    // CHECK-SAME:      kernel_size = [4, 4]
+    // CHECK-SAME:      pads_begin = [0, 0]
+    // CHECK-SAME:      pads_end = [0, 0]
+    // CHECK-SAME:      rounding_type = #IE.rounding_type<FLOOR>,
+    // CHECK-SAME:      strides = [4, 4]
+    // CHECK-SAME:      : tensor<1x16x44x44xf16> -> tensor<1x16x11x11xf16>
+    // CHECK:       IE.AvgPool
+    // CHECK-SAME:      kernel_size = [11, 11]
+    // CHECK-SAME:      pads_begin = [0, 0]
+    // CHECK-SAME:      pads_end = [0, 0]
+    // CHECK-SAME:      rounding_type = #IE.rounding_type<FLOOR>,
+    // CHECK-SAME:      strides = [1, 1]
+    // CHECK-SAME:      : tensor<1x16x11x11xf16> -> tensor<1x16x1x1xf16>
+}
+
+// -----
+
+// CHECK-LABEL: @HandleLargeKernelsConv
+func.func @HandleLargeKernelsConv(%arg0 : tensor<1x1x1x32000xf16>) -> tensor<1x64x1x2000xf16> {
+    %cst = const.Declare tensor<64x1x1x33xf16> = dense<1.000000e+00> : tensor<64x1x1x33xf16>
+    %conv = IE.Convolution(%arg0, %cst) {dilations = [1, 1], pads_begin = [0, 16], pads_end = [0, 16], strides = [1, 16]} : tensor<1x1x1x32000xf16>, tensor<64x1x1x33xf16> -> tensor<1x64x1x2000xf16>
+
+    return %conv : tensor<1x64x1x2000xf16>
+
+    // CHECK: [[CST_0:%.+]] = const.Declare tensor<64x1x1x11xf16> = dense<1.000000e+00> : tensor<64x1x1x33xf16>, [#const.SubView<[0, 0, 0, 22], [64, 1, 1, 11]>]
+    // CHECK: [[CST_1:%.+]] = const.Declare tensor<64x1x1x11xf16> = dense<1.000000e+00> : tensor<64x1x1x33xf16>, [#const.SubView<[0, 0, 0, 11], [64, 1, 1, 11]>]
+    // CHECK: [[CST_2:%.+]] = const.Declare tensor<64x1x1x11xf16> = dense<1.000000e+00> : tensor<64x1x1x33xf16>, [#const.SubView<[0, 0, 0, 0], [64, 1, 1, 11]>]
+    // CHECK: [[CST:%.+]] = const.Declare tensor<1x1x1x16xf16> = dense<0.000000e+00> : tensor<1x1x1x16xf16>
+    // CHECK: [[CONCAT:%.+]] = IE.Concat([[CST]], %arg0, [[CST]]) {per_axis = {axis = 3 : i64}} : tensor<1x1x1x16xf16>, tensor<1x1x1x32000xf16>, tensor<1x1x1x16xf16> -> tensor<1x1x1x32032xf16>
+
+    // CHECK: [[SLICEACT0:%.+]] = IE.Slice [[CONCAT]] [0, 0, 0, 0] [1, 1, 1, 31995] : tensor<1x1x1x32032xf16> to tensor<1x1x1x31995xf16>
+    // CHECK: [[CONV0:%.+]] = IE.Convolution([[SLICEACT0]], [[CST_2]]) {dilations = [1, 1], pads_begin = [0, 0], pads_end = [0, 0], strides = [1, 16]} : tensor<1x1x1x31995xf16>, tensor<64x1x1x11xf16> -> tensor<1x64x1x2000xf16>
+    // CHECK: [[SLICEACT1:%.+]] = IE.Slice [[CONCAT]] [0, 0, 0, 11] [1, 1, 1, 31995] : tensor<1x1x1x32032xf16> to tensor<1x1x1x31995xf16>
+    // CHECK: [[CONV1:%.+]] = IE.Convolution([[SLICEACT1]], [[CST_1]]) {dilations = [1, 1], pads_begin = [0, 0], pads_end = [0, 0], strides = [1, 16]} : tensor<1x1x1x31995xf16>, tensor<64x1x1x11xf16> -> tensor<1x64x1x2000xf16>
+    // CHECK: [[Add0:%.+]] = IE.Add([[CONV0]], [[CONV1]]) {auto_broadcast = #IE.auto_broadcast_type<NONE_OR_EXPLICIT>} : tensor<1x64x1x2000xf16>, tensor<1x64x1x2000xf16> -> tensor<1x64x1x2000xf16>
+    // CHECK: [[SLICEACT2:%.+]] = IE.Slice [[CONCAT]] [0, 0, 0, 22] [1, 1, 1, 31995] : tensor<1x1x1x32032xf16> to tensor<1x1x1x31995xf16>
+    // CHECK: [[CONV2:%.+]] = IE.Convolution([[SLICEACT2]], [[CST_0]]) {dilations = [1, 1], pads_begin = [0, 0], pads_end = [0, 0], strides = [1, 16]} : tensor<1x1x1x31995xf16>, tensor<64x1x1x11xf16> -> tensor<1x64x1x2000xf16>
+    // CHECK: [[Add1:%.+]] = IE.Add([[Add0]], [[CONV2]]) {auto_broadcast = #IE.auto_broadcast_type<NONE_OR_EXPLICIT>} : tensor<1x64x1x2000xf16>, tensor<1x64x1x2000xf16> -> tensor<1x64x1x2000xf16>
+
+    // CHECK: return [[Add1]] : tensor<1x64x1x2000xf16>
+}
+
+// -----
+
+// CHECK-LABEL: @HandleLargeKernelsConvWithPostOp
+func.func @HandleLargeKernelsConvWithPostOp(%arg0 : tensor<1x1x1x32000xf16>) -> tensor<1x64x1x2000xf16> {
+    %cst = const.Declare tensor<64x1x1x33xf16> = dense<1.000000e+00> : tensor<64x1x1x33xf16>
+    %conv = IE.Convolution(%arg0, %cst) {dilations = [1, 1], pads_begin = [0, 16], pads_end = [0, 16], post_op = {attrs = {}, name = "IE.ReLU"}, strides = [1, 16]} : tensor<1x1x1x32000xf16>, tensor<64x1x1x33xf16> -> tensor<1x64x1x2000xf16>
+
+    return %conv : tensor<1x64x1x2000xf16>
+
+    // CHECK: [[CST:%.+]]  = const.Declare tensor<64x1x1x11xf16> = dense<1.000000e+00> : tensor<64x1x1x33xf16>, [#const.SubView<[0, 0, 0, 22], [64, 1, 1, 11]>]
+    // CHECK: [[CST_0:%.+]]  = const.Declare tensor<64x1x1x11xf16> = dense<1.000000e+00> : tensor<64x1x1x33xf16>, [#const.SubView<[0, 0, 0, 11], [64, 1, 1, 11]>]
+    // CHECK: [[CST_1:%.+]]  = const.Declare tensor<64x1x1x11xf16> = dense<1.000000e+00> : tensor<64x1x1x33xf16>, [#const.SubView<[0, 0, 0, 0], [64, 1, 1, 11]>]
+    // CHECK: [[CST_2:%.+]]  = const.Declare tensor<1x1x1x16xf16> = dense<0.000000e+00> : tensor<1x1x1x16xf16>
+    // CHECK: [[CONCAT:%.+]] = IE.Concat([[CST_2]], %arg0, [[CST_2]]) {per_axis = {axis = 3 : i64}} : tensor<1x1x1x16xf16>, tensor<1x1x1x32000xf16>, tensor<1x1x1x16xf16> -> tensor<1x1x1x32032xf16>
+
+    // CHECK: [[SLICEACT0:%.+]] = IE.Slice [[CONCAT]] [0, 0, 0, 0] [1, 1, 1, 31995] : tensor<1x1x1x32032xf16> to tensor<1x1x1x31995xf16>
+    // CHECK: [[CONV0:%.+]] = IE.Convolution([[SLICEACT0]], [[CST_1]]) {dilations = [1, 1], pads_begin = [0, 0], pads_end = [0, 0], strides = [1, 16]} : tensor<1x1x1x31995xf16>, tensor<64x1x1x11xf16> -> tensor<1x64x1x2000xf16>
+    // CHECK: [[SLICEACT1:%.+]] = IE.Slice [[CONCAT]] [0, 0, 0, 11] [1, 1, 1, 31995] : tensor<1x1x1x32032xf16> to tensor<1x1x1x31995xf16>
+    // CHECK: [[CONV1:%.+]] = IE.Convolution([[SLICEACT1]], [[CST_0]]) {dilations = [1, 1], pads_begin = [0, 0], pads_end = [0, 0], strides = [1, 16]} : tensor<1x1x1x31995xf16>, tensor<64x1x1x11xf16> -> tensor<1x64x1x2000xf16>
+    // CHECK: [[Add0:%.+]] = IE.Add([[CONV0]], [[CONV1]]) {auto_broadcast = #IE.auto_broadcast_type<NONE_OR_EXPLICIT>} : tensor<1x64x1x2000xf16>, tensor<1x64x1x2000xf16> -> tensor<1x64x1x2000xf16>
+    // CHECK: [[SLICEACT2:%.+]] = IE.Slice [[CONCAT]] [0, 0, 0, 22] [1, 1, 1, 31995] : tensor<1x1x1x32032xf16> to tensor<1x1x1x31995xf16>
+    // CHECK: [[CONV2:%.+]] = IE.Convolution([[SLICEACT2]], [[CST]]) {dilations = [1, 1], pads_begin = [0, 0], pads_end = [0, 0], strides = [1, 16]} : tensor<1x1x1x31995xf16>, tensor<64x1x1x11xf16> -> tensor<1x64x1x2000xf16>
+    // CHECK: [[Add1:%.+]] = IE.Add([[Add0]], [[CONV2]]) {auto_broadcast = #IE.auto_broadcast_type<NONE_OR_EXPLICIT>, post_op = {attrs = {}, name = "IE.ReLU"}} : tensor<1x64x1x2000xf16>, tensor<1x64x1x2000xf16> -> tensor<1x64x1x2000xf16>
+
+    // CHECK: return [[Add1]] : tensor<1x64x1x2000xf16>
+}
+
+// -----
+
+// CHECK-LABEL: @HandleLargeKernelsConvWithBias
+func.func @HandleLargeKernelsConvWithBias(%arg0 : tensor<1x1x1x32000xf16>) -> tensor<1x64x1x2000xf16> {
+    %cst = const.Declare tensor<64x1x1x33xf16> = dense<1.000000e+00> : tensor<64x1x1x33xf16>
+    %bias = const.Declare tensor<1x64x1x1xf16> = dense<1.000000e+00> : tensor<1x64x1x1xf16>
+
+    %conv = IE.Convolution(%arg0, %cst, %bias) {dilations = [1, 1], pads_begin = [0, 16], pads_end = [0, 16], strides = [1, 16]} : tensor<1x1x1x32000xf16>, tensor<64x1x1x33xf16>, tensor<1x64x1x1xf16> -> tensor<1x64x1x2000xf16>
+
+    return %conv : tensor<1x64x1x2000xf16>
+
+    // CHECK: [[CST:%.+]] = const.Declare tensor<64x1x1x11xf16> = dense<1.000000e+00> : tensor<64x1x1x33xf16>, [#const.SubView<[0, 0, 0, 22], [64, 1, 1, 11]>]
+    // CHECK: [[CST_0:%.+]] = const.Declare tensor<64x1x1x11xf16> = dense<1.000000e+00> : tensor<64x1x1x33xf16>, [#const.SubView<[0, 0, 0, 11], [64, 1, 1, 11]>]
+    // CHECK: [[CST_1:%.+]] = const.Declare tensor<64x1x1x11xf16> = dense<1.000000e+00> : tensor<64x1x1x33xf16>, [#const.SubView<[0, 0, 0, 0], [64, 1, 1, 11]>]
+    // CHECK: [[CST_2:%.+]] = const.Declare tensor<1x1x1x16xf16> = dense<0.000000e+00> : tensor<1x1x1x16xf16>
+    // CHECK: [[CST_3:%.+]] = const.Declare tensor<1x64x1x1xf16> = dense<1.000000e+00> : tensor<1x64x1x1xf16>
+    // CHECK: [[CONCAT:%.+]] = IE.Concat([[CST_2]], %arg0, [[CST_2]]) {per_axis = {axis = 3 : i64}} : tensor<1x1x1x16xf16>, tensor<1x1x1x32000xf16>, tensor<1x1x1x16xf16> -> tensor<1x1x1x32032xf16>
+
+    // CHECK: [[SLICEACT0:%.+]] = IE.Slice [[CONCAT]] [0, 0, 0, 0] [1, 1, 1, 31995] : tensor<1x1x1x32032xf16> to tensor<1x1x1x31995xf16>
+    // CHECK: [[CONV0:%.+]] = IE.Convolution([[SLICEACT0]], [[CST_1]]) {dilations = [1, 1], pads_begin = [0, 0], pads_end = [0, 0], strides = [1, 16]} : tensor<1x1x1x31995xf16>, tensor<64x1x1x11xf16> -> tensor<1x64x1x2000xf16>
+    // CHECK: [[SLICEACT1:%.+]] = IE.Slice [[CONCAT]] [0, 0, 0, 11] [1, 1, 1, 31995] : tensor<1x1x1x32032xf16> to tensor<1x1x1x31995xf16>
+    // CHECK: [[CONV1:%.+]] = IE.Convolution([[SLICEACT1]], [[CST_0]]) {dilations = [1, 1], pads_begin = [0, 0], pads_end = [0, 0], strides = [1, 16]} : tensor<1x1x1x31995xf16>, tensor<64x1x1x11xf16> -> tensor<1x64x1x2000xf16>
+    // CHECK: [[Add0:%.+]] = IE.Add([[CONV0]], [[CONV1]]) {auto_broadcast = #IE.auto_broadcast_type<NONE_OR_EXPLICIT>} : tensor<1x64x1x2000xf16>, tensor<1x64x1x2000xf16> -> tensor<1x64x1x2000xf16>
+    // CHECK: [[SLICEACT2:%.+]] = IE.Slice [[CONCAT]] [0, 0, 0, 22] [1, 1, 1, 31995] : tensor<1x1x1x32032xf16> to tensor<1x1x1x31995xf16>
+    // CHECK: [[CONV2:%.+]] = IE.Convolution([[SLICEACT2]], [[CST]], [[CST_3]]) {dilations = [1, 1], pads_begin = [0, 0], pads_end = [0, 0], strides = [1, 16]} : tensor<1x1x1x31995xf16>, tensor<64x1x1x11xf16>, tensor<1x64x1x1xf16> -> tensor<1x64x1x2000xf16>
+    // CHECK: [[Add1:%.+]] = IE.Add([[Add0]], [[CONV2]]) {auto_broadcast = #IE.auto_broadcast_type<NONE_OR_EXPLICIT>} : tensor<1x64x1x2000xf16>, tensor<1x64x1x2000xf16> -> tensor<1x64x1x2000xf16>
+
+    // CHECK: return [[Add1]] : tensor<1x64x1x2000xf16>
+}
+
+// -----
+
+// CHECK-LABEL: @HandleLargeKernelsConv2DimsSplit
+func.func @HandleLargeKernelsConv2DimsSplit(%arg0 : tensor<1x1x32000x32000xf16>) -> tensor<1x64x2001x2001xf16> {
+    %cst = const.Declare tensor<64x1x22x22xf16> = dense<1.000000e+00> : tensor<64x1x22x22xf16>
+    %conv = IE.Convolution(%arg0, %cst) {dilations = [1, 1], pads_begin = [16, 16], pads_end = [16, 16], strides = [16, 16]} : tensor<1x1x32000x32000xf16>, tensor<64x1x22x22xf16> -> tensor<1x64x2001x2001xf16>
+
+    return %conv : tensor<1x64x2001x2001xf16>
+
+    // CHECK: [[CST:%.+]] = const.Declare tensor<64x1x11x11xf16> = dense<1.000000e+00> : tensor<64x1x22x22xf16>, [#const.SubView<[0, 0, 11, 11], [64, 1, 11, 11]>]
+    // CHECK: [[CST_0:%.+]] = const.Declare tensor<64x1x11x11xf16> = dense<1.000000e+00> : tensor<64x1x22x22xf16>, [#const.SubView<[0, 0, 11, 0], [64, 1, 11, 11]>]
+    // CHECK: [[CST_1:%.+]] = const.Declare tensor<64x1x11x11xf16> = dense<1.000000e+00> : tensor<64x1x22x22xf16>, [#const.SubView<[0, 0, 0, 11], [64, 1, 11, 11]>]
+    // CHECK: [[CST_2:%.+]] = const.Declare tensor<64x1x11x11xf16> = dense<1.000000e+00> : tensor<64x1x22x22xf16>, [#const.SubView<[0, 0, 0, 0], [64, 1, 11, 11]>]
+    // CHECK: [[CST_3:%.+]] = const.Declare tensor<1x1x16x32032xf16> = dense<0.000000e+00> : tensor<1x1x16x32032xf16>
+    // CHECK: [[CST_4:%.+]] = const.Declare tensor<1x1x32000x16xf16> = dense<0.000000e+00> : tensor<1x1x32000x16xf16>
+    // CHECK: [[CONCAT0:%.+]] = IE.Concat([[CST_4]], %arg0, [[CST_4]]) {per_axis = {axis = 3 : i64}} : tensor<1x1x32000x16xf16>, tensor<1x1x32000x32000xf16>, tensor<1x1x32000x16xf16> -> tensor<1x1x32000x32032xf16>
+    // CHECK: [[CONCAT:%.+]] = IE.Concat([[CST_3]], %0, [[CST_3]]) {per_axis = {axis = 2 : i64}} : tensor<1x1x16x32032xf16>, tensor<1x1x32000x32032xf16>, tensor<1x1x16x32032xf16> -> tensor<1x1x32032x32032xf16>
+
+    // CHECK: [[SLICEACT0:%.+]] = IE.Slice [[CONCAT]] [0, 0, 0, 0] [1, 1, 32011, 32011] : tensor<1x1x32032x32032xf16> to tensor<1x1x32011x32011xf16>
+    // CHECK: [[CONV0:%.+]] = IE.Convolution([[SLICEACT0]], [[CST_2]]) {dilations = [1, 1], pads_begin = [0, 0], pads_end = [0, 0], strides = [16, 16]} : tensor<1x1x32011x32011xf16>, tensor<64x1x11x11xf16> -> tensor<1x64x2001x2001xf16>
+    // CHECK: [[SLICEACT1:%.+]] = IE.Slice [[CONCAT]] [0, 0, 0, 11] [1, 1, 32011, 32011] : tensor<1x1x32032x32032xf16> to tensor<1x1x32011x32011xf16>
+    // CHECK: [[CONV1:%.+]] = IE.Convolution([[SLICEACT1]], [[CST_1]]) {dilations = [1, 1], pads_begin = [0, 0], pads_end = [0, 0], strides = [16, 16]} : tensor<1x1x32011x32011xf16>, tensor<64x1x11x11xf16> -> tensor<1x64x2001x2001xf16>
+    // CHECK: [[Add0:%.+]] = IE.Add([[CONV0]], [[CONV1]]) {auto_broadcast = #IE.auto_broadcast_type<NONE_OR_EXPLICIT>} : tensor<1x64x2001x2001xf16>, tensor<1x64x2001x2001xf16> -> tensor<1x64x2001x2001xf16>
+    // CHECK: [[SLICEACT2:%.+]] = IE.Slice [[CONCAT]] [0, 0, 11, 0] [1, 1, 32011, 32011] : tensor<1x1x32032x32032xf16> to tensor<1x1x32011x32011xf16>
+    // CHECK: [[CONV2:%.+]] = IE.Convolution([[SLICEACT2]], [[CST_0]]) {dilations = [1, 1], pads_begin = [0, 0], pads_end = [0, 0], strides = [16, 16]} : tensor<1x1x32011x32011xf16>, tensor<64x1x11x11xf16> -> tensor<1x64x2001x2001xf16>
+    // CHECK: [[Add1:%.+]] = IE.Add([[Add0]], [[CONV2]]) {auto_broadcast = #IE.auto_broadcast_type<NONE_OR_EXPLICIT>} : tensor<1x64x2001x2001xf16>, tensor<1x64x2001x2001xf16> -> tensor<1x64x2001x2001xf16>
+    // CHECK: [[SLICEACT3:%.+]] = IE.Slice [[CONCAT]] [0, 0, 11, 11] [1, 1, 32011, 32011] : tensor<1x1x32032x32032xf16> to tensor<1x1x32011x32011xf16>
+    // CHECK: [[CONV3:%.+]] = IE.Convolution([[SLICEACT3]], [[CST]]) {dilations = [1, 1], pads_begin = [0, 0], pads_end = [0, 0], strides = [16, 16]} : tensor<1x1x32011x32011xf16>, tensor<64x1x11x11xf16> -> tensor<1x64x2001x2001xf16>
+    // CHECK: [[Add2:%.+]] = IE.Add([[Add1]], [[CONV3]]) {auto_broadcast = #IE.auto_broadcast_type<NONE_OR_EXPLICIT>} : tensor<1x64x2001x2001xf16>, tensor<1x64x2001x2001xf16> -> tensor<1x64x2001x2001xf16>
+
+    // CHECK: return [[Add2]] : tensor<1x64x2001x2001xf16>
+}
+
+// -----
+
+// CHECK-LABEL: @HandleLargeKernelsConv2DimsUnevenSplit
+func.func @HandleLargeKernelsConv2DimsUnevenSplit(%arg0 : tensor<1x1x32000x32000xf16>) -> tensor<1x64x2001x2001xf16> {
+    %cst = const.Declare tensor<64x1x18x18xf16> = dense<1.000000e+00> : tensor<64x1x18x18xf16>
+    %conv = IE.Convolution(%arg0, %cst) {dilations = [1, 1], pads_begin = [16, 16], pads_end = [16, 16], strides = [16, 16]} : tensor<1x1x32000x32000xf16>, tensor<64x1x18x18xf16> -> tensor<1x64x2001x2001xf16>
+
+    return %conv : tensor<1x64x2001x2001xf16>
+
+    // CHECK: [[CST:%.+]] = const.Declare tensor<64x1x7x7xf16> = dense<1.000000e+00> : tensor<64x1x18x18xf16>, [#const.SubView<[0, 0, 11, 11], [64, 1, 7, 7]>]
+    // CHECK: [[CST_0:%.+]] = const.Declare tensor<64x1x7x11xf16> = dense<1.000000e+00> : tensor<64x1x18x18xf16>, [#const.SubView<[0, 0, 11, 0], [64, 1, 7, 11]>]
+    // CHECK: [[CST_1:%.+]] = const.Declare tensor<64x1x11x7xf16> = dense<1.000000e+00> : tensor<64x1x18x18xf16>, [#const.SubView<[0, 0, 0, 11], [64, 1, 11, 7]>]
+    // CHECK: [[CST_2:%.+]] = const.Declare tensor<64x1x11x11xf16> = dense<1.000000e+00> : tensor<64x1x18x18xf16>, [#const.SubView<[0, 0, 0, 0], [64, 1, 11, 11]>]
+    // CHECK: [[CST_3:%.+]] = const.Declare tensor<1x1x16x32032xf16> = dense<0.000000e+00> : tensor<1x1x16x32032xf16>
+    // CHECK: [[CST_4:%.+]] = const.Declare tensor<1x1x32000x16xf16> = dense<0.000000e+00> : tensor<1x1x32000x16xf16>
+    // CHECK: [[CONCAT0:%.+]] = IE.Concat([[CST_4]], %arg0, [[CST_4]]) {per_axis = {axis = 3 : i64}} : tensor<1x1x32000x16xf16>, tensor<1x1x32000x32000xf16>, tensor<1x1x32000x16xf16> -> tensor<1x1x32000x32032xf16>
+    // CHECK: [[CONCAT:%.+]] = IE.Concat([[CST_3]], [[CONCAT0]], [[CST_3]]) {per_axis = {axis = 2 : i64}} : tensor<1x1x16x32032xf16>, tensor<1x1x32000x32032xf16>, tensor<1x1x16x32032xf16> -> tensor<1x1x32032x32032xf16>
+    // CHECK: [[SLICEACT0:%.+]] = IE.Slice [[CONCAT]] [0, 0, 0, 0] [1, 1, 32011, 32011] : tensor<1x1x32032x32032xf16> to tensor<1x1x32011x32011xf16>
+    // CHECK: [[CONV0:%.+]] = IE.Convolution([[SLICEACT0]], [[CST_2]]) {dilations = [1, 1], pads_begin = [0, 0], pads_end = [0, 0], strides = [16, 16]} : tensor<1x1x32011x32011xf16>, tensor<64x1x11x11xf16> -> tensor<1x64x2001x2001xf16>
+    // CHECK: [[SLICEACT1:%.+]] = IE.Slice [[CONCAT]] [0, 0, 0, 11] [1, 1, 32011, 32007] : tensor<1x1x32032x32032xf16> to tensor<1x1x32011x32007xf16>
+    // CHECK: [[CONV1:%.+]] = IE.Convolution([[SLICEACT1]], [[CST_1]]) {dilations = [1, 1], pads_begin = [0, 0], pads_end = [0, 0], strides = [16, 16]} : tensor<1x1x32011x32007xf16>, tensor<64x1x11x7xf16> -> tensor<1x64x2001x2001xf16>
+    // CHECK: [[Add0:%.+]] = IE.Add([[CONV0]], [[CONV1]]) {auto_broadcast = #IE.auto_broadcast_type<NONE_OR_EXPLICIT>} : tensor<1x64x2001x2001xf16>, tensor<1x64x2001x2001xf16> -> tensor<1x64x2001x2001xf16>
+    // CHECK: [[SLICEACT2:%.+]] = IE.Slice [[CONCAT]] [0, 0, 11, 0] [1, 1, 32007, 32011] : tensor<1x1x32032x32032xf16> to tensor<1x1x32007x32011xf16>
+    // CHECK: [[CONV2:%.+]] = IE.Convolution([[SLICEACT2]], [[CST_0]]) {dilations = [1, 1], pads_begin = [0, 0], pads_end = [0, 0], strides = [16, 16]} : tensor<1x1x32007x32011xf16>, tensor<64x1x7x11xf16> -> tensor<1x64x2001x2001xf16>
+    // CHECK: [[Add1:%.+]] = IE.Add([[Add0]], [[CONV2]]) {auto_broadcast = #IE.auto_broadcast_type<NONE_OR_EXPLICIT>} : tensor<1x64x2001x2001xf16>, tensor<1x64x2001x2001xf16> -> tensor<1x64x2001x2001xf16>
+    // CHECK: [[SLICEACT3:%.+]] = IE.Slice [[CONCAT]] [0, 0, 11, 11] [1, 1, 32007, 32007] : tensor<1x1x32032x32032xf16> to tensor<1x1x32007x32007xf16>
+    // CHECK: [[CONV3:%.+]] = IE.Convolution([[SLICEACT3]], [[CST]]) {dilations = [1, 1], pads_begin = [0, 0], pads_end = [0, 0], strides = [16, 16]} : tensor<1x1x32007x32007xf16>, tensor<64x1x7x7xf16> -> tensor<1x64x2001x2001xf16>
+    // CHECK: [[Add2:%.+]] = IE.Add([[Add1]], [[CONV3]]) {auto_broadcast = #IE.auto_broadcast_type<NONE_OR_EXPLICIT>} : tensor<1x64x2001x2001xf16>, tensor<1x64x2001x2001xf16> -> tensor<1x64x2001x2001xf16>
+
+    // CHECK: return [[Add2]] : tensor<1x64x2001x2001xf16>
 }

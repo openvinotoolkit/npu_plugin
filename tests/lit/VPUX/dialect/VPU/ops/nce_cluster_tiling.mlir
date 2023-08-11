@@ -1,14 +1,15 @@
 //
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
+
 // RUN: vpux-opt --split-input-file --init-compiler="vpu-arch=%arch%" --canonicalize %s | FileCheck %s
 // REQUIRES: arch-VPUX30XX || arch-VPUX37XX
 
 #NCHW = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
-func @ParsePrintClusterTiling(%arg0: tensor<1x32x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>) -> tensor<1x64x14x14xf16, {mem_space = @CMX_NN, order = #NHWC}> {
+func.func @ParsePrintClusterTiling(%arg0: tensor<1x32x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>) -> tensor<1x64x14x14xf16, {mem_space = @CMX_NN, order = #NHWC}> {
     %weights = const.Declare tensor<64x32x3x3xf16, {mem_space = @CMX_NN, order = #NHWC}> = dense<1.000000e+00> : tensor<64x32x3x3xf16, {mem_space = @CMX_NN}>, [#const.Reorder<#NHWC>]
     %wt = const.Declare tensor<64x1x1x4xsi32, {mem_space = @CMX_NN, order = #NCHW}> = dense<10> : tensor<64x1x1x4xsi32, {mem_space = @CMX_NN}>
 
@@ -27,8 +28,8 @@ func @ParsePrintClusterTiling(%arg0: tensor<1x32x16x16xf16, {mem_space = @CMX_NN
 
     return %0 : tensor<1x64x14x14xf16, {mem_space = @CMX_NN, order = #NHWC}>
 
-    //CHECK:        [[CST0:%.*]] = const.Declare tensor<64x1x1x4xsi32, {mem_space = @CMX_NN, order = #NCHW}>
-    //CHECK:        [[CST:%.*]] = const.Declare tensor<64x32x3x3xf16, {mem_space = @CMX_NN, order = #NHWC}>
+    //CHECK-DAG:        [[CST0:%.*]] = const.Declare tensor<64x1x1x4xsi32, {mem_space = @CMX_NN, order = #NCHW}>
+    //CHECK-DAG:        [[CST:%.*]] = const.Declare tensor<64x32x3x3xf16, {mem_space = @CMX_NN, order = #NHWC}>
 
     //CHECK:        [[VAL0:%.*]] = VPU.NCE.ClusterTiling (
     //CHECK-SAME:                   %arg0 as %arg1: tensor<1x32x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>,
@@ -50,7 +51,7 @@ func @ParsePrintClusterTiling(%arg0: tensor<1x32x16x16xf16, {mem_space = @CMX_NN
 #NCHW = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
-!InputDistributed = type !VPU.DistributedTensor<
+!InputDistributed = !VPU.DistributedTensor<
     1x32x16x16xf16, #NHWC, @CMX_NN, {
     mode = "OVERLAPPED",
     num_tiles = [1, 1, 4, 1],
@@ -60,36 +61,36 @@ func @ParsePrintClusterTiling(%arg0: tensor<1x32x16x16xf16, {mem_space = @CMX_NN
     num_clusters = 4
 }>
 
-!WeightsDistributed = type !VPU.DistributedTensor<
+!WeightsDistributed = !VPU.DistributedTensor<
     64x32x3x3xf16, #NHWC, @CMX_NN, {
     mode = "DUPLICATED",
     num_clusters = 4
 }>
 
-!WeightsTableDistributed = type !VPU.DistributedTensor<
+!WeightsTableDistributed = !VPU.DistributedTensor<
     64x1x1x4xsi32, #NCHW, @CMX_NN, {
     mode = "DUPLICATED",
     num_clusters = 4
 }>
 
-!OutputDistributed = type !VPU.DistributedTensor<
+!OutputDistributed = !VPU.DistributedTensor<
     1x64x16x16xf16, #NHWC, @CMX_NN, {
     mode = "SEGMENTED",
     num_tiles = [1, 1, 4, 1],
     num_clusters = 4
 }>
 
-!Input_DDR = type tensor<1x32x16x16xf16, {mem_space = @DDR, order = #NHWC}>
-!Weights_DDR = type tensor<64x32x3x3xf16, {mem_space = @DDR, order = #NHWC}>
-!WeightsTable_DDR = type tensor<64x1x1x4xsi32, {mem_space = @DDR, order = #NCHW}>
-!Output_DDR = type tensor<1x64x16x16xf16, {mem_space = @DDR, order = #NHWC}>
+!Input_DDR = tensor<1x32x16x16xf16, {mem_space = @DDR, order = #NHWC}>
+!Weights_DDR = tensor<64x32x3x3xf16, {mem_space = @DDR, order = #NHWC}>
+!WeightsTable_DDR = tensor<64x1x1x4xsi32, {mem_space = @DDR, order = #NCHW}>
+!Output_DDR = tensor<1x64x16x16xf16, {mem_space = @DDR, order = #NHWC}>
 
-!InputStub_CMX = type tensor<1x32x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>
-!WeightsStub_CMX = type tensor<64x32x3x3xf16, {mem_space = @CMX_NN, order = #NHWC}>
-!WeightsTableStub_CMX = type tensor<64x1x1x4xsi32, {mem_space = @CMX_NN, order = #NCHW}>
-!OutputStub_CMX = type tensor<1x64x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>
+!InputStub_CMX = tensor<1x32x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>
+!WeightsStub_CMX = tensor<64x32x3x3xf16, {mem_space = @CMX_NN, order = #NHWC}>
+!WeightsTableStub_CMX = tensor<64x1x1x4xsi32, {mem_space = @CMX_NN, order = #NCHW}>
+!OutputStub_CMX = tensor<1x64x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>
 
-func @ParsePrintDistributedTensor(%arg0: !Input_DDR) -> !Output_DDR {
+func.func @ParsePrintDistributedTensor(%arg0: !Input_DDR) -> !Output_DDR {
     %weights = const.Declare tensor<64x32x3x3xf16, {mem_space = @DDR, order = #NHWC}> = dense<1.000000e+00> : tensor<64x32x3x3xf16, {mem_space = @DDR}>, [#const.Reorder<#NHWC>]
     %wt = const.Declare tensor<64x1x1x4xsi32, {mem_space = @CMX_NN, order = #NCHW}> = dense<10> : tensor<64x1x1x4xsi32, {mem_space = @CMX_NN}>
 
@@ -128,8 +129,8 @@ func @ParsePrintDistributedTensor(%arg0: !Input_DDR) -> !Output_DDR {
 
     return %output: !Output_DDR
 
-    //CHECK:        [[WEIGHTS_TABLE:%.*]] = const.Declare tensor<64x1x1x4xsi32, {mem_space = @CMX_NN, order = #NCHW}>
-    //CHECK:        [[WEIGHTS:%.*]] = const.Declare tensor<64x32x3x3xf16, {mem_space = @DDR, order = #NHWC}> = dense<1.000000e+00> : tensor<64x32x3x3xf16, {mem_space = @DDR}>, [#const.Reorder<#NHWC>]
+    //CHECK-DAG:        [[WEIGHTS_TABLE:%.*]] = const.Declare tensor<64x1x1x4xsi32, {mem_space = @CMX_NN, order = #NCHW}>
+    //CHECK-DAG:        [[WEIGHTS:%.*]] = const.Declare tensor<64x32x3x3xf16, {mem_space = @DDR, order = #NHWC}> = dense<1.000000e+00> : tensor<64x32x3x3xf16, {mem_space = @DDR}>, [#const.Reorder<#NHWC>]
 
     //CHECK:        [[INPUT_CMX:%.*]] = VPU.NCE.ClusterTiling (%arg0 as %arg1: tensor<1x32x16x16xf16, {mem_space = @DDR, order = #NHWC}>) -> !VPU.DistributedTensor<1x32x16x16xf16, #NHWC, @CMX_NN, {mode = "OVERLAPPED", num_tiles = [1, 1, 4, 1], kernel = [3, 3], pads = {bottom = 1 : i64, left = 1 : i64, right = 1 : i64, top = 1 : i64}, strides = [1, 1], num_clusters = 4 : i64}> {
     //CHECK:            [[RES0:%.*]] = VPU.Copy(%arg1) {out_mem_space = @CMX_NN} : tensor<1x32x16x16xf16, {mem_space = @DDR, order = #NHWC}> -> tensor<1x32x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>
@@ -170,17 +171,17 @@ func @ParsePrintDistributedTensor(%arg0: !Input_DDR) -> !Output_DDR {
 
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
-!TensorDistributed = type !VPU.DistributedTensor<
+!TensorDistributed = !VPU.DistributedTensor<
     1x64x16x16xf16, #NHWC, @CMX_NN, {
     mode = "SEGMENTED",
     num_tiles = [1, 1, 4, 1],
     num_clusters = 4
 }>
 
-!Tensor_DDR = type tensor<1x64x16x16xf16, {mem_space = @DDR, order = #NHWC}>
-!TensorStub_CMX = type tensor<1x64x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>
+!Tensor_DDR = tensor<1x64x16x16xf16, {mem_space = @DDR, order = #NHWC}>
+!TensorStub_CMX = tensor<1x64x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>
 
-func @EraseSOHCopySequence(%arg0: !TensorDistributed) -> !TensorDistributed {
+func.func @EraseSOHCopySequence(%arg0: !TensorDistributed) -> !TensorDistributed {
     %spilled_ddr = VPU.NCE.ClusterTiling(%arg0 as %arg1: !TensorStub_CMX) -> !Tensor_DDR {
         %0 = VPU.Copy(%arg1) { out_mem_space = @DDR } : !TensorStub_CMX -> !Tensor_DDR
         VPU.Yield %0
@@ -200,17 +201,17 @@ func @EraseSOHCopySequence(%arg0: !TensorDistributed) -> !TensorDistributed {
 
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
-!TensorDistributed = type !VPU.DistributedTensor<
+!TensorDistributed = !VPU.DistributedTensor<
     1x64x16x16xf16, #NHWC, @CMX_NN, {
     mode = "SEGMENTED",
     num_tiles = [1, 1, 4, 1],
     num_clusters = 4
 }>
 
-!Tensor_DDR = type tensor<1x64x16x16xf16, {mem_space = @DDR, order = #NHWC}>
-!TensorStub_CMX = type tensor<1x64x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>
+!Tensor_DDR = tensor<1x64x16x16xf16, {mem_space = @DDR, order = #NHWC}>
+!TensorStub_CMX = tensor<1x64x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>
 
-func @EraseCopySequenceDontAlterCMXConsumers(%arg0: !TensorDistributed) -> (!TensorDistributed, !Tensor_DDR) {
+func.func @EraseCopySequenceDontAlterCMXConsumers(%arg0: !TensorDistributed) -> (!TensorDistributed, !Tensor_DDR) {
     %spilled_ddr = VPU.NCE.ClusterTiling(%arg0 as %arg1: !TensorStub_CMX) -> !Tensor_DDR {
         %0 = VPU.Copy(%arg1) { out_mem_space = @DDR } : !TensorStub_CMX -> !Tensor_DDR
         VPU.Yield %0
@@ -238,17 +239,17 @@ func @EraseCopySequenceDontAlterCMXConsumers(%arg0: !TensorDistributed) -> (!Ten
 
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
-!TensorDistributed = type !VPU.DistributedTensor<
+!TensorDistributed = !VPU.DistributedTensor<
     1x64x16x16xf16, #NHWC, @CMX_NN, {
     mode = "SEGMENTED",
     num_tiles = [1, 1, 4, 1],
     num_clusters = 4
 }>
 
-!Tensor_DDR = type tensor<1x64x16x16xf16, {mem_space = @DDR, order = #NHWC}>
-!TensorStub_CMX = type tensor<1x64x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>
+!Tensor_DDR = tensor<1x64x16x16xf16, {mem_space = @DDR, order = #NHWC}>
+!TensorStub_CMX = tensor<1x64x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>
 
-func @EraseCopySequenceMultipleDDRConsumersSameMode(%arg0: !TensorDistributed) -> (!TensorDistributed, !TensorDistributed) {
+func.func @EraseCopySequenceMultipleDDRConsumersSameMode(%arg0: !TensorDistributed) -> (!TensorDistributed, !TensorDistributed) {
     %spilled_ddr = VPU.NCE.ClusterTiling(%arg0 as %arg1: !TensorStub_CMX) -> !Tensor_DDR {
         %0 = VPU.Copy(%arg1) { out_mem_space = @DDR } : !TensorStub_CMX -> !Tensor_DDR
         VPU.Yield %0
@@ -274,23 +275,23 @@ func @EraseCopySequenceMultipleDDRConsumersSameMode(%arg0: !TensorDistributed) -
 
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
-!TensorSegmented = type !VPU.DistributedTensor<
+!TensorSegmented = !VPU.DistributedTensor<
     1x64x16x16xf16, #NHWC, @CMX_NN, {
     mode = "SEGMENTED",
     num_tiles = [1, 1, 4, 1],
     num_clusters = 4
 }>
 
-!TensorDuplicated = type !VPU.DistributedTensor<
+!TensorDuplicated = !VPU.DistributedTensor<
     1x64x16x16xf16, #NHWC, @CMX_NN, {
     mode = "DUPLICATED",
     num_clusters = 4
 }>
 
-!Tensor_DDR = type tensor<1x64x16x16xf16, {mem_space = @DDR, order = #NHWC}>
-!TensorStub_CMX = type tensor<1x64x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>
+!Tensor_DDR = tensor<1x64x16x16xf16, {mem_space = @DDR, order = #NHWC}>
+!TensorStub_CMX = tensor<1x64x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>
 
-func @EraseCopySequenceMultipleDDRConsumersDiffMode(%arg0: !TensorSegmented) -> (!TensorSegmented, !TensorDuplicated) {
+func.func @EraseCopySequenceMultipleDDRConsumersDiffMode(%arg0: !TensorSegmented) -> (!TensorSegmented, !TensorDuplicated) {
     %spilled_ddr = VPU.NCE.ClusterTiling(%arg0 as %arg1: !TensorStub_CMX) -> !Tensor_DDR {
         %0 = VPU.Copy(%arg1) { out_mem_space = @DDR } : !TensorStub_CMX -> !Tensor_DDR
         VPU.Yield %0
@@ -319,23 +320,23 @@ func @EraseCopySequenceMultipleDDRConsumersDiffMode(%arg0: !TensorSegmented) -> 
 
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
-!CopyOutTensorDistributed = type !VPU.DistributedTensor<
+!CopyOutTensorDistributed = !VPU.DistributedTensor<
     1x64x16x16xf16, #NHWC, @CMX_NN, {
     mode = "SEGMENTED|DUPLICATED",
     num_tiles = [1, 4, 1, 1],
     num_clusters = 4
 }>
 
-!CopyInTensorDistributed = type !VPU.DistributedTensor<
+!CopyInTensorDistributed = !VPU.DistributedTensor<
     1x64x16x16xf16, #NHWC, @CMX_NN, {
     mode = "DUPLICATED",
     num_clusters = 4
 }>
 
-!Tensor_DDR = type tensor<1x64x16x16xf16, {mem_space = @DDR, order = #NHWC}>
-!TensorStub_CMX = type tensor<1x64x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>
+!Tensor_DDR = tensor<1x64x16x16xf16, {mem_space = @DDR, order = #NHWC}>
+!TensorStub_CMX = tensor<1x64x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>
 
-func @EraseSOKCopySequence(%arg0: !CopyOutTensorDistributed) -> !CopyInTensorDistributed {
+func.func @EraseSOKCopySequence(%arg0: !CopyOutTensorDistributed) -> !CopyInTensorDistributed {
     %spilled_ddr = VPU.NCE.ClusterTiling(%arg0 as %arg1: !TensorStub_CMX) -> !Tensor_DDR {
         %0 = VPU.Copy(%arg1) { out_mem_space = @DDR } : !TensorStub_CMX -> !Tensor_DDR
         VPU.Yield %0
@@ -357,24 +358,24 @@ func @EraseSOKCopySequence(%arg0: !CopyOutTensorDistributed) -> !CopyInTensorDis
 
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
-!CopyOutTensorDistributed = type !VPU.DistributedTensor<
+!CopyOutTensorDistributed = !VPU.DistributedTensor<
     1x64x16x16xf16, #NHWC, @CMX_NN, {
     mode = "SEGMENTED|DUPLICATED",
     num_tiles = [1, 4, 1, 1],
     num_clusters = 4
 }>
 
-!CopyInTensorDistributed = type !VPU.DistributedTensor<
+!CopyInTensorDistributed = !VPU.DistributedTensor<
     1x64x16x16xf16, #NHWC, @CMX_NN, {
     mode = "SEGMENTED",
     num_tiles = [1, 4, 1, 1],
     num_clusters = 4
 }>
 
-!Tensor_DDR = type tensor<1x64x16x16xf16, {mem_space = @DDR, order = #NHWC}>
-!TensorStub_CMX = type tensor<1x64x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>
+!Tensor_DDR = tensor<1x64x16x16xf16, {mem_space = @DDR, order = #NHWC}>
+!TensorStub_CMX = tensor<1x64x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>
 
-func @DontEraseSOKtoSOHCopySequence(%arg0: !CopyOutTensorDistributed) -> !CopyInTensorDistributed {
+func.func @DontEraseSOKtoSOHCopySequence(%arg0: !CopyOutTensorDistributed) -> !CopyInTensorDistributed {
     %spilled_ddr = VPU.NCE.ClusterTiling(%arg0 as %arg1: !TensorStub_CMX) -> !Tensor_DDR {
         %0 = VPU.Copy(%arg1) { out_mem_space = @DDR } : !TensorStub_CMX -> !Tensor_DDR
         VPU.Yield %0
@@ -399,7 +400,7 @@ func @DontEraseSOKtoSOHCopySequence(%arg0: !CopyOutTensorDistributed) -> !CopyIn
 #NCHW = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
-!InputDistributed = type !VPU.DistributedTensor<
+!InputDistributed = !VPU.DistributedTensor<
     1x32x16x16xf16, #NHWC, @CMX_NN, {
     mode = "OVERLAPPED",
     num_tiles = [1, 1, 4, 1],
@@ -409,61 +410,61 @@ func @DontEraseSOKtoSOHCopySequence(%arg0: !CopyOutTensorDistributed) -> !CopyIn
     strides = [1, 1]
 }>
 
-!WeightsFirstDistributed = type !VPU.DistributedTensor<
+!WeightsFirstDistributed = !VPU.DistributedTensor<
     64x32x3x3xf16, #NHWC, @CMX_NN, {
     mode = "DUPLICATED",
     num_clusters = 4
 }>
 
-!WeightsTableFirstDistributed = type !VPU.DistributedTensor<
+!WeightsTableFirstDistributed = !VPU.DistributedTensor<
     64x1x1x4xsi32, #NCHW, @CMX_NN, {
     mode = "DUPLICATED",
     num_clusters = 4
 }>
 
-!IntermediateDistributed = type !VPU.DistributedTensor<
+!IntermediateDistributed = !VPU.DistributedTensor<
     1x64x16x16xf16, #NHWC, @CMX_NN, {
     mode = "SEGMENTED",
     num_tiles = [1, 1, 4, 1],
     num_clusters = 4
 }>
 
-!WeightsSecondDistributed = type !VPU.DistributedTensor<
+!WeightsSecondDistributed = !VPU.DistributedTensor<
     16x64x1x1xf16, #NHWC, @CMX_NN, {
     mode = "DUPLICATED",
     num_clusters = 4
 }>
 
-!WeightsTableSecondDistributed = type !VPU.DistributedTensor<
+!WeightsTableSecondDistributed = !VPU.DistributedTensor<
     16x1x1x16xui8, #NCHW, @CMX_NN, {
     mode = "DUPLICATED",
     num_clusters = 4
 }>
 
-!OutputDistributed = type !VPU.DistributedTensor<
+!OutputDistributed = !VPU.DistributedTensor<
     1x16x16x16xf16, #NHWC, @CMX_NN, {
     mode = "SEGMENTED",
     num_tiles = [1, 1, 4, 1],
     num_clusters = 4
 }>
 
-!Input_DDR = type tensor<1x32x16x16xf16, {mem_space = @DDR, order = #NHWC}>
-!WeightsFirst_DDR = type tensor<64x32x3x3xf16, {mem_space = @DDR, order = #NHWC}>
-!WeightsTableFirst_DDR = type tensor<64x1x1x4xsi32, {mem_space = @DDR, order = #NCHW}>
-!Intermediate_DDR = type tensor<1x64x16x16xf16, {mem_space = @DDR, order = #NHWC}>
-!WeightsSecond_DDR = type tensor<16x64x1x1xf16, {mem_space = @DDR, order = #NHWC}>
-!WeightsTableSecond_DDR = type tensor<16x1x1x4xsi32, {mem_space = @DDR, order = #NCHW}>
-!Output_DDR = type tensor<1x16x16x16xf16, {mem_space = @DDR, order = #NHWC}>
+!Input_DDR = tensor<1x32x16x16xf16, {mem_space = @DDR, order = #NHWC}>
+!WeightsFirst_DDR = tensor<64x32x3x3xf16, {mem_space = @DDR, order = #NHWC}>
+!WeightsTableFirst_DDR = tensor<64x1x1x4xsi32, {mem_space = @DDR, order = #NCHW}>
+!Intermediate_DDR = tensor<1x64x16x16xf16, {mem_space = @DDR, order = #NHWC}>
+!WeightsSecond_DDR = tensor<16x64x1x1xf16, {mem_space = @DDR, order = #NHWC}>
+!WeightsTableSecond_DDR = tensor<16x1x1x4xsi32, {mem_space = @DDR, order = #NCHW}>
+!Output_DDR = tensor<1x16x16x16xf16, {mem_space = @DDR, order = #NHWC}>
 
-!InputStub_CMX = type tensor<1x32x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>
-!WeightsFirstStub_CMX = type tensor<64x32x3x3xf16, {mem_space = @CMX_NN, order = #NHWC}>
-!WeightsTableFirstStub_CMX = type tensor<64x1x1x4xsi32, {mem_space = @CMX_NN, order = #NCHW}>
-!IntermediateStub_CMX = type tensor<1x64x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>
-!WeightsSecondStub_CMX = type tensor<16x64x1x1xf16, {mem_space = @CMX_NN, order = #NHWC}>
-!WeightsTableSecondStub_CMX = type tensor<16x1x1x4xsi32, {mem_space = @CMX_NN, order = #NCHW}>
-!OutputStub_CMX = type tensor<1x16x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>
+!InputStub_CMX = tensor<1x32x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>
+!WeightsFirstStub_CMX = tensor<64x32x3x3xf16, {mem_space = @CMX_NN, order = #NHWC}>
+!WeightsTableFirstStub_CMX = tensor<64x1x1x4xsi32, {mem_space = @CMX_NN, order = #NCHW}>
+!IntermediateStub_CMX = tensor<1x64x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>
+!WeightsSecondStub_CMX = tensor<16x64x1x1xf16, {mem_space = @CMX_NN, order = #NHWC}>
+!WeightsTableSecondStub_CMX = tensor<16x1x1x4xsi32, {mem_space = @CMX_NN, order = #NCHW}>
+!OutputStub_CMX = tensor<1x16x16x16xf16, {mem_space = @CMX_NN, order = #NHWC}>
 
-func @CanonicalizeTwoConvs(%arg0: !Input_DDR) -> !Output_DDR {
+func.func @CanonicalizeTwoConvs(%arg0: !Input_DDR) -> !Output_DDR {
     %weights_first = const.Declare tensor<64x32x3x3xf16, {mem_space = @DDR, order = #NHWC}> = dense<1.000000e+00>
                    : tensor<64x32x3x3xf16, {mem_space = @DDR}>, [#const.Reorder<#NHWC>]
     %wt_first = const.Declare tensor<64x1x1x4xsi32, {mem_space = @DDR, order = #NCHW}> = dense<10>
@@ -571,16 +572,16 @@ func @CanonicalizeTwoConvs(%arg0: !Input_DDR) -> !Output_DDR {
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 #NCHW = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
 
-!SparseTypeCMX = type !VPU.SparseTensor<data=tensor<1x64x52x52xf16, {mem_space = @CMX_NN, order = #NHWC}>, sparsity_map=tensor<1x64x52x52xi1, {mem_space = @CMX_NN, order = #NHWC}>>
-!SparseTypeDDR = type !VPU.SparseTensor<data=tensor<1x64x52x52xf16, {order = #NHWC}>, sparsity_map=tensor<1x64x52x52xi1, {order = #NHWC}>>
+!SparseTypeCMX = !VPU.SparseTensor<data=tensor<1x64x52x52xf16, {mem_space = @CMX_NN, order = #NHWC}>, sparsity_map=tensor<1x64x52x52xi1, {mem_space = @CMX_NN, order = #NHWC}>>
+!SparseTypeDDR = !VPU.SparseTensor<data=tensor<1x64x52x52xf16, {order = #NHWC}>, sparsity_map=tensor<1x64x52x52xi1, {order = #NHWC}>>
 
-!InputDistributedType = type !VPU.SparseTensor<data=!VPU.DistributedTensor<1x64x52x52xf16, #NHWC, @CMX_NN, {mode = "DUPLICATED|SEGMENTED", num_tiles = [1, 2, 1, 1], num_clusters = 2 : i64, alignment = [1, 16, 1, 1]}>,
+!InputDistributedType = !VPU.SparseTensor<data=!VPU.DistributedTensor<1x64x52x52xf16, #NHWC, @CMX_NN, {mode = "DUPLICATED|SEGMENTED", num_tiles = [1, 2, 1, 1], num_clusters = 2 : i64, alignment = [1, 16, 1, 1]}>,
                                                sparsity_map=!VPU.DistributedTensor<1x64x52x52xi1, #NHWC, @CMX_NN, {mode = "DUPLICATED|SEGMENTED", num_tiles = [1, 2, 1, 1], num_clusters = 2 : i64, alignment = [1, 16, 1, 1]}>>
 
-!OutputDistributedType = type !VPU.SparseTensor<data=!VPU.DistributedTensor<1x64x52x52xf16, #NHWC, @CMX_NN, {mode = "DUPLICATED", num_clusters = 2 : i64, alignment = [1, 16, 1, 1]}>,
+!OutputDistributedType = !VPU.SparseTensor<data=!VPU.DistributedTensor<1x64x52x52xf16, #NHWC, @CMX_NN, {mode = "DUPLICATED", num_clusters = 2 : i64, alignment = [1, 16, 1, 1]}>,
                                                 sparsity_map=!VPU.DistributedTensor<1x64x52x52xi1, #NHWC, @CMX_NN, {mode = "DUPLICATED", num_clusters = 2 : i64, alignment = [1, 16, 1, 1]}>>
 
-func @OptimizeCMXDDRCMXCopiesSparseType(%input: !InputDistributedType) -> !OutputDistributedType {
+func.func @OptimizeCMXDDRCMXCopiesSparseType(%input: !InputDistributedType) -> !OutputDistributedType {
     %0 = VPU.NCE.ClusterTiling (%input as %arg1: !SparseTypeCMX) -> !SparseTypeDDR {
         %3 = VPU.Copy(%arg1) : !SparseTypeCMX -> !SparseTypeDDR
         VPU.Yield %3

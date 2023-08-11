@@ -8,10 +8,12 @@ set(CID_COMPONENT "CiD")
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
 
-set(ELF_DIR "${VPUX_ELF_SOURCE_DIR}/vpux_elf/")
-set(LOADER_DIR_INC "${VPUX_ELF_SOURCE_DIR}/vpux_elf/loader/include/")
-set(LOADER_DIR_SRC "${VPUX_ELF_SOURCE_DIR}/vpux_elf/loader/src")
-set(LOADER_DIR "${VPUX_ELF_SOURCE_DIR}/vpux_elf/loader/")
+set(ELF_DIR "${InferenceEngineVPUXPlugin_SOURCE_DIR}/thirdparty/graphFile-schema/vpux_elf/")
+set(LOADER_DIR_INC "${InferenceEngineVPUXPlugin_SOURCE_DIR}/thirdparty/graphFile-schema/vpux_elf/loader/include/")
+set(LOADER_DIR_HPI_INC "${InferenceEngineVPUXPlugin_SOURCE_DIR}/thirdparty/graphFile-schema/vpux_elf/hpi_component/include/")
+set(LOADER_DIR_HPI_SRC "${InferenceEngineVPUXPlugin_SOURCE_DIR}/thirdparty/graphFile-schema/vpux_elf/hpi_component/src")
+set(LOADER_DIR_SRC "${InferenceEngineVPUXPlugin_SOURCE_DIR}/thirdparty/graphFile-schema/vpux_elf/loader/src")
+set(LOADER_DIR "${InferenceEngineVPUXPlugin_SOURCE_DIR}/thirdparty/graphFile-schema/vpux_elf/loader/")
 
 add_subdirectory(src)
 add_subdirectory(loader)
@@ -87,7 +89,7 @@ ie_add_api_validator_post_build_step(TARGET profilingTest)
 ie_add_api_validator_post_build_step(TARGET vpuxCompilerL0Test)
 ie_add_api_validator_post_build_step(TARGET loaderTest)
 
-ie_cpack_add_component(${CID_COMPONENT})
+ov_cpack_add_component(${CID_COMPONENT})
 
 install(TARGETS vpuxCompilerL0Test
         RUNTIME DESTINATION cid COMPONENT ${CID_COMPONENT})
@@ -112,9 +114,33 @@ install(DIRECTORY "${LOADER_DIR_INC}/vpux_loader"
         COMPONENT ${CID_COMPONENT})
 
 #
+# hpi_component | -> common/ -> 2 hpp
+#               | -> 3720/   -> 1 hpp
+
+install(DIRECTORY "${LOADER_DIR_HPI_INC}/common"
+        DESTINATION cid/vpux_elf/loader/include/
+        COMPONENT ${CID_COMPONENT})
+
+install(DIRECTORY "${LOADER_DIR_HPI_INC}/3720"
+        DESTINATION cid/vpux_elf/loader/include/
+        COMPONENT ${CID_COMPONENT})
+
+#
 # loader folder | -> src/ | 1 cpp
 
 install(DIRECTORY "${LOADER_DIR_SRC}/"
+        DESTINATION cid/vpux_elf/loader/src/
+        COMPONENT ${CID_COMPONENT})
+
+#
+# hpi_component | src | common -> 1 cpp
+#               |     |  3720  -> 1 cpp
+
+install(DIRECTORY "${LOADER_DIR_HPI_SRC}/common"
+        DESTINATION cid/vpux_elf/loader/src/
+        COMPONENT ${CID_COMPONENT})
+
+install(DIRECTORY "${LOADER_DIR_HPI_SRC}/3720"
         DESTINATION cid/vpux_elf/loader/src/
         COMPONENT ${CID_COMPONENT})
 
@@ -241,6 +267,8 @@ install(TARGETS vpux_elf
         LIBRARY DESTINATION cid/vpux_elf/lib/RelWithDebInfo COMPONENT ${CID_COMPONENT}
         ARCHIVE DESTINATION cid/vpux_elf/lib/RelWithDebInfo COMPONENT ${CID_COMPONENT}
         RUNTIME DESTINATION cid/vpux_elf/lib/RelWithDebInfo COMPONENT ${CID_COMPONENT})
+
+target_compile_definitions(vpux_elf PUBLIC HOST_BUILD)
 
 install(TARGETS compilerTest
         RUNTIME DESTINATION cid COMPONENT ${CID_COMPONENT})

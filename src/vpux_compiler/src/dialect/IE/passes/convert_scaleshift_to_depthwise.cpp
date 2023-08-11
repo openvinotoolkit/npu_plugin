@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/core/layers.hpp"
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/IE/ops_interfaces.hpp"
@@ -154,7 +152,7 @@ mlir::LogicalResult ConvertScaleShiftToDWPass::ScaleShiftOpConverter::matchAndRe
 //
 
 void ConvertScaleShiftToDWPass::safeRunOnFunc() {
-    auto func = getFunction();
+    auto func = getOperation();
 
     auto& ctx = getContext();
 

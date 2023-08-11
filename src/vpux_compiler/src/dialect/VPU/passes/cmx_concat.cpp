@@ -90,36 +90,37 @@ struct NceBasedPart {
 
 struct InputConcatPart final : public NceBasedPart {
     mlir::Value concatOperand;
-    bool isBlockArg;
+    bool isBlockArgOrConsant;
 
-    InputConcatPart(mlir::Value operand): NceBasedPart(nullptr, nullptr), concatOperand(operand), isBlockArg(true) {
+    InputConcatPart(mlir::Value operand)
+            : NceBasedPart(nullptr, nullptr), concatOperand(operand), isBlockArgOrConsant(true) {
     }
 
     InputConcatPart(mlir::Value operand, VPU::CopyOp copy, VPU::NCEOpInterface nce)
-            : NceBasedPart(copy, nce), concatOperand(operand), isBlockArg(false) {
+            : NceBasedPart(copy, nce), concatOperand(operand), isBlockArgOrConsant(false) {
         if (copy == nullptr && nce == nullptr) {
-            isBlockArg = true;
+            isBlockArgOrConsant = true;
         }
     }
 
     InputConcatPart(mlir::Value operand, VPU::CopyOp copy, VPU::NCEClusterTilingOp copyCluster, VPU::NCEOpInterface nce,
                     VPU::NCEClusterTilingOp nceCluster)
-            : NceBasedPart(copy, copyCluster, nce, nceCluster), concatOperand(operand), isBlockArg(false) {
+            : NceBasedPart(copy, copyCluster, nce, nceCluster), concatOperand(operand), isBlockArgOrConsant(false) {
         if (copy == nullptr && copyCluster == nullptr && nce == nullptr && nceCluster == nullptr) {
-            isBlockArg = true;
+            isBlockArgOrConsant = true;
         }
     }
 
-    virtual mlir::Operation* getCopyOp() override {
-        if (isBlockArg) {
+    mlir::Operation* getCopyOp() override {
+        if (isBlockArgOrConsant) {
             return nullptr;
         }
 
         return NceBasedPart::getCopyOp();
     }
 
-    virtual mlir::Operation* getNceOp() override {
-        if (isBlockArg) {
+    mlir::Operation* getNceOp() override {
+        if (isBlockArgOrConsant) {
             return nullptr;
         }
 
@@ -181,14 +182,14 @@ void InputConcatPattern::rewrite() {
     });
 
     auto nceIt = llvm::find_if(_inputParts, [](const InputConcatPart& inPart) {
-        return !inPart.isBlockArg;
+        return !inPart.isBlockArgOrConsant;
     });
 
     for (auto p : _inputParts | indexed) {
         const auto& operandIdx = p.index();
         auto& inputPart = p.value();
         // modify only current concat input as it may have multiple uses
-        if (!inputPart.isBlockArg) {
+        if (!inputPart.isBlockArgOrConsant) {
             _log.trace("Removing input Copy from NNCMX to DDR '{0}' at '{1}'", inputPart.getCopyOp()->getName(),
                        inputPart.getCopyOp()->getLoc());
 
@@ -356,7 +357,7 @@ bool InputConcatPattern::areDistributionTypesConsistent() {
             distributedTypeInterfaceOutput.getDistributedTypes().front().cast<VPU::DistributedTensorType>();
 
     for (auto& part : _inputParts) {
-        if (part.isBlockArg) {
+        if (part.isBlockArgOrConsant) {
             continue;
         }
 
@@ -710,7 +711,7 @@ public:
     }
 
 private:
-    void safeRunOnFunc();
+    void safeRunOnFunc() override;
 
 private:
     mlir::FailureOr<InputConcatPattern> getInputPattern(VPU::ConcatOp concat);
@@ -724,19 +725,19 @@ private:
 mlir::FailureOr<InputConcatPattern> CMXConcatPass::getInputPattern(VPU::ConcatOp concat) {
     SmallVector<InputConcatPart> inputParts;
 
-    const auto getBlockArgument = [](mlir::Value input) -> mlir::Value {
-        if (input.isa<mlir::BlockArgument>()) {
+    const auto getBlockArgOrConstant = [](mlir::Value input) -> mlir::Value {
+        if (input.isa<mlir::BlockArgument>() || input.getDefiningOp<Const::DeclareOp>() != nullptr) {
             return input;
         }
 
         auto viewLike = input.getDefiningOp<VPU::ViewLikeOpInterface>();
         while (viewLike != nullptr) {
-            auto maybeBlockArgument = viewLike.getOperation()->getOperand(0);
+            auto maybeBlockArg = viewLike.getOperation()->getOperand(0);
             if (viewLike.getOperation()->getOperand(0).isa<mlir::BlockArgument>()) {
-                return maybeBlockArgument;
+                return maybeBlockArg;
             }
 
-            viewLike = maybeBlockArgument.getDefiningOp<VPU::ViewLikeOpInterface>();
+            viewLike = maybeBlockArg.getDefiningOp<VPU::ViewLikeOpInterface>();
         }
 
         return nullptr;
@@ -744,8 +745,8 @@ mlir::FailureOr<InputConcatPattern> CMXConcatPass::getInputPattern(VPU::ConcatOp
 
     const auto& logNest = _log.nest(2);
     for (auto input : concat.getOperands()) {
-        const auto maybeBlockArgument = getBlockArgument(input);
-        if (maybeBlockArgument != nullptr) {
+        const auto maybeBlockArgOrConstant = getBlockArgOrConstant(input);
+        if (maybeBlockArgOrConstant != nullptr) {
             inputParts.push_back(InputConcatPart(input));
             continue;
         }
@@ -786,7 +787,7 @@ mlir::FailureOr<InputConcatPattern> CMXConcatPass::getInputPattern(VPU::ConcatOp
     }
 
     auto hasNce = llvm::any_of(inputParts, [](InputConcatPart& part) {
-        return !part.isBlockArg;
+        return !part.isBlockArgOrConsant;
     });
 
     if (!hasNce) {
@@ -953,7 +954,7 @@ bool CMXConcatPass::isSplitSupportedOnDPU(VPU::SliceOp sliceOp) {
 bool CMXConcatPass::isPotentialCMXConcat(VPU::ConcatOp concat) {
     // if concat is a Result operation
     auto hasReturnUser = llvm::any_of(concat.output().getUsers(), [](mlir::Operation* outputUser) {
-        return mlir::isa<mlir::ReturnOp>(outputUser);
+        return mlir::isa<mlir::func::ReturnOp>(outputUser);
     });
 
     if (hasReturnUser) {
@@ -1021,7 +1022,7 @@ bool CMXConcatPass::areInputOutputPatternsCompatible(InputConcatPattern& inputPa
                                         .getDistributedTypes()
                                         .front()
                                         .cast<VPU::DistributedTensorType>();
-        if (mlir::failed(areDistributionAttrsCompatible(inputType.getDistribution(), outputType.getDistribution()))) {
+        if (mlir::failed(areDistributionAttrsCompatible(inputType, outputType))) {
             _log.trace("Input and output distributions are incompatible: input {0} and output {1}",
                        inputType.getDistribution(), outputType.getDistribution());
             return false;
@@ -1031,7 +1032,7 @@ bool CMXConcatPass::areInputOutputPatternsCompatible(InputConcatPattern& inputPa
 }
 
 void CMXConcatPass::safeRunOnFunc() {
-    auto func = getFunction();
+    auto func = getOperation();
     auto module = func->getParentOfType<mlir::ModuleOp>();
 
     auto availableMem = VPU::getTotalCMXSize(module);

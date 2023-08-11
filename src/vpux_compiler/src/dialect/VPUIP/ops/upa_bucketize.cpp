@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 
 #include "vpux/compiler/dialect/VPUIP/graph-schema/blob_reader.hpp"
@@ -12,11 +10,11 @@
 
 using namespace vpux;
 
-mlir::LogicalResult vpux::VPUIP::verifyOp(BucketizeUPAOp op) {
-    const mlir::Type constInt32 = getSInt32Type(op.getContext());
+mlir::LogicalResult vpux::VPUIP::BucketizeUPAOp::verify() {
+    const mlir::Type constInt32 = getSInt32Type(getContext());
 
-    if (!(op.output_type() == constInt32)) {
-        return errorAt(op, "Attribute output_type should have only SI32 type. Got {0} type", op.output_type());
+    if (!(output_type() == constInt32)) {
+        return errorAt(*this, "Attribute output_type should have only SI32 type. Got {0} type", output_type());
     }
     return mlir::success();
 }

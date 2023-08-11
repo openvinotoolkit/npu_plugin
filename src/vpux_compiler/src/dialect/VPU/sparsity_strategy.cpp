@@ -46,6 +46,11 @@ bool RatioBasedWeightsSparsityStrategy::shouldSparsifyWeights(Logger& log, mlir:
     const auto weightsOp = sparsifyCandidateOperand.getDefiningOp<Const::DeclareOp>();
 
     const auto actualSparsityRatio = getSparsityRatio(weightsOp);
+    if (isDoubleEqual(actualSparsityRatio, 1.0)) {
+        log.trace("All weights are zero, so sparsity ratio is 1. Skipping");
+        return false;
+    }
+
     auto sparsityRatioThreshold = hasFloatInput ? _floatRatioThreshold : _intRatioThreshold;
     if (_manualThreshold.hasValue()) {
         sparsityRatioThreshold = _manualThreshold.getValue();
@@ -54,6 +59,8 @@ bool RatioBasedWeightsSparsityStrategy::shouldSparsifyWeights(Logger& log, mlir:
     log.trace("Sparsity ratio {0}, threshold {1}", actualSparsityRatio, sparsityRatioThreshold);
     return std::isgreaterequal(actualSparsityRatio, sparsityRatioThreshold);
 }
+
+constexpr double CMXBasedSparsityThreshold::DISABLED_SPARSITY_RATIO;
 
 CMXBasedSparsityThreshold::CMXBasedSparsityThreshold(double cmxSizeRatio, double floatRatioThreshold,
                                                      double intRatioThreshold)
@@ -104,6 +111,11 @@ bool CMXConsumptionBasedWeightsSparsityStrategy::shouldSparsifyWeights(Logger& l
     }
 
     const auto actualSparsityRatio = getSparsityRatio(weightsOp);
+    if (isDoubleEqual(actualSparsityRatio, 1.0)) {
+        log.trace("All weights are zero, so sparsity ratio is 1. Skipping");
+        return false;
+    }
+
     log.trace("Sparsity ratio {0}, threshold {1}", actualSparsityRatio, sparsityRatioThreshold);
     return std::isgreaterequal(actualSparsityRatio, sparsityRatioThreshold);
 }

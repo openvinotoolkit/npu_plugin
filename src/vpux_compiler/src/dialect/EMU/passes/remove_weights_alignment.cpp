@@ -173,13 +173,13 @@ private:
 };
 
 /*
-   For CONV (on 37XX and 40XX), CMCONV and DWCONV, weights alignment is done as part of IE2VPU lowering. Emulator is not
+   For CONV (on 37XX), CMCONV and DWCONV, weights alignment is done as part of IE2VPU lowering. Emulator is not
    equiped to work with padded weights that squash IC, KY and KX into one dimension. Therefore, this pass is reverting
    the weights for these 2 ops to the original shape, stored in rasFilterShape attr.
 */
 void RemoveWeightsAlignmentPass::safeRunOnFunc() {
     auto& ctx = getContext();
-    auto func = getFunction();
+    auto func = getOperation();
 
     mlir::ConversionTarget target(ctx);
     target.addDynamicallyLegalOp<EMU::NCEClusterTaskOp>([&](EMU::NCEClusterTaskOp op) {

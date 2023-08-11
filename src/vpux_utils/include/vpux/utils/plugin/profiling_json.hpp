@@ -10,6 +10,7 @@
 #include <iomanip>
 #include <ostream>
 #include <string>
+#include <vector>
 
 namespace vpux {
 namespace profiling {
@@ -24,16 +25,11 @@ struct TracingEventDesc {
     // JSON numbers are doubles anyways so use double for more flexibility
     double timestamp;
     double duration;
+    std::vector<std::pair<std::string, std::string>> customArgs;
 };
 
 // This stream operator prints TracingEventDesc in JSON format.
-// Support "X" event type only - so called "Complete event".
-static inline std::ostream& operator<<(std::ostream& os, const struct TracingEventDesc& event) {
-    os << std::fixed << "{\"name\":\"" << event.name << "\", \"cat\":\"" << event.category << "\", \"ph\":\"X\", "
-       << "\"ts\":" << event.timestamp << ", \"dur\":" << event.duration << ", \"pid\":" << event.pid
-       << ", \"tid\":" << event.tid << ", \"args\":{}}," << std::endl;
-    return os;
-}
-
+// Support Tracing Event Format's "X" event type only - so called "Complete event".
+std::ostream& operator<<(std::ostream& os, const TracingEventDesc& event);
 }  // namespace profiling
 }  // namespace vpux

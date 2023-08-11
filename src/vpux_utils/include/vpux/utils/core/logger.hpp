@@ -60,7 +60,7 @@ void globalLogCb(const formatv_object_base&);
 // Logger
 //
 
-class Logger final {
+class Logger {
 public:
     static Logger& global();
 

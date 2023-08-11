@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #pragma once
 
 #include "vpux/compiler/core/attributes/dims_order.hpp"
@@ -29,11 +27,11 @@ namespace vpux {
 //
 
 struct TypeComponents {
-    Optional<ShapeRef> shape = None;
+    Optional<Shape> shape = None;
     Optional<mlir::Type> elementType = None;
     Optional<DimsOrder> dimsOrder = None;
     Optional<IndexedSymbolAttr> memSpace = None;
-    Optional<StridesRef> strides = None;
+    Optional<Strides> strides = None;
 
     TypeComponents& setShape(ShapeRef newShape);
     TypeComponents& setElementType(mlir::Type newElementType);

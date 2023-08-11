@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
 #include "vpux/compiler/utils/types.hpp"
@@ -35,7 +33,7 @@ private:
 //
 
 void BreakDataFlowPass::safeRunOnFunc() {
-    auto funcOp = getFunction();
+    auto funcOp = getOperation();
 
     funcOp.walk([](VPUIP::LayerOpInterface op) {
         for (const auto res : op->getOpResults()) {

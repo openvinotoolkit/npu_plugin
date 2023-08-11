@@ -31,8 +31,10 @@ StringLiteral ov::hint::stringifyEnum(PerformanceMode val) {
         return "LATENCY";
     case PerformanceMode::THROUGHPUT:
         return "THROUGHPUT";
+    case PerformanceMode::CUMULATIVE_THROUGHPUT:
+        return "CUMULATIVE_THROUGHPUT";
     case PerformanceMode::UNDEFINED:
-        return "";
+        return "LATENCY";
     default:
         return "<UNKNOWN>";
     }
@@ -43,8 +45,10 @@ ov::hint::PerformanceMode vpux::PERFORMANCE_HINT::parse(StringRef val) {
         return ov::hint::PerformanceMode::LATENCY;
     } else if (val == "THROUGHPUT") {
         return ov::hint::PerformanceMode::THROUGHPUT;
-    } else if (val.empty()) {
-        return ov::hint::PerformanceMode::UNDEFINED;
+    } else if (val == "CUMULATIVE_THROUGHPUT") {
+        return ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT;
+    } else if (val.empty() || val == "UNDEFINED") {
+        return ov::hint::PerformanceMode::LATENCY;
     }
 
     VPUX_THROW("Value '{0}' is not a valid PERFORMANCE_HINT option", val);
@@ -80,8 +84,8 @@ ov::log::Level vpux::cvtLogLevel(LogLevel lvl) {
 
 StringLiteral InferenceEngine::VPUXConfigParams::stringifyEnum(VPUXPlatform val) {
     switch (val) {
-    case VPUXPlatform::AUTO:
-        return "AUTO";
+    case VPUXPlatform::AUTO_DETECT:
+        return "AUTO_DETECT";
     case VPUXPlatform::VPU3400_A0:
         return "VPU3400_A0";
     case VPUXPlatform::VPU3400:
@@ -104,8 +108,8 @@ StringLiteral InferenceEngine::VPUXConfigParams::stringifyEnum(VPUXPlatform val)
 InferenceEngine::VPUXConfigParams::VPUXPlatform vpux::PLATFORM::parse(StringRef val) {
     // TODO: Remove deprecated platform names with VPU prefix in future releases
 
-    if (val == "AUTO") {
-        return ov::intel_vpux::cvtVPUXPlatform(ov::intel_vpux::VPUXPlatform::AUTO);
+    if (val == "AUTO_DETECT") {
+        return ov::intel_vpux::cvtVPUXPlatform(ov::intel_vpux::VPUXPlatform::AUTO_DETECT);
     } else if (val == "3400_A0" || val == "VPU3400_A0") {
         return ov::intel_vpux::cvtVPUXPlatform(ov::intel_vpux::VPUXPlatform::VPU3400_A0);
     } else if (val == "3400" || val == "VPU3400") {

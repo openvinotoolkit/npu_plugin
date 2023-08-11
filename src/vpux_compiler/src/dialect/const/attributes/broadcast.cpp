@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include <mlir/IR/DialectImplementation.h>
 #include "vpux/compiler/dialect/const/attributes/content.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
@@ -21,6 +19,16 @@ void vpux::Const::BroadcastAttr::walkImmediateSubElements(llvm::function_ref<voi
                                                           llvm::function_ref<void(mlir::Type)>) const {
     walkAttrsFn(getAxis());
     walkAttrsFn(getValue());
+}
+
+//
+// BroadcastAttr::replaceImmediateSubElements
+//
+
+mlir::Attribute vpux::Const::BroadcastAttr::replaceImmediateSubElements(ArrayRef<mlir::Attribute> replAttrs,
+                                                                        ArrayRef<mlir::Type>) const {
+    VPUX_THROW_WHEN(replAttrs.size() < 2, "Replace attrs array is too short: '{0}'", replAttrs.size());
+    return get(replAttrs[0].dyn_cast_or_null<mlir::IntegerAttr>(), replAttrs[1].dyn_cast_or_null<mlir::IntegerAttr>());
 }
 
 //

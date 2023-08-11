@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
 #include "vpux/compiler/dialect/VPUIP/utils.hpp"
@@ -60,54 +58,6 @@ bool isOnlyPadOverC(Const::ContentAttr content) {
     return true;
 }
 
-bool hasTransposeAttr(Const::ContentAttr content) {
-    const auto transformations = content.getTransformations();
-    for (auto transform : transformations) {
-        if (auto transpose = transform.dyn_cast<vpux::Const::TransposeAttr>()) {
-            return true;
-        }
-    }
-    return false;
-}
-
-bool inChannelGreaterThanAlignValue(Const::DeclareOp weightsInput) {
-    auto weightsContentAttr = weightsInput.contentAttr();
-    const auto origShape = weightsContentAttr.getBaseContent().getType().cast<NDTypeInterface>().getShape();
-    const auto channelAlignValue =
-            VPU::NCEInvariant::getAlignment(weightsInput.getType().cast<NDTypeInterface>().getElementType());
-
-    return origShape[Dims4D::Filter::IC] >= channelAlignValue;
-}
-
-bool weightsCanNotBeCompressed(VPUIP::NCEClusterTaskOp op) {
-    if (op.task_type() != VPUIP::NCETaskType::CONV) {
-        return true;
-    }
-
-    // The compressed convolution feature makes use of a sparsity map for the weights internally
-    // so it cannot work if a custom one is provided as well
-    if (op.weights_sparsity_map() != nullptr) {
-        return true;
-    }
-
-    auto weights = op.weights().getDefiningOp<VPUIP::CopyOp>();
-    if (weights == nullptr) {
-        return true;
-    }
-
-    auto weightsInput = weights.input().getDefiningOp<Const::DeclareOp>();
-    if (weightsInput == nullptr) {
-        return true;
-    }
-
-    // Temporary solution until [E#57202] implementation
-    if (hasTransposeAttr(weightsInput.contentAttr())) {
-        return true;
-    }
-
-    return inChannelGreaterThanAlignValue(weightsInput);
-};
-
 mlir::Value reduceWeightsConstant(VPUIP::NCEClusterTaskOp nceOp, VPUIP::CopyOp weightsCopyOp,
                                   NDTypeInterface weightsCopyOutputType, ShapeRef origShape,
                                   const int64_t origChannelVal, mlir::OpBuilder& builder, bool isTiled) {
@@ -131,7 +81,7 @@ mlir::Value reduceWeightsConstant(VPUIP::NCEClusterTaskOp nceOp, VPUIP::CopyOp w
     // Check if weights set is aligned to 16B
     // If not, stride output of VPUIP.Copy accordingly
     if ((weightsCopyOutputType.getStrides()[Dims4D::Filter::OC].count() / elemSize) % requiredAlignment != 0) {
-        auto paddedStrideValue = alignVal(
+        auto paddedStrideValue = alignValUp(
                 (origChannelVal * origShape[Dims4D::Filter::KY] * origShape[Dims4D::Filter::KX]), requiredAlignment);
         const SmallVector<Bit> newStrides({Bit(paddedStrideValue * elemSize), Bit(1 * elemSize),
                                            Bit(origChannelVal * origShape[Dims4D::Filter::KX] * elemSize),
@@ -150,7 +100,7 @@ mlir::Value reduceWeightsConstant(VPUIP::NCEClusterTaskOp nceOp, VPUIP::CopyOp w
                                 }));
         const auto stridesAttr = getIntArrayAttr(oldDistrType.getContext(), elemStrides);
         const auto layout = VPUIP::MemRefAttr::get(orderAttr, stridesAttr, nullptr, oldDistrType.getCompressionScheme(),
-                                                   oldDistrType.getContext());
+                                                   /*allocSize=*/nullptr, oldDistrType.getContext());
         auto distrib = VPUIP::DistributedBufferType::get(
                 oldDistrType.getContext(), weightsCopyOutputType.getShape().raw(), oldDistrType.getElementType(),
                 layout, oldDistrType.getMemSpace(), oldDistrType.getDistribution());
@@ -181,7 +131,8 @@ mlir::Value reduceWeightsConstant(VPUIP::NCEClusterTaskOp nceOp, VPUIP::CopyOp w
     return copyOp.output();
 }
 
-void adjustWeightsTable(Const::DeclareOp weightsTableConstOp, const int64_t weightsOC, const int64_t weightsOCstride) {
+mlir::Value getAdjustWeightsTable(Const::DeclareOp weightsTableConstOp, const int64_t weightsOC,
+                                  const int64_t weightsOCstride) {
     auto weightsTableContent = weightsTableConstOp.content();
     auto weightsTableVals = to_std_vector(weightsTableContent.getValues<std::int32_t>());
 
@@ -203,8 +154,7 @@ void adjustWeightsTable(Const::DeclareOp weightsTableConstOp, const int64_t weig
     auto dataConstOp = constBuilder.create<Const::DeclareOp>(
             weightsTableConstOp.getLoc(), weightsTableConstOp.getType(), Const::ContentAttr::get(dataAttr));
 
-    weightsTableConstOp.replaceAllUsesWith(dataConstOp.getOperation());
-    weightsTableConstOp.erase();
+    return dataConstOp;
 }
 
 //
@@ -229,7 +179,7 @@ void adjustWeightsTable(Const::DeclareOp weightsTableConstOp, const int64_t weig
 
 */
 VPUIP::NCEClusterTaskOp compressConvWeights(Logger& log, VPUIP::NCEClusterTaskOp origOp) {
-    if (weightsCanNotBeCompressed(origOp)) {
+    if (!VPUIP::canWeightsBeCompressed(origOp)) {
         return origOp;
     }
     log.trace("Compressing weights for operation '{0}' at '{1}'", origOp->getName(), origOp->getLoc());
@@ -261,8 +211,21 @@ VPUIP::NCEClusterTaskOp compressConvWeights(Logger& log, VPUIP::NCEClusterTaskOp
         // Removing the input channel padding for the weights const will lead to differences in
         // weight sets offsets. This will make the necessary adjustments.
         const auto weightsCopyOpDstStrides = weightsCopyOp.getType().cast<NDTypeInterface>().getStrides();
-        adjustWeightsTable(weightsTableConstOp, origShape[Dims4D::Filter::OC],
-                           weightsCopyOpDstStrides[Dims4D::Filter::OC].count());
+        auto newWeightsTableConst = getAdjustWeightsTable(weightsTableConstOp, origShape[Dims4D::Filter::OC],
+                                                          weightsCopyOpDstStrides[Dims4D::Filter::OC].count());
+
+        if (weightsTableConstOp.output().hasOneUse()) {
+            weightsTableConstOp.replaceAllUsesWith(newWeightsTableConst);
+            weightsTableConstOp.erase();
+        } else {
+            // In this case, the weights table is shared between multiple ops,
+            // compressing current op should not affect the others
+            auto newWeightsTableCopy = builder.create<VPUIP::CopyOp>(weightsTableCopyOp->getLoc(), newWeightsTableConst,
+                                                                     weightsTableCopyOp.output_buff());
+            weightsTableCopyOp.replaceAllUsesWith(newWeightsTableCopy.getOperation());
+
+            weightsTableCopyOp.erase();
+        }
     }
 
     const auto channelAlignValue = VPU::NCEInvariant::getAlignment(weightsMemRefType.getElementType());
@@ -271,8 +234,9 @@ VPUIP::NCEClusterTaskOp compressConvWeights(Logger& log, VPUIP::NCEClusterTaskOp
     auto shapeCastOp = builder.create<VPUIP::ShapeCastOp>(origOp.getLoc(), weightsCopyOp,
                                                           getIntArrayAttr(origOp.getContext(), finalShape));
 
-    const int64_t cmSpPattern = paddingDoneOnlyOnC ? (1 << origChannelVal) - 1
-                                                   : (1 << VPU::NCEInvariant::VPU_COMPRESSED_INPUT_CHANNEL_NUM) - 1;
+    const int64_t cmSpPattern =
+            paddingDoneOnlyOnC ? (static_cast<int64_t>(1) << origChannelVal) - 1
+                               : (static_cast<int64_t>(1) << VPU::NCEInvariant::VPU_COMPRESSED_INPUT_CHANNEL_NUM) - 1;
     auto cmSpPatternAttr = getIntAttr(origOp->getContext(), cmSpPattern);
 
     mlir::BlockAndValueMapping mapper;
@@ -289,54 +253,12 @@ VPUIP::NCEClusterTaskOp compressConvWeights(Logger& log, VPUIP::NCEClusterTaskOp
     return newOp;
 }
 
-bool tilingWeightsCanNotBeCompressed(VPUIP::NCEClusterTilingOp op) {
-    auto nceOp = mlir::dyn_cast_or_null<VPUIP::NCEClusterTaskOp>(op.getInnerTaskOp());
-    if (nceOp == nullptr) {
-        return true;
-    }
-
-    if (nceOp.task_type() != VPUIP::NCETaskType::CONV) {
-        return true;
-    }
-
-    // The compressed convolution feature makes use of a sparsity map for the weights internally
-    // so it cannot work if a custom one is provided as well
-    if (nceOp.weights_sparsity_map() != nullptr) {
-        return true;
-    }
-
-    auto weights = VPUIP::getTopBufferOfNCEClusterTiling(nceOp, nceOp.weights());
-    if (weights == nullptr) {
-        return true;
-    }
-    auto weightsBufferTilingOp = weights.getDefiningOp<VPUIP::NCEClusterTilingOp>();
-    if (weightsBufferTilingOp == nullptr) {
-        return true;
-    }
-    auto weightsCopyOp = weightsBufferTilingOp.getInnerTaskOpOfType<VPUIP::CopyOp>();
-    if (weightsCopyOp == nullptr) {
-        return true;
-    }
-    auto weightsInput = VPUIP::getTopBufferOfNCEClusterTiling(weightsCopyOp, weightsCopyOp.input())
-                                .getDefiningOp<Const::DeclareOp>();
-    if (weightsInput == nullptr) {
-        return true;
-    }
-
-    // Temporary solution until [E#57202] implementation
-    if (hasTransposeAttr(weightsInput.contentAttr())) {
-        return true;
-    }
-
-    return inChannelGreaterThanAlignValue(weightsInput);
-};
-
 //
 // compressClusterTiledConvWeights
 //
 
 VPUIP::NCEClusterTilingOp compressClusterTiledConvWeights(Logger& log, VPUIP::NCEClusterTilingOp origOp) {
-    if (tilingWeightsCanNotBeCompressed(origOp)) {
+    if (!VPUIP::canTilingWeightsBeCompressed(origOp)) {
         return origOp;
     }
 
@@ -377,8 +299,28 @@ VPUIP::NCEClusterTilingOp compressClusterTiledConvWeights(Logger& log, VPUIP::NC
         // Removing the input channel padding for the weights const will lead to differences in
         // weight sets offsets. This will make the necessary adjustments.
         const auto weightsCopyOpDstStrides = weightsOutCopyOp.getType().cast<NDTypeInterface>().getStrides();
-        adjustWeightsTable(weightsTableConstOp, origShape[Dims4D::Filter::OC],
-                           weightsCopyOpDstStrides[Dims4D::Filter::OC].count());
+        auto newWeightsTableConst = getAdjustWeightsTable(weightsTableConstOp, origShape[Dims4D::Filter::OC],
+                                                          weightsCopyOpDstStrides[Dims4D::Filter::OC].count());
+
+        if (weightsTableConstOp.output().hasOneUse()) {
+            weightsTableConstOp.replaceAllUsesWith(newWeightsTableConst);
+            weightsTableConstOp.erase();
+        } else {
+            // In this case, the weights table is shared between multiple ops,
+            // compressing current op should not affect the others
+            SmallVector<mlir::Value> inputsOutputOperands = {newWeightsTableConst,
+                                                             weightsTableBufferTilingOp.output_buffs()[0]};
+            const auto bodyBuilder = [&](mlir::OpBuilder& builder, mlir::Location loc, mlir::ValueRange newOperands) {
+                builder.create<VPUIP::CopyOp>(loc, newOperands[0], newOperands[1]);
+            };
+            auto newWeightsTableBufferTiling = builder.create<VPUIP::NCEClusterTilingOp>(
+                    weightsTableBufferTilingOp.getLoc(), weightsTableBufferTilingOp.getResultTypes(),
+                    inputsOutputOperands, bodyBuilder);
+            weightsTableBufferTilingOp.replaceAllUsesWith(newWeightsTableBufferTiling);
+
+            weightsTableCopyOp.erase();
+            weightsTableBufferTilingOp.erase();
+        }
     }
 
     const auto channelAlignValue = VPU::NCEInvariant::getAlignment(weightsMemRefType.getElementType());
@@ -387,8 +329,9 @@ VPUIP::NCEClusterTilingOp compressClusterTiledConvWeights(Logger& log, VPUIP::NC
     auto shapeCastOp = builder.create<VPUIP::ShapeCastOp>(origOp.getLoc(), weightsOutCopyOp,
                                                           getIntArrayAttr(origOp.getContext(), finalShape));
 
-    const int64_t cmSpPattern = paddingDoneOnlyOnC ? (1 << origChannelVal) - 1
-                                                   : (1 << VPU::NCEInvariant::VPU_COMPRESSED_INPUT_CHANNEL_NUM) - 1;
+    const int64_t cmSpPattern =
+            paddingDoneOnlyOnC ? (static_cast<int64_t>(1) << origChannelVal) - 1
+                               : (static_cast<int64_t>(1) << VPU::NCEInvariant::VPU_COMPRESSED_INPUT_CHANNEL_NUM) - 1;
     auto cmSpPatternAttr = getIntAttr(origOp->getContext(), cmSpPattern);
 
     auto weightsBlockArg = nceOp.weights().dyn_cast<mlir::BlockArgument>();
@@ -564,7 +507,7 @@ private:
 //
 
 void AdjustCompressConvInputs::safeRunOnFunc() {
-    auto func = getFunction();
+    auto func = getOperation();
 
     func.walk([&](VPUIP::NCEClusterTaskOp origOp) {
         auto newClusterTaskOp = compressConvWeights(_log, origOp);

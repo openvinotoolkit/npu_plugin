@@ -3,10 +3,9 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
+#include "vpux/compiler/utils/error.hpp"
 
 #include "vpux/utils/core/checked_cast.hpp"
 
@@ -14,11 +13,37 @@
 
 using namespace vpux;
 
+//
+// verify
+//
+
+mlir::LogicalResult vpux::IE::HardSigmoidOp::verify() {
+    int64_t numElements = 0;
+    const auto checkNumElements = [&](mlir::Value tensor) {
+        if (tensor == nullptr) {
+            return true;
+        }
+
+        numElements = tensor.getType().cast<vpux::NDTypeInterface>().getNumElements();
+        return numElements == 1;
+    };
+
+    if (!checkNumElements(alpha())) {
+        return errorAt(*this, "Alpha should have only 1 element, while it has {0}", numElements);
+    }
+
+    if (!checkNumElements(beta())) {
+        return errorAt(*this, "Beta should have only 1 element, while it has {0}", numElements);
+    }
+
+    return mlir::success();
+}
+
 mlir::LogicalResult vpux::IE::HardSigmoidOp::inferReturnTypeComponents(
         mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
         mlir::DictionaryAttr attrs, mlir::RegionRange,
         SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
-    const auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
+    const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
     IE::HardSigmoidOpAdaptor hardSigmoid(operands, attrs);
     if (mlir::failed(hardSigmoid.verify(loc))) {

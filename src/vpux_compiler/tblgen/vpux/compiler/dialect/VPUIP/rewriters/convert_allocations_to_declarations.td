@@ -3,14 +3,13 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #ifndef VPUX_COMPILER_DIALECT_VPUIP_REWRITERS_CONVERT_ALLOCATIONS_TO_DECLARATIONS
 #define VPUX_COMPILER_DIALECT_VPUIP_REWRITERS_CONVERT_ALLOCATIONS_TO_DECLARATIONS
 
 include "vpux/compiler/dialect/VPUIP/ops.td"
 
 include "mlir/IR/OpBase.td"
+include "mlir/IR/PatternBase.td"
 
 //
 // VPUIP.StaticAlloc -> VPUIP.DeclareTensor

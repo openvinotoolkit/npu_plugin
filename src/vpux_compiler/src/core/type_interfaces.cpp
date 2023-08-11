@@ -3,12 +3,10 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/core/type_interfaces.hpp"
 
 #include "vpux/compiler/core/attributes/stride_reqs.hpp"
-#include "vpux/compiler/dialect/IE/attributes/structs.hpp"
+#include "vpux/compiler/dialect/IE/attributes.hpp"
 #include "vpux/compiler/dialect/VPUIP/attributes.hpp"
 #include "vpux/compiler/utils/quantization.hpp"
 #include "vpux/compiler/utils/swizzling_utils.hpp"
@@ -25,7 +23,7 @@ using namespace vpux;
 //
 
 TypeComponents& TypeComponents::setShape(ShapeRef newShape) {
-    shape = newShape;
+    shape = Shape(newShape.toValues());
     return *this;
 }
 TypeComponents& TypeComponents::setElementType(mlir::Type newElementType) {
@@ -41,7 +39,7 @@ TypeComponents& TypeComponents::setMemSpace(IndexedSymbolAttr newMemSpace) {
     return *this;
 }
 TypeComponents& TypeComponents::setStrides(StridesRef newStrides) {
-    strides = newStrides;
+    strides = Strides(newStrides.toValues());
     return *this;
 }
 
@@ -159,8 +157,8 @@ vpux::Byte TensorNDTypeInterface::getTotalAllocSize(mlir::Type type) const {
 
     VPUX_THROW_UNLESS(memShape.size() == memStrides.size(), "Shape and strides mismatch : {0} vs {1}", memShape,
                       memStrides);
-
-    return Byte(memStrides.front() * memShape.front());
+    const auto totalSizeBits = alignMemSize(memStrides.front() * memShape.front(), Byte(1));
+    return Byte(totalSizeBits);
 }
 
 vpux::Byte TensorNDTypeInterface::getCompactAllocSize(mlir::Type type) const {
@@ -254,10 +252,10 @@ vpux::NDTypeInterface TensorNDTypeInterface::changeStrides(mlir::Type /*type*/, 
 
 vpux::NDTypeInterface TensorNDTypeInterface::changeTypeComponents(mlir::Type type,
                                                                   vpux::TypeComponents typeComponents) const {
-    const auto shape = typeComponents.shape.getValueOr(getShape(type));
-    const auto elementType = typeComponents.elementType.getValueOr(getElementType(type));
-    const auto dimsOrder = typeComponents.dimsOrder.getValueOr(getDimsOrder(type));
-    const auto memSpace = typeComponents.memSpace.getValueOr(getMemSpace(type));
+    const auto shape = typeComponents.shape.value_or(Shape(getShape(type).toValues()));
+    const auto elementType = typeComponents.elementType.value_or(getElementType(type));
+    const auto dimsOrder = typeComponents.dimsOrder.value_or(getDimsOrder(type));
+    const auto memSpace = typeComponents.memSpace.value_or(getMemSpace(type));
     return vpux::getTensorType(shape, elementType, dimsOrder, memSpace);
 }
 
@@ -454,6 +452,15 @@ vpux::Bit MemRefNDTypeInterface::getElemTypeSize(mlir::Type type) const {
 vpux::Byte MemRefNDTypeInterface::getTotalAllocSize(mlir::Type type) const {
     VPUX_THROW_UNLESS(type.isa<mlir::MemRefType>(), "Only MemRefType is supported for 'getTotalAllocSize'. Got '{0}'",
                       type);
+
+    const auto layout = type.cast<mlir::MemRefType>().getLayout();
+    const auto memRefAttr = layout.dyn_cast<VPUIP::MemRefAttr>();
+    if (memRefAttr) {
+        if (auto allocSizeAttr = memRefAttr.allocSize()) {
+            return Byte(allocSizeAttr.getInt());
+        }
+    }
+
     if (getRank(type) == 0) {
         return getElemTypeSize(type);
     }
@@ -466,9 +473,7 @@ vpux::Byte MemRefNDTypeInterface::getTotalAllocSize(mlir::Type type) const {
 
     auto allocSizeByte = Byte(memStrides.front() * memShape.front());
 
-    const auto layout = type.cast<mlir::MemRefType>().getLayout();
-
-    if (const auto memRefAttr = layout.dyn_cast<VPUIP::MemRefAttr>()) {
+    if (memRefAttr) {
         const auto compressionScheme = memRefAttr.compressionScheme();
         if (compressionScheme != nullptr) {
             const auto order = getDimsOrder(type);
@@ -603,11 +608,11 @@ vpux::NDTypeInterface MemRefNDTypeInterface::changeStrides(mlir::Type type, vpux
 
 vpux::NDTypeInterface MemRefNDTypeInterface::changeTypeComponents(mlir::Type type,
                                                                   vpux::TypeComponents typeComponents) const {
-    const auto shape = typeComponents.shape.getValueOr(getShape(type));
-    const auto elementType = typeComponents.elementType.getValueOr(getElementType(type));
-    const auto dimsOrder = typeComponents.dimsOrder.getValueOr(getDimsOrder(type));
-    const auto strides = typeComponents.strides.getValueOr(getStrides(type));
-    const auto memSpace = typeComponents.memSpace.getValueOr(getMemSpace(type));
+    const auto shape = typeComponents.shape.value_or(Shape(getShape(type).toValues()));
+    const auto elementType = typeComponents.elementType.value_or(getElementType(type));
+    const auto dimsOrder = typeComponents.dimsOrder.value_or(getDimsOrder(type));
+    const auto strides = typeComponents.strides.value_or(getStrides(type));
+    const auto memSpace = typeComponents.memSpace.value_or(getMemSpace(type));
     return vpux::getMemRefType(shape, elementType, dimsOrder, memSpace, strides, getSwizzlingSchemeAttr(type),
                                VPUIP::getCompressionSchemeAttr(type));
 }

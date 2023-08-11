@@ -1,5 +1,5 @@
 //
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,7 +11,7 @@
 
 namespace LayerTestsDefinitions {
 
-class KmbROIAlignLayerTest : public ROIAlignLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
+class VPUXROIAlignLayerTest_VPU3700 : public ROIAlignLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
     void SkipBeforeLoad() override {
     }
     void SkipBeforeInfer() override {
@@ -21,12 +21,9 @@ class KmbROIAlignLayerTest : public ROIAlignLayerTest, virtual public LayerTests
     }
 };
 
-TEST_P(KmbROIAlignLayerTest, CompareWithRefs) {
-    Run();
-}
-
-TEST_P(KmbROIAlignLayerTest, CompareWithRefs_MLIR) {
-    useCompilerMLIR();
+TEST_P(VPUXROIAlignLayerTest_VPU3700, HW) {
+    setPlatformVPU3700();
+    setDefaultHardwareModeMLIR();
     Run();
 }
 
@@ -57,6 +54,6 @@ const auto testROIAlignParams =
                          testing::ValuesIn(poolingMode), testing::ValuesIn(netPrecision),
                          testing::Values(LayerTestsUtils::testPlatformTargetDevice));
 
-INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_ROIAlign, KmbROIAlignLayerTest, testROIAlignParams,
-                         KmbROIAlignLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_ROIAlign, VPUXROIAlignLayerTest_VPU3700, testROIAlignParams,
+                         VPUXROIAlignLayerTest_VPU3700::getTestCaseName);
 }  // namespace

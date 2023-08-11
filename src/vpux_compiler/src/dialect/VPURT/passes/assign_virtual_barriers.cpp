@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/VPUIP/utils.hpp"
 #include "vpux/compiler/dialect/VPURT/barrier_scheduler.hpp"
 #include "vpux/compiler/dialect/VPURT/cycle_based_barrier_scheduler.hpp"
@@ -28,7 +26,7 @@ private:
 };
 
 void AssignVirtualBarriersPass::safeRunOnFunc() {
-    auto func = getFunction();
+    auto func = getOperation();
 
     auto cycleBasedBarrierScheduler =
             useCycleBasedBarrierScheduler.hasValue() ? useCycleBasedBarrierScheduler.getValue() : true;

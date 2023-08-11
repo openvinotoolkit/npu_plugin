@@ -10,7 +10,7 @@
 
 namespace {
 
-class KmbConvClampSubGraphTest :
+class VPUXConvClampSubGraphTest_VPU3700 :
         public LayerTestsUtils::KmbLayerTestsCommon,
         public testing::WithParamInterface<LayerTestsUtils::TargetDevice> {
     void SetUp() override {
@@ -32,19 +32,20 @@ class KmbConvClampSubGraphTest :
         const auto clamp = std::make_shared<ngraph::op::v0::Clamp>(conv, -1.0f, 1.0f);
 
         const ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(clamp)};
-        function = std::make_shared<ngraph::Function>(results, params, "KmbConvClamp");
+        function = std::make_shared<ngraph::Function>(results, params, "VPUXConvClamp");
 
         targetDevice = GetParam();
         threshold = 0.1f;
     }
 };
 
-TEST_P(KmbConvClampSubGraphTest, CompareWithRefs_MLIR_HW) {
-    useCompilerMLIR();
+TEST_P(VPUXConvClampSubGraphTest_VPU3700, HW) {
+    setPlatformVPU3700();
     setDefaultHardwareModeMLIR();
     Run();
 }
 
-INSTANTIATE_TEST_CASE_P(smoke, KmbConvClampSubGraphTest, ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));
+INSTANTIATE_TEST_CASE_P(smoke_ConvClamp, VPUXConvClampSubGraphTest_VPU3700,
+                        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));
 
 }  // namespace

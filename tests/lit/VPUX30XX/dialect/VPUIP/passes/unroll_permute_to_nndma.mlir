@@ -1,13 +1,14 @@
 //
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
+
 // RUN: vpux-opt --split-input-file --init-compiler="vpu-arch=VPUX30XX" --unroll-permute-to-nndma  %s | FileCheck %s
 
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
 // CHECK-LABEL: @PermuteToDMAWithNHWCToNCHW
-func @PermuteToDMAWithNHWCToNCHW() -> memref<1x8x16x16xf16, [@CMX_NN, 0]> {
+func.func @PermuteToDMAWithNHWCToNCHW() -> memref<1x8x16x16xf16, [@CMX_NN, 0]> {
     %bar0 = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
 
     %input = VPURT.DeclareBuffer "CMX_NN" [0] <0> -> memref<1x8x16x16xf16, #NHWC, [@CMX_NN, 0]>
@@ -42,7 +43,7 @@ func @PermuteToDMAWithNHWCToNCHW() -> memref<1x8x16x16xf16, [@CMX_NN, 0]> {
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
 // CHECK-LABEL: @PermuteToDMAWithNCHWToNHWC
-func @PermuteToDMAWithNCHWToNHWC() -> memref<1x8x16x16xf16, #NHWC, [@CMX_NN, 0]> {
+func.func @PermuteToDMAWithNCHWToNHWC() -> memref<1x8x16x16xf16, #NHWC, [@CMX_NN, 0]> {
     %bar0 = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
 
     %input = VPURT.DeclareBuffer "CMX_NN" [0] <0> -> memref<1x8x16x16xf16, [@CMX_NN, 0]>
@@ -77,7 +78,7 @@ func @PermuteToDMAWithNCHWToNHWC() -> memref<1x8x16x16xf16, #NHWC, [@CMX_NN, 0]>
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
 // CHECK-LABEL: @PermuteToDMAFromTranspose
-func @PermuteToDMAFromTranspose() -> memref<1x32x1x8xf16, #NHWC, [@CMX_NN, 0]> {
+func.func @PermuteToDMAFromTranspose() -> memref<1x32x1x8xf16, #NHWC, [@CMX_NN, 0]> {
     %bar0 = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
 
     %input = VPURT.DeclareBuffer "CMX_NN" [0] <0> -> memref<1x8x1x32xf16, #NHWC, [@CMX_NN, 0]>
@@ -112,7 +113,7 @@ func @PermuteToDMAFromTranspose() -> memref<1x32x1x8xf16, #NHWC, [@CMX_NN, 0]> {
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
 // CHECK-LABEL: @PermuteToDMAWithLargePlaneNumber
-func @PermuteToDMAWithLargePlaneNumber() -> memref<1x8x32x16xf16, [@CMX_NN, 0]> {
+func.func @PermuteToDMAWithLargePlaneNumber() -> memref<1x8x32x16xf16, [@CMX_NN, 0]> {
     %bar0 = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
 
     %input = VPURT.DeclareBuffer "CMX_NN" [0] <0> -> memref<1x8x32x16xf16, #NHWC, [@CMX_NN, 0]>
@@ -149,4 +150,52 @@ func @PermuteToDMAWithLargePlaneNumber() -> memref<1x8x32x16xf16, [@CMX_NN, 0]> 
     //CHECK-SAME:       outputs([[OUTPUT_BUFFER1]] : memref<8x256xf16, [@CMX_NN, 0]>) -> memref<8x256xf16, [@CMX_NN, 0]>
     //CHECK:    }
     //CHECK:    return [[RETURN_BUFFER]] : memref<1x8x32x16xf16, [@CMX_NN, 0]>
+}
+
+// -----
+
+#NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
+#NCHW = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
+#map = affine_map<(d0, d1, d2, d3) -> (d0, d3, d1, d2)>
+
+!qElemType = !quant.uniform<u8:f16, 0.0173492431640625:114>
+
+!InputDistributed = !VPUIP.DistributedBuffer<
+    1x4x8x8x!qElemType, #NHWC, @CMX_NN, {
+    mode = "DUPLICATED",
+    num_clusters = 2 : i64
+}>
+
+!OutputDistributed = !VPUIP.DistributedBuffer<
+    1x4x8x8x!qElemType, #NCHW, @CMX_NN, {
+    mode = "DUPLICATED",
+    num_clusters = 2 : i64
+}>
+
+// CHECK-LABEL: @ClusterPermuteDMAWithDistributedInputAndOutput
+func.func @ClusterPermuteDMAWithDistributedInputAndOutput() -> !OutputDistributed {
+    %bar0 = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
+    %bar1 = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
+    %0 = VPURT.DeclareBuffer "CMX_NN" <0> -> !InputDistributed
+    %1 = VPURT.DeclareBuffer "CMX_NN" <2000> -> !OutputDistributed
+
+    VPURT.Task waits(%bar0 : !VPURT.Barrier) updates(%bar1 : !VPURT.Barrier) attributes {cycleBegin = 990 : i64, cycleEnd = 1758 : i64, isTrailingSWLayer = false} {
+      VPUIP.NCEClusterTiling inputs(%0 as %arg0: memref<1x4x8x8x!qElemType, #NHWC, @CMX_NN>) outputs(%1 as %arg1: memref<1x4x8x8x!qElemType, #NCHW, @CMX_NN>) -> !OutputDistributed {
+        VPUIP.PermuteDMA {mem_perm = #map, port = 0 : i64}
+              inputs(%arg0 : memref<1x4x8x8x!qElemType, #NHWC, @CMX_NN>)
+              outputs(%arg1 : memref<1x4x8x8x!qElemType, #NCHW, @CMX_NN>) -> memref<1x4x8x8x!qElemType, #NCHW, @CMX_NN>
+      }
+    }
+    return %1: !OutputDistributed
+    // CHECK:    [[BAR0:%.*]] = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
+    // CHECK:    [[BAR1:%.*]] = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
+    // CHECK:    [[INPUT:%.*]] = VPURT.DeclareBuffer "CMX_NN" [0] <0> -> memref<64x4x!qElemType, [@CMX_NN, 0]>
+    // CHECK:    [[OUTPUT:%.*]] = VPURT.DeclareBuffer "CMX_NN" <2000> -> !VPUIP.DistributedBuffer<1x4x8x8x!qElemType, affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>, @CMX_NN, {mode = "DUPLICATED", num_clusters = 2 : i64}>
+    // CHECK:    [[BUFF:%.*]] = VPURT.DeclareBuffer "CMX_NN" [0, 1] <2000> -> !VPUIP.DistributedBuffer<4x64x!qElemType, affine_map<(d0, d1) -> (d0, d1)>, @CMX_NN, {mode = "DUPLICATED", num_clusters = 2 : i64}>
+    // CHECK:    VPURT.Task waits([[BAR0]] : !VPURT.Barrier) updates([[BAR1]] : !VPURT.Barrier) attributes {cycleBegin = 990 : i64, cycleEnd = 1758 : i64, isTrailingSWLayer = false} {
+    // CHECK:          VPUIP.PermuteDMA {dma_descriptor = {dstPlaneStride = 1 : i64, dstStride = 64 : i64, dstWidth = 1 : i64, len = 4 : i64, numPlanes = 64 : i64, srcPlaneStride = 4 : i64, srcStride = 1 : i64, srcWidth = 4 : i64}, port = 0 : i64}
+    // CHCEK-SAME:           inputs([[INPUT]] : memref<64x4x!qElemType, [@CMX_NN, 0]>) outputs([[BUF]] : !VPUIP.DistributedBuffer<4x64x!qElemType, affine_map<(d0, d1) -> (d0, d1)>, @CMX_NN, {mode = "DUPLICATED", num_clusters = 2 : i64}>) -> !VPUIP.DistributedBuffer<4x64x!qElemType, affine_map<(d0, d1) -> (d0, d1)>, @CMX_NN, {mode = "DUPLICATED", num_clusters = 2 : i64}>
+    // CHECK:    }
+    // CHECK:    return [[OUTPUT]] : !VPUIP.DistributedBuffer<1x4x8x8x!qElemType, affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>, @CMX_NN, {mode = "DUPLICATED", num_clusters = 2 : i64}>
+
 }

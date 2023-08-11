@@ -77,6 +77,8 @@ private:
     InferenceEngine::ITaskExecutor::Ptr GetNextTaskExecutor();
     InferenceEngine::Parameter GetConfigValue(const std::string& name) const;
     vpux::DataMap ExtractStatesFromInputsInfo() const;
+    InferenceEngine::InputsDataMap BeautifyInputsInfo() const;
+    InferenceEngine::OutputsDataMap BeautifyOutputsInfo() const;
 
     const Config _config;
     Logger _logger;

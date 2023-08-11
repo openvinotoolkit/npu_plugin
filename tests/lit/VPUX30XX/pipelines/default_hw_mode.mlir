@@ -1,8 +1,9 @@
 //
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
-// RUN: vpux-opt --split-input-file --mlir-elide-elementsattrs-if-larger 8 --default-hw-mode="vpu-arch=VPUX30XX" %s | FileCheck %s
+
+// RUN: vpux-opt --vpu-arch=VPUX30XX --split-input-file --mlir-elide-elementsattrs-if-larger 8 --default-hw-mode %s | FileCheck %s
 
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
@@ -24,10 +25,10 @@ module @Convolution {
         DataInfo "output" : tensor<1x48x60x60xf16, {order = #NHWC}>
     }
 
-    // CHECK:       func @main(
+    // CHECK:       func.func @main(
     // CHECK-SAME:      [[ARG0:%.+]]: memref<1x3x62x62xf16, #NHWC, @DDR>,
     // CHECK-SAME:      [[ARG1:%.+]]: memref<1x48x60x60xf16, #NHWC, @DDR>) -> memref<1x48x60x60xf16, #NHWC, @DDR> {
-    func @main(%arg: tensor<1x3x62x62xf32>) -> tensor<1x48x60x60xf32> {
+    func.func @main(%arg: tensor<1x3x62x62xf32>) -> tensor<1x48x60x60xf32> {
         %cst = const.Declare tensor<48x3x3x3xf32> = dense<1.0> : tensor<48x3x3x3xf32>
         %1 = IE.Convolution(%arg, %cst) {
             dilations = [1, 1],
@@ -44,10 +45,10 @@ module @Convolution {
         // CHECK-DAG:   [[OUT2_DDR:%.+]] = VPURT.DeclareBuffer "NetworkOutput" [0] <172800> -> memref<1x48x15x60xf16, #NHWC, @DDR>
         // CHECK-DAG:   [[OUT3_DDR:%.+]] = VPURT.DeclareBuffer "NetworkOutput" [0] <259200> -> memref<1x48x15x60xf16, #NHWC, @DDR>
 
-        // CHECK-DAG:   [[IN0_CMX:%.+]] = VPURT.DeclareBuffer "CMX_NN" [0] <0> -> memref<1x48x15x60xf16, #NHWC, [@CMX_NN, 0]>
-        // CHECK-DAG:   [[IN1_CMX:%.+]] = VPURT.DeclareBuffer "CMX_NN" [1] <0> -> memref<1x48x15x60xf16, #NHWC, [@CMX_NN, 1]>
-        // CHECK-DAG:   [[IN2_CMX:%.+]] = VPURT.DeclareBuffer "CMX_NN" [2] <0> -> memref<1x48x15x60xf16, #NHWC, [@CMX_NN, 2]>
-        // CHECK-DAG:   [[IN3_CMX:%.+]] = VPURT.DeclareBuffer "CMX_NN" [3] <0> -> memref<1x48x15x60xf16, #NHWC, [@CMX_NN, 3]>
+        // CHECK-DAG:   [[IN0_CMX:%.+]] = VPURT.DeclareBuffer "CMX_NN" [0] <31744> -> memref<1x48x15x60xf16, #NHWC, [@CMX_NN, 0]>
+        // CHECK-DAG:   [[IN1_CMX:%.+]] = VPURT.DeclareBuffer "CMX_NN" [1] <31744> -> memref<1x48x15x60xf16, #NHWC, [@CMX_NN, 1]>
+        // CHECK-DAG:   [[IN2_CMX:%.+]] = VPURT.DeclareBuffer "CMX_NN" [2] <31744> -> memref<1x48x15x60xf16, #NHWC, [@CMX_NN, 2]>
+        // CHECK-DAG:   [[IN3_CMX:%.+]] = VPURT.DeclareBuffer "CMX_NN" [3] <31744> -> memref<1x48x15x60xf16, #NHWC, [@CMX_NN, 3]>
 
         // CHECK:       VPURT.Task waits([[barrier_0:%.*]] : !VPURT.Barrier) updates([[barrier_1:%.*]] : !VPURT.Barrier)
         // CHECK:       VPUIP.NCEClusterTask
@@ -93,19 +94,19 @@ module @Convolution {
         // CHECK-SAME:      [[output_3:%.*]] : memref<1x48x15x60xf16, #NHWC, [@CMX_NN, 3]>)
         // CHECK:               DPUTask
 
-        // CHECK:       VPURT.Task waits([[barrier_1:%.*]] : !VPURT.Barrier) attributes {cycleBegin = 15806 : i64, cycleEnd = 18830 : i64, isTrailingSWLayer = false}
+        // CHECK:       VPURT.Task waits([[barrier_1:%.*]] : !VPURT.Barrier) attributes {cycleBegin = 25944 : i64, cycleEnd = 28968 : i64, isTrailingSWLayer = false}
         // CHECK:       VPUIP.NNDMA {port = 0 : i64} inputs([[IN0_CMX]] : memref<1x48x15x60xf16, #NHWC, [@CMX_NN, 0]>)
         // CHECK-SAME:      outputs([[OUT0_DDR]] : memref<1x48x15x60xf16, #NHWC, @DDR>)
 
-        // CHECK:       VPURT.Task attributes {cycleBegin = 18830 : i64, cycleEnd = 21854 : i64, isTrailingSWLayer = false}
+        // CHECK:       VPURT.Task attributes {cycleBegin = 28968 : i64, cycleEnd = 31992 : i64, isTrailingSWLayer = false}
         // CHECK:       VPUIP.NNDMA {port = 0 : i64} inputs([[IN1_CMX]] : memref<1x48x15x60xf16, #NHWC, [@CMX_NN, 1]>)
         // CHECK-SAME:      outputs([[OUT1_DDR]] : memref<1x48x15x60xf16, #NHWC, @DDR>)
 
-        // CHECK:       VPURT.Task attributes {cycleBegin = 21854 : i64, cycleEnd = 24878 : i64, isTrailingSWLayer = false}
+        // CHECK:       VPURT.Task attributes {cycleBegin = 31992 : i64, cycleEnd = 35016 : i64, isTrailingSWLayer = false}
         // CHECK:       VPUIP.NNDMA {port = 0 : i64} inputs([[IN2_CMX]] : memref<1x48x15x60xf16, #NHWC, [@CMX_NN, 2]>)
         // CHECK-SAME:      outputs([[OUT2_DDR]] : memref<1x48x15x60xf16, #NHWC, @DDR>)
 
-        // CHECK:       VPURT.Task attributes {cycleBegin = 24878 : i64, cycleEnd = 27902 : i64, isTrailingSWLayer = false}
+        // CHECK:       VPURT.Task attributes {cycleBegin = 35016 : i64, cycleEnd = 38040 : i64, isTrailingSWLayer = false}
         // CHECK:       VPUIP.NNDMA {port = 0 : i64} inputs([[IN3_CMX]] : memref<1x48x15x60xf16, #NHWC, [@CMX_NN, 3]>)
         // CHECK-SAME:      outputs([[OUT3_DDR]] : memref<1x48x15x60xf16, #NHWC, @DDR>)
 
@@ -139,20 +140,31 @@ IE.CNNNetwork
         DataInfo "softmax" : tensor<1x1000xf16>
     }
 
-// CHECK:       func @main(
+// CHECK:       func.func @main(
 // CHECK-SAME:      [[ARG0:%.+]]: memref<1x1000xf16, @DDR>,
 // CHECK-SAME:      [[ARG1:%.+]]: memref<1x1000xf16, @DDR>) -> memref<1x1000xf16, @DDR> {
-func @main(%arg0: tensor<1x1000xf16>) -> tensor<1x1000xf16> {
+func.func @main(%arg0: tensor<1x1000xf16>) -> tensor<1x1000xf16> {
     %0 = IE.SoftMax(%arg0) {axisInd = 1} : tensor<1x1000xf16> -> tensor<1x1000xf16>
     return %0 : tensor<1x1000xf16>
 
-    // CHECK-DAG:   [[IN1:%.+]] = VPURT.DeclareBuffer "NetworkInput" [0] <0> -> memref<1x1000xf16, @DDR>
+    // CHECK-DAG:   [[IN1:%.+]] = VPURT.DeclareBuffer "NetworkInput" [0] <0> -> memref<1x1x1x1000xf16, @DDR>
     // CHECK-DAG:   [[OUT1:%.+]] = VPURT.DeclareBuffer "NetworkOutput" [0] <0> -> memref<1x1000xf16, @DDR>
 
+    // CHECK-DAG:   [[VAR1:%.+]] = VPURT.DeclareBuffer "DDR" <0> -> memref<1x1x1x1000xf16, @DDR>
+    // CHECK-DAG:   [[VAR2:%.+]] = VPURT.DeclareBuffer "DDR" <0> -> memref<1x1000xf16, @DDR>
+
+    // CHECK-DAG:   [[VAR3:%.+]] = VPURT.ConfigureBarrier<0> -> !VPURT.Barrier
     // CHECK-NEXT:  VPURT.Task
+    // CHECK-SAME:              updates([[VAR3]] : !VPURT.Barrier)
     // CHECK-NEXT:  VPUIP.SoftMaxUPA
-    // CHECK-SAME:              axisInd = 1
-    // CHECK-SAME:              inputs([[IN1]] : memref<1x1000xf16, @DDR>)
+    // CHECK-SAME:              axisInd = 3
+    // CHECK-SAME:              inputs([[IN1]] : memref<1x1x1x1000xf16, @DDR>
+    // CHECK-SAME:              outputs([[VAR1]] : memref<1x1x1x1000xf16, @DDR>
+
+    // CHECK:  VPURT.Task
+    // CHECK-SAME:              waits([[VAR3]] : !VPURT.Barrier)
+    // CHECK-NEXT:  VPUIP.NNDMA
+    // CHECK-SAME:              inputs([[VAR2]] : memref<1x1000xf16, @DDR>)
     // CHECK-SAME:              outputs([[OUT1]] : memref<1x1000xf16, @DDR>)
 
     // CHECK:  return [[ARG1]] : memref<1x1000xf16, @DDR>

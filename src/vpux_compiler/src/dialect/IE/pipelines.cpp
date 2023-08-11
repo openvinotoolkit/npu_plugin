@@ -3,8 +3,8 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
+#include "vpux/compiler/pipelines.hpp"
+#include "vpux/compiler/VPU37XX/dialect/IE/passes.hpp"
 #include "vpux/compiler/dialect/IE/passes.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
 
@@ -49,7 +49,7 @@ void vpux::IE::buildAdjustLayoutPipeline(mlir::OpPassManager& pm, const AdjustLa
     pm.addPass(IE::createUniquifyBranchesPass(log));
     pm.addPass(IE::createSwapTransposeConcatPass(log));
     pm.addPass(IE::createTransposeToPermuteCastPass(log));
-    pm.addPass(IE::createAdjustLayoutsPass(log));
+    pm.addPass(IE::createAdjustLayoutsPass(/*adaptSEOps=*/isOptionEnabled(options.enableSEPtrsOperations), log));
     pm.addPass(mlir::createCanonicalizerPass(grc));
 
     if (options.enableOptimizeReorders) {
@@ -68,16 +68,20 @@ void vpux::IE::buildAdjustLayoutPipeline(mlir::OpPassManager& pm, const AdjustLa
 void vpux::IE::buildAdjustForVPUPipeline(mlir::OpPassManager& pm, const AdjustForVPUOptions& options, Logger log) {
     const auto grc = getDefaultGreedyRewriteConfig();
 
-    pm.addPass(IE::createConvertTile2PerAxisTilePass(log));
     pm.addPass(IE::createConvertConv1DToConv2DPass(log));
     pm.addPass(IE::createLegalizeDilatedConvolutionPass(log));
     pm.addPass(IE::createPerAxisFQConcatPass(log));
     pm.addPass(IE::createConvertPaddingsToFloorModePass(log));
     pm.addPass(IE::createConvertShuffleChannelsPass(log));
-    pm.addPass(IE::createConvertNearestToStridedConcatPass(log));
-    pm.addPass(IE::createConvertBilinearToStridedConcatAndConvPass(log));
+    pm.addPass(IE::createConvertNearestToBroadCastOrStridedConcatPass(
+            /*interpolateAsSEOp=*/isOptionEnabled(options.enableSEPtrsOperations), log));
+    pm.addPass(IE::createConvertBilinearToStridedConcatAndConvPass(
+            /*interpolateAsSEOp=*/isOptionEnabled(options.enableSEPtrsOperations), log));
+    pm.addPass(IE::createConvertBroadcastToTilePass(log));
+    pm.addPass(IE::createConvertScatterNDUpdateToStridedConcatPass(log));
     pm.addPass(IE::createConvertDeconv2DToConv2DPass(log));
     pm.addPass(IE::createConvertUpsamplingToStridedConcatPass(log));
+    pm.addPass(IE::createConvertReflectPadToSliceAndConcatPass(log));
     pm.addPass(IE::createFusePadOpsPass(log));
     pm.addPass(IE::createConvertPadToConcatPass(log));
     pm.addPass(IE::createConvertDepth2SpaceLayerPass(log));
@@ -102,8 +106,9 @@ void vpux::IE::buildAdjustForVPUPipeline(mlir::OpPassManager& pm, const AdjustFo
 void vpux::IE::buildLowPrecisionPipeline(mlir::OpPassManager& pm, const LowPrecisionOptions& options, Logger log) {
     const auto grc = getDefaultGreedyRewriteConfig();
 
+    pm.addPass(IE::createFoldReLUBeforeFQPass(log));
     pm.addPass(IE::createOptimizeUnalignedQDQSeqPass(log));
-    pm.addPass(IE::createSwapFakeQuantReshapePass(log));
+    pm.addPass(IE::createSwapFakeQuantWithReshapeAndStridedSlicePass(log));
     pm.addPass(IE::createSwapConvertWithTransposeReshapePass(log));
     if (options.enableAlignScales) {
         pm.addPass(IE::createAlignScalesPass(log));
@@ -140,32 +145,82 @@ void vpux::IE::buildLowPrecisionPipeline(mlir::OpPassManager& pm, const LowPreci
     pm.addPass(mlir::createCanonicalizerPass(grc));
 }
 
+void vpux::IE::buildInitialTransformationsPipeline(mlir::OpPassManager& pm, const TransformOptions& options,
+                                                   Logger log) {
+    const auto grc = getDefaultGreedyRewriteConfig();
+
+    pm.addPass(IE::createConvertScalarToTensorPass(log));
+    pm.addPass(IE::createNormalizeL2FusionPass(log));
+    pm.addPass(IE::createDecomposeLSTMCellPass(log));
+    pm.addPass(IE::createMatMulInputsTo2dPass(log));
+    pm.addPass(IE::createPropagateOpThroughBatchConcatPass(log));
+    pm.addPass(IE::createConvertMatMulToConvPass(log));
+    pm.addPass(mlir::createCanonicalizerPass(grc));
+
+    if (options.enableConvertFCToConv) {
+        pm.addPass(IE::createConvertFCToConvPass(log));
+    }
+}
+
+void vpux::IE::buildMemPermuteProcessingPipeline(mlir::OpPassManager& pm, Logger log) {
+    const auto grc = getDefaultGreedyRewriteConfig();
+
+    pm.addPass(IE::createConvertToMemPermutePass(log));
+    pm.addPass(mlir::createCanonicalizerPass(grc));
+    pm.addPass(IE::createMovePermutePostEltwisePass(log));
+    pm.addPass(mlir::createCanonicalizerPass(grc));
+    pm.addPass(IE::createLegalizeNDMemPermutePass(log));
+    pm.addPass(IE::createPropagateMemPermuteThroughAffineReshapePass(log));
+    pm.addPass(mlir::createCanonicalizerPass(grc));
+    pm.addPass(IE::createPropagateMemPermuteThroughAddPass(log));
+    pm.addPass(IE::createFuseMemPermutePass(log));
+    pm.addPass(mlir::createCanonicalizerPass(grc));
+    pm.addPass(IE::createUniquifyOpsPass(log));
+}
+
 //
 // registerIEPipelines
 //
 
 void vpux::IE::registerIEPipelines() {
     mlir::PassPipelineRegistration<AdjustPrecisionOptions>(
-            "adjust-precision", "Adjust IR precision for VPU target",
+            "adjust-precision", "[LEGALIZATION] Adjust IR precision for VPU target",
             [](mlir::OpPassManager& pm, const AdjustPrecisionOptions& options) {
                 IE::buildAdjustPrecisionPipeline(pm, options);
             });
 
     mlir::PassPipelineRegistration<AdjustLayoutOptions>(
-            "adjust-layout", "Adjust IR layout for VPU target",
+            "adjust-layout", "[LEGALIZATION] Adjust IR layout for VPU target",
             [](mlir::OpPassManager& pm, const AdjustLayoutOptions& options) {
                 IE::buildAdjustLayoutPipeline(pm, options);
             });
 
     mlir::PassPipelineRegistration<AdjustForVPUOptions>(
-            "adjust-for-vpu", "Adjust IE Dialect IR for VPU target",
+            "adjust-for-vpu", "[LEGALIZATION] Adjust IE Dialect IR for VPU target",
             [](mlir::OpPassManager& pm, const AdjustForVPUOptions& options) {
                 IE::buildAdjustForVPUPipeline(pm, options);
             });
 
     mlir::PassPipelineRegistration<LowPrecisionOptions>(
-            "low-precision", "Low precision transformations",
+            "low-precision", "[OPTIMIZATION] Low precision transformations",
             [](mlir::OpPassManager& pm, const LowPrecisionOptions& options) {
                 IE::buildLowPrecisionPipeline(pm, options);
+            });
+
+    mlir::PassPipelineRegistration<TransformOptions>(
+            "initial-transformations",
+            "[LEGALIZATION] Initial Transformations, convert initial IR operations to another and tries to reduce the "
+            "number of op types used in the graph",
+            [](mlir::OpPassManager& pm, const TransformOptions& options) {
+                IE::buildInitialTransformationsPipeline(pm, options);
+            });
+
+    mlir::PassPipelineRegistration<mlir::EmptyPipelineOptions>(
+            "mempermute-processing",
+            "[OPTIMIZATION] MemPermute processing is responsible for handling data transfromations ops (Transpose, "
+            "Reshape etc), transform it to MemPermute and optimize final subgraph to avoid unnesesary data "
+            "permutations",
+            [](mlir::OpPassManager& pm) {
+                IE::buildMemPermuteProcessingPipeline(pm);
             });
 }

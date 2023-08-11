@@ -15,7 +15,7 @@ mlir::LogicalResult vpux::VPU::FakeQuantizeOp::inferReturnTypes(
         mlir::MLIRContext* ctx, mlir::Optional<mlir::Location> optLoc, mlir::ValueRange operands,
         mlir::DictionaryAttr attrs, mlir::RegionRange /*regions*/,
         mlir::SmallVectorImpl<mlir::Type>& inferredReturnTypes) {
-    const auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
+    const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
     VPU::FakeQuantizeOpAdaptor quantize(operands, attrs);
     if (mlir::failed(quantize.verify(loc))) {

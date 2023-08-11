@@ -3,17 +3,31 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/IE/ops.hpp"
+#include "vpux/compiler/utils/error.hpp"
 
 using namespace vpux;
+
+//
+// verify
+//
+
+mlir::LogicalResult vpux::IE::CumSumOp::verify() {
+    if (axis() != nullptr) {
+        auto axisNumElements = axis().getType().cast<vpux::NDTypeInterface>().getNumElements();
+        if (axisNumElements != 1) {
+            return errorAt(*this, "Axis should have only 1 element, while it has {0}", axisNumElements);
+        }
+    }
+
+    return mlir::success();
+}
 
 mlir::LogicalResult vpux::IE::CumSumOp::inferReturnTypeComponents(
         mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
         mlir::DictionaryAttr attrs, mlir::RegionRange,
         SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
-    const auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
+    const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
     IE::CumSumOpAdaptor cumsum(operands, attrs);
     if (mlir::failed(cumsum.verify(loc))) {

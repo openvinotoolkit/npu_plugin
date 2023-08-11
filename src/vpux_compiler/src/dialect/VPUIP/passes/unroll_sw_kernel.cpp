@@ -2,8 +2,6 @@
 // Copyright (C) 2022 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
-
-//
 #include "vpux/compiler/core/act_profiling.hpp"
 #include "vpux/compiler/core/cost_model_utils.hpp"
 #include "vpux/compiler/dialect/VPU/attributes.hpp"
@@ -115,7 +113,7 @@ public:
         setDebugName("SwKernelRewriter");
     }
 
-    virtual bool needUnroll(VPUIP::SwKernelOp swKernelOp) const override;
+    bool needUnroll(VPUIP::SwKernelOp swKernelOp) const override;
     VPURT::TaskOp createNewTaskOp(VPUIP::SwKernelOp swKernelOp, VPUIP::SwKernelRun swKernelRun,
                                   VPURT::TaskOp origTaskOp, mlir::PatternRewriter& rewriter,
                                   size_t index) const override;
@@ -180,7 +178,7 @@ public:
     ClusterSwKernelRewriter(mlir::MLIRContext* ctx, Logger log): SwKernelRewriterBase(ctx, log) {
         setDebugName("ClusterSwKernelRewriter");
     }
-    virtual bool needUnroll(VPUIP::SwKernelOp swKernelOp) const override;
+    bool needUnroll(VPUIP::SwKernelOp swKernelOp) const override;
     VPURT::TaskOp createNewTaskOp(VPUIP::SwKernelOp swKernelOp, VPUIP::SwKernelRun swKernelRun,
                                   VPURT::TaskOp origTaskOp, mlir::PatternRewriter& rewriter,
                                   size_t index) const override;
@@ -278,7 +276,7 @@ private:
 
 void UnrollSwKernelPass::safeRunOnFunc() {
     auto& ctx = getContext();
-    auto func = getFunction();
+    auto func = getOperation();
 
     mlir::RewritePatternSet patterns(&ctx);
     patterns.insert<SwKernelRewriter>(&ctx, _log);

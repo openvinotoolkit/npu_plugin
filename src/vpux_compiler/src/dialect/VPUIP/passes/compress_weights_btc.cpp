@@ -3,13 +3,12 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
 #include "vpux/compiler/utils/codec_factory.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
+#include "vpux/compiler/utils/swizzling_utils.hpp"
 #include "vpux/compiler/utils/types.hpp"
 #include "vpux/utils/core/numeric.hpp"
 
@@ -145,15 +144,17 @@ mlir::LogicalResult NNDMAOpConverter::matchAndRewrite(VPUIP::NNDMAOp origOp, mli
     const Shape flatSrcShape{checked_cast<int64_t>(compressedData.size()), 1, 1, 1};
     const auto newSrcStorageType = mlir::RankedTensorType::get(flatSrcShape.raw(), u8Type);
     const auto newSrcContentAttr = mlir::DenseElementsAttr::get(newSrcStorageType, makeArrayRef(compressedData));
-    const auto newSrcType = getMemRefType(flatSrcShape, u8Type, DimsOrder::NCHW, inputType.getMemSpace());
+    const auto newSrcType = getMemRefType(flatSrcShape, u8Type, DimsOrder::NCHW, inputType.getMemSpace(),
+                                          /*strides=*/StridesRef(), getSwizzlingSchemeAttr(inputType));
 
     rewriter.setInsertionPointAfter(inConstOp);
     auto newSrcConstOp = rewriter.create<Const::DeclareOp>(inConstOp->getLoc(), newSrcType,
                                                            Const::ContentAttr::get(newSrcContentAttr));
 
     rewriter.setInsertionPoint(origOp);
-    rewriter.create<VPUIP::CompressedDMAOp>(loc, newSrcConstOp.output(), newDstBufferOp.buffer(), origOp.portAttr(),
-                                            origOp.is_out_of_orderAttr(), origOp.is_criticalAttr());
+    rewriter.create<VPUIP::DecompressDMAOp>(loc, newSrcConstOp.output(), nullptr, newDstBufferOp.buffer(),
+                                            origOp.portAttr(), origOp.channelTypeAttr(), origOp.is_out_of_orderAttr(),
+                                            origOp.is_criticalAttr(), nullptr);
     rewriter.replaceOp(origOp, {outBufferOp.buffer()});
 
     const auto uncompressed = totalInputSize.count();
@@ -165,7 +166,7 @@ mlir::LogicalResult NNDMAOpConverter::matchAndRewrite(VPUIP::NNDMAOp origOp, mli
 }
 
 void CompressWeightsBTCPass::safeRunOnFunc() {
-    auto func = getFunction();
+    auto func = getOperation();
     auto module = func->getParentOfType<mlir::ModuleOp>();
     const auto arch = VPU::getArch(module);
 
@@ -174,8 +175,8 @@ void CompressWeightsBTCPass::safeRunOnFunc() {
         return;
     }
 
-    const auto algo = (arch == VPU::ArchKind::VPUX37XX) ? ICodec::CompressionAlgorithm::BITCOMPACTOR_CODEC
-                                                        : ICodec::CompressionAlgorithm::HUFFMAN_CODEC;
+    // For VPU30XX and VPU31XX HUFFMAN_CODEC would be used
+    const auto algo = ICodec::CompressionAlgorithm::BITCOMPACTOR_CODEC;
 
     _log.trace("VPUIP CompressWeightsBTCPass");
     auto& ctx = getContext();

@@ -3,15 +3,12 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/VPU/passes.hpp"
 #include "vpux/compiler/dialect/VPU/strategy_manager.hpp"
 #include "vpux/compiler/utils/logging.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
 
 #include <mlir/IR/BlockAndValueMapping.h>
-#include <mlir/IR/BuiltinTypes.h>
 #include <mlir/Transforms/DialectConversion.h>
 
 using namespace vpux;
@@ -48,7 +45,7 @@ mlir::LogicalResult MultiClusterStrategyAssignmentPass::initializeOptions(String
 //
 
 void MultiClusterStrategyAssignmentPass::safeRunOnFunc() {
-    auto func = getFunction();
+    auto func = getOperation();
 
     auto module = func->getParentOfType<mlir::ModuleOp>();
 
@@ -56,13 +53,15 @@ void MultiClusterStrategyAssignmentPass::safeRunOnFunc() {
     VPUX_THROW_UNLESS(nceCluster != nullptr, "Failed to get NCE_Cluster information");
 
     if (nceCluster.count() > 1) {
-        LayerStrategyCheckerFactory::instance().registerNCEOpStrategy(func, _log);
+        LayerStrategyCheckerFactory::instance().registerClusteredOpStrategy(func, _log);
 
-        StrategyManager strategyManager(func, _log);
+        StrategyManager strategyManager(func, _log.nest());
         _log.trace("Greedy Strategy Assignment");
         strategyManager.assignMultiClusterStrategy();
         _log.trace("Execute Subgraph Optimization");
         strategyManager.optimizeMulticlusterStrategy();
+        _log.trace("Remove Temporary Strategy");
+        strategyManager.removeTemporaryMulticlusterStrategy();
     }
 }
 

@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
 
 #include "vpux/compiler/core/aliases_info.hpp"
@@ -244,10 +242,10 @@ mlir::LogicalResult PerAxisTileDMARewriter::unrollSegmentedOrOverlapped(VPUIP::N
                       "Input shape size '{0}' and tiles array size '{1}' are mismatch", originInShape.size(),
                       numTiles.size());
 
-    const auto perClusterShapes = distributedType.getPerClusterComputeShapes();
+    const auto perClusterShapes = distributedType.getPerClusterMemoryShapes();
     VPUX_THROW_UNLESS(perClusterShapes.size() == checked_cast<size_t>(numClusters),
                       "Number of shapes '{0}' and clusters '{1}' are mismatch", perClusterShapes.size(), numClusters);
-    const auto perClusterShapeOffsets = distributedType.getPerClusterComputeShapeOffsets();
+    const auto perClusterShapeOffsets = distributedType.getPerClusterMemoryShapeOffsets();
     VPUX_THROW_UNLESS(perClusterShapeOffsets.size() == checked_cast<size_t>(numClusters),
                       "Number of shape offsets '{0}' and clusters '{1}' are mismatch", perClusterShapeOffsets.size(),
                       numClusters);
@@ -442,7 +440,7 @@ private:
 void UnrollPerAxisTileDMAPass::safeRunOnFunc() {
     auto& ctx = getContext();
 
-    auto func = getFunction();
+    auto func = getOperation();
     auto module = func->getParentOfType<mlir::ModuleOp>();
     auto dmaOp = IE::getAvailableExecutor(module, VPU::ExecutorKind::DMA_NN);
     auto dmaPortCount = dmaOp.count();

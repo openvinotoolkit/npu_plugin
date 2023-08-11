@@ -3,10 +3,10 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/VPU/strategy_manager.hpp"
+#include "vpux/compiler/dialect/VPU/utils/const_utils.hpp"
 #include "vpux/compiler/dialect/VPU/utils/distributed_tensor_utils.hpp"
+#include "vpux/compiler/dialect/VPU/utils/generate_tiling.hpp"
 #include "vpux/utils/core/numeric.hpp"
 
 #include <llvm/ADT/TypeSwitch.h>
@@ -19,6 +19,14 @@ using namespace VPU;
 namespace {
 
 enum class SpillingType { SPILL_WRITE, SPILL_READ };
+
+VPUNN::VPUTensor getVPUNNTensorMultiCluster(ArrayRef<Shape> tensorShapes, mlir::Type dataType) {
+    unsigned int totalSize =
+            std::accumulate(tensorShapes.begin(), tensorShapes.end(), 0, [](unsigned int sum, Shape tensorShape) {
+                return sum + static_cast<unsigned int>(tensorShape.totalSize());
+            });
+    return VPUNN::VPUTensor({totalSize, 1, 1, 1}, getVPUNNElementType(dataType));
+}
 
 double getSpillingCostForNonMultiCluster(vpux::NDTypeInterface tensorType, SpillingType /*spillingType*/,
                                          double ddrLatency, double ddrBandwidth, double /*cmxLatency*/,
@@ -34,6 +42,14 @@ double getSpillingCostForDuplicated(vpux::NDTypeInterface tensorType, SpillingTy
     VPUX_THROW_WHEN(distributedTensorType == nullptr, "Invalid type: {0}", tensorType);
     const auto totalSize = tensorType.getTotalAllocSize().count();
     return ddrLatency + totalSize / ddrBandwidth;
+}
+
+double getSpillingCostForDuplicated(vpux::NDTypeInterface tensorType, VPUNN::VPUDevice vpuDevice,
+                                    const std::shared_ptr<VPUNN::VPUCostModel>& costModel) {
+    auto shape = tensorType.getShape();
+    auto elemType = tensorType.getElementType();
+    auto vpuTensor = VPU::getVPUTensor(shape, elemType);
+    return costModel->DMA(vpuDevice, vpuTensor, vpuTensor);
 }
 
 double getSpillingCostForSegmented(vpux::NDTypeInterface tensorType, SpillingType, double ddrLatency,
@@ -58,6 +74,16 @@ double getSpillingCostForSegmented(vpux::NDTypeInterface tensorType, SpillingTyp
     return ddrLatency + static_cast<double>(totalSize) / ddrBandwidth;
 }
 
+double getSpillingCostForSegmented(vpux::NDTypeInterface tensorType, VPUNN::VPUDevice vpuDevice,
+                                   const std::shared_ptr<VPUNN::VPUCostModel>& costModel) {
+    auto distributedTensorType = tensorType.dyn_cast<DistributedTensorType>();
+    VPUX_THROW_WHEN(distributedTensorType == nullptr, "Invalid type: {0}", tensorType);
+    auto shapes = distributedTensorType.getPerClusterComputeShapes();
+    auto elemType = tensorType.getElementType();
+    auto vpuTensor = getVPUNNTensorMultiCluster(shapes, elemType);
+    return costModel->DMA(vpuDevice, vpuTensor, vpuTensor);
+}
+
 using GetSpillingCostCB = double (*)(vpux::NDTypeInterface, SpillingType, double ddrLatency, double ddrBandwidth,
                                      double cmxLatency, double cmxBandwidth);
 const EnumMap<DistributionMode, GetSpillingCostCB> spillingCostMap{
@@ -71,13 +97,26 @@ const EnumMap<DistributionMode, GetSpillingCostCB> spillingCostMap{
         {DistributionMode::MULTICASTED | DistributionMode::SEGMENTED, getSpillingCostForDuplicated},
 };
 
-mlir::Value getInputFromClusteredOp(VPU::ClusteredOpInterface nceOp, mlir::Operation* parentOp) {
-    for (auto operand : nceOp->getOperands()) {
+using GetSpillingCostOnVPUNN = double (*)(vpux::NDTypeInterface tensortType, VPUNN::VPUDevice vpuDevice,
+                                          const std::shared_ptr<VPUNN::VPUCostModel>& costModel);
+const EnumMap<DistributionMode, GetSpillingCostOnVPUNN> spillingCostMapVPUNN{
+        // using  DistributionMode::NONE for single clustering case
+        {DistributionMode::NONE, getSpillingCostForDuplicated},
+        {DistributionMode::DUPLICATED, getSpillingCostForDuplicated},
+        {DistributionMode::SEGMENTED, getSpillingCostForSegmented},
+        {DistributionMode::OVERLAPPED, getSpillingCostForSegmented},
+        {DistributionMode::MULTICASTED, getSpillingCostForDuplicated},
+        {DistributionMode::DUPLICATED | DistributionMode::SEGMENTED, getSpillingCostForDuplicated},
+        {DistributionMode::MULTICASTED | DistributionMode::SEGMENTED, getSpillingCostForDuplicated},
+};
+
+mlir::Value getInputFromClusteredOp(VPU::ClusteredOpInterface clusteredOp, mlir::Operation* parentOp) {
+    for (auto operand : clusteredOp->getOperands()) {
         auto parent = operand.getDefiningOp();
         if (parent == parentOp) {
             return operand;
         }
-        while (mlir::isa<VPU::ShapeCastOp, VPU::QuantizeCastOp>(parent)) {
+        while (mlir::isa_and_nonnull<VPU::ShapeCastOp, VPU::QuantizeCastOp>(parent)) {
             // propagate cast ops
             parent = parent->getOperand(0).getDefiningOp();
             if (parent == parentOp) {
@@ -85,7 +124,8 @@ mlir::Value getInputFromClusteredOp(VPU::ClusteredOpInterface nceOp, mlir::Opera
             }
         }
     }
-    VPUX_THROW("Cannot find input from op: {0}, parent op: {1}", nceOp, *parentOp);
+
+    VPUX_THROW("Cannot find input from op: {0}, parent op: {1}", clusteredOp, parentOp);
 }
 
 bool hasUserMVN(VPU::ClusteredOpInterface clusteredOp) {
@@ -103,7 +143,7 @@ bool hasUserMVN(VPU::ClusteredOpInterface clusteredOp) {
     return false;
 }
 
-bool isAlignmentCompatible(VPU::ClusteredOpInterface nceOp, vpux::NDTypeInterface srcType,
+bool isAlignmentCompatible(VPU::ClusteredOpInterface clusteredOp, vpux::NDTypeInterface srcType,
                            vpux::NDTypeInterface dstType) {
     const auto srcTypeInterface = srcType.dyn_cast<VPU::DistributedTypeInterface>();
     const auto dstTypeInterface = dstType.dyn_cast<VPU::DistributedTypeInterface>();
@@ -117,8 +157,11 @@ bool isAlignmentCompatible(VPU::ClusteredOpInterface nceOp, vpux::NDTypeInterfac
             return false;
         }
         const auto distSrcDataType = distributedSrcTypes.front().cast<VPU::DistributedTensorType>();
-        if (distSrcDataType.getDistribution().mode().getValue() == DistributionMode::SEGMENTED) {
-            const auto newDistributedOutputType = adjustOutputAlignmentForSOH(nceOp, dstType);
+        const auto distDstDataType = distributedDstTypes.front().cast<VPU::DistributedTensorType>();
+        if ((distSrcDataType.getDistribution().mode().getValue() == DistributionMode::SEGMENTED) &&
+            (distDstDataType.getDistribution().mode().getValue() == DistributionMode::SEGMENTED) &&
+            (distSrcDataType.getDistribution().num_tiles() == distDstDataType.getDistribution().num_tiles())) {
+            const auto newDistributedOutputType = adjustOutputAlignmentForSOH(clusteredOp, dstType);
             if (newDistributedOutputType.hasValue()) {
                 const auto newDistributedOutputTypeInterface =
                         newDistributedOutputType.getValue().cast<VPU::DistributedTypeInterface>();
@@ -171,15 +214,24 @@ bool isTargetTensorTypeCompatible(vpux::NDTypeInterface srcType, vpux::NDTypeInt
 }
 }  // namespace
 
-LayerCostModel::LayerCostModel(mlir::FuncOp func, Logger log): _func(func), _log(log) {
+LayerCostModel::LayerCostModel(mlir::func::FuncOp func, Logger log): _func(func), _log(log) {
     auto module = func->getParentOfType<mlir::ModuleOp>();
-    auto nceOp = IE::getAvailableExecutor(module, ExecutorKind::NCE);
-    auto dpuExec = nceOp.getSubExecutor(VPU::ExecutorKindAttr::get(module->getContext(), VPU::ExecutorKind::DPU));
-    _NCEFrequency = nceOp.getProcessorFrequency().getValueAsDouble();
-    _numClusters = nceOp.count();
-    _numDPUs = dpuExec.count();
-    _NCEThroughput = getNCEThroughput(VPU::getArch(nceOp));
-    _DMABandwidth = getDMABandwidth(VPU::getArch(nceOp));
+
+    if (auto nceOp = IE::getAvailableExecutor(module, ExecutorKind::NCE)) {
+        auto dpuExec = nceOp.getSubExecutor(VPU::ExecutorKindAttr::get(module->getContext(), VPU::ExecutorKind::DPU));
+        _NCEFrequency = nceOp.getProcessorFrequency().getValueAsDouble();
+        _numClusters = nceOp.count();
+        _numDPUs = dpuExec.count();
+        _NCEThroughput = getNCEThroughput(VPU::getArch(nceOp));
+        _DMABandwidth = getDMABandwidth(VPU::getArch(nceOp));
+    }
+    if (auto shaveActExec = IE::getAvailableExecutor(module, ExecutorKind::SHAVE_ACT)) {
+        _numShaveActs = shaveActExec.count();
+    }
+
+    _arch = VPU::getArch(module);
+    _vpuDeviceType = VPU::getVPUDeviceType(_arch);
+    _layerCostModel = VPU::createLayerCostModel(_arch);
 }
 
 vpux::NDTypeInterface LayerCostModel::getNormalInputType(VPU::ClusteredOpInterface origOp,
@@ -203,6 +255,18 @@ VPU::DistributedTypeInterface LayerCostModel::getDistributedInputType(
     return getDistributedActivationTypeFromOp(origOp, input.getType(), numClustersAttr, specifiedStrategy);
 }
 
+VPU::DistributedTypeInterface LayerCostModel::getDistributedInputType(VPU::ClusteredOpInterface origOp,
+                                                                      mlir::Operation* parentOp,
+                                                                      VPU::MultiClusterStrategy specifiedStrategy,
+                                                                      mlir::ArrayAttr customAlignment) const {
+    auto input = getInputFromClusteredOp(origOp, parentOp);
+    auto numClustersAttr = VPU::getOptimalNumClusters(
+            origOp, origOp->getResult(0).getType().cast<vpux::NDTypeInterface>().getShape()[Dims4D::Act::C],
+            specifiedStrategy);
+    return getDistributedActivationTypeFromOp(origOp, input.getType(), numClustersAttr, specifiedStrategy,
+                                              customAlignment);
+}
+
 VPU::DistributedTypeInterface LayerCostModel::getDistributedOutputType(
         VPU::ClusteredOpInterface origOp, VPU::MultiClusterStrategy specifiedStrategy) const {
     auto numClustersAttr = VPU::getOptimalNumClusters(
@@ -214,31 +278,36 @@ VPU::DistributedTypeInterface LayerCostModel::getDistributedOutputType(
 
 /*
  * Get the spilling cost
- * srcTensorType is the output of parent NCE op
- * dstTensorType is the input of child NCE op
+ * srcTensorType is the output of parent op (current op)
+ * dstTensorType is the input of child op
  * return spilling write cost and spilling read cost
  */
 LayerCostModel::SpillingCost LayerCostModel::getSpillingCost(vpux::NDTypeInterface srcTensorType,
-                                                             vpux::NDTypeInterface dstTensorType) const {
-    auto distributedSrcType = srcTensorType.dyn_cast<DistributedTensorType>();
-    auto distributedDstType = dstTensorType.dyn_cast<DistributedTensorType>();
-    auto srcMode = distributedSrcType != nullptr ? distributedSrcType.getDistribution().mode().getValue()
-                                                 : VPU::DistributionMode::NONE;
-    auto dstMode = distributedDstType != nullptr ? distributedDstType.getDistribution().mode().getValue()
-                                                 : VPU::DistributionMode::NONE;
+                                                             vpux::NDTypeInterface dstTensorType,
+                                                             VPU::ClusteredOpInterface parentOp,
+                                                             VPU::ClusteredOpInterface userOp) const {
+    // Concat is on DDR memory if there's spilling. So we don't need copy from CMX to DDR if Concat is parent. Also we
+    // don't need copy from DDR to CMX if Concat is user.
+    if (mlir::isa<VPU::ConcatOp>(parentOp)) {
+        return {0.0, getSpillingReadCost(dstTensorType)};
+    }
 
-    auto spillingWriteCostFunc = spillingCostMap.at(srcMode);
-    auto spillingReadCostFunc = spillingCostMap.at(dstMode);
-    return {spillingWriteCostFunc(srcTensorType, SpillingType::SPILL_WRITE, _DDRLatency, _DMABandwidth, _CMXLatency,
-                                  _CMXMulticastBandwidth),
-            spillingReadCostFunc(dstTensorType, SpillingType::SPILL_READ, _DDRLatency, _DMABandwidth, _CMXLatency,
-                                 _CMXMulticastBandwidth)};
+    if (mlir::isa<VPU::ConcatOp>(userOp)) {
+        return {getSpillingWriteCost(srcTensorType), 0.0};
+    }
+
+    return {getSpillingWriteCost(srcTensorType), getSpillingReadCost(dstTensorType)};
 }
 
 double LayerCostModel::getSpillingReadCost(vpux::NDTypeInterface srcTensorType) const {
     auto distributedSrcType = srcTensorType.dyn_cast<DistributedTensorType>();
     auto srcMode = distributedSrcType != nullptr ? distributedSrcType.getDistribution().mode().getValue()
                                                  : VPU::DistributionMode::NONE;
+
+    if (_arch == ArchKind::VPUX37XX) {
+        auto spillingReadCostFunc = spillingCostMapVPUNN.at(srcMode);
+        return spillingReadCostFunc(srcTensorType, _vpuDeviceType, _layerCostModel);
+    }
     auto spillingReadCostFunc = spillingCostMap.at(srcMode);
     return spillingReadCostFunc(srcTensorType, SpillingType::SPILL_READ, _DDRLatency, _DMABandwidth, _CMXLatency,
                                 _CMXMulticastBandwidth);
@@ -248,6 +317,11 @@ double LayerCostModel::getSpillingWriteCost(vpux::NDTypeInterface srcTensorType)
     auto distributedSrcType = srcTensorType.dyn_cast<DistributedTensorType>();
     auto srcMode = distributedSrcType != nullptr ? distributedSrcType.getDistribution().mode().getValue()
                                                  : VPU::DistributionMode::NONE;
+
+    if (_arch == ArchKind::VPUX37XX) {
+        auto spillingWriteCostFunc = spillingCostMapVPUNN.at(srcMode);
+        return spillingWriteCostFunc(srcTensorType, _vpuDeviceType, _layerCostModel);
+    }
     auto spillingWriteCostFunc = spillingCostMap.at(srcMode);
     return spillingWriteCostFunc(srcTensorType, SpillingType::SPILL_WRITE, _DDRLatency, _DMABandwidth, _CMXLatency,
                                  _CMXMulticastBandwidth);
@@ -340,7 +414,7 @@ double LayerCostModel::clusterComputeTime(VPU::NCEOpInterface nceOp, VPU::MultiC
     auto kernelSize = nceOp.getKernelSize();
     auto op = nceOp.getOperation();
     int64_t baseKernelCost = kernelSize[Dims4D::Kernel::Y.ind()] * kernelSize[Dims4D::Kernel::X.ind()];
-    if (mlir::isa<VPU::NCEConvolutionOp>(op)) {
+    if (mlir::isa<VPU::NCEConvolutionOp, VPU::NCECompressConvolutionOp, VPU::NCEInterpolateOp>(op)) {
         int64_t IC = getShape(
                 op->getOperand(0))[Dims4D::Act::C];  // Get input channel (already channel-alignment in previous pass)
         baseKernelCost = IC * baseKernelCost;
@@ -379,7 +453,9 @@ double LayerCostModel::totalDMATime(VPU::NCEOpInterface nceOp, VPU::MultiCluster
     const auto op = nceOp.getOperation();
     const auto inOrder = DimsOrder::fromValue(op->getOperand(0));
     const bool isCMajor = inOrder == DimsOrder::NCHW;
-    const int64_t IC = mlir::isa<VPU::NCEConvolutionOp>(op) ? getShape(op->getOperand(0))[Dims4D::Act::C] : 1;
+    const int64_t IC = (mlir::isa<VPU::NCEConvolutionOp, VPU::NCECompressConvolutionOp, VPU::NCEInterpolateOp>(op))
+                               ? getShape(op->getOperand(0))[Dims4D::Act::C]
+                               : 1;
     const int64_t OC = getShape(op->getResult(0))[Dims4D::Act::C];
     const auto kernelSize = nceOp.getKernelSize();
     auto numClustersAttr = VPU::getOptimalNumClusters(clusteredOp, OC, strategy);
@@ -389,7 +465,8 @@ double LayerCostModel::totalDMATime(VPU::NCEOpInterface nceOp, VPU::MultiCluster
     /// SOK may use less clusters to avoid alignment
     /// So it's not proper to estimate total weightsSize by "clusterWeightsSize * _numClusters" simply
     /// Using distributed tensor for SOK to get accurate total size
-    if (mlir::isa<VPU::NCEConvolutionOp>(op) || mlir::isa<VPU::NCEDepthConvolutionOp>(op)) {
+    if (mlir::isa<VPU::NCEConvolutionOp, VPU::NCEDepthConvolutionOp, VPU::NCECompressConvolutionOp,
+                  VPU::NCEInterpolateOp>(op)) {
         auto weights = op->getOperand(1);
 
         SmallVector<int64_t> numElemsPerOC;
@@ -420,8 +497,8 @@ double LayerCostModel::totalDMATime(VPU::NCEOpInterface nceOp, VPU::MultiCluster
 
             for (auto type : distributedWeightsTensorType.getDistributedTypes() | indexed) {
                 auto distributedWeightsType = type.value().cast<VPU::DistributedTensorType>();
-                auto tiledWeightsShapes = distributedWeightsType.getPerClusterComputeShapes();
-                auto tiledWeightsOffsets = distributedWeightsType.getPerClusterComputeShapeOffsets();
+                auto tiledWeightsShapes = distributedWeightsType.getPerClusterMemoryShapes();
+                auto tiledWeightsOffsets = distributedWeightsType.getPerClusterMemoryShapeOffsets();
 
                 const double elemByteSize =
                         static_cast<double>(getElemTypeSize(distributedWeightsType).count()) / CHAR_BIT;
@@ -438,7 +515,8 @@ double LayerCostModel::totalDMATime(VPU::NCEOpInterface nceOp, VPU::MultiCluster
                             const auto numElems = *(numElemsPerOC.begin() + idx);
                             const auto tileByteSize =
                                     static_cast<int64_t>(static_cast<double>(numElems) * elemByteSize);
-                            const auto alignedTileByteSize = vpux::alignVal<int64_t>(tileByteSize, weightSetAlignment);
+                            const auto alignedTileByteSize =
+                                    vpux::alignValUp<int64_t>(tileByteSize, weightSetAlignment);
                             weightsByteSize += alignedTileByteSize;
                         }
                     }
@@ -467,15 +545,15 @@ double LayerCostModel::totalDMATime(VPU::NCEOpInterface nceOp, VPU::MultiCluster
             int64_t clusterWeightsSize = 0;
             if (!numElemsPerOC.empty()) {
                 for (auto numElems : numElemsPerOC) {
-                    clusterWeightsSize += alignVal<int64_t>(numElems * elemByteSize, _cmxAddressAlignment);
+                    clusterWeightsSize += alignValUp<int64_t>(numElems * elemByteSize, _cmxAddressAlignment);
                 }
             } else {
-                clusterWeightsSize += (OC * alignVal<int64_t>(weightSetSize * elemByteSize, _cmxAddressAlignment));
+                clusterWeightsSize += (OC * alignValUp<int64_t>(weightSetSize * elemByteSize, _cmxAddressAlignment));
             }
 
             if (weights.getType().isa<VPU::SparseTensorType>()) {
                 const int64_t weightSetBitAlignment = 128;
-                const int64_t sparsityMapSize = (OC * alignVal<int64_t>(weightSetSize, weightSetBitAlignment));
+                const int64_t sparsityMapSize = (OC * alignValUp<int64_t>(weightSetSize, weightSetBitAlignment));
                 const int64_t sparsityMapByteSize = sparsityMapSize / CHAR_BIT;
                 clusterWeightsSize += sparsityMapByteSize;
             }
@@ -488,8 +566,8 @@ double LayerCostModel::totalDMATime(VPU::NCEOpInterface nceOp, VPU::MultiCluster
     /// WeightsTable cost
     /// WeightTable has OC entries, each entry includes sparsity/weights pointer, bias and mult/shfit quantized
     /// params. The total size for each entry is 16 Bytes
-    if (mlir::isa<VPU::NCEConvolutionOp>(op) || mlir::isa<VPU::NCEDepthConvolutionOp>(op) ||
-        mlir::isa<VPU::NCEMaxPoolOp>(op)) {
+    if (mlir::isa<VPU::NCEConvolutionOp, VPU::NCEDepthConvolutionOp, VPU::NCEMaxPoolOp, VPU::NCECompressConvolutionOp,
+                  VPU::NCEInterpolateOp>(op)) {
         auto largestClusterOutShape = getLargestClusterOutputShape(clusteredOp, strategy);
         int64_t alignedClusterOutChannels = largestClusterOutShape[Dims4D::Act::C];
         int64_t clusterWeightTableSize = NCEInvariant::getWeightsTableSize(alignedClusterOutChannels).count();
@@ -541,22 +619,134 @@ double LayerCostModel::totalDMATime(VPU::NCEOpInterface nceOp, VPU::MultiCluster
 
 /// @brief A switcher to select time-cost or efficiency-cost for greedy strategy assignment
 /// @details Time-cost includes an extra input spilling cost to be more accurate
-double LayerCostModel::getLayerCost(VPU::NCEOpInterface nceOp, VPU::MultiClusterStrategy strategy,
-                                    bool useTimeBasedCost) const {
+double LayerCostModel::getNCELayerCost(VPU::NCEOpInterface nceOp, VPU::MultiClusterStrategy strategy,
+                                       bool useTimeBasedCost) const {
     if (!useTimeBasedCost) {
         return getEfficiencyCost(nceOp, strategy);
     }
 
     auto basicDPUandDMACost = getDPUandDMATimeCost(nceOp, strategy);
-    _log.trace("Operation {0} get DPUandDMATimeCost {1} with strategy {2}", nceOp->getLoc(), basicDPUandDMACost,
-               strategy);
-
     return basicDPUandDMACost;
 }
 
-/// @brief Time-cost : DPU time + DMA time (cycles)
-/// @details DPU time calculation also considers the impact of DPU computing efficiency
+/// @brief Time-cost : return the shave computation time (cycles)
+/// @details use vpunn cost model to get the shave cost of sw layer
+double LayerCostModel::getSWLayerCost(VPU::SWOpInterface swOp, VPU::MultiClusterStrategy strategy) const {
+    auto inputType = swOp->getOperand(0).getType().cast<vpux::NDTypeInterface>();
+    auto outputType = swOp->getResult(0).getType().cast<vpux::NDTypeInterface>();
+    auto inputTensor = VPU::getVPUTensor(inputType.getShape(), inputType.getElementType());
+    auto outputTensor = VPU::getVPUTensor(outputType.getShape(), outputType.getElementType());
+    std::shared_ptr<VPUNN::SWOperation> vpunnLayer;
+    llvm::TypeSwitch<mlir::Operation*, void>(swOp.getOperation())
+            .Case<VPU::TanhOp>([&](VPU::TanhOp) {
+                vpunnLayer = std::make_shared<VPUNN::SHVTanh>(getVPUDeviceType(_arch), inputTensor, outputTensor);
+            })
+            .Case<VPU::MVNOp>([&](VPU::MVNOp) {
+                vpunnLayer = std::make_shared<VPUNN::SHVMVN>(getVPUDeviceType(_arch), inputTensor, outputTensor);
+            })
+            .Case<VPU::SoftMaxOp>([&](VPU::SoftMaxOp) {
+                vpunnLayer = std::make_shared<VPUNN::SHVSoftmax>(getVPUDeviceType(_arch), inputTensor, outputTensor);
+            })
+            .Case<VPU::SwishOp>([&](VPU::SwishOp) {
+                vpunnLayer = std::make_shared<VPUNN::SHVSwish>(getVPUDeviceType(_arch), inputTensor, outputTensor);
+            })
+            .Case<VPU::HSwishOp>([&](VPU::HSwishOp) {
+                vpunnLayer = std::make_shared<VPUNN::SHVHardSwish>(getVPUDeviceType(_arch), inputTensor, outputTensor);
+            })
+            .Default([&](mlir::Operation* op) {
+                VPUX_THROW("SW op {0} has no VPUNN support", op->getName());
+            });
+    auto vpunnStrategy = VPU::getVPULayerStrategy(strategy, _numDPUs, _numClusters, _numShaveActs, false);
+    return _layerCostModel->Layer(*vpunnLayer, vpunnStrategy);
+}
+
+/// @brief get computation cost
+/// @details Time-cost includes an extra input spilling cost to be more accurate
+double LayerCostModel::getLayerCost(VPU::ClusteredOpInterface clusteredOp, VPU::MultiClusterStrategy strategy,
+                                    bool useTimeBasedCost) const {
+    if (auto nceOp = mlir::dyn_cast<VPU::NCEOpInterface>(clusteredOp.getOperation())) {
+        return getNCELayerCost(nceOp, strategy, useTimeBasedCost);
+    } else if (auto swOp = mlir::dyn_cast<VPU::SWOpInterface>(clusteredOp.getOperation())) {
+        return getSWLayerCost(swOp, strategy);
+    } else if (mlir::isa<VPU::ConcatOp>(clusteredOp.getOperation())) {
+        // Concat has no computation cost
+        return 0.0;
+    } else {
+        VPUX_THROW("Unsupported op type {0} at {1}", clusteredOp->getName(), clusteredOp->getLoc());
+    }
+}
+
+/// @brief Time-cost : return a sum of layer DPU time and weights DMA time (cycles)
+/// @details DPU time calculation also considers the impact of workloads split efficiency
 double LayerCostModel::getDPUandDMATimeCost(VPU::NCEOpInterface nceOp, VPU::MultiClusterStrategy strategy) const {
+    if (_arch == ArchKind::VPUX37XX) {
+        auto clusteredOp = mlir::dyn_cast<VPU::ClusteredOpInterface>(nceOp.getOperation());
+        VPUX_THROW_WHEN(clusteredOp == nullptr, "NCE op {0} at {1} should be a clustered op", nceOp->getName(),
+                        nceOp.getLoc());
+        const auto costParam = VPU::getWorkloadCostParam(nceOp, _arch, _numDPUs);
+        SmallVector<VPUNN::DPULayer> vpunnLayers{VPU::getDPULayer(costParam)};
+
+        // Check CMX memory as VPUNN works with layer which fits CMX memory
+        // If not, tiling big layer to fit into CMX
+        auto layerStrategyChecker = LayerStrategyCheckerFactory::instance().get(clusteredOp->getName());
+        if (!(layerStrategyChecker->doesLayerFitIntoCMX(clusteredOp, strategy))) {
+            _log.trace("Tiling op {0} to fit into cmx before passing to VPUNN Layer API", nceOp.getLoc());
+            auto tilingOp = mlir::dyn_cast<VPU::TilingBuilderOpInterface>(nceOp.getOperation());
+            VPUX_THROW_WHEN(tilingOp == nullptr, "NCE op {0} at {1} should be a tiling op", nceOp->getName(),
+                            nceOp.getLoc());
+
+            OutputTiling outTiles;
+            // Set customized strategy to the op to get corresponding output tiles when tiling
+            // Save and restore original strategy if needed
+            auto origStrategy = clusteredOp.getMultiClusterStrategyAttr();
+            clusteredOp.setMultiClusterStrategyAttr(strategy);
+            outTiles = getLayerTilingStrategy(tilingOp, false, _log);
+            if (origStrategy.hasValue()) {
+                clusteredOp.setMultiClusterStrategyAttr(origStrategy.getValue());
+            } else {
+                clusteredOp->removeAttr(multiClusterStrategy);
+            }
+
+            auto tilingVPUNNLayer = [&](const VPUNN::DPULayer& vpunnLayer,
+                                        const OutputTiling& outTiles) -> SmallVector<VPUNN::DPULayer> {
+                SmallVector<VPUNN::DPULayer> vpunnLayers;
+                for (auto& outTile : outTiles) {
+                    vpunnLayers.push_back(vpunnLayer);
+                    auto inTiles = tilingOp.backInferTileInfo(outTile, _log);
+                    auto& inputTile = inTiles.tiles.front();
+                    auto inPad = inTiles.pads;
+                    vpunnLayers.back().inputs = {getVPUTensor(inputTile.shape, costParam.inDataType)};
+                    vpunnLayers.back().outputs = {getVPUTensor(outTile.shape, costParam.outDataType)};
+                    if (inPad.hasValue()) {
+                        vpunnLayers.back().padding = {
+                                static_cast<unsigned int>(inPad->top), static_cast<unsigned int>(inPad->bottom),
+                                static_cast<unsigned int>(inPad->left), static_cast<unsigned int>(inPad->right)};
+                    }
+                }
+                return vpunnLayers;
+            };
+            // Return tiled vpunn layers
+            vpunnLayers = tilingVPUNNLayer(vpunnLayers[0], outTiles);
+        }
+
+        auto vpunnStrategy = VPU::getVPULayerStrategy(strategy, _numDPUs, _numClusters);
+
+        _log.trace("Start calculating vpunn cost for Op {0} with strategy {1}", nceOp.getLoc(), strategy);
+        double vpunnCost = 0;
+        for (auto& vpunnLayer : vpunnLayers) {
+            uint32_t cost = checkAndReturnCost(_layerCostModel->Layer(vpunnLayer, vpunnStrategy), _log);
+            if (cost == VPU::INVALID_COST) {
+                printVPUNNLayerConfig(vpunnLayer, vpunnStrategy);
+                return static_cast<double>(cost);
+            }
+            _log.trace(" VPUNN layer cost {0}", cost);
+            vpunnCost += static_cast<double>(cost);
+        }
+        _log.trace("VPUNN total layer cost {0}", vpunnCost);
+        return vpunnCost;
+    }
+
+    // For KMB
     return clusterComputeTime(nceOp, strategy) + totalDMATime(nceOp, strategy);
 }
 
@@ -594,144 +784,103 @@ bool LayerCostModel::hasSpilling(VPU::ClusteredOpInterface clusteredOp, vpux::ND
     return true;
 }
 
-bool LayerCostModel::hasSpilling(VPU::ClusteredOpInterface clustered, VPU::ClusteredOpInterface userOp) const {
-    auto targetOutputTypes = hasMultiClusterStrategy(clustered)
-                                     ? getDistributedOutputType(clustered, getMultiClusterStrategyValue(clustered))
-                                               .cast<vpux::NDTypeInterface>()
-                                     : getNormalOutputType(clustered);
+std::pair<vpux::NDTypeInterface, vpux::NDTypeInterface> LayerCostModel::getDistributionTypesWithStrategy(
+        VPU::ClusteredOpInterface parentOp, VPU::MultiClusterStrategy parentStrategy, VPU::ClusteredOpInterface userOp,
+        VPU::MultiClusterStrategy userStrategy) const {
+    // Set the custom strategy to the op to get the accurate distributed type
+    // The distribution mode depends on the neighboring op's strategy
+    // e.g., Conv (SOK) -> SW (SOK), the output of the Conv would be SEGMENTED
+    // Conv (SOK) -> SW (Clustering), the output of the Conv would be DUPLICATED|SEGMENTED
+    // The DistributedType is decided by the ops multiCluster strategy attributes
+    auto greedyStrategyParentOp = getMultiClusterStrategyValue(parentOp);
+    auto greedyStrategyUserOp = getMultiClusterStrategyValue(userOp);
+    parentOp.setMultiClusterStrategyAttr(parentStrategy);
+    userOp.setMultiClusterStrategyAttr(userStrategy);
+    auto targetOutputType = getDistributedOutputType(parentOp, parentStrategy);
+    auto targetInputType = getDistributedInputType(userOp, parentOp, userStrategy);
+    parentOp.setMultiClusterStrategyAttr(greedyStrategyParentOp);
+    userOp.setMultiClusterStrategyAttr(greedyStrategyUserOp);
 
-    auto targetInputTypes = hasMultiClusterStrategy(userOp)
-                                    ? getDistributedInputType(userOp, clustered, getMultiClusterStrategyValue(userOp))
+    // Adjust inputType alignment for SW op
+    // e.g., Conv (SOK) -> SW (SOK), the input of SW can have a same alignment with Conv
+    // to avoid spilling
+    auto parentOutputDistType = targetOutputType.dyn_cast<VPU::DistributedTensorType>();
+    auto userInputDistType = targetInputType.dyn_cast<VPU::DistributedTensorType>();
+    if (parentOutputDistType != nullptr && userInputDistType != nullptr) {
+        auto parentOutAlignment = parentOutputDistType.getDistribution().alignment();
+        auto UserInAlignment = userInputDistType.getDistribution().alignment();
+        if (parentOutAlignment != nullptr && UserInAlignment == nullptr &&
+            mlir::isa<VPU::SWOpInterface>(userOp.getOperation()) && isSWOpChannelAlignmentCompatible(userOp)) {
+            targetInputType = getDistributedInputType(userOp, parentOp, userStrategy, parentOutAlignment);
+        }
+    }
+    return {targetOutputType, targetInputType};
+}
+
+bool LayerCostModel::hasSpilling(VPU::ClusteredOpInterface clustered, VPU::ClusteredOpInterface userOp) const {
+    auto targetOutputType = hasMultiClusterStrategy(clustered)
+                                    ? getDistributedOutputType(clustered, getMultiClusterStrategyValue(clustered))
                                               .cast<vpux::NDTypeInterface>()
-                                    : getNormalInputType(userOp, clustered);
-    return hasSpilling(clustered, targetOutputTypes, targetInputTypes);
+                                    : getNormalOutputType(clustered);
+
+    auto targetInputType = hasMultiClusterStrategy(userOp)
+                                   ? getDistributedInputType(userOp, clustered, getMultiClusterStrategyValue(userOp))
+                                             .cast<vpux::NDTypeInterface>()
+                                   : getNormalInputType(userOp, clustered);
+    return hasSpilling(clustered, targetOutputType, targetInputType);
 }
 
 bool LayerCostModel::hasSpilling(VPU::ClusteredOpInterface origOp, VPU::MultiClusterStrategy origOpStrategy,
                                  VPU::ClusteredOpInterface userOp) const {
-    auto targetOutputTypes = getDistributedOutputType(origOp, origOpStrategy).cast<vpux::NDTypeInterface>();
-    auto targetInputTypes = hasMultiClusterStrategy(userOp)
-                                    ? getDistributedInputType(userOp, origOp, getMultiClusterStrategyValue(origOp))
-                                              .cast<vpux::NDTypeInterface>()
-                                    : getNormalInputType(userOp, origOp);
-    return hasSpilling(origOp, targetOutputTypes, targetInputTypes);
+    auto targetOutputType = getDistributedOutputType(origOp, origOpStrategy).cast<vpux::NDTypeInterface>();
+    auto targetInputType = hasMultiClusterStrategy(userOp)
+                                   ? getDistributedInputType(userOp, origOp, getMultiClusterStrategyValue(origOp))
+                                             .cast<vpux::NDTypeInterface>()
+                                   : getNormalInputType(userOp, origOp);
+    if (hasMultiClusterStrategy(userOp)) {
+        std::tie(targetOutputType, targetInputType) =
+                getDistributionTypesWithStrategy(origOp, origOpStrategy, userOp, getMultiClusterStrategyValue(userOp));
+    }
+    return hasSpilling(origOp, targetOutputType, targetInputType);
 }
 
 bool LayerCostModel::hasSpilling(VPU::ClusteredOpInterface origOp, VPU::ClusteredOpInterface userOp,
                                  VPU::MultiClusterStrategy userOpStrategy) const {
     auto clusteredOp = mlir::dyn_cast<VPU::ClusteredOpInterface>(origOp.getOperation());
-    auto targetOutputTypes = hasMultiClusterStrategy(origOp)
-                                     ? getDistributedOutputType(origOp, getMultiClusterStrategyValue(clusteredOp))
-                                               .cast<vpux::NDTypeInterface>()
-                                     : getNormalOutputType(origOp);
-    auto targetInputTypes = getDistributedInputType(userOp, origOp, userOpStrategy).cast<vpux::NDTypeInterface>();
-    return hasSpilling(origOp, targetOutputTypes, targetInputTypes);
+    auto targetOutputType = hasMultiClusterStrategy(origOp)
+                                    ? getDistributedOutputType(origOp, getMultiClusterStrategyValue(clusteredOp))
+                                              .cast<vpux::NDTypeInterface>()
+                                    : getNormalOutputType(origOp);
+    auto targetInputType = getDistributedInputType(userOp, origOp, userOpStrategy).cast<vpux::NDTypeInterface>();
+    if (hasMultiClusterStrategy(origOp)) {
+        std::tie(targetOutputType, targetInputType) =
+                getDistributionTypesWithStrategy(origOp, getMultiClusterStrategyValue(origOp), userOp, userOpStrategy);
+    }
+    return hasSpilling(origOp, targetOutputType, targetInputType);
 }
 
 bool LayerCostModel::hasSpilling(VPU::ClusteredOpInterface origOp, VPU::MultiClusterStrategy origOpStrategy,
                                  VPU::ClusteredOpInterface userOp, VPU::MultiClusterStrategy userOpStrategy) const {
-    auto targetOutputTypes = getDistributedOutputType(origOp, origOpStrategy).cast<vpux::NDTypeInterface>();
-    auto targetInputTypes = getDistributedInputType(userOp, origOp, userOpStrategy).cast<vpux::NDTypeInterface>();
-    return hasSpilling(origOp, targetOutputTypes, targetInputTypes);
+    auto targetTypes = getDistributionTypesWithStrategy(origOp, origOpStrategy, userOp, userOpStrategy);
+    auto targetOutputType = targetTypes.first;
+    auto targetInputType = targetTypes.second;
+    return hasSpilling(origOp, targetOutputType, targetInputType);
 }
 
-bool LayerCostModel::doesLayerRequireTiling(VPU::ClusteredOpInterface nceOp, VPU::MultiClusterStrategy strategy) const {
-    auto layerStrategyChecker = LayerStrategyCheckerFactory::instance().get(nceOp->getName());
-    return !(layerStrategyChecker->doesLayerFitIntoCMX(nceOp.getOperation(), strategy));
-}
-
-bool LayerCostModel::hasInputSpillingToMultiClusterLayer(VPU::ClusteredOpInterface origClusteredOp) const {
-    SmallVector<mlir::Value> layerInputs;
-    if (auto eltwiseOp = mlir::dyn_cast<VPU::NCEEltwiseOp>(origClusteredOp.getOperation())) {
-        layerInputs.push_back(eltwiseOp.input1());
-        layerInputs.push_back(eltwiseOp.input2());
-    } else {
-        layerInputs.push_back(origClusteredOp->getOperand(0));
-    }
-
-    for (auto input : layerInputs) {
-        if (input.isa<mlir::BlockArgument>()) {
-            continue;
-        }
-        auto parent = input.getDefiningOp();
-        if (mlir::isa<VPU::ShapeCastOp, VPU::QuantizeCastOp>(parent)) {
-            if (parent->getOperand(0).isa<mlir::BlockArgument>()) {
-                continue;
-            }
-            // propagate cast ops
-            parent = parent->getOperand(0).getDefiningOp();
-        }
-        if ((parent == nullptr) || (!hasMultiClusterStrategy(parent))) {
-            continue;
-        }
-
-        if (auto parentClusteredOp = mlir::dyn_cast<VPU::ClusteredOpInterface>(parent)) {
-            auto requireTiling =
-                    doesLayerRequireTiling(parentClusteredOp, getMultiClusterStrategyValue(parentClusteredOp)) ||
-                    doesLayerRequireTiling(origClusteredOp, getMultiClusterStrategyValue(origClusteredOp));
-            return requireTiling || hasSpilling(parentClusteredOp, origClusteredOp);
-        }
-    }
-
-    return false;
-}
-
-bool LayerCostModel::hasOutputSpillingToMultiClusterLayer(VPU::ClusteredOpInterface origOp) const {
-    for (auto* userOp : origOp->getResult(0).getUsers()) {
-        if (mlir::isa<VPU::QuantizeCastOp>(userOp) || (mlir::isa<VPU::ShapeCastOp>(userOp) && userOp->hasOneUse())) {
-            // propagate cast ops
-            userOp = *userOp->getResult(0).getUsers().begin();
-        }
-        if (mlir::isa<VPU::ClusteredOpInterface>(userOp) && hasSpilling(origOp, userOp)) {
-            return true;
-        }
-    }
-    return false;
+bool LayerCostModel::doesLayerRequireTiling(VPU::ClusteredOpInterface clusteredOp,
+                                            VPU::MultiClusterStrategy strategy) const {
+    auto layerStrategyChecker = LayerStrategyCheckerFactory::instance().get(clusteredOp->getName());
+    return !(layerStrategyChecker->doesLayerFitIntoCMX(clusteredOp, strategy));
 }
 
 LayerCostModel::SpillingCost LayerCostModel::calculateSpillingCost(VPU::ClusteredOpInterface parentOp,
                                                                    VPU::ClusteredOpInterface userOp,
                                                                    VPU::MultiClusterStrategy parentStrategy,
                                                                    VPU::MultiClusterStrategy userStrategy) const {
-    auto targetOutputType = getDistributedOutputType(parentOp, parentStrategy);
-    auto targetInputType = getDistributedInputType(userOp, parentOp, userStrategy);
-
-    auto requireTiling =
-            doesLayerRequireTiling(parentOp, parentStrategy) || doesLayerRequireTiling(userOp, userStrategy);
-
-    if (requireTiling || hasSpilling(parentOp, targetOutputType, targetInputType)) {
-        return getSpillingCost(targetOutputType, targetInputType);
-    }
-    return {0.0, 0.0};
-}
-
-// Return all output spillings from origOp with a given strategy to layers have multi-cluster strategy
-double LayerCostModel::getOutputSpillingCostToMultiClusterLayer(VPU::ClusteredOpInterface clusteredOp,
-                                                                VPU::MultiClusterStrategy strategy) const {
-    bool hasCalculatedSpillingWriteCost = false;
-    double totalSpillingCost = 0.0;
-    for (auto user : clusteredOp->getResult(0).getUsers()) {
-        if (mlir::isa<VPU::ShapeCastOp, VPU::QuantizeCastOp>(user)) {
-            // propagate cast ops
-            user = *user->getResult(0).getUsers().begin();
-        }
-
-        if (!hasMultiClusterStrategy(user)) {
-            continue;
-        }
-
-        if (auto userOp = mlir::dyn_cast<VPU::ClusteredOpInterface>(user)) {
-            auto spillingCost =
-                    calculateSpillingCost(clusteredOp, userOp, strategy, getMultiClusterStrategyValue(userOp));
-            if (!hasCalculatedSpillingWriteCost) {
-                totalSpillingCost += spillingCost.writeCost;
-                hasCalculatedSpillingWriteCost = true;
-            }
-            totalSpillingCost += spillingCost.readCost;
-        }
-    }
-
-    return totalSpillingCost;
+    auto targetTypes = getDistributionTypesWithStrategy(parentOp, parentStrategy, userOp, userStrategy);
+    auto targetOutputType = targetTypes.first;
+    auto targetInputType = targetTypes.second;
+    return getSpillingCost(targetOutputType, targetInputType, parentOp, userOp);
 }
 
 VPU::MultiClusterStrategy LayerCostModel::getOptimalLayerStrategy(VPU::ClusteredOpInterface clusteredOp,
@@ -744,20 +893,19 @@ VPU::MultiClusterStrategy LayerCostModel::getOptimalLayerStrategy(VPU::Clustered
     const auto isChannelMajor = (DimsOrder::fromValue(clusteredOp->getOperand(0)) == DimsOrder::NCHW) &&
                                 VPU::NCEInvariant::isChannelMajorCompatible(
                                         arch, clusteredOp->getOperand(0).getType().cast<vpux::NDTypeInterface>());
-    auto nceOp = mlir::dyn_cast<NCEOpInterface>(clusteredOp.getOperation());
     const auto isCompressConv = VPU::NCEInvariant::isCompressConvolution(arch, clusteredOp);
     if (clusteredOp.checkStrategyCompatibility(VPU::MultiClusterStrategy::SplitOverHeight) &&
         layerStrategy->isOperationSplitOverHeightCompatible(clusteredOp)) {
-        splitOverHeightCost = getLayerCost(nceOp, VPU::MultiClusterStrategy::SplitOverHeight);
-        _log.trace("SplitOverHeight cost is {0}", splitOverHeightCost);
+        splitOverHeightCost = getLayerCost(clusteredOp, VPU::MultiClusterStrategy::SplitOverHeight);
+        _log.nest().trace("SplitOverHeight cost is {0}", splitOverHeightCost);
         splitOverHeightFitIntoCMX =
                 layerStrategy->doesLayerFitIntoCMX(clusteredOp, VPU::MultiClusterStrategy::SplitOverHeight);
     }
 
     if (clusteredOp.checkStrategyCompatibility(VPU::MultiClusterStrategy::SplitOverKernel) &&
         layerStrategy->isOperationSplitOverKernelCompatible(clusteredOp)) {
-        splitOverKernelCost = getLayerCost(nceOp, VPU::MultiClusterStrategy::SplitOverKernel);
-        _log.trace("splitOverKernel cost is {0}", splitOverKernelCost);
+        splitOverKernelCost = getLayerCost(clusteredOp, VPU::MultiClusterStrategy::SplitOverKernel);
+        _log.nest().trace("splitOverKernel cost is {0}", splitOverKernelCost);
         splitOverKernelFitIntoCMX =
                 layerStrategy->doesLayerFitIntoCMX(clusteredOp, VPU::MultiClusterStrategy::SplitOverKernel);
     }
@@ -774,8 +922,10 @@ VPU::MultiClusterStrategy LayerCostModel::getOptimalLayerStrategy(VPU::Clustered
 
     // Compute amount of clusters so that SOK is compatible
     const auto outputChannels =
-            nceOp->getResult(0).getType().template cast<vpux::NDTypeInterface>().getShape()[Dims4D::Act::C];
-    const auto sokOptimalClusters = getNumberOfClustersForSOKToAvoidAlignment(outputChannels, _numClusters);
+            clusteredOp->getResult(0).getType().template cast<vpux::NDTypeInterface>().getShape()[Dims4D::Act::C];
+    auto uniformDistributedSegments = !VPU::isArchVPUX3XXX(VPU::getArch(clusteredOp));
+    const auto sokOptimalClusters =
+            getNumberOfClustersForSOKToAvoidAlignment(outputChannels, _numClusters, uniformDistributedSegments);
 
     // Check if splitOverKernel is the only strategy which fits into CMX and utilize full clusters
     if ((!splitOverHeightFitIntoCMX) && splitOverKernelFitIntoCMX && (sokOptimalClusters == _numClusters)) {
@@ -803,10 +953,10 @@ VPU::MultiClusterStrategy LayerCostModel::getOptimalLayerStrategy(VPU::Clustered
 }
 
 BaseLayerStrategy::Ptr LayerStrategyCheckerFactory::get(mlir::OperationName name) {
-    auto nceOpStrategy = LayerStrategyCheckerFactory::instance()._nceOpStrategies.find(name);
-    VPUX_THROW_WHEN(nceOpStrategy == LayerStrategyCheckerFactory::instance()._nceOpStrategies.end(),
+    auto clusteredOpStrategy = LayerStrategyCheckerFactory::instance()._clusteredOpStrategies.find(name);
+    VPUX_THROW_WHEN(clusteredOpStrategy == LayerStrategyCheckerFactory::instance()._clusteredOpStrategies.end(),
                     "Can not find NCE op strategies for Op: {0}", name);
-    return nceOpStrategy->second;
+    return clusteredOpStrategy->second;
 }
 
 LayerStrategyCheckerFactory& LayerStrategyCheckerFactory::instance() {
@@ -814,19 +964,63 @@ LayerStrategyCheckerFactory& LayerStrategyCheckerFactory::instance() {
     return obj;
 }
 
-void LayerStrategyCheckerFactory::registerNCEOpStrategy(mlir::FuncOp func, vpux::Logger _log) {
-    _nceOpStrategies[mlir::OperationName(NCEConvolutionOp::getOperationName(), func->getContext())] =
+void LayerStrategyCheckerFactory::registerClusteredOpStrategy(mlir::func::FuncOp func, vpux::Logger _log) {
+    _clusteredOpStrategies[mlir::OperationName(NCEConvolutionOp::getOperationName(), func->getContext())] =
             std::make_shared<ConvolutionStrategy>(func, _log);
-    _nceOpStrategies[mlir::OperationName(NCEDepthConvolutionOp::getOperationName(), func->getContext())] =
+    _clusteredOpStrategies[mlir::OperationName(NCECompressConvolutionOp::getOperationName(), func->getContext())] =
+            std::make_shared<CompressConvolutionStrategy>(func, _log);
+    _clusteredOpStrategies[mlir::OperationName(NCEDepthConvolutionOp::getOperationName(), func->getContext())] =
             std::make_shared<DepthConvolutionStrategy>(func, _log);
-    _nceOpStrategies[mlir::OperationName(NCEMaxPoolOp::getOperationName(), func->getContext())] =
+    _clusteredOpStrategies[mlir::OperationName(NCEMaxPoolOp::getOperationName(), func->getContext())] =
             std::make_shared<MaxPoolStrategy>(func, _log);
-    _nceOpStrategies[mlir::OperationName(NCEAveragePoolOp::getOperationName(), func->getContext())] =
+    _clusteredOpStrategies[mlir::OperationName(NCEAveragePoolOp::getOperationName(), func->getContext())] =
             std::make_shared<AveragePoolStrategy>(func, _log);
-    _nceOpStrategies[mlir::OperationName(NCEEltwiseOp::getOperationName(), func->getContext())] =
+    _clusteredOpStrategies[mlir::OperationName(NCEEltwiseOp::getOperationName(), func->getContext())] =
             std::make_shared<EltwiseStrategy>(func, _log);
-    _nceOpStrategies[mlir::OperationName(VPU::TanhOp::getOperationName(), func->getContext())] =
-            std::make_shared<SWStrategy>(func, _log);
-    _nceOpStrategies[mlir::OperationName(VPU::MVNOp::getOperationName(), func->getContext())] =
-            std::make_shared<SWStrategy>(func, _log);
+    _clusteredOpStrategies[mlir::OperationName(NCEPermuteQuantizeOp::getOperationName(), func->getContext())] =
+            std::make_shared<PermuteQuantizeStrategy>(func, _log);
+    _clusteredOpStrategies[mlir::OperationName(NCEInterpolateOp::getOperationName(), func->getContext())] =
+            std::make_shared<InterpolateStrategy>(func, _log);
+    _clusteredOpStrategies[mlir::OperationName(VPU::TanhOp::getOperationName(), func->getContext())] =
+            std::make_shared<SWGeneralStrategy>(func, _log);
+    _clusteredOpStrategies[mlir::OperationName(VPU::MVNOp::getOperationName(), func->getContext())] =
+            std::make_shared<SWGeneralStrategy>(func, _log);
+    _clusteredOpStrategies[mlir::OperationName(VPU::SoftMaxOp::getOperationName(), func->getContext())] =
+            std::make_shared<SWGeneralStrategy>(func, _log);
+    _clusteredOpStrategies[mlir::OperationName(VPU::SwishOp::getOperationName(), func->getContext())] =
+            std::make_shared<SWGeneralStrategy>(func, _log);
+    _clusteredOpStrategies[mlir::OperationName(VPU::GeluOp::getOperationName(), func->getContext())] =
+            std::make_shared<SWGeneralStrategy>(func, _log);
+    _clusteredOpStrategies[mlir::OperationName(VPU::HSwishOp::getOperationName(), func->getContext())] =
+            std::make_shared<SWGeneralStrategy>(func, _log);
+    _clusteredOpStrategies[mlir::OperationName(VPU::InterpolateOp::getOperationName(), func->getContext())] =
+            std::make_shared<SWInterpolateStrategy>(func, _log);
+    _clusteredOpStrategies[mlir::OperationName(VPU::MultiplyOp::getOperationName(), func->getContext())] =
+            std::make_shared<SWMultiplyStrategy>(func, _log);
+    _clusteredOpStrategies[mlir::OperationName(VPU::ConcatOp::getOperationName(), func->getContext())] =
+            std::make_shared<ConcatStrategy>(func, _log);
+}
+
+// For clustered op which doesn't support cycle cost calculation. The priority for straties is SOH/SOHOverlaped > SOK >
+// Clustering
+VPU::MultiClusterStrategy vpux::VPU::getDefaultLayerStrategy(VPU::ClusteredOpInterface clusteredOp,
+                                                             BaseLayerStrategy::Ptr layerStrategy) {
+    if (clusteredOp.checkStrategyCompatibility(VPU::MultiClusterStrategy::SplitOverHeight) &&
+        layerStrategy->isOperationSplitOverHeightCompatible(clusteredOp)) {
+        return VPU::MultiClusterStrategy::SplitOverHeight;
+    }
+
+    if (clusteredOp.checkStrategyCompatibility(VPU::MultiClusterStrategy::SplitOverHeightOverlapped) &&
+        layerStrategy->isOperationSplitOverHeightCompatible(clusteredOp)) {
+        return VPU::MultiClusterStrategy::SplitOverHeightOverlapped;
+    }
+    if (clusteredOp.checkStrategyCompatibility(VPU::MultiClusterStrategy::SplitOverKernel) &&
+        layerStrategy->isOperationSplitOverKernelCompatible(clusteredOp)) {
+        return VPU::MultiClusterStrategy::SplitOverKernel;
+    }
+
+    if (clusteredOp.checkStrategyCompatibility(VPU::MultiClusterStrategy::Clustering)) {
+        return VPU::MultiClusterStrategy::Clustering;
+    }
+    VPUX_THROW("No multi cluster strategy is supported at '{}'", clusteredOp->getLoc());
 }

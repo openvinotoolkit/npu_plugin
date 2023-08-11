@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/IE/passes.hpp"
 #include "vpux/compiler/utils/analysis.hpp"
 #include "vpux/compiler/utils/logging.hpp"
@@ -37,10 +35,10 @@ mlir::LogicalResult AssignRewriter::matchAndRewrite(IE::AssignOp origOp, mlir::P
     _log.trace("[{0}] Got Assign layer at '{1}'", getDebugName(), origOp->getLoc());
 
     IE::CNNNetworkOp netInfo;
-    mlir::FuncOp mainFunc;
+    mlir::func::FuncOp mainFunc;
     IE::CNNNetworkOp::getFromModule(_topModule, netInfo, mainFunc);
 
-    const auto mainFuncType = mainFunc.getType();
+    const auto mainFuncType = mainFunc.getFunctionType();
     const auto assignInputType = origOp.input().getType();
     const auto newReturnsTypes = to_small_vector(
             llvm::concat<const mlir::Type>(mainFuncType.getResults(), llvm::makeArrayRef(assignInputType)));
@@ -58,9 +56,10 @@ mlir::LogicalResult AssignRewriter::matchAndRewrite(IE::AssignOp origOp, mlir::P
 
     rewriter.replaceOp(origOp, origOp.input());
 
-    const auto retOps = to_small_vector(mainFunc.getOps<mlir::ReturnOp>());
+    const auto retOps = to_small_vector(mainFunc.getOps<mlir::func::ReturnOp>());
     VPUX_THROW_UNLESS(retOps.size() == 1,
-                      "Can't have more than one 'mlir::ReturnOp' Operation in main function, got '{0}'", retOps.size());
+                      "Can't have more than one 'mlir::func::ReturnOp' Operation in main function, got '{0}'",
+                      retOps.size());
     auto mainRetOp = retOps.front();
     mainRetOp.operandsMutable().append(origOp.input());
 
@@ -89,10 +88,10 @@ mlir::LogicalResult ReadValueRewriter::matchAndRewrite(IE::ReadValueOp origOp, m
     _log.trace("[{0}] Got ReadValue layer at '{1}'", getDebugName(), origOp->getLoc());
 
     IE::CNNNetworkOp netInfo;
-    mlir::FuncOp mainFunc;
+    mlir::func::FuncOp mainFunc;
     IE::CNNNetworkOp::getFromModule(_topModule, netInfo, mainFunc);
 
-    const auto mainFuncType = mainFunc.getType();
+    const auto mainFuncType = mainFunc.getFunctionType();
     const auto readValueInputType = origOp.input().getType();
     const auto newInputIndex = mainFunc.getNumArguments();
     const auto newInputsTypes = to_small_vector(
@@ -148,7 +147,7 @@ void ConvertAssignReadValueToReturnsAndInputs::safeRunOnFunc() {
     patterns.insert<ReadValueRewriter>(&ctx, topModule, _log);
     patterns.insert<AssignRewriter>(&ctx, topModule, _log);
 
-    auto mainFunc = getFunction();
+    auto mainFunc = getOperation();
 
     if (mlir::failed(mlir::applyPartialConversion(mainFunc, target, std::move(patterns)))) {
         signalPassFailure();

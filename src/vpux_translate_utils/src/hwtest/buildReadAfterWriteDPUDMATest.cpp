@@ -95,7 +95,7 @@ void buildReadAfterWriteDPUDMATest(const nb::TestCaseJsonDescriptor& testDesc, m
     const auto funcType = builder.getFunctionType(SmallVector<mlir::Type>{inputParamType, outputParamType},
                                                   SmallVector<mlir::Type>{outputParamType});
 
-    auto function = builder.create<mlir::FuncOp>(
+    auto function = builder.create<mlir::func::FuncOp>(
             loc, printToString("read_after_write_dpu_dma_{0}_{1}_{2}", inputType, weightsType, outputType), funcType,
             builder.getStringAttr("private"));
 
@@ -214,10 +214,10 @@ void buildReadAfterWriteDPUDMATest(const nb::TestCaseJsonDescriptor& testDesc, m
         waitBarrier = updateBarrier;
         updateBarrier = functionBuilder.create<vpux::VPURT::ConfigureBarrierOp>(loc, i + 1);
 
-        VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(waitBarrier.barrier()),
-                                              mlir::ValueRange(updateBarrier.barrier()), loc,
-                                              overwritingCMX.getOperation()->getResult(0),
-                                              rewritableCMX.getOperation()->getResult(0), cluster, false, false);
+        VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(
+                functionBuilder, mlir::ValueRange(waitBarrier.barrier()), mlir::ValueRange(updateBarrier.barrier()),
+                loc, overwritingCMX.getOperation()->getResult(0), rewritableCMX.getOperation()->getResult(0),
+                cluster);
 
         waitBarrier = updateBarrier;
     }
@@ -225,10 +225,12 @@ void buildReadAfterWriteDPUDMATest(const nb::TestCaseJsonDescriptor& testDesc, m
     VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(waitBarrier.barrier()), mlir::ValueRange(),
                                           loc, outputCMX.getOperation()->getResult(0), functionOutput);
 
-    functionBuilder.create<mlir::ReturnOp>(loc, mlir::ValueRange{functionOutput});
+    functionBuilder.create<mlir::func::ReturnOp>(loc, mlir::ValueRange{functionOutput});
 
     mlir::PassManager pm(ctx, mlir::OpPassManager::Nesting::Implicit);
-    pm.addPass(VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::DefaultHW, None, None,
+    Optional<int> numTiles = None;
+
+    pm.addPass(VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::DefaultHW, numTiles, None,
                                            None, log));
     if (conv.compress) {
         pm.addPass(VPUIP::createCompressWeightsBTCPass(log));

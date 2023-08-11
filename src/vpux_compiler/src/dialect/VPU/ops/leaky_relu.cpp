@@ -12,7 +12,7 @@ mlir::LogicalResult vpux::VPU::LeakyReluOp::inferReturnTypes(mlir::MLIRContext* 
                                                              mlir::ValueRange operands, mlir::DictionaryAttr attrs,
                                                              mlir::RegionRange /*regions*/,
                                                              mlir::SmallVectorImpl<mlir::Type>& inferredReturnTypes) {
-    const auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
+    const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
     IE::LeakyReluOpAdaptor leaky_relu(operands, attrs);
     if (mlir::failed(leaky_relu.verify(loc))) {

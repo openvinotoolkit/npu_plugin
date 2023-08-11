@@ -33,7 +33,11 @@ namespace {
 
 class ManualStrategyUtilsPass final : public ManualStrategyUtilsBase<ManualStrategyUtilsPass> {
 public:
-    ManualStrategyUtilsPass() = default;
+    ManualStrategyUtilsPass()
+            : _writeStrategyToJSON(false),
+              _writeStrategyFileLocation(),
+              _readStrategyFromJSON(false),
+              _readStrategyFileLocation(){};
     ManualStrategyUtilsPass(bool writeStrategyToJSON, StringRef writeStrategyFileLocation, bool readStrategyFromJSON,
                             StringRef readStrategyFileLocation, Logger log);
 
@@ -95,7 +99,7 @@ void ManualStrategyUtilsPass::safeRunOnFunc() {
     parseEnv("IE_VPUX_READ_STRATEGY_JSON_LOC", _readStrategyFileLocation);
 #endif  // defined(VPUX_DEVELOPER_BUILD) || !defined(NDEBUG)
 
-    auto func = getFunction();
+    auto func = getOperation();
 
     if (!_writeStrategyToJSON && !_readStrategyFromJSON) {
         _log.trace("Flags to write and read disabled, skipping pass");

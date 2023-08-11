@@ -1,7 +1,8 @@
 //
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
+
 // RUN: vpux-translate --export-VPUIP -o %t %s
 // RUN: flatc --raw-binary --json %vpuip_schema_file% -- %t
 // RUN: FileCheck %s --input-file %basename_t.json
@@ -48,14 +49,14 @@ VPURT.SW.Runtime
 module @VPU.SW {
     // The declaration should match C++ params structure in decomposed form.
     // `memref` will be translated to `MemRefData`, while raw scalars will be translated as is.
-    func private @builtin_sigmoid(%input : memref<*xf16>, %output : memref<*xf16>)
+    func.func private @builtin_sigmoid(%input : memref<*xf16>, %output : memref<*xf16>)
         attributes {
             VPU.kernel_code = "sigmoid_fp16.c",
             VPU.kernel_entry = "sigmoid_fp16"
         }
 
     // management kernel definition
-    func private @runtime()
+    func.func private @runtime()
         attributes {
             VPU.kernel_code = "nnActEntry"
         }
@@ -63,7 +64,7 @@ module @VPU.SW {
 
 
 
-func @main(%1: memref<1x1x1x1000xf16>, %2: memref<1x1x1x1000xf16>) -> memref<1x1x1x1000xf16> {
+func.func @main(%1: memref<1x1x1x1000xf16>, %2: memref<1x1x1x1000xf16>) -> memref<1x1x1x1000xf16> {
 
     // using CMX memory from CMX Slice 1
     // while it is not mandatory to run shave on tile 1, it is needed  to access all 4mb of CMX
@@ -202,6 +203,7 @@ func @main(%1: memref<1x1x1x1000xf16>, %2: memref<1x1x1x1000xf16>) -> memref<1x1
 // CHECK:   ]
 
 
+// CHECK:    device: "VPUX37XX",
 // CHECK:    act_kernel_runtime: {
 // CHECK:        shaveStacks: [
 // CHECK:          {

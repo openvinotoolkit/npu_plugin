@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #pragma once
 
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
@@ -25,8 +23,6 @@ OpTy wrapIntoTaskOp(mlir::OpBuilder& builder, mlir::ValueRange waitBarriers, mli
 
     return builder.create<OpTy>(loc, std::forward<Args>(args)...);
 }
-
-mlir::LogicalResult verifyTaskOp(TaskOp task);
 
 template <typename OpTy, typename... Args>
 OpTy createOp(mlir::PatternRewriter& rewriter, mlir::Operation* insertionPoint, Args&&... args) {

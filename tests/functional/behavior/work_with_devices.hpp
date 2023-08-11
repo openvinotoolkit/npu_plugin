@@ -27,6 +27,7 @@ TEST_P(LoadNetwork, samePlatformProduceTheSameBlob) {
 
         auto cnnNet = buildSingleLayerSoftMaxNetwork();
 
+        configuration["VPUX_CREATE_EXECUTOR"] = "0";
         auto configuration1 = configuration;
         configuration1[VPUX_CONFIG_KEY(PLATFORM)] = PlatformEnvironment::PLATFORM;
         auto exeNet1 = ie->LoadNetwork(cnnNet, "VPUX", configuration1);

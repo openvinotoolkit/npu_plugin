@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include <vpux_elf/writer.hpp>
 #include "vpux/compiler/dialect/ELF/ops.hpp"
 #include "vpux/compiler/dialect/ELF/utils.hpp"

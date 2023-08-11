@@ -3,15 +3,13 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #pragma once
 
 #include "vpux/compiler/core/attributes/dim.hpp"
 #include "vpux/compiler/core/attributes/dims_order.hpp"
 #include "vpux/compiler/core/ops_interfaces.hpp"
 #include "vpux/compiler/core/tiling.hpp"
-#include "vpux/compiler/dialect/IE/attributes/structs.hpp"
+#include "vpux/compiler/dialect/IE/attributes.hpp"
 
 #include "vpux/utils/core/format.hpp"
 #include "vpux/utils/core/func_ref.hpp"
@@ -21,6 +19,7 @@
 #include <mlir/Dialect/Quant/QuantTypes.h>
 #include <mlir/IR/OpDefinition.h>
 #include <mlir/IR/Operation.h>
+#include <mlir/IR/ValueRange.h>
 #include <mlir/Interfaces/InferTypeOpInterface.h>
 
 namespace vpux {
@@ -35,7 +34,7 @@ class LayerDataInfo {
 public:
     template <class Range1, class Range2>
     LayerDataInfo(Range1&& inputInfo, Range2&& outputInfo)
-            : _inputInfo(std::forward<Range1>(inputInfo)), _outputInfo(std::forward<Range1>(outputInfo)) {
+            : _inputInfo(std::forward<Range1>(inputInfo)), _outputInfo(std::forward<Range2>(outputInfo)) {
     }
 
 public:
@@ -141,9 +140,6 @@ mlir::LogicalResult inferTensorTypes(InferTypeComponentsCb componentsCb, mlir::M
                                      mlir::DictionaryAttr attrs, mlir::RegionRange regions,
                                      SmallVectorImpl<mlir::Type>& inferredTypes);
 
-bool areTypesCompatible(mlir::TypeRange lhs, mlir::TypeRange rhs, IE::TypeComparisonMode elemComparisonMode,
-                        bool checkDimsOrder, bool checkMemSpace);
-
 //
 // LayerWithPostOpInterface
 //
@@ -222,6 +218,12 @@ public:
 void inferElemTypeInfo(mlir::Operation* op, LayerDataInfo<mlir::Type>& info);
 void inferElemTypeInfoUp(mlir::Operation* op, LayerDataInfo<mlir::Type>& info);
 LayerDataInfo<mlir::Type> getElemTypeInfo(mlir::Operation* op);
+
+//
+// isPureViewOp
+//
+
+bool isPureViewOp(mlir::Operation* op);
 
 }  // namespace IE
 }  // namespace vpux

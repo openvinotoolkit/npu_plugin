@@ -1,5 +1,5 @@
 //
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,7 +12,7 @@
 
 namespace LayerTestsDefinitions {
 
-class KmbSplitSoftmaxLayerTest : public SplitLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
+class VPUXSplitSoftmaxLayerTest_VPU3700 : public SplitLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
     void SetUp() override {
         int64_t axis;
         size_t numSplits;
@@ -45,8 +45,9 @@ class KmbSplitSoftmaxLayerTest : public SplitLayerTest, virtual public LayerTest
     }
 };
 
-TEST_P(KmbSplitSoftmaxLayerTest, SubgraphCompareWithRefs_MLIR) {
-    useCompilerMLIR();
+TEST_P(VPUXSplitSoftmaxLayerTest_VPU3700, HW) {
+    setPlatformVPU3700();
+    setDefaultHardwareModeMLIR();
     Run();
 }
 
@@ -59,7 +60,7 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::
                                                                InferenceEngine::Precision::FP16};
 
 INSTANTIATE_TEST_SUITE_P(
-        DISABLED_TMP_smoke_Split, KmbSplitSoftmaxLayerTest,
+        DISABLED_TMP_smoke_Split, VPUXSplitSoftmaxLayerTest_VPU3700,
         ::testing::Combine(::testing::Values(2, 3), ::testing::Values(-2, 3), ::testing::ValuesIn(netPrecisions),
                            ::testing::Values(InferenceEngine::Precision::FP16, InferenceEngine::Precision::FP32),
                            ::testing::Values(InferenceEngine::Precision::FP16, InferenceEngine::Precision::FP32),

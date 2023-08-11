@@ -1,5 +1,5 @@
 //
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -55,7 +55,8 @@ std::set<ngraph::helpers::ActivationTypes> supportedTypesMLIR{
 
 }  // namespace
 
-class KmbActivationLayerTest : public ActivationLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
+class VPUXActivationLayerTest : public ActivationLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
+protected:
     void SkipBeforeLoad() override {
         std::pair<ngraph::helpers::ActivationTypes, std::vector<float>> activationParam;
         std::tie(activationParam, std::ignore, std::ignore, std::ignore, std::ignore, std::ignore, std::ignore,
@@ -71,36 +72,31 @@ class KmbActivationLayerTest : public ActivationLayerTest, virtual public LayerT
     }
 };
 
-class KmbActivationLayerTest_VPU3720 : public KmbActivationLayerTest {};
-using ActivationLayerTest_VPU3720_ELF = KmbActivationLayerTest_VPU3720;
-class KMBActivationTilingTest_VPU3720 : public KmbActivationLayerTest {};
+class VPUXActivationLayerTest_VPU3700 : public VPUXActivationLayerTest {};
+class VPUXActivationLayerTest_VPU3720 : public VPUXActivationLayerTest {};
+using VPUXActivationLayerTest_VPU3720_ELF = VPUXActivationLayerTest_VPU3720;
 
-TEST_P(KmbActivationLayerTest, CompareWithRefs) {
+class VPUXActivationTilingTest_VPU3720 : public VPUXActivationLayerTest {};
+
+TEST_P(VPUXActivationLayerTest_VPU3700, HW) {
+    setPlatformVPU3700();
+    setDefaultHardwareModeMLIR();
     Run();
 }
 
-TEST_P(KmbActivationLayerTest, CompareWithRefs_MLIR) {
-    useCompilerMLIR();
-    Run();
-}
-
-// [Track number: E#26724]
-TEST_P(KmbActivationLayerTest_VPU3720, SW_MLIR_VPU3720) {
-    useCompilerMLIR();
+TEST_P(VPUXActivationLayerTest_VPU3720, SW) {
     setPlatformVPU3720();
     setReferenceSoftwareModeMLIR();
     Run();
 }
 
-TEST_P(KMBActivationTilingTest_VPU3720, HW_MLIR_VPU3720) {
-    useCompilerMLIR();
+TEST_P(VPUXActivationTilingTest_VPU3720, HW) {
     setPlatformVPU3720();
     setDefaultHardwareModeMLIR();
     Run();
 }
 
-TEST_P(ActivationLayerTest_VPU3720_ELF, SW_MLIR_VPU3720) {
-    useCompilerMLIR();
+TEST_P(VPUXActivationLayerTest_VPU3720_ELF, SW) {
     setPlatformVPU3720();
     setReferenceSoftwareModeMLIR();
     useELFCompilerBackend();
@@ -113,8 +109,6 @@ using namespace LayerTestsDefinitions;
 using namespace ngraph::helpers;
 
 namespace {
-
-const std::vector<InferenceEngine::Precision> inputPrecisions = {InferenceEngine::Precision::FP32};
 
 const std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP16};
 
@@ -130,9 +124,7 @@ const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes
         {Negative, {{1.0f}}},    {Abs, {{1.0f}}},          {Atan, {{1.0f}}},
         {Asin, {{1.0f}}},        {Acos, {{1.0f}}},         {HSigmoid, {{1.0f}}},
         {HardSigmoid, {{1.0f}}}, {RoundHalfToEven, {}},    {RoundHalfAwayFromZero, {}},
-#if 0  // Unsupported layers
-    {Sign,     {{1.0f}}},
-#endif
+        {Ceiling, {{1.0f}}},     {Tan, {{1.0f}}},
 };
 
 const std::map<ActivationTypes, std::vector<std::vector<float>>> activationParamTypes = {
@@ -149,11 +141,22 @@ const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes
         {Ceiling, {{1.0f}}},
 };
 
+const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypesTiling = {
+        {Sigmoid, {{1.0f}}},      {Elu, {{1.0f}}},       {Sqrt, {{1.0f}}},       {Exp, {{1.0f}}},
+        {Clamp, {{-1.0f, 1.0f}}}, {Tanh, {{1.0f}}},      {LeakyRelu, {{0.01f}}}, {Log, {{1.0f}}},
+        {Relu, {{1.0f}}},         {Negative, {{0.01f}}}, {Ceiling, {{1.0f}}}};
+
+const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes2D = {
+        {HSigmoid, {{1.0f}}},
+};
+
 std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> basic = {{{1, 50, 1, 1}, {{}}}, {{1, 128, 1, 1}, {{}}}};
 
 std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> preluBasic = {
         {{1, 50, 1, 1}, {{1}, {50}}},
         {{1, 128, 1, 1}, {{1}, {128}}},
+        {{1, 32, 96, 96}, {{1}, {32}}},
+        {{1, 9, 80, 1280}, {{9}}},
 };
 
 std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> basicNDCase = {
@@ -161,18 +164,22 @@ std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> basicNDCase = {
         {{1, 128, 1}, {{}}},
 };
 
+std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> basic2DShape = {
+        {{120, 50}, {{}}}, {{90, 128}, {{}}}, {{21, 30}, {{}}}};
+
+std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> basicTiling = {{{1, 8, 80, 1280}, {{}}}};
+
 const auto basicCases = ::testing::Combine(
         ::testing::ValuesIn(CommonTestUtils::combineParams(activationTypes)), ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED), ::testing::Values(InferenceEngine::Layout::ANY),
-        ::testing::Values(InferenceEngine::Layout::ANY), ::testing::ValuesIn(CommonTestUtils::combineParams(basic)),
+        ::testing::Values(InferenceEngine::Precision::FP16), ::testing::Values(InferenceEngine::Precision::FP16),
+        ::testing::Values(InferenceEngine::Layout::ANY), ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::ValuesIn(CommonTestUtils::combineParams(basic)),
         ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));
 
 const auto basicPReluCases = ::testing::Combine(
         ::testing::ValuesIn(CommonTestUtils::combineParams(activationParamTypes)), ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED), ::testing::Values(InferenceEngine::Layout::ANY),
-        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::Values(InferenceEngine::Precision::FP16), ::testing::Values(InferenceEngine::Precision::FP16),
+        ::testing::Values(InferenceEngine::Layout::ANY), ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::ValuesIn(CommonTestUtils::combineParams(preluBasic)),
         ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));
 
@@ -192,103 +199,54 @@ const auto basicFP16OnlyCases = ::testing::Combine(
         ::testing::Values(InferenceEngine::Layout::ANY), ::testing::ValuesIn(CommonTestUtils::combineParams(basic)),
         ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));
 
-INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_Activation_Test, KmbActivationLayerTest, basicCases,
-                         ActivationLayerTest::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_Activation_Test_PRelu, KmbActivationLayerTest, basicPReluCases,
-                         ActivationLayerTest::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_Activation_Test_ND, KmbActivationLayerTest, basicNDCases,
-                         ActivationLayerTest::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_Activation_Test_FP16Only, KmbActivationLayerTest, basicFP16OnlyCases,
-                         ActivationLayerTest::getTestCaseName);
-
-// ------ VPU3720 ------
-
-const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypesVPU3720 = {
-        {Sigmoid, {{1.0f}}}, {HardSigmoid, {{1.0f}}},  {HSwish, {{1.0f}}},   {RoundHalfToEven, {{1.0f}}},
-        {Elu, {{1.0f}}},     {Sqrt, {{1.0f}}},         {Exp, {{1.0f}}},      {RoundHalfAwayFromZero, {{1.0f}}},
-        {Mish, {{1.0f}}},    {Clamp, {{-1.0f, 1.0f}}}, {Tanh, {{1.0f}}},     {Selu, {{1.0f}}},
-        {Relu, {{1.0f}}},    {Sin, {{1.0f}}},          {Sinh, {{1.0f}}},     {Cosh, {{1.0f}}},
-        {Log, {{1.0f}}},     {Erf, {{1.0f}}},          {Tan, {{1.0f}}},      {Floor, {{1.0f}}},
-        {Swish, {{1.0f}}},   {Negative, {{1.0f}}},     {Ceiling, {{1.0f}}},  {HSigmoid, {{1.0f}}},
-        {Abs, {{1.0f}}},     {Sign, {{1.0f}}},         {SoftPlus, {{1.0f}}}, {Gelu, {{1.0f}}},
-        {Cos, {{1.0f}}},     {Asin, {{1.0f}}},         {Acos, {{1.0f}}},     {Asinh, {{1.0f}}},
-        {Acosh, {{1.0f}}},   {Atan, {{1.0f}}},         {Atanh, {{1.0f}}}};
-
-const auto basicCasesVPU3720 = ::testing::Combine(
-        ::testing::ValuesIn(CommonTestUtils::combineParams(activationTypesVPU3720)),
-        ::testing::Values(InferenceEngine::Precision::FP16), ::testing::Values(InferenceEngine::Precision::FP16),
-        ::testing::Values(InferenceEngine::Precision::FP16), ::testing::Values(InferenceEngine::Layout::ANY),
-        ::testing::Values(InferenceEngine::Layout::ANY), ::testing::ValuesIn(CommonTestUtils::combineParams(basic)),
-        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));
-
-INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_precommit_Activation_Test, KmbActivationLayerTest_VPU3720,
-                         basicCasesVPU3720, ActivationLayerTest::getTestCaseName);
-
-std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> preluBasicVPU3720 = {{{1, 50, 1, 1}, {{50}}}};
-
-const auto basicPReluCasesVPU3720 = ::testing::Combine(
-        ::testing::ValuesIn(CommonTestUtils::combineParams(activationParamTypes)),
+const auto basicCases2D = ::testing::Combine(
+        ::testing::ValuesIn(CommonTestUtils::combineParams(activationTypes2D)),
         ::testing::Values(InferenceEngine::Precision::FP16), ::testing::Values(InferenceEngine::Precision::FP16),
         ::testing::Values(InferenceEngine::Precision::FP16), ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(InferenceEngine::Layout::ANY),
-        ::testing::ValuesIn(CommonTestUtils::combineParams(preluBasicVPU3720)),
+        ::testing::ValuesIn(CommonTestUtils::combineParams(basic2DShape)),
         ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));
 
-INSTANTIATE_TEST_SUITE_P(smoke_precommit_Activation_Test_PRelu, KmbActivationLayerTest_VPU3720, basicPReluCasesVPU3720,
-                         ActivationLayerTest::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_precommit_Activation_Test_SoftPlus, KmbActivationLayerTest_VPU3720, basicCasesVPU3720,
-                         ActivationLayerTest::getTestCaseName);
-
-// ------ Test tiling functionality ------
-
-const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypesTilingVPU3720 = {
-        {Sigmoid, {{1.0f}}},      {Elu, {{1.0f}}},       {Sqrt, {{1.0f}}},       {Exp, {{1.0f}}},
-        {Clamp, {{-1.0f, 1.0f}}}, {Tanh, {{1.0f}}},      {LeakyRelu, {{0.01f}}}, {Log, {{1.0f}}},
-        {Relu, {{1.0f}}},         {Negative, {{0.01f}}}, {Ceiling, {{1.0f}}}};
-
-std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> basicTiling = {{{1, 8, 80, 1280}, {{}}}};
-
-const auto basicTilingCasesVPU3720 = ::testing::Combine(
-        ::testing::ValuesIn(CommonTestUtils::combineParams(activationTypesTilingVPU3720)),
+const auto basicTilingCases = ::testing::Combine(
+        ::testing::ValuesIn(CommonTestUtils::combineParams(activationTypesTiling)),
         ::testing::Values(InferenceEngine::Precision::FP16), ::testing::Values(InferenceEngine::Precision::FP16),
         ::testing::Values(InferenceEngine::Precision::FP16), ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::ValuesIn(CommonTestUtils::combineParams(basicTiling)),
         ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));
 
-INSTANTIATE_TEST_SUITE_P(smoke_tiling_Activation_Test, KMBActivationTilingTest_VPU3720, basicTilingCasesVPU3720,
+INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_Activation_Test, VPUXActivationLayerTest_VPU3700, basicCases,
+                         ActivationLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_Activation_Test_PRelu, VPUXActivationLayerTest_VPU3700, basicPReluCases,
+                         ActivationLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_Activation_Test_ND, VPUXActivationLayerTest_VPU3700, basicNDCases,
+                         ActivationLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_Activation_Test_FP16Only, VPUXActivationLayerTest_VPU3700,
+                         basicFP16OnlyCases, ActivationLayerTest::getTestCaseName);
+
+// ------ VPU3720 ------
+
+INSTANTIATE_TEST_SUITE_P(smoke_precommit_Activation_Test, VPUXActivationLayerTest_VPU3720, basicCases,
+                         ActivationLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_precommit_Activation_Test_PRelu, VPUXActivationLayerTest_VPU3720, basicPReluCases,
+                         ActivationLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_precommit_Activation_Test_2D, VPUXActivationLayerTest_VPU3720, basicCases2D,
+                         ActivationLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_tiling_Activation_Test, VPUXActivationTilingTest_VPU3720, basicTilingCases,
                          ActivationLayerTest::getTestCaseName);
 
 // ------ ELF ------
 
-// The ELF test uses custom Activation Type list because the default list includes
-// Mish and Swish sw layers that are currently failing
-// Issue is tracked in E#64328
-const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypesVPU3720_ELF = {
-        {Sigmoid, {{1.0f}}},      {HardSigmoid, {{1.0f}}}, {HSwish, {{1.0f}}}, {RoundHalfToEven, {{1.0f}}},
-        {Elu, {{1.0f}}},          {Sqrt, {{1.0f}}},        {Exp, {{1.0f}}},    {RoundHalfAwayFromZero, {{1.0f}}},
-        {Clamp, {{-1.0f, 1.0f}}}, {Tanh, {{1.0f}}},        {Selu, {{1.0f}}},   {Relu, {{1.0f}}},
-        {Sin, {{1.0f}}},          {Sinh, {{1.0f}}},        {Cosh, {{1.0f}}},   {Log, {{1.0f}}},
-        {Erf, {{1.0f}}},          {Tan, {{1.0f}}},         {Floor, {{1.0f}}},  {Negative, {{1.0f}}},
-        {Ceiling, {{1.0f}}},      {HSigmoid, {{1.0f}}},    {Abs, {{1.0f}}},    {Sign, {{1.0f}}},
-        {Cos, {{1.0f}}},          {Asin, {{1.0f}}},        {Acos, {{1.0f}}},   {Asinh, {{1.0f}}},
-        {Acosh, {{1.0f}}},        {Atan, {{1.0f}}},        {Atanh, {{1.0f}}}};
-
-const auto basicCasesVPU3720_ELF = ::testing::Combine(
-        ::testing::ValuesIn(CommonTestUtils::combineParams(activationTypesVPU3720_ELF)),
-        ::testing::Values(InferenceEngine::Precision::FP16), ::testing::Values(InferenceEngine::Precision::FP16),
-        ::testing::Values(InferenceEngine::Precision::FP16), ::testing::Values(InferenceEngine::Layout::ANY),
-        ::testing::Values(InferenceEngine::Layout::ANY), ::testing::ValuesIn(CommonTestUtils::combineParams(basic)),
-        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));
-
-INSTANTIATE_TEST_SUITE_P(smoke_precommit_Activation_Test_PRelu, ActivationLayerTest_VPU3720_ELF, basicPReluCasesVPU3720,
+INSTANTIATE_TEST_SUITE_P(smoke_precommit_Activation_Test_PRelu, VPUXActivationLayerTest_VPU3720_ELF, basicPReluCases,
                          ActivationLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(Activation_Test, ActivationLayerTest_VPU3720_ELF, basicCasesVPU3720_ELF,
+INSTANTIATE_TEST_SUITE_P(smoke_Activation_Test, VPUXActivationLayerTest_VPU3720_ELF, basicCases,
                          ActivationLayerTest::getTestCaseName);
 
 }  // namespace

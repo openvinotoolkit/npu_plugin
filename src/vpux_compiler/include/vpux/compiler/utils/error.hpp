@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #pragma once
 
 #include "vpux/utils/core/format.hpp"
@@ -36,7 +34,7 @@ mlir::LogicalResult matchFailed(mlir::RewriterBase& rewriter, mlir::Operation* o
 template <typename... Args>
 mlir::LogicalResult matchFailed(Logger log, mlir::RewriterBase& rewriter, mlir::Operation* op, StringLiteral format,
                                 Args&&... args) {
-    log.trace(format, std::forward<Args>(args)...);
+    log.trace(format, args...);
     return matchFailed(rewriter, op, format, std::forward<Args>(args)...);
 }
 

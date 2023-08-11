@@ -1,4 +1,4 @@
-// Copyright (C) 2019 Intel Corporation
+// Copyright (C) 2019-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,21 +7,20 @@
 #include "kmb_layer_test.hpp"
 
 namespace LayerTestsDefinitions {
-class KmbRegionYoloLayerTest : public RegionYoloLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {};
+class VPUXRegionYoloLayerTest : public RegionYoloLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {};
+class VPUXRegionYoloLayerTest_VPU3700 : public VPUXRegionYoloLayerTest {};
 
-class KmbRegionYoloLayerTest_VPU3720 :
-        public RegionYoloLayerTest,
-        virtual public LayerTestsUtils::KmbLayerTestsCommon {};
+class VPUXRegionYoloLayerTest_VPU3720 : public VPUXRegionYoloLayerTest {};
 
-TEST_P(KmbRegionYoloLayerTest, CompareWithRefs_MLIR) {
-    useCompilerMLIR();
+TEST_P(VPUXRegionYoloLayerTest_VPU3700, HW) {
+    setPlatformVPU3700();
+    setDefaultHardwareModeMLIR();
     Run();
 }
 
-TEST_P(KmbRegionYoloLayerTest_VPU3720, CompareWithRefs_MLIR_VPU3720) {
-    useCompilerMLIR();
+TEST_P(VPUXRegionYoloLayerTest_VPU3720, SW) {
     setPlatformVPU3720();
-    setDefaultHardwareModeMLIR();
+    setReferenceSoftwareModeMLIR();
     Run();
 }
 
@@ -34,7 +33,7 @@ const std::vector<ngraph::Shape> inputShapes = {ngraph::Shape{1, 125, 13, 13}};
 
 const std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP16};
 
-INSTANTIATE_TEST_CASE_P(smoke_RegionYolo, KmbRegionYoloLayerTest,
+INSTANTIATE_TEST_CASE_P(smoke_RegionYolo, VPUXRegionYoloLayerTest_VPU3700,
                         testing::Combine(testing::ValuesIn(inputShapes),
                                          testing::Values(20),                               // classes
                                          testing::Values(4),                                // coords
@@ -45,9 +44,9 @@ INSTANTIATE_TEST_CASE_P(smoke_RegionYolo, KmbRegionYoloLayerTest,
                                          testing::Values(3),                                // end_axis
                                          testing::ValuesIn(netPrecisions),
                                          testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
-                        KmbRegionYoloLayerTest::getTestCaseName);
+                        VPUXRegionYoloLayerTest_VPU3700::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_precommit_RegionYolo, KmbRegionYoloLayerTest_VPU3720,
+INSTANTIATE_TEST_CASE_P(smoke_precommit_RegionYolo, VPUXRegionYoloLayerTest_VPU3720,
                         testing::Combine(testing::ValuesIn(inputShapes),
                                          testing::Values(20),                                     // classes
                                          testing::Values(4),                                      // coords
@@ -58,6 +57,6 @@ INSTANTIATE_TEST_CASE_P(smoke_precommit_RegionYolo, KmbRegionYoloLayerTest_VPU37
                                          testing::Values(3),                                      // end_axis
                                          testing::ValuesIn(netPrecisions),
                                          testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
-                        KmbRegionYoloLayerTest::getTestCaseName);
+                        VPUXRegionYoloLayerTest::getTestCaseName);
 
 }  // namespace

@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/utils/huffman_codec.hpp"
 #include "vpux/utils/core/error.hpp"
 

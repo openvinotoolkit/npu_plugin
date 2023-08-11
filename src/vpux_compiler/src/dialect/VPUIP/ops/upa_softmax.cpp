@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 
 #include "vpux/compiler/dialect/VPUIP/graph-schema/blob_reader.hpp"
@@ -15,9 +13,10 @@
 
 using namespace vpux;
 
-mlir::LogicalResult vpux::VPUIP::verifyOp(SoftMaxUPAOp op) {
-    const auto inShape = getShape(op.input());
-    const auto axis = Dim(op.axisInd());
+mlir::LogicalResult vpux::VPUIP::SoftMaxUPAOp::verify() {
+    const auto op = getOperation();
+    const auto inShape = getShape(input());
+    const auto axis = Dim(axisInd());
 
     if (inShape[axis] == 1) {
         return errorAt(op, "Softmax on 1 element doesn't make sense (dim along the 'axis' equal 1)");

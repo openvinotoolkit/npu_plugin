@@ -9,57 +9,6 @@ The operations in the **VPU Dialect** are pure functional and works on tensor le
 
 [TOC]
 
-## Attribute definition
-
-### CompressionSchemeAttr
-
-
-
-Represents the compression as the number of elements along a specified axis.
-
-For example, a two-dimensional type with the shape 4x30 might be compressed
-along axis 0 into with the number of elements [12, 15, 30, 3].
-
-In case the compression is over the entire data (instead of a specified axis),
-the `axis` attribute can be set to null with the `numElems` as a splat value.
-
-The `alignment` attribute can be used to represent a required alignment for
-each set of elements on the given axis. For example, in case the compression
-for weights sparsity is represented by this attribute, the compression will
-be over the output channel axis and each weight set (i.e. ICxKYxKX - set of
-values for each output channel) has to be aligned to 16 bytes.
-
-#### Parameters:
-
-| Parameter | C++ type | Description |
-| :-------: | :-------: | ----------- |
-| axis | `mlir::IntegerAttr` |  |
-| numElems | `mlir::ElementsAttr` |  |
-| alignment | `mlir::IntegerAttr` |  |
-
-## Type constraint definition
-
-### VPU tensor type to describe the tensor tiling
-This type of tensor is used together with the ClusterTiling operation
-                           to describe a tile operation between clusters
-### VPU SparseTensor Type
-This type represents a sparse tensor as a group of data and metadata.
-The metadata is represented by the sparsity map and, in some instances,
-the storage element table.
-
-The data and metadata have to be of one of the following types:
-- mlir::RankedTensorType
-- VPU::DistributedTensorType
-
-The `isWeights` attribute is used to mark cases where a sparse tensor is
-consumed as weights by the IDU of the user operation. In such cases, the
-weights set size of the sparsity map (i.e. ICxKYxKW) needs to be aligned
-to 16 bytes for every output channel.
-
-The `compressionScheme` attribute is utilized for weights sparsity to
-identify the number of elements per output channel that are present in
-the data after removing the sparse values.
-
 ## Operation definition
 
 ### `VPU.Abs` (vpux::VPU::AbsOp)
@@ -164,7 +113,7 @@ operation ::= `VPU.AdaptiveAvgPool` `(` operands `)` attr-dict `:` type(operands
 ```
 
 
-Traits: VPU_SameInOutDimsOrder
+Traits: VPU_SameInOutDefaultDimsOrder
 
 Interfaces: EMUUPAOpInterface, InferTypeOpInterface, LayerOpInterface, NoSideEffect (MemoryEffectOpInterface), SerializeInterface
 
@@ -195,7 +144,7 @@ operation ::= `VPU.AdaptiveMaxPool` `(` operands `)` attr-dict `:` type(operands
 ```
 
 
-Traits: VPU_SameInOutDimsOrder
+Traits: VPU_SameInOutDefaultDimsOrder
 
 Interfaces: EMUUPAOpInterface, InferTypeOpInterface, LayerOpInterface, NoSideEffect (MemoryEffectOpInterface), SerializeInterface
 
@@ -233,7 +182,7 @@ operation ::= `VPU.Add` `(` operands `)` attr-dict `:` type(operands) `->` type(
 ```
 
 
-Traits: Commutative, SameInOutDimsOrder_NCHW_CHW_NC_C, VPU_EltwiseOp
+Traits: Commutative, VPU_EltwiseOp, VPU_SameAnyDimsOrder
 
 Interfaces: EMUUPAOpInterface, InferTypeOpInterface, LayerOpInterface, NoSideEffect (MemoryEffectOpInterface), SerializeInterface, VPU_TilingBuilderOpInterface
 
@@ -250,14 +199,14 @@ Effects: MemoryEffects::Effect{}
 
 | Operand | Description |
 | :-----: | ----------- |
-| `input1` | ranked tensor of 16-bit float or 32-bit float values
-| `input2` | ranked tensor of 16-bit float or 32-bit float values
+| `input1` | ranked tensor of 16-bit float or 32-bit float or 32-bit signed integer values
+| `input2` | ranked tensor of 16-bit float or 32-bit float or 32-bit signed integer values
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `output` | ranked tensor of 16-bit float or 32-bit float values
+| `output` | ranked tensor of 16-bit float or 32-bit float or 32-bit signed integer values
 
 ### `VPU.AffineReshape` (vpux::VPU::AffineReshapeOp)
 
@@ -323,14 +272,14 @@ Effects: MemoryEffects::Effect{}
 
 | Operand | Description |
 | :-----: | ----------- |
-| `input1` | ranked tensor of 8-bit signless integer or 16-bit float or 32-bit float values
-| `input2` | ranked tensor of 8-bit signless integer or 16-bit float or 32-bit float values
+| `input1` | ranked tensor of 8-bit signless integer or 16-bit float or 32-bit float or 32-bit signed integer values
+| `input2` | ranked tensor of 8-bit signless integer or 16-bit float or 32-bit float or 32-bit signed integer values
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `output` | ranked tensor of 8-bit signless integer or 16-bit float or 32-bit float values
+| `output` | ranked tensor of 8-bit signless integer or 16-bit float or 32-bit float or 32-bit signed integer values
 
 ### `VPU.Asin` (vpux::VPU::AsinOp)
 
@@ -543,7 +492,7 @@ operation ::= `VPU.Bucketize` `(` operands `)` attr-dict `:` type(operands) `->`
 ```
 
 
-Traits: VPU_SameInOutDimsOrder
+Traits: VPU_SameInOutDefaultDimsOrder
 
 Interfaces: EMUUPAOpInterface, InferTypeOpInterface, LayerOpInterface, NoSideEffect (MemoryEffectOpInterface), SerializeInterface
 
@@ -720,7 +669,7 @@ operation ::= `VPU.Concat` `(` operands `)` attr-dict `:` type(operands) `->` ty
 ```
 
 
-Interfaces: EMUUPAOpInterface, InferTypeOpInterface, LayerOpInterface, NoSideEffect (MemoryEffectOpInterface), SerializeInterface, VPU_ViewLikeOpInterface
+Interfaces: ClusteredOpInterface, EMUUPAOpInterface, InferTypeOpInterface, LayerOpInterface, NoSideEffect (MemoryEffectOpInterface), SerializeInterface, VPU_ViewLikeOpInterface
 
 Effects: MemoryEffects::Effect{}
 
@@ -730,6 +679,7 @@ Effects: MemoryEffects::Effect{}
 | :-------: | :-------: | ----------- |
 | `per_axis` | vpux::IE::ConcatAttrs | DictionaryAttr with field(s): 'axis', 'offset', 'stride' (each field having its own constraints)
 | `static_offsets` | ::mlir::ArrayAttr | array of 64-bit integer arrays
+| `multiClusterStrategy` | vpux::VPU::MultiClusterStrategyAttr | MultiCluster Strategy
 
 #### Operands:
 
@@ -755,7 +705,7 @@ operation ::= `VPU.Convert` `(` operands `)` attr-dict `:` type(operands) `->` t
 ```
 
 
-Traits: VPU_EltwiseOp, VPU_SameInOutDimsOrder
+Traits: VPU_EltwiseOp, VPU_SameInOutDefaultDimsOrder
 
 Interfaces: CastOpInterface, EMUUPAOpInterface, InferTypeOpInterface, LayerOpInterface, NoSideEffect (MemoryEffectOpInterface), SerializeInterface, VPU_TilingBuilderOpInterface
 
@@ -865,7 +815,7 @@ operation ::= `VPU.Cos` `(` operands `)` attr-dict `:` type(operands) `->` type(
 ```
 
 
-Traits: VPU_EltwiseOp, VPU_SameInOutDimsOrder
+Traits: VPU_EltwiseOp, VPU_SameInOutDefaultDimsOrder
 
 Interfaces: EMUUPAOpInterface, InferTypeOpInterface, LayerOpInterface, NoSideEffect (MemoryEffectOpInterface), SerializeInterface, VPU_TilingBuilderOpInterface
 
@@ -925,7 +875,7 @@ operation ::= `VPU.CumSum` `(` operands `)` attr-dict `:` type(operands) `->` ty
 ```
 
 
-Traits: VPU_SameInOutDimsOrder
+Traits: VPU_SameInOutDefaultDimsOrder
 
 Interfaces: EMUUPAOpInterface, InferTypeOpInterface, LayerOpInterface, NoSideEffect (MemoryEffectOpInterface), SerializeInterface
 
@@ -951,6 +901,43 @@ Effects: MemoryEffects::Effect{}
 | :----: | ----------- |
 | `output` | ranked tensor of any type values
 
+### `VPU.DFT` (vpux::VPU::DFTOp)
+
+InferenceEngine DFT layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.DFT` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+Traits: VPU_SameInOutDefaultDimsOrder
+
+Interfaces: EMUUPAOpInterface, InferTypeOpInterface, LayerOpInterface, NoSideEffect (MemoryEffectOpInterface), SerializeInterface, TilingBuilderOpInterface
+
+Effects: MemoryEffects::Effect{}
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+| `axes_attr` | ::mlir::ArrayAttr | 64-bit integer array attribute
+| `signal_size_attr` | ::mlir::ArrayAttr | 64-bit integer array attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `input` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+| `output` | ranked tensor of 16-bit float or 32-bit float values
+
 ### `VPU.DPU.Workload` (vpux::VPU::DPUWorkloadOp)
 
 Workload for a single DPU tile
@@ -959,18 +946,20 @@ Workload for a single DPU tile
 Syntax:
 
 ```
-operation ::= `VPU.DPU.Workload` $offsets $sizes $pad $mpe_mode attr-dict-with-keyword
+operation ::= `VPU.DPU.Workload` (`inOffsets` $inOffsets^ )? (`inSizes` $inSizes^ )? `outOffsets` $outOffsets `outSizes` $outSizes $pad $mpe_mode attr-dict-with-keyword
 ```
 
 
-Traits: HasParent<vpux::VPU::NCEConvolutionOp, vpux::VPU::NCEDepthConvolutionOp, vpux::VPU::NCEMaxPoolOp, vpux::VPU::NCEAveragePoolOp, vpux::VPU::NCEEltwiseOp, vpux::VPU::NCEPermuteQuantizeOp>
+Traits: HasParent<vpux::VPU::NCEConvolutionOp, vpux::VPU::NCEDepthConvolutionOp, vpux::VPU::NCEMaxPoolOp, vpux::VPU::NCEAveragePoolOp, vpux::VPU::NCEEltwiseOp, vpux::VPU::NCEPermuteQuantizeOp, vpux::VPU::NCECompressConvolutionOp, vpux::VPU::NCEInterpolateOp>
 
 #### Attributes:
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-| `offsets` | ::mlir::ArrayAttr | 64-bit integer array attribute with exactly 4 elements
-| `sizes` | ::mlir::ArrayAttr | 64-bit integer array attribute with exactly 4 elements
+| `outOffsets` | ::mlir::ArrayAttr | 64-bit integer array attribute with exactly 4 elements
+| `outSizes` | ::mlir::ArrayAttr | 64-bit integer array attribute with exactly 4 elements
+| `inOffsets` | ::mlir::ArrayAttr | 64-bit integer array attribute with exactly 4 elements
+| `inSizes` | ::mlir::ArrayAttr | 64-bit integer array attribute with exactly 4 elements
 | `pad` | vpux::VPU::PaddingAttr | DictionaryAttr with field(s): 'left', 'right', 'top', 'bottom' (each field having its own constraints)
 | `mpe_mode` | vpux::VPU::MPEModeAttr | MPE Mode
 | `cluster_id` | mlir::IntegerAttr | Integer attribute
@@ -1072,7 +1061,7 @@ operation ::= `VPU.DepthToSpace` `(` operands `)` attr-dict `:` type(operands) `
 ```
 
 
-Traits: VPU_SameInOutDimsOrder
+Traits: VPU_SameInOutDefaultDimsOrder
 
 Interfaces: EMUUPAOpInterface, InferTypeOpInterface, LayerOpInterface, NoSideEffect (MemoryEffectOpInterface), SerializeInterface, TilingBuilderOpInterface
 
@@ -1164,6 +1153,160 @@ Effects: MemoryEffects::Effect{}
 | :----: | ----------- |
 | `output` | 4D tensor of QuantizedType or 16-bit float or bfloat16 type values
 
+### `VPU.DetectionOutputCollectResults` (vpux::VPU::DetectionOutputCollectResultsOp)
+
+DetectionOutputCollectResults VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.DetectionOutputCollectResults` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+Traits: VPU_AnyDimsOrder
+
+Interfaces: EMUUPAOpInterface, InferTypeOpInterface, LayerOpInterface, NoSideEffect (MemoryEffectOpInterface), SerializeInterface
+
+Effects: MemoryEffects::Effect{}
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+| `keep_top_k` | mlir::IntegerAttr | Integer attribute
+| `clip_after_nms` | ::mlir::BoolAttr | bool attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `confidence` | 3D tensor of floating-point values
+| `boxes` | 3D tensor of floating-point values
+| `sizes` | 2D tensor of 32-bit signed integer values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+| `out_detections` | 4D tensor of floating-point values
+
+### `VPU.DetectionOutputDecodeBoxes` (vpux::VPU::DetectionOutputDecodeBoxesOp)
+
+DetectionOutputDecodeBoxes VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.DetectionOutputDecodeBoxes` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+Traits: VPU_AnyDimsOrder
+
+Interfaces: EMUUPAOpInterface, InferTypeOpInterface, LayerOpInterface, NoSideEffect (MemoryEffectOpInterface), SerializeInterface
+
+Effects: MemoryEffects::Effect{}
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+| `code_type` | vpux::IE::DetectionOutputCodeTypeAttr | DetectionOutput parameter that specifies bounding box decoding algorithm
+| `clip_before_nms` | ::mlir::BoolAttr | bool attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `box_logits` | 4D tensor of floating-point values
+| `prior_boxes` | 3D tensor of floating-point values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+| `out_decoded_boxes` | 4D tensor of floating-point values
+
+### `VPU.DetectionOutputNmsCaffe` (vpux::VPU::DetectionOutputNmsCaffeOp)
+
+DetectionOutputNmsCaffe VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.DetectionOutputNmsCaffe` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+Traits: VPU_AnyDimsOrder
+
+Interfaces: EMUUPAOpInterface, InferTypeOpInterface, LayerOpInterface, NoSideEffect (MemoryEffectOpInterface), SerializeInterface
+
+Effects: MemoryEffects::Effect{}
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+| `nms_threshold` | ::mlir::FloatAttr | 64-bit float attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `top_k_confidence` | 3D tensor of floating-point values
+| `boxes` | 3D tensor of floating-point values
+| `sizes` | 2D tensor of 32-bit signed integer values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+| `out_confidence` | 3D tensor of floating-point values
+| `out_boxes` | 3D tensor of floating-point values
+| `out_sizes` | 2D tensor of 32-bit signed integer values
+
+### `VPU.DetectionOutputNormalize` (vpux::VPU::DetectionOutputNormalizeOp)
+
+DetectionOutputNormalize VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.DetectionOutputNormalize` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+Traits: VPU_AnyDimsOrder
+
+Interfaces: EMUUPAOpInterface, InferTypeOpInterface, LayerOpInterface, NoSideEffect (MemoryEffectOpInterface), SerializeInterface
+
+Effects: MemoryEffects::Effect{}
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+| `input_width` | mlir::IntegerAttr | Integer attribute
+| `input_height` | mlir::IntegerAttr | Integer attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `prior_boxes` | 3D tensor of floating-point values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+| `out_prior_boxes` | 3D tensor of floating-point values
+
 ### `VPU.DetectionOutput` (vpux::VPU::DetectionOutputOp)
 
 DetectionOutput VPU layer
@@ -1186,7 +1329,7 @@ Effects: MemoryEffects::Effect{}
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-| `attr` | vpux::IE::DetectionOutputAttr | DictionaryAttr with field(s): 'num_classes', 'background_label_id', 'top_k', 'variance_encoded_in_target', 'keep_top_k', 'code_type', 'share_location', 'nms_threshold', 'confidence_threshold', 'clip_after_nms', 'clip_before_nms', 'decrease_label_id', 'normalized', 'input_height', 'input_width', 'objectness_score' (each field having its own constraints)
+| `attr` | vpux::IE::DetectionOutputAttr | 
 
 #### Operands:
 
@@ -1203,6 +1346,84 @@ Effects: MemoryEffects::Effect{}
 | Result | Description |
 | :----: | ----------- |
 | `output` | ranked tensor of any type values
+
+### `VPU.DetectionOutputSelectBoxes` (vpux::VPU::DetectionOutputSelectBoxesOp)
+
+DetectionOutputSelectBoxes VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.DetectionOutputSelectBoxes` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+Traits: VPU_AnyDimsOrder
+
+Interfaces: EMUUPAOpInterface, InferTypeOpInterface, LayerOpInterface, NoSideEffect (MemoryEffectOpInterface), SerializeInterface
+
+Effects: MemoryEffects::Effect{}
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+| `top_k` | mlir::IntegerAttr | Integer attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `decoded_boxes` | 3D tensor of floating-point values
+| `indices` | 3D tensor of 32-bit signed integer values
+| `sizes` | 2D tensor of 32-bit signed integer values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+| `out_boxes` | 3D tensor of floating-point values
+
+### `VPU.DetectionOutputSortTopK` (vpux::VPU::DetectionOutputSortTopKOp)
+
+DetectionOutputSortTopK VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.DetectionOutputSortTopK` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+Traits: VPU_AnyDimsOrder
+
+Interfaces: EMUUPAOpInterface, InferTypeOpInterface, LayerOpInterface, NoSideEffect (MemoryEffectOpInterface), SerializeInterface
+
+Effects: MemoryEffects::Effect{}
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+| `confidence_threshold` | ::mlir::FloatAttr | 64-bit float attribute
+| `top_k` | mlir::IntegerAttr | Integer attribute
+| `background_id` | mlir::IntegerAttr | Integer attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `class_predictions` | 3D tensor of floating-point values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+| `out_top_k_confidence` | 3D tensor of floating-point values
+| `out_indices` | 3D tensor of 32-bit signed integer values
+| `out_sizes` | 2D tensor of 32-bit signed integer values
 
 ### `VPU.DistributedCast` (vpux::VPU::DistributedCastOp)
 
@@ -1266,14 +1487,46 @@ Effects: MemoryEffects::Effect{}
 
 | Operand | Description |
 | :-----: | ----------- |
-| `input1` | ranked tensor of 16-bit float or 32-bit float values
-| `input2` | ranked tensor of 16-bit float or 32-bit float values
+| `input1` | ranked tensor of 16-bit float or 32-bit float or 32-bit signed integer values
+| `input2` | ranked tensor of 16-bit float or 32-bit float or 32-bit signed integer values
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `output` | ranked tensor of 16-bit float or 32-bit float values
+| `output` | ranked tensor of 16-bit float or 32-bit float or 32-bit signed integer values
+
+### `VPU.DynamicQuantize` (vpux::VPU::DynamicQuantizeOp)
+
+Dynamic-Quantize VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.DynamicQuantize` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+Traits: VPU_SameInOutDefaultDimsOrder
+
+Interfaces: EMUUPAOpInterface, InferTypeOpInterface, LayerOpInterface, NoSideEffect (MemoryEffectOpInterface), SerializeInterface
+
+Effects: MemoryEffects::Effect{}
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `input` | ranked tensor of 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+| `output` | ranked tensor of 8-bit unsigned integer values
+| `scale` | 1D tensor of 32-bit float values
+| `zero_point` | 1D tensor of 8-bit unsigned integer values
 
 ### `VPU.Elu` (vpux::VPU::EluOp)
 
@@ -1350,6 +1603,38 @@ Effects: MemoryEffects::Effect{}
 | :----: | ----------- |
 | `output` | ranked tensor of any type values
 
+### `VPU.EmbeddingBagPackedSum` (vpux::VPU::EmbeddingBagPackedSumOp)
+
+EmbeddingBagPackedSum VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.EmbeddingBagPackedSum` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+Traits: VPU_AnyDimsOrder
+
+Interfaces: EMUUPAOpInterface, InferTypeOpInterface, LayerOpInterface, NoSideEffect (MemoryEffectOpInterface), SerializeInterface
+
+Effects: MemoryEffects::Effect{}
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `emb_table` | ranked tensor of 16-bit float or 32-bit float values
+| `indices` | 2D tensor of 32-bit signed integer or 64-bit signed integer values
+| `per_sample_weights` | 2D tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+| `output` | ranked tensor of 16-bit float or 32-bit float values
+
 ### `VPU.EmbeddingSegmentsSum` (vpux::VPU::EmbeddingSegmentsSumOp)
 
 EmbeddingSegmentsSum VPU layer
@@ -1362,7 +1647,7 @@ operation ::= `VPU.EmbeddingSegmentsSum` `(` operands `)` attr-dict `:` type(ope
 ```
 
 
-Traits: VPU_AnyDimsOrder
+Traits: AttrSizedOperandSegments, VPU_AnyDimsOrder
 
 Interfaces: EMUUPAOpInterface, InferTypeOpInterface, LayerOpInterface, NoSideEffect (MemoryEffectOpInterface), SerializeInterface
 
@@ -1383,6 +1668,9 @@ Effects: MemoryEffects::Effect{}
 | Operand | Description |
 | :-----: | ----------- |
 | `emb_table` | ranked tensor of any type values
+| `indices` | 1D tensor of 64-bit signed integer or 32-bit signed integer values
+| `segment_ids` | 1D tensor of 64-bit signed integer or 32-bit signed integer values
+| `per_sample_weights` | 1D tensor of integer or floating-point values
 
 #### Results:
 
@@ -1418,14 +1706,14 @@ Effects: MemoryEffects::Effect{}
 
 | Operand | Description |
 | :-----: | ----------- |
-| `input1` | ranked tensor of 16-bit float or 32-bit float values
-| `input2` | ranked tensor of 16-bit float or 32-bit float values
+| `input1` | ranked tensor of 16-bit float or 32-bit float or 32-bit signed integer values
+| `input2` | ranked tensor of 16-bit float or 32-bit float or 32-bit signed integer values
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `output` | ranked tensor of 16-bit float or 32-bit float values
+| `output` | ranked tensor of 16-bit float or 32-bit float or 32-bit signed integer values
 
 ### `VPU.Erf` (vpux::VPU::ErfOp)
 
@@ -1664,14 +1952,14 @@ Effects: MemoryEffects::Effect{}
 
 | Operand | Description |
 | :-----: | ----------- |
-| `input1` | ranked tensor of 16-bit float or 32-bit float values
-| `input2` | ranked tensor of 16-bit float or 32-bit float values
+| `input1` | ranked tensor of 16-bit float or 32-bit float or 32-bit signed integer values
+| `input2` | ranked tensor of 16-bit float or 32-bit float or 32-bit signed integer values
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `output` | ranked tensor of 16-bit float or 32-bit float values
+| `output` | ranked tensor of 16-bit float or 32-bit float or 32-bit signed integer values
 
 ### `VPU.Floor` (vpux::VPU::FloorOp)
 
@@ -1695,13 +1983,13 @@ Effects: MemoryEffects::Effect{}
 
 | Operand | Description |
 | :-----: | ----------- |
-| `input` | ranked tensor of 16-bit float or 32-bit float values
+| `input` | ranked tensor of 16-bit float or 32-bit float or 32-bit signed integer values
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `output` | ranked tensor of 16-bit float or 32-bit float values
+| `output` | ranked tensor of 16-bit float or 32-bit float or 32-bit signed integer values
 
 ### `VPU.FullyConnected` (vpux::VPU::FullyConnectedOp)
 
@@ -1769,6 +2057,89 @@ Effects: MemoryEffects::Effect{}
 | :----: | ----------- |
 | `output` | ranked tensor of 16-bit float or 32-bit float values
 
+### `VPU.GRUSequenceFirstPart` (vpux::VPU::GRUSequenceFirstPartOp)
+
+GRUSequenceFirstPart VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.GRUSequenceFirstPart` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+Traits: VPU_AnyDimsOrder
+
+Interfaces: EMUUPAOpInterface, InferTypeOpInterface, LayerOpInterface, NoSideEffect (MemoryEffectOpInterface), SerializeInterface
+
+Effects: MemoryEffects::Effect{}
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+| `hidden_size` | mlir::IntegerAttr | Integer attribute
+| `seq_length` | mlir::IntegerAttr | Integer attribute
+| `clip` | ::mlir::FloatAttr | 64-bit float attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `input_data` | 3D tensor of 16-bit float or 32-bit float values
+| `weights` | 3D tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+| `output` | 4D tensor of 16-bit float or 32-bit float values
+
+### `VPU.GRUSequenceLastPart` (vpux::VPU::GRUSequenceLastPartOp)
+
+GRUSequenceLastPart VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.GRUSequenceLastPart` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+Traits: VPU_AnyDimsOrder
+
+Interfaces: EMUUPAOpInterface, InferTypeOpInterface, LayerOpInterface, NoSideEffect (MemoryEffectOpInterface), SerializeInterface
+
+Effects: MemoryEffects::Effect{}
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+| `hidden_size` | mlir::IntegerAttr | Integer attribute
+| `seq_length` | mlir::IntegerAttr | Integer attribute
+| `direction` | vpux::IE::RNNSequenceDirectionAttr | RNNSequenceDirection that the InferenceEngine supports
+| `should_linear_before_reset` | ::mlir::UnitAttr | unit attribute
+| `clip` | ::mlir::FloatAttr | 64-bit float attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `first_part_output` | 4D tensor of 16-bit float or 32-bit float values
+| `initial_hidden_state` | 3D tensor of 16-bit float or 32-bit float values
+| `recurrence_weights` | 3D tensor of 16-bit float or 32-bit float values
+| `biases` | 2D tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+| `middle_hidden_state` | 4D tensor of 16-bit float or 32-bit float values
+| `output_hidden_state` | 3D tensor of 16-bit float or 32-bit float values
+
 ### `VPU.GRUSequence` (vpux::VPU::GRUSequenceOp)
 
 GRUSequence VPU layer
@@ -1783,7 +2154,7 @@ operation ::= `VPU.GRUSequence` `(` operands `)` attr-dict `:` type(operands) `-
 
 Traits: VPU_AnyDimsOrder
 
-Interfaces: EMUUPAOpInterface, InferTypeOpInterface, LayerOpInterface, NoSideEffect (MemoryEffectOpInterface), SerializeInterface
+Interfaces: EMUUPAOpInterface, InferTypeOpInterface, LayerOpInterface, NoSideEffect (MemoryEffectOpInterface), SerializeInterface, TilingBuilderOpInterface
 
 Effects: MemoryEffects::Effect{}
 
@@ -1925,6 +2296,39 @@ Effects: MemoryEffects::Effect{}
 | :----: | ----------- |
 | `output` | ranked tensor of any type values
 
+### `VPU.GatherTree` (vpux::VPU::GatherTreeOp)
+
+GatherTree VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.GatherTree` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+Traits: VPU_SameInOutDefaultDimsOrder
+
+Interfaces: EMUUPAOpInterface, InferTypeOpInterface, LayerOpInterface, NoSideEffect (MemoryEffectOpInterface), SerializeInterface
+
+Effects: MemoryEffects::Effect{}
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `stepIds` | ranked tensor of any type values
+| `parentIds` | ranked tensor of any type values
+| `maxSeqLen` | ranked tensor of any type values
+| `endToken` | ranked tensor of any type values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+| `finalIds` | ranked tensor of any type values
+
 ### `VPU.Gelu` (vpux::VPU::GeluOp)
 
 Gelu VPU layer
@@ -1939,9 +2343,15 @@ operation ::= `VPU.Gelu` `(` operands `)` attr-dict `:` type(operands) `->` type
 
 Traits: VPU_EltwiseOp, VPU_SameInOutDimsOrder_CHW_HWC_NCHW_NHWC
 
-Interfaces: EMUUPAOpInterface, InferTypeOpInterface, LayerOpInterface, NoSideEffect (MemoryEffectOpInterface), SerializeInterface, VPU_TilingBuilderOpInterface
+Interfaces: ClusteredOpInterface, EMUUPAOpInterface, InferTypeOpInterface, LayerOpInterface, NoSideEffect (MemoryEffectOpInterface), SWOpInterface, SerializeInterface, TilingBuilderOpInterface
 
 Effects: MemoryEffects::Effect{}
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+| `multiClusterStrategy` | vpux::VPU::MultiClusterStrategyAttr | MultiCluster Strategy
 
 #### Operands:
 
@@ -1983,14 +2393,14 @@ Effects: MemoryEffects::Effect{}
 
 | Operand | Description |
 | :-----: | ----------- |
-| `input1` | ranked tensor of 16-bit float or 32-bit float values
-| `input2` | ranked tensor of 16-bit float or 32-bit float values
+| `input1` | ranked tensor of 16-bit float or 32-bit float or 32-bit signed integer values
+| `input2` | ranked tensor of 16-bit float or 32-bit float or 32-bit signed integer values
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `output` | ranked tensor of 16-bit float or 32-bit float values
+| `output` | ranked tensor of 16-bit float or 32-bit float or 32-bit signed integer values
 
 ### `VPU.Greater` (vpux::VPU::GreaterOp)
 
@@ -2020,14 +2430,14 @@ Effects: MemoryEffects::Effect{}
 
 | Operand | Description |
 | :-----: | ----------- |
-| `input1` | ranked tensor of 16-bit float or 32-bit float values
-| `input2` | ranked tensor of 16-bit float or 32-bit float values
+| `input1` | ranked tensor of 16-bit float or 32-bit float or 32-bit signed integer values
+| `input2` | ranked tensor of 16-bit float or 32-bit float or 32-bit signed integer values
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `output` | ranked tensor of 16-bit float or 32-bit float values
+| `output` | ranked tensor of 16-bit float or 32-bit float or 32-bit signed integer values
 
 ### `VPU.GridSample` (vpux::VPU::GridSampleOp)
 
@@ -2041,7 +2451,7 @@ operation ::= `VPU.GridSample` `(` operands `)` attr-dict `:` type(operands) `->
 ```
 
 
-Traits: VPU_SameInOutDimsOrder
+Traits: VPU_SameInOutDefaultDimsOrder
 
 Interfaces: EMUUPAOpInterface, InferTypeOpInterface, LayerOpInterface, NoSideEffect (MemoryEffectOpInterface), SerializeInterface, TilingBuilderOpInterface
 
@@ -2139,6 +2549,7 @@ Effects: MemoryEffects::Effect{}
 | :-------: | :-------: | ----------- |
 | `is_weights` | ::mlir::UnitAttr | unit attribute
 | `compression_scheme` | vpux::VPU::CompressionSchemeAttr | 
+| `seAttr` | vpux::VPU::SEAttr | Storage Element attribute
 
 #### Operands:
 
@@ -2166,7 +2577,7 @@ operation ::= `VPU.HSigmoid` `(` operands `)` attr-dict `:` type(operands) `->` 
 ```
 
 
-Traits: VPU_EltwiseOp, VPU_SameInOutDimsOrder_CHW_HWC_NCHW_NHWC
+Traits: VPU_EltwiseOp, VPU_SameInOutDimsOrder_NC_CHW_HWC_NCHW_NHWC
 
 Interfaces: EMUUPAOpInterface, InferTypeOpInterface, LayerOpInterface, NoSideEffect (MemoryEffectOpInterface), SerializeInterface, VPU_TilingBuilderOpInterface
 
@@ -2198,9 +2609,15 @@ operation ::= `VPU.HSwish` `(` operands `)` attr-dict `:` type(operands) `->` ty
 
 Traits: VPU_EltwiseOp, VPU_SameInOutDimsOrder_CHW_HWC_NCHW_NHWC
 
-Interfaces: EMUUPAOpInterface, InferTypeOpInterface, LayerOpInterface, NoSideEffect (MemoryEffectOpInterface), SerializeInterface, VPU_TilingBuilderOpInterface
+Interfaces: ClusteredOpInterface, EMUUPAOpInterface, InferTypeOpInterface, LayerOpInterface, NoSideEffect (MemoryEffectOpInterface), SWOpInterface, SerializeInterface, VPU_TilingBuilderOpInterface
 
 Effects: MemoryEffects::Effect{}
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+| `multiClusterStrategy` | vpux::VPU::MultiClusterStrategyAttr | MultiCluster Strategy
 
 #### Operands:
 
@@ -2226,7 +2643,7 @@ operation ::= `VPU.HardSigmoid` `(` operands `)` attr-dict `:` type(operands) `-
 ```
 
 
-Traits: VPU_EltwiseOp, VPU_SameInOutDimsOrder
+Traits: VPU_EltwiseOp, VPU_SameInOutDefaultDimsOrder
 
 Interfaces: EMUUPAOpInterface, InferTypeOpInterface, LayerOpInterface, NoSideEffect (MemoryEffectOpInterface), SerializeInterface, VPU_TilingBuilderOpInterface
 
@@ -2238,6 +2655,78 @@ Effects: MemoryEffects::Effect{}
 | :-------: | :-------: | ----------- |
 | `alpha_value` | ::mlir::FloatAttr | 64-bit float attribute
 | `beta_value` | ::mlir::FloatAttr | 64-bit float attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `input` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+| `output` | ranked tensor of 16-bit float or 32-bit float values
+
+### `VPU.IDFT` (vpux::VPU::IDFTOp)
+
+InferenceEngine IDFT layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.IDFT` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+Traits: VPU_SameInOutDefaultDimsOrder
+
+Interfaces: EMUUPAOpInterface, InferTypeOpInterface, LayerOpInterface, NoSideEffect (MemoryEffectOpInterface), SerializeInterface, TilingBuilderOpInterface
+
+Effects: MemoryEffects::Effect{}
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+| `axes_attr` | ::mlir::ArrayAttr | 64-bit integer array attribute
+| `signal_size_attr` | ::mlir::ArrayAttr | 64-bit integer array attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `input` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+| `output` | ranked tensor of 16-bit float or 32-bit float values
+
+### `VPU.IRDFT` (vpux::VPU::IRDFTOp)
+
+InferenceEngine IRDFT layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.IRDFT` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+Interfaces: EMUUPAOpInterface, InferTypeOpInterface, LayerOpInterface, NoSideEffect (MemoryEffectOpInterface), SerializeInterface, TilingBuilderOpInterface
+
+Effects: MemoryEffects::Effect{}
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+| `axes_attr` | ::mlir::ArrayAttr | 64-bit integer array attribute
+| `signal_size_attr` | ::mlir::ArrayAttr | 64-bit integer array attribute
 
 #### Operands:
 
@@ -2265,7 +2754,7 @@ operation ::= `VPU.Interpolate` `(` operands `)` attr-dict `:` type(operands) `-
 
 Traits: AttrSizedOperandSegments
 
-Interfaces: EMUUPAOpInterface, InferTypeOpInterface, LayerOpInterface, NoSideEffect (MemoryEffectOpInterface), SerializeInterface, TilingBuilderOpInterface
+Interfaces: ClusteredOpInterface, EMUUPAOpInterface, InferTypeOpInterface, LayerOpInterface, NoSideEffect (MemoryEffectOpInterface), SWOpInterface, SerializeInterface, TilingBuilderOpInterface
 
 Effects: MemoryEffects::Effect{}
 
@@ -2279,13 +2768,16 @@ Effects: MemoryEffects::Effect{}
 | `tile_offset_attr` | ::mlir::ArrayAttr | 64-bit float array attribute
 | `initial_input_dims_attr` | ::mlir::ArrayAttr | 64-bit integer array attribute
 | `initial_output_dims_attr` | ::mlir::ArrayAttr | 64-bit integer array attribute
-| `attr` | vpux::IE::InterpolateAttr | DictionaryAttr with field(s): 'mode', 'shape_calc_mode', 'coord_mode', 'nearest_mode', 'antialias', 'pads_begin', 'pads_end', 'cube_coeff' (each field having its own constraints)
+| `initial_input_offset_attr` | ::mlir::ArrayAttr | 64-bit integer array attribute
+| `initial_output_offset_attr` | ::mlir::ArrayAttr | 64-bit integer array attribute
+| `multiClusterStrategy` | vpux::VPU::MultiClusterStrategyAttr | MultiCluster Strategy
+| `attr` | vpux::IE::InterpolateAttr | 
 
 #### Operands:
 
 | Operand | Description |
 | :-----: | ----------- |
-| `input` | ranked tensor of 8-bit unsigned integer or 16-bit float or 32-bit float values
+| `input` | ranked tensor of 8-bit unsigned integer or 16-bit float or 32-bit float or QuantizedType values
 | `sizes` | ranked tensor of integer values
 | `scales` | ranked tensor of 16-bit float or 32-bit float values
 | `axes` | ranked tensor of integer values
@@ -2294,7 +2786,7 @@ Effects: MemoryEffects::Effect{}
 
 | Result | Description |
 | :----: | ----------- |
-| `output` | ranked tensor of 8-bit unsigned integer or 16-bit float or 32-bit float values
+| `output` | ranked tensor of 8-bit unsigned integer or 16-bit float or 32-bit float or QuantizedType values
 
 ### `VPU.LRN` (vpux::VPU::LRNOp)
 
@@ -2386,7 +2878,7 @@ operation ::= `VPU.LSTMCell` `(` operands `)` attr-dict `:` type(operands) `->` 
 ```
 
 
-Traits: VPU_SameInOutDimsOrder
+Traits: VPU_SameInOutDefaultDimsOrder
 
 Interfaces: EMUUPAOpInterface, InferTypeOpInterface, LayerOpInterface, NoSideEffect (MemoryEffectOpInterface), SerializeInterface
 
@@ -2408,6 +2900,47 @@ Effects: MemoryEffects::Effect{}
 | `weights` | 2D tensor of 16-bit float or 32-bit float values
 | `recurrenceWeights` | 2D tensor of 16-bit float or 32-bit float values
 | `biases` | 1D tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+| `outputHiddenState` | 2D tensor of 16-bit float or 32-bit float values
+| `outputCellState` | 2D tensor of 16-bit float or 32-bit float values
+
+### `VPU.LSTMGates` (vpux::VPU::LSTMGatesOp)
+
+Computes LSTM activation functions
+
+
+Syntax:
+
+```
+operation ::= `VPU.LSTMGates` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+This operation is intended to be run as a software stage after computing and adding LSTM matrix multiplications.
+
+- **gatesInput** - tensor of shape **[batchSize, 4 * hiddenSize]**. Formula:
+    ```
+    gatesInput = (inputData * weights) + (initialHiddenState * recurrenceWeights) + biases
+    * - Matrix multiplication
+    + - Element-wise add
+    ```
+- The meaning of other operands are identical to those in LSTMCell operation.
+
+Traits: VPU_SameInOutDefaultDimsOrder
+
+Interfaces: EMUUPAOpInterface, InferTypeOpInterface, LayerOpInterface, NoSideEffect (MemoryEffectOpInterface), SerializeInterface
+
+Effects: MemoryEffects::Effect{}
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `gatesInput` | 2D tensor of 16-bit float or 32-bit float values
+| `initialCellState` | 2D tensor of 16-bit float or 32-bit float values
 
 #### Results:
 
@@ -2506,7 +3039,7 @@ operation ::= `VPU.LeakyRelu` `(` operands `)` attr-dict `:` type(operands) `->`
 ```
 
 
-Traits: VPU_EltwiseOp, VPU_SameInOutDimsOrder
+Traits: VPU_EltwiseOp, VPU_SameInOutDefaultDimsOrder
 
 Interfaces: EMUUPAOpInterface, InferTypeOpInterface, LayerOpInterface, NoSideEffect (MemoryEffectOpInterface), SerializeInterface, VPU_TilingBuilderOpInterface
 
@@ -2558,14 +3091,14 @@ Effects: MemoryEffects::Effect{}
 
 | Operand | Description |
 | :-----: | ----------- |
-| `input1` | ranked tensor of 16-bit float or 32-bit float values
-| `input2` | ranked tensor of 16-bit float or 32-bit float values
+| `input1` | ranked tensor of 16-bit float or 32-bit float or 32-bit signed integer values
+| `input2` | ranked tensor of 16-bit float or 32-bit float or 32-bit signed integer values
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `output` | ranked tensor of 16-bit float or 32-bit float values
+| `output` | ranked tensor of 16-bit float or 32-bit float or 32-bit signed integer values
 
 ### `VPU.Less` (vpux::VPU::LessOp)
 
@@ -2595,14 +3128,14 @@ Effects: MemoryEffects::Effect{}
 
 | Operand | Description |
 | :-----: | ----------- |
-| `input1` | ranked tensor of 16-bit float or 32-bit float values
-| `input2` | ranked tensor of 16-bit float or 32-bit float values
+| `input1` | ranked tensor of 16-bit float or 32-bit float or 32-bit signed integer values
+| `input2` | ranked tensor of 16-bit float or 32-bit float or 32-bit signed integer values
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `output` | ranked tensor of 16-bit float or 32-bit float values
+| `output` | ranked tensor of 16-bit float or 32-bit float or 32-bit signed integer values
 
 ### `VPU.Log` (vpux::VPU::LogOp)
 
@@ -2616,11 +3149,47 @@ operation ::= `VPU.Log` `(` operands `)` attr-dict `:` type(operands) `->` type(
 ```
 
 
-Traits: VPU_EltwiseOp, VPU_SameInOutDimsOrder
+Traits: VPU_EltwiseOp, VPU_SameInOutDefaultDimsOrder
 
 Interfaces: EMUUPAOpInterface, InferTypeOpInterface, LayerOpInterface, NoSideEffect (MemoryEffectOpInterface), SerializeInterface, VPU_TilingBuilderOpInterface
 
 Effects: MemoryEffects::Effect{}
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `input` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+| `output` | ranked tensor of 16-bit float or 32-bit float values
+
+### `VPU.LogSoftmax` (vpux::VPU::LogSoftmaxOp)
+
+LogSoftmax VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.LogSoftmax` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+Traits: VPU_SameInOutDefaultDimsOrder
+
+Interfaces: EMUUPAOpInterface, InferTypeOpInterface, LayerOpInterface, NoSideEffect (MemoryEffectOpInterface), SerializeInterface, TilingBuilderOpInterface
+
+Effects: MemoryEffects::Effect{}
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+| `axisInd` | mlir::IntegerAttr | Integer attribute
 
 #### Operands:
 
@@ -2692,14 +3261,14 @@ Effects: MemoryEffects::Effect{}
 
 | Operand | Description |
 | :-----: | ----------- |
-| `input1` | ranked tensor of 8-bit signless integer or 16-bit float or 32-bit float values
-| `input2` | ranked tensor of 8-bit signless integer or 16-bit float or 32-bit float values
+| `input1` | ranked tensor of 8-bit signless integer or 16-bit float or 32-bit float or 32-bit signed integer values
+| `input2` | ranked tensor of 8-bit signless integer or 16-bit float or 32-bit float or 32-bit signed integer values
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `output` | ranked tensor of 8-bit signless integer or 16-bit float or 32-bit float values
+| `output` | ranked tensor of 8-bit signless integer or 16-bit float or 32-bit float or 32-bit signed integer values
 
 ### `VPU.LogicalXor` (vpux::VPU::LogicalXorOp)
 
@@ -2729,18 +3298,57 @@ Effects: MemoryEffects::Effect{}
 
 | Operand | Description |
 | :-----: | ----------- |
-| `input1` | ranked tensor of 8-bit signless integer or 16-bit float or 32-bit float values
-| `input2` | ranked tensor of 8-bit signless integer or 16-bit float or 32-bit float values
+| `input1` | ranked tensor of 8-bit signless integer or 16-bit float or 32-bit float or 32-bit signed integer values
+| `input2` | ranked tensor of 8-bit signless integer or 16-bit float or 32-bit float or 32-bit signed integer values
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `output` | ranked tensor of 8-bit signless integer or 16-bit float or 32-bit float values
+| `output` | ranked tensor of 8-bit signless integer or 16-bit float or 32-bit float or 32-bit signed integer values
+
+### `VPU.MVN6` (vpux::VPU::MVN6Op)
+
+MVN6 VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.MVN6` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+Traits: VPU_EltwiseOp
+
+Interfaces: EMUUPAOpInterface, InferTypeOpInterface, LayerOpInterface, NoSideEffect (MemoryEffectOpInterface), SerializeInterface, VPU_TilingBuilderOpInterface
+
+Effects: MemoryEffects::Effect{}
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+| `axes` | ::mlir::ArrayAttr | 64-bit integer array attribute
+| `normalize_variance` | ::mlir::BoolAttr | bool attribute
+| `eps` | ::mlir::FloatAttr | 64-bit float attribute
+| `eps_mode` | vpux::IE::MvnEpsModeAttr | MvnEpsMode that the InferenceEngine supports
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `input` | ranked tensor of any type values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+| `output` | ranked tensor of any type values
 
 ### `VPU.MVN` (vpux::VPU::MVNOp)
 
-MVN VPU layer
+MVN1 VPU layer
 
 
 Syntax:
@@ -2969,9 +3577,9 @@ operation ::= `VPU.Multiply` `(` operands `)` attr-dict `:` type(operands) `->` 
 ```
 
 
-Traits: Commutative, SameInOutDimsOrder_NCHW_CHW_NC_C, VPU_EltwiseOp
+Traits: Commutative, VPU_EltwiseOp, VPU_SameAnyDimsOrder
 
-Interfaces: EMUUPAOpInterface, InferTypeOpInterface, LayerOpInterface, NoSideEffect (MemoryEffectOpInterface), SerializeInterface, VPU_TilingBuilderOpInterface
+Interfaces: ClusteredOpInterface, EMUUPAOpInterface, InferTypeOpInterface, LayerOpInterface, NoSideEffect (MemoryEffectOpInterface), SWOpInterface, SerializeInterface, VPU_TilingBuilderOpInterface
 
 Effects: MemoryEffects::Effect{}
 
@@ -2981,19 +3589,20 @@ Effects: MemoryEffects::Effect{}
 | :-------: | :-------: | ----------- |
 | `auto_broadcast` | vpux::IE::AutoBroadcastTypeAttr | Specifies rules used for auto-broadcasting of input tensors
 | `post_op` | vpux::IE::PostOp | DictionaryAttr with field(s): 'name', 'attrs' (each field having its own constraints)
+| `multiClusterStrategy` | vpux::VPU::MultiClusterStrategyAttr | MultiCluster Strategy
 
 #### Operands:
 
 | Operand | Description |
 | :-----: | ----------- |
-| `input1` | ranked tensor of 16-bit float or 32-bit float values
-| `input2` | ranked tensor of 16-bit float or 32-bit float values
+| `input1` | ranked tensor of 16-bit float or 32-bit float or 32-bit signed integer values
+| `input2` | ranked tensor of 16-bit float or 32-bit float or 32-bit signed integer values
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `output` | ranked tensor of 16-bit float or 32-bit float values
+| `output` | ranked tensor of 16-bit float or 32-bit float or 32-bit signed integer values
 
 ### `VPU.NCE.AveragePool` (vpux::VPU::NCEAveragePoolOp)
 
@@ -3013,7 +3622,7 @@ operation ::= `VPU.NCE.AveragePool` `(` $input `)`
 
 Traits: NoRegionArguments, NoTerminator, SingleBlock
 
-Interfaces: ClusteredOpInterface, EMUUPAOpInterface, IE_AlignedChannelsOpInterface, InferTypeOpInterface, LayerOpInterface, LayoutInfoOpInterface, NCEOpInterface, NoSideEffect (MemoryEffectOpInterface), SerializeInterface, SparseOpInterface, TilingBuilderOpInterface
+Interfaces: ClusteredOpInterface, EMUUPAOpInterface, IE_AlignedChannelsOpInterface, InferTypeOpInterface, LayerOpInterface, LayoutInfoOpInterface, NCEOpInterface, NoSideEffect (MemoryEffectOpInterface), SerializeInterface, SparseOpInterface, TilingBuilderOpInterface, VerticalFusionOpInterface
 
 Effects: MemoryEffects::Effect{}
 
@@ -3062,6 +3671,53 @@ Effects: MemoryEffects::Effect{}
 | :----: | ----------- |
 | `results` | 4D tensor of 16-bit float or bfloat16 type or 32-bit signed integer or 8-bit unsigned integer or QuantizedType values or VPU tensor type to describe the tensor tiling or VPU SparseTensor Type
 
+### `VPU.NCE.CompressConvolution` (vpux::VPU::NCECompressConvolutionOp)
+
+NCE version of Compressed Convolution layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.NCE.CompressConvolution` `(` $input `,` $filter `,` $weightsTable `)`
+              attr-dict
+              custom<OptionalTypes>(type($input), type($filter), type($weightsTable)) ``
+              `->` type(results)
+              custom<OptionalRegion>($workloads)
+```
+
+
+Traits: NoRegionArguments, NoTerminator, SingleBlock
+
+Interfaces: ClusteredOpInterface, EMUUPAOpInterface, IE_AlignedChannelsOpInterface, InferTypeOpInterface, LayerOpInterface, LayoutInfoOpInterface, NCEOpInterface, NoSideEffect (MemoryEffectOpInterface), SerializeInterface, TilingBuilderOpInterface
+
+Effects: MemoryEffects::Effect{}
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+| `strides` | ::mlir::ArrayAttr | 64-bit integer array attribute with exactly 2 elements
+| `pad` | vpux::VPU::PaddingAttr | DictionaryAttr with field(s): 'left', 'right', 'top', 'bottom' (each field having its own constraints)
+| `ppe` | vpux::VPU::PPETaskAttr | DictionaryAttr with field(s): 'mode', 'clamp_low', 'clamp_high', 'lrelu_mult', 'lrelu_shift', 'quant_scale', 'quant_mult', 'quant_shift', 'quant_post_shift', 'in1_quant_mult', 'in2_quant_mult', 'fp_prelu_alpha' (each field having its own constraints)
+| `rawFilterShape` | ::mlir::ArrayAttr | 64-bit integer array attribute with exactly 4 elements
+| `multiClusterStrategy` | vpux::VPU::MultiClusterStrategyAttr | MultiCluster Strategy
+| `cm_sp_pattern` | mlir::IntegerAttr | Integer attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `input` | 4D tensor of 16-bit float or bfloat16 type or QuantizedType values
+| `filter` | 4D tensor of 16-bit float or bfloat16 type or QuantizedType values
+| `weightsTable` | 4D tensor of 32-bit signed integer values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+| `output` | 4D tensor of 16-bit float or bfloat16 type or QuantizedType values
+
 ### `VPU.NCE.Convolution` (vpux::VPU::NCEConvolutionOp)
 
 NCE version of Convolution layer
@@ -3081,7 +3737,7 @@ operation ::= `VPU.NCE.Convolution` `(` $input `,` $filter `,` $weightsTable (`,
 
 Traits: AttrSizedOperandSegments, NoRegionArguments, NoTerminator, SingleBlock
 
-Interfaces: ClusteredOpInterface, EMUUPAOpInterface, IE_AlignedChannelsOpInterface, InferTypeOpInterface, LayerOpInterface, LayoutInfoOpInterface, NCEOpInterface, NoSideEffect (MemoryEffectOpInterface), SerializeInterface, SparseOpInterface, TilingBuilderOpInterface
+Interfaces: ClusteredOpInterface, EMUUPAOpInterface, IE_AlignedChannelsOpInterface, InferTypeOpInterface, LayerOpInterface, LayoutInfoOpInterface, NCEOpInterface, NoSideEffect (MemoryEffectOpInterface), SerializeInterface, SparseOpInterface, TilingBuilderOpInterface, VerticalFusionOpInterface
 
 Effects: MemoryEffects::Effect{}
 
@@ -3131,7 +3787,7 @@ operation ::= `VPU.NCE.DepthConvolution` `(` $input `,` $filter `,` $weightsTabl
 
 Traits: NoRegionArguments, NoTerminator, SingleBlock
 
-Interfaces: ClusteredOpInterface, EMUUPAOpInterface, IE_AlignedChannelsOpInterface, InferTypeOpInterface, LayerOpInterface, LayoutInfoOpInterface, NCEOpInterface, NoSideEffect (MemoryEffectOpInterface), SerializeInterface, SparseOpInterface, TilingBuilderOpInterface
+Interfaces: ClusteredOpInterface, EMUUPAOpInterface, IE_AlignedChannelsOpInterface, InferTypeOpInterface, LayerOpInterface, LayoutInfoOpInterface, NCEOpInterface, NoSideEffect (MemoryEffectOpInterface), SerializeInterface, SparseOpInterface, TilingBuilderOpInterface, VerticalFusionOpInterface
 
 Effects: MemoryEffects::Effect{}
 
@@ -3180,7 +3836,7 @@ operation ::= `VPU.NCE.Eltwise` `(` $input1 `,` $input2 `)`
 
 Traits: NoRegionArguments, NoTerminator, SingleBlock, VPU_EltwiseOp
 
-Interfaces: ClusteredOpInterface, EMUUPAOpInterface, IE_AlignedChannelsOpInterface, InferTypeOpInterface, LayerOpInterface, LayoutInfoOpInterface, NCEOpInterface, NoSideEffect (MemoryEffectOpInterface), SerializeInterface, SparseOpInterface, TilingBuilderOpInterface
+Interfaces: ClusteredOpInterface, EMUUPAOpInterface, IE_AlignedChannelsOpInterface, InferTypeOpInterface, LayerOpInterface, LayoutInfoOpInterface, NCEOpInterface, NoSideEffect (MemoryEffectOpInterface), SerializeInterface, SparseOpInterface, TilingBuilderOpInterface, VerticalFusionOpInterface
 
 Effects: MemoryEffects::Effect{}
 
@@ -3206,6 +3862,54 @@ Effects: MemoryEffects::Effect{}
 | :----: | ----------- |
 | `output` | 4D tensor of 16-bit float or bfloat16 type or QuantizedType values or VPU SparseTensor Type
 
+### `VPU.NCE.Interpolate` (vpux::VPU::NCEInterpolateOp)
+
+NCE version of Interpolate layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.NCE.Interpolate` `(` $input
+              (`,` $weights^ `` custom<OptionalTypes>(type($weights)))?
+              (`,` $weightsTable^ `` custom<OptionalTypes>(type($weightsTable)))?
+              `)`
+              attr-dict
+              custom<OptionalTypes>(type($input)) ``
+              `->` type(results)
+              custom<OptionalRegion>($workloads)
+```
+
+
+Traits: NoRegionArguments, NoTerminator, SameVariadicOperandSize, SingleBlock
+
+Interfaces: ClusteredOpInterface, EMUUPAOpInterface, IE_AlignedChannelsOpInterface, InferTypeOpInterface, LayerOpInterface, LayoutInfoOpInterface, NCEOpInterface, NoSideEffect (MemoryEffectOpInterface), SerializeInterface, SparseOpInterface, TilingBuilderOpInterface
+
+Effects: MemoryEffects::Effect{}
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+| `ppe` | vpux::VPU::PPETaskAttr | DictionaryAttr with field(s): 'mode', 'clamp_low', 'clamp_high', 'lrelu_mult', 'lrelu_shift', 'quant_scale', 'quant_mult', 'quant_shift', 'quant_post_shift', 'in1_quant_mult', 'in2_quant_mult', 'fp_prelu_alpha' (each field having its own constraints)
+| `rawFilterShape` | ::mlir::ArrayAttr | 64-bit integer array attribute with exactly 4 elements
+| `multiClusterStrategy` | vpux::VPU::MultiClusterStrategyAttr | MultiCluster Strategy
+| `mode` | vpux::VPU::NCEInterpolateModeAttr | Specifies type of interpolation
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `input` | VPU SparseTensor Type
+| `weights` | ranked tensor of any type values or VPU SparseTensor Type
+| `weightsTable` | 4D tensor of 32-bit signed integer values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+| `output` | ranked tensor of any type values or VPU SparseTensor Type
+
 ### `VPU.NCE.MaxPool` (vpux::VPU::NCEMaxPoolOp)
 
 NCE version of MaxPool layer
@@ -3224,7 +3928,7 @@ operation ::= `VPU.NCE.MaxPool` `(` $input `,` $weightsTable `,` $activationWind
 
 Traits: NoRegionArguments, NoTerminator, SingleBlock
 
-Interfaces: ClusteredOpInterface, EMUUPAOpInterface, IE_AlignedChannelsOpInterface, InferTypeOpInterface, LayerOpInterface, LayoutInfoOpInterface, NCEOpInterface, NoSideEffect (MemoryEffectOpInterface), SerializeInterface, SparseOpInterface, TilingBuilderOpInterface
+Interfaces: ClusteredOpInterface, EMUUPAOpInterface, IE_AlignedChannelsOpInterface, InferTypeOpInterface, LayerOpInterface, LayoutInfoOpInterface, NCEOpInterface, NoSideEffect (MemoryEffectOpInterface), SerializeInterface, SparseOpInterface, TilingBuilderOpInterface, VerticalFusionOpInterface
 
 Effects: MemoryEffects::Effect{}
 
@@ -3271,7 +3975,7 @@ operation ::= `VPU.NCE.PermuteQuantize` `(` $input `)`
 
 Traits: NoRegionArguments, NoTerminator, SingleBlock
 
-Interfaces: ClusteredOpInterface, EMUUPAOpInterface, InferTypeOpInterface, LayerOpInterface, LayoutInfoOpInterface, NCEOpInterface, NoSideEffect (MemoryEffectOpInterface), SerializeInterface, SparseOpInterface, TilingBuilderOpInterface
+Interfaces: ClusteredOpInterface, EMUUPAOpInterface, IE_AlignedChannelsOpInterface, InferTypeOpInterface, LayerOpInterface, LayoutInfoOpInterface, NCEOpInterface, NoSideEffect (MemoryEffectOpInterface), SerializeInterface, SparseOpInterface, TilingBuilderOpInterface
 
 Effects: MemoryEffects::Effect{}
 
@@ -3309,7 +4013,7 @@ operation ::= `VPU.Negative` `(` operands `)` attr-dict `:` type(operands) `->` 
 ```
 
 
-Traits: VPU_EltwiseOp, VPU_SameInOutDimsOrder
+Traits: VPU_EltwiseOp, VPU_SameInOutDefaultDimsOrder
 
 Interfaces: EMUUPAOpInterface, InferTypeOpInterface, LayerOpInterface, NoSideEffect (MemoryEffectOpInterface), SerializeInterface, VPU_TilingBuilderOpInterface
 
@@ -3319,13 +4023,13 @@ Effects: MemoryEffects::Effect{}
 
 | Operand | Description |
 | :-----: | ----------- |
-| `input` | ranked tensor of 16-bit float or 32-bit float values
+| `input` | ranked tensor of 16-bit float or 32-bit float or 32-bit signed integer values
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `output` | ranked tensor of 16-bit float or 32-bit float values
+| `output` | ranked tensor of 16-bit float or 32-bit float or 32-bit signed integer values
 
 ### `VPU.NonMaxSuppression` (vpux::VPU::NonMaxSuppressionOp)
 
@@ -3381,7 +4085,7 @@ operation ::= `VPU.NormalizeIE` `(` operands `)` attr-dict `:` type(operands) `-
 ```
 
 
-Traits: VPU_SameInOutDimsOrder
+Traits: VPU_SameInOutDefaultDimsOrder
 
 Interfaces: EMUUPAOpInterface, InferTypeOpInterface, LayerOpInterface, NoSideEffect (MemoryEffectOpInterface), SerializeInterface
 
@@ -3407,6 +4111,44 @@ Effects: MemoryEffects::Effect{}
 | Result | Description |
 | :----: | ----------- |
 | `output` | ranked tensor of any type values
+
+### `VPU.NormalizeL2` (vpux::VPU::NormalizeL2Op)
+
+NormalizeL2 VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.NormalizeL2` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+Traits: VPU_SameInOutDefaultDimsOrder
+
+Interfaces: EMUUPAOpInterface, InferTypeOpInterface, LayerOpInterface, NoSideEffect (MemoryEffectOpInterface), SerializeInterface
+
+Effects: MemoryEffects::Effect{}
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+| `eps` | ::mlir::FloatAttr | 64-bit float attribute
+| `eps_mode` | vpux::IE::EpsModeAttr | EpsMode that the InferenceEngine supports
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `data` | ranked tensor of 16-bit float or 32-bit float values
+| `axes` | 1D tensor of 32-bit signed integer or 64-bit signed integer values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+| `output` | ranked tensor of 16-bit float or 32-bit float values
 
 ### `VPU.NotEqual` (vpux::VPU::NotEqualOp)
 
@@ -3436,14 +4178,52 @@ Effects: MemoryEffects::Effect{}
 
 | Operand | Description |
 | :-----: | ----------- |
-| `input1` | ranked tensor of 16-bit float or 32-bit float values
-| `input2` | ranked tensor of 16-bit float or 32-bit float values
+| `input1` | ranked tensor of 16-bit float or 32-bit float or 32-bit signed integer values
+| `input2` | ranked tensor of 16-bit float or 32-bit float or 32-bit signed integer values
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `output` | ranked tensor of 16-bit float or 32-bit float values
+| `output` | ranked tensor of 16-bit float or 32-bit float or 32-bit signed integer values
+
+### `VPU.OneHot` (vpux::VPU::OneHotOp)
+
+InferenceEngine OneHot layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.OneHot` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+Interfaces: EMUUPAOpInterface, InferTypeOpInterface, LayerOpInterface, NoSideEffect (MemoryEffectOpInterface), SerializeInterface
+
+Effects: MemoryEffects::Effect{}
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+| `depth` | mlir::IntegerAttr | Integer attribute
+| `on_value` | ::mlir::FloatAttr | 64-bit float attribute
+| `off_value` | ::mlir::FloatAttr | 64-bit float attribute
+| `axis` | mlir::IntegerAttr | Integer attribute
+| `outElemType` | ::mlir::TypeAttr | any type attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `input` | ranked tensor of 32-bit signed integer or 64-bit signed integer values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+| `output` | ranked tensor of any type values
 
 ### `VPU.PRelu` (vpux::VPU::PReluOp)
 
@@ -3457,7 +4237,7 @@ operation ::= `VPU.PRelu` `(` operands `)` attr-dict `:` type(operands) `->` typ
 ```
 
 
-Traits: VPU_EltwiseOp, VPU_SameInOutDimsOrder
+Traits: VPU_EltwiseOp, VPU_SameInOutDefaultDimsOrder
 
 Interfaces: EMUUPAOpInterface, InferTypeOpInterface, LayerOpInterface, NoSideEffect (MemoryEffectOpInterface), SerializeInterface, TilingBuilderOpInterface
 
@@ -3530,7 +4310,7 @@ operation ::= `VPU.Pad` `(` $input `)` (`[` $pads_begin^ `,` $pads_end (`,` $pad
 ```
 
 
-Traits: AttrSizedOperandSegments, VPU_SameInOutDimsOrder
+Traits: AttrSizedOperandSegments, VPU_SameInOutDefaultDimsOrder
 
 Interfaces: EMUUPAOpInterface, InferTypeOpInterface, LayerOpInterface, NoSideEffect (MemoryEffectOpInterface), SerializeInterface
 
@@ -3572,7 +4352,7 @@ operation ::= `VPU.PerAxisTile` `(` operands `)` attr-dict `:` type(operands) `-
 ```
 
 
-Traits: VPU_SameInOutDimsOrder
+Traits: VPU_SameInOutDefaultDimsOrder
 
 Interfaces: EMUUPAOpInterface, InferTypeOpInterface, LayerOpInterface, NoSideEffect (MemoryEffectOpInterface), SerializeInterface
 
@@ -3698,14 +4478,14 @@ Effects: MemoryEffects::Effect{}
 
 | Operand | Description |
 | :-----: | ----------- |
-| `input1` | ranked tensor of 16-bit float or 32-bit float values
-| `input2` | ranked tensor of 16-bit float or 32-bit float values
+| `input1` | ranked tensor of 16-bit float or 32-bit float or 32-bit signed integer values
+| `input2` | ranked tensor of 16-bit float or 32-bit float or 32-bit signed integer values
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `output` | ranked tensor of 16-bit float or 32-bit float values
+| `output` | ranked tensor of 16-bit float or 32-bit float or 32-bit signed integer values
 
 ### `VPU.Proposal` (vpux::VPU::ProposalOp)
 
@@ -3772,13 +4552,13 @@ Effects: MemoryEffects::Effect{}
 
 | Operand | Description |
 | :-----: | ----------- |
-| `input` | ranked tensor of 8-bit signed integer or 8-bit unsigned integer or QuantizedType values
+| `input` | ranked tensor of 8-bit signed integer or 8-bit unsigned integer or QuantizedType values or VPU SparseTensor Type
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `output` | ranked tensor of 8-bit signed integer or 8-bit unsigned integer or QuantizedType values
+| `output` | ranked tensor of 8-bit signed integer or 8-bit unsigned integer or QuantizedType values or VPU SparseTensor Type
 
 ### `VPU.Quantize` (vpux::VPU::QuantizeOp)
 
@@ -3815,6 +4595,41 @@ Effects: MemoryEffects::Effect{}
 | Result | Description |
 | :----: | ----------- |
 | `output` | ranked tensor of QuantizedType values
+
+### `VPU.RDFT` (vpux::VPU::RDFTOp)
+
+InferenceEngine RDFT layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.RDFT` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+Interfaces: EMUUPAOpInterface, InferTypeOpInterface, LayerOpInterface, NoSideEffect (MemoryEffectOpInterface), SerializeInterface, TilingBuilderOpInterface
+
+Effects: MemoryEffects::Effect{}
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+| `axes_attr` | ::mlir::ArrayAttr | 64-bit integer array attribute
+| `signal_size_attr` | ::mlir::ArrayAttr | 64-bit integer array attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `input` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+| `output` | ranked tensor of 16-bit float or 32-bit float values
 
 ### `VPU.ROIAlign` (vpux::VPU::ROIAlignOp)
 
@@ -3896,6 +4711,44 @@ Effects: MemoryEffects::Effect{}
 | Result | Description |
 | :----: | ----------- |
 | `output` | ranked tensor of 16-bit float or 32-bit float values
+
+### `VPU.RandomUniform` (vpux::VPU::RandomUniformOp)
+
+RandomUniform VPU layer
+
+
+Syntax:
+
+```
+operation ::= `VPU.RandomUniform` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+Interfaces: EMUUPAOpInterface, InferTypeOpInterface, LayerOpInterface, NoSideEffect (MemoryEffectOpInterface), SerializeInterface
+
+Effects: MemoryEffects::Effect{}
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+| `output_shape` | ::mlir::ArrayAttr | 64-bit integer array attribute
+| `output_type` | ::mlir::TypeAttr | any type attribute
+| `global_seed` | mlir::IntegerAttr | Integer attribute
+| `op_seed` | mlir::IntegerAttr | Integer attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `min` | 1D tensor of 16-bit float or 32-bit float or 32-bit signed integer values
+| `max` | 1D tensor of 16-bit float or 32-bit float or 32-bit signed integer values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+| `output` | ranked tensor of 16-bit float or 32-bit float or 32-bit signed integer values
 
 ### `VPU.ReLU` (vpux::VPU::ReLUOp)
 
@@ -4219,7 +5072,7 @@ operation ::= `VPU.ReduceSum` `(` operands `)` attr-dict `:` type(operands) `->`
 ```
 
 
-Interfaces: EMUUPAOpInterface, InferTypeOpInterface, LayerOpInterface, NoSideEffect (MemoryEffectOpInterface), SerializeInterface
+Interfaces: EMUUPAOpInterface, InferTypeOpInterface, LayerOpInterface, NoSideEffect (MemoryEffectOpInterface), SerializeInterface, TilingBuilderOpInterface
 
 Effects: MemoryEffects::Effect{}
 
@@ -4367,7 +5220,7 @@ operation ::= `VPU.ReverseSequence` `(` operands `)` attr-dict `:` type(operands
 ```
 
 
-Traits: VPU_SameInOutDimsOrder
+Traits: VPU_SameInOutDefaultDimsOrder
 
 Interfaces: EMUUPAOpInterface, InferTypeOpInterface, LayerOpInterface, NoSideEffect (MemoryEffectOpInterface), SerializeInterface
 
@@ -4405,7 +5258,7 @@ operation ::= `VPU.Roll` `(` operands `)` attr-dict `:` type(operands) `->` type
 ```
 
 
-Traits: VPU_SameInOutDimsOrder
+Traits: VPU_SameInOutDefaultDimsOrder
 
 Interfaces: EMUUPAOpInterface, InferTypeOpInterface, LayerOpInterface, NoSideEffect (MemoryEffectOpInterface), SerializeInterface
 
@@ -4505,7 +5358,7 @@ operation ::= `VPU.ScatterNDUpdate` `(` operands `)` attr-dict `:` type(operands
 ```
 
 
-Traits: VPU_AnyDimsOrder
+Traits: VPU_SameInOutDefaultDimsOrder
 
 Interfaces: EMUUPAOpInterface, InferTypeOpInterface, LayerOpInterface, NoSideEffect (MemoryEffectOpInterface), SerializeInterface
 
@@ -4575,7 +5428,7 @@ operation ::= `VPU.Select` `(` operands `)` attr-dict `:` type(operands) `->` ty
 ```
 
 
-Traits: VPU_EltwiseOp, VPU_SameInOutDimsOrder
+Traits: VPU_EltwiseOp, VPU_SameInOutDefaultDimsOrder
 
 Interfaces: EMUUPAOpInterface, InferTypeOpInterface, LayerOpInterface, NoSideEffect (MemoryEffectOpInterface), SerializeInterface, VPU_TilingBuilderOpInterface
 
@@ -4613,7 +5466,7 @@ operation ::= `VPU.Selu` `(` operands `)` attr-dict `:` type(operands) `->` type
 ```
 
 
-Traits: VPU_EltwiseOp, VPU_SameInOutDimsOrder
+Traits: VPU_EltwiseOp, VPU_SameInOutDefaultDimsOrder
 
 Interfaces: EMUUPAOpInterface, InferTypeOpInterface, LayerOpInterface, NoSideEffect (MemoryEffectOpInterface), SerializeInterface, VPU_TilingBuilderOpInterface
 
@@ -4746,7 +5599,7 @@ operation ::= `VPU.Sin` `(` operands `)` attr-dict `:` type(operands) `->` type(
 ```
 
 
-Traits: VPU_EltwiseOp, VPU_SameInOutDimsOrder
+Traits: VPU_EltwiseOp, VPU_SameInOutDefaultDimsOrder
 
 Interfaces: EMUUPAOpInterface, InferTypeOpInterface, LayerOpInterface, NoSideEffect (MemoryEffectOpInterface), SerializeInterface, VPU_TilingBuilderOpInterface
 
@@ -4842,9 +5695,9 @@ operation ::= `VPU.SoftMax` `(` operands `)` attr-dict `:` type(operands) `->` t
 ```
 
 
-Traits: VPU_SameInOutDimsOrder
+Traits: VPU_SameInOutDefaultDimsOrder
 
-Interfaces: EMUUPAOpInterface, InferTypeOpInterface, LayerOpInterface, NoSideEffect (MemoryEffectOpInterface), SerializeInterface, TilingBuilderOpInterface
+Interfaces: ClusteredOpInterface, EMUUPAOpInterface, InferTypeOpInterface, LayerOpInterface, NoSideEffect (MemoryEffectOpInterface), SWOpInterface, SerializeInterface, TilingBuilderOpInterface
 
 Effects: MemoryEffects::Effect{}
 
@@ -4853,6 +5706,7 @@ Effects: MemoryEffects::Effect{}
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
 | `axisInd` | mlir::IntegerAttr | Integer attribute
+| `multiClusterStrategy` | vpux::VPU::MultiClusterStrategyAttr | MultiCluster Strategy
 
 #### Operands:
 
@@ -4878,7 +5732,7 @@ operation ::= `VPU.SoftPlus` `(` operands `)` attr-dict `:` type(operands) `->` 
 ```
 
 
-Traits: VPU_EltwiseOp, VPU_SameInOutDimsOrder
+Traits: VPU_EltwiseOp, VPU_SameInOutDefaultDimsOrder
 
 Interfaces: EMUUPAOpInterface, InferTypeOpInterface, LayerOpInterface, NoSideEffect (MemoryEffectOpInterface), SerializeInterface, VPU_TilingBuilderOpInterface
 
@@ -4908,7 +5762,7 @@ operation ::= `VPU.SpaceToDepthOp` `(` operands `)` attr-dict `:` type(operands)
 ```
 
 
-Traits: VPU_SameInOutDimsOrder
+Traits: VPU_SameInOutDefaultDimsOrder
 
 Interfaces: EMUUPAOpInterface, InferTypeOpInterface, LayerOpInterface, NoSideEffect (MemoryEffectOpInterface), SerializeInterface, TilingBuilderOpInterface
 
@@ -5057,14 +5911,14 @@ Effects: MemoryEffects::Effect{}
 
 | Operand | Description |
 | :-----: | ----------- |
-| `input1` | ranked tensor of 16-bit float or 32-bit float values
-| `input2` | ranked tensor of 16-bit float or 32-bit float values
+| `input1` | ranked tensor of 16-bit float or 32-bit float or 32-bit signed integer values
+| `input2` | ranked tensor of 16-bit float or 32-bit float or 32-bit signed integer values
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `output` | ranked tensor of 16-bit float or 32-bit float values
+| `output` | ranked tensor of 16-bit float or 32-bit float or 32-bit signed integer values
 
 ### `VPU.Squeeze` (vpux::VPU::SqueezeOp)
 
@@ -5103,7 +5957,7 @@ Effects: MemoryEffects::Effect{}
 
 ### `VPU.StorageElementTable` (vpux::VPU::StorageElementTableOp)
 
-Declares Storage Element Pointers table
+Declares a Storage Element Pointers table
 
 
 Syntax:
@@ -5112,10 +5966,31 @@ Syntax:
 operation ::= `VPU.StorageElementTable` attr-dict `->` type(results)
 ```
 
-Declares Storage Element Pointers table with defined width,
-height, number of output pixels each SE contains(seSize), amount of SE
-per tensor depth(seDepth) and not empty list of base pointers for each
-element.
+A Storage Element represents a 1x1xN volume that contains sparse data, where N
+represents the number of channels stored. The Storage Element Table is comprised
+of pointers to these Storage Elements, which have the following structure:
+
+31-29 28                            9 8         0
+-------------------------------------------------
+| xx |           DATA_PTR            | BASE_PTR |
+-------------------------------------------------
+
+The DATA_PTR represents the offset to a Storage Element in relation to the start of
+the input data. BASE_PTR is used to decide what base address is added to DATA_PTR
+in order to find the location of the Storage Element in memory during inference.
+
+This operation represents the Storage Element Table in relation to the input data,
+on top of which transformations can be applied. This operation will later get
+converted to a constant, where the pointers are generated based on the information
+contained in this operation.
+
+The following information is contained:
+- dataShape, dataElemType, dataStrides: information about the input data that
+  is associated with this Storage Element Table
+- seSize: the size of a Storage Element
+- seDepth: the number of Storage Elements per depth
+- seAttr: information on how the input data is transformed
+- basePtrs: base pointers associated with each Storage Element pointer
 
 Interfaces: InferTypeOpInterface, NoSideEffect (MemoryEffectOpInterface)
 
@@ -5125,11 +6000,13 @@ Effects: MemoryEffects::Effect{}
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-| `seDepth` | mlir::IntegerAttr | Integer attribute
+| `dataShape` | ::mlir::ArrayAttr | 64-bit integer array attribute
+| `dataElemType` | ::mlir::TypeAttr | any type attribute
 | `seSize` | mlir::IntegerAttr | Integer attribute
-| `height` | mlir::IntegerAttr | Integer attribute
-| `width` | mlir::IntegerAttr | Integer attribute
-| `base_ptrs` | ::mlir::ArrayAttr | 32-bit integer array attribute
+| `seDepth` | mlir::IntegerAttr | Integer attribute
+| `seAttr` | vpux::VPU::SEAttr | Storage Element attribute
+| `dataStrides` | ::mlir::ArrayAttr | 64-bit integer array attribute
+| `basePtrs` | ::mlir::DenseIntElementsAttr | 32-bit signless integer elements attribute
 
 #### Results:
 
@@ -5149,7 +6026,7 @@ operation ::= `VPU.StridedSlice` `(` operands `)` attr-dict `:` type(operands) `
 ```
 
 
-Traits: VPU_AnyDimsOrder
+Traits: SameInOutDimsOrder_NCHW_CHW_NC_C
 
 Interfaces: EMUUPAOpInterface, InferTypeOpInterface, LayerOpInterface, NoSideEffect (MemoryEffectOpInterface), SerializeInterface, TilingBuilderOpInterface
 
@@ -5237,14 +6114,14 @@ Effects: MemoryEffects::Effect{}
 
 | Operand | Description |
 | :-----: | ----------- |
-| `input1` | ranked tensor of 16-bit float or 32-bit float values
-| `input2` | ranked tensor of 16-bit float or 32-bit float values
+| `input1` | ranked tensor of 16-bit float or 32-bit float or 32-bit signed integer values
+| `input2` | ranked tensor of 16-bit float or 32-bit float or 32-bit signed integer values
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `output` | ranked tensor of 16-bit float or 32-bit float values
+| `output` | ranked tensor of 16-bit float or 32-bit float or 32-bit signed integer values
 
 ### `VPU.Swish` (vpux::VPU::SwishOp)
 
@@ -5258,9 +6135,9 @@ operation ::= `VPU.Swish` `(` operands `)` attr-dict `:` type(operands) `->` typ
 ```
 
 
-Traits: VPU_EltwiseOp, VPU_SameInOutDimsOrder
+Traits: VPU_EltwiseOp, VPU_SameInOutDefaultDimsOrder
 
-Interfaces: EMUUPAOpInterface, InferTypeOpInterface, LayerOpInterface, NoSideEffect (MemoryEffectOpInterface), SerializeInterface, VPU_TilingBuilderOpInterface
+Interfaces: ClusteredOpInterface, EMUUPAOpInterface, InferTypeOpInterface, LayerOpInterface, NoSideEffect (MemoryEffectOpInterface), SWOpInterface, SerializeInterface, VPU_TilingBuilderOpInterface
 
 Effects: MemoryEffects::Effect{}
 
@@ -5269,6 +6146,7 @@ Effects: MemoryEffects::Effect{}
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
 | `beta_value` | ::mlir::FloatAttr | 64-bit float attribute
+| `multiClusterStrategy` | vpux::VPU::MultiClusterStrategyAttr | MultiCluster Strategy
 
 #### Operands:
 
@@ -5295,7 +6173,7 @@ operation ::= `VPU.Tan` `(` operands `)` attr-dict `:` type(operands) `->` type(
 ```
 
 
-Traits: VPU_EltwiseOp, VPU_SameInOutDimsOrder
+Traits: VPU_EltwiseOp, VPU_SameInOutDefaultDimsOrder
 
 Interfaces: EMUUPAOpInterface, InferTypeOpInterface, LayerOpInterface, NoSideEffect (MemoryEffectOpInterface), SerializeInterface, VPU_TilingBuilderOpInterface
 
@@ -5327,7 +6205,7 @@ operation ::= `VPU.Tanh` `(` operands `)` attr-dict `:` type(operands) `->` type
 
 Traits: VPU_EltwiseOp, VPU_SameInOutDimsOrder_CHW_HWC_NCHW_NHWC
 
-Interfaces: ClusteredOpInterface, EMUUPAOpInterface, InferTypeOpInterface, LayerOpInterface, NoSideEffect (MemoryEffectOpInterface), SWOpInterface, SerializeInterface, VPU_TilingBuilderOpInterface
+Interfaces: ClusteredOpInterface, EMUUPAOpInterface, InferTypeOpInterface, LayerOpInterface, NoSideEffect (MemoryEffectOpInterface), SWOpInterface, SerializeInterface, VPU_TilingBuilderOpInterface, VerticalFusionOpInterface
 
 Effects: MemoryEffects::Effect{}
 
@@ -5361,18 +6239,23 @@ operation ::= `VPU.Tile` `(` operands `)` attr-dict `:` type(operands) `->` type
 ```
 
 
-Traits: VPU_SameInOutDimsOrder
+Traits: VPU_SameInOutDefaultDimsOrder
 
-Interfaces: EMUUPAOpInterface, InferTypeOpInterface, LayerOpInterface, NoSideEffect (MemoryEffectOpInterface), SerializeInterface
+Interfaces: EMUUPAOpInterface, InferTypeOpInterface, LayerOpInterface, NoSideEffect (MemoryEffectOpInterface), SerializeInterface, TilingBuilderOpInterface
 
 Effects: MemoryEffects::Effect{}
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+| `repeats_values` | ::mlir::ArrayAttr | 64-bit integer array attribute
 
 #### Operands:
 
 | Operand | Description |
 | :-----: | ----------- |
 | `input` | ranked tensor of any type values
-| `repeats` | ranked tensor of integer values
 
 #### Results:
 
@@ -5477,8 +6360,7 @@ Effects: MemoryEffects::Effect{}
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
 | `upsampling_factor` | ::mlir::ArrayAttr | 64-bit integer array attribute
-| `pad_l` | ::mlir::ArrayAttr | 64-bit integer array attribute
-| `pad_r` | ::mlir::ArrayAttr | 64-bit integer array attribute
+| `pad` | vpux::IE::UpsamplingPadAttr | DictionaryAttr with field(s): 'pads_channel', 'pads_height', 'pads_width' (each field having its own constraints)
 
 #### Operands:
 
@@ -5491,6 +6373,35 @@ Effects: MemoryEffects::Effect{}
 | Result | Description |
 | :----: | ----------- |
 | `output` | ranked tensor of 16-bit float or 32-bit float values
+
+### `VPU.VerticalFusion` (vpux::VPU::VerticalFusionOp)
+
+Operation that encapsulates details of VF subgraph
+
+
+Traits: IsolatedFromAbove, SingleBlockImplicitTerminator<YieldOp>
+
+Interfaces: NoSideEffect (MemoryEffectOpInterface), RegionBranchOpInterface
+
+Effects: MemoryEffects::Effect{}
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+| `tilingStrategy` | ::mlir::ArrayAttr | 64-bit integer array attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `operands` | 4D tensor of 16-bit float or bfloat16 type or 32-bit signed integer or 8-bit unsigned integer or QuantizedType values or VPU tensor type to describe the tensor tiling or VPU SparseTensor Type
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+| `results` | 4D tensor of 16-bit float or bfloat16 type or 32-bit signed integer or 8-bit unsigned integer or QuantizedType values or VPU tensor type to describe the tensor tiling or VPU SparseTensor Type
 
 ### `VPU.WorkloadCast` (vpux::VPU::WorkloadCastOp)
 
@@ -5541,7 +6452,7 @@ Interfaces: VPU_ViewLikeOpInterface
 
 ### `VPU.Yield` (vpux::VPU::YieldOp)
 
-Terminator for NCE.ClusterTiling operation
+Terminator for wrapping operation
 
 
 Syntax:
@@ -5553,7 +6464,7 @@ operation ::= `VPU.Yield` $operands
 ```
 
 
-Traits: HasParent<NCEClusterTilingOp>, Terminator
+Traits: HasParent<NCEClusterTilingOp, VerticalFusionOp>, Terminator
 
 Interfaces: NoSideEffect (MemoryEffectOpInterface), RegionBranchTerminatorOpInterface
 
@@ -5604,6 +6515,81 @@ Effects: MemoryEffects::Effect{}
 | :----: | ----------- |
 | `output` | 4D tensor of 8-bit signed integer or 16-bit float or 32-bit float values
 
+## Attribute definition
+
+### CompressionSchemeAttr
+
+
+
+Syntax:
+
+```
+!VPU.CompressionScheme<
+  mlir::IntegerAttr,   # axis
+  mlir::ElementsAttr,   # numElems
+  mlir::IntegerAttr   # alignment
+>
+```
+
+Represents the compression as the number of elements along a specified axis.
+
+For example, a two-dimensional type with the shape 4x30 might be compressed
+along axis 0 into with the number of elements [12, 15, 30, 3].
+
+In case the compression is over the entire data (instead of a specified axis),
+the `axis` attribute can be set to null with the `numElems` as a splat value.
+
+The `alignment` attribute can be used to represent a required alignment for
+each set of elements on the given axis. For example, in case the compression
+for weights sparsity is represented by this attribute, the compression will
+be over the output channel axis and each weight set (i.e. ICxKYxKX - set of
+values for each output channel) has to be aligned to 16 bytes.
+
+#### Parameters:
+
+| Parameter | C++ type | Description |
+| :-------: | :-------: | ----------- |
+| axis | `mlir::IntegerAttr` |  |
+| numElems | `mlir::ElementsAttr` |  |
+| alignment | `mlir::IntegerAttr` |  |
+
+### SEInterpolateAttr
+
+
+
+Syntax:
+
+```
+!VPU.SEInterpolate<
+  vpux::VPU::NCEInterpolateModeAttr,   # mode
+  vpux::VPU::NCEInterpolateNearestModeAttr,   # nearest_mode
+  vpux::VPU::NCEInterpolateCoordModeAttr,   # coordinate_transformation_mode
+  mlir::ArrayAttr,   # scale
+  mlir::ArrayAttr,   # offsets
+  mlir::ArrayAttr   # sizes
+>
+```
+
+This attribute contains parameters for HW interpolate which is implemented by means of storage element table.
+It represents how the storage element table is generated to pick elements from the initial data.
+It is intended to use with input sparse type for NCE operations and the storage element table operation.
+
+Scaling function is chosen based on interpolate mode, nearest mode and coordination transformation mode parameters.
+
+Scales used to calculate an output shape together with scaling function deduced from the paramaters mentioned above.
+The offsets and sizes attributes refer to the part of the input data that is extracted after interpolation.
+
+#### Parameters:
+
+| Parameter | C++ type | Description |
+| :-------: | :-------: | ----------- |
+| mode | `vpux::VPU::NCEInterpolateModeAttr` |  |
+| nearest_mode | `vpux::VPU::NCEInterpolateNearestModeAttr` |  |
+| coordinate_transformation_mode | `vpux::VPU::NCEInterpolateCoordModeAttr` |  |
+| scale | `mlir::ArrayAttr` |  |
+| offsets | `mlir::ArrayAttr` |  |
+| sizes | `mlir::ArrayAttr` |  |
+
 ## Type definition
 
 ### DistributedTensorType
@@ -5652,4 +6638,5 @@ the data after removing the sparse values.
 | storageElementTable | `mlir::Type` |  |
 | isWeights | `mlir::UnitAttr` |  |
 | compressionScheme | `VPU::CompressionSchemeAttr` |  |
+| seAttr | `vpux::VPU::SEAttr` | Storage Element attribute |
 

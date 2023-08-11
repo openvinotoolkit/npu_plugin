@@ -7,13 +7,10 @@
 
 #include <mlir/Dialect/Quant/QuantTypes.h>
 
-#include <functional>
 #include "vpux/compiler/dialect/VPU/passes.hpp"
 #include "vpux/compiler/dialect/VPU/utils/ppe_utils.hpp"
 #include "vpux/compiler/dialect/VPUIP/attributes.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
-#include "vpux/compiler/dialect/VPUIP/passes.hpp"
-#include "vpux/compiler/dialect/VPUIP/utils.hpp"
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
 #include "vpux/compiler/dialect/VPURT/task.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
@@ -49,8 +46,9 @@ void buildRaceConditionDMATest(const nb::TestCaseJsonDescriptor& testDesc, mlir:
     const auto funcType = builder.getFunctionType(makeArrayRef(std::vector<mlir::Type>{inType, outType, outType}),
                                                   makeArrayRef(std::vector<mlir::Type>{outType, outType}));
 
-    auto func = builder.create<mlir::FuncOp>(loc, printToString("race_condition_dma_{0}_{1}", inputType, outputType),
-                                             funcType, builder.getStringAttr("private"));
+    auto func =
+            builder.create<mlir::func::FuncOp>(loc, printToString("race_condition_dma_{0}_{1}", inputType, outputType),
+                                               funcType, builder.getStringAttr("private"));
 
     auto funcBuilder = mlir::OpBuilder::atBlockBegin(func.addEntryBlock(), builder.getListener());
 
@@ -71,30 +69,32 @@ void buildRaceConditionDMATest(const nb::TestCaseJsonDescriptor& testDesc, mlir:
         auto updateBarrier = funcBuilder.create<VPURT::ConfigureBarrierOp>(loc, i);
         vpux::VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(
                 funcBuilder, i == 0 ? mlir::ValueRange() : mlir::ValueRange(lastBarrier.barrier()),
-                mlir::ValueRange(updateBarrier.barrier()), loc, funcInput, output_0.getOperation()->getResult(0), 0,
-                false, false);
+                mlir::ValueRange(updateBarrier.barrier()), loc, funcInput, output_0.getOperation()->getResult(0), 0);
 
         vpux::VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(
                 funcBuilder, i == 0 ? mlir::ValueRange() : mlir::ValueRange(lastBarrier.barrier()),
-                mlir::ValueRange(updateBarrier.barrier()), loc, funcInput, output_1.getOperation()->getResult(0), 1,
-                false, false);
+                mlir::ValueRange(updateBarrier.barrier()), loc, funcInput, output_1.getOperation()->getResult(0),
+                1);
 
         lastBarrier = updateBarrier;
     }
 
     vpux::VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcBuilder, mlir::ValueRange(lastBarrier.barrier()),
                                                 mlir::ValueRange(), loc, output_0.getOperation()->getResult(0),
-                                                funcOutput_0, 0, false, false);
+                                                funcOutput_0, 0);
 
     vpux::VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcBuilder, mlir::ValueRange(lastBarrier.barrier()),
                                                 mlir::ValueRange(), loc, output_1.getOperation()->getResult(0),
-                                                funcOutput_1, 1, false, false);
+                                                funcOutput_1,
+                                                1);
 
-    funcBuilder.create<mlir::ReturnOp>(loc, mlir::ValueRange{funcOutput_0, funcOutput_1});
+    funcBuilder.create<mlir::func::ReturnOp>(loc, mlir::ValueRange{funcOutput_0, funcOutput_1});
 
     // set runtime resources
     mlir::PassManager pm(ctx, mlir::OpPassManager::Nesting::Implicit);
-    pm.addPass(VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::DefaultHW, None, None,
+    Optional<int> numTiles = None;
+
+    pm.addPass(VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::DefaultHW, numTiles, None,
                                            None, log));
 
     VPUX_THROW_UNLESS(mlir::succeeded(pm.run(module)), "Compilation failed");

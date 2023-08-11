@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/IE/passes.hpp"
 
 #include "vpux/compiler/core/layers.hpp"
@@ -91,7 +89,8 @@ void getFactorsForSecondDimensionWithLimit(std::array<int64_t, 4>& padding, std:
     int64_t padValue = 1;
     auto factorsResult = vpux::IE::getFactors(kernelSize[smallDim], padValue);  // toggling between the two kernel sizes
     if (!factorsResult.hasValue()) {
-        factorsResult = vpux::IE::getFactorsWithSupportedLarger(kernelSize[smallDim]);
+        padValue = 1;
+        factorsResult = vpux::IE::getFactorsWithSupportedLarger(kernelSize[smallDim], padValue);
     }
 
     VPUX_THROW_UNLESS(
@@ -119,12 +118,53 @@ void getFactorsForSecondDimensionWithLimit(std::array<int64_t, 4>& padding, std:
     padding[PADDING_BOT] = (multipliedFactors > kernelSize[smallDim]) ? 1 : 0;
 }
 
-bool checkKernelSizeSupported(ArrayRef<int64_t> kernelSize) {
-    if ((kernelSize[Dims4D::Kernel::Y.ind()] > VPU::NCEInvariant::MAX_KERNEL_SIZE) ||
-        (kernelSize[Dims4D::Kernel::X.ind()] > VPU::NCEInvariant::MAX_KERNEL_SIZE)) {
-        return false;
+bool isLegalAvgPoolOp(IE::AvgPoolOp op, Logger log) {
+    const auto kernelSize = parseIntArrayAttr<int64_t>(op.kernel_size());
+    if (vpux::IE::hasSupportedKernels(kernelSize)) {
+        return true;
     }
-    return true;
+    const auto inDataType = op.input().getType().cast<vpux::NDTypeInterface>();
+    const auto inDataShape = inDataType.getShape().raw();
+    const auto strides = parseIntArrayAttr<int64_t>(op.strides());
+    const auto inputElemType = inDataType.getElementType();
+    auto unsupportedKernelCheck = [&](int32_t kernelInd, int32_t actInd, int32_t strideInd) {
+        // Support multiple splitting for larger kernel size (> 11 * 11) with FP16/FP32 input as no drop in accuracy
+        if (inputElemType.isF16() || inputElemType.isF32()) {
+            return (kernelSize[kernelInd] < inDataShape[actInd] && kernelSize[kernelInd] != strides[strideInd]);
+        } else {
+            const auto maxKernelSizeSupported =
+                    VPU::NCEInvariant::MAX_KERNEL_SIZE *
+                    VPU::NCEInvariant::MAX_KERNEL_SIZE;  // we can only get 2 factors
+                                                         // and max kernel should be 11 * 11 = 121
+            return ((kernelSize[kernelInd] < inDataShape[actInd] && kernelSize[kernelInd] != strides[strideInd]) ||
+                    kernelSize[kernelInd] > maxKernelSizeSupported);
+        }
+    };
+
+    if (unsupportedKernelCheck(Dims4D::Kernel::X.ind(), Dims4D::Act::W.ind(), Dims4D::Strides::X.ind())) {
+        log.trace("AvgPool operation unsupported by HandleLargeKernel pass");
+        return true;
+    }
+    if (unsupportedKernelCheck(Dims4D::Kernel::Y.ind(), Dims4D::Act::H.ind(), Dims4D::Strides::Y.ind())) {
+        log.trace("AvgPool operation unsupported by HandleLargeKernel pass");
+        return true;
+    }
+    // In these cases, more performant to execute this AvgPool on shave
+    // leave it on for VPUX3700 as soon as VPUX3720 have HW AVG
+    const auto arch = VPU::getArch(op);
+    if (arch != VPU::ArchKind::VPUX37XX &&
+        (kernelSize[Dims4D::Kernel::X.ind()] == 1 || kernelSize[Dims4D::Kernel::Y.ind()] == 1)) {
+        log.trace("AvgPool operation ignored by HandleLargeKernel pass for performance");
+        return true;
+    }
+
+    const auto padsBegin = parseIntArrayAttr<int64_t>(op.pads_begin());
+    const auto padsEnd = parseIntArrayAttr<int64_t>(op.pads_end());
+    const auto zeros = SmallVector<int64_t>{0, 0};
+    if ((padsBegin != zeros || padsEnd != zeros) && op.exclude_pads()) {
+        return true;
+    }
+    return false;
 }
 
 void calculateKernelsAndPadding(ArrayRef<int64_t> kernelSize, std::array<int64_t, 4>& padding,
@@ -150,7 +190,8 @@ void calculateKernelsAndPadding(ArrayRef<int64_t> kernelSize, std::array<int64_t
     int64_t padValue = 1;
     auto factorsResult = vpux::IE::getFactors(largerKernelSize, padValue);
     if (!factorsResult.hasValue() && supportMultipleSplitting) {
-        factorsResult = vpux::IE::getFactorsWithSupportedLarger(largerKernelSize);
+        padValue = 1;
+        factorsResult = vpux::IE::getFactorsWithSupportedLarger(largerKernelSize, padValue);
     }
     VPUX_THROW_UNLESS(
             factorsResult.hasValue(),
@@ -228,6 +269,9 @@ private:
 mlir::LogicalResult AveragePoolRewriter::matchAndRewrite(IE::AvgPoolOp origOp, mlir::PatternRewriter& rewriter) const {
     _log.trace("[{0}] Got AveragePool layer at '{1}'", getDebugName(), origOp->getLoc());
 
+    if (isLegalAvgPoolOp(origOp, _log)) {
+        return mlir::failure();
+    }
     std::array<int64_t, 4> calculatedPadding = {0, 0, 0, 0};
     std::array<int64_t, 2> firstOpKernel = {1, 1}, sequencedOpKernel = {1, 1};
 
@@ -236,7 +280,6 @@ mlir::LogicalResult AveragePoolRewriter::matchAndRewrite(IE::AvgPoolOp origOp, m
 
     auto curOpInput = origOp.input();
     auto curKernelSize = kernelSize;
-    ::mlir::Value curAvgPoolOutput;
 
     // Support multiple splitting for larger kernel size (> 11 * 11)
     // For example, kernel = 128, it will return [8, 16] factors in first round splitting
@@ -244,135 +287,129 @@ mlir::LogicalResult AveragePoolRewriter::matchAndRewrite(IE::AvgPoolOp origOp, m
     // The unsupported factor 16 (>11): it will be splitted to [4, 4] in the next round splitting
     // FP16/FP32 input: multiple splitting will introduce accuracy loss as Min/Max changed for FP16-INT8 model
     bool supportMultipleSplitting = false;
+    // If a pad is needed, padding 0 will in averaging calculation. For averaging calculation, in this case, the
+    // numerator remains the same, the denominator becomes larger. The accuracy of the results is not correct. So use
+    // convolution instead.
+    auto convertToConv = false;
+
     const auto inDataType = origOp.input().getType().cast<vpux::NDTypeInterface>();
     const auto inputElemType = inDataType.getElementType();
     if (inputElemType.isF16() || inputElemType.isF32()) {
         supportMultipleSplitting = true;
     }
 
-    while (!checkKernelSizeSupported(curKernelSize)) {
-        calculateKernelsAndPadding(curKernelSize, calculatedPadding, firstOpKernel, sequencedOpKernel,
-                                   supportMultipleSplitting, _log.nest(2));
+    calculateKernelsAndPadding(curKernelSize, calculatedPadding, firstOpKernel, sequencedOpKernel,
+                               supportMultipleSplitting, _log.nest(2));
+    const auto KY = curKernelSize[Dims4D::Kernel::Y.ind()];
+    const auto KX = curKernelSize[Dims4D::Kernel::X.ind()];
+    const auto inShape = getShape(curOpInput);
 
-        if (!checkKernelSizeSupported(sequencedOpKernel)) {
-            const auto curFirstOpPadBegin =
-                    getIntArrayAttr(ctx, makeArrayRef({calculatedPadding[2], calculatedPadding[0]}));
-            const auto curFirstOpPadEnd =
-                    getIntArrayAttr(ctx, makeArrayRef({calculatedPadding[3], calculatedPadding[1]}));
-            const auto curFirstOpKernelAttr = getIntArrayAttr(ctx, makeArrayRef(firstOpKernel));
-            const auto curFirstOpStrideAttr = getGlobalOrOrigStride(ctx, curOpInput, firstOpKernel, firstOpKernel,
-                                                                    curFirstOpPadBegin, curFirstOpPadEnd);
-
-            auto curFirstOp = rewriter.create<IE::AvgPoolOp>(
-                    origOp->getLoc(), curOpInput, curFirstOpKernelAttr, curFirstOpStrideAttr, curFirstOpPadBegin,
-                    curFirstOpPadEnd, origOp.rounding_typeAttr(), origOp.exclude_padsAttr(), origOp.post_opAttr());
-
-            curAvgPoolOutput = curFirstOp.output();
-            curOpInput = curAvgPoolOutput;
-
-            // VPUX3720 support different XY strides
-            const auto arch = VPU::getArch(origOp);
-            if (arch != VPU::ArchKind::VPUX37XX) {
-                auto checkStrideRelation = [](const int64_t strideLeft, const int64_t strideRight) -> bool {
-                    return strideLeft > strideRight && strideLeft % strideRight == 0;
-                };
-
-                bool useSplitAvgOperationSlicing = checkStrideRelation(firstOpKernel[Dims4D::Strides::X.ind()],
-                                                                       firstOpKernel[Dims4D::Strides::Y.ind()]) ||
-                                                   checkStrideRelation(firstOpKernel[Dims4D::Strides::Y.ind()],
-                                                                       firstOpKernel[Dims4D::Strides::X.ind()]);
-                if (useSplitAvgOperationSlicing) {
-                    const auto concatOp = splitAvgOperationSlicing(curFirstOp, rewriter);
-                    if (mlir::failed(concatOp)) {
-                        return mlir::failure();
-                    }
-                    curOpInput = concatOp.getValue();
-                }
-            }
-        } else {
-            const auto KY = curKernelSize[Dims4D::Kernel::Y.ind()];
-            const auto KX = curKernelSize[Dims4D::Kernel::X.ind()];
-            const auto inShape = getShape(curOpInput);
-            if ((KY == KX) && (inShape[Dims4D::Act::H] == KY && inShape[Dims4D::Act::W] == KX) &&
-                (firstOpKernel[Dims4D::Kernel::Y.ind()] > VPU::NCEInvariant::MAX_STRIDE)) {
-                // The first kernel has stride size same as kernel size. For a global AveragePool with symmetric kernel,
-                // if the first kernel is larger than MAX_STRIDE, it can't be converted to NCE task. However, we can
-                // reverse kernel order to avoid large stride on the first kernel. For example, when we split a large
-                // kernel of 65x65, the first kernel would be 11x11 with stride 11 and the second kernel would be 6x6
-                // with stride 1. The first kernel has a large stride so it can't be converted to NCE task. However, if
-                // we reverse kernel order, the first kernel would be 6x6 with stride 6 and the second kernel would be
-                // 11x11 with stride 1. Both of them can be converted to NCE task.
-                auto tmp = firstOpKernel;
-                firstOpKernel = sequencedOpKernel;
-                sequencedOpKernel = tmp;
-            }
-
-            const auto firstOpPadBegin =
-                    getIntArrayAttr(ctx, makeArrayRef({calculatedPadding[2], calculatedPadding[0]}));
-            const auto firstOpPadEnd = getIntArrayAttr(ctx, makeArrayRef({calculatedPadding[3], calculatedPadding[1]}));
-            const auto firstOpKernelAttr = getIntArrayAttr(ctx, makeArrayRef(firstOpKernel));
-            const auto sequencedOpKernelAttr = getIntArrayAttr(ctx, makeArrayRef(sequencedOpKernel));
-            const auto firstOpStrideAttr = getGlobalOrOrigStride(ctx, curOpInput, firstOpKernel, firstOpKernel,
-                                                                 firstOpPadBegin, firstOpPadEnd);
-
-            auto firstOp = rewriter.create<IE::AvgPoolOp>(
-                    origOp->getLoc(), curOpInput, firstOpKernelAttr, firstOpStrideAttr, firstOpPadBegin, firstOpPadEnd,
-                    origOp.rounding_typeAttr(), origOp.exclude_padsAttr(), origOp.post_opAttr());
-
-            const auto firstOpOutputShapeType = firstOp.output().getType().cast<vpux::NDTypeInterface>();
-            const auto firstOpOutputShape = firstOpOutputShapeType.getShape().raw();
-            auto firstAvgPoolOutput = firstOp.output();
-
-            // VPUX3720 support different XY strides
-            const auto arch = VPU::getArch(origOp);
-            if (arch != VPU::ArchKind::VPUX37XX) {
-                auto checkStrideRelation = [](const int64_t strideLeft, const int64_t strideRight) -> bool {
-                    return strideLeft > strideRight && strideLeft % strideRight == 0;
-                };
-
-                bool useSplitAvgOperationSlicing = checkStrideRelation(firstOpKernel[Dims4D::Strides::X.ind()],
-                                                                       firstOpKernel[Dims4D::Strides::Y.ind()]) ||
-                                                   checkStrideRelation(firstOpKernel[Dims4D::Strides::Y.ind()],
-                                                                       firstOpKernel[Dims4D::Strides::X.ind()]);
-                if (useSplitAvgOperationSlicing) {
-                    const auto concatOp = splitAvgOperationSlicing(firstOp, rewriter);
-                    if (mlir::failed(concatOp)) {
-                        return mlir::failure();
-                    }
-                    firstAvgPoolOutput = concatOp.getValue();
-                }
-            }
-
-            auto globalAvgOverH = firstOpOutputShape[Dims4D::Act::H.ind()] == sequencedOpKernel[0];
-            auto globalAvgOverW = firstOpOutputShape[Dims4D::Act::W.ind()] == sequencedOpKernel[1];
-
-            std::array<int64_t, 2> sequencedOpStrides = {1, 1};
-            if (!globalAvgOverH) {
-                sequencedOpStrides[0] = sequencedOpKernel[0];
-            }
-            if (!globalAvgOverW) {
-                sequencedOpStrides[1] = sequencedOpKernel[1];
-            }
-
-            calculatedPadding = {0, 0, 0, 0};
-            const auto sequencedOpPadBegin =
-                    getIntArrayAttr(ctx, makeArrayRef({calculatedPadding[2], calculatedPadding[0]}));
-            const auto sequencedOpPadEnd =
-                    getIntArrayAttr(ctx, makeArrayRef({calculatedPadding[3], calculatedPadding[1]}));
-
-            const auto sequencedOpStridesAttr =
-                    getGlobalOrOrigStride(ctx, firstAvgPoolOutput, sequencedOpKernel, sequencedOpStrides,
-                                          sequencedOpPadBegin, sequencedOpPadEnd);
-
-            rewriter.replaceOpWithNewOp<IE::AvgPoolOp>(
-                    origOp, origOp.getType(), firstAvgPoolOutput, sequencedOpKernelAttr, sequencedOpStridesAttr,
-                    sequencedOpPadBegin, sequencedOpPadEnd, origOp.rounding_typeAttr(), origOp.exclude_padsAttr(),
-                    origOp.post_opAttr());
+    // The first kernel has stride size same as kernel size. For a global AveragePool with symmetric kernel,
+    // if the first kernel is larger than MAX_STRIDE, it can't be converted to NCE task. However, we can
+    // reverse kernel order to avoid large stride on the first kernel. For example, when we split a large
+    // kernel of 176x176, the kernel size would be 11x11, 4x4, 4x4 sequence with [11, 11], [4, 4], [1, 1]
+    // stride size sequence. The first kernel has a large stride so it can't be converted to NCE task. However,
+    // if we reverse kernel order. When the first stage splitting, 176x176 would be splitted to 11x11, 16x16
+    // with stride size [11, 11], [16, 16] (16x16 will be splitted in the second stage). Stride size [11, 11]
+    // is not supported by NCE so we reverse the sequence to 16x16, 11x11 with stride size [16, 16], [1, 1].
+    // And after the second stage splitting, it will be splitted into 4x4, 4x4, 11x11 with stride size
+    // [4, 4], [4,4], [1, 1]. Both of them are supported by NCE.
+    if ((KY == KX) && (inShape[Dims4D::Act::H] == KY && inShape[Dims4D::Act::W] == KX)) {
+        if (firstOpKernel[Dims4D::Kernel::Y.ind()] > VPU::NCEInvariant::MAX_STRIDE &&
+            firstOpKernel[Dims4D::Kernel::Y.ind()] <= VPU::NCEInvariant::MAX_KERNEL_SIZE) {
+            std::swap(firstOpKernel, sequencedOpKernel);
         }
-
-        curKernelSize[0] = sequencedOpKernel[0];
-        curKernelSize[1] = sequencedOpKernel[1];
+        for (auto pad : calculatedPadding) {
+            if (pad != 0) {
+                convertToConv = true;
+            }
+        }
     }
+
+    rewriter.setInsertionPoint(origOp);
+    const auto firstOpPadBegin = getIntArrayAttr(ctx, makeArrayRef({calculatedPadding[2], calculatedPadding[0]}));
+    const auto firstOpPadEnd = getIntArrayAttr(ctx, makeArrayRef({calculatedPadding[3], calculatedPadding[1]}));
+    const auto sequencedOpKernelAttr = getIntArrayAttr(ctx, makeArrayRef(sequencedOpKernel));
+    const auto firstOpStrideAttr =
+            getGlobalOrOrigStride(ctx, curOpInput, firstOpKernel, firstOpKernel, firstOpPadBegin, firstOpPadEnd);
+
+    mlir::Value firstOpOutput;
+
+    if (convertToConv) {
+        const auto groupAttr = getIntAttr(ctx, inShape[Dims4D::Act::C]);
+        auto dilationsAttr = getIntArrayAttr(ctx, SmallVector<int32_t>{1, 1});
+
+        const ngraph::float16 weightsScaleVal = static_cast<float>(sequencedOpKernel[0] * sequencedOpKernel[1]) /
+                                                static_cast<float>(inShape[Dims4D::Act::H] * inShape[Dims4D::Act::W]);
+
+        const auto elemType = origOp.input().getType().cast<vpux::NDTypeInterface>().getElementType();
+        const SmallVector<int64_t> weightShape = {inShape[Dims4D::Act::C], 1, firstOpKernel[0], firstOpKernel[1]};
+
+        const auto dataStorageType = mlir::RankedTensorType::get(weightShape, elemType);
+        const auto denseElementVal = mlir::DenseElementsAttr::get(dataStorageType, weightsScaleVal);
+        auto firstOpWeights = rewriter.create<Const::DeclareOp>(origOp->getLoc(), dataStorageType,
+                                                                Const::ContentAttr::get(denseElementVal))
+                                      .output();
+        auto firstGroupConvOp = rewriter.create<IE::GroupConvolutionOp>(
+                origOp->getLoc(), curOpInput, firstOpWeights,
+                /*bias=*/nullptr, firstOpStrideAttr, firstOpPadBegin, firstOpPadEnd, dilationsAttr, groupAttr,
+                /*post_opAttr=*/nullptr);
+        firstOpOutput = firstGroupConvOp.output();
+        _log.trace("create firstGroupConvOp '{0}'", firstGroupConvOp);
+    } else {
+        const auto firstOpKernelAttr = getIntArrayAttr(ctx, makeArrayRef(firstOpKernel));
+
+        auto firstAvgPoolOp = rewriter.create<IE::AvgPoolOp>(
+                origOp->getLoc(), curOpInput, firstOpKernelAttr, firstOpStrideAttr, firstOpPadBegin, firstOpPadEnd,
+                origOp.rounding_typeAttr(), origOp.exclude_padsAttr(), origOp.post_opAttr());
+        firstOpOutput = firstAvgPoolOp.output();
+        _log.trace("create firstAvgPoolOp '{0}'", firstAvgPoolOp);
+
+        // VPUX3720 are support different XY strides
+        const auto arch = VPU::getArch(origOp);
+        if (arch != VPU::ArchKind::VPUX37XX) {
+            auto checkStrideRelation = [](const int64_t strideLeft, const int64_t strideRight) -> bool {
+                return strideLeft > strideRight && strideLeft % strideRight == 0;
+            };
+
+            bool useSplitAvgOperationSlicing = checkStrideRelation(firstOpKernel[Dims4D::Strides::X.ind()],
+                                                                   firstOpKernel[Dims4D::Strides::Y.ind()]) ||
+                                               checkStrideRelation(firstOpKernel[Dims4D::Strides::Y.ind()],
+                                                                   firstOpKernel[Dims4D::Strides::X.ind()]);
+            if (useSplitAvgOperationSlicing) {
+                const auto concatOp = splitAvgOperationSlicing(firstAvgPoolOp, rewriter);
+                if (mlir::failed(concatOp)) {
+                    return mlir::failure();
+                }
+                firstOpOutput = concatOp.getValue();
+            }
+        }
+    }
+
+    const auto firstOpOutputShapeType = firstOpOutput.getType().cast<vpux::NDTypeInterface>();
+    const auto firstOpOutputShape = firstOpOutputShapeType.getShape().raw();
+
+    auto globalAvgOverH = firstOpOutputShape[Dims4D::Act::H.ind()] == sequencedOpKernel[0];
+    auto globalAvgOverW = firstOpOutputShape[Dims4D::Act::W.ind()] == sequencedOpKernel[1];
+
+    std::array<int64_t, 2> sequencedOpStrides = {1, 1};
+    if (!globalAvgOverH) {
+        sequencedOpStrides[0] = sequencedOpKernel[0];
+    }
+    if (!globalAvgOverW) {
+        sequencedOpStrides[1] = sequencedOpKernel[1];
+    }
+
+    calculatedPadding = {0, 0, 0, 0};
+    const auto sequencedOpPadBegin = getIntArrayAttr(ctx, makeArrayRef({calculatedPadding[2], calculatedPadding[0]}));
+    const auto sequencedOpPadEnd = getIntArrayAttr(ctx, makeArrayRef({calculatedPadding[3], calculatedPadding[1]}));
+
+    const auto sequencedOpStridesAttr = getGlobalOrOrigStride(ctx, firstOpOutput, sequencedOpKernel, sequencedOpStrides,
+                                                              sequencedOpPadBegin, sequencedOpPadEnd);
+    auto sequenceOp = rewriter.replaceOpWithNewOp<IE::AvgPoolOp>(
+            origOp, origOp.getType(), firstOpOutput, sequencedOpKernelAttr, sequencedOpStridesAttr, sequencedOpPadBegin,
+            sequencedOpPadEnd, origOp.rounding_typeAttr(), origOp.exclude_padsAttr(), origOp.post_opAttr());
+    _log.trace("create sequenceOp '{0}'", sequenceOp);
 
     return mlir::success();
 }
@@ -484,10 +521,43 @@ mlir::LogicalResult MaxPoolRewriter::matchAndRewrite(IE::MaxPoolOp origOp, mlir:
     const auto origStrides = parseIntArrayAttr<int64_t>(origStridesAttr);
 
     auto outShape = getShape(origOp.output());
+    const auto inputShape = getShape(origOp.input());
 
-    if ((origStrides[Dims4D::Strides::X.ind()] != kernelSize[Dims4D::Kernel::X.ind()] ||
-         origStrides[Dims4D::Strides::Y.ind()] != kernelSize[Dims4D::Kernel::Y.ind()]) &&
-        !(outShape[Dims4D::Act::H] == 1 && outShape[Dims4D::Act::W] == 1)) {
+    // Usually this kind of maxpool is converted from ReduceMin/ReduceMax
+    // It has a large kernel to reduce one of the axis dim to 1, and strides are (1, 1)
+    // Padding of MaxPool which convert from ReduceMin/ReduceMax are all zeros
+    const auto SX = origStrides[Dims4D::Strides::X.ind()];
+    const auto SY = origStrides[Dims4D::Strides::Y.ind()];
+    const auto KX = kernelSize[Dims4D::Kernel::X.ind()];
+    const auto KY = kernelSize[Dims4D::Kernel::Y.ind()];
+    auto isZero = [](auto val) {
+        return val == 0;
+    };
+    bool axisIsReducedToOneAndStrideIsOne =
+            ((inputShape[Dims4D::Act::H] == KY && SY == 1) || (inputShape[Dims4D::Act::W] == KX && SX == 1)) &&
+            llvm::all_of(padsBegin, isZero) && llvm::all_of(padsEnd, isZero);
+
+    auto isPrime = [](int64_t n) -> bool {
+        if (n <= 1)
+            return false;
+        for (int64_t i = 2; i * i <= n; i++)
+            if (n % i == 0)
+                return false;
+        return true;
+    };
+
+    bool ifActXNeedPadding =
+            (KX > VPU::NCEInvariant::MAX_KERNEL_SIZE && isPrime(KX)) && axisIsReducedToOneAndStrideIsOne;
+    bool ifActYNeedPadding =
+            (KY > VPU::NCEInvariant::MAX_KERNEL_SIZE && isPrime(KY)) && axisIsReducedToOneAndStrideIsOne;
+
+    // in this case stride shall be taken into account and pyramid cascading does not work
+    // use expression orig_kernel = sum (k1, k2, ..., ki)
+    bool ifSequenceOpCannotPyramidCascaded = (SX != KX || SY != KY) &&
+                                             !(outShape[Dims4D::Act::H] == 1 && outShape[Dims4D::Act::W] == 1) &&
+                                             !axisIsReducedToOneAndStrideIsOne;
+
+    if (ifSequenceOpCannotPyramidCascaded) {
         inputPadding = origPadding;
         stridesAttr = origStridesAttr;
     }
@@ -517,22 +587,52 @@ mlir::LogicalResult MaxPoolRewriter::matchAndRewrite(IE::MaxPoolOp origOp, mlir:
     stridesAttr = getGlobalOrOrigStride(ctx, origOp.input(), firstOpKernel,
                                         {strides[Dims4D::Strides::Y.ind()], strides[Dims4D::Strides::X.ind()]},
                                         firstOpPadBegin, firstOpPadEnd);
+    if (axisIsReducedToOneAndStrideIsOne) {
+        stridesAttr = getIntArrayAttr(ctx, makeArrayRef(firstOpKernel));
+    }
+    strides = parseIntArrayAttr<int64_t>(stridesAttr);
+    auto firstOpInput = origOp.input();
+    // When the kernel size bigger than MAX_KERNEL_SIZE and it's prime value, need extra padding.
+    // case1: tensor<1, 1, 71, 2> -> tensor<1, 1, 1, 2>, kernel[71, 1], need extra padding
+    // case2: tensor<1, 1, 32, 2> -> tensor<1, 1, 1, 2>, kernel[32, 1], no padding needed
+    // For MaxPool, if the value in activation is negative, padding zero will cause AC issue(unlike AvgPool).
+    // So we shouldn't pad zero valuses directly and here we slice the value from the original activations.
+    auto paddingActivation = [&](SmallVector<int64_t> sliceShape, vpux::Dim dimsValue) {
+        Shape offsets = Shape(inputShape.size(), 0);
+        auto slicedInput =
+                rewriter.create<IE::SliceOp>(origOp.getLoc(), origOp.input(), getIntArrayAttr(ctx, offsets.raw()),
+                                             getIntArrayAttr(ctx, sliceShape))
+                        .result();
+        SmallVector<mlir::Value> concatInput;
+        concatInput.push_back(firstOpInput);
+        concatInput.push_back(slicedInput);
+        firstOpInput = rewriter.create<IE::ConcatOp>(origOp.getLoc(), concatInput, dimsValue).output();
+        firstOpPadBegin = getIntArrayAttr(ctx, makeArrayRef({0, 0}));
+        firstOpPadEnd = getIntArrayAttr(ctx, makeArrayRef({0, 0}));
+    };
 
-    auto firstOp = rewriter.create<IE::MaxPoolOp>(origOp.getLoc(), origOp.input(), firstOpKernelAttr, stridesAttr,
+    if (ifActXNeedPadding) {
+        SmallVector<int64_t> sliceShape{inputShape[Dims4D::Act::N], inputShape[Dims4D::Act::C],
+                                        inputShape[Dims4D::Act::H], calculatedPadding[0] + calculatedPadding[1]};
+        paddingActivation(sliceShape, Dims4D::Act::W);
+    }
+    if (ifActYNeedPadding) {
+        SmallVector<int64_t> sliceShape{inputShape[Dims4D::Act::N], inputShape[Dims4D::Act::C],
+                                        calculatedPadding[2] + calculatedPadding[3], inputShape[Dims4D::Act::W]};
+        paddingActivation(sliceShape, Dims4D::Act::H);
+    }
+
+    auto firstOp = rewriter.create<IE::MaxPoolOp>(origOp.getLoc(), firstOpInput, firstOpKernelAttr, stridesAttr,
                                                   firstOpPadBegin, firstOpPadEnd, origOp.rounding_type(),
                                                   origOp.post_opAttr());
     stridesAttr = sequencedOpKernelAttr;
 
-    if ((origStrides[Dims4D::Strides::X.ind()] != kernelSize[Dims4D::Kernel::X.ind()] ||
-         origStrides[Dims4D::Strides::Y.ind()] != kernelSize[Dims4D::Kernel::Y.ind()]) &&
-        !(outShape[Dims4D::Act::H] == 1 && outShape[Dims4D::Act::W] == 1)) {
-        // in this case stride shall be taken into account and pyramid cascading does not work
-        // use expression orig_kernel = sum (k1, k2, ..., ki)
-        sequencedOpKernel[Dims4D::Kernel::X.ind()] =
-                kernelSize[Dims4D::Kernel::X.ind()] - firstOpKernel[Dims4D::Kernel::X.ind()] + 1;
-        sequencedOpKernel[Dims4D::Kernel::Y.ind()] =
-                kernelSize[Dims4D::Kernel::Y.ind()] - firstOpKernel[Dims4D::Kernel::Y.ind()] + 1;
+    if (ifSequenceOpCannotPyramidCascaded) {
+        sequencedOpKernel[Dims4D::Kernel::X.ind()] = KX - firstOpKernel[Dims4D::Kernel::X.ind()] + 1;
+        sequencedOpKernel[Dims4D::Kernel::Y.ind()] = KY - firstOpKernel[Dims4D::Kernel::Y.ind()] + 1;
         stridesAttr = origStridesAttr;
+    }
+    if (axisIsReducedToOneAndStrideIsOne || ifSequenceOpCannotPyramidCascaded) {
         calculatedPadding = {0, 0, 0, 0};
     }
     if (unsuportedPad) {
@@ -553,6 +653,237 @@ mlir::LogicalResult MaxPoolRewriter::matchAndRewrite(IE::MaxPoolOp origOp, mlir:
     rewriter.replaceOpWithNewOp<IE::MaxPoolOp>(origOp, firstOp.output(), sequencedOpKernelAttr, stridesAttr,
                                                sequencedOpPadBegin, sequencedOpPadEnd, origOp.rounding_type(),
                                                origOp.post_opAttr());
+    return mlir::success();
+}
+
+//
+// ConvRewriter
+//
+
+class ConvRewriter final : public mlir::OpRewritePattern<IE::ConvolutionOp> {
+public:
+    ConvRewriter(mlir::MLIRContext* ctx, Logger log): mlir::OpRewritePattern<IE::ConvolutionOp>(ctx), _log(log) {
+        setDebugName("ConvRewriter");
+    }
+
+    mlir::LogicalResult matchAndRewrite(IE::ConvolutionOp origOp, mlir::PatternRewriter& rewriter) const final;
+
+    SmallVector<mlir::Value> sliceFilter(const mlir::Value filterToSplit, const int64_t numXSlices,
+                                         const int64_t numYSlices, const int64_t targetKernelSize,
+                                         const mlir::Location location, mlir::PatternRewriter& rewriter) const;
+
+    mlir::Value getExtendedActivation(IE::ConvolutionOp origOp, mlir::PatternRewriter& rewriter) const;
+
+    void rewriteSubGraph(IE::ConvolutionOp origOp, ArrayRef<mlir::Value> slicedFilters, mlir::Value newActivation,
+                         int64_t numXSlices, const int64_t numYSlices, const int64_t targetKernelSize,
+                         mlir::PatternRewriter& rewriter) const;
+
+private:
+    Logger _log;
+};
+
+mlir::Value getZerosConst(mlir::PatternRewriter& rewriter, Shape constShape, IE::ConvolutionOp origOp) {
+    const auto elemType = origOp.input().getType().cast<vpux::NDTypeInterface>().getElementType();
+    const auto dataStorageType = mlir::RankedTensorType::get(to_small_vector(constShape), elemType);
+
+    mlir::DenseElementsAttr denseElementVal = wrapData(dataStorageType, 0.0f);
+    VPUX_THROW_UNLESS(denseElementVal != nullptr,
+                      "ConvolutionOp has incompatible data type {0}, only float16 or float32 are supported", elemType);
+
+    return rewriter.create<Const::DeclareOp>(origOp.getLoc(), dataStorageType, Const::ContentAttr::get(denseElementVal))
+            .output();
+}
+
+SmallVector<mlir::Value> ConvRewriter::sliceFilter(const mlir::Value filterToSplit, const int64_t numXSlices,
+                                                   const int64_t numYSlices, const int64_t targetKernelSize,
+                                                   const mlir::Location location,
+                                                   mlir::PatternRewriter& rewriter) const {
+    auto ctx = rewriter.getContext();
+
+    SmallVector<mlir::Value> slicedFilters;
+
+    const auto filterShape = getShape(filterToSplit);
+    const auto KX = filterShape[Dims4D::Filter::KX];
+    const auto KY = filterShape[Dims4D::Filter::KY];
+
+    for (int64_t j = 0; j < numYSlices; j++) {
+        for (int64_t i = 0; i < numXSlices; i++) {
+            int64_t slicedKX = std::min(KX, targetKernelSize);
+            if (i == (numXSlices - 1)) {
+                slicedKX = KX - (numXSlices - 1) * targetKernelSize;
+            }
+
+            int64_t slicedKY = std::min(KY, targetKernelSize);
+            if (j == (numYSlices - 1)) {
+                slicedKY = KY - (numYSlices - 1) * targetKernelSize;
+            }
+
+            const auto IC = filterShape[Dims4D::Filter::IC];
+            const auto OC = filterShape[Dims4D::Filter::OC];
+            SmallVector<int64_t> sliceShape{OC, IC, slicedKY, slicedKX};
+
+            Shape offsets(filterShape.size());
+            offsets[Dims4D::Filter::KX] = i * targetKernelSize;
+            offsets[Dims4D::Filter::KY] = j * targetKernelSize;
+            auto slice = rewriter.create<IE::SliceOp>(location, filterToSplit, getIntArrayAttr(ctx, offsets.raw()),
+                                                      getIntArrayAttr(ctx, sliceShape));
+            slicedFilters.push_back(slice);
+        }
+    }
+    return slicedFilters;
+}
+
+mlir::Value ConvRewriter::getExtendedActivation(IE::ConvolutionOp origOp, mlir::PatternRewriter& rewriter) const {
+    SmallVector<mlir::Value> extendedActivation;
+
+    auto activation = origOp->getOperand(0);
+    const auto inputShape = getShape(activation);
+    int64_t newWidth = inputShape[Dims4D::Act::W];
+
+    const auto padStart = Shape(parseIntArrayAttr<int64_t>(origOp.pads_begin()));
+    const auto padEnd = Shape(parseIntArrayAttr<int64_t>(origOp.pads_end()));
+
+    auto const extendActivationOnWidth = [&](int64_t dim) {
+        Shape zeroConstShape(to_small_vector(inputShape));
+        zeroConstShape[Dims4D::Act::W] = dim;
+        auto constZeros = getZerosConst(rewriter, zeroConstShape, origOp);
+        extendedActivation.push_back(constZeros);
+        newWidth += dim;
+    };
+
+    if (padStart[Dims4D::PadsBegin::Left] > 0) {
+        extendActivationOnWidth(padStart[Dims4D::PadsBegin::Left]);
+    }
+
+    extendedActivation.push_back(activation);
+
+    if (padEnd[Dims4D::PadsEnd::Right] > 0) {
+        extendActivationOnWidth(padStart[Dims4D::PadsEnd::Right]);
+    }
+
+    auto tempActivation =
+            rewriter.createOrFold<IE::ConcatOp>(origOp.getLoc(), mlir::ValueRange(extendedActivation), Dims4D::Act::W);
+
+    extendedActivation.clear();
+
+    auto const extendActivationOnHeight = [&](int64_t dim) {
+        Shape zeroConstShape(to_small_vector(inputShape));
+        zeroConstShape[Dims4D::Act::H] = dim;
+        zeroConstShape[Dims4D::Act::W] = newWidth;
+        auto constZeros = getZerosConst(rewriter, zeroConstShape, origOp);
+        extendedActivation.push_back(constZeros);
+    };
+    if (padStart[Dims4D::PadsBegin::Top] > 0) {
+        extendActivationOnHeight(padStart[Dims4D::PadsBegin::Top]);
+    }
+
+    extendedActivation.push_back(tempActivation);
+
+    if (padEnd[Dims4D::PadsEnd::Bottom] > 0) {
+        extendActivationOnHeight(padStart[Dims4D::PadsEnd::Bottom]);
+    }
+
+    return rewriter.createOrFold<IE::ConcatOp>(origOp.getLoc(), mlir::ValueRange(extendedActivation), Dims4D::Act::H);
+}
+
+void ConvRewriter::rewriteSubGraph(IE::ConvolutionOp origOp, ArrayRef<mlir::Value> slicedFilters,
+                                   mlir::Value extendedActivation, int64_t numXSlices, const int64_t numYSlices,
+                                   const int64_t targetKernelSize, mlir::PatternRewriter& rewriter) const {
+    auto ctx = rewriter.getContext();
+
+    const auto inputShape = getShape(origOp->getOperand(0));
+    const auto filterShape = getShape(origOp.filter());
+    const auto origKX = filterShape[Dims4D::Filter::KX];
+    const auto origKY = filterShape[Dims4D::Filter::KY];
+    const auto strides = Shape(parseIntArrayAttr<int64_t>(origOp.strides()));
+    const auto broadcastType =
+            vpux::IE::AutoBroadcastTypeAttr::get(getContext(), IE::AutoBroadcastType::NONE_OR_EXPLICIT);
+    const auto extendedActivationShape = getShape(extendedActivation);
+
+    SmallVector<mlir::Value> accumulativeOutputTensors;
+    for (int64_t j = 0; j < numYSlices; j++) {
+        for (int64_t i = 0; i < numXSlices; i++) {
+            int64_t startW = i * targetKernelSize;
+            VPUX_THROW_WHEN(startW >= extendedActivationShape[Dims4D::Act::W], "dimension W out of range");
+            int64_t startH = j * targetKernelSize;
+            VPUX_THROW_WHEN(startH >= extendedActivationShape[Dims4D::Act::H], "dimension H out of range");
+
+            auto slicedFilterShape = getShape(slicedFilters[j * numXSlices + i]);
+            // Calculate activation slice shape
+            int64_t newActivationWidth =
+                    ((extendedActivationShape[Dims4D::Act::W] - origKX) / strides[Dims4D::Strides::X]) *
+                            strides[Dims4D::Strides::X] +
+                    slicedFilterShape[Dims4D::Act::W];
+            int64_t newActivationHeight =
+                    ((extendedActivationShape[Dims4D::Act::H] - origKY) / strides[Dims4D::Strides::Y]) *
+                            strides[Dims4D::Strides::Y] +
+                    slicedFilterShape[Dims4D::Act::H];
+            if (newActivationWidth > extendedActivationShape[Dims4D::Act::W]) {
+                newActivationWidth = extendedActivationShape[Dims4D::Act::W];
+            }
+            if (newActivationHeight > extendedActivationShape[Dims4D::Act::H]) {
+                newActivationHeight = extendedActivationShape[Dims4D::Act::H];
+            }
+
+            mlir::Value convInput;
+            SmallVector<int64_t> sliceShape{extendedActivationShape[Dims4D::Act::N],
+                                            extendedActivationShape[Dims4D::Act::C], newActivationHeight,
+                                            newActivationWidth};
+            Shape offsets(inputShape.size());
+            offsets[Dims4D::Act::W] = startW;
+            offsets[Dims4D::Act::H] = startH;
+            _log.trace("[{0}] Activation slice shape {1}, slice offsets {2}", getDebugName(), sliceShape, offsets);
+
+            convInput =
+                    rewriter.create<IE::SliceOp>(origOp->getLoc(), extendedActivation,
+                                                 getIntArrayAttr(ctx, offsets.raw()), getIntArrayAttr(ctx, sliceShape));
+
+            // Add bias and post process for the last convolution and eltwise.
+            auto isLastSlice = i == (numXSlices - 1) && j == (numYSlices - 1);
+            auto conv = rewriter.create<IE::ConvolutionOp>(
+                    origOp->getLoc(), convInput, slicedFilters[j * numXSlices + i],
+                    isLastSlice ? origOp.bias() : nullptr, origOp.strides(),
+                    getIntArrayAttr(origOp->getContext(), makeArrayRef({0, 0})),
+                    getIntArrayAttr(origOp->getContext(), makeArrayRef({0, 0})), origOp.dilationsAttr(), nullptr);
+
+            if (!accumulativeOutputTensors.empty()) {
+                auto add = rewriter.create<IE::AddOp>(origOp->getLoc(), accumulativeOutputTensors.back(), conv,
+                                                      broadcastType, isLastSlice ? origOp.post_opAttr() : nullptr);
+                accumulativeOutputTensors.push_back(add);
+            } else {
+                accumulativeOutputTensors.push_back(conv);
+            }
+        }
+    }
+
+    _log.trace("[{0}] Successufuly replace large convolution at {1}", getDebugName(), origOp->getLoc());
+
+    rewriter.replaceOp(origOp, accumulativeOutputTensors.back());
+}
+
+mlir::LogicalResult ConvRewriter::matchAndRewrite(IE::ConvolutionOp origOp, mlir::PatternRewriter& rewriter) const {
+    _log.trace("[{0}] Got Convolution layer at '{1}'", getDebugName(), origOp->getLoc());
+    const auto filterShape = getShape(origOp.filter());
+    const auto KX = filterShape[Dims4D::Filter::KX];
+    const auto KY = filterShape[Dims4D::Filter::KY];
+
+    auto targetKernelSize = VPU::NCEInvariant::MAX_KERNEL_SIZE;
+    auto numXSlices = checked_cast<int64_t>(llvm::alignTo(KX, targetKernelSize) / targetKernelSize);
+    auto numYSlices = checked_cast<int64_t>(llvm::alignTo(KY, targetKernelSize) / targetKernelSize);
+
+    // Slice filter
+    SmallVector<mlir::Value> slicedFilters =
+            sliceFilter(origOp.filter(), numXSlices, numYSlices, targetKernelSize, origOp->getLoc(), rewriter);
+    _log.trace("[{0}] Split kernel into {1} small kernels {2} at {3}", getDebugName(), slicedFilters.size(),
+               slicedFilters, origOp->getLoc());
+
+    // Pad activation
+    auto extendedActivation = getExtendedActivation(origOp, rewriter);
+    _log.trace("[{0}] Pad on activation, new shape {1}, new activation {2} at {3}", getDebugName(),
+               getShape(extendedActivation), extendedActivation, origOp->getLoc());
+
+    // Create new sub graph and replace origOp
+    rewriteSubGraph(origOp, slicedFilters, extendedActivation, numXSlices, numYSlices, targetKernelSize, rewriter);
     return mlir::success();
 }
 
@@ -583,65 +914,63 @@ void HandleLargeKernelsPass::safeRunOnFunc() {
     mlir::ConversionTarget target(ctx);
     target.addLegalOp<IE::SliceOp>();
     target.addLegalOp<IE::ConcatOp>();
-    target.addDynamicallyLegalOp<IE::AvgPoolOp>([&](IE::AvgPoolOp op) {
+    target.addLegalOp<IE::AddOp>();
+    target.addLegalOp<Const::DeclareOp>();
+
+    target.addDynamicallyLegalOp<IE::MaxPoolOp>([&](IE::MaxPoolOp op) {
         const auto kernelSize = parseIntArrayAttr<int64_t>(op.kernel_size());
         if (hasSupportedKernels(kernelSize)) {
             return true;
         }
-        const auto inDataType = op.input().getType().cast<vpux::NDTypeInterface>();
-        const auto inDataShape = inDataType.getShape().raw();
-        const auto strides = parseIntArrayAttr<int64_t>(op.strides());
-        const auto inputElemType = inDataType.getElementType();
-        auto unsupportedKernelCheck = [&](int32_t kernelInd, int32_t actInd, int32_t strideInd) {
-            // Support multiple splitting for larger kernel size (> 11 * 11) with FP16/FP32 input as no drop in accuracy
-            if (inputElemType.isF16() || inputElemType.isF32()) {
-                return (kernelSize[kernelInd] < inDataShape[actInd] && kernelSize[kernelInd] != strides[strideInd]);
-            } else {
-                const auto maxKernelSizeSupported =
-                        VPU::NCEInvariant::MAX_KERNEL_SIZE *
-                        VPU::NCEInvariant::MAX_KERNEL_SIZE;  // we can only get 2 factors
-                                                             // and max kernel should be 11 * 11 = 121
-                return ((kernelSize[kernelInd] < inDataShape[actInd] && kernelSize[kernelInd] != strides[strideInd]) ||
-                        kernelSize[kernelInd] > maxKernelSizeSupported);
-            }
+
+        auto unsupportedKernelCheck = [&](int32_t kernelInd) {
+            const auto maxKernelSizeSupported =
+                    VPU::NCEInvariant::MAX_KERNEL_SIZE *
+                    VPU::NCEInvariant::MAX_KERNEL_SIZE;  // we can only get 2 factors
+                                                         // and max kernel should be 11 * 11 = 121
+            return (kernelSize[kernelInd] > maxKernelSizeSupported);
         };
 
-        if (unsupportedKernelCheck(Dims4D::Kernel::X.ind(), Dims4D::Act::W.ind(), Dims4D::Strides::X.ind())) {
-            _log.trace("AvgPool operation unsupported by HandleLargeKernel pass");
+        if (unsupportedKernelCheck(Dims4D::Kernel::X.ind())) {
+            _log.trace("Unsupported MaxPool kernel width dimension '{0}'", kernelSize[Dims4D::Kernel::X.ind()]);
             return true;
         }
-        if (unsupportedKernelCheck(Dims4D::Kernel::Y.ind(), Dims4D::Act::H.ind(), Dims4D::Strides::Y.ind())) {
-            _log.trace("AvgPool operation unsupported by HandleLargeKernel pass");
-            return true;
-        }
-        // In these cases, more performant to execute this AvgPool on shave
-        // leave it on for KMB as soon as VPUX3720 has HW AVG
-        const auto arch = VPU::getArch(op);
-        if ((arch == VPU::ArchKind::VPUX30XX || arch == VPU::ArchKind::VPUX311X) &&
-            (kernelSize[Dims4D::Kernel::X.ind()] == 1 || kernelSize[Dims4D::Kernel::Y.ind()] == 1)) {
-            _log.trace("AvgPool operation ignored by HandleLargeKernel pass for performance");
-            return true;
-        }
-
-        const auto padsBegin = parseIntArrayAttr<int64_t>(op.pads_begin());
-        const auto padsEnd = parseIntArrayAttr<int64_t>(op.pads_end());
-        const auto zeros = SmallVector<int64_t>{0, 0};
-        if ((padsBegin != zeros || padsEnd != zeros) && op.exclude_pads()) {
+        if (unsupportedKernelCheck(Dims4D::Kernel::Y.ind())) {
+            _log.trace("Unsupported MaxPool kernel height dimension '{0}'", kernelSize[Dims4D::Kernel::Y.ind()]);
             return true;
         }
         return false;
     });
-    target.addDynamicallyLegalOp<IE::MaxPoolOp>([&](IE::MaxPoolOp op) {
-        const auto kernelSize = parseIntArrayAttr<int64_t>(op.kernel_size());
-        return hasSupportedKernels(kernelSize);
+    target.addDynamicallyLegalOp<IE::ConvolutionOp>([&](IE::ConvolutionOp op) {
+        auto activationRank = op.input().getType().cast<vpux::NDTypeInterface>().getRank();
+        auto filterRank = op.filter().getType().cast<vpux::NDTypeInterface>().getRank();
+        if (activationRank != 4 || filterRank != 4) {
+            return true;
+        }
+
+        const auto filterShape = getShape(op.filter());
+        const auto KY = filterShape[Dims4D::Filter::KY];
+        const auto KX = filterShape[Dims4D::Filter::KX];
+
+        return KY <= VPU::NCEInvariant::MAX_KERNEL_SIZE && KX <= VPU::NCEInvariant::MAX_KERNEL_SIZE;
     });
 
     mlir::RewritePatternSet patterns(&ctx);
-    patterns.add<AveragePoolRewriter>(&ctx, _log);
     patterns.add<MaxPoolRewriter>(&ctx, _log);
+    patterns.add<ConvRewriter>(&ctx, _log);
 
-    auto func = getFunction();
+    mlir::RewritePatternSet avgPoolPatterns(&ctx);
+    avgPoolPatterns.add<AveragePoolRewriter>(&ctx, _log);
+
+    auto func = getOperation();
+
     if (mlir::failed(mlir::applyPartialConversion(func, target, std::move(patterns)))) {
+        signalPassFailure();
+    }
+    // For AvgPool, each execution of matchAndRewrite will only split it into two AvgPools. In some cases, the split
+    // AvgPool will need to continue splitting until all the split AvgPools are legal. So used GreedyRewriteConfig here.
+    if (mlir::failed(mlir::applyPatternsAndFoldGreedily(func, std::move(avgPoolPatterns),
+                                                        getDefaultGreedyRewriteConfig()))) {
         signalPassFailure();
     }
 }

@@ -3,13 +3,36 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/utils/passes.hpp"
 #include "vpux/compiler/utils/error.hpp"
 #include "vpux/utils/core/range.hpp"
 
 using namespace vpux;
+
+//
+// Options
+//
+
+Optional<int> vpux::convertToOptional(const IntOption& intOption) {
+    if (intOption.hasValue()) {
+        return intOption.getValue();
+    }
+    return None;
+}
+
+Optional<std::string> vpux::convertToOptional(const StrOption& strOption) {
+    if (strOption.hasValue()) {
+        return strOption.getValue();
+    }
+    return None;
+}
+
+bool vpux::isOptionEnabled(const BoolOption& option) {
+    if (option.hasValue()) {
+        return option.getValue();
+    }
+    return false;
+}
 
 //
 // PatternBenefit
@@ -37,15 +60,19 @@ void vpux::FunctionPass::initLogger(Logger log, StringLiteral passName) {
     _log.setName(passName);
 }
 
-void vpux::FunctionPass::runOnFunction() {
+void vpux::FunctionPass::runOnOperation() {
+    if (getOperation().isExternal()) {
+        return;
+    }
+
     try {
-        _log.trace("Run on Function '{0}'", getFunction().getName());
+        _log.trace("Run on Function '{0}'", getOperation().getName());
 
         _log = _log.nest();
         safeRunOnFunc();
         _log = _log.unnest();
     } catch (const std::exception& e) {
-        (void)errorAt(getFunction(), "{0} Pass failed : {1}", getName(), e.what());
+        (void)errorAt(getOperation(), "{0} Pass failed : {1}", getName(), e.what());
         signalPassFailure();
     }
 }

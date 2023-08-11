@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #ifndef VPUX_COMPILER_CONVERSION_PASSES
 #define VPUX_COMPILER_CONVERSION_PASSES
 
@@ -73,7 +71,7 @@ def BufferizeIE : PassBase<"bufferize-IE", "vpux::FunctionPass"> {
 
     let dependentDialects = [
         "vpux::VPUIP::VPUIPDialect",
-        "mlir::StandardOpsDialect",
+        "mlir::func::FuncDialect",
         "mlir::memref::MemRefDialect"
     ];
 }
@@ -111,7 +109,7 @@ def AddBuffersForNetResults : PassBase<"add-buffers-for-net-results", "vpux::Mod
 
     let dependentDialects = [
         "vpux::VPUIP::VPUIPDialect",
-        "mlir::StandardOpsDialect",
+        "mlir::func::FuncDialect",
         "mlir::memref::MemRefDialect"
     ];
 }
@@ -168,8 +166,8 @@ def ConvertLayers2VPUIP : PassBase<"convert-layers-to-VPUIP", "vpux::FunctionPas
     let summary = "Convert VPU Operations to VPUIP Dialect";
 
     let description = [{
-        Convert software and view-like operations from VPU to VPUIP dialect.
-        Software operations are converted to UPA tasks, supported by VPUX30XX.
+        Convert operations from VPU to VPUIP dialect,
+        including remaining operations except for NCE and SW operations.
     }];
 
     let constructor = "vpux::createConvertLayers2VPUIPPass()";
@@ -181,21 +179,40 @@ def ConvertLayers2VPUIP : PassBase<"convert-layers-to-VPUIP", "vpux::FunctionPas
 }
 
 //
-// ConvertSWLayers2VPUIP
+// ConvertSWLayers2VPUIPSWKernel
 //
 
-def ConvertSWLayers2VPUIP : PassBase<"convert-sw-layers-to-VPUIP", "vpux::ModulePass"> {
+def ConvertSWLayers2VPUIPSWKernel : PassBase<"convert-sw-layers-to-VPUIP-sw-kernel", "vpux::ModulePass"> {
     let summary = "Convert Software Operations to VPUIP SWKernel";
 
     let description = [{
-        Convert software operations from VPU to VPUIP::SWKernel operations for VPU37XX.
+        Convert software operations from VPU to VPUIP::SWKernel operations.
     }];
 
-    let constructor = "vpux::createConvertSWLayers2VPUIPPass()";
+    let constructor = "vpux::createConvertSWLayers2VPUIPSWKernelPass()";
 
     let dependentDialects = [
         "vpux::VPUIP::VPUIPDialect",
         "mlir::arith::ArithmeticDialect",
+        "vpux::VPURT::VPURTDialect"
+    ];
+}
+
+//
+// ConvertSWLayers2VPUIPUPA
+//
+
+def ConvertSWLayers2VPUIPUPA : PassBase<"convert-sw-layers-to-VPUIP-UPA", "vpux::FunctionPass"> {
+    let summary = "Convert Software Operations to VPUIP UPAOp";
+
+    let description = [{
+        Convert software operations from VPU to VPUIP::XXXUPAOp operations.
+    }];
+
+    let constructor = "vpux::createConvertSWLayers2VPUIPUPAPass()";
+
+    let dependentDialects = [
+        "vpux::VPUIP::VPUIPDialect",
         "vpux::VPURT::VPURTDialect"
     ];
 }
@@ -217,7 +234,7 @@ def ConvertSWLayers2Affine : PassBase<"convert-sw-layers-to-Affine", "vpux::Modu
         "mlir::arith::ArithmeticDialect",
         "mlir::AffineDialect",
         "mlir::memref::MemRefDialect",
-        "mlir::StandardOpsDialect",
+        "mlir::func::FuncDialect",
         "mlir::LLVM::LLVMDialect",
         "mlir::scf::SCFDialect",
         "mlir::math::MathDialect"
@@ -240,35 +257,35 @@ def ConvertAffine2LLVM : PassBase<"convert-Affine-to-LLVM", "vpux::ModulePass"> 
 }
 
 //
-// ConvertVPUIP2VPUIPRegMapped
+// ConvertVPUIP2VPUMI37XX
 //
 
-def ConvertVPUIP2VPUIPRegMapped : PassBase<"convert-VPUIP-to-VPUIPRegMapped", "vpux::ModulePass"> {
-    let summary = "Convert VPUIP Dialect to VPUIPRegMapped Dialect";
+def ConvertVPUIP2VPUMI37XX : PassBase<"convert-VPUIP-to-VPUMI37XX", "vpux::ModulePass"> {
+    let summary = "Convert VPUIP Dialect to VPUMI37XX Dialect";
 
-    let constructor = "vpux::createConvertVPUIP2VPUIPRegMappedPass()";
+    let constructor = "vpux::createConvertVPUIP2VPUMI37XXPass()";
 
     let dependentDialects = [
         "vpux::VPUIP::VPUIPDialect",
         "vpux::VPURT::VPURTDialect",
-        "vpux::VPUIPRegMapped::VPUIPRegMappedDialect",
+        "vpux::VPUMI37XX::VPUMI37XXDialect",
+        "vpux::VPURegMapped::VPURegMappedDialect",
         "vpux::ELF::ELFDialect"
     ];
 }
 
-
 //
-// ConvertVPUIPRegMapped2ELF
+// ConvertVPUMI37XX2ELF
 //
 
-def ConvertVPUIPRegMapped2ELF : PassBase<"convert-VPUIPRegMapped-to-ELF", "vpux::ModulePass"> {
-    let summary = "Convert VPUIPRegMapped Dialect to ELF Dialect";
+def ConvertVPUMI37XX2ELF : PassBase<"convert-VPUMI37XX-to-ELF", "vpux::ModulePass"> {
+    let summary = "Convert VPUMI37XX Dialect to ELF Dialect";
 
-    let constructor = "vpux::createConvertVPUIPRegMapped2ELFPass()";
+    let constructor = "vpux::createConvertVPUMI37XX2ELFPass()";
 
     let dependentDialects = [
         "vpux::VPURT::VPURTDialect", // E#47129
-        "vpux::VPUIPRegMapped::VPUIPRegMappedDialect",
+        "vpux::VPUMI37XX::VPUMI37XXDialect",
         "vpux::ELF::ELFDialect"
     ];
 }

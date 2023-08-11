@@ -1,12 +1,12 @@
-// RUN: vpux-opt --split-input-file --multi-cluster-strategy-assignment %s | FileCheck %s
+// RUN: vpux-opt --split-input-file --init-compiler="vpu-arch=VPUX37XX allow-custom-values=true" --multi-cluster-strategy-assignment %s | FileCheck %s
 
-// This operation needs a separate lit-test file because vpux::VPU::verifyOp(NCEPermuteQuantizeOp) fails to check arch.
+// This operation needs a separate lit-test file because vpux::VPU::NCEPermuteQuantizeOp::verify() fails to check arch.
 // See E#60343 for details. Merge this file into multi_cluster_strategy_assignment.mlir when the ticket is resolved.
 
 #NWCH = affine_map<(d0, d1, d2, d3) -> (d0, d3, d1, d2)>
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
-!qElemType = type !quant.uniform<u8:f16, 1.000000e+00>
+!qElemType = !quant.uniform<u8:f16, 1.000000e+00>
 
 // CHECK-LABEL: module @PermuteQuantizeAssignedSOW
 module @PermuteQuantizeAssignedSOW attributes {VPU.arch = "VPUX37XX"} {
@@ -18,7 +18,7 @@ module @PermuteQuantizeAssignedSOW attributes {VPU.arch = "VPUX37XX"} {
   IE.ExecutorResource 2 of @DMA_NN
   IE.MemoryResource 1982464 bytes of @CMX_NN {VPU.bandwidth = 32 : i64, VPU.derateFactor = 1.000000e+00 : f64}
 
-func @main(%arg0: tensor<1x224x3x256xf16, {order = #NHWC}>) -> tensor<1x224x4x256x!qElemType, {order = #NWCH}> {
+func.func @main(%arg0: tensor<1x224x3x256xf16, {order = #NHWC}>) -> tensor<1x224x4x256x!qElemType, {order = #NWCH}> {
     %PERMUTE_QUANTIZE = VPU.NCE.PermuteQuantize(%arg0) {
         dstElemType = !qElemType,
         dstOrder = #NWCH,
@@ -60,7 +60,7 @@ module @PermuteQuantizeFP16AssignedSOW attributes {VPU.arch = "VPUX37XX"} {
   IE.ExecutorResource 2 of @DMA_NN
   IE.MemoryResource 1982464 bytes of @CMX_NN {VPU.bandwidth = 32 : i64, VPU.derateFactor = 1.000000e+00 : f64}
 
-func @main(%arg0: tensor<1x224x3x256xf16, {order = #NHWC}>) -> tensor<1x224x4x256xf16, {order = #NWCH}> {
+func.func @main(%arg0: tensor<1x224x3x256xf16, {order = #NHWC}>) -> tensor<1x224x4x256xf16, {order = #NWCH}> {
     %PERMUTE_QUANTIZE = VPU.NCE.PermuteQuantize(%arg0) {
         dstElemType = f16,
         dstOrder = #NWCH,
@@ -92,7 +92,7 @@ func @main(%arg0: tensor<1x224x3x256xf16, {order = #NHWC}>) -> tensor<1x224x4x25
 #NWCH = affine_map<(d0, d1, d2, d3) -> (d0, d3, d1, d2)>
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
-!qElemType = type !quant.uniform<u8:f16, 1.000000e+00>
+!qElemType = !quant.uniform<u8:f16, 1.000000e+00>
 
 // CHECK-LABEL: module @SkipTrivialWidth
 module @SkipTrivialWidth attributes {VPU.arch = "VPUX37XX"} {
@@ -104,7 +104,7 @@ module @SkipTrivialWidth attributes {VPU.arch = "VPUX37XX"} {
   IE.ExecutorResource 2 of @DMA_NN
   IE.MemoryResource 1982464 bytes of @CMX_NN {VPU.bandwidth = 32 : i64, VPU.derateFactor = 1.000000e+00 : f64}
 
-func @main(%arg0: tensor<1x224x3x1xf16, {order = #NHWC}>) -> tensor<1x224x4x1x!qElemType, {order = #NWCH}> {
+func.func @main(%arg0: tensor<1x224x3x1xf16, {order = #NHWC}>) -> tensor<1x224x4x1x!qElemType, {order = #NWCH}> {
     %PERMUTE_QUANTIZE = VPU.NCE.PermuteQuantize(%arg0) {
         dstElemType = !qElemType,
         dstOrder = #NWCH,
@@ -146,7 +146,7 @@ module @SkipIsolatedTiling attributes {VPU.arch = "VPUX37XX"} {
   IE.ExecutorResource 2 of @DMA_NN
   IE.MemoryResource 1982464 bytes of @CMX_NN {VPU.bandwidth = 32 : i64, VPU.derateFactor = 1.000000e+00 : f64}
 
-func @main(%arg0: tensor<1x224x3x2560xf16, {order = #NHWC}>) -> tensor<1x224x4x2560xf16, {order = #NWCH}> {
+func.func @main(%arg0: tensor<1x224x3x2560xf16, {order = #NHWC}>) -> tensor<1x224x4x2560xf16, {order = #NWCH}> {
     %PERMUTE_QUANTIZE = VPU.NCE.PermuteQuantize(%arg0) {
         dstElemType = f16,
         dstOrder = #NWCH,
@@ -166,7 +166,7 @@ func @main(%arg0: tensor<1x224x3x2560xf16, {order = #NHWC}>) -> tensor<1x224x4x2
         }
     } -> tensor<1x224x4x2560xf16, {order = #NWCH}>
 
-    // CHECK-NOT:   multiClusterStrategy = "SplitOverWidth"
+    // CHECK:   multiClusterStrategy = "SplitOverWidth"
 
     return %PERMUTE_QUANTIZE : tensor<1x224x4x2560xf16, {order = #NWCH}>
 }

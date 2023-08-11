@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/EMU/graph-schema/export.hpp"
 
 #include "vpux/compiler/dialect/EMU/graph-schema/blob_writer.hpp"
@@ -28,7 +26,6 @@
 #include "vpux/utils/core/range.hpp"
 #include "vpux/utils/core/string_ref.hpp"
 
-#include <mlir/Dialect/StandardOps/IR/Ops.h>
 #include <mlir/IR/BuiltinOps.h>
 #include <mlir/IR/BuiltinTypes.h>
 #include <mlir/IR/Operation.h>
@@ -117,7 +114,7 @@ flatbuffers::Offset<MVCNN::Version> createVersion(EMU::BlobWriter& writer, Logge
 }
 
 flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(
-        EMU::BlobWriter& writer, mlir::ModuleOp module, IE::CNNNetworkOp netOp, mlir::FuncOp netFunc,
+        EMU::BlobWriter& writer, mlir::ModuleOp module, IE::CNNNetworkOp netOp, mlir::func::FuncOp netFunc,
         mlir::TimingScope& rootTiming, const std::vector<PreProcessInfo>& preprocessInfo,
         const std::vector<std::shared_ptr<const ov::Node>>& parameters,
         const std::vector<std::shared_ptr<const ov::Node>>& results, Logger log) {
@@ -150,7 +147,7 @@ flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(
     graphOutputs.reserve(outputsInfo.size());
     userOutputs.reserve(outputsInfo.size());
 
-    auto returnOps = netFunc.getOps<mlir::ReturnOp>();
+    auto returnOps = netFunc.getOps<mlir::func::ReturnOp>();
     VPUX_THROW_UNLESS(std::distance(returnOps.begin(), returnOps.end()) == 1,
                       "Only functions with 1 return are supported.");
     auto returnOperands = (*returnOps.begin()).getOperands();
@@ -182,7 +179,7 @@ flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(
             }
             const auto nodeTensorNames = writer.createVector(auxTensorNames);
             const auto tmpInputName =
-                    isResult ? ngraph::op::util::create_ie_output_name(node->input_value(0)) : std::string("");
+                    ov::op::util::create_ie_output_name(isResult ? node->input_value(0) : node->output(0));
             const auto nodeInputName = writer.createString(tmpInputName);
             ovNodes.push_back(MVCNN::CreateOVNode(writer, nodeFriendlyName, nodeElementType, nodeShape, nodeTensorNames,
                                                   nodeInputName));
@@ -205,7 +202,7 @@ flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(
     }
 
     const auto serializedVersion = createVersion(writer, log);
-    const auto serializedName = writer.createString(module.getName().getValueOr("network"));
+    const auto serializedName = writer.createString(module.getName().value_or("network"));
     const auto serializedGraphInputs = writer.createVector(graphInputs);
     const auto serializedUserInputs = writer.createVector(userInputs);
     const auto serializedGraphOutputs = writer.createVector(graphOutputs);
@@ -232,7 +229,7 @@ flatbuffers::Offset<MVCNN::SummaryHeader> createSummaryHeader(
     return builder.Finish();
 }
 
-void serializeTensorDecls(EMU::BlobWriter& writer, mlir::FuncOp netFunc, mlir::TimingScope& rootTiming) {
+void serializeTensorDecls(EMU::BlobWriter& writer, mlir::func::FuncOp netFunc, mlir::TimingScope& rootTiming) {
     auto scopeTiming = rootTiming.nest("Serialize tensor declarations");
 
     size_t tempTensorInd = 0;
@@ -241,7 +238,7 @@ void serializeTensorDecls(EMU::BlobWriter& writer, mlir::FuncOp netFunc, mlir::T
             auto users = result.getUsers();
             auto isNetworkResult = false;
             for (auto user : users) {
-                if (mlir::isa<mlir::ReturnOp>(user))
+                if (mlir::isa<mlir::func::ReturnOp>(user))
                     isNetworkResult = true;
             }
             if (isNetworkResult)
@@ -253,7 +250,7 @@ void serializeTensorDecls(EMU::BlobWriter& writer, mlir::FuncOp netFunc, mlir::T
     });
 }
 
-SmallVector<EMU::BlobWriter::BinaryData> serializeBinaryData(EMU::BlobWriter& writer, mlir::FuncOp netFunc,
+SmallVector<EMU::BlobWriter::BinaryData> serializeBinaryData(EMU::BlobWriter& writer, mlir::func::FuncOp netFunc,
                                                              mlir::TimingScope& rootTiming, Logger log) {
     auto scopeTiming = rootTiming.nest("Serialize binary data");
 
@@ -271,7 +268,7 @@ SmallVector<EMU::BlobWriter::BinaryData> serializeBinaryData(EMU::BlobWriter& wr
         const size_t totalNumElements = type.getNumElements();
         const size_t totalByteSize = totalNumElements * elemTypeSize.count();
 
-        bufs[static_cast<size_t>(ind)].resize(alignVal(totalByteSize, sizeof(uint64_t)) / sizeof(uint64_t), 0);
+        bufs[static_cast<size_t>(ind)].resize(alignValUp(totalByteSize, sizeof(uint64_t)) / sizeof(uint64_t), 0);
 
         const auto buf =
                 makeMutableArrayRef(reinterpret_cast<char*>(bufs[static_cast<size_t>(ind)].data()), totalByteSize);
@@ -295,7 +292,7 @@ SmallVector<EMU::BlobWriter::BinaryData> serializeBinaryData(EMU::BlobWriter& wr
     return binaryData;
 }
 
-SmallVector<EMU::BlobWriter::TaskList> serializeTaskLists(EMU::BlobWriter& writer, mlir::FuncOp netFunc,
+SmallVector<EMU::BlobWriter::TaskList> serializeTaskLists(EMU::BlobWriter& writer, mlir::func::FuncOp netFunc,
                                                           mlir::TimingScope& rootTiming, Logger log) {
     auto scopeTiming = rootTiming.nest("Serialize task lists");
 
@@ -346,7 +343,7 @@ flatbuffers::DetachedBuffer vpux::EMU::exportToBlob(mlir::ModuleOp module, mlir:
 
     log.trace("Extract 'IE.{0}' from Module", IE::CNNNetworkOp::getOperationName());
     IE::CNNNetworkOp netOp;
-    mlir::FuncOp netFunc;
+    mlir::func::FuncOp netFunc;
     IE::CNNNetworkOp::getFromModule(module, netOp, netFunc);
 
     EMU::BlobWriter writer(log.nest(), VPU::getArch(module));

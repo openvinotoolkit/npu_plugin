@@ -3,11 +3,8 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/utils/dilated_utils.hpp"
 #include "vpux/compiler/utils/quantization.hpp"
-#include "vpux/compiler/utils/types.hpp"
 
 using namespace vpux;
 

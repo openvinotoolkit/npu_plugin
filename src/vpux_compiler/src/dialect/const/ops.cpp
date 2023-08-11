@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/const/ops.hpp"
 #include "vpux/compiler/dialect/ELF/ops.hpp"
 #include "vpux/compiler/dialect/ELF/utils.hpp"
@@ -16,7 +14,7 @@
 #include "vpux/compiler/utils/types.hpp"
 
 #include <mlir/Dialect/MemRef/IR/MemRef.h>
-#include <mlir/Dialect/StandardOps/IR/Ops.h>
+#include <mlir/IR/BuiltinDialect.h>
 #include <mlir/IR/DialectImplementation.h>
 #include <mlir/IR/OpImplementation.h>
 #include <mlir/IR/PatternMatch.h>
@@ -159,14 +157,13 @@ vpux::ELF::SectionFlagsAttr vpux::Const::DeclareOp::getUserProcs() {
 }
 
 //
-// verifyOp
+// DeclareOp::verify
 //
 
-namespace {
-
-mlir::LogicalResult verifyOp(Const::DeclareOp op) {
-    const auto attrType = op.contentAttr().getType();
-    const auto opType = op.getType().cast<vpux::NDTypeInterface>();
+mlir::LogicalResult vpux::Const::DeclareOp::verify() {
+    const auto op = getOperation();
+    const auto attrType = contentAttr().getType();
+    const auto opType = getType().cast<vpux::NDTypeInterface>();
 
     if (opType.getShape() != attrType.getShape()) {
         return errorAt(op, "'Const.Declare' has mismatch in value shape '{0}' and result shape '{1}'",
@@ -191,17 +188,69 @@ mlir::LogicalResult verifyOp(Const::DeclareOp op) {
     return mlir::success();
 }
 
-}  // namespace
+//
+// DeclareOp::print
+//
+
+void vpux::Const::DeclareOp::print(mlir::OpAsmPrinter& printer) {
+    printer.printOptionalAttrDictWithKeyword(getOperation()->getAttrs(), /*elidedAttrs=*/{"content"});
+    printer << " ";
+    printer.printType(output().getType());
+    printer << " = ";
+    contentAttr().print(printer);
+}
+
+//
+// DeclareOp::parse
+//
+
+mlir::ParseResult vpux::Const::DeclareOp::parse(::mlir::OpAsmParser& parser, ::mlir::OperationState& result) {
+    // Cannot use assembly format directly:
+    // let assemblyFormat = "attr-dict type($output) `=` $content"
+    // Since '$content' could start from '#const.OpaqueElements'
+    // and MLIR uses generic parser for attributes starting with `#`
+    // In other words, 'OpaqueElementsAttr::parse' will be called, instead of 'ContentAttr::parse'
+
+    // Parse operation attributes.
+    mlir::NamedAttrList attrs;
+    if (parser.parseOptionalAttrDictWithKeyword(attrs)) {
+        return mlir::failure();
+    }
+    result.addAttributes(attrs);
+
+    // Parse operation results.
+    mlir::Type type;
+    if (parser.parseType(type)) {
+        return mlir::failure();
+    }
+    result.addTypes(type);
+
+    if (parser.parseEqual()) {
+        return mlir::failure();
+    }
+
+    // Parse content attr.
+    auto contentAttr = Const::ContentAttr::parse(parser, mlir::Type{});
+    if (contentAttr == nullptr) {
+        parser.emitError(parser.getNameLoc(), "Failed to parse content attribute");
+        return mlir::failure();
+    }
+    result.addAttribute("content", contentAttr);
+
+    return mlir::success();
+}
 
 //
 // setupExtraInterfaces
 //
 
 void Const::ConstDialect::setupExtraInterfaces(mlir::DialectRegistry& registry) {
-    registry.addTypeInterface<Const::ConstDialect, mlir::RankedTensorType, vpux::TensorNDTypeInterface>();
-    registry.addTypeInterface<Const::ConstDialect, mlir::UnrankedTensorType, vpux::TensorNDTypeInterface>();
-    registry.addTypeInterface<Const::ConstDialect, mlir::MemRefType, vpux::MemRefNDTypeInterface>();
-    registry.addTypeInterface<Const::ConstDialect, mlir::UnrankedMemRefType, vpux::MemRefNDTypeInterface>();
+    registry.addExtension(+[](mlir::MLIRContext* ctx, mlir::BuiltinDialect*) {
+        mlir::RankedTensorType::attachInterface<vpux::TensorNDTypeInterface>(*ctx);
+        mlir::UnrankedTensorType::attachInterface<vpux::TensorNDTypeInterface>(*ctx);
+        mlir::MemRefType::attachInterface<vpux::MemRefNDTypeInterface>(*ctx);
+        mlir::UnrankedMemRefType::attachInterface<vpux::MemRefNDTypeInterface>(*ctx);
+    });
 }
 
 //

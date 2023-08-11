@@ -4,6 +4,7 @@
 //
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/IE/passes.hpp"
+#include "vpux/compiler/dialect/IE/utils/shape_infer.hpp"
 #include "vpux/compiler/utils/permute_utils.hpp"
 #include "vpux/compiler/utils/rewriter.hpp"
 
@@ -24,8 +25,8 @@ namespace {
 
 class FusePermuteQuantizeRewrite final : public mlir::OpRewritePattern<IE::QuantizeCastOp> {
 public:
-    FusePermuteQuantizeRewrite(mlir::MLIRContext* ctx, Logger log)
-            : mlir::OpRewritePattern<IE::QuantizeCastOp>(ctx, benefitHigh), _log(log) {
+    FusePermuteQuantizeRewrite(mlir::MLIRContext* ctx, const bool dpuOnly, Logger log)
+            : mlir::OpRewritePattern<IE::QuantizeCastOp>(ctx, benefitHigh), _dpuOnly(dpuOnly), _log(log) {
         setDebugName("FusePermuteQuantizeRewrite");
     }
 
@@ -33,6 +34,8 @@ public:
     mlir::LogicalResult matchAndRewrite(IE::QuantizeCastOp origOp, mlir::PatternRewriter& rewriter) const final;
 
 private:
+    bool isCompatibleWithDPU(mlir::Type addInput, mlir::Type addOutput) const;
+    const bool _dpuOnly;
     Logger _log;
 };
 
@@ -112,12 +115,18 @@ mlir::LogicalResult FusePermuteQuantizeRewrite::matchAndRewrite(IE::QuantizeCast
         return mlir::failure();
     }
 
+    if (_dpuOnly && !isCompatibleWithDPU(opAdd.input1().getType(), opAdd.output().getType())) {
+        return mlir::failure();
+    }
+
     // input can be fp32, so fuse and convertOp if it is possible.
     auto paternInput = opReorder.input();
     auto opReshape = opReorder.input().getDefiningOp<IE::AffineReshapeOp>();
     auto opConvert = opReorder.input().getDefiningOp<IE::ConvertOp>();
     // first patern when no reshape involve, just fuse ConvertOp
-    if (opConvert != nullptr) {
+    // Do not fuse convert when PermuteQuantize can only be executed on DPU.
+    // DPU does not support FP32 inputs.
+    if (opConvert != nullptr && !_dpuOnly) {
         if (opConvert.getResult().hasOneUse() &&
             opConvert.input().getType().cast<vpux::NDTypeInterface>().getElementType().isF32()) {
             paternInput = opConvert.input();
@@ -127,7 +136,7 @@ mlir::LogicalResult FusePermuteQuantizeRewrite::matchAndRewrite(IE::QuantizeCast
     // in this case Reshape will be move before ConvertOp
     if (opReshape != nullptr) {
         opConvert = opReshape.input().getDefiningOp<IE::ConvertOp>();
-        if (opConvert != nullptr) {
+        if (opConvert != nullptr && !_dpuOnly) {
             if (opReshape.getResult().hasOneUse() && opConvert.getResult().hasOneUse() &&
                 opConvert.input().getType().cast<vpux::NDTypeInterface>().getElementType().isF32()) {
                 const auto newReshapeOpLoc = appendLoc(origOp->getLoc(), "AffineReshape");
@@ -170,37 +179,78 @@ mlir::LogicalResult FusePermuteQuantizeRewrite::matchAndRewrite(IE::QuantizeCast
     return mlir::success();
 }
 
+bool FusePermuteQuantizeRewrite::isCompatibleWithDPU(mlir::Type addInput, mlir::Type addOutput) const {
+    auto inType = addInput.cast<vpux::NDTypeInterface>();
+    auto outType = addOutput.cast<vpux::NDTypeInterface>();
+    const auto inElemType = inType.getElementType();
+    if (!inElemType.isF16()) {
+        return false;
+    }
+    const auto outElemType = outType.getElementType();
+    if (!outElemType.isF16() && !outElemType.isa<mlir::quant::UniformQuantizedType>()) {
+        return false;
+    }
+    const ShapeRef inShape = inType.getShape();
+    const auto inAlignment = VPU::NCEInvariant::getAlignment(inElemType);
+    if (!IE::isODUPermuteEffectiveForShape(inShape, inAlignment)) {
+        return false;
+    }
+    const ShapeRef outShape = outType.getShape();
+    const auto outAlignment = VPU::NCEInvariant::getAlignment(outElemType);
+    if (!IE::isODUPermuteEffectiveForShape(outShape, outAlignment)) {
+        return false;
+    }
+
+    return true;
+}
+
 //
 // FusePermuteQuantizePass
 //
 
 class FusePermuteQuantizePass final : public IE::FusePermuteQuantizeBase<FusePermuteQuantizePass> {
 public:
-    explicit FusePermuteQuantizePass(Logger log): _log(log) {
+    explicit FusePermuteQuantizePass(const bool dpuOnly, Logger log): _dpuOnly(dpuOnly), _log(log) {
         _log.setName(Base::getArgumentName());
     }
+
+public:
+    mlir::LogicalResult initialize(mlir::MLIRContext* ctx) final;
 
 private:
     void safeRunOnFunc() final;
 
 private:
+    bool _dpuOnly;
     Logger _log;
 };
 
-void FusePermuteQuantizePass::safeRunOnFunc() {
-    auto& ctx = getContext();
-    auto func = getFunction();
-
-    auto module = func->getParentOfType<mlir::ModuleOp>();
-
-    const auto arch = VPU::getArch(module);
-    if (arch != VPU::ArchKind::VPUX37XX) {
-        _log.trace("FusePermuteQuantizePass enabled only for VPUX37XX device. Got: {0}", arch);
-        return;
+mlir::LogicalResult FusePermuteQuantizePass::initialize(mlir::MLIRContext* ctx) {
+    if (mlir::failed(Base::initialize(ctx))) {
+        return mlir::failure();
     }
 
+    // When this parameter has a value, it probably comes from LIT test.
+    // Override the default
+    if (dpuOnly.hasValue()) {
+        _dpuOnly = dpuOnly.getValue();
+    }
+
+    return mlir::success();
+}
+
+void FusePermuteQuantizePass::safeRunOnFunc() {
+    // TODO: #70647
+
+    auto& ctx = getContext();
+    auto func = getOperation();
+
+    // dpuOnly flag means that target platform supports only DPU implementation of PermuteQuantize.
+    // In that case PermuteQuantize fusion has some limitations:
+    // 1. Only NCHW to NHWC permutation is supported
+    // 2. Only float16 inputs and quantized outputs are supported.
     mlir::RewritePatternSet patterns(&ctx);
-    patterns.add<FusePermuteQuantizeRewrite>(&ctx, _log);
+    patterns.add<FusePermuteQuantizeRewrite>(&ctx, _dpuOnly, _log);
 
     mlir::ConversionTarget target(ctx);
 
@@ -214,6 +264,6 @@ void FusePermuteQuantizePass::safeRunOnFunc() {
 //
 // createFusePermuteQuantizePass
 //
-std::unique_ptr<mlir::Pass> vpux::IE::createFusePermuteQuantizePass(Logger log) {
-    return std::make_unique<FusePermuteQuantizePass>(log);
+std::unique_ptr<mlir::Pass> vpux::IE::createFusePermuteQuantizePass(const bool dpuOnly, Logger log) {
+    return std::make_unique<FusePermuteQuantizePass>(dpuOnly, log);
 }

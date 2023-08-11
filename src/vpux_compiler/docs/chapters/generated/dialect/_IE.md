@@ -24,7 +24,7 @@ Quantization parameters are stored as a part of tensor/buffer element type (`Qua
 The network topology (nGraph) is represented as a MLIR Function, which works with `tensor` types.
 
 ```MLIR
-func @main(%input: tensor<1x1000xf32>) -> tensor<1x1000xf32> {
+func.func @main(%input: tensor<1x1000xf32>) -> tensor<1x1000xf32> {
     %output = IE.SoftMax(%input) {axisInd = 1} : tensor<1x1000xf32> -> tensor<1x1000xf32>
     return %output
 }
@@ -260,14 +260,14 @@ Effects: MemoryEffects::Effect{}
 
 | Operand | Description |
 | :-----: | ----------- |
-| `input1` | ranked tensor of 16-bit float or 32-bit float or QuantizedType values
-| `input2` | ranked tensor of 16-bit float or 32-bit float or QuantizedType values
+| `input1` | ranked tensor of 16-bit float or 32-bit float or 32-bit signed integer or QuantizedType values
+| `input2` | ranked tensor of 16-bit float or 32-bit float or 32-bit signed integer or QuantizedType values
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `output` | ranked tensor of 16-bit float or 32-bit float or QuantizedType values
+| `output` | ranked tensor of 16-bit float or 32-bit float or 32-bit signed integer or QuantizedType values
 
 ### `IE.AffineReshape` (vpux::IE::AffineReshapeOp)
 
@@ -281,7 +281,7 @@ operation ::= `IE.AffineReshape` `(` operands `)` attr-dict `:` type(operands) `
 ```
 
 
-Interfaces: ElemTypeInfoOpInterface, InferShapedTypeOpInterface, InferTypeOpInterface, LayerOpInterface, LayoutInfoOpInterface, NoSideEffect (MemoryEffectOpInterface)
+Interfaces: ElemTypeInfoOpInterface, IE_ViewLikeOpInterface, InferShapedTypeOpInterface, InferTypeOpInterface, LayerOpInterface, LayoutInfoOpInterface, NoSideEffect (MemoryEffectOpInterface)
 
 Effects: MemoryEffects::Effect{}
 
@@ -333,14 +333,14 @@ Effects: MemoryEffects::Effect{}
 
 | Operand | Description |
 | :-----: | ----------- |
-| `input1` | ranked tensor of 8-bit signless integer or 16-bit float or 32-bit float or QuantizedType values
-| `input2` | ranked tensor of 8-bit signless integer or 16-bit float or 32-bit float or QuantizedType values
+| `input1` | ranked tensor of 8-bit signless integer or 16-bit float or 32-bit float or 32-bit signed integer or 64-bit signed integer or QuantizedType values
+| `input2` | ranked tensor of 8-bit signless integer or 16-bit float or 32-bit float or 32-bit signed integer or 64-bit signed integer or QuantizedType values
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `output` | ranked tensor of 8-bit signless integer or 16-bit float or 32-bit float or QuantizedType values
+| `output` | ranked tensor of 8-bit signless integer or 16-bit float or 32-bit float or 32-bit signed integer or 64-bit signed integer or QuantizedType values
 
 ### `IE.Asin` (vpux::IE::AsinOp)
 
@@ -506,7 +506,7 @@ operation ::= `IE.AvgPool` `(` operands `)` attr-dict `:` type(operands) `->` ty
 ```
 
 
-Interfaces: AlignedChannelsOpInterface, InferShapedTypeOpInterface, InferTypeOpInterface, LayerOpInterface, LayoutInfoOpInterface, NoSideEffect (MemoryEffectOpInterface)
+Interfaces: InferShapedTypeOpInterface, InferTypeOpInterface, LayerOpInterface, LayoutInfoOpInterface, NoSideEffect (MemoryEffectOpInterface)
 
 Effects: MemoryEffects::Effect{}
 
@@ -1055,13 +1055,48 @@ Effects: MemoryEffects::Effect{}
 | Operand | Description |
 | :-----: | ----------- |
 | `input` | ranked tensor of any type values
-| `axis` | 0D tensor of integer values
+| `axis` | ranked tensor of integer values
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
 | `output` | ranked tensor of any type values
+
+### `IE.DFT` (vpux::IE::DFTOp)
+
+InferenceEngine DFT layer
+
+
+Syntax:
+
+```
+operation ::= `IE.DFT` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+Interfaces: InferShapedTypeOpInterface, InferTypeOpInterface, LayerOpInterface, NoSideEffect (MemoryEffectOpInterface)
+
+Effects: MemoryEffects::Effect{}
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+| `axes_attr` | ::mlir::ArrayAttr | 64-bit integer array attribute
+| `signal_size_attr` | ::mlir::ArrayAttr | 64-bit integer array attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `input` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+| `output` | ranked tensor of 16-bit float or 32-bit float values
 
 ### `IE.DataInfo` (vpux::IE::DataInfoOp)
 
@@ -1269,7 +1304,7 @@ Effects: MemoryEffects::Effect{}
 
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
-| `attr` | vpux::IE::DetectionOutputAttr | DictionaryAttr with field(s): 'num_classes', 'background_label_id', 'top_k', 'variance_encoded_in_target', 'keep_top_k', 'code_type', 'share_location', 'nms_threshold', 'confidence_threshold', 'clip_after_nms', 'clip_before_nms', 'decrease_label_id', 'normalized', 'input_height', 'input_width', 'objectness_score' (each field having its own constraints)
+| `attr` | vpux::IE::DetectionOutputAttr | 
 
 #### Operands:
 
@@ -1315,14 +1350,44 @@ Effects: MemoryEffects::Effect{}
 
 | Operand | Description |
 | :-----: | ----------- |
-| `input1` | ranked tensor of 16-bit float or 32-bit float values
-| `input2` | ranked tensor of 16-bit float or 32-bit float values
+| `input1` | ranked tensor of 16-bit float or 32-bit float or 32-bit signed integer values
+| `input2` | ranked tensor of 16-bit float or 32-bit float or 32-bit signed integer values
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `output` | ranked tensor of 16-bit float or 32-bit float values
+| `output` | ranked tensor of 16-bit float or 32-bit float or 32-bit signed integer values
+
+### `IE.DynamicQuantize` (vpux::IE::DynamicQuantizeOp)
+
+InferenceEngine Dynamic-Quantize layer
+
+
+Syntax:
+
+```
+operation ::= `IE.DynamicQuantize` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+Interfaces: InferShapedTypeOpInterface, InferTypeOpInterface, LayerOpInterface, NoSideEffect (MemoryEffectOpInterface)
+
+Effects: MemoryEffects::Effect{}
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `input` | ranked tensor of 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+| `output` | ranked tensor of 8-bit unsigned integer values
+| `scale` | 1D tensor of 32-bit float values
+| `zero_point` | 1D tensor of 8-bit unsigned integer values
 
 ### `IE.Elu` (vpux::IE::EluOp)
 
@@ -1394,7 +1459,7 @@ Effects: MemoryEffects::Effect{}
 | `input` | ranked tensor of any type values
 | `indices` | 1D tensor of 64-bit signed integer or 32-bit signed integer values
 | `offsets` | 1D tensor of 64-bit signed integer or 32-bit signed integer values
-| `default_index` | 0D tensor of 64-bit signed integer or 32-bit signed integer values
+| `default_index` | ranked tensor of 64-bit signed integer or 32-bit signed integer values
 | `weights` | 1D tensor of integer or floating-point values
 
 #### Results:
@@ -1402,6 +1467,36 @@ Effects: MemoryEffects::Effect{}
 | Result | Description |
 | :----: | ----------- |
 | `output` | ranked tensor of any type values
+
+### `IE.EmbeddingBagPackedSum` (vpux::IE::EmbeddingBagPackedSumOp)
+
+InferenceEngine EmbeddingBagPackedSum layer
+
+
+Syntax:
+
+```
+operation ::= `IE.EmbeddingBagPackedSum` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+Interfaces: InferShapedTypeOpInterface, InferTypeOpInterface, LayerOpInterface, NoSideEffect (MemoryEffectOpInterface)
+
+Effects: MemoryEffects::Effect{}
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `emb_table` | ranked tensor of 16-bit float or 32-bit float values
+| `indices` | 2D tensor of 32-bit signed integer or 64-bit signed integer values
+| `per_sample_weights` | 2D tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+| `output` | ranked tensor of 16-bit float or 32-bit float values
 
 ### `IE.EmbeddingSegmentsSum` (vpux::IE::EmbeddingSegmentsSumOp)
 
@@ -1438,8 +1533,8 @@ Effects: MemoryEffects::Effect{}
 | `emb_table` | ranked tensor of any type values
 | `indices` | 1D tensor of 64-bit signed integer or 32-bit signed integer values
 | `segment_ids` | 1D tensor of 64-bit signed integer or 32-bit signed integer values
-| `num_segments` | 0D tensor of 64-bit signed integer or 32-bit signed integer values
-| `default_index` | 0D tensor of 64-bit signed integer or 32-bit signed integer values
+| `num_segments` | ranked tensor of 64-bit signed integer or 32-bit signed integer values
+| `default_index` | ranked tensor of 64-bit signed integer or 32-bit signed integer values
 | `per_sample_weights` | 1D tensor of integer or floating-point values
 
 #### Results:
@@ -1476,14 +1571,14 @@ Effects: MemoryEffects::Effect{}
 
 | Operand | Description |
 | :-----: | ----------- |
-| `input1` | ranked tensor of 16-bit float or 32-bit float values
-| `input2` | ranked tensor of 16-bit float or 32-bit float values
+| `input1` | ranked tensor of 16-bit float or 32-bit float or 32-bit signed integer or 64-bit signed integer values
+| `input2` | ranked tensor of 16-bit float or 32-bit float or 32-bit signed integer or 64-bit signed integer values
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `output` | ranked tensor of 16-bit float or 32-bit float values
+| `output` | ranked tensor of 16-bit float or 32-bit float or 32-bit signed integer or 64-bit signed integer values
 
 ### `IE.Erf` (vpux::IE::ErfOp)
 
@@ -1751,14 +1846,14 @@ Effects: MemoryEffects::Effect{}
 
 | Operand | Description |
 | :-----: | ----------- |
-| `input1` | ranked tensor of 16-bit float or 32-bit float values
-| `input2` | ranked tensor of 16-bit float or 32-bit float values
+| `input1` | ranked tensor of 16-bit float or 32-bit float or 32-bit signed integer values
+| `input2` | ranked tensor of 16-bit float or 32-bit float or 32-bit signed integer values
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `output` | ranked tensor of 16-bit float or 32-bit float values
+| `output` | ranked tensor of 16-bit float or 32-bit float or 32-bit signed integer values
 
 ### `IE.Floor` (vpux::IE::FloorOp)
 
@@ -2036,13 +2131,44 @@ Effects: MemoryEffects::Effect{}
 | :-----: | ----------- |
 | `input` | ranked tensor of any type values
 | `indices` | ranked tensor of integer values
-| `axis` | ranked tensor of any type values
+| `axis` | ranked tensor of integer values
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
 | `output` | ranked tensor of any type values
+
+### `IE.GatherTree` (vpux::IE::GatherTreeOp)
+
+InferenceEngine GatherTree layer
+
+
+Syntax:
+
+```
+operation ::= `IE.GatherTree` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+Interfaces: InferShapedTypeOpInterface, InferTypeOpInterface, LayerOpInterface, NoSideEffect (MemoryEffectOpInterface)
+
+Effects: MemoryEffects::Effect{}
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `stepIds` | ranked tensor of any type values
+| `parentIds` | ranked tensor of any type values
+| `maxSeqLen` | ranked tensor of any type values
+| `endToken` | ranked tensor of any type values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+| `finalIds` | ranked tensor of any type values
 
 ### `IE.Gelu` (vpux::IE::GeluOp)
 
@@ -2102,14 +2228,14 @@ Effects: MemoryEffects::Effect{}
 
 | Operand | Description |
 | :-----: | ----------- |
-| `input1` | ranked tensor of 16-bit float or 32-bit float values
-| `input2` | ranked tensor of 16-bit float or 32-bit float values
+| `input1` | ranked tensor of 16-bit float or 32-bit float or 32-bit signed integer values
+| `input2` | ranked tensor of 16-bit float or 32-bit float or 32-bit signed integer values
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `output` | ranked tensor of 16-bit float or 32-bit float values
+| `output` | ranked tensor of 16-bit float or 32-bit float or 32-bit signed integer values
 
 ### `IE.Greater` (vpux::IE::GreaterOp)
 
@@ -2139,14 +2265,14 @@ Effects: MemoryEffects::Effect{}
 
 | Operand | Description |
 | :-----: | ----------- |
-| `input1` | ranked tensor of 16-bit float or 32-bit float values
-| `input2` | ranked tensor of 16-bit float or 32-bit float values
+| `input1` | ranked tensor of 16-bit float or 32-bit float or 32-bit signed integer values
+| `input2` | ranked tensor of 16-bit float or 32-bit float or 32-bit signed integer values
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `output` | ranked tensor of 16-bit float or 32-bit float values
+| `output` | ranked tensor of 16-bit float or 32-bit float or 32-bit signed integer values
 
 ### `IE.GridSample` (vpux::IE::GridSampleOp)
 
@@ -2316,8 +2442,78 @@ Effects: MemoryEffects::Effect{}
 | Operand | Description |
 | :-----: | ----------- |
 | `input` | ranked tensor of 16-bit float or 32-bit float values
-| `alpha` | 0D tensor of 16-bit float or 32-bit float values
-| `beta` | 0D tensor of 16-bit float or 32-bit float values
+| `alpha` | ranked tensor of 16-bit float or 32-bit float values
+| `beta` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+| `output` | ranked tensor of 16-bit float or 32-bit float values
+
+### `IE.IDFT` (vpux::IE::IDFTOp)
+
+InferenceEngine IDFT layer
+
+
+Syntax:
+
+```
+operation ::= `IE.IDFT` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+Interfaces: InferShapedTypeOpInterface, InferTypeOpInterface, LayerOpInterface, NoSideEffect (MemoryEffectOpInterface)
+
+Effects: MemoryEffects::Effect{}
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+| `axes_attr` | ::mlir::ArrayAttr | 64-bit integer array attribute
+| `signal_size_attr` | ::mlir::ArrayAttr | 64-bit integer array attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `input` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+| `output` | ranked tensor of 16-bit float or 32-bit float values
+
+### `IE.IRDFT` (vpux::IE::IRDFTOp)
+
+InferenceEngine IRDFT layer
+
+
+Syntax:
+
+```
+operation ::= `IE.IRDFT` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+Interfaces: InferShapedTypeOpInterface, InferTypeOpInterface, LayerOpInterface, NoSideEffect (MemoryEffectOpInterface)
+
+Effects: MemoryEffects::Effect{}
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+| `axes_attr` | ::mlir::ArrayAttr | 64-bit integer array attribute
+| `signal_size_attr` | ::mlir::ArrayAttr | 64-bit integer array attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `input` | ranked tensor of 16-bit float or 32-bit float values
 
 #### Results:
 
@@ -2353,7 +2549,7 @@ Effects: MemoryEffects::Effect{}
 | `tile_offset_attr` | ::mlir::ArrayAttr | 64-bit float array attribute
 | `initial_input_dims_attr` | ::mlir::ArrayAttr | 64-bit integer array attribute
 | `initial_output_dims_attr` | ::mlir::ArrayAttr | 64-bit integer array attribute
-| `attr` | vpux::IE::InterpolateAttr | DictionaryAttr with field(s): 'mode', 'shape_calc_mode', 'coord_mode', 'nearest_mode', 'antialias', 'pads_begin', 'pads_end', 'cube_coeff' (each field having its own constraints)
+| `attr` | vpux::IE::InterpolateAttr | 
 
 #### Operands:
 
@@ -2486,6 +2682,45 @@ Effects: MemoryEffects::Effect{}
 | `outputHiddenState` | 2D tensor of 16-bit float or 32-bit float values
 | `outputCellState` | 2D tensor of 16-bit float or 32-bit float values
 
+### `IE.LSTMGates` (vpux::IE::LSTMGatesOp)
+
+Computes LSTM activation functions
+
+
+Syntax:
+
+```
+operation ::= `IE.LSTMGates` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+This operation is intended to be run as a software stage after computing and adding LSTM matrix multiplications.
+
+- **gatesInput** - tensor of shape **[batchSize, 4 * hiddenSize]**. Formula:
+    ```
+    gatesInput = (inputData * weights) + (initialHiddenState * recurrenceWeights) + biases
+    * - Matrix multiplication
+    + - Element-wise add
+    ```
+- The meaning of other operands are identical to those in LSTMCell operation.
+
+Interfaces: InferShapedTypeOpInterface, InferTypeOpInterface, LayerOpInterface, NoSideEffect (MemoryEffectOpInterface)
+
+Effects: MemoryEffects::Effect{}
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `gatesInput` | 2D tensor of 16-bit float or 32-bit float values
+| `initialCellState` | 2D tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+| `outputHiddenState` | 2D tensor of 16-bit float or 32-bit float values
+| `outputCellState` | 2D tensor of 16-bit float or 32-bit float values
+
 ### `IE.LSTMSequence` (vpux::IE::LSTMSequenceOp)
 
 InferenceEngine LSTMSequence layer
@@ -2527,6 +2762,40 @@ Effects: MemoryEffects::Effect{}
 | `outputHiddenValues` | 4D tensor of 16-bit float or 32-bit float values
 | `outputHiddenState` | 3D tensor of 16-bit float or 32-bit float values
 | `outputCellState` | 3D tensor of 16-bit float or 32-bit float values
+
+### `IE.LayoutCast` (vpux::IE::LayoutCastOp)
+
+This layer overrides layout of a given tensor.
+
+
+Syntax:
+
+```
+operation ::= `IE.LayoutCast` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+Interfaces: InferShapedTypeOpInterface, InferTypeOpInterface, LayerOpInterface, NoSideEffect (MemoryEffectOpInterface)
+
+Effects: MemoryEffects::Effect{}
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+| `dst_order` | ::mlir::AffineMapAttr | AffineMap attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `input` | ranked tensor of any type values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+| `output` | ranked tensor of any type values
 
 ### `IE.LeakyRelu` (vpux::IE::LeakyReluOp)
 
@@ -2592,14 +2861,14 @@ Effects: MemoryEffects::Effect{}
 
 | Operand | Description |
 | :-----: | ----------- |
-| `input1` | ranked tensor of 16-bit float or 32-bit float values
-| `input2` | ranked tensor of 16-bit float or 32-bit float values
+| `input1` | ranked tensor of 16-bit float or 32-bit float or 32-bit signed integer values
+| `input2` | ranked tensor of 16-bit float or 32-bit float or 32-bit signed integer values
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `output` | ranked tensor of 16-bit float or 32-bit float values
+| `output` | ranked tensor of 16-bit float or 32-bit float or 32-bit signed integer values
 
 ### `IE.Less` (vpux::IE::LessOp)
 
@@ -2629,14 +2898,14 @@ Effects: MemoryEffects::Effect{}
 
 | Operand | Description |
 | :-----: | ----------- |
-| `input1` | ranked tensor of 16-bit float or 32-bit float values
-| `input2` | ranked tensor of 16-bit float or 32-bit float values
+| `input1` | ranked tensor of 16-bit float or 32-bit float or 32-bit signed integer values
+| `input2` | ranked tensor of 16-bit float or 32-bit float or 32-bit signed integer values
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `output` | ranked tensor of 16-bit float or 32-bit float values
+| `output` | ranked tensor of 16-bit float or 32-bit float or 32-bit signed integer values
 
 ### `IE.Log` (vpux::IE::LogOp)
 
@@ -2655,6 +2924,40 @@ Traits: IE_EltwiseOp
 Interfaces: InferShapedTypeOpInterface, InferTypeOpInterface, LayerOpInterface, NoSideEffect (MemoryEffectOpInterface)
 
 Effects: MemoryEffects::Effect{}
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `input` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+| `output` | ranked tensor of 16-bit float or 32-bit float values
+
+### `IE.LogSoftmax` (vpux::IE::LogSoftmaxOp)
+
+InferenceEngine LogSoftmax layer
+
+
+Syntax:
+
+```
+operation ::= `IE.LogSoftmax` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+Interfaces: InferShapedTypeOpInterface, InferTypeOpInterface, LayerOpInterface, NoSideEffect (MemoryEffectOpInterface)
+
+Effects: MemoryEffects::Effect{}
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+| `axisInd` | mlir::IntegerAttr | Integer attribute
 
 #### Operands:
 
@@ -2690,13 +2993,13 @@ Effects: MemoryEffects::Effect{}
 
 | Operand | Description |
 | :-----: | ----------- |
-| `input1` | ranked tensor of 8-bit signless integer or 16-bit float or 32-bit float values
+| `input1` | ranked tensor of 8-bit signless integer or 16-bit float or 32-bit float or 32-bit signed integer values
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `output` | ranked tensor of 8-bit signless integer or 16-bit float or 32-bit float values
+| `output` | ranked tensor of 8-bit signless integer or 16-bit float or 32-bit float or 32-bit signed integer values
 
 ### `IE.LogicalOr` (vpux::IE::LogicalOrOp)
 
@@ -2726,14 +3029,14 @@ Effects: MemoryEffects::Effect{}
 
 | Operand | Description |
 | :-----: | ----------- |
-| `input1` | ranked tensor of 8-bit signless integer or 16-bit float or 32-bit float values
-| `input2` | ranked tensor of 8-bit signless integer or 16-bit float or 32-bit float values
+| `input1` | ranked tensor of 8-bit signless integer or 16-bit float or 32-bit float or 32-bit signed integer values
+| `input2` | ranked tensor of 8-bit signless integer or 16-bit float or 32-bit float or 32-bit signed integer values
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `output` | ranked tensor of 8-bit signless integer or 16-bit float or 32-bit float values
+| `output` | ranked tensor of 8-bit signless integer or 16-bit float or 32-bit float or 32-bit signed integer values
 
 ### `IE.LogicalXor` (vpux::IE::LogicalXorOp)
 
@@ -2763,18 +3066,56 @@ Effects: MemoryEffects::Effect{}
 
 | Operand | Description |
 | :-----: | ----------- |
-| `input1` | ranked tensor of 8-bit signless integer or 16-bit float or 32-bit float values
-| `input2` | ranked tensor of 8-bit signless integer or 16-bit float or 32-bit float values
+| `input1` | ranked tensor of 8-bit signless integer or 16-bit float or 32-bit float or 32-bit signed integer values
+| `input2` | ranked tensor of 8-bit signless integer or 16-bit float or 32-bit float or 32-bit signed integer values
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `output` | ranked tensor of 8-bit signless integer or 16-bit float or 32-bit float values
+| `output` | ranked tensor of 8-bit signless integer or 16-bit float or 32-bit float or 32-bit signed integer values
+
+### `IE.MVN6` (vpux::IE::MVN6Op)
+
+InferenceEngine MVN6 layer
+
+
+Syntax:
+
+```
+operation ::= `IE.MVN6` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+Interfaces: InferShapedTypeOpInterface, InferTypeOpInterface, LayerOpInterface, NoSideEffect (MemoryEffectOpInterface)
+
+Effects: MemoryEffects::Effect{}
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+| `axes_value` | ::mlir::ArrayAttr | 64-bit integer array attribute
+| `normalize_variance` | ::mlir::BoolAttr | bool attribute
+| `eps` | ::mlir::FloatAttr | 64-bit float attribute
+| `eps_mode` | vpux::IE::MvnEpsModeAttr | MvnEpsMode that the InferenceEngine supports
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `input` | ranked tensor of any type values
+| `axes` | 1D tensor of 32-bit signed integer or 64-bit signed integer values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+| `output` | ranked tensor of any type values
 
 ### `IE.MVN` (vpux::IE::MVNOp)
 
-InferenceEngine MVN layer
+InferenceEngine MVN1 layer
 
 
 Syntax:
@@ -3079,14 +3420,14 @@ Effects: MemoryEffects::Effect{}
 
 | Operand | Description |
 | :-----: | ----------- |
-| `input1` | ranked tensor of 16-bit float or 32-bit float or QuantizedType values
-| `input2` | ranked tensor of 16-bit float or 32-bit float or QuantizedType values
+| `input1` | ranked tensor of 16-bit float or 32-bit float or 32-bit signed integer or QuantizedType values
+| `input2` | ranked tensor of 16-bit float or 32-bit float or 32-bit signed integer or QuantizedType values
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `output` | ranked tensor of 16-bit float or 32-bit float or QuantizedType values
+| `output` | ranked tensor of 16-bit float or 32-bit float or 32-bit signed integer or QuantizedType values
 
 ### `IE.Negative` (vpux::IE::NegativeOp)
 
@@ -3110,13 +3451,13 @@ Effects: MemoryEffects::Effect{}
 
 | Operand | Description |
 | :-----: | ----------- |
-| `input` | ranked tensor of 16-bit float or 32-bit float values
+| `input` | ranked tensor of 16-bit float or 32-bit float or 32-bit signed integer values
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `output` | ranked tensor of 16-bit float or 32-bit float values
+| `output` | ranked tensor of 16-bit float or 32-bit float or 32-bit signed integer values
 
 ### `IE.NonMaxSuppression` (vpux::IE::NonMaxSuppressionOp)
 
@@ -3153,7 +3494,7 @@ Effects: MemoryEffects::Effect{}
 | :-----: | ----------- |
 | `in_box_coords` | 3D tensor of 16-bit float or 32-bit float values
 | `in_box_scores` | 3D tensor of 16-bit float or 32-bit float values
-| `max_output_boxes_per_class` | 1D tensor of 32-bit signed integer values
+| `max_output_boxes_per_class` | 1D tensor of 32-bit signed integer or 64-bit signed integer values
 | `iou_threshold` | 1D tensor of 16-bit float or 32-bit float values
 | `score_threshold` | 1D tensor of 16-bit float or 32-bit float values
 | `soft_nms_sigma` | 1D tensor of 16-bit float or 32-bit float values
@@ -3203,6 +3544,42 @@ Effects: MemoryEffects::Effect{}
 | :----: | ----------- |
 | `output` | ranked tensor of any type values
 
+### `IE.NormalizeL2` (vpux::IE::NormalizeL2Op)
+
+InferenceEngine NormalizeL2 layer
+
+
+Syntax:
+
+```
+operation ::= `IE.NormalizeL2` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+Interfaces: InferShapedTypeOpInterface, InferTypeOpInterface, LayerOpInterface, NoSideEffect (MemoryEffectOpInterface)
+
+Effects: MemoryEffects::Effect{}
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+| `eps` | ::mlir::FloatAttr | 64-bit float attribute
+| `eps_mode` | vpux::IE::EpsModeAttr | EpsMode that the InferenceEngine supports
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `data` | ranked tensor of any type values
+| `axes` | 1D tensor of integer values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+| `output` | ranked tensor of any type values
+
 ### `IE.NotEqual` (vpux::IE::NotEqualOp)
 
 InferenceEngine NotEqual layer
@@ -3231,14 +3608,57 @@ Effects: MemoryEffects::Effect{}
 
 | Operand | Description |
 | :-----: | ----------- |
-| `input1` | ranked tensor of 16-bit float or 32-bit float values
-| `input2` | ranked tensor of 16-bit float or 32-bit float values
+| `input1` | ranked tensor of 16-bit float or 32-bit float or 32-bit signed integer values
+| `input2` | ranked tensor of 16-bit float or 32-bit float or 32-bit signed integer values
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `output` | ranked tensor of 16-bit float or 32-bit float values
+| `output` | ranked tensor of 16-bit float or 32-bit float or 32-bit signed integer values
+
+### `IE.OneHot` (vpux::IE::OneHotOp)
+
+InferenceEngine OneHot layer
+
+
+Syntax:
+
+```
+operation ::= `IE.OneHot` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+Traits: AttrSizedOperandSegments
+
+Interfaces: InferShapedTypeOpInterface, InferTypeOpInterface, LayerOpInterface, NoSideEffect (MemoryEffectOpInterface)
+
+Effects: MemoryEffects::Effect{}
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+| `depth_attr` | mlir::IntegerAttr | Integer attribute
+| `on_value_attr` | ::mlir::FloatAttr | 64-bit float attribute
+| `off_value_attr` | ::mlir::FloatAttr | 64-bit float attribute
+| `axis_attr` | mlir::IntegerAttr | Integer attribute
+| `outElemType` | ::mlir::TypeAttr | any type attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `input` | ranked tensor of 32-bit signed integer or 64-bit signed integer values
+| `depth` | ranked tensor of 32-bit signed integer or 64-bit signed integer values
+| `on_value` | ranked tensor of any type values
+| `off_value` | ranked tensor of any type values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+| `output` | ranked tensor of any type values
 
 ### `IE.PRelu` (vpux::IE::PReluOp)
 
@@ -3400,7 +3820,7 @@ operation ::= `IE.PermuteCast` `(` operands `)` attr-dict `:` type(operands) `->
 ```
 
 
-Interfaces: InferShapedTypeOpInterface, InferTypeOpInterface, LayerOpInterface, NoSideEffect (MemoryEffectOpInterface)
+Interfaces: IE_ViewLikeOpInterface, InferShapedTypeOpInterface, InferTypeOpInterface, LayerOpInterface, NoSideEffect (MemoryEffectOpInterface)
 
 Effects: MemoryEffects::Effect{}
 
@@ -3489,14 +3909,14 @@ Effects: MemoryEffects::Effect{}
 
 | Operand | Description |
 | :-----: | ----------- |
-| `input1` | ranked tensor of 16-bit float or 32-bit float values
-| `input2` | ranked tensor of 16-bit float or 32-bit float values
+| `input1` | ranked tensor of 16-bit float or 32-bit float or 32-bit signed integer values
+| `input2` | ranked tensor of 16-bit float or 32-bit float or 32-bit signed integer values
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `output` | ranked tensor of 16-bit float or 32-bit float values
+| `output` | ranked tensor of 16-bit float or 32-bit float or 32-bit signed integer values
 
 ### `IE.Proposal` (vpux::IE::ProposalOp)
 
@@ -3547,7 +3967,7 @@ operation ::= `IE.QuantizeCast` `(` operands `)` attr-dict `:` type(operands) `-
 ```
 
 
-Interfaces: InferShapedTypeOpInterface, InferTypeOpInterface, LayerOpInterface, NoSideEffect (MemoryEffectOpInterface)
+Interfaces: IE_ViewLikeOpInterface, InferShapedTypeOpInterface, InferTypeOpInterface, LayerOpInterface, NoSideEffect (MemoryEffectOpInterface)
 
 Effects: MemoryEffects::Effect{}
 
@@ -3604,6 +4024,41 @@ Effects: MemoryEffects::Effect{}
 | Result | Description |
 | :----: | ----------- |
 | `output` | ranked tensor of QuantizedType values
+
+### `IE.RDFT` (vpux::IE::RDFTOp)
+
+InferenceEngine RDFT layer
+
+
+Syntax:
+
+```
+operation ::= `IE.RDFT` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+Interfaces: InferShapedTypeOpInterface, InferTypeOpInterface, LayerOpInterface, NoSideEffect (MemoryEffectOpInterface)
+
+Effects: MemoryEffects::Effect{}
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+| `axes_attr` | ::mlir::ArrayAttr | 64-bit integer array attribute
+| `signal_size_attr` | ::mlir::ArrayAttr | 64-bit integer array attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `input` | ranked tensor of 16-bit float or 32-bit float values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+| `output` | ranked tensor of 16-bit float or 32-bit float values
 
 ### `IE.ROIAlign` (vpux::IE::ROIAlignOp)
 
@@ -3683,6 +4138,44 @@ Effects: MemoryEffects::Effect{}
 | Result | Description |
 | :----: | ----------- |
 | `output` | ranked tensor of 16-bit float or 32-bit float values
+
+### `IE.RandomUniform` (vpux::IE::RandomUniformOp)
+
+InferenceEngine RandomUniform layer
+
+
+Syntax:
+
+```
+operation ::= `IE.RandomUniform` `(` operands `)` attr-dict `:` type(operands) `->` type(results)
+```
+
+
+Interfaces: InferShapedTypeOpInterface, InferTypeOpInterface, LayerOpInterface, NoSideEffect (MemoryEffectOpInterface)
+
+Effects: MemoryEffects::Effect{}
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+| `output_shape` | ::mlir::ArrayAttr | 64-bit integer array attribute
+| `output_type` | ::mlir::TypeAttr | any type attribute
+| `global_seed` | mlir::IntegerAttr | Integer attribute
+| `op_seed` | mlir::IntegerAttr | Integer attribute
+
+#### Operands:
+
+| Operand | Description |
+| :-----: | ----------- |
+| `min` | 1D tensor of 16-bit float or 32-bit float or 32-bit signed integer values
+| `max` | 1D tensor of 16-bit float or 32-bit float or 32-bit signed integer values
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+| `output` | ranked tensor of 16-bit float or 32-bit float or 32-bit signed integer values
 
 ### `IE.ReLU` (vpux::IE::ReLUOp)
 
@@ -4182,7 +4675,7 @@ operation ::= `IE.Reshape` `(` operands `)` attr-dict `:` type(operands) `->` ty
 ```
 
 
-Interfaces: ElemTypeInfoOpInterface, InferShapedTypeOpInterface, InferTypeOpInterface, LayerOpInterface, NoSideEffect (MemoryEffectOpInterface)
+Interfaces: ElemTypeInfoOpInterface, IE_ViewLikeOpInterface, InferShapedTypeOpInterface, InferTypeOpInterface, LayerOpInterface, NoSideEffect (MemoryEffectOpInterface)
 
 Effects: MemoryEffects::Effect{}
 
@@ -4352,7 +4845,7 @@ operation ::= `IE.ScatterNDUpdate` `(` operands `)` attr-dict `:` type(operands)
 ```
 
 
-Interfaces: InferShapedTypeOpInterface, InferTypeOpInterface, LayerOpInterface, NoSideEffect (MemoryEffectOpInterface)
+Interfaces: InferShapedTypeOpInterface, InferTypeOpInterface, LayerOpInterface, LayoutInfoOpInterface, NoSideEffect (MemoryEffectOpInterface)
 
 Effects: MemoryEffects::Effect{}
 
@@ -4435,15 +4928,15 @@ Effects: MemoryEffects::Effect{}
 
 | Operand | Description |
 | :-----: | ----------- |
-| `input1` | ranked tensor of 8-bit signless integer or 32-bit signed integer or 16-bit float values
-| `input2` | ranked tensor of 32-bit signed integer or 16-bit float values
-| `input3` | ranked tensor of 32-bit signed integer or 16-bit float values
+| `input1` | ranked tensor of 8-bit signless integer or 32-bit signed integer or 16-bit float or 32-bit float values
+| `input2` | ranked tensor of 32-bit signed integer or 16-bit float or 32-bit float values
+| `input3` | ranked tensor of 32-bit signed integer or 16-bit float or 32-bit float values
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `output` | ranked tensor of 32-bit signed integer or 16-bit float values
+| `output` | ranked tensor of 32-bit signed integer or 16-bit float or 32-bit float values
 
 ### `IE.Selu` (vpux::IE::SeluOp)
 
@@ -4812,6 +5305,57 @@ Effects: MemoryEffects::Effect{}
 | :----: | ----------- |
 | `output` | ranked tensor of any type values
 
+### `IE.SparsityInfo` (vpux::IE::SparsityInfoOp)
+
+Information about estimated sparsity ratio for input of specific layer
+
+
+Syntax:
+
+```
+operation ::= `IE.SparsityInfo` $ratio `at` `input` $inputId `of` $name
+              attr-dict
+```
+
+This operation is bound to `IE.SparsityStatistics` Operation and holds information about SparsityInfo object:
+
+  * Node name
+  * Input ID
+  * Sparsity ratio
+
+Traits: HasParent<vpux::IE::SparsityStatisticsOp>, IsolatedFromAbove
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+| `name` | ::mlir::StringAttr | string attribute
+| `inputId` | mlir::IntegerAttr | Integer attribute
+| `ratio` | ::mlir::FloatAttr | 64-bit float attribute
+
+### `IE.SparsityStatistics` (vpux::IE::SparsityStatisticsOp)
+
+Sparsity statistics for inputs of operations
+
+
+Syntax:
+
+```
+operation ::= `IE.SparsityStatistics` attr-dict
+              `sparsityInfo` `:` $sparsityInfo
+```
+
+This operation is bound to MLIR Module and holds extra information about input sparsity ratios collected from dataset:
+
+  * NGraph layer name.
+  * Input id.
+  * Sparsity ratio.
+
+
+Traits: HasOnlyGraphRegion, HasParent<mlir::ModuleOp>, IsolatedFromAbove, NoRegionArguments, NoTerminator, SingleBlock
+
+Interfaces: OpAsmOpInterface, RegionKindInterface
+
 ### `IE.Split` (vpux::IE::SplitOp)
 
 InferenceEngine Split layer
@@ -4824,7 +5368,7 @@ operation ::= `IE.Split` `(` operands `)` attr-dict `:` type(operands) `->` type
 ```
 
 
-Interfaces: InferShapedTypeOpInterface, InferTypeOpInterface, LayerOpInterface, NoSideEffect (MemoryEffectOpInterface)
+Interfaces: ElemTypeInfoOpInterface, InferShapedTypeOpInterface, InferTypeOpInterface, LayerOpInterface, NoSideEffect (MemoryEffectOpInterface)
 
 Effects: MemoryEffects::Effect{}
 
@@ -4906,14 +5450,14 @@ Effects: MemoryEffects::Effect{}
 
 | Operand | Description |
 | :-----: | ----------- |
-| `input1` | ranked tensor of 16-bit float or 32-bit float values
-| `input2` | ranked tensor of 16-bit float or 32-bit float values
+| `input1` | ranked tensor of 16-bit float or 32-bit float or 32-bit signed integer values
+| `input2` | ranked tensor of 16-bit float or 32-bit float or 32-bit signed integer values
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `output` | ranked tensor of 16-bit float or 32-bit float values
+| `output` | ranked tensor of 16-bit float or 32-bit float or 32-bit signed integer values
 
 ### `IE.Squeeze` (vpux::IE::SqueezeOp)
 
@@ -4927,7 +5471,7 @@ operation ::= `IE.Squeeze` `(` operands `)` attr-dict `:` type(operands) `->` ty
 ```
 
 
-Interfaces: InferShapedTypeOpInterface, InferTypeOpInterface, LayerOpInterface, LayoutInfoOpInterface, NoSideEffect (MemoryEffectOpInterface)
+Interfaces: IE_ViewLikeOpInterface, InferShapedTypeOpInterface, InferTypeOpInterface, LayerOpInterface, LayoutInfoOpInterface, NoSideEffect (MemoryEffectOpInterface)
 
 Effects: MemoryEffects::Effect{}
 
@@ -5053,14 +5597,14 @@ Effects: MemoryEffects::Effect{}
 
 | Operand | Description |
 | :-----: | ----------- |
-| `input1` | ranked tensor of 16-bit float or 32-bit float values
-| `input2` | ranked tensor of 16-bit float or 32-bit float values
+| `input1` | ranked tensor of 16-bit float or 32-bit float or 32-bit signed integer values
+| `input2` | ranked tensor of 16-bit float or 32-bit float or 32-bit signed integer values
 
 #### Results:
 
 | Result | Description |
 | :----: | ----------- |
-| `output` | ranked tensor of 16-bit float or 32-bit float values
+| `output` | ranked tensor of 16-bit float or 32-bit float or 32-bit signed integer values
 
 ### `IE.Swish` (vpux::IE::SwishOp)
 
@@ -5175,6 +5719,12 @@ Interfaces: InferShapedTypeOpInterface, InferTypeOpInterface, LayerOpInterface, 
 
 Effects: MemoryEffects::Effect{}
 
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+| `repeats_values` | ::mlir::ArrayAttr | 64-bit integer array attribute
+
 #### Operands:
 
 | Operand | Description |
@@ -5218,7 +5768,7 @@ Effects: MemoryEffects::Effect{}
 | Operand | Description |
 | :-----: | ----------- |
 | `input` | ranked tensor of any type values
-| `k` | 0D tensor of integer values
+| `k` | ranked tensor of integer values
 
 #### Results:
 
@@ -5274,7 +5824,7 @@ operation ::= `IE.Unsqueeze` `(` operands `)` attr-dict `:` type(operands) `->` 
 ```
 
 
-Interfaces: InferShapedTypeOpInterface, InferTypeOpInterface, LayerOpInterface, LayoutInfoOpInterface, NoSideEffect (MemoryEffectOpInterface)
+Interfaces: IE_ViewLikeOpInterface, InferShapedTypeOpInterface, InferTypeOpInterface, LayerOpInterface, LayoutInfoOpInterface, NoSideEffect (MemoryEffectOpInterface)
 
 Effects: MemoryEffects::Effect{}
 
@@ -5318,8 +5868,7 @@ Effects: MemoryEffects::Effect{}
 | Attribute | MLIR Type | Description |
 | :-------: | :-------: | ----------- |
 | `upsampling_factor` | ::mlir::ArrayAttr | 64-bit integer array attribute
-| `pad_l` | ::mlir::ArrayAttr | 64-bit integer array attribute
-| `pad_r` | ::mlir::ArrayAttr | 64-bit integer array attribute
+| `pad` | vpux::IE::UpsamplingPadAttr | DictionaryAttr with field(s): 'pads_channel', 'pads_height', 'pads_width' (each field having its own constraints)
 
 #### Operands:
 
@@ -5371,4 +5920,601 @@ Effects: MemoryEffects::Effect{}
 | Result | Description |
 | :----: | ----------- |
 | `output` | 4D tensor of 8-bit unsigned integer or 16-bit float or 32-bit float values
+
+## Attribute definition
+
+### AutoBroadcastTypeAttr
+
+Specifies rules used for auto-broadcasting of input tensors
+
+Syntax:
+
+```
+!IE.auto_broadcast_type<
+  vpux::IE::AutoBroadcastType   # value
+>
+```
+
+
+#### Parameters:
+
+| Parameter | C++ type | Description |
+| :-------: | :-------: | ----------- |
+| value | `vpux::IE::AutoBroadcastType` | an enum of type AutoBroadcastType |
+
+### BoxEncodingTypeAttr
+
+BoxEncodingType that the InferenceEngine supports
+
+Syntax:
+
+```
+!IE.box_encoding_type<
+  vpux::IE::BoxEncodingType   # value
+>
+```
+
+
+#### Parameters:
+
+| Parameter | C++ type | Description |
+| :-------: | :-------: | ----------- |
+| value | `vpux::IE::BoxEncodingType` | an enum of type BoxEncodingType |
+
+### BroadcastTypeAttr
+
+Broadcast type that operations support
+
+Syntax:
+
+```
+!IE.broadcast_type<
+  vpux::IE::BroadcastType   # value
+>
+```
+
+
+#### Parameters:
+
+| Parameter | C++ type | Description |
+| :-------: | :-------: | ----------- |
+| value | `vpux::IE::BroadcastType` | an enum of type BroadcastType |
+
+### ColorFmtAttr
+
+YUV, RGB color formats
+
+Syntax:
+
+```
+!IE.color_fmt<
+  vpux::IE::ColorFmt   # value
+>
+```
+
+
+#### Parameters:
+
+| Parameter | C++ type | Description |
+| :-------: | :-------: | ----------- |
+| value | `vpux::IE::ColorFmt` | an enum of type ColorFmt |
+
+### DeformablePSROIPoolingModeAttr
+
+DeformablePSROIPoolingMode that the InferenceEngine supports
+
+Syntax:
+
+```
+!IE.deformable_psroi_pooling_mode<
+  vpux::IE::DeformablePSROIPoolingMode   # value
+>
+```
+
+
+#### Parameters:
+
+| Parameter | C++ type | Description |
+| :-------: | :-------: | ----------- |
+| value | `vpux::IE::DeformablePSROIPoolingMode` | an enum of type DeformablePSROIPoolingMode |
+
+### DepthToSpaceModeAttr
+
+DepthToSpaceMode that the InferenceEngine supports
+
+Syntax:
+
+```
+!IE.depth_to_space_mode<
+  vpux::IE::DepthToSpaceMode   # value
+>
+```
+
+
+#### Parameters:
+
+| Parameter | C++ type | Description |
+| :-------: | :-------: | ----------- |
+| value | `vpux::IE::DepthToSpaceMode` | an enum of type DepthToSpaceMode |
+
+### DetectionOutputAttr
+
+
+
+Syntax:
+
+```
+!IE.DetectionOutput<
+  mlir::IntegerAttr,   # num_classes
+  mlir::IntegerAttr,   # background_label_id
+  mlir::IntegerAttr,   # top_k
+  mlir::BoolAttr,   # variance_encoded_in_target
+  mlir::ArrayAttr,   # keep_top_k
+  vpux::IE::DetectionOutputCodeTypeAttr,   # code_type
+  mlir::BoolAttr,   # share_location
+  mlir::FloatAttr,   # nms_threshold
+  mlir::FloatAttr,   # confidence_threshold
+  mlir::BoolAttr,   # clip_after_nms
+  mlir::BoolAttr,   # clip_before_nms
+  mlir::BoolAttr,   # decrease_label_id
+  mlir::BoolAttr,   # normalized
+  mlir::IntegerAttr,   # input_height
+  mlir::IntegerAttr,   # input_width
+  mlir::FloatAttr   # objectness_score
+>
+```
+
+
+#### Parameters:
+
+| Parameter | C++ type | Description |
+| :-------: | :-------: | ----------- |
+| num_classes | `mlir::IntegerAttr` |  |
+| background_label_id | `mlir::IntegerAttr` |  |
+| top_k | `mlir::IntegerAttr` |  |
+| variance_encoded_in_target | `mlir::BoolAttr` |  |
+| keep_top_k | `mlir::ArrayAttr` |  |
+| code_type | `vpux::IE::DetectionOutputCodeTypeAttr` |  |
+| share_location | `mlir::BoolAttr` |  |
+| nms_threshold | `mlir::FloatAttr` |  |
+| confidence_threshold | `mlir::FloatAttr` |  |
+| clip_after_nms | `mlir::BoolAttr` |  |
+| clip_before_nms | `mlir::BoolAttr` |  |
+| decrease_label_id | `mlir::BoolAttr` |  |
+| normalized | `mlir::BoolAttr` |  |
+| input_height | `mlir::IntegerAttr` |  |
+| input_width | `mlir::IntegerAttr` |  |
+| objectness_score | `mlir::FloatAttr` |  |
+
+### DetectionOutputCodeTypeAttr
+
+DetectionOutput parameter that specifies bounding box decoding algorithm
+
+Syntax:
+
+```
+!IE.detection_output_code_type<
+  vpux::IE::DetectionOutputCodeType   # value
+>
+```
+
+
+#### Parameters:
+
+| Parameter | C++ type | Description |
+| :-------: | :-------: | ----------- |
+| value | `vpux::IE::DetectionOutputCodeType` | an enum of type DetectionOutputCodeType |
+
+### EpsModeAttr
+
+EpsMode that the InferenceEngine supports
+
+Syntax:
+
+```
+!IE.eps_mode<
+  vpux::IE::EpsMode   # value
+>
+```
+
+
+#### Parameters:
+
+| Parameter | C++ type | Description |
+| :-------: | :-------: | ----------- |
+| value | `vpux::IE::EpsMode` | an enum of type EpsMode |
+
+### GridSampleModeAttr
+
+GridSampleMode that the InferenceEngine supports
+
+Syntax:
+
+```
+!IE.grid_sample_mode<
+  vpux::IE::GridSampleMode   # value
+>
+```
+
+
+#### Parameters:
+
+| Parameter | C++ type | Description |
+| :-------: | :-------: | ----------- |
+| value | `vpux::IE::GridSampleMode` | an enum of type GridSampleMode |
+
+### GridSamplePaddingModeAttr
+
+GridSamplePaddingMode that the InferenceEngine supports
+
+Syntax:
+
+```
+!IE.grid_sample_padding_mode<
+  vpux::IE::GridSamplePaddingMode   # value
+>
+```
+
+
+#### Parameters:
+
+| Parameter | C++ type | Description |
+| :-------: | :-------: | ----------- |
+| value | `vpux::IE::GridSamplePaddingMode` | an enum of type GridSamplePaddingMode |
+
+### InterpolateAttr
+
+
+
+Syntax:
+
+```
+!IE.Interpolate<
+  vpux::IE::InterpolateModeAttr,   # mode
+  vpux::IE::InterpolateCalcModeAttr,   # shape_calc_mode
+  vpux::IE::InterpolateCoordModeAttr,   # coord_mode
+  vpux::IE::InterpolateNearestModeAttr,   # nearest_mode
+  mlir::BoolAttr,   # antialias
+  mlir::ArrayAttr,   # pads_begin
+  mlir::ArrayAttr,   # pads_end
+  mlir::FloatAttr   # cube_coeff
+>
+```
+
+
+#### Parameters:
+
+| Parameter | C++ type | Description |
+| :-------: | :-------: | ----------- |
+| mode | `vpux::IE::InterpolateModeAttr` |  |
+| shape_calc_mode | `vpux::IE::InterpolateCalcModeAttr` |  |
+| coord_mode | `vpux::IE::InterpolateCoordModeAttr` |  |
+| nearest_mode | `vpux::IE::InterpolateNearestModeAttr` |  |
+| antialias | `mlir::BoolAttr` |  |
+| pads_begin | `mlir::ArrayAttr` |  |
+| pads_end | `mlir::ArrayAttr` |  |
+| cube_coeff | `mlir::FloatAttr` |  |
+
+### InterpolateCalcModeAttr
+
+Specifies which input, sizes or scales, is used to calculate an output shape.
+
+Syntax:
+
+```
+!IE.interpolate_calc_mode<
+  vpux::IE::InterpolateCalcMode   # value
+>
+```
+
+
+#### Parameters:
+
+| Parameter | C++ type | Description |
+| :-------: | :-------: | ----------- |
+| value | `vpux::IE::InterpolateCalcMode` | an enum of type InterpolateCalcMode |
+
+### InterpolateCoordModeAttr
+
+coordinate_transformation_mode specifies how to transform the coordinate.
+
+Syntax:
+
+```
+!IE.interpolate_coord_mode<
+  vpux::IE::InterpolateCoordMode   # value
+>
+```
+
+
+#### Parameters:
+
+| Parameter | C++ type | Description |
+| :-------: | :-------: | ----------- |
+| value | `vpux::IE::InterpolateCoordMode` | an enum of type InterpolateCoordMode |
+
+### InterpolateModeAttr
+
+Specifies type of interpolation
+
+Syntax:
+
+```
+!IE.interpolate_mode<
+  vpux::IE::InterpolateMode   # value
+>
+```
+
+
+#### Parameters:
+
+| Parameter | C++ type | Description |
+| :-------: | :-------: | ----------- |
+| value | `vpux::IE::InterpolateMode` | an enum of type InterpolateMode |
+
+### InterpolateNearestModeAttr
+
+specifies round mode when mode == nearest
+
+Syntax:
+
+```
+!IE.interpolate_nearest_mode<
+  vpux::IE::InterpolateNearestMode   # value
+>
+```
+
+
+#### Parameters:
+
+| Parameter | C++ type | Description |
+| :-------: | :-------: | ----------- |
+| value | `vpux::IE::InterpolateNearestMode` | an enum of type InterpolateNearestMode |
+
+### LRN_IERegionAttr
+
+LRN_IE region that operations support
+
+Syntax:
+
+```
+!IE.lrn_ieregion<
+  vpux::IE::LRN_IERegion   # value
+>
+```
+
+
+#### Parameters:
+
+| Parameter | C++ type | Description |
+| :-------: | :-------: | ----------- |
+| value | `vpux::IE::LRN_IERegion` | an enum of type LRN_IERegion |
+
+### MvnEpsModeAttr
+
+MvnEpsMode that the InferenceEngine supports
+
+Syntax:
+
+```
+!IE.mvn_eps_mode<
+  vpux::IE::MvnEpsMode   # value
+>
+```
+
+
+#### Parameters:
+
+| Parameter | C++ type | Description |
+| :-------: | :-------: | ----------- |
+| value | `vpux::IE::MvnEpsMode` | an enum of type MvnEpsMode |
+
+### PSROIPoolingModeAttr
+
+PSROIPoolingMode that the InferenceEngine supports
+
+Syntax:
+
+```
+!IE.psroi_poolong_mode<
+  vpux::IE::PSROIPoolingMode   # value
+>
+```
+
+
+#### Parameters:
+
+| Parameter | C++ type | Description |
+| :-------: | :-------: | ----------- |
+| value | `vpux::IE::PSROIPoolingMode` | an enum of type PSROIPoolingMode |
+
+### PadModeAttr
+
+TPadMode that the InferenceEngine supports
+
+Syntax:
+
+```
+!IE.pad_mode<
+  vpux::IE::PadMode   # value
+>
+```
+
+
+#### Parameters:
+
+| Parameter | C++ type | Description |
+| :-------: | :-------: | ----------- |
+| value | `vpux::IE::PadMode` | an enum of type PadMode |
+
+### PadTypeAttr
+
+PadType that the InferenceEngine supports
+
+Syntax:
+
+```
+!IE.pad_type<
+  vpux::IE::PadType   # value
+>
+```
+
+
+#### Parameters:
+
+| Parameter | C++ type | Description |
+| :-------: | :-------: | ----------- |
+| value | `vpux::IE::PadType` | an enum of type PadType |
+
+### RNNSequenceDirectionAttr
+
+RNNSequenceDirection that the InferenceEngine supports
+
+Syntax:
+
+```
+!IE.rnn_seq_direction<
+  vpux::IE::RNNSequenceDirection   # value
+>
+```
+
+
+#### Parameters:
+
+| Parameter | C++ type | Description |
+| :-------: | :-------: | ----------- |
+| value | `vpux::IE::RNNSequenceDirection` | an enum of type RNNSequenceDirection |
+
+### ROIAlignMethodAttr
+
+ROIAlignMethod that the InferenceEngine supports
+
+Syntax:
+
+```
+!IE.roi_align_method<
+  vpux::IE::ROIAlignMethod   # value
+>
+```
+
+
+#### Parameters:
+
+| Parameter | C++ type | Description |
+| :-------: | :-------: | ----------- |
+| value | `vpux::IE::ROIAlignMethod` | an enum of type ROIAlignMethod |
+
+### ROIPoolingMethodAttr
+
+ROIPoolingMethod that the InferenceEngine supports
+
+Syntax:
+
+```
+!IE.roi_pooling_method<
+  vpux::IE::ROIPoolingMethod   # value
+>
+```
+
+
+#### Parameters:
+
+| Parameter | C++ type | Description |
+| :-------: | :-------: | ----------- |
+| value | `vpux::IE::ROIPoolingMethod` | an enum of type ROIPoolingMethod |
+
+### RoundModeAttr
+
+RoundMode that the InferenceEngine supports
+
+Syntax:
+
+```
+!IE.round_mode<
+  vpux::IE::RoundMode   # value
+>
+```
+
+
+#### Parameters:
+
+| Parameter | C++ type | Description |
+| :-------: | :-------: | ----------- |
+| value | `vpux::IE::RoundMode` | an enum of type RoundMode |
+
+### RoundingTypeAttr
+
+Rounding type that operations support
+
+Syntax:
+
+```
+!IE.rounding_type<
+  vpux::IE::RoundingType   # value
+>
+```
+
+
+#### Parameters:
+
+| Parameter | C++ type | Description |
+| :-------: | :-------: | ----------- |
+| value | `vpux::IE::RoundingType` | an enum of type RoundingType |
+
+### SpaceToDepthModeAttr
+
+SpaceToDepthMode that the InferenceEngine supports
+
+Syntax:
+
+```
+!IE.space_to_depth_mode<
+  vpux::IE::SpaceToDepthMode   # value
+>
+```
+
+
+#### Parameters:
+
+| Parameter | C++ type | Description |
+| :-------: | :-------: | ----------- |
+| value | `vpux::IE::SpaceToDepthMode` | an enum of type SpaceToDepthMode |
+
+### TopKModeAttr
+
+TopKMode that the InferenceEngine supports
+
+Syntax:
+
+```
+!IE.topk_mode<
+  vpux::IE::TopKMode   # value
+>
+```
+
+
+#### Parameters:
+
+| Parameter | C++ type | Description |
+| :-------: | :-------: | ----------- |
+| value | `vpux::IE::TopKMode` | an enum of type TopKMode |
+
+### TopKSortTypeAttr
+
+TopKSortType that the InferenceEngine supports
+
+Syntax:
+
+```
+!IE.topk_sort_type<
+  vpux::IE::TopKSortType   # value
+>
+```
+
+
+#### Parameters:
+
+| Parameter | C++ type | Description |
+| :-------: | :-------: | ----------- |
+| value | `vpux::IE::TopKSortType` | an enum of type TopKSortType |
 

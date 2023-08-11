@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/utils/quantization.hpp"
 
 #include "vpux/compiler/conversion.hpp"
@@ -563,8 +561,9 @@ mlir::quant::QuantizedType vpux::getQuantizedType(mlir::Attribute lowConstAttr, 
         std::tie(scales[i], zeroPoints[i]) = calcScaleAndZeroPoint(qMin, qMax, lows[i], highs[i]);
     });
 
-    VPUX_THROW_UNLESS(std::equal(zeroPoints.begin() + 1, zeroPoints.end(), zeroPoints.begin()),
-                      "All zero points should be equal");
+    if (!std::equal(zeroPoints.begin() + 1, zeroPoints.end(), zeroPoints.begin())) {
+        return nullptr;
+    }
 
     return mlir::quant::UniformQuantizedPerAxisType::getChecked(
             loc, isSigned ? mlir::quant::QuantizationFlags::Signed : 0, storageType, realType, scales, zeroPoints,

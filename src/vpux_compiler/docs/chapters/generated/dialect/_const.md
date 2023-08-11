@@ -145,6 +145,32 @@ Const::details::PositionRequirement Const::BitPackAttr::getPositionRequirement()
 
 [TOC]
 
+## Operation definition
+
+### `const.Declare` (vpux::Const::DeclareOp)
+
+Constant tensor/buffer declaration
+
+This operation can perform extra lazy constant folding transformations for constant content.
+
+Traits: ConstantLike, DeclarationOp
+
+Interfaces: BinaryOpInterface, DotInterface, NoSideEffect (MemoryEffectOpInterface), OpAsmOpInterface
+
+Effects: MemoryEffects::Effect{}
+
+#### Attributes:
+
+| Attribute | MLIR Type | Description |
+| :-------: | :-------: | ----------- |
+| `content` | vpux::Const::ContentAttr | Lazy folded constant content
+
+#### Results:
+
+| Result | Description |
+| :----: | ----------- |
+| `output` | statically shaped tensor of any type values or statically shaped memref of any type values
+
 ## Attribute definition
 
 ### AddAttr
@@ -211,6 +237,8 @@ Convert constant content element type
 
 Dequantize constant content
 
+Syntax: `!const.Dequantize`
+
 
 ### ExpandDilatedAttr
 
@@ -227,6 +255,31 @@ Expand constant content with zeros according to dilations
 
 Generate sparsity map
 
+Syntax: `!const.GetSparsityMap`
+
+
+### OpaqueElementsAttr
+
+An opaque representation of a multi-dimensional array
+
+An opaque elements attribute is an elements attribute where the content of
+the value is opaque. Attribute is used to store a reference to shared data 
+received by compiler frontend. (It does not own the memory)
+
+Note: The parsed string literal must be in hexadecimal form.
+
+Examples:
+
+```mlir
+opaque<"elided_large_const", "0xDEADBEEF"> : tensor<10xi32>
+```
+
+#### Parameters:
+
+| Parameter | C++ type | Description |
+| :-------: | :-------: | ----------- |
+| type | `mlir::ShapedType` |  |
+| value | `::llvm::StringRef` |  |
 
 ### PadWithZeroAttr
 
@@ -260,7 +313,7 @@ Patches offsets in the weights table
 
 | Parameter | C++ type | Description |
 | :-------: | :-------: | ----------- |
-| weightsPtr | `mlir::IntegerAttr` |  |
+| weightsPtr | `mlir::ArrayAttr` |  |
 | sparsityPtr | `mlir::IntegerAttr` |  |
 | offsets | `mlir::ArrayAttr` |  |
 | weightsElemByteSize | `mlir::IntegerAttr` |  |
@@ -365,37 +418,4 @@ Transpose constant content
 | Parameter | C++ type | Description |
 | :-------: | :-------: | ----------- |
 | order | `mlir::AffineMapAttr` |  |
-
-## Operation definition
-
-### `const.Declare` (vpux::Const::DeclareOp)
-
-Constant tensor/buffer declaration
-
-
-Syntax:
-
-```
-operation ::= `const.Declare` attr-dict type($output) `=` $content
-```
-
-This operation can perform extra lazy constant folding transformations for constant content.
-
-Traits: ConstantLike, DeclarationOp
-
-Interfaces: BinaryOpInterface, DotInterface, NoSideEffect (MemoryEffectOpInterface), OpAsmOpInterface
-
-Effects: MemoryEffects::Effect{}
-
-#### Attributes:
-
-| Attribute | MLIR Type | Description |
-| :-------: | :-------: | ----------- |
-| `content` | vpux::Const::ContentAttr | Lazy folded constant content
-
-#### Results:
-
-| Result | Description |
-| :----: | ----------- |
-| `output` | statically shaped tensor of any type values or statically shaped memref of any type values
 

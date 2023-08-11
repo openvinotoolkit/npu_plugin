@@ -113,7 +113,7 @@ void overwriteManualStrategy(Json& manualStrategy, llvm::MapVector<mlir::Locatio
                     // TODO: remove "else" when tiling strategy will be abstracted into strategy pass
                     auto dummyAttr = getIntArrayAttr(op.second->getContext(), Shape(4));
                     auto manualAttribute = convertJSONToAttr(dummyAttr, it.value());
-                    op.second->setAttr(manualTilingStrategy, manualAttribute);
+                    op.second->setAttr(tilingStrategy, manualAttribute);
                 } else {
                     VPUX_THROW("Unsupported attribute '{0}'", it.key());
                 }

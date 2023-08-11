@@ -14,7 +14,7 @@ mlir::LogicalResult vpux::VPU::NegativeOp::inferReturnTypes(mlir::MLIRContext* c
                                                             mlir::ValueRange operands, mlir::DictionaryAttr attrs,
                                                             mlir::RegionRange /*regions*/,
                                                             mlir::SmallVectorImpl<mlir::Type>& inferredReturnTypes) {
-    const auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
+    const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
     VPU::NegativeOpAdaptor negative(operands, attrs);
     if (mlir::failed(negative.verify(loc))) {

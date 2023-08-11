@@ -1,7 +1,8 @@
 //
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
+
 // RUN: vpux-opt --split-input-file  --init-compiler="vpu-arch=VPUX37XX" --act-shave-profiling %s | FileCheck %s
 
 // CHECK-LABEL: @ActShaveProfiling
@@ -12,7 +13,7 @@ module @ActShaveProfiling {
         DataInfo "output" : tensor<1x150528xf32>
     } profilingOutputsInfo :  {
     }
-    func @main(%arg0: memref<1x3x224x224xf32>, %arg1: memref<1x150528xf32>) -> memref<1x150528xf32> {
+    func.func @main(%arg0: memref<1x3x224x224xf32>, %arg1: memref<1x150528xf32>) -> memref<1x150528xf32> {
         %0 = memref.alloc() : memref<1x3x224x224xf16, @DDR>
         %1 = memref.alloc() : memref<1x3x224x224xf32, [@CMX_NN, 0]>
         %2 = VPUIP.Copy inputs(%arg0 : memref<1x3x224x224xf32>) outputs(%1 : memref<1x3x224x224xf32, [@CMX_NN, 0]>) -> memref<1x3x224x224xf32, [@CMX_NN, 0]>
@@ -38,7 +39,7 @@ module @ActShaveProfiling {
 
     //CHECK:        profilingOutputsInfo
     //CHECK-NEXT:   DataInfo "actshave" : tensor<12xui32>
-    //CHECK:        func @main(%arg0: memref<1x3x224x224xf32>, %arg1: memref<1x150528xf32>, %arg2: memref<12xui32>) -> (memref<1x150528xf32>, memref<12xui32>)
+    //CHECK:        func.func @main(%arg0: memref<1x3x224x224xf32>, %arg1: memref<1x150528xf32>, %arg2: memref<12xui32>) -> (memref<1x150528xf32>, memref<12xui32>)
     //CHECK:        [[VAR0:%.+]] = memref.alloc() : memref<12xui32, [@CMX_NN, 0]>
     //CHECK:        [[VAR1:%.+]] = VPUIP.SubView [[VAR0]] [0] [4] : memref<12xui32, [@CMX_NN, 0]> to memref<4xui32, [@CMX_NN, 0]>
     //CHECK-NEXT:   VPUIP.SW.Kernel
@@ -59,10 +60,10 @@ module @ActShaveProfiling {
 
 #NWHC = affine_map<(d0, d1, d2, d3) -> (d0, d3, d2, d1)>
 
-!type_CMX = type memref<1x128x64x32xf16, #NWHC, [@CMX_NN, 0]>
-!type_CMX_subview = type memref<1x64x64x32xf16, {order = #NWHC, strides = [262144, 1, 128, 8192]}, [@CMX_NN, 0]>
+!type_CMX = memref<1x128x64x32xf16, #NWHC, [@CMX_NN, 0]>
+!type_CMX_subview = memref<1x64x64x32xf16, {order = #NWHC, strides = [262144, 1, 128, 8192]}, [@CMX_NN, 0]>
 
-!type_DDR = type memref<1x128x64x32xf16, #NWHC, @DDR>
+!type_DDR = memref<1x128x64x32xf16, #NWHC, @DDR>
 
 // CHECK-LABEL: @ActShaveProfilingMultitile
 module @ActShaveProfilingMultitile {
@@ -72,7 +73,7 @@ module @ActShaveProfilingMultitile {
         DataInfo "output" : tensor<1x128x64x32xf16>
     } profilingOutputsInfo :  {
     }
-    func @main(%arg0: !type_DDR, %arg5: !type_DDR) -> !type_DDR {
+    func.func @main(%arg0: !type_DDR, %arg5: !type_DDR) -> !type_DDR {
         %0 = memref.alloc() : !type_CMX
         %1 = VPUIP.Copy inputs(%arg0 : !type_DDR) outputs(%0 : !type_CMX) -> !type_CMX
         %2 = memref.alloc() : !type_CMX
@@ -91,7 +92,7 @@ module @ActShaveProfilingMultitile {
 
     //CHECK:        profilingOutputsInfo
     //CHECK-NEXT:   DataInfo "actshave" : tensor<8xui32>
-    //CHECK:        func @main(%arg0: memref<1x128x64x32xf16, #NWHC, @DDR>, %arg1: memref<1x128x64x32xf16, #NWHC, @DDR>, %arg2: memref<8xui32>) -> (memref<1x128x64x32xf16, #NWHC, @DDR>, memref<8xui32>)
+    //CHECK:        func.func @main(%arg0: memref<1x128x64x32xf16, #NWHC, @DDR>, %arg1: memref<1x128x64x32xf16, #NWHC, @DDR>, %arg2: memref<8xui32>) -> (memref<1x128x64x32xf16, #NWHC, @DDR>, memref<8xui32>)
     //CHECK:        [[PROF_BUF:%.+]] = memref.alloc() : memref<8xui32, [@CMX_NN, 0]>
     //CHECK:        [[PROF_BUF_SLOT:%.+]] = VPUIP.SubView [[PROF_BUF]] [0] [8] : memref<8xui32, [@CMX_NN, 0]> to memref<8xui32, [@CMX_NN, 0]>
 
@@ -115,15 +116,15 @@ module @ActShaveProfilingMultitile {
 
 #NCWH = affine_map<(d0, d1, d2, d3) -> (d0, d1, d3, d2)>
 
-!typeCmxDistributed = type !VPUIP.DistributedBuffer<
+!typeCmxDistributed = !VPUIP.DistributedBuffer<
     1x4x512x1xf16, #NCWH, @CMX_NN, {
     mode = "DUPLICATED",
     num_clusters = 2
 }>
 
-!type_CMX_memref = type memref<1x4x512x1xf16, #NCWH, @CMX_NN>
+!type_CMX_memref = memref<1x4x512x1xf16, #NCWH, @CMX_NN>
 
-!type_DDR  = type memref<1x4x512x1xf16, #NCWH, @DDR>
+!type_DDR  = memref<1x4x512x1xf16, #NCWH, @DDR>
 
 // CHECK-LABEL: @ActShaveProfilingMulticluster
 module @ActShaveProfilingMulticluster {
@@ -133,8 +134,8 @@ module @ActShaveProfilingMulticluster {
         DataInfo "output" : tensor<1x4x512x1xf16>
     } profilingOutputsInfo :  {
     }
-    func @main(%arg0: !type_DDR, %arg5: !type_DDR) -> !type_DDR {
-        
+    func.func @main(%arg0: !type_DDR, %arg5: !type_DDR) -> !type_DDR {
+
         %1 = VPURT.AllocDistributed -> !typeCmxDistributed
 
         %2 = VPUIP.NCEClusterTiling inputs(%arg0 as %arg1: !type_DDR) outputs(%1 as %arg2: !type_CMX_memref) -> !typeCmxDistributed {
@@ -157,8 +158,8 @@ module @ActShaveProfilingMulticluster {
     //CHECK:        profilingOutputsInfo
     //CHECK-NEXT:   DataInfo "actshave" : tensor<8xui32>
     //CHECK:         @main(%arg0: memref<1x4x512x1xf16, #NCWH, @DDR>, %arg1: memref<1x4x512x1xf16, #NCWH, @DDR>, %arg2: memref<8xui32>) -> (memref<1x4x512x1xf16, #NCWH, @DDR>, memref<8xui32>)
-    //CHECK:        [[PROF_BUF:%.+]] = VPURT.AllocDistributed -> !VPUIP.DistributedBuffer<8xui32, #C, @CMX_NN, {mode = "SEGMENTED", num_tiles = [2], num_clusters = 2 : i64}>
-    //CHECK:        [[PROF_BUF_SLOT:%.+]] = VPUIP.SubView [[PROF_BUF]] [0] [8] : !VPUIP.DistributedBuffer<8xui32, #C, @CMX_NN, {mode = "SEGMENTED", num_tiles = [2], num_clusters = 2 : i64}> to !VPUIP.DistributedBuffer<8xui32, {order = #C, strides = [1]}, @CMX_NN, {mode = "SEGMENTED", num_tiles = [2], num_clusters = 2 : i64}>
+    //CHECK:        [[PROF_BUF:%.+]] = VPURT.AllocDistributed -> !VPUIP.DistributedBuffer<8xui32, #C, @CMX_NN, {mode = "SEGMENTED", num_tiles = [2], num_clusters = 2 : i64, uniform_distributed_segments}>
+    //CHECK:        [[PROF_BUF_SLOT:%.+]] = VPUIP.SubView [[PROF_BUF]] [0] [8] : !VPUIP.DistributedBuffer<8xui32, #C, @CMX_NN, {mode = "SEGMENTED", num_tiles = [2], num_clusters = 2 : i64, uniform_distributed_segments}> to !VPUIP.DistributedBuffer<8xui32, {order = #C, strides = [1]}, @CMX_NN, {mode = "SEGMENTED", num_tiles = [2], num_clusters = 2 : i64, uniform_distributed_segments}>
 
     //CHECK:        [[NCE_RES_ACT:%[0-9]+]]:2 = VPUIP.NCEClusterTiling
     //CHECK-SAME:       outputs(
@@ -169,9 +170,9 @@ module @ActShaveProfilingMulticluster {
     //CHECK-NEXT:           VPUIP.SW.Kernel.run
 
     //CHECK:        [[PROF_OUTPUT:%.+]] = VPUIP.SubView %arg2 [0] [8] : memref<8xui32> to memref<8xui32
-    //CHECK:        [[CONCAT_PROF_RES:%.+]] = VPUIP.ConcatView 
-    //CHECK-SAME:       inputs([[NCE_RES_ACT]]#1 : !VPUIP.DistributedBuffer<8xui32, {order = #C, strides = [1]}, @CMX_NN, {mode = "SEGMENTED", num_tiles = [2], num_clusters = 2 : i64}>)
-    //CHECK-SAME:       outputs([[PROF_BUF]] : !VPUIP.DistributedBuffer<8xui32, #C, @CMX_NN, {mode = "SEGMENTED", num_tiles = [2], num_clusters = 2 : i64}>)
+    //CHECK:        [[CONCAT_PROF_RES:%.+]] = VPUIP.ConcatView
+    //CHECK-SAME:       inputs([[NCE_RES_ACT]]#1 : !VPUIP.DistributedBuffer<8xui32, {order = #C, strides = [1]}, @CMX_NN, {mode = "SEGMENTED", num_tiles = [2], num_clusters = 2 : i64, uniform_distributed_segments}>)
+    //CHECK-SAME:       outputs([[PROF_BUF]] : !VPUIP.DistributedBuffer<8xui32, #C, @CMX_NN, {mode = "SEGMENTED", num_tiles = [2], num_clusters = 2 : i64, uniform_distributed_segments}>)
 
     //CHECK:        [[NCE_RES_COPY:%.+]] = VPUIP.NCEClusterTiling
     //CHECK-SAME:       inputs([[CONCAT_PROF_RES]] as [[ARG3:%.+]]: memref<8xui32, @CMX_NN>)
@@ -188,23 +189,23 @@ module @ActShaveProfilingMulticluster {
 
 #NWHC = affine_map<(d0, d1, d2, d3) -> (d0, d3, d2, d1)>
 
-!type_CMX_Distributed = type !VPUIP.DistributedBuffer<
+!type_CMX_Distributed = !VPUIP.DistributedBuffer<
     1x128x64x32xf16, #NWHC, @CMX_NN, {
     mode = "DUPLICATED",
     num_clusters = 2 : i64
 }>
 
-!type_CMX_Distributed_subview = type !VPUIP.DistributedBuffer<
+!type_CMX_Distributed_subview = !VPUIP.DistributedBuffer<
     1x64x64x32xf16, {order = #NWHC, strides = [262144, 1, 128, 8192]}, @CMX_NN, {
     mode = "DUPLICATED",
     num_clusters = 2 : i64
 }>
 
-!type_CMX = type memref<1x128x64x32xf16, #NWHC, @CMX_NN>
+!type_CMX = memref<1x128x64x32xf16, #NWHC, @CMX_NN>
 
-!type_CMX_subview = type memref<1x64x64x32xf16, {order = #NWHC, strides = [262144, 1, 128, 8192]}, @CMX_NN>
+!type_CMX_subview = memref<1x64x64x32xf16, {order = #NWHC, strides = [262144, 1, 128, 8192]}, @CMX_NN>
 
-!type_DDR = type memref<1x128x64x32xf16, #NWHC, @DDR>
+!type_DDR = memref<1x128x64x32xf16, #NWHC, @DDR>
 
 // CHECK-LABEL: @ActShaveProfilingMulticlusterMultitile
 module @ActShaveProfilingMulticlusterMultitile {
@@ -214,7 +215,7 @@ module @ActShaveProfilingMulticlusterMultitile {
         DataInfo "output" : tensor<1x128x64x32xf16>
     } profilingOutputsInfo :  {
     }
-    func @main(%arg0: !type_DDR, %arg9: !type_DDR) -> !type_DDR {
+    func.func @main(%arg0: !type_DDR, %arg9: !type_DDR) -> !type_DDR {
         %0 = VPURT.AllocDistributed -> !type_CMX_Distributed
         %1 = VPUIP.NCEClusterTiling inputs(%arg0 as %arg1: !type_DDR) outputs(%0 as %arg2: !type_CMX) -> !type_CMX_Distributed {
             %11 = VPUIP.Copy inputs(%arg1 : !type_DDR) outputs(%arg2 : !type_CMX) -> !type_CMX
@@ -241,8 +242,8 @@ module @ActShaveProfilingMulticlusterMultitile {
     //CHECK:        profilingOutputsInfo
     //CHECK-NEXT:   DataInfo "actshave" : tensor<16xui32>
     //CHECK:         @main(%arg0: memref<1x128x64x32xf16, #NWHC, @DDR>, %arg1: memref<1x128x64x32xf16, #NWHC, @DDR>, %arg2: memref<16xui32>) -> (memref<1x128x64x32xf16, #NWHC, @DDR>, memref<16xui32>)
-    //CHECK:        [[PROF_BUF:%.+]] = VPURT.AllocDistributed -> !VPUIP.DistributedBuffer<16xui32, #C, @CMX_NN, {mode = "SEGMENTED", num_tiles = [2], num_clusters = 2 : i64}>
-    //CHECK:        [[PROF_BUF_SLOT:%.+]] = VPUIP.SubView [[PROF_BUF]] [0] [16] : !VPUIP.DistributedBuffer<16xui32, #C, @CMX_NN, {mode = "SEGMENTED", num_tiles = [2], num_clusters = 2 : i64}> to !VPUIP.DistributedBuffer<16xui32, {order = #C, strides = [1]}, @CMX_NN, {mode = "SEGMENTED", num_tiles = [2], num_clusters = 2 : i64}>
+    //CHECK:        [[PROF_BUF:%.+]] = VPURT.AllocDistributed -> !VPUIP.DistributedBuffer<16xui32, #C, @CMX_NN, {mode = "SEGMENTED", num_tiles = [2], num_clusters = 2 : i64, uniform_distributed_segments}>
+    //CHECK:        [[PROF_BUF_SLOT:%.+]] = VPUIP.SubView [[PROF_BUF]] [0] [16] : !VPUIP.DistributedBuffer<16xui32, #C, @CMX_NN, {mode = "SEGMENTED", num_tiles = [2], num_clusters = 2 : i64, uniform_distributed_segments}> to !VPUIP.DistributedBuffer<16xui32, {order = #C, strides = [1]}, @CMX_NN, {mode = "SEGMENTED", num_tiles = [2], num_clusters = 2 : i64, uniform_distributed_segments}>
 
     //CHECK:        [[NCE_RES_ACT:%[0-9]+]]:3 = VPUIP.NCEClusterTiling
     //CHECK-SAME:       outputs(
@@ -254,9 +255,9 @@ module @ActShaveProfilingMulticlusterMultitile {
     //CHECK-NEXT:           VPUIP.SW.Kernel.run
 
     //CHECK:        [[PROF_OUTPUT:%.+]] = VPUIP.SubView %arg2 [0] [16] : memref<16xui32> to memref<16xui32
-    //CHECK:        [[CONCAT_PROF_RES:%.+]] = VPUIP.ConcatView 
-    //CHECK-SAME:       inputs([[NCE_RES_ACT]]#2 : !VPUIP.DistributedBuffer<16xui32, {order = #C, strides = [1]}, @CMX_NN, {mode = "SEGMENTED", num_tiles = [2], num_clusters = 2 : i64}>)
-    //CHECK-SAME:       outputs([[PROF_BUF]] : !VPUIP.DistributedBuffer<16xui32, #C, @CMX_NN, {mode = "SEGMENTED", num_tiles = [2], num_clusters = 2 : i64}>)
+    //CHECK:        [[CONCAT_PROF_RES:%.+]] = VPUIP.ConcatView
+    //CHECK-SAME:       inputs([[NCE_RES_ACT]]#2 : !VPUIP.DistributedBuffer<16xui32, {order = #C, strides = [1]}, @CMX_NN, {mode = "SEGMENTED", num_tiles = [2], num_clusters = 2 : i64, uniform_distributed_segments}>)
+    //CHECK-SAME:       outputs([[PROF_BUF]] : !VPUIP.DistributedBuffer<16xui32, #C, @CMX_NN, {mode = "SEGMENTED", num_tiles = [2], num_clusters = 2 : i64, uniform_distributed_segments}>)
 
     //CHECK:        [[NCE_RES_COPY:%.+]] = VPUIP.NCEClusterTiling
     //CHECK-SAME:       inputs([[CONCAT_PROF_RES]] as [[ARG3:%.+]]: memref<16xui32, @CMX_NN>)

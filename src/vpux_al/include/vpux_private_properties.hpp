@@ -7,6 +7,7 @@
 
 #include <openvino/runtime/properties.hpp>
 #include <string>
+#include <vpux/utils/core/error.hpp>
 #include <vpux/vpux_plugin_config.hpp>
 
 #include "vpux_private_config.hpp"
@@ -25,8 +26,6 @@ enum ColorFormat : uint32_t {
     BGR,       ///< BGR color format, default in DLDT
     RGBX,      ///< RGBX color format with X ignored during inference
     BGRX,      ///< BGRX color format with X ignored during inference
-    NV12,      ///< NV12 color format represented as compound Y+UV blob
-    I420,      ///< I420 color format represented as compound Y+U+V blob
 };
 
 /**
@@ -47,10 +46,6 @@ inline InferenceEngine::ColorFormat cvtColorFormat(ColorFormat fmt) {
         return InferenceEngine::ColorFormat::RGBX;
     case ColorFormat::BGRX:
         return InferenceEngine::ColorFormat::BGRX;
-    case ColorFormat::NV12:
-        return InferenceEngine::ColorFormat::NV12;
-    case ColorFormat::I420:
-        return InferenceEngine::ColorFormat::I420;
     default:
         VPUX_THROW("Unknown ColorFormat {0} to onvert to InferenceEngine::ColorFormat", static_cast<uint32_t>(fmt));
     }
@@ -80,12 +75,6 @@ inline std::ostream& operator<<(std::ostream& out, const ColorFormat& fmt) {
     case ColorFormat::BGRX: {
         out << "BGRX";
     } break;
-    case ColorFormat::NV12: {
-        out << "NV12";
-    } break;
-    case ColorFormat::I420: {
-        out << "I420";
-    } break;
     default:
         out << static_cast<uint32_t>(fmt);
         break;
@@ -99,14 +88,14 @@ inline std::ostream& operator<<(std::ostream& out, const ColorFormat& fmt) {
  * @note Configuration API v 2.0
  */
 enum class VPUXPlatform : int {
-    AUTO = 0,        // Auto detection
-    VPU3400_A0 = 1,  // VPUX30XX A0
-    VPU3400 = 2,     // VPUX30XX B0
-    VPU3700 = 3,     // VPUX30XX B0
-    VPU3800 = 4,     // VPUX311X Prime
-    VPU3900 = 5,     // VPUX311X Full
-    VPU3720 = 6,     // VPU3720
-    EMULATOR = 7,    // Emulator
+    AUTO_DETECT = 0,  // Auto detection
+    VPU3400_A0 = 1,   // VPU30XX A0
+    VPU3400 = 2,      // VPU30XX B0 500 MHz
+    VPU3700 = 3,      // VPU30XX B0 700 MHz
+    VPU3800 = 4,      // VPU311X Prime
+    VPU3900 = 5,      // VPU311X Full
+    VPU3720 = 6,      // VPU3720
+    EMULATOR = 7,     // Emulator
 };
 
 /**
@@ -117,8 +106,8 @@ enum class VPUXPlatform : int {
  */
 inline InferenceEngine::VPUXConfigParams::VPUXPlatform cvtVPUXPlatform(VPUXPlatform fmt) {
     switch (fmt) {
-    case VPUXPlatform::AUTO:
-        return InferenceEngine::VPUXConfigParams::VPUXPlatform::AUTO;
+    case VPUXPlatform::AUTO_DETECT:
+        return InferenceEngine::VPUXConfigParams::VPUXPlatform::AUTO_DETECT;
     case VPUXPlatform::VPU3400_A0:
         return InferenceEngine::VPUXConfigParams::VPUXPlatform::VPU3400_A0;
     case VPUXPlatform::VPU3400:
@@ -148,8 +137,8 @@ inline InferenceEngine::VPUXConfigParams::VPUXPlatform cvtVPUXPlatform(VPUXPlatf
  */
 inline std::ostream& operator<<(std::ostream& out, const VPUXPlatform& fmt) {
     switch (fmt) {
-    case VPUXPlatform::AUTO: {
-        out << "AUTO";
+    case VPUXPlatform::AUTO_DETECT: {
+        out << "AUTO_DETECT";
     } break;
     case VPUXPlatform::VPU3400_A0: {
         out << "VPU3400_A0";
@@ -236,63 +225,126 @@ inline std::ostream& operator<<(std::ostream& out, const ProfilingOutputTypeArg&
 
 /**
  * @brief [Only for VPUX Plugin]
+ * Type: string, default is MLIR.
+ * Type of VPU compiler to be used for compilation of a network
+ * @note Configuration API v 2.0
+ */
+enum class CompilerType { MLIR, DRIVER };
+
+/**
+ * @brief Converts ov::intel_vpux::CompilerType to InferenceEngine::VPUXConfigParams::CompilerType
+ * @param fmt ov::intel_vpux::CompilerType value to convert
+ * @return the corresponding analogue of fmt in InferenceEngine::VPUXConfigParams::CompilerType
+ * @note Configuration API v 2.0
+ */
+inline InferenceEngine::VPUXConfigParams::CompilerType cvtCompilerType(CompilerType fmt) {
+    switch (fmt) {
+    case CompilerType::MLIR:
+        return InferenceEngine::VPUXConfigParams::CompilerType::MLIR;
+    case CompilerType::DRIVER:
+        return InferenceEngine::VPUXConfigParams::CompilerType::DRIVER;
+    default:
+        VPUX_THROW("Unknown CompilerType {0} to convert to "
+                   "InferenceEngine::VPUXConfigParams::CompilerType",
+                   static_cast<uint32_t>(fmt));
+    }
+}
+
+/**
+ * @brief Prints a string representation of ov::intel_vpux::CompilerType to a stream
+ * @param out An output stream to send to
+ * @param fmt A compiler type value to print to a stream
+ * @return A reference to the `out` stream
+ * @note Configuration API v 2.0
+ */
+inline std::ostream& operator<<(std::ostream& out, const CompilerType& fmt) {
+    switch (fmt) {
+    case CompilerType::MLIR: {
+        out << "MLIR";
+    } break;
+    case CompilerType::DRIVER: {
+        out << "DRIVER";
+    } break;
+    default:
+        out << static_cast<uint32_t>(fmt);
+        break;
+    }
+    return out;
+}
+
+/**
+ * @brief [Only for VPUX Plugin]
+ * Type: String. Default is "AUTO".
+ * This option is added for enabling ELF backend.
+ * Possible values: "AUTO", "YES", "NO".
+ */
+
+enum class ElfCompilerBackend {
+    AUTO = 0,
+    NO = 1,
+    YES = 2,
+};
+
+/**
+ * @brief Converts ov::intel_vpux::CompilerType to InferenceEngine::VPUXConfigParams::ElfCompilerBackend
+ * @param fmt ov::intel_vpux::CompilerType value to convert
+ * @return the corresponding analogue of fmt in InferenceEngine::VPUXConfigParams::ElfCompilerBackend
+ * @note Configuration API v 2.0
+ */
+inline InferenceEngine::VPUXConfigParams::ElfCompilerBackend cvtCompilerType(ElfCompilerBackend fmt) {
+    switch (fmt) {
+    case ElfCompilerBackend::AUTO:
+        return InferenceEngine::VPUXConfigParams::ElfCompilerBackend::AUTO;
+    case ElfCompilerBackend::NO:
+        return InferenceEngine::VPUXConfigParams::ElfCompilerBackend::NO;
+    case ElfCompilerBackend::YES:
+        return InferenceEngine::VPUXConfigParams::ElfCompilerBackend::YES;
+    default:
+        VPUX_THROW("Unknown ElfCompilerBackend {0} to convert to "
+                   "InferenceEngine::VPUXConfigParams::ElfCompilerBackend",
+                   static_cast<uint32_t>(fmt));
+    }
+}
+
+/**
+ * @brief Prints a string representation of ov::intel_vpux::ElfCompilerBackend to a stream
+ * @param out An output stream to send to
+ * @param fmt A elf compiler backend value to print to a stream
+ * @return A reference to the `out` stream
+ * @note Configuration API v 2.0
+ */
+inline std::ostream& operator<<(std::ostream& out, const ElfCompilerBackend& fmt) {
+    switch (fmt) {
+    case ElfCompilerBackend::AUTO: {
+        out << "AUTO";
+    } break;
+    case ElfCompilerBackend::NO: {
+        out << "NO";
+    } break;
+    case ElfCompilerBackend::YES: {
+        out << "YES";
+    } break;
+    default:
+        out << static_cast<uint32_t>(fmt);
+        break;
+    }
+    return out;
+}
+
+/**
+ * @brief [Only for VPUX Plugin]
  * Type: Arbitrary string.
  * This option allows to specify device.
  * If specified device is not available then creating infer request will throw an exception.
  */
-static constexpr ov::Property<InferenceEngine::VPUXConfigParams::VPUXPlatform> vpux_platform{"VPUX_PLATFORM"};
-
-/**
- * @brief [Only for VPUX Plugin]
- * Type: "RGB", "BGR", default is "BGR"
- * This option allows to specify output format of image after SIPP preprocessing.
- * Does not affect preprocessing running on CPU. If a wrong value specified an exception will be thrown
- */
-static constexpr ov::Property<ColorFormat> graph_color_format{"VPUX_GRAPH_COLOR_FORMAT"};
-
-/**
- * @brief [Only for VPUX Plugin]
- * Type: integer, default is 4.
- * Number of shaves to be used by SIPP during preprocessing
- */
-static constexpr ov::Property<int64_t> preprocessing_shaves{"VPUX_PREPROCESSING_SHAVES"};
-
-/**
- * @brief [Only for VPUAL Subplugin]
- * Type: integer, default is 8.
- * Lines per iteration value to be used by SIPP during preprocessing
- */
-static constexpr ov::Property<int64_t> preprocessing_lpi{"VPUX_PREPROCESSING_LPI"};
-
-/**
- * @brief [Only for VPUX Plugin]
- * Type: integer, default is 1.
- * Number of preprocessing pipelines to be used by particular network,
- * these pipelines will work in parallel and make preprocessing
- * for all infer requests of this network
- */
-static constexpr ov::Property<int64_t> preprocessing_pipes{"VPUX_PREPROCESSING_PIPES"};
-
-/**
- * @brief [Only for VPUAL Subplugin]
- * Type: "YES", "NO", default is "YES"
- * This option allows to use Streaming Image Processing Pipeline (SIPP) for image pre-processing
- */
-static constexpr ov::Property<bool> use_sipp{"VPUX_USE_SIPP"};
-
-/**
- * @brief [Only for VPUX Plugin]
- * Type: integer, default is 5 minutes = 60 * 1000 * 5.
- * Time interval during which to wait for backend pull to complete
- */
-static constexpr ov::Property<int64_t> inference_timeout{"VPUX_INFERENCE_TIMEOUT"};
+static constexpr ov::Property<VPUXPlatform> vpux_platform{"VPUX_PLATFORM"};
 
 /**
  * @brief [Only for VPUX Plugin]
  * Type: string, default is MLIR for DEVELOPER_BUILD, DRIVER otherwise.
  * Type of VPU compiler to be used for compilation of a network
  */
-static constexpr ov::Property<InferenceEngine::VPUXConfigParams::CompilerType> compiler_type{"VPUX_COMPILER_TYPE"};
+static constexpr ov::Property<CompilerType> compiler_type{"VPUX_COMPILER_TYPE"};
 
 static constexpr ov::Property<std::string> compilation_mode{"VPUX_COMPILATION_MODE"};
 
@@ -331,8 +383,7 @@ static constexpr ov::Property<int64_t> dma_engines{"VPUX_DMA_ENGINES"};
  * NONE - do not print profiling info
  * TEXT, JSON - print detailed profiling info during inference in requested format
  */
-static constexpr ov::Property<InferenceEngine::VPUXConfigParams::ProfilingOutputTypeArg> print_profiling{
-        "VPUX_PRINT_PROFILING"};
+static constexpr ov::Property<ProfilingOutputTypeArg> print_profiling{"VPUX_PRINT_PROFILING"};
 
 /**
  * @brief [Only for VPUX Plugin]
@@ -344,9 +395,18 @@ static constexpr ov::Property<std::string> profiling_output_file{"VPUX_PROFILING
 
 /**
  * @brief
- * Type: "YES", "NO", default is "NO".
+ * Type: String. Default is "AUTO".
+ * This option is added for enabling ELF backend.
+ * Possible values: "AUTO", "YES", "NO".
  */
-static constexpr ov::Property<bool> use_elf_compiler_backend{"VPUX_USE_ELF_COMPILER_BACKEND"};
+static constexpr ov::Property<ElfCompilerBackend> use_elf_compiler_backend{"VPUX_USE_ELF_COMPILER_BACKEND"};
+
+/**
+ * @brief [Only for VPUX Plugin]
+ * Type: integer, default is 1
+ * This option allows to omit creating an executor and therefore to omit running an inference when its value is 0
+ */
+static constexpr ov::Property<int64_t> create_executor{"VPUX_CREATE_EXECUTOR"};
 
 }  // namespace intel_vpux
 }  // namespace ov

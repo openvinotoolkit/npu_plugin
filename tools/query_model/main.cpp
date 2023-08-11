@@ -4,7 +4,11 @@
 //
 
 #include <cassert>
+#ifdef GNU_LESS_9_1
+#include <experimental/filesystem>
+#else
 #include <filesystem>
+#endif
 #include <string>
 #include <unordered_set>
 
@@ -57,7 +61,11 @@ void ParseAndCheckCommandLine(int argc, char* argv[]) {
 }
 
 std::string find_dumped_model() {
+#ifdef GNU_LESS_9_1
+    namespace fs = std::experimental::filesystem;
+#else
     namespace fs = std::filesystem;
+#endif
 
     const auto ir_ends_with = std::string("_canonical.xml");
 
@@ -95,7 +103,7 @@ std::unordered_set<std::string> find_unsupported_layers(const std::shared_ptr<ov
     };
 
     for (const auto& op : dumped_model->get_ordered_ops()) {
-        const auto fused_layers = ngraph::getFusedNamesVector(op);
+        const auto fused_layers = ov::getFusedNamesVector(op);
         if (std::any_of(fused_layers.begin(), fused_layers.end(), not_supported)) {
             unsupported_ops.insert(op->get_type_name());
         }

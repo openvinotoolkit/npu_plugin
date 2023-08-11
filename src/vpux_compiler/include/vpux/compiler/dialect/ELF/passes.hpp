@@ -3,13 +3,11 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #pragma once
 
 #include "vpux/compiler/dialect/ELF/ops.hpp"
 #include "vpux/compiler/dialect/IERT/ops.hpp"
-#include "vpux/compiler/dialect/VPUIPRegMapped/ops.hpp"
+#include "vpux/compiler/dialect/VPUMI37XX/ops.hpp"
 #include "vpux/compiler/utils/passes.hpp"
 
 #include "vpux/utils/core/logger.hpp"

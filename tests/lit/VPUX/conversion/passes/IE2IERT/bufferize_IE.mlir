@@ -1,11 +1,12 @@
 //
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
+
 // RUN: vpux-opt --split-input-file --init-compiler="vpu-arch=%arch%" --bufferize-IE %s | FileCheck %s
 // REQUIRES: arch-VPUX30XX || arch-VPUX37XX
 
-func @SingleLayer(%arg0: tensor<1x1000xf16>) -> tensor<1x1000xf16> {
+func.func @SingleLayer(%arg0: tensor<1x1000xf16>) -> tensor<1x1000xf16> {
     %prob = IE.SoftMax(%arg0) {axisInd = 1} : tensor<1x1000xf16> -> tensor<1x1000xf16>
     return %prob : tensor<1x1000xf16>
 
@@ -23,12 +24,12 @@ func @SingleLayer(%arg0: tensor<1x1000xf16>) -> tensor<1x1000xf16> {
 
 // -----
 
-func @ConstantLayer() -> tensor<1x2x2x2xf16> {
+func.func @ConstantLayer() -> tensor<1x2x2x2xf16> {
     %0 = const.Declare tensor<1x2x2x2xf16> =
       dense<1.0> : tensor<1x2x2x2xf32>, [#const.ConvertElemType<f16>]
     return %0 : tensor<1x2x2x2xf16>
 
-    // CHECK:       [[VAR0:%.*]] = const.Declare memref<1x2x2x2xf16> =
+    // CHECK-DAG:       [[VAR0:%.*]] = const.Declare memref<1x2x2x2xf16> =
     // CHECK-SAME:      dense<1.000000e+00> : tensor<1x2x2x2xf32>, [#const.ConvertElemType<f16>]
 
     // CHECK:       [[VAR1:%.*]] = builtin.unrealized_conversion_cast [[VAR0]] : memref<1x2x2x2xf16> to tensor<1x2x2x2xf16>
@@ -37,7 +38,7 @@ func @ConstantLayer() -> tensor<1x2x2x2xf16> {
 
 // -----
 
-func @Reshape(%arg0 : tensor<1x512x1x1xf32>) -> tensor<1x512xf32> {
+func.func @Reshape(%arg0 : tensor<1x512x1x1xf32>) -> tensor<1x512xf32> {
     %0 = IE.Reshape(%arg0) { shape_value = [1, 512] } : tensor<1x512x1x1xf32> -> tensor<1x512xf32>
     return %0 : tensor<1x512xf32>
 
@@ -51,7 +52,7 @@ func @Reshape(%arg0 : tensor<1x512x1x1xf32>) -> tensor<1x512xf32> {
 
 // -----
 
-func @Split(%tensor: tensor<2x6x4x2xf32>) -> (tensor<1x6x4x2xf32>, tensor<1x6x4x2xf32>) {
+func.func @Split(%tensor: tensor<2x6x4x2xf32>) -> (tensor<1x6x4x2xf32>, tensor<1x6x4x2xf32>) {
     %0:2 = IE.Split(%tensor) {num_splits = 2, axis_value = 0} : tensor<2x6x4x2xf32> -> tensor<1x6x4x2xf32>, tensor<1x6x4x2xf32>
     return %0#0, %0#1 : tensor<1x6x4x2xf32>, tensor<1x6x4x2xf32>
 
@@ -76,7 +77,7 @@ func @Split(%tensor: tensor<2x6x4x2xf32>) -> (tensor<1x6x4x2xf32>, tensor<1x6x4x
 
 // -----
 
-func @Concat(%arg0: tensor<1x2x3x4xf32>, %arg1: tensor<1x2x3x4xf32>) -> tensor<1x4x3x4xf32> {
+func.func @Concat(%arg0: tensor<1x2x3x4xf32>, %arg1: tensor<1x2x3x4xf32>) -> tensor<1x4x3x4xf32> {
     %0 = IE.Concat(%arg0, %arg1) {per_axis = {axis = 1}} :
         tensor<1x2x3x4xf32>, tensor<1x2x3x4xf32> -> tensor<1x4x3x4xf32>
     return %0 : tensor<1x4x3x4xf32>
@@ -108,7 +109,7 @@ func @Concat(%arg0: tensor<1x2x3x4xf32>, %arg1: tensor<1x2x3x4xf32>) -> tensor<1
 
 // -----
 
-func @ConcatWithStride(%arg0: tensor<1x2x3x4xf32>, %arg1: tensor<1x2x3x4xf32>) -> tensor<1x4x3x4xf32> {
+func.func @ConcatWithStride(%arg0: tensor<1x2x3x4xf32>, %arg1: tensor<1x2x3x4xf32>) -> tensor<1x4x3x4xf32> {
     %0 = IE.Concat(%arg0, %arg1) {per_axis = {axis = 1, offset = 1, stride = 2}} :
         tensor<1x2x3x4xf32>, tensor<1x2x3x4xf32> -> tensor<1x4x3x4xf32>
     return %0 : tensor<1x4x3x4xf32>
@@ -140,7 +141,7 @@ func @ConcatWithStride(%arg0: tensor<1x2x3x4xf32>, %arg1: tensor<1x2x3x4xf32>) -
 
 // -----
 
-func @ExpandToSubview(%arg0: tensor<1x3x4x4xf16>) -> tensor<1x8x4x4xf16> {
+func.func @ExpandToSubview(%arg0: tensor<1x3x4x4xf16>) -> tensor<1x8x4x4xf16> {
     %0 = IE.Expand(%arg0) {pads_begin = [0, 0, 0, 0], pads_end = [0, 5, 0, 0]} : tensor<1x3x4x4xf16> -> tensor<1x8x4x4xf16>
     return %0 : tensor<1x8x4x4xf16>
 
@@ -178,7 +179,7 @@ func @ExpandToSubview(%arg0: tensor<1x3x4x4xf16>) -> tensor<1x8x4x4xf16> {
 
 // -----
 
-func @ExpandToSubviewWithoutTail(%arg0: tensor<1x4x4x4xf16>) -> tensor<1x8x4x4xf16> {
+func.func @ExpandToSubviewWithoutTail(%arg0: tensor<1x4x4x4xf16>) -> tensor<1x8x4x4xf16> {
     %0 = IE.Expand(%arg0) {pads_begin = [0, 0, 0, 0], pads_end = [0, 4, 0, 0]} : tensor<1x4x4x4xf16> -> tensor<1x8x4x4xf16>
     return %0 : tensor<1x8x4x4xf16>
 
@@ -208,7 +209,7 @@ func @ExpandToSubviewWithoutTail(%arg0: tensor<1x4x4x4xf16>) -> tensor<1x8x4x4xf
 
 // -----
 
-func @ExpandToSubviewOnlyWithTail(%arg0: tensor<1x5x4x4xf16>) -> tensor<1x8x4x4xf16> {
+func.func @ExpandToSubviewOnlyWithTail(%arg0: tensor<1x5x4x4xf16>) -> tensor<1x8x4x4xf16> {
     %0 = IE.Expand(%arg0) {pads_begin = [0, 0, 0, 0], pads_end = [0, 3, 0, 0]} : tensor<1x5x4x4xf16> -> tensor<1x8x4x4xf16>
     return %0 : tensor<1x8x4x4xf16>
 
@@ -242,7 +243,7 @@ func @ExpandToSubviewOnlyWithTail(%arg0: tensor<1x5x4x4xf16>) -> tensor<1x8x4x4x
 
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
-func @WithMemSpace(%arg0: tensor<1x2x3x4xf16>) -> tensor<1x2x3x4xf16> {
+func.func @WithMemSpace(%arg0: tensor<1x2x3x4xf16>) -> tensor<1x2x3x4xf16> {
     %0 = IE.ReLU(%arg0) : tensor<1x2x3x4xf16> -> tensor<1x2x3x4xf16, {order = #NHWC, mem_space = @CMX_NN}>
     %1 = IE.Tanh(%0) : tensor<1x2x3x4xf16, {order = #NHWC, mem_space = @CMX_NN}> -> tensor<1x2x3x4xf16>
     return %1 : tensor<1x2x3x4xf16>
@@ -268,7 +269,7 @@ func @WithMemSpace(%arg0: tensor<1x2x3x4xf16>) -> tensor<1x2x3x4xf16> {
 #NCHW = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
-func @PermuteCast(%arg0: tensor<1x12x16x16xf16, {order = #NHWC}>) -> tensor<1x16x16x12xf16> {
+func.func @PermuteCast(%arg0: tensor<1x12x16x16xf16, {order = #NHWC}>) -> tensor<1x16x16x12xf16> {
     %0 = IE.PermuteCast(%arg0) {dst_order = #NCHW, mem_perm = #NCHW} :
         tensor<1x12x16x16xf16, {order = #NHWC}> -> tensor<1x16x16x12xf16>
     return %0 : tensor<1x16x16x12xf16>
@@ -287,7 +288,7 @@ func @PermuteCast(%arg0: tensor<1x12x16x16xf16, {order = #NHWC}>) -> tensor<1x16
 // -----
 
 // CHECK-LABEL: @Roll
-func @Roll(%arg0: tensor<3x10x100x200xf16>) -> tensor<3x10x100x200xf16> {
+func.func @Roll(%arg0: tensor<3x10x100x200xf16>) -> tensor<3x10x100x200xf16> {
     %cst = const.Declare tensor<1xsi32> = dense<3> : tensor<1xsi64>, [#const.ConvertElemType<si32>]
     %cst_0 = const.Declare tensor<2xsi32> = dense<3> : tensor<2xsi64>, [#const.ConvertElemType<si32>]
     %0 = IE.Roll(%arg0, %cst, %cst_0) : tensor<3x10x100x200xf16>, tensor<1xsi32>, tensor<2xsi32> -> tensor<3x10x100x200xf16>
@@ -295,8 +296,8 @@ func @Roll(%arg0: tensor<3x10x100x200xf16>) -> tensor<3x10x100x200xf16> {
 
     // CHECK:       [[VAR0:%.*]] = builtin.unrealized_conversion_cast %arg0
     // CHECK-SAME:       : tensor<3x10x100x200xf16> to memref<3x10x100x200xf16>
-    // CHECK:       [[VAR1:%.*]] = const.Declare memref<1xsi32> = dense<3> : tensor<1xsi64>, [#const.ConvertElemType<si32>]
-    // CHECK:       [[VAR2:%.*]] = const.Declare memref<2xsi32> = dense<3> : tensor<2xsi64>, [#const.ConvertElemType<si32>]
+    // CHECK-DAG:       [[VAR1:%.*]] = const.Declare memref<1xsi32> = dense<3> : tensor<1xsi64>, [#const.ConvertElemType<si32>]
+    // CHECK-DAG:       [[VAR2:%.*]] = const.Declare memref<2xsi32> = dense<3> : tensor<2xsi64>, [#const.ConvertElemType<si32>]
     // CHECK:       [[VAR3:%.*]] = memref.alloc() : memref<3x10x100x200xf16>
     // CHECK:       [[VAR4:%.*]] = IERT.Roll inputs([[VAR0]] : memref<3x10x100x200xf16>, [[VAR1]] : memref<1xsi32>, [[VAR2]] : memref<2xsi32>) outputs([[VAR3]] : memref<3x10x100x200xf16>) -> memref<3x10x100x200xf16>
     // CHECK:       [[VAR5:%.*]] = builtin.unrealized_conversion_cast [[VAR4]] : memref<3x10x100x200xf16> to tensor<3x10x100x200xf16>
@@ -306,7 +307,7 @@ func @Roll(%arg0: tensor<3x10x100x200xf16>) -> tensor<3x10x100x200xf16> {
 // -----
 
 // CHECK-LABEL: @CTCGreedyDecoder
-func @CTCGreedyDecoder(%arg0: tensor<20x8x128xf16>, %arg1: tensor<20x8xf16>) -> tensor<8x20x1x1xf16> {
+func.func @CTCGreedyDecoder(%arg0: tensor<20x8x128xf16>, %arg1: tensor<20x8xf16>) -> tensor<8x20x1x1xf16> {
     %0 = IE.CTCGreedyDecoder(%arg0, %arg1) {mergeRepeated} : tensor<20x8x128xf16>, tensor<20x8xf16> -> tensor<8x20x1x1xf16>
     return %0 : tensor<8x20x1x1xf16>
 
@@ -322,13 +323,13 @@ func @CTCGreedyDecoder(%arg0: tensor<20x8x128xf16>, %arg1: tensor<20x8xf16>) -> 
 // -----
 
 // CHECK-LABEL: @ExtractImagePatches
-func @ExtractImagePatches(%arg0: tensor<64x3x10x10xf32>) -> tensor<64x27x2x2xf32> {
-    %0 = IE.ExtractImagePatches(%arg0) {sizes = [3, 3], strides = [5, 5], rates = [1, 1], autoPad = "VALID"} : tensor<64x3x10x10xf32> -> tensor<64x27x2x2xf32>
+func.func @ExtractImagePatches(%arg0: tensor<64x3x10x10xf32>) -> tensor<64x27x2x2xf32> {
+    %0 = IE.ExtractImagePatches(%arg0) {sizes = [3, 3], strides = [5, 5], rates = [1, 1], autoPad = #IE.pad_type<VALID>} : tensor<64x3x10x10xf32> -> tensor<64x27x2x2xf32>
     return %0 : tensor<64x27x2x2xf32>
 
     // CHECK:       [[VAR0:%.*]] = builtin.unrealized_conversion_cast %arg0 : tensor<64x3x10x10xf32> to memref<64x3x10x10xf32>
     // CHECK:       [[VAR1:%.*]] = memref.alloc() : memref<64x27x2x2xf32>
-    // CHECK:       [[VAR2:%.*]] = IERT.ExtractImagePatches {autoPad = "VALID", rates = [1, 1], sizes = [3, 3], strides = [5, 5]}
+    // CHECK:       [[VAR2:%.*]] = IERT.ExtractImagePatches {autoPad = #IE.pad_type<VALID>, rates = [1, 1], sizes = [3, 3], strides = [5, 5]}
     // CHECK-SAME:      inputs([[VAR0]] : memref<64x3x10x10xf32>)
     // CHECK-SAME:      outputs([[VAR1]] : memref<64x27x2x2xf32>) -> memref<64x27x2x2xf32>
     // CHECK:       [[VAR3:%.*]] = builtin.unrealized_conversion_cast [[VAR2]] : memref<64x27x2x2xf32> to tensor<64x27x2x2xf32>
@@ -337,7 +338,7 @@ func @ExtractImagePatches(%arg0: tensor<64x3x10x10xf32>) -> tensor<64x27x2x2xf32
 
 // -----
 // CHECK-LABEL: @ReduceL2
-func @ReduceL2(%arg0: tensor<1x32x112x112xf16>) -> tensor<1x32x112x1xf16> {
+func.func @ReduceL2(%arg0: tensor<1x32x112x112xf16>) -> tensor<1x32x112x1xf16> {
     %cst = const.Declare tensor<1xsi32> = dense<3> : tensor<1xsi64>, [#const.ConvertElemType<si32>]
     %0 = IE.ReduceL2(%arg0, %cst) {keep_dims} : tensor<1x32x112x112xf16>, tensor<1xsi32> -> tensor<1x32x112x1xf16>
     return %0 : tensor<1x32x112x1xf16>
@@ -353,7 +354,7 @@ func @ReduceL2(%arg0: tensor<1x32x112x112xf16>) -> tensor<1x32x112x1xf16> {
 
 // -----
 // CHECK-LABEL: @EmbeddingBagOffsetsSum
-func @EmbeddingBagOffsetsSum(%arg0: tensor<5x6x4xsi32>) -> tensor<2x6x4xsi32> {
+func.func @EmbeddingBagOffsetsSum(%arg0: tensor<5x6x4xsi32>) -> tensor<2x6x4xsi32> {
     %0 = IE.EmbeddingBagOffsetsSum(%arg0) {default_index_value = 4 : si32, indices_value = [0, 1, 2, 2, 3], offsets_value = [0, 2], operand_segment_sizes = dense<[1, 0, 0, 0, 0]> : vector<5xi32>,
     weights_value = [1.000000e+00, 5.000000e+00, 1.000000e+01, 8.000000e+00, 1.000000e+01]} : tensor<5x6x4xsi32> -> tensor<2x6x4xsi32>
     return %0 : tensor<2x6x4xsi32>
@@ -368,7 +369,7 @@ func @EmbeddingBagOffsetsSum(%arg0: tensor<5x6x4xsi32>) -> tensor<2x6x4xsi32> {
 
 // -----
 // CHECK-LABEL: @EmbeddingSegmentsSum
-func @EmbeddingSegmentsSum(%arg0: tensor<5x6x4xsi32>) -> tensor<7x6x4xsi32> {
+func.func @EmbeddingSegmentsSum(%arg0: tensor<5x6x4xsi32>) -> tensor<7x6x4xsi32> {
     %0 = IE.EmbeddingSegmentsSum(%arg0) {default_index_value = 4 : si32, indices_value = [0, 1, 2, 2, 3], num_segments_value = 7 : si32,
         operand_segment_sizes = dense<[1, 0, 0, 0, 0, 0]> : vector<6xi32>, per_sample_weights_value = [1.000000e+00, 5.000000e+00, 1.000000e+01, 8.000000e+00, 1.000000e+01],
         segment_ids_value = [0, 1, 2, 3, 4]} : tensor<5x6x4xsi32> -> tensor<7x6x4xsi32>
@@ -385,8 +386,8 @@ func @EmbeddingSegmentsSum(%arg0: tensor<5x6x4xsi32>) -> tensor<7x6x4xsi32> {
 
 // -----
 // CHECK-LABEL: @DeformablePSROIPooling
-  func @DeformablePSROIPooling(%arg0: tensor<1x441x8x8xf32>, %arg1: tensor<30x5xf32>) -> tensor<30x49x3x3xf32> {
-    %0 = IE.DeformablePSROIPooling(%arg0, %arg1) {group_size = 3 : i64, mode = "BILINEAR_DEFORMABLE", output_dim = 49 : i64, part_size = 3 : i64, spatial_bins_x = 4 : i64, spatial_bins_y = 4 : i64, spatial_scale = 6.250000e-02 : f64, trans_std = 0.10000000149011612 : f64} : tensor<1x441x8x8xf32>, tensor<30x5xf32> -> tensor<30x49x3x3xf32>
+  func.func @DeformablePSROIPooling(%arg0: tensor<1x441x8x8xf32>, %arg1: tensor<30x5xf32>) -> tensor<30x49x3x3xf32> {
+    %0 = IE.DeformablePSROIPooling(%arg0, %arg1) {group_size = 3 : i64, mode = #IE.deformable_psroi_pooling_mode<BILINEAR_DEFORMABLE>, output_dim = 49 : i64, part_size = 3 : i64, spatial_bins_x = 4 : i64, spatial_bins_y = 4 : i64, spatial_scale = 6.250000e-02 : f64, trans_std = 0.10000000149011612 : f64} : tensor<1x441x8x8xf32>, tensor<30x5xf32> -> tensor<30x49x3x3xf32>
     return %0 : tensor<30x49x3x3xf32>
 
 
@@ -394,7 +395,7 @@ func @EmbeddingSegmentsSum(%arg0: tensor<5x6x4xsi32>) -> tensor<7x6x4xsi32> {
     // CHECK:       [[VAR0:%.*]] = builtin.unrealized_conversion_cast %arg0 : tensor<1x441x8x8xf32> to memref<1x441x8x8xf32>
     // CHECK:       [[VAR1:%.*]] = builtin.unrealized_conversion_cast %arg1 : tensor<30x5xf32> to memref<30x5xf32>
     // CHECK:       [[VAR2:%.*]] = memref.alloc() : memref<30x49x3x3xf32>
-    // CHECK:       [[VAR3:%.*]] = IERT.DeformablePSROIPooling {group_size = 3 : i64, mode = "BILINEAR_DEFORMABLE", output_dim = 49 : i64, part_size = 3 : i64, spatial_bins_x = 4 : i64,
+    // CHECK:       [[VAR3:%.*]] = IERT.DeformablePSROIPooling {group_size = 3 : i64, mode = #IE.deformable_psroi_pooling_mode<BILINEAR_DEFORMABLE>, output_dim = 49 : i64, part_size = 3 : i64, spatial_bins_x = 4 : i64,
     // CHECK-SAME:       spatial_bins_y = 4 : i64, spatial_scale = 6.250000e-02 : f64, trans_std = 0.10000000149011612 : f64}
     // CHECK-SAME:       inputs([[VAR0]] : memref<1x441x8x8xf32>, [[VAR1]] : memref<30x5xf32>)
     // CHECK-SAME:       outputs([[VAR2]] : memref<30x49x3x3xf32>) -> memref<30x49x3x3xf32>
@@ -405,8 +406,8 @@ func @EmbeddingSegmentsSum(%arg0: tensor<5x6x4xsi32>) -> tensor<7x6x4xsi32> {
 // -----
 
 // CHECK-LABEL: @NonMaxSuppression
-func @NonMaxSuppression(%arg0: tensor<3x100x4xf16>, %arg1: tensor<3x5x100xf16>) -> (tensor<300x3xsi32>, tensor<300x3xf16>, tensor<1xsi32>) {
-    %0, %1, %2 = IE.NonMaxSuppression(%arg0, %arg1) {box_encoding = "CENTER", iou_threshold_value = 0.300048828125 : f64, max_output_boxes_per_class_value = 20 : i64, operand_segment_sizes = dense<[1, 1, 0, 0, 0, 0]> : vector<6xi32>, score_threshold_value = 0.300048828125 : f64, soft_nms_sigma_value = 0.000000e+00 : f64} : tensor<3x100x4xf16>, tensor<3x5x100xf16> -> tensor<300x3xsi32>, tensor<300x3xf16>, tensor<1xsi32>
+func.func @NonMaxSuppression(%arg0: tensor<3x100x4xf16>, %arg1: tensor<3x5x100xf16>) -> (tensor<300x3xsi32>, tensor<300x3xf16>, tensor<1xsi32>) {
+    %0, %1, %2 = IE.NonMaxSuppression(%arg0, %arg1) {box_encoding = #IE.box_encoding_type<CENTER>, iou_threshold_value = 0.300048828125 : f64, max_output_boxes_per_class_value = 20 : i64, operand_segment_sizes = dense<[1, 1, 0, 0, 0, 0]> : vector<6xi32>, score_threshold_value = 0.300048828125 : f64, soft_nms_sigma_value = 0.000000e+00 : f64} : tensor<3x100x4xf16>, tensor<3x5x100xf16> -> tensor<300x3xsi32>, tensor<300x3xf16>, tensor<1xsi32>
     return %0, %1, %2 : tensor<300x3xsi32>, tensor<300x3xf16>, tensor<1xsi32>
 
     // CHECK:       [[VAR0:%.*]] = builtin.unrealized_conversion_cast %arg0 : tensor<3x100x4xf16> to memref<3x100x4xf16>
@@ -414,7 +415,7 @@ func @NonMaxSuppression(%arg0: tensor<3x100x4xf16>, %arg1: tensor<3x5x100xf16>) 
     // CHECK:       [[VAR2:%.*]] = memref.alloc() : memref<300x3xsi32>
     // CHECK:       [[VAR3:%.*]] = memref.alloc() : memref<300x3xf16>
     // CHECK:       [[VAR4:%.*]] = memref.alloc() : memref<1xsi32>
-    // CHECK:       [[VAR5:%.+]], [[VAR6:%.+]], [[VAR7:%.+]] = IERT.NonMaxSuppression {box_encoding = "CENTER", iou_threshold_value = 0.300048828125 : f64, max_output_boxes_per_class_value = 20 : i64, score_threshold_value = 0.300048828125 : f64, soft_nms_sigma_value = 0.000000e+00 : f64} inputs(%0 : memref<3x100x4xf16>, %1 : memref<3x5x100xf16>) outputs(%2 : memref<300x3xsi32>, %3 : memref<300x3xf16>, %4 : memref<1xsi32>) -> memref<300x3xsi32>, memref<300x3xf16>, memref<1xsi32>
+    // CHECK:       [[VAR5:%.+]], [[VAR6:%.+]], [[VAR7:%.+]] = IERT.NonMaxSuppression {box_encoding = #IE.box_encoding_type<CENTER>, iou_threshold_value = 0.300048828125 : f64, max_output_boxes_per_class_value = 20 : i64, score_threshold_value = 0.300048828125 : f64, soft_nms_sigma_value = 0.000000e+00 : f64} inputs(%0 : memref<3x100x4xf16>, %1 : memref<3x5x100xf16>) outputs(%2 : memref<300x3xsi32>, %3 : memref<300x3xf16>, %4 : memref<1xsi32>) -> memref<300x3xsi32>, memref<300x3xf16>, memref<1xsi32>
     // CHECK:       [[VAR8:%.+]] = builtin.unrealized_conversion_cast [[VAR5]] : memref<300x3xsi32> to tensor<300x3xsi32>
     // CHECK:       [[VAR9:%.+]] = builtin.unrealized_conversion_cast [[VAR6]] : memref<300x3xf16> to tensor<300x3xf16>
     // CHECK:       [[VAR10:%.+]] = builtin.unrealized_conversion_cast [[VAR7]] : memref<1xsi32> to tensor<1xsi32>
@@ -424,7 +425,7 @@ func @NonMaxSuppression(%arg0: tensor<3x100x4xf16>, %arg1: tensor<3x5x100xf16>) 
 // -----
 
 // CHECK-LABEL: @ScatterUpdate
-func @ScatterUpdate(%arg0: tensor<10x16x12x15xf16>, %arg1:tensor<8xsi32> , %arg2:tensor<8x16x12x15xf16>) -> (tensor<10x16x12x15xf16>) {
+func.func @ScatterUpdate(%arg0: tensor<10x16x12x15xf16>, %arg1:tensor<8xsi32> , %arg2:tensor<8x16x12x15xf16>) -> (tensor<10x16x12x15xf16>) {
     %0 = IE.ScatterUpdate(%arg0, %arg1, %arg2) {axis_value = 0 : i64}:tensor<10x16x12x15xf16>, tensor<8xsi32>, tensor<8x16x12x15xf16> -> tensor<10x16x12x15xf16>
     return %0: tensor<10x16x12x15xf16>
 
@@ -441,7 +442,7 @@ func @ScatterUpdate(%arg0: tensor<10x16x12x15xf16>, %arg1:tensor<8xsi32> , %arg2
 // -----
 
 // CHECK-LABEL: @Tan
-func @Tan(%arg0: tensor<1x32x112x112xf16>) -> tensor<1x32x112x112xf16> {
+func.func @Tan(%arg0: tensor<1x32x112x112xf16>) -> tensor<1x32x112x112xf16> {
     %0 = IE.Tan(%arg0) : tensor<1x32x112x112xf16> -> tensor<1x32x112x112xf16>
     return %0 : tensor<1x32x112x112xf16>
 

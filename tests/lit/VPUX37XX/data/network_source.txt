@@ -6,9 +6,9 @@ module @"mul-layer"  {
     DataInfo "input/LogicalAnd" : tensor<1x1x5x5xf16> loc(#loc0)
   } profilingOutputsInfo :  {
   } loc(#loc0)
-  func @main(%arg0: tensor<1x1x5x5xf16> loc(unknown)) -> tensor<1x1x5x5xf16> {
+  func.func @main(%arg0: tensor<1x1x5x5xf16> loc(unknown)) -> tensor<1x1x5x5xf16> {
     %cst = const.Declare tensor<1x1x1x1xf16> = dense<7.843020e-03> : tensor<1x1x1x1xf16> loc(#loc1)
-    %0 = IE.Multiply(%arg0, %cst) {auto_broadcast = "NUMPY"} : tensor<1x1x5x5xf16>, tensor<1x1x1x1xf16> -> tensor<1x1x5x5xf16> loc(#loc2)
+    %0 = IE.Multiply(%arg0, %cst) {auto_broadcast = #IE.auto_broadcast_type<NUMPY>} : tensor<1x1x5x5xf16>, tensor<1x1x1x1xf16> -> tensor<1x1x5x5xf16> loc(#loc2)
     return %0 : tensor<1x1x5x5xf16> loc(#loc3)
   } loc(#loc0)
 } loc(#loc0)

@@ -2,8 +2,6 @@
 // Copyright (C) 2022 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
-
-//
 #pragma once
 
 #include "vpux/compiler/core/cost_model_utils.hpp"
@@ -109,7 +107,7 @@ public:
     using taskOpWaitMapType = SmallVector<llvm::BitVector>;
     using taskOpUpdateMapType = SmallVector<llvm::BitVector>;
 
-    BarrierScheduler(mlir::FuncOp func, Logger log);
+    BarrierScheduler(mlir::func::FuncOp func, Logger log);
     void init();
     void clearTemporaryAttributes();
     bool generateScheduleWithBarriers(const size_t numberOfBarriers, const size_t maxProducersPerBarrier);
@@ -194,7 +192,7 @@ private:
     // The consumer tasks per task from original dependency
     std::map<mlir::Operation*, SmallVector<mlir::Operation*>> _taskConsumerMapOriginal;
     Logger _log;
-    mlir::FuncOp _func;
+    mlir::func::FuncOp _func;
     // The number of execute tasks
     size_t _taskCount{};
     // The vector of ordered barriers

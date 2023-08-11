@@ -41,9 +41,9 @@ SmallVector<mlir::Value> vpux::allocateBuffersOfType(const Logger& log, mlir::Lo
         auto seTableBuffer = createAllocOp(sparseBufferType.getStorageElementTable());
 
         if (!individualBuffers) {
-            auto groupOp = builder.create<VPUIP::GroupSparseBufferOp>(loc, dataBuffer, sparsityMapBuffer, seTableBuffer,
-                                                                      sparseBufferType.getIsWeights(),
-                                                                      sparseBufferType.getCompressionScheme());
+            auto groupOp = builder.create<VPUIP::GroupSparseBufferOp>(
+                    loc, dataBuffer, sparsityMapBuffer, seTableBuffer, sparseBufferType.getIsWeights(),
+                    sparseBufferType.getCompressionScheme(), sparseBufferType.getSeAttr());
             return {groupOp.output()};
         }
 

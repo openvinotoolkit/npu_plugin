@@ -1,7 +1,8 @@
 //
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
+
 // RUN: vpux-opt --init-compiler="vpu-arch=%arch%" %s | vpux-translate --export-VPUIP -o %t
 // RUN: flatc --raw-binary --json %vpuip_schema_file% -- %t
 // RUN: FileCheck %s --input-file %basename_t.json
@@ -11,7 +12,7 @@
 #NCHW = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
-!InputDistributed = type !VPUIP.DistributedBuffer<
+!InputDistributed = !VPUIP.DistributedBuffer<
     1x16x32x32xf16, #NHWC, @CMX_NN, {
     mode = "OVERLAPPED",
     num_tiles = [1, 1, 2, 1],
@@ -21,20 +22,20 @@
     num_clusters = 2
 }>
 
-!OutputDistributed = type !VPUIP.DistributedBuffer<
+!OutputDistributed = !VPUIP.DistributedBuffer<
     1x16x30x30xf16, #NHWC, @CMX_NN, {
     mode = "SEGMENTED",
     num_tiles = [1, 1, 2, 1],
     num_clusters = 2
 }>
 
-!WeightsDistributed = type !VPUIP.DistributedBuffer<
+!WeightsDistributed = !VPUIP.DistributedBuffer<
     16x16x3x3xf16, #NHWC, @CMX_NN, {
     mode = "DUPLICATED",
     num_clusters = 2
 }>
 
-!WeightsTableDistributed = type !VPUIP.DistributedBuffer<
+!WeightsTableDistributed = !VPUIP.DistributedBuffer<
     16x1x1x4xsi32, #NCHW, @CMX_NN, {
     mode = "DUPLICATED",
     num_clusters = 2
@@ -56,7 +57,7 @@ IE.CNNNetwork
         DataInfo "conv" : tensor<1x16x30x30xf16>
     }
 
-  func @main(%arg0: memref<1x16x32x32xf16, #NHWC, @DDR>, %arg1: memref<1x16x30x30xf16, #NHWC, @DDR>) -> memref<1x16x30x30xf16, #NHWC, @DDR> {
+  func.func @main(%arg0: memref<1x16x32x32xf16, #NHWC, @DDR>, %arg1: memref<1x16x30x30xf16, #NHWC, @DDR>) -> memref<1x16x30x30xf16, #NHWC, @DDR> {
     %cst = const.Declare memref<16x1x1x4xsi32> = dense<1> : tensor<16x1x1x4xsi32>
     %cst_0 = const.Declare memref<16x16x3x3xf16, #NHWC> = dense<1.000000e+00> : tensor<16x16x3x3xf16>, [#const.Reorder<#NHWC>]
     %0 = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
@@ -658,4 +659,3 @@ IE.CNNNetwork
 // CHECK:               workload_end_X: 29,
 // CHECK:               workload_end_Y: 29,
 // CHECK:               workload_end_Z: 15
-

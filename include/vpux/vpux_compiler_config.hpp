@@ -39,15 +39,6 @@ namespace VPUXConfigParams {
 DECLARE_VPU_COMPILER_CONFIG_KEY(LOG_LEVEL);
 
 /**
- * @brief [Only for vpu compiler]
- * Type: std::string, default is empty.
- * Provide path to custom layer binding xml file.
- * If layer is present in such an xml, it would be used during inference even if the layer is natively supported.
- * Configuration API v1.0
- */
-DECLARE_VPU_COMPILER_CONFIG_KEY(CUSTOM_LAYERS);
-
-/**
  * @brief [Only for vpu compiler and Level0 backend]
  * Type: "YES", "NO", default is "NO"
  * This option allows to perform FP32/FP16 to U8 input quantization on VPUX Plugin side via CPU

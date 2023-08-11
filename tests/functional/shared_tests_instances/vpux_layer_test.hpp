@@ -5,64 +5,60 @@
 #pragma once
 
 #include <common/utils.hpp>
+#include <functional>
+#include <optional>
 #include <shared_test_classes/base/ov_subgraph.hpp>
+#include <sstream>
 #include <vpux/utils/core/logger.hpp>
-#include <vpux/utils/core/optional.hpp>
-#include "kmb_test_env_cfg.hpp"
-#include "kmb_test_tool.hpp"
-#include "vpux_private_config.hpp"
+#include <vpux_private_properties.hpp>
 
-namespace VPUXLayerTestsUtils {
+using SkipMessage = std::optional<std::string>;
+using SkipCallback = std::function<void(std::stringstream&)>;
+using VPUXPlatform = InferenceEngine::VPUXConfigParams::VPUXPlatform;
 
-using SkipMessage = vpux::Optional<std::string>;
+static const ov::test::TargetDevice targetDevice = CommonTestUtils::DEVICE_KEEMBAY;
 
-class VPUXLayerTestsCommon : virtual public ov::test::SubgraphBaseTest {
+enum class VPUXCompilationMode {
+    ReferenceSW,
+    ReferenceHW,
+    DefaultHW,
+};
+
+class VPUXLayerTest : virtual public ov::test::SubgraphBaseTest {
 public:
-    VPUXLayerTestsCommon();
+    VPUXLayerTest();
 
-    static const LayerTestsUtils::KmbTestEnvConfig envConfig;
-
-    virtual SkipMessage SkipBeforeLoad();
-    virtual SkipMessage SkipBeforeInfer();
-    virtual SkipMessage SkipBeforeValidate();
+    void setSkipCompilationCallback(SkipCallback skipCallback);
+    void setSkipInferenceCallback(SkipCallback skipCallback);
 
 private:
-    bool skipBeforeLoadImpl();
-    bool skipBeforeInferImpl();
-    bool skipBeforeValidateImpl();
-
-    virtual void importNetwork();
-    void exportNetwork();
-    void importInput();
-    void exportInput();
-    void exportOutput();
-    void exportReference();
+    bool skipCompilationImpl();
+    bool skipInferenceImpl();
 
     void printNetworkConfig() const;
 
+    using ErrorMessage = std::optional<std::string>;
+    [[nodiscard]] ErrorMessage runTest();
+
 public:
-    void useCompilerMLIR();
-    void setReferenceSoftwareModeMLIR();
-    void setDefaultHardwareModeMLIR();
-    void setPlatformVPU3720();
+    void setReferenceSoftwareMode();
+    void setDefaultHardwareMode();
 
-    bool isCompilerMLIR() const;
-    bool isPlatformVPU3720() const;
+    void setSingleClusterMode();
+    void setPerformanceHintLatency();
+    void useELFCompilerBackend();
 
-protected:
-    void run() override;
-    void configure_model() override;
+    bool isReferenceSoftwareMode() const;
+    bool isDefaultHardwareMode() const;
+
+    void run(VPUXPlatform platform);
 
 private:
+    // use public run(VPUXPlatform) function to always set platform explicitly
+    void run() override;
+    void setPlatform(VPUXPlatform platform);
+
+    SkipCallback skipCompilationCallback = nullptr;
+    SkipCallback skipInferenceCallback = nullptr;
     vpux::Logger _log = vpux::Logger::global();
 };
-
-const ov::test::TargetDevice testPlatformTargetDevice = []() -> ov::test::TargetDevice {
-    if (const auto var = std::getenv("IE_KMB_TESTS_DEVICE_NAME")) {
-        return var;
-    }
-
-    return CommonTestUtils::DEVICE_KEEMBAY;
-}();
-
-}  // namespace VPUXLayerTestsUtils

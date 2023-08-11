@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
 
 #include "vpux/compiler/core/aliases_info.hpp"
@@ -26,7 +24,7 @@ public:
     mlir::LogicalResult initialize(mlir::MLIRContext* ctx) final;
 
 private:
-    void updateFunction(mlir::FuncOp func, const AliasesInfo& aliasInfo) const;
+    void updateFunction(mlir::func::FuncOp func, const AliasesInfo& aliasInfo) const;
     void updateAliases(AliasesInfo& aliasInfo, mlir::Value value) const;
     void safeRunOnFunc() final;
 
@@ -55,7 +53,7 @@ mlir::LogicalResult SetMemorySpacePass::initialize(mlir::MLIRContext* ctx) {
     return mlir::success();
 }
 
-void SetMemorySpacePass::updateFunction(mlir::FuncOp func, const AliasesInfo& aliasInfo) const {
+void SetMemorySpacePass::updateFunction(mlir::func::FuncOp func, const AliasesInfo& aliasInfo) const {
     VPUX_THROW_UNLESS(func.getNumArguments() >= func.getNumResults(), "Function '{0}' is not bufferized", func);
     const auto numInputs = func.getNumArguments() - func.getNumResults();
 
@@ -118,7 +116,7 @@ void SetMemorySpacePass::updateAliases(AliasesInfo& aliasInfo, mlir::Value value
 
 void SetMemorySpacePass::safeRunOnFunc() {
     auto& aliasInfo = getAnalysis<AliasesInfo>();
-    auto func = getFunction();
+    auto func = getOperation();
 
     updateFunction(func, aliasInfo);
 

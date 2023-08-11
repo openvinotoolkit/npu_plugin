@@ -4,8 +4,6 @@
 //
 
 //
-
-//
 // Linear scan implementation.
 // Manages allocation of the contiguous memory area amongst live ranges.
 //

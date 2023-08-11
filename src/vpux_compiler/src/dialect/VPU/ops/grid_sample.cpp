@@ -12,7 +12,7 @@ mlir::LogicalResult vpux::VPU::GridSampleOp::inferReturnTypes(mlir::MLIRContext*
                                                               mlir::ValueRange operands, mlir::DictionaryAttr attrs,
                                                               mlir::RegionRange,
                                                               mlir::SmallVectorImpl<mlir::Type>& inferredReturnTypes) {
-    const auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
+    const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
     IE::GridSampleOpAdaptor gridSample(operands, attrs);
 

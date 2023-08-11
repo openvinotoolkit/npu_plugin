@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include <deque>
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
@@ -303,7 +301,7 @@ void SplitConvWithMultipleFQPass::safeRunOnFunc() {
     patterns.add<SplitConvWithPostOpAndFakeQuant>(&ctx, _log);
     patterns.add<SplitConvWithOnlyFakeQuantConsumers>(&ctx, _log);
 
-    auto func = getFunction();
+    auto func = getOperation();
     auto config = getDefaultGreedyRewriteConfig();
     config.useTopDownTraversal = false;
     if (mlir::failed(applyPatternsAndFoldGreedily(func, std::move(patterns), config))) {

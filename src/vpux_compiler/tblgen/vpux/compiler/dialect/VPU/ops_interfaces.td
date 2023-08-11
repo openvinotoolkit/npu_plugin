@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #ifndef VPUX_COMPILER_DIALECT_VPU_OPS_INTERFACES
 #define VPUX_COMPILER_DIALECT_VPU_OPS_INTERFACES
 
@@ -87,11 +85,15 @@ def VPU_SWOpInterface : OpInterface<"SWOpInterface"> {
     
     let methods = [
         InterfaceMethod<
-            "Check if layer fits in NNCMX",
-            "bool", "fitIntoCMX", (ins "vpux::NDTypeInterface":$input, "vpux::NDTypeInterface":$output),
+            "Check if layer fits in NNCMX excluding reserved memory",
+            "bool", "fitIntoCMX", (ins "::llvm::ArrayRef<vpux::NDTypeInterface>":$buffers, "Byte":$reservedMem),
             [{
-                return $_op.fitIntoCMX(input, output);
+                return $_op.fitIntoCMX(buffers, reservedMem);
             }]
+            >,
+        InterfaceMethod<
+            "Check if layer is supported by cost model for cycle cost calculation",
+            "bool", "supportCycleCostCalculation", (ins)
             >
     ];
 }
@@ -282,6 +284,36 @@ def VPU_TilingBuilderOpInterface : OpInterface<"TilingBuilderOpInterface"> {
 }
 
 //
+// VerticalFusionOpInterface
+//
+
+def VPU_VerticalFusionOpInterface : OpInterface<"VerticalFusionOpInterface"> {
+    let description = "Interface for operations which might be vertically fused";
+
+    let cppNamespace = "vpux::VPU";
+
+    let methods = [
+        InterfaceMethod<
+            "Check if VF supported for operation",
+            "bool", "isVFSupported", (ins),
+            [{}],
+            [{
+                return $_op->hasAttr("tilingStrategy");
+            }]
+        >,
+
+        InterfaceMethod<
+            "Check if operation can be fused as single operation in VF block with next block",
+            "bool", "availableSingleMerge", (ins),
+            [{}],
+            [{
+                return true;
+            }]
+        >
+    ];
+}
+
+//
 // TilingInfoOpInterface
 //
 
@@ -350,10 +382,18 @@ def VPU_GroupedViewLikeOpInterface: OpInterface<"GroupedViewLikeOpInterface"> {
 }
 
 //
-// SameInOutDimsOrder
+// SameInOutDefaultDimsOrder
 //
 
-def VPU_SameInOutDimsOrder : NativeOpTrait<"SameInOutDimsOrder"> {
+def VPU_SameInOutDefaultDimsOrder : NativeOpTrait<"SameInOutDefaultDimsOrder"> {
+    let cppNamespace = "vpux::VPU";
+}
+
+//
+// SameAnyDimsOrder
+//
+
+def VPU_SameAnyDimsOrder : NativeOpTrait<"SameAnyDimsOrder"> {
     let cppNamespace = "vpux::VPU";
 }
 
@@ -390,10 +430,27 @@ def SameInOutDimsOrder_NCHW_CHW_NC_C : NativeOpTrait<"SameInOutDimsOrder_NCHW_CH
 }
 
 //
+// SameInOutDimsOrder_NC_CHW_HWC_NCHW_NHWC
+//
+
+def VPU_SameInOutDimsOrder_NC_CHW_HWC_NCHW_NHWC : NativeOpTrait<"SameInOutDimsOrder_NC_CHW_HWC_NCHW_NHWC"> {
+    let cppNamespace = "vpux::VPU";
+}
+
+//
 // AnyDimsOrder
 //
 
 def VPU_AnyDimsOrder : NativeOpTrait<"AnyDimsOrder"> {
+    let cppNamespace = "vpux::VPU";
+}
+
+//
+// LimitedToArch op trait
+//
+
+class LimitedToArch<list<string> archs>
+    : ParamNativeOpTrait<"LimitedToArch", !interleave(archs, ", ")>  {
     let cppNamespace = "vpux::VPU";
 }
 

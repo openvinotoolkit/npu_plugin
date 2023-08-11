@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/IE/passes.hpp"
 #include "vpux/compiler/dialect/VPUIP/nce_invariant.hpp"
 #include "vpux/compiler/utils/permute_utils.hpp"
@@ -32,7 +30,7 @@ private:
 };
 
 bool lastOpPredicate(const mlir::Operation* op) {
-    return mlir::dyn_cast_or_null<mlir::ReturnOp>(op) != nullptr;
+    return mlir::dyn_cast_or_null<mlir::func::ReturnOp>(op) != nullptr;
 }
 
 bool isTrailingActShaveOp(mlir::Operation* op) {
@@ -127,7 +125,7 @@ private:
 };
 
 void FuseReordersPass::safeRunOnFunc() {
-    auto func = getFunction();
+    auto func = getOperation();
     auto module = func->getParentOfType<mlir::ModuleOp>();
     const auto arch = VPU::getArch(module);
 
@@ -135,7 +133,7 @@ void FuseReordersPass::safeRunOnFunc() {
             VPU::ArchKind::VPUX37XX,
     };
     if (compatibleTargets.count(arch) == 0) {
-        _log.trace("FuseReordersPass is only applicable for VPUX37XX device.");
+        _log.trace("FuseReordersPass is only applicable for VPUX37XX devices.");
         return;
     }
 

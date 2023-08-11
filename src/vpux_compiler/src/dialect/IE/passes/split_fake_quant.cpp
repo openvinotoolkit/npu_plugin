@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/IE/passes.hpp"
 
 #include "vpux/compiler/dialect/const/ops.hpp"
@@ -137,16 +135,10 @@ mlir::LogicalResult UseQuantDequant::matchAndRewrite(IE::FakeQuantizeOp origOp, 
     const auto inQuantizeElemType =
             getQuantizedType(inLowConst.contentAttr(), inHighConst.contentAttr(), origOp.levels(), realElemType, false,
                              origOp.getLoc(), origOp.auto_broadcast());
-    if (inQuantizeElemType == nullptr) {
-        return mlir::failure();
-    }
 
     const auto outQuantizeElemType =
             getQuantizedType(outLowConst.contentAttr(), outHighConst.contentAttr(), origOp.levels(), realElemType,
                              false, origOp.getLoc(), origOp.auto_broadcast());
-    if (outQuantizeElemType == nullptr) {
-        return mlir::failure();
-    }
 
     innerLog.trace("Insert Quantize op '{0}' -> '{1}'", realElemType, inQuantizeElemType);
     auto quantizeOp = rewriter.create<IE::QuantizeOp>(origOp.getLoc(), origOp.input(), inQuantizeElemType);
@@ -313,9 +305,32 @@ void SplitFakeQuantPass::safeRunOnFunc() {
     auto& ctx = getContext();
 
     mlir::ConversionTarget target(ctx);
+
+    // per-channel quantization with different zero points is not supported on HW (E#65130)
+    // if this is the case, the FQ op will be marked legal and will later be executed as SW op
     target.addDynamicallyLegalOp<IE::FakeQuantizeOp>([](IE::FakeQuantizeOp fqOp) {
-        return hasRangeWithoutZero(fqOp) && !isScalar(fqOp);
+        if (hasRangeWithoutZero(fqOp) && !isScalar(fqOp)) {
+            return true;
+        }
+
+        auto inLowConst = fqOp.input_low().getDefiningOp<Const::DeclareOp>();
+        auto inHighConst = fqOp.input_high().getDefiningOp<Const::DeclareOp>();
+        auto outLowConst = fqOp.output_low().getDefiningOp<Const::DeclareOp>();
+        auto outHighConst = fqOp.output_high().getDefiningOp<Const::DeclareOp>();
+        const auto realType = fqOp.input().getType().cast<vpux::NDTypeInterface>();
+        const auto realElemType = realType.getElementType().cast<mlir::FloatType>();
+
+        const auto inQuantizeElemType =
+                getQuantizedType(inLowConst.contentAttr(), inHighConst.contentAttr(), fqOp.levels(), realElemType,
+                                 false, fqOp.getLoc(), fqOp.auto_broadcast());
+
+        const auto outQuantizeElemType =
+                getQuantizedType(outLowConst.contentAttr(), outHighConst.contentAttr(), fqOp.levels(), realElemType,
+                                 false, fqOp.getLoc(), fqOp.auto_broadcast());
+
+        return inQuantizeElemType == nullptr || outQuantizeElemType == nullptr;
     });
+
     target.addLegalOp<Const::DeclareOp>();
     target.addLegalOp<IE::QuantizeOp>();
     target.addLegalOp<IE::QuantizeCastOp>();
@@ -325,7 +340,7 @@ void SplitFakeQuantPass::safeRunOnFunc() {
     patterns.add<UseQuantDequant>(&ctx, _log);
     patterns.add<UseConstDequant>(&ctx, _log);
 
-    auto func = getFunction();
+    auto func = getOperation();
     if (mlir::failed(mlir::applyPartialConversion(func, target, std::move(patterns)))) {
         signalPassFailure();
     }

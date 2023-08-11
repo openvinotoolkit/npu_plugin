@@ -107,15 +107,15 @@ bool ConvertReorderToPermuteQuantizePass::isSupportedReorder(IE::ReorderOp reord
         return false;
     }
     const ShapeRef inShape = inType.getShape();
-    const auto inputAlignment = VPU::NCEInvariant::getAlignment(inElemType);
-    if (!vpux::IE::isShapeCompatibleWithODUPermute(inShape, inputAlignment)) {
-        log.trace("Cannot cast input shape {0} to 1xWxCxH", inShape);
+    const auto inAlignment = VPU::NCEInvariant::getAlignment(inElemType);
+    if (!IE::isODUPermuteEffectiveForShape(inShape, inAlignment)) {
+        log.trace("ODU permute is not effective for input shape {0}", inShape);
         return false;
     }
     const ShapeRef outShape = outType.getShape();
-    const auto outputAlignment = VPU::NCEInvariant::getAlignment(outElemType);
-    if (!vpux::IE::isShapeCompatibleWithODUPermute(outShape, outputAlignment)) {
-        log.trace("Cannot cast output shape {0} to 1xWxCxH", outShape);
+    const auto outAlignment = VPU::NCEInvariant::getAlignment(outElemType);
+    if (!IE::isODUPermuteEffectiveForShape(outShape, outAlignment)) {
+        log.trace("ODU permute is not effective for output shape {0}", outShape);
         return false;
     }
 
@@ -123,15 +123,7 @@ bool ConvertReorderToPermuteQuantizePass::isSupportedReorder(IE::ReorderOp reord
 }
 
 void ConvertReorderToPermuteQuantizePass::safeRunOnFunc() {
-    auto func = getFunction();
-
-    auto module = func->getParentOfType<mlir::ModuleOp>();
-
-    const auto arch = VPU::getArch(module);
-    if (arch != VPU::ArchKind::VPUX37XX) {
-        _log.trace("ConvertReorderToPermuteQuantizePass enabled only for VPUX37XX device. Got: {0}", arch);
-        return;
-    }
+    auto func = getOperation();
 
     const auto isLegalReorder = [&](IE::ReorderOp reorder) -> bool {
         return !isSupportedReorder(reorder, _log);
@@ -152,7 +144,7 @@ void ConvertReorderToPermuteQuantizePass::safeRunOnFunc() {
 }  // namespace
 
 //
-// createFusePermuteQuantizePass
+// createConvertReorderToPermuteQuantizePass
 //
 std::unique_ptr<mlir::Pass> vpux::IE::createConvertReorderToPermuteQuantizePass(Logger log) {
     return std::make_unique<ConvertReorderToPermuteQuantizePass>(log);

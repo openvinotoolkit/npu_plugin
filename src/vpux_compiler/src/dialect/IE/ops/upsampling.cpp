@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/core/attributes/shape.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
 
@@ -16,30 +14,32 @@ mlir::LogicalResult vpux::IE::UpsamplingOp::inferReturnTypeComponents(
         mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
         mlir::DictionaryAttr attrs, mlir::RegionRange,
         SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
-    const auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
+    const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
     IE::UpsamplingOpAdaptor upsampling(operands, attrs);
     if (mlir::failed(upsampling.verify(loc))) {
         return mlir::failure();
     }
 
-    auto padLVector = parseIntArrayAttr<int32_t>(upsampling.pad_l());
-    auto padRVector = parseIntArrayAttr<int32_t>(upsampling.pad_r());
+    auto padChannelVector = parseIntArrayAttr<int32_t>(upsampling.padAttr().pads_channel());
+    auto padHeightVector = parseIntArrayAttr<int32_t>(upsampling.padAttr().pads_height());
+    auto padWidthVector = parseIntArrayAttr<int32_t>(upsampling.padAttr().pads_width());
     auto upsamplingFactorVector = parseIntArrayAttr<int32_t>(upsampling.upsampling_factor());
 
     const auto inType = upsampling.input().getType().cast<mlir::ShapedType>();
     const auto inShape = inType.getShape();
 
     VPUX_THROW_UNLESS(inShape.size() == 4, "Upsampling supports only 4D input tensor");
-    VPUX_THROW_UNLESS(padLVector.size() == 3, "Upsampling supports pads only for 3 axes");
-    VPUX_THROW_UNLESS(padRVector.size() == 3, "Upsampling supports pads only for 3 axes");
+    VPUX_THROW_UNLESS(padChannelVector.size() == 2, "Upsampling supports pad channel on both sides");
+    VPUX_THROW_UNLESS(padHeightVector.size() == 2, "Upsampling supports pad height on both sides");
+    VPUX_THROW_UNLESS(padWidthVector.size() == 2, "Upsampling supports pad width on both sides");
     VPUX_THROW_UNLESS(upsamplingFactorVector.size() == 3, "Upsampling supports factors only for 3 axes");
 
     SmallVector<int64_t> outputShape{
             inShape[0],
-            inShape[1] + (inShape[1] - 1) * (upsamplingFactorVector[2] - 1) + padLVector[2] + padRVector[2],
-            inShape[2] + (inShape[2] - 1) * (upsamplingFactorVector[1] - 1) + padLVector[1] + padRVector[1],
-            inShape[3] + (inShape[3] - 1) * (upsamplingFactorVector[0] - 1) + padLVector[0] + padRVector[0],
+            inShape[1] + (inShape[1] - 1) * (upsamplingFactorVector[2] - 1) + padChannelVector[0] + padChannelVector[1],
+            inShape[2] + (inShape[2] - 1) * (upsamplingFactorVector[1] - 1) + padHeightVector[0] + padHeightVector[1],
+            inShape[3] + (inShape[3] - 1) * (upsamplingFactorVector[0] - 1) + padWidthVector[0] + padWidthVector[1],
     };
 
     inferredReturnShapes.emplace_back(outputShape, inType.getElementType());

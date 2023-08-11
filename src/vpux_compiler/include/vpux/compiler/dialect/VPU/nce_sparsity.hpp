@@ -3,12 +3,10 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #pragma once
 
 #include "vpux/compiler/core/attributes/shape.hpp"
-#include "vpux/compiler/dialect/IE/attributes/structs.hpp"
+#include "vpux/compiler/dialect/IE/attributes.hpp"
 #include "vpux/compiler/dialect/VPU/attributes.hpp"
 #include "vpux/compiler/dialect/VPU/ops.hpp"
 #include "vpux/compiler/dialect/const/attributes/content.hpp"
@@ -26,6 +24,7 @@ namespace VPU {
 namespace NCESparsity {
 
 // base_ptr is 9bits size
+const int BASE_PTR_SIZE = 9;
 const int MAX_BASE_POINTER_VALUE = 511;
 // Max number of distinct base pointers within one Storage Element Table. Should be equal as number of clusters
 const int MAX_DISTINCT_BASE_PTRS = 4;
@@ -43,8 +42,6 @@ using PPEConverterCb = int32_t (*)(uint8_t, uint16_t, double, mlir::Type);
 
 extern const EnumMap<ArchKind, PPEConverterCb> ppeConvertersMap;
 extern const EnumMap<ArchKind, BiasConverterCb> biasConvertersMap;
-
-int32_t toHex(double realVal);
 
 enum class Mode { CM_CONV, DW_CONV, POOL };
 
@@ -83,6 +80,30 @@ mlir::FailureOr<SmallVector<double>> getRescaledBias(Const::ContentAttr biasAttr
 double getSparsityRatio(Const::DeclareOp weightsConst);
 
 bool isSparsifiableWeightsOperand(mlir::Value operand);
+bool isSuperdenseRequired(const VPU::ArchKind arch, const DimsOrder outOrder, const ShapeRef outShape,
+                          const mlir::Type outElemType);
+inline VPU::SparsitySupport bitwiseNot(const VPU::SparsitySupport bits) {
+    static_assert(sizeof(bits) == sizeof(uint32_t), "VPU::SparsitySupport has unexpected size");
+    return static_cast<VPU::SparsitySupport>(~static_cast<uint32_t>(bits));
+}
+
+//
+// RuntimeSparsityStatsProvider
+//
+
+class RuntimeSparsityStatsProvider {
+    const double MINIMAL_SPARSITY_THRESHOLD = 0.2;
+
+public:
+    RuntimeSparsityStatsProvider(mlir::func::FuncOp func, vpux::Logger log);
+
+    bool containsStatistics() const;
+    bool likelySparsityConsumer(mlir::Operation* op, int64_t requestedInputId) const;
+
+private:
+    vpux::Logger _logger;
+    std::multimap<std::string, IE::SparsityInfoOp> _lookup;
+};
 
 }  // namespace NCESparsity
 

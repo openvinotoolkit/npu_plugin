@@ -1,8 +1,6 @@
 //
-// Copyright (C) 2022 Intel Corporation.
+// Copyright (C) 2022-2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
-//
-
 //
 
 #pragma once
@@ -10,6 +8,7 @@
 #include "vpux/compiler/core/profiling.hpp"
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/utils/core/func_ref.hpp"
+#include "vpux/utils/core/profiling.hpp"
 
 #include "vpux/compiler/dialect/VPUIP/dialect.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
@@ -33,7 +32,7 @@ private:
 
 public:
     BaseClusterBufferScheduler(unsigned clustersAmount, unsigned profilingWorkloadSize, mlir::OpBuilder& builder,
-                               mlir::MLIRContext* ctx, vpux::VPU::MemoryKind memKind, mlir::FuncOp netFunc,
+                               mlir::MLIRContext* ctx, vpux::VPU::MemoryKind memKind, mlir::func::FuncOp netFunc,
                                std::shared_ptr<NameUniqifier> uniqifier);
 
     virtual ~BaseClusterBufferScheduler() = default;
@@ -62,14 +61,14 @@ protected:
                                   StringRef name) = 0;
 
 protected:
-    unsigned _clustersAmount;
+    unsigned _clustersNum;
     unsigned _profilingWorkloadSize;
     unsigned _profilingElementSize;
     std::deque<unsigned> _profilingBufferSizes;
     SmallVector<NCETaskSignature> _nceTaskSignatures{};
     mlir::OpBuilder& _builder;
     mlir::MLIRContext* _ctx;
-    mlir::FuncOp _netFunc;
+    mlir::func::FuncOp _netFunc;
     vpux::IndexedSymbolAttr _memKindAttr;
     std::shared_ptr<NameUniqifier> _uniqifier;
 };
@@ -77,20 +76,20 @@ protected:
 class SingleClusterScheduler : public BaseClusterBufferScheduler {
 public:
     SingleClusterScheduler(unsigned profilingWorkloadSize, mlir::OpBuilder& builder, mlir::MLIRContext* ctx,
-                           vpux::VPU::MemoryKind memKind, mlir::FuncOp netFunc,
+                           vpux::VPU::MemoryKind memKind, mlir::func::FuncOp netFunc,
                            std::shared_ptr<NameUniqifier> uniqifier);
 
 protected:
-    virtual NCETaskSignature getTaskSignature(VPUIP::NCEClusterTaskOp nceClusterTaskOp) override;
+    NCETaskSignature getTaskSignature(VPUIP::NCEClusterTaskOp nceClusterTaskOp) override;
 
-    virtual mlir::Operation* createAllocationOp(unsigned totalSizeCMXElements, const std::string& location) override;
+    mlir::Operation* createAllocationOp(unsigned totalSizeCMXElements, const std::string& location) override;
 
-    virtual mlir::Value copyToDDR(mlir::BlockArgument& profilingResult, mlir::Operation* cmxMemOp,
-                                  SmallVector<mlir::Value>& dpuProfilingOutputs, unsigned numElements, unsigned offset,
-                                  StringRef name) override;
+    mlir::Value copyToDDR(mlir::BlockArgument& profilingResult, mlir::Operation* cmxMemOp,
+                          SmallVector<mlir::Value>& dpuProfilingOutputs, unsigned numElements, unsigned offset,
+                          StringRef name) override;
 
-    virtual mlir::Value getViewToBuffer(mlir::Operation* currentProfilingBuffer, unsigned profilingSamplesInCMX,
-                                        SmallVector<int64_t> sizes) override;
+    mlir::Value getViewToBuffer(mlir::Operation* currentProfilingBuffer, unsigned profilingSamplesInCMX,
+                                SmallVector<int64_t> sizes) override;
 };
 
 class MultiClusterScheduler : public BaseClusterBufferScheduler {
@@ -103,16 +102,16 @@ public:
     using BaseClusterBufferScheduler::BaseClusterBufferScheduler;
 
 protected:
-    virtual NCETaskSignature getTaskSignature(VPUIP::NCEClusterTaskOp nceClusterTaskOp) override;
+    NCETaskSignature getTaskSignature(VPUIP::NCEClusterTaskOp nceClusterTaskOp) override;
 
-    virtual mlir::Operation* createAllocationOp(unsigned totalSizeCMXElements, const std::string& location) override;
+    mlir::Operation* createAllocationOp(unsigned totalSizeCMXElements, const std::string& location) override;
 
-    virtual mlir::Value copyToDDR(mlir::BlockArgument& profilingResult, mlir::Operation* cmxMemOp,
-                                  SmallVector<mlir::Value>& dpuProfilingOutputs, unsigned numElements, unsigned offset,
-                                  StringRef name) override;
+    mlir::Value copyToDDR(mlir::BlockArgument& profilingResult, mlir::Operation* cmxMemOp,
+                          SmallVector<mlir::Value>& dpuProfilingOutputs, unsigned numElements, unsigned offset,
+                          StringRef name) override;
 
-    virtual mlir::Value getViewToBuffer(mlir::Operation* currentProfilingBuffer, unsigned profilingSamplesInCMX,
-                                        SmallVector<int64_t> sizes) override;
+    mlir::Value getViewToBuffer(mlir::Operation* currentProfilingBuffer, unsigned profilingSamplesInCMX,
+                                SmallVector<int64_t> sizes) override;
 };
 
 }  // namespace vpux

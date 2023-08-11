@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/IE/passes.hpp"
 #include "vpux/compiler/dialect/IE/utils/convert_op_types.hpp"
@@ -61,10 +59,11 @@ void ConvertPrecisionToI32Pass::safeRunOnModule() {
     target.addDynamicallyLegalOp<IE::TopKOp>(isLegalOp);
     target.addDynamicallyLegalOp<IE::AdaptiveAvgPoolOp>(isLegalOp);
     target.addDynamicallyLegalOp<IE::AdaptiveMaxPoolOp>(isLegalOp);
-    target.addDynamicallyLegalOp<mlir::ReturnOp>(isLegalOp);
+    target.addDynamicallyLegalOp<IE::EqualOp>(isLegalOp);
+    target.addDynamicallyLegalOp<mlir::func::ReturnOp>(isLegalOp);
     target.addLegalOp<mlir::ModuleOp>();
-    target.addDynamicallyLegalOp<mlir::FuncOp>([&](mlir::FuncOp funcOp) {
-        return typeConverter.isSignatureLegal(funcOp.getType());
+    target.addDynamicallyLegalOp<mlir::func::FuncOp>([&](mlir::func::FuncOp funcOp) {
+        return typeConverter.isSignatureLegal(funcOp.getFunctionType());
     });
 
     // Convert TopK and AdaptiveMaxPool element type attribute to avoid failures in infer return type checking.

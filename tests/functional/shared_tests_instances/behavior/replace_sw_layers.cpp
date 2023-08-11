@@ -14,8 +14,8 @@
 #include "common/functions.h"
 #include "ngraph_functions/builders.hpp"
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "vpux/vpux_metrics.hpp"
 #include "vpux_private_config.hpp"
-#include "vpux_private_metrics.hpp"
 
 using CompileWithDummy = BehaviorTestsUtils::BehaviorTestsBasic;
 

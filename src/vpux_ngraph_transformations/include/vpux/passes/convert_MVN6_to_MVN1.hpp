@@ -5,15 +5,12 @@
 
 #pragma once
 
-// clang-format off
-
 #include <ngraph/pass/graph_rewrite.hpp>
 #include <ngraph/pass/pass.hpp>
 
 namespace vpux {
 
 namespace passes {
-
 
 class ConvertMVN6toMVN1 : public ngraph::pass::MatcherPass {
 public:
@@ -22,4 +19,3 @@ public:
 
 }  // namespace passes
 }  // namespace vpux
-// clang-format on

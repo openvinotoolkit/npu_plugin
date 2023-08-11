@@ -33,7 +33,7 @@ const std::shared_ptr<vpux::IDevice> vpux::IMD::BackendImpl::getDevice(const Inf
 }
 
 const std::vector<std::string> vpux::IMD::BackendImpl::getDeviceNames() const {
-    return {"3720", "3400", "3700"};
+    return {"3720", "3400", "3700", "4000"};
 }
 
 const std::string vpux::IMD::BackendImpl::getName() const {

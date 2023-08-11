@@ -28,7 +28,7 @@ Mask vpux::Mask::fromCount(int32_t count) {
     VPUX_THROW_UNLESS(static_cast<size_t>(count) <= NUM_BITS, "Can't create Mask from count '{0}'", count);
 
     Mask mask;
-    mask._code = static_cast<StorageType>((1 << count) - 1);
+    mask._code = static_cast<StorageType>((static_cast<int64_t>(1) << count) - 1);
     return mask;
 }
 
@@ -47,7 +47,7 @@ Mask vpux::Mask::fromIndexes(ArrayRef<int32_t> indexes) {
         VPUX_THROW_UNLESS(ind >= 0, "Can't create Mask from indexes '{0}'", indexes);
         VPUX_THROW_UNLESS(static_cast<size_t>(ind) < NUM_BITS, "Can't create Mask from indexes '{0}'", indexes);
 
-        mask._code |= static_cast<StorageType>(1 << (ind + 1));
+        mask._code |= static_cast<StorageType>(1 << ind);
     }
     return mask;
 }

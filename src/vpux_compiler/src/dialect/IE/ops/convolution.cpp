@@ -3,16 +3,17 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/IE/utils/const_attributes.hpp"
+#include "vpux/compiler/dialect/IE/utils/groupconvolution_utils.hpp"
 #include "vpux/compiler/dialect/VPU/attributes.hpp"
 #include "vpux/compiler/dialect/VPUIP/graph-schema/utils.hpp"
+#include "vpux/compiler/dialect/VPUIP/nce_invariant.hpp"
 
 #include "vpux/compiler/core/attributes/shape.hpp"
 #include "vpux/compiler/core/layers.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
+#include "vpux/compiler/utils/empty_node.hpp"
 #include "vpux/compiler/utils/error.hpp"
 
 #include "vpux/utils/core/checked_cast.hpp"
@@ -56,15 +57,30 @@ mlir::LogicalResult FuseConvAndBias::matchAndRewrite(IE::ScaleShiftOp biasOp, ml
         return matchFailed(rewriter, biasOp, "ScaleShift has non constant biases");
     }
 
-    auto* convOp = biasOp.input().getDefiningOp();
-    if (convOp == nullptr || !mlir::isa<IE::ConvolutionOp, IE::GroupConvolutionOp>(convOp)) {
+    auto* op = biasOp.input().getDefiningOp();
+    if (op == nullptr || !mlir::isa<IE::ConvolutionOp, IE::GroupConvolutionOp>(op)) {
         return matchFailed(rewriter, biasOp, "ScaleShift producer is not a Convolution layer");
     }
-    if (convOp->getNumOperands() != 2) {
+
+    // For those Convolutions/GroupConvolutions cannot convert to NCE task should not fuse ScaleShift as Bias.
+    // Because SW kernel will not support any Post Ops.
+    if (auto convOp = mlir::dyn_cast<IE::ConvolutionOp>(op)) {
+        if (VPUIP::NCEInvariant::verifyKernel(convOp).failed()) {
+            return matchFailed(rewriter, convOp, "Conv cannot convert to NCE, not fuse ScaleShift");
+        }
+    }
+    if (auto grConvOp = mlir::dyn_cast<IE::GroupConvolutionOp>(op)) {
+        if (VPUIP::NCEInvariant::verifyKernel(grConvOp).failed() &&
+            mlir::failed(IE::canConvertGroupConvToConv(grConvOp))) {
+            return matchFailed(rewriter, grConvOp, "GroupConv cannot convert to NCE, not fuse ScaleShift");
+        }
+    }
+
+    if (op->getNumOperands() != 2) {
         return matchFailed(rewriter, biasOp, "ScaleShift producer already has fused biases");
     }
 
-    const auto convOutShape = getShape(convOp->getOpResult(0));
+    const auto convOutShape = getShape(op->getOpResult(0));
     const auto biasShape = getShape(biasOp.biases());
 
     if (biasShape.size() != 4) {
@@ -83,7 +99,7 @@ mlir::LogicalResult FuseConvAndBias::matchAndRewrite(IE::ScaleShiftOp biasOp, ml
         return matchFailed(rewriter, biasOp, "ScaleShift 'shift' operand shape doesn't match bias restrictions");
     }
 
-    auto* newConv = rewriter.clone(*convOp);
+    auto* newConv = rewriter.clone(*op);
     newConv->insertOperands(newConv->getNumOperands(), biasOp.biases());
 
     rewriter.replaceOp(biasOp, newConv->getOpResults());
@@ -101,7 +117,7 @@ mlir::LogicalResult vpux::IE::ConvolutionOp::inferReturnTypeComponents(
         mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
         mlir::DictionaryAttr attrs, mlir::RegionRange,
         SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
-    const auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
+    const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
     IE::ConvolutionOpAdaptor conv(operands, attrs);
     if (mlir::failed(conv.verify(loc))) {
@@ -124,7 +140,7 @@ mlir::LogicalResult vpux::IE::ConvolutionOp::inferReturnTypeComponents(
     }
 
     const auto outputShape =
-            ngraph::infer_convolution_forward(nullptr, ngraph::Shape(inShape.begin(), inShape.end()),
+            ngraph::infer_convolution_forward(EmptyNode::instance(), ngraph::Shape(inShape.begin(), inShape.end()),
                                               ngraph::Strides(windowStrides.size(), 1),  // dummy data dilations
                                               ngraph::CoordinateDiff(dataPaddingBelow.begin(), dataPaddingBelow.end()),
                                               ngraph::CoordinateDiff(dataPaddingAbove.begin(), dataPaddingAbove.end()),
@@ -153,7 +169,7 @@ mlir::LogicalResult vpux::IE::GroupConvolutionOp::inferReturnTypeComponents(
         mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
         mlir::DictionaryAttr attrs, mlir::RegionRange,
         SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
-    const auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
+    const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
     IE::GroupConvolutionOpAdaptor conv(operands, attrs);
     if (mlir::failed(conv.verify(loc))) {
@@ -170,7 +186,7 @@ mlir::LogicalResult vpux::IE::GroupConvolutionOp::inferReturnTypeComponents(
     const auto windowDilations = parseIntArrayAttr<int64_t>(conv.dilations());
 
     int64_t groups = 0;
-    if (conv.groups().getValueOr(0) != 0) {
+    if (conv.groups().value_or(0) != 0) {
         if (filterShape.size() != inShape.size()) {
             return errorAt(loc, "Input size '{0}' does not match filter size '{1}'. (groups != 0)", inShape.size(),
                            filterShape.size());
@@ -193,7 +209,7 @@ mlir::LogicalResult vpux::IE::GroupConvolutionOp::inferReturnTypeComponents(
     inShape[1] /= groups;
 
     const auto outputShape =
-            ngraph::infer_convolution_forward(nullptr, ngraph::Shape(inShape.begin(), inShape.end()),
+            ngraph::infer_convolution_forward(EmptyNode::instance(), ngraph::Shape(inShape.begin(), inShape.end()),
                                               ngraph::Strides(windowStrides.size(), 1),  // dummy data dilations
                                               ngraph::CoordinateDiff(dataPaddingBelow.begin(), dataPaddingBelow.end()),
                                               ngraph::CoordinateDiff(dataPaddingAbove.begin(), dataPaddingAbove.end()),

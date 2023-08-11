@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/act_kernels/invocation_builder.h"
 
 #include <kernels/inc/common_types.h>
@@ -13,7 +11,6 @@
 
 #include <mlir/IR/BuiltinAttributes.h>
 #include <mlir/IR/BuiltinTypes.h>
-#include <mlir/IR/Matchers.h>
 #include <mlir/IR/Operation.h>
 
 using namespace vpux;
@@ -92,8 +89,9 @@ sw_params::DataType mvDTypeToDataType(const MVCNN::DType& mvDType) {
     }
 }
 
-void InvocationBuilder::addTensorArg(mlir::Value value, const MVCNN::TensorReference* tensorRef) {
-    VPUX_THROW_UNLESS(tensorRef != nullptr, "Got NULL tensor reference");
+void InvocationBuilder::addTensorArg(mlir::Value value, const MVCNN::TensorReference* tensorRef,
+                                     vpux::VPU::ArchKind archKind) {
+    VPUX_THROW_UNLESS(tensorRef != nullptr, "Got NULL tensor reference, device {0}", archKind);
 
     sw_params::MemRefData memrefData{};
 
@@ -135,7 +133,6 @@ void InvocationBuilder::addTensorArg(mlir::Value value, const MVCNN::TensorRefer
     VPUX_THROW_UNLESS(type != nullptr, "Value '{0}' has non vpux::NDTypeInterface '{1}'", value, value.getType());
 
     auto memKind = type.getMemoryKind();
-    // for VPU2.7 only windows within CMX memory supported, so lets guess in which tile this tensor lay
     VPUX_THROW_UNLESS(memKind == VPU::MemoryKind::CMX_NN, "Tensor arg '{0}' should be of CMX_NN memkind, but '{1}'",
                       value, memKind);
 
@@ -146,7 +143,7 @@ void InvocationBuilder::addTensorArg(mlir::Value value, const MVCNN::TensorRefer
     VPUX_THROW_UNLESS(mayBeIndex.hasValue(), "Value '{0}' has no memspace index", value);
 
     memrefData.dataAddr = checked_cast<uint32_t>(mvds::nce2p7::ACT_KERNEL_CMX_WINDOW +
-                                                 mayBeIndex.getValue() * mvds::nce2p7::CMX_SLICE_SIZE + addr);
+                                mayBeIndex.getValue() * mvds::nce2p7::CMX_SLICE_SIZE + addr);
     memrefData.dataType = mvDTypeToDataType(tensorRef->data_dtype());
     memrefData.location = sw_params::NN_CMX;
 

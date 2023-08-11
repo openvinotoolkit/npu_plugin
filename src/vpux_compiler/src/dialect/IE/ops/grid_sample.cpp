@@ -13,7 +13,7 @@ mlir::LogicalResult vpux::IE::GridSampleOp::inferReturnTypeComponents(
         mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
         mlir::DictionaryAttr attrs, mlir::RegionRange,
         SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
-    const auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
+    const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
     IE::GridSampleOpAdaptor gridSample(operands, attrs);
 
@@ -30,35 +30,6 @@ mlir::LogicalResult vpux::IE::GridSampleOp::inferReturnTypeComponents(
     SmallVector<int64_t> outShape = {inShape[0], inShape[1], gridShape[1], gridShape[2]};
 
     inferredReturnShapes.emplace_back(outShape, inType.getElementType());
-
-    return mlir::success();
-}
-
-//
-// verifyOp
-//
-
-mlir::LogicalResult vpux::IE::verifyOp(GridSampleOp op) {
-    // E#61161 GridSample only support specific case
-
-    const auto alignCorner = op.align_cornersAttr() != nullptr;
-    if (alignCorner != 1) {
-        return errorAt(op, "Unsupported case align_corner {0}", alignCorner);
-    }
-
-    if (op.modeAttr() != nullptr) {
-        const auto mode = op.modeAttr().getValue();
-        if (mode != IE::GridSampleMode::BILINEAR) {
-            return errorAt(op, "Unsupported case mode {0}", mode);
-        }
-    }
-
-    if (op.padding_modeAttr() != nullptr) {
-        const auto paddingMode = op.padding_modeAttr().getValue();
-        if (paddingMode != IE::GridSamplePaddingMode::BORDER) {
-            return errorAt(op, "Unsupported case mode {0}", paddingMode);
-        }
-    }
 
     return mlir::success();
 }

@@ -8,21 +8,20 @@
 
 namespace LayerTestsDefinitions {
 
-class KmbScatterNDUpdateLayerTest :
+class VPUXScatterNDUpdateLayerTest :
         public ScatterNDUpdateLayerTest,
         virtual public LayerTestsUtils::KmbLayerTestsCommon {};
 
-TEST_P(KmbScatterNDUpdateLayerTest, CompareWithRefs_MLIR) {
-    useCompilerMLIR();
+class VPUXScatterNDUpdateLayerTest_VPU3700 : public VPUXScatterNDUpdateLayerTest {};
+class VPUXScatterNDUpdateLayerTest_VPU3720 : public VPUXScatterNDUpdateLayerTest {};
+
+TEST_P(VPUXScatterNDUpdateLayerTest_VPU3700, HW) {
+    setPlatformVPU3700();
+    setDefaultHardwareModeMLIR();
     Run();
 }
 
-class KmbScatterNDUpdateLayerTest_VPU3720 :
-        public ScatterNDUpdateLayerTest,
-        virtual public LayerTestsUtils::KmbLayerTestsCommon {};
-
-TEST_P(KmbScatterNDUpdateLayerTest_VPU3720, CompareWithRefs_MLIR_VPU3720) {
-    useCompilerMLIR();
+TEST_P(VPUXScatterNDUpdateLayerTest_VPU3720, HW) {
     setPlatformVPU3720();
     setDefaultHardwareModeMLIR();
     Run();
@@ -47,33 +46,34 @@ std::map<std::vector<size_t>, std::map<std::vector<size_t>, std::vector<size_t>>
           {{2, 3}, {0, 0, 0, 2, 2, 2}}}}};
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_ScatterNDUpdate, KmbScatterNDUpdateLayerTest,
+        smoke_ScatterNDUpdate, VPUXScatterNDUpdateLayerTest_VPU3700,
         testing::Combine(testing::ValuesIn(ScatterNDUpdateLayerTest::combineShapes(sliceSelectInShape)),
                          testing::Values(InferenceEngine::Precision::FP16),  // network
                          testing::Values(InferenceEngine::Precision::I32),   // indices
                          testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
-        KmbScatterNDUpdateLayerTest::getTestCaseName);
+        VPUXScatterNDUpdateLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_ScatterNDUpdate_VPU3720, KmbScatterNDUpdateLayerTest_VPU3720,
+        smoke_ScatterNDUpdate_VPU3720, VPUXScatterNDUpdateLayerTest_VPU3720,
         testing::Combine(testing::ValuesIn(ScatterNDUpdateLayerTest::combineShapes(sliceSelectInShape)),
                          testing::Values(InferenceEngine::Precision::FP16),  // network
                          testing::Values(InferenceEngine::Precision::I32),   // indices
                          testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
-        KmbScatterNDUpdateLayerTest::getTestCaseName);
+        VPUXScatterNDUpdateLayerTest::getTestCaseName);
 
 // map<inputShape map<indicesShape, indicesValue>>
 // updateShape is gotten from inputShape and indicesShape
 std::map<std::vector<size_t>, std::map<std::vector<size_t>, std::vector<size_t>>> precommit_sliceSelectInShape{
-        {{2, 3}, {{{1, 2}, {1, 3}}}},
+        // {{2, 3}, {{{1, 2}, {1, 3}}}}, C#108289
+        {{2, 3}, {{{1, 2}, {1, 2}}}},
 };
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_precommit_ScatterNDUpdate_VPU3720, KmbScatterNDUpdateLayerTest_VPU3720,
+        smoke_precommit_ScatterNDUpdate_VPU3720, VPUXScatterNDUpdateLayerTest_VPU3720,
         testing::Combine(testing::ValuesIn(ScatterNDUpdateLayerTest::combineShapes(precommit_sliceSelectInShape)),
                          testing::Values(InferenceEngine::Precision::FP16),  // network
                          testing::Values(InferenceEngine::Precision::I32),   // indices
                          testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
-        KmbScatterNDUpdateLayerTest::getTestCaseName);
+        VPUXScatterNDUpdateLayerTest::getTestCaseName);
 
 }  // namespace

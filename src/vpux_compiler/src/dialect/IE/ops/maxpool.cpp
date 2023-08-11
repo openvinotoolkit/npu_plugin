@@ -3,11 +3,10 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/graph-schema/utils.hpp"
 #include "vpux/compiler/utils/attributes.hpp"
+#include "vpux/compiler/utils/empty_node.hpp"
 
 #include "vpux/utils/core/checked_cast.hpp"
 #include "vpux/utils/core/error.hpp"
@@ -24,7 +23,7 @@ mlir::LogicalResult vpux::IE::MaxPoolOp::inferReturnTypeComponents(
         mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
         mlir::DictionaryAttr attrs, mlir::RegionRange,
         SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
-    const auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
+    const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
     IE::MaxPoolOpAdaptor maxPool(operands, attrs);
     if (mlir::failed(maxPool.verify(loc))) {
@@ -41,7 +40,7 @@ mlir::LogicalResult vpux::IE::MaxPoolOp::inferReturnTypeComponents(
     const auto inShape = maxPool.input().getType().cast<mlir::ShapedType>().getShape();
 
     const auto outputShape = ngraph::infer_batched_pooling_forward(
-            nullptr, ngraph::Shape(inShape.begin(), inShape.end()),
+            EmptyNode::instance(), ngraph::Shape(inShape.begin(), inShape.end()),
             ngraph::CoordinateDiff(dataPaddingBelow.begin(), dataPaddingBelow.end()),
             ngraph::CoordinateDiff(dataPaddingAbove.begin(), dataPaddingAbove.end()),
             ngraph::Shape(windowShape.begin(), windowShape.end()),

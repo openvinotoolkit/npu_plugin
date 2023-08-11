@@ -5,11 +5,8 @@
 
 #include "vpux/compiler/dialect/ELF/import.hpp"
 #include "vpux/compiler/dialect/ELF/elf_importer.hpp"
-#include "vpux/compiler/dialect/ELF/ops.hpp"
 #include "vpux/compiler/dialect/IE/ops.hpp"
 #include "vpux/compiler/utils/logging.hpp"
-
-#include <stdio.h>
 
 using namespace vpux;
 

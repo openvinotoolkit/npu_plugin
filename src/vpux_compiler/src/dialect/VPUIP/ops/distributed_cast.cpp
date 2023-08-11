@@ -26,16 +26,17 @@ mlir::OpFoldResult VPUIP::DistributedCastOp::fold(ArrayRef<mlir::Attribute>) {
 }
 
 //
-// verifyOp
+// verify
 //
 
-mlir::LogicalResult VPUIP::verifyOp(VPUIP::DistributedCastOp op) {
+mlir::LogicalResult vpux::VPUIP::DistributedCastOp::verify() {
+    const auto op = getOperation();
     const auto logCb = [op](const formatv_object_base& msg) {
         std::ignore = errorAt(op, "{0}", msg.str());
     };
 
-    if (auto sparseBufferInput = op.input().getType().dyn_cast<VPUIP::SparseBufferType>()) {
-        if (auto sparseBufferOutput = op.output().getType().dyn_cast<VPUIP::SparseBufferType>()) {
+    if (auto sparseBufferInput = input().getType().dyn_cast<VPUIP::SparseBufferType>()) {
+        if (auto sparseBufferOutput = output().getType().dyn_cast<VPUIP::SparseBufferType>()) {
             const auto inputData = sparseBufferInput.getData().cast<VPUIP::DistributedBufferType>();
             const auto outputData = sparseBufferOutput.getData().cast<VPUIP::DistributedBufferType>();
             return VPU::isDistributedCastCompatible(inputData, outputData, logCb);
@@ -46,8 +47,8 @@ mlir::LogicalResult VPUIP::verifyOp(VPUIP::DistributedCastOp op) {
         }
     }
 
-    const auto inDistributedType = op.input().getType().cast<VPUIP::DistributedBufferType>();
-    const auto outDistributedType = op.output().getType().cast<VPUIP::DistributedBufferType>();
+    const auto inDistributedType = input().getType().cast<VPUIP::DistributedBufferType>();
+    const auto outDistributedType = output().getType().cast<VPUIP::DistributedBufferType>();
 
     return VPU::isDistributedCastCompatible(inDistributedType, outDistributedType, logCb);
 }

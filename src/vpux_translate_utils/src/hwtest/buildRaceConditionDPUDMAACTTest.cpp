@@ -10,7 +10,6 @@
 #include "vpux/compiler/dialect/VPU/passes.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
-#include "vpux/compiler/dialect/VPUIP/utils.hpp"
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
 #include "vpux/compiler/dialect/VPURT/task.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
@@ -18,7 +17,6 @@
 #include "vpux/hwtest/ops/act_shave_op.hpp"
 #include "vpux/hwtest/test_case_json_parser.hpp"
 #include "vpux/utils/core/error.hpp"
-#include "vpux/utils/core/numeric.hpp"
 
 namespace vpux {
 namespace hwtest {
@@ -122,7 +120,7 @@ void buildRaceConditionDPUDMAACTTest(const nb::TestCaseJsonDescriptor& testDesc,
             SmallVector<mlir::Type>{inputParamType, outputParamType0, outputParamType1, outputParamType2},
             SmallVector<mlir::Type>{outputParamType0, outputParamType1, outputParamType2});
 
-    auto function = builder.create<mlir::FuncOp>(
+    auto function = builder.create<mlir::func::FuncOp>(
             loc, printToString("race_condition_dpu_dma_act_{0}_{1}_{2}", inputType, weightsType, outputType), funcType,
             builder.getStringAttr("private"));
 
@@ -230,10 +228,9 @@ void buildRaceConditionDPUDMAACTTest(const nb::TestCaseJsonDescriptor& testDesc,
                                              paddings[PAD_NCETASK_TOP], paddings[PAD_NCETASK_BOTTOM]);
         nceTask_0.addDPUTask(functionBuilder, start, outEnd, start, inEnd, pad, conv.cube_mode);
         // DMA
-        VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(waitBarrier.barrier()),
-                                              mlir::ValueRange(updateBarrier.barrier()), loc,
-                                              inputCMXVec[0].getOperation()->getResult(0),
-                                              outputCMX_1.getOperation()->getResult(0), 0, false, false);
+        VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(
+                functionBuilder, mlir::ValueRange(waitBarrier.barrier()), mlir::ValueRange(updateBarrier.barrier()),
+                loc, inputCMXVec[0].getOperation()->getResult(0), outputCMX_1.getOperation()->getResult(0), 0);
         // ActShave
         buildActShaveTask(testDesc, module, functionBuilder, log, makeArrayRef(inputTypes), inputCMXVec, outputCMX_2,
                           mlir::ValueRange(waitBarrier.barrier()), mlir::ValueRange(updateBarrier.barrier()));
@@ -248,7 +245,8 @@ void buildRaceConditionDPUDMAACTTest(const nb::TestCaseJsonDescriptor& testDesc,
     VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(functionBuilder, mlir::ValueRange(waitBarrier.barrier()), mlir::ValueRange(),
                                           loc, outputCMX_2.getOperation()->getResult(0), functionOutput_2);
 
-    functionBuilder.create<mlir::ReturnOp>(loc, mlir::ValueRange{functionOutput_0, functionOutput_1, functionOutput_2});
+    functionBuilder.create<mlir::func::ReturnOp>(
+            loc, mlir::ValueRange{functionOutput_0, functionOutput_1, functionOutput_2});
 
     mlir::PassManager pm(ctx, mlir::OpPassManager::Nesting::Implicit);
     pm.addPass(VPU::createInitCompilerPass(testDesc.getArchitecture(), VPU::CompilationMode::ReferenceHW, 1, 1, None,

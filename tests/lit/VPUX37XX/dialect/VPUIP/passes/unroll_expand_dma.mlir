@@ -1,12 +1,13 @@
 //
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
+
 // RUN: vpux-opt --split-input-file --init-compiler="vpu-arch=VPUX37XX" --unroll-expand-dma  %s | FileCheck %s
 
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
-!OutputDistributed = type !VPUIP.DistributedBuffer<
+!OutputDistributed = !VPUIP.DistributedBuffer<
     1x4x240x320xf16, #NHWC, @CMX_NN, {
     mode = "SEGMENTED",
     num_tiles = [1, 1, 2, 1],
@@ -14,7 +15,7 @@
 }>
 
 // CHECK-LABEL: @UnrollExpandDMAWithSEGMENTED
-func @UnrollExpandDMAWithSEGMENTED() -> !OutputDistributed {
+func.func @UnrollExpandDMAWithSEGMENTED() -> !OutputDistributed {
     %bar0 = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
 
     %input = VPURT.DeclareBuffer "NetworkInput" [0] <0> -> memref<1x3x240x320xf16, #NHWC, @DDR>
@@ -55,14 +56,14 @@ func @UnrollExpandDMAWithSEGMENTED() -> !OutputDistributed {
 
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
-!OutputDistributed = type !VPUIP.DistributedBuffer<
+!OutputDistributed = !VPUIP.DistributedBuffer<
     1x4432x1x2xf16, #NHWC, @CMX_NN, {
     mode = "DUPLICATED",
     num_clusters = 2
 }>
 
 // CHECK-LABEL: @UnrollExpandDMAWithDUPLICATED
-func @UnrollExpandDMAWithDUPLICATED() -> !OutputDistributed {
+func.func @UnrollExpandDMAWithDUPLICATED() -> !OutputDistributed {
     %bar0 = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
 
     %input = VPURT.DeclareBuffer "NetworkInput" [0] <0> -> memref<1x4420x1x2xf16, #NHWC, @DDR>
@@ -89,14 +90,14 @@ func @UnrollExpandDMAWithDUPLICATED() -> !OutputDistributed {
     //CHECK:                outputs([[OUTPUT]] : !VPUIP.DistributedBuffer<1x4432x1x2xf16, #NHWC, @CMX_NN, {mode = "DUPLICATED", num_clusters = 2 : i64}>)
     //CHECK:                    -> !VPUIP.DistributedBuffer<1x4432x1x2xf16, #NHWC, @CMX_NN, {mode = "DUPLICATED", num_clusters = 2 : i64}>
 
-    //CHECK:    return [[RETURN]] : !VPUIP.DistributedBuffer<1x4432x1x2xf16, #NHWC, @CMX_NN, {mode = "DUPLICATED", num_clusters = 2 : i64}>  
+    //CHECK:    return [[RETURN]] : !VPUIP.DistributedBuffer<1x4432x1x2xf16, #NHWC, @CMX_NN, {mode = "DUPLICATED", num_clusters = 2 : i64}>
 }
 
 // -----
 
 #NHWC = affine_map<(d0, d1, d2, d3) -> (d0, d2, d3, d1)>
 
-!OutputDistributed = type !VPUIP.DistributedBuffer<
+!OutputDistributed = !VPUIP.DistributedBuffer<
     1x4x240x320xf16, #NHWC, @CMX_NN, {
     mode = "OVERLAPPED",
     num_tiles = [1, 1, 2, 1],
@@ -107,7 +108,7 @@ func @UnrollExpandDMAWithDUPLICATED() -> !OutputDistributed {
 }>
 
 // CHECK-LABEL: @UnrollExpandDMAWithOVERLAPPED
-func @UnrollExpandDMAWithOVERLAPPED() -> !OutputDistributed {
+func.func @UnrollExpandDMAWithOVERLAPPED() -> !OutputDistributed {
     %bar0 = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
 
     %input = VPURT.DeclareBuffer "NetworkInput" [0] <0> -> memref<1x3x240x320xf16, #NHWC, @DDR>
@@ -147,10 +148,10 @@ func @UnrollExpandDMAWithOVERLAPPED() -> !OutputDistributed {
 // -----
 
 #NWCH = affine_map<(d0, d1, d2, d3) -> (d0, d3, d1, d2)>
-!qElemType = type !quant.uniform<u8:f16, 0.0040670955882352944:128>
+!qElemType = !quant.uniform<u8:f16, 0.0040670955882352944:128>
 
 // CHECK-LABEL: @UnrollExpandDMAWithLargeSizeAndDiffWithExpandAxis
-func @UnrollExpandDMAWithLargeSizeAndDiffWithExpandAxis() -> memref<1x32x720x1280x!qElemType, #NWCH, @DDR> {
+func.func @UnrollExpandDMAWithLargeSizeAndDiffWithExpandAxis() -> memref<1x32x720x1280x!qElemType, #NWCH, @DDR> {
     %bar0 = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
 
     %input = VPURT.DeclareBuffer "DDR" <0> -> memref<1x20x720x1280x!qElemType, #NWCH, @DDR>
@@ -188,10 +189,10 @@ func @UnrollExpandDMAWithLargeSizeAndDiffWithExpandAxis() -> memref<1x32x720x128
 // -----
 
 #NCHW = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
-!qElemType = type !quant.uniform<u8:f16, 0.0040670955882352944:128>
+!qElemType = !quant.uniform<u8:f16, 0.0040670955882352944:128>
 
 // CHECK-LABEL: @UnrollExpandDMAWithLargeSizeAndSameWithExpandAxis
-func @UnrollExpandDMAWithLargeSizeAndSameWithExpandAxis() -> memref<1x32x720x1280x!qElemType, #NCHW, @DDR> {
+func.func @UnrollExpandDMAWithLargeSizeAndSameWithExpandAxis() -> memref<1x32x720x1280x!qElemType, #NCHW, @DDR> {
     %bar0 = VPURT.DeclareVirtualBarrier -> !VPURT.Barrier
 
     %input = VPURT.DeclareBuffer "DDR" <0> -> memref<1x20x720x1280x!qElemType, #NCHW, @DDR>

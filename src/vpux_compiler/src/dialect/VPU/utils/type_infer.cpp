@@ -3,12 +3,11 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/VPU/utils/type_infer.hpp"
 
 #include "vpux/compiler/core/attributes/dims_order.hpp"
 #include "vpux/compiler/core/type_interfaces.hpp"
+#include "vpux/compiler/dialect/IE/utils/reduce_infer.hpp"
 #include "vpux/compiler/utils/error.hpp"
 #include "vpux/compiler/utils/permute_utils.hpp"
 
@@ -45,7 +44,13 @@ mlir::LogicalResult inferReduceReturnTypes(mlir::Location loc, mlir::Value input
         }
     }
 
-    const auto outType = inType.changeShape(Shape(outShape));
+    const auto newOutputType =
+            TypeComponents()
+                    .setDimsOrder(keepDims ? inType.getDimsOrder()
+                                           : vpux::IE::calculateReducedOutputLayout(inType.getDimsOrder(), axes))
+                    .setShape(Shape(outShape));
+    const auto outType = inType.changeTypeComponents(newOutputType);
+
     inferredReturnTypes.push_back(outType);
 
     return mlir::success();

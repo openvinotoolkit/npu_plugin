@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/IE/passes.hpp"
 
 #include "vpux/compiler/dialect/IE/ops.hpp"
@@ -145,7 +143,8 @@ void MatMulInputsTo2dPass::safeRunOnFunc() {
             return false;
         }
         // Cover 4D input and weights without batch.
-        if (input1Shape.size() == 4 && input2Shape.size() == 4 && input1Shape[Dim(0)] == 1) {
+        if (input1Shape.size() == 4 &&
+            ((input2Shape.size() == 4 || input2Shape.size() == 3) && input1Shape[Dim(0)] == 1)) {
             return false;
         }
         if (input1Shape.size() == 3 && input2Shape.size() == 2 && input1Shape[Dim(0)] == 1) {
@@ -161,7 +160,7 @@ void MatMulInputsTo2dPass::safeRunOnFunc() {
     mlir::RewritePatternSet patterns(&ctx);
     patterns.add<MatMulOpConverter>(&ctx, _log);
 
-    auto func = getFunction();
+    auto func = getOperation();
     if (mlir::failed(mlir::applyPartialConversion(func, target, std::move(patterns)))) {
         signalPassFailure();
     }

@@ -6,9 +6,10 @@
 #include "vpux/compiler/core/tiling.hpp"
 
 #include <gtest/gtest.h>
-#include <mlir/Parser.h>
 
 using namespace vpux;
+
+const int64_t numDPUs = 5;
 
 TEST(MLIR_VPU_TilingUtils, BackInferPadsTile) {
     const auto compareInferredPads = [&](ShapeRef inputShape, PadInfo padInfo, ArrayRef<int64_t> kernelSize,
@@ -16,7 +17,7 @@ TEST(MLIR_VPU_TilingUtils, BackInferPadsTile) {
                                          PadInfo expectedPads) {
         TileInfo outTile(tileShape);
         outTile.offsets = Shape(tileOffsets.raw());
-        outTile.axis[Dims4D::Act::H] = 5;
+        outTile.axis[Dims4D::Act::H] = numDPUs;
         const auto inferredPads = backInferPadsTile(outTile, inputShape, padInfo, kernelSize, kernelStrides);
         EXPECT_EQ(inferredPads, expectedPads);
     };

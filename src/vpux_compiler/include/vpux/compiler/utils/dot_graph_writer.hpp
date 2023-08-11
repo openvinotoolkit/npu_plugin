@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #pragma once
 
 #include "vpux/utils/core/string_ref.hpp"
@@ -18,6 +16,7 @@ struct GraphWriterParams final {
     std::string stopBefore;
     bool printConst = false;
     bool printDeclarations = false;
+    bool printOnlyTaskAndBarrier = false;
     bool htmlLike = true;
 };
 

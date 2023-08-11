@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/core/linear_scan_handler.hpp"
 
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
@@ -103,7 +101,7 @@ void LinearScanHandler::allocated(mlir::Value val, AddressType addr) {
 
     _valOffsets.insert({val, addr});
 
-    const auto endAddr = alignVal<int64_t>(addr + getSize(val), getAlignment(val));
+    const auto endAddr = alignValUp<int64_t>(addr + getSize(val), getAlignment(val));
     _maxAllocatedSize = Byte(std::max(_maxAllocatedSize.count(), endAddr));
 }
 

@@ -1,12 +1,13 @@
 //
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
+
 // RUN: vpux-opt --split-input-file --init-compiler="vpu-arch=%arch%" --convert-allocations-to-declarations %s | FileCheck %s
 // REQUIRES: arch-VPUX30XX || arch-VPUX37XX
 
 // CHECK-LABEL: @StaticAlloc
-func @StaticAlloc() -> (memref<1x1x1x1000xf16, @DDR>, memref<1x1x1x2048xf16, [@CMX_NN, 0]>) {
+func.func @StaticAlloc() -> (memref<1x1x1x1000xf16, @DDR>, memref<1x1x1x2048xf16, [@CMX_NN, 0]>) {
     %0 = VPUIP.StaticAlloc<0> -> memref<1x1x1x1000xf16, @DDR>
     %1 = VPUIP.StaticAlloc<2000> -> memref<1x1x1x2048xf16, [@CMX_NN, 0]>
 

@@ -1,11 +1,12 @@
 //
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
+
 // RUN: vpux-opt --init-compiler="vpu-arch=%arch%" --async-scheduling %s | FileCheck %s
 // REQUIRES: arch-VPUX30XX || arch-VPUX37XX
 
-func @main(%arg0: memref<1x1x1x100xf16>, %arg1: memref<100xf16>) -> memref<100xf16> {
+func.func @main(%arg0: memref<1x1x1x100xf16>, %arg1: memref<100xf16>) -> memref<100xf16> {
     %buf0 = memref.alloc() : memref<1x1x1x100xf16>
     %buf1 = memref.alloc() : memref<1x1x1x100xf16>
 

@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #ifndef VPUX_COMPILER_DIALECT_VPURT
 #define VPUX_COMPILER_DIALECT_VPURT
 
@@ -32,11 +30,13 @@ It handles such VPU-specifics as:
     }];
 
     let dependentDialects = [
-        "mlir::StandardOpsDialect",
+        "mlir::func::FuncDialect",
         "vpux::IERT::IERTDialect",
         "vpux::VPU::VPUDialect",
         "vpux::VPUIP::VPUIPDialect",
     ];
+
+    let useDefaultTypePrinterParser = 1;
 }
 
 #endif

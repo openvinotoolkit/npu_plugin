@@ -32,8 +32,6 @@ if(NOT ENABLE_CLANG_FORMAT)
 endif()
 ie_option(ENABLE_CLANG_FORMAT "Enable clang-format checks during the build" ${ENABLE_CLANG_FORMAT})
 
-ie_option(ENABLE_KMB_SAMPLES "Enable KMB samples" OFF)
-
 # HDDL2 is deprecated
 if(ENABLE_HDDL2 OR ENABLE_HDDL2_TESTS)
     message (WARNING "ENABLE_HDDL2 and ENABLE_HDDL2_TESTS are deprecated option due to hddl2 removing")
@@ -49,24 +47,7 @@ if(ENABLE_MODELS)
 endif()
 
 # TODO move it out into submodules
-ie_dependent_option(ENABLE_VALIDATION_SET "download validation_set required for functional testing. It requires additional variables: VALIDATION_SET_NAME, VALIDATION_SET_REPOR, VALIDATION_SET_BRANCH" OFF "ENABLE_FUNCTIONAL_TESTS" OFF)
-if(ENABLE_VALIDATION_SET)
-    if(DEFINED ENV{VALIDATION_SET_NAME})
-        set(VALIDATION_SET_NAME $ENV{VALIDATION_SET_NAME})
-    else()
-        message(FATAL_ERROR "ENABLE_VALIDATION_SET was enabled, but VALIDATION_SET_NAME was not set. Abort")
-    endif()
-    if(DEFINED ENV{VALIDATION_SET_REPO})
-        set(VALIDATION_SET_REPO $ENV{VALIDATION_SET_REPO})
-    else()
-        message(FATAL_ERROR "ENABLE_VALIDATION_SET was enabled, but VALIDATION_SET_REPO was not set. Abort")
-    endif()
-    if(DEFINED ENV{VALIDATION_SET_BRANCH})
-        set(VALIDATION_SET_BRANCH $ENV{VALIDATION_SET_BRANCH})
-    else()
-        message(FATAL_ERROR "ENABLE_VALIDATION_SET was enabled, but VALIDATION_SET_BRANCH was not set. Abort")
-    endif()
-endif()
+ie_dependent_option(ENABLE_VALIDATION_SET "download validation_set required for functional testing" OFF "ENABLE_FUNCTIONAL_TESTS" OFF)
 
 ie_option(ENABLE_EXPORT_SYMBOLS "Enable compiler -fvisibility=default and linker -export-dynamic options" OFF)
 

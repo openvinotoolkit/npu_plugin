@@ -9,8 +9,10 @@
 #include "single_layer_tests/gather_elements.hpp"
 
 namespace LayerTestsDefinitions {
-
-class KmbGatherElementsLayerTest : public GatherElementsLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
+class VPUXGatherElementsLayerTest :
+        public GatherElementsLayerTest,
+        virtual public LayerTestsUtils::KmbLayerTestsCommon {};
+class VPUXGatherElementsLayerTest_VPU3700 : public VPUXGatherElementsLayerTest {
     void SkipBeforeLoad() override {
     }
     void SkipBeforeInfer() override {
@@ -20,21 +22,15 @@ class KmbGatherElementsLayerTest : public GatherElementsLayerTest, virtual publi
     }
 };
 
-TEST_P(KmbGatherElementsLayerTest, CompareWithRefs) {
+class VPUXGatherElementsLayerTest_VPU3720 : public VPUXGatherElementsLayerTest {};
+
+TEST_P(VPUXGatherElementsLayerTest_VPU3700, HW) {
+    setPlatformVPU3700();
+    setDefaultHardwareModeMLIR();
     Run();
 }
 
-TEST_P(KmbGatherElementsLayerTest, CompareWithRefs_MLIR) {
-    useCompilerMLIR();
-    Run();
-}
-
-class KmbGatherElementsLayerTest_MLIR_VPU3720 :
-        public GatherElementsLayerTest,
-        virtual public LayerTestsUtils::KmbLayerTestsCommon {};
-
-TEST_P(KmbGatherElementsLayerTest_MLIR_VPU3720, CompareWithRefs_MLIR_VPU3720) {
-    useCompilerMLIR();
+TEST_P(VPUXGatherElementsLayerTest_VPU3720, HW) {
     setPlatformVPU3720();
     setDefaultHardwareModeMLIR();
     Run();
@@ -54,53 +50,50 @@ const std::vector<int> axes_set1 = {-1, 0, 1};
 const std::vector<int> axes_set2 = {-2, 1};
 const std::vector<int> axes_set3 = {0};
 
-INSTANTIATE_TEST_SUITE_P(smoke_GatherElements_set1, KmbGatherElementsLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_GatherElements_set1, VPUXGatherElementsLayerTest_VPU3700,
                          testing::Combine(testing::Values(std::vector<size_t>{2, 2}),
                                           testing::Values(std::vector<size_t>{2, 2}), testing::ValuesIn(axes_set1),
                                           testing::ValuesIn(dPrecisions), testing::ValuesIn(iPrecisions),
                                           testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
-                         KmbGatherElementsLayerTest::getTestCaseName);
+                         VPUXGatherElementsLayerTest_VPU3700::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_GatherElements_set2, KmbGatherElementsLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_GatherElements_set2, VPUXGatherElementsLayerTest_VPU3700,
                          testing::Combine(testing::Values(std::vector<size_t>{5, 7, 9, 1}),
                                           testing::Values(std::vector<size_t>{5, 7, 9, 1}),
                                           testing::ValuesIn(axes_set2), testing::ValuesIn(dPrecisions),
                                           testing::ValuesIn(iPrecisions),
                                           testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
-                         KmbGatherElementsLayerTest::getTestCaseName);
+                         VPUXGatherElementsLayerTest_VPU3700::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_GatherElements_set3, KmbGatherElementsLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_GatherElements_set3, VPUXGatherElementsLayerTest_VPU3700,
                          testing::Combine(testing::Values(std::vector<size_t>{2, 2, 1}),
                                           testing::Values(std::vector<size_t>{4, 2, 1}), testing::ValuesIn(axes_set3),
                                           testing::ValuesIn(dPrecisions), testing::ValuesIn(iPrecisions),
                                           testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
-                         KmbGatherElementsLayerTest::getTestCaseName);
+                         VPUXGatherElementsLayerTest_VPU3700::getTestCaseName);
 
 const auto GatherElements_PRECOMMIT_VPU3720_set1 =
         ::testing::Combine(testing::Values(std::vector<size_t>{2, 2}), testing::Values(std::vector<size_t>{2, 2}),
                            testing::ValuesIn(axes_set1), testing::ValuesIn(dPrecisions), testing::ValuesIn(iPrecisions),
                            testing::Values(LayerTestsUtils::testPlatformTargetDevice));
 
-INSTANTIATE_TEST_SUITE_P(smoke_precommit_GatherElements_VPU3720_set1, KmbGatherElementsLayerTest_MLIR_VPU3720,
-                         GatherElements_PRECOMMIT_VPU3720_set1,
-                         KmbGatherElementsLayerTest_MLIR_VPU3720::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_precommit_GatherElements_VPU3720_set1, VPUXGatherElementsLayerTest_VPU3720,
+                         GatherElements_PRECOMMIT_VPU3720_set1, VPUXGatherElementsLayerTest_VPU3720::getTestCaseName);
 
 const auto GatherElements_PRECOMMIT_VPU3720_set2 = ::testing::Combine(
         testing::Values(std::vector<size_t>{5, 7, 9, 1}), testing::Values(std::vector<size_t>{5, 7, 9, 1}),
         testing::ValuesIn(axes_set2), testing::ValuesIn(dPrecisions), testing::ValuesIn(iPrecisions),
         testing::Values(LayerTestsUtils::testPlatformTargetDevice));
 
-INSTANTIATE_TEST_SUITE_P(smoke_precommit_GatherElements_VPU3720_set2, KmbGatherElementsLayerTest_MLIR_VPU3720,
-                         GatherElements_PRECOMMIT_VPU3720_set2,
-                         KmbGatherElementsLayerTest_MLIR_VPU3720::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_precommit_GatherElements_VPU3720_set2, VPUXGatherElementsLayerTest_VPU3720,
+                         GatherElements_PRECOMMIT_VPU3720_set2, VPUXGatherElementsLayerTest_VPU3720::getTestCaseName);
 
 const auto GatherElements_PRECOMMIT_VPU3720_set3 = ::testing::Combine(
         ::testing::Values(std::vector<size_t>{2, 2, 1}), ::testing::Values(std::vector<size_t>{4, 2, 1}),
         ::testing::ValuesIn(axes_set3), ::testing::ValuesIn(dPrecisions), ::testing::ValuesIn(iPrecisions),
         ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));
 
-INSTANTIATE_TEST_SUITE_P(smoke_precommit_GatherElements_VPU3720_set3, KmbGatherElementsLayerTest_MLIR_VPU3720,
-                         GatherElements_PRECOMMIT_VPU3720_set3,
-                         KmbGatherElementsLayerTest_MLIR_VPU3720::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_precommit_GatherElements_VPU3720_set3, VPUXGatherElementsLayerTest_VPU3720,
+                         GatherElements_PRECOMMIT_VPU3720_set3, VPUXGatherElementsLayerTest_VPU3720::getTestCaseName);
 
 }  // namespace

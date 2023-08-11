@@ -3,13 +3,11 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include <vpux_elf/types/vpu_extensions.hpp>
 #include <vpux_elf/writer.hpp>
 #include "vpux/compiler/dialect/ELF/attributes.hpp"
 #include "vpux/compiler/dialect/ELF/ops.hpp"
-#include "vpux/compiler/dialect/VPUIPRegMapped/ops.hpp"
+#include "vpux/compiler/dialect/VPUMI37XX/ops.hpp"
 
 void vpux::ELF::CreateMetadataSectionOp::serialize(elf::Writer& writer, vpux::ELF::SectionMapType& sectionMap,
                                                    vpux::ELF::SymbolMapType& symbolMap) {
@@ -33,7 +31,7 @@ void vpux::ELF::CreateMetadataSectionOp::serialize(elf::Writer& writer, vpux::EL
     auto block = getBody();
     for (auto& op : block->getOperations()) {
         VPUX_THROW_UNLESS(!isMetadataSerialized, "There should be only 1 metadata op in an ELF metadata section");
-        if (auto metadata_op = mlir::dyn_cast<vpux::VPUIPRegMapped::NetworkMetadataOp>(op)) {
+        if (auto metadata_op = mlir::dyn_cast<vpux::VPUMI37XX::NetworkMetadataOp>(op)) {
             isMetadataSerialized = true;
             metadata_op.serialize(*section, metadata);
         }

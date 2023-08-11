@@ -3,13 +3,12 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/utils/dot_graph_writer.hpp"
 
 #include "vpux/compiler/core/attributes/dims_order.hpp"
 #include "vpux/compiler/core/ops_interfaces.hpp"
 #include "vpux/compiler/core/type_interfaces.hpp"
+#include "vpux/compiler/dialect/VPURT/ops.hpp"
 #include "vpux/compiler/utils/strings.hpp"
 
 #include "vpux/utils/core/error.hpp"
@@ -35,7 +34,6 @@ using namespace vpux;
 
 namespace {
 
-constexpr size_t MAX_EDGE_NUM = 64;
 constexpr size_t MAX_ATTR_STR_SIZE = 80;
 
 enum class EdgeDir { EDGE_SKIP, EDGE_NORMAL, EDGE_REVERSE };
@@ -171,6 +169,11 @@ EdgeDir GraphWriter::getEdgeDirection(mlir::Operation* source, mlir::Operation* 
 }
 
 bool GraphWriter::isNodeHidden(mlir::Operation* op) const {
+    if (_params.printOnlyTaskAndBarrier) {
+        // print only barriers and tasks
+        return !mlir::isa<VPURT::TaskOp, VPURT::DeclareVirtualBarrierOp>(op);
+    }
+
     if (op->hasTrait<mlir::OpTrait::IsTerminator>()) {
         return true;
     }

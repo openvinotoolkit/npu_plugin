@@ -3,13 +3,12 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/VPU/nce_invariant.hpp"
 #include "vpux/compiler/dialect/VPU/nce_sparsity.hpp"
 #include "vpux/compiler/dialect/VPU/ops.hpp"
 #include "vpux/compiler/dialect/VPU/passes.hpp"
 #include "vpux/compiler/dialect/VPU/utils/const_utils.hpp"
+#include "vpux/compiler/dialect/VPU/utils/conv_utils.hpp"
 #include "vpux/compiler/dialect/VPU/utils/eltwise_utils.hpp"
 #include "vpux/compiler/dialect/VPU/utils/ppe_utils.hpp"
 
@@ -42,11 +41,6 @@ Const::DeclareOp createActSparsityMap(mlir::PatternRewriter& rewriter, mlir::Typ
     return rewriter.create<Const::DeclareOp>(mlir::UnknownLoc::get(ctx), sparsityMapType, content);
 }
 
-mlir::ArrayAttr getIdentityDimPermutation(mlir::MLIRContext* ctx) {
-    SmallVector<SmallVector<int64_t>> permutation = {{0}, {1}, {2}, {3}};
-    return getIntArrayOfArray(ctx, permutation);
-}
-
 std::tuple<mlir::Value, Shape> insertExpandToAlign(mlir::PatternRewriter& rewriter, mlir::Value input,
                                                    int64_t alignment) {
     const auto inputType = input.getType().cast<vpux::NDTypeInterface>();
@@ -55,7 +49,7 @@ std::tuple<mlir::Value, Shape> insertExpandToAlign(mlir::PatternRewriter& rewrit
     const auto dimC = Dims4D::Act::C;
 
     auto expandedShape = inputShape.toValues();
-    expandedShape[dimC] = alignVal(inputShape[dimC], alignment);
+    expandedShape[dimC] = alignValUp(inputShape[dimC], alignment);
     SmallVector<int64_t> padsBegin(inputShape.size(), 0);
     SmallVector<int64_t> padsEnd(inputShape.size(), 0);
     padsEnd[dimC.ind()] = expandedShape[dimC] - inputShape[dimC];
@@ -67,6 +61,11 @@ std::tuple<mlir::Value, Shape> insertExpandToAlign(mlir::PatternRewriter& rewrit
     return std::make_tuple(expandOp.output(), expandedShape);
 }
 
+mlir::ArrayAttr getIdentityDimPermutation(mlir::MLIRContext* ctx) {
+    SmallVector<SmallVector<int64_t>> permutation = {{0}, {1}, {2}, {3}};
+    return getIntArrayOfArray(ctx, permutation);
+}
+
 std::tuple<mlir::Value, Shape> insertAlignmentReshape(mlir::PatternRewriter& rewriter, mlir::Value input,
                                                       int64_t alignment) {
     const auto inputType = input.getType().cast<vpux::NDTypeInterface>();
@@ -75,7 +74,7 @@ std::tuple<mlir::Value, Shape> insertAlignmentReshape(mlir::PatternRewriter& rew
     const auto totalElements = inputShape.totalSize();
     // Trying to uniformely distribute elements
     const auto desiredAxisSize = checked_cast<int64_t>(std::cbrt(totalElements));
-    auto numC = alignVal(desiredAxisSize, alignment);
+    auto numC = alignValUp(desiredAxisSize, alignment);
     if (totalElements % numC != 0) {
         numC = alignment;
     }
@@ -96,92 +95,272 @@ std::tuple<mlir::Value, Shape> insertAlignmentReshape(mlir::PatternRewriter& rew
     return std::make_tuple(reshapeOp.output(), newShape);
 }
 
-void rewriteSparsityOpWithEltwiseOp(mlir::PatternRewriter& rewriter, mlir::Operation* originalOp, vpux::LogCb logCb) {
-    const auto loc = originalOp->getLoc();
-    auto ctx = originalOp->getContext();
+mlir::LogicalResult rewriteSparsityOpWithEltwiseOp(mlir::PatternRewriter& rewriter, mlir::Operation* origOp,
+                                                   vpux::Logger log, StringRef debugName) {
+    const auto logCb = [&](const formatv_object_base& msg) {
+        std::ignore = matchFailed(log, rewriter, origOp, "[{0}] {1}", debugName, msg.str());
+    };
 
-    mlir::Value input = originalOp->getOperand(0);
-    mlir::Value output = originalOp->getResult(0);
-    vpux::NDTypeInterface targetEltwiseOutputType = output.getType();
+    const auto loc = origOp->getLoc();
+    auto ctx = origOp->getContext();
 
-    const auto arch = VPU::getArch(originalOp);
-    const auto opType = VPU::EltwiseType::ADD;
-    const bool allowDifferentScales = true;
-    const bool allowDifferentZp = true;
+    auto input = origOp->getOperand(0);
+    auto inputType = input.getType().cast<vpux::NDTypeInterface>();
 
-    auto inputType = input.getType();
+    auto output = origOp->getResult(0);
+    auto outputType = output.getType().cast<vpux::NDTypeInterface>();
+    const auto originalOutputType = outputType;
+
+    auto defaultQuantElemType = mlir::quant::UniformQuantizedType::get(
+            /*flags=*/0, getUInt8Type(ctx), mlir::Float16Type::get(ctx), /*scale=*/1.0,
+            /*zeroPoint=*/0, /*storageTypeMin=*/0, /*storageTypeMax=*/255);
+    auto quantizedPerAxis = inputType.getElementType().isa<mlir::quant::UniformQuantizedPerAxisType>();
+    if (quantizedPerAxis) {
+        auto quantCastOp = rewriter.create<VPU::QuantizeCastOp>(origOp->getLoc(), input, defaultQuantElemType);
+        input = quantCastOp.output();
+        inputType = input.getType().cast<vpux::NDTypeInterface>();
+        outputType = outputType.changeElemType(defaultQuantElemType);
+    }
+
+    const auto maybeRequantizedOutputType = outputType;
+
     auto alignment = VPU::NCEEltwiseOp::getInputChannelAlignmentImpl(inputType);
-    // 37XX support compressed inputs(IC=4), while Eltwise require alignment of 16.
-    // Eltwise result dont depend on shape, so wrap Eltwise by reshapes to suitable shape
-    bool needAlignment = !vpux::VPU::NCEInvariant::isAligned(inputType, alignment, logCb);
+    const auto arch = VPU::getArch(origOp);
+    bool needAlignment = !vpux::VPU::NCEInvariant::isAligned(inputType, alignment, arch, logCb);
     bool isAlignmentResolvedByReshape = false;
-    const auto originalShape = targetEltwiseOutputType.getShape();
+    const auto originalShape = outputType.getShape();
     Shape alignedShape;
     if (needAlignment) {
         if (originalShape.totalSize() % alignment == 0) {
+            // Eltwise result do not depend on shape, so Eltwise can be wrapped by reshapes to fit alignment
+            // requirements
             std::tie(input, alignedShape) = insertAlignmentReshape(rewriter, input, alignment);
             isAlignmentResolvedByReshape = true;
         } else {
             std::tie(input, alignedShape) = insertExpandToAlign(rewriter, input, alignment);
         }
-        inputType = input.getType();
-        targetEltwiseOutputType = targetEltwiseOutputType.changeShape(alignedShape);
-        output = input;  // Used only by isNCEEltwiseSupported, where only shape and elementType checked
-        // so can be used regardless sparsity
+        inputType = input.getType().cast<vpux::NDTypeInterface>();
+        outputType = outputType.changeShape(alignedShape);
     }
 
-    if (!VPU::isNCEEltwiseSupported(arch, mlir::ValueRange{input, input}, output, allowDifferentScales,
-                                    allowDifferentZp, logCb)) {
-        VPUX_THROW("Cannot lower [De]Sparsify to Eltwise because of HW requirements {0}", originalOp->getLoc());
+    if (!VPU::isNCEEltwiseSupported(arch, inputType, inputType, outputType,
+                                    /*allowDifferentScales=*/true,
+                                    /*allowDifferentZp=*/true, /*checkLayout=*/true, /*checkChannelAlignment=*/true,
+                                    logCb)) {
+        return matchFailed(log, rewriter, origOp, "Cannot lower operation to NCE Eltwise because of HW requirements");
     }
-
-    vpux::NDTypeInterface outputTypeForPPEAttr = targetEltwiseOutputType;
 
     // To keep values half of scale is needed
+    auto outputTypeForPPEAttr = outputType;
     auto elementType = outputTypeForPPEAttr.getElementType();
     // dummy filled type with half of scale for fp16 case
-    auto newType = mlir::quant::UniformQuantizedType::get(0, getUInt8Type(ctx), rewriter.getF16Type(),
+    auto newType = mlir::quant::UniformQuantizedType::get(mlir::quant::QuantizationFlags::Signed, getInt32Type(ctx),
+                                                          rewriter.getF16Type(),
                                                           /*scale=*/2.0,
                                                           /*zeroPoint=*/0,
-                                                          /*storageTypeMin=*/0,
-                                                          /*storageTypeMax=*/std::numeric_limits<uint8_t>::max());
+                                                          /*storageTypeMin=*/std::numeric_limits<int32_t>::min(),
+                                                          /*storageTypeMax=*/std::numeric_limits<int32_t>::max());
+
     if (auto qOutputType = elementType.dyn_cast<mlir::quant::UniformQuantizedType>()) {
         const auto newScale = qOutputType.getScale() * 2.;
         // For real quantType we should use real values, except scale
         newType = mlir::quant::UniformQuantizedType::get(0, getUInt8Type(ctx), rewriter.getF16Type(), newScale,
                                                          qOutputType.getZeroPoint(), qOutputType.getStorageTypeMin(),
                                                          qOutputType.getStorageTypeMax());
-    } else if (auto qOutputType = elementType.dyn_cast<mlir::quant::UniformQuantizedPerAxisType>()) {
-        VPUX_THROW("UniformQuantizedPerAxisType is not supported by NCEEltwiseOps");
     }
-
     outputTypeForPPEAttr = outputTypeForPPEAttr.changeElemType(newType);
 
+    const auto opType = VPU::EltwiseType::ADD;
     auto ppeTaskAttr =
             VPU::getNCEEltwisePPETaskAttr(inputType, inputType, outputTypeForPPEAttr, nullptr, loc, opType, ctx, arch);
 
-    auto eltwiseOp = rewriter.create<VPU::NCEEltwiseOp>(originalOp->getLoc(), targetEltwiseOutputType, input, input,
-                                                        VPU::EltwiseTypeAttr::get(ctx, opType), ppeTaskAttr,
-                                                        /*multi_cluster_strategyAttr=*/nullptr,
-                                                        /*is_inplace*/ nullptr);
+    auto nceOp = rewriter.create<VPU::NCEEltwiseOp>(origOp->getLoc(), outputType, input, input,
+                                                    VPU::EltwiseTypeAttr::get(ctx, opType), ppeTaskAttr,
+                                                    /*multi_cluster_strategyAttr=*/nullptr,
+                                                    /*is_inplace*/ nullptr);
 
-    auto originalOutput = originalOp->getResult(0);
+    auto newOutput = nceOp.output();
+
     if (needAlignment) {
-        const vpux::NDTypeInterface originalOutputType = originalOutput.getType();
         if (isAlignmentResolvedByReshape) {
-            rewriter.replaceOpWithNewOp<VPU::AffineReshapeOp>(originalOp, originalOutputType, eltwiseOp.output(),
-                                                              getIdentityDimPermutation(ctx),
-                                                              getIntArrayAttr(ctx, originalOutputType.getShape()));
+            auto reshapeOp = rewriter.replaceOpWithNewOp<VPU::AffineReshapeOp>(
+                    origOp, maybeRequantizedOutputType, nceOp.output(), getIdentityDimPermutation(ctx),
+                    getIntArrayAttr(ctx, maybeRequantizedOutputType.getShape()));
+            newOutput = reshapeOp.output();
         } else {
             SmallVector<int64_t> offsets(alignedShape.size(), 0);
             SmallVector<int64_t> sizes(originalShape.begin(), originalShape.end());
-            rewriter.replaceOpWithNewOp<VPU::SliceOp>(originalOp, originalOutputType, eltwiseOp.output(),
-                                                      getIntArrayAttr(ctx, offsets), getIntArrayAttr(ctx, sizes));
+            auto sliceOp = rewriter.replaceOpWithNewOp<VPU::SliceOp>(origOp, maybeRequantizedOutputType, nceOp.output(),
+                                                                     getIntArrayAttr(ctx, offsets),
+                                                                     getIntArrayAttr(ctx, sizes));
+            newOutput = sliceOp.result();
         }
-    } else {
-        originalOutput.replaceAllUsesWith(eltwiseOp.output());
-        rewriter.eraseOp(originalOp);
     }
+
+    if (quantizedPerAxis) {
+        auto quantCastOp =
+                rewriter.create<VPU::QuantizeCastOp>(origOp->getLoc(), newOutput, originalOutputType.getElementType());
+        newOutput = quantCastOp.output();
+    }
+
+    rewriter.replaceOp(origOp, {newOutput});
+
+    return mlir::success();
+}
+
+mlir::Value createFilter(mlir::PatternRewriter& rewriter, mlir::Location loc, vpux::NDTypeInterface filterType) {
+    auto ctx = filterType.getContext();
+    auto shape = filterType.getShape();
+    auto elemType = filterType.getElementType();
+    auto order = filterType.getDimsOrder();
+
+    const auto OC = shape[Dims4D::Filter::OC];
+    const auto IC = shape[Dims4D::Filter::IC];
+    SmallVector<float> content(OC * IC, 0.0f);
+    for (int64_t oc = 0; oc < OC; ++oc) {
+        content[oc * IC + oc] = 1.0f;
+    }
+    auto dataStorageType = mlir::RankedTensorType::get(shape.raw(), mlir::Float32Type::get(ctx));
+    auto dataAttr = mlir::DenseElementsAttr::get(dataStorageType, makeArrayRef(content));
+
+    auto contentAttr = Const::ContentAttr::get(dataAttr);
+    if (auto qElemType = elemType.dyn_cast<mlir::quant::QuantizedType>()) {
+        contentAttr = contentAttr.convertElemType(getUInt8Type(ctx));
+        contentAttr = contentAttr.quantCast(qElemType);
+    } else if (elemType.isa<mlir::Float16Type>()) {
+        contentAttr = contentAttr.convertElemType(mlir::Float16Type::get(ctx));
+    }
+    if (order != DimsOrder::fromNumDims(shape.size())) {
+        contentAttr = contentAttr.reorder(order);
+    }
+
+    auto filterContentAttr = contentAttr.sparsify(/*compressOutputType=*/false);
+    auto filterConstOp = rewriter.create<Const::DeclareOp>(loc, filterType, filterContentAttr);
+
+    // The sparsity map is introduced to avoid the compute with the numerous zero values in the filter
+    auto sparsityMapContentAttr = contentAttr.getSparsityMap();
+    auto sparsityMapConstOp =
+            rewriter.create<Const::DeclareOp>(loc, sparsityMapContentAttr.getType(), sparsityMapContentAttr);
+
+    auto sparsifyTransformation = filterContentAttr.getTransformations().back().dyn_cast<Const::SparsifyAttr>();
+    VPUX_THROW_UNLESS(sparsifyTransformation != nullptr, "Missing Sparsify transformation");
+    const auto numElemsAttr = sparsifyTransformation.getNumActualElements();
+    const auto axisAttr = getIntAttr(ctx, Dims4D::Filter::OC.ind());
+    const auto alignmentAttr = getIntAttr(ctx, VPU::NCEInvariant::VPU_WEIGHT_SET_BYTE_ALIGNMENT);
+    auto compressionSchemeAttr = VPU::CompressionSchemeAttr::get(ctx, axisAttr, numElemsAttr, alignmentAttr);
+
+    auto groupOp = rewriter.create<VPU::GroupSparseTensorOp>(loc, filterConstOp.output(), sparsityMapConstOp.output(),
+                                                             /*is_weights=*/true, compressionSchemeAttr);
+
+    return groupOp.output();
+}
+
+// Hardware Convolution is chosen since it supports output sparsity while having the most flexibility
+// in terms of variants configurations. Depthwise operations have limited support channel sizes for variants,
+// while Eltwise operations cannot have variants tiled over Z which is often required for sparse producers.
+mlir::LogicalResult rewriteSparsityOpWithConv(mlir::PatternRewriter& rewriter, mlir::Operation* origOp,
+                                              vpux::Logger log, StringRef debugName) {
+    const auto logCb = [&](const formatv_object_base& msg) {
+        std::ignore = matchFailed(log, rewriter, origOp, "[{0}] {1}", debugName, msg.str());
+    };
+    auto ctx = origOp->getContext();
+
+    auto input = origOp->getOperand(0);
+    auto inputType = input.getType().cast<vpux::NDTypeInterface>();
+    const auto inputRank = inputType.getShape().size();
+    if (inputRank != 4) {
+        return matchFailed(log, rewriter, origOp, "Expected 4D input, but got '{0}' dimensions", inputRank);
+    }
+
+    auto output = origOp->getResult(0);
+    auto outputType = output.getType().cast<vpux::NDTypeInterface>();
+    const auto originalOutputType = outputType;
+
+    auto defaultQuantElemType = mlir::quant::UniformQuantizedType::get(
+            /*flags=*/0, getUInt8Type(ctx), mlir::Float16Type::get(ctx), /*scale=*/1.0,
+            /*zeroPoint=*/0, /*storageTypeMin=*/0, /*storageTypeMax=*/255);
+
+    auto quantizedPerAxis = inputType.getElementType().isa<mlir::quant::UniformQuantizedPerAxisType>();
+    if (quantizedPerAxis) {
+        auto quantCastOp = rewriter.create<VPU::QuantizeCastOp>(origOp->getLoc(), input, defaultQuantElemType);
+        input = quantCastOp.output();
+        inputType = input.getType().cast<vpux::NDTypeInterface>();
+        outputType = outputType.changeElemType(defaultQuantElemType);
+    }
+
+    const auto maybeRequantizedOutputType = outputType;
+
+    const auto arch = VPU::getArch(origOp);
+    auto alignment = VPU::NCEConvolutionOp::getInputChannelAlignmentImpl(inputType);
+    bool needAlignment = !vpux::VPU::NCEInvariant::isAligned(inputType, alignment, arch, logCb);
+    if (needAlignment) {
+        Shape alignedShape;
+        std::tie(input, alignedShape) = insertExpandToAlign(rewriter, input, alignment);
+        inputType = input.getType().cast<vpux::NDTypeInterface>();
+        outputType = outputType.changeShape(alignedShape);
+    }
+
+    const auto OC = outputType.getShape()[Dims4D::Act::C];
+    const auto IC = inputType.getShape()[Dims4D::Act::C];
+    const Shape filterShape({OC, IC, 1, 1});
+
+    auto inputElemType = inputType.getElementType();
+    mlir::Type filterElemType = mlir::Float16Type::get(ctx);
+    if (auto qInputElemType = inputElemType.dyn_cast<mlir::quant::QuantizedType>()) {
+        filterElemType = mlir::quant::UniformQuantizedType::get(
+                /*flags=*/0, getUInt8Type(ctx), mlir::Float16Type::get(ctx),
+                /*scale=*/1.0, /*zeroPoint=*/0, /*storageTypeMin=*/0, /*storageTypeMax=*/255);
+    }
+    auto filterTensorAttr = IE::getTensorAttr(ctx, DimsOrder::OYXI, nullptr);
+    auto filterType = mlir::RankedTensorType::get(filterShape.raw(), filterElemType, filterTensorAttr)
+                              .cast<vpux::NDTypeInterface>();
+
+    const SmallVector<int64_t> dilations{1, 1};
+    const auto pads = vpux::PadInfo(0, 0, 0, 0);
+
+    if (!VPU::isNCEConvSupported(arch, inputType, filterType, outputType, dilations, /*KY=*/1, /*KX=*/1, /*SY=*/1,
+                                 /*SX=*/1, pads, /*checkLayout=*/true, /*checkChannelAlignment=*/true, logCb)) {
+        return matchFailed(log, rewriter, origOp,
+                           "Cannot lower operation to NCE Convolution because of HW requirements");
+    }
+
+    auto filter = createFilter(rewriter, origOp->getLoc(), filterType);
+
+    // TODO: add weights sparsity map to save compute
+    VPU::PPETaskAttr ppeTaskAttr = nullptr;
+    auto weightsTableVec = VPU::createWeightsTableData(origOp->getOperand(0), origOp->getResult(0), filter,
+                                                       /*bias=*/nullptr, OC, ppeTaskAttr, arch, /*postOpAttr=*/nullptr);
+    auto weightsTable = VPU::createWeightsTableTensor(rewriter, origOp->getLoc(), weightsTableVec);
+
+    auto stridesAttr = getIntArrayAttr(ctx, SmallVector<int64_t>({1, 1}));
+    auto padAttr = VPU::getPaddingAttr(ctx, pads);
+    auto rawFilterShape = getIntArrayAttr(ctx, filterType.getShape().raw());
+
+    auto nceOp = rewriter.create<VPU::NCEConvolutionOp>(
+            origOp->getLoc(), outputType, input, filter, weightsTable, /*activationWindow=*/nullptr,
+            /*instructionListTable=*/nullptr, stridesAttr, padAttr, ppeTaskAttr, rawFilterShape,
+            /*activationWindowChannelLength=*/nullptr, /*multi_cluster_strategyAttr=*/nullptr);
+
+    auto newOutput = nceOp.output();
+
+    if (needAlignment) {
+        auto origOutputShape = maybeRequantizedOutputType.cast<vpux::NDTypeInterface>().getShape();
+        SmallVector<int64_t> offsets(origOutputShape.size(), 0);
+        SmallVector<int64_t> sizes(origOutputShape.begin(), origOutputShape.end());
+        auto sliceOp = rewriter.create<VPU::SliceOp>(origOp->getLoc(), maybeRequantizedOutputType, newOutput,
+                                                     getIntArrayAttr(ctx, offsets), getIntArrayAttr(ctx, sizes));
+        newOutput = sliceOp.result();
+    }
+
+    if (quantizedPerAxis) {
+        auto quantCastOp =
+                rewriter.create<VPU::QuantizeCastOp>(origOp->getLoc(), newOutput, originalOutputType.getElementType());
+        newOutput = quantCastOp.output();
+    }
+
+    rewriter.replaceOp(origOp, {newOutput});
+
+    return mlir::success();
 }
 
 //
@@ -209,7 +388,7 @@ mlir::LogicalResult LowerSparsityOpsPass::initialize(mlir::MLIRContext* ctx) {
         return mlir::success();
     }
     if (_maybeFakeSparsify.hasValue()) {
-        _log.trace("Overloading C++  createLowerSparsityOpsPass argument by MLIR variable");
+        _log.trace("Overloading C++ createLowerSparsityOpsPass argument by MLIR variable");
     }
     _maybeFakeSparsify = fakeSparsify;
     return mlir::success();
@@ -234,18 +413,8 @@ private:
 
 mlir::LogicalResult RewriteDesparsify::matchAndRewrite(VPU::DesparsifyOp desparsifyOp,
                                                        mlir::PatternRewriter& rewriter) const {
-    const auto logCb = [&](const formatv_object_base& msg) {
-        std::ignore = matchFailed(_log, rewriter, desparsifyOp, "[{0}] {1}", this->getDebugName(), msg.str());
-    };
     _log.trace("Got '{0}' at '{1}'", desparsifyOp->getName(), desparsifyOp->getLoc());
-
-    const auto outputType = desparsifyOp.output().getType().cast<vpux::NDTypeInterface>();
-    VPUX_THROW_WHEN(outputType.getElementType().isa<mlir::quant::UniformQuantizedPerAxisType>(),
-                    "Could not convert Desparsify at '{0}' because the data is quantized per-axis",
-                    desparsifyOp->getLoc());
-
-    rewriteSparsityOpWithEltwiseOp(rewriter, desparsifyOp.getOperation(), logCb);
-    return mlir::success();
+    return rewriteSparsityOpWithEltwiseOp(rewriter, desparsifyOp.getOperation(), _log, getDebugName());
 }
 
 //
@@ -269,23 +438,19 @@ private:
 
 mlir::LogicalResult RewriteSparsify::matchAndRewrite(VPU::SparsifyOp sparsifyOp,
                                                      mlir::PatternRewriter& rewriter) const {
-    const auto logCb = [&](const formatv_object_base& msg) {
-        std::ignore = matchFailed(_log, rewriter, sparsifyOp, "[{0}] {1}", this->getDebugName(), msg.str());
-    };
     _log.trace("Got '{0}' at '{1}'", sparsifyOp->getName(), sparsifyOp->getLoc());
 
-    const auto outputType = sparsifyOp.output().getType().cast<vpux::NDTypeInterface>();
-    const auto canBeDoneAsEltwise = !outputType.getElementType().isa<mlir::quant::UniformQuantizedPerAxisType>();
-    if (canBeDoneAsEltwise && !_useFakeSparsify) {
-        rewriteSparsityOpWithEltwiseOp(rewriter, sparsifyOp.getOperation(), logCb);
-    } else {
-        const auto sparsityMap = createActSparsityMap(rewriter, sparsifyOp.input().getType());
-        auto groupedView = rewriter.create<VPU::GroupSparseTensorOp>(sparsifyOp.getLoc(), sparsifyOp.input(),
-                                                                     sparsityMap->getResult(0));
-        // GroupSparseTensorOp result have new type, so cant just replaceOpWithNewOp
-        sparsifyOp.output().replaceAllUsesWith(groupedView->getResult(0));
-        rewriter.eraseOp(sparsifyOp);
+    if (!_useFakeSparsify) {
+        return rewriteSparsityOpWithConv(rewriter, sparsifyOp.getOperation(), _log, getDebugName());
     }
+
+    const auto sparsityMap = createActSparsityMap(rewriter, sparsifyOp.input().getType());
+    auto groupedView = rewriter.create<VPU::GroupSparseTensorOp>(sparsifyOp.getLoc(), sparsifyOp.input(),
+                                                                 sparsityMap->getResult(0));
+    // GroupSparseTensorOp result have new type, so cant just replaceOpWithNewOp
+    sparsifyOp.output().replaceAllUsesWith(groupedView->getResult(0));
+    rewriter.eraseOp(sparsifyOp);
+
     return mlir::success();
 }
 
@@ -297,18 +462,18 @@ void LowerSparsityOpsPass::safeRunOnFunc() {
     using namespace VPU;
     using namespace VPU::NCESparsity;
 
-    auto func = getFunction();
+    auto func = getOperation();
     auto& ctx = getContext();
     mlir::ConversionTarget target(ctx);
     target.addIllegalOp<VPU::DesparsifyOp>();
     target.addIllegalOp<VPU::SparsifyOp>();
     target.addLegalDialect<Const::ConstDialect>();
     target.addLegalDialect<VPU::VPUDialect>();
-    target.addLegalOp<mlir::FuncOp, mlir::ReturnOp>();
+    target.addLegalOp<mlir::func::FuncOp, mlir::func::ReturnOp>();
 
     mlir::RewritePatternSet patterns(&ctx);
     patterns.add<RewriteDesparsify>(&ctx, _log);
-    patterns.add<RewriteSparsify>(&ctx, _maybeFakeSparsify.getValueOr(true), _log);
+    patterns.add<RewriteSparsify>(&ctx, _maybeFakeSparsify.value_or(true), _log);
 
     if (mlir::failed(mlir::applyFullConversion(func, target, std::move(patterns)))) {
         signalPassFailure();

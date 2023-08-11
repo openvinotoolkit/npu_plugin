@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/core/overlap_DPU_and_DMA.hpp"
 
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
@@ -111,14 +109,12 @@ void OverlapDMAandDPU::FreeInterval::addOpsToFreeIntervalWithActivationStall(
         ++front;
     }
 
-    size_t dataOpsCycleCost = 0;
     // insert ops exceeding activation copy out
     for (auto dataOp : dataOps) {
         size_t insertedEndTime = insertedStartTime + dataOp.cycleCost();
         prefetchOps_.push_back(
                 DataOpOptimalCycles(dataOp.opIdx_, dataOp.DPUIdx_, dataOp.level_, insertedStartTime, insertedEndTime));
         insertedStartTime = insertedEndTime;
-        dataOpsCycleCost += dataOp.cycleCost();
     }
 
     // update cycle end
@@ -585,12 +581,16 @@ void OverlapDMAandDPU::PrefetchPipeline::populatePrefetchEdges(scheduleWithPrefe
                           prefetchInterval.freeInterval_.cycleEnd_);
         _log.nest().trace("activation copy out interval {0} to {1}", prefetchInterval.activationSpill_.cycleBegin_,
                           prefetchInterval.activationSpill_.cycleEnd_);
-        // check if this prefetch interval contains activation reads
-        bool activationSpill = prefetchInterval.activationSpill_.reads_.empty();
+
+        // check if this prefetch interval has activation writes (moves activation from CMX to DDR)
+        bool intervalWritesActivation = !prefetchInterval.activationSpill_.writes_.empty();
         auto DPUCycles = prefetchInterval.getDPUCyclesDuringPrefetchInterval();
         for (auto& DPU : DPUCycles) {
-            _log.nest(2).trace("DPU {0} with cycles {1} to {2} can prefetch:", DPU.opIdx_, DPU.cycleBegin_,
-                               DPU.cycleEnd_);
+            // and also if current DPU is the last DPU after which the activation spill will occur
+            bool activationSpill = intervalWritesActivation && DPU.opIdx_ == DPUCycles.back().opIdx_;
+            _log.nest(2).trace("DPU {0} with cycles {1} to {2}, activationSpill {3} can prefetch:", DPU.opIdx_,
+                               DPU.cycleBegin_, DPU.cycleEnd_, activationSpill);
+
             prefetchSet newSet;
             for (auto DMA : prefetchInterval.getDataOpCyclesDuringFreeInterval()) {
                 if (DMA.level_ > DPU.level_ && DMA.cycleBegin_ <= DPU.cycleEnd_ && DMA.cycleBegin_ >= DPU.cycleBegin_) {
@@ -599,8 +599,7 @@ void OverlapDMAandDPU::PrefetchPipeline::populatePrefetchEdges(scheduleWithPrefe
                     newSet.insert(PrefetchDMA(DMA.opIdx_, DMA.level_));
                 }
             }
-            // and also if current DPU is the last DPU after which the activation spill will occur
-            activationSpill = (activationSpill && DPU.opIdx_ == DPUCycles.back().opIdx_);
+
             prefetchSchedule.push_back(OverlappedSchedule(DPU.opIdx_, DPU.level_, newSet, activationSpill));
         }
     }
@@ -823,7 +822,6 @@ void OverlapDMAandDPU::generatePrefetchEdgesFromOverlap(scheduleWithPrefetch& pr
 
     // STEP 1: Representation
 
-    size_t currentDPUCycle = 1;
     size_t currentLevel = 0;
     activationSpills[currentLevel] = ActivationSpillCost(currentLevel);
     _log.trace("Finding Intervals");
@@ -836,10 +834,7 @@ void OverlapDMAandDPU::generatePrefetchEdgesFromOverlap(scheduleWithPrefetch& pr
             continue;
         }
         size_t operationCycleCost = op->cycleEnd_ - op->cycleBegin_;
-        if (op->executor == VPU::ExecutorKind::SHAVE_UPA || op->executor == VPU::ExecutorKind::SHAVE_ACT ||
-            op->executor == VPU::ExecutorKind::SHAVE_NN || op->executor == VPU::ExecutorKind::DPU) {
-            // currently not supported executors
-        } else if (op->executor == VPU::ExecutorKind::DMA_NN) {
+        if (op->executor == VPU::ExecutorKind::DMA_NN) {
             // DMA case
             if (op->isDataOp_) {
                 // copy in from DDR to NNCMX
@@ -853,16 +848,14 @@ void OverlapDMAandDPU::generatePrefetchEdgesFromOverlap(scheduleWithPrefetch& pr
                     activationSpills[currentLevel].addActivationSpillRead(op->op_, op->cycleBegin_, op->cycleEnd_);
                     _log.nest().trace("activation copy out read level {0} from {1} to {2}", currentLevel,
                                       op->cycleBegin_, op->cycleEnd_);
-                    currentDPUCycle += operationCycleCost;
                 }
             } else {
                 // copy out from NNCMX to DDR - do not delay - can not prefetch at this cycle
                 activationSpills[currentLevel].addActivationSpillWrite(op->op_, op->cycleBegin_, op->cycleEnd_);
                 _log.nest().trace("activation copy out write level {0} from {1} to {2}", currentLevel, op->cycleBegin_,
                                   op->cycleEnd_);
-                currentDPUCycle += operationCycleCost;
             }
-        } else if (op->executor == VPU::ExecutorKind::NCE) {
+        } else if (VPUIP::VPUIPDialect::isComputeExecutorKind(op->executor)) {
             // DPU case
             // store info
             computeOps.push_back(op);
@@ -870,12 +863,11 @@ void OverlapDMAandDPU::generatePrefetchEdgesFromOverlap(scheduleWithPrefetch& pr
             computeOpOnLevel[currentLevel] = op;
             // increase levels
             currentLevel++;
-            // update cycles
-            currentDPUCycle = op->cycleEnd_;
             // create activation copy out for next level
             activationSpills[currentLevel] = ActivationSpillCost(currentLevel);
         } else {
-            VPUX_THROW("Undefined executor");
+            // currently not supported executors
+            _log.nest().trace("not supported executor type {0}", op->executor);
         }
         ++op;
     }
@@ -909,13 +901,13 @@ void OverlapDMAandDPU::generatePrefetchEdgesFromOverlap(scheduleWithPrefetch& pr
 
         // update DPU cycles with current compute op
         DPUCycles += cycleCost;
-        // check if activation copy out
-        if (activationSpills[computeLevel + 1].hasActivationSpill()) {
+        // check if activation copy out OR last compute op level (can be without activation spill)
+        if (activationSpills[computeLevel + 1].hasActivationSpill() || computeLevel + 1 == currentLevel) {
             _log.nest().trace("new interval created to level {0}", computeLevel);
             // store intervals
             _log.nest(2).trace("free interval {0} to {1}", DMACycles, DPUCycles);
             FreeInterval freeInterval(DMACycles, DPUCycles);
-            _log.nest(2).trace("apill interval {0} to {1}", DPUCycles,
+            _log.nest(2).trace("spill interval {0} to {1}", DPUCycles,
                                DPUCycles + activationSpills[computeLevel + 1].activationSpillCycleCost());
             ActivationSpill activationSpill(DPUCycles,
                                             DPUCycles + activationSpills[computeLevel + 1].activationSpillCycleCost(),

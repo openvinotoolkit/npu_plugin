@@ -3,12 +3,10 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/core/attributes/dims_order.hpp"
 #include "vpux/compiler/core/attributes/stride_reqs.hpp"
 #include "vpux/compiler/core/attributes/strides.hpp"
-#include "vpux/compiler/dialect/IE/attributes/structs.hpp"
+#include "vpux/compiler/dialect/IE/attributes.hpp"
 #include "vpux/compiler/dialect/VPUIP/attributes.hpp"
 #include "vpux/compiler/dialect/VPUIP/types.hpp"
 #include "vpux/compiler/utils/types.hpp"
@@ -34,12 +32,17 @@ const DimsOrder vpux::DimsOrder::NC = DimsOrder(0x12);
 const DimsOrder vpux::DimsOrder::CHW = DimsOrder(0x123);
 const DimsOrder vpux::DimsOrder::HWC = DimsOrder(0x231);
 const DimsOrder vpux::DimsOrder::HCW = DimsOrder(0x213);
+const DimsOrder vpux::DimsOrder::WHC = DimsOrder(0x321);
+const DimsOrder vpux::DimsOrder::CWH = DimsOrder(0x132);
 const DimsOrder vpux::DimsOrder::NCHW = DimsOrder(0x1234);
 const DimsOrder vpux::DimsOrder::NHWC = DimsOrder(0x1342);
 const DimsOrder vpux::DimsOrder::NHCW = DimsOrder(0x1324);
 const DimsOrder vpux::DimsOrder::NWHC = DimsOrder(0x1432);
 const DimsOrder vpux::DimsOrder::NWCH = DimsOrder(0x1423);
 const DimsOrder vpux::DimsOrder::NCWH = DimsOrder(0x1243);
+const DimsOrder vpux::DimsOrder::WCHN = DimsOrder(0x4231);
+const DimsOrder vpux::DimsOrder::WHNC = DimsOrder(0x4312);
+const DimsOrder vpux::DimsOrder::HWCN = DimsOrder(0x3421);
 
 const DimsOrder vpux::DimsOrder::NCDHW = DimsOrder(0x12345);
 const DimsOrder vpux::DimsOrder::NDHWC = DimsOrder(0x13452);

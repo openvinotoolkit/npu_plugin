@@ -9,6 +9,32 @@
 #include <string.h>
 #include "VPUXCompilerL0.h"
 
+void getLastError(vcl_log_handle_t logHandle) {
+    // Get latest error info
+    if (logHandle != NULL) {
+        size_t logSize = 0;
+        vcl_result_t logRet = vclLogHandleGetString(logHandle, &logSize, NULL);
+        if (logRet != VCL_RESULT_SUCCESS) {
+            printf("Failed to get size of error message\n");
+        } else if (logSize == 0) {
+            printf("No error during compilation\n");
+        } else {
+            char* log = (char*)malloc(logSize);
+            if (!log) {
+                printf("Failed to alloc memory to store error log!");
+                return;
+            }
+            logRet = vclLogHandleGetString(logHandle, &logSize, log);
+            if (logRet != VCL_RESULT_SUCCESS) {
+                printf("Failed to get content of error message\n");
+            } else {
+                printf("The last error: %s\n", log);
+            }
+            free(log);
+        }
+    }
+}
+
 vcl_result_t testCompiler(int argc, char** argv) {
     if (argc != 4 && argc != 5) {
         printf("usage:\n\tcompilerTest net.xml weight.bin output.net\n");
@@ -16,10 +42,17 @@ vcl_result_t testCompiler(int argc, char** argv) {
         return -1;
     }
 
+    // Control log
+    char* saveErrorLog = getenv("VCL_SAVE_ERROR");
     vcl_result_t ret = VCL_RESULT_SUCCESS;
-    vcl_compiler_desc_t compilerDesc = {VCL_PLATFORM_VPU3700, 5};
+    vcl_compiler_desc_t compilerDesc = {VCL_PLATFORM_VPU3720, VCL_LOG_TRACE};
     vcl_compiler_handle_t compiler = NULL;
-    ret = vclCompilerCreate(compilerDesc, &compiler);
+    vcl_log_handle_t logHandle = NULL;
+    if (saveErrorLog == NULL) {
+        ret = vclCompilerCreate(compilerDesc, &compiler, NULL);
+    } else {
+        ret = vclCompilerCreate(compilerDesc, &compiler, &logHandle);
+    }
     if (ret) {
         printf("Failed to create compiler! Result:%x\n", ret);
         return ret;
@@ -50,7 +83,14 @@ vcl_result_t testCompiler(int argc, char** argv) {
         return VCL_RESULT_ERROR_IO;
     }
     fseek(fpN, 0, SEEK_END);
-    uint64_t xmlSize = ftell(fpN);
+    long fileXmlSize = ftell(fpN);
+    if (fileXmlSize < 0) {
+        printf("Ftell method returns failure.");
+        fclose(fpN);
+        vclCompilerDestroy(compiler);
+        return VCL_RESULT_ERROR_IO;
+    }
+    uint64_t xmlSize = (uint64_t)fileXmlSize;
     fseek(fpN, 0, SEEK_SET);
 
     // Read weights size, add weight.bin
@@ -63,7 +103,15 @@ vcl_result_t testCompiler(int argc, char** argv) {
         return VCL_RESULT_ERROR_IO;
     }
     fseek(fpW, 0, SEEK_END);
-    uint64_t weightsSize = ftell(fpW);
+    long fileWeightsSize = ftell(fpW);
+    if (fileWeightsSize < 0) {
+        printf("Ftell method returns failure.");
+        fclose(fpN);
+        fclose(fpW);
+        vclCompilerDestroy(compiler);
+        return VCL_RESULT_ERROR_IO;
+    }
+    uint64_t weightsSize = (uint64_t)fileWeightsSize;
 
     // Init modelIR
     vcl_version_info_t version = compilerProp.version;
@@ -128,6 +176,49 @@ vcl_result_t testCompiler(int argc, char** argv) {
         return cret;
     }
 
+    // Test query network, create query handle first
+    vcl_query_handle_t query = NULL;
+    ret = vclQueryNetworkCreate(compiler, modelIR, modelIRSize, &query);
+    if (ret != VCL_RESULT_SUCCESS) {
+        getLastError(logHandle);
+        printf("Failed to query network! Result:%x\n", ret);
+        return ret;
+    }
+    uint8_t* layerRawData = NULL;
+    uint64_t layerSize = 0;
+    // First time calling vclQueryNetwork, layerRawData is nullptr, get layerSize
+    ret = vclQueryNetwork(query, layerRawData, &layerSize);
+    if (ret != VCL_RESULT_SUCCESS) {
+        printf("Failed to get size of query result! Result:%x\n", ret);
+        vclQueryNetworkDestroy(query);
+        vclCompilerDestroy(compiler);
+        return ret;
+    }
+    // layerRawData should be allocated with layerSize
+    layerRawData = malloc(layerSize);
+    // Second time calling vclQueryNetwork, copy queryResultString to layerRawData
+    ret = vclQueryNetwork(query, layerRawData, &layerSize);
+    if (ret != VCL_RESULT_SUCCESS) {
+        printf("Failed to get data of query result! Result:%x\n", ret);
+        free(layerRawData);
+        vclQueryNetworkDestroy(query);
+        vclCompilerDestroy(compiler);
+        return ret;
+    }
+    // Print the whole layerRawData
+    printf("Print layerRawData as the result string of query: \n%.*s", (int)layerSize, layerRawData);
+    printf("\n");
+    // Destroy query network handle
+    ret = vclQueryNetworkDestroy(query);
+    if (ret != VCL_RESULT_SUCCESS) {
+        printf("Failed to destroy query handle! Result:%x\n", ret);
+        free(layerRawData);
+        vclCompilerDestroy(compiler);
+        return ret;
+    }
+    free(layerRawData);
+    query = NULL;
+
     vcl_executable_handle_t executable = NULL;
     if (argc != 5) {
         // The options are for googlenet-v1
@@ -148,7 +239,14 @@ vcl_result_t testCompiler(int argc, char** argv) {
             return VCL_RESULT_ERROR_IO;
         }
         fseek(fpC, 0, SEEK_END);
-        uint32_t configSize = ftell(fpC);
+        long fileConfigSize = ftell(fpC);
+        if (fileConfigSize < 0) {
+            printf("Ftell method returns failure.");
+            fclose(fpC);
+            vclCompilerDestroy(compiler);
+            return VCL_RESULT_ERROR_IO;
+        }
+        uint64_t configSize = (uint64_t)fileConfigSize;
         fseek(fpC, 0, SEEK_SET);
         if (configSize == 0) {
             printf("The config file %s is empty\n", configFile);
@@ -190,6 +288,7 @@ vcl_result_t testCompiler(int argc, char** argv) {
     }
     free(modelIR);
     if (ret != VCL_RESULT_SUCCESS) {
+        getLastError(logHandle);
         printf("Failed to create executable handle! Result:%x\n", ret);
         vclCompilerDestroy(compiler);
         return ret;
@@ -249,7 +348,5 @@ vcl_result_t testCompiler(int argc, char** argv) {
 
 int main(int argc, char** argv) {
     testCompiler(argc, argv);
-    // Multiple tests
-    // testCompiler(lib, argc, argv);
     return 0;
 }

@@ -15,6 +15,8 @@ struct NetworkMeta final {
     DataMap networkOutputs;
     DataMap deviceInputs;
     DataMap deviceOutputs;
+    std::vector<OVRawNode> ovResults;
+    std::vector<OVRawNode> ovParameters;
     int numStreams = 1;
 };
 
@@ -25,6 +27,7 @@ class NetworkDescription final : public INetworkDescription {
 public:
     NetworkDescription(const std::vector<char>& compiledNetwork, const std::string& name, const DataMap& networkInputs,
                        const DataMap& networkOutputs, const DataMap& deviceInputs, const DataMap& deviceOutputs,
+                       const std::vector<OVRawNode>& ovResults, const std::vector<OVRawNode>& ovParameters,
                        int numStreams)
             : _compiledNetwork(compiledNetwork),
               _name(name),
@@ -32,13 +35,16 @@ public:
               _networkOutputs(networkOutputs),
               _deviceInputs(deviceInputs),
               _deviceOutputs(deviceOutputs),
+              _ovResults(ovResults),
+              _ovParameters(ovParameters),
               _numStreams(numStreams) {
     }
 
     NetworkDescription(const std::vector<char>& compiledNetwork, const std::string& name,
                        const NetworkMeta& networkMeta)
             : NetworkDescription(compiledNetwork, name, networkMeta.networkInputs, networkMeta.networkOutputs,
-                                 networkMeta.deviceInputs, networkMeta.deviceOutputs, networkMeta.numStreams) {
+                                 networkMeta.deviceInputs, networkMeta.deviceOutputs, networkMeta.ovResults,
+                                 networkMeta.ovParameters, networkMeta.numStreams) {
     }
 
 public:

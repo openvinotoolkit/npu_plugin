@@ -1,14 +1,15 @@
 //
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
+
 // RUN: vpux-opt --split-input-file --init-compiler="vpu-arch=%arch%" --canonicalize %s | FileCheck %s
 // REQUIRES: arch-VPUX30XX || arch-VPUX37XX
 
 #NCHW = affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
 
 // CHECK-LABEL:   @FoldPermuteCast
-func @FoldPermuteCast(%arg0: tensor<1x1000x1x1xf32>) -> tensor<1x1000x1x1xf32> {
+func.func @FoldPermuteCast(%arg0: tensor<1x1000x1x1xf32>) -> tensor<1x1000x1x1xf32> {
     %0 = IE.PermuteCast(%arg0) {dst_order = #NCHW, mem_perm = #NCHW} :
         tensor<1x1000x1x1xf32> -> tensor<1x1000x1x1xf32>
     return %0 : tensor<1x1000x1x1xf32>
@@ -26,7 +27,7 @@ func @FoldPermuteCast(%arg0: tensor<1x1000x1x1xf32>) -> tensor<1x1000x1x1xf32> {
 #NWHC = affine_map<(d0, d1, d2, d3) -> (d0, d3, d2, d1)>
 
 // CHECK-LABEL:   @FusePermuteCasts
-func @FusePermuteCasts(%arg0: tensor<1x1000x1x1xf32>, %arg1: tensor<1x1000x1x1xf32, {order = #NHWC}>) ->
+func.func @FusePermuteCasts(%arg0: tensor<1x1000x1x1xf32>, %arg1: tensor<1x1000x1x1xf32, {order = #NHWC}>) ->
         (tensor<1x1x1x1000xf32>, tensor<1x1x1000x1xf32>) {
     %0 = IE.PermuteCast(%arg0) {dst_order = #NCHW, mem_perm = #NWCH} :
         tensor<1x1000x1x1xf32> -> tensor<1x1x1000x1xf32>
@@ -53,7 +54,7 @@ func @FusePermuteCasts(%arg0: tensor<1x1000x1x1xf32>, %arg1: tensor<1x1000x1x1xf
 #NWCH = affine_map<(d0, d1, d2, d3) -> (d0, d3, d1, d2)>
 
 // CHECK-LABEL:   @FuseMemPermAndPermCast
-func @FuseMemPermAndPermCast(%arg0: tensor<1x1000x1x1xf32, {order = #NHWC}>) -> tensor<1x1x1000x1xf32> {
+func.func @FuseMemPermAndPermCast(%arg0: tensor<1x1000x1x1xf32, {order = #NHWC}>) -> tensor<1x1x1000x1xf32> {
     %0 = IE.MemPermute(%arg0) {dst_order = #NHWC, mem_perm = #NWCH} :
             tensor<1x1000x1x1xf32, {order = #NHWC}> -> tensor<1x1x1000x1xf32, {order = #NHWC}>
     %1 = IE.PermuteCast(%0) {dst_order = #NCHW, mem_perm = #NWCH} :

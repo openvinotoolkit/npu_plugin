@@ -8,6 +8,7 @@
 #include <cpp/ie_cnn_network.h>
 #include <gtest/gtest.h>
 #include <fstream>
+#include <sstream>
 
 #include <ngraph/ngraph.hpp>
 #include <ngraph/opsets/opset3.hpp>

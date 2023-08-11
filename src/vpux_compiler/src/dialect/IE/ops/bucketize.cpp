@@ -14,15 +14,15 @@
 
 using namespace vpux;
 
-mlir::LogicalResult vpux::IE::verifyOp(BucketizeOp op) {
-    const mlir::Type constInt32 = getSInt32Type(op.getContext());
-    const mlir::Type constInt64 = getSInt64Type(op.getContext());
+mlir::LogicalResult vpux::IE::BucketizeOp::verify() {
+    const mlir::Type constInt32 = getSInt32Type(getContext());
+    const mlir::Type constInt64 = getSInt64Type(getContext());
 
-    if (!(op.output_type() == constInt32 || op.output_type() == constInt64)) {
-        return errorAt(op,
+    if (!(output_type() == constInt32 || output_type() == constInt64)) {
+        return errorAt(*this,
                        "Attribute output_type support only SI32 and SI64 type according to schema definition for this "
                        "attribute. Got {0} type",
-                       op.output_type());
+                       output_type());
     }
 
     return mlir::success();
@@ -32,7 +32,7 @@ mlir::LogicalResult vpux::IE::BucketizeOp::inferReturnTypeComponents(
         mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
         mlir::DictionaryAttr attrs, mlir::RegionRange,
         SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
-    const auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
+    const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
     IE::BucketizeOpAdaptor bucketize(operands, attrs);
     if (mlir::failed(bucketize.verify(loc))) {

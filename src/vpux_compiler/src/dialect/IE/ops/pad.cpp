@@ -3,10 +3,8 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/IE/ops.hpp"
-
+#include "vpux/compiler/dialect/IE/utils/pad_extract.hpp"
 #include "vpux/compiler/dialect/VPUIP/graph-schema/utils.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
 #include "vpux/compiler/utils/error.hpp"
@@ -18,38 +16,11 @@
 
 using namespace vpux;
 
-namespace {
-
-mlir::FailureOr<SmallVector<int64_t>> extractPads(mlir::Location loc, const mlir::Value& padValue,
-                                                  const Optional<mlir::ArrayAttr>& padAttr, vpux::ShapeRef inputShape) {
-    if (padAttr.hasValue()) {
-        return parseIntArrayAttr<int64_t>(padAttr.getValue());
-    } else if (padValue != nullptr) {
-        auto padsConst = padValue.getDefiningOp<Const::DeclareOp>();
-        if (padsConst == nullptr) {
-            return errorAt(loc, "Only constant input is supported for pad");
-        }
-
-        auto padValueShape = padValue.getType().cast<mlir::ShapedType>().getShape();
-        if (padValueShape.size() != 1 || padValueShape[0] != checked_cast<int64_t>(inputShape.size())) {
-            return errorAt(loc, "pad_begin shape is not compatible with input tensor."
-                                "The length of the list must be equal to the number of dimensions in the input tensor");
-        }
-
-        const auto padContent = padsConst.content();
-        return to_small_vector(padContent.getValues<int64_t>());
-    }
-
-    return errorAt(loc, "Pads were not provided");
-}
-
-}  // namespace
-
 mlir::LogicalResult vpux::IE::PadOp::inferReturnTypeComponents(
         mlir::MLIRContext* ctx, Optional<mlir::Location> optLoc, mlir::ValueShapeRange operands,
         mlir::DictionaryAttr attrs, mlir::RegionRange,
         SmallVectorImpl<mlir::ShapedTypeComponents>& inferredReturnShapes) {
-    const auto loc = optLoc.getValueOr(mlir::UnknownLoc::get(ctx));
+    const auto loc = optLoc.value_or(mlir::UnknownLoc::get(ctx));
 
     IE::PadOpAdaptor pad(operands, attrs);
     if (mlir::failed(pad.verify(loc))) {
@@ -59,11 +30,11 @@ mlir::LogicalResult vpux::IE::PadOp::inferReturnTypeComponents(
     const auto inType = pad.input().getType().cast<vpux::NDTypeInterface>();
     const auto inputShape = inType.getShape();
 
-    auto padBegin = extractPads(loc, pad.pads_begin(), pad.pads_begin_attr(), inputShape);
+    auto padBegin = IE::extractPads(loc, pad.pads_begin(), pad.pads_begin_attr(), inputShape);
     if (mlir::failed(padBegin)) {
         return mlir::failure();
     }
-    const auto padEnd = extractPads(loc, pad.pads_end(), pad.pads_end_attr(), inputShape);
+    const auto padEnd = IE::extractPads(loc, pad.pads_end(), pad.pads_end_attr(), inputShape);
     if (mlir::failed(padEnd)) {
         return mlir::failure();
     }
@@ -102,7 +73,7 @@ mlir::LogicalResult ConvertConstToAttr::matchAndRewrite(IE::PadOp padOp, mlir::P
 
     // convert pads_begin
 
-    auto padsBegin = extractPads(padOp.getLoc(), padOp.pads_begin(), padOp.pads_begin_attr(), inputShape);
+    auto padsBegin = IE::extractPads(padOp.getLoc(), padOp.pads_begin(), padOp.pads_begin_attr(), inputShape);
     if (mlir::failed(padsBegin)) {
         return mlir::failure();
     }
@@ -110,7 +81,7 @@ mlir::LogicalResult ConvertConstToAttr::matchAndRewrite(IE::PadOp padOp, mlir::P
 
     // convert pads_end
 
-    auto padsEnd = extractPads(padOp.getLoc(), padOp.pads_end(), padOp.pads_end_attr(), inputShape);
+    auto padsEnd = IE::extractPads(padOp.getLoc(), padOp.pads_end(), padOp.pads_end_attr(), inputShape);
     if (mlir::failed(padsEnd)) {
         return mlir::failure();
     }
@@ -120,9 +91,9 @@ mlir::LogicalResult ConvertConstToAttr::matchAndRewrite(IE::PadOp padOp, mlir::P
 
     if (padOp.pad_value() != nullptr) {
         const auto padValueType = padOp.pad_value().getType().cast<mlir::ShapedType>();
-        if (padValueType.getRank() != 0) {
-            return errorAt(padOp.getLoc(), "'pad_value' must be scalar, got tensor with rank: {0}",
-                           padValueType.getRank());
+        if (padValueType.getNumElements() != 1) {
+            return errorAt(padOp.getLoc(), "'pad_value' should have only 1 element, while it has {0}",
+                           padValueType.getNumElements());
         }
 
         auto padValueConst = padOp.pad_value().getDefiningOp<Const::DeclareOp>();

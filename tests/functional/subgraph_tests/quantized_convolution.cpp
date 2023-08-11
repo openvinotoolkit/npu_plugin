@@ -88,7 +88,7 @@ class VPUXQuantizedConvSubGraphTest :
                                                              outDataHigh, outDataLow, outDataHigh);
 
         const ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(outFq)};
-        function = std::make_shared<ngraph::Function>(results, params, "KmbQuantizedConv");
+        function = std::make_shared<ngraph::Function>(results, params, "VPUXQuantizedConv");
     }
 
 public:
@@ -109,24 +109,22 @@ public:
     }
 };
 
-class KmbQuantizedConvSubGraphTest : public VPUXQuantizedConvSubGraphTest {};
+class VPUXQuantizedConvSubGraphTest_VPU3700 : public VPUXQuantizedConvSubGraphTest {};
+class VPUXQuantizedConvSubGraphTest_VPU3720 : public VPUXQuantizedConvSubGraphTest {};
 
-TEST_P(KmbQuantizedConvSubGraphTest, CompareWithRefs_MLIR_SW) {
-    useCompilerMLIR();
+TEST_P(VPUXQuantizedConvSubGraphTest_VPU3700, SW) {
+    setPlatformVPU3700();
     setReferenceSoftwareModeMLIR();
     Run();
 }
 
-TEST_P(KmbQuantizedConvSubGraphTest, CompareWithRefs_MLIR_HW) {
-    useCompilerMLIR();
+TEST_P(VPUXQuantizedConvSubGraphTest_VPU3700, HW) {
+    setPlatformVPU3700();
     setDefaultHardwareModeMLIR();
     Run();
 }
 
-class VPUXQuantizedConvSubGraphTest_VPU3720 : public VPUXQuantizedConvSubGraphTest {};
-
-TEST_P(VPUXQuantizedConvSubGraphTest_VPU3720, CompareWithRefs_MLIR_HW) {
-    useCompilerMLIR();
+TEST_P(VPUXQuantizedConvSubGraphTest_VPU3720, SW) {
     setPlatformVPU3720();
     setDefaultHardwareModeMLIR();
     Run();
@@ -149,7 +147,7 @@ const auto basicCases =
         ::testing::Combine(::testing::ValuesIn(netPrecisions), ::testing::ValuesIn(netOutputPrecisions),
                            ::testing::ValuesIn(fqRanges), ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));
 
-INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke, VPUXQuantizedConvSubGraphTest, basicCases,
+INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_QuantizedConv, VPUXQuantizedConvSubGraphTest_VPU3700, basicCases,
                          VPUXQuantizedConvSubGraphTest::getTestCaseName);
 
 std::vector<std::vector<float>> fqRangesM = {{0.0f, 255.0f, 0.0f, 255.0f}};
@@ -162,7 +160,7 @@ const auto basicCasesM = ::testing::Combine(::testing::ValuesIn(netPrecisionsM),
                                             ::testing::ValuesIn(netOutputPrecisionsM), ::testing::ValuesIn(fqRangesM),
                                             ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));
 
-INSTANTIATE_TEST_SUITE_P(smoke, VPUXQuantizedConvSubGraphTest_VPU3720, basicCasesM,
+INSTANTIATE_TEST_SUITE_P(smoke_QuantizedConv, VPUXQuantizedConvSubGraphTest_VPU3720, basicCasesM,
                          VPUXQuantizedConvSubGraphTest::getTestCaseName);
 
 }  // namespace

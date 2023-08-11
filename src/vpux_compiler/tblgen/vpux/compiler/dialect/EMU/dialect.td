@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #ifndef VPUX_COMPILER_DIALECT_EMU
 #define VPUX_COMPILER_DIALECT_EMU
 
@@ -35,7 +33,7 @@ It has the following properties:
         "vpux::Const::ConstDialect",
         "vpux::IE::IEDialect",
         "vpux::VPU::VPUDialect",
-        "mlir::StandardOpsDialect",
+        "mlir::func::FuncDialect",
         "mlir::tensor::TensorDialect",
         "mlir::quant::QuantizationDialect"
     ];

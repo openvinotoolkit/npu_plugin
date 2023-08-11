@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/VPU/attributes.hpp"
 #include "vpux/compiler/dialect/VPU/nce_sparsity.hpp"
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
@@ -34,6 +32,7 @@ public:
 private:
     void safeRunOnFunc() final;
     uint64_t getPointer(mlir::Value value, uint64_t defaultValue);
+    SmallVector<int32_t> getWeightsPerClusterPointers(VPUIP::NCEClusterTaskOp nceOp, int64_t numCluster);
     void patchWeightsTable(Const::DeclareOp cstOp, mlir::Operation* cstLoadOp, VPUIP::NCEClusterTaskOp nceOp,
                            VPURT::DeclareBufferOp wtDecBuf, int64_t weightsElemByteSize,
                            VPUIP::CompressionSchemeAttr weightsCompression);
@@ -45,7 +44,7 @@ private:
 //
 
 void PatchWeightsTablePass::safeRunOnFunc() {
-    auto funcOp = getFunction();
+    auto funcOp = getOperation();
     // For each nceOp.weight_table find related DeclareBufferOp. Next find dmaOp which
     // fills the buffer. DmaOp's input is expected to be Const::DeclareOp which
     // should be modified by adding relocateWeightTable transformation.
@@ -136,14 +135,12 @@ void PatchWeightsTablePass::patchWeightsTable(Const::DeclareOp cstOp, mlir::Oper
         sparsityMap = VPUIP::getTopBufferOfNCEClusterTiling(nceOp, nceOp.activation_window());
     }
     uint64_t sparsityBasePtr = getPointer(sparsityMap, VPU::NCESparsity::SPARSITY_PTR_WHEN_NO_SPARSITY);
-    auto weights = VPUIP::getTopBufferOfNCEClusterTiling(nceOp, nceOp.weights());
-    uint64_t weightBasePointer = getPointer(weights, 0);
 
     SmallVector<int64_t> offsets;
     if (auto distributedType = wtDecBuf.getType().dyn_cast<VPUIP::DistributedBufferType>()) {
         auto distributionAttr = distributedType.getDistribution();
         const auto numClusters = distributionAttr.num_clusters().getInt();
-        const auto perClusterShapeOffsets = distributedType.getPerClusterComputeShapeOffsets();
+        const auto perClusterShapeOffsets = distributedType.getPerClusterMemoryShapeOffsets();
         VPUX_THROW_UNLESS(perClusterShapeOffsets.size() == checked_cast<size_t>(numClusters),
                           "Number of shape offsets '{0}' and clusters '{1}' are mismatch",
                           perClusterShapeOffsets.size(), numClusters);
@@ -154,13 +151,13 @@ void PatchWeightsTablePass::patchWeightsTable(Const::DeclareOp cstOp, mlir::Oper
     } else {
         offsets.push_back(0);
     }
-
+    auto weightsPerClusterPtrs = getWeightsPerClusterPointers(nceOp, offsets.size());
     // Extract content attrib with existing transformations
     auto origConstAttr = cstOp.contentAttr();
     // Create new attribute based on existing one by adding new relocateWeightTable
     // transformation
     auto newConstAttr = origConstAttr.relocateWeightsTablePointers(
-            weightBasePointer, sparsityBasePtr, ShapeRef(offsets), weightsElemByteSize, weightsCompression);
+            weightsPerClusterPtrs, sparsityBasePtr, ShapeRef(offsets), weightsElemByteSize, weightsCompression);
     mlir::OpBuilder builder(cstOp);
 
     // Create new DeclareOp with the new content attribute and replace the old DeclareOp
@@ -170,7 +167,7 @@ void PatchWeightsTablePass::patchWeightsTable(Const::DeclareOp cstOp, mlir::Oper
     if (cstOp->getUses().empty()) {
         cstOp.erase();
     }
-}
+}  // namespace
 
 uint64_t PatchWeightsTablePass::getPointer(mlir::Value value, uint64_t defaultValue) {
     if (value == nullptr) {
@@ -183,6 +180,39 @@ uint64_t PatchWeightsTablePass::getPointer(mlir::Value value, uint64_t defaultVa
     return valueDeclareBuffer.byteOffset();
 }
 
+SmallVector<int32_t> PatchWeightsTablePass::getWeightsPerClusterPointers(VPUIP::NCEClusterTaskOp nceOp,
+                                                                         int64_t numCluster) {
+    auto weights = VPUIP::getTopBufferOfNCEClusterTiling(nceOp, nceOp.weights());
+    uint64_t weightsBasePointer = getPointer(weights, 0);
+
+    if (weights == nullptr || !weights.getType().isa<VPUIP::DistributedBufferType>()) {
+        return SmallVector<int32_t>(numCluster, static_cast<int32_t>(weightsBasePointer));
+    }
+    auto distributedType = weights.getType().dyn_cast<VPUIP::DistributedBufferType>();
+    auto distributionAttr = distributedType.getDistribution();
+    auto mode = distributionAttr.mode().getValue();
+    if (mode != (VPU::DistributionMode::DUPLICATED | VPU::DistributionMode::SEGMENTED)) {
+        // For distribution modes except Duplicated|Segmented, the weights on every cluster is supposed to be symmetric.
+        // So just return the base pointer for each weights
+        return SmallVector<int32_t>(numCluster, static_cast<int32_t>(weightsBasePointer));
+    }
+
+    // For Duplicated|Segmented weights, weights should be non const for ops like MatMul. It's supposed to
+    // be segmented on N, while the entire data is copied to all CMXs. So the weight's offset need to updated
+    // accordingly since it's not symmetric.
+    SmallVector<int32_t> weightsPerClusterPtrs;
+    VPUX_THROW_UNLESS(nceOp.weights_sparsity_map() == nullptr,
+                      "Weight sparisity map is found, weights is supposed to be non const at '{0}'", nceOp->getLoc());
+    const auto tilingScheme = parseIntArrayAttr<int64_t>(distributionAttr.num_tiles());
+    const auto axis = vpux::VPU::getDistributedTilingAxis(tilingScheme);
+    VPUX_THROW_UNLESS(axis == Dims4D::Act::N.ind(), "Invalid Tile dim, get {0}, expect tiling on N.", axis);
+    const auto perClusterShapeOffsets = distributedType.getPerClusterComputeShapeOffsets();
+    for (auto clusterOffsets : perClusterShapeOffsets) {
+        auto perClusterOffset = Byte(clusterOffsets[Dim(axis)] * distributedType.getStrides()[Dim(axis)]).count();
+        weightsPerClusterPtrs.push_back(static_cast<int32_t>(weightsBasePointer + perClusterOffset));
+    }
+    return weightsPerClusterPtrs;
+}
 }  // namespace
 
 //

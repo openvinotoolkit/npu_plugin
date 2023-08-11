@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
 
 #include "vpux/compiler/dialect/VPU/attributes.hpp"
@@ -102,7 +100,7 @@ void CopyOpHoistingPass::safeRunOnFunc() {
         return true;
     };
 
-    getFunction().walk([&](VPUIP::CopyOp copyOp) {
+    getOperation().walk([&](VPUIP::CopyOp copyOp) {
         _log.trace("Check '{0}' operation at '{1}'", copyOp->getName(), copyOp->getLoc());
 
         if (needToHoist(copyOp)) {

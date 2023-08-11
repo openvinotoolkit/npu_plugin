@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include <vector>
 #include "vpux/compiler/act_kernels/nce2p7.h"
 #include "vpux/compiler/dialect/ELF/ops.hpp"
@@ -65,10 +63,10 @@ class RelocationManager {
 public:
     RelocationManager() = default;
 
-    RelocationManager(mlir::FuncOp funcOp): funcOp_(funcOp) {
+    RelocationManager(mlir::func::FuncOp funcOp): funcOp_(funcOp) {
     }
 
-    void init(mlir::FuncOp funcOp);
+    void init(mlir::func::FuncOp funcOp);
     void initCMXSymTab(ELF::CreateSymbolTableSectionOp cmxMappingSymTab);
     ELF::ElfSectionInterface getSection(mlir::Value value);
     ELF::CreateSymbolTableSectionOp getCMXSymTab();
@@ -78,7 +76,7 @@ public:
     static ELF::SymbolOp getSymbol(ELF::ElfSectionInterface section);
 
 private:
-    mlir::FuncOp funcOp_ = nullptr;
+    mlir::func::FuncOp funcOp_ = nullptr;
     ELF::CreateSymbolTableSectionOp cmxMappingSymTab_ = nullptr;
     llvm::DenseMap<mlir::Value, ELF::ElfSectionInterface> sectionMap_;
     llvm::DenseMap<mlir::Value, ELF::CreateSymbolTableSectionOp> symTabMap_;

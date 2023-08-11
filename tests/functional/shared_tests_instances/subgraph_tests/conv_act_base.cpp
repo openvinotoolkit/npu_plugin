@@ -152,7 +152,7 @@ void ConvActTest::buildFQFunction() {
                                                                  outDataLow, outDataHigh, outDataLow, outDataHigh);
 
     const ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(activationaFq)};
-    function = std::make_shared<ngraph::Function>(results, params, "KmbQuantizedConvAcc");
+    function = std::make_shared<ngraph::Function>(results, params, "QuantizedConvAcc");
 
     threshold = 0.4f;
 

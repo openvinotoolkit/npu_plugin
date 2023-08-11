@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/IERT/ops.hpp"
 
 mlir::Value vpux::IERT::QuantizeCastOp::getViewSource() {

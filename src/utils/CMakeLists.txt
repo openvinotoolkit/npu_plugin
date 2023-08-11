@@ -40,7 +40,6 @@ link_system_libraries(${TARGET_NAME}
     PRIVATE
         IE::inference_engine_plugin_api
     PUBLIC
-        IE::inference_engine_legacy
         vpux_utils
 )
 

@@ -1,21 +1,20 @@
 #
 # Copyright (C) 2023 Intel Corporation
-# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: Apache 2.0
 #
 
-import os
 import numpy as np
+import re
 import pandas as pd
 from itertools import groupby
 from tqdm.contrib.concurrent import process_map
-import itertools
-
 import utils
+from tools.compile_tool import CompileTool
 
 
-def chunks(lst, n):
-    for i in range(0, len(lst), n):
-        yield lst[i:i + n]
+def chunks(list, chunk_size):
+    for i in range(0, len(list), chunk_size):
+        yield list[i:i + chunk_size]
 
 
 class DataTable:
@@ -31,7 +30,7 @@ class DataTable:
         width = len(self.header)
         if (len(self.data) % width != 0):
             raise Exception(
-                "Table row width doesn't match to number of columns")
+                f"Table `{self.name}` has row width not matching to number of columns")
 
         shape = (len(self.data) // width, width)
         table = np.array(self.data, dtype=object)
@@ -49,22 +48,19 @@ class DataTable:
         df = pd.DataFrame(table, columns=self.header)
 
         column_headers = list(df.columns.values)
-        return df.sort_values(by=column_headers)
+        return df
 
 
 def report(device, setup_config, plugin_config_list, report_id):
     report_table = DataTable(
-        "Report", ["device", "ovBranch", "ovRevision", "vpuxBranch", "vpuxRevision", "vpuxCommitDate", "pluginConfig", "reportId"])
+        "Report", ["device", "ovRevision", "vpuxRevision", "vpuxCommitDate", "pluginConfig", "reportId"])
 
-    ov_branch = setup_config.ov_branch
-    ov_revision = setup_config.ov_commit
-    vpux_branch = setup_config.vpux_branch
-    vpux_revision = setup_config.vpux_commit
+    ov_revision = setup_config.ov_revision
+    vpux_revision = setup_config.vpux_revision
     vpux_commit_date = setup_config.vpux_commit_date
     plugin_config = ",".join(plugin_config_list)
 
-    row = [device, ov_branch, ov_revision,
-           vpux_branch, vpux_revision, vpux_commit_date, plugin_config, report_id]
+    row = [device, ov_revision, vpux_revision, vpux_commit_date, plugin_config, report_id]
     report_table.append_row(row)
 
     return report_table
@@ -153,20 +149,35 @@ def layer(all_layers_set):
     return layer_table
 
 
+def sit(model_name: str, args):
+    single_image_table = DataTable("SingleImageTest", [
+                                   "modelId", "cosine", "MAE", "MSE", "Jaccard1", "Jaccard2", "correlation", "mean", "var"])
+
+    metrics_list = np.array([args])
+
+    for row in metrics_list:
+        row_with_model_name = [model_name] + row.tolist()
+        single_image_table.append_row(row_with_model_name)
+
+    return single_image_table
+
+
 def layers_in_model_func(args):
     model_layers, model_in_package_id = args
     layers_with_params = []
     for layer in model_layers:
         layer_id = create_primary_key([layer.name, layer.opset])
+        input_str = ", ".join(str(shape) for shape in layer.input_shapes)
+        output_str = ", ".join(str(shape) for shape in layer.output_shapes)
 
-        row = [layer.input_shapes, layer.output_shapes,
+        row = [input_str, output_str,
                layer.attributes, model_in_package_id, layer_id]
         layers_with_params.append(row)
 
     return layers_with_params
 
 
-def layer_in_model(model_layers_list, models_meta):
+def layer_in_model(model_layers_list, models_meta, max_workers):
     layer_in_model_table = DataTable(
         "LayerInModel", ["inputShapes", "outputShapes", "attributes", "modelInPackageId", "layerId"])
 
@@ -174,11 +185,10 @@ def layer_in_model(model_layers_list, models_meta):
 
     input = [(layers, id) for layers, id in zip(model_layers_list, ids)]
 
-    print("Glob all layer parameters...")
+    print("glob all layer parameters...")
     list_of_model_layers = process_map(
-        layers_in_model_func, input, max_workers=os.cpu_count(), chunksize=1)
+        layers_in_model_func, input, max_workers=max_workers, chunksize=1)
 
-    print("Removing duplicates...")
     for model_layers in list_of_model_layers:
         for layer in model_layers:
             layer_in_model_table.append_row(layer)
@@ -190,53 +200,166 @@ def unsupported_layer(models_meta, unsupported_models_layers):
     unsupported_layer_table = DataTable(
         "UnsupportedLayer", ["source", "package", "topology", "framework", "precision", "name", "opset", "reason", "layerId", "modelInPackageId"])
 
+    has_conformance = any('conformance' in utils.get_source(model) for model in models_meta)
     for m, unsupported_model_layers in zip(models_meta, unsupported_models_layers):
         model_in_package_id = get_model_in_package_id(m)
         for name, opset, reason in unsupported_model_layers:
             layer_id = create_primary_key([name, opset])
-            new_row = [m.source, m.package_type, m.model_name, m.framework,
-                       m.precision, name, opset, reason, layer_id, model_in_package_id]
+
+            if has_conformance:
+                new_row = [m.source, m.package_type, m.subgraph_name, m.framework,
+                           m.subgraph_data_type, name, opset, reason, layer_id, model_in_package_id]
+            else:
+                new_row = [m.source, m.package_type, m.model_name, m.framework,
+                           m.precision, name, opset, reason, layer_id, model_in_package_id]
             unsupported_layer_table.append_row(new_row)
 
     return unsupported_layer_table
 
 
-def compilation(compile_list, report_id):
+def compilation(compile_list, models_list, report_id, parser, plugin_config_path):
     compilation_table = DataTable(
-        "Compilation", ["source", "package", "topology", "framework", "precision", "status", "compileTimeMs", "errorId", "logs", "reportId", "modelInPackageId"])
+        "Compilation", ["source", "package", "topology", "framework", "precision", "status", "compileTimeMs", "errorId", "logs", "reportId", "modelInPackageId", "args"])
 
-    for c in compile_list:
-        status = "PASSED" if c.compiled else "FAILED"
-        compile_time_ms = c.compile_time_ms
+    models_meta = utils.get_models_meta(models_list)
+    for c, m in zip(compile_list, models_meta):
+        status = "PASSED" if c.return_code == 0 else "FAILED"
         errors = utils.squash_constants(c.stderr) if c.stderr else ""
-        logs = c.stdout if c.stdout else ""
-
-        m = c.model_meta
         model_in_package_id = get_model_in_package_id(m)
+        compilation_args = CompileTool().get_argument_list(parser, plugin_config_path, m.model_path)
+        compilation_args = " ".join(map(str, compilation_args))
 
-        row = [m.source,  m.package_type,  m.model_name,  m.framework,  m.precision,
-               status, compile_time_ms, errors, logs, report_id, model_in_package_id]
+        row = [m.source, m.package_type, m.model_name, m.framework, m.precision,
+               status, c.execution_time_ms, errors, c.stdout, report_id, model_in_package_id, compilation_args]
         compilation_table.append_row(row)
 
     return compilation_table
 
 
-def inference(inference_list, report_id):
+def extract_benchmark_info(stdout):
+    benchmark_info = {}
+
+    keywords = ["Median", "Average", "Min", "Max", "Throughput"]
+    for keyword in keywords:
+        match = re.search(f"{keyword}:\s*(\d*\.\d+|\d+)", stdout)
+        if match:
+            value = float(match.group(1))
+            benchmark_info[keyword] = value
+        else:
+            benchmark_info[keyword] = None
+
+    return benchmark_info
+
+
+def inference(inference_list, models_list, report_id):
     inference_table = DataTable(
-        "Inference", ["source", "package", "topology", "framework", "precision", "status", "inferenceTimeMs", "errorId", "logs", "reportId", "modelInPackageId"])
+        "Inference", ["source", "package", "topology", "framework", "precision", "status", "executionTimeMs", "median", "average", "min",
+                      "max", "throughputFps", "errorId", "logs", "reportId", "modelInPackageId"])
 
-    for i in inference_list:
-        inference_time_ms = i.execution_time_ms
-        status = "PASSED" if i.executed else "FAILED"
-        errors = utils.squash_constants(i.stderr) if i.stderr else ""
-        logs = i.stdout if i.stdout else ""
-
-        m = i.model_meta
+    models_meta = utils.get_models_meta(models_list)
+    for i, m in zip(inference_list, models_meta):
+        status = "PASSED" if i.return_code == 0 else "FAILED"
         model_in_package_id = get_model_in_package_id(m)
+        info = extract_benchmark_info(i.stdout)
 
-        row = [m.source,  m.package_type,  m.model_name,  m.framework,  m.precision,
-               status, inference_time_ms, errors, logs, report_id, model_in_package_id]
-
+        row = [m.source, m.package_type, m.model_name, m.framework, m.precision,
+               status, i.execution_time_ms, info["Median"], info["Average"], info["Min"], info["Max"], info["Throughput"],
+               i.stderr, i.stdout, report_id, model_in_package_id]
         inference_table.append_row(row)
 
     return inference_table
+
+
+def accuracy(accuracy_list, models_meta, report_id):
+    accuracy_table = DataTable(
+        "Accuracy", ["source", "package", "topology", "framework", "precision", "status", "metric", "value", "cpuValue", "groundTruth", "metricHint", "datasetSize", "errorId", "logs", "reportId", "modelInPackageId"])
+
+    for a, m in zip(accuracy_list, models_meta):
+        model_in_package_id = get_model_in_package_id(m)
+        status = "PASSED" if a.return_code == 0 else "FAILED"
+        row_head = [m.source, m.package_type,
+                    m.model_name, m.framework, m.precision, status]
+        row_tail = [a.stderr, a.stdout, report_id, model_in_package_id]
+
+        if len(a.metrics) == 0:
+            row_middle = [""] * 6
+            row = row_head + row_middle + row_tail
+            accuracy_table.append_row(row)
+        else:
+            for m in a.metrics:
+                row_middle = [m.name, m.value, m.cpu_value,
+                              m.ground_truth, m.metric_hint, m.dataset_size]
+                row = row_head + row_middle + row_tail
+                accuracy_table.append_row(row)
+
+    return accuracy_table
+
+
+def conformance(compile_list, models_list, parser, plugin_config_path):
+    conformance_table = DataTable(
+        "ConformanceCompilation", ["layer", "subgraph", "topology", "framework", "modelPrecision", "status", "errorId", "logs", "args"])
+
+    models_meta = utils.get_models_meta(models_list)
+    for c, m in zip(compile_list, models_meta):
+        status = "PASSED" if c.return_code == 0 else "FAILED"
+        errors = utils.squash_constants(c.stderr) if c.stderr else ""
+        compilation_args = CompileTool().get_argument_list(parser, plugin_config_path, m.model_path)
+        compilation_args = " ".join(map(str, compilation_args))
+
+        row = [m.subgraph_layer, m.subgraph_name, m.model_name, m.framework,
+               m.precision, status, errors, c.stdout, compilation_args]
+        conformance_table.append_row(row)
+
+    return conformance_table
+
+
+def extract_imd_info(stdout):
+    imd_info = {}
+
+    patterns = [
+        r"Median \((cc)\) : IRP: (\d+) IR: (\d+) IM: (\d+) over (\d+) runs\s+-\sVPU @ (\d+) MHz",
+        r"Median \((FPS)\): IRP: ([\d.]+) IR: ([\d.]+) IM: ([\d.]+)",
+        r"Median \((us)\) : IRP: ([\d.]+) IR: ([\d.]+) IM: ([\d.]+)"
+    ]
+
+    lines = stdout.strip().split("\n")
+    for line in lines:
+        for pattern in patterns:
+            match = re.search(pattern, line)
+            if match:
+                values = match.groups()
+                imd_info[values[0]] = [float(values[1]), float(values[2]), float(values[3])]
+                if len(values) > 4:
+                    imd_info["num_runs"] = int(values[4])
+                    imd_info["mhz"] = int(values[5])
+
+    return imd_info
+
+
+def inference_manager_demo(imd_list, models_list, report_id, parser):
+    imd_table = DataTable(
+        "IMD", ["source", "package", "topology", "framework", "precision", "status", "executionTimeMs",
+                "num_runs", "mhz", "ccIRP", "ccIR", "ccIM", "fpsIRP", "fpsIR", "fpsIM", "usIRP", "usIR", "usIM",
+                "errorId", "logs", "reportId", "modelInPackageId"])
+
+    models_meta = utils.get_models_meta(models_list)
+    for i, m in zip(imd_list, models_meta):
+        errors = i.stderr if i.stderr else ""
+        model_in_package_id = get_model_in_package_id(m)
+        imd_info = extract_imd_info(i.stdout)
+
+        num_runs = imd_info.get("num_runs", None)
+        mhz = imd_info.get("mhz", None)
+        cc = imd_info.get("cc", [None] * 3)
+        fps = imd_info.get("FPS", [None] * 3)
+        us = imd_info.get("us", [None] * 3)
+        perf_list = [num_runs, mhz] + cc + fps + us
+
+        passed = (i.return_code == 0) and (None not in perf_list)
+        status = "PASSED" if passed else "FAILED"
+
+        row = [m.source, m.package_type, m.model_name, m.framework, m.precision, status,
+               i.execution_time_ms] + perf_list + [errors, i.stdout, report_id, model_in_package_id]
+        imd_table.append_row(row)
+
+    return imd_table

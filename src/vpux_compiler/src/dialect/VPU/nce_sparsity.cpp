@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/VPU/nce_sparsity.hpp"
 #include "vpux/compiler/dialect/IE/ops.hpp"
 
@@ -12,6 +10,7 @@
 #include "vpux/compiler/dialect/VPU/nce_invariant.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
 #include "vpux/compiler/utils/quantization.hpp"
+#include "vpux/compiler/utils/sparsity.hpp"
 #include "vpux/compiler/utils/types.hpp"
 
 #include "vpux/utils/IE/loop.hpp"
@@ -22,14 +21,20 @@
 #include <limits>
 #include <numeric>
 
+#include <llvm/ADT/bit.h>
+
 using namespace vpux;
 
 namespace {
 
 using namespace VPU::NCESparsity;
 
+int32_t toHex(double realVal) {
+    return llvm::bit_cast<int32_t>(static_cast<float>(realVal));
+};
+
 bool isMixedPrecisionSupported(VPU::ArchKind arch) {
-    return arch != VPU::ArchKind::VPUX30XX && arch != VPU::ArchKind::VPUX311X;
+    return arch == VPU::ArchKind::VPUX37XX;
 }
 
 Scales exractWeightsScales(mlir::Type weightsElemType) {
@@ -137,7 +142,7 @@ constexpr int32_t getVPUX30XX_Scale(uint8_t shift, uint16_t mult, double, mlir::
 int32_t getVPUX37XX_Scale(uint8_t shift, uint16_t mult, double rescale, mlir::Type inputType) {
     // VPUX37XX expects scale in IEEE754 format in NCE_DPU_PPE_FP_SCALE register in case input has FP16/BF16 type
     if (inputType.isa<mlir::FloatType>()) {
-        return VPU::NCESparsity::toHex(rescale);
+        return toHex(rescale);
     }
 
     int32_t PPE_SHIFT_OFFSET = 8;
@@ -207,7 +212,7 @@ llvm::unique_function<int32_t(size_t)> getMultShiftFunc(mlir::Type inElemType, m
     };
     auto bypassMultForPPE = [](int32_t&, VPU::PPETaskAttr) {};
     auto updateMultForPPE =
-            (arch == VPU::ArchKind::VPUX30XX || arch == VPU::ArchKind::VPUX311X) ? changeMultForPPE : bypassMultForPPE;
+            (arch == VPU::ArchKind::VPUX37XX) ? bypassMultForPPE : changeMultForPPE;
     if (!inElemType.isa<mlir::quant::QuantizedType>() && !outElemType.isa<mlir::quant::QuantizedType>()) {
         const auto ppeConverter = VPU::NCESparsity::ppeConvertersMap.at(arch);
         int32_t multShift = ppeConverter(0, 1, 1, inElemType);
@@ -259,20 +264,6 @@ llvm::unique_function<int32_t(size_t)> getMultShiftFunc(mlir::Type inElemType, m
 
 }  // namespace
 
-int32_t vpux::VPU::NCESparsity::toHex(double realVal) {
-    union f32toint32 {
-        int32_t m_i32;
-        float m_f32;
-    };
-
-    // Conversion from double to float leads to precision loss with the order of magnitude 1e-07.
-    // It doesn't have any impact on accuracy validation, however checked_cast cannot be used here.
-    // See E#49853 for details.
-    f32toint32 biasVal;
-    biasVal.m_f32 = static_cast<float>(realVal);
-    return biasVal.m_i32;
-}
-
 const EnumMap<VPU::ArchKind, VPU::NCESparsity::PPEConverterCb> vpux::VPU::NCESparsity::ppeConvertersMap = {
         {VPU::ArchKind::VPUX30XX, getVPUX30XX_Scale},
         {VPU::ArchKind::VPUX311X, getVPUX30XX_Scale},
@@ -282,7 +273,7 @@ const EnumMap<VPU::ArchKind, VPU::NCESparsity::PPEConverterCb> vpux::VPU::NCESpa
 const EnumMap<VPU::ArchKind, VPU::NCESparsity::BiasConverterCb> vpux::VPU::NCESparsity::biasConvertersMap = {
         {VPU::ArchKind::VPUX30XX, toFixedPoint},
         {VPU::ArchKind::VPUX311X, toFixedPoint},
-        {VPU::ArchKind::VPUX37XX, VPU::NCESparsity::toHex},
+        {VPU::ArchKind::VPUX37XX, toHex},
 };
 
 int64_t vpux::VPU::NCESparsity::getBitPatternSize(Mode mode, ShapeRef kernelSize, int64_t SX, mlir::Type elemType,
@@ -405,8 +396,8 @@ int32_t vpux::VPU::NCESparsity::getWeightPtrStep(mlir::Value weights) {
 
 bool isQuantLeakyRelu025(VPU::ArchKind arch, mlir::Type inElemType, mlir::Type outElemType,
                          vpux::IE::PostOp postOpAttr) {
-    if (arch == VPU::ArchKind::VPUX30XX || arch == VPU::ArchKind::VPUX311X) {
-        return true;
+    if (arch == VPU::ArchKind::VPUX37XX) {
+        return false;
     }
 
     if (postOpAttr == nullptr) {
@@ -574,7 +565,7 @@ SmallVector<int32_t> vpux::VPU::NCESparsity::getInstructionListTable(ArrayRef<in
     const int32_t fullSize = sizeRange + sizeShift + sizeBias;
     const int32_t noopCount = fullSize >> 4;
 
-    const int32_t size = alignVal<int32_t>(fullSize + noopCount, 16);
+    const int32_t size = alignValUp<int32_t>(fullSize + noopCount, 16);
 
     SmallVector<int32_t> templateTable(size - noopCount - 1, ALU_HALT_OPCODE);
 
@@ -631,7 +622,7 @@ Shape vpux::VPU::NCESparsity::inferWeightsSparsityMapShape(ShapeRef dataShape) {
     const auto workloadSize = std::accumulate(dataShape.begin() + 1, dataShape.end(), static_cast<int64_t>(1),
                                               std::multiplies<int64_t>());
     const auto alignment = Byte(16).to<Bit>().count();
-    const auto alignedWorkloadSize = vpux::alignVal(workloadSize, alignment);
+    const auto alignedWorkloadSize = vpux::alignValUp(workloadSize, alignment);
     return Shape({dataShape.raw()[0], 1, 1, alignedWorkloadSize});
 }
 
@@ -667,59 +658,35 @@ mlir::FailureOr<SmallVector<double>> vpux::VPU::NCESparsity::getRescaledBias(Con
     return rescaledBias;
 }
 
-template <typename T>
-int64_t countSparseValues(Const::details::ContentRange<T> values, int64_t numChannels, int64_t channelSize,
-                          std::function<bool(T)> elemComparisonFn) {
-    SmallVector<int64_t> numValsPerOC(numChannels);
-    loop_1d(LoopExecPolicy::Parallel, numChannels, [&](size_t oc) {
-        const auto channelStart = values.begin() + oc * channelSize;
-        for (auto ch = 0; ch < channelSize; ++ch) {
-            numValsPerOC[oc] += elemComparisonFn(*(channelStart + ch));
-        }
-    });
-    return std::accumulate(numValsPerOC.begin(), numValsPerOC.end(), 0ll);
-}
-
+/*
+ Compute sparsification ratio of weights. It computes effective compression ratio of weights in case of weights
+ sparsification. Ratio depends on number of non-zero elements and HW requirements to alignment. Acceleration depends
+ mostly on memory footprint saving therefore alignment must be taken into account while computing ratio. Weights are
+ grouped into sets and have the format OCx(HxWxIC) where:
+ - OC is output channels that is the number of weights sets
+ - HxWxIC is weights set size, its size must be aligned according to HW requirements
+ Ratio is computed as follows:
+ - Count number of non-zero elements in each output channel, compute their size and align up to alignment value
+ - Sum the size of all output channels/sets of weights
+ - Effective ratio is: 1 - (size of non-zero vals)/(size of tensor)
+*/
 double vpux::VPU::NCESparsity::getSparsityRatio(Const::DeclareOp weightsConst) {
     const auto content = weightsConst.content();
     const auto contentType = content.getType();
-    const auto elemType = contentType.getElementType();
+    auto elemType = contentType.getElementType();
 
-    const auto OC = contentType.getShape()[Dims4D::Filter::OC];
-    const auto IC = contentType.getShape()[Dims4D::Filter::IC];
-    const auto KY = contentType.getShape()[Dims4D::Filter::KY];
-    const auto KX = contentType.getShape()[Dims4D::Filter::KX];
-    const auto weightSetSize = IC * KY * KX;
+    auto numActualElements = getNumActualElements(content, elemType);
 
-    int64_t numSparseValues = 0;
+    const auto elemByteSize = getElemTypeSize(elemType).to<Byte>().count();
+    auto alignedChanSizeDenseVals = [&](auto sum, auto elemsInChan) {
+        return sum + vpux::alignValUp(elemsInChan * elemByteSize, VPU::NCEInvariant::VPU_WEIGHT_SET_BYTE_ALIGNMENT);
+    };
+    const auto actualSize =
+            std::accumulate(numActualElements.begin(), numActualElements.end(), 0LL, alignedChanSizeDenseVals);
 
-    if (elemType.isa<mlir::FloatType>()) {
-        const auto values = content.getValues<double>();
-        numSparseValues = countSparseValues<double>(values, OC, weightSetSize, [](double value) {
-            return isDoubleEqual(value, 0.0);
-        });
-    } else if (elemType.isa<mlir::IntegerType, mlir::quant::QuantizedType>()) {
-        const auto values = content.getValues<int64_t>();
-
-        int64_t sparseValue = 0;
-        if (const auto qType = elemType.dyn_cast<mlir::quant::UniformQuantizedType>()) {
-            sparseValue = qType.getZeroPoint();
-        } else if (const auto qType = elemType.dyn_cast<mlir::quant::UniformQuantizedPerAxisType>()) {
-            const auto zeroPoints = qType.getZeroPoints();
-            if (std::adjacent_find(zeroPoints.begin(), zeroPoints.end(), std::not_equal_to<>()) != zeroPoints.end()) {
-                return false;
-            }
-            sparseValue = zeroPoints[0];
-        }
-
-        numSparseValues = countSparseValues<int64_t>(values, OC, weightSetSize, [&sparseValue](int64_t value) {
-            return value == sparseValue;
-        });
-    }
-
-    const auto actualSparsityRatio =
-            checked_cast<double>(numSparseValues) / checked_cast<double>(contentType.getNumElements());
-
+    const auto uncompressedSize = contentType.getShape().totalSize() * elemByteSize;
+    const auto actualSparsityRatio = 1.0 - checked_cast<double>(actualSize) / checked_cast<double>(uncompressedSize);
+    VPUX_THROW_WHEN(actualSparsityRatio < 0.0, "Sparsity ratio is negative for weights {0}", weightsConst.getLoc());
     return actualSparsityRatio;
 }
 
@@ -739,4 +706,70 @@ bool vpux::VPU::NCESparsity::isSparsifiableWeightsOperand(mlir::Value operand) {
         }
     }
     return true;
+}
+
+bool vpux::VPU::NCESparsity::isSuperdenseRequired(const VPU::ArchKind arch, const DimsOrder outOrder,
+                                                  const ShapeRef outShape, const mlir::Type outElemType) {
+    if (!VPU::NCEInvariant::isSuperdenseSupported(arch)) {
+        return false;
+    }
+    // If the inner-most dimension of output shape is aligned, super-dense mode is not required.
+    const auto outputMemShape = outOrder.toMemoryOrder(outShape);
+    const auto outputInnerDim = outputMemShape.back();
+    const auto alignment = VPU::NCEInvariant::getAlignment(outElemType);
+    const auto outputInnerDimRemainder = outputInnerDim % alignment;
+    return outputInnerDimRemainder != 0;
+}
+
+vpux::VPU::NCESparsity::RuntimeSparsityStatsProvider::RuntimeSparsityStatsProvider(mlir::func::FuncOp func,
+                                                                                   vpux::Logger log)
+        : _logger(log), _lookup({}) {
+    auto module = func->getParentOfType<mlir::ModuleOp>();
+    auto statOps = to_small_vector(module.getOps<IE::SparsityStatisticsOp>());
+    VPUX_THROW_UNLESS(statOps.size() <= 1, "Module must contains 0 or 1 sparsity statistics, but got {0}",
+                      statOps.size());
+    if (statOps.empty()) {
+        return;
+    }
+
+    auto stats = statOps.front();
+    auto& infos = stats.sparsityInfo().front().getOperations();
+    for (auto& info : infos) {
+        auto asOp = mlir::cast<IE::SparsityInfoOp>(info);
+        const auto key = asOp.name().str();
+        _lookup.emplace(key, asOp);
+    }
+}
+
+bool vpux::VPU::NCESparsity::RuntimeSparsityStatsProvider::containsStatistics() const {
+    return _lookup.size() > 0;
+}
+
+bool vpux::VPU::NCESparsity::RuntimeSparsityStatsProvider::likelySparsityConsumer(mlir::Operation* op,
+                                                                                  int64_t requestedInputId) const {
+    auto loc = op->getLoc().dyn_cast<mlir::FusedLoc>();
+    if (loc == nullptr) {
+        return false;
+    }
+    auto locParts = loc.getLocations();
+    if (locParts.empty()) {
+        return false;
+    }
+    auto keyNameLoc = locParts.front().dyn_cast<mlir::NameLoc>();
+    if (keyNameLoc == nullptr) {
+        return false;
+    }
+    const auto key = keyNameLoc.getName().strref().data();
+    for (auto it = _lookup.find(key); it != _lookup.end() && it->first == key; ++it) {
+        auto opStats = it->second;
+        auto inputId = opStats.inputId();
+        if (inputId != requestedInputId) {
+            continue;
+        }
+        const auto ratio = opStats.getRatio();
+        _logger.trace("Found RT stats for input {0} of '{1}'.  Sparsity ratio is {2}", requestedInputId, op->getLoc(),
+                      ratio);
+        return ratio >= MINIMAL_SPARSITY_THRESHOLD;
+    }
+    return false;
 }

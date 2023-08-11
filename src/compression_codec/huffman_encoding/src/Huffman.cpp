@@ -2,16 +2,15 @@
 // Copyright (C) 2022 Intel Corporation
 // SPDX-License-Identifier: Apache 2.0
 //
+
+#include <algorithm>
 #include <cassert>
 #include <cmath>
 #include <cstdio>
-#include <cstring>
-#include <memory>
-#include <vector>
-
-#include <algorithm>
 #include <iostream>
 #include <map>
+#include <memory>
+#include <vector>
 
 #include "Huffman.hpp"
 #include "logging.hpp"
@@ -95,7 +94,7 @@ HuffmanResult_t Huffman::encode(const vector<Symbol>& data, int bpb, bool bypass
     constructHeap(data, bpb);
 
     for (HuffmanTuple_t& it : nodes) {
-        originalSize += it.occurrences * SIZE_OF_SYMBOL;
+        originalSize += static_cast<int64_t>(it.occurrences) * static_cast<int64_t>(SIZE_OF_SYMBOL);
         //        Log(5, "originalSize %lld ", originalSize);
     }
 
@@ -284,7 +283,7 @@ HuffmanResult_t Huffman::encode(const vector<Symbol>& data, int bpb, bool bypass
 void Huffman::DFS(const HuffmanTuple_t& node, int steps, uint32_t code) {
     Log(4, "DFS: evaluating step %0d - Node symbol 0x%s", steps, node.getFullSymbol().c_str());
     if (node.leftSon == -1) {
-        sumOfBits += steps * node.occurrences;
+        sumOfBits += static_cast<int64_t>(steps) * static_cast<int64_t>(node.occurrences);
         sumOfBitsOptimal =
                 sumOfBitsOptimal + log2(1.0 * originalSize / SIZE_OF_SYMBOL / node.occurrences) * node.occurrences;
         if (maxLevel < steps) {

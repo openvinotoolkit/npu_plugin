@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #ifndef VPUX_COMPILER_DIALECT_CONST
 #define VPUX_COMPILER_DIALECT_CONST
 
@@ -161,6 +159,7 @@ Const::details::PositionRequirement Const::BitPackAttr::getPositionRequirement()
     let cppNamespace = "vpux::Const";
 
     let hasConstantMaterializer = 1;
+    let useDefaultAttributePrinterParser = 1;
 
     let extraClassDeclaration = [{
         static void populateBufferizePatterns(mlir::RewritePatternSet& patterns, mlir::TypeConverter& typeConverter, vpux::Logger log);

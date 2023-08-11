@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/const/attributes/content.hpp"
 #include "vpux/compiler/utils/types.hpp"
 
@@ -22,6 +20,16 @@ using namespace vpux;
 void vpux::Const::ConvertElemTypeAttr::walkImmediateSubElements(
         llvm::function_ref<void(Attribute)>, llvm::function_ref<void(mlir::Type)> walkTypesFn) const {
     walkTypesFn(getElemType());
+}
+
+//
+// ConvertElemTypeAttr::replaceImmediateSubElements
+//
+
+mlir::Attribute vpux::Const::ConvertElemTypeAttr::replaceImmediateSubElements(ArrayRef<mlir::Attribute>,
+                                                                              ArrayRef<mlir::Type> replTypes) const {
+    VPUX_THROW_WHEN(replTypes.size() < 1, "Replace types array is too short: '{0}'", replTypes.size());
+    return get(replTypes[0]);
 }
 
 //

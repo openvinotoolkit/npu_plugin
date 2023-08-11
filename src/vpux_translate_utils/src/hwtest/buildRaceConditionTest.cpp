@@ -3,10 +3,7 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/VPU/passes.hpp"
-#include "vpux/compiler/dialect/VPUIP/passes.hpp"
 #include "vpux/compiler/dialect/VPURT/ops.hpp"
 #include "vpux/compiler/dialect/VPURT/task.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
@@ -58,6 +55,7 @@ void buildRaceConditionTest(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mo
 
     auto raceConditionParams = testDesc.getRaceConditionParams();
     auto testDescUnderlyingOp = testDesc.getUnderlyingOp();
+    VPUX_THROW_WHEN(testDescUnderlyingOp == nullptr, "underlyingOp is nullptr for CaseType::RaceCondition");
 
     auto underlyingOpBuilder = getOpBuilder(testDescUnderlyingOp->getCaseType());
 
@@ -78,7 +76,7 @@ void buildRaceConditionTest(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mo
 
     const auto funcType = builder.getFunctionType(makeArrayRef(inputTypes), makeArrayRef(outputTypes));
 
-    auto func = builder.create<mlir::FuncOp>(
+    auto func = builder.create<mlir::func::FuncOp>(
             builder.getUnknownLoc(),
             printToString("race_condition_{0}_{1}_{2}", testDescUnderlyingOp->getCaseStr(), inputType, outputType),
             funcType, builder.getStringAttr("private"));
@@ -106,9 +104,10 @@ void buildRaceConditionTest(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mo
         inputCMXVec.push_back(createDeclareTensorOp(funcBuilder, inputCMXType, VPURT::BufferSection::CMX_NN,
                                                     static_cast<int>(cluster), inputCMXOffset));
 
-        vpux::VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(funcBuilder, mlir::ValueRange(),
-                                                    mlir::ValueRange(inputDataDMA.barrier()), builder.getUnknownLoc(),
-                                                    funcInput, getTensorResult(inputCMXVec[0]), cluster, false, false);
+        vpux::VPURT::wrapIntoTaskOp<VPUIP::NNDMAOp>(
+                funcBuilder, mlir::ValueRange(), mlir::ValueRange(inputDataDMA.barrier()), builder.getUnknownLoc(),
+                funcInput, getTensorResult(inputCMXVec[0]),
+                cluster);
 
         auto localOutputCMXOffset = outputCMXOffset;
         for (size_t unit = 0; unit < raceConditionParams.requestedUnits; ++unit) {
@@ -139,8 +138,8 @@ void buildRaceConditionTest(const nb::TestCaseJsonDescriptor& testDesc, mlir::Mo
         returnOps.emplace_back(func.getArgument(static_cast<unsigned int>(i + 1)));
     }
 
-    funcBuilder.create<mlir::ReturnOp>(builder.getUnknownLoc(),
-                                       mlir::ValueRange(ArrayRef<mlir::BlockArgument>(returnOps)));
+    funcBuilder.create<mlir::func::ReturnOp>(builder.getUnknownLoc(),
+                                             mlir::ValueRange(ArrayRef<mlir::BlockArgument>(returnOps)));
 
     //  Pass Manager
     mlir::PassManager pm(ctx, mlir::OpPassManager::Nesting::Implicit);

@@ -1,5 +1,5 @@
 //
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,10 +9,9 @@
 
 namespace LayerTestsDefinitions {
 
-class KmbCumSumLayerTest_VPU3720 : public CumSumLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {};
+class VPUXCumSumLayerTest_VPU3720 : public CumSumLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {};
 
-TEST_P(KmbCumSumLayerTest_VPU3720, MLIR_VPU3720) {
-    useCompilerMLIR();
+TEST_P(VPUXCumSumLayerTest_VPU3720, HW) {
     setPlatformVPU3720();
     setDefaultHardwareModeMLIR();
     Run();
@@ -63,12 +62,12 @@ const auto testCasePrecommit =
                          testing::Values(negativeAxes[0]), testing::Values(exclusive[0]), testing::Values(reverse[0]),
                          testing::Values(LayerTestsUtils::testPlatformTargetDevice));
 
-INSTANTIATE_TEST_SUITE_P(smoke_CumSum_axis_0, KmbCumSumLayerTest_VPU3720, testCaseAxis_0,
-                         KmbCumSumLayerTest_VPU3720::getTestCaseName);
-INSTANTIATE_TEST_SUITE_P(smoke_CumSum_negative_axis, KmbCumSumLayerTest_VPU3720, testCasesNegativeAxis,
-                         KmbCumSumLayerTest_VPU3720::getTestCaseName);
-INSTANTIATE_TEST_SUITE_P(smoke_CumSum_real_net, KmbCumSumLayerTest_VPU3720, testCasesRealNet,
-                         KmbCumSumLayerTest_VPU3720::getTestCaseName);
-INSTANTIATE_TEST_SUITE_P(smoke_precommit_CumSum, KmbCumSumLayerTest_VPU3720, testCasePrecommit,
-                         KmbCumSumLayerTest_VPU3720::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_CumSum_axis_0, VPUXCumSumLayerTest_VPU3720, testCaseAxis_0,
+                         VPUXCumSumLayerTest_VPU3720::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_CumSum_negative_axis, VPUXCumSumLayerTest_VPU3720, testCasesNegativeAxis,
+                         VPUXCumSumLayerTest_VPU3720::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_CumSum_real_net, VPUXCumSumLayerTest_VPU3720, testCasesRealNet,
+                         VPUXCumSumLayerTest_VPU3720::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_precommit_CumSum, VPUXCumSumLayerTest_VPU3720, testCasePrecommit,
+                         VPUXCumSumLayerTest_VPU3720::getTestCaseName);
 }  // namespace

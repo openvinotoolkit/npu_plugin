@@ -12,6 +12,9 @@
 #include "vpux/compiler/utils/rewriter.hpp"
 #include "vpux/compiler/utils/types.hpp"
 
+#include <ngraph/coordinate_diff.hpp>
+#include <ngraph/strides.hpp>
+
 #include <mlir/IR/BlockAndValueMapping.h>
 #include <mlir/Pass/PassManager.h>
 
@@ -48,12 +51,23 @@ mlir::Value EltwiseShapeCastRewriter::getExpandedInput(mlir::PatternRewriter& re
     if (auto permuteQuantize = mlir::dyn_cast_or_null<IE::PermuteQuantizeOp>(tensor.getDefiningOp())) {
         rewriter.setInsertionPointAfter(permuteQuantize);
 
-        // TODO enable one permute quantize solution when S2D descriptor E#67286 is implemented
-        auto permuteQuantizeClone =
-                !permuteQuantize.output().hasOneUse() ? rewriter.clone(*permuteQuantize) : permuteQuantize;
+        auto pqUsers = permuteQuantize.output().getUsers();
+        SmallVector<mlir::Operation*> otherUsers;
+        llvm::copy_if(pqUsers, std::back_inserter(otherUsers), [&](auto user) {
+            return user != shapeCast.getOperation();
+        });
 
-        auto expand = rewriter.create<IE::ExpandOp>(expandOp.getLoc(), permuteQuantizeClone->getResult(0),
-                                                    expandOp.pads_begin(), expandOp.pads_end());
+        auto expand = rewriter.create<IE::ExpandOp>(expandOp.getLoc(), permuteQuantize.output(), expandOp.pads_begin(),
+                                                    expandOp.pads_end());
+
+        if (!otherUsers.empty()) {
+            auto sliceOp = rewriter.create<IE::SliceOp>(
+                    expandOp.getLoc(), expand.output(), expandOp.pads_begin(),
+                    getIntArrayAttr(rewriter.getContext(), getShape(permuteQuantize.output()).raw()));
+            for (auto user : otherUsers) {
+                user->replaceUsesOfWith(permuteQuantize.output(), sliceOp.result());
+            }
+        }
 
         auto newShapeCast = rewriter.create<IE::ShapeCastOp>(
                 expandOp.getLoc(), expand.output(), getIntArrayAttr(expandOp.getContext(), expandedShape.raw()));
@@ -219,6 +233,14 @@ mlir::LogicalResult DepthToSpaceSliceRewriter::matchAndRewrite(IE::ExpandOp expa
         return mlir::failure();
     }
 
+    auto sliceOffsets = parseIntArrayAttr<int64_t>(slice.static_offsets());
+    auto hasNonZeroOffsets = llvm::any_of(sliceOffsets, [](auto offset) {
+        return offset != 0;
+    });
+    if (hasNonZeroOffsets) {
+        return mlir::failure();
+    }
+
     if (!mlir::isa_and_nonnull<IE::AlignedChannelsOpInterface>(slice.source().getDefiningOp())) {
         return mlir::failure();
     }
@@ -236,6 +258,218 @@ mlir::LogicalResult DepthToSpaceSliceRewriter::matchAndRewrite(IE::ExpandOp expa
 
     rewriter.replaceOpWithNewOp<IE::DepthToSpaceOp>(expandOp, slice.source(), depthToSpace.block_size(),
                                                     depthToSpace.mode(), paddedChannels);
+
+    return mlir::success();
+}
+
+//
+// SpaceToDepthSliceRewriter
+//
+
+class SpaceToDepthSliceRewriter final : public mlir::OpRewritePattern<IE::ConvolutionOp> {
+public:
+    SpaceToDepthSliceRewriter(mlir::MLIRContext* ctx, Logger log)
+            : mlir::OpRewritePattern<IE::ConvolutionOp>(ctx), _log(log) {
+        setDebugName("SpaceToDepthSliceRewriter");
+    }
+
+    mlir::LogicalResult matchAndRewrite(IE::ConvolutionOp convOp, mlir::PatternRewriter& rewriter) const final;
+
+private:
+    mlir::Value createDPUOperation(mlir::PatternRewriter& rewriter, mlir::Value input, IE::SpaceToDepthOp s2dOp) const;
+    void createPaddedConvolution(mlir::PatternRewriter& rewriter, mlir::Value input, IE::ConvolutionOp origConv) const;
+
+    mlir::Value createConvFilter(mlir::PatternRewriter& rewriter, mlir::Value activation, int64_t blockSize) const;
+    bool checkSliceExpand(IE::SliceOp sliceOp, IE::ExpandOp expandOp) const;
+    Logger _log;
+};
+
+mlir::Value SpaceToDepthSliceRewriter::createConvFilter(mlir::PatternRewriter& rewriter, mlir::Value activation,
+                                                        int64_t blockSize) const {
+    const auto IC = getShape(activation)[Dims4D::Act::C];
+    const auto KX = blockSize;
+    const auto KY = blockSize;
+    const auto OC = IC * blockSize * blockSize;
+
+    const auto origElemType = activation.getType().cast<vpux::NDTypeInterface>().getElementType();
+    const Shape weightShape = {OC, IC, KX, KY};
+
+    mlir::Type filterElemType = mlir::Float16Type::get(getContext());
+    if (auto qInputElemType = origElemType.dyn_cast<mlir::quant::QuantizedType>()) {
+        const auto scale = 1.0f;
+        const auto zeroPoint = 0;
+        filterElemType = mlir::quant::UniformQuantizedType::get(
+                0, getUInt8Type(getContext()), mlir::Float16Type::get(getContext()), scale, zeroPoint,
+                std::numeric_limits<uint8_t>::min(), std::numeric_limits<uint8_t>::max());
+    }
+
+    auto filterTensorAttr = IE::getTensorAttr(getContext(), DimsOrder::OYXI, nullptr);
+    auto filterType = mlir::RankedTensorType::get(weightShape.raw(), filterElemType, filterTensorAttr)
+                              .cast<vpux::NDTypeInterface>();
+
+    SmallVector<float> weights(weightShape.totalSize(), .0f);
+
+    const auto outChannelStride = (IC * KX * KY);
+    const auto inChannelStride = (KX * KY);
+    const auto heightStride = KX;
+
+    // set 1 to each filter so that it calculates the same as S2D
+    // multiply coordinates on strides accordingly for each filter
+    for (auto i = 0; i < OC; ++i) {
+        const auto index = i * outChannelStride + (i % IC) * inChannelStride + (i / (KY * IC)) * heightStride +
+                           ((i % (KY * IC)) / IC);
+        weights[index] = 1.0f;
+    }
+    auto dataStorageType =
+            mlir::RankedTensorType::get(weightShape.raw(), mlir::Float32Type::get(filterType.getContext()));
+    auto dataAttr = mlir::DenseElementsAttr::get(dataStorageType, makeArrayRef(weights));
+
+    auto contentAttr = Const::ContentAttr::get(dataAttr);
+    if (auto qElemType = filterElemType.dyn_cast<mlir::quant::QuantizedType>()) {
+        contentAttr = contentAttr.convertElemType(getUInt8Type(filterType.getContext()));
+        contentAttr = contentAttr.quantCast(qElemType);
+    } else if (origElemType.isa<mlir::Float16Type>()) {
+        contentAttr = contentAttr.convertElemType(mlir::Float16Type::get(filterType.getContext()));
+    } else {
+        VPUX_THROW("Unsupported type {0}", origElemType);
+    }
+    contentAttr = contentAttr.reorder(filterType.getDimsOrder());
+
+    return rewriter.create<Const::DeclareOp>(activation.getLoc(), filterType, contentAttr);
+}
+
+mlir::Value SpaceToDepthSliceRewriter::createDPUOperation(mlir::PatternRewriter& rewriter, mlir::Value input,
+                                                          IE::SpaceToDepthOp s2dOp) const {
+    const auto blockSize = s2dOp.block_size();
+    const auto inputShape = getShape(input);
+    const auto s2dOutShape = getShape(s2dOp.output());
+
+    const auto convFilter = createConvFilter(rewriter, input, blockSize);
+
+    auto newStrides = getIntArrayAttr(
+            getContext(), ngraph::Strides{checked_cast<size_t>(blockSize), checked_cast<size_t>(blockSize)});
+    auto newPadsBegin = getIntArrayAttr(getContext(), ngraph::CoordinateDiff{0, 0});
+    auto newPadsEnd = getIntArrayAttr(getContext(), ngraph::CoordinateDiff{0, 0});
+    auto newDilations = getIntArrayAttr(getContext(), ngraph::Strides{1, 1});
+
+    const Shape outPadBefore(checked_cast<size_t>(s2dOp.getType().getRank()), 0);
+
+    Shape outPadAfter(checked_cast<size_t>(s2dOp.getType().getRank()), 0);
+    outPadAfter[Dims4D::Act::C] = inputShape[Dims4D::Act::C] * blockSize * blockSize - s2dOutShape[Dims4D::Act::C];
+
+    const auto ndType = s2dOp.getType().cast<vpux::NDTypeInterface>();
+    const auto newOutputType = ndType.pad(outPadBefore, outPadAfter);
+
+    return rewriter.create<IE::ConvolutionOp>(s2dOp.getLoc(), newOutputType, input, convFilter, nullptr, newStrides,
+                                              newPadsBegin, newPadsEnd, newDilations, nullptr);
+}
+
+void SpaceToDepthSliceRewriter::createPaddedConvolution(mlir::PatternRewriter& rewriter, mlir::Value input,
+                                                        IE::ConvolutionOp origConv) const {
+    auto filter = origConv.filter();
+
+    auto filterConst = filter.getDefiningOp<Const::DeclareOp>();
+
+    const auto filterShape = getShape(filter);
+    const auto channelsPad = getShape(input)[Dims4D::Act::C] - filterShape[Dims4D::Filter::IC];
+
+    const auto newFilterShape = Shape({filterShape[Dims4D::Filter::OC], getShape(input)[Dims4D::Act::C],
+                                       filterShape[Dims4D::Filter::KX], filterShape[Dims4D::Filter::KY]});
+    auto newContentAttr =
+            filterConst.contentAttr()
+                    .reshape({filterShape[Dims4D::Filter::OC], filterShape[Dims4D::Filter::IC] / channelsPad,
+                              filterShape[Dims4D::Filter::KX] * channelsPad, filterShape[Dims4D::Filter::KY]})
+                    .padWithZero({0, 0, 0, 0}, {0, 1, 0, 0})
+                    .reshape(newFilterShape);
+
+    const auto origFilterType = filter.getType().cast<vpux::NDTypeInterface>();
+    const auto outAllocType =
+            mlir::RankedTensorType::get(to_small_vector(newFilterShape), origFilterType.getElementType())
+                    .cast<vpux::NDTypeInterface>();
+    const auto outAllocTypeNHWC = outAllocType.changeDimsOrder(DimsOrder::NHWC);
+    auto paddedFilter = rewriter.create<Const::DeclareOp>(filterConst.getLoc(), outAllocTypeNHWC, newContentAttr);
+
+    mlir::BlockAndValueMapping mapper;
+    mapper.map(origConv.getOperands(), makeArrayRef({input, paddedFilter.output()}));
+    auto* newOperand = rewriter.clone(*origConv, mapper);
+
+    rewriter.replaceOp(origConv, newOperand->getResult(0));
+}
+
+// Check if we have case when
+// PermuteQuantizeOp -> ExpandOp (4 channels) -> SliceOp (3 channels) -> SpaceToDepth
+bool SpaceToDepthSliceRewriter::checkSliceExpand(IE::SliceOp sliceOp, IE::ExpandOp expandOp) const {
+    if (expandOp.input().getDefiningOp<IE::PermuteQuantizeOp>() == nullptr) {
+        return false;
+    }
+
+    const auto expandShape = getShape(expandOp.output());
+    const auto sliceShape = getShape(sliceOp.result());
+
+    if (expandShape[Dims4D::Act::C] != EXPANDED_CHANNELS || sliceShape[Dims4D::Act::C] != UNEXPANDED_CHANNELS) {
+        return false;
+    }
+
+    if (expandOp.input().getType() != sliceOp.result().getType()) {
+        return false;
+    }
+
+    auto sliceOffsets = parseIntArrayAttr<int64_t>(sliceOp.static_offsets());
+    auto hasNonZeroOffsets = llvm::any_of(sliceOffsets, [](auto offset) {
+        return offset != 0;
+    });
+    if (hasNonZeroOffsets) {
+        return false;
+    }
+
+    return true;
+}
+
+// Convert pattern
+//   PermuteQuantize                                 PermuteQuantize
+//        |                                                 |
+//     Expand (4 channels)                              Expand (4 channels)
+//        |                                                 |
+//      Slice (3 channels)           ->              Convolution (S2D on DPU)
+//        |                                                 |
+//    SpaceToDepth                                   Convolution (padded filter)
+//        |
+//    Convolution
+mlir::LogicalResult SpaceToDepthSliceRewriter::matchAndRewrite(IE::ConvolutionOp convOp,
+                                                               mlir::PatternRewriter& rewriter) const {
+    _log.trace("Got op {0} at {1}", convOp->getName(), convOp->getLoc());
+
+    auto spaceToDepth = convOp.input().getDefiningOp<IE::SpaceToDepthOp>();
+
+    if (spaceToDepth == nullptr || !spaceToDepth.output().hasOneUse()) {
+        return mlir::failure();
+    }
+
+    // for now only block_first case supported
+    // E#69685 for depth_first mode
+    if (spaceToDepth.mode() != IE::SpaceToDepthMode::BLOCKS_FIRST) {
+        return mlir::failure();
+    }
+
+    auto slice = spaceToDepth.input().getDefiningOp<IE::SliceOp>();
+
+    if (slice == nullptr) {
+        return mlir::failure();
+    }
+
+    auto expandOp = slice.source().getDefiningOp<IE::ExpandOp>();
+
+    if (expandOp == nullptr) {
+        return mlir::failure();
+    }
+
+    if (!checkSliceExpand(slice, expandOp)) {
+        return mlir::failure();
+    }
+
+    auto s2dDPU = createDPUOperation(rewriter, expandOp.output(), spaceToDepth);
+
+    createPaddedConvolution(rewriter, s2dDPU, convOp);
 
     return mlir::success();
 }
@@ -264,9 +498,9 @@ void PropagateExpandPass::safeRunOnFunc() {
     mlir::RewritePatternSet patterns(&ctx);
     patterns.add<EltwiseShapeCastRewriter>(&ctx, _log);
     patterns.add<DepthToSpaceSliceRewriter>(&ctx, _log);
-    // TODO E#67286 enable solution when S2D descriptor is ready
+    patterns.add<SpaceToDepthSliceRewriter>(&ctx, _log);
 
-    auto func = getFunction();
+    auto func = getOperation();
     if (mlir::failed(mlir::applyPatternsAndFoldGreedily(func, std::move(patterns), getDefaultGreedyRewriteConfig()))) {
         signalPassFailure();
     }

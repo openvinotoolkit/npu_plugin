@@ -1,8 +1,6 @@
 //
-// Copyright (C) 2022 Intel Corporation.
+// Copyright (C) 2022-2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
-//
-
 //
 
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
@@ -61,36 +59,43 @@ void vpux::VPUIP::NCEClusterTaskOp::build(mlir::OpBuilder& builder, mlir::Operat
         state.addTypes(profiling_output);
 }
 
-void vpux::VPUIP::NCEClusterTaskOp::build(
-        mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input, mlir::Value weights,
-        mlir::Value weight_table, mlir::Value instruction_list_table, mlir::Value activation_window,
-        mlir::Value parent_input, mlir::Value parent_output, mlir::Value output_buff,
-        vpux::VPUIP::NCETaskType task_type, mlir::ArrayAttr kernel_size, mlir::ArrayAttr kernel_strides,
-        vpux::VPU::PaddingAttr kernel_padding, mlir::IntegerAttr activation_window_channel_length,
-        mlir::UnitAttr is_continued, mlir::IntegerAttr cm_sp_pattern, mlir::UnitAttr is_segmented,
-        mlir::IntegerAttr out_channel_offset, mlir::UnitAttr input_channels_compression, mlir::UnitAttr is_superdense,
-        mlir::BoolAttr is_inplace, mlir::IntegerAttr input_se_size, mlir::IntegerAttr output_se_size) {
+void vpux::VPUIP::NCEClusterTaskOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value input,
+                                          mlir::Value weights, mlir::Value weight_table,
+                                          mlir::Value instruction_list_table, mlir::Value activation_window,
+                                          mlir::Value parent_input, mlir::Value parent_output, mlir::Value output_buff,
+                                          vpux::VPUIP::NCETaskType task_type, mlir::ArrayAttr kernel_size,
+                                          mlir::ArrayAttr kernel_strides, vpux::VPU::PaddingAttr kernel_padding,
+                                          mlir::IntegerAttr activation_window_channel_length,
+                                          mlir::UnitAttr is_continued, mlir::IntegerAttr cm_sp_pattern,
+                                          mlir::UnitAttr is_segmented, mlir::IntegerAttr out_channel_offset,
+                                          mlir::UnitAttr input_channels_compression, mlir::UnitAttr is_superdense,
+                                          mlir::BoolAttr is_inplace, mlir::IntegerAttr input_se_size,
+                                          mlir::IntegerAttr output_se_size, mlir::UnitAttr isPermuteQuantize) {
     build(builder, state, output_buff.getType(), nullptr, nullptr, input, nullptr, nullptr, weights, nullptr,
           weight_table, instruction_list_table, activation_window, parent_input, nullptr, nullptr, parent_output,
-          nullptr, output_buff, nullptr, nullptr, task_type, kernel_size, kernel_strides, kernel_padding,
-          activation_window_channel_length, is_continued, cm_sp_pattern, is_segmented, out_channel_offset,
-          input_channels_compression, is_superdense, is_inplace, input_se_size, output_se_size);
+          nullptr, output_buff, nullptr, nullptr, task_type, kernel_size, kernel_strides,
+          kernel_padding, activation_window_channel_length, is_continued, cm_sp_pattern, is_segmented,
+          out_channel_offset, input_channels_compression, is_superdense, is_inplace, input_se_size, output_se_size,
+          isPermuteQuantize);
 }
 
-void vpux::VPUIP::NCEClusterTaskOp::build(
-        mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type output, mlir::Value input,
-        mlir::Value weights, mlir::Value weight_table, mlir::Value instruction_list_table,
-        mlir::Value activation_window, mlir::Value parent_input, mlir::Value parent_output, mlir::Value output_buff,
-        vpux::VPUIP::NCETaskType task_type, mlir::ArrayAttr kernel_size, mlir::ArrayAttr kernel_strides,
-        vpux::VPU::PaddingAttr kernel_padding, mlir::IntegerAttr activation_window_channel_length,
-        mlir::UnitAttr is_continued, mlir::IntegerAttr cm_sp_pattern, mlir::UnitAttr is_segmented,
-        mlir::IntegerAttr out_channel_offset, mlir::UnitAttr input_channels_compression, mlir::UnitAttr is_superdense,
-        mlir::BoolAttr is_inplace, mlir::IntegerAttr input_se_size, mlir::IntegerAttr output_se_size) {
+void vpux::VPUIP::NCEClusterTaskOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type output,
+                                          mlir::Value input, mlir::Value weights, mlir::Value weight_table,
+                                          mlir::Value instruction_list_table, mlir::Value activation_window,
+                                          mlir::Value parent_input, mlir::Value parent_output, mlir::Value output_buff,
+                                          vpux::VPUIP::NCETaskType task_type, mlir::ArrayAttr kernel_size,
+                                          mlir::ArrayAttr kernel_strides, vpux::VPU::PaddingAttr kernel_padding,
+                                          mlir::IntegerAttr activation_window_channel_length,
+                                          mlir::UnitAttr is_continued, mlir::IntegerAttr cm_sp_pattern,
+                                          mlir::UnitAttr is_segmented, mlir::IntegerAttr out_channel_offset,
+                                          mlir::UnitAttr input_channels_compression, mlir::UnitAttr is_superdense,
+                                          mlir::BoolAttr is_inplace, mlir::IntegerAttr input_se_size,
+                                          mlir::IntegerAttr output_se_size, mlir::UnitAttr isPermuteQuantize) {
     build(builder, state, output, nullptr, nullptr, input, nullptr, nullptr, weights, nullptr, weight_table,
           instruction_list_table, activation_window, parent_input, nullptr, nullptr, parent_output, nullptr,
           output_buff, nullptr, nullptr, task_type, kernel_size, kernel_strides, kernel_padding,
           activation_window_channel_length, is_continued, cm_sp_pattern, is_segmented, out_channel_offset,
-          input_channels_compression, is_superdense, is_inplace, input_se_size, output_se_size);
+          input_channels_compression, is_superdense, is_inplace, input_se_size, output_se_size, isPermuteQuantize);
 }
 
 void vpux::VPUIP::NCEClusterTaskOp::build(
@@ -101,12 +106,14 @@ void vpux::VPUIP::NCEClusterTaskOp::build(
         vpux::VPU::PaddingAttr kernel_padding, mlir::IntegerAttr activation_window_channel_length,
         mlir::UnitAttr is_continued, mlir::IntegerAttr cm_sp_pattern, mlir::UnitAttr is_segmented,
         mlir::IntegerAttr out_channel_offset, mlir::UnitAttr input_channels_compression, mlir::UnitAttr is_superdense,
-        mlir::BoolAttr is_inplace, mlir::IntegerAttr input_se_size, mlir::IntegerAttr output_se_size) {
+        mlir::BoolAttr is_inplace, mlir::IntegerAttr input_se_size, mlir::IntegerAttr output_se_size,
+        mlir::UnitAttr isPermuteQuantize) {
     build(builder, state, output_buff.getType(), nullptr, profiling_data ? profiling_data.getType() : nullptr, input,
           nullptr, nullptr, weights, nullptr, weight_table, instruction_list_table, activation_window, parent_input,
-          nullptr, nullptr, parent_output, nullptr, output_buff, nullptr, profiling_data, task_type, kernel_size,
-          kernel_strides, kernel_padding, activation_window_channel_length, is_continued, cm_sp_pattern, is_segmented,
-          out_channel_offset, input_channels_compression, is_superdense, is_inplace, input_se_size, output_se_size);
+          nullptr, nullptr, parent_output, nullptr, output_buff, nullptr, profiling_data, task_type,
+          kernel_size, kernel_strides, kernel_padding, activation_window_channel_length, is_continued, cm_sp_pattern,
+          is_segmented, out_channel_offset, input_channels_compression, is_superdense, is_inplace, input_se_size,
+          output_se_size, isPermuteQuantize);
 }
 
 void vpux::VPUIP::NCEClusterTaskOp::build(
@@ -118,12 +125,13 @@ void vpux::VPUIP::NCEClusterTaskOp::build(
         mlir::IntegerAttr activation_window_channel_length, mlir::UnitAttr is_continued,
         mlir::IntegerAttr cm_sp_pattern, mlir::UnitAttr is_segmented, mlir::IntegerAttr out_channel_offset,
         mlir::UnitAttr input_channels_compression, mlir::UnitAttr is_superdense, mlir::BoolAttr is_inplace,
-        mlir::IntegerAttr input_se_size, mlir::IntegerAttr output_se_size) {
+        mlir::IntegerAttr input_se_size, mlir::IntegerAttr output_se_size, mlir::UnitAttr isPermuteQuantize) {
     build(builder, state, output, nullptr, profiling_output, input, nullptr, nullptr, weights, nullptr, weight_table,
           instruction_list_table, activation_window, parent_input, nullptr, nullptr, parent_output, nullptr,
-          output_buff, nullptr, profiling_data, task_type, kernel_size, kernel_strides, kernel_padding,
-          activation_window_channel_length, is_continued, cm_sp_pattern, is_segmented, out_channel_offset,
-          input_channels_compression, is_superdense, is_inplace, input_se_size, output_se_size);
+          output_buff, nullptr, profiling_data, task_type, kernel_size, kernel_strides,
+          kernel_padding, activation_window_channel_length, is_continued, cm_sp_pattern, is_segmented,
+          out_channel_offset, input_channels_compression, is_superdense, is_inplace, input_se_size, output_se_size,
+          isPermuteQuantize);
 }
 
 void vpux::VPUIP::NCEClusterTaskOp::build(
@@ -137,15 +145,16 @@ void vpux::VPUIP::NCEClusterTaskOp::build(
         mlir::IntegerAttr activation_window_channel_length, mlir::UnitAttr is_continued,
         mlir::IntegerAttr cm_sp_pattern, mlir::UnitAttr is_segmented, mlir::IntegerAttr out_channel_offset,
         mlir::UnitAttr input_channels_compression, mlir::UnitAttr is_superdense, mlir::BoolAttr is_inplace,
-        mlir::IntegerAttr input_se_size, mlir::IntegerAttr output_se_size) {
+        mlir::IntegerAttr input_se_size, mlir::IntegerAttr output_se_size, mlir::UnitAttr isPermuteQuantize) {
     build(builder, state, output_buff.getType(),
           output_sparsity_map_buff ? output_sparsity_map_buff.getType() : nullptr,
           profiling_data ? profiling_data.getType() : nullptr, input, input_sparsity_map, input_storage_element_table,
           weights, weights_sparsity_map, weight_table, instruction_list_table, activation_window, parent_input,
           parent_input_sparsity_map, parent_input_storage_element_table, parent_output, parent_output_sparsity_map,
-          output_buff, output_sparsity_map_buff, profiling_data, task_type, kernel_size, kernel_strides, kernel_padding,
-          activation_window_channel_length, is_continued, cm_sp_pattern, is_segmented, out_channel_offset,
-          input_channels_compression, is_superdense, is_inplace, input_se_size, output_se_size);
+          output_buff, output_sparsity_map_buff, profiling_data, task_type, kernel_size,
+          kernel_strides, kernel_padding, activation_window_channel_length, is_continued, cm_sp_pattern, is_segmented,
+          out_channel_offset, input_channels_compression, is_superdense, is_inplace, input_se_size, output_se_size,
+          isPermuteQuantize);
 }
 
 void vpux::VPUIP::NCEClusterTaskOp::build(
@@ -154,13 +163,14 @@ void vpux::VPUIP::NCEClusterTaskOp::build(
         mlir::Value input_storage_element_table, mlir::Value weights, mlir::Value weights_sparsity_map,
         mlir::Value weight_table, mlir::Value instruction_list_table, mlir::Value activation_window,
         mlir::Value parent_input, mlir::Value parent_input_sparsity_map, mlir::Value parent_input_storage_element_table,
-        mlir::Value parent_output, mlir::Value parent_output_sparsity_map, mlir::Value output_buff,
-        mlir::Value output_sparsity_map_buff, mlir::Value profiling_data, vpux::VPUIP::NCETaskType task_type,
-        mlir::ArrayAttr kernel_size, mlir::ArrayAttr kernel_strides, vpux::VPU::PaddingAttr kernel_padding,
-        mlir::IntegerAttr activation_window_channel_length, mlir::UnitAttr is_continued,
-        mlir::IntegerAttr cm_sp_pattern, mlir::UnitAttr is_segmented, mlir::IntegerAttr out_channel_offset,
-        mlir::UnitAttr input_channels_compression, mlir::UnitAttr is_superdense, mlir::BoolAttr is_inplace,
-        mlir::IntegerAttr input_se_size, mlir::IntegerAttr output_se_size) {
+        mlir::Value parent_output, mlir::Value parent_output_sparsity_map,
+        mlir::Value output_buff, mlir::Value output_sparsity_map_buff, mlir::Value profiling_data,
+        vpux::VPUIP::NCETaskType task_type, mlir::ArrayAttr kernel_size, mlir::ArrayAttr kernel_strides,
+        vpux::VPU::PaddingAttr kernel_padding, mlir::IntegerAttr activation_window_channel_length,
+        mlir::UnitAttr is_continued, mlir::IntegerAttr cm_sp_pattern, mlir::UnitAttr is_segmented,
+        mlir::IntegerAttr out_channel_offset, mlir::UnitAttr input_channels_compression, mlir::UnitAttr is_superdense,
+        mlir::BoolAttr is_inplace, mlir::IntegerAttr input_se_size, mlir::IntegerAttr output_se_size,
+        mlir::UnitAttr isPermuteQuantize) {
     state.addOperands(input);
     if (input_sparsity_map)
         state.addOperands(input_sparsity_map);
@@ -195,8 +205,8 @@ void vpux::VPUIP::NCEClusterTaskOp::build(
                                       (weights ? 1 : 0), (weights_sparsity_map ? 1 : 0), (weight_table ? 1 : 0),
                                       (instruction_list_table ? 1 : 0), (activation_window ? 1 : 0), 1,
                                       (parent_input_sparsity_map ? 1 : 0), (parent_input_storage_element_table ? 1 : 0),
-                                      1, (parent_output_sparsity_map ? 1 : 0), 1, (output_sparsity_map_buff ? 1 : 0),
-                                      (profiling_data ? 1 : 0)}));
+                                      1, (parent_output_sparsity_map ? 1 : 0), 1,
+                                      (output_sparsity_map_buff ? 1 : 0), (profiling_data ? 1 : 0)}));
     state.addAttribute(result_segment_sizesAttrName(state.name),
                        builder.getI32VectorAttr({1, (output_sparsity_map ? 1 : 0), (profiling_output ? 1 : 0)}));
     state.addAttribute(task_typeAttrName(state.name),
@@ -239,6 +249,9 @@ void vpux::VPUIP::NCEClusterTaskOp::build(
     }
     if (output_se_size) {
         state.addAttribute(output_se_sizeAttrName(state.name), output_se_size);
+    }
+    if (isPermuteQuantize) {
+        state.addAttribute(is_permute_quantizeAttrName(state.name), isPermuteQuantize);
     }
     (void)state.addRegion();
     (void)state.addRegion();
@@ -337,6 +350,9 @@ void vpux::VPUIP::NCEClusterTaskOp::inferLayoutInfo(mlir::Operation* origOp, IE:
             .Case<IE::AndOp>([&](IE::AndOp) {
                 info.fill(DimsOrder::NHWC);
             })
+            .Case<IE::InterpolateOp>([&](IE::InterpolateOp) {
+                info.fill(DimsOrder::NHWC);
+            })
             .Default([](mlir::Operation* unknownOp) {
                 VPUX_THROW("Operation '{0}' is not supported by the DPU", unknownOp->getName());
             });
@@ -361,13 +377,13 @@ mlir::LogicalResult vpux::VPUIP::NCEClusterTaskOp::inferReturnTypes(
 }
 
 //
-// verifyOp
+// verify
 //
 
 namespace {
 
 mlir::LogicalResult verifyInOutOrder(mlir::Operation* op, const VPU::ArchKind& arch, const std::string& opName) {
-    if (arch == VPU::ArchKind::VPUX30XX || arch == VPU::ArchKind::VPUX311X) {
+    if (arch != VPU::ArchKind::VPUX37XX) {
         if (vpux::VPUIP::verifySameInOutSpecificDimsOrder(op, {DimsOrder::NHWC}).failed()) {
             return errorAt(op, "{0} expected the same input/output layout", opName);
         }
@@ -451,7 +467,7 @@ mlir::LogicalResult verifyNCEConv(VPUIP::NCEClusterTaskOp op, VPU::ArchKind arch
     if (weightsOrder != DimsOrder::OYXI) {
         return errorAt(op, "For NCE convolution weights must have OYXI layout, got '{0}'", weightsOrder);
     }
-    if ((arch == VPU::ArchKind::VPUX30XX || arch == VPU::ArchKind::VPUX311X) && outOrder != DimsOrder::NHWC) {
+    if (arch != VPU::ArchKind::VPUX37XX && outOrder != DimsOrder::NHWC) {
         return errorAt(op, "For NCE convolution output must have NHWC layout, got '{0}'", outOrder);
     }
 
@@ -464,7 +480,7 @@ mlir::LogicalResult verifyNCEPool(VPUIP::NCEClusterTaskOp op, VPU::ArchKind arch
                       VPUIP::NCETaskType::MAXPOOL, op.task_type());
 
     // VPUX37XX hw doesn't require weights table and activation window for max/average pool ops
-    if (arch == VPU::ArchKind::VPUX30XX || arch == VPU::ArchKind::VPUX311X) {
+    if (arch != VPU::ArchKind::VPUX37XX) {
         if (op.weight_table() == nullptr) {
             return errorAt(op, "weight_table is required for NCETaskType : '{0}'", op.task_type());
         }
@@ -607,61 +623,63 @@ mlir::LogicalResult verifyNCEDWConv(VPUIP::NCEClusterTaskOp op, VPU::ArchKind ar
 
 }  // namespace
 
-mlir::LogicalResult vpux::VPUIP::verifyOp(VPUIP::DPUTaskOp op) {
+mlir::LogicalResult vpux::VPUIP::DPUTaskOp::verify() {
+    const auto op = getOperation();
     static const size_t NUM_WORKLOAD_DIMS = 3;
 
-    if (op.outStart().size() != NUM_WORKLOAD_DIMS) {
-        return errorAt(op, "output start coords should {0}-D, but got {1}-D", NUM_WORKLOAD_DIMS, op.outStart().size());
+    if (outStart().size() != NUM_WORKLOAD_DIMS) {
+        return errorAt(op, "output start coords should {0}-D, but got {1}-D", NUM_WORKLOAD_DIMS, outStart().size());
     }
-    if (op.outEnd().size() != NUM_WORKLOAD_DIMS) {
-        return errorAt(op, "output end coords should {0}-D, but got {1}-D", NUM_WORKLOAD_DIMS, op.outEnd().size());
+    if (outEnd().size() != NUM_WORKLOAD_DIMS) {
+        return errorAt(op, "output end coords should {0}-D, but got {1}-D", NUM_WORKLOAD_DIMS, outEnd().size());
     }
-    if (op.inStart().hasValue() && op.inStart().getValue().size() != NUM_WORKLOAD_DIMS) {
+    if (inStart().hasValue() && inStart().getValue().size() != NUM_WORKLOAD_DIMS) {
         return errorAt(op, "input start coords should {0}-D, but got {1}-D", NUM_WORKLOAD_DIMS,
-                       op.inStart().getValue().size());
+                       inStart().getValue().size());
     }
-    if (op.inEnd().hasValue() && op.inEnd().getValue().size() != NUM_WORKLOAD_DIMS) {
+    if (inEnd().hasValue() && inEnd().getValue().size() != NUM_WORKLOAD_DIMS) {
         return errorAt(op, "input end coords should {0}-D, but got {1}-D", NUM_WORKLOAD_DIMS,
-                       op.inEnd().getValue().size());
+                       inEnd().getValue().size());
     }
 
     return mlir::success();
 }
 
-mlir::LogicalResult vpux::VPUIP::verifyOp(VPUIP::NCEClusterTaskOp op) {
-    const auto arch = VPU::getArch(op.getOperation()->getParentOfType<mlir::ModuleOp>());
+mlir::LogicalResult vpux::VPUIP::NCEClusterTaskOp::verify() {
+    const auto op = getOperation();
+    const auto arch = VPU::getArch(getOperation()->getParentOfType<mlir::ModuleOp>());
 
-    for (const auto& operand : op.getOpOperands()) {
+    for (const auto& operand : getOpOperands()) {
         const auto val = operand.get();
         const auto type = val.getType().cast<vpux::NDTypeInterface>().getElementType();
 
-        if ((arch == VPU::ArchKind::VPUX30XX || arch == VPU::ArchKind::VPUX311X) && type.isBF16()) {
+        if (arch != VPU::ArchKind::VPUX37XX && type.isBF16()) {
             return errorAt(op, "BF16 is only supported by VPUX37XX");
         }
     }
 
-    if (op.task_type() == VPUIP::NCETaskType::CONV || op.task_type() == VPUIP::NCETaskType::CMCONV) {
-        if (mlir::failed(verifyNCEConv(op, arch))) {
+    if (task_type() == VPUIP::NCETaskType::CONV || task_type() == VPUIP::NCETaskType::CMCONV) {
+        if (mlir::failed(verifyNCEConv(*this, arch))) {
             return mlir::failure();
         }
-    } else if (op.task_type() == VPUIP::NCETaskType::MAXPOOL || op.task_type() == VPUIP::NCETaskType::AVEPOOL) {
-        if (mlir::failed(verifyNCEPool(op, arch))) {
+    } else if (task_type() == VPUIP::NCETaskType::MAXPOOL || task_type() == VPUIP::NCETaskType::AVEPOOL) {
+        if (mlir::failed(verifyNCEPool(*this, arch))) {
             return mlir::failure();
         }
-    } else if (op.task_type() == VPUIP::NCETaskType::ELTWISE) {
-        if (mlir::failed(verifyNCEEltwise(op, arch))) {
+    } else if (task_type() == VPUIP::NCETaskType::ELTWISE) {
+        if (mlir::failed(verifyNCEEltwise(*this, arch))) {
             return mlir::failure();
         }
-    } else if (op.task_type() == VPUIP::NCETaskType::DWCONV) {
-        if (mlir::failed(verifyNCEDWConv(op, arch))) {
+    } else if (task_type() == VPUIP::NCETaskType::DWCONV) {
+        if (mlir::failed(verifyNCEDWConv(*this, arch))) {
             return mlir::failure();
         }
     } else {
-        return errorAt(op, "NCE Task Type '{0}' in not supported", op.task_type());
+        return errorAt(op, "NCE Task Type '{0}' in not supported", task_type());
     }
 
     size_t numDPUTasks = 0;
-    for (auto& dpuOp : op.variants().getOps()) {
+    for (auto& dpuOp : variants().getOps()) {
         if (!mlir::isa<VPUIP::DPUTaskOp>(dpuOp)) {
             return errorAt(op, "Got unsupported Operation '{0}' in 'variants' region", dpuOp.getName());
         }
@@ -676,7 +694,7 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(VPUIP::NCEClusterTaskOp op) {
                        MIN_NUM_DPUS_PER_CLUSTER, numDPUTasks);
     }
 
-    for (auto& ppeOp : op.ppe().getOps()) {
+    for (auto& ppeOp : ppe().getOps()) {
         if (!mlir::isa<VPUIP::PPETaskOp>(ppeOp)) {
             return errorAt(op, "Got unsupported Operation '{0}' in 'PPE' region", ppeOp.getName());
         }
@@ -688,18 +706,18 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(VPUIP::NCEClusterTaskOp op) {
     };
     auto nnCMXOperands = SmallVector<mlir::Value>();
 
-    const auto inputShape = getShape(op.input());
+    const auto inputShape = getShape(input());
     const auto inputBatch = inputShape[Dims4D::Act::N];
     if (inputBatch != vpux::VPU::NCEInvariant::SUPPORTED_BATCH_SIZE) {
         return errorAt(op, "Got unsupported input batch '{0}' expected '{1}'", inputBatch,
                        vpux::VPU::NCEInvariant::SUPPORTED_BATCH_SIZE);
     }
-    appendToVector(nnCMXOperands, op.input());
-    appendToVector(nnCMXOperands, op.weights());
-    appendToVector(nnCMXOperands, op.weight_table());
-    appendToVector(nnCMXOperands, op.activation_window());
-    appendToVector(nnCMXOperands, op.output_buff());
-    appendToVector(nnCMXOperands, op.profiling_data());
+    appendToVector(nnCMXOperands, input());
+    appendToVector(nnCMXOperands, weights());
+    appendToVector(nnCMXOperands, weight_table());
+    appendToVector(nnCMXOperands, activation_window());
+    appendToVector(nnCMXOperands, output_buff());
+    appendToVector(nnCMXOperands, profiling_data());
 
     const auto checkMemoryKind = [&op](mlir::ValueRange operands, EnumSet<VPU::MemoryKind> acceptedMemoryKinds) {
         for (const auto& val : operands) {
@@ -719,7 +737,7 @@ mlir::LogicalResult vpux::VPUIP::verifyOp(VPUIP::NCEClusterTaskOp op) {
 
     // TODO revisit memory checks for parent operands
 
-    for (const auto& val : op.getOperands()) {
+    for (const auto& val : getOperands()) {
         const auto type = val.getType().cast<vpux::NDTypeInterface>();
         const auto strideReqs = StrideReqs().add(DimStrideReq::compact(MemDim(type.getRank() - 1)));
 
@@ -949,14 +967,12 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NCEClusterTaskOp::serialize(VPUIP::
     const auto module = getOperation()->getParentOfType<mlir::ModuleOp>();
     const auto arch = VPU::getArch(module);
 
-    const bool isSwProfiling = (arch == VPU::ArchKind::VPUX30XX || arch == VPU::ArchKind::VPUX311X);
+    const bool isSwProfiling = (arch != VPU::ArchKind::VPUX37XX);
     const bool isProfEnabled = profiling_data() != nullptr;
 
     const uint16_t wlSize = VPUIP::getProfWorkloadSize(module);
-    int32_t startingWorkloadId = -1;
-    int32_t profBufferBaseAddress = 0;
+    int32_t profBufferBaseAddress = -1;
     if (isProfEnabled && !isSwProfiling) {
-        startingWorkloadId = 0;
         profBufferBaseAddress = profiling_data().getDefiningOp<VPURT::DeclareBufferOp>().byteOffset();
     }
 
@@ -966,15 +982,11 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NCEClusterTaskOp::serialize(VPUIP::
         auto inStart = SmallVector<int64_t>{0, 0, 0};
         auto inSize = SmallVector<int64_t>{0, 0, 0};
 
-        // For VPUX37XX and VPUX30XX, input workload start/size are back-inferred by runtime from
-        // output workload start/end.
-        // TODO: Add input workload computation for VPUX37XX - E#63055
         const auto outStart = parseIntArrayAttr<int64_t>(dpuTaskOp.outStart());
         const auto outEnd = parseIntArrayAttr<int64_t>(dpuTaskOp.outEnd());
         const auto pad = dpuTaskOp.pad();
 
         flatbuffers::Offset<MVCNN::TensorReference> profilingData = {0};
-        int32_t currentWorkloadId = startingWorkloadId;
         if (isProfEnabled) {
             if (isSwProfiling) {
                 // For software DPU profiling we don't care about workload_id, it may be -1.
@@ -982,14 +994,13 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NCEClusterTaskOp::serialize(VPUIP::
                 profilingData = getTensorReferenceForVariantProfiling(*this, writer, profiledDpuTasksCount, wlSize);
             } else {
                 // Hardware profiling used. Invariant uses CMX base address and variant needs a workload_id
-                // calculated as wid per NCE cluster task + shift per variant.
-                currentWorkloadId += static_cast<int32_t>(profiledDpuTasksCount);
+                // (calculated per NCE cluster task + shift per variant) which is obtained from the DPU task attribute
+                VPUX_THROW_WHEN(!dpuTaskOp.workload_id().hasValue(), "workload_id value has not been assigned");
             }
         }
 
         // workload_start_X/Y/Z and workload_end_X/Y/Z are used to serialize the values for the te_beg_x/y/z and
         // te_end_x/y/z registers, which are defining the start and end of the output workload.
-        // For all architectures, idu_workloads* firelds are ignored in runtime.
         const auto variant = MVCNN::CreateNCEVariantFields(writer,
                                                            0,                                            // Barriers
                                                            getMPEMode(dpuTaskOp.mpe_mode()),             // MPE mode
@@ -997,25 +1008,25 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NCEClusterTaskOp::serialize(VPUIP::
                                                            static_cast<int16_t>(pad.right().getInt()),   // padRight
                                                            static_cast<int16_t>(pad.top().getInt()),     // padTop
                                                            static_cast<int16_t>(pad.bottom().getInt()),  // padBottom
-                                                           static_cast<int16_t>(outStart[0]),  // workload_start_X
-                                                           static_cast<int16_t>(outStart[1]),  // workload_start_Y
-                                                           static_cast<int16_t>(outStart[2]),  // workload_start_Z
-                                                           static_cast<int16_t>(outEnd[0]),    // workload_end_X
-                                                           static_cast<int16_t>(outEnd[1]),    // workload_end_Y
-                                                           static_cast<int16_t>(outEnd[2]),    // workload_end_Z
-                                                           0,                                  // flex_map_column
-                                                           0,                                  // flex_map_array
-                                                           0,                                  // flex_inner
-                                                           0,                                  // flex_outer
-                                                           0,                                  // flex_outer_order
-                                                           profilingData,                      // profiling_data
-                                                           currentWorkloadId,                  // workload_id
-                                                           static_cast<int16_t>(inStart[0]),   // idu_workload_start_x
-                                                           static_cast<int16_t>(inStart[1]),   // idu_workload_start_y
-                                                           static_cast<int16_t>(inStart[2]),   // idu_workload_start_z
-                                                           static_cast<int16_t>(inSize[0]),    // idu_workload_size_x
-                                                           static_cast<int16_t>(inSize[1]),    // idu_workload_size_y
-                                                           static_cast<int16_t>(inSize[2])     // idu_workload_size_z
+                                                           static_cast<int16_t>(outStart[0]),     // workload_start_X
+                                                           static_cast<int16_t>(outStart[1]),     // workload_start_Y
+                                                           static_cast<int16_t>(outStart[2]),     // workload_start_Z
+                                                           static_cast<int16_t>(outEnd[0]),       // workload_end_X
+                                                           static_cast<int16_t>(outEnd[1]),       // workload_end_Y
+                                                           static_cast<int16_t>(outEnd[2]),       // workload_end_Z
+                                                           0,                                     // flex_map_column
+                                                           0,                                     // flex_map_array
+                                                           0,                                     // flex_inner
+                                                           0,                                     // flex_outer
+                                                           0,                                     // flex_outer_order
+                                                           profilingData,                         // profiling_data
+                                                           dpuTaskOp.workload_id().value_or(-1),  // workload_id
+                                                           static_cast<int16_t>(inStart[0]),  // idu_workload_start_x
+                                                           static_cast<int16_t>(inStart[1]),  // idu_workload_start_y
+                                                           static_cast<int16_t>(inStart[2]),  // idu_workload_start_z
+                                                           static_cast<int16_t>(inSize[0]),   // idu_workload_size_x
+                                                           static_cast<int16_t>(inSize[1]),   // idu_workload_size_y
+                                                           static_cast<int16_t>(inSize[2])    // idu_workload_size_z
         );
         ++profiledDpuTasksCount;
         variantList.push_back(variant);
@@ -1072,7 +1083,10 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NCEClusterTaskOp::serialize(VPUIP::
             in2QuantMult = parseIntArrayAttr<int64_t>(ppeOp.in2_quant_mult().getValue());
         }
         if (ppeOp.fp_prelu_alpha().hasValue()) {
-            fpPReluAlpha = checked_cast<float>(ppeOp.fp_prelu_alpha().getValue().convertToDouble());
+            // For values like prelu_alpha=0.1, checked_cast fails, due to loss in precision when converting
+            // from double to float and back, due to the static_cast<double>(static_cast<float>(value)) == value check
+            // Use static_cast instead
+            fpPReluAlpha = static_cast<float>(ppeOp.fp_prelu_alpha().getValue().convertToDouble());
         }
     }
     VPUX_THROW_UNLESS(ppeList.size() <= 1, "Cannot set more than one PPE task");
@@ -1086,7 +1100,7 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NCEClusterTaskOp::serialize(VPUIP::
             instruction_list_table() != nullptr ? writer.getTensorRef(instruction_list_table()) : 0;
 
     auto ppeTask = MVCNN::CreatePPETask(writer, 0, ppeFixedFunction, MVCNN::PPERoundingMode_RNE, instructionListTable,
-                                        ppeQuantScale.getValueOr(1.0), fpPReluAlpha);
+                                        ppeQuantScale.value_or(1.0), fpPReluAlpha);
 
     int16_t kernelSizeH = 1, kernelSizeW = 1;
     int16_t kernelStridesH = 1, kernelStridesW = 1;
@@ -1140,7 +1154,7 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NCEClusterTaskOp::serialize(VPUIP::
     auto weightsData = weights() != nullptr ? writer.getTensorRef(weights()) : 0;
     const auto weightsTable = weight_table() != nullptr ? writer.getTensorRef(weight_table()) : 0;
     const auto activationWindow = activation_window() != nullptr ? writer.getTensorRef(activation_window()) : 0;
-    const auto activationWindowChannelLength = checked_cast<int32_t>(activation_window_channel_length().getValueOr(0));
+    const auto activationWindowChannelLength = checked_cast<int32_t>(activation_window_channel_length().value_or(0));
 
     auto outputData = writer.getTensorRef(output());
 
@@ -1171,8 +1185,8 @@ VPUIP::BlobWriter::SpecificTask vpux::VPUIP::NCEClusterTaskOp::serialize(VPUIP::
 
     // Parent input override is required for PermuteQuantize.
     // Input dimensions are read from parent input in runtime code.
-    const auto overrideParentIn =
-            (oduPermutation == MVCNN::Permutation_YZX) && (parent_input().getType() != input().getType());
+    const auto isPermuteQuantize = is_permute_quantizeAttr() != nullptr;
+    const auto overrideParentIn = isPermuteQuantize && (parent_input().getType() != input().getType());
     const auto parentInputTensor = overrideParentIn ? inputData : writer.getTensorRef(parent_input());
     const auto parentOutputTensor = writer.getTensorRef(parent_output());
 

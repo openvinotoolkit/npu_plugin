@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/EMU/ops.hpp"
 
 #include "vpux/compiler/core/attributes/dim.hpp"
@@ -15,8 +13,6 @@
 #include "vpux/compiler/utils/attributes.hpp"
 #include "vpux/compiler/utils/error.hpp"
 #include "vpux/compiler/utils/permute_utils.hpp"
-
-#include <llvm/ADT/TypeSwitch.h>
 
 using namespace vpux;
 
@@ -103,7 +99,7 @@ void EMU::NCEClusterTaskOp::addPPETask(mlir::OpBuilder& builder, EMU::NCECluster
 }
 
 //
-// verifyOp
+// verify
 //
 
 namespace {
@@ -227,28 +223,29 @@ mlir::LogicalResult verifyNCEDWConv(EMU::NCEClusterTaskOp op) {
 
 }  // namespace
 
-mlir::LogicalResult vpux::EMU::verifyOp(EMU::NCEClusterTaskOp op) {
-    if (op.task_type() == VPUIP::NCETaskType::CONV || op.task_type() == VPUIP::NCETaskType::CMCONV) {
-        if (mlir::failed(verifyNCEConv(op))) {
+mlir::LogicalResult vpux::EMU::NCEClusterTaskOp::verify() {
+    const auto op = getOperation();
+    if (task_type() == VPUIP::NCETaskType::CONV || task_type() == VPUIP::NCETaskType::CMCONV) {
+        if (mlir::failed(verifyNCEConv(*this))) {
             return mlir::failure();
         }
-    } else if (op.task_type() == VPUIP::NCETaskType::MAXPOOL || op.task_type() == VPUIP::NCETaskType::AVEPOOL) {
-        if (mlir::failed(verifyNCEPool(op))) {
+    } else if (task_type() == VPUIP::NCETaskType::MAXPOOL || task_type() == VPUIP::NCETaskType::AVEPOOL) {
+        if (mlir::failed(verifyNCEPool(*this))) {
             return mlir::failure();
         }
-    } else if (op.task_type() == VPUIP::NCETaskType::ELTWISE) {
-        if (mlir::failed(verifyNCEEltwise(op))) {
+    } else if (task_type() == VPUIP::NCETaskType::ELTWISE) {
+        if (mlir::failed(verifyNCEEltwise(*this))) {
             return mlir::failure();
         }
-    } else if (op.task_type() == VPUIP::NCETaskType::DWCONV) {
-        if (mlir::failed(verifyNCEDWConv(op))) {
+    } else if (task_type() == VPUIP::NCETaskType::DWCONV) {
+        if (mlir::failed(verifyNCEDWConv(*this))) {
             return mlir::failure();
         }
     } else {
-        return errorAt(op, "NCE Task Type '{0}' in not supported", op.task_type());
+        return errorAt(op, "NCE Task Type '{0}' in not supported", task_type());
     }
 
-    for (auto& ppeOp : op.ppe().getOps()) {
+    for (auto& ppeOp : ppe().getOps()) {
         if (!mlir::isa<EMU::PPETaskOp>(ppeOp)) {
             return errorAt(op, "Got unsupported Operation '{0}' in 'PPE' region", ppeOp.getName());
         }

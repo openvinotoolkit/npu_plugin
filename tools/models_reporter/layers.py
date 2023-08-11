@@ -1,32 +1,24 @@
 #
 # Copyright (C) 2023 Intel Corporation
-# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: Apache 2.0
 #
 
 from dataclasses import dataclass
-import os
 import sys
 
 from tqdm.contrib.concurrent import process_map
 import xml.etree.ElementTree as xml_parser
 
-
-def list_of_shapes_to_string(shapes):
-    def list_to_string(shape):
-        return "[" + ", ".join(shape) + "]"
-
-    shape_strings = [list_to_string(shape) for shape in shapes]
-
-    return ", ".join(shape_strings)
+import utils
 
 
 @dataclass
-class Layer:
+class Layer(utils.StrictTypeCheck):
     name: str
-    opset: str
+    opset: int
     attributes: str
-    input_shapes: str
-    output_shapes: str
+    input_shapes: list
+    output_shapes: list
 
     def __repr__(self):
         inputs = self.input_shapes
@@ -43,7 +35,7 @@ def parse_shapes(layer, tag):
             ports = edge.findall('port')
             for port in ports:
                 dims = port.findall('dim')
-                shape = [dim.text for dim in dims] if dims else ['1']
+                shape = [int(dim.text) for dim in dims] if dims else [1]
                 shapes.append(shape)
     return shapes
 
@@ -59,24 +51,19 @@ def parse_model_proc_func(model_path):
         opset = layer.attrib.get('version')[len('opset'):]
         data = layer.find('data')
 
-        input_shapes_str = list_of_shapes_to_string(
-            parse_shapes(layer, 'input'))
-        output_shapes_str = list_of_shapes_to_string(
-            parse_shapes(layer, 'output'))
-        attributes = dict(sorted(data.attrib.items())
-                          ) if data is not None else dict()
+        input_shapes = parse_shapes(layer, 'input')
+        output_shapes = parse_shapes(layer, 'output')
+        attributes = dict(sorted(data.attrib.items())) if data is not None else dict()
 
-        layer = Layer(name, int(opset), str(attributes),
-                      input_shapes_str, output_shapes_str)
+        layer = Layer(name, int(opset), str(attributes), input_shapes, output_shapes)
         layers_info.append(layer)
 
     return layers_info
 
 
-def glob_all_layers(models_list):
-    print("Glob all layers...")
+def glob_all_layers(models_list, max_workers):
     model_layers_list = process_map(
-        parse_model_proc_func, models_list, max_workers=os.cpu_count(), chunksize=4)
+        parse_model_proc_func, models_list, max_workers=max_workers, chunksize=4)
 
     return model_layers_list
 

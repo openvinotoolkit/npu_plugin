@@ -15,33 +15,72 @@ using namespace LayerTestsUtils;
 using namespace BehaviorTestsDefinitions;
 
 namespace {
-const std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP16};
+// Precision types
+/*
+    {InferenceEngine::Precision::I8,   InferenceEngine::Precision::U8,
+    InferenceEngine::Precision::I16,  InferenceEngine::Precision::U16,
+    InferenceEngine::Precision::FP16, InferenceEngine::Precision::FP32};
+*/
+const std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP16,
+                                                               InferenceEngine::Precision::FP32};
+
+/* The Input and Output precisions conversion tests only cover U8 & FP32 currently
+ Any other value will lead to asserts getting triggered */
+const std::vector<InferenceEngine::Precision> inputPrecisions = {InferenceEngine::Precision::U8,
+                                                                 InferenceEngine::Precision::FP32};
+const std::vector<InferenceEngine::Precision> outputPrecisions = {InferenceEngine::Precision::FP32};
 
 const std::vector<std::map<std::string, std::string>> configs = {{}};
 
-const std::vector<InferenceEngine::Precision> ioPrecisions = {InferenceEngine::Precision::U8};
+// Layout types:
+/*
+    {InferenceEngine::Layout::C,
+    InferenceEngine::Layout::NC, InferenceEngine::Layout::CN, InferenceEngine::Layout::HW,
+    InferenceEngine::Layout::CHW, InferenceEngine::Layout::HWC,
+    InferenceEngine::Layout::NCHW, InferenceEngine::Layout::NHWC,
+    InferenceEngine::Layout::NCDHW, InferenceEngine::Layout::NDHWC};
+*/
+const std::vector<InferenceEngine::Layout> netLayouts = {
+        InferenceEngine::Layout::C,    InferenceEngine::Layout::NC,   InferenceEngine::Layout::CN,
+        InferenceEngine::Layout::HW,   InferenceEngine::Layout::CHW,  InferenceEngine::Layout::HWC,
+        InferenceEngine::Layout::NCHW, InferenceEngine::Layout::NHWC, InferenceEngine::Layout::NCDHW,
+        InferenceEngine::Layout::NDHWC};
 
-const std::vector<InferenceEngine::Layout> netLayouts = {InferenceEngine::Layout::NCHW};
+/*
+The input layouts can only be set to NCHW or NHWC, due to the following
+way in which the param is created to have 4 dimensions for this IR:
+    unsigned int shape_size = 9, channels = 3, batch = 1, offset = 0;
+    ngraph::PartialShape shape({batch, channels, shape_size, shape_size});
+    auto param = std::make_shared<ngraph::op::Parameter>(type, shape);
+*/
+const std::vector<InferenceEngine::Layout> inputLayouts = {InferenceEngine::Layout::NCHW,
+                                                           InferenceEngine::Layout::NHWC};
+// Output layout is similarly limited as the input layout
+const std::vector<InferenceEngine::Layout> outputLayouts = {InferenceEngine::Layout::NCHW,
+                                                            InferenceEngine::Layout::NHWC};
 
-const std::vector<InferenceEngine::Layout> ioLayouts = {InferenceEngine::Layout::NCHW, InferenceEngine::Layout::NHWC};
+INSTANTIATE_TEST_SUITE_P(smoke_precommit_VPU3720_BehaviorTestsPreprocess, InferRequestPreprocessTest,
+                         ::testing::Combine(::testing::ValuesIn(netPrecisions),
+                                            ::testing::Values(CommonTestUtils::DEVICE_KEEMBAY),
+                                            ::testing::ValuesIn(configs)),
+                         InferRequestPreprocessTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_BehaviorTests, InferRequestPreprocessConversionTest,
-                         ::testing::Combine(::testing::ValuesIn(netPrecisions), ::testing::ValuesIn(ioPrecisions),
-                                            ::testing::ValuesIn(ioPrecisions), ::testing::ValuesIn(netLayouts),
-                                            ::testing::ValuesIn(ioLayouts), ::testing::ValuesIn(ioLayouts),
+INSTANTIATE_TEST_SUITE_P(smoke_precommit_VPU3720_BehaviorTestsPreprocess, InferRequestPreprocessConversionTest,
+                         ::testing::Combine(::testing::ValuesIn(netPrecisions), ::testing::ValuesIn(inputPrecisions),
+                                            ::testing::ValuesIn(outputPrecisions), ::testing::ValuesIn(netLayouts),
+                                            ::testing::ValuesIn(inputLayouts), ::testing::ValuesIn(outputLayouts),
                                             ::testing::Bool(), ::testing::Bool(),
                                             ::testing::Values(CommonTestUtils::DEVICE_KEEMBAY),
                                             ::testing::ValuesIn(configs)),
                          InferRequestPreprocessConversionTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, InferRequestPreprocessDynamicallyInSetBlobTest,
-                         ::testing::Combine(::testing::ValuesIn(netPrecisions), ::testing::Bool(), ::testing::Bool(),
-                                            ::testing::ValuesIn(netLayouts), ::testing::Values(false),
-                                            ::testing::Values(false),
-                                            ::testing::Values(true),  // only SetBlob
-                                            ::testing::Values(true),  // only SetBlob
-                                            ::testing::Values(CommonTestUtils::DEVICE_KEEMBAY),
-                                            ::testing::ValuesIn(configs)),
-                         InferRequestPreprocessDynamicallyInSetBlobTest::getTestCaseName);
-
+INSTANTIATE_TEST_SUITE_P(
+        smoke_precommit_VPU3720_BehaviorTestsPreprocess, InferRequestPreprocessDynamicallyInSetBlobTest,
+        ::testing::Combine(::testing::ValuesIn(netPrecisions), ::testing::Bool(),
+                           ::testing::Bool(),  // change I/O precision
+                           ::testing::ValuesIn(netLayouts), ::testing::Bool(), ::testing::Bool(),  // change I/O layout
+                           ::testing::Values(true),                                                // only SetBlob works
+                           ::testing::Values(true),                                                // only SetBlob works
+                           ::testing::Values(CommonTestUtils::DEVICE_KEEMBAY), ::testing::ValuesIn(configs)),
+        InferRequestPreprocessDynamicallyInSetBlobTest::getTestCaseName);
 }  // namespace

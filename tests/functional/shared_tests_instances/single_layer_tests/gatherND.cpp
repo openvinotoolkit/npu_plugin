@@ -10,17 +10,18 @@
 
 namespace LayerTestsDefinitions {
 
-class KmbGatherNDLayerTest : public GatherND8LayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {};
-class KmbGatherNDLayerTest_VPU3720 : public GatherND8LayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {};
+class VPUXGatherNDLayerTest : public GatherND8LayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {};
 
-TEST_P(KmbGatherNDLayerTest, CompareWithRefs_MLIR) {
-    useCompilerMLIR();
+class VPUXGatherNDLayerTest_VPU3700 : public VPUXGatherNDLayerTest {};
+class VPUXGatherNDLayerTest_VPU3720 : public VPUXGatherNDLayerTest {};
+
+TEST_P(VPUXGatherNDLayerTest_VPU3700, SW) {
+    setPlatformVPU3700();
     setReferenceSoftwareModeMLIR();
     Run();
 }
 
-TEST_P(KmbGatherNDLayerTest_VPU3720, SW_MLIR_VPU3720) {
-    useCompilerMLIR();
+TEST_P(VPUXGatherNDLayerTest_VPU3720, HW) {
     setPlatformVPU3720();
     setDefaultHardwareModeMLIR();
     Run();
@@ -68,19 +69,19 @@ const auto gatherNDArgsSubsetTiling = testing::Combine(
         testing::Values(InferenceEngine::Precision::I32), testing::Values(InferenceEngine::Precision::I32),
         testing::Values(LayerTestsUtils::testPlatformTargetDevice), testing::Values(Config{}));
 
-INSTANTIATE_TEST_SUITE_P(smoke_GatherND_Set1, KmbGatherNDLayerTest, gatherNDArgsSubset1,
+INSTANTIATE_TEST_SUITE_P(smoke_GatherND_Set1, VPUXGatherNDLayerTest_VPU3700, gatherNDArgsSubset1,
                          GatherND8LayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_GatherND_Set2, KmbGatherNDLayerTest, gatherNDArgsSubset2,
+INSTANTIATE_TEST_SUITE_P(smoke_GatherND_Set2, VPUXGatherNDLayerTest_VPU3700, gatherNDArgsSubset2,
                          GatherND8LayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_GatherND_VPU3720, KmbGatherNDLayerTest_VPU3720, gatherNDArgsSubset1,
+INSTANTIATE_TEST_SUITE_P(smoke_GatherND_VPU3720, VPUXGatherNDLayerTest_VPU3720, gatherNDArgsSubset1,
                          GatherND8LayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_precommit_GatherND_VPU3720, KmbGatherNDLayerTest_VPU3720, gatherNDArgsSubsetPrecommit,
+INSTANTIATE_TEST_SUITE_P(smoke_precommit_GatherND_VPU3720, VPUXGatherNDLayerTest_VPU3720, gatherNDArgsSubsetPrecommit,
                          GatherND8LayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_tiling_GatherND_VPU3720, KmbGatherNDLayerTest_VPU3720, gatherNDArgsSubsetTiling,
+INSTANTIATE_TEST_SUITE_P(smoke_tiling_GatherND_VPU3720, VPUXGatherNDLayerTest_VPU3720, gatherNDArgsSubsetTiling,
                          GatherND8LayerTest::getTestCaseName);
 
 }  // namespace

@@ -1,5 +1,5 @@
 //
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,11 +12,10 @@
 
 namespace {
 
-typedef std::tuple<InferenceEngine::Precision, InferenceEngine::Precision, InferenceEngine::SizeVector>
-        KmbSwishTestParams;
-class KmbSwishSingleInputTest :
+typedef std::tuple<InferenceEngine::Precision, InferenceEngine::Precision, InferenceEngine::SizeVector> SwishTestParams;
+class VPUXSwishSingleInputTest_VPU3700 :
         public LayerTestsUtils::KmbLayerTestsCommon,
-        public testing::WithParamInterface<KmbSwishTestParams> {
+        public testing::WithParamInterface<SwishTestParams> {
     void SetUp() override {
         auto prms = GetParam();
 
@@ -33,7 +32,7 @@ class KmbSwishSingleInputTest :
         const auto swish = std::make_shared<ngraph::op::v4::Swish>(paramOuts[0]);
 
         const ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(swish)};
-        function = std::make_shared<ngraph::Function>(swish, params, "KmbSwishSingleInputTest");
+        function = std::make_shared<ngraph::Function>(swish, params, "VPUXSwishSingleInputTest");
 
         targetDevice = LayerTestsUtils::testPlatformTargetDevice;
         threshold = 0.1f;
@@ -56,7 +55,7 @@ class KmbSwishSingleInputTest :
     }
 
 public:
-    static std::string getTestCaseName(::testing::TestParamInfo<KmbSwishTestParams> obj) {
+    static std::string getTestCaseName(::testing::TestParamInfo<SwishTestParams> obj) {
         auto params = obj.param;
 
         InferenceEngine::Precision ip, op;
@@ -75,8 +74,9 @@ public:
     }
 };
 
-TEST_P(KmbSwishSingleInputTest, CompareWithRefs_MLIR) {
-    useCompilerMLIR();
+TEST_P(VPUXSwishSingleInputTest_VPU3700, HW) {
+    setPlatformVPU3700();
+    setDefaultHardwareModeMLIR();
     Run();
 }
 
@@ -86,9 +86,9 @@ const std::vector<InferenceEngine::Precision> out_prec = {InferenceEngine::Preci
 
 const std::vector<InferenceEngine::SizeVector> inputShapes{{1, 3, 32, 32}, {1, 3, 200, 200}};
 
-INSTANTIATE_TEST_CASE_P(smoke_SwishSingleInputTest, KmbSwishSingleInputTest,
+INSTANTIATE_TEST_CASE_P(smoke_SwishSingleInputTest, VPUXSwishSingleInputTest_VPU3700,
                         ::testing::Combine(::testing::ValuesIn(in_prec), ::testing::ValuesIn(out_prec),
                                            ::testing::ValuesIn(inputShapes)),
-                        KmbSwishSingleInputTest::getTestCaseName);
+                        VPUXSwishSingleInputTest_VPU3700::getTestCaseName);
 
 }  // namespace

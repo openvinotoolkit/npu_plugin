@@ -3,8 +3,6 @@
 # SPDX-License-Identifier: Apache 2.0
 #
 
-replace_noerror()
-
 if(ENABLE_LTO)
     ie_enable_lto()
 endif()
@@ -38,7 +36,7 @@ if(NOT BUILD_SHARED_LIBS)
     set(VPUX_PLUGIN_TARGET_SOURCES ${SOURCES})
 endif()
 
-ie_add_plugin(NAME ${VPUX_PLUGIN_TARGET}
+ov_add_plugin(NAME ${VPUX_PLUGIN_TARGET}
     DEVICE_NAME ${VPUX_DEVICE_NAME}
     SOURCES
         ${VPUX_PLUGIN_TARGET_SOURCES}
@@ -59,7 +57,9 @@ else()
 endif()
 
 enable_warnings_as_errors(${TARGET_NAME})
+replace_noerror(${TARGET_NAME})
 
+vpux_enable_clang_format(${TARGET_NAME})
 target_include_directories(${TARGET_NAME}
     PUBLIC
         $<BUILD_INTERFACE:${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/include>
@@ -80,11 +80,6 @@ target_link_libraries(${TARGET_NAME}
     PRIVATE
         vpux_utils
 )
-
-if(ENABLE_CLANG_FORMAT)
-    add_clang_format_target(clang_format_${TARGET_NAME} FOR_TARGETS ${TARGET_NAME} ALL)
-    add_dependencies(${TARGET_NAME} clang_format_${TARGET_NAME})
-endif()
 
 #
 # Static library

@@ -7,7 +7,6 @@
 
 #include <gtest/gtest.h>
 #include <malloc.h>
-#include <fstream>
 #include <random>
 #include <vpux_elf/accessor.hpp>
 #include <vpux_elf/writer.hpp>
@@ -54,8 +53,8 @@ public:
         symTab_[VPU_NNRD_SYM_BARRIERS_START].st_size = 0;
     }
 
-    const details::ArrayRef<SymbolEntry> symTab() const {
-        return details::ArrayRef<SymbolEntry>(symTab_, SPECIAL_SYMTAB_SIZE);
+    const ArrayRef<SymbolEntry> symTab() const {
+        return ArrayRef<SymbolEntry>(symTab_, SPECIAL_SYMTAB_SIZE);
     }
 };
 
@@ -70,11 +69,11 @@ public:
         free(reinterpret_cast<void*>(devBuffer.cpu_addr()));
     }
 
-    void lock(DeviceBuffer& devBuffer) {
+    void lock(DeviceBuffer& devBuffer) override {
         (void)devBuffer;
     }
 
-    void unlock(DeviceBuffer& devBuffer) {
+    void unlock(DeviceBuffer& devBuffer) override {
         (void)devBuffer;
     }
 
@@ -85,21 +84,21 @@ public:
 };
 
 class NullAllocBufferManager : public BufferManager {
-    virtual DeviceBuffer allocate(const BufferSpecs& buffSpecs) {
+    DeviceBuffer allocate(const BufferSpecs& buffSpecs) override {
         (void)buffSpecs;
         return DeviceBuffer();
     }
-    virtual void deallocate(DeviceBuffer& devAddress) {
+    void deallocate(DeviceBuffer& devAddress) override {
         (void)devAddress;
     }
 
-    virtual void lock(DeviceBuffer& devAddress) {
+    void lock(DeviceBuffer& devAddress) override {
         (void)devAddress;
     }
-    virtual void unlock(DeviceBuffer& devAddress) {
+    void unlock(DeviceBuffer& devAddress) override {
         (void)devAddress;
     }
-    virtual size_t copy(DeviceBuffer& to, const uint8_t* from, size_t count) {
+    size_t copy(DeviceBuffer& to, const uint8_t* from, size_t count) override {
         (void)to;
         (void)from;
         (void)count;

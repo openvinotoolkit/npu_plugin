@@ -12,7 +12,7 @@
 
 namespace LayerTestsDefinitions {
 
-class KmbPoolingLayerTest : public PoolingLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
+class VPUXPoolingLayerTest_VPU3700 : public PoolingLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {
     void SkipBeforeLoad() override {
         const auto& poolParams = std::get<0>(GetParam());
 
@@ -22,7 +22,7 @@ class KmbPoolingLayerTest : public PoolingLayerTest, virtual public LayerTestsUt
         std::tie(poolType, std::ignore, strides, std::ignore, std::ignore, roundingMode, std::ignore, std::ignore) =
                 poolParams;
 
-        if (poolType == ngraph::helpers::PoolingTypes::AVG && isCompilerMLIR() &&
+        if (poolType == ngraph::helpers::PoolingTypes::AVG &&
             configuration[VPUX_CONFIG_KEY(COMPILATION_MODE)] == "DefaultHW") {
             threshold = 0.25;
         }
@@ -39,29 +39,27 @@ class KmbPoolingLayerTest : public PoolingLayerTest, virtual public LayerTestsUt
     }
 };
 
-TEST_P(KmbPoolingLayerTest, CompareWithRefs_MLIR_SW) {
-    useCompilerMLIR();
+TEST_P(VPUXPoolingLayerTest_VPU3700, SW) {
+    setPlatformVPU3700();
     setReferenceSoftwareModeMLIR();
     Run();
 }
 
-TEST_P(KmbPoolingLayerTest, CompareWithRefs_MLIR_HW) {
-    useCompilerMLIR();
+TEST_P(VPUXPoolingLayerTest_VPU3700, HW) {
+    setPlatformVPU3700();
     setDefaultHardwareModeMLIR();
     Run();
 }
 
 class VPUXPoolingLayerTest_VPU3720 : public PoolingLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {};
 
-TEST_P(VPUXPoolingLayerTest_VPU3720, CompareWithRefs_MLIR_VPU3720) {
-    useCompilerMLIR();
+TEST_P(VPUXPoolingLayerTest_VPU3720, SW) {
     setPlatformVPU3720();
     setReferenceSoftwareModeMLIR();
     Run();
 }
 
-TEST_P(VPUXPoolingLayerTest_VPU3720, CompareWithRefs_MLIR_HW_VPU3720) {
-    useCompilerMLIR();
+TEST_P(VPUXPoolingLayerTest_VPU3720, HW) {
     setPlatformVPU3720();
     setDefaultHardwareModeMLIR();
     Run();
@@ -69,9 +67,8 @@ TEST_P(VPUXPoolingLayerTest_VPU3720, CompareWithRefs_MLIR_HW_VPU3720) {
 
 using VPUXPoolingLayerTest_VPU3720_SingleCluster = VPUXPoolingLayerTest_VPU3720;
 
-TEST_P(VPUXPoolingLayerTest_VPU3720_SingleCluster, CompareWithRefs_MLIR_HW_VPU3720) {
+TEST_P(VPUXPoolingLayerTest_VPU3720_SingleCluster, HW) {
     setPlatformVPU3720();
-    useCompilerMLIR();
     setDefaultHardwareModeMLIR();
     setSingleClusterMode();
     useELFCompilerBackend();
@@ -98,7 +95,7 @@ const auto pool_AutoPadValid = ::testing::Combine(::testing::Values(PoolingTypes
                                                   ::testing::Values(false)  // excludePad
 );
 
-INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_Pooling_AutoPadValid, KmbPoolingLayerTest,
+INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_Pooling_AutoPadValid, VPUXPoolingLayerTest_VPU3700,
                          ::testing::Combine(pool_AutoPadValid,                          //
                                             ::testing::Values(Precision::FP16),         // netPrc
                                             ::testing::Values(Precision::UNSPECIFIED),  // inPrc
@@ -125,7 +122,7 @@ const auto pool_ExplicitPadding =
                            ::testing::Values(false)  // excludePad
         );
 
-INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_Pooling_ExplicitPadding, KmbPoolingLayerTest,
+INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_Pooling_ExplicitPadding, VPUXPoolingLayerTest_VPU3700,
                          ::testing::Combine(pool_ExplicitPadding,                                //
                                             ::testing::Values(Precision::FP16),                  // netPrc
                                             ::testing::Values(Precision::UNSPECIFIED),           // inPrc
@@ -148,7 +145,7 @@ const auto pool_AsymmetricKernel = ::testing::Combine(::testing::Values(PoolingT
                                                       ::testing::Values(false)                             // excludePad
 );
 
-INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_Pooling_AsymmetricKernel, KmbPoolingLayerTest,
+INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_Pooling_AsymmetricKernel, VPUXPoolingLayerTest_VPU3700,
                          ::testing::Combine(pool_AsymmetricKernel,                               //
                                             ::testing::Values(Precision::FP16),                  // netPrc
                                             ::testing::Values(Precision::UNSPECIFIED),           // inPrc
@@ -171,7 +168,7 @@ const auto pool_AsymmetricStrides = ::testing::Combine(::testing::Values(Pooling
                                                        ::testing::Values(false)  // excludePad
 );
 
-INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_Pooling_AsymmetricStrides, KmbPoolingLayerTest,
+INSTANTIATE_TEST_SUITE_P(DISABLED_TMP_smoke_Pooling_AsymmetricStrides, VPUXPoolingLayerTest_VPU3700,
                          ::testing::Combine(pool_AsymmetricStrides,                              //
                                             ::testing::Values(Precision::FP16),                  // netPrc
                                             ::testing::Values(Precision::UNSPECIFIED),           // inPrc
@@ -194,7 +191,7 @@ const auto pool_LargeSize1 = ::testing::Combine(::testing::Values(PoolingTypes::
                                                 ::testing::Values(false)                             // excludePad
 );
 
-INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_Pooling_LargeSize1, KmbPoolingLayerTest,
+INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_Pooling_LargeSize1, VPUXPoolingLayerTest_VPU3700,
                         ::testing::Combine(pool_LargeSize1,                                       //
                                            ::testing::Values(Precision::FP16),                    // netPrc
                                            ::testing::Values(Precision::UNSPECIFIED),             // inPrc
@@ -215,7 +212,7 @@ const auto pool_LargeSize2 = ::testing::Combine(::testing::Values(PoolingTypes::
                                                 ::testing::Values(false)                             // excludePad
 );
 
-INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_Pooling_LargeSize2, KmbPoolingLayerTest,
+INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_Pooling_LargeSize2, VPUXPoolingLayerTest_VPU3700,
                         ::testing::Combine(pool_LargeSize2,                                       //
                                            ::testing::Values(Precision::FP16),                    // netPrc
                                            ::testing::Values(Precision::UNSPECIFIED),             // inPrc
@@ -238,7 +235,7 @@ const auto pool_LargeStrides = ::testing::Combine(::testing::Values(PoolingTypes
                                                   ::testing::Values(false)                              // excludePad
 );
 
-INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_Pooling_LargeStrides, KmbPoolingLayerTest,
+INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_Pooling_LargeStrides, VPUXPoolingLayerTest_VPU3700,
                         ::testing::Combine(pool_LargeStrides,                                   //
                                            ::testing::Values(Precision::FP16),                  // netPrc
                                            ::testing::Values(Precision::FP16),                  // inPrc
@@ -261,7 +258,7 @@ const auto pool_LargePadding2 = ::testing::Combine(::testing::Values(PoolingType
                                                    ::testing::Values(false)                             // excludePad
 );
 
-INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_Pooling_LargePadding2, KmbPoolingLayerTest,
+INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_Pooling_LargePadding2, VPUXPoolingLayerTest_VPU3700,
                         ::testing::Combine(pool_LargePadding2,                                  //
                                            ::testing::Values(Precision::FP16),                  // netPrc
                                            ::testing::Values(Precision::FP16),                  // inPrc
@@ -283,7 +280,7 @@ const auto pool_LargePadding3 =
                            ::testing::Values(false)                                    // excludePad
         );
 
-INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_Pooling_LargePadding3, KmbPoolingLayerTest,
+INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_Pooling_LargePadding3, VPUXPoolingLayerTest_VPU3700,
                         ::testing::Combine(pool_LargePadding3,                                  //
                                            ::testing::Values(Precision::FP16),                  // netPrc
                                            ::testing::Values(Precision::FP16),                  // inPrc
@@ -305,7 +302,7 @@ const auto pool_LargePadding4 =
                            ::testing::Values(false)                                            // excludePad
         );
 
-INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_Pooling_LargePadding4, KmbPoolingLayerTest,
+INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_Pooling_LargePadding4, VPUXPoolingLayerTest_VPU3700,
                         ::testing::Combine(pool_LargePadding4,                                  //
                                            ::testing::Values(Precision::FP16),                  // netPrc
                                            ::testing::Values(Precision::FP16),                  // inPrc
@@ -327,7 +324,7 @@ const auto pool_LargePadding5 =
                            ::testing::Values(false)                                                    // excludePad
         );
 
-INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_Pooling_LargePadding5, KmbPoolingLayerTest,
+INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_Pooling_LargePadding5, VPUXPoolingLayerTest_VPU3700,
                         ::testing::Combine(pool_LargePadding5,                                  //
                                            ::testing::Values(Precision::FP16),                  // netPrc
                                            ::testing::Values(Precision::FP16),                  // inPrc
@@ -349,7 +346,7 @@ const auto pool_LargePadding6 = ::testing::Combine(
         ::testing::Values(false)                                                                // excludePad
 );
 
-INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_Pooling_LargePadding6, KmbPoolingLayerTest,
+INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_Pooling_LargePadding6, VPUXPoolingLayerTest_VPU3700,
                         ::testing::Combine(pool_LargePadding6,                                  //
                                            ::testing::Values(Precision::FP16),                  // netPrc
                                            ::testing::Values(Precision::FP16),                  // inPrc
@@ -371,7 +368,7 @@ const auto pool_LargePadding7 =
                            ::testing::Values(false)                                                        // excludePad
         );
 
-INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_Pooling_LargePadding7, KmbPoolingLayerTest,
+INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_Pooling_LargePadding7, VPUXPoolingLayerTest_VPU3700,
                         ::testing::Combine(pool_LargePadding7,                                  //
                                            ::testing::Values(Precision::FP16),                  // netPrc
                                            ::testing::Values(Precision::FP16),                  // inPrc
@@ -393,7 +390,7 @@ const auto pool_LargePadding8 =
                            ::testing::Values(false)                                                // excludePad
         );
 
-INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_Pooling_LargePadding8, KmbPoolingLayerTest,
+INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_Pooling_LargePadding8, VPUXPoolingLayerTest_VPU3700,
                         ::testing::Combine(pool_LargePadding8,                                  //
                                            ::testing::Values(Precision::FP16),                  // netPrc
                                            ::testing::Values(Precision::FP16),                  // inPrc
@@ -416,7 +413,7 @@ const auto avgPool_largeKernels = ::testing::Combine(::testing::Values(PoolingTy
                                                      ::testing::Values(false)                             // excludePad
 );
 
-INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_AvgPooling_LargeKernels, KmbPoolingLayerTest,
+INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_AvgPooling_LargeKernels, VPUXPoolingLayerTest_VPU3700,
                         ::testing::Combine(avgPool_largeKernels,                                  //
                                            ::testing::Values(Precision::FP16),                    // netPrc
                                            ::testing::Values(Precision::UNSPECIFIED),             // inPrc
@@ -439,7 +436,7 @@ const auto avgPool_largeKernelsX = ::testing::Combine(::testing::Values(PoolingT
                                                       ::testing::Values(false)                             // excludePad
 );
 
-INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_AvgPooling_LargeKernelsX, KmbPoolingLayerTest,
+INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_AvgPooling_LargeKernelsX, VPUXPoolingLayerTest_VPU3700,
                         ::testing::Combine(avgPool_largeKernelsX,                              //
                                            ::testing::Values(Precision::FP16),                 // netPrc
                                            ::testing::Values(Precision::UNSPECIFIED),          // inPrc
@@ -462,7 +459,7 @@ const auto avgPool_largeKernelsY = ::testing::Combine(::testing::Values(PoolingT
                                                       ::testing::Values(false)                             // excludePad
 );
 
-INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_AvgPooling_LargeKernelsY, KmbPoolingLayerTest,
+INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_AvgPooling_LargeKernelsY, VPUXPoolingLayerTest_VPU3700,
                         ::testing::Combine(avgPool_largeKernelsY,                              //
                                            ::testing::Values(Precision::FP16),                 // netPrc
                                            ::testing::Values(Precision::UNSPECIFIED),          // inPrc
@@ -470,6 +467,29 @@ INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_AvgPooling_LargeKernelsY, KmbPoolingL
                                            ::testing::Values(Layout::ANY),                     // inLayout
                                            ::testing::Values(Layout::ANY),                     // outLayout
                                            ::testing::ValuesIn<SizeVector>({{1, 16, 14, 1}}),  // inputShapes
+                                           ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                        PoolingLayerTest::getTestCaseName);
+
+/* ============= AVGPooling / Large Prime Kernels ============= */
+
+const auto avgPool_largePrimeKernels = ::testing::Combine(::testing::Values(PoolingTypes::AVG),         //
+                                                          ::testing::ValuesIn<SizeVector>({{17, 17}}),  // kernels
+                                                          ::testing::ValuesIn<SizeVector>({{1, 1}}),    // strides
+                                                          ::testing::ValuesIn<SizeVector>({{0, 0}}),    // padBegins
+                                                          ::testing::ValuesIn<SizeVector>({{0, 0}}),    // padEnds
+                                                          ::testing::Values(ngraph::op::RoundingType::FLOOR),  //
+                                                          ::testing::Values(ngraph::op::PadType::VALID),       //
+                                                          ::testing::Values(false)  // excludePad
+);
+
+INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_AvgPooling_LargePrimeKernels, VPUXPoolingLayerTest_VPU3700,
+                        ::testing::Combine(avgPool_largePrimeKernels,                            //
+                                           ::testing::Values(Precision::FP16),                   // netPrc
+                                           ::testing::Values(Precision::UNSPECIFIED),            // inPrc
+                                           ::testing::Values(Precision::UNSPECIFIED),            // outPrc
+                                           ::testing::Values(Layout::ANY),                       // inLayout
+                                           ::testing::Values(Layout::ANY),                       // outLayout
+                                           ::testing::ValuesIn<SizeVector>({{1, 147, 17, 17}}),  // inputShapes
                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
                         PoolingLayerTest::getTestCaseName);
 
@@ -485,7 +505,7 @@ const auto maxPool_largeKernels = ::testing::Combine(::testing::Values(PoolingTy
                                                      ::testing::Values(false)                             // excludePad
 );
 
-INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_MaxPooling_LargeKernels, KmbPoolingLayerTest,
+INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_MaxPooling_LargeKernels, VPUXPoolingLayerTest_VPU3700,
                         ::testing::Combine(maxPool_largeKernels,                                  //
                                            ::testing::Values(Precision::FP16),                    // netPrc
                                            ::testing::Values(Precision::UNSPECIFIED),             // inPrc
@@ -508,7 +528,7 @@ const auto maxPool_largeKernelsX = ::testing::Combine(::testing::Values(PoolingT
                                                       ::testing::Values(false)                             // excludePad
 );
 
-INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_MaxPooling_LargeKernelsX, KmbPoolingLayerTest,
+INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_MaxPooling_LargeKernelsX, VPUXPoolingLayerTest_VPU3700,
                         ::testing::Combine(maxPool_largeKernelsX,                              //
                                            ::testing::Values(Precision::FP16),                 // netPrc
                                            ::testing::Values(Precision::UNSPECIFIED),          // inPrc
@@ -531,7 +551,7 @@ const auto maxPool_largeKernelsY = ::testing::Combine(::testing::Values(PoolingT
                                                       ::testing::Values(false)                             // excludePad
 );
 
-INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_MaxPooling_LargeKernelsY, KmbPoolingLayerTest,
+INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_MaxPooling_LargeKernelsY, VPUXPoolingLayerTest_VPU3700,
                         ::testing::Combine(maxPool_largeKernelsY,                              //
                                            ::testing::Values(Precision::FP16),                 // netPrc
                                            ::testing::Values(Precision::UNSPECIFIED),          // inPrc
@@ -554,7 +574,7 @@ const auto avgPool_excludePad = ::testing::Combine(::testing::Values(PoolingType
                                                    ::testing::Values(true)                              // excludePad
 );
 
-INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_avgPool_excludePad, KmbPoolingLayerTest,
+INSTANTIATE_TEST_CASE_P(DISABLED_TMP_smoke_avgPool_excludePad, VPUXPoolingLayerTest_VPU3700,
                         ::testing::Combine(avgPool_excludePad,                                  //
                                            ::testing::Values(Precision::FP16),                  // netPrc
                                            ::testing::Values(Precision::UNSPECIFIED),           // inPrc
@@ -733,5 +753,28 @@ INSTANTIATE_TEST_SUITE_P(smoke_Pooling_AutoPadValid_VPU3720_ELF, VPUXPoolingLaye
                                                                              {1, 32, 8, 8}}),  // inputShapes
                                             ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),  //
                          PoolingLayerTest::getTestCaseName);
+
+// Large kernel with stride 1
+const auto pooling_largeKernelStrideOne_VPU3720 =
+        ::testing::Combine(::testing::Values(PoolingTypes::MAX),                //
+                           ::testing::ValuesIn<SizeVector>({{71, 1}}),          // kernels
+                           ::testing::ValuesIn<SizeVector>({{1, 1}}),           // strides
+                           ::testing::ValuesIn<SizeVector>({{0, 0}}),           // padBegins
+                           ::testing::ValuesIn<SizeVector>({{0, 0}}),           // padEnds
+                           ::testing::Values(ngraph::op::RoundingType::FLOOR),  //
+                           ::testing::Values(ngraph::op::PadType::VALID),       //
+                           ::testing::Values(false)                             // excludePad
+        );
+
+INSTANTIATE_TEST_SUITE_P(smoke_precommit_Pooling_LargeKernelStrideOne3720, VPUXPoolingLayerTest_VPU3720,
+                         ::testing::Combine(pooling_largeKernelStrideOne_VPU3720,              //
+                                            ::testing::Values(Precision::FP16),                // netPrc
+                                            ::testing::Values(Precision::UNSPECIFIED),         // inPrc
+                                            ::testing::Values(Precision::UNSPECIFIED),         // outPrc
+                                            ::testing::Values(Layout::ANY),                    // inLayout
+                                            ::testing::Values(Layout::ANY),                    // outLayout
+                                            ::testing::ValuesIn<SizeVector>({{1, 1, 71, 2}}),  // inputShapes
+                                            ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
+                         VPUXPoolingLayerTest_VPU3720::getTestCaseName);
 
 }  // namespace

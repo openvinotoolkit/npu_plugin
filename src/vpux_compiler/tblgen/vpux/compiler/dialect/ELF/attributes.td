@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #ifndef VPUX_COMPILER_DIALECT_ELF_ATTRIBUTES
 #define VPUX_COMPILER_DIALECT_ELF_ATTRIBUTES
 
@@ -33,7 +31,8 @@ def ELF_CMXMappingSymbolAttr :
                 StrEnumAttrCase<"VPU_NNRD_SYM_RTM_DMA0",               3>,
                 StrEnumAttrCase<"VPU_NNRD_SYM_RTM_DMA1",               4>,
                 StrEnumAttrCase<"VPU_NNRD_SYM_FIFO_BASE",              5>,
-                StrEnumAttrCase<"VPU_NNRD_SYM_BARRIERS_START",         6>
+                StrEnumAttrCase<"VPU_NNRD_SYM_BARRIERS_START",         6>,
+                StrEnumAttrCase<"VPU_NNRD_SYM_HW_REGISTER",            7>
             ]
         > {
     let cppNamespace = "vpux::ELF";
@@ -69,6 +68,7 @@ def ELF_SectionTypeAttr :
                 I64EnumAttrCase<"SHT_HIPROC",       0x7FFFFFFF>,
                 I64EnumAttrCase<"SHT_LOUSER",       0x80000000>,
                 I64EnumAttrCase<"VPU_SHT_NETDESC",  0x8AAAAAAA>,
+                I64EnumAttrCase<"VPU_SHT_PROF",     0x8AAAAAAB>,
                 I64EnumAttrCase<"SHT_HIUSER",       0xFFFFFFFF>
             ]
         > {
@@ -112,29 +112,26 @@ def ELF_SymbolTypeAttr :
 // https://docs.oracle.com/cd/E19120-01/open.solaris/819-0690/6n33n7fcj/index.html
 // (or https://docs.oracle.com/cd/E19455-01/806-3773/elf-2/index.html)
 // for the detailed description of the case values
-//
-// BitEnumAttr has uint32_t as underlying type, which is OK for all cases normally.
-// See thirdparty/llvm-project/mlir/include/mlir/IR/OpBase.td, "class BitEnumAttr".
-// Please refer to the ticket #29800 to address this small limitation.
 
 def ELF_SectionFlagsAttr :
-        BitEnumAttr<
+        I64BitEnumAttr<
             "SectionFlagsAttr",
             "Enum for describing ELF section header flags (we can use also the | operator)",
             [
-                BitEnumAttrCase<"SHF_NONE",                0x0>,
-                BitEnumAttrCase<"SHF_WRITE",               0x1>,
-                BitEnumAttrCase<"SHF_ALLOC",               0x2>,
-                BitEnumAttrCase<"SHF_EXECINSTR",           0x4>,
-                BitEnumAttrCase<"SHF_INFO_LINK",           0x40>,
-                BitEnumAttrCase<"VPU_SHF_JIT",             0x100000>,
-                BitEnumAttrCase<"VPU_SHF_USERINPUT",       0x200000>,
-                BitEnumAttrCase<"VPU_SHF_USEROUTPUT",      0x400000>,
-                BitEnumAttrCase<"SHF_MASKOS",              0xFF00000>,
-                BitEnumAttrCase<"VPU_SHF_PROC_DPU",        0x10000000>,
-                BitEnumAttrCase<"VPU_SHF_PROC_DMA",        0x20000000>,
-                BitEnumAttrCase<"VPU_SHF_PROC_SHAVE",      0x40000000>,
-                BitEnumAttrCase<"SHF_MASKPROC",            0xF0000000>,
+                I64BitEnumAttrCase<"SHF_NONE",                0x0>,
+                I64BitEnumAttrCase<"SHF_WRITE",               0x1>,
+                I64BitEnumAttrCase<"SHF_ALLOC",               0x2>,
+                I64BitEnumAttrCase<"SHF_EXECINSTR",           0x4>,
+                I64BitEnumAttrCase<"SHF_INFO_LINK",           0x40>,
+                I64BitEnumAttrCase<"VPU_SHF_JIT",             0x100000>,
+                I64BitEnumAttrCase<"VPU_SHF_USERINPUT",       0x200000>,
+                I64BitEnumAttrCase<"VPU_SHF_USEROUTPUT",      0x400000>,
+                I64BitEnumAttrCase<"VPU_SHF_PROFOUTPUT",      0x800000>,
+                I64BitEnumAttrCase<"SHF_MASKOS",              0xFF00000>,
+                I64BitEnumAttrCase<"VPU_SHF_PROC_DPU",        0x10000000>,
+                I64BitEnumAttrCase<"VPU_SHF_PROC_DMA",        0x20000000>,
+                I64BitEnumAttrCase<"VPU_SHF_PROC_SHAVE",      0x40000000>,
+                I64BitEnumAttrCase<"SHF_MASKPROC",            0xF0000000>,
             ]
         > {
     let cppNamespace = "vpux::ELF";

@@ -3,19 +3,17 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #pragma once
 
 #include "vpux/compiler/core/attributes/dims_order.hpp"
 #include "vpux/compiler/core/ops_interfaces.hpp"
-#include "vpux/compiler/dialect/IE/attributes/enums.hpp"
-#include "vpux/compiler/dialect/IE/attributes/structs.hpp"
+#include "vpux/compiler/dialect/IE/attributes.hpp"
+#include "vpux/compiler/dialect/IE/dialect.hpp"
 #include "vpux/compiler/dialect/IE/ops_interfaces.hpp"
 #include "vpux/compiler/dialect/const/ops.hpp"
 
+#include <mlir/Dialect/Func/IR/FuncOps.h>
 #include <mlir/Dialect/Quant/QuantOps.h>
-#include <mlir/Dialect/StandardOps/IR/Ops.h>
 #include <mlir/Dialect/Tensor/IR/Tensor.h>
 #include <mlir/IR/BuiltinOps.h>
 #include <mlir/IR/Dialect.h>
@@ -30,8 +28,6 @@
 // Generated
 //
 
-#include <vpux/compiler/dialect/IE/generated/dialect.hpp.inc>
-
 #define GET_OP_CLASSES
 #include <vpux/compiler/dialect/IE/generated/ops.hpp.inc>
 
@@ -43,16 +39,6 @@ namespace vpux {
 namespace IE {
 
 bool isActShaveKernel(mlir::Operation* operation);
-
-mlir::LogicalResult verifyOp(CNNNetworkOp op);
-mlir::LogicalResult verifyOp(BucketizeOp op);
-mlir::LogicalResult verifyOp(DataInfoOp op);
-mlir::LogicalResult verifyOp(ExpandOp op);
-mlir::LogicalResult verifyOp(GatherNDOp op);
-mlir::LogicalResult verifyOp(GridSampleOp op);
-mlir::LogicalResult verifyOp(ReduceSumOp op);
-mlir::LogicalResult verifyOp(AffineReshapeOp op);
-mlir::LogicalResult verifyOp(ClampOp op);
 
 //
 // Tiling

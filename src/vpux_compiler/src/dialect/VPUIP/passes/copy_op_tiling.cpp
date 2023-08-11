@@ -3,10 +3,9 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-//
-
 #include "vpux/compiler/dialect/VPUIP/ops.hpp"
 #include "vpux/compiler/dialect/VPUIP/passes.hpp"
+#include "vpux/compiler/dialect/VPUIP/utils.hpp"
 
 #include "vpux/compiler/core/aliases_info.hpp"
 
@@ -25,12 +24,15 @@ using namespace vpux;
 
 namespace {
 
-int64_t getNumberOfPlanes(VPUIP::CopyOp copyOp) {
+int64_t getFirstStridingDimSize(VPUIP::CopyOp copyOp) {
     const auto inputShape = getShape(copyOp.input());
     const auto inOrder = DimsOrder::fromValue(copyOp.input());
     const auto inMemShape = inOrder.toMemoryOrder(inputShape);
-
-    return checked_cast<int64_t>(inMemShape[MemDim(Dims4D::Act::C.ind())]);
+    const auto firstStridingDim = VPUIP::getFirstStridingDim(copyOp);
+    if (firstStridingDim != -1) {
+        return checked_cast<int64_t>(inMemShape[MemDim(firstStridingDim)]);
+    }
+    return 0;
 }
 
 Byte getDmaSize(VPUIP::CopyOp copyOp) {
@@ -56,34 +58,6 @@ Byte getDmaSize(VPUIP::CopyOp copyOp) {
     }
 
     return static_cast<Byte>(getCompactSize(copyOp.input()));
-}
-
-// The concept of striding levels means that tensor is not contiguous in some number of dimensions.
-// For a contiguous tensor that number equals to 0.
-// A tensor with the following properties has striding level 1:
-// sizes: [1, 360, 1280, 18]
-// strides: [235929600 Bit, 655360 Bit, 512 Bit, 16 Bit]
-// Since 18 * 16 bit = 288 bit which is less than 512 bit (previous stride)
-// A tensor with striding level 2 would look like that:
-// sizes: [1, 360, 1280, 18]
-// strides: [471859200 Bit, 1310720 Bit, 512 Bit, 16 Bit]
-// 18 * 16 bit = 288 bit < 512 bit
-// 1280 * 512 bit = 655360 bit < 1310720 bit
-
-int64_t getStridingLevel(const mlir::Value val) {
-    const auto dims = getShape(val);
-    const auto strides = getStrides(val);
-    const auto order = DimsOrder::fromValue(val);
-    const auto dimsMemOrder = to_small_vector(order.toMemoryOrder(dims));
-    const auto stridesMemOrder = to_small_vector(order.toMemoryOrder(strides));
-
-    int64_t stridingLevel = 0;
-    for (size_t ind = 1; ind < dimsMemOrder.size() && ind < stridesMemOrder.size(); ind++) {
-        if (dimsMemOrder[ind] * stridesMemOrder[ind] != stridesMemOrder[ind - 1]) {
-            stridingLevel++;
-        }
-    }
-    return stridingLevel;
 }
 
 //
@@ -122,14 +96,26 @@ private:
 SmallVector<mlir::Value> CopyOpTiling::createTiles(VPUIP::CopyOp origOp, mlir::PatternRewriter& rewriter) const {
     // Currently, tiling is implemented only for 4D shapes.
     const auto origInputShape = getShape(origOp.input());
-    VPUX_THROW_UNLESS(origInputShape.size() == 4,
-                      "CopyOpTiling: found shape {0} which is not supported yet (only 4D tensors are)", origInputShape);
 
     const auto fullCopySize = getDmaSize(origOp);
     // A workaround to always split by the first non-batch dimension, regardless the layout
     // NCHW - C, NHWC - H, NWHC - W
     const auto inOrder = DimsOrder::fromValue(origOp.input());
-    const auto tileDim = inOrder.toDim(MemDim(Dims4D::Act::N.ind() + 1));
+
+    size_t index = 0;
+    while (origInputShape[inOrder.toDim(MemDim(index))] <= 1) {
+        VPUX_THROW_UNLESS(index < origInputShape.size(), "Unable to find a dim to tile over it");
+        index++;
+    }
+
+    auto tileDim = inOrder.toDim(MemDim(index));
+    // If the tile is performed for the reason of the stride, we need to ensure that the slice is performed in the
+    // dimension where the stride exists and this stride is implemented in DMA by plane.
+    if (VPUIP::strideMoreThanOne(origOp) && VPUIP::getNumberOfPlanes(origOp) > VPUIP::CMX_DMA_MAX_NUM_PLANES) {
+        auto firstStridingDim = VPUIP::getFirstStridingDim(origOp);
+        VPUX_THROW_UNLESS(firstStridingDim != -1, "At least one of the input or output of copy has stride");
+        tileDim = inOrder.toDim(MemDim(firstStridingDim));
+    }
 
     // We cannot _just_ divide the fullCopySize by sizeLimit to get the number of tiles required
     // Example: let fullCopySize=48MB, sizeLimit=16MB and IFM.C=4, then it would be 48/16=3 tiles, but it's obviously
@@ -145,7 +131,7 @@ SmallVector<mlir::Value> CopyOpTiling::createTiles(VPUIP::CopyOp origOp, mlir::P
     const auto numPlanesPerTile = std::min(desiredPlanesPerTileAmount, VPUIP::CMX_DMA_MAX_NUM_PLANES);
 
     SmallVector<mlir::Value> concatInputs;
-    auto currentOffset = SmallVector<int64_t>{0, 0, 0, 0};
+    auto currentOffset = SmallVector<int64_t>(origInputShape.size(), 0);
     auto currentTileShapeVector = to_small_vector(origInputShape);
     auto planesLeftToCopy = numPlanesOfFullShape;
     for (int64_t tileIdx = 0; planesLeftToCopy > 0; ++tileIdx) {
@@ -189,6 +175,21 @@ mlir::LogicalResult CopyOpTiling::matchAndRewrite(VPUIP::CopyOp origOp, mlir::Pa
 // safeRunOnFunc
 //
 
+/*
+For two strides DMA in VPU, it will be implemented through plane.
+If a two strides DMA do this date movement:
+123 456 789
+  ||
+  \/                 | plane |
+ 1XX2XX3XX XXXXXXXXX 4XX5XX6XX XXXXXXXXX 7XX8XX9XX XXXXXXXXX
+ |  |                |                   |
+ stride              |                   |
+                     |<-  plane stride ->|
+The higher dim stride is implemented through plane stride.
+
+So if the higher dim with stride size large than CMX_DMA_MAX_NUM_PLANES, we need tile the copy on this dim
+*/
+
 void CopyOpTilingPass::safeRunOnFunc() {
     auto& ctx = getContext();
 
@@ -198,21 +199,13 @@ void CopyOpTilingPass::safeRunOnFunc() {
             return false;
         }
 
-        const auto inputShape = getShape(copyOp.input());
-        if (inputShape.size() < 4) {
-            return true;
-        }
-
-        const auto inputStridingLevel = getStridingLevel(copyOp.input());
-        const auto outputStridingLevel = getStridingLevel(copyOp.output());
-        constexpr int64_t maxStridingLevel = 2;
-        if (inputStridingLevel < maxStridingLevel && outputStridingLevel < maxStridingLevel) {
-            // DMA transaction is able to handle such striding
+        if (!VPUIP::strideMoreThanOne(copyOp)) {
             return true;
         }
 
         // If striding level is greater than 1, try splitting the tensor by plane dimension.
-        return getNumberOfPlanes(copyOp) <= VPUIP::CMX_DMA_MAX_NUM_PLANES;
+        return VPUIP::getNumberOfPlanes(copyOp) <= VPUIP::CMX_DMA_MAX_NUM_PLANES ||
+               getFirstStridingDimSize(copyOp) <= VPUIP::CMX_DMA_MAX_NUM_PLANES;
     };
 
     mlir::ConversionTarget target(ctx);
@@ -225,7 +218,7 @@ void CopyOpTilingPass::safeRunOnFunc() {
     target.addLegalOp<VPUIP::SubViewOp>();
     target.addLegalOp<VPUIP::ConcatViewOp>();
 
-    if (mlir::failed(mlir::applyPartialConversion(getFunction(), target, std::move(patterns)))) {
+    if (mlir::failed(mlir::applyPartialConversion(getOperation(), target, std::move(patterns)))) {
         signalPassFailure();
     }
 }

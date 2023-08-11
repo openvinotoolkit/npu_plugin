@@ -1,5 +1,5 @@
 //
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,7 +11,7 @@
 
 namespace {
 
-class KmbQuantizedAvgPoolSubGraphTest :
+class VPUXQuantizedAvgPoolSubGraphTest_VPU3700 :
         public LayerTestsUtils::KmbLayerTestsCommon,
         public testing::WithParamInterface<LayerTestsUtils::TargetDevice> {
     void SetUp() override {
@@ -45,26 +45,26 @@ class KmbQuantizedAvgPoolSubGraphTest :
                                                                  outDataLow, outDataHigh, outDataLow, outDataHigh);
 
         const ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(outDataFq)};
-        function = std::make_shared<ngraph::Function>(results, params, "KmbQuantizedAvgPool");
+        function = std::make_shared<ngraph::Function>(results, params, "VPUXQuantizedAvgPool");
 
         targetDevice = GetParam();
         threshold = 0.5f;
     }
 };
 
-TEST_P(KmbQuantizedAvgPoolSubGraphTest, CompareWithRefs_MLIR_SW) {
-    useCompilerMLIR();
+TEST_P(VPUXQuantizedAvgPoolSubGraphTest_VPU3700, SW) {
+    setPlatformVPU3700();
     setReferenceSoftwareModeMLIR();
     Run();
 }
 
-TEST_P(KmbQuantizedAvgPoolSubGraphTest, CompareWithRefs_MLIR_HW) {
-    useCompilerMLIR();
+TEST_P(VPUXQuantizedAvgPoolSubGraphTest_VPU3700, HW) {
+    setPlatformVPU3700();
     setDefaultHardwareModeMLIR();
     Run();
 }
 
-INSTANTIATE_TEST_CASE_P(smoke, KmbQuantizedAvgPoolSubGraphTest,
+INSTANTIATE_TEST_CASE_P(smoke_QuantizedAvgPool, VPUXQuantizedAvgPoolSubGraphTest_VPU3700,
                         ::testing::Values(LayerTestsUtils::testPlatformTargetDevice));
 
 }  // namespace

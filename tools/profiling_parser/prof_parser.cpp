@@ -81,38 +81,42 @@ int main(int argc, char** argv) {
                                "[-o <output.file>] [-v|vv] [-g]\n";
     if (argc < 5) {
         std::cout << usage << std::endl;
-        return 0;
+        return 1;
     }
-    parseCommandLine(argc, argv, usage);
 
-    std::string blobPath(FLAGS_b);
-    std::string profResult(FLAGS_p);
-    std::transform(FLAGS_f.begin(), FLAGS_f.end(), FLAGS_f.begin(), ::tolower);
-    OutputType format =
-            (FLAGS_f == "text") ? OutputType::TEXT : ((FLAGS_f == "json") ? OutputType::JSON : OutputType::DEBUG);
+    try {
+        parseCommandLine(argc, argv, usage);
+        std::string blobPath(FLAGS_b);
+        std::string profResult(FLAGS_p);
+        std::transform(FLAGS_f.begin(), FLAGS_f.end(), FLAGS_f.begin(), ::tolower);
+        OutputType format =
+                (FLAGS_f == "text") ? OutputType::TEXT : ((FLAGS_f == "json") ? OutputType::JSON : OutputType::DEBUG);
 
-    std::ifstream blob_file;
-    blob_file.open(blobPath, std::ios::in | std::ios::binary);
-    blob_file.seekg(0, blob_file.end);
-    size_t blob_length = blob_file.tellg();
-    blob_file.seekg(0, blob_file.beg);
-    std::vector<uint8_t> blob_bin(blob_length);
-    blob_file.read(reinterpret_cast<char*>(blob_bin.data()), blob_bin.size());
-    blob_file.close();
+        std::ifstream blob_file;
+        blob_file.open(blobPath, std::ios::in | std::ios::binary);
+        blob_file.seekg(0, blob_file.end);
+        size_t blob_length = blob_file.tellg();
+        blob_file.seekg(0, blob_file.beg);
+        std::vector<uint8_t> blob_bin(blob_length);
+        blob_file.read(reinterpret_cast<char*>(blob_bin.data()), blob_bin.size());
+        blob_file.close();
 
-    std::fstream profiling_results;
-    profiling_results.open(profResult, std::ios::in | std::ios::binary);
-    profiling_results.seekg(0, profiling_results.end);
-    size_t profiling_length = profiling_results.tellg();
-    profiling_results.seekg(0, profiling_results.beg);
-    std::vector<uint8_t> output_bin(profiling_length);
-    profiling_results.read(reinterpret_cast<char*>(output_bin.data()), output_bin.size());
-    profiling_results.close();
+        std::fstream profiling_results;
+        profiling_results.open(profResult, std::ios::in | std::ios::binary);
+        profiling_results.seekg(0, profiling_results.end);
+        size_t profiling_length = profiling_results.tellg();
+        profiling_results.seekg(0, profiling_results.beg);
+        std::vector<uint8_t> output_bin(profiling_length);
+        profiling_results.read(reinterpret_cast<char*>(output_bin.data()), output_bin.size());
+        profiling_results.close();
 
-    auto blobData = std::make_pair(blob_bin.data(), blob_bin.size());
-    auto profilingData = std::make_pair(output_bin.data(), output_bin.size());
-
-    vpux::profiling::outputWriter(format, blobData, profilingData, FLAGS_o, getVerbosity(), FLAGS_g);
-
+        auto blobData = std::make_pair(blob_bin.data(), blob_bin.size());
+        auto profilingData = std::make_pair(output_bin.data(), output_bin.size());
+        vpux::profiling::outputWriter(format, blobData, profilingData, FLAGS_o, getVerbosity(), FLAGS_g);
+    } catch (const std::exception& e) {
+        std::cerr << "Error when parsing arguments: " << e.what() << std::endl;
+        std::cerr << usage << std::endl;
+        return 1;
+    }
     return 0;
 }

@@ -34,7 +34,7 @@ struct PERFORMANCE_HINT final : OptionBase<PERFORMANCE_HINT, ov::hint::Performan
     }
 
     static ov::hint::PerformanceMode defaultValue() {
-        return ov::hint::PerformanceMode::UNDEFINED;
+        return ov::hint::PerformanceMode::LATENCY;
     }
 
     static ov::hint::PerformanceMode parse(StringRef val);
@@ -54,7 +54,7 @@ struct PERFORMANCE_HINT_NUM_REQUESTS final : OptionBase<PERFORMANCE_HINT_NUM_REQ
     }
 
     static uint32_t defaultValue() {
-        // Default value depends on PERFORMANCE_HINT, see getNumOptimalInferRequests
+        // Default value depends on PERFORMANCE_HINT, see getOptimalNumberOfInferRequestsInParallel
         // 1 corresponds to LATENCY, UNDEFINED and default mode (hints not specified)
         return 1u;
     }
@@ -106,8 +106,14 @@ struct PLATFORM final : OptionBase<PLATFORM, InferenceEngine::VPUXConfigParams::
     }
 
     static InferenceEngine::VPUXConfigParams::VPUXPlatform defaultValue() {
-        return ov::intel_vpux::cvtVPUXPlatform(ov::intel_vpux::VPUXPlatform::AUTO);
+        return ov::intel_vpux::cvtVPUXPlatform(ov::intel_vpux::VPUXPlatform::AUTO_DETECT);
     }
+
+#ifdef VPUX_DEVELOPER_BUILD
+    static StringRef envVar() {
+        return "IE_VPUX_PLATFORM";
+    }
+#endif
 
     static InferenceEngine::VPUXConfigParams::VPUXPlatform parse(StringRef val);
 

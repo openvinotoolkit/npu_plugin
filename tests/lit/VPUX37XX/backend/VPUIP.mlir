@@ -1,7 +1,8 @@
 //
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2021-2023 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
+
 // XFAIL: *
 // VPUX translate expectedly failed dueto unsupported DDR memory for actshave
 // RUN: vpux-opt --init-compiler="vpu-arch=VPUX37XX" %s | vpux-translate --export-VPUIP -o %t
@@ -24,11 +25,11 @@ IE.CNNNetwork
 
 VPURT.SW.Runtime entryPoint : @VPU.SW::@runtime stack_configuration : [4096, 4096, 4096, 4096]
 module @VPU.SW  {
-    func private @builtin_Softmax(memref<*xf16>, memref<*xf16>) attributes {VPU.kernel_code = "single_shave_softmax.cpp", VPU.kernel_entry = "singleShaveSoftmax"}
-    func private @runtime() attributes {VPU.kernel_code = "nnActEntry"}
+    func.func private @builtin_Softmax(memref<*xf16>, memref<*xf16>) attributes {VPU.kernel_code = "single_shave_softmax.cpp", VPU.kernel_entry = "singleShaveSoftmax"}
+    func.func private @runtime() attributes {VPU.kernel_code = "nnActEntry"}
 }
 
-func @main(%arg0: memref<1x1x1x1000xf16>, %arg1: memref<1x1x1x1000xf16>) -> memref<1x1x1x1000xf16> {
+func.func @main(%arg0: memref<1x1x1x1000xf16>, %arg1: memref<1x1x1x1000xf16>) -> memref<1x1x1x1000xf16> {
     %0 = VPURT.DeclareBuffer "DDR" <0> -> memref<1x1x1x1000xf16, @DDR>
     %1 = VPURT.ConfigureBarrier<0> -> !VPURT.Barrier
     VPURT.Task updates(%1 : !VPURT.Barrier) {
