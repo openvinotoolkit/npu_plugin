@@ -30,14 +30,6 @@ add_custom_target("${TARGET_NAME}_copy_app" ALL
         ${CMAKE_COMMAND} -E copy
         "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/artifacts/vpuip_2/silicon/InferenceManagerDemo_vpu_2_7.elf"
         "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${CMAKE_CFG_INTDIR}/vpux/silicon/InferenceManagerDemo_vpu_2_7.elf"
-    COMMAND
-        ${CMAKE_COMMAND} -E copy
-        "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/artifacts/vpuip_2/simics/InferenceManagerDemo_vpu_4.elf"
-        "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${CMAKE_CFG_INTDIR}/vpux/simics/InferenceManagerDemo_vpu_4.elf"
-    COMMAND
-        ${CMAKE_COMMAND} -E copy
-        "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/artifacts/vpuip_2/fpga/InferenceManagerDemo_vpu_4.elf"
-        "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${CMAKE_CFG_INTDIR}/vpux/fpga/InferenceManagerDemo_vpu_4.elf"
     COMMENT "[IMD] Copy InferenceManagerDemo application"
     VERBATIM
 )
@@ -49,8 +41,6 @@ install(
         "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/artifacts/vpuip_2/simulator/InferenceManagerDemo_vpu_2_7.elf"
         "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/artifacts/vpuip_2/fpga/InferenceManagerDemo_vpu_2_7.elf"
         "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/artifacts/vpuip_2/silicon/InferenceManagerDemo_vpu_2_7.elf"
-        "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/artifacts/vpuip_2/simics/InferenceManagerDemo_vpu_4.elf"
-        "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/artifacts/vpuip_2/fpga/InferenceManagerDemo_vpu_4.elf"
     DESTINATION "${IE_CPACK_RUNTIME_PATH}/vpux"
     COMPONENT    ${VPUX_PLUGIN_COMPONENT}
 )

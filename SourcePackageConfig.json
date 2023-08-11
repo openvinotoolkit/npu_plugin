@@ -4,7 +4,6 @@
         "^/\\.editorconfig*",
         "^/\\.infrastructure/.*",
         "^/\\.vscode/.*",
-        "^/artifacts/.*",
         "^/cmake/dependencies\\.cmake",
         "^/cmake/source_package\\.cmake",
         "^/cmake/lit.*",
