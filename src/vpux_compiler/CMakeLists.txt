@@ -501,8 +501,22 @@ target_include_directories(${OBJ_TARGET_NAME}
     PRIVATE
         ${BITCOMPACTOR_INCLUDES}
         $<TARGET_PROPERTY:huffman_codec,INTERFACE_INCLUDE_DIRECTORIES>
-        $<TARGET_PROPERTY:IE::nlohmann_json,INTERFACE_INCLUDE_DIRECTORIES>
 )
+
+if(TARGET IE::nlohmann_json)
+    target_include_directories(${OBJ_TARGET_NAME}
+        PRIVATE
+        $<TARGET_PROPERTY:IE::nlohmann_json,INTERFACE_INCLUDE_DIRECTORIES>)
+else()
+    find_package(nlohmann_json 3.9.0 QUIET)
+    if(nlohmann_json_FOUND)
+        target_include_directories(${OBJ_TARGET_NAME}
+            PRIVATE
+            $<TARGET_PROPERTY:nlohmann_json::nlohmann_json,INTERFACE_INCLUDE_DIRECTORIES>)
+    else()
+        message(FATAL_ERROR "Failed to find system nlohmann_json in OpenVINO Developer Package and system libraries")
+    endif()
+endif()
 
 target_include_directories(${OBJ_TARGET_NAME}
     SYSTEM PUBLIC
