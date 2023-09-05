@@ -26,9 +26,9 @@ struct ValidationInfo {
     ValidationMap map;
 };
 
-class ETestsSimulation : public Simulation {
+class StreamSimulation : public Simulation {
 public:
-    ETestsSimulation(Simulation::GraphBuildF&& build, const size_t num_outputs, ValidationInfo&& validation_info);
+    StreamSimulation(Simulation::GraphBuildF&& build, const size_t num_outputs, ValidationInfo&& validation_info);
 
     SyncExecutor::Ptr compileSync(cv::GCompiled&& sync) override;
 

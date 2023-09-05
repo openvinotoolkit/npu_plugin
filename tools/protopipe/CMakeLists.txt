@@ -5,6 +5,13 @@
 
 set(TARGET_NAME protopipe)
 
+if (NOT DEFINED PROJECT_NAME)
+    cmake_minimum_required(VERSION 3.13 FATAL_ERROR)
+    project(protopipe_standalone)
+    include("cmake/standalone.cmake")
+    return()
+endif()
+
 find_package(gflags QUIET)
 find_package(yaml-cpp QUIET)
 find_package(OpenVINO QUIET COMPONENTS Runtime)

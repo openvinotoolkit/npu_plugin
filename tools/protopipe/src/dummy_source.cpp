@@ -5,6 +5,8 @@
 
 #include "dummy_source.hpp"
 
+#include <opencv2/gapi/streaming/meta.hpp>
+
 bool DummySource::pull(cv::gapi::wip::Data& data) {
     using namespace std::chrono;
     using namespace cv::gapi::streaming;

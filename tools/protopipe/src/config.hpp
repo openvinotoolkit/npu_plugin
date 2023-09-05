@@ -1,3 +1,8 @@
+//
+// Copyright (C) 2023 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
 #pragma once
 
 #include "ovhelper.hpp"
@@ -35,10 +40,10 @@ struct Stream {
 };
 using Streams = std::vector<Stream>;
 
-struct ETestsConfig {
-    static ETestsConfig parseFromYAML(const std::string& filepath);
+struct Config {
+    static Config parseFromYAML(const std::string& filepath);
 
-    std::string device = "VPU";
+    std::string device = "NPU";
     std::string compiler_type = "DRIVER";
     std::string model_dir = ".";
     std::string blob_dir = ".";

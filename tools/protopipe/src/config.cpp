@@ -190,7 +190,7 @@ static void clarifyNetworkPath(Path& path, const std::string& blob_dir, const st
     }
 }
 
-static void clarifyPathForAllNetworks(ETestsConfig& config) {
+static void clarifyPathForAllNetworks(Config& config) {
     for (auto& multi_stream : config.multistreams) {
         for (auto& stream : multi_stream) {
             for (auto& network : stream.networks) {
@@ -200,16 +200,16 @@ static void clarifyPathForAllNetworks(ETestsConfig& config) {
     }
 }
 
-ETestsConfig ETestsConfig::parseFromYAML(const std::string& filepath) {
+Config Config::parseFromYAML(const std::string& filepath) {
     auto node = YAML::LoadFile(filepath);
 
-    ETestsConfig cfg;
+    Config cfg;
     if (node["device_name"]) {
         cfg.device = node["device_name"].as<std::string>();
     }
 
-    if (node["vpux_compiler_type"]) {
-        cfg.compiler_type = node["vpux_compiler_type"].as<std::string>();
+    if (node["npu_compiler_type"]) {
+        cfg.compiler_type = node["npu_compiler_type"].as<std::string>();
     }
 
     if (node["model_dir"]) {

@@ -8,7 +8,7 @@
 
 #include <gflags/gflags.h>
 
-#include "etests/etests_provider.hpp"
+#include "provider.hpp"
 
 struct PerformanceMetrics {
     double first_latency_ms;
@@ -107,8 +107,8 @@ int main(int argc, char* argv[]) {
             return 0;
         }
 
-        auto etests = std::make_shared<ETestsProvider>(FLAGS_cfg, FLAGS_ov_api_1_0);
-        auto scenarios = etests->createScenarios();
+        auto provider = std::make_shared<ScenarioProvider>(FLAGS_cfg, FLAGS_ov_api_1_0);
+        auto scenarios = provider->createScenarios();
 
         for (auto&& scenario : scenarios) {
             using O = SimulationExecutor::Output;

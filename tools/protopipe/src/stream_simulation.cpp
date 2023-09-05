@@ -3,16 +3,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "etests_simulation.hpp"
+#include "stream_simulation.hpp"
 
 #include <filesystem>
 
 using OutVec = std::vector<cv::Mat>;
 namespace fs = std::filesystem;
 
-class ETestsSync : public SyncExecutor {
+class SyncStream : public SyncExecutor {
 public:
-    ETestsSync(cv::GCompiled&& compiled, const size_t num_outputs, const ValidationInfo& validation_info);
+    SyncStream(cv::GCompiled&& compiled, const size_t num_outputs, const ValidationInfo& validation_info);
 
     virtual void validate() override;
 
@@ -25,11 +25,11 @@ private:
     std::vector<OutVec> m_per_iter_outputs;
 };
 
-ETestsSync::ETestsSync(cv::GCompiled&& compiled, const size_t num_outputs, const ValidationInfo& validation_info)
+SyncStream::SyncStream(cv::GCompiled&& compiled, const size_t num_outputs, const ValidationInfo& validation_info)
         : SyncExecutor(std::move(compiled)), m_num_outputs(num_outputs), m_validation_info(validation_info) {
 }
 
-cv::GRunArgsP ETestsSync::outputs() {
+cv::GRunArgsP SyncStream::outputs() {
     m_per_iter_outputs.push_back(OutVec{m_num_outputs});
     auto& iter_outputs = m_per_iter_outputs.back();
 
@@ -40,7 +40,6 @@ cv::GRunArgsP ETestsSync::outputs() {
     return outs;
 }
 
-// NB: ETests uses bit exact comparison.
 static bool compare(const cv::Mat& lhs, const cv::Mat& rhs) {
     size_t lhs_byte_size = lhs.total() * lhs.elemSize();
     size_t rhs_byte_size = rhs.total() * rhs.elemSize();
@@ -93,7 +92,6 @@ static void runValidation(const ValidationInfo& validation_info, const std::vect
         }
     }
 
-    // NB: Perform the etests-like validation.
     std::vector<size_t> failed_iterations;
     std::vector<std::vector<ReferenceInfo>> failed_outname_per_iteration(num_iters);
 
@@ -141,13 +139,13 @@ static void runValidation(const ValidationInfo& validation_info, const std::vect
     }
 }
 
-void ETestsSync::validate() {
+void SyncStream::validate() {
     runValidation(m_validation_info, m_per_iter_outputs);
 }
 
-class ETestsPipelined : public PipelinedExecutor {
+class PipelinedStream : public PipelinedExecutor {
 public:
-    ETestsPipelined(cv::GStreamingCompiled&& compiled, const size_t num_outputs, const ValidationInfo& validation_info);
+    PipelinedStream(cv::GStreamingCompiled&& compiled, const size_t num_outputs, const ValidationInfo& validation_info);
 
     virtual void validate() override;
 
@@ -162,7 +160,7 @@ private:
     std::vector<OutVec> m_per_iter_outputs;
 };
 
-ETestsPipelined::ETestsPipelined(cv::GStreamingCompiled&& compiled, const size_t num_outputs,
+PipelinedStream::PipelinedStream(cv::GStreamingCompiled&& compiled, const size_t num_outputs,
                                  const ValidationInfo& validation_info)
         : PipelinedExecutor(std::move(compiled)),
           m_num_outputs(num_outputs),
@@ -170,7 +168,7 @@ ETestsPipelined::ETestsPipelined(cv::GStreamingCompiled&& compiled, const size_t
           m_out_mats(m_num_outputs) {
 }
 
-void ETestsPipelined::postIterationCallback() {
+void PipelinedStream::postIterationCallback() {
     m_per_iter_outputs.push_back(OutVec{m_num_outputs});
     auto& iter_outputs = m_per_iter_outputs.back();
 
@@ -181,7 +179,7 @@ void ETestsPipelined::postIterationCallback() {
     }
 }
 
-cv::GOptRunArgsP ETestsPipelined::outputs() {
+cv::GOptRunArgsP PipelinedStream::outputs() {
     cv::GOptRunArgsP outs;
     for (auto&& m : m_out_mats) {
         // FIXME: No cv::GOptRunArgsP::operator+=
@@ -190,19 +188,19 @@ cv::GOptRunArgsP ETestsPipelined::outputs() {
     return outs;
 }
 
-void ETestsPipelined::validate() {
+void PipelinedStream::validate() {
     runValidation(m_validation_info, m_per_iter_outputs);
 }
 
-ETestsSimulation::ETestsSimulation(Simulation::GraphBuildF&& build, const size_t num_outputs,
+StreamSimulation::StreamSimulation(Simulation::GraphBuildF&& build, const size_t num_outputs,
                                    ValidationInfo&& validation_info)
         : Simulation(std::move(build)), m_num_outputs(num_outputs), m_validation_info(std::move(validation_info)) {
 }
 
-SyncExecutor::Ptr ETestsSimulation::compileSync(cv::GCompiled&& sync) {
-    return std::make_shared<ETestsSync>(std::move(sync), m_num_outputs, m_validation_info);
+SyncExecutor::Ptr StreamSimulation::compileSync(cv::GCompiled&& sync) {
+    return std::make_shared<SyncStream>(std::move(sync), m_num_outputs, m_validation_info);
 }
 
-PipelinedExecutor::Ptr ETestsSimulation::compilePipelined(cv::GStreamingCompiled&& pipelined) {
-    return std::make_shared<ETestsPipelined>(std::move(pipelined), m_num_outputs, m_validation_info);
+PipelinedExecutor::Ptr StreamSimulation::compilePipelined(cv::GStreamingCompiled&& pipelined) {
+    return std::make_shared<PipelinedStream>(std::move(pipelined), m_num_outputs, m_validation_info);
 }

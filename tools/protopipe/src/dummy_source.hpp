@@ -10,7 +10,7 @@
 #include <thread>
 
 #include <opencv2/gapi.hpp>
-#include <opencv2/gapi/streaming/cap.hpp>  // cv::gapi::wip::IStreamSource
+#include <opencv2/gapi/streaming/source.hpp>  // cv::gapi::wip::IStreamSource
 
 #include "timer.hpp"
 #include "utils.hpp"

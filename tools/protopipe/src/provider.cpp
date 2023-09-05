@@ -3,8 +3,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "etests_provider.hpp"
-#include "etests_simulation.hpp"
+#include "provider.hpp"
+#include "stream_simulation.hpp"
 
 #include "dummy_source.hpp"
 #include "inference_builder.hpp"
@@ -28,8 +28,8 @@ static std::string toPriority(const std::string& priority) {
     throw std::logic_error("Unsupported model priority: " + priority);
 }
 
-ETestsProvider::ETestsProvider(const std::string& filepath, const bool use_ov_old_api)
-        : m_use_ov_old_api(use_ov_old_api), m_config(ETestsConfig::parseFromYAML(filepath)) {
+ScenarioProvider::ScenarioProvider(const std::string& filepath, const bool use_ov_old_api)
+        : m_use_ov_old_api(use_ov_old_api), m_config(Config::parseFromYAML(filepath)) {
 }
 
 template <typename Params>
@@ -47,14 +47,14 @@ Params createParams(const std::string& tag, const Path& path, const std::string&
     return *params;
 }
 
-cv::gapi::GNetPackage ETestsProvider::createIEParams(const std::string& tag, const Network& network) {
+cv::gapi::GNetPackage ScenarioProvider::createIEParams(const std::string& tag, const Network& network) {
     using P = cv::gapi::ie::Params<cv::gapi::Generic>;
     auto params = createParams<P>(tag, network.path, m_config.device);
 
     auto plugin_config = network.config;
-    if (m_config.device == "VPU") {
+    if (m_config.device == "NPU") {
         plugin_config["MODEL_PRIORITY"] = toPriority(network.priority);
-        plugin_config["VPUX_COMPILER_TYPE"] = m_config.compiler_type;
+        plugin_config["NPU_COMPILER_TYPE"] = m_config.compiler_type;
     }
     params.pluginConfig(plugin_config);
     // NB: For model in blob format ip/op have been already specified.
@@ -84,14 +84,14 @@ cv::gapi::GNetPackage ETestsProvider::createIEParams(const std::string& tag, con
     return cv::gapi::networks(params);
 }
 
-cv::gapi::GNetPackage ETestsProvider::createOVParams(const std::string& tag, const Network& network) {
+cv::gapi::GNetPackage ScenarioProvider::createOVParams(const std::string& tag, const Network& network) {
     using P = cv::gapi::ov::Params<cv::gapi::Generic>;
     auto params = createParams<P>(tag, network.path, m_config.device);
 
     auto plugin_config = network.config;
-    if (m_config.device == "VPU") {
+    if (m_config.device == "NPU") {
         plugin_config["MODEL_PRIORITY"] = toPriority(network.priority);
-        plugin_config["VPUX_COMPILER_TYPE"] = m_config.compiler_type;
+        plugin_config["NPU_COMPILER_TYPE"] = m_config.compiler_type;
     }
     params.cfgPluginConfig(plugin_config);
     // NB: For model in blob format ip/op have been already specified.
@@ -132,7 +132,7 @@ cv::gapi::GNetPackage ETestsProvider::createOVParams(const std::string& tag, con
     return cv::gapi::networks(params);
 }
 
-cv::gapi::GNetPackage ETestsProvider::createInferenceParams(const std::string& tag, const Network& network) {
+cv::gapi::GNetPackage ScenarioProvider::createInferenceParams(const std::string& tag, const Network& network) {
     return m_use_ov_old_api ? createIEParams(tag, network) : createOVParams(tag, network);
 }
 
@@ -207,7 +207,7 @@ static std::map<std::string, cv::optional<cv::Mat>> collectReferenceData(const L
 
 // FIXME: Decompose this method !!!
 // Separate graph construction logic from parameters and input data.
-std::vector<Scenario> ETestsProvider::createScenarios() {
+std::vector<Scenario> ScenarioProvider::createScenarios() {
     auto reader = ILayersReader::create(m_use_ov_old_api);
 
     std::vector<Scenario> use_cases;
@@ -305,7 +305,7 @@ std::vector<Scenario> ETestsProvider::createScenarios() {
             ValidationInfo validation_info{m_config.save_per_iteration_output_data, stream_id,
                                            std::move(validation_map)};
             auto simulation =
-                    std::make_shared<ETestsSimulation>(builder.build(), num_outputs, std::move(validation_info));
+                    std::make_shared<StreamSimulation>(builder.build(), num_outputs, std::move(validation_info));
             std::shared_ptr<ExecutionProtocol> protocol(new ExecutionProtocol{
                     std::move(simulation), std::move(pipeline_inputs),
                     cv::compile_args(networks, cv::gapi::kernels<GCPUDummy>()), std::move(criterion)});

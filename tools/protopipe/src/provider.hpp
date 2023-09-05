@@ -5,26 +5,26 @@
 
 #pragma once
 
-#include <memory>
+#include "config.hpp"
+#include "scenario_provider.hpp"
+
+#include <opencv2/gapi/infer.hpp>  // GNetPackage
+
 #include <string>
-#include <unordered_map>
 #include <vector>
 
-#include "simulation.hpp"
+class ScenarioProvider : public IScenarioProvider {
+public:
+    ScenarioProvider(const std::string& filepath, const bool use_ov_old_api);
 
-struct ExecutionProtocol {
-    Simulation::Ptr simulation;
-    cv::GRunArgs inputs;
-    cv::GCompileArgs compile_args;
-    ITermCriterion::Ptr criterion;
-};
+    virtual std::vector<Scenario> createScenarios() override;
 
-struct Scenario {
-    using EP = std::shared_ptr<ExecutionProtocol>;
-    std::vector<EP> protocols;
-};
+private:
+    cv::gapi::GNetPackage createInferenceParams(const std::string& tag, const Network& network);
+    cv::gapi::GNetPackage createIEParams(const std::string& tag, const Network& network);
+    cv::gapi::GNetPackage createOVParams(const std::string& tag, const Network& network);
 
-struct IScenarioProvider {
-    virtual std::vector<Scenario> createScenarios() = 0;
-    virtual ~IScenarioProvider() = default;
+private:
+    bool m_use_ov_old_api;
+    Config m_config;
 };
