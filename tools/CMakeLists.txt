@@ -18,6 +18,8 @@ add_subdirectory(profiling_parser)
 
 add_subdirectory(vpux-binutils)
 
+add_subdirectory(protopipe)
+
 add_subdirectory(legacy/single-image-test)
 
 
